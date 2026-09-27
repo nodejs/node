@@ -28,6 +28,8 @@
 #include "frozen/bits/basic_types.h"
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 
 namespace frozen {
@@ -48,7 +50,7 @@ struct bucket_size_compare {
 // hash function.
 // pmh_buckets represents the initial placement into buckets.
 
-template <size_t M>
+template <std::size_t M>
 struct pmh_buckets {
   // Step 0: Bucket max is 2 * sqrt M
   // TODO: Come up with justification for this, should it not be O(log M)?
@@ -56,7 +58,7 @@ struct pmh_buckets {
 
   using bucket_t = cvector<std::size_t, bucket_max>;
   carray<bucket_t, M> buckets;
-  uint64_t seed;
+  std::uint64_t seed;
 
   // Represents a reference to a bucket. This is used because the buckets
   // have to be sorted, but buckets are big, making it slower than sorting refs
@@ -88,23 +90,19 @@ struct pmh_buckets {
   }
 };
 
-template <size_t M, class Item, size_t N, class Hash, class Key, class PRG>
+template <std::size_t M, class Item, std::size_t N, class Hash, class Key, class PRG>
 pmh_buckets<M> constexpr make_pmh_buckets(const carray<Item, N> & items,
                                 Hash const & hash,
                                 Key const & key,
                                 PRG & prg) {
   using result_t = pmh_buckets<M>;
-  result_t result{};
-  bool rejected = false;
   // Continue until all items are placed without exceeding bucket_max
   while (1) {
-    for (auto & b : result.buckets) {
-      b.clear();
-    }
+    result_t result{};
     result.seed = prg();
-    rejected = false;
-    for (std::size_t i = 0; i < N; ++i) {
-      auto & bucket = result.buckets[hash(key(items[i]), static_cast<size_t>(result.seed)) % M];
+    bool rejected = false;
+    for (std::size_t i = 0; i < items.size(); ++i) {
+      auto & bucket = result.buckets[hash(key(items[i]), static_cast<std::size_t>(result.seed)) % M];
       if (bucket.size() >= result_t::bucket_max) {
         rejected = true;
         break;
@@ -116,7 +114,7 @@ pmh_buckets<M> constexpr make_pmh_buckets(const carray<Item, N> & items,
 }
 
 // Check if an item appears in a cvector
-template<class T, size_t N>
+template<class T, std::size_t N>
 constexpr bool all_different_from(cvector<T, N> & data, T & a) {
   for (std::size_t i = 0; i < data.size(); ++i)
     if (data[i] == a)
@@ -128,7 +126,7 @@ constexpr bool all_different_from(cvector<T, N> & data, T & a) {
 // Represents either an index to a data item array, or a seed to be used with
 // a hasher. Seed must have high bit of 1, value has high bit of zero.
 struct seed_or_index {
-  using value_type = uint64_t;
+  using value_type = std::uint64_t;
 
 private:
   static constexpr value_type MINUS_ONE = std::numeric_limits<value_type>::max();
@@ -150,47 +148,72 @@ public:
 
 // Represents the perfect hash function created by pmh algorithm
 template <std::size_t M, class Hasher>
-struct pmh_tables {
-  uint64_t first_seed_;
+struct pmh_tables : private Hasher {
+  std::uint64_t first_seed_;
   carray<seed_or_index, M> first_table_;
   carray<std::size_t, M> second_table_;
-  Hasher hash_;
+
+  constexpr pmh_tables(
+      std::uint64_t first_seed,
+      carray<seed_or_index, M> first_table,
+      carray<std::size_t, M> second_table,
+      Hasher hash) noexcept
+    : Hasher(hash)
+    , first_seed_(first_seed)
+    , first_table_(first_table)
+    , second_table_(second_table)
+  {}
+
+  constexpr Hasher const& hash_function() const noexcept {
+    return static_cast<Hasher const&>(*this);
+  }
 
   template <typename KeyType>
   constexpr std::size_t lookup(const KeyType & key) const {
-    return lookup(key, hash_);
+    return lookup(key, hash_function());
   }
 
   // Looks up a given key, to find its expected index in carray<Item, N>
   // Always returns a valid index, must use KeyEqual test after to confirm.
   template <typename KeyType, typename HasherType>
   constexpr std::size_t lookup(const KeyType & key, const HasherType& hasher) const {
-    auto const d = first_table_[hasher(key, static_cast<size_t>(first_seed_)) % M];
-    if (!d.is_seed()) { return static_cast<std::size_t>(d.value()); } // this is narrowing uint64 -> size_t but should be fine
+    auto const d = first_table_[hasher(key, static_cast<std::size_t>(first_seed_)) % M];
+    if (!d.is_seed()) { return static_cast<std::size_t>(d.value()); } // this is narrowing std::uint64 -> std::size_t but should be fine
     else { return second_table_[hasher(key, static_cast<std::size_t>(d.value())) % M]; }
   }
 };
 
 // Make pmh tables for given items, hash function, prg, etc.
-template <std::size_t M, class Item, std::size_t N, class Hash, class Key, class PRG>
+template <std::size_t M, class Item, std::size_t N, class Hash, class Key, class KeyEqual, class PRG>
 pmh_tables<M, Hash> constexpr make_pmh_tables(const carray<Item, N> &
                                                                items,
                                                            Hash const &hash,
+                                                           KeyEqual const &equal,
                                                            Key const &key,
                                                            PRG prg) {
   // Step 1: Place all of the keys into buckets
   auto step_one = make_pmh_buckets<M>(items, hash, key, prg);
 
+  // Step 1.5: Detect redundant keys.
+  for(auto const& bucket : step_one.buckets)
+    for(std::size_t i = 1; i < bucket.size(); ++i)
+      constexpr_assert(!equal(key(items[0]), key(items[i])), "structure keys should be unique");
+
   // Step 2: Sort the buckets to process the ones with the most items first.
   auto buckets = step_one.get_sorted_buckets();
 
+  // Special value for unused slots. This is purposefully the index
+  // one-past-the-end of 'items' to function as a sentinel value. Both to avoid
+  // the need to apply the KeyEqual predicate and to be easily convertible to
+  // end().
+  // Unused entries in both hash tables (G and H) have to contain this value.
+  const auto UNUSED = items.size();
+
   // G becomes the first hash table in the resulting pmh function
-  carray<seed_or_index, M> G; // Default constructed to "index 0"
+  carray<seed_or_index, M> G({false, UNUSED});
 
   // H becomes the second hash table in the resulting pmh function
-  constexpr std::size_t UNUSED = std::numeric_limits<std::size_t>::max();
-  carray<std::size_t, M> H;
-  H.fill(UNUSED);
+  carray<std::size_t, M> H(UNUSED);
 
   // Step 3: Map the items in buckets into hash tables.
   for (const auto & bucket : buckets) {
@@ -199,7 +222,7 @@ pmh_tables<M, Hash> constexpr make_pmh_tables(const carray<Item, N> &
     if (bsize == 1) {
       // Store index to the (single) item in G
       // assert(bucket.hash == hash(key(items[bucket[0]]), step_one.seed) % M);
-      G[bucket.hash] = {false, static_cast<uint64_t>(bucket[0])};
+      G[bucket.hash] = {false, static_cast<std::uint64_t>(bucket[0])};
     } else if (bsize > 1) {
 
       // Repeatedly try different H of d until we find a hash function
@@ -208,7 +231,7 @@ pmh_tables<M, Hash> constexpr make_pmh_tables(const carray<Item, N> &
       cvector<std::size_t, decltype(step_one)::bucket_max> bucket_slots;
 
       while (bucket_slots.size() < bsize) {
-        auto slot = hash(key(items[bucket[bucket_slots.size()]]), static_cast<size_t>(d.value())) % M;
+        auto slot = hash(key(items[bucket[bucket_slots.size()]]), static_cast<std::size_t>(d.value())) % M;
 
         if (H[slot] != UNUSED || !all_different_from(bucket_slots, slot)) {
           bucket_slots.clear();
@@ -226,14 +249,6 @@ pmh_tables<M, Hash> constexpr make_pmh_tables(const carray<Item, N> &
         H[bucket_slots[i]] = bucket[i];
     }
   }
-
-  // Any unused entries in the H table have to get changed to zero.
-  // This is because hashing should not fail or return an out-of-bounds entry.
-  // A lookup fails after we apply user-supplied KeyEqual to the query and the
-  // key found by hashing. Sending such queries to zero cannot hurt.
-  for (std::size_t i = 0; i < M; ++i)
-    if (H[i] == UNUSED)
-      H[i] = 0;
 
   return {step_one.seed, G, H, hash};
 }

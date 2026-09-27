@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,19 +34,16 @@ class LIEF_API DynamicEntryRunPath : public DynamicEntry {
   using DynamicEntry::DynamicEntry;
 
   DynamicEntryRunPath() :
-    DynamicEntry::DynamicEntry(DynamicEntry::TAG::RUNPATH, 0)
-  {}
+    DynamicEntry::DynamicEntry(DynamicEntry::TAG::RUNPATH, 0) {}
 
   /// Constructor from (run)path
   DynamicEntryRunPath(std::string runpath) :
     DynamicEntry::DynamicEntry(DynamicEntry::TAG::RUNPATH, 0),
-    runpath_(std::move(runpath))
-  {}
+    runpath_(std::move(runpath)) {}
 
   /// Constructor from a list of paths
   DynamicEntryRunPath(const std::vector<std::string>& paths) :
-    DynamicEntry::DynamicEntry(DynamicEntry::TAG::RUNPATH, 0)
-  {
+    DynamicEntry::DynamicEntry(DynamicEntry::TAG::RUNPATH, 0) {
     this->paths(paths);
   }
 
@@ -71,16 +68,17 @@ class LIEF_API DynamicEntryRunPath : public DynamicEntry {
   void paths(const std::vector<std::string>& paths);
 
   /// Insert a ``path`` at the given ``position``
-  DynamicEntryRunPath& insert(size_t pos, const std::string& path);
+  DynamicEntryRunPath& insert(size_t pos,
+                              const std::string& path) LIEF_LIFETIMEBOUND;
 
   /// Append the given ``path``
-  DynamicEntryRunPath& append(const std::string& path);
+  DynamicEntryRunPath& append(const std::string& path) LIEF_LIFETIMEBOUND;
 
   /// Remove the given ``path``
-  DynamicEntryRunPath& remove(const std::string& path);
+  DynamicEntryRunPath& remove(const std::string& path) LIEF_LIFETIMEBOUND;
 
-  DynamicEntryRunPath& operator+=(std::string path) {
-    return append(std::move(path));
+  DynamicEntryRunPath& operator+=(const std::string& path) {
+    return append(path);
   }
 
   DynamicEntryRunPath& operator-=(const std::string& path) {
@@ -95,7 +93,7 @@ class LIEF_API DynamicEntryRunPath : public DynamicEntry {
 
   std::ostream& print(std::ostream& os) const override;
 
-  ~DynamicEntryRunPath() = default;
+  ~DynamicEntryRunPath() override = default;
 
   private:
   std::string runpath_;

@@ -1,5 +1,5 @@
 /* Copyright 2017 - 2021 A. Guinet
- * Copyright 2017 - 2025 Quarkslab
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 #ifndef LIEF_CONFIG_H
 #define LIEF_CONFIG_H
+
+// clang-format off
 
 // Main formats
 #cmakedefine LIEF_PE_SUPPORT       @LIEF_PE_SUPPORT@
@@ -37,6 +39,7 @@
 #cmakedefine LIEF_EXTENDED          @LIEF_EXTENDED@
 
 // LIEF options
+#cmakedefine LIEF_RUNTIME_SUPPORT   @LIEF_RUNTIME_SUPPORT@
 #cmakedefine LIEF_JSON_SUPPORT      @ENABLE_JSON_SUPPORT@
 #cmakedefine LIEF_LOGGING_SUPPORT   @LIEF_LOGGING_SUPPORT@
 #cmakedefine LIEF_LOGGING_DEBUG     @LIEF_LOGGING_DEBUG_SUPPORT@
@@ -66,12 +69,13 @@ static constexpr bool lief_debug_info      = @LIEF_DEBUG_INFO_SUPPORT@;
 static constexpr bool lief_objc            = @LIEF_OBJC_SUPPORT@;
 static constexpr bool lief_extended        = @LIEF_EXTENDED@;
 
+static constexpr bool lief_runtime_support = @LIEF_RUNTIME_SUPPORT@;
 static constexpr bool lief_json_support    = @LIEF_JSON_SUPPORT@;
 static constexpr bool lief_logging_support = @LIEF_LOGGING_SUPPORT@;
 static constexpr bool lief_logging_debug   = @LIEF_LOGGING_DEBUG_SUPPORT@;
 static constexpr bool lief_frozen_enabled  = @LIEF_FROZEN_ENABLED@;
 
 
-#endif // __cplusplus
+#endif
 
 #endif

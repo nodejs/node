@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,28 +29,29 @@ class Parser;
 class Class;
 
 /// Class which represents a DEX type as described in the
-/// format specifications: https://source.android.com/devices/tech/dalvik/dex-format#typedescriptor
+/// format specifications:
+/// https://source.android.com/devices/tech/dalvik/dex-format#typedescriptor
 class LIEF_API Type : public Object {
   friend class Parser;
 
   public:
   enum class TYPES {
-    UNKNOWN   = 0,
+    UNKNOWN = 0,
     PRIMITIVE = 1,
-    CLASS     = 2,
-    ARRAY     = 3,
+    CLASS = 2,
+    ARRAY = 3,
   };
 
   enum class PRIMITIVES {
-    VOID_T  = 0x01,
+    VOID_T = 0x01,
     BOOLEAN = 0x02,
-    BYTE    = 0x03,
-    SHORT   = 0x04,
-    CHAR    = 0x05,
-    INT     = 0x06,
-    LONG    = 0x07,
-    FLOAT   = 0x08,
-    DOUBLE  = 0x09,
+    BYTE = 0x03,
+    SHORT = 0x04,
+    CHAR = 0x05,
+    INT = 0x06,
+    LONG = 0x07,
+    FLOAT = 0x08,
+    DOUBLE = 0x09,
   };
 
   using array_t = std::vector<Type>;
@@ -87,8 +88,8 @@ class LIEF_API Type : public Object {
   size_t dim() const;
 
   /// In the case of a TYPES::ARRAY, return the array's type
-  const Type& underlying_array_type() const;
-  Type& underlying_array_type();
+  const Type& underlying_array_type() const LIEF_LIFETIMEBOUND;
+  Type& underlying_array_type() LIEF_LIFETIMEBOUND;
 
   void accept(Visitor& visitor) const override;
 

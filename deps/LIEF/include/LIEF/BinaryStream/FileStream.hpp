@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,8 +33,7 @@ class LIEF_API FileStream : public BinaryStream {
   FileStream(std::ifstream fs, uint64_t size) :
     BinaryStream(STREAM_TYPE::FILE),
     ifs_(std::move(fs)),
-    size_(size)
-  {}
+    size_(size) {}
 
   FileStream() = delete;
 
@@ -56,7 +55,7 @@ class LIEF_API FileStream : public BinaryStream {
   }
 
   ok_error_t peek_in(void* dst, uint64_t offset, uint64_t size,
-                     uint64_t /* virtual_address */= 0) const override {
+                     uint64_t /* virtual_address */ = 0) const override {
     if (offset > size_ || offset + size > size_) {
       return make_error_code(lief_errors::read_error);
     }

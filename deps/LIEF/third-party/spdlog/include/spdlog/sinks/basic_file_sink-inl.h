@@ -4,7 +4,7 @@
 #pragma once
 
 #ifndef SPDLOG_HEADER_ONLY
-    #include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/basic_file_sink.h>
 #endif
 
 #include <spdlog/common.h>

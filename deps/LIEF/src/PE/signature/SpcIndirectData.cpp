@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@
 
 #include <spdlog/fmt/fmt.h>
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 void SpcIndirectData::accept(Visitor& visitor) const {
   visitor.visit(*this);
@@ -30,12 +30,12 @@ void SpcIndirectData::accept(Visitor& visitor) const {
 
 void SpcIndirectData::print(std::ostream& os) const {
   if (!file().empty()) {
-    os << fmt::format("{} - {} - {}\n", to_string(digest_algorithm()),
-                      file(), hex_dump(digest()));
+    os << fmt::format("{} - {} - {}\n", to_string(digest_algorithm()), file(),
+                      hex_dump(digest()));
   } else {
-    os << fmt::format("{}: {}\n", to_string(digest_algorithm()), hex_dump(digest()));
+    os << fmt::format("{}: {}\n", to_string(digest_algorithm()),
+                      hex_dump(digest()));
   }
 }
 
-}
 }

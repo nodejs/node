@@ -1,4 +1,4 @@
-/* Copyright 2021 - 2025 R. Thomas
+/* Copyright 2021 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,9 +12,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <cstddef>
 #include <spdlog/fmt/fmt.h>
 
 #include "MachO/Structures.hpp"
+#include "LIEF/range.hpp"
 
 #include "LIEF/BinaryStream/SpanStream.hpp"
 
@@ -30,17 +32,21 @@
 #include "LIEF/MachO/DyldInfo.hpp"
 #include "LIEF/MachO/DylibCommand.hpp"
 #include "LIEF/MachO/DynamicSymbolCommand.hpp"
+#include "LIEF/MachO/ExportInfo.hpp"
 #include "LIEF/MachO/FunctionStarts.hpp"
 #include "LIEF/MachO/FunctionVariants.hpp"
 #include "LIEF/MachO/FunctionVariantFixups.hpp"
+#include "LIEF/MachO/LazyLoadDylibInfo.hpp"
 #include "LIEF/MachO/LinkerOptHint.hpp"
 #include "LIEF/MachO/MainCommand.hpp"
 #include "LIEF/MachO/RPathCommand.hpp"
 #include "LIEF/MachO/Section.hpp"
 #include "LIEF/MachO/SegmentCommand.hpp"
 #include "LIEF/MachO/SegmentSplitInfo.hpp"
+#include "LIEF/MachO/Symbol.hpp"
 #include "LIEF/MachO/SymbolCommand.hpp"
 #include "LIEF/MachO/ThreadCommand.hpp"
+#include "LIEF/MachO/ThreadLocalVariables.hpp"
 #include "LIEF/MachO/TwoLevelHints.hpp"
 #include "LIEF/MachO/utils.hpp"
 #include "LIEF/utils.hpp"
@@ -50,7 +56,9 @@
 #include "logging.hpp"
 #include "Object.tcc"
 
+#include <algorithm>
 #include <string>
+#include <unordered_set>
 
 namespace LIEF::MachO {
 template<typename T, typename U>
@@ -73,8 +81,7 @@ class LayoutChecker {
   public:
   LayoutChecker() = delete;
   LayoutChecker(const Binary& macho) :
-    binary(macho)
-  {}
+    binary(macho) {}
 
 
   bool check();
@@ -84,9 +91,9 @@ class LayoutChecker {
     return false;
   }
 
-  template <typename... Args>
-  bool error(const char *fmt, const Args &... args) {
-    error_msg = fmt::format(fmt, args...);
+  template<typename... Args>
+  bool error(const char* fmt, const Args&... args) {
+    error_msg = fmt::format(fmt::runtime(fmt), args...);
     return false;
   }
 
@@ -114,6 +121,10 @@ class LayoutChecker {
   // Mirror ChainedFixups::valid
   bool check_chained_fixups();
 
+  // Mirror of mach_o::ExportsTrie::valid (dyld's mach_o/ExportsTrie.cpp)
+  // combined with the maxVmOffset computation from Image::validLinkedit.
+  bool check_exports_trie();
+
   // Check from PR #1136
   // See: https://github.com/lief-project/LIEF/pull/1136/files#r1882625692
   bool check_section_contiguity();
@@ -121,11 +132,22 @@ class LayoutChecker {
   // From FunctionVariants::valid()
   bool check_function_variants();
 
+  // Consistency of LC_FUNCTION_VARIANT_FIXUPS (cf. dyld's interpretation of
+  // FunctionVariantFixups::InternalFixup)
+  bool check_function_variant_fixups();
+
+  // Mirror of mach_o::LazyLoadDylib::valid() for LC_LAZY_LOAD_DYLIB_INFO
+  bool check_lazy_load_dylib_infos();
+
   bool check_linkedit_end();
 
+  bool check_tls();
+
+  bool check_export(uint64_t imagebase, uint64_t max_vm_offset,
+                    const ExportInfo& info);
+
   size_t ptr_size() const {
-    return binary.header().is_32bit() ? sizeof(uint32_t) :
-                                        sizeof(uint64_t);
+    return binary.header().is_32bit() ? sizeof(uint32_t) : sizeof(uint64_t);
   }
 
   const std::string& get_error() const {
@@ -150,9 +172,9 @@ bool LayoutChecker::check_initializers() {
     using base_t::base_t;
 
     bool contain(uint64_t addr) const {
-      return std::find_if(begin(), end(), [addr] (const range_t& R) {
-        return R.va_start <= addr && addr < (R.va_start + R.va_end);
-      }) != end();
+      return std::find_if(begin(), end(), [addr](const range_t& R) {
+               return R.va_start <= addr && addr < (R.va_start + R.va_end);
+             }) != end();
     }
   };
 
@@ -163,10 +185,9 @@ bool LayoutChecker::check_initializers() {
   ranges.reserve(binary.segments().size());
   for (const SegmentCommand& segment : binary.segments()) {
     if (segment.is(SegmentCommand::VM_PROTECTIONS::EXECUTE)) {
-      ranges.push_back({
-        segment.virtual_address(), segment.virtual_address() + segment.virtual_size(),
-        segment.file_size()
-      });
+      ranges.push_back({segment.virtual_address(),
+                        segment.virtual_address() + segment.virtual_size(),
+                        segment.file_size()});
     }
   }
 
@@ -182,27 +203,30 @@ bool LayoutChecker::check_initializers() {
 
     uint64_t init_addr = routines->init_address();
     if (!ranges.contain(init_addr)) {
-      return error("LC_ROUTINE/64 initializer 0x{:016x} is not an offset "
-                   "to an executable segment", init_addr);
+      return error("LC_ROUTINE/64 initializer {:#018x} is not an offset "
+                   "to an executable segment",
+                   init_addr);
     }
   }
 
   for (const Section& section : binary.sections()) {
     const bool contains_init_ptr =
-      section.type() == Section::TYPE::MOD_INIT_FUNC_POINTERS ||
-      section.type() == Section::TYPE::MOD_TERM_FUNC_POINTERS;
+        section.type() == Section::TYPE::MOD_INIT_FUNC_POINTERS ||
+        section.type() == Section::TYPE::MOD_TERM_FUNC_POINTERS;
 
     if (!contains_init_ptr) {
       continue;
     }
 
     if (section.size() % ptr_size != 0) {
-      return error("Section '{}' size (0x{:08x}) is not a multiple of pointer-size",
-                   section.name(), section.size());
+      return error(
+          "Section '{}' size ({:#010x}) is not a multiple of pointer-size",
+          section.name(), section.size()
+      );
     }
 
     if (section.address() % ptr_size != 0) {
-      return error("Section '{}' address (0x{:08x}) is not pointer aligned",
+      return error("Section '{}' address ({:#010x}) is not pointer aligned",
                    section.name(), section.address());
     }
 
@@ -212,8 +236,8 @@ bool LayoutChecker::check_initializers() {
       if (ptr_size == sizeof(uint32_t)) {
         auto res = stream.read<uint32_t>();
         if (!res) {
-          return error("Can't read pointer at 0x{:04x} in {}",
-                       stream.pos(), section.name());
+          return error("Can't read pointer at {:#06x} in {}", stream.pos(),
+                       section.name());
         }
 
         // As mentioned in the dyld documentation:
@@ -223,8 +247,8 @@ bool LayoutChecker::check_initializers() {
       } else {
         auto res = stream.read<uint64_t>();
         if (!res) {
-          return error("Can't read pointer at 0x{:04x} in {}",
-                       stream.pos(), section.name());
+          return error("Can't read pointer at {:#06x} in {}", stream.pos(),
+                       section.name());
         }
         // As mentioned in the dyld documentation:
         //  > FIXME: as a quick hack, the low 32-bits with either rebase opcodes
@@ -232,8 +256,10 @@ bool LayoutChecker::check_initializers() {
         ptr = *res & 0x03FFFFFF;
       }
       if (!ranges.contain(imagebase + ptr)) {
-        return error("initializer at 0x{:06x} in {} is not in an executable segment",
-                     stream.pos(), section.name());
+        return error(
+            "initializer at {:#08x} in {} is not in an executable segment",
+            stream.pos(), section.name()
+        );
       }
     }
   }
@@ -244,8 +270,10 @@ bool LayoutChecker::check_initializers() {
       continue;
     }
     if (section.segment()->is(SegmentCommand::VM_PROTECTIONS::WRITE)) {
-      return error("initializer offsets section {}/{} must be in read-only segment",
-                   section.segment_name(), section.name());
+      return error(
+          "initializer offsets section {}/{} must be in read-only segment",
+          section.segment_name(), section.name()
+      );
     }
 
     if (section.size() % 4 != 0) {
@@ -263,26 +291,28 @@ bool LayoutChecker::check_initializers() {
     while (stream) {
       auto res = stream.read<uint32_t>();
       if (!res) {
-        return error("Can't read pointer at 0x{:04} in {}",
-                     stream.pos(), section.name());
+        return error("Can't read pointer at {:#06x} in {}", stream.pos(),
+                     section.name());
       }
 
       if (!ranges.contain(imagebase + *res)) {
-        return error("initializer 0x{:08x} is not an offset to an executable "
-                     "segment", *res);
+        return error("initializer {:#010x} is not an offset to an executable "
+                     "segment",
+                     *res);
       }
     }
-
   }
   return true;
 }
 
 bool LayoutChecker::check_segments() {
   const size_t sizeof_segment_hdr = binary.header().is_32bit() ?
-    sizeof(details::segment_command_32) : sizeof(details::segment_command_64);
+                                        sizeof(details::segment_command_32) :
+                                        sizeof(details::segment_command_64);
 
   const size_t sizeof_section_hdr = binary.header().is_32bit() ?
-    sizeof(details::section_32) : sizeof(details::section_64);
+                                        sizeof(details::section_32) :
+                                        sizeof(details::section_64);
 
   for (const SegmentCommand& segment : binary.segments()) {
     int32_t section_space = segment.size() - sizeof_segment_hdr;
@@ -292,17 +322,21 @@ bool LayoutChecker::check_segments() {
     }
 
     if ((section_space % sizeof_section_hdr) != 0) {
-      return error("segment load command size {}: 0x{:04x} will not fit "
-                   "whole number of sections", segment.name(), segment.size());
+      return error("segment load command size {}: {:#06x} will not fit "
+                   "whole number of sections",
+                   segment.name(), segment.size());
     }
 
-    if ((uint32_t)section_space != segment.numberof_sections() * sizeof_section_hdr) {
+    if ((uint32_t)section_space !=
+        segment.numberof_sections() * sizeof_section_hdr)
+    {
       return error("segment {} does not match nsects", segment.name(),
                    segment.numberof_sections());
     }
 
     if ((segment.file_size() > segment.virtual_size()) &&
-        (segment.virtual_size() != 0 || (segment.flags() & (uint32_t)SegmentCommand::FLAGS::NORELOC) != 0))
+        (segment.virtual_size() != 0 ||
+         (segment.flags() & (uint32_t)SegmentCommand::FLAGS::NORELOC) != 0))
     {
       return error("in segment {}, filesize exceeds vmsize", segment.name());
     }
@@ -332,44 +366,56 @@ bool LayoutChecker::check_segments() {
 
 bool LayoutChecker::check_overlapping() {
   for (const SegmentCommand& lhs : binary.segments()) {
-    const uint64_t lhs_vm_end   = lhs.virtual_address() + lhs.virtual_size();
+    const uint64_t lhs_vm_end = lhs.virtual_address() + lhs.virtual_size();
     const uint64_t lhs_file_end = lhs.file_offset() + lhs.file_size();
     for (const SegmentCommand& rhs : binary.segments()) {
       if (lhs.index() == rhs.index()) {
         continue;
       }
-      const uint64_t rhs_vm_end   = rhs.virtual_address() + rhs.virtual_size();
+      const uint64_t rhs_vm_end = rhs.virtual_address() + rhs.virtual_size();
       const uint64_t rhs_file_end = rhs.file_offset() + rhs.file_size();
 
-      const bool vm_overalp = (rhs.virtual_address() <= lhs.virtual_address() && rhs_vm_end > lhs.virtual_address() && lhs_vm_end > lhs.virtual_address()) ||
-                              (rhs.virtual_address() >= lhs.virtual_address()  && rhs.virtual_address() < lhs_vm_end && rhs_vm_end > rhs.virtual_address());
+      const bool vm_overalp = (rhs.virtual_address() <= lhs.virtual_address() &&
+                               rhs_vm_end > lhs.virtual_address() &&
+                               lhs_vm_end > lhs.virtual_address()) ||
+                              (rhs.virtual_address() >= lhs.virtual_address() &&
+                               rhs.virtual_address() < lhs_vm_end &&
+                               rhs_vm_end > rhs.virtual_address());
       if (vm_overalp) {
         error(R"delim(
               Segments '{}' and '{}' overlap (virtual addresses):
-              [0x{:08x}, 0x{:08x}] [0x{:08x}, 0x{:08x}]
-              )delim", lhs.name(), rhs.name(),
-              lhs.virtual_address(), lhs_vm_end, rhs.virtual_address(), rhs_vm_end);
+              [{:#010x}, {:#010x}] [{:#010x}, {:#010x}]
+              )delim",
+              lhs.name(), rhs.name(), lhs.virtual_address(), lhs_vm_end,
+              rhs.virtual_address(), rhs_vm_end);
         return true;
       }
-      const bool file_overlap = (rhs.file_offset() <= lhs.file_offset() && rhs_file_end > lhs.file_offset() && lhs_file_end > lhs.file_offset()) ||
-                                (rhs.file_offset() >= lhs.file_offset()  && rhs.file_offset() < lhs_file_end && rhs_file_end > rhs.file_offset());
+      const bool file_overlap =
+          (rhs.file_offset() <= lhs.file_offset() &&
+           rhs_file_end > lhs.file_offset() && lhs_file_end > lhs.file_offset()) ||
+          (rhs.file_offset() >= lhs.file_offset() &&
+           rhs.file_offset() < lhs_file_end && rhs_file_end > rhs.file_offset());
       if (file_overlap) {
         error(R"delim(
               Segments '{}' and '{}' overlap (file offsets):
-              [0x{:08x}, 0x{:08x}] [0x{:08x}, 0x{:08x}]
-              )delim", lhs.name(), rhs.name(),
-              lhs.file_offset(), lhs_file_end, rhs.file_offset(), rhs_file_end);
+              [{:#010x}, {:#010x}] [{:#010x}, {:#010x}]
+              )delim",
+              lhs.name(), rhs.name(), lhs.file_offset(), lhs_file_end,
+              rhs.file_offset(), rhs_file_end);
         return true;
       }
 
       if (lhs.index() < rhs.index()) {
 
-        const bool wrong_order = lhs.virtual_address() > rhs.virtual_address() ||
-                                 (lhs.file_offset() > rhs.file_offset() && lhs.file_offset() != 0 && rhs.file_offset() != 0);
+        const bool wrong_order =
+            lhs.virtual_address() > rhs.virtual_address() ||
+            (lhs.file_offset() > rhs.file_offset() && lhs.file_offset() != 0 &&
+             rhs.file_offset() != 0);
         if (wrong_order) {
           error(R"delim(
                 Segments '{}' and '{}' are wrongly ordered
-                )delim", lhs.name(), rhs.name());
+                )delim",
+                lhs.name(), rhs.name());
           return true;
         }
       }
@@ -381,9 +427,9 @@ bool LayoutChecker::check_overlapping() {
 
 // Mirror MachOAnalyzer::validLoadCommands
 bool LayoutChecker::check_load_commands() {
-  const size_t sizeof_header =
-    binary.header().is_32bit() ? sizeof(details::mach_header) :
-                                 sizeof(details::mach_header_64);
+  const size_t sizeof_header = binary.header().is_32bit() ?
+                                   sizeof(details::mach_header) :
+                                   sizeof(details::mach_header_64);
 
   const size_t last_cmd_offset = sizeof_header + binary.header().sizeof_cmds();
 
@@ -426,7 +472,8 @@ bool LayoutChecker::check_load_commands() {
       const auto start = raw.begin() + rpath->path_offset();
       auto it = std::find(start, raw.end(), '\0');
       if (it == raw.end()) {
-        return error("{}: string extends beyond end of load command", rpath->path());
+        return error("{}: string extends beyond end of load command",
+                     rpath->path());
       }
     }
   }
@@ -445,7 +492,8 @@ bool LayoutChecker::check_main() {
   if (const MainCommand* cmd = binary.main_command()) {
     has_main = true;
     uint64_t start_address = binary.imagebase() + cmd->entrypoint();
-    const SegmentCommand* segment = binary.segment_from_virtual_address(start_address);
+    const SegmentCommand* segment =
+        binary.segment_from_virtual_address(start_address);
     if (segment == nullptr) {
       return error("LC_MAIN entryoff is out of range");
     }
@@ -463,7 +511,8 @@ bool LayoutChecker::check_main() {
       return error("LC_UNIXTHREAD not valid for the current arch");
     }
 
-    const SegmentCommand* segment = binary.segment_from_virtual_address(start_address);
+    const SegmentCommand* segment =
+        binary.segment_from_virtual_address(start_address);
     if (segment == nullptr) {
       return error("LC_MAIN entryoff is out of range");
     }
@@ -487,31 +536,33 @@ bool LayoutChecker::check_main() {
 // Mirror of MachOAnalyzer::validEmbeddedPaths
 bool LayoutChecker::check_valid_paths() {
   bool has_install_name = false;
-  int dependents_count  = 0;
+  int dependents_count = 0;
   for (const LoadCommand& cmd : binary.commands()) {
     switch (cmd.command()) {
       case LoadCommand::TYPE::ID_DYLIB:
-        {
-          has_install_name = true;
-          [[fallthrough]];
-        }
+      {
+        has_install_name = true;
+        [[fallthrough]];
+      }
       case LoadCommand::TYPE::LOAD_DYLIB:
       case LoadCommand::TYPE::LOAD_WEAK_DYLIB:
       case LoadCommand::TYPE::REEXPORT_DYLIB:
       case LoadCommand::TYPE::LOAD_UPWARD_DYLIB:
-        {
-          if (!DylibCommand::classof(&cmd)) {
-            LIEF_ERR("{} is not associated with a DylibCommand which should be the case",
-                     to_string(cmd.command()));
-            break;
-          }
-          auto& dylib = *cmd.as<DylibCommand>();
-          if (dylib.command() != LoadCommand::TYPE::ID_DYLIB) {
-            ++dependents_count;
-          }
+      {
+        if (!DylibCommand::classof(&cmd)) {
+          LIEF_ERR("{} is not associated with a DylibCommand",
+                   to_string(cmd.command()));
           break;
         }
-      default: {}
+        auto& dylib = *cmd.as<DylibCommand>();
+        if (dylib.command() != LoadCommand::TYPE::ID_DYLIB) {
+          ++dependents_count;
+        }
+        break;
+      }
+      default:
+      {
+      }
     }
   }
 
@@ -525,8 +576,8 @@ bool LayoutChecker::check_valid_paths() {
       return error("LC_ID_DYLIB command found in a non MH_DYLIB file");
     }
   }
-  const bool is_dynamic_exe =
-    ftype == Header::FILE_TYPE::EXECUTE && binary.has(LoadCommand::TYPE::LOAD_DYLINKER);
+  const bool is_dynamic_exe = ftype == Header::FILE_TYPE::EXECUTE &&
+                              binary.has(LoadCommand::TYPE::LOAD_DYLINKER);
   if (dependents_count == 0 && is_dynamic_exe) {
     return error("Missing libraries. It must link with at least one library "
                  "(like libSystem.dylib)");
@@ -539,10 +590,15 @@ bool LayoutChecker::check_linkedit() {
   struct chunk_t {
     enum class KIND {
       UNKNOWN = 0,
-      SYMTAB, SYMTAB_STR,
-      DYSYMTAB_LOC_REL, DYSYMTAB_EXT_REL, DYSYMTAB_INDIRECT_SYM,
-      DYLD_INFO_REBASES, DYLD_INFO_BIND,
-      DYLD_INFO_WEAK_BIND, DYLD_INFO_LAZY_BIND,
+      SYMTAB,
+      SYMTAB_STR,
+      DYSYMTAB_LOC_REL,
+      DYSYMTAB_EXT_REL,
+      DYSYMTAB_INDIRECT_SYM,
+      DYLD_INFO_REBASES,
+      DYLD_INFO_BIND,
+      DYLD_INFO_WEAK_BIND,
+      DYLD_INFO_LAZY_BIND,
       DYLD_INFO_EXPORT,
       SEGMENT_SPLIT_INFO,
       ATOM_INFO,
@@ -550,7 +606,7 @@ bool LayoutChecker::check_linkedit() {
       DATA_IN_CODE,
       CODE_SIGNATURE,
       DYLD_EXPORT_TRIE,
-      DYLD_CHAINED_FIXUPS
+      DYLD_CHAINED_FIXUPS,
     };
     static const char* to_string(KIND kind) {
       switch (kind) {
@@ -577,13 +633,17 @@ bool LayoutChecker::check_linkedit() {
     }
     chunk_t() = delete;
     chunk_t(KIND kind, uint32_t align, uint32_t off, size_t size) :
-      kind(kind), alignment(align), file_offset(off), size(size)
-    {}
+      kind(kind),
+      alignment(align),
+      file_offset(off),
+      size(size) {}
     chunk_t(const chunk_t&) = default;
     chunk_t& operator=(const chunk_t&) = default;
 
     chunk_t(chunk_t&&) = default;
     chunk_t& operator=(chunk_t&&) = default;
+
+    ~chunk_t() = default;
 
     KIND kind = KIND::UNKNOWN;
     uint32_t alignment = 0;
@@ -595,7 +655,7 @@ bool LayoutChecker::check_linkedit() {
   chunks_t chunks;
   chunks.reserve(binary.commands().size());
 
-  static const auto sort_chunks = [] (chunks_t& chunks) {
+  static const auto sort_chunks = [](chunks_t& chunks) {
     const size_t count = chunks.size();
     for (size_t i = 0; i < count; ++i) {
       bool done = true;
@@ -625,12 +685,12 @@ bool LayoutChecker::check_linkedit() {
       if (sym_count > 0x10000000) {
         return error("LC_SYMTAB: symbol table too large ({})", sym_count);
       }
-      chunks.emplace_back(chunk_t::KIND::SYMTAB, ptr_size,
-                            symtab->symbol_offset(), symtab->symbol_table().size());
+      chunks.emplace_back(chunk_t::KIND::SYMTAB, ptr_size, symtab->symbol_offset(),
+                          symtab->symbol_table().size());
 
       if (symtab->strings_size() > 0) {
-        chunks.emplace_back(chunk_t::KIND::SYMTAB_STR, 1,
-                            symtab->strings_offset(), symtab->strings_size());
+        chunks.emplace_back(chunk_t::KIND::SYMTAB_STR, 1, symtab->strings_offset(),
+                            symtab->strings_size());
       }
     }
 
@@ -662,17 +722,20 @@ bool LayoutChecker::check_linkedit() {
                      "iundefsym != iextdefsym+nextdefsym");
       }
 
-      ind_sym_count = dynsym->idx_undefined_symbol() + dynsym->nb_undefined_symbols();
+      ind_sym_count =
+          dynsym->idx_undefined_symbol() + dynsym->nb_undefined_symbols();
 
       if (dynsym->nb_local_relocations() != 0) {
         chunks.emplace_back(chunk_t::KIND::DYSYMTAB_LOC_REL, ptr_size,
                             dynsym->local_relocation_offset(),
-                            dynsym->nb_local_relocations() * sizeof(details::relocation_info));
+                            dynsym->nb_local_relocations() *
+                                sizeof(details::relocation_info));
       }
       if (dynsym->nb_external_relocations() != 0) {
         chunks.emplace_back(chunk_t::KIND::DYSYMTAB_EXT_REL, ptr_size,
                             dynsym->external_relocation_offset(),
-                            dynsym->nb_external_relocations() * sizeof(details::relocation_info));
+                            dynsym->nb_external_relocations() *
+                                sizeof(details::relocation_info));
       }
       if (dynsym->nb_indirect_symbols() != 0) {
         chunks.emplace_back(chunk_t::KIND::DYSYMTAB_INDIRECT_SYM, 4,
@@ -683,13 +746,13 @@ bool LayoutChecker::check_linkedit() {
 
     if (const auto* dyldinfo = cmd.cast<DyldInfo>()) {
       if (auto info = dyldinfo->rebase(); info.second != 0) {
-        chunks.emplace_back(chunk_t::KIND::DYLD_INFO_REBASES, ptr_size,
-                            info.first, info.second);
+        chunks.emplace_back(chunk_t::KIND::DYLD_INFO_REBASES, ptr_size, info.first,
+                            info.second);
       }
 
       if (auto info = dyldinfo->bind(); info.second != 0) {
-        chunks.emplace_back(chunk_t::KIND::DYLD_INFO_BIND, ptr_size,
-                            info.first, info.second);
+        chunks.emplace_back(chunk_t::KIND::DYLD_INFO_BIND, ptr_size, info.first,
+                            info.second);
       }
 
       if (auto info = dyldinfo->weak_bind(); info.second != 0) {
@@ -703,8 +766,8 @@ bool LayoutChecker::check_linkedit() {
       }
 
       if (auto info = dyldinfo->export_info(); info.second != 0) {
-        chunks.emplace_back(chunk_t::KIND::DYLD_INFO_EXPORT, ptr_size,
-                            info.first, info.second);
+        chunks.emplace_back(chunk_t::KIND::DYLD_INFO_EXPORT, ptr_size, info.first,
+                            info.second);
       }
     }
 
@@ -759,11 +822,14 @@ bool LayoutChecker::check_linkedit() {
   }
 
   if (has_ind_sym_tab && sym_count != ind_sym_count) {
-    return error("symbol count from symbol table and dynamic symbol table differ.");
+    return error(
+        "symbol count from symbol table and dynamic symbol table differ."
+    );
   }
 
   const bool has_dyld_info = binary.has(LoadCommand::TYPE::DYLD_INFO_ONLY);
-  const bool has_dyld_chained_fixups = binary.has(LoadCommand::TYPE::DYLD_CHAINED_FIXUPS);
+  const bool has_dyld_chained_fixups =
+      binary.has(LoadCommand::TYPE::DYLD_CHAINED_FIXUPS);
 
   if (has_dyld_info && has_dyld_chained_fixups) {
     return error("Contains LC_DYLD_INFO and LC_DYLD_CHAINED_FIXUPS.");
@@ -786,8 +852,9 @@ bool LayoutChecker::check_linkedit() {
       binary.header().file_type() == Header::FILE_TYPE::PRELOAD)
   {
     for (const Section& section : binary.sections()) {
-      const bool is_zero_fill = section.type() == Section::TYPE::ZEROFILL ||
-                                section.type() == Section::TYPE::THREAD_LOCAL_ZEROFILL;
+      const bool is_zero_fill =
+          section.type() == Section::TYPE::ZEROFILL ||
+          section.type() == Section::TYPE::THREAD_LOCAL_ZEROFILL;
       if (is_zero_fill) {
         continue;
       }
@@ -798,13 +865,14 @@ bool LayoutChecker::check_linkedit() {
       }
       linkedit_file_offset_end = binary.original_size();
       if (linkedit_file_offset_start == 0) {
-        if (const auto* cmd = binary.get(LoadCommand::TYPE::SYMTAB)->cast<SymbolCommand>()) {
+        if (const auto* cmd =
+                binary.get(LoadCommand::TYPE::SYMTAB)->cast<SymbolCommand>())
+        {
           linkedit_file_offset_start = cmd->symbol_offset();
         }
       }
     }
-  }
-  else {
+  } else {
     if (const SegmentCommand* segment = binary.get_segment("__LINKEDIT")) {
       linkedit_file_offset_start = segment->file_offset();
       linkedit_file_offset_end = segment->file_offset() + segment->file_size();
@@ -825,24 +893,24 @@ bool LayoutChecker::check_linkedit() {
 
   uint64_t prev_end = linkedit_file_offset_start;
   const char* prev_name = "start of __LINKEDIT";
-  for (size_t i = 0; i < chunks.size(); ++i) {
-    const chunk_t& chunk = chunks[i];
+  for (const chunk_t& chunk : chunks) {
     if (chunk.file_offset < prev_end) {
-      return error("LINKEDIT overlap of {} and {}",
-                   prev_name, chunk_t::to_string(chunk.kind));
+      return error("LINKEDIT overlap of {} and {}", prev_name,
+                   chunk_t::to_string(chunk.kind));
     }
 
-    if (greater_than_add_or_overflow<uint64_t>(
-          chunk.file_offset, chunk.size, linkedit_file_offset_end))
+    if (greater_than_add_or_overflow<uint64_t>(chunk.file_offset, chunk.size,
+                                               linkedit_file_offset_end))
     {
       return error("LINKEDIT content '{}' extends beyond end of segment",
                    chunk_t::to_string(chunk.kind));
     }
 
     if (chunk.file_offset & (chunk.alignment - 1)) {
-      // In the source code of dyld this is enforced only the provided
-      // policy ask to, but we might want to enforce it by default
-      return error("mis-aligned LINKEDIT content: {}", chunk_t::to_string(chunk.kind));
+      // In the source code of dyld this is enforced only if the provided
+      // policy asks for it, but we might want to enforce it by default
+      return error("mis-aligned LINKEDIT content: {}",
+                   chunk_t::to_string(chunk.kind));
     }
 
     prev_end = chunk.file_offset + chunk.size;
@@ -878,10 +946,10 @@ bool LayoutChecker::check_section_contiguity() {
 
   // LIEF allocates space for new/extended sections between the last load command
   // and the first section in the first segment.
-  // We are not willing to change the distance between the end of the `__text` section
-  // and start of `__DATA` segment, keeping `__text` section in a "fixed" position.
-  // Due to above there might happen a "reverse" alignment gap between `__text` section
-  // and a section that was allocated in front of it.
+  // We do not want to change the distance between the end of the `__text`
+  // section and start of `__DATA` segment, keeping `__text` section in a "fixed"
+  // position. Due to the above, there might be a "reverse" alignment gap between
+  // `__text` section and a section that was allocated in front of it.
   auto is_gap_reversed = [](const Section* LHS, const Section* RHS) {
     return align_down(RHS->offset() - LHS->size(), LHS->alignment());
   };
@@ -910,7 +978,7 @@ bool LayoutChecker::check_section_contiguity() {
     }
 
     std::sort(sections_vec.begin(), sections_vec.end(),
-              [] (const Section* LHS, const Section* RHS) {
+              [](const Section* LHS, const Section* RHS) {
                 return LHS->offset() < RHS->offset();
               });
 
@@ -920,19 +988,23 @@ bool LayoutChecker::check_section_contiguity() {
       const uint32_t alignment = 1 << section->alignment();
       if ((section->offset() % alignment) != 0) {
         return error("section '{}' offset ({:#06x}) is misaligned (align={:#06x})",
-                     section->name(), section->virtual_address(),
-                     alignment);
+                     section->name(), section->virtual_address(), alignment);
       }
 
       next_expected_offset = align(next_expected_offset, alignment);
 
       if (section->offset() != next_expected_offset) {
-        auto message = fmt::format("section '{}' is not at the expected offset: {:#06x} "
-                                   "(expected={:#06x}, align={:#06x})",
-                                   section->name(), section->offset(),
-                                   next_expected_offset, alignment);
-        if (it != sections_vec.begin() && is_gap_reversed(*std::prev(it), *it) && section->name() == "__text") {
-          LIEF_WARN("Permitting section gap which could be caused by LIEF add_section/extend_section: {}", message);
+        auto message =
+            fmt::format("section '{}' is not at the expected offset: {:#06x} "
+                        "(expected={:#06x}, align={:#06x})",
+                        section->name(), section->offset(), next_expected_offset,
+                        alignment);
+        if (it != sections_vec.begin() && is_gap_reversed(*std::prev(it), *it) &&
+            section->name() == "__text")
+        {
+          LIEF_WARN("Permitting section gap (possibly caused by "
+                    "add_section/extend_section): {}",
+                    message);
           next_expected_offset = section->offset();
         } else {
           return error(message);
@@ -981,7 +1053,19 @@ bool LayoutChecker::check() {
     return false;
   }
 
+  if (!check_exports_trie()) {
+    return false;
+  }
+
   if (!check_function_variants()) {
+    return false;
+  }
+
+  if (!check_function_variant_fixups()) {
+    return false;
+  }
+
+  if (!check_lazy_load_dylib_infos()) {
     return false;
   }
 
@@ -993,7 +1077,9 @@ bool LayoutChecker::check() {
     return false;
   }
 
-
+  if (!check_tls()) {
+    return false;
+  }
 
   // The following checks are only relevant for non-object files
   if (binary.header().file_type() == Header::FILE_TYPE::OBJECT) {
@@ -1013,50 +1099,40 @@ bool LayoutChecker::check() {
       if (dyld_info->rebase().first != offset) {
         return error(R"delim(
         __LINKEDIT does not start with LC_DYLD_INFO.rebase:
-          Expecting offset: 0x{:x} while it is 0x{:x}
-        )delim", offset, dyld_info->rebase().first);
+          Expecting offset: {:#x} while it is {:#x}
+        )delim",
+                     offset, dyld_info->rebase().first);
       }
-    }
-
-    else if (dyld_info->bind().first != 0) {
+    } else if (dyld_info->bind().first != 0) {
       if (dyld_info->bind().first != offset) {
         return error(R"delim(
         __LINKEDIT does not start with LC_DYLD_INFO.bind:
-          Expecting offset: 0x{:x} while it is 0x{:x}
-        )delim", offset, dyld_info->bind().first);
+          Expecting offset: {:#x} while it is {:#x}
+        )delim",
+                     offset, dyld_info->bind().first);
       }
-    }
-
-    else if (dyld_info->export_info().first != 0) {
+    } else if (dyld_info->export_info().first != 0) {
       if (dyld_info->export_info().first != offset &&
-          dyld_info->weak_bind().first   != 0      &&
-          dyld_info->lazy_bind().first   != 0         )
+          dyld_info->weak_bind().first != 0 && dyld_info->lazy_bind().first != 0)
       {
         return error(R"delim(
                      LC_DYLD_INFO.exports out of place:
-                     Expecting offset: 0x{:x} while it is 0x{:x}
-                     )delim", offset, dyld_info->export_info().first);
+                     Expecting offset: {:#x} while it is {:#x}
+                     )delim",
+                     offset, dyld_info->export_info().first);
       }
     }
 
     // Update Offset to end of dyld_info->contents
     if (dyld_info->export_info().second != 0) {
       offset = dyld_info->export_info().first + dyld_info->export_info().second;
-    }
-
-    else if (dyld_info->lazy_bind().second != 0) {
+    } else if (dyld_info->lazy_bind().second != 0) {
       offset = dyld_info->lazy_bind().first + dyld_info->lazy_bind().second;
-    }
-
-    else if (dyld_info->weak_bind().second != 0) {
+    } else if (dyld_info->weak_bind().second != 0) {
       offset = dyld_info->weak_bind().first + dyld_info->weak_bind().second;
-    }
-
-    else if (dyld_info->bind().second != 0) {
+    } else if (dyld_info->bind().second != 0) {
       offset = dyld_info->bind().first + dyld_info->bind().second;
-    }
-
-    else if (dyld_info->rebase().second != 0) {
+    } else if (dyld_info->rebase().second != 0) {
       offset = dyld_info->rebase().first + dyld_info->rebase().second;
     }
   }
@@ -1067,8 +1143,9 @@ bool LayoutChecker::check() {
       if (fixups->data_offset() != offset) {
         return error(R"delim(
         __LINKEDIT does not start with LC_DYLD_CHAINED_FIXUPS:
-          Expecting offset: 0x{:x} while it is 0x{:x}
-        )delim", offset, fixups->data_offset());
+          Expecting offset: {:#x} while it is {:#x}
+        )delim",
+                     offset, fixups->data_offset());
       }
       offset += fixups->data_size();
     }
@@ -1079,8 +1156,9 @@ bool LayoutChecker::check() {
       if (exports->data_offset() != offset) {
         return error(R"delim(
         LC_DYLD_EXPORTS_TRIE out of place in __LINKEDIT:
-          Expecting offset: 0x{:x} while it is 0x{:x}
-        )delim", offset, exports->data_offset());
+          Expecting offset: {:#x} while it is {:#x}
+        )delim",
+                     offset, exports->data_offset());
       }
     }
     offset += exports->data_size();
@@ -1091,8 +1169,9 @@ bool LayoutChecker::check() {
       if (variants->data_offset() != offset) {
         return error(R"delim(
         LC_FUNCTION_VARIANTS out of place in __LINKEDIT:
-          Expecting offset: 0x{:x} while it is 0x{:x}
-        )delim", offset, variants->data_offset());
+          Expecting offset: {:#x} while it is {:#x}
+        )delim",
+                     offset, variants->data_offset());
       }
     }
     offset += variants->data_size();
@@ -1103,8 +1182,9 @@ bool LayoutChecker::check() {
       if (fixups->data_offset() != offset) {
         return error(R"delim(
         LC_FUNCTION_VARIANT_FIXUPS out of place in __LINKEDIT:
-          Expecting offset: 0x{:x} while it is 0x{:x}
-        )delim", offset, fixups->data_offset());
+          Expecting offset: {:#x} while it is {:#x}
+        )delim",
+                     offset, fixups->data_offset());
       }
     }
     offset += fixups->data_size();
@@ -1119,8 +1199,9 @@ bool LayoutChecker::check() {
     if (dyst->local_relocation_offset() != offset) {
       return error(R"delim(
       LC_DYSYMTAB local relocations out of place:
-        Expecting offset: 0x{:x} while it is 0x{:x}
-      )delim", offset, dyst->local_relocation_offset());
+        Expecting offset: {:#x} while it is {:#x}
+      )delim",
+                   offset, dyst->local_relocation_offset());
     }
     offset += dyst->nb_local_relocations() * sizeof(details::relocation_info);
   }
@@ -1130,10 +1211,28 @@ bool LayoutChecker::check() {
     if (spi->data_offset() != 0 && spi->data_offset() != offset) {
       return error(R"delim(
       LC_SEGMENT_SPLIT_INFO out of place:
-        Expecting offset: 0x{:x} while it is 0x{:x}
-      )delim", offset, spi->data_offset());
+        Expecting offset: {:#x} while it is {:#x}
+      )delim",
+                   offset, spi->data_offset());
     }
     offset += spi->data_size();
+  }
+
+  for (const LoadCommand& cmd : binary.commands()) {
+    const auto* lazy = cmd.cast<LazyLoadDylibInfo>();
+    if (lazy == nullptr) {
+      continue;
+    }
+    if (lazy->data_offset() != 0) {
+      if (lazy->data_offset() != offset) {
+        return error(R"delim(
+        LC_LAZY_LOAD_DYLIB_INFO out of place in __LINKEDIT:
+          Expecting offset: {:#x} while it is {:#x}
+        )delim",
+                     offset, lazy->data_offset());
+      }
+    }
+    offset += lazy->data_size();
   }
 
   // Check consistency of Function starts
@@ -1141,8 +1240,9 @@ bool LayoutChecker::check() {
     if (fs->data_offset() != 0 && fs->data_offset() != offset) {
       return error(R"delim(
       LC_FUNCTION_STARTS out of place:
-        Expecting offset: 0x{:x} while it is 0x{:x}
-      )delim", offset, fs->data_offset());
+        Expecting offset: {:#x} while it is {:#x}
+      )delim",
+                   offset, fs->data_offset());
     }
     offset += fs->data_size();
   }
@@ -1152,8 +1252,9 @@ bool LayoutChecker::check() {
     if (dic->data_offset() != 0 && dic->data_offset() != offset) {
       return error(R"delim(
       LC_DATA_IN_CODE out of place:
-        Expecting offset: 0x{:x} while it is 0x{:x}
-      )delim", offset, dic->data_offset());
+        Expecting offset: {:#x} while it is {:#x}
+      )delim",
+                   offset, dic->data_offset());
     }
     offset += dic->data_size();
   }
@@ -1162,8 +1263,9 @@ bool LayoutChecker::check() {
     if (info->data_offset() != 0 && info->data_offset() != offset) {
       return error(R"delim(
       LC_ATOM_INFO out of place:
-        Expecting offset: 0x{:x} while it is 0x{:x}
-      )delim", offset, info->data_offset());
+        Expecting offset: {:#x} while it is {:#x}
+      )delim",
+                   offset, info->data_offset());
     }
     offset += info->data_size();
   }
@@ -1172,8 +1274,9 @@ bool LayoutChecker::check() {
     if (cs->data_offset() != 0 && cs->data_offset() != offset) {
       return error(R"delim(
       LC_DYLIB_CODE_SIGN_DRS out of place:
-        Expecting offset: 0x{:x} while it is 0x{:x}
-      )delim", offset, cs->data_offset());
+        Expecting offset: {:#x} while it is {:#x}
+      )delim",
+                   offset, cs->data_offset());
     }
     offset += cs->data_size();
   }
@@ -1182,8 +1285,9 @@ bool LayoutChecker::check() {
     if (opt->data_offset() != 0 && opt->data_offset() != offset) {
       return error(R"delim(
       LC_LINKER_OPTIMIZATION_HINT out of place:
-        Expecting offset: 0x{:x} while it is 0x{:x}
-      )delim", offset, opt->data_offset());
+        Expecting offset: {:#x} while it is {:#x}
+      )delim",
+                   offset, opt->data_offset());
     }
     offset += opt->data_size();
   }
@@ -1198,10 +1302,12 @@ bool LayoutChecker::check() {
     if (st->symbol_offset() != offset) {
       return error(R"delim(
       LC_SYMTAB.nlist out of place:
-        Expecting offset: 0x{:x} while it is 0x{:x}
-      )delim", offset, st->symbol_offset());
+        Expecting offset: {:#x} while it is {:#x}
+      )delim",
+                   offset, st->symbol_offset());
     }
-    offset += st->numberof_symbols() * (is64 ? sizeof(details::nlist_64) : sizeof(details::nlist_32));
+    offset += st->numberof_symbols() *
+              (is64 ? sizeof(details::nlist_64) : sizeof(details::nlist_32));
   }
 
   size_t isym = 0;
@@ -1211,7 +1317,8 @@ bool LayoutChecker::check() {
       return error(R"delim(
       LC_DYSYMTAB.nlocalsym out of place:
         Expecting index: {} while it is {}
-      )delim", isym, dyst->idx_local_symbol());
+      )delim",
+                   isym, dyst->idx_local_symbol());
     }
     isym += dyst->nb_local_symbols();
   }
@@ -1222,7 +1329,8 @@ bool LayoutChecker::check() {
       return error(R"delim(
       LC_DYSYMTAB.iextdefsym out of place:
         Expecting index: {} while it is {}
-      )delim", isym, dyst->idx_external_define_symbol());
+      )delim",
+                   isym, dyst->idx_external_define_symbol());
     }
     isym += dyst->nb_external_define_symbols();
   }
@@ -1232,7 +1340,8 @@ bool LayoutChecker::check() {
       return error(R"delim(
       LC_DYSYMTAB.nundefsym out of place:
         Expecting index: {} while it is {}
-      )delim", isym, dyst->idx_undefined_symbol());
+      )delim",
+                   isym, dyst->idx_undefined_symbol());
     }
     isym += dyst->nb_undefined_symbols();
   }
@@ -1242,8 +1351,9 @@ bool LayoutChecker::check() {
     if (two->offset() != 0 && two->offset() != offset) {
       return error(R"delim(
       LC_TWOLEVEL_HINTS out of place:
-        Expecting offset: 0x{:x} while it is 0x{:x}
-      )delim", offset, two->offset());
+        Expecting offset: {:#x} while it is {:#x}
+      )delim",
+                   offset, two->offset());
     }
     offset += two->hints().size() * sizeof(details::twolevel_hint);
   }
@@ -1253,8 +1363,9 @@ bool LayoutChecker::check() {
     if (dyst->external_relocation_offset() != offset) {
       return error(R"delim(
       LC_DYSYMTAB.extrel out of place:
-        Expecting offset: 0x{:x} while it is 0x{:x}
-      )delim", offset, dyst->external_relocation_offset());
+        Expecting offset: {:#x} while it is {:#x}
+      )delim",
+                   offset, dyst->external_relocation_offset());
     }
 
     offset += dyst->nb_external_relocations() * sizeof(details::relocation_info);
@@ -1265,8 +1376,9 @@ bool LayoutChecker::check() {
     if (dyst->indirect_symbol_offset() != offset) {
       return error(R"delim(
       LC_DYSYMTAB.nindirect out of place:
-        Expecting offset: 0x{:x} while it is 0x{:x}
-      )delim", offset, dyst->indirect_symbol_offset());
+        Expecting offset: {:#x} while it is {:#x}
+      )delim",
+                   offset, dyst->indirect_symbol_offset());
     }
 
     offset += dyst->nb_indirect_symbols() * sizeof(uint32_t);
@@ -1282,63 +1394,71 @@ bool LayoutChecker::check() {
     if (dyst->toc_offset() != offset && dyst->toc_offset() != rounded_offset) {
       return error(R"delim(
       LC_DYSYMTAB.toc out of place:
-        Expecting offsets: 0x{:x} or 0x{:x} while it is 0x{:x}
-      )delim", offset, rounded_offset, dyst->toc_offset());
+        Expecting offsets: {:#x} or {:#x} while it is {:#x}
+      )delim",
+                   offset, rounded_offset, dyst->toc_offset());
     }
     if (dyst->toc_offset() == offset) {
-      offset        += dyst->nb_toc() * sizeof(details::dylib_table_of_contents);
+      offset += dyst->nb_toc() * sizeof(details::dylib_table_of_contents);
       rounded_offset = offset;
-    }
-    else if (dyst->toc_offset() == rounded_offset) {
+    } else if (dyst->toc_offset() == rounded_offset) {
       input_indirectsym_pad = rounded_offset - offset;
 
       rounded_offset += dyst->nb_toc() * sizeof(details::dylib_table_of_contents);
-      offset          = rounded_offset;
+      offset = rounded_offset;
     }
   }
 
 
   if (dyst->nb_module_table() != 0) {
-    if (dyst->module_table_offset() != offset && dyst->module_table_offset() != rounded_offset) {
+    if (dyst->module_table_offset() != offset &&
+        dyst->module_table_offset() != rounded_offset)
+    {
       return error(R"delim(
       LC_DYSYMTAB.modtab out of place:
-        Expecting offsets: 0x{:x} or 0x{:x} while it is 0x{:x}
-      )delim", offset, rounded_offset, dyst->module_table_offset());
+        Expecting offsets: {:#x} or {:#x} while it is {:#x}
+      )delim",
+                   offset, rounded_offset, dyst->module_table_offset());
     }
 
     if (is64) {
       if (dyst->module_table_offset() == offset) {
-        offset        += dyst->nb_module_table() * sizeof(details::dylib_module_64);
+        offset += dyst->nb_module_table() * sizeof(details::dylib_module_64);
         rounded_offset = offset;
-      }
-      else if (dyst->module_table_offset() == rounded_offset) {
+      } else if (dyst->module_table_offset() == rounded_offset) {
         input_indirectsym_pad = rounded_offset - offset;
-        rounded_offset += dyst->nb_module_table() * sizeof(details::dylib_module_64);
-        offset         = rounded_offset;
+        rounded_offset +=
+            dyst->nb_module_table() * sizeof(details::dylib_module_64);
+        offset = rounded_offset;
       }
     } else {
-      offset        += dyst->nb_module_table() * sizeof(details::dylib_module_32);
+      offset += dyst->nb_module_table() * sizeof(details::dylib_module_32);
       rounded_offset = offset;
     }
   }
 
 
   if (dyst->nb_external_reference_symbols() != 0) {
-    if (dyst->external_reference_symbol_offset() != offset && dyst->external_reference_symbol_offset() != rounded_offset) {
+    if (dyst->external_reference_symbol_offset() != offset &&
+        dyst->external_reference_symbol_offset() != rounded_offset)
+    {
       return error(R"delim(
       LC_DYSYMTAB.extrefsym out of place:
-        Expecting offsets: 0x{:x} or 0x{:x} while it is 0x{:x}
-      )delim", offset, rounded_offset, dyst->external_reference_symbol_offset());
+        Expecting offsets: {:#x} or {:#x} while it is {:#x}
+      )delim",
+                   offset, rounded_offset,
+                   dyst->external_reference_symbol_offset());
     }
 
     if (dyst->external_reference_symbol_offset() == offset) {
-      offset        += dyst->nb_external_reference_symbols() * sizeof(details::dylib_reference);
+      offset +=
+          dyst->nb_external_reference_symbols() * sizeof(details::dylib_reference);
       rounded_offset = offset;
-    }
-    else if (dyst->external_reference_symbol_offset() == rounded_offset) {
+    } else if (dyst->external_reference_symbol_offset() == rounded_offset) {
       input_indirectsym_pad = rounded_offset - offset;
-      rounded_offset += dyst->nb_external_reference_symbols() * sizeof(details::dylib_reference);
-      offset         = rounded_offset;
+      rounded_offset +=
+          dyst->nb_external_reference_symbols() * sizeof(details::dylib_reference);
+      offset = rounded_offset;
     }
   }
 
@@ -1347,19 +1467,19 @@ bool LayoutChecker::check() {
     if (st->strings_offset() != offset && st->strings_offset() != rounded_offset) {
       return error(R"delim(
       LC_SYMTAB.strings out of place:
-        Expecting offsets: 0x{:x} or 0x{:x} while it is 0x{:x}
-      )delim", offset, rounded_offset, st->strings_offset());
+        Expecting offsets: {:#x} or {:#x} while it is {:#x}
+      )delim",
+                   offset, rounded_offset, st->strings_offset());
     }
 
 
     if (st->strings_offset() == offset) {
-      offset        += st->strings_size();
+      offset += st->strings_size();
       rounded_offset = offset;
-    }
-    else if (st->strings_offset() == rounded_offset) {
+    } else if (st->strings_offset() == rounded_offset) {
       input_indirectsym_pad = rounded_offset - offset;
       rounded_offset += st->strings_size();
-      offset         = rounded_offset;
+      offset = rounded_offset;
     }
   }
 
@@ -1368,8 +1488,9 @@ bool LayoutChecker::check() {
     if (cs->data_offset() != rounded_offset) {
       return error(R"delim(
       LC_CODE_SIGNATURE out of place:
-        Expecting offsets: 0x{:x} while it is 0x{:x}
-      )delim", offset, cs->data_offset());
+        Expecting offsets: {:#x} while it is {:#x}
+      )delim",
+                   offset, cs->data_offset());
     }
     rounded_offset += cs->data_size();
     offset = rounded_offset;
@@ -1379,14 +1500,15 @@ bool LayoutChecker::check() {
   const uint64_t object_size = linkedit->file_offset() + linkedit->file_size();
   if (offset != object_size && rounded_offset != object_size) {
     return error(R"delim(
-    __LINKEDIT.end (0x{:x}) does not match 0x{:x} nor 0x{:x}
-    )delim", object_size, offset, rounded_offset);
+    __LINKEDIT.end ({:#x}) does not match {:#x} nor {:#x}
+    )delim",
+                 object_size, offset, rounded_offset);
   }
   return true;
 }
 
 bool LayoutChecker::check_chained_fixups() {
-  static constexpr auto DYLD_CHAINED_PTR_START_NONE  = 0xFFFF;
+  static constexpr auto DYLD_CHAINED_PTR_START_NONE = 0xFFFF;
   static constexpr auto DYLD_CHAINED_PTR_START_MULTI = 0x8000;
   const DyldChainedFixups* fixups = binary.dyld_chained_fixups();
   if (fixups == nullptr) {
@@ -1399,11 +1521,15 @@ bool LayoutChecker::check_chained_fixups() {
   }
 
   if (fixups->starts_offset() >= fixups->data_size()) {
-    return error("chained fixups, starts_offset exceeds LC_DYLD_CHAINED_FIXUPS size");
+    return error(
+        "chained fixups, starts_offset exceeds LC_DYLD_CHAINED_FIXUPS size"
+    );
   }
 
   if (fixups->imports_offset() >= fixups->data_size()) {
-    return error("chained fixups, starts_offset exceeds LC_DYLD_CHAINED_FIXUPS size");
+    return error(
+        "chained fixups, starts_offset exceeds LC_DYLD_CHAINED_FIXUPS size"
+    );
   }
 
   uint32_t fmt_entry_size = 0;
@@ -1425,7 +1551,9 @@ bool LayoutChecker::check_chained_fixups() {
   }
 
   if (greater_than_add_or_overflow<uint32_t>(fixups->imports_offset(),
-        fmt_entry_size * fixups->imports_count(), fixups->symbols_offset()))
+                                             fmt_entry_size *
+                                                 fixups->imports_count(),
+                                             fixups->symbols_offset()))
   {
     return error("chained fixups, imports array overlaps symbols");
   }
@@ -1450,24 +1578,30 @@ bool LayoutChecker::check_chained_fixups() {
   const uint64_t end_of_start = fixups->imports_offset();
   uint32_t max_valid_pointer_seen = 0;
   size_t idx = 0;
-  result<DYLD_CHAINED_PTR_FORMAT> ptr_format_for_all = make_error_code(lief_errors::not_found);
+  result<DYLD_CHAINED_PTR_FORMAT> ptr_format_for_all =
+      make_error_code(lief_errors::not_found);
 
-  for (const DyldChainedFixups::chained_starts_in_segment& seg_start : starts_info) {
+  for (const DyldChainedFixups::chained_starts_in_segment& seg_start : starts_info)
+  {
     if (seg_start.offset == 0) {
       continue;
     }
 
     if (seg_start.size > end_of_start - seg_start.offset) {
       return error("chained fixups, dyld_chained_starts_in_segment for segment "
-                   "#{} overruns imports table", idx);
+                   "#{} overruns imports table",
+                   idx);
     }
 
     if (seg_start.page_size != 0x1000 && seg_start.page_size != 0x4000) {
       return error("chained fixups, page_size not 4KB or 16KB in segment "
-                   "#{} (page_size: 0x{:04x})", idx, seg_start.page_size);
+                   "#{} (page_size: {:#06x})",
+                   idx, seg_start.page_size);
     }
 
-    if ((int)seg_start.pointer_format > (int)DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_SHARED_CACHE) {
+    if ((int)seg_start.pointer_format >
+        (int)DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_SHARED_CACHE)
+    {
       return error("chained fixups, unknown pointer_format in segment #{}", idx);
     }
 
@@ -1476,16 +1610,18 @@ bool LayoutChecker::check_chained_fixups() {
     }
 
     if (seg_start.pointer_format != ptr_format_for_all) {
-      return error("chained fixups, pointer_format not same for all segments {} and {}",
-                   to_string(seg_start.pointer_format), to_string(*ptr_format_for_all));
+      return error(
+          "chained fixups, pointer_format not same for all segments {} and {}",
+          to_string(seg_start.pointer_format), to_string(*ptr_format_for_all)
+      );
     }
 
     if (seg_start.max_valid_pointer != 0) {
       if (max_valid_pointer_seen == 0) {
         max_valid_pointer_seen = seg_start.max_valid_pointer;
-      }
-      else if (max_valid_pointer_seen != seg_start.max_valid_pointer) {
-        return error("chained fixups, different max_valid_pointer values seen in different segments");
+      } else if (max_valid_pointer_seen != seg_start.max_valid_pointer) {
+        return error("chained fixups, different max_valid_pointer values seen in "
+                     "different segments");
       }
     }
     if (seg_start.page_start.size() * sizeof(uint16_t) > seg_start.size) {
@@ -1493,7 +1629,8 @@ bool LayoutChecker::check_chained_fixups() {
     }
 
     [[maybe_unused]] uint32_t max_overflow_idx =
-        (seg_start.size - sizeof(details::dyld_chained_starts_in_segment)) / sizeof(uint16_t);
+        (seg_start.size - sizeof(details::dyld_chained_starts_in_segment)) /
+        sizeof(uint16_t);
 
     for (size_t page_idx = 0; page_idx < seg_start.page_count(); ++page_idx) {
       uint16_t offset_in_page = seg_start.page_start[page_idx];
@@ -1503,12 +1640,81 @@ bool LayoutChecker::check_chained_fixups() {
 
       if ((offset_in_page & DYLD_CHAINED_PTR_START_MULTI) == 0) {
         if (offset_in_page > seg_start.page_size) {
-          return error("chained fixups, in segment #{} page_start[{}]=0x{:04x} exceeds page size",
+          return error("chained fixups, in segment #{} page_start[{}]={:#06x} "
+                       "exceeds page size",
                        idx, page_idx, offset_in_page);
         }
-      }
-      else {
+      } else {
         // TODO(romain): to implement
+      }
+    }
+  }
+
+  return true;
+}
+
+bool LayoutChecker::check_export(uint64_t imagebase, uint64_t max_vm_offset,
+                                 const ExportInfo& info) {
+  // skip other exports than regular and thread-local
+  if (info.has(ExportInfo::FLAGS::REEXPORT) ||
+      info.kind() == ExportInfo::KIND::ABSOLUTE_KIND)
+  {
+    return true;
+  }
+
+  uint64_t vm_offset = info.address();
+  if ((int64_t)vm_offset < 0) {
+    // Segments with an address lower than __TEXT
+    vm_offset = imagebase - vm_offset;
+  }
+
+  if (vm_offset > max_vm_offset) {
+    return error("vmOffset too large for {}",
+                 info.has_symbol() ? info.symbol()->name() : "<empty>");
+  }
+  return true;
+}
+
+
+bool LayoutChecker::check_exports_trie() {
+  const DyldInfo* dyld_info = binary.dyld_info();
+  const DyldExportsTrie* exports_trie = binary.dyld_exports_trie();
+
+  if (dyld_info == nullptr && exports_trie == nullptr) {
+    return true;
+  }
+
+  // maxVmOffset is computed in Image::validLinkedit as the highest
+  // `runtimeOffset + runtimeSize` over all the segments except __LINKEDIT, with a
+  // lowest value of 0x4000. __PAGEZERO is *not* excluded.
+  uint64_t max_vm_offset = 0x4000;
+  uint64_t text_vmaddr = 0;
+  for (const SegmentCommand& seg : binary.segments()) {
+    if (seg.name() == "__TEXT") {
+      text_vmaddr = seg.virtual_address();
+    }
+    if (seg.name() == "__LINKEDIT") {
+      continue;
+    }
+    const uint64_t runtime_offset = seg.virtual_address() - text_vmaddr;
+    max_vm_offset =
+        std::max<uint64_t>(max_vm_offset, runtime_offset + seg.virtual_size());
+  }
+
+  const uint64_t imagebase = binary.imagebase();
+
+  if (exports_trie != nullptr) {
+    for (const ExportInfo& info : exports_trie->exports()) {
+      if (!check_export(imagebase, max_vm_offset, info)) {
+        return false;
+      }
+    }
+  }
+
+  if (dyld_info != nullptr) {
+    for (const ExportInfo& info : dyld_info->exports()) {
+      if (!check_export(imagebase, max_vm_offset, info)) {
+        return false;
       }
     }
   }
@@ -1519,9 +1725,22 @@ bool LayoutChecker::check_chained_fixups() {
 
 bool LayoutChecker::check_function_variants() {
   using KIND = FunctionVariants::RuntimeTable::KIND;
+  using RuntimeTableEntry = FunctionVariants::RuntimeTableEntry;
   const FunctionVariants* variants = binary.function_variants();
   if (variants == nullptr) {
     return true;
+  }
+
+  const FunctionStarts* func_starts = binary.function_starts();
+  const uint64_t imagebase = binary.imagebase();
+
+  // Check that the impl for RuntimeTableEntry target a function that is
+  // listed in LC_FUNCTION_STARTS. This is pretty conservative and dyld could relax
+  // this condition but this can be used to identify malformed modifications.
+  std::unordered_set<uint64_t> starts;
+  if (func_starts != nullptr) {
+    const std::vector<uint64_t>& fn = func_starts->functions();
+    starts.insert(fn.begin(), fn.end());
   }
 
   for (const FunctionVariants::RuntimeTable& entry : variants->runtime_table()) {
@@ -1529,24 +1748,272 @@ bool LayoutChecker::check_function_variants() {
       case KIND::ARM64:
       case KIND::PER_PROCESS:
       case KIND::SYSTEM_WIDE:
-      case KIND::X86_64:
-        break;
+      case KIND::X86_64: break;
       default:
         return error("unknown FunctionVariants::RuntimeTable::KIND ({})",
-            (uint32_t)entry.kind());
+                     (uint32_t)entry.kind());
     }
 
     // Check that the last entry is "default"
     auto entries = entry.entries();
     if (entries.empty()) {
-      return error("Missing entries in FunctionVariants::RuntimeTable (offset=0x{:06x})", entry.offset());
+      return error(
+          "Missing entries in FunctionVariants::RuntimeTable (offset={:#08x})",
+          entry.offset()
+      );
     }
 
-    const FunctionVariants::RuntimeTableEntry& last = entries[entries.size() - 1];
+    const RuntimeTableEntry& last = entries[entries.size() - 1];
     if (last.flag_bit_nums()[0] != 0) {
-      return error("last entry in FunctionVariants::RuntimeTable entries is not 'default'");
+      return error(
+          "last entry in FunctionVariants::RuntimeTable entries is not 'default'"
+      );
+    }
+
+    if (func_starts == nullptr) {
+      continue;
+    }
+
+    for (const RuntimeTableEntry& impl_entry : entries) {
+      if (impl_entry.another_table()) {
+        continue;
+      }
+
+      const uint64_t va = imagebase + impl_entry.impl();
+      if (binary.segment_from_virtual_address(va) == nullptr) {
+        // tolerated
+        continue;
+      }
+
+      if (starts.find(impl_entry.impl()) == starts.end()) {
+        return error(
+            "FunctionVariants impl offset {:#x} (va: {:#x}) does not match any "
+            "LC_FUNCTION_STARTS entry",
+            impl_entry.impl(), va
+        );
+      }
     }
   }
+  return true;
+}
+
+bool LayoutChecker::check_function_variant_fixups() {
+  const FunctionVariantFixups* fixups = binary.function_variant_fixups();
+  if (fixups == nullptr) {
+    return true;
+  }
+
+  // The payload is a bare array of fixed-size entries: a trailing partial
+  // entry would be silently dropped by dyld (it does size / sizeof(entry)).
+  if (fixups->data_size() % sizeof(details::function_variant_fixup_t) != 0) {
+    return error(
+        "LC_FUNCTION_VARIANT_FIXUPS payload size ({:#x}) is not a multiple of "
+        "the fixup entry size ({})",
+        fixups->data_size(), sizeof(details::function_variant_fixup_t)
+    );
+  }
+
+  auto segments = binary.segments();
+  const size_t nb_segments = segments.size();
+
+  // variant_index selects a FunctionVariants runtime table. dyld resolves a
+  // fixup as `image.segment(segIndex) + segOffset` pointing at table
+  // `#variantIndex`, so both indices must be in range.
+  const FunctionVariants* variants = binary.function_variants();
+
+  const size_t nb_tables =
+      variants == nullptr ? 0 : variants->runtime_table().size();
+
+  size_t idx = 0;
+  for (const FunctionVariantFixups::Fixup& fixup : fixups->fixups()) {
+    if (fixup.seg_index() >= nb_segments) {
+      return error(
+          "LC_FUNCTION_VARIANT_FIXUPS fixup #{} references segment #{} but the "
+          "binary only has {} segment(s)",
+          idx, fixup.seg_index(), nb_segments
+      );
+    }
+
+    const SegmentCommand& segment = segments[fixup.seg_index()];
+    if (fixup.seg_offset() + ptr_size() > segment.virtual_size()) {
+      return error(
+          "LC_FUNCTION_VARIANT_FIXUPS fixup #{} points outside of segment '{}' "
+          "(seg_offset={:#x}, vmsize={:#x})",
+          idx, segment.name(), fixup.seg_offset(), segment.virtual_size()
+      );
+    }
+
+    if (fixup.variant_index() >= nb_tables) {
+      return error(
+          "LC_FUNCTION_VARIANT_FIXUPS fixup #{} references function-variant "
+          "table #{} but the binary defines {} table(s)",
+          idx, fixup.variant_index(), nb_tables
+      );
+    }
+    ++idx;
+  }
+
+  return true;
+}
+
+
+bool LayoutChecker::check_lazy_load_dylib_infos() {
+  // clang-format off
+  //
+  // NOTE(romain): this is a 1x1 copy of the definition in dyld (mach_o/LazyLoadDylib.h)
+  struct LazyLoadDylibLinkEdit
+  {
+      uint32_t    loadPathOffset;          // path of dylib to load
+      uint32_t    flagImageOffset;         // image offset to flags global
+      uint16_t    flags;                   // weak linked or not
+      uint16_t    pointerFormat;           // e.g. DYLD_CHAINED_PTR_ARM64E_USERLAND
+      uint32_t    chainStartImageOffset;   // image offset to fixup chain start
+      uint32_t    symbolsCount;            // how many symbol names to bind
+      uint32_t    symbolStringArrayOffset; // offset of each symbol name within blob
+      // room for future fields here
+      // path string
+      // symbols strings
+  };
+  static constexpr size_t HEADER_SIZE = sizeof(LazyLoadDylibLinkEdit);
+  static_assert(HEADER_SIZE == 24);
+  // clang-format on
+
+  // 0x4000 according to Image::validStructureLinkedit
+  uint64_t max_vm_offset = 0x4000;
+  const uint64_t imagebase = binary.imagebase();
+  for (const SegmentCommand& seg : binary.segments()) {
+    if (seg.name() == "__LINKEDIT" || seg.name() == "__PAGEZERO") {
+      continue;
+    }
+    const uint64_t runtime_off =
+        seg.virtual_address() >= imagebase ? seg.virtual_address() - imagebase : 0;
+    max_vm_offset =
+        std::max<uint64_t>(max_vm_offset, runtime_off + seg.virtual_size());
+  }
+
+  for (const LoadCommand& cmd : binary.commands()) {
+    const auto* lazy = cmd.cast<LazyLoadDylibInfo>();
+    if (lazy == nullptr) {
+      continue;
+    }
+
+    span<const uint8_t> content = lazy->content();
+    if (content.size() < HEADER_SIZE) {
+      return error("LC_LAZY_LOAD_DYLIB_INFO payload size ({}) is too small "
+                   "(minimum is {})",
+                   content.size(), HEADER_SIZE);
+    }
+
+    SpanStream stream(content);
+    auto header = stream.peek<LazyLoadDylibLinkEdit>();
+    if (!header) {
+      return error("LC_LAZY_LOAD_DYLIB_INFO failed to read the header");
+    }
+
+    // sanity check loadPathOffset and its string terminator
+    if (header->loadPathOffset > content.size()) {
+      return error("LC_LAZY_LOAD_DYLIB_INFO loadPathOffset ({}) out of range "
+                   "(max {})",
+                   header->loadPathOffset, content.size());
+    }
+
+    const auto path_start = content.begin() + header->loadPathOffset;
+    if (std::find(path_start, content.end(), '\0') == content.end()) {
+      return error("LC_LAZY_LOAD_DYLIB_INFO load path is not null terminated");
+    }
+
+    // Ensure that `flagImageOffset` targets a valid segment.
+    // NOTE(romain): should we check for RW- permission?
+    if (header->flagImageOffset > max_vm_offset) {
+      return error("LC_LAZY_LOAD_DYLIB_INFO flagImageOffset ({:#x}) beyond max "
+                   "vm offset ({:#x})",
+                   header->flagImageOffset, max_vm_offset);
+    }
+
+    if (header->chainStartImageOffset > max_vm_offset) {
+      return error("LC_LAZY_LOAD_DYLIB_INFO chainStartImageOffset ({:#x}) beyond "
+                   "max vm offset ({:#x})",
+                   header->chainStartImageOffset, max_vm_offset);
+    }
+
+    // sanity check the symbol string-offset array bounds
+    const bool overflow = greater_than_add_or_overflow<uint64_t>(
+        header->symbolStringArrayOffset,
+        (uint64_t)header->symbolsCount * sizeof(uint32_t), content.size()
+    );
+    if (overflow) {
+      return error("LC_LAZY_LOAD_DYLIB_INFO symbolsCount ({}) too large to fit "
+                   "in payload (size {})",
+                   header->symbolsCount, content.size());
+    }
+
+    // sanity check each symbol string offset
+    for (uint32_t i = 0; i < header->symbolsCount; ++i) {
+      const uint64_t pos =
+          header->symbolStringArrayOffset + (uint64_t)i * sizeof(uint32_t);
+      auto sym_off = stream.peek<uint32_t>(pos);
+      if (!sym_off || *sym_off > content.size()) {
+        return error("LC_LAZY_LOAD_DYLIB_INFO symbolStringOffsets[{}] ({}) out "
+                     "of range (max {})",
+                     i, sym_off ? *sym_off : 0, content.size());
+      }
+    }
+  }
+
+  return true;
+}
+
+
+bool LayoutChecker::check_tls() {
+  const bool is32 = ptr_size() == sizeof(uint32_t);
+  const bool is64 = ptr_size() == sizeof(uint64_t);
+  assert(is32 || is64);
+  const ThreadLocalVariables* sec_vars = nullptr;
+  const Binary::range_t initial_content = binary.tlv_initial_content_range();
+  for (const Section& S : binary.sections()) {
+    if (const auto* sec = S.cast<ThreadLocalVariables>()) {
+      sec_vars = sec;
+    }
+
+    // See ThreadLocalVariables.cpp
+    const size_t sizeof_ = 3 * ptr_size();
+
+    if (sec_vars != nullptr) {
+      const size_t size = sec_vars->content().size();
+      if (size % sizeof_ != 0) {
+        return error(
+            "size ({}) of thread-locals section {} is not a multiple of {}", size,
+            sec_vars->name(), sizeof_
+        );
+      }
+    }
+  }
+
+  if (is64 && initial_content.size() > 4_GB) {
+    return error("unsupported thread-local, larger than 4GB");
+  }
+
+  if (is32 && initial_content.size() > 4_GB) {
+    return error("unsupported thread-local, larger than 4GB");
+  }
+
+  if (sec_vars != nullptr) {
+    for (const ThreadLocalVariables::Thunk& thunk : sec_vars->thunks()) {
+      if (thunk.offset > initial_content.size()) {
+        return error("malformed thread-local, offset={:#08x} is larger than total "
+                     "size={:#08x}",
+                     thunk.offset, initial_content.size());
+      }
+      if (is64 && thunk.key > std::numeric_limits<uint32_t>::max()) {
+        return error("thread_key_t {}, larger than uint32_t", thunk.key);
+      }
+
+      if (is32 && thunk.key > std::numeric_limits<uint16_t>::max()) {
+        return error("thread_key_t {}, larger than uint16_t", thunk.key);
+      }
+    }
+  }
+
   return true;
 }
 
@@ -1556,7 +2023,9 @@ bool check_layout(const FatBinary& fat, std::string* error) {
     LayoutChecker checker(bin);
     if (!checker.check()) {
       is_ok = false;
-      if (error) { *error += checker.get_error() + '\n'; }
+      if (error) {
+        *error += checker.get_error() + '\n';
+      }
     }
   }
   return is_ok;
@@ -1566,7 +2035,9 @@ bool check_layout(const FatBinary& fat, std::string* error) {
 bool check_layout(const Binary& binary, std::string* error) {
   LayoutChecker checker(binary);
   if (!checker.check()) {
-    if (error) { *error += checker.get_error() + '\n'; }
+    if (error) {
+      *error += checker.get_error() + '\n';
+    }
     return false;
   }
   return true;

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ class Symbol;
 
 /// Class that represents a Mach-O relocation
 ///
-/// @see:
+/// @see
 ///   * MachO::RelocationObject
 ///   * MachO::RelocationDyld
 ///   * MachO::RelocationFixup
@@ -46,9 +46,9 @@ class LIEF_API Relocation : public LIEF::Relocation {
   using LIEF::Relocation::size;
 
   enum class ORIGIN {
-    UNKNOWN        = 0,
-    DYLDINFO       = 1,
-    RELOC_TABLE    = 2,
+    UNKNOWN = 0,
+    DYLDINFO = 1,
+    RELOC_TABLE = 2,
     CHAINED_FIXUPS = 3,
   };
 
@@ -69,8 +69,8 @@ class LIEF_API Relocation : public LIEF::Relocation {
   /// Indicates whether the item containing the address to be
   /// relocated is part of a CPU instruction that uses PC-relative addressing.
   ///
-  /// For addresses contained in PC-relative instructions, the CPU adds the address of
-  /// the instruction to the address contained in the instruction.
+  /// For addresses contained in PC-relative instructions, the CPU adds the address
+  /// of the instruction to the address contained in the instruction.
   virtual bool is_pc_relative() const = 0;
 
   /// Type of the relocation according to the
@@ -87,7 +87,7 @@ class LIEF_API Relocation : public LIEF::Relocation {
     return type_;
   }
 
-  /// Achitecture targeted by this relocation
+  /// Architecture targeted by this relocation
   Header::CPU_TYPE architecture() const {
     return architecture_;
   }
@@ -102,10 +102,10 @@ class LIEF_API Relocation : public LIEF::Relocation {
 
   /// Symbol associated with the relocation, if any,
   /// otherwise a nullptr.
-  Symbol* symbol() {
+  Symbol* symbol() LIEF_LIFETIMEBOUND {
     return symbol_;
   }
-  const Symbol* symbol() const {
+  const Symbol* symbol() const LIEF_LIFETIMEBOUND {
     return symbol_;
   }
 
@@ -116,10 +116,10 @@ class LIEF_API Relocation : public LIEF::Relocation {
 
   /// Section associated with the relocation, if any,
   /// otherwise a nullptr.
-  Section* section() {
+  Section* section() LIEF_LIFETIMEBOUND {
     return section_;
   }
-  const Section* section() const {
+  const Section* section() const LIEF_LIFETIMEBOUND {
     return section_;
   }
 
@@ -130,16 +130,17 @@ class LIEF_API Relocation : public LIEF::Relocation {
 
   /// SegmentCommand associated with the relocation, if any,
   /// otherwise a nullptr.
-  SegmentCommand* segment() {
+  SegmentCommand* segment() LIEF_LIFETIMEBOUND {
     return segment_;
   }
-  const SegmentCommand* segment() const {
+  const SegmentCommand* segment() const LIEF_LIFETIMEBOUND {
     return segment_;
   }
 
   template<class T>
   const T* cast() const {
-    static_assert(std::is_base_of<Relocation, T>::value, "Require Relocation inheritance");
+    static_assert(std::is_base_of<Relocation, T>::value,
+                  "Require Relocation inheritance");
     if (T::classof(*this)) {
       return static_cast<const T*>(this);
     }
@@ -158,13 +159,14 @@ class LIEF_API Relocation : public LIEF::Relocation {
 
   virtual std::ostream& print(std::ostream& os) const;
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const Relocation& relocation);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const Relocation& relocation);
 
   protected:
-  Symbol*         symbol_ = nullptr;
-  uint8_t         type_ = 0;
+  Symbol* symbol_ = nullptr;
+  uint8_t type_ = 0;
   Header::CPU_TYPE architecture_ = Header::CPU_TYPE::ANY;
-  Section*        section_ = nullptr;
+  Section* section_ = nullptr;
   SegmentCommand* segment_ = nullptr;
 };
 

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,14 +19,14 @@
 #include "LIEF/config.h"
 
 #if defined(LIEF_OAT_SUPPORT)
-#include "LIEF/OAT/Parser.hpp"
-#include "LIEF/OAT/utils.hpp"
-#include "LIEF/OAT/Binary.hpp"
-#include "LIEF/OAT/Header.hpp"
-#include "LIEF/OAT/DexFile.hpp"
-#include "LIEF/OAT/Class.hpp"
-#include "LIEF/OAT/Method.hpp"
-#include "LIEF/OAT/EnumToString.hpp"
+  #include "LIEF/OAT/Parser.hpp"
+  #include "LIEF/OAT/utils.hpp"
+  #include "LIEF/OAT/Binary.hpp"
+  #include "LIEF/OAT/Header.hpp"
+  #include "LIEF/OAT/DexFile.hpp"
+  #include "LIEF/OAT/Class.hpp"
+  #include "LIEF/OAT/Method.hpp"
+  #include "LIEF/OAT/EnumToString.hpp"
 #endif
 
 #endif

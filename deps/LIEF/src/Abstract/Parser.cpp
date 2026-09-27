@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,30 +23,29 @@
 
 
 #if defined(LIEF_OAT_SUPPORT)
-#include "LIEF/OAT/Binary.hpp"
-#include "LIEF/OAT/Parser.hpp"
-#include "LIEF/OAT/utils.hpp"
+  #include "LIEF/OAT/Binary.hpp"
+  #include "LIEF/OAT/Parser.hpp"
+  #include "LIEF/OAT/utils.hpp"
 #endif
 
 #if defined(LIEF_ELF_SUPPORT)
-#include "LIEF/ELF/utils.hpp"
-#include "LIEF/ELF/Parser.hpp"
-#include "LIEF/ELF/Binary.hpp"
+  #include "LIEF/ELF/utils.hpp"
+  #include "LIEF/ELF/Parser.hpp"
+  #include "LIEF/ELF/Binary.hpp"
 #endif
 
 #if defined(LIEF_PE_SUPPORT)
-#include "LIEF/PE/utils.hpp"
-#include "LIEF/PE/Parser.hpp"
-#include "LIEF/PE/Binary.hpp"
+  #include "LIEF/PE/utils.hpp"
+  #include "LIEF/PE/Parser.hpp"
+  #include "LIEF/PE/Binary.hpp"
 #endif
 
 #if defined(LIEF_MACHO_SUPPORT)
-#include "LIEF/MachO/utils.hpp"
-#include "LIEF/MachO/Parser.hpp"
-#include "LIEF/MachO/FatBinary.hpp"
-#include "LIEF/MachO/Binary.hpp"
+  #include "LIEF/MachO/utils.hpp"
+  #include "LIEF/MachO/Parser.hpp"
+  #include "LIEF/MachO/FatBinary.hpp"
+  #include "LIEF/MachO/Binary.hpp"
 #endif
-
 
 
 namespace LIEF {
@@ -70,13 +69,13 @@ std::unique_ptr<Binary> Parser::parse(const std::string& filename) {
 
 #if defined(LIEF_PE_SUPPORT)
   if (PE::is_pe(filename)) {
-     return PE::Parser::parse(filename);
+    return PE::Parser::parse(filename);
   }
 #endif
 
 #if defined(LIEF_MACHO_SUPPORT)
   if (MachO::is_macho(filename)) {
-    // For fat binary we take the last one...
+    // For Fat binaries, take the last architecture slice
     std::unique_ptr<MachO::FatBinary> fat = MachO::Parser::parse(filename);
     if (fat != nullptr) {
       return fat->pop_back();
@@ -106,13 +105,13 @@ std::unique_ptr<Binary> Parser::parse(const std::vector<uint8_t>& raw) {
 
 #if defined(LIEF_PE_SUPPORT)
   if (PE::is_pe(raw)) {
-     return PE::Parser::parse(raw);
+    return PE::Parser::parse(raw);
   }
 #endif
 
 #if defined(LIEF_MACHO_SUPPORT)
   if (MachO::is_macho(raw)) {
-    // For fat binary we take the last one...
+    // For Fat binaries, take the last architecture slice
     std::unique_ptr<MachO::FatBinary> fat = MachO::Parser::parse(raw);
     if (fat != nullptr) {
       return fat->pop_back();
@@ -123,7 +122,6 @@ std::unique_ptr<Binary> Parser::parse(const std::vector<uint8_t>& raw) {
 
   LIEF_ERR("Unknown format");
   return nullptr;
-
 }
 
 std::unique_ptr<Binary> Parser::parse(std::unique_ptr<BinaryStream> stream) {
@@ -137,14 +135,15 @@ std::unique_ptr<Binary> Parser::parse(std::unique_ptr<BinaryStream> stream) {
 
 #if defined(LIEF_PE_SUPPORT)
   if (PE::is_pe(*stream)) {
-     return PE::Parser::parse(std::move(stream));
+    return PE::Parser::parse(std::move(stream));
   }
 #endif
 
 #if defined(LIEF_MACHO_SUPPORT)
   if (MachO::is_macho(*stream)) {
     // For fat binary we take the last one...
-    std::unique_ptr<MachO::FatBinary> fat = MachO::Parser::parse(std::move(stream));
+    std::unique_ptr<MachO::FatBinary> fat =
+        MachO::Parser::parse(std::move(stream));
     if (fat != nullptr) {
       return fat->pop_back();
     }
@@ -160,7 +159,7 @@ Parser::Parser(const std::string& filename) {
   std::ifstream file(filename, std::ios::in | std::ios::binary);
 
   if (!file) {
-    LIEF_ERR("Can't open '{}'", filename);
+    LIEF_ERR("Failed to open '{}'", filename);
     return;
   }
   file.unsetf(std::ios::skipws);

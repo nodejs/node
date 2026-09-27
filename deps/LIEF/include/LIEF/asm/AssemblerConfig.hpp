@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,11 +30,11 @@ class LIEF_API AssemblerConfig {
   public:
   AssemblerConfig() = default;
 
-  AssemblerConfig(const AssemblerConfig &) = default;
-  AssemblerConfig &operator=(const AssemblerConfig &) = default;
+  AssemblerConfig(const AssemblerConfig&) = default;
+  AssemblerConfig& operator=(const AssemblerConfig&) = default;
 
-  AssemblerConfig(AssemblerConfig &&) = default;
-  AssemblerConfig &operator=(AssemblerConfig &&) = default;
+  AssemblerConfig(AssemblerConfig&&) = default;
+  AssemblerConfig& operator=(AssemblerConfig&&) = default;
 
   /// The different supported dialects
   enum class DIALECT {
@@ -65,8 +65,8 @@ class LIEF_API AssemblerConfig {
   /// 0x1003: call _my_function
   /// ```
   ///
-  /// The function `_my_function` will remain undefined unless we return its address
-  /// in `resolve_symbol()`:
+  /// The function `_my_function` will remain undefined unless we return its
+  /// address in `resolve_symbol()`:
   ///
   /// ```cpp
   /// class MyConfig : public AssemblerConfig {

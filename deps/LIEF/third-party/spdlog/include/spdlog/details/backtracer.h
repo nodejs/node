@@ -41,5 +41,5 @@ public:
 }  // namespace spdlog
 
 #ifdef SPDLOG_HEADER_ONLY
-    #include "backtracer-inl.h"
+#include "backtracer-inl.h"
 #endif

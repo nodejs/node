@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,23 +41,22 @@ class LIEF_API Export : public Object {
   friend class Parser;
 
   public:
-  using entries_t        = std::vector<std::unique_ptr<ExportEntry>>;
-  using it_entries       = ref_iterator<entries_t&, ExportEntry*>;
-  using it_const_entries = const_ref_iterator<const entries_t&, const ExportEntry*>;
+  using entries_t = std::vector<std::unique_ptr<ExportEntry>>;
+  using it_entries = ref_iterator<entries_t&, ExportEntry*>;
+  using it_const_entries =
+      const_ref_iterator<const entries_t&, const ExportEntry*>;
 
   Export() = default;
 
   Export(std::string name, const std::vector<ExportEntry>& entries) :
-    name_(std::move(name))
-  {
+    name_(std::move(name)) {
     for (const ExportEntry& E : entries) {
       add_entry(E);
     }
   }
 
   Export(std::string name) :
-    Export(std::move(name), {})
-  {}
+    Export(std::move(name), {}) {}
 
   Export(const details::pe_export_directory_table& header);
 
@@ -101,11 +100,11 @@ class LIEF_API Export : public Object {
   }
 
   /// Iterator over the ExportEntry
-  it_entries entries() {
+  it_entries entries() LIEF_LIFETIMEBOUND {
     return entries_;
   }
 
-  it_const_entries entries() const {
+  it_const_entries entries() const LIEF_LIFETIMEBOUND {
     return entries_;
   }
 
@@ -164,30 +163,36 @@ class LIEF_API Export : public Object {
   }
 
   /// Find the export entry with the given name
-  const ExportEntry* find_entry(const std::string& name) const;
+  const ExportEntry* find_entry(const std::string& name) const LIEF_LIFETIMEBOUND;
 
-  ExportEntry* find_entry(const std::string& name) {
-    return const_cast<ExportEntry*>(static_cast<const Export*>(this)->find_entry(name));
+  ExportEntry* find_entry(const std::string& name) LIEF_LIFETIMEBOUND {
+    return const_cast<ExportEntry*>(
+        static_cast<const Export*>(this)->find_entry(name)
+    );
   }
 
   /// Find the export entry with the given ordinal number
-  const ExportEntry* find_entry(uint32_t ordinal) const;
+  const ExportEntry* find_entry(uint32_t ordinal) const LIEF_LIFETIMEBOUND;
 
-  ExportEntry* find_entry(uint32_t ordinal) {
-    return const_cast<ExportEntry*>(static_cast<const Export*>(this)->find_entry(ordinal));
+  ExportEntry* find_entry(uint32_t ordinal) LIEF_LIFETIMEBOUND {
+    return const_cast<ExportEntry*>(
+        static_cast<const Export*>(this)->find_entry(ordinal)
+    );
   }
 
   /// Find the export entry at the provided RVA
-  const ExportEntry* find_entry_at(uint32_t rva) const;
+  const ExportEntry* find_entry_at(uint32_t rva) const LIEF_LIFETIMEBOUND;
 
-  ExportEntry* find_entry_at(uint32_t rva) {
-    return const_cast<ExportEntry*>(static_cast<const Export*>(this)->find_entry_at(rva));
+  ExportEntry* find_entry_at(uint32_t rva) LIEF_LIFETIMEBOUND {
+    return const_cast<ExportEntry*>(
+        static_cast<const Export*>(this)->find_entry_at(rva)
+    );
   }
 
   /// Add the given export and return the newly created and added export
-  ExportEntry& add_entry(const ExportEntry& exp);
+  ExportEntry& add_entry(const ExportEntry& exp) LIEF_LIFETIMEBOUND;
 
-  ExportEntry& add_entry(std::string name, uint32_t rva) {
+  ExportEntry& add_entry(std::string name, uint32_t rva) LIEF_LIFETIMEBOUND {
     return add_entry(ExportEntry(std::move(name), rva));
   }
 
@@ -234,4 +239,4 @@ class LIEF_API Export : public Object {
 }
 }
 
-#endif /* PE_EXPORT_H */
+#endif
