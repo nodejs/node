@@ -788,6 +788,9 @@ It's possible to specify the expected total size of the uncompressed input via
 doesn't match at the end of the input, compression will fail with the code
 `ZSTD_error_srcSize_wrong`.
 
+[`zlib.zstdCompress()`][] defaults `opts.pledgedSrcSize` to the byte length of
+its input.
+
 #### Decompressor options
 
 These advanced options are available for controlling decompression:
@@ -3064,6 +3067,11 @@ Decompress a chunk of data with [`Unzip`][].
 added:
   - v23.8.0
   - v22.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66358
+    description: The `pledgedSrcSize` option defaults to the byte length of
+                 `buffer`.
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
@@ -3438,6 +3446,7 @@ Create a Zstandard decompression transform.
 [`zlib.createZipArchive()`]: #zlibcreateziparchiveentries-options
 [`zlib.createZipArchiveSync()`]: #zlibcreateziparchivesyncentries-options
 [`zlib.getMaxZipContentSize()`]: #zlibgetmaxzipcontentsize
+[`zlib.zstdCompress()`]: #zlibzstdcompressbuffer-options-callback
 [convenience methods]: #convenience-methods
 [zlib documentation]: https://zlib.net/manual.html#Constants
 [zlib.createGzip example]: #zlib

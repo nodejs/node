@@ -112,3 +112,47 @@ for (const pledgedSrcSize of [
 zlib.createZstdCompress({
   pledgedSrcSize: Number.MAX_SAFE_INTEGER,
 }).destroy();
+
+// zstdCompress() pledges the input size by default, so its output matches
+// zstdCompressSync(), which lets zstd infer the size from a single call.
+{
+  const text = 'héllo wörld 🚀 '.repeat(1000);
+  const bytes = Buffer.from(text);
+  const inputs = [
+    '',
+    text,
+    bytes,
+    new Uint16Array(bytes.buffer, bytes.byteOffset, bytes.length >> 1),
+    new DataView(bytes.buffer, bytes.byteOffset, bytes.length),
+    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length),
+  ];
+  const opts = {
+    params: { [zlib.constants.ZSTD_c_compressionLevel]: 9 },
+  };
+
+  for (const input of inputs) {
+    zlib.zstdCompress(input, opts, common.mustSucceed((compressed) => {
+      assert.deepStrictEqual(compressed, zlib.zstdCompressSync(input, opts));
+    }));
+  }
+
+  for (const defaultEncoding of ['utf8', 'utf-8']) {
+    const encodingOpts = { ...opts, defaultEncoding };
+    zlib.zstdCompress(text, encodingOpts, common.mustSucceed((compressed) => {
+      assert.deepStrictEqual(compressed, zlib.zstdCompressSync(text, encodingOpts));
+    }));
+  }
+
+  // The caller's options are left untouched, so they can be reused.
+  assert.strictEqual(opts.pledgedSrcSize, undefined);
+
+  // An explicit pledgedSrcSize is still honored.
+  zlib.zstdCompress(bytes, { pledgedSrcSize: 1 }, common.mustCall((err) => {
+    assert.strictEqual(err.code, pledgedSrcSizeError.code);
+  }));
+
+  // Strings written with a non-UTF-8 defaultEncoding still compress.
+  zlib.zstdCompress('é', { defaultEncoding: 'latin1' }, common.mustSucceed((compressed) => {
+    assert.deepStrictEqual(zlib.zstdDecompressSync(compressed), Buffer.from([0xe9]));
+  }));
+}
