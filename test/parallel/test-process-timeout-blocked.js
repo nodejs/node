@@ -16,16 +16,17 @@ tmpdir.refresh();
 // it can expire before the fixture has reached the state under test, which the
 // fixture signals by creating a file. If it did not get that far and did not
 // print the expected message, run it again with a longer timeout.
-function runUntilReady(fixture, expected) {
+function runUntilReady(fixture, expected, args = []) {
   for (let timeout = common.platformTimeout(1000); ; timeout *= 2) {
     // Child processes of a previous attempt may still be running, so use a
     // different file for each attempt.
-    const marker = tmpdir.resolve(`${fixture}.${timeout}.ready`);
+    const marker = tmpdir.resolve([fixture, ...args, timeout, 'ready'].join('.'));
     const start = process.hrtime.bigint();
     const child = spawnSync(process.execPath, [
       `--process-timeout=${timeout}ms`,
       fixtures.path('process-timeout', fixture),
       marker,
+      ...args,
     ], { encoding: 'utf8' });
     const elapsed = Number(process.hrtime.bigint() - start) / 1e6;
 
@@ -68,4 +69,15 @@ function runUntilReady(fixture, expected) {
   runUntilReady(
     'blocked-worker-at-exit.js',
     /^The process did not finish exiting after the event loop had stopped\.$/m);
+}
+
+for (const mode of ['exit', 'throw', 'reject']) {
+  // process.exit(), an uncaught exception, or an unhandled rejection waits for
+  // a Worker thread that is blocked in a synchronous native call. The main thread is exiting, so it
+  // must not be reported as blocked by the application.
+  const stderr = runUntilReady(
+    'blocked-worker-at-process-exit.js',
+    /^The process did not finish exiting after the event loop had stopped\.$/m,
+    [mode]);
+  assert.doesNotMatch(stderr, /The main thread did not respond/);
 }
