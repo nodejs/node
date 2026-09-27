@@ -4637,6 +4637,92 @@ requests are made and avoid invoking it in the middle of any requests.
 See [Built-in Proxy Support][] for details on proxy URL formats and `NO_PROXY`
 syntax.
 
+## `http.websocketMask(source, mask, output, offset, length)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {Buffer|TypedArray|DataView} The data to mask.
+* `mask` {Buffer|TypedArray|DataView} The 4-byte masking key.
+* `output` {Buffer|TypedArray|DataView} Where to write the masked data.
+* `offset` {integer} Byte offset in `output` at which to start writing.
+* `length` {integer} Number of bytes of `source` to mask.
+
+XORs the first `length` bytes of `source` with `mask`, repeated, and writes the
+result to `output` starting at `offset`: byte `i` of `source` is XORed with
+byte `i % 4` of `mask`. This is the masking operation that WebSocket clients
+apply to every frame payload they send ([RFC 6455, Section 5.3][]), and that
+servers undo on every frame they receive. Applying it twice with the same
+`mask` restores the original data. `source` is not modified, unless it shares
+memory with `output`.
+
+All arguments are treated as raw bytes, whatever the view type. `source` and
+`output` may be the same view or overlapping views over the same memory; the
+result is the same as if `source` had been copied first.
+
+An error is thrown if `mask` is not exactly 4 bytes long, if `length` is
+greater than `source.byteLength`, if `offset + length` is greater than
+`output.byteLength`, or if `output` is backed by an immutable `ArrayBuffer`.
+Nothing is written in that case. `source` and `mask` may be backed by an
+immutable `ArrayBuffer`.
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { websocketMask, websocketUnmask } from 'node:http';
+
+const key = Buffer.from([0x37, 0xfa, 0x21, 0x3d]);
+const payload = Buffer.from('Hello');
+
+// Write a masked copy of the payload after a 6-byte frame header.
+const frame = Buffer.alloc(6 + payload.length);
+websocketMask(payload, key, frame, 6, payload.length);
+console.log(frame.subarray(6));
+// Prints: <Buffer 7f 9f 4d 51 58>
+
+const received = frame.subarray(6);
+websocketUnmask(received, key);
+console.log(received.toString());
+// Prints: Hello
+```
+
+```cjs
+const { Buffer } = require('node:buffer');
+const { websocketMask, websocketUnmask } = require('node:http');
+
+const key = Buffer.from([0x37, 0xfa, 0x21, 0x3d]);
+const payload = Buffer.from('Hello');
+
+// Write a masked copy of the payload after a 6-byte frame header.
+const frame = Buffer.alloc(6 + payload.length);
+websocketMask(payload, key, frame, 6, payload.length);
+console.log(frame.subarray(6));
+// Prints: <Buffer 7f 9f 4d 51 58>
+
+const received = frame.subarray(6);
+websocketUnmask(received, key);
+console.log(received.toString());
+// Prints: Hello
+```
+
+## `http.websocketUnmask(buffer, mask)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `buffer` {Buffer|TypedArray|DataView} The data to unmask, in place.
+* `mask` {Buffer|TypedArray|DataView} The 4-byte masking key.
+
+XORs every byte of `buffer` with `mask`, repeated, in place: byte `i` is XORed
+with byte `i % 4` of `mask`. This is equivalent to
+`http.websocketMask(buffer, mask, buffer, 0, buffer.byteLength)`, and is
+typically used to unmask a received WebSocket frame payload
+([RFC 6455, Section 5.3][]). See [`http.websocketMask()`][] for an example.
+
+An error is thrown, and nothing is written, if `mask` is not exactly 4 bytes
+long or if `buffer` is backed by an immutable `ArrayBuffer`.
+
 ## Class: `WebSocket`
 
 <!-- YAML
@@ -4845,6 +4931,7 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 ```
 
 [Built-in Proxy Support]: #built-in-proxy-support
+[RFC 6455, Section 5.3]: https://datatracker.ietf.org/doc/html/rfc6455#section-5.3
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
 [RFC 9110 Section 6.6.1]: https://www.rfc-editor.org/rfc/rfc9110#section-6.6.1
 [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`]: errors.md#err_http_content_length_mismatch
@@ -4880,6 +4967,7 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`http.setGlobalProxyFromEnv()`]: #httpsetglobalproxyfromenvproxyenv
 [`http.validateHeaderName()`]: #httpvalidateheadernamename-label
 [`http.validateHeaderValue()`]: #httpvalidateheadervaluename-value
+[`http.websocketMask()`]: #httpwebsocketmasksource-mask-output-offset-length
 [`message.headers`]: #messageheaders
 [`message.rawHeaders`]: #messagerawheaders
 [`message.socket`]: #messagesocket
