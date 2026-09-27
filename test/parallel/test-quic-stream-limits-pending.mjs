@@ -53,12 +53,17 @@ const s1 = await clientSession.createBidirectionalStream({
   body: encoder.encode('stream 1'),
 });
 
-let s2
+// eslint-disable-next-line node-core/must-call-assert
+s1.opened.then(() => {
+  opened++;
+});
+
+let s2;
 await assert.rejects(
   async () => {
     // Second stream should not open, but throw.
     s2 = await clientSession.createBidirectionalStream({
-      body: encoder.encode('stream 2'),
+      body: encoder.encode('stream 2a'),
       waitUntilAvailable: false,
     });
     // eslint-disable-next-line node-core/must-call-assert
@@ -71,6 +76,15 @@ await assert.rejects(
     message: 'No new stream available within flow control',
   },
 );
+// Ok try again a second second stream, that patiently waits
+s2 = await clientSession.createBidirectionalStream({
+  body: encoder.encode('stream 2b')
+});
+// eslint-disable-next-line node-core/must-call-assert
+s2.opened.then(() => {
+  opened++;
+});
+
 
 // Third stream is created but queued as pending because the
 // server only allows 1 concurrent bidi stream.
@@ -79,13 +93,11 @@ const s3 = await clientSession.createBidirectionalStream({
 });
 
 
-// s2 should be pending until s1 closes and the server grants
+// s2 and s3 should be pending until s1 closes and the server grants
 // more stream credits.
 assert.strictEqual(s2.pending, true);
-assert.strictEqual(opened, 1);
-// s3 should be pending until s1 closes and the server grants
-// more stream credits.
 assert.strictEqual(s3.pending, true);
+assert.strictEqual(opened, 1);
 
 // Drain and close the first stream.
 for await (const _ of s1) { /* drain */ } // eslint-disable-line no-unused-vars
