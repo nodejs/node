@@ -238,7 +238,7 @@ class Client extends DispatcherBase {
           throw new InvalidArgumentError('h2Options.settings.initialWindowSize must be a positive integer, greater than 0')
         }
 
-        if (h2Options.maxConcurrentStreams != null && (!Number.isInteger(h2Options.connectionWindowSize) || h2Options.maxConcurrentStreams < 1)) {
+        if (h2Options.maxConcurrentStreams != null && (!Number.isInteger(h2Options.maxConcurrentStreams) || h2Options.maxConcurrentStreams < 1)) {
           throw new InvalidArgumentError('h2Options.maxConcurrentStreams must be a positive integer, greater than 0')
         }
 
@@ -698,6 +698,11 @@ function _resume (client, sync) {
 
     if (request === null) {
       return
+    }
+
+    if (request.aborted) {
+      client[kQueue].splice(client[kPendingIdx], 1)
+      continue
     }
 
     if (client[kUrl].protocol === 'https:' && client[kServerName] !== request.servername) {
