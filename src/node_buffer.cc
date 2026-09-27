@@ -1436,6 +1436,126 @@ static bool FastIsLatin1(Local<Value> receiver, Local<Value> value) {
 
 static CFunction fast_is_latin1(CFunction::Make(FastIsLatin1));
 
+// Copies `length` bytes from `source` to `destination`, XORing byte i with
+// byte (i % 4) of `mask`, as done for WebSocket frame payloads (RFC 6455,
+// Section 5.3). The mask bytes are packed little-endian into a uint32, so mask
+// byte k is (mask >> (8 * k)) & 0xff regardless of platform endianness.
+// `source` and `destination` may be the same memory or otherwise overlap.
+static void MaskImpl(const uint8_t* source,
+                     uint8_t* destination,
+                     size_t length,
+                     uint32_t mask) {
+  uint8_t pattern[8];
+  for (size_t i = 0; i < 8; i++) {
+    pattern[i] = static_cast<uint8_t>(mask >> (8 * (i & 3)));
+  }
+  uint64_t pattern64;
+  memcpy(&pattern64, pattern, sizeof(pattern64));
+
+  // A forward pass is safe when the destination starts at or before the
+  // source: every source chunk is read before any overlapping byte is
+  // written. Otherwise, take a copy of the source first.
+  std::unique_ptr<uint8_t[]> copy;
+  if (destination > source && destination < source + length) [[unlikely]] {
+    copy.reset(new uint8_t[length]);
+    memcpy(copy.get(), source, length);
+    source = copy.get();
+  }
+
+  // Chunks start at multiples of 8, so the mask phase of every chunk is 0.
+  // memcpy() is used for unaligned loads and stores, and lets the compiler
+  // vectorize the loop.
+  size_t i = 0;
+  for (; i + 32 <= length; i += 32) {
+    uint64_t a, b, c, d;
+    memcpy(&a, source + i, 8);
+    memcpy(&b, source + i + 8, 8);
+    memcpy(&c, source + i + 16, 8);
+    memcpy(&d, source + i + 24, 8);
+    a ^= pattern64;
+    b ^= pattern64;
+    c ^= pattern64;
+    d ^= pattern64;
+    memcpy(destination + i, &a, 8);
+    memcpy(destination + i + 8, &b, 8);
+    memcpy(destination + i + 16, &c, 8);
+    memcpy(destination + i + 24, &d, 8);
+  }
+  for (; i + 8 <= length; i += 8) {
+    uint64_t v;
+    memcpy(&v, source + i, sizeof(v));
+    v ^= pattern64;
+    memcpy(destination + i, &v, sizeof(v));
+  }
+  for (; i < length; i++) destination[i] = source[i] ^ pattern[i & 3];
+}
+
+// Arguments are validated in JS: source and destination are ArrayBufferViews,
+// offset + length <= destination.byteLength and length <= source.byteLength.
+// Returns false, without writing anything, if the destination is backed by an
+// immutable ArrayBuffer.
+static bool MaskArgs(Local<Value> source_obj,
+                     Local<Value> destination_obj,
+                     size_t offset,
+                     size_t length,
+                     uint32_t mask) {
+  CHECK(destination_obj->IsArrayBufferView());
+  Local<ArrayBufferView> destination = destination_obj.As<ArrayBufferView>();
+  Local<ArrayBuffer> destination_ab = destination->Buffer();
+  if (destination_ab->IsImmutable()) return false;
+  if (length == 0) return true;
+  const size_t destination_length = destination->ByteLength();
+  CHECK_LE(offset, destination_length);
+  CHECK_LE(length, destination_length - offset);
+  uint8_t* destination_data =
+      static_cast<uint8_t*>(destination_ab->Data()) + destination->ByteOffset();
+  CHECK_NOT_NULL(destination_data);
+  uint8_t* dest = destination_data + offset;
+  if (source_obj == destination_obj) {
+    MaskImpl(destination_data, dest, length, mask);
+    return true;
+  }
+  SPREAD_BUFFER_ARG(source_obj, source);
+  CHECK_LE(length, source_length);
+  MaskImpl(reinterpret_cast<const uint8_t*>(source_data), dest, length, mask);
+  return true;
+}
+
+// mask(source, destination, offset, length, mask)
+static void Mask(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 5);
+  CHECK(args[2]->IsNumber());
+  CHECK(args[3]->IsNumber());
+  CHECK(args[4]->IsUint32());
+  // Offsets and lengths can exceed uint32 for buffers larger than 4 GiB, so
+  // they are passed as doubles (exact for integers < 2^53).
+  args.GetReturnValue().Set(
+      MaskArgs(args[0],
+               args[1],
+               static_cast<size_t>(args[2].As<Number>()->Value()),
+               static_cast<size_t>(args[3].As<Number>()->Value()),
+               args[4].As<Uint32>()->Value()));
+}
+
+static bool FastMask(Local<Value> receiver,
+                     Local<Value> source_obj,
+                     Local<Value> destination_obj,
+                     double offset,
+                     double length,
+                     uint32_t mask,
+                     // NOLINTNEXTLINE(runtime/references)
+                     FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.mask");
+  HandleScope scope(options.isolate);
+  return MaskArgs(source_obj,
+                  destination_obj,
+                  static_cast<size_t>(offset),
+                  static_cast<size_t>(length),
+                  mask);
+}
+
+static CFunction fast_mask(CFunction::Make(FastMask));
+
 // Number of UTF-16 code units produced by decoding [p, end) as UTF-8 with
 // WHATWG "maximal subpart" U+FFFD replacement, matching the fallback that
 // StringBytes::Encode takes for invalid input (v8::String::NewFromUtf8).
@@ -1952,6 +2072,7 @@ void Initialize(Local<Object> target,
       context, target, "isAscii", IsAscii, &fast_is_ascii);
   SetFastMethodNoSideEffect(
       context, target, "isLatin1", IsLatin1, &fast_is_latin1);
+  SetFastMethod(context, target, "mask", Mask, &fast_mask);
   SetFastMethodNoSideEffect(context,
                             target,
                             "stringLengthUtf8",
@@ -2034,6 +2155,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(fast_is_ascii);
   registry->Register(IsLatin1);
   registry->Register(fast_is_latin1);
+  registry->Register(Mask);
+  registry->Register(fast_mask);
   registry->Register(StringLengthUtf8);
   registry->Register(fast_string_length_utf8);
 
