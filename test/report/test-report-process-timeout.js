@@ -86,8 +86,8 @@ assert.match(report.javascriptStack.stack[0], /^at spin \(\[eval\]:1:\d+\)$/);
   // The report is completed before the process is forced to exit, so the
   // message about that is printed on its own line.
   assert.match(child.stderr, new RegExp(
-    '^Writing Node\\.js report to file: report\\.\\S+\\.json\\n' +
-    'Node\\.js report completed\\n' +
+    '^Writing Node\\.js report to file: report\\.\\S+\\.json\\r?\\n' +
+    'Node\\.js report completed\\r?\\n' +
     '\\(node:\\d+\\) The process did not finish exiting within 5000ms after ' +
     '--process-timeout expired\\. Forcing exit\\.$', 'm'));
   assert.deepStrictEqual(report.workers, []);
