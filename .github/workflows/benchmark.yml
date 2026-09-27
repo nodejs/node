@@ -121,15 +121,11 @@ jobs:
             --pure --keep TAR_DIR --keep FLAKY_TESTS \
             --keep SCCACHE_GHA_ENABLED --keep SCCACHE_GHA_RW_MODE \
             --keep ACTIONS_CACHE_SERVICE_V2 --keep ACTIONS_RESULTS_URL --keep ACTIONS_RUNTIME_TOKEN \
-            --arg useSeparateDerivationForV8 true \
             --arg withPerfetto ${{ matrix.perfetto || false }} \
-            --arg loadJSBuiltinsDynamically false \
             --arg ccache '(import <nixpkgs> {}).sccache' \
-            --arg devTools '[]' \
-            --arg benchmarkTools '[]' \
             --run '
               make build-ci -j4 V=1 && sccache --stop-server
-            '
+            ' tools/nix/ci-shell.nix
           mv out/Release/node base_node
 
       - name: Checkout the merge commit
@@ -141,15 +137,11 @@ jobs:
           nix-shell \
             -I nixpkgs=./tools/nix/pkgs.nix \
             --pure --keep SCCACHE_LOCAL_RW_MODE \
-            --arg useSeparateDerivationForV8 true \
             --arg withPerfetto ${{ matrix.perfetto || false }} \
-            --arg loadJSBuiltinsDynamically false \
             --arg ccache '(import <nixpkgs> {}).sccache' \
-            --arg devTools '[]' \
-            --arg benchmarkTools '[]' \
             --run '
                 make build-ci -j4 V=1
-            '
+            ' tools/nix/ci-shell.nix
         env:
           SCCACHE_LOCAL_RW_MODE: READ_ONLY
 

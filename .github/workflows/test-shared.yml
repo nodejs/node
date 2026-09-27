@@ -165,19 +165,7 @@ jobs:
     with:
       runner: ${{ matrix.runner }}
       with-sccache: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
-      extra-nix-flags: |
-        --arg useSeparateDerivationForV8 true \
-        ${{ matrix.perfetto && '--arg withPerfetto true \' || '\' }}
-        ${{ endsWith(matrix.system, '-darwin') && '\
-          --arg withAmaro false \
-          --arg withFFI false \
-          --arg withLief false \
-          --arg withSQLite false \
-          --arg withTemporal false \
-          --arg extraConfigFlags ''[
-            "--without-inspector"
-            "--without-node-options"
-          ]'' \' || '\' }}
+      with-perfetto: ${{ matrix.perfetto || false }}
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
@@ -209,7 +197,7 @@ jobs:
         id: v8-drv
         run: |
           V8_DRV=$(
-            nix-instantiate -E "builtins.filter (p: p.pname == ''v8'') (import $TAR_DIR/shell.nix { useSeparateDerivationForV8=true; }).buildInputs"
+            nix-instantiate -E "builtins.filter (p: p.pname == ''v8'') (import $TAR_DIR/tools/nix/ci-shell.nix {}).buildInputs"
           )
           V8_STORE_PATH=$(nix-store -q --outputs "$V8_DRV")
           echo "V8_DRV=$V8_DRV" >> "$GITHUB_OUTPUT"
