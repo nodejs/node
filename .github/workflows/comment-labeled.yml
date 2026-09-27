@@ -15,6 +15,11 @@ env:
 
     Please suggest a text for the release notes if you'd like to include a more detailed summary, then proceed to update the PR description with the text or a link to the notable change suggested text comment. Otherwise, the commit will be placed in the _Other Notable Changes_ section.
 
+  COMMIT_QUEUE_MESSAGE: >
+    This pull request has multiple non-fixup commits. Please add
+    https://github.com/nodejs/node/labels/commit-queue-squash to land it as one commit,
+    or https://github.com/nodejs/node/labels/commit-queue-rebase to land the commits separately.
+
 permissions:
   contents: read
 
@@ -55,3 +60,30 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NUMBER: ${{ github.event.pull_request.number }}
         run: gh pr comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body "$NOTABLE_CHANGE_MESSAGE"
+
+  commit-queue:
+    permissions:
+      pull-requests: write
+    if: >-
+      github.repository == 'nodejs/node' &&
+      github.event_name == 'pull_request_target' &&
+      github.event.label.name == 'commit-queue' &&
+      github.event.pull_request.commits > 1 &&
+      !contains(github.event.pull_request.labels.*.name, 'commit-queue-squash') &&
+      !contains(github.event.pull_request.labels.*.name, 'commit-queue-rebase')
+    runs-on: ubuntu-slim
+    steps:
+      - name: Request commit queue landing policy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # The queue autosquashes fixup! and amend! commits before checking
+          # whether a landing policy is needed.
+          commits=$(gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/pulls/$NUMBER/commits?per_page=100")
+          count=$(jq '[.[][] | .commit.message | split("\n")[0] |
+            select(test("^(fixup|amend)! ") | not)] | length' <<< "$commits")
+          if [ "$count" -gt 1 ]; then
+            gh pr comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body "$COMMIT_QUEUE_MESSAGE"
+          fi
