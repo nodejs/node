@@ -11,6 +11,7 @@
 #else  // defined(DEBUG)
 #include "LIEF/LIEF.hpp"
 #endif  // defined(DEBUG)
+#include "LIEF/version.h"
 #endif  // HAVE_LIEF
 
 #include "debug_utils-inl.h"
@@ -175,8 +176,13 @@ InjectOutput InjectIntoMachO(const std::vector<uint8_t>& executable,
           LIEF::MachO::SegmentCommand::VM_PROTECTIONS::READ));
       new_segment.init_protection(static_cast<uint32_t>(
           LIEF::MachO::SegmentCommand::VM_PROTECTIONS::READ));
+#if LIEF_VERSION_MAJOR >= 1
+      auto section = LIEF::MachO::Section::create(section_name, data);
+      new_segment.add_section(*section);
+#else
       LIEF::MachO::Section section(section_name, data);
       new_segment.add_section(section);
+#endif
       binary.add(new_segment);
     } else {
       // Check if the section exists
@@ -191,8 +197,13 @@ InjectOutput InjectIntoMachO(const std::vector<uint8_t>& executable,
                         segment_name,
                         section_name)};
       }
+#if LIEF_VERSION_MAJOR >= 1
+      auto section = LIEF::MachO::Section::create(section_name, data);
+      binary.add_section(*segment, *section);
+#else
       LIEF::MachO::Section section(section_name, data);
       binary.add_section(*segment, section);
+#endif
     }
 
     // It will need to be signed again anyway, so remove the signature
@@ -295,7 +306,15 @@ InjectOutput InjectIntoPE(const std::vector<uint8_t>& executable,
   cfg.resources = true;
   cfg.rsrc_section = ".rsrc";  // ensure section name
   LIEF::PE::Builder builder(*binary, cfg);
+#if LIEF_VERSION_MAJOR >= 1
+  // LIEF 1.0.0 does not export the result's bool conversion in shared builds.
+  // TODO(inoway46): Remove this workaround once the upstream issue is fixed.
+  // https://github.com/lief-project/LIEF/issues/1387
+  builder.build();
+  if (builder.get_build().empty()) {
+#else
   if (!builder.build()) {
+#endif
     return {InjectResult::kError, {}, "Failed to build modified PE binary"};
   }
 
