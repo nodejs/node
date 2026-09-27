@@ -1501,7 +1501,7 @@ class Http3ApplicationImpl final : public Session::Application {
 
     auto& session = app.session();
 
-    // DATA frames for a request stream the application already destroyed can
+    // DATA frames for a wt stream the application already destroyed can
     // still arrive. Drop the payload rather than resurrecting the stream or
     // tearing down the connection, but return its credit: unlike framing
     // bytes, DATA payload is not included in the count nghttp3 reports to
