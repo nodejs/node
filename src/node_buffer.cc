@@ -1157,8 +1157,8 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                                   is_forward);
   }
 
-  args.GetReturnValue().Set(result >= search_end ? -1
-                                                 : static_cast<int64_t>(result));
+  args.GetReturnValue().Set(
+      result >= search_end ? -1 : static_cast<int64_t>(result));
 }
 
 void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
@@ -1245,8 +1245,8 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
                                   is_forward);
   }
 
-  args.GetReturnValue().Set(result >= search_end ? -1
-                                                 : static_cast<int64_t>(result));
+  args.GetReturnValue().Set(
+      result >= search_end ? -1 : static_cast<int64_t>(result));
 }
 
 int64_t IndexOfNumberImpl(Local<Value> buffer_obj,
