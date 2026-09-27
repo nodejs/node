@@ -50,12 +50,20 @@
 
 
 int uv__kqueue_init(uv_loop_t* loop) {
-  loop->backend_fd = kqueue();
-  if (loop->backend_fd == -1)
+  int fd;
+  int err;
+
+  fd = kqueue();
+  if (fd == -1)
     return UV__ERR(errno);
 
-  uv__cloexec(loop->backend_fd, 1);
+  err = uv__cloexec(fd, 1);
+  if (err) {
+    uv__close(fd);
+    return err;
+  }
 
+  loop->backend_fd = fd;
   return 0;
 }
 
@@ -229,7 +237,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     }
 
    if ((w->events & UV__POLLPRI) == 0 && (w->pevents & UV__POLLPRI) != 0) {
+#ifdef __APPLE__
+      /*
+       * Use EVFILT_EXCEPT+ NOTE_OOB for macOS since it defines this flag.
+       * FreeBSD does not.
+       * Refs: https://github.com/libuv/libuv/issues/3947
+       */
+      EV_SET(events + nevents, w->fd, EVFILT_EXCEPT, EV_ADD, NOTE_OOB, 0, 0);
+#else
       EV_SET(events + nevents, w->fd, EV_OOBAND, EV_ADD, 0, 0, 0);
+#endif
 
       if (++nevents == ARRAY_SIZE(events)) {
         if (kevent(loop->backend_fd, events, nevents, NULL, 0, NULL))
@@ -369,7 +386,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
           revents |= UV__POLLRDHUP;
       }
 
+#ifdef __APPLE__
+      /* Match EVFILT_EXCEPT used above for macOS. */
+      if (ev->filter == EVFILT_EXCEPT) {
+#else
       if (ev->filter == EV_OOBAND) {
+#endif
         if (w->pevents & UV__POLLPRI)
           revents |= UV__POLLPRI;
         else

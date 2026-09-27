@@ -374,7 +374,7 @@ ssize_t uv_wtf8_length_as_utf16(const char* source_ptr) {
   do {
     code_point = uv__wtf8_decode1(&source_ptr);
     if (code_point < 0)
-      return -1;
+      return UV_EINVAL;
     if (code_point > 0xFFFF)
       w_target_len++;
     w_target_len++;

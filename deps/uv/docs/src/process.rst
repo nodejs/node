@@ -172,7 +172,10 @@ Public members
 
 .. c:member:: int uv_process_t.pid
 
-    The PID of the spawned process. It's set after calling :c:func:`uv_spawn`.
+    The PID of the spawned process. It is set after calling :c:func:`uv_spawn`
+    and retains the value even after the process exits. The value is only
+    unique while the process is alive; after exit, another process may be
+    reassigned the same PID.
 
 .. note::
     The :c:type:`uv_handle_t` members also apply.
@@ -259,12 +262,19 @@ API
     Initializes the process handle and starts the process. If the process is
     successfully spawned, this function will return 0. Otherwise, the
     negative error code corresponding to the reason it couldn't spawn is
-    returned.
+    returned. Note that either way-success or failure--you must eventually call
+    :c:func:`uv_close` to close the handle again before freeing the memory of
+    the handle, unlike other the other init functions in libuv.
 
     Possible reasons for failing to spawn would include (but not be limited to)
     the file to execute not existing, not having permissions to use the setuid or
     setgid specified, or not having enough memory to allocate for the new
     process.
+
+    .. warning::
+        On unix, if the process has not yet exited when you call `uv_close`,
+        you will create a zombie that libuv cannot reap. You are responsible
+        for calling `waitpid` later. This is not relevant on Windows.
 
     .. versionchanged:: 1.24.0 Added `UV_PROCESS_WINDOWS_HIDE_CONSOLE` and
                         `UV_PROCESS_WINDOWS_HIDE_GUI` flags.
@@ -276,6 +286,11 @@ API
 
     Sends the specified signal to the given process handle. Check the documentation
     on :c:ref:`signal` for signal support, specially on Windows.
+
+    If the specified process is already dead, this will not kill a different
+    process which happened to reuse the same pid. By contrast, `uv_kill` may
+    kill an arbitrary other process if you use a cached value of
+    :c:func:`uv_process_get_pid`.
 
 .. c:function:: int uv_kill(int pid, int signum)
 

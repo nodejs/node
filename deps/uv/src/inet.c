@@ -77,7 +77,7 @@ static int inet_ntop6(const unsigned char *src, char *dst, size_t size) {
    *  Copy the input (bytewise) array into a wordwise array.
    *  Find the longest run of 0x00's in src[] for :: shorthanding.
    */
-  memset(words, '\0', sizeof words);
+  memset(words, '\0', sizeof(words));
   for (i = 0; i < (int) sizeof(struct in6_addr); i++)
     words[i / 2] |= (src[i] << ((1 - (i % 2)) << 3));
   best.base = -1;
@@ -124,13 +124,13 @@ static int inet_ntop6(const unsigned char *src, char *dst, size_t size) {
     if (i == 6 && best.base == 0 && (best.len == 6 ||
         (best.len == 7 && words[7] != 0x0001) ||
         (best.len == 5 && words[5] == 0xffff))) {
-      int err = inet_ntop4(src+12, tp, sizeof tmp - (tp - tmp));
+      int err = inet_ntop4(src+12, tp, sizeof(tmp) - (tp - tmp));
       if (err)
         return err;
       tp += strlen(tp);
       break;
     }
-    tp += snprintf(tp, sizeof tmp - (tp - tmp), "%x", words[i]);
+    tp += snprintf(tp, sizeof(tmp) - (tp - tmp), "%x", words[i]);
   }
   /* Was it a trailing run of 0x00's? */
   if (best.base != -1 && (best.base + best.len) == ARRAY_SIZE(words))
@@ -219,8 +219,8 @@ static int inet_pton6(const char *src, unsigned char *dst) {
   int ch, seen_xdigits;
   unsigned int val;
 
-  memset((tp = tmp), '\0', sizeof tmp);
-  endp = tp + sizeof tmp;
+  memset((tp = tmp), '\0', sizeof(tmp));
+  endp = tp + sizeof(tmp);
   colonp = NULL;
   /* Leading :: requires some special handling. */
   if (*src == ':')
@@ -293,6 +293,6 @@ static int inet_pton6(const char *src, unsigned char *dst) {
   }
   if (tp != endp)
     return UV_EINVAL;
-  memcpy(dst, tmp, sizeof tmp);
+  memcpy(dst, tmp, sizeof(tmp));
   return 0;
 }

@@ -26,6 +26,8 @@
 #include <string.h>
 
 #ifndef _WIN32
+# include <sys/socket.h>
+# include <sys/un.h>
 # include <unistd.h>  /* close */
 #else
 # include <fcntl.h>
@@ -367,4 +369,54 @@ TEST_IMPL(pipe_getsockname_blocking) {
 
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
+}
+
+#ifdef SOCK_MAXADDRLEN
+static void long_path_connect_cb(uv_connect_t* req, int status) {
+  ASSERT_OK(status);
+  uv_close((uv_handle_t*) req->handle, NULL);
+}
+#endif
+
+TEST_IMPL(pipe_getsockname_long_path) {
+#if !defined(SOCK_MAXADDRLEN) || defined(__FreeBSD__)
+  RETURN_SKIP("long unix paths not supported on this platform");
+#else
+  uv_loop_t* loop;
+  size_t len;
+  int r;
+  char path[SOCK_MAXADDRLEN - offsetof(struct sockaddr_un, sun_path) + 1];
+  char name[SOCK_MAXADDRLEN - offsetof(struct sockaddr_un, sun_path) + 1];
+
+  loop = uv_default_loop();
+  ASSERT_NOT_NULL(loop);
+
+  r = uv_pipe_init(loop, &pipe_server, 0);
+  ASSERT_OK(r);
+  r = uv_pipe_init(loop, &pipe_client, 0);
+  ASSERT_OK(r);
+
+  memset(path, 'x', sizeof(path) - 1);
+  path[sizeof(path) - 1] = '\0';
+
+  r = uv_pipe_bind(&pipe_server, path);
+  ASSERT_OK(r);
+
+  len = sizeof(name);
+  r = uv_pipe_getsockname(&pipe_server, name, &len);
+
+  ASSERT_OK(r);
+  ASSERT_EQ(len, strlen(path));
+  ASSERT_MEM_EQ(path, name, len);
+
+  r = uv_listen((uv_stream_t*) &pipe_server, 0, pipe_server_connection_cb);
+  ASSERT_OK(r);
+
+  uv_pipe_connect(&connect_req, &pipe_client, path, long_path_connect_cb);
+  uv_close((uv_handle_t*) &pipe_server, NULL);
+  ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
+
+  MAKE_VALGRIND_HAPPY(loop);
+  return 0;
+#endif
 }

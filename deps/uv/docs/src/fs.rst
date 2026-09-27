@@ -166,8 +166,8 @@ Data types
 .. c:type:: uv_dir_t
 
     Data type used for streaming directory iteration.
-    Used by :c:func:`uv_fs_opendir()`, :c:func:`uv_fs_readdir()`, and
-    :c:func:`uv_fs_closedir()`. `dirents` represents a user provided array of
+    Used by :c:func:`uv_fs_opendir`, :c:func:`uv_fs_readdir`, and
+    :c:func:`uv_fs_closedir`. `dirents` represents a user provided array of
     `uv_dirent_t`s used to hold results. `nentries` is the user provided maximum
     array size of `dirents`.
 
@@ -391,7 +391,7 @@ API
       create a copy-on-write reflink. If the underlying platform does not
       support copy-on-write, or an error occurs while attempting to use
       copy-on-write, a fallback copy mechanism based on
-      :c:func:`uv_fs_sendfile()` is used.
+      :c:func:`uv_fs_sendfile` is used.
     - `UV_FS_COPYFILE_FICLONE_FORCE`: If present, `uv_fs_copyfile()` will
       attempt to create a copy-on-write reflink. If the underlying platform does
       not support copy-on-write, or an error occurs while attempting to use
@@ -471,7 +471,7 @@ API
 
 .. c:function:: int uv_fs_realpath(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 
-    Equivalent to :man:`realpath(3)` on Unix. Windows uses `GetFinalPathNameByHandleW <https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfinalpathnamebyhandlew>`_.
+    Equivalent to :man:`realpath(3)` on Unix. Windows uses `GetFinalPathNameByHandleW <https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfinalpathnamebyhandlew>`_.
     The resulting string is stored in `req->ptr`.
 
     .. warning::
@@ -551,7 +551,7 @@ Helper functions
 .. c:function:: uv_os_fd_t uv_get_osfhandle(int fd)
 
    For a file descriptor in the C runtime, get the OS-dependent handle.
-   On UNIX, returns the ``fd`` intact. On Windows, this calls `_get_osfhandle <https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/get-osfhandle?view=vs-2019>`_.
+   On UNIX, returns the ``fd`` intact. On Windows, this calls `_get_osfhandle <https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/get-osfhandle?view=vs-2019>`_.
    Note that the return value is still owned by the C runtime,
    any attempts to close it or to use it after closing the fd may lead to malfunction.
 
@@ -560,7 +560,7 @@ Helper functions
 .. c:function:: int uv_open_osfhandle(uv_os_fd_t os_fd)
 
    For a OS-dependent handle, get the file descriptor in the C runtime.
-   On UNIX, returns the ``os_fd`` intact. On Windows, this calls `_open_osfhandle <https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/open-osfhandle?view=vs-2019>`_.
+   On UNIX, returns the ``os_fd`` intact. On Windows, this calls `_open_osfhandle <https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/open-osfhandle?view=vs-2019>`_.
    Note that this consumes the argument, any attempts to close it or to use it
    after closing the return value may lead to malfunction.
 
@@ -586,7 +586,7 @@ File open constants
 
     .. note::
         `UV_FS_O_DIRECT` is supported on Linux, and on Windows via
-        `FILE_FLAG_NO_BUFFERING <https://docs.microsoft.com/en-us/windows/win32/fileio/file-buffering>`_.
+        `FILE_FLAG_NO_BUFFERING <https://learn.microsoft.com/en-us/windows/win32/fileio/file-buffering>`_.
         `UV_FS_O_DIRECT` is not supported on macOS.
 
 .. c:macro:: UV_FS_O_DIRECTORY
@@ -603,7 +603,7 @@ File open constants
 
     .. note::
         `UV_FS_O_DSYNC` is supported on Windows via
-        `FILE_FLAG_WRITE_THROUGH <https://docs.microsoft.com/en-us/windows/win32/fileio/file-buffering>`_.
+        `FILE_FLAG_WRITE_THROUGH <https://learn.microsoft.com/en-us/windows/win32/fileio/file-buffering>`_.
 
 .. c:macro:: UV_FS_O_EXCL
 
@@ -670,7 +670,7 @@ File open constants
 
     .. note::
         `UV_FS_O_RANDOM` is only supported on Windows via
-        `FILE_FLAG_RANDOM_ACCESS <https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew>`_.
+        `FILE_FLAG_RANDOM_ACCESS <https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew>`_.
 
 .. c:macro:: UV_FS_O_RDONLY
 
@@ -687,7 +687,7 @@ File open constants
 
     .. note::
         `UV_FS_O_SEQUENTIAL` is only supported on Windows via
-        `FILE_FLAG_SEQUENTIAL_SCAN <https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew>`_.
+        `FILE_FLAG_SEQUENTIAL_SCAN <https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew>`_.
 
 .. c:macro:: UV_FS_O_SHORT_LIVED
 
@@ -695,7 +695,7 @@ File open constants
 
     .. note::
         `UV_FS_O_SHORT_LIVED` is only supported on Windows via
-        `FILE_ATTRIBUTE_TEMPORARY <https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew>`_.
+        `FILE_ATTRIBUTE_TEMPORARY <https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew>`_.
 
 .. c:macro:: UV_FS_O_SYMLINK
 
@@ -708,7 +708,7 @@ File open constants
 
     .. note::
         `UV_FS_O_SYNC` is supported on Windows via
-        `FILE_FLAG_WRITE_THROUGH <https://docs.microsoft.com/en-us/windows/win32/fileio/file-buffering>`_.
+        `FILE_FLAG_WRITE_THROUGH <https://learn.microsoft.com/en-us/windows/win32/fileio/file-buffering>`_.
 
 .. c:macro:: UV_FS_O_TEMPORARY
 
@@ -716,7 +716,7 @@ File open constants
 
     .. note::
         `UV_FS_O_TEMPORARY` is only supported on Windows via
-        `FILE_ATTRIBUTE_TEMPORARY <https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew>`_.
+        `FILE_ATTRIBUTE_TEMPORARY <https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew>`_.
 
 .. c:macro:: UV_FS_O_TRUNC
 

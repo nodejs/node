@@ -244,5 +244,52 @@ TEST_IMPL(wtf8) {
   ASSERT_GT(len, 0);
   ASSERT_LT(len, ARRAY_SIZE(buf));
   uv_wtf8_to_utf16(input_max, buf, len);
+
+  /* Invalid start byte for UTF-8/WTF-8 sequence */
+  ASSERT_EQ(UV_EINVAL, uv_wtf8_length_as_utf16("\xFF"));
+  return 0;
+}
+
+TEST_IMPL(utf16_to_wtf8_exact_fill) {
+  /* Regression test for the off-by-one NUL write in uv_utf16_to_wtf8().
+   *
+   * The API contract says target_len_ptr excludes space for the NUL terminator.
+   * The caller must pass (buffer_size - 1) so that the NUL written at
+   * target[target_len] stays in bounds.
+   *
+   * U+4E2D encodes to 3 UTF-8 bytes (0xE4 0xB8 0xAD). With a buffer of size N
+   * (divisible by 3) and N/3 input characters, the worst-case output exactly
+   * fills the data portion. Passing target_len = N - 1 must keep the NUL inside
+   * the buffer, and passing target_len = N would write one byte past the end.
+   */
+  static const size_t sizes[] = { 3, 6, 48, 96, 192 };
+  size_t i;
+
+  for (i = 0; i < ARRAY_SIZE(sizes); i++) {
+    size_t buf_size = sizes[i];
+    size_t num_chars = buf_size / 3;
+    char mem[200];
+    uint16_t utf16[200];
+    char* target;
+    size_t target_len;
+    size_t j;
+
+    ASSERT_NOT_NULL(mem);
+    ASSERT_NOT_NULL(utf16);
+
+    /* Fill entire region including canary with 0xAA. */
+    memset(mem, 0xAA, buf_size + 1);
+    for (j = 0; j < num_chars; j++)
+      utf16[j] = 0x4E2D;  /* U+4E2D (中) — 3-byte UTF-8 */
+
+    /* Correct usage: target_len = buf_size - 1 reserves space for NUL. */
+    target = mem;
+    target_len = buf_size - 1;
+    uv_utf16_to_wtf8(utf16, num_chars, &target, &target_len);
+
+    /* NUL must land inside the buffer; canary byte must be untouched. */
+    ASSERT_EQ((unsigned char) mem[buf_size], 0xAA);
+  }
+
   return 0;
 }

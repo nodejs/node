@@ -215,8 +215,10 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   if (cp_times == NULL)
     return UV_ENOMEM;
 
-  if (sysctlbyname("kern.cp_time", cp_times, &size, NULL, 0))
+  if (sysctlbyname("kern.cp_time", cp_times, &size, NULL, 0)) {
+    uv__free(cp_times);
     return UV__ERR(errno);
+  }
 
   *cpu_infos = uv__malloc(numcpus * sizeof(**cpu_infos));
   if (!(*cpu_infos)) {
