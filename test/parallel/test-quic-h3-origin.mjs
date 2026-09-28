@@ -29,8 +29,7 @@ const decoder = new TextDecoder();
   const originReceived = Promise.withResolvers();
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (quicSession) => {
-    const ss = new Http3Session(quicSession);
+  const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
       await stream.closed;
       ss.close();
@@ -54,8 +53,11 @@ const decoder = new TextDecoder();
 
   const quicSession = await connect(serverEndpoint.address, {
     alpn: 'h3',
+    autoWrap: false,
     servername: 'example.com',
     verifyPeer: 'manual',
+  });
+  const clientSession = Http3Session.from(quicSession, {
     // Client receives ORIGIN frame via onorigin callback.
     onorigin: mustCall(function(origins) {
       assert.ok(Array.isArray(origins));
@@ -70,7 +72,6 @@ const decoder = new TextDecoder();
       originReceived.resolve();
     }),
   });
-  const clientSession = new Http3Session(quicSession);
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({
@@ -101,8 +102,7 @@ const decoder = new TextDecoder();
   const originReceived = Promise.withResolvers();
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (quicSession) => {
-    const ss = new Http3Session(quicSession);
+  const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
       await stream.closed;
       ss.close();
@@ -136,8 +136,11 @@ const decoder = new TextDecoder();
 
   const quicSession = await connect(serverEndpoint.address, {
     alpn: 'h3',
+    autoWrap: false,
     servername: 'custom-port.example.com',
     verifyPeer: 'manual',
+  });
+  const clientSession = Http3Session.from(quicSession, {
     onorigin: mustCall(function(origins) {
       assert.ok(Array.isArray(origins));
 
@@ -170,7 +173,6 @@ const decoder = new TextDecoder();
       originReceived.resolve();
     }),
   });
-  const clientSession = new Http3Session(quicSession);
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({

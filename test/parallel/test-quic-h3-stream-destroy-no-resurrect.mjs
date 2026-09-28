@@ -23,7 +23,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect, Http3Session } = await import('node:quic');
+const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { makePayload } = await import('../common/quic.mjs');
 
@@ -41,8 +41,7 @@ const responseBody = makePayload(kResponseSize, 17);
 assert.ok(kResponseSize * kRequests > kConnWindow * 4,
           'aggregate response data must far exceed the connection window');
 
-const serverEndpoint = await listen(mustCall((quicSession) => {
-  const serverSession = new Http3Session(quicSession);
+const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall((stream) => {
     // The client destroys these early; the truncated write is expected.
     stream.onerror = () => {};
@@ -56,7 +55,7 @@ const serverEndpoint = await listen(mustCall((quicSession) => {
   }, kRequests),
 });
 
-const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+const clientSession = await connect(serverEndpoint.address, {
   alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
@@ -64,7 +63,7 @@ const clientSession = new Http3Session(await connect(serverEndpoint.address, {
     initialMaxData: kConnWindow,
     initialMaxStreamDataBidiLocal: kResponseSize * 2,
   },
-}));
+});
 
 // The client opens every stream itself; the server opens none. Any onstream
 // here is a destroyed request stream being resurrected and misreported as

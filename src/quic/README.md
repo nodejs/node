@@ -146,7 +146,7 @@ protocol-specific behavior to. Two implementations exist:
   prioritization. Manages unidirectional control streams internally.
 
 A Session starts without an Application. JavaScript schedules an attach (that
-is what `new Http3Session(session)` does) by writing to the shared state, and
+is what `Http3Session.from(session)` does) by writing to the shared state, and
 the Session attaches it - or the `DefaultApplication` - when it becomes active,
 meaning the first time an Application is needed.
 

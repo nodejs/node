@@ -52,12 +52,13 @@ async function makeRequest(clientSession, path) {
 
   const serverEndpoint = await listen(mustCall(async (quicSession) => {
     // Server disables QPACK dynamic table.
-    const ss = new Http3Session(quicSession, {
+    const ss = Http3Session.from(quicSession, {
       settings: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
     });
     ss.onstream = mustCall(2);
   }), {
     alpn: ['h3'],
+    autoWrap: false,
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       this.sendHeaders({ ':status': '200' });
@@ -72,10 +73,11 @@ async function makeRequest(clientSession, path) {
   // Client also disables QPACK dynamic table.
   const quicSession = await connect(serverEndpoint.address, {
     alpn: 'h3',
+    autoWrap: false,
     servername: 'localhost',
     verifyPeer: 'manual',
   });
-  const clientSession = new Http3Session(quicSession, {
+  const clientSession = Http3Session.from(quicSession, {
     settings: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
   });
   await clientSession.opened;
@@ -96,12 +98,13 @@ async function makeRequest(clientSession, path) {
   let requestCount = 0;
 
   const serverEndpoint = await listen(mustCall(async (quicSession) => {
-    const ss = new Http3Session(quicSession, {
+    const ss = Http3Session.from(quicSession, {
       settings: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
     });
     ss.onstream = mustCall(2);
   }), {
     alpn: ['h3'],
+    autoWrap: false,
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       this.sendHeaders({ ':status': '200' });
@@ -115,10 +118,11 @@ async function makeRequest(clientSession, path) {
 
   const quicSession = await connect(serverEndpoint.address, {
     alpn: 'h3',
+    autoWrap: false,
     servername: 'localhost',
     verifyPeer: 'manual',
   });
-  const clientSession = new Http3Session(quicSession, {
+  const clientSession = Http3Session.from(quicSession, {
     settings: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
   });
   await clientSession.opened;
