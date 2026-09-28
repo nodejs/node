@@ -4248,10 +4248,11 @@ session should be used instead of the raw QUIC session for all HTTP/3
 interactions. The streams that this session exposes are still `QuicStream`
 instances, but they gain HTTP/3 APIs and functionality from the application.
 
-The HTTP/3 session API exposes all key HTTP/3 session details: the settings,
-statistics, TLS identity, and HTTP/3-level events. The QUIC transport details
-underneath (e.g. paths, transport parameters, and key updates) remain on the
-QUIC session, accessible as [`http3session.quicSession`][].
+The HTTP/3 session API exposes the HTTP/3 session details: the settings,
+statistics, and HTTP/3-level events. The connection details underneath (e.g.
+the TLS identity and negotiated ALPN, paths, transport parameters, and key
+updates) remain on the QUIC session, accessible as
+[`http3session.quicSession`][].
 
 HTTP/3 frames every stream on the connection, so once this is attached,
 streams cannot be opened on the QUIC session directly:
@@ -4305,9 +4306,8 @@ added: REPLACEME
 -->
 
 Each of the following behaves exactly as the member of the same name on the
-underlying [`QuicSession`][]: `alpnProtocol`, `certificate`, `close()`,
-`closed`, `destroy()`, `destroyed`, `ephemeralKeyInfo`, `opened`,
-`peerCertificate`, `servername`, and `stats`.
+underlying [`QuicSession`][]: `close()`, `closed`, `closing`, `destroy()`,
+`destroyed`, `opened`, and `stats`.
 
 Any callback set through the `Http3Session` - `onerror` and the
 HTTP/3-specific ones below - is invoked with the `Http3Session` as `this`.
