@@ -14,9 +14,9 @@ const { createPrivateKey } = await import('node:crypto');
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
 const cert = fixtures.readKey('agent1-cert.pem');
 
-// Negotiating the h3 ALPN does not itself activate HTTP/3. The ALPN is
-// reported as usual, but the session keeps the default application unless it
-// has an Http3Session attached.
+// With autoWrap off, negotiating the h3 ALPN does not activate HTTP/3. The
+// ALPN is reported as usual, but the session keeps the default application
+// unless an Http3Session is attached.
 
 const serverOpened = Promise.withResolvers();
 
@@ -27,6 +27,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   serverOpened.resolve();
 }), {
   alpn: ['h3'],
+  autoWrap: false,
   sni: { '*': { keys: [key], certs: [cert] } },
 });
 
@@ -34,6 +35,7 @@ assert.notStrictEqual(serverEndpoint.address, undefined);
 
 const clientSession = await connect(serverEndpoint.address, {
   alpn: 'h3',
+  autoWrap: false,
   servername: 'localhost',
   verifyPeer: 'manual',
 });

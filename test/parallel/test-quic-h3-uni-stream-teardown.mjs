@@ -15,7 +15,7 @@ if (!hasQuic) {
 }
 
 const { createPrivateKey } = await import('node:crypto');
-const { listen, connect, Http3Session } = await import('node:quic');
+const { listen, connect } = await import('node:quic');
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
 const cert = fixtures.readKey('agent1-cert.pem');
@@ -25,11 +25,11 @@ const endpoint = await listen(mustNotCall(), {
   sni: { '*': { keys: [key], certs: [cert] } },
 });
 
-const session = new Http3Session(await connect(endpoint.address, {
+const session = await connect(endpoint.address, {
   alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
-}));
+});
 
 const refused = {
   code: 'ERR_INVALID_STATE',
