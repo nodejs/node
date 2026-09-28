@@ -95,6 +95,7 @@ test('optimized pointer arguments reject direct SharedArrayBuffers', () => {
 
     assert.throws(() => callFirstByte(shared), expected);
   } finally {
+    eval('%WaitForBackgroundOptimization()');
     lib.close();
   }
 });
@@ -202,6 +203,7 @@ test('optimized buffer signatures preserve pointer-like conversions', () => {
       }
     }
   } finally {
+    eval('%WaitForBackgroundOptimization()');
     lib.close();
   }
 });
@@ -235,6 +237,7 @@ test('multi-argument buffer signatures accept pointer BigInts', () => {
       assert.strictEqual(functions.sum_buffer(pointer, length), 28n);
     }
   } finally {
+    eval('%WaitForBackgroundOptimization()');
     lib.close();
   }
 });
