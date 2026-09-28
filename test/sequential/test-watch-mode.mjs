@@ -1050,7 +1050,7 @@ process.on('message', (message) => {
       '--no-warnings',
     ].join(' ');
     const { done, restart } = runInBackground({
-      args: [file],
+      args: ['--watch', file],
       options: {
         cwd,
         env: { ...process.env, NODE_OPTIONS: nodeOptions },
