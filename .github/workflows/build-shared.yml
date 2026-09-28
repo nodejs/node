@@ -17,11 +17,6 @@ on:
         required: false
         type: boolean
         default: false
-      with-perfetto:
-        description: Whether to enable Perfetto
-        required: false
-        type: boolean
-        default: false
       v8-nar:
         description: An optional name for the NAR archive for V8 that needs to be downloaded
         required: false
@@ -90,7 +85,6 @@ jobs:
             -I "nixpkgs=$TAR_DIR/tools/nix/pkgs.nix" \
             --pure --keep TAR_DIR --keep FLAKY_TESTS \
             --keep SCCACHE_GHA_ENABLED --keep ACTIONS_CACHE_SERVICE_V2 --keep ACTIONS_RESULTS_URL --keep ACTIONS_RUNTIME_TOKEN \
-            --arg withPerfetto ${{ inputs.with-perfetto }} \
             --arg ccache "${NIX_SCCACHE:-null}" \
             --arg pkcs11 ${{ inputs.pkcs11-store-test }} \
             ${{ inputs.extra-nix-flags }} \

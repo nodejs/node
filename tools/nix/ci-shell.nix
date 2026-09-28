@@ -10,16 +10,19 @@ import ../../shell.nix (
     devTools = [ ];
     benchmarkTools = [ ];
   }
-  // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
-    withAmaro = false;
-    withFFI = false;
-    withLief = false;
-    withSQLite = false;
-    withTemporal = false;
-    extraConfigFlags = [
-      "--without-inspector"
-      "--without-node-options"
-    ];
-  }
+  // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin (
+    # Disable optional features on Darwin for coverage and faster CI.
+    builtins.mapAttrs (n: v: false) (
+      pkgs.lib.filterAttrs (n: v: builtins.match "with[A-Z].+" n != null) (
+        builtins.functionArgs (import ../../shell.nix)
+      )
+    )
+    // {
+      extraConfigFlags = [
+        "--without-inspector"
+        "--without-node-options"
+      ];
+    }
+  )
   // args
 )
