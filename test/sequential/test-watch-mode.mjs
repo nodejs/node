@@ -1064,6 +1064,33 @@ process.on('message', (message) => {
     }
   });
 
+  for (const { name, nodeOptions, expected } of [
+    { name: 'a double quote', nodeOptions: '--title="a\\"b"', expected: 'a"b' },
+    { name: 'a backslash', nodeOptions: '--title="a \\\\b"', expected: 'a \\b' },
+  ]) {
+    it(`should preserve NODE_OPTIONS values containing ${name} in child process`, {
+      // Honoring --title from NODE_OPTIONS is required for this test.
+      skip: !!process.config.variables.node_without_node_options,
+    }, async () => {
+      const file = createTmpFile('console.log(JSON.stringify(process.title));');
+      const { done, restart } = runInBackground({
+        args: ['--watch', file],
+        options: {
+          env: { ...process.env, NODE_OPTIONS: `--watch ${nodeOptions}` },
+        },
+      });
+
+      try {
+        const { stdout, stderr } = await restart();
+
+        assert.strictEqual(stderr, '');
+        assert.ok(stdout.includes(JSON.stringify(expected)), stdout.join('\n'));
+      } finally {
+        await done();
+      }
+    });
+  }
+
   it('should handle NODE_OPTIONS containing only watch flags', async () => {
     const file = createTmpFile('console.log(JSON.stringify(process.env.NODE_OPTIONS));');
     const { done, restart } = runInBackground({
