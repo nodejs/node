@@ -1033,6 +1033,60 @@ process.on('message', (message) => {
     }
   });
 
+  it('should strip underscore aliases of watch flags from NODE_OPTIONS', async () => {
+    // Avoid recursively watching the repository's source and test trees.
+    const cwd = tmpdir.resolve('node-options-underscore');
+    mkdirSync(path.join(cwd, 'src'), { recursive: true });
+    mkdirSync(path.join(cwd, 'test'));
+    const file = createTmpFile('console.log(process.env.NODE_OPTIONS);');
+    const nodeOptions = [
+      '--watch_path=./src',
+      '--watch_path', './test',
+      '--watch_preserve_output',
+      '--watch_preserve_output=true',
+      '--watch_kill_signal=SIGKILL',
+      '--watch_kill_signal', 'SIGINT',
+      '--max_old_space_size=4096',
+      '--no-warnings',
+    ].join(' ');
+    const { done, restart } = runInBackground({
+      args: [file],
+      options: {
+        cwd,
+        env: { ...process.env, NODE_OPTIONS: nodeOptions },
+      },
+    });
+
+    try {
+      const { stdout, stderr } = await restart();
+
+      assert.strictEqual(stderr, '');
+      const nodeOptionsLine = stdout.find((line) => line.includes('--max_old_space_size'));
+      assert.ok(nodeOptionsLine);
+      assert.strictEqual(nodeOptionsLine, '--max_old_space_size=4096 --no-warnings');
+    } finally {
+      await done();
+    }
+  });
+
+  it('should strip --watch_path from execArgv in child process', async () => {
+    const dir = tmpdir.resolve('exec-argv-underscore');
+    mkdirSync(dir, { recursive: true });
+    const file = createTmpFile('console.log(JSON.stringify(process.execArgv));');
+    const { done, restart } = runInBackground({
+      args: [`--watch_path=${dir}`, file],
+    });
+
+    try {
+      const { stdout, stderr } = await restart();
+
+      assert.strictEqual(stderr, '');
+      assert.ok(stdout.includes('["--no-warnings"]'));
+    } finally {
+      await done();
+    }
+  });
+
   it('should not strip --watch when it appears inside a quoted NODE_OPTIONS value', {
     // Honoring --require from NODE_OPTIONS is required for this test.
     skip: !!process.config.variables.node_without_node_options,
