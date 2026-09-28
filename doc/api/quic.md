@@ -476,7 +476,8 @@ added: v23.8.0
 
 * `address` {string|net.SocketAddress}
 * `options` {quic.SessionOptions}
-* Returns: {Promise} a promise for a {quic.QuicSession}
+* Returns: {Promise} a promise for a {quic.QuicSession}, or {quic.Http3Session}
+  if [`sessionOptions.autoWrap`][] is enabled and an HTTP/3 ALPN is negotiated.
 
 Initiate a new client-side session.
 
@@ -3061,6 +3062,23 @@ list that the client also supports.
 
 This option is required; omitting it throws `ERR_MISSING_OPTION`.
 
+#### `sessionOptions.autoWrap`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+* **Default:** `true`
+
+If this option is set for [`quic.connect()`][] or [`quic.listen()`][], then
+sessions are automatically exposed as wrapped [`Http3Session`][] instances
+instead of raw [`QuicSession`][], if an HTTP/3 ALPN (`h3` or an `h3-*` draft)
+is negotiated.
+
+Set this to `false` to always receive a raw [`QuicSession`][] and configure
+HTTP/3 yourself with [`Http3Session.from()`][] instead.
+
 #### `sessionOptions.ca`
 
 <!-- YAML
@@ -3816,7 +3834,7 @@ added: v23.8.0
 -->
 
 * `this` {quic.QuicEndpoint}
-* `session` {quic.QuicSession}
+* `session` {quic.QuicSession|quic.Http3Session}
 
 The callback function that is invoked when a new server session is initiated by
 a remote peer. It is called once the peer's TLS `ClientHello` has been
@@ -4063,10 +4081,13 @@ added:
  - v24.20.0
 -->
 
-HTTP/3, backed by `nghttp3`, can run on top of a QUIC session by attaching
-an [`Http3Session`][]. Negotiating the `'h3'` ALPN tells the peer which
-protocol to speak, but does not change how the connection works locally,
-so both are needed. See [`new Http3Session()`][] for more details.
+HTTP/3, backed by `nghttp3`, runs on top of a QUIC session as an
+[`Http3Session`][]. By default, [`quic.listen()`][] and [`quic.connect()`][]
+provide one whenever an HTTP/3 ALPN is negotiated (see
+[`sessionOptions.autoWrap`][]).
+
+HTTP/3 can also be configured manually, by setting `autoWrap: false` and using
+the [`Http3Session.from()`][] API to attach HTTP/3 to an existing QUIC session.
 
 Attaching the HTTP/3 application enables a number of stream- and
 session-level capabilities that are not available to non-HTTP/3
@@ -4104,13 +4125,13 @@ applications:
 ### Minimal HTTP/3 client
 
 ```mjs
-import { connect, Http3Session } from 'node:quic';
+import { connect } from 'node:quic';
 import process from 'node:process';
 
-const session = Http3Session.from(await connect('example.com:443', {
+const session = await connect('example.com:443', {
   alpn: 'h3',
   servername: 'example.com',
-}));
+});
 await session.opened;
 
 const stream = await session.createBidirectionalStream({
@@ -4155,15 +4176,11 @@ A few things to note:
 ### Minimal HTTP/3 server
 
 ```mjs
-import { listen, Http3Session } from 'node:quic';
+import { listen } from 'node:quic';
 
 const encoder = new TextEncoder();
 
-const endpoint = await listen((quicSession) => {
-  // Attaching HTTP/3 has to happen here, synchronously, before the
-  // callback returns.
-  const session = Http3Session.from(quicSession);
-
+const endpoint = await listen((session) => {
   // The session.onstream callback fires for each new client-initiated
   // stream. It is optional here: with `onheaders` configured below,
   // request streams are consumed through that callback.
@@ -4999,6 +5016,7 @@ throughput issues caused by flow control.
 [`session.onstream`]: #sessiononstream
 [`session.opened`]: #sessionopened
 [`session.sendDatagram()`]: #sessionsenddatagramdatagram-encoding
+[`sessionOptions.autoWrap`]: #sessionoptionsautowrap
 [`sessionOptions.cc`]: #sessionoptionscc
 [`sessionOptions.ciphers`]: #sessionoptionsciphers
 [`sessionOptions.datagramDropPolicy`]: #sessionoptionsdatagramdroppolicy
