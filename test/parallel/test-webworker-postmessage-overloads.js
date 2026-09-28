@@ -3,7 +3,6 @@
 
 const common = require('../common');
 const assert = require('node:assert');
-const { isMainThread } = require('node:worker_threads');
 const { pathToFileURL } = require('node:url');
 
 function checkPostMessage(post) {
@@ -39,7 +38,8 @@ function checkPostMessage(post) {
   }
 }
 
-if (isMainThread) {
+// The test runner can also execute this file in a regular Node worker.
+if (typeof globalThis.DedicatedWorkerGlobalScope === 'undefined') {
   const worker = new Worker(pathToFileURL(__filename));
   worker.onerror = common.mustNotCall('worker failed');
   const done = common.mustCall(() => worker.terminate());
