@@ -218,6 +218,9 @@ void WasmImportWrapperCache::Free(std::vector<WasmCode*>& wrappers) {
   }
   code_allocator_->FreeCode(base::VectorOf(wrappers));
   for (WasmCode* wrapper : wrappers) {
+    // TODO(407003348): Drop these checks if they don't trigger in the wild.
+    CHECK(wrapper->is_dying());
+    CHECK_EQ(wrapper->ref_count_.load(std::memory_order_acquire), 0);
     delete wrapper;
   }
   // Make sure nobody tries to access stale pointers.

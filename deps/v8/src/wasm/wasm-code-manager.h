@@ -293,6 +293,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
         // loop to evaluate again what needs to be done.
         undo_mark_as_dying();
       }
+      DCHECK_LT(1, old_count);
       if (ref_count_.compare_exchange_weak(old_count, old_count - 1,
                                            std::memory_order_acq_rel)) {
         return false;
