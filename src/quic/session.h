@@ -11,7 +11,6 @@
 #include <node_sockaddr.h>
 #include <timer_wrap.h>
 #include <util.h>
-#include <memory>
 #include <optional>
 #include <span>
 #include "bindingdata.h"
@@ -741,6 +740,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // Set during FlushPendingData to avoid the one-tick latency of
     // async-only sends from the uv_check callback.
     uint8_t prefer_try_send : 1 = 0;
+    // Set if the application couldn't be started, which is fatal to it.
+    uint8_t application_start_failed : 1 = 0;
   };
   Flags flags_;
 

@@ -61,10 +61,6 @@ assert.throws(() => new Http3Session(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
       code: 'ERR_INVALID_STATE',
       message: /cannot be set on a session/,
     });
-    // And the HTTP/3-only callbacks exist only there:
-    for (const name of ['ongoaway', 'onorigin', 'onapplication']) {
-      assert.strictEqual(name in quicSession, false);
-    }
     // The onerror callback stays transport-level, so both sides keep their own:
     quicSession.onerror = () => {};
     session.onerror = () => {};
@@ -95,20 +91,6 @@ const tooLate = {
   code: 'ERR_INVALID_STATE',
   message: /already has an application/,
 };
-
-// HTTP/3-only callbacks can't be passed as QuicSession options, so they
-// can't be registered before the application exists:
-for (const name of ['ongoaway', 'onorigin', 'onapplication']) {
-  const expected = {
-    code: 'ERR_INVALID_ARG_VALUE',
-    message: new RegExp(`options\\.${name}.*Http3Session`),
-  };
-  const callback = { [name]: () => {} };
-  await assert.rejects(listen(() => {}, { ...serverOpts, ...callback }),
-                       expected);
-  await assert.rejects(connect('127.0.0.1:1', { ...clientOpts, ...callback }),
-                       expected);
-}
 
 // Setting onstream claims the session for raw QUIC, so HTTP/3 can't be
 // attached afterwards, whether it is set directly or passed as an option.

@@ -1997,7 +1997,12 @@ void Endpoint::SocketAddressInfoTraits::Touch(const SocketAddress& address,
 // JavaScript call outs
 
 void Endpoint::EmitNewSession(const BaseObjectPtr<Session>& session) {
-  if (!env()->can_call_into_js()) return;
+  if (!env()->can_call_into_js()) {
+    // Even if we can't call into JS, we need to attach the app to handle
+    // other callbacks before we do proper teardown:
+    session->EnsureApplication();
+    return;
+  }
   CallbackScope<Endpoint> scope(this);
   session->set_wrapped();
   Local<Value> arg = session->object();

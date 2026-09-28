@@ -49,5 +49,6 @@ assert.throws(() => stream.sendHeaders({ ':status': '200' }), {
   message: /does not support headers/,
 });
 
-clientSession.destroy();
+stream.destroy();
+await clientSession.close();
 await serverEndpoint.close();

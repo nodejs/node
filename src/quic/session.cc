@@ -2629,7 +2629,7 @@ bool Session::EnsureApplication() {
   if (is_destroyed()) [[unlikely]]
     return false;
   if (impl_->application_) [[likely]]
-    return true;
+    return !flags_.application_start_failed;
 
   if (application_type() == Application::Type::HTTP3) {
     SetApplication(CreateHttp3Application(this));
@@ -2639,9 +2639,16 @@ bool Session::EnsureApplication() {
   }
 
   // If the keys are already ready, that means we should start immediately.
-  // If application start fails then we can't continue.
+  // If application start fails then we can't continue. Inside an ngtcp2
+  // callback the session can't be closed directly, but the failure sticks,
+  // and HandshakeCompleted() then fails the callback, which closes it.
   if (keys_ready_ && !application().Start()) {
     Debug(this, "Application start failed");
+    flags_.application_start_failed = 1;
+    if (!flags_.in_ngtcp2_callback_scope) {
+      SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
+      Close();
+    }
     return false;
   }
   return true;
@@ -2865,7 +2872,7 @@ bool Session::AfterNgtcp2Read(int err) {
         if (is_server() && tls_session().early_selection() ==
                                TLSSession::EarlySelection::kSelected) {
           endpoint().EmitNewSession(BaseObjectPtr<Session>(this));
-          if (!is_destroyed()) ResumeHandshake();
+          if (has_application()) ResumeHandshake();
         }
       }
       return true;
@@ -3408,15 +3415,16 @@ void Session::StreamDataBlocked(stream_id id) {
 
 void Session::CollectSessionTicketAppData(
     SessionTicket::AppData* app_data) const {
-  DCHECK(!is_destroyed());
-  CHECK(has_application());
+  if (!has_application()) [[unlikely]]
+    return;
   application().CollectSessionTicketAppData(app_data);
 }
 
 SessionTicket::AppData::Status Session::ExtractSessionTicketAppData(
     const SessionTicket::AppData& app_data, Flag flag) {
-  DCHECK(!is_destroyed());
-  CHECK(has_application());
+  if (!has_application()) [[unlikely]] {
+    return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
+  }
   return application().ExtractSessionTicketAppData(app_data, flag);
 }
 
