@@ -1070,7 +1070,9 @@ process.on('message', (message) => {
   ]) {
     it(`should preserve NODE_OPTIONS values containing ${name} in child process`, {
       // Honoring --title from NODE_OPTIONS is required for this test.
-      skip: !!process.config.variables.node_without_node_options,
+      // process.title is always an empty string on SunOS, so --title
+      // cannot be observed there.
+      skip: !!process.config.variables.node_without_node_options || common.isSunOS,
     }, async () => {
       const file = createTmpFile('console.log(JSON.stringify(process.title));');
       const { done, restart } = runInBackground({
