@@ -1157,8 +1157,8 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                                   is_forward);
   }
 
-  args.GetReturnValue().Set(result >= search_end ? -1
-                                                 : static_cast<int>(result));
+  args.GetReturnValue().Set(
+      result >= search_end ? -1 : static_cast<int64_t>(result));
 }
 
 void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
@@ -1245,11 +1245,11 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
                                   is_forward);
   }
 
-  args.GetReturnValue().Set(result >= search_end ? -1
-                                                 : static_cast<int>(result));
+  args.GetReturnValue().Set(
+      result >= search_end ? -1 : static_cast<int64_t>(result));
 }
 
-int32_t IndexOfNumberImpl(Local<Value> buffer_obj,
+int64_t IndexOfNumberImpl(Local<Value> buffer_obj,
                           const uint32_t needle,
                           const int64_t offset_i64,
                           const int64_t end_i64,
@@ -1276,7 +1276,7 @@ int32_t IndexOfNumberImpl(Local<Value> buffer_obj,
     ptr = nbytes::stringsearch::MemrchrFill(buffer_data, needle, backward_end);
   }
   const uint8_t* ptr_uint8 = static_cast<const uint8_t*>(ptr);
-  return ptr != nullptr ? static_cast<int32_t>(ptr_uint8 - buffer_data) : -1;
+  return ptr != nullptr ? static_cast<int64_t>(ptr_uint8 - buffer_data) : -1;
 }
 
 void SlowIndexOfNumber(const FunctionCallbackInfo<Value>& args) {
@@ -1297,7 +1297,7 @@ void SlowIndexOfNumber(const FunctionCallbackInfo<Value>& args) {
       IndexOfNumberImpl(buffer_obj, needle, offset_i64, end_i64, is_forward));
 }
 
-int32_t FastIndexOfNumber(Local<Value>,
+int64_t FastIndexOfNumber(Local<Value>,
                           Local<Value> buffer_obj,
                           uint32_t needle,
                           int64_t offset_i64,
