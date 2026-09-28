@@ -32,7 +32,7 @@ const decoder = new TextDecoder();
   const serverDone = Promise.withResolvers();
 
   const serverEndpoint = await listen(mustCall(async (quicSession) => {
-    const ss = new Http3Session(quicSession, {
+    const ss = Http3Session.from(quicSession, {
       settings: { enableDatagrams: true },
     });
     ss.onstream = mustCall(async (stream) => {
@@ -44,6 +44,7 @@ const decoder = new TextDecoder();
     serverDone.resolve();
   }), {
     alpn: ['h3'],
+    autoWrap: false,
     sni: { '*': { keys: [key], certs: [cert] } },
     transportParams: { maxDatagramFrameSize: 100 },
     // Server echoes received datagram back to client.
@@ -66,6 +67,7 @@ const decoder = new TextDecoder();
 
   const quicSession = await connect(serverEndpoint.address, {
     alpn: 'h3',
+    autoWrap: false,
     servername: 'localhost',
     verifyPeer: 'manual',
     transportParams: { maxDatagramFrameSize: 100 },
@@ -79,7 +81,7 @@ const decoder = new TextDecoder();
       clientGotDatagram.resolve();
     }),
   });
-  const clientSession = new Http3Session(quicSession, { settings: { enableDatagrams: true } });
+  const clientSession = Http3Session.from(quicSession, { settings: { enableDatagrams: true } });
   await clientSession.opened;
 
   // Datagrams work alongside H3 request/response.
@@ -120,7 +122,7 @@ const decoder = new TextDecoder();
 
   const serverEndpoint = await listen(mustCall(async (quicSession) => {
     // Server explicitly disables H3 datagrams.
-    const ss = new Http3Session(quicSession, {
+    const ss = Http3Session.from(quicSession, {
       settings: { enableDatagrams: false },
     });
     ss.onstream = mustCall(async (stream) => {
@@ -130,6 +132,7 @@ const decoder = new TextDecoder();
     });
   }), {
     alpn: ['h3'],
+    autoWrap: false,
     sni: { '*': { keys: [key], certs: [cert] } },
     // But transport-level datagrams ARE supported.
     transportParams: { maxDatagramFrameSize: 100 },
@@ -144,11 +147,12 @@ const decoder = new TextDecoder();
 
   const quicSession = await connect(serverEndpoint.address, {
     alpn: 'h3',
+    autoWrap: false,
     servername: 'localhost',
     verifyPeer: 'manual',
     transportParams: { maxDatagramFrameSize: 100 },
   });
-  const clientSession = new Http3Session(quicSession, { settings: { enableDatagrams: true } });
+  const clientSession = Http3Session.from(quicSession, { settings: { enableDatagrams: true } });
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({

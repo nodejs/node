@@ -12,7 +12,7 @@ import { dump } from 'node:stream/iter';
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
-const { listen, connect, Http3Session } = await import('node:quic');
+const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { drainableProtocol } = await import('stream/iter');
 
@@ -31,8 +31,7 @@ const BODY = WINDOW - 11;
 let letServerRead;
 const serverMayRead = new Promise((resolve) => { letServerRead = resolve; });
 
-const endpoint = await listen((quicSession) => {
-  const session = new Http3Session(quicSession);
+const endpoint = await listen((session) => {
   session.onstream = async (stream) => {
     await serverMayRead;
     // Reading extends the window
@@ -48,11 +47,11 @@ const endpoint = await listen((quicSession) => {
   onheaders() { this.sendHeaders({ ':status': '200' }); },
 });
 
-const session = new Http3Session(await connect(endpoint.address, {
+const session = await connect(endpoint.address, {
   alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
-}));
+});
 await session.opened;
 
 // Budget well above the window, so the window is what stops the writer.

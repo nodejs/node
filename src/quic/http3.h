@@ -8,7 +8,6 @@
 #include "session.h"
 
 namespace node {
-class ExternalReferenceRegistry;
 class Realm;
 namespace quic {
 

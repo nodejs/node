@@ -19,41 +19,68 @@ const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
 const cert = fixtures.readKey('agent1-cert.pem');
 const serverOpts = {
   alpn: ['h3'],
+  autoWrap: false,
   sni: { '*': { keys: [key], certs: [cert] } },
 };
 const clientOpts = {
   alpn: 'h3',
+  autoWrap: false,
   servername: 'localhost',
   verifyPeer: 'manual',
 };
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
-// Only a QuicSession can carry an HTTP/3 session.
-assert.throws(() => new Http3Session({}), { code: 'ERR_INVALID_ARG_TYPE' });
+// Only a QuicSession can carry an HTTP/3 session, attached with from():
+assert.throws(() => Http3Session.from({}), { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => new Http3Session(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
 
 // Both peers attached after the session already exists, and the attach
 // itself validated.
 {
   const endpoint = await listen(mustCall((quicSession) => {
-    const session = new Http3Session(quicSession);
+    const session = Http3Session.from(quicSession);
     assert.strictEqual(session.quicSession, quicSession);
 
     // Can only attach once:
-    assert.throws(() => new Http3Session(quicSession),
+    assert.throws(() => Http3Session.from(quicSession),
                   { code: 'ERR_INVALID_STATE' });
+
+    // HTTP/3 frames every stream, so raw streams can no longer be opened:
+    const rawRefused = {
+      code: 'ERR_INVALID_STATE',
+      message: /Raw QUIC streams cannot be created/,
+    };
+    assert.rejects(quicSession.createUnidirectionalStream(), rawRefused)
+      .then(mustCall());
+    assert.rejects(quicSession.createBidirectionalStream(), rawRefused)
+      .then(mustCall());
+
+    // Incoming streams are now reported through the Http3Session only:
+    assert.throws(() => { quicSession.onstream = () => {}; }, {
+      code: 'ERR_INVALID_STATE',
+      message: /cannot be set on a session/,
+    });
+    // And the HTTP/3-only callbacks exist only there:
+    for (const name of ['ongoaway', 'onorigin', 'onapplication']) {
+      assert.strictEqual(name in quicSession, false);
+    }
+    // The onerror callback stays transport-level, so both sides keep their own:
+    quicSession.onerror = () => {};
+    session.onerror = () => {};
+    assert.notStrictEqual(quicSession.onerror, session.onerror);
   }), serverOpts);
 
   const quicClient = await connect(endpoint.address, clientOpts);
 
   // Options are validated before anything is recorded, so the session is
   // still attachable after these failures:
-  assert.throws(() => new Http3Session(quicClient, null),
+  assert.throws(() => Http3Session.from(quicClient, null),
                 { code: 'ERR_INVALID_ARG_TYPE' });
-  assert.throws(() => new Http3Session(quicClient, { ongoaway: 5 }),
+  assert.throws(() => Http3Session.from(quicClient, { ongoaway: 5 }),
                 { code: 'ERR_INVALID_ARG_TYPE' });
 
-  const client = new Http3Session(quicClient);
+  const client = Http3Session.from(quicClient);
   await client.opened;
 
   assert.strictEqual(client.alpnProtocol, 'h3');
@@ -69,12 +96,41 @@ const tooLate = {
   message: /already has an application/,
 };
 
+// HTTP/3-only callbacks can't be passed as QuicSession options, so they
+// can't be registered before the application exists:
+for (const name of ['ongoaway', 'onorigin', 'onapplication']) {
+  const expected = {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: new RegExp(`options\\.${name}.*Http3Session`),
+  };
+  const callback = { [name]: () => {} };
+  await assert.rejects(listen(() => {}, { ...serverOpts, ...callback }),
+                       expected);
+  await assert.rejects(connect('127.0.0.1:1', { ...clientOpts, ...callback }),
+                       expected);
+}
+
+// Setting onstream claims the session for raw QUIC, so HTTP/3 can't be
+// attached afterwards, whether it is set directly or passed as an option.
+{
+  const endpoint = await listen(mustCall((quicSession) => {
+    quicSession.onstream = () => {};
+    assert.throws(() => Http3Session.from(quicSession), tooLate);
+  }), serverOpts);
+  const client = await connect(endpoint.address,
+                               { ...clientOpts, onstream: () => {} });
+  assert.throws(() => Http3Session.from(client), tooLate);
+  await client.opened;
+  await client.close();
+  await endpoint.close();
+}
+
 // Server: an attach deferred past the session callback is rejected.
 {
   const done = Promise.withResolvers();
   const endpoint = await listen(mustCall((quicSession) => {
     setImmediate(mustCall(() => {
-      assert.throws(() => new Http3Session(quicSession), tooLate);
+      assert.throws(() => Http3Session.from(quicSession), tooLate);
       done.resolve();
     }));
   }), serverOpts);
@@ -89,7 +145,7 @@ const tooLate = {
 // `opened`, so the negotiated ALPN can be read and acted on before attaching.
 {
   const endpoint = await listen(mustCall((quicSession) => {
-    new Http3Session(quicSession);
+    Http3Session.from(quicSession);
   }), serverOpts);
   const client = await connect(endpoint.address, clientOpts);
   const info = await client.opened;
@@ -97,7 +153,7 @@ const tooLate = {
   assert.strictEqual(client.alpnProtocol, 'h3');
   // Further already-settled awaits are still the same checkpoint.
   await null;
-  const http3 = new Http3Session(client);
+  const http3 = Http3Session.from(client);
   assert.strictEqual(http3.alpnProtocol, 'h3');
   await http3.close();
   await endpoint.close();
@@ -108,13 +164,13 @@ const tooLate = {
 // some other reason.
 {
   const endpoint = await listen(mustCall((quicSession) => {
-    new Http3Session(quicSession);
+    Http3Session.from(quicSession);
   }), serverOpts);
   const client = await connect(endpoint.address, clientOpts);
   await client.opened;
   await new Promise(setImmediate);
-  assert.throws(() => new Http3Session(client), tooLate);
-  assert.throws(() => new Http3Session(client), tooLate);
+  assert.throws(() => Http3Session.from(client), tooLate);
+  assert.throws(() => Http3Session.from(client), tooLate);
 
   await client.close();
   await endpoint.close();
@@ -132,7 +188,7 @@ const tooLate = {
   }), serverOpts);
   const client = await connect(endpoint.address, clientOpts);
   const raw = await client.createUnidirectionalStream({ body: enc.encode('x') });
-  assert.throws(() => new Http3Session(client), tooLate);
+  assert.throws(() => Http3Session.from(client), tooLate);
   await client.opened;
   await serverGot.promise;
   await raw.closed;
@@ -149,7 +205,40 @@ const tooLate = {
   const client = await connect(endpoint.address, { ...clientOpts, ...dgramOpts });
   await client.opened;
   await client.sendDatagram(enc.encode('x'));
-  assert.throws(() => new Http3Session(client), tooLate);
+  assert.throws(() => Http3Session.from(client), tooLate);
+  await client.close();
+  await endpoint.close();
+}
+
+// Settings are validated before anything is recorded, so a rejected value
+// names the property at fault and leaves the session still attachable.
+{
+  const endpoint = await listen(mustCall((quicSession) => {
+    Http3Session.from(quicSession);
+  }), serverOpts);
+  const client = await connect(endpoint.address, clientOpts);
+  for (const settings of [42, true, 'nope', null]) {
+    assert.throws(() => Http3Session.from(client, { settings }),
+                  { code: 'ERR_INVALID_ARG_TYPE', message: /options\.settings/ });
+  }
+  const badType = { code: 'ERR_INVALID_ARG_TYPE' };
+  const badRange = { code: 'ERR_OUT_OF_RANGE' };
+  for (const [settings, expected] of [
+    [{ maxHeaderPairs: 'lots' }, badType],
+    [{ maxHeaderPairs: 1.5 }, badRange],
+    [{ qpackBlockedStreams: 1n << 65n }, badRange],
+    [{ enableDatagrams: 1 }, badType],
+  ]) {
+    assert.throws(() => Http3Session.from(client, { settings }), (err) => {
+      assert.strictEqual(err.code, expected.code);
+      assert.match(err.message, /options\.settings\./);
+      return true;
+    });
+  }
+  // Numbers are accepted for bigint settings:
+  const http3 = Http3Session.from(client, { settings: { maxHeaderPairs: 12 } });
+  assert.strictEqual(http3.settings.maxHeaderPairs, 12n);
+  await http3.opened;
   await client.close();
   await endpoint.close();
 }
@@ -164,9 +253,9 @@ const tooLate = {
     enableConnectProtocol: false,
   };
   const endpoint = await listen(mustCall((quicSession) => {
-    new Http3Session(quicSession);
+    Http3Session.from(quicSession);
   }), serverOpts);
-  const client = new Http3Session(
+  const client = Http3Session.from(
     await connect(endpoint.address, clientOpts), { settings });
 
   await client.opened;
@@ -189,7 +278,7 @@ const tooLate = {
     const settings = {
       get maxHeaderPairs() { quicSession.destroy(); return 10n; },
     };
-    assert.throws(() => new Http3Session(quicSession, { settings }), {
+    assert.throws(() => Http3Session.from(quicSession, { settings }), {
       code: 'ERR_INVALID_STATE',
       message: /destroyed/,
     });
@@ -217,7 +306,7 @@ const tooLate = {
       return 10n;
     },
   };
-  assert.throws(() => new Http3Session(client, { settings }), tooLate);
+  assert.throws(() => Http3Session.from(client, { settings }), tooLate);
   await (await raw).closed;
   await client.close();
   await endpoint.close();
@@ -226,20 +315,20 @@ const tooLate = {
   // Client: the getter attaches another Http3Session. That inner attach is
   // the one that sticks; the outer one finds the session already claimed.
   const endpoint = await listen(mustCall((quicSession) => {
-    new Http3Session(quicSession);
+    Http3Session.from(quicSession);
   }), serverOpts);
 
   const client = await connect(endpoint.address, clientOpts);
   let inner;
   const settings = {
-    get maxHeaderPairs() { inner = new Http3Session(client); return 10n; },
+    get maxHeaderPairs() { inner = Http3Session.from(client); return 10n; },
   };
-  assert.throws(() => new Http3Session(client, { settings }), {
+  assert.throws(() => Http3Session.from(client, { settings }), {
     code: 'ERR_INVALID_STATE',
     message: /already has an application/,
   });
   assert.ok(inner instanceof Http3Session);
-  assert.throws(() => new Http3Session(client), {
+  assert.throws(() => Http3Session.from(client), {
     code: 'ERR_INVALID_STATE',
     message: /already has an application/,
   });
@@ -253,14 +342,15 @@ const tooLate = {
 {
   const refused = Promise.withResolvers();
   const endpoint = await listen(mustCall((quicSession) => {
-    const server = new Http3Session(quicSession);
+    const server = Http3Session.from(quicSession);
     refused.resolve(assert.rejects(server.createBidirectionalStream(), {
       code: 'ERR_INVALID_STATE',
       message: /Server sessions cannot open HTTP\/3 request streams/,
     }));
   }), serverOpts);
-  const client = new Http3Session(await connect(endpoint.address, clientOpts));
+  const client = Http3Session.from(await connect(endpoint.address, clientOpts));
   await refused.promise;
+  await client.opened;
   await client.close();
   await endpoint.close();
 }

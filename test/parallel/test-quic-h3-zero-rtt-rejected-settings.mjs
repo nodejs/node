@@ -34,13 +34,14 @@ async function getTicket({ settings, ...endpointOptions }) {
   const gotToken = Promise.withResolvers();
 
   const ep = await listen(mustCall(async (quicSession) => {
-    const ss = new Http3Session(quicSession, { settings });
+    const ss = Http3Session.from(quicSession, { settings });
     ss.onstream = mustCall(async (stream) => {
       await stream.closed;
       ss.close();
     });
   }), {
     alpn: ['h3'],
+    autoWrap: false,
     sni,
     ...endpointOptions,
     onheaders: mustCall(function(headers) {
@@ -50,8 +51,9 @@ async function getTicket({ settings, ...endpointOptions }) {
     }),
   });
 
-  const cs = new Http3Session(await connect(ep.address, {
+  const cs = Http3Session.from(await connect(ep.address, {
     alpn: 'h3',
+    autoWrap: false,
     servername: 'localhost',
     verifyPeer: 'manual',
     ...endpointOptions,
@@ -96,23 +98,25 @@ async function getTicket({ settings, ...endpointOptions }) {
 async function attemptRejected0RTT({ settings, ...endpointOptions },
                                    ticket, token) {
   const ep = await listen(mustCall(async (quicSession) => {
-    const ss = new Http3Session(quicSession, { settings });
+    const ss = Http3Session.from(quicSession, { settings });
     await ss.closed;
   }), {
     alpn: ['h3'],
+    autoWrap: false,
     sni,
     ...endpointOptions,
   });
 
   const quicSession = await connect(ep.address, {
     alpn: 'h3',
+    autoWrap: false,
     servername: 'localhost',
     verifyPeer: 'manual',
     ...endpointOptions,
     sessionTicket: ticket,
     token,
   });
-  const cs = new Http3Session(quicSession, { settings });
+  const cs = Http3Session.from(quicSession, { settings });
 
   // Trigger the deferred handshake by opening a stream.
   // With 0-RTT, the handshake is deferred until the first stream

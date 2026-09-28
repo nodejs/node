@@ -17,7 +17,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect, Http3Session } = await import('node:quic');
+const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -29,8 +29,7 @@ const kRequests = 6;
 let liveServerStreams = 0;
 let peakLiveServerStreams = 0;
 
-const serverEndpoint = await listen(mustCall((quicSession) => {
-  const serverSession = new Http3Session(quicSession);
+const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall((stream) => {
     liveServerStreams++;
     peakLiveServerStreams = Math.max(peakLiveServerStreams, liveServerStreams);
@@ -49,11 +48,11 @@ const serverEndpoint = await listen(mustCall((quicSession) => {
   }, kRequests),
 });
 
-const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+const clientSession = await connect(serverEndpoint.address, {
   alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
-}));
+});
 
 const info = await clientSession.opened;
 assert.strictEqual(info.protocol, 'h3');
