@@ -68,10 +68,16 @@ jobs:
 
       - name: Compute requisites before change
         run: |
-          git reset HEAD^ --hard
-          # TODO(aduh95): remove this once list-requisites.sh has reached `main`
-          [ -f tools/nix/list-requisites.sh ] || git checkout FETCH_HEAD -- tools/nix/list-requisites.sh
+          BASE_SHA="$(git rev-parse HEAD^)"
+          if [ -n "$PUSH_BEFORE_SHA" ] && [ "$PUSH_BEFORE_SHA" != "$BASE_SHA" ] \
+            && [ "$PUSH_BEFORE_SHA" != "0000000000000000000000000000000000000000" ] \
+            && git fetch --no-tags --depth=1 origin "$PUSH_BEFORE_SHA"; then
+            BASE_SHA="$PUSH_BEFORE_SHA"
+          fi
+          git reset "$BASE_SHA" --hard
           ./tools/nix/list-requisites.sh > requisites-${{ matrix.system }}-before.list
+        env:
+          PUSH_BEFORE_SHA: ${{ github.event_name == 'push' && github.event.before || '' }}
 
       - name: Output diff
         run: |
