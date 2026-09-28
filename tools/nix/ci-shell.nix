@@ -18,6 +18,7 @@ import ../../shell.nix (
       )
     )
     // {
+      withSSL = true; # no-SSL coverage is ensured by Jenkins
       extraConfigFlags = [
         "--without-inspector"
         "--without-node-options"
