@@ -1,6 +1,5 @@
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
-#include "util.h"
 #include <async_wrap-inl.h>
 #include <debug_utils-inl.h>
 #include <nghttp3/nghttp3.h>
@@ -15,6 +14,7 @@
 #include "http3.h"
 #include "packet.h"
 #include "session.h"
+#include "util.h"
 
 namespace node {
 
