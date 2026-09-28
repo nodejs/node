@@ -540,7 +540,16 @@ For 8-, 16-, and 32-bit integer types and for floating-point types, pass
 JavaScript `number` values that match the declared type.
 
 For 64-bit integer types (`int64` and `uint64`), pass JavaScript `bigint`
-values.
+values within the declared type's range or safe integer `number` values.
+For `int64`, numbers must be between `Number.MIN_SAFE_INTEGER` and
+`Number.MAX_SAFE_INTEGER`, inclusive. For `uint64`, numbers must be between
+`0` and `Number.MAX_SAFE_INTEGER`, inclusive. This allows buffer lengths such
+as `buffer.byteLength` to be passed without an explicit `BigInt()` conversion.
+Use `bigint` for integers outside JavaScript's safe integer range.
+
+Invalid arguments, including fractional numbers, `NaN`, infinities, and values
+outside these ranges, throw `ERR_INVALID_ARG_VALUE`. Return values for 64-bit
+integer types are always exposed as `bigint` values.
 
 For pointer-like arguments:
 
