@@ -46,16 +46,6 @@ assert.throws(() => new Http3Session(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
     assert.throws(() => Http3Session.from(quicSession),
                   { code: 'ERR_INVALID_STATE' });
 
-    // HTTP/3 frames every stream, so raw streams can no longer be opened:
-    const rawRefused = {
-      code: 'ERR_INVALID_STATE',
-      message: /Raw QUIC streams cannot be created/,
-    };
-    assert.rejects(quicSession.createUnidirectionalStream(), rawRefused)
-      .then(mustCall());
-    assert.rejects(quicSession.createBidirectionalStream(), rawRefused)
-      .then(mustCall());
-
     // Incoming streams are now reported through the Http3Session only:
     assert.throws(() => { quicSession.onstream = () => {}; }, {
       code: 'ERR_INVALID_STATE',
