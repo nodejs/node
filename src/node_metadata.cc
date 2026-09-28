@@ -42,7 +42,7 @@
 #ifndef OPENSSL_NO_QUIC
 #include <ngtcp2/version.h>
 #include <nghttp3/version.h>
-#endif
+#endif  // OPENSSL_NO_QUIC
 
 #ifdef NODE_HAVE_I18N_SUPPORT
 #include <unicode/timezone.h>
@@ -165,7 +165,7 @@ Metadata::Versions::Versions() {
 #ifndef OPENSSL_NO_QUIC
   ngtcp2 = NGTCP2_VERSION;
   nghttp3 = NGHTTP3_VERSION;
-#endif
+#endif  // OPENSSL_NO_QUIC
 
   simdjson = SIMDJSON_VERSION;
   simdutf = SIMDUTF_VERSION;

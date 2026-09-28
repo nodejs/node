@@ -1,7 +1,6 @@
-#include "util.h"
-#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
+#include "util.h"
 #include <async_wrap-inl.h>
 #include <debug_utils-inl.h>
 #include <nghttp3/nghttp3.h>
@@ -460,4 +459,3 @@ std::unique_ptr<Session::Application> CreateDefaultApplication(
 }  // namespace node
 
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL && HAVE_QUIC
