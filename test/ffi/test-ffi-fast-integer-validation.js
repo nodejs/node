@@ -32,9 +32,9 @@ test('fast FFI validates integer argument ranges', () => {
 
     function callU32(value) { return functions.add_u32(value, 0); }
 
-    function callI64(value) { return functions.add_i64(value, 0n); }
+    function callI64(value) { return functions.add_i64(value, 0); }
 
-    function callU64(value) { return functions.add_u64(value, 0n); }
+    function callU64(value) { return functions.add_u64(value, 0); }
 
     for (const [fn, value] of [
       [callI8, 0],
@@ -43,8 +43,8 @@ test('fast FFI validates integer argument ranges', () => {
       [callU16, 0],
       [callI32, 0],
       [callU32, 0],
-      [callI64, 0n],
-      [callU64, 0n],
+      [callI64, 0],
+      [callU64, 0],
     ]) {
       optimize(fn, value);
     }
@@ -62,8 +62,80 @@ test('fast FFI validates integer argument ranges', () => {
     assert.throws(() => callU32(-1), expect);
     assert.throws(() => callU32(1.5), expect);
     assert.throws(() => callU32('1'), expect);
+    assert.strictEqual(callI64(Number.MAX_SAFE_INTEGER),
+                       BigInt(Number.MAX_SAFE_INTEGER));
+    assert.strictEqual(callI64(Number.MIN_SAFE_INTEGER),
+                       BigInt(Number.MIN_SAFE_INTEGER));
+    assert.strictEqual(callU64(Number.MAX_SAFE_INTEGER),
+                       BigInt(Number.MAX_SAFE_INTEGER));
+    assert.strictEqual(callI64((2n ** 63n) - 1n), (2n ** 63n) - 1n);
+    assert.strictEqual(callU64((2n ** 64n) - 1n), (2n ** 64n) - 1n);
+    assert.throws(() => callI64(Number.MAX_SAFE_INTEGER + 1), expect);
+    assert.throws(() => callI64(Number.MIN_SAFE_INTEGER - 1), expect);
+    assert.throws(() => callI64(1.5), expect);
+    assert.throws(() => callI64(Number.NaN), expect);
+    assert.throws(() => callI64(Number.POSITIVE_INFINITY), expect);
+    assert.throws(() => callU64(-1), expect);
+    assert.throws(() => callU64(Number.MAX_SAFE_INTEGER + 1), expect);
+    assert.throws(() => callU64(1.5), expect);
+    assert.throws(() => callU64(Number.NaN), expect);
+    assert.throws(() => callU64(Number.POSITIVE_INFINITY), expect);
     assert.throws(() => callI64(2n ** 63n), expect);
     assert.throws(() => callU64(2n ** 64n), expect);
+  } finally {
+    eval('%WaitForBackgroundOptimization()');
+    lib.close();
+  }
+});
+
+test('fast FFI converts single i64/u64 Number arguments before and after optimization', () => {
+  const { lib, functions } = ffi.dlopen(libraryPath, {
+    identity_i64: { return: 'int64', arguments: ['int64'] },
+    identity_u64: { return: 'uint64', arguments: ['uint64'] },
+  });
+
+  try {
+    // The native signature must have one argument to exercise the single-argument wrapper.
+    function callI64(value) { return functions.identity_i64(value); }
+
+    function callU64(value) { return functions.identity_u64(value); }
+
+    for (const optimized of [false, true]) {
+      if (optimized) {
+        optimize(callI64, -42);
+        optimize(callU64, 42);
+      }
+
+      for (const value of [0, -0, 42, Number.MAX_SAFE_INTEGER, 0n, 42n]) {
+        assert.strictEqual(callI64(value), BigInt(value));
+        assert.strictEqual(callU64(value), BigInt(value));
+      }
+      for (const value of [-42, Number.MIN_SAFE_INTEGER,
+                           -(2n ** 63n), (2n ** 63n) - 1n]) {
+        assert.strictEqual(callI64(value), BigInt(value));
+      }
+      assert.strictEqual(callU64((2n ** 64n) - 1n), (2n ** 64n) - 1n);
+
+      const signedError = {
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: 'Argument 0 must be an int64',
+      };
+      const unsignedError = {
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: 'Argument 0 must be a uint64',
+      };
+      for (const value of [Number.MAX_SAFE_INTEGER + 1, Number.MIN_SAFE_INTEGER - 1,
+                           1.5, NaN, Infinity, -Infinity, '1', null, undefined, true, {}]) {
+        assert.throws(() => callI64(value), signedError);
+        assert.throws(() => callU64(value), unsignedError);
+      }
+      for (const value of [-(2n ** 63n) - 1n, 2n ** 63n]) {
+        assert.throws(() => callI64(value), signedError);
+      }
+      for (const value of [-1, -1n, 2n ** 64n]) {
+        assert.throws(() => callU64(value), unsignedError);
+      }
+    }
   } finally {
     eval('%WaitForBackgroundOptimization()');
     lib.close();
