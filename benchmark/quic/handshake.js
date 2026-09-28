@@ -19,15 +19,14 @@ const bench = common.createBenchmark(main, {
 }, { flags: ['--experimental-quic', '--no-warnings'] });
 
 async function main({ protocol, concurrency, n }) {
-  const { listen, connect, Http3Session } = require('node:quic');
+  const { listen, connect } = require('node:quic');
 
   const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
   const cert = fixtures.readKey('agent1-cert.pem');
   const http3 = protocol === 'h3';
   const alpn = http3 ? 'h3' : 'quic-bench';
 
-  const endpoint = await listen((quicSession) => {
-    const session = http3 ? new Http3Session(quicSession) : quicSession;
+  const endpoint = await listen((session) => {
     // A benchmark peer never reads these; swallow so a torn-down session
     // cannot produce an unhandled rejection.
     session.opened.catch(() => {});
@@ -48,12 +47,11 @@ async function main({ protocol, concurrency, n }) {
   const address = endpoint.address;
 
   async function handshake() {
-    const quicSession = await connect(address, {
+    const session = await connect(address, {
       servername: 'localhost',
       verifyPeer: 'manual',
       alpn,
     });
-    const session = http3 ? new Http3Session(quicSession) : quicSession;
     await session.opened;
     session.close();
     await session.closed.catch(() => {});

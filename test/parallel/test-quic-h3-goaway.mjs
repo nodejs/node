@@ -42,8 +42,7 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
   const bothHeadersReceived = Promise.withResolvers();
   let clientHeaderCount = 0;
 
-  const serverEndpoint = await listen(mustCall(async (quicSession) => {
-    const ss = new Http3Session(quicSession);
+  const serverEndpoint = await listen(mustCall(async (ss) => {
     serverSession = ss;
     ss.onstream = mustCall(2);
   }), {
@@ -70,15 +69,17 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
 
   const quicSession = await connect(serverEndpoint.address, {
     alpn: 'h3',
+    autoWrap: false,
     servername: 'localhost',
     verifyPeer: 'manual',
+  });
+  const clientSession = Http3Session.from(quicSession, {
     // Ongoaway fires when the peer sends GOAWAY.
     ongoaway: mustCall(function(lastStreamId) {
       assert.strictEqual(lastStreamId, -1n);
       goawayReceived.resolve();
     }),
   });
-  const clientSession = new Http3Session(quicSession);
   await clientSession.opened;
 
   const onClientHeaders = mustCall(function(headers) {

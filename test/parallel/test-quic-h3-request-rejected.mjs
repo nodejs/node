@@ -14,7 +14,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect, Http3Session } = await import('node:quic');
+const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
@@ -25,19 +25,18 @@ const H3_REQUEST_REJECTED = 0x10bn;
 
 // The server registers no stream consumer, so an incoming request stream
 // is rejected on arrival.
-const serverEndpoint = await listen(mustCall((quicSession) => {
-  const serverSession = new Http3Session(quicSession);
+const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onerror = () => {};
 }), {
   alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
 });
 
-const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+const clientSession = await connect(serverEndpoint.address, {
   alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
-}));
+});
 await clientSession.opened;
 
 const reset = Promise.withResolvers();

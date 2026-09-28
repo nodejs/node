@@ -31,7 +31,7 @@ const decoder = new TextDecoder();
 
   const serverEndpoint = await listen(mustCall(async (quicSession) => {
     // Allow 5 header pairs: 4 pseudo-headers + 1 custom.
-    const ss = new Http3Session(quicSession, {
+    const ss = Http3Session.from(quicSession, {
       settings: { maxHeaderPairs: 5 },
     });
     ss.onstream = mustCall(async (stream) => {
@@ -41,6 +41,7 @@ const decoder = new TextDecoder();
     });
   }), {
     alpn: ['h3'],
+    autoWrap: false,
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       assert.strictEqual(headers[':method'], 'GET');
@@ -58,11 +59,11 @@ const decoder = new TextDecoder();
     }),
   });
 
-  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+  const clientSession = await connect(serverEndpoint.address, {
     alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-  }));
+  });
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({
@@ -98,7 +99,7 @@ const decoder = new TextDecoder();
   const serverEndpoint = await listen(mustCall(async (quicSession) => {
     // Limit total header bytes. The 4 pseudo-headers fit within 100
     // bytes, but adding x-long (6 + 200 = 206 bytes) exceeds it.
-    const ss = new Http3Session(quicSession, {
+    const ss = Http3Session.from(quicSession, {
       settings: { maxHeaderLength: 100 },
     });
     ss.onstream = mustCall(async (stream) => {
@@ -108,6 +109,7 @@ const decoder = new TextDecoder();
     });
   }), {
     alpn: ['h3'],
+    autoWrap: false,
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       assert.strictEqual(headers[':method'], 'GET');
@@ -121,11 +123,11 @@ const decoder = new TextDecoder();
     }),
   });
 
-  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+  const clientSession = await connect(serverEndpoint.address, {
     alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-  }));
+  });
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({
@@ -154,7 +156,7 @@ const decoder = new TextDecoder();
   const serverDone = Promise.withResolvers();
 
   const serverEndpoint = await listen(mustCall(async (quicSession) => {
-    const ss = new Http3Session(quicSession, {
+    const ss = Http3Session.from(quicSession, {
       settings: { enableConnectProtocol: true, enableDatagrams: true },
       onsettings: mustCall((appopt) => {
         assert.strictEqual(appopt.enableDatagrams, true);
@@ -169,6 +171,7 @@ const decoder = new TextDecoder();
     });
   }), {
     alpn: ['h3'],
+    autoWrap: false,
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       this.sendHeaders({ ':status': '200' });
@@ -179,10 +182,11 @@ const decoder = new TextDecoder();
 
   const quicSession = await connect(serverEndpoint.address, {
     alpn: 'h3',
+    autoWrap: false,
     servername: 'localhost',
     verifyPeer: 'manual',
   });
-  const clientSession = new Http3Session(quicSession, {
+  const clientSession = Http3Session.from(quicSession, {
     settings: { enableConnectProtocol: true, enableDatagrams: true },
   });
   clientSession.onsettings = mustCall((appopt) => {

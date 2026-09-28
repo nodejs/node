@@ -20,14 +20,13 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect, Http3Session } = await import('node:quic');
+const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
 const cert = fixtures.readKey('agent1-cert.pem');
 
-const serverEndpoint = await listen(async (quicSession) => {
-  const serverSession = new Http3Session(quicSession);
+const serverEndpoint = await listen(async (serverSession) => {
   await serverSession.closed;
 }, {
   alpn: ['h3'],
@@ -38,13 +37,13 @@ const serverEndpoint = await listen(async (quicSession) => {
 // Connect then immediately close the session before the handshake completes.
 // This exercises the H3 shutdown path on the server while the H3 application
 // exists but hasn't started (control streams not yet bound).
-const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+const clientSession = await connect(serverEndpoint.address, {
   alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
   // h3 ALPN — must match the server so the H3 application is selected
   // on the server side before we tear it down.
-}));
+});
 
 // Close immediately — don't wait for handshake.
 await clientSession.close();

@@ -50,8 +50,8 @@ function check(settings, side) {
 const serverDone = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall((quicSession) => {
-  const server = new Http3Session(quicSession, { settings: customSettings });
-  quicSession.onstream = mustCall(async (stream) => {
+  const server = Http3Session.from(quicSession, { settings: customSettings });
+  server.onstream = mustCall(async (stream) => {
     check(quicSession.applicationOptions, 'server');
     await stream.closed;
     server.close();
@@ -59,14 +59,15 @@ const serverEndpoint = await listen(mustCall((quicSession) => {
   });
 }), {
   alpn: ['h3'],
+  autoWrap: false,
   onheaders: mustCall(function() {
     this.sendHeaders({ ':status': '200' });
     this.writer.endSync();
   }),
 });
 
-const client = new Http3Session(
-  await connect(serverEndpoint.address, { alpn: 'h3' }),
+const client = Http3Session.from(
+  await connect(serverEndpoint.address, { alpn: 'h3', autoWrap: false }),
   { settings: customSettings });
 
 // The settings are in effect from the attach onwards: before the handshake

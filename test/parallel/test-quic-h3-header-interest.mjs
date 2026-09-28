@@ -12,7 +12,7 @@ if (!hasQuic) {
 }
 
 const { createPrivateKey } = await import('node:crypto');
-const { listen, connect, Http3Session } = await import('node:quic');
+const { listen, connect } = await import('node:quic');
 const { bytes } = await import('stream/iter');
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
@@ -21,8 +21,7 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const serverDone = Promise.withResolvers();
 
-const serverEndpoint = await listen(mustCall(async (quicSession) => {
-  const serverSession = new Http3Session(quicSession);
+const serverEndpoint = await listen(mustCall(async (serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     await stream.closed;
     serverSession.close();
@@ -44,12 +43,11 @@ const serverEndpoint = await listen(mustCall(async (quicSession) => {
   }),
 });
 
-const quicSession = await connect(serverEndpoint.address, {
+const clientSession = await connect(serverEndpoint.address, {
   alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
 });
-const clientSession = new Http3Session(quicSession);
 await clientSession.opened;
 
 const infoReceived = Promise.withResolvers();

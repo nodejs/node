@@ -13,7 +13,6 @@ if (!hasQuic) {
 }
 
 const { listen, connect } = await import('../common/quic.mjs');
-const { Http3Session } = await import('node:quic');
 const { bytes } = await import('stream/iter');
 
 const encoder = new TextEncoder();
@@ -28,8 +27,7 @@ const decoder = new TextDecoder();
   const gotTicket = Promise.withResolvers();
   const gotToken = Promise.withResolvers();
 
-  const endpoint = await listen(mustCall((quicSession) => {
-    const ss = new Http3Session(quicSession);
+  const endpoint = await listen(mustCall((ss) => {
     // No streams initially, stream must arrive in the onstream event, for
     // both the normal and the 0RTT sessions:
     assert.strictEqual(ss.stats.bidiInStreamCount, 0n);
@@ -54,12 +52,12 @@ const decoder = new TextDecoder();
   };
 
   // Open a 1st session, send a request, get session ticket & token:
-  const cs1 = new Http3Session(await connect(endpoint.address, {
+  const cs1 = await connect(endpoint.address, {
     servername: 'localhost',
     alpn: 'h3',
     onsessionticket: mustCall((t) => { ticket = t; gotTicket.resolve(); }, 2),
     onnewtoken: mustCall((t) => { token = t; gotToken.resolve(); }),
-  }));
+  });
   await cs1.opened;
   await Promise.all([gotTicket.promise, gotToken.promise]);
   const s1 = await cs1.createBidirectionalStream({
@@ -70,12 +68,12 @@ const decoder = new TextDecoder();
   await Promise.all([s1.closed, cs1.closed]);
 
   // Open 2nd session, reusing the ticket & token:
-  const cs2 = new Http3Session(await connect(endpoint.address, {
+  const cs2 = await connect(endpoint.address, {
     servername: 'localhost',
     alpn: 'h3',
     sessionTicket: ticket,
     token,
-  }));
+  });
 
   // Send a 0RTT request immediately, before the handshake completes:
   const s2 = await cs2.createBidirectionalStream({

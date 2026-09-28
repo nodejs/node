@@ -2,6 +2,7 @@
 
 // Test: HTTP/3 callback error handling.
 // Sync throw in onorigin callback destroys the session
+// Session errors reach the QuicSession's onerror, then the Http3Session's
 // Sync throw in onheaders callback destroys the stream
 // Async rejection in onheaders callback destroys the stream
 // Sync throw in ontrailers callback destroys the stream
@@ -24,8 +25,7 @@ const encoder = new TextEncoder();
 
 async function makeServer(onheadersHandler, extraOpts = {}) {
   const done = Promise.withResolvers();
-  const ep = await listen(mustCall(async (quicSession) => {
-    const ss = new Http3Session(quicSession);
+  const ep = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall((stream) => {
       // The server completes its response before the client's
       // callback throws, so the server stream always resolves.
@@ -53,12 +53,12 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
     }),
   );
 
-  const c = new Http3Session(await connect(ep.address, {
+  const c = await connect(ep.address, {
     alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
-  }));
+  });
   await c.opened;
 
   const s = await c.createBidirectionalStream({
@@ -94,12 +94,12 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
     }),
   );
 
-  const c = new Http3Session(await connect(ep.address, {
+  const c = await connect(ep.address, {
     alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
-  }));
+  });
   await c.opened;
 
   const s = await c.createBidirectionalStream({
@@ -140,12 +140,12 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
     },
   );
 
-  const c = new Http3Session(await connect(ep.address, {
+  const c = await connect(ep.address, {
     alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
-  }));
+  });
   await c.opened;
 
   const s = await c.createBidirectionalStream({
@@ -176,8 +176,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 
 // Sync throw in onorigin callback destroys the session.
 {
-  const serverEndpoint = await listen(mustCall(async (quicSession) => {
-    const ss = new Http3Session(quicSession);
+  const serverEndpoint = await listen(mustCall(async (ss) => {
     await ss.closed;
   }), {
     alpn: ['h3'],
@@ -194,17 +193,19 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 
   const quicSession = await connect(serverEndpoint.address, {
     alpn: 'h3',
+    autoWrap: false,
     servername: 'example.com',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
     onerror: mustCall(function(error) {
       assert.strictEqual(error.message, 'onorigin error');
     }),
+  });
+  const clientSession = Http3Session.from(quicSession, {
     onorigin: mustCall(function() {
       throw new Error('onorigin error');
     }),
   });
-  const clientSession = new Http3Session(quicSession);
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({
@@ -235,8 +236,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   const serverStreamRejected = Promise.withResolvers();
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (quicSession) => {
-    const ss = new Http3Session(quicSession);
+  const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
       // The server stream rejects because onwanttrailers threw.
       await assert.rejects(stream.closed, mustCall((err) => {
@@ -261,12 +261,12 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
     }),
   });
 
-  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+  const clientSession = await connect(serverEndpoint.address, {
     alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
-  }));
+  });
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({
@@ -288,5 +288,54 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   // to client automatically). Closing the client session destroys it.
   clientSession.close();
   await Promise.all([stream.closed, serverDone.promise]);
+  await serverEndpoint.close();
+}
+
+// A session error reaches the QuicSession's onerror first, then the
+// Http3Session's, with the same error. A throw in one does not stop the
+// other, and surfaces as an uncaught exception like any onerror throw.
+{
+  const order = [];
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    quicSession.onerror = () => {};
+    await quicSession.closed.catch(() => {});
+  }), {
+    alpn: ['h3'],
+    sni: { '*': { keys: [key], certs: [cert] } },
+  });
+
+  const uncaught = Promise.withResolvers();
+  process.once('uncaughtException', (err) => uncaught.resolve(err));
+
+  const quicSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
+    autoWrap: false,
+    servername: 'localhost',
+    verifyPeer: 'manual',
+    onerror: mustCall(function(err) {
+      order.push(['transport', this, err]);
+      throw new Error('transport handler failed');
+    }),
+  });
+  const clientSession = Http3Session.from(quicSession, {});
+  clientSession.onerror = mustCall(function(err) {
+    order.push(['application', this, err]);
+  });
+  await clientSession.opened;
+
+  const boom = new Error('boom');
+  quicSession.destroy(boom);
+  assert.deepStrictEqual(order.map(([who]) => who),
+                         ['transport', 'application']);
+  assert.strictEqual(order[0][1], quicSession);
+  assert.strictEqual(order[1][1], clientSession);
+  assert.strictEqual(order[0][2], boom);
+  assert.strictEqual(order[1][2], boom);
+
+  const err = await uncaught.promise;
+  assert.strictEqual(err.error.message, 'transport handler failed');
+  assert.strictEqual(err.suppressed, boom);
+
+  await assert.rejects(clientSession.closed, boom);
   await serverEndpoint.close();
 }
