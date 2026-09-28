@@ -294,10 +294,13 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
   bool has_ptr_args = use_sb && SignatureHasPointerArgs(*fn);
   // Signatures that need JS-side conversion or validation use a wrapper, as
   // do all fast signatures on platforms without a native library guard.
+  // Pointer arguments need the wrapper's range check because V8 truncates
+  // BigInts passed to Fast API uint64 parameters.
   bool needs_fast_argument_wrapper =
-      use_fast_api && (SignatureNeedsRawPointerConversions(*fn) ||
-                       SignatureNeedsFastIntegerValidation(*fn) ||
-                       !info->fast_metadata->guards_library);
+      use_fast_api &&
+      (SignatureNeedsRawPointerConversions(*fn) ||
+       SignatureNeedsFastIntegerValidation(*fn) ||
+       SignatureHasPointerArgs(*fn) || !info->fast_metadata->guards_library);
   // A single pointer-like parameter can get a separate Buffer-aware Fast API
   // entrypoint so Buffer calls avoid JS pointer extraction.
   bool needs_fast_buffer_invoke =
