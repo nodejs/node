@@ -106,13 +106,13 @@ platforms. This is true regardless of entries in the table below.
 
 | Operating System | Architectures    | Versions                          | Support Type | Notes                                          |
 | ---------------- | ---------------- | --------------------------------- | ------------ | ---------------------------------------------- |
-| GNU/Linux        | x64              | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8           |
+| GNU/Linux        | x64              | kernel >= 5.14[^1], glibc >= 2.34 | Tier 1       | e.g. Ubuntu 22.04, Debian 12, RHEL 9           |
 | GNU/Linux        | x64              | kernel >= 6.12, musl >= 1.2.5     | Tier 2       | e.g. Alpine 3.22                               |
 | GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental | Downgraded as of Node.js 10                    |
-| GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8           |
-| GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Experimental | Downgraded as of Node.js 24                    |
-| GNU/Linux        | ppc64le >=power9 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8                      |
-| GNU/Linux        | s390x >=z14      | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. RHEL 8                                    |
+| GNU/Linux        | arm64            | kernel >= 5.14[^1], glibc >= 2.34 | Tier 1       | e.g. Ubuntu 22.04, Debian 12, RHEL 9           |
+| GNU/Linux        | armv7            | kernel >= 4.18, glibc >= 2.28     | Experimental | Downgraded as of Node.js 24                    |
+| GNU/Linux        | ppc64le >=power9 | kernel >= 5.14[^1], glibc >= 2.34 | Tier 2       | e.g. Ubuntu 22.04, RHEL 9                      |
+| GNU/Linux        | s390x >=z14      | kernel >= 5.14[^1], glibc >= 2.34 | Tier 2       | e.g. RHEL 9                                    |
 | GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                                |
 | GNU/Linux        | riscv64          | kernel >= 5.19, glibc >= 2.36     | Experimental | GCC >= 14 or Clang >= 19 for native builds[^5] |
 | Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                                      |
@@ -127,8 +127,8 @@ platforms. This is true regardless of entries in the table below.
 <!--lint disable final-definition-->
 
 [^1]: Older kernel versions may work. However, official Node.js release
-    binaries are [built on RHEL 8 systems](#official-binary-platforms-and-toolchains)
-    with kernel 4.18.
+    binaries are [built on RHEL 9 systems](#official-binary-platforms-and-toolchains)
+    with kernel 5.14.
 
 [^2]: On Windows, running Node.js in Windows terminal emulators
     like `mintty` requires the usage of [winpty](https://github.com/rprichard/winpty)
@@ -175,10 +175,10 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | aix-ppc64               | AIX 7.2 TL04 on PPC64BE with Clang 20.1                       |
 | darwin-x64              | macOS 15, Xcode 16 with -mmacosx-version-min=13.5             |
 | darwin-arm64 (and .pkg) | macOS 15 (arm64), Xcode 16 with -mmacosx-version-min=13.5     |
-| linux-arm64             | RHEL 8 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
-| linux-ppc64le           | RHEL 8 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
-| linux-s390x             | RHEL 8 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
-| linux-x64               | RHEL 8 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-arm64             | RHEL 9 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-ppc64le           | RHEL 9 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-s390x             | RHEL 9 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-x64               | RHEL 9 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
 | win-arm64               | Windows Server 2022 (x64) with Visual Studio 2022             |
 | win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022             |
 
@@ -189,10 +189,10 @@ on your Linux distribution.
 
 <!--lint disable final-definition-->
 
-[^6]: Binaries produced on these systems are compatible with glibc >= 2.28
-    and libstdc++ >= 6.0.25 (`GLIBCXX_3.4.25`). These are available on
-    distributions natively supporting GCC 8.1 or higher, such as Debian 10,
-    RHEL 8 and Ubuntu 20.04.
+[^6]: Binaries produced on these systems are compatible with glibc >= 2.34
+    and libstdc++ >= 6.0.29 (`GLIBCXX_3.4.29`). These are available on
+    distributions natively supporting GCC 11 or higher, such as Debian 12,
+    RHEL 9 and Ubuntu 22.04.
 
 <!--lint enable final-definition-->
 
