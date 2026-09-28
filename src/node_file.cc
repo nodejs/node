@@ -4643,18 +4643,23 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+std::filesystem::path StripWindowsNamespace(std::filesystem::path path) {
+#ifdef _WIN32
+  auto wstr = path.wstring();
+  if (wstr.starts_with(L"\\\\?\\")) {
+    return std::filesystem::path(wstr.substr(4));
+  }
+#endif
+  return path;
+}
+
 std::vector<std::string> normalizePathToArray(
     const std::filesystem::path& path) {
   std::vector<std::string> parts;
   std::error_code error;
   std::filesystem::path absPath = std::filesystem::absolute(path, error);
   if (error) absPath = path;
-#ifdef _WIN32
-  auto wstr = absPath.wstring();
-  if (wstr.starts_with(L"\\\\?\\")) {
-    absPath = std::filesystem::path(wstr.substr(4));
-  }
-#endif
+  absPath = StripWindowsNamespace(absPath);
   for (const auto& part : absPath) {
     if (!part.empty()) parts.push_back(part.string());
   }
@@ -4903,12 +4908,8 @@ CpError CopyDirRecursive(const std::filesystem::path& src_path,
           if (error) {
             return CpError::Std(error, dest_str);
           }
-#ifdef _WIN32
-          auto wstr = symlink_target_absolute.wstring();
-          if (wstr.starts_with(L"\\\\?\\")) {
-            symlink_target_absolute = std::filesystem::path(wstr.substr(4));
-          }
-#endif
+          symlink_target_absolute =
+              StripWindowsNamespace(symlink_target_absolute);
 
           if (std::filesystem::exists(dest_file_path, error)) {
             if (std::filesystem::is_symlink(dest_file_path, error)) {
@@ -4927,23 +4928,27 @@ CpError CopyDirRecursive(const std::filesystem::path& src_path,
               if (error) {
                 return CpError::Std(error, dest_str);
               }
-#ifdef _WIN32
-              auto wstr2 = current_dest_symlink_target_absolute.wstring();
-              if (wstr2.starts_with(L"\\\\?\\")) {
-                current_dest_symlink_target_absolute =
-                    std::filesystem::path(wstr2.substr(4));
-              }
-#endif
+              current_dest_symlink_target_absolute =
+                  StripWindowsNamespace(current_dest_symlink_target_absolute);
               // Equal targets are safe unless they point to the destination
               // root or one of its ancestors.
-              bool same_target =
-                  symlink_target_absolute ==
-                      current_dest_symlink_target_absolute &&
-                  !isInsideDir(symlink_target_absolute, dest_path);
+              bool same_target = false;
+              if (symlink_target_absolute ==
+                  current_dest_symlink_target_absolute) {
+                auto canonical_dest =
+                    std::filesystem::weakly_canonical(dest_path, error);
+                if (error) {
+                  return CpError::Std(error, dest_str);
+                }
+                same_target =
+                    !isInsideDir(symlink_target_absolute, canonical_dest);
+              }
 
               if (!options.dereference &&
-                  std::filesystem::is_directory(symlink_target, error) &&
-                  isInsideDir(symlink_target, current_dest_symlink_target) &&
+                  std::filesystem::is_directory(symlink_target_absolute,
+                                                error) &&
+                  isInsideDir(symlink_target_absolute,
+                              current_dest_symlink_target_absolute) &&
                   !same_target) {
                 return {CpError::kEinval,
                         0,
@@ -4958,7 +4963,8 @@ CpError CopyDirRecursive(const std::filesystem::path& src_path,
               // dest in this case would result in removing src contents
               // and therefore a broken symlink would be created.
               if (std::filesystem::is_directory(dest_file_path, error) &&
-                  isInsideDir(current_dest_symlink_target, symlink_target) &&
+                  isInsideDir(current_dest_symlink_target_absolute,
+                              symlink_target_absolute) &&
                   !same_target) {
                 return {CpError::kSymlinkToSubdirectory,
                         0,

@@ -1,62 +1,73 @@
-// This tests that repeatedly copying a directory containing a symlink
-// to an unrelated directory succeeds.
-// See https://github.com/nodejs/node/issues/65097.
-import { mustCall, mustNotMutateObjectDeep } from '../common/index.mjs';
+// Repeated copies may replace identical links to unrelated directories or
+// children of dest, but must still reject links to dest or its ancestors.
+// Refs: https://github.com/nodejs/node/issues/65097
+import { mustNotMutateObjectDeep } from '../common/index.mjs';
 import { nextdir } from '../common/fs.js';
 import assert from 'node:assert';
-import { cp, mkdirSync, realpathSync, symlinkSync } from 'node:fs';
-import { join } from 'node:path';
-
+import { mkdirSync, readlinkSync, realpathSync, symlinkSync } from 'node:fs';
+import { cp } from 'node:fs/promises';
+import { join, relative } from 'node:path';
 import tmpdir from '../common/tmpdir.js';
+
 tmpdir.refresh();
 
-const root = nextdir();
-const src = join(root, 'src');
-const dest = join(root, 'dest');
-const target = join(root, 'target');
-mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
-mkdirSync(target);
-symlinkSync(target, join(src, 'link'));
-cp(src, dest, mustNotMutateObjectDeep({ recursive: true }), mustCall((err) => {
-  assert.ifError(err);
-  cp(src, dest, mustNotMutateObjectDeep({ recursive: true }), mustCall((err) => {
-    assert.ifError(err);
-    assert.strictEqual(realpathSync(join(dest, 'link')), realpathSync(target));
-
-    // Also exercise the JavaScript (filter) path.
-    cp(src, dest, mustNotMutateObjectDeep({ recursive: true, filter: () => true }), mustCall((err) => {
-      assert.ifError(err);
-      cp(src, dest, mustNotMutateObjectDeep({ recursive: true, filter: () => true }), mustCall((err) => {
-        assert.ifError(err);
-        assert.strictEqual(realpathSync(join(dest, 'link')), realpathSync(target));
-      }));
-    }));
-  }));
-}));
-
-// A symlink with a relative target pointing to an unrelated directory.
-{
+// The first unfiltered copy to a missing destination also exercises the
+// native asynchronous directory-copy path.
+for (const relativeTarget of [false, true]) {
   const root = nextdir();
   const src = join(root, 'src');
   const dest = join(root, 'dest');
   const target = join(root, 'target');
-  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
+  mkdirSync(src, { recursive: true });
   mkdirSync(target);
-  symlinkSync('../target', join(src, 'link'));
-  cp(src, dest, mustNotMutateObjectDeep({ recursive: true }), mustCall((err) => {
-    assert.ifError(err);
-    cp(src, dest, mustNotMutateObjectDeep({ recursive: true }), mustCall((err) => {
-      assert.ifError(err);
-      assert.strictEqual(realpathSync(join(dest, 'link')), realpathSync(target));
+  symlinkSync(relativeTarget ? '../target' : target, join(src, 'link'), 'dir');
+  const opts = mustNotMutateObjectDeep({ recursive: true });
+  await cp(src, dest, opts);
+  await cp(src, dest, opts);
+  assert.strictEqual(realpathSync(join(dest, 'link')), realpathSync(target));
+}
 
-      // Same as above, exercising the JavaScript (filter) path.
-      cp(src, dest, mustNotMutateObjectDeep({ recursive: true, filter: () => true }), mustCall((err) => {
-        assert.ifError(err);
-        cp(src, dest, mustNotMutateObjectDeep({ recursive: true, filter: () => true }), mustCall((err) => {
-          assert.ifError(err);
-          assert.strictEqual(realpathSync(join(dest, 'link')), realpathSync(target));
-        }));
-      }));
-    }));
-  }));
+for (const filtered of [false, true]) {
+  for (const aliased of [false, true]) {
+    for (const relativeTarget of [false, true]) {
+      for (const location of ['outside', 'inside', 'self', 'ancestor']) {
+        const root = nextdir();
+        const src = join(root, 'src');
+        const actual = join(root, 'actual');
+        mkdirSync(src, { recursive: true });
+        mkdirSync(join(actual, 'dest'), { recursive: true });
+        let dest = join(actual, 'dest');
+        if (aliased) {
+          const alias = join(root, 'alias');
+          symlinkSync(actual, alias, 'junction');
+          dest = join(alias, 'dest');
+        }
+
+        const target = {
+          outside: join(root, 'target'),
+          inside: join(actual, 'dest', 'sub'),
+          self: join(actual, 'dest'),
+          ancestor: actual,
+        }[location];
+        mkdirSync(target, { recursive: true });
+        const canonicalTarget = realpathSync(target);
+        symlinkSync(relativeTarget ? relative(src, canonicalTarget) : canonicalTarget,
+                    join(src, 'link'), 'dir');
+        const opts = mustNotMutateObjectDeep({
+          recursive: true,
+          ...(filtered ? { filter: () => true } : {}),
+        });
+        await cp(src, dest, opts);
+        const link = join(dest, 'link');
+        const originalTarget = readlinkSync(link);
+        if (location === 'self' || location === 'ancestor') {
+          await assert.rejects(cp(src, dest, opts), { code: 'ERR_FS_CP_EINVAL' });
+          assert.strictEqual(readlinkSync(link), originalTarget);
+        } else {
+          await cp(src, dest, opts);
+        }
+        assert.strictEqual(realpathSync(link), canonicalTarget);
+      }
+    }
+  }
 }
