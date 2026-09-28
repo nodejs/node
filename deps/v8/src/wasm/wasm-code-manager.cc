@@ -2776,9 +2776,10 @@ void NativeModule::FreeCode(base::Vector<WasmCode* const> codes) {
   // Free the {WasmCode} objects. This will also unregister trap handler data.
   for (WasmCode* code : codes) {
     DCHECK_EQ(1, owned_code_.count(code->instruction_start()));
-    // TODO(407003348): Drop these checks if they don't trigger in the wild.
-    CHECK(code->is_dying());
-    CHECK_EQ(code->ref_count_.load(std::memory_order_acquire), 0);
+    // TODO(407003348): Drop this check if it doesn't trigger in the wild.
+    CHECK_EQ(WasmCode::refcount(
+                 code->ref_count_bitfield_.load(std::memory_order_acquire)),
+             0);
     owned_code_.erase(code->instruction_start());
   }
   // Remove debug side tables for all removed code objects, after releasing our
@@ -2996,6 +2997,16 @@ void WasmCodeRefScope::AddRef(WasmCode* code) {
   DCHECK_NOT_NULL(current_scope);
   current_scope->code_ptrs_.push_back(code);
   code->IncRef();
+}
+
+// static
+WasmCode* WasmCodeRefScope::AddRefIfNotDying(WasmCode* code) {
+  DCHECK_NOT_NULL(code);
+  WasmCodeRefScope* current_scope = current_code_refs_scope;
+  DCHECK_NOT_NULL(current_scope);
+  if (!code->IncRefIfNotDying()) return nullptr;
+  current_scope->code_ptrs_.push_back(code);
+  return code;
 }
 
 void WasmCodeLookupCache::Flush() {
