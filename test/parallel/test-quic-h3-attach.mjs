@@ -69,10 +69,12 @@ assert.throws(() => new Http3Session(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
   const client = Http3Session.from(quicClient);
   await client.opened;
 
-  assert.strictEqual(client.alpnProtocol, 'h3');
-  assert.strictEqual(client.servername, 'localhost');
+  // Connection details, TLS included, stay on the QUIC session:
+  assert.strictEqual(client.quicSession.alpnProtocol, 'h3');
+  assert.strictEqual(client.quicSession.servername, 'localhost');
+  assert.strictEqual('peerCertificate' in client, false);
   assert.strictEqual(typeof client.stats.createdAt, 'bigint');
-  assert.strictEqual(typeof client.ephemeralKeyInfo, 'object');
+  assert.strictEqual(client.closing, client.quicSession.closing);
   await client.close();
   await endpoint.close();
 }
@@ -126,7 +128,7 @@ const tooLate = {
   // Further already-settled awaits are still the same checkpoint.
   await null;
   const http3 = Http3Session.from(client);
-  assert.strictEqual(http3.alpnProtocol, 'h3');
+  assert.strictEqual(http3.quicSession, client);
   await http3.close();
   await endpoint.close();
 }
