@@ -199,8 +199,10 @@ assert.throws(() => new BroadcastChannel(), {
     });
   `, { eval: true });
 
+  const threadId = worker.threadId;
+
   bc.onworkerexited = common.mustCall((event) => {
-    assert.strictEqual(event.data.threadId, worker.threadId);
+    assert.strictEqual(event.data.threadId, threadId);
     assert.strictEqual(event.data.exitCode, 42);
 
     bc.close();
