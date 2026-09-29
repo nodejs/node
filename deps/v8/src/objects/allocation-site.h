@@ -18,9 +18,7 @@ namespace internal {
 
 enum InstanceType : uint16_t;
 
-#include "torque-generated/src/objects/allocation-site-tq.inc"
-
-V8_OBJECT class AllocationSite : public HeapObjectLayout {
+V8_OBJECT class AllocationSite : public HeapObject {
  public:
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
 
@@ -174,7 +172,7 @@ V8_OBJECT class AllocationSiteWithWeakNext : public AllocationSite {
   TaggedMember<UnionOf<Undefined, AllocationSiteWithWeakNext>> weak_next_;
 } V8_OBJECT_END;
 
-V8_OBJECT class AllocationMemento : public StructLayout {
+V8_OBJECT class AllocationMemento : public Struct {
  public:
   inline void set_allocation_site(Tagged<AllocationSite> value,
                                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

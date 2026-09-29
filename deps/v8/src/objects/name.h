@@ -13,7 +13,6 @@
 #include "src/objects/objects.h"
 #include "src/objects/primitive-heap-object.h"
 #include "src/utils/utils.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -30,6 +29,8 @@ class AccessBuilderTS;
 
 namespace maglev {
 class MaglevGraphBuilder;
+template <typename BaseT>
+class MaglevReducer;
 struct VirtualNameShape;
 }
 
@@ -109,7 +110,7 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   }
 
   // Sets the hash field only if it is empty. Otherwise does nothing.
-  inline void set_raw_hash_field_if_empty(uint32_t hash);
+  void set_raw_hash_field_if_empty(uint32_t hash);
 
   // Returns a hash value used for the property table (same as Hash()), assumes
   // the hash is already computed.
@@ -267,6 +268,11 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   // The value returned is always a computed hash, even if the value stored is
   // a forwarding index.
   inline uint32_t EnsureRawHash();
+  // If `out_one_byte_content` is non-null and the hasher actually scans the
+  // content here, it is set to true iff the content fits in one byte. Stays
+  // untouched on the early-return paths (hash already computed, hashed via
+  // the forwarding table, length > kMaxHashCalcLength).
+  inline uint32_t EnsureRawHash(bool* out_one_byte_content);
   inline uint32_t EnsureRawHash(const SharedStringAccessGuardIfNeeded&);
   inline uint32_t RawHash();
 
@@ -288,6 +294,8 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   friend class StringBuiltinsAssembler;
   friend class SandboxTesting;
   friend class maglev::MaglevGraphBuilder;
+  template <typename BaseT>
+  friend class maglev::MaglevReducer;
   friend class maglev::MaglevAssembler;
   friend struct maglev::VirtualNameShape;
   friend class compiler::AccessBuilder;
@@ -300,7 +308,6 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
 } V8_OBJECT_END;
 
 inline bool IsUniqueName(Tagged<Name> obj);
-inline bool IsUniqueName(Tagged<Name> obj, PtrComprCageBase cage_base);
 
 // ES6 symbols.
 V8_OBJECT class Symbol : public Name {

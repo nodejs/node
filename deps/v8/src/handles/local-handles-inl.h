@@ -19,8 +19,9 @@ namespace internal {
 V8_INLINE Address* LocalHandleScope::GetHandle(LocalHeap* local_heap,
                                                Address value) {
   DCHECK(local_heap->IsRunning());
-  if (local_heap->is_main_thread())
+  if (local_heap->is_main_thread()) {
     return LocalHandleScope::GetMainThreadHandle(local_heap, value);
+  }
 
   LocalHandles* handles = local_heap->handles();
   Address* result = handles->scope_.next;

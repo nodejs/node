@@ -15,7 +15,6 @@
 #include "include/v8-typed-array.h"
 #include "include/v8-wasm.h"
 #include "src/base/contextual.h"
-#include "src/execution/isolate.h"
 #include "src/objects/bigint.h"
 #include "src/objects/contexts.h"
 #include "src/objects/js-array-buffer.h"
@@ -38,6 +37,7 @@ class Template;
 enum class Intercepted : uint32_t;
 
 namespace internal {
+class Isolate;
 class JSArrayBufferView;
 class JSFinalizationRegistry;
 }  // namespace internal
@@ -88,49 +88,50 @@ class RegisteredExtension {
   static RegisteredExtension* first_extension_;
 };
 
-#define TO_LOCAL_LIST(V)                                                \
-  V(ToLocal, AccessorPair, debug::AccessorPair)                         \
-  V(ToLocal, NativeContext, Context)                                    \
-  V(ToLocal, Object, Value)                                             \
-  V(ToLocal, Module, Module)                                            \
-  V(ToLocal, Name, Name)                                                \
-  V(ToLocal, String, String)                                            \
-  V(ToLocal, Symbol, Symbol)                                            \
-  V(ToLocal, JSDate, Object)                                            \
-  V(ToLocal, JSRegExp, RegExp)                                          \
-  V(ToLocal, JSReceiver, Object)                                        \
-  V(ToLocal, JSObject, Object)                                          \
-  V(ToLocal, JSFunction, Function)                                      \
-  V(ToLocal, JSArray, Array)                                            \
-  V(ToLocal, JSMap, Map)                                                \
-  V(ToLocal, JSSet, Set)                                                \
-  V(ToLocal, JSProxy, Proxy)                                            \
-  V(ToLocal, JSArrayBuffer, ArrayBuffer)                                \
-  V(ToLocal, JSArrayBufferView, ArrayBufferView)                        \
-  V(ToLocal, JSDataView, DataView)                                      \
-  V(ToLocal, JSPromise, Promise)                                        \
-  V(ToLocal, JSRabGsabDataView, DataView)                               \
-  V(ToLocal, JSTypedArray, TypedArray)                                  \
-  V(ToLocalShared, JSArrayBuffer, SharedArrayBuffer)                    \
-  V(ToLocal, FunctionTemplateInfo, FunctionTemplate)                    \
-  V(ToLocal, ObjectTemplateInfo, ObjectTemplate)                        \
-  V(ToLocal, DictionaryTemplateInfo, DictionaryTemplate)                \
-  V(SignatureToLocal, FunctionTemplateInfo, Signature)                  \
-  V(MessageToLocal, Object, Message)                                    \
-  V(StackTraceToLocal, StackTraceInfo, StackTrace)                      \
-  V(StackFrameToLocal, StackFrameInfo, StackFrame)                      \
-  V(NumberToLocal, Object, Number)                                      \
-  V(IntegerToLocal, Object, Integer)                                    \
-  V(Uint32ToLocal, Object, Uint32)                                      \
-  V(ToLocal, BigInt, BigInt)                                            \
-  V(ExternalToLocal, JSObject, External)                                \
-  V(CallableToLocal, JSReceiver, Function)                              \
-  V(ToLocalPrimitive, Object, Primitive)                                \
-  V(FixedArrayToLocal, FixedArray, FixedArray)                          \
-  V(PrimitiveArrayToLocal, FixedArray, PrimitiveArray)                  \
-  V(ToLocal, ScriptOrModule, ScriptOrModule)                            \
-  V(CppHeapExternalToLocal, CppHeapExternalObject, CppHeapExternal)     \
-  IF_WASM(V, ToLocal, WasmMemoryMapDescriptor, WasmMemoryMapDescriptor) \
+#define TO_LOCAL_LIST(V)                                            \
+  V(ToLocal, AccessorPair, debug::AccessorPair)                     \
+  V(ToLocal, NativeContext, Context)                                \
+  V(ToLocal, Object, Value)                                         \
+  V(ToLocal, Module, Module)                                        \
+  V(ToLocal, Name, Name)                                            \
+  V(ToLocal, String, String)                                        \
+  V(ToLocal, InternalizedString, String)                            \
+  V(ToLocal, Symbol, Symbol)                                        \
+  V(ToLocal, JSDate, Object)                                        \
+  V(ToLocal, JSRegExp, RegExp)                                      \
+  V(ToLocal, JSReceiver, Object)                                    \
+  V(ToLocal, JSObject, Object)                                      \
+  V(ToLocal, JSFunction, Function)                                  \
+  V(ToLocal, JSArray, Array)                                        \
+  V(ToLocal, JSMap, Map)                                            \
+  V(ToLocal, JSSet, Set)                                            \
+  V(ToLocal, JSProxy, Proxy)                                        \
+  V(ToLocal, JSArrayBuffer, ArrayBuffer)                            \
+  V(ToLocal, JSArrayBufferView, ArrayBufferView)                    \
+  V(ToLocal, JSDataView, DataView)                                  \
+  V(ToLocal, JSPromise, Promise)                                    \
+  V(ToLocal, JSRabGsabDataView, DataView)                           \
+  V(ToLocal, JSTypedArray, TypedArray)                              \
+  V(ToLocalShared, JSArrayBuffer, SharedArrayBuffer)                \
+  V(ToLocal, FunctionTemplateInfo, FunctionTemplate)                \
+  V(ToLocal, ObjectTemplateInfo, ObjectTemplate)                    \
+  V(ToLocal, DictionaryTemplateInfo, DictionaryTemplate)            \
+  V(SignatureToLocal, FunctionTemplateInfo, Signature)              \
+  V(MessageToLocal, Object, Message)                                \
+  V(StackTraceToLocal, StackTraceInfo, StackTrace)                  \
+  V(StackFrameToLocal, StackFrameInfo, StackFrame)                  \
+  V(NumberToLocal, Object, Number)                                  \
+  V(IntegerToLocal, Object, Integer)                                \
+  V(Uint32ToLocal, Object, Uint32)                                  \
+  V(ToLocal, BigInt, BigInt)                                        \
+  V(ExternalToLocal, JSObject, External)                            \
+  V(CallableToLocal, JSReceiver, Function)                          \
+  V(ToLocalPrimitive, Object, Primitive)                            \
+  V(FixedArrayToLocal, FixedArray, FixedArray)                      \
+  V(PrimitiveArrayToLocal, FixedArray, PrimitiveArray)              \
+  V(ToLocal, ScriptOrModule, ScriptOrModule)                        \
+  V(CppHeapExternalToLocal, CppHeapExternalObject, CppHeapExternal) \
+  IF_WASM(V, ToLocal, WasmMemoryObject, WasmMemoryObject)           \
   IF_WASM(V, ToLocal, WasmModuleObject, WasmModuleObject)
 
 #define TO_LOCAL_NAME_LIST(V) \
@@ -206,7 +207,6 @@ class RegisteredExtension {
   V(FixedArray, FixedArray)                                    \
   V(ModuleRequest, ModuleRequest)                              \
   V(CppHeapExternal, CppHeapExternalObject)                    \
-  IF_WASM(V, WasmMemoryMapDescriptor, WasmMemoryMapDescriptor) \
   IF_WASM(V, WasmMemoryObject, WasmMemoryObject)
 
 class Utils {
@@ -317,197 +317,6 @@ namespace internal {
 
 class PersistentHandles;
 
-// This class is here in order to be able to declare it a friend of
-// HandleScope.  Moving these methods to be members of HandleScope would be
-// neat in some ways, but it would expose internal implementation details in
-// our public header file, which is undesirable.
-//
-// An isolate has a single instance of this class to hold the current thread's
-// data. In multithreaded V8 programs this data is copied in and out of storage
-// so that the currently executing thread always has its own copy of this
-// data.
-class HandleScopeImplementer {
- public:
-  class V8_NODISCARD EnteredContextRewindScope {
-   public:
-    explicit EnteredContextRewindScope(HandleScopeImplementer* hsi)
-        : hsi_(hsi), saved_entered_context_count_(hsi->EnteredContextCount()) {}
-
-    ~EnteredContextRewindScope() {
-      DCHECK_LE(saved_entered_context_count_, hsi_->EnteredContextCount());
-      while (saved_entered_context_count_ < hsi_->EnteredContextCount())
-        hsi_->LeaveContext();
-    }
-
-   private:
-    HandleScopeImplementer* hsi_;
-    size_t saved_entered_context_count_;
-  };
-
-  explicit HandleScopeImplementer(Isolate* isolate)
-      : isolate_(isolate), spare_(nullptr) {}
-
-  ~HandleScopeImplementer() { DeleteArray(spare_); }
-
-  HandleScopeImplementer(const HandleScopeImplementer&) = delete;
-  HandleScopeImplementer& operator=(const HandleScopeImplementer&) = delete;
-
-  // Threading support for handle data.
-  static int ArchiveSpacePerThread();
-  char* RestoreThread(char* from);
-  char* ArchiveThread(char* to);
-  void FreeThreadResources();
-
-  // Garbage collection support.
-  V8_EXPORT_PRIVATE void Iterate(i::RootVisitor* v);
-  V8_EXPORT_PRIVATE static char* Iterate(i::RootVisitor* v, char* data);
-
-  inline internal::Address* GetSpareOrNewBlock();
-  inline void DeleteExtensions(internal::Address* prev_limit);
-
-  inline void EnterContext(Tagged<NativeContext> context);
-  inline void LeaveContext();
-  inline bool LastEnteredContextWas(Tagged<NativeContext> context);
-  inline size_t EnteredContextCount() const { return entered_contexts_.size(); }
-
-  // Returns the last entered context or an empty handle if no
-  // contexts have been entered.
-  inline DirectHandle<NativeContext> LastEnteredContext();
-
-  inline void SaveContext(Tagged<Context> context);
-  inline Tagged<Context> RestoreContext();
-  inline bool HasSavedContexts();
-
-  inline DetachableVector<Address*>* blocks() { return &blocks_; }
-  Isolate* isolate() const { return isolate_; }
-
-  void ReturnBlock(Address* block) {
-    DCHECK_NOT_NULL(block);
-    if (spare_ != nullptr) DeleteArray(spare_);
-    spare_ = block;
-  }
-
-  static const size_t kEnteredContextsOffset;
-
- private:
-  void ResetAfterArchive() {
-    blocks_.detach();
-    entered_contexts_.detach();
-    saved_contexts_.detach();
-    spare_ = nullptr;
-    last_handle_before_persistent_block_.reset();
-  }
-
-  void Free() {
-    DCHECK(blocks_.empty());
-    DCHECK(entered_contexts_.empty());
-    DCHECK(saved_contexts_.empty());
-
-    blocks_.free();
-    entered_contexts_.free();
-    saved_contexts_.free();
-    if (spare_ != nullptr) {
-      DeleteArray(spare_);
-      spare_ = nullptr;
-    }
-    DCHECK(isolate_->thread_local_top()->CallDepthIsZero());
-  }
-
-  void BeginPersistentScope() {
-    DCHECK(!last_handle_before_persistent_block_.has_value());
-    last_handle_before_persistent_block_ = isolate()->handle_scope_data()->next;
-  }
-  bool HasPersistentScope() const {
-    return last_handle_before_persistent_block_.has_value();
-  }
-  std::unique_ptr<PersistentHandles> DetachPersistent(Address* first_block);
-
-  Isolate* isolate_;
-  DetachableVector<Address*> blocks_;
-
-  // Used as a stack to keep track of entered contexts.
-  DetachableVector<Tagged<NativeContext>> entered_contexts_;
-
-  // Used as a stack to keep track of saved contexts.
-  DetachableVector<Tagged<Context>> saved_contexts_;
-  Address* spare_;
-  std::optional<Address*> last_handle_before_persistent_block_;
-  // This is only used for threading support.
-  HandleScopeData handle_scope_data_;
-
-  void IterateThis(RootVisitor* v);
-  char* RestoreThreadHelper(char* from);
-  char* ArchiveThreadHelper(char* to);
-
-  friend class HandleScopeImplementerOffsets;
-  friend class PersistentHandlesScope;
-};
-
-const int kHandleBlockSize = i::KB - 2;  // fit in one page
-
-void HandleScopeImplementer::SaveContext(Tagged<Context> context) {
-  saved_contexts_.push_back(context);
-}
-
-Tagged<Context> HandleScopeImplementer::RestoreContext() {
-  Tagged<Context> last_context = saved_contexts_.back();
-  saved_contexts_.pop_back();
-  return last_context;
-}
-
-bool HandleScopeImplementer::HasSavedContexts() {
-  return !saved_contexts_.empty();
-}
-
-void HandleScopeImplementer::LeaveContext() {
-  DCHECK(!entered_contexts_.empty());
-  entered_contexts_.pop_back();
-}
-
-bool HandleScopeImplementer::LastEnteredContextWas(
-    Tagged<NativeContext> context) {
-  return !entered_contexts_.empty() && entered_contexts_.back() == context;
-}
-
-// If there's a spare block, use it for growing the current scope.
-internal::Address* HandleScopeImplementer::GetSpareOrNewBlock() {
-  internal::Address* block =
-      (spare_ != nullptr) ? spare_
-                          : NewArray<internal::Address>(kHandleBlockSize);
-  spare_ = nullptr;
-  return block;
-}
-
-void HandleScopeImplementer::DeleteExtensions(internal::Address* prev_limit) {
-  while (!blocks_.empty()) {
-    internal::Address* block_start = blocks_.back();
-    internal::Address* block_limit = block_start + kHandleBlockSize;
-
-    // SealHandleScope may make the prev_limit to point inside the block.
-    // Cast possibly-unrelated pointers to plain Address before comparing them
-    // to avoid undefined behavior.
-    if (reinterpret_cast<Address>(block_start) <
-            reinterpret_cast<Address>(prev_limit) &&
-        reinterpret_cast<Address>(prev_limit) <=
-            reinterpret_cast<Address>(block_limit)) {
-#ifdef ENABLE_LOCAL_HANDLE_ZAPPING
-      internal::HandleScope::ZapRange(prev_limit, block_limit);
-#endif
-      break;
-    }
-
-    blocks_.pop_back();
-#ifdef ENABLE_LOCAL_HANDLE_ZAPPING
-    internal::HandleScope::ZapRange(block_start, block_limit);
-#endif
-    if (spare_ != nullptr) {
-      DeleteArray(spare_);
-    }
-    spare_ = block_start;
-  }
-  DCHECK((blocks_.empty() && prev_limit == nullptr) ||
-         (!blocks_.empty() && prev_limit != nullptr));
-}
 
 // This is a wrapper function called from CallApiGetter builtin when profiling
 // or side-effect checking is enabled. It's supposed to set up the runtime
@@ -531,7 +340,7 @@ v8::Intercepted InvokeNamedInterceptorGetterCallback(
 // in case debugger enabled the side-effects checking mode.
 v8::Intercepted InvokeNamedInterceptorSetterCallback(
     v8::Local<v8::Name> property, v8::Local<v8::Value> value,
-    const v8::PropertyCallbackInfo<void>& info);
+    const v8::PropertyCallbackInfo<v8::Boolean>& info);
 
 // This is a wrapper function called from CallApiCallback builtin when profiling
 // or side-effect checking is enabled. It's supposed to set up the runtime

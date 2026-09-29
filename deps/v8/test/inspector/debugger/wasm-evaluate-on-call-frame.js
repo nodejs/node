@@ -33,7 +33,7 @@ async function instantiateModule({objectId}, importObject) {
 
 async function dumpOnCallFrame(callFrameId, expression) {
   const {result: {result: object}} = await Protocol.Debugger.evaluateOnCallFrame({
-    callFrameId, expression
+    callFrameId, expression, generatePreview: true
   });
   if ('customPreview' in object) {
     InspectorTest.log(

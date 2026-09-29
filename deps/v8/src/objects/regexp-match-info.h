@@ -18,35 +18,16 @@ namespace internal {
 class Object;
 class String;
 
-// TODO(jgruber): These should no longer be included here; instead, all
-// TorqueGeneratedFooAsserts should be emitted into a global .cc file.
-#include "torque-generated/src/objects/regexp-match-info-tq.inc"
-
-class RegExpMatchInfoShape final : public AllStatic {
- public:
-  using ElementT = Smi;
-  using CompressionScheme = SmiCompressionScheme;
-  static constexpr RootIndex kMapRootIndex = RootIndex::kRegExpMatchInfoMap;
-  static constexpr bool kLengthEqualsCapacity = true;
-
-  V8_ARRAY_EXTRA_FIELDS({
-    TaggedMember<Smi> number_of_capture_registers_;
-    TaggedMember<String> last_subject_;
-    TaggedMember<Object> last_input_;
-  });
-};
-
 // The property RegExpMatchInfo includes the matchIndices array of the last
 // successful regexp match (an array of start/end index pairs for the match and
 // all the captured substrings), the invariant is that there are at least two
 // capture indices.  The array also contains the subject string for the last
 // successful match.
-V8_OBJECT class RegExpMatchInfo
-    : public TaggedArrayBase<RegExpMatchInfo, RegExpMatchInfoShape> {
-  using Super = TaggedArrayBase<RegExpMatchInfo, RegExpMatchInfoShape>;
+V8_OBJECT class RegExpMatchInfo : public TaggedArrayBase<RegExpMatchInfo, Smi> {
+  using Super = TaggedArrayBase<RegExpMatchInfo, Smi>;
 
  public:
-  using Shape = RegExpMatchInfoShape;
+  static constexpr RootIndex kMapRootIndex = RootIndex::kRegExpMatchInfoMap;
 
   V8_EXPORT_PRIVATE static DirectHandle<RegExpMatchInfo> New(
       Isolate* isolate, int capture_count,
@@ -82,12 +63,23 @@ V8_OBJECT class RegExpMatchInfo
     return capture_index * 2 + 1;
   }
 
-  static constexpr int kMinCapacity = 2;
-
   DECL_PRINTER(RegExpMatchInfo)
   DECL_VERIFIER(RegExpMatchInfo)
 
   class BodyDescriptor;
+
+  static constexpr uint32_t kMinCapacity = 2;
+  static constexpr uint32_t kLengthOffset = sizeof(HeapObject);
+  static constexpr uint32_t kHeaderSize =
+      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size) +
+      3 * kTaggedSize;
+
+ public:
+  // length_ / optional_padding_ live in FixedArrayBase.
+  TaggedMember<Smi> number_of_capture_registers_;
+  TaggedMember<String> last_subject_;
+  TaggedMember<Object> last_input_;
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 
 }  // namespace internal

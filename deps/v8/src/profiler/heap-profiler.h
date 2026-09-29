@@ -61,12 +61,19 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   HeapProfiler(const HeapProfiler&) = delete;
   HeapProfiler& operator=(const HeapProfiler&) = delete;
 
-  HeapSnapshot* TakeSnapshot(
+  V8_EXPORT_PRIVATE HeapSnapshot* TakeSnapshot(
       const v8::HeapProfiler::HeapSnapshotOptions options);
 
   // Implementation of --heap-snapshot-on-oom.
   void WriteSnapshotToDiskAfterGC(
-      HeapSnapshotMode snapshot_mode = HeapSnapshotMode::kRegular);
+      const v8::HeapProfiler::HeapSnapshotOptions options =
+          GetDefaultHeapSnapshotOptionsForTestingUsage());
+
+  // Returns the default heap snapshot options for snapshots intended for V8
+  // devs.
+  static v8::HeapProfiler::HeapSnapshotOptions
+  GetDefaultHeapSnapshotOptionsForTestingUsage();
+
   // Just takes a snapshot performing GC as part of the snapshot.
   void TakeSnapshotToFile(const v8::HeapProfiler::HeapSnapshotOptions options,
                           std::string filename);
@@ -92,9 +99,10 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   int GetSnapshotsCount() const;
   bool IsTakingSnapshot() const;
   HeapSnapshot* GetSnapshot(int index);
-  SnapshotObjectId GetSnapshotObjectId(DirectHandle<Object> obj);
+  V8_EXPORT_PRIVATE SnapshotObjectId
+  GetSnapshotObjectId(DirectHandle<Object> obj);
   SnapshotObjectId GetSnapshotObjectId(NativeObject obj);
-  void DeleteAllSnapshots();
+  V8_EXPORT_PRIVATE void DeleteAllSnapshots();
   void RemoveSnapshot(HeapSnapshot* snapshot);
 
   std::vector<v8::Local<v8::Value>> GetDetachedJSWrapperObjects();
@@ -110,22 +118,10 @@ class HeapProfiler : public HeapObjectAllocationTracker {
       v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data);
   void RemoveBuildEmbedderGraphCallback(
       v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data);
-  void BuildEmbedderGraph(
-      Isolate* isolate, v8::EmbedderGraph* graph,
-      UnorderedCppHeapExternalObjectSet&& cpp_heap_external_objects);
-  bool HasBuildEmbedderGraphCallback() {
-    return internal_build_embedder_graph_callback_.first != nullptr ||
-           !build_embedder_graph_callbacks_.empty();
+  void BuildEmbedderGraph(Isolate* isolate, v8::EmbedderGraph* graph);
+  bool HasBuildEmbedderGraphCallback() const {
+    return !build_embedder_graph_callbacks_.empty();
   }
-
-  // Internal version of `v8::HeapProfiler::BuildEmbedderGraphCallback`, which
-  // additionally receives the set of `CppHeapExternalObject`s to link to
-  // embedder nodes.
-  typedef void (*InternalBuildEmbedderGraphCallback)(
-      v8::Isolate* isolate, v8::EmbedderGraph* graph, void* data,
-      UnorderedCppHeapExternalObjectSet&& cpp_heap_external_objects);
-  void SetInternalBuildEmbedderGraphCallback(
-      InternalBuildEmbedderGraphCallback callback, void* data);
 
   void SetGetDetachednessCallback(
       v8::HeapProfiler::GetDetachednessCallback callback, void* data);
@@ -171,8 +167,6 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   std::unique_ptr<SamplingHeapProfiler> sampling_heap_profiler_;
   std::vector<std::pair<v8::HeapProfiler::BuildEmbedderGraphCallback, void*>>
       build_embedder_graph_callbacks_;
-  std::pair<InternalBuildEmbedderGraphCallback, void*>
-      internal_build_embedder_graph_callback_;
   std::pair<v8::HeapProfiler::GetDetachednessCallback, void*>
       get_detachedness_callback_;
   std::unique_ptr<HeapProfilerNativeMoveListener> native_move_listener_;

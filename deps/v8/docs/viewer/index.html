@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>V8 Docs Viewer</title>
+  <!-- Rendering moved to server -->
+
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown-dark.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=JetBrains+Mono&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --sidebar-bg: #1e293b;
+      --text-color: #e2e8f0;
+      --accent-color: #38bdf8;
+      --border-color: #334155;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Graphviz SVG styling */
+    .graphviz svg .node polygon,
+    .graphviz svg .node ellipse,
+    .graphviz svg .node path {
+      fill: var(--sidebar-bg) !important;
+      stroke: var(--border-color) !important;
+    }
+
+    .graphviz svg .node text {
+      fill: var(--text-color) !important;
+    }
+
+    .graphviz svg .edge text {
+      fill: var(--text-color) !important;
+      font-size: 0.8rem !important;
+      font-family: 'Outfit', sans-serif !important;
+    }
+
+    .graphviz svg .edge path {
+      stroke: var(--accent-color) !important;
+    }
+
+    .graphviz svg .edge polygon {
+      fill: var(--accent-color) !important;
+      stroke: var(--accent-color) !important;
+    }
+
+    .graphviz svg .cluster polygon {
+      fill: rgba(255, 255, 255, 0.03) !important;
+      stroke: var(--border-color) !important;
+      stroke-dasharray: 5, 5 !important;
+    }
+
+    .graphviz svg .cluster text {
+      fill: var(--accent-color) !important;
+      font-weight: 600 !important;
+      font-family: 'Outfit', sans-serif !important;
+      font-size: 0.9rem !important;
+    }
+
+    .graphviz svg .start polygon,
+    .graphviz svg .start ellipse {
+      fill: #334155 !important;
+      stroke: #38bdf8 !important;
+      stroke-width: 2px !important;
+    }
+
+    .graphviz svg .leaf polygon,
+    .graphviz svg .leaf ellipse {
+      fill: #0f766e !important;
+      stroke: #14b8a6 !important;
+      stroke-width: 2px !important;
+    }
+
+    .graphviz svg .branch polygon,
+    .graphviz svg .branch ellipse {
+      fill: #1e293b !important;
+      stroke: #475569 !important;
+      stroke-width: 1px !important;
+    }
+
+    #sidebar {
+      width: 280px;
+      background-color: var(--sidebar-bg);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    #sidebar h2 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--accent-color);
+      margin-bottom: 20px;
+      letter-spacing: 0.05em;
+    }
+
+    #sidebar a {
+      color: var(--text-color);
+      text-decoration: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 4px;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+      display: block;
+    }
+
+    #sidebar a:hover,
+    #sidebar a.active {
+      background-color: rgba(56, 189, 248, 0.1);
+      color: var(--accent-color);
+      transform: translateX(5px);
+    }
+
+    #main-content {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .markdown-body {
+      background-color: transparent !important;
+      font-family: 'Outfit', sans-serif !important;
+      color: var(--text-color) !important;
+      padding: 20px 80px 60px 80px !important;
+    }
+
+    .markdown-body code {
+      font-family: 'JetBrains Mono', monospace !important;
+    }
+
+    .markdown-body a {
+      color: var(--accent-color) !important;
+    }
+
+    .markdown-body>* {
+      position: relative;
+      padding-right: 40px !important;
+    }
+
+    /* Mermaid custom classes */
+    .mermaid .start rect {
+      fill: #334155 !important;
+      stroke: #38bdf8 !important;
+      stroke-width: 2px !important;
+    }
+
+    .mermaid .leaf rect {
+      fill: #0f766e !important;
+      stroke: #14b8a6 !important;
+      stroke-width: 2px !important;
+    }
+
+    .mermaid .branch rect {
+      fill: #1e293b !important;
+      stroke: #475569 !important;
+      stroke-width: 1px !important;
+    }
+
+    .mermaid .start .nodeLabel,
+    .mermaid .leaf .nodeLabel,
+    .mermaid .branch .nodeLabel {
+      color: #e2e8f0 !important;
+    }
+
+    /* Premium Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-color);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-color);
+    }
+
+    /* Glassmorphism Header */
+    #header {
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(10px);
+      background: rgba(15, 23, 42, 0.8);
+      padding: 20px 80px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 30px;
+      z-index: 10;
+    }
+
+    #header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    /* Line Comments Style */
+    .comment-btn {
+      background-color: var(--accent-color);
+      color: var(--bg-color);
+      border: none;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      transition: transform 0.2s ease;
+      position: absolute;
+      right: 10px;
+      top: 0px;
+      display: none;
+    }
+
+    .comment-btn:hover {
+      transform: scale(1.2);
+    }
+
+    /* New Classes for Refactor */
+    .sidebar-section-title {
+      font-size: 0.9rem;
+      color: #64748b;
+      margin: 15px 0 5px 12px;
+      text-transform: uppercase;
+    }
+
+    .comment-display {
+      margin-top: 10px;
+      padding: 10px 15px;
+      background-color: rgba(56, 189, 248, 0.05);
+      border-left: 3px solid var(--accent-color);
+      border-radius: 0 4px 4px 0;
+      font-size: 0.95rem;
+    }
+
+    .comment-item {
+      margin-bottom: 8px;
+    }
+
+    .comment-timestamp {
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+
+    .comment-text {
+      margin-top: 2px;
+      color: var(--text-color);
+    }
+
+    .comment-form {
+      margin-top: 10px;
+      padding: 15px;
+      background-color: var(--sidebar-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+    }
+
+    .comment-textarea {
+      width: 100%;
+      height: 60px;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 8px;
+      box-sizing: border-box;
+      font-family: inherit;
+      resize: vertical;
+    }
+
+    .comment-actions {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .btn-cancel {
+      margin-right: 8px;
+      background: transparent;
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-submit {
+      background: var(--accent-color);
+      color: var(--bg-color);
+      border: none;
+      font-weight: 600;
+    }
+
+    .commentable-block {
+      position: relative;
+    }
+
+    .commentable-block:hover > .comment-btn {
+      display: flex;
+    }
+    .commentable-block:has(.commentable-block:hover) > .comment-btn {
+      display: none;
+    }
+    .sidebar-section-items {
+      display: none;
+      padding-left: 15px;
+    }
+    .sidebar-section.active .sidebar-section-items {
+      display: block;
+    }
+    .sidebar-section-title {
+      cursor: pointer;
+      user-select: none;
+      margin-top: 15px;
+      margin-bottom: 5px;
+    }
+    .sidebar-subsection-items {
+      display: none;
+      padding-left: 15px;
+    }
+    .sidebar-subsection.active .sidebar-subsection-items {
+      display: block;
+    }
+    .sidebar-subsection-title {
+      cursor: pointer;
+      user-select: none;
+      font-size: 0.9rem;
+      color: var(--text-color);
+      margin-top: 10px;
+      margin-bottom: 5px;
+      opacity: 0.8;
+    }
+    .sidebar-subsection-title:hover {
+      color: var(--accent-color);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="sidebar">
+    <h2>V8 INTERNAL DOCS</h2>
+    <div id="sidebar-content"></div>
+  </div>
+  <div id="main-content">
+    <div id="header">
+      <h1 id="current-file-title">Loading...</h1>
+    </div>
+    <div id="content" class="markdown-body">Loading...</div>
+  </div>
+  <script type="module">
+    function resolvePath(currentFile, relativePath) {
+      if (relativePath.startsWith('/')) return relativePath.slice(1);
+
+      const parts = currentFile.split('/');
+      parts.pop(); // Remove filename
+
+      const relParts = relativePath.split('/');
+      for (const part of relParts) {
+        if (part === '.') continue;
+        if (part === '..') parts.pop();
+        else parts.push(part);
+      }
+      return parts.join('/');
+    }
+
+    async function loadSidebar() {
+      try {
+        const response = await fetch('dist/sidebar.json');
+        const sidebarData = await response.json();
+        const sidebarContent = document.getElementById('sidebar-content');
+        
+        let html = '';
+        html += `<a href="?file=README.html" class="nav-link" data-file="README.html">🏠 Home</a>`;
+        
+        sidebarData.forEach(section => {
+          html += `<div class="sidebar-section">`;
+          html += `<h3 class="sidebar-section-title">${section.title}</h3>`;
+          html += `<div class="sidebar-section-items">`;
+          
+          // Render top-level items in section
+          section.items.forEach(item => {
+            html += `<a href="?file=${item.file}" class="nav-link" data-file="${item.file}">${item.title}</a>`;
+          });
+          
+          // Render subsections
+          if (section.subsections && section.subsections.length > 0) {
+            section.subsections.forEach(sub => {
+              html += `<div class="sidebar-subsection">`;
+              html += `<h4 class="sidebar-subsection-title">${sub.title}</h4>`;
+              html += `<div class="sidebar-subsection-items">`;
+              sub.items.forEach(item => {
+                html += `<a href="?file=${item.file}" class="nav-link" data-file="${item.file}">${item.title}</a>`;
+              });
+              html += `</div></div>`;
+            });
+          }
+          
+          html += `</div></div>`;
+        });
+        
+        sidebarContent.innerHTML = html;
+        
+        // Add click handlers for expanding/collapsing sections
+        document.querySelectorAll('.sidebar-section-title').forEach(title => {
+          title.addEventListener('click', () => {
+            const section = title.parentElement;
+            section.classList.toggle('active');
+          });
+        });
+        
+        // Add click handlers for expanding/collapsing subsections
+        document.querySelectorAll('.sidebar-subsection-title').forEach(title => {
+          title.addEventListener('click', () => {
+            const subsection = title.parentElement;
+            subsection.classList.toggle('active');
+          });
+        });
+      } catch (error) {
+        console.error('Failed to load sidebar:', error);
+      }
+    }
+
+    async function loadComments(file) {
+      try {
+        const response = await fetch(`/api/comments?file=${file}`);
+        const comments = await response.json();
+
+        // Clear existing comment displays
+        document.querySelectorAll('.comment-display').forEach(d => d.remove());
+
+        for (const [index, list] of Object.entries(comments)) {
+          const block = document.querySelector(`[data-comment-index="${index}"]`);
+          if (!block) continue;
+
+          const display = document.createElement('div');
+          display.className = 'comment-display';
+
+          display.innerHTML = list.map(c => `
+                        <div class="comment-item">
+                            <span class="comment-timestamp">${new Date(c.timestamp).toLocaleString()}</span>
+                            <div class="comment-text">${c.text}</div>
+                        </div>
+                    `).join('');
+
+          block.appendChild(display);
+        }
+      } catch (error) {
+        console.error('Failed to load comments:', error);
+      }
+    }
+
+    function showCommentForm(block, index, file) {
+      if (block.querySelector('.comment-form')) return;
+
+      const form = document.createElement('div');
+      form.className = 'comment-form';
+
+      form.innerHTML = `
+                <textarea class="comment-textarea" placeholder="Add a comment..."></textarea>
+                <div class="comment-actions">
+                    <button class="cancel-btn btn btn-cancel">Cancel</button>
+                    <button class="submit-btn btn btn-submit">Save</button>
+                </div>
+            `;
+
+      block.appendChild(form);
+
+      form.querySelector('textarea').focus();
+
+      form.querySelector('.cancel-btn').onclick = () => form.remove();
+      form.querySelector('.submit-btn').onclick = async () => {
+        const text = form.querySelector('textarea').value;
+        if (!text.trim()) return;
+
+        try {
+          const response = await fetch('/api/comments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ file, blockIndex: index, text })
+          });
+
+          if (response.ok) {
+            form.remove();
+            loadComments(file);
+          }
+        } catch (error) {
+          console.error('Failed to submit comment:', error);
+        }
+      };
+    }
+
+    async function loadContent() {
+      const urlParams = new URLSearchParams(window.location.search);
+      let file = urlParams.get('file') || 'README.html';
+
+      // Update active link in sidebar
+      document.querySelectorAll('.nav-link').forEach(a => {
+        if (a.getAttribute('data-file') === file) {
+          a.classList.add('active');
+          // Expand parent section
+          const section = a.closest('.sidebar-section');
+          if (section) section.classList.add('active');
+          // Expand parent subsection if any
+          const subsection = a.closest('.sidebar-subsection');
+          if (subsection) subsection.classList.add('active');
+        } else {
+          a.classList.remove('active');
+        }
+      });
+
+      try {
+        const response = await fetch('/' + file);
+        if (!response.ok) throw new Error('File not found');
+        const html = await response.text();
+
+        // Set innerHTML directly
+        document.getElementById('content').innerHTML = html;
+
+        // Update title
+        document.getElementById('current-file-title').innerText = file;
+        document.title = file + " - V8 Docs Viewer";
+
+        // Add comment buttons to blocks and list items
+        let commentableElements = [];
+        document.querySelectorAll('.markdown-body > *').forEach(el => {
+          if (el.tagName === 'UL' || el.tagName === 'OL') {
+            el.querySelectorAll('li').forEach(li => commentableElements.push(li));
+          } else {
+            commentableElements.push(el);
+          }
+        });
+
+        commentableElements.forEach((el, index) => {
+          el.setAttribute('data-comment-index', index);
+          el.classList.add('commentable-block');
+
+          const btn = document.createElement('button');
+          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
+          btn.className = 'comment-btn';
+
+          el.appendChild(btn);
+
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showCommentForm(el, index, file);
+          });
+        });
+
+        // Load comments
+        loadComments(file);
+
+        // Handle link clicks to stay in viewer
+        document.querySelectorAll('.markdown-body a').forEach(a => {
+          const href = a.getAttribute('href');
+          if (href && !href.startsWith('http')) {
+            const resolvedPath = resolvePath(file, href);
+            const isHtml = resolvedPath.endsWith('.html') || /\.html#/.test(resolvedPath);
+
+            if (isHtml) {
+              a.addEventListener('click', function (e) {
+                e.preventDefault();
+                window.location.search = `?file=${resolvedPath}`;
+              });
+            }
+          }
+        });
+      } catch (error) {
+        document.getElementById('content').innerHTML = `<h1>Error</h1><p>${error.message}</p>`;
+        document.getElementById('current-file-title').innerText = "Error";
+      }
+    }
+
+    await loadSidebar();
+    loadContent();
+  </script>
+</body>
+
+</html>

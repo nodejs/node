@@ -13,11 +13,12 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/contexts.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/property-cell.h"
+#include "src/objects/property-cell-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -737,17 +738,16 @@ class FieldRepresentationDependency final : public CompilationDependency {
     DisallowGarbageCollection no_heap_allocation;
     if (map_.object()->is_deprecated()) return false;
     return representation_.Equals(map_.object()
-                                      ->instance_descriptors(broker->isolate())
+                                      ->instance_descriptors()
                                       ->GetDetails(descriptor_)
                                       .representation());
   }
 
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
     SLOW_DCHECK(IsValid(broker));
-    Isolate* isolate = broker->isolate();
     Handle<Map> owner = owner_.object();
     CHECK(!owner->is_deprecated());
-    CHECK(representation_.Equals(owner->instance_descriptors(isolate)
+    CHECK(representation_.Equals(owner->instance_descriptors()
                                      ->GetDetails(descriptor_)
                                      .representation()));
     deps->Register(owner, DependentCode::kFieldRepresentationGroup);
@@ -790,18 +790,16 @@ class FieldTypeDependency final : public CompilationDependency {
   bool IsValid(JSHeapBroker* broker) const override {
     DisallowGarbageCollection no_heap_allocation;
     if (map_.object()->is_deprecated()) return false;
-    return *type_.object() == map_.object()
-                                  ->instance_descriptors(broker->isolate())
-                                  ->GetFieldType(descriptor_);
+    return *type_.object() ==
+           map_.object()->instance_descriptors()->GetFieldType(descriptor_);
   }
 
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
     SLOW_DCHECK(IsValid(broker));
-    Isolate* isolate = broker->isolate();
     Handle<Map> owner = owner_.object();
     CHECK(!owner->is_deprecated());
     CHECK_EQ(*type_.object(),
-             owner->instance_descriptors(isolate)->GetFieldType(descriptor_));
+             owner->instance_descriptors()->GetFieldType(descriptor_));
     deps->Register(owner, DependentCode::kFieldTypeGroup);
   }
 
@@ -834,21 +832,19 @@ class FieldConstnessDependency final : public CompilationDependency {
   bool IsValid(JSHeapBroker* broker) const override {
     DisallowGarbageCollection no_heap_allocation;
     if (map_.object()->is_deprecated()) return false;
-    return PropertyConstness::kConst ==
-           map_.object()
-               ->instance_descriptors(broker->isolate())
-               ->GetDetails(descriptor_)
-               .constness();
+    return PropertyConstness::kConst == map_.object()
+                                            ->instance_descriptors()
+                                            ->GetDetails(descriptor_)
+                                            .constness();
   }
 
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
     SLOW_DCHECK(IsValid(broker));
-    Isolate* isolate = broker->isolate();
     Handle<Map> owner = owner_.object();
     CHECK(!owner->is_deprecated());
-    CHECK_EQ(PropertyConstness::kConst, owner->instance_descriptors(isolate)
-                                            ->GetDetails(descriptor_)
-                                            .constness());
+    CHECK_EQ(
+        PropertyConstness::kConst,
+        owner->instance_descriptors()->GetDetails(descriptor_).constness());
     deps->Register(owner, DependentCode::kFieldConstGroup);
   }
 
@@ -1017,11 +1013,10 @@ class ObjectSlotValueDependency final : public CompilationDependency {
         value_(value.object()) {}
 
   bool IsValid(JSHeapBroker* broker) const override {
-    PtrComprCageBase cage_base = GetPtrComprCageBase(*object_);
     Tagged<Object> current_value =
-        offset_ == HeapObject::kMapOffset
+        offset_ == offsetof(HeapObject, map_)
             ? object_->map()
-            : TaggedField<Object>::Relaxed_Load(cage_base, *object_, offset_);
+            : TaggedField<Object>::Relaxed_Load(*object_, offset_);
     return *value_ == current_value;
   }
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
@@ -1311,7 +1306,7 @@ bool CompilationDependencies::DependOnContextCell(ContextRef script_context,
 
 bool CompilationDependencies::DependOnContextCell(ContextCellRef slot,
                                                   ContextCell::State state) {
-  DCHECK(v8_flags.script_context_cells);
+  DCHECK(v8_flags.script_context_cells || v8_flags.function_context_cells);
   RecordDependency(zone_->New<ContextCellDependency>(slot, state));
   return true;
 }
@@ -1363,6 +1358,12 @@ bool CompilationDependencies::DependOnArrayBufferDetachingProtector() {
   return DependOnProtector(MakeRef(
       broker_,
       broker_->isolate()->factory()->array_buffer_detaching_protector()));
+}
+
+bool CompilationDependencies::DependOnArrayBufferMutableProtector() {
+  return DependOnProtector(
+      MakeRef(broker_,
+              broker_->isolate()->factory()->array_buffer_mutable_protector()));
 }
 
 bool CompilationDependencies::DependOnArrayIteratorProtector() {

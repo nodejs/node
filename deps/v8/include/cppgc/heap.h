@@ -32,6 +32,18 @@ namespace internal {
 class Heap;
 }  // namespace internal
 
+/**
+ * A marker that captures the current stack start address.
+ */
+class V8_EXPORT StackStartMarker {
+ public:
+  StackStartMarker() : stack_start_(__builtin_frame_address(0)) {}
+  void* stack_start() const { return stack_start_; }
+
+ private:
+  void* stack_start_;
+};
+
 class V8_EXPORT Heap {
  public:
   /**
@@ -151,8 +163,13 @@ class V8_EXPORT Heap {
      * GC scheduler follows.
      */
     ResourceConstraints resource_constraints;
-  };
 
+    /**
+     * Optional marker representing the stack start of the thread creating the
+     * heap.
+     */
+    std::optional<StackStartMarker> stack_start_marker = std::nullopt;
+  };
   /**
    * Creates a new heap that can be used for object allocation.
    *

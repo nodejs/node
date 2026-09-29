@@ -295,13 +295,14 @@ TEST_WITH_PLATFORM(BuiltinsTrace, MockTracingPlatform) {
   auto trace = binding->Get(env.local(), v8_str("trace"))
                    .ToLocalChecked()
                    .As<v8::Function>();
+  auto phase = v8::Integer::New(isolate, 'b');
 
   // Test with disabled category
   {
     v8::Local<v8::String> category = v8_str("cat");
     v8::Local<v8::String> name = v8_str("name");
     v8::Local<v8::Value> argv[] = {
-        v8::Integer::New(isolate, 'b'),                // phase
+        phase,                                         // phase
         category, name, v8::Integer::New(isolate, 0),  // id
         undefined                                      // data
     };
@@ -320,7 +321,7 @@ TEST_WITH_PLATFORM(BuiltinsTrace, MockTracingPlatform) {
     v8::Local<v8::Object> data = v8::Object::New(isolate);
     data->Set(context, v8_str("foo"), v8_str("bar")).FromJust();
     v8::Local<v8::Value> argv[] = {
-        v8::Integer::New(isolate, 'b'),                  // phase
+        phase,                                           // phase
         category, name, v8::Integer::New(isolate, 123),  // id
         data                                             // data arg
     };
@@ -344,7 +345,7 @@ TEST_WITH_PLATFORM(BuiltinsTrace, MockTracingPlatform) {
     v8::Local<v8::Object> data = v8::Object::New(isolate);
     data->Set(context, v8_str("foo"), v8_str("bar")).FromJust();
     v8::Local<v8::Value> argv[] = {
-        v8::Integer::New(isolate, 'b'),                  // phase
+        phase,                                           // phase
         category, name, v8::Integer::New(isolate, 123),  // id
         data                                             // data arg
     };
@@ -359,5 +360,82 @@ TEST_WITH_PLATFORM(BuiltinsTrace, MockTracingPlatform) {
     CHECK_EQ('b', platform.GetTraceObject(1)->phase);
     CHECK_EQ("name\u20ac", platform.GetTraceObject(1)->name);
     CHECK_EQ(1, platform.GetTraceObject(1)->num_args);
+  }
+
+  // Test with non-JSON-serializable data (e.g. function)
+  {
+    v8::Local<v8::String> category = v8_str("v8-cat");
+    v8::Local<v8::String> name = v8_str("name");
+    v8::Local<v8::Function> data =
+        v8::Function::New(
+            env.local(), [](const v8::FunctionCallbackInfo<v8::Value>& info) {})
+            .ToLocalChecked();
+    v8::Local<v8::Value> argv[] = {
+        v8::Integer::New(isolate, 'b'),                  // phase
+        category, name, v8::Integer::New(isolate, 456),  // id
+        data                                             // data arg
+    };
+    auto result = trace->Call(env.local(), undefined, 5, argv)
+                      .ToLocalChecked()
+                      .As<v8::Boolean>();
+
+    CHECK(result->BooleanValue(isolate));
+    CHECK_EQ(3, platform.NumberOfTraceObjects());
+
+    CHECK_EQ(456, platform.GetTraceObject(2)->id);
+    CHECK_EQ('b', platform.GetTraceObject(2)->phase);
+
+    CHECK_EQ(0, platform.GetTraceObject(2)->num_args);
+  }
+
+  // Test with Symbol data
+  {
+    v8::Local<v8::String> category = v8_str("v8-cat");
+    v8::Local<v8::String> name = v8_str("name");
+    v8::Local<v8::Symbol> data = v8::Symbol::New(isolate, v8_str("foo"));
+    v8::Local<v8::Value> argv[] = {
+        phase,                                           // phase
+        category, name, v8::Integer::New(isolate, 789),  // id
+        data                                             // data arg
+    };
+    auto result = trace->Call(env.local(), undefined, 5, argv)
+                      .ToLocalChecked()
+                      .As<v8::Boolean>();
+
+    CHECK(result->BooleanValue(isolate));
+    CHECK_EQ(4, platform.NumberOfTraceObjects());
+
+    CHECK_EQ(789, platform.GetTraceObject(3)->id);
+    CHECK_EQ(0, platform.GetTraceObject(3)->num_args);
+  }
+
+  // Test with object having toJSON returning undefined
+  {
+    v8::Local<v8::String> category = v8_str("v8-cat");
+    v8::Local<v8::String> name = v8_str("name");
+    v8::Local<v8::Object> data = v8::Object::New(isolate);
+    v8::Local<v8::Function> toJSON =
+        v8::Function::New(
+            env.local(),
+            [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+              info.GetReturnValue().Set(v8::Undefined(info.GetIsolate()));
+            })
+            .ToLocalChecked();
+    data->Set(env.local(), v8_str("toJSON"), toJSON).FromJust();
+
+    v8::Local<v8::Value> argv[] = {
+        phase,                                           // phase
+        category, name, v8::Integer::New(isolate, 202),  // id
+        data                                             // data arg
+    };
+    auto result = trace->Call(env.local(), undefined, 5, argv)
+                      .ToLocalChecked()
+                      .As<v8::Boolean>();
+
+    CHECK(result->BooleanValue(isolate));
+    CHECK_EQ(5, platform.NumberOfTraceObjects());
+
+    CHECK_EQ(202, platform.GetTraceObject(4)->id);
+    CHECK_EQ(0, platform.GetTraceObject(4)->num_args);
   }
 }

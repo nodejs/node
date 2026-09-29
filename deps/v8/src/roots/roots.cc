@@ -7,7 +7,7 @@
 #include <type_traits>
 
 #include "src/common/globals.h"
-#include "src/objects/elements-kind.h"
+#include "src/heap/mutable-page-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/visitors.h"
@@ -56,6 +56,13 @@ void ReadOnlyRoots::Iterate(RootVisitor* visitor) {
                              FullObjectSlot(read_only_roots_),
                              FullObjectSlot(&read_only_roots_[kEntriesCount]));
   visitor->Synchronize(VisitorSynchronization::kReadOnlyRootList);
+}
+
+void ReadOnlyRoots::VerifyNameForProtectorsPages() const {
+  // The symbols and strings that can cause protector invalidation should
+  // reside on the same page so we can do a fast range check.
+  CHECK_EQ(BasePage::FromAddress(first_name_for_protector()),
+           BasePage::FromAddress(last_name_for_protector()));
 }
 
 #ifdef DEBUG
@@ -113,7 +120,7 @@ void ReadOnlyRoots::VerifyTypes() {
 #undef ROOT_TYPE_CHECK
 }
 
-#endif
+#endif  // DEBUG
 
 void ReadOnlyRoots::InitFromStaticRootsTable(Address cage_base) {
   CHECK(V8_STATIC_ROOTS_BOOL);

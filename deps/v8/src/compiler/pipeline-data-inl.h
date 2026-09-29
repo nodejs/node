@@ -47,7 +47,7 @@ namespace v8::internal::compiler {
 inline Maybe<OuterContext> GetModuleContext(OptimizedCompilationInfo* info) {
   Tagged<Context> current = info->closure()->context();
   size_t distance = 0;
-  while (!IsNativeContext(*current)) {
+  while (!IsNativeContext(current)) {
     if (current->IsModuleContext()) {
       return Just(OuterContext(
           info->CanonicalHandle(current, Isolate::Current()), distance));
@@ -89,10 +89,6 @@ class TFPipelineData {
     node_origins_ = info->trace_turbo_json()
                         ? graph_zone_->New<NodeOriginTable>(graph_)
                         : nullptr;
-#if V8_ENABLE_WEBASSEMBLY
-    js_wasm_calls_sidetable_ =
-        graph_zone_->New<JsWasmCallsSidetable>(graph_zone_);
-#endif  // V8_ENABLE_WEBASSEMBLY
     simplified_ = graph_zone_->New<SimplifiedOperatorBuilder>(graph_zone_);
     machine_ = graph_zone_->New<MachineOperatorBuilder>(
         graph_zone_, MachineType::PointerRepresentation(),
@@ -405,9 +401,6 @@ class TFPipelineData {
   }
 
   void DeleteGraphZone() {
-#ifdef V8_ENABLE_WEBASSEMBLY
-    js_wasm_calls_sidetable_ = nullptr;
-#endif  // V8_ENABLE_WEBASSEMBLY
     graph_ = nullptr;
     source_positions_ = nullptr;
     node_origins_ = nullptr;
@@ -549,9 +542,6 @@ class TFPipelineData {
     DCHECK_NULL(wasm_native_module_for_inlining_);
     wasm_native_module_for_inlining_ = native_module;
   }
-  JsWasmCallsSidetable* js_wasm_calls_sidetable() {
-    return js_wasm_calls_sidetable_;
-  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
@@ -565,12 +555,6 @@ class TFPipelineData {
   // support inlining Wasm functions from different Wasm modules in the
   // Turboshaft implementation to avoid a surprising performance cliff.
   const wasm::NativeModule* wasm_native_module_for_inlining_ = nullptr;
-  // Sidetable for storing/passing information about the to-be-inlined calls to
-  // Wasm functions through the JS Turbofan frontend to the Turboshaft backend.
-  // This should go away once we not only inline the Wasm body in Turboshaft but
-  // also the JS-to-Wasm wrapper (which is currently inlined in Turbofan still).
-  // See https://crbug.com/353475584.
-  JsWasmCallsSidetable* js_wasm_calls_sidetable_ = nullptr;
 #endif  // V8_ENABLE_WEBASSEMBLY
   AccountingAllocator* const allocator_;
   OptimizedCompilationInfo* const info_;

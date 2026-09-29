@@ -5,9 +5,6 @@
 #ifndef V8_OBJECTS_MAYBE_OBJECT_H_
 #define V8_OBJECTS_MAYBE_OBJECT_H_
 
-#include <type_traits>
-
-#include "src/objects/tagged-impl.h"
 #include "src/objects/tagged.h"
 
 namespace v8 {

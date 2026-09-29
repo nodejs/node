@@ -61,6 +61,37 @@ remove breakpoint..
 evaluate script without sourceMappingURL..
 evaluate script with sourceMappingURL..
 
+Running test: testWrappedScriptInstrumentation
+set breakpoint and run wrapped script..
+paused with reason: instrumentation
+{
+    scriptId : <scriptId>
+    url : cjs-module.js
+}
+remove breakpoint..
+{
+    id : <messageId>
+    result : {
+    }
+}
+
+Running test: testWrappedScriptWithSourceMap
+set breakpoint for scriptWithSourceMapParsed..
+run wrapped script without sourceMappingURL..
+run wrapped script with sourceMappingURL..
+paused with reason: instrumentation
+{
+    scriptId : <scriptId>
+    sourceMapURL : cjs.js.map
+    url : cjs-sourcemapped.js
+}
+remove breakpoint..
+{
+    id : <messageId>
+    result : {
+    }
+}
+
 Running test: testBlackboxing
 set breakpoint and evaluate blackboxed script..
 evaluate not blackboxed script..

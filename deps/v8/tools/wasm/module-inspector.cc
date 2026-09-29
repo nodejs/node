@@ -222,12 +222,11 @@ class InstructionStatistics {
 class ExtendedFunctionDis : public FunctionBodyDisassembler {
  public:
   ExtendedFunctionDis(Zone* zone, const WasmModule* module, uint32_t func_index,
-                      bool shared, WasmDetectedFeatures* detected,
-                      const FunctionSig* sig, const uint8_t* start,
-                      const uint8_t* end, uint32_t offset,
+                      WasmDetectedFeatures* detected, const FunctionSig* sig,
+                      const uint8_t* start, const uint8_t* end, uint32_t offset,
                       const ModuleWireBytes wire_bytes, NamesProvider* names)
-      : FunctionBodyDisassembler(zone, module, func_index, shared, detected,
-                                 sig, start, end, offset, wire_bytes, names) {}
+      : FunctionBodyDisassembler(zone, module, func_index, detected, sig, start,
+                                 end, offset, wire_bytes, names) {}
 
   void HexDump(MultiLineStringBuilder& out, FunctionHeader include_header) {
     out_ = &out;
@@ -245,7 +244,7 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
     DecodeLocals(pc_);
     if (failed()) {
       // TODO(jkummerow): Better error handling.
-      out << "Failed to decode locals";
+      out << "Failed to decode locals: " << error().message() << '\n';
       return;
     }
     auto [entries, length] = read_u32v<ValidationTag>(pc_);
@@ -385,19 +384,18 @@ class HexDumpModuleDis : public ITracer {
         module_(module),
         names_(names),
         wire_bytes_(wire_bytes),
-        zone_(allocator, "disassembler") {}
+        zone_(allocator, "disassembler"),
+        decoder_(wire_bytes, this) {}
 
   // Public entrypoint.
   void PrintModule() {
-    DumpingModuleDecoder decoder{wire_bytes_, this};
-    decoder_ = &decoder;
-
     // If the module failed validation, create fakes to allow us to print
     // what we can.
     std::unique_ptr<WasmModule> fake_module;
     std::unique_ptr<NamesProvider> names_provider;
+    NamesProvider* original_names = names_;
     if (!names_) {
-      fake_module.reset(new WasmModule(kWasmOrigin));
+      fake_module.reset(new WasmModule());
       names_provider.reset(
           new NamesProvider(fake_module.get(), wire_bytes_.module_bytes()));
       names_ = names_provider.get();
@@ -406,7 +404,7 @@ class HexDumpModuleDis : public ITracer {
     out_ << "[";
     out_.NextLine(0);
     constexpr bool kNoVerifyFunctions = false;
-    decoder.DecodeModule(kNoVerifyFunctions);
+    decoder_.DecodeModule(kNoVerifyFunctions);
     NextLine();
     out_ << "]";
 
@@ -415,10 +413,8 @@ class HexDumpModuleDis : public ITracer {
                 << " out of " << wire_bytes_.length() << " bytes.\n";
     }
 
-    // For cleanliness, reset {names_} if it's pointing at a fake.
-    if (names_ == names_provider.get()) {
-      names_ = nullptr;
-    }
+    // Reset members that we set to point to locals above.
+    names_ = original_names;
   }
 
   // Tracer hooks.
@@ -585,10 +581,10 @@ class HexDumpModuleDis : public ITracer {
                              ValueType expected_type) override {
     WasmDetectedFeatures detected;
     auto sig = FixedSizeSignature<ValueType>::Returns(expected_type);
-    uint32_t offset = decoder_->pc_offset();
+    uint32_t offset = decoder_.pc_offset();
     const WasmModule* module = module_;
-    if (!module) module = decoder_->shared_module().get();
-    ExtendedFunctionDis d(&zone_, module, 0, false, &detected, &sig, start, end,
+    if (!module) module = decoder_.shared_module().get();
+    ExtendedFunctionDis d(&zone_, module, 0, &detected, &sig, start, end,
                           offset, wire_bytes_, names_);
     d.HexdumpConstantExpression(out_);
     total_bytes_ += static_cast<size_t>(end - start);
@@ -600,9 +596,8 @@ class HexDumpModuleDis : public ITracer {
     DCHECK_EQ(start - wire_bytes_.start(), pc_offset());
     uint32_t offset = pc_offset();
     const WasmModule* module = module_;
-    if (!module) module = decoder_->shared_module().get();
-    bool shared = module->type(func->sig_index).is_shared;
-    ExtendedFunctionDis d(&zone_, module, func->func_index, shared, &detected,
+    if (!module) module = decoder_.shared_module().get();
+    ExtendedFunctionDis d(&zone_, module, func->func_index, &detected,
                           func->sig, start, end, offset, wire_bytes_, names_);
     d.HexDump(out_, FunctionBodyDisassembler::kSkipHeader);
     total_bytes_ += func->code.length();
@@ -731,7 +726,7 @@ class HexDumpModuleDis : public ITracer {
   uint32_t queue_length_{0};
   uint32_t line_bytes_{0};
   size_t total_bytes_{0};
-  DumpingModuleDecoder* decoder_{nullptr};
+  DumpingModuleDecoder decoder_;
 
   uint32_t next_type_index_{0};
   uint32_t next_import_index_{0};
@@ -931,10 +926,9 @@ class FormatConverter {
     for (uint32_t i = module()->num_imported_functions;
          i < module()->functions.size(); i++) {
       const WasmFunction* func = &module()->functions[i];
-      bool shared = module()->type(func->sig_index).is_shared;
       WasmDetectedFeatures detected;
       base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
-      ExtendedFunctionDis d(&zone, module(), i, shared, &detected, func->sig,
+      ExtendedFunctionDis d(&zone, module(), i, &detected, func->sig,
                             code.begin(), code.end(), func->code.offset(),
                             wire_bytes_, names());
       d.CollectInstructionStats(stats);
@@ -1052,13 +1046,12 @@ class FormatConverter {
     }
     const WasmFunction* func = &module()->functions[func_index];
     Zone zone(&allocator_, "disassembler");
-    bool shared = module()->type(func->sig_index).is_shared;
     WasmDetectedFeatures detected;
     base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
 
-    ExtendedFunctionDis d(&zone, module(), func_index, shared, &detected,
-                          func->sig, code.begin(), code.end(),
-                          func->code.offset(), wire_bytes_, names());
+    ExtendedFunctionDis d(&zone, module(), func_index, &detected, func->sig,
+                          code.begin(), code.end(), func->code.offset(),
+                          wire_bytes_, names());
     sb.set_current_line_bytecode_offset(func->code.offset());
     if (mode == OutputMode::kWat) {
       d.DecodeAsWat(sb, {0, 1});
@@ -1310,7 +1303,7 @@ class FormatConverter {
 DumpingModuleDecoder::DumpingModuleDecoder(ModuleWireBytes wire_bytes,
                                            HexDumpModuleDis* module_dis)
     : ModuleDecoderImpl(WasmEnabledFeatures::All(), wire_bytes.module_bytes(),
-                        kWasmOrigin, &unused_detected_features_, module_dis) {}
+                        &unused_detected_features_, module_dis) {}
 
 }  // namespace v8::internal::wasm
 
@@ -1468,7 +1461,10 @@ int main(int argc, char** argv) {
   }
 
   // Bootstrap the basics.
-  v8::V8::InitializeICUDefaultLocation(argv[0]);
+  if (!v8::V8::InitializeICUDefaultLocation(argv[0])) {
+    std::cerr << "Failed to initialize ICU" << std::endl;
+    return 1;
+  }
   v8::V8::InitializeExternalStartupData(argv[0]);
   std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform.get());

@@ -56,7 +56,7 @@ DirectHandle<Name> CreateKeyWithHash(Isolate* isolate, KeyCache& keys,
   auto iter = keys.find(key.str);
 
   if (iter == keys.end()) {
-    // We haven't seen the the given string as a key in the current
+    // We haven't seen the given string as a key in the current
     // TestSequence. Create it, fake its hash if requested and cache it.
 
     key_symbol = isolate->factory()->NewSymbol();

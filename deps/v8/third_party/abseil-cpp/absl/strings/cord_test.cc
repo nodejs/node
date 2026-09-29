@@ -24,6 +24,7 @@
 #include <iostream>
 #include <iterator>
 #include <limits>
+#include <optional>
 #include <random>
 #include <set>
 #include <sstream>
@@ -37,6 +38,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/endian.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
 #include "absl/base/no_destructor.h"
 #include "absl/base/options.h"
@@ -61,7 +63,7 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/compare.h"
-#include "absl/types/optional.h"
+#include "absl/types/span.h"
 
 // convenience local constants
 static constexpr auto FLAT = absl::cord_internal::FLAT;
@@ -244,8 +246,6 @@ class CordTestPeer {
 ABSL_NAMESPACE_END
 }  // namespace absl
 
-
-
 // The CordTest fixture runs all tests with and without expected CRCs being set
 // on the subject Cords.
 class CordTest : public testing::TestWithParam<bool /*useCrc*/> {
@@ -416,7 +416,7 @@ TEST_P(CordTest, Assignment) {
   absl::Cord x(absl::string_view("hi there"));
   absl::Cord y(x);
   MaybeHarden(y);
-  ASSERT_EQ(x.ExpectedChecksum(), absl::nullopt);
+  ASSERT_EQ(x.ExpectedChecksum(), std::nullopt);
   ASSERT_EQ(std::string(x), "hi there");
   ASSERT_EQ(std::string(y), "hi there");
   ASSERT_TRUE(x == y);
@@ -618,7 +618,7 @@ TEST_P(CordTest, Subcord) {
                 std::string(sa))
           << a;
       if (pos != 0 || end_pos != a.size()) {
-        ASSERT_EQ(sa.ExpectedChecksum(), absl::nullopt);
+        ASSERT_EQ(sa.ExpectedChecksum(), std::nullopt);
       }
     }
   }
@@ -662,7 +662,7 @@ TEST_P(CordTest, Swap) {
   MaybeHarden(x);
   swap(x, y);
   if (UseCrc()) {
-    ASSERT_EQ(x.ExpectedChecksum(), absl::nullopt);
+    ASSERT_EQ(x.ExpectedChecksum(), std::nullopt);
     ASSERT_EQ(y.ExpectedChecksum(), 1);
   }
   ASSERT_EQ(x, absl::Cord(b));
@@ -670,7 +670,7 @@ TEST_P(CordTest, Swap) {
   x.swap(y);
   if (UseCrc()) {
     ASSERT_EQ(x.ExpectedChecksum(), 1);
-    ASSERT_EQ(y.ExpectedChecksum(), absl::nullopt);
+    ASSERT_EQ(y.ExpectedChecksum(), std::nullopt);
   }
   ASSERT_EQ(x, absl::Cord(a));
   ASSERT_EQ(y, absl::Cord(b));
@@ -733,6 +733,53 @@ TEST_P(CordTest, AppendToString) {
   VerifyAppendCordToString(MaybeHardened(
       absl::MakeFragmentedCord({"fragmented ", "cord ", "to ", "test ",
                                 "appending ", "to ", "a ", "string."})));
+}
+
+static void VerifyCopyToSpan(const absl::Cord& cord) {
+  // Test with span exactly the same size as the cord.
+  {
+    std::string dst(cord.size(), '\0');
+    size_t copied = absl::CopyCordToSpan(cord, absl::MakeSpan(dst));
+    EXPECT_EQ(copied, cord.size());
+    EXPECT_EQ(dst, cord);
+  }
+
+  // Test with span larger than the cord.
+  {
+    std::string dst(cord.size() + 10, 'x');
+    size_t copied = absl::CopyCordToSpan(cord, absl::MakeSpan(dst));
+    EXPECT_EQ(copied, cord.size());
+    EXPECT_EQ(absl::string_view(dst).substr(0, copied), cord);
+    if (cord.size() < dst.size()) {
+      absl::string_view tail = absl::string_view(dst).substr(copied);
+      EXPECT_EQ(tail, std::string(tail.size(), 'x'));
+    }
+  }
+
+  // Test with span smaller than the cord.
+  {
+    size_t target_size = cord.size() / 2;
+    std::string dst(target_size, '\0');
+    size_t copied = absl::CopyCordToSpan(cord, absl::MakeSpan(dst));
+    EXPECT_EQ(copied, target_size);
+    EXPECT_EQ(dst, std::string(cord).substr(0, target_size));
+  }
+
+  // Test with empty span.
+  {
+    char c = 'x';
+    size_t copied = absl::CopyCordToSpan(cord, absl::MakeSpan(&c, 0));
+    EXPECT_EQ(copied, 0);
+    EXPECT_EQ(c, 'x');
+  }
+}
+
+TEST_P(CordTest, CopyToSpan) {
+  VerifyCopyToSpan(absl::Cord());  // Empty cords cannot be hardened.
+  VerifyCopyToSpan(MaybeHardened(absl::Cord("small cord")));
+  VerifyCopyToSpan(MaybeHardened(
+      absl::MakeFragmentedCord({"fragmented ", "cord ", "to ", "test ",
+                                "copying ", "to ", "a ", "span."})));
 }
 
 TEST_P(CordTest, AppendEmptyBuffer) {
@@ -1072,7 +1119,7 @@ TEST_P(CordTest, TryFlatSubstrFlat) {
 TEST_P(CordTest, TryFlatConcat) {
   absl::Cord c = absl::MakeFragmentedCord({"hel", "lo"});
   MaybeHarden(c);
-  EXPECT_EQ(c.TryFlat(), absl::nullopt);
+  EXPECT_EQ(c.TryFlat(), std::nullopt);
 }
 
 TEST_P(CordTest, TryFlatExternal) {
@@ -1601,8 +1648,8 @@ void CompareOperators() {
   EXPECT_TRUE(a == a);
   // For pointer type (i.e. `const char*`), operator== compares the address
   // instead of the string, so `a == const char*("a")` isn't necessarily true.
-  EXPECT_TRUE(std::is_pointer<T1>::value || a == T1("a"));
-  EXPECT_TRUE(std::is_pointer<T2>::value || a == T2("a"));
+  EXPECT_TRUE(std::is_pointer_v<T1> || a == T1("a"));
+  EXPECT_TRUE(std::is_pointer_v<T2> || a == T2("a"));
   EXPECT_FALSE(a == b);
 
   EXPECT_TRUE(a != b);
@@ -1757,6 +1804,34 @@ TEST_P(CordTest, ConstructFromExternalMoveOnlyReleaser) {
     explicit Releaser(bool* invoked) : invoked(invoked) {}
     Releaser(Releaser&& other) noexcept : invoked(other.invoked) {}
     void operator()(absl::string_view) const { *invoked = true; }
+
+    bool* invoked;
+  };
+
+  bool invoked = false;
+  (void)MaybeHardened(absl::MakeCordFromExternal("dummy", Releaser(&invoked)));
+  EXPECT_TRUE(invoked);
+}
+
+TEST_P(CordTest, ConstructFromExternalNonConstReleaser) {
+  struct Releaser {
+    explicit Releaser(bool* invoked) : invoked(invoked) {}
+    // Non const method.
+    void operator()(absl::string_view) { *invoked = true; }
+
+    bool* invoked;
+  };
+
+  bool invoked = false;
+  (void)MaybeHardened(absl::MakeCordFromExternal("dummy", Releaser(&invoked)));
+  EXPECT_TRUE(invoked);
+}
+
+TEST_P(CordTest, ConstructFromExternalNonConstNoArgReleaser) {
+  struct Releaser {
+    explicit Releaser(bool* invoked) : invoked(invoked) {}
+    // Non const method.
+    void operator()() { *invoked = true; }
 
     bool* invoked;
   };
@@ -2289,36 +2364,34 @@ TEST_P(CordTest, MakeFragmentedCordFromVector) {
 }
 
 TEST_P(CordTest, CordChunkIteratorTraits) {
-  static_assert(std::is_copy_constructible<absl::Cord::ChunkIterator>::value,
-                "");
-  static_assert(std::is_copy_assignable<absl::Cord::ChunkIterator>::value, "");
+  static_assert(std::is_copy_constructible_v<absl::Cord::ChunkIterator>, "");
+  static_assert(std::is_copy_assignable_v<absl::Cord::ChunkIterator>, "");
 
   // Move semantics to satisfy swappable via std::swap
-  static_assert(std::is_move_constructible<absl::Cord::ChunkIterator>::value,
-                "");
-  static_assert(std::is_move_assignable<absl::Cord::ChunkIterator>::value, "");
+  static_assert(std::is_move_constructible_v<absl::Cord::ChunkIterator>, "");
+  static_assert(std::is_move_assignable_v<absl::Cord::ChunkIterator>, "");
 
   static_assert(
-      std::is_same<
+      std::is_same_v<
           std::iterator_traits<absl::Cord::ChunkIterator>::iterator_category,
-          std::input_iterator_tag>::value,
+          std::input_iterator_tag>,
       "");
+  static_assert(std::is_same_v<
+                    std::iterator_traits<absl::Cord::ChunkIterator>::value_type,
+                    absl::string_view>,
+                "");
   static_assert(
-      std::is_same<std::iterator_traits<absl::Cord::ChunkIterator>::value_type,
-                   absl::string_view>::value,
-      "");
-  static_assert(
-      std::is_same<
+      std::is_same_v<
           std::iterator_traits<absl::Cord::ChunkIterator>::difference_type,
-          ptrdiff_t>::value,
+          ptrdiff_t>,
       "");
   static_assert(
-      std::is_same<std::iterator_traits<absl::Cord::ChunkIterator>::pointer,
-                   const absl::string_view*>::value,
+      std::is_same_v<std::iterator_traits<absl::Cord::ChunkIterator>::pointer,
+                     const absl::string_view*>,
       "");
   static_assert(
-      std::is_same<std::iterator_traits<absl::Cord::ChunkIterator>::reference,
-                   absl::string_view>::value,
+      std::is_same_v<std::iterator_traits<absl::Cord::ChunkIterator>::reference,
+                     absl::string_view>,
       "");
 }
 
@@ -2478,36 +2551,34 @@ TEST_P(CordTest, AdvanceAndReadOnSubstringDataEdge) {
 }
 
 TEST_P(CordTest, CharIteratorTraits) {
-  static_assert(std::is_copy_constructible<absl::Cord::CharIterator>::value,
-                "");
-  static_assert(std::is_copy_assignable<absl::Cord::CharIterator>::value, "");
+  static_assert(std::is_copy_constructible_v<absl::Cord::CharIterator>, "");
+  static_assert(std::is_copy_assignable_v<absl::Cord::CharIterator>, "");
 
   // Move semantics to satisfy swappable via std::swap
-  static_assert(std::is_move_constructible<absl::Cord::CharIterator>::value,
-                "");
-  static_assert(std::is_move_assignable<absl::Cord::CharIterator>::value, "");
+  static_assert(std::is_move_constructible_v<absl::Cord::CharIterator>, "");
+  static_assert(std::is_move_assignable_v<absl::Cord::CharIterator>, "");
 
   static_assert(
-      std::is_same<
+      std::is_same_v<
           std::iterator_traits<absl::Cord::CharIterator>::iterator_category,
-          std::input_iterator_tag>::value,
+          std::input_iterator_tag>,
       "");
   static_assert(
-      std::is_same<std::iterator_traits<absl::Cord::CharIterator>::value_type,
-                   char>::value,
+      std::is_same_v<std::iterator_traits<absl::Cord::CharIterator>::value_type,
+                     char>,
       "");
   static_assert(
-      std::is_same<
+      std::is_same_v<
           std::iterator_traits<absl::Cord::CharIterator>::difference_type,
-          ptrdiff_t>::value,
+          ptrdiff_t>,
       "");
   static_assert(
-      std::is_same<std::iterator_traits<absl::Cord::CharIterator>::pointer,
-                   const char*>::value,
+      std::is_same_v<std::iterator_traits<absl::Cord::CharIterator>::pointer,
+                     const char*>,
       "");
   static_assert(
-      std::is_same<std::iterator_traits<absl::Cord::CharIterator>::reference,
-                   const char&>::value,
+      std::is_same_v<std::iterator_traits<absl::Cord::CharIterator>::reference,
+                     const char&>,
       "");
 }
 
@@ -2756,6 +2827,7 @@ TEST_P(CordTest, Hardening) {
   }());
   if (!test_hardening) return;
 
+  absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   EXPECT_DEATH_IF_SUPPORTED(cord[5], "");
   EXPECT_DEATH_IF_SUPPORTED(*cord.chunk_end(), "");
   EXPECT_DEATH_IF_SUPPORTED(static_cast<void>(cord.chunk_end()->empty()), "");
@@ -3138,13 +3210,13 @@ TEST_P(CordTest, ExpectedChecksum) {
           continue;
         }
 
-        EXPECT_EQ(c2.ExpectedChecksum(), absl::nullopt);
+        EXPECT_EQ(c2.ExpectedChecksum(), std::nullopt);
 
         if (mutator.CanUndo()) {
           // Undoing an operation should not restore the checksum
           mutator.Undo(c2);
           EXPECT_EQ(c2, base_value);
-          EXPECT_EQ(c2.ExpectedChecksum(), absl::nullopt);
+          EXPECT_EQ(c2.ExpectedChecksum(), std::nullopt);
         }
       }
 
@@ -3254,7 +3326,7 @@ TEST_P(CordTest, ChecksummedEmptyCord) {
       // Not a mutation
       continue;
     }
-    EXPECT_EQ(c2.ExpectedChecksum(), absl::nullopt);
+    EXPECT_EQ(c2.ExpectedChecksum(), std::nullopt);
 
     if (mutator.CanUndo()) {
       mutator.Undo(c2);

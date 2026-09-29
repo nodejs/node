@@ -501,12 +501,12 @@ TEST(StrJoin, Tuple) {
             absl::StrJoin(std::make_tuple(&x, &y, &z), "-",
                           absl::DereferenceFormatter(TestFormatter())));
   EXPECT_EQ("0x0000000a-hell-3.",
-            absl::StrJoin(std::make_tuple(absl::make_unique<int>(x),
-                                          absl::make_unique<std::string>(y),
-                                          absl::make_unique<double>(z)),
+            absl::StrJoin(std::make_tuple(std::make_unique<int>(x),
+                                          std::make_unique<std::string>(y),
+                                          std::make_unique<double>(z)),
                           "-", absl::DereferenceFormatter(TestFormatter())));
   EXPECT_EQ("0x0000000a-hell-3.",
-            absl::StrJoin(std::make_tuple(absl::make_unique<int>(x), &y, &z),
+            absl::StrJoin(std::make_tuple(std::make_unique<int>(x), &y, &z),
                           "-", absl::DereferenceFormatter(TestFormatter())));
 }
 

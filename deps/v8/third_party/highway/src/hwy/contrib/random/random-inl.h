@@ -35,7 +35,6 @@ namespace hwy {
 namespace HWY_NAMESPACE {  // required: unique per target
 namespace internal {
 
-namespace {
 #if HWY_HAVE_FLOAT64
 // C++ < 17 does not support hexfloat
 #if __cpp_hex_float > 201603L
@@ -52,7 +51,6 @@ constexpr std::uint64_t kJump[] = {0x180ec6d33cfd0aba, 0xd5a61266f0c9392c,
 
 constexpr std::uint64_t kLongJump[] = {0x76e15d3efefdcbbf, 0xc5004e441c522fb3,
                                        0x77710069854ee241, 0x39109bb02acbe635};
-}  // namespace
 
 class SplitMix64 {
  public:
@@ -177,6 +175,7 @@ class VectorXoshiro {
 #if HWY_HAVE_FLOAT64
   using VF64 = Vec<ScalableTag<double>>;
 #endif
+
  public:
   explicit VectorXoshiro(const std::uint64_t seed,
                          const std::uint64_t threadNumber = 0)

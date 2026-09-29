@@ -54,10 +54,10 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/base/internal/cpu_detect.h"
 #include "absl/base/optimization.h"
 #include "absl/base/prefetch.h"
 #include "absl/crc/crc32c.h"
-#include "absl/crc/internal/cpu_detect.h"
 #include "absl/crc/internal/crc32_x86_arm_combined_simd.h"
 #include "absl/crc/internal/crc_memcpy.h"
 #include "absl/strings/string_view.h"
@@ -68,6 +68,9 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace crc_internal {
+
+using ::absl::base_internal::CpuType;
+using ::absl::base_internal::GetCpuType;
 
 namespace {
 
@@ -427,6 +430,7 @@ CrcMemcpy::ArchSpecificEngines CrcMemcpy::GetArchSpecificEngines() {
     case CpuType::kArmNeoverseN2:
     case CpuType::kArmNeoverseV1:
     case CpuType::kArmNeoverseV2:
+    case CpuType::kNvidiaGrace:
       return {
           /*.temporal=*/new AcceleratedCrcMemcpyEngine<3, 0>(),
           /*.non_temporal=*/new CrcNonTemporalMemcpyEngine(),

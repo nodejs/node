@@ -215,35 +215,36 @@ using nth_type_t = typename detail::nth_type<N, T...>::type;
 
 #endif
 
+// Declare non-constexpr function to trigger compile error
+void duplicate_type_in_index_of_type_error();
+
+namespace detail {
+template <typename SearchT, typename... Ts>
+consteval size_t get_index_of_type() {
+  size_t found_index = sizeof...(Ts);
+  size_t match_count = 0;
+  size_t idx = 0;
+  ((std::is_same_v<SearchT, Ts> ? (found_index = idx, match_count++, 0) : 0,
+    idx++),
+   ...);
+  if (match_count > 1) {
+    duplicate_type_in_index_of_type_error();
+  }
+  return found_index;
+}
+}  // namespace detail
+
 // Find SearchT in Ts. SearchT must be present at most once in Ts, and returns
 // sizeof...(Ts) if not found.
 template <typename SearchT, typename... Ts>
-struct index_of_type;
+constexpr size_t index_of_type_v = detail::get_index_of_type<SearchT, Ts...>();
 
 template <typename SearchT, typename... Ts>
-constexpr size_t index_of_type_v = index_of_type<SearchT, Ts...>::value;
+struct index_of_type
+    : public std::integral_constant<size_t, index_of_type_v<SearchT, Ts...>> {};
+
 template <typename SearchT, typename... Ts>
-constexpr bool has_type_v =
-    index_of_type<SearchT, Ts...>::value < sizeof...(Ts);
-
-// Not found / empty list.
-template <typename SearchT>
-struct index_of_type<SearchT> : public std::integral_constant<size_t, 0> {};
-
-// SearchT found at head of list.
-template <typename SearchT, typename... Ts>
-struct index_of_type<SearchT, SearchT, Ts...>
-    : public std::integral_constant<size_t, 0> {
-  // SearchT is not allowed to be anywhere else in the list.
-  static_assert(!has_type_v<SearchT, Ts...>);
-};
-
-// Recursion, SearchT not found at head of list.
-template <typename SearchT, typename T, typename... Ts>
-struct index_of_type<SearchT, T, Ts...>
-    : public std::integral_constant<size_t,
-                                    1 + index_of_type<SearchT, Ts...>::value> {
-};
+constexpr bool has_type_v = (std::is_same_v<SearchT, Ts> || ...);
 
 }  // namespace base
 }  // namespace v8

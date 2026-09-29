@@ -236,6 +236,9 @@ using AllowCodeAllocation =
 
 // Scope to document where we do not expect garbage collections. It differs from
 // DisallowHeapAllocation by also forbidding safepoints.
+//
+// Note: Consider marking it as `V8_LIFETIME_BOUND` when using it as a function
+// parameter, when the result must not outlive the scope.
 using DisallowGarbageCollection =
     PerThreadAssertScopeDebugOnly<false, SAFEPOINTS_ASSERT,
                                   HEAP_ALLOCATION_ASSERT>;

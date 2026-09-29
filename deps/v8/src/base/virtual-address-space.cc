@@ -151,8 +151,9 @@ std::unique_ptr<v8::VirtualAddressSpace> VirtualAddressSpace::AllocateSubspace(
       OS::CreateAddressSpaceReservation(
           reinterpret_cast<void*>(hint), size, alignment,
           ToMemoryPermission(max_page_permissions), handle);
-  if (!reservation.has_value())
+  if (!reservation.has_value()) {
     return std::unique_ptr<v8::VirtualAddressSpace>();
+  }
   return std::unique_ptr<v8::VirtualAddressSpace>(new VirtualAddressSubspace(
       *reservation, this, max_page_permissions, key));
 }

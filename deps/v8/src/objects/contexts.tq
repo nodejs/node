@@ -3,9 +3,7 @@
 // found in the LICENSE file.
 
 @abstract
-// We normally don't generate a BodyDescriptor for an abstact class, but here we
-// do since all context classes share the same BodyDescriptor.
-@generateBodyDescriptor
+@cppObjectLayoutDefinition
 extern class Context extends HeapObject {
   macro GetScopeInfo(): ScopeInfo {
     return *ContextSlot(this, ContextSlot::SCOPE_INFO_INDEX);
@@ -16,8 +14,8 @@ extern class Context extends HeapObject {
 
 @cppObjectLayoutDefinition
 extern class ScriptContextTable extends HeapObject {
-  const capacity: Smi;
-  length: Smi;
+  const capacity: uint32;
+  length: uint32;
   names_to_context_index: NameToIndexHashTable;
   objects[capacity]: Context;
 }
@@ -46,17 +44,17 @@ const kContextCellFloat64: constexpr int32 generates 'ContextCell::kFloat64';
 const kContextCellDetached:
     constexpr int32 generates 'ContextCell::kDetached';
 
-extern class AwaitContext extends Context generates 'TNode<Context>';
-extern class BlockContext extends Context generates 'TNode<Context>';
-extern class CatchContext extends Context generates 'TNode<Context>';
+extern class AwaitContext extends Context generates 'Context';
+extern class BlockContext extends Context generates 'Context';
+extern class CatchContext extends Context generates 'Context';
 extern class DebugEvaluateContext extends Context
-    generates 'TNode<Context>';
-extern class EvalContext extends Context generates 'TNode<Context>';
-extern class ModuleContext extends Context generates 'TNode<Context>';
-extern class ScriptContext extends Context generates 'TNode<Context>';
-extern class WithContext extends Context generates 'TNode<Context>';
+    generates 'Context';
+extern class EvalContext extends Context generates 'Context';
+extern class ModuleContext extends Context generates 'Context';
+extern class ScriptContext extends Context generates 'Context';
+extern class WithContext extends Context generates 'Context';
 
-extern class FunctionContext extends Context generates 'TNode<Context>';
+extern class FunctionContext extends Context generates 'Context';
 
 extern macro IsEmptyDependentCode(Object): bool;
 extern macro IsUndefinedContextCell(Object): bool;
@@ -146,6 +144,8 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   ITERATOR_DROP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
   ITERATOR_FLAT_MAP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
   ITERATOR_CONCAT_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_ZIP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_ZIP_KEYED_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
   ITERATOR_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
   VALID_ITERATOR_WRAPPER_MAP_INDEX: Slot<NativeContext, Map>,
   JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX: Slot<NativeContext, Map>,
@@ -154,7 +154,8 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   INITIAL_ARRAY_PROTOTYPE_VALIDITY_CELL_INDEX: Slot<NativeContext, Cell>,
   JS_MAP_MAP_INDEX: Slot<NativeContext, Map>,
   JS_SET_MAP_INDEX: Slot<NativeContext, Map>,
-  MATH_RANDOM_CACHE_INDEX: Slot<NativeContext, FixedDoubleArray>,
+  MATH_RANDOM_CACHE_INDEX: Slot<NativeContext, Undefined|FixedDoubleArray>,
+  MATH_RANDOM_STATE_INDEX: Slot<NativeContext, ByteArray>,
   MATH_RANDOM_INDEX_INDEX: Slot<NativeContext, Smi>,
   NUMBER_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
   PROXY_REVOCABLE_RESULT_MAP_INDEX: Slot<NativeContext, Map>,

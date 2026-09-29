@@ -95,8 +95,8 @@ ostream_state_saver<std::basic_ostream<CharT, Traits>> make_ostream_state_saver(
 }
 
 template <typename T>
-typename absl::enable_if_t<!std::is_base_of<std::ios_base, T>::value,
-                           null_state_saver<T>>
+typename std::enable_if_t<!std::is_base_of_v<std::ios_base, T>,
+                          null_state_saver<T>>
 make_ostream_state_saver(T& is,  // NOLINT(runtime/references)
                          std::ios_base::fmtflags flags = std::ios_base::dec) {
   using result_type = null_state_saver<T>;
@@ -159,8 +159,8 @@ istream_state_saver<std::basic_istream<CharT, Traits>> make_istream_state_saver(
 }
 
 template <typename T>
-typename absl::enable_if_t<!std::is_base_of<std::ios_base, T>::value,
-                           null_state_saver<T>>
+typename std::enable_if_t<!std::is_base_of_v<std::ios_base, T>,
+                          null_state_saver<T>>
 make_istream_state_saver(T& is,  // NOLINT(runtime/references)
                          std::ios_base::fmtflags flags = std::ios_base::dec) {
   using result_type = null_state_saver<T>;
@@ -223,7 +223,7 @@ struct stream_u128_helper<__uint128_t> {
 
 template <typename FloatType, typename IStream>
 inline FloatType read_floating_point(IStream& is) {
-  static_assert(std::is_floating_point<FloatType>::value, "");
+  static_assert(std::is_floating_point_v<FloatType>, "");
   FloatType dest;
   is >> dest;
   // Parsing a double value may report a subnormal value as an error

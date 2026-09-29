@@ -217,18 +217,20 @@ class V8_EXPORT_PRIVATE Type {
   template <size_t B>
   inline bool IsWord() const {
     static_assert(B == 32 || B == 64);
-    if constexpr (B == 32)
+    if constexpr (B == 32) {
       return IsWord32();
-    else
+    } else {
       return IsWord64();
+    }
   }
   template <size_t B>
   inline bool IsFloat() const {
     static_assert(B == 32 || B == 64);
-    if constexpr (B == 32)
+    if constexpr (B == 32) {
       return IsFloat32();
-    else
+    } else {
       return IsFloat64();
+    }
   }
 
   // Casts
@@ -240,18 +242,20 @@ class V8_EXPORT_PRIVATE Type {
   template <size_t B>
   inline const auto& AsWord() const {
     static_assert(B == 32 || B == 64);
-    if constexpr (B == 32)
+    if constexpr (B == 32) {
       return AsWord32();
-    else
+    } else {
       return AsWord64();
+    }
   }
   template <size_t B>
   inline const auto& AsFloat() const {
     static_assert(B == 32 || B == 64);
-    if constexpr (B == 32)
+    if constexpr (B == 32) {
       return AsFloat32();
-    else
+    } else {
       return AsFloat64();
+    }
   }
 
   // Comparison
@@ -468,6 +472,7 @@ class WordType : public Type {
       case SubKind::kSet:
         return set_element(0);
     }
+    UNREACHABLE();
   }
   word_t unsigned_max() const {
     switch (sub_kind()) {
@@ -477,6 +482,7 @@ class WordType : public Type {
         DCHECK_GE(set_size(), 1);
         return set_element(set_size() - 1);
     }
+    UNREACHABLE();
   }
 
   // Misc
@@ -696,6 +702,7 @@ class FloatType : public Type {
         if (has_minus_zero()) return std::min(float_t{-0.0}, set_element(0));
         return set_element(0);
     }
+    UNREACHABLE();
   }
   float_t max() const {
     switch (sub_kind()) {
@@ -712,6 +719,7 @@ class FloatType : public Type {
         }
         return set_element(set_size() - 1);
     }
+    UNREACHABLE();
   }
   std::pair<float_t, float_t> minmax() const { return {min(), max()}; }
   std::optional<float_t> try_get_constant() const {
@@ -737,6 +745,7 @@ class FloatType : public Type {
       case SubKind::kSet:
         return set_element(0);
     }
+    UNREACHABLE();
   }
   // Returns the maximum value of a range or set, ignoring any special values
   // (in contrast to max() above).
@@ -749,6 +758,7 @@ class FloatType : public Type {
       case SubKind::kSet:
         return set_element(set_size() - 1);
     }
+    UNREACHABLE();
   }
   std::pair<float_t, float_t> range_or_set_minmax() const {
     return {range_or_set_min(), range_or_set_max()};
@@ -901,6 +911,7 @@ inline std::ostream& operator<<(std::ostream& stream, Type::Kind kind) {
     case Type::Kind::kAny:
       return stream << "Any";
   }
+  UNREACHABLE();
 }
 
 inline std::ostream& operator<<(std::ostream& stream, const Type& type) {

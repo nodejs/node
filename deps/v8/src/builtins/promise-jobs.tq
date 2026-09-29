@@ -9,10 +9,10 @@ namespace promise {
 extern macro IsJSPromiseMap(Map): bool;
 extern macro NeedsAnyPromiseHooks(): bool;
 
-// https://tc39.es/ecma262/#sec-promiseresolvethenablejob
-transitioning builtin PromiseResolveThenableJob(
+@export
+transitioning macro PromiseResolveThenableJobFast(
     implicit context: Context)(promiseToResolve: JSPromise,
-    thenable: JSReceiver, then: JSAny): JSAny {
+    thenable: JSReceiver, then: JSAny): JSAny labels Slow {
   // We can use a simple optimization here if we know that {then} is the
   // initial Promise.prototype.then method, and {thenable} is a JSPromise
   // whose
@@ -59,6 +59,19 @@ transitioning builtin PromiseResolveThenableJob(
         UnsafeCast<JSPromise>(thenable), UndefinedConstant(),
         UndefinedConstant(), promiseToResolve);
   } else {
+    goto Slow;
+  }
+}
+
+// https://tc39.es/ecma262/#sec-promiseresolvethenablejob
+transitioning builtin PromiseResolveThenableJob(
+    implicit context: Context)(promiseToResolve: JSPromise,
+    thenable: JSReceiver, then: JSAny): JSAny {
+  try {
+    return PromiseResolveThenableJobFast(promiseToResolve, thenable, then)
+        otherwise Slow;
+  } label Slow {
+    const nativeContext = LoadNativeContext(context);
     const funcs =
         CreatePromiseResolvingFunctions(promiseToResolve, False, nativeContext);
     const resolve = funcs.resolve;

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppScope('JSRegExp')
 bitfield struct JSRegExpFlags extends uint31 {
   global: bool: 1 bit;
   ignore_case: bool: 1 bit;
@@ -14,33 +15,37 @@ bitfield struct JSRegExpFlags extends uint31 {
   unicode_sets: bool: 1 bit;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class RegExpData extends ExposedTrustedObject {
   type_tag: Smi;
-  source: String;
+  original_source: String;
+  escaped_source: String;
   flags: Smi;
   wrapper: RegExpDataWrapper;
+  quick_check_mask: uint32;
+  quick_check_value: uint32;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class AtomRegExpData extends RegExpData {
-  const pattern: String;
+  pattern: String;
 }
 
+@cppScope('IrRegExpData::Bits')
 bitfield struct IrRegExpDataBitField extends uint31 {
   can_be_zero_length: bool: 1 bit;
   is_linear_executable: bool: 1 bit;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class IrRegExpData extends RegExpData {
   // TODO(pthier): Change code pointers to ProtectedPointer<Code> once builtins
   // reside in trusted space.
   latin1_bytecode: ProtectedPointer<TrustedByteArray>;
   uc16_bytecode: ProtectedPointer<TrustedByteArray>;
+  capture_name_map: ProtectedPointer<TrustedFixedArray>;
   latin1_code: TrustedPointer<Code>;
   uc16_code: TrustedPointer<Code>;
-  capture_name_map: FixedArray;
   max_register_count: Smi;
   capture_count: Smi;
   ticks_until_tier_up: Smi;
@@ -48,14 +53,14 @@ extern class IrRegExpData extends RegExpData {
   bit_field: SmiTagged<IrRegExpDataBitField>;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class RegExpDataWrapper extends Struct {
   data: TrustedPointer<RegExpData>;
 }
 
+@cppObjectLayoutDefinition
 extern class JSRegExp extends JSObject {
   data: TrustedPointer<RegExpData>;
-  source: String|Undefined;
   flags: SmiTagged<JSRegExpFlags>|Undefined;
 }
 
@@ -76,9 +81,23 @@ extern operator '.lastIndex' macro RegExpBuiltinsAssembler::FastLoadLastIndex(
 extern operator '.lastIndex=' macro RegExpBuiltinsAssembler::FastStoreLastIndex(
     FastJSRegExp, Smi): void;
 
+const kJSRegExpRegExpDataOffset: constexpr int31
+    generates 'static_cast<int>(offsetof(JSRegExp, data_))';
+const kRegExpDataIndirectPointerTag:
+    constexpr uint64 generates 'kRegExpDataIndirectPointerTag';
+
+extern macro RegExpBuiltinsAssembler::LoadRegExpDataFromObject(
+    HeapObject, constexpr int31): RegExpData;
+
+operator '.source' macro RegExpSource(regexp: JSRegExp): String {
+  const data: RegExpData =
+      LoadRegExpDataFromObject(regexp, kJSRegExpRegExpDataOffset);
+  return data.escaped_source;
+}
+
 @doNotGenerateCast
-extern class JSRegExpConstructor extends JSFunction
-    generates 'TNode<JSFunction>';
+extern class JSRegExpConstructor extends JSFunctionWithPrototype
+    generates 'JSFunction';
 
 extern shape JSRegExpResult extends JSArray {
   // In-object properties:
@@ -88,7 +107,6 @@ extern shape JSRegExpResult extends JSArray {
   groups: JSAny;
 
   // The below fields are for internal use only.
-  names: FixedArray|Undefined;
   regexp_input: String;
   regexp_last_index: Smi;
 }

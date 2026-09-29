@@ -1,0 +1,80 @@
+// Copyright 2026 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@cppObjectLayoutDefinition
+extern class FixedDoubleArray extends FixedArrayBase {
+  values[length]: float64_or_undefined_or_hole;
+}
+
+@cppObjectLayoutDefinition
+extern class ByteArray extends FixedArrayBase {
+  values[length]: uint8;
+}
+
+@cppObjectLayoutDefinition
+extern class TrustedByteArray extends TrustedFixedArrayBase {
+  values[length]: uint8;
+}
+
+extern macro CodeStubAssembler::AllocateByteArray(uintptr): ByteArray;
+
+extern operator '.values[]=' macro StoreFixedDoubleArrayElement(
+    FixedDoubleArray, intptr, float64): void;
+extern operator '.values[]=' macro StoreFixedDoubleArrayElement(
+    FixedDoubleArray, Smi, float64): void;
+extern operator '.values[]' macro LoadFixedDoubleArrayElement(
+    FixedDoubleArray, intptr): float64;
+@if(V8_ENABLE_UNDEFINED_DOUBLE)
+  extern macro StoreFixedDoubleArrayUndefined(FixedDoubleArray, Smi): void;
+operator '[]=' macro StoreFixedDoubleArrayDirect(
+    a: FixedDoubleArray, i: Smi, v: Number): void {
+  a.values[i] = Convert<float64_or_undefined_or_hole>(Convert<float64>(v));
+}
+
+extern macro AllocateZeroedFixedDoubleArray(intptr): FixedDoubleArray;
+extern macro FillFixedDoubleArrayWithZero(
+    FixedDoubleArray, intptr, intptr): void;
+
+extern macro AllocateFixedDoubleArrayWithHoles(intptr): FixedDoubleArray;
+extern macro AllocateFixedDoubleArrayWithHoles(
+    intptr, constexpr AllocationFlag): FixedDoubleArray;
+
+macro ExtractFixedDoubleArray(
+    source: FixedDoubleArray, first: intptr, count: intptr,
+    capacity: intptr): FixedDoubleArray|EmptyFixedArray {
+  // TODO(turbofan): This should be optimized to use memcpy for initialization.
+  return NewFixedDoubleArray(
+      capacity,
+      IteratorSequence<float64_or_undefined_or_hole>(
+          (&source.values).Iterator(first, first + count),
+          ConstantIterator(kDoubleHole)));
+}
+
+@if(TAGGED_SIZE_8_BYTES)
+  macro NewFixedDoubleArray<Iterator: type>(
+      length: intptr, it: Iterator): FixedDoubleArray|EmptyFixedArray {
+    const length: uint32 = Unsigned(Convert<int32>(length));
+    if (length == 0) return kEmptyFixedArray;
+    if (length > kFixedDoubleArrayMaxLength) deferred {
+        runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
+      }
+    return new FixedDoubleArray{
+      map: kFixedDoubleArrayMap,
+      length,
+      optional_padding: 0,
+      values: ...it
+    };
+  }
+
+@ifnot(TAGGED_SIZE_8_BYTES)
+  macro NewFixedDoubleArray<Iterator: type>(
+      length: intptr, it: Iterator): FixedDoubleArray|EmptyFixedArray {
+    const length: uint32 = Unsigned(Convert<int32>(length));
+    if (length == 0) return kEmptyFixedArray;
+    if (length > kFixedDoubleArrayMaxLength) deferred {
+        runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
+      }
+    return new
+    FixedDoubleArray{map: kFixedDoubleArrayMap, length, values: ...it};
+  }

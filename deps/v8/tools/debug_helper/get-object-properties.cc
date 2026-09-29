@@ -664,14 +664,18 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectPropertiesMaybeCompressed(
   // if pointer compression is disabled).
   uintptr_t any_uncompressed_ptr = 0;
   if (!IsPointerCompressed(address)) any_uncompressed_ptr = address;
-  if (any_uncompressed_ptr == 0)
+  if (any_uncompressed_ptr == 0) {
     any_uncompressed_ptr = heap_addresses.any_heap_pointer;
-  if (any_uncompressed_ptr == 0)
+  }
+  if (any_uncompressed_ptr == 0) {
     any_uncompressed_ptr = heap_addresses.map_space_first_page;
-  if (any_uncompressed_ptr == 0)
+  }
+  if (any_uncompressed_ptr == 0) {
     any_uncompressed_ptr = heap_addresses.old_space_first_page;
-  if (any_uncompressed_ptr == 0)
+  }
+  if (any_uncompressed_ptr == 0) {
     any_uncompressed_ptr = heap_addresses.read_only_space_first_page;
+  }
 #ifdef V8_COMPRESS_POINTERS
   Address base =
       V8HeapCompressionScheme::GetPtrComprCageBaseAddress(any_uncompressed_ptr);

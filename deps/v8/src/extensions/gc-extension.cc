@@ -167,10 +167,10 @@ Maybe<GCOptions> Parse(v8::Isolate* isolate,
       }
       Local<v8::String> filename;
       if (maybe_filename.ToLocal(&filename)) {
-        size_t buffer_size = filename->Utf8LengthV2(isolate) + 1;
+        size_t buffer_size = filename->Utf8Length(isolate) + 1;
         std::unique_ptr<char[]> buffer(new char[buffer_size]);
-        filename->WriteUtf8V2(isolate, buffer.get(), buffer_size,
-                              v8::String::WriteFlags::kNullTerminate);
+        filename->WriteUtf8(isolate, buffer.get(), buffer_size,
+                            v8::String::WriteFlags::kNullTerminate);
         options.filename = std::string(buffer.get());
         // Not setting found_options_object as the option only makes sense with
         // properly set type anyways.
@@ -222,14 +222,9 @@ void InvokeGC(v8::Isolate* isolate, const GCOptions gc_options) {
                                      i::GarbageCollectionReason::kTesting,
                                      kGCCallbackFlagForced);
       HeapProfiler* heap_profiler = heap->heap_profiler();
-      // Since this API is intended for V8 devs, we do not treat globals as
-      // roots here on purpose.
-      v8::HeapProfiler::HeapSnapshotOptions options;
-      options.numerics_mode =
-          v8::HeapProfiler::NumericsMode::kExposeNumericValues;
-      options.snapshot_mode =
-          v8::HeapProfiler::HeapSnapshotMode::kExposeInternals;
-      heap_profiler->TakeSnapshotToFile(options, gc_options.filename);
+      heap_profiler->TakeSnapshotToFile(
+          HeapProfiler::GetDefaultHeapSnapshotOptionsForTestingUsage(),
+          gc_options.filename);
       break;
   }
 }
@@ -284,7 +279,9 @@ class AsyncGC final : public CancelableTask {
 
 v8::Local<v8::FunctionTemplate> GCExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Local<v8::String> str) {
-  return v8::FunctionTemplate::New(isolate, GCExtension::GC);
+  return v8::FunctionTemplate::New(
+      isolate, GCExtension::GC, v8::Local<v8::Value>(),
+      v8::Local<v8::Signature>(), 0, v8::ConstructorBehavior::kThrow);
 }
 
 void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& info) {

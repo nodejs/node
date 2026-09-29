@@ -446,14 +446,16 @@ void Worklist<EntryType, MinSegmentSize>::Local::Merge(
 
 template <typename EntryType, uint16_t MinSegmentSize>
 void Worklist<EntryType, MinSegmentSize>::Local::PublishPushSegment() {
-  if (push_segment_ != internal::SegmentBase::GetSentinelSegmentAddress())
+  if (push_segment_ != internal::SegmentBase::GetSentinelSegmentAddress()) {
     worklist_.Push(push_segment());
+  }
 }
 
 template <typename EntryType, uint16_t MinSegmentSize>
 void Worklist<EntryType, MinSegmentSize>::Local::PublishPopSegment() {
-  if (pop_segment_ != internal::SegmentBase::GetSentinelSegmentAddress())
+  if (pop_segment_ != internal::SegmentBase::GetSentinelSegmentAddress()) {
     worklist_.Push(pop_segment());
+  }
 }
 
 template <typename EntryType, uint16_t MinSegmentSize>

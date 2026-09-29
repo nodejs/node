@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging --async-stack-traces
-// Flags: --wasm-stack-switching-stack-size=100
+// Flags: --async-stack-traces --wasm-stack-switching-stack-size=100
 
 utils.load('test/inspector/wasm-inspector-test.js');
 

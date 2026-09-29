@@ -8,6 +8,7 @@
 #include "include/v8-primitive.h"
 #include "include/v8-template.h"
 #include "src/api/api.h"
+#include "src/base/macros.h"
 #include "src/codegen/external-reference.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/isolate.h"
@@ -79,9 +80,11 @@ void FuzzilliExtension::Fuzzilli(const FunctionCallbackInfo<Value>& info) {
       }
       case 4: {
         // Use-after-free, should be caught by ASan (if active).
+        START_IGNORE_LIFETIME_SAFETY_WARNINGS()
         auto* vec = new std::vector<int>(4);
         delete vec;
         USE(vec->at(0));
+        END_IGNORE_LIFETIME_SAFETY_WARNINGS()
 #ifndef V8_USE_ADDRESS_SANITIZER
         // The testcase must also crash on non-asan builds.
         perform_wild_write();
@@ -141,6 +144,8 @@ void FuzzilliExtension::Fuzzilli(const FunctionCallbackInfo<Value>& info) {
 #ifdef V8_HOST_ARCH_X64
         // This instruction (0xFF 0xFF) is invalid on x64.
         __asm__ volatile(".byte 0xFF, 0xFF\n");
+#elif defined(V8_HOST_ARCH_ARM64)
+        __asm__ volatile(".byte 0xFF, 0xFF, 0xFF, 0xFF\n");
 #else
         fprintf(stderr, "Unsupported architecture for crash SIGILL crash\n");
 #endif

@@ -69,8 +69,9 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSTypedArray> ValidateIntegerTypedArray(
     } else {
       if (typed_array->type() != kExternalFloat32Array &&
           typed_array->type() != kExternalFloat64Array &&
-          typed_array->type() != kExternalUint8ClampedArray)
+          typed_array->type() != kExternalUint8ClampedArray) {
         return typed_array;
+      }
     }
   }
 
@@ -115,7 +116,7 @@ inline size_t GetAddress32(size_t index, size_t byte_offset) {
 
 }  // namespace
 
-// ES #sec-atomics.notify
+// https://tc39.es/ecma262/#sec-atomics.notify
 // Atomics.notify( typedArray, index, count )
 BUILTIN(AtomicsNotify) {
   // TODO(clemensb): This builtin only allocates (an exception) in the case of
@@ -141,7 +142,7 @@ BUILTIN(AtomicsNotify) {
   //   a. Let intCount be ? ToInteger(count).
   //   b. Let c be max(intCount, 0).
   uint32_t c;
-  if (IsUndefined(*count, isolate)) {
+  if (IsUndefined(*count)) {
     c = kMaxUInt32;
   } else {
     double count_double;
@@ -211,18 +212,19 @@ Tagged<Object> DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
   // 7. Let q be ? ToNumber(timeout).
   // 8. If q is NaN, let t be +∞, else let t be max(q, 0).
   double timeout_number;
-  if (IsUndefined(*timeout, isolate)) {
+  if (IsUndefined(*timeout)) {
     timeout_number =
         Object::NumberValue(ReadOnlyRoots(isolate).infinity_value());
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, timeout,
                                        Object::ToNumber(isolate, timeout));
     timeout_number = Object::NumberValue(*timeout);
-    if (std::isnan(timeout_number))
+    if (std::isnan(timeout_number)) {
       timeout_number =
           Object::NumberValue(ReadOnlyRoots(isolate).infinity_value());
-    else if (timeout_number < 0)
+    } else if (timeout_number < 0) {
       timeout_number = 0;
+    }
   }
 
   // 9. If mode is sync, then
@@ -306,7 +308,7 @@ BUILTIN(AtomicsPause) {
 
   // 1. If N is neither undefined nor an integral Number, throw a TypeError
   // exception.
-  if (V8_UNLIKELY(!IsUndefined(*iteration_number, isolate) &&
+  if (V8_UNLIKELY(!IsUndefined(*iteration_number) &&
                   !IsSmi(*iteration_number))) {
     RETURN_ON_EXCEPTION_VALUE(
         isolate, CheckAtomicsPauseIterationNumber(isolate, iteration_number),

@@ -1,0 +1,216 @@
+//===-- Implementation header for cos ---------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_LIBC_SRC___SUPPORT_MATH_COS_H
+#define LLVM_LIBC_SRC___SUPPORT_MATH_COS_H
+
+#include "range_reduction_double_common.h"
+#include "sincos_eval.h"
+#include "src/__support/FPUtil/FEnvImpl.h"
+#include "src/__support/FPUtil/FPBits.h"
+#include "src/__support/FPUtil/double_double.h"
+#include "src/__support/FPUtil/dyadic_float.h"
+#include "src/__support/FPUtil/except_value_utils.h"
+#include "src/__support/macros/config.h"
+#include "src/__support/macros/optimization.h"            // LIBC_UNLIKELY
+#include "src/__support/macros/properties/cpu_features.h" // LIBC_TARGET_CPU_HAS_FMA
+
+#ifdef LIBC_TARGET_CPU_HAS_FMA_DOUBLE
+#include "range_reduction_double_fma.h"
+#else
+#include "range_reduction_double_nofma.h"
+#endif // LIBC_TARGET_CPU_HAS_FMA_DOUBLE
+
+namespace LIBC_NAMESPACE_DECL {
+
+namespace math {
+
+#ifndef LIBC_MATH_HAS_SKIP_ACCURATE_PASS
+LIBC_INLINE double
+cos_accurate(double x, uint16_t x_e, unsigned k,
+             const range_reduction_double_internal::LargeRangeReduction
+                 &range_reduction_large) {
+  using namespace math::range_reduction_double_internal;
+  using FPBits = typename fputil::FPBits<double>;
+
+  DFloat128 u_f128, sin_u, cos_u;
+  if (LIBC_LIKELY(x_e < FPBits::EXP_BIAS + FAST_PASS_EXPONENT))
+    u_f128 = range_reduction_small_f128(x);
+  else
+    u_f128 = range_reduction_large.accurate();
+
+  math::sincos_eval_internal::sincos_eval(u_f128, sin_u, cos_u);
+
+  auto get_sin_k = [](unsigned kk) -> DFloat128 {
+    unsigned idx = (kk & 64) ? 64 - (kk & 63) : (kk & 63);
+    DFloat128 ans = SIN_K_PI_OVER_128_F128[idx];
+    if (kk & 128)
+      ans.sign = Sign::NEG;
+    return ans;
+  };
+
+  // -sin(k * pi/128) = sin((k + 128) * pi/128)
+  // cos(k * pi/128) = sin(k * pi/128 + pi/2) = sin((k + 64) * pi/128).
+  DFloat128 msin_k_f128 = get_sin_k(k + 128);
+  DFloat128 cos_k_f128 = get_sin_k(k + 64);
+
+  // cos(x) = cos((k * pi/128 + u)
+  //        = cos(u) * cos(k*pi/128) - sin(u) * sin(k*pi/128)
+  DFloat128 r = fputil::quick_add(fputil::quick_mul(cos_k_f128, cos_u),
+                                  fputil::quick_mul(msin_k_f128, sin_u));
+
+  // TODO: Add assertion if Ziv's accuracy tests fail in debug mode.
+  // https://github.com/llvm/llvm-project/issues/96452.
+
+  return static_cast<double>(r);
+}
+#endif // !LIBC_MATH_HAS_SKIP_ACCURATE_PASS
+
+LIBC_INLINE double cos(double x) {
+  using namespace range_reduction_double_internal;
+  using FPBits = typename fputil::FPBits<double>;
+  FPBits xbits(x);
+
+  uint16_t x_e = xbits.get_biased_exponent();
+
+  DoubleDouble y;
+  unsigned k = 0;
+  LargeRangeReduction range_reduction_large;
+
+  // |x| < 2^16.
+  if (LIBC_LIKELY(x_e < FPBits::EXP_BIAS + FAST_PASS_EXPONENT)) {
+    // |x| < 2^-4
+    if (LIBC_UNLIKELY(x_e < FPBits::EXP_BIAS - 4)) {
+      // |x| < 2^-27
+      if (LIBC_UNLIKELY(x_e < FPBits::EXP_BIAS - 27)) {
+        // Signed zeros.
+        if (LIBC_UNLIKELY(x == 0.0))
+          return 1.0;
+
+        // For |x| < 2^-27, |cos(x) - 1| < |x|^2/2 < 2^-54 = ulp(1 - 2^-53)/2.
+        return fputil::round_result_slightly_down(1.0);
+      }
+      // No range reduction needed.
+
+      // Use degree-8 polynomial approximation:
+      //   cos(x) ~ 1 + a1 * x^2 + a2 * x^4 + a3 * x^6 + a4 * x^8
+      //          ~ 1 + x^2 * Q(x^2).
+      // > P = fpminimax(cos(x), [|0, 2, 4, 6, 8|], [|1, D...|], [0, 2^-4]);
+      // > dirtyinfnorm(cos(x) - P, [-2^-4, 2^-4]);
+      // 0x1.3cfe...p-70
+      // > P;
+      constexpr double COEFFS[] = {-0x1p-1, 0x1.5555555555262p-5,
+                                   -0x1.6c16c1508bff1p-10,
+                                   0x1.a00ffd769159ap-16};
+      double x_sq = x * x;
+      double c0 = fputil::multiply_add(x_sq, COEFFS[1], COEFFS[0]);
+      double c1 = fputil::multiply_add(x_sq, COEFFS[3], COEFFS[2]);
+      double x4 = x_sq * x_sq;
+      double r_lo = fputil::multiply_add(x4, c1, c0) * x_sq;
+
+#ifdef LIBC_MATH_HAS_SKIP_ACCURATE_PASS
+      return 1.0 + r_lo;
+#else
+      // Overall errors <= ulp(x^2/2) + 2^-69.
+      double err = fputil::multiply_add(x_sq, 0x1.0p-53, 0x1.0p-69);
+      double r_lo_u = r_lo + err;
+      double r_lo_l = r_lo - err;
+      double r_upper = 1.0 + r_lo_u;
+      double r_lower = 1.0 + r_lo_l;
+
+      if (LIBC_LIKELY(r_upper == r_lower))
+        return r_upper;
+
+      k = range_reduction_small(x, y);
+      return cos_accurate(x, x_e, k, range_reduction_large);
+#endif // LIBC_MATH_HAS_SKIP_ACCURATE_PASS
+    } else {
+      // Small range reduction.
+      k = range_reduction_small(x, y);
+    }
+  } else {
+    // Inf or NaN
+    if (LIBC_UNLIKELY(x_e > 2 * FPBits::EXP_BIAS)) {
+      if (xbits.is_signaling_nan()) {
+        fputil::raise_except_if_required(FE_INVALID);
+        return FPBits::quiet_nan().get_val();
+      }
+      // cos(+-Inf) = NaN
+      if (xbits.get_mantissa() == 0) {
+        fputil::set_errno_if_required(EDOM);
+        fputil::raise_except_if_required(FE_INVALID);
+      }
+      return x + FPBits::quiet_nan().get_val();
+    }
+
+    // Large range reduction.
+    k = range_reduction_large.fast(x, y);
+  }
+
+  DoubleDouble sin_y, cos_y;
+
+  [[maybe_unused]] double err =
+      math::sincos_eval_internal::sincos_eval(y, sin_y, cos_y);
+
+  // Look up sin(k * pi/128) and cos(k * pi/128)
+#ifdef LIBC_MATH_HAS_SMALL_TABLES
+  // Memory saving versions.  Use 65-entry table.
+  auto get_idx_dd = [](unsigned kk) -> DoubleDouble {
+    unsigned idx = (kk & 64) ? 64 - (kk & 63) : (kk & 63);
+    DoubleDouble ans = SIN_K_PI_OVER_128[idx];
+    if (kk & 128) {
+      ans.hi = -ans.hi;
+      ans.lo = -ans.lo;
+    }
+    return ans;
+  };
+  DoubleDouble msin_k = get_idx_dd(k + 128);
+  DoubleDouble cos_k = get_idx_dd(k + 64);
+#else
+  // Fast look up version, but needs 256-entry table.
+  // -sin(k * pi/128) = sin((k + 128) * pi/128)
+  // cos(k * pi/128) = sin(k * pi/128 + pi/2) = sin((k + 64) * pi/128).
+  DoubleDouble msin_k = SIN_K_PI_OVER_128[(k + 128) & 255];
+  DoubleDouble cos_k = SIN_K_PI_OVER_128[(k + 64) & 255];
+#endif // LIBC_MATH_HAS_SMALL_TABLES
+
+  // After range reduction, k = round(x * 128 / pi) and y = x - k * (pi / 128).
+  // So k is an integer and -pi / 256 <= y <= pi / 256.
+  // Then cos(x) = cos((k * pi/128 + y)
+  //             = cos(y) * cos(k*pi/128) - sin(y) * sin(k*pi/128)
+  DoubleDouble cos_k_cos_y = fputil::quick_mult(cos_y, cos_k);
+  DoubleDouble msin_k_sin_y = fputil::quick_mult(sin_y, msin_k);
+  // When k != 64 mod 128,
+  //   |cos( k * pi/128 )| > pi/128 - epsilon > |y| >= |sin(y)|,
+  // and cos(y) > 1 - pi/128.  So we can use Fast2Sum for the subtraction:
+  //   cos(y) * cos(k*pi/128) - sin(y) * sin(k*pi/128).
+  DoubleDouble rr = fputil::exact_add(cos_k_cos_y.hi, msin_k_sin_y.hi);
+  rr.lo += msin_k_sin_y.lo + cos_k_cos_y.lo;
+
+#ifdef LIBC_MATH_HAS_SKIP_ACCURATE_PASS
+  return rr.hi + rr.lo;
+#else
+  double rlp = rr.lo + err;
+  double rlm = rr.lo - err;
+
+  double r_upper = rr.hi + rlp; // (rr.lo + ERR);
+  double r_lower = rr.hi + rlm; // (rr.lo - ERR);
+
+  // Ziv's rounding test.
+  if (LIBC_LIKELY(r_upper == r_lower))
+    return r_upper;
+
+  return cos_accurate(x, x_e, k, range_reduction_large);
+#endif // !LIBC_MATH_HAS_SKIP_ACCURATE_PASS
+}
+
+} // namespace math
+
+} // namespace LIBC_NAMESPACE_DECL
+
+#endif // LLVM_LIBC_SRC___SUPPORT_MATH_COS_H

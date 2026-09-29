@@ -301,6 +301,10 @@ class V8_EXPORT_PRIVATE Token {
     return base::IsInRange(op, kEq, kGreaterThanEq);
   }
 
+  static bool IsBinaryOpWithEmbeddedFeedback(Value op) {
+    return base::IsInRange(op, kBitOr, kSub);
+  }
+
   static bool IsOrderedRelationalCompareOp(Value op) {
     return base::IsInRange(op, kLessThan, kGreaterThanEq);
   }

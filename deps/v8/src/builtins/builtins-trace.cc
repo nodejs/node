@@ -146,7 +146,7 @@ BUILTIN(Trace) {
 
   uint32_t flags = TRACE_EVENT_FLAG_COPY;
   int32_t id = 0;
-  if (!IsNullOrUndefined(*id_arg, isolate)) {
+  if (!IsNullOrUndefined(*id_arg)) {
     if (!IsNumber(*id_arg)) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewTypeError(MessageTemplate::kTraceEventIDError));
@@ -166,8 +166,8 @@ BUILTIN(Trace) {
   // name "data". Any JSON serializable value may be passed.
   static const char* arg_name = "data";
   DirectHandle<Object> arg_json;
-  int32_t num_args = 0;
-  if (!IsUndefined(*data_arg, isolate)) {
+  bool has_arg = false;
+  if (!IsUndefined(*data_arg)) {
     // Serializes the data argument as a JSON string, which is then
     // copied into an object. This eliminates duplicated code but
     // could have perf costs. It is also subject to all the same
@@ -177,13 +177,15 @@ BUILTIN(Trace) {
         isolate, arg_json,
         JsonStringify(isolate, data_arg, isolate->factory()->undefined_value(),
                       isolate->factory()->undefined_value()));
-    num_args++;
+    if (IsString(*arg_json)) {
+      has_arg = true;
+    }
   }
 
 #if defined(V8_USE_PERFETTO)
   // TODO(skyostil): Use interned names to reduce trace size.
   auto trace_args = [&](perfetto::EventContext ctx) {
-    if (num_args) {
+    if (has_arg) {
       MaybeUtf8 arg_contents(isolate, Cast<String>(arg_json));
       auto annotation = ctx.event()->add_debug_annotations();
       annotation->set_name(arg_name);
@@ -215,12 +217,12 @@ BUILTIN(Trace) {
 #else   // !defined(V8_USE_PERFETTO)
   uint8_t arg_type;
   uint64_t arg_value;
-  if (num_args) {
+  if (has_arg) {
     std::unique_ptr<JsonTraceValue> traced_value(
         new JsonTraceValue(isolate, Cast<String>(arg_json)));
     tracing::SetTraceValue(std::move(traced_value), &arg_type, &arg_value);
   }
-
+  const int num_args = has_arg ? 1 : 0;
   TRACE_EVENT_API_ADD_TRACE_EVENT(
       phase, category_group_enabled, *name, tracing::kGlobalScope, id,
       tracing::kNoId, num_args, &arg_name, &arg_type, &arg_value, flags);

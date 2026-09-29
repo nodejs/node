@@ -62,7 +62,8 @@ void BranchElimination::SimplifyBranchCondition(Node* branch) {
   // use the same branch condition. In such case, create a new phi with constant
   // inputs and let the second branch use the phi as its branch condition. From
   // this transformation, more branch folding opportunities would be exposed to
-  // later passes through branch cloning in effect-control-linearizer.
+  // later passes through branch cloning in Turboshaft's
+  // BranchEliminationReducer.
   //
   // condition                             condition
   //    |   \                                   |

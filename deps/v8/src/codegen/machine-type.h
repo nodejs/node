@@ -353,6 +353,7 @@ class MachineType {
       case CTypeInfo::Type::kApiObject:
         return MachineType::AnyTagged();
     }
+    UNREACHABLE();
   }
 
   constexpr bool LessThanOrEqualPointerSize() const {

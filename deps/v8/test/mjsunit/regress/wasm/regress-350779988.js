@@ -9,8 +9,8 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-let $struct2 = builder.addStruct([], kNoSuperType, false);
-let $struct3 = builder.addStruct([], kNoSuperType, false);
+let $struct2 = builder.addStruct([]);
+let $struct3 = builder.addStruct([]);
 let $sig4 = builder.addType(makeSig([
   wasmRefType(kWasmI31Ref), wasmRefType(kWasmI31Ref), wasmRefType(kWasmI31Ref),
   wasmRefType(kWasmI31Ref), wasmRefType(kWasmI31Ref), wasmRefType(kWasmI31Ref),

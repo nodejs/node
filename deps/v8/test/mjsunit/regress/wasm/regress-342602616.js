@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging --no-wasm-lazy-compilation
+// Flags: --no-wasm-lazy-compilation
 // Flags: --no-wasm-loop-peeling --no-wasm-loop-unrolling
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
@@ -10,16 +10,16 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 const builder = new WasmModuleBuilder();
 let $sig0 = builder.addType(kSig_v_v);
 builder.startRecGroup();
-let $array1 = builder.addArray(wasmRefType(6), true, kNoSuperType, true);
-let $array2 = builder.addArray(wasmRefNullType(9), false, kNoSuperType, false);
+let $array1 = builder.addArray(wasmRefType(6), {final: true});
+let $array2 = builder.addArray(wasmRefNullType(9), {mutable: false});
 let $sig3 = builder.addType(makeSig([], [kWasmF64]));
-let $struct4 = builder.addStruct([makeField(kWasmI64, false), makeField(kWasmI8, true)], kNoSuperType, true);
+let $struct4 = builder.addStruct({fields: [makeField(kWasmI64, false), makeField(kWasmI8, true)], final: true});
 let $sig5 = builder.addType(makeSig([wasmRefType(9)], [wasmRefType($array2)]), kNoSuperType, false);
 let $sig6 = builder.addType(kSig_i_v, kNoSuperType, false);
-let $struct7 = builder.addStruct([makeField(kWasmF64, true), makeField(kWasmEqRef, false), makeField(wasmRefType($sig6), false), makeField(kWasmI8, false)], kNoSuperType, false);
+let $struct7 = builder.addStruct([makeField(kWasmF64, true), makeField(kWasmEqRef, false), makeField(wasmRefType($sig6), false), makeField(kWasmI8, false)]);
 let $sig8 = builder.addType(makeSig([wasmRefType(9)], [kWasmF32]));
 let $sig10 = builder.addType(makeSig([wasmRefNullType($array1), kWasmI32, wasmRefType(9)], []), kNoSuperType, false);
-let $struct15 = builder.addStruct([makeField(kWasmI8, false), makeField(kWasmI16, true), makeField(kWasmI32, true), makeField(kWasmI64, true), makeField(kWasmI16, true)], kNoSuperType, false);
+let $struct15 = builder.addStruct([makeField(kWasmI8, false), makeField(kWasmI16, true), makeField(kWasmI32, true), makeField(kWasmI64, true), makeField(kWasmI16, true)]);
 builder.endRecGroup();
 let $sig175 = builder.addType(makeSig([kWasmStructRef, kWasmI32], [kWasmFuncRef]));
 let $func322 = builder.addFunction("f322", $sig175).exportFunc();

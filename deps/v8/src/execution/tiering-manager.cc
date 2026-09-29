@@ -535,8 +535,8 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
 }
 
 TieringManager::OnInterruptTickScope::OnInterruptTickScope() {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.MarkCandidatesForOptimization");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+              "V8.MarkCandidatesForOptimization");
 }
 
 void TieringManager::OnInterruptTick(DirectHandle<JSFunction> function,

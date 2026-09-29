@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "include/v8config.h"
 #include "src/base/bits.h"
 #include "src/base/macros.h"
 #include "src/base/memcopy.h"
@@ -144,69 +145,80 @@ class SmallVector {
     return *this;
   }
 
-  T* data() { return begin_; }
-  const T* data() const { return begin_; }
+  T* data() V8_LIFETIME_BOUND { return begin_; }
+  const T* data() const V8_LIFETIME_BOUND { return begin_; }
 
-  T* begin() { return begin_; }
-  const T* begin() const { return begin_; }
+  T* begin() V8_LIFETIME_BOUND { return begin_; }
+  const T* begin() const V8_LIFETIME_BOUND { return begin_; }
 
-  T* end() { return end_; }
-  const T* end() const { return end_; }
+  T* end() V8_LIFETIME_BOUND { return end_; }
+  const T* end() const V8_LIFETIME_BOUND { return end_; }
 
-  auto rbegin() { return std::make_reverse_iterator(end_); }
-  auto rbegin() const { return std::make_reverse_iterator(end_); }
+  auto rbegin() V8_LIFETIME_BOUND { return std::make_reverse_iterator(end_); }
+  auto rbegin() const V8_LIFETIME_BOUND {
+    return std::make_reverse_iterator(end_);
+  }
 
-  auto rend() { return std::make_reverse_iterator(begin_); }
-  auto rend() const { return std::make_reverse_iterator(begin_); }
+  auto rend() V8_LIFETIME_BOUND { return std::make_reverse_iterator(begin_); }
+  auto rend() const V8_LIFETIME_BOUND {
+    return std::make_reverse_iterator(begin_);
+  }
 
   size_t size() const { return end_ - begin_; }
   bool empty() const { return end_ == begin_; }
   size_t capacity() const { return end_of_storage_ - begin_; }
 
-  T& front() {
+  T& front() V8_LIFETIME_BOUND {
     DCHECK_NE(0, size());
     return begin_[0];
   }
-  const T& front() const {
+  const T& front() const V8_LIFETIME_BOUND {
     DCHECK_NE(0, size());
     return begin_[0];
   }
 
-  T& back() {
+  T& back() V8_LIFETIME_BOUND {
     DCHECK_NE(0, size());
     return end_[-1];
   }
-  const T& back() const {
+  const T& back() const V8_LIFETIME_BOUND {
     DCHECK_NE(0, size());
     return end_[-1];
   }
 
-  T& at(size_t index) {
+  T& at(size_t index) V8_LIFETIME_BOUND {
     DCHECK_GT(size(), index);
     return begin_[index];
   }
 
-  T& operator[](size_t index) {
+  T& operator[](size_t index) V8_LIFETIME_BOUND {
     DCHECK_GT(size(), index);
     return begin_[index];
   }
 
-  const T& at(size_t index) const {
+  const T& at(size_t index) const V8_LIFETIME_BOUND {
     DCHECK_GT(size(), index);
     return begin_[index];
   }
 
-  const T& operator[](size_t index) const { return at(index); }
+  const T& operator[](size_t index) const V8_LIFETIME_BOUND {
+    return at(index);
+  }
 
   template <typename... Args>
   void emplace_back(Args&&... args) {
-    if (V8_UNLIKELY(end_ == end_of_storage_)) Grow();
-    void* storage = end_;
-    end_ += 1;
-    new (storage) T(std::forward<Args>(args)...);
+    if (V8_UNLIKELY(end_ == end_of_storage_)) {
+      return grow_and_emplace_back(std::forward<Args>(args)...);
+    }
+    emplace_back_unchecked(std::forward<Args>(args)...);
   }
 
-  void push_back(T x) { emplace_back(std::move(x)); }
+  void push_back(T x) {
+    if (V8_UNLIKELY(end_ == end_of_storage_)) {
+      return grow_and_push_back(std::move(x));
+    }
+    emplace_back_unchecked(std::move(x));
+  }
 
   void pop_back(size_t count = 1) {
     DCHECK_GE(size(), count);
@@ -214,10 +226,10 @@ class SmallVector {
     std::destroy_n(end_, count);
   }
 
-  T* insert(T* pos, const T& value) {
+  T* insert(T* pos, const T& value) V8_LIFETIME_BOUND {
     return insert(pos, static_cast<size_t>(1), value);
   }
-  T* insert(T* pos, size_t count, const T& value) {
+  T* insert(T* pos, size_t count, const T& value) V8_LIFETIME_BOUND {
     DCHECK_LE(pos, end_);
     size_t offset = pos - begin_;
     size_t old_size = size();
@@ -230,7 +242,7 @@ class SmallVector {
     return pos;
   }
   template <typename It>
-  T* insert(T* pos, It begin, It end) {
+  T* insert(T* pos, It begin, It end) V8_LIFETIME_BOUND {
     DCHECK_LE(pos, end_);
     size_t offset = pos - begin_;
     size_t count = std::distance(begin, end);
@@ -244,7 +256,7 @@ class SmallVector {
     return pos;
   }
 
-  T* insert(T* pos, std::initializer_list<const T> values) {
+  T* insert(T* pos, std::initializer_list<const T> values) V8_LIFETIME_BOUND {
     return insert(pos, values.begin(), values.end());
   }
 
@@ -252,11 +264,11 @@ class SmallVector {
     requires requires(const Container& v) {
       std::is_same_v<decltype(std::begin(v)), decltype(std::end(v))>;
     }
-  T* insert(T* pos, const Container& values) {
+  T* insert(T* pos, const Container& values) V8_LIFETIME_BOUND {
     return insert(pos, std::begin(values), std::end(values));
   }
 
-  T* erase(T* erase_start, T* erase_end) {
+  T* erase(T* erase_start, T* erase_end) V8_LIFETIME_BOUND {
     DCHECK_GE(erase_start, begin_);
     DCHECK_LE(erase_start, erase_end);
     DCHECK_LE(erase_end, end_);
@@ -266,7 +278,7 @@ class SmallVector {
     return erase_start;
   }
 
-  T* erase(T* pos) { return erase(pos, pos + 1); }
+  T* erase(T* pos) V8_LIFETIME_BOUND { return erase(pos, pos + 1); }
 
   // Resizes the SmallVector to the provided `new_size`. If `new_size` is larger
   // than the current size, the new elements will not be default-initialized,
@@ -321,6 +333,24 @@ class SmallVector {
   // Grows the backing store by a factor of two. Returns the new end of the used
   // storage (this reduces binary size).
   V8_NOINLINE V8_PRESERVE_MOST void Grow() { Grow(0); }
+
+  template <typename... Args>
+  V8_INLINE void emplace_back_unchecked(Args&&... args) {
+    void* storage = end_;
+    end_ += 1;
+    new (storage) T(std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  V8_NOINLINE V8_PRESERVE_MOST void grow_and_emplace_back(Args&&... args) {
+    Grow();
+    emplace_back_unchecked(std::forward<Args>(args)...);
+  }
+
+  V8_NOINLINE V8_PRESERVE_MOST void grow_and_push_back(T x) {
+    Grow();
+    emplace_back_unchecked(std::move(x));
+  }
 
   // Grows the backing store by a factor of two, and at least to {min_capacity}.
   V8_NOINLINE V8_PRESERVE_MOST void Grow(size_t min_capacity) {

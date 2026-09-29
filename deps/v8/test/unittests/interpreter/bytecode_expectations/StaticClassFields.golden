@@ -27,7 +27,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 166
+bytecode array length: 164
 bytecodes: [
   /*   30 E> */ B(CreateBlockContext), U8(0:SCOPE_INFO_TYPE),
                 B(PushContext), R(2),
@@ -157,7 +157,7 @@ snippet: "
 "
 frame size: 12
 parameter count: 1
-bytecode array length: 298
+bytecode array length: 295
 bytecodes: [
   /*   30 E> */ B(CreateBlockContext), U8(0:SCOPE_INFO_TYPE),
                 B(PushContext), R(3),

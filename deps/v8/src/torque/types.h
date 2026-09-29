@@ -231,6 +231,7 @@ struct Field {
 
   bool custom_weak_marking;
   bool const_qualified;
+  bool index_is_constant;
   FieldSynchronization synchronization;
 };
 
@@ -525,6 +526,9 @@ class V8_EXPORT_PRIVATE BitFieldStructType final : public Type {
 
   const std::string& name() const { return decl_->name->value; }
   const std::vector<BitField>& fields() const { return fields_; }
+  const std::optional<std::string>& cpp_scope() const {
+    return decl_->cpp_scope;
+  }
 
   const BitField& LookupField(const std::string& name) const;
 
@@ -676,31 +680,8 @@ class ClassType final : public AggregateType {
   std::string GetGeneratedTypeNameImpl() const override;
   std::string GetGeneratedTNodeTypeNameImpl() const override;
   bool IsExtern() const { return flags_ & ClassFlag::kExtern; }
-  bool ShouldGeneratePrint() const {
-    if (flags_ & ClassFlag::kCppObjectDefinition) return false;
-    if (flags_ & ClassFlag::kCppObjectLayoutDefinition) return false;
-    if (!IsExtern()) return true;
-    if (!ShouldGenerateCppClassDefinitions()) return false;
-    return !IsAbstract() && !HasUndefinedLayout();
-  }
-  bool ShouldGenerateVerify() const {
-    if (flags_ & ClassFlag::kCppObjectDefinition) return false;
-    if (flags_ & ClassFlag::kCppObjectLayoutDefinition) return false;
-    if (!IsExtern()) return true;
-    if (!ShouldGenerateCppClassDefinitions()) return false;
-    return !HasUndefinedLayout() && !IsShape();
-  }
-  bool ShouldGenerateBodyDescriptor() const {
-    if (flags_ & ClassFlag::kCppObjectDefinition) return false;
-    if (flags_ & ClassFlag::kCppObjectLayoutDefinition) return false;
-    if (flags_ & ClassFlag::kGenerateBodyDescriptor) return true;
-    return !IsAbstract() && !IsExtern();
-  }
   bool DoNotGenerateCast() const {
     return flags_ & ClassFlag::kDoNotGenerateCast;
-  }
-  bool DoNotGenerateInstanceTypeCheck() const {
-    return flags_ & ClassFlag::kDoNotGenerateInstanceTypeCheck;
   }
   bool IsTransient() const override { return flags_ & ClassFlag::kTransient; }
   bool IsAbstract() const { return flags_ & ClassFlag::kAbstract; }
@@ -710,27 +691,11 @@ class ClassType final : public AggregateType {
   bool HasSameInstanceTypeAsParent() const {
     return flags_ & ClassFlag::kHasSameInstanceTypeAsParent;
   }
-  bool ShouldGenerateCppClassDefinitions() const {
-    if (flags_ & ClassFlag::kCppObjectDefinition) return false;
-    if (flags_ & ClassFlag::kCppObjectLayoutDefinition) return false;
-    return (flags_ & ClassFlag::kGenerateCppClassDefinitions) || !IsExtern();
-  }
-  bool ShouldGenerateCppObjectDefinitionAsserts() const {
-    return flags_ & ClassFlag::kCppObjectDefinition;
-  }
   bool ShouldGenerateCppObjectLayoutDefinitionAsserts() const {
     return flags_ & ClassFlag::kCppObjectLayoutDefinition &&
            flags_ & ClassFlag::kGenerateCppClassDefinitions;
   }
   bool ShouldGenerateFullClassDefinition() const { return !IsExtern(); }
-  bool ShouldGenerateUniqueMap() const {
-    return (flags_ & ClassFlag::kGenerateUniqueMap) ||
-           (!IsExtern() && !IsAbstract());
-  }
-  bool ShouldGenerateFactoryFunction() const {
-    return (flags_ & ClassFlag::kGenerateFactoryFunction) ||
-           (ShouldExport() && !IsAbstract());
-  }
   bool ShouldExport() const { return flags_ & ClassFlag::kExport; }
   bool IsShape() const { return flags_ & ClassFlag::kIsShape; }
   bool HasStaticSize() const;
@@ -762,7 +727,7 @@ class ClassType final : public AggregateType {
   std::vector<ObjectSlotKind> ComputeHeaderSlotKinds() const;
   std::optional<ObjectSlotKind> ComputeArraySlotKind() const;
   bool HasNoPointerSlotsExceptMap() const;
-  bool HasIndexedFieldsIncludingInParents() const;
+  bool HasDynamicIndexedFieldsIncludingInParents() const;
   const Field* GetFieldPreceding(size_t field_index) const;
 
   // Given that the field exists in this class or a superclass, returns the

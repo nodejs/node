@@ -15,11 +15,22 @@
 #include "src/codegen/tnode.h"
 #include "src/compiler/turboshaft/fast-hash.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/objects/bigint.h"
+#include "src/objects/contexts.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/js-array-buffer.h"
+#include "src/objects/js-collection.h"
 #include "src/objects/js-function.h"
+#include "src/objects/js-generator.h"
+#include "src/objects/js-promise.h"
+#include "src/objects/js-proxy.h"
+#include "src/objects/objects.h"
 #include "src/objects/oddball.h"
+#include "src/objects/shared-function-info.h"
+#include "src/objects/source-text-module.h"
 #include "src/objects/string.h"
 #include "src/objects/tagged.h"
+#include "src/objects/templates.h"
 
 #define TURBOSHAFT_ALLOW_IMPLICIT_OPINDEX_INITIALIZATION_FOR_V 1
 
@@ -118,19 +129,19 @@ class OpIndex {
 
   static constexpr OpIndex Invalid() { return OpIndex(); }
 
-  // Encode a sea-of-nodes node id in the `OpIndex` type.
-  // Only used for node origins that actually point to sea-of-nodes graph nodes.
-  static OpIndex EncodeTurbofanNodeId(uint32_t id) {
+  // Encode an external node id (e.g. Turbofan or Maglev) in the `OpIndex` type.
+  // Only used for node origins that point to nodes in a different graph.
+  static OpIndex EncodeExternalId(uint32_t id) {
     OpIndex result = OpIndex(id * sizeof(OperationStorageSlot));
-    result.offset_ += kTurbofanNodeIdFlag;
+    result.offset_ += kExternalIdFlag;
     return result;
   }
-  uint32_t DecodeTurbofanNodeId() const {
-    DCHECK(IsTurbofanNodeId());
+  uint32_t DecodeExternalId() const {
+    DCHECK(IsExternalId());
     return offset_ / sizeof(OperationStorageSlot);
   }
-  bool IsTurbofanNodeId() const {
-    return offset_ % sizeof(OperationStorageSlot) == kTurbofanNodeIdFlag;
+  bool IsExternalId() const {
+    return offset_ % sizeof(OperationStorageSlot) == kExternalIdFlag;
   }
 
   constexpr bool operator==(OpIndex other) const {
@@ -181,7 +192,7 @@ class OpIndex {
   // of the offset.
   uint32_t offset_;
 
-  static constexpr uint32_t kTurbofanNodeIdFlag = 1;
+  static constexpr uint32_t kExternalIdFlag = 1;
 
   template <typename H>
   friend H AbslHashValue(H h, const OpIndex& idx) {
@@ -253,7 +264,13 @@ struct WordWithBits : public Any {
 
 using Word32 = WordWithBits<32>;
 using Word64 = WordWithBits<64>;
-using WordPtr = std::conditional_t<Is64(), Word64, Word32>;
+#ifdef V8_TARGET_ARCH_64_BIT
+static_assert(Is64());
+using WordPtr = Word64;
+#else
+static_assert(!Is64());
+using WordPtr = Word32;
+#endif
 
 template <size_t Bits>
 struct FloatWithBits : public Any {  // FloatAny {
@@ -269,7 +286,8 @@ using Simd256 = WordWithBits<256>;
 
 struct Compressed : public Any {};
 struct InternalTag : public Any {};
-struct FrameState : public InternalTag {};
+struct EagerFrameState : public InternalTag {};
+struct LazyFrameState : public InternalTag {};
 
 // A Union type for untagged values. For Tagged types use `Union` for now.
 // TODO(nicohartmann@): We should think about a more uniform solution some day.
@@ -277,6 +295,8 @@ template <typename... Ts>
 struct UntaggedUnion : public Any {
   using to_list_t = base::tmp::list<Ts...>;
 };
+
+using AnyFrameState = UntaggedUnion<EagerFrameState, LazyFrameState>;
 
 template <typename... Ts>
 struct Tuple : public Any {
@@ -483,15 +503,12 @@ struct v_traits<Union<T, Ts...>> {
 
   template <typename U>
   struct implicitly_constructible_from
-      : std::bool_constant<(
-            v_traits<T>::template implicitly_constructible_from<U>::value ||
-            ... ||
-            v_traits<Ts>::template implicitly_constructible_from<U>::value)> {};
-  template <typename... Us>
-  struct implicitly_constructible_from<Union<Us...>>
-      : std::bool_constant<(implicitly_constructible_from<Us>::value && ...)> {
-  };
+      : std::bool_constant<is_subtype<U, Union<T, Ts...>>::value> {};
 };
+
+// Make sure that a simple implicitly_constructible_from works.
+static_assert(
+    v_traits<MaybeObject>::implicitly_constructible_from<Object>::value);
 
 namespace detail {
 template <typename T, bool SameStaticRep>
@@ -587,6 +604,7 @@ using BooleanOrNullOrUndefined = UnionOf<Boolean, Null, Undefined>;
 using NumberOrString = UnionOf<Number, String>;
 using PlainPrimitive = UnionOf<NumberOrString, BooleanOrNullOrUndefined>;
 using StringOrNull = UnionOf<String, Null>;
+using StringOrUndefined = UnionOf<String, Undefined>;
 using NumberOrUndefined = UnionOf<Number, Undefined>;
 using AnyFixedArray = UnionOf<FixedArray, FixedDoubleArray>;
 using NonBigIntPrimitive = UnionOf<Symbol, PlainPrimitive>;
@@ -594,6 +612,7 @@ using Primitive = UnionOf<BigInt, NonBigIntPrimitive>;
 using CallTarget = UntaggedUnion<WordPtr, Code, JSFunction, Word32, BuiltinPtr>;
 using AnyOrNone = UntaggedUnion<Any, None>;
 using Word32Pair = Tuple<Word32, Word32>;
+using Word64Pair = Tuple<Word64, Word64>;
 
 template <typename T>
 concept IsUntagged =
@@ -647,6 +666,7 @@ constexpr bool IsValidTypeFor(RegisterRepresentation repr) {
     case RegisterRepresentation::Enum::kSimd256:
       return std::is_same_v<T, Simd256>;
   }
+  UNREACHABLE();
 }
 
 // V<> represents an SSA-value that is parameterized with the type of the value.
@@ -680,9 +700,29 @@ class V : public OpIndex {
 
   template <typename U>
   static V<T> Cast(V<U> index) {
+    static_assert(!implicitly_constructible_from<U>,
+                  "Redundant explicit V<> cast.");
+    // Eager frame states cannot be used for LazyDeopt and vice-versa.
+    static_assert(
+        !(std::is_same_v<T, EagerFrameState> &&
+          std::is_same_v<U, LazyFrameState>) &&
+            !(std::is_same_v<T, LazyFrameState> &&
+              std::is_same_v<U, EagerFrameState>),
+        "Cannot cast EagerFrameState to LazyFrameState or vice-versa!");
     return V<T>(OpIndex{index});
   }
   static V<T> Cast(OpIndex index) { return V<T>(index); }
+
+  // The difference between Cast and CastIfNeeded is that Cast disallows
+  // upcasting to avoid redundant Casts, whereas CastIfNeeded doesn't. In the
+  // vast majority of cases, Cast should be preferred. However, in a few cases,
+  // typically within templated functions, upcasting can be necessary, in which
+  // case CastIfNeeded can be used.
+  template <typename U>
+  static V<T> CastIfNeeded(V<U> index) {
+    return V<T>(OpIndex{index});
+  }
+  static V<T> CastIfNeeded(OpIndex index) { return V<T>(index); }
 
   static constexpr bool allows_representation(
       RegisterRepresentation maybe_allowed_rep) {
@@ -734,9 +774,24 @@ class OptionalV : public OptionalOpIndex {
 
   template <typename U>
   static OptionalV<T> Cast(OptionalV<U> index) {
+    static_assert(!implicitly_constructible_from<U>,
+                  "Redundant explicit OptionalV<> cast.");
     return OptionalV<T>(OptionalOpIndex{index});
   }
   static OptionalV<T> Cast(OptionalOpIndex index) {
+    return OptionalV<T>(index);
+  }
+
+  // The difference between Cast and CastIfNeeded is that Cast disallows
+  // upcasting to avoid redundant Casts, whereas CastIfNeeded doesn't. In the
+  // vast majority of cases, Cast should be preferred. However, in a few cases,
+  // typically within templated functions, upcasting can be necessary, in which
+  // case CastIfNeeded can be used.
+  template <typename U>
+  static OptionalV<T> CastIfNeeded(OptionalV<U> index) {
+    return OptionalV<T>(OptionalOpIndex{index});
+  }
+  static OptionalV<T> CastIfNeeded(OptionalOpIndex index) {
     return OptionalV<T>(index);
   }
 
@@ -888,6 +943,11 @@ class ShadowyOpIndex : public OpIndex {
   template <typename T>
   operator V<T>() const {  // NOLINT(runtime/explicit)
     return V<T>::Cast(*this);
+  }
+
+  template <typename T>
+  operator OptionalV<T>() const {  // NOLINT(runtime/explicit)
+    return OptionalV<T>::Cast(*this);
   }
 };
 

@@ -4,9 +4,9 @@
 
 #include "src/heap/cppgc-js/unified-heap-marking-visitor.h"
 
+#include "src/heap/cppgc-internal/marking-state.h"
+#include "src/heap/cppgc-internal/visitor.h"
 #include "src/heap/cppgc-js/unified-heap-marking-state-inl.h"
-#include "src/heap/cppgc/marking-state.h"
-#include "src/heap/cppgc/visitor.h"
 #include "src/heap/heap.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/minor-mark-sweep.h"

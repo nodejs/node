@@ -31,9 +31,9 @@
 
 #include <cstdint>
 #include <cstring>
+#include <optional>  // IWYU pragma: keep
 
 #include "absl/random/internal/platform.h"
-#include "absl/types/optional.h"  // IWYU pragma: keep
 
 #if !defined(__UCLIBC__) && defined(__GLIBC__) && \
     (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 16))
@@ -115,12 +115,12 @@ static uint32_t GetAuxval(uint32_t hwcap_type) {
 
 #if defined(__APPLE__) && defined(ABSL_ARCH_AARCH64)
 template <typename T>
-static absl::optional<T> ReadSysctlByName(const char* name) {
+static std::optional<T> ReadSysctlByName(const char* name) {
   T val;
   size_t val_size = sizeof(T);
   int ret = sysctlbyname(name, &val, &val_size, nullptr, 0);
   if (ret == -1) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return val;
 }
@@ -210,7 +210,7 @@ bool CPUSupportsRandenHwAes() {
   // Newer XNU kernels support querying all capabilities in a single
   // sysctlbyname.
 #if defined(CAP_BIT_AdvSIMD) && defined(CAP_BIT_FEAT_AES)
-  static const absl::optional<uint64_t> caps =
+  static const std::optional<uint64_t> caps =
       ReadSysctlByName<uint64_t>("hw.optional.arm.caps");
   if (caps.has_value()) {
     constexpr uint64_t kNeonAndAesCaps =
@@ -220,13 +220,13 @@ bool CPUSupportsRandenHwAes() {
 #endif
 
   // https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics#overview
-  static const absl::optional<int> adv_simd =
+  static const std::optional<int> adv_simd =
       ReadSysctlByName<int>("hw.optional.AdvSIMD");
   if (adv_simd.value_or(0) == 0) {
     return false;
   }
   // https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics#3918855
-  static const absl::optional<int> feat_aes =
+  static const std::optional<int> feat_aes =
       ReadSysctlByName<int>("hw.optional.arm.FEAT_AES");
   if (feat_aes.value_or(0) == 0) {
     return false;

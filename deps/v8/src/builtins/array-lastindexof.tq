@@ -33,14 +33,15 @@ LoadWithHoleCheck<FixedDoubleArray>(
 macro FastArrayLastIndexOf<Elements : type extends FixedArrayBase>(
     context: Context, array: JSArray, from: Smi, searchElement: JSAny): Smi {
   const elements: FixedArrayBase = array.elements;
+  const elementsLen: Smi = Convert<Smi>(elements.length_intptr);
   let k: Smi = from;
 
   // Bug(898785): Due to side-effects in the evaluation of `fromIndex`
   // the {from} can be out-of-bounds here, so we need to clamp {k} to
   // the {elements} length. We might be reading holes / hole NaNs still
   // due to that, but those will be ignored below.
-  if (k >= elements.length) {
-    k = elements.length - 1;
+  if (k >= elementsLen) {
+    k = elementsLen - 1;
   }
 
   while (k >= 0) {
@@ -132,7 +133,7 @@ transitioning macro GenericArrayLastIndexOf(
   return SmiConstant(-1);
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.lastIndexOf
+// https://tc39.es/ecma262/#sec-array.prototype.lastIndexOf
 transitioning javascript builtin ArrayPrototypeLastIndexOf(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let O be ? ToObject(this value).

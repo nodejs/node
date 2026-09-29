@@ -46,7 +46,6 @@
 #include "absl/base/internal/iterator_traits.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/strings/internal/ostringstream.h"
-#include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"

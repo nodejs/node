@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 @abstract
+@cppObjectLayoutDefinition
 extern class Module extends HeapObject {
   // The complete export table, mapping an export name to its cell.
   exports: ObjectHashTable;
@@ -18,10 +19,12 @@ extern class Module extends HeapObject {
   top_level_capability: JSPromise|Undefined;
 }
 
+@cppObjectLayoutDefinition
 extern class JSModuleNamespace extends JSSpecialObject {
   module: Module;
 }
 
+@cppObjectLayoutDefinition
 extern class JSDeferredModuleNamespace extends JSModuleNamespace {}
 
 @cppObjectLayoutDefinition
