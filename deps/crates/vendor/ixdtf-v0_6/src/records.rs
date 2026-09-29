@@ -6,7 +6,7 @@
 
 use core::num::NonZeroU8;
 
-use crate::core::EncodingType;
+use crate::encoding::EncodingType;
 
 /// An `IxdtfParseRecord` is an intermediary record returned by `IxdtfParser`.
 #[non_exhaustive]
@@ -16,9 +16,9 @@ pub struct IxdtfParseRecord<'a, T: EncodingType> {
     pub date: Option<DateRecord>,
     /// Parsed `TimeRecord`
     pub time: Option<TimeRecord>,
-    /// Parsed UtcOffset
+    /// Parsed `UtcOffset`
     pub offset: Option<UtcOffsetRecordOrZ>,
-    /// Parsed `TimeZone` annotation with critical flag and data (UTCOffset | IANA name)
+    /// Parsed `TimeZone` annotation with critical flag and data (`UTCOffset` | IANA name)
     pub tz: Option<TimeZoneAnnotation<'a, T>>,
     /// The parsed calendar value.
     pub calendar: Option<&'a [T::CodeUnit]>,
@@ -76,9 +76,9 @@ pub struct TimeZoneAnnotation<'a, T: EncodingType> {
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub enum TimeZoneRecord<'a, T: EncodingType> {
-    /// TimeZoneIANAName
+    /// `TimeZoneIANAName`
     Name(&'a [T::CodeUnit]),
-    /// TimeZoneOffset
+    /// `TimeZoneOffset`
     Offset(MinutePrecisionOffset),
 }
 
@@ -356,6 +356,6 @@ impl Fraction {
     /// ```
     pub fn to_truncated_nanoseconds(&self) -> u32 {
         self.to_nanoseconds()
-            .unwrap_or((self.value / 10u64.pow(u32::from(self.digits.get() - 9))) as u32)
+            .unwrap_or_else(|| (self.value / 10u64.pow(u32::from(self.digits.get() - 9))) as u32)
     }
 }

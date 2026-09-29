@@ -11,7 +11,7 @@
 //!  * [`Unicode Extensions`] - marked as `u`.
 //!  * [`Transform Extensions`] - marked as `t`.
 //!  * [`Private Use Extensions`] - marked as `x`.
-//!  * [`Other Extensions`] - marked as any `a-z` except of `u`, `t` and `x`.
+//!  * [`Other Extensions`] - marked as any `a-z` or `0-9` except `u`, `t`, and `x`.
 //!
 //! One can think of extensions as a bag of extra information on top of basic 4 [`subtags`].
 //!
@@ -102,7 +102,7 @@ impl ExtensionType {
             UNICODE_EXT_CHAR => Ok(Self::Unicode),
             TRANSFORM_EXT_CHAR => Ok(Self::Transform),
             PRIVATE_EXT_CHAR => Ok(Self::Private),
-            'a'..='z' => Ok(Self::Other(key)),
+            'a'..='z' | '0'..='9' => Ok(Self::Other(key)),
             _ => Err(ParseError::InvalidExtension),
         }
     }
@@ -396,5 +396,13 @@ fn test_writeable() {
             .unwrap()
             .extensions,
         "a-foo-t-foo-u-foo-w-foo-z-foo-x-foo",
+    );
+    assert_writeable_eq!(
+        "en-1-ext-value".parse::<Locale>().unwrap().extensions,
+        "1-ext-value",
+    );
+    assert_writeable_eq!(
+        "und-a-foo-1-bar".parse::<Locale>().unwrap().extensions,
+        "1-bar-a-foo",
     );
 }
