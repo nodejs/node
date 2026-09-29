@@ -13,8 +13,7 @@
 edition = "2021"
 rust-version = "1.63.0"
 name = "either"
-version = "1.15.0"
-authors = ["bluss"]
+version = "1.16.0"
 build = false
 autolib = false
 autobins = false
@@ -37,16 +36,16 @@ categories = [
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rayon-rs/either"
 
+[package.metadata.release]
+allow-branch = ["main"]
+sign-tag = true
+tag-name = "{{version}}"
+
 [package.metadata.docs.rs]
 features = ["serde"]
 
 [package.metadata.playground]
 features = ["serde"]
-
-[package.metadata.release]
-allow-branch = ["main"]
-sign-tag = true
-tag-name = "{{version}}"
 
 [features]
 default = ["std"]

@@ -1301,17 +1301,20 @@ impl ZonedDateTime {
             // c. Let startNs be ? GetStartOfDay(timeZone, dateStart).
             // d. Assert: thisNs ≥ startNs.
             // e. Let endNs be ? GetStartOfDay(timeZone, dateEnd).
-            // f. Assert: thisNs < endNs.
+            // f. [Struck out in spec] Assert: thisNs < endNs.
             let start = self.time_zone.get_start_of_day(&iso_start.date, provider)?;
             let end = self.time_zone.get_start_of_day(&iso_end, provider)?;
-            if !(this_ns.0 >= start.ns.0 && this_ns.0 < end.ns.0) {
+            if this_ns.0 < start.ns.0 {
                 return Err(TemporalError::range().with_enum(ErrorMessage::ZDTOutOfDayBounds));
             }
-            // g. Let dayLengthNs be ℝ(endNs - startNs).
-            // h. Let dayProgressNs be TimeDurationFromEpochNanosecondsDifference(thisNs, startNs).
+            // g. Set thisNs to min(thisNs, endNs - 1).
+            let this_ns_val = this_ns.0.min(end.ns.0 - 1);
+            // h. Let dayLengthNs be ℝ(endNs - startNs).
+            // i. Let dayProgressNs be TimeDurationFromEpochNanosecondsDifference(thisNs, startNs).
             let day_len_ns = TimeDuration::from_nanosecond_difference(end.ns.0, start.ns.0)?;
-            let day_progress_ns = TimeDuration::from_nanosecond_difference(this_ns.0, start.ns.0)?;
-            // i. Let roundedDayNs be ! RoundTimeDurationToIncrement(dayProgressNs, dayLengthNs, roundingMode).
+            let day_progress_ns =
+                TimeDuration::from_nanosecond_difference(this_ns_val, start.ns.0)?;
+            // j. Let roundedDayNs be ! RoundTimeDurationToIncrement(dayProgressNs, dayLengthNs, roundingMode).
             let rounded = if let Some(increment) = NonZeroU128::new(day_len_ns.0.unsigned_abs()) {
                 IncrementRounder::<i128>::from_signed_num(day_progress_ns.0, increment)?
                     .round(resolved.rounding_mode)
@@ -1326,7 +1329,7 @@ impl ZonedDateTime {
                 end.offset
             };
 
-            // j. Let epochNanoseconds be AddTimeDurationToEpochNanoseconds(roundedDayNs, startNs).
+            // k. Let epochNanoseconds be AddTimeDurationToEpochNanoseconds(roundedDayNs, startNs).
             let candidate = start.ns.0 + rounded;
             Instant::try_new(candidate)?;
             // 20. Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).

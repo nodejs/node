@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.71"
 name = "quote"
-version = "1.0.45"
+version = "1.0.46"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
 build = "build.rs"
 autolib = false
