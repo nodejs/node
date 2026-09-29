@@ -2580,6 +2580,7 @@ JavaScript `ArrayBuffer`s are described in
 added:
  - v26.1.0
  - v24.16.0
+ - v22.23.3
 -->
 
 ```c
@@ -2786,8 +2787,9 @@ added: v8.0.0
 napiVersion: 1
 changes:
   - version:
-    - v26.2.0
-    - v24.18.0
+     - v26.2.0
+     - v24.18.0
+     - v22.23.3
     pr-url: https://github.com/nodejs/node/pull/62710
     description: Added support for `SharedArrayBuffer`.
 -->

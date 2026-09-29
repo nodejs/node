@@ -52,6 +52,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <optional>
+#include <utility>
+#include <vector>
 
 namespace node {
 
@@ -178,6 +180,18 @@ struct CompressionError {
   inline bool IsError() const { return code != nullptr; }
 };
 
+void RecordBrotliParam(std::vector<std::pair<int, uint32_t>>* params,
+                       int key,
+                       uint32_t value) {
+  for (auto& entry : *params) {
+    if (entry.first == key) {
+      entry.second = value;
+      return;
+    }
+  }
+  params->emplace_back(key, value);
+}
+
 class ZlibContext final : public MemoryRetainer {
  public:
   ZlibContext() = default;
@@ -229,6 +243,15 @@ class ZlibContext final : public MemoryRetainer {
   unsigned int gzip_id_bytes_read_ = 0;
   std::vector<unsigned char> dictionary_;
 
+  // gzip and zlib-wrapped deflate emit a header on the first deflate() call.
+  // Resetting after those bytes have left the compressor starts a new member
+  // while the fragment remains, so gunzip/inflate fail with Z_DATA_ERROR.
+  // Raw deflate has no header; Z_FULL_FLUSH + reset still concatenates.
+  // A member is complete once deflate() has been called with Z_FINISH and
+  // returned Z_STREAM_END.
+  bool stream_complete_ = true;
+  bool output_emitted_ = false;
+
   z_stream strm_;
 };
 
@@ -277,6 +300,8 @@ class BrotliEncoderContext final : public BrotliContext {
       prepared_dictionary_;
   // Dictionary data must remain valid while the prepared dictionary is alive.
   std::vector<uint8_t> dictionary_;
+  // Last successful parameters, replayed by ResetStream.
+  std::vector<std::pair<int, uint32_t>> params_;
 };
 
 class BrotliDecoderContext final : public BrotliContext {
@@ -299,6 +324,8 @@ class BrotliDecoderContext final : public BrotliContext {
   DeleteFnPtr<BrotliDecoderState, BrotliDecoderDestroyInstance> state_;
   // Dictionary data must remain valid for the lifetime of the decoder.
   std::vector<uint8_t> dictionary_;
+  // Last successful parameters, replayed by ResetStream.
+  std::vector<std::pair<int, uint32_t>> params_;
 };
 
 class ZstdContext : public MemoryRetainer {
@@ -352,6 +379,14 @@ class ZstdCompressContext final : public ZstdContext {
 
   uint64_t pledged_src_size_ = ZSTD_CONTENTSIZE_UNKNOWN;
   std::optional<uint64_t> consumed_src_size_;
+
+  // A frame is complete once ZSTD_compressStream2() has been called with
+  // ZSTD_e_end and has returned 0. Resetting an incomplete frame is only unsafe
+  // once some of that frame has already been written out: those bytes cannot be
+  // discarded, and the next frame would be appended to the fragment. Unflushed
+  // internal state alone is cancelled by ZSTD_reset_session_only.
+  bool frame_complete_ = true;
+  bool frame_output_emitted_ = false;
 };
 
 class ZstdDecompressContext final : public ZstdContext {
@@ -1088,9 +1123,20 @@ void ZlibContext::DoThreadPoolWork() {
   switch (mode_) {
     case DEFLATE:
     case GZIP:
-    case DEFLATERAW:
+    case DEFLATERAW: {
+      const unsigned out_before = strm_.avail_out;
       err_ = deflate(&strm_, flush_);
+      if (out_before > strm_.avail_out) {
+        output_emitted_ = true;
+      }
+      if (err_ == Z_STREAM_END) {
+        stream_complete_ = true;
+        output_emitted_ = false;
+      } else if (err_ == Z_OK || err_ == Z_BUF_ERROR) {
+        stream_complete_ = false;
+      }
       break;
+    }
     case UNZIP:
       if (strm_.avail_in > 0) {
         next_expected_header_byte = strm_.next_in;
@@ -1233,6 +1279,20 @@ CompressionError ZlibContext::GetErrorInfo() const {
 
 
 CompressionError ZlibContext::ResetStream() {
+  // deflateReset() is deflateEnd + deflateInit: a new stream. gzip emits a
+  // wrapper header on the first write; those bytes cannot be taken back, so
+  // refuse reset once an incomplete gzip member has emitted output.
+  // zlib-wrapped deflate still allows reset after flush: callers discard the
+  // first member (test-zlib-dictionary.js). Raw deflate has no wrapper header,
+  // so flush+reset still concatenates.
+  if (mode_ == GZIP && !stream_complete_ && output_emitted_) {
+    return CompressionError(
+        "Cannot reset a gzip stream with an incomplete member; end the "
+        "stream or start a new gzip compressor",
+        "ERR_ZLIB_INCOMPLETE_FRAME",
+        Z_STREAM_ERROR);
+  }
+
   bool first_init_call = InitZlib();
   if (first_init_call && err_ != Z_OK) {
     return ErrorForMessage("Failed to init stream before reset");
@@ -1258,6 +1318,8 @@ CompressionError ZlibContext::ResetStream() {
   if (err_ != Z_OK)
     return ErrorForMessage("Failed to reset stream");
 
+  stream_complete_ = true;
+  output_emitted_ = false;
   return SetDictionary();
 }
 
@@ -1302,6 +1364,8 @@ void ZlibContext::Init(int level,
   flush_ = Z_NO_FLUSH;
 
   err_ = Z_OK;
+  stream_complete_ = true;
+  output_emitted_ = false;
 
   if (mode_ == GZIP || mode_ == GUNZIP) {
     window_bits_ += 16;
@@ -1459,6 +1523,7 @@ void BrotliEncoderContext::Close() {
   state_.reset();
   prepared_dictionary_.reset();
   dictionary_.clear();
+  params_.clear();
   mode_ = NONE;
 }
 
@@ -1472,6 +1537,7 @@ CompressionError BrotliEncoderContext::Init(std::vector<uint8_t>&& dictionary) {
   // Clean up any previous dictionary state before re-initializing.
   prepared_dictionary_.reset();
   dictionary_.clear();
+  params_.clear();
 
   state_.reset(BrotliEncoderCreateInstance(alloc, free, opaque));
   if (!state_) {
@@ -1511,7 +1577,19 @@ CompressionError BrotliEncoderContext::Init(std::vector<uint8_t>&& dictionary) {
 }
 
 CompressionError BrotliEncoderContext::ResetStream() {
-  return Init();
+  std::vector<uint8_t> dictionary = dictionary_;
+  const auto params = params_;
+  CompressionError err = Init(std::move(dictionary));
+  if (err.IsError()) {
+    return err;
+  }
+  for (const auto& entry : params) {
+    err = SetParams(entry.first, entry.second);
+    if (err.IsError()) {
+      return err;
+    }
+  }
+  return CompressionError{};
 }
 
 CompressionError BrotliEncoderContext::SetParams(int key, uint32_t value) {
@@ -1522,6 +1600,7 @@ CompressionError BrotliEncoderContext::SetParams(int key, uint32_t value) {
                             "ERR_BROTLI_PARAM_SET_FAILED",
                             -1);
   } else {
+    RecordBrotliParam(&params_, key, value);
     return CompressionError {};
   }
 }
@@ -1540,6 +1619,7 @@ CompressionError BrotliEncoderContext::GetErrorInfo() const {
 void BrotliDecoderContext::Close() {
   state_.reset();
   dictionary_.clear();
+  params_.clear();
   mode_ = NONE;
 }
 
@@ -1569,6 +1649,7 @@ CompressionError BrotliDecoderContext::Init(std::vector<uint8_t>&& dictionary) {
 
   // Clean up any previous dictionary state before re-initializing.
   dictionary_.clear();
+  params_.clear();
 
   state_.reset(BrotliDecoderCreateInstance(alloc, free, opaque));
   if (!state_) {
@@ -1596,7 +1677,19 @@ CompressionError BrotliDecoderContext::Init(std::vector<uint8_t>&& dictionary) {
 }
 
 CompressionError BrotliDecoderContext::ResetStream() {
-  return Init();
+  std::vector<uint8_t> dictionary = dictionary_;
+  const auto params = params_;
+  CompressionError err = Init(std::move(dictionary));
+  if (err.IsError()) {
+    return err;
+  }
+  for (const auto& entry : params) {
+    err = SetParams(entry.first, entry.second);
+    if (err.IsError()) {
+      return err;
+    }
+  }
+  return CompressionError{};
 }
 
 CompressionError BrotliDecoderContext::SetParams(int key, uint32_t value) {
@@ -1607,6 +1700,7 @@ CompressionError BrotliDecoderContext::SetParams(int key, uint32_t value) {
                             "ERR_BROTLI_PARAM_SET_FAILED",
                             -1);
   } else {
+    RecordBrotliParam(&params_, key, value);
     return CompressionError {};
   }
 }
@@ -1678,6 +1772,8 @@ CompressionError ZstdCompressContext::Init(uint64_t pledged_src_size,
                                            std::string_view dictionary,
                                            bool) {
   pledged_src_size_ = pledged_src_size;
+  frame_complete_ = true;
+  frame_output_emitted_ = false;
   if (pledged_src_size == ZSTD_CONTENTSIZE_UNKNOWN) {
     consumed_src_size_.reset();
   } else {
@@ -1718,6 +1814,17 @@ CompressionError ZstdCompressContext::Init(uint64_t pledged_src_size,
 }
 
 CompressionError ZstdCompressContext::ResetStream() {
+  // ZSTD_reset_session_only cancels unflushed internal data. Bytes that have
+  // already been written out cannot be taken back, so refuse reset only when
+  // the current incomplete frame has already emitted output.
+  if (!frame_complete_ && frame_output_emitted_) {
+    return CompressionError(
+        "Cannot reset a zstd stream with an incomplete frame; end the frame "
+        "or discard the output produced so far",
+        "ERR_ZLIB_INCOMPLETE_FRAME",
+        ZSTD_error_stage_wrong);
+  }
+
   size_t result = ZSTD_CCtx_reset(cctx_.get(), ZSTD_reset_session_only);
   if (ZSTD_isError(result)) {
     const ZSTD_ErrorCode error = ZSTD_getErrorCode(result);
@@ -1737,6 +1844,8 @@ CompressionError ZstdCompressContext::ResetStream() {
   } else {
     consumed_src_size_ = 0;
   }
+  frame_complete_ = true;
+  frame_output_emitted_ = false;
   error_ = ZSTD_error_no_error;
   error_string_.clear();
   error_code_string_.clear();
@@ -1751,19 +1860,28 @@ void ZstdCompressContext::DoThreadPoolWork() {
   if (consumed_src_size_.has_value()) {
     *consumed_src_size_ += input_.pos - input_pos;
   }
+  if (output_.pos > 0) {
+    frame_output_emitted_ = true;
+  }
   if (ZSTD_isError(remaining)) {
     error_ = ZSTD_getErrorCode(remaining);
     error_code_string_ = ZstdStrerror(error_);
     error_string_ = ZSTD_getErrorString(error_);
-  } else if (remaining == 0 && flush_ == ZSTD_e_end &&
-             consumed_src_size_.has_value()) {
-    uint64_t const consumed_src_size = *consumed_src_size_;
-    consumed_src_size_.reset();
-    if (consumed_src_size != pledged_src_size_) {
-      error_ = ZSTD_error_srcSize_wrong;
-      error_code_string_ = ZstdStrerror(error_);
-      error_string_ = ZSTD_getErrorString(error_);
+    frame_complete_ = false;
+  } else if (remaining == 0 && flush_ == ZSTD_e_end) {
+    frame_complete_ = true;
+    frame_output_emitted_ = false;
+    if (consumed_src_size_.has_value()) {
+      uint64_t const consumed_src_size = *consumed_src_size_;
+      consumed_src_size_.reset();
+      if (consumed_src_size != pledged_src_size_) {
+        error_ = ZSTD_error_srcSize_wrong;
+        error_code_string_ = ZstdStrerror(error_);
+        error_string_ = ZSTD_getErrorString(error_);
+      }
     }
+  } else {
+    frame_complete_ = false;
   }
 }
 

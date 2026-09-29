@@ -705,8 +705,8 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   // --vfs-load selects the main thread's entry point; a worker always starts
-  // from its own entry (which may itself live inside a --vfs-mount), so the
-  // mounts are inherited but the load behavior must not be.
+  // from its own entry (which may itself live inside the mount), so the mount
+  // is inherited but the load behavior must not be.
   per_isolate_opts->per_env->vfs_load = false;
 
   // Internal workers should not wait for inspector frontend to connect or

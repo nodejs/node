@@ -375,10 +375,20 @@ void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(
       &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
+  Environment* env = wrap->env();
   int64_t val;
   if (!args[0]->IntegerValue(args.GetIsolate()->GetCurrentContext()).To(&val))
     return;
   int fd = static_cast<int>(val);
+
+  // Adopting an existing descriptor gives access to whatever it is connected
+  // to, so, like bind(), listen() and connect(), it requires the net
+  // permission.
+  if (!IsProcessStdioOrIPCChannel(env, fd)) {
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env, permission::PermissionScope::kNet, "");
+  }
+
   int err = uv_tcp_open(&wrap->handle_, fd);
 
   if (err == 0) wrap->set_fd(fd);

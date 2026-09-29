@@ -4,6 +4,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { push, ondrain, text } = require('stream/iter');
+const { setImmediate } = require('timers/promises');
 
 async function testOndrain() {
   const { writer } = push({ budget: 16384 });
@@ -39,7 +40,7 @@ async function testDropPoliciesReportPhysicalCapacity() {
     // Drop policies still accept writes despite having no physical capacity.
     assert.strictEqual(writer.writeSync(chunk), true);
     assert.strictEqual(writer.canWrite, false);
-    await new Promise(setImmediate);
+    await setImmediate();
     assert.strictEqual(drained, false);
 
     assert.strictEqual((await iterator.next()).done, false);
@@ -224,7 +225,7 @@ async function testWritevSyncInvalidChunkDoesNotQueue() {
   const next = iter.next();
   const result = await Promise.race([
     next.then(() => 'resolved'),
-    new Promise((resolve) => setImmediate(resolve, 'pending')),
+    setImmediate('pending'),
   ]);
   assert.strictEqual(result, 'pending');
 
@@ -376,7 +377,7 @@ async function testOndrainWaitsForDrain() {
   let drainState = 'pending';
   const drainPromise = ondrain(writer).then((v) => { drainState = v; });
 
-  await new Promise(setImmediate);
+  await setImmediate();
   assert.strictEqual(drainState, 'pending'); // Still waiting
 
   // Read to drain
@@ -429,7 +430,7 @@ async function testEndResolvesPendingRead() {
   const readPromise = iter.next();
 
   // Give the read a tick to enter the pending state
-  await new Promise(setImmediate);
+  await setImmediate();
 
   // End the writer — should resolve the pending read with done:true
   writer.endSync();
@@ -444,7 +445,7 @@ async function testFailRejectsPendingRead() {
   const iter = readable[Symbol.asyncIterator]();
   const readPromise = iter.next();
 
-  await new Promise(setImmediate);
+  await setImmediate();
 
   writer.fail(new Error('fail during read'));
   await assert.rejects(
@@ -460,7 +461,7 @@ async function testConsumerReturnResolvesPendingRead() {
   const iter = readable[Symbol.asyncIterator]();
   const readPromise = iter.next();
 
-  await new Promise(setImmediate);
+  await setImmediate();
 
   const returnResult = await iter.return();
   assert.strictEqual(returnResult.value, undefined);
@@ -492,7 +493,7 @@ async function testConsumerThrowRejectsPendingRead() {
   const iter = readable[Symbol.asyncIterator]();
   const readPromise = iter.next();
 
-  await new Promise(setImmediate);
+  await setImmediate();
 
   const err = new Error('consumer read boom');
   const readRejects = assert.rejects(
@@ -657,7 +658,7 @@ async function testFailRejectsPendingReadWithFalsyReason() {
   const iter = readable[Symbol.asyncIterator]();
   const readPromise = iter.next();
 
-  await new Promise(setImmediate);
+  await setImmediate();
 
   writer.fail(false);
   await readPromise.then(

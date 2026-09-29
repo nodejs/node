@@ -259,9 +259,15 @@ t.test('run shims', t => {
 
     const result = spawnPath(cmd, [...args, ...params], opts)
 
-    // skip the first 3 lines of "npm test" to get the actual script output
-    if (params[0].startsWith('test')) {
-      result.stdout = result.stdout?.toString().split('\n').slice(3).join('\n').trim()
+    // run-script@11 emits its run banners as notice logs on stderr, e.g.
+    // "npm notice run test@1.0.0 test". Strip them so we can assert on the
+    // script's actual output.
+    if (result.stderr) {
+      result.stderr = result.stderr.toString()
+        .split('\n')
+        .filter(line => !line.startsWith('npm notice run'))
+        .join('\n')
+        .trim()
     }
 
     t.match(result, {

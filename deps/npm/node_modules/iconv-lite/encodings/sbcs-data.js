@@ -109,6 +109,8 @@ module.exports = {
 
   hebrew: "iso88598",
   hebrew8: "iso88598",
+  iso88598i: "iso88598",
+  iso88598e: "iso88598",
 
   turkish: "iso88599",
   turkish8: "iso88599",

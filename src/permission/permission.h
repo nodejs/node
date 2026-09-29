@@ -5,6 +5,7 @@
 
 #include "debug_utils.h"
 #include "node_diagnostics_channel.h"
+#include "permission/env_permission.h"
 #include "permission/permission_base.h"
 
 #include <array>
@@ -150,6 +151,8 @@ class Permission {
       static_cast<size_t>(PermissionScope::kPermissionsCount);
 
   std::array<std::shared_ptr<PermissionBase>, kPermissionCount> nodes_;
+  // Also stored in nodes_, kept here for the file system scope to consult.
+  std::shared_ptr<EnvPermission> env_permission_;
   bool enabled_;
   bool warning_only_;
   mutable bool publishing_ = false;

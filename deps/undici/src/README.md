@@ -378,7 +378,16 @@ The `body` mixins are the most common way to format the request/response body. M
 > The body returned from `undici.request` does not implement `.formData()`.
 
 > [!WARNING]
-> Calling `body.formData()` on a fetch response causes undici to buffer and parse the entire body. Since this is dictated by the spec, `body.formData()` must only be called on responses from trusted servers.
+> The body mixins `.arrayBuffer()`, `.blob()`, `.bytes()`, `.json()`, `.text()`,
+> and `.formData()` buffer the entire body in memory before returning. Where
+> applicable, they also decode or parse the payload and retain that
+> representation in memory. Calling these methods therefore means trusting that
+> the response body is small enough to fit in the available memory. Do not use
+> them for responses from untrusted or user-controlled sources. Instead, consume
+> the response body as a stream and enforce an application-specific size limit:
+> use `response.body` for fetch responses or the `body` returned by
+> `undici.request()`. For streaming decoded text, use `body.textStream()` on a
+> fetch `Request` or `Response`.
 
 Example usage:
 

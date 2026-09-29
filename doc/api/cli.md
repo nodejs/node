@@ -191,6 +191,51 @@ This behavior also applies to `child_process.spawn()`, but in that case, the
 flags are propagated via the `NODE_OPTIONS` environment variable rather than
 directly through the process arguments.
 
+### `--allow-env`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], the process starts without the environment
+variables it has not been granted access to. At startup, every variable that
+`--allow-env` does not match is removed from the process environment. Removed
+variables are absent from `process.env`, from diagnostic reports, from native
+code calling `getenv()`, and from the environment of child processes and worker
+threads.
+
+The valid values are:
+
+* `*` - Grants access to every environment variable.
+* A variable name, for example `--allow-env=DATABASE_URL`.
+* A variable name prefix followed by `*`, for example `--allow-env=APP_*`.
+
+Multiple values can be passed by repeating the flag, or by separating them with
+commas: `--allow-env=PORT,APP_*`. Variable names are case-insensitive on
+Windows.
+
+Example:
+
+```js
+console.log(process.env.DATABASE_URL);
+console.log(process.env.AWS_SECRET_ACCESS_KEY);
+```
+
+```console
+$ node --permission --allow-fs-read=* --allow-env=DATABASE_URL index.js
+postgres://localhost/app
+undefined
+(node:1234) Warning: The permission model removed the environment variable "AWS_SECRET_ACCESS_KEY" at startup. Use --allow-env to manage permissions.
+```
+
+The variables that Node.js and its bundled dependencies read, such as
+`NODE_OPTIONS`, `PATH`, `HOME`, `TZ`, and `SSL_CERT_FILE`, are always kept, as
+are the variables defined in [`--env-file`][] files. `NODE_ENV` is not kept
+by default, so applications and libraries that read it need
+`--allow-env=NODE_ENV`. See [Environment variable permissions][] for details.
+
 ### `--allow-ffi`
 
 <!-- YAML
@@ -401,6 +446,11 @@ an `ERR_ACCESS_DENIED` unless the user explicitly passes the
 This flag grants broad authority to configured OpenSSL STORE loaders. A loader
 may access files, devices, tokens, or the network. Access performed by a loader
 is not constrained by the `fs.read`, `fs.write`, or `net` permission scopes.
+
+Loaders and the modules they load are subject to [`--allow-env`][], however.
+Environment variables they rely on, such as `SOFTHSM2_CONF` for SoftHSM, are
+removed at startup unless they are granted explicitly with `--allow-env`. See
+[Environment variable permissions][] for details.
 
 ### `--allow-wasi`
 
@@ -2538,6 +2588,7 @@ following permissions are restricted:
 * File System - manageable through
   [`--allow-fs-read`][], [`--allow-fs-write`][] flags
 * Network - manageable through [`--allow-net`][] flag
+* Environment variables - manageable through [`--allow-env`][] flag
 * Child Process - manageable through [`--allow-child-process`][] flag
 * Worker Threads - manageable through [`--allow-worker`][] flag
 * WASI - manageable through [`--allow-wasi`][] flag
@@ -2646,6 +2697,59 @@ changes:
 -->
 
 Identical to `-e` but prints the result.
+
+### `--process-timeout=duration`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+Exits the process with code `124` if it is still running after `duration`,
+measured from the start of the process. `duration` is a positive integer
+followed by a unit: `ms`, `s`, `m`, or `h`, for example `500ms`, `30s`, `5m`, or
+`1h`. The exit code matches the one used by the `timeout(1)` command.
+
+Before exiting, Node.js prints what the main thread was doing and which
+resources were keeping the event loop alive to stderr:
+
+```console
+$ node --process-timeout=5s server.js
+(node:25418) Process timed out after 5s (--process-timeout). Exiting with code 124.
+Main thread was not executing JavaScript.
+Resources keeping the event loop alive:
+    TCPServerWrap (listening on [::]:3000, fd 20)
+    Timeout x2 (next due in 2931ms)
+```
+
+If the main thread was executing JavaScript, its stack trace is printed instead.
+Use [`--report-on-process-timeout`][] to also generate a [diagnostic report][].
+
+The process exits without emitting the `'beforeExit'` and `'exit'` events, as
+the JavaScript code may be what keeps the process running. Code coverage and
+profiles, such as those enabled with [`NODE_V8_COVERAGE=dir`][] or
+[`--cpu-prof`][], are still written.
+
+If the main thread does not respond within two seconds, for example because it
+is blocked in a synchronous operation such as [`child_process.execSync()`][],
+Node.js exits immediately without printing the stack trace and resources.
+
+This option is not allowed in [`NODE_OPTIONS`][], and it cannot be combined
+with the options that enable the inspector, such as `--inspect`,
+`--inspect-brk`, `--inspect-wait`, `--inspect-port`, and
+`--inspect-publish-uid`, nor with `node inspect`, `--run`, or
+`--build-snapshot`. While it is in effect, [`inspector.open()`][] and
+[`session.connectToMainThread()`][] throw, and requests to activate the
+inspector with `SIGUSR1` are ignored.
+
+Child processes that inherit `process.execArgv`, such as those created with
+[`child_process.fork()`][], apply the timeout from their own start. With
+[`--watch`][], the timeout applies to each run of the application rather than
+to the process that watches for changes. When
+[running tests from the command line][], the test runner process applies the
+timeout to the whole run, and each test file that runs in its own process
+applies it as well.
 
 ### `--prof`
 
@@ -2773,6 +2877,23 @@ the Node.js runtime such as out of memory) that lead to termination of the
 application. Useful to inspect various diagnostic data elements such as heap,
 stack, event loop state, resource consumption etc. to reason about the fatal
 error.
+
+### `--report-on-process-timeout`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+Enables the report to be generated when [`--process-timeout`][] expires, in
+addition to the summary printed to stderr. Useful to inspect the JavaScript
+and native stacks, the event loop state, and resource consumption to reason
+about why the process did not exit. Requires [`--process-timeout`][].
+
+Worker threads that do not provide their part of the report within two
+seconds, for example because they are blocked in a synchronous operation such
+as [`child_process.execSync()`][], are left out of it.
 
 ### `--report-on-signal`
 
@@ -3788,62 +3909,24 @@ Print node's version.
 ### `--vfs-load=source`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * `source` {string} A directory or an archive file to mount and run.
 
 Requires [`--experimental-vfs`][]. May be given at most once.
 
-Mounts `source` exactly as [`--vfs-mount`][] does, and additionally runs the
-entry point and all subsequent `require()`/`import` resolution against that
-mount rather than the real file system. The entry point is taken from the mount
-the same way `node <directory>` takes one: the mount's own `package.json`
-`"main"`, or `index.js`. Any positional command-line argument is the program's
-own (available from `process.argv[2]` onward), never an entry-point override.
+Mounts `source` as a virtual file system ([`node:vfs`][]), and runs the entry
+point and all subsequent `require()`/`import` resolution against that mount
+rather than the real file system. The mount is placed at a reserved mount point
+assigned by Node.js, so it never shadows real paths and no target can be
+chosen. The entry point is taken from the mount the same way `node <directory>`
+takes one: the mount's own `package.json` `"main"`, or `index.js`. Any
+positional command-line argument is the program's own (available from
+`process.argv[2]` onward), never an entry-point override.
 
 `process.argv[1]` reports `source` rather than the reserved mount point, since
 the mount point is an opaque implementation detail.
-
-Mounting the same source twice mounts it twice, at two separate mount points.
-The entry point then comes from the mount `--vfs-load` itself contributed, not
-from an earlier `--vfs-mount` of the same source.
-
-In worker threads `--vfs-load` mounts but does not load: a worker inherits the
-same mounts, in the same order, and runs its own entry point.
-
-`--vfs-load` is not permitted in [`NODE_OPTIONS`][]: which entry point runs is
-the command line's decision, and the environment must not be able to redirect
-it.
-
-```console
-$ node --experimental-vfs --vfs-load=app.zip
-$ node --experimental-vfs --vfs-mount=lib.zip --vfs-load=app.zip
-```
-
-### `--vfs-mount=source`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `source` {string} A directory or an archive file to mount.
-
-Requires [`--experimental-vfs`][]. May be repeated to mount several sources.
-
-Mounts `source` as a virtual file system ([`node:vfs`][]). Each mount is placed
-at a reserved mount point assigned by Node.js, so mounts never shadow real
-paths and no target can be chosen. Mounting alone does not change the entry
-point; use [`--vfs-load`][] for the source to run from.
-
-`--vfs-mount` and [`--vfs-load`][] mount in the order they are written, so
-
-```console
-$ node --experimental-vfs --vfs-mount=a --vfs-load=b --vfs-mount=c
-```
-
-mounts `a`, `b` and `c` in that order and runs `b`. Mounts contributed by
-[`NODE_OPTIONS`][] are mounted before the command line's.
 
 The provider backing a source is chosen from the source itself rather than from
 its file name:
@@ -3856,6 +3939,29 @@ Providers registered with `vfs.registerProvider()` (typically from a module
 preloaded with [`--require`][] or [`--import`][]) are consulted first, in
 reverse registration order, and may claim directories as well as files. If no
 provider claims the source, Node.js exits with an error.
+
+In worker threads `--vfs-load` mounts but does not load: a worker inherits the
+mount and runs its own entry point, which may itself live in the mount.
+
+The source is mounted at the same reserved mount point in every thread that
+mounts it, whatever else that thread mounts, so a path into the mount means the
+same thing in all of them.
+
+A worker created with its own `execArgv` inherits none of the parent's options,
+and so does not mount the source at all. To run a script from the mount, such a
+worker must be given the same options again, `--experimental-vfs` and
+`--vfs-load`; without them, that thread has no mount for the script to come
+from, and the worker fails to load it. `--experimental-vfs` is also what makes
+[`node:vfs`][] available to the worker's own code. A worker whose script comes
+from anywhere else, such as the real file system, needs nothing added.
+
+`--vfs-load` is not permitted in [`NODE_OPTIONS`][]: which entry point runs is
+the command line's decision, and the environment must not be able to redirect
+it.
+
+```console
+$ node --experimental-vfs --vfs-load=app.zip
+```
 
 ### `--watch`
 
@@ -4128,6 +4234,7 @@ one is included in the list below.
 
 * `--allow-addons`
 * `--allow-child-process`
+* `--allow-env`
 * `--allow-ffi`
 * `--allow-fs-read`
 * `--allow-fs-vfs`
@@ -4299,7 +4406,6 @@ one is included in the list below.
 * `--use-openssl-ca`
 * `--use-system-ca`
 * `--v8-pool-size`
-* `--vfs-mount`
 * `--watch-kill-signal`
 * `--watch-path`
 * `--watch-preserve-output`
@@ -4776,6 +4882,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [CommonJS module]: modules.md
 [DEP0025 warning]: deprecations.md#dep0025-requirenodesys
 [ECMAScript module]: esm.md#modules-ecmascript-modules
+[Environment variable permissions]: permissions.md#environment-variable-permissions
 [EventSource Web API]: https://html.spec.whatwg.org/multipage/server-sent-events.html#server-sent-events
 [ExperimentalWarning: `vm.measureMemory` is an experimental feature]: vm.md#vmmeasurememoryoptions
 [FIPS mode]: crypto.md#fips-mode
@@ -4799,6 +4906,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`'crypto.fips.indicator'`]: diagnostics_channel.md#event-cryptofipsindicator
 [`--allow-addons`]: #--allow-addons
 [`--allow-child-process`]: #--allow-child-process
+[`--allow-env`]: #--allow-env
 [`--allow-fs-read`]: #--allow-fs-read
 [`--allow-fs-write`]: #--allow-fs-write
 [`--allow-net`]: #--allow-net
@@ -4807,6 +4915,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--allow-worker`]: #--allow-worker
 [`--build-snapshot`]: #--build-snapshot
 [`--cpu-prof-dir`]: #--cpu-prof-dir
+[`--cpu-prof`]: #--cpu-prof
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
 [`--disable-sigusr1`]: #--disable-sigusr1
 [`--enable-fips`]: #--enable-fips
@@ -4821,12 +4930,13 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--openssl-config`]: #--openssl-configfile
 [`--preserve-symlinks`]: #--preserve-symlinks
 [`--print`]: #-p---print-script
+[`--process-timeout`]: #--process-timeoutduration
 [`--redirect-warnings`]: #--redirect-warningsfile
+[`--report-on-process-timeout`]: #--report-on-process-timeout
 [`--require`]: #-r---require-module
 [`--use-env-proxy`]: #--use-env-proxy
 [`--use-system-ca`]: #--use-system-ca
-[`--vfs-load`]: #--vfs-loadsource
-[`--vfs-mount`]: #--vfs-mountsource
+[`--watch`]: #--watch
 [`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
@@ -4834,17 +4944,21 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NODE_USE_ENV_PROXY=1`]: #node_use_env_proxy1
+[`NODE_V8_COVERAGE=dir`]: #node_v8_coveragedir
 [`NO_COLOR`]: https://no-color.org
 [`RealFSProvider`]: vfs.md#class-realfsprovider
 [`Web Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
 [`ZipProvider`]: vfs.md#class-zipprovider
+[`child_process.execSync()`]: child_process.md#child_processexecsynccommand-options
+[`child_process.fork()`]: child_process.md#child_processforkmodulepath-args-options
 [`crypto.createPrivateKey()`]: crypto.md#cryptocreateprivatekeykey
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`import.meta.url`]: esm.md#importmetaurl
 [`import` specifier]: esm.md#import-specifiers
+[`inspector.open()`]: inspector.md#inspectoropenport-host-wait
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:ffi`]: ffi.md
 [`node:sqlite`]: sqlite.md
@@ -4852,6 +4966,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`node:vfs`]: vfs.md
 [`permission.drop()`]: permissions.md#permissiondropscope-reference
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
+[`session.connectToMainThread()`]: inspector.md#sessionconnecttomainthread
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version
 [`unhandledRejection`]: process.md#event-unhandledrejection
@@ -4868,6 +4983,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [debugger]: debugger.md
 [debugging security implications]: https://nodejs.org/learn/getting-started/debugging#security-implications
 [deprecation warnings]: deprecations.md#list-of-deprecated-apis
+[diagnostic report]: report.md
 [dtls documentation]: dtls.md
 [emit_warning]: process.md#processemitwarningwarning-options
 [environment_variables]: #environment-variables-1

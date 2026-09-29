@@ -51,7 +51,6 @@
                 emptyExpected: digestedData[alg].empty,
                 label: upCase + " with " + size + " source data",
                 mutations: true,
-                transferBeforeCall: true,
             });
             vectors.push({
                 algorithm: {name: downCase},

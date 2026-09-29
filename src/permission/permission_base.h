@@ -39,6 +39,8 @@ namespace permission {
 #define OPENSSL_STORE_PERMISSIONS(V)                                           \
   V(OpenSSLStore, "openssl.store", PermissionsRoot, "--allow-openssl-store")
 
+#define ENV_PERMISSIONS(V) V(Env, "env", PermissionsRoot, "--allow-env")
+
 #define PERMISSIONS(V)                                                         \
   FILESYSTEM_PERMISSIONS(V)                                                    \
   CHILD_PROCESS_PERMISSIONS(V)                                                 \
@@ -48,7 +50,8 @@ namespace permission {
   NET_PERMISSIONS(V)                                                           \
   ADDON_PERMISSIONS(V)                                                         \
   FFI_PERMISSIONS(V)                                                           \
-  OPENSSL_STORE_PERMISSIONS(V)
+  OPENSSL_STORE_PERMISSIONS(V)                                                 \
+  ENV_PERMISSIONS(V)
 
 #define V(name, _, __, ___) k##name,
 enum class PermissionScope {

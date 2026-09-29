@@ -30,7 +30,7 @@ const genManPages = (obj) => {
 const mockHelp = async (t, {
   man = {
     5: ['npmrc', 'install', 'package-json'],
-    1: ['whoami', 'install', 'star', 'unstar', 'uninstall', 'unpublish'].map(p => `npm-${p}`),
+    1: ['whoami', 'install', 'uninstall', 'unpublish'].map(p => `npm-${p}`),
     7: ['disputes', 'config'],
   },
   browser = false,
@@ -153,9 +153,9 @@ t.test('npm help package.json redirects to package-json', async t => {
   t.match(spawnArgs[0], /package-json\.5$/)
 })
 
-t.test('npm help ?(un)star', async t => {
+t.test('npm help ?(un)publish with woman', async t => {
   const { getArgs } = await mockHelp(t, {
-    exec: ['?(un)star'],
+    exec: ['?(un)publish'],
     woman: true,
   })
 
@@ -163,7 +163,7 @@ t.test('npm help ?(un)star', async t => {
   t.equal(spawnBin, 'emacsclient', 'maps woman to emacs correctly')
   t.equal(spawnArgs.length, 2)
   t.match(spawnArgs[1], /^\(woman-find-file '/)
-  t.match(spawnArgs[1], /npm-star.1'\)$/)
+  t.match(spawnArgs[1], /npm-unpublish.1'\)$/)
 })
 
 t.test('npm help un*', async t => {

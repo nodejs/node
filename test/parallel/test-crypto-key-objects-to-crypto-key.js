@@ -14,7 +14,6 @@ const {
 } = require('crypto');
 const { hasFIPS } = require('../common/crypto');
 const { kSupportedAlgorithms } = require('internal/crypto/util');
-const fips = hasFIPS();
 const rejectsXCurves = hasFIPS(3, 5);
 
 const hashes = Object.keys(kSupportedAlgorithms.digest).filter((name) => {
@@ -139,19 +138,11 @@ function genericSecretVectors(name) {
   ];
 }
 
-function macInvalid(algorithm, invalidLengthMessage, allowZeroKey = false) {
+function macInvalid(algorithm, invalidLengthMessage, isKmac = false) {
   const key = createSecretKey(randomBytes(32));
   const usages = ['sign', 'verify'];
 
-  if (allowZeroKey && !fips) {
-    const zeroKey = createSecretKey(Buffer.alloc(0))
-      .toCryptoKey(algorithm, true, usages);
-    assert.strictEqual(zeroKey.algorithm.length, 0);
-
-    const explicitZeroKey = createSecretKey(Buffer.alloc(0))
-      .toCryptoKey({ ...algorithm, length: 0 }, true, usages);
-    assert.strictEqual(explicitZeroKey.algorithm.length, 0);
-  } else if (allowZeroKey) {
+  if (isKmac) {
     for (const zeroAlgorithm of [algorithm, { ...algorithm, length: 0 }]) {
       assert.throws(() => {
         createSecretKey(Buffer.alloc(0))
@@ -177,7 +168,7 @@ function macInvalid(algorithm, invalidLengthMessage, allowZeroKey = false) {
 
   assert.throws(
     () => key.toCryptoKey({ ...algorithm, length: 0 }, true, usages),
-    allowZeroKey && fips ? {
+    isKmac ? {
       name: 'NotSupportedError',
       message: 'Invalid key length',
     } : {
@@ -257,7 +248,7 @@ function ecVectors(name, usagesByType) {
 function cfrgVectors(name, usagesByType) {
   if (rejectsXCurves && name.startsWith('X')) {
     assert.throws(() => generateKeyPairSync(name.toLowerCase()), {
-      code: 'ERR_OSSL_EVP_UNSUPPORTED',
+      code: 'ERR_INVALID_ARG_VALUE',
     });
     return [];
   }
@@ -313,9 +304,12 @@ function invalidAsymmetricKeyType(name, invalidAlgorithm) {
   const { publicKey } = generateKeyPairSync(name.toLowerCase());
   assert.throws(() => {
     publicKey.toCryptoKey(invalidAlgorithm, true, []);
-  }, {
+  }, invalidAlgorithm in kSupportedAlgorithms.importKey ? {
     name: 'DataError',
     message: 'Invalid key type'
+  } : {
+    name: 'NotSupportedError',
+    message: 'Unrecognized algorithm name',
   });
 }
 

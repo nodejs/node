@@ -44,10 +44,7 @@ async function prepareKeys() {
   const keys = {};
   await Promise.all(
     kTests.map(async ({ name, size, pkcs8, spki, result }) => {
-      const [
-        privateKey,
-        publicKey,
-      ] = await Promise.all([
+      const imported = [
         subtle.importKey(
           'pkcs8',
           Buffer.from(pkcs8, 'hex'),
@@ -60,7 +57,14 @@ async function prepareKeys() {
           { name },
           true,
           []),
-      ]);
+      ];
+      if (rejectsXCurves) {
+        await Promise.all(imported.map((promise) => assert.rejects(promise, {
+          name: 'NotSupportedError', message: 'Unrecognized algorithm name',
+        })));
+        return;
+      }
+      const [privateKey, publicKey] = await Promise.all(imported);
       keys[name] = {
         privateKey,
         publicKey,
@@ -73,6 +77,7 @@ async function prepareKeys() {
 
 (async function() {
   const keys = await prepareKeys();
+  if (rejectsXCurves) return;
   const otherArgs = [
     { name: 'HMAC', hash: 'SHA-256', length: 256 },
     true,
@@ -81,15 +86,6 @@ async function prepareKeys() {
   await Promise.all(
     Object.keys(keys).map(async (name) => {
       const { result, privateKey, publicKey } = keys[name];
-
-      if (rejectsXCurves) {
-        await assert.rejects(
-          subtle.deriveKey({ name, public: publicKey }, privateKey, ...otherArgs),
-          (err) => err.name === 'OperationError' &&
-                   err.cause?.code ===
-                     'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE');
-        return;
-      }
 
       {
         // Good parameters

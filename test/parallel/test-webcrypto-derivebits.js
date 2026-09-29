@@ -136,7 +136,7 @@ const rejectsXCurves = hasFIPS(3, 5);
         salt: new Uint8Array([2]),
         iterations: 2 ** 31,
       }, key, 8),
-      { name: 'NotSupportedError' });
+      { name: 'OperationError' });
   }
 
   test().then(common.mustCall());
@@ -168,8 +168,7 @@ const rejectsXCurves = hasFIPS(3, 5);
     for (const name of ['X25519', 'X448']) {
       assert.rejects(
         test(name),
-        (err) => err.name === 'OperationError' &&
-                 err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED')
+        { name: 'NotSupportedError', message: 'Unrecognized algorithm name' })
         .then(common.mustCall());
     }
   } else {

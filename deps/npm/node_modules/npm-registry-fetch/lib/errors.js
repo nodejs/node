@@ -38,13 +38,18 @@ class HttpErrorBase extends Error {
 class HttpErrorGeneral extends HttpErrorBase {
   constructor (method, res, body, spec) {
     super(method, res, body, spec)
+    let detail = ''
+    if (body && typeof body === 'object' && !Buffer.isBuffer(body)) {
+      const text = body.error || body.message || JSON.stringify(body)
+      if (text && text !== '{}') {
+        detail = ' - ' + text
+      }
+    }
     this.message = `${res.status} ${res.statusText} - ${
       this.method.toUpperCase()
     } ${
       this.spec || this.uri
-    }${
-      (body && body.error) ? ' - ' + body.error : ''
-    }`
+    }${detail}`
   }
 }
 

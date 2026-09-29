@@ -546,7 +546,6 @@ static bool ZeroCopyUnavailable(Environment* env) {
 
 void ToBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
 
   THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
 
@@ -589,8 +588,12 @@ void ToBuffer(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  bool copy = args.Length() < 3 || args[2]->IsUndefined() ||
-              args[2]->BooleanValue(isolate);
+  if (!args[2]->IsUndefined() && !args[2]->IsBoolean()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "The copy argument must be a boolean");
+    return;
+  }
+
+  bool copy = !args[2]->IsFalse();
   if (!copy && ZeroCopyUnavailable(env)) return;
 
   Local<Object> buf;
@@ -654,15 +657,19 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  bool copy = args.Length() < 3 || args[2]->IsUndefined() ||
-              args[2]->BooleanValue(isolate);
+  if (!args[2]->IsUndefined() && !args[2]->IsBoolean()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "The copy argument must be a boolean");
+    return;
+  }
+
+  bool copy = !args[2]->IsFalse();
   if (!copy && ZeroCopyUnavailable(env)) return;
 
   Local<ArrayBuffer> ab;
   if (copy) {
     std::unique_ptr<BackingStore> store =
         ArrayBuffer::NewBackingStore(isolate, len);
-    memcpy(store->Data(), reinterpret_cast<void*>(ptr), len);
+    if (len > 0) memcpy(store->Data(), reinterpret_cast<void*>(ptr), len);
     ab = ArrayBuffer::New(isolate, std::move(store));
   } else {
     std::unique_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
@@ -740,7 +747,9 @@ void ExportBytes(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  std::memcpy(reinterpret_cast<void*>(ptr), view.data(), view.length());
+  if (view.length() > 0) {
+    std::memcpy(reinterpret_cast<void*>(ptr), view.data(), view.length());
+  }
 }
 
 void GetRawPointer(const FunctionCallbackInfo<Value>& args) {

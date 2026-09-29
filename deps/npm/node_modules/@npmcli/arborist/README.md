@@ -60,7 +60,7 @@ arb.loadActual().then(tree => {
   // tree is also stored at arb.virtualTree
 })
 
-// read just what the package-lock.json/npm-shrinkwrap says
+// read just what the package-lock.json says
 // This *also* loads the yarn.lock file, but that's only relevant
 // when building the ideal tree.
 arb.loadVirtual().then(tree => {
@@ -301,7 +301,7 @@ pruning nodes from the tree.
   that the dep is brought in by a peer dep at some point, rather than a
   normal non-peer dependency.
 
-Note: `devOptional` is only set in the shrinkwrap/package-lock file if
+Note: `devOptional` is only set in the package-lock file if
 _neither_ `dev` nor `optional` are set, as it would be redundant.
 
 ## BIN

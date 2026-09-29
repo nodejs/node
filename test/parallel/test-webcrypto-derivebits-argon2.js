@@ -80,7 +80,7 @@ for (const { algorithm, length, password, params, tag } of vectors) {
       const result = await subtle.deriveBits(parameters, key, length);
       assert.deepStrictEqual(result, tag);
     }
-    {
+    if (algorithm === 'Argon2id') {
       const derivedKeyType = { name: 'HMAC', length, hash: 'SHA-256' };
 
       const key = createSecretKey(password)

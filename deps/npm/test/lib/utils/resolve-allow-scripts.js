@@ -86,6 +86,22 @@ t.test('--allow-scripts CLI flag is rejected in project-scoped installs', async 
   )
 })
 
+t.test('allow-scripts environment policy is rejected in project-scoped installs', async t => {
+  const mock = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({ name: 'p' }),
+    },
+    globals: {
+      'process.env.npm_config_allow_scripts': 'canvas',
+    },
+  })
+  const resolveAllowScripts = loadResolver(t)
+  await t.rejects(
+    resolveAllowScripts(mock.npm),
+    { code: 'EALLOWSCRIPTS', message: /--allow-scripts is not allowed/ }
+  )
+})
+
 t.test('--allow-scripts CLI flag is accepted in global installs (RFC layer 1 wins)', async t => {
   const mock = await mockNpm(t, {
     prefixDir: {

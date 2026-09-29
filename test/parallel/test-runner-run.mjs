@@ -90,7 +90,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
   it('should support timeout', async () => {
     const stream = run({ timeout: 50, files: [
-      fixtures.path('test-runner', 'plan', 'timeout-basic.mjs'),
+      fixtures.path('test-runner', 'run-timeout.mjs'),
     ] });
     stream.on('test:fail', common.mustCall((data) => {
       assert.strictEqual(data.details.error.failureType, 'testTimeoutFailure');

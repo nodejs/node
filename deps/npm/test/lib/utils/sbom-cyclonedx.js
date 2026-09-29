@@ -83,6 +83,19 @@ t.test('single node - package lock only', t => {
   t.end()
 })
 
+t.test('single node - uses package name for root component name', t => {
+  const node = {
+    ...root,
+    name: '',
+    packageName: '@scope/root-package',
+    pkgid: '@scope/root-package@1.0.0',
+  }
+  const res = cyclonedxOutput({ npm, nodes: [node] })
+  t.equal(res.metadata.component.name, '@scope/root-package')
+  t.equal(res.metadata.component['bom-ref'], '@scope/root-package@1.0.0')
+  t.end()
+})
+
 t.test('single node - optional ', t => {
   const node = { ...root, optional: true }
   const res = cyclonedxOutput({ npm, nodes: [node] })

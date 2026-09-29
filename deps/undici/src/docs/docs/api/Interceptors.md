@@ -210,9 +210,10 @@ Automatically decompresses response bodies encoded with `gzip`, `x-gzip`,
     skipped. **Default:** `[204, 304]`.
   * `skipErrorResponses` {boolean} When `true`, responses with a status code
     >= 400 are not decompressed. **Default:** `true`.
-  * `maxSize` {number} Maximum decompressed response size in bytes. The request
-    fails with a `ResponseExceededMaxSizeError` if the decoded body exceeds
-    this limit. **Default:** `67108864` (64 MiB).
+  * `maxSize` {number} Maximum decompressed response size in bytes for each
+    decompression stage. The request fails with a
+    `ResponseExceededMaxSizeError` if a stage exceeds this limit. Set to `0` to
+    disable the limit. **Default:** `0`.
 
 **Returns:** {Dispatcher.DispatcherComposeInterceptor}
 

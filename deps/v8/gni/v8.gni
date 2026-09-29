@@ -63,6 +63,10 @@ declare_args() {
   # Furthermore, some architectures don't have Rust toolchains in Chromium
   v8_enable_temporal_support = !(defined(build_with_node) && build_with_node)
 
+  # by default, don't enable compiling Temporal with a system ICU4C
+  # (assume private headers are available)
+  v8_enable_temporal_systemicu = false
+
   # Use static libraries instead of source_sets.
   v8_static_library = false
 

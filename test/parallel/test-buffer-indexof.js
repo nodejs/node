@@ -309,6 +309,12 @@ assert.strictEqual(Buffer.from('aaaa').indexOf('你好', 'ucs2'), -1);
 assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
 
 {
+  const buf = Buffer.from('\u6881\u6882\u6881', 'utf16le');
+  assert.strictEqual(buf.indexOf('\u6881', 1, 'utf16le'), 4);
+  assert.strictEqual(buf.indexOf('\u6881', -1, 'utf16le'), -1);
+}
+
+{
   // Find substrings in Utf8.
   const lengths = [1, 3, 15];  // Single char, simple and complex.
   const indices = [0x5, 0x60, 0x400, 0x680, 0x7ee, 0xFF02, 0x16610, 0x2f77b];

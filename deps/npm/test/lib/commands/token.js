@@ -475,3 +475,115 @@ t.test('token create invalid cidr', async t => {
     message: 'CIDR whitelist contains invalid CIDR entry: apple/cider',
   })
 })
+
+t.test('token create stage-only produces stage-only policy and no warning', async t => {
+  const { npm, outputs, logs } = await loadMockNpm(t, {
+    config: {
+      ...auth,
+      name: 'stage-only-token',
+      password: 'test-password',
+      'packages-and-scopes-permission': 'read-write-stage-only',
+    },
+  })
+
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: authToken,
+  })
+
+  registry.createToken({
+    name: 'stage-only-token',
+    password: 'test-password',
+    packages_and_scopes_permission: 'read-write-stage-only',
+  })
+
+  await npm.exec('token', ['create'])
+  t.match(outputs, ['Created token n3wt0k3n'])
+  t.strictSame(logs.warn, [], 'no deprecation warning for stage-only tokens')
+})
+
+t.test('token create read-write warns about direct-publish', async t => {
+  const { npm, outputs, logs } = await loadMockNpm(t, {
+    config: {
+      ...auth,
+      name: 'rw-token',
+      password: 'test-password',
+      'packages-and-scopes-permission': 'read-write',
+    },
+  })
+
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: authToken,
+  })
+
+  registry.createToken({
+    name: 'rw-token',
+    password: 'test-password',
+    packages_and_scopes_permission: 'read-write',
+  })
+
+  await npm.exec('token', ['create'])
+  t.match(outputs, ['Created token n3wt0k3n'])
+  t.match(logs.warn, [/publish directly to the registry/], 'warns about direct-publish token')
+  t.match(logs.warn, [/read-write-stage-only/], 'warning points to stage-only tokens')
+  t.match(logs.warn, [/https:\/\/gh\.io\/bypass-2fa-tokens-no-longer-publish/], 'warning includes the docs link')
+})
+
+t.test('token create bypass-2fa alone does not warn', async t => {
+  const { npm, outputs, logs } = await loadMockNpm(t, {
+    config: {
+      ...auth,
+      name: 'bypass-token',
+      password: 'test-password',
+      'bypass-2fa': true,
+    },
+  })
+
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: authToken,
+  })
+
+  registry.createToken({
+    name: 'bypass-token',
+    password: 'test-password',
+    bypass_2fa: true,
+  })
+
+  await npm.exec('token', ['create'])
+  t.match(outputs, ['Created token n3wt0k3n'])
+  t.strictSame(logs.warn, [], 'bypass-2fa alone grants no publish capability, so no warning')
+})
+
+t.test('token create read-write with bypass-2fa warns about direct-publish', async t => {
+  const { npm, outputs, logs } = await loadMockNpm(t, {
+    config: {
+      ...auth,
+      name: 'rw-bypass-token',
+      password: 'test-password',
+      'packages-and-scopes-permission': 'read-write',
+      'bypass-2fa': true,
+    },
+  })
+
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: authToken,
+  })
+
+  registry.createToken({
+    name: 'rw-bypass-token',
+    password: 'test-password',
+    packages_and_scopes_permission: 'read-write',
+    bypass_2fa: true,
+  })
+
+  await npm.exec('token', ['create'])
+  t.match(outputs, ['Created token n3wt0k3n'])
+  t.match(logs.warn, [/publish directly to the registry/], 'warns for read-write automation publish token')
+})

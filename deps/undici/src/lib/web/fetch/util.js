@@ -6,7 +6,7 @@ const { redirectStatusSet, referrerPolicyTokens, badPortsSet } = require('./cons
 const { getGlobalOrigin } = require('./global')
 const { collectAnHTTPQuotedString, parseMIMEType } = require('./data-url')
 const { performance } = require('node:perf_hooks')
-const { ReadableStreamFrom, isValidHTTPToken, normalizedMethodRecordsBase } = require('../../core/util')
+const { isValidHTTPToken, normalizedMethodRecordsBase } = require('../../core/util')
 const assert = require('node:assert')
 const { isUint8Array } = require('node:util/types')
 const { webidl } = require('../webidl')
@@ -872,8 +872,9 @@ function createIterator (name, kInternalIterator, keyIndex = 0, valueIndex = 1) 
  * @param {(target: any) => any} kInternalIterator
  * @param {string | number} [keyIndex]
  * @param {string | number} [valueIndex]
+ * @param {import('../../../types/webidl').WebidlIsFunction} brandCheck
  */
-function iteratorMixin (name, object, kInternalIterator, keyIndex = 0, valueIndex = 1) {
+function iteratorMixin (name, object, kInternalIterator, keyIndex = 0, valueIndex = 1, brandCheck) {
   const makeIterator = createIterator(name, kInternalIterator, keyIndex, valueIndex)
 
   const properties = {
@@ -882,7 +883,7 @@ function iteratorMixin (name, object, kInternalIterator, keyIndex = 0, valueInde
       enumerable: true,
       configurable: true,
       value: function keys () {
-        webidl.brandCheck(this, object)
+        webidl.brandCheck(this, brandCheck)
         return makeIterator(this, 'key')
       }
     },
@@ -891,7 +892,7 @@ function iteratorMixin (name, object, kInternalIterator, keyIndex = 0, valueInde
       enumerable: true,
       configurable: true,
       value: function values () {
-        webidl.brandCheck(this, object)
+        webidl.brandCheck(this, brandCheck)
         return makeIterator(this, 'value')
       }
     },
@@ -900,7 +901,7 @@ function iteratorMixin (name, object, kInternalIterator, keyIndex = 0, valueInde
       enumerable: true,
       configurable: true,
       value: function entries () {
-        webidl.brandCheck(this, object)
+        webidl.brandCheck(this, brandCheck)
         return makeIterator(this, 'key+value')
       }
     },
@@ -909,7 +910,7 @@ function iteratorMixin (name, object, kInternalIterator, keyIndex = 0, valueInde
       enumerable: true,
       configurable: true,
       value: function forEach (callbackfn, thisArg = globalThis) {
-        webidl.brandCheck(this, object)
+        webidl.brandCheck(this, brandCheck)
         webidl.argumentLengthCheck(arguments, 1, `${name}.forEach`)
         if (typeof callbackfn !== 'function') {
           throw new TypeError(
@@ -1483,7 +1484,6 @@ module.exports = {
   isAborted,
   isCancelled,
   isValidEncodedURL,
-  ReadableStreamFrom,
   tryUpgradeRequestToAPotentiallyTrustworthyURL,
   clampAndCoarsenConnectionTimingInfo,
   coarsenedSharedCurrentTime,

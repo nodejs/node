@@ -1,604 +1,510 @@
 const { resolve } = require('node:path')
 const { readFileSync } = require('node:fs')
 const t = require('tap')
-const _mockNpm = require('../../fixtures/mock-npm')
+const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 const { cleanCwd } = require('../../fixtures/clean-snapshot')
 
 t.cleanSnapshot = (str) => cleanCwd(str)
 
-const mockNpm = async (t, { ...opts } = {}) => {
-  const res = await _mockNpm(t, {
-    ...opts,
-    command: 'pkg',
-  })
-
-  const readPackageJson = (dir = '') =>
-    JSON.parse(readFileSync(resolve(res.prefix, dir, 'package.json'), 'utf8'))
-
-  return {
-    ...res,
-    pkg: (...args) => res.npm.exec('pkg', args),
-    readPackageJson,
-    OUTPUT: () => res.joinedOutput(),
-  }
-}
+const readPackageJson = (prefix, dir = '') =>
+  JSON.parse(readFileSync(resolve(prefix, dir, 'package.json'), 'utf8'))
 
 t.test('no args', async t => {
-  const { pkg } = await mockNpm(t)
+  const { npm } = await loadMockNpm(t)
 
   await t.rejects(
-    pkg(),
+    npm.exec('pkg'),
     { code: 'EUSAGE' },
     'should throw usage error'
   )
 })
 
 t.test('no global mode', async t => {
-  const { pkg } = await mockNpm(t, {
-    config: { global: true },
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      global: true,
+    },
   })
 
   await t.rejects(
-    pkg('get', 'foo'),
+    npm.exec('pkg'),
     { code: 'EPKGGLOBAL' },
     'should throw no global mode error'
   )
 })
 
-t.test('get no args', async t => {
-  const { pkg, OUTPUT } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({
-        name: 'foo',
-        version: '1.1.1',
-      }),
-    },
+t.test('get', t => {
+  t.test('no args', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.1.1',
+        }),
+      },
+    })
+    await npm.exec('pkg', ['get'])
+
+    t.matchSnapshot(
+      joinedOutput(),
+      'should print package.json content'
+    )
   })
 
-  await pkg('get')
+  t.test('single arg', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.1.1',
+        }),
+      },
+    })
 
-  t.strictSame(
-    JSON.parse(OUTPUT()),
-    {
+    await npm.exec('pkg', ['get', 'version'])
+
+    t.matchSnapshot(
+      joinedOutput(),
+      'should print retrieved package.json field'
+    )
+  })
+
+  t.test('non string', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.1.1',
+          dependencies: {
+            '@npmcli/test': '*',
+          },
+        }),
+      },
+    })
+
+    await npm.exec('pkg', ['get', 'dependencies'])
+
+    t.matchSnapshot(
+      joinedOutput(),
+      'should print retrieved package.json field'
+    )
+  })
+  t.test('multiple arg', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.1.1',
+        }),
+      },
+    })
+
+    await npm.exec('pkg', ['get', 'name', 'version'])
+
+    t.matchSnapshot(
+      joinedOutput(),
+      'should print retrieved package.json fields'
+    )
+  })
+
+  t.test('multiple arg with only one arg existing', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+        }),
+      },
+    })
+
+    await npm.exec('pkg', ['get', 'name', 'version', 'dependencies'])
+
+    t.matchSnapshot(
+      joinedOutput(),
+      'should print retrieved package.json field'
+    )
+  })
+
+  t.test('multiple arg with empty value', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          author: '',
+        }),
+      },
+    })
+
+    await npm.exec('pkg', ['get', 'name', 'author'])
+
+    t.matchSnapshot(
+      joinedOutput(),
+      'should print retrieved package.json field regardless of empty value'
+    )
+  })
+
+  t.test('nested arg', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.1.1',
+          scripts: {
+            test: 'node test.js',
+          },
+        }),
+      },
+    })
+
+    await npm.exec('pkg', ['get', 'scripts.test'])
+
+    t.matchSnapshot(
+      joinedOutput(),
+      'node test.js',
+      'should print retrieved nested field'
+    )
+  })
+
+  t.test('array field', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.1.1',
+          files: [
+            'index.js',
+            'cli.js',
+          ],
+        }),
+      },
+    })
+
+    await npm.exec('pkg', ['get', 'files'])
+
+    t.matchSnapshot(
+      joinedOutput(),
+      'should print retrieved array field'
+    )
+  })
+
+  t.test('array item', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.1.1',
+          files: [
+            'index.js',
+            'cli.js',
+          ],
+        }),
+      },
+    })
+
+    await npm.exec('pkg', ['get', 'files[0]'])
+
+    t.matchSnapshot(
+      joinedOutput(),
+      'should print retrieved array field'
+    )
+  })
+
+  t.test('json no args', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.1.1',
+        }),
+      },
+      config: {
+        json: true,
+      },
+    })
+    await npm.exec('pkg', ['get'])
+
+    t.matchSnapshot(
+      joinedOutput(),
+      'should print package.json content'
+    )
+  })
+
+  t.test('json with args', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.1.1',
+        }),
+      },
+      config: {
+        json: true,
+      },
+    })
+    await npm.exec('pkg', ['get', 'name'])
+
+    t.matchSnapshot(
+      joinedOutput(),
+      'should print package.json content'
+    )
+  })
+
+  t.test('get array nested items notation', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.1.1',
+          contributors: [
+            {
+              name: 'Ruy',
+              url: 'http://example.com/ruy',
+            },
+            {
+              name: 'Gar',
+              url: 'http://example.com/gar',
+            },
+          ],
+        }),
+      },
+    })
+
+    await npm.exec('pkg', ['get', 'contributors.name'])
+    t.matchSnapshot(
+      joinedOutput(),
+      'should print json result containing matching results'
+    )
+  })
+  t.end()
+})
+
+t.test('set', t => {
+  t.test('set no args', async t => {
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({ name: 'foo' }),
+      },
+    })
+    await t.rejects(
+      npm.exec('pkg', ['set']),
+      { code: 'EUSAGE' },
+      'should throw an error if no args'
+    )
+  })
+
+  t.test('set missing value', async t => {
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({ name: 'foo' }),
+      },
+    })
+    await t.rejects(
+      npm.exec('pkg', ['set', 'key=']),
+      { code: 'EUSAGE' },
+      'should throw an error if missing value'
+    )
+  })
+
+  t.test('set missing key', async t => {
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({ name: 'foo' }),
+      },
+    })
+    await t.rejects(
+      npm.exec('pkg', ['set', '=value']),
+      { code: 'EUSAGE' },
+      'should throw an error if missing key'
+    )
+  })
+
+  t.test('set single field', async t => {
+    const json = {
       name: 'foo',
       version: '1.1.1',
-    },
-    'should print package.json content'
-  )
-})
+    }
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify(json),
+      },
+    })
 
-t.test('get single arg', async t => {
-  const { pkg, OUTPUT } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({
-        name: 'foo',
-        version: '1.1.1',
-      }),
-    },
+    await npm.exec('pkg', ['set', 'description=Awesome stuff'])
+    t.matchSnapshot(
+      readPackageJson(npm.prefix),
+      'should add single field to package.json'
+    )
   })
 
-  await pkg('get', 'version')
-
-  t.strictSame(
-    JSON.parse(OUTPUT()),
-    '1.1.1',
-    'should print retrieved package.json field'
-  )
-})
-
-t.test('get multiple arg', async t => {
-  const { pkg, OUTPUT } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({
-        name: 'foo',
-        version: '1.1.1',
-      }),
-    },
-  })
-
-  await pkg('get', 'name', 'version')
-
-  t.strictSame(
-    JSON.parse(OUTPUT()),
-    {
+  t.test('push to array syntax', async t => {
+    const json = {
       name: 'foo',
       version: '1.1.1',
-    },
-    'should print retrieved package.json field'
-  )
-})
-
-t.test('get multiple arg with only one arg existing', async t => {
-  const { pkg, OUTPUT } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({
-        name: 'foo',
-      }),
-    },
-  })
-
-  await pkg('get', 'name', 'version', 'dependencies')
-
-  t.strictSame(
-    JSON.parse(OUTPUT()),
-    {
-      name: 'foo',
-    },
-    'should print retrieved package.json field'
-  )
-})
-
-t.test('get multiple arg with empty value', async t => {
-  const { pkg, OUTPUT } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({
-        name: 'foo',
-        author: '',
-      }),
-    },
-  })
-
-  await pkg('get', 'name', 'author')
-
-  t.strictSame(
-    JSON.parse(OUTPUT()),
-    {
-      name: 'foo',
-      author: '',
-    },
-    'should print retrieved package.json field regardless of empty value'
-  )
-})
-
-t.test('get nested arg', async t => {
-  const { pkg, OUTPUT } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({
-        name: 'foo',
-        version: '1.1.1',
-        scripts: {
-          test: 'node test.js',
-        },
-      }),
-    },
-  })
-
-  await pkg('get', 'scripts.test')
-
-  t.strictSame(
-    JSON.parse(OUTPUT()),
-    'node test.js',
-    'should print retrieved nested field'
-  )
-})
-
-t.test('get array field', async t => {
-  const files = [
-    'index.js',
-    'cli.js',
-  ]
-  const { pkg, OUTPUT } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({
-        name: 'foo',
-        version: '1.1.1',
-        files,
-      }),
-    },
-  })
-
-  await pkg('get', 'files')
-
-  t.strictSame(
-    JSON.parse(OUTPUT()),
-    files,
-    'should print retrieved array field'
-  )
-})
-
-t.test('get array item', async t => {
-  const files = [
-    'index.js',
-    'cli.js',
-  ]
-  const { pkg, OUTPUT } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({
-        name: 'foo',
-        version: '1.1.1',
-        files,
-      }),
-    },
-  })
-
-  await pkg('get', 'files[0]')
-
-  t.strictSame(
-    JSON.parse(OUTPUT()),
-    'index.js',
-    'should print retrieved array field'
-  )
-})
-
-t.test('get array nested items notation', async t => {
-  const contributors = [
-    {
-      name: 'Ruy',
-      url: 'http://example.com/ruy',
-    },
-    {
-      name: 'Gar',
-      url: 'http://example.com/gar',
-    },
-  ]
-  const { pkg, OUTPUT } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({
-        name: 'foo',
-        version: '1.1.1',
-        contributors,
-      }),
-    },
-  })
-
-  await pkg('get', 'contributors.name')
-  t.strictSame(
-    JSON.parse(OUTPUT()),
-    {
-      'contributors[0].name': 'Ruy',
-      'contributors[1].name': 'Gar',
-    },
-    'should print json result containing matching results'
-  )
-})
-
-t.test('set no args', async t => {
-  const { pkg } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({ name: 'foo' }),
-    },
-  })
-  await t.rejects(
-    pkg('set'),
-    { code: 'EUSAGE' },
-    'should throw an error if no args'
-  )
-})
-
-t.test('set missing value', async t => {
-  const { pkg } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({ name: 'foo' }),
-    },
-  })
-  await t.rejects(
-    pkg('set', 'key='),
-    { code: 'EUSAGE' },
-    'should throw an error if missing value'
-  )
-})
-
-t.test('set missing key', async t => {
-  const { pkg } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({ name: 'foo' }),
-    },
-  })
-  await t.rejects(
-    pkg('set', '=value'),
-    { code: 'EUSAGE' },
-    'should throw an error if missing key'
-  )
-})
-
-t.test('set single field', async t => {
-  const json = {
-    name: 'foo',
-    version: '1.1.1',
-  }
-  const { pkg, readPackageJson } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify(json),
-    },
-  })
-
-  await pkg('set', 'description=Awesome stuff')
-  t.strictSame(
-    readPackageJson(),
-    {
-      ...json,
-      description: 'Awesome stuff',
-    },
-    'should add single field to package.json'
-  )
-})
-
-t.test('push to array syntax', async t => {
-  const json = {
-    name: 'foo',
-    version: '1.1.1',
-    keywords: [
-      'foo',
-    ],
-  }
-  const { pkg, readPackageJson } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify(json),
-    },
-  })
-
-  await pkg('set', 'keywords[]=bar', 'keywords[]=baz')
-  t.strictSame(
-    readPackageJson(),
-    {
-      ...json,
       keywords: [
         'foo',
-        'bar',
-        'baz',
       ],
-    },
-    'should append to arrays using empty bracket syntax'
-  )
-})
+    }
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify(json),
+      },
+    })
 
-t.test('set multiple fields', async t => {
-  const json = {
-    name: 'foo',
-    version: '1.1.1',
-  }
-  const { pkg, readPackageJson } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify(json),
-    },
+    await npm.exec('pkg', ['set', 'keywords[]=bar', 'keywords[]=baz'])
+    t.matchSnapshot(
+      readPackageJson(npm.prefix),
+      'should append to arrays using empty bracket syntax'
+    )
   })
 
-  await pkg('set', 'bin.foo=foo.js', 'scripts.test=node test.js')
-  t.strictSame(
-    readPackageJson(),
-    {
-      ...json,
-      bin: {
-        foo: 'foo.js',
-      },
-      scripts: {
-        test: 'node test.js',
-      },
-    },
-    'should add single field to package.json'
-  )
-})
-
-t.test('set = separate value', async t => {
-  const json = {
-    name: 'foo',
-    version: '1.1.1',
-  }
-  const { pkg, readPackageJson } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify(json),
-    },
-  })
-
-  await pkg('set', 'tap[test-env][0]=LC_ALL=sk')
-  t.strictSame(
-    readPackageJson(),
-    {
-      ...json,
-      tap: {
-        'test-env': [
-          'LC_ALL=sk',
-        ],
-      },
-    },
-    'should add single field to package.json'
-  )
-})
-
-t.test('set --json', async t => {
-  const { pkg, readPackageJson } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({
-        name: 'foo',
-        version: '1.1.1',
-      }),
-    },
-    config: { json: true },
-  })
-
-  await pkg('set', 'private=true')
-  t.strictSame(
-    readPackageJson(),
-    {
+  t.test('set multiple fields', async t => {
+    const json = {
       name: 'foo',
       version: '1.1.1',
-      private: true,
-    },
-    'should add boolean field to package.json'
-  )
+    }
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify(json),
+      },
+    })
 
-  await pkg('set', 'tap.timeout=60')
-  t.strictSame(
-    readPackageJson(),
-    {
+    await npm.exec('pkg', ['set', 'bin.foo=foo.js', 'scripts.test=node test.js'])
+    t.matchSnapshot(
+      readPackageJson(npm.prefix),
+      'should add single field to package.json'
+    )
+  })
+
+  t.test('set = separate value', async t => {
+    const json = {
       name: 'foo',
       version: '1.1.1',
-      private: true,
-      tap: {
-        timeout: 60,
+    }
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify(json),
       },
-    },
-    'should add number field to package.json'
-  )
+    })
 
-  await pkg('set', 'foo={ "bar": { "baz": "BAZ" } }')
-  t.strictSame(
-    readPackageJson(),
-    {
-      name: 'foo',
-      version: '1.1.1',
-      private: true,
-      tap: {
-        timeout: 60,
-      },
-      foo: {
-        bar: {
-          baz: 'BAZ',
-        },
-      },
-    },
-    'should add object field to package.json'
-  )
-
-  await pkg('set', 'workspaces=["packages/*"]')
-  t.strictSame(
-    readPackageJson(),
-    {
-      name: 'foo',
-      version: '1.1.1',
-      private: true,
-      workspaces: [
-        'packages/*',
-      ],
-      tap: {
-        timeout: 60,
-      },
-      foo: {
-        bar: {
-          baz: 'BAZ',
-        },
-      },
-    },
-    'should add object field to package.json'
-  )
-
-  await pkg('set', 'description="awesome"')
-  t.strictSame(
-    readPackageJson(),
-    {
-      name: 'foo',
-      version: '1.1.1',
-      description: 'awesome',
-      private: true,
-      workspaces: [
-        'packages/*',
-      ],
-      tap: {
-        timeout: 60,
-      },
-      foo: {
-        bar: {
-          baz: 'BAZ',
-        },
-      },
-    },
-    'should add object field to package.json'
-  )
-})
-
-t.test('delete no args', async t => {
-  const { pkg } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({ name: 'foo' }),
-    },
+    await npm.exec('pkg', ['set', 'tap[test-env][0]=LC_ALL=sk'])
+    t.matchSnapshot(
+      readPackageJson(npm.prefix),
+      'should add single field to package.json'
+    )
   })
-  await t.rejects(
-    pkg('delete'),
-    { code: 'EUSAGE' },
-    'should throw an error if deleting no args'
-  )
-})
 
-t.test('delete invalid key', async t => {
-  const { pkg } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({ name: 'foo' }),
-    },
+  t.test('set --json', async t => {
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.1.1',
+        }),
+      },
+      config: { json: true },
+    })
+
+    await npm.exec('pkg', ['set', 'private=true'])
+    await npm.exec('pkg', ['set', 'tap.timeout=60'])
+    await npm.exec('pkg', ['set', 'foo={ "bar": { "baz": "BAZ" } }'])
+    await npm.exec('pkg', ['set', 'workspaces=["packages/*"]'])
+    await npm.exec('pkg', ['set', 'description="awesome"'])
+    t.matchSnapshot(
+      readPackageJson(npm.prefix),
+      'should add fields to package.json'
+    )
   })
-  await t.rejects(
-    pkg('delete', ''),
-    { code: 'EUSAGE' },
-    'should throw an error if deleting invalid args'
-  )
+  t.end()
 })
 
-t.test('delete single field', async t => {
-  const { pkg, readPackageJson } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({
-        name: 'foo',
-        version: '1.0.0',
-      }),
-    },
+t.test('delete', t => {
+  t.test('delete no args', async t => {
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({ name: 'foo' }),
+      },
+    })
+    await t.rejects(
+      npm.exec('pkg', ['delete']),
+      { code: 'EUSAGE' },
+      'should throw an error if deleting no args'
+    )
   })
-  await pkg('delete', 'version')
-  t.strictSame(
-    readPackageJson(),
-    {
-      name: 'foo',
-    },
-    'should delete single field from package.json'
-  )
-})
 
-t.test('delete multiple field', async t => {
-  const { pkg, readPackageJson } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({
-        name: 'foo',
-        version: '1.0.0',
-        description: 'awesome',
-      }),
-    },
+  t.test('delete invalid key', async t => {
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({ name: 'foo' }),
+      },
+    })
+    await t.rejects(
+      npm.exec('pkg', ['delete', '']),
+      { code: 'EUSAGE' },
+      'should throw an error if deleting invalid args'
+    )
   })
-  await pkg('delete', 'version', 'description')
-  t.strictSame(
-    readPackageJson(),
-    {
-      name: 'foo',
-    },
-    'should delete multiple fields from package.json'
-  )
-})
 
-t.test('delete nested field', async t => {
-  const { pkg, readPackageJson } = await mockNpm(t, {
-    prefixDir: {
-      'package.json': JSON.stringify({
-        name: 'foo',
-        version: '1.0.0',
-        info: {
-          foo: {
-            bar: [
-              {
-                baz: 'deleteme',
-              },
-            ],
+  t.test('delete single field', async t => {
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.0.0',
+        }),
+      },
+    })
+    await npm.exec('pkg', ['delete', 'version'])
+    t.matchSnapshot(
+      readPackageJson(npm.prefix),
+      'should delete single field from package.json'
+    )
+  })
+
+  t.test('delete multiple field', async t => {
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.0.0',
+          description: 'awesome',
+        }),
+      },
+    })
+    await npm.exec('pkg', ['delete', 'version', 'description'])
+    t.matchSnapshot(
+      readPackageJson(npm.prefix),
+      'should delete multiple fields from package.json'
+    )
+  })
+
+  t.test('delete nested field', async t => {
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'foo',
+          version: '1.0.0',
+          info: {
+            foo: {
+              bar: [
+                {
+                  baz: 'deleteme',
+                },
+              ],
+            },
           },
-        },
-      }),
-    },
-  })
-  await pkg('delete', 'info.foo.bar[0].baz')
-  t.strictSame(
-    readPackageJson(),
-    {
-      name: 'foo',
-      version: '1.0.0',
-      info: {
-        foo: {
-          bar: [
-            {},
-          ],
-        },
+        }),
       },
-    },
-    'should delete nested fields from package.json'
-  )
+    })
+    await npm.exec('pkg', ['delete', 'info.foo.bar[0].baz'])
+    t.matchSnapshot(
+      readPackageJson(npm.prefix),
+      'should delete nested fields from package.json'
+    )
+  })
+  t.end()
 })
 
 t.test('workspaces', async t => {
-  const mockWorkspaces = (t) => mockNpm(t, {
+  const workspaceSetup = {
     prefixDir: {
       'package.json': JSON.stringify({
         name: 'root',
@@ -623,76 +529,63 @@ t.test('workspaces', async t => {
       },
     },
     config: { workspaces: true },
-  })
+  }
 
   t.test('get', async t => {
-    const { pkg, OUTPUT } = await mockWorkspaces(t)
-    await pkg('get', 'name', 'version')
-    t.strictSame(
-      JSON.parse(OUTPUT()),
-      {
-        a: {
-          name: 'a',
-          version: '1.0.0',
-        },
-        b: {
-          name: 'b',
-          version: '1.2.3',
-        },
-      },
+    const { npm, joinedOutput } = await loadMockNpm(t, workspaceSetup)
+    await npm.exec('pkg', ['get', 'name', 'version'])
+    t.matchSnapshot(
+      joinedOutput(),
       'should return expected result for configured workspaces'
     )
   })
 
-  t.test('set', async t => {
-    const { pkg, readPackageJson } = await mockWorkspaces(t)
-
-    await pkg('set', 'funding=http://example.com')
-
-    t.strictSame(
-      readPackageJson('packages/a'),
-      {
-        name: 'a',
-        version: '1.0.0',
-        funding: 'http://example.com',
+  t.test('get json ', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      ...workspaceSetup,
+      config: {
+        json: true,
+        workspaces: true,
       },
+    })
+    await npm.exec('pkg', ['get', 'name', 'version'])
+    t.matchSnapshot(
+      joinedOutput(),
+      'should return expected json result for configured workspaces'
+    )
+  })
+
+  t.test('set', async t => {
+    const { npm } = await loadMockNpm(t, workspaceSetup)
+
+    await npm.exec('pkg', ['set', 'funding=http://example.com'])
+
+    t.matchSnapshot(
+      readPackageJson(npm.prefix, 'packages/a'),
       'should add field to workspace a'
     )
 
-    t.strictSame(
-      readPackageJson('packages/b'),
-      {
-        name: 'b',
-        version: '1.2.3',
-        funding: 'http://example.com',
-      },
+    t.matchSnapshot(
+      readPackageJson(npm.prefix, 'packages/b'),
       'should add field to workspace b'
     )
 
-    await pkg('delete', 'version')
+    await npm.exec('pkg', ['delete', 'version'])
 
-    t.strictSame(
-      readPackageJson('packages/a'),
-      {
-        name: 'a',
-        funding: 'http://example.com',
-      },
+    t.matchSnapshot(
+      readPackageJson(npm.prefix, 'packages/a'),
       'should delete version field from workspace a'
     )
 
-    t.strictSame(
-      readPackageJson('packages/b'),
-      {
-        name: 'b',
-        funding: 'http://example.com',
-      },
+    t.matchSnapshot(
+      readPackageJson(npm.prefix, 'packages/b'),
       'should delete version field from workspace b'
     )
   })
 })
 
 t.test('single workspace', async t => {
-  const mockWorkspace = (t) => mockNpm(t, {
+  const workspaceSetup = {
     prefixDir: {
       'package.json': JSON.stringify({
         name: 'root',
@@ -717,33 +610,31 @@ t.test('single workspace', async t => {
       },
     },
     config: { workspace: ['packages/a'] },
-  })
+  }
 
   t.test('multiple args', async t => {
-    const { pkg, OUTPUT } = await mockWorkspace(t)
-    await pkg('get', 'name', 'version')
+    const { npm, joinedOutput } = await loadMockNpm(t, workspaceSetup)
+    await npm.exec('pkg', ['get', 'name', 'version'])
 
-    t.strictSame(
-      JSON.parse(OUTPUT()),
-      { a: { name: 'a', version: '1.0.0' } },
+    t.matchSnapshot(
+      joinedOutput(),
       'should only return info for one workspace'
     )
   })
 
   t.test('single arg', async t => {
-    const { pkg, OUTPUT } = await mockWorkspace(t)
-    await pkg('get', 'version')
+    const { npm, joinedOutput } = await loadMockNpm(t, workspaceSetup)
+    await npm.exec('pkg', ['get', 'version'])
 
-    t.strictSame(
-      JSON.parse(OUTPUT()),
-      { a: '1.0.0' },
+    t.matchSnapshot(
+      joinedOutput(),
       'should only return info for one workspace'
     )
   })
 })
 
 t.test('fix', async t => {
-  const { pkg, readPackageJson } = await mockNpm(t, {
+  const { npm } = await loadMockNpm(t, {
     prefixDir: {
       'package.json': JSON.stringify({
         name: 'foo ',
@@ -752,10 +643,9 @@ t.test('fix', async t => {
     },
   })
 
-  await pkg('fix')
-  t.strictSame(
-    readPackageJson(),
-    { name: 'foo', version: '1.1.1' },
+  await npm.exec('pkg', ['fix'])
+  t.matchSnapshot(
+    readPackageJson(npm.prefix),
     'fixes package.json issues'
   )
 })

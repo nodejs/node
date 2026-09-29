@@ -46,6 +46,7 @@
 #include "node_snapshot_builder.h"
 #include "node_v8_platform-inl.h"
 #include "node_version.h"
+#include "permission/env_permission.h"
 
 #if HAVE_OPENSSL
 #include "ncrypto.h"
@@ -516,7 +517,7 @@ void ResetSignalHandlers() {
       // The only bad handler value we can inherit from before exec is SIG_IGN
       // (any actual function pointer is reset to SIG_DFL during exec).
       // If that's the case, we want to reset it back to SIG_DFL.
-      // However, it's also possible that an embeder (or an LD_PRELOAD-ed
+      // However, it's also possible that an embedder (or an LD_PRELOAD-ed
       // library) has set up own signal handler for own purposes
       // (e.g. profiling). If that's the case, we want to keep it intact.
       struct sigaction old;
@@ -739,6 +740,14 @@ static void CheckGlobalBenchOptions(std::vector<std::string>* errors) {
   per_process::cli_options->per_isolate->per_env->CheckBenchOptions(errors);
 }
 
+// Validates the options that conflict with --process-timeout once every option
+// source has been parsed. See PerProcessOptions::CheckProcessTimeoutOptions().
+static void CheckGlobalProcessTimeoutOptions(
+    const std::vector<std::string>& argv, std::vector<std::string>* errors) {
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  per_process::cli_options->CheckProcessTimeoutOptions(errors, argv);
+}
+
 static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
                                           std::vector<std::string>* exec_args,
                                           std::vector<std::string>* errors,
@@ -854,6 +863,62 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
 }
 
 static std::atomic_bool init_called{false};
+
+// Collects --allow-env per option source. Files (the configuration file, and
+// NODE_OPTIONS defined in env files) may be controlled by the project being
+// run rather than by whoever started Node.js, so when the command line or the
+// NODE_OPTIONS environment variable enable the permission model, --allow-env
+// values from files can only narrow the access those sources grant.
+class AllowEnvSources {
+ public:
+  explicit AllowEnvSources(EnvironmentOptions* options) : options_(options) {}
+
+  // Must be called before the options of a source are parsed.
+  void BeginSource() {
+    saved_permission_ = options_->permission;
+    saved_permission_audit_ = options_->permission_audit;
+    options_->permission = false;
+    options_->permission_audit = false;
+  }
+
+  // Must be called after the options of a source are parsed.
+  void EndSource(bool trusted) {
+    if (trusted && (options_->permission || options_->permission_audit)) {
+      trusted_enables_permission_ = true;
+    }
+    options_->permission = options_->permission || saved_permission_;
+    options_->permission_audit =
+        options_->permission_audit || saved_permission_audit_;
+
+    std::vector<std::string>& values = trusted ? trusted_ : from_files_;
+    values.insert(
+        values.end(), options_->allow_env.begin(), options_->allow_env.end());
+    options_->allow_env.clear();
+  }
+
+  // Must be called once every source has been parsed.
+  void Finish() {
+    std::vector<std::string> trusted = permission::ParseEnvAllowList(trusted_);
+    std::vector<std::string> from_files =
+        permission::ParseEnvAllowList(from_files_);
+    if (trusted_enables_permission_ && !from_files.empty()) {
+      options_->allow_env =
+          permission::IntersectEnvAllowLists(trusted, from_files);
+      return;
+    }
+    options_->allow_env = std::move(trusted);
+    options_->allow_env.insert(
+        options_->allow_env.end(), from_files.begin(), from_files.end());
+  }
+
+ private:
+  EnvironmentOptions* options_;
+  std::vector<std::string> trusted_;
+  std::vector<std::string> from_files_;
+  bool trusted_enables_permission_ = false;
+  bool saved_permission_ = false;
+  bool saved_permission_audit_ = false;
+};
 
 // TODO(addaleax): Turn this into a wrapper around InitializeOncePerProcess()
 // (with the corresponding additional flags set), then eventually remove this.
@@ -974,6 +1039,9 @@ static ExitCode InitializeNodeWithArgsInternal(
 
   node_options = node_options_from_config + node_options_from_dotenv;
 
+  AllowEnvSources allow_env_sources(
+      per_process::cli_options->per_isolate->per_env.get());
+
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   bool should_parse_node_options =
       !(flags & ProcessInitializationFlags::kDisableNodeOptionsEnv);
@@ -987,8 +1055,9 @@ static ExitCode InitializeNodeWithArgsInternal(
 #endif
   if (should_parse_node_options) {
     // NODE_OPTIONS environment variable is preferred over the file one.
-    if (credentials::SafeGetenv("NODE_OPTIONS", &node_options) ||
-        !node_options.empty()) {
+    const bool node_options_from_env =
+        credentials::SafeGetenv("NODE_OPTIONS", &node_options);
+    if (node_options_from_env || !node_options.empty()) {
       std::vector<std::string> env_argv =
           ParseNodeOptionsEnvVar(node_options, errors);
 
@@ -997,9 +1066,11 @@ static ExitCode InitializeNodeWithArgsInternal(
       // [0] is expected to be the program name, fill it in from the real argv.
       env_argv.insert(env_argv.begin(), argv->at(0));
 
+      allow_env_sources.BeginSource();
       const ExitCode exit_code = ProcessGlobalArgsInternal(
           &env_argv, nullptr, errors, kAllowedInEnvvar);
       if (exit_code != ExitCode::kNoFailure) return exit_code;
+      allow_env_sources.EndSource(/* trusted */ node_options_from_env);
     }
   } else {
     std::string node_repl_external_env = {};
@@ -1022,39 +1093,37 @@ static ExitCode InitializeNodeWithArgsInternal(
     // [0] is expected to be the program name, fill it in from the real argv.
     extra_argv.insert(extra_argv.begin(), argv->at(0));
     // Parse the extra argv coming from the config file
+    allow_env_sources.BeginSource();
     ExitCode exit_code = ProcessGlobalArgsInternal(
         &extra_argv, nullptr, errors, kDisallowedInEnvvar);
     if (exit_code != ExitCode::kNoFailure) return exit_code;
+    allow_env_sources.EndSource(/* trusted */ false);
     // Parse options coming from the command line.
+    allow_env_sources.BeginSource();
     exit_code =
         ProcessGlobalArgsInternal(argv, exec_argv, errors, kDisallowedInEnvvar);
     if (exit_code != ExitCode::kNoFailure) return exit_code;
+    allow_env_sources.EndSource(/* trusted */ true);
   }
+
+  allow_env_sources.Finish();
 
   // Every option source has now been parsed, so cross-source option
   // constraints can finally be validated.
   CheckGlobalBenchOptions(errors);
+  CheckGlobalProcessTimeoutOptions(*argv, errors);
   if (!errors->empty()) return ExitCode::kInvalidCommandLineArgument;
 
-  // Checked here rather than in EnvironmentOptions::CheckOptions(), which runs
-  // at the end of every parse: NODE_OPTIONS is parsed before the command line,
-  // so a check there would reject `NODE_OPTIONS=--vfs-mount=x node
-  // --experimental-vfs` for an --experimental-vfs it had not read yet. These
-  // options only make sense as a set, so they are validated once all of them
-  // are in.
+  // Checked here, once every source of options has been parsed, because the
+  // count below needs the arguments the command line itself gave.
   {
     auto* env_options = per_process::cli_options->per_isolate->per_env.get();
-    if (!env_options->experimental_vfs) {
-      if (!env_options->vfs_mounts.empty()) {
-        errors->push_back("--vfs-mount requires --experimental-vfs");
-      }
-      if (env_options->vfs_load) {
-        errors->push_back("--vfs-load requires --experimental-vfs");
-      }
+    if (!env_options->experimental_vfs && env_options->vfs_load) {
+      errors->push_back("--vfs-load requires --experimental-vfs");
     }
-    // --vfs-load shares vfs_mounts with --vfs-mount, so the options themselves
-    // cannot say how often it was given; count it in the node options the
-    // command line yielded. A second one would silently win over the first.
+    // A second --vfs-load would silently replace the first, and the option
+    // itself cannot say how often it was given; count it in the node options
+    // the command line yielded.
     if (env_options->vfs_load && exec_argv != nullptr) {
       size_t seen = 0;
       for (const std::string& arg : *exec_argv) {
@@ -1166,10 +1235,17 @@ bool CanEnableWebAssemblyTrapHandler() {
 }
 #endif  // NODE_USE_V8_WASM_TRAP_HANDLER
 
+// Whether InitializeOncePerProcessInternal() scrubs the process environment
+// when the permission model restricts access to it. Only node::Start() does
+// this. Embedders own their process environment, and scrub it themselves.
+enum class EnvironmentScrubMode { kNever, kIfRestricted };
+
 static std::shared_ptr<InitializationResultImpl>
-InitializeOncePerProcessInternal(const std::vector<std::string>& args,
-                                 ProcessInitializationFlags::Flags flags =
-                                     ProcessInitializationFlags::kNoFlags) {
+InitializeOncePerProcessInternal(
+    const std::vector<std::string>& args,
+    ProcessInitializationFlags::Flags flags =
+        ProcessInitializationFlags::kNoFlags,
+    EnvironmentScrubMode scrub_mode = EnvironmentScrubMode::kNever) {
   auto result = std::make_shared<InitializationResultImpl>();
   result->args_ = args;
 
@@ -1358,6 +1434,54 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
 #endif  // HAVE_OPENSSL
   }
 
+  {
+    const auto& env_options = per_process::cli_options->per_isolate->per_env;
+    const std::vector<std::string> allow =
+        permission::ParseEnvAllowList(env_options->allow_env);
+    const bool allow_all =
+        std::find(allow.begin(), allow.end(), "*") != allow.end();
+    if (env_options->permission_audit && !allow_all) {
+      // In audit mode nothing is removed, but accesses to the variables that
+      // enforcing the permission model would remove are published.
+      permission::RecordAuditedEnvironmentVariables(allow);
+    } else if (env_options->permission && !allow_all) {
+      if (scrub_mode == EnvironmentScrubMode::kIfRestricted) {
+        // When the permission model is enforced, remove every environment
+        // variable that --allow-env does not grant access to. Every
+        // per-process consumer of the environment has read it by now, and the
+        // process is still single-threaded: the platform worker threads start
+        // below.
+        permission::ScrubProcessEnvironment({.allow = allow});
+      } else {
+        // Embedders own the process environment, and must remove these
+        // variables themselves, with ScrubProcessEnvironment().
+        const std::vector<std::string> denied =
+            permission::FindDeniedEnvironmentVariables(allow);
+        if (!denied.empty()) {
+          constexpr size_t kMaxListedNames = 5;
+          std::string names;
+          for (size_t i = 0; i < denied.size() && i < kMaxListedNames; i++) {
+            if (i > 0) names += ", ";
+            names += denied[i];
+          }
+          if (denied.size() > kMaxListedNames) {
+            names += ", and " +
+                     std::to_string(denied.size() - kMaxListedNames) + " more";
+          }
+          result->errors_.push_back(
+              "The process environment contains variables that --allow-env "
+              "does not grant access to (" +
+              names +
+              "). Remove them with node::ScrubProcessEnvironment() before "
+              "calling node::InitializeOncePerProcess().");
+          result->exit_code_ = ExitCode::kInvalidCommandLineArgument;
+          result->early_return_ = true;
+          return result;
+        }
+      }
+    }
+  }
+
   if (!(flags & ProcessInitializationFlags::kNoInitializeNodeV8Platform)) {
     uv_thread_setname("node-MainThread");
     per_process::v8_platform.Initialize(
@@ -1429,6 +1553,29 @@ std::shared_ptr<InitializationResult> InitializeOncePerProcess(
     const std::vector<std::string>& args,
     ProcessInitializationFlags::Flags flags) {
   return InitializeOncePerProcessInternal(args, flags);
+}
+
+v8::Maybe<std::vector<std::string>> ScrubProcessEnvironment(
+    const ProcessEnvironmentScrubOptions& options) {
+  if (per_process::v8_initialized) {
+    return v8::Nothing<std::vector<std::string>>();
+  }
+  for (const std::string& pattern : options.allow) {
+    if (!permission::IsValidEnvAllowPattern(pattern)) {
+      return v8::Nothing<std::vector<std::string>>();
+    }
+  }
+  return v8::Just(permission::ScrubProcessEnvironment({
+      .allow = options.allow,
+      .keep_runtime_defaults = options.keep_runtime_defaults,
+      .wipe_initial_block = options.wipe_initial_block,
+  }));
+}
+
+std::vector<std::string> GetRuntimeEnvironmentDefaults() {
+  const std::span<const std::string_view> defaults =
+      permission::GetRuntimeEnvironmentDefaults();
+  return std::vector<std::string>(defaults.begin(), defaults.end());
 }
 
 void TearDownOncePerProcess() {
@@ -1662,7 +1809,9 @@ static ExitCode StartInternal(int argc, char** argv) {
 
   std::shared_ptr<InitializationResultImpl> result =
       InitializeOncePerProcessInternal(
-          std::vector<std::string>(argv, argv + argc));
+          std::vector<std::string>(argv, argv + argc),
+          ProcessInitializationFlags::kNoFlags,
+          EnvironmentScrubMode::kIfRestricted);
   for (const std::string& error : result->errors()) {
     FPrintF(stderr, "%s: %s\n", result->args().at(0), error);
   }

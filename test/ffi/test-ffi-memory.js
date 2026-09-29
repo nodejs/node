@@ -132,6 +132,18 @@ test('ffi zero-copy views throw with the V8 sandbox', { skip: !common.hasV8Sandb
   }));
 });
 
+test('ffi toBuffer and toArrayBuffer require a boolean copy argument', () => {
+  withAllocations(common.mustCall((alloc) => {
+    const ptr = alloc(4);
+    const type = { code: 'ERR_INVALID_ARG_TYPE' };
+
+    for (const copy of [null, 0, '', 'false', 1, {}]) {
+      assert.throws(() => ffi.toBuffer(ptr, 4, copy), type);
+      assert.throws(() => ffi.toArrayBuffer(ptr, 4, copy), type);
+    }
+  }));
+});
+
 test('ffi getRawPointer returns raw addresses for byte sources', () => {
   const buffer = Buffer.from([1, 2, 3]);
   const arrayBuffer = new Uint8Array([4, 5, 6, 7]).buffer;
@@ -241,6 +253,14 @@ test('ffi exportString and exportBuffer copy data into native memory', () => {
 
 test('ffi toString returns null for a null pointer', () => {
   assert.strictEqual(ffi.toString(0n), null);
+});
+
+test('ffi accepts zero-length copies through a null pointer', () => {
+  assert.strictEqual(ffi.toBuffer(0n, 0).length, 0);
+  assert.strictEqual(ffi.toArrayBuffer(0n, 0).byteLength, 0);
+  assert.strictEqual(ffi.exportBuffer(Buffer.alloc(0), 0n, 0), undefined);
+  assert.strictEqual(ffi.exportArrayBuffer(new ArrayBuffer(0), 0n, 0), undefined);
+  assert.strictEqual(ffi.exportArrayBufferView(new Uint8Array(0), 0n, 0), undefined);
 });
 
 test('ffi validates memory access arguments', () => {

@@ -4,7 +4,7 @@ const { skipIfSQLiteMissing, mustCall } = require('../common');
 skipIfSQLiteMissing();
 const assert = require('node:assert');
 const { test } = require('node:test');
-const { DatabaseSync } = require('node:sqlite');
+const { Database } = require('node:sqlite');
 
 const reentryError = {
   code: 'ERR_INVALID_STATE',
@@ -17,7 +17,7 @@ const reentryError = {
 // hands out a second iterator over one virtual machine.
 for (const method of ['all', 'get', 'run', 'iterate']) {
   test(`${method}() reentry during parameter binding is rejected`, () => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     db.exec(`
       CREATE TABLE data (value INTEGER);
       INSERT INTO data VALUES (1), (2), (3);
@@ -39,7 +39,7 @@ for (const method of ['all', 'get', 'run', 'iterate']) {
 }
 
 test('two iterators cannot share one virtual machine', () => {
-  const db = new DatabaseSync(':memory:');
+  const db = new Database(':memory:');
   db.exec(`
     CREATE TABLE data (value INTEGER);
     INSERT INTO data VALUES (1), (2), (3);

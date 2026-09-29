@@ -1,4 +1,4 @@
-// Flags: --permission --allow-fs-read=* --allow-child-process
+// Flags: --permission --allow-fs-read=* --allow-child-process --allow-env=NODE_TEST_DIR,TEST_*
 'use strict';
 
 const common = require('../common');
@@ -31,6 +31,7 @@ const file = fixtures.path('permission', 'fs-write.js');
     process.execPath,
     [
       '--permission',
+      '--allow-env=ALLOWEDFILE,ALLOWEDFOLDER,BLOCKEDFILE,BLOCKEDFOLDER,RELATIVEBLOCKEDFILE,RELATIVEBLOCKEDFOLDER',
       '--allow-fs-read=*',
       `--allow-fs-write=${regularFile}`, `--allow-fs-write=${commonPath}`,
       file,

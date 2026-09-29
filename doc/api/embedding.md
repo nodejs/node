@@ -72,6 +72,51 @@ int main(int argc, char** argv) {
 }
 ```
 
+### Restricting access to environment variables
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When the arguments passed to `node::InitializeOncePerProcess()` enable the
+[Permission Model][] without `--allow-env=*`, the process environment must not
+contain any variable that [`--allow-env`][] does not grant access to.
+`node::InitializeOncePerProcess()` fails otherwise. Unlike the `node`
+executable, embedders own the process environment, so Node.js does not remove
+these variables itself.
+
+`node::ScrubProcessEnvironment()` removes them. Because it modifies the process
+environment without any locking that native code calling `getenv()`
+participates in, it must be called before starting any thread that may read the
+environment, and before `node::InitializeOncePerProcess()`:
+
+```cpp
+int main(int argc, char** argv) {
+  argv = uv_setup_args(argc, argv);
+  std::vector<std::string> args(argv, argv + argc);
+
+  // Keep the variables the embedder itself reads, in addition to the ones
+  // Node.js reads (see node::GetRuntimeEnvironmentDefaults()).
+  node::ProcessEnvironmentScrubOptions scrub_options;
+  scrub_options.allow = {"PORT", "APP_*"};
+  if (node::ScrubProcessEnvironment(scrub_options).IsNothing()) {
+    return 1;
+  }
+
+  // args contains, for example, --permission --allow-env=PORT
+  std::unique_ptr<node::InitializationResult> result =
+      node::InitializeOncePerProcess(args, {
+        node::ProcessInitializationFlags::kNoInitializeV8,
+        node::ProcessInitializationFlags::kNoInitializeNodeV8Platform
+      });
+  // ...
+}
+```
+
+`process.permission.drop('env', name)` removes a variable from the process
+environment, so it throws when called from a `node::Environment` created
+without `node::EnvironmentFlags::kOwnsProcessState`.
+
 ### Setting up a per-instance state
 
 <!-- YAML
@@ -178,6 +223,8 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
 ```
 
 [CLI options]: cli.md
+[Permission Model]: permissions.md#permission-model
+[`--allow-env`]: cli.md#--allow-env
 [`process.memoryUsage()`]: process.md#processmemoryusage
 [deprecation policy]: deprecations.md
 [embedtest.cc]: https://github.com/nodejs/node/blob/HEAD/test/embedding/embedtest.cc

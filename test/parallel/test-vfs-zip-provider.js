@@ -72,15 +72,32 @@ async function buildArchive(entries, comment) {
     assert.strictEqual(byName.get('dir').isDirectory(), true);
 
     await assert.rejects(archiveVfs.promises.readdir('/a.txt'), { code: 'ENOTDIR' });
-    await assert.rejects(
-      archiveVfs.promises.readdir('/', { recursive: true }),
-      { code: 'ERR_METHOD_NOT_IMPLEMENTED' },
-    );
+    const recursiveEntries = await archiveVfs.promises.readdir('/', { recursive: true });
+    assert.deepStrictEqual(recursiveEntries.sort(),
+                           ['a.txt', 'dir', 'dir/b.txt', 'empty-dir']);
 
     // readFile / writeFile round trip (new file).
     assert.strictEqual(await archiveVfs.promises.readFile('/a.txt', 'utf8'), 'hello');
     await archiveVfs.promises.writeFile('/new.txt', 'brand new');
     assert.strictEqual(await archiveVfs.promises.readFile('/new.txt', 'utf8'), 'brand new');
+    assert.strictEqual(zip.has('new.txt'), true);
+
+    // Entries cannot be created beneath a file.
+    await assert.rejects(
+      archiveVfs.promises.writeFile('/a.txt/child.txt', 'child'),
+      { code: 'ENOTDIR' },
+    );
+    await assert.rejects(
+      archiveVfs.promises.mkdir('/a.txt/child'),
+      { code: 'ENOTDIR' },
+    );
+    await assert.rejects(
+      archiveVfs.promises.rename('/new.txt', '/a.txt/renamed.txt'),
+      { code: 'ENOTDIR' },
+    );
+    assert.strictEqual(zip.has('a.txt/child.txt'), false);
+    assert.strictEqual(zip.has('a.txt/child/'), false);
+    assert.strictEqual(zip.has('a.txt/renamed.txt'), false);
     assert.strictEqual(zip.has('new.txt'), true);
 
     // Overwriting an existing file.
@@ -214,10 +231,8 @@ async function buildArchive(entries, comment) {
     assert.throws(() => archiveVfs.statSync('/missing.txt'), { code: 'ENOENT' });
     assert.deepStrictEqual(archiveVfs.readdirSync('/').sort(), ['a.txt', 'dir']);
     assert.throws(() => archiveVfs.readdirSync('/a.txt'), { code: 'ENOTDIR' });
-    assert.throws(
-      () => archiveVfs.readdirSync('/', { recursive: true }),
-      { code: 'ERR_METHOD_NOT_IMPLEMENTED' },
-    );
+    assert.deepStrictEqual(archiveVfs.readdirSync('/', { recursive: true }).sort(),
+                           ['a.txt', 'dir', 'dir/b.txt']);
 
     // readFile/writeFile/appendFile round trip.
     assert.strictEqual(archiveVfs.readFileSync('/a.txt', 'utf8'), 'hello');
@@ -225,6 +240,24 @@ async function buildArchive(entries, comment) {
     assert.strictEqual(archiveVfs.readFileSync('/new.txt', 'utf8'), 'brand new');
     archiveVfs.appendFileSync('/new.txt', '!');
     assert.strictEqual(archiveVfs.readFileSync('/new.txt', 'utf8'), 'brand new!');
+
+    // Entries cannot be created beneath a file.
+    assert.throws(
+      () => archiveVfs.writeFileSync('/a.txt/child.txt', 'child'),
+      { code: 'ENOTDIR' },
+    );
+    assert.throws(
+      () => archiveVfs.mkdirSync('/a.txt/child'),
+      { code: 'ENOTDIR' },
+    );
+    assert.throws(
+      () => archiveVfs.renameSync('/new.txt', '/a.txt/renamed.txt'),
+      { code: 'ENOTDIR' },
+    );
+    assert.strictEqual(zip.has('a.txt/child.txt'), false);
+    assert.strictEqual(zip.has('a.txt/child/'), false);
+    assert.strictEqual(zip.has('a.txt/renamed.txt'), false);
+    assert.strictEqual(zip.has('new.txt'), true);
 
     // mkdir/rmdir.
     archiveVfs.mkdirSync('/newdir');

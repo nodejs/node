@@ -466,6 +466,15 @@ example, calling `text()` after `json()` throws a `TypeError`. The body also
 provides `dump({ limit })`, which discards up to `limit` bytes (default
 `131072`) without destroying the socket.
 
+> [!WARNING]
+> The `arrayBuffer()`, `blob()`, `bytes()`, `json()`, and `text()` methods buffer
+> the entire body in memory before returning. Where applicable, they also decode
+> or parse the payload and retain that representation in memory. Calling these
+> methods therefore means trusting that the body is small enough to fit in the
+> available memory. Do not use them for bodies received from untrusted or
+> user-controlled sources. Instead, process `body` as a `Readable` stream and
+> enforce an application-specific size limit.
+
 The body is always a `Readable`, even when empty. Deserializing an empty body
 with `json()` throws. To guard against this, verify the status code is not `204`
 and the `content-type` header starts with `application/json` before calling

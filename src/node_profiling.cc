@@ -17,10 +17,14 @@ static void BuildHeapProfileNode(Isolate* isolate,
                                  const AllocationProfile::Node* node,
                                  JSONWriter* writer) {
   size_t selfSize = 0;
-  for (const auto& allocation : node->allocations)
+  size_t selfCount = 0;
+  for (const auto& allocation : node->allocations) {
     selfSize += allocation.size * allocation.count;
+    selfCount += allocation.count;
+  }
 
   writer->json_keyvalue("selfSize", selfSize);
+  writer->json_keyvalue("selfCount", selfCount);
   writer->json_keyvalue("id", node->node_id);
   writer->json_objectstart("callFrame");
   writer->json_keyvalue("scriptId", node->script_id);
@@ -55,8 +59,11 @@ bool SerializeHeapProfile(Isolate* isolate, std::ostringstream& out_stream) {
   for (const auto& sample : profile->GetSamples()) {
     writer.json_start();
     writer.json_keyvalue("size", sample.size * sample.count);
+    writer.json_keyvalue("objectSize", sample.size);
+    writer.json_keyvalue("objectCount", sample.count);
     writer.json_keyvalue("nodeId", sample.node_id);
     writer.json_keyvalue("ordinal", static_cast<double>(sample.sample_id));
+    writer.json_keyvalue("isLive", sample.is_live);
     writer.json_end();
   }
   writer.json_arrayend();

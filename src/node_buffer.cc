@@ -1086,6 +1086,10 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   } else if (is_forward && offset >= search_end) {
     return args.GetReturnValue().Set(-1);
   }
+  if (enc == UCS2 && is_forward) {
+    offset += offset % sizeof(uint16_t);
+    if (offset >= search_end) return args.GetReturnValue().Set(-1);
+  }
   CHECK_LT(offset, haystack_length);
   if ((is_forward && needle_length + offset > search_end) ||
       needle_length > search_end) {
@@ -1153,8 +1157,8 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                                   is_forward);
   }
 
-  args.GetReturnValue().Set(result >= search_end ? -1
-                                                 : static_cast<int>(result));
+  args.GetReturnValue().Set(
+      result >= search_end ? -1 : static_cast<int64_t>(result));
 }
 
 void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
@@ -1241,11 +1245,11 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
                                   is_forward);
   }
 
-  args.GetReturnValue().Set(result >= search_end ? -1
-                                                 : static_cast<int>(result));
+  args.GetReturnValue().Set(
+      result >= search_end ? -1 : static_cast<int64_t>(result));
 }
 
-int32_t IndexOfNumberImpl(Local<Value> buffer_obj,
+int64_t IndexOfNumberImpl(Local<Value> buffer_obj,
                           const uint32_t needle,
                           const int64_t offset_i64,
                           const int64_t end_i64,
@@ -1272,7 +1276,7 @@ int32_t IndexOfNumberImpl(Local<Value> buffer_obj,
     ptr = nbytes::stringsearch::MemrchrFill(buffer_data, needle, backward_end);
   }
   const uint8_t* ptr_uint8 = static_cast<const uint8_t*>(ptr);
-  return ptr != nullptr ? static_cast<int32_t>(ptr_uint8 - buffer_data) : -1;
+  return ptr != nullptr ? static_cast<int64_t>(ptr_uint8 - buffer_data) : -1;
 }
 
 void SlowIndexOfNumber(const FunctionCallbackInfo<Value>& args) {
@@ -1293,7 +1297,7 @@ void SlowIndexOfNumber(const FunctionCallbackInfo<Value>& args) {
       IndexOfNumberImpl(buffer_obj, needle, offset_i64, end_i64, is_forward));
 }
 
-int32_t FastIndexOfNumber(Local<Value>,
+int64_t FastIndexOfNumber(Local<Value>,
                           Local<Value> buffer_obj,
                           uint32_t needle,
                           int64_t offset_i64,
@@ -1409,6 +1413,28 @@ static bool FastIsAscii(Local<Value> receiver,
 }
 
 static CFunction fast_is_ascii(CFunction::Make(FastIsAscii));
+
+// Returns true if every UTF-16 code unit of the string is <= 0xFF, i.e. the
+// string can be losslessly encoded using Node.js' 'latin1' encoding (which
+// maps U+0000-U+00FF directly to bytes 0x00-0xFF, unlike the WHATWG
+// 'latin1' label, which is an alias for windows-1252).
+// ContainsOnlyOneByte() is O(1) for strings with a one-byte representation,
+// uses SIMD for flat two-byte strings, and traverses cons strings without
+// flattening (no allocation), which makes it safe to call from a fast API
+// call.
+static void IsLatin1(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
+  args.GetReturnValue().Set(args[0].As<String>()->ContainsOnlyOneByte());
+}
+
+static bool FastIsLatin1(Local<Value> receiver, Local<Value> value) {
+  TRACK_V8_FAST_API_CALL("buffer.isLatin1");
+  CHECK(value->IsString());
+  return value.As<String>()->ContainsOnlyOneByte();
+}
+
+static CFunction fast_is_latin1(CFunction::Make(FastIsLatin1));
 
 // Number of UTF-16 code units produced by decoding [p, end) as UTF-8 with
 // WHATWG "maximal subpart" U+FFFD replacement, matching the fallback that
@@ -1924,6 +1950,8 @@ void Initialize(Local<Object> target,
   SetFastMethodNoSideEffect(context, target, "isUtf8", IsUtf8, &fast_is_utf8);
   SetFastMethodNoSideEffect(
       context, target, "isAscii", IsAscii, &fast_is_ascii);
+  SetFastMethodNoSideEffect(
+      context, target, "isLatin1", IsLatin1, &fast_is_latin1);
   SetFastMethodNoSideEffect(context,
                             target,
                             "stringLengthUtf8",
@@ -2004,6 +2032,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(fast_is_utf8);
   registry->Register(IsAscii);
   registry->Register(fast_is_ascii);
+  registry->Register(IsLatin1);
+  registry->Register(fast_is_latin1);
   registry->Register(StringLengthUtf8);
   registry->Register(fast_string_length_utf8);
 

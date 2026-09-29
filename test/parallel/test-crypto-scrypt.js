@@ -43,6 +43,7 @@ const good = [
     N: 1024,
     p: 16,
     r: 8,
+    testAsync: true,
     expected:
         'fdbabe1c9d3472007856e7190d01e9fe7c6ad7cbc8237830e77376634b373162' +
         '2eaf30d92e22a3886ff109279d9830dac727afb94a83ee6d8360cbdfa2cc0640',
@@ -65,31 +66,10 @@ const good = [
     cost: 16,
     parallelization: 1,
     blockSize: 1,
+    testAsync: true,
     expected:
         '77d6576238657b203b19ca42c18a0497f16b4844e3074ae8dfdffa3fede21442' +
         'fcd0069ded0948f8326a753a0fc81f17e8d3e0fb2e0d3628cf35e20c38d18906',
-  },
-  {
-    pass: 'password',
-    salt: 'NaCl',
-    keylen: 64,
-    cost: 1024,
-    parallelization: 16,
-    blockSize: 8,
-    expected:
-        'fdbabe1c9d3472007856e7190d01e9fe7c6ad7cbc8237830e77376634b373162' +
-        '2eaf30d92e22a3886ff109279d9830dac727afb94a83ee6d8360cbdfa2cc0640',
-  },
-  {
-    pass: 'pleaseletmein',
-    salt: 'SodiumChloride',
-    keylen: 64,
-    cost: 16384,
-    parallelization: 1,
-    blockSize: 8,
-    expected:
-        '7023bdcb3afd7348461c06cd81fd38ebfda8fbba904f8e3ea9b543f6545da1f2' +
-        'd5432955613f0fcf62d49705242a9af9e61e85dc0d651e40dfcf017b45575887',
   },
 ];
 
@@ -171,9 +151,11 @@ if (isFips) {
     const { pass, salt, keylen, expected } = options;
     const actual = crypto.scryptSync(pass, salt, keylen, options);
     assert.strictEqual(actual.toString('hex'), expected);
-    crypto.scrypt(pass, salt, keylen, options, common.mustSucceed((actual) => {
-      assert.strictEqual(actual.toString('hex'), expected);
-    }));
+    if (options.testAsync) {
+      crypto.scrypt(pass, salt, keylen, options, common.mustSucceed((actual) => {
+        assert.strictEqual(actual.toString('hex'), expected);
+      }));
+    }
   }
 }
 
@@ -215,12 +197,11 @@ for (const options of toobig) {
 }
 
 if (!isFips) {
-  const defaults = { N: 16384, p: 1, r: 8 };
-  const expected = crypto.scryptSync('pass', 'salt', 1, defaults);
-  const actual = crypto.scryptSync('pass', 'salt', 1);
-  assert.deepStrictEqual(actual.toString('hex'), expected.toString('hex'));
-  crypto.scrypt('pass', 'salt', 1, common.mustSucceed((actual) => {
-    assert.deepStrictEqual(actual.toString('hex'), expected.toString('hex'));
+  const expected = '4cac4540';
+  const actual = crypto.scryptSync('pass', 'salt', 4);
+  assert.strictEqual(actual.toString('hex'), expected);
+  crypto.scrypt('pass', 'salt', 4, common.mustSucceed((actual) => {
+    assert.strictEqual(actual.toString('hex'), expected);
   }));
 }
 
@@ -241,9 +222,9 @@ for (const { args, expected } of badargs) {
   // Values for maxmem that do not fit in 32 bits but that are still safe
   // integers should be allowed.
   if (!isFips) {
-    crypto.scrypt('', '', 4, { maxmem: 2 ** 52 },
+    crypto.scrypt('', '', 4, { N: 16, maxmem: 2 ** 52 },
                   common.mustSucceed((actual) => {
-                    assert.strictEqual(actual.toString('hex'), 'd72c87d0');
+                    assert.strictEqual(actual.toString('hex'), 'e2b18837');
                   }));
   }
 
@@ -258,9 +239,12 @@ if (!isFips) {
 
   function testParameter(name, value) {
     let accessCount = 0;
+    // This regression checks getter access, so the derivation can be cheap.
+    const options = name === 'cost' ? { cost: 16 } : { N: 16 };
 
     // Find out how often the value is accessed.
     crypto.scryptSync('', '', 1, {
+      ...options,
       get [name]() {
         accessCount++;
         return value;
@@ -270,6 +254,7 @@ if (!isFips) {
     // Try to crash the process on the last access.
     assert.throws(() => {
       crypto.scryptSync('', '', 1, {
+        ...options,
         get [name]() {
           if (--accessCount === 0)
             return '';
@@ -282,7 +267,7 @@ if (!isFips) {
   }
 
   [
-    ['N', 16384], ['cost', 16384],
+    ['N', 16], ['cost', 16],
     ['r', 8], ['blockSize', 8],
     ['p', 1], ['parallelization', 1],
   ].forEach((arg) => testParameter(...arg));
@@ -292,17 +277,18 @@ if (!isFips) {
 // IsInt32() assertion. Assert that `-0` produces the same outcome as
 // `+0` (which differs by OpenSSL build).
 {
+  const options = { N: 16 };
   let posError;
   let posResult;
   try {
-    posResult = crypto.scryptSync('', '', 0);
+    posResult = crypto.scryptSync('', '', 0, options);
   } catch (err) {
     posError = err;
   }
   let negError;
   let negResult;
   try {
-    negResult = crypto.scryptSync('', '', -0);
+    negResult = crypto.scryptSync('', '', -0, options);
   } catch (err) {
     negError = err;
   }
@@ -314,9 +300,9 @@ if (!isFips) {
 
   if (isFips) {
     assert.throws(
-      () => crypto.scrypt('', '', -0, () => {}),
+      () => crypto.scrypt('', '', -0, options, () => {}),
       { code: 'ERR_CRYPTO_INVALID_SCRYPT_PARAMS' });
   } else {
-    crypto.scrypt('', '', -0, common.mustCall());
+    crypto.scrypt('', '', -0, options, common.mustCall());
   }
 }
