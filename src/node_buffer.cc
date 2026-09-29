@@ -1655,26 +1655,15 @@ static void SetDetachKey(const FunctionCallbackInfo<Value>& args) {
   ab->SetDetachKey(key);
 }
 
-namespace {
-
-std::pair<void*, size_t> DecomposeBufferToParts(Local<Value> buffer) {
-  void* pointer;
-  size_t byte_length;
-  if (buffer->IsArrayBuffer()) {
-    Local<ArrayBuffer> ab = buffer.As<ArrayBuffer>();
-    pointer = ab->Data();
-    byte_length = ab->ByteLength();
-  } else if (buffer->IsSharedArrayBuffer()) {
-    Local<SharedArrayBuffer> ab = buffer.As<SharedArrayBuffer>();
-    pointer = ab->Data();
-    byte_length = ab->ByteLength();
-  } else {
-    UNREACHABLE();  // Caller must validate.
-  }
-  return {pointer, byte_length};
+void CopyArrayBufferImpl(Local<ArrayBuffer> target,
+                         uint32_t target_start,
+                         Local<ArrayBuffer> source,
+                         uint32_t source_start,
+                         uint32_t bytes_to_copy) {
+  uint32_t bytes_copied = source->CopyArrayBufferBytes(
+      source_start, bytes_to_copy, target, target_start);
+  CHECK_EQ(bytes_copied, bytes_to_copy);
 }
-
-}  // namespace
 
 void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   // args[0] == Destination ArrayBuffer
@@ -1683,36 +1672,36 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   // args[3] == Source ArrayBuffer Offset
   // args[4] == bytesToCopy
 
-  CHECK(args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer());
+  CHECK(args[0]->IsArrayBuffer());
   CHECK(args[1]->IsUint32());
-  CHECK(args[2]->IsArrayBuffer() || args[2]->IsSharedArrayBuffer());
+  CHECK(args[2]->IsArrayBuffer());
   CHECK(args[3]->IsUint32());
   CHECK(args[4]->IsUint32());
 
-  void* destination;
-  size_t destination_byte_length;
-  std::tie(destination, destination_byte_length) =
-      DecomposeBufferToParts(args[0]);
-
-  void* source;
-  size_t source_byte_length;
-  std::tie(source, source_byte_length) = DecomposeBufferToParts(args[2]);
-
-  uint32_t destination_offset = args[1].As<Uint32>()->Value();
-  uint32_t source_offset = args[3].As<Uint32>()->Value();
-  size_t bytes_to_copy = args[4].As<Uint32>()->Value();
-
-  // Assert the offsets are within bounds before the subtractions below, which
-  // would otherwise underflow and defeat the bytes_to_copy bounds checks.
-  CHECK_LE(destination_offset, destination_byte_length);
-  CHECK_LE(source_offset, source_byte_length);
-  CHECK_GE(destination_byte_length - destination_offset, bytes_to_copy);
-  CHECK_GE(source_byte_length - source_offset, bytes_to_copy);
-
-  uint8_t* dest = static_cast<uint8_t*>(destination) + destination_offset;
-  uint8_t* src = static_cast<uint8_t*>(source) + source_offset;
-  memcpy(dest, src, bytes_to_copy);
+  CopyArrayBufferImpl(args[0].As<ArrayBuffer>(),
+                      args[1].As<Uint32>()->Value(),
+                      args[2].As<ArrayBuffer>(),
+                      args[3].As<Uint32>()->Value(),
+                      args[4].As<Uint32>()->Value());
 }
+
+void FastCopyArrayBuffer(Local<Value> receiver,
+                         Local<Value> target,
+                         uint32_t target_start,
+                         Local<Value> source,
+                         uint32_t source_start,
+                         uint32_t bytes_to_copy) {
+  CHECK(target->IsArrayBuffer());
+  CHECK(source->IsArrayBuffer());
+
+  CopyArrayBufferImpl(target.As<ArrayBuffer>(),
+                      target_start,
+                      source.As<ArrayBuffer>(),
+                      source_start,
+                      bytes_to_copy);
+}
+
+static CFunction fast_copy_array_buffer(CFunction::Make(FastCopyArrayBuffer));
 
 // Converts a number parameter to size_t suitable for ArrayBuffer sizes
 // Could be larger than uint32_t
@@ -1937,7 +1926,11 @@ void Initialize(Local<Object> target,
                             &fast_index_of_number);
   SetMethodNoSideEffect(context, target, "indexOfString", IndexOfString);
 
-  SetMethod(context, target, "copyArrayBuffer", CopyArrayBuffer);
+  SetFastMethod(context,
+                target,
+                "copyArrayBuffer",
+                CopyArrayBuffer,
+                &fast_copy_array_buffer);
   SetMethodNoSideEffect(
       context, target, "createUnsafeArrayBuffer", CreateUnsafeArrayBuffer);
   SetMethodNoSideEffect(
@@ -2060,6 +2053,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(StringWrite<UTF8>);
 
   registry->Register(CopyArrayBuffer);
+  registry->Register(fast_copy_array_buffer);
   registry->Register(CreateUnsafeArrayBuffer);
   registry->Register(ArrayBufferAlignedOffset);
 
