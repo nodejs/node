@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -61,7 +61,6 @@ OSSL_CMP_SRV_CTX *OSSL_CMP_SRV_CTX_new(OSSL_LIB_CTX *libctx, const char *propq)
     if ((ctx->ctx = OSSL_CMP_CTX_new(libctx, propq)) == NULL)
         goto err;
     ctx->certReqId = OSSL_CMP_CERTREQID_INVALID;
-    ctx->polling = 0;
 
     /* all other elements are initialized to 0 or NULL, respectively */
     return ctx;
@@ -577,6 +576,60 @@ static int unprotected_exception(const OSSL_CMP_CTX *ctx,
     return 0;
 }
 
+static int assuming_new_transaction(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *req)
+{
+    int body_type = OSSL_CMP_MSG_get_bodytype(req);
+    ASN1_OCTET_STRING *tid;
+
+    if (ctx->transactionID == NULL) /* no currently active transaction */
+        return 1;
+
+    tid = OSSL_CMP_HDR_get0_transactionID(OSSL_CMP_MSG_get0_header(req));
+    if (tid != NULL && ASN1_OCTET_STRING_cmp(tid, ctx->transactionID) != 0) {
+        char *ctx_str = i2s_ASN1_OCTET_STRING(NULL, ctx->transactionID);
+        char *tid_str = i2s_ASN1_OCTET_STRING(NULL, tid);
+
+        ossl_cmp_log2(WARN, ctx, "Assuming that last transaction with ID=%s got aborted, new ID=%s",
+            ctx_str != NULL ? ctx_str : "(null)",
+            tid_str != NULL ? tid_str : "(null)");
+        OPENSSL_free(tid_str);
+        OPENSSL_free(ctx_str);
+        return 1;
+    }
+
+    switch (body_type) {
+    case OSSL_CMP_PKIBODY_IR:
+    case OSSL_CMP_PKIBODY_CR:
+    case OSSL_CMP_PKIBODY_P10CR:
+    case OSSL_CMP_PKIBODY_KUR:
+    case OSSL_CMP_PKIBODY_RR:
+    case OSSL_CMP_PKIBODY_GENM:
+        ossl_cmp_log1(WARN, ctx, "Assuming new transaction due to received body type %s",
+            ossl_cmp_bodytype_to_string(body_type));
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+/* Prepare for next transaction */
+static int transaction_reinit(OSSL_CMP_SRV_CTX *srv_ctx)
+{
+    int ret = 1;
+
+    srv_ctx->ctx->status = OSSL_CMP_PKISTATUS_unspecified; /* transaction closed */
+    srv_ctx->certReqId = OSSL_CMP_CERTREQID_INVALID;
+    srv_ctx->polling = 0;
+
+    if (srv_ctx->clean_transaction != NULL)
+        ret = srv_ctx->clean_transaction(srv_ctx, srv_ctx->ctx->transactionID);
+    if (!OSSL_CMP_CTX_set1_transactionID(srv_ctx->ctx, NULL))
+        ret = 0;
+    if (!OSSL_CMP_CTX_set1_senderNonce(srv_ctx->ctx, NULL))
+        ret = 0;
+    return ret;
+}
+
 /*
  * returns created message and NULL on internal error
  */
@@ -613,48 +666,29 @@ OSSL_CMP_MSG *OSSL_CMP_SRV_process_request(OSSL_CMP_SRV_CTX *srv_ctx,
     if (!OSSL_CMP_CTX_set1_recipient(ctx, hdr->sender->d.directoryName))
         goto err;
 
-    if (srv_ctx->polling && req_type != OSSL_CMP_PKIBODY_POLLREQ
-        && req_type != OSSL_CMP_PKIBODY_ERROR) {
-        ERR_raise(ERR_LIB_CMP, CMP_R_EXPECTED_POLLREQ);
-        goto err;
-    }
-
-    switch (req_type) {
-    case OSSL_CMP_PKIBODY_IR:
-    case OSSL_CMP_PKIBODY_CR:
-    case OSSL_CMP_PKIBODY_P10CR:
-    case OSSL_CMP_PKIBODY_KUR:
-    case OSSL_CMP_PKIBODY_RR:
-    case OSSL_CMP_PKIBODY_GENM:
-    case OSSL_CMP_PKIBODY_ERROR:
-        if (ctx->transactionID != NULL) {
-            char *tid = i2s_ASN1_OCTET_STRING(NULL, ctx->transactionID);
-
-            if (tid != NULL)
-                ossl_cmp_log1(WARN, ctx,
-                    "Assuming that last transaction with ID=%s got aborted",
-                    tid);
-            OPENSSL_free(tid);
-        }
-        /* start of a new transaction, reset transactionID and senderNonce */
-        if (!OSSL_CMP_CTX_set1_transactionID(ctx, NULL)
-            || !OSSL_CMP_CTX_set1_senderNonce(ctx, NULL))
-            goto err;
-
-        if (srv_ctx->clean_transaction != NULL
-            && !srv_ctx->clean_transaction(srv_ctx, NULL)) {
+    if (assuming_new_transaction(ctx, req)) {
+        /*
+         * Start of a new transaction, resetting transactionID and senderNonce.
+         * Must in this case reset transactionID beforehand such that the clean()
+         * callback function gets a NULL transactionID argument, as documented.
+         */
+        (void)OSSL_CMP_CTX_set1_transactionID(ctx, NULL);
+        if (!transaction_reinit(srv_ctx)) {
             ERR_raise(ERR_LIB_CMP, CMP_R_ERROR_PROCESSING_MESSAGE);
             goto err;
         }
-
-        break;
-    default:
+    } else {
         /* transactionID should be already initialized */
         if (ctx->transactionID == NULL) {
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
             ERR_raise(ERR_LIB_CMP, CMP_R_UNEXPECTED_PKIBODY);
             goto err;
 #endif
+        }
+        if (srv_ctx->polling && req_type != OSSL_CMP_PKIBODY_POLLREQ
+            && req_type != OSSL_CMP_PKIBODY_ERROR) {
+            ERR_raise(ERR_LIB_CMP, CMP_R_EXPECTED_POLLREQ);
+            goto err;
         }
     }
 
@@ -741,13 +775,9 @@ err:
     case OSSL_CMP_PKIBODY_PKICONF:
     case OSSL_CMP_PKIBODY_GENP:
         /* Other terminating response message types are not supported */
-        srv_ctx->certReqId = OSSL_CMP_CERTREQID_INVALID;
-        /* Prepare for next transaction, ignoring any errors here: */
-        if (srv_ctx->clean_transaction != NULL)
-            (void)srv_ctx->clean_transaction(srv_ctx, ctx->transactionID);
-        (void)OSSL_CMP_CTX_set1_transactionID(ctx, NULL);
-        (void)OSSL_CMP_CTX_set1_senderNonce(ctx, NULL);
-        ctx->status = OSSL_CMP_PKISTATUS_unspecified; /* transaction closed */
+
+        /* Prepare for next transaction, ignoring any errors here */
+        (void)transaction_reinit(srv_ctx);
 
     default: /* not closing transaction in other cases */
         break;

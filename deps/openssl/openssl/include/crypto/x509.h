@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,6 +14,7 @@
 #include "internal/refcount.h"
 #include <openssl/asn1.h>
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
 #include <openssl/conf.h>
 #include "crypto/types.h"
 
@@ -313,6 +314,8 @@ int ossl_a2i_ipadd(unsigned char *ipout, const char *ipasc);
 int ossl_x509_set1_time(int *modified, ASN1_TIME **ptm, const ASN1_TIME *tm);
 int ossl_x509_print_ex_brief(BIO *bio, X509 *cert, unsigned long neg_cflags);
 int ossl_x509v3_cache_extensions(X509 *x);
+X509_NAME *ossl_dist_point_name_full(const struct DIST_POINT_NAME_st *dpn,
+    const X509_NAME *iname);
 int ossl_x509_init_sig_info(X509 *x);
 
 int ossl_x509_set0_libctx(X509 *x, OSSL_LIB_CTX *libctx, const char *propq);
