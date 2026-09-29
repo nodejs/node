@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,8 +39,7 @@ std::unique_ptr<BigObjHeader> BigObjHeader::create(BinaryStream& stream) {
 
   // BigObj specific
   hdr->version_ = raw->version;
-  std::copy(std::begin(raw->uuid), std::end(raw->uuid),
-            std::begin(hdr->uuid_));
+  std::copy(std::begin(raw->uuid), std::end(raw->uuid), std::begin(hdr->uuid_));
   hdr->sizeof_data_ = raw->unused1;
   hdr->flags_ = raw->unused2;
   hdr->metadata_size_ = raw->unused3;
@@ -50,17 +49,16 @@ std::unique_ptr<BigObjHeader> BigObjHeader::create(BinaryStream& stream) {
 }
 
 std::string BigObjHeader::to_string() const {
-  using namespace fmt;
   std::ostringstream oss;
 
   static constexpr auto WIDTH = 16;
   oss << Header::to_string() << '\n';
-  oss << format("{:>{}} Version\n", version(), WIDTH);
-  oss << format("{:>{}} uuid: {}\n", "", WIDTH, uuid_to_str_impl(uuid_));
-  oss << format("{:>#{}x} Size of data\n", sizeof_data(), WIDTH);
-  oss << format("{:>#{}x} Flags\n", flags(), WIDTH);
-  oss << format("{:>#{}x} Metadata size\n", metadata_size(), WIDTH);
-  oss << format("{:>#{}x} Metadata offset", metadata_offset(), WIDTH);
+  oss << fmt::format("{:>{}} Version\n", version(), WIDTH);
+  oss << fmt::format("{:>{}} uuid: {}\n", "", WIDTH, uuid_to_str_impl(uuid_));
+  oss << fmt::format("{:>#{}x} Size of data\n", sizeof_data(), WIDTH);
+  oss << fmt::format("{:>#{}x} Flags\n", flags(), WIDTH);
+  oss << fmt::format("{:>#{}x} Metadata size\n", metadata_size(), WIDTH);
+  oss << fmt::format("{:>#{}x} Metadata offset", metadata_offset(), WIDTH);
   return oss.str();
 }
 

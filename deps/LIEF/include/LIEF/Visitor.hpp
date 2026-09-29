@@ -1,18 +1,18 @@
-/* Copyright 2017 - 2025 R. Thomas
-* Copyright 2017 - 2025 Quarkslab
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #ifndef LIEF_VISITOR_H
 #define LIEF_VISITOR_H
 #include <set>
@@ -106,6 +106,8 @@ LIEF_ELF_FORWARD(DynamicEntry)
 LIEF_ELF_FORWARD(DynamicEntryArray)
 LIEF_ELF_FORWARD(DynamicEntryLibrary)
 LIEF_ELF_FORWARD(DynamicSharedObject)
+LIEF_ELF_FORWARD(DynamicEntryAuxiliary)
+LIEF_ELF_FORWARD(DynamicEntryFilter)
 LIEF_ELF_FORWARD(DynamicEntryRunPath)
 LIEF_ELF_FORWARD(DynamicEntryRpath)
 LIEF_ELF_FORWARD(DynamicEntryFlags)
@@ -248,6 +250,8 @@ class LIEF_API Visitor {
   LIEF_ELF_VISITABLE(DynamicEntryArray)
   LIEF_ELF_VISITABLE(DynamicEntryLibrary)
   LIEF_ELF_VISITABLE(DynamicSharedObject)
+  LIEF_ELF_VISITABLE(DynamicEntryAuxiliary)
+  LIEF_ELF_VISITABLE(DynamicEntryFilter)
   LIEF_ELF_VISITABLE(DynamicEntryRunPath)
   LIEF_ELF_VISITABLE(DynamicEntryRpath)
   LIEF_ELF_VISITABLE(DynamicEntryFlags)
@@ -279,10 +283,10 @@ class LIEF_API Visitor {
   /// Method to visit a LIEF::PE::DosHeader
   LIEF_PE_VISITABLE(DosHeader)
 
-  /// Method to visit a LIEF::PE:RichHeader
+  /// Method to visit a LIEF::PE::RichHeader
   LIEF_PE_VISITABLE(RichHeader)
 
-  /// Method to visit a LIEF::PE:RichEntry
+  /// Method to visit a LIEF::PE::RichEntry
   LIEF_PE_VISITABLE(RichEntry)
 
   /// Method to visit a LIEF::PE::Header
@@ -342,7 +346,7 @@ class LIEF_API Visitor {
   /// Method to visit a LIEF::PE::ResourceDirectory
   LIEF_PE_VISITABLE(ResourceDirectory)
 
-  /// Method to visit a LIEF::PE::ResourceVersion
+  /// Method to visit a LIEF::PE::ResourcesManager
   LIEF_PE_VISITABLE(ResourcesManager)
 
   /// Method to visit a LIEF::PE::ResourceVersion
@@ -548,16 +552,16 @@ class LIEF_API Visitor {
   /// Method to visit a LIEF::MachO::DyldEnvironment
   LIEF_MACHO_VISITABLE(DyldEnvironment)
 
-  /// Method to visit a LIEF::MachO::DyldEnvironment
+  /// Method to visit a LIEF::MachO::EncryptionInfo
   LIEF_MACHO_VISITABLE(EncryptionInfo)
 
-  /// Method to visit a LIEF::MachO:BuildVersion:
+  /// Method to visit a LIEF::MachO::BuildVersion
   LIEF_MACHO_VISITABLE(BuildVersion)
 
-  /// Method to visit a LIEF::MachO:BuildToolVersion:
+  /// Method to visit a LIEF::MachO::BuildToolVersion
   LIEF_MACHO_VISITABLE(BuildToolVersion)
 
-  /// Method to visit a LIEF::MachO:BuildToolVersion:
+  /// Method to visit a LIEF::MachO::FilesetCommand
   LIEF_MACHO_VISITABLE(FilesetCommand)
 
   /// Method to visit a LIEF::MachO::CodeSignatureDir
@@ -597,7 +601,7 @@ class LIEF_API Visitor {
   /// Method to visit a LIEF::DEX::File
   LIEF_DEX_VISITABLE(File)
 
-/// Method to visit a LIEF::DEX::Field
+  /// Method to visit a LIEF::DEX::Field
   LIEF_DEX_VISITABLE(Field)
 
   /// Method to visit a LIEF::DEX::Method
@@ -615,13 +619,13 @@ class LIEF_API Visitor {
   /// Method to visit a LIEF::DEX::Type
   LIEF_DEX_VISITABLE(Type)
 
-  /// Method to visit a LIEF::DEX:Prototype:
+  /// Method to visit a LIEF::DEX::Prototype
   LIEF_DEX_VISITABLE(Prototype)
 
-  /// Method to visit a LIEF::DEX:MapList:
+  /// Method to visit a LIEF::DEX::MapList
   LIEF_DEX_VISITABLE(MapList)
 
-  /// Method to visit a LIEF::DEX:MapItem:
+  /// Method to visit a LIEF::DEX::MapItem
   LIEF_DEX_VISITABLE(MapItem)
 
   // VDEX part
@@ -651,11 +655,10 @@ class LIEF_API Visitor {
 };
 
 
-
 template<typename Arg1, typename... Args>
 void Visitor::operator()(Arg1&& arg1, Args&&... args) {
   dispatch(std::forward<Arg1>(arg1));
-  operator()(std::forward<Args>(args)... );
+  operator()(std::forward<Args>(args)...);
 }
 
 template<class T>

@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/iterators.hpp"
 #include "LIEF/Abstract/DebugInfo.hpp"
 #include "LIEF/DWARF/CompilationUnit.hpp"
@@ -53,23 +54,26 @@ class LIEF_API DebugInfo : public LIEF::DebugInfo {
   ///   // Found
   /// }
   /// ```
-  std::unique_ptr<Function> find_function(const std::string& name) const;
+  std::unique_ptr<Function>
+      find_function(const std::string& name) const LIEF_LIFETIMEBOUND;
 
   /// Try to find the function at the given **virtual** address
-  std::unique_ptr<Function> find_function(uint64_t addr) const;
+  std::unique_ptr<Function> find_function(uint64_t addr) const LIEF_LIFETIMEBOUND;
 
   /// Try to find the variable with the given name. This name can be mangled or
   /// not.
-  std::unique_ptr<Variable> find_variable(const std::string& name) const;
+  std::unique_ptr<Variable>
+      find_variable(const std::string& name) const LIEF_LIFETIMEBOUND;
 
   /// Try to find the variable at the given **virtual** address
-  std::unique_ptr<Variable> find_variable(uint64_t addr) const;
+  std::unique_ptr<Variable> find_variable(uint64_t addr) const LIEF_LIFETIMEBOUND;
 
   /// Try to find the type with the given name
-  std::unique_ptr<Type> find_type(const std::string& name) const;
+  std::unique_ptr<Type>
+      find_type(const std::string& name) const LIEF_LIFETIMEBOUND;
 
   /// Iterator on the CompilationUnit embedded in this dwarf
-  compilation_units_it compilation_units() const;
+  compilation_units_it compilation_units() const LIEF_LIFETIMEBOUND;
 
   /// Attempt to resolve the address of the function specified by `name`.
   optional<uint64_t> find_function_address(const std::string& name) const override;

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,29 +31,22 @@
 namespace LIEF::COFF {
 
 std::unique_ptr<AuxiliarySymbol>
-  AuxiliarySymbol::parse(Symbol& sym, std::vector<uint8_t> payload)
-{
+    AuxiliarySymbol::parse(Symbol& sym, std::vector<uint8_t> payload) {
   assert(payload.size() >= 18);
   const TYPE ty = get_aux_type(sym);
 
   switch (ty) {
-    case TYPE::CLR_TOKEN:
-      return AuxiliaryCLRToken::parse(payload);
+    case TYPE::CLR_TOKEN: return AuxiliaryCLRToken::parse(payload);
 
-    case TYPE::FUNC_DEF:
-      return AuxiliaryFunctionDefinition::parse(payload);
+    case TYPE::FUNC_DEF: return AuxiliaryFunctionDefinition::parse(payload);
 
-    case TYPE::BF_AND_EF:
-      return AuxiliarybfAndefSymbol::parse(sym, std::move(payload));
+    case TYPE::BF_AND_EF: return AuxiliarybfAndefSymbol::parse(sym, payload);
 
-    case TYPE::WEAK_EXTERNAL:
-      return AuxiliaryWeakExternal::parse(payload);
+    case TYPE::WEAK_EXTERNAL: return AuxiliaryWeakExternal::parse(payload);
 
-    case TYPE::FILE:
-      return AuxiliaryFile::parse(payload);
+    case TYPE::FILE: return AuxiliaryFile::parse(payload);
 
-    case TYPE::SEC_DEF:
-      return AuxiliarySectionDefinition::parse(payload);
+    case TYPE::SEC_DEF: return AuxiliarySectionDefinition::parse(payload);
 
     case TYPE::UNKNOWN:
       return std::make_unique<AuxiliarySymbol>(std::move(payload));
@@ -79,8 +72,7 @@ AuxiliarySymbol::TYPE AuxiliarySymbol::get_aux_type(const Symbol& sym) {
     return TYPE::WEAK_EXTERNAL;
   }
 
-  if (sym.is_external() &&
-      sym.base_type() == Symbol::BASE_TYPE::TY_NULL &&
+  if (sym.is_external() && sym.base_type() == Symbol::BASE_TYPE::TY_NULL &&
       sym.complex_type() == Symbol::COMPLEX_TYPE::TY_FUNCTION &&
       !Symbol::is_reversed_sec_idx(sym.section_idx()))
   {

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,12 +27,13 @@ namespace ELF {
 
 /// Class representing the ".note.android.ident" section
 ///
-/// @see: https://android.googlesource.com/platform/ndk/+/ndk-release-r16/sources/crt/crtbrand.S#39
+/// @see
+/// https://android.googlesource.com/platform/ndk/+/ndk-release-r16/sources/crt/crtbrand.S#39
 class LIEF_API AndroidIdent : public Note {
   public:
-  static constexpr size_t sdk_version_size        = sizeof(uint32_t);
-  static constexpr size_t ndk_version_size        = 64 * sizeof(char);
-  static constexpr size_t ndk_build_number_size   = 64 * sizeof(char);
+  static constexpr size_t sdk_version_size = sizeof(uint32_t);
+  static constexpr size_t ndk_version_size = 64 * sizeof(char);
+  static constexpr size_t ndk_build_number_size = 64 * sizeof(char);
 
   public:
   std::unique_ptr<Note> clone() const override {
@@ -66,17 +67,18 @@ class LIEF_API AndroidIdent : public Note {
     return sdk_version_size + ndk_version_size + ndk_build_number_size;
   }
 
-  LIEF_API friend
-  std::ostream& operator<<(std::ostream& os, const AndroidIdent& note) {
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const AndroidIdent& note) {
     note.dump(os);
     return os;
   }
+
   protected:
   using Note::Note;
 };
 
 
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

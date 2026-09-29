@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,11 @@
 #include "LIEF/MachO/SubFramework.hpp"
 #include "MachO/Structures.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 SubFramework::SubFramework(const details::sub_framework_command& cmd) :
-  LoadCommand::LoadCommand{LoadCommand::TYPE(cmd.cmd), cmd.cmdsize}
-{}
+  LoadCommand::LoadCommand{LoadCommand::TYPE(cmd.cmd), cmd.cmdsize} {}
 
 void SubFramework::accept(Visitor& visitor) const {
   visitor.visit(*this);
@@ -37,5 +36,4 @@ std::ostream& SubFramework::print(std::ostream& os) const {
 }
 
 
-}
 }

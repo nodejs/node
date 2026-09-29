@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,11 @@
  */
 #ifndef LIEF_OBJC_METADATA_H
 #define LIEF_OBJC_METADATA_H
+#include <LIEF/compiler_attributes.hpp>
 #include <LIEF/visibility.h>
 #include <LIEF/ObjC/Class.hpp>
 #include <LIEF/ObjC/Protocol.hpp>
+#include <LIEF/ObjC/Category.hpp>
 
 #include <LIEF/iterators.hpp>
 #include <LIEF/ObjC/DeclOpt.hpp>
@@ -38,20 +40,28 @@ class LIEF_API Metadata {
   public:
   using classes_it = iterator_range<Class::Iterator>;
   using protocols_it = iterator_range<Protocol::Iterator>;
+  using categories_it = iterator_range<Category::Iterator>;
 
   Metadata(std::unique_ptr<details::Metadata> impl);
 
   /// Return an iterator over the different Objective-C classes (`@interface`)
-  classes_it classes() const;
+  classes_it classes() const LIEF_LIFETIMEBOUND;
 
-  /// Return an iterator over the Objective-C protocols declared in this binary (`@protocol`).
-  protocols_it protocols() const;
+  /// Return an iterator over the Objective-C protocols declared in this binary
+  /// (`@protocol`).
+  protocols_it protocols() const LIEF_LIFETIMEBOUND;
+
+  /// Return an iterator over the Objective-C categories declared in this binary
+  /// (e.g. `@interface NSString (MyAdditions)`).
+  categories_it categories() const LIEF_LIFETIMEBOUND;
 
   /// Try to find the Objective-C class with the given **mangled** name
-  std::unique_ptr<Class> get_class(const std::string& name) const;
+  std::unique_ptr<Class>
+      get_class(const std::string& name) const LIEF_LIFETIMEBOUND;
 
   /// Try to find the Objective-C protocol with the given **mangled** name
-  std::unique_ptr<Protocol> get_protocol(const std::string& name) const;
+  std::unique_ptr<Protocol>
+      get_protocol(const std::string& name) const LIEF_LIFETIMEBOUND;
 
   /// Generate a header-like of all the Objective-C metadata identified in the
   /// binary.
@@ -59,6 +69,7 @@ class LIEF_API Metadata {
   std::string to_decl(const DeclOpt& opt = DeclOpt()) const;
 
   ~Metadata();
+
   private:
   std::unique_ptr<details::Metadata> impl_;
 };

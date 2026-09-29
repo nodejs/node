@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 #include <vector>
 #include <ostream>
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/iterators.hpp"
 #include "LIEF/span.hpp"
@@ -35,17 +36,18 @@ struct linkedit_data_command;
 }
 
 /// Interface of the LC_DATA_IN_CODE command
-/// This command is used to list slices of code sections that contain data. The *slices*
-/// information are stored as an array of DataCodeEntry
+/// This command is used to list slices of code sections that contain data. The
+/// *slices* information are stored as an array of DataCodeEntry
 ///
 /// @see DataCodeEntry
 class LIEF_API DataInCode : public LoadCommand {
   friend class BinaryParser;
   friend class LinkEdit;
+
   public:
-  using entries_t        = std::vector<DataCodeEntry>;
+  using entries_t = std::vector<DataCodeEntry>;
   using it_const_entries = const_ref_iterator<const entries_t&>;
-  using it_entries       = ref_iterator<entries_t&>;
+  using it_entries = ref_iterator<entries_t&>;
 
   public:
   DataInCode() = default;
@@ -82,19 +84,19 @@ class LIEF_API DataInCode : public LoadCommand {
   }
 
   /// Iterator over the DataCodeEntry
-  it_const_entries entries() const {
+  it_const_entries entries() const LIEF_LIFETIMEBOUND {
     return entries_;
   }
 
-  it_entries entries() {
+  it_entries entries() LIEF_LIFETIMEBOUND {
     return entries_;
   }
 
-  span<uint8_t> content() {
+  span<uint8_t> content() LIEF_LIFETIMEBOUND {
     return content_;
   }
 
-  span<const uint8_t> content() const {
+  span<const uint8_t> content() const LIEF_LIFETIMEBOUND {
     return content_;
   }
 
@@ -109,11 +111,10 @@ class LIEF_API DataInCode : public LoadCommand {
   }
 
   private:
-  uint32_t  data_offset_ = 0;
-  uint32_t  data_size_   = 0;
+  uint32_t data_offset_ = 0;
+  uint32_t data_size_ = 0;
   entries_t entries_;
   span<uint8_t> content_;
-
 };
 
 }

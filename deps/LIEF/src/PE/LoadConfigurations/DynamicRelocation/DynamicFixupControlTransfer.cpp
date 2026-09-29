@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,25 +27,24 @@ namespace details {
 //     DWORD       IndirectCall       : 1;
 //     DWORD       IATIndex           : 19;
 // } IMAGE_IMPORT_CONTROL_TRANSFER_DYNAMIC_RELOCATION;
-// typedef IMAGE_IMPORT_CONTROL_TRANSFER_DYNAMIC_RELOCATION UNALIGNED * PIMAGE_IMPORT_CONTROL_TRANSFER_DYNAMIC_RELOCATION;
+// typedef IMAGE_IMPORT_CONTROL_TRANSFER_DYNAMIC_RELOCATION UNALIGNED *
+// PIMAGE_IMPORT_CONTROL_TRANSFER_DYNAMIC_RELOCATION;
 struct control_transfer_reloc_t {
   uint32_t page_relative_offset : 12;
-  uint32_t indirect_call        :  1;
-  uint32_t iat_index            : 19;
+  uint32_t indirect_call : 1;
+  uint32_t iat_index : 19;
 };
 
 static_assert(sizeof(control_transfer_reloc_t) == sizeof(uint32_t));
 }
 
 std::string DynamicFixupControlTransfer::reloc_entry_t::to_string() const {
-  using namespace fmt;
-  return format("RVA: 0x{:08x} Instr: {:6} IAT index: {:04d}",
-                rva, is_call ? "call" : "branch", iat_index);
+  return fmt::format("RVA: {:#010x} Instr: {:6} IAT index: {:04d}", rva,
+                     is_call ? "call" : "branch", iat_index);
 }
 
 std::unique_ptr<DynamicFixupControlTransfer>
-  DynamicFixupControlTransfer::parse(Parser& /*ctx*/, SpanStream& strm)
-{
+    DynamicFixupControlTransfer::parse(Parser& /*ctx*/, SpanStream& strm) {
   auto fixup = std::make_unique<DynamicFixupControlTransfer>();
   while (strm) {
     auto PageRVA = strm.read<uint32_t>();
@@ -79,9 +78,9 @@ std::unique_ptr<DynamicFixupControlTransfer>
       }
       const uint32_t rva = *PageRVA + value->page_relative_offset;
       fixup->entries_.push_back({
-        /* rva */rva,
-        /* indirect_call */(bool)value->indirect_call,
-        /* iat_index */(uint16_t)value->iat_index,
+          /* rva */ rva,
+          /* indirect_call */ (bool)value->indirect_call,
+          /* iat_index */ (uint16_t)value->iat_index,
       });
     }
   }
@@ -89,12 +88,11 @@ std::unique_ptr<DynamicFixupControlTransfer>
 }
 
 std::string DynamicFixupControlTransfer::to_string() const {
-  using namespace fmt;
   std::ostringstream oss;
   oss << "Fixup RVAs (Guard Import Control Transfer)\n";
   for (size_t i = 0; i < entries_.size(); ++i) {
     const reloc_entry_t& entry = entries_[i];
-    oss << format("  [{:04d}] {}\n", i, entry.to_string());
+    oss << fmt::format("  [{:04d}] {}\n", i, entry.to_string());
   }
   return oss.str();
 }

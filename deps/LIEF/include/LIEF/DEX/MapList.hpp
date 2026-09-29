@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,9 +38,9 @@ class LIEF_API MapList : public Object {
   friend class Parser;
 
   public:
-  using items_t           = std::map<MapItem::TYPES, MapItem>;
-  using it_items_t        = ref_iterator<std::vector<MapItem*>>;
-  using it_const_items_t  = const_ref_iterator<std::vector<MapItem*>>;
+  using items_t = std::map<MapItem::TYPES, MapItem>;
+  using it_items_t = ref_iterator<std::vector<MapItem*>>;
+  using it_const_items_t = const_ref_iterator<std::vector<MapItem*>>;
 
   public:
   MapList();
@@ -56,10 +56,10 @@ class LIEF_API MapList : public Object {
   bool has(MapItem::TYPES type) const;
 
   /// Return the LIEF::DEX::MapItem associated with the given type
-  const MapItem& get(MapItem::TYPES type) const;
+  const MapItem& get(MapItem::TYPES type) const LIEF_LIFETIMEBOUND;
 
   /// Return the LIEF::DEX::MapItem associated with the given type
-  MapItem& get(MapItem::TYPES type);
+  MapItem& get(MapItem::TYPES type) LIEF_LIFETIMEBOUND;
 
   /// Return the LIEF::DEX::MapItem associated with the given type
   const MapItem& operator[](MapItem::TYPES type) const;
@@ -76,7 +76,6 @@ class LIEF_API MapList : public Object {
 
   private:
   items_t items_;
-
 };
 
 } // Namespace DEX

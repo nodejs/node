@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,11 +22,11 @@
 
 #include "spdlog/fmt/fmt.h"
 
-namespace LIEF {
-namespace ELF {
+
+namespace LIEF::ELF {
 
 result<NoteAbi::version_t> NoteAbi::version() const {
-  NoteAbi::version_t version;
+  version_t version;
   for (size_t i = 0; i < version.size(); ++i) {
     auto res = read_at<uint32_t>(version_offset + i * sizeof(uint32_t));
     if (!res) {
@@ -64,32 +64,24 @@ void NoteAbi::dump(std::ostream& os) const {
   os << '\n';
   auto version_res = version().value_or(version_t({0, 0, 0}));
   auto abi_res = to_string_or(abi(), "???");
-  os << fmt::format("   {}.{}.{} '{}'",
-    version_res[0], version_res[1], version_res[2], abi_res
-  );
+  os << fmt::format("   {}.{}.{} '{}'", version_res[0], version_res[1],
+                    version_res[2], abi_res);
 }
 
 
 const char* to_string(NoteAbi::ABI abi) {
-  #define ENTRY(X) std::pair(NoteAbi::ABI::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(LINUX),
-    ENTRY(GNU),
-    ENTRY(SOLARIS2),
-    ENTRY(FREEBSD),
-    ENTRY(NETBSD),
-    ENTRY(SYLLABLE),
-    ENTRY(NACL),
+#define ENTRY(X) std::pair(NoteAbi::ABI::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(LINUX),  ENTRY(GNU),      ENTRY(SOLARIS2), ENTRY(FREEBSD),
+      ENTRY(NETBSD), ENTRY(SYLLABLE), ENTRY(NACL),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(abi); it != enums2str.end()) {
     return it->second;
   }
 
   return "UNKNOWN";
-
 }
 
-} // namespace ELF
-} // namespace LIEF
+} // namespace LIEF::ELF

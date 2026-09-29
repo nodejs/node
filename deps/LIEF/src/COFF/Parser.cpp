@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,14 +24,22 @@
 #include "LIEF/COFF/AuxiliarySymbol.hpp"
 #include "LIEF/COFF/AuxiliarySymbols/AuxiliaryCLRToken.hpp"
 
+#include "LIEF/BinaryStream/VectorStream.hpp"
+#include "LIEF/BinaryStream/SpanStream.hpp"
+
 #include "COFF/structures.hpp"
 
 #include "logging.hpp"
 
 namespace LIEF::COFF {
+Parser::Parser(std::unique_ptr<BinaryStream> stream, const ParserConfig& config,
+               Header::KIND kind) :
+  stream_(std::move(stream)),
+  kind_(kind),
+  config_(config) {}
+
 std::unique_ptr<Binary> Parser::parse(std::unique_ptr<BinaryStream> stream,
-                                      const ParserConfig& config)
-{
+                                      const ParserConfig& config) {
   if (stream == nullptr) {
     return nullptr;
   }
@@ -50,6 +58,15 @@ std::unique_ptr<Binary> Parser::parse(std::unique_ptr<BinaryStream> stream,
   return nullptr;
 }
 
+std::unique_ptr<Binary> Parser::parse(const std::string& file,
+                                      const ParserConfig& config) {
+  if (auto strm = VectorStream::from_file(file)) {
+    return parse(std::unique_ptr<VectorStream>(new VectorStream(std::move(*strm))),
+                 config);
+  }
+  return nullptr;
+}
+
 ok_error_t Parser::process() {
   if (!parse_header()) {
     LIEF_WARN("Failed to parse COFF header");
@@ -57,12 +74,12 @@ ok_error_t Parser::process() {
   }
 
   if (!parse_optional_header()) {
-    LIEF_WARN("Failed to parse optional header");
+    LIEF_WARN("Failed to parse COFF optional header");
     return make_error_code(lief_errors::parsing_error);
   }
 
   if (!parse_string_table()) {
-    LIEF_WARN("Failed to parse the string table");
+    LIEF_WARN("Failed to parse string table");
     return make_error_code(lief_errors::parsing_error);
   }
 
@@ -83,7 +100,7 @@ ok_error_t Parser::parse_header() {
   LIEF_DEBUG("Parsing COFF header ({})", to_string(kind_));
   std::unique_ptr<Header> hdr = Header::create(*stream_, kind_);
   if (hdr == nullptr) {
-    LIEF_DEBUG("Error: {}:{}", __FUNCTION__, __LINE__);
+    LIEF_DEBUG("Failed to create header at {}:{}", __FUNCTION__, __LINE__);
     return make_error_code(lief_errors::parsing_error);
   }
   bin_->header_ = std::move(hdr);
@@ -105,7 +122,7 @@ ok_error_t Parser::parse_optional_header() {
 
   std::vector<uint8_t> raw_opt_hdr;
   if (!stream_->read_data(raw_opt_hdr, sz)) {
-    LIEF_ERR("Can't read COFF optional header");
+    LIEF_ERR("Failed to read COFF optional header");
     return make_error_code(lief_errors::parsing_error);
   }
 
@@ -113,27 +130,39 @@ ok_error_t Parser::parse_optional_header() {
 }
 
 ok_error_t Parser::parse_sections() {
-  const size_t nb_sections = bin_->header().nb_sections();
-  LIEF_DEBUG("Parsing #{} section (offset=0x{:08x})", nb_sections,
-              (uint32_t)stream_->pos());
+  size_t nb_sections = bin_->header().nb_sections();
+  if (nb_sections > MAX_NB_SECTIONS) {
+    LIEF_WARN("COFF number of sections ({}) exceeds the limit ({})", nb_sections,
+              MAX_NB_SECTIONS);
+    nb_sections = MAX_NB_SECTIONS;
+  }
+  LIEF_DEBUG("Parsing {} sections (offset={:#010x})", nb_sections,
+             (uint32_t)stream_->pos());
   for (size_t i = 0; i < nb_sections; ++i) {
     std::unique_ptr<Section> sec = Section::parse(*stream_);
     if (sec == nullptr) {
-      LIEF_WARN("Can't parse section #{}", i);
+      LIEF_WARN("Failed to parse section #{}", i);
       break;
     }
     if (!parse_relocations(*sec)) {
-      LIEF_INFO("Failed to parse relocation of section #{}", i);
+      LIEF_INFO("Failed to parse relocations for section #{}", i);
     }
 
     // Resolve symbols associated with this section
-    auto range = std::equal_range(symsec_.begin(), symsec_.end(),
-        SymSec{i, nullptr}
-    );
-    for (auto it = range.first; it != range.second; ++it) {
+    auto [first, last] =
+        std::equal_range(symsec_.begin(), symsec_.end(), SymSec{i, nullptr});
+    for (auto it = first; it != last; ++it) {
       assert(it->symbol != nullptr);
       it->symbol->section_ = sec.get();
       sec->symbols_.push_back(it->symbol);
+    }
+
+    if (const std::string& name = sec->name(); name.size() > 1 && name[0] == '/') {
+      char* endptr = nullptr;
+      uint32_t offset = std::strtol(name.c_str() + 1, &endptr, /*base=*/10);
+      if (String* coff_str = bin_->find_string(offset)) {
+        sec->coff_string_ = coff_str;
+      }
     }
 
     bin_->sections_.push_back(std::move(sec));
@@ -149,22 +178,22 @@ ok_error_t Parser::parse_relocations(Section& section) {
     return ok();
   }
 
-  LIEF_DEBUG("Parsing #{} relocations at offset: {:#x} (section: '{}')",
+  LIEF_DEBUG("Parsing {} relocations at offset {:#x} (section: '{}')",
              nb_relocations, reloc_offset, section.name());
 
   ScopedStream strm(*stream_, reloc_offset);
 
   if (section.has_extended_relocations()) {
     std::unique_ptr<Relocation> reloc =
-      Relocation::parse(*strm, bin_->header().machine());
+        Relocation::parse(*strm, bin_->header().machine());
 
     if (reloc == nullptr) {
-      LIEF_ERR("Can't parse the first relocations");
+      LIEF_ERR("Failed to parse first relocation");
       return ok();
     }
 
     if (reloc->address() < 1) {
-      LIEF_ERR("Invalid number of relocations");
+      LIEF_ERR("Invalid relocation count");
       return ok();
     }
 
@@ -176,13 +205,16 @@ ok_error_t Parser::parse_relocations(Section& section) {
     bin_->relocations_.push_back(std::move(reloc));
   }
 
+  nb_relocations = std::min<size_t>(nb_relocations,
+                                    stream_->size() / sizeof(details::relocation));
 
   for (size_t i = 0; i < nb_relocations; ++i) {
     std::unique_ptr<Relocation> reloc =
-      Relocation::parse(*strm, bin_->header().machine());
+        Relocation::parse(*strm, bin_->header().machine());
 
     if (reloc == nullptr) {
-      LIEF_WARN("Can't parse relocation #{} in section: '{}'", i, section.name());
+      LIEF_WARN("Failed to parse relocation #{} in section '{}'", i,
+                section.name());
       break;
     }
 
@@ -199,11 +231,10 @@ ok_error_t Parser::parse_relocations(Section& section) {
 }
 
 String* Parser::find_coff_string(uint32_t offset) const {
-  auto it = memoize_coff_str_.find(offset);
-  if (it == memoize_coff_str_.end()) {
-    return nullptr;
+  if (auto it = memoize_coff_str_.find(offset); it != memoize_coff_str_.end()) {
+    return &bin_->strings_table_[it->second];
   }
-  return &bin_->strings_table_[it->second];
+  return nullptr;
 }
 
 ok_error_t Parser::parse_symbols() {
@@ -215,20 +246,18 @@ ok_error_t Parser::parse_symbols() {
   }
 
   ScopedStream strm(*stream_, symbols_offset);
-  Symbol::parsing_context_t ctx {
-    /*.find_string =*/ [this] (uint32_t offset) {
-      return this->find_coff_string(offset);
-    },
-    /*is_bigobj=*/kind_ == Header::KIND::BIGOBJ
-  };
-  LIEF_DEBUG("Parsing #{} symbols at {:#x}", nb_symbols, symbols_offset);
+  Symbol::parsing_context_t ctx{/*.find_string =*/[this](uint32_t offset) {
+                                  return this->find_coff_string(offset);
+                                },
+                                /*is_bigobj=*/kind_ == Header::KIND::BIGOBJ};
+  LIEF_DEBUG("Parsing {} symbols at {:#x}", nb_symbols, symbols_offset);
 
   std::vector<AuxiliaryCLRToken*> pending_resolution;
   for (size_t idx = 0; idx < nb_symbols;) {
     size_t current_idx = idx;
     std::unique_ptr<Symbol> sym = Symbol::parse(ctx, *strm, &idx);
     if (sym == nullptr) {
-      LIEF_WARN("Can't parse symbol #{}", idx);
+      LIEF_WARN("Failed to parse symbol #{}", idx);
       break;
     }
 
@@ -240,7 +269,9 @@ ok_error_t Parser::parse_symbols() {
       pending_resolution.push_back(crl_token);
     }
 
-    if (sym->section_idx() > 0 && (uint32_t)sym->section_idx() <= hdr.nb_sections()) {
+    if (sym->section_idx() > 0 &&
+        (uint32_t)sym->section_idx() <= hdr.nb_sections())
+    {
       symsec_.push_back({(size_t)sym->section_idx() - 1, sym.get()});
     }
 
@@ -271,13 +302,21 @@ ok_error_t Parser::parse_string_table() {
   if (symbols_offset == 0) {
     return ok();
   }
-  const size_t sizeof_sym =
-    kind_ ==  Header::KIND::BIGOBJ ? sizeof(details::symbol32) :
-                                     sizeof(details::symbol16);
+  const size_t sizeof_sym = kind_ == Header::KIND::BIGOBJ ?
+                                sizeof(details::symbol32) :
+                                sizeof(details::symbol16);
 
-  const uint32_t string_tbl_offset = symbols_offset + nb_symbols * sizeof_sym;
+  const uint64_t string_tbl_offset =
+      static_cast<uint64_t>(symbols_offset) +
+      static_cast<uint64_t>(nb_symbols) * sizeof_sym;
 
-  LIEF_DEBUG("Parsing string table (offset: {:#x})", string_tbl_offset);
+  if (string_tbl_offset + sizeof(uint32_t) > stream_->size()) {
+    LIEF_DEBUG("COFF string table offset ({:#x}) is out of bounds",
+               string_tbl_offset);
+    return ok();
+  }
+
+  LIEF_DEBUG("Parsing string table (offset {:#x})", string_tbl_offset);
 
   ScopedStream scoped(*stream_, string_tbl_offset);
   auto table_sz = scoped->read<uint32_t>();
@@ -303,10 +342,10 @@ ok_error_t Parser::parse_string_table() {
       break;
     }
 
-    LIEF_DEBUG("string[0x{:06x}]: {}", pos, *str);
+    LIEF_DEBUG("string[{:#08x}]: {}", pos, *str);
     memoize(String(pos, std::move(*str)));
   }
-  LIEF_DEBUG("#{} strings found", bin_->strings_table_.size());
+  LIEF_DEBUG("{} strings found", bin_->strings_table_.size());
 
   return ok();
 }

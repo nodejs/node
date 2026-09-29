@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,17 +31,15 @@ class Parser;
 class Builder;
 class Binary;
 
-/// Class which represent a Mach-O (fat) binary
+/// Class which represents a Mach-O (fat) binary
 /// This object is also used for representing Mach-O binaries that are **NOT FAT**
 class LIEF_API FatBinary {
-
   friend class LIEF::Parser;
   friend class Parser;
   friend class Builder;
 
   public:
-
-  /// Internal containter used to store Binary objects within a Fat Mach-O
+  /// Internal container used to store Binary objects within a Fat Mach-O
   using binaries_t = std::vector<std::unique_ptr<Binary>>;
 
   /// Iterator that outputs Binary&
@@ -52,6 +50,13 @@ class LIEF_API FatBinary {
 
   FatBinary(const FatBinary&) = delete;
   FatBinary& operator=(const FatBinary&) = delete;
+
+  /// Create a FatBinary object from the provided list of Binary objects.
+  ///
+  /// The binaries **must** target different architectures (i.e. unique
+  /// CPU type and subtype). If a duplicate architecture is detected,
+  /// this function returns a nullptr.
+  static std::unique_ptr<FatBinary> create(binaries_t binaries);
 
   virtual ~FatBinary();
 
@@ -65,10 +70,10 @@ class LIEF_API FatBinary {
     return binaries_.empty();
   }
 
-  it_binaries begin() {
+  it_binaries begin() LIEF_LIFETIMEBOUND {
     return binaries_;
   }
-  it_const_binaries begin() const {
+  it_const_binaries begin() const LIEF_LIFETIMEBOUND {
     return binaries_;
   }
 
@@ -80,22 +85,43 @@ class LIEF_API FatBinary {
     return it_const_binaries(binaries_).end();
   }
 
-  void release_all_binaries();
+  void release_all_binaries() {
+    for (auto& bin : binaries_) {
+      bin.release(); // NOLINT(bugprone-unused-return-value)
+    }
+  }
 
-  /// Get a pointer to the last MachO::Binary object presents in this Fat Binary.
-  /// It returns a nullptr if no binary are present.
+  /// Get a pointer to the last MachO::Binary object present in this Fat Binary.
+  /// It returns a nullptr if no binaries are present.
   std::unique_ptr<Binary> pop_back();
 
   /// Get a pointer to the MachO::Binary specified by the ``index``.
   /// It returns a nullptr if the binary does not exist at the given index.
-  Binary*       at(size_t index);
-  const Binary* at(size_t index) const;
+  Binary* at(size_t index) LIEF_LIFETIMEBOUND {
+    return const_cast<Binary*>(static_cast<const FatBinary*>(this)->at(index));
+  }
 
-  Binary*       back();
-  const Binary* back() const;
+  const Binary* at(size_t index) const LIEF_LIFETIMEBOUND {
+    if (index >= size()) {
+      return nullptr;
+    }
+    return binaries_[index].get();
+  }
 
-  Binary*       front();
-  const Binary* front() const;
+  Binary* back() {
+    return const_cast<Binary*>(static_cast<const FatBinary*>(this)->back());
+  }
+  const Binary* back() const {
+    return binaries_.empty() ? nullptr : binaries_.back().get();
+  }
+
+  Binary* front() {
+    return const_cast<Binary*>(static_cast<const FatBinary*>(this)->front());
+  }
+
+  const Binary* front() const {
+    return binaries_.empty() ? nullptr : binaries_.front().get();
+  }
 
   Binary* operator[](size_t index) {
     return at(index);
@@ -107,7 +133,7 @@ class LIEF_API FatBinary {
   /// Extract a MachO::Binary object. Gives ownership to the caller, and
   /// remove it from this FatBinary object.
   ///
-  /// @warning: this invalidates any previously hold iterator!
+  /// @warning This invalidates any previously held iterator!
   std::unique_ptr<Binary> take(size_t index);
 
   /// Take the underlying MachO::Binary that matches the given architecture
@@ -118,10 +144,26 @@ class LIEF_API FatBinary {
   /// @param filename Path to write the reconstructed binary
   void write(const std::string& filename);
 
-  /// Reconstruct the Fat binary object and return his content as bytes
+  /// Reconstruct the Fat binary object and return its content as bytes
   std::vector<uint8_t> raw();
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const FatBinary& fatbinary);
+  Binary* get(Header::CPU_TYPE cpu) LIEF_LIFETIMEBOUND {
+    return const_cast<Binary*>(static_cast<const FatBinary*>(this)->get(cpu));
+  }
+
+  /// Gets a pointer to the MachO::Binary that matches the given architecture
+  const Binary* get(Header::CPU_TYPE cpu) const LIEF_LIFETIMEBOUND;
+
+  Binary* operator[](Header::CPU_TYPE cpu) {
+    return get(cpu);
+  }
+
+  const Binary* operator[](Header::CPU_TYPE cpu) const {
+    return get(cpu);
+  }
+
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const FatBinary& fatbinary);
 
   private:
   LIEF_LOCAL FatBinary();

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,8 +40,7 @@ class LIEF_API FilesetCommand : public LoadCommand {
   FilesetCommand() = default;
   FilesetCommand(const details::fileset_entry_command& command);
   FilesetCommand(std::string name) :
-    name_(std::move(name))
-  {}
+    name_(std::move(name)) {}
 
   FilesetCommand& operator=(FilesetCommand copy);
   FilesetCommand(const FilesetCommand& copy);
@@ -71,11 +70,11 @@ class LIEF_API FilesetCommand : public LoadCommand {
 
   /// Return a pointer on the LIEF::MachO::Binary associated
   /// with this entry
-  const Binary* binary() const {
+  const Binary* binary() const LIEF_LIFETIMEBOUND {
     return binary_;
   }
 
-  Binary* binary() {
+  Binary* binary() LIEF_LIFETIMEBOUND {
     return binary_;
   }
 

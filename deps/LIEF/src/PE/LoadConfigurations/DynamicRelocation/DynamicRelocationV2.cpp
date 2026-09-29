@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,7 @@ namespace LIEF::PE {
 
 template<class PE_T>
 std::unique_ptr<DynamicRelocationV2>
-  DynamicRelocationV2::parse(Parser& /*ctx*/, BinaryStream& stream)
-{
+    DynamicRelocationV2::parse(Parser& /*ctx*/, BinaryStream& stream) {
   using ptr_t = typename PE_T::uint;
   auto v2 = std::make_unique<DynamicRelocationV2>();
   // typedef struct _IMAGE_DYNAMIC_RELOCATION32_V2 {
@@ -78,9 +77,7 @@ std::unique_ptr<DynamicRelocationV2>
   {
     // Note(romain): As of now (2024-12) I couldn't find any PE that is using
     // the v2 format. Hence this part is incomplete/not working.
-    stream
-      .increment_pos(*HeaderSize)
-      .increment_pos(*FixupInfoSize);
+    stream.increment_pos(*HeaderSize).increment_pos(*FixupInfoSize);
   }
 }
 

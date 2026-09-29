@@ -4,7 +4,7 @@
 #pragma once
 
 #ifndef SPDLOG_HEADER_ONLY
-    #include <spdlog/details/registry.h>
+#include <spdlog/details/registry.h>
 #endif
 
 #include <spdlog/common.h>
@@ -13,12 +13,12 @@
 #include <spdlog/pattern_formatter.h>
 
 #ifndef SPDLOG_DISABLE_DEFAULT_LOGGER
-    // support for the default stdout color logger
-    #ifdef _WIN32
-        #include <spdlog/sinks/wincolor_sink.h>
-    #else
-        #include <spdlog/sinks/ansicolor_sink.h>
-    #endif
+// support for the default stdout color logger
+#ifdef _WIN32
+#include <spdlog/sinks/wincolor_sink.h>
+#else
+#include <spdlog/sinks/ansicolor_sink.h>
+#endif
 #endif  // SPDLOG_DISABLE_DEFAULT_LOGGER
 
 #include <chrono>
@@ -33,12 +33,12 @@ namespace details {
 SPDLOG_INLINE registry::registry()
     : formatter_(new pattern_formatter()) {
 #ifndef SPDLOG_DISABLE_DEFAULT_LOGGER
-    // create default logger (ansicolor_stdout_sink_mt or wincolor_stdout_sink_mt in windows).
-    #ifdef _WIN32
+// create default logger (ansicolor_stdout_sink_mt or wincolor_stdout_sink_mt in windows).
+#ifdef _WIN32
     auto color_sink = std::make_shared<sinks::wincolor_stdout_sink_mt>();
-    #else
+#else
     auto color_sink = std::make_shared<sinks::ansicolor_stdout_sink_mt>();
-    #endif
+#endif
 
     const char *default_logger_name = "";
     default_logger_ = std::make_shared<spdlog::logger>(default_logger_name, std::move(color_sink));
@@ -101,7 +101,7 @@ SPDLOG_INLINE std::shared_ptr<logger> registry::default_logger() {
 SPDLOG_INLINE logger *registry::get_default_raw() { return default_logger_.get(); }
 
 // set default logger.
-// default logger is stored in default_logger_ (for faster retrieval) and in the loggers_ map.
+// the default logger is stored in default_logger_ (for faster retrieval) and in the loggers_ map.
 SPDLOG_INLINE void registry::set_default_logger(std::shared_ptr<logger> new_default_logger) {
     std::lock_guard<std::mutex> lock(logger_map_mutex_);
     if (new_default_logger != nullptr) {

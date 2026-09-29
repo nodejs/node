@@ -5,4 +5,5 @@ target_sources(LIB_LIEF PRIVATE
   MemoryStream.cpp
   SpanStream.cpp
   VectorStream.cpp
+  DumpStream.cpp
 )

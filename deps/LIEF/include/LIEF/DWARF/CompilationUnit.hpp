@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,11 @@
 #include <string>
 #include <vector>
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/range.hpp"
 #include "LIEF/iterators.hpp"
+#include "LIEF/DebugDeclOpt.hpp"
 #include "LIEF/DWARF/Function.hpp"
 #include "LIEF/DWARF/Type.hpp"
 
@@ -35,61 +37,52 @@ class CompilationUnitIt;
 /// This class represents a DWARF compilation unit
 class LIEF_API CompilationUnit {
   public:
-  class LIEF_API Iterator {
+  class Iterator final
+    : public iterator_facade_base<Iterator, std::bidirectional_iterator_tag,
+                                  CompilationUnit, std::ptrdiff_t,
+                                  const CompilationUnit*, const CompilationUnit&> {
     public:
-    using iterator_category = std::bidirectional_iterator_tag;
-    using value_type = std::unique_ptr<CompilationUnit>;
-    using difference_type = std::ptrdiff_t;
-    using pointer = CompilationUnit*;
-    using reference = std::unique_ptr<CompilationUnit>&;
     using implementation = details::CompilationUnitIt;
+    using iterator_facade_base::operator++;
+    using iterator_facade_base::operator--;
 
-    class LIEF_API PointerProxy {
-      // Inspired from LLVM's iterator_facade_base
-      friend class Iterator;
-      public:
-      pointer operator->() const { return R.get(); }
+    LIEF_API Iterator();
 
-      private:
-      value_type R;
+    LIEF_API Iterator(std::unique_ptr<details::CompilationUnitIt> impl);
 
-      template <typename RefT>
-      PointerProxy(RefT &&R) : R(std::forward<RefT>(R)) {} // NOLINT(bugprone-forwarding-reference-overload)
-    };
+    LIEF_API Iterator(const Iterator&);
+    LIEF_API Iterator& operator=(const Iterator&);
 
-    Iterator(const Iterator&);
-    Iterator(Iterator&&) noexcept;
-    Iterator(std::unique_ptr<details::CompilationUnitIt> impl);
-    ~Iterator();
+    LIEF_API Iterator(Iterator&&) noexcept;
+    LIEF_API Iterator& operator=(Iterator&&) noexcept;
+
+    LIEF_API ~Iterator();
 
     friend LIEF_API bool operator==(const Iterator& LHS, const Iterator& RHS);
-    friend LIEF_API bool operator!=(const Iterator& LHS, const Iterator& RHS) {
+    friend bool operator!=(const Iterator& LHS, const Iterator& RHS) {
       return !(LHS == RHS);
     }
 
-    Iterator& operator++();
-    Iterator& operator--();
+    // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
+    LIEF_API Iterator& operator++();
 
-    Iterator operator--(int) {
-      Iterator tmp = *static_cast<Iterator*>(this);
-      --*static_cast<Iterator *>(this);
-      return tmp;
-    }
+    // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
+    LIEF_API Iterator& operator--();
 
-    Iterator operator++(int) {
-      Iterator tmp = *static_cast<Iterator*>(this);
-      ++*static_cast<Iterator *>(this);
-      return tmp;
-    }
+    LIEF_API const CompilationUnit& operator*() const LIEF_LIFETIMEBOUND;
 
-    std::unique_ptr<CompilationUnit> operator*() const;
+    // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
+    LIEF_API const CompilationUnit* operator->() const LIEF_LIFETIMEBOUND;
 
-    PointerProxy operator->() const {
-      return static_cast<const Iterator*>(this)->operator*();
-    }
+    /// Transfer ownership of the compilation unit at the current position
+    /// to the caller. Returns `nullptr` if the iterator is past-the-end.
+    LIEF_API std::unique_ptr<CompilationUnit> yield();
 
     private:
+    void load() const;
+
     std::unique_ptr<details::CompilationUnitIt> impl_;
+    mutable std::unique_ptr<CompilationUnit> cached_;
   };
 
   /// Iterator over the dwarf::Function
@@ -130,11 +123,10 @@ class LIEF_API CompilationUnit {
 
     Language() = default;
     Language(LANG lang, uint32_t version) :
-      lang(lang), version(version)
-    {}
+      lang(lang),
+      version(version) {}
     Language(LANG lang) :
-      Language(lang, 0)
-    {}
+      Language(lang, 0) {}
 
     Language(const Language&) = default;
     Language& operator=(const Language&) = default;
@@ -169,7 +161,7 @@ class LIEF_API CompilationUnit {
   /// This value matches the `DW_AT_comp_dir` attribute
   std::string compilation_dir() const;
 
-  /// Original Language of this compilation unit.
+  /// Original language of this compilation unit.
   ///
   /// This value matches the `DW_AT_language` attribute.
   Language language() const;
@@ -186,7 +178,7 @@ class LIEF_API CompilationUnit {
   /// between the lowest address and the highest that are not owned by the CU),
   /// then it returns the sum of **all** the address ranges owned by this CU.
   ///
-  /// If the compilation unit is **not** fragmented, then is basically returns
+  /// If the compilation unit is **not** fragmented, then it basically returns
   /// `high_address - low_address`.
   uint64_t size() const;
 
@@ -199,16 +191,18 @@ class LIEF_API CompilationUnit {
   /// Try to find the function whose name is given in parameter.
   ///
   /// The provided name can be demangled
-  std::unique_ptr<Function> find_function(const std::string& name) const;
+  std::unique_ptr<Function>
+      find_function(const std::string& name) const LIEF_LIFETIMEBOUND;
 
   /// Try to find the function at the given address
-  std::unique_ptr<Function> find_function(uint64_t addr) const;
+  std::unique_ptr<Function> find_function(uint64_t addr) const LIEF_LIFETIMEBOUND;
 
   /// Try to find the Variable at the given address
-  std::unique_ptr<Variable> find_variable(uint64_t addr) const;
+  std::unique_ptr<Variable> find_variable(uint64_t addr) const LIEF_LIFETIMEBOUND;
 
   /// Try to find the Variable with the given name
-  std::unique_ptr<Variable> find_variable(const std::string& name) const;
+  std::unique_ptr<Variable>
+      find_variable(const std::string& name) const LIEF_LIFETIMEBOUND;
 
   /// Return an iterator over the functions implemented in this compilation
   /// unit.
@@ -232,7 +226,7 @@ class LIEF_API CompilationUnit {
   /// The iterator will only return **one function** for `main` since
   /// `get_secret_env` is inlined and thus, its implementation is located in
   /// `main`.
-  functions_it functions() const;
+  functions_it functions() const LIEF_LIFETIMEBOUND;
 
   /// Return an iterator over the functions **imported** in this compilation
   /// unit **but not** implemented.
@@ -251,14 +245,13 @@ class LIEF_API CompilationUnit {
   /// the iterator. On the other hand, `main()` is implemented in this
   /// compilation unit so it is not returned by imported_function() but
   /// functions().
-  functions_it imported_functions() const;
+  functions_it imported_functions() const LIEF_LIFETIMEBOUND;
 
   /// Return an iterator over the different types defined in this
   /// compilation unit.
-  types_it types() const;
+  types_it types() const LIEF_LIFETIMEBOUND;
 
-
-  /// Return an iterator over all the variables defined in the this compilation
+  /// Return an iterator over all the variables defined in this compilation
   /// unit:
   ///
   /// ```cpp
@@ -270,7 +263,11 @@ class LIEF_API CompilationUnit {
   ///   return C;
   /// }
   /// ```
-  vars_it variables() const;
+  vars_it variables() const LIEF_LIFETIMEBOUND;
+
+  /// Generate a C/C++ definition for the functions defined in this
+  /// compilation unit.
+  std::string to_decl(const DeclOpt& opt = DeclOpt()) const;
 
   private:
   std::unique_ptr<details::CompilationUnit> impl_;
@@ -279,4 +276,3 @@ class LIEF_API CompilationUnit {
 }
 }
 #endif
-
