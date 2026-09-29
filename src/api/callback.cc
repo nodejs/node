@@ -4,6 +4,8 @@
 #include "node.h"
 #include "v8.h"
 
+#include <optional>
+
 namespace node {
 
 using v8::Context;
@@ -349,7 +351,14 @@ MaybeLocal<Value> InternalMakeCallback(Isolate* isolate,
   }
   Environment* env = Environment::GetCurrent(context);
   CHECK_NOT_NULL(env);
-  Context::Scope context_scope(env->context());
+  // Entering the context changes nothing when it is already the entered and
+  // the current one, which is the common case for addons.
+  Local<Context> env_context = env->context();
+  std::optional<Context::Scope> context_scope;
+  if (isolate->GetEnteredOrMicrotaskContext() != env_context ||
+      isolate->GetCurrentContext() != env_context) {
+    context_scope.emplace(env_context);
+  }
   MaybeLocal<Value> ret = InternalMakeCallback(
       env, recv, recv, callback, argc, argv, asyncContext, context_frame);
   if (ret.IsEmpty() && env->async_callback_scope_depth() == 0) {

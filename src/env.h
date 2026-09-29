@@ -427,7 +427,7 @@ class AsyncHooks : public MemoryRetainer {
   void push_async_context(
       double async_id,
       double trigger_async_id,
-      std::variant<v8::Local<v8::Object>*, v8::Global<v8::Object>*>
+      const std::variant<v8::Local<v8::Object>*, v8::Global<v8::Object>*>&
           execution_async_resource);
   bool pop_async_context(double async_id);
   void clear_async_id_stack();  // Used in fatal exceptions.
