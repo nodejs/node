@@ -175,6 +175,14 @@ async function testImportPkcs8(
         message: 'Key must be a public key',
         name: 'InvalidAccessError',
       });
+
+    for (const format of ['raw', 'raw-public']) {
+      await assert.rejects(
+        subtle.exportKey(format, key), {
+          message: 'Key must be a public key',
+          name: 'InvalidAccessError',
+        });
+    }
   } else {
     await assert.rejects(
       subtle.exportKey('pkcs8', key), {
