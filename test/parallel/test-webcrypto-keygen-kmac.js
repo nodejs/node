@@ -5,7 +5,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasFIPS, hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL } = require('../common/crypto');
 
 if (!hasOpenSSL(3))
   common.skip('requires OpenSSL >= 3');
@@ -13,7 +13,6 @@ if (!hasOpenSSL(3))
 const assert = require('assert');
 const { types: { isCryptoKey } } = require('util');
 const { subtle } = globalThis.crypto;
-const fips = hasFIPS();
 
 const usages = ['sign', 'verify'];
 
@@ -22,9 +21,6 @@ async function test(name, length) {
   const algorithm = { name };
   if (length !== undefined)
     algorithm.length = length;
-
-  if (fips && length !== undefined &&
-      (length < 32 || length % 8 !== 0)) return;
 
   const generatedKey = await subtle.generateKey(algorithm, true, usages);
 
@@ -45,12 +41,10 @@ async function test(name, length) {
 }
 
 const kTests = [
-  ['KMAC128', 0],
   ['KMAC128', 32],
   ['KMAC128', 128],
   ['KMAC128', 256],
   ['KMAC128'],
-  ['KMAC256', 0],
   ['KMAC256', 32],
   ['KMAC256', 128],
   ['KMAC256', 256],
@@ -60,3 +54,13 @@ const kTests = [
 const tests = Promise.all(kTests.map((args) => test(...args)));
 
 tests.then(common.mustCall());
+
+(async () => {
+  for (const name of ['KMAC128', 'KMAC256']) {
+    for (const length of [0, 8, 16, 24]) {
+      await assert.rejects(
+        subtle.generateKey({ name, length }, true, usages),
+        { name: 'NotSupportedError', message: 'Invalid key length' });
+    }
+  }
+})().then(common.mustCall());

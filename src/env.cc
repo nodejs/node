@@ -8,6 +8,7 @@
 #include "node_buffer.h"
 #include "node_context_data.h"
 #include "node_contextify.h"
+#include "node_dotenv.h"
 #include "node_errors.h"
 #include "node_file_utils.h"
 #include "node_internals.h"
@@ -32,6 +33,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <charconv>
 #include <cinttypes>
 #include <cstdio>
 #include <iostream>
@@ -1044,6 +1046,21 @@ Environment::Environment(IsolateData* isolate_data,
   // which may or may not be the system environment variable store.
   enabled_debug_list_.Parse(this);
 
+  if (is_main_thread()) {
+    // setupChildProcessIpcChannel() in lib/internal/process/pre_execution.js
+    // adopts the IPC channel passed by the parent process and then removes
+    // NODE_CHANNEL_FD from the environment. Record the descriptor before any
+    // JavaScript runs, so that later changes to the environment cannot affect
+    // which descriptor is treated as the IPC channel.
+    std::optional<std::string> channel_fd = env_vars()->Get("NODE_CHANNEL_FD");
+    if (channel_fd.has_value()) {
+      int fd;
+      const char* begin = channel_fd->data();
+      auto result = std::from_chars(begin, begin + channel_fd->size(), fd);
+      if (result.ec == std::errc() && fd >= 0) ipc_channel_fd_ = fd;
+    }
+  }
+
   heap_snapshot_near_heap_limit_ =
       static_cast<uint32_t>(options_->heap_snapshot_near_heap_limit);
 
@@ -1118,6 +1135,20 @@ Environment::Environment(IsolateData* isolate_data,
     }
     if (!options_->allow_wasi) {
       permission()->Apply(this, args, permission::PermissionScope::kWASI);
+    }
+
+    {
+      std::vector<std::string> allow_env =
+          permission::ParseEnvAllowList(options_->allow_env);
+      // Variables defined in env files are allowed. The environment scrub
+      // removed any inherited values they had, so only the files' values
+      // are visible.
+      if (options_->has_env_file_string) {
+        for (std::string& key : per_process::dotenv_file.GetKeys()) {
+          allow_env.push_back(std::move(key));
+        }
+      }
+      permission()->Apply(this, allow_env, permission::PermissionScope::kEnv);
     }
 
     // Implicit allow entrypoint to kFileSystemRead
@@ -1453,6 +1484,8 @@ void Environment::CleanupHandles() {
   for (HandleWrap* handle : handle_wrap_queue_)
     handle->Close();
 
+  isolate_data()->handle_cleanup_depth++;
+  auto done = OnScopeLeave([&]() { isolate_data()->handle_cleanup_depth--; });
   while (handle_cleanup_waiting_ != 0 ||
          request_waiting_ != 0 ||
          !handle_wrap_queue_.IsEmpty()) {

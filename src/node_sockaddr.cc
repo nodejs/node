@@ -8,6 +8,9 @@
 #include "node_hash.h"
 #include "node_sockaddr-inl.h"  // NOLINT(build/include_inline)
 #include "uv.h"
+#include "v8-fast-api-calls.h"
+
+#include <cstring>
 
 #include <memory>
 #include <string>
@@ -18,6 +21,8 @@ namespace node {
 using v8::Array;
 using v8::CFunction;
 using v8::Context;
+using v8::FastApiCallbackOptions;
+using v8::FastOneByteString;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Int32;
@@ -1032,6 +1037,53 @@ void SocketAddressBlockListWrap::CheckString(
   args.GetReturnValue().Set(wrap->blocklist_->Apply(addr));
 }
 
+bool SocketAddressBlockListWrap::FastCheckString(
+    Local<Object> receiver,
+    const FastOneByteString& address,
+    int32_t family,
+    // NOLINTNEXTLINE(runtime/references) This is V8 api.
+    FastApiCallbackOptions& options) {
+  // FastOneByteString is not NUL-terminated. Copy onto the stack
+  // before any other work: a GC would invalidate `address`.
+  //
+  // uv_ip6_addr only needs the address part (≤39 chars) plus an
+  // optional %zone. A zone longer than UV_IF_NAMESIZE is unknown
+  // (scope_id 0), same as omitting it. Keep that behavior when the
+  // full string does not fit so Fast API and CheckString agree.
+  constexpr size_t kMax = INET6_ADDRSTRLEN + UV_IF_NAMESIZE;
+  char buf[kMax];
+  if (address.length < kMax) {
+    memcpy(buf, address.data, address.length);
+    buf[address.length] = '\0';
+  } else if (family == AF_INET6) {
+    // uv_ip4_addr rejects %zone. Only IPv6 may drop an overlong zone
+    // (unknown zone → scope_id 0, same as uv_ip6_addr).
+    // uv_ip6_addr copies the address part into a 40-byte buffer
+    // (39 chars + NUL). A 40+ char prefix (mixed notation) is
+    // truncated and fails inet_pton — do not keep the full prefix.
+    const char* percent =
+        static_cast<const char*>(memchr(address.data, '%', address.length));
+    if (percent == nullptr) return false;
+    const size_t addr_len = static_cast<size_t>(percent - address.data);
+    if (addr_len >= 40) return false;
+    memcpy(buf, address.data, addr_len);
+    buf[addr_len] = '\0';
+  } else {
+    return false;
+  }
+  USE(options);
+
+  TRACK_V8_FAST_API_CALL("blocklist.checkString");
+  SocketAddressBlockListWrap* wrap =
+      FromJSObject<SocketAddressBlockListWrap>(receiver);
+  SocketAddress addr;
+  if (!SocketAddress::New(family, buf, 0, &addr)) return false;
+  return wrap->blocklist_->Apply(addr);
+}
+
+CFunction SocketAddressBlockListWrap::fast_check_string_(
+    CFunction::Make(&SocketAddressBlockListWrap::FastCheckString));
+
 void SocketAddressBlockListWrap::GetRules(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1087,7 +1139,11 @@ Local<FunctionTemplate> SocketAddressBlockListWrap::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "removeSubnet", RemoveSubnet);
     SetFastMethod(
         isolate, tmpl->PrototypeTemplate(), "check", Check, &fast_check_);
-    SetProtoMethod(isolate, tmpl, "checkString", CheckString);
+    SetFastMethod(isolate,
+                  tmpl->PrototypeTemplate(),
+                  "checkString",
+                  CheckString,
+                  &fast_check_string_);
     SetProtoMethod(isolate, tmpl, "getRules", GetRules);
     SetProtoMethodNoSideEffect(isolate, tmpl, "getSize", GetSize);
     SetProtoMethod(isolate, tmpl, "clear", Clear);

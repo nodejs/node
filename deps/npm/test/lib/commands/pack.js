@@ -73,7 +73,7 @@ t.test('should log output as valid json', async t => {
 })
 
 t.test('should log scoped package output as valid json', async t => {
-  const { npm, outputs, outputErrors, logs } = await loadMockNpm(t, {
+  const { npm, outputs, logs } = await loadMockNpm(t, {
     prefixDir: {
       'package.json': JSON.stringify({
         name: '@myscope/test-package',
@@ -91,7 +91,6 @@ t.test('should log scoped package output as valid json', async t => {
   await npm.exec('pack', [])
   const filename = 'myscope-test-package-1.0.0.tgz'
   t.matchSnapshot(outputs.map(JSON.parse), 'outputs as json')
-  t.matchSnapshot(outputErrors, 'stderr has banners')
   t.matchSnapshot(logs.notice, 'logs pack contents')
   t.ok(fs.statSync(path.resolve(npm.prefix, filename)))
 })
@@ -152,12 +151,8 @@ t.test('foreground-scripts defaults to true', async t => {
   const filename = 'test-fg-scripts-0.0.0.tgz'
   t.strictSame(
     outputs,
-    [
-      '\n> test-fg-scripts@0.0.0 prepack\n> echo prepack!\n',
-      '\n> test-fg-scripts@0.0.0 postpack\n> echo postpack!\n',
-      filename,
-    ],
-    'prepack and postpack log to stdout'
+    [filename],
+    'tarball filename is the only stdout output'
   )
   t.matchSnapshot(logs.notice, 'logs pack contents')
   t.throws(() => fs.statSync(path.resolve(npm.prefix, filename)))
@@ -256,7 +251,7 @@ t.test('invalid packument', async t => {
 })
 
 t.test('workspaces', async t => {
-  const loadWorkspaces = (t) => loadMockNpm(t, {
+  const loadWorkspaces = (t, config = { workspaces: true }) => loadMockNpm(t, {
     prefixDir: {
       'package.json': JSON.stringify(
         {
@@ -281,7 +276,7 @@ t.test('workspaces', async t => {
       },
     },
     config: {
-      workspaces: true,
+      ...config,
       // TODO: this is a workaround for npm run test-all
       // somehow leaking include-workspace-root
       'include-workspace-root': false,
@@ -301,8 +296,10 @@ t.test('workspaces', async t => {
   })
 
   t.test('one workspace', async t => {
-    const { npm, outputs } = await loadWorkspaces(t)
-    await npm.exec('pack', ['workspace-a'])
+    const { npm, outputs } = await loadWorkspaces(t, {
+      workspace: ['workspace-a'],
+    })
+    await npm.exec('pack', [])
     t.strictSame(outputs, ['workspace-a-1.0.0.tgz'])
   })
 

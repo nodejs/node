@@ -1,0 +1,47 @@
+{
+  "name": "proxy-agent-negotiate",
+  "version": "1.1.0",
+  "type": "module",
+  "description": "Negotiate/SPNEGO proxy authentication for proxy-agents",
+  "exports": {
+    "types": "./dist/index.d.ts",
+    "default": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TooTallNate/proxy-agents.git",
+    "directory": "packages/negotiate"
+  },
+  "keywords": [
+    "proxy",
+    "negotiate",
+    "kerberos",
+    "spnego",
+    "authentication"
+  ],
+  "author": "Nathan Rajlich <nathan@tootallnate.net> (http://n8.io/)",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "typescript": "^5.1.6",
+    "tsconfig": "0.0.0"
+  },
+  "engines": {
+    "node": ">= 20"
+  },
+  "peerDependencies": {
+    "kerberos": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "kerberos": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "pack": "node ../../scripts/pack.mjs"
+  }
+}

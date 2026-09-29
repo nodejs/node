@@ -37,6 +37,7 @@ class Completion extends BaseCommand {
   static name = 'completion'
   // Completion command uses args differently - they represent the command line being completed, not actual arguments to this command, so we use an empty definitions object to prevent flag validation
   static definitions = []
+  static skipConfigValidation = true
 
   // completion for the completion command
   static async completion (opts) {

@@ -11,8 +11,9 @@ const {
   SyncShare,
   text,
   textSync,
-
 } = require('stream/iter');
+
+const { setImmediate } = require('timers/promises');
 
 // =============================================================================
 // Share.from
@@ -202,7 +203,7 @@ async function testShareDropNewest() {
   });
 
   await secondPullStarted;
-  await new Promise(setImmediate);
+  await setImmediate();
   assert.strictEqual(pulls, 2);
   assert.strictEqual(nextSettled, false);
 

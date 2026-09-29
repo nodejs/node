@@ -235,6 +235,7 @@ distclean: ## Remove all build and test artifacts.
 	$(RM) -r node_modules
 	$(RM) -r deps/icu
 	$(RM) -r deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp
+	$(RM) tools/perfetto/trace_processor_shell
 	$(RM) $(BINARYTAR).* $(TARBALL).*
 
 .PHONY: check
@@ -338,6 +339,18 @@ coverage-run-js: ## Run JavaScript tests with coverage.
 					TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) jstest
 	$(MAKE) coverage-report-js
 
+TRACE_PROCESSOR_SHELL_PATH ?= tools/perfetto/trace_processor_shell
+
+# The downloaded copy has to match the vendored perfetto, so a version bump
+# re-downloads it. An overridden path is a build we do not manage and may not
+# be writable, so it gets no prerequisite and is left alone once it exists.
+ifeq ($(TRACE_PROCESSOR_SHELL_PATH),tools/perfetto/trace_processor_shell)
+TRACE_PROCESSOR_SHELL_DEPS = deps/perfetto/VERSION
+endif
+
+$(TRACE_PROCESSOR_SHELL_PATH): $(TRACE_PROCESSOR_SHELL_DEPS)
+	@tools/perfetto/get_trace_processor $@
+
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
 test: all ## Run default tests and build docs.
@@ -390,6 +403,11 @@ DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
 endif
 
 DOC_KIT ?= tools/doc/node_modules/@doc-kit/cli/bin/cli.mjs
+ifeq ($(V),1)
+DOC_KIT_LOG_LEVEL ?= debug
+else
+DOC_KIT_LOG_LEVEL ?= info
+endif
 
 node_use_openssl_and_icu = $(call available-node,"-p" \
 			 "process.versions.openssl != undefined && process.versions.icu != undefined")
@@ -895,7 +913,7 @@ $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(a
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
-			--log-level debug \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
 			--config-file tools/doc/web.doc-kit.config.mjs \
 			-v $(VERSION) \
 			$(if $(JOBS),-p $(JOBS)) \
@@ -909,6 +927,7 @@ out/doc/llms.txt: $(apidoc_sources) tools/doc/node_modules | out/doc
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
 			--config-file tools/doc/web.doc-kit.config.mjs \
 			-t llms-txt \
 			-o $(@D) \
@@ -922,6 +941,7 @@ out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
 			--config-file tools/doc/api-links.doc-kit.config.mjs \
 			-o $(@D) \
 			-v $(VERSION) \
@@ -938,6 +958,7 @@ node.1: doc/api/cli.md tools/doc/node_modules
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
 			-v $(VERSION) \
 			--config-file tools/doc/man-page.doc-kit.config.mjs \
 			-o doc \
@@ -1113,6 +1134,7 @@ HAS_XZ ?= $(shell command -v xz > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || ech
 SKIP_XZ ?= 0
 XZ = $(shell [ $(HAS_XZ) -eq 1 ] && [ $(SKIP_XZ) -eq 0 ] && echo 1 || echo 0)
 XZ_COMPRESSION ?= 9e
+GZIP_COMPRESSION ?= 9
 PKG=$(TARNAME).pkg
 MACOSOUTDIR=out/macos
 
@@ -1173,16 +1195,6 @@ release-only: check-xz ## Prepare Node.js for release.
 	fi
 
 $(PKG): release-only
-# pkg building is currently only supported on an ARM64 macOS host for
-# ease of compiling fat-binaries for both macOS architectures.
-ifneq ($(OSTYPE),darwin)
-	$(warning Invalid OSTYPE)
-	$(error OSTYPE should be `darwin` currently is $(OSTYPE))
-endif
-ifneq ($(ARCHTYPE),arm64)
-	$(warning Invalid ARCHTYPE)
-	$(error ARCHTYPE should be `arm64` currently is $(ARCHTYPE))
-endif
 	$(RM) -r $(MACOSOUTDIR)
 	mkdir -p $(MACOSOUTDIR)/installer/productbuild
 	cat tools/macos-installer/productbuild/distribution.xml.tmpl  \
@@ -1203,28 +1215,14 @@ endif
 			| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g"  \
 		>$(MACOSOUTDIR)/installer/productbuild/Resources/$$lang/conclusion.html ; \
 	done
-	CC_host="cc -arch x86_64" CXX_host="c++ -arch x86_64"  \
-	CC_target="cc -arch x86_64" CXX_target="c++ -arch x86_64" \
-	CC="cc -arch x86_64" CXX="c++ -arch x86_64" $(PYTHON) ./configure \
-		--dest-cpu=x86_64 \
-		--tag=$(TAG) \
-		--release-urlbase=$(RELEASE_URLBASE) \
-		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
-	arch -x86_64 $(MAKE) install V=$(V) DESTDIR=$(MACOSOUTDIR)/dist/x64/node
-	SIGN="$(CODESIGN_CERT)" PKGDIR="$(MACOSOUTDIR)/dist/x64/node/usr/local" sh \
-		tools/osx-codesign.sh
 	$(PYTHON) ./configure \
-		--dest-cpu=arm64 \
+		--dest-cpu=$(ARCHTYPE) \
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
 	$(MAKE) install V=$(V) DESTDIR=$(MACOSOUTDIR)/dist/node
 	SIGN="$(CODESIGN_CERT)" PKGDIR="$(MACOSOUTDIR)/dist/node/usr/local" sh \
 		tools/osx-codesign.sh
-	lipo $(MACOSOUTDIR)/dist/x64/node/usr/local/bin/node \
-		$(MACOSOUTDIR)/dist/node/usr/local/bin/node \
-		-output $(MACOSOUTDIR)/dist/node/usr/local/bin/node \
-		-create
 	mkdir -p $(MACOSOUTDIR)/dist/npm/usr/local/lib/node_modules
 	mkdir -p $(MACOSOUTDIR)/pkgs
 	mv $(MACOSOUTDIR)/dist/node/usr/local/lib/node_modules/npm \
@@ -1345,7 +1343,7 @@ endif
 	find $(TARNAME)/ -type l | xargs $(RM)
 	tar -cf $(TARNAME).tar $(TARNAME)
 	$(RM) -r $(TARNAME)
-	gzip -c -f -9 $(TARNAME).tar > $(TARNAME).tar.gz
+	gzip -c -f -$(GZIP_COMPRESSION) $(TARNAME).tar > $(TARNAME).tar.gz
 ifeq ($(XZ), 1)
 	xz -c -f -$(XZ_COMPRESSION) $(TARNAME).tar > $(TARNAME).tar.xz
 endif
@@ -1390,7 +1388,7 @@ $(TARBALL)-headers: release-only
 	find $(TARNAME)/ -type l | xargs $(RM)
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
 	$(RM) -r $(TARNAME)
-	gzip -c -f -9 $(TARNAME)-headers.tar > $(TARNAME)-headers.tar.gz
+	gzip -c -f -$(GZIP_COMPRESSION) $(TARNAME)-headers.tar > $(TARNAME)-headers.tar.gz
 ifeq ($(XZ), 1)
 	xz -c -f -$(XZ_COMPRESSION) $(TARNAME)-headers.tar > $(TARNAME)-headers.tar.xz
 endif
@@ -1435,7 +1433,7 @@ ifeq ($(OSTYPE),darwin)
 endif
 	tar -cf $(BINARYNAME).tar $(BINARYNAME)
 	$(RM) -r $(BINARYNAME)
-	gzip -c -f -9 $(BINARYNAME).tar > $(BINARYNAME).tar.gz
+	gzip -c -f -$(GZIP_COMPRESSION) $(BINARYNAME).tar > $(BINARYNAME).tar.gz
 ifeq ($(XZ), 1)
 	xz -c -f -$(XZ_COMPRESSION) $(BINARYNAME).tar > $(BINARYNAME).tar.xz
 endif
@@ -1504,6 +1502,7 @@ tools/.manpagelintstamp: doc/node.1 doc/api/cli.md tools/doc/node_modules
 		$(RM) -r tools/doc/.manpagecheck && \
 		$(call available-node, \
 			$(DOC_KIT) generate \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
 			-v $(VERSION) \
 			--config-file tools/doc/man-page.doc-kit.config.mjs \
 		) \

@@ -22,6 +22,11 @@ const spawk = tspawk(t)
 const npmConfig = {
   config: {
     'ignore-scripts': false,
+    // Phase 2 gates dependency install scripts by default. `npm edit`
+    // rebuilds the edited package via `npm rebuild`, which honors the
+    // allowScripts gate, so opt every script in for these tests to exercise
+    // the editor -> rebuild -> install-script flow.
+    'dangerously-allow-all-scripts': true,
     editor: 'testeditor',
     'script-shell': process.platform === 'win32' ? process.env.COMSPEC : 'sh',
   },

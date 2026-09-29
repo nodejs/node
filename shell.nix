@@ -18,7 +18,7 @@
   withSQLite ? true,
   withFFI ? true,
   withSSL ? true,
-  withTemporal ? false,
+  withTemporal ? true,
   withPerfetto ? false,
   sharedLibDeps ? (
     import ./tools/nix/sharedLibDeps.nix {
@@ -171,6 +171,9 @@ pkgs.mkShell {
   )
   // pkgs.lib.optionalAttrs (!withSQLite) {
     NOSQLITE = "1";
+  }
+  // pkgs.lib.optionalAttrs (withPerfetto) {
+    TRACE_PROCESSOR_SHELL_PATH = "${pkgs.perfetto.tools}/bin/trace_processor_shell";
   }
   // pkgs.lib.optionalAttrs (pkcs11 != false && pkcs11 != null) (
     let

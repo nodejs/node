@@ -3569,7 +3569,7 @@ entry types are found.
 
 ### `ERR_VFS_INVALID_TARGET`
 
-A `--vfs-mount` source does not exist, is neither a regular file nor a
+A `--vfs-load` source does not exist, is neither a regular file nor a
 directory, or is a source no provider claims.
 
 <a id="ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING"></a>

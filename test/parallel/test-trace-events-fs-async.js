@@ -5,6 +5,11 @@ const cp = require('child_process');
 const fs = require('fs');
 const util = require('util');
 
+// MKDir passes UV_FS_UNLINK to FS_ASYNC_TRACE_BEGIN1 (src/node_file.cc), so
+// the begin event is named `unlink` while the end event is named `mkdir`. The
+// legacy backend records both names, and this test passes off the end event.
+// Perfetto matches an async pair by name and drops the unmatched end, leaving
+// no `mkdir` event at all.
 common.skipIfPerfettoEnabled();
 
 const tests = { __proto__: null };

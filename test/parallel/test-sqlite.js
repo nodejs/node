@@ -1,7 +1,7 @@
 'use strict';
 const { spawnPromisified, skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
-const { DatabaseSync, constants } = require('node:sqlite');
+const { Database, constants } = require('node:sqlite');
 const { suite, test } = require('node:test');
 const { pathToFileURL } = require('node:url');
 const { nextDb } = require('../sqlite/next-db.js');
@@ -36,7 +36,7 @@ suite('accessing the node:sqlite module', () => {
 });
 
 test('ERR_SQLITE_ERROR is thrown for errors originating from SQLite', (t) => {
-  const db = new DatabaseSync(':memory:');
+  const db = new Database(':memory:');
   t.after(() => { db.close(); });
   const setup = db.exec(`
     CREATE TABLE test(
@@ -57,8 +57,8 @@ test('ERR_SQLITE_ERROR is thrown for errors originating from SQLite', (t) => {
 });
 
 test('in-memory databases are supported', (t) => {
-  const db1 = new DatabaseSync(':memory:');
-  const db2 = new DatabaseSync(':memory:');
+  const db1 = new Database(':memory:');
+  const db2 = new Database(':memory:');
   const setup1 = db1.exec(`
     CREATE TABLE data(key INTEGER PRIMARY KEY);
     INSERT INTO data (key) VALUES (1);
@@ -87,7 +87,7 @@ test('sqlite constants are defined', (t) => {
 
 test('PRAGMAs are supported', (t) => {
   // WAL journal mode requires an on-disk database.
-  const db = new DatabaseSync(nextDb());
+  const db = new Database(nextDb());
   t.after(() => { db.close(); });
   t.assert.deepStrictEqual(
     db.prepare('PRAGMA journal_mode = WAL').get(),
@@ -100,7 +100,7 @@ test('PRAGMAs are supported', (t) => {
 });
 
 test('Buffer is supported as the database path', (t) => {
-  const db = new DatabaseSync(Buffer.from(nextDb()));
+  const db = new Database(Buffer.from(nextDb()));
   t.after(() => { db.close(); });
   db.exec(`
     CREATE TABLE data(key INTEGER PRIMARY KEY);
@@ -115,7 +115,7 @@ test('Buffer is supported as the database path', (t) => {
 
 test('URL is supported as the database path', (t) => {
   const url = pathToFileURL(nextDb());
-  const db = new DatabaseSync(url);
+  const db = new Database(url);
   t.after(() => { db.close(); });
   db.exec(`
     CREATE TABLE data(key INTEGER PRIMARY KEY);
@@ -130,7 +130,7 @@ test('URL is supported as the database path', (t) => {
 
 suite('URI query params', () => {
   const baseDbPath = nextDb();
-  const baseDb = new DatabaseSync(baseDbPath);
+  const baseDb = new Database(baseDbPath);
   baseDb.exec(`
     CREATE TABLE data(key INTEGER PRIMARY KEY);
     INSERT INTO data (key) VALUES (1);
@@ -140,7 +140,7 @@ suite('URI query params', () => {
   test('query params are supported with URL objects', (t) => {
     const url = pathToFileURL(baseDbPath);
     url.searchParams.set('mode', 'ro');
-    const readOnlyDB = new DatabaseSync(url);
+    const readOnlyDB = new Database(url);
     t.after(() => { readOnlyDB.close(); });
 
     t.assert.deepStrictEqual(
@@ -160,7 +160,7 @@ suite('URI query params', () => {
     url.searchParams.set('mode', 'ro');
 
     // Ensures a valid URI passed as a string is supported
-    const readOnlyDB = new DatabaseSync(url.toString());
+    const readOnlyDB = new Database(url.toString());
     t.after(() => { readOnlyDB.close(); });
 
     t.assert.deepStrictEqual(
@@ -180,7 +180,7 @@ suite('URI query params', () => {
     url.searchParams.set('mode', 'ro');
 
     // Ensures a valid URI passed as a Buffer is supported
-    const readOnlyDB = new DatabaseSync(Buffer.from(url.toString()));
+    const readOnlyDB = new Database(Buffer.from(url.toString()));
     t.after(() => { readOnlyDB.close(); });
 
     t.assert.deepStrictEqual(
@@ -198,7 +198,7 @@ suite('URI query params', () => {
 
 suite('SQL APIs enabled at build time', () => {
   test('math functions are enabled', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.assert.deepStrictEqual(
       db.prepare('SELECT PI() AS pi').get(),
       { __proto__: null, pi: 3.141592653589793 },
@@ -206,7 +206,7 @@ suite('SQL APIs enabled at build time', () => {
   });
 
   test('percentile is enabled', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     db.exec(`
       CREATE TABLE t1 (x INTEGER);
       INSERT INTO t1 (x) VALUES (1), (2), (3), (4), (5);
@@ -219,7 +219,7 @@ suite('SQL APIs enabled at build time', () => {
   });
 
   test('dbstat is enabled', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     db.exec(`
       CREATE TABLE t1 (key INTEGER PRIMARY KEY);
@@ -244,7 +244,7 @@ suite('SQL APIs enabled at build time', () => {
   });
 
   test('fts3 is enabled', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     db.exec(`
       CREATE VIRTUAL TABLE t1 USING fts3(content TEXT);
       INSERT INTO t1 (content) VALUES ('hello world');
@@ -259,7 +259,7 @@ suite('SQL APIs enabled at build time', () => {
   });
 
   test('fts3 parenthesis is enabled', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     db.exec(`
       CREATE VIRTUAL TABLE t1 USING fts3(content TEXT);
       INSERT INTO t1 (content) VALUES ('hello world');
@@ -274,7 +274,7 @@ suite('SQL APIs enabled at build time', () => {
   });
 
   test('fts4 is enabled', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     db.exec(`
       CREATE VIRTUAL TABLE t1 USING fts4(content TEXT);
       INSERT INTO t1 (content) VALUES ('hello world');
@@ -289,7 +289,7 @@ suite('SQL APIs enabled at build time', () => {
   });
 
   test('fts5 is enabled', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     db.exec(`
       CREATE VIRTUAL TABLE t1 USING fts5(content);
       INSERT INTO t1 (content) VALUES ('hello world');
@@ -304,7 +304,7 @@ suite('SQL APIs enabled at build time', () => {
   });
 
   test('rtree is enabled', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     db.exec(`
       CREATE VIRTUAL TABLE t1 USING rtree(id, minX, maxX, minY, maxY);
       INSERT INTO t1 (id, minX, maxX, minY, maxY) VALUES (1, 0, 1, 0, 1);
@@ -319,7 +319,7 @@ suite('SQL APIs enabled at build time', () => {
   });
 
   test('rbu is enabled', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.assert.deepStrictEqual(
       db.prepare('SELECT sqlite_compileoption_used(\'SQLITE_ENABLE_RBU\') as rbu_enabled;').get(),
       { __proto__: null, rbu_enabled: 1 },
@@ -327,7 +327,7 @@ suite('SQL APIs enabled at build time', () => {
   });
 
   test('geopoly is enabled', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     db.exec(`
       CREATE VIRTUAL TABLE t1 USING geopoly(a,b,c);
       INSERT INTO t1(_shape) VALUES('[[0,0],[1,0],[0.5,1],[0,0]]');

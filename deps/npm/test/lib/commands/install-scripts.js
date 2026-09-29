@@ -135,7 +135,7 @@ t.test('install-scripts ls lists unreviewed packages', async t => {
   })
   await npm.exec('install-scripts', ['ls'])
   const out = joinedOutput()
-  t.match(out, /2 packages have install scripts not yet covered by allowScripts/)
+  t.match(out, /2 packages have install scripts blocked because they are not covered by allowScripts/)
   t.match(out, /canvas@1\.0\.0/)
   t.match(out, /sharp@1\.0\.0/)
 })

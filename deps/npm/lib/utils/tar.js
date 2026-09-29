@@ -10,7 +10,7 @@ const localeCompare = require('@isaacs/string-locale-compare')('en', {
 const logTar = (tarball, { unicode = false, json, key, redact } = {}) => {
   if (json) {
     const meta = redact === false ? { [META]: true, redact: false } : undefined
-    output.buffer(key == null ? tarball : { [key]: tarball }, meta)
+    output.buffer({ [key]: tarball }, meta)
     return
   }
   log.notice('')

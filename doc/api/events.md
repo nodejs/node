@@ -1883,6 +1883,10 @@ added:
  - v20.5.0
  - v18.18.0
 changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/65640
+   description: When the signal is already aborted, the listener now receives an
+                `abort` event and disposing cancels the pending call.
  - version:
    - v24.0.0
    - v22.16.0
@@ -1907,6 +1911,9 @@ two issues by listening to the event such that `stopImmediatePropagation` does
 not prevent the listener from running.
 
 Returns a disposable so that it may be unsubscribed from more easily.
+
+If `signal` is already aborted, the listener is called with an `abort` event in a
+microtask. Disposing before that microtask runs cancels the call.
 
 ```cjs
 const { addAbortListener } = require('node:events');

@@ -4,7 +4,7 @@ common.skipIfSQLiteMissing();
 const assert = require('node:assert');
 
 const code = `const sqlite = require('node:sqlite');
-const db = new sqlite.DatabaseSync(':memory:', { allowExtension: true });
+const db = new sqlite.Database(':memory:', { allowExtension: true });
 db.loadExtension('nonexistent');`.replace(/\n/g, ' ');
 
 common.spawnPromisified(

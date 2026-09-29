@@ -62,7 +62,9 @@ class WebSocketStream {
 
       this.#handler.socket.destroy()
     },
-    onSocketClose: () => this.#onSocketClose(),
+    // When the WebSocket connection is closed for a WebSocketStream stream, possibly cleanly, the user agent must
+    // queue a global task on the WebSocket task source given stream ’s relevant global object to run the following substeps:
+    onSocketClose: () => queueMicrotask(() => this.#onSocketClose()),
     onPing: () => {},
     onPong: () => {},
 
@@ -246,11 +248,15 @@ class WebSocketStream {
       const frame = new WebsocketFrameSend(data)
 
       this.#handler.socket.write(frame.createFrame(opcode), () => {
+        // 6.3. Queue a global task on the WebSocket task source given stream ’s relevant global object to resolve promise with undefined.
         promise.resolve(undefined)
       })
+    } else {
+      // 6.3. Queue a global task on the WebSocket task source given stream ’s relevant global object to resolve promise with undefined.
+      promise.resolve(undefined)
     }
 
-    // 6.3. Queue a global task on the WebSocket task source given stream ’s relevant global object to resolve promise with undefined.
+    // 7. Return promise.
     return promise.promise
   }
 
@@ -278,7 +284,7 @@ class WebSocketStream {
     // This is done in the opening handshake.
 
     // 3. Let extensions be the extensions in use .
-    const extensions = parsedExtensions ?? ''
+    const extensions = response.headersList.get('sec-websocket-extensions') ?? ''
 
     // 4. Let protocol be the subprotocol in use .
     const protocol = response.headersList.get('sec-websocket-protocol') ?? ''
@@ -291,6 +297,7 @@ class WebSocketStream {
       start: (controller) => {
         this.#readableStreamController = controller
       },
+      pull: () => this.#pull(),
       cancel: (reason) => this.#cancel(reason)
     })
 
@@ -350,6 +357,9 @@ class WebSocketStream {
     this.#readableStreamController.enqueue(chunk)
 
     // 4. Apply backpressure to the WebSocket.
+    if (this.#readableStreamController.desiredSize <= 0) {
+      this.#handler.socket.pause()
+    }
   }
 
   /** @type {import('../websocket').Handler['onSocketClose']} */
@@ -383,7 +393,7 @@ class WebSocketStream {
     // 1006.
     let code = result?.code ?? 1005
 
-    if (!this.#handler.closeState.has(sentCloseFrameState.SENT) && !this.#handler.closeState.has(sentCloseFrameState.RECEIVED)) {
+    if (!this.#handler.closeState.has(sentCloseFrameState.RECEIVED)) {
       code = 1006
     }
 
@@ -439,6 +449,11 @@ class WebSocketStream {
     // 4. Close the WebSocket with stream , code , and reasonString . If this throws an exception,
     //    discard code and reasonString and close the WebSocket with stream .
     closeWebSocketConnection(this.#handler, code, reasonString)
+  }
+
+  // To pull bytes from a WebSocketStream stream , if stream is currently applying backpressure, release backpressure.
+  #pull () {
+    this.#handler.socket.resume()
   }
 
   //  To cancel a WebSocketStream stream given reason , close using reason giving stream and reason .

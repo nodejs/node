@@ -4575,7 +4575,9 @@ The unique identifier of the worker running the current test file. This value is
 derived from the `NODE_TEST_WORKER_ID` environment variable. When running tests
 with `--test-isolation=process` (the default), each test file runs in a separate
 child process and is assigned a worker ID from 1 to N, where N is the number of
-concurrent workers. When running with `--test-isolation=none`, all tests run in
+concurrent workers. A worker ID is never shared by two test files running at the
+same time. Once a test file finishes, its worker ID is reused by the next test
+file that starts. When running with `--test-isolation=none`, all tests run in
 the same process and the worker ID is always 1. This value is `undefined` when
 not running in a test context.
 

@@ -2937,7 +2937,9 @@ DataPointer argon2(const Buffer<const char>& pass,
   // per-context. It inherits no configuration, so availability is checked
   // against the default context, otherwise Argon2 works in FIPS mode.
   DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> ctx;
-  if (lanes > 1) {
+  uint32_t threads = lanes == 0 ? 0 : 1;
+  if (lanes > 1 && (OSSL_get_thread_support_flags() &
+                    OSSL_THREAD_SUPPORT_FLAG_DEFAULT_SPAWN) != 0) {
     if (!KDF::Fetch(algorithm.data())) {
       return {};
     }
@@ -2947,8 +2949,13 @@ DataPointer argon2(const Buffer<const char>& pass,
       return {};
     }
 
-    if (OSSL_set_max_threads(ctx.get(), lanes) != 1) {
-      return {};
+    MarkPopErrorOnReturn mark_pop_error_on_return;
+    if (OSSL_set_max_threads(ctx.get(), lanes) == 1) {
+      threads = lanes;
+    } else {
+      // Lane count is an Argon2 input; worker threads are only an
+      // optimization. Compute the same lanes serially if unavailable.
+      ctx.reset();
     }
   }
 
@@ -2966,7 +2973,8 @@ DataPointer argon2(const Buffer<const char>& pass,
       pass.len));
   params.push_back(OSSL_PARAM_construct_octet_string(
       OSSL_KDF_PARAM_SALT, const_cast<unsigned char*>(salt.data), salt.len));
-  params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_THREADS, &lanes));
+  params.push_back(
+      OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_THREADS, &threads));
   params.push_back(
       OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes));
   params.push_back(
@@ -3099,12 +3107,6 @@ const KeyAlgorithm* KeyAlgorithm::FromName(const char* name) {
     if (CaseInsensitiveNameEqual()(name, algorithm->name())) return algorithm;
   }
   return nullptr;
-}
-
-void KeyAlgorithm::ForEachPqc(Callback callback) {
-  for (const auto* algorithm : kKeyAlgorithms) {
-    if (algorithm->isPqc() && algorithm->isAvailable()) callback(*algorithm);
-  }
 }
 
 bool KeyAlgorithm::isRsa() const {
@@ -5940,8 +5942,10 @@ bool ECKeyPointer::setPublicKeyRaw(const BignumPointer& x,
   if (!buf) return false;
   unsigned char* ptr = static_cast<unsigned char*>(buf.get());
   ptr[0] = POINT_CONVERSION_UNCOMPRESSED;
-  x.encodePaddedInto(ptr + 1, field_len);
-  y.encodePaddedInto(ptr + 1 + field_len, field_len);
+  if (x.encodePaddedInto(ptr + 1, field_len) != field_len ||
+      y.encodePaddedInto(ptr + 1 + field_len, field_len) != field_len) {
+    return false;
+  }
 
   auto point = ECPointPointer::New(group);
   if (!point) return false;
@@ -6169,8 +6173,10 @@ bool ECKeyPointer::setPublicKeyRaw(const BignumPointer& x,
   if (!buf) return false;
   unsigned char* ptr = static_cast<unsigned char*>(buf.get());
   ptr[0] = POINT_CONVERSION_UNCOMPRESSED;
-  x.encodePaddedInto(ptr + 1, field_len);
-  y.encodePaddedInto(ptr + 1 + field_len, field_len);
+  if (x.encodePaddedInto(ptr + 1, field_len) != field_len ||
+      y.encodePaddedInto(ptr + 1 + field_len, field_len) != field_len) {
+    return false;
+  }
 
   auto point = ECPointPointer::New(group_.get());
   if (!point || !point.setFromBuffer({ptr, uncompressed_len}, group_.get())) {
@@ -7380,6 +7386,24 @@ point_conversion_form_t Ec::getPointConversionForm() const {
 
 int Ec::getCurve() const {
   return EC_GROUP_get_curve_name(getGroup());
+}
+
+BIOPointer Ec::ExportPrivatePkcs8(const EVPKeyPointer& key) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  if (!key || !key.isA(KeyAlgorithm::EC)) return {};
+  auto ec = ECKeyPointer(key).clone();
+  if (!ec) return {};
+#if NCRYPTO_USE_LEGACY_KEY_TYPES
+  // Decoding an ECPrivateKey without publicKey reconstructs the public point
+  // but retains a flag that omits it from subsequent encodings.
+  EC_KEY_set_enc_flags(ec.get(),
+                       EC_KEY_get_enc_flags(ec.get()) & ~EC_PKEY_NO_PUBKEY);
+#endif
+  auto export_key = EVPKeyPointer::New();
+  if (!export_key || !export_key.set(ec)) return {};
+  auto encoded = export_key.writePrivateKey({});
+  if (!encoded) return {};
+  return std::move(encoded.value);
 }
 
 DataPointer Ec::TryExportPublic(const EVPKeyPointer& key,

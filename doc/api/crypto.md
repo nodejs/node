@@ -5518,7 +5518,7 @@ console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
 ### `crypto.parsePKCS12(bundle[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * `bundle` {ArrayBuffer|Buffer|TypedArray|DataView} A DER-encoded PKCS#12

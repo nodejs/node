@@ -50,6 +50,13 @@ using v8::Value;
 
 namespace crypto {
 namespace {
+void IsKeyAlgorithmAvailable(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsString());
+  const Utf8Value name(args.GetIsolate(), args[0]);
+  const auto* algorithm = KeyAlgorithm::FromName(*name);
+  args.GetReturnValue().Set(algorithm != nullptr && algorithm->isAvailable());
+}
+
 Maybe<EVPKeyPointer::AsymmetricKeyEncodingConfig> GetKeyFormatAndTypeFromJs(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -1137,6 +1144,8 @@ Local<Function> KeyObjectHandle::Initialize(Environment* env) {
         isolate, templ, "exportECPublicRaw", ExportECPublicRaw);
     SetProtoMethodNoSideEffect(
         isolate, templ, "exportECPrivateRaw", ExportECPrivateRaw);
+    SetProtoMethodNoSideEffect(
+        isolate, templ, "exportECPrivatePkcs8", ExportECPrivatePkcs8);
     SetProtoMethod(isolate, templ, "keyDetail", GetKeyDetail);
     SetProtoMethod(isolate, templ, "equals", Equals);
 
@@ -1160,6 +1169,7 @@ void KeyObjectHandle::RegisterExternalReferences(
   registry->Register(RawSeed);
   registry->Register(ExportECPublicRaw);
   registry->Register(ExportECPrivateRaw);
+  registry->Register(ExportECPrivatePkcs8);
   registry->Register(GetKeyDetail);
   registry->Register(Equals);
 }
@@ -1574,6 +1584,24 @@ void KeyObjectHandle::ExportECPrivateRaw(
 
   args.GetReturnValue().Set(Buffer::Copy(env, buf.get<const char>(), buf.size())
                                 .FromMaybe(Local<Value>()));
+}
+
+void KeyObjectHandle::ExportECPrivatePkcs8(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  KeyObjectHandle* key;
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
+  const KeyObjectData& data = key->Data();
+  CHECK_EQ(data.GetKeyType(), kKeyTypePrivate);
+  Mutex::ScopedLock lock(data.mutex());
+  auto encoded = ncrypto::Ec::ExportPrivatePkcs8(data.GetAsymmetricKey());
+  if (!encoded) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                             "Failed to export EC private key");
+  }
+  const EVPKeyPointer::PrivateKeyEncodingConfig config;
+  args.GetReturnValue().Set(
+      ToV8Value(env, encoded, config).FromMaybe(Local<Value>()));
 }
 
 void KeyObjectHandle::RawSeed(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -2188,7 +2216,8 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatPKCS8);
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatSPKI);
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatJWK);
-  SetMethod(context, target, "getPqcKeyTypes", GetPqcKeyTypes);
+  SetMethodNoSideEffect(
+      context, target, "isKeyAlgorithmAvailable", IsKeyAlgorithmAvailable);
   NODE_DEFINE_CONSTANT(target, kKeyEncodingPKCS1);
   NODE_DEFINE_CONSTANT(target, kKeyEncodingPKCS8);
   NODE_DEFINE_CONSTANT(target, kKeyEncodingSPKI);
@@ -2209,7 +2238,7 @@ void Initialize(Environment* env, Local<Object> target) {
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   KeyObjectHandle::RegisterExternalReferences(registry);
-  registry->Register(GetPqcKeyTypes);
+  registry->Register(IsKeyAlgorithmAvailable);
 }
 }  // namespace Keys
 

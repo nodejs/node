@@ -4,6 +4,7 @@ const auditError = require('../utils/audit-error.js')
 const { log, output } = require('proc-log')
 const reifyFinish = require('../utils/reify-finish.js')
 const resolveAllowScripts = require('../utils/resolve-allow-scripts.js')
+const { patchRelaxOpts } = require('../utils/cli-only-flag.js')
 const VerifySignatures = require('../utils/verify-signatures.js')
 
 class Audit extends ArboristWorkspaceCmd {
@@ -62,6 +63,8 @@ class Audit extends ArboristWorkspaceCmd {
     const { policy: allowScriptsPolicy } = await resolveAllowScripts(this.npm)
     const opts = {
       ...this.npm.flatOptions,
+      // audit fix reifies, so honor the cli-only patch relax flags
+      ...patchRelaxOpts(this.npm.config),
       audit: true,
       path: this.npm.prefix,
       reporter,

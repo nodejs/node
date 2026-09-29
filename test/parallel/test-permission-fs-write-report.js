@@ -15,7 +15,7 @@ if (!common.hasCrypto) {
 // We need to define the flags dynamically to account for the `NODE_TEST_DIR` env var.
 if (!process.permission) {
   spawnSyncAndExitWithoutError(process.execPath, [
-    '--permission',
+    '--permission', '--allow-env=NODE_TEST_DIR,TEST_*',
     '--allow-fs-read=*', `--allow-fs-write=${process.env.NODE_TEST_DIR || './test'}/.tmp.*`, '--allow-child-process',
     __filename,
   ]);

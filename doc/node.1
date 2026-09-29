@@ -118,6 +118,42 @@ This behavior also applies to \fBchild_process.spawn()\fR, but in that case, the
 flags are propagated via the \fBNODE_OPTIONS\fR environment variable rather than
 directly through the process arguments.
 .
+.It Fl -allow-env
+When using the Permission Model, the process starts without the environment
+variables it has not been granted access to. At startup, every variable that
+\fB--allow-env\fR does not match is removed from the process environment. Removed
+variables are absent from \fBprocess.env\fR, from diagnostic reports, from native
+code calling \fBgetenv()\fR, and from the environment of child processes and worker
+threads.
+The valid values are:
+.Bl -bullet
+.It
+\fB*\fR - Grants access to every environment variable.
+.It
+A variable name, for example \fB--allow-env=DATABASE_URL\fR.
+.It
+A variable name prefix followed by \fB*\fR, for example \fB--allow-env=APP_*\fR.
+.El
+Multiple values can be passed by repeating the flag, or by separating them with
+commas: \fB--allow-env=PORT,APP_*\fR. Variable names are case-insensitive on
+Windows.
+Example:
+.Bd -literal
+console.log(process.env.DATABASE_URL);
+console.log(process.env.AWS_SECRET_ACCESS_KEY);
+.Ed
+.Bd -literal
+$ node --permission --allow-fs-read=* --allow-env=DATABASE_URL index.js
+postgres://localhost/app
+undefined
+(node:1234) Warning: The permission model removed the environment variable "AWS_SECRET_ACCESS_KEY" at startup. Use --allow-env to manage permissions.
+.Ed
+The variables that Node.js and its bundled dependencies read, such as
+\fBNODE_OPTIONS\fR, \fBPATH\fR, \fBHOME\fR, \fBTZ\fR, and \fBSSL_CERT_FILE\fR, are always kept, as
+are the variables defined in \fB--env-file\fR files. \fBNODE_ENV\fR is not kept
+by default, so applications and libraries that read it need
+\fB--allow-env=NODE_ENV\fR. See Environment variable permissions for details.
+.
 .It Fl -allow-ffi
 When using the Permission Model, the process will not be able to use FFI
 APIs by default. Attempts to use FFI APIs will throw an \fBERR_ACCESS_DENIED\fR
@@ -243,6 +279,10 @@ an \fBERR_ACCESS_DENIED\fR unless the user explicitly passes the
 This flag grants broad authority to configured OpenSSL STORE loaders. A loader
 may access files, devices, tokens, or the network. Access performed by a loader
 is not constrained by the \fBfs.read\fR, \fBfs.write\fR, or \fBnet\fR permission scopes.
+Loaders and the modules they load are subject to \fB--allow-env\fR, however.
+Environment variables they rely on, such as \fBSOFTHSM2_CONF\fR for SoftHSM, are
+removed at startup unless they are granted explicitly with \fB--allow-env\fR. See
+Environment variable permissions for details.
 .
 .It Fl -allow-wasi
 When using the Permission Model, the process will not be capable of creating
@@ -1274,6 +1314,8 @@ File System - manageable through
 .It
 Network - manageable through \fB--allow-net\fR flag
 .It
+Environment variables - manageable through \fB--allow-env\fR flag
+.It
 Child Process - manageable through \fB--allow-child-process\fR flag
 .It
 Worker Threads - manageable through \fB--allow-worker\fR flag
@@ -1352,6 +1394,45 @@ See \fB--preserve-symlinks\fR for more information.
 .It Fl p , Fl -print Ar "script"
 Identical to \fB-e\fR but prints the result.
 .
+.It Fl -process-timeout Ns = Ns Ar duration
+Exits the process with code \fB124\fR if it is still running after \fBduration\fR,
+measured from the start of the process. \fBduration\fR is a positive integer
+followed by a unit: \fBms\fR, \fBs\fR, \fBm\fR, or \fBh\fR, for example \fB500ms\fR, \fB30s\fR, \fB5m\fR, or
+\fB1h\fR. The exit code matches the one used by the \fBtimeout(1)\fR command.
+Before exiting, Node.js prints what the main thread was doing and which
+resources were keeping the event loop alive to stderr:
+.Bd -literal
+$ node --process-timeout=5s server.js
+(node:25418) Process timed out after 5s (--process-timeout). Exiting with code 124.
+Main thread was not executing JavaScript.
+Resources keeping the event loop alive:
+    TCPServerWrap (listening on [::]:3000, fd 20)
+    Timeout x2 (next due in 2931ms)
+.Ed
+If the main thread was executing JavaScript, its stack trace is printed instead.
+Use \fB--report-on-process-timeout\fR to also generate a diagnostic report.
+The process exits without emitting the \fB'beforeExit'\fR and \fB'exit'\fR events, as
+the JavaScript code may be what keeps the process running. Code coverage and
+profiles, such as those enabled with \fBNODE_V8_COVERAGE=dir\fR or
+\fB--cpu-prof\fR, are still written.
+If the main thread does not respond within two seconds, for example because it
+is blocked in a synchronous operation such as \fBchild_process.execSync()\fR,
+Node.js exits immediately without printing the stack trace and resources.
+This option is not allowed in \fBNODE_OPTIONS\fR, and it cannot be combined
+with the options that enable the inspector, such as \fB--inspect\fR,
+\fB--inspect-brk\fR, \fB--inspect-wait\fR, \fB--inspect-port\fR, and
+\fB--inspect-publish-uid\fR, nor with \fBnode inspect\fR, \fB--run\fR, or
+\fB--build-snapshot\fR. While it is in effect, \fBinspector.open()\fR and
+\fBsession.connectToMainThread()\fR throw, and requests to activate the
+inspector with \fBSIGUSR1\fR are ignored.
+Child processes that inherit \fBprocess.execArgv\fR, such as those created with
+\fBchild_process.fork()\fR, apply the timeout from their own start. With
+\fB--watch\fR, the timeout applies to each run of the application rather than
+to the process that watches for changes. When
+running tests from the command line, the test runner process applies the
+timeout to the whole run, and each test file that runs in its own process
+applies it as well.
+.
 .It Fl -prof
 Generate V8 profiler output.
 .
@@ -1394,6 +1475,15 @@ the Node.js runtime such as out of memory) that lead to termination of the
 application. Useful to inspect various diagnostic data elements such as heap,
 stack, event loop state, resource consumption etc. to reason about the fatal
 error.
+.
+.It Fl -report-on-process-timeout
+Enables the report to be generated when \fB--process-timeout\fR expires, in
+addition to the summary printed to stderr. Useful to inspect the JavaScript
+and native stacks, the event loop state, and resource consumption to reason
+about why the process did not exit. Requires \fB--process-timeout\fR.
+Worker threads that do not provide their part of the report within two
+seconds, for example because they are blocked in a synchronous operation such
+as \fBchild_process.execSync()\fR, are left out of it.
 .
 .It Fl -report-on-signal
 Enables report to be generated upon receiving the specified (or predefined)
@@ -1888,43 +1978,16 @@ Print node's version.
 \fBsource\fR \fB{string}\fR A directory or an archive file to mount and run.
 .El
 Requires \fB--experimental-vfs\fR. May be given at most once.
-Mounts \fBsource\fR exactly as \fB--vfs-mount\fR does, and additionally runs the
-entry point and all subsequent \fBrequire()\fR/\fBimport\fR resolution against that
-mount rather than the real file system. The entry point is taken from the mount
-the same way \fBnode <directory>\fR takes one: the mount's own \fBpackage.json\fR
-\fB"main"\fR, or \fBindex.js\fR. Any positional command-line argument is the program's
-own (available from \fBprocess.argv[2]\fR onward), never an entry-point override.
+Mounts \fBsource\fR as a virtual file system (\fBnode:vfs\fR), and runs the entry
+point and all subsequent \fBrequire()\fR/\fBimport\fR resolution against that mount
+rather than the real file system. The mount is placed at a reserved mount point
+assigned by Node.js, so it never shadows real paths and no target can be
+chosen. The entry point is taken from the mount the same way \fBnode <directory>\fR
+takes one: the mount's own \fBpackage.json\fR \fB"main"\fR, or \fBindex.js\fR. Any
+positional command-line argument is the program's own (available from
+\fBprocess.argv[2]\fR onward), never an entry-point override.
 \fBprocess.argv[1]\fR reports \fBsource\fR rather than the reserved mount point, since
 the mount point is an opaque implementation detail.
-Mounting the same source twice mounts it twice, at two separate mount points.
-The entry point then comes from the mount \fB--vfs-load\fR itself contributed, not
-from an earlier \fB--vfs-mount\fR of the same source.
-In worker threads \fB--vfs-load\fR mounts but does not load: a worker inherits the
-same mounts, in the same order, and runs its own entry point.
-\fB--vfs-load\fR is not permitted in \fBNODE_OPTIONS\fR: which entry point runs is
-the command line's decision, and the environment must not be able to redirect
-it.
-.Bd -literal
-$ node --experimental-vfs --vfs-load=app.zip
-$ node --experimental-vfs --vfs-mount=lib.zip --vfs-load=app.zip
-.Ed
-.
-.It Fl -vfs-mount Ns = Ns Ar source
-.Bl -bullet
-.It
-\fBsource\fR \fB{string}\fR A directory or an archive file to mount.
-.El
-Requires \fB--experimental-vfs\fR. May be repeated to mount several sources.
-Mounts \fBsource\fR as a virtual file system (\fBnode:vfs\fR). Each mount is placed
-at a reserved mount point assigned by Node.js, so mounts never shadow real
-paths and no target can be chosen. Mounting alone does not change the entry
-point; use \fB--vfs-load\fR for the source to run from.
-\fB--vfs-mount\fR and \fB--vfs-load\fR mount in the order they are written, so
-.Bd -literal
-$ node --experimental-vfs --vfs-mount=a --vfs-load=b --vfs-mount=c
-.Ed
-mounts \fBa\fR, \fBb\fR and \fBc\fR in that order and runs \fBb\fR. Mounts contributed by
-\fBNODE_OPTIONS\fR are mounted before the command line's.
 The provider backing a source is chosen from the source itself rather than from
 its file name:
 .Bl -bullet
@@ -1938,6 +2001,24 @@ Providers registered with \fBvfs.registerProvider()\fR (typically from a module
 preloaded with \fB--require\fR or \fB--import\fR) are consulted first, in
 reverse registration order, and may claim directories as well as files. If no
 provider claims the source, Node.js exits with an error.
+In worker threads \fB--vfs-load\fR mounts but does not load: a worker inherits the
+mount and runs its own entry point, which may itself live in the mount.
+The source is mounted at the same reserved mount point in every thread that
+mounts it, whatever else that thread mounts, so a path into the mount means the
+same thing in all of them.
+A worker created with its own \fBexecArgv\fR inherits none of the parent's options,
+and so does not mount the source at all. To run a script from the mount, such a
+worker must be given the same options again, \fB--experimental-vfs\fR and
+\fB--vfs-load\fR; without them, that thread has no mount for the script to come
+from, and the worker fails to load it. \fB--experimental-vfs\fR is also what makes
+\fBnode:vfs\fR available to the worker's own code. A worker whose script comes
+from anywhere else, such as the real file system, needs nothing added.
+\fB--vfs-load\fR is not permitted in \fBNODE_OPTIONS\fR: which entry point runs is
+the command line's decision, and the environment must not be able to redirect
+it.
+.Bd -literal
+$ node --experimental-vfs --vfs-load=app.zip
+.Ed
 .
 .It Fl -watch
 Starts Node.js in watch mode.
@@ -2087,6 +2168,8 @@ one is included in the list below.
 \fB--allow-addons\fR
 .It
 \fB--allow-child-process\fR
+.It
+\fB--allow-env\fR
 .It
 \fB--allow-ffi\fR
 .It
@@ -2429,8 +2512,6 @@ one is included in the list below.
 \fB--use-system-ca\fR
 .It
 \fB--v8-pool-size\fR
-.It
-\fB--vfs-mount\fR
 .It
 \fB--watch-kill-signal\fR
 .It

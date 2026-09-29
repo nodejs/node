@@ -4,6 +4,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { push, text } = require('stream/iter');
+const { setImmediate } = require('timers/promises');
 
 async function testStrictBackpressure() {
   const kChunk = new Uint8Array(16384).fill(65); // 'A'
@@ -74,7 +75,7 @@ async function testBlockBackpressure() {
 
   // The write cannot resolve until the buffer is drained, so a microtask
   // tick is sufficient to confirm it is still blocked.
-  await new Promise(setImmediate);
+  await setImmediate();
   assert.strictEqual(writeState, 'pending'); // Still blocked
 
   // Read from the consumer to drain
@@ -83,7 +84,7 @@ async function testBlockBackpressure() {
   assert.strictEqual(first.done, false);
 
   // After draining, the pending write resolves as a microtask
-  await new Promise(setImmediate);
+  await setImmediate();
   assert.strictEqual(writeState, 'resolved'); // Now unblocked
 
   writer.endSync();

@@ -322,6 +322,10 @@ inline void Environment::set_env_vars(std::shared_ptr<KVStore> env_vars) {
   env_vars_ = env_vars;
 }
 
+inline int Environment::ipc_channel_fd() const {
+  return ipc_channel_fd_;
+}
+
 inline bool Environment::printed_error() const {
   return printed_error_;
 }

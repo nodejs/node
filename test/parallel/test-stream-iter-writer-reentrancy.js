@@ -4,6 +4,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { broadcast, push } = require('stream/iter');
+const { setImmediate } = require('timers/promises');
 
 const factories = [
   () => push({ budget: 16384 }),
@@ -31,7 +32,7 @@ async function testWritevReentrancy() {
     const write = writer.writev(chunks).then(common.mustCall(() => {
       resolved = true;
     }));
-    await new Promise(setImmediate);
+    await setImmediate();
     assert.strictEqual(resolved, false);
 
     const iterator = readable[Symbol.asyncIterator]();

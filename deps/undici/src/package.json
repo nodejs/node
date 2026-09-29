@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "8.10.2",
+  "version": "8.11.2",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {

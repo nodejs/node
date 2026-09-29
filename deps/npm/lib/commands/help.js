@@ -25,6 +25,7 @@ class Help extends BaseCommand {
   static name = 'help'
   static usage = ['<term> [<terms..>]']
   static params = ['viewer']
+  static skipConfigValidation = true
 
   static async completion (opts, npm) {
     if (opts.conf.argv.remain.length > 2) {

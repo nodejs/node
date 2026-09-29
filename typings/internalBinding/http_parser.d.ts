@@ -46,7 +46,8 @@ declare namespace InternalHttpParserBinding {
       resource: object,
       maxHeaderSize?: number,
       lenient?: number,
-      headersTimeout?: number,
+      connectionsList?: object,
+      maxHeaderPairs?: number,
     ): void;
     pause(): void;
     resume(): void;

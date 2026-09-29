@@ -41,6 +41,9 @@ declare namespace InternalPerformanceBinding {
     ewmaMean(): number;
     ewmaStddev(): number;
     ewmaErrorRate(): number;
+    snapshot(): Histogram;
+    diff(other: HistogramBase): Histogram;
+    resetCount(): number;
   }
 
   interface ELDHistogram extends HistogramBase {
@@ -142,6 +145,9 @@ export interface PerformanceBinding {
   createELDHistogram(
     interval: number,
     samplePerIteration: boolean,
+    lowest: bigint,
+    highest: bigint,
+    figures: number,
   ): InternalPerformanceBinding.ELDHistogram;
   markBootstrapComplete(): void;
   uvMetricsInfo(): void;

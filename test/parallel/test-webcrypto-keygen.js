@@ -251,18 +251,17 @@ if (hasOpenSSL(3, 5) || isBoringSSL) {
 // Test bad usages
 {
   async function test(name) {
-    if (fips3 && name === 'ChaCha20-Poly1305') {
+    if (fips3 && (name === 'ChaCha20-Poly1305' || name === 'AES-OCB')) {
       await assert.rejects(
         subtle.generateKey({ name }, true, []),
-        { name: 'NotSupportedError' });
+        { name: 'NotSupportedError', message: 'Unrecognized algorithm name' });
       return;
     }
 
     if (fips35 && (name === 'X25519' || name === 'X448')) {
       await assert.rejects(
         subtle.generateKey({ name }, true, ['deriveBits']),
-        (err) => err.name === 'OperationError' &&
-                 err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED');
+        { name: 'NotSupportedError', message: 'Unrecognized algorithm name' });
       return;
     }
 
@@ -757,8 +756,7 @@ assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
   async function testFipsUnsupported(name) {
     await assert.rejects(
       subtle.generateKey({ name }, true, ['deriveKey', 'deriveBits']),
-      (err) => err.name === 'OperationError' &&
-               err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED');
+      { name: 'NotSupportedError', message: 'Unrecognized algorithm name' });
   }
 
   async function test(

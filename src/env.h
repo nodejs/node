@@ -182,6 +182,11 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   inline worker::Worker* worker_context() const;
   inline void set_worker_context(worker::Worker* context);
 
+  // Non-zero while an Environment on this isolate is closing its handles with
+  // JS disallowed isolate-wide; InternalCallbackScope re-allows it for the
+  // other Environments whose callbacks run in those loop turns.
+  int handle_cleanup_depth = 0;
+
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
@@ -809,6 +814,10 @@ class Environment final : public MemoryRetainer {
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
   inline uv_check_t* immediate_check_handle();
   inline uv_idle_t* immediate_idle_handle();
+  // Referenced while add_refs() holds references, e.g. for running Workers.
+  uv_async_t* task_queues_async() {
+    return &task_queues_async_;
+  }
 
   inline void IncreaseWaitingRequestCounter();
   inline void DecreaseWaitingRequestCounter();
@@ -821,6 +830,10 @@ class Environment final : public MemoryRetainer {
   inline permission::Permission* permission();
   inline std::shared_ptr<KVStore> env_vars();
   inline void set_env_vars(std::shared_ptr<KVStore> env_vars);
+
+  // The IPC channel descriptor passed by the parent process through
+  // NODE_CHANNEL_FD when this Environment was created, or -1.
+  inline int ipc_channel_fd() const;
 
   inline IsolateData* isolate_data() const;
 
@@ -1244,6 +1257,7 @@ class Environment final : public MemoryRetainer {
   permission::Permission permission_;
   const uint64_t timer_base_;
   std::shared_ptr<KVStore> env_vars_;
+  int ipc_channel_fd_ = -1;
   bool printed_error_ = false;
   bool trace_sync_io_ = false;
   bool emit_env_nonstring_warning_ = true;

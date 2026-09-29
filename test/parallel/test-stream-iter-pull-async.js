@@ -14,6 +14,8 @@ const {
   toAsyncStreamable,
 } = require('stream/iter');
 
+const { setImmediate } = require('timers/promises');
+
 async function testPullIdentity() {
   const data = await text(pull(from('hello-async')));
   assert.strictEqual(data, 'hello-async');
@@ -166,7 +168,7 @@ async function testTransformSignalListenerErrorOnSourceError() {
   );
 
   // Give the nextTick rethrow a chance to fire
-  await new Promise(setImmediate);
+  await setImmediate();
   process.removeListener('uncaughtException', handler);
 
   assert.strictEqual(uncaughtErrors.length, 1);
@@ -249,7 +251,7 @@ async function testPullReturnWhileSourceNextPending() {
   const timeout = {};
   const result = await Promise.race([
     iter.return(),
-    new Promise((resolve) => setImmediate(resolve, timeout)),
+    setImmediate(timeout),
   ]);
 
   assert.notStrictEqual(result, timeout);
@@ -327,7 +329,7 @@ async function testPullConsumerBreakCleanup() {
     break;
   }
   // Give the abort handler a tick to fire
-  await new Promise(setImmediate);
+  await setImmediate();
   assert.strictEqual(signalAborted, true);
 }
 

@@ -413,9 +413,12 @@ function assertPermissionModel() {
     });
   `;
 
+  // SoftHSM locates its configuration through SOFTHSM2_CONF, which the
+  // permission model would otherwise scrub from the environment at startup.
   assertChild([
     `--openssl-config=${kOpenSSLConfig}`,
     '--permission',
+    '--allow-env=SOFTHSM2_CONF',
     '--allow-fs-read=*',
     '-e',
     code,
@@ -424,6 +427,7 @@ function assertPermissionModel() {
   assertChild([
     `--openssl-config=${kOpenSSLConfig}`,
     '--permission',
+    '--allow-env=SOFTHSM2_CONF',
     '--allow-openssl-store',
     '--allow-fs-read=*',
     '-e',

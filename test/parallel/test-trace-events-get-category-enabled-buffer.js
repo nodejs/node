@@ -10,6 +10,8 @@ try {
   common.skip('missing trace events');
 }
 
+// Perfetto aborts on a category that is not in its static registry, and its
+// enabled flag does not follow createTracing().enable().
 common.skipIfPerfettoEnabled();
 
 const { createTracing, getEnabledCategories } = require('trace_events');

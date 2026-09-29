@@ -133,7 +133,7 @@ jobs:
         run: |
           export DATESTRING=$(date "+%Y-%m-%d")
           export COMMIT=$(git rev-parse --short=10 "$GITHUB_SHA")
-          ./configure && make tar -j4 SKIP_XZ=1 SKIP_SHARED_DEPS=1
+          ./configure && make tar -j4 SKIP_XZ=1 SKIP_SHARED_DEPS=1 GZIP_COMPRESSION=6
         env:
           DISTTYPE: nightly
 
@@ -168,7 +168,16 @@ jobs:
       extra-nix-flags: |
         --arg useSeparateDerivationForV8 true \
         ${{ matrix.perfetto && '--arg withPerfetto true \' || '\' }}
-        ${{ endsWith(matrix.system, '-darwin') && '--arg withAmaro false --arg withLief false --arg withSQLite false --arg withFFI false --arg extraConfigFlags ''["--without-inspector" "--without-node-options"]'' \' || '\' }}
+        ${{ endsWith(matrix.system, '-darwin') && '\
+          --arg withAmaro false \
+          --arg withFFI false \
+          --arg withLief false \
+          --arg withSQLite false \
+          --arg withTemporal false \
+          --arg extraConfigFlags ''[
+            "--without-inspector"
+            "--without-node-options"
+          ]'' \' || '\' }}
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 

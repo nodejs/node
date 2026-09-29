@@ -3163,6 +3163,7 @@ The available scopes are:
 * `fs.read` - File System read operations
 * `fs.write` - File System write operations
 * `child` - Child process spawning operations
+* `env` - Environment variables
 * `openssl.store` - Loading keys through OpenSSL STORE loaders
 * `worker` - Worker thread spawning operation
 * `ffi` - Foreign function interface operations
@@ -3220,6 +3221,8 @@ The available scopes are the same as [`process.permission.has()`][]:
 * `fs.read` - File System read operations
 * `fs.write` - File System write operations
 * `child` - Child process spawning operations
+* `env` - Environment variables. Dropping a variable removes it from the
+  environment
 * `openssl.store` - Loading keys through OpenSSL STORE loaders
 * `worker` - Worker thread spawning operation
 * `net` - Network operations
@@ -3331,9 +3334,11 @@ console.log(`The parent process is pid ${ppid}`);
 added:
   - v23.6.0
   - v22.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66213
+    description: This API is no longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 * `maybeRefable` {any} An object that may be "refable".
 
@@ -4435,9 +4440,11 @@ In [`Worker`][] threads, `process.umask(mask)` will throw an exception.
 added:
   - v23.6.0
   - v22.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66213
+    description: This API is no longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 * `maybeRefable` {any} An object that may be "unref'd".
 
@@ -4601,6 +4608,8 @@ cases:
 * `14` **Snapshot Failure**: Node.js was started to build a V8 startup
   snapshot and it failed because certain requirements of the state of
   the application were not met.
+* `124` **Process Timeout**: The process was still running when the duration
+  set with [`--process-timeout`][] elapsed.
 * `>128` **Signal Exits**: If Node.js receives a fatal signal such as
   `SIGKILL` or `SIGHUP`, then its exit code will be `128` plus the
   value of the signal code. This is a standard POSIX practice, since
@@ -4629,6 +4638,7 @@ cases:
 [`--no-deprecation`]: cli.md#--no-deprecation
 [`--permission-audit`]: cli.md#--permission-audit
 [`--permission`]: cli.md#--permission
+[`--process-timeout`]: cli.md#--process-timeoutduration
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`Buffer`]: buffer.md
 [`ChildProcess.disconnect()`]: child_process.md#subprocessdisconnect

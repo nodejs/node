@@ -182,17 +182,6 @@ declare namespace InternalCryptoBinding {
     ): CryptoJobWebCrypto<ArrayBuffer>;
   }
 
-  interface CShakeJobConstructor {
-    new(
-      mode: CryptoJobWebCryptoMode,
-      algorithm: string,
-      data: ByteSource,
-      functionName: OptionalByteSource,
-      customization: OptionalByteSource,
-      outputLength: number,
-    ): CryptoJobWebCrypto<ArrayBuffer>;
-  }
-
   interface ChaCha20Poly1305CipherJobConstructor {
     new(
       mode: CryptoJobWebCryptoMode,
@@ -375,7 +364,6 @@ declare namespace InternalCryptoBinding {
       key: KeyObjectHandle,
       algorithm: string,
       customization: OptionalByteSource,
-      keyLength: number,
       outputLength: number,
       data: ByteSource,
       ...signature: MacJobSignatureArgs<S>
@@ -583,6 +571,7 @@ declare namespace InternalCryptoBinding {
     getAsymmetricKeyType(): string | undefined;
     getSymmetricKeySize(): number;
     checkEcKeyData(): boolean;
+    exportECPrivatePkcs8(): Buffer;
   }
 
   interface NativeKeyObject {
@@ -817,7 +806,6 @@ declare namespace InternalCryptoBinding {
 export interface CryptoBinding {
   AESCipherJob: InternalCryptoBinding.AESCipherJobConstructor;
   Argon2Job: InternalCryptoBinding.Argon2JobConstructor;
-  CShakeJob?: InternalCryptoBinding.CShakeJobConstructor;
   ChaCha20Poly1305CipherJob: InternalCryptoBinding.ChaCha20Poly1305CipherJobConstructor;
   CheckPrimeJob: InternalCryptoBinding.CheckPrimeJobConstructor;
   DHBitsJob: InternalCryptoBinding.DHBitsJobConstructor;
@@ -831,7 +819,6 @@ export interface CryptoBinding {
   KEMEncapsulateJob?: InternalCryptoBinding.KEMEncapsulateJobConstructor;
   KangarooTwelveJob: InternalCryptoBinding.KangarooTwelveJobConstructor;
   KmacJob: InternalCryptoBinding.KmacJobConstructor;
-  getPqcKeyTypes(): string[];
   NamedKeyPairGenJob: InternalCryptoBinding.NamedKeyPairGenJobConstructor;
   PBKDF2Job: InternalCryptoBinding.PBKDF2JobConstructor;
   RandomBytesJob: InternalCryptoBinding.RandomBytesJobConstructor;
@@ -987,6 +974,7 @@ export interface CryptoBinding {
   getHashes(): string[];
   getMacs(): string[];
   isCryptoKey(key: unknown): boolean;
+  isKeyAlgorithmAvailable(name: string): boolean;
   isKeyObject(key: unknown): boolean;
   isX509Certificate(value: unknown): boolean;
   getKeyObjectSlots(key: object): InternalCryptoBinding.KeyObjectSlots;

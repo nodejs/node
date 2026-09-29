@@ -31,6 +31,7 @@
 #include "stream_base-inl.h"
 #include "v8.h"
 
+#include <algorithm>
 #include <cstdlib>  // free()
 #include <cstring>  // strdup(), strchr()
 
@@ -311,6 +312,13 @@ class Parser : public AsyncWrap, public StreamListener {
         current_buffer_data_(nullptr),
         binding_data_(binding_data) {}
 
+  enum InternalFields {
+    kOnHeadersCompleteCallback = AsyncWrap::kInternalFieldCount,
+    kOnBodyCallback,
+    kOnMessageCompleteCallback,
+    kInternalFieldCount
+  };
+
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(Parser)
   SET_SELF_SIZE(Parser)
@@ -324,7 +332,6 @@ class Parser : public AsyncWrap, public StreamListener {
     allocator_.Reset();
     url_.Reset();
     status_message_.Reset();
-    max_header_pairs_ = -1;
 
     if (connectionsList_ != nullptr) {
       connectionsList_->PushActive(this);
@@ -441,9 +448,8 @@ class Parser : public AsyncWrap, public StreamListener {
     };
 
     Local<Value> argv[A_MAX];
-    Local<Object> obj = object();
-    Local<Value> cb = obj->Get(env()->context(),
-                               kOnHeadersComplete).ToLocalChecked();
+    Local<Value> cb =
+        CachedCallback(kOnHeadersComplete, kOnHeadersCompleteCallback);
 
     if (!cb->IsFunction())
       return 0;
@@ -465,7 +471,6 @@ class Parser : public AsyncWrap, public StreamListener {
     num_fields_ = 0;
     num_values_ = 0;
     header_pairs_ = 0;
-    max_header_pairs_ = -1;
 
     // METHOD
     if (parser_.type == HTTP_REQUEST) {
@@ -521,7 +526,7 @@ class Parser : public AsyncWrap, public StreamListener {
     Environment* env = this->env();
     HandleScope handle_scope(env->isolate());
 
-    Local<Value> cb = object()->Get(env->context(), kOnBody).ToLocalChecked();
+    Local<Value> cb = CachedCallback(kOnBody, kOnBodyCallback);
 
     if (!cb->IsFunction())
       return 0;
@@ -554,9 +559,8 @@ class Parser : public AsyncWrap, public StreamListener {
 
     header_pairs_ = 0;
 
-    Local<Object> obj = object();
-    Local<Value> cb = obj->Get(env()->context(),
-                               kOnMessageComplete).ToLocalChecked();
+    Local<Value> cb =
+        CachedCallback(kOnMessageComplete, kOnMessageCompleteCallback);
 
     if (!cb->IsFunction())
       return 0;
@@ -625,6 +629,7 @@ class Parser : public AsyncWrap, public StreamListener {
     // it needs to be triggered manually.
     parser->EmitTraceEventDestroy();
     parser->EmitDestroy();
+    parser->ClearCachedCallbacks();
   }
 
   // TODO(@anonrig): Add V8 Fast API
@@ -683,6 +688,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     uint64_t max_http_header_size = 0;
     uint32_t lenient_flags = kLenientNone;
+    size_t max_header_pairs = 0;
     ConnectionsList* connectionsList = nullptr;
 
     CHECK(args[0]->IsInt32());
@@ -707,6 +713,12 @@ class Parser : public AsyncWrap, public StreamListener {
       ASSIGN_OR_RETURN_UNWRAP(&connectionsList, args[4]);
     }
 
+    // Non-positive values mean no limit.
+    if (args.Length() > 5 && !args[5]->IsUndefined()) {
+      CHECK(args[5]->IsInt32());
+      max_header_pairs = std::max(args[5].As<Int32>()->Value(), 0);
+    }
+
     llhttp_type_t type =
         static_cast<llhttp_type_t>(args[0].As<Int32>()->Value());
 
@@ -723,7 +735,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     parser->set_provider_type(provider);
     parser->AsyncReset(args[1].As<Object>());
-    parser->Init(type, max_http_header_size, lenient_flags);
+    parser->Init(type, max_http_header_size, lenient_flags, max_header_pairs);
 
     if (connectionsList != nullptr) {
       parser->connectionsList_ = connectionsList;
@@ -940,6 +952,9 @@ class Parser : public AsyncWrap, public StreamListener {
     Local<Value> headers_v[kMaxHeaderFieldsCount * 2];
 
     for (size_t i = 0; i < num_values_; ++i) {
+      // Field names are not internalized: header names are attacker
+      // controlled, so a flood of unique names would grow V8's string table
+      // and pay the interning cost on every request with no dedup benefit.
       headers_v[i * 2] = fields_[i].ToString(env());
       headers_v[i * 2 + 1] = values_[i].ToTrimmedString(env());
     }
@@ -974,10 +989,32 @@ class Parser : public AsyncWrap, public StreamListener {
     have_flushed_ = true;
   }
 
+  void ClearCachedCallbacks() {
+    Local<Value> undefined = Undefined(env()->isolate());
+    object()->SetInternalField(kOnHeadersCompleteCallback, undefined);
+    object()->SetInternalField(kOnBodyCallback, undefined);
+    object()->SetInternalField(kOnMessageCompleteCallback, undefined);
+  }
 
-  void Init(llhttp_type_t type, uint64_t max_http_header_size,
-            uint32_t lenient_flags) {
+  // Keep cached callbacks on the JS object so they do not keep the parser
+  // alive when a callback closes over it.
+  Local<Value> CachedCallback(uint32_t index, int field) {
+    Local<Object> obj = object();
+    Local<Value> cb = obj->GetInternalField(field).As<Value>();
+    if (cb->IsFunction()) return cb;
+
+    cb = obj->Get(env()->context(), index).ToLocalChecked();
+    if (cb->IsFunction()) obj->SetInternalField(field, cb);
+    return cb;
+  }
+
+  void Init(llhttp_type_t type,
+            uint64_t max_http_header_size,
+            uint32_t lenient_flags,
+            size_t max_header_pairs) {
     llhttp_init(&parser_, type, &settings);
+
+    ClearCachedCallbacks();
 
     if (lenient_flags & kLenientHeaders) {
       llhttp_set_lenient_headers(&parser_, 1);
@@ -1026,9 +1063,8 @@ class Parser : public AsyncWrap, public StreamListener {
     headers_completed_ = false;
     max_http_header_size_ = max_http_header_size;
     header_pairs_ = 0;
-    max_header_pairs_ = -1;
+    max_header_pairs_ = max_header_pairs;
   }
-
 
   int TrackHeader(size_t len) {
     header_nread_ += len;
@@ -1041,22 +1077,6 @@ class Parser : public AsyncWrap, public StreamListener {
 
   int TrackHeaderPair() {
     header_pairs_ += 2;
-
-    if (max_header_pairs_ < 0) {
-      Local<Value> max_header_pairs_v;
-      if (!object()
-               ->Get(env()->context(),
-                     FIXED_ONE_BYTE_STRING(env()->isolate(), "maxHeaderPairs"))
-               .ToLocal(&max_header_pairs_v)) {
-        got_exception_ = true;
-        return -1;
-      }
-
-      const double value = max_header_pairs_v->IsNumber()
-                               ? max_header_pairs_v.As<Number>()->Value()
-                               : 0;
-      max_header_pairs_ = value > 0 ? value : 0;
-    }
 
     if (max_header_pairs_ > 0 && header_pairs_ > max_header_pairs_) {
       llhttp_set_error_reason(&parser_, "HPE_HEADER_OVERFLOW:Header overflow");
@@ -1100,7 +1120,7 @@ class Parser : public AsyncWrap, public StreamListener {
   const char* current_buffer_data_;
   bool headers_completed_ = false;
   size_t header_pairs_ = 0;
-  double max_header_pairs_ = -1;
+  size_t max_header_pairs_ = 0;
   bool pending_pause_ = false;
   bool received_data_ = false;
   uint64_t header_nread_ = 0;

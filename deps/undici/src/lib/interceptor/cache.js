@@ -330,6 +330,8 @@ function sendCachedValue (handler, opts, result, age, context, isStale) {
   assert(!stream.destroyed, 'stream should not be destroyed')
   assert(!stream.readableDidRead, 'stream should not be readableDidRead')
 
+  let aborted = false
+
   const controller = {
     rawHeaders: [],
     rawTrailers: [],
@@ -343,12 +345,13 @@ function sendCachedValue (handler, opts, result, age, context, isStale) {
       return stream.isPaused()
     },
     get aborted () {
-      return stream.destroyed
+      return aborted
     },
     get reason () {
       return stream.errored
     },
     abort (reason) {
+      aborted = true
       stream.destroy(reason ?? new AbortError())
     }
   }

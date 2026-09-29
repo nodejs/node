@@ -390,7 +390,7 @@ property take precedence over `--trace-deprecation` and
 ## `util.debounce(fn, wait[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * `fn` {Function} The function to debounce.
@@ -488,7 +488,7 @@ onInactivity();
 ## `util.throttle(fn, limit, interval[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * `fn` {Function} The function to throttle.
@@ -1898,13 +1898,32 @@ console.log(util.isDeepStrictEqual(foo, bar, true));
 See [`assert.deepStrictEqual()`][] for more information about deep strict
 equality.
 
-## `util.markPromiseAsHandled(promise)`
+## `util.isPartialDeepStrictEqual(val1, val2)`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `promise` {promise} The promise to mark as handled
+* `val1` {any}
+* `val2` {any}
+* Returns: {boolean}
+
+Returns `true` if there is partial deep strict equality between `val1` and
+`val2`. Otherwise, returns `false`.
+
+"Partial" equality means that only properties that exist on `val2` are going
+to be compared.
+
+See [`assert.partialDeepStrictEqual()`][] for more information about partial
+deep strict equality.
+
+## `util.markPromiseAsHandled(promise)`
+
+<!-- YAML
+added: v26.10.0
+-->
+
+* `promise` {Promise} The promise to mark as handled
 
 Marks a promise as handled so that unhandled rejections are ignored and are not
 reported to the `'unhandledrejection'` event.
@@ -4145,6 +4164,7 @@ npx codemod@latest @nodejs/util-is
 [`Object.freeze()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
 [`Runtime.ScriptId`]: https://chromedevtools.github.io/devtools-protocol/1-3/Runtime/#type-ScriptId
 [`assert.deepStrictEqual()`]: assert.md#assertdeepstrictequalactual-expected-message
+[`assert.partialDeepStrictEqual()`]: assert.md#assertpartialdeepstrictequalactual-expected-message
 [`console.error()`]: console.md#consoleerrordata-args
 [`mime.toString()`]: #mimetostring
 [`mimeParams.entries()`]: #mimeparamsentries

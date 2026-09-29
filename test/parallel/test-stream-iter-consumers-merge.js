@@ -12,6 +12,7 @@ const {
   toAsyncStreamable,
   toStreamable,
 } = require('stream/iter');
+const { setTimeout, setImmediate } = require('timers/promises');
 
 // =============================================================================
 // merge
@@ -89,7 +90,7 @@ async function testMergeSourceError() {
     const enc = new TextEncoder();
     yield [enc.encode('a')];
     // Slow so the bad source errors first
-    await new Promise((r) => setTimeout(r, 50));
+    await setTimeout(50);
     yield [enc.encode('b')];
   }
 
@@ -159,7 +160,7 @@ async function testMergeSourceErrorDoesNotAwaitCleanup() {
       () => ({ __proto__: null, status: 'fulfilled' }),
       (error) => ({ __proto__: null, status: 'rejected', error }),
     ),
-    new Promise((resolve) => setImmediate(resolve, timedOut)),
+    setImmediate(timedOut),
   ]);
 
   assert.notStrictEqual(outcome, timedOut);
@@ -181,7 +182,7 @@ async function testMergeBreakDoesNotAwaitCleanup() {
       }
       return true;
     })(),
-    new Promise((resolve) => setImmediate(resolve, timedOut)),
+    setImmediate(timedOut),
   ]);
 
   assert.strictEqual(outcome, true);
@@ -194,7 +195,7 @@ async function testMergeNaNAbortDoesNotAwaitCleanup() {
     signal: ac.signal,
   })[Symbol.asyncIterator]();
   const next = iterator.next();
-  await new Promise(setImmediate);
+  await setImmediate();
   ac.abort(NaN);
 
   const timedOut = { __proto__: null };
@@ -203,7 +204,7 @@ async function testMergeNaNAbortDoesNotAwaitCleanup() {
       () => ({ __proto__: null, status: 'fulfilled' }),
       (error) => ({ __proto__: null, status: 'rejected', error }),
     ),
-    new Promise((resolve) => setImmediate(resolve, timedOut)),
+    setImmediate(timedOut),
   ]);
 
   assert.notStrictEqual(outcome, timedOut);
@@ -234,7 +235,7 @@ async function testMergeConsumerBreak() {
     break; // Break after first batch
   }
   // Give async cleanup a tick to complete
-  await new Promise(setImmediate);
+  await setImmediate();
   // Both sources should be cleaned up
   assert.strictEqual(source1Return && source2Return, true);
 }
@@ -244,7 +245,7 @@ async function testMergeSignalMidIteration() {
   async function* slowSource() {
     const enc = new TextEncoder();
     yield [enc.encode('a')];
-    await new Promise((r) => setTimeout(r, 100));
+    await setTimeout(100);
     yield [enc.encode('b')];
   }
   const merged = merge(slowSource(), { signal: ac.signal });
@@ -297,7 +298,7 @@ async function testMergeSignalDuringPendingSingleSourceRead() {
   })[Symbol.asyncIterator]();
 
   const next = iter.next();
-  await new Promise(setImmediate);
+  await setImmediate();
   ac.abort();
 
   await assert.rejects(next, { name: 'AbortError' });
@@ -322,7 +323,7 @@ async function testMergeDoesNotDrainSourcesWhileIdle() {
   const iterator = merge(a, b)[Symbol.asyncIterator]();
 
   await iterator.next();
-  await new Promise(setImmediate);
+  await setImmediate();
 
   assert.strictEqual(a.pulls, 1);
   assert.strictEqual(b.pulls, 1);
