@@ -101,13 +101,13 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
         // The presence of a session property on the socket indicates HTTP2
         // HTTP1
         if (response.socket?.session == null) {
-          failWebsocketConnection(handler, 1002, 'Received network error or non-101 status code.', response.error)
+          failHandshake(handler, response, 1002, 'Received network error or non-101 status code.', response.error)
           return
         }
 
         // HTTP2
         if (response.status !== 200) {
-          failWebsocketConnection(handler, 1002, 'Received network error or non-200 status code.', response.error)
+          failHandshake(handler, response, 1002, 'Received network error or non-200 status code.', response.error)
           return
         }
       }
@@ -122,7 +122,7 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
       //    header list results in null, failure, or the empty byte
       //    sequence, then fail the WebSocket connection.
       if (protocols.length !== 0 && !response.headersList.get('Sec-WebSocket-Protocol')) {
-        failWebsocketConnection(handler, 1002, 'Server did not respond with sent protocols.')
+        failHandshake(handler, response, 1002, 'Server did not respond with sent protocols.')
         return
       }
 
@@ -138,7 +138,7 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
       //    _Fail the WebSocket Connection_.
       //    For H2, no upgrade header is expected.
       if (response.socket.session == null && response.headersList.get('Upgrade')?.toLowerCase() !== 'websocket') {
-        failWebsocketConnection(handler, 1002, 'Server did not set Upgrade header to "websocket".')
+        failHandshake(handler, response, 1002, 'Server did not set Upgrade header to "websocket".')
         return
       }
 
@@ -148,7 +148,7 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
       //    MUST _Fail the WebSocket Connection_.
       //    For H2, no connection header is expected.
       if (response.socket.session == null && response.headersList.get('Connection')?.toLowerCase() !== 'upgrade') {
-        failWebsocketConnection(handler, 1002, 'Server did not set Connection header to "upgrade".')
+        failHandshake(handler, response, 1002, 'Server did not set Connection header to "upgrade".')
         return
       }
 
@@ -159,11 +159,15 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
       //    E914-47DA-95CA-C5AB0DC85B11" but ignoring any leading and
       //    trailing whitespace, the client MUST _Fail the WebSocket
       //    Connection_.
-      const secWSAccept = response.headersList.get('Sec-WebSocket-Accept')
-      const digest = crypto.hash('sha1', keyValue + uid, 'base64')
-      if (secWSAccept !== digest) {
-        failWebsocketConnection(handler, 1002, 'Incorrect hash received in Sec-WebSocket-Accept header.')
-        return
+      //    For H2, implementations "do not do the processing of the Sec-WebSocket-Key and
+      //    Sec-WebSocket-Accept header fields". https://datatracker.ietf.org/doc/html/rfc8441#section-5
+      if (response.socket.session == null) {
+        const secWSAccept = response.headersList.get('Sec-WebSocket-Accept')
+        const digest = crypto.hash('sha1', keyValue + uid, 'base64')
+        if (secWSAccept !== digest) {
+          failHandshake(handler, response, 1002, 'Incorrect hash received in Sec-WebSocket-Accept header.')
+          return
+        }
       }
 
       // 5. If the response includes a |Sec-WebSocket-Extensions| header
@@ -180,7 +184,7 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
         extensions = parseExtensions(secExtension)
 
         if (!extensions.has('permessage-deflate')) {
-          failWebsocketConnection(handler, 1002, 'Sec-WebSocket-Extensions header does not match.')
+          failHandshake(handler, response, 1002, 'Sec-WebSocket-Extensions header does not match.')
           return
         }
       }
@@ -201,9 +205,16 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
         // the selected subprotocol values in its response for the connection to
         // be established.
         if (requestProtocols === null || !requestProtocols.includes(secProtocol)) {
-          failWebsocketConnection(handler, 1002, 'Protocol was not set in the opening handshake.')
+          failHandshake(handler, response, 1002, 'Protocol was not set in the opening handshake.')
           return
         }
+      }
+
+      // For H2, "Orderly TCP-level closures are represented as END_STREAM flags", so
+      // end our side of the stream when the server ends its side, as a TCP socket would.
+      // https://datatracker.ietf.org/doc/html/rfc8441#section-5
+      if (response.socket.session != null) {
+        response.socket.allowHalfOpen = false
       }
 
       response.socket.on('data', handler.onSocketData)
@@ -294,6 +305,16 @@ function closeWebSocketConnection (object, code, reason, validate = false) {
     // Set object’s ready state to CLOSING (2).
     object.readyState = states.CLOSING
   }
+}
+
+function failHandshake (handler, response, code, reason, cause) {
+  // The H2 upgrade request has already completed and handed off its stream.
+  // Aborting the request cannot close that stream after handshake validation fails.
+  if (response.socket?.session != null && !response.socket.destroyed) {
+    response.socket.destroy()
+  }
+
+  failWebsocketConnection(handler, code, reason, cause)
 }
 
 /**

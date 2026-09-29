@@ -2,7 +2,6 @@
 
 const util = require('../../core/util')
 const {
-  ReadableStreamFrom,
   readableStreamClose,
   fullyReadBody,
   extractMimeType
@@ -197,8 +196,16 @@ function extractBody (object, keepalive = false) {
       )
     }
 
-    stream =
-      webidl.is.ReadableStream(object) ? object : ReadableStreamFrom(object)
+    stream = webidl.is.ReadableStream(object)
+      ? object
+      : ReadableStream.from(object).pipeThrough(new TransformStream({
+        transform (chunk, controller) {
+          const bytes = isUint8Array(chunk) ? chunk : Buffer.from(chunk)
+          if (bytes.byteLength) {
+            controller.enqueue(bytes)
+          }
+        }
+      }))
   }
 
   // 11. If source is a byte sequence, then set action to a
@@ -293,7 +300,7 @@ function cloneBody (body) {
   }
 }
 
-function bodyMixinMethods (instance, getInternalState) {
+function bodyMixinMethods (brandCheck, getInternalState) {
   const methods = {
     blob () {
       // The blob() method steps are to return the result of
@@ -313,7 +320,7 @@ function bodyMixinMethods (instance, getInternalState) {
         // Return a Blob whose contents are bytes and type attribute
         // is mimeType.
         return new Blob([bytes], { type: mimeType })
-      }, instance, getInternalState)
+      }, brandCheck, getInternalState)
     },
 
     arrayBuffer () {
@@ -323,19 +330,19 @@ function bodyMixinMethods (instance, getInternalState) {
       // whose contents are bytes.
       return consumeBody(this, (bytes) => {
         return new Uint8Array(bytes).buffer
-      }, instance, getInternalState)
+      }, brandCheck, getInternalState)
     },
 
     text () {
       // The text() method steps are to return the result of running
       // consume body with this and UTF-8 decode.
-      return consumeBody(this, utf8DecodeBytes, instance, getInternalState)
+      return consumeBody(this, utf8DecodeBytes, brandCheck, getInternalState)
     },
 
     json () {
       // The json() method steps are to return the result of running
       // consume body with this and parse JSON from bytes.
-      return consumeBody(this, parseJSONFromBytes, instance, getInternalState)
+      return consumeBody(this, parseJSONFromBytes, brandCheck, getInternalState)
     },
 
     formData () {
@@ -383,7 +390,7 @@ function bodyMixinMethods (instance, getInternalState) {
         throw new TypeError(
           'Content-Type was not one of "multipart/form-data" or "application/x-www-form-urlencoded".'
         )
-      }, instance, getInternalState)
+      }, brandCheck, getInternalState)
     },
 
     bytes () {
@@ -392,7 +399,7 @@ function bodyMixinMethods (instance, getInternalState) {
       // result of creating a Uint8Array from bytes in this’s relevant realm.
       return consumeBody(this, (bytes) => {
         return new Uint8Array(bytes)
-      }, instance, getInternalState)
+      }, brandCheck, getInternalState)
     },
 
     textStream () {
@@ -442,20 +449,20 @@ function bodyMixinMethods (instance, getInternalState) {
   return methods
 }
 
-function mixinBody (prototype, getInternalState) {
-  Object.assign(prototype.prototype, bodyMixinMethods(prototype, getInternalState))
+function mixinBody (prototype, getInternalState, brandCheck) {
+  Object.assign(prototype.prototype, bodyMixinMethods(brandCheck, getInternalState))
 }
 
 /**
  * @see https://fetch.spec.whatwg.org/#concept-body-consume-body
  * @param {any} object internal state
  * @param {(value: unknown) => unknown} convertBytesToJSValue
- * @param {any} instance
+ * @param {import('../../../types/webidl').WebidlIsFunction} brandCheck
  * @param {(target: any) => any} getInternalState
  */
-function consumeBody (object, convertBytesToJSValue, instance, getInternalState) {
+function consumeBody (object, convertBytesToJSValue, brandCheck, getInternalState) {
   try {
-    webidl.brandCheck(object, instance)
+    webidl.brandCheck(object, brandCheck)
   } catch (e) {
     return Promise.reject(e)
   }

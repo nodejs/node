@@ -153,16 +153,26 @@ lead to a loss of confidentiality, integrity, or availability.
   resources, that is not considered a vulnerability. Applications are
   responsible for setting appropriate limits on response sizes.
 
-#### Calling `body.formData()` on untrusted responses
+#### Calling body-consuming methods on untrusted responses
 
-* `body.formData()` buffers and parses the entire response body. Multipart
-  parsing has inherent security risks, especially when the body is supplied by
-  an untrusted or user-controlled server. Applications must only call
-  `body.formData()` on responses from trusted servers. For untrusted responses,
-  applications should use a dedicated streaming multipart parser and enforce
-  application-specific limits. Resource exhaustion or parser exposure caused by
-  calling `body.formData()` on untrusted responses is considered an application
-  responsibility, not a vulnerability in undici.
+* The `body.arrayBuffer()`, `body.blob()`, `body.bytes()`, `body.formData()`,
+  `body.json()`, and `body.text()` methods buffer the entire response body in
+  memory before returning. Where applicable, they also decode or parse the
+  payload and retain that representation in memory. Calling one of these
+  methods means the application trusts that the response is small enough to
+  fit in the available memory. Applications must not use these methods on
+  responses from untrusted or user-controlled servers. They should instead
+  process the response with a streaming API, such as `Response.body`,
+  `body.textStream()`, or the `Readable` body returned by `undici.request()`,
+  and enforce application-specific size limits while streaming. Resource
+  exhaustion caused by buffering an untrusted response is considered an
+  application responsibility, not a vulnerability in undici.
+
+* Multipart parsing has additional inherent security risks. Applications
+  processing untrusted multipart responses should use a dedicated streaming
+  multipart parser and enforce application-specific limits. Parser exposure
+  caused by calling `body.formData()` on an untrusted response is considered an
+  application responsibility, not a vulnerability in undici.
 
 #### HTTP/1.1 keep-alive with untrusted servers
 

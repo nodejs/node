@@ -156,6 +156,20 @@ function isomorphicEncode (input) {
   return input
 }
 
+const nonASCIIRegex = /[^\x00-\x7F]/ // eslint-disable-line no-control-regex
+
+/**
+ * @param {string} str
+ * @returns {string}
+ *
+ * @see https://infra.spec.whatwg.org/#ascii-lowercase
+ */
+function asciiLowercase (str) {
+  return nonASCIIRegex.test(str)
+    ? str.replace(/[A-Z]+/g, (upper) => upper.toLowerCase())
+    : str.toLowerCase()
+}
+
 /**
  * @see https://infra.spec.whatwg.org/#parse-json-bytes-to-a-javascript-value
  * @param {Uint8Array} bytes
@@ -192,7 +206,7 @@ function removeChars (str, leading, trailing, predicate) {
   }
 
   if (trailing) {
-    while (trail > 0 && predicate(str.charCodeAt(trail))) trail--
+    while (trail >= lead && predicate(str.charCodeAt(trail))) trail--
   }
 
   return lead === 0 && trail === str.length - 1 ? str : str.slice(lead, trail + 1)
@@ -216,6 +230,7 @@ function serializeJavascriptValueToJSONString (value) {
 }
 
 module.exports = {
+  asciiLowercase,
   collectASequenceOfCodePoints,
   collectASequenceOfCodePointsFast,
   forgivingBase64,

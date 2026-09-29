@@ -10,6 +10,8 @@ const random = runtimeFeatures.has('crypto')
   ? require('node:crypto').randomInt
   : (max) => Math.floor(Math.random() * max)
 
+let getFormDataState, setFormDataState, getFormDataBoundary
+
 // https://xhr.spec.whatwg.org/#formdata
 class FormData {
   #state = []
@@ -28,7 +30,7 @@ class FormData {
   }
 
   append (name, value, filename = undefined) {
-    webidl.brandCheck(this, FormData)
+    webidl.brandCheck(this, webidl.is.FormData)
 
     const prefix = 'FormData.append'
     webidl.argumentLengthCheck(arguments, 2, prefix)
@@ -56,7 +58,7 @@ class FormData {
   }
 
   delete (name) {
-    webidl.brandCheck(this, FormData)
+    webidl.brandCheck(this, webidl.is.FormData)
 
     const prefix = 'FormData.delete'
     webidl.argumentLengthCheck(arguments, 1, prefix)
@@ -69,7 +71,7 @@ class FormData {
   }
 
   get (name) {
-    webidl.brandCheck(this, FormData)
+    webidl.brandCheck(this, webidl.is.FormData)
 
     const prefix = 'FormData.get'
     webidl.argumentLengthCheck(arguments, 1, prefix)
@@ -89,7 +91,7 @@ class FormData {
   }
 
   getAll (name) {
-    webidl.brandCheck(this, FormData)
+    webidl.brandCheck(this, webidl.is.FormData)
 
     const prefix = 'FormData.getAll'
     webidl.argumentLengthCheck(arguments, 1, prefix)
@@ -106,7 +108,7 @@ class FormData {
   }
 
   has (name) {
-    webidl.brandCheck(this, FormData)
+    webidl.brandCheck(this, webidl.is.FormData)
 
     const prefix = 'FormData.has'
     webidl.argumentLengthCheck(arguments, 1, prefix)
@@ -119,7 +121,7 @@ class FormData {
   }
 
   set (name, value, filename = undefined) {
-    webidl.brandCheck(this, FormData)
+    webidl.brandCheck(this, webidl.is.FormData)
 
     const prefix = 'FormData.set'
     webidl.argumentLengthCheck(arguments, 2, prefix)
@@ -184,40 +186,34 @@ class FormData {
     return `FormData ${output.slice(output.indexOf(']') + 2)}`
   }
 
-  /**
-   * @param {FormData} formData
-   */
-  static getFormDataState (formData) {
-    return formData.#state
-  }
+  static {
+    /** @param {FormData} formData  */
+    getFormDataState = (formData) => formData.#state
 
-  /**
-   * @param {FormData} formData
-   * @param {any[]} newState
-   */
-  static setFormDataState (formData, newState) {
-    formData.#state = newState
-  }
+    /**
+     * @param {FormData} formData
+     * @param {any[]} newState
+     */
+    setFormDataState = (formData, newState) => {
+      formData.#state = newState
+    }
 
-  /**
-   * @param {FormData} formData
-   * @returns {string | null}
-   */
-  static getFormDataBoundary (formData) {
-    const boundary = formData.#boundary
-    if (boundary != null) return boundary
+    /**
+     * @param {FormData} formData
+     * @returns {string | null}
+     */
+    getFormDataBoundary = (formData) => {
+      // eslint-disable-next-line no-return-assign
+      return formData.#boundary ??= `----formdata-undici-0${`${random(1e11)}`.padStart(11, '0')}`
+    }
 
-    // eslint-disable-next-line no-return-assign
-    return formData.#boundary = `----formdata-undici-0${`${random(1e11)}`.padStart(11, '0')}`
+    webidl.is.FormData = (arg) => {
+      return arg != null && typeof arg === 'object' && #state in arg
+    }
   }
 }
 
-const { getFormDataState, setFormDataState, getFormDataBoundary } = FormData
-Reflect.deleteProperty(FormData, 'getFormDataState')
-Reflect.deleteProperty(FormData, 'setFormDataState')
-Reflect.deleteProperty(FormData, 'getFormDataBoundary')
-
-iteratorMixin('FormData', FormData, getFormDataState, 'name', 'value')
+iteratorMixin('FormData', FormData, getFormDataState, 'name', 'value', webidl.is.FormData)
 
 Object.defineProperties(FormData.prototype, {
   append: kEnumerableProperty,
@@ -272,7 +268,5 @@ function makeEntry (name, value, filename) {
   // 4. Return an entry whose name is name and whose value is value.
   return { name, value }
 }
-
-webidl.is.FormData = webidl.util.MakeTypeAssertion(FormData)
 
 module.exports = { FormData, makeEntry, setFormDataState, getFormDataBoundary }

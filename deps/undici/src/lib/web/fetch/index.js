@@ -812,11 +812,8 @@ async function mainFetch (fetchParams, recursive) {
 // https://fetch.spec.whatwg.org/#concept-scheme-fetch
 // given a fetch params fetchParams
 function schemeFetch (fetchParams) {
-  // Note: since the connection is destroyed on redirect, which sets fetchParams to a
-  // cancelled state, we do not want this condition to trigger *unless* there have been
-  // no redirects. See https://github.com/nodejs/undici/issues/1776
   // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
-  if (isCancelled(fetchParams) && fetchParams.request.redirectCount === 0) {
+  if (isCancelled(fetchParams)) {
     return Promise.resolve(makeAppropriateNetworkError(fetchParams))
   }
 
@@ -1030,18 +1027,18 @@ function fetchFinale (fetchParams, response) {
   //    `Server-Timing` from response’s internal response’s header list.
   // TODO
 
-  // 3. Let processResponseEndOfBody be the following steps:
+  // 3. If fetchParams’s request’s destination is "document", then set fetchParams’s controller’s
+  //    full timing info to fetchParams’s timing info.
+  if (fetchParams.request.destination === 'document') {
+    fetchParams.controller.fullTimingInfo = timingInfo
+  }
+
+  // 4. Let processResponseEndOfBody be the following steps:
   const processResponseEndOfBody = () => {
     // 1. Let unsafeEndTime be the unsafe shared current time.
     const unsafeEndTime = Date.now() // ?
 
-    // 2. If fetchParams’s request’s destination is "document", then set fetchParams’s controller’s
-    //    full timing info to fetchParams’s timing info.
-    if (fetchParams.request.destination === 'document') {
-      fetchParams.controller.fullTimingInfo = timingInfo
-    }
-
-    // 3. Set fetchParams’s controller’s report timing steps to the following steps given a global object global:
+    // 2. Set fetchParams’s controller’s report timing steps to the following steps given a global object global:
     fetchParams.controller.reportTimingSteps = () => {
       // 1. If fetchParams’s request’s URL’s scheme is not an HTTP(S) scheme, then return.
       if (!urlIsHttpHttpsScheme(fetchParams.request.url)) {
@@ -1090,7 +1087,7 @@ function fetchFinale (fetchParams, response) {
       }
     }
 
-    // 4. Let processResponseEndOfBodyTask be the following steps:
+    // 3. Let processResponseEndOfBodyTask be the following steps:
     const processResponseEndOfBodyTask = () => {
       // 1. Set fetchParams’s request’s done flag.
       fetchParams.request.done = true
@@ -1109,11 +1106,11 @@ function fetchFinale (fetchParams, response) {
       }
     }
 
-    // 5. Queue a fetch task to run processResponseEndOfBodyTask with fetchParams’s task destination
+    // 4. Queue a fetch task to run processResponseEndOfBodyTask with fetchParams’s task destination
     queueMicrotask(() => processResponseEndOfBodyTask())
   }
 
-  // 4. If fetchParams’s process response is non-null, then queue a fetch task to run fetchParams’s
+  // 5. If fetchParams’s process response is non-null, then queue a fetch task to run fetchParams’s
   //    process response given response, with fetchParams’s task destination.
   if (fetchParams.processResponse != null) {
     queueMicrotask(() => {
@@ -1122,11 +1119,14 @@ function fetchFinale (fetchParams, response) {
     })
   }
 
-  // 5. Let internalResponse be response, if response is a network error; otherwise response’s internal response.
+  // 6. Let internalResponse be response, if response is a network error; otherwise response’s internal response.
   const internalResponse = response.type === 'error' ? response : (response.internalResponse ?? response)
 
-  // 6. If internalResponse’s body is null, then run processResponseEndOfBody.
-  // 7. Otherwise:
+  // 7. If response is a network error, then run the WebDriver BiDi fetch error steps with request.
+  //    Otherwise, run the WebDriver BiDi response completed steps with request and response.
+
+  // 8. If internalResponse’s body is null, then run processResponseEndOfBody.
+  // 9. Otherwise:
   if (internalResponse.body == null) {
     processResponseEndOfBody()
   } else {
@@ -1143,6 +1143,27 @@ function fetchFinale (fetchParams, response) {
     finished(internalResponse.body.stream, () => {
       processResponseEndOfBody()
     })
+  }
+
+  // 10. If fetchParams’s process response consume body is non-null, then:
+  if (fetchParams.processResponseConsumeBody != null) {
+    // 1. Let processBody given nullOrBytes be this step: run fetchParams’s
+    //    process response consume body given response and nullOrBytes.
+    const processBody = (nullOrBytes) => fetchParams.processResponseConsumeBody(response, nullOrBytes)
+
+    // 2. Let processBodyError be this step: run fetchParams’s process
+    //    response consume body given response and failure.
+    const processBodyError = () => fetchParams.processResponseConsumeBody(response, 'failure')
+
+    // 3. If internalResponse’s body is null, then queue a fetch task to run
+    //    processBody given null, with fetchParams’s task destination.
+    if (internalResponse.body == null) {
+      queueMicrotask(() => processBody(null))
+    } else {
+      // 4. Otherwise, fully read internalResponse’s body given processBody,
+      //    processBodyError, and fetchParams’s task destination.
+      fullyReadBody(internalResponse.body, processBody, processBodyError)
+    }
   }
 }
 
@@ -1219,7 +1240,7 @@ async function httpFetch (fetchParams) {
     // encouraged to, transmit an RST_STREAM frame.
     // See, https://github.com/whatwg/fetch/issues/1288
     if (request.redirect !== 'manual') {
-      fetchParams.controller.connection.destroy(undefined, false)
+      fetchParams.controller.connection.destroy()
     }
 
     // 2. Switch on request’s redirect mode:
@@ -1828,12 +1849,10 @@ async function httpNetworkFetch (
   fetchParams.controller.connection = {
     abort: null,
     destroyed: false,
-    destroy (err, abort = true) {
+    destroy (err) {
       if (!this.destroyed) {
         this.destroyed = true
-        if (abort) {
-          this.abort?.(err ?? new DOMException('The operation was aborted.', 'AbortError'))
-        }
+        this.abort?.(err ?? new DOMException('The operation was aborted.', 'AbortError'))
       }
     }
   }
@@ -2369,7 +2388,7 @@ async function httpNetworkFetch (
             this.body?.push(null)
           },
 
-          onResponseError (_controller, error) {
+          onResponseError (controller, error) {
             if (this.abort) {
               fetchParams.controller.off('terminated', this.abort)
             }
@@ -2388,7 +2407,9 @@ async function httpNetworkFetch (
 
             this.body?.destroy(error)
 
-            fetchParams.controller.terminate(error)
+            if (!controller?.aborted) {
+              fetchParams.controller.terminate(error)
+            }
 
             reject(error)
           },
