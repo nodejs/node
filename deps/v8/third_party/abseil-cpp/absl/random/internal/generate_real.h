@@ -69,12 +69,11 @@ template <typename RealType,  // Real type, either float or double.
           bool IncludeZero = true>
 inline RealType GenerateRealFromBits(uint64_t bits, int exp_bias = 0) {
   using real_type = RealType;
-  using uint_type = absl::conditional_t<std::is_same<real_type, float>::value,
-                                        uint32_t, uint64_t>;
+  using uint_type =
+      std::conditional_t<std::is_same_v<real_type, float>, uint32_t, uint64_t>;
 
   static_assert(
-      (std::is_same<double, real_type>::value ||
-       std::is_same<float, real_type>::value),
+      (std::is_same_v<double, real_type> || std::is_same_v<float, real_type>),
       "GenerateRealFromBits must be parameterized by either float or double.");
 
   static_assert(sizeof(uint_type) == sizeof(real_type),
@@ -84,9 +83,9 @@ inline RealType GenerateRealFromBits(uint64_t bits, int exp_bias = 0) {
                  std::numeric_limits<real_type>::radix == 2),
                 "RealType representation is not IEEE 754 binary.");
 
-  static_assert((std::is_same<SignedTag, GeneratePositiveTag>::value ||
-                 std::is_same<SignedTag, GenerateNegativeTag>::value ||
-                 std::is_same<SignedTag, GenerateSignedTag>::value),
+  static_assert((std::is_same_v<SignedTag, GeneratePositiveTag> ||
+                 std::is_same_v<SignedTag, GenerateNegativeTag> ||
+                 std::is_same_v<SignedTag, GenerateSignedTag>),
                 "");
 
   static constexpr int kExp = std::numeric_limits<real_type>::digits - 1;
@@ -98,14 +97,14 @@ inline RealType GenerateRealFromBits(uint64_t bits, int exp_bias = 0) {
   // Determine the sign bit.
   // Depending on the SignedTag, this may use the left-most bit
   // or it may be a constant value.
-  uint_type sign = std::is_same<SignedTag, GenerateNegativeTag>::value
+  uint_type sign = std::is_same_v<SignedTag, GenerateNegativeTag>
                        ? (static_cast<uint_type>(1) << (kUintBits - 1))
                        : 0;
-  if (std::is_same<SignedTag, GenerateSignedTag>::value) {
-    if (std::is_same<uint_type, uint64_t>::value) {
+  if (std::is_same_v<SignedTag, GenerateSignedTag>) {
+    if (std::is_same_v<uint_type, uint64_t>) {
       sign = bits & uint64_t{0x8000000000000000};
     }
-    if (std::is_same<uint_type, uint32_t>::value) {
+    if (std::is_same_v<uint_type, uint32_t>) {
       const uint64_t tmp = bits & uint64_t{0x8000000000000000};
       sign = static_cast<uint32_t>(tmp >> 32);
     }

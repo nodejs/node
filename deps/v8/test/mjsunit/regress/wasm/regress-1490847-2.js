@@ -10,9 +10,9 @@ builder.addStruct([makeField(kWasmF32, false), makeField(kWasmF64, true), makeFi
 builder.addStruct([makeField(wasmRefNullType(kWasmNullFuncRef), false)]);
 builder.addStruct([]);
 builder.startRecGroup();
-builder.addArray(kWasmI32, true);
-builder.addArray(kWasmI32, true);
-builder.addArray(kWasmI32, true);
+builder.addArray(kWasmI32);
+builder.addArray(kWasmI32);
+builder.addArray(kWasmI32);
 builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));
 builder.endRecGroup();
 builder.addMemory(16, 32);

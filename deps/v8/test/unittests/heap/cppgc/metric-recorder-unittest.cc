@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/metric-recorder.h"
+#include "src/heap/cppgc-internal/metric-recorder.h"
 
-#include "src/heap/cppgc/stats-collector.h"
+#include "src/heap/cppgc-internal/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"
 
 namespace cppgc {

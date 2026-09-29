@@ -17,8 +17,10 @@ namespace internal {
 
 using RegList = RegListBase<Register>;
 using DoubleRegList = RegListBase<DoubleRegister>;
+using Simd128RegList = RegListBase<Simd128Register>;
 ASSERT_TRIVIALLY_COPYABLE(RegList);
 ASSERT_TRIVIALLY_COPYABLE(DoubleRegList);
+ASSERT_TRIVIALLY_COPYABLE(Simd128RegList);
 
 constexpr int kRegListSizeInBits = sizeof(RegList) * kBitsPerByte;
 
@@ -97,14 +99,19 @@ class V8_EXPORT_PRIVATE CPURegList {
   CPURegister PopHighestIndex();
 
   // AAPCS64 callee-saved registers.
-  static CPURegList GetCalleeSaved(int size = kXRegSizeInBits);
-  static CPURegList GetCalleeSavedV(int size = kDRegSizeInBits);
+  static CPURegList GetCalleeSaved();
+  // Note that D registers are the lower 64-bit parts of respective V
+  // registers.
+  static CPURegList GetCalleeSavedD();
+  static CPURegList GetCalleeSavedV();
 
   // AAPCS64 caller-saved registers. Note that this includes lr.
-  // TODO(all): Determine how we handle d8-d15 being callee-saved, but the top
-  // 64-bits being caller-saved.
-  static CPURegList GetCallerSaved(int size = kXRegSizeInBits);
-  static CPURegList GetCallerSavedV(int size = kDRegSizeInBits);
+  static CPURegList GetCallerSaved();
+  // Note that D registers are the lower 64-bit parts of respective V
+  // registers. Thus there's no need to save both D and V registers, saving
+  // just V registers is enough.
+  static CPURegList GetCallerSavedD();
+  static CPURegList GetCallerSavedV();
 
   bool IsEmpty() const { return list_ == 0; }
 
@@ -161,10 +168,12 @@ class V8_EXPORT_PRIVATE CPURegList {
 
 // AAPCS64 callee-saved registers.
 #define kCalleeSaved CPURegList::GetCalleeSaved()
+#define kCalleeSavedD CPURegList::GetCalleeSavedD()
 #define kCalleeSavedV CPURegList::GetCalleeSavedV()
 
 // AAPCS64 caller-saved registers. Note that this includes lr.
 #define kCallerSaved CPURegList::GetCallerSaved()
+#define kCallerSavedD CPURegList::GetCallerSavedD()
 #define kCallerSavedV CPURegList::GetCallerSavedV()
 
 }  // namespace internal

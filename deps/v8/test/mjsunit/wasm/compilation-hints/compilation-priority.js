@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-compilation-hints --allow-natives-syntax
+// Flags: --wasm-compilation-hints --allow-natives-syntax
 // Flags: --liftoff --wasm-dynamic-tiering --wasm-tiering-budget=10
 // Flags: --no-predictable
 

@@ -9,7 +9,6 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/base-page-inl.h"
-#include "src/heap/spaces-inl.h"
 
 namespace v8::internal {
 

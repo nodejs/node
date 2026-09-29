@@ -33,6 +33,22 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Runtime.disable();
   },
 
+  async function testInspectOmitFocus() {
+    await Protocol.Runtime.enable();
+    Protocol.Runtime.onInspectRequested(InspectorTest.logMessage);
+    // inspect with {focus: false} should set omitFocus hint.
+    await Protocol.Runtime.evaluate({expression: 'inspect({}, {focus: false})', includeCommandLineAPI: true});
+    // inspect with {focus: true} should not set omitFocus hint.
+    await Protocol.Runtime.evaluate({expression: 'inspect(42, {focus: true})', includeCommandLineAPI: true});
+    // inspect with no second arg should not set omitFocus hint.
+    await Protocol.Runtime.evaluate({expression: 'inspect("hello")', includeCommandLineAPI: true});
+    // inspect with non-object second arg should be ignored.
+    await Protocol.Runtime.evaluate({expression: 'inspect({}, false)', includeCommandLineAPI: true});
+
+    Protocol.Runtime.onInspectRequested(null);
+    await Protocol.Runtime.disable();
+  },
+
   async function testQueryObjects() {
     InspectorTest.logMessage(await Protocol.Runtime.evaluate({expression: 'queryObjects', includeCommandLineAPI: true}));
     await Protocol.Runtime.enable();

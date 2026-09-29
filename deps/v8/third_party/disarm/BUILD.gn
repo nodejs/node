@@ -1,0 +1,46 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+action("disarm_tables") {
+  script = "src/parse.py"
+  inputs = [
+    "src/desc.txt",
+    "src/feat.txt",
+  ]
+  outputs = [
+    "$target_gen_dir/disarm64-public.inc",
+    "$target_gen_dir/disarm64-private.inc",
+  ]
+  args = [
+    rebase_path("$target_gen_dir/disarm64-public.inc", root_build_dir),
+    rebase_path("$target_gen_dir/disarm64-private.inc", root_build_dir),
+    rebase_path("src/desc.txt", root_build_dir),
+    "--feature-desc",
+    rebase_path("src/feat.txt", root_build_dir),
+    "--encode-in-header",
+    "--features",
+    "all",
+  ]
+}
+
+config("disarm_config") {
+  include_dirs = [
+    "src",
+    target_gen_dir,
+  ]
+}
+
+static_library("disarm") {
+  sources = [
+    "src/classify.c",
+    "src/decode.c",
+    "src/disarm64.h",
+    "src/encode.c",
+    "src/format.c",
+  ]
+  deps = [ ":disarm_tables" ]
+  public_configs = [ ":disarm_config" ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}

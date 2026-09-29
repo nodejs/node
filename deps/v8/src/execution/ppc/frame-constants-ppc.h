@@ -31,8 +31,10 @@ class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
   // Number of gp parameters, without the instance.
   static constexpr int kNumberOfSavedGpParamRegs = 6;
   static constexpr int kNumberOfSavedFpParamRegs = 8;
+  static constexpr int kNumberOfSavedSimd128ParamRegs = 8;
 
   // There's one spilled value (which doesn't need visiting) below the instance.
+  static constexpr int kCallingPCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   static constexpr int kInstanceSpillOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
 
@@ -61,10 +63,10 @@ class WasmLiftoffFrameConstants : public TypedFrameConstants {
 // registers (see liftoff-assembler-defs.h).
 class WasmDebugBreakFrameConstants : public TypedFrameConstants {
  public:
-  static constexpr RegList kPushedGpRegs = {r3, r4,  r5,  r6,  r7, r8,
-                                            r9, r10, r11, r15, cp};
+  static constexpr RegList kPushedGpRegs = {r3, r4, r5,  r6,  r7,
+                                            r8, r9, r10, r15, cp};
 
-  static constexpr DoubleRegList kPushedFpRegs = {d0, d1, d2, d3,  d4,  d5, d6,
+  static constexpr DoubleRegList kPushedFpRegs = {d1, d2, d3, d4,  d5,  d6,
                                                   d7, d8, d9, d10, d11, d12};
 
   static constexpr Simd128RegList kPushedSimd128Regs = {

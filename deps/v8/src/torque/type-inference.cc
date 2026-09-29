@@ -33,8 +33,9 @@ TypeArgumentInference::TypeArgumentInference(
   }
 
   for (size_t i = 0; i < term_argument_types.size(); i++) {
-    if (term_argument_types[i])
+    if (term_argument_types[i]) {
       Match(term_parameters[i], *term_argument_types[i]);
+    }
     if (HasFailed()) return;
   }
 

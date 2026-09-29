@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-liftoff --experimental-wasm-jspi
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let kSig_d_r = makeSig([kWasmExternRef], [kWasmF64]);

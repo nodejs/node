@@ -140,6 +140,7 @@ namespace internal {
     promise_fulfill_reaction_job_task)                                        \
   V(_, PROMISE_REJECT_REACTION_JOB_TASK_TYPE, PromiseRejectReactionJobTask,   \
     promise_reject_reaction_job_task)                                         \
+  V(_, ASYNC_RESUME_TASK_TYPE, AsyncResumeTask, async_resume_task)            \
   V(_, CALLABLE_TASK_TYPE, CallableTask, callable_task)                       \
   V(_, CALLBACK_TASK_TYPE, CallbackTask, callback_task)                       \
   V(_, PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, PromiseResolveThenableJobTask, \
@@ -151,7 +152,6 @@ namespace internal {
   V(_, ALLOCATION_MEMENTO_TYPE, AllocationMemento, allocation_memento)        \
   V(_, ARRAY_BOILERPLATE_DESCRIPTION_TYPE, ArrayBoilerplateDescription,       \
     array_boilerplate_description)                                            \
-  IF_WASM(V, _, ASM_WASM_DATA_TYPE, AsmWasmData, asm_wasm_data)               \
   V(_, ASYNC_GENERATOR_REQUEST_TYPE, AsyncGeneratorRequest,                   \
     async_generator_request)                                                  \
   V(_, BREAK_POINT_TYPE, BreakPoint, break_point)                             \
@@ -161,7 +161,6 @@ namespace internal {
   V(_, CLASS_BOILERPLATE_TYPE, ClassBoilerplate, class_boilerplate)           \
   V(_, CLASS_POSITIONS_TYPE, ClassPositions, class_positions)                 \
   V(_, CODE_WRAPPER_TYPE, CodeWrapper, code_wrapper)                          \
-  V(_, DEBUG_INFO_TYPE, DebugInfo, debug_info)                                \
   V(_, ENUM_CACHE_TYPE, EnumCache, enum_cache)                                \
   V(_, ERROR_STACK_DATA_TYPE, ErrorStackData, error_stack_data)               \
   V(_, FUNCTION_TEMPLATE_RARE_DATA_TYPE, FunctionTemplateRareData,            \
@@ -226,6 +225,8 @@ namespace internal {
   V(_, LOAD_HANDLER_TYPE, LoadHandler, 1, load_handler1)    \
   V(_, LOAD_HANDLER_TYPE, LoadHandler, 2, load_handler2)    \
   V(_, LOAD_HANDLER_TYPE, LoadHandler, 3, load_handler3)    \
+  V(_, LOAD_HANDLER_TYPE, LoadHandler, 4, load_handler4)    \
+  V(_, LOAD_HANDLER_TYPE, LoadHandler, 5, load_handler5)    \
   V(_, STORE_HANDLER_TYPE, StoreHandler, 0, store_handler0) \
   V(_, STORE_HANDLER_TYPE, StoreHandler, 1, store_handler1) \
   V(_, STORE_HANDLER_TYPE, StoreHandler, 2, store_handler2) \

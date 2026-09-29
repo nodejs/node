@@ -27,7 +27,7 @@ javascript builtin BooleanConstructor(
   return obj;
 }
 
-// ES #sec-boolean.prototype.tostring
+// https://tc39.es/ecma262/#sec-boolean.prototype.tostring
 transitioning javascript builtin BooleanPrototypeToString(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   // 1. Let b be ? thisBooleanValue(this value).
@@ -36,7 +36,7 @@ transitioning javascript builtin BooleanPrototypeToString(
   return b.to_string;
 }
 
-// ES #sec-boolean.prototype.valueof
+// https://tc39.es/ecma262/#sec-boolean.prototype.valueof
 transitioning javascript builtin BooleanPrototypeValueOf(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   // 1. Return ? thisBooleanValue(this value).

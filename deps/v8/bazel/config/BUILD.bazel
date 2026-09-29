@@ -82,6 +82,7 @@ config_setting(
 v8_target_cpu(
     name = "v8_target_cpu",
     build_setting_default = "none",
+    scope = "universal",
 )
 
 config_setting(

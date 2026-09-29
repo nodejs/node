@@ -103,13 +103,6 @@ void LiftoffAssembler::PopToFixedRegister(LiftoffRegister reg) {
   LoadToFixedRegister(slot, reg);
 }
 
-void LiftoffAssembler::LoadFixedArrayLengthAsInt32(LiftoffRegister dst,
-                                                   Register array,
-                                                   LiftoffRegList pinned) {
-  int offset = offsetof(FixedArray, length_) - kHeapObjectTag;
-  LoadSmiAsInt32(dst, array, offset);
-}
-
 void LiftoffAssembler::LoadSmiAsInt32(LiftoffRegister dst, Register src_addr,
                                       int32_t offset) {
   if constexpr (SmiValuesAre32Bits()) {
@@ -126,9 +119,9 @@ void LiftoffAssembler::LoadSmiAsInt32(LiftoffRegister dst, Register src_addr,
 }
 
 void LiftoffAssembler::LoadCodePointer(Register dst, Register src_addr,
-                                       int32_t offset_imm) {
-    return Load(LiftoffRegister(dst), src_addr, no_reg, offset_imm,
-                LoadType::kI32Load);
+                                       int32_t field_offset) {
+  Load(LiftoffRegister(dst), src_addr, no_reg, field_offset - kHeapObjectTag,
+       LoadType::kI32Load);
 }
 
 void LiftoffAssembler::emit_ptrsize_add(Register dst, Register lhs,
@@ -200,8 +193,8 @@ void LiftoffAssembler::emit_ptrsize_set_cond(Condition condition, Register dst,
 
 void LiftoffAssembler::bailout(LiftoffBailoutReason reason,
                                const char* detail) {
-  DCHECK_NE(kSuccess, reason);
-  if (bailout_reason_ != kSuccess) return;
+  DCHECK_NE(kNoReason, reason);
+  if (bailout_reason_ != kNoReason) return;
   AbortCompilation();
   bailout_reason_ = reason;
   bailout_detail_ = detail;
@@ -316,6 +309,44 @@ void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
 void LiftoffAssembler::clear_i32_upper_half(Register dst) { UNREACHABLE(); }
 
 #endif  // V8_TARGET_ARCH_32_BIT
+
+void LiftoffAssembler::LoadMemoryStart(Register dst, Register instance_data,
+                                       int mem_index) {
+  if (mem_index == 0) {
+    LoadFromInstance(dst, instance_data,
+                     WasmTrustedInstanceData::kMemory0StartOffset,
+                     sizeof(size_t));
+  } else {
+    LoadProtectedPointer(
+        dst, instance_data,
+        WasmTrustedInstanceData::kProtectedMemoryBasesAndSizesOffset);
+    int buffer_offset = OFFSET_OF_DATA_START(TrustedFixedAddressArray) -
+                        kHeapObjectTag + kSystemPointerSize * mem_index * 2;
+    LoadFullPointer(dst, dst, buffer_offset);
+  }
+}
+
+void LiftoffAssembler::RestoreCachedRegisters(Register instance_data,
+                                              bool reload_instance_data,
+                                              Register mem_start,
+                                              bool reload_mem_start,
+                                              int mem_index) {
+  if (reload_mem_start && instance_data == no_reg) {
+    // If there is no instance data available, load it first into the mem_start
+    // register.
+    DCHECK(!reload_instance_data);
+    instance_data = mem_start;
+    reload_instance_data = true;
+  }
+  if (reload_instance_data) {
+    DCHECK_NE(no_reg, instance_data);
+    LoadInstanceDataFromFrame(instance_data);
+  }
+  if (reload_mem_start) {
+    DCHECK_NE(no_reg, mem_start);
+    LoadMemoryStart(mem_start, instance_data, mem_index);
+  }
+}
 
 // End of the partially platform-independent implementations of the
 // platform-dependent part.

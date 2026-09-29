@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-result.h"
@@ -24,6 +25,7 @@ class PagedNewSpace;
 class PagedSpaceBase;
 class SemiSpaceNewSpace;
 class SpaceWithLinearArea;
+class YoungPendingAllocations;
 
 class AllocatorPolicy {
  public:
@@ -118,33 +120,15 @@ class PagedNewSpaceAllocatorPolicy final : public AllocatorPolicy {
 
 class LinearAreaOriginalData {
  public:
-  // Loads top and limit fields using the synchronization protocol without
-  // holding the mutex lock. Note that in the returned (top, limit) pair, top
-  // and limit might not actually belong together for brief moments when
-  // changing LABs. It could happen that the LAB is invalid (limit<top) or that
-  // the LAB is longer than needed (when old limit <= new limit). However, this
-  // is fine for concurrent marking which would just push a few more objects to
-  // the "on_hold" queue then necessary.
-  //
-  // If top and limit need to be consistent with respect to each other use
-  // GetTopAndLimitLocked() instead.
-  std::pair<Address, Address> GetTopAndLimit() const {
-    // The order of the two loads is important. See SetTopAndLimit().
-    auto top = original_top_.load(std::memory_order_acquire);
-    auto limit = original_limit_.load(std::memory_order_relaxed);
-    return std::make_pair(top, limit);
-  }
-
-  // Same as GetTopAndLimit() but also locks the mutex.
-  std::pair<Address, Address> GetTopAndLimitLocked() const;
+  std::pair<Address, Address> GetTopAndLimit() const;
 
   void SetTopAndLimit(Address top, Address limit);
 
  private:
   // The top and the limit at the time of setting the linear allocation area.
   // These values can be accessed by background tasks. Protected by mutex_.
-  std::atomic<Address> original_top_ = 0;
-  std::atomic<Address> original_limit_ = 0;
+  Address original_top_ = 0;
+  Address original_limit_ = 0;
 
   // Protects original_top_ and original_limit_.
   mutable base::Mutex mutex_;
@@ -155,7 +139,9 @@ class MainAllocator {
   struct InGCTag {};
   static constexpr InGCTag kInGC{};
 
-  enum class IsNewGeneration { kNo, kYes };
+  using IsNewGeneration = base::StrongAlias<struct IsNewGenerationTag, bool>;
+  static constexpr IsNewGeneration kNewGeneration{true};
+  static constexpr IsNewGeneration kOldGeneration{false};
 
   // Use this constructor on main/background threads. `allocation_info` can be
   // used for allocation support in generated code (currently new and old
@@ -184,10 +170,6 @@ class MainAllocator {
     return allocation_info_->limit_address();
   }
 
-  std::pair<Address, Address> GetOriginalTopAndLimit() const {
-    return linear_area_original_data().GetTopAndLimit();
-  }
-
   void MoveOriginalTopForward();
   V8_EXPORT_PRIVATE void ResetLab(Address start, Address end,
                                   Address extended_end);
@@ -208,7 +190,7 @@ class MainAllocator {
   }
 
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
+  AllocateRaw(SafeHeapObjectSize size_in_bytes, AllocationAlignment alignment,
               AllocationOrigin origin, AllocationHint hint);
 
   V8_WARN_UNUSED_RESULT V8_EXPORT_PRIVATE AllocationResult
@@ -262,6 +244,16 @@ class MainAllocator {
       int size_in_bytes, AllocationAlignment alignment,
       AllocationOrigin origin);
 
+  // Calculates the maximum amount of filler that could be required by the
+  // given alignment.
+  V8_EXPORT_PRIVATE static int GetMaximumFillToAlign(
+      AllocationAlignment alignment);
+
+  // Calculates the actual amount of filler required for a given address at the
+  // given alignment.
+  V8_INLINE static int GetFillToAlign(Address address,
+                                      AllocationAlignment alignment);
+
  private:
   enum class BlackAllocation {
     kAlwaysEnabled,
@@ -273,35 +265,26 @@ class MainAllocator {
 
   // Allocates an object from the linear allocation area. Assumes that the
   // linear allocation area is large enough to fit the object.
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateFastUnaligned(int size_in_bytes, AllocationOrigin origin);
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult AllocateFastUnaligned(
+      SafeHeapObjectSize size_in_bytes, AllocationOrigin origin);
 
   // Tries to allocate an aligned object from the linear allocation area.
   // Returns nullptr if the linear allocation area does not fit the object.
   // Otherwise, returns the object pointer and writes the allocation size
   // (object size + alignment filler size) to the result_aligned_size_in_bytes.
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateFastAligned(int size_in_bytes, int* result_aligned_size_in_bytes,
+  AllocateFastAligned(SafeHeapObjectSize size_in_bytes,
+                      SafeHeapObjectSize* result_aligned_size_in_bytes,
                       AllocationAlignment alignment, AllocationOrigin origin);
 
   // Slow path of allocation function
-  V8_WARN_UNUSED_RESULT V8_EXPORT_PRIVATE AllocationResult
-  AllocateRawSlow(int size_in_bytes, AllocationAlignment alignment,
-                  AllocationOrigin origin);
+  V8_WARN_UNUSED_RESULT V8_EXPORT_PRIVATE V8_NOINLINE V8_PRESERVE_MOST
+      AllocationResult
+      AllocateRawSlow(SafeHeapObjectSize size_in_bytes,
+                      AllocationAlignment alignment, AllocationOrigin origin);
 
-  // Allocate the requested number of bytes in the space if possible, return a
-  // failure object if not.
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateRawSlowUnaligned(
-      int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  // Allocate the requested number of bytes in the space double aligned if
-  // possible, return a failure object if not.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRawSlowAligned(int size_in_bytes, AllocationAlignment alignment,
-                         AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin);
+  bool EnsureAllocation(SafeHeapObjectSize size_in_bytes,
+                        AllocationAlignment alignment, AllocationOrigin origin);
 
   void MarkLabStartInitialized();
 
@@ -364,13 +347,14 @@ class MainAllocator {
   // Some spaces support "extending" of LABs (see supports_extending_lab()).
   // This helps to avoid fragmentation on pages due to LAB allocation. It is
   // also a fast path for allocation that avoids free list allocation.
-  Address extended_limit_;
+  Address extended_limit_ = kNullAddress;
 
   std::optional<LinearAreaOriginalData> linear_area_original_data_;
   std::unique_ptr<AllocatorPolicy> allocator_policy_;
 
   const bool supports_extending_lab_;
   const BlackAllocation black_allocation_;
+  YoungPendingAllocations* const young_pending_allocations_;
 
   friend class AllocatorPolicy;
   friend class PagedSpaceAllocatorPolicy;

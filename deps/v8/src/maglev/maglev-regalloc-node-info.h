@@ -86,6 +86,25 @@ class InputLocation : public ValueLocation {
   NodeIdT next_use_id_ = kInvalidNodeId;
 };
 
+template <typename RegisterT>
+inline RegisterT GetRegisterHint(const compiler::InstructionOperand& hint) {
+  if (hint.IsInvalid()) return RegisterT::no_reg();
+  DCHECK(hint.IsUnallocated());
+  compiler::UnallocatedOperand operand =
+      compiler::UnallocatedOperand::cast(hint);
+  if constexpr (std::is_same_v<RegisterT, Register>) {
+    if (operand.HasFixedRegisterPolicy()) {
+      return Register::from_code(operand.fixed_register_index());
+    }
+  } else {
+    static_assert(std::is_same_v<RegisterT, DoubleRegister>);
+    if (operand.HasFixedFPRegisterPolicy()) {
+      return DoubleRegister::from_code(operand.fixed_register_index());
+    }
+  }
+  return RegisterT::no_reg();
+}
+
 // RegallocNodeInfo holds information about a node during register allocation.
 // It stores an (ordered) id for live analysis and the temporary registers
 // needed for the node's codegen.
@@ -308,9 +327,7 @@ class RegallocValueNodeInfo : public RegallocNodeInfo {
 
   template <typename RegisterT>
   RegisterT GetRegisterHint() {
-    if (hint_.IsInvalid()) return RegisterT::no_reg();
-    return RegisterT::from_code(
-        compiler::UnallocatedOperand::cast(hint_).fixed_register_index());
+    return maglev::GetRegisterHint<RegisterT>(hint_);
   }
 
  private:

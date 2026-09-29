@@ -27,6 +27,7 @@ load(
 package(
     default_visibility = [
         ":internal_users",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     features = [
         "header_modules",
@@ -39,6 +40,8 @@ licenses(["notice"])
 
 package_group(
     name = "internal_users",
+    includes = [
+    ],
     packages = [
         "//absl/log",
     ],
@@ -106,11 +109,9 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl/log:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
-    deps = [
-        "//absl/base:config",
-        "//absl/base:core_headers",
-    ],
+    deps = ["//absl/base:config"],
 )
 
 cc_library(
@@ -118,6 +119,11 @@ cc_library(
     hdrs = ["flags.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        ":internal_users",
+        "//absl/status:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
+    ],
     deps = [
         "//absl/flags:flag",
     ],
@@ -151,6 +157,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl/log:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = [
         "//absl/base:config",
@@ -183,6 +190,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl/log:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = [
         ":append_truncated",
@@ -206,10 +214,10 @@ cc_library(
         "//absl/log:log_entry",
         "//absl/log:log_sink",
         "//absl/log:log_sink_registry",
-        "//absl/memory",
         "//absl/strings",
         "//absl/strings:internal",
         "//absl/time",
+        "//absl/types:source_location",
         "//absl/types:span",
     ],
 )
@@ -301,6 +309,7 @@ cc_library(
     visibility = [
         ":internal_users",
         ":structured_proto_users",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = [
         ":log_message",
@@ -338,7 +347,6 @@ cc_test(
         "//absl/base:config",
         "//absl/strings:string_view",
         "//absl/types:span",
-        "//absl/utility",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -375,6 +383,7 @@ cc_library(
     visibility = [
         ":internal_users",
         ":structured_proto_users",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = [
         ":globals",
@@ -396,6 +405,7 @@ cc_library(
     visibility = [
         ":internal_users",
         ":structured_proto_users",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = [
         ":test_helpers",
@@ -459,18 +469,19 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl/log:__subpackages__",
+        "//absl/status:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/status:__subpackages__",
     ],
     deps = [
         ":fnmatch",
         "//absl/base",
+        "//absl/base:base_internal",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:no_destructor",
         "//absl/base:nullability",
-        "//absl/memory",
         "//absl/strings",
         "//absl/synchronization",
-        "//absl/types:optional",
     ],
 )
 
@@ -487,9 +498,7 @@ cc_binary(
     deps = [
         ":vlog_config",
         "//absl/base:config",
-        "//absl/base:core_headers",
         "//absl/container:layout",
-        "//absl/memory",
         "//absl/random:distributions",
         "//absl/strings",
         "@google_benchmark//:benchmark_main",
@@ -556,6 +565,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         "//absl/base:config",

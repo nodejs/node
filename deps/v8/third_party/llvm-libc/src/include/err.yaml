@@ -1,0 +1,67 @@
+header: err.h
+standards:
+  - bsd
+macros: []
+types:
+  - type_name: va_list
+functions:
+  - name: err
+    standards:
+      - bsd
+    return_type: void
+    arguments:
+      - type: int
+      - type: const char *
+      - type: '...'
+  - name: verr
+    standards:
+      - bsd
+    return_type: void
+    arguments:
+      - type: int
+      - type: const char *
+      - type: va_list
+  - name: errx
+    standards:
+      - bsd
+    return_type: void
+    arguments:
+      - type: int
+      - type: const char *
+      - type: '...'
+  - name: verrx
+    standards:
+      - bsd
+    return_type: void
+    arguments:
+      - type: int
+      - type: const char *
+      - type: va_list
+  - name: warn
+    standards:
+      - bsd
+    return_type: void
+    arguments:
+      - type: const char *
+      - type: '...'
+  - name: vwarn
+    standards:
+      - bsd
+    return_type: void
+    arguments:
+      - type: const char *
+      - type: va_list
+  - name: warnx
+    standards:
+      - bsd
+    return_type: void
+    arguments:
+      - type: const char *
+      - type: '...'
+  - name: vwarnx
+    standards:
+      - bsd
+    return_type: void
+    arguments:
+      - type: const char *
+      - type: va_list

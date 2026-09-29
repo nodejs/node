@@ -190,7 +190,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
                                            v8::Local<v8::Value> value);
 
   void asyncTaskScheduledForStack(const StringView& taskName, void* task,
-                                  bool recurring, bool skipTopFrame = false);
+                                  bool recurring, int skipFrameCount);
   void asyncTaskCanceledForStack(void* task);
   void asyncTaskStartedForStack(void* task);
   void asyncTaskFinishedForStack(void* task);
@@ -203,7 +203,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
 
   // v8::debug::DebugEventListener implementation.
   void AsyncEventOccurred(v8::debug::DebugAsyncActionType type, int id,
-                          bool isBlackboxed) override;
+                          bool isBlackboxed, int skipFrameCount = 0) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
                       bool has_compile_error) override;
   void BreakProgramRequested(

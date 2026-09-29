@@ -39,6 +39,9 @@ struct TorqueCompilerOptions {
 
   // Strips the v8-root in case the source path contains it as a prefix.
   bool strip_v8_root = false;
+
+  // Generates DWARF line info for Torque files.
+  bool torque_dwarf = false;
 };
 
 DECLARE_CONTEXTUAL_VARIABLE(CurrentCompilerOptions, TorqueCompilerOptions);

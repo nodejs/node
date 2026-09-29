@@ -16,7 +16,7 @@ namespace internal {
 
 BUILTIN(BigIntConstructor) {
   HandleScope scope(isolate);
-  if (!IsUndefined(*args.new_target(), isolate)) {  // [[Construct]]
+  if (!IsUndefined(*args.new_target())) {  // [[Construct]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotConstructor,
                               isolate->factory()->BigInt_string()));
@@ -103,7 +103,7 @@ Tagged<Object> BigIntToStringImpl(Handle<Object> receiver, Handle<Object> radix,
   // 2. If radix is not present, let radixNumber be 10.
   // 3. Else if radix is undefined, let radixNumber be 10.
   int radix_number = 10;
-  if (!IsUndefined(*radix, isolate)) {
+  if (!IsUndefined(*radix)) {
     // 4. Else, let radixNumber be ? ToInteger(radix).
     double radix_double;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, radix_double,

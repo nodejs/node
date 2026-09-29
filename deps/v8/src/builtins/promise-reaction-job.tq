@@ -67,50 +67,152 @@ transitioning macro FuflfillPromiseReactionJob(
 }
 
 // https://tc39.es/ecma262/#sec-promisereactionjob
+extern builtin ResumeGeneratorTrampoline(Context, JSAny, JSGeneratorObject):
+    JSAny;
+extern builtin AsyncGeneratorResumeNext(Context, JSAsyncGeneratorObject): JSAny;
+
+transitioning macro ResumeGenerator(
+    implicit context: Context)(generator: JSGeneratorObject, argument: JSAny,
+    reactionType: constexpr PromiseReactionType): void {
+  if constexpr (reactionType == kPromiseReactionFulfill) {
+    generator.resume_mode = SmiConstant(kGeneratorResumeModeNext);
+  } else {
+    static_assert(reactionType == kPromiseReactionReject);
+    generator.resume_mode = SmiConstant(kGeneratorResumeModeThrow);
+  }
+  if (Is<JSAsyncGeneratorObject>(generator)) {
+    const asyncGen = %RawDownCast<JSAsyncGeneratorObject>(generator);
+    asyncGen.is_awaiting = SmiConstant(0);
+  }
+  ResumeGeneratorTrampoline(context, argument, generator);
+  if (Is<JSAsyncGeneratorObject>(generator)) {
+    const asyncGen = %RawDownCast<JSAsyncGeneratorObject>(generator);
+    AsyncGeneratorResumeNext(context, asyncGen);
+  }
+}
+
+// https://tc39.es/ecma262/#sec-promisereactionjob
 transitioning macro PromiseReactionJob(
-    context: Context, argument: JSAny, handler: Callable|Undefined,
+    context: Context, argument: JSAny,
+    handler: Callable|JSGeneratorObject|Undefined,
     promiseOrCapability: JSPromise|PromiseCapability|Undefined,
     reactionType: constexpr PromiseReactionType): JSAny {
-  if (handler == Undefined) {
-    if constexpr (reactionType == kPromiseReactionFulfill) {
-      return FuflfillPromiseReactionJob(
-          context, promiseOrCapability, argument, reactionType);
-    } else {
-      static_assert(reactionType == kPromiseReactionReject);
-      return RejectPromiseReactionJob(
-          context, promiseOrCapability, argument, reactionType);
+  typeswitch (handler) {
+    case (generator: JSGeneratorObject): {
+      ResumeGenerator(generator, argument, reactionType);
+      return Undefined;
     }
-  } else {
-    try {
-      const result =
-          Call(context, UnsafeCast<Callable>(handler), Undefined, argument);
-      if (promiseOrCapability == Undefined) {
-        // There's no [[Capability]] for this promise reaction job, which
-        // means that this is a specification-internal operation (aka
-        // await) where the result does not matter (see the specification
-        // change in https://github.com/tc39/ecma262/pull/1146 for
-        // details).
-        return Undefined;
-      } else {
+    case (Undefined): {
+      if constexpr (reactionType == kPromiseReactionFulfill) {
         return FuflfillPromiseReactionJob(
-            context, promiseOrCapability, result, reactionType);
+            context, promiseOrCapability, argument, reactionType);
+      } else {
+        static_assert(reactionType == kPromiseReactionReject);
+        return RejectPromiseReactionJob(
+            context, promiseOrCapability, argument, reactionType);
       }
-    } catch (e, _message) {
-      return RejectPromiseReactionJob(
-          context, promiseOrCapability, e, reactionType);
+    }
+    case (otherHandler: Callable): {
+      try {
+        const result = Call(context, otherHandler, Undefined, argument);
+        if (promiseOrCapability == Undefined) {
+          // There's no [[Capability]] for this promise reaction job, which
+          // means that this is a specification-internal operation (aka
+          // await) where the result does not matter (see the specification
+          // change in https://github.com/tc39/ecma262/pull/1146 for
+          // details).
+          return Undefined;
+        } else {
+          return FuflfillPromiseReactionJob(
+              context, promiseOrCapability, result, reactionType);
+        }
+      } catch (e, _message) {
+        return RejectPromiseReactionJob(
+            context, promiseOrCapability, e, reactionType);
+      }
     }
   }
 }
 
+@export
+transitioning macro PromiseFulfillReactionJobInline(
+    implicit context: Context)(value: JSAny, handler: JSAny,
+    promiseOrCapability: HeapObject): void labels Slow {
+  if (handler == Undefined) {
+    typeswitch (promiseOrCapability) {
+      case (promise: JSPromise): {
+        ResolvePromise(promise, value);
+      }
+      case (HeapObject): {
+        goto Slow;
+      }
+    }
+  } else if (promiseOrCapability == Undefined) {
+    typeswitch (handler) {
+      case (generator: JSGeneratorObject): {
+        ResumeGenerator(generator, value, kPromiseReactionFulfill);
+      }
+      case (callable: Callable): {
+        try {
+          Call(context, callable, Undefined, value);
+        } catch (e, _message) {
+          PromiseRejectReactionJob(e, Undefined, Undefined);
+        }
+      }
+      case (JSAny): {
+        goto Slow;
+      }
+    }
+  } else {
+    goto Slow;
+  }
+}
+
+@export
+transitioning macro PromiseRejectReactionJobInline(
+    implicit context: Context)(reason: JSAny, handler: JSAny,
+    promiseOrCapability: HeapObject): void labels Slow {
+  if (handler == Undefined) {
+    typeswitch (promiseOrCapability) {
+      case (promise: JSPromise): {
+        RejectPromise(promise, reason, False);
+      }
+      case (HeapObject): {
+        goto Slow;
+      }
+    }
+  } else if (promiseOrCapability == Undefined) {
+    typeswitch (handler) {
+      case (generator: JSGeneratorObject): {
+        ResumeGenerator(generator, reason, kPromiseReactionReject);
+      }
+      case (callable: Callable): {
+        try {
+          Call(context, callable, Undefined, reason);
+        } catch (e, _message) {
+          PromiseRejectReactionJob(e, Undefined, Undefined);
+        }
+      }
+      case (JSAny): {
+        goto Slow;
+      }
+    }
+  } else {
+    goto Slow;
+  }
+}
+
 transitioning builtin PromiseFulfillReactionJob(
-    implicit context: Context)(value: JSAny, handler: Callable|Undefined,
+    implicit context: Context)(value: JSAny,
+    handler: Callable|JSGeneratorObject|Undefined,
     promiseOrCapability: JSPromise|PromiseCapability|Undefined): JSAny {
   return PromiseReactionJob(
       context, value, handler, promiseOrCapability, kPromiseReactionFulfill);
 }
 
 transitioning builtin PromiseRejectReactionJob(
-    implicit context: Context)(reason: JSAny, handler: Callable|Undefined,
+    implicit context: Context)(reason: JSAny,
+    handler: Callable|JSGeneratorObject|Undefined,
     promiseOrCapability: JSPromise|PromiseCapability|Undefined): JSAny {
   return PromiseReactionJob(
       context, reason, handler, promiseOrCapability, kPromiseReactionReject);

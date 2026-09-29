@@ -19,10 +19,16 @@ function TestBigIntTruncatedToWord64(x) {
   return module.exports.f(x + x);
 }
 
-let bi = (2n ** (2n ** 29n + 2n ** 29n - 1n));
+let bi = (2n ** (2n ** 30n - 65n));
 
 // Expect BigIntTooBig for adding bi to itself
 assertThrows(() => TestBigIntTruncatedToWord64(bi), RangeError);
+
+// The BigIntTooBig throw path in the Add stub poisons embedded feedback to
+// kAny so a subsequent optimized call wouldn't loop into the same deopt.
+// Before optimization is armed, we want fresh feedback so that priming with
+// small BigInts below yields clean kBigInt64 speculation.
+%ClearFunctionFeedback(TestBigIntTruncatedToWord64);
 
 %PrepareFunctionForOptimization(TestBigIntTruncatedToWord64);
 TestBigIntTruncatedToWord64(1n);

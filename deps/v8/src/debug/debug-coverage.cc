@@ -519,7 +519,8 @@ void CollectAndMaybeResetCounts(Isolate* isolate,
           *isolate->factory()->feedback_vectors_for_profiling_tools()));
       auto list = Cast<ArrayList>(
           isolate->factory()->feedback_vectors_for_profiling_tools());
-      for (int i = 0; i < list->length(); i++) {
+      const uint32_t list_len = list->ulength().value();
+      for (uint32_t i = 0; i < list_len; i++) {
         Tagged<FeedbackVector> vector = Cast<FeedbackVector>(list->get(i));
         Tagged<SharedFunctionInfo> shared = vector->shared_function_info();
         DCHECK(shared->IsSubjectToDebugging());
@@ -645,7 +646,8 @@ std::unique_ptr<Coverage> Coverage::CollectWasmData(Isolate* isolate) {
       // Create and add new script data.
       result->emplace_back(handle(script, isolate));
       std::vector<CoverageFunction>* functions = &result->back().functions;
-      const wasm::NativeModule* native_module = script->wasm_native_module();
+      Managed<wasm::NativeModule>::Ptr native_module =
+          script->wasm_native_module();
       const wasm::WasmModule* wasm_module = native_module->module();
       const wasm::WasmModuleCoverageData* coverage_data =
           native_module->coverage_data().get();

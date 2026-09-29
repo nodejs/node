@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/marking-visitor.h"
+#include "src/heap/cppgc-internal/marking-visitor.h"
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/internal/gc-info.h"
 #include "include/cppgc/member.h"
 #include "include/cppgc/persistent.h"
 #include "include/cppgc/source-location.h"
-#include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/marker.h"
-#include "src/heap/cppgc/marking-state.h"
+#include "src/heap/cppgc-internal/globals.h"
+#include "src/heap/cppgc-internal/heap-object-header.h"
+#include "src/heap/cppgc-internal/marker.h"
+#include "src/heap/cppgc-internal/marking-state.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -399,9 +399,10 @@ TEST_F(ConservativeTracerTest, TraceConservativelyStack) {
   volatile std::array<Member<GCedWithDestructor>, 16u> members =
       [this]() V8_NOINLINE {
         std::array<Member<GCedWithDestructor>, 16u> members;
-        for (auto& member : members)
+        for (auto& member : members) {
           member =
               MakeGarbageCollected<GCedWithDestructor>(GetAllocationHandle());
+        }
         return members;
       }();
   USE(members);

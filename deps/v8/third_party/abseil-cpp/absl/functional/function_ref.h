@@ -91,7 +91,7 @@ class ABSL_ATTRIBUTE_VIEW FunctionRef<R(Args...)> {
   // signature of this FunctionRef.
   template <typename F, typename... U>
   using EnableIfCompatible =
-      std::enable_if_t<std::is_invocable_r<R, F, U..., Args...>::value>;
+      std::enable_if_t<std::is_invocable_r_v<R, F, U..., Args...>>;
 
   // Internal constructor to supersede the copying constructor
   template <typename F>

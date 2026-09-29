@@ -94,6 +94,30 @@
         {"name": "Split"},
         {"name": "Test"}
       ]
+    },
+    {
+      "name": "SimdSkip",
+      "path": ["RegExp"],
+      "main": "run_simd.js",
+      "resources": [
+        "simd_skip.js"
+      ],
+      "flags": ["--allow-natives-syntax"],
+      "results_regexp": "^%s\\-RegExp-SIMD\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "SkipUntilChar1Byte"},
+        {"name": "SkipUntilCharAnd1Byte"},
+        {"name": "SkipUntilCharOrChar1Byte"},
+        {"name": "SkipUntilBitInTable1Byte"},
+        {"name": "SkipUntilGtOrNotBitInTable1Byte"},
+        {"name": "SkipUntilOneOfMasked"},
+        {"name": "SkipUntilOneOfMasked3"},
+        {"name": "SkipUntilChar2Byte"},
+        {"name": "SkipUntilCharAnd2Byte"},
+        {"name": "SkipUntilCharOrChar2Byte"},
+        {"name": "SkipUntilBitInTable2Byte"},
+        {"name": "SkipUntilGtOrNotBitInTable2Byte"}
+      ]
     }
   ]
 }

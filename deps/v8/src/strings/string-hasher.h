@@ -41,10 +41,16 @@ class RunningStringHasher final {
 class V8_EXPORT_PRIVATE StringHasher final {
  public:
   StringHasher() = delete;
+  // If `out_one_byte_content` is non-null, it is set to true iff the input
+  // content fits in one byte. Only set on the non-index and integer-index
+  // paths; remains untouched when no content scan happens (array-index hit
+  // and trivial-hash for length > kMaxHashCalcLength). Used by
+  // internalization to canonicalize 2-byte-with-1-byte-content without a
+  // second pass.
   template <typename char_t>
-  static inline uint32_t HashSequentialString(const char_t* chars,
-                                              uint32_t length,
-                                              const HashSeed seed);
+  static inline uint32_t HashSequentialString(
+      const char_t* chars, uint32_t length, const HashSeed seed,
+      bool* out_one_byte_content = nullptr);
 
   // Calculate the hash value for a string consisting of 1 to
   // String::kMaxArrayIndexSize digits with no leading zeros (except "0").

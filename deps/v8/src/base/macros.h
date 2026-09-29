@@ -201,6 +201,34 @@ V8_INLINE constexpr Dest bit_cast(Source const& source) noexcept {
   void operator delete(void*, size_t) { v8::base::OS::Abort(); } \
   void operator delete[](void*, size_t) { v8::base::OS::Abort(); }
 
+// Define V8_USE_ADDRESS_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define V8_USE_ADDRESS_SANITIZER 1
+#endif
+#endif
+
+// Define V8_USE_HWADDRESS_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(hwaddress_sanitizer)
+#define V8_USE_HWADDRESS_SANITIZER 1
+#endif
+#endif
+
+// Define V8_USE_MEMORY_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#define V8_USE_MEMORY_SANITIZER 1
+#endif
+#endif
+
+// Define V8_USE_UNDEFINED_BEHAVIOR_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(undefined_behavior_sanitizer)
+#define V8_USE_UNDEFINED_BEHAVIOR_SANITIZER 1
+#endif
+#endif
+
 // Define V8_USE_SAFE_STACK macro.
 #if defined(__has_feature)
 #if __has_feature(safe_stack)
@@ -419,13 +447,20 @@ constexpr inline bool IsAligned(T value, U alignment) {
   return (value & (alignment - 1)) == 0;
 }
 
-inline void* AlignedAddress(void* address, size_t alignment) {
-  return reinterpret_cast<void*>(
+template <typename T>
+constexpr inline bool IsAlignedAddress(T* address, size_t alignment) {
+  return IsAligned(reinterpret_cast<uintptr_t>(address), alignment);
+}
+
+template <typename T>
+inline T* AlignedAddress(T* address, size_t alignment) {
+  return reinterpret_cast<T*>(
       RoundDown(reinterpret_cast<uintptr_t>(address), alignment));
 }
 
-inline void* RoundUpAddress(void* address, size_t alignment) {
-  return reinterpret_cast<void*>(
+template <typename T>
+inline T* RoundUpAddress(T* address, size_t alignment) {
+  return reinterpret_cast<T*>(
       RoundUp(reinterpret_cast<uintptr_t>(address), alignment));
 }
 
@@ -487,6 +522,27 @@ bool is_inbounds(float_t v) {
 #define IF_WASM(V, ...)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#if V8_ENABLE_WEBASSEMBLY
+#define V8_ENABLE_SIMD128 1
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+#define V8_ENABLE_SIMD256 1
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+#if V8_ENABLE_SIMD128
+#define IF_SIMD128(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_SIMD128(V, ...)
+#endif  // V8_ENABLE_SIMD128
+
+#if V8_ENABLE_SIMD256
+// 256 bit simd cannot be enabled without 128 bit simd.
+static_assert(V8_ENABLE_SIMD128);
+#define IF_SIMD256(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_SIMD256(V, ...)
+#endif  // V8_ENABLE_SIMD256
+
 #ifdef V8_ENABLE_DRUMBRAKE
 #define IF_WASM_DRUMBRAKE(V, ...) EXPAND(V(__VA_ARGS__))
 #else
@@ -538,14 +594,26 @@ bool is_inbounds(float_t v) {
 #define IF_SHADOW_STACK(V, ...)
 #endif  // V8_ENABLE_CET_SHADOW_STACK
 
-// Defines IF_TARGET_ARCH_64_BIT, to be used in macro lists for elements that
-// should only be there if the target architecture is a 64-bit one.
+// Defines IF_TARGET_ARCH_64_BIT and IF_TARGET_ARCH_32_BIT, to be used in macro
+// lists for elements that should only be there if the target architecture is
+// 64-bit or 32-bit respectively.
 #if V8_TARGET_ARCH_64_BIT
 // EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
 #define IF_TARGET_ARCH_64_BIT(V, ...) EXPAND(V(__VA_ARGS__))
+#define IF_TARGET_ARCH_32_BIT(V, ...)
 #else
 #define IF_TARGET_ARCH_64_BIT(V, ...)
+#define IF_TARGET_ARCH_32_BIT(V, ...) EXPAND(V(__VA_ARGS__))
 #endif  // V8_TARGET_ARCH_64_BIT
+
+// Defines IF_TARGET_ARCH_X64, to be used in macro lists for elements that
+// should only be there if the target architecture is x64.
+#if V8_TARGET_ARCH_X64
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_TARGET_ARCH_X64(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_TARGET_ARCH_X64(V, ...)
+#endif  // V8_TARGET_ARCH_X64
 
 // Defines IF_V8_WASM_RANDOM_FUZZERS and IF_NO_V8_WASM_RANDOM_FUZZERS, to be
 // used in macro lists for elements that should only be there/absent when
@@ -597,6 +665,31 @@ bool is_inbounds(float_t v) {
 #else
 #define START_ALLOW_MISSING_DESIGNATED_FIELD_INITIALIZERS()
 #define END_ALLOW_MISSING_DESIGNATED_FIELD_INITIALIZERS()
+#endif  // defined(__clang__)
+
+// Disable/enable -Wlifetime-safety warnings in code.
+#if defined(__clang__) && defined(__has_warning) && \
+    __has_warning("-Wlifetime-safety")
+#define START_IGNORE_LIFETIME_SAFETY_WARNINGS() \
+  _Pragma("clang diagnostic push")              \
+      _Pragma("clang diagnostic ignored \"-Wlifetime-safety\"")
+#define END_IGNORE_LIFETIME_SAFETY_WARNINGS() _Pragma("clang diagnostic pop")
+#else
+#define START_IGNORE_LIFETIME_SAFETY_WARNINGS()
+#define END_IGNORE_LIFETIME_SAFETY_WARNINGS()
+#endif  // defined(__clang__)
+
+// Disable/enable -Wreturn-stack-address warnings in code.
+#if defined(__clang__) && defined(__has_warning) && \
+    __has_warning("-Wreturn-stack-address")
+#define START_IGNORE_RETURN_STACK_ADDRESS_WARNINGS() \
+  _Pragma("clang diagnostic push")                   \
+      _Pragma("clang diagnostic ignored \"-Wreturn-stack-address\"")
+#define END_IGNORE_RETURN_STACK_ADDRESS_WARNINGS() \
+  _Pragma("clang diagnostic pop")
+#else
+#define START_IGNORE_RETURN_STACK_ADDRESS_WARNINGS()
+#define END_IGNORE_RETURN_STACK_ADDRESS_WARNINGS()
 #endif  // defined(__clang__)
 
 #endif  // V8_BASE_MACROS_H_

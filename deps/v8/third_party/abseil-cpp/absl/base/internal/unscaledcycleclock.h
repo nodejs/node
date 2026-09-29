@@ -47,6 +47,10 @@
 
 #if ABSL_USE_UNSCALED_CYCLECLOCK
 
+namespace gloop_do_not_use {
+class UnscaledCycleClockWrapperForPerCpuTest;
+}  // namespace gloop_do_not_use
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace time_internal {
@@ -75,6 +79,7 @@ class UnscaledCycleClock {
   friend class base_internal::CycleClock;
   friend class time_internal::UnscaledCycleClockWrapperForGetCurrentTime;
   friend class base_internal::UnscaledCycleClockWrapperForInitializeFrequency;
+  friend class gloop_do_not_use::UnscaledCycleClockWrapperForPerCpuTest;
 };
 
 #if defined(__x86_64__)

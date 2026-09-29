@@ -7,7 +7,7 @@
 namespace regexp {
 
 // ES6 21.2.5.10.
-// ES #sec-get-regexp.prototype.source
+// https://tc39.es/ecma262/#sec-get-regexp.prototype.source
 transitioning javascript builtin RegExpPrototypeSourceGetter(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   typeswitch (receiver) {

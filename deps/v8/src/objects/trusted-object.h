@@ -13,8 +13,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/trusted-object-tq.inc"
-
 // An object that is trusted to not have been modified in a malicious way.
 //
 // Typical examples of trusted objects are containers for bytecode or code
@@ -30,7 +28,7 @@ namespace internal {
 // would be unsafe: an attacker could corrupt any (direct) pointer to these
 // objects stored inside the sandbox. However, ExposedTrustedObject can be
 // referenced via indirect pointers, which guarantee memory-safe access.
-class TrustedObject : public HeapObject {
+V8_OBJECT class TrustedObject : public HeapObject {
  public:
   DECL_VERIFIER(TrustedObject)
 
@@ -64,14 +62,8 @@ class TrustedObject : public HeapObject {
   inline void VerifyProtectedPointerField(Isolate* isolate, int offset);
 #endif
 
-  static constexpr int kHeaderSize = HeapObject::kHeaderSize;
-
-  OBJECT_CONSTRUCTORS(TrustedObject, HeapObject);
-};
-
-V8_OBJECT class TrustedObjectLayout : public HeapObjectLayout {
- public:
-  DECL_VERIFIER(TrustedObject)
+  // Back-compat alias: TrustedObject adds no fields on top of HeapObject.
+  static constexpr int kHeaderSize = sizeof(HeapObject);
 } V8_OBJECT_END;
 
 // A trusted object that can safely be referenced from untrusted objects.
@@ -106,7 +98,7 @@ V8_OBJECT class TrustedObjectLayout : public HeapObjectLayout {
 // with a unique instance type. It is of course still possible to build new
 // utility objects on top of this class, but hopefully this comment serves to
 // document the potential pitfalls when doing so.
-class ExposedTrustedObject : public TrustedObject {
+V8_OBJECT class ExposedTrustedObject : public TrustedObject {
  public:
   // Initializes this object by allocating its pointer table entry. This
   // initializer function immediately makes the trusted object accessible from
@@ -130,7 +122,14 @@ class ExposedTrustedObject : public TrustedObject {
   // This is only needed if the object was initialized without publishing it,
   // in which case its pointer table entry will not be usable (as it uses an
   // invalid type tag) until this method is called.
+  inline void Publish(Isolate* isolate);
   inline void Publish(IsolateForSandbox isolate);
+
+  // Undoes earlier publishing of this object, making it inaccessible from
+  // within the sandbox.
+  // This is recommended when a trusted object is no longer used, e.g. the old
+  // backing store of a growable table.
+  inline void Unpublish(IsolateForSandbox isolate);
 
   // Returns true if this trusted object is "published", i.e. accessible from
   // within the sandbox via the trusted pointer table.
@@ -142,47 +141,33 @@ class ExposedTrustedObject : public TrustedObject {
   // which this object can be referenced from inside the sandbox.
   inline IndirectPointerHandle self_indirect_pointer_handle() const;
 
+#if V8_ENABLE_SANDBOX
+  inline void InitSelfIndirectPointerField(
+      std::atomic<IndirectPointerHandle>* field_ptr, IsolateForSandbox isolate,
+      TrustedPointerPublishingScope* opt_publishing_scope);
+#endif  // V8_ENABLE_SANDBOX
+
   DECL_VERIFIER(ExposedTrustedObject)
 
 #ifdef V8_ENABLE_SANDBOX
-  // The 'self' indirect pointer is only available when the sandbox is enabled.
-  // Otherwise, these objects are referenced through direct pointers.
-#define FIELD_LIST(V)                                                   \
-  V(kSelfIndirectPointerOffset, kIndirectPointerSize)                   \
-  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
-  V(kHeaderSize, 0)                                                     \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(TrustedObject::kHeaderSize, FIELD_LIST)
-#undef FIELD_LIST
-#else   // V8_ENABLE_SANDBOX
-  static constexpr int kHeaderSize = TrustedObject::kHeaderSize;
 #endif  // V8_ENABLE_SANDBOX
-
-  OBJECT_CONSTRUCTORS(ExposedTrustedObject, TrustedObject);
-};
-
-V8_OBJECT class ExposedTrustedObjectLayout : public TrustedObjectLayout {
- public:
-  // Initializes this object by allocating its pointer table entry.
-  // This initializer function immediately makes the trusted object accessible
-  // from within the sandbox. If that is undesirable (e.g. because the object
-  // may be in an inconsistent state or require addition validation), use the
-  // InitDontPublish variant instead.
-  inline void InitAndPublish(Isolate* isolate);
-  inline void InitAndPublish(LocalIsolate* isolate);
-
-  inline IndirectPointerHandle self_indirect_pointer_handle() const;
-
-  DECL_VERIFIER(ExposedTrustedObject)
+  static const int kHeaderSize;
 
  private:
+  friend class TorqueGeneratedExposedTrustedObjectAsserts;
+
+ public:
 #ifdef V8_ENABLE_SANDBOX
   // The 'self' indirect pointer is only available when the sandbox is enabled.
   // Otherwise, these objects are referenced through direct pointers.
   std::atomic<IndirectPointerHandle> self_indirect_pointer_;
 #endif  // V8_ENABLE_SANDBOX
 } V8_OBJECT_END;
+
+#ifdef V8_ENABLE_SANDBOX
+#endif  // V8_ENABLE_SANDBOX
+inline constexpr int ExposedTrustedObject::kHeaderSize =
+    sizeof(ExposedTrustedObject);
 
 }  // namespace internal
 }  // namespace v8

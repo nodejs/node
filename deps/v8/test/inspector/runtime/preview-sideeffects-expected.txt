@@ -4,3 +4,9 @@ Running test: ObjectGetter
 {
     getterCalled : false
 }
+
+Running test: ObjectGetterBoundBuiltin
+{
+    callBindCalled : false
+    reflectApplyCalled : false
+}

@@ -73,7 +73,7 @@ template <typename T, typename = void>
 struct HasUserDefinedConvert : std::false_type {};
 
 template <typename T>
-struct HasUserDefinedConvert<T, void_t<decltype(AbslFormatConvert(
+struct HasUserDefinedConvert<T, std::void_t<decltype(AbslFormatConvert(
                                     std::declval<const T&>(),
                                     std::declval<const FormatConversionSpec&>(),
                                     std::declval<FormatSink*>()))>>
@@ -133,9 +133,8 @@ auto FormatConvertImpl(const T& v, FormatConversionSpecImpl conv,
                                   std::declval<const FormatConversionSpec&>(),
                                   std::declval<FormatSink*>())) {
   using FormatConversionSpecT =
-      absl::enable_if_t<sizeof(const T& (*)()) != 0, FormatConversionSpec>;
-  using FormatSinkT =
-      absl::enable_if_t<sizeof(const T& (*)()) != 0, FormatSink>;
+      std::enable_if_t<sizeof(const T& (*)()) != 0, FormatConversionSpec>;
+  using FormatSinkT = std::enable_if_t<sizeof(const T& (*)()) != 0, FormatSink>;
   auto fcs = conv.Wrap<FormatConversionSpecT>();
   auto fs = sink->Wrap<FormatSinkT>();
   return AbslFormatConvert(v, fcs, &fs);
@@ -144,32 +143,30 @@ auto FormatConvertImpl(const T& v, FormatConversionSpecImpl conv,
 template <typename T>
 auto FormatConvertImpl(const T& v, FormatConversionSpecImpl conv,
                        FormatSinkImpl* sink)
-    -> std::enable_if_t<std::is_enum<T>::value &&
-                            std::is_void<decltype(AbslStringify(
-                                std::declval<FormatSink&>(), v))>::value,
+    -> std::enable_if_t<std::is_enum_v<T> &&
+                            std::is_void_v<decltype(AbslStringify(
+                                std::declval<FormatSink&>(), v))>,
                         IntegralConvertResult> {
   if (conv.conversion_char() == FormatConversionCharInternal::v) {
     using FormatSinkT =
-        absl::enable_if_t<sizeof(const T& (*)()) != 0, FormatSink>;
+        std::enable_if_t<sizeof(const T& (*)()) != 0, FormatSink>;
     auto fs = sink->Wrap<FormatSinkT>();
     AbslStringify(fs, v);
     return {true};
   } else {
-    return {ConvertIntArg(
-        static_cast<typename std::underlying_type<T>::type>(v), conv, sink)};
+    return {
+        ConvertIntArg(static_cast<std::underlying_type_t<T>>(v), conv, sink)};
   }
 }
 
 template <typename T>
 auto FormatConvertImpl(const T& v, FormatConversionSpecImpl,
                        FormatSinkImpl* sink)
-    -> std::enable_if_t<!std::is_enum<T>::value &&
-                            !std::is_same<T, absl::Cord>::value &&
-                            std::is_void<decltype(AbslStringify(
-                                std::declval<FormatSink&>(), v))>::value,
+    -> std::enable_if_t<!std::is_enum_v<T> && !std::is_same_v<T, absl::Cord> &&
+                            std::is_void_v<decltype(AbslStringify(
+                                std::declval<FormatSink&>(), v))>,
                         ArgConvertResult<FormatConversionCharSetInternal::v>> {
-  using FormatSinkT =
-      absl::enable_if_t<sizeof(const T& (*)()) != 0, FormatSink>;
+  using FormatSinkT = std::enable_if_t<sizeof(const T& (*)()) != 0, FormatSink>;
   auto fs = sink->Wrap<FormatSinkT>();
   AbslStringify(fs, v);
   return {true};
@@ -214,8 +211,7 @@ ArgConvertResult<FormatConversionCharSetInternal::p> FormatConvertImpl(
 
 // Strings.
 using StringConvertResult = ArgConvertResult<FormatConversionCharSetUnion(
-    FormatConversionCharSetInternal::s,
-    FormatConversionCharSetInternal::v)>;
+    FormatConversionCharSetInternal::s, FormatConversionCharSetInternal::v)>;
 StringConvertResult FormatConvertImpl(const std::string& v,
                                       FormatConversionSpecImpl conv,
                                       FormatSinkImpl* sink);
@@ -237,8 +233,7 @@ inline StringConvertResult FormatConvertImpl(std::string_view v,
 #endif  // !ABSL_USES_STD_STRING_VIEW
 
 using StringPtrConvertResult = ArgConvertResult<FormatConversionCharSetUnion(
-    FormatConversionCharSetInternal::s,
-    FormatConversionCharSetInternal::p)>;
+    FormatConversionCharSetInternal::s, FormatConversionCharSetInternal::p)>;
 StringPtrConvertResult FormatConvertImpl(const char* v,
                                          FormatConversionSpecImpl conv,
                                          FormatSinkImpl* sink);
@@ -251,8 +246,8 @@ StringPtrConvertResult FormatConvertImpl(std::nullptr_t,
                                          FormatConversionSpecImpl conv,
                                          FormatSinkImpl* sink);
 
-template <class AbslCord, typename std::enable_if<std::is_same<
-                              AbslCord, absl::Cord>::value>::type* = nullptr>
+template <class AbslCord,
+          std::enable_if_t<std::is_same_v<AbslCord, absl::Cord>>* = nullptr>
 StringConvertResult FormatConvertImpl(const AbslCord& value,
                                       FormatConversionSpecImpl conv,
                                       FormatSinkImpl* sink) {
@@ -303,8 +298,7 @@ FloatingConvertResult FormatConvertImpl(long double v,
 // Chars.
 CharConvertResult FormatConvertImpl(char v, FormatConversionSpecImpl conv,
                                     FormatSinkImpl* sink);
-CharConvertResult FormatConvertImpl(wchar_t v,
-                                    FormatConversionSpecImpl conv,
+CharConvertResult FormatConvertImpl(wchar_t v, FormatConversionSpecImpl conv,
                                     FormatSinkImpl* sink);
 
 // Ints.
@@ -345,7 +339,7 @@ IntegralConvertResult FormatConvertImpl(uint128 v,
 
 // This function needs to be a template due to ambiguity regarding type
 // conversions.
-template <typename T, enable_if_t<std::is_same<T, bool>::value, int> = 0>
+template <typename T, std::enable_if_t<std::is_same_v<T, bool>, int> = 0>
 IntegralConvertResult FormatConvertImpl(T v, FormatConversionSpecImpl conv,
                                         FormatSinkImpl* sink) {
   if (conv.conversion_char() == FormatConversionCharInternal::v) {
@@ -358,10 +352,9 @@ IntegralConvertResult FormatConvertImpl(T v, FormatConversionSpecImpl conv,
 // We provide this function to help the checker, but it is never defined.
 // FormatArgImpl will use the underlying Convert functions instead.
 template <typename T>
-typename std::enable_if<std::is_enum<T>::value &&
-                            !HasUserDefinedConvert<T>::value &&
-                            !HasAbslStringify<T>::value,
-                        IntegralConvertResult>::type
+std::enable_if_t<std::is_enum_v<T> && !HasUserDefinedConvert<T>::value &&
+                     !HasAbslStringify<T>::value,
+                 IntegralConvertResult>
 FormatConvertImpl(T v, FormatConversionSpecImpl conv, FormatSinkImpl* sink);
 
 template <typename T>
@@ -381,7 +374,7 @@ struct FormatCountCaptureHelper {
   static ArgConvertResult<FormatConversionCharSetInternal::n> ConvertHelper(
       const FormatCountCapture& v, FormatConversionSpecImpl conv,
       FormatSinkImpl* sink) {
-    const absl::enable_if_t<sizeof(T) != 0, FormatCountCapture>& v2 = v;
+    const std::enable_if_t<sizeof(T) != 0, FormatCountCapture>& v2 = v;
 
     if (conv.conversion_char() !=
         str_format_internal::FormatConversionCharInternal::n) {
@@ -447,17 +440,16 @@ class FormatArgImpl {
 
   template <typename T>
   struct store_by_value
-      : std::integral_constant<bool, (sizeof(T) <= kInlinedSpace) &&
-                                         (std::is_integral<T>::value ||
-                                          std::is_floating_point<T>::value ||
-                                          std::is_pointer<T>::value ||
-                                          std::is_same<VoidPtr, T>::value)> {};
+      : std::integral_constant<
+            bool, (sizeof(T) <= kInlinedSpace) &&
+                      (std::is_integral_v<T> || std::is_floating_point_v<T> ||
+                       std::is_pointer_v<T> || std::is_same_v<VoidPtr, T>)> {};
 
   enum StoragePolicy { ByPointer, ByVolatilePointer, ByValue };
   template <typename T>
   struct storage_policy
       : std::integral_constant<StoragePolicy,
-                               (std::is_volatile<T>::value
+                               (std::is_volatile_v<T>
                                     ? ByVolatilePointer
                                     : (store_by_value<T>::value ? ByValue
                                                                 : ByPointer))> {
@@ -476,23 +468,21 @@ class FormatArgImpl {
     static constexpr bool kHasUserDefined =
         str_format_internal::HasUserDefinedConvert<T>::value ||
         HasAbslStringify<T>::value;
-    using type = typename std::conditional<
-        !kHasUserDefined && std::is_convertible<T, const char*>::value,
-        const char*,
-        typename std::conditional<
-            !kHasUserDefined && std::is_convertible<T, const wchar_t*>::value,
+    using type = std::conditional_t<
+        !kHasUserDefined && std::is_convertible_v<T, const char*>, const char*,
+        std::conditional_t<
+            !kHasUserDefined && std::is_convertible_v<T, const wchar_t*>,
             const wchar_t*,
-            typename std::conditional<
-                !kHasUserDefined && std::is_convertible<T, VoidPtr>::value,
-                VoidPtr,
-                const T&>::type>::type>::type;
+            std::conditional_t<!kHasUserDefined &&
+                                   std::is_convertible_v<T, VoidPtr>,
+                               VoidPtr, const T&>>>;
   };
   template <typename T>
   struct DecayType<
-      T, typename std::enable_if<
-             !str_format_internal::HasUserDefinedConvert<T>::value &&
-             !HasAbslStringify<T>::value && std::is_enum<T>::value>::type> {
-    using type = decltype(+typename std::underlying_type<T>::type());
+      T,
+      std::enable_if_t<!str_format_internal::HasUserDefinedConvert<T>::value &&
+                       !HasAbslStringify<T>::value && std::is_enum_v<T>>> {
+    using type = decltype(+std::underlying_type_t<T>());
   };
 
  public:
@@ -500,7 +490,7 @@ class FormatArgImpl {
   explicit FormatArgImpl(const T& value) {
     using D = typename DecayType<T>::type;
     static_assert(
-        std::is_same<D, const T&>::value || storage_policy<D>::value == ByValue,
+        std::is_same_v<D, const T&> || storage_policy<D>::value == ByValue,
         "Decayed types must be stored by value");
     Init(static_cast<D>(value));
   }
@@ -557,12 +547,12 @@ class FormatArgImpl {
 
   template <typename T>
   static int ToIntVal(const T& val) {
-    using CommonType = typename std::conditional<std::is_signed<T>::value,
-                                                 int64_t, uint64_t>::type;
+    using CommonType =
+        std::conditional_t<std::is_signed_v<T>, int64_t, uint64_t>;
     if (static_cast<CommonType>(val) >
         static_cast<CommonType>((std::numeric_limits<int>::max)())) {
       return (std::numeric_limits<int>::max)();
-    } else if (std::is_signed<T>::value &&
+    } else if (std::is_signed_v<T> &&
                static_cast<CommonType>(val) <
                    static_cast<CommonType>((std::numeric_limits<int>::min)())) {
       return (std::numeric_limits<int>::min)();
@@ -580,8 +570,8 @@ class FormatArgImpl {
   template <typename T>
   static bool ToInt(Data arg, int* out, std::false_type,
                     std::true_type /* is_enum */) {
-    *out = ToIntVal(static_cast<typename std::underlying_type<T>::type>(
-        Manager<T>::Value(arg)));
+    *out = ToIntVal(
+        static_cast<std::underlying_type_t<T>>(Manager<T>::Value(arg)));
     return true;
   }
 
@@ -598,13 +588,12 @@ class FormatArgImpl {
       return ToInt<T>(arg, static_cast<int*>(out), std::is_integral<T>(),
                       std::is_enum<T>());
     }
-    if (ABSL_PREDICT_FALSE(!Contains(ArgumentToConv<T>(),
-                                     spec.conversion_char()))) {
+    if (ABSL_PREDICT_FALSE(
+            !Contains(ArgumentToConv<T>(), spec.conversion_char()))) {
       return false;
     }
     return str_format_internal::FormatConvertImpl(
-               Manager<T>::Value(arg), spec,
-               static_cast<FormatSinkImpl*>(out))
+               Manager<T>::Value(arg), spec, static_cast<FormatSinkImpl*>(out))
         .value;
   }
 
@@ -652,7 +641,6 @@ class FormatArgImpl {
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(std::wstring_view, __VA_ARGS__)
 
 ABSL_INTERNAL_FORMAT_DISPATCH_OVERLOADS_EXPAND_(extern);
-
 
 }  // namespace str_format_internal
 ABSL_NAMESPACE_END

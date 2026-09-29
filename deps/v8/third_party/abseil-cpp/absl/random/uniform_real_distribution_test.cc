@@ -64,9 +64,9 @@ class UniformRealDistributionTest : public ::testing::Test {};
 // https://bugs.llvm.org/show_bug.cgi?id=49132. Don't bother running these tests
 // with double doubles until compiler support is better.
 using RealTypes =
-    std::conditional<absl::numeric_internal::IsDoubleDouble(),
-                     ::testing::Types<float, double>,
-                     ::testing::Types<float, double, long double>>::type;
+    std::conditional_t<absl::numeric_internal::IsDoubleDouble(),
+                       ::testing::Types<float, double>,
+                       ::testing::Types<float, double, long double>>;
 
 TYPED_TEST_SUITE(UniformRealDistributionTest, RealTypes);
 
@@ -180,7 +180,7 @@ TYPED_TEST(UniformRealDistributionTest, ParamSerializeTest) {
       }
     }
 
-    if (!std::is_same<real_type, long double>::value) {
+    if (!std::is_same_v<real_type, long double>) {
       // static_cast<double>(long double) can overflow.
       LOG(INFO) << "Range: " << static_cast<double>(sample_min) << ", "
                 << static_cast<double>(sample_max);

@@ -6,10 +6,13 @@
 #define V8_INSPECTOR_V8_DEBUGGER_AGENT_IMPL_H_
 
 #include <deque>
+#include <map>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "include/v8-inspector.h"
 #include "src/base/enum-set.h"
 #include "src/base/macros.h"
 #include "src/debug/debug-interface.h"
@@ -28,6 +31,17 @@ class V8Regex;
 
 using protocol::Response;
 
+enum class BreakpointType {
+  kByUrl = 1,
+  kByUrlRegex,
+  kByScriptHash,
+  kByScriptId,
+  kDebugCommand,
+  kMonitorCommand,
+  kBreakpointAtEntry,
+  kInstrumentationBreakpoint
+};
+
 class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
  public:
   enum BreakpointSource {
@@ -37,7 +51,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   };
 
   V8DebuggerAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*,
-                      protocol::DictionaryValue* state);
+                      protocol::DictionaryValue* state,
+                      std::vector<V8URLBreakpoint> = {});
   ~V8DebuggerAgentImpl() override;
   V8DebuggerAgentImpl(const V8DebuggerAgentImpl&) = delete;
   V8DebuggerAgentImpl& operator=(const V8DebuggerAgentImpl&) = delete;
@@ -55,7 +70,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       std::optional<String16> optionalURLRegex,
       std::optional<String16> optionalScriptHash,
       std::optional<int> optionalColumnNumber,
-      std::optional<String16> optionalCondition, String16*,
+      std::optional<String16> optionalCondition,
+      const String16& embedderBreakpointId, String16* out_breakpointId,
       std::unique_ptr<protocol::Array<protocol::Debugger::Location>>* locations)
       override;
   Response setBreakpoint(
@@ -182,7 +198,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
                 v8::debug::ExceptionType exceptionType, bool isUncaught,
                 v8::debug::BreakReasons breakReasons);
   void didContinue();
-  void didParseSource(std::unique_ptr<V8DebuggerScript>, bool success);
+  void didParseSource(std::unique_ptr<V8DebuggerScript>);
 
   bool isFunctionBlackboxed(const String16& scriptId,
                             const v8::debug::Location& start,
@@ -213,8 +229,9 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   void setBreakpointImpl(const String16& breakpointId,
                          v8::Local<v8::Function> function,
                          v8::Local<v8::String> condition);
-  void removeBreakpointImpl(const String16& breakpointId,
-                            const std::vector<V8DebuggerScript*>& scripts);
+  void removeBreakpointImpl(
+      const String16& breakpointId,
+      const std::vector<std::shared_ptr<V8DebuggerScript>>& scripts);
 
   void internalSetAsyncCallStackDepth(int);
   void increaseCachedSkipStackGeneration();
@@ -229,8 +246,12 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   Response processSkipList(
       protocol::Array<protocol::Debugger::LocationRange>& skipList);
 
+  V8DebuggerScript* getScriptById(
+      const String16& scriptId,
+      const v8::debug::DisallowGarbageCollectionScope&);
+
   using ScriptsMap =
-      std::unordered_map<String16, std::unique_ptr<V8DebuggerScript>>;
+      std::unordered_map<String16, std::shared_ptr<V8DebuggerScript>>;
   using BreakpointIdToDebuggerBreakpointIdsMap =
       std::unordered_map<String16, std::vector<v8::debug::BreakpointId>>;
   using DebuggerBreakpointIdToBreakpointIdMap =
@@ -289,6 +310,16 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       m_blackboxedPositions;
   std::unordered_map<String16, std::vector<std::pair<int, int>>> m_skipList;
   std::unordered_set<String16> m_blackboxedExecutionContexts;
+  struct BreakpointInfo {
+    int line_number;
+    std::optional<int> column_number;
+    BreakpointType breakpoint_type;
+    String16 selector;
+    String16 condition;
+
+    static BreakpointInfo FromURLBreakpoint(const V8URLBreakpoint& info);
+  };
+  std::map<String16, BreakpointInfo> m_urlBreakpoints;
 };
 
 }  // namespace v8_inspector

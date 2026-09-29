@@ -1,0 +1,3 @@
+Tests that disconnecting session synchronously during argument wrapping does not cause UAF
+prepareStackTrace called
+Did not crash

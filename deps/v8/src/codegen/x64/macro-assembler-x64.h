@@ -417,6 +417,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void LoadFeedbackVector(Register dst, Register closure, Label* fbv_undef,
                           Label::Distance distance);
+  void LoadFeedbackCell(Register dst, Register closure);
+  void LoadFeedbackVectorFromCell(Register dst, Register feedback_cell,
+                                  Register scratch, Label* fbv_undef,
+                                  Label::Distance distance);
 
   void LoadInterpreterDataBytecodeArray(Register destination,
                                         Register interpreter_data);
@@ -858,12 +862,17 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // As above, but for kUnknownIndirectPointerTag. The type of the loaded object
   // is unknown, so this helper will check for a series of expected types and
   // jump to the given labels if the loaded object has a matching type. If the
-  // object has none of the expected types, the destination register will be
-  // zeroed and execution continues as fall-through.
+  // field is null (with enabled sandbox) or a Smi (with disabled sandbox) and
+  // the provided is_unavailable label is not a nullptr, then the helper will
+  // jump there. If the field is valid and the object has one of the expected
+  // types, then the helper will jump to the corresponding label. In all other
+  // cases, the destination register will be zeroed and execution continues as
+  // fall-through.
   void LoadTrustedUnknownPointerField(
       Register destination, Operand field_operand, Register scratch,
       const std::initializer_list<
-          std::tuple<InstanceType, Label*, Label::Distance>>& cases);
+          std::tuple<InstanceType, Label*, Label::Distance>>& cases,
+      Label* is_unavailable = nullptr);
   // Store a trusted pointer field.
   void StoreTrustedPointerField(Operand dst_field_operand, Register value);
 
@@ -893,29 +902,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void StoreIndirectPointerField(Operand dst_field_operand, Register value);
 
 #ifdef V8_ENABLE_SANDBOX
-  // Retrieve the heap object referenced by the given indirect pointer handle,
-  // which can either be a trusted pointer handle or a code pointer handle.
+  // Retrieve the heap object referenced by the given indirect pointer handle.
   void ResolveIndirectPointerHandle(Register destination, Register handle,
                                     IndirectPointerTagRange tag_range);
-
-  // Retrieve the heap object referenced by the given trusted pointer handle.
-  void ResolveTrustedPointerHandle(Register destination, Register handle,
-                                   IndirectPointerTagRange tag_range);
-
-  // Retrieve the Code object referenced by the given code pointer handle.
-  void ResolveCodePointerHandle(Register destination, Register handle);
-
-  // Load the pointer to a Code's entrypoint via a code pointer.
-  // Only available when the sandbox is enabled as it requires the code pointer
-  // table.
-  void LoadCodeEntrypointViaCodePointer(Register destination,
-                                        Operand field_operand,
-                                        CodeEntrypointTag tag);
-
-  // Load the value of Code pointer table corresponding to
-  // IsolateGroup::current()->code_pointer_table_.
-  // Only available when the sandbox is enabled.
-  void LoadCodePointerTableBase(Register destination);
 #endif  // V8_ENABLE_SANDBOX
 
   void LoadEntrypointFromJSDispatchTable(Register destination,

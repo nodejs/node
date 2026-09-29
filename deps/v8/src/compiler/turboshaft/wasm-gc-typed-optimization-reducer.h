@@ -49,11 +49,12 @@ inline bool IsCastToCustomDescriptor(const wasm::WasmModule* module,
 
 class WasmGCTypeAnalyzer {
  public:
-  WasmGCTypeAnalyzer(PipelineData* data, Graph& graph, Zone* zone)
-      : data_(data), graph_(graph), phase_zone_(zone) {
+  WasmGCTypeAnalyzer(PipelineData* data, Graph& graph, Zone* zone,
+                     const wasm::FunctionSig* signature)
+      : data_(data), graph_(graph), phase_zone_(zone), signature_(signature) {
     // If we ever want to run this analyzer for Wasm wrappers, we'll need
     // to make it handle their {CanonicalSig} signatures.
-    DCHECK_NOT_NULL(signature_);
+    DCHECK(signature_ || v8_flags.wasm_in_js_inlining_opt);
   }
 
   void Run();
@@ -81,6 +82,8 @@ class WasmGCTypeAnalyzer {
   void ProcessAssertNotNull(const AssertNotNullOp& type_cast);
   void ProcessNull(const NullOp& null);
   void ProcessIsNull(const IsNullOp& is_null);
+  void ProcessAnyConvertExtern(const AnyConvertExternOp& any_convert_extern);
+  void ProcessExternConvertAny(const ExternConvertAnyOp& extern_convert_any);
   void ProcessParameter(const ParameterOp& parameter);
   void ProcessStructGet(const StructGetOp& struct_get);
   void ProcessStructSet(const StructSetOp& struct_set);
@@ -123,7 +126,7 @@ class WasmGCTypeAnalyzer {
   Graph& graph_;
   Zone* phase_zone_;
   const wasm::WasmModule* module_ = data_->wasm_module();
-  const wasm::FunctionSig* signature_ = data_->wasm_module_sig();
+  const wasm::FunctionSig* signature_;
   // Contains the snapshots for all blocks in the CFG.
   TypeSnapshotTable types_table_{phase_zone_};
   // Maps the block id to a snapshot in the table defining the type knowledge
@@ -169,7 +172,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       // We are just starting the first block. The instance data parameter is
       // needed for loading the RTT types for the type assertions. All
       // parameters need to be emitted in the beginning of the first block.
-      instance_data_ = __ WasmInstanceDataParameter();
+      instance_data_ = __ WasmInstanceData();
     }
   }
 
@@ -192,19 +195,15 @@ class WasmGCTypedOptimizationReducer : public Next {
     // If the type is uninhabited, then simply reaching this code path is a
     // type confusion.
     if (type.is_uninhabited()) {
-      __ template WasmCallBuiltinThroughJumptable<
-          builtin::WasmTypeAssertionFailed>({});
-      __ Unreachable();
-      // For simplicity (so that callers don't have to check whether a block is
-      // bound), simply create a new Block. As it won't have any predecessors,
-      // it will be removed from the graph.
-      Label<> unreachable(&Asm());
-      BIND(unreachable);
+      __ template CallWasmBuiltin<builtin::WasmTypeAssertionFailed>({});
+      // Don't mark it as __ Unreachable() as that would require the caller to
+      // handle the special case of reducing into unreachable code.
       return;
     }
 
-    if (type.is_string_view()) {
-      // String views aren't castable.
+    if (type.is_string_view() ||
+        (type.is_ref() && type.ref_type_kind() == wasm::RefTypeKind::kCont)) {
+      // String views and continuation types aren't castable.
       return;
     }
 
@@ -230,8 +229,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (type.AsNullable() == top_type) {
       // Only check for null (the lowering doesn't support it otherwise).
       IF (UNLIKELY(__ IsNull(object, top_type))) {
-        __ template WasmCallBuiltinThroughJumptable<
-            builtin::WasmTypeAssertionFailed>({});
+        __ template CallWasmBuiltin<builtin::WasmTypeAssertionFailed>({});
         __ Unreachable();
       }
     } else {
@@ -241,8 +239,7 @@ class WasmGCTypedOptimizationReducer : public Next {
           .from = top_type, .to = type, .exactness = exactness};
       V<Word32> is_valid = __ WasmTypeCheck(object, rtt, config);
       IF_NOT (LIKELY(is_valid)) {
-        __ template WasmCallBuiltinThroughJumptable<
-            builtin::WasmTypeAssertionFailed>({});
+        __ template CallWasmBuiltin<builtin::WasmTypeAssertionFailed>({});
         __ Unreachable();
       }
     }
@@ -263,8 +260,8 @@ class WasmGCTypedOptimizationReducer : public Next {
       // always trap. In either case emitting an unconditional trap to increase
       // the chances of logic errors just leading to wrong behaviors but not
       // resulting in security issues.
-      __ TrapIf(1, TrapId::kTrapIllegalCast);
-      __ Unreachable();
+      __ WasmTrap(__ MapToNewGraph(cast_op.frame_state()),
+                  TrapId::kTrapIllegalCast);
       return OpIndex::Invalid();
     }
     if (type != wasm::ValueType()) {
@@ -283,7 +280,8 @@ class WasmGCTypedOptimizationReducer : public Next {
           // The inferred heap type is already as specific as the cast target,
           // but the source can be nullable and the target cannot be, so a null
           // check is still required.
-          return __ AssertNotNull(__ MapToNewGraph(cast_op.object()), type,
+          return __ AssertNotNull(__ MapToNewGraph(cast_op.object()),
+                                  __ MapToNewGraph(cast_op.frame_state()), type,
                                   TrapId::kTrapIllegalCast);
         }
       }
@@ -296,7 +294,9 @@ class WasmGCTypedOptimizationReducer : public Next {
                                                               cast_op.object()),
                                                           type)
                                               : __ Word32Constant(0);
-        __ TrapIfNot(non_trapping_condition, TrapId::kTrapIllegalCast);
+        __ TrapIfNot(non_trapping_condition,
+                     __ MapToNewGraph(cast_op.frame_state()),
+                     TrapId::kTrapIllegalCast);
         if (!to_nullable) {
           __ Unreachable();
         }
@@ -316,7 +316,8 @@ class WasmGCTypedOptimizationReducer : public Next {
       WasmTypeCheckConfig config{from_type, cast_op.config.to,
                                  cast_op.config.exactness};
       return __ WasmTypeCast(__ MapToNewGraph(cast_op.object()),
-                             __ MapToNewGraph(cast_op.rtt()), config);
+                             __ MapToNewGraph(cast_op.rtt()),
+                             __ MapToNewGraph(cast_op.frame_state()), config);
     }
     goto no_change;
   }
@@ -400,8 +401,8 @@ class WasmGCTypedOptimizationReducer : public Next {
       // always trap. In either case emitting an unconditional trap to increase
       // the chances of logic errors just leading to wrong behaviors but not
       // resulting in security issues.
-      __ TrapIf(1, assert_not_null.trap_id);
-      __ Unreachable();
+      __ WasmTrap(__ MapToNewGraph(assert_not_null.frame_state()),
+                  assert_not_null.trap_id);
       return OpIndex::Invalid();
     }
     if (type.is_non_nullable()) {
@@ -455,8 +456,8 @@ class WasmGCTypedOptimizationReducer : public Next {
       // always trap. In either case emitting an unconditional trap to increase
       // the chances of logic errors just leading to wrong behaviors but not
       // resulting in security issues.
-      __ TrapIf(1, TrapId::kTrapNullDereference);
-      __ Unreachable();
+      __ WasmTrap(__ MapToNewGraph(struct_get.frame_state()),
+                  TrapId::kTrapNullDereference);
       return OpIndex::Invalid();
     }
     // Remove the null check if it is known to be not null.
@@ -484,8 +485,8 @@ class WasmGCTypedOptimizationReducer : public Next {
       // always trap. In either case emitting an unconditional trap to increase
       // the chances of logic errors just leading to wrong behaviors but not
       // resulting in security issues.
-      __ TrapIf(1, TrapId::kTrapNullDereference);
-      __ Unreachable();
+      __ WasmTrap(__ MapToNewGraph(struct_set.frame_state()),
+                  TrapId::kTrapNullDereference);
       return OpIndex::Invalid();
     }
     // Remove the null check if it is known to be not null.
@@ -493,7 +494,8 @@ class WasmGCTypedOptimizationReducer : public Next {
       __ StructSet(__ MapToNewGraph(struct_set.object()),
                    __ MapToNewGraph(struct_set.value()), struct_set.type,
                    struct_set.type_index, struct_set.field_index,
-                   kWithoutNullCheck, struct_set.memory_order);
+                   kWithoutNullCheck, struct_set.memory_order,
+                   struct_set.write_barrier, struct_set.kind);
       return OpIndex::Invalid();
     }
     goto no_change;
@@ -508,19 +510,75 @@ class WasmGCTypedOptimizationReducer : public Next {
 
     const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
     AssertType(array_length.array(), type);
+    if (type.is_uninhabited()) {
+      // We are either already in unreachable code (then this instruction isn't
+      // even emitted) or the type analyzer inferred that this instruction will
+      // always trap. In either case emitting an unconditional trap to increase
+      // the chances of logic errors just leading to wrong behaviors but not
+      // resulting in security issues.
+      __ WasmTrap(__ MapToNewGraph(array_length.frame_state()),
+                  TrapId::kTrapNullDereference);
+      return OpIndex::Invalid();
+    }
     // Remove the null check if it is known to be not null.
     if (array_length.null_check == kWithNullCheck && type.is_non_nullable()) {
       return __ ArrayLength(__ MapToNewGraph(array_length.array()),
+                            __ MapToNewGraph(array_length.frame_state()),
                             kWithoutNullCheck);
+    }
+    goto no_change;
+  }
+
+  V<Object> REDUCE_INPUT_GRAPH(AnyConvertExtern)(
+      V<Object> op_idx, const AnyConvertExternOp& any_convert_extern) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceInputGraphAnyConvertExtern(op_idx, any_convert_extern);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    AssertType(any_convert_extern.object(), type);
+
+    if (type.is_uninhabited()) {
+      __ Unreachable();
+      return OpIndex::Invalid();
+    }
+
+    if (any_convert_extern.is_nullable && type.is_non_nullable()) {
+      return __ AnyConvertExtern(__ MapToNewGraph(any_convert_extern.object()),
+                                 any_convert_extern.is_shared, false);
+    }
+    goto no_change;
+  }
+
+  V<Object> REDUCE_INPUT_GRAPH(ExternConvertAny)(
+      V<Object> op_idx, const ExternConvertAnyOp& extern_convert_any) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceInputGraphExternConvertAny(op_idx, extern_convert_any);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    AssertType(extern_convert_any.object(), type);
+
+    if (type.is_uninhabited()) {
+      __ Unreachable();
+      return OpIndex::Invalid();
+    }
+
+    if (extern_convert_any.is_nullable && type.is_non_nullable()) {
+      return __ ExternConvertAny(__ MapToNewGraph(extern_convert_any.object()),
+                                 false);
     }
     goto no_change;
   }
 
   // TODO(14108): This isn't a type optimization and doesn't fit well into this
   // reducer.
-  V<Object> REDUCE(AnyConvertExtern)(V<Object> object, bool is_shared) {
+  V<Object> REDUCE(AnyConvertExtern)(V<Object> object, SharedFlag is_shared,
+                                     bool is_nullable) {
     LABEL_BLOCK(no_change) {
-      return Next::ReduceAnyConvertExtern(object, is_shared);
+      return Next::ReduceAnyConvertExtern(object, is_shared, is_nullable);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
@@ -539,7 +597,8 @@ class WasmGCTypedOptimizationReducer : public Next {
  private:
   Graph& graph_ = __ modifiable_input_graph();
   const wasm::WasmModule* module_ = __ data() -> wasm_module();
-  WasmGCTypeAnalyzer analyzer_{__ data(), graph_, __ phase_zone()};
+  WasmGCTypeAnalyzer analyzer_{__ data(), graph_, __ phase_zone(),
+                               __ data()->wasm_module_sig()};
   OptionalV<WasmTrustedInstanceData> instance_data_;
 };
 

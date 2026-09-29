@@ -1,4 +1,5 @@
 // Copyright 2019 Google LLC
+// Copyright 2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -490,7 +491,8 @@ static int64_t DetectTargets() {
     if ((HasCpuFeature("hw.optional.AdvSIMD_HPFPCvt") ||
          HasCpuFeature("hw.optional.arm.AdvSIMD_HPFPCvt")) &&
         HasCpuFeature("hw.optional.arm.FEAT_DotProd") &&
-        HasCpuFeature("hw.optional.arm.FEAT_BF16")) {
+        HasCpuFeature("hw.optional.arm.FEAT_BF16") &&
+        HasCpuFeature("hw.optional.arm.FEAT_I8MM")) {
       bits |= HWY_NEON_BF16;
     }
   }
@@ -502,8 +504,10 @@ static int64_t DetectTargets() {
 
 #if defined(HWCAP_ASIMDHP) && defined(HWCAP_ASIMDDP) && defined(HWCAP2_BF16)
     const CapBits hw2 = getauxval(AT_HWCAP2);
-    const int64_t kGroupF16Dot = HWCAP_ASIMDHP | HWCAP_ASIMDDP;
-    if ((hw & kGroupF16Dot) == kGroupF16Dot && (hw2 & HWCAP2_BF16)) {
+    constexpr CapBits kGroupF16Dot = HWCAP_ASIMDHP | HWCAP_ASIMDDP;
+    constexpr CapBits kGroupBF16 = HWCAP2_BF16;
+    if ((hw & kGroupF16Dot) == kGroupF16Dot &&
+        (hw2 & kGroupBF16) == kGroupBF16) {
       bits |= HWY_NEON_BF16;
     }
 #endif  // HWCAP_ASIMDHP && HWCAP_ASIMDDP && HWCAP2_BF16
@@ -522,8 +526,16 @@ static int64_t DetectTargets() {
 #ifndef HWCAP2_SVEAES
 #define HWCAP2_SVEAES (1 << 2)
 #endif
+#ifndef HWCAP2_SVEI8MM
+#define HWCAP2_SVEI8MM (1 << 9)
+#endif
+#ifndef HWCAP2_SVEBF16
+#define HWCAP2_SVEBF16 (1 << 12)
+#endif
+
+  constexpr CapBits kGroupSVE2 = HWCAP2_SVE2 | HWCAP2_SVEAES;
   const CapBits hw2 = getauxval(AT_HWCAP2);
-  if ((hw2 & HWCAP2_SVE2) && (hw2 & HWCAP2_SVEAES)) {
+  if ((hw2 & kGroupSVE2) == kGroupSVE2) {
     bits |= HWY_SVE2;
   }
 
@@ -531,6 +543,12 @@ static int64_t DetectTargets() {
     ((HWY_TARGETS & HWY_ALL_SVE) != 0)
   if ((bits & HWY_ALL_SVE) != 0) {
     bits |= DetectAdditionalSveTargets(bits);
+
+    // SVE2_128 implies I8MM and BF16, hence remove it if they are not present.
+    constexpr CapBits kGroupSVE2_128 = HWCAP2_SVEI8MM | HWCAP2_SVEBF16;
+    if ((hw2 & kGroupSVE2_128) != kGroupSVE2_128) {
+      bits &= ~HWY_SVE2_128;
+    }
   }
 #endif  // (HWY_COMPILER_GCC || HWY_COMPILER_CLANG) &&
         // ((HWY_TARGETS & HWY_ALL_SVE) != 0)

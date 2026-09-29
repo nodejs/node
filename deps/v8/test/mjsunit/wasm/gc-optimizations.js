@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-liftoff --no-wasm-lazy-compilation
+// Flags: --no-wasm-lazy-compilation --no-wasm-loop-peeling
 // Flags: --no-wasm-inlining --no-wasm-loop-unrolling
-// Flags: --no-wasm-loop-peeling
 
 // This tests are meant to examine if Turbofan CsaLoadElimination works
 // correctly for wasm. The TurboFan graphs can be examined with --trace-turbo.
@@ -174,7 +173,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI64, true);
+  let array = builder.addArray(kWasmI64);
 
   // parameter: unknown array index
   builder.addFunction("main", makeSig([kWasmI32], [kWasmI32]))
@@ -253,7 +252,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let builder = new WasmModuleBuilder();
   let struct = builder.addStruct([makeField(kWasmI32, true)]);
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
 
   let value_0 = 19;
   let value_1 = 55;
@@ -320,7 +319,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
   builder.addFunction("producer", makeSig([kWasmI32], [wasmRefType(array)]))
     .addBody([kExprLocalGet, 0, kGCPrefix, kExprArrayNewDefault, array])
     .exportFunc();
@@ -444,11 +443,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let super_struct = builder.addStruct([makeField(kWasmI32, true)]);
   let mid_struct = builder.addStruct(
-    [makeField(kWasmI32, true), makeField(kWasmI32, true)], super_struct);
+      {fields: [makeField(kWasmI32, true), makeField(kWasmI32, true)],
+       supertype: super_struct});
   let sub_struct = builder.addStruct(
-    [makeField(kWasmI32, true), makeField(kWasmI32, true),
-     makeField(kWasmI32, true)],
-    mid_struct);
+      {fields: [makeField(kWasmI32, true), makeField(kWasmI32, true),
+                makeField(kWasmI32, true)],
+       supertype: mid_struct});
 
   let addToLocal = [kExprLocalGet, 1, kExprI32Add, kExprLocalSet, 1];
 
@@ -511,9 +511,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_super = builder.addStruct([makeField(kWasmI32, true)]);
-  let struct_b = builder.addStruct([makeField(kWasmI32, true)], struct_super);
+  let struct_b = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: struct_super});
   let struct_a = builder.addStruct(
-    [makeField(kWasmI32, true), makeField(kWasmI32, true)], struct_super);
+      {fields: [makeField(kWasmI32, true), makeField(kWasmI32, true)],
+       supertype: struct_super});
 
   let callee_sig = makeSig([wasmRefNullType(struct_a)], [kWasmI32]);
   let callee = builder.addFunction("callee", callee_sig)
@@ -553,9 +555,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_super = builder.addStruct([makeField(kWasmI32, true)]);
-  let struct_b = builder.addStruct([makeField(kWasmI32, true)], struct_super);
+  let struct_b = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: struct_super});
   let struct_a = builder.addStruct(
-    [makeField(kWasmI32, true), makeField(kWasmI32, true)], struct_super);
+      {fields: [makeField(kWasmI32, true), makeField(kWasmI32, true)],
+       supertype: struct_super});
 
   let callee_sig = makeSig([wasmRefNullType(struct_super)], [kWasmI32]);
   let callee = builder.addFunction("callee", callee_sig)
@@ -585,9 +589,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_super = builder.addStruct([makeField(kWasmI32, true)]);
-  let struct_b = builder.addStruct([makeField(kWasmI32, true)], struct_super);
+  let struct_b = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: struct_super});
   let struct_a = builder.addStruct(
-    [makeField(kWasmI32, true), makeField(kWasmI32, true)], struct_super);
+      {fields: [makeField(kWasmI32, true), makeField(kWasmI32, true)],
+       supertype: struct_super});
   let callee_sig = makeSig([wasmRefNullType(struct_super)], [kWasmI32]);
 
   builder.addFunction("mkStruct", makeSig([], [kWasmExternRef]))
@@ -667,7 +673,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function ArrayLenMultipleNullChecks() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
 
   builder.addFunction("arrayLenMultiple",
                       makeSig([wasmRefNullType(array)], [kWasmI32, kWasmI32]))
@@ -686,7 +692,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function RedundantExternalizeInternalize() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
 
   builder.addFunction('createArray',
       makeSig([kWasmI32], [kWasmExternRef]))
@@ -721,7 +727,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function RedundantIsNull() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
 
   builder.addFunction('checkIsNullAfterNonNullCast',
       makeSig([kWasmExternRef], [kWasmI32]))
@@ -808,9 +814,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function ArrayNewRefTest() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let array_base = builder.addArray(kWasmI32, true);
-  let array_sub = builder.addArray(kWasmI32, true, array_base);
-  let array_other = builder.addArray(kWasmI64, true);
+  let array_base = builder.addArray(kWasmI32);
+  let array_sub = builder.addArray(kWasmI32, {supertype: array_base});
+  let array_other = builder.addArray(kWasmI64);
 
   builder.addFunction('arrayNewRefTest',
       makeSig([], [kWasmI32, kWasmI32, kWasmI32]))
@@ -835,8 +841,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TypePropagationPhi() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let array_base = builder.addArray(kWasmI32, true);
-  let array_sub = builder.addArray(kWasmI32, true, array_base);
+  let array_base = builder.addArray(kWasmI32);
+  let array_sub = builder.addArray(kWasmI32, {supertype: array_base});
 
   builder.addFunction('typePhi',
       makeSig([kWasmI32], [kWasmI32]))
@@ -870,7 +876,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
 
   let struct_base = builder.addStruct([makeField(kWasmI32, true)]);
-  let struct_sub = builder.addStruct([makeField(kWasmI32, true)], struct_base);
+  let struct_sub = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: struct_base});
 
   // This function counts all the structs stored in local[1] which are of type
   // struct_sub (which in this case are all the values).
@@ -915,7 +922,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
 
   let struct_base = builder.addStruct([makeField(kWasmI32, true)]);
-  let struct_sub = builder.addStruct([makeField(kWasmI32, true)], struct_base);
+  let struct_sub = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: struct_base});
 
   // This function counts all the structs stored in local[1] which are of type
   // struct_sub (which in this case is only the first).

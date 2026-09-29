@@ -13,48 +13,56 @@
   // The ShadowRealm won't have assertThrows, so use try-catch and accumulate a
   // message string.
   const wrapped = shadowRealm.evaluate(`
-Error.prepareStackTrace = function(err, frames) {
-  let a = [];
-  for (let i = 0; i < frames.length; i++) {
-    try {
-      a.push(frames[i].getFunction());
-    } catch (e) {
-      a.push("getFunction threw");
-    }
-    try {
-      a.push(frames[i].getThis());
-    } catch (e) {
-      a.push("getThis threw");
-    }
-  }
-  return a.join(' ');
-};
+    globalThis[Symbol.toStringTag] = "RealmGlobal";
+    Error.prepareStackTrace = function(err, frames) {
+      let a = [];
+      for (let i = 0; i < frames.length; i++) {
+        try {
+          frames[i].getFunction();
+          a.push("functionName: " + frames[i].getFunctionName());
+        } catch (e) {
+          a.push(frames[i].getFunctionName() + " threw");
+        }
+        try {
+          let t = frames[i].getThis();
+          if (t === undefined) {
+            a.push("this: undefined");
+          } else {
+            a.push("this: " + t);
+          }
+        } catch (e) {
+          a.push("getThis threw");
+        }
+      }
+      return a.join(' ');
+    };
 
-function inner() {
-  try {
-    throw new Error();
-  } catch (e) {
-    return e.stack;
-  }
-}
+    function inner() {
+      try {
+        throw new Error();
+      } catch (e) {
+        return e.stack;
+      }
+    }
 
-inner;
-`);
+    inner;
+  `);
 
   (function outer() {
     // There are 4 frames, youngest to oldest:
     //
-    //   inner
+    //   inner   (function belonging to the shahow realm, thus accessible)
     //   outer
     //   testInside
     //   top-level
     //
-    // So getFunction/getThis should throw 4 times since the prepareStackTrace
-    // hook is executing inside the ShadowRealm.
-    assertEquals("getFunction threw getThis threw " +
-                 "getFunction threw getThis threw " +
-                 "getFunction threw getThis threw " +
-                 "getFunction threw getThis threw", wrapped());
+    // So getFunction/getThis should throw 3 times (for each frame that does
+    // not belong to the shadowRealm) since the prepareStackTrace hook is
+    // executing inside the ShadowRealm.
+    assertEquals("functionName: inner this: [object RealmGlobal] " +
+                 "outer threw getThis threw " +
+                 "testInside threw getThis threw " +
+                 "functionName: null getThis threw", wrapped());
   })();
 })();
 
@@ -62,31 +70,36 @@ inner;
 // objects from the outside, as otherwise we can also violate the callable
 // boundary.
 (function testOutside() {
+  globalThis[Symbol.toStringTag] = "MainGlobal";
   Error.prepareStackTrace = function(err, frames) {
     let a = [];
     for (let i = 0; i < frames.length; i++) {
       try {
         frames[i].getFunction();
-        a.push(`functionName: ${frames[i].getFunctionName()}`);
+        a.push("functionName: " + frames[i].getFunctionName());
       } catch (e) {
-        a.push(`${frames[i].getFunctionName()} threw`);
+        a.push(frames[i].getFunctionName() + " threw");
       }
       try {
-        frames[i].getThis();
-        a.push("t");
+        let t = frames[i].getThis();
+        if (t === undefined) {
+          a.push("this: undefined");
+        } else {
+          a.push("this: " + t);
+        }
       } catch (e) {
         a.push("getThis threw");
       }
     }
-    return JSON.stringify(a);
+    return a.join(' ');
   };
   const shadowRealm = new ShadowRealm();
   const wrap = shadowRealm.evaluate(`
-function trampolineMaker(callback) {
-  return function trampoline() { return callback(); };
-}
-trampolineMaker;
-`);
+    function trampolineMaker(callback) {
+      return function trampoline() { return callback(); };
+    }
+    trampolineMaker;
+  `);
   const wrapped = wrap(function callback() {
     try {
       throw new Error();
@@ -105,10 +118,8 @@ trampolineMaker;
   //
   // The frame corresponding to trampoline should throw, since the outer realm
   // should not get references to ShadowRealm objects.
-  assertEquals(JSON.stringify(
-    ["functionName: callback", "t",
-     "trampoline threw", "getThis threw",
-     "functionName: testOutside", "t",
-     "functionName: null", "t"]), wrapped());
-  assertEquals
+  assertEquals("functionName: callback this: [object MainGlobal] " +
+               "trampoline threw getThis threw " +
+               "functionName: testOutside this: [object MainGlobal] " +
+               "functionName: null this: [object MainGlobal]", wrapped());
 })();

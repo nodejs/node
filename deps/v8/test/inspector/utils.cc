@@ -15,7 +15,7 @@ namespace internal {
 std::vector<uint8_t> ToBytes(v8::Isolate* isolate, v8::Local<v8::String> str) {
   uint32_t length = str->Length();
   std::vector<uint8_t> buffer(length);
-  str->WriteOneByteV2(isolate, 0, length, buffer.data());
+  str->WriteOneByte(isolate, 0, length, buffer.data());
   return buffer;
 }
 
@@ -65,7 +65,7 @@ std::vector<uint16_t> ToVector(v8::Isolate* isolate,
                                v8::Local<v8::String> str) {
   uint32_t length = str->Length();
   std::vector<uint16_t> buffer(length);
-  str->WriteV2(isolate, 0, length, buffer.data());
+  str->Write(isolate, 0, length, buffer.data());
   return buffer;
 }
 

@@ -114,7 +114,9 @@ bool ForEachSLPI(LOGICAL_PROCESSOR_RELATIONSHIP rel, Func&& func) {
   }
   HWY_ASSERT(GetLastError() == ERROR_INSUFFICIENT_BUFFER);
   // Note: `buf_bytes` may be less than `sizeof(SLPI)`, which has padding.
-  uint8_t* buf = static_cast<uint8_t*>(malloc(buf_bytes));
+  // `calloc` zero-initializes the `Reserved` field, part of which has been
+  // repurposed into `GroupCount` in SDKs, 10.0.22000.0 or possibly earlier.
+  uint8_t* buf = static_cast<uint8_t*>(calloc(1, buf_bytes));
   HWY_ASSERT(buf);
 
   // Fill the buffer.
@@ -160,7 +162,7 @@ void ForeachBit(size_t num_groups, const GROUP_AFFINITY* affinity,
     size_t bits = 0;
     hwy::CopyBytes<sizeof(bits)>(&affinity[group].Mask, &bits);
     while (bits != 0) {
-      size_t lp = Num0BitsBelowLS1Bit_Nonzero64(bits);
+      size_t lp = group * 64 + Num0BitsBelowLS1Bit_Nonzero64(bits);
       bits &= bits - 1;  // clear LSB
       if (HWY_UNLIKELY(lp >= lps.size())) {
         Warn(__FILE__, line, "Clamping lp %zu to lps.size() %zu, groups %zu\n",
@@ -658,48 +660,88 @@ void SetClusterCacheSizes(std::vector<Topology::Package>& packages) {
 
 #elif HWY_OS_WIN
 
-// Also sets LP.core and LP.smt.
-size_t MaxLpsPerCore(std::vector<Topology::LP>& lps) {
-  size_t max_lps_per_core = 0;
-  size_t core_idx = 0;
-  (void)ForEachSLPI(RelationProcessorCore, [&max_lps_per_core, &core_idx,
-                                            &lps](const SLPI& info) {
-    const PROCESSOR_RELATIONSHIP& p = info.Processor;
-    const size_t lps_per_core = NumBits(p.GroupCount, p.GroupMask);
-    max_lps_per_core = HWY_MAX(max_lps_per_core, lps_per_core);
-
-    size_t smt = 0;
-    ForeachBit(p.GroupCount, p.GroupMask, lps, __LINE__,
-               [core_idx, &smt](size_t lp, std::vector<Topology::LP>& lps) {
-                 lps[lp].core = static_cast<uint16_t>(core_idx);
-                 lps[lp].smt = static_cast<uint8_t>(smt++);
-               });
-    ++core_idx;
-  });
-  HWY_ASSERT(max_lps_per_core != 0);
-  return max_lps_per_core;
+// See #2734. GroupCount was added around Windows 10, but SDK docs do not
+// mention the actual version required. It is known to be absent in 8.1 and
+// MinGW 5.0.1, and present in the 10.0.22000.0 SDK. However, the OS must also
+// know about the field. Thus we zero-initialize the reserved field, assume it
+// remains zero, and return 1 if zero (old style single GroupMask), otherwise
+// the number of groups. There are two such structures, but note that
+// `PROCESSOR_RELATIONSHIP` already had this field.
+static size_t GroupCount(const CACHE_RELATIONSHIP& cr) {
+  // Added as the last u16 in the reserved area before GroupMask. We only read
+  // one byte because 256*64 processor bits are plenty.
+  const uint8_t* pcount =
+      reinterpret_cast<const uint8_t*>(&cr.GroupMask) - sizeof(uint16_t);
+  return HWY_MAX(pcount[HWY_IS_BIG_ENDIAN], 1);
 }
 
-// Interprets cluster (typically a shared L3 cache) as a "processor die". Also
-// sets LP.cluster.
-size_t MaxCoresPerCluster(const size_t max_lps_per_core,
-                          std::vector<Topology::LP>& lps) {
-  size_t max_cores_per_cluster = 0;
-  size_t cluster_idx = 0;
-  // Shared between `foreach_die` and `foreach_l3`.
+static size_t GroupCount(const NUMA_NODE_RELATIONSHIP& nn) {
+  const uint8_t* pcount =
+      reinterpret_cast<const uint8_t*>(&nn.GroupMask) - sizeof(uint16_t);
+  return HWY_MAX(pcount[HWY_IS_BIG_ENDIAN], 1);
+}
+
+struct PerPackage {
+  size_t clusters = 0;
+  size_t cores = 0;
+  size_t max_lps_per_core = 0;
+};
+
+// Returns per-package vector and assigns LP.package to an index within it.
+std::vector<PerPackage> AssignPackageIndices(std::vector<Topology::LP>& lps) {
+  size_t package_idx = 0;
+  (void)ForEachSLPI(
+      RelationProcessorPackage, [&lps, &package_idx](const SLPI& info) {
+        const PROCESSOR_RELATIONSHIP& p = info.Processor;
+        ForeachBit(p.GroupCount, p.GroupMask, lps, __LINE__,
+                   [&package_idx](size_t lp, std::vector<Topology::LP>& lps) {
+                     lps[lp].package = static_cast<uint8_t>(package_idx);
+                   });
+        ++package_idx;
+      });
+  return std::vector<PerPackage>(package_idx);
+}
+
+// Sets LP.core and LP.smt and updates `PerPackage.cores/max_lps_per_core`.
+void AssignCoreSmtIndices(std::vector<Topology::LP>& lps,
+                          std::vector<PerPackage>& per_package) {
+  (void)ForEachSLPI(
+      RelationProcessorCore, [&lps, &per_package](const SLPI& info) {
+        const PROCESSOR_RELATIONSHIP& p = info.Processor;
+        PerPackage* pp = nullptr;
+        // Foreach LP in this core: assign its core and smt.
+        size_t smt = 0;
+        ForeachBit(p.GroupCount, p.GroupMask, lps, __LINE__,
+                   [&](size_t lp, std::vector<Topology::LP>& lps) {
+                     pp = &per_package[lps[lp].package];
+                     lps[lp].core = static_cast<uint16_t>(pp->cores);
+                     lps[lp].smt = static_cast<uint8_t>(smt++);
+                   });
+        HWY_ASSERT(pp != nullptr);
+        ++pp->cores;
+        pp->max_lps_per_core =
+            HWY_MAX(pp->max_lps_per_core, NumBits(p.GroupCount, p.GroupMask));
+        HWY_ASSERT(pp->max_lps_per_core != 0);
+      });
+}
+
+// Interprets cluster (typically a shared L3 cache) as a "processor die". Sets
+// LP.cluster and updates `PerPackage.clusters`.
+void AssignClusterIndices(std::vector<Topology::LP>& lps,
+                          std::vector<PerPackage>& per_package) {
+  // Shared between `foreach_die` and `foreach_l3`. Assigns all LPs to this
+  // cluster and increments the cluster index.
   const auto foreach_cluster = [&](size_t num_groups,
                                    const GROUP_AFFINITY* groups) {
-    const size_t lps_per_cluster = NumBits(num_groups, groups);
-    // `max_lps_per_core` is an upper bound, hence round up. It is not an error
-    // if there is only one core per cluster - can happen for L3.
-    const size_t cores_per_cluster = DivCeil(lps_per_cluster, max_lps_per_core);
-    max_cores_per_cluster = HWY_MAX(max_cores_per_cluster, cores_per_cluster);
-
+    PerPackage* pp = nullptr;
     ForeachBit(num_groups, groups, lps, __LINE__,
-               [cluster_idx](size_t lp, std::vector<Topology::LP>& lps) {
-                 lps[lp].cluster = static_cast<uint16_t>(cluster_idx);
+               [&per_package, &pp](size_t lp, std::vector<Topology::LP>& lps) {
+                 pp = &per_package[lps[lp].package];
+                 lps[lp].cluster = static_cast<uint16_t>(pp->clusters);
                });
-    ++cluster_idx;
+    if (pp != nullptr) {
+      ++pp->clusters;
+    }
   };
 
   // Passes group bits to `foreach_cluster`, depending on relationship type.
@@ -711,45 +753,48 @@ size_t MaxCoresPerCluster(const size_t max_lps_per_core,
     const CACHE_RELATIONSHIP& cr = info.Cache;
     if (cr.Type != CacheUnified && cr.Type != CacheData) return;
     if (cr.Level != 3) return;
-    foreach_cluster(cr.GroupCount, cr.GroupMasks);
+    foreach_cluster(GroupCount(cr), cr.GroupMasks);
   };
 
   if (!ForEachSLPI(RelationProcessorDie, foreach_die)) {
     // Has been observed to fail; also check for shared L3 caches.
     (void)ForEachSLPI(RelationCache, foreach_l3);
   }
-  if (max_cores_per_cluster == 0) {
-    HWY_WARN("All clusters empty, assuming 1 core each\n");
-    max_cores_per_cluster = 1;
+
+  // All packages should have the same number of clusters.
+  for (size_t package_idx = 1; package_idx < per_package.size();
+       ++package_idx) {
+    if (per_package[package_idx].clusters != per_package[0].clusters) {
+      HWY_ABORT("pkg %zu has %zu clusters, expected %zu\n", package_idx,
+                per_package[package_idx].clusters, per_package[0].clusters);
+    }
   }
-  return max_cores_per_cluster;
+
+  if (per_package[0].clusters == 0) {
+    HWY_WARN("No clusters found, assuming 1 cluster\n");
+    for (PerPackage& pp : per_package) {
+      pp.clusters = 1;
+    }
+    for (Topology::LP& lp : lps) {
+      lp.cluster = 0;
+    }
+  }
 }
 
 // Initializes `lps` and returns a `PackageSizes` vector (empty on failure)
 // indicating the number of clusters and cores per package.
 std::vector<PackageSizes> DetectPackages(std::vector<Topology::LP>& lps) {
-  const size_t max_lps_per_core = MaxLpsPerCore(lps);
-  const size_t max_cores_per_cluster =
-      MaxCoresPerCluster(max_lps_per_core, lps);
+  std::vector<PerPackage> per_package = AssignPackageIndices(lps);
+  if (per_package.empty()) return {};
+  AssignCoreSmtIndices(lps, per_package);
+  AssignClusterIndices(lps, per_package);
 
-  std::vector<PackageSizes> packages;
-  size_t package_idx = 0;
-  (void)ForEachSLPI(RelationProcessorPackage, [&](const SLPI& info) {
-    const PROCESSOR_RELATIONSHIP& p = info.Processor;
-    const size_t lps_per_package = NumBits(p.GroupCount, p.GroupMask);
-    PackageSizes ps;  // avoid designated initializers for MSVC
-    ps.num_clusters = max_cores_per_cluster;
-    // `max_lps_per_core` is an upper bound, hence round up.
-    ps.num_cores = DivCeil(lps_per_package, max_lps_per_core);
-    packages.push_back(ps);
-
-    ForeachBit(p.GroupCount, p.GroupMask, lps, __LINE__,
-               [package_idx](size_t lp, std::vector<Topology::LP>& lps) {
-                 lps[lp].package = static_cast<uint8_t>(package_idx);
-               });
-    ++package_idx;
-  });
-
+  std::vector<PackageSizes> packages(per_package.size());
+  for (size_t package_idx = 0; package_idx < per_package.size();
+       ++package_idx) {
+    packages[package_idx].num_clusters = per_package[package_idx].clusters;
+    packages[package_idx].num_cores = per_package[package_idx].cores;
+  }
   return packages;
 }
 
@@ -768,7 +813,7 @@ void SetNodes(std::vector<Topology::LP>& lps) {
     if (info.Relationship != RelationNumaNode) return;
     const NUMA_NODE_RELATIONSHIP& nn = info.NumaNode;
     // This field was previously reserved/zero. There is at least one group.
-    const size_t num_groups = HWY_MAX(1, nn.GroupCount);
+    const size_t num_groups = HWY_MAX(1, GroupCount(nn));
     const uint8_t node = static_cast<uint8_t>(nn.NodeNumber);
     ForeachBit(num_groups, nn.GroupMasks, lps, __LINE__,
                [node](size_t lp, std::vector<Topology::LP>& lps) {
@@ -995,7 +1040,7 @@ bool InitCachesSysfs(Caches& caches) {
 // and their properties. It's OK to return false; callers are responsible for
 // assuming reasonable defaults.
 #ifndef __ANDROID__
-    HWY_WARN("sysfs detected L1=%u L2=%u, err %x\n", caches[1].size_kib,
+    HWY_WARN("sysfs detected L1=%u L2=%u, err %d\n", caches[1].size_kib,
              caches[2].size_kib, errno);
 #endif
     return false;
@@ -1009,10 +1054,11 @@ bool InitCachesSysfs(Caches& caches) {
 
 bool InitCachesWin(Caches& caches) {
   std::vector<hwy::Topology::LP> lps(TotalLogicalProcessors());
-  const size_t max_lps_per_core = MaxLpsPerCore(lps);
+  std::vector<PerPackage> per_package = AssignPackageIndices(lps);
+  if (per_package.empty()) return false;
+  AssignCoreSmtIndices(lps, per_package);
 
-  (void)ForEachSLPI(RelationCache, [max_lps_per_core,
-                                    &caches](const SLPI& info) {
+  (void)ForEachSLPI(RelationCache, [&per_package, &caches](const SLPI& info) {
     const CACHE_RELATIONSHIP& cr = info.Cache;
     if (cr.Type != CacheUnified && cr.Type != CacheData) return;
     if (1 <= cr.Level && cr.Level <= 3) {
@@ -1027,10 +1073,10 @@ bool InitCachesWin(Caches& caches) {
                             : cr.Associativity;
 
       // How many cores share this cache?
-      size_t shared_with = NumBits(cr.GroupCount, cr.GroupMasks);
+      size_t shared_with = NumBits(GroupCount(cr), cr.GroupMasks);
       // Divide out hyperthreads. This core may have fewer than
       // `max_lps_per_core`, hence round up.
-      shared_with = DivCeil(shared_with, max_lps_per_core);
+      shared_with = DivCeil(shared_with, per_package[0].max_lps_per_core);
       if (shared_with == 0) {
         HWY_WARN("no cores sharing L%u, setting to 1\n", cr.Level);
         shared_with = 1;

@@ -22,12 +22,12 @@ EXTRACT_FLAGS_RE = re.compile("//\\s*Flags:\\s+((--[A-z0-9-_=]+\\s*)+).*")
 FEATURE_FLAG_PREFIXES = {
     'js': ('--js-', '--js_'),
     'harmony': ('--harmony-', '--harmony_'),
-    'wasm': ('--experimental-wasm-', '--experimental_wasm_')
+    'wasm': ('--wasm-', '--wasm_')
 }
 NEG_FEATURE_FLAG_PREFIXES = {
     'js': ('--no-js-', '--no_js_'),
     'harmony': ('--no-harmony-', '--no_harmony_'),
-    'wasm': ('--no-experimental-wasm-', '--no_experimental_wasm_')
+    'wasm': ('--no-wasm-', '--no_wasm_')
 }
 STAGING_FLAGS = {
     'js': '--js-staging',

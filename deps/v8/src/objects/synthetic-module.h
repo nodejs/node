@@ -13,15 +13,13 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/synthetic-module-tq.inc"
-
 // The runtime representation of a Synthetic Module Record, a module that can be
 // instantiated by an embedder with embedder-defined exports and evaluation
 // steps.
 // https://heycam.github.io/webidl/#synthetic-module-records
-class SyntheticModule
-    : public TorqueGeneratedSyntheticModule<SyntheticModule, Module> {
+V8_OBJECT class SyntheticModule : public Module {
  public:
+  DECL_PRINTER(SyntheticModule)
   DECL_VERIFIER(SyntheticModule)
 
   // Set module's exported value for the specified export_name to the specified
@@ -42,9 +40,21 @@ class SyntheticModule
                               DirectHandle<String> export_name,
                               DirectHandle<Object> export_value);
 
-  using BodyDescriptor =
-      SubclassBodyDescriptor<Module::BodyDescriptor,
-                             FixedBodyDescriptor<kNameOffset, kSize, kSize>>;
+  inline Tagged<String> name() const;
+  inline void set_name(Tagged<String> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> export_names() const;
+  inline void set_export_names(Tagged<FixedArray> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Foreign> evaluation_steps() const;
+  inline void set_evaluation_steps(
+      Tagged<Foreign> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Object> host_defined_options() const;
+  inline void set_host_defined_options(
+      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
  private:
   friend class Module;
@@ -63,7 +73,19 @@ class SyntheticModule
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Evaluate(
       Isolate* isolate, DirectHandle<SyntheticModule> module);
 
-  TQ_OBJECT_CONSTRUCTORS(SyntheticModule)
+ public:
+  TaggedMember<String> name_;
+  TaggedMember<FixedArray> export_names_;
+  TaggedMember<Foreign> evaluation_steps_;
+  TaggedMember<Object> host_defined_options_;
+} V8_OBJECT_END;
+
+template <>
+struct ObjectTraits<SyntheticModule> {
+  using BodyDescriptor = SubclassBodyDescriptor<
+      ObjectTraits<Module>::BodyDescriptor,
+      FixedBodyDescriptor<offsetof(SyntheticModule, name_),
+                          sizeof(SyntheticModule), sizeof(SyntheticModule)>>;
 };
 
 }  // namespace internal

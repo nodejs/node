@@ -9,16 +9,13 @@
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
-#include "src/objects/tagged-field.h"
 
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/data-handler-tq.inc"
-
 // DataHandler is a base class for load and store handlers that can't be
 // encoded in one Smi. Kind of a handler can be deduced from instance type.
-V8_OBJECT class DataHandler : public StructLayout {
+V8_OBJECT class DataHandler : public Struct {
  public:
   static constexpr int OffsetOf(int index);
   static constexpr int SizeFor(int count);
@@ -51,18 +48,25 @@ V8_OBJECT class DataHandler : public StructLayout {
   inline Tagged<MaybeObject> data3() const;
   inline void set_data3(Tagged<MaybeObject> value,
                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<MaybeObject> data4() const;
+  inline void set_data4(Tagged<MaybeObject> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<MaybeObject> data5() const;
+  inline void set_data5(Tagged<MaybeObject> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_VERIFIER(DataHandler)
   DECL_PRINTER(DataHandler)
 
   class BodyDescriptor;
 
- private:
-  friend class AccessorAssembler;
-
+ public:
   TaggedMember<UnionOf<Smi, Code>> smi_handler_;
   TaggedMember<UnionOf<Smi, Cell>> validity_cell_;
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, data);
+
+ private:
+  friend class AccessorAssembler;
 } V8_OBJECT_END;
 
 }  // namespace internal
