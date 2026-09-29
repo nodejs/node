@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,8 +33,7 @@ class Parser;
 class LIEF_API DynamicRelocationV1 : public DynamicRelocation {
   public:
   DynamicRelocationV1() :
-    DynamicRelocation(1)
-  {}
+    DynamicRelocation(1) {}
 
   DynamicRelocationV1(const DynamicRelocationV1&) = default;
   DynamicRelocationV1& operator=(const DynamicRelocationV1&) = default;
@@ -54,9 +53,10 @@ class LIEF_API DynamicRelocationV1 : public DynamicRelocation {
 
   ~DynamicRelocationV1() override = default;
 
-  /// \private
-  template<class PE_T> LIEF_LOCAL static
-    std::unique_ptr<DynamicRelocationV1> parse(Parser& ctx, BinaryStream& strm);
+  /// @private
+  template<class PE_T>
+  LIEF_LOCAL static std::unique_ptr<DynamicRelocationV1> parse(Parser& ctx,
+                                                               BinaryStream& strm);
 };
 
 }

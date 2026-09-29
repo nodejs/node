@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,13 +40,13 @@ class DylibIt;
 class LIEF_API Dylib {
   public:
   /// Dylib Iterator
-  class LIEF_API Iterator :
-    public iterator_facade_base<Iterator, std::random_access_iterator_tag,
-                                std::unique_ptr<Dylib>, std::ptrdiff_t, Dylib*,
-                                std::unique_ptr<Dylib>>
-  {
+  class LIEF_API Iterator
+    : public iterator_facade_base<Iterator, std::random_access_iterator_tag, Dylib,
+                                  std::ptrdiff_t, const Dylib*, const Dylib&> {
     public:
     using implementation = details::DylibIt;
+
+    Iterator();
 
     Iterator(std::unique_ptr<details::DylibIt> impl);
     Iterator(const Iterator&);
@@ -69,11 +69,22 @@ class LIEF_API Dylib {
       return !(LHS == RHS);
     }
 
-    std::unique_ptr<Dylib> operator*() const;
+    const Dylib& operator*() const LIEF_LIFETIMEBOUND;
+
+    // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
+    const Dylib* operator->() const LIEF_LIFETIMEBOUND;
+
+    /// Transfer ownership of the dylib at the current position to the
+    /// caller. Returns `nullptr` if the iterator is past-the-end.
+    std::unique_ptr<Dylib> yield();
 
     private:
+    void load() const;
+
     std::unique_ptr<details::DylibIt> impl_;
+    mutable std::unique_ptr<Dylib> cached_;
   };
+
   public:
   /// This structure is used to tweak the extraction process while calling
   /// Dylib::get. These options allow to deoptimize the dylib and get an
@@ -84,29 +95,32 @@ class LIEF_API Dylib {
     /// Whether the segment's offsets should be packed to avoid
     /// an in-memory size while writing back the binary.
     ///
-    /// \note This option does not have an impact on the performances
+    /// @note This option does not have an impact on the performances
     bool pack = true;
 
     /// Fix call instructions that target addresses outside the current dylib
     /// virtual space.
     ///
-    /// \warning Enabling this option can have a significant impact on the
+    /// @warning Enabling this option can have a significant impact on the
     ///          performances. Make sure to enable the internal cache mechanism:
-    ///          LIEF::dsc::enable_cache or LIEF::dsc::DyldSharedCache::enable_caching
+    ///          LIEF::dsc::enable_cache or
+    ///          LIEF::dsc::DyldSharedCache::enable_caching
     bool fix_branches = false;
 
     /// Fix memory accesses performed outside the dylib's virtual space
     ///
-    /// \warning Enabling this option can have a significant impact on the
+    /// @warning Enabling this option can have a significant impact on the
     ///          performances. Make sure to enable the internal cache mechanism:
-    ///          LIEF::dsc::enable_cache or LIEF::dsc::DyldSharedCache::enable_caching
+    ///          LIEF::dsc::enable_cache or
+    ///          LIEF::dsc::DyldSharedCache::enable_caching
     bool fix_memory = false;
 
     /// Recover and fix relocations
     ///
-    /// \warning Enabling this option can have a significant impact on the
+    /// @warning Enabling this option can have a significant impact on the
     ///          performances. Make sure to enable the internal cache mechanism:
-    ///          LIEF::dsc::enable_cache or LIEF::dsc::DyldSharedCache::enable_caching
+    ///          LIEF::dsc::enable_cache or
+    ///          LIEF::dsc::DyldSharedCache::enable_caching
     bool fix_relocations = false;
 
     /// Fix Objective-C information
@@ -147,7 +161,8 @@ class LIEF_API Dylib {
   /// ```cpp
   /// dyld_cache->libraries()[12]->get()->write("liblockdown.dylib");
   /// ```
-  std::unique_ptr<LIEF::MachO::Binary> get(const extract_opt_t& opt = extract_opt_t()) const;
+  std::unique_ptr<LIEF::MachO::Binary>
+      get(const extract_opt_t& opt = extract_opt_t()) const;
 
   private:
   std::unique_ptr<details::Dylib> impl_;

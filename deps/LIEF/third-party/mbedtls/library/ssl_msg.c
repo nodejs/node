@@ -10,14 +10,13 @@
  *  http://www.ietf.org/rfc/rfc4346.txt
  */
 
-#include "common.h"
+#include "ssl_misc.h"
 
 #if defined(MBEDTLS_SSL_TLS_C)
 
 #include "mbedtls/platform.h"
 
 #include "mbedtls/ssl.h"
-#include "ssl_misc.h"
 #include "debug_internal.h"
 #include "mbedtls/error.h"
 #include "mbedtls/platform_util.h"
@@ -25,19 +24,15 @@
 #include "constant_time_internal.h"
 #include "mbedtls/constant_time.h"
 
-#include <limits.h>
 #include <string.h>
 
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
 #include "psa_util_internal.h"
 #include "psa/crypto.h"
-#endif
 
 #if defined(MBEDTLS_X509_CRT_PARSE_C)
 #include "mbedtls/oid.h"
 #endif
 
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
 /* Define a local translating function to save code size by not using too many
  * arguments in each translating place. */
 static int local_err_translation(psa_status_t status)
@@ -47,11 +42,9 @@ static int local_err_translation(psa_status_t status)
                                  psa_generic_status_to_mbedtls);
 }
 #define PSA_TO_MBEDTLS_ERR(status) local_err_translation(status)
-#endif
 
 #if defined(MBEDTLS_SSL_SOME_SUITES_USE_MAC)
 
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
 
 #if defined(PSA_WANT_ALG_SHA_384)
 #define MAX_HASH_BLOCK_LENGTH PSA_HASH_BLOCK_LENGTH(PSA_ALG_SHA_384)
@@ -181,99 +174,6 @@ cleanup:
 
 #undef MAX_HASH_BLOCK_LENGTH
 
-#else
-MBEDTLS_STATIC_TESTABLE
-int mbedtls_ct_hmac(mbedtls_md_context_t *ctx,
-                    const unsigned char *add_data,
-                    size_t add_data_len,
-                    const unsigned char *data,
-                    size_t data_len_secret,
-                    size_t min_data_len,
-                    size_t max_data_len,
-                    unsigned char *output)
-{
-    /*
-     * This function breaks the HMAC abstraction and uses the md_clone()
-     * extension to the MD API in order to get constant-flow behaviour.
-     *
-     * HMAC(msg) is defined as HASH(okey + HASH(ikey + msg)) where + means
-     * concatenation, and okey/ikey are the XOR of the key with some fixed bit
-     * patterns (see RFC 2104, sec. 2), which are stored in ctx->hmac_ctx.
-     *
-     * We'll first compute inner_hash = HASH(ikey + msg) by hashing up to
-     * minlen, then cloning the context, and for each byte up to maxlen
-     * finishing up the hash computation, keeping only the correct result.
-     *
-     * Then we only need to compute HASH(okey + inner_hash) and we're done.
-     */
-    const mbedtls_md_type_t md_alg = mbedtls_md_get_type(ctx->md_info);
-    /* TLS 1.2 only supports SHA-384, SHA-256, SHA-1, MD-5,
-     * all of which have the same block size except SHA-384. */
-    const size_t block_size = md_alg == MBEDTLS_MD_SHA384 ? 128 : 64;
-    const unsigned char * const ikey = ctx->hmac_ctx;
-    const unsigned char * const okey = ikey + block_size;
-    const size_t hash_size = mbedtls_md_get_size(ctx->md_info);
-
-    unsigned char aux_out[MBEDTLS_MD_MAX_SIZE];
-    mbedtls_md_context_t aux;
-    size_t offset;
-    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
-
-    mbedtls_md_init(&aux);
-
-#define MD_CHK(func_call) \
-    do {                    \
-        ret = (func_call);  \
-        if (ret != 0)      \
-        goto cleanup;   \
-    } while (0)
-
-    MD_CHK(mbedtls_md_setup(&aux, ctx->md_info, 0));
-
-    /* After hmac_start() of hmac_reset(), ikey has already been hashed,
-     * so we can start directly with the message */
-    MD_CHK(mbedtls_md_update(ctx, add_data, add_data_len));
-    MD_CHK(mbedtls_md_update(ctx, data, min_data_len));
-
-    /* Fill the hash buffer in advance with something that is
-     * not a valid hash (barring an attack on the hash and
-     * deliberately-crafted input), in case the caller doesn't
-     * check the return status properly. */
-    memset(output, '!', hash_size);
-
-    /* For each possible length, compute the hash up to that point */
-    for (offset = min_data_len; offset <= max_data_len; offset++) {
-        MD_CHK(mbedtls_md_clone(&aux, ctx));
-        MD_CHK(mbedtls_md_finish(&aux, aux_out));
-        /* Keep only the correct inner_hash in the output buffer */
-        mbedtls_ct_memcpy_if(mbedtls_ct_uint_eq(offset, data_len_secret),
-                             output, aux_out, NULL, hash_size);
-
-        if (offset < max_data_len) {
-            MD_CHK(mbedtls_md_update(ctx, data + offset, 1));
-        }
-    }
-
-    /* The context needs to finish() before it starts() again */
-    MD_CHK(mbedtls_md_finish(ctx, aux_out));
-
-    /* Now compute HASH(okey + inner_hash) */
-    MD_CHK(mbedtls_md_starts(ctx));
-    MD_CHK(mbedtls_md_update(ctx, okey, block_size));
-    MD_CHK(mbedtls_md_update(ctx, output, hash_size));
-    MD_CHK(mbedtls_md_finish(ctx, output));
-
-    /* Done, get ready for next time */
-    MD_CHK(mbedtls_md_hmac_reset(ctx));
-
-#undef MD_CHK
-
-cleanup:
-    mbedtls_md_free(&aux);
-    return ret;
-}
-
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
 #endif /* MBEDTLS_SSL_SOME_SUITES_USE_MAC */
 
@@ -763,8 +663,7 @@ static void ssl_extract_add_data_from_record(unsigned char *add_data,
     unsigned char *cur = add_data;
     size_t ad_len_field = rec->data_len;
 
-#if defined(MBEDTLS_SSL_DTLS_CONNECTION_ID) && \
-    MBEDTLS_SSL_DTLS_CONNECTION_ID_COMPAT == 0
+#if defined(MBEDTLS_SSL_DTLS_CONNECTION_ID)
     const unsigned char seq_num_placeholder[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 #endif
 
@@ -780,8 +679,7 @@ static void ssl_extract_add_data_from_record(unsigned char *add_data,
         ((void) tls_version);
         ((void) taglen);
 
-#if defined(MBEDTLS_SSL_DTLS_CONNECTION_ID) && \
-        MBEDTLS_SSL_DTLS_CONNECTION_ID_COMPAT == 0
+#if defined(MBEDTLS_SSL_DTLS_CONNECTION_ID)
         if (rec->cid_len != 0) {
             // seq_num_placeholder
             memcpy(cur, seq_num_placeholder, sizeof(seq_num_placeholder));
@@ -811,24 +709,7 @@ static void ssl_extract_add_data_from_record(unsigned char *add_data,
     memcpy(cur, rec->ver, sizeof(rec->ver));
     cur += sizeof(rec->ver);
 
-#if defined(MBEDTLS_SSL_DTLS_CONNECTION_ID) && \
-    MBEDTLS_SSL_DTLS_CONNECTION_ID_COMPAT == 1
-
-    if (rec->cid_len != 0) {
-        // CID
-        memcpy(cur, rec->cid, rec->cid_len);
-        cur += rec->cid_len;
-
-        // cid_length
-        *cur = rec->cid_len;
-        cur++;
-
-        // length of inner plaintext
-        MBEDTLS_PUT_UINT16_BE(ad_len_field, cur, 0);
-        cur += 2;
-    } else
-#elif defined(MBEDTLS_SSL_DTLS_CONNECTION_ID) && \
-    MBEDTLS_SSL_DTLS_CONNECTION_ID_COMPAT == 0
+#if defined(MBEDTLS_SSL_DTLS_CONNECTION_ID)
 
     if (rec->cid_len != 0) {
         // epoch + sequence number
@@ -901,9 +782,7 @@ static void ssl_build_record_nonce(unsigned char *dst_iv,
 
 int mbedtls_ssl_encrypt_buf(mbedtls_ssl_context *ssl,
                             mbedtls_ssl_transform *transform,
-                            mbedtls_record *rec,
-                            int (*f_rng)(void *, unsigned char *, size_t),
-                            void *p_rng)
+                            mbedtls_record *rec)
 {
     mbedtls_ssl_mode_t ssl_mode;
     int auth_done = 0;
@@ -923,14 +802,6 @@ int mbedtls_ssl_encrypt_buf(mbedtls_ssl_context *ssl,
 #if !defined(MBEDTLS_DEBUG_C)
     ssl = NULL; /* make sure we don't use it except for debug */
     ((void) ssl);
-#endif
-
-    /* The PRNG is used for dynamic IV generation that's used
-     * for CBC transformations in TLS 1.2. */
-#if !(defined(MBEDTLS_SSL_SOME_SUITES_USE_CBC) && \
-    defined(MBEDTLS_SSL_PROTO_TLS1_2))
-    ((void) f_rng);
-    ((void) p_rng);
 #endif
 
     MBEDTLS_SSL_DEBUG_MSG(2, ("=> encrypt buf"));
@@ -1041,17 +912,14 @@ int mbedtls_ssl_encrypt_buf(mbedtls_ssl_context *ssl,
 #if defined(MBEDTLS_SSL_PROTO_TLS1_2)
         unsigned char mac[MBEDTLS_SSL_MAC_ADD];
         int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
         psa_mac_operation_t operation = PSA_MAC_OPERATION_INIT;
         psa_status_t status = PSA_ERROR_CORRUPTION_DETECTED;
         size_t sign_mac_length = 0;
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
         ssl_extract_add_data_from_record(add_data, &add_data_len, rec,
                                          transform->tls_version,
                                          transform->taglen);
 
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
         status = psa_mac_sign_setup(&operation, transform->psa_mac_enc,
                                     transform->psa_mac_alg);
         if (status != PSA_SUCCESS) {
@@ -1073,25 +941,6 @@ int mbedtls_ssl_encrypt_buf(mbedtls_ssl_context *ssl,
         if (status != PSA_SUCCESS) {
             goto hmac_failed_etm_disabled;
         }
-#else
-        ret = mbedtls_md_hmac_update(&transform->md_ctx_enc, add_data,
-                                     add_data_len);
-        if (ret != 0) {
-            goto hmac_failed_etm_disabled;
-        }
-        ret = mbedtls_md_hmac_update(&transform->md_ctx_enc, data, rec->data_len);
-        if (ret != 0) {
-            goto hmac_failed_etm_disabled;
-        }
-        ret = mbedtls_md_hmac_finish(&transform->md_ctx_enc, mac);
-        if (ret != 0) {
-            goto hmac_failed_etm_disabled;
-        }
-        ret = mbedtls_md_hmac_reset(&transform->md_ctx_enc);
-        if (ret != 0) {
-            goto hmac_failed_etm_disabled;
-        }
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
         memcpy(data + rec->data_len, mac, transform->maclen);
 #endif
@@ -1105,13 +954,11 @@ int mbedtls_ssl_encrypt_buf(mbedtls_ssl_context *ssl,
 
 hmac_failed_etm_disabled:
         mbedtls_platform_zeroize(mac, transform->maclen);
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
         ret = PSA_TO_MBEDTLS_ERR(status);
         status = psa_mac_abort(&operation);
         if (ret == 0 && status != PSA_SUCCESS) {
             ret = PSA_TO_MBEDTLS_ERR(status);
         }
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
         if (ret != 0) {
             MBEDTLS_SSL_DEBUG_RET(1, "mbedtls_md_hmac_xxx", ret);
             return ret;
@@ -1140,9 +987,7 @@ hmac_failed_etm_disabled:
         size_t dynamic_iv_len;
         int dynamic_iv_is_explicit =
             ssl_transform_aead_dynamic_iv_is_explicit(transform);
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
         psa_status_t status = PSA_ERROR_CORRUPTION_DETECTED;
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
         int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
 
         /* Check that there's space for the authentication tag. */
@@ -1194,7 +1039,6 @@ hmac_failed_etm_disabled:
         /*
          * Encrypt and authenticate
          */
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
         status = psa_aead_encrypt(transform->psa_key_enc,
                                   transform->psa_alg,
                                   iv, transform->ivlen,
@@ -1208,18 +1052,6 @@ hmac_failed_etm_disabled:
             MBEDTLS_SSL_DEBUG_RET(1, "mbedtls_ssl_encrypt_buf", ret);
             return ret;
         }
-#else
-        if ((ret = mbedtls_cipher_auth_encrypt_ext(&transform->cipher_ctx_enc,
-                                                   iv, transform->ivlen,
-                                                   add_data, add_data_len,
-                                                   data, rec->data_len, /* src */
-                                                   data, rec->buf_len - (size_t) (data - rec->buf), /* dst */
-                                                   &rec->data_len,
-                                                   transform->taglen)) != 0) {
-            MBEDTLS_SSL_DEBUG_RET(1, "mbedtls_cipher_auth_encrypt_ext", ret);
-            return ret;
-        }
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
         MBEDTLS_SSL_DEBUG_BUF(4, "after encrypt: tag",
                               data + rec->data_len - transform->taglen,
@@ -1250,11 +1082,9 @@ hmac_failed_etm_disabled:
         int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
         size_t padlen, i;
         size_t olen;
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
         psa_status_t status = PSA_ERROR_CORRUPTION_DETECTED;
         size_t part_len;
         psa_cipher_operation_t cipher_op = PSA_CIPHER_OPERATION_INIT;
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
         /* Currently we're always using minimal padding
          * (up to 255 bytes would be allowed). */
@@ -1281,10 +1111,6 @@ hmac_failed_etm_disabled:
          * Prepend per-record IV for block cipher in TLS v1.2 as per
          * Method 1 (6.2.3.2. in RFC4346 and RFC5246)
          */
-        if (f_rng == NULL) {
-            MBEDTLS_SSL_DEBUG_MSG(1, ("No PRNG provided to encrypt_record routine"));
-            return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
-        }
 
         if (rec->data_offset < transform->ivlen) {
             MBEDTLS_SSL_DEBUG_MSG(1, ("Buffer provided for encrypted record not large enough"));
@@ -1294,7 +1120,7 @@ hmac_failed_etm_disabled:
         /*
          * Generate IV
          */
-        ret = f_rng(p_rng, transform->iv_enc, transform->ivlen);
+        ret = psa_generate_random(transform->iv_enc, transform->ivlen);
         if (ret != 0) {
             return ret;
         }
@@ -1309,7 +1135,6 @@ hmac_failed_etm_disabled:
                                   rec->data_len, transform->ivlen,
                                   padlen + 1));
 
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
         status = psa_cipher_encrypt_setup(&cipher_op,
                                           transform->psa_key_enc, transform->psa_alg);
 
@@ -1351,16 +1176,6 @@ hmac_failed_etm_disabled:
         }
 
         olen += part_len;
-#else
-        if ((ret = mbedtls_cipher_crypt(&transform->cipher_ctx_enc,
-                                        transform->iv_enc,
-                                        transform->ivlen,
-                                        data, rec->data_len,
-                                        data, &olen)) != 0) {
-            MBEDTLS_SSL_DEBUG_RET(1, "mbedtls_cipher_crypt", ret);
-            return ret;
-        }
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
         if (rec->data_len != olen) {
             MBEDTLS_SSL_DEBUG_MSG(1, ("should never happen"));
@@ -1374,10 +1189,8 @@ hmac_failed_etm_disabled:
 #if defined(MBEDTLS_SSL_ENCRYPT_THEN_MAC)
         if (auth_done == 0) {
             unsigned char mac[MBEDTLS_SSL_MAC_ADD];
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
             psa_mac_operation_t operation = PSA_MAC_OPERATION_INIT;
             size_t sign_mac_length = 0;
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
             /* MAC(MAC_write_key, add_data, IV, ENC(content + padding + padding_length))
              */
@@ -1394,7 +1207,6 @@ hmac_failed_etm_disabled:
             MBEDTLS_SSL_DEBUG_MSG(3, ("using encrypt then mac"));
             MBEDTLS_SSL_DEBUG_BUF(4, "MAC'd meta-data", add_data,
                                   add_data_len);
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
             status = psa_mac_sign_setup(&operation, transform->psa_mac_enc,
                                         transform->psa_mac_alg);
             if (status != PSA_SUCCESS) {
@@ -1416,27 +1228,6 @@ hmac_failed_etm_disabled:
             if (status != PSA_SUCCESS) {
                 goto hmac_failed_etm_enabled;
             }
-#else
-
-            ret = mbedtls_md_hmac_update(&transform->md_ctx_enc, add_data,
-                                         add_data_len);
-            if (ret != 0) {
-                goto hmac_failed_etm_enabled;
-            }
-            ret = mbedtls_md_hmac_update(&transform->md_ctx_enc,
-                                         data, rec->data_len);
-            if (ret != 0) {
-                goto hmac_failed_etm_enabled;
-            }
-            ret = mbedtls_md_hmac_finish(&transform->md_ctx_enc, mac);
-            if (ret != 0) {
-                goto hmac_failed_etm_enabled;
-            }
-            ret = mbedtls_md_hmac_reset(&transform->md_ctx_enc);
-            if (ret != 0) {
-                goto hmac_failed_etm_enabled;
-            }
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
             memcpy(data + rec->data_len, mac, transform->maclen);
 
@@ -1446,13 +1237,11 @@ hmac_failed_etm_disabled:
 
 hmac_failed_etm_enabled:
             mbedtls_platform_zeroize(mac, transform->maclen);
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
             ret = PSA_TO_MBEDTLS_ERR(status);
             status = psa_mac_abort(&operation);
             if (ret == 0 && status != PSA_SUCCESS) {
                 ret = PSA_TO_MBEDTLS_ERR(status);
             }
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
             if (ret != 0) {
                 MBEDTLS_SSL_DEBUG_RET(1, "HMAC calculation failed", ret);
                 return ret;
@@ -1549,9 +1338,7 @@ int mbedtls_ssl_decrypt_buf(mbedtls_ssl_context const *ssl,
         unsigned char iv[12];
         unsigned char *dynamic_iv;
         size_t dynamic_iv_len;
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
         psa_status_t status = PSA_ERROR_CORRUPTION_DETECTED;
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
         /*
          * Extract dynamic part of nonce for AEAD decryption.
@@ -1621,7 +1408,6 @@ int mbedtls_ssl_decrypt_buf(mbedtls_ssl_context const *ssl,
         /*
          * Decrypt and authenticate
          */
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
         status = psa_aead_decrypt(transform->psa_key_dec,
                                   transform->psa_alg,
                                   iv, transform->ivlen,
@@ -1635,23 +1421,6 @@ int mbedtls_ssl_decrypt_buf(mbedtls_ssl_context const *ssl,
             MBEDTLS_SSL_DEBUG_RET(1, "psa_aead_decrypt", ret);
             return ret;
         }
-#else
-        if ((ret = mbedtls_cipher_auth_decrypt_ext
-                       (&transform->cipher_ctx_dec,
-                       iv, transform->ivlen,
-                       add_data, add_data_len,
-                       data, rec->data_len + transform->taglen, /* src */
-                       data, rec->buf_len - (size_t) (data - rec->buf), &olen, /* dst */
-                       transform->taglen)) != 0) {
-            MBEDTLS_SSL_DEBUG_RET(1, "mbedtls_cipher_auth_decrypt_ext", ret);
-
-            if (ret == MBEDTLS_ERR_CIPHER_AUTH_FAILED) {
-                return MBEDTLS_ERR_SSL_INVALID_MAC;
-            }
-
-            return ret;
-        }
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
         auth_done++;
 
@@ -1666,11 +1435,9 @@ int mbedtls_ssl_decrypt_buf(mbedtls_ssl_context const *ssl,
     if (ssl_mode == MBEDTLS_SSL_MODE_CBC ||
         ssl_mode == MBEDTLS_SSL_MODE_CBC_ETM) {
         size_t minlen = 0;
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
         psa_status_t status = PSA_ERROR_CORRUPTION_DETECTED;
         size_t part_len;
         psa_cipher_operation_t cipher_op = PSA_CIPHER_OPERATION_INIT;
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
         /*
          * Check immediate ciphertext sanity
@@ -1718,11 +1485,7 @@ int mbedtls_ssl_decrypt_buf(mbedtls_ssl_context const *ssl,
          */
 #if defined(MBEDTLS_SSL_ENCRYPT_THEN_MAC)
         if (ssl_mode == MBEDTLS_SSL_MODE_CBC_ETM) {
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
             psa_mac_operation_t operation = PSA_MAC_OPERATION_INIT;
-#else
-            unsigned char mac_expect[MBEDTLS_SSL_MAC_ADD];
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
             MBEDTLS_SSL_DEBUG_MSG(3, ("using encrypt then mac"));
 
@@ -1744,7 +1507,6 @@ int mbedtls_ssl_decrypt_buf(mbedtls_ssl_context const *ssl,
             /* Calculate expected MAC. */
             MBEDTLS_SSL_DEBUG_BUF(4, "MAC'd meta-data", add_data,
                                   add_data_len);
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
             status = psa_mac_verify_setup(&operation, transform->psa_mac_dec,
                                           transform->psa_mac_alg);
             if (status != PSA_SUCCESS) {
@@ -1767,51 +1529,14 @@ int mbedtls_ssl_decrypt_buf(mbedtls_ssl_context const *ssl,
             if (status != PSA_SUCCESS) {
                 goto hmac_failed_etm_enabled;
             }
-#else
-            ret = mbedtls_md_hmac_update(&transform->md_ctx_dec, add_data,
-                                         add_data_len);
-            if (ret != 0) {
-                goto hmac_failed_etm_enabled;
-            }
-            ret = mbedtls_md_hmac_update(&transform->md_ctx_dec,
-                                         data, rec->data_len);
-            if (ret != 0) {
-                goto hmac_failed_etm_enabled;
-            }
-            ret = mbedtls_md_hmac_finish(&transform->md_ctx_dec, mac_expect);
-            if (ret != 0) {
-                goto hmac_failed_etm_enabled;
-            }
-            ret = mbedtls_md_hmac_reset(&transform->md_ctx_dec);
-            if (ret != 0) {
-                goto hmac_failed_etm_enabled;
-            }
-
-            MBEDTLS_SSL_DEBUG_BUF(4, "message  mac", data + rec->data_len,
-                                  transform->maclen);
-            MBEDTLS_SSL_DEBUG_BUF(4, "expected mac", mac_expect,
-                                  transform->maclen);
-
-            /* Compare expected MAC with MAC at the end of the record. */
-            if (mbedtls_ct_memcmp(data + rec->data_len, mac_expect,
-                                  transform->maclen) != 0) {
-                MBEDTLS_SSL_DEBUG_MSG(1, ("message mac does not match"));
-                ret = MBEDTLS_ERR_SSL_INVALID_MAC;
-                goto hmac_failed_etm_enabled;
-            }
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
             auth_done++;
 
 hmac_failed_etm_enabled:
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
             ret = PSA_TO_MBEDTLS_ERR(status);
             status = psa_mac_abort(&operation);
             if (ret == 0 && status != PSA_SUCCESS) {
                 ret = PSA_TO_MBEDTLS_ERR(status);
             }
-#else
-            mbedtls_platform_zeroize(mac_expect, transform->maclen);
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
             if (ret != 0) {
                 if (ret != MBEDTLS_ERR_SSL_INVALID_MAC) {
                     MBEDTLS_SSL_DEBUG_RET(1, "mbedtls_hmac_xxx", ret);
@@ -1849,7 +1574,6 @@ hmac_failed_etm_enabled:
 
         /* We still have data_len % ivlen == 0 and data_len >= ivlen here. */
 
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
         status = psa_cipher_decrypt_setup(&cipher_op,
                                           transform->psa_key_dec, transform->psa_alg);
 
@@ -1888,15 +1612,6 @@ hmac_failed_etm_enabled:
         }
 
         olen += part_len;
-#else
-
-        if ((ret = mbedtls_cipher_crypt(&transform->cipher_ctx_dec,
-                                        transform->iv_dec, transform->ivlen,
-                                        data, rec->data_len, data, &olen)) != 0) {
-            MBEDTLS_SSL_DEBUG_RET(1, "mbedtls_cipher_crypt", ret);
-            return ret;
-        }
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
         /* Double-check that length hasn't changed during decryption. */
         if (rec->data_len != olen) {
@@ -2038,18 +1753,11 @@ hmac_failed_etm_enabled:
         const size_t max_len = rec->data_len + padlen;
         const size_t min_len = (max_len > 256) ? max_len - 256 : 0;
 
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
         ret = mbedtls_ct_hmac(transform->psa_mac_dec,
                               transform->psa_mac_alg,
                               add_data, add_data_len,
                               data, rec->data_len, min_len, max_len,
                               mac_expect);
-#else
-        ret = mbedtls_ct_hmac(&transform->md_ctx_dec,
-                              add_data, add_data_len,
-                              data, rec->data_len, min_len, max_len,
-                              mac_expect);
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
         if (ret != 0) {
             MBEDTLS_SSL_DEBUG_RET(1, "mbedtls_ct_hmac", ret);
             goto hmac_failed_etm_disabled;
@@ -2984,8 +2692,7 @@ int mbedtls_ssl_write_record(mbedtls_ssl_context *ssl, int force_flush)
             rec.cid_len = 0;
 #endif /* MBEDTLS_SSL_DTLS_CONNECTION_ID */
 
-            if ((ret = mbedtls_ssl_encrypt_buf(ssl, ssl->transform_out, &rec,
-                                               ssl->conf->f_rng, ssl->conf->p_rng)) != 0) {
+            if ((ret = mbedtls_ssl_encrypt_buf(ssl, ssl->transform_out, &rec)) != 0) {
                 MBEDTLS_SSL_DEBUG_RET(1, "ssl_encrypt_buf", ret);
                 return ret;
             }
@@ -3221,7 +2928,7 @@ static uint32_t ssl_get_hs_total_len(mbedtls_ssl_context const *ssl)
 
 int mbedtls_ssl_prepare_handshake_record(mbedtls_ssl_context *ssl)
 {
-    if (ssl->badmac_seen_or_in_hsfraglen == 0) {
+    if (ssl->in_hsfraglen == 0) {
         /* The handshake message must at least include the header.
          * We may not have the full message yet in case of fragmentation.
          * To simplify the code, we insist on having the header (and in
@@ -3313,9 +3020,9 @@ int mbedtls_ssl_prepare_handshake_record(mbedtls_ssl_context *ssl)
             ssl->in_buf + MBEDTLS_SSL_SEQUENCE_NUMBER_LEN;
         unsigned char *const payload_start =
             reassembled_record_start + mbedtls_ssl_in_hdr_len(ssl);
-        unsigned char *payload_end = payload_start + ssl->badmac_seen_or_in_hsfraglen;
+        unsigned char *payload_end = payload_start + ssl->in_hsfraglen;
         /* How many more bytes we want to have a complete handshake message. */
-        const size_t hs_remain = ssl->in_hslen - ssl->badmac_seen_or_in_hsfraglen;
+        const size_t hs_remain = ssl->in_hslen - ssl->in_hsfraglen;
         /* How many bytes of the current record are part of the first
          * handshake message. There may be more handshake messages (possibly
          * incomplete) in the same record; if so, we leave them after the
@@ -3327,16 +3034,17 @@ int mbedtls_ssl_prepare_handshake_record(mbedtls_ssl_context *ssl)
 
         MBEDTLS_SSL_DEBUG_MSG(3,
                               ("%s handshake fragment: %" MBEDTLS_PRINTF_SIZET
-                               ", %u..%u of %" MBEDTLS_PRINTF_SIZET,
-                               (ssl->badmac_seen_or_in_hsfraglen != 0 ?
+                               ", %" MBEDTLS_PRINTF_SIZET
+                               "..%" MBEDTLS_PRINTF_SIZET
+                               " of %" MBEDTLS_PRINTF_SIZET,
+                               (ssl->in_hsfraglen != 0 ?
                                 "subsequent" :
                                 hs_this_fragment_len == ssl->in_hslen ?
                                 "sole" :
                                 "initial"),
                                ssl->in_msglen,
-                               ssl->badmac_seen_or_in_hsfraglen,
-                               ssl->badmac_seen_or_in_hsfraglen +
-                               (unsigned) hs_this_fragment_len,
+                               ssl->in_hsfraglen,
+                               ssl->in_hsfraglen + hs_this_fragment_len,
                                ssl->in_hslen));
 
         /* Move the received handshake fragment to have the whole message
@@ -3366,20 +3074,21 @@ int mbedtls_ssl_prepare_handshake_record(mbedtls_ssl_context *ssl)
         }
         memmove(payload_end, ssl->in_msg, ssl->in_msglen);
 
-        ssl->badmac_seen_or_in_hsfraglen += (unsigned) ssl->in_msglen;
+        ssl->in_hsfraglen += ssl->in_msglen;
         payload_end += ssl->in_msglen;
 
-        if (ssl->badmac_seen_or_in_hsfraglen < ssl->in_hslen) {
-            MBEDTLS_SSL_DEBUG_MSG(3, ("Prepare: waiting for more handshake fragments "
-                                      "%u/%" MBEDTLS_PRINTF_SIZET,
-                                      ssl->badmac_seen_or_in_hsfraglen, ssl->in_hslen));
+        if (ssl->in_hsfraglen < ssl->in_hslen) {
+            MBEDTLS_SSL_DEBUG_MSG(3, ("Prepare: waiting for more handshake fragments %"
+                                      MBEDTLS_PRINTF_SIZET "/%"
+                                      MBEDTLS_PRINTF_SIZET,
+                                      ssl->in_hsfraglen, ssl->in_hslen));
             ssl->in_hdr = payload_end;
             ssl->in_msglen = 0;
             mbedtls_ssl_update_in_pointers(ssl);
             return MBEDTLS_ERR_SSL_CONTINUE_PROCESSING;
         } else {
-            ssl->in_msglen = ssl->badmac_seen_or_in_hsfraglen;
-            ssl->badmac_seen_or_in_hsfraglen = 0;
+            ssl->in_msglen = ssl->in_hsfraglen;
+            ssl->in_hsfraglen = 0;
             ssl->in_hdr = reassembled_record_start;
             mbedtls_ssl_update_in_pointers(ssl);
 
@@ -4461,7 +4170,7 @@ static int ssl_load_buffered_message(mbedtls_ssl_context *ssl)
         ret = 0;
         goto exit;
     } else {
-        MBEDTLS_SSL_DEBUG_MSG(2, ("Next handshake message %u not or only partially bufffered",
+        MBEDTLS_SSL_DEBUG_MSG(2, ("Next handshake message %u not or only partially buffered",
                                   hs->in_msg_seq));
     }
 
@@ -4750,11 +4459,11 @@ static int ssl_consume_current_message(mbedtls_ssl_context *ssl)
             return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
         }
 
-        if (ssl->badmac_seen_or_in_hsfraglen != 0) {
+        if (ssl->in_hsfraglen != 0) {
             /* Not all handshake fragments have arrived, do not consume. */
-            MBEDTLS_SSL_DEBUG_MSG(3, ("Consume: waiting for more handshake fragments "
-                                      "%u/%" MBEDTLS_PRINTF_SIZET,
-                                      ssl->badmac_seen_or_in_hsfraglen, ssl->in_hslen));
+            MBEDTLS_SSL_DEBUG_MSG(3, ("Consume: waiting for more handshake fragments %"
+                                      MBEDTLS_PRINTF_SIZET "/%" MBEDTLS_PRINTF_SIZET,
+                                      ssl->in_hsfraglen, ssl->in_hslen));
             return 0;
         }
 
@@ -5086,12 +4795,10 @@ static int ssl_get_next_record(mbedtls_ssl_context *ssl)
                     return ret;
                 }
 
-                if (ssl->conf->badmac_limit != 0) {
-                    ++ssl->badmac_seen_or_in_hsfraglen;
-                    if (ssl->badmac_seen_or_in_hsfraglen >= ssl->conf->badmac_limit) {
-                        MBEDTLS_SSL_DEBUG_MSG(1, ("too many records with bad MAC"));
-                        return MBEDTLS_ERR_SSL_INVALID_MAC;
-                    }
+                if (ssl->conf->badmac_limit != 0 &&
+                    ++ssl->badmac_seen >= ssl->conf->badmac_limit) {
+                    MBEDTLS_SSL_DEBUG_MSG(1, ("too many records with bad MAC"));
+                    return MBEDTLS_ERR_SSL_INVALID_MAC;
                 }
 
                 /* As above, invalid records cause
@@ -5154,7 +4861,7 @@ int mbedtls_ssl_handle_message_type(mbedtls_ssl_context *ssl)
      * interleaving other message types between handshake fragments. For TLS
      * 1.2, the spec does not forbid it but we do. */
     if (ssl->conf->transport == MBEDTLS_SSL_TRANSPORT_STREAM &&
-        ssl->badmac_seen_or_in_hsfraglen != 0 &&
+        ssl->in_hsfraglen != 0 &&
         ssl->in_msgtype != MBEDTLS_SSL_MSG_HANDSHAKE) {
         MBEDTLS_SSL_DEBUG_MSG(1, ("non-handshake message in the middle"
                                   " of a fragmented handshake message"));
@@ -5585,10 +5292,8 @@ int mbedtls_ssl_get_record_expansion(const mbedtls_ssl_context *ssl)
     size_t transform_expansion = 0;
     const mbedtls_ssl_transform *transform = ssl->transform_out;
     unsigned block_size;
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
     psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
     psa_key_type_t key_type;
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
     size_t out_hdr_len = mbedtls_ssl_out_hdr_len(ssl);
 
@@ -5597,7 +5302,6 @@ int mbedtls_ssl_get_record_expansion(const mbedtls_ssl_context *ssl)
     }
 
 
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
     if (transform->psa_alg == PSA_ALG_GCM ||
         transform->psa_alg == PSA_ALG_CCM ||
         transform->psa_alg == PSA_ALG_AEAD_WITH_SHORTENED_TAG(PSA_ALG_CCM, 8) ||
@@ -5628,41 +5332,6 @@ int mbedtls_ssl_get_record_expansion(const mbedtls_ssl_context *ssl)
                               ("Unsupported psa_alg spotted in mbedtls_ssl_get_record_expansion()"));
         return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
     }
-#else
-    switch (mbedtls_cipher_get_cipher_mode(&transform->cipher_ctx_enc)) {
-        case MBEDTLS_MODE_GCM:
-        case MBEDTLS_MODE_CCM:
-        case MBEDTLS_MODE_CHACHAPOLY:
-        case MBEDTLS_MODE_STREAM:
-            transform_expansion = transform->minlen;
-            break;
-
-        case MBEDTLS_MODE_CBC:
-
-            block_size = mbedtls_cipher_get_block_size(
-                &transform->cipher_ctx_enc);
-
-            /* Expansion due to the addition of the MAC. */
-            transform_expansion += transform->maclen;
-
-            /* Expansion due to the addition of CBC padding;
-             * Theoretically up to 256 bytes, but we never use
-             * more than the block size of the underlying cipher. */
-            transform_expansion += block_size;
-
-            /* For TLS 1.2 or higher, an explicit IV is added
-             * after the record header. */
-#if defined(MBEDTLS_SSL_PROTO_TLS1_2)
-            transform_expansion += block_size;
-#endif /* MBEDTLS_SSL_PROTO_TLS1_2 */
-
-            break;
-
-        default:
-            MBEDTLS_SSL_DEBUG_MSG(1, ("should never happen"));
-            return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
-    }
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
 #if defined(MBEDTLS_SSL_DTLS_CONNECTION_ID)
     if (transform->out_cid_len != 0) {
@@ -5733,19 +5402,13 @@ static int ssl_tls13_handle_hs_message_post_handshake(mbedtls_ssl_context *ssl)
         if (ssl_tls13_is_new_session_ticket(ssl)) {
 #if defined(MBEDTLS_SSL_SESSION_TICKETS)
             MBEDTLS_SSL_DEBUG_MSG(3, ("NewSessionTicket received"));
-            if (mbedtls_ssl_conf_is_signal_new_session_tickets_enabled(ssl->conf) ==
-                MBEDTLS_SSL_TLS1_3_SIGNAL_NEW_SESSION_TICKETS_ENABLED) {
-                ssl->keep_current_message = 1;
+            ssl->keep_current_message = 1;
 
-                mbedtls_ssl_handshake_set_state(ssl,
-                                                MBEDTLS_SSL_TLS1_3_NEW_SESSION_TICKET);
-                return MBEDTLS_ERR_SSL_WANT_READ;
-            } else {
-                MBEDTLS_SSL_DEBUG_MSG(3, ("Ignoring NewSessionTicket, handling disabled."));
-                return 0;
-            }
+            mbedtls_ssl_handshake_set_state(ssl,
+                                            MBEDTLS_SSL_TLS1_3_NEW_SESSION_TICKET);
+            return MBEDTLS_ERR_SSL_WANT_READ;
 #else
-            MBEDTLS_SSL_DEBUG_MSG(3, ("Ignoring NewSessionTicket, not supported."));
+            MBEDTLS_SSL_DEBUG_MSG(3, ("Ignore NewSessionTicket, not supported."));
             return 0;
 #endif
         }
@@ -6275,7 +5938,7 @@ int mbedtls_ssl_write_early_data(mbedtls_ssl_context *ssl,
     } else {
         /*
          * If we are past the point where we can send early data or we have
-         * already reached the maximum early data size, return immediatly.
+         * already reached the maximum early data size, return immediately.
          * Otherwise, progress the handshake as much as possible to not delay
          * it too much. If we reach a point where we can still send early data,
          * then we will send some.
@@ -6353,22 +6016,12 @@ void mbedtls_ssl_transform_free(mbedtls_ssl_transform *transform)
         return;
     }
 
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
     psa_destroy_key(transform->psa_key_enc);
     psa_destroy_key(transform->psa_key_dec);
-#else
-    mbedtls_cipher_free(&transform->cipher_ctx_enc);
-    mbedtls_cipher_free(&transform->cipher_ctx_dec);
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 
 #if defined(MBEDTLS_SSL_SOME_SUITES_USE_MAC)
-#if defined(MBEDTLS_USE_PSA_CRYPTO)
     psa_destroy_key(transform->psa_mac_enc);
     psa_destroy_key(transform->psa_mac_dec);
-#else
-    mbedtls_md_free(&transform->md_ctx_enc);
-    mbedtls_md_free(&transform->md_ctx_dec);
-#endif /* MBEDTLS_USE_PSA_CRYPTO */
 #endif
 
     mbedtls_platform_zeroize(transform, sizeof(mbedtls_ssl_transform));

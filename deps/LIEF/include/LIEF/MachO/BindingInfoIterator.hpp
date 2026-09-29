@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,15 +25,11 @@ class Binary;
 class DyldInfo;
 class DyldChainedFixups;
 
-class LIEF_API BindingInfoIterator :
-    public iterator_facade_base<BindingInfoIterator,
+class LIEF_API BindingInfoIterator
+  : public iterator_facade_base<BindingInfoIterator,
                                 std::random_access_iterator_tag,
-                                const BindingInfo&,
-                                std::ptrdiff_t,
-                                const BindingInfo*,
-                                const BindingInfo&
-    >
-{
+                                const BindingInfo&, std::ptrdiff_t,
+                                const BindingInfo*, const BindingInfo&> {
   public:
   enum class ORIGIN : uint8_t {
     NONE = 0,
@@ -52,20 +48,17 @@ class LIEF_API BindingInfoIterator :
   BindingInfoIterator(const DyldInfo& dyld_info, size_t pos) :
     pos_(pos),
     origin_(ORIGIN::DYLD),
-    dyld_info_(&dyld_info)
-  {}
+    dyld_info_(&dyld_info) {}
 
   BindingInfoIterator(const DyldChainedFixups& fixups, size_t pos) :
     pos_(pos),
     origin_(ORIGIN::CHAINED_FIXUPS),
-    chained_fixups_(&fixups)
-  {}
+    chained_fixups_(&fixups) {}
 
   BindingInfoIterator(const Binary& binary, size_t pos) :
     pos_(pos),
     origin_(ORIGIN::INDIRECT),
-    binary_(&binary)
-  {}
+    binary_(&binary) {}
 
   bool operator<(const BindingInfoIterator& rhs) const {
     return pos_ < rhs.pos_;
@@ -85,7 +78,8 @@ class LIEF_API BindingInfoIterator :
     return *this;
   }
 
-  friend bool operator==(const BindingInfoIterator& LHS, const BindingInfoIterator& RHS) {
+  friend bool operator==(const BindingInfoIterator& LHS,
+                         const BindingInfoIterator& RHS) {
     return LHS.pos_ == RHS.pos_;
   }
 
@@ -100,10 +94,8 @@ class LIEF_API BindingInfoIterator :
     const DyldChainedFixups* chained_fixups_;
     const Binary* binary_;
   };
-
 };
 
 }
 }
 #endif
-

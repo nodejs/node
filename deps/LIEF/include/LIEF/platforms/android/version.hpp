@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,16 +22,16 @@ namespace Android {
 
 enum class ANDROID_VERSIONS {
   VERSION_UNKNOWN = 0,
-  VERSION_601     = 1,
+  VERSION_601 = 1,
 
-  VERSION_700     = 2,
-  VERSION_710     = 3,
-  VERSION_712     = 4,
+  VERSION_700 = 2,
+  VERSION_710 = 3,
+  VERSION_712 = 4,
 
-  VERSION_800     = 5,
-  VERSION_810     = 6,
+  VERSION_800 = 5,
+  VERSION_810 = 6,
 
-  VERSION_900     = 7,
+  VERSION_900 = 7,
 };
 
 LIEF_API const char* code_name(ANDROID_VERSIONS version);

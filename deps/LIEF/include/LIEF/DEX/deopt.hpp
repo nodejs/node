@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ class Method;
 
 // Method Index: {dex_pc: index, ...}
 using dex2dex_method_info_t = std::unordered_map<uint32_t, uint32_t>;
-using dex2dex_class_info_t  = std::unordered_map<Method*, dex2dex_method_info_t>;
-using dex2dex_info_t        = std::unordered_map<Class*, dex2dex_class_info_t>;
+using dex2dex_class_info_t = std::unordered_map<Method*, dex2dex_method_info_t>;
+using dex2dex_info_t = std::unordered_map<Class*, dex2dex_class_info_t>;
 
 }
 }

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,143 +20,152 @@
 #include <spdlog/fmt/fmt.h>
 
 namespace LIEF::MachO {
-std::ostream& operator<<(std::ostream& os,
-    const ChainedPointerAnalysis::dyld_chained_ptr_arm64e_rebase_t& chain)
-{
-  os << fmt::format("target: 0x{:010x} high8: 0x{:02x}, next: 0x{:03x}, "
+std::ostream& operator<<(
+    std::ostream& os,
+    const ChainedPointerAnalysis::dyld_chained_ptr_arm64e_rebase_t& chain
+) {
+  os << fmt::format("target: {:#012x} high8: {:#04x}, next: {:#05x}, "
                     "bind: {}, auth: {}",
-    chain.target, chain.high8, chain.next, (bool)chain.bind, (bool)chain.auth
-  );
+                    chain.target, chain.high8, chain.next, (bool)chain.bind,
+                    (bool)chain.auth);
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os,
-    const ChainedPointerAnalysis::dyld_chained_ptr_arm64e_bind_t& chain)
-{
-  os << fmt::format("ordinal: 0x{:04x} zero: 0x{:04x}, addend: 0x{:05x}, "
-                    "next: 0x{:03x} bind: {}, auth: {}",
-    chain.ordinal, chain.zero, chain.addend, chain.next,
-    (bool)chain.bind, (bool)chain.auth
-  );
+std::ostream& operator<<(
+    std::ostream& os,
+    const ChainedPointerAnalysis::dyld_chained_ptr_arm64e_bind_t& chain
+) {
+  os << fmt::format("ordinal: {:#06x} zero: {:#06x}, addend: {:#07x}, "
+                    "next: {:#05x} bind: {}, auth: {}",
+                    chain.ordinal, chain.zero, chain.addend, chain.next,
+                    (bool)chain.bind, (bool)chain.auth);
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os,
-    const ChainedPointerAnalysis::dyld_chained_ptr_arm64e_auth_rebase_t& chain)
-{
-  os << fmt::format("target: 0x{:08x} diversity: 0x{:04x}, addr_div: {}, "
-                    "key: 0x{:x} next: 0x{:03x} bind: {}, auth: {}",
-    chain.target, chain.diversity, chain.addr_div, chain.key, chain.next,
-    (bool)chain.bind, (bool)chain.auth
-  );
+std::ostream& operator<<(
+    std::ostream& os,
+    const ChainedPointerAnalysis::dyld_chained_ptr_arm64e_auth_rebase_t& chain
+) {
+  os << fmt::format("target: {:#010x} diversity: {:#06x}, addr_div: {}, "
+                    "key: {:#x} next: {:#05x} bind: {}, auth: {}",
+                    chain.target, chain.diversity, chain.addr_div, chain.key,
+                    chain.next, (bool)chain.bind, (bool)chain.auth);
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os,
-    const ChainedPointerAnalysis::dyld_chained_ptr_arm64e_auth_bind_t& chain)
-{
-  os << fmt::format("ordinal: 0x{:04x} zero: 0x{:04x}, diversity: 0x{:04x}, "
-                    "addr_div: {} key: 0x{:x} next: 0x{:03x} bind: {}, auth: {}",
-    chain.ordinal, chain.zero, chain.diversity, chain.addr_div, chain.key,
-    chain.next, (bool)chain.bind, (bool)chain.auth
-  );
+std::ostream& operator<<(
+    std::ostream& os,
+    const ChainedPointerAnalysis::dyld_chained_ptr_arm64e_auth_bind_t& chain
+) {
+  os << fmt::format("ordinal: {:#06x} zero: {:#06x}, diversity: {:#06x}, "
+                    "addr_div: {} key: {:#x} next: {:#05x} bind: {}, auth: {}",
+                    chain.ordinal, chain.zero, chain.diversity, chain.addr_div,
+                    chain.key, chain.next, (bool)chain.bind, (bool)chain.auth);
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os,
-    const ChainedPointerAnalysis::dyld_chained_ptr_64_rebase_t& chain)
-{
-  os << fmt::format("target: 0x{:010x} high8: 0x{:02x}, reserved: 0x{:02x}, "
-                    "next: 0x{:04x} bind: {}",
-    chain.target, chain.high8, chain.reserved, chain.next, (bool)chain.bind);
+std::ostream&
+    operator<<(std::ostream& os,
+               const ChainedPointerAnalysis::dyld_chained_ptr_64_rebase_t& chain) {
+  os << fmt::format("target: {:#012x} high8: {:#04x}, reserved: {:#04x}, "
+                    "next: {:#06x} bind: {}",
+                    chain.target, chain.high8, chain.reserved, chain.next,
+                    (bool)chain.bind);
   return os;
 }
-std::ostream& operator<<(std::ostream& os,
-    const ChainedPointerAnalysis::dyld_chained_ptr_arm64e_bind24_t& chain)
-{
+std::ostream& operator<<(
+    std::ostream& os,
+    const ChainedPointerAnalysis::dyld_chained_ptr_arm64e_bind24_t& chain
+) {
 
-  os << fmt::format("ordinal: 0x{:06x} zero: 0x{:02x}, addend: 0x{:05x}, "
-                    "next: 0x{:03x} bind: {}, auth: {}",
-    chain.ordinal, chain.zero, chain.addend, chain.next, (bool)chain.bind,
-    (bool)chain.auth);
+  os << fmt::format("ordinal: {:#08x} zero: {:#04x}, addend: {:#07x}, "
+                    "next: {:#05x} bind: {}, auth: {}",
+                    chain.ordinal, chain.zero, chain.addend, chain.next,
+                    (bool)chain.bind, (bool)chain.auth);
   return os;
 }
-std::ostream& operator<<(std::ostream& os,
-    const ChainedPointerAnalysis::dyld_chained_ptr_arm64e_auth_bind24_t& chain)
-{
-  os << fmt::format("ordinal: 0x{:06x} zero: 0x{:02x}, diversity: 0x{:04x}, "
-                    "addr_div: {}, key: 0x{:x}, next: 0x{:03x} bind: {}, auth: {}",
-    chain.ordinal, chain.zero, chain.diversity, chain.addr_div, chain.key,
-    chain.next, (bool)chain.bind, (bool)chain.auth);
-  return os;
-}
-
-std::ostream& operator<<(std::ostream& os,
-    const ChainedPointerAnalysis::dyld_chained_ptr_64_bind_t& chain)
-{
-  os << fmt::format("ordinal: 0x{:06x} addend: 0x{:04x}, reserved: 0x{:05x}, "
-                    "next: 0x{:04x} bind: {}",
-    chain.ordinal, chain.addend, chain.reserved, chain.next, (bool)chain.bind);
+std::ostream& operator<<(
+    std::ostream& os,
+    const ChainedPointerAnalysis::dyld_chained_ptr_arm64e_auth_bind24_t& chain
+) {
+  os << fmt::format("ordinal: {:#08x} zero: {:#04x}, diversity: {:#06x}, "
+                    "addr_div: {}, key: {:#x}, next: {:#05x} bind: {}, auth: {}",
+                    chain.ordinal, chain.zero, chain.diversity, chain.addr_div,
+                    chain.key, chain.next, (bool)chain.bind, (bool)chain.auth);
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os,
-    const ChainedPointerAnalysis::dyld_chained_ptr_64_kernel_cache_rebase_t& chain)
-{
-  os << fmt::format("target: 0x{:08x} cache_level: {}, diversity: 0x{:04x}, "
-                    "addr_div: {} key: {} next: 0x{:03x}, auth: {}",
-    chain.target, chain.cache_level, chain.diversity, chain.addr_div,
-    chain.key, chain.next, (bool)chain.is_auth);
+std::ostream&
+    operator<<(std::ostream& os,
+               const ChainedPointerAnalysis::dyld_chained_ptr_64_bind_t& chain) {
+  os << fmt::format("ordinal: {:#08x} addend: {:#06x}, reserved: {:#07x}, "
+                    "next: {:#06x} bind: {}",
+                    chain.ordinal, chain.addend, chain.reserved, chain.next,
+                    (bool)chain.bind);
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os,
-    const ChainedPointerAnalysis::dyld_chained_ptr_32_rebase_t& chain)
-{
-  os << fmt::format("target: 0x{:08x} next: 0x{:02x}, bind: {}",
-    chain.target, chain.next, (bool)chain.bind);
+std::ostream& operator<<(
+    std::ostream& os,
+    const ChainedPointerAnalysis::dyld_chained_ptr_64_kernel_cache_rebase_t& chain
+) {
+  os << fmt::format("target: {:#010x} cache_level: {}, diversity: {:#06x}, "
+                    "addr_div: {} key: {} next: {:#05x}, auth: {}",
+                    chain.target, chain.cache_level, chain.diversity,
+                    chain.addr_div, chain.key, chain.next, (bool)chain.is_auth);
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os,
-    const ChainedPointerAnalysis::dyld_chained_ptr_32_bind_t& chain)
-{
-  os << fmt::format("ordinal: 0x{:05x} addend: 0x{:02x}, next: 0x{:x}, bind: {}",
-    chain.ordinal, chain.addend, chain.next, (bool)chain.bind);
+std::ostream&
+    operator<<(std::ostream& os,
+               const ChainedPointerAnalysis::dyld_chained_ptr_32_rebase_t& chain) {
+  os << fmt::format("target: {:#010x} next: {:#04x}, bind: {}", chain.target,
+                    chain.next, (bool)chain.bind);
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os,
-    const ChainedPointerAnalysis::dyld_chained_ptr_32_cache_rebase_t& chain)
-{
-  os << fmt::format("target: 0x{:06x}, next: 0x{:x}",
-                     chain.target, chain.next);
+std::ostream&
+    operator<<(std::ostream& os,
+               const ChainedPointerAnalysis::dyld_chained_ptr_32_bind_t& chain) {
+  os << fmt::format("ordinal: {:#07x} addend: {:#04x}, next: {:#x}, bind: {}",
+                    chain.ordinal, chain.addend, chain.next, (bool)chain.bind);
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os,
-    const ChainedPointerAnalysis::dyld_chained_ptr_32_firmware_rebase_t& chain)
-{
-  os << fmt::format("target: 0x{:06x}, next: 0x{:x}",
-                     chain.target, chain.next);
+std::ostream& operator<<(
+    std::ostream& os,
+    const ChainedPointerAnalysis::dyld_chained_ptr_32_cache_rebase_t& chain
+) {
+  os << fmt::format("target: {:#08x}, next: {:#x}", chain.target, chain.next);
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os,
-    const ChainedPointerAnalysis::dyld_chained_ptr_arm64e_segmented_rebase_t& chain)
-{
-  os << fmt::format("segment offset: 0x{:06x}, segment index: {}, next: 0x{:x}",
-                     chain.target_seg_offset, chain.target_seg_index, chain.next);
+std::ostream& operator<<(
+    std::ostream& os,
+    const ChainedPointerAnalysis::dyld_chained_ptr_32_firmware_rebase_t& chain
+) {
+  os << fmt::format("target: {:#08x}, next: {:#x}", chain.target, chain.next);
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os,
-    const ChainedPointerAnalysis::dyld_chained_ptr_arm64e_auth_segmented_rebase_t& chain)
-{
-  os << fmt::format("segment offset: 0x{:06x}, segment index: {}, next: 0x{:x}, "
+std::ostream& operator<<(
+    std::ostream& os,
+    const ChainedPointerAnalysis::dyld_chained_ptr_arm64e_segmented_rebase_t& chain
+) {
+  os << fmt::format("segment offset: {:#08x}, segment index: {}, next: {:#x}",
+                    chain.target_seg_offset, chain.target_seg_index, chain.next);
+  return os;
+}
+
+std::ostream& operator<<(
+    std::ostream& os,
+    const ChainedPointerAnalysis::dyld_chained_ptr_arm64e_auth_segmented_rebase_t&
+        chain
+) {
+  os << fmt::format("segment offset: {:#08x}, segment index: {}, next: {:#x}, "
                     "addr_div: {} key: {} diversity: {}, auth: {}",
-                     chain.target_seg_offset, chain.target_seg_index, chain.next,
-                     chain.addr_div, chain.key, chain.diversity, chain.auth);
+                    chain.target_seg_offset, chain.target_seg_index, chain.next,
+                    chain.addr_div, chain.key, chain.diversity, chain.auth);
   return os;
 }
 
@@ -166,108 +175,100 @@ ChainedPointerAnalysis::union_pointer_t create_impl(const T& value) {
   out.raw = 0;
   out.type = ChainedPointerAnalysis::PTR_TYPE::UNKNOWN;
 
-  if constexpr (std::is_same_v<T,
-      ChainedPointerAnalysis::dyld_chained_ptr_arm64e_rebase_t>)
+  if constexpr (std::is_same_v<
+                    T, ChainedPointerAnalysis::dyld_chained_ptr_arm64e_rebase_t
+                >)
   {
     out.type = ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_REBASE;
     out.arm64e_rebase = value;
-  }
-
-  else if constexpr (std::is_same_v<T,
-      ChainedPointerAnalysis::dyld_chained_ptr_arm64e_bind_t>)
+  } else if constexpr (std::is_same_v<T, ChainedPointerAnalysis::
+                                             dyld_chained_ptr_arm64e_bind_t>)
   {
     out.type = ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_BIND;
     out.arm64e_bind = value;
-  }
-
-  else if constexpr (std::is_same_v<T,
-      ChainedPointerAnalysis::dyld_chained_ptr_arm64e_auth_rebase_t>)
+  } else if constexpr (std::is_same_v<T,
+                                      ChainedPointerAnalysis::
+                                          dyld_chained_ptr_arm64e_auth_rebase_t>)
   {
-    out.type = ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_REBASE;
+    out.type =
+        ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_REBASE;
     out.arm64e_auth_rebase = value;
-  }
-
-  else if constexpr (std::is_same_v<T,
-      ChainedPointerAnalysis::dyld_chained_ptr_arm64e_auth_bind_t>)
+  } else if constexpr (std::is_same_v<T, ChainedPointerAnalysis::
+                                             dyld_chained_ptr_arm64e_auth_bind_t>)
   {
     out.type = ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_BIND;
     out.arm64e_auth_bind = value;
-  }
-
-  else if constexpr (std::is_same_v<T,
-      ChainedPointerAnalysis::dyld_chained_ptr_64_rebase_t>)
+  } else if constexpr (std::is_same_v<
+                           T, ChainedPointerAnalysis::dyld_chained_ptr_64_rebase_t
+                       >)
   {
     out.type = ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_64_REBASE;
     out.ptr_64_rebase = value;
-  }
-
-  else if constexpr (std::is_same_v<T,
-      ChainedPointerAnalysis::dyld_chained_ptr_arm64e_bind24_t>)
+  } else if constexpr (std::is_same_v<T, ChainedPointerAnalysis::
+                                             dyld_chained_ptr_arm64e_bind24_t>)
   {
     out.type = ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_BIND24;
     out.arm64e_bind24 = value;
-  }
-
-  else if constexpr (std::is_same_v<T,
-      ChainedPointerAnalysis::dyld_chained_ptr_arm64e_auth_bind24_t>)
+  } else if constexpr (std::is_same_v<T,
+                                      ChainedPointerAnalysis::
+                                          dyld_chained_ptr_arm64e_auth_bind24_t>)
   {
-    out.type = ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_BIND24;
+    out.type =
+        ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_BIND24;
     out.arm64e_auth_bind24 = value;
-  }
-
-  else if constexpr (std::is_same_v<T,
-      ChainedPointerAnalysis::dyld_chained_ptr_64_bind_t>)
+  } else if constexpr (std::is_same_v<
+                           T, ChainedPointerAnalysis::dyld_chained_ptr_64_bind_t
+                       >)
   {
     out.type = ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_64_BIND;
     out.ptr_64_bind = value;
-  }
-
-  else if constexpr (std::is_same_v<T,
-      ChainedPointerAnalysis::dyld_chained_ptr_64_kernel_cache_rebase_t>)
+  } else if constexpr (std::is_same_v<
+                           T, ChainedPointerAnalysis::
+                                  dyld_chained_ptr_64_kernel_cache_rebase_t
+                       >)
   {
-    out.type = ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_64_KERNEL_CACHE_REBASE;
+    out.type =
+        ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_64_KERNEL_CACHE_REBASE;
     out.ptr_64_kernel_cache_rebase = value;
-  }
-
-  else if constexpr (std::is_same_v<T,
-      ChainedPointerAnalysis::dyld_chained_ptr_32_rebase_t>)
+  } else if constexpr (std::is_same_v<
+                           T, ChainedPointerAnalysis::dyld_chained_ptr_32_rebase_t
+                       >)
   {
     out.type = ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_32_REBASE;
     out.ptr_32_rebase = value;
-  }
-
-  else if constexpr (std::is_same_v<T,
-      ChainedPointerAnalysis::dyld_chained_ptr_32_bind_t>)
+  } else if constexpr (std::is_same_v<
+                           T, ChainedPointerAnalysis::dyld_chained_ptr_32_bind_t
+                       >)
   {
     out.type = ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_32_BIND;
     out.ptr_32_bind = value;
-  }
-
-  else if constexpr (std::is_same_v<T,
-      ChainedPointerAnalysis::dyld_chained_ptr_32_cache_rebase_t>)
+  } else if constexpr (std::is_same_v<T, ChainedPointerAnalysis::
+                                             dyld_chained_ptr_32_cache_rebase_t>)
   {
     out.type = ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_32_CACHE_REBASE;
     out.ptr_32_cache_rebase = value;
-  }
-
-  else if constexpr (std::is_same_v<T,
-      ChainedPointerAnalysis::dyld_chained_ptr_32_firmware_rebase_t>)
+  } else if constexpr (std::is_same_v<T,
+                                      ChainedPointerAnalysis::
+                                          dyld_chained_ptr_32_firmware_rebase_t>)
   {
-    out.type = ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_32_FIRMWARE_REBASE;
+    out.type =
+        ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_32_FIRMWARE_REBASE;
     out.ptr_32_firmware_rebase = value;
-  }
-
-  else if constexpr (std::is_same_v<T,
-      ChainedPointerAnalysis::dyld_chained_ptr_arm64e_segmented_rebase_t>)
+  } else if constexpr (std::is_same_v<
+                           T, ChainedPointerAnalysis::
+                                  dyld_chained_ptr_arm64e_segmented_rebase_t
+                       >)
   {
-    out.type = ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_SEGMENTED_REBASE;
+    out.type =
+        ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_SEGMENTED_REBASE;
     out.ptr_arm64e_segmented_rebase = value;
-  }
-
-  else if constexpr (std::is_same_v<T,
-      ChainedPointerAnalysis::dyld_chained_ptr_arm64e_auth_segmented_rebase_t>)
+  } else if constexpr (std::is_same_v<
+                           T, ChainedPointerAnalysis::
+                                  dyld_chained_ptr_arm64e_auth_segmented_rebase_t
+                       >)
   {
-    out.type = ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_SEGMENTED_REBASE;
+    out.type = ChainedPointerAnalysis::PTR_TYPE::
+        DYLD_CHAINED_PTR_ARM64E_AUTH_SEGMENTED_REBASE;
     out.ptr_arm64e_auth_segmented_rebase = value;
   }
 
@@ -275,61 +276,62 @@ ChainedPointerAnalysis::union_pointer_t create_impl(const T& value) {
 }
 
 
-ChainedPointerAnalysis::union_pointer_t ChainedPointerAnalysis::get_as(DYLD_CHAINED_PTR_FORMAT fmt) const {
+ChainedPointerAnalysis::union_pointer_t
+    ChainedPointerAnalysis::get_as(DYLD_CHAINED_PTR_FORMAT fmt) const {
   switch (fmt) {
     case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E:
     case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_KERNEL:
     case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND:
     case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND24:
+    {
+      if ((bool)dyld_chained_ptr_arm64e_auth_rebase().auth &&
+          (bool)dyld_chained_ptr_arm64e_auth_rebase().bind)
       {
-        if ((bool)dyld_chained_ptr_arm64e_auth_rebase().auth &&
-            (bool)dyld_chained_ptr_arm64e_auth_rebase().bind)
-        {
-          if (fmt == DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND24) {
-            return create_impl(dyld_chained_ptr_arm64e_auth_bind24());
-          }
-          return create_impl(dyld_chained_ptr_arm64e_auth_bind());
+        if (fmt == DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND24) {
+          return create_impl(dyld_chained_ptr_arm64e_auth_bind24());
         }
-
-        if ( dyld_chained_ptr_arm64e_auth_rebase().auth &&
-            !dyld_chained_ptr_arm64e_auth_rebase().bind)
-        {
-          return create_impl(dyld_chained_ptr_arm64e_auth_rebase());
-        }
-        if (!dyld_chained_ptr_arm64e_auth_rebase().auth &&
-             dyld_chained_ptr_arm64e_auth_rebase().bind)
-        {
-          if (fmt == DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND24) {
-            return create_impl(dyld_chained_ptr_arm64e_bind24());
-          }
-          return create_impl(dyld_chained_ptr_arm64e_bind());
-        }
-
-        if (!dyld_chained_ptr_arm64e_auth_rebase().auth &&
-            !dyld_chained_ptr_arm64e_auth_rebase().bind)
-        {
-          return create_impl(dyld_chained_ptr_arm64e_rebase());
-        }
-
-        return {};
+        return create_impl(dyld_chained_ptr_arm64e_auth_bind());
       }
+
+      if (dyld_chained_ptr_arm64e_auth_rebase().auth &&
+          !dyld_chained_ptr_arm64e_auth_rebase().bind)
+      {
+        return create_impl(dyld_chained_ptr_arm64e_auth_rebase());
+      }
+      if (!dyld_chained_ptr_arm64e_auth_rebase().auth &&
+          dyld_chained_ptr_arm64e_auth_rebase().bind)
+      {
+        if (fmt == DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND24) {
+          return create_impl(dyld_chained_ptr_arm64e_bind24());
+        }
+        return create_impl(dyld_chained_ptr_arm64e_bind());
+      }
+
+      if (!dyld_chained_ptr_arm64e_auth_rebase().auth &&
+          !dyld_chained_ptr_arm64e_auth_rebase().bind)
+      {
+        return create_impl(dyld_chained_ptr_arm64e_rebase());
+      }
+
+      return {};
+    }
 
     case DYLD_CHAINED_PTR_FORMAT::PTR_64:
     case DYLD_CHAINED_PTR_FORMAT::PTR_64_OFFSET:
-      {
-        if (dyld_chained_ptr_64_rebase().bind) {
-          return create_impl(dyld_chained_ptr_64_bind());
-        }
-        return create_impl(dyld_chained_ptr_64_rebase());
+    {
+      if (dyld_chained_ptr_64_rebase().bind) {
+        return create_impl(dyld_chained_ptr_64_bind());
       }
+      return create_impl(dyld_chained_ptr_64_rebase());
+    }
 
     case DYLD_CHAINED_PTR_FORMAT::PTR_32:
-      {
-        if (dyld_chained_ptr_32_bind().bind) {
-          return create_impl(dyld_chained_ptr_32_bind());
-        }
-        return create_impl(dyld_chained_ptr_32_rebase());
+    {
+      if (dyld_chained_ptr_32_bind().bind) {
+        return create_impl(dyld_chained_ptr_32_bind());
       }
+      return create_impl(dyld_chained_ptr_32_rebase());
+    }
 
     case DYLD_CHAINED_PTR_FORMAT::PTR_32_CACHE:
       return create_impl(dyld_chained_ptr_32_cache_rebase());
@@ -341,43 +343,34 @@ ChainedPointerAnalysis::union_pointer_t ChainedPointerAnalysis::get_as(DYLD_CHAI
       return create_impl(dyld_chained_ptr_64_kernel_cache_rebase());
 
     case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_SEGMENTED:
-      {
-        if (dyld_chained_ptr_arm64e_segmented_rebase().auth) {
-          return create_impl(dyld_chained_ptr_arm64e_auth_segmented_rebase());
-        }
-        return create_impl(dyld_chained_ptr_arm64e_segmented_rebase());
+    {
+      if (dyld_chained_ptr_arm64e_segmented_rebase().auth) {
+        return create_impl(dyld_chained_ptr_arm64e_auth_segmented_rebase());
       }
+      return create_impl(dyld_chained_ptr_arm64e_segmented_rebase());
+    }
 
-    default:
-      return {};
+    default: return {};
   }
   return {};
 }
 
 uint32_t ChainedPointerAnalysis::union_pointer_t::next() const {
   switch (type) {
-    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_REBASE:
-      return arm64e_rebase.next;
-    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_BIND:
-      return arm64e_bind.next;
+    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_REBASE: return arm64e_rebase.next;
+    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_BIND: return arm64e_bind.next;
     case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_REBASE:
       return arm64e_auth_rebase.next;
-    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_BIND:
-      return arm64e_auth_bind.next;
-    case PTR_TYPE::DYLD_CHAINED_PTR_64_REBASE:
-      return ptr_64_rebase.next;
-    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_BIND24:
-      return arm64e_bind24.next;
+    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_BIND: return arm64e_auth_bind.next;
+    case PTR_TYPE::DYLD_CHAINED_PTR_64_REBASE: return ptr_64_rebase.next;
+    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_BIND24: return arm64e_bind24.next;
     case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_BIND24:
       return arm64e_auth_bind24.next;
-    case PTR_TYPE::DYLD_CHAINED_PTR_64_BIND:
-      return ptr_64_bind.next;
+    case PTR_TYPE::DYLD_CHAINED_PTR_64_BIND: return ptr_64_bind.next;
     case PTR_TYPE::DYLD_CHAINED_PTR_64_KERNEL_CACHE_REBASE:
       return ptr_64_kernel_cache_rebase.next;
-    case PTR_TYPE::DYLD_CHAINED_PTR_32_REBASE:
-      return ptr_32_rebase.next;
-    case PTR_TYPE::DYLD_CHAINED_PTR_32_BIND:
-      return ptr_32_bind.next;
+    case PTR_TYPE::DYLD_CHAINED_PTR_32_REBASE: return ptr_32_rebase.next;
+    case PTR_TYPE::DYLD_CHAINED_PTR_32_BIND: return ptr_32_bind.next;
     case PTR_TYPE::DYLD_CHAINED_PTR_32_CACHE_REBASE:
       return ptr_32_cache_rebase.next;
     case PTR_TYPE::DYLD_CHAINED_PTR_32_FIRMWARE_REBASE:
@@ -386,26 +379,21 @@ uint32_t ChainedPointerAnalysis::union_pointer_t::next() const {
       return ptr_arm64e_segmented_rebase.next;
     case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_SEGMENTED_REBASE:
       return ptr_arm64e_auth_segmented_rebase.next;
-    case PTR_TYPE::UNKNOWN:
-      return 0;
+    case PTR_TYPE::UNKNOWN: return 0;
   }
   return 0;
 }
 
 result<uint32_t> ChainedPointerAnalysis::union_pointer_t::ordinal() const {
   switch (type) {
-    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_BIND:
-      return arm64e_bind.ordinal;
+    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_BIND: return arm64e_bind.ordinal;
     case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_BIND:
       return arm64e_auth_bind.ordinal;
-    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_BIND24:
-      return arm64e_bind24.ordinal;
+    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_BIND24: return arm64e_bind24.ordinal;
     case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_BIND24:
       return arm64e_auth_bind24.ordinal;
-    case PTR_TYPE::DYLD_CHAINED_PTR_64_BIND:
-      return ptr_64_bind.ordinal;
-    case PTR_TYPE::DYLD_CHAINED_PTR_32_BIND:
-      return ptr_32_bind.ordinal;
+    case PTR_TYPE::DYLD_CHAINED_PTR_64_BIND: return ptr_64_bind.ordinal;
+    case PTR_TYPE::DYLD_CHAINED_PTR_32_BIND: return ptr_32_bind.ordinal;
     case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_REBASE:
     case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_REBASE:
     case PTR_TYPE::DYLD_CHAINED_PTR_64_REBASE:
@@ -415,24 +403,19 @@ result<uint32_t> ChainedPointerAnalysis::union_pointer_t::ordinal() const {
     case PTR_TYPE::DYLD_CHAINED_PTR_32_CACHE_REBASE:
     case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_SEGMENTED_REBASE:
     case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_SEGMENTED_REBASE:
-    case PTR_TYPE::UNKNOWN:
-      return make_error_code(lief_errors::not_found);
+    case PTR_TYPE::UNKNOWN: return make_error_code(lief_errors::not_found);
   }
   return make_error_code(lief_errors::not_found);
 }
 
 bool ChainedPointerAnalysis::union_pointer_t::is_auth() const {
   switch (type) {
-    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_REBASE:
-      return arm64e_rebase.auth;
-    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_BIND:
-      return arm64e_bind.auth;
+    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_REBASE: return arm64e_rebase.auth;
+    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_BIND: return arm64e_bind.auth;
     case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_REBASE:
       return arm64e_auth_rebase.auth;
-    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_BIND:
-      return arm64e_auth_bind.auth;
-    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_BIND24:
-      return arm64e_bind24.auth;
+    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_BIND: return arm64e_auth_bind.auth;
+    case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_BIND24: return arm64e_bind24.auth;
     case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_BIND24:
       return arm64e_auth_bind24.auth;
     case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_SEGMENTED_REBASE:
@@ -446,8 +429,7 @@ bool ChainedPointerAnalysis::union_pointer_t::is_auth() const {
     case PTR_TYPE::DYLD_CHAINED_PTR_32_BIND:
     case PTR_TYPE::DYLD_CHAINED_PTR_32_CACHE_REBASE:
     case PTR_TYPE::DYLD_CHAINED_PTR_32_FIRMWARE_REBASE:
-    case PTR_TYPE::UNKNOWN:
-      return false;
+    case PTR_TYPE::UNKNOWN: return false;
   }
   return false;
 }
@@ -462,8 +444,7 @@ result<uint64_t> ChainedPointerAnalysis::union_pointer_t::target() const {
       return ptr_64_rebase.unpack_target();
     case PTR_TYPE::DYLD_CHAINED_PTR_64_KERNEL_CACHE_REBASE:
       return ptr_64_kernel_cache_rebase.target;
-    case PTR_TYPE::DYLD_CHAINED_PTR_32_REBASE:
-      return ptr_32_rebase.target;
+    case PTR_TYPE::DYLD_CHAINED_PTR_32_REBASE: return ptr_32_rebase.target;
     case PTR_TYPE::DYLD_CHAINED_PTR_32_CACHE_REBASE:
       return ptr_32_cache_rebase.target;
     case PTR_TYPE::DYLD_CHAINED_PTR_32_FIRMWARE_REBASE:
@@ -478,15 +459,13 @@ result<uint64_t> ChainedPointerAnalysis::union_pointer_t::target() const {
     case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_BIND:
     case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_BIND24:
     case PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_BIND:
-    case PTR_TYPE::UNKNOWN:
-      return make_error_code(lief_errors::not_found);
+    case PTR_TYPE::UNKNOWN: return make_error_code(lief_errors::not_found);
   }
   return make_error_code(lief_errors::not_found);
 }
 
 std::ostream& operator<<(std::ostream& os,
-    const ChainedPointerAnalysis::union_pointer_t& ptr)
-{
+                         const ChainedPointerAnalysis::union_pointer_t& ptr) {
   switch (ptr.type) {
     case ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_REBASE:
       os << ptr.arm64e_rebase;
@@ -527,30 +506,31 @@ std::ostream& operator<<(std::ostream& os,
     case ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_32_FIRMWARE_REBASE:
       os << ptr.ptr_32_firmware_rebase;
       break;
-    case ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_SEGMENTED_REBASE:
+    case ChainedPointerAnalysis::PTR_TYPE::
+        DYLD_CHAINED_PTR_ARM64E_SEGMENTED_REBASE:
       os << ptr.ptr_arm64e_segmented_rebase;
       break;
-    case ChainedPointerAnalysis::PTR_TYPE::DYLD_CHAINED_PTR_ARM64E_AUTH_SEGMENTED_REBASE:
+    case ChainedPointerAnalysis::PTR_TYPE::
+        DYLD_CHAINED_PTR_ARM64E_AUTH_SEGMENTED_REBASE:
       os << ptr.ptr_arm64e_auth_segmented_rebase;
       break;
-    case ChainedPointerAnalysis::PTR_TYPE::UNKNOWN:
-      break;
+    case ChainedPointerAnalysis::PTR_TYPE::UNKNOWN: break;
   }
   return os;
 }
 
 uint64_t ChainedPointerAnalysis::walk_chain(
     BinaryStream& stream, DYLD_CHAINED_PTR_FORMAT format,
-    const std::function<int(uint64_t, const union_pointer_t& ptr)>& callback)
-{
+    const std::function<int(uint64_t, const union_pointer_t& ptr)>& callback
+) {
   const size_t ptr_sizeof = ChainedPointerAnalysis::ptr_size(format);
   const size_t stride = ChainedPointerAnalysis::stride(format);
   assert(ptr_sizeof == 8 || ptr_sizeof == 4);
   const uint64_t start_pos = stream.pos();
-  while (1) {
+  while (true) {
     uint64_t value = ptr_sizeof == sizeof(uint64_t) ?
-                                   stream.peek<uint64_t>().value_or(0) :
-                                   stream.peek<uint32_t>().value_or(0);
+                         stream.peek<uint64_t>().value_or(0) :
+                         stream.peek<uint32_t>().value_or(0);
     if (value == 0) {
       break;
     }

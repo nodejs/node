@@ -47,5 +47,5 @@ protected:
 }  // namespace spdlog
 
 #ifdef SPDLOG_HEADER_ONLY
-    #include "base_sink-inl.h"
+#include "base_sink-inl.h"
 #endif

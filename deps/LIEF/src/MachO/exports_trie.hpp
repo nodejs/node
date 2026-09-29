@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,9 +26,11 @@ namespace MachO {
 class ExportInfo;
 using exports_list_t = std::vector<std::unique_ptr<ExportInfo>>;
 void show_trie(std::ostream& output, std::string output_prefix,
-               BinaryStream& stream, uint64_t start, uint64_t end, const std::string& prefix);
+               BinaryStream& stream, uint64_t start, uint64_t end,
+               const std::string& prefix);
 
-std::vector<uint8_t> create_trie(const exports_list_t& exports, size_t pointer_size);
+std::vector<uint8_t> create_trie(const exports_list_t& exports,
+                                 size_t pointer_size);
 }
 }
 #endif

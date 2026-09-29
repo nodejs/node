@@ -7,9 +7,9 @@
 #include <spdlog/details/null_mutex.h>
 #include <spdlog/sinks/base_sink.h>
 #ifdef _WIN32
-    #include <spdlog/details/udp_client-windows.h>
+#include <spdlog/details/udp_client-windows.h>
 #else
-    #include <spdlog/details/udp_client.h>
+#include <spdlog/details/udp_client.h>
 #endif
 
 #include <chrono>

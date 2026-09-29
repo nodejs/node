@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,15 +19,15 @@
 
 #include "LIEF/PE/ResourceData.hpp"
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 void ResourceData::swap(ResourceData& other) noexcept {
   ResourceNode::swap(other);
 
-  std::swap(content_,    other.content_);
-  std::swap(code_page_,  other.code_page_);
-  std::swap(reserved_,   other.reserved_);
+  std::swap(content_, other.content_);
+  std::swap(code_page_, other.code_page_);
+  std::swap(reserved_, other.reserved_);
 }
 
 void ResourceData::accept(Visitor& visitor) const {
@@ -35,5 +35,4 @@ void ResourceData::accept(Visitor& visitor) const {
 }
 
 
-}
 }

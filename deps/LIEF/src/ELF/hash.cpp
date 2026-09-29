@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,8 +46,8 @@
 #include "LIEF/ELF/SymbolVersionRequirement.hpp"
 #include "LIEF/ELF/SysvHash.hpp"
 
-namespace LIEF {
-namespace ELF {
+
+namespace LIEF::ELF {
 
 Hash::~Hash() = default;
 
@@ -59,13 +59,13 @@ size_t Hash::hash(const Object& obj) {
 void Hash::visit(const Binary& binary) {
   process(binary.header());
 
-  process(std::begin(binary.sections()), std::end(binary.sections()));
-  process(std::begin(binary.segments()), std::end(binary.segments()));
-  process(std::begin(binary.dynamic_entries()), std::end(binary.dynamic_entries()));
-  process(std::begin(binary.dynamic_symbols()), std::end(binary.dynamic_symbols()));
-  process(std::begin(binary.symtab_symbols()), std::end(binary.symtab_symbols()));
-  process(std::begin(binary.relocations()), std::end(binary.relocations()));
-  process(std::begin(binary.notes()), std::end(binary.notes()));
+  process(binary.sections().begin(), binary.sections().end());
+  process(binary.segments().begin(), binary.segments().end());
+  process(binary.dynamic_entries().begin(), binary.dynamic_entries().end());
+  process(binary.dynamic_symbols().begin(), binary.dynamic_symbols().end());
+  process(binary.symtab_symbols().begin(), binary.symtab_symbols().end());
+  process(binary.relocations().begin(), binary.relocations().end());
+  process(binary.notes().begin(), binary.notes().end());
 
   if (binary.use_gnu_hash()) {
     process(*binary.gnu_hash());
@@ -78,7 +78,6 @@ void Hash::visit(const Binary& binary) {
   if (binary.has_interpreter()) {
     process(binary.interpreter());
   }
-
 }
 
 
@@ -197,7 +196,6 @@ void Hash::visit(const Relocation& relocation) {
   if (sym != nullptr) {
     process(*sym);
   }
-
 }
 
 void Hash::visit(const SymbolVersion& sv) {
@@ -210,7 +208,7 @@ void Hash::visit(const SymbolVersion& sv) {
 void Hash::visit(const SymbolVersionRequirement& svr) {
   process(svr.version());
   process(svr.name());
-  process(std::begin(svr.auxiliary_symbols()), std::end(svr.auxiliary_symbols()));
+  process(svr.auxiliary_symbols().begin(), svr.auxiliary_symbols().end());
 }
 
 void Hash::visit(const SymbolVersionDefinition& svd) {
@@ -292,7 +290,4 @@ void Hash::visit(const SysvHash& sysvhash) {
 }
 
 
-
-} // namespace ELF
-} // namespace LIEF
-
+} // namespace LIEF::ELF

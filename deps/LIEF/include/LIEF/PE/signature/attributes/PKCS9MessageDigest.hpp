@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 #ifndef LIEF_PE_ATTRIBUTES_PKCS9_MESSAGE_DIGEST_H
 #define LIEF_PE_ATTRIBUTES_PKCS9_MESSAGE_DIGEST_H
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/PE/signature/Attribute.hpp"
 #include "LIEF/span.hpp"
@@ -28,10 +29,12 @@ namespace PE {
 class Parser;
 class SignatureParser;
 
-/// Interface over the structure described by the OID ``1.2.840.113549.1.9.4`` (PKCS #9)
+/// Interface over the structure described by the OID ``1.2.840.113549.1.9.4``
+/// (PKCS #9)
 ///
 /// The internal structure is described in the
-/// [RFC #2985: PKCS #9 - Selected Object Classes and Attribute Types Version 2.0](https://tools.ietf.org/html/rfc2985)
+/// [RFC #2985: PKCS #9 - Selected Object Classes and Attribute Types
+/// Version 2.0](https://tools.ietf.org/html/rfc2985)
 ///
 /// ```text
 /// messageDigest ATTRIBUTE ::= {
@@ -52,8 +55,7 @@ class LIEF_API PKCS9MessageDigest : public Attribute {
   PKCS9MessageDigest() = delete;
   PKCS9MessageDigest(std::vector<uint8_t> digest) :
     Attribute(Attribute::TYPE::PKCS9_MESSAGE_DIGEST),
-    digest_{std::move(digest)}
-  {}
+    digest_{std::move(digest)} {}
 
   PKCS9MessageDigest(const PKCS9MessageDigest&) = default;
   PKCS9MessageDigest& operator=(const PKCS9MessageDigest&) = default;
@@ -63,7 +65,7 @@ class LIEF_API PKCS9MessageDigest : public Attribute {
   }
 
   /// Message digeset as a blob of bytes as described in the RFC
-  span<const uint8_t> digest() const {
+  span<const uint8_t> digest() const LIEF_LIFETIMEBOUND {
     return digest_;
   }
 

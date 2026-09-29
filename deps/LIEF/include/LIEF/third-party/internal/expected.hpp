@@ -17,8 +17,8 @@
 #define TL_EXPECTED_HPP
 
 #define TL_EXPECTED_VERSION_MAJOR 1
-#define TL_EXPECTED_VERSION_MINOR 2
-#define TL_EXPECTED_VERSION_PATCH 0
+#define TL_EXPECTED_VERSION_MINOR 3
+#define TL_EXPECTED_VERSION_PATCH 1
 
 #include <exception>
 #include <functional>
@@ -49,6 +49,12 @@
 #if (defined(__GNUC__) && __GNUC__ == 5 && __GNUC_MINOR__ <= 5 &&              \
      !defined(__clang__))
 #define TL_EXPECTED_GCC55
+#endif
+
+#ifdef _MSVC_LANG
+#define TL_CPLUSPLUS _MSVC_LANG
+#else
+#define TL_CPLUSPLUS __cplusplus
 #endif
 
 #if !defined(TL_ASSERT)
@@ -107,12 +113,6 @@ struct is_trivially_copy_constructible<std::vector<T, A>> : std::false_type {};
   std::is_trivially_copy_assignable<T>
 #define TL_EXPECTED_IS_TRIVIALLY_DESTRUCTIBLE(T)                               \
   std::is_trivially_destructible<T>
-#endif
-
-#ifdef _MSVC_LANG
-#define TL_CPLUSPLUS _MSVC_LANG
-#else
-#define TL_CPLUSPLUS __cplusplus
 #endif
 
 #if TL_CPLUSPLUS > 201103L
@@ -219,21 +219,13 @@ struct unexpect_t {
 };
 static constexpr unexpect_t unexpect{};
 
-namespace detail {
-template <typename E>
-[[noreturn]] TL_EXPECTED_11_CONSTEXPR void throw_exception(E &&e) {
 #ifdef TL_EXPECTED_EXCEPTIONS_ENABLED
-  throw std::forward<E>(e);
+#define TL_EXPECTED_THROW_EXCEPTION(e) throw((e));
 #else
-  (void)e;
-#ifdef _MSC_VER
-  __assume(0);
-#else
-  __builtin_unreachable();
+#define TL_EXPECTED_THROW_EXCEPTION(e) std::terminate();
 #endif
-#endif
-}
 
+namespace detail {
 #ifndef TL_TRAITS_MUTEX
 #define TL_TRAITS_MUTEX
 // C++14-style aliases for brevity
@@ -2024,28 +2016,28 @@ public:
             detail::enable_if_t<!std::is_void<U>::value> * = nullptr>
   TL_EXPECTED_11_CONSTEXPR const U &value() const & {
     if (!has_value())
-      detail::throw_exception(bad_expected_access<E>(err().value()));
+      TL_EXPECTED_THROW_EXCEPTION(bad_expected_access<E>(err().value()));
     return val();
   }
   template <class U = T,
             detail::enable_if_t<!std::is_void<U>::value> * = nullptr>
   TL_EXPECTED_11_CONSTEXPR U &value() & {
     if (!has_value())
-      detail::throw_exception(bad_expected_access<E>(err().value()));
+      TL_EXPECTED_THROW_EXCEPTION(bad_expected_access<E>(err().value()));
     return val();
   }
   template <class U = T,
             detail::enable_if_t<!std::is_void<U>::value> * = nullptr>
   TL_EXPECTED_11_CONSTEXPR const U &&value() const && {
     if (!has_value())
-      detail::throw_exception(bad_expected_access<E>(std::move(err()).value()));
+      TL_EXPECTED_THROW_EXCEPTION(bad_expected_access<E>(std::move(err()).value()));
     return std::move(val());
   }
   template <class U = T,
             detail::enable_if_t<!std::is_void<U>::value> * = nullptr>
   TL_EXPECTED_11_CONSTEXPR U &&value() && {
     if (!has_value())
-      detail::throw_exception(bad_expected_access<E>(std::move(err()).value()));
+      TL_EXPECTED_THROW_EXCEPTION(bad_expected_access<E>(std::move(err()).value()));
     return std::move(val());
   }
 

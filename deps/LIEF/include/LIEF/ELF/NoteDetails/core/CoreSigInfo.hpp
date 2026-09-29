@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,12 +33,13 @@ class LIEF_API CoreSigInfo : public Note {
     return std::unique_ptr<CoreSigInfo>(new CoreSigInfo(*this));
   }
 
-  /// Signal number of an error if it can't be resolved
+  /// Signal number or an error if it can't be resolved
   result<int32_t> signo() const;
-  /// Signal code of an error if it can't be resolved
+
+  /// Signal code or an error if it can't be resolved
   result<int32_t> sigcode() const;
 
-  /// Signal error number of an error if it can't be resolved
+  /// Signal error number or an error if it can't be resolved
   result<int32_t> sigerrno() const;
 
   void signo(uint32_t value);
@@ -54,15 +55,16 @@ class LIEF_API CoreSigInfo : public Note {
     return note->type() == Note::TYPE::CORE_SIGINFO;
   }
 
-  LIEF_API friend
-  std::ostream& operator<<(std::ostream& os, const CoreSigInfo& note) {
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const CoreSigInfo& note) {
     note.dump(os);
     return os;
   }
+
   protected:
   using Note::Note;
 };
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,11 @@
 #include "LIEF/DEX/File.hpp"
 
 #if defined(LIEF_JSON_SUPPORT)
-#include "visitors/json.hpp"
+  #include "visitors/json.hpp"
 #endif
 
-namespace LIEF {
-namespace VDEX {
+
+namespace LIEF::VDEX {
 
 File::~File() = default;
 File::File() = default;
@@ -75,9 +75,6 @@ void File::accept(Visitor& visitor) const {
 }
 
 
-
-
-
 std::ostream& operator<<(std::ostream& os, const File& vdex_file) {
   os << "Header" << '\n';
   os << "======" << '\n';
@@ -96,5 +93,4 @@ std::ostream& operator<<(std::ostream& os, const File& vdex_file) {
   return os;
 }
 
-} // Namespace VDEX
-} // Namespace LIEF
+} // namespace LIEF::VDEX

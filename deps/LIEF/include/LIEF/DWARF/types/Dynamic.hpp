@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,17 @@ namespace types {
 /// This class represents a `DW_TAG_dynamic_type`
 class LIEF_API Dynamic : public Type {
   public:
-  using Type::Type;
+  template<typename... Args,
+           typename = typename std::
+               enable_if<std::is_constructible<Type, Args&&...>::value>::type>
+  Dynamic(Args&&... args) :
+    Type(std::forward<Args>(args)...) {}
+
+  Dynamic(const Dynamic&) = delete;
+  Dynamic& operator=(const Dynamic&) = delete;
+
+  Dynamic(Dynamic&&) noexcept = default;
+  Dynamic& operator=(Dynamic&&) noexcept = default;
 
   static bool classof(const Type* type) {
     return type->kind() == Type::KIND::DYNAMIC;

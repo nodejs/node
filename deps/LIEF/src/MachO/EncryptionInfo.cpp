@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,15 +19,14 @@
 #include "LIEF/MachO/EncryptionInfo.hpp"
 #include "MachO/Structures.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 EncryptionInfo::EncryptionInfo(const details::encryption_info_command& cmd) :
   LoadCommand::LoadCommand{LoadCommand::TYPE(cmd.cmd), cmd.cmdsize},
   coff_{cmd.cryptoff},
   csize_{cmd.cryptsize},
-  cid_{cmd.cryptid}
-{}
+  cid_{cmd.cryptid} {}
 
 void EncryptionInfo::accept(Visitor& visitor) const {
   visitor.visit(*this);
@@ -35,11 +34,10 @@ void EncryptionInfo::accept(Visitor& visitor) const {
 
 std::ostream& EncryptionInfo::print(std::ostream& os) const {
   LoadCommand::print(os) << '\n';
-  os << fmt::format("crypt offset=0x{:06x}, crypt size=0x{:06x}, crypt id={}",
-                     crypt_offset(), crypt_size(), crypt_id());
+  os << fmt::format("crypt offset={:#08x}, crypt size={:#08x}, crypt id={}",
+                    crypt_offset(), crypt_size(), crypt_id());
   return os;
 }
 
 
-}
 }

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@
 
 #include "LIEF/PE/DelayImportEntry.hpp"
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 std::string DelayImportEntry::demangled_name() const {
   logging::needs_lief_extended();
@@ -37,8 +37,10 @@ std::string DelayImportEntry::demangled_name() const {
 }
 
 bool DelayImportEntry::is_ordinal() const {
-  // See: https://docs.microsoft.com/en-us/windows/desktop/debug/pe-format#the-idata-section
-  const uint64_t ORDINAL_MASK = type_ == PE_TYPE::PE32 ? 0x80000000 : 0x8000000000000000;
+  // See:
+  // https://docs.microsoft.com/en-us/windows/desktop/debug/pe-format#the-idata-section
+  const uint64_t ORDINAL_MASK =
+      type_ == PE_TYPE::PE32 ? 0x80000000 : 0x8000000000000000;
   bool ordinal_bit_is_set = static_cast<bool>(data_ & ORDINAL_MASK);
 
   // Check that bit 31 / 63 is set
@@ -55,12 +57,11 @@ void DelayImportEntry::accept(LIEF::Visitor& visitor) const {
 }
 
 std::ostream& operator<<(std::ostream& os, const DelayImportEntry& entry) {
-  os << fmt::format("0x{:08x} 0x{:04x} {}",
-                    entry.iat_value(), entry.hint(),
+  os << fmt::format("{:#010x} {:#06x} {}", entry.iat_value(), entry.hint(),
                     entry.is_ordinal() ? std::to_string(entry.ordinal()) :
                                          entry.name());
   return os;
 }
 
-} // namespace PE
-} // namepsace LIEF
+} // namespace LIEF::PE
+// namespace LIEF

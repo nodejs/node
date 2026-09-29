@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,65 @@
  */
 
 #include "LIEF/MachO/hash.hpp"
-#include "LIEF/MachO.hpp"
+#include "LIEF/MachO/Binary.hpp"
+#include "LIEF/MachO/BinaryParser.hpp"
+#include "LIEF/MachO/BindingInfo.hpp"
+#include "LIEF/MachO/BindingInfoIterator.hpp"
+#include "LIEF/MachO/BuildToolVersion.hpp"
+#include "LIEF/MachO/BuildVersion.hpp"
+#include "LIEF/MachO/Builder.hpp"
+#include "LIEF/MachO/ChainedBindingInfo.hpp"
+#include "LIEF/MachO/CodeSignature.hpp"
+#include "LIEF/MachO/CodeSignatureDir.hpp"
+#include "LIEF/MachO/DataCodeEntry.hpp"
+#include "LIEF/MachO/DataInCode.hpp"
+#include "LIEF/MachO/DyldBindingInfo.hpp"
+#include "LIEF/MachO/DyldChainedFixups.hpp"
+#include "LIEF/MachO/DyldChainedFixupsCreator.hpp"
+#include "LIEF/MachO/DyldEnvironment.hpp"
+#include "LIEF/MachO/DyldExportsTrie.hpp"
+#include "LIEF/MachO/DyldInfo.hpp"
+#include "LIEF/MachO/DylibCommand.hpp"
+#include "LIEF/MachO/DylinkerCommand.hpp"
+#include "LIEF/MachO/DynamicSymbolCommand.hpp"
+#include "LIEF/MachO/EncryptionInfo.hpp"
+#include "LIEF/MachO/ExportInfo.hpp"
+#include "LIEF/MachO/FatBinary.hpp"
+#include "LIEF/MachO/FilesetCommand.hpp"
+#include "LIEF/MachO/FunctionStarts.hpp"
+#include "LIEF/MachO/Header.hpp"
+#include "LIEF/MachO/LinkEdit.hpp"
+#include "LIEF/MachO/LinkerOptHint.hpp"
+#include "LIEF/MachO/LoadCommand.hpp"
+#include "LIEF/MachO/MainCommand.hpp"
+#include "LIEF/MachO/NoteCommand.hpp"
+#include "LIEF/MachO/Parser.hpp"
+#include "LIEF/MachO/RPathCommand.hpp"
+#include "LIEF/MachO/Relocation.hpp"
+#include "LIEF/MachO/RelocationDyld.hpp"
+#include "LIEF/MachO/RelocationFixup.hpp"
+#include "LIEF/MachO/RelocationObject.hpp"
+#include "LIEF/MachO/Routine.hpp"
+#include "LIEF/MachO/Section.hpp"
+#include "LIEF/MachO/SegmentCommand.hpp"
+#include "LIEF/MachO/SegmentSplitInfo.hpp"
+#include "LIEF/MachO/SourceVersion.hpp"
+#include "LIEF/MachO/Stub.hpp"
+#include "LIEF/MachO/SubFramework.hpp"
+#include "LIEF/MachO/Symbol.hpp"
+#include "LIEF/MachO/SymbolCommand.hpp"
+#include "LIEF/MachO/ThreadCommand.hpp"
+#include "LIEF/MachO/TwoLevelHints.hpp"
+#include "LIEF/MachO/UUIDCommand.hpp"
+#include "LIEF/MachO/UnknownCommand.hpp"
+#include "LIEF/MachO/VersionMin.hpp"
+#include "LIEF/MachO/hash.hpp"
+#include "LIEF/MachO/json.hpp"
+#include "LIEF/MachO/utils.hpp"
+
 #include "Object.tcc"
 
-namespace LIEF {
-namespace MachO {
+namespace LIEF::MachO {
 
 Hash::~Hash() = default;
 
@@ -29,8 +83,8 @@ size_t Hash::hash(const Object& obj) {
 
 void Hash::visit(const Binary& binary) {
   process(binary.header());
-  process(std::begin(binary.commands()), std::end(binary.commands()));
-  process(std::begin(binary.symbols()), std::end(binary.symbols()));
+  process(binary.commands().begin(), binary.commands().end());
+  process(binary.symbols().begin(), binary.symbols().end());
 }
 
 
@@ -79,7 +133,7 @@ void Hash::visit(const SegmentCommand& segment) {
   process(segment.numberof_sections());
   process(segment.flags());
   process(segment.content());
-  process(std::begin(segment.sections()), std::end(segment.sections()));
+  process(segment.sections().begin(), segment.sections().end());
 }
 
 void Hash::visit(const Section& section) {
@@ -95,7 +149,7 @@ void Hash::visit(const Section& section) {
   process(section.reserved2());
   process(section.reserved3());
   process(section.raw_flags());
-  process(std::begin(section.relocations()), std::end(section.relocations()));
+  process(section.relocations().begin(), section.relocations().end());
 }
 
 void Hash::visit(const MainCommand& maincmd) {
@@ -179,13 +233,13 @@ void Hash::visit(const Symbol& symbol) {
   process(symbol.numberof_sections());
   process(symbol.description());
 
-  //if (symbol.has_binding_info()) {
-  //  process(symbol.binding_info());
-  //}
+  // if (symbol.has_binding_info()) {
+  //   process(symbol.binding_info());
+  // }
 
-  //if (symbol.has_export_info()) {
-  //  process(symbol.export_info());
-  //}
+  // if (symbol.has_export_info()) {
+  //   process(symbol.export_info());
+  // }
 }
 
 void Hash::visit(const Relocation& relocation) {
@@ -268,7 +322,6 @@ void Hash::visit(const FunctionStarts& fs) {
   process(fs.data_offset());
   process(fs.data_size());
   process(fs.functions());
-
 }
 
 void Hash::visit(const CodeSignature& cs) {
@@ -281,7 +334,7 @@ void Hash::visit(const DataInCode& dic) {
   visit(*dic.as<LoadCommand>());
   process(dic.data_offset());
   process(dic.data_size());
-  process(std::begin(dic.entries()), std::end(dic.entries()));
+  process(dic.entries().begin(), dic.entries().end());
 }
 
 void Hash::visit(const DataCodeEntry& dce) {
@@ -336,7 +389,7 @@ void Hash::visit(const BuildVersion& e) {
   process(e.platform());
   process(e.minos());
   process(e.sdk());
-  process(std::begin(tools), std::end(tools));
+  process(tools.begin(), tools.end());
 }
 
 void Hash::visit(const BuildToolVersion& e) {
@@ -367,9 +420,4 @@ void Hash::visit(const LinkerOptHint& e) {
 }
 
 
-
-
-
-} // namespace MachO
-} // namespace LIEF
-
+} // namespace LIEF::MachO

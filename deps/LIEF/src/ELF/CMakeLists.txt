@@ -13,9 +13,12 @@ target_sources(LIB_LIEF PRIVATE
   DynamicEntryRpath.cpp
   DynamicEntryRunPath.cpp
   DynamicSharedObject.cpp
+  DynamicEntryAuxiliary.cpp
+  DynamicEntryFilter.cpp
   EnumToString.cpp
   GnuHash.cpp
   Header.cpp
+  elf_utils.cpp
   Layout.cpp
   Note.cpp
   Parser.cpp
@@ -35,7 +38,8 @@ target_sources(LIB_LIEF PRIVATE
   SysvHash.cpp
   hash.cpp
   utils.cpp
-  json_api.cpp)
+  json_api.cpp
+  layout_check.cpp)
 
 add_subdirectory(NoteDetails)
 add_subdirectory(DataHandler)

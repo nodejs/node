@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ class LIEF_API AArch64Feature : public NoteGnuProperty::Property {
     UNKNOWN = 0,
     BTI, ///< Support Branch Target Identification (BTI)
     PAC, ///< Support Pointer authentication (PAC)
+    GCS, ///< Guarded Control Stack
   };
 
   /// Return the list of the supported features
@@ -44,19 +45,17 @@ class LIEF_API AArch64Feature : public NoteGnuProperty::Property {
 
   static std::unique_ptr<AArch64Feature> create(BinaryStream& stream);
 
-  void dump(std::ostream &os) const override;
+  void dump(std::ostream& os) const override;
 
   ~AArch64Feature() override = default;
 
   protected:
   AArch64Feature() :
-    NoteGnuProperty::Property(NoteGnuProperty::Property::TYPE::AARCH64_FEATURES)
-  {}
+    NoteGnuProperty::Property(NoteGnuProperty::Property::TYPE::AARCH64_FEATURES) {}
 
   AArch64Feature(std::vector<FEATURE> features) :
     NoteGnuProperty::Property(NoteGnuProperty::Property::TYPE::AARCH64_FEATURES),
-    features_(std::move(features))
-  {}
+    features_(std::move(features)) {}
 
   std::vector<FEATURE> features_;
 };

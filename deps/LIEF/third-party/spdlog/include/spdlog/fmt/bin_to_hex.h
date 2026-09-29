@@ -9,13 +9,13 @@
 #include <spdlog/common.h>
 
 #if defined(__has_include)
-    #if __has_include(<version>)
-        #include <version>
-    #endif
+#if __has_include(<version>)
+#include <version>
+#endif
 #endif
 
 #if __cpp_lib_span >= 202002L
-    #include <span>
+#include <span>
 #endif
 
 //

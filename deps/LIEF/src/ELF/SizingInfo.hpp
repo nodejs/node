@@ -1,6 +1,6 @@
 
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,10 @@
  */
 #ifndef LIEF_ELF_SIZING_INFO_H
 #define LIEF_ELF_SIZING_INFO_H
-#include "LIEF/visibility.h"
 
 #include <cstdint>
 
-namespace LIEF {
-namespace ELF {
+namespace LIEF::ELF {
 struct sizing_info_t {
   uint64_t dynsym = 0;
   uint64_t dynstr = 0;
@@ -42,5 +40,5 @@ struct sizing_info_t {
   uint64_t preinit_array = 0;
 };
 }
-}
+
 #endif

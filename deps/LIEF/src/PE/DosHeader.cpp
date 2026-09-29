@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,14 @@
 #include "LIEF/Visitor.hpp"
 
 #include "LIEF/PE/DosHeader.hpp"
+#include "LIEF/PE/enums.hpp"
 #include "PE/Structures.hpp"
 
 #include "spdlog/fmt/fmt.h"
 #include "spdlog/fmt/ranges.h"
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 DosHeader::DosHeader(const details::pe_dos_header& header) :
   magic_{header.Magic},
@@ -41,8 +42,7 @@ DosHeader::DosHeader(const details::pe_dos_header& header) :
   overlay_number_{header.OverlayNumber},
   oem_id_{header.OEMid},
   oem_info_{header.OEMinfo},
-  addr_new_exe_header_{header.AddressOfNewExeHeader}
-{
+  addr_new_exe_header_{header.AddressOfNewExeHeader} {
   std::copy(std::begin(header.Reserved), std::end(header.Reserved),
             std::begin(reserved_));
 
@@ -69,27 +69,36 @@ DosHeader DosHeader::create(PE_TYPE type) {
 }
 
 std::ostream& operator<<(std::ostream& os, const DosHeader& entry) {
-  os << fmt::format("Magic:                       0x{:x}\n", entry.magic())
-     << fmt::format("Used bytes in last page:     0x{:x}\n", entry.used_bytes_in_last_page())
-     << fmt::format("File size in pages:          0x{:x}\n", entry.file_size_in_pages())
-     << fmt::format("Number of relocation:        0x{:x}\n", entry.numberof_relocation())
-     << fmt::format("Header size in paragraphs:   0x{:x}\n", entry.header_size_in_paragraphs())
-     << fmt::format("Min extra paragraphs:        0x{:x}\n", entry.minimum_extra_paragraphs())
-     << fmt::format("Max extra paragraphs:        0x{:x}\n", entry.maximum_extra_paragraphs())
-     << fmt::format("Initial relative SS:         0x{:x}\n", entry.initial_relative_ss())
-     << fmt::format("Initial SP:                  0x{:x}\n", entry.initial_sp())
-     << fmt::format("Checksum:                    0x{:x}\n", entry.checksum())
-     << fmt::format("Initial IP:                  0x{:x}\n", entry.initial_ip())
-     << fmt::format("Initial relative CS:         0x{:x}\n", entry.initial_relative_cs())
-     << fmt::format("Address of relocation table: 0x{:x}\n", entry.addressof_relocation_table())
-     << fmt::format("Overlay number:              0x{:x}\n", entry.overlay_number())
-     << fmt::format("OEM id:                      0x{:x}\n", entry.oem_id())
-     << fmt::format("OEM info:                    0x{:x}\n", entry.oem_info())
-     << fmt::format("Address of new exe-header:   0x{:x}\n", entry.addressof_new_exeheader())
+  os << fmt::format("Magic:                       {:#x}\n", entry.magic())
+     << fmt::format("Used bytes in last page:     {:#x}\n",
+                    entry.used_bytes_in_last_page())
+     << fmt::format("File size in pages:          {:#x}\n",
+                    entry.file_size_in_pages())
+     << fmt::format("Number of relocation:        {:#x}\n",
+                    entry.numberof_relocation())
+     << fmt::format("Header size in paragraphs:   {:#x}\n",
+                    entry.header_size_in_paragraphs())
+     << fmt::format("Min extra paragraphs:        {:#x}\n",
+                    entry.minimum_extra_paragraphs())
+     << fmt::format("Max extra paragraphs:        {:#x}\n",
+                    entry.maximum_extra_paragraphs())
+     << fmt::format("Initial relative SS:         {:#x}\n",
+                    entry.initial_relative_ss())
+     << fmt::format("Initial SP:                  {:#x}\n", entry.initial_sp())
+     << fmt::format("Checksum:                    {:#x}\n", entry.checksum())
+     << fmt::format("Initial IP:                  {:#x}\n", entry.initial_ip())
+     << fmt::format("Initial relative CS:         {:#x}\n",
+                    entry.initial_relative_cs())
+     << fmt::format("Address of relocation table: {:#x}\n",
+                    entry.addressof_relocation_table())
+     << fmt::format("Overlay number:              {:#x}\n", entry.overlay_number())
+     << fmt::format("OEM id:                      {:#x}\n", entry.oem_id())
+     << fmt::format("OEM info:                    {:#x}\n", entry.oem_info())
+     << fmt::format("Address of new exe-header:   {:#x}\n",
+                    entry.addressof_new_exeheader())
      << fmt::format("Reserved1:                   {}\n", entry.reserved())
      << fmt::format("Reserved2:                   {}\n", entry.reserved2());
   return os;
 }
 
-}
 }

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,36 +21,31 @@
 
 #include "frozen.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 DataCodeEntry::DataCodeEntry(const details::data_in_code_entry& entry) :
   offset_{entry.offset},
   length_{entry.length},
-  type_{static_cast<TYPES>(entry.kind)}
-{}
+  type_{static_cast<TYPES>(entry.kind)} {}
 
 void DataCodeEntry::accept(Visitor& visitor) const {
   visitor.visit(*this);
 }
 
 std::ostream& operator<<(std::ostream& os, const DataCodeEntry& entry) {
-  os << fmt::format("{}: offset=0x{:06x}, size=0x{:x}",
-                     to_string(entry.type()), entry.offset(), entry.length());
+  os << fmt::format("{}: offset={:#08x}, size={:#x}", to_string(entry.type()),
+                    entry.offset(), entry.length());
   return os;
 }
 
 const char* to_string(DataCodeEntry::TYPES e) {
-  #define ENTRY(X) std::pair(DataCodeEntry::TYPES::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(UNKNOWN),
-    ENTRY(DATA),
-    ENTRY(JUMP_TABLE_8),
-    ENTRY(JUMP_TABLE_16),
-    ENTRY(JUMP_TABLE_32),
-    ENTRY(ABS_JUMP_TABLE_32),
+#define ENTRY(X) std::pair(DataCodeEntry::TYPES::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(UNKNOWN),       ENTRY(DATA),          ENTRY(JUMP_TABLE_8),
+      ENTRY(JUMP_TABLE_16), ENTRY(JUMP_TABLE_32), ENTRY(ABS_JUMP_TABLE_32),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
@@ -58,5 +53,4 @@ const char* to_string(DataCodeEntry::TYPES e) {
   return "UNKNOWN";
 }
 
-}
 }

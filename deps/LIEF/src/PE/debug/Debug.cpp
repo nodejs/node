@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,22 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <sstream>
 #include "LIEF/Visitor.hpp"
 #include "LIEF/PE/debug/Debug.hpp"
 #include "LIEF/PE/Section.hpp"
 #include "PE/Structures.hpp"
 
 #include "frozen.hpp"
-#include "logging.hpp"
 #include "spdlog/fmt/fmt.h"
 #include "overflow_check.hpp"
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 span<uint8_t> Debug::get_payload(Section& section, uint32_t /*rva*/,
-                                 uint32_t offset, uint32_t size)
-{
+                                 uint32_t offset, uint32_t size) {
   span<uint8_t> content = section.writable_content();
   if (size == 0 || content.empty() || content.size() < size) {
     return {};
@@ -39,7 +38,8 @@ span<uint8_t> Debug::get_payload(Section& section, uint32_t /*rva*/,
     return {};
   }
 
-  if ((size_t)rel_offset >= content.size() || (rel_offset + size) > content.size()) {
+  if ((size_t)rel_offset >= content.size() || (rel_offset + size) > content.size())
+  {
     return {};
   }
 
@@ -64,8 +64,7 @@ Debug::Debug(const details::pe_debug& debug_s, Section* sec) :
   sizeof_data_{debug_s.SizeOfData},
   addressof_rawdata_{debug_s.AddressOfRawData},
   pointerto_rawdata_{debug_s.PointerToRawData},
-  section_{sec}
-{}
+  section_{sec} {}
 
 span<uint8_t> Debug::payload() {
   if (section_ == nullptr) {
@@ -79,42 +78,42 @@ void Debug::accept(Visitor& visitor) const {
 }
 
 std::string Debug::to_string() const {
-  using namespace fmt;
   std::ostringstream os;
-  os << format("Characteristics:     0x{:x}\n", characteristics())
-     << format("Timestamp:           0x{:x}\n", timestamp())
-     << format("Major/Minor version: {}.{}\n", major_version(), minor_version())
-     << format("Type:                {}\n", PE::to_string(type()))
-     << format("Size of data:        0x{:x}\n", sizeof_data())
-     << format("Address of rawdata:  0x{:x}\n", addressof_rawdata())
-     << format("Pointer to rawdata:  0x{:x}", pointerto_rawdata());
+  os << fmt::format("Characteristics:     {:#x}\n", characteristics())
+     << fmt::format("Timestamp:           {:#x}\n", timestamp())
+     << fmt::format("Major/Minor version: {}.{}\n", major_version(),
+                    minor_version())
+     << fmt::format("Type:                {}\n", PE::to_string(type()))
+     << fmt::format("Size of data:        {:#x}\n", sizeof_data())
+     << fmt::format("Address of rawdata:  {:#x}\n", addressof_rawdata())
+     << fmt::format("Pointer to rawdata:  {:#x}", pointerto_rawdata());
   return os.str();
 }
 
 const char* to_string(Debug::TYPES e) {
-  #define ENTRY(X) std::pair(Debug::TYPES::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(UNKNOWN),
-    ENTRY(COFF),
-    ENTRY(CODEVIEW),
-    ENTRY(FPO),
-    ENTRY(MISC),
-    ENTRY(EXCEPTION),
-    ENTRY(FIXUP),
-    ENTRY(OMAP_TO_SRC),
-    ENTRY(OMAP_FROM_SRC),
-    ENTRY(BORLAND),
-    ENTRY(RESERVED10),
-    ENTRY(CLSID),
-    ENTRY(VC_FEATURE),
-    ENTRY(POGO),
-    ENTRY(ILTCG),
-    ENTRY(MPX),
-    ENTRY(REPRO),
-    ENTRY(PDBCHECKSUM),
-    ENTRY(EX_DLLCHARACTERISTICS),
+#define ENTRY(X) std::pair(Debug::TYPES::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(UNKNOWN),
+      ENTRY(COFF),
+      ENTRY(CODEVIEW),
+      ENTRY(FPO),
+      ENTRY(MISC),
+      ENTRY(EXCEPTION),
+      ENTRY(FIXUP),
+      ENTRY(OMAP_TO_SRC),
+      ENTRY(OMAP_FROM_SRC),
+      ENTRY(BORLAND),
+      ENTRY(RESERVED10),
+      ENTRY(CLSID),
+      ENTRY(VC_FEATURE),
+      ENTRY(POGO),
+      ENTRY(ILTCG),
+      ENTRY(MPX),
+      ENTRY(REPRO),
+      ENTRY(PDBCHECKSUM),
+      ENTRY(EX_DLLCHARACTERISTICS),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (const auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
@@ -123,5 +122,3 @@ const char* to_string(Debug::TYPES e) {
 }
 
 }
-}
-

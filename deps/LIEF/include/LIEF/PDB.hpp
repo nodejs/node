@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef  LIEF_PDB_H
-#define  LIEF_PDB_H
+#ifndef LIEF_PDB_H
+#define LIEF_PDB_H
 #include <LIEF/PDB/CompilationUnit.hpp>
 #include <LIEF/PDB/Function.hpp>
 #include <LIEF/PDB/PublicSymbol.hpp>

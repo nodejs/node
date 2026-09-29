@@ -4,7 +4,7 @@
 #pragma once
 
 #ifndef SPDLOG_HEADER_ONLY
-    #include <spdlog/sinks/wincolor_sink.h>
+#include <spdlog/sinks/wincolor_sink.h>
 #endif
 
 #include <spdlog/details/windows_include.h>

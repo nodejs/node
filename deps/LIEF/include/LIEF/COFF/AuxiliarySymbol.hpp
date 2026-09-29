@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include <memory>
 #include <vector>
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/span.hpp"
 
@@ -32,14 +33,12 @@ class Symbol;
 /// Class that represents an auxiliary symbol.
 ///
 /// An auxiliary symbol has the same size as a regular LIEF::PE::Symbol (18
-/// bytes) but its content depends on the the parent symbol.
+/// bytes) but its content depends on the parent symbol.
 class LIEF_API AuxiliarySymbol {
   public:
   AuxiliarySymbol() = default;
   AuxiliarySymbol(std::vector<uint8_t> payload) :
-    type_(TYPE::UNKNOWN),
-    payload_(std::move(payload))
-  {}
+    payload_(std::move(payload)) {}
   AuxiliarySymbol(const AuxiliarySymbol&) = default;
   AuxiliarySymbol& operator=(const AuxiliarySymbol&) = default;
 
@@ -47,7 +46,7 @@ class LIEF_API AuxiliarySymbol {
   AuxiliarySymbol& operator=(AuxiliarySymbol&&) = default;
 
   LIEF_LOCAL static std::unique_ptr<AuxiliarySymbol>
-    parse(Symbol& sym, std::vector<uint8_t> payload);
+      parse(Symbol& sym, std::vector<uint8_t> payload);
 
   virtual std::unique_ptr<AuxiliarySymbol> clone() const {
     return std::unique_ptr<AuxiliarySymbol>(new AuxiliarySymbol(*this));
@@ -59,19 +58,22 @@ class LIEF_API AuxiliarySymbol {
     CLR_TOKEN,
     /// Auxiliary Format 1 from the PE-COFF documentation
     FUNC_DEF,
+
     /// Auxiliary Format 2: .bf and .ef Symbols from the PE-COFF documentation
     BF_AND_EF,
+
     /// Auxiliary Format 3: Weak Externals from the PE-COFF documentation
     WEAK_EXTERNAL,
+
     /// Auxiliary Format 4: Files from the PE-COFF documentation
     FILE,
+
     /// Auxiliary Format 5: Section Definitions from the PE-COFF documentation
     SEC_DEF,
   };
 
   AuxiliarySymbol(TYPE ty) :
-    type_(ty)
-  {}
+    type_(ty) {}
 
   static TYPE get_aux_type(const Symbol& sym);
 
@@ -80,11 +82,11 @@ class LIEF_API AuxiliarySymbol {
   }
 
   /// For unknown type **only**, return the raw representation of this symbol
-  span<const uint8_t> payload() const {
+  span<const uint8_t> payload() const LIEF_LIFETIMEBOUND {
     return payload_;
   }
 
-  span<uint8_t> payload() {
+  span<uint8_t> payload() LIEF_LIFETIMEBOUND {
     return payload_;
   }
 
@@ -92,7 +94,7 @@ class LIEF_API AuxiliarySymbol {
 
   virtual ~AuxiliarySymbol() = default;
 
-  /// Helper to **downcast** a AuxiliarySymbol into a concrete implementation
+  /// Helper to **downcast** an AuxiliarySymbol into a concrete implementation
   template<class T>
   const T* as() const {
     static_assert(std::is_base_of<AuxiliarySymbol, T>::value,
@@ -108,9 +110,8 @@ class LIEF_API AuxiliarySymbol {
     return const_cast<T*>(static_cast<const AuxiliarySymbol*>(this)->as<T>());
   }
 
-  LIEF_API friend
-    std::ostream& operator<<(std::ostream& os, const AuxiliarySymbol& aux)
-  {
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const AuxiliarySymbol& aux) {
     os << aux.to_string();
     return os;
   }

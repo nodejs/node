@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,24 +26,22 @@ namespace LIEF {
 namespace ELF {
 
 /// Class which represents a ``DT_RPATH`` entry. This attribute is
-/// deprecated (cf. ``man ld``) in favor of ``DT_RUNPATH`` (See DynamicEntryRunPath)
+/// deprecated (cf. ``man ld``) in favor of ``DT_RUNPATH`` (See
+/// DynamicEntryRunPath)
 class LIEF_API DynamicEntryRpath : public DynamicEntry {
   public:
   static constexpr char delimiter = ':';
   using DynamicEntry::DynamicEntry;
   DynamicEntryRpath() :
-    DynamicEntry::DynamicEntry(DynamicEntry::TAG::RPATH, 0)
-  {}
+    DynamicEntry::DynamicEntry(DynamicEntry::TAG::RPATH, 0) {}
 
   DynamicEntryRpath(std::string rpath) :
     DynamicEntry::DynamicEntry(DynamicEntry::TAG::RPATH, 0),
-    rpath_(std::move(rpath))
-  {}
+    rpath_(std::move(rpath)) {}
 
   /// Constructor from a list of paths
   DynamicEntryRpath(const std::vector<std::string>& paths) :
-    DynamicEntry::DynamicEntry(DynamicEntry::TAG::RPATH, 0)
-  {
+    DynamicEntry::DynamicEntry(DynamicEntry::TAG::RPATH, 0) {
     this->paths(paths);
   }
 
@@ -68,13 +66,14 @@ class LIEF_API DynamicEntryRpath : public DynamicEntry {
   void paths(const std::vector<std::string>& paths);
 
   /// Insert a ``path`` at the given ``position``
-  DynamicEntryRpath& insert(size_t pos, const std::string& path);
+  DynamicEntryRpath& insert(size_t pos,
+                            const std::string& path) LIEF_LIFETIMEBOUND;
 
   /// Append the given ``path``
-  DynamicEntryRpath& append(std::string path);
+  DynamicEntryRpath& append(std::string path) LIEF_LIFETIMEBOUND;
 
   /// Remove the given ``path``
-  DynamicEntryRpath& remove(const std::string& path);
+  DynamicEntryRpath& remove(const std::string& path) LIEF_LIFETIMEBOUND;
 
   DynamicEntryRpath& operator+=(std::string path) {
     return append(std::move(path));
@@ -92,7 +91,7 @@ class LIEF_API DynamicEntryRpath : public DynamicEntry {
 
   std::ostream& print(std::ostream& os) const override;
 
-  ~DynamicEntryRpath() = default;
+  ~DynamicEntryRpath() override = default;
 
   private:
   std::string rpath_;

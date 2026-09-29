@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,10 @@
 #include "LIEF/DEX/utils.hpp"
 #include "DEX/Structures.hpp"
 
-namespace LIEF {
-namespace DEX {
+#include "internal_utils.hpp"
+
+
+namespace LIEF::DEX {
 
 inline bool is_dex(BinaryStream& stream) {
   using magic_t = std::array<char, sizeof(details::magic)>;
@@ -34,7 +36,7 @@ inline bool is_dex(BinaryStream& stream) {
   return false;
 }
 
- dex_version_t version(BinaryStream& stream) {
+dex_version_t version(BinaryStream& stream) {
   using version_t = std::array<char, 4>;
   stream.setpos(0);
   if (!is_dex(stream)) {
@@ -43,16 +45,10 @@ inline bool is_dex(BinaryStream& stream) {
   stream.increment_pos(sizeof(details::magic));
   if (auto ver_res = stream.peek<version_t>()) {
     const auto version = *ver_res;
-    const bool are_digits = std::all_of(std::begin(version), std::end(version),
-        [] (char c) { return c == 0 || ::isdigit(c); });
-    if (!are_digits) {
-      return 0;
-    }
-    std::string version_str(std::begin(version), std::end(version));
-    return static_cast<dex_version_t>(std::stoul(version_str));
+    return static_cast<dex_version_t>(parse_android_version(version.data(),
+                                                            version.size()));
   }
   return 0;
-
 }
 
 bool is_dex(const std::string& file) {
@@ -84,5 +80,4 @@ dex_version_t version(const std::vector<uint8_t>& raw) {
 }
 
 
-}
 }

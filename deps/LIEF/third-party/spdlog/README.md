@@ -80,7 +80,7 @@ int main()
     spdlog::info("Positional args are {1} {0}..", "too", "supported");
     spdlog::info("{:<30}", "left aligned");
     
-    spdlog::set_level(spdlog::level::debug); // Set global log level to debug
+    spdlog::set_level(spdlog::level::debug); // Set *global* log level to debug
     spdlog::debug("This message should be displayed..");    
     
     // change log pattern
@@ -224,7 +224,7 @@ void binary_example()
 ```c++
 
 // create a logger with 2 targets, with different log levels and formats.
-// The console will show only warnings or errors, while the file will log all.
+// The console will show only warnings or errors, while the file will log all. 
 void multi_sink_example()
 {
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
@@ -238,6 +238,29 @@ void multi_sink_example()
     logger.set_level(spdlog::level::debug);
     logger.warn("this should appear in both console and file");
     logger.info("this message should not appear in the console, only in the file");
+}
+```
+
+---
+#### Register several loggers - change global level
+```c++
+
+// Creation of loggers. Set levels to all registered loggers. 
+void set_level_example()
+{
+    auto logger1 = spdlog::basic_logger_mt("logger1", "logs/logger1.txt");
+    auto logger2 = spdlog::basic_logger_mt("logger2", "logs/logger2.txt");
+
+    spdlog::set_default_logger(logger2);
+    spdlog::default_logger()->set_level(spdlog::level::trace); // set level for the default logger (logger2) to trace
+
+    spdlog::trace("trace message to the logger2 (specified as default)");
+
+    spdlog::set_level(spdlog::level::off) // (sic!) set level for *all* registered loggers to off (disable)
+  
+    logger1.warn("warn message will not appear because the level set to off");
+    logger2.warn("warn message will not appear because the level set to off");
+    spdlog::warn("warn message will not appear because the level set to off");
 }
 ```
 
@@ -524,6 +547,7 @@ Documentation can be found in the [wiki](https://github.com/gabime/spdlog/wiki) 
 
 ---
 
-Thanks to [JetBrains](https://www.jetbrains.com/?from=spdlog) for donating product licenses to help develop **spdlog** <a href="https://www.jetbrains.com/?from=spdlog"><img src="logos/jetbrains-variant-4.svg" width="94" align="center" /></a>
-
-
+### Powered by
+<a href="https://jb.gg/OpenSource">
+  <img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg" alt="JetBrains logo" width="200">
+</a>

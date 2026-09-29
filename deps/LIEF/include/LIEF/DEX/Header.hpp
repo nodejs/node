@@ -1,6 +1,6 @@
 
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ class LIEF_API Header : public Object {
   public:
   using location_t = std::pair<uint32_t, uint32_t>;
 
-  using magic_t     = std::array<uint8_t, 8>;
+  using magic_t = std::array<uint8_t, 8>;
   using signature_t = std::array<uint8_t, 20>;
 
   Header();
@@ -67,7 +67,7 @@ class LIEF_API Header : public Object {
   /// Size of this header. It should be 0x70
   uint32_t header_size() const;
 
-  /// File endianess of the file
+  /// File endianness of the file
   uint32_t endian_tag() const;
 
   /// Offset from the start of the file to the map list (see: DEX::MapList)
@@ -95,39 +95,39 @@ class LIEF_API Header : public Object {
   ~Header() override;
 
   private:
-  magic_t magic_;
-  uint32_t checksum_;
-  signature_t signature_;
-  uint32_t file_size_;
+  magic_t magic_{};
+  uint32_t checksum_ = 0;
+  signature_t signature_{};
+  uint32_t file_size_ = 0;
 
-  uint32_t header_size_;
-  uint32_t endian_tag_;
+  uint32_t header_size_ = 0;
+  uint32_t endian_tag_ = 0;
 
-  uint32_t link_size_;
-  uint32_t link_off_;
+  uint32_t link_size_ = 0;
+  uint32_t link_off_ = 0;
 
-  uint32_t map_off_;
+  uint32_t map_off_ = 0;
 
-  uint32_t string_ids_size_;
-  uint32_t string_ids_off_;
+  uint32_t string_ids_size_ = 0;
+  uint32_t string_ids_off_ = 0;
 
-  uint32_t type_ids_size_;
-  uint32_t type_ids_off_;
+  uint32_t type_ids_size_ = 0;
+  uint32_t type_ids_off_ = 0;
 
-  uint32_t proto_ids_size_;
-  uint32_t proto_ids_off_;
+  uint32_t proto_ids_size_ = 0;
+  uint32_t proto_ids_off_ = 0;
 
-  uint32_t field_ids_size_;
-  uint32_t field_ids_off_;
+  uint32_t field_ids_size_ = 0;
+  uint32_t field_ids_off_ = 0;
 
-  uint32_t method_ids_size_;
-  uint32_t method_ids_off_;
+  uint32_t method_ids_size_ = 0;
+  uint32_t method_ids_off_ = 0;
 
-  uint32_t class_defs_size_;
-  uint32_t class_defs_off_;
+  uint32_t class_defs_size_ = 0;
+  uint32_t class_defs_off_ = 0;
 
-  uint32_t data_size_;
-  uint32_t data_off_;
+  uint32_t data_size_ = 0;
+  uint32_t data_off_ = 0;
 };
 
 } // Namespace DEX

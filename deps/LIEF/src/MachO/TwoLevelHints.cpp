@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,13 @@
 #include "LIEF/MachO/TwoLevelHints.hpp"
 #include "MachO/Structures.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 TwoLevelHints::TwoLevelHints(const details::twolevel_hints_command& cmd) :
   LoadCommand::LoadCommand{LoadCommand::TYPE(cmd.cmd), cmd.cmdsize},
   offset_{cmd.offset},
-  original_nb_hints_{cmd.nhints}
-{}
+  original_nb_hints_{cmd.nhints} {}
 
 void TwoLevelHints::accept(Visitor& visitor) const {
   visitor.visit(*this);
@@ -37,5 +36,4 @@ std::ostream& TwoLevelHints::print(std::ostream& os) const {
 }
 
 
-}
 }

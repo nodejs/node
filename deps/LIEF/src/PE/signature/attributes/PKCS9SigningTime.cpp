@@ -1,5 +1,5 @@
-/* Copyright 2021 - 2025 R. Thomas
- * Copyright 2021 - 2025 Quarkslab
+/* Copyright 2021 - 2026 R. Thomas
+ * Copyright 2021 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 #include <spdlog/fmt/fmt.h>
 #include "LIEF/Visitor.hpp"
 #include "LIEF/PE/signature/attributes/PKCS9SigningTime.hpp"
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 void PKCS9SigningTime::accept(Visitor& visitor) const {
   visitor.visit(*this);
@@ -25,9 +25,8 @@ void PKCS9SigningTime::accept(Visitor& visitor) const {
 
 std::string PKCS9SigningTime::print() const {
   const time_t& time = this->time();
-  return fmt::format("{}/{}/{} - {}:{}:{}",
-                       time[0], time[1], time[2], time[3], time[4], time[5]);
+  return fmt::format("{}/{}/{} - {}:{}:{}", time[0], time[1], time[2], time[3],
+                     time[4], time[5]);
 }
 
-}
 }

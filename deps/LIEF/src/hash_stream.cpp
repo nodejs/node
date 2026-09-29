@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,70 +24,72 @@ inline mbedtls_md_context_t* cast(std::unique_ptr<intptr_t>& in) {
 }
 
 hashstream::hashstream(HASH type) :
-  ctx_{reinterpret_cast<intptr_t*>(new mbedtls_md_context_t{})}
-{
+  ctx_{reinterpret_cast<intptr_t*>(new mbedtls_md_context_t{})} {
   int ret = 0;
   mbedtls_md_init(cast(ctx_));
   switch (type) {
     case HASH::MD5:
-      {
-        const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_MD5);
-        ret = mbedtls_md_setup(cast(ctx_), info, 0);
-        this->output_.resize(mbedtls_md_get_size(info));
-        break;
-      }
+    {
+      const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_MD5);
+      ret = mbedtls_md_setup(cast(ctx_), info, 0);
+      this->output_.resize(mbedtls_md_get_size(info));
+      break;
+    }
 
     case HASH::SHA1:
-      {
-        const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
-        ret = mbedtls_md_setup(cast(ctx_), info, 0);
-        this->output_.resize(mbedtls_md_get_size(info));
-        break;
-      }
+    {
+      const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
+      ret = mbedtls_md_setup(cast(ctx_), info, 0);
+      this->output_.resize(mbedtls_md_get_size(info));
+      break;
+    }
 
     case HASH::SHA224:
-      {
-        const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA224);
-        ret = mbedtls_md_setup(cast(ctx_), info, 0);
-        this->output_.resize(mbedtls_md_get_size(info));
-        break;
-      }
+    {
+      const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA224);
+      ret = mbedtls_md_setup(cast(ctx_), info, 0);
+      this->output_.resize(mbedtls_md_get_size(info));
+      break;
+    }
 
     case HASH::SHA256:
-      {
-        const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-        ret = mbedtls_md_setup(cast(ctx_), info, 0);
-        this->output_.resize(mbedtls_md_get_size(info));
-        break;
-      }
+    {
+      const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+      ret = mbedtls_md_setup(cast(ctx_), info, 0);
+      this->output_.resize(mbedtls_md_get_size(info));
+      break;
+    }
 
     case HASH::SHA384:
-      {
-        const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA384);
-        ret = mbedtls_md_setup(cast(ctx_), info, 0);
-        this->output_.resize(mbedtls_md_get_size(info));
-        break;
-      }
+    {
+      const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA384);
+      ret = mbedtls_md_setup(cast(ctx_), info, 0);
+      this->output_.resize(mbedtls_md_get_size(info));
+      break;
+    }
 
 
     case HASH::SHA512:
-      {
-        const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA512);
-        ret = mbedtls_md_setup(cast(ctx_), info, 0);
-        this->output_.resize(mbedtls_md_get_size(info));
-        break;
-      }
+    {
+      const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA512);
+      ret = mbedtls_md_setup(cast(ctx_), info, 0);
+      this->output_.resize(mbedtls_md_get_size(info));
+      break;
+    }
   }
   mbedtls_md_starts(cast(this->ctx_));
   if (ret != 0) {
-    LIEF_WARN("Error while setting up hash function");
+    LIEF_WARN("Failed to set up hash function");
   }
 }
 
 hashstream& hashstream::write(const uint8_t* s, size_t n) {
   int ret = mbedtls_md_update(cast(this->ctx_), s, n);
   if (ret != 0) {
-    LIEF_WARN("mbedtls_md_update(0x{}, 0x{:x}) failed with retcode: 0x{:x}", reinterpret_cast<uintptr_t>(s), n, ret);
+    LIEF_WARN(
+        "Call to mbedtls_md_update(0x{}, {:#x}) failed with return code {:#x}",
+        reinterpret_cast<uintptr_t>(s), n, ret
+    );
   }
   return *this;
 }
@@ -95,7 +97,7 @@ hashstream& hashstream::write(const uint8_t* s, size_t n) {
 hashstream& hashstream::flush() {
   int ret = mbedtls_md_finish(cast(this->ctx_), this->output_.data());
   if (ret != 0) {
-    LIEF_WARN("mbedtls_md_finish() failed with retcode: 0x{:x}", ret);
+    LIEF_WARN("Call to mbedtls_md_finish() failed with return code {:#x}", ret);
   }
   return *this;
 }
@@ -107,4 +109,3 @@ hashstream::~hashstream() {
 
 
 }
-

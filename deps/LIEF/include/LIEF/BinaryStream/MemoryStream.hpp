@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,8 +35,7 @@ class LIEF_API MemoryStream : public BinaryStream {
   MemoryStream(uintptr_t base_address, uint64_t size) :
     BinaryStream(BinaryStream::STREAM_TYPE::MEMORY),
     baseaddr_(base_address),
-    size_(size)
-  {}
+    size_(size) {}
 
   MemoryStream(const MemoryStream&) = delete;
   MemoryStream& operator=(const MemoryStream&) = delete;
@@ -45,7 +44,7 @@ class LIEF_API MemoryStream : public BinaryStream {
   MemoryStream& operator=(MemoryStream&&) noexcept = default;
 
   uintptr_t base_address() const {
-    return this->baseaddr_;
+    return baseaddr_;
   }
 
   const uint8_t* p() const override {
@@ -60,16 +59,17 @@ class LIEF_API MemoryStream : public BinaryStream {
     return start() + size_;
   }
 
-  void binary(Binary& bin) {
-    this->binary_ = &bin;
-  }
-
   Binary* binary() {
-    return this->binary_;
+    return binary_;
   }
 
   uint64_t size() const override {
     return size_;
+  }
+
+  bool bind_binary(Binary& bin) override {
+    binary_ = &bin;
+    return true;
   }
 
   ~MemoryStream() override = default;
@@ -79,7 +79,8 @@ class LIEF_API MemoryStream : public BinaryStream {
   }
 
   protected:
-  result<const void*> read_at(uint64_t offset, uint64_t size, uint64_t va) const override;
+  result<const void*> read_at(uint64_t offset, uint64_t size,
+                              uint64_t va) const override;
   uintptr_t baseaddr_ = 0;
   uint64_t size_ = 0;
   Binary* binary_ = nullptr;

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,7 @@ class FatBinary;
 class FunctionStarts;
 class FunctionVariants;
 class FunctionVariantFixups;
+class LazyLoadDylibInfo;
 class LinkerOptHint;
 class LoadCommand;
 class MainCommand;
@@ -70,26 +71,40 @@ class LIEF_API Builder {
   Builder() = delete;
 
   static ok_error_t write(Binary& binary, const std::string& filename);
-  static ok_error_t write(Binary& binary, const std::string& filename, config_t config);
+  static ok_error_t write(Binary& binary, const std::string& filename,
+                          config_t config);
 
   static ok_error_t write(Binary& binary, std::vector<uint8_t>& out);
-  static ok_error_t write(Binary& binary, std::vector<uint8_t>& out, config_t config);
+  static ok_error_t write(Binary& binary, std::vector<uint8_t>& out,
+                          config_t config);
 
   static ok_error_t write(Binary& binary, std::ostream& out);
   static ok_error_t write(Binary& binary, std::ostream& out, config_t config);
 
   static ok_error_t write(FatBinary& fat, const std::string& filename);
-  static ok_error_t write(FatBinary& fat, const std::string& filename, config_t config);
+  static ok_error_t write(FatBinary& fat, const std::string& filename,
+                          config_t config);
 
   static ok_error_t write(FatBinary& fat, std::vector<uint8_t>& out);
-  static ok_error_t write(FatBinary& fat, std::vector<uint8_t>& out, config_t config);
+  static ok_error_t write(FatBinary& fat, std::vector<uint8_t>& out,
+                          config_t config);
 
   static ok_error_t write(FatBinary& fat, std::ostream& out);
   static ok_error_t write(FatBinary& fat, std::ostream& out, config_t config);
 
   ~Builder();
+
   private:
   LIEF_LOCAL ok_error_t build();
+
+  LIEF_LOCAL bool should_swap() const;
+
+  template<class T>
+  LIEF_LOCAL void swap_endian_if_needed(T& s) const {
+    if (should_swap()) {
+      LIEF::swap_endian(&s);
+    }
+  }
 
   LIEF_LOCAL const std::vector<uint8_t>& get_build();
   LIEF_LOCAL ok_error_t write(const std::string& filename) const;
@@ -98,8 +113,10 @@ class LIEF_API Builder {
   LIEF_LOCAL Builder(Binary& binary, config_t config);
   LIEF_LOCAL Builder(std::vector<Binary*> binaries, config_t config);
 
-  LIEF_LOCAL static std::vector<uint8_t> build_raw(Binary& binary, config_t config);
-  LIEF_LOCAL static std::vector<uint8_t> build_raw(FatBinary& binary, config_t config);
+  LIEF_LOCAL static std::vector<uint8_t> build_raw(Binary& binary,
+                                                   config_t config);
+  LIEF_LOCAL static std::vector<uint8_t> build_raw(FatBinary& binary,
+                                                   config_t config);
 
   template<class T>
   LIEF_LOCAL static size_t get_cmd_size(const LoadCommand& cmd);
@@ -201,18 +218,21 @@ class LIEF_API Builder {
   template<class T>
   LIEF_LOCAL ok_error_t build(FunctionVariantFixups& func);
 
-  template <typename T>
+  template<class T>
+  LIEF_LOCAL ok_error_t build(LazyLoadDylibInfo& cmd);
+
+  template<typename T>
   LIEF_LOCAL ok_error_t build_segments();
 
   template<class T>
   LIEF_LOCAL ok_error_t build(BuildVersion& bv);
 
-  template <typename T>
+  template<typename T>
   LIEF_LOCAL ok_error_t build_symbols();
 
   LIEF_LOCAL ok_error_t build_uuid();
 
-  template <typename T>
+  template<typename T>
   LIEF_LOCAL ok_error_t update_fixups(DyldChainedFixups& fixups);
 
   std::vector<Binary*> binaries_;

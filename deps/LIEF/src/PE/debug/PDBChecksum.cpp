@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,9 +31,9 @@ HASH_ALGO from_string(const std::string& str) {
   return HASH_ALGO::UNKNOWN;
 }
 
-std::unique_ptr<PDBChecksum> PDBChecksum::parse(
-  const details::pe_debug& hdr, Section* section, span<uint8_t> payload
-) {
+std::unique_ptr<PDBChecksum> PDBChecksum::parse(const details::pe_debug& hdr,
+                                                Section* section,
+                                                span<uint8_t> payload) {
   SpanStream strm(payload);
   auto algo_name = strm.read_string();
   if (!algo_name) {
@@ -54,12 +54,11 @@ std::unique_ptr<PDBChecksum> PDBChecksum::parse(
 }
 
 std::string PDBChecksum::to_string() const {
-  using namespace fmt;
   std::ostringstream os;
   os << Debug::to_string() << '\n'
      << "PDB Checksum:\n"
-     << format("  Algorithm: {}\n", PE::to_string(algorithm()))
-     << format("  Hash: {}", to_hex(hash(), 30));
+     << fmt::format("  Algorithm: {}\n", PE::to_string(algorithm()))
+     << fmt::format("  Hash: {}", to_hex(hash(), 30));
 
   return os.str();
 }
@@ -67,11 +66,9 @@ std::string PDBChecksum::to_string() const {
 const char* to_string(PDBChecksum::HASH_ALGO e) {
   switch (e) {
     case HASH_ALGO::UNKNOWN:
-    default:
-      return "UNKNOWN";
+    default: return "UNKNOWN";
 
-    case HASH_ALGO::SHA256:
-      return "SHA256";
+    case HASH_ALGO::SHA256: return "SHA256";
   }
   return "UNKNOWN";
 }

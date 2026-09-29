@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,8 +49,8 @@ class LIEF_API ResourceNode : public Object {
   friend class Builder;
 
   public:
-  using childs_t        = std::vector<std::unique_ptr<ResourceNode>>;
-  using it_childs       = ref_iterator<childs_t&, ResourceNode*>;
+  using childs_t = std::vector<std::unique_ptr<ResourceNode>>;
+  using it_childs = ref_iterator<childs_t&, ResourceNode*>;
   using it_const_childs = const_ref_iterator<const childs_t&, ResourceNode*>;
 
   /// Enum that identifies the type of a node in the resource tree
@@ -73,7 +73,7 @@ class LIEF_API ResourceNode : public Object {
   /// Parse the resource tree from the provided BinaryStream stream and
   /// with the original RVA provided in the second parameter.
   ///
-  /// The RVA value should be come from the DataDirectory::RVA associated with
+  /// The RVA value should come from the DataDirectory::RVA associated with
   /// the resource tree.
   static std::unique_ptr<ResourceNode> parse(BinaryStream& stream, uint64_t rva);
 
@@ -85,20 +85,18 @@ class LIEF_API ResourceNode : public Object {
 
   /// See doc from other parse functions
   static std::unique_ptr<ResourceNode> parse(const std::vector<uint8_t>& buffer,
-                                             uint64_t rva)
-  {
+                                             uint64_t rva) {
     return parse(buffer.data(), buffer.size(), rva);
   }
 
   /// See doc from other parse functions
   static std::unique_ptr<ResourceNode> parse(span<const uint8_t> buffer,
-                                             uint64_t rva)
-  {
+                                             uint64_t rva) {
     return parse(buffer.data(), buffer.size(), rva);
   }
 
-  static std::unique_ptr<ResourceNode>
-    parse(BinaryStream& stream, const Binary& bin);
+  static std::unique_ptr<ResourceNode> parse(BinaryStream& stream,
+                                             const Binary& bin);
 
   virtual std::unique_ptr<ResourceNode> clone() const = 0;
 
@@ -109,7 +107,7 @@ class LIEF_API ResourceNode : public Object {
   }
 
   /// Name of the entry (if any)
-  const std::u16string& name() const {
+  const std::u16string& name() const LIEF_LIFETIMEBOUND {
     return name_;
   }
 
@@ -117,11 +115,11 @@ class LIEF_API ResourceNode : public Object {
   std::string utf8_name() const;
 
   /// Iterator on node's children
-  it_childs childs() {
+  it_childs childs() LIEF_LIFETIMEBOUND {
     return childs_;
   }
 
-  it_const_childs childs() const {
+  it_const_childs childs() const LIEF_LIFETIMEBOUND {
     return childs_;
   }
 
@@ -169,10 +167,10 @@ class LIEF_API ResourceNode : public Object {
 
   /// Add a new child to the current node, taking the ownership
   /// of the provided `unique_ptr`
-  ResourceNode& add_child(std::unique_ptr<ResourceNode> child);
+  ResourceNode& add_child(std::unique_ptr<ResourceNode> child) LIEF_LIFETIMEBOUND;
 
   /// Add a new child to the current node
-  ResourceNode& add_child(const ResourceNode& child) {
+  ResourceNode& add_child(const ResourceNode& child) LIEF_LIFETIMEBOUND {
     return add_child(child.clone());
   }
 
@@ -186,7 +184,8 @@ class LIEF_API ResourceNode : public Object {
 
   template<class T>
   const T* cast() const {
-    static_assert(std::is_base_of<ResourceNode, T>::value, "Require inheritance relationship");
+    static_assert(std::is_base_of<ResourceNode, T>::value,
+                  "Require inheritance relationship");
     if (T::classof(this)) {
       return static_cast<const T*>(this);
     }
@@ -198,7 +197,8 @@ class LIEF_API ResourceNode : public Object {
     return const_cast<T*>(static_cast<const ResourceNode*>(this)->cast<T>());
   }
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const ResourceNode& node);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const ResourceNode& node);
 
   std::string to_string() const {
     std::ostringstream oss;
@@ -206,19 +206,21 @@ class LIEF_API ResourceNode : public Object {
     return oss.str();
   }
 
-  /// Access the children at the given index in a safety way.
+  /// Access the children at the given index in a safe way.
   ///
-  /// \warning For internal use only
+  /// @warning For internal use only
   ///
-  /// \private
-  LIEF_LOCAL const ResourceNode& safe_get_at(size_t idx) const;
+  /// @private
+  LIEF_LOCAL const ResourceNode& safe_get_at(size_t idx) const LIEF_LIFETIMEBOUND;
 
-  /// \private
-  LIEF_LOCAL ResourceNode& safe_get_at(size_t idx) {
-    return const_cast<ResourceNode&>(static_cast<const ResourceNode*>(this)->safe_get_at(idx));
+  /// @private
+  LIEF_LOCAL ResourceNode& safe_get_at(size_t idx) LIEF_LIFETIMEBOUND {
+    return const_cast<ResourceNode&>(
+        static_cast<const ResourceNode*>(this)->safe_get_at(idx)
+    );
   }
 
-  /// \private
+  /// @private
   LIEF_LOCAL void set_depth(uint32_t depth) {
     depth_ = depth;
   }
@@ -227,21 +229,23 @@ class LIEF_API ResourceNode : public Object {
     childs_.push_back(std::move(node));
   }
 
-  LIEF_API friend bool operator==(const ResourceNode& LHS, const ResourceNode& RHS);
+  LIEF_API friend bool operator==(const ResourceNode& LHS,
+                                  const ResourceNode& RHS);
 
-  LIEF_API friend bool operator!=(const ResourceNode& LHS, const ResourceNode& RHS) {
+  LIEF_API friend bool operator!=(const ResourceNode& LHS,
+                                  const ResourceNode& RHS) {
     return !(LHS == RHS);
   }
 
   protected:
   ResourceNode() = default;
   ResourceNode(TYPE type) :
-    type_(type)
-  {}
+    type_(type) {}
 
   std::unique_ptr<ResourceNode> parse_resource_node(
       const details::pe_resource_directory_table& directory_table,
-      uint32_t base_offset, uint32_t current_offset, uint32_t depth = 0);
+      uint32_t base_offset, uint32_t current_offset, uint32_t depth = 0
+  );
 
   childs_t::iterator insert_child(std::unique_ptr<ResourceNode> child);
 
@@ -253,4 +257,4 @@ class LIEF_API ResourceNode : public Object {
 };
 }
 }
-#endif /* RESOURCENODE_H */
+#endif

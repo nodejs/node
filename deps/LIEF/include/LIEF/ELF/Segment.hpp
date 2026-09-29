@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include <memory>
 
 #include "LIEF/Object.hpp"
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/errors.hpp"
 #include "LIEF/iterators.hpp"
@@ -53,78 +54,80 @@ class LIEF_API Segment : public Object {
   friend class Builder;
 
   public:
-  using sections_t        = std::vector<Section*>;
-  using it_sections       = ref_iterator<sections_t&>;
+  using sections_t = std::vector<Section*>;
+  using it_sections = ref_iterator<sections_t&>;
   using it_const_sections = const_ref_iterator<const sections_t&>;
 
+  // clang-format off
   static constexpr uint64_t PT_BIT = 33;
   static constexpr uint64_t PT_OS_BIT = 53;
   static constexpr uint64_t PT_MASK = (uint64_t(1) << PT_BIT) - 1;
 
-  static constexpr uint64_t PT_ARM      = uint64_t(1) << PT_BIT;
-  static constexpr uint64_t PT_AARCH64  = uint64_t(2) << PT_BIT;
-  static constexpr uint64_t PT_MIPS     = uint64_t(3) << PT_BIT;
-  static constexpr uint64_t PT_RISCV    = uint64_t(4) << PT_BIT;
-  static constexpr uint64_t PT_IA_64    = uint64_t(5) << PT_BIT;
+  static constexpr uint64_t PT_ARM     = uint64_t(1) << PT_BIT;
+  static constexpr uint64_t PT_AARCH64 = uint64_t(2) << PT_BIT;
+  static constexpr uint64_t PT_MIPS    = uint64_t(3) << PT_BIT;
+  static constexpr uint64_t PT_RISCV   = uint64_t(4) << PT_BIT;
+  static constexpr uint64_t PT_IA_64   = uint64_t(5) << PT_BIT;
 
-  static constexpr uint64_t PT_HPUX     = uint64_t(1) << PT_OS_BIT;
+  static constexpr uint64_t PT_HPUX = uint64_t(1) << PT_OS_BIT;
 
   enum class TYPE : uint64_t {
-    UNKNOWN       = uint64_t(-1),
-    PT_NULL_      = 0, /**< Unused segment. */
-    LOAD          = 1, /**< Loadable segment. */
-    DYNAMIC       = 2, /**< Dynamic linking information. */
-    INTERP        = 3, /**< Interpreter pathname. */
-    NOTE          = 4, /**< Auxiliary information. */
-    SHLIB         = 5, /**< Reserved. */
-    PHDR          = 6, /**< The program header table itself. */
-    TLS           = 7, /**< The thread-local storage template. */
+    UNKNOWN = uint64_t(-1),
+    PT_NULL_ = 0, /**< Unused segment. */
+    LOAD = 1,     /**< Loadable segment. */
+    DYNAMIC = 2,  /**< Dynamic linking information. */
+    INTERP = 3,   /**< Interpreter pathname. */
+    NOTE = 4,     /**< Auxiliary information. */
+    SHLIB = 5,    /**< Reserved. */
+    PHDR = 6,     /**< The program header table itself. */
+    TLS = 7,      /**< The thread-local storage template. */
 
-    GNU_EH_FRAME  = 0x6474e550,
+    GNU_EH_FRAME = 0x6474e550,
 
-    GNU_STACK     = 0x6474e551, /**< Indicates stack executability. */
-    GNU_PROPERTY  = 0x6474e553, /**< GNU property */
-    GNU_RELRO     = 0x6474e552, /**< Read-only after relocation. */
-    PAX_FLAGS     = 0x65041580,
+    GNU_STACK    = 0x6474e551, /**< Indicates stack executability. */
+    GNU_PROPERTY = 0x6474e553, /**< GNU property */
+    GNU_RELRO    = 0x6474e552,    /**< Read-only after relocation. */
+    PAX_FLAGS    = 0x65041580,
 
-    ARM_ARCHEXT   = 0x70000000 | PT_ARM, /**< Platform architecture compatibility info */
-    ARM_EXIDX     = 0x70000001 | PT_ARM,
+    ARM_ARCHEXT = 0x70000000 | PT_ARM, /**< Platform architecture compatibility info */
+    ARM_EXIDX   = 0x70000001 | PT_ARM,
 
     AARCH64_MEMTAG_MTE = 0x70000002 | PT_AARCH64,
 
-    MIPS_REGINFO  = 0x70000000 | PT_MIPS,  /**< Register usage information. */
-    MIPS_RTPROC   = 0x70000001 | PT_MIPS,  /**< Runtime procedure table. */
-    MIPS_OPTIONS  = 0x70000002 | PT_MIPS,  /**< Options segment. */
-    MIPS_ABIFLAGS = 0x70000003 | PT_MIPS,  /**< Abiflags segment. */
+    MIPS_REGINFO  = 0x70000000 | PT_MIPS, /**< Register usage information. */
+    MIPS_RTPROC   = 0x70000001 | PT_MIPS, /**< Runtime procedure table. */
+    MIPS_OPTIONS  = 0x70000002 | PT_MIPS, /**< Options segment. */
+    MIPS_ABIFLAGS = 0x70000003 | PT_MIPS, /**< Abiflags segment. */
 
     RISCV_ATTRIBUTES = 0x70000003 | PT_RISCV,
 
-    IA_64_EXT         = (0x70000000 + 0x0) | PT_IA_64,
-    IA_64_UNWIND      = (0x70000000 + 0x1) | PT_IA_64,
+    IA_64_EXT    = (0x70000000 + 0x0) | PT_IA_64,
+    IA_64_UNWIND = (0x70000000 + 0x1) | PT_IA_64,
 
-    HP_TLS            = (0x60000000 + 0x0)  | PT_HPUX,
-    HP_CORE_NONE      = (0x60000000 + 0x1)  | PT_HPUX,
-    HP_CORE_VERSION   = (0x60000000 + 0x2)  | PT_HPUX,
-    HP_CORE_KERNEL    = (0x60000000 + 0x3)  | PT_HPUX,
-    HP_CORE_COMM      = (0x60000000 + 0x4)  | PT_HPUX,
-    HP_CORE_PROC      = (0x60000000 + 0x5)  | PT_HPUX,
-    HP_CORE_LOADABLE  = (0x60000000 + 0x6)  | PT_HPUX,
-    HP_CORE_STACK     = (0x60000000 + 0x7)  | PT_HPUX,
-    HP_CORE_SHM       = (0x60000000 + 0x8)  | PT_HPUX,
-    HP_CORE_MMF       = (0x60000000 + 0x9)  | PT_HPUX,
-    HP_PARALLEL       = (0x60000000 + 0x10) | PT_HPUX,
-    HP_FASTBIND       = (0x60000000 + 0x11) | PT_HPUX,
-    HP_OPT_ANNOT      = (0x60000000 + 0x12) | PT_HPUX,
-    HP_HSL_ANNOT      = (0x60000000 + 0x13) | PT_HPUX,
-    HP_STACK          = (0x60000000 + 0x14) | PT_HPUX,
-    HP_CORE_UTSNAME   = (0x60000000 + 0x15) | PT_HPUX,
+    HP_TLS           = (0x60000000 + 0x00) | PT_HPUX,
+    HP_CORE_NONE     = (0x60000000 + 0x01) | PT_HPUX,
+    HP_CORE_VERSION  = (0x60000000 + 0x02) | PT_HPUX,
+    HP_CORE_KERNEL   = (0x60000000 + 0x03) | PT_HPUX,
+    HP_CORE_COMM     = (0x60000000 + 0x04) | PT_HPUX,
+    HP_CORE_PROC     = (0x60000000 + 0x05) | PT_HPUX,
+    HP_CORE_LOADABLE = (0x60000000 + 0x06) | PT_HPUX,
+    HP_CORE_STACK    = (0x60000000 + 0x07) | PT_HPUX,
+    HP_CORE_SHM      = (0x60000000 + 0x08) | PT_HPUX,
+    HP_CORE_MMF      = (0x60000000 + 0x09) | PT_HPUX,
+    HP_PARALLEL      = (0x60000000 + 0x10) | PT_HPUX,
+    HP_FASTBIND      = (0x60000000 + 0x11) | PT_HPUX,
+    HP_OPT_ANNOT     = (0x60000000 + 0x12) | PT_HPUX,
+    HP_HSL_ANNOT     = (0x60000000 + 0x13) | PT_HPUX,
+    HP_STACK         = (0x60000000 + 0x14) | PT_HPUX,
+    HP_CORE_UTSNAME  = (0x60000000 + 0x15) | PT_HPUX,
   };
+  // clang-format on
 
   enum class FLAGS {
     NONE = 0,
-    X    = 1,
-    W    = 2,
-    R    = 4,
+    X = 1,
+    W = 2,
+    R = 4,
   };
 
   static TYPE type_from(uint64_t value, ARCH arch, Header::OS_ABI os);
@@ -208,7 +211,7 @@ class LIEF_API Segment : public Object {
   }
 
   /// The raw data associated with this segment.
-  span<const uint8_t> content() const;
+  span<const uint8_t> content() const LIEF_LIFETIMEBOUND;
 
   /// Check if the current segment has the given flag
   bool has(FLAGS flag) const {
@@ -272,18 +275,22 @@ class LIEF_API Segment : public Object {
   }
 
   /// Clear the content of this segment
-  void clear() { fill('\0'); }
+  void clear() {
+    fill('\0');
+  }
 
-  template<typename T> T get_content_value(size_t offset) const;
-  template<typename T> void set_content_value(size_t offset, T value);
+  template<typename T>
+  T get_content_value(size_t offset) const;
+  template<typename T>
+  void set_content_value(size_t offset, T value);
   size_t get_content_size() const;
 
   /// Iterator over the sections wrapped by this segment
-  it_sections sections() {
+  it_sections sections() LIEF_LIFETIMEBOUND {
     return sections_;
   }
 
-  it_const_sections sections() const {
+  it_const_sections sections() const LIEF_LIFETIMEBOUND {
     return sections_;
   }
 
@@ -301,7 +308,8 @@ class LIEF_API Segment : public Object {
     return *this;
   }
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const Segment& segment);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const Segment& segment);
 
   private:
   template<class T>
@@ -309,7 +317,7 @@ class LIEF_API Segment : public Object {
                      Header::OS_ABI os = Header::OS_ABI::SYSTEMV);
 
   LIEF_LOCAL uint64_t handler_size() const;
-  span<uint8_t> writable_content();
+  span<uint8_t> writable_content() LIEF_LIFETIMEBOUND;
 
   TYPE type_ = TYPE::PT_NULL_;
   ARCH arch_ = ARCH::NONE;
@@ -323,7 +331,7 @@ class LIEF_API Segment : public Object {
   uint64_t handler_size_ = 0;
   sections_t sections_;
   DataHandler::Handler* datahandler_ = nullptr;
-  std::vector<uint8_t>  content_c_;
+  std::vector<uint8_t> content_c_;
 };
 
 LIEF_API const char* to_string(Segment::TYPE e);
@@ -334,4 +342,4 @@ LIEF_API const char* to_string(Segment::FLAGS e);
 
 ENABLE_BITMASK_OPERATORS(LIEF::ELF::Segment::FLAGS);
 
-#endif /* _ELF_SEGMENT_H */
+#endif

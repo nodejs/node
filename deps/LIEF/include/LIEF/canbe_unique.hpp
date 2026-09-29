@@ -1,4 +1,4 @@
-/* Copyright 2024 - 2025 R. Thomas
+/* Copyright 2024 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,18 +45,15 @@ class canbe_unique {
 
   canbe_unique(T& ptr) :
     ptr_(&ptr),
-    owned_(false)
-  {}
+    owned_(false) {}
 
   canbe_unique(const T& ptr) :
     ptr_(const_cast<T*>(&ptr)),
-    owned_(false)
-  {}
+    owned_(false) {}
 
   canbe_unique(std::unique_ptr<T> unique_ptr) :
     ptr_(unique_ptr.release()),
-    owned_(true)
-  {}
+    owned_(true) {}
 
   T* get() {
     return ptr_;

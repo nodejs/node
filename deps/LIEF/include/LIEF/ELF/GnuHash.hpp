@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,8 +52,7 @@ class LIEF_API GnuHash : public Object {
     shift2_{shift2},
     bloom_filters_{std::move(bloom_filters)},
     buckets_{std::move(buckets)},
-    hash_values_{std::move(hash_values)}
-  {}
+    hash_values_{std::move(hash_values)} {}
 
   GnuHash& operator=(const GnuHash& copy) = default;
   GnuHash(const GnuHash& copy) = default;
@@ -70,7 +69,7 @@ class LIEF_API GnuHash : public Object {
   }
 
   /// Index of the first symbol in the dynamic
-  /// symbols table which accessible with the hash table
+  /// symbols table which is accessible with the hash table
   uint32_t symbol_index() const {
     return symbol_index_;
   }
@@ -87,17 +86,17 @@ class LIEF_API GnuHash : public Object {
   }
 
   /// Bloom filters
-  const std::vector<uint64_t>& bloom_filters() const {
+  const std::vector<uint64_t>& bloom_filters() const LIEF_LIFETIMEBOUND {
     return bloom_filters_;
   }
 
   /// Hash buckets
-  const std::vector<uint32_t>& buckets() const {
+  const std::vector<uint32_t>& buckets() const LIEF_LIFETIMEBOUND {
     return buckets_;
   }
 
   /// Hash values
-  const std::vector<uint32_t>& hash_values() const {
+  const std::vector<uint32_t>& hash_values() const LIEF_LIFETIMEBOUND {
     return hash_values_;
   }
 
@@ -106,6 +105,9 @@ class LIEF_API GnuHash : public Object {
 
   /// Check if the given hash passes the bucket filter
   bool check_bucket(uint32_t hash) const {
+    if (nb_buckets() == 0) {
+      return false;
+    }
     return buckets_[hash % nb_buckets()] > 0;
   }
 
@@ -117,17 +119,19 @@ class LIEF_API GnuHash : public Object {
 
   /// Check if the symbol associated with the given hash *probably* exists. If
   /// the returned value is ``false`` you can assume at ``100%`` that
-  /// the symbol doesn't exists. If ``true`` you can't
+  /// the symbol doesn't exist. If ``true`` you can't
   /// do any assumption
   bool check(uint32_t hash) const;
 
 
   void accept(Visitor& visitor) const override;
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const GnuHash& gnuhash);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const GnuHash& gnuhash);
 
   template<class ELF_T>
-  static LIEF_LOCAL std::unique_ptr<GnuHash> parse(SpanStream& strm, uint64_t dynsymcount);
+  static LIEF_LOCAL std::unique_ptr<GnuHash> parse(SpanStream& strm,
+                                                   uint64_t dynsymcount);
 
   template<class ELF_T>
   static LIEF_LOCAL result<uint32_t> nb_symbols(SpanStream& strm);
@@ -138,7 +142,7 @@ class LIEF_API GnuHash : public Object {
 
   private:
   uint32_t symbol_index_ = 0;
-  uint32_t shift2_       = 0;
+  uint32_t shift2_ = 0;
 
   std::vector<uint64_t> bloom_filters_;
   std::vector<uint32_t> buckets_;
@@ -149,7 +153,7 @@ class LIEF_API GnuHash : public Object {
 };
 
 
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

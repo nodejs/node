@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,36 +64,36 @@ class LIEF_API Hash : public LIEF::Hash {
   using LIEF::Hash::visit;
 
   public:
-  void visit(const Binary& binary)                  override;
-  void visit(const Header& header)                  override;
-  void visit(const Section& section)                override;
-  void visit(const Segment& segment)                override;
-  void visit(const DynamicEntry& entry)             override;
-  void visit(const DynamicEntryArray& entry)        override;
-  void visit(const DynamicEntryLibrary& entry)      override;
-  void visit(const DynamicEntryRpath& entry)        override;
-  void visit(const DynamicEntryRunPath& entry)      override;
-  void visit(const DynamicSharedObject& entry)      override;
-  void visit(const DynamicEntryFlags& entry)        override;
-  void visit(const Symbol& symbol)                  override;
-  void visit(const Relocation& relocation)          override;
-  void visit(const SymbolVersion& sv)               override;
-  void visit(const SymbolVersionAux& sv)            override;
+  void visit(const Binary& binary) override;
+  void visit(const Header& header) override;
+  void visit(const Section& section) override;
+  void visit(const Segment& segment) override;
+  void visit(const DynamicEntry& entry) override;
+  void visit(const DynamicEntryArray& entry) override;
+  void visit(const DynamicEntryLibrary& entry) override;
+  void visit(const DynamicEntryRpath& entry) override;
+  void visit(const DynamicEntryRunPath& entry) override;
+  void visit(const DynamicSharedObject& entry) override;
+  void visit(const DynamicEntryFlags& entry) override;
+  void visit(const Symbol& symbol) override;
+  void visit(const Relocation& relocation) override;
+  void visit(const SymbolVersion& sv) override;
+  void visit(const SymbolVersionAux& sv) override;
   void visit(const SymbolVersionAuxRequirement& sv) override;
-  void visit(const SymbolVersionRequirement& svr)   override;
-  void visit(const SymbolVersionDefinition& svd)    override;
-  void visit(const Note& note)                      override;
-  void visit(const AndroidIdent& note)              override;
-  void visit(const QNXStack& note)                  override;
-  void visit(const NoteAbi& note)                   override;
-  void visit(const NoteGnuProperty& note)           override;
-  void visit(const CorePrPsInfo& pinfo)             override;
-  void visit(const CorePrStatus& pstatus)           override;
-  void visit(const CoreAuxv& auxv)                  override;
-  void visit(const CoreSigInfo& siginfo)            override;
-  void visit(const CoreFile& file)                  override;
-  void visit(const GnuHash& gnuhash)                override;
-  void visit(const SysvHash& sysvhash)              override;
+  void visit(const SymbolVersionRequirement& svr) override;
+  void visit(const SymbolVersionDefinition& svd) override;
+  void visit(const Note& note) override;
+  void visit(const AndroidIdent& note) override;
+  void visit(const QNXStack& note) override;
+  void visit(const NoteAbi& note) override;
+  void visit(const NoteGnuProperty& note) override;
+  void visit(const CorePrPsInfo& pinfo) override;
+  void visit(const CorePrStatus& pstatus) override;
+  void visit(const CoreAuxv& auxv) override;
+  void visit(const CoreSigInfo& siginfo) override;
+  void visit(const CoreFile& file) override;
+  void visit(const GnuHash& gnuhash) override;
+  void visit(const SysvHash& sysvhash) override;
 
   ~Hash() override;
 };

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ class LIEF_API EncryptionInfo : public LoadCommand {
     return csize_;
   }
 
-  /// The encryption system. 0 means no encrypted
+  /// The encryption system. 0 means not encrypted
   uint32_t crypt_id() const {
     return cid_;
   }

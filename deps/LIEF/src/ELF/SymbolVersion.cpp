@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,18 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <spdlog/fmt/fmt.h>
+
 #include "LIEF/ELF/hash.hpp"
 
 #include "LIEF/ELF/SymbolVersion.hpp"
 #include "LIEF/ELF/SymbolVersionAux.hpp"
 #include "LIEF/ELF/SymbolVersionAuxRequirement.hpp"
 
-namespace LIEF {
-namespace ELF {
+
+namespace LIEF::ELF {
 
 void SymbolVersion::symbol_version_auxiliary(SymbolVersionAuxRequirement& svauxr) {
   symbol_aux_ = &svauxr;
-  value_      = svauxr.other();
+  value_ = svauxr.other();
 }
 
 void SymbolVersion::accept(Visitor& visitor) const {
@@ -33,20 +35,16 @@ void SymbolVersion::accept(Visitor& visitor) const {
 
 std::ostream& operator<<(std::ostream& os, const ELF::SymbolVersion& symv) {
   if (symv.has_auxiliary_version()) {
-    os << symv.symbol_version_auxiliary()->name() << "(" << symv.value() << ")";
+    os << fmt::format("{}({})", symv.symbol_version_auxiliary()->name(),
+                      symv.value());
+  } else if (symv.value() == 0) {
+    os << "* Local *";
+  } else if (symv.value() == 1) {
+    os << "* Global *";
   } else {
-    std::string type;
-    if (symv.value() == 0) {
-      type = "* Local *";
-    } else if (symv.value() == 1){
-      type = "* Global *";
-    } else {
-      type = "* ERROR (" + std::to_string(symv.value()) + ") *";
-    }
-    os << type;
+    os << fmt::format("* ERROR ({}) *", symv.value());
   }
 
   return os;
-}
 }
 }

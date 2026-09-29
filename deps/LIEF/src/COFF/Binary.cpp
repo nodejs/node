@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,17 +33,13 @@ Binary::~Binary() = default;
 
 
 Binary::it_const_function Binary::functions() const {
-  return {symbols_, [] (const std::unique_ptr<Symbol>& sym) {
-    return sym->is_function();
-    }
-  };
+  return {symbols_,
+          [](const std::unique_ptr<Symbol>& sym) { return sym->is_function(); }};
 }
 
 Binary::it_functions Binary::functions() {
-  return {symbols_, [] (const std::unique_ptr<Symbol>& sym) {
-    return sym->is_function();
-    }
-  };
+  return {symbols_,
+          [](const std::unique_ptr<Symbol>& sym) { return sym->is_function(); }};
 }
 
 const Symbol* Binary::find_function(const std::string& name) const {
@@ -65,7 +61,6 @@ const Symbol* Binary::find_demangled_function(const std::string& name) const {
 }
 
 std::string Binary::to_string() const {
-  using namespace fmt;
   std::ostringstream oss;
 
   oss << header() << '\n';
@@ -74,8 +69,7 @@ std::string Binary::to_string() const {
     const auto secs = sections();
     for (size_t i = 0; i < secs.size(); ++i) {
       oss << fmt::format("Section #{:02} {{\n", i)
-         << indent(LIEF::to_string(secs[i]), 2)
-         << "}\n";
+          << indent(LIEF::to_string(secs[i]), 2) << "}\n";
     }
   }
 
@@ -83,15 +77,14 @@ std::string Binary::to_string() const {
     oss << fmt::format("Symbols (#{})\n", syms.size());
     for (size_t i = 0; i < syms.size(); ++i) {
       oss << fmt::format("Symbol[{:02d}] {{\n", i)
-         << indent(LIEF::to_string(syms[i]), 2)
-         << "}\n";
+          << indent(LIEF::to_string(syms[i]), 2) << "}\n";
     }
   }
 
   if (auto relocs = relocations(); !relocs.empty()) {
     oss << fmt::format("Relocations (#{})\n", relocs.size());
-    for (size_t i = 0; i < relocs.size(); ++i) {
-      oss << "  " << relocs[i] << '\n';
+    for (const Relocation& reloc : relocs) {
+      oss << "  " << reloc << '\n';
     }
   }
 

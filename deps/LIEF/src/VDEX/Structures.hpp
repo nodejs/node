@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,13 @@
 #include <cstring>
 #include "LIEF/types.hpp"
 
-namespace LIEF {
+
 /// Namespace related to the LIEF's VDEX module
-namespace VDEX {
-namespace details {
+
+namespace LIEF::VDEX::details {
 using vdex_version_t = uint32_t;
 
-static constexpr uint8_t magic[] = { 'v', 'd', 'e', 'x' };
+static constexpr uint8_t magic[] = {'v', 'd', 'e', 'x'};
 static constexpr vdex_version_t vdex_version = 0;
 
 using checksum_t = uint32_t;
@@ -38,7 +38,6 @@ struct header {
   uint32_t dex_size;
   uint32_t verifier_deps_size;
   uint32_t quickening_info_size;
-
 };
 
 // =======================
@@ -67,24 +66,23 @@ static constexpr vdex_version_t vdex_version = 11;
 
 class VDEX6 {
   public:
-  using vdex_header                            = VDEX_6::header;
+  using vdex_header = VDEX_6::header;
   static constexpr vdex_version_t vdex_version = VDEX_6::vdex_version;
 };
 
 class VDEX10 {
   public:
-  using vdex_header                            = VDEX_10::header;
+  using vdex_header = VDEX_10::header;
   static constexpr vdex_version_t vdex_version = VDEX_10::vdex_version;
 };
 
 class VDEX11 {
   public:
-  using vdex_header                            = VDEX_11::header;
+  using vdex_header = VDEX_11::header;
   static constexpr vdex_version_t vdex_version = VDEX_11::vdex_version;
 };
 
-} /* end namespace details */
-} /* end namespace VDEX */
-} /* end namespace LIEF */
-#endif
+} // namespace LIEF::VDEX::details
 
+
+#endif

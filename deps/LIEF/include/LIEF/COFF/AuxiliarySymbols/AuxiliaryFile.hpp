@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,20 +29,19 @@ namespace COFF {
 /// The Symbol::name itself should start with `.file`, and this auxiliary record
 /// gives the name of a source-code file.
 ///
-/// Reference: https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-format-4-files
+/// Reference:
+/// https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-format-4-files
 class LIEF_API AuxiliaryFile : public AuxiliarySymbol {
   public:
   LIEF_LOCAL static std::unique_ptr<AuxiliaryFile>
-    parse(const std::vector<uint8_t>& payload);
+      parse(const std::vector<uint8_t>& payload);
 
   AuxiliaryFile() :
-    AuxiliarySymbol(AuxiliarySymbol::TYPE::FILE)
-  {}
+    AuxiliarySymbol(AuxiliarySymbol::TYPE::FILE) {}
 
   AuxiliaryFile(std::string file) :
     AuxiliarySymbol(AuxiliarySymbol::TYPE::FILE),
-    filename_(std::move(file))
-  {}
+    filename_(std::move(file)) {}
 
   AuxiliaryFile(const AuxiliaryFile&) = default;
   AuxiliaryFile& operator=(const AuxiliaryFile&) = default;

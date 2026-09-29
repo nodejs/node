@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,7 +61,8 @@ class LIEF_API Binary {
   using it_relocations = ref_iterator<relocations_t&, Relocation*>;
 
   /// Iterator that outputs const Relocation& object
-  using it_const_relocations = const_ref_iterator<const relocations_t&, const Relocation*>;
+  using it_const_relocations =
+      const_ref_iterator<const relocations_t&, const Relocation*>;
 
   /// Internal container used to store COFF's strings
   using strings_table_t = std::vector<String>;
@@ -100,88 +101,92 @@ class LIEF_API Binary {
   }
 
   /// Iterator over the different sections located in this COFF binary
-  it_sections sections() {
+  it_sections sections() LIEF_LIFETIMEBOUND {
     return sections_;
   }
 
-  it_const_sections sections() const {
+  it_const_sections sections() const LIEF_LIFETIMEBOUND {
     return sections_;
   }
 
   /// Iterator over **all** the relocations used by this COFF binary
-  it_relocations relocations() {
+  it_relocations relocations() LIEF_LIFETIMEBOUND {
     return relocations_;
   }
 
-  it_const_relocations relocations() const {
+  it_const_relocations relocations() const LIEF_LIFETIMEBOUND {
     return relocations_;
   }
 
   /// Iterator over the COFF's symbols
-  it_symbols symbols() {
+  it_symbols symbols() LIEF_LIFETIMEBOUND {
     return symbols_;
   }
 
-  it_const_symbols symbols() const {
+  it_const_symbols symbols() const LIEF_LIFETIMEBOUND {
     return symbols_;
   }
 
   /// Iterator over the COFF's strings
-  it_const_strings_table string_table() const {
+  it_const_strings_table string_table() const LIEF_LIFETIMEBOUND {
     return strings_table_;
   }
 
-  it_strings_table string_table() {
+  it_strings_table string_table() LIEF_LIFETIMEBOUND {
     return strings_table_;
   }
 
   /// Try to find the COFF string at the given offset in the COFF string table.
   ///
-  /// \warning This offset must include the first 4 bytes holding the size of
+  /// @warning This offset must include the first 4 bytes holding the size of
   ///          the table. Hence, the first string starts a the offset 4.
-  String* find_string(uint32_t offset) {
+  String* find_string(uint32_t offset) LIEF_LIFETIMEBOUND {
     auto it = std::find_if(strings_table_.begin(), strings_table_.end(),
-      [offset] (const String& item) {
-        return offset == item.offset();
-      }
-    );
+                           [offset](const String& item) {
+                             return offset == item.offset();
+                           });
     return it == strings_table_.end() ? nullptr : &*it;
   }
 
-  const String* find_string(uint32_t offset) const {
+  const String* find_string(uint32_t offset) const LIEF_LIFETIMEBOUND {
     return const_cast<Binary*>(this)->find_string(offset);
   }
 
   /// Iterator over the functions implemented in this COFF
-  it_const_function functions() const;
+  it_const_function functions() const LIEF_LIFETIMEBOUND;
 
-  it_functions functions();
+  it_functions functions() LIEF_LIFETIMEBOUND;
 
   /// Try to find the function (symbol) with the given name
-  const Symbol* find_function(const std::string& name) const;
+  const Symbol* find_function(const std::string& name) const LIEF_LIFETIMEBOUND;
 
-  Symbol* find_function(const std::string& name) {
-    return const_cast<Symbol*>(static_cast<const Binary*>(this)->find_function(name));
+  Symbol* find_function(const std::string& name) LIEF_LIFETIMEBOUND {
+    return const_cast<Symbol*>(
+        static_cast<const Binary*>(this)->find_function(name)
+    );
   }
 
   /// Try to find the function (symbol) with the given **demangled** name
-  const Symbol* find_demangled_function(const std::string& name) const;
+  const Symbol*
+      find_demangled_function(const std::string& name) const LIEF_LIFETIMEBOUND;
 
-  Symbol* find_demangled_function(const std::string& name) {
-    return const_cast<Symbol*>(static_cast<const Binary*>(this)->find_demangled_function(name));
+  Symbol* find_demangled_function(const std::string& name) LIEF_LIFETIMEBOUND {
+    return const_cast<Symbol*>(
+        static_cast<const Binary*>(this)->find_demangled_function(name)
+    );
   }
 
   /// Disassemble code for the given symbol
   ///
   /// ```cpp
-  /// const Symbol* func = binary->find_demangled_function("int __cdecl my_function(int, int)");
-  /// auto insts = binary->disassemble(*func);
-  /// for (std::unique_ptr<assembly::Instruction> inst : insts) {
+  /// const Symbol* func = binary->find_demangled_function("int __cdecl
+  /// my_function(int, int)"); auto insts = binary->disassemble(*func); for
+  /// (std::unique_ptr<assembly::Instruction> inst : insts) {
   ///   std::cout << inst->to_string() << '\n';
   /// }
   /// ```
   ///
-  /// \see LIEF::assembly::Instruction
+  /// @see LIEF::assembly::Instruction
   instructions_it disassemble(const Symbol& symbol) const;
 
   /// Disassemble code for the given symbol name
@@ -193,13 +198,13 @@ class LIEF_API Binary {
   /// }
   /// ```
   ///
-  /// \see LIEF::assembly::Instruction
+  /// @see LIEF::assembly::Instruction
   instructions_it disassemble(const std::string& symbol) const;
 
   /// Disassemble code provided by the given buffer at the specified
   /// `address` parameter.
   ///
-  /// \see LIEF::assembly::Instruction
+  /// @see LIEF::assembly::Instruction
   instructions_it disassemble(const uint8_t* buffer, size_t size,
                               uint64_t address = 0) const;
 
@@ -207,7 +212,7 @@ class LIEF_API Binary {
   /// Disassemble code provided by the given vector of bytes at the specified
   /// `address` parameter.
   ///
-  /// \see LIEF::assembly::Instruction
+  /// @see LIEF::assembly::Instruction
   instructions_it disassemble(const std::vector<uint8_t>& buffer,
                               uint64_t address = 0) const {
     return disassemble(buffer.data(), buffer.size(), address);
@@ -218,7 +223,8 @@ class LIEF_API Binary {
     return disassemble(buffer.data(), buffer.size(), address);
   }
 
-  instructions_it disassemble(LIEF::span<uint8_t> buffer, uint64_t address = 0) const {
+  instructions_it disassemble(LIEF::span<uint8_t> buffer,
+                              uint64_t address = 0) const {
     return disassemble(buffer.data(), buffer.size(), address);
   }
 

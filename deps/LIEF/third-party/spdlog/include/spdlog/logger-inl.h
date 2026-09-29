@@ -4,7 +4,7 @@
 #pragma once
 
 #ifndef SPDLOG_HEADER_ONLY
-    #include <spdlog/logger.h>
+#include <spdlog/logger.h>
 #endif
 
 #include <spdlog/details/backtracer.h>
@@ -57,7 +57,7 @@ SPDLOG_INLINE void logger::swap(spdlog::logger &other) SPDLOG_NOEXCEPT {
     std::swap(tracer_, other.tracer_);
 }
 
-SPDLOG_INLINE void swap(logger &a, logger &b) { a.swap(b); }
+SPDLOG_INLINE void swap(logger &a, logger &b) noexcept { a.swap(b); }
 
 SPDLOG_INLINE void logger::set_level(level::level_enum log_level) { level_.store(log_level); }
 
@@ -163,12 +163,12 @@ SPDLOG_INLINE void logger::dump_backtrace_() {
     }
 }
 
-SPDLOG_INLINE bool logger::should_flush_(const details::log_msg &msg) {
+SPDLOG_INLINE bool logger::should_flush_(const details::log_msg &msg) const {
     auto flush_level = flush_level_.load(std::memory_order_relaxed);
     return (msg.level >= flush_level) && (msg.level != level::off);
 }
 
-SPDLOG_INLINE void logger::err_handler_(const std::string &msg) {
+SPDLOG_INLINE void logger::err_handler_(const std::string &msg) const {
     if (custom_err_handler_) {
         custom_err_handler_(msg);
     } else {

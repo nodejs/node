@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,16 +20,16 @@
 namespace LIEF::PE {
 std::string ParserConfig::to_string() const {
   static constexpr auto WIDTH = 20;
-  using namespace fmt;
   std::ostringstream os;
   os << "ParserConfig {\n"
-     << format("  {:{}}: {}\n", "parse_signature", WIDTH, parse_signature)
-     << format("  {:{}}: {}\n", "parse_exports", WIDTH, parse_exports)
-     << format("  {:{}}: {}\n", "parse_imports", WIDTH, parse_imports)
-     << format("  {:{}}: {}\n", "parse_rsrc", WIDTH, parse_rsrc)
-     << format("  {:{}}: {}\n", "parse_reloc", WIDTH, parse_reloc)
-     << format("  {:{}}: {}\n", "parse_exceptions", WIDTH, parse_exceptions)
-     << format("  {:{}}: {}\n", "parse_arm64x_binary", WIDTH, parse_arm64x_binary)
+     << fmt::format("  {:{}}: {}\n", "parse_signature", WIDTH, parse_signature)
+     << fmt::format("  {:{}}: {}\n", "parse_exports", WIDTH, parse_exports)
+     << fmt::format("  {:{}}: {}\n", "parse_imports", WIDTH, parse_imports)
+     << fmt::format("  {:{}}: {}\n", "parse_rsrc", WIDTH, parse_rsrc)
+     << fmt::format("  {:{}}: {}\n", "parse_reloc", WIDTH, parse_reloc)
+     << fmt::format("  {:{}}: {}\n", "parse_exceptions", WIDTH, parse_exceptions)
+     << fmt::format("  {:{}}: {}\n", "parse_arm64x_binary", WIDTH,
+                    parse_arm64x_binary)
      << "}\n";
   return os.str();
 }

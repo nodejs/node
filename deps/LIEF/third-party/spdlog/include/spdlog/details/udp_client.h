@@ -7,7 +7,7 @@
 // Will throw on construction if the socket creation failed.
 
 #ifdef _WIN32
-    #error "include udp_client-windows.h instead"
+#error "include udp_client-windows.h instead"
 #endif
 
 #include <arpa/inet.h>

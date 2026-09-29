@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,8 @@ ChecksumStream& ChecksumStream::write(BinaryStream& chk_stream) {
   }
 
   const uint64_t file_length = chk_stream.size() - chk_stream.pos();
-  uint64_t nb_chunk = (file_length + 1) / sizeof(uint16_t); // Number of uint16_t chunks
+  uint64_t nb_chunk =
+      (file_length + 1) / sizeof(uint16_t); // Number of uint16_t chunks
 
   while (chk_stream) {
     uint16_t chunk = 0;
@@ -66,7 +67,8 @@ uint32_t ChecksumStream::finalize() {
     partial_sum_ = (partial_sum_ >> 16) + (partial_sum_ & 0xffff);
   }
 
-  auto partial_sum_res = static_cast<uint16_t>(((partial_sum_ >> 16) + partial_sum_) & 0xffff);
+  auto partial_sum_res =
+      static_cast<uint16_t>(((partial_sum_ >> 16) + partial_sum_) & 0xffff);
   const uint32_t binary_checksum = checksum_;
   const uint32_t adjust_sum_lsb = binary_checksum & 0xFFFF;
   const uint32_t adjust_sum_msb = binary_checksum >> 16;

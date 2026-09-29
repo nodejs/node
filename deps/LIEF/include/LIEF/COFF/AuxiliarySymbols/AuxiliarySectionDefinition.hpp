@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,11 +30,10 @@ namespace COFF {
 class LIEF_API AuxiliarySectionDefinition : public AuxiliarySymbol {
   public:
   LIEF_LOCAL static std::unique_ptr<AuxiliarySectionDefinition>
-    parse(const std::vector<uint8_t>& payload);
+      parse(const std::vector<uint8_t>& payload);
 
   AuxiliarySectionDefinition() :
-    AuxiliarySymbol(AuxiliarySymbol::TYPE::SEC_DEF)
-  {}
+    AuxiliarySymbol(AuxiliarySymbol::TYPE::SEC_DEF) {}
 
   AuxiliarySectionDefinition(uint32_t length, uint16_t nb_relocs,
                              uint16_t nb_lines, uint32_t checksum,
@@ -47,27 +46,30 @@ class LIEF_API AuxiliarySectionDefinition : public AuxiliarySymbol {
     checksum_(checksum),
     sec_idx_(sec_idx),
     selection_((COMDAT_SELECTION)selection),
-    reserved_(reserved)
-  {}
+    reserved_(reserved) {}
 
   AuxiliarySectionDefinition(const AuxiliarySectionDefinition&) = default;
-  AuxiliarySectionDefinition& operator=(const AuxiliarySectionDefinition&) = default;
+  AuxiliarySectionDefinition&
+      operator=(const AuxiliarySectionDefinition&) = default;
 
   AuxiliarySectionDefinition(AuxiliarySectionDefinition&&) = default;
   AuxiliarySectionDefinition& operator=(AuxiliarySectionDefinition&&) = default;
 
   std::unique_ptr<AuxiliarySymbol> clone() const override {
-    return std::unique_ptr<AuxiliarySectionDefinition>(new AuxiliarySectionDefinition{*this});
+    return std::unique_ptr<AuxiliarySectionDefinition>(
+        new AuxiliarySectionDefinition{*this}
+    );
   }
 
   /// Values for the AuxiliarySectionDefinition::selection attribute
   ///
-  /// See: https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#comdat-sections-object-only
+  /// See:
+  /// https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#comdat-sections-object-only
   enum class COMDAT_SELECTION : uint8_t {
     NONE = 0,
 
-    /// If this symbol is already defined, the linker issues a `multiply defined symbol`
-    /// error.
+    /// If this symbol is already defined, the linker issues a `multiply defined
+    /// symbol` error.
     NODUPLICATES = 1,
 
     /// Any section that defines the same COMDAT symbol can be linked; the rest
@@ -75,8 +77,8 @@ class LIEF_API AuxiliarySectionDefinition : public AuxiliarySymbol {
     ANY,
 
     /// The linker chooses an arbitrary section among the definitions for this
-    /// symbol. If all definitions are not the same size, a `multiply defined symbol`
-    /// error is issued.
+    /// symbol. If all definitions are not the same size, a `multiply defined
+    /// symbol` error is issued.
     SAME_SIZE,
 
     /// The linker chooses an arbitrary section among the definitions for this
@@ -100,7 +102,7 @@ class LIEF_API AuxiliarySectionDefinition : public AuxiliarySymbol {
     /// The linker chooses the largest definition from among all of the definitions
     /// for this symbol. If multiple definitions have this size, the choice
     /// between them is arbitrary.
-    LARGEST
+    LARGEST,
   };
 
   /// The size of section data. The same as `SizeOfRawData` in the section header.

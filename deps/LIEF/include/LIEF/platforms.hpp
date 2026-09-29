@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,16 @@
 
 #if defined(__APPLE__)
   #include "TargetConditionals.h"
+#endif
+
+#if defined(__linux__)
+  #include <features.h>
+
+  #ifndef __GLIBC__
+    #define LIEF_PLATFORM_MUSL 1
+  #else
+    #define LIEF_PLATFORM_GLIBC 1
+  #endif
 #endif
 
 namespace LIEF {
@@ -41,14 +51,13 @@ constexpr PLATFORMS current_platform() {
   return PLATFORMS::PLAT_WINDOWS;
 #elif defined(__APPLE__)
   #if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
-    return PLATFORMS::PLAT_IOS;
+  return PLATFORMS::PLAT_IOS;
   #else
-    return PLATFORMS::PLAT_OSX;
+  return PLATFORMS::PLAT_OSX;
   #endif
 #else
   return PLATFORMS::PLAT_UNKNOWN;
 #endif
-
 }
 
 

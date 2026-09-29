@@ -1,5 +1,5 @@
-/* Copyright 2021 - 2025 R. Thomas
- * Copyright 2021 - 2025 Quarkslab
+/* Copyright 2021 - 2026 R. Thomas
+ * Copyright 2021 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,28 +29,31 @@
 
 #include "Parser.tcc"
 
-namespace LIEF {
-namespace OAT {
+
+namespace LIEF::OAT {
 
 Parser::~Parser() = default;
-Parser::Parser()  = default;
+Parser::Parser() = default;
 
 
 std::unique_ptr<Binary> Parser::parse(const std::string& oat_file) {
   if (!is_oat(oat_file)) {
-    LIEF_ERR("{} is not an OAT", oat_file);
+    LIEF_ERR("'{}' is not an OAT file", oat_file);
     return nullptr;
   }
 
   Parser parser{oat_file};
   parser.init();
 
-  std::unique_ptr<Binary> oat_binary{static_cast<Binary*>(parser.binary_.release())};
+  std::unique_ptr<Binary> oat_binary{
+      static_cast<Binary*>(parser.binary_.release())
+  };
   return oat_binary;
 }
 
 
-std::unique_ptr<Binary> Parser::parse(const std::string& oat_file, const std::string& vdex_file) {
+std::unique_ptr<Binary> Parser::parse(const std::string& oat_file,
+                                      const std::string& vdex_file) {
   if (!is_oat(oat_file)) {
     return nullptr;
   }
@@ -63,25 +66,28 @@ std::unique_ptr<Binary> Parser::parse(const std::string& oat_file, const std::st
   if (std::unique_ptr<VDEX::File> vdex = VDEX::Parser::parse(vdex_file)) {
     parser.vdex_file_ = std::move(vdex);
   } else {
-    LIEF_WARN("Can't parse the VDEX file '{}'", vdex_file);
+    LIEF_WARN("Failed to parse VDEX file '{}'", vdex_file);
   }
   parser.init();
-  std::unique_ptr<Binary> oat_binary{static_cast<Binary*>(parser.binary_.release())};
+  std::unique_ptr<Binary> oat_binary{
+      static_cast<Binary*>(parser.binary_.release())
+  };
   return oat_binary;
-
 }
 
 std::unique_ptr<Binary> Parser::parse(std::vector<uint8_t> data) {
   Parser parser{std::move(data)};
   parser.init();
-  std::unique_ptr<Binary> oat_binary{static_cast<Binary*>(parser.binary_.release())};
+  std::unique_ptr<Binary> oat_binary{
+      static_cast<Binary*>(parser.binary_.release())
+  };
   return oat_binary;
 }
 
 
 Parser::Parser(std::vector<uint8_t> data) {
-  stream_    = std::make_unique<VectorStream>(std::move(data));
-  binary_    = std::unique_ptr<Binary>(new Binary{});
+  stream_ = std::make_unique<VectorStream>(std::move(data));
+  binary_ = std::unique_ptr<Binary>(new Binary{});
   config_.count_mtd = ELF::ParserConfig::DYNSYM_COUNT::AUTO;
 }
 
@@ -89,10 +95,26 @@ Parser::Parser(const std::string& file) {
   if (auto s = VectorStream::from_file(file)) {
     stream_ = std::make_unique<VectorStream>(std::move(*s));
   }
-  binary_    = std::unique_ptr<Binary>(new Binary{});
+  binary_ = std::unique_ptr<Binary>(new Binary{});
   config_.count_mtd = ELF::ParserConfig::DYNSYM_COUNT::AUTO;
 }
 
+
+result<uint64_t> Parser::oat_data_exec_gap() const {
+  static constexpr uint64_t MAX_GAP = 64_MB;
+
+  const uint64_t data_end = data_address_ + data_size_;
+  if (data_end < data_address_ || exec_start_ < data_end) {
+    return make_error_code(lief_errors::corrupted);
+  }
+
+  const uint64_t gap = exec_start_ - data_end;
+  if (gap > MAX_GAP) {
+    return make_error_code(lief_errors::corrupted);
+  }
+
+  return gap;
+}
 
 bool Parser::has_vdex() const {
   return vdex_file_ != nullptr;
@@ -110,7 +132,7 @@ void Parser::init() {
   oat_bin.vdex_ = std::move(vdex_file_);
 
   if (!oat_bin.has_vdex() && version > details::OAT_088::oat_version) {
-    LIEF_INFO("No VDEX provided with this OAT file. Parsing will be incomplete");
+    LIEF_INFO("No VDEX provided, OAT parsing will be incomplete");
   }
 
   if (version <= details::OAT_064::oat_version) {
@@ -136,8 +158,6 @@ void Parser::init() {
   if (version <= details::OAT_138::oat_version) {
     return parse_binary<details::OAT138_t>();
   }
-
 }
 
-} // namespace OAT
-} // namespace LIEF
+} // namespace LIEF::OAT

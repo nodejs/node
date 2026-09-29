@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ class LIEF_API DataDirectory : public Object {
   public:
   static constexpr size_t DEFAULT_NB = 16;
 
-  enum class TYPES: uint32_t  {
+  enum class TYPES : uint32_t {
     EXPORT_TABLE = 0,
     IMPORT_TABLE,
     RESOURCE_TABLE,
@@ -70,8 +70,7 @@ class LIEF_API DataDirectory : public Object {
   };
   DataDirectory() = default;
   DataDirectory(TYPES type) :
-    type_{type}
-  {}
+    type_{type} {}
 
   DataDirectory(const details::pe_data_directory& header, TYPES type);
 
@@ -101,18 +100,18 @@ class LIEF_API DataDirectory : public Object {
   }
 
   /// Raw content (bytes) referenced by this data directory
-  span<const uint8_t> content() const {
+  span<const uint8_t> content() const LIEF_LIFETIMEBOUND {
     return const_cast<DataDirectory*>(this)->content();
   }
 
-  span<uint8_t> content();
+  span<uint8_t> content() LIEF_LIFETIMEBOUND;
 
   /// Section associated with the DataDirectory
-  Section* section() {
+  Section* section() LIEF_LIFETIMEBOUND {
     return section_;
   }
 
-  const Section* section() const {
+  const Section* section() const LIEF_LIFETIMEBOUND {
     return section_;
   }
 
@@ -131,12 +130,12 @@ class LIEF_API DataDirectory : public Object {
 
   void accept(Visitor& visitor) const override;
 
-  LIEF_API friend
-    std::ostream& operator<<(std::ostream& os, const DataDirectory& entry);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const DataDirectory& entry);
 
-  /// \private
+  /// @private
   LIEF_LOCAL
-    std::unique_ptr<SpanStream> stream(bool sized = true) const;
+  std::unique_ptr<SpanStream> stream(bool sized = true) const;
 
   private:
   uint32_t rva_ = 0;
@@ -150,4 +149,4 @@ LIEF_API const char* to_string(DataDirectory::TYPES e);
 }
 }
 
-#endif /* LIEF_PE_DATADIRECTORY_H */
+#endif

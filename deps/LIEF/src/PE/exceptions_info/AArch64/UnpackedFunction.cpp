@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,19 +29,21 @@ namespace LIEF::PE::unwind_aarch64 {
 
 using epilog_scope_t = UnpackedFunction::epilog_scope_t;
 
-std::unique_ptr<UnpackedFunction> UnpackedFunction::parse(
-  Parser& /*ctx*/, BinaryStream& strm, uint32_t xdata_rva, uint32_t rva
-) {
+std::unique_ptr<UnpackedFunction> UnpackedFunction::parse(Parser& /*ctx*/,
+                                                          BinaryStream& strm,
+                                                          uint32_t xdata_rva,
+                                                          uint32_t rva) {
   static constexpr auto WIDTH = 20;
   details::arm64_unpacked_t unpacked;
 
-  LIEF_DEBUG("Parsing unpacked function 0x{:08x}", rva);
+  LIEF_DEBUG("Parsing unpacked function {:#010x}", rva);
 
   const uint64_t strm_offset = strm.pos();
 
   auto word1 = strm.read<uint32_t>();
   if (!word1) {
-    LIEF_WARN("Can't read unpacked exception info (word1, line: {})", __LINE__);
+    LIEF_WARN("Failed to read unpacked exception info (word1, line: {})",
+              __LINE__);
     return nullptr;
   }
 
@@ -50,7 +52,8 @@ std::unique_ptr<UnpackedFunction> UnpackedFunction::parse(
   if (unpacked.is_extended()) {
     auto word2 = strm.read<uint32_t>();
     if (!word2) {
-      LIEF_WARN("Can't read unpacked exception info (word2, line: {})", __LINE__);
+      LIEF_WARN("Failed to read unpacked exception info (word2, line: {})",
+                __LINE__);
       return nullptr;
     }
     unpacked.data[1] = *word2;
@@ -59,19 +62,19 @@ std::unique_ptr<UnpackedFunction> UnpackedFunction::parse(
   auto func = std::make_unique<UnpackedFunction>(rva, unpacked.function_length());
 
   (*func)
-    .xdata_rva(xdata_rva)
-    .version(unpacked.version())
-    .X(unpacked.X())
-    .E(unpacked.E())
-    .epilog_cnt_offset(unpacked.epilog_count())
-    .code_words(unpacked.code_words())
-    .is_extended(unpacked.is_extended())
-  ;
+      .xdata_rva(xdata_rva)
+      .version(unpacked.version())
+      .X(unpacked.X())
+      .E(unpacked.E())
+      .epilog_cnt_offset(unpacked.epilog_count())
+      .code_words(unpacked.code_words())
+      .is_extended(unpacked.is_extended());
 
   LIEF_DEBUG("  {:{}}: {}", "Extended", WIDTH, unpacked.is_extended());
-  LIEF_DEBUG("  {:{}}: 0x{:04x}", "Function RVA", WIDTH, rva);
-  LIEF_DEBUG("  {:{}}: 0x{:04x}", "Function Length", WIDTH, unpacked.function_length());
-  LIEF_DEBUG("  {:{}}: 0x{:04x}", "Version", WIDTH, unpacked.version());
+  LIEF_DEBUG("  {:{}}: {:#06x}", "Function RVA", WIDTH, rva);
+  LIEF_DEBUG("  {:{}}: {:#06x}", "Function Length", WIDTH,
+             unpacked.function_length());
+  LIEF_DEBUG("  {:{}}: {:#06x}", "Version", WIDTH, unpacked.version());
   LIEF_DEBUG("  {:{}}: {}", "Exception Data", WIDTH, unpacked.X());
   LIEF_DEBUG("  {:{}}: {}", "Epilog Packed", WIDTH, unpacked.E());
   LIEF_DEBUG("  {:{}}: {}", "Code Words", WIDTH, unpacked.code_words());
@@ -89,22 +92,22 @@ std::unique_ptr<UnpackedFunction> UnpackedFunction::parse(
   if (unpacked.E() == 0) {
     func->epilog_scopes_offset_ = strm.pos() - strm_offset;
     if (!strm.read_objects(scopes, ecount)) {
-      LIEF_DEBUG("Can't read #{} epilog scopes", ecount);
+      LIEF_DEBUG("Failed to read #{} epilog scopes", ecount);
       return func;
     }
     LIEF_DEBUG("  {:{}}: {}", "Number of scopes (packed)", WIDTH, ecount);
     func->epilog_scopes_.reserve(ecount);
     std::transform(scopes.begin(), scopes.end(),
                    std::back_inserter(func->epilog_scopes_),
-      [] (uint32_t raw) { return epilog_scope_t::from_raw(raw); }
-    );
+                   [](uint32_t raw) { return epilog_scope_t::from_raw(raw); });
   }
 
   {
     func->unwind_code_offset_ = strm.pos() - strm_offset;
     std::vector<uint8_t> unwind_bytecode;
-    if (!strm.read_data(unwind_bytecode, unpacked.code_words() * sizeof(uint32_t))) {
-      LIEF_DEBUG("Can't read unwind bytecode");
+    if (!strm.read_data(unwind_bytecode, unpacked.code_words() * sizeof(uint32_t)))
+    {
+      LIEF_DEBUG("Failed to read unwind bytecode");
       return func;
     }
     func->unwind_code(std::move(unwind_bytecode));
@@ -114,11 +117,11 @@ std::unique_ptr<UnpackedFunction> UnpackedFunction::parse(
     func->exception_handler_offset_ = strm.pos() - strm_offset;
     auto ehandler_rva = strm.read<uint32_t>();
     if (!ehandler_rva) {
-      LIEF_DEBUG("Can't read Exception Handler RVA");
+      LIEF_DEBUG("Failed to read exception handler RVA");
       return func;
     }
 
-    LIEF_DEBUG("  {:{}}: 0x{:08x}", "Exception Handler", WIDTH, *ehandler_rva);
+    LIEF_DEBUG("  {:{}}: {:#010x}", "Exception Handler", WIDTH, *ehandler_rva);
     func->exception_handler(*ehandler_rva);
   }
 
@@ -129,29 +132,29 @@ epilog_scope_t epilog_scope_t::from_raw(uint32_t raw) {
   details::arm64_epilog_scope_t scope{raw};
 
   return {
-    /* .start_offset = */ scope.start_offset(),
-    /* .start_index = */scope.start_index(),
-    /* .reserved = */scope.reserved(),
+      /* .start_offset = */ scope.start_offset(),
+      /* .start_index = */ scope.start_index(),
+      /* .reserved = */ scope.reserved(),
   };
 }
 
 std::string UnpackedFunction::to_string() const {
-  using namespace fmt;
   std::ostringstream oss;
   oss << "Runtime Unpacked AArch64 Function {\n";
-  oss << format("  Range(RVA): 0x{:08x} - 0x{:08x}\n", rva_start(), rva_end());
-  oss << format("  Unwind location (RVA): 0x{:08x}\n", xdata_rva());
-  oss << format("  Length={} Vers={} X={} E={}, CodeWords={}\n",
-                length(), version(), X(), E(), code_words());
+  oss << fmt::format("  Range(RVA): {:#010x} - {:#010x}\n", rva_start(),
+                     rva_end());
+  oss << fmt::format("  Unwind location (RVA): {:#010x}\n", xdata_rva());
+  oss << fmt::format("  Length={} Vers={} X={} E={}, CodeWords={}\n", length(),
+                     version(), X(), E(), code_words());
 
   if (X() == 1) {
-    oss << format("  Exception Handler: 0x{:08x}\n", exception_handler());
+    oss << fmt::format("  Exception Handler: {:#010x}\n", exception_handler());
   }
   if (E() == 0) {
-    oss << format("  Epilogs={}\n", epilog_count());
+    oss << fmt::format("  Epilogs={}\n", epilog_count());
   }
   if (E() == 1) {
-    oss << format("  Epilogs (offset)=0x{:06x}\n", epilog_offset());
+    oss << fmt::format("  Epilogs (offset)={:#08x}\n", epilog_offset());
   }
 
   if (E() == 0) {
@@ -165,10 +168,13 @@ std::string UnpackedFunction::to_string() const {
 
     for (size_t i = 0; i < epilog_scopes_.size(); ++i) {
       const epilog_scope_t& scope = epilog_scopes_[i];
-      oss << format("  Epilog #{} unwind:  (Offset={}, Index={}, Reserved={})\n", i + 1,
-                    scope.start_offset, scope.start_index, scope.reserved);
+      oss << fmt::format(
+          "  Epilog #{} unwind:  (Offset={}, Index={}, Reserved={})\n", i + 1,
+          scope.start_offset, scope.start_index, scope.reserved
+      );
 
-      if (uint32_t offset = scope.start_index; offset > 0 && offset < code.size()) {
+      if (uint32_t offset = scope.start_index; offset > 0 && offset < code.size())
+      {
         span<const uint8_t> epilog_code = code.subspan(scope.start_index);
         SpanStream unwind_stream(epilog_code);
         std::ostringstream pretty_code;

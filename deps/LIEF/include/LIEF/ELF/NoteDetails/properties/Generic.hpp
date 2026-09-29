@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ namespace ELF {
 /// implementation.
 class Generic : public NoteGnuProperty::Property {
   public:
-
   /// The original raw type as an integer. This value might depends
   /// on the architecture and/or the file type.
   uint32_t type() const {
@@ -45,8 +44,7 @@ class Generic : public NoteGnuProperty::Property {
   protected:
   Generic(uint32_t raw_type) :
     NoteGnuProperty::Property(NoteGnuProperty::Property::TYPE::GENERIC),
-    raw_type_(raw_type)
-  {}
+    raw_type_(raw_type) {}
   uint32_t raw_type_ = 0;
 };
 }

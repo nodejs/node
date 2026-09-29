@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,7 @@ namespace COFF {
 class LIEF_API RegularHeader : public Header {
   public:
   RegularHeader() :
-    Header(KIND::REGULAR)
-  {}
+    Header(KIND::REGULAR) {}
 
   /// Create a RegularHeader from the given stream
   static std::unique_ptr<RegularHeader> create(BinaryStream& stream);
@@ -42,7 +41,7 @@ class LIEF_API RegularHeader : public Header {
     return std::unique_ptr<Header>(new RegularHeader(*this));
   }
 
-  /// The size of the optional header that follows this header (should be 0)
+  /// The size of the optional header which follows this header (should be 0)
   uint16_t sizeof_optionalheader() const {
     return sizeof_optionalheader_;
   }

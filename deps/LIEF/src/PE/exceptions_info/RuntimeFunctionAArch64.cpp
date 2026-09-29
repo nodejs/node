@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,17 +29,17 @@
 namespace LIEF::PE {
 
 std::unique_ptr<RuntimeFunctionAArch64>
-  RuntimeFunctionAArch64::parse(Parser& ctx, BinaryStream& strm)
-{
+    RuntimeFunctionAArch64::parse(Parser& ctx, BinaryStream& strm) {
   auto rva_start = strm.read<uint32_t>();
   if (!rva_start) {
-    LIEF_WARN("Can't read exception info RVA start (line: {})", __LINE__);
+    LIEF_WARN("Failed to read exception info RVA start (line: {})", __LINE__);
     return nullptr;
   }
 
   auto unwind_data = strm.read<uint32_t>();
   if (!unwind_data) {
-    LIEF_DEBUG("Can't read exception info unwind data (line: {}, RVA=0x{:08x}, pos={}, size={})",
+    LIEF_DEBUG("Failed to read exception info unwind data (line: {}, "
+               "RVA={:#010x}, pos={}, size={})",
                __LINE__, *rva_start, strm.pos(), strm.size());
     return nullptr;
   }
@@ -59,15 +59,14 @@ std::unique_ptr<RuntimeFunctionAArch64>
                                                    *rva_start);
   }
 
-  return std::make_unique<RuntimeFunctionAArch64>(*rva_start, /*length*/0, flag);
+  return std::make_unique<RuntimeFunctionAArch64>(*rva_start, /*length*/ 0, flag);
 }
 
 std::string RuntimeFunctionAArch64::to_string() const {
-  using namespace fmt;
   std::ostringstream oss;
   oss << "Runtime Unpacked AArch64 Function {\n"
-      << format("  Start (RVA): 0x{:08x}\n", rva_start())
-      << format("  Flag: {}\n", (int)flag());
+      << fmt::format("  Start (RVA): {:#010x}\n", rva_start())
+      << fmt::format("  Flag: {}\n", (int)flag());
   oss << "}\n";
   return oss.str();
 }
