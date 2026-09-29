@@ -26,6 +26,7 @@
 #include "crypto/dh.h"
 #include "internal/fips.h"
 #include "internal/sizes.h"
+#include "fips/fipsindicator.h"
 
 static OSSL_FUNC_keymgmt_new_fn dh_newdata;
 static OSSL_FUNC_keymgmt_free_fn dh_freedata;
@@ -868,7 +869,9 @@ const OSSL_DISPATCH ossl_dh_keymgmt_functions[] = {
     { OSSL_FUNC_KEYMGMT_EXPORT, (void (*)(void))dh_export },
     { OSSL_FUNC_KEYMGMT_EXPORT_TYPES, (void (*)(void))dh_export_types },
     { OSSL_FUNC_KEYMGMT_DUP, (void (*)(void))dh_dup },
-    OSSL_DISPATCH_END
+    OSSL_FIPS_IND_APPROVED_DISPATCH(OSSL_FUNC_KEYMGMT_GEN_GET_PARAMS,
+        OSSL_FUNC_KEYMGMT_GEN_GETTABLE_PARAMS)
+        OSSL_DISPATCH_END
 };
 
 /* For any DH key, we use the "DH" algorithms regardless of sub-type. */
@@ -902,5 +905,7 @@ const OSSL_DISPATCH ossl_dhx_keymgmt_functions[] = {
     { OSSL_FUNC_KEYMGMT_QUERY_OPERATION_NAME,
         (void (*)(void))dhx_query_operation_name },
     { OSSL_FUNC_KEYMGMT_DUP, (void (*)(void))dh_dup },
-    OSSL_DISPATCH_END
+    OSSL_FIPS_IND_APPROVED_DISPATCH(OSSL_FUNC_KEYMGMT_GEN_GET_PARAMS,
+        OSSL_FUNC_KEYMGMT_GEN_GETTABLE_PARAMS)
+        OSSL_DISPATCH_END
 };

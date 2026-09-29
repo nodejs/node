@@ -1218,6 +1218,8 @@ int dtls1_retransmit_message(SSL_CONNECTION *s, unsigned short seq, int *found)
     memcpy(s->init_buf->data, frag->fragment,
         frag->msg_header.msg_len + header_length);
     s->init_num = frag->msg_header.msg_len + header_length;
+    /* Always retransmit from the start, not wherever init_off was left */
+    s->init_off = 0;
 
     dtls1_set_message_header_int(s, frag->msg_header.type,
         frag->msg_header.msg_len,

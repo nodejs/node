@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -366,6 +366,7 @@ DEFINE_RUN_ONCE_STATIC(ossl_comp_zstd_init)
 #define LIBZSTD "zstd"
 #endif
 
+    ERR_set_mark();
     zstd_dso = DSO_load(NULL, LIBZSTD, NULL, 0);
     if (zstd_dso != NULL) {
         p_createCStream = (createCStream_ft)DSO_bind_func(zstd_dso, "ZSTD_createCStream");
@@ -392,9 +393,12 @@ DEFINE_RUN_ONCE_STATIC(ossl_comp_zstd_init)
         || p_freeDStream == NULL || p_decompressStream == NULL || p_decompress == NULL
         || p_isError == NULL || p_getErrorName == NULL || p_DStreamInSize == NULL
         || p_CStreamInSize == NULL) {
+        ERR_clear_last_mark();
         ossl_comp_zstd_cleanup();
         return 0;
     }
+    /* Do not leave errors behind on success. */
+    ERR_pop_to_mark();
 #endif
     return 1;
 }

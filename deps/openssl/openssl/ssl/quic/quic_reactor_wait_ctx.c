@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -45,9 +45,9 @@ int ossl_quic_reactor_wait_ctx_enter(QUIC_REACTOR_WAIT_CTX *ctx,
 {
     QUIC_REACTOR_WAIT_SLOT *slot;
 
-    OSSL_LIST_FOREACH(slot, quic_reactor_wait_slot, &ctx->slots)
-    if (slot->rtor == rtor)
-        break;
+    OSSL_LIST_FOREACH (slot, quic_reactor_wait_slot, &ctx->slots)
+        if (slot->rtor == rtor)
+            break;
 
     if (slot == NULL) {
         if ((slot = OPENSSL_zalloc(sizeof(QUIC_REACTOR_WAIT_SLOT))) == NULL)
@@ -66,9 +66,9 @@ void ossl_quic_reactor_wait_ctx_leave(QUIC_REACTOR_WAIT_CTX *ctx,
 {
     QUIC_REACTOR_WAIT_SLOT *slot;
 
-    OSSL_LIST_FOREACH(slot, quic_reactor_wait_slot, &ctx->slots)
-    if (slot->rtor == rtor)
-        break;
+    OSSL_LIST_FOREACH (slot, quic_reactor_wait_slot, &ctx->slots)
+        if (slot->rtor == rtor)
+            break;
 
     assert(slot != NULL);
     slot_deactivate(slot);
@@ -78,8 +78,7 @@ void ossl_quic_reactor_wait_ctx_cleanup(QUIC_REACTOR_WAIT_CTX *ctx)
 {
     QUIC_REACTOR_WAIT_SLOT *slot, *nslot;
 
-    OSSL_LIST_FOREACH_DELSAFE(slot, nslot, quic_reactor_wait_slot, &ctx->slots)
-    {
+    OSSL_LIST_FOREACH_DELSAFE (slot, nslot, quic_reactor_wait_slot, &ctx->slots) {
         assert(slot->blocking_count == 0);
         OPENSSL_free(slot);
     }
