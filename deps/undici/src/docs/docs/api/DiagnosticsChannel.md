@@ -120,7 +120,8 @@ diagnosticsChannel.channel('undici:request:bodySent').subscribe(({ request }) =>
 added: v6.3.0
 -->
 
-Published after the response headers have been received.
+Published after the response headers have been received. This includes a
+successful CONNECT or protocol upgrade response.
 
 * `message` {Object}
   * `request` {Object} The same object published by
@@ -128,8 +129,9 @@ Published after the response headers have been received.
   * `response` {Object} The response being received.
     * `statusCode` {number} The HTTP status code.
     * `statusText` {string} The HTTP status message.
-    * `headers` {Buffer[]} The raw response headers as an array of buffers,
-      alternating between header name and value.
+    * `headers` {Buffer[]|Object} HTTP/1.1 response headers are an array of
+      buffers alternating between header name and value. HTTP/2 response
+      headers are an object.
 
 ```mjs
 import diagnosticsChannel from 'node:diagnostics_channel'
@@ -137,7 +139,7 @@ import diagnosticsChannel from 'node:diagnostics_channel'
 diagnosticsChannel.channel('undici:request:headers').subscribe(({ request, response }) => {
   console.log('statusCode', response.statusCode)
   console.log(response.statusText)
-  console.log(response.headers.map((x) => x.toString()))
+  console.log(response.headers)
 })
 ```
 
@@ -168,8 +170,9 @@ diagnosticsChannel.channel('undici:request:bodyChunkReceived').subscribe(({ requ
 added: v6.3.0
 -->
 
-Published after the response body and trailers have been received, that is, once
-the response has fully completed.
+Published once the response has fully completed. After an upgraded socket has
+been passed to the request handler, this event is published with an empty
+`trailers` array.
 
 * `message` {Object}
   * `request` {Object} The same object published by

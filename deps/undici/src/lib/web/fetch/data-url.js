@@ -1,14 +1,14 @@
 'use strict'
 
 const assert = require('node:assert')
-const { forgivingBase64, collectASequenceOfCodePoints, collectASequenceOfCodePointsFast, isomorphicDecode, removeASCIIWhitespace, removeChars } = require('../infra')
+const { asciiLowercase, forgivingBase64, collectASequenceOfCodePoints, collectASequenceOfCodePointsFast, isomorphicDecode, removeASCIIWhitespace, removeChars } = require('../infra')
 
 const encoder = new TextEncoder()
 
 /**
  * @see https://mimesniff.spec.whatwg.org/#http-token-code-point
  */
-const HTTP_TOKEN_CODEPOINTS = /^[-!#$%&'*+.^_|~A-Za-z0-9]+$/u
+const HTTP_TOKEN_CODEPOINTS = /^[-!#$%&'*+.^_`|~A-Za-z0-9]+$/u
 const HTTP_WHITESPACE_REGEX = /[\u000A\u000D\u0009\u0020]/u // eslint-disable-line
 
 /**
@@ -69,7 +69,7 @@ function dataURLProcessor (dataURL) {
   // 11. If mimeType ends with U+003B (;), followed by
   // zero or more U+0020 SPACE, followed by an ASCII
   // case-insensitive match for "base64", then:
-  if (/;(?:\u0020*)base64$/ui.test(mimeType)) {
+  if (/;\u0020*[Bb][Aa][Ss][Ee]64$/u.test(mimeType)) {
     // 1. Let stringBody be the isomorphic decode of body.
     const stringBody = isomorphicDecode(body)
 
@@ -268,8 +268,8 @@ function parseMIMEType (input) {
     return 'failure'
   }
 
-  const typeLowercase = type.toLowerCase()
-  const subtypeLowercase = subtype.toLowerCase()
+  const typeLowercase = asciiLowercase(type)
+  const subtypeLowercase = asciiLowercase(subtype)
 
   // 10. Let mimeType be a new MIME type record whose type
   // is type, in ASCII lowercase, and subtype is subtype,
@@ -309,7 +309,7 @@ function parseMIMEType (input) {
 
     // 4. Set parameterName to parameterName, in ASCII
     // lowercase.
-    parameterName = parameterName.toLowerCase()
+    parameterName = asciiLowercase(parameterName)
 
     // 5. If position is not past the end of input, then:
     if (position.position < input.length) {

@@ -596,6 +596,16 @@ properties for reading a body. Each consuming method reads the body once; after
 the body has been consumed, [`bodyUsed`](#bodybodyused) becomes `true` and
 calling another consuming method throws a `TypeError`.
 
+> [!WARNING]
+> The `arrayBuffer()`, `blob()`, `bytes()`, `formData()`, `json()`, and `text()`
+> methods buffer the entire body in memory before returning. Where applicable,
+> they also decode or parse the payload and retain that representation in
+> memory. Calling these methods therefore means trusting that the body is small
+> enough to fit in the available memory. Do not use them for bodies received
+> from untrusted or user-controlled sources. Instead, process `body.body` or
+> `body.textStream()` incrementally and enforce an application-specific size
+> limit.
+
 ### `body.arrayBuffer()`
 
 <!-- YAML

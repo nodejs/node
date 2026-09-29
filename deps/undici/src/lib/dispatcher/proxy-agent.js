@@ -325,8 +325,8 @@ class ProxyAgent extends DispatcherBase {
 }
 
 /**
- * @param {string[] | Record<string, string>} headers
- * @returns {Record<string, string>}
+ * @param {string[] | Record<string, string> | Iterable<[string, string | string[] | undefined]>} headers
+ * @returns {Record<string, string | string[] | undefined>}
  */
 function buildHeaders (headers) {
   // When using undici.fetch, the headers list is stored
@@ -355,7 +355,20 @@ function buildHeaders (headers) {
     const headersPair = {}
 
     for (const [key, value] of headers) {
-      headersPair[key] = value
+      if (!Object.hasOwn(headersPair, key)) {
+        headersPair[key] = value
+        continue
+      }
+
+      const previous = headersPair[key]
+      const values = []
+      if (previous !== undefined) {
+        values.push(...(Array.isArray(previous) ? previous : [previous]))
+      }
+      if (value !== undefined) {
+        values.push(...(Array.isArray(value) ? value : [value]))
+      }
+      headersPair[key] = values.length > 1 ? values : values[0]
     }
 
     return headersPair

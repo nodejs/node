@@ -12,7 +12,7 @@ declare namespace Interceptors {
   export type DecompressInterceptorOpts = {
     skipErrorResponses?: boolean
     skipStatusCodes?: number[]
-    /** Maximum decompressed response size in bytes. @default 67108864 */
+    /** Maximum decompressed response size in bytes per stage. 0 disables the limit. @default 0 */
     maxSize?: number
   }
 
