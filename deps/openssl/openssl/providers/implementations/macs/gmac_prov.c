@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,6 +19,7 @@
 #include "prov/provider_ctx.h"
 #include "prov/provider_util.h"
 #include "prov/providercommon.h"
+#include "fips/fipsindicator.h"
 
 /*
  * Forward declaration of everything implemented here.  This is not strictly
@@ -184,6 +185,30 @@ static int gmac_get_params(OSSL_PARAM params[])
     return 1;
 }
 
+#ifdef FIPS_MODULE
+static const OSSL_PARAM known_gettable_ctx_params[] = {
+    OSSL_PARAM_size_t(OSSL_MAC_PARAM_SIZE, NULL),
+    OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
+        OSSL_PARAM_END
+};
+
+static const OSSL_PARAM *gmac_gettable_ctx_params(ossl_unused void *ctx,
+    ossl_unused void *provctx)
+{
+    return known_gettable_ctx_params;
+}
+
+static int gmac_get_ctx_params(void *ctx, OSSL_PARAM params[])
+{
+    OSSL_PARAM *p;
+
+    p = OSSL_PARAM_locate(params, OSSL_MAC_PARAM_SIZE);
+    if (p != NULL && !OSSL_PARAM_set_size_t(p, gmac_size()))
+        return 0;
+    return ossl_FIPS_IND_get_ctx_param_approved(ctx, params);
+}
+#endif
+
 static const OSSL_PARAM known_settable_ctx_params[] = {
     OSSL_PARAM_utf8_string(OSSL_MAC_PARAM_CIPHER, NULL, 0),
     OSSL_PARAM_utf8_string(OSSL_MAC_PARAM_PROPERTIES, NULL, 0),
@@ -253,6 +278,11 @@ const OSSL_DISPATCH ossl_gmac_functions[] = {
     { OSSL_FUNC_MAC_FINAL, (void (*)(void))gmac_final },
     { OSSL_FUNC_MAC_GETTABLE_PARAMS, (void (*)(void))gmac_gettable_params },
     { OSSL_FUNC_MAC_GET_PARAMS, (void (*)(void))gmac_get_params },
+#ifdef FIPS_MODULE
+    { OSSL_FUNC_MAC_GETTABLE_CTX_PARAMS,
+        (void (*)(void))gmac_gettable_ctx_params },
+    { OSSL_FUNC_MAC_GET_CTX_PARAMS, (void (*)(void))gmac_get_ctx_params },
+#endif
     { OSSL_FUNC_MAC_SETTABLE_CTX_PARAMS,
         (void (*)(void))gmac_settable_ctx_params },
     { OSSL_FUNC_MAC_SET_CTX_PARAMS, (void (*)(void))gmac_set_ctx_params },

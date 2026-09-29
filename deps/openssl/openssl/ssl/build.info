@@ -21,7 +21,8 @@ SOURCE[../libssl]=\
 # For shared builds we need to include the libcrypto packet.c and quic_vlint.c
 # in libssl as well.
 SHARED_SOURCE[../libssl]=\
-        ../crypto/packet.c ../crypto/quic_vlint.c ../crypto/time.c
+        ../crypto/packet.c ../crypto/quic_vlint.c ../crypto/time.c \
+        ../crypto/rbtree/rbtree.c
 
 IF[{- !$disabled{'deprecated-3.0'} -}]
   SOURCE[../libssl]=ssl_rsa_legacy.c

@@ -2819,7 +2819,7 @@ MSG_PROCESS_RETURN tls_process_new_session_ticket(SSL_CONNECTION *s,
          * tickets for longer than 7 days.
          */
         if (ticket_lifetime_hint > 604800) {
-            ticket_lifetime_hint = 604800;
+            s->session->ext.tick_lifetime_hint = 604800;
         }
 
         if (!PACKET_as_length_prefixed_2(pkt, &extpkt)

@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -522,33 +522,43 @@ static int i2r_object(const X509V3_EXT_METHOD *method, void *oid, BIO *bp,
     return 1;
 }
 
-/* Append any nameRelativeToCRLIssuer in dpn to iname, set in dpn->dpname */
-int DIST_POINT_set_dpname(DIST_POINT_NAME *dpn, const X509_NAME *iname)
+/*
+ * Return a new X509_NAME consisting of iname with the nameRelativeToCRLIssuer
+ * fragment of dpn appended, with its DER encoding already cached.
+ * dpn must be a relative name (type 1).  Returns NULL on error.
+ */
+X509_NAME *ossl_dist_point_name_full(const DIST_POINT_NAME *dpn,
+    const X509_NAME *iname)
 {
     int i;
-    STACK_OF(X509_NAME_ENTRY) *frag;
+    STACK_OF(X509_NAME_ENTRY) *frag = dpn->name.relativename;
     X509_NAME_ENTRY *ne;
+    X509_NAME *dpname = X509_NAME_dup(iname);
 
-    if (dpn == NULL || dpn->type != 1)
-        return 1;
-    frag = dpn->name.relativename;
-    X509_NAME_free(dpn->dpname); /* just in case it was already set */
-    dpn->dpname = X509_NAME_dup(iname);
-    if (dpn->dpname == NULL)
-        return 0;
+    if (dpname == NULL)
+        return NULL;
     for (i = 0; i < sk_X509_NAME_ENTRY_num(frag); i++) {
         ne = sk_X509_NAME_ENTRY_value(frag, i);
-        if (!X509_NAME_add_entry(dpn->dpname, ne, -1, i ? 0 : 1))
+        if (!X509_NAME_add_entry(dpname, ne, -1, i ? 0 : 1))
             goto err;
     }
     /* generate cached encoding of name */
-    if (i2d_X509_NAME(dpn->dpname, NULL) >= 0)
-        return 1;
+    if (i2d_X509_NAME(dpname, NULL) >= 0)
+        return dpname;
 
 err:
-    X509_NAME_free(dpn->dpname);
-    dpn->dpname = NULL;
-    return 0;
+    X509_NAME_free(dpname);
+    return NULL;
+}
+
+/* Append any nameRelativeToCRLIssuer in dpn to iname, set in dpn->dpname */
+int DIST_POINT_set_dpname(DIST_POINT_NAME *dpn, const X509_NAME *iname)
+{
+    if (dpn == NULL || dpn->type != 1)
+        return 1;
+    X509_NAME_free(dpn->dpname); /* just in case it was already set */
+    dpn->dpname = ossl_dist_point_name_full(dpn, iname);
+    return dpn->dpname != NULL;
 }
 
 ASN1_SEQUENCE(OSSL_AA_DIST_POINT) = {

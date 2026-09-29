@@ -194,7 +194,9 @@ int evp_cipher_asn1_to_param_ex(EVP_CIPHER_CTX *c, ASN1_TYPE *type,
             break;
 
         default:
-            ret = EVP_CIPHER_get_asn1_iv(c, type) >= 0 ? 1 : -1;
+            ret = EVP_CIPHER_get_asn1_iv(c, type);
+            if (ret == 0 && EVP_CIPHER_CTX_get_iv_length(c) == 0)
+                ret = 1;
         }
     } else if (cipher->prov != NULL) {
         /* We cheat, there's no need for an object ID for this use */

@@ -171,21 +171,34 @@ static ossl_inline void ecp_sm2p256_mod_inverse(BN_ULONG *out,
     BN_MOD_INV(out, in, ecp_sm2p256_div_by_2, ecp_sm2p256_sub, def_p);
 }
 
-/* Point double: R <- P + P */
-static void ecp_sm2p256_point_double(P256_POINT *R, const P256_POINT *P)
+/*
+ * Constant-time conditional copy: r = mask ? a : r, where mask is either 0 or
+ * all-ones.  Used to select point-addition results without branching.
+ */
+static ossl_inline void ecp_sm2p256_cond_copy(P256_POINT *r,
+    const P256_POINT *a, BN_ULONG mask)
 {
     unsigned int i;
+
+    for (i = 0; i < P256_LIMBS; ++i) {
+        r->X[i] = constant_time_select_64(mask, a->X[i], r->X[i]);
+        r->Y[i] = constant_time_select_64(mask, a->Y[i], r->Y[i]);
+        r->Z[i] = constant_time_select_64(mask, a->Z[i], r->Z[i]);
+    }
+}
+
+/*
+ * Point double: R <- P + P
+ *
+ * Branch-free: the doubling formula already produces Z = 0 (the point at
+ * infinity) when the input Z is 0 (R->Z = 2*Y*Z), and the resulting X, Y are
+ * irrelevant for a Z = 0 point, so no is_zeros(P->Z) special case is needed.
+ */
+static void ecp_sm2p256_point_double(P256_POINT *R, const P256_POINT *P)
+{
     ALIGN32 BN_ULONG tmp0[P256_LIMBS];
     ALIGN32 BN_ULONG tmp1[P256_LIMBS];
     ALIGN32 BN_ULONG tmp2[P256_LIMBS];
-
-    /* zero-check P->Z */
-    if (is_zeros(P->Z)) {
-        for (i = 0; i < P256_LIMBS; ++i)
-            R->Z[i] = 0;
-
-        return;
-    }
 
     ecp_sm2p256_sqr(tmp0, P->Z);
     ecp_sm2p256_sub(tmp1, P->X, tmp0);
@@ -208,6 +221,13 @@ static void ecp_sm2p256_point_double(P256_POINT *R, const P256_POINT *P)
 }
 
 /* Point add affine: R <- P + Q */
+/*
+ * NB: this function is deliberately NOT constant time.  It is used only to
+ * precompute the table of small multiples of the *public* input point (see
+ * ecp_sm2p256_point_P_mul_by_scalar); the secret scalar never flows through
+ * it, so its identity-dependent branches cannot leak it.  Keeping the fast
+ * branchy formula here avoids the constant-time overhead on the table build.
+ */
 static void ecp_sm2p256_point_add_affine(P256_POINT *R, const P256_POINT *P,
     const P256_POINT_AFFINE *Q)
 {
@@ -274,107 +294,164 @@ static void ecp_sm2p256_point_add_affine(P256_POINT *R, const P256_POINT *P,
 static void ecp_sm2p256_point_add(P256_POINT *R, const P256_POINT *P,
     const P256_POINT *Q)
 {
-    unsigned int i;
     ALIGN32 BN_ULONG tmp0[P256_LIMBS] = { 0 };
     ALIGN32 BN_ULONG tmp1[P256_LIMBS] = { 0 };
     ALIGN32 BN_ULONG tmp2[P256_LIMBS] = { 0 };
+    P256_POINT sum, dbl, res;
+    BN_ULONG p_inf, q_inf, is_dbl;
 
-    /* zero-check P | Q ->Z */
-    if (is_zeros(P->Z)) {
-        for (i = 0; i < P256_LIMBS; ++i) {
-            R->X[i] = Q->X[i];
-            R->Y[i] = Q->Y[i];
-            R->Z[i] = Q->Z[i];
-        }
+    p_inf = is_zeros(P->Z);
+    q_inf = is_zeros(Q->Z);
 
-        return;
-    } else if (is_zeros(Q->Z)) {
-        for (i = 0; i < P256_LIMBS; ++i) {
-            R->X[i] = P->X[i];
-            R->Y[i] = P->Y[i];
-            R->Z[i] = P->Z[i];
-        }
-
-        return;
-    } else if (is_point_equal(P, Q)) {
-        ecp_sm2p256_point_double(R, Q);
-
-        return;
-    }
-
+    /*
+     * General P + Q addition into |sum|, valid unless P or Q is infinity or
+     * P == +-Q.  tmp0 = H and tmp1 = R are the coordinate differences: P and Q
+     * are the same point iff both are zero; P == -Q iff only H is zero (the
+     * formula then yields Z = 0, i.e. infinity, on its own).
+     */
     ecp_sm2p256_sqr(tmp0, P->Z);
     ecp_sm2p256_mul(tmp1, tmp0, P->Z);
     ecp_sm2p256_mul(tmp0, tmp0, Q->X);
     ecp_sm2p256_mul(tmp1, tmp1, Q->Y);
-    ecp_sm2p256_mul(R->Y, P->Y, Q->Z);
-    ecp_sm2p256_mul(R->Z, Q->Z, P->Z);
+    ecp_sm2p256_mul(sum.Y, P->Y, Q->Z);
+    ecp_sm2p256_mul(sum.Z, Q->Z, P->Z);
     ecp_sm2p256_sqr(tmp2, Q->Z);
-    ecp_sm2p256_mul(R->Y, tmp2, R->Y);
-    ecp_sm2p256_mul(R->X, tmp2, P->X);
-    ecp_sm2p256_sub(tmp0, tmp0, R->X);
-    ecp_sm2p256_mul(R->Z, tmp0, R->Z);
-    ecp_sm2p256_sub(tmp1, tmp1, R->Y);
+    ecp_sm2p256_mul(sum.Y, tmp2, sum.Y);
+    ecp_sm2p256_mul(sum.X, tmp2, P->X);
+    ecp_sm2p256_sub(tmp0, tmp0, sum.X);
+    ecp_sm2p256_mul(sum.Z, tmp0, sum.Z);
+    ecp_sm2p256_sub(tmp1, tmp1, sum.Y);
+    is_dbl = is_zeros(tmp0) & is_zeros(tmp1);
     ecp_sm2p256_sqr(tmp2, tmp0);
     ecp_sm2p256_mul(tmp0, tmp0, tmp2);
-    ecp_sm2p256_mul(tmp2, tmp2, R->X);
-    ecp_sm2p256_sqr(R->X, tmp1);
-    ecp_sm2p256_sub(R->X, R->X, tmp2);
-    ecp_sm2p256_sub(R->X, R->X, tmp2);
-    ecp_sm2p256_sub(R->X, R->X, tmp0);
-    ecp_sm2p256_sub(tmp2, tmp2, R->X);
+    ecp_sm2p256_mul(tmp2, tmp2, sum.X);
+    ecp_sm2p256_sqr(sum.X, tmp1);
+    ecp_sm2p256_sub(sum.X, sum.X, tmp2);
+    ecp_sm2p256_sub(sum.X, sum.X, tmp2);
+    ecp_sm2p256_sub(sum.X, sum.X, tmp0);
+    ecp_sm2p256_sub(tmp2, tmp2, sum.X);
     ecp_sm2p256_mul(tmp2, tmp1, tmp2);
-    ecp_sm2p256_mul(tmp0, tmp0, R->Y);
-    ecp_sm2p256_sub(R->Y, tmp2, tmp0);
+    ecp_sm2p256_mul(tmp0, tmp0, sum.Y);
+    ecp_sm2p256_sub(sum.Y, tmp2, tmp0);
+
+    /* 2*P, for the P == Q case. */
+    ecp_sm2p256_point_double(&dbl, P);
+
+    /*
+     * Select the result without branching, in increasing priority:
+     *   default  -> sum   (distinct points; also P == -Q which gives infinity)
+     *   is_dbl   -> dbl   (P == Q)
+     *   q_inf    -> P     (Q is infinity)
+     *   p_inf    -> Q     (P is infinity; highest priority)
+     * All reads of P and Q happen before R is written, so R may alias P or Q.
+     */
+    memcpy(&res, &sum, sizeof(res));
+    ecp_sm2p256_cond_copy(&res, &dbl, is_dbl);
+    ecp_sm2p256_cond_copy(&res, P, q_inf);
+    ecp_sm2p256_cond_copy(&res, Q, p_inf);
+    memcpy(R, &res, sizeof(res));
 }
 
 #if !defined(OPENSSL_NO_SM2_PRECOMP)
 /* Base point mul by scalar: k - scalar, G - base point */
+/*
+ * Constant-time gather of the affine entry |index| from a 256-entry sub-table.
+ * |sub| points to the sub-table for one 8-bit comb window; entry v is stored
+ * as X[P256_LIMBS] followed by Y[P256_LIMBS] at sub + v * (2 * P256_LIMBS).
+ * Entry 0 is not stored, so index 0 yields the all-zero (X, Y) placeholder,
+ * which the caller turns into the point at infinity.
+ */
+static void ecp_sm2p256_select_G(P256_POINT_AFFINE *R, const BN_ULONG *sub,
+    unsigned int index)
+{
+    unsigned int v, j;
+
+    memset(R, 0, sizeof(*R));
+    for (v = 1; v < 256; ++v) {
+        BN_ULONG mask = constant_time_is_zero_64((BN_ULONG)(index ^ v));
+        const BN_ULONG *e = sub + (size_t)v * (2 * P256_LIMBS);
+
+        for (j = 0; j < P256_LIMBS; ++j) {
+            R->X[j] |= constant_time_select_64(mask, e[j], 0);
+            R->Y[j] |= constant_time_select_64(mask, e[P256_LIMBS + j], 0);
+        }
+    }
+}
+
+/*
+ * R = k*G using the precomputed comb.  Constant-time: every 8-bit window is
+ * gathered from its full 256-entry sub-table with a mask and lifted to a
+ * Jacobian point whose Z is 1 for a non-zero window and 0 (infinity) for a
+ * zero window, so the unconditional, branch-free addition contributes nothing
+ * for a zero window and no secret-dependent branch or table index remains.
+ */
 static void ecp_sm2p256_point_G_mul_by_scalar(P256_POINT *R, const BN_ULONG *k)
 {
-    unsigned int i, index, mask = 0xff;
-    P256_POINT_AFFINE Q;
+    unsigned int i, j, index;
+    P256_POINT_AFFINE Qaff;
+    P256_POINT QJ;
 
     memset(R, 0, sizeof(P256_POINT));
 
-    if (is_zeros(k))
-        return;
+    for (i = 0; i < 32; ++i) {
+        index = (k[i / 8] >> (8 * (i % 8))) & 0xff;
+        ecp_sm2p256_select_G(&Qaff,
+            ecp_sm2p256_precomputed + (size_t)i * 256 * (2 * P256_LIMBS),
+            index);
 
-    index = k[0] & mask;
-    if (index) {
-        index = index * 8;
-        memcpy(R->X, ecp_sm2p256_precomputed + index, 32);
-        memcpy(R->Y, ecp_sm2p256_precomputed + index + P256_LIMBS, 32);
-        R->Z[0] = 1;
-    }
+        {
+            /* Z = 1 iff the window is non-zero, else 0 (point at infinity). */
+            BN_ULONG nz = ~constant_time_is_zero_64((BN_ULONG)index);
 
-    for (i = 1; i < 32; ++i) {
-        index = (k[i / 8] >> (8 * (i % 8))) & mask;
-
-        if (index) {
-            index = index + i * 256;
-            index = index * 8;
-            memcpy(Q.X, ecp_sm2p256_precomputed + index, 32);
-            memcpy(Q.Y, ecp_sm2p256_precomputed + index + P256_LIMBS, 32);
-            ecp_sm2p256_point_add_affine(R, R, &Q);
+            for (j = 0; j < P256_LIMBS; ++j) {
+                QJ.X[j] = Qaff.X[j];
+                QJ.Y[j] = Qaff.Y[j];
+                QJ.Z[j] = 0;
+            }
+            QJ.Z[0] = nz & 1;
         }
+        ecp_sm2p256_point_add(R, R, &QJ);
     }
 }
 #endif
 
 /*
+ * Constant-time gather of |index| from a 16-entry table of Jacobian points.
+ * Index 0 yields the all-zero point (Z = 0, i.e. the point at infinity).
+ */
+static void ecp_sm2p256_select_P(P256_POINT *R, const P256_POINT tbl[16],
+    unsigned int index)
+{
+    unsigned int i, j;
+
+    memset(R, 0, sizeof(*R));
+    for (i = 1; i < 16; ++i) {
+        BN_ULONG mask = constant_time_is_zero_64((BN_ULONG)(index ^ i));
+
+        for (j = 0; j < P256_LIMBS; ++j) {
+            R->X[j] |= constant_time_select_64(mask, tbl[i].X[j], 0);
+            R->Y[j] |= constant_time_select_64(mask, tbl[i].Y[j], 0);
+            R->Z[j] |= constant_time_select_64(mask, tbl[i].Z[j], 0);
+        }
+    }
+}
+
+/*
  * Affine point mul by scalar: k - scalar, P - affine point
+ *
+ * Constant-time windowed multiplication: every 4-bit window is processed
+ * uniformly with four doublings followed by a masked table gather and an
+ * unconditional, branch-free addition.  There is no init/skip logic and no
+ * secret-dependent table index, so the running time and memory-access pattern
+ * do not depend on the value of the secret scalar.
  */
 static void ecp_sm2p256_point_P_mul_by_scalar(P256_POINT *R, const BN_ULONG *k,
     P256_POINT_AFFINE P)
 {
-    int i, init = 0;
+    int i;
     unsigned int index, mask = 0x0f;
     ALIGN64 P256_POINT precomputed[16];
-
-    memset(R, 0, sizeof(P256_POINT));
-
-    if (is_zeros(k))
-        return;
+    P256_POINT T;
 
     /* The first value of the precomputed table is P. */
     memcpy(precomputed[1].X, P.X, 32);
@@ -391,22 +468,18 @@ static void ecp_sm2p256_point_P_mul_by_scalar(P256_POINT *R, const BN_ULONG *k,
     for (i = 3; i < 16; ++i)
         ecp_sm2p256_point_add_affine(&precomputed[i], &precomputed[i - 1], &P);
 
+    memset(R, 0, sizeof(*R)); /* R = point at infinity */
+
     for (i = 64 - 1; i >= 0; --i) {
         index = (k[i / 16] >> (4 * (i % 16))) & mask;
 
-        if (init == 0) {
-            if (index) {
-                memcpy(R, &precomputed[index], sizeof(P256_POINT));
-                init = 1;
-            }
-        } else {
-            ecp_sm2p256_point_double(R, R);
-            ecp_sm2p256_point_double(R, R);
-            ecp_sm2p256_point_double(R, R);
-            ecp_sm2p256_point_double(R, R);
-            if (index)
-                ecp_sm2p256_point_add(R, R, &precomputed[index]);
-        }
+        ecp_sm2p256_point_double(R, R);
+        ecp_sm2p256_point_double(R, R);
+        ecp_sm2p256_point_double(R, R);
+        ecp_sm2p256_point_double(R, R);
+
+        ecp_sm2p256_select_P(&T, precomputed, index);
+        ecp_sm2p256_point_add(R, R, &T);
     }
 }
 
