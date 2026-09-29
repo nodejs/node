@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,13 +28,13 @@
 FMT_FORMATTER(LIEF::MachO::ExportInfo::FLAGS, LIEF::MachO::to_string);
 FMT_FORMATTER(LIEF::MachO::ExportInfo::KIND, LIEF::MachO::to_string);
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 static constexpr auto ARRAY_FLAGS = {
-  ExportInfo::FLAGS::WEAK_DEFINITION,
-  ExportInfo::FLAGS::REEXPORT,
-  ExportInfo::FLAGS::STUB_AND_RESOLVER,
+    ExportInfo::FLAGS::WEAK_DEFINITION,
+    ExportInfo::FLAGS::REEXPORT,
+    ExportInfo::FLAGS::STUB_AND_RESOLVER,
 };
 
 ExportInfo& ExportInfo::operator=(ExportInfo other) {
@@ -47,16 +47,15 @@ ExportInfo::ExportInfo(const ExportInfo& other) :
   node_offset_{other.node_offset_},
   flags_{other.flags_},
   address_{other.address_},
-  other_{other.other_}
-{}
+  other_{other.other_} {}
 
 void ExportInfo::swap(ExportInfo& other) noexcept {
-  std::swap(node_offset_,    other.node_offset_);
-  std::swap(flags_,          other.flags_);
-  std::swap(address_,        other.address_);
-  std::swap(other_,          other.other_);
-  std::swap(symbol_,         other.symbol_);
-  std::swap(alias_,          other.alias_);
+  std::swap(node_offset_, other.node_offset_);
+  std::swap(flags_, other.flags_);
+  std::swap(address_, other.address_);
+  std::swap(other_, other.other_);
+  std::swap(symbol_, other.symbol_);
+  std::swap(alias_, other.alias_);
   std::swap(alias_location_, other.alias_location_);
 }
 
@@ -67,9 +66,8 @@ bool ExportInfo::has(FLAGS flag) const {
 ExportInfo::flag_list_t ExportInfo::flags_list() const {
   flag_list_t flags;
 
-  std::copy_if(std::begin(ARRAY_FLAGS), std::end(ARRAY_FLAGS),
-               std::back_inserter(flags),
-               [this] (FLAGS f) { return has(f); });
+  std::copy_if(ARRAY_FLAGS.begin(), ARRAY_FLAGS.end(), std::back_inserter(flags),
+               [this](FLAGS f) { return has(f); });
 
   return flags;
 }
@@ -80,10 +78,8 @@ void ExportInfo::accept(Visitor& visitor) const {
 
 std::ostream& operator<<(std::ostream& os, const ExportInfo& info) {
   const ExportInfo::flag_list_t& flags = info.flags_list();
-  os << fmt::format(
-    "offset=0x{:x}, flags={}, address=0x{:x}, kind={}",
-    info.node_offset(), flags, info.address(), info.kind()
-  );
+  os << fmt::format("offset={:#x}, flags={}, address={:#x}, kind={}",
+                    info.node_offset(), flags, info.address(), info.kind());
   if (const Symbol* sym = info.symbol()) {
     os << fmt::format(" symbol={}", sym->name());
   }
@@ -98,13 +94,13 @@ std::ostream& operator<<(std::ostream& os, const ExportInfo& info) {
 }
 
 const char* to_string(ExportInfo::KIND e) {
-  #define ENTRY(X) std::pair(ExportInfo::KIND::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(REGULAR),
-    ENTRY(THREAD_LOCAL_KIND),
-    ENTRY(ABSOLUTE_KIND),
+#define ENTRY(X) std::pair(ExportInfo::KIND::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(REGULAR),
+      ENTRY(THREAD_LOCAL_KIND),
+      ENTRY(ABSOLUTE_KIND),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
@@ -113,14 +109,14 @@ const char* to_string(ExportInfo::KIND e) {
 }
 
 const char* to_string(ExportInfo::FLAGS e) {
-  #define ENTRY(X) std::pair(ExportInfo::FLAGS::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(WEAK_DEFINITION),
-    ENTRY(REEXPORT),
-    ENTRY(STUB_AND_RESOLVER),
-    ENTRY(STATIC_RESOLVER),
+#define ENTRY(X) std::pair(ExportInfo::FLAGS::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(WEAK_DEFINITION),
+      ENTRY(REEXPORT),
+      ENTRY(STUB_AND_RESOLVER),
+      ENTRY(STATIC_RESOLVER),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
@@ -129,5 +125,4 @@ const char* to_string(ExportInfo::FLAGS e) {
 }
 
 
-}
 }

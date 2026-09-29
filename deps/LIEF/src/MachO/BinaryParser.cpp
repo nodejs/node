@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,8 +29,8 @@
 
 #include "internal_utils.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 BinaryParser::BinaryParser() = default;
 BinaryParser::~BinaryParser() = default;
@@ -40,20 +40,22 @@ std::unique_ptr<Binary> BinaryParser::parse(const std::string& file) {
   return parse(file, ParserConfig::deep());
 }
 
-std::unique_ptr<Binary> BinaryParser::parse(const std::string& file, const ParserConfig& conf) {
+std::unique_ptr<Binary> BinaryParser::parse(const std::string& file,
+                                            const ParserConfig& conf) {
   if (!is_macho(file)) {
     LIEF_DEBUG("{} is not a Mach-O file", file);
     return nullptr;
   }
 
   if (!is_fat(file)) {
-    LIEF_ERR("{} is a Fat Mach-O file. Please use MachO::Parser::parse(...)", file);
+    LIEF_ERR("{} is a Fat Mach-O file. Please use MachO::Parser::parse(...)",
+             file);
     return nullptr;
   }
 
   auto stream = VectorStream::from_file(file);
   if (!stream) {
-    LIEF_ERR("Error while creating the binary stream");
+    LIEF_ERR("Failed to create binary stream");
     return nullptr;
   }
 
@@ -63,20 +65,21 @@ std::unique_ptr<Binary> BinaryParser::parse(const std::string& file, const Parse
   parser.binary_ = std::unique_ptr<Binary>(new Binary{});
   parser.binary_->fat_offset_ = 0;
 
-  if(!parser.init_and_parse()) {
-    LIEF_WARN("Parsing with error. The binary might be in an inconsistent state");
+  if (!parser.init_and_parse()) {
+    LIEF_WARN("Parsing errors detected; binary may be inconsistent");
   }
 
   return std::move(parser.binary_);
 }
 
-std::unique_ptr<Binary> BinaryParser::parse(const std::vector<uint8_t>& data, const ParserConfig& conf) {
+std::unique_ptr<Binary> BinaryParser::parse(const std::vector<uint8_t>& data,
+                                            const ParserConfig& conf) {
   return parse(data, 0, conf);
 }
 
-std::unique_ptr<Binary> BinaryParser::parse(const std::vector<uint8_t>& data, uint64_t fat_offset,
-                                            const ParserConfig& conf)
-{
+std::unique_ptr<Binary> BinaryParser::parse(const std::vector<uint8_t>& data,
+                                            uint64_t fat_offset,
+                                            const ParserConfig& conf) {
   if (!is_macho(data)) {
     return nullptr;
   }
@@ -93,25 +96,25 @@ std::unique_ptr<Binary> BinaryParser::parse(const std::vector<uint8_t>& data, ui
   parser.binary_ = std::unique_ptr<Binary>(new Binary{});
   parser.binary_->fat_offset_ = fat_offset;
 
-  if(!parser.init_and_parse()) {
-    LIEF_WARN("Parsing with error. The binary might be in an inconsistent state");
+  if (!parser.init_and_parse()) {
+    LIEF_WARN("Parsing errors detected; binary may be inconsistent");
   }
 
   return std::move(parser.binary_);
 }
 
 
-std::unique_ptr<Binary> BinaryParser::parse(std::unique_ptr<BinaryStream> stream, uint64_t fat_offset,
-                                            const ParserConfig& conf)
-{
+std::unique_ptr<Binary> BinaryParser::parse(std::unique_ptr<BinaryStream> stream,
+                                            uint64_t fat_offset,
+                                            const ParserConfig& conf) {
   BinaryParser parser;
   parser.config_ = conf;
   parser.stream_ = std::move(stream);
   parser.binary_ = std::unique_ptr<Binary>(new Binary{});
   parser.binary_->fat_offset_ = fat_offset;
 
-  if(!parser.init_and_parse()) {
-    LIEF_WARN("Parsing with error. The binary might be in an inconsistent state");
+  if (!parser.init_and_parse()) {
+    LIEF_WARN("Parsing errors detected; binary may be inconsistent");
   }
 
   return std::move(parser.binary_);
@@ -125,37 +128,49 @@ ok_error_t BinaryParser::init_and_parse() {
   }
   const auto type = static_cast<MACHO_TYPES>(*stream_->peek<uint32_t>());
 
-  is64_ = type == MACHO_TYPES::MAGIC_64 ||
-          type == MACHO_TYPES::CIGAM_64 ||
+  is64_ = type == MACHO_TYPES::MAGIC_64 || type == MACHO_TYPES::CIGAM_64 ||
           type == MACHO_TYPES::NEURAL_MODEL;
 
   binary_->is64_ = is64_;
-  type_          = type;
+  type_ = type;
   binary_->original_size_ = stream_->size();
 
-  bool should_swap = type == MACHO_TYPES::CIGAM_64 ||
-                     type == MACHO_TYPES::CIGAM;
+  bool should_swap = type == MACHO_TYPES::CIGAM_64 || type == MACHO_TYPES::CIGAM;
 
   stream_->set_endian_swap(should_swap);
 
-  return is64_ ? parse<details::MachO64>() :
-                 parse<details::MachO32>();
+  return is64_ ? parse<details::MachO64>() : parse<details::MachO32>();
 }
 
 
-ok_error_t BinaryParser::parse_export_trie(exports_list_t& exports,
-                                           BinaryStream& stream,
-                                           uint64_t start,
-                                           const std::string& prefix,
-                                           bool* invalid_names)
-{
+result<BinaryParser::exports_list_t>
+    BinaryParser::parse_export_trie(BinaryStream& stream, uint64_t start,
+                                    const std::string& prefix, uint32_t depth,
+                                    bool* invalid_names) {
+  static constexpr auto MAX_DEPTH = 60;
+  exports_list_t exports;
+
+  if (depth > MAX_DEPTH) {
+    LIEF_WARN("Maximum recursion depth reached ({})", MAX_DEPTH);
+    return make_error_code(lief_errors::parsing_error);
+  }
+
   if (!stream) {
     return make_error_code(lief_errors::read_error);
   }
 
+  // Pre-populate the symbol cache to avoid O(n) searches for each export
+  if (memoized_symbols_.empty()) {
+    for (const std::unique_ptr<LIEF::MachO::Symbol>& sym : binary_->symbols_) {
+      if (const std::string& name = sym->name(); !name.empty()) {
+        memoized_symbols_[name] = sym.get();
+      }
+    }
+  }
+
   const auto terminal_size = stream.read<uint8_t>();
   if (!terminal_size) {
-    LIEF_ERR("Can't read terminal size");
+    LIEF_ERR("Failed to read terminal size");
     return make_error_code(lief_errors::read_error);
   }
   uint64_t children_offset = stream.pos() + *terminal_size;
@@ -168,16 +183,18 @@ ok_error_t BinaryParser::parse_export_trie(exports_list_t& exports,
       return make_error_code(lief_errors::read_error);
     }
     uint64_t flags = *res_flags;
-    //uint64_t address = stream_->read_uleb128();
+    // uint64_t address = stream_->read_uleb128();
 
     const std::string& symbol_name = prefix;
     auto export_info = std::make_unique<ExportInfo>(0, flags, offset);
     Symbol* symbol = nullptr;
-    auto search = memoized_symbols_.find(symbol_name);
-    if (search != memoized_symbols_.end()) {
+    if (auto search = memoized_symbols_.find(symbol_name);
+        search != memoized_symbols_.end())
+    {
       symbol = search->second;
     } else {
-      symbol = binary_->get_symbol(symbol_name);
+      LIEF_DEBUG("Cache miss for symbol: {}", symbol_name);
+      symbol = nullptr;
     }
     if (symbol != nullptr) {
       export_info->symbol_ = symbol;
@@ -185,16 +202,17 @@ ok_error_t BinaryParser::parse_export_trie(exports_list_t& exports,
     } else { // Register it into the symbol table
       auto symbol = std::make_unique<Symbol>();
 
-      symbol->origin_            = Symbol::ORIGIN::DYLD_EXPORT;
-      symbol->value_             = 0;
-      symbol->type_              = 0;
+      symbol->origin_ = Symbol::ORIGIN::DYLD_EXPORT;
+      symbol->value_ = 0;
+      symbol->type_ = 0;
       symbol->numberof_sections_ = 0;
-      symbol->description_       = 0;
+      symbol->description_ = 0;
       symbol->name(symbol_name);
 
       // Weak bind of the pointer
-      symbol->export_info_       = export_info.get();
-      export_info->symbol_       = symbol.get();
+      symbol->export_info_ = export_info.get();
+      export_info->symbol_ = symbol.get();
+      memoized_symbols_[symbol_name] = symbol.get();
       binary_->symbols_.push_back(std::move(symbol));
     }
 
@@ -203,7 +221,7 @@ ok_error_t BinaryParser::parse_export_trie(exports_list_t& exports,
     if (export_info->has(ExportInfo::FLAGS::REEXPORT)) {
       auto res_ordinal = stream.read_uleb128();
       if (!res_ordinal) {
-        LIEF_ERR("Can't read uleb128 to determine the ordinal value");
+        LIEF_ERR("Failed to read uleb128 ordinal value");
         return make_error_code(lief_errors::parsing_error);
       }
       const uint64_t ordinal = *res_ordinal;
@@ -211,7 +229,7 @@ ok_error_t BinaryParser::parse_export_trie(exports_list_t& exports,
 
       auto res_imported_name = stream.peek_string();
       if (!res_imported_name) {
-        LIEF_ERR("Can't read imported_name");
+        LIEF_ERR("Failed to read imported_name");
         return make_error_code(lief_errors::parsing_error);
       }
 
@@ -222,28 +240,31 @@ ok_error_t BinaryParser::parse_export_trie(exports_list_t& exports,
       }
 
       Symbol* symbol = nullptr;
-      auto search = memoized_symbols_.find(imported_name);
-      if (search != memoized_symbols_.end()) {
+      if (auto search = memoized_symbols_.find(imported_name);
+          search != memoized_symbols_.end())
+      {
         symbol = search->second;
       } else {
-        symbol = binary_->get_symbol(imported_name);
+        LIEF_DEBUG("Cache miss for symbol: {}", imported_name);
+        symbol = nullptr;
       }
       if (symbol != nullptr) {
-        export_info->alias_  = symbol;
+        export_info->alias_ = symbol;
         symbol->export_info_ = export_info.get();
-        symbol->value_       = export_info->address();
+        symbol->value_ = export_info->address();
       } else {
         auto symbol = std::make_unique<Symbol>();
-        symbol->origin_            = Symbol::ORIGIN::DYLD_EXPORT;
-        symbol->value_             = export_info->address();
-        symbol->type_              = 0;
+        symbol->origin_ = Symbol::ORIGIN::DYLD_EXPORT;
+        symbol->value_ = export_info->address();
+        symbol->type_ = 0;
         symbol->numberof_sections_ = 0;
-        symbol->description_       = 0;
+        symbol->description_ = 0;
         symbol->name(symbol_name);
 
         // Weak bind of the pointer
-        symbol->export_info_      = export_info.get();
-        export_info->alias_       = symbol.get();
+        symbol->export_info_ = export_info.get();
+        export_info->alias_ = symbol.get();
+        memoized_symbols_[symbol_name] = symbol.get();
         binary_->symbols_.push_back(std::move(symbol));
       }
 
@@ -257,7 +278,7 @@ ok_error_t BinaryParser::parse_export_trie(exports_list_t& exports,
     } else {
       auto address = stream.read_uleb128();
       if (!address) {
-        LIEF_ERR("Can't read export address");
+        LIEF_ERR("Failed to read export address");
         return make_error_code(lief_errors::parsing_error);
       }
       export_info->address(*address);
@@ -268,39 +289,39 @@ ok_error_t BinaryParser::parse_export_trie(exports_list_t& exports,
     if (export_info->has(ExportInfo::FLAGS::STUB_AND_RESOLVER)) {
       auto other = stream.read_uleb128();
       if (!other) {
-        LIEF_ERR("Can't read 'other' value for the export info");
+        LIEF_ERR("Failed to read 'other' value for export info");
         return make_error_code(lief_errors::parsing_error);
       }
       export_info->other_ = *other;
     }
 
     exports.push_back(std::move(export_info));
-
   }
   stream.setpos(children_offset);
   const auto nb_children = stream.read<uint8_t>();
   if (!nb_children) {
-    LIEF_ERR("Can't read nb_children");
+    LIEF_ERR("Failed to read nb_children");
     return make_error_code(lief_errors::parsing_error);
   }
+
   for (size_t i = 0; i < *nb_children; ++i) {
     auto suffix = stream.read_string();
     if (!suffix) {
-      LIEF_ERR("Can't read suffix");
+      LIEF_ERR("Failed to read suffix");
       break;
     }
     std::string name = prefix + std::move(*suffix);
 
     if (!is_printable(name)) {
       if (!*invalid_names) {
-        LIEF_WARN("The export trie contains non-printable symbols");
+        LIEF_WARN("Export trie contains non-printable symbols");
         *invalid_names = true;
       }
     }
 
     auto res_child_node_offet = stream.read_uleb128();
     if (!res_child_node_offet) {
-      LIEF_ERR("Can't read child_node_offet");
+      LIEF_ERR("Failed to read child_node_offset");
       break;
     }
     auto child_node_offet = static_cast<uint32_t>(*res_child_node_offet);
@@ -310,26 +331,34 @@ ok_error_t BinaryParser::parse_export_trie(exports_list_t& exports,
     }
 
     if (!visited_.insert(child_node_offet).second) {
+      LIEF_DEBUG("Cycle detected in export trie at offset {:#x}",
+                 child_node_offet);
       break;
     }
 
     {
       ScopedStream scoped(stream, child_node_offet);
-      parse_export_trie(exports, *scoped, start, name, invalid_names);
+      if (auto res =
+              parse_export_trie(*scoped, start, name, depth + 1, invalid_names))
+      {
+        exports.insert(exports.end(), std::make_move_iterator(res->begin()),
+                       std::make_move_iterator(res->end()));
+      }
     }
   }
-  return ok();
+
+  return exports;
 }
 
 ok_error_t BinaryParser::parse_dyld_exports() {
   DyldExportsTrie* exports = binary_->dyld_exports_trie();
   if (exports == nullptr) {
-    LIEF_ERR("Missing LC_DYLD_EXPORTS_TRIE in the main binary");
+    LIEF_ERR("Missing LC_DYLD_EXPORTS_TRIE in main binary");
     return make_error_code(lief_errors::not_found);
   }
 
   uint32_t offset = exports->data_offset();
-  uint32_t size   = exports->data_size();
+  uint32_t size = exports->data_size();
 
   if (offset == 0 || size == 0) {
     return ok();
@@ -342,14 +371,14 @@ ok_error_t BinaryParser::parse_dyld_exports() {
   }
 
   if (linkedit == nullptr) {
-    LIEF_WARN("Can't find the segment that contains the export trie");
+    LIEF_WARN("Segment containing export trie not found");
     return make_error_code(lief_errors::not_found);
   }
 
-  span<uint8_t> content = linkedit->writable_content();
+  span<uint8_t> content = linkedit->content();
   const uint64_t rel_offset = offset - linkedit->file_offset();
   if (rel_offset > content.size() || (rel_offset + size) > content.size()) {
-    LIEF_ERR("The export trie is out of bounds of the segment {}", linkedit->name());
+    LIEF_ERR("Export trie out of bounds for segment {}", linkedit->name());
     return make_error_code(lief_errors::read_out_of_bound);
   }
 
@@ -357,8 +386,11 @@ ok_error_t BinaryParser::parse_dyld_exports() {
   SpanStream trie_stream(exports->content_);
 
   bool invalid_names = false;
-  parse_export_trie(exports->export_info_, trie_stream, offset, "",
-                    &invalid_names);
+  if (auto res = parse_export_trie(trie_stream, offset, "",
+                                   /*depth=*/0, &invalid_names))
+  {
+    exports->export_info_ = std::move(*res);
+  }
   return ok();
 }
 
@@ -366,12 +398,12 @@ ok_error_t BinaryParser::parse_dyldinfo_export() {
   LIEF_DEBUG("[+] LC_DYLD_INFO.exports");
   DyldInfo* dyldinfo = binary_->dyld_info();
   if (dyldinfo == nullptr) {
-    LIEF_ERR("Missing DyldInfo in the main binary");
+    LIEF_ERR("Missing DyldInfo in main binary");
     return make_error_code(lief_errors::not_found);
   }
 
   uint32_t offset = std::get<0>(dyldinfo->export_info());
-  uint32_t size   = std::get<1>(dyldinfo->export_info());
+  uint32_t size = std::get<1>(dyldinfo->export_info());
 
   if (offset == 0 || size == 0) {
     return ok();
@@ -384,14 +416,14 @@ ok_error_t BinaryParser::parse_dyldinfo_export() {
   }
 
   if (linkedit == nullptr) {
-    LIEF_WARN("Can't find the segment that contains the export trie");
+    LIEF_WARN("Segment containing export trie not found");
     return make_error_code(lief_errors::not_found);
   }
 
-  span<uint8_t> content = linkedit->writable_content();
+  span<uint8_t> content = linkedit->content();
   const uint64_t rel_offset = offset - linkedit->file_offset();
   if (rel_offset > content.size() || (rel_offset + size) > content.size()) {
-    LIEF_ERR("The export trie is out of bounds of the segment {}", linkedit->name());
+    LIEF_ERR("Export trie out of bounds for segment {}", linkedit->name());
     return make_error_code(lief_errors::read_out_of_bound);
   }
 
@@ -400,7 +432,11 @@ ok_error_t BinaryParser::parse_dyldinfo_export() {
   SpanStream trie_stream(dyldinfo->export_trie_);
 
   bool invalid_names = false;
-  parse_export_trie(dyldinfo->export_info_, trie_stream, offset, "", &invalid_names);
+  if (auto exports = parse_export_trie(trie_stream, offset, "",
+                                       /*depth=*/0, &invalid_names))
+  {
+    dyldinfo->export_info_ = std::move(*exports);
+  }
   return ok();
 }
 
@@ -412,9 +448,9 @@ ok_error_t BinaryParser::parse_overlay() {
   }
 
   const uint64_t overlay_size = stream_->size() - last_offset;
-  LIEF_INFO("Overlay detected at 0x{:x} ({} bytes)", last_offset, overlay_size);
+  LIEF_INFO("Overlay detected at {:#x} ({} bytes)", last_offset, overlay_size);
   if (!stream_->peek_data(binary_->overlay_, last_offset, overlay_size)) {
-    LIEF_WARN("Can't read overlay data");
+    LIEF_WARN("Failed to read overlay data");
     return make_error_code(lief_errors::read_error);
   }
   return ok();
@@ -423,35 +459,45 @@ ok_error_t BinaryParser::parse_overlay() {
 
 ok_error_t BinaryParser::parse_indirect_symbols(DynamicSymbolCommand& cmd,
                                                 std::vector<Symbol*>& symtab,
-                                                BinaryStream& indirect_stream)
-{
+                                                BinaryStream& indirect_stream) {
+  if (symtab.empty()) {
+    LIEF_WARN("Empty symtab: cannot process indirect symbols");
+    return make_error_code(lief_errors::corrupted);
+  }
+
   for (size_t i = 0; i < cmd.nb_indirect_symbols(); ++i) {
     uint32_t index = 0;
     auto res = indirect_stream.read<uint32_t>();
     if (!res) {
-      LIEF_ERR("Can't read indirect symbol #{}", index);
+      LIEF_ERR("Failed to read indirect symbol #{}", index);
       return make_error_code(lief_errors::read_error);
     }
     index = *res;
 
     if (index == details::INDIRECT_SYMBOL_ABS) {
-      cmd.indirect_symbols_.push_back(const_cast<Symbol*>(&Symbol::indirect_abs()));
+      cmd.indirect_symbols_.push_back(
+          const_cast<Symbol*>(&Symbol::indirect_abs())
+      );
       continue;
     }
 
     if (index == details::INDIRECT_SYMBOL_LOCAL) {
-      cmd.indirect_symbols_.push_back(const_cast<Symbol*>(&Symbol::indirect_local()));
+      cmd.indirect_symbols_.push_back(
+          const_cast<Symbol*>(&Symbol::indirect_local())
+      );
       continue;
     }
 
     if (index == (details::INDIRECT_SYMBOL_LOCAL | details::INDIRECT_SYMBOL_ABS)) {
-      cmd.indirect_symbols_.push_back(const_cast<Symbol*>(&Symbol::indirect_abs_local()));
+      cmd.indirect_symbols_.push_back(
+          const_cast<Symbol*>(&Symbol::indirect_abs_local())
+      );
       continue;
     }
 
     if (index >= symtab.size()) {
-      LIEF_ERR("Indirect symbol index is out of range ({}/0x{:x} vs max sym: {})",
-               index, index, symtab.size());
+      LIEF_ERR("Indirect symbol index out of range ({}/{:#x}, max: {})", index,
+               index, symtab.size());
       continue;
     }
 
@@ -464,5 +510,4 @@ ok_error_t BinaryParser::parse_indirect_symbols(DynamicSymbolCommand& cmd,
   return ok();
 }
 
-} // namespace MachO
-} // namespace LIEF
+} // namespace LIEF::MachO

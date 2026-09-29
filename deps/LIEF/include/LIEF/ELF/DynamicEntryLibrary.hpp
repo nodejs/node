@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,13 +32,11 @@ class LIEF_API DynamicEntryLibrary : public DynamicEntry {
   using DynamicEntry::DynamicEntry;
 
   DynamicEntryLibrary() :
-    DynamicEntry::DynamicEntry{DynamicEntry::TAG::NEEDED, 0}
-  {}
+    DynamicEntry::DynamicEntry{DynamicEntry::TAG::NEEDED, 0} {}
 
   DynamicEntryLibrary(std::string name) :
     DynamicEntry::DynamicEntry{DynamicEntry::TAG::NEEDED, 0},
-    libname_(std::move(name))
-  {}
+    libname_(std::move(name)) {}
 
   DynamicEntryLibrary& operator=(const DynamicEntryLibrary&) = default;
   DynamicEntryLibrary(const DynamicEntryLibrary&) = default;

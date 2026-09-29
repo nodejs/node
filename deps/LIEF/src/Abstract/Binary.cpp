@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,20 +32,18 @@
 namespace LIEF {
 
 Binary::Binary(FORMATS fmt) :
-  format_{fmt}
-{}
+  format_{fmt} {}
 
 Binary::Binary() = default;
 Binary::~Binary() = default;
 
 const Symbol* Binary::get_symbol(const std::string& name) const {
   symbols_t symbols = const_cast<Binary*>(this)->get_abstract_symbols();
-  const auto it_symbol = std::find_if(
-    std::begin(symbols), std::end(symbols),
-    [&name] (const Symbol* s) { return s->name() == name; }
-  );
+  const auto it_symbol =
+      std::find_if(symbols.begin(), symbols.end(),
+                   [&name](const Symbol* s) { return s->name() == name; });
 
-  if (it_symbol == std::end(symbols)) {
+  if (it_symbol == symbols.end()) {
     return nullptr;
   }
 
@@ -86,13 +84,13 @@ void Binary::accept(Visitor& visitor) const {
 }
 
 const char* to_string(Binary::VA_TYPES e) {
-  #define ENTRY(X) std::pair(Binary::VA_TYPES::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(AUTO),
-    ENTRY(RVA),
-    ENTRY(VA),
+#define ENTRY(X) std::pair(Binary::VA_TYPES::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(AUTO),
+      ENTRY(RVA),
+      ENTRY(VA),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
@@ -102,15 +100,11 @@ const char* to_string(Binary::VA_TYPES e) {
 }
 
 const char* to_string(Binary::FORMATS e) {
-  #define ENTRY(X) std::pair(Binary::FORMATS::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(UNKNOWN),
-    ENTRY(ELF),
-    ENTRY(PE),
-    ENTRY(MACHO),
-    ENTRY(OAT),
+#define ENTRY(X) std::pair(Binary::FORMATS::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(UNKNOWN), ENTRY(ELF), ENTRY(PE), ENTRY(MACHO), ENTRY(OAT),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;

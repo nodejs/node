@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,8 +29,8 @@ class BinaryStream;
 namespace PE {
 
 /// This class represents the `StringTable` structure. This structure
-/// can be seen as a dictionary of key, values with key and values defined a
-/// utf-16 string.
+/// can be seen as a dictionary of key-value pairs with keys and values defined as
+/// UTF-16 strings.
 class LIEF_API ResourceStringTable : public Object {
   public:
   /// An entry in this table which is composed of an UTF-16 key and an UTF-16
@@ -57,9 +57,8 @@ class LIEF_API ResourceStringTable : public Object {
       return key_u8() + ": " + value_u8();
     }
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const entry_t& entry)
-    {
+    friend LIEF_API std::ostream& operator<<(std::ostream& os,
+                                             const entry_t& entry) {
       os << entry.to_string();
       return os;
     }
@@ -111,11 +110,9 @@ class LIEF_API ResourceStringTable : public Object {
   }
 
   optional<std::u16string> get(const std::u16string& key) const {
-    auto it = std::find_if(entries_.begin(), entries_.end(),
-      [&key] (const entry_t& entry) {
-        return entry.key == key;
-      }
-    );
+    auto it =
+        std::find_if(entries_.begin(), entries_.end(),
+                     [&key](const entry_t& entry) { return entry.key == key; });
     if (it == entries_.end()) {
       return nullopt();
     }
@@ -153,8 +150,8 @@ class LIEF_API ResourceStringTable : public Object {
     return get(str);
   }
 
-  LIEF_API friend
-    std::ostream& operator<<(std::ostream& os, const ResourceStringTable& table);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const ResourceStringTable& table);
 
   private:
   uint16_t type_ = 0;

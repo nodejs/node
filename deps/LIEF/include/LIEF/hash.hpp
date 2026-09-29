@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,7 +56,8 @@ class LIEF_API Hash : public Visitor {
   virtual Hash& process(const std::vector<uint8_t>& raw);
   virtual Hash& process(span<const uint8_t> raw);
 
-  template<class T, typename = typename std::enable_if<std::is_enum<T>::value>::type>
+  template<class T,
+           typename = typename std::enable_if<std::is_enum<T>::value>::type>
   Hash& process(T v) {
     return process(static_cast<value_type>(v));
   }
@@ -116,7 +117,6 @@ class LIEF_API Hash : public Visitor {
 
   protected:
   value_type value_ = 0;
-
 };
 
 LIEF_API Hash::value_type hash(const Object& v);

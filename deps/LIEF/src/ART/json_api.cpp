@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,13 @@
 #include "LIEF/ART/json.hpp"
 
 #ifdef LIEF_JSON_SUPPORT
-#include "ART/json_internal.hpp"
+  #include "ART/json_internal.hpp"
 #endif
 
 #include "LIEF/ART.hpp"
 
-namespace LIEF {
-namespace ART {
+
+namespace LIEF::ART {
 
 std::string to_json(const Object& v) {
 #ifdef LIEF_JSON_SUPPORT
@@ -37,5 +37,4 @@ std::string to_json(const Object& v) {
 #endif
 }
 
-} // namespace VDEX
-} // namespace LIEF
+} // namespace LIEF::ART

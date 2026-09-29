@@ -1,0 +1,50 @@
+/* Copyright 2017 - 2026 R. Thomas
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+#ifndef LIEF_RUNTIME_CONFIG_H
+#define LIEF_RUNTIME_CONFIG_H
+
+// clang-format off
+
+#cmakedefine LIEF_RUNTIME_PLATFORM_LINUX @LIEF_RUNTIME_PLATFORM_LINUX@
+#cmakedefine LIEF_RUNTIME_PLATFORM_WINDOWS @LIEF_RUNTIME_PLATFORM_WINDOWS@
+#cmakedefine LIEF_RUNTIME_PLATFORM_ANDROID @LIEF_RUNTIME_PLATFORM_ANDROID@
+#cmakedefine LIEF_RUNTIME_PLATFORM_OSX @LIEF_RUNTIME_PLATFORM_OSX@
+#cmakedefine LIEF_RUNTIME_PLATFORM_IOS @LIEF_RUNTIME_PLATFORM_IOS@
+
+#cmakedefine LIEF_RUNTIME_ARCH_ARM64 @LIEF_RUNTIME_ARCH_ARM64@
+#cmakedefine LIEF_RUNTIME_ARCH_X86_64 @LIEF_RUNTIME_ARCH_X86_64@
+#cmakedefine LIEF_RUNTIME_ARCH_RISCV64 @LIEF_RUNTIME_ARCH_RISCV64@
+
+
+#ifdef __cplusplus
+namespace LIEF {
+namespace runtime {
+static constexpr bool platform_linux = @LIEF_RUNTIME_PLATFORM_LINUX@;
+static constexpr bool platform_windows = @LIEF_RUNTIME_PLATFORM_WINDOWS@;
+static constexpr bool platform_android = @LIEF_RUNTIME_PLATFORM_ANDROID@;
+static constexpr bool platform_osx = @LIEF_RUNTIME_PLATFORM_OSX@;
+static constexpr bool platform_ios = @LIEF_RUNTIME_PLATFORM_IOS@;
+
+static constexpr bool arch_arm64 = @LIEF_RUNTIME_ARCH_ARM64@;
+static constexpr bool arch_x86_64 = @LIEF_RUNTIME_ARCH_X86_64@;
+static constexpr bool arch_riscv64 = @LIEF_RUNTIME_ARCH_RISCV64@;
+
+}
+}
+#endif
+
+// clang-format on
+
+#endif

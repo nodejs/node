@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,6 +57,7 @@ class LIEF_API Scope {
   std::string chained(const std::string& sep = "::") const;
 
   ~Scope();
+
   private:
   std::unique_ptr<details::Scope> impl_;
 };

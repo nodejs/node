@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ std::vector<size_t> Section::search_all_(const T& v) const {
   do {
     result.push_back(pos);
     pos = search(v, pos + 1);
-  } while(pos != Section::npos);
+  } while (pos != Section::npos);
 
   return result;
 }

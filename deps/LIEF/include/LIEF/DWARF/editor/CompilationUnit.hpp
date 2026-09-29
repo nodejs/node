@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@
 #include <string>
 
 #include "LIEF/visibility.h"
+#include "LIEF/compiler_attributes.hpp"
+
 #include "LIEF/DWARF/editor/StructType.hpp"
 #include "LIEF/DWARF/editor/BaseType.hpp"
 #include "LIEF/DWARF/editor/FunctionType.hpp"
@@ -47,46 +49,57 @@ class LIEF_API CompilationUnit {
   ///
   /// This attribute aims to inform about the program that generated this
   /// compilation unit (e.g. `LIEF Extended`)
-  CompilationUnit& set_producer(const std::string& producer);
+  CompilationUnit& set_producer(const std::string& producer) LIEF_LIFETIMEBOUND;
 
   /// Create a new function owned by this compilation unit
-  std::unique_ptr<Function> create_function(const std::string& name);
+  std::unique_ptr<Function>
+      create_function(const std::string& name) LIEF_LIFETIMEBOUND;
 
   /// Create a new **global** variable owned by this compilation unit
-  std::unique_ptr<Variable> create_variable(const std::string& name);
+  std::unique_ptr<Variable>
+      create_variable(const std::string& name) LIEF_LIFETIMEBOUND;
 
   /// Create a `DW_TAG_unspecified_type` type with the given name
-  std::unique_ptr<Type> create_generic_type(const std::string& name);
+  std::unique_ptr<Type>
+      create_generic_type(const std::string& name) LIEF_LIFETIMEBOUND;
 
   /// Create an enum type (`DW_TAG_enumeration_type`)
-  std::unique_ptr<EnumType> create_enum(const std::string& name);
+  std::unique_ptr<EnumType>
+      create_enum(const std::string& name) LIEF_LIFETIMEBOUND;
 
-  /// Create a typdef with the name provided in the first parameter which aliases
+  /// Create a typedef with the name provided in the first parameter which aliases
   /// the type provided in the second parameter
-  std::unique_ptr<TypeDef> create_typedef(const std::string& name, const Type& type);
+  std::unique_ptr<TypeDef> create_typedef(const std::string& name,
+                                          const Type& type) LIEF_LIFETIMEBOUND;
 
   /// Create a struct-like type (struct, class, union) with the given name.
   std::unique_ptr<StructType> create_structure(
-    const std::string& name, StructType::TYPE kind = StructType::TYPE::STRUCT);
+      const std::string& name, StructType::TYPE kind = StructType::TYPE::STRUCT
+  ) LIEF_LIFETIMEBOUND;
 
   /// Create a primitive type with the given name and size.
-  std::unique_ptr<BaseType> create_base_type(const std::string& name, size_t size,
-    BaseType::ENCODING encoding = BaseType::ENCODING::NONE);
+  std::unique_ptr<BaseType> create_base_type(
+      const std::string& name, size_t size,
+      BaseType::ENCODING encoding = BaseType::ENCODING::NONE
+  ) LIEF_LIFETIMEBOUND;
 
   /// Create a function type with the given name.
-  std::unique_ptr<FunctionType> create_function_type(const std::string& name);
+  std::unique_ptr<FunctionType>
+      create_function_type(const std::string& name) LIEF_LIFETIMEBOUND;
 
   /// Create a pointer on the provided type
-  std::unique_ptr<PointerType> create_pointer_type(const Type& ty) {
+  std::unique_ptr<PointerType>
+      create_pointer_type(const Type& ty) LIEF_LIFETIMEBOUND {
     return ty.pointer_to();
   }
 
   /// Create a `void` type
-  std::unique_ptr<Type> create_void_type();
+  std::unique_ptr<Type> create_void_type() LIEF_LIFETIMEBOUND;
 
   /// Create an array type with the given name, type and size.
-  std::unique_ptr<ArrayType>
-    create_array(const std::string& name, const Type& type, size_t count);
+  std::unique_ptr<ArrayType> create_array(const std::string& name,
+                                          const Type& type,
+                                          size_t count) LIEF_LIFETIMEBOUND;
 
   ~CompilationUnit();
 

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,14 +37,14 @@
 // Android 9.0.0  OAT 138
 // ======================
 
-namespace LIEF {
-/// Namespace related to the LIEF's OAT module
-namespace OAT {
 
-namespace details {
+/// Namespace related to the LIEF's OAT module
+
+
+namespace LIEF::OAT::details {
 using oat_version_t = uint32_t;
 
-static constexpr uint8_t oat_magic[]   = { 'o', 'a', 't', '\n' };
+static constexpr uint8_t oat_magic[] = {'o', 'a', 't', '\n'};
 static constexpr oat_version_t oat_version = 0;
 
 // =======================
@@ -74,7 +74,7 @@ struct oat_header {
   uint32_t image_file_location_oat_data_begin;
 
   uint32_t key_value_store_size;
-  //uint8_t key_value_store[0];  // note variable width data at end
+  // uint8_t key_value_store[0];  // note variable width data at end
 };
 
 struct oat_dex_file {
@@ -86,28 +86,28 @@ struct oat_dex_file {
 
 struct dex_file {
   uint8_t magic[8];
-  uint32_t checksum;      // See also location_checksum_
+  uint32_t checksum; // See also location_checksum_
   uint8_t signature[20];
-  uint32_t file_size;     // size of entire file
-  uint32_t header_size;   // offset to start of next section
+  uint32_t file_size;   // size of entire file
+  uint32_t header_size; // offset to start of next section
   uint32_t endian_tag;
-  uint32_t link_size;     // unused
-  uint32_t link_off;      // unused
-  uint32_t map_off;       // unused
-  uint32_t string_ids_size;  // number of StringIds
+  uint32_t link_size;       // unused
+  uint32_t link_off;        // unused
+  uint32_t map_off;         // unused
+  uint32_t string_ids_size; // number of StringIds
   uint32_t string_ids_off;  // file offset of StringIds array
-  uint32_t type_ids_size;  // number of TypeIds, we don't support more than 65535
-  uint32_t type_ids_off;  // file offset of TypeIds array
+  uint32_t type_ids_size;   // number of TypeIds, we don't support more than 65535
+  uint32_t type_ids_off;    // file offset of TypeIds array
   uint32_t proto_ids_size;  // number of ProtoIds, we don't support more than 65535
-  uint32_t proto_ids_off;  // file offset of ProtoIds array
+  uint32_t proto_ids_off;   // file offset of ProtoIds array
   uint32_t field_ids_size;  // number of FieldIds
-  uint32_t field_ids_off;  // file offset of FieldIds array
-  uint32_t method_ids_size;  // number of MethodIds
+  uint32_t field_ids_off;   // file offset of FieldIds array
+  uint32_t method_ids_size; // number of MethodIds
   uint32_t method_ids_off;  // file offset of MethodIds array
-  uint32_t class_defs_size;  // number of ClassDefs
+  uint32_t class_defs_size; // number of ClassDefs
   uint32_t class_defs_off;  // file offset of ClassDef array
-  uint32_t data_size;  // unused
-  uint32_t data_off;  // unused
+  uint32_t data_size;       // unused
+  uint32_t data_off;        // unused
 };
 
 
@@ -123,7 +123,6 @@ struct oat_quick_method_header {
 
   uint32_t code_size;
 };
-
 
 
 }
@@ -211,7 +210,7 @@ struct oat_header {
   uint32_t instruction_set;
   uint32_t instruction_set_features_bitmap;
   uint32_t dex_file_count;
-  uint32_t oat_dex_files_offset;                      // ADDED in OAT 131
+  uint32_t oat_dex_files_offset; // ADDED in OAT 131
   uint32_t executable_offset;
   uint32_t i2i_bridge_offset;
   uint32_t i2c_code_bridge_offset;
@@ -227,7 +226,7 @@ struct oat_header {
   uint32_t image_file_location_oat_data_begin;
 
   uint32_t key_value_store_size;
-  //uint8_t key_value_store[0];  // note variable width data at end
+  // uint8_t key_value_store[0];  // note variable width data at end
 };
 
 using OAT_124::oat_dex_file;
@@ -239,7 +238,7 @@ using OAT_124::lookup_table_entry_t;
 
 
 // OAT 138  - Android 9.0.0
-namespace OAT_138  {
+namespace OAT_138 {
 static constexpr oat_version_t oat_version = 138;
 using OAT_131::oat_header;
 using OAT_131::oat_dex_file;
@@ -252,18 +251,18 @@ using OAT_131::lookup_table_entry_t;
 class OAT64_t {
   public:
   static constexpr oat_version_t oat_version = OAT_064::oat_version;
-  using oat_header   = OAT_064::oat_header;
+  using oat_header = OAT_064::oat_header;
   using oat_dex_file = OAT_064::oat_dex_file;
-  using dex_file     = OAT_064::dex_file;
+  using dex_file = OAT_064::dex_file;
   using oat_quick_method_header = OAT_064::oat_quick_method_header;
 };
 
 class OAT79_t {
   public:
   static constexpr oat_version_t oat_version = OAT_079::oat_version;
-  using oat_header   = OAT_079::oat_header;
+  using oat_header = OAT_079::oat_header;
   using oat_dex_file = OAT_079::oat_dex_file;
-  using dex_file     = OAT_079::dex_file;
+  using dex_file = OAT_079::dex_file;
 
   using oat_quick_method_header = OAT_079::oat_quick_method_header;
   using lookup_table_entry_t = OAT_079::lookup_table_entry_t;
@@ -272,9 +271,9 @@ class OAT79_t {
 class OAT88_t {
   public:
   static constexpr oat_version_t oat_version = OAT_088::oat_version;
-  using oat_header   = OAT_088::oat_header;
+  using oat_header = OAT_088::oat_header;
   using oat_dex_file = OAT_088::oat_dex_file;
-  using dex_file     = OAT_088::dex_file;
+  using dex_file = OAT_088::dex_file;
   using oat_quick_method_header = OAT_088::oat_quick_method_header;
 
   using lookup_table_entry_t = OAT_088::lookup_table_entry_t;
@@ -283,9 +282,9 @@ class OAT88_t {
 class OAT124_t {
   public:
   static constexpr oat_version_t oat_version = OAT_124::oat_version;
-  using oat_header   = OAT_124::oat_header;
+  using oat_header = OAT_124::oat_header;
   using oat_dex_file = OAT_124::oat_dex_file;
-  using dex_file     = OAT_124::dex_file;
+  using dex_file = OAT_124::dex_file;
   using oat_quick_method_header = OAT_124::oat_quick_method_header;
 
   using lookup_table_entry_t = OAT_124::lookup_table_entry_t;
@@ -295,9 +294,9 @@ class OAT124_t {
 class OAT131_t {
   public:
   static constexpr oat_version_t oat_version = OAT_131::oat_version;
-  using oat_header   = OAT_131::oat_header;
+  using oat_header = OAT_131::oat_header;
   using oat_dex_file = OAT_131::oat_dex_file;
-  using dex_file     = OAT_131::dex_file;
+  using dex_file = OAT_131::dex_file;
   using oat_quick_method_header = OAT_124::oat_quick_method_header;
 
   using lookup_table_entry_t = OAT_131::lookup_table_entry_t;
@@ -306,15 +305,14 @@ class OAT131_t {
 class OAT138_t {
   public:
   static constexpr oat_version_t oat_version = OAT_138::oat_version;
-  using oat_header              = OAT_138::oat_header;
-  using oat_dex_file            = OAT_138::oat_dex_file;
-  using dex_file                = OAT_138::dex_file;
+  using oat_header = OAT_138::oat_header;
+  using oat_dex_file = OAT_138::oat_dex_file;
+  using dex_file = OAT_138::dex_file;
   using oat_quick_method_header = OAT_138::oat_quick_method_header;
-  using lookup_table_entry_t    = OAT_138::lookup_table_entry_t;
+  using lookup_table_entry_t = OAT_138::lookup_table_entry_t;
 };
 
-} /* end namespace details */
-} /* end namespace OAT */
-} /* end namespace LIEF */
-#endif
+} // namespace LIEF::OAT::details
 
+
+#endif

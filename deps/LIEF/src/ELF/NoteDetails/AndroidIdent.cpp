@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,13 @@
 
 #include <spdlog/fmt/fmt.h>
 
-namespace LIEF {
-namespace ELF {
+
+namespace LIEF::ELF {
 
 static constexpr auto sdk_version_offset = 0;
 static constexpr auto ndk_version_offset = sizeof(uint32_t);
-static constexpr auto ndk_build_number_offset = ndk_version_offset + AndroidIdent::ndk_version_size;
+static constexpr auto ndk_build_number_offset =
+    ndk_version_offset + AndroidIdent::ndk_version_size;
 
 uint32_t AndroidIdent::sdk_version() const {
   auto val = read_at<uint32_t>(sdk_version_offset);
@@ -72,10 +73,8 @@ void AndroidIdent::accept(Visitor& visitor) const {
 void AndroidIdent::dump(std::ostream& os) const {
   Note::dump(os);
   os << '\n';
-  os << fmt::format("SDK: {} NDK: {} NDK Build: {}",
-      sdk_version(), ndk_version(), ndk_build_number()
-  );
+  os << fmt::format("SDK: {} NDK: {} NDK Build: {}", sdk_version(), ndk_version(),
+                    ndk_build_number());
 }
 
-} // namespace ELF
-} // namespace LIEF
+} // namespace LIEF::ELF

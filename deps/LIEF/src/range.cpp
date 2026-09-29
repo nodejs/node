@@ -1,4 +1,4 @@
-/* Copyright 2024 - 2025 R. Thomas
+/* Copyright 2024 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 namespace LIEF {
 
 std::ostream& operator<<(std::ostream& os, const range_t& range) {
-  os << fmt::format("[0x{:06x}, 0x{:06x}]", range.low, range.high);
+  os << fmt::format("[{:#08x}, {:#08x}]", range.low, range.high);
   return os;
 }
 

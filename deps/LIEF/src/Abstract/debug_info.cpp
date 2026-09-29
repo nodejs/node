@@ -1,4 +1,4 @@
-/* Copyright 2021 - 2025 R. Thomas
+/* Copyright 2021 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,8 +41,7 @@ DebugInfo* Binary::load_debug_info(const std::string& /*path*/) {
 // DebugInfo/DebugInfo.hpp
 // ----------------------------------------------------------------------------
 DebugInfo::DebugInfo(std::unique_ptr<details::DebugInfo>) :
-    impl_(nullptr)
-{}
+  impl_(nullptr) {}
 
 DebugInfo::~DebugInfo() = default;
 

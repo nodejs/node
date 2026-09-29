@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,8 +29,7 @@ namespace PE {
 class LIEF_API CHPEMetadataX86 : public CHPEMetadata {
   public:
   CHPEMetadataX86(uint32_t version) :
-    CHPEMetadata(KIND::X86, version)
-  {}
+    CHPEMetadata(KIND::X86, version) {}
 
   CHPEMetadataX86(const CHPEMetadataX86&) = default;
   CHPEMetadataX86& operator=(const CHPEMetadataX86&) = default;
@@ -42,8 +41,8 @@ class LIEF_API CHPEMetadataX86 : public CHPEMetadata {
     return std::unique_ptr<CHPEMetadataX86>(new CHPEMetadataX86(*this));
   }
 
-  static std::unique_ptr<CHPEMetadataX86> parse(
-    Parser& ctx, BinaryStream& stream, uint32_t version);
+  static std::unique_ptr<CHPEMetadataX86> parse(Parser& ctx, BinaryStream& stream,
+                                                uint32_t version);
 
 
   uint32_t chpe_code_address_range_offset() const {
@@ -90,57 +89,71 @@ class LIEF_API CHPEMetadataX86 : public CHPEMetadata {
     return wowa64_rdtsc_function_pointer_;
   }
 
-  CHPEMetadataX86& chpe_code_address_range_offset(uint32_t value) {
+  CHPEMetadataX86&
+      chpe_code_address_range_offset(uint32_t value) LIEF_LIFETIMEBOUND {
     chpe_code_address_range_offset_ = value;
     return *this;
   }
 
-  CHPEMetadataX86& chpe_code_address_range_count(uint32_t value) {
+  CHPEMetadataX86&
+      chpe_code_address_range_count(uint32_t value) LIEF_LIFETIMEBOUND {
     chpe_code_address_range_count_ = value;
     return *this;
   }
 
-  CHPEMetadataX86& wowa64_exception_handler_function_pointer(uint32_t value) {
+  CHPEMetadataX86& wowa64_exception_handler_function_pointer(
+      uint32_t value
+  ) LIEF_LIFETIMEBOUND {
     wowa64_exception_handler_function_pointer_ = value;
     return *this;
   }
 
-  CHPEMetadataX86& wowa64_dispatch_call_function_pointer(uint32_t value) {
+  CHPEMetadataX86&
+      wowa64_dispatch_call_function_pointer(uint32_t value) LIEF_LIFETIMEBOUND {
     wowa64_dispatch_call_function_pointer_ = value;
     return *this;
   }
 
-  CHPEMetadataX86& wowa64_dispatch_indirect_call_function_pointer(uint32_t value) {
+  CHPEMetadataX86& wowa64_dispatch_indirect_call_function_pointer(
+      uint32_t value
+  ) LIEF_LIFETIMEBOUND {
     wowa64_dispatch_indirect_call_function_pointer_ = value;
     return *this;
   }
 
-  CHPEMetadataX86& wowa64_dispatch_indirect_call_cfg_function_pointer(uint32_t value) {
+  CHPEMetadataX86& wowa64_dispatch_indirect_call_cfg_function_pointer(
+      uint32_t value
+  ) LIEF_LIFETIMEBOUND {
     wowa64_dispatch_indirect_call_cfg_function_pointer_ = value;
     return *this;
   }
 
-  CHPEMetadataX86& wowa64_dispatch_ret_function_pointer(uint32_t value) {
+  CHPEMetadataX86&
+      wowa64_dispatch_ret_function_pointer(uint32_t value) LIEF_LIFETIMEBOUND {
     wowa64_dispatch_ret_function_pointer_ = value;
     return *this;
   }
 
-  CHPEMetadataX86& wowa64_dispatch_ret_leaf_function_pointer(uint32_t value) {
+  CHPEMetadataX86& wowa64_dispatch_ret_leaf_function_pointer(
+      uint32_t value
+  ) LIEF_LIFETIMEBOUND {
     wowa64_dispatch_ret_leaf_function_pointer_ = value;
     return *this;
   }
 
-  CHPEMetadataX86& wowa64_dispatch_jump_function_pointer(uint32_t value) {
+  CHPEMetadataX86&
+      wowa64_dispatch_jump_function_pointer(uint32_t value) LIEF_LIFETIMEBOUND {
     wowa64_dispatch_jump_function_pointer_ = value;
     return *this;
   }
 
-  CHPEMetadataX86& compiler_iat_pointer(uint32_t value) {
+  CHPEMetadataX86& compiler_iat_pointer(uint32_t value) LIEF_LIFETIMEBOUND {
     compiler_iat_pointer_ = value;
     return *this;
   }
 
-  CHPEMetadataX86& wowa64_rdtsc_function_pointer(uint32_t value) {
+  CHPEMetadataX86&
+      wowa64_rdtsc_function_pointer(uint32_t value) LIEF_LIFETIMEBOUND {
     wowa64_rdtsc_function_pointer_ = value;
     return *this;
   }
