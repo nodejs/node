@@ -7,8 +7,8 @@ BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 NIXPKGS_PIN_FILE="$BASE_DIR/tools/nix/pkgs.nix"
 OPENSSL_MATRIX_FILE="$BASE_DIR/tools/nix/openssl-matrix.nix"
 
-NIXPKGS_REPO=$(grep 'repo =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
-CURRENT_VERSION_SHA1=$(grep 'rev =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
+NIXPKGS_REPO=$(grep -m 1 'repo =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
+CURRENT_VERSION_SHA1=$(grep -m 1 'rev =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
 
 NEW_UPSTREAM_SHA1=$(git ls-remote "$NIXPKGS_REPO.git" nixpkgs-unstable | awk '{print $1}')
 NEW_VERSION=$(echo "$NEW_UPSTREAM_SHA1" | head -c 35)
