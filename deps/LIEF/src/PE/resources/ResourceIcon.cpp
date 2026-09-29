@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@
 #include "logging.hpp"
 #include <spdlog/fmt/fmt.h>
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 ResourceIcon::ResourceIcon(const details::pe_resource_icon_group& header) :
   width_{header.width},
@@ -35,8 +35,7 @@ ResourceIcon::ResourceIcon(const details::pe_resource_icon_group& header) :
   reserved_{header.reserved},
   planes_{header.planes},
   bit_count_{header.bit_count},
-  id_{header.ID}
-{}
+  id_{header.ID} {}
 
 
 ResourceIcon::ResourceIcon(const details::pe_icon_header& header) :
@@ -46,18 +45,18 @@ ResourceIcon::ResourceIcon(const details::pe_icon_header& header) :
   reserved_{header.reserved},
   planes_{header.planes},
   bit_count_{header.bit_count},
-  id_{static_cast<uint32_t>(-1)}
-{}
+  id_{static_cast<uint32_t>(-1)} {}
 
-result<ResourceIcon> ResourceIcon::from_serialization(const uint8_t* buffer, size_t size) {
-  const uint32_t minsz = sizeof(details::pe_resource_icon_dir) +
-                         sizeof(details::pe_icon_header);
+result<ResourceIcon> ResourceIcon::from_serialization(const uint8_t* buffer,
+                                                      size_t size) {
+  const uint32_t minsz =
+      sizeof(details::pe_resource_icon_dir) + sizeof(details::pe_icon_header);
   if (size < minsz) {
     return make_error_code(lief_errors::read_error);
   }
 
   SpanStream stream(buffer, size);
-  /* reserved */stream.read<uint16_t>();
+  /* reserved */ stream.read<uint16_t>();
   auto type = stream.read<uint16_t>().value_or(0);
   if (type != 1) {
     return make_error_code(lief_errors::corrupted);
@@ -102,35 +101,33 @@ std::vector<uint8_t> ResourceIcon::serialize() const {
               sizeof(details::pe_icon_header) + pixels_.size());
 
   ios
-    // pe_resource_icon_dir header
-    .write<uint16_t>(/*reserved*/0)
-    .write<uint16_t>(/*type=icon*/1)
-    .write<uint16_t>(/*count*/1)
-    // pe_icon_header header
-    .write<uint8_t>(width())
-    .write<uint8_t>(height())
-    .write<uint8_t>(color_count())
-    .write<uint8_t>(reserved())
-    .write<uint16_t>(planes())
-    .write<uint16_t>(bit_count())
-    .write<uint32_t>(size())
-    .write<uint32_t>((uint32_t)ios.tellp() + sizeof(uint32_t))
-    // Raw pixels
-    .write(pixels())
-  ;
+      // pe_resource_icon_dir header
+      .write<uint16_t>(/*reserved*/ 0)
+      .write<uint16_t>(/*type=icon*/ 1)
+      .write<uint16_t>(/*count*/ 1)
+      // pe_icon_header header
+      .write<uint8_t>(width())
+      .write<uint8_t>(height())
+      .write<uint8_t>(color_count())
+      .write<uint8_t>(reserved())
+      .write<uint16_t>(planes())
+      .write<uint16_t>(bit_count())
+      .write<uint32_t>(size())
+      .write<uint32_t>((uint32_t)ios.tellp() + sizeof(uint32_t))
+      // Raw pixels
+      .write(pixels());
   return ios.raw();
 }
 
 void ResourceIcon::save(const std::string& filename) const {
   std::ofstream output_file(filename,
-                            std::ios::out | std::ios::binary |
-                            std::ios::trunc);
+                            std::ios::out | std::ios::binary | std::ios::trunc);
   if (!output_file) {
-    LIEF_ERR("Can't open {} for writing", filename);
+    LIEF_ERR("Failed to open {} for writing", filename);
     return;
   }
   std::vector<uint8_t> raw = serialize();
-  output_file.write((const char*)raw.data(), raw.size());
+  output_file.write(reinterpret_cast<const char*>(raw.data()), raw.size());
 }
 
 void ResourceIcon::accept(Visitor& visitor) const {
@@ -139,18 +136,18 @@ void ResourceIcon::accept(Visitor& visitor) const {
 
 std::ostream& operator<<(std::ostream& os, const ResourceIcon& icon) {
   static constexpr auto DEFAULT_ALIGN = 13;
-  os << fmt::format("Icon id=0x{:04x}\n", icon.id());
-  os << fmt::format("  {:{}}: {}x{}\n", "size", DEFAULT_ALIGN, icon.width(), icon.height());
-  os << fmt::format("  {:{}}: {}\n", "color count", DEFAULT_ALIGN, icon.color_count());
+  os << fmt::format("Icon id={:#06x}\n", icon.id());
+  os << fmt::format("  {:{}}: {}x{}\n", "size", DEFAULT_ALIGN, icon.width(),
+                    icon.height());
+  os << fmt::format("  {:{}}: {}\n", "color count", DEFAULT_ALIGN,
+                    icon.color_count());
   os << fmt::format("  {:{}}: {}\n", "reserved", DEFAULT_ALIGN, icon.reserved());
   os << fmt::format("  {:{}}: {}\n", "planes", DEFAULT_ALIGN, icon.planes());
   os << fmt::format("  {:{}}: {}\n", "bit count", DEFAULT_ALIGN, icon.bit_count());
-  os << fmt::format("  {:{}}: 0x{:08x}\n", "pixel (hash)", DEFAULT_ALIGN, Hash::hash(icon.pixels()));
+  os << fmt::format("  {:{}}: {:#010x}\n", "pixel (hash)", DEFAULT_ALIGN,
+                    Hash::hash(icon.pixels()));
   return os;
 }
 
 
-
 }
-}
-

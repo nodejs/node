@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,7 @@
 
 namespace LIEF::PE {
 std::unique_ptr<CHPEMetadataARM64>
-  CHPEMetadataARM64::parse(Parser& ctx, BinaryStream& stream, uint32_t version)
-{
+    CHPEMetadataARM64::parse(Parser& ctx, BinaryStream& stream, uint32_t version) {
   // The structure defining Hybrid metadata for ARM64(EC) is located in
   // `ntimage.h` and named: `_IMAGE_ARM64EC_METADATA`
   //
@@ -67,49 +66,62 @@ std::unique_ptr<CHPEMetadataARM64>
 
   auto CodeRangesToEntryPoints = stream.read<uint32_t>();
   if (!CodeRangesToEntryPoints) {
-    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: CodeRangesToEntryPoints");
+    LIEF_DEBUG(
+        "Failed to read Compiled Hybrid Metadata[ARM64]: CodeRangesToEntryPoints"
+    );
     return nullptr;
   }
 
   auto RedirectionMetadata = stream.read<uint32_t>();
   if (!RedirectionMetadata) {
-    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: RedirectionMetadata");
+    LIEF_DEBUG(
+        "Failed to read Compiled Hybrid Metadata[ARM64]: RedirectionMetadata"
+    );
     return nullptr;
   }
 
   auto __os_arm64x_dispatch_call_no_redirect = stream.read<uint32_t>();
   if (!__os_arm64x_dispatch_call_no_redirect) {
-    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: __os_arm64x_dispatch_call_no_redirect");
+    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: "
+               "__os_arm64x_dispatch_call_no_redirect");
     return nullptr;
   }
 
   auto __os_arm64x_dispatch_ret = stream.read<uint32_t>();
   if (!__os_arm64x_dispatch_ret) {
-    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: __os_arm64x_dispatch_ret");
+    LIEF_DEBUG(
+        "Failed to read Compiled Hybrid Metadata[ARM64]: __os_arm64x_dispatch_ret"
+    );
     return nullptr;
   }
 
   auto __os_arm64x_dispatch_call = stream.read<uint32_t>();
   if (!__os_arm64x_dispatch_call) {
-    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: __os_arm64x_dispatch_call");
+    LIEF_DEBUG(
+        "Failed to read Compiled Hybrid Metadata[ARM64]: __os_arm64x_dispatch_call"
+    );
     return nullptr;
   }
 
   auto __os_arm64x_dispatch_icall = stream.read<uint32_t>();
   if (!__os_arm64x_dispatch_icall) {
-    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: __os_arm64x_dispatch_icall");
+    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: "
+               "__os_arm64x_dispatch_icall");
     return nullptr;
   }
 
   auto __os_arm64x_dispatch_icall_cfg = stream.read<uint32_t>();
   if (!__os_arm64x_dispatch_icall_cfg) {
-    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: __os_arm64x_dispatch_icall_cfg");
+    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: "
+               "__os_arm64x_dispatch_icall_cfg");
     return nullptr;
   }
 
   auto AlternateEntryPoint = stream.read<uint32_t>();
   if (!AlternateEntryPoint) {
-    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: AlternateEntryPoint");
+    LIEF_DEBUG(
+        "Failed to read Compiled Hybrid Metadata[ARM64]: AlternateEntryPoint"
+    );
     return nullptr;
   }
 
@@ -121,25 +133,30 @@ std::unique_ptr<CHPEMetadataARM64>
 
   auto CodeRangesToEntryPointsCount = stream.read<uint32_t>();
   if (!CodeRangesToEntryPointsCount) {
-    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: CodeRangesToEntryPointsCount");
+    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: "
+               "CodeRangesToEntryPointsCount");
     return nullptr;
   }
 
   auto RedirectionMetadataCount = stream.read<uint32_t>();
   if (!RedirectionMetadataCount) {
-    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: RedirectionMetadataCount");
+    LIEF_DEBUG(
+        "Failed to read Compiled Hybrid Metadata[ARM64]: RedirectionMetadataCount"
+    );
     return nullptr;
   }
 
   auto GetX64InformationFunctionPointer = stream.read<uint32_t>();
   if (!GetX64InformationFunctionPointer) {
-    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: GetX64InformationFunctionPointer");
+    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: "
+               "GetX64InformationFunctionPointer");
     return nullptr;
   }
 
   auto SetX64InformationFunctionPointer = stream.read<uint32_t>();
   if (!SetX64InformationFunctionPointer) {
-    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: SetX64InformationFunctionPointer");
+    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: "
+               "SetX64InformationFunctionPointer");
     return nullptr;
   }
 
@@ -151,13 +168,17 @@ std::unique_ptr<CHPEMetadataARM64>
 
   auto ExtraRFETableSize = stream.read<uint32_t>();
   if (!ExtraRFETableSize) {
-    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: ExtraRFETableSize");
+    LIEF_DEBUG(
+        "Failed to read Compiled Hybrid Metadata[ARM64]: ExtraRFETableSize"
+    );
     return nullptr;
   }
 
   auto __os_arm64x_dispatch_fptr = stream.read<uint32_t>();
   if (!__os_arm64x_dispatch_fptr) {
-    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: __os_arm64x_dispatch_fptr");
+    LIEF_DEBUG(
+        "Failed to read Compiled Hybrid Metadata[ARM64]: __os_arm64x_dispatch_fptr"
+    );
     return nullptr;
   }
 
@@ -169,13 +190,17 @@ std::unique_ptr<CHPEMetadataARM64>
 
   auto AuxiliaryDelayImport = stream.read<uint32_t>();
   if (!AuxiliaryDelayImport) {
-    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: AuxiliaryDelayImport");
+    LIEF_DEBUG(
+        "Failed to read Compiled Hybrid Metadata[ARM64]: AuxiliaryDelayImport"
+    );
     return nullptr;
   }
 
   auto AuxiliaryDelayImportCopy = stream.read<uint32_t>();
   if (!AuxiliaryDelayImportCopy) {
-    LIEF_DEBUG("Failed to read Compiled Hybrid Metadata[ARM64]: AuxiliaryDelayImportCopy");
+    LIEF_DEBUG(
+        "Failed to read Compiled Hybrid Metadata[ARM64]: AuxiliaryDelayImportCopy"
+    );
     return nullptr;
   }
 
@@ -188,29 +213,28 @@ std::unique_ptr<CHPEMetadataARM64>
   auto metadata = std::make_unique<CHPEMetadataARM64>(version);
 
   (*metadata)
-    .code_map(*CodeMap)
-    .code_map_count(*CodeMapCount)
-    .code_ranges_to_entrypoints(*CodeRangesToEntryPoints)
-    .redirection_metadata(*RedirectionMetadata)
-    .os_arm64x_dispatch_call_no_redirect(*__os_arm64x_dispatch_call_no_redirect)
-    .os_arm64x_dispatch_ret(*__os_arm64x_dispatch_ret)
-    .os_arm64x_dispatch_call(*__os_arm64x_dispatch_call)
-    .os_arm64x_dispatch_icall(*__os_arm64x_dispatch_icall)
-    .os_arm64x_dispatch_icall_cfg(*__os_arm64x_dispatch_icall_cfg)
-    .alternate_entry_point(*AlternateEntryPoint)
-    .auxiliary_iat(*AuxiliaryIAT)
-    .code_ranges_to_entry_points_count(*CodeRangesToEntryPointsCount)
-    .redirection_metadata_count(*RedirectionMetadataCount)
-    .get_x64_information_function_pointer(*GetX64InformationFunctionPointer)
-    .set_x64_information_function_pointer(*SetX64InformationFunctionPointer)
-    .extra_rfe_table(*ExtraRFETable)
-    .extra_rfe_table_size(*ExtraRFETableSize)
-    .os_arm64x_dispatch_fptr(*__os_arm64x_dispatch_fptr)
-    .auxiliary_iat_copy(*AuxiliaryIATCopy)
-    .auxiliary_delay_import(*AuxiliaryDelayImport)
-    .auxiliary_delay_import_copy(*AuxiliaryDelayImportCopy)
-    .bitfield_info(*BitfieldInfo)
-  ;
+      .code_map(*CodeMap)
+      .code_map_count(*CodeMapCount)
+      .code_ranges_to_entrypoints(*CodeRangesToEntryPoints)
+      .redirection_metadata(*RedirectionMetadata)
+      .os_arm64x_dispatch_call_no_redirect(*__os_arm64x_dispatch_call_no_redirect)
+      .os_arm64x_dispatch_ret(*__os_arm64x_dispatch_ret)
+      .os_arm64x_dispatch_call(*__os_arm64x_dispatch_call)
+      .os_arm64x_dispatch_icall(*__os_arm64x_dispatch_icall)
+      .os_arm64x_dispatch_icall_cfg(*__os_arm64x_dispatch_icall_cfg)
+      .alternate_entry_point(*AlternateEntryPoint)
+      .auxiliary_iat(*AuxiliaryIAT)
+      .code_ranges_to_entry_points_count(*CodeRangesToEntryPointsCount)
+      .redirection_metadata_count(*RedirectionMetadataCount)
+      .get_x64_information_function_pointer(*GetX64InformationFunctionPointer)
+      .set_x64_information_function_pointer(*SetX64InformationFunctionPointer)
+      .extra_rfe_table(*ExtraRFETable)
+      .extra_rfe_table_size(*ExtraRFETableSize)
+      .os_arm64x_dispatch_fptr(*__os_arm64x_dispatch_fptr)
+      .auxiliary_iat_copy(*AuxiliaryIATCopy)
+      .auxiliary_delay_import(*AuxiliaryDelayImport)
+      .auxiliary_delay_import_copy(*AuxiliaryDelayImportCopy)
+      .bitfield_info(*BitfieldInfo);
 
   if (metadata->code_map_count() > 0) {
     if (!parse_code_map(ctx, *metadata)) {
@@ -235,18 +259,21 @@ std::unique_ptr<CHPEMetadataARM64>
 
 
 ok_error_t CHPEMetadataARM64::parse_code_map(Parser& ctx,
-                                             CHPEMetadataARM64& metadata)
-{
+                                             CHPEMetadataARM64& metadata) {
   uint32_t offset = ctx.bin().rva_to_offset(metadata.code_map());
   const size_t count = metadata.code_map_count();
 
   ScopedStream stream(ctx.stream(), offset);
 
-  // std::min to prevent corrupted count
-  size_t reserved = std::min<size_t>(count, 15);
-  metadata.range_entries_.reserve(reserved);
+  // Bound the loop to the number of 8-byte entries the stream can still provide
+  // so a corrupted count can't drive it (and the allocations) past the data.
+  const uint64_t available =
+      stream->size() - std::min<uint64_t>(stream->pos(), stream->size());
+  const uint64_t nb =
+      std::min<uint64_t>(count, available / (2 * sizeof(uint32_t)));
+  metadata.range_entries_.reserve(std::min<uint64_t>(nb, 15));
 
-  for (size_t i = 0; i < count; ++i) {
+  for (size_t i = 0; i < nb; ++i) {
     auto start_offset = stream->read<uint32_t>();
     if (!start_offset) {
       return make_error_code(start_offset.error());
@@ -265,17 +292,20 @@ ok_error_t CHPEMetadataARM64::parse_code_map(Parser& ctx,
 
 
 ok_error_t CHPEMetadataARM64::parse_redirections(Parser& ctx,
-                                                 CHPEMetadataARM64& metadata)
-{
+                                                 CHPEMetadataARM64& metadata) {
   uint32_t offset = ctx.bin().rva_to_offset(metadata.redirection_metadata());
   const size_t count = metadata.redirection_metadata_count();
 
   ScopedStream stream(ctx.stream(), offset);
-  // std::min to prevent corrupted count
-  size_t reserved = std::min<size_t>(count, 15);
-  metadata.redirection_entries_.reserve(reserved);
+  // Bound the loop to the number of 8-byte entries the stream can still provide
+  // so a corrupted count can't drive it (and the allocations) past the data.
+  const uint64_t available =
+      stream->size() - std::min<uint64_t>(stream->pos(), stream->size());
+  const uint64_t nb =
+      std::min<uint64_t>(count, available / (2 * sizeof(uint32_t)));
+  metadata.redirection_entries_.reserve(std::min<uint64_t>(nb, 15));
 
-  for (size_t i = 0; i < count; ++i) {
+  for (size_t i = 0; i < nb; ++i) {
     auto src = stream->read<uint32_t>();
     if (!src) {
       return make_error_code(src.error());
@@ -292,15 +322,20 @@ ok_error_t CHPEMetadataARM64::parse_redirections(Parser& ctx,
 }
 
 ok_error_t CHPEMetadataARM64::parse_code_ranges_to_entry_points(
-    Parser& ctx, CHPEMetadataARM64& metadata)
-{
+    Parser& ctx, CHPEMetadataARM64& metadata
+) {
   uint32_t offset = ctx.bin().rva_to_offset(metadata.code_ranges_to_entrypoints());
   const size_t count = metadata.code_ranges_to_entry_points_count();
 
   ScopedStream stream(ctx.stream(), offset);
-  // std::min to prevent corrupted count
-  size_t reserved = std::min<size_t>(count, 15);
-  metadata.redirection_entries_.reserve(reserved);
+  // Each entry is 3 x 4-byte fields (see the struct below). Bound the loop to
+  // what the stream can still provide so a corrupted count can't drive it (and
+  // the allocations) past the data.
+  const uint64_t available =
+      stream->size() - std::min<uint64_t>(stream->pos(), stream->size());
+  const uint64_t nb =
+      std::min<uint64_t>(count, available / (3 * sizeof(uint32_t)));
+  metadata.code_range_entry_point_entries_.reserve(std::min<uint64_t>(nb, 15));
 
   // Definition in ntimage.h:
   //
@@ -311,7 +346,7 @@ ok_error_t CHPEMetadataARM64::parse_code_ranges_to_entry_points(
   //     ULONG EntryPoint;
   // } IMAGE_ARM64EC_CODE_RANGE_ENTRY_POINT;
   // ```
-  for (size_t i = 0; i < count; ++i) {
+  for (size_t i = 0; i < nb; ++i) {
     auto StartRva = stream->read<uint32_t>();
     if (!StartRva) {
       LIEF_DEBUG("Failed to read IMAGE_ARM64EC_CODE_RANGE_ENTRY_POINT.StartRva");
@@ -331,7 +366,7 @@ ok_error_t CHPEMetadataARM64::parse_code_ranges_to_entry_points(
     }
 
     metadata.code_range_entry_point_entries_.push_back(
-      code_range_entry_point_t{*StartRva, *EndRva, *EntryPoint}
+        code_range_entry_point_t{*StartRva, *EndRva, *EntryPoint}
     );
   }
   return ok();
@@ -339,68 +374,77 @@ ok_error_t CHPEMetadataARM64::parse_code_ranges_to_entry_points(
 
 
 std::string CHPEMetadataARM64::to_string() const {
-  using namespace fmt;
   static constexpr auto WIDTH = 19;
   std::ostringstream oss;
-  oss << format("{:>{}} Version\n", version(), WIDTH);
-  oss << format("{:>#{}x} Arm64X dispatch call function pointer (no redirection)\n",
-                os_arm64x_dispatch_call_no_redirect(), WIDTH);
-  oss << format("{:>#{}x} Arm64X dispatch return function pointer\n",
-                os_arm64x_dispatch_ret(), WIDTH);
-  oss << format("{:>#{}x} Arm64X dispatch call function pointer\n",
-                os_arm64x_dispatch_call(), WIDTH);
-  oss << format("{:>#{}x} Arm64X dispatch indirect call function pointer\n",
-                os_arm64x_dispatch_icall(), WIDTH);
-  oss << format("{:>#{}x} Arm64X dispatch indirect call function pointer (with CFG check)\n",
-                os_arm64x_dispatch_icall_cfg(), WIDTH);
-  oss << format("{:>#{}x} Arm64X alternative entry point\n",
-                alternate_entry_point(), WIDTH);
-  oss << format("{:>#{}x} Arm64X auxiliary import address table\n",
-                auxiliary_iat(), WIDTH);
-  oss << format("{:>#{}x} Get x64 information function pointer\n",
-                get_x64_information_function_pointer(), WIDTH);
-  oss << format("{:>#{}x} Set x64 information function pointer\n",
-                set_x64_information_function_pointer(), WIDTH);
-  oss << format("{:>{}} Arm64X x64 code ranges to entry points table\n",
-                format("{:#x}[{}]", code_ranges_to_entrypoints(),
-                                    code_ranges_to_entry_points_count()), WIDTH);
-  oss << format("{:>{}} Arm64X arm64x redirection metadata table\n",
-                format("{:#x}[{}]", redirection_metadata(),
-                                    redirection_metadata_count()), WIDTH);
-  oss << format("{:>{}} Arm64X extra RFE table\n",
-                format("{:#x}[{:#x}]", extra_rfe_table(),
-                                       extra_rfe_table_size()), WIDTH);
-  oss << format("{:>#{}x} Arm64X dispatch function pointer\n",
-                os_arm64x_dispatch_fptr(), WIDTH);
-  oss << format("{:>#{}x} Arm64X copy of auxiliary import address table\n",
-                auxiliary_iat_copy(), WIDTH);
-  oss << format("{:>#{}x} Arm64X auxiliary delayload import address table\n",
-                auxiliary_delay_import(), WIDTH);
-  oss << format("{:>#{}x} Arm64X auxiliary delayload import address table copy\n",
-                auxiliary_delay_import_copy(), WIDTH);
-  oss << format("{:>#{}x} Arm64X hybrid image info bitfield\n",
-                bitfield_info(), WIDTH);
+  oss << fmt::format("{:>{}} Version\n", version(), WIDTH);
+  oss << fmt::format(
+      "{:>#{}x} Arm64X dispatch call function pointer (no redirection)\n",
+      os_arm64x_dispatch_call_no_redirect(), WIDTH
+  );
+  oss << fmt::format("{:>#{}x} Arm64X dispatch return function pointer\n",
+                     os_arm64x_dispatch_ret(), WIDTH);
+  oss << fmt::format("{:>#{}x} Arm64X dispatch call function pointer\n",
+                     os_arm64x_dispatch_call(), WIDTH);
+  oss << fmt::format("{:>#{}x} Arm64X dispatch indirect call function pointer\n",
+                     os_arm64x_dispatch_icall(), WIDTH);
+  oss << fmt::format(
+      "{:>#{}x} Arm64X dispatch indirect call function pointer (with CFG check)\n",
+      os_arm64x_dispatch_icall_cfg(), WIDTH
+  );
+  oss << fmt::format("{:>#{}x} Arm64X alternative entry point\n",
+                     alternate_entry_point(), WIDTH);
+  oss << fmt::format("{:>#{}x} Arm64X auxiliary import address table\n",
+                     auxiliary_iat(), WIDTH);
+  oss << fmt::format("{:>#{}x} Get x64 information function pointer\n",
+                     get_x64_information_function_pointer(), WIDTH);
+  oss << fmt::format("{:>#{}x} Set x64 information function pointer\n",
+                     set_x64_information_function_pointer(), WIDTH);
+  oss << fmt::format("{:>{}} Arm64X x64 code ranges to entry points table\n",
+                     fmt::format("{:#x}[{}]", code_ranges_to_entrypoints(),
+                                 code_ranges_to_entry_points_count()),
+                     WIDTH);
+  oss << fmt::format("{:>{}} Arm64X arm64x redirection metadata table\n",
+                     fmt::format("{:#x}[{}]", redirection_metadata(),
+                                 redirection_metadata_count()),
+                     WIDTH);
+  oss << fmt::format(
+      "{:>{}} Arm64X extra RFE table\n",
+      fmt::format("{:#x}[{:#x}]", extra_rfe_table(), extra_rfe_table_size()), WIDTH
+  );
+  oss << fmt::format("{:>#{}x} Arm64X dispatch function pointer\n",
+                     os_arm64x_dispatch_fptr(), WIDTH);
+  oss << fmt::format("{:>#{}x} Arm64X copy of auxiliary import address table\n",
+                     auxiliary_iat_copy(), WIDTH);
+  oss << fmt::format("{:>#{}x} Arm64X auxiliary delayload import address table\n",
+                     auxiliary_delay_import(), WIDTH);
+  oss << fmt::format(
+      "{:>#{}x} Arm64X auxiliary delayload import address table copy\n",
+      auxiliary_delay_import_copy(), WIDTH
+  );
+  oss << fmt::format("{:>#{}x} Arm64X hybrid image info bitfield\n",
+                     bitfield_info(), WIDTH);
 
   if (!range_entries_.empty()) {
     oss << "Address Range:\n";
     for (const range_entry_t& entry : code_ranges()) {
-      oss << format("{:>10} [0x{:08x}, 0x{:08x}]\n",
-                    LIEF::PE::to_string(entry.type()), entry.start(), entry.end());
+      oss << fmt::format("{:>10} [{:#010x}, {:#010x}]\n",
+                         LIEF::PE::to_string(entry.type()), entry.start(),
+                         entry.end());
     }
   }
 
   if (!redirection_entries_.empty()) {
     oss << "Arm64X Redirection Metadata Table:\n";
     for (const redirection_entry_t& entry : redirections()) {
-      oss << format("  0x{:08x} --> 0x{:08x}\n", entry.src, entry.dst);
+      oss << fmt::format("  {:#010x} --> {:#010x}\n", entry.src, entry.dst);
     }
   }
 
   if (!code_range_entry_point_entries_.empty()) {
     oss << "Arm64X X64 Code Ranges to Entrypoint:\n";
     for (const code_range_entry_point_t& entry : code_range_entry_point()) {
-      oss << format("  [0x{:08x}, 0x{:08x}] --> 0x{:08x}\n",
-          entry.start_rva, entry.end_rva, entry.entrypoint);
+      oss << fmt::format("  [{:#010x}, {:#010x}] --> {:#010x}\n", entry.start_rva,
+                         entry.end_rva, entry.entrypoint);
     }
   }
 

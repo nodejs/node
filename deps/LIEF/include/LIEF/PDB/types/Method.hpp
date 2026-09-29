@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,13 @@
 #ifndef LIEF_PDB_TYPE_METHOD_H
 #define LIEF_PDB_TYPE_METHOD_H
 
+#include "LIEF/compiler_attributes.hpp"
+#include "LIEF/iterators.hpp"
 #include "LIEF/visibility.h"
 
 #include <string>
 #include <memory>
+#include <cstdint>
 
 namespace LIEF {
 namespace pdb {
@@ -31,63 +34,96 @@ class MethodIt;
 }
 
 /// This class represents a Method (`LF_ONEMETHOD`) that can be defined in
-/// ClassLike PDB type
+/// a ClassLike PDB type (Class, Structure, Union, Interface).
 class LIEF_API Method {
   public:
-  class LIEF_API Iterator {
+  class Iterator final
+    : public iterator_facade_base<Iterator, std::forward_iterator_tag, Method,
+                                  std::ptrdiff_t, const Method*, const Method&> {
     public:
-    using iterator_category = std::forward_iterator_tag;
-    using value_type = std::unique_ptr<Method>;
-    using difference_type = std::ptrdiff_t;
-    using pointer = Method*;
-    using reference = Method&;
     using implementation = details::MethodIt;
+    using iterator_facade_base::operator++;
 
-    class LIEF_API PointerProxy {
-      // Inspired from LLVM's iterator_facade_base
-      friend class Iterator;
-      public:
-      pointer operator->() const { return R.get(); }
+    LIEF_API Iterator();
 
-      private:
-      value_type R;
+    LIEF_API Iterator(std::unique_ptr<details::MethodIt> impl);
 
-      template <typename RefT>
-      PointerProxy(RefT &&R) : R(std::forward<RefT>(R)) {} // NOLINT(bugprone-forwarding-reference-overload)
-    };
-    Iterator(const Iterator&);
-    Iterator(Iterator&&) noexcept;
-    Iterator(std::unique_ptr<details::MethodIt> impl);
-    ~Iterator();
+    LIEF_API Iterator(const Iterator&);
+    LIEF_API Iterator& operator=(const Iterator&);
+
+    LIEF_API Iterator(Iterator&&) noexcept;
+    LIEF_API Iterator& operator=(Iterator&&) noexcept;
+
+    LIEF_API ~Iterator();
 
     friend LIEF_API bool operator==(const Iterator& LHS, const Iterator& RHS);
 
-    friend LIEF_API bool operator!=(const Iterator& LHS, const Iterator& RHS) {
+    friend bool operator!=(const Iterator& LHS, const Iterator& RHS) {
       return !(LHS == RHS);
     }
 
-    Iterator& operator++();
+    // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
+    LIEF_API Iterator& operator++();
 
-    Iterator operator++(int) {
-      Iterator tmp = *static_cast<Iterator*>(this);
-      ++*static_cast<Iterator *>(this);
-      return tmp;
-    }
+    LIEF_API const Method& operator*() const LIEF_LIFETIMEBOUND;
 
-    std::unique_ptr<Method> operator*() const;
+    // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
+    LIEF_API const Method* operator->() const LIEF_LIFETIMEBOUND;
 
-    PointerProxy operator->() const {
-      return static_cast<const Iterator*>(this)->operator*();
-    }
+    /// Transfer ownership of the method at the current position to the
+    /// caller. Returns `nullptr` if the iterator is past-the-end.
+    LIEF_API std::unique_ptr<Method> yield();
 
     private:
+    void load() const;
+
     std::unique_ptr<details::MethodIt> impl_;
+    mutable std::unique_ptr<Method> cached_;
   };
+
   public:
+  /// The type (or property) of the method.
+  enum class TYPE {
+    /// Regular instance method
+    VANILLA = 0x00,
+
+    /// Virtual method
+    VIRTUAL = 0x01,
+
+    /// Static method
+    STATIC = 0x02,
+
+    /// Friend method
+    FRIEND = 0x03,
+
+    /// Virtual method that introduces a new vtable slot
+    INTRODUCING_VIRTUAL = 0x04,
+
+    /// Pure virtual method (abstract)
+    PURE_VIRTUAL = 0x05,
+
+    /// Pure virtual method that introduces a new vtable slot
+    PURE_INTRODUCING_VIRTUAL = 0x06,
+  };
+
+  /// Visibility access for the method.
+  enum class ACCESS : uint8_t {
+    NONE = 0,      /// No access specifier (or unknown)
+    PRIVATE = 1,   /// Private access
+    PROTECTED = 2, /// Protected access
+    PUBLIC = 3,    /// Public access
+  };
+
   Method(std::unique_ptr<details::Method> impl);
 
   /// Name of the method
   std::string name() const;
+
+  /// Type/Properties of the method (virtual, static, etc.)
+  TYPE type() const;
+
+  /// Visibility access (public, private, ...)
+  ACCESS access() const;
 
   ~Method();
 
@@ -99,4 +135,3 @@ class LIEF_API Method {
 }
 }
 #endif
-

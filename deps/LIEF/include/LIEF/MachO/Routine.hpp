@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ namespace MachO {
 class BinaryParser;
 
 /// Class that represents the `LC_ROUTINE/LC_ROUTINE64` commands.
-/// Accodring to the Mach-O `loader.h` documentation:
+/// According to the Mach-O `loader.h` documentation:
 ///
 /// > The routines command contains the address of the dynamic shared library
 /// > initialization routine and an index into the module table for the module
@@ -37,6 +37,7 @@ class BinaryParser;
 /// > routines (used for C++ static constructors) in the library.
 class LIEF_API Routine : public LoadCommand {
   friend class BinaryParser;
+
   public:
   Routine() = default;
 
@@ -126,6 +127,7 @@ class LIEF_API Routine : public LoadCommand {
     return cmd->command() == LoadCommand::TYPE::ROUTINES ||
            cmd->command() == LoadCommand::TYPE::ROUTINES_64;
   }
+
   private:
   uint64_t init_address_ = 0;
   uint64_t init_module_ = 0;

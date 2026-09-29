@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@
 #include "LIEF/Visitor.hpp"
 #include "LIEF/BinaryStream/BinaryStream.hpp"
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 result<CodeIntegrity> CodeIntegrity::parse(Parser&, BinaryStream& stream) {
   auto flags = stream.read<uint16_t>();
@@ -45,11 +45,10 @@ result<CodeIntegrity> CodeIntegrity::parse(Parser&, BinaryStream& stream) {
 
   CodeIntegrity code_integrity;
 
-  code_integrity
-    .flags(*flags)
-    .catalog(*catalog)
-    .catalog_offset(*catalog_offset)
-    .reserved(*reserved);
+  code_integrity.flags(*flags)
+      .catalog(*catalog)
+      .catalog_offset(*catalog_offset)
+      .reserved(*reserved);
 
   return code_integrity;
 }
@@ -59,12 +58,11 @@ void CodeIntegrity::accept(LIEF::Visitor& visitor) const {
 }
 
 std::ostream& operator<<(std::ostream& os, const CodeIntegrity& entry) {
-  os << fmt::format("Flags          0x{:x}\n", entry.flags())
-     << fmt::format("Catalog        0x{:x}\n", entry.catalog())
-     << fmt::format("Catalog offset 0x{:x}\n", entry.catalog_offset())
-     << fmt::format("Reserved       0x{:x}\n", entry.reserved());
+  os << fmt::format("Flags          {:#x}\n", entry.flags())
+     << fmt::format("Catalog        {:#x}\n", entry.catalog())
+     << fmt::format("Catalog offset {:#x}\n", entry.catalog_offset())
+     << fmt::format("Reserved       {:#x}\n", entry.reserved());
   return os;
 }
 
-}
 }

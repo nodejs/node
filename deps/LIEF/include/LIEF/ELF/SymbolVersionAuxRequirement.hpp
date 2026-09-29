@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,10 @@
 #ifndef LIEF_ELF_SYMBOL_VERSION_AUX_REQUIREMENT_H
 #define LIEF_ELF_SYMBOL_VERSION_AUX_REQUIREMENT_H
 
-#include <string>
 #include <ostream>
 #include <cstdint>
 
 #include "LIEF/visibility.h"
-#include "LIEF/iterators.hpp"
 
 #include "LIEF/ELF/SymbolVersionAux.hpp"
 
@@ -40,7 +38,8 @@ class LIEF_API SymbolVersionAuxRequirement : public SymbolVersionAux {
   SymbolVersionAuxRequirement(const details::Elf32_Vernaux& header);
   SymbolVersionAuxRequirement() = default;
 
-  SymbolVersionAuxRequirement& operator=(const SymbolVersionAuxRequirement&) = default;
+  SymbolVersionAuxRequirement&
+      operator=(const SymbolVersionAuxRequirement&) = default;
   SymbolVersionAuxRequirement(const SymbolVersionAuxRequirement&) = default;
 
   ~SymbolVersionAuxRequirement() override = default;
@@ -77,8 +76,8 @@ class LIEF_API SymbolVersionAuxRequirement : public SymbolVersionAux {
 
   void accept(Visitor& visitor) const override;
 
-  LIEF_API friend
-  std::ostream& operator<<(std::ostream& os, const SymbolVersionAuxRequirement& aux) {
+  LIEF_API friend std::ostream&
+      operator<<(std::ostream& os, const SymbolVersionAuxRequirement& aux) {
     os << aux.name();
     return os;
   }

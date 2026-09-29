@@ -2,11 +2,27 @@ ifndef MBEDTLS_PATH
 MBEDTLS_PATH := ..
 endif
 
+TF_PSA_CRYPTO_CORE_PATH = $(MBEDTLS_PATH)/tf-psa-crypto/core
+TF_PSA_CRYPTO_DRIVERS_BUILTIN_SRC_PATH = $(MBEDTLS_PATH)/tf-psa-crypto/drivers/builtin/src
+
+# List the generated files without running a script, so that this
+# works with no tooling dependencies when GEN_FILES is disabled.
 GENERATED_FILES := \
-	error.c version_features.c \
-	ssl_debug_helpers_generated.c \
-	psa_crypto_driver_wrappers.h \
-	psa_crypto_driver_wrappers_no_static.c
+	mbedtls_config_check_before.h \
+	mbedtls_config_check_final.h \
+	mbedtls_config_check_user.h \
+	error.c \
+	version_features.c \
+	ssl_debug_helpers_generated.c
+
+# Also list the generated files from crypto that are needed in the build,
+# because we don't have the list in a consumable form.
+GENERATED_FILES += \
+	$(TF_PSA_CRYPTO_CORE_PATH)/psa_crypto_driver_wrappers.h \
+	$(TF_PSA_CRYPTO_CORE_PATH)/psa_crypto_driver_wrappers_no_static.c \
+	$(TF_PSA_CRYPTO_CORE_PATH)/tf_psa_crypto_config_check_before.h \
+	$(TF_PSA_CRYPTO_CORE_PATH)/tf_psa_crypto_config_check_final.h \
+	$(TF_PSA_CRYPTO_CORE_PATH)/tf_psa_crypto_config_check_user.h
 
 ifneq ($(GENERATED_FILES),$(wildcard $(GENERATED_FILES)))
     ifeq (,$(wildcard $(MBEDTLS_PATH)/framework/exported.make))
@@ -28,11 +44,14 @@ CFLAGS	?= -O2
 WARNING_CFLAGS ?=  -Wall -Wextra -Wformat=2 -Wno-format-nonliteral
 LDFLAGS ?=
 
-# Include ../include for public headers and . for private headers.
-# Note that . needs to be included explicitly for the sake of library
-# files that are not in the /library directory (which currently means
-# under /3rdparty).
-LOCAL_CFLAGS = $(WARNING_CFLAGS) -I. -I../include -D_FILE_OFFSET_BITS=64
+# Include ../include, ../tf-psa-crypto/include and
+# ../tf-psa-crypto/drivers/builtin/include for public headers and .,
+# ../tf-psa-crypto/core and ../tf-psa-crypto/drivers/builtin/src for
+# private headers.
+LOCAL_CFLAGS = $(WARNING_CFLAGS) -I. -I../tf-psa-crypto/core \
+               -I../tf-psa-crypto/drivers/builtin/src \
+               -I../include -I../tf-psa-crypto/include \
+               -I../tf-psa-crypto/drivers/builtin/include -D_FILE_OFFSET_BITS=64
 LOCAL_LDFLAGS =
 
 ifdef DEBUG
@@ -75,7 +94,7 @@ endif
 endif
 
 SOEXT_TLS?=so.21
-SOEXT_X509?=so.7
+SOEXT_X509?=so.8
 SOEXT_CRYPTO?=so.16
 
 # Set AR_DASH= (empty string) to use an ar implementation that does not accept
@@ -102,104 +121,30 @@ DLEXT = dylib
 endif
 endif
 
-OBJS_CRYPTO= \
-	     aes.o \
-	     aesni.o \
-	     aesce.o \
-	     aria.o \
-	     asn1parse.o \
-	     asn1write.o \
-	     base64.o \
-	     bignum.o \
-	     bignum_core.o \
-	     bignum_mod.o \
-	     bignum_mod_raw.o \
-	     block_cipher.o \
-	     camellia.o \
-	     ccm.o \
-	     chacha20.o \
-	     chachapoly.o \
-	     cipher.o \
-	     cipher_wrap.o \
-	     cmac.o \
-	     constant_time.o \
-	     ctr_drbg.o \
-	     des.o \
-	     dhm.o \
-	     ecdh.o \
-	     ecdsa.o \
-	     ecjpake.o \
-	     ecp.o \
-	     ecp_curves.o \
-	     ecp_curves_new.o \
-	     entropy.o \
-	     entropy_poll.o \
-	     error.o \
-	     gcm.o \
-	     hkdf.o \
-	     hmac_drbg.o \
-	     lmots.o \
-	     lms.o \
-	     md.o \
-	     md5.o \
-	     memory_buffer_alloc.o \
-	     nist_kw.o \
-	     oid.o \
-	     padlock.o \
-	     pem.o \
-	     pk.o \
-	     pk_ecc.o \
-	     pk_wrap.o \
-	     pkcs12.o \
-	     pkcs5.o \
-	     pkparse.o \
-	     pkwrite.o \
-	     platform.o \
-	     platform_util.o \
-	     poly1305.o \
-	     psa_crypto.o \
-	     psa_crypto_aead.o \
-	     psa_crypto_cipher.o \
-	     psa_crypto_client.o \
-	     psa_crypto_driver_wrappers_no_static.o \
-	     psa_crypto_ecp.o \
-	     psa_crypto_ffdh.o \
-	     psa_crypto_hash.o \
-	     psa_crypto_mac.o \
-	     psa_crypto_pake.o \
-	     psa_crypto_rsa.o \
-	     psa_crypto_se.o \
-	     psa_crypto_slot_management.o \
-	     psa_crypto_storage.o \
-	     psa_its_file.o \
-	     psa_util.o \
-	     ripemd160.o \
-	     rsa.o \
-	     rsa_alt_helpers.o \
-	     sha1.o \
-	     sha256.o \
-	     sha512.o \
-	     sha3.o \
-	     threading.o \
-	     timing.o \
-	     version.o \
-	     version_features.o \
-	     # This line is intentionally left blank
+OBJS_CRYPTO = $(patsubst %.c, %.o,$(wildcard $(TF_PSA_CRYPTO_CORE_PATH)/*.c $(TF_PSA_CRYPTO_DRIVERS_BUILTIN_SRC_PATH)/*.c))
+GENERATED_OBJS_CRYPTO = $(TF_PSA_CRYPTO_CORE_PATH)/psa_crypto_driver_wrappers_no_static.o
+OBJS_CRYPTO := $(filter-out $(GENERATED_OBJS_CRYPTO),$(OBJS_CRYPTO))
+OBJS_CRYPTO += $(GENERATED_OBJS_CRYPTO)
 
-include ../3rdparty/Makefile.inc
+THIRDPARTY_DIR := $(MBEDTLS_PATH)/tf-psa-crypto/drivers
+include $(MBEDTLS_PATH)/tf-psa-crypto/drivers/everest/Makefile.inc
+include $(MBEDTLS_PATH)/tf-psa-crypto/drivers/p256-m/Makefile.inc
 LOCAL_CFLAGS+=$(THIRDPARTY_INCLUDES)
 OBJS_CRYPTO+=$(THIRDPARTY_CRYPTO_OBJECTS)
 
 OBJS_X509= \
+	   mbedtls_config.o \
 	   x509.o \
 	   x509_create.o \
 	   x509_crl.o \
 	   x509_crt.o \
 	   x509_csr.o \
+	   x509_oid.o \
 	   x509write.o \
 	   x509write_crt.o \
 	   x509write_csr.o \
 	   pkcs7.o \
+	   error.o \
 	   # This line is intentionally left blank
 
 OBJS_TLS= \
@@ -221,6 +166,9 @@ OBJS_TLS= \
 	  ssl_tls13_client.o \
 	  ssl_tls13_server.o \
 	  ssl_tls13_generic.o \
+	  timing.o \
+	  version.o \
+	  version_features.o \
 	  # This line is intentionally left blank
 
 .SILENT:
@@ -235,6 +183,7 @@ endif
 
 static: libmbedcrypto.a libmbedx509.a libmbedtls.a
 	cd ../tests && echo "This is a seedfile that contains 64 bytes (65 on Windows)......" > seedfile
+	cd ../tf-psa-crypto/tests && echo "This is a seedfile that contains 64 bytes (65 on Windows)......" > seedfile
 
 shared: libmbedcrypto.$(DLEXT) libmbedx509.$(DLEXT) libmbedtls.$(DLEXT)
 
@@ -345,7 +294,7 @@ libmbedcrypto.dll: $(OBJS_CRYPTO)
 generated_files: $(GENERATED_FILES)
 
 # See root Makefile
-GEN_FILES ?=
+GEN_FILES ?= yes
 ifdef GEN_FILES
 gen_file_dep =
 else
@@ -378,26 +327,48 @@ version_features.c:
 	$(PERL) ../scripts/generate_features.pl
 
 GENERATED_WRAPPER_FILES = \
-                    psa_crypto_driver_wrappers.h \
-                    psa_crypto_driver_wrappers_no_static.c
-$(GENERATED_WRAPPER_FILES): ../scripts/generate_driver_wrappers.py
-$(GENERATED_WRAPPER_FILES): ../scripts/data_files/driver_templates/psa_crypto_driver_wrappers.h.jinja
-$(GENERATED_WRAPPER_FILES): ../scripts/data_files/driver_templates/psa_crypto_driver_wrappers_no_static.c.jinja
+                    $(TF_PSA_CRYPTO_CORE_PATH)/psa_crypto_driver_wrappers.h \
+                    $(TF_PSA_CRYPTO_CORE_PATH)/psa_crypto_driver_wrappers_no_static.c
+$(GENERATED_WRAPPER_FILES): ../tf-psa-crypto/scripts/generate_driver_wrappers.py
+$(GENERATED_WRAPPER_FILES): ../tf-psa-crypto/scripts/data_files/driver_templates/psa_crypto_driver_wrappers.h.jinja
+$(GENERATED_WRAPPER_FILES): ../tf-psa-crypto/scripts/data_files/driver_templates/psa_crypto_driver_wrappers_no_static.c.jinja
 $(GENERATED_WRAPPER_FILES):
 	echo "  Gen   $(GENERATED_WRAPPER_FILES)"
-	$(PYTHON) ../scripts/generate_driver_wrappers.py
+	$(PYTHON) ../tf-psa-crypto/scripts/generate_driver_wrappers.py $(TF_PSA_CRYPTO_CORE_PATH)
 
-psa_crypto.o:psa_crypto_driver_wrappers.h
+$(TF_PSA_CRYPTO_CORE_PATH)/psa_crypto.o:$(TF_PSA_CRYPTO_CORE_PATH)/psa_crypto_driver_wrappers.h
+
+GENERATED_CONFIG_CHECK_FILES = $(shell $(PYTHON) ../scripts/generate_config_checks.py --list .)
+$(GENERATED_CONFIG_CHECK_FILES): $(gen_file_dep) \
+	$(TF_PSA_CRYPTO_CORE_PATH)/../scripts/generate_config_checks.py \
+	../framework/scripts/mbedtls_framework/config_checks_generator.py
+$(GENERATED_CONFIG_CHECK_FILES):
+	echo "  Gen   $(GENERATED_CONFIG_CHECK_FILES)"
+	$(PYTHON) ../scripts/generate_config_checks.py
+
+mbedtls_config.o: $(GENERATED_CONFIG_CHECK_FILES)
+
+TF_PSA_CRYPTO_GENERATED_CONFIG_CHECK_FILES = $(shell $(PYTHON) \
+	$(TF_PSA_CRYPTO_CORE_PATH)/../scripts/generate_config_checks.py \
+	--list $(TF_PSA_CRYPTO_CORE_PATH))
+$(TF_PSA_CRYPTO_GENERATED_CONFIG_CHECK_FILES): $(gen_file_dep) \
+	../scripts/generate_config_checks.py \
+	../framework/scripts/mbedtls_framework/config_checks_generator.py
+$(TF_PSA_CRYPTO_GENERATED_CONFIG_CHECK_FILES):
+	echo "  Gen   $(TF_PSA_CRYPTO_GENERATED_CONFIG_CHECK_FILES)"
+	$(PYTHON) $(TF_PSA_CRYPTO_CORE_PATH)/../scripts/generate_config_checks.py
+
+$(TF_PSA_CRYPTO_CORE_PATH)/tf_psa_crypto_config.o: $(TF_PSA_CRYPTO_GENERATED_CONFIG_CHECK_FILES)
 
 clean:
 ifndef WINDOWS
 	rm -f *.o *.s libmbed*
-	rm -f $(THIRDPARTY_CRYPTO_OBJECTS) $(THIRDPARTY_CRYPTO_OBJECTS:.o=.s)
+	rm -f $(OBJS_CRYPTO) $(OBJS_CRYPTO:.o=.s)
 else
 	if exist *.o del /Q /F *.o
 	if exist *.s del /Q /F *.s
 	if exist libmbed* del /Q /F libmbed*
-	del /Q /F del_errors_out_if_the_file_list_is_empty_but_not_if_a_file_does_not_exist $(subst /,\,$(THIRDPARTY_CRYPTO_OBJECTS) $(THIRDPARTY_CRYPTO_OBJECTS:.o=.s))
+	del /Q /F del_errors_out_if_the_file_list_is_empty_but_not_if_a_file_does_not_exist $(subst /,\,$(OBJS_CRYPTO))
 endif
 
 neat: clean
