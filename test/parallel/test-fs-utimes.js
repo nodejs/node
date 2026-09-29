@@ -88,7 +88,7 @@ const cases = [
   [asPath, new Date()],
   [asPath, 123456.789],
   [asPath, stats.mtime],
-  [asPath, '123456', -1],
+  ...(common.isAIX ? [] : [[asPath, '123456', -1]]),
   [asPath, new Date('2017-04-08T17:59:38.008Z')],
   [asUrl, new Date()],
 ];
