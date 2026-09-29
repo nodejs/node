@@ -17,6 +17,7 @@
 #include "prov/der_slh_dsa.h"
 #include "crypto/slh_dsa.h"
 #include "internal/sizes.h"
+#include "fips/fipsindicator.h"
 
 #define SLH_DSA_MAX_ADD_RANDOM_LEN 32
 
@@ -314,7 +315,8 @@ static const OSSL_PARAM *slh_dsa_settable_ctx_params(void *vctx,
 
 static const OSSL_PARAM known_gettable_ctx_params[] = {
     OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_ALGORITHM_ID, NULL, 0),
-    OSSL_PARAM_END
+    OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
+        OSSL_PARAM_END
 };
 
 static const OSSL_PARAM *slh_dsa_gettable_ctx_params(ossl_unused void *vctx,
@@ -338,7 +340,12 @@ static int slh_dsa_get_ctx_params(void *vctx, OSSL_PARAM *params)
             ctx->aid_len))
         return 0;
 
+#ifdef FIPS_MODULE
+    return ossl_FIPS_IND_get_ctx_param_conditional(NULL, params,
+        ctx->add_random_len == 0);
+#else
     return 1;
+#endif
 }
 
 #define MAKE_SIGNATURE_FUNCTIONS(alg, fn)                                               \

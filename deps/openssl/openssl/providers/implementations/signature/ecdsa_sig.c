@@ -698,7 +698,8 @@ static int ecdsa_get_ctx_params(void *vctx, OSSL_PARAM *params)
         return 0;
 #endif
 
-    if (!OSSL_FIPS_IND_GET_CTX_PARAM(ctx, params))
+    if (!OSSL_FIPS_IND_GET_CTX_PARAM_CONDITIONAL(ctx, params,
+            ctx->verify_message))
         return 0;
     return 1;
 }

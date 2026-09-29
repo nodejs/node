@@ -23,6 +23,56 @@ OpenSSL Releases
 OpenSSL 3.5
 -----------
 
+### Major changes between OpenSSL 3.5.8 and OpenSSL 3.5.9 [29 Sep 2026]
+
+OpenSSL 3.5.9 is a security patch release.  The most severe CVE fixed
+in this release is High.
+
+This release incorporates the following bug fixes and mitigations:
+
+  * Fixed DTLS retransmissions of handshake messages from a stale buffer offset.
+    ([CVE-2026-84782])
+
+  * Fixed excessive memory allocation in relative CRLDP processing.
+    ([CVE-2026-35189])
+
+  * Fixed QUIC unvalidated amplification credit may be over-accounted.
+    ([CVE-2026-35191])
+
+  * Fixed potential CPU DoS via O(n^2) fragment reassembly in QUIC.
+    ([CVE-2026-42772])
+
+  * Fixed a timing side-channel in scalar multiplication for mon-NIST EC curves.
+    ([CVE-2026-54872])
+
+  * Fixed QUIC `STREAM` fragment metadata DoS.
+    ([CVE-2026-54873])
+
+  * Fixed non-constant-time SM2 scalar multiplication on ARM64 and RISC-V.
+    ([CVE-2026-54875])
+
+  * Fixed out-of-bounds access after `SSL_set_SSL_CTX()` during a handshake.
+    ([CVE-2026-72897])
+
+  * Fixed QUIC connection-level flow control was not enforced for streams.
+    ([CVE-2026-75804])
+
+  * Fixed a NULL pointer dereference in CMP client revocation response handling.
+    ([CVE-2026-75805])
+
+  * Fixed an unauthenticated and undersized DTLS 1.2 AEAD record causing DoS.
+    ([CVE-2026-75806])
+
+  * Fixed a timing side-channel in SM2 signature generation.
+    ([CVE-2026-77696])
+
+  * Fixed an unbounded `RETIRE_CONNECTION_ID` backlog in QUIC stack
+    implementation.
+    ([CVE-2026-84784])
+
+  * Fixed a bug where `EVP_DecryptFinal()` incorrectly reported a stale success
+    on AES-SIV authentication failure.
+
 ### Major changes between OpenSSL 3.5.7 and OpenSSL 3.5.8 [25 Aug 2026]
 
 OpenSSL 3.5.8 is a security patch release.  The most severe CVE fixed
@@ -2328,22 +2378,35 @@ OpenSSL 0.9.x
 [CVE-2026-34181]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-34181
 [CVE-2026-34182]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-34182
 [CVE-2026-34183]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-34183
+[CVE-2026-35189]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-35189
+[CVE-2026-35191]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-35191
 [CVE-2026-42764]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42764
 [CVE-2026-42766]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42766
 [CVE-2026-42767]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42767
 [CVE-2026-42768]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42768
 [CVE-2026-42769]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42769
 [CVE-2026-42770]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42770
+[CVE-2026-42772]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-42772
 [CVE-2026-45445]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-45445
 [CVE-2026-45446]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-45446
 [CVE-2026-45447]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-45447
+[CVE-2026-54872]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-54872
+[CVE-2026-54873]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-54873
 [CVE-2026-54874]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-54874
+[CVE-2026-54875]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-54875
 [CVE-2026-63072]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-63072
 [CVE-2026-63073]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-63073
 [CVE-2026-63074]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-63074
 [CVE-2026-63075]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-63075
 [CVE-2026-63076]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-63076
+[CVE-2026-72897]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-72897
 [CVE-2026-75803]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-75803
+[CVE-2026-75804]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-75804
+[CVE-2026-75805]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-75805
+[CVE-2026-75806]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-75806
+[CVE-2026-77696]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-77696
+[CVE-2026-84782]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-84782
+[CVE-2026-84784]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-84784
 [ESV]: https://csrc.nist.gov/Projects/cryptographic-module-validation-program/entropy-validations
 [OpenSSL Guide]: https://www.openssl.org/docs/manmaster/man7/ossl-guide-introduction.html
 [README-QUIC.md]: ./README-QUIC.md

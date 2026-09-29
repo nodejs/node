@@ -280,7 +280,8 @@ static int winstore_load_using(struct winstore_ctx_st *ctx,
     data.object_cb = object_cb;
     data.object_cbarg = object_cbarg;
 
-    OSSL_DECODER_CTX_set_construct_data(ctx->dctx, &data);
+    if (!OSSL_DECODER_CTX_set_construct_data(ctx->dctx, &data))
+        return 0;
     OSSL_DECODER_CTX_set_passphrase_cb(ctx->dctx, pw_cb, pw_cbarg);
 
     if (OSSL_DECODER_from_data(ctx->dctx, &der_, &der_len_) == 0)
