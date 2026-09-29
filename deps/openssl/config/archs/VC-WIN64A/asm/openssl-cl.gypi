@@ -38,7 +38,7 @@
     'openssl_cflags_VC-WIN64A': [
       '-Wa,--noexecstack',
       '/W3 /wd4090 /nologo /O2',
-      '/Gs0 /GF /Gy',
+      '/GF /Gy',
       '/W3 /wd4090 /nologo /O2',
     ],
     'openssl_ex_libs_VC-WIN64A': [
