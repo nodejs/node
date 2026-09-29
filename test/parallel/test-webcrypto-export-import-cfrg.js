@@ -172,6 +172,14 @@ async function testImportPkcs8({ name, privateUsages }, extractable) {
     assert.strictEqual(
       Buffer.from(pkcs8).toString('hex'),
       keyData[name].pkcs8.toString('hex'));
+
+    for (const format of ['raw', 'raw-public']) {
+      await assert.rejects(
+        subtle.exportKey(format, key), {
+          message: 'Key must be a public key',
+          name: 'InvalidAccessError',
+        });
+    }
   } else {
     await assert.rejects(
       subtle.exportKey('pkcs8', key), {
