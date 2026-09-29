@@ -766,6 +766,16 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
   MaybeLocal<Value> result = callback->Call(
       context, Undefined(isolate), expected_args, callback_args.data());
 
+  // Termination (worker.terminate(), process.exit() in a Worker, or
+  // environment teardown) is not an exception thrown by the callback.
+  // Return a zeroed result and let the caller unwind.
+  if (try_catch.HasTerminated()) {
+    if (ret != nullptr && cb->return_type->size > 0) {
+      std::memset(ret, 0, GetFFIReturnValueStorageSize(cb->return_type));
+    }
+    return;
+  }
+
   // Handle exceptions by crashing (can't propagate across FFI boundary)
   if (try_catch.HasCaught()) {
     FPrintF(stderr, "Callbacks cannot throw an exception\n");
