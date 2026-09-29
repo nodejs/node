@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ class LIEF_API SourceVersion : public LoadCommand {
   ~SourceVersion() override = default;
 
   /// Return the version as an array
-  const version_t& version() const {
+  const version_t& version() const LIEF_LIFETIMEBOUND {
     return version_;
   }
   void version(const version_t& version) {

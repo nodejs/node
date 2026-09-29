@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@
 
 #include "LIEF/Abstract/Parser.hpp"
 #include "LIEF/errors.hpp"
-#include "LIEF/ELF/enums.hpp"
 
 #include "LIEF/ELF/ParserConfig.hpp"
 
@@ -44,56 +43,112 @@ class Relocation;
 /// Class which parses and transforms an ELF file into a ELF::Binary object
 class LIEF_API Parser : public LIEF::Parser {
   friend class OAT::Parser;
+
   public:
-  static constexpr uint32_t NB_MAX_SYMBOLS         = 1000000;
-  static constexpr uint32_t DELTA_NB_SYMBOLS       = 3000;
-  static constexpr uint32_t NB_MAX_BUCKETS         = NB_MAX_SYMBOLS;
-  static constexpr uint32_t NB_MAX_CHAINS          = 1000000;
-  static constexpr uint32_t NB_MAX_SEGMENTS        = 10000;
-  static constexpr uint32_t NB_MAX_RELOCATIONS     = 3000000;
+  static constexpr uint32_t NB_MAX_SYMBOLS = 1000000;
+  static constexpr uint32_t DELTA_NB_SYMBOLS = 3000;
+  static constexpr uint32_t NB_MAX_BUCKETS = NB_MAX_SYMBOLS;
+  static constexpr uint32_t NB_MAX_CHAINS = 1000000;
+  static constexpr uint32_t NB_MAX_SEGMENTS = 10000;
+  static constexpr uint32_t NB_MAX_RELOCATIONS = 3000000;
   static constexpr uint32_t NB_MAX_DYNAMIC_ENTRIES = 1000;
-  static constexpr uint32_t MAX_SEGMENT_SIZE       = 3_GB;
+  static constexpr uint32_t MAX_SEGMENT_SIZE = 3_GB;
 
   enum ELF_TYPE {
     ELF_UNKNOWN,
-    ELF32, ELF64
+    ELF32,
+    ELF64,
   };
 
   /// Parse an ELF file and return a LIEF::ELF::Binary object
   ///
-  /// For weird binaries (e.g. sectionless) you can choose which method to use for counting dynamic symbols
+  /// For weird binaries (e.g. sectionless) you can choose which method to use for
+  /// counting dynamic symbols
   ///
   /// @param[in] file Path to the ELF binary
   /// @param[in] conf Optional configuration for the parser
   ///
   /// @return LIEF::ELF::Binary as a `unique_ptr`
-  static std::unique_ptr<Binary> parse(const std::string& file,
-                                       const ParserConfig& conf = ParserConfig::all());
+  static std::unique_ptr<Binary>
+      parse(const std::string& file,
+            const ParserConfig& conf = ParserConfig::all());
 
-  /// Parse the given raw data as an ELF binary and return a LIEF::ELF::Binary object
+  /// Parse the given raw data as an ELF binary and return a LIEF::ELF::Binary
+  /// object
   ///
-  /// For weird binaries (e.g. sectionless) you can choose which method use to count dynamic symbols
+  /// For weird binaries (e.g. sectionless) you can choose which method to use to
+  /// count dynamic symbols
   ///
   /// @param[in] data Raw ELF as a std::vector of uint8_t
   /// @param[in] conf Optional configuration for the parser
   ///
   /// @return LIEF::ELF::Binary
-  static std::unique_ptr<Binary> parse(const std::vector<uint8_t>& data,
-                                       const ParserConfig& conf = ParserConfig::all());
+  static std::unique_ptr<Binary>
+      parse(const std::vector<uint8_t>& data,
+            const ParserConfig& conf = ParserConfig::all());
 
-  /// Parse the ELF binary from the given stream and return a LIEF::ELF::Binary object
+  /// Parse the ELF binary from the given stream and return a LIEF::ELF::Binary
+  /// object
   ///
-  /// For weird binaries (e.g. sectionless) you can choose which method use to count dynamic symbols
+  /// For weird binaries (e.g. sectionless) you can choose which method to use to
+  /// count dynamic symbols
   ///
   /// @param[in] stream  The stream which wraps the ELF binary
   /// @param[in] conf    Optional configuration for the parser
   ///
   /// @return LIEF::ELF::Binary
-  static std::unique_ptr<Binary> parse(std::unique_ptr<BinaryStream> stream,
-                                       const ParserConfig& conf = ParserConfig::all());
+  static std::unique_ptr<Binary>
+      parse(std::unique_ptr<BinaryStream> stream,
+            const ParserConfig& conf = ParserConfig::all());
+
+  /// Parse the ELF binary from the given memory address
+  ///
+  /// @param[in] address Base address of the ELF binary in memory
+  /// @param[in] conf    Optional configuration for the parser
+  ///
+  /// @return LIEF::ELF::Binary
+  static std::unique_ptr<Binary>
+      parse_from_memory(uintptr_t address,
+                        const ParserConfig& conf = ParserConfig::all());
+
+  /// Parse the ELF binary from the given memory address with the given size
+  ///
+  /// @param[in] address Base address of the ELF binary in memory
+  /// @param[in] size    Size of the memory region
+  /// @param[in] conf    Optional configuration for the parser
+  ///
+  /// @return LIEF::ELF::Binary
+  static std::unique_ptr<Binary>
+      parse_from_memory(uintptr_t address, size_t size,
+                        const ParserConfig& conf = ParserConfig::all());
+
+  /// Parse an ELF binary from a memory dump located on disk.
+  ///
+  /// A dump is a raw capture of the process memory that was mapped starting at
+  /// the virtual address `addr`. This is typically used to parse an ELF image
+  /// that has been dumped from memory (e.g. from a debugger or a runtime hook).
+  ///
+  /// @param[in] filepath Path to the file that contains the memory dump
+  /// @param[in] addr     Virtual address at which the dump was mapped
+  /// @param[in] conf     Optional configuration for the parser
+  static std::unique_ptr<Binary>
+      parse_from_dump(const std::string& filepath, uint64_t addr,
+                      const ParserConfig& conf = ParserConfig::all());
+
+  /// Same as parse_from_dump(const std::string&, uint64_t, const ParserConfig&)
+  /// but the dump is wrapped in the given **non-owned** stream.
+  static std::unique_ptr<Binary>
+      parse_from_dump(BinaryStream& stream, uint64_t addr,
+                      const ParserConfig& conf = ParserConfig::all());
+
+  /// Same as parse_from_dump(const std::string&, uint64_t, const ParserConfig&)
+  /// but the dump is wrapped in the given **owned** stream.
+  static std::unique_ptr<Binary>
+      parse_from_dump(std::unique_ptr<BinaryStream> stream, uint64_t addr,
+                      const ParserConfig& conf = ParserConfig::all());
 
   Parser& operator=(const Parser&) = delete;
-  Parser(const Parser&)            = delete;
+  Parser(const Parser&) = delete;
 
   ~Parser() override;
 
@@ -125,16 +180,18 @@ class LIEF_API Parser : public LIEF::Parser {
   template<typename ELF_T>
   LIEF_LOCAL ok_error_t parse_segments();
 
-  LIEF_LOCAL uint64_t get_dynamic_string_table(BinaryStream* stream = nullptr) const;
+  LIEF_LOCAL uint64_t
+      get_dynamic_string_table(BinaryStream* stream = nullptr) const;
 
-  LIEF_LOCAL result<uint64_t> get_dynamic_string_table_from_segments(BinaryStream* stream = nullptr) const;
+  LIEF_LOCAL result<uint64_t>
+      get_dynamic_string_table_from_segments(BinaryStream* stream = nullptr) const;
 
   LIEF_LOCAL uint64_t get_dynamic_string_table_from_sections() const;
 
   /// Return the number of dynamic symbols using the given method
   template<typename ELF_T>
   LIEF_LOCAL result<uint32_t>
-    get_numberof_dynamic_symbols(ParserConfig::DYNSYM_COUNT mtd) const;
+      get_numberof_dynamic_symbols(ParserConfig::DYNSYM_COUNT mtd) const;
 
   /// Count based on hash table (reliable)
   template<typename ELF_T>
@@ -167,20 +224,20 @@ class LIEF_API Parser : public LIEF::Parser {
   /// Parser find Symbols offset by using the file offset attribute of the
   /// ELF_SECTION_TYPES::SHT_SYMTAB Section.
   ///
-  /// The number of symbols is taken from the `information` attribute in the section header.
+  /// The number of symbols is taken from the `information` attribute in the
+  /// section header.
   ///
   /// The section containing symbols name is found with the `link` attribute.
   template<typename ELF_T>
-  LIEF_LOCAL ok_error_t
-    parse_symtab_symbols(uint64_t offset, uint32_t nb_symbols,
-                         const Section& string_section);
+  LIEF_LOCAL ok_error_t parse_symtab_symbols(const Section& symtab_section,
+                                             const Section& string_section);
 
   /// Parse Dynamic relocations
   ///
   /// It uses DT_REL/DT_RELA dynamic entries to parse it
   template<typename ELF_T, typename REL_T>
-  LIEF_LOCAL ok_error_t
-    parse_dynamic_relocations(uint64_t relocations_offset, uint64_t size);
+  LIEF_LOCAL ok_error_t parse_dynamic_relocations(uint64_t relocations_offset,
+                                                  uint64_t size);
 
   /// Parse `.plt.got`/`got` relocations
   ///
@@ -205,8 +262,7 @@ class LIEF_API Parser : public LIEF::Parser {
   /// Parse relocations using LIEF::ELF::Section.
   /// Section relocations are usually found in object files
   template<typename ELF_T, typename REL_T>
-  LIEF_LOCAL ok_error_t
-    parse_section_relocations(const Section& section);
+  LIEF_LOCAL ok_error_t parse_section_relocations(const Section& section);
 
   /// Parse SymbolVersionRequirement
   ///
@@ -214,8 +270,8 @@ class LIEF_API Parser : public LIEF::Parser {
   /// DynamicEntry::TAG::VERNEED entry to get the offset.
   /// and DynamicEntry::TAG::VERNEEDNUM to get the number of entries
   template<typename ELF_T>
-  LIEF_LOCAL ok_error_t
-    parse_symbol_version_requirement(uint64_t offset, uint32_t nb_entries);
+  LIEF_LOCAL ok_error_t parse_symbol_version_requirement(uint64_t offset,
+                                                         uint32_t nb_entries);
 
 
   /// Parse SymbolVersionDefinition.
@@ -224,8 +280,8 @@ class LIEF_API Parser : public LIEF::Parser {
   /// the DynamicEntry::TAG::VERDEF DT_VERDEF entry to get the offset.
   /// DynamicEntry::TAG::VERDEFNUM gives the number of entries
   template<typename ELF_T>
-  LIEF_LOCAL ok_error_t
-    parse_symbol_version_definition(uint64_t offset, uint32_t nb_entries);
+  LIEF_LOCAL ok_error_t parse_symbol_version_definition(uint64_t offset,
+                                                        uint32_t nb_entries);
 
 
   /// Parse @link SymbolVersion Symbol version @endlink.
@@ -245,8 +301,8 @@ class LIEF_API Parser : public LIEF::Parser {
   /// Parse Note (.gnu.note)
   LIEF_LOCAL ok_error_t parse_notes(uint64_t offset, uint64_t size);
 
-  LIEF_LOCAL std::unique_ptr<Note>
-    get_note(uint32_t type, std::string name, std::vector<uint8_t> desc_bytes);
+  LIEF_LOCAL std::unique_ptr<Note> get_note(uint32_t type, std::string name,
+                                            std::vector<uint8_t> desc_bytes);
 
   /// Parse Symbols's SYSV hash
   LIEF_LOCAL ok_error_t parse_symbol_sysv_hash(uint64_t offset);
@@ -254,10 +310,12 @@ class LIEF_API Parser : public LIEF::Parser {
   LIEF_LOCAL ok_error_t parse_overlay();
 
   template<typename ELF_T, typename REL_T>
-  LIEF_LOCAL uint32_t max_relocation_index(uint64_t relocations_offset, uint64_t size) const;
+  LIEF_LOCAL uint32_t max_relocation_index(uint64_t relocations_offset,
+                                           uint64_t size) const;
 
   /// Check if the given Section is wrapped by the given segment
-  LIEF_LOCAL static bool check_section_in_segment(const Section& section, const Segment& segment);
+  LIEF_LOCAL static bool check_section_in_segment(const Section& section,
+                                                  const Segment& segment);
 
   LIEF_LOCAL bool bind_symbol(Relocation& R);
   LIEF_LOCAL Relocation& insert_relocation(std::unique_ptr<Relocation> R);
@@ -276,6 +334,7 @@ class LIEF_API Parser : public LIEF::Parser {
    * reference sections. That's why we have this unordered_map.
    */
   std::unordered_map<size_t, Section*> sections_idx_;
+  uint64_t memory_address_ = 0;
 };
 
 } // namespace ELF

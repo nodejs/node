@@ -12,11 +12,14 @@ target_sources(LIB_LIEF PRIVATE
   utils.cpp
   range.cpp
   visitors/hash.cpp
+  threading_alt.cpp
+  mbedtls_init.cpp
 )
 
 add_subdirectory(BinaryStream)
 add_subdirectory(Abstract)
 add_subdirectory(platforms)
+add_subdirectory(runtime)
 
 if(LIEF_ENABLE_JSON)
   target_sources(LIB_LIEF PRIVATE visitors/json.cpp)
@@ -55,6 +58,7 @@ if(LIEF_ART)
 endif()
 
 if(NOT LIEF_DEBUG_INFO_SUPPORT)
+  target_sources(LIB_LIEF PRIVATE DebugDeclOpt.cpp)
   add_subdirectory(DWARF)
   add_subdirectory(PDB)
 endif()
@@ -70,4 +74,3 @@ endif()
 if(NOT LIEF_ASM)
   add_subdirectory(asm)
 endif()
-

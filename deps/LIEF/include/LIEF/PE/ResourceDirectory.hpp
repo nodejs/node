@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,12 +37,10 @@ class LIEF_API ResourceDirectory : public ResourceNode {
 
   public:
   ResourceDirectory() :
-    ResourceNode(ResourceNode::TYPE::DIRECTORY)
-  {}
+    ResourceNode(ResourceNode::TYPE::DIRECTORY) {}
 
   ResourceDirectory(uint32_t id) :
-    ResourceNode(ResourceNode::TYPE::DIRECTORY)
-  {
+    ResourceNode(ResourceNode::TYPE::DIRECTORY) {
     this->id(id);
   }
 
@@ -130,4 +128,4 @@ class LIEF_API ResourceDirectory : public ResourceNode {
 };
 }
 }
-#endif /* RESOURCEDIRECTORY_H */
+#endif

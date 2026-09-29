@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,8 +27,8 @@
 #include "LIEF/DEX/Class.hpp"
 #include "LIEF/DEX/hash.hpp"
 
-namespace LIEF {
-namespace OAT {
+
+namespace LIEF::OAT {
 
 Hash::~Hash() = default;
 
@@ -40,9 +40,9 @@ size_t Hash::hash(const Object& obj) {
 void Hash::visit(const Binary& binary) {
   process(binary.header());
 
-  process(std::begin(binary.oat_dex_files()), std::end(binary.oat_dex_files()));
-  process(std::begin(binary.classes()), std::end(binary.classes()));
-  process(std::begin(binary.methods()), std::end(binary.methods()));
+  process(binary.oat_dex_files().begin(), binary.oat_dex_files().end());
+  process(binary.classes().begin(), binary.classes().end());
+  process(binary.methods().begin(), binary.methods().end());
 }
 
 
@@ -66,8 +66,8 @@ void Hash::visit(const Header& header) {
   process(header.image_file_location_oat_data_begin());
   process(header.key_value_size());
 
-  process(std::begin(header.keys()), std::end(header.keys()));
-  process(std::begin(header.values()), std::end(header.values()));
+  process(header.keys().begin(), header.keys().end());
+  process(header.values().begin(), header.values().end());
 }
 
 
@@ -93,7 +93,7 @@ void Hash::visit(const Class& cls) {
   process(cls.fullname());
   process(cls.bitmap());
   Class::it_const_methods it = cls.methods();
-  process(std::begin(it), std::end(it));
+  process(it.begin(), it.end());
 }
 
 
@@ -107,7 +107,4 @@ void Hash::visit(const Method& meth) {
 }
 
 
-
-} // namespace OAT
-} // namespace LIEF
-
+} // namespace LIEF::OAT

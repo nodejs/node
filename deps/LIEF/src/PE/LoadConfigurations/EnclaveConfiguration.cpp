@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <algorithm>
 #include <sstream>
 #include "LIEF/PE/Parser.hpp"
 #include "LIEF/PE/Binary.hpp"
@@ -28,30 +29,29 @@
 namespace LIEF::PE {
 
 std::string EnclaveConfiguration::to_string() const {
-  using namespace fmt;
   static constexpr auto WIDTH = 39;
   std::ostringstream os;
-  os << format("{:>{}}: 0x{:08x}\n", "Size", WIDTH, size())
-     << format("{:>{}}: 0x{:08x}\n", "Minimum Required Config Size", WIDTH,
-               min_required_config_size())
-     << format("{:>{}}: 0x{:08x} (debuggable={})\n", "Policy Flags", WIDTH,
-               policy_flags(), is_debuggable())
-     << format("{:>{}}: {}\n", "Number of Enclave Import Descriptors", WIDTH,
-               nb_imports())
-     << format("{:>{}}: 0x{:08x}\n", "RVA to enclave imports", WIDTH,
-               import_list_rva())
-     << format("{:>{}}: 0x{:04x}\n", "Size of enclave import", WIDTH,
-               import_entry_size())
-     << format("{:>{}}: {}\n", "Image version", WIDTH, image_version())
-     << format("{:>{}}: {}\n", "Security version", WIDTH, security_version())
-     << format("{:>{}}: 0x{:016x}\n", "Enclave Size", WIDTH, enclave_size())
-     << format("{:>{}}: {}\n", "Number of Threads", WIDTH, nb_threads())
-     << format("{:>{}}: 0x{:08x}\n", "Enclave flags", WIDTH, enclave_flags());
+  os << fmt::format("{:>{}}: {:#010x}\n", "Size", WIDTH, size())
+     << fmt::format("{:>{}}: {:#010x}\n", "Minimum Required Config Size", WIDTH,
+                    min_required_config_size())
+     << fmt::format("{:>{}}: {:#010x} (debuggable={})\n", "Policy Flags", WIDTH,
+                    policy_flags(), is_debuggable())
+     << fmt::format("{:>{}}: {}\n", "Number of Enclave Import Descriptors", WIDTH,
+                    nb_imports())
+     << fmt::format("{:>{}}: {:#010x}\n", "RVA to enclave imports", WIDTH,
+                    import_list_rva())
+     << fmt::format("{:>{}}: {:#06x}\n", "Size of enclave import", WIDTH,
+                    import_entry_size())
+     << fmt::format("{:>{}}: {}\n", "Image version", WIDTH, image_version())
+     << fmt::format("{:>{}}: {}\n", "Security version", WIDTH, security_version())
+     << fmt::format("{:>{}}: {:#018x}\n", "Enclave Size", WIDTH, enclave_size())
+     << fmt::format("{:>{}}: {}\n", "Number of Threads", WIDTH, nb_threads())
+     << fmt::format("{:>{}}: {:#010x}\n", "Enclave flags", WIDTH, enclave_flags());
 
-  os << format("{:>{}}: {}\n", "Image ID", WIDTH,
-               hex_dump(image_id(), /*sep=*/" "));
-  os << format("{:>{}}: {}", "Family ID", WIDTH,
-               hex_dump(family_id(), /*sep=*/" "));
+  os << fmt::format("{:>{}}: {}\n", "Image ID", WIDTH,
+                    hex_dump(image_id(), /*sep=*/" "));
+  os << fmt::format("{:>{}}: {}", "Family ID", WIDTH,
+                    hex_dump(family_id(), /*sep=*/" "));
 
   if (!imports_.empty()) {
     os << '\n';
@@ -66,9 +66,12 @@ std::string EnclaveConfiguration::to_string() const {
 
 template<class PE_T>
 std::unique_ptr<EnclaveConfiguration>
-  EnclaveConfiguration::parse(Parser& ctx, BinaryStream& stream)
-{
+    EnclaveConfiguration::parse(Parser& ctx, BinaryStream& stream) {
   using ptr_t = typename PE_T::uint;
+
+  static constexpr uint32_t ENCLAVE_IMPORT_SIZE = 0x50;
+  static constexpr uint32_t ENCLAVE_IMPORT_MAX_SIZE = 0x1000;
+
   auto config = std::make_unique<EnclaveConfiguration>();
   auto Size = stream.read<uint32_t>();
   if (!Size) {
@@ -151,30 +154,39 @@ std::unique_ptr<EnclaveConfiguration>
   }
 
   (*config)
-    .size(*Size)
-    .min_required_config_size(*MinimumRequiredConfigSize)
-    .policy_flags(*PolicyFlags)
-    .import_list_rva(*ImportList)
-    .import_entry_size(*ImportEntrySize)
-    .image_version(*ImageVersion)
-    .security_version(*SecurityVersion)
-    .enclave_size(*EnclaveSize)
-    .nb_threads(*NumberOfThreads)
-    .enclave_flags(*EnclaveFlags)
-  ;
+      .size(*Size)
+      .min_required_config_size(*MinimumRequiredConfigSize)
+      .policy_flags(*PolicyFlags)
+      .import_list_rva(*ImportList)
+      .import_entry_size(*ImportEntrySize)
+      .image_version(*ImageVersion)
+      .security_version(*SecurityVersion)
+      .enclave_size(*EnclaveSize)
+      .nb_threads(*NumberOfThreads)
+      .enclave_flags(*EnclaveFlags);
 
-  if (*ImportEntrySize == 0 || *NumberOfImports == 0) {
+  if (*NumberOfImports == 0) {
     return config;
   }
 
-  if (*ImportEntrySize > 0x1000) {
+  if (*ImportEntrySize < ENCLAVE_IMPORT_SIZE ||
+      *ImportEntrySize > ENCLAVE_IMPORT_MAX_SIZE)
+  {
     return config;
   }
 
-  uint32_t base_offset = ctx.bin().rva_to_offset(*ImportList);
+  const uint64_t base_offset = ctx.bin().rva_to_offset(*ImportList);
+  const uint64_t stream_size = ctx.stream().size();
 
-  for (size_t i = 0; i < *NumberOfImports; ++i) {
-    uint32_t offset = base_offset + i * (*ImportEntrySize);
+  if (base_offset >= stream_size) {
+    return config;
+  }
+
+  const uint64_t max_imports = (stream_size - base_offset) / *ImportEntrySize;
+  const uint64_t nb_imports = std::min<uint64_t>(*NumberOfImports, max_imports);
+
+  for (size_t i = 0; i < nb_imports; ++i) {
+    const uint64_t offset = base_offset + i * (uint64_t)*ImportEntrySize;
     ScopedStream scope(ctx.stream(), offset);
     auto import = EnclaveImport::parse(ctx, *scope);
     if (!import) {
@@ -189,9 +201,9 @@ std::unique_ptr<EnclaveConfiguration>
 }
 
 template std::unique_ptr<EnclaveConfiguration>
-  EnclaveConfiguration::parse<details::PE32>(Parser& ctx, BinaryStream& stream);
+    EnclaveConfiguration::parse<details::PE32>(Parser& ctx, BinaryStream& stream);
 
 template std::unique_ptr<EnclaveConfiguration>
-  EnclaveConfiguration::parse<details::PE64>(Parser& ctx, BinaryStream& stream);
+    EnclaveConfiguration::parse<details::PE64>(Parser& ctx, BinaryStream& stream);
 
 }
