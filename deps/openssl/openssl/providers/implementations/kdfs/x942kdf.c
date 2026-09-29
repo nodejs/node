@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -257,9 +257,11 @@ x942_encode_otherinfo(size_t keylen,
         goto err;
     *out_ctr = (pcounter + 2);
     *der = der_buf;
+    der_buf = NULL;
     *der_len = der_buflen;
     ret = 1;
 err:
+    OPENSSL_free(der_buf);
     WPACKET_cleanup(&pkt);
     return ret;
 }

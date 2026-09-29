@@ -13,6 +13,7 @@
 #include "prov/ciphercommon.h"
 #include "prov/ciphercommon_ccm.h"
 #include "prov/providercommon.h"
+#include "fips/fipsindicator.h"
 
 static int ccm_cipher_internal(PROV_CCM_CTX *ctx, unsigned char *out,
     size_t *padlen, const unsigned char *in,
@@ -219,7 +220,7 @@ int ossl_ccm_get_ctx_params(void *vctx, OSSL_PARAM params[])
         ctx->iv_set = 0;
         ctx->len_set = 0;
     }
-    return 1;
+    return OSSL_FIPS_IND_GET_CTX_PARAM_APPROVED(ctx, params);
 }
 
 static int ccm_init(void *vctx, const unsigned char *key, size_t keylen,

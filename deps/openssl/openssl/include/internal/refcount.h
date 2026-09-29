@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -103,27 +103,28 @@ static __inline__ int CRYPTO_GET_REF(CRYPTO_REF_COUNT *refcnt, int *ret)
 }
 
 #elif defined(__ICL) && defined(_WIN32)
+#include <intrin.h>
 #define HAVE_ATOMICS 1
 
 typedef struct {
-    volatile int val;
+    volatile long val;
 } CRYPTO_REF_COUNT;
 
 static __inline int CRYPTO_UP_REF(CRYPTO_REF_COUNT *refcnt, int *ret)
 {
-    *ret = _InterlockedExchangeAdd((void *)&refcnt->val, 1) + 1;
+    *ret = _InterlockedExchangeAdd(&refcnt->val, 1) + 1;
     return 1;
 }
 
 static __inline int CRYPTO_DOWN_REF(CRYPTO_REF_COUNT *refcnt, int *ret)
 {
-    *ret = _InterlockedExchangeAdd((void *)&refcnt->val, -1) - 1;
+    *ret = _InterlockedExchangeAdd(&refcnt->val, -1) - 1;
     return 1;
 }
 
 static __inline int CRYPTO_GET_REF(CRYPTO_REF_COUNT *refcnt, int *ret)
 {
-    *ret = _InterlockedExchangeAdd((void *)&refcnt->val, 0);
+    *ret = _InterlockedExchangeAdd(&refcnt->val, 0);
     return 1;
 }
 
@@ -132,7 +133,7 @@ static __inline int CRYPTO_GET_REF(CRYPTO_REF_COUNT *refcnt, int *ret)
 #define HAVE_ATOMICS 1
 
 typedef struct {
-    volatile int val;
+    volatile long val;
 } CRYPTO_REF_COUNT;
 
 #if (defined(_M_ARM) && _M_ARM >= 7 && !defined(_WIN32_WCE)) || defined(_M_ARM64)
@@ -155,7 +156,7 @@ static __inline int CRYPTO_DOWN_REF(CRYPTO_REF_COUNT *refcnt, int *ret)
 
 static __inline int CRYPTO_GET_REF(CRYPTO_REF_COUNT *refcnt, int *ret)
 {
-    *ret = _InterlockedExchangeAdd_acq((void *)&refcnt->val, 0);
+    *ret = _InterlockedExchangeAdd_acq(&refcnt->val, 0);
     return 1;
 }
 

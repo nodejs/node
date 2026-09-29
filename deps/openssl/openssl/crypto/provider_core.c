@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1668,10 +1668,10 @@ int OSSL_PROVIDER_available(OSSL_LIB_CTX *libctx, const char *name)
 
     prov = ossl_provider_find(libctx, name, 0);
     if (prov != NULL) {
-        if (!CRYPTO_THREAD_read_lock(prov->flag_lock))
-            return 0;
-        available = prov->flag_activated;
-        CRYPTO_THREAD_unlock(prov->flag_lock);
+        if (CRYPTO_THREAD_read_lock(prov->flag_lock)) {
+            available = prov->flag_activated;
+            CRYPTO_THREAD_unlock(prov->flag_lock);
+        }
         ossl_provider_free(prov);
     }
     return available;

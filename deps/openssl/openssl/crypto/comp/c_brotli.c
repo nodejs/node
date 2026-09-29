@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -292,6 +292,7 @@ DEFINE_RUN_ONCE_STATIC(ossl_comp_brotli_init)
 #define LIBBROTLIDEC "brotlidec"
 #endif
 
+    ERR_set_mark();
     brotli_encode_dso = DSO_load(NULL, LIBBROTLIENC, NULL, 0);
     if (brotli_encode_dso != NULL) {
         p_encode_init = (encode_init_ft)DSO_bind_func(brotli_encode_dso, "BrotliEncoderCreateInstance");
@@ -318,9 +319,12 @@ DEFINE_RUN_ONCE_STATIC(ossl_comp_brotli_init)
         || p_decode_stream == NULL || p_decode_has_more == NULL || p_decode_end == NULL
         || p_decode_error == NULL || p_decode_error_string == NULL || p_decode_is_finished == NULL
         || p_decode_oneshot == NULL) {
+        ERR_clear_last_mark();
         ossl_comp_brotli_cleanup();
         return 0;
     }
+    /* Do not leave errors behind on success. */
+    ERR_pop_to_mark();
 #endif
     return 1;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,6 +18,7 @@
 #include "internal/sha3.h"
 #include "prov/digestcommon.h"
 #include "prov/implementations.h"
+#include "fips/fipsindicator.h"
 
 #define SHA3_FLAGS PROV_DIGEST_FLAG_ALGID_ABSENT
 #define SHAKE_FLAGS (PROV_DIGEST_FLAG_XOF | PROV_DIGEST_FLAG_ALGID_ABSENT)
@@ -530,10 +531,18 @@ static PROV_SHA3_METHOD shake_ARMSHA3_md = {
         { OSSL_FUNC_DIGEST_COPYCTX, (void (*)(void))keccak_copyctx },        \
         PROV_DISPATCH_FUNC_DIGEST_GET_PARAMS(name)
 
+#ifdef FIPS_MODULE
+#define PROV_SHA3_FIPS_GET_CTX_PARAMS \
+    PROV_DISPATCH_FUNC_DIGEST_GET_CTX_PARAMS,
+#else
+#define PROV_SHA3_FIPS_GET_CTX_PARAMS
+#endif
+
 #define PROV_FUNC_SHA3_DIGEST(name, bitlen, blksize, dgstsize, flags)     \
     PROV_FUNC_SHA3_DIGEST_COMMON(name, bitlen, blksize, dgstsize, flags), \
         { OSSL_FUNC_DIGEST_INIT, (void (*)(void))keccak_init },           \
-        PROV_DISPATCH_FUNC_DIGEST_CONSTRUCT_END
+        PROV_SHA3_FIPS_GET_CTX_PARAMS                                     \
+            PROV_DISPATCH_FUNC_DIGEST_CONSTRUCT_END
 
 #define PROV_FUNC_SHAKE_DIGEST(name, bitlen, blksize, dgstsize, flags)             \
     PROV_FUNC_SHA3_DIGEST_COMMON(name, bitlen, blksize, dgstsize, flags),          \
@@ -579,7 +588,8 @@ static const OSSL_PARAM *shake_gettable_ctx_params(ossl_unused void *ctx,
     static const OSSL_PARAM known_shake_gettable_ctx_params[] = {
         { OSSL_DIGEST_PARAM_XOFLEN, OSSL_PARAM_UNSIGNED_INTEGER, NULL, 0, 0 },
         { OSSL_DIGEST_PARAM_SIZE, OSSL_PARAM_UNSIGNED_INTEGER, NULL, 0, 0 },
-        OSSL_PARAM_END
+        OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
+            OSSL_PARAM_END
     };
     return known_shake_gettable_ctx_params;
 }
@@ -605,7 +615,7 @@ static int shake_get_ctx_params(void *vctx, OSSL_PARAM params[])
         ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
         return 0;
     }
-    return 1;
+    return OSSL_FIPS_IND_GET_CTX_PARAM_APPROVED(ctx, params);
 }
 
 static const OSSL_PARAM *shake_settable_ctx_params(ossl_unused void *ctx,
