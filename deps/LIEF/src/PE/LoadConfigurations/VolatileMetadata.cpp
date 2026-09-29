@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,35 +19,31 @@
 #include "LIEF/PE/LoadConfigurations/VolatileMetadata.hpp"
 #include "LIEF/BinaryStream/BinaryStream.hpp"
 
-#include "PE/Structures.hpp"
-
 #include "logging.hpp"
-#include "internal_utils.hpp"
 
 namespace LIEF::PE {
 
 std::string VolatileMetadata::to_string() const {
-  using namespace fmt;
   static constexpr auto WIDTH = 30;
   std::ostringstream os;
-  os << format("{:{}}: 0x{:08x}\n", "Size", WIDTH, size())
-     << format("{:{}}: {} (0x{:04x})\n", "Min version", WIDTH,
-               min_version() & 0x7FFF, min_version())
-     << format("{:{}}: {} (0x{:04x})\n", "Max version", WIDTH,
-               max_version() & 0x7FFF, max_version())
-     << format("{:{}}: 0x{:08x}\n", "Volatile access table RVA", WIDTH,
-               access_table_rva())
-     << format("{:{}}: {}\n", "Volatile access table size", WIDTH,
-               access_table_size())
-     << format("{:{}}: 0x{:08x}\n", "Volatile range info table RVA", WIDTH,
-               info_range_rva())
-     << format("{:{}}: {}\n", "Volatile range info table size", WIDTH,
-               info_ranges_size());
+  os << fmt::format("{:{}}: {:#010x}\n", "Size", WIDTH, size())
+     << fmt::format("{:{}}: {} ({:#06x})\n", "Min version", WIDTH,
+                    min_version() & 0x7FFF, min_version())
+     << fmt::format("{:{}}: {} ({:#06x})\n", "Max version", WIDTH,
+                    max_version() & 0x7FFF, max_version())
+     << fmt::format("{:{}}: {:#010x}\n", "Volatile access table RVA", WIDTH,
+                    access_table_rva())
+     << fmt::format("{:{}}: {}\n", "Volatile access table size", WIDTH,
+                    access_table_size())
+     << fmt::format("{:{}}: {:#010x}\n", "Volatile range info table RVA", WIDTH,
+                    info_range_rva())
+     << fmt::format("{:{}}: {}\n", "Volatile range info table size", WIDTH,
+                    info_ranges_size());
 
   if (const auto& rva_table = access_table(); !rva_table.empty()) {
     os << "\nVolatile Access RVA Table: {\n";
     for (uint32_t rva : rva_table) {
-      os << format("  0x{:08x}\n", rva);
+      os << fmt::format("  {:#010x}\n", rva);
     }
     os << "}\n";
   }
@@ -55,8 +51,8 @@ std::string VolatileMetadata::to_string() const {
   if (auto ranges = info_ranges(); !ranges.empty()) {
     os << "\nVolatile Info Range Table: {\n";
     for (const range_t& range : ranges) {
-      os << format("  [0x{:08x}, 0x{:08x}] ({} bytes)\n", range.start,
-                   range.end(), range.size);
+      os << fmt::format("  [{:#010x}, {:#010x}] ({} bytes)\n", range.start,
+                        range.end(), range.size);
     }
     os << "}\n";
   }
@@ -64,9 +60,8 @@ std::string VolatileMetadata::to_string() const {
   return os.str();
 }
 
-std::unique_ptr<VolatileMetadata>
-    VolatileMetadata::parse(Parser& ctx, BinaryStream& stream)
-{
+std::unique_ptr<VolatileMetadata> VolatileMetadata::parse(Parser& ctx,
+                                                          BinaryStream& stream) {
   auto size = stream.read<uint32_t>();
   if (!size) {
     LIEF_DEBUG("{}:{}", __FUNCTION__, __LINE__);
@@ -111,12 +106,11 @@ std::unique_ptr<VolatileMetadata>
 
   auto meta = std::make_unique<VolatileMetadata>();
   (*meta)
-    .size(*size)
-    .min_version(*min_version)
-    .max_version(*max_version)
-    .access_table_rva(*access_table_rva)
-    .info_range_rva(*info_range_rva)
-  ;
+      .size(*size)
+      .min_version(*min_version)
+      .max_version(*max_version)
+      .access_table_rva(*access_table_rva)
+      .info_range_rva(*info_range_rva);
 
   if (*access_table_rva > 0 && *access_table_sz > 0) {
     uint32_t offset = ctx.bin().rva_to_offset(*access_table_rva);

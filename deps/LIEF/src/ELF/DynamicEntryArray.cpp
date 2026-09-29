@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,13 @@
 
 #include <algorithm>
 
-namespace LIEF {
-namespace ELF {
+
+namespace LIEF::ELF {
 
 DynamicEntryArray& DynamicEntryArray::remove(uint64_t function) {
-  array_.erase(std::remove_if(std::begin(array_), std::end(array_),
-                              [function] (uint64_t v) { return v == function; }),
-               std::end(array_));
+  array_.erase(std::remove_if(array_.begin(), array_.end(),
+                              [function](uint64_t v) { return v == function; }),
+               array_.end());
   return *this;
 }
 
@@ -36,25 +36,27 @@ DynamicEntryArray& DynamicEntryArray::insert(size_t pos, uint64_t function) {
   }
 
   if (pos > array_.size()) {
-    LIEF_ERR("pos: {:d} is out of range", pos);
+    LIEF_ERR("Position {:d} is out of range", pos);
     return *this;
   }
 
-  array_.insert(std::begin(array_) + pos, function);
+  array_.insert(array_.begin() + pos, function);
   return *this;
 }
 
 const uint64_t& DynamicEntryArray::operator[](size_t idx) const {
   static uint64_t GARBAGE = 0;
   if (idx >= array_.size()) {
-    LIEF_WARN("DynamicEntryArray[{}] is out-of-range", idx);
+    LIEF_WARN("DynamicEntryArray[{}] out of range", idx);
     return GARBAGE;
   }
   return array_[idx];
 }
 
 uint64_t& DynamicEntryArray::operator[](size_t idx) {
-  return const_cast<uint64_t&>(static_cast<const DynamicEntryArray*>(this)->operator[](idx));
+  return const_cast<uint64_t&>(
+      static_cast<const DynamicEntryArray*>(this)->operator[](idx)
+  );
 }
 
 void DynamicEntryArray::accept(Visitor& visitor) const {
@@ -64,12 +66,8 @@ void DynamicEntryArray::accept(Visitor& visitor) const {
 std::ostream& DynamicEntryArray::print(std::ostream& os) const {
   const array_t& array = this->array();
   DynamicEntry::print(os);
-  os << '[' << fmt::format("0x{:04x}", fmt::join(array, ", ")) << ']';
+  os << '[' << fmt::format("{:#06x}", fmt::join(array, ", ")) << ']';
   return os;
 }
 
 }
-}
-
-
-

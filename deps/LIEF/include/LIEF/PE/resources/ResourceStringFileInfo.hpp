@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -95,16 +95,14 @@ class LIEF_API ResourceStringFileInfo : public Object {
 
   void accept(Visitor& visitor) const override;
 
-  LIEF_API friend
-    std::ostream& operator<<(std::ostream& os, const ResourceStringFileInfo& info);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const ResourceStringFileInfo& info);
 
   private:
   uint16_t type_ = 0;
   std::u16string key_;
   elements_t children_;
 };
-
-
 
 
 }

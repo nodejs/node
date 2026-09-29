@@ -24,7 +24,6 @@
 #define FROZEN_LETITGO_UNORDERED_SET_H
 
 #include "frozen/bits/basic_types.h"
-#include "frozen/bits/constexpr_assert.h"
 #include "frozen/bits/elsa.h"
 #include "frozen/bits/pmh.h"
 #include "frozen/bits/version.h"
@@ -46,13 +45,12 @@ struct Get {
 
 template <class Key, std::size_t N, typename Hash = elsa<Key>,
           class KeyEqual = std::equal_to<Key>>
-class unordered_set {
+class unordered_set : private KeyEqual {
   static constexpr std::size_t storage_size =
       bits::next_highest_power_of_two(N) * (N < 32 ? 2 : 1); // size adjustment to prevent high collision rate for small sets
   using container_type = bits::carray<Key, N>;
   using tables_type = bits::pmh_tables<storage_size, Hash>;
 
-  KeyEqual const equal_;
   container_type keys_;
   tables_type tables_;
 
@@ -68,7 +66,7 @@ public:
   using reference = const_reference;
   using const_pointer = typename container_type::const_pointer;
   using pointer = const_pointer;
-  using const_iterator = const_pointer;
+  using const_iterator = typename container_type::const_iterator;
   using iterator = const_iterator;
 
 public:
@@ -76,10 +74,10 @@ public:
   unordered_set(unordered_set const &) = default;
   constexpr unordered_set(container_type keys, Hash const &hash,
                           KeyEqual const &equal)
-      : equal_{equal}
+      : KeyEqual{equal}
       , keys_{keys}
       , tables_{bits::make_pmh_tables<storage_size>(
-            keys_, hash, bits::Get{}, default_prg_t{})} {}
+            keys_, hash, equal, bits::Get{}, default_prg_t{})} {}
   explicit constexpr unordered_set(container_type keys)
       : unordered_set{keys, Hash{}, KeyEqual{}} {}
 
@@ -88,14 +86,13 @@ public:
 
   constexpr unordered_set(std::initializer_list<Key> keys, Hash const & hash, KeyEqual const & equal)
       : unordered_set{container_type{keys}, hash, equal} {
-        constexpr_assert(keys.size() == N, "Inconsistent initializer_list size and type size argument");
       }
 
   /* iterators */
   constexpr const_iterator begin() const { return keys_.begin(); }
   constexpr const_iterator end() const { return keys_.end(); }
-  constexpr const_iterator cbegin() const { return keys_.cbegin(); }
-  constexpr const_iterator cend() const { return keys_.cend(); }
+  constexpr const_iterator cbegin() const { return keys_.begin(); }
+  constexpr const_iterator cend() const { return keys_.end(); }
 
   /* capacity */
   constexpr bool empty() const { return !N; }
@@ -103,46 +100,42 @@ public:
   constexpr size_type max_size() const { return N; }
 
   /* lookup */
-  template <class KeyType, class Hasher, class Equal>
-  constexpr std::size_t count(KeyType const &key, Hasher const &hash, Equal const &equal) const {
-    auto const & k = lookup(key, hash);
-    return equal(k, key);
-  }
   template <class KeyType>
   constexpr std::size_t count(KeyType const &key) const {
-    return count(key, hash_function(), key_eq());
+    return find(key, hash_function(), key_eq()) != end();
   }
 
   template <class KeyType, class Hasher, class Equal>
   constexpr const_iterator find(KeyType const &key, Hasher const &hash, Equal const &equal) const {
-    auto const &k = lookup(key, hash);
-    if (equal(k, key))
-      return &k;
+    auto const pos = tables_.lookup(key, hash);
+    auto it = keys_.begin() + pos;
+    if (it != keys_.end() && equal(*it, key))
+      return it;
     else
       return keys_.end();
   }
   template <class KeyType>
   constexpr const_iterator find(KeyType const &key) const {
-    return find(key, hash_function(), key_eq());
+    auto const pos = tables_.lookup(key, hash_function());
+    auto it = keys_.begin() + pos;
+    if (it != keys_.end() && key_eq()(*it, key))
+      return it;
+    else
+      return keys_.end();
   }
-  
+
   template <class KeyType>
   constexpr bool contains(KeyType const &key) const {
     return this->find(key) != keys_.end();
   }
 
-  template <class KeyType, class Hasher, class Equal>
-  constexpr std::pair<const_iterator, const_iterator> equal_range(
-          KeyType const &key, Hasher const &hash, Equal const &equal) const {
-    auto const &k = lookup(key, hash);
-    if (equal(k, key))
-      return {&k, &k + 1};
-    else
-      return {keys_.end(), keys_.end()};
-  }
   template <class KeyType>
   constexpr std::pair<const_iterator, const_iterator> equal_range(KeyType const &key) const {
-    return equal_range(key, hash_function(), key_eq());
+    auto const it = find(key);
+    if (it != end())
+      return {it, it + 1};
+    else
+      return {keys_.end(), keys_.end()};
   }
 
   /* bucket interface */
@@ -150,14 +143,8 @@ public:
   constexpr std::size_t max_bucket_count() const { return storage_size; }
 
   /* observers*/
-  constexpr const hasher& hash_function() const { return tables_.hash_; }
-  constexpr const key_equal& key_eq() const { return equal_; }
-
-private:
-  template <class KeyType, class Hasher>
-  constexpr auto const &lookup(KeyType const &key, Hasher const &hash) const {
-    return keys_[tables_.lookup(key, hash)];
-  }
+  constexpr const hasher& hash_function() const { return tables_.hash_function(); }
+  constexpr const key_equal& key_eq() const { return static_cast<KeyEqual const&>(*this); }
 };
 
 template <typename T, std::size_t N>

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,14 +33,14 @@ class Class;
 
 class LIEF_API Method : public Object {
   friend class Parser;
-  public:
 
+  public:
   /// Container for the Quick Code
   using quick_code_t = std::vector<uint8_t>;
 
   public:
   Method();
-  Method(DEX::Method* method, Class* oat_class, std::vector<uint8_t>  code = {});
+  Method(DEX::Method* method, Class* oat_class, std::vector<uint8_t> code = {});
   Method(const Method&);
   Method& operator=(const Method&);
 
@@ -49,16 +49,16 @@ class LIEF_API Method : public Object {
   std::string name() const;
 
   /// OAT Class associated with this Method
-  const Class* oat_class() const;
-  Class* oat_class();
+  const Class* oat_class() const LIEF_LIFETIMEBOUND;
+  Class* oat_class() LIEF_LIFETIMEBOUND;
 
   /// Check if a LIEF::DEX::Method is associated with
   /// this Method
   bool has_dex_method() const;
 
   /// LIEF::DEX::Method associated (if any)
-  const DEX::Method* dex_method() const;
-  DEX::Method* dex_method();
+  const DEX::Method* dex_method() const LIEF_LIFETIMEBOUND;
+  DEX::Method* dex_method() LIEF_LIFETIMEBOUND;
 
   /// True if the optimization is DEX
   bool is_dex2dex_optimized() const;

@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,17 @@ namespace types {
 /// This class represents a `DW_TAG_interface_type`
 class LIEF_API Interface : public Type {
   public:
-  using Type::Type;
+  template<typename... Args,
+           typename = typename std::
+               enable_if<std::is_constructible<Type, Args&&...>::value>::type>
+  Interface(Args&&... args) :
+    Type(std::forward<Args>(args)...) {}
+
+  Interface(const Interface&) = delete;
+  Interface& operator=(const Interface&) = delete;
+
+  Interface(Interface&&) noexcept = default;
+  Interface& operator=(Interface&&) noexcept = default;
 
   static bool classof(const Type* type) {
     return type->kind() == Type::KIND::INTERFACE;

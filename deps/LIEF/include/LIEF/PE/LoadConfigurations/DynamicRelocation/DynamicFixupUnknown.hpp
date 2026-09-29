@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 #ifndef LIEF_PE_LOAD_CONFIGURATION_DYNAMIC_FIXUP_UNKNOWN_H
 #define LIEF_PE_LOAD_CONFIGURATION_DYNAMIC_FIXUP_UNKNOWN_H
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/span.hpp"
 #include "LIEF/PE/LoadConfigurations/DynamicRelocation/DynamicFixup.hpp"
 
@@ -23,14 +24,13 @@
 namespace LIEF {
 namespace PE {
 
-/// This class represents an special dynamic relocation where the format of the
+/// This class represents a special dynamic relocation where the format of the
 /// fixups is not supported by LIEF.
 class LIEF_API DynamicFixupUnknown : public DynamicFixup {
   public:
   DynamicFixupUnknown(std::vector<uint8_t> payload) :
     DynamicFixup(KIND::UNKNOWN),
-    payload_(std::move(payload))
-  {}
+    payload_(std::move(payload)) {}
 
   DynamicFixupUnknown(const DynamicFixupUnknown&) = default;
   DynamicFixupUnknown& operator=(const DynamicFixupUnknown&) = default;
@@ -51,11 +51,11 @@ class LIEF_API DynamicFixupUnknown : public DynamicFixup {
   }
 
   /// Raw fixups
-  span<const uint8_t> payload() const {
+  span<const uint8_t> payload() const LIEF_LIFETIMEBOUND {
     return payload_;
   }
 
-  span<uint8_t> payload() {
+  span<uint8_t> payload() LIEF_LIFETIMEBOUND {
     return payload_;
   }
 

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,13 +24,13 @@
 #include "LIEF/ELF/NoteDetails/core/CorePrStatus.hpp"
 #include "ELF/Structures.hpp"
 
-namespace LIEF {
-namespace ELF {
+
+namespace LIEF::ELF {
 
 template<class ELF_T>
 inline CorePrStatus::pr_status_t
-get_status_impl(const Note::description_t& description) {
-  using Elf_Prstatus  = typename ELF_T::Elf_Prstatus;
+    get_status_impl(const Note::description_t& description) {
+  using Elf_Prstatus = typename ELF_T::Elf_Prstatus;
   CorePrStatus::pr_status_t status;
 
   auto stream = SpanStream::from_vector(description);
@@ -44,18 +44,18 @@ get_status_impl(const Note::description_t& description) {
   }
 
   status.info.signo = raw_pr_status->pr_info.si_signo;
-  status.info.code  = raw_pr_status->pr_info.si_code;
+  status.info.code = raw_pr_status->pr_info.si_code;
   status.info.err = raw_pr_status->pr_info.si_errno;
 
-  status.cursig  = raw_pr_status->pr_cursig;
-  status.reserved   = raw_pr_status->reserved;
+  status.cursig = raw_pr_status->pr_cursig;
+  status.reserved = raw_pr_status->reserved;
   status.sigpend = raw_pr_status->pr_sigpend;
   status.sighold = raw_pr_status->pr_sighold;
 
-  status.pid  = raw_pr_status->pr_pid;
+  status.pid = raw_pr_status->pr_pid;
   status.ppid = raw_pr_status->pr_ppid;
   status.pgrp = raw_pr_status->pr_pgrp;
-  status.sid  = raw_pr_status->pr_sid;
+  status.sid = raw_pr_status->pr_sid;
 
   status.utime.sec = raw_pr_status->pr_utime.tv_sec;
   status.utime.usec = raw_pr_status->pr_utime.tv_usec;
@@ -73,8 +73,9 @@ get_status_impl(const Note::description_t& description) {
 }
 
 template<class ELF_T>
-inline Note::description_t write_status_impl(const CorePrStatus::pr_status_t& status) {
-  using Elf_Prstatus  = typename ELF_T::Elf_Prstatus;
+inline Note::description_t
+    write_status_impl(const CorePrStatus::pr_status_t& status) {
+  using Elf_Prstatus = typename ELF_T::Elf_Prstatus;
   Elf_Prstatus raw_pr_status;
 
   raw_pr_status.pr_info.si_signo = status.info.signo;
@@ -83,8 +84,10 @@ inline Note::description_t write_status_impl(const CorePrStatus::pr_status_t& st
 
   raw_pr_status.pr_cursig = status.cursig;
   raw_pr_status.reserved = status.reserved;
-  raw_pr_status.pr_sigpend = static_cast<decltype(raw_pr_status.pr_sigpend)>(status.sigpend);
-  raw_pr_status.pr_sighold = static_cast<decltype(raw_pr_status.pr_sighold)>(status.sighold);
+  raw_pr_status.pr_sigpend =
+      static_cast<decltype(raw_pr_status.pr_sigpend)>(status.sigpend);
+  raw_pr_status.pr_sighold =
+      static_cast<decltype(raw_pr_status.pr_sighold)>(status.sighold);
 
   raw_pr_status.pr_pid = status.pid;
   raw_pr_status.pr_ppid = status.ppid;
@@ -109,36 +112,27 @@ inline Note::description_t write_status_impl(const CorePrStatus::pr_status_t& st
 }
 
 template<class REG_T>
-inline result<uint64_t>
-get_reg_impl(REG_T reg, const Note::description_t& description,
-             Header::CLASS cls, ARCH arch)
-{
-  if constexpr (std::is_same_v<REG_T, CorePrStatus::Registers::X86>)
-  {
+inline result<uint64_t> get_reg_impl(REG_T reg,
+                                     const Note::description_t& description,
+                                     Header::CLASS cls, ARCH arch) {
+  if constexpr (std::is_same_v<REG_T, CorePrStatus::Registers::X86>) {
     if (arch != ARCH::I386) {
       return make_error_code(lief_errors::not_found);
     }
-  }
-  else if constexpr (std::is_same_v<REG_T, CorePrStatus::Registers::X86_64>)
-  {
+  } else if constexpr (std::is_same_v<REG_T, CorePrStatus::Registers::X86_64>) {
     if (arch != ARCH::X86_64) {
       return make_error_code(lief_errors::not_found);
     }
-  }
-  else if constexpr (std::is_same_v<REG_T, CorePrStatus::Registers::ARM>)
-  {
+  } else if constexpr (std::is_same_v<REG_T, CorePrStatus::Registers::ARM>) {
     if (arch != ARCH::ARM) {
       return make_error_code(lief_errors::not_found);
     }
-  }
-  else if constexpr (std::is_same_v<REG_T, CorePrStatus::Registers::AARCH64>)
-  {
+  } else if constexpr (std::is_same_v<REG_T, CorePrStatus::Registers::AARCH64>) {
     if (arch != ARCH::AARCH64) {
       return make_error_code(lief_errors::not_found);
     }
-  }
-  else {
-    LIEF_WARN("Architecture not supported");
+  } else {
+    LIEF_WARN("Unsupported architecture");
     return make_error_code(lief_errors::not_found);
   }
 
@@ -176,36 +170,27 @@ get_reg_impl(REG_T reg, const Note::description_t& description,
 }
 
 template<class REG_T>
-inline ok_error_t
-set_reg_impl(REG_T reg, uint64_t value, Note::description_t& description,
-             Header::CLASS cls, ARCH arch)
-{
-  if constexpr (std::is_same_v<REG_T, CorePrStatus::Registers::X86>)
-  {
+inline ok_error_t set_reg_impl(REG_T reg, uint64_t value,
+                               Note::description_t& description, Header::CLASS cls,
+                               ARCH arch) {
+  if constexpr (std::is_same_v<REG_T, CorePrStatus::Registers::X86>) {
     if (arch != ARCH::I386) {
       return make_error_code(lief_errors::not_found);
     }
-  }
-  else if constexpr (std::is_same_v<REG_T, CorePrStatus::Registers::X86_64>)
-  {
+  } else if constexpr (std::is_same_v<REG_T, CorePrStatus::Registers::X86_64>) {
     if (arch != ARCH::X86_64) {
       return make_error_code(lief_errors::not_found);
     }
-  }
-  else if constexpr (std::is_same_v<REG_T, CorePrStatus::Registers::ARM>)
-  {
+  } else if constexpr (std::is_same_v<REG_T, CorePrStatus::Registers::ARM>) {
     if (arch != ARCH::ARM) {
       return make_error_code(lief_errors::not_found);
     }
-  }
-  else if constexpr (std::is_same_v<REG_T, CorePrStatus::Registers::AARCH64>)
-  {
+  } else if constexpr (std::is_same_v<REG_T, CorePrStatus::Registers::AARCH64>) {
     if (arch != ARCH::AARCH64) {
       return make_error_code(lief_errors::not_found);
     }
-  }
-  else {
-    LIEF_WARN("Architecture not supported");
+  } else {
+    LIEF_WARN("Unsupported architecture");
     return make_error_code(lief_errors::not_found);
   }
 
@@ -240,61 +225,61 @@ std::vector<uint64_t> CorePrStatus::register_values() const {
   std::vector<uint64_t> values;
   switch (arch_) {
     case ARCH::X86_64:
-      {
-        using Reg = Registers::X86_64;
-        const auto count = static_cast<size_t>(Reg::_COUNT);
-        values.reserve(count);
-        for (size_t i = 0; i < count; ++i) {
-          if (auto val = get(Reg(i))) {
-            values.push_back(*val);
-          } else {
-            return {};
-          }
+    {
+      using Reg = Registers::X86_64;
+      const auto count = static_cast<size_t>(Reg::_COUNT);
+      values.reserve(count);
+      for (size_t i = 0; i < count; ++i) {
+        if (auto val = get(Reg(i))) {
+          values.push_back(*val);
+        } else {
+          return {};
         }
-        return values;
       }
+      return values;
+    }
     case ARCH::I386:
-      {
-        using Reg = Registers::X86;
-        const auto count = static_cast<size_t>(Reg::_COUNT);
-        values.reserve(count);
-        for (size_t i = 0; i < count; ++i) {
-          if (auto val = get(Reg(i))) {
-            values.push_back(*val);
-          } else {
-            return {};
-          }
+    {
+      using Reg = Registers::X86;
+      const auto count = static_cast<size_t>(Reg::_COUNT);
+      values.reserve(count);
+      for (size_t i = 0; i < count; ++i) {
+        if (auto val = get(Reg(i))) {
+          values.push_back(*val);
+        } else {
+          return {};
         }
-        return values;
       }
+      return values;
+    }
     case ARCH::ARM:
-      {
-        using Reg = Registers::ARM;
-        const auto count = static_cast<size_t>(Reg::_COUNT);
-        values.reserve(count);
-        for (size_t i = 0; i < count; ++i) {
-          if (auto val = get(Reg(i))) {
-            values.push_back(*val);
-          } else {
-            return {};
-          }
+    {
+      using Reg = Registers::ARM;
+      const auto count = static_cast<size_t>(Reg::_COUNT);
+      values.reserve(count);
+      for (size_t i = 0; i < count; ++i) {
+        if (auto val = get(Reg(i))) {
+          values.push_back(*val);
+        } else {
+          return {};
         }
-        return values;
       }
+      return values;
+    }
     case ARCH::AARCH64:
-      {
-        using Reg = Registers::AARCH64;
-        const auto count = static_cast<size_t>(Reg::_COUNT);
-        values.reserve(count);
-        for (size_t i = 0; i < count; ++i) {
-          if (auto val = get(Reg(i))) {
-            values.push_back(*val);
-          } else {
-            return {};
-          }
+    {
+      using Reg = Registers::AARCH64;
+      const auto count = static_cast<size_t>(Reg::_COUNT);
+      values.reserve(count);
+      for (size_t i = 0; i < count; ++i) {
+        if (auto val = get(Reg(i))) {
+          values.push_back(*val);
+        } else {
+          return {};
         }
-        return values;
       }
+      return values;
+    }
     default: return {};
   }
 }
@@ -308,8 +293,8 @@ CorePrStatus::pr_status_t CorePrStatus::status() const {
 
 void CorePrStatus::status(const pr_status_t& status) {
   Note::description_t description = class_ == Header::CLASS::ELF32 ?
-      write_status_impl<details::ELF32>(status) :
-      write_status_impl<details::ELF64>(status);
+                                        write_status_impl<details::ELF32>(status) :
+                                        write_status_impl<details::ELF64>(status);
 
   if (description.empty()) {
     return;
@@ -389,9 +374,9 @@ template<class REG>
 void dump_impl(std::ostream& os, const std::vector<uint64_t>& reg_vals) {
   for (size_t i = 0; i < reg_vals.size(); ++i) {
     if constexpr (std::is_void_v<REG>) {
-      os << fmt::format("   0x{:08x}\n", reg_vals[i]);
+      os << fmt::format("   {:#010x}\n", reg_vals[i]);
     } else {
-      os << fmt::format("   {}: 0x{:08x}\n", to_string(REG(i)), reg_vals[i]);
+      os << fmt::format("   {}: {:#010x}\n", to_string(REG(i)), reg_vals[i]);
     }
   }
 }
@@ -400,27 +385,25 @@ void CorePrStatus::dump(std::ostream& os) const {
   Note::dump(os);
   const CorePrStatus::pr_status_t& status = this->status();
   os << '\n'
-     << fmt::format("  PID: {:04d} PPID: {:04d} PGRP: {:04d}\n",
-                    status.pid, status.ppid, status.pgrp)
-     << fmt::format("  SID: {:04d} SIGNO: {:04d} SIGCODE: {:04d}\n",
-                    status.sid, status.info.signo, status.info.code)
+     << fmt::format("  PID: {:04d} PPID: {:04d} PGRP: {:04d}\n", status.pid,
+                    status.ppid, status.pgrp)
+     << fmt::format("  SID: {:04d} SIGNO: {:04d} SIGCODE: {:04d}\n", status.sid,
+                    status.info.signo, status.info.code)
      << fmt::format("  SIGERR: {:04d} SIGPEND: {:04d} SIGHOLD: {:04d}\n",
                     status.info.err, status.sigpend, status.sighold)
-     << fmt::format("  CURRSIG: 0x{:04d} reserved: {}\n",
-                    status.cursig, status.reserved);
+     << fmt::format("  CURRSIG: {:#06x} reserved: {}\n", status.cursig,
+                    status.reserved);
   const std::vector<uint64_t>& reg_vals = register_values();
   switch (architecture()) {
-    case ARCH::ARM:
-      dump_impl<CorePrStatus::Registers::ARM>(os, reg_vals); break;
+    case ARCH::ARM: dump_impl<CorePrStatus::Registers::ARM>(os, reg_vals); break;
     case ARCH::AARCH64:
-      dump_impl<CorePrStatus::Registers::AARCH64>(os, reg_vals); break;
-    case ARCH::I386:
-      dump_impl<CorePrStatus::Registers::X86>(os, reg_vals); break;
+      dump_impl<CorePrStatus::Registers::AARCH64>(os, reg_vals);
+      break;
+    case ARCH::I386: dump_impl<CorePrStatus::Registers::X86>(os, reg_vals); break;
     case ARCH::X86_64:
-      dump_impl<CorePrStatus::Registers::X86_64>(os, reg_vals); break;
-    default:
-      dump_impl<void>(os, reg_vals); break;
-
+      dump_impl<CorePrStatus::Registers::X86_64>(os, reg_vals);
+      break;
+    default: dump_impl<void>(os, reg_vals); break;
   }
 }
 
@@ -429,27 +412,14 @@ void CorePrStatus::accept(Visitor& visitor) const {
 }
 
 const char* to_string(CorePrStatus::Registers::X86 e) {
-  #define ENTRY(X) std::pair(CorePrStatus::Registers::X86::X, #X)
-  STRING_MAP enum_strings {
-    ENTRY(EBX),
-    ENTRY(ECX),
-    ENTRY(EDX),
-    ENTRY(ESI),
-    ENTRY(EDI),
-    ENTRY(EBP),
-    ENTRY(EAX),
-    ENTRY(DS),
-    ENTRY(ES),
-    ENTRY(FS),
-    ENTRY(GS),
-    ENTRY(ORIG_EAX),
-    ENTRY(EIP),
-    ENTRY(CS),
-    ENTRY(EFLAGS),
-    ENTRY(ESP),
-    ENTRY(SS),
+#define ENTRY(X) std::pair(CorePrStatus::Registers::X86::X, #X)
+  STRING_MAP enum_strings{
+      ENTRY(EBX), ENTRY(ECX),      ENTRY(EDX), ENTRY(ESI), ENTRY(EDI),
+      ENTRY(EBP), ENTRY(EAX),      ENTRY(DS),  ENTRY(ES),  ENTRY(FS),
+      ENTRY(GS),  ENTRY(ORIG_EAX), ENTRY(EIP), ENTRY(CS),  ENTRY(EFLAGS),
+      ENTRY(ESP), ENTRY(SS),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enum_strings.find(e); it != enum_strings.end()) {
     return it->second;
@@ -458,31 +428,15 @@ const char* to_string(CorePrStatus::Registers::X86 e) {
 }
 
 const char* to_string(CorePrStatus::Registers::X86_64 e) {
-  #define ENTRY(X) std::pair(CorePrStatus::Registers::X86_64::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(R15),
-    ENTRY(R14),
-    ENTRY(R13),
-    ENTRY(R12),
-    ENTRY(RBP),
-    ENTRY(RBX),
-    ENTRY(R11),
-    ENTRY(R10),
-    ENTRY(R9),
-    ENTRY(R8),
-    ENTRY(RAX),
-    ENTRY(RCX),
-    ENTRY(RDX),
-    ENTRY(RSI),
-    ENTRY(RDI),
-    ENTRY(ORIG_RAX),
-    ENTRY(RIP),
-    ENTRY(CS),
-    ENTRY(EFLAGS),
-    ENTRY(RSP),
-    ENTRY(SS),
+#define ENTRY(X) std::pair(CorePrStatus::Registers::X86_64::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(R15),      ENTRY(R14),     ENTRY(R13),     ENTRY(R12),    ENTRY(RBP),
+      ENTRY(RBX),      ENTRY(R11),     ENTRY(R10),     ENTRY(R9),     ENTRY(R8),
+      ENTRY(RAX),      ENTRY(RCX),     ENTRY(RDX),     ENTRY(RSI),    ENTRY(RDI),
+      ENTRY(ORIG_RAX), ENTRY(RIP),     ENTRY(CS),      ENTRY(EFLAGS), ENTRY(RSP),
+      ENTRY(SS),       ENTRY(FS_BASE), ENTRY(GS_BASE), ENTRY(DS),     ENTRY(ES),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
@@ -491,27 +445,13 @@ const char* to_string(CorePrStatus::Registers::X86_64 e) {
 }
 
 const char* to_string(CorePrStatus::Registers::ARM e) {
-  #define ENTRY(X) std::pair(CorePrStatus::Registers::ARM::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(R0),
-    ENTRY(R1),
-    ENTRY(R2),
-    ENTRY(R3),
-    ENTRY(R4),
-    ENTRY(R5),
-    ENTRY(R6),
-    ENTRY(R7),
-    ENTRY(R8),
-    ENTRY(R9),
-    ENTRY(R10),
-    ENTRY(R11),
-    ENTRY(R12),
-    ENTRY(R13),
-    ENTRY(R14),
-    ENTRY(R15),
-    ENTRY(CPSR),
+#define ENTRY(X) std::pair(CorePrStatus::Registers::ARM::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(R0),  ENTRY(R1),  ENTRY(R2),  ENTRY(R3),  ENTRY(R4),   ENTRY(R5),
+      ENTRY(R6),  ENTRY(R7),  ENTRY(R8),  ENTRY(R9),  ENTRY(R10),  ENTRY(R11),
+      ENTRY(R12), ENTRY(R13), ENTRY(R14), ENTRY(R15), ENTRY(CPSR),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
@@ -521,45 +461,16 @@ const char* to_string(CorePrStatus::Registers::ARM e) {
 }
 
 const char* to_string(CorePrStatus::Registers::AARCH64 e) {
-  #define ENTRY(X) std::pair(CorePrStatus::Registers::AARCH64::X, #X)
-  STRING_MAP enum_strings {
-    ENTRY(X0),
-    ENTRY(X1),
-    ENTRY(X2),
-    ENTRY(X3),
-    ENTRY(X4),
-    ENTRY(X5),
-    ENTRY(X6),
-    ENTRY(X7),
-    ENTRY(X8),
-    ENTRY(X9),
-    ENTRY(X10),
-    ENTRY(X11),
-    ENTRY(X12),
-    ENTRY(X13),
-    ENTRY(X14),
-    ENTRY(X15),
-    ENTRY(X15),
-    ENTRY(X16),
-    ENTRY(X17),
-    ENTRY(X18),
-    ENTRY(X19),
-    ENTRY(X20),
-    ENTRY(X21),
-    ENTRY(X22),
-    ENTRY(X23),
-    ENTRY(X24),
-    ENTRY(X25),
-    ENTRY(X26),
-    ENTRY(X27),
-    ENTRY(X28),
-    ENTRY(X29),
-    ENTRY(X30),
-    ENTRY(X31),
-    ENTRY(PC),
-    ENTRY(PSTATE),
+#define ENTRY(X) std::pair(CorePrStatus::Registers::AARCH64::X, #X)
+  STRING_MAP enum_strings{
+      ENTRY(X0),  ENTRY(X1),  ENTRY(X2),  ENTRY(X3),  ENTRY(X4),     ENTRY(X5),
+      ENTRY(X6),  ENTRY(X7),  ENTRY(X8),  ENTRY(X9),  ENTRY(X10),    ENTRY(X11),
+      ENTRY(X12), ENTRY(X13), ENTRY(X14), ENTRY(X15), ENTRY(X15),    ENTRY(X16),
+      ENTRY(X17), ENTRY(X18), ENTRY(X19), ENTRY(X20), ENTRY(X21),    ENTRY(X22),
+      ENTRY(X23), ENTRY(X24), ENTRY(X25), ENTRY(X26), ENTRY(X27),    ENTRY(X28),
+      ENTRY(X29), ENTRY(X30), ENTRY(X31), ENTRY(PC),  ENTRY(PSTATE),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enum_strings.find(e); it != enum_strings.end()) {
     return it->second;
@@ -567,5 +478,4 @@ const char* to_string(CorePrStatus::Registers::AARCH64 e) {
   return "UNKNOWN";
 }
 
-} // namespace ELF
-} // namespace LIEF
+} // namespace LIEF::ELF

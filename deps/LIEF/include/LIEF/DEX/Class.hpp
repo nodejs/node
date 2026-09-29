@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,7 +56,8 @@ class LIEF_API Class : public Object {
   public:
   static std::string package_normalized(const std::string& pkg_name);
   static std::string fullname_normalized(const std::string& pkg_cls);
-  static std::string fullname_normalized(const std::string& pkg, const std::string& cls_name);
+  static std::string fullname_normalized(const std::string& pkg,
+                                         const std::string& cls_name);
 
   Class();
   Class(const Class&) = delete;
@@ -124,10 +125,10 @@ class LIEF_API Class : public Object {
 
   private:
   std::string fullname_;
-  uint32_t    access_flags_ = ACCESS_FLAGS::ACC_UNKNOWN;
-  Class*      parent_ = nullptr;
-  methods_t   methods_;
-  fields_t    fields_;
+  uint32_t access_flags_ = ACCESS_FLAGS::ACC_UNKNOWN;
+  Class* parent_ = nullptr;
+  methods_t methods_;
+  fields_t fields_;
   std::string source_filename_;
 
   uint32_t original_index_ = UINT_MAX;

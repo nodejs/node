@@ -82,7 +82,7 @@ namespace utf8
         template <typename octet_iterator, typename output_iterator>
         inline output_iterator replace_invalid(octet_iterator start, octet_iterator end, output_iterator out)
         {
-            static const utfchar32_t replacement_marker = utf8::internal::mask16(0xfffd);
+            static const utfchar32_t replacement_marker = static_cast<utfchar32_t>(utf8::internal::mask16(0xfffd));
             return utf8::unchecked::replace_invalid(start, end, out, replacement_marker);
         }
 
@@ -108,22 +108,22 @@ namespace utf8
                 case 1:
                     break;
                 case 2:
-                    it++;
+                    ++it;
                     cp = ((cp << 6) & 0x7ff) + ((*it) & 0x3f);
                     break;
                 case 3:
-                    ++it; 
+                    ++it;
                     cp = ((cp << 12) & 0xffff) + ((utf8::internal::mask8(*it) << 6) & 0xfff);
                     ++it;
                     cp = static_cast<utfchar32_t>(cp + ((*it) & 0x3f));
                     break;
                 case 4:
                     ++it;
-                    cp = ((cp << 18) & 0x1fffff) + ((utf8::internal::mask8(*it) << 12) & 0x3ffff);                
+                    cp = ((cp << 18) & 0x1fffff) + ((utf8::internal::mask8(*it) << 12) & 0x3ffff);
                     ++it;
                     cp = static_cast<utfchar32_t>(cp + ((utf8::internal::mask8(*it) << 6) & 0xfff));
                     ++it;
-                    cp = static_cast<utfchar32_t>(cp + ((*it) & 0x3f)); 
+                    cp = static_cast<utfchar32_t>(cp + ((*it) & 0x3f));
                     break;
             }
             ++it;
@@ -173,7 +173,7 @@ namespace utf8
         distance(octet_iterator first, octet_iterator last)
         {
             typename std::iterator_traits<octet_iterator>::difference_type dist;
-            for (dist = 0; first < last; ++dist) 
+            for (dist = 0; first < last; ++dist)
                 utf8::unchecked::next(first);
             return dist;
         }
@@ -247,15 +247,15 @@ namespace utf8
                 octet_iterator temp = it;
                 return utf8::unchecked::next(temp);
             }
-            bool operator == (const iterator& rhs) const 
-            { 
+            bool operator == (const iterator& rhs) const
+            {
                 return (it == rhs.it);
             }
             bool operator != (const iterator& rhs) const
             {
                 return !(operator == (rhs));
             }
-            iterator& operator ++ () 
+            iterator& operator ++ ()
             {
                 ::std::advance(it, utf8::internal::sequence_length(it));
                 return *this;
@@ -265,7 +265,7 @@ namespace utf8
                 iterator temp = *this;
                 ::std::advance(it, utf8::internal::sequence_length(it));
                 return temp;
-            }  
+            }
             iterator& operator -- ()
             {
                 utf8::unchecked::prior(it);
@@ -280,8 +280,7 @@ namespace utf8
           }; // class iterator
 
     } // namespace utf8::unchecked
-} // namespace utf8 
-
+} // namespace utf8
 
 #endif // header guard
 

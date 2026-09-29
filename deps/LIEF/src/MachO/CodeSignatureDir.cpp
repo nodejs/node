@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,14 +20,13 @@
 #include "LIEF/MachO/CodeSignatureDir.hpp"
 #include "MachO/Structures.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 CodeSignatureDir::CodeSignatureDir(const details::linkedit_data_command& cmd) :
   LoadCommand::LoadCommand{LoadCommand::TYPE(cmd.cmd), cmd.cmdsize},
   data_offset_{cmd.dataoff},
-  data_size_{cmd.datasize}
-{}
+  data_size_{cmd.datasize} {}
 
 void CodeSignatureDir::accept(Visitor& visitor) const {
   visitor.visit(*this);
@@ -35,11 +34,9 @@ void CodeSignatureDir::accept(Visitor& visitor) const {
 
 std::ostream& CodeSignatureDir::print(std::ostream& os) const {
   LoadCommand::print(os) << '\n';
-  os << fmt::format("offset=0x{:06x}, size=0x{:06x}",
-                     data_offset(), data_size());
+  os << fmt::format("offset={:#08x}, size={:#08x}", data_offset(), data_size());
   return os;
 }
 
 
-}
 }

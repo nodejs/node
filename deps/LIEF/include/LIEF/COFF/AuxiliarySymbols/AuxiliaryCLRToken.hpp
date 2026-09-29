@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 
 #include <memory>
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/COFF/AuxiliarySymbol.hpp"
 
@@ -32,11 +33,10 @@ class LIEF_API AuxiliaryCLRToken : public AuxiliarySymbol {
   friend class Parser;
 
   LIEF_LOCAL static std::unique_ptr<AuxiliaryCLRToken>
-    parse(const std::vector<uint8_t>& payload);
+      parse(const std::vector<uint8_t>& payload);
 
   AuxiliaryCLRToken() :
-    AuxiliarySymbol(AuxiliarySymbol::TYPE::CLR_TOKEN)
-  {}
+    AuxiliarySymbol(AuxiliarySymbol::TYPE::CLR_TOKEN) {}
 
   AuxiliaryCLRToken(uint8_t aux_type, uint8_t reserved, uint32_t symbol_idx,
                     std::vector<uint8_t> rgb_reserved) :
@@ -44,8 +44,7 @@ class LIEF_API AuxiliaryCLRToken : public AuxiliarySymbol {
     aux_type_(aux_type),
     reserved_(reserved),
     symbol_idx_(symbol_idx),
-    rgb_reserved_(std::move(rgb_reserved))
-  {}
+    rgb_reserved_(std::move(rgb_reserved)) {}
 
   AuxiliaryCLRToken(const AuxiliaryCLRToken&) = default;
   AuxiliaryCLRToken& operator=(const AuxiliaryCLRToken&) = default;
@@ -82,7 +81,7 @@ class LIEF_API AuxiliaryCLRToken : public AuxiliarySymbol {
   }
 
   /// Reserved (padding) values. Should be 0
-  span<const uint8_t> rgb_reserved() const {
+  span<const uint8_t> rgb_reserved() const LIEF_LIFETIMEBOUND {
     return rgb_reserved_;
   }
 
@@ -93,6 +92,7 @@ class LIEF_API AuxiliaryCLRToken : public AuxiliarySymbol {
   }
 
   ~AuxiliaryCLRToken() override = default;
+
   private:
   uint8_t aux_type_ = 0;
   uint8_t reserved_ = 0;

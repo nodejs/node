@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,23 +21,29 @@ namespace LIEF {
 
 // From nanobind
 namespace detail {
-template <typename... Args> struct overload_cast_impl {
-    template <typename Return>
-    constexpr auto operator()(Return (*pf)(Args...)) const noexcept
-                              -> decltype(pf) { return pf; }
+template<typename... Args>
+struct overload_cast_impl {
+  template<typename Return>
+  constexpr auto operator()(Return (*pf)(Args...)) const noexcept -> decltype(pf) {
+    return pf;
+  }
 
-    template <typename Return, typename Class>
-    constexpr auto operator()(Return (Class::*pmf)(Args...), std::false_type = {}) const noexcept
-                              -> decltype(pmf) { return pmf; }
+  template<typename Return, typename Class>
+  constexpr auto operator()(Return (Class::*pmf)(Args...),
+                            std::false_type = {}) const noexcept -> decltype(pmf) {
+    return pmf;
+  }
 
-    template <typename Return, typename Class>
-    constexpr auto operator()(Return (Class::*pmf)(Args...) const, std::true_type) const noexcept
-                              -> decltype(pmf) { return pmf; }
+  template<typename Return, typename Class>
+  constexpr auto operator()(Return (Class::*pmf)(Args...) const,
+                            std::true_type) const noexcept -> decltype(pmf) {
+    return pmf;
+  }
 };
 
 }
 
-template <typename... Args>
+template<typename... Args>
 static constexpr detail::overload_cast_impl<Args...> overload_cast = {};
 }
 #endif

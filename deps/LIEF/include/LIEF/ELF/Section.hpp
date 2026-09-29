@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include <memory>
 
 #include "LIEF/utils.hpp"
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/Abstract/Section.hpp"
 
@@ -53,56 +54,65 @@ class LIEF_API Section : public LIEF::Section {
   friend class ObjectFileLayout;
 
   public:
-  using segments_t        = std::vector<Segment*>;
-  using it_segments       = ref_iterator<segments_t&>;
+  using segments_t = std::vector<Segment*>;
+  using it_segments = ref_iterator<segments_t&>;
   using it_const_segments = const_ref_iterator<const segments_t&>;
 
   static constexpr uint32_t MAX_SECTION_SIZE = 2_GB;
 
+  // clang-format off
   enum class TYPE : uint64_t {
-    SHT_NULL_           = 0,  /**< No associated section (inactive entry). */
-    PROGBITS            = 1,  /**< Program-defined contents. */
-    SYMTAB              = 2,  /**< Symbol table. */
-    STRTAB              = 3,  /**< String table. */
-    RELA                = 4,  /**< Relocation entries; explicit addends. */
-    HASH                = 5,  /**< Symbol hash table. */
-    DYNAMIC             = 6,  /**< Information for dynamic linking. */
-    NOTE                = 7,  /**< Information about the file. */
-    NOBITS              = 8,  /**< Data occupies no space in the file. */
-    REL                 = 9,  /**< Relocation entries; no explicit addends. */
-    SHLIB               = 10, /**< Reserved. */
-    DYNSYM              = 11, /**< Symbol table. */
-    INIT_ARRAY          = 14, /**< Pointers to initialization functions. */
-    FINI_ARRAY          = 15, /**< Pointers to termination functions. */
-    PREINIT_ARRAY       = 16, /**< Pointers to pre-init functions. */
-    GROUP               = 17, /**< Section group. */
-    SYMTAB_SHNDX        = 18, /**< Indices for SHN_XINDEX entries. */
-    RELR                = 19, /**< Relocation entries; only offsets. */
+    SHT_NULL_ = 0,      /**< No associated section (inactive entry). */
+    PROGBITS = 1,       /**< Program-defined contents. */
+    SYMTAB = 2,         /**< Symbol table. */
+    STRTAB = 3,         /**< String table. */
+    RELA = 4,           /**< Relocation entries; explicit addends. */
+    HASH = 5,           /**< Symbol hash table. */
+    DYNAMIC = 6,        /**< Information for dynamic linking. */
+    NOTE = 7,           /**< Information about the file. */
+    NOBITS = 8,         /**< Data occupies no space in the file. */
+    REL = 9,            /**< Relocation entries; no explicit addends. */
+    SHLIB = 10,         /**< Reserved. */
+    DYNSYM = 11,        /**< Symbol table. */
+    INIT_ARRAY = 14,    /**< Pointers to initialization functions. */
+    FINI_ARRAY = 15,    /**< Pointers to termination functions. */
+    PREINIT_ARRAY = 16, /**< Pointers to pre-init functions. */
+    GROUP = 17,         /**< Section group. */
+    SYMTAB_SHNDX = 18,  /**< Indices for SHN_XINDEX entries. */
+    RELR = 19,          /**< Relocation entries; only offsets. */
 
-    ANDROID_REL         = 0x60000001, /**< Packed relocations (Android specific). */
-    ANDROID_RELA        = 0x60000002, /**< Packed relocations (Android specific). */
-    LLVM_ADDRSIG        = 0x6fff4c03, /**< This section is used to mark symbols as address-significant. */
-    ANDROID_RELR        = 0x6fffff00, /**< New relr relocations (Android specific). */
-    GNU_ATTRIBUTES      = 0x6ffffff5, /**< Object attributes. */
-    GNU_HASH            = 0x6ffffff6, /**< GNU-style hash table. */
-    GNU_VERDEF          = 0x6ffffffd, /**< GNU version definitions. */
-    GNU_VERNEED         = 0x6ffffffe, /**< GNU version references. */
-    GNU_VERSYM          = 0x6fffffff, /**< GNU symbol versions table. */
+    ANDROID_REL  = 0x60000001, /**< Packed relocations (Android specific). */
+    ANDROID_RELA = 0x60000002, /**< Packed relocations (Android specific). */
 
-    _ID_SHIFT_ = 32,
-    _ARM_ID_ = 1LLU, _HEX_ID_ = 2LLU, _X86_64_ID_ = 2LLU,
-    _MIPS_ID_ = 3LLU, _RISCV_ID_ = 4LLU,
+    LLVM_ADDRSIG = 0x6fff4c03, /**< This section is used to mark symbols as
+                                    address-significant. */
 
-    ARM_EXIDX           = 0x70000001U + (_ARM_ID_ << _ID_SHIFT_), /**< Exception Index table */
-    ARM_PREEMPTMAP      = 0x70000002U + (_ARM_ID_ << _ID_SHIFT_), /**< BPABI DLL dynamic linking pre-emption map */
-    ARM_ATTRIBUTES      = 0x70000003U + (_ARM_ID_ << _ID_SHIFT_), /**< Object file compatibility attributes */
-    ARM_DEBUGOVERLAY    = 0x70000004U + (_ARM_ID_ << _ID_SHIFT_),
-    ARM_OVERLAYSECTION  = 0x70000005U + (_ARM_ID_ << _ID_SHIFT_),
+    ANDROID_RELR   = 0x6fffff00, /**< New relr relocations (Android specific). */
+    GNU_ATTRIBUTES = 0x6ffffff5, /**< Object attributes. */
+    GNU_HASH       = 0x6ffffff6, /**< GNU-style hash table. */
+    GNU_VERDEF     = 0x6ffffffd, /**< GNU version definitions. */
+    GNU_VERNEED    = 0x6ffffffe, /**< GNU version references. */
+    GNU_VERSYM     = 0x6fffffff, /**< GNU symbol versions table. */
 
-    HEX_ORDERED         = 0x70000000 + (_HEX_ID_ << _ID_SHIFT_), /**< Link editor is to sort the entries in this section based on their sizes */
+    _ID_SHIFT_   = 32,
+    _ARM_ID_     = 1LLU,
+    _HEX_ID_     = 2LLU,
+    _X86_64_ID_  = 2LLU,
+    _MIPS_ID_    = 3LLU,
+    _RISCV_ID_   = 4LLU,
+    _AARCH64_ID_ = 5LLU,
+
+    ARM_EXIDX          = 0x70000001U + (_ARM_ID_ << _ID_SHIFT_), /**< Exception Index table */
+    ARM_PREEMPTMAP     = 0x70000002U + (_ARM_ID_ << _ID_SHIFT_), /**< BPABI DLL dynamic linking pre-emption map */
+    ARM_ATTRIBUTES     = 0x70000003U + (_ARM_ID_ << _ID_SHIFT_), /**< Object file compatibility attributes */
+    ARM_DEBUGOVERLAY   = 0x70000004U + (_ARM_ID_ << _ID_SHIFT_),
+    ARM_OVERLAYSECTION = 0x70000005U + (_ARM_ID_ << _ID_SHIFT_),
+
+    HEX_ORDERED = 0x70000000 + (_HEX_ID_ << _ID_SHIFT_), /**< Link editor is to sort the entries in this
+                                                              section based on their sizes */
 
     /* this section based on their sizes */
-    X86_64_UNWIND       = 0x70000001 + (_X86_64_ID_ << _ID_SHIFT_), /**< Unwind information */
+    X86_64_UNWIND = 0x70000001 + (_X86_64_ID_ << _ID_SHIFT_), /**< Unwind information */
 
     MIPS_LIBLIST       = 0x70000000 + (_MIPS_ID_ << _ID_SHIFT_),
     MIPS_MSYM          = 0x70000001 + (_MIPS_ID_ << _ID_SHIFT_),
@@ -146,50 +156,64 @@ class LIEF_API Section : public LIEF::Section {
     MIPS_ABIFLAGS      = 0x7000002a + (_MIPS_ID_ << _ID_SHIFT_),
     MIPS_XHASH         = 0x7000002b + (_MIPS_ID_ << _ID_SHIFT_),
 
-    RISCV_ATTRIBUTES    = 0x70000003 + (_RISCV_ID_ << _ID_SHIFT_),
+    RISCV_ATTRIBUTES = 0x70000003 + (_RISCV_ID_ << _ID_SHIFT_),
+
+    AARCH64_ATTRIBUTES             = 0x70000003 + (_AARCH64_ID_ << _ID_SHIFT_),
+    AARCH64_AUTH_RELR              = 0x70000004 + (_AARCH64_ID_ << _ID_SHIFT_),
+    AARCH64_MEMTAG_GLOBALS_STATIC  = 0x70000007 + (_AARCH64_ID_ << _ID_SHIFT_),
+    AARCH64_MEMTAG_GLOBALS_DYNAMIC = 0x70000008 + (_AARCH64_ID_ << _ID_SHIFT_),
   };
 
   enum class FLAGS : uint64_t {
-    NONE                 = 0x000000000,
-    WRITE                = 0x000000001,  /**< Section data should be writable during execution. */
-    ALLOC                = 0x000000002,  /**< Section occupies memory during program execution. */
-    EXECINSTR            = 0x000000004,  /**< Section contains executable machine instructions. */
-    MERGE                = 0x000000010,  /**< The data in this section may be merged. */
-    STRINGS              = 0x000000020,  /**< The data in this section is null-terminated strings. */
-    INFO_LINK            = 0x000000040,  /**< A field in this section holds a section header table index. */
-    LINK_ORDER           = 0x000000080,  /**< Adds special ordering requirements for link editors. */
-    OS_NONCONFORMING     = 0x000000100,  /**< This section requires special OS-specific processing to avoid incorrect behavior */
-    GROUP                = 0x000000200,  /**< This section is a member of a section group. */
-    TLS                  = 0x000000400,  /**< This section holds Thread-Local Storage. */
-    COMPRESSED           = 0x000000800,
-    GNU_RETAIN           = 0x000200000,
-    EXCLUDE              = 0x080000000,
+    NONE             = 0x000000000,
+    WRITE            = 0x000000001, /**< Section data should be writable during execution. */
+    ALLOC            = 0x000000002, /**< Section occupies memory during program execution. */
+    EXECINSTR        = 0x000000004, /**< Section contains executable machine instructions. */
+    MERGE            = 0x000000010, /**< The data in this section may be merged. */
+    STRINGS          = 0x000000020, /**< The data in this section is null-terminated strings. */
+    INFO_LINK        = 0x000000040, /**< A field in this section holds a section header table index. */
+    LINK_ORDER       = 0x000000080, /**< Adds special ordering requirements for link editors. */
+    OS_NONCONFORMING = 0x000000100, /**< This section requires special OS-specific processing to avoid incorrect behavior */
+    GROUP            = 0x000000200, /**< This section is a member of a section group. */
+    TLS              = 0x000000400, /**< This section holds Thread-Local Storage. */
+    COMPRESSED       = 0x000000800,
+    GNU_RETAIN       = 0x000200000,
+    EXCLUDE          = 0x080000000,
 
-    _ID_SHIFT_ = 32,
-    _XCORE_ID_ = 1LLU, _HEX_ID_ = 3LLU, _X86_64_ID_ = 2LLU,
-    _MIPS_ID_  = 4LLU, _ARM_ID_ = 5LLU,
+    _ID_SHIFT_   = 32,
+    _XCORE_ID_   = 1LLU,
+    _HEX_ID_     = 3LLU,
+    _X86_64_ID_  = 2LLU,
+    _MIPS_ID_    = 4LLU,
+    _ARM_ID_     = 5LLU,
+    _AARCH64_ID_ = 6LLU,
 
     XCORE_SHF_DP_SECTION = 0x010000000 + (_XCORE_ID_ << _ID_SHIFT_),
     XCORE_SHF_CP_SECTION = 0x020000000 + (_XCORE_ID_ << _ID_SHIFT_),
 
-    X86_64_LARGE         = 0x010000000 + (_X86_64_ID_ << _ID_SHIFT_),
+    X86_64_LARGE = 0x010000000 + (_X86_64_ID_ << _ID_SHIFT_),
 
-    HEX_GPREL            = 0x010000000 + (_HEX_ID_ << _ID_SHIFT_),
+    HEX_GPREL    = 0x010000000 + (_HEX_ID_ << _ID_SHIFT_),
 
-    MIPS_NODUPES         = 0x001000000 + (_MIPS_ID_ << _ID_SHIFT_),
-    MIPS_NAMES           = 0x002000000 + (_MIPS_ID_ << _ID_SHIFT_),
-    MIPS_LOCAL           = 0x004000000 + (_MIPS_ID_ << _ID_SHIFT_),
-    MIPS_NOSTRIP         = 0x008000000 + (_MIPS_ID_ << _ID_SHIFT_),
-    MIPS_GPREL           = 0x010000000 + (_MIPS_ID_ << _ID_SHIFT_),
-    MIPS_MERGE           = 0x020000000 + (_MIPS_ID_ << _ID_SHIFT_),
-    MIPS_ADDR            = 0x040000000 + (_MIPS_ID_ << _ID_SHIFT_),
-    MIPS_STRING          = 0x080000000 + (_MIPS_ID_ << _ID_SHIFT_),
+    MIPS_NODUPES = 0x001000000 + (_MIPS_ID_ << _ID_SHIFT_),
+    MIPS_NAMES   = 0x002000000 + (_MIPS_ID_ << _ID_SHIFT_),
+    MIPS_LOCAL   = 0x004000000 + (_MIPS_ID_ << _ID_SHIFT_),
+    MIPS_NOSTRIP = 0x008000000 + (_MIPS_ID_ << _ID_SHIFT_),
+    MIPS_GPREL   = 0x010000000 + (_MIPS_ID_ << _ID_SHIFT_),
+    MIPS_MERGE   = 0x020000000 + (_MIPS_ID_ << _ID_SHIFT_),
+    MIPS_ADDR    = 0x040000000 + (_MIPS_ID_ << _ID_SHIFT_),
+    MIPS_STRING  = 0x080000000 + (_MIPS_ID_ << _ID_SHIFT_),
 
-    ARM_PURECODE         = 0x020000000 + (_ARM_ID_  << _ID_SHIFT_),
+    ARM_PURECODE = 0x020000000 + (_ARM_ID_ << _ID_SHIFT_),
+
+    AARCH64_PURECODE = 0x020000000 + (_AARCH64_ID_ << _ID_SHIFT_),
   };
+  // clang-format on
 
-  static constexpr uint64_t FLAG_MASK = (uint64_t(1) << uint8_t(FLAGS::_ID_SHIFT_)) - 1;
-  static constexpr uint64_t TYPE_MASK = (uint64_t(1) << uint8_t(TYPE::_ID_SHIFT_)) - 1;
+  static constexpr uint64_t FLAG_MASK =
+      (uint64_t(1) << uint8_t(FLAGS::_ID_SHIFT_)) - 1;
+  static constexpr uint64_t TYPE_MASK =
+      (uint64_t(1) << uint8_t(TYPE::_ID_SHIFT_)) - 1;
 
   static TYPE type_from(uint32_t value, ARCH arch);
   static uint32_t to_value(TYPE type) {
@@ -198,8 +222,7 @@ class LIEF_API Section : public LIEF::Section {
 
   Section(const std::string& name, TYPE type = TYPE::PROGBITS) :
     LIEF::Section(name),
-    type_{type}
-  {}
+    type_{type} {}
 
   Section() = default;
   ~Section() override = default;
@@ -216,7 +239,7 @@ class LIEF_API Section : public LIEF::Section {
   }
 
   /// Section's content
-  span<const uint8_t> content() const override;
+  span<const uint8_t> content() const LIEF_LIFETIMEBOUND override;
 
   /// Set section content
   void content(const std::vector<uint8_t>& data) override;
@@ -273,12 +296,12 @@ class LIEF_API Section : public LIEF::Section {
     return info_;
   }
 
-  /// This function returns the size of an element in the case of a section that contains
-  /// an array.
+  /// This function returns the size of an element in the case of a section that
+  /// contains an array.
   ///
-  /// For instance, the `.dynamic` section contains an array of DynamicEntry. As the
-  /// size of the raw C structure of this entry is 0x10 (`sizeoe(Elf64_Dyn)`)
-  /// in a ELF64, the `entry_size` is set to this value.
+  /// For instance, the `.dynamic` section contains an array of DynamicEntry. As
+  /// the size of the raw C structure of this entry is 0x10 (`sizeof(Elf64_Dyn)`)
+  /// in an ELF64, the `entry_size` is set to this value.
   uint64_t entry_size() const {
     return entry_size_;
   }
@@ -289,7 +312,7 @@ class LIEF_API Section : public LIEF::Section {
   }
 
   /// Clear the content of the section with the given ``value``
-  Section& clear(uint8_t value = 0);
+  Section& clear(uint8_t value = 0) LIEF_LIFETIMEBOUND;
 
   /// Add the given ELF_SECTION_FLAGS
   void add(FLAGS flag);
@@ -298,7 +321,7 @@ class LIEF_API Section : public LIEF::Section {
   void remove(FLAGS flag);
 
   void type(TYPE type) {
-    type_  = type;
+    type_ = type;
   }
 
   void flags(uint64_t flags) {
@@ -329,15 +352,15 @@ class LIEF_API Section : public LIEF::Section {
     entry_size_ = entry_size;
   }
 
-  it_segments segments() {
+  it_segments segments() LIEF_LIFETIMEBOUND {
     return segments_;
   }
 
-  it_const_segments segments() const {
+  it_const_segments segments() const LIEF_LIFETIMEBOUND {
     return segments_;
   }
 
-  Section& as_frame() {
+  Section& as_frame() LIEF_LIFETIMEBOUND {
     is_frame_ = true;
     return *this;
   }
@@ -361,13 +384,14 @@ class LIEF_API Section : public LIEF::Section {
   /// Return a stream over the content of this section
   std::unique_ptr<SpanStream> stream() const;
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const Section& section);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const Section& section);
 
   private:
   template<class T>
   LIEF_LOCAL Section(const T& header, ARCH arch);
 
-  LIEF_LOCAL span<uint8_t> writable_content();
+  LIEF_LOCAL span<uint8_t> writable_content() LIEF_LIFETIMEBOUND;
   ARCH arch_ = ARCH::NONE;
   TYPE type_ = TYPE::SHT_NULL_;
   uint64_t flags_ = 0;

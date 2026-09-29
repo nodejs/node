@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,7 @@
 #include <utility>
 
 
-namespace LIEF {
-namespace DEX {
+namespace LIEF::DEX {
 
 Method::Method(const Method&) = default;
 Method& Method::operator=(const Method&) = default;
@@ -36,8 +35,7 @@ Method::Method() = default;
 
 Method::Method(std::string name, Class* parent) :
   name_{std::move(name)},
-  parent_{parent}
-{}
+  parent_{parent} {}
 
 const std::string& Method::name() const {
   return name_;
@@ -91,13 +89,11 @@ bool Method::has(ACCESS_FLAGS f) const {
 Method::access_flags_list_t Method::access_flags() const {
   Method::access_flags_list_t flags;
 
-  std::copy_if(std::begin(access_flags_list),
-      std::end(access_flags_list),
-      std::back_inserter(flags),
-      [this] (ACCESS_FLAGS f) { return has(f); });
+  std::copy_if(std::begin(access_flags_list), std::end(access_flags_list),
+               std::back_inserter(flags),
+               [this](ACCESS_FLAGS f) { return has(f); });
 
   return flags;
-
 }
 
 const Prototype* Method::prototype() const {
@@ -117,7 +113,6 @@ void Method::accept(Visitor& visitor) const {
 }
 
 
-
 std::ostream& operator<<(std::ostream& os, const Method& method) {
   const auto* proto = method.prototype();
   if (!proto) {
@@ -132,18 +127,18 @@ std::ostream& operator<<(std::ostream& os, const Method& method) {
 
   if (!pretty_cls_name.empty()) {
     pretty_cls_name = pretty_cls_name.substr(1, pretty_cls_name.size() - 2);
-    std::replace(std::begin(pretty_cls_name), std::end(pretty_cls_name), '/', '.');
+    std::replace(pretty_cls_name.begin(), pretty_cls_name.end(), '/', '.');
   }
 
   Method::access_flags_list_t aflags = method.access_flags();
-  std::string flags_str = std::accumulate(
-      std::begin(aflags), std::end(aflags),
-      std::string{},
-      [] (const std::string& l, ACCESS_FLAGS r) {
-        std::string str = to_string(r);
-        std::transform(std::begin(str), std::end(str), std::begin(str), ::tolower);
-        return l.empty() ? str : l + " " + str;
-      });
+  std::string flags_str =
+      std::accumulate(aflags.begin(), aflags.end(), std::string{},
+                      [](const std::string& l, ACCESS_FLAGS r) {
+                        std::string str = to_string(r);
+                        std::transform(str.begin(), str.end(), str.begin(),
+                                       ::tolower);
+                        return l.empty() ? str : l + " " + str;
+                      });
 
   if (!flags_str.empty()) {
     os << flags_str << " ";
@@ -167,5 +162,4 @@ std::ostream& operator<<(std::ostream& os, const Method& method) {
 
 Method::~Method() = default;
 
-}
 }
