@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -32,7 +32,7 @@ typedef struct tls_group_constants_st {
     int maxtls; /* Maximum TLS version (or 0 for undefined) */
     int mindtls; /* Minimum DTLS version, -1 unsupported */
     int maxdtls; /* Maximum DTLS version (or 0 for undefined) */
-    int is_kem; /* Indicates utility as KEM */
+    unsigned int is_kem; /* Indicates utility as KEM */
 } TLS_GROUP_CONSTANTS;
 
 /*
@@ -109,14 +109,14 @@ static const TLS_GROUP_CONSTANTS group_list[] = {
         OSSL_PARAM_uint(OSSL_CAPABILITY_TLS_GROUP_SECURITY_BITS,        \
             (unsigned int *)&group_list[idx].secbits),                  \
         OSSL_PARAM_int(OSSL_CAPABILITY_TLS_GROUP_MIN_TLS,               \
-            (unsigned int *)&group_list[idx].mintls),                   \
+            (int *)&group_list[idx].mintls),                            \
         OSSL_PARAM_int(OSSL_CAPABILITY_TLS_GROUP_MAX_TLS,               \
-            (unsigned int *)&group_list[idx].maxtls),                   \
+            (int *)&group_list[idx].maxtls),                            \
         OSSL_PARAM_int(OSSL_CAPABILITY_TLS_GROUP_MIN_DTLS,              \
-            (unsigned int *)&group_list[idx].mindtls),                  \
+            (int *)&group_list[idx].mindtls),                           \
         OSSL_PARAM_int(OSSL_CAPABILITY_TLS_GROUP_MAX_DTLS,              \
-            (unsigned int *)&group_list[idx].maxdtls),                  \
-        OSSL_PARAM_int(OSSL_CAPABILITY_TLS_GROUP_IS_KEM,                \
+            (int *)&group_list[idx].maxdtls),                           \
+        OSSL_PARAM_uint(OSSL_CAPABILITY_TLS_GROUP_IS_KEM,               \
             (unsigned int *)&group_list[idx].is_kem),                   \
         OSSL_PARAM_END                                                  \
     }
@@ -302,13 +302,13 @@ static const TLS_SIGALG_CONSTANTS sigalg_constants_list[3] = {
         OSSL_PARAM_uint(OSSL_CAPABILITY_TLS_SIGALG_SECURITY_BITS,    \
             (unsigned int *)&sigalg_constants_list[idx].sec_bits),   \
         OSSL_PARAM_int(OSSL_CAPABILITY_TLS_SIGALG_MIN_TLS,           \
-            (unsigned int *)&sigalg_constants_list[idx].min_tls),    \
+            (int *)&sigalg_constants_list[idx].min_tls),             \
         OSSL_PARAM_int(OSSL_CAPABILITY_TLS_SIGALG_MAX_TLS,           \
-            (unsigned int *)&sigalg_constants_list[idx].max_tls),    \
+            (int *)&sigalg_constants_list[idx].max_tls),             \
         OSSL_PARAM_int(OSSL_CAPABILITY_TLS_SIGALG_MIN_DTLS,          \
-            (unsigned int *)&sigalg_constants_list[idx].min_dtls),   \
+            (int *)&sigalg_constants_list[idx].min_dtls),            \
         OSSL_PARAM_int(OSSL_CAPABILITY_TLS_SIGALG_MAX_DTLS,          \
-            (unsigned int *)&sigalg_constants_list[idx].max_dtls),   \
+            (int *)&sigalg_constants_list[idx].max_dtls),            \
         OSSL_PARAM_END                                               \
     }
 

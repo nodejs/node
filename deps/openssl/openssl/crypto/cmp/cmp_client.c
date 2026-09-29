@@ -999,16 +999,23 @@ int OSSL_CMP_exec_RR_ses(OSSL_CMP_CTX *ctx)
             ret = 0;
             goto err;
         }
-        if (X509_NAME_cmp(issuer, OSSL_CRMF_CERTID_get0_issuer(cid)) != 0) {
+        /*
+         * The issuer and serial number are absent if the certificate to be
+         * revoked was given as a PKCS#10 CSR, in which case there is nothing
+         * to check the CertId of the response against.
+         */
+        if (issuer != NULL
+            && X509_NAME_cmp(issuer, OSSL_CRMF_CERTID_get0_issuer(cid)) != 0) {
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
             ERR_raise(ERR_LIB_CMP, CMP_R_WRONG_CERTID_IN_RP);
             ret = 0;
             goto err;
 #endif
         }
-        if (ASN1_INTEGER_cmp(serial,
-                OSSL_CRMF_CERTID_get0_serialNumber(cid))
-            != 0) {
+        if (serial != NULL
+            && ASN1_INTEGER_cmp(serial,
+                   OSSL_CRMF_CERTID_get0_serialNumber(cid))
+                != 0) {
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
             ERR_raise(ERR_LIB_CMP, CMP_R_WRONG_SERIAL_IN_RP);
             ret = 0;

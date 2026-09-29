@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -383,9 +383,6 @@ static long enc_ctrl(BIO *b, int cmd, long num, void *ptr)
     case BIO_CTRL_DUP:
         dbio = (BIO *)ptr;
         dctx = BIO_get_data(dbio);
-        dctx->cipher = EVP_CIPHER_CTX_new();
-        if (dctx->cipher == NULL)
-            return 0;
         ret = EVP_CIPHER_CTX_copy(dctx->cipher, ctx->cipher);
         if (ret)
             BIO_set_init(dbio, 1);
