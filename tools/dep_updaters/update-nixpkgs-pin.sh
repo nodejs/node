@@ -8,8 +8,8 @@ NIXPKGS_PIN_FILE="$BASE_DIR/tools/nix/pkgs.nix"
 NIXPKGS_COMPAT_PIN_FILE="$BASE_DIR/tools/nix/pkgs-26.05.nix"
 OPENSSL_MATRIX_FILE="$BASE_DIR/tools/nix/openssl-matrix.nix"
 
-NIXPKGS_REPO=$(grep 'repo =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
-CURRENT_VERSION_SHA1=$(grep 'rev =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
+NIXPKGS_REPO=$(grep -m 1 'repo =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
+CURRENT_VERSION_SHA1=$(grep -m 1 'rev =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
 
 NEW_UPSTREAM_SHA1=$(git ls-remote "$NIXPKGS_REPO.git" nixpkgs-unstable | awk '{print $1}')
 NEW_VERSION=$(echo "$NEW_UPSTREAM_SHA1" | head -c 35)
@@ -25,7 +25,7 @@ update_pkgs_file() {
   PREVIOUS_SHA1=$2
   UPSTREAM_SHA1=$3
 
-  CURRENT_TARBALL_HASH=$(grep 'sha256 =' "$PIN_FILE" | awk -F'"' '{ print $2 }')
+  CURRENT_TARBALL_HASH=$(grep -m 1 'sha256 =' "$PIN_FILE" | awk -F'"' '{ print $2 }')
   NEW_TARBALL_HASH=$(nix-prefetch-url --unpack "$NIXPKGS_REPO/archive/$UPSTREAM_SHA1.tar.gz")
 
   TMP_FILE=$(mktemp)
@@ -38,7 +38,7 @@ update_pkgs_file "$NIXPKGS_PIN_FILE" "$CURRENT_VERSION_SHA1" "$NEW_UPSTREAM_SHA1
 # Unstable channel no longer supports Intel architecture for macOS. We can use the 26.05 channel
 # to keep testing on that platform for a little longer.
 # TODO: remove this when 26.05 is EOL (end of 2026)
-COMPAT_VERSION_SHA1=$(grep 'rev =' "$NIXPKGS_COMPAT_PIN_FILE" | awk -F'"' '{ print $2 }')
+COMPAT_VERSION_SHA1=$(grep -m 1 'rev =' "$NIXPKGS_COMPAT_PIN_FILE" | awk -F'"' '{ print $2 }')
 COMPAT_UPSTREAM_SHA1=$(git ls-remote "$NIXPKGS_REPO.git" nixpkgs-26.05-darwin | awk '{print $1}')
 update_pkgs_file "$NIXPKGS_COMPAT_PIN_FILE" "$COMPAT_VERSION_SHA1" "$COMPAT_UPSTREAM_SHA1"
 
