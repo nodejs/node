@@ -1810,7 +1810,7 @@
         'v8_libbase',
       ],
       'sources': [
-        '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libplatform.*?sources = ")',
+        '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_component.\\"v8_libplatform\\".*?sources = ")',
       ],
       'conditions': [
         ['component=="shared_library"', {
@@ -1821,10 +1821,10 @@
         }],
         ['v8_use_perfetto==1', {
           'sources!': [
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libplatform.*?v8_use_perfetto.*?sources \\-= ")',
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_component.\\"v8_libplatform\\".*?v8_use_perfetto.*?sources \\-= ")',
           ],
           'sources': [
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libplatform.*?v8_use_perfetto.*?sources \\+= ")',
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_component.\\"v8_libplatform\\".*?v8_use_perfetto.*?sources \\+= ")',
           ],
           'conditions': [
             ['node_shared_perfetto=="false"', {
