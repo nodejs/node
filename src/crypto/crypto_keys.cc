@@ -1053,7 +1053,6 @@ KeyObjectData::KeyObjectData(std::nullptr_t)
 
 KeyObjectData::KeyObjectData(ByteSource symmetric_key)
     : key_type_(KeyType::kKeyTypeSecret),
-      mutex_(std::make_shared<Mutex>()),
       data_(std::make_shared<Data>(std::move(symmetric_key))) {}
 
 KeyObjectData::KeyObjectData(KeyType type, EVPKeyPointer&& pkey)
