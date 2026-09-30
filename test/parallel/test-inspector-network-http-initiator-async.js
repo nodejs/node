@@ -1,4 +1,4 @@
-// Flags: --experimental-network-inspection
+// Flags: --inspect=0 --experimental-network-inspection
 'use strict';
 const common = require('../common');
 common.skipIfInspectorDisabled();
