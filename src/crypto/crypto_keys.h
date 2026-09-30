@@ -54,8 +54,8 @@ class KeyObjectData final : public MemoryRetainer {
 
   KeyType GetKeyType() const;
 
-  // These functions allow unprotected access to the raw key material and should
-  // only be used to implement cryptographic operations requiring the key.
+  // The key material is immutable and can be used concurrently by operations
+  // with separate contexts.
   const ncrypto::EVPKeyPointer& GetAsymmetricKey() const;
   const char* GetSymmetricKey() const;
   size_t GetSymmetricKeySize() const;
@@ -63,8 +63,6 @@ class KeyObjectData final : public MemoryRetainer {
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(KeyObjectData)
   SET_SELF_SIZE(KeyObjectData)
-
-  Mutex& mutex() const;
 
   static v8::Maybe<ncrypto::EVPKeyPointer::PublicKeyEncodingConfig>
   GetPublicKeyEncodingFromJs(const v8::FunctionCallbackInfo<v8::Value>& args,
@@ -97,11 +95,11 @@ class KeyObjectData final : public MemoryRetainer {
       v8::Local<v8::Value>* out);
 
   inline KeyObjectData addRef() const {
-    return KeyObjectData(key_type_, mutex_, data_);
+    return KeyObjectData(key_type_, data_);
   }
 
   inline KeyObjectData addRefWithType(KeyType type) const {
-    return KeyObjectData(type, mutex_, data_);
+    return KeyObjectData(type, data_);
   }
 
  private:
@@ -115,7 +113,6 @@ class KeyObjectData final : public MemoryRetainer {
                                     const char* default_msg);
 
   KeyType key_type_;
-  mutable std::shared_ptr<Mutex> mutex_;
 
   struct Data final : public MemoryRetainer {
     const ByteSource symmetric_key;
@@ -131,10 +128,8 @@ class KeyObjectData final : public MemoryRetainer {
   };
   std::shared_ptr<Data> data_;
 
-  KeyObjectData(KeyType type,
-                std::shared_ptr<Mutex> mutex,
-                std::shared_ptr<Data> data)
-      : key_type_(type), mutex_(std::move(mutex)), data_(std::move(data)) {}
+  KeyObjectData(KeyType type, std::shared_ptr<Data> data)
+      : key_type_(type), data_(std::move(data)) {}
 };
 
 class KeyObjectHandle : public BaseObject {
