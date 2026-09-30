@@ -373,7 +373,8 @@ test('ffi rejects unsafe integers as an offset or length', () => {
 
 test('ffi toBuffer and toArrayBuffer throw when the copy cannot be allocated', {
   skip: (bufferConstants.MAX_LENGTH < 2 ** 50 && 'requires a 64-bit buffer length limit') ||
-        (common.isASan && 'ASan aborts on huge allocations'),
+        (common.isASan && 'ASan aborts on huge allocations') ||
+        (common.isAIX && 'huge allocations may succeed on AIX and get the process killed'),
 }, () => {
   // The allocation fails before the source pointer is read.
   const error = { code: 'ERR_MEMORY_ALLOCATION_FAILED' };
