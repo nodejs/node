@@ -53,6 +53,26 @@ test('defensive mode off after calling db.enableDefensive(false)', (t) => {
   t.assert.strictEqual(checkDefensiveMode(db), false);
 });
 
+test('db.enableDefensive(true) persists across close() and open()', (t) => {
+  const db = new Database(':memory:', {
+    defensive: false
+  });
+  db.enableDefensive(true);
+  db.close();
+  db.open();
+  t.assert.strictEqual(checkDefensiveMode(db), true);
+});
+
+test('db.enableDefensive(false) persists across close() and open()', (t) => {
+  const db = new Database(':memory:', {
+    defensive: true
+  });
+  db.enableDefensive(false);
+  db.close();
+  db.open();
+  t.assert.strictEqual(checkDefensiveMode(db), false);
+});
+
 test('throws if options.defensive is provided but is not a boolean', (t) => {
   t.assert.throws(() => {
     new Database(':memory:', { defensive: 42 });
