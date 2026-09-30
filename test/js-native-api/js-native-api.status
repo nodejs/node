@@ -2,4 +2,6 @@ prefix js-native-api
 
 [true]
 # napi_detach_arraybuffer() aborts when given an immutable ArrayBuffer.
+# Keep this test here so native CI builds its typed-array addon. The
+# known_issues suite also runs in JavaScript-only CI without built addons.
 test_typedarray/test-immutable-arraybuffer: FAIL

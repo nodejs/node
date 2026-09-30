@@ -65,15 +65,10 @@ for (const [provider, create] of [
       assert.deepStrictEqual(control, data);
 
       const target = immutable(Buffer.alloc(data.length));
-      let bytesRead = 0;
-      try {
-        bytesRead = await read(store, fd, target);
-      } catch (err) {
-        if (!(err instanceof TypeError)) throw err;
-      }
+      const bytesRead = await read(store, fd, target);
       assert.deepStrictEqual([...target], [0, 0, 0, 0]);
       // Buffer.copy() returns zero for an immutable destination. A read must
-      // reject or report no bytes, and must not advance the file position.
+      // report no bytes and must not advance the file position.
       assert.strictEqual(bytesRead, 0);
       control.fill(0);
       assert.strictEqual(store.readSync(fd, control, 0, control.length, null), data.length);

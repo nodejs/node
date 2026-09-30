@@ -19,68 +19,107 @@ function immutable(value) {
 const cases = new Map();
 const options = { recursive: true, withFileTypes: true };
 
-for (const method of ['readdirSync', 'readdir', 'promises.readdir']) {
-  cases.set(`fs.${method} with a recursive Buffer path`, (directory) => checkReaddir(directory, method));
-}
+cases.set('fs.readdirSync with a recursive Buffer path', checkReaddirSync);
 
-async function checkReaddir(directory, method) {
+async function checkReaddirSync(directory) {
   fs.mkdirSync(join(directory, 'nested'));
   fs.writeFileSync(join(directory, 'nested', 'file'), 'contents');
   const path = immutable(directory);
-  let entries;
-  if (method === 'readdirSync') {
-    entries = fs.readdirSync(path, options);
-  } else if (method === 'readdir') {
-    entries = await new Promise((resolve) => {
-      fs.readdir(path, options, common.mustSucceed(resolve));
-    });
-  } else {
-    entries = await fs.promises.readdir(path, options);
-  }
+  const entries = fs.readdirSync(path, options);
   assert.deepStrictEqual(entries.map((entry) => entry.name).sort(), ['file', 'nested']);
   const file = entries.find((entry) => entry.name === 'file');
   assert(file.isFile());
   assert.strictEqual(file.parentPath.toString(), join(directory, 'nested'));
 }
 
-for (const method of ['rm', 'promises.rm']) {
-  cases.set(`fs.${method} with a recursive Buffer path`, (directory) => checkRm(directory, method));
+cases.set('fs.readdir with a recursive Buffer path', checkReaddir);
+
+async function checkReaddir(directory) {
+  fs.mkdirSync(join(directory, 'nested'));
+  fs.writeFileSync(join(directory, 'nested', 'file'), 'contents');
+  const path = immutable(directory);
+  const entries = await new Promise((resolve) => {
+    fs.readdir(path, options, common.mustSucceed(resolve));
+  });
+  assert.deepStrictEqual(entries.map((entry) => entry.name).sort(), ['file', 'nested']);
+  const file = entries.find((entry) => entry.name === 'file');
+  assert(file.isFile());
+  assert.strictEqual(file.parentPath.toString(), join(directory, 'nested'));
 }
 
-async function checkRm(directory, method) {
+cases.set('fs.promises.readdir with a recursive Buffer path', checkReaddirPromise);
+
+async function checkReaddirPromise(directory) {
+  fs.mkdirSync(join(directory, 'nested'));
+  fs.writeFileSync(join(directory, 'nested', 'file'), 'contents');
+  const path = immutable(directory);
+  const entries = await fs.promises.readdir(path, options);
+  assert.deepStrictEqual(entries.map((entry) => entry.name).sort(), ['file', 'nested']);
+  const file = entries.find((entry) => entry.name === 'file');
+  assert(file.isFile());
+  assert.strictEqual(file.parentPath.toString(), join(directory, 'nested'));
+}
+
+cases.set('fs.rm with a recursive Buffer path', checkRm);
+
+async function checkRm(directory) {
   fs.writeFileSync(join(directory, 'file'), 'contents');
   const path = immutable(directory);
-  if (method === 'rm') {
-    await new Promise((resolve) => {
-      fs.rm(path, { recursive: true }, common.mustSucceed(resolve));
-    });
-  } else {
-    await fs.promises.rm(path, { recursive: true });
-  }
+  await new Promise((resolve) => {
+    fs.rm(path, { recursive: true }, common.mustSucceed(resolve));
+  });
   assert.strictEqual(fs.existsSync(directory), false);
 }
 
-for (const sync of [false, true]) {
-  cases.set(`fs.Utf8Stream with ${sync ? 'merged synchronous' : 'asynchronous'} buffers`,
-            (directory) => checkUtf8Stream(directory, sync));
+cases.set('fs.promises.rm with a recursive Buffer path', checkRmPromise);
+
+async function checkRmPromise(directory) {
+  fs.writeFileSync(join(directory, 'file'), 'contents');
+  const path = immutable(directory);
+  await fs.promises.rm(path, { recursive: true });
+  assert.strictEqual(fs.existsSync(directory), false);
 }
 
-async function checkUtf8Stream(directory, sync) {
+cases.set('fs.Utf8Stream with asynchronous buffers', checkUtf8Stream);
+
+async function checkUtf8Stream(directory) {
   const path = join(directory, 'output');
   const stream = new fs.Utf8Stream({
     fd: fs.openSync(path, 'w'),
     contentMode: 'buffer',
-    sync,
-    // Buffer two chunks before the synchronous write so they must be merged.
-    minLength: sync ? 8 : 0,
+    sync: false,
+    minLength: 0,
   });
   const closed = once(stream, 'close');
   try {
     stream.write(immutable('ABCD'));
-    if (sync) stream.write(immutable('EFGH'));
     stream.end();
     await closed;
-    assert.strictEqual(fs.readFileSync(path, 'utf8'), sync ? 'ABCDEFGH' : 'ABCD');
+    assert.strictEqual(fs.readFileSync(path, 'utf8'), 'ABCD');
+  } finally {
+    stream.destroy();
+    await closed;
+  }
+}
+
+cases.set('fs.Utf8Stream with merged synchronous buffers', checkUtf8StreamSync);
+
+async function checkUtf8StreamSync(directory) {
+  const path = join(directory, 'output');
+  const stream = new fs.Utf8Stream({
+    fd: fs.openSync(path, 'w'),
+    contentMode: 'buffer',
+    sync: true,
+    // Buffer two chunks before the synchronous write so they must be merged.
+    minLength: 8,
+  });
+  const closed = once(stream, 'close');
+  try {
+    stream.write(immutable('ABCD'));
+    stream.write(immutable('EFGH'));
+    stream.end();
+    await closed;
+    assert.strictEqual(fs.readFileSync(path, 'utf8'), 'ABCDEFGH');
   } finally {
     stream.destroy();
     await closed;

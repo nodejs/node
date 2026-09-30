@@ -39,12 +39,9 @@ for (const [name, fill] of cases) {
     const bytes = new Uint8Array(buffer);
     const original = Array.from(bytes);
 
-    try {
-      await fill(buffer);
-    } catch (err) {
-      if (!(err instanceof TypeError))
-        throw err;
-    }
+    // The error behavior for immutable backing storage is not defined yet.
+    // eslint-disable-next-line no-restricted-syntax
+    await assert.rejects(async () => fill(buffer));
 
     assert.strictEqual(buffer.immutable, true);
     assert.deepStrictEqual(Array.from(bytes), original);

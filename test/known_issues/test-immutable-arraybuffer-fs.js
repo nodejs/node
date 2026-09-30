@@ -7,18 +7,16 @@ const fs = require('fs');
 const { test } = require('node:test');
 const tmpdir = require('../common/tmpdir');
 
-// Reading into an immutable backing store must not change its bytes.
+// Reading into an immutable backing store must reject without changing its bytes.
 tmpdir.refresh();
 const path = tmpdir.resolve('immutable-arraybuffer');
 fs.writeFileSync(path, 'test');
 
 async function checkRead(read) {
   const buffer = new Uint8Array(new ArrayBuffer(4).transferToImmutable());
-  try {
-    await read(buffer);
-  } catch (err) {
-    if (!(err instanceof TypeError)) throw err;
-  }
+  // The error behavior for immutable backing storage is not defined yet.
+  // eslint-disable-next-line no-restricted-syntax
+  await assert.rejects(async () => read(buffer));
   assert.deepStrictEqual([...buffer], [0, 0, 0, 0]);
 }
 

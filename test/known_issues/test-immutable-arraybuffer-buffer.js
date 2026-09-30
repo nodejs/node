@@ -5,18 +5,16 @@ require('../common');
 const assert = require('assert');
 const { test } = require('node:test');
 
-// Native Buffer mutators must preserve immutable backing storage, whether they
-// reject the operation or return without modifying the bytes.
+// Native Buffer mutators must reject immutable backing storage without
+// modifying its bytes.
 function checkImmutable(mutate) {
   const expected = Array.from({ length: 64 }, (_, i) => i);
   const ab = Uint8Array.from(expected).buffer.transferToImmutable();
   const buffer = Buffer.from(ab);
 
-  try {
-    mutate(buffer);
-  } catch (err) {
-    if (!(err instanceof TypeError)) throw err;
-  }
+  // The error behavior for immutable backing storage is not defined yet.
+  // eslint-disable-next-line no-restricted-syntax
+  assert.throws(() => mutate(buffer));
 
   assert.deepStrictEqual(Array.from(new Uint8Array(ab)), expected);
 }

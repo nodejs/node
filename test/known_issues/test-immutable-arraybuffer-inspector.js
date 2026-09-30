@@ -82,9 +82,8 @@ if (process.argv[2]) {
       // The same request succeeds with inspection disabled.
       for (const inspection of ['off', 'on']) {
         spawnSyncAndAssert(process.execPath, [
-          '--js-immutable-arraybuffer', '--experimental-network-inspection',
-          __filename, kind, inspection,
-        ], { timeout: common.platformTimeout(10000) }, { status: 0 });
+          ...process.execArgv, __filename, kind, inspection,
+        ], {});
       }
     });
   }

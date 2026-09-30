@@ -12,12 +12,11 @@ for (const [name, input] of [['short', 'hello'], ['long', 'hello'.repeat(16)]]) 
     const destination = new Uint8Array(ab);
 
     // The short and long inputs exercise different native encoding paths.
-    // Do not require a particular rejection behavior, only unchanged bytes.
-    try {
+    // The error behavior for immutable backing storage is not defined yet.
+    // eslint-disable-next-line no-restricted-syntax
+    assert.throws(() => {
       new TextEncoder().encodeInto(input, destination);
-    } catch (err) {
-      if (!(err instanceof TypeError)) throw err;
-    }
+    });
 
     assert.deepStrictEqual(Array.from(new Uint8Array(ab)), expected);
   });
