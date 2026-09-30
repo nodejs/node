@@ -1,0 +1,10 @@
+header: sys/sysinfo.h
+standards:
+  - linux
+types:
+  - type_name: struct_sysinfo
+functions:
+  - name: sysinfo
+    return_type: int
+    arguments:
+      - type: struct sysinfo *

@@ -29,14 +29,19 @@ void Ignore(Args&&... args) {}
 #define TRACE_EVENT(category, name, ...) INTERNAL_TRACE_IGNORE(category, name)
 #define TRACE_EVENT_INSTANT(category, name, ...) \
   INTERNAL_TRACE_IGNORE(category, name)
-#define TRACE_EVENT_CATEGORY_ENABLED(category) \
-  INTERNAL_TRACE_IGNORE(category, name)
 #define TRACE_COUNTER(category, name, ...) INTERNAL_TRACE_IGNORE(category, name)
 
 // Stub implementation for
 // perfetto::StaticString/DynamicString/Track/Flow.
 namespace perfetto {
 
+// The stubs live in an inline namespace so that their mangled names can never
+// collide with the real perfetto SDK. Embedders may link the real SDK into the
+// same binary as a V8 built without V8_USE_PERFETTO; without the inline
+// namespace, any stub member function that is not inlined (e.g. at -O0 or with
+// -fno-inline) is resolved by the linker against the real, ABI-incompatible
+// implementation.
+inline namespace v8_stub {
 class EventContext;
 
 class StaticString {
@@ -99,6 +104,18 @@ struct Flow {
   static inline Flow Global(uint64_t flow_id) { return Flow(); }
 };
 
+struct TerminatingFlow {
+  static inline TerminatingFlow ProcessScoped(uint64_t flow_id) {
+    return TerminatingFlow();
+  }
+  static inline TerminatingFlow FromPointer(void* ptr) {
+    return TerminatingFlow();
+  }
+  static inline TerminatingFlow Global(uint64_t flow_id) {
+    return TerminatingFlow();
+  }
+};
+}  // namespace v8_stub
 }  // namespace perfetto
 
 // This is the legacy implementation of tracing macros. There have been two
@@ -845,6 +862,12 @@ struct Flow {
       TRACE_EVENT_FLAG_NONE)
 
 // Macro to efficiently determine if a given category group is enabled.
+#define TRACE_EVENT_CATEGORY_ENABLED(category)                        \
+  ({                                                                  \
+    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category);                 \
+    INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE(); \
+  })
+
 #define TRACE_EVENT_CATEGORY_GROUP_ENABLED(category_group, ret)             \
   do {                                                                      \
     INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                 \

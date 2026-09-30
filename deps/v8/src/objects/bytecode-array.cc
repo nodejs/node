@@ -47,7 +47,7 @@ int BytecodeArray::SourceStatementPosition(int offset) const {
 void BytecodeArray::PrintJson(std::ostream& os) {
   DisallowGarbageCollection no_gc;
 
-  BytecodeArray handle_storage = *this;
+  Tagged<BytecodeArray> handle_storage(this);
   Handle<BytecodeArray> handle(reinterpret_cast<Address*>(&handle_storage));
   interpreter::BytecodeArrayIterator iterator(handle);
   bool first_data = true;
@@ -83,10 +83,10 @@ void BytecodeArray::PrintJson(std::ostream& os) {
 
   os << "]";
 
-  int constant_pool_length = constant_pool()->length();
+  uint32_t constant_pool_length = constant_pool()->ulength().value();
   if (constant_pool_length > 0) {
     os << ", \"constantPool\": [";
-    for (int i = 0; i < constant_pool_length; i++) {
+    for (uint32_t i = 0; i < constant_pool_length; i++) {
       Tagged<Object> object = constant_pool()->get(i);
       if (i > 0) os << ", ";
       os << "\"" << base::JSONEscaped(object) << "\"";
@@ -101,7 +101,7 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   DisallowGarbageCollection no_gc;
   // Storage for backing the handle passed to the iterator. This handle won't be
   // updated by the gc, but that's ok because we've disallowed GCs anyway.
-  BytecodeArray handle_storage = *this;
+  Tagged<BytecodeArray> handle_storage(this);
   Handle<BytecodeArray> handle(reinterpret_cast<Address*>(&handle_storage));
   Disassemble(handle, os);
 }
@@ -159,16 +159,18 @@ void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
     iterator.Advance();
   }
 
-  os << "Constant pool (size = " << handle->constant_pool()->length() << ")\n";
+  os << "Constant pool (size = " << handle->constant_pool()->ulength().value()
+     << ")\n";
 #ifdef OBJECT_PRINT
-  if (handle->constant_pool()->length() > 0) {
+  if (handle->constant_pool()->ulength().value() > 0) {
     Print(handle->constant_pool(), os);
   }
 #endif
 
-  os << "Handler Table (size = " << handle->handler_table()->length() << ")\n";
+  os << "Handler Table (size = " << handle->handler_table()->ulength().value()
+     << ")\n";
 #ifdef ENABLE_DISASSEMBLER
-  if (handle->handler_table()->length() > 0) {
+  if (handle->handler_table()->ulength().value() > 0) {
     HandlerTable table(*handle);
     table.HandlerTableRangePrint(os);
   }
@@ -176,21 +178,19 @@ void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
 
   Tagged<TrustedByteArray> source_position_table =
       handle->SourcePositionTable();
-  os << "Source Position Table (size = " << source_position_table->length()
-     << ")\n";
+  os << "Source Position Table (size = "
+     << source_position_table->ulength().value() << ")\n";
 #ifdef OBJECT_PRINT
-  if (source_position_table->length() > 0) {
+  if (source_position_table->ulength().value() > 0) {
     os << Brief(source_position_table) << std::endl;
   }
 #endif
 }
 
 void BytecodeArray::CopyBytecodesTo(Tagged<BytecodeArray> to) {
-  BytecodeArray from = *this;
-  DCHECK_EQ(from->length(), to->length());
+  DCHECK_EQ(length(), to->length());
   CopyBytes(reinterpret_cast<uint8_t*>(to->GetFirstBytecodeAddress()),
-            reinterpret_cast<uint8_t*>(from->GetFirstBytecodeAddress()),
-            from->length());
+            reinterpret_cast<uint8_t*>(GetFirstBytecodeAddress()), length());
 }
 
 }  // namespace internal

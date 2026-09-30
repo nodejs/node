@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-externalize-string --js-base-64
+// Flags: --expose-externalize-string
 
 (function TestBase64FromHexWithLongInputs() {
   var arr_32 = Uint8Array.fromHex('666f6F6261726172666f6f62617261ff');

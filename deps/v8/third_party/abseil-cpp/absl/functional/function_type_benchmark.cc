@@ -17,6 +17,7 @@
 #include <string>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/functional/function_ref.h"
 #include "benchmark/benchmark.h"

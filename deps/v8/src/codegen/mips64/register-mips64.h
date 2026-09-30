@@ -234,6 +234,7 @@ constexpr DoubleRegister kDoubleCompareReg = f23;
 // MSA zero reg is often used to hold 0, but it's not hardwired to 0.
 constexpr Simd128Register kSimd128RegZero = w28;
 constexpr Simd128Register kSimd128ScratchReg = w30;
+constexpr Simd128Register kSimd128ScratchReg1 = w31;
 
 // FPU (coprocessor 1) control registers.
 // Currently only FCSR (#31) is implemented.

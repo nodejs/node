@@ -19,6 +19,7 @@
 #include <random>
 #include <string>
 
+#include "absl/base/config.h"
 #include "absl/base/no_destructor.h"
 #include "absl/random/random.h"
 #include "absl/strings/string_view.h"

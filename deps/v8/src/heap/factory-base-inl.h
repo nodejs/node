@@ -11,9 +11,9 @@
 #include <type_traits>
 
 #include "src/execution/local-isolate-inl.h"
-#include "src/heap/local-heap-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/heap-object-field-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
@@ -29,6 +29,9 @@ namespace internal {
     return isolate()->roots_table().name();     \
   }
 READ_ONLY_ROOT_LIST(RO_ROOT_ACCESSOR)
+#ifndef V8_ENABLE_TDZ_HOLE
+RO_ROOT_ACCESSOR(TdzHole, tdz_hole_value, TdzHoleValue)
+#endif
 #undef ROOT_ACCESSOR
 
 #define MUTABLE_ROOT_ACCESSOR(Type, name, CamelName)     \
@@ -43,6 +46,21 @@ template <typename Impl>
 Handle<Boolean> FactoryBase<Impl>::ToBoolean(bool value) {
   return value ? Cast<Boolean>(impl()->true_value())
                : Cast<Boolean>(impl()->false_value());
+}
+
+template <typename Impl>
+template <AllocationType allocation>
+Handle<UninitializedHeapNumber>
+FactoryBase<Impl>::NewUninitializedHeapNumber() {
+  static_assert(sizeof(HeapNumber) == sizeof(UninitializedHeapNumber));
+  static_assert(sizeof(HeapNumber) <= kMaxRegularHeapObjectSize);
+  Tagged<Map> map = read_only_roots().uninitialized_heap_number_map();
+  Tagged<HeapObject> result = AllocateRawWithImmortalMap(
+      sizeof(HeapNumber), allocation, map,
+      USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ? kDoubleUnaligned
+                                                : kTaggedAligned);
+  Cast<UninitializedHeapNumber>(result)->set_value_as_bits(0);
+  return handle(Cast<UninitializedHeapNumber>(result), isolate());
 }
 
 template <typename Impl>
@@ -101,6 +119,10 @@ template <typename Impl>
 template <AllocationType allocation>
 Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumber(double value) {
   Handle<HeapNumber> heap_number = NewHeapNumber<allocation>();
+  std::optional<SharedObjectConditionalSafePublishGuard> publish_guard;
+  if constexpr (IsSharedAllocationType(allocation)) {
+    publish_guard.emplace(*heap_number, allocation);
+  }
   heap_number->set_value(value);
   return heap_number;
 }
@@ -115,12 +137,6 @@ Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumberFromBits(uint64_t bits) {
 
 template <typename Impl>
 template <AllocationType allocation>
-Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumberWithHoleNaN() {
-  return NewHeapNumberFromBits<allocation>(kHoleNanInt64);
-}
-
-template <typename Impl>
-template <AllocationType allocation>
 Handle<HeapNumber> FactoryBase<Impl>::NewHeapInt32(int32_t value) {
   Handle<HeapNumber> heap_number = NewHeapNumber<allocation>();
   heap_number->set_value_as_bits(
@@ -131,29 +147,35 @@ Handle<HeapNumber> FactoryBase<Impl>::NewHeapInt32(int32_t value) {
 template <typename Impl>
 template <typename StructType>
 Tagged<StructType> FactoryBase<Impl>::NewStructInternal(
-    InstanceType type, AllocationType allocation) {
+    InstanceType type, AllocationType allocation, bool initialize_fields) {
+  static_assert(std::is_base_of_v<Struct, StructType>);
   ReadOnlyRoots roots = read_only_roots();
   Tagged<Map> map = Map::GetMapFor(roots, type);
-  int size;
-  if constexpr (std::is_base_of_v<StructLayout, StructType>) {
-    size = sizeof(StructType);
-  } else {
-    size = StructType::kSize;
-  }
-  return Cast<StructType>(NewStructInternal(roots, map, size, allocation));
+  int size = sizeof(StructType);
+  return Cast<StructType>(
+      NewStructInternal(roots, map, size, allocation, initialize_fields));
 }
 
 template <typename Impl>
 Tagged<Struct> FactoryBase<Impl>::NewStructInternal(ReadOnlyRoots roots,
                                                     Tagged<Map> map, int size,
-                                                    AllocationType allocation) {
+                                                    AllocationType allocation,
+                                                    bool initialize_fields) {
   DCHECK_EQ(size, map->instance_size());
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(size, allocation, map);
-  Tagged<Struct> str = Cast<Struct>(result);
-  Tagged<Undefined> undefined = roots.undefined_value();
-  int length = (size >> kTaggedSizeLog2) - 1;
-  MemsetTagged(str->RawField(Struct::kHeaderSize), undefined, length);
-  return str;
+
+  const int length = (size >> kTaggedSizeLog2) - 1;
+  if (initialize_fields) {
+    MemsetTagged(result->RawField(sizeof(Struct)), roots.undefined_value(),
+                 length);
+
+  } else if (DEBUG_BOOL) {
+    // Zap the whole object in order to ensure that the caller initializes
+    // all fields.
+    MemsetTagged(result->RawField(sizeof(Struct)),
+                 Tagged<Object>(kDebugZapValue), length);
+  }
+  return Cast<Struct>(result);
 }
 
 }  // namespace internal

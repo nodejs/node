@@ -16,6 +16,7 @@
 #include "src/strings/unicode-inl.h"
 #include "torque-generated/class-debug-readers.h"
 #include "torque-generated/debug-macros.h"
+#include "torque-generated/debug-reader-classes-list.h"
 
 namespace i = v8::internal;
 
@@ -64,8 +65,8 @@ TypedObject GetTypedObjectByHint(uintptr_t address,
             std::make_unique<Tq##ClassName>(address)};   \
   }
 
-  TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(TYPE_NAME_CASE)
-  TORQUE_INSTANCE_CHECKERS_RANGE_FULLY_DEFINED(TYPE_NAME_CASE)
+  TORQUE_DEBUG_READER_CLASSES_SINGLE(TYPE_NAME_CASE)
+  TORQUE_DEBUG_READER_CLASSES_RANGE(TYPE_NAME_CASE)
   STRING_CLASS_TYPES(TYPE_NAME_CASE)
 
 #undef TYPE_NAME_CASE
@@ -103,8 +104,8 @@ TypedObject GetTypedObjectByInstanceType(uintptr_t address,
 #define INSTANCE_TYPE_CASE(ClassName, INSTANCE_TYPE) \
   case i::INSTANCE_TYPE:                             \
     return {type_source, std::make_unique<Tq##ClassName>(address)};
-    TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(INSTANCE_TYPE_CASE)
-    TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(INSTANCE_TYPE_CASE)
+    TORQUE_DEBUG_READER_CLASSES_SINGLE(INSTANCE_TYPE_CASE)
+    TORQUE_DEBUG_READER_CLASSES_MULTIPLE(INSTANCE_TYPE_CASE)
 #undef INSTANCE_TYPE_CASE
 
     default:
@@ -120,7 +121,7 @@ TypedObject GetTypedObjectByInstanceType(uintptr_t address,
   if (type >= i::FIRST_TYPE && type <= i::LAST_TYPE) {              \
     return {type_source, std::make_unique<Tq##ClassName>(address)}; \
   }
-      TORQUE_INSTANCE_CHECKERS_RANGE_FULLY_DEFINED(INSTANCE_RANGE_CASE)
+      TORQUE_DEBUG_READER_CLASSES_RANGE(INSTANCE_RANGE_CASE)
 #undef INSTANCE_RANGE_CASE
 
       return {d::TypeCheckResult::kUnknownInstanceType,
@@ -664,14 +665,18 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectPropertiesMaybeCompressed(
   // if pointer compression is disabled).
   uintptr_t any_uncompressed_ptr = 0;
   if (!IsPointerCompressed(address)) any_uncompressed_ptr = address;
-  if (any_uncompressed_ptr == 0)
+  if (any_uncompressed_ptr == 0) {
     any_uncompressed_ptr = heap_addresses.any_heap_pointer;
-  if (any_uncompressed_ptr == 0)
+  }
+  if (any_uncompressed_ptr == 0) {
     any_uncompressed_ptr = heap_addresses.map_space_first_page;
-  if (any_uncompressed_ptr == 0)
+  }
+  if (any_uncompressed_ptr == 0) {
     any_uncompressed_ptr = heap_addresses.old_space_first_page;
-  if (any_uncompressed_ptr == 0)
+  }
+  if (any_uncompressed_ptr == 0) {
     any_uncompressed_ptr = heap_addresses.read_only_space_first_page;
+  }
 #ifdef V8_COMPRESS_POINTERS
   Address base =
       V8HeapCompressionScheme::GetPtrComprCageBaseAddress(any_uncompressed_ptr);
@@ -821,6 +826,49 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
           }
         }
       }
+
+      // The receiver and the arguments are the caller's outgoing stack slots
+      // right above the return address. The slots hold uncompressed pointers
+      // even on pointer-compressed builds, so report them as Tagged values
+      // with the system pointer size.
+      props.push_back(std::make_unique<ObjectProperty>(
+          "receiver",
+          CheckTypeName<v8::internal::Tagged<v8::internal::Object>>(
+              "v8::internal::Tagged<v8::internal::Object>"),
+          frame_pointer + StandardFrameConstants::kCallerSPOffset, 1,
+          i::kSystemPointerSize, std::vector<std::unique_ptr<StructProperty>>(),
+          d::PropertyKind::kSingle));
+
+      // The argc slot counts the receiver. Report the user-visible arguments
+      // as an array. If the slot is unreadable or the count is out of range,
+      // report an array of unknown size so debug tools can still show the
+      // base address.
+      intptr_t argc = 0;
+      size_t argument_count = 0;
+      d::PropertyKind arguments_kind =
+          d::PropertyKind::kArrayOfUnknownSizeDueToInvalidMemory;
+      d::MemoryAccessResult argc_validity =
+          memory_accessor(frame_pointer + StandardFrameConstants::kArgCOffset,
+                          reinterpret_cast<void*>(&argc), sizeof(intptr_t));
+      if (argc_validity == d::MemoryAccessResult::kOk) {
+        intptr_t user_argc = argc - i::kJSArgcReceiverSlots;
+        if (user_argc >= 0 && user_argc <= i::Code::kMaxArguments) {
+          argument_count = static_cast<size_t>(user_argc);
+          arguments_kind = d::PropertyKind::kArrayOfKnownSize;
+        }
+      } else if (argc_validity ==
+                 d::MemoryAccessResult::kAddressValidButInaccessible) {
+        arguments_kind =
+            d::PropertyKind::kArrayOfUnknownSizeDueToValidButInaccessibleMemory;
+      }
+      props.push_back(std::make_unique<ObjectProperty>(
+          "arguments",
+          CheckTypeName<v8::internal::Tagged<v8::internal::Object>>(
+              "v8::internal::Tagged<v8::internal::Object>"),
+          frame_pointer + StandardFrameConstants::kCallerSPOffset +
+              i::kSystemPointerSize,
+          argument_count, i::kSystemPointerSize,
+          std::vector<std::unique_ptr<StructProperty>>(), arguments_kind));
     }
   }
 

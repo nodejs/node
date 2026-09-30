@@ -36,7 +36,7 @@ assert_test_functions_optimization(test_functions_optimization());
 %OptimizeMaglevOnNextCall(test_functions_optimization);
 assert_test_functions_optimization(test_functions_optimization());
 assertOptimized(test_functions_optimization);
-assertTrue(isMaglevved(test_functions_optimization));
+assertMaglevved(test_functions_optimization);
 assert_test_functions_optimization(test_functions_optimization());
 %OptimizeFunctionOnNextCall(test_functions_optimization);
 assert_test_functions_optimization(test_functions_optimization());

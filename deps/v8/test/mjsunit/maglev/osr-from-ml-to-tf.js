@@ -8,8 +8,7 @@
 // Disable small-function TF optimization to avoid flakes that unexpectedly
 // tier up `f` before we get a chance to enter the OSR loop.
 // Flags: --max-bytecode-size-for-early-opt=0
-// Flags: --osr-from-maglev --concurrent-osr --concurrent-recompilation
-// Flags: --always-osr-from-maglev
+// Flags: --concurrent-osr --concurrent-recompilation --osr-from-maglev=4
 
 let keep_going = 10000000;  // A counter to avoid test hangs on failure.
 let i;  // The loop counter for the test function.

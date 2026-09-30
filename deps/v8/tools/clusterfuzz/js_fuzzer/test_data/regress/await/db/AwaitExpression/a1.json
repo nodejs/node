@@ -1,0 +1,7 @@
+{
+  "type":"AwaitExpression",
+  "source":"await 3",
+  "isStatement":true,
+  "originalPath":"foo",
+  "needsSuper":false
+}

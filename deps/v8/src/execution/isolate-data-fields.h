@@ -63,6 +63,8 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
   V(LongTaskStatsCounter, kSizetSize, long_task_stats_counter)                 \
   V(ThreadLocalTop, ThreadLocalTop::kSizeInBytes, thread_local_top)            \
   V(HandleScopeData, HandleScopeData::kSizeInBytes, handle_scope_data)         \
+  V(HandleScopeImplementer, HandleScopeImplementer::kSizeInBytes,              \
+    handle_scope_implementer)                                                  \
   V(EmbedderData, Internals::kNumIsolateDataSlots* kSystemPointerSize,         \
     embedder_data)                                                             \
   ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                                   \
@@ -74,6 +76,9 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
   V(RegexpExecVectorArgument, kSystemPointerSize, regexp_exec_vector_argument) \
   V(ContinuationPreservedEmbedderData, kSystemPointerSize,                     \
     continuation_preserved_embedder_data)                                      \
+  V(CurrentMicrotaskQueue, kSystemPointerSize, current_microtask_queue)        \
+  V(CurrentMicrotaskNativeContext, kSystemPointerSize,                         \
+    current_microtask_native_context)                                          \
   /* Full tables (arbitrary size, potentially slower access). */               \
   V(RootsTable, RootsTable::kEntriesCount* kSystemPointerSize, roots_table)    \
   V(ExternalReferenceTable, ExternalReferenceTable::kSizeInBytes,              \
@@ -89,6 +94,7 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
   PADDING_FIELD(kDoubleSize, V, RawArgumentsPadding, raw_arguments_padding)    \
   V(RawArguments, 2 * kDoubleSize, raw_arguments)                              \
   V(StressDeoptCount, kUInt64Size, stress_deopt_count)                         \
+  V(CpuFeatures, kInt32Size, cpu_features)                                     \
   ISOLATE_DATA_FIELDS_TIERING(V)
 
 #ifdef V8_COMPRESS_POINTERS
@@ -109,9 +115,7 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
   V(SharedTrustedPointerTable, kSystemPointerSize,                           \
     shared_trusted_pointer_table)                                            \
   V(TrustedPointerPublishingScope, kSystemPointerSize,                       \
-    trusted_pointer_publishing_scope)                                        \
-  V(CodePointerTableBaseAddress, kSystemPointerSize,                         \
-    code_pointer_table_base_address)
+    trusted_pointer_publishing_scope)
 #else
 #define ISOLATE_DATA_FIELDS_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
@@ -132,6 +136,8 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
                                                                                \
   /* ThreadLocalTop fields. */                                                 \
   V(Context, context, thread_local_top, offsetof(ThreadLocalTop, context_))    \
+  V(LastEnteredContext, last_entered_context, thread_local_top,                \
+    offsetof(ThreadLocalTop, last_entered_context_))                           \
   V(Exception, exception, thread_local_top,                                    \
     offsetof(ThreadLocalTop, exception_))                                      \
   V(TopmostScriptHavingContext, topmost_script_having_context,                 \
@@ -168,6 +174,18 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
     offsetof(HandleScopeData, next))                                           \
   V(HandleScopeLimit, handle_scope_limit, handle_scope_data,                   \
     offsetof(HandleScopeData, limit))                                          \
+                                                                               \
+  /* HandleScopeImplementer fields. */                                         \
+  V(EnteredContextCount, entered_context_count, handle_scope_implementer,      \
+    static_cast<int>(HandleScopeImplementer::kEnteredContextsOffset +          \
+                     DetachableVectorBase::kSizeOffset))                       \
+  V(EnteredContextCapacity, entered_context_capacity,                          \
+    handle_scope_implementer,                                                  \
+    static_cast<int>(HandleScopeImplementer::kEnteredContextsOffset +          \
+                     DetachableVectorBase::kCapacityOffset))                   \
+  V(EnteredContextData, entered_context_data, handle_scope_implementer,        \
+    static_cast<int>(HandleScopeImplementer::kEnteredContextsOffset +          \
+                     DetachableVectorBase::kDataOffset))                       \
                                                                                \
   /* NewAllocationInfo fields. */                                              \
   V(NewAllocationInfoStart, new_allocation_info_start, new_allocation_info,    \

@@ -19,6 +19,7 @@
 #include <cstdio>
 #include <ostream>
 #include <string>
+#include <utility>
 
 #include "absl/base/config.h"
 #include "absl/container/inlined_vector.h"
@@ -116,7 +117,7 @@ class FormatSpecTemplate
   }
 
   template <FormatConversionCharSet... C, size_t... I>
-  static bool CheckMatches(absl::index_sequence<I...>) {
+  static bool CheckMatches(std::index_sequence<I...>) {
     bool res[] = {true, CheckMatch<Args, C, I + 1>()...};
     (void)res;
     return true;
@@ -173,7 +174,7 @@ class FormatSpecTemplate
   FormatSpecTemplate(const ExtendedParsedFormat<C...>& pc)  // NOLINT
       : Base(&pc) {
     CheckArity<sizeof...(C), sizeof...(Args)>();
-    CheckMatches<C...>(absl::make_index_sequence<sizeof...(C)>{});
+    CheckMatches<C...>(std::make_index_sequence<sizeof...(C)>{});
   }
 };
 

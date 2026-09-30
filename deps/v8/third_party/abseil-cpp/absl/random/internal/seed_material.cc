@@ -16,30 +16,28 @@
 
 #include <fcntl.h>
 
-#ifndef _WIN32
-#include <unistd.h>
-#else
-#include <io.h>
-#endif
-
 #include <algorithm>
 #include <cassert>
 #include <cerrno>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/raw_logging.h"
-#include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
-#include "absl/strings/strip.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
+
+#ifndef _WIN32
+#include <unistd.h>
+#else
+#include <io.h>
+#endif
 
 #if defined(_WIN32)
 
@@ -228,17 +226,17 @@ void MixIntoSeedMaterial(absl::Span<const uint32_t> sequence,
   }
 }
 
-absl::optional<uint32_t> GetSaltMaterial() {
+std::optional<uint32_t> GetSaltMaterial() {
   // Salt must be common for all generators within the same process so read it
   // only once and store in static variable.
-  static const auto salt_material = []() -> absl::optional<uint32_t> {
+  static const auto salt_material = []() -> std::optional<uint32_t> {
     uint32_t salt_value = 0;
 
     if (ReadSeedMaterialFromOSEntropy(absl::MakeSpan(&salt_value, 1))) {
       return salt_value;
     }
 
-    return absl::nullopt;
+    return std::nullopt;
   }();
 
   return salt_material;

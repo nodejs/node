@@ -1,0 +1,9 @@
+# Copyright 2026 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+requires-python = '>=3.11,<3.12'
+dependencies = [
+  'pip==25.0.1',
+  'pyyaml==5.4.1+chromium.1',
+]

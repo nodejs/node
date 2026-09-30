@@ -63,7 +63,7 @@ assert_test_setter_chain(test_setter_chain());
 %OptimizeMaglevOnNextCall(test_setter_chain);
 assert_test_setter_chain(test_setter_chain());
 assertOptimized(test_setter_chain);
-assertTrue(isMaglevved(test_setter_chain));
+assertMaglevved(test_setter_chain);
 assert_test_setter_chain(test_setter_chain());
 %OptimizeFunctionOnNextCall(test_setter_chain);
 assert_test_setter_chain(test_setter_chain());

@@ -6,6 +6,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
+#include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/heap/parked-scope-inl.h"
 #include "src/objects/bytecode-array.h"
@@ -14,6 +15,10 @@
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/canonical-types.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // In multi-cage mode we create one cage per isolate
 // and we don't share objects between cages.
@@ -326,7 +331,7 @@ class TrustedToSharedTrustedPointerOnClient final : public ParkingThread {
 
       Tagged<TrustedByteArray> handler_table = keep_alive_bc->handler_table();
       CHECK(IsTrustedByteArray(handler_table));
-      CHECK_EQ(handler_table->length(), 3);
+      CHECK_EQ(handler_table->length().value(), 3u);
 
       v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
                                     client_isolate);
@@ -447,12 +452,12 @@ void AllocateInSharedHeap(int iterations = 100) {
     }
 
     for (DirectHandle<FixedArray> array : arrays_in_handles) {
-      CHECK_EQ(array->length(), 100);
+      CHECK_EQ(array->length().value(), 100u);
     }
 
     for (int i = 0; i < kKeptAliveInHeap; i++) {
       Tagged<FixedArray> array = Cast<FixedArray>(arrays_in_heap->get(i));
-      CHECK_EQ(array->length(), 100);
+      CHECK_EQ(array->length().value(), 100u);
     }
   });
 }
@@ -640,6 +645,8 @@ class SharedHeapTestBase : public TestJSSharedMemoryWithNativeContext {
     if (complete_callback_) complete_callback_(this);
     thread()->ParkedJoin(i_isolate()->main_thread_local_isolate());
     if (teardown_callback_) teardown_callback_(this);
+
+    state_ = nullptr;
   }
 
   ConcurrentThread<State>* thread() const {
@@ -850,54 +857,222 @@ TEST_ALL_SCENARIA(SharedHeapTestStateWithRawPointerUnparked, ToEachTheirOwn,
 #undef TEST_SCENARIO
 #undef TEST_ALL_SCENARIA
 
-// TODO(358918874): Re-enable this test once allocation paths are using the
-// right tag for trusted pointers in shared objects.
-#if false
-TEST_F(SharedHeapTest, SharedUntrustedToSharedTrustedPointer) {
+namespace {
+class UpdateExternalMemoryWorkerThread : public ParkingThread {
+ public:
+  explicit UpdateExternalMemoryWorkerThread(ParkingSemaphore* sema_done)
+      : ParkingThread(
+            base::Thread::Options("UpdateExternalMemoryWorkerThread")),
+        sema_done_(sema_done) {}
+
+  void Run() override {
+    IsolateWrapper isolate_wrapper(kNoCounters);
+    v8::Isolate* client = isolate_wrapper.isolate();
+    Isolate* i_client = reinterpret_cast<Isolate*>(client);
+    {
+      v8::Isolate::Scope isolate_scope(client);
+      HandleScope handle_scope(i_client);
+      Heap* shared_heap = i_client->shared_space_isolate()->heap();
+      static constexpr int64_t kAllocatedSize = GB;
+      shared_heap->UpdateExternalMemory(kAllocatedSize);
+      EXPECT_GE(shared_heap->external_memory(),
+                static_cast<uint64_t>(kAllocatedSize));
+      shared_heap->UpdateExternalMemory(-kAllocatedSize);
+    }
+
+    sema_done_->Signal();
+  }
+
+ private:
+  ParkingSemaphore* sema_done_;
+};
+}  // namespace
+
+TEST_F(SharedHeapTest, UpdateExternalMemoryWorkerIsolate) {
+  ParkingSemaphore sema_done(0);
+  auto thread = std::make_unique<UpdateExternalMemoryWorkerThread>(&sema_done);
+  CHECK(thread->Start());
+
+  LocalIsolate* local_isolate = i_isolate()->main_thread_local_isolate();
+  sema_done.ParkedWait(local_isolate);
+
+  thread->ParkedJoin(local_isolate);
+}
+
+TEST_F(SharedHeapTest, WriteBarrierForRange_SharedHeapMarking) {
   Isolate* isolate = i_isolate();
-  Factory* factory = isolate->factory();
   ManualGCScope manual_gc_scope(isolate);
 
-  // Allocate an object in the shared trusted space.
-  // Use random bytes here since we don't ever run the bytecode.
-  constexpr uint8_t kRawBytes[] = {0x1, 0x2, 0x3, 0x4};
-  constexpr int kRawBytesSize = sizeof(kRawBytes);
-  constexpr int32_t kFrameSize = 32;
-  constexpr uint16_t kParameterCount = 2;
-  constexpr uint16_t kMaxArguments = 0;
-  Handle<TrustedFixedArray> constant_pool =
-      factory->NewTrustedFixedArray(0, AllocationType::kSharedTrusted);
-  Handle<TrustedByteArray> handler_table =
-      factory->NewTrustedByteArray(3, AllocationType::kSharedTrusted);
-  Handle<BytecodeArray> bytecode_array = factory->NewBytecodeArray(
-      kRawBytesSize, kRawBytes, kFrameSize, kParameterCount, kMaxArguments,
-      constant_pool, handler_table, AllocationType::kSharedTrusted);
-  CHECK_EQ(MemoryChunk::FromHeapObject(*bytecode_array)
-               ->Metadata()
-               ->owner()
-               ->identity(),
-           SHARED_TRUSTED_SPACE);
+  HandleScope scope(isolate);
+  Handle<FixedArray> source =
+      isolate->factory()->NewFixedArray(10, AllocationType::kSharedOld);
+  Handle<FixedArray> value =
+      isolate->factory()->NewFixedArray(10, AllocationType::kSharedOld);
 
-  // Start incremental marking
+  // Start incremental marking (shared GC) on the main isolate.
   isolate->heap()->StartIncrementalMarking(GCFlag::kNoFlags,
                                            GarbageCollectionReason::kTesting);
 
-  // Allocate an object in the shared untrusted space.
-  Handle<BytecodeWrapper> bytecode_wrapper =
-      factory->NewBytecodeWrapper(AllocationType::kSharedOld);
-  CHECK_EQ(MemoryChunk::FromHeapObject(*bytecode_wrapper)
-               ->Metadata()
-               ->owner()
-               ->identity(),
-           SHARED_SPACE);
+  // Setup client isolate and run the write barrier.
+  SetupClientIsolateAndRunCallback([raw_source = *source, raw_value = *value](
+                                       v8::Isolate* client_isolate,
+                                       Isolate* i_client_isolate) {
+    HandleScope scope(i_client_isolate);
 
-  // Create a shared untrusted to shared trusted reference (with a write
-  // barrier)
-  bytecode_wrapper->set_bytecode(*bytecode_array);
-  bytecode_array->wrapper()->clear_bytecode();
-  bytecode_array->set_wrapper(*bytecode_wrapper);
+    // Perform a raw store. The write barrier will be triggered manually.
+    ObjectSlot slot = raw_source->RawFieldOfElementAt(0);
+    slot.store(raw_value);
+
+    // Assert that object and value are still unmarked before the write barrier.
+    EXPECT_TRUE(
+        i_client_isolate->heap()->marking_state()->IsUnmarked(raw_value));
+    EXPECT_TRUE(
+        i_client_isolate->heap()->marking_state()->IsUnmarked(raw_source));
+
+    // Invoke the range write barrier on the client isolate.
+    WriteBarrier::ForRange(i_client_isolate->heap(), raw_source, slot,
+                           slot + 1);
+
+    // The range write barrier should unconditionally mark the value.
+    EXPECT_TRUE(i_client_isolate->heap()->marking_state()->IsMarked(raw_value));
+  });
+
+  InvokeMajorGC(isolate);
 }
-#endif  // false
+
+#if V8_ENABLE_WEBASSEMBLY
+namespace {
+
+// The index the shared rtts array is grown to up front, and the larger one the
+// blocking thread asks for so that it has to grow the array again.
+constexpr uint32_t kPreparedTypeIndex = 8;
+constexpr uint32_t kBlockingTypeIndex = 4096;
+
+// Runs into wasm_shared_canonical_types_mutex_ through production code, while
+// the main thread holds it.
+class PrepareSharedCanonicalTypeThread final : public ParkingThread {
+ public:
+  PrepareSharedCanonicalTypeThread(base::Semaphore* sema_mutex_held,
+                                   base::Semaphore* sema_done)
+      : ParkingThread(Options("PrepareSharedCanonicalTypeThread")),
+        sema_mutex_held_(sema_mutex_held),
+        sema_done_(sema_done) {}
+
+  void Run() override {
+    SetupClientIsolateAndRunCallback(
+        [this](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
+          HandleScope scope(i_client_isolate);
+          // Only start once the main thread holds the mutex, so that this call
+          // is guaranteed to block on it.
+          sema_mutex_held_->Wait();
+          wasm::TypeCanonicalizer::PrepareForCanonicalTypeId(
+              i_client_isolate, wasm::CanonicalTypeIndex{kBlockingTypeIndex},
+              SharedFlag{true});
+          sema_done_->Signal();
+        });
+  }
+
+ private:
+  base::Semaphore* sema_mutex_held_;
+  base::Semaphore* sema_done_;
+};
+
+// Fails the process if the interaction below does not finish. The deadlocked
+// threads cannot report anything themselves, and a hung test would otherwise
+// only be caught by the test runner's global timeout.
+class DeadlockWatchdogThread final : public base::Thread {
+ public:
+  explicit DeadlockWatchdogThread(base::Semaphore* sema_done)
+      : Thread(Options("DeadlockWatchdogThread")), sema_done_(sema_done) {}
+
+  void Run() override {
+    if (!sema_done_->WaitFor(base::TimeDelta::FromSeconds(30))) {
+      FATAL(
+          "deadlock: an isolate blocked on wasm_shared_canonical_types_mutex_ "
+          "never reached a safepoint, so the shared GC could not complete");
+    }
+  }
+
+ private:
+  base::Semaphore* sema_done_;
+};
+
+}  // namespace
+
+// Regression test for b/538572369: wasm_shared_canonical_types_mutex_ is held
+// across shared-heap allocations in PrepareForCanonicalTypeId and
+// CreateMapForType, so it has to be acquired in a parked state. A client
+// isolate blocked on it without parking never reaches the safepoint that a
+// concurrent shared GC waits for, and both threads hang.
+TEST_F(SharedHeapTest, SharedCanonicalTypesMutexIsSafepointAware) {
+  Isolate* isolate = i_isolate();
+  CHECK(isolate->is_shared_space_isolate());
+  LocalIsolate* local_isolate = isolate->main_thread_local_isolate();
+
+  // Grow the shared rtts array once, so that the background thread's request
+  // for a larger index gets past the fast path and has to take the mutex.
+  wasm::TypeCanonicalizer::PrepareForCanonicalTypeId(
+      isolate, wasm::CanonicalTypeIndex{kPreparedTypeIndex}, SharedFlag{true});
+
+  base::Semaphore sema_mutex_held(0);
+  base::Semaphore sema_done(0);
+
+  auto blocker = std::make_unique<PrepareSharedCanonicalTypeThread>(
+      &sema_mutex_held, &sema_done);
+  CHECK(blocker->Start());
+
+  DeadlockWatchdogThread watchdog(&sema_done);
+  CHECK(watchdog.Start());
+
+  {
+    base::MutexGuard lock(isolate->wasm_shared_canonical_types_mutex());
+    sema_mutex_held.Signal();
+    // There is no way to observe that the other thread is blocked inside
+    // base::Mutex::Lock, so give it a moment to get there. Losing this race
+    // makes the test pass spuriously, never fail spuriously.
+    base::OS::Sleep(base::TimeDelta::FromMilliseconds(200));
+    // Waits for a global safepoint, which the blocked isolate cannot reach.
+    isolate->heap()->CollectGarbageShared(isolate->main_thread_local_heap(),
+                                          GarbageCollectionReason::kTesting);
+  }
+
+  blocker->ParkedJoin(local_isolate);
+  watchdog.Join();
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+template <typename TMixin>
+class WithEmptySharedHeapFlagsMixin : public TMixin {
+ public:
+  WithEmptySharedHeapFlagsMixin() { i::v8_flags.empty_shared_heap = true; }
+};
+
+using SharedHeapEmptyTestPlatform =
+    WithDefaultPlatformMixin<WithEmptySharedHeapFlagsMixin<::testing::Test>>;
+
+using SharedHeapEmptyTest = WithInternalIsolateMixin<
+    WithIsolateScopeMixin<WithIsolateMixin<SharedHeapEmptyTestPlatform>>>;
+
+TEST_F(SharedHeapEmptyTest, FlagImplications) {
+  EXPECT_TRUE(v8_flags.empty_shared_heap);
+  EXPECT_TRUE(v8_flags.shared_heap);
+  EXPECT_FALSE(v8_flags.shared_string_table);
+}
+
+TEST_F(SharedHeapEmptyTest, EmptySharedHeapPasses) {
+  i_isolate()->factory()->NewFixedArray(10, AllocationType::kYoung);
+  i_isolate()->factory()->NewFixedArray(10, AllocationType::kOld);
+  InvokeMajorGC(i_isolate());
+}
+
+TEST_F(SharedHeapEmptyTest, EmptySharedHeapCrashes) {
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        i_isolate()->factory()->NewFixedArray(10, AllocationType::kSharedOld);
+        InvokeMajorGC(i_isolate());
+      },
+      "");
+}
 
 }  // namespace internal
 }  // namespace v8

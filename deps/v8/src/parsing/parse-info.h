@@ -52,7 +52,6 @@ class Zone;
   V(is_lazy_compile, bool, 1, _)                                \
   V(coverage_enabled, bool, 1, _)                               \
   V(block_coverage_enabled, bool, 1, _)                         \
-  V(is_asm_wasm_broken, bool, 1, _)                             \
   V(class_scope_has_private_brand, bool, 1, _)                  \
   V(private_name_lookup_skips_outer_class, bool, 1, _)          \
   V(requires_instance_members_initializer, bool, 1, _)          \
@@ -65,7 +64,9 @@ class Zone;
   V(is_repl_mode, bool, 1, _)                                   \
   V(produce_compile_hints, bool, 1, _)                          \
   V(compile_hints_magic_enabled, bool, 1, _)                    \
-  V(compile_hints_per_function_magic_enabled, bool, 1, _)
+  V(compile_hints_per_function_magic_enabled, bool, 1, _)       \
+  V(is_hoisted_in_context, bool, 1, _)                          \
+  V(allow_heap_allocation, bool, 1, _)
 
 class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
  public:
@@ -277,11 +278,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   bool allow_eval_cache() const { return allow_eval_cache_; }
   void set_allow_eval_cache(bool value) { allow_eval_cache_ = value; }
 
-#if V8_ENABLE_WEBASSEMBLY
-  bool contains_asm_module() const { return contains_asm_module_; }
-  void set_contains_asm_module(bool value) { contains_asm_module_ = value; }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
   LanguageMode language_mode() const { return language_mode_; }
   void set_language_mode(LanguageMode value) { language_mode_ = value; }
 
@@ -398,9 +394,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;
   bool allow_eval_cache_ : 1;
-#if V8_ENABLE_WEBASSEMBLY
-  bool contains_asm_module_ : 1;
-#endif  // V8_ENABLE_WEBASSEMBLY
   LanguageMode language_mode_ : 1;
   bool is_background_compilation_ : 1;
   bool is_streaming_compilation_ : 1;

@@ -199,6 +199,7 @@
 
 // Function prototypes of annotations provided by the compiler-based sanitizer
 // implementation.
+#pragma GCC visibility push(default)
 ABSL_INTERNAL_BEGIN_EXTERN_C
 void AnnotateRWLockCreate(const char* file, int line,
                           const volatile void* lock);
@@ -218,6 +219,7 @@ void AnnotateBenignRaceSized(const char* file, int line,
 void AnnotateThreadName(const char* file, int line, const char* name);
 void AnnotateEnableRaceDetection(const char* file, int line, int enable);
 ABSL_INTERNAL_END_EXTERN_C
+#pragma GCC visibility pop
 
 #else  // ABSL_INTERNAL_RACE_ANNOTATIONS_ENABLED == 0
 
@@ -294,12 +296,14 @@ ABSL_INTERNAL_END_EXTERN_C
 
 // Function prototypes of annotations provided by the compiler-based sanitizer
 // implementation.
+#pragma GCC visibility push(default)
 ABSL_INTERNAL_BEGIN_EXTERN_C
 void AnnotateIgnoreReadsBegin(const char* file, int line)
     ABSL_INTERNAL_IGNORE_READS_BEGIN_ATTRIBUTE;
 void AnnotateIgnoreReadsEnd(const char* file,
                             int line) ABSL_INTERNAL_IGNORE_READS_END_ATTRIBUTE;
 ABSL_INTERNAL_END_EXTERN_C
+#pragma GCC visibility pop
 
 #elif defined(ABSL_INTERNAL_ANNOTALYSIS_ENABLED)
 
@@ -350,10 +354,12 @@ ABSL_INTERNAL_STATIC_INLINE void ABSL_INTERNAL_C_SYMBOL(
 
 // Function prototypes of annotations provided by the compiler-based sanitizer
 // implementation.
+#pragma GCC visibility push(default)
 ABSL_INTERNAL_BEGIN_EXTERN_C
 void AnnotateIgnoreWritesBegin(const char* file, int line);
 void AnnotateIgnoreWritesEnd(const char* file, int line);
 ABSL_INTERNAL_END_EXTERN_C
+#pragma GCC visibility pop
 
 #else
 

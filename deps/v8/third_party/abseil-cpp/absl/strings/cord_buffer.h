@@ -32,10 +32,12 @@
 #include <utility>
 
 #include "absl/base/config.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
 #include "absl/numeric/bits.h"
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cord_rep_flat.h"
+#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 
 namespace absl {
@@ -289,7 +291,7 @@ class CordBuffer {
 
  private:
   // Make sure we don't accidentally over promise.
-  static_assert(kCustomLimit <= cord_internal::kMaxLargeFlatSize, "");
+  static_assert(kCustomLimit <= cord_internal::kMaxLargeFlatSize);
 
   // Assume the cost of an 'uprounded' allocation to CeilPow2(size) versus
   // the cost of allocating at least 1 extra flat <= 4KB:
@@ -549,7 +551,7 @@ inline size_t CordBuffer::length() const {
 }
 
 inline void CordBuffer::SetLength(size_t length) {
-  ABSL_HARDENING_ASSERT(length <= capacity());
+  absl::base_internal::HardeningAssertLE(length, capacity());
   if (rep_.is_short()) {
     rep_.set_short_length(length);
   } else {
@@ -558,7 +560,8 @@ inline void CordBuffer::SetLength(size_t length) {
 }
 
 inline void CordBuffer::IncreaseLengthBy(size_t n) {
-  ABSL_HARDENING_ASSERT(n <= capacity() && length() + n <= capacity());
+  absl::base_internal::HardeningAssertLE(n, capacity());
+  absl::base_internal::HardeningAssertLE(length() + n, capacity());
   if (rep_.is_short()) {
     rep_.add_short_length(n);
   } else {

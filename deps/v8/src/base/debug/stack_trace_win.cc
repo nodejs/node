@@ -52,6 +52,12 @@ long WINAPI StackDumpExceptionFilter(EXCEPTION_POINTERS* info) {  // NOLINT
 bool InitializeSymbols() {
   if (g_initialized_symbols) return g_init_error == ERROR_SUCCESS;
   g_initialized_symbols = true;
+
+  // Starting in SDK 10.0.28000, dbghelp loads msdia140.dll dynamically at
+  // runtime, so preload it before initializing DbgHelp.
+  if (!::GetModuleHandle(L"msdia140.dll")) {
+    ::LoadLibrary(L"msdia140.dll");
+  }
   // Defer symbol load until they're needed, use undecorated names, and get line
   // numbers.
   SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME | SYMOPT_LOAD_LINES);

@@ -141,6 +141,12 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
 }
 
 // static
+Stack::StackSlot Stack::ObtainCurrentThreadStackReservedLimit() {
+  return reinterpret_cast<uint8_t*>(pthread_get_stackaddr_np(pthread_self())) -
+         pthread_get_stacksize_np(pthread_self());
+}
+
+// static
 std::optional<SharedMemoryHandle> OS::CreateSharedMemoryHandleForTesting(
     size_t size) {
   mach_vm_size_t vm_size = size;

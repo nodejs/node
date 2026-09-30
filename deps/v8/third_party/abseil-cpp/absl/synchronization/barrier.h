@@ -19,6 +19,7 @@
 #ifndef ABSL_SYNCHRONIZATION_BARRIER_H_
 #define ABSL_SYNCHRONIZATION_BARRIER_H_
 
+#include "absl/base/config.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/synchronization/mutex.h"
 

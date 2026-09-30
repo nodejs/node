@@ -126,7 +126,7 @@ FastUniformBits<UIntType>::operator()(URBG& g) {  // NOLINT(runtime/references)
   static_assert((URBG::max)() > (URBG::min)(),
                 "URBG::max and URBG::min may not be equal.");
 
-  using tag = absl::conditional_t<IsPowerOfTwoOrZero(RangeSize<URBG>()),
+  using tag = std::conditional_t<IsPowerOfTwoOrZero(RangeSize<URBG>()),
                                   SimplifiedLoopTag, RejectionLoopTag>;
   return Generate(g, tag{});
 }

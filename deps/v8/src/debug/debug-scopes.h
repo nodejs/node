@@ -6,13 +6,12 @@
 #define V8_DEBUG_DEBUG_SCOPES_H_
 
 #include "src/debug/debug-frames.h"
-#include "src/parsing/parse-info.h"
+#include "src/debug/debug-scope-info.h"
 
 namespace v8 {
 namespace internal {
 
 class JavaScriptFrame;
-class ParseInfo;
 
 // Iterate over the actual scopes visible from a stack frame or from a closure.
 // The iteration proceeds from the innermost visible nested scope outwards.
@@ -40,16 +39,7 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   static const int kScopeDetailsFunctionIndex = 5;
   static const int kScopeDetailsSize = 6;
 
-  enum class ReparseStrategy {
-    kFunctionLiteral,
-    // Checks whether the paused function (and its scope chain) already has
-    // its blocklist calculated and re-parses the whole script if not.
-    // Otherwise only the function literal is re-parsed.
-    kScriptIfNeeded,
-  };
-
-  ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
-                ReparseStrategy strategy);
+  ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector);
 
   ScopeIterator(Isolate* isolate, DirectHandle<JSFunction> function);
   ScopeIterator(Isolate* isolate, Handle<JSGeneratorObject> generator);
@@ -79,14 +69,19 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   // Returns whether the current scope declares any variables.
   bool DeclaresLocals(Mode mode) const;
 
+  // Returns whether the current scope should be ignored by debugger scope
+  // numbers.
+  bool ShouldIgnore() const;
+
+  // Advances the iterator by the given scope number, skipping ignored scopes.
+  // Returns true if the scope was found, false otherwise.
+  bool AdvanceToScopeNumber(int scope_number = 0);
+
   // Set variable value and return true on success.
   bool SetVariableValue(Handle<String> variable_name,
                         DirectHandle<Object> new_value);
 
   bool ClosureScopeHasThisReference() const;
-
-  // Populate the set with collected non-local variable names.
-  DirectHandle<StringSet> GetLocals() { return locals_; }
 
   // Similar to JSFunction::GetName return the function's name or it's inferred
   // name.
@@ -103,7 +98,13 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   void DebugPrint();
 #endif
 
-  bool InInnerScope() const { return !function_.is_null(); }
+  // Whether the current scope is backed by a scope in `debug_scope_info_`.
+  bool HasScope() const { return current_scope_index_ != -1; }
+  // Whether the current scope is backed by `debug_scope_info_` and belongs to
+  // the paused function (i.e. its stack-allocated variables are available).
+  bool InInnerScope() const {
+    return !function_.is_null() && HasScope();
+  }
   bool HasContext() const;
   bool NeedsContext() const;
   bool NeedsAndHasContext() const { return NeedsContext() && HasContext(); }
@@ -111,11 +112,13 @@ class V8_EXPORT_PRIVATE ScopeIterator {
     DCHECK(HasContext());
     return context_;
   }
+  std::optional<DebugScriptScope> CurrentDebugScope() const {
+    if (current_scope_index_ == -1) return std::nullopt;
+    return current_scope();
+  }
 
  private:
   Isolate* isolate_;
-  std::unique_ptr<ReusableUnoptimizedCompileState> reusable_compile_state_;
-  std::unique_ptr<ParseInfo> info_;
   FrameInspector* const frame_inspector_ = nullptr;
   Handle<JSGeneratorObject> generator_;
 
@@ -125,12 +128,21 @@ class V8_EXPORT_PRIVATE ScopeIterator {
 
   Handle<Context> context_;
   Handle<Script> script_;
-  Handle<StringSet> locals_;
-  DeclarationScope* closure_scope_ = nullptr;
-  Scope* start_scope_ = nullptr;
-  Scope* current_scope_ = nullptr;
+  // Serialized scope tree of the paused script and indices into it.
+  // `current_scope_index_` is set to -1 once iteration leaves
+  // `closure_scope_index_` (matching `function_` becoming null).
+  Handle<DebugScriptScopeInfo> debug_scope_info_;
+  int start_scope_index_ = -1;
+  int closure_scope_index_ = -1;
+  int current_scope_index_ = -1;
   bool seen_script_scope_ = false;
-  bool calculate_blocklists_ = false;
+
+  DebugScriptScope current_scope() const {
+    return DebugScriptScope::FromIndex(debug_scope_info_, current_scope_index_);
+  }
+  DebugScriptScope closure_scope() const {
+    return DebugScriptScope::FromIndex(debug_scope_info_, closure_scope_index_);
+  }
 
   inline JavaScriptFrame* GetFrame() const {
     return frame_inspector_->javascript_frame();
@@ -140,24 +152,16 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   void AdvanceOneContext();
   void AdvanceScope();
   void AdvanceContext();
-  void CollectLocalsFromCurrentScope();
-
-  // Calculates all the block list starting at the current scope and stores
-  // them in the global "LocalsBlocklistCache".
-  //
-  // Is a no-op unless `calculate_blocklists_` is true and
-  // current_scope_ == closure_scope_. Otherwise `context_` does not match
-  // with current_scope_/closure_scope_.
-  void MaybeCollectAndStoreLocalBlocklists() const;
 
   int GetSourcePosition() const;
 
-  void TryParseAndRetrieveScopes(ReparseStrategy strategy);
+  void TryParseAndRetrieveScopes();
 
   void UnwrapEvaluationContext();
 
-  using Visitor = std::function<bool(Handle<String> name, Handle<Object> value,
-                                     ScopeType scope_type)>;
+  using Visitor =
+      std::function<bool(DirectHandle<String> name, DirectHandle<Object> value,
+                         ScopeType scope_type)>;
 
   Handle<JSObject> WithContextExtension();
 

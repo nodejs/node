@@ -1,0 +1,131 @@
+header: langinfo.h
+standards:
+  - posix
+macros:
+  - macro_name: CODESET
+    macro_header: langinfo-macros.h
+  - macro_name: D_T_FMT
+    macro_header: langinfo-macros.h
+  - macro_name: D_FMT
+    macro_header: langinfo-macros.h
+  - macro_name: T_FMT
+    macro_header: langinfo-macros.h
+  - macro_name: T_FMT_AMPM
+    macro_header: langinfo-macros.h
+  - macro_name: AM_STR
+    macro_header: langinfo-macros.h
+  - macro_name: PM_STR
+    macro_header: langinfo-macros.h
+  - macro_name: DAY_1
+    macro_header: langinfo-macros.h
+  - macro_name: DAY_2
+    macro_header: langinfo-macros.h
+  - macro_name: DAY_3
+    macro_header: langinfo-macros.h
+  - macro_name: DAY_4
+    macro_header: langinfo-macros.h
+  - macro_name: DAY_5
+    macro_header: langinfo-macros.h
+  - macro_name: DAY_6
+    macro_header: langinfo-macros.h
+  - macro_name: DAY_7
+    macro_header: langinfo-macros.h
+  - macro_name: ABDAY_1
+    macro_header: langinfo-macros.h
+  - macro_name: ABDAY_2
+    macro_header: langinfo-macros.h
+  - macro_name: ABDAY_3
+    macro_header: langinfo-macros.h
+  - macro_name: ABDAY_4
+    macro_header: langinfo-macros.h
+  - macro_name: ABDAY_5
+    macro_header: langinfo-macros.h
+  - macro_name: ABDAY_6
+    macro_header: langinfo-macros.h
+  - macro_name: ABDAY_7
+    macro_header: langinfo-macros.h
+  - macro_name: MON_1
+    macro_header: langinfo-macros.h
+  - macro_name: MON_2
+    macro_header: langinfo-macros.h
+  - macro_name: MON_3
+    macro_header: langinfo-macros.h
+  - macro_name: MON_4
+    macro_header: langinfo-macros.h
+  - macro_name: MON_5
+    macro_header: langinfo-macros.h
+  - macro_name: MON_6
+    macro_header: langinfo-macros.h
+  - macro_name: MON_7
+    macro_header: langinfo-macros.h
+  - macro_name: MON_8
+    macro_header: langinfo-macros.h
+  - macro_name: MON_9
+    macro_header: langinfo-macros.h
+  - macro_name: MON_10
+    macro_header: langinfo-macros.h
+  - macro_name: MON_11
+    macro_header: langinfo-macros.h
+  - macro_name: MON_12
+    macro_header: langinfo-macros.h
+  - macro_name: ABMON_1
+    macro_header: langinfo-macros.h
+  - macro_name: ABMON_2
+    macro_header: langinfo-macros.h
+  - macro_name: ABMON_3
+    macro_header: langinfo-macros.h
+  - macro_name: ABMON_4
+    macro_header: langinfo-macros.h
+  - macro_name: ABMON_5
+    macro_header: langinfo-macros.h
+  - macro_name: ABMON_6
+    macro_header: langinfo-macros.h
+  - macro_name: ABMON_7
+    macro_header: langinfo-macros.h
+  - macro_name: ABMON_8
+    macro_header: langinfo-macros.h
+  - macro_name: ABMON_9
+    macro_header: langinfo-macros.h
+  - macro_name: ABMON_10
+    macro_header: langinfo-macros.h
+  - macro_name: ABMON_11
+    macro_header: langinfo-macros.h
+  - macro_name: ABMON_12
+    macro_header: langinfo-macros.h
+  - macro_name: ERA
+    macro_header: langinfo-macros.h
+  - macro_name: ERA_D_FMT
+    macro_header: langinfo-macros.h
+  - macro_name: ERA_D_T_FMT
+    macro_header: langinfo-macros.h
+  - macro_name: ERA_T_FMT
+    macro_header: langinfo-macros.h
+  - macro_name: ALT_DIGITS
+    macro_header: langinfo-macros.h
+  - macro_name: RADIXCHAR
+    macro_header: langinfo-macros.h
+  - macro_name: THOUSEP
+    macro_header: langinfo-macros.h
+  - macro_name: YESEXPR
+    macro_header: langinfo-macros.h
+  - macro_name: NOEXPR
+    macro_header: langinfo-macros.h
+  - macro_name: CRNCYSTR
+    macro_header: langinfo-macros.h
+types:
+  - type_name: nl_item
+  - type_name: locale_t
+functions:
+  - name: nl_langinfo
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: nl_item
+  - name: nl_langinfo_l
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: nl_item
+      - type: locale_t

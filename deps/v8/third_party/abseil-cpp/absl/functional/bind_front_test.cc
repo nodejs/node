@@ -19,6 +19,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -165,15 +166,13 @@ TEST(BindTest, StoreByPointer) {
   EXPECT_EQ(&s.value, &g());
 }
 
-int Sink(std::unique_ptr<int> p) {
-  return *p;
-}
+int Sink(std::unique_ptr<int> p) { return *p; }
 
-std::unique_ptr<int> Factory(int n) { return absl::make_unique<int>(n); }
+std::unique_ptr<int> Factory(int n) { return std::make_unique<int>(n); }
 
 TEST(BindTest, NonCopyableArg) {
-  EXPECT_EQ(42, absl::bind_front(Sink)(absl::make_unique<int>(42)));
-  EXPECT_EQ(42, absl::bind_front(Sink, absl::make_unique<int>(42))());
+  EXPECT_EQ(42, absl::bind_front(Sink)(std::make_unique<int>(42)));
+  EXPECT_EQ(42, absl::bind_front(Sink, std::make_unique<int>(42))());
 }
 
 TEST(BindTest, NonCopyableResult) {
@@ -196,7 +195,7 @@ int GetMember(FalseCopyable<std::unique_ptr<int>> x) { return *x.m; }
 
 TEST(BindTest, WrappedMoveOnly) {
   FalseCopyable<std::unique_ptr<int>> x;
-  x.m = absl::make_unique<int>(42);
+  x.m = std::make_unique<int>(42);
   auto f = absl::bind_front(&GetMember, std::move(x));
   EXPECT_EQ(42, std::move(f)());
 }

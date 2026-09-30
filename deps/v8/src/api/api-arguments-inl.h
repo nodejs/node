@@ -229,7 +229,7 @@ void PropertyCallbackArguments::Initialize(Isolate* isolate,
   }
   values_[T::kIsolateIndex] = reinterpret_cast<Address>(isolate);
   values_[T::kHolderIndex] = holder.ptr();
-  DCHECK(!IsJSGlobalObject(*holder));
+  DCHECK(!IsJSGlobalObject(holder));
 
   // Make sure the Isolate slot is safe to visit by GC (Isolate pointer
   // is guaranteed to be page aligned).
@@ -273,7 +273,7 @@ Maybe<InterceptorResult> PropertyCallbackArguments::GetBooleanReturnValue(
 
   if (ignore_return_value) return Just(InterceptorResult::kTrue);
 
-  bool result = IsTrue(*GetReturnValue<Boolean>(), isolate);
+  bool result = IsTrue(*GetReturnValue<Boolean>());
   return Just(result ? InterceptorResult::kTrue : InterceptorResult::kFalse);
 }
 
@@ -354,10 +354,11 @@ v8::Intercepted PropertyCallbackArguments::CallNamedSetter(
   set_property_key(*name);
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
-  NamedPropertySetterCallback f = reinterpret_cast<NamedPropertySetterCallback>(
-      interceptor->named_setter(isolate));
+  NamedPropertySetterCallbackV2 f =
+      reinterpret_cast<NamedPropertySetterCallbackV2>(
+          interceptor->named_setter(isolate));
   DirectHandle<InterceptorInfo> has_side_effects;
-  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, void, has_side_effects,
+  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Boolean, has_side_effects,
                                     ExceptionContext::kNamedSetter);
   v8::Intercepted intercepted =
       f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), callback_info);
@@ -373,11 +374,11 @@ v8::Intercepted PropertyCallbackArguments::CallNamedDefiner(
   set_property_key(*name);
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
-  NamedPropertyDefinerCallback f =
-      reinterpret_cast<NamedPropertyDefinerCallback>(
+  NamedPropertyDefinerCallbackV2 f =
+      reinterpret_cast<NamedPropertyDefinerCallbackV2>(
           interceptor->named_definer(isolate));
   DirectHandle<InterceptorInfo> has_side_effects;
-  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, void, has_side_effects,
+  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Boolean, has_side_effects,
                                     ExceptionContext::kNamedDefiner);
   v8::Intercepted intercepted =
       f(v8::Utils::ToLocal(name), desc, callback_info);
@@ -425,8 +426,8 @@ DirectHandle<Object> PropertyCallbackArguments::CallIndexedQuery(
   set_property_key(index);
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kReturnValueIndex).store(Smi::FromInt(v8::None));
-  IndexedPropertyQueryCallbackV2 f =
-      reinterpret_cast<IndexedPropertyQueryCallbackV2>(
+  IndexedPropertyQueryCallback f =
+      reinterpret_cast<IndexedPropertyQueryCallback>(
           interceptor->indexed_query(isolate));
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Integer, interceptor,
                                     ExceptionContext::kIndexedQuery);
@@ -444,8 +445,8 @@ DirectHandle<JSAny> PropertyCallbackArguments::CallIndexedGetter(
   set_property_key(index);
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
-  IndexedPropertyGetterCallbackV2 f =
-      reinterpret_cast<IndexedPropertyGetterCallbackV2>(
+  IndexedPropertyGetterCallback f =
+      reinterpret_cast<IndexedPropertyGetterCallback>(
           interceptor->indexed_getter(isolate));
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor,
                                     ExceptionContext::kIndexedGetter);
@@ -463,8 +464,8 @@ Handle<JSAny> PropertyCallbackArguments::CallIndexedDescriptor(
   set_property_key(index);
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
-  IndexedPropertyDescriptorCallbackV2 f =
-      reinterpret_cast<IndexedPropertyDescriptorCallbackV2>(
+  IndexedPropertyDescriptorCallback f =
+      reinterpret_cast<IndexedPropertyDescriptorCallback>(
           interceptor->indexed_descriptor(isolate));
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor,
                                     ExceptionContext::kIndexedDescriptor);
@@ -482,11 +483,11 @@ v8::Intercepted PropertyCallbackArguments::CallIndexedSetter(
   set_property_key(index);
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
-  IndexedPropertySetterCallbackV2 f =
-      reinterpret_cast<IndexedPropertySetterCallbackV2>(
+  IndexedPropertySetterCallback f =
+      reinterpret_cast<IndexedPropertySetterCallback>(
           interceptor->indexed_setter(isolate));
   DirectHandle<InterceptorInfo> has_side_effects;
-  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, void, has_side_effects,
+  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Boolean, has_side_effects,
                                     ExceptionContext::kIndexedSetter);
   v8::Intercepted intercepted =
       f(index, v8::Utils::ToLocal(value), callback_info);
@@ -502,11 +503,11 @@ v8::Intercepted PropertyCallbackArguments::CallIndexedDefiner(
   set_property_key(index);
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
-  IndexedPropertyDefinerCallbackV2 f =
-      reinterpret_cast<IndexedPropertyDefinerCallbackV2>(
+  IndexedPropertyDefinerCallback f =
+      reinterpret_cast<IndexedPropertyDefinerCallback>(
           interceptor->indexed_definer(isolate));
   DirectHandle<InterceptorInfo> has_side_effects;
-  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, void, has_side_effects,
+  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Boolean, has_side_effects,
                                     ExceptionContext::kIndexedDefiner);
   v8::Intercepted intercepted = f(index, desc, callback_info);
   return intercepted;
@@ -521,8 +522,8 @@ v8::Intercepted PropertyCallbackArguments::CallIndexedDeleter(
   set_property_key(index);
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
-  IndexedPropertyDeleterCallbackV2 f =
-      reinterpret_cast<IndexedPropertyDeleterCallbackV2>(
+  IndexedPropertyDeleterCallback f =
+      reinterpret_cast<IndexedPropertyDeleterCallback>(
           interceptor->indexed_deleter(isolate));
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Boolean, interceptor,
                                     ExceptionContext::kIndexedDeleter);
@@ -559,6 +560,42 @@ PropertyCallbackArguments::CallPropertyEnumerator(
   DirectHandle<JSAny> result = GetReturnValue<JSAny>();
   DCHECK(IsUndefined(*result) || IsJSObject(*result));
   return Cast<JSObjectOrUndefined>(result);
+}
+
+uint32_t PropertyCallbackArguments::CallIndexedIndexOf(
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+    DirectHandle<Object> value, uint32_t start_index, uint32_t end_index,
+    uint32_t* in_out_length) {
+  DCHECK(!is_setter_definer_deleter_);
+  // The actual property key is not relevant for this callback.
+  set_property_key(0);
+  slot_at(kCallbackInfoIndex).store(*interceptor);
+  // IndexOf callback doesn't use return value.
+  slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
+
+  IndexedPropertyIndexOfCallback f =
+      reinterpret_cast<IndexedPropertyIndexOfCallback>(
+          interceptor->indexed_index_of(isolate));
+  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, void, interceptor,
+                                    ExceptionContext::kUnknown);
+  return f(v8::Utils::ToLocal(value), start_index, end_index, in_out_length,
+           callback_info);
+}
+
+DirectHandle<JSAny> PropertyCallbackArguments::CallIndexedIterableToList(
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor) {
+  DCHECK(!is_setter_definer_deleter_);
+  set_property_key(0);
+  slot_at(kCallbackInfoIndex).store(*interceptor);
+  slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
+
+  IndexedPropertyIterableToListCallback f =
+      reinterpret_cast<IndexedPropertyIterableToListCallback>(
+          interceptor->indexed_iterable_to_list(isolate));
+  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor,
+                                    ExceptionContext::kUnknown);
+  f(callback_info);
+  return GetReturnValue<JSAny>();
 }
 
 // -------------------------------------------------------------------------
@@ -604,12 +641,11 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   // Here we handle both cases using the AccessorNameSetterCallback signature
   // and checking whether the returned result is set to default value
   // (the undefined value).
-  // TODO(ishell, 348660658): update V8 Api to allow setter callbacks provide
-  // the result of [[Set]] operation according to JavaScript semantics.
-  AccessorNameSetterCallback f = reinterpret_cast<AccessorNameSetterCallback>(
-      accessor_info->setter(isolate));
-  PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, void, accessor_info, holder(),
-                                 ACCESSOR_SETTER,
+  AccessorNameSetterCallbackV2 f =
+      reinterpret_cast<AccessorNameSetterCallbackV2>(
+          accessor_info->setter(isolate));
+  PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, v8::Boolean, accessor_info,
+                                 holder(), ACCESSOR_SETTER,
                                  ExceptionContext::kAttributeSet);
   f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), callback_info);
   // Historically, in case of v8::AccessorNameSetterCallback it wasn't allowed
@@ -625,7 +661,7 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   // the result is guaranteed to be v8::Boolean value indicating success or
   // failure.
   DirectHandle<Boolean> result = GetReturnValue<Boolean>();
-  return IsTrue(*result, isolate);
+  return IsTrue(*result);
 }
 
 #undef PREPARE_CALLBACK_INFO_ACCESSOR

@@ -7,7 +7,7 @@
 
 #include "src/codegen/handler-table.h"
 #include "src/interpreter/bytecode-register.h"
-#include "src/objects/fixed-array.h"
+#include "src/objects/fixed-primitive-array.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -41,15 +41,17 @@ class V8_EXPORT_PRIVATE HandlerTableBuilder final {
   void SetHandlerTarget(int handler_id, size_t offset);
   void SetPrediction(int handler_id, HandlerTable::CatchPrediction prediction);
   void SetContextRegister(int handler_id, Register reg);
+  void DropHandlerEntry(int handler_id);
 
  private:
   struct Entry {
-    size_t offset_start;   // Bytecode offset starting try-region.
-    size_t offset_end;     // Bytecode offset ending try-region.
-    size_t offset_target;  // Bytecode offset of handler target.
-    Register context;      // Register holding context for handler.
-                           // Optimistic prediction for handler.
+    int offset_start;   // Bytecode offset starting try-region.
+    int offset_end;     // Bytecode offset ending try-region.
+    int offset_target;  // Bytecode offset of handler target.
+    Register context;   // Register holding context for handler.
+                        // Optimistic prediction for handler.
     HandlerTable::CatchPrediction catch_prediction_;
+    bool dropped;
   };
 
   ZoneVector<Entry> entries_;

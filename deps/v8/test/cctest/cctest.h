@@ -38,6 +38,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/objects/js-function.h"
 #include "src/objects/objects.h"
 #include "src/sandbox/sandboxable-thread.h"
@@ -597,7 +598,11 @@ class StreamerThread : public v8::base::Thread {
       v8::ScriptCompiler::ScriptStreamingTask* task) {
     StreamerThread thread(task);
     CHECK(thread.Start());
-    thread.Join();
+    {
+      i::Isolate* i_isolate = CcTest::i_isolate();
+      i_isolate->main_thread_local_heap()->ExecuteWhileParked(
+          [&thread]() { thread.Join(); });
+    }
   }
 
   explicit StreamerThread(v8::ScriptCompiler::ScriptStreamingTask* task)

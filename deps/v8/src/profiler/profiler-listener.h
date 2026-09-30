@@ -58,8 +58,8 @@ class V8_EXPORT_PRIVATE ProfilerListener : public LogEventListener,
   void SetterCallbackEvent(DirectHandle<Name> name,
                            Address entry_point) override;
   void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
-                             DirectHandle<String> source,
-                             RegExpFlags flags) override;
+                             DirectHandle<String> escaped_source,
+                             regexp::Flags flags) override;
   void CodeMoveEvent(Tagged<InstructionStream> from,
                      Tagged<InstructionStream> to) override;
   void BytecodeMoveEvent(Tagged<BytecodeArray> from,
@@ -71,8 +71,8 @@ class V8_EXPORT_PRIVATE ProfilerListener : public LogEventListener,
                            DirectHandle<SharedFunctionInfo> shared) override;
   void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override;
-  void CodeDependencyChangeEvent(DirectHandle<Code> code,
-                                 DirectHandle<SharedFunctionInfo> sfi,
+  void CodeDependencyChangeEvent(Tagged<Code> code,
+                                 Tagged<SharedFunctionInfo> sfi,
                                  const char* reason) override {}
   void WeakCodeClearEvent() override;
 

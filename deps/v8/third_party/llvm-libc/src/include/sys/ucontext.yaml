@@ -1,0 +1,5 @@
+header: sys/ucontext.h
+public_includes:
+  - ucontext.h
+standards:
+  - gnu

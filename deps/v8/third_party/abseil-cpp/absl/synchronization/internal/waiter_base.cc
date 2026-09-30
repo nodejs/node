@@ -14,6 +14,9 @@
 
 #include "absl/synchronization/internal/waiter_base.h"
 
+#include <atomic>
+#include <cassert>
+
 #include "absl/base/config.h"
 #include "absl/base/internal/thread_identity.h"
 

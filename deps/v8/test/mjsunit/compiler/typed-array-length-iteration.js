@@ -4,7 +4,7 @@
 //
 // Flags: --allow-natives-syntax --turbofan
 // Flags: --no-turbolev
-// Flags: --typed-array-length-loading
+// Flags: --typed-array-length-loading --mock-arraybuffer-allocator
 
 function foo(size) {
   let a = new Uint8Array(size);

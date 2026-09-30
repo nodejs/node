@@ -30,6 +30,7 @@
 #include "absl/log/log.h"
 #include "absl/log/scoped_mock_log.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/source_location.h"
 
 namespace {
 using ::absl::log_internal::DeathTestExpectedLogging;
@@ -54,7 +55,7 @@ using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::IsTrue;
 
-auto* test_env ABSL_ATTRIBUTE_UNUSED = ::testing::AddGlobalTestEnvironment(
+auto* test_env [[maybe_unused]] = ::testing::AddGlobalTestEnvironment(
     new absl::log_internal::LogTestEnvironment);
 
 void WriteToStream(absl::string_view data, std::ostream* os) {
@@ -446,6 +447,23 @@ TEST(LogStreamerTest, CorrectDefaultFlags) {
   absl::LogInfoStreamer("path/file.cc", 1234).stream()
       << false << std::hex << 0xdeadbeef;
   LOG(INFO) << false << std::hex << 0xdeadbeef;
+}
+
+TEST(LogStreamerTest, AtSourceLocation) {
+  const int log_line = __LINE__ + 2;
+  auto do_log = [] {
+    WriteToStream("foo", &absl::LogInfoStreamer().stream());  //
+  };
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  EXPECT_CALL(test_sink,
+              Send(AllOf(SourceFilename(
+                             Eq(absl::SourceLocation::current().file_name())),
+                         SourceLine(Eq(log_line)))));
+
+  test_sink.StartCapturingLogs();
+  do_log();
 }
 
 }  // namespace

@@ -20,7 +20,12 @@ function test_proto_of_prototype_assigned() {
   return new test_function();
 }
 
+// Keep the objects and their maps alive throughout the test so that GC
+// doesn't collect them, which would trigger a lazy deopt.
+let keep_alive = [];
+
 function assert_test_proto_of_prototype_assigned(test_instance) {
+  keep_alive.push(test_instance);
   assertEquals(test_instance.func(), "test_function.prototype.func");
   assertEquals(test_instance.smi, 1);
 }
@@ -36,7 +41,7 @@ assert_test_proto_of_prototype_assigned(test_proto_of_prototype_assigned());
 %OptimizeMaglevOnNextCall(test_proto_of_prototype_assigned);
 assert_test_proto_of_prototype_assigned(test_proto_of_prototype_assigned());
 assertOptimized(test_proto_of_prototype_assigned);
-assertTrue(isMaglevved(test_proto_of_prototype_assigned));
+assertMaglevved(test_proto_of_prototype_assigned);
 assert_test_proto_of_prototype_assigned(test_proto_of_prototype_assigned());
 %OptimizeFunctionOnNextCall(test_proto_of_prototype_assigned);
 assert_test_proto_of_prototype_assigned(test_proto_of_prototype_assigned());

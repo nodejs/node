@@ -2,6 +2,7 @@
 // clang-format off
 
 #include "absl/random/gaussian_distribution.h"
+#include "absl/base/config.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

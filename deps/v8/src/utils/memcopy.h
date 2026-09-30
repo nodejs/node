@@ -137,14 +137,6 @@ void CopyChars(DstType* dst, const SrcType* src, size_t count) {
 }
 
 // Fills `destination` with `count` `value`s.
-template <typename T, typename U>
-constexpr void Memset(T* destination, U value, size_t count)
-  requires std::is_trivially_assignable_v<T&, U>
-{
-  return v8::base::Memset(destination, value, count);
-}
-
-// Fills `destination` with `count` `value`s.
 template <typename T>
 inline void Relaxed_Memset(T* destination, T value, size_t count)
   requires std::is_integral_v<T>

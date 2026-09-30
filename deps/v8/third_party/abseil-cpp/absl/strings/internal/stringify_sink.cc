@@ -13,6 +13,12 @@
 // limitations under the License.
 
 #include "absl/strings/internal/stringify_sink.h"
+
+#include <cstddef>
+
+#include "absl/base/config.h"
+#include "absl/strings/string_view.h"
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace strings_internal {

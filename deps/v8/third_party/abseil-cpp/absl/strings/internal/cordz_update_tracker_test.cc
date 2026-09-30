@@ -15,6 +15,7 @@
 #include "absl/strings/internal/cordz_update_tracker.h"
 
 #include <array>
+#include <cstdint>
 #include <thread>  // NOLINT
 
 #include "gmock/gmock.h"

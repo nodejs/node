@@ -47,7 +47,7 @@ bool RegisterSyncLoggingFlags() {
   return true;
 }
 
-ABSL_ATTRIBUTE_UNUSED const bool unused = RegisterSyncLoggingFlags();
+[[maybe_unused]] const bool unused = RegisterSyncLoggingFlags();
 
 template <typename T>
 T GetFromEnv(const char* varname, T dflt) {

@@ -33,4 +33,4 @@ assertEquals(42, foo(1, false));
 assertEquals(2.5, foo(1, true));
 assertEquals(42, foo(2, false));
 assertEquals(undefined, foo(2, true));
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);

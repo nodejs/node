@@ -160,6 +160,11 @@ static void _cpu_check_features(void)
 #include <immintrin.h>
 #include <xsaveintrin.h>
 #endif
+/* _xgetbv() below needs the xsave ISA. Annotate it here so the build does not
+ * need -mxsave. */
+#if defined(CRC32_SIMD_AVX512_PCLMUL) && (defined(__GNUC__) || defined(__clang__))
+__attribute__((__target__("xsave")))
+#endif
 static void _cpu_check_features(void)
 {
     int x86_cpu_has_sse2;

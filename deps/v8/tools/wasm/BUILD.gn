@@ -21,6 +21,7 @@ v8_executable("wami") {
 
   deps = [
     "../..:v8",
+    "../..:v8_internal_headers",
     "../..:v8_libbase",
     "../..:v8_libplatform",
   ]

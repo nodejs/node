@@ -42,22 +42,20 @@ namespace internal {
 
 DebugScopeIterator::DebugScopeIterator(Isolate* isolate,
                                        FrameInspector* frame_inspector)
-    : iterator_(
-          isolate, frame_inspector,
-          ::v8::internal::ScopeIterator::ReparseStrategy::kFunctionLiteral) {
-  if (!Done() && ShouldIgnore()) Advance();
+    : iterator_(isolate, frame_inspector) {
+  iterator_.AdvanceToScopeNumber(0);
 }
 
 DebugScopeIterator::DebugScopeIterator(Isolate* isolate,
                                        DirectHandle<JSFunction> function)
     : iterator_(isolate, function) {
-  if (!Done() && ShouldIgnore()) Advance();
+  iterator_.AdvanceToScopeNumber(0);
 }
 
 DebugScopeIterator::DebugScopeIterator(Isolate* isolate,
                                        Handle<JSGeneratorObject> generator)
     : iterator_(isolate, generator) {
-  if (!Done() && ShouldIgnore()) Advance();
+  iterator_.AdvanceToScopeNumber(0);
 }
 
 bool DebugScopeIterator::Done() { return iterator_.Done(); }
@@ -65,14 +63,7 @@ bool DebugScopeIterator::Done() { return iterator_.Done(); }
 void DebugScopeIterator::Advance() {
   DCHECK(!Done());
   iterator_.Next();
-  while (!Done() && ShouldIgnore()) {
-    iterator_.Next();
-  }
-}
-
-bool DebugScopeIterator::ShouldIgnore() {
-  if (GetType() == debug::ScopeIterator::ScopeTypeLocal) return false;
-  return !iterator_.DeclaresLocals(i::ScopeIterator::Mode::ALL);
+  iterator_.AdvanceToScopeNumber(0);
 }
 
 v8::debug::ScopeIterator::ScopeType DebugScopeIterator::GetType() {
@@ -112,6 +103,11 @@ debug::Location DebugScopeIterator::GetEndLocation() {
   DCHECK(!Done());
   return ToApiHandle<v8::debug::Script>(iterator_.GetScript())
       ->GetSourceLocation(iterator_.end_position());
+}
+
+bool DebugScopeIterator::DeclaresLocals() {
+  DCHECK(!Done());
+  return iterator_.DeclaresLocals(i::ScopeIterator::Mode::ALL);
 }
 
 bool DebugScopeIterator::SetVariableValue(v8::Local<v8::String> name,

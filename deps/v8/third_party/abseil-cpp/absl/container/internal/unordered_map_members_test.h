@@ -15,9 +15,14 @@
 #ifndef ABSL_CONTAINER_INTERNAL_UNORDERED_MAP_MEMBERS_TEST_H_
 #define ABSL_CONTAINER_INTERNAL_UNORDERED_MAP_MEMBERS_TEST_H_
 
+#include <cstddef>
+#include <memory>
 #include <type_traits>
+#include <utility>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/meta/type_traits.h"
 
 namespace absl {

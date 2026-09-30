@@ -410,12 +410,11 @@ namespace {
 void ExtractInternalFields(Tagged<JSObject> jsobject, void** embedder_fields,
                            int len) {
   int field_count = jsobject->GetEmbedderFieldCount();
-  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   for (int i = 0; i < len; ++i) {
     if (field_count == i) break;
     void* pointer;
     if (EmbedderDataSlot(jsobject, i)
-            .DeprecatedToAlignedPointer(isolate, &pointer)) {
+            .DeprecatedToAlignedPointer(Isolate::Current(), &pointer)) {
       embedder_fields[i] = pointer;
     }
   }
@@ -755,7 +754,7 @@ void GlobalHandles::InvokeSecondPassPhantomCallbacks() {
   // outermost GC run only.
   GCCallbacksScope scope(isolate()->heap());
   if (scope.CheckReenter()) {
-    TRACE_EVENT0("v8", "V8.GCPhantomHandleProcessingCallback");
+    TRACE_EVENT("v8", "V8.GCPhantomHandleProcessingCallback");
     isolate()->heap()->CallGCPrologueCallbacks(
         GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags,
         GCTracer::Scope::HEAP_EXTERNAL_PROLOGUE);

@@ -82,8 +82,9 @@ bool StringToIndex(Stream* stream, index_t* index) {
       }
     } else {
       // Either mode is fine here.
-      if (!TryAddArrayIndexChar(reinterpret_cast<uint32_t*>(&result), c))
+      if (!TryAddArrayIndexChar(reinterpret_cast<uint32_t*>(&result), c)) {
         return false;
+      }
     }
   }
 

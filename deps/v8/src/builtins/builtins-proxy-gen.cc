@@ -9,7 +9,9 @@
 #include "src/builtins/builtins-utils.h"
 #include "src/codegen/code-stub-assembler-inl.h"
 #include "src/common/globals.h"
+#include "src/ic/accessor-assembler.h"
 #include "src/logging/counters.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/js-proxy.h"
 #include "src/objects/objects-inl.h"
 #include "torque-generated/exported-macros-assembler.h"
@@ -59,10 +61,11 @@ TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
   RootIndex empty_dict = V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
                              ? RootIndex::kEmptySwissPropertyDictionary
                              : RootIndex::kEmptyPropertyDictionary;
-  StoreObjectFieldRoot(proxy, JSProxy::kPropertiesOrHashOffset, empty_dict);
-  StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kTargetOffset, target);
-  StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kHandlerOffset, handler);
-  StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kFlagsOffset, flags);
+  StoreObjectFieldRoot(proxy, offsetof(JSProxy, properties_or_hash_),
+                       empty_dict);
+  StoreObjectFieldNoWriteBarrier(proxy, offsetof(JSProxy, target_), target);
+  StoreObjectFieldNoWriteBarrier(proxy, offsetof(JSProxy, handler_), handler);
+  StoreObjectFieldNoWriteBarrier(proxy, offsetof(JSProxy, flags_), flags);
 #if TAGGED_SIZE_8_BYTES
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kPaddingOffset,
                                  Int32Constant(0));
@@ -104,7 +107,7 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
 
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   TNode<Union<Null, JSReceiver>> handler =
-      CAST(LoadObjectField(proxy, JSProxy::kHandlerOffset));
+      CAST(LoadObjectField(proxy, offsetof(JSProxy, handler_)));
 
   // 2. If handler is null, throw a TypeError exception.
   GotoIf(IsNull(handler), &throw_proxy_handler_revoked);
@@ -113,7 +116,7 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
   CSA_DCHECK(this, IsJSReceiver(handler));
 
   // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
-  TNode<Object> target = LoadObjectField(proxy, JSProxy::kTargetOffset);
+  TNode<Object> target = LoadObjectField(proxy, offsetof(JSProxy, target_));
 
   // 5. Let trap be ? GetMethod(handler, "apply").
   // 6. If trap is undefined, then
@@ -159,7 +162,7 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
 
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   TNode<Union<Null, JSReceiver>> handler =
-      CAST(LoadObjectField(proxy, JSProxy::kHandlerOffset));
+      CAST(LoadObjectField(proxy, offsetof(JSProxy, handler_)));
 
   // 2. If handler is null, throw a TypeError exception.
   GotoIf(IsNull(handler), &throw_proxy_handler_revoked);
@@ -168,7 +171,7 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
   CSA_DCHECK(this, IsJSReceiver(handler));
 
   // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
-  TNode<Object> target = LoadObjectField(proxy, JSProxy::kTargetOffset);
+  TNode<Object> target = LoadObjectField(proxy, offsetof(JSProxy, target_));
 
   // 5. Let trap be ? GetMethod(handler, "construct").
   // 6. If trap is undefined, then
@@ -428,6 +431,112 @@ void ProxiesCodeStubAssembler::CheckDeleteTrapResult(TNode<Context> context,
   }
 
   BIND(&check_passed);
+}
+
+TF_BUILTIN(ProxyGetPropertyFastPath, ProxiesCodeStubAssembler) {
+  auto proxy = Parameter<JSProxy>(Descriptor::kProxy);
+  auto name = Parameter<Name>(Descriptor::kName);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  auto handler = Parameter<DataHandler>(Descriptor::kHandler);
+  auto context = Parameter<Context>(Descriptor::kContext);
+
+  AccessorAssembler accessors(state());
+
+  Label miss(this);
+
+  // Map checks on target. If the target changes shape the property might have
+  // become non-configurable which needs more checking.
+  // TODO(olivf): Support a relaxed mode where we can do the required checks
+  // from LoadIC::ComputeHandler dynamically here instead.
+  TNode<HeapObject> target =
+      CAST(LoadObjectField(proxy, offsetof(JSProxy, target_)));
+  GotoIf(TaggedEqual(target, NullConstant()), &miss);
+  {
+    TNode<MaybeObject> maybe_target_check_map = accessors.LoadHandlerDataField(
+        handler, LoadHandler::kProxyTargetMapDataIndex);
+    CSA_DCHECK(this, IsWeakOrCleared(maybe_target_check_map));
+    GotoIf(IsCleared(maybe_target_check_map), &miss);
+    TNode<Map> target_check_map =
+        CAST(GetHeapObjectAssumeWeak(maybe_target_check_map));
+    TNode<Map> target_map = LoadMap(target);
+    GotoIfNot(TaggedEqual(target_check_map, target_map), &miss);
+  }
+
+  // LoadIC
+  TNode<HeapObject> proxy_handler_obj =
+      CAST(LoadObjectField(proxy, offsetof(JSProxy, handler_)));
+  TNode<Object> trap;
+  {
+    TNode<MaybeObject> maybe_load_ic_map = LoadMaybeWeakObjectField(
+        handler,
+        DataHandler::OffsetOf(LoadHandler::kProxyHandlerMapDataIndex - 1));
+    TNode<Word32T> load_ic_handler = SmiToInt32(CAST(LoadMaybeWeakObjectField(
+        handler,
+        DataHandler::OffsetOf(LoadHandler::kProxyGetSmiHandlerDataIndex - 1))));
+    CSA_DCHECK(this, IsWeakOrCleared(maybe_load_ic_map));
+    GotoIf(IsCleared(maybe_load_ic_map), &miss);
+    TNode<Map> load_ic_map = CAST(GetHeapObjectAssumeWeak(maybe_load_ic_map));
+
+    TNode<Map> handler_map = LoadMap(proxy_handler_obj);
+    GotoIfNot(TaggedEqual(load_ic_map, handler_map), &miss);
+
+    // Inline HandleLoadField
+    TNode<IntPtrT> offset_in_words =
+        Signed(DecodeWordFromWord32<LoadHandler::StorageOffsetInWordsBits>(
+            load_ic_handler));
+    TNode<IntPtrT> offset =
+        IntPtrMul(offset_in_words, IntPtrConstant(kTaggedSize));
+
+    TNode<BoolT> is_inobject =
+        IsSetWord32<LoadHandler::IsInobjectBits>(load_ic_handler);
+    TNode<HeapObject> property_storage = Select<HeapObject>(
+        is_inobject, [&]() { return proxy_handler_obj; },
+        [&]() { return LoadFastProperties(CAST(proxy_handler_obj), true); });
+
+    GotoIf(IsSetWord32<LoadHandler::IsDoubleBits>(load_ic_handler), &miss);
+    trap = LoadObjectField(property_storage, offset);
+  }
+
+  // CallIC
+  {
+    TNode<MaybeObject> maybe_call_ic_target = LoadMaybeWeakObjectField(
+        handler,
+        DataHandler::OffsetOf(LoadHandler::kProxyTrapMethodDataIndex - 1));
+    GotoIf(IsCleared(maybe_call_ic_target), &miss);
+
+    TNode<Object> call_ic_target =
+        GetHeapObjectAssumeWeak(maybe_call_ic_target);
+    CSA_DCHECK(this, TaggedIsCallable(call_ic_target));
+    GotoIfNot(TaggedEqual(call_ic_target, trap), &miss);
+
+    TNode<Smi> counter = CAST(LoadMaybeWeakObjectField(
+        handler,
+        DataHandler::OffsetOf(LoadHandler::kProxyCounterDataIndex - 1)));
+
+    Label done_increment(this);
+    GotoIf(SmiEqual(counter, SmiConstant(Smi::kMaxValue)), &done_increment);
+
+    TNode<Smi> new_counter = SmiAdd(counter, SmiConstant(1));
+    // DataHandler fields are 1-indexed for DataHandler::OffsetOf, so
+    // subtract 1.
+    StoreObjectFieldNoWriteBarrier(
+        handler, DataHandler::OffsetOf(LoadHandler::kProxyCounterDataIndex - 1),
+        new_counter);
+    Goto(&done_increment);
+
+    BIND(&done_increment);
+
+    TNode<JSFunction> trap_function = CAST(trap);
+    TNode<JSAny> proxy_receiver = CAST(proxy_handler_obj);
+    TNode<JSAny> target_any = CAST(target);
+    TNode<Object> result = CallFunction(
+        context, trap_function, ConvertReceiverMode::kNotNullOrUndefined,
+        proxy_receiver, target_any, name, receiver);
+    Return(result);
+  }
+
+  BIND(&miss);
+  Return(TheHoleConstant());
 }
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"

@@ -34,6 +34,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/init/v8.h"
+#include "src/objects/object-conversions-inl.h"
 
 namespace v8 {
 namespace internal {

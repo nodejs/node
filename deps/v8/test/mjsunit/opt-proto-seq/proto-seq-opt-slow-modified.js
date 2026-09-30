@@ -40,7 +40,7 @@ assert_test_slow_path_modified_proto(test_slow_path_modified_proto());
 %OptimizeMaglevOnNextCall(test_slow_path_modified_proto);
 assert_test_slow_path_modified_proto(test_slow_path_modified_proto());
 assertOptimized(test_slow_path_modified_proto);
-assertTrue(isMaglevved(test_slow_path_modified_proto));
+assertMaglevved(test_slow_path_modified_proto);
 assert_test_slow_path_modified_proto(test_slow_path_modified_proto());
 %OptimizeFunctionOnNextCall(test_slow_path_modified_proto);
 assert_test_slow_path_modified_proto(test_slow_path_modified_proto());

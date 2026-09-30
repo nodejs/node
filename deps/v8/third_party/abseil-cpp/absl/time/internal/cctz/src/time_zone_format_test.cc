@@ -142,7 +142,7 @@ TEST(Format, Basics) {
   time_zone tz = utc_time_zone();
   time_point<chrono::nanoseconds> tp = chrono::system_clock::from_time_t(0);
 
-  // Starts with a couple basic edge cases.
+  // Start with basic edge cases.
   EXPECT_EQ("", absl::time_internal::cctz::format("", tp, tz));
   EXPECT_EQ(" ", absl::time_internal::cctz::format(" ", tp, tz));
   EXPECT_EQ("  ", absl::time_internal::cctz::format("  ", tp, tz));
@@ -786,6 +786,36 @@ TEST(Format, Week) {
             absl::time_internal::cctz::format("%Y-%W-%w", tp, utc));
 }
 
+TEST(Format, NULsInFormatString) {
+  time_zone tz = utc_time_zone();
+  time_point<chrono::nanoseconds> tp = chrono::system_clock::from_time_t(0);
+
+  // All NULs.
+  std::string nuls(32, '\0');
+  EXPECT_EQ(nuls, absl::time_internal::cctz::format(nuls, tp, tz));
+
+  // NULs amongst ordinary text plus the internal "%\0" specifier.
+  std::string percent_nul("\0X\0\0X%\0\0X\0\0X\0", 13);
+  EXPECT_EQ(percent_nul,
+            absl::time_internal::cctz::format(percent_nul, tp, tz));
+
+  // NULs amongst ordinary text plus a non-internal specifier (%I).
+  EXPECT_EQ(std::string("X\0\0\0X12\0X\0\0\0X", 13),
+            absl::time_internal::cctz::format(
+                std::string("X\0\0\0X%I\0X\0\0\0X", 13), tp, tz));
+
+#if defined(__linux__) && defined(__GLIBC__)
+  // Depending upon strftime() behavior on "%E"
+  // and "%O", "%E\0" and "%0\0" produce themselves.
+  std::string percent_E_nul("abc%E\0xyz", 9);
+  EXPECT_EQ(percent_E_nul,
+            absl::time_internal::cctz::format(percent_E_nul, tp, tz));
+  std::string percent_O_nul("abc%O\0xyz", 9);
+  EXPECT_EQ(percent_O_nul,
+            absl::time_internal::cctz::format(percent_O_nul, tp, tz));
+#endif
+}
+
 //
 // Testing parse()
 //
@@ -930,6 +960,9 @@ TEST(Parse, ErrorCases) {
   const time_zone tz = utc_time_zone();
   auto tp = chrono::system_clock::from_time_t(0);
 
+  // No data.
+  EXPECT_FALSE(parse("X", "", tz, &tp));
+
   // Illegal trailing data.
   EXPECT_FALSE(parse("%S", "123", tz, &tp));
 
@@ -967,6 +1000,27 @@ TEST(Parse, ErrorCases) {
   EXPECT_FALSE(parse("%Ez", "+-0:00", tz, &tp));
   EXPECT_FALSE(parse("%z", "-00-0", tz, &tp));
   EXPECT_FALSE(parse("%Ez", "-00:-0", tz, &tp));
+}
+
+TEST(Parse, NonAsciiInput) {
+  const time_zone tz = utc_time_zone();
+  auto tp = chrono::system_clock::from_time_t(0);
+
+  // High-bit-set bytes reach the ctype functions during parsing. 0xA0 is not
+  // ASCII whitespace, so the leading-whitespace skip must not consume it and
+  // the parse must fail rather than pass a negative char to std::isspace().
+  EXPECT_FALSE(parse("%Y-%m-%d",
+                     "\xA0"
+                     "2016-01-02",
+                     tz, &tp));
+  EXPECT_FALSE(parse("%Y",
+                     "\xA0"
+                     "2016",
+                     tz, &tp));
+
+  // A leading ASCII space is still skipped as before.
+  EXPECT_TRUE(parse("%Y-%m-%d", " 2016-01-02", tz, &tp));
+  EXPECT_EQ(2016, convert(tp, utc_time_zone()).year());
 }
 
 TEST(Parse, PosixConversions) {
@@ -1578,6 +1632,41 @@ TEST(Parse, WeekYearShift) {
   EXPECT_FALSE(parse("%Y-%U-%u", "9223372036854775807-53-7", utc, &tp));
 }
 
+TEST(Parse, NULsInFormatAndInputStrings) {
+  const time_zone utc = utc_time_zone();
+  time_point<absl::time_internal::cctz::seconds> tp;
+
+  // Check that NULs are parsed just like any other chars.
+  EXPECT_FALSE(
+      parse(std::string("abc\0def", 7), std::string("abc\0xyz", 7), utc, &tp));
+  EXPECT_FALSE(
+      parse(std::string("%Y\0def", 6), std::string("2026\0xyz", 8), utc, &tp));
+  EXPECT_TRUE(
+      parse(std::string("%Y\0xyz", 6), std::string("2026\0xyz", 8), utc, &tp));
+  ExpectTime(tp, utc, 2026, 1, 1, 0, 0, 0, 0, false, "UTC");
+
+  // All NULs.
+  std::string nuls(32, '\0');
+  EXPECT_TRUE(parse(nuls, nuls, utc, &tp));
+  ExpectTime(tp, utc, 1970, 1, 1, 0, 0, 0, 0, false, "UTC");
+
+  // The "%\0" specifier never matches, even on the empty string and itself.
+  std::string percent_nul("%\0", 2);
+  EXPECT_FALSE(parse(percent_nul, "", utc, &tp));
+  EXPECT_FALSE(parse(percent_nul, percent_nul, utc, &tp));
+
+#if defined(__linux__) && defined(__GLIBC__)
+  // Depending upon strptime() behavior on "%E"
+  // and "%O", "%E\0" and "%0\0" also never match.
+  std::string percent_E_nul("%E\0", 3);
+  EXPECT_FALSE(parse(percent_E_nul, "", utc, &tp));
+  EXPECT_FALSE(parse(percent_E_nul, percent_E_nul, utc, &tp));
+  std::string percent_O_nul("%O\0", 3);
+  EXPECT_FALSE(parse(percent_O_nul, "", utc, &tp));
+  EXPECT_FALSE(parse(percent_O_nul, percent_O_nul, utc, &tp));
+#endif
+}
+
 TEST(Parse, MaxRange) {
   const time_zone utc = utc_time_zone();
   time_point<absl::time_internal::cctz::seconds> tp;
@@ -1707,10 +1796,18 @@ TEST(FormatParse, RoundTrip) {
   const auto in = convert(civil_second(1977, 6, 28, 9, 8, 7), lax);
   const auto subseconds = chrono::nanoseconds(654321);
 
+  // No format specifiers, but include NUL.
+  {
+    time_point<chrono::nanoseconds> out;
+    const auto fmt = std::string("\0\1\2\3\4\5\6\7abcdefgh01234567");
+    const auto s = absl::time_internal::cctz::format(fmt, in, lax);
+    EXPECT_TRUE(parse(fmt, s, lax, &out)) << s;
+  }
+
   // RFC3339, which renders subseconds.
   {
     time_point<chrono::nanoseconds> out;
-    const std::string s =
+    const auto s =
         absl::time_internal::cctz::format(RFC3339_full, in + subseconds, lax);
     EXPECT_TRUE(parse(RFC3339_full, s, lax, &out)) << s;
     EXPECT_EQ(in + subseconds, out);  // RFC3339_full includes %Ez
@@ -1719,8 +1816,7 @@ TEST(FormatParse, RoundTrip) {
   // RFC1123, which only does whole seconds.
   {
     time_point<chrono::nanoseconds> out;
-    const std::string s =
-        absl::time_internal::cctz::format(RFC1123_full, in, lax);
+    const auto s = absl::time_internal::cctz::format(RFC1123_full, in, lax);
     EXPECT_TRUE(parse(RFC1123_full, s, lax, &out)) << s;
     EXPECT_EQ(in, out);  // RFC1123_full includes %z
   }
@@ -1738,7 +1834,7 @@ TEST(FormatParse, RoundTrip) {
   {
     time_point<chrono::nanoseconds> out;
     time_zone utc = utc_time_zone();
-    const std::string s = absl::time_internal::cctz::format("%c", in, utc);
+    const auto s = absl::time_internal::cctz::format("%c", in, utc);
     EXPECT_TRUE(parse("%c", s, utc, &out)) << s;
     EXPECT_EQ(in, out);
   }

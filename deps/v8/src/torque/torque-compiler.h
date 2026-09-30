@@ -39,6 +39,30 @@ struct TorqueCompilerOptions {
 
   // Strips the v8-root in case the source path contains it as a prefix.
   bool strip_v8_root = false;
+
+  // Generates DWARF line info for Torque files.
+  bool torque_dwarf = false;
+
+  // Path to the metagen layout JSON (layouts.json). When set, the C++
+  // layouts it describes are verified against the Torque class layouts
+  // after type finalization; any difference is a compile error. Empty
+  // disables the check.
+  std::string layout_json_path = "";
+
+  // Takes the layouts of @cppObjectLayoutDefinition classes from the
+  // layout JSON: their .tq field blocks are replaced by fields built from
+  // the JSON records, after a strict comparison shows both describe the
+  // same layout. Off is the legacy mode, where the .tq field blocks stay
+  // authoritative and are only verified. Requires layout_json_path. This
+  // is the transition switch; the .tq field blocks will be deleted once
+  // the flag has been on by default for a while.
+  bool use_cpp_layouts = false;
+
+  // Optional path to the positions JSON (layout-positions.json) with
+  // per-member C++ source positions for diagnostics. The layout JSON has
+  // no positions so it only changes when a layout changes; this file
+  // changes when declaration positions change.
+  std::string layout_positions_path = "";
 };
 
 DECLARE_CONTEXTUAL_VARIABLE(CurrentCompilerOptions, TorqueCompilerOptions);

@@ -29,17 +29,17 @@ assertEquals(20, constTypedArray[10]);
 
 foo(13, 14);
 
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 assertEquals(14, constTypedArray[13]);
 
 // We don't optimize storing into the constant typed array, so we then also
 // don't deopt if we store out of bounds, the array buffer is detached, etc.
 foo(1000, 0);
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 ab.resize(50);
 foo(30, 0);
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 %ArrayBufferDetach(ab);
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);

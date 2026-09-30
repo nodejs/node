@@ -157,24 +157,24 @@ V8_INLINE DirectHandle<T> direct_handle(Tagged<T> object,
 }
 
 template <typename T>
-V8_INLINE DirectHandle<T> direct_handle(T object, Isolate* isolate) {
-  static_assert(kTaggedCanConvertToRawObjects);
+V8_INLINE DirectHandle<T> direct_handle(const T* object, Isolate* isolate) {
   return direct_handle(Tagged<T>(object), isolate);
 }
 
 template <typename T>
-V8_INLINE DirectHandle<T> direct_handle(T object, LocalIsolate* isolate) {
-  static_assert(kTaggedCanConvertToRawObjects);
+V8_INLINE DirectHandle<T> direct_handle(const T* object,
+                                        LocalIsolate* isolate) {
   return direct_handle(Tagged<T>(object), isolate);
 }
 
 template <typename T>
-V8_INLINE DirectHandle<T> direct_handle(T object, LocalHeap* local_heap) {
-  static_assert(kTaggedCanConvertToRawObjects);
+V8_INLINE DirectHandle<T> direct_handle(const T* object,
+                                        LocalHeap* local_heap) {
   return direct_handle(Tagged<T>(object), local_heap);
 }
 
 HandleScope::HandleScope(Isolate* isolate) {
+  DCHECK(LocalHeap::Current()->is_main_thread());
   HandleScopeData* data = isolate->handle_scope_data();
   isolate_ = isolate;
   prev_next_ = data->next;
@@ -296,10 +296,14 @@ Address* HandleScope::CreateHandle(Isolate* isolate, Address value) {
   HandleScopeData* data = isolate->handle_scope_data();
   Address* result = data->next;
   if (V8_UNLIKELY(result == data->limit)) {
-    result = Extend(isolate);
+    return ExtendAndCreateHandle(isolate, value);
   }
-  // Update the current next field, set the value in the created handle,
-  // and return the result.
+  return CreateHandleUnchecked(data, result, value);
+}
+
+V8_INLINE Address* HandleScope::CreateHandleUnchecked(HandleScopeData* data,
+                                                      Address* result,
+                                                      Address value) {
   DCHECK_LT(reinterpret_cast<Address>(result),
             reinterpret_cast<Address>(data->limit));
   data->next = reinterpret_cast<Address*>(reinterpret_cast<Address>(result) +

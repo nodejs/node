@@ -12,7 +12,7 @@
   %OptimizeMaglevOnNextCall(B);
   const o = new B();
   assertSame(B.prototype, o.__proto__);
-  assertTrue(isMaglevved(B));  // No deopt.
+  assertMaglevved(B);  // No deopt.
 })();
 
 (function OmitDefaultDerivedCtor() {
@@ -24,7 +24,7 @@
   %OptimizeMaglevOnNextCall(C);
   const o = new C();
   assertSame(C.prototype, o.__proto__);
-  assertTrue(isMaglevved(C));  // No deopt.
+  assertMaglevved(C);  // No deopt.
 })();
 
 (function OmitDefaultBaseAndDerivedCtor() {
@@ -36,7 +36,7 @@
   %OptimizeMaglevOnNextCall(C);
   const o = new C();
   assertSame(C.prototype, o.__proto__);
-  assertTrue(isMaglevved(C));  // No deopt.
+  assertMaglevved(C);  // No deopt.
 })();
 
 (function OmitDefaultBaseCtorWithExplicitSuper() {
@@ -47,7 +47,7 @@
   %OptimizeMaglevOnNextCall(B);
   const o = new B();
   assertSame(B.prototype, o.__proto__);
-  assertTrue(isMaglevved(B));  // No deopt.
+  assertMaglevved(B);  // No deopt.
 })();
 
 (function OmitDefaultDerivedCtorWithExplicitSuper() {
@@ -59,7 +59,7 @@
   %OptimizeMaglevOnNextCall(C);
   const o = new C();
   assertSame(C.prototype, o.__proto__);
-  assertTrue(isMaglevved(C));  // No deopt.
+  assertMaglevved(C);  // No deopt.
 })();
 
 (function OmitDefaultBaseAndDerivedCtorWithExplicitSuper() {
@@ -71,7 +71,7 @@
   %OptimizeMaglevOnNextCall(C);
   const o = new C();
   assertSame(C.prototype, o.__proto__);
-  assertTrue(isMaglevved(C));  // No deopt.
+  assertMaglevved(C);  // No deopt.
 })();
 
 (function OmitDefaultBaseCtorWithExplicitSuperAndNonFinalSpread() {
@@ -83,9 +83,9 @@
   const o = new B(3, 4);
   assertSame(B.prototype, o.__proto__);
   // See https://bugs.chromium.org/p/v8/issues/detail?id=13337
-  // assertTrue(isMaglevved(B));  // No deopt.
+  // assertMaglevved(B);  // No deopt.
   // This assert will fail when the above bug is fixed:
-  assertFalse(isMaglevved(B));
+  assertNotMaglevved(B);
 })();
 
 (function OmitDefaultDerivedCtorWithExplicitSuperAndNonFinalSpread() {
@@ -98,9 +98,9 @@
   const o = new C(3, 4);
   assertSame(C.prototype, o.__proto__);
   // See https://bugs.chromium.org/p/v8/issues/detail?id=13337
-  // assertTrue(isMaglevved(C));  // No deopt.
+  // assertMaglevved(C);  // No deopt.
   // This assert will fail when the above bug is fixed:
-  assertFalse(isMaglevved(C));
+  assertNotMaglevved(C);
 })();
 
 (function OmitDefaultBaseAndDerivedCtorWithExplicitSuperAndNonFinalSpread() {
@@ -113,9 +113,9 @@
   const o = new C(3, 4);
   assertSame(C.prototype, o.__proto__);
   // See https://bugs.chromium.org/p/v8/issues/detail?id=13337
-  // assertTrue(isMaglevved(C));  // No deopt.
+  // assertMaglevved(C);  // No deopt.
   // This assert will fail when the above bug is fixed:
-  assertFalse(isMaglevved(C));
+  assertNotMaglevved(C);
 })();
 
 (function NonDefaultBaseConstructorCalled() {
@@ -137,7 +137,7 @@
   assertEquals(2, ctorCallCount);
   assertEquals([1, 2, 3], lastArgs);
   assertTrue(a.baseTagged);
-  assertTrue(isMaglevved(A));  // No deopt.
+  assertMaglevved(A);  // No deopt.
 
   // 'A' default ctor will be omitted.
   class B1 extends A {};
@@ -148,7 +148,7 @@
   assertEquals(4, ctorCallCount);
   assertEquals([4, 5, 6], lastArgs);
   assertTrue(b1.baseTagged);
-  assertTrue(isMaglevved(B1));  // No deopt.
+  assertMaglevved(B1);  // No deopt.
 
   // The same test with non-final spread; 'A' default ctor will be omitted.
   class B2 extends A {
@@ -162,9 +162,9 @@
   assertEquals([1, 4, 5, 6, 2], lastArgs);
   assertTrue(b2.baseTagged);
   // See https://bugs.chromium.org/p/v8/issues/detail?id=13337
-  // assertTrue(isMaglevved(B2));  // No deopt.
+  // assertMaglevved(B2);  // No deopt.
   // This assert will fail when the above bug is fixed:
-  assertFalse(isMaglevved(B2));  // No deopt.
+  assertNotMaglevved(B2);  // No deopt.
 })();
 
 (function NonDefaultDerivedConstructorCalled() {
@@ -188,7 +188,7 @@
   assertEquals(2, ctorCallCount);
   assertEquals([1, 2, 3], lastArgs);
   assertTrue(a.derivedTagged);
-  assertTrue(isMaglevved(A));  // No deopt.
+  assertMaglevved(A);  // No deopt.
 
   // 'A' default ctor will be omitted.
   class B1 extends A {};
@@ -199,7 +199,7 @@
   assertEquals(4, ctorCallCount);
   assertEquals([4, 5, 6], lastArgs);
   assertTrue(b1.derivedTagged);
-  assertTrue(isMaglevved(B1));  // No deopt.
+  assertMaglevved(B1);  // No deopt.
 
   // The same test with non-final spread. 'A' default ctor will be omitted.
   class B2 extends A {
@@ -213,9 +213,9 @@
   assertEquals([1, 4, 5, 6, 2], lastArgs);
   assertTrue(b2.derivedTagged);
   // See https://bugs.chromium.org/p/v8/issues/detail?id=13337
-  // assertTrue(isMaglevved(B2));  // No deopt.
+  // assertMaglevved(B2);  // No deopt.
   // This assert will fail when the above bug is fixed:
-  assertFalse(isMaglevved(B2));  // No deopt.
+  assertNotMaglevved(B2);  // No deopt.
 })();
 
 (function BaseFunctionCalled() {
@@ -232,7 +232,7 @@
   const a1 = new A1();
   assertEquals(2, baseFunctionCallCount);
   assertTrue(a1.baseTagged);
-  assertTrue(isMaglevved(A1));  // No deopt.
+  assertMaglevved(A1);  // No deopt.
 
   class A2 extends BaseFunction {
     constructor(...args) { super(1, ...args, 2); }
@@ -243,7 +243,7 @@
   const a2 = new A2();
   assertEquals(4, baseFunctionCallCount);
   assertTrue(a2.baseTagged);
-  assertTrue(isMaglevved(A2));  // No deopt.
+  assertMaglevved(A2);  // No deopt.
 })();
 
 (function NonSuperclassCtor() {
@@ -379,7 +379,7 @@
   new D();
   assertEquals(2, fooCallCount);
   assertEquals(1, ctorCallCount);
-  assertFalse(isMaglevved(D));
+  assertNotMaglevved(D);
 })();
 
 // The same test as the previous one, but with a ctor with a non-final spread.
@@ -417,7 +417,7 @@
   new D();
   assertEquals(2, fooCallCount);
   assertEquals(1, ctorCallCount);
-  assertFalse(isMaglevved(D));
+  assertNotMaglevved(D);
 })();
 
 (function BasePrivateField() {
@@ -437,7 +437,7 @@
 
   const b = new B();
   assertTrue(b.isA());
-  assertTrue(isMaglevved(B));  // No deopt.
+  assertMaglevved(B);  // No deopt.
 
   %PrepareFunctionForOptimization(C1);
   new C1();
@@ -445,7 +445,7 @@
 
   const c1 = new C1();
   assertTrue(c1.isA());
-  assertTrue(isMaglevved(C1));  // No deopt.
+  assertMaglevved(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -453,7 +453,7 @@
 
   const c2 = new C2();
   assertTrue(c2.isA());
-  assertTrue(isMaglevved(C2));  // No deopt.
+  assertMaglevved(C2);  // No deopt.
 })();
 
 (function DerivedPrivateField() {
@@ -473,7 +473,7 @@
 
   const c1 = new C1();
   assertTrue(c1.isB());
-  assertTrue(isMaglevved(C1));  // No deopt.
+  assertMaglevved(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -481,7 +481,7 @@
 
   const c2 = new C2();
   assertTrue(c2.isB());
-  assertTrue(isMaglevved(C2));  // No deopt.
+  assertMaglevved(C2);  // No deopt.
 })();
 
 (function BasePrivateMethod() {
@@ -501,7 +501,7 @@
 
   const b = new B();
   assertEquals('private', b.callPrivate());
-  assertTrue(isMaglevved(B));  // No deopt.
+  assertMaglevved(B);  // No deopt.
 
   %PrepareFunctionForOptimization(C1);
   new C1();
@@ -509,7 +509,7 @@
 
   const c1 = new C1();
   assertEquals('private', c1.callPrivate());
-  assertTrue(isMaglevved(C1));  // No deopt.
+  assertMaglevved(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -517,7 +517,7 @@
 
   const c2 = new C2();
   assertEquals('private', c2.callPrivate());
-  assertTrue(isMaglevved(C2));  // No deopt.
+  assertMaglevved(C2);  // No deopt.
 })();
 
 (function DerivedPrivateMethod() {
@@ -537,7 +537,7 @@
 
   const c1 = new C1();
   assertEquals('private', c1.callPrivate());
-  assertTrue(isMaglevved(C1));  // No deopt.
+  assertMaglevved(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -545,7 +545,7 @@
 
   const c2 = new C2();
   assertEquals('private', c2.callPrivate());
-  assertTrue(isMaglevved(C2));  // No deopt.
+  assertMaglevved(C2);  // No deopt.
 })();
 
 (function BasePrivateGetter() {
@@ -565,7 +565,7 @@
 
   const b = new B();
   assertEquals('private', b.getPrivate());
-  assertTrue(isMaglevved(B));  // No deopt.
+  assertMaglevved(B);  // No deopt.
 
   %PrepareFunctionForOptimization(C1);
   new C1();
@@ -573,7 +573,7 @@
 
   const c1 = new C1();
   assertEquals('private', c1.getPrivate());
-  assertTrue(isMaglevved(C1));  // No deopt.
+  assertMaglevved(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -581,7 +581,7 @@
 
   const c2 = new C2();
   assertEquals('private', c2.getPrivate());
-  assertTrue(isMaglevved(C2));  // No deopt.
+  assertMaglevved(C2);  // No deopt.
 })();
 
 (function DerivedPrivateGetter() {
@@ -601,7 +601,7 @@
 
   const c1 = new C1();
   assertEquals('private', c1.getPrivate());
-  assertTrue(isMaglevved(C1));  // No deopt.
+  assertMaglevved(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -609,7 +609,7 @@
 
   const c2 = new C2();
   assertEquals('private', c2.getPrivate());
-  assertTrue(isMaglevved(C2));  // No deopt.
+  assertMaglevved(C2);  // No deopt.
 })();
 
 (function BasePrivateSetter() {
@@ -638,7 +638,7 @@
   const c1 = new C1();
   c1.setPrivate();
   assertEquals('private', c1.secret);
-  assertTrue(isMaglevved(C1));  // No deopt.
+  assertMaglevved(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -647,7 +647,7 @@
   const c2 = new C2();
   c2.setPrivate();
   assertEquals('private', c2.secret);
-  assertTrue(isMaglevved(C2));  // No deopt.
+  assertMaglevved(C2);  // No deopt.
 })();
 
 (function DerivedPrivateSetter() {
@@ -668,7 +668,7 @@
   const c1 = new C1();
   c1.setPrivate();
   assertEquals('private', c1.secret);
-  assertTrue(isMaglevved(C1));  // No deopt.
+  assertMaglevved(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -677,7 +677,7 @@
   const c2 = new C2();
   c2.setPrivate();
   assertEquals('private', c2.secret);
-  assertTrue(isMaglevved(C2));  // No deopt.
+  assertMaglevved(C2);  // No deopt.
 })();
 
 (function BaseClassFields() {
@@ -701,7 +701,7 @@
 
   const c1 = new C1();
   assertTrue(c1.aField);
-  assertTrue(isMaglevved(C1));  // No deopt.
+  assertMaglevved(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -709,7 +709,7 @@
 
   const c2 = new C2();
   assertTrue(c2.aField);
-  assertTrue(isMaglevved(C2));  // No deopt.
+  assertMaglevved(C2);  // No deopt.
 })();
 
 (function DerivedClassFields() {
@@ -726,7 +726,7 @@
 
   const c1 = new C1();
   assertTrue(c1.bField);
-  assertTrue(isMaglevved(C1));  // No deopt.
+  assertMaglevved(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -734,5 +734,5 @@
 
   const c2 = new C2();
   assertTrue(c2.bField);
-  assertTrue(isMaglevved(C2));  // No deopt.
+  assertMaglevved(C2);  // No deopt.
 })();

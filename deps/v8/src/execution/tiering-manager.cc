@@ -4,8 +4,10 @@
 
 #include "src/execution/tiering-manager.h"
 
+#include <algorithm>
 #include <optional>
 
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/platform/platform.h"
 #include "src/baseline/baseline.h"
 #include "src/codegen/assembler.h"
@@ -177,21 +179,54 @@ bool TiersUpToMaglev(std::optional<CodeKind> code_kind) {
   return code_kind.has_value() && TiersUpToMaglev(code_kind.value());
 }
 
+// Decrease times of interrupt budget underflow, the reason of not setting
+// to INT_MAX is the interrupt budget may overflow when doing add
+// operation for forward jump.
+constexpr int kMaxInterruptBudget = INT_MAX / 2;
+
+int ScaleInterruptBudget(int64_t invocations, int bytecode_length) {
+  int64_t budget = invocations * bytecode_length;
+  return static_cast<int>(std::clamp<int64_t>(budget, 0, kMaxInterruptBudget));
+}
+
+int ScaleInterruptBudget(double invocations, int bytecode_length) {
+  double budget = invocations * bytecode_length;
+  return std::clamp(base::saturated_cast<int>(budget), 0, kMaxInterruptBudget);
+}
+
 int InterruptBudgetFor(Isolate* isolate, std::optional<CodeKind> code_kind,
                        Tagged<JSFunction> function,
                        CachedTieringDecision cached_tiering_decision,
                        int bytecode_length) {
-  // Avoid interrupts while we're already tiering.
-  if (function->tiering_in_progress()) return INT_MAX / 2;
-
   const std::optional<CodeKind> existing_request =
       function->GetRequestedOptimizationIfAny(isolate);
-  if (existing_request == CodeKind::TURBOFAN_JS ||
-      (code_kind.has_value() && code_kind.value() == CodeKind::TURBOFAN_JS)) {
-    return v8_flags.invocation_count_for_osr * bytecode_length;
+
+  bool maybe_ml_osr =
+      maglev::IsMaglevOsrEnabled() && existing_request == CodeKind::MAGLEV;
+  bool maybe_tf_osr =
+      v8_flags.use_osr &&
+      (existing_request == CodeKind::TURBOFAN_JS ||
+       (code_kind.has_value() && code_kind.value() == CodeKind::TURBOFAN_JS));
+  bool tiering_in_progress = function->tiering_in_progress();
+  bool osr_tiering_in_progress = function->osr_tiering_in_progress();
+
+  // Avoid interrupts while we're already tiering.
+  if (tiering_in_progress && !osr_tiering_in_progress) {
+    return kMaxInterruptBudget;
   }
-  if (maglev::IsMaglevOsrEnabled() && existing_request == CodeKind::MAGLEV) {
-    return v8_flags.invocation_count_for_maglev_osr * bytecode_length;
+
+  // Stretch loop interrupts while tiering is already in progress.
+  double osr_factor =
+      osr_tiering_in_progress
+          ? v8_flags.invocation_count_for_osr_factor_while_tiering_in_progress
+          : 1;
+  if (maybe_tf_osr) {
+    return ScaleInterruptBudget(osr_factor * v8_flags.invocation_count_for_osr,
+                                bytecode_length);
+  }
+  if (maybe_ml_osr) {
+    return ScaleInterruptBudget(
+        osr_factor * v8_flags.invocation_count_for_maglev_osr, bytecode_length);
   }
 
   if (TiersUpToMaglev(code_kind) &&
@@ -199,27 +234,32 @@ int InterruptBudgetFor(Isolate* isolate, std::optional<CodeKind> code_kind,
     if (v8_flags.profile_guided_optimization) {
       switch (cached_tiering_decision) {
         case CachedTieringDecision::kDelayMaglev:
-          return (std::max(v8_flags.invocation_count_for_maglev,
-                           v8_flags.minimum_invocations_after_ic_update) +
-                  v8_flags.invocation_count_for_maglev_with_delay) *
-                 bytecode_length;
+          return ScaleInterruptBudget(
+              int64_t{std::max(v8_flags.invocation_count_for_maglev,
+                               v8_flags.minimum_invocations_after_ic_update)} +
+                  v8_flags.invocation_count_for_maglev_with_delay,
+              bytecode_length);
         case CachedTieringDecision::kEarlyMaglev:
         case CachedTieringDecision::kEarlyTurbofan:
-          return v8_flags.invocation_count_for_early_optimization *
-                 bytecode_length;
+          return ScaleInterruptBudget(
+              int64_t{v8_flags.invocation_count_for_early_optimization},
+              bytecode_length);
         case CachedTieringDecision::kPending:
         case CachedTieringDecision::kEarlySparkplug:
         case CachedTieringDecision::kNormal:
-          return v8_flags.invocation_count_for_maglev * bytecode_length;
+          return ScaleInterruptBudget(
+              int64_t{v8_flags.invocation_count_for_maglev}, bytecode_length);
       }
       // The enum value is coming from inside the sandbox and while the switch
       // is exhaustive, it's not guaranteed that value is one of the declared
       // values.
       UNREACHABLE();
     }
-    return v8_flags.invocation_count_for_maglev * bytecode_length;
+    return ScaleInterruptBudget(int64_t{v8_flags.invocation_count_for_maglev},
+                                bytecode_length);
   }
-  return v8_flags.invocation_count_for_turbofan * bytecode_length;
+  return ScaleInterruptBudget(int64_t{v8_flags.invocation_count_for_turbofan},
+                              bytecode_length);
 }
 
 }  // namespace
@@ -233,15 +273,14 @@ int TieringManager::InterruptBudgetFor(
       function->shared()->GetBytecodeArray(isolate)->length();
 
   if (FirstTimeTierUpToSparkplug(isolate, function)) {
-    return bytecode_length * v8_flags.invocation_count_for_feedback_allocation;
+    return ScaleInterruptBudget(
+        int64_t{v8_flags.invocation_count_for_feedback_allocation},
+        bytecode_length);
   }
 
   DCHECK(function->has_feedback_vector());
   if (bytecode_length > v8_flags.max_optimized_bytecode_size) {
-    // Decrease times of interrupt budget underflow, the reason of not setting
-    // to INT_MAX is the interrupt budget may overflow when doing add
-    // operation for forward jump.
-    return INT_MAX / 2;
+    return kMaxInterruptBudget;
   }
   return ::i::InterruptBudgetFor(
       isolate,
@@ -421,7 +460,7 @@ OptimizationDecision TieringManager::ShouldOptimize(
   if (isolate_->EfficiencyModeEnabled() &&
       v8_flags.efficiency_mode_delay_turbofan_multiply &&
       feedback_vector->invocation_count() <
-          v8_flags.invocation_count_for_turbofan *
+          int64_t{v8_flags.invocation_count_for_turbofan} *
               v8_flags.efficiency_mode_delay_turbofan_multiply) {
     return OptimizationDecision::DoNotOptimize();
   }
@@ -473,9 +512,11 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
     Tagged<SharedFunctionInfo> shared = vector->shared_function_info();
     int bytecode_length = shared->GetBytecodeArray(isolate_)->length();
     Tagged<FeedbackCell> cell = vector->parent_feedback_cell();
-    int invocations = v8_flags.minimum_invocations_after_ic_update;
-    int bytecodes = std::min(bytecode_length, (kMaxInt >> 1) / invocations);
-    int new_budget = invocations * bytecodes;
+    int invocations =
+        std::max(1, v8_flags.minimum_invocations_after_ic_update.value());
+    int bytecodes = std::max(
+        1, std::min(bytecode_length, kMaxInterruptBudget / invocations));
+    int new_budget = ScaleInterruptBudget(int64_t{invocations}, bytecodes);
     int current_budget = cell->interrupt_budget();
     if (v8_flags.profile_guided_optimization &&
         shared->cached_tiering_decision() <=
@@ -490,21 +531,23 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
         if (vector->interrupt_budget_reset_by_ic_change()) {
           // Initial interrupt budget is
           // v8_flags.minimum_invocations_after_ic_update * bytecodes
-          int new_consumed_budget = new_budget - current_budget;
+          int64_t new_consumed_budget = int64_t{new_budget} - current_budget;
           new_invocation_count_before_stable =
               vector->invocation_count_before_stable(kRelaxedLoad) +
-              std::ceil(static_cast<float>(new_consumed_budget) / bytecodes);
+              base::saturated_cast<int>(std::ceil(
+                  static_cast<double>(new_consumed_budget) / bytecodes));
         } else {
           // Initial interrupt budget is
           // v8_flags.invocation_count_for_{maglev|turbofan} * bytecodes
-          int total_consumed_budget =
-              (maglev::IsMaglevEnabled()
-                   ? v8_flags.invocation_count_for_maglev
-                   : v8_flags.invocation_count_for_turbofan) *
+          int64_t total_consumed_budget =
+              int64_t{maglev::IsMaglevEnabled()
+                          ? v8_flags.invocation_count_for_maglev
+                          : v8_flags.invocation_count_for_turbofan} *
                   bytecodes -
               current_budget;
           new_invocation_count_before_stable =
-              std::ceil(static_cast<float>(total_consumed_budget) / bytecodes);
+              base::saturated_cast<int>(std::ceil(
+                  static_cast<double>(total_consumed_budget) / bytecodes));
         }
         if (new_invocation_count_before_stable >=
             v8_flags.invocation_count_for_early_optimization) {
@@ -535,8 +578,8 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
 }
 
 TieringManager::OnInterruptTickScope::OnInterruptTickScope() {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.MarkCandidatesForOptimization");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+              "V8.MarkCandidatesForOptimization");
 }
 
 void TieringManager::OnInterruptTick(DirectHandle<JSFunction> function,

@@ -22,7 +22,7 @@ foo(100);
 %OptimizeMaglevOnNextCall(foo);
 foo(100);
 assertEquals(100, global);
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 // If we create a large JSTypedArray (length doesn't fit in Smi), we'll deopt
 // because the large length doesn't match the existing type for global.
@@ -30,5 +30,5 @@ if (%Is64Bit()) {
   const largeLength = 8589934592;
   foo(largeLength);
   assertEquals(largeLength, global);
-  assertFalse(isMaglevved(foo));
+  assertNotMaglevved(foo);
 }

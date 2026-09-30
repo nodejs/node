@@ -7,20 +7,35 @@
 
 #include <bitset>
 
+#include "include/v8config.h"
+#include "src/base/bit-field.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
+#include "src/codegen/label.h"
 #include "src/regexp/regexp-flags.h"
 #include "src/regexp/regexp-nodes.h"
 
 namespace v8 {
 namespace internal {
 
-class DynamicBitSet;
 class Isolate;
-class SpecialLoopState;
-class RegExpDiagnostics;
 
-namespace regexp_compiler_constants {
+namespace regexp {
+
+class Diagnostics;
+class DynamicBitSet;
+class SpecialLoopState;
+
+class NonAssertingLabel : public Label {
+ public:
+  explicit NonAssertingLabel(Compiler* compiler) : compiler_(compiler) {}
+  ~NonAssertingLabel();
+
+ private:
+  Compiler* compiler_;
+};
+
+namespace compiler_constants {
 
 // The '2' variant is has inclusive from and exclusive to.
 // This covers \s as defined in ECMA-262 5.1, 15.10.2.12,
@@ -50,9 +65,9 @@ constexpr uint32_t kMaxLookaheadForBoyerMoore = 8;
 // at a time, which is not always enough to pay for the extra logic.
 constexpr uint32_t kPatternTooShortForBoyerMoore = 2;
 
-}  // namespace regexp_compiler_constants
+}  // namespace compiler_constants
 
-inline bool NeedsUnicodeCaseEquivalents(RegExpFlags flags) {
+inline bool NeedsUnicodeCaseEquivalents(Flags flags) {
   // Both unicode (or unicode sets) and ignore_case flags are set. We need to
   // use ICU to find the closure over case equivalents.
   return IsEitherUnicode(flags) && IsIgnoreCase(flags);
@@ -114,8 +129,10 @@ class QuickCheckDetails {
     DCHECK_GT(characters_, index);
     return positions_ + index;
   }
-  uint32_t mask() { return mask_; }
-  uint32_t value() { return value_; }
+  uint32_t mask() const { return mask_; }
+  uint32_t value() const { return value_; }
+  void set_mask(uint32_t mask) { mask_ = mask; }
+  void set_value(uint32_t value) { value_ = value; }
 
  private:
   static constexpr int kMaxPositions = 4;
@@ -191,11 +208,11 @@ class BoyerMoorePositionInfo : public ZoneObject {
 
 class BoyerMooreLookahead : public ZoneObject {
  public:
-  BoyerMooreLookahead(int length, RegExpCompiler* compiler, Zone* zone);
+  BoyerMooreLookahead(int length, Compiler* compiler, Zone* zone);
 
   int length() const { return length_; }
   int max_char() { return max_char_; }
-  RegExpCompiler* compiler() { return compiler_; }
+  Compiler* compiler() { return compiler_; }
 
   int Count(int map_number) { return bitmaps_->at(map_number)->map_count(); }
 
@@ -223,7 +240,38 @@ class BoyerMooreLookahead : public ZoneObject {
   void SetRest(int from_map) {
     for (int i = from_map; i < length_; i++) SetAll(i);
   }
-  void EmitSkipInstructions(RegExpMacroAssembler* masm);
+  // Emits a Boyer-Moore skip-scan prelude for the unanchored search, if
+  // profitable. Returns true iff code that owns the search was emitted: either
+  // a skip-scan, or an unconditional Fail() when some lookahead position can
+  // never match. In both cases the caller must not emit a competing scan over
+  // the same loop. Returns false iff nothing was emitted (PC unchanged) and the
+  // caller should fall back to another strategy.
+  bool EmitSkipInstructions(RegExpMacroAssembler* masm);
+
+  // Exposes the BitInTable skip-scan inputs without emitting: picks the most
+  // discriminating lookahead interval and builds the boolean (and SIMD nibble)
+  // table for it. *offset is the lookahead position to test (the SkipUntil*
+  // cp_offset); *advance_by is the per-iteration stride. Returns false if no
+  // worthwhile interval exists. Used by ChoiceNode::EmitOneOfMasked3Search to
+  // build the leading scan of a fused SkipUntilOneOfMasked3.
+  bool BuildSkipTable(RegExpMacroAssembler* masm, int* offset, int* advance_by,
+                      Handle<ByteArray>* table,
+                      Handle<ByteArray>* nibble_table);
+
+  // Fills |boolean_skip_table| (one byte per character, indexed mod kTableSize)
+  // with 1 for every character in the lookahead maps [min_lookahead,
+  // max_lookahead] and 0 elsewhere, and optionally the SIMD |nibble_table|.
+  // Returns the resulting skip stride. With a single map (min == max) this is
+  // just that position's membership table.
+  int GetSkipTable(
+      int min_lookahead, int max_lookahead,
+      DirectHandle<ByteArray> boolean_skip_table,
+      DirectHandle<ByteArray> nibble_table = DirectHandle<ByteArray>{});
+
+  // Transient probes opt out so they don't clobber the shared bm_info_ (see
+  // Node::set_bm_info).
+  bool caches_node_info() const { return caches_node_info_; }
+  void set_caches_node_info(bool value) { caches_node_info_ = value; }
 
  private:
   // This is the value obtained by EatsAtLeast.  If we do not have at least this
@@ -231,15 +279,12 @@ class BoyerMooreLookahead : public ZoneObject {
   // Therefore it is OK to read a character this far ahead of the current match
   // point.
   int length_;
-  RegExpCompiler* compiler_;
+  Compiler* compiler_;
   // 0xff for Latin1, 0xffff for UTF-16.
   int max_char_;
   ZoneList<BoyerMoorePositionInfo*>* bitmaps_;
+  bool caches_node_info_ = true;
 
-  int GetSkipTable(
-      int min_lookahead, int max_lookahead,
-      DirectHandle<ByteArray> boolean_skip_table,
-      DirectHandle<ByteArray> nibble_table = DirectHandle<ByteArray>{});
   bool FindWorthwhileInterval(int* from, int* to);
   int FindBestInterval(int max_number_of_chars, int old_biggest_points,
                        int* from, int* to);
@@ -260,13 +305,14 @@ class Trace {
  public:
   // A value for a property that is either known to be true, known to be false,
   // or not known.
-  enum TriBool { UNKNOWN = -1, FALSE_VALUE = 0, TRUE_VALUE = 1 };
+  enum TriBool { FALSE_VALUE = 0, TRUE_VALUE = 1, UNKNOWN = 2 };
 
   Trace()
       : cp_offset_(0),
         flush_budget_(100),  // Note: this is a 16 bit field.
-        at_start_(UNKNOWN),
-        has_any_actions_(false),
+        flags_(AtStartField::encode(UNKNOWN) |
+               HasAnyActionsField::encode(false) |
+               ParkedGrantField::encode(ParkedGrant::kNone)),
         action_(nullptr),
         backtrack_(nullptr),
         special_loop_state_(nullptr),
@@ -277,8 +323,7 @@ class Trace {
   Trace(const Trace& other) V8_NOEXCEPT
       : cp_offset_(other.cp_offset_),
         flush_budget_(other.flush_budget_),
-        at_start_(other.at_start_),
-        has_any_actions_(other.has_any_actions_),
+        flags_(other.flags_),
         action_(nullptr),
         backtrack_(other.backtrack_),
         special_loop_state_(other.special_loop_state_),
@@ -298,7 +343,7 @@ class Trace {
     // ignored and need not be written.
     kFlushSuccess
   };
-  EmitResult Flush(RegExpCompiler* compiler, RegExpNode* successor,
+  EmitResult Flush(Compiler* compiler, Node* successor,
                    FlushMode mode = kFlushFull);
 
   // Some callers add/subtract 1 from cp_offset, assuming that the result is
@@ -312,7 +357,7 @@ class Trace {
   int cp_offset() const { return cp_offset_; }
 
   // Does any trace in the chain have an action?
-  bool has_any_actions() const { return has_any_actions_; }
+  bool has_any_actions() const { return HasAnyActionsField::decode(flags_); }
   // Does this particular trace object have an action?
   bool has_action() const { return action_ != nullptr; }
   ActionNode* action() const { return action_; }
@@ -327,13 +372,28 @@ class Trace {
   // a trivial trace is recorded in a label in the node so that gotos can be
   // generated to that code.
   bool is_trivial() const {
-    return backtrack_ == nullptr && !has_any_actions_ && cp_offset_ == 0 &&
+    return backtrack_ == nullptr && !has_any_actions() && cp_offset_ == 0 &&
            characters_preloaded_ == 0 && bound_checked_up_to_ == 0 &&
-           quick_check_performed_.characters() == 0 && at_start_ == UNKNOWN;
+           quick_check_performed_.characters() == 0 && at_start() == UNKNOWN;
   }
-  TriBool at_start() const { return at_start_; }
-  void set_at_start(TriBool at_start) { at_start_ = at_start; }
+  TriBool at_start() const { return AtStartField::decode(flags_); }
+  void set_at_start(TriBool at_start) {
+    flags_ = AtStartField::update(flags_, at_start);
+  }
   Label* backtrack() const { return backtrack_; }
+  // What the loop-exit backtrack target tolerates when a drain-omitted loop
+  // unwinds to it with the input position parked at the loop's greedy extent
+  // (see ParkedGrant for the levels, and the terminology block in
+  // regexp-nodes.h for "loop-exit backtrack").  The parked position can be
+  // anywhere in [trace position, subject end] -- including the end itself, so
+  // the search-retry re-entry reloads with a bounds check.
+  //
+  // The grant is issued only at emission sites where the target's behavior is
+  // known by construction, and is revoked automatically whenever the backtrack
+  // target changes (see set_backtrack).  Crossing a choice into an alternative
+  // additionally requires that no sibling can match at a skipped position
+  // (see ChoiceNode::EmitChoices).
+  ParkedGrant parked_grant() const { return ParkedGrantField::decode(flags_); }
   SpecialLoopState* special_loop_state() const { return special_loop_state_; }
   int characters_preloaded() const { return characters_preloaded_; }
   int bound_checked_up_to() const { return bound_checked_up_to_; }
@@ -349,9 +409,24 @@ class Trace {
   void add_action(ActionNode* new_action) {
     DCHECK(action_ == nullptr);  // Otherwise we lose an action.
     action_ = new_action;
-    has_any_actions_ = true;
+    flags_ = HasAnyActionsField::update(flags_, true);
   }
-  void set_backtrack(Label* backtrack) { backtrack_ = backtrack; }
+  // Clears any inherited parked-position grant; see parked_grant() for when
+  // an alternative must do this.
+  void reset_parked_grant() {
+    flags_ = ParkedGrantField::update(flags_, ParkedGrant::kNone);
+  }
+  void set_backtrack(Label* backtrack) {
+    backtrack_ = backtrack;
+    // A parked-position grant is tied to the specific target it was issued
+    // for; a new target must obtain its own.
+    reset_parked_grant();
+  }
+  void set_parked_grant(ParkedGrant grant) {
+    DCHECK_NOT_NULL(backtrack_);
+    DCHECK_NE(grant, ParkedGrant::kNone);
+    flags_ = ParkedGrantField::update(flags_, grant);
+  }
   void set_special_loop_state(SpecialLoopState* state) {
     special_loop_state_ = state;
   }
@@ -365,10 +440,10 @@ class Trace {
     quick_check_performed_ = *d;
   }
   void InvalidateCurrentCharacter();
-  EmitResult AdvanceCurrentPositionInTrace(int by, RegExpCompiler* compiler);
+  EmitResult AdvanceCurrentPositionInTrace(int by, Compiler* compiler);
   const Trace* next() const { return next_; }
 
-  class ConstIterator final {
+  class V8_GSL_POINTER ConstIterator final {
    public:
     ConstIterator& operator++() {
       trace_ = trace_->next();
@@ -414,10 +489,16 @@ class Trace {
                                 const DynamicBitSet& registers_to_clear);
   void ScanDeferredActions(Trace* top, int reg, RegisterFlushInfo* info);
 
+  // Whether we are at the start of the string.
+  using AtStartField = base::BitField<TriBool, 0, 2>;
+  // Whether any trace in the chain has an action.
+  using HasAnyActionsField = AtStartField::Next<bool, 1>;
+  // See parked_grant.
+  using ParkedGrantField = HasAnyActionsField::Next<ParkedGrant, 2>;
+
   int cp_offset_;
   uint16_t flush_budget_;
-  TriBool at_start_ : 8;      // Whether we are at the start of the string.
-  bool has_any_actions_ : 8;  // Whether any trace in the chain has an action.
+  uint32_t flags_;
   ActionNode* action_;
   Label* backtrack_;
   SpecialLoopState* special_loop_state_;
@@ -432,7 +513,8 @@ class Trace {
 // regexp).
 class SpecialLoopState {
  public:
-  explicit SpecialLoopState(bool not_at_start, ChoiceNode* loop_choice_node);
+  SpecialLoopState(Compiler* compiler, bool not_at_start,
+                   ChoiceNode* loop_choice_node);
 
   void BindStepLabel(RegExpMacroAssembler* macro_assembler);
   void BindLoopTopLabel(RegExpMacroAssembler* macro_assembler);
@@ -443,8 +525,8 @@ class SpecialLoopState {
  private:
   // Step backwards (fixed length greed loop) or forwards (non-greedy
   // omnivourous loop.
-  Label step_label_;
-  Label loop_top_label_;
+  NonAssertingLabel step_label_;
+  NonAssertingLabel loop_top_label_;
   ChoiceNode* loop_choice_node_;
   Trace backtrack_trace_;
 };
@@ -461,8 +543,7 @@ struct PreloadState {
 // Analysis performs assertion propagation and computes eats_at_least_ values.
 // See the comments on AssertionPropagator and EatsAtLeastPropagator for more
 // details.
-RegExpError AnalyzeRegExp(Isolate* isolate, bool is_one_byte, RegExpFlags flags,
-                          RegExpNode* node);
+Error AnalyzeRegExp(Isolate* isolate, bool is_one_byte, Node* node);
 
 class FrequencyCollator {
  public:
@@ -509,10 +590,10 @@ class FrequencyCollator {
   int total_samples_;
 };
 
-class RegExpCompiler {
+class V8_EXPORT_PRIVATE Compiler {
  public:
-  RegExpCompiler(Isolate* isolate, Zone* zone, int capture_count,
-                 RegExpFlags flags, bool is_one_byte);
+  Compiler(Isolate* isolate, Zone* zone, int capture_count, Flags flags,
+           bool is_one_byte);
 
   int AllocateRegister() {
     if (next_register_ >= RegExpMacroAssembler::kMaxRegister) {
@@ -539,24 +620,24 @@ class RegExpCompiler {
   }
 
   struct CompilationResult final {
-    explicit CompilationResult(RegExpError err) : error(err) {}
+    explicit CompilationResult(Error err) : error(err) {}
     CompilationResult(DirectHandle<Object> code, int registers)
         : code(code), num_registers(registers) {}
 
     static CompilationResult RegExpTooBig() {
-      return CompilationResult(RegExpError::kTooLarge);
+      return CompilationResult(Error::kTooLarge);
     }
 
-    bool Succeeded() const { return error == RegExpError::kNone; }
+    bool Succeeded() const { return error == Error::kNone; }
 
-    const RegExpError error = RegExpError::kNone;
+    const Error error = Error::kNone;
     DirectHandle<Object> code;
     int num_registers = 0;
   };
 
   CompilationResult Assemble(Isolate* isolate, RegExpMacroAssembler* assembler,
-                             RegExpNode* start, int capture_count,
-                             DirectHandle<String> pattern);
+                             Node* start, int capture_count,
+                             DirectHandle<RegExpData> re_data);
 
   // Preprocessing is the final step of node creation before analysis
   // and assembly. It includes:
@@ -564,16 +645,20 @@ class RegExpCompiler {
   // - Inserting the implicit .* before/after the regexp if necessary.
   // - If the input is a one-byte string, filtering out nodes that can't match.
   // - Fixing up regexp matches that start within a surrogate pair.
-  RegExpNode* PreprocessRegExp(RegExpCompileData* data, bool is_one_byte);
+  Node* PreprocessRegExp(CompileData* data, bool is_one_byte);
 
   // If the regexp matching starts within a surrogate pair, step back to the
   // lead surrogate and start matching from there.
-  RegExpNode* OptionallyStepBackToLeadSurrogate(RegExpNode* on_success);
+  Node* OptionallyStepBackToLeadSurrogate(Node* on_success);
 
-  inline void AddWork(RegExpNode* node) {
+  struct WorkItem {
+    Node* node;
+  };
+
+  inline void AddWork(Node* node) {
     if (!node->on_work_list() && !node->label()->is_bound()) {
       node->set_on_work_list(true);
-      work_list_->push_back(node);
+      work_list_->push_back({node});
     }
   }
 
@@ -596,8 +681,8 @@ class RegExpCompiler {
   inline void IncrementRecursionDepth() { recursion_depth_++; }
   inline void DecrementRecursionDepth() { recursion_depth_--; }
 
-  inline RegExpFlags flags() const { return flags_; }
-  inline void set_flags(RegExpFlags flags) { flags_ = flags; }
+  inline Flags flags() const { return flags_; }
+  inline void set_flags(Flags flags) { flags_ = flags; }
 
   void SetRegExpTooBig() { reg_exp_too_big_ = true; }
   bool IsRegExpTooBig() const { return reg_exp_too_big_; }
@@ -611,6 +696,7 @@ class RegExpCompiler {
   }
   bool read_backward() { return read_backward_; }
   void set_read_backward(bool value) { read_backward_ = value; }
+  bool has_search_prefix() const { return has_search_prefix_; }
   FrequencyCollator* frequency_collator() { return &frequency_collator_; }
 
   int current_expansion_factor() { return current_expansion_factor_; }
@@ -631,8 +717,8 @@ class RegExpCompiler {
   void ToNodeCheckForStackOverflow();
 
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
-  RegExpDiagnostics* diagnostics() { return diagnostics_.get(); }
-  void set_diagnostics(std::unique_ptr<RegExpDiagnostics> diagnostics);
+  Diagnostics* diagnostics() { return diagnostics_.get(); }
+  void set_diagnostics(std::unique_ptr<Diagnostics> diagnostics);
 #endif
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
@@ -640,13 +726,18 @@ class RegExpCompiler {
   static const int kNoRegister = -1;
 
  private:
+  // Computes the filters that let RegExpExecInternal reject a match attempt
+  // without entering the engine. Defined next to the match-set helpers it
+  // shares.
+  void ComputeQuickCheckFilters(Node* start, DirectHandle<RegExpData> re_data);
+
   EndNode* accept_;
   int next_register_;
   int unicode_lookaround_stack_register_;
   int unicode_lookaround_position_register_;
-  ZoneVector<RegExpNode*>* work_list_;
+  ZoneVector<WorkItem>* work_list_;
   int recursion_depth_;
-  RegExpFlags flags_;
+  Flags flags_;
   RegExpMacroAssembler* macro_assembler_;
   bool one_byte_;
   bool reg_exp_too_big_;
@@ -654,10 +745,12 @@ class RegExpCompiler {
   int to_node_overflow_check_ticks_ = 0;
   bool optimize_;
   bool read_backward_;
+  // Set by PreprocessRegExp when it prepends the `.*?` search loop.
+  bool has_search_prefix_ = false;
   int current_expansion_factor_;
   FrequencyCollator frequency_collator_;
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
-  std::unique_ptr<RegExpDiagnostics> diagnostics_;
+  std::unique_ptr<Diagnostics> diagnostics_;
 #endif
   Isolate* isolate_;
   Zone* zone_;
@@ -693,6 +786,7 @@ class UnicodeRangeSplitter {
 // TODO(jgruber): Move to CharacterRange.
 bool RangeContainsLatin1Equivalents(CharacterRange range);
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

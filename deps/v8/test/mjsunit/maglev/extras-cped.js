@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --maglev
 
 const {
   getExtrasBindingObject,
@@ -36,4 +36,4 @@ runTestOpt(5);
 runTestOpt(5.5);
 runTestOpt({});
 
-assertTrue(isMaglevved(testOpt));
+assertMaglevved(testOpt);

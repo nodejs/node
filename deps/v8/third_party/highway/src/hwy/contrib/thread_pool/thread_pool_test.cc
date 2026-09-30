@@ -31,7 +31,6 @@
 #include "hwy/base.h"  // PopCount
 #include "hwy/contrib/thread_pool/spin.h"
 #include "hwy/contrib/thread_pool/topology.h"
-#include "hwy/profiler.h"
 #include "hwy/tests/hwy_gtest.h"
 #include "hwy/tests/test_util-inl.h"  // AdjustedReps
 
@@ -238,20 +237,19 @@ TEST(ThreadPoolTest, TestWaiter) {
     auto storage = hwy::AllocateAligned<uint8_t>(num_workers * sizeof(Worker));
     HWY_ASSERT(storage);
     const Divisor64 div_workers(num_workers);
+    Shared& shared = Shared::Get();  // already calls ReserveWorker(0).
 
     for (WaitType wait_type :
          {WaitType::kBlock, WaitType::kSpin1, WaitType::kSpinSeparate}) {
-      Worker* workers =
-          pool::WorkerLifecycle::Init(storage.get(), num_threads, div_workers);
+      Worker* workers = pool::WorkerLifecycle::Init(
+          storage.get(), num_threads, PoolWorkerMapping(), div_workers, shared);
 
       alignas(8) const Config config(SpinType::kPause, wait_type);
 
       // This thread acts as the "main thread", which will wake the actual main
       // and all its worker instances.
-      std::thread thread([&]() {
-        hwy::Profiler::InitThread();
-        CallWithConfig(config, DoWakeWorkers(workers));
-      });
+      std::thread thread(
+          [&]() { CallWithConfig(config, DoWakeWorkers(workers)); });
 
       // main is 0
       for (size_t worker = 1; worker < num_workers; ++worker) {
@@ -271,8 +269,10 @@ TEST(ThreadPoolTest, TestTasks) {
     auto storage = hwy::AllocateAligned<uint8_t>(num_workers * sizeof(Worker));
     HWY_ASSERT(storage);
     const Divisor64 div_workers(num_workers);
-    Worker* workers =
-        WorkerLifecycle::Init(storage.get(), num_threads, div_workers);
+    Shared& shared = Shared::Get();
+    Stats stats;
+    Worker* workers = WorkerLifecycle::Init(
+        storage.get(), num_threads, PoolWorkerMapping(), div_workers, shared);
 
     constexpr uint64_t kMaxTasks = 20;
     uint64_t mementos[kMaxTasks];  // non-atomic, no threads involved.
@@ -294,7 +294,7 @@ TEST(ThreadPoolTest, TestTasks) {
         Tasks::DivideRangeAmongWorkers(begin, end, div_workers, workers);
         // The `tasks < workers` special case requires running by all workers.
         for (size_t worker = 0; worker < num_workers; ++worker) {
-          tasks.WorkerRun(workers + worker);
+          tasks.WorkerRun(workers + worker, shared, stats);
         }
 
         // Ensure all tasks were run.
@@ -314,8 +314,6 @@ TEST(ThreadPoolTest, TestTasks) {
 TEST(ThreadPoolTest, TestPool) {
   if (!hwy::HaveThreadingSupport()) return;
 
-  hwy::ThreadPool inner(0);
-
   constexpr uint64_t kMaxTasks = 20;
   static std::atomic<uint64_t> mementos[kMaxTasks];
   static std::atomic<uint64_t> a_begin;
@@ -323,7 +321,7 @@ TEST(ThreadPoolTest, TestPool) {
   static std::atomic<uint64_t> a_num_workers;
 
   // Called by pool; sets mementos and runs a nested but serial Run.
-  const auto func = [&inner](uint64_t task, size_t worker) {
+  const auto func = [](uint64_t task, size_t worker) {
     HWY_ASSERT(worker < a_num_workers.load());
     const uint64_t begin = a_begin.load(std::memory_order_acquire);
     const uint64_t end = a_end.load(std::memory_order_acquire);
@@ -336,7 +334,9 @@ TEST(ThreadPoolTest, TestPool) {
     // Store mementos ensure we visited each task.
     mementos[task - begin].store(1000 + task);
 
-    // Re-entering Run is fine on a 0-worker pool.
+    // Re-entering Run is fine on a 0-worker pool. Note that this must be
+    // per-thread so that it gets the `global_idx` it is running on.
+    hwy::ThreadPool inner(0);
     inner.Run(begin, end,
               [begin, end](uint64_t inner_task, size_t inner_worker) {
                 HWY_ASSERT(inner_worker == 0);

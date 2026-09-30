@@ -16,7 +16,12 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
+#include <iterator>
 #include <string>
+
+#include "absl/base/config.h"
+#include "absl/strings/internal/charconv_parse.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --sandbox-testing
+// Flags: --sandbox-testing --mock-arraybuffer-allocator
 
 const kHeapObjectTag = 1;
 const kSandboxedPointerShift = 24n;

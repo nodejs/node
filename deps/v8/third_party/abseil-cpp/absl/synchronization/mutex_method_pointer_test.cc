@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/synchronization/mutex.h"
-
-#include <cstdlib>
 #include <string>
 
 #include "gtest/gtest.h"
-#include "absl/base/config.h"
+
+#ifdef _MSC_VER
+#include "absl/synchronization/mutex.h"
+#endif
 
 namespace {
 

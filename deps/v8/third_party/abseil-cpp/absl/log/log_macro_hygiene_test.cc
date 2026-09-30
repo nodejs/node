@@ -77,7 +77,7 @@ TEST(LogHygieneTest, WorksForQualifiedSeverity) {
 }
 
 TEST(LogHygieneTest, WorksWithAlternativeINFOSymbol) {
-  const double INFO ABSL_ATTRIBUTE_UNUSED = 7.77;
+  const double INFO [[maybe_unused]] = 7.77;
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
 
   EXPECT_CALL(test_sink, Log(absl::LogSeverity::kInfo, _, "Hello world"));
@@ -87,7 +87,7 @@ TEST(LogHygieneTest, WorksWithAlternativeINFOSymbol) {
 }
 
 TEST(LogHygieneTest, WorksWithAlternativeWARNINGSymbol) {
-  const double WARNING ABSL_ATTRIBUTE_UNUSED = 7.77;
+  const double WARNING [[maybe_unused]] = 7.77;
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
 
   EXPECT_CALL(test_sink, Log(absl::LogSeverity::kWarning, _, "Hello world"));
@@ -97,7 +97,7 @@ TEST(LogHygieneTest, WorksWithAlternativeWARNINGSymbol) {
 }
 
 TEST(LogHygieneTest, WorksWithAlternativeERRORSymbol) {
-  const double ERROR ABSL_ATTRIBUTE_UNUSED = 7.77;
+  const double ERROR [[maybe_unused]] = 7.77;
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
 
   EXPECT_CALL(test_sink, Log(absl::LogSeverity::kError, _, "Hello world"));
@@ -107,7 +107,7 @@ TEST(LogHygieneTest, WorksWithAlternativeERRORSymbol) {
 }
 
 TEST(LogHygieneTest, WorksWithAlternativeLEVELSymbol) {
-  const double LEVEL ABSL_ATTRIBUTE_UNUSED = 7.77;
+  const double LEVEL [[maybe_unused]] = 7.77;
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
 
   EXPECT_CALL(test_sink, Log(absl::LogSeverity::kError, _, "Hello world"));

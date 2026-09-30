@@ -74,12 +74,10 @@ void DisassembleFunctionImpl(const WasmModule* module, int func_index,
   const wasm::WasmFunction& func = module->functions[func_index];
   AccountingAllocator allocator;
   Zone zone(&allocator, "Wasm disassembler");
-  bool shared = module->type(func.sig_index).is_shared;
   WasmDetectedFeatures detected;
-  FunctionBodyDisassembler d(&zone, module, func_index, shared, &detected,
-                             func.sig, function_body.begin(),
-                             function_body.end(), func.code.offset(),
-                             module_bytes, names);
+  FunctionBodyDisassembler d(&zone, module, func_index, &detected, func.sig,
+                             function_body.begin(), function_body.end(),
+                             func.code.offset(), module_bytes, names);
   d.DecodeAsWat(sb, {0, 2}, FunctionBodyDisassembler::kPrintHeader);
   const bool print_offsets = false;
   sb.WriteTo(os, print_offsets, offsets);
@@ -117,13 +115,17 @@ void DisassembleFunction(const WasmModule* module, int func_index,
 static constexpr char kHexChars[] = "0123456789abcdef";
 static constexpr char kUpperHexChars[] = "0123456789ABCDEF";
 
-// Returns the log2 of the alignment, e.g. "4" means 2<<4 == 16 bytes.
+// Returns the log2 of the alignment, e.g. "4" means 1<<4 == 16 bytes.
 // This is the same format as used in .wasm binary modules.
 uint32_t GetDefaultAlignment(WasmOpcode opcode) {
   switch (opcode) {
     case kExprS128LoadMem:
     case kExprS128StoreMem:
       return 4;
+    case kExprI64LoadMem:
+    case kExprF64LoadMem:
+    case kExprI64StoreMem:
+    case kExprF64StoreMem:
     case kExprS128Load8x8S:
     case kExprS128Load8x8U:
     case kExprS128Load16x4S:
@@ -135,30 +137,40 @@ uint32_t GetDefaultAlignment(WasmOpcode opcode) {
     case kExprS128Load64Lane:
     case kExprS128Store64Lane:
       return 3;
+    case kExprI32LoadMem:
+    case kExprF32LoadMem:
+    case kExprI64LoadMem32S:
+    case kExprI64LoadMem32U:
+    case kExprI32StoreMem:
+    case kExprF32StoreMem:
+    case kExprI64StoreMem32:
     case kExprS128Load32Splat:
     case kExprS128Load32Zero:
     case kExprS128Load32Lane:
     case kExprS128Store32Lane:
       return 2;
+    case kExprI32LoadMem16S:
+    case kExprI32LoadMem16U:
+    case kExprI64LoadMem16S:
+    case kExprI64LoadMem16U:
+    case kExprF32LoadMemF16:
+    case kExprI32StoreMem16:
+    case kExprI64StoreMem16:
+    case kExprF32StoreMemF16:
     case kExprS128Load16Splat:
     case kExprS128Load16Lane:
     case kExprS128Store16Lane:
       return 1;
+    case kExprI32LoadMem8S:
+    case kExprI32LoadMem8U:
+    case kExprI64LoadMem8S:
+    case kExprI64LoadMem8U:
+    case kExprI32StoreMem8:
+    case kExprI64StoreMem8:
     case kExprS128Load8Splat:
     case kExprS128Load8Lane:
     case kExprS128Store8Lane:
       return 0;
-
-#define CASE(Opcode, ...) \
-  case kExpr##Opcode:     \
-    return GetLoadType(kExpr##Opcode).size_log_2();
-      FOREACH_LOAD_MEM_OPCODE(CASE)
-#undef CASE
-#define CASE(Opcode, ...) \
-  case kExpr##Opcode:     \
-    return GetStoreType(kExpr##Opcode).size_log_2();
-      FOREACH_STORE_MEM_OPCODE(CASE)
-#undef CASE
 
 #define CASE(Opcode, Type) \
   case kExpr##Opcode:      \
@@ -236,7 +248,7 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
   uint32_t locals_length = DecodeLocals(pc_);
   if (failed()) {
     // TODO(jkummerow): Improve error handling.
-    out << "Failed to decode locals\n";
+    out << "Failed to decode locals: " << error().message() << '\n';
     return;
   }
   for (uint32_t i = static_cast<uint32_t>(sig_->parameter_count());
@@ -492,6 +504,24 @@ class ImmediatesPrinter {
   }
 
   void MemoryAccess(MemoryAccessImmediate& imm) {
+    if (imm.mem_index != 0) {
+      out_ << " ";
+      names()->PrintMemoryName(out_, imm.mem_index);
+    }
+    if (WasmOpcodes::ExtractPrefix(owner_->current_opcode_) == kAtomicPrefix) {
+      switch (imm.memory_order) {
+        case AtomicMemoryOrder::kAcqRel:
+          out_ << " acqrel";
+          break;
+        case AtomicMemoryOrder::kSeqCst:
+          // This is the default. Skip printing it, so that existing operations
+          // are disassembled in the same way as before.
+          break;
+        default:
+          out_ << " INVALID(" << static_cast<int>(imm.memory_order) << ')';
+          break;
+      }
+    }
     if (imm.offset != 0) out_ << " offset=" << imm.offset;
     if (imm.alignment != GetDefaultAlignment(owner_->current_opcode_)) {
       out_ << " align=" << (1u << imm.alignment);
@@ -556,7 +586,8 @@ class ImmediatesPrinter {
 
   void MemoryIndex(MemoryIndexImmediate& imm) {
     if (imm.index == 0) return;
-    out_ << " " << imm.index;
+    out_ << " ";
+    names()->PrintMemoryName(out_, imm.index);
   }
 
   void DataSegmentIndex(IndexImmediate& imm) {
@@ -752,7 +783,7 @@ void OffsetsProvider::CollectOffsets(const WasmModule* module,
   recgroups_.reserve(4);  // We can't know, so this is just a guess.
 
   WasmDetectedFeatures unused_detected_features;
-  ModuleDecoderImpl decoder{WasmEnabledFeatures::All(), wire_bytes, kWasmOrigin,
+  ModuleDecoderImpl decoder{WasmEnabledFeatures::All(), wire_bytes,
                             &unused_detected_features, this};
   constexpr bool kNoVerifyFunctions = false;
   decoder.DecodeModule(kNoVerifyFunctions);
@@ -1071,9 +1102,9 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
     names_->PrintValueType(out_, elem.type);
 
     WasmDetectedFeatures unused_detected_features;
-    ModuleDecoderImpl decoder(
-        WasmEnabledFeatures::All(), wire_bytes_.module_bytes(),
-        ModuleOrigin::kWasmOrigin, &unused_detected_features);
+    ModuleDecoderImpl decoder(WasmEnabledFeatures::All(),
+                              wire_bytes_.module_bytes(),
+                              &unused_detected_features);
     decoder.consume_bytes(elem.elements_wire_bytes_offset);
     for (size_t j = 0; j < elem.element_count; j++) {
       ConstantExpression entry = decoder.consume_element_segment_entry(
@@ -1103,10 +1134,9 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
     if (func->exported) PrintExportName(kExternalFunction, i);
     PrintSignatureOneLine(out_, func->sig, i, names_, true, kIndicesAsComments);
     out_.NextLine(func->code.offset());
-    bool shared = module_->type(func->sig_index).is_shared;
     WasmDetectedFeatures detected;
     base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
-    FunctionBodyDisassembler d(&zone_, module_, i, shared, &detected, func->sig,
+    FunctionBodyDisassembler d(&zone_, module_, i, &detected, func->sig,
                                code.begin(), code.end(), func->code.offset(),
                                wire_bytes_, names_);
     uint32_t first_instruction_offset;
@@ -1224,8 +1254,8 @@ void ModuleDisassembler::PrintInitExpression(const ConstantExpression& init,
 
       auto sig = FixedSizeSignature<ValueType>::Returns(expected_type);
       WasmDetectedFeatures detected;
-      FunctionBodyDisassembler d(&zone_, module_, 0, false, &detected, &sig,
-                                 start, end, ref.offset(), wire_bytes_, names_);
+      FunctionBodyDisassembler d(&zone_, module_, 0, &detected, &sig, start,
+                                 end, ref.offset(), wire_bytes_, names_);
       d.DecodeGlobalInitializer(out_);
       break;
   }

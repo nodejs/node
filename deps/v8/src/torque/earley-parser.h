@@ -10,6 +10,7 @@
 #include <optional>
 #include <vector>
 
+#include "absl/container/node_hash_set.h"
 #include "src/base/contextual.h"
 #include "src/torque/source-positions.h"
 #include "src/torque/utils.h"
@@ -368,11 +369,11 @@ inline std::optional<ParseResult> Symbol::RunAction(const Item* item,
 
 V8_EXPORT_PRIVATE const Item* RunEarleyAlgorithm(
     Symbol* start, const LexerResult& tokens,
-    std::unordered_set<Item, base::hash<Item>>* processed);
+    absl::node_hash_set<Item, base::hash<Item>>* processed);
 
 inline std::optional<ParseResult> ParseTokens(Symbol* start,
                                               const LexerResult& tokens) {
-  std::unordered_set<Item, base::hash<Item>> table;
+  absl::node_hash_set<Item, base::hash<Item>> table;
   const Item* final_item = RunEarleyAlgorithm(start, tokens, &table);
   return start->RunAction(final_item, tokens);
 }
@@ -402,6 +403,8 @@ class Lexer {
   Symbol* Pattern(PatternFunction pattern) { return &patterns_[pattern]; }
   Symbol* Token(const std::string& keyword) { return &keywords_[keyword]; }
   V8_EXPORT_PRIVATE LexerResult RunLexer(const std::string& input);
+  V8_EXPORT_PRIVATE LexerResult RunLexer(const std::string& input,
+                                         SourcePosition origin);
 
  private:
   PatternFunction match_whitespace_ = [](InputPosition*) { return false; };
@@ -422,6 +425,12 @@ class Grammar {
   std::optional<ParseResult> Parse(const std::string& input) {
     LexerResult tokens = lexer().RunLexer(input);
     return ParseTokens(start_, tokens);
+  }
+
+  std::optional<ParseResult> Parse(Symbol* start, const std::string& input,
+                                   SourcePosition origin) {
+    LexerResult tokens = lexer().RunLexer(input, origin);
+    return ParseTokens(start, tokens);
   }
 
  protected:

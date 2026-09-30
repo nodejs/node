@@ -211,6 +211,10 @@ class ObjectVisitor {
 
   virtual void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
                                          JSDispatchHandle handle) {}
+  virtual void VisitJSDispatchTableEntry(Tagged<InstructionStream> host,
+                                         JSDispatchHandle handle) {
+    VisitJSDispatchTableEntry(Cast<HeapObject>(host), handle);
+  }
 
   virtual void VisitMapPointer(Tagged<HeapObject> host) { UNREACHABLE(); }
 };

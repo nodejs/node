@@ -7,7 +7,7 @@
 #include <type_traits>
 
 #include "src/common/globals.h"
-#include "src/objects/elements-kind.h"
+#include "src/heap/mutable-page-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/visitors.h"
@@ -58,6 +58,13 @@ void ReadOnlyRoots::Iterate(RootVisitor* visitor) {
   visitor->Synchronize(VisitorSynchronization::kReadOnlyRootList);
 }
 
+void ReadOnlyRoots::VerifyNameForProtectorsPages() const {
+  // The symbols and strings that can cause protector invalidation should
+  // reside on the same page so we can do a fast range check.
+  CHECK_EQ(BasePage::FromAddress(first_name_for_protector()),
+           BasePage::FromAddress(last_name_for_protector()));
+}
+
 #ifdef DEBUG
 void ReadOnlyRoots::VerifyNameForProtectors() {
   DisallowGarbageCollection no_gc;
@@ -103,6 +110,14 @@ namespace {
 
 READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)
 #undef ROOT_TYPE_CHECK
+
+template <typename T>
+void CheckTrustedMapHelper(RootIndex index, Tagged<T> obj) {
+  if constexpr (std::is_same_v<T, Map>) {
+    CHECK_EQ(RootsTable::IsInTrustedObjectMapList(index),
+             InstanceTypeChecker::IsTrustedObject(obj->instance_type()));
+  }
+}
 }  // namespace
 
 void ReadOnlyRoots::VerifyTypes() {
@@ -111,9 +126,15 @@ void ReadOnlyRoots::VerifyTypes() {
 
   READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)
 #undef ROOT_TYPE_CHECK
+
+#define CHECK_TRUSTED_MAP(Type, name, CamelName) \
+  CheckTrustedMapHelper(RootIndex::k##CamelName, name());
+
+  READ_ONLY_ROOT_LIST(CHECK_TRUSTED_MAP)
+#undef CHECK_TRUSTED_MAP
 }
 
-#endif
+#endif  // DEBUG
 
 void ReadOnlyRoots::InitFromStaticRootsTable(Address cage_base) {
   CHECK(V8_STATIC_ROOTS_BOOL);

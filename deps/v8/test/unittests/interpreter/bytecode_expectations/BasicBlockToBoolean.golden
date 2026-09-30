@@ -11,11 +11,11 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 17
+bytecode array length: 16
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
-  /*   45 S> */ B(JumpIfToBooleanTrue), U8(9),
+  /*   45 S> */ B(JumpIfToBooleanTrue), U8(8),
                 B(LdaZero),
   /*   56 E> */ B(TestLessThan), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(5),
@@ -35,11 +35,11 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 17
+bytecode array length: 16
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
-  /*   45 S> */ B(JumpIfToBooleanFalse), U8(12),
+  /*   45 S> */ B(JumpIfToBooleanFalse), U8(11),
                 B(LdaZero),
   /*   56 E> */ B(TestLessThan), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(5),
@@ -59,11 +59,11 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 21
+bytecode array length: 20
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
-  /*   45 S> */ B(JumpIfToBooleanTrue), U8(9),
+  /*   45 S> */ B(JumpIfToBooleanTrue), U8(8),
                 B(LdaZero),
   /*   57 E> */ B(TestLessThan), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(6),

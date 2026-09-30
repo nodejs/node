@@ -21,6 +21,7 @@
 // order.
 //
 // This class is thread-compatible.
+// This class is NOT exception-safe.
 //
 // Iterators point into the list and should be stable in the face of
 // mutations, except for an iterator pointing to an element that was just
@@ -43,8 +44,8 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/throw_delegate.h"
 #include "absl/base/optimization.h"
+#include "absl/base/throw_delegate.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/container/internal/common.h"
 
@@ -156,77 +157,81 @@ class linked_hash_map {
 
   linked_hash_map() {}
 
-  explicit linked_hash_map(size_t bucket_count, const hasher& hash = hasher(),
+  explicit linked_hash_map(size_t reservation_size,
+                           const hasher& hash = hasher(),
                            const key_equal& eq = key_equal(),
                            const allocator_type& alloc = allocator_type())
-      : set_(bucket_count, Wrapped<hasher>(hash), Wrapped<key_equal>(eq),
+      : set_(reservation_size, Wrapped<hasher>(hash), Wrapped<key_equal>(eq),
              alloc),
         list_(alloc) {}
 
-  linked_hash_map(size_t bucket_count, const hasher& hash,
+  linked_hash_map(size_t reservation_size, const hasher& hash,
                   const allocator_type& alloc)
-      : linked_hash_map(bucket_count, hash, key_equal(), alloc) {}
+      : linked_hash_map(reservation_size, hash, key_equal(), alloc) {}
 
-  linked_hash_map(size_t bucket_count, const allocator_type& alloc)
-      : linked_hash_map(bucket_count, hasher(), key_equal(), alloc) {}
+  linked_hash_map(size_t reservation_size, const allocator_type& alloc)
+      : linked_hash_map(reservation_size, hasher(), key_equal(), alloc) {}
 
   explicit linked_hash_map(const allocator_type& alloc)
       : linked_hash_map(0, hasher(), key_equal(), alloc) {}
 
   template <class InputIt>
-  linked_hash_map(InputIt first, InputIt last, size_t bucket_count = 0,
+  linked_hash_map(InputIt first, InputIt last, size_t reservation_size = 0,
                   const hasher& hash = hasher(),
                   const key_equal& eq = key_equal(),
                   const allocator_type& alloc = allocator_type())
-      : linked_hash_map(bucket_count, hash, eq, alloc) {
+      : linked_hash_map(reservation_size, hash, eq, alloc) {
     insert(first, last);
   }
 
   template <class InputIt>
-  linked_hash_map(InputIt first, InputIt last, size_t bucket_count,
+  linked_hash_map(InputIt first, InputIt last, size_t reservation_size,
                   const hasher& hash, const allocator_type& alloc)
-      : linked_hash_map(first, last, bucket_count, hash, key_equal(), alloc) {}
+      : linked_hash_map(first, last, reservation_size, hash, key_equal(),
+                        alloc) {}
 
   template <class InputIt>
-  linked_hash_map(InputIt first, InputIt last, size_t bucket_count,
+  linked_hash_map(InputIt first, InputIt last, size_t reservation_size,
                   const allocator_type& alloc)
-      : linked_hash_map(first, last, bucket_count, hasher(), key_equal(),
+      : linked_hash_map(first, last, reservation_size, hasher(), key_equal(),
                         alloc) {}
 
   template <class InputIt>
   linked_hash_map(InputIt first, InputIt last, const allocator_type& alloc)
-      : linked_hash_map(first, last, /*bucket_count=*/0, hasher(), key_equal(),
-                        alloc) {}
+      : linked_hash_map(first, last, /*reservation_size=*/0, hasher(),
+                        key_equal(), alloc) {}
 
   linked_hash_map(std::initializer_list<value_type> init,
-                  size_t bucket_count = 0, const hasher& hash = hasher(),
+                  size_t reservation_size = 0, const hasher& hash = hasher(),
                   const key_equal& eq = key_equal(),
                   const allocator_type& alloc = allocator_type())
-      : linked_hash_map(init.begin(), init.end(), bucket_count, hash, eq,
+      : linked_hash_map(init.begin(), init.end(), reservation_size, hash, eq,
                         alloc) {}
 
-  linked_hash_map(std::initializer_list<value_type> init, size_t bucket_count,
-                  const hasher& hash, const allocator_type& alloc)
-      : linked_hash_map(init, bucket_count, hash, key_equal(), alloc) {}
-
-  linked_hash_map(std::initializer_list<value_type> init, size_t bucket_count,
+  linked_hash_map(std::initializer_list<value_type> init,
+                  size_t reservation_size, const hasher& hash,
                   const allocator_type& alloc)
-      : linked_hash_map(init, bucket_count, hasher(), key_equal(), alloc) {}
+      : linked_hash_map(init, reservation_size, hash, key_equal(), alloc) {}
+
+  linked_hash_map(std::initializer_list<value_type> init,
+                  size_t reservation_size, const allocator_type& alloc)
+      : linked_hash_map(init, reservation_size, hasher(), key_equal(), alloc) {}
 
   linked_hash_map(std::initializer_list<value_type> init,
                   const allocator_type& alloc)
-      : linked_hash_map(init, /*bucket_count=*/0, hasher(), key_equal(),
+      : linked_hash_map(init, /*reservation_size=*/0, hasher(), key_equal(),
                         alloc) {}
 
   linked_hash_map(const linked_hash_map& other)
-      : linked_hash_map(other.bucket_count(), other.hash_function(),
-                        other.key_eq(), other.get_allocator()) {
+      : linked_hash_map(0, other.hash_function(), other.key_eq(),
+                        other.get_allocator()) {
+    reserve(other.size());
     CopyFrom(other);
   }
 
   linked_hash_map(const linked_hash_map& other, const allocator_type& alloc)
-      : linked_hash_map(other.bucket_count(), other.hash_function(),
-                        other.key_eq(), alloc) {
+      : linked_hash_map(0, other.hash_function(), other.key_eq(), alloc) {
+    reserve(other.size());
     CopyFrom(other);
   }
 
@@ -248,27 +253,32 @@ class linked_hash_map {
   }
 
   linked_hash_map& operator=(const linked_hash_map& other) {
-    if (this == &other) return *this;
-    // Make a new set, with other's hash/eq/alloc.
-    set_ = SetType(other.bucket_count(), other.set_.hash_function(),
-                   other.set_.key_eq(), other.get_allocator());
-    // Copy the list, with other's allocator.
-    list_ = ListType(other.get_allocator());
-    CopyFrom(other);
+    if (this != &other) {
+      // Make a new set, with other's hash/eq/alloc.
+      set_ = SetType(0, other.set_.hash_function(), other.set_.key_eq(),
+                     other.get_allocator());
+      set_.reserve(other.size());
+      // Copy the list, with other's allocator.
+      list_ = ListType(other.get_allocator());
+      CopyFrom(other);
+    }
     return *this;
   }
 
   linked_hash_map& operator=(linked_hash_map&& other) noexcept {
-    // underlying containers will handle progagate_on_container_move details
-    set_ = std::move(other.set_);
-    list_ = std::move(other.list_);
-    other.set_.clear();
-    other.list_.clear();
+    if (this != &other) {
+      // underlying containers will handle progagate_on_container_move details
+      set_ = std::move(other.set_);
+      list_ = std::move(other.list_);
+      other.set_.clear();
+      other.list_.clear();
+    }
     return *this;
   }
 
   linked_hash_map& operator=(std::initializer_list<value_type> values) {
     clear();
+    reserve(values.size());
     insert(values.begin(), values.end());
     return *this;
   }
@@ -374,7 +384,7 @@ class linked_hash_map {
   mapped_type& at(const key_arg<K>& key) {
     auto it = find(key);
     if (ABSL_PREDICT_FALSE(it == end())) {
-      absl::base_internal::ThrowStdOutOfRange("absl::linked_hash_map::at");
+      ThrowStdOutOfRange("absl::linked_hash_map::at");
     }
     return it->second;
   }
@@ -499,7 +509,7 @@ class linked_hash_map {
 
   template <typename... Args>
   std::pair<iterator, bool> emplace(Args&&... args) {
-    ListType node_donor;
+    ListType node_donor(get_allocator());
     auto list_iter =
         node_donor.emplace(node_donor.end(), std::forward<Args>(args)...);
     auto ins = set_.insert(list_iter);
@@ -544,7 +554,7 @@ class linked_hash_map {
 
   node_type extract(const_iterator position) {
     set_.erase(position->first);
-    ListType extracted_node_list;
+    ListType extracted_node_list(get_allocator());
     extracted_node_list.splice(extracted_node_list.end(), list_, position);
     return node_type(std::move(extracted_node_list));
   }
@@ -554,7 +564,7 @@ class linked_hash_map {
   node_type extract(const key_arg<K>& key) {
     auto node = set_.extract(key);
     if (node.empty()) return node_type();
-    ListType extracted_node_list;
+    ListType extracted_node_list(get_allocator());
     extracted_node_list.splice(extracted_node_list.end(), list_, node.value());
     return node_type(std::move(extracted_node_list));
   }

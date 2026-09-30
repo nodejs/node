@@ -5,12 +5,12 @@
 #include "include/cppgc/explicit-management.h"
 
 #include "include/cppgc/garbage-collected.h"
-#include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/heap-base.h"
-#include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/heap-space.h"
-#include "src/heap/cppgc/page-memory.h"
-#include "src/heap/cppgc/sweeper.h"
+#include "src/heap/cppgc-internal/globals.h"
+#include "src/heap/cppgc-internal/heap-base.h"
+#include "src/heap/cppgc-internal/heap-object-header.h"
+#include "src/heap/cppgc-internal/heap-space.h"
+#include "src/heap/cppgc-internal/page-memory.h"
+#include "src/heap/cppgc-internal/sweeper.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -137,6 +137,14 @@ TEST_F(ExplicitManagementTest, GrowAtLAB) {
   EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(kThirdDelta)));
   EXPECT_EQ(RoundUp<kAllocationGranularity>(size_of_o + kThirdDelta),
             header.ObjectSize());
+}
+
+TEST_F(ExplicitManagementTest, GrowPastLargeObjectThreshold) {
+  auto* o =
+      MakeGarbageCollected<DynamicallySized>(GetHeap()->GetAllocationHandle());
+  auto& header = HeapObjectHeader::FromObject(o);
+  ASSERT_TRUE(!header.IsLargeObject());
+  EXPECT_FALSE(subtle::Resize(*o, AdditionalBytes(kLargeObjectSizeThreshold)));
 }
 
 TEST_F(ExplicitManagementTest, GrowShrinkAtLAB) {

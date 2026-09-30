@@ -612,7 +612,7 @@ bool CheckMapsHelper(EscapeAnalysisTracker::Scope* current, Node* checked,
   Variable map_field;
   Node* map;
   if (vobject && !vobject->HasEscaped() &&
-      vobject->FieldAt(HeapObject::kMapOffset).To(&map_field) &&
+      vobject->FieldAt(offsetof(HeapObject, map_)).To(&map_field) &&
       current->Get(map_field).To(&map)) {
     if (map) {
       Type const map_type = NodeProperties::GetType(map);
@@ -840,7 +840,7 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       Variable map_field;
       Node* object_map;
       if (vobject && !vobject->HasEscaped() &&
-          vobject->FieldAt(HeapObject::kMapOffset).To(&map_field) &&
+          vobject->FieldAt(offsetof(HeapObject, map_)).To(&map_field) &&
           current->Get(map_field).To(&object_map)) {
         if (object_map) {
           current->SetReplacement(LowerCompareMapsWithoutLoad(

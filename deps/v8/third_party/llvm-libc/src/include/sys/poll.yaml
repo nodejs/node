@@ -1,0 +1,5 @@
+header: sys/poll.h
+public_includes:
+  - poll.h
+standards:
+  - posix

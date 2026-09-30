@@ -92,6 +92,7 @@
   V(keys_string, keys_string, KeysString)                                    \
   V(async_iterator_symbol, async_iterator_symbol, AsyncIteratorSymbol)       \
   V(length_string, length_string, LengthString)                              \
+  V(LoadHandler5Map, load_handler5_map, LoadHandler5Map)                     \
   V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)        \
   V(match_symbol, match_symbol, MatchSymbol)                                 \
   V(megamorphic_symbol, megamorphic_symbol, MegamorphicSymbol)               \
@@ -145,6 +146,7 @@
   V(PropertyCellHoleValue, property_cell_hole_value, PropertyCellHole)       \
   V(HashTableHoleValue, hash_table_hole_value, HashTableHole)                \
   V(PromiseHoleValue, promise_hole_value, PromiseHole)                       \
+  V(TdzHoleValue, tdz_hole_value, TdzHole)                                   \
   V(then_string, then_string, ThenString)                                    \
   V(toJSON_string, toJSON_string, ToJSONString)                              \
   V(toString_string, toString_string, ToStringString)                        \

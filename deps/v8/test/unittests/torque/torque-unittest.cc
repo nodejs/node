@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <fstream>
 #include <optional>
+#include <sstream>
 
+#include "src/common/globals.h"
 #include "src/torque/torque-compiler.h"
 #include "src/torque/utils.h"
 #include "test/unittests/test-utils.h"
@@ -42,6 +45,42 @@ namespace torque_internal {
   }
 }
 
+namespace torque_internal {
+  intrinsic %SizeOf<T: type>(): constexpr int31;
+  macro TimesSizeOf<T: type>(i: intptr): intptr {
+    return i * %SizeOf<T>();
+  }
+  struct Slice<T: type, Reference: type> {
+    macro AtIndex(index: intptr): Reference {
+      return unsafe::NewReference<T>(
+          this.object, this.offset + TimesSizeOf<T>(index));
+    }
+    const object: HeapObject;
+    const offset: intptr;
+    const length: intptr;
+  }
+  namespace unsafe {
+    macro NewReference<T: type>(object: HeapObject, offset: intptr): &T {
+      return %RawDownCast<&T>(Reference<T>{object: object, offset: offset});
+    }
+    macro NewMutableSlice<T: type>(
+        object: HeapObject, offset: intptr, length: intptr): MutableSlice<T> {
+      return %RawDownCast<MutableSlice<T>>(
+          Slice<T, &T>{object: object, offset: offset, length: length});
+    }
+    macro NewConstSlice<T: type>(
+        object: HeapObject, offset: intptr, length: intptr): ConstSlice<T> {
+      return %RawDownCast<ConstSlice<T>>(
+          Slice<T, const &T>{object: object, offset: offset, length: length});
+    }
+  }
+  intrinsic %IndexedFieldLength<T: type>(o: T, f: constexpr string): intptr;
+  intrinsic %FieldSlice<T: type, TSlice: type>(o: T, f: constexpr string):
+      TSlice;
+}
+type MutableSlice<T : type> extends torque_internal::Slice<T, &T>;
+type ConstSlice<T : type> extends torque_internal::Slice<T, const &T>;
+
 type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
 type StrongTagged extends Tagged
     generates 'TNode<Object>' constexpr 'Object';
@@ -75,6 +114,7 @@ type int8 extends int16 generates 'TNode<Int8T>' constexpr 'int8_t';
 type uint8 extends uint16
     generates 'TNode<Uint8T>' constexpr 'uint8_t';
 type int64 generates 'TNode<Int64T>' constexpr 'int64_t';
+type uint64 generates 'TNode<UInt64T>' constexpr 'uint64_t';
 type intptr generates 'TNode<IntPtrT>' constexpr 'intptr_t';
 type uintptr generates 'TNode<UintPtrT>' constexpr 'uintptr_t';
 type float32 generates 'TNode<Float32T>' constexpr 'float';
@@ -107,10 +147,19 @@ struct float64_or_undefined_or_hole {
 }
 
 extern operator '+' macro IntPtrAdd(intptr, intptr): intptr;
+extern operator '*' macro IntPtrMul(intptr, intptr): intptr;
 extern operator '!' macro Word32BinaryNot(bool): bool;
 extern operator '==' macro Word32Equal(int32, int32): bool;
 
 intrinsic %FromConstexpr<To: type, From: type>(b: From): To;
+macro Convert<To: type, From: type>(i: From): To;
+extern macro SmiUntag(Smi): intptr;
+Convert<intptr, Smi>(s: Smi): intptr {
+  return SmiUntag(s);
+}
+Convert<intptr, constexpr int31>(i: constexpr int31): intptr {
+  return %FromConstexpr<intptr>(i);
+}
 intrinsic %RawDownCast<To: type, From: type>(x: From): To;
 intrinsic %RawConstexprCast<To: type, From: type>(f: From): To;
 extern macro SmiConstant(constexpr Smi): Smi;
@@ -135,6 +184,10 @@ FromConstexpr<intptr, constexpr int31>(i: constexpr int31): intptr {
   return IntPtrConstant(i);
 }
 FromConstexpr<intptr, constexpr intptr>(i: constexpr intptr): intptr {
+  return %FromConstexpr<intptr>(i);
+}
+FromConstexpr<intptr, constexpr IntegerLiteral>(
+    i: constexpr IntegerLiteral): intptr {
   return %FromConstexpr<intptr>(i);
 }
 extern macro BoolConstant(constexpr bool): bool;
@@ -1015,6 +1068,659 @@ TEST(Torque, BuiltinReturnsNever) {
       }
     }
   )");
+}
+
+namespace {
+
+// The build configuration every layout JSON carries. The loader checks it
+// against TargetArchitecture, which under the test options resolves to
+// the host build's sizes.
+std::string TestConfig() {
+  std::stringstream s;
+  s << R"("config": {"tagged_size": )" << kTaggedSize << R"(, "pointer_size": )"
+    << kSystemPointerSize << R"(, "external_pointer_size": )"
+    << kExternalPointerSlotSize << R"(, "cpp_heap_pointer_size": )"
+    << kCppHeapPointerSlotSize << R"(, "trusted_pointer_size": )"
+    << kTrustedPointerSize << R"(}, )";
+  return s.str();
+}
+
+// A class with its layout defined in C++, as the layout JSON and the
+// loader see it: two tagged fields a and b on top of the prelude's
+// HeapObject.
+constexpr const char* kTestLayoutClass = R"(
+  @cppObjectLayoutDefinition
+  extern class TestLayout extends HeapObject {
+    a: Smi;
+    b: Map;
+  }
+)";
+
+constexpr const char* kTestLayoutBodyLessClass = R"(
+  @cppObjectLayoutDefinition
+  extern class TestLayout extends HeapObject;
+)";
+
+// The layout JSON record matching kTestLayoutClass, with the variations
+// the failure tests need.
+std::string TestLayoutJson(int schema_version, size_t offset_b_delta = 0,
+                           const char* type_b = "Map",
+                           const char* type_a = "Smi",
+                           const char* type_override_a = nullptr) {
+  // What TargetArchitecture::TaggedSize() resolves to under the
+  // force_32bit_output=false options every test here compiles with.
+  size_t t = kTaggedSize;
+  std::stringstream s;
+  s << R"({"schema_version": )" << schema_version << R"(, )" << TestConfig()
+    << R"("classes": [{)"
+    << R"("cpp_name": "v8::internal::TestLayout", )"
+    << R"("base": "v8::internal::HeapObject", )"
+    << R"("base_size": )" << t << R"(, "size": )" << 3 * t
+    << R"(, "alignment": )" << t << R"(, "fields": [)"
+    << R"({"cpp_name": "a_", "cpp_type": "TaggedMember<Object>", "offset": )"
+    << t << R"(, "size": )" << t << R"(, "storage": {"kind": "tagged", "arg": )"
+    << R"({"kind": "name", "name": ")" << type_a << R"("}})";
+  if (type_override_a != nullptr) {
+    s << R"(, "annotations": [{"name": "V8_TQ_TYPE", "arg": ")"
+      << type_override_a << R"("}])";
+  }
+  s << R"(}, )"
+    << R"({"cpp_name": "b_", "cpp_type": "TaggedMember<Object>", "offset": )"
+    << 2 * t + offset_b_delta << R"(, "size": )" << t
+    << R"(, "storage": {"kind": "tagged", "arg": )"
+    << R"({"kind": "name", "name": ")" << type_b << R"("}}})"
+    << R"(]}]})";
+  return s.str();
+}
+
+TorqueCompilerResult TestCompileTorqueWithLayout(
+    std::string source, const std::string& layout_json, bool use_cpp_layouts,
+    const char* positions = nullptr) {
+  // Parallel test runners share TempDir; the test name keys the file.
+  std::string path =
+      ::testing::TempDir() + "/torque-unittest-layout-" +
+      ::testing::UnitTest::GetInstance()->current_test_info()->name() + ".json";
+  {
+    std::ofstream out(path);
+    out << layout_json;
+  }
+
+  TorqueCompilerOptions options;
+  options.output_directory = "";
+  options.collect_language_server_data = false;
+  options.force_assert_statements = false;
+  options.v8_root = ".";
+  options.layout_json_path = path;
+  options.use_cpp_layouts = use_cpp_layouts;
+  if (positions != nullptr) {
+    std::string positions_path = path + "-positions.json";
+    std::ofstream out(positions_path);
+    out << positions;
+    options.layout_positions_path = positions_path;
+  }
+
+  source = kTestTorquePrelude + source;
+  return CompileTorque(source, options);
+}
+
+void ExpectSuccessfulLayoutCompilation(const std::string& source,
+                                       const std::string& layout_json,
+                                       bool use_cpp_layouts) {
+  TorqueCompilerResult result =
+      TestCompileTorqueWithLayout(source, layout_json, use_cpp_layouts);
+  std::vector<std::string> messages;
+  for (const auto& message : result.messages) {
+    messages.push_back(message.message);
+  }
+  EXPECT_EQ(messages, std::vector<std::string>{});
+}
+
+void ExpectFailingLayoutCompilation(const std::string& source,
+                                    const std::string& layout_json,
+                                    bool use_cpp_layouts,
+                                    const std::string& expected_substring) {
+  TorqueCompilerResult result =
+      TestCompileTorqueWithLayout(source, layout_json, use_cpp_layouts);
+  ASSERT_FALSE(result.messages.empty());
+  EXPECT_THAT(result.messages.front().message, HasSubstr(expected_substring));
+}
+
+}  // namespace
+
+TEST(TorqueLayoutLoader, VerifierAcceptsMatchingRecord) {
+  ExpectSuccessfulLayoutCompilation(kTestLayoutClass, TestLayoutJson(1),
+                                    /*use_cpp_layouts=*/false);
+}
+
+TEST(TorqueLayoutLoader, VerifierRejectsOffsetMismatch) {
+  ExpectFailingLayoutCompilation(kTestLayoutClass,
+                                 TestLayoutJson(1, /*offset_b_delta=*/4),
+                                 /*use_cpp_layouts=*/false, "offset is");
+}
+
+TEST(TorqueLayoutLoader, SchemaVersionMismatchAborts) {
+  ExpectFailingLayoutCompilation(kTestLayoutClass, TestLayoutJson(99),
+                                 /*use_cpp_layouts=*/false,
+                                 "unsupported schema version");
+}
+
+TEST(TorqueLayoutLoader, RejectsAMismatchedBuildConfiguration) {
+  // A layout JSON generated for another configuration describes offsets
+  // this Torque run does not target. While the .tq field blocks exist a
+  // mismatch also shows up as a field mismatch; once they are gone this
+  // check is all that catches a stale layout JSON.
+  std::string layout_json = TestLayoutJson(1);
+  std::string tagged = R"("tagged_size": )" + std::to_string(kTaggedSize);
+  size_t pos = layout_json.find(tagged);
+  ASSERT_NE(pos, std::string::npos);
+  layout_json.replace(pos, tagged.size(),
+                      R"("tagged_size": )" + std::to_string(kTaggedSize * 2));
+  ExpectFailingLayoutCompilation(kTestLayoutClass, layout_json,
+                                 /*use_cpp_layouts=*/false,
+                                 "does not match this build configuration");
+}
+
+TEST(TorqueLayoutLoader, RejectsALayoutJsonWithoutAConfig) {
+  std::string layout_json = TestLayoutJson(1);
+  size_t start = layout_json.find(R"("config": {)");
+  size_t end = layout_json.find(R"("classes")");
+  ASSERT_NE(start, std::string::npos);
+  ASSERT_LT(start, end);
+  layout_json.erase(start, end - start);
+  ExpectFailingLayoutCompilation(kTestLayoutClass, layout_json,
+                                 /*use_cpp_layouts=*/false,
+                                 "missing key \"config\"");
+}
+
+TEST(TorqueLayoutLoader, RecordsWithoutConsumerAreSkipped) {
+  // No TestLayout class in the source at all; the record is unconsumed.
+  ExpectSuccessfulLayoutCompilation("", TestLayoutJson(1),
+                                    /*use_cpp_layouts=*/false);
+}
+
+TEST(TorqueLayoutLoader, ImporterImportsBodyLessClass) {
+  // Import builds the fields from the record; the verifier then
+  // cross-checks the computed layout against the same record.
+  ExpectSuccessfulLayoutCompilation(kTestLayoutBodyLessClass, TestLayoutJson(1),
+                                    /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, ImporterRequiresRecordForBodyLessClass) {
+  ExpectFailingLayoutCompilation(
+      kTestLayoutBodyLessClass,
+      (R"({"schema_version": 1, )" + TestConfig() + R"("classes": []})"),
+      /*use_cpp_layouts=*/true, "has no layout record");
+}
+
+TEST(TorqueLayoutLoader, ImporterReplacesMatchingTqFieldBlock) {
+  ExpectSuccessfulLayoutCompilation(kTestLayoutClass, TestLayoutJson(1),
+                                    /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, ClassTemplateArgumentIsTypedByItsBase) {
+  // A class template in the layout JSON maps to the base class of its
+  // instantiations, since Torque has no generic class types.
+  constexpr const char* kSource = R"(
+    extern class CppGCManagedBase extends HeapObject;
+    @cppObjectLayoutDefinition
+    extern class TestLayout extends HeapObject {
+      a: Smi;
+      b: CppGCManagedBase;
+    }
+  )";
+  ExpectSuccessfulLayoutCompilation(
+      kSource, TestLayoutJson(1, 0, /*type_b=*/"CppGCManaged"),
+      /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, ImporterRejectsMismatchedTqFieldBlock) {
+  // The record has b: Smi, the .tq field block b: Map. The strict
+  // comparison must fail rather than silently replace the block.
+  ExpectFailingLayoutCompilation(
+      kTestLayoutClass, TestLayoutJson(1, 0, /*type_b=*/"Smi"),
+      /*use_cpp_layouts=*/true, "differs from C++ field");
+}
+
+TEST(TorqueLayoutLoader, ImporterReportsEveryMismatchedField) {
+  // Both fields differ; the comparison reports each one instead of
+  // stopping at the first.
+  TorqueCompilerResult result = TestCompileTorqueWithLayout(
+      kTestLayoutClass,
+      TestLayoutJson(1, /*offset_b_delta=*/0, /*type_b=*/"Smi",
+                     /*type_a=*/"HeapObject"),
+      /*use_cpp_layouts=*/true);
+  std::vector<std::string> mismatches;
+  for (const auto& message : result.messages) {
+    if (message.message.find("differs from C++ field") != std::string::npos) {
+      mismatches.push_back(message.message);
+    }
+  }
+  ASSERT_EQ(mismatches.size(), 2u);
+  EXPECT_THAT(mismatches[0], HasSubstr("a: Smi"));
+  EXPECT_THAT(mismatches[0], HasSubstr("a: HeapObject"));
+  EXPECT_THAT(mismatches[1], HasSubstr("b: Map"));
+  EXPECT_THAT(mismatches[1], HasSubstr("b: Smi"));
+}
+
+namespace {
+
+// The tail exercises the flexible-array path of the verifier and the
+// importer; the length field indexes it.
+constexpr const char* kTestLayoutTailClass = R"(
+  @cppObjectLayoutDefinition
+  extern class TestBlob extends HeapObject {
+    const length: Smi;
+    bytes[length]: uint8;
+  }
+)";
+
+constexpr const char* kTestLayoutTailBodyLessClass = R"(
+  @cppObjectLayoutDefinition
+  extern class TestBlob extends HeapObject;
+)";
+
+std::string TestTailJson(const char* length_field = "length") {
+  size_t t = kTaggedSize;
+  std::stringstream s;
+  s << R"({"schema_version": 1, )" << TestConfig() << R"("classes": [{)"
+    << R"("cpp_name": "v8::internal::TestBlob", )"
+    << R"("base": "v8::internal::HeapObject", )"
+    << R"("base_size": )" << t << R"(, "size": )" << 2 * t
+    << R"(, "alignment": )" << t << R"(, "fields": [)"
+    << R"({"cpp_name": "length_", "cpp_type": "TaggedMember<Smi>", "offset": )"
+    << t << R"(, "size": )" << t << R"(, "storage": {"kind": "tagged", "arg": )"
+    << R"({"kind": "name", "name": "Smi"}}, )"
+    << R"("annotations": [{"name": "V8_TQ_CONST"}]}], )"
+    << R"("tail": {"cpp_name": "flexible_array_member_data_", )"
+    << R"("cpp_element_type": "uint8_t", )"
+    << R"("offset": )" << 2 * t << R"(, "element_size": 1, )"
+    << R"("element_storage": {"kind": "int", "width": 1, "signed": false}}, )"
+    << R"("annotations": [{"name": "V8_TQ_TAIL_NAME", "arg": "bytes"}, )"
+    << R"({"name": "V8_TQ_TAIL_LENGTH", "arg": ")" << length_field
+    << R"("}]}]})";
+  return s.str();
+}
+
+// A named-constant array extent cannot be folded into a static class
+// size; the record carries both the numeric extent and the Torque
+// constant name.
+constexpr const char* kTestLayoutNamedExtentClass = R"(
+  const kTestExtent: constexpr int31 generates '2';
+  @cppObjectLayoutDefinition
+  extern class TestExtent extends HeapObject {
+    a[kTestExtent]: Smi;
+  }
+)";
+
+std::string TestNamedExtentJson() {
+  size_t t = kTaggedSize;
+  std::stringstream s;
+  s << R"({"schema_version": 1, )" << TestConfig() << R"("classes": [{)"
+    << R"("cpp_name": "v8::internal::TestExtent", )"
+    << R"("base": "v8::internal::HeapObject", )"
+    << R"("base_size": )" << t << R"(, "size": )" << 3 * t
+    << R"(, "alignment": )" << t << R"(, "fields": [)"
+    << R"({"cpp_name": "a_", "cpp_type": "TaggedMember<Object>", "offset": )"
+    << t << R"(, "size": )" << 2 * t
+    << R"(, "storage": {"kind": "tagged", "arg": )"
+    << R"({"kind": "name", "name": "Smi"}}, "array_extent": 2, )"
+    << R"("annotations": [{"name": "V8_TQ_EXTENT_NAME", )"
+    << R"("arg": "kTestExtent"}]}]}]})";
+  return s.str();
+}
+
+// kTestLayoutClass with field a declared as the override target.
+constexpr const char* kTestLayoutOverrideClass = R"(
+  @cppObjectLayoutDefinition
+  extern class TestLayout extends HeapObject {
+    a: SmiTagged<uint31>;
+    b: Map;
+  }
+)";
+
+// One scalar field on top of HeapObject. The storage record is the
+// only input the Torque type is derived from, so declaring the class
+// with the expected type turns the strict comparison into an assertion
+// on the derivation.
+std::string TestScalarClass(const std::string& field) {
+  // "T" names a field called value of type T; "n: T" names it n.
+  std::string spelled =
+      field.find(':') == std::string::npos ? "value: " + field : field;
+  return "@cppObjectLayoutDefinition\nextern class TestScalar extends "
+         "HeapObject {\n  " +
+         spelled + ";\n}\n";
+}
+
+std::string TestScalarJson(const std::string& storage, size_t size,
+                           const char* annotations = nullptr) {
+  size_t t = kTaggedSize;
+  std::stringstream s;
+  s << R"({"schema_version": 1, )" << TestConfig() << R"("classes": [{)"
+    << R"("cpp_name": "v8::internal::TestScalar", )"
+    << R"("base": "v8::internal::HeapObject", )"
+    << R"("base_size": )" << t << R"(, "size": )" << t + size
+    << R"(, "alignment": )" << t << R"(, "fields": [)"
+    << R"({"cpp_name": "value_", "offset": )" << t << R"(, "size": )" << size
+    << R"(, "storage": )" << storage;
+  if (annotations != nullptr) s << R"(, "annotations": )" << annotations;
+  s << R"(}]}]})";
+  return s.str();
+}
+
+// The positions JSON for kTestLayoutClass and its variants.
+constexpr const char* kTestLayoutPositions = R"({"schema_version": 1,
+  "classes": [{"cpp_name": "v8::internal::TestLayout",
+    "position": "src/objects/test-layout.h:10:1",
+    "members": {"a_": "src/objects/test-layout.h:11:3",
+                "b_": "src/objects/test-layout.h:12:3"}}]})";
+
+}  // namespace
+
+// The same layout, with the class omitting its tail (V8_TQ_NO_TAIL)
+// instead of naming it: only the fixed header becomes Torque fields.
+std::string TestNoTailJson(bool also_name_the_tail = false) {
+  std::string document = TestTailJson();
+  size_t annotations =
+      document.find(R"("annotations": [{"name": "V8_TQ_TAIL_NAME")");
+  CHECK_NE(annotations, std::string::npos);
+  std::string replacement = R"("annotations": [{"name": "V8_TQ_NO_TAIL"})";
+  if (also_name_the_tail) {
+    replacement += R"(, {"name": "V8_TQ_TAIL_NAME", "arg": "bytes"})"
+                   R"(, {"name": "V8_TQ_TAIL_LENGTH", "arg": "length"})";
+  }
+  replacement += "]}]}";
+  return document.substr(0, annotations) + replacement;
+}
+
+constexpr const char* kTestLayoutNoTailClass = R"(
+  @cppObjectLayoutDefinition
+  extern class TestBlob extends HeapObject {
+    const length: Smi;
+  }
+)";
+
+// A tail Torque splits into two indexed sections: the section
+// declarations are on the class as Torque source, because their extents
+// are expressions over Torque fields that C++ does not encode. Optional
+// sections (`name?[cond]`) take the same path; the test prelude has no
+// Smi comparison to write a condition with, so ScopeInfo covers them in
+// the real build.
+std::string TestSectionedJson(const char* sections, bool also_no_tail) {
+  std::string document = TestTailJson();
+  size_t annotations =
+      document.find(R"("annotations": [{"name": "V8_TQ_TAIL_NAME")");
+  CHECK_NE(annotations, std::string::npos);
+  std::string replacement =
+      std::string(
+          R"("annotations": [{"name": "V8_TQ_TAIL_SECTIONS", "arg": ")") +
+      sections + R"("})";
+  if (also_no_tail) replacement += R"(, {"name": "V8_TQ_NO_TAIL"})";
+  return document.substr(0, annotations) + replacement + "]}]}";
+}
+
+constexpr const char* kTestLayoutSectionedClass = R"(
+  @cppObjectLayoutDefinition
+  extern class TestBlob extends HeapObject {
+    const length: Smi;
+    head[length]: uint8;
+    rest[length]: uint8;
+  }
+)";
+
+TEST(TorqueLayoutLoader, ImportsASectionedTail) {
+  ExpectSuccessfulLayoutCompilation(
+      kTestLayoutSectionedClass,
+      TestSectionedJson("head[length]: uint8; rest[length]: uint8;",
+                        /*also_no_tail=*/false),
+      /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, RejectsAComplexExtentThatDiffers) {
+  // A compound extent must compare on its structure. Mapping every
+  // unsupported expression to one placeholder would let these two match.
+  ExpectFailingLayoutCompilation(
+      R"(
+  @cppObjectLayoutDefinition
+  extern class TestBlob extends HeapObject {
+    const length: Smi;
+    head[Convert<intptr>(length) * 2]: uint8;
+    rest[length]: uint8;
+  }
+)",
+      TestSectionedJson(
+          "head[Convert<intptr>(length) * 4]: uint8; rest[length]: uint8;",
+          /*also_no_tail=*/false),
+      /*use_cpp_layouts=*/true, "(Convert<intptr>(length) * 4)");
+}
+
+TEST(TorqueLayoutLoader, RejectsSectionsThatDifferFromTheTqFieldBlock) {
+  ExpectFailingLayoutCompilation(
+      kTestLayoutSectionedClass,
+      TestSectionedJson("head[length]: uint8; rest[capacity]: uint8;",
+                        /*also_no_tail=*/false),
+      /*use_cpp_layouts=*/true, "differs from C++ field");
+}
+
+TEST(TorqueLayoutLoader, RejectsMalformedTailSections) {
+  ExpectFailingLayoutCompilation(kTestLayoutSectionedClass,
+                                 TestSectionedJson("head[length] uint8;",
+                                                   /*also_no_tail=*/false),
+                                 /*use_cpp_layouts=*/true, "unexpected token");
+}
+
+TEST(TorqueLayoutLoader, RejectsSectionsCombinedWithNoTail) {
+  ExpectFailingLayoutCompilation(
+      kTestLayoutSectionedClass,
+      TestSectionedJson("head[length]: uint8; rest[length]: uint8;",
+                        /*also_no_tail=*/true),
+      /*use_cpp_layouts=*/true,
+      "V8_TQ_TAIL_NAME, V8_TQ_NO_TAIL and V8_TQ_TAIL_SECTIONS are exclusive");
+}
+
+TEST(TorqueLayoutLoader, ImportsFixedHeaderWithNoTail) {
+  // V8_TQ_NO_TAIL: the C++ class has a flexible array member Torque
+  // does not model, so the fields stop at the fixed header.
+  ExpectSuccessfulLayoutCompilation(kTestLayoutNoTailClass, TestNoTailJson(),
+                                    /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, RejectsATailThatIsBothNamedAndOmitted) {
+  ExpectFailingLayoutCompilation(kTestLayoutNoTailClass,
+                                 TestNoTailJson(/*also_name_the_tail=*/true),
+                                 /*use_cpp_layouts=*/true,
+                                 "V8_TQ_TAIL_NAME, V8_TQ_NO_TAIL and "
+                                 "V8_TQ_TAIL_SECTIONS are exclusive");
+}
+
+TEST(TorqueLayoutLoader, OmittedTailStillRejectsAnIndexedField) {
+  // The tail contributes no field, so a Torque class that does declare
+  // one no longer matches the record.
+  ExpectFailingLayoutCompilation(kTestLayoutTailClass, TestNoTailJson(),
+                                 /*use_cpp_layouts=*/true,
+                                 ".tq declares 2 field(s), C++ 1");
+}
+
+TEST(TorqueLayoutLoader, VerifierAcceptsTailedRecord) {
+  ExpectSuccessfulLayoutCompilation(kTestLayoutTailClass, TestTailJson(),
+                                    /*use_cpp_layouts=*/false);
+}
+
+TEST(TorqueLayoutLoader, VerifierRejectsTailIndexMismatch) {
+  ExpectFailingLayoutCompilation(kTestLayoutTailClass, TestTailJson("other"),
+                                 /*use_cpp_layouts=*/false, "indexed by");
+}
+
+TEST(TorqueLayoutLoader, ImporterImportsTailedBodyLessClass) {
+  // Import builds the indexed field from the tail record; the
+  // verifier then cross-checks element size, index, and header size.
+  ExpectSuccessfulLayoutCompilation(kTestLayoutTailBodyLessClass,
+                                    TestTailJson(),
+                                    /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, ImporterAppliesTypeOverride) {
+  // The type derived from the record's storage is Smi; only the
+  // V8_TQ_TYPE override makes the strict comparison pass.
+  ExpectSuccessfulLayoutCompilation(
+      kTestLayoutOverrideClass,
+      TestLayoutJson(1, 0, "Map", "Smi",
+                     /*type_override_a=*/"SmiTagged<uint31>"),
+      /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, ImporterRejectsMalformedTypeOverride) {
+  // The grammar reports the parse failure itself; with the positions
+  // JSON the error points at the annotation's C++ header.
+  TorqueCompilerResult result = TestCompileTorqueWithLayout(
+      kTestLayoutOverrideClass,
+      TestLayoutJson(1, 0, "Map", "Smi", /*type_override_a=*/"Smi |"),
+      /*use_cpp_layouts=*/true, kTestLayoutPositions);
+  ASSERT_FALSE(result.messages.empty());
+  const TorqueMessage& message = result.messages.front();
+  EXPECT_THAT(message.message, HasSubstr("unexpected end of input"));
+  ASSERT_TRUE(message.position.has_value());
+  SourceFileMap::Scope source_map_scope(*result.source_file_map);
+  EXPECT_EQ(SourceFileMap::PathFromV8Root(message.position->source),
+            "src/objects/test-layout.h");
+}
+
+TEST(TorqueLayoutLoader, ImporterFallsBackToClassPosition) {
+  // Without the positions JSON the same error points at the .tq class
+  // declaration.
+  TorqueCompilerResult result = TestCompileTorqueWithLayout(
+      kTestLayoutOverrideClass,
+      TestLayoutJson(1, 0, "Map", "Smi", /*type_override_a=*/"Smi |"),
+      /*use_cpp_layouts=*/true);
+  ASSERT_FALSE(result.messages.empty());
+  const TorqueMessage& message = result.messages.front();
+  EXPECT_THAT(message.message, HasSubstr("unexpected end of input"));
+  ASSERT_TRUE(message.position.has_value());
+  SourceFileMap::Scope source_map_scope(*result.source_file_map);
+  EXPECT_THAT(SourceFileMap::PathFromV8Root(message.position->source),
+              ::testing::EndsWith(".tq"));
+}
+
+TEST(TorqueLayoutLoader, DerivesIntTypeFromWidthAndSign) {
+  ExpectSuccessfulLayoutCompilation(
+      TestScalarClass("uint32"),
+      TestScalarJson(R"({"kind": "int", "width": 4, "signed": false})", 4),
+      /*use_cpp_layouts=*/true);
+  ExpectSuccessfulLayoutCompilation(
+      TestScalarClass("int32"),
+      TestScalarJson(R"({"kind": "int", "width": 4, "signed": true})", 4),
+      /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, DerivesPointerWidthAliasAsUintptr) {
+  // A member written through uintptr_t: the layout JSON names the C++
+  // alias, and the loader maps it to a Torque type. The width alone
+  // would give uint64 here and uint32 on a 32-bit target.
+  ExpectSuccessfulLayoutCompilation(
+      TestScalarClass("uintptr"),
+      TestScalarJson(
+          R"({"kind": "int", "width": )" + std::to_string(kSystemPointerSize) +
+              R"(, "signed": false, "pointer_width_alias": "uintptr_t"})",
+          kSystemPointerSize),
+      /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, PointerSizedIntIsNotItsFixedWidthType) {
+  // The same storage without the alias would derive uint64, so
+  // declaring uint64 must be rejected.
+  ExpectFailingLayoutCompilation(
+      TestScalarClass("uint64"),
+      TestScalarJson(
+          R"({"kind": "int", "width": )" + std::to_string(kSystemPointerSize) +
+              R"(, "signed": false, "pointer_width_alias": "uintptr_t"})",
+          kSystemPointerSize),
+      /*use_cpp_layouts=*/true, "differs from C++ field");
+}
+
+TEST(TorqueLayoutLoader, DerivesVoidForZeroSizedField) {
+  // The zero-length-array padding idiom.
+  ExpectSuccessfulLayoutCompilation(
+      TestScalarClass("void"),
+      TestScalarJson(R"({"kind": "int", "width": 1, "signed": true})", 0),
+      /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, DerivesNamedTypeForEnumStorage) {
+  ExpectSuccessfulLayoutCompilation(
+      TestScalarClass("uint8"),
+      TestScalarJson(
+          R"({"kind": "enum", "name": "uint8", "width": 1, "signed": false})",
+          1),
+      /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, DerivesWrappedPointerTypes) {
+  ExpectSuccessfulLayoutCompilation(
+      TestScalarClass("ExternalPointer"),
+      TestScalarJson(R"({"kind": "external_pointer", "tag": "kTestTag"})",
+                     kExternalPointerSlotSize),
+      /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, RejectsUnknownStorageKind) {
+  ExpectFailingLayoutCompilation(
+      TestScalarClass("uint32"), TestScalarJson(R"({"kind": "quantum"})", 4),
+      /*use_cpp_layouts=*/true, "unknown storage kind");
+}
+
+TEST(TorqueLayoutLoader, RejectsUnknownAnnotation) {
+  ExpectFailingLayoutCompilation(
+      TestScalarClass("uint32"),
+      TestScalarJson(R"({"kind": "int", "width": 4, "signed": false})", 4,
+                     R"([{"name": "V8_TQ_BOGUS"}])"),
+      /*use_cpp_layouts=*/true, "unknown annotation V8_TQ_BOGUS");
+}
+
+TEST(TorqueLayoutLoader, RejectsAnnotationWithWrongArity) {
+  ExpectFailingLayoutCompilation(
+      TestScalarClass("uint32"),
+      TestScalarJson(R"({"kind": "int", "width": 4, "signed": false})", 4,
+                     R"([{"name": "V8_TQ_CONST", "arg": "x"}])"),
+      /*use_cpp_layouts=*/true, "V8_TQ_CONST takes no argument");
+  ExpectFailingLayoutCompilation(
+      TestScalarClass("uint32"),
+      TestScalarJson(R"({"kind": "int", "width": 4, "signed": false})", 4,
+                     R"([{"name": "V8_TQ_NAME"}])"),
+      /*use_cpp_layouts=*/true, "V8_TQ_NAME needs an argument");
+}
+
+TEST(TorqueLayoutLoader, RejectsAnnotationOnTheWrongDeclaration) {
+  // Tail annotations belong on the class, not on a field.
+  ExpectFailingLayoutCompilation(
+      TestScalarClass("uint32"),
+      TestScalarJson(R"({"kind": "int", "width": 4, "signed": false})", 4,
+                     R"([{"name": "V8_TQ_TAIL_NAME", "arg": "bytes"}])"),
+      /*use_cpp_layouts=*/true, "V8_TQ_TAIL_NAME is not allowed here");
+}
+
+TEST(TorqueLayoutLoader, RejectsConflictingSynchronizationAnnotations) {
+  ExpectFailingLayoutCompilation(
+      TestScalarClass("uint32"),
+      TestScalarJson(
+          R"({"kind": "int", "width": 4, "signed": false})", 4,
+          R"([{"name": "V8_TQ_RELAXED"}, {"name": "V8_TQ_ACQ_REL"}])"),
+      /*use_cpp_layouts=*/true, "on the same member");
+}
+
+TEST(TorqueLayoutLoader, AppliesFieldNameAnnotation) {
+  ExpectSuccessfulLayoutCompilation(
+      TestScalarClass("renamed: uint32"),
+      TestScalarJson(R"({"kind": "int", "width": 4, "signed": false})", 4,
+                     R"([{"name": "V8_TQ_NAME", "arg": "renamed"}])"),
+      /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, ImporterAppliesNamedExtent) {
+  // The extent expression comes from V8_TQ_EXTENT_NAME through the
+  // expression parser; the class size stays dynamic in Torque, so the
+  // verifier checks that the array spans from the header to sizeof.
+  ExpectSuccessfulLayoutCompilation(kTestLayoutNamedExtentClass,
+                                    TestNamedExtentJson(),
+                                    /*use_cpp_layouts=*/true);
 }
 
 }  // namespace torque

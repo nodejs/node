@@ -97,9 +97,9 @@ void TracedNodeBlock::FreeNode(TracedNode* node, Address zap_value) {
   used_--;
 }
 
-void SetSlotThreadSafe(Address** slot, Address* val) {
-  reinterpret_cast<std::atomic<Address*>*>(slot)->store(
-      val, std::memory_order_relaxed);
+void SetSlotThreadSafe(Address** slot, Address* val,
+                       std::memory_order order = std::memory_order_relaxed) {
+  reinterpret_cast<std::atomic<Address*>*>(slot)->store(val, order);
 }
 
 void TracedHandles::RefillUsableNodeBlocks() {
@@ -118,6 +118,12 @@ void TracedHandles::RefillUsableNodeBlocks() {
   DCHECK(block->IsEmpty());
   DCHECK_EQ(usable_blocks_.Front(), block);
   DCHECK(!usable_blocks_.empty());
+}
+
+std::pair<TracedNodeBlock*, TracedNode*>
+TracedHandles::RefillAndAllocateNode() {
+  RefillUsableNodeBlocks();
+  return AllocateNodeUnchecked();
 }
 
 void TracedHandles::FreeNode(TracedNode* node, Address zap_value) {
@@ -195,13 +201,25 @@ void TracedHandles::Destroy(TracedNodeBlock& node_block, TracedNode& node) {
   FreeNode(&node, kTracedHandleEagerResetZapValue);
 }
 
+namespace {
+
+bool IsTracedHandleZapValue(Address value) {
+  CHECK_NE(kGlobalHandleZapValue, value);
+  return value == kTracedHandleEagerResetZapValue ||
+         value == kTracedHandleMinorGCResetZapValue ||
+         value == kTracedHandleMinorGCWeakResetZapValue ||
+         value == kTracedHandleFullGCResetZapValue;
+}
+
+}  // namespace
+
 void TracedHandles::Copy(const TracedNode& from_node, Address** to) {
-  DCHECK_NE(kGlobalHandleZapValue, from_node.raw_object());
+  DCHECK(!IsTracedHandleZapValue(from_node.raw_object()));
   FullObjectSlot o =
       Create(from_node.raw_object(), reinterpret_cast<Address*>(to),
              TracedReferenceStoreMode::kAssigningStore,
              TracedReferenceHandling::kDefault);
-  SetSlotThreadSafe(to, o.location());
+  SetSlotThreadSafe(to, o.location(), std::memory_order_release);
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
     Object::ObjectVerify(Tagged<Object>(**to), isolate_);
@@ -215,8 +233,8 @@ void TracedHandles::Move(TracedNode& from_node, Address** from, Address** to) {
   // Deal with old "to".
   auto* to_node = TracedNode::FromLocation(*to);
   DCHECK_IMPLIES(*to, to_node->is_in_use());
-  DCHECK_IMPLIES(*to, kGlobalHandleZapValue != to_node->raw_object());
-  DCHECK_NE(kGlobalHandleZapValue, from_node.raw_object());
+  DCHECK_IMPLIES(*to, !IsTracedHandleZapValue(to_node->raw_object()));
+  DCHECK(!IsTracedHandleZapValue(from_node.raw_object()));
   if (*to) {
     auto& to_node_block = TracedNodeBlock::From(*to_node);
     Destroy(to_node_block, *to_node);
@@ -349,7 +367,9 @@ void TracedHandles::ResetDeadNodes(
 
 void TracedHandles::ResetYoungDeadNodes(
     WeakSlotCallbackWithHeap should_reset_handle) {
-  for (auto* block : young_blocks_) {
+  // Manual iteration as the block may be deleted in `FreeNode()`.
+  for (auto it = young_blocks_.begin(); it != young_blocks_.end();) {
+    auto* block = *(it++);
     for (auto* node : *block) {
       if (!node->is_in_young_list()) continue;
       DCHECK(node->is_in_use());
@@ -390,14 +410,15 @@ class ParallelWeakHandlesProcessor {
 
     void Run(JobDelegate* delegate) override {
       if (delegate->IsJoiningThread()) {
-        TRACE_GC_WITH_FLOW(derived_.heap()->tracer(), Derived::kMainThreadScope,
-                           derived_.trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
+        TRACE_GC_WITH_FLOW(
+            derived_.heap()->tracer(), Derived::kMainThreadScope,
+            perfetto::TerminatingFlow::ProcessScoped(derived_.trace_id_));
         RunImpl</*IsMainThread=*/true>(delegate);
       } else {
-        TRACE_GC_EPOCH_WITH_FLOW(derived_.heap()->tracer(),
-                                 Derived::kBackgroundThreadScope,
-                                 ThreadKind::kBackground, derived_.trace_id_,
-                                 TRACE_EVENT_FLAG_FLOW_IN);
+        TRACE_GC_EPOCH_WITH_FLOW(
+            derived_.heap()->tracer(), Derived::kBackgroundThreadScope,
+            ThreadKind::kBackground,
+            perfetto::TerminatingFlow::ProcessScoped(derived_.trace_id_));
         RunImpl</*IsMainThread=*/false>(delegate);
       }
     }
@@ -463,8 +484,8 @@ class ParallelWeakHandlesProcessor {
                   heap_->tracer()->CurrentEpoch()) {}
 
   void Run() {
-    TRACE_GC_NOTE_WITH_FLOW(Derived::kStartNote, trace_id(),
-                            TRACE_EVENT_FLAG_FLOW_OUT);
+    TRACE_GC_NOTE_WITH_FLOW(Derived::kStartNote,
+                            perfetto::Flow::ProcessScoped(trace_id()));
     V8::GetCurrentPlatform()
         ->CreateJob(v8::TaskPriority::kUserBlocking,
                     std::make_unique<Job>(static_cast<Derived&>(*this)))
@@ -599,10 +620,9 @@ void TracedHandles::ProcessWeakYoungObjects(
 
   auto* heap = isolate_->heap();
   // ResetRoot() below should not trigger allocations in CppGC.
-  if (auto* cpp_heap = CppHeap::From(heap->cpp_heap())) {
-    cpp_heap->EnterDisallowGCScope();
-    cpp_heap->EnterNoGCScope();
-  }
+  auto* cpp_heap = CppHeap::From(heap->cpp_heap());
+  cpp_heap->EnterDisallowGCScope();
+  cpp_heap->EnterNoGCScope();
 
 #ifdef DEBUG
   size_t num_young_blocks = 0;
@@ -675,10 +695,8 @@ void TracedHandles::ProcessWeakYoungObjects(
     DCHECK_GT(locally_freed, 0);
   }
 
-  if (auto* cpp_heap = CppHeap::From(isolate_->heap()->cpp_heap())) {
-    cpp_heap->LeaveNoGCScope();
-    cpp_heap->LeaveDisallowGCScope();
-  }
+  cpp_heap->LeaveNoGCScope();
+  cpp_heap->LeaveDisallowGCScope();
 }
 
 void TracedHandles::Iterate(RootVisitor* visitor) {
@@ -795,14 +813,16 @@ namespace {
 Tagged<Object> MarkObject(Tagged<Object> obj, TracedNode& node,
                           TracedHandles::MarkMode mark_mode) {
   if (mark_mode == TracedHandles::MarkMode::kOnlyYoung &&
-      !node.is_in_young_list())
+      !node.is_in_young_list()) {
     return Smi::zero();
+  }
   node.set_markbit();
   // Being in the young list, the node may still point to an old object, in
   // which case we want to keep the node marked, but not follow the reference.
   if (mark_mode == TracedHandles::MarkMode::kOnlyYoung &&
-      !HeapLayout::InYoungGeneration(obj))
+      !HeapLayout::InYoungGeneration(obj)) {
     return Smi::zero();
+  }
   return obj;
 }
 }  // namespace
@@ -820,29 +840,58 @@ Tagged<Object> TracedHandles::Mark(Address* location, MarkMode mark_mode) {
 }
 
 // static
-Tagged<Object> TracedHandles::MarkConservatively(
-    Address* inner_location, Address* traced_node_block_base,
-    MarkMode mark_mode) {
-  // Compute the `TracedNode` address based on its inner pointer.
-  const ptrdiff_t delta = reinterpret_cast<uintptr_t>(inner_location) -
-                          reinterpret_cast<uintptr_t>(traced_node_block_base);
-  const auto index = delta / sizeof(TracedNode);
-  TracedNode& node =
-      reinterpret_cast<TracedNode*>(traced_node_block_base)[index];
-  if (!node.is_in_use()) return Smi::zero();
-  return MarkObject(node.object(), node, mark_mode);
+Tagged<Object> TracedHandles::MarkConservatively(TracedNode* node,
+                                                 MarkMode mark_mode) {
+  DCHECK_NOT_NULL(node);
+  DCHECK(node->is_in_use());
+  return MarkObject(node->object(), *node, mark_mode);
 }
 
 bool TracedHandles::IsValidInUseNode(const Address* location) {
   const TracedNode* node = TracedNode::FromLocation(location);
   // This method is called after mark bits have been cleared.
   DCHECK(!node->markbit());
-  CHECK_IMPLIES(node->is_in_use(), node->raw_object() != kGlobalHandleZapValue);
-  CHECK_IMPLIES(!node->is_in_use(),
-                node->raw_object() == kGlobalHandleZapValue);
+  // Released nodes are zapped with one of the `kTracedHandle*ZapValue`s, see
+  // `TracedNodeBlock::FreeNode()`, and never with `kGlobalHandleZapValue`.
+  CHECK_IMPLIES(node->is_in_use(), !IsTracedHandleZapValue(node->raw_object()));
+  CHECK_IMPLIES(!node->is_in_use(), IsTracedHandleZapValue(node->raw_object()));
   return node->is_in_use();
 }
 
 bool TracedHandles::HasYoung() const { return !young_blocks_.empty(); }
+
+ConservativeTracedHandlesNodeScanner::ConservativeTracedHandlesNodeScanner(
+    Isolate* isolate)
+    : traced_node_bounds_(isolate->traced_handles()->GetNodeBounds()) {}
+
+// static
+TracedNode* ConservativeTracedHandlesNodeScanner::TryGetNodeFromInnerPointer(
+    Address* inner_location, Address* traced_node_block_base) {
+  // Compute the `TracedNode` address based on its inner pointer.
+  const ptrdiff_t delta = reinterpret_cast<uintptr_t>(inner_location) -
+                          reinterpret_cast<uintptr_t>(traced_node_block_base);
+  const auto index = delta / sizeof(TracedNode);
+  TracedNode& node =
+      reinterpret_cast<TracedNode*>(traced_node_block_base)[index];
+  if (!node.is_in_use()) return nullptr;
+  return &node;
+}
+
+TracedNode* ConservativeTracedHandlesNodeScanner::TryFindNode(
+    const void* hint) const {
+  const auto upper_it = std::upper_bound(
+      traced_node_bounds_.begin(), traced_node_bounds_.end(), hint,
+      [](const void* needle, const auto& pair) { return needle < pair.first; });
+  // Also checks emptiness as begin() == end() on empty bounds.
+  if (upper_it == traced_node_bounds_.begin()) return nullptr;
+
+  const auto bounds = std::next(upper_it, -1);
+  if (hint < bounds->second) {
+    return TryGetNodeFromInnerPointer(
+        const_cast<Address*>(reinterpret_cast<const Address*>(hint)),
+        const_cast<Address*>(reinterpret_cast<const Address*>(bounds->first)));
+  }
+  return nullptr;
+}
 
 }  // namespace v8::internal

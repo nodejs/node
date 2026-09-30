@@ -38,9 +38,11 @@ namespace internal {
   V(BOOL_STACK_SLOT, 1)               \
   V(CAPTURED_OBJECT, 1)               \
   V(STRING_CONCAT, 0)                 \
+  V(DOUBLE_LITERAL, 2)                \
   V(DOUBLE_REGISTER, 1)               \
   V(DOUBLE_STACK_SLOT, 1)             \
   V(SIMD128_STACK_SLOT, 1)            \
+  V(HOLEY_DOUBLE_LITERAL, 2)          \
   V(HOLEY_DOUBLE_REGISTER, 1)         \
   V(HOLEY_DOUBLE_STACK_SLOT, 1)       \
   V(SIMD128_REGISTER, 1)              \

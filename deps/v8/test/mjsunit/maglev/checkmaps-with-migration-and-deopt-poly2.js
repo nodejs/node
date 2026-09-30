@@ -32,4 +32,4 @@ const nonzero = new Vector(0.6); // Map2
 magnitude(nonzero);
 
 // The first call doesn't deopt if called with a new object.
-assertTrue(isMaglevved(magnitude));
+assertMaglevved(magnitude);

@@ -35,7 +35,7 @@ assert_test_count_limit(test_count_limit());
 %OptimizeMaglevOnNextCall(test_count_limit);
 assert_test_count_limit(test_count_limit());
 assertOptimized(test_count_limit);
-assertTrue(isMaglevved(test_count_limit));
+assertMaglevved(test_count_limit);
 assert_test_count_limit(test_count_limit());
 %OptimizeFunctionOnNextCall(test_count_limit);
 assert_test_count_limit(test_count_limit());

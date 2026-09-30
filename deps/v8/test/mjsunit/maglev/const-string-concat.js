@@ -17,4 +17,4 @@ function foo2() {
 assertEquals('foobar', foo2());
 %OptimizeMaglevOnNextCall(foo2);
 assertEquals('foobar', foo2());
-assertTrue(isMaglevved(foo2));
+assertMaglevved(foo2);

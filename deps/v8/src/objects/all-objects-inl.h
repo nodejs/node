@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_ALL_OBJECTS_INL_H_
 #define V8_OBJECTS_ALL_OBJECTS_INL_H_
 
-// This file includes all inline headers from src/objects, which is handy for
-// compilation units that need it like object printing or verification.
-// New inline headers should be added here.
+#include "src/objects/all-objects.h"
+
+// Inline definitions for compilation units that operate on every heap object,
+// such as object printing and verification. Add new object declarations to
+// all-objects.h. Add an inline header here when these consumers need it.
 
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/allocation-site-scopes-inl.h"
@@ -19,7 +21,6 @@
 #include "src/objects/compilation-cache-table-inl.h"
 #include "src/objects/compressed-slots-inl.h"
 #include "src/objects/contexts-inl.h"
-#include "src/objects/cpp-heap-external-object-inl.h"
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
@@ -34,6 +35,7 @@
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/free-space-inl.h"
+#include "src/objects/hash-seed-wrapper-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object-inl.h"
@@ -45,6 +47,7 @@
 #include "src/objects/js-disposable-stack-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/js-interceptor-map-inl.h"
 #include "src/objects/js-iterator-helpers-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/js-promise-inl.h"
@@ -53,8 +56,6 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
 #include "src/objects/js-shadow-realm-inl.h"
-#include "src/objects/js-shared-array-inl.h"
-#include "src/objects/js-struct-inl.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
 #endif  // V8_TEMPORAL_SUPPORT
@@ -71,7 +72,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
-#include "src/objects/primitive-heap-object-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-array-inl.h"
 #include "src/objects/property-cell-inl.h"
@@ -82,6 +82,7 @@
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/slots-atomic-inl.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/sort-state.h"
 #include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/string-set-inl.h"
@@ -94,11 +95,15 @@
 #include "src/objects/tagged-value-inl.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/templates-inl.h"
-#include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/objects/trusted-object-inl.h"
 #include "src/objects/turbofan-types-inl.h"
 #include "src/objects/turboshaft-types-inl.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects-inl.h"
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator-inl.h"

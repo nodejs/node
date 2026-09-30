@@ -143,7 +143,7 @@ ReferenceSummary ReferenceSummary::SummarizeReferencesFrom(
   ReferenceSummarizerMarkingState marking_state(obj);
 
   ReferenceSummarizerMarkingVisitor visitor(heap, &marking_state);
-  visitor.Visit(obj->map(heap->isolate()), obj);
+  visitor.Visit(obj->map(), obj);
 
   return marking_state.DestructivelyRetrieveReferences();
 }

@@ -27,13 +27,12 @@ class DebugScopeIterator final : public debug::ScopeIterator {
   bool HasLocationInfo() override;
   debug::Location GetStartLocation() override;
   debug::Location GetEndLocation() override;
+  bool DeclaresLocals() override;
 
   bool SetVariableValue(v8::Local<v8::String> name,
                         v8::Local<v8::Value> value) override;
 
  private:
-  bool ShouldIgnore();
-
   v8::internal::ScopeIterator iterator_;
 };
 

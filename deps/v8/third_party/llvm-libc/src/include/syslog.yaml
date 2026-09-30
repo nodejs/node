@@ -1,0 +1,68 @@
+header: syslog.h
+standards:
+  - posix
+macros:
+  - macro_name: LOG_PID
+    macro_header: syslog-macros.h
+  - macro_name: LOG_CONS
+    macro_header: syslog-macros.h
+  - macro_name: LOG_NDELAY
+    macro_header: syslog-macros.h
+  - macro_name: LOG_ODELAY
+    macro_header: syslog-macros.h
+  - macro_name: LOG_NOWAIT
+    macro_header: syslog-macros.h
+  - macro_name: LOG_KERN
+    macro_header: syslog-macros.h
+  - macro_name: LOG_USER
+    macro_header: syslog-macros.h
+  - macro_name: LOG_MAIL
+    macro_header: syslog-macros.h
+  - macro_name: LOG_NEWS
+    macro_header: syslog-macros.h
+  - macro_name: LOG_UUCP
+    macro_header: syslog-macros.h
+  - macro_name: LOG_DAEMON
+    macro_header: syslog-macros.h
+  - macro_name: LOG_AUTH
+    macro_header: syslog-macros.h
+  - macro_name: LOG_CRON
+    macro_header: syslog-macros.h
+  - macro_name: LOG_LPR
+    macro_header: syslog-macros.h
+  - macro_name: LOG_LOCAL0
+    macro_header: syslog-macros.h
+  - macro_name: LOG_LOCAL1
+    macro_header: syslog-macros.h
+  - macro_name: LOG_LOCAL2
+    macro_header: syslog-macros.h
+  - macro_name: LOG_LOCAL3
+    macro_header: syslog-macros.h
+  - macro_name: LOG_LOCAL4
+    macro_header: syslog-macros.h
+  - macro_name: LOG_LOCAL5
+    macro_header: syslog-macros.h
+  - macro_name: LOG_LOCAL6
+    macro_header: syslog-macros.h
+  - macro_name: LOG_LOCAL7
+    macro_header: syslog-macros.h
+  - macro_name: LOG_EMERG
+    macro_header: syslog-macros.h
+  - macro_name: LOG_ALERT
+    macro_header: syslog-macros.h
+  - macro_name: LOG_CRIT
+    macro_header: syslog-macros.h
+  - macro_name: LOG_ERR
+    macro_header: syslog-macros.h
+  - macro_name: LOG_WARNING
+    macro_header: syslog-macros.h
+  - macro_name: LOG_NOTICE
+    macro_header: syslog-macros.h
+  - macro_name: LOG_INFO
+    macro_header: syslog-macros.h
+  - macro_name: LOG_DEBUG
+    macro_header: syslog-macros.h
+types: []
+enums: []
+objects: []
+functions: []

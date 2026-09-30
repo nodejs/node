@@ -20,9 +20,10 @@ BlockProcessResult MaglevRangeVerificationProcessor::PreProcessBasicBlock(
   return BlockProcessResult::kContinue;
 }
 
-void MaglevRangeVerificationProcessor::PostProcessBasicBlock(
+BlockProcessResult MaglevRangeVerificationProcessor::PostProcessBasicBlock(
     BasicBlock* block) {
   reducer_.FlushNodesToBlock();
+  return BlockProcessResult::kContinue;
 }
 
 ProcessResult MaglevRangeVerificationProcessor::Process(

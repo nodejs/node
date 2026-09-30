@@ -52,6 +52,7 @@
 #ifndef ABSL_DEBUGGING_SYMBOLIZE_H_
 #define ABSL_DEBUGGING_SYMBOLIZE_H_
 
+#include "absl/base/config.h"
 #include "absl/debugging/internal/symbolize.h"
 
 namespace absl {

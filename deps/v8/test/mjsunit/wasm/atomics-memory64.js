@@ -106,8 +106,8 @@ function TestAtomicI32Wait(pages, offset) {
   assertEquals(kAtomicWaitNotEqual, WasmI32AtomicWait(memory, 0, offset, 42, -1));
   assertEquals(kAtomicWaitTimedOut, WasmI32AtomicWait(memory, 0, offset, 0, 0));
 
-  let i32a = new Int32Array(memory.buffer);
-  i32a[offset / 4] = 1;
+  let view = new DataView(memory.buffer);
+  view.setInt32(offset, 1, true);
 
   assertEquals(kAtomicWaitNotEqual, WasmI32AtomicWait(memory, offset, 0, 0, -1));
   assertEquals(kAtomicWaitTimedOut, WasmI32AtomicWait(memory, offset, 0, 1, 0));
@@ -125,9 +125,9 @@ function TestAtomicI64Wait(pages, offset) {
   assertEquals(kAtomicWaitNotEqual, WasmI64AtomicWait(memory, 0, offset, 42, 0, -1));
   assertEquals(kAtomicWaitTimedOut, WasmI64AtomicWait(memory, 0, offset, 0, 0, 0));
 
-  let i32a = new Int32Array(memory.buffer);
-  i32a[offset / 4] = 1;
-  i32a[(offset / 4) + 1] = 2;
+  let view = new DataView(memory.buffer);
+  view.setInt32(offset, 1, true);
+  view.setInt32(offset + 4, 2, true);
 
   assertEquals(kAtomicWaitNotEqual, WasmI64AtomicWait(memory, offset, 0, 2, 1, -1));
   assertEquals(kAtomicWaitTimedOut, WasmI64AtomicWait(memory, offset, 0, 1, 2, 0));

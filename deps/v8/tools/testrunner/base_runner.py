@@ -92,12 +92,12 @@ TEST_MAP = {
 }
 
 DEFAULT_FLAGS = {
-  'standard_runner': [],
-  'num_fuzzer': [
-    '--fuzzing',
-    '--exit-on-contradictory-flags',
-    '--no-fail',
-  ],
+    'standard_runner': [],
+    'num_fuzzer': [
+        '--fuzzing',
+        '--flag-processing-mode=ignore-contradictions',
+        '--no-fail',
+    ],
 }
 
 ModeConfig = namedtuple(
@@ -121,6 +121,28 @@ TRY_RELEASE_MODE = ModeConfig(
     timeout_scalefactor=4,
     status_mode="debug",
 )
+
+# Environment variables set by AI coding agents. Duplicated from depot_tools'
+# gclient_utils.AI_AGENT_ENV_VARS rather than imported, because the swarming
+# isolate ships tools/testrunner/ without depot_tools (see v8_testrunner in
+# tools/BUILD.gn). Keep both lists in sync.
+AI_AGENT_ENV_VARS = (
+    "GEMINI_CLI",
+    "CLAUDECODE",
+    "ANTIGRAVITY_AGENT",
+    "CODEX_SANDBOX",
+    "CURSOR_AGENT",
+    "AI_AGENT",
+)
+
+
+def detected_ai_agent_env_vars():
+  """Returns the names of the AI agent environment variables that are set."""
+  return [
+      name for name in AI_AGENT_ENV_VARS
+      if os.environ.get(name, '').lower() not in ('', '0', 'false')
+  ]
+
 
 # Set up logging. No need to log a date in timestamps as we can get that from
 # test run start times.
@@ -194,8 +216,9 @@ class BaseTestRunner(object):
         self._setup_env()
         names = self._args_to_suite_names(args)
         tests = self._load_testsuite_generators(ctx, names)
-        print(">>> Running tests for %s.%s" % (self.build_config.arch,
-                                               self.mode_options.label))
+        if not self.options.quiet:
+          print(">>> Running tests for %s.%s" %
+                (self.build_config.arch, self.mode_options.label))
         return self._do_execute(tests, args, ctx)
     except TestRunnerError:
       traceback.print_exc()
@@ -258,10 +281,25 @@ class BaseTestRunner(object):
                       help="Run this shard from the split up tests.")
 
     # Progress
-    parser.add_option("-p", "--progress",
-                      choices=list(PROGRESS_INDICATORS.keys()), default="mono",
-                      help="The style of progress indicator (verbose, dots, "
-                           "color, mono)")
+    parser.add_option(
+        "-p",
+        "--progress",
+        choices=list(PROGRESS_INDICATORS.keys()),
+        default=None,
+        help="The style of progress indicator (verbose, dots, "
+        "color, mono, none). Defaults to mono, or to none in quiet mode.")
+    parser.add_option(
+        "--quiet",
+        default=None,
+        action="store_true",
+        help="Suppress the build, status file and progress headers, "
+        "keeping failures and the number of tests that ran. Enabled by "
+        "default when an AI agent environment variable is set.")
+    parser.add_option(
+        "--no-quiet",
+        dest="quiet",
+        action="store_false",
+        help="Print the usual output even in an AI agent environment.")
     parser.add_option("--json-test-results",
                       help="Path to a file for storing json results.")
     parser.add_option("--log-system-memory",
@@ -318,6 +356,12 @@ class BaseTestRunner(object):
     parser.add_option("--buildername", default='',
                       help="Buildername property from infrastructure. Not "
                            "setting this option indicates manual usage.")
+    parser.add_option(
+        "--test-list",
+        help="Path to a file with one test name per line. "
+        "Lines are appended to the positional test args. "
+        "Blank lines and lines starting with '#' are "
+        "ignored.")
 
   def _add_parser_options(self, parser):
     pass # pragma: no cover
@@ -327,6 +371,19 @@ class BaseTestRunner(object):
 
     options.test_root = Path(options.test_root)
     options.outdir = Path(options.outdir)
+
+    if options.quiet is None:
+      detected = detected_ai_agent_env_vars()
+      options.quiet = bool(detected)
+      if options.quiet:
+        # Spell out what was suppressed, so that the missing output isn't
+        # mistaken for a broken run.
+        print(f"Detected AI agent env ({', '.join(detected)}). Prepending"
+              " --quiet --progress=none to suppress the status file variables"
+              " and the progress display. Failures and the number of tests"
+              " that ran are still printed. Pass --no-quiet to opt out.")
+    if options.progress is None:
+      options.progress = 'none' if options.quiet else 'mono'
 
     if options.arch and ',' in options.arch:  # pragma: no cover
       print('Multiple architectures are deprecated')
@@ -359,7 +416,8 @@ class BaseTestRunner(object):
       print('Failed to load build config')
       raise TestRunnerError
 
-    print('Build found: %s' % self.outdir)
+    if not self.options.quiet:
+      print('Build found: %s' % self.outdir)
 
     # Represents the OS where tests are run on. Same as host OS except for
     # Android and iOS, which are determined by build output.
@@ -485,11 +543,14 @@ class BaseTestRunner(object):
         # Some abseil symbols are observed as defined more than once in
         # component builds.
         asan_options += ['detect_odr_violation=0']
-      if not utils.GuessOS() in ['macos', 'windows']:
-        # LSAN is not available on mac and windows.
-        asan_options.append('detect_leaks=1')
-      else:
+      if any((
+          # LSan is not available on mac and windows.
+          utils.GuessOS() in ['macos', 'windows'],
+          # LSan conflicts with hardware-based watchpoints (using ptrace).
+          self.build_config.memory_corruption_api)):
         asan_options.append('detect_leaks=0')
+      else:
+        asan_options.append('detect_leaks=1')
       if utils.GuessOS() == 'windows':
         # https://crbug.com/967663
         asan_options.append('detect_stack_use_after_return=0')
@@ -550,6 +611,14 @@ class BaseTestRunner(object):
     return f'external_symbolizer_path={external_symbolizer_path}'
 
   def _parse_test_args(self, args):
+    if self.options.test_list:
+      path = Path(self.options.test_list)
+      with path.open() as f:
+        for line in f:
+          line = line.split('#', 1)[0].strip()
+          if line:
+            args.append(line)
+
     if not args:
       args = self._get_default_suite_names()
 
@@ -572,8 +641,9 @@ class BaseTestRunner(object):
   def _load_testsuite_generators(self, ctx, names):
     test_config = self._create_test_config()
     variables = self._get_statusfile_variables(ctx)
-    print('>>> Statusfile variables:')
-    print(', '.join(f'{k}={v}' for k, v in sorted(variables.items())))
+    if not self.options.quiet:
+      print('>>> Statusfile variables:')
+      print(', '.join(f'{k}={v}' for k, v in sorted(variables.items())))
 
     # Head generator with no elements
     test_chain = testsuite.TestGenerator(0, [], [], [])
@@ -641,6 +711,8 @@ class BaseTestRunner(object):
             '--sim-arm64-optional-features=all' in self.options.extra_flags,
         "byteorder":
             sys.byteorder,
+        "num_fuzzer":
+            False,
         "deopt_fuzzer":
             False,
         "device_type":

@@ -20,4 +20,4 @@ assertEquals(2, foo(2));
 %OptimizeMaglevOnNextCall(foo);
 assertEquals(1, foo(1));
 assertEquals(2, foo(2));
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);

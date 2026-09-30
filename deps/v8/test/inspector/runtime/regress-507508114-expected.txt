@@ -1,0 +1,3 @@
+Tests that addBinding is safe against context destruction during execution (regress-507508114).
+Calling addBinding (should not crash)...
+Success (no crash).

@@ -23,6 +23,10 @@
 namespace v8 {
 namespace internal {
 
+template <typename T>
+class DirectHandle;
+class JSReceiver;
+
 struct AssemblerOptions;
 class OptimizedCompilationInfo;
 class TurbofanCompilationJob;
@@ -51,9 +55,7 @@ class TFGraph;
 class InstructionSequence;
 class JSGraph;
 class JSHeapBroker;
-class MachineGraph;
 class Schedule;
-class SourcePositionTable;
 struct WasmCompilationData;
 class TFPipelineData;
 class ZoneStats;
@@ -115,27 +117,16 @@ class Pipeline : public AllStatic {
       const ProfileDataFromFile* profile_data, int finalize_order);
 
 #if V8_ENABLE_WEBASSEMBLY
-  // Run the pipeline on a machine graph and generate code.
-  static wasm::WasmCompilationResult GenerateCodeForWasmNativeStub(
-      CallDescriptor* call_descriptor, MachineGraph* mcgraph, CodeKind kind,
-      const char* debug_name, const AssemblerOptions& assembler_options,
-      SourcePositionTable* source_positions = nullptr);
-
   static wasm::WasmCompilationResult
   GenerateCodeForWasmNativeStubFromTurboshaft(
       const wasm::CanonicalSig* sig, wasm::WrapperCompilationInfo wrapper_info,
-      const char* debug_name, const AssemblerOptions& assembler_options);
+      const char* debug_name, const AssemblerOptions& assembler_options,
+      DirectHandle<JSReceiver> callable = {});
 
   static wasm::WasmCompilationResult GenerateWasmCode(
       wasm::CompilationEnv* env, WasmCompilationData& compilation_data,
       wasm::WasmDetectedFeatures* detected,
       DelayedCounterUpdates* counter_updates);
-
-  // Returns a new compilation job for a wasm heap stub.
-  static std::unique_ptr<TurbofanCompilationJob> NewWasmHeapStubCompilationJob(
-      Isolate* isolate, CallDescriptor* call_descriptor,
-      std::unique_ptr<Zone> zone, TFGraph* graph, CodeKind kind,
-      std::unique_ptr<char[]> debug_name, const AssemblerOptions& options);
 
   static std::unique_ptr<compiler::turboshaft::TurboshaftCompilationJob>
   NewWasmTurboshaftWrapperCompilationJob(
@@ -161,12 +152,24 @@ class Pipeline : public AllStatic {
   V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
       OptimizedCompilationInfo* info, Isolate* isolate);
 
-  // Run the pipeline on a machine graph and generate code. If {schedule} is
+  // Run the pipeline on a non-Wasm machine graph and generate code. For Wasm
+  // machine graphs, use {GenerateWasmCodeForTesting}. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
   V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
       OptimizedCompilationInfo* info, Isolate* isolate,
       CallDescriptor* call_descriptor, TFGraph* graph,
       const AssemblerOptions& options, Schedule* schedule = nullptr);
+
+#if V8_ENABLE_WEBASSEMBLY
+  // Run the pipeline on a machine graph and compile it into a
+  // {WasmCompilationResult} for testing. Requires {info->IsWasm()}. If
+  // {schedule} is {nullptr}, then compute a new schedule for code generation.
+  V8_EXPORT_PRIVATE static wasm::WasmCompilationResult
+  GenerateWasmCodeForTesting(OptimizedCompilationInfo* info, Isolate* isolate,
+                             CallDescriptor* call_descriptor, TFGraph* graph,
+                             AssemblerOptions options,
+                             Schedule* schedule = nullptr);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Run the instruction selector on a turboshaft graph and generate code.
   V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateTurboshaftCodeForTesting(

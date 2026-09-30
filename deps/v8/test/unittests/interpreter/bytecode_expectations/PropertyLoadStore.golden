@@ -25,26 +25,26 @@ bytecode array length: 63
 bytecodes: [
   /*    7 S> */ B(CreateObjectLiteral), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
   /*    9 E> */ B(StaGlobal), U8(1:"l"), FBV(1),
-  /*   66 S> */ B(LdaGlobal), U8(1:"l"), FBV(4),
+  /*   66 S> */ B(LdaGlobal), U8(1:"l"), FBV(3),
                 B(Star1),
-  /*   71 E> */ B(GetNamedProperty), R(1), U8(2:"aa"), FBV(6),
+  /*   71 E> */ B(GetNamedProperty), R(1), U8(2:"aa"), FBV(5),
                 B(Star1),
-  /*   80 E> */ B(LdaGlobal), U8(1:"l"), FBV(4),
+  /*   80 E> */ B(LdaGlobal), U8(1:"l"), FBV(3),
                 B(Star2),
-  /*   81 E> */ B(GetNamedProperty), R(2), U8(3:"bb"), FBV(8),
-  /*   78 E> */ B(Add), R(1), FBV(3),
-  /*   68 E> */ B(StaGlobal), U8(4:"v"), FBV(10),
-  /*   95 S> */ B(LdaGlobal), U8(1:"l"), FBV(4),
+  /*   81 E> */ B(GetNamedProperty), R(2), U8(3:"bb"), FBV(7),
+  /*   78 E> */ B(Add), R(1), EmbeddedFeedback(),
+  /*   68 E> */ B(StaGlobal), U8(4:"v"), FBV(9),
+  /*   95 S> */ B(LdaGlobal), U8(1:"l"), FBV(3),
                 B(Star1),
                 B(LdaSmi), I8(7),
-  /*  103 E> */ B(SetNamedProperty), R(1), U8(3:"bb"), FBV(12),
-  /*  114 S> */ B(LdaGlobal), U8(1:"l"), FBV(4),
+  /*  103 E> */ B(SetNamedProperty), R(1), U8(3:"bb"), FBV(11),
+  /*  114 S> */ B(LdaGlobal), U8(1:"l"), FBV(3),
                 B(Star1),
-  /*  124 E> */ B(LdaGlobal), U8(1:"l"), FBV(4),
+  /*  124 E> */ B(LdaGlobal), U8(1:"l"), FBV(3),
                 B(Star2),
-  /*  125 E> */ B(GetNamedProperty), R(2), U8(3:"bb"), FBV(8),
+  /*  125 E> */ B(GetNamedProperty), R(2), U8(3:"bb"), FBV(7),
                 B(Star2),
-  /*  122 E> */ B(SetNamedProperty), R(1), U8(2:"aa"), FBV(14),
+  /*  122 E> */ B(SetNamedProperty), R(1), U8(2:"aa"), FBV(13),
                 B(Mov), R(2), R(0),
                 B(Ldar), R(0),
   /*  139 S> */ B(Return),
@@ -75,7 +75,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 61
+bytecode array length: 60
 bytecodes: [
   /*    7 S> */ B(CreateObjectLiteral), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
   /*    9 E> */ B(StaGlobal), U8(1:"l"), FBV(1),

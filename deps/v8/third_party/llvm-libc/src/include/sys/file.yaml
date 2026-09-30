@@ -1,0 +1,23 @@
+header: sys/file.h
+standards:
+  - bsd
+macros:
+  - macro_name: LOCK_SH
+    macro_header: sys-file-macros.h
+  - macro_name: LOCK_EX
+    macro_header: sys-file-macros.h
+  - macro_name: LOCK_NB
+    macro_header: sys-file-macros.h
+  - macro_name: LOCK_UN
+    macro_header: sys-file-macros.h
+types: []
+enums: []
+objects: []
+functions:
+  - name: flock
+    standards:
+      - bsd
+    return_type: int
+    arguments:
+      - type: int
+      - type: int

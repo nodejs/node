@@ -46,7 +46,7 @@ class WasmBasicBlockCalculatorTest : public TestWithIsolateAndZone {
       WasmDetectedFeatures* detected_features) {
     ModuleResult result =
         DecodeWasmModule(WasmEnabledFeatures::All(), module_bytes.as_vector(),
-                         false, kWasmOrigin, detected_features);
+                         false, detected_features);
     CHECK(result.ok());
 
     ErrorThrower thrower(isolate(), "");
@@ -408,7 +408,7 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //  kExprEnd                            // 13
   //-------------------------------------------
   ModuleTypeIndex array_type_index = builder_.AddArrayType(
-      zone()->New<ArrayType>(kWasmI32, false /*mutability*/),
+      zone()->New<ArrayType>(kWasmI32, false /*mutability*/, SharedFlag{false}),
       false /*is_final*/, kNoSuperType);
 
   TestFunction(sigs.i_v(),

@@ -22,7 +22,12 @@ function test_assign_key_multiple_times() {
   return new test_function();
 }
 
+// Keep the objects and their maps alive throughout the test so that GC
+// doesn't collect them, which would trigger a lazy deopt.
+let keep_alive = [];
+
 function assert_test_assign_key_multiple_times(x) {
+  keep_alive.push(x);
   assertEquals(x.smi, 1);
 }
 
@@ -37,7 +42,7 @@ assert_test_assign_key_multiple_times(test_assign_key_multiple_times());
 %OptimizeMaglevOnNextCall(test_assign_key_multiple_times);
 assert_test_assign_key_multiple_times(test_assign_key_multiple_times());
 assertOptimized(test_assign_key_multiple_times);
-assertTrue(isMaglevved(test_assign_key_multiple_times));
+assertMaglevved(test_assign_key_multiple_times);
 assert_test_assign_key_multiple_times(test_assign_key_multiple_times());
 %OptimizeFunctionOnNextCall(test_assign_key_multiple_times);
 assert_test_assign_key_multiple_times(test_assign_key_multiple_times());

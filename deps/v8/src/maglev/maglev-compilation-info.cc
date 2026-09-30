@@ -19,6 +19,7 @@
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/objects/js-function-inl.h"
+#include "src/objects/shared-function-info.h"
 #include "src/utils/identity-map.h"
 
 namespace v8 {
@@ -64,10 +65,48 @@ static bool SpecializeToFunctionContext(
 
 }  // namespace
 
+void MaglevCompilationInfo::InitializeSpecializationContext() {
+#ifdef DEBUG
+  specialization_context_initialized_ = true;
+#endif
+  if (!v8_flags.always_specialize_for_script_context || toplevel_is_osr()) {
+    return;
+  }
+  compiler::JSFunctionRef func_ref = compiler::MakeRefAssumeMemoryFence(
+      broker_, broker_->CanonicalPersistentHandle(toplevel_function_));
+  compiler::ContextRef current = func_ref.context(broker_);
+  if (current.map(broker_).instance_type() == NATIVE_CONTEXT_TYPE) {
+    return;
+  }
+  if (specialize_to_function_context_) {
+    specialization_context_ = current;
+    specialization_context_distance_ = 0;
+    return;
+  }
+  size_t distance = 0;
+  while (true) {
+    InstanceType instance_type = current.map(broker_).instance_type();
+    if (instance_type == NATIVE_CONTEXT_TYPE) {
+      break;
+    }
+    if (instance_type == MODULE_CONTEXT_TYPE ||
+        instance_type == SCRIPT_CONTEXT_TYPE) {
+      specialization_context_ = current;
+      specialization_context_distance_ = distance;
+      return;
+    }
+    size_t step = 1;
+    current = current.previous(broker_, &step);
+    if (step != 0) break;
+    distance++;
+  }
+}
+
 MaglevCompilationInfo::MaglevCompilationInfo(
     Isolate* isolate, IndirectHandle<JSFunction> function,
     BytecodeOffset osr_offset, std::optional<compiler::JSHeapBroker*> js_broker,
-    std::optional<bool> specialize_to_function_context, bool is_turbolev)
+    std::optional<bool> specialize_to_function_context, bool is_turbolev,
+    std::string function_name)
     : zone_(isolate->allocator(), kMaglevZoneName),
       broker_(js_broker.has_value()
                   ? js_broker.value()
@@ -75,7 +114,13 @@ MaglevCompilationInfo::MaglevCompilationInfo(
                                                v8_flags.trace_heap_broker,
                                                CodeKind::MAGLEV)),
       toplevel_function_(function),
+      function_name_(function_name.empty()
+                         ? function->shared()->DebugNameCStr().get()
+                         : std::move(function_name)),
       osr_offset_(osr_offset),
+      trace_id_(static_cast<uint16_t>(
+          reinterpret_cast<uint64_t>(this) ^ function.address() ^
+          function->shared()->function_literal_id(kRelaxedLoad))),
       owns_broker_(!js_broker.has_value()),
       is_turbolev_(is_turbolev),
       flags_(is_turbolev ? CompilationFlags::ForTurbolev()
@@ -112,9 +157,19 @@ MaglevCompilationInfo::MaglevCompilationInfo(
   }
 
   if (FlagsMightEnableMaglevTracing()) {
-    is_tracing_enabled_ = toplevel_compilation_unit_->shared_function_info()
-                              .object()
-                              ->PassesFilter(v8_flags.maglev_print_filter);
+    is_tracing_enabled_ =
+        toplevel_compilation_unit_->shared_function_info()
+            .object()
+            ->PassesFilter(is_turbolev ? v8_flags.trace_turbo_filter
+                                       : v8_flags.maglev_print_filter);
+  }
+
+  if (is_turbolev ? v8_flags.trace_turbo : v8_flags.trace_maglev) {
+    trace_json_enabled_ =
+        toplevel_compilation_unit_->shared_function_info()
+            .object()
+            ->PassesFilter(is_turbolev ? v8_flags.trace_turbo_filter
+                                       : v8_flags.maglev_print_filter);
   }
 
   collect_source_positions_ = isolate->NeedsDetailedOptimizedCodeLineInfo();

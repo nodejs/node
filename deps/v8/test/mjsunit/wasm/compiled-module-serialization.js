@@ -4,6 +4,7 @@
 
 // Force TurboFan code for serialization.
 // Flags: --expose-gc --no-liftoff --no-wasm-lazy-compilation
+// Flags: --wasm-wasmfx
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -39,8 +40,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var wire_bytes = builder.toBuffer();
   var module = new WebAssembly.Module(wire_bytes);
   var mem_1 = new WebAssembly.Memory({initial: 1});
-  var view_1 = new Int32Array(mem_1.buffer);
-  view_1[0] = 42;
+  var view_1 = new DataView(mem_1.buffer);
+  view_1.setInt32(0, 42, true);
   var outval_1;
   var i1 = new WebAssembly.Instance(module, {"":
                                              {some_value: () => 1,
@@ -57,9 +58,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   module = d8.wasm.deserializeModule(buff, wire_bytes);
 
   var mem_2 = new WebAssembly.Memory({initial: 2});
-  var view_2 = new Int32Array(mem_2.buffer);
+  var view_2 = new DataView(mem_2.buffer);
 
-  view_2[0] = 50;
+  view_2.setInt32(0, 50, true);
 
   var outval_2;
   var i2 = new WebAssembly.Instance(module, {"":
@@ -447,4 +448,52 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       d8.wasm.deserializeModule(
           serialized_bytes_string_builtins, wire_bytes, kStringBuiltins),
       WebAssembly.Module);
+})();
+
+(function EffectHandlersAfterSerialization() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  let tag0_index = builder.addTag(kSig_v_v);
+  let tag1_index = builder.addTag(kSig_v_v);
+  let cont_index = builder.addCont(kSig_v_v);
+  let nop = builder.addFunction("nop", kSig_v_v)
+      .addBody([]).exportFunc();
+  let suspend_tag0 = builder.addFunction("suspend_tag0", kSig_v_v)
+      .addBody([
+          kExprSuspend, tag0_index
+      ]).exportFunc();
+  let suspend_tag1 = builder.addFunction("suspend_tag1", kSig_v_v)
+      .addBody([
+          kExprSuspend, tag1_index
+      ]).exportFunc();
+  let resume_sig = builder.addType(makeSig([wasmRefNullType(kSig_v_v)], [kWasmI32]));
+  builder.addFunction('resume', resume_sig)
+      .addBody([
+        kExprBlock, kWasmRef, cont_index,
+          kExprBlock, kWasmRef, cont_index,
+            kExprLocalGet, 0,
+            kExprContNew, cont_index,
+            kExprResume, cont_index, 2,
+              kOnSuspend, tag0_index, 0,
+              kOnSuspend, tag1_index, 1,
+            kExprI32Const, 1,
+            kExprReturn,
+          kExprEnd,
+          kExprDrop,
+          kExprI32Const, 2,
+          kExprReturn,
+        kExprEnd,
+        kExprDrop,
+        kExprI32Const, 3,
+      ]).exportFunc();
+
+  var wire_bytes = builder.toBuffer();
+  var module = new WebAssembly.Module(wire_bytes);
+  var buffer = d8.wasm.serializeModule(module);
+  module = d8.wasm.deserializeModule(buffer, wire_bytes);
+  var instance = new WebAssembly.Instance(module);
+
+  assertEquals(1, instance.exports.resume(instance.exports.nop));
+  assertEquals(2, instance.exports.resume(instance.exports.suspend_tag0));
+  assertEquals(3, instance.exports.resume(instance.exports.suspend_tag1));
 })();

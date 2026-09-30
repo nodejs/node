@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-shared
+// Flags: --wasm-shared
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-let $array = builder.addArray(kWasmI32, true, kNoSuperType, false);
+let $array = builder.addArray(kWasmI32);
 let $sig = builder.addType(kSig_i_v);
 let main = builder.addFunction(undefined, $sig).exportAs('main');
 

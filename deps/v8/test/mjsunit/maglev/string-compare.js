@@ -29,7 +29,7 @@ function warmUpMaglevTestFn(test_fn_src) {
 
   %OptimizeMaglevOnNextCall(test_fn);
   assertEquals(0, test_fn("1", "2"));
-  assertTrue(isMaglevved(test_fn));
+  assertMaglevved(test_fn);
   return test_fn;
 }
 
@@ -42,23 +42,23 @@ function test(test_fn_src, is_strict=false) {
 
   let test_fn = warmUpMaglevTestFn(test_fn_src);
   assertEquals(1, test_fn("1", "1"));
-  assertTrue(isMaglevved(test_fn));
+  assertMaglevved(test_fn);
 
   assertEquals(0, test_fn(internalized1234, "1"));
-  assertTrue(isMaglevved(test_fn));
+  assertMaglevved(test_fn);
 
   // The GC might have already migrated the thin string, create a new one
   let thin1234 = %ConstructThinString( "1234" + "1234" + "1234" + "1234");
   assertFalse(%IsInternalizedString(thin1234));
 
   assertEquals(1, test_fn(thin1234, "1234123412341234"));
-  assertTrue(isMaglevved(test_fn));
+  assertMaglevved(test_fn);
 
   assertEquals(1, test_fn(thin1234, thin1234));
-  assertTrue(isMaglevved(test_fn));
+  assertMaglevved(test_fn);
 
   assertEquals(1, test_fn(internalized1234, "1234123412341234"));
-  assertTrue(isMaglevved(test_fn));
+  assertMaglevved(test_fn);
 
   if (is_strict) {
     assertEquals(0, test_fn(internalized1234, 1234123412341234));

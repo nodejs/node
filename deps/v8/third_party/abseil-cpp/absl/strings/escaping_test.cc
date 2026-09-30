@@ -19,18 +19,25 @@
 #include <cstdio>
 #include <cstring>
 #include <initializer_list>
+#include <iterator>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/log/check.h"
-#include "absl/strings/str_cat.h"
-
+#include "absl/strings/charset.h"
 #include "absl/strings/internal/escaping_test_common.h"
+#include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 
 namespace {
+
+using ::testing::Eq;
+using ::testing::Optional;
 
 struct epair {
   std::string escaped;
@@ -170,22 +177,23 @@ TEST(Unescape, BasicFunction) {
     EXPECT_EQ(out, val.unescaped);
   }
   constexpr absl::string_view bad[] = {
-      "\\u1",         // too short
-      "\\U1",         // too short
-      "\\Uffffff",    // exceeds 0x10ffff (largest Unicode)
-      "\\U00110000",  // exceeds 0x10ffff (largest Unicode)
-      "\\uD835",      // surrogate character (D800-DFFF)
-      "\\U0000DD04",  // surrogate character (D800-DFFF)
-      "\\777",        // exceeds 0xff
-      "\\xABCD",      // exceeds 0xff
-      "endswith\\",   // ends with "\"
-      "endswith\\x",  // ends with "\x"
-      "endswith\\X",  // ends with "\X"
-      "\\x.2345678",  // non-hex follows "\x"
-      "\\X.2345678",  // non-hex follows "\X"
-      "\\u.2345678",  // non-hex follows "\U"
-      "\\U.2345678",  // non-hex follows "\U"
-      "\\.unknown",   // unknown escape sequence
+      "\\u1",          // too short
+      "\\U1",          // too short
+      "\\Uffffff",     // exceeds 0x10ffff (largest Unicode)
+      "\\U00110000",   // exceeds 0x10ffff (largest Unicode)
+      "\\uD835",       // surrogate character (D800-DFFF)
+      "\\U0000DD04",   // surrogate character (D800-DFFF)
+      "\\777",         // exceeds 0xff
+      "\\xABCD",       // exceeds 0xff
+      "\\x100000041",  // overflows uint32_t
+      "endswith\\",    // ends with "\"
+      "endswith\\x",   // ends with "\x"
+      "endswith\\X",   // ends with "\X"
+      "\\x.2345678",   // non-hex follows "\x"
+      "\\X.2345678",   // non-hex follows "\X"
+      "\\u.2345678",   // non-hex follows "\U"
+      "\\U.2345678",   // non-hex follows "\U"
+      "\\.unknown",    // unknown escape sequence
   };
   for (const auto e : bad) {
     std::string error;
@@ -682,8 +690,7 @@ TEST(Base64, DISABLED_HugeData) {
   static_assert(kSize % 3 == 0, "kSize must be divisible by 3");
   const std::string huge(kSize, 'x');
 
-  std::string escaped;
-  absl::Base64Escape(huge, &escaped);
+  std::string escaped = absl::Base64Escape(huge);
 
   // Generates the string that should match a base64 encoded "xxx..." string.
   // "xxx" in base64 is "eHh4".
@@ -733,6 +740,10 @@ TEST(Escaping, HexStringToBytesBackToHex) {
   bytes = "abc";
   EXPECT_TRUE(absl::HexStringToBytes("", &bytes));
   EXPECT_EQ("", bytes);  // Results in empty output.
+
+  // Ensure there is no sign extension bug on a signed char.
+  hex.assign("\xC8" "b", 2);
+  EXPECT_FALSE(absl::HexStringToBytes(hex, &bytes));
 }
 
 TEST(HexAndBack, HexStringToBytes_and_BytesToHexString) {
@@ -755,6 +766,153 @@ TEST(HexAndBack, HexStringToBytes_and_BytesToHexString) {
 
   std::string hex_result = absl::BytesToHexString(bytes_expected);
   EXPECT_EQ(hex_only_lower, hex_result);
+}
+
+TEST(UrlEscape, Basics) {
+  EXPECT_EQ(absl::UrlEscape(""), "");
+  EXPECT_THAT(absl::UrlUnescape(""), Optional(Eq("")));
+
+  EXPECT_EQ(absl::UrlEscape("abc"), "abc");
+  EXPECT_THAT(absl::UrlUnescape("abc"), Optional(Eq("abc")));
+
+  EXPECT_EQ(absl::UrlEscape("a/b"), "a%2Fb");
+  EXPECT_THAT(absl::UrlUnescape("a%2Fb"), Optional(Eq("a/b")));
+
+  EXPECT_EQ(absl::UrlEscape("one two"), "one%20two");
+  EXPECT_THAT(absl::UrlUnescape("one%20two"), Optional(Eq("one two")));
+
+  EXPECT_EQ(absl::UrlEscape("10%"), "10%25");
+  EXPECT_THAT(absl::UrlUnescape("10%25"), Optional(Eq("10%")));
+
+  EXPECT_EQ(absl::UrlEscape(" ?&=#+%!<>#\"{}|\\^[]`☺\t:/@$'()*,;"),
+            "%20%3F%26%3D%23%2B%25%21%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%"
+            "98%BA%09%3A%2F%40%24%27%28%29%2A%2C%3B");
+  EXPECT_THAT(absl::UrlUnescape("%20%3F%26%3D%23%2B%25%21%3C%3E%23%22%7B%7D%7C%"
+                                "5C%5E%5B%5D%60%E2%98%BA%"
+                                "09%3A%2F%40%24%27%28%29%2A%2C%3B"),
+              Optional(Eq(" ?&=#+%!<>#\"{}|\\^[]`☺\t:/@$'()*,;")));
+
+  // Test all characters.
+  static constexpr absl::CharSet kDoNotEscape =
+      absl::CharSet::AsciiAlphanumerics() | absl::CharSet("-._~");
+  for (int i = 0; i < 256; ++i) {
+    char c = static_cast<char>(i);
+    std::string expected = kDoNotEscape.contains(c)
+                               ? std::string(1, c)
+                               : absl::StrFormat("%%%02X", c);
+    EXPECT_EQ(absl::UrlEscape(absl::string_view(&c, 1)), expected);
+    EXPECT_EQ(absl::UrlUnescape(expected), absl::string_view(&c, 1));
+  }
+}
+
+TEST(UrlUnescape, SuccessCases) {
+  EXPECT_THAT(absl::UrlUnescape(""), Optional(Eq("")));
+  EXPECT_THAT(absl::UrlUnescape("abc"), Optional(Eq("abc")));
+  EXPECT_THAT(absl::UrlUnescape("1%41"), Optional(Eq("1A")));
+  EXPECT_THAT(absl::UrlUnescape("1%41%42%43"), Optional(Eq("1ABC")));
+  EXPECT_THAT(absl::UrlUnescape("%4a"), Optional(Eq("J")));
+  EXPECT_THAT(absl::UrlUnescape("%6F"), Optional(Eq("o")));
+  EXPECT_THAT(absl::UrlUnescape("a%20b"), Optional(Eq("a b")));
+  EXPECT_THAT(absl::UrlUnescape("a+b"), Optional(Eq("a+b")));
+}
+
+TEST(UrlUnescape, NotEnoughCharsAfterPercent) {
+  EXPECT_EQ(absl::UrlUnescape("%"), std::nullopt);
+  EXPECT_EQ(absl::UrlUnescape("%a"), std::nullopt);
+  EXPECT_EQ(absl::UrlUnescape("%1"), std::nullopt);
+  EXPECT_EQ(absl::UrlUnescape("123%45%6"), std::nullopt);
+}
+
+TEST(UrlUnescape, InvalidHexDigits) {
+  EXPECT_EQ(absl::UrlUnescape("%zzzzz"), std::nullopt);
+}
+
+TEST(UrlUnescape, NoErrorWithNoEscapeSequence) {
+  // Any string that does not contain '%' should not produce an error, even if
+  // absl::UrlEscape() would never produce a string with certain characters.
+  std::string no_percent;
+  for (int c = 0; c < 256; ++c) {
+    if (c != '%') {
+      no_percent.push_back(static_cast<char>(c));
+    }
+  }
+  EXPECT_THAT(absl::UrlUnescape(no_percent), Optional(no_percent));
+}
+
+TEST(UrlEscapePlus, Basics) {
+  EXPECT_EQ(absl::UrlEscapePlus(""), "");
+  EXPECT_THAT(absl::UrlUnescapePlus(""), Optional(Eq("")));
+
+  EXPECT_EQ(absl::UrlEscapePlus("abc"), "abc");
+  EXPECT_THAT(absl::UrlUnescapePlus("abc"), Optional(Eq("abc")));
+
+  EXPECT_EQ(absl::UrlEscapePlus("one two"), "one+two");
+  EXPECT_THAT(absl::UrlUnescapePlus("one+two"), Optional(Eq("one two")));
+
+  EXPECT_EQ(absl::UrlEscapePlus("gift for mom & dad"), "gift+for+mom+%26+dad");
+  EXPECT_THAT(absl::UrlUnescapePlus("gift+for+mom+%26+dad"),
+              Optional(Eq("gift for mom & dad")));
+
+  EXPECT_EQ(absl::UrlEscapePlus("10%"), "10%25");
+  EXPECT_THAT(absl::UrlUnescapePlus("10%25"), Optional(Eq("10%")));
+
+  EXPECT_EQ(absl::UrlEscapePlus(" ?&=#+%!<>#\"{}|\\^[]`☺\t:/@$'()*,;"),
+            "+%3F%26%3D%23%2B%25%21%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%"
+            "98%BA%09%3A%2F%40%24%27%28%29%2A%2C%3B");
+  EXPECT_THAT(absl::UrlUnescapePlus("+%3F%26%3D%23%2B%25%21%3C%3E%23%22%7B%7D%"
+                                    "7C%5C%5E%5B%5D%60%E2%98%BA%"
+                                    "09%3A%2F%40%24%27%28%29%2A%2C%3B"),
+              Optional(Eq(" ?&=#+%!<>#\"{}|\\^[]`☺\t:/@$'()*,;")));
+
+  // Test all characters.
+  static constexpr absl::CharSet kDoNotEscape =
+      absl::CharSet::AsciiAlphanumerics() | absl::CharSet("-._~");
+  for (int i = 0; i < 256; ++i) {
+    char c = static_cast<char>(i);
+    std::string expected = kDoNotEscape.contains(c)
+                               ? std::string(1, c)
+                               : absl::StrFormat("%%%02X", c);
+    if (c == ' ') expected = '+';
+    EXPECT_EQ(absl::UrlEscapePlus(absl::string_view(&c, 1)), expected);
+    EXPECT_EQ(absl::UrlUnescapePlus(expected), absl::string_view(&c, 1));
+  }
+}
+
+TEST(UrlUnescapePlus, SuccessCases) {
+  EXPECT_THAT(absl::UrlUnescapePlus(""), Optional(Eq("")));
+  EXPECT_THAT(absl::UrlUnescapePlus("abc"), Optional(Eq("abc")));
+  EXPECT_THAT(absl::UrlUnescapePlus("1%41"), Optional(Eq("1A")));
+  EXPECT_THAT(absl::UrlUnescapePlus("1%41%42%43"), Optional(Eq("1ABC")));
+  EXPECT_THAT(absl::UrlUnescapePlus("%4a"), Optional(Eq("J")));
+  EXPECT_THAT(absl::UrlUnescapePlus("%6F"), Optional(Eq("o")));
+  EXPECT_THAT(absl::UrlUnescapePlus("a%20b"), Optional(Eq("a b")));
+  EXPECT_THAT(absl::UrlUnescapePlus("a+b"), Optional(Eq("a b")));
+}
+
+TEST(UrlUnescapePlus, NotEnoughCharsAfterPercent) {
+  EXPECT_EQ(absl::UrlUnescapePlus("%"), std::nullopt);
+  EXPECT_EQ(absl::UrlUnescapePlus("%a"), std::nullopt);
+  EXPECT_EQ(absl::UrlUnescapePlus("%1"), std::nullopt);
+  EXPECT_EQ(absl::UrlUnescapePlus("123%45%6"), std::nullopt);
+}
+
+TEST(UrlUnescapePlus, InvalidHexDigits) {
+  EXPECT_EQ(absl::UrlUnescapePlus("%zzzzz"), std::nullopt);
+}
+
+TEST(UrlUnescapePlus, NoErrorWithNoEscapeSequence) {
+  // Any string that does not contain '%' should not produce an error, even if
+  // absl::UrlEscapePlus() would never produce a string with certain
+  // characters.
+  std::string no_percent;
+  std::string no_percent_expected;
+  for (int c = 0; c < 256; ++c) {
+    if (c != '%') {
+      no_percent.push_back(static_cast<char>(c));
+      no_percent_expected.push_back(c != '+' ? static_cast<char>(c) : ' ');
+    }
+  }
+  EXPECT_THAT(absl::UrlUnescapePlus(no_percent), Optional(no_percent_expected));
 }
 
 }  // namespace

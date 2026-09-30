@@ -1,0 +1,18 @@
+@PACKAGE_INIT@
+
+set(_ZLIB_supported_components "shared" "static")
+
+if(ZLIB_FIND_COMPONENTS)
+    foreach(_comp ${ZLIB_FIND_COMPONENTS})
+        if(NOT _comp IN_LIST _ZLIB_supported_components)
+            set(ZLIB_FOUND False)
+            set(ZLIB_NOT_FOUND_MESSAGE "Unsupported component: ${_comp}")
+        endif(NOT _comp IN_LIST _ZLIB_supported_components)
+
+        include("${CMAKE_CURRENT_LIST_DIR}/ZLIB-${_comp}.cmake")
+    endforeach(_comp ${ZLIB_FIND_COMPONENTS})
+else(ZLIB_FIND_COMPONENTS)
+    foreach(_component_config IN LISTS _ZLIB_supported_components)
+        include("${CMAKE_CURRENT_LIST_DIR}/ZLIB-${_component_config}.cmake")
+    endforeach(_component_config IN LISTS _ZLIB_supported_components)
+endif(ZLIB_FIND_COMPONENTS)

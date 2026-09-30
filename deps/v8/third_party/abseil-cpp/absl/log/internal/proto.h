@@ -79,6 +79,9 @@ inline bool EncodeVarint(uint64_t tag, uint32_t value, absl::Span<char> *buf) {
 inline bool EncodeVarint(uint64_t tag, int32_t value, absl::Span<char> *buf) {
   return EncodeVarint(tag, static_cast<uint64_t>(value), buf);
 }
+inline bool EncodeVarint(uint64_t tag, bool value, absl::Span<char>* buf) {
+  return EncodeVarint(tag, static_cast<uint64_t>(value), buf);
+}
 
 // Encodes the specified integer as a varint field using ZigZag encoding and
 // returns true if it fits.

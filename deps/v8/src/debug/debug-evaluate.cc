@@ -11,6 +11,7 @@
 #include "src/codegen/reloc-info.h"
 #include "src/codegen/script-details.h"
 #include "src/common/globals.h"
+#include "src/debug/debug-block-list.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
@@ -78,11 +79,9 @@ MaybeDirectHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   return result;
 }
 
-MaybeDirectHandle<Object> DebugEvaluate::Local(Isolate* isolate,
-                                               StackFrameId frame_id,
-                                               int inlined_jsframe_index,
-                                               DirectHandle<String> source,
-                                               bool throw_on_side_effect) {
+MaybeDirectHandle<Object> DebugEvaluate::Local(
+    Isolate* isolate, StackFrameId frame_id, int inlined_jsframe_index,
+    DirectHandle<String> source, bool throw_on_side_effect, int scope_index) {
   // Handle the processing of break.
   DisableBreak disable_break_scope(isolate->debug());
 
@@ -115,10 +114,12 @@ MaybeDirectHandle<Object> DebugEvaluate::Local(Isolate* isolate,
   // the materialized object are written back afterwards.
   // Note that the native context is taken from the original context chain,
   // which may not be the current native context of the isolate.
-  ContextBuilder context_builder(isolate, frame, inlined_jsframe_index);
+  ContextBuilder context_builder(isolate, frame, inlined_jsframe_index,
+                                 scope_index);
   if (isolate->has_exception()) return {};
 
   DirectHandle<Context> context = context_builder.evaluation_context();
+  if (context.is_null()) return {};
   DirectHandle<JSObject> receiver(context->global_proxy(), isolate);
   MaybeDirectHandle<Object> maybe_result =
       Evaluate(isolate, context_builder.outer_info(), context, receiver, source,
@@ -148,8 +149,11 @@ MaybeDirectHandle<Object> DebugEvaluate::WithTopmostArguments(
 
   // Materialize receiver.
   DirectHandle<Object> this_value(it.frame()->receiver(), isolate);
-  DCHECK_EQ(it.frame()->IsConstructor(), IsTheHole(*this_value, isolate));
-  if (!IsTheHole(*this_value, isolate)) {
+#ifdef V8_ENABLE_TDZ_HOLE
+  DCHECK(!IsTheHole(*this_value));
+#endif
+  DCHECK_EQ(it.frame()->IsConstructor(), IsTdzHole(*this_value));
+  if (!IsTdzHole(*this_value)) {
     DirectHandle<String> this_str = factory->this_string();
     JSObject::SetOwnPropertyIgnoreAttributes(materialized, this_str, this_value,
                                              NONE)
@@ -201,17 +205,24 @@ DirectHandle<SharedFunctionInfo> DebugEvaluate::ContextBuilder::outer_info()
 
 DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
                                               JavaScriptFrame* frame,
-                                              int inlined_jsframe_index)
+                                              int inlined_jsframe_index,
+                                              int scope_index)
     : isolate_(isolate),
       frame_inspector_(frame, inlined_jsframe_index, isolate),
-      scope_iterator_(isolate, &frame_inspector_,
-                      ScopeIterator::ReparseStrategy::kScriptIfNeeded) {
-  Handle<Context> outer_context(frame_inspector_.GetFunction()->context(),
-                                isolate);
-  evaluation_context_ = outer_context;
+      scope_iterator_(isolate, &frame_inspector_),
+      scope_index_(scope_index) {
   Factory* factory = isolate->factory();
 
-  if (scope_iterator_.Done()) return;
+  if (!scope_iterator_.AdvanceToScopeNumber(scope_index)) {
+    return;
+  }
+
+  if (scope_iterator_.InInnerScope()) {
+    evaluation_context_ =
+        handle(frame_inspector_.GetFunction()->context(), isolate);
+  } else {
+    evaluation_context_ = scope_iterator_.CurrentContext();
+  }
 
   // To evaluate as if we were running eval at the point of the debug break,
   // we reconstruct the context chain as follows:
@@ -224,8 +235,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
   //    variable names that are guaranteed to not be shadowed by stack-allocated
   //    variables. ScopeInfos between the function scope and the native
   //    context have a blocklist attached to implement that.
-  //  - The various block lists are calculated by the ScopeIterator during
-  //    iteration.
+  //  - The various block lists are calculated by EnsureLocalsBlockList.
   // Context::Lookup has special handling for debug-evaluate contexts:
   //  - Look up in the materialized stack variables.
   //  - Look up in the original context.
@@ -262,16 +272,13 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
     if (first && !paused_scope_is_script_scope) {
       // The DebugEvaluateContext we create for the closure scope is the only
       // DebugEvaluateContext with a block list. This means we'll retrieve
-      // the existing block list from the paused function scope
-      // and also associate the temporary scope_info we create here with that
-      // blocklist.
-      DirectHandle<ScopeInfo> function_scope_info(
-          frame_inspector_.GetFunction()->shared()->scope_info(), isolate_);
-      DirectHandle<UnionOf<TheHole, StringSet>> block_list(
-          isolate_->LocalsBlockListCacheGet(function_scope_info), isolate_);
-      CHECK(IsStringSet(*block_list));
-      isolate_->LocalsBlockListCacheSet(scope_info, Handle<ScopeInfo>::null(),
-                                        Cast<StringSet>(block_list));
+      // the existing block list from the paused function scope (calculating
+      // it if needed) and also associate the temporary scope_info we create
+      // here with that blocklist.
+      Handle<StringSet> block_list =
+          EnsureLocalsBlockList(isolate_, outer_info());
+      isolate_->LocalsBlockListCacheSet(scope_info, DirectHandle<ScopeInfo>(),
+                                        block_list);
     }
     first = false;
 
@@ -279,19 +286,45 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
         evaluation_context_, scope_info, element.materialized_object,
         element.wrapped_context);
   }
+
+  if (context_chain_.empty() && !IsNativeContext(*evaluation_context_)) {
+    // When evaluating in an outer scope (!InInnerScope()), context_chain_ is
+    // empty. We must still wrap evaluation_context_ in a DebugEvaluateContext
+    // so that Context::Lookup sets has_seen_debug_evaluate_context = true and
+    // consults the blocklist stored in LocalsBlockListCache on outer contexts.
+    // If the target outer scope does not have its own runtime Context, we also
+    // calculate its [S_eval, K) blocklist on the fly and attach it to the
+    // synthetic scope_info.
+    EnsureLocalsBlockList(isolate_, outer_info());
+    scope_info = ScopeInfo::CreateForWithScope(isolate, scope_info);
+    scope_info->SetIsDebugEvaluateScope();
+    if (std::optional<DebugScriptScope> scope =
+            scope_iterator_.CurrentDebugScope();
+        scope.has_value() && !scope->needs_context()) {
+      Handle<StringSet> block_list = CalculateScopeBlockList(isolate_, *scope);
+      isolate_->LocalsBlockListCacheSet(scope_info, DirectHandle<ScopeInfo>(),
+                                        block_list);
+    }
+    evaluation_context_ = factory->NewDebugEvaluateContext(
+        evaluation_context_, scope_info, DirectHandle<JSReceiver>(),
+        DirectHandle<Context>());
+  }
 }
 
 void DebugEvaluate::ContextBuilder::UpdateValues() {
   scope_iterator_.Restart();
+  scope_iterator_.AdvanceToScopeNumber(scope_index_);
   for (ContextChainElement& element : context_chain_) {
     if (!element.materialized_object.is_null()) {
       DirectHandle<FixedArray> keys =
-          KeyAccumulator::GetKeys(isolate_, element.materialized_object,
-                                  KeyCollectionMode::kOwnOnly,
-                                  ENUMERABLE_STRINGS)
+          KeyAccumulator::GetKeys(
+              isolate_, element.materialized_object,
+              KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS,
+              GetKeysConversion::kConvertToString, false, true)
               .ToHandleChecked();
 
-      for (int i = 0; i < keys->length(); i++) {
+      uint32_t keys_len = keys->ulength().value();
+      for (uint32_t i = 0; i < keys_len; i++) {
         DCHECK(IsString(keys->get(i)));
         Handle<String> key(Cast<String>(keys->get(i)), isolate_);
         DirectHandle<Object> value = JSReceiver::GetDataProperty(
@@ -443,6 +476,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kLdaGlobalInsideTypeof:
     case Bytecode::kLdaLookupSlotInsideTypeof:
     case Bytecode::kGetIterator:
+    case Bytecode::kArrayDestructure:
     // Arithmetics.
     case Bytecode::kAdd:
     case Bytecode::kAddSmi:
@@ -523,9 +557,9 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kJumpLoop:
     case Bytecode::kThrow:
     case Bytecode::kReThrow:
-    case Bytecode::kThrowReferenceErrorIfHole:
-    case Bytecode::kThrowSuperNotCalledIfHole:
-    case Bytecode::kThrowSuperAlreadyCalledIfNotHole:
+    case Bytecode::kThrowReferenceErrorIfTdzHole:
+    case Bytecode::kThrowSuperNotCalledIfTdzHole:
+    case Bytecode::kThrowSuperAlreadyCalledIfNotTdzHole:
     case Bytecode::kIllegal:
     case Bytecode::kCallJSRuntime:
     case Bytecode::kReturn:
@@ -1411,8 +1445,8 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kArrayReduceLoopContinuation:
     case Builtin::kArrayReduceRightLoopContinuation:
     case Builtin::kArraySomeLoopContinuation:
-    case Builtin::kArrayTimSort:
-    case Builtin::kArrayTimSortIntoCopy:
+    case Builtin::kArrayPowerSort:
+    case Builtin::kArrayPowerSortIntoCopy:
     case Builtin::kCall_ReceiverIsAny:
     case Builtin::kCall_ReceiverIsNotNullOrUndefined:
     case Builtin::kCall_ReceiverIsNullOrUndefined:
@@ -1458,7 +1492,7 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kRecordWriteSaveFP:
     case Builtin::kRecordWriteIgnoreFP:
     case Builtin::kSetOrSetIteratorToList:
-    case Builtin::kStringAdd_CheckNone:
+    case Builtin::kStringAdd_NoMapCheck:
     case Builtin::kStringEqual:
     case Builtin::kStringIndexOf:
     case Builtin::kStringRepeat:

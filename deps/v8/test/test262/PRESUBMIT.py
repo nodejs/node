@@ -13,7 +13,7 @@ USE_PYTHON3 = True
 
 def _CheckLint(input_api, output_api):
   root = pathlib.Path(input_api.PresubmitLocalPath())
-  vpython_spec = root / '.lint-vpython3'
+  vpython_spec = root / 'lint-vpython.toml'
   workdir = root / 'data'
   lint_exe = workdir / 'tools' / 'lint' / 'lint.py'
   test_path = workdir / '..' / 'local-tests' / 'test'

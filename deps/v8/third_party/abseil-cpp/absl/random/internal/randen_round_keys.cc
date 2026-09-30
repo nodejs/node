@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstddef>
+
+#include "absl/base/config.h"
 #include "absl/random/internal/randen_traits.h"
 
 // This file contains only the round keys for randen.

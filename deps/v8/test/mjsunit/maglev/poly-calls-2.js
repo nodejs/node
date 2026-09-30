@@ -49,10 +49,10 @@ assertEquals(256 + 20, foo(o2));
 outsideObject.a = 10;
 assertEquals(128 + 10, foo(o1));
 assertEquals(256 + 10, foo(o2));
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 // Change the map of `outsideObject`; this will also deopt.
 outsideObject = {aa: 0, a: 0};
 
 assertEquals(128, foo(o1));
-assertFalse(isMaglevved(foo));
+assertNotMaglevved(foo);

@@ -138,6 +138,63 @@ class StandardRunnerTest(TestRunnerTest):
     result.stdout_includes('sweet/strawberries default: FAIL')
     result.has_returncode(1)
 
+  def testQuiet(self):
+    """Test that quiet mode drops everything but failures and the counts."""
+    result = self.run_tests(
+        '--quiet',
+        '--variants=default',
+        'sweet/bananas',
+        'sweet/strawberries',
+        infra_staging=False,
+    )
+    result.stdout_includes('sweet/strawberries')
+    result.stdout_includes('1 tests failed')
+    result.stdout_includes('>>> 2 tests ran')
+    result.stdout_excludes('Statusfile variables')
+    result.stdout_excludes('Build found')
+    result.stdout_excludes('Running with test processors')
+    result.stdout_excludes('non-filtered tests')
+    result.has_returncode(1)
+
+  def testQuietReportsZeroTestsRan(self):
+    """Test that quiet mode doesn't report a filter matching nothing as a
+    plain success."""
+    result = self.run_tests(
+        '--quiet',
+        '--variants=default',
+        'sweet/no-such-test',
+        infra_staging=False,
+    )
+    result.stdout_includes('>>> 0 tests ran')
+    result.has_returncode(2)
+
+  def testQuietFromAiAgentEnv(self):
+    """Test that an AI agent environment implies quiet mode."""
+    result = self.run_tests(
+        '--variants=default',
+        'sweet/bananas',
+        infra_staging=False,
+        ai_agent_vars=['AI_AGENT'],
+    )
+    result.stdout_includes('Detected AI agent env (AI_AGENT)')
+    result.stdout_includes('>>> 1 tests ran')
+    result.stdout_excludes('Statusfile variables')
+    result.stdout_excludes('non-filtered tests')
+    result.has_returncode(0)
+
+  def testNoQuietOverridesAiAgentEnv(self):
+    """Test that --no-quiet wins over the environment."""
+    result = self.run_tests(
+        '--no-quiet',
+        '--variants=default',
+        'sweet/bananas',
+        infra_staging=False,
+        ai_agent_vars=['AI_AGENT'],
+    )
+    result.stdout_includes('Statusfile variables')
+    result.stdout_excludes('Detected AI agent env')
+    result.has_returncode(0)
+
   def testGN(self):
     """Test setup with legacy GN out dir."""
     result = self.run_tests('--gn', baseroot="testroot5", outdir='out.gn')
@@ -261,18 +318,18 @@ class StandardRunnerTest(TestRunnerTest):
         "cfi=True, code_comments=False, component_build=False, "
         "dcheck_always_on=True, debug_code=False, debugging_features=False, "
         "deopt_fuzzer=False, device_type=None, "
-        "dict_property_const_tracking=False, disassembler=False, "
+        "dict_property_const_tracking=False, disassembler=False, dumpling=False, "
         "endurance_fuzzer=False, full_debug=False, gc_fuzzer=False, "
         "gc_stress=False, gdbjit=False, has_jitless=False, has_maglev=False, "
         "has_turbofan=False, has_webassembly=True, i18n=True, "
         "interrupt_fuzzer=False, is_android=False, is_ios=False, "
         "isolates=False, lite_mode=False, memory_corruption_api=False, "
         "mode=debug, msan=True, no_harness=False, no_simd_hardware=False, "
-        "novfp3=False, optimize_for_size=False, sandbox_hardware_support=True, "
-        "simulator_run=False, slow_dchecks=False, "
+        "novfp3=False, num_fuzzer=False, optimize_for_size=False, sandbox_hardware_support=True, "
+        "simulator_run=False, single_generation=False, slow_dchecks=False, "
         "system=linux, target_cpu=x86, tsan=True, ubsan=True, "
-        "use_sanitizer=True, v8_target_cpu=x86, verify_heap=False, "
-        "verify_predictable=False")
+        "use_sanitizer=True, v8_target_cpu=x86, "
+        "verify_heap=False, verify_predictable=False")
     result.stdout_includes('>>> Running tests for ia32.release')
     result.has_returncode(0)
     # TODO(machenbach): Test some more implications of the auto-detected

@@ -214,7 +214,7 @@ class V8_EXPORT_PRIVATE TryCatchBuilder final : public ControlFlowBuilder {
   ~TryCatchBuilder() override;
 
   void BeginTry(Register context);
-  void EndTry();
+  void EndTry(bool emit_catch = true);
   void EndCatch();
 
  private:

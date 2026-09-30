@@ -8,15 +8,47 @@ namespace promise {
 @incrementUseCounter('v8::Isolate::kPromiseTry')
 transitioning javascript builtin PromiseTry(
     js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
-  // 1. Let C be the this value.
-  // 2. If C is not an Object, throw a TypeError exception.
+  // 1. Let ctor be the this value.
+  // 2. If ctor is not an Object, throw a TypeError exception.
   const receiver = Cast<JSReceiver>(receiver)
       otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'Promise.try');
 
-  // 3. Let promiseCapability be ? NewPromiseCapability(C).
-  const capability = NewPromiseCapability(receiver, False);
+  if (!HasJsPr3883Flag()) {
+    // Legacy behavior before PR 3883:
+    // 3. Let promiseCapability be ? NewPromiseCapability(C).
+    const capability = NewPromiseCapability(receiver, False);
 
-  // 4. Let status be Completion(Call(callbackfn, undefined, args)).
+    // 4. Let status be Completion(Call(callbackfn, undefined, args)).
+    const callbackfn = arguments[0];
+    let result: JSAny;
+    try {
+      if (arguments.length <= 1) {
+        result = Call(context, callbackfn, Undefined);
+      } else {
+        const rest = NewRestArgumentsFromArguments(arguments, 1);
+        result = Call(
+            context, GetReflectApply(), Undefined, callbackfn, Undefined, rest);
+      }
+    } catch (e, _message) {
+      // 5. If status is an abrupt completion, then
+      //   a. Perform ? Call(promiseCapability.[[Reject]], undefined, «
+      //      status.[[Value]] »).
+      Call(context, UnsafeCast<Callable>(capability.reject), Undefined, e);
+
+      // 7. Return promiseCapability.[[Promise]].
+      return capability.promise;
+    }
+
+    // 6. Else,
+    //   a. Perform ? Call(promiseCapability.[[Resolve]], undefined, «
+    //      status.[[Value]] »).
+    Call(context, UnsafeCast<Callable>(capability.resolve), Undefined, result);
+
+    // 7. Return promiseCapability.[[Promise]].
+    return capability.promise;
+  }
+
+  // 3. Let status be Completion(Call(callback, undefined, args)).
   const callbackfn = arguments[0];
   let result: JSAny;
   try {
@@ -28,22 +60,19 @@ transitioning javascript builtin PromiseTry(
           context, GetReflectApply(), Undefined, callbackfn, Undefined, rest);
     }
   } catch (e, _message) {
-    // 5. If status is an abrupt completion, then
-    //   a. Perform ? Call(promiseCapability.[[Reject]], undefined, «
+    // 4. If status is an abrupt completion, then
+    //   a. Let promiseCapability be ? NewPromiseCapability(ctor).
+    //   b. Perform ? Call(promiseCapability.[[Reject]], undefined, «
     //      status.[[Value]] »).
+    //   c. Return promiseCapability.[[Promise]].
+    const capability = NewPromiseCapability(receiver, False);
     Call(context, UnsafeCast<Callable>(capability.reject), Undefined, e);
-
-    // 7. Return promiseCapability.[[Promise]].
     return capability.promise;
   }
 
-  // 6. Else,
-  //   a. Perform ? Call(promiseCapability.[[Resolve]], undefined, «
-  //      status.[[Value]] »).
-  Call(context, UnsafeCast<Callable>(capability.resolve), Undefined, result);
-
-  // 7. Return promiseCapability.[[Promise]].
-  return capability.promise;
+  // 5. Else,
+  //   a. Return ? PromiseResolve(ctor, ! status).
+  return PromiseResolve(receiver, result);
 }
 
 }  // namespace promise

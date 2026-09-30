@@ -39,6 +39,13 @@
 #include <xmmintrin.h>
 #endif  // ABSL_AES_INTERNAL_HAVE_X86_SIMD
 
+#ifdef ABSL_AES_INTERNAL_HAVE_ARM_SIMD
+#error ABSL_AES_INTERNAL_HAVE_ARM_SIMD cannot be directly set
+#elif defined(ABSL_INTERNAL_HAVE_ARM_NEON) && defined(__ARM_FEATURE_CRYPTO)
+#include <arm_neon.h>
+#define ABSL_AES_INTERNAL_HAVE_ARM_SIMD
+#endif  // ABSL_INTERNAL_HAVE_ARM_NEON
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace hash_internal {
@@ -49,39 +56,159 @@ void PrefetchFutureDataToLocalCache(const uint8_t* ptr) {
   PrefetchToLocalCache(ptr + 5 * ABSL_CACHELINE_SIZE);
 }
 
-#ifdef ABSL_AES_INTERNAL_HAVE_X86_SIMD
-uint64_t Mix4x16Vectors(__m128i a, __m128i b, __m128i c, __m128i d) {
-  // res128 = encrypt(a + c, d) + decrypt(b - d, a)
-  auto res128 = _mm_add_epi64(_mm_aesenc_si128(_mm_add_epi64(a, c), d),
-                              _mm_aesdec_si128(_mm_sub_epi64(b, d), a));
-  auto x64 = static_cast<uint64_t>(_mm_cvtsi128_si64(res128));
-  auto y64 = static_cast<uint64_t>(_mm_extract_epi64(res128, 1));
+#if defined(ABSL_AES_INTERNAL_HAVE_X86_SIMD) || \
+    defined(ABSL_AES_INTERNAL_HAVE_ARM_SIMD)
+
+#if defined(ABSL_AES_INTERNAL_HAVE_X86_SIMD)
+using Vector128 = __m128i;
+
+inline Vector128 Load128(const uint8_t* ptr) {
+  return _mm_loadu_si128(reinterpret_cast<const Vector128*>(ptr));
+}
+
+inline Vector128 Set128(uint64_t a, uint64_t b) {
+  return _mm_set_epi64x(static_cast<int64_t>(a), static_cast<int64_t>(b));
+}
+
+inline Vector128 Add128(Vector128 a, Vector128 b) {
+  return _mm_add_epi64(a, b);
+}
+
+inline Vector128 Sub128(Vector128 a, Vector128 b) {
+  return _mm_sub_epi64(a, b);
+}
+
+// Bits of the second argument to Encrypt128/Decrypt128 are XORed with the
+// first argument after encryption/decryption.
+
+inline Vector128 Encrypt128(Vector128 data, Vector128 key) {
+  return _mm_aesenc_si128(data, key);
+}
+
+inline Vector128 Decrypt128(Vector128 data, Vector128 key) {
+  return _mm_aesdec_si128(data, key);
+}
+
+// We use each value as the first argument to shuffle all the bits around. We do
+// not add any salt to the state or loaded data, instead we vary instructions
+// used to mix bits Encrypt128/Decrypt128 and Add128/Sub128. On x86,
+// Add128/Sub128 are combined to one instruction with data loading like
+// `vpaddq xmm1, xmm0, xmmword ptr [rdi]`.
+
+inline Vector128 MixA(Vector128 a, Vector128 state) {
+  return Decrypt128(Add128(state, a), state);
+}
+
+inline Vector128 MixB(Vector128 b, Vector128 state) {
+  return Decrypt128(Sub128(state, b), state);
+}
+
+inline Vector128 MixC(Vector128 c, Vector128 state) {
+  return Encrypt128(Add128(state, c), state);
+}
+
+inline Vector128 MixD(Vector128 d, Vector128 state) {
+  return Encrypt128(Sub128(state, d), state);
+}
+
+inline uint64_t ExtractLow64(Vector128 v) {
+  return static_cast<uint64_t>(_mm_cvtsi128_si64(v));
+}
+
+inline uint64_t ExtractHigh64(Vector128 v) {
+  return static_cast<uint64_t>(_mm_extract_epi64(v, 1));
+}
+
+inline uint64_t Mix4x16Vectors(Vector128 a, Vector128 b, Vector128 c,
+                               Vector128 d) {
+  Vector128 res128 =
+      Add128(Encrypt128(Add128(a, c), d), Decrypt128(Sub128(b, d), a));
+  uint64_t x64 = ExtractLow64(res128);
+  uint64_t y64 = ExtractHigh64(res128);
   return x64 ^ y64;
 }
+
+#else  // ABSL_AES_INTERNAL_HAVE_ARM_SIMD
+
+using Vector128 = uint8x16_t;
+
+inline Vector128 Load128(const uint8_t* ptr) { return vld1q_u8(ptr); }
+
+inline Vector128 Set128(uint64_t a, uint64_t b) {
+  return vreinterpretq_u8_u64(vsetq_lane_u64(a, vdupq_n_u64(b), 1));
+}
+
+inline Vector128 Add128(Vector128 a, Vector128 b) {
+  return vreinterpretq_u8_u64(
+      vaddq_u64(vreinterpretq_u64_u8(a), vreinterpretq_u64_u8(b)));
+}
+
+// Bits of the second argument to Decrypt128/Encrypt128 are XORed with the
+// state argument BEFORE encryption (in x86 version they are XORed after).
+
+inline Vector128 Encrypt128(Vector128 data, Vector128 key) {
+  return vaesmcq_u8(vaeseq_u8(data, key));
+}
+
+inline Vector128 Decrypt128(Vector128 data, Vector128 key) {
+  return vaesimcq_u8(vaesdq_u8(data, key));
+}
+
+// We use decryption for a, b and encryption for c, d. That helps us to avoid
+// collisions for trivial byte rotations. Mix4x16Vectors later uses
+// encrypted/decrypted pairs differently to ensure that the order of blocks is
+// important for the hash value.
+// We also avoid using Add128/Sub128 instructions because state is being mixed
+// before encryption/decryption. On ARM, there is no fusion of load and add/sub
+// instructions so it is more expensive to use them.
+
+inline Vector128 MixA(Vector128 a, Vector128 state) {
+  return Decrypt128(a, state);
+}
+
+inline Vector128 MixB(Vector128 b, Vector128 state) {
+  return Decrypt128(b, state);
+}
+
+inline Vector128 MixC(Vector128 c, Vector128 state) {
+  return Encrypt128(c, state);
+}
+
+inline Vector128 MixD(Vector128 d, Vector128 state) {
+  return Encrypt128(d, state);
+}
+
+inline uint64_t ExtractLow64(Vector128 v) {
+  return vgetq_lane_u64(vreinterpretq_u64_u8(v), 0);
+}
+
+inline uint64_t ExtractHigh64(Vector128 v) {
+  return vgetq_lane_u64(vreinterpretq_u64_u8(v), 1);
+}
+
+uint64_t Mix4x16Vectors(Vector128 a, Vector128 b, Vector128 c, Vector128 d) {
+  Vector128 res128 = Add128(Encrypt128(a, c), Decrypt128(b, d));
+  uint64_t x64 = ExtractLow64(res128);
+  uint64_t y64 = ExtractHigh64(res128);
+  return x64 ^ y64;
+}
+
+#endif  // ABSL_AES_INTERNAL_HAVE_X86_SIMD
 
 uint64_t LowLevelHash33To64(uint64_t seed, const uint8_t* ptr, size_t len) {
   assert(len > 32);
   assert(len <= 64);
-  __m128i state =
-      _mm_set_epi64x(static_cast<int64_t>(seed), static_cast<int64_t>(len));
-  auto a = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr));
-  auto b = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr + 16));
+  Vector128 state = Set128(seed, len);
+  Vector128 a = Load128(ptr);
+  Vector128 b = Load128(ptr + 16);
   auto* last32_ptr = ptr + len - 32;
-  auto c = _mm_loadu_si128(reinterpret_cast<const __m128i*>(last32_ptr));
-  auto d = _mm_loadu_si128(reinterpret_cast<const __m128i*>(last32_ptr + 16));
+  Vector128 c = Load128(last32_ptr);
+  Vector128 d = Load128(last32_ptr + 16);
 
-  // Bits of the second argument to _mm_aesdec_si128/_mm_aesenc_si128 are
-  // XORed with the state argument after encryption.
-  // We use each value as the first argument to shuffle all the bits around.
-  // We do not add any salt to the state or loaded data, instead we vary
-  // instructions used to mix bits _mm_aesdec_si128/_mm_aesenc_si128 and
-  // _mm_add_epi64/_mm_sub_epi64.
-  // _mm_add_epi64/_mm_sub_epi64 are combined to one instruction with data
-  // loading like `vpaddq  xmm1, xmm0, xmmword ptr [rdi]`.
-  auto na = _mm_aesdec_si128(_mm_add_epi64(state, a), state);
-  auto nb = _mm_aesdec_si128(_mm_sub_epi64(state, b), state);
-  auto nc = _mm_aesenc_si128(_mm_add_epi64(state, c), state);
-  auto nd = _mm_aesenc_si128(_mm_sub_epi64(state, d), state);
+  Vector128 na = MixA(a, state);
+  Vector128 nb = MixB(b, state);
+  Vector128 nc = MixC(c, state);
+  Vector128 nd = MixD(d, state);
 
   // We perform another round of encryption to mix bits between two halves of
   // the input.
@@ -97,11 +224,10 @@ LowLevelHashLenGt64(uint64_t seed, const void* data, size_t len) {
   // If we have more than 64 bytes, we're going to handle chunks of 64
   // bytes at a time. We're going to build up four separate hash states
   // which we will then hash together. This avoids short dependency chains.
-  __m128i state0 =
-      _mm_set_epi64x(static_cast<int64_t>(seed), static_cast<int64_t>(len));
-  __m128i state1 = state0;
-  __m128i state2 = state1;
-  __m128i state3 = state2;
+  Vector128 state0 = Set128(seed, len);
+  Vector128 state1 = state0;
+  Vector128 state2 = state1;
+  Vector128 state3 = state2;
 
   // Mixing two 128-bit vectors at a time with corresponding states.
   // All variables are mixed slightly differently to avoid hash collision
@@ -111,25 +237,17 @@ LowLevelHashLenGt64(uint64_t seed, const void* data, size_t len) {
   // See comments in LowLevelHash33To64 for more considerations.
   auto mix_ab = [&state0,
                  &state1](const uint8_t* p) ABSL_ATTRIBUTE_ALWAYS_INLINE {
-    // i128 a = *p;
-    // i128 b = *(p + 16);
-    // state0 = decrypt(state0 + a, state0);
-    // state1 = decrypt(state1 - b, state1);
-    auto a = _mm_loadu_si128(reinterpret_cast<const __m128i*>(p));
-    auto b = _mm_loadu_si128(reinterpret_cast<const __m128i*>(p + 16));
-    state0 = _mm_aesdec_si128(_mm_add_epi64(state0, a), state0);
-    state1 = _mm_aesdec_si128(_mm_sub_epi64(state1, b), state1);
+    Vector128 a = Load128(p);
+    Vector128 b = Load128(p + 16);
+    state0 = MixA(a, state0);
+    state1 = MixB(b, state1);
   };
   auto mix_cd = [&state2,
                  &state3](const uint8_t* p) ABSL_ATTRIBUTE_ALWAYS_INLINE {
-    // i128 c = *p;
-    // i128 d = *(p + 16);
-    // state2 = encrypt(state2 + c, state2);
-    // state3 = encrypt(state3 - d, state3);
-    auto c = _mm_loadu_si128(reinterpret_cast<const __m128i*>(p));
-    auto d = _mm_loadu_si128(reinterpret_cast<const __m128i*>(p + 16));
-    state2 = _mm_aesenc_si128(_mm_add_epi64(state2, c), state2);
-    state3 = _mm_aesenc_si128(_mm_sub_epi64(state3, d), state3);
+    Vector128 c = Load128(p);
+    Vector128 d = Load128(p + 16);
+    state2 = MixC(c, state2);
+    state3 = MixD(d, state3);
   };
 
   do {

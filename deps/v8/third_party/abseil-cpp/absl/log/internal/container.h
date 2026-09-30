@@ -236,7 +236,7 @@ class EnumLogger {
   explicit EnumLogger(E e) : e_(e) {}
 
   friend std::ostream &operator<<(std::ostream &out, const EnumLogger &v) {
-    using I = typename std::underlying_type<E>::type;
+    using I = std::underlying_type_t<E>;
     return out << static_cast<I>(v.e_);
   }
 
@@ -301,7 +301,7 @@ auto LogContainer(const ContainerT& container)
 //   LOG(INFO) << LogEnum(kRed);
 template <typename E>
 detail::EnumLogger<E> LogEnum(E e) {
-  static_assert(std::is_enum<E>::value, "must be an enum");
+  static_assert(std::is_enum_v<E>, "must be an enum");
   return detail::EnumLogger<E>(e);
 }
 

@@ -14,7 +14,6 @@ namespace internal {
 // HR(name, caption, min, max, num_buckets)
 #define HISTOGRAM_RANGE_LIST(HR)                                               \
   HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 9, 9)              \
-  HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)         \
   HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0,             \
      kGarbageCollectionReasonMaxValue, kGarbageCollectionReasonMaxValue + 1)   \
   HR(incremental_marking_sum, V8.GCIncrementalMarkingSum, 0, 10000, 101)       \
@@ -38,18 +37,14 @@ namespace internal {
      13)                                                                       \
   HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096,   \
      13)                                                                       \
-  HR(shared_array_allocations, V8.SharedArrayAllocationSizes, 0, 4096, 13)     \
-  HR(wasm_asm_huge_function_size_bytes, V8.WasmHugeFunctionSizeBytes.asm,      \
-     100 * KB, GB, 51)                                                         \
   HR(wasm_wasm_huge_function_size_bytes, V8.WasmHugeFunctionSizeBytes.wasm,    \
      100 * KB, GB, 51)                                                         \
-  HR(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm, 1, GB, 51)        \
   HR(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm, 1, GB, 51)      \
   HR(wasm_compile_huge_function_peak_memory_bytes,                             \
      V8.WasmCompileHugeFunctionPeakMemoryBytes, 1, GB, 51)                     \
   HR(asm_module_size_bytes, V8.AsmModuleSizeBytes, 1, GB, 51)                  \
-  HR(compile_script_cache_behaviour, V8.CompileScript.CacheBehaviour, 0, 21,   \
-     22)                                                                       \
+  HR(compile_script_cache_behaviour, V8.CompileScript.CacheBehaviour, 0, 22,   \
+     23)                                                                       \
   HR(wasm_memory_allocation_result, V8.WasmMemoryAllocationResult, 0, 3, 4)    \
   /* Committed code size per module, collected on GC. */                       \
   /* Older histogram, in MiB (0..1024MB). */                                   \
@@ -73,6 +68,9 @@ namespace internal {
   /* Number of deopts triggered in webassembly code. */                        \
   HR(wasm_deopts_executed, V8.WasmDeoptsExecutedCount, 0, 10000, 51)           \
   HR(wasm_deopts_per_function, V8.WasmDeoptsPerFunction, 0, 500, 21)           \
+  /* Percentage of a function's SIMD128 operations that the revectorizer */    \
+  /* combined into SIMD256 operations, per revectorized function. */           \
+  HR(wasm_revec_conversion_percent, V8.WasmRevecConversionPercent, 0, 101, 32) \
   /* Number of live modules per isolate. */                                    \
   HR(wasm_modules_per_isolate, V8.WasmModulesPerIsolate, 1, 1024, 30)          \
   /* Number of live modules per engine (i.e. whole process). */                \
@@ -82,6 +80,8 @@ namespace internal {
   /* Support for PKEYs/PKU by testing result of pkey_alloc(). */               \
   HR(wasm_memory_protection_keys_support, V8.WasmMemoryProtectionKeysSupport,  \
      0, 1, 2)                                                                  \
+  /* Support for AVX and AVX2 on x64 hardware. */                              \
+  HR(wasm_avx2_support, V8.WasmAvx2Support, 0, 1, 2)                           \
   /* Ticks observed in a single Turbofan compilation, in 1K. */                \
   HR(turbofan_ticks, V8.TurboFan1KTicks, 0, 100000, 200)                       \
   /* Backtracks observed in a single regexp interpreter execution. */          \
@@ -93,8 +93,6 @@ namespace internal {
   /* Counted after sweeping the table at the end of mark-compact GC. */        \
   HR(external_pointers_count, V8.SandboxedExternalPointersCount, 0,            \
      kMaxExternalPointers, 101)                                                \
-  HR(code_pointers_count, V8.SandboxedCodePointersCount, 0, kMaxCodePointers,  \
-     101)                                                                      \
   HR(trusted_pointers_count, V8.SandboxedTrustedPointersCount, 0,              \
      kMaxTrustedPointers, 101)                                                 \
   HR(cppheap_pointers_count, V8.SandboxedCppHeapPointersCount, 0,              \
@@ -107,7 +105,8 @@ namespace internal {
   HR(external_pointer_table_compaction_outcome,                                \
      V8.ExternalPointerTableCompactionOutcome, 0, 2, 3)                        \
   HR(wasm_compilation_method, V8.WasmCompilationMethod, 0, 4, 5)               \
-  HR(asmjs_instantiate_result, V8.AsmjsInstantiateResult, 0, 1, 2)
+  HR(esm_modules_per_page, V8.ESMModulesPerPage, 1, 1024, 30)                  \
+  HR(esm_import_graph_depth, V8.ESMImportGraphDepth, 1, 128, 20)
 
 #if V8_ENABLE_DRUMBRAKE
 #define HISTOGRAM_RANGE_LIST_SLOW(HR)                                         \
@@ -141,6 +140,18 @@ namespace internal {
   HT(compile_serialize, V8.CompileSerializeMicroSeconds, 100000, MICROSECOND) \
   HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,         \
      MICROSECOND)                                                             \
+  HT(compile_deserialize_module, V8.CompileDeserializeMicroSeconds.Module,    \
+     1000000, MICROSECOND)                                                    \
+  HT(compile_deserialize_classic, V8.CompileDeserializeMicroSeconds.Classic,  \
+     1000000, MICROSECOND)                                                    \
+  HT(compile_deserialize_main_thread,                                         \
+     V8.CompileDeserializeMicroSeconds.MainThread, 1000000, MICROSECOND)      \
+  HT(compile_deserialize_main_thread_module,                                  \
+     V8.CompileDeserializeMicroSeconds.MainThread.Module, 1000000,            \
+     MICROSECOND)                                                             \
+  HT(compile_deserialize_main_thread_classic,                                 \
+     V8.CompileDeserializeMicroSeconds.MainThread.Classic, 1000000,           \
+     MICROSECOND)                                                             \
   /* Snapshot. */                                                             \
   HT(snapshot_decompress, V8.SnapshotDecompressMicroSeconds, 1000000,         \
      MICROSECOND)                                                             \
@@ -152,7 +163,17 @@ namespace internal {
      1000000, MICROSECOND)                                                    \
   /* ... and also see compile_deserialize above. */                           \
   /* Total compilation time incl. caching/parsing. */                         \
-  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)
+  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)      \
+  HT(compile_script_module, V8.CompileScriptMicroSeconds.Module, 1000000,     \
+     MICROSECOND)                                                             \
+  HT(compile_script_classic, V8.CompileScriptMicroSeconds.Classic, 1000000,   \
+     MICROSECOND)                                                             \
+  HT(compile_script_main_thread, V8.CompileScriptMicroSeconds.MainThread,     \
+     1000000, MICROSECOND)                                                    \
+  HT(compile_script_main_thread_module,                                       \
+     V8.CompileScriptMicroSeconds.MainThread.Module, 1000000, MICROSECOND)    \
+  HT(compile_script_main_thread_classic,                                      \
+     V8.CompileScriptMicroSeconds.MainThread.Classic, 1000000, MICROSECOND)
 
 #define NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)                                \
   /* Total V8 time (including JS and runtime calls, exluding callbacks). */ \
@@ -308,31 +329,35 @@ namespace internal {
      V8.CompileScriptMicroSeconds.StreamingFinalization, 1000000, MICROSECOND) \
   HT(compile_script_on_background,                                             \
      V8.CompileScriptMicroSeconds.BackgroundThread, 1000000, MICROSECOND)      \
+  HT(compile_script_on_background_module,                                      \
+     V8.CompileScriptMicroSeconds.BackgroundThread.Module, 1000000,            \
+     MICROSECOND)                                                              \
+  HT(compile_script_on_background_classic,                                     \
+     V8.CompileScriptMicroSeconds.BackgroundThread.Classic, 1000000,           \
+     MICROSECOND)                                                              \
   HT(compile_function_on_background,                                           \
      V8.CompileFunctionMicroSeconds.BackgroundThread, 1000000, MICROSECOND)    \
   HT(deserialize_script_on_background,                                         \
      V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread, 1000000,      \
-     MICROSECOND)
+     MICROSECOND)                                                              \
+  HT(deserialize_script_on_background_module,                                  \
+     V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread.Module,        \
+     1000000, MICROSECOND)                                                     \
+  HT(deserialize_script_on_background_classic,                                 \
+     V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread.Classic,       \
+     1000000, MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)
 
-#define HISTOGRAM_PERCENTAGE_LIST(HP)                                          \
-  /* Heap fragmentation. */                                                    \
-  HP(external_fragmentation_total, V8.MemoryExternalFragmentationTotal)        \
-  HP(external_fragmentation_old_space, V8.MemoryExternalFragmentationOldSpace) \
-  HP(external_fragmentation_code_space,                                        \
-     V8.MemoryExternalFragmentationCodeSpace)                                  \
-  HP(external_fragmentation_map_space, V8.MemoryExternalFragmentationMapSpace) \
-  HP(external_fragmentation_lo_space, V8.MemoryExternalFragmentationLoSpace)
+#define HISTOGRAM_PERCENTAGE_LIST(HP) \
+  /* Heap fragmentation. */           \
+  HP(external_fragmentation_total, V8.MemoryExternalFragmentationTotal)
 
 // Note: These use Histogram with options (min=1000, max=500000, buckets=50).
 #define HISTOGRAM_LEGACY_MEMORY_LIST(HM)                                      \
   HM(heap_sample_total_committed, V8.MemoryHeapSampleTotalCommitted)          \
-  HM(heap_sample_total_used, V8.MemoryHeapSampleTotalUsed)                    \
-  HM(heap_sample_map_space_committed, V8.MemoryHeapSampleMapSpaceCommitted)   \
-  HM(heap_sample_code_space_committed, V8.MemoryHeapSampleCodeSpaceCommitted) \
-  HM(heap_sample_maximum_committed, V8.MemoryHeapSampleMaximumCommitted)
+  HM(heap_sample_total_used, V8.MemoryHeapSampleTotalUsed)
 
 #define STATS_COUNTER_LIST(SC)                                                 \
   /* Global handle count. */                                                   \
@@ -344,6 +369,8 @@ namespace internal {
   /* the root SharedFunctionInfo. */                                           \
   SC(compilation_cache_partial_hits, V8.CompilationCachePartialHits)           \
   SC(deopts, V8.Deopts)                                                        \
+  /* Deopts without code invalidation (e.g., for OSR) */                       \
+  SC(utility_deopts, V8.UtilityDeopts)                                         \
   SC(objs_since_last_young, V8.ObjsSinceLastYoung)                             \
   SC(objs_since_last_full, V8.ObjsSinceLastFull)                               \
   SC(gc_compactor_caused_by_request, V8.GCCompactorCausedByRequest)            \

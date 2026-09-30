@@ -38,14 +38,18 @@
 
 #include <cstdint>
 
+#include "absl/base/config.h"
+#include "absl/base/internal/unscaledcycleclock_config.h"
+
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
 #endif
 
-#include "absl/base/config.h"
-#include "absl/base/internal/unscaledcycleclock_config.h"
-
 #if ABSL_USE_UNSCALED_CYCLECLOCK
+
+namespace gloop_do_not_use {
+class UnscaledCycleClockWrapperForPerCpuTest;
+}  // namespace gloop_do_not_use
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -75,6 +79,7 @@ class UnscaledCycleClock {
   friend class base_internal::CycleClock;
   friend class time_internal::UnscaledCycleClockWrapperForGetCurrentTime;
   friend class base_internal::UnscaledCycleClockWrapperForInitializeFrequency;
+  friend class gloop_do_not_use::UnscaledCycleClockWrapperForPerCpuTest;
 };
 
 #if defined(__x86_64__)

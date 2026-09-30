@@ -14,11 +14,13 @@
 
 #include "absl/profiling/internal/periodic_sampler.h"
 
+#include <cstdint>
 #include <thread>  // NOLINT(build/c++11)
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/macros.h"
 
 namespace absl {

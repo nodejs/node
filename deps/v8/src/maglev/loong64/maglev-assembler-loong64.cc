@@ -228,11 +228,35 @@ void MaglevAssembler::Prologue(Graph* graph) {
   }
 }
 
-// TODO(loong64): seems only implementabed on arm64
 void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
                                                  Label* eager_deopt_entry,
                                                  size_t lazy_deopt_count,
-                                                 Label* lazy_deopt_entry) {}
+                                                 Label* lazy_deopt_entry) {
+  // We do have to avoid getting the trampoline pool emitted in the middle
+  // of the deoptimization exits, because it destroys our ability to compute
+  // the deoptimization index based on the 'pc' and the offset of the start
+  // of the exits section.
+  size_t total_size = eager_deopt_count * Deoptimizer::kEagerDeoptExitSize +
+                      lazy_deopt_count * Deoptimizer::kLazyDeoptExitSize;
+  // Reserve space for deoptimization entries, each entry requires two
+  // instructions.
+  if (eager_deopt_count > 0) total_size += 2;
+  if (lazy_deopt_count > 0) total_size += 2;
+  BlockTrampolinePoolFor(static_cast<int>(total_size));
+
+  TemporaryRegisterScope scope(this);
+  Register scratch = scope.AcquireScratch();
+  if (eager_deopt_count > 0) {
+    bind(eager_deopt_entry);
+    LoadEntryFromBuiltin(Builtin::kDeoptimizationEntry_Eager, scratch);
+    MacroAssembler::Jump(scratch);
+  }
+  if (lazy_deopt_count > 0) {
+    bind(lazy_deopt_entry);
+    LoadEntryFromBuiltin(Builtin::kDeoptimizationEntry_Lazy, scratch);
+    MacroAssembler::Jump(scratch);
+  }
+}
 
 void MaglevAssembler::LoadSingleCharacterString(Register result,
                                                 Register char_code,
@@ -294,7 +318,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
             __ jmp(*done);
           },
           register_snapshot, done, result, char_code, scratch),
-      Ugreater_equal, char_code, Operand(String::kMaxOneByteCharCode));
+      Ugreater, char_code, Operand(String::kMaxOneByteCharCode));
 
   if (char_code_fits_one_byte != nullptr) {
     bind(char_code_fits_one_byte);
@@ -437,7 +461,11 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     LoadAndUntagTaggedSignedField(offset, string,
                                   offsetof(SlicedString, offset_));
     LoadTaggedField(string, string, offsetof(SlicedString, parent_));
-    Add_d(index, index, Operand(offset));
+    Add_w(index, index, Operand(offset));
+    // Add_w yields a sign-extended Word32. Normalize it to its unsigned form
+    // so that a (corrupted) negative offset cannot be interpreted as a
+    // negative index by the subsequent address computation.
+    Bstrpick_d(index, index, 31, 0);
     MacroAssembler::Branch(&loop, Label::kNear);
   }
 
@@ -482,7 +510,8 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     bind(&two_byte_string);
     // {instance_type} is unused from this point, so we can use as scratch.
     Register scratch = scratch1;
-    slli_d(scratch, index, 1);
+    Bstrpick_d(scratch, index, 31, 0);
+    slli_d(scratch, scratch, 1);
     Add_d(scratch, scratch,
           Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
 
@@ -510,6 +539,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
                              Label::kNear);
 
       Register second_code_point = scratch;
+      Bstrpick_d(index, index, 31, 0);
       slli_d(index, index, 1);
       Add_d(index, index,
             Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
@@ -572,8 +602,8 @@ void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
                           AbortReason::kUnexpectedValue);
   }
 
-  // TODO(loong64): is index an uint32 value?
-  Add_d(scratch, index,
+  Bstrpick_d(scratch, index, 31, 0);
+  Add_d(scratch, scratch,
         Operand(OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag));
   Ld_bu(result, MemOperand(string, scratch));
 }

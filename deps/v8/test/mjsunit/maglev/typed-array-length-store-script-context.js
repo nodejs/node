@@ -22,7 +22,7 @@ foo(100);
 %OptimizeMaglevOnNextCall(foo);
 foo(100);
 assertEquals(100, scriptContextSlot);
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 foo(100);
 
@@ -33,5 +33,5 @@ if (%Is64Bit()) {
   const largeLength = 8589934592;
   foo(largeLength);
   assertEquals(largeLength, scriptContextSlot);
-  assertFalse(isMaglevved(foo));
+  assertNotMaglevved(foo);
 }

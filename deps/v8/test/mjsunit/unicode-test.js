@@ -5995,7 +5995,7 @@ var source =
 "    always true of any allocated chunk; i.e., that each allocated\n" +
 "    chunk borders either a previously allocated and still in-use\n" +
 "    chunk, or the base of its memory arena. This is ensured\n" +
-"    by making all allocations from the the `lowest' part of any found\n" +
+"    by making all allocations from the `lowest' part of any found\n" +
 "    chunk.  This does not necessarily hold however for chunks\n" +
 "    recycled via fastbins.\n" +
 "  */\n" +
@@ -9097,7 +9097,7 @@ assertEquals(25640, hebrew.length, "hebrew utf8 in source");
 assertEquals(31082, japanese.length, "japanese utf8 in source");
 assertEquals(12291, korean.length, "korean utf8 in source");
 assertEquals(13851, persian.length, "persian utf8 in source");
-assertEquals(177473, source.length, "source utf8 in source");
+assertEquals(177469, source.length, "source utf8 in source");
 assertEquals(18315, thai.length, "thai utf8 in source");
 
 munged_sizes = new Array(17197, 2511, 2645, 3820, 3086, 2609,

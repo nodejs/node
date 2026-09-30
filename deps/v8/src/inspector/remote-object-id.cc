@@ -49,8 +49,9 @@ bool RemoteObjectIdBase::parseId(const String16& objectId) {
 Response RemoteObjectId::parse(const String16& objectId,
                                std::unique_ptr<RemoteObjectId>* result) {
   std::unique_ptr<RemoteObjectId> remoteObjectId(new RemoteObjectId());
-  if (!remoteObjectId->parseId(objectId))
+  if (!remoteObjectId->parseId(objectId)) {
     return Response::ServerError("Invalid remote object id");
+  }
   *result = std::move(remoteObjectId);
   return Response::Success();
 }
@@ -63,8 +64,9 @@ String16 RemoteObjectId::serialize(uint64_t isolateId, int injectedScriptId,
 Response RemoteCallFrameId::parse(const String16& objectId,
                                   std::unique_ptr<RemoteCallFrameId>* result) {
   std::unique_ptr<RemoteCallFrameId> remoteCallFrameId(new RemoteCallFrameId());
-  if (!remoteCallFrameId->parseId(objectId))
+  if (!remoteCallFrameId->parseId(objectId)) {
     return Response::ServerError("Invalid call frame id");
+  }
   *result = std::move(remoteCallFrameId);
   return Response::Success();
 }

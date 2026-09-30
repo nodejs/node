@@ -90,8 +90,11 @@ template <typename T>
 bool Resize(T& object, AdditionalBytes additional_bytes) {
   static_assert(IsGarbageCollectedTypeV<T>,
                 "Object must be of type GarbageCollected.");
-  return internal::ExplicitManagementImpl::Resize(
-      &object, sizeof(T) + additional_bytes.value);
+  const size_t new_object_size = sizeof(T) + additional_bytes.value;
+  if (new_object_size < sizeof(T)) {
+    return false;
+  }
+  return internal::ExplicitManagementImpl::Resize(&object, new_object_size);
 }
 
 }  // namespace subtle

@@ -10,7 +10,7 @@
 
 #include <unordered_map>
 
-#include "src/heap/cppgc-js/cpp-marking-state-inl.h"
+#include "src/heap/cppgc-js/cpp-marking-state.h"
 #include "src/objects/embedder-data-slot.h"
 #include "src/objects/js-objects-inl.h"
 

@@ -29,7 +29,7 @@ MarkingVerifierBase::MarkingVerifierBase(Heap* heap)
     : ObjectVisitorWithCageBases(heap), heap_(heap) {}
 
 void MarkingVerifierBase::VisitMapPointer(Tagged<HeapObject> object) {
-  VerifyMap(object->map(cage_base()));
+  VerifyMap(object->map());
 }
 
 void MarkingVerifierBase::VerifyRoots() {
@@ -107,8 +107,10 @@ void ExternalStringTableCleanerVisitor::VisitRootPointers(
     Tagged<HeapObject> heap_object = Cast<HeapObject>(o);
     // MinorMS doesn't update the young strings set and so it may contain
     // strings that are already in old space.
-    if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state, heap_object))
+    if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state,
+                                            heap_object)) {
       continue;
+    }
     if (IsExternalString(o)) {
       heap_->FinalizeExternalString(Cast<String>(o));
     } else {
@@ -138,8 +140,6 @@ void StringForwardingTableCleanerBase::DisposeExternalResource(
 bool IsCppHeapMarkingFinished(
     Heap* heap, MarkingWorklists::Local* local_marking_worklists) {
   const auto* cpp_heap = CppHeap::From(heap->cpp_heap());
-  if (!cpp_heap) return true;
-
   return cpp_heap->IsMarkingDone() && local_marking_worklists->IsWrapperEmpty();
 }
 

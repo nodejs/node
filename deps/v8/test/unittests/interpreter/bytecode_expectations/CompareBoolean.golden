@@ -210,9 +210,9 @@ bytecodes: [
                 B(TestReferenceEqual), R(0),
                 B(JumpIfTrue), U8(11),
   /*   82 S> */ B(Ldar), R(1),
-                B(Inc), FBV(0),
+                B(Inc), EmbeddedFeedback(),
                 B(Star1),
-  /*   59 E> */ B(JumpLoop), U8(10), I8(0), FBV(1),
+  /*   59 E> */ B(JumpLoop), U8(10), I8(0), FBV(0),
                 B(LdaUndefined),
   /*   89 S> */ B(Return),
 ]

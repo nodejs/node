@@ -298,6 +298,8 @@ void PropagateDeferred(Graph& graph) {
 void ProfileApplicationPhase::Run(PipelineData* data, Zone* temp_zone,
                                   const ProfileDataFromFile* profile) {
   Graph& graph = data->graph();
+
+#ifndef BUILTIN_BLOCK_POSITION
   for (auto& op : graph.AllOperations()) {
     if (BranchOp* branch = op.TryCast<BranchOp>()) {
       uint32_t true_block_id = branch->if_true->index().id();
@@ -309,6 +311,42 @@ void ProfileApplicationPhase::Run(PipelineData* data, Zone* temp_zone,
       }
     }
   }
+#else
+  // Update hints based on PGO execution counts.
+  for (auto& op : graph.AllOperations()) {
+    if (BranchOp* branch = op.TryCast<BranchOp>()) {
+      uint32_t true_block_id = branch->if_true->index().id();
+      uint32_t false_block_id = branch->if_false->index().id();
+      uint64_t true_count = profile->GetExecutedCount(true_block_id);
+      uint64_t false_count = profile->GetExecutedCount(false_block_id);
+
+      if (!true_count) {
+        branch->hint = BranchHint::kFalse;
+      } else if (!false_count) {
+        branch->hint = BranchHint::kTrue;
+      } else if (branch->hint != BranchHint::kNone) {
+        uint64_t max_count = std::max(true_count, false_count);
+        uint64_t min_count = std::min(true_count, false_count);
+        // This ratio references the existing get_hints script where 40 was an
+        // expirical number. The intention is to clear some inconsistent hint to
+        // not breaking the positioning order unexpectedly. It can be tweaked
+        // further with the block positioning pgo.
+        if (max_count < min_count * 40) {
+          branch->hint = BranchHint::kNone;
+        }
+      }
+    }
+  }
+
+  // Apply PGO block counts.
+  for (Block& block : graph.blocks()) {
+    uint32_t block_id = block.index().id();
+    uint64_t count = profile->GetExecutedCount(block_id);
+    block.set_pgo_execution_count(count);
+  }
+
+  graph.set_has_profile();
+#endif
 }
 
 void SpecialRPOSchedulingPhase::Run(PipelineData* data, Zone* temp_zone) {

@@ -6,6 +6,8 @@ import("../../gni/v8.gni")
 
 v8_source_set("inspector_test") {
   sources = [
+    "devtools-session.cc",
+    "devtools-session.h",
     "frontend-channel.h",
     "isolate-data.cc",
     "isolate-data.h",
@@ -21,6 +23,7 @@ v8_source_set("inspector_test") {
 
   public_deps = [
     "../..:v8",
+    "../..:v8_internal_headers",
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "../../src/inspector:inspector_test_headers",

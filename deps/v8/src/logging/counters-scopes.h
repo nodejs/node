@@ -39,7 +39,7 @@ class BaseTimedHistogramScope {
   // a time of -1 microsecond. This behavior should match kTimeNotMeasured in
   // v8-script.h.
   V8_INLINE base::TimeDelta Stop() {
-    if (histogram_->Enabled()) return StopInternal();
+    if (histogram_ && histogram_->Enabled()) return StopInternal();
     return base::TimeDelta::FromMicroseconds(-1);
   }
 
@@ -116,7 +116,7 @@ class V8_NODISCARD OptionalTimedHistogramScope
 // stop time rather than start time.
 class V8_NODISCARD LazyTimedHistogramScope : public BaseTimedHistogramScope {
  public:
-  explicit LazyTimedHistogramScope(int64_t* result_in_microseconds)
+  explicit LazyTimedHistogramScope(int64_t* result_in_microseconds = nullptr)
       : BaseTimedHistogramScope(nullptr),
         result_in_microseconds_(result_in_microseconds) {
     timer_.Start();

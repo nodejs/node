@@ -26,7 +26,12 @@ function test_has_prototype_keys() {
   return test_object;
 }
 
+// Keep the objects and their maps alive throughout the test so that GC
+// doesn't collect them, which would trigger a lazy deopt.
+let keep_alive = [];
+
 function assert_test_has_prototype_keys(test_object) {
+  keep_alive.push(test_object);
   assertEquals(test_object.prototype.func(), "test_object.prototype.func");
   assertEquals(
     test_object.prototype.arrow_func(),
@@ -47,7 +52,7 @@ assert_test_has_prototype_keys(test_has_prototype_keys());
 %OptimizeMaglevOnNextCall(test_has_prototype_keys);
 assert_test_has_prototype_keys(test_has_prototype_keys());
 assertOptimized(test_has_prototype_keys);
-assertTrue(isMaglevved(test_has_prototype_keys));
+assertMaglevved(test_has_prototype_keys);
 assert_test_has_prototype_keys(test_has_prototype_keys());
 %OptimizeFunctionOnNextCall(test_has_prototype_keys);
 assert_test_has_prototype_keys(test_has_prototype_keys());

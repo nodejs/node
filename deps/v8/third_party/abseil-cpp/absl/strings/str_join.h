@@ -55,6 +55,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/strings/internal/str_join_internal.h"
 #include "absl/strings/string_view.h"
@@ -247,9 +248,9 @@ std::string StrJoin(const Range& range, absl::string_view separator,
   return strings_internal::JoinRange(range, separator, fmt);
 }
 
-template <typename T, typename Formatter,
-          typename = typename std::enable_if<
-              !std::is_convertible<T, absl::string_view>::value>::type>
+template <
+    typename T, typename Formatter,
+    typename = std::enable_if_t<!std::is_convertible_v<T, absl::string_view>>>
 std::string StrJoin(std::initializer_list<T> il, absl::string_view separator,
                     Formatter&& fmt) {
   return strings_internal::JoinRange(il, separator, fmt);
@@ -277,8 +278,8 @@ std::string StrJoin(const Range& range, absl::string_view separator) {
   return strings_internal::JoinRange(range, separator);
 }
 
-template <typename T, typename = typename std::enable_if<!std::is_convertible<
-                          T, absl::string_view>::value>::type>
+template <typename T, typename = std::enable_if_t<
+                          !std::is_convertible_v<T, absl::string_view>>>
 std::string StrJoin(std::initializer_list<T> il, absl::string_view separator) {
   return strings_internal::JoinRange(il, separator);
 }

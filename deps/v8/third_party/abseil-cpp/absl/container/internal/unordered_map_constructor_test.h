@@ -16,6 +16,8 @@
 #define ABSL_CONTAINER_INTERNAL_UNORDERED_MAP_CONSTRUCTOR_TEST_H_
 
 #include <algorithm>
+#include <cstddef>
+#include <initializer_list>
 #include <unordered_map>
 #include <vector>
 

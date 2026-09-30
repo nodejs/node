@@ -16,6 +16,8 @@ namespace internal {
 
 namespace maglev {
 class MaglevGraphBuilder;
+template <typename BaseT>
+class MaglevReducer;
 }  // namespace maglev
 
 namespace compiler {
@@ -33,6 +35,9 @@ V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
   inline uint64_t value_as_bits() const;
   inline void set_value_as_bits(uint64_t bits);
 
+  // Returns true if the heap number contains the hole NaN bit pattern.
+  inline bool is_the_hole() const;
+
   static const uint32_t kSignMask = 0x80000000u;
   static const uint32_t kExponentMask = 0x7ff00000u;
   static const uint32_t kMantissaMask = 0xfffffu;
@@ -45,7 +50,6 @@ V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
   static const int kMantissaBitsInTopWord = 20;
   static const int kNonMantissaBitsInTopWord = 12;
 
-  static const int kValueOffset;
 
   DECL_PRINTER(HeapNumber)
   DECL_VERIFIER(HeapNumber)
@@ -59,6 +63,8 @@ V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
   friend class AccessorAssembler;
   friend class maglev::MaglevAssembler;
   friend class maglev::MaglevGraphBuilder;
+  template <typename BaseT>
+  friend class maglev::MaglevReducer;
   friend class compiler::AccessBuilder;
   friend class compiler::GraphAssembler;
   friend class compiler::JSContextSpecialization;
@@ -66,10 +72,39 @@ V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
   friend AllocationAlignment HeapObject::RequiredAlignment(
       InSharedSpace in_shared_space, Tagged<Map> map);
 
+ public:
   UnalignedDoubleMember value_;
 } V8_OBJECT_END;
 
-constexpr int HeapNumber::kValueOffset = offsetof(HeapNumber, value_);
+// Represents mutable HeapNumber in uninitialized state.
+V8_OBJECT class UninitializedHeapNumber : public HeapObject {
+ public:
+  static constexpr int kSize = sizeof(HeapNumber);
+
+  inline double value() const { return value_.value(); }
+  inline void set_value(double value) { value_.set_value(value); }
+
+  inline uint64_t value_as_bits() const {
+    return base::bit_cast<uint64_t>(value_.value());
+  }
+  inline void set_value_as_bits(uint64_t bits) {
+    value_.set_value(base::bit_cast<double>(bits));
+  }
+
+  DECL_PRINTER(UninitializedHeapNumber)
+  DECL_VERIFIER(UninitializedHeapNumber)
+
+  class BodyDescriptor;
+
+ private:
+  friend struct OffsetsForDebug;
+  friend class TorqueGeneratedHeapNumberAsserts;
+  friend AllocationAlignment HeapObject::RequiredAlignment(
+      InSharedSpace in_shared_space, Tagged<Map> map);
+
+ public:
+  UnalignedDoubleMember value_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

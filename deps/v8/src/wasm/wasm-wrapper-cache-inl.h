@@ -72,10 +72,10 @@ WasmCode* WasmWrapperCache<CacheKey>::ModificationScope::AddWrapper(
       DCHECK(!RelocInfo::IsWasmStubCall(it.rinfo()->rmode()));
       it.rinfo()->apply(delta);
     }
+    FlushInstructionCache(code_space.begin(), code_space.size());
     jit_allocation.UpdateWasmCodePointer(wrapper_handle->code_pointer(),
                                          signature_hash);
   }
-  FlushInstructionCache(code_space.begin(), code_space.size());
   const int frame_slot_count = result.frame_slot_count;
   const int ool_spill_count = result.ool_spill_count;
   constexpr bool frame_has_feedback_slot = false;
@@ -91,7 +91,7 @@ WasmCode* WasmWrapperCache<CacheKey>::ModificationScope::AddWrapper(
                                 code_comments_offset,
                                 jump_table_info_offset,
                                 instr_size,
-                                result.protected_instructions_data.as_vector(),
+                                result.trapping_instructions_data.as_vector(),
                                 reloc_info,
                                 result.source_positions.as_vector(),
                                 result.inlining_positions.as_vector(),
@@ -141,12 +141,7 @@ void WasmWrapperCache<CacheKey>::Free(std::vector<WasmCode*>& wrappers) {
     }
   }
   code_allocator_.FreeCode(base::VectorOf(wrappers));
-  for (WasmCode* wrapper : wrappers) {
-    // TODO(407003348): Drop this check if it doesn't trigger in the wild.
-    CHECK_EQ(wrapper->ref_count_bitfield_.load(std::memory_order_acquire),
-             WasmCode::kIsDyingMask);
-    delete wrapper;
-  }
+  for (WasmCode* wrapper : wrappers) delete wrapper;
   // Make sure nobody tries to access stale pointers.
   wrappers.clear();
 }

@@ -23,7 +23,12 @@ function test_function_fast_path() {
   return new test_function();
 }
 
+// Keep the objects and their maps alive throughout the test so that GC
+// doesn't collect them, which would trigger a lazy deopt.
+let keep_alive = [];
+
 function assert_test_function_fast_path(test_instance) {
+  keep_alive.push(test_instance);
   assertEquals(test_instance.func(), "test_function.prototype.func");
   assertEquals(
     test_instance.arrow_func(),
@@ -44,7 +49,7 @@ assert_test_function_fast_path(test_function_fast_path());
 %OptimizeMaglevOnNextCall(test_function_fast_path);
 assert_test_function_fast_path(test_function_fast_path());
 assertOptimized(test_function_fast_path);
-assertTrue(isMaglevved(test_function_fast_path));
+assertMaglevved(test_function_fast_path);
 assert_test_function_fast_path(test_function_fast_path());
 %OptimizeFunctionOnNextCall(test_function_fast_path);
 assert_test_function_fast_path(test_function_fast_path());

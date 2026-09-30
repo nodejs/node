@@ -30,7 +30,12 @@ function test_has_setters() {
   return new test_function();
 }
 
+// Keep the objects and their maps alive throughout the test so that GC
+// doesn't collect them, which would trigger a lazy deopt.
+let keep_alive = [];
+
 function assert_test_has_setters(test_instance) {
+  keep_alive.push(test_instance);
   assertEquals(Object.keys(test_instance.__proto__).length, 2);
   assertEquals(test_instance.smi, 1);
   assertEquals(test_instance.str, "test_function.prototype.str");
@@ -47,7 +52,7 @@ assert_test_has_setters(test_has_setters());
 %OptimizeMaglevOnNextCall(test_has_setters);
 assert_test_has_setters(test_has_setters());
 assertOptimized(test_has_setters);
-assertTrue(isMaglevved(test_has_setters));
+assertMaglevved(test_has_setters);
 assert_test_has_setters(test_has_setters());
 %OptimizeFunctionOnNextCall(test_has_setters);
 assert_test_has_setters(test_has_setters());

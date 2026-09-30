@@ -212,6 +212,7 @@ bool Bytecodes::MakesCallAlongCriticalPath(Bytecode bytecode) {
     case Bytecode::kCreateCatchContext:
     case Bytecode::kCreateRegExpLiteral:
     case Bytecode::kGetIterator:
+    case Bytecode::kArrayDestructure:
       return true;
     default:
       return false;
@@ -269,6 +270,7 @@ bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
       case Bytecode::kLdaSmi:
       case Bytecode::kLdaNull:
       case Bytecode::kLdaTheHole:
+      case Bytecode::kLdaTdzHole:
       case Bytecode::kLdaConstant:
       case Bytecode::kLdaUndefined:
       case Bytecode::kLdaGlobal:
@@ -299,7 +301,7 @@ bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
       case Bytecode::kConstructWithSpread:
       case Bytecode::kCreateObjectLiteral:
       case Bytecode::kCreateArrayLiteral:
-      case Bytecode::kThrowReferenceErrorIfHole:
+      case Bytecode::kThrowReferenceErrorIfTdzHole:
       case Bytecode::kGetTemplateObject:
         return true;
       default:

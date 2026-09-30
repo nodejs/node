@@ -47,9 +47,6 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
   shared->set_uncompiled_data(
       *isolate->factory()->NewUncompiledDataWithoutPreparseDataWithJob(
           isolate->factory()->empty_string(), 0, source->length()));
-  // Make sure we have an outer scope info, even though it's empty
-  shared->set_raw_outer_scope_info_or_feedback_metadata(
-      ScopeInfo::Empty(isolate));
   shared->SetScript(isolate, ReadOnlyRoots(isolate), *script,
                     function_literal_id);
   return scope.CloseAndEscape(shared);

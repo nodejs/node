@@ -11,6 +11,7 @@
 #include <optional>
 
 #include "src/common/globals.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/feedback-cell-inl.h"
@@ -27,16 +28,6 @@
 
 namespace v8::internal {
 
-#include "torque-generated/src/objects/feedback-vector-tq-inl.inc"
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(FeedbackVector)
-OBJECT_CONSTRUCTORS_IMPL(FeedbackMetadata, HeapObject)
-
-INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
-
-INT32_ACCESSORS(FeedbackMetadata, create_closure_slot_count,
-                kCreateClosureSlotCountOffset)
-
 #define ASSERT_BUILTIN_ID_CONSECUTIVE(V, Location, Representation, Kind, \
                                       Index)                             \
   static_assert(                                                         \
@@ -47,23 +38,25 @@ INT32_ACCESSORS(FeedbackMetadata, create_closure_slot_count,
           Builtin::kLoadIC##Location##Representation##Kind##Index##Baseline));
 
 int32_t FeedbackMetadata::slot_count(AcquireLoadTag) const {
-  return ACQUIRE_READ_INT32_FIELD(*this, kSlotCountOffset);
+  return base::AsAtomic32::Acquire_Load(&slot_count_);
 }
 
 int32_t FeedbackMetadata::create_closure_slot_count(AcquireLoadTag) const {
-  return ACQUIRE_READ_INT32_FIELD(*this, kCreateClosureSlotCountOffset);
+  return base::AsAtomic32::Acquire_Load(&create_closure_slot_count_);
 }
 
 int32_t FeedbackMetadata::get(int index) const {
   CHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(word_count()));
   int offset = kHeaderSize + index * kInt32Size;
-  return ReadField<int32_t>(offset);
+  return base::ReadUnalignedValue<int32_t>(reinterpret_cast<Address>(this) +
+                                           offset);
 }
 
 void FeedbackMetadata::set(int index, int32_t value) {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(word_count()));
   int offset = kHeaderSize + index * kInt32Size;
-  WriteField<int32_t>(offset, value);
+  base::WriteUnalignedValue<int32_t>(reinterpret_cast<Address>(this) + offset,
+                                     value);
 }
 
 bool FeedbackMetadata::is_empty() const {
@@ -88,11 +81,11 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kBinaryOp:
     case FeedbackSlotKind::kLiteral:
-    case FeedbackSlotKind::kJumpLoop:
       return 1;
 
     case FeedbackSlotKind::kCall:
     case FeedbackSlotKind::kCloneObject:
+    case FeedbackSlotKind::kJumpLoop:
     case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kLoadGlobalInsideTypeof:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
@@ -117,30 +110,97 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
   UNREACHABLE();
 }
 
-bool FeedbackVector::is_empty() const { return length() == 0; }
+bool FeedbackVector::is_empty() const { return length().value() == 0; }
 
 DEF_GETTER(FeedbackVector, has_metadata, bool) {
   return shared_function_info()->HasFeedbackMetadata();
 }
 
 DEF_GETTER(FeedbackVector, metadata, Tagged<FeedbackMetadata>) {
-  return shared_function_info(cage_base)->feedback_metadata(cage_base);
+  return shared_function_info()->feedback_metadata();
 }
 
 DEF_ACQUIRE_GETTER(FeedbackVector, metadata, Tagged<FeedbackMetadata>) {
-  return shared_function_info(cage_base)->feedback_metadata(cage_base,
-                                                            kAcquireLoad);
+  return shared_function_info()->feedback_metadata(kAcquireLoad);
 }
 
-RELAXED_INT32_ACCESSORS(FeedbackVector, invocation_count,
-                        kInvocationCountOffset)
+SafeHeapObjectSize FeedbackVector::length() const {
+  return SafeHeapObjectSize(length_);
+}
+void FeedbackVector::set_length(int32_t value) { length_ = value; }
 
+int32_t FeedbackVector::invocation_count() const {
+  return invocation_count_.load(std::memory_order_relaxed);
+}
+int32_t FeedbackVector::invocation_count(RelaxedLoadTag) const {
+  return invocation_count_.load(std::memory_order_relaxed);
+}
+void FeedbackVector::set_invocation_count(int32_t value) {
+  invocation_count_.store(value, std::memory_order_relaxed);
+}
+void FeedbackVector::set_invocation_count(int32_t value, RelaxedStoreTag) {
+  invocation_count_.store(value, std::memory_order_relaxed);
+}
 void FeedbackVector::clear_invocation_count(RelaxedStoreTag tag) {
   set_invocation_count(0, tag);
 }
 
-RELAXED_UINT8_ACCESSORS(FeedbackVector, invocation_count_before_stable,
-                        kInvocationCountBeforeStableOffset)
+uint8_t FeedbackVector::invocation_count_before_stable() const {
+  return invocation_count_before_stable_.load(std::memory_order_relaxed);
+}
+uint8_t FeedbackVector::invocation_count_before_stable(RelaxedLoadTag) const {
+  return invocation_count_before_stable_.load(std::memory_order_relaxed);
+}
+void FeedbackVector::set_invocation_count_before_stable(uint8_t value) {
+  invocation_count_before_stable_.store(value, std::memory_order_relaxed);
+}
+void FeedbackVector::set_invocation_count_before_stable(uint8_t value,
+                                                        RelaxedStoreTag) {
+  invocation_count_before_stable_.store(value, std::memory_order_relaxed);
+}
+
+uint8_t FeedbackVector::osr_state() const { return osr_state_; }
+void FeedbackVector::set_osr_state(uint8_t value) { osr_state_ = value; }
+uint16_t FeedbackVector::flags() const { return flags_; }
+void FeedbackVector::set_flags(uint16_t value) { flags_ = value; }
+
+Tagged<SharedFunctionInfo> FeedbackVector::shared_function_info() const {
+  return shared_function_info_.load();
+}
+void FeedbackVector::set_shared_function_info(Tagged<SharedFunctionInfo> value,
+                                              WriteBarrierMode mode) {
+  shared_function_info_.store(this, value, mode);
+}
+
+Tagged<ClosureFeedbackCellArray> FeedbackVector::closure_feedback_cell_array()
+    const {
+  return closure_feedback_cell_array_.load();
+}
+void FeedbackVector::set_closure_feedback_cell_array(
+    Tagged<ClosureFeedbackCellArray> value, WriteBarrierMode mode) {
+  closure_feedback_cell_array_.store(this, value, mode);
+}
+
+Tagged<FeedbackCell> FeedbackVector::parent_feedback_cell() const {
+  return parent_feedback_cell_.load();
+}
+void FeedbackVector::set_parent_feedback_cell(Tagged<FeedbackCell> value,
+                                              WriteBarrierMode mode) {
+  parent_feedback_cell_.store(this, value, mode);
+}
+
+Tagged<MaybeObject> FeedbackVector::raw_feedback_slots(int i,
+                                                       RelaxedLoadTag) const {
+  DCHECK_LT(static_cast<unsigned>(i), static_cast<unsigned>(length()));
+  return raw_feedback_slots()[i].Relaxed_Load();
+}
+
+void FeedbackVector::set_raw_feedback_slots(int i, Tagged<MaybeObject> value,
+                                            RelaxedStoreTag,
+                                            WriteBarrierMode mode) {
+  DCHECK_LT(static_cast<unsigned>(i), static_cast<unsigned>(length()));
+  raw_feedback_slots()[i].Relaxed_Store(this, value, mode);
+}
 
 int FeedbackVector::osr_urgency() const {
   return OsrUrgencyBits::decode(osr_state());
@@ -207,22 +267,30 @@ bool FeedbackVector::tiering_in_progress() const {
 
 std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
     Isolate* isolate, Handle<BytecodeArray> bytecode, FeedbackSlot slot) {
-  Tagged<MaybeObject> maybe_code = Get(isolate, slot);
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+
+  // Since this is only called in the main thread, we don't need to take the
+  // mutex for reading.
+  Tagged<MaybeObject> maybe_code = Get(slot);
   if (maybe_code.IsCleared()) return {};
 
   Tagged<Code> code =
       Cast<CodeWrapper>(maybe_code.GetHeapObject())->code(isolate);
-  if (code->marked_for_deoptimization()) {
+  if (!code->marked_for_deoptimization()) return code;
+
+  {
     // Clear the cached Code object if deoptimized.
     // TODO(jgruber): Add tracing.
+    base::MutexGuard mutex_guard(isolate->feedback_vector_access());
     Set(slot, ClearedValue());
-    if (!bytecode.is_null()) {
-      RecomputeOptimizedOsrCodeFlags(isolate, bytecode);
-    }
-    return {};
   }
 
-  return code;
+  // RecomputeOptimizedOsrCodeFlags can take the mutex again, so it has to run
+  // after releasing it above.
+  if (!bytecode.is_null()) {
+    RecomputeOptimizedOsrCodeFlags(isolate, bytecode);
+  }
+  return {};
 }
 
 void FeedbackVector::RecomputeOptimizedOsrCodeFlags(
@@ -233,7 +301,7 @@ void FeedbackVector::RecomputeOptimizedOsrCodeFlags(
   for (; !it.done(); it.Advance()) {
     if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
     if (auto code = GetOptimizedOsrCode(isolate, {}, it.GetSlotOperand(2))) {
-      if ((*code)->marked_for_deoptimization()) continue;
+      DCHECK(!(*code)->marked_for_deoptimization());
       turbofan |= (*code)->is_turbofanned();
       maglev |= (*code)->is_maglevved();
     }
@@ -275,14 +343,6 @@ Tagged<MaybeObject> FeedbackVector::Get(FeedbackSlot slot) const {
   return value;
 }
 
-Tagged<MaybeObject> FeedbackVector::Get(PtrComprCageBase cage_base,
-                                        FeedbackSlot slot) const {
-  Tagged<MaybeObject> value =
-      raw_feedback_slots(cage_base, GetIndex(slot), kRelaxedLoad);
-  DCHECK(!IsOfLegacyType(value));
-  return value;
-}
-
 DirectHandle<FeedbackCell> FeedbackVector::GetClosureFeedbackCell(
     Isolate* isolate, int index) const {
   DCHECK_GE(index, 0);
@@ -297,9 +357,12 @@ Tagged<FeedbackCell> FeedbackVector::closure_feedback_cell(int index) const {
 Tagged<MaybeObject> FeedbackVector::SynchronizedGet(FeedbackSlot slot) const {
   const int i = slot.ToInt();
   DCHECK_LT(static_cast<unsigned>(i), static_cast<unsigned>(this->length()));
-  const int offset = kRawFeedbackSlotsOffset + i * kTaggedSize;
-  Tagged<MaybeObject> value =
-      TaggedField<MaybeObject>::Acquire_Load(*this, offset);
+
+  // See comment in SynchronizedSet.
+  DCHECK_NE(FeedbackSlotKind::kInvalid, GetKind(slot, kAcquireLoad));
+  DCHECK_EQ(1, FeedbackMetadata::GetSlotSize(GetKind(slot, kAcquireLoad)));
+
+  Tagged<MaybeObject> value = raw_feedback_slots()[i].Acquire_Load();
   DCHECK(!IsOfLegacyType(value));
   return value;
 }
@@ -310,9 +373,21 @@ void FeedbackVector::SynchronizedSet(FeedbackSlot slot,
   DCHECK(!IsOfLegacyType(value));
   const int i = slot.ToInt();
   DCHECK_LT(static_cast<unsigned>(i), static_cast<unsigned>(this->length()));
-  const int offset = kRawFeedbackSlotsOffset + i * kTaggedSize;
-  TaggedField<MaybeObject>::Release_Store(*this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+
+  // Release-acquire semantics are only used for C++ accesses to slots of size
+  // 1. Longer slots are read as a group under the feedback_vector_access mutex
+  // (NexusConfig::GetFeedbackPair), so C++ writes must hold that mutex.
+  //
+  // Generated code is an exception and accesses slots without the mutex or
+  // release-acquire; its safety has to be checked case-by-case.
+  //
+  // Note that only the first slot of a group has a kind; accessing any of the
+  // following ones returns FeedbackSlotKind::kInvalid and fails the DCHECK_NE
+  // below.
+  DCHECK_NE(FeedbackSlotKind::kInvalid, GetKind(slot));
+  DCHECK_EQ(1, FeedbackMetadata::GetSlotSize(GetKind(slot)));
+
+  raw_feedback_slots()[i].Release_Store(this, value, mode);
 }
 
 void FeedbackVector::Set(FeedbackSlot slot, Tagged<MaybeObject> value,
@@ -322,7 +397,7 @@ void FeedbackVector::Set(FeedbackSlot slot, Tagged<MaybeObject> value,
 }
 
 inline MaybeObjectSlot FeedbackVector::slots_start() {
-  return RawMaybeWeakField(OffsetOfElementAt(0));
+  return MaybeObjectSlot(reinterpret_cast<Address>(raw_feedback_slots()));
 }
 
 // Helper function to transform the feedback to BinaryOperationHint.
@@ -541,6 +616,12 @@ void FeedbackNexus::SetFeedback(Tagged<FeedbackType> feedback,
                             mode_extra);
 }
 
+template <typename FeedbackExtraType>
+void FeedbackNexus::SetFeedbackExtra(Tagged<FeedbackExtraType> feedback_extra,
+                                     WriteBarrierMode mode_extra) {
+  config()->SetFeedbackExtra(vector(), slot(), feedback_extra, mode_extra);
+}
+
 template <typename F>
 void FeedbackNexus::IterateMapsWithUnclearedHandler(F function) const {
   // We don't need DisallowGarbageCollection here: accessing it.map() and
@@ -551,25 +632,27 @@ void FeedbackNexus::IterateMapsWithUnclearedHandler(F function) const {
   // map/handler in the feedback array on-demand).
   for (FeedbackIterator it(this); !it.done(); it.Advance()) {
     DirectHandle<Map> map = config()->NewHandle(it.map());
-    if (!it.handler().IsCleared()) {
-      function(map);
+    Tagged<MaybeObject> handler_obj = it.handler();
+    if (!handler_obj.IsCleared()) {
+      function(map, config()->NewHandle(handler_obj));
     }
   }
 }
 
-Builtin FeedbackNexus::GetLoadICHandlerForFieldIndex(int field_index,
-                                                     bool is_inobject,
-                                                     bool is_double) {
+Builtin FeedbackNexus::GetLoadICHandlerForStorageOffset(int storage_offset,
+                                                        bool is_inobject,
+                                                        bool is_double) {
   if (is_double) return Builtin::kLoadICDoubleFieldBaseline;
 
   if (is_inobject) {
-    int in_object_index = field_index - JSObject::kHeaderSize / kTaggedSize;
+    int in_object_index = storage_offset - JSObject::kHeaderSize / kTaggedSize;
     DCHECK_GE(in_object_index, 0);
     // Currently we have eight handlers that support loading in-object field
     // with fixed index 0~7.
     int kMaxIndex = 7;
-    if (in_object_index > kMaxIndex)
+    if (in_object_index > kMaxIndex) {
       return Builtin::kLoadICInObjectNonDoubleFieldBaseline;
+    }
 
     LOAD_IC_IN_OBJECT_FIELD_WITH_INDEX_HANDLER_LIST(
         /*V*/, ASSERT_BUILTIN_ID_CONSECUTIVE)
@@ -579,13 +662,14 @@ Builtin FeedbackNexus::GetLoadICHandlerForFieldIndex(int field_index,
     return static_cast<Builtin>(builtin_id);
   } else {
     int out_of_object_index =
-        field_index - OFFSET_OF_DATA_START(FixedArray) / kTaggedSize;
+        storage_offset - OFFSET_OF_DATA_START(FixedArray) / kTaggedSize;
     DCHECK_GE(out_of_object_index, 0);
     // Currently we have four handlers that support loading out-of-object
     // field with fixed index 0~3.
     int kMaxIndex = 3;
-    if (out_of_object_index > kMaxIndex)
+    if (out_of_object_index > kMaxIndex) {
       return Builtin::kLoadICOutOfObjectNonDoubleFieldBaseline;
+    }
 
     LOAD_IC_OUT_OF_OBJECT_FIELD_WITH_INDEX_HANDLER_LIST(
         /*V*/, ASSERT_BUILTIN_ID_CONSECUTIVE)

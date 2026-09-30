@@ -118,6 +118,11 @@ TEST(DemangleRust, UnicodeIdentifiers) {
                     "ice_cap::Eyjafjallajökull");
   EXPECT_DEMANGLING("_RNvC7ice_caps_u19Eyjafjallajkull_jtb",
                     "ice_cap::Eyjafjallajökull");
+
+  // A punycode byte count larger than the remaining input is rejected instead
+  // of running the decoder past the end of the buffer.
+  EXPECT_DEMANGLING_FAILS("_RNvC7ice_caps_u2000000000Eyjafjallajkull_jtb");
+  EXPECT_DEMANGLING_FAILS("_RNvC7ice_caps_u99Eyj_a");
 }
 
 TEST(DemangleRust, FunctionInModule) {
@@ -174,6 +179,20 @@ TEST(DemangleRust, ClosureNumberOverflowingInt) {
   EXPECT_DEMANGLING(
       "_RNCNvCs09azAZ_10crate_name9func_names1234567_0Cs123_12client_crate",
       "crate_name::func_name::{closure#?}");
+}
+
+TEST(DemangleRust, Base62NumberScanLimit) {
+  // Up to 16 base-62 digits is permitted (though int overflow yields "?").
+  EXPECT_DEMANGLING(
+      "_RNCNvCs09azAZ_10crate_name9func_names0123456789abcdef_0Cs123_12client_"
+      "crate",
+      "crate_name::func_name::{closure#?}");
+
+  // Beyond 16 base-62 digits is rejected to prevent excessive re-scanning.
+  EXPECT_DEMANGLING_FAILS(
+      "_RNCNvCs09azAZ_10crate_name9func_names0123456789abcdef0_0Cs123_12client_"
+      "crate");
+  EXPECT_DEMANGLING_FAILS("_RB0123456789abcdef0_");
 }
 
 TEST(DemangleRust, UnexpectedlyNamedClosure) {
@@ -508,6 +527,15 @@ TEST(DemangleRust, ExternOther) {
   EXPECT_DEMANGLING(
       "_RNvYFK5not_CEuNtC1c1t1f",  // <extern "not-C" fn() as c::t>::f
       "<fn... as c::t>::f");
+}
+
+TEST(DemangleRust, ExternPunycodedAbiIsSuppressed) {
+  // The abi is part of the silenced function signature, so a punycoded abi must
+  // be suppressed like any other identifier; its decoded form must not leak
+  // into the output.
+  EXPECT_DEMANGLING(
+      // <extern "Eyjafjallajökull" fn() as c::t>::f
+      "_RNvYFKu19Eyjafjallajkull_jtbEuNtC1c1t1f", "<fn... as c::t>::f");
 }
 
 TEST(DemangleRust, Unsafe) {

@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "absl/container/node_hash_map.h"
 #include "src/base/iterator.h"
 #include "src/torque/ast.h"
 #include "src/torque/utils.h"
@@ -19,6 +20,7 @@ namespace v8::internal::torque {
 namespace {
 
 struct LineAndColumnTracker {
+  SourceId source = CurrentSourceFile::Get();
   LineAndColumn previous{0, 0, 0};
   LineAndColumn current{0, 0, 0};
 
@@ -36,9 +38,7 @@ struct LineAndColumnTracker {
     }
   }
 
-  SourcePosition ToSourcePosition() {
-    return {CurrentSourceFile::Get(), previous, current};
-  }
+  SourcePosition ToSourcePosition() { return {source, previous, current}; }
 };
 
 }  // namespace
@@ -82,8 +82,9 @@ std::vector<const Item*> Item::Children() const {
 
 std::string Item::SplitByChildren(const LexerResult& tokens) const {
   if (right().size() == 1) {
-    if (const Item* child = Children()[0])
+    if (const Item* child = Children()[0]) {
       return child->SplitByChildren(tokens);
+    }
   }
   std::stringstream s;
   bool first = true;
@@ -116,12 +117,18 @@ void Item::CheckAmbiguity(const Item& other, const LexerResult& tokens) const {
 }
 
 LexerResult Lexer::RunLexer(const std::string& input) {
+  LineAndColumn zero{0, 0, 0};
+  return RunLexer(input, {CurrentSourceFile::Get(), zero, zero});
+}
+
+LexerResult Lexer::RunLexer(const std::string& input, SourcePosition origin) {
   LexerResult result;
   InputPosition const begin = input.c_str();
   InputPosition const end = begin + input.size();
   InputPosition pos = begin;
   InputPosition token_start = pos;
-  LineAndColumnTracker line_column_tracker;
+  LineAndColumnTracker line_column_tracker{origin.source, origin.start,
+                                           origin.start};
 
   match_whitespace_(&pos);
   line_column_tracker.Advance(token_start, pos);
@@ -186,7 +193,7 @@ Symbol* Lexer::MatchToken(InputPosition* pos, InputPosition end) {
 // (https://en.wikipedia.org/wiki/Earley_parser).
 const Item* RunEarleyAlgorithm(
     Symbol* start, const LexerResult& tokens,
-    std::unordered_set<Item, base::hash<Item>>* processed) {
+    absl::node_hash_set<Item, base::hash<Item>>* processed) {
   // Worklist for items at the current position.
   std::vector<Item> worklist;
   // Worklist for items at the next position.
@@ -195,8 +202,8 @@ const Item* RunEarleyAlgorithm(
       SourcePosition{CurrentSourceFile::Get(), LineAndColumn::Invalid(),
                      LineAndColumn::Invalid()});
   std::vector<const Item*> completed_items;
-  std::unordered_map<std::pair<size_t, Symbol*>, std::set<const Item*>,
-                     base::hash<std::pair<size_t, Symbol*>>>
+  absl::node_hash_map<std::pair<size_t, Symbol*>, std::set<const Item*>,
+                      base::hash<std::pair<size_t, Symbol*>>>
       waiting;
 
   std::vector<const Item*> debug_trace;

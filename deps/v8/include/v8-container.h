@@ -76,17 +76,8 @@ class V8_EXPORT Array : public Object {
    * This function will typically be faster than calling {Get()} repeatedly.
    * As a consequence of being optimized for low overhead, the provided
    * callback must adhere to the following restrictions:
-   *  - It must not allocate any V8 objects and continue iterating; it may
-   *    allocate (e.g. an error message/object) and then immediately terminate
-   *    the iteration.
    *  - It must not modify the array being iterated.
-   *  - It must not call back into V8 (unless it can guarantee that such a
-   *    call does not violate the above restrictions, which is difficult).
-   *  - The {Local<Value> element} must not "escape", i.e. must not be assigned
-   *    to any other {Local}. Creating a {Global} from it, or updating a
-   *    v8::TypecheckWitness with it, is safe.
-   * These restrictions may be lifted in the future if use cases arise that
-   * justify a slower but more robust implementation.
+   *  - It must not call back into V8 to execute JavaScript.
    *
    * Returns {Nothing} on exception; use a {TryCatch} to catch and handle this
    * exception.

@@ -39,7 +39,7 @@ function plusOneInObject(x) {
 
   const result2 = foo(array2);
   assertTrue(HasHoleySmiElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testDictionaryElements2() {
@@ -62,7 +62,7 @@ function plusOneInObject(x) {
 
   const result2 = foo(array2);
   assertTrue(HasHoleyDoubleElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testDictionaryElements3() {
@@ -84,5 +84,5 @@ function plusOneInObject(x) {
 
   const result2 = foo(array2);
   assertTrue(HasHoleyObjectElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();

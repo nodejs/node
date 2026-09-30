@@ -547,7 +547,7 @@ class UnitTest(unittest.TestCase):
              "  'type': 'raw',"
              "  'args': [],"
              "}}\n"),
-        'c:\\fake_src\out\Default\cc_perftests.exe.runtime_deps':
+        'c:\\fake_src\\out\\Default\\cc_perftests.exe.runtime_deps':
             ("cc_perftests\n"),
     }
     mbw = self.fake_mbw(files=files, win32=True)

@@ -26,7 +26,23 @@
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'runtime/console-messages-limits': [PASS, SLOW, HEAVY],
   'runtime/regression-732717': [PASS, HEAVY],
+
+  # Use-after-free regression tests, only meaningful under ASan.
+  'runtime/regress-520052954': [PASS, ['not asan', SKIP]],
+  'runtime/regress-520052954-2': [PASS, ['not asan', SKIP]],
+  'runtime/regress-520052954-3': [PASS, ['not asan', SKIP]],
 }],  # ALWAYS
+
+##############################################################################
+['lower_limits_mode', {
+  # These tests need longer strings.
+  'debugger/not-hold-promises': [SKIP],
+  'heap-profiler/console-retaining-path': [SKIP],
+  'heap-profiler/heap-snapshot-js-weak-refs': [SKIP],
+  'heap-profiler/take-heap-snapshot-on-pause': [SKIP],
+  'runtime/console-messages-limits': [SKIP],
+  'runtime/remote-object': [SKIP],
+}],
 
 ##############################################################################
 ['arch == x64 and mode == debug', {
@@ -55,9 +71,6 @@
 ##############################################################################
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
 ['not has_webassembly or variant == jitless', {
-  'debugger/asm-js-stack': [SKIP],
-  'debugger/asm-js-breakpoint-before-exec': [SKIP],
-  'debugger/asm-js-breakpoint-during-exec': [SKIP],
   'debugger/wasm-*': [SKIP],
   'cpu-profiler/console-profile-wasm': [SKIP],
   'runtime/get-properties': [SKIP],
@@ -111,7 +124,6 @@
   # Currently no cpu profiler support on z/OS:
   'cpu-profiler/console-profile-wasm': [SKIP],
   'cpu-profiler/record-cpu-profile': [SKIP],
-  'cpu-profiler/console-profile-asm-js': [SKIP],
 }],  # 'system == zos'
 
 ##############################################################################
@@ -174,7 +186,6 @@
   'debugger/script-on-after-compile': [SKIP],
   'debugger/set-breakpoint-at-last-line': [SKIP],
   'debugger/set-breakpoint-breaks-on-first-breakable-location': [SKIP],
-  'debugger/set-script-source-repl-mode': [SKIP],
   'heap-profiler/collect-garbage' : [SKIP],
   'runtime/context-destroyed-on-context-collected': [SKIP],
   'runtime/evaluate-async': [SKIP],
@@ -193,20 +204,7 @@
 
 ##############################################################################
 ['variant == stress_concurrent_allocation', {
-  # TODO(dinfuehr): Fix tests such that we can remove these lines.
-  'cpu-profiler/coverage': [SKIP],
-  'cpu-profiler/coverage-block': [SKIP],
-  'runtime/internal-properties-entries': [SKIP],
-
-  # TODO(v8:12590): the test became too slow with external code space enabled.
-  # Skip it for now.
-  'debugger/wasm-step-a-lot': [SKIP],
-
-  # Skip tests that might fail with concurrent allocation
-  'debugger/pause-on-oom-wide': [SKIP],
-
-  # TODO(v8:12612): This test may fail on builds with MinorMS because incremental marking prevents getting any minor GCs.
-  'heap-profiler/sampling-heap-profiler-flags': [PASS, ['mode == debug or tsan', SKIP]],
+  '*': [SKIP],
 }], # stress_concurrent_allocation
 
 ##############################################################################

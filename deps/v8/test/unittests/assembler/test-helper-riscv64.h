@@ -34,7 +34,7 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, Func test_generator) {
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // handle floating-point parameters
   if (std::is_same_v<float, INPUT_T>) {
@@ -81,7 +81,7 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, INPUT_T input1, Func test_generator) {
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // handle floating-point parameters
   if (std::is_same_v<float, INPUT_T>) {
@@ -131,7 +131,7 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, INPUT_T input1, INPUT_T input2,
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // handle floating-point parameters
   if (std::is_same_v<float, INPUT_T>) {
@@ -188,7 +188,7 @@ void GenAndRunTestForLoadStore(T value, Func test_generator) {
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   if (std::is_same_v<float, T>) {
     assm.fmv_w_x(fa0, a1);
@@ -237,7 +237,7 @@ void GenAndRunTestForLRSC(T value, Func test_generator) {
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   if (std::is_same_v<float, T>) {
     assm.fmv_w_x(fa0, a1);
@@ -283,7 +283,7 @@ OUTPUT_T GenAndRunTestForAMO(INPUT_T input0, INPUT_T input1,
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // handle floating-point parameters
   if (std::is_same_v<float, INPUT_T>) {

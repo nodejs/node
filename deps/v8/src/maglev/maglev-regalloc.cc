@@ -207,7 +207,7 @@ void StraightForwardRegisterAllocator::ApplyPatches(BasicBlock* block) {
 }
 
 ProcessingState StraightForwardRegisterAllocator::GetCurrentState() {
-  return ProcessingState(graph_->end(), block_it_);
+  return ProcessingState(graph_, current_block_id_);
 }
 
 StraightForwardRegisterAllocator::StraightForwardRegisterAllocator(
@@ -376,12 +376,13 @@ void StraightForwardRegisterAllocator::PrintLiveRegs() const {
 
 void StraightForwardRegisterAllocator::AllocateRegisters() {
   if (v8_flags.trace_maglev_regalloc) {
-    printing_visitor_.reset(new MaglevPrintingVisitor(std::cout));
+    printing_visitor_.reset(
+        new MaglevPrintingVisitor(std::cout, graph_, MaglevPhase::kRegAlloc));
     printing_visitor_->PreProcessGraph(graph_);
   }
 
   // LINT.IfChange(maglev_constant_nodes)
-  for (const auto& [ref, constant] : graph_->constants()) {
+  for (const auto& [ref, constant] : graph_->heap_constants()) {
     constant->regalloc_info()->SetConstantLocation();
     USE(ref);
   }
@@ -427,8 +428,9 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
   }
   // LINT.ThenChange()
 
-  for (block_it_ = graph_->begin(); block_it_ != graph_->end(); ++block_it_) {
-    BasicBlock* block = *block_it_;
+  for (current_block_id_ = 0; current_block_id_ < graph_->num_blocks();
+       current_block_id_++) {
+    BasicBlock* block = graph_->blocks()[current_block_id_];
     DCHECK(!block->is_dead());
     current_node_ = nullptr;
 
@@ -480,7 +482,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
           } else if (control->Is<Return>()) {
             printing_visitor_->os() << " " << control->id() << ".";
             break;
-          } else if (control->Is<Deopt>() || control->Is<Abort>()) {
+          } else if (control->Is<TerminalControlNode>()) {
             printing_visitor_->os() << " " << control->id() << "✖️";
             break;
           }
@@ -906,8 +908,9 @@ void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
       Input input = node->input(operand.input_index());
       node->result().SetAllocated(ForceAllocate(input, node));
       // Clear any hint that (probably) comes from this constraint.
-      if (node->regalloc_info()->has_hint())
+      if (node->regalloc_info()->has_hint()) {
         input.node()->regalloc_info()->clear_hint();
+      }
       break;
     }
 
@@ -961,8 +964,9 @@ void StraightForwardRegisterAllocator::DropRegisterValue(
   // Return if the removed value already has another register or is loadable
   // from memory.
   if (node->regalloc_info()->has_register() ||
-      node->regalloc_info()->is_loadable())
+      node->regalloc_info()->is_loadable()) {
     return;
+  }
   // Try to move the value to another register. Do so without blocking that
   // register, as we may still want to use it elsewhere.
   if (!registers.UnblockedFreeIsEmpty() && !force_spill) {
@@ -1280,7 +1284,8 @@ void StraightForwardRegisterAllocator::AddMoveBeforeCurrentNode(
   if (compilation_info_->has_graph_labeller()) {
     graph_labeller()->RegisterNode(gap_move);
   }
-  BasicBlock* block = *block_it_;
+
+  BasicBlock* block = graph_->blocks()[current_block_id_];
   if (node_it_ == block->nodes().end()) {
     DCHECK(current_node_->Is<ControlNode>());
     // We're at the control node, so append instead.
@@ -1841,13 +1846,6 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::AllocateRegister(
 }
 
 namespace {
-template <typename RegisterT>
-static RegisterT GetRegisterHint(const compiler::InstructionOperand& hint) {
-  if (hint.IsInvalid()) return RegisterT::no_reg();
-  DCHECK(hint.IsUnallocated());
-  return RegisterT::from_code(
-      compiler::UnallocatedOperand::cast(hint).fixed_register_index());
-}
 
 }  // namespace
 
@@ -2295,8 +2293,9 @@ void StraightForwardRegisterAllocator::HoistLoopSpills(BasicBlock* target) {
 
 void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
     ControlNode* source, BasicBlock* target) {
-  MergePointRegisterState& target_state = target->state()->register_state();
-  DCHECK(!target_state.is_initialized());
+  DCHECK(!target->state()->has_register_state());
+  MergePointRegisterState* target_state =
+      compilation_info_->zone()->New<MergePointRegisterState>();
   auto init = [&](auto& registers, auto reg, RegisterState& state) {
     ValueNode* node = nullptr;
     DCHECK(registers.blocked().is_empty());
@@ -2309,7 +2308,8 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
   HoistLoopReloads(target, general_registers_);
   HoistLoopReloads(target, double_registers_);
   HoistLoopSpills(target);
-  ForEachMergePointRegisterState(target_state, init);
+  ForEachMergePointRegisterState(*target_state, init);
+  target->state()->set_register_state(target_state);
 }
 
 void StraightForwardRegisterAllocator::InitializeEmptyBlockRegisterValues(
@@ -2318,7 +2318,6 @@ void StraightForwardRegisterAllocator::InitializeEmptyBlockRegisterValues(
   MergePointRegisterState* register_state =
       compilation_info_->zone()->New<MergePointRegisterState>();
 
-  DCHECK(!register_state->is_initialized());
   auto init = [&](auto& registers, auto reg, RegisterState& state) {
     ValueNode* node = nullptr;
     DCHECK(registers.blocked().is_empty());
@@ -2340,11 +2339,11 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
     return InitializeEmptyBlockRegisterValues(control, target);
   }
 
-  MergePointRegisterState& target_state = target->state()->register_state();
-  if (!target_state.is_initialized()) {
+  if (!target->state()->has_register_state()) {
     // This is the first block we're merging, initialize the values.
     return InitializeBranchTargetRegisterValues(control, target);
   }
+  MergePointRegisterState& target_state = target->state()->register_state();
 
   if (v8_flags.trace_maglev_regalloc) {
     printing_visitor_->os() << "Merging registers...\n";

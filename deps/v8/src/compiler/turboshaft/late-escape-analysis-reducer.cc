@@ -15,7 +15,7 @@ void LateEscapeAnalysisAnalyzer::RecordAllocateUse(OpIndex alloc, OpIndex use) {
   auto [it, new_entry] = alloc_uses_.try_emplace(alloc, phase_zone_);
   auto& uses = it->second;
   if (new_entry) {
-    uses.reserve(graph_.Get(alloc).saturated_use_count.Get());
+    uses.reserve(graph_.Get(alloc).saturated_use_count.GetMaybeSaturated());
   }
   uses.push_back(use);
 }
