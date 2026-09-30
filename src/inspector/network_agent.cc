@@ -1,5 +1,6 @@
 #include "network_agent.h"
 #include <string>
+#include "crdtp/cbor.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "inspector/inspector_object_utils.h"
@@ -37,93 +38,88 @@ static void ThrowEventError(v8::Isolate* isolate, const std::string& message) {
       v8::String::NewFromUtf8(isolate, message.c_str()).ToLocalChecked()));
 }
 
-static std::unique_ptr<protocol::Value> V8ToProtocolValue(
-    Isolate* isolate,
-    Local<Context> context,
-    Local<Value> value,
-    LocalVector<Object>* ancestors) {
+// Encode directly into the format consumed by the imported V8 StackTrace
+// parser, avoiding an intermediate tree of protocol::Value allocations.
+static bool EncodeV8Value(Isolate* isolate,
+                          Local<Context> context,
+                          Local<Value> value,
+                          LocalVector<Object>* ancestors,
+                          std::vector<uint8_t>* bytes,
+                          bool* has_call_frames = nullptr) {
+  namespace cbor = crdtp::cbor;
   if (value->IsNullOrUndefined()) {
-    return protocol::Value::null();
+    bytes->push_back(cbor::EncodeNull());
+    return true;
   }
   if (value->IsBoolean()) {
-    return protocol::FundamentalValue::create(value.As<Boolean>()->Value());
+    bytes->push_back(value.As<Boolean>()->Value() ? cbor::EncodeTrue()
+                                                  : cbor::EncodeFalse());
+    return true;
   }
   if (value->IsInt32()) {
-    return protocol::FundamentalValue::create(value.As<Int32>()->Value());
+    cbor::EncodeInt32(value.As<Int32>()->Value(), bytes);
+    return true;
   }
   if (value->IsNumber()) {
-    return protocol::FundamentalValue::create(value.As<Number>()->Value());
+    cbor::EncodeDouble(value.As<Number>()->Value(), bytes);
+    return true;
   }
   if (value->IsString()) {
-    return protocol::StringValue::create(ToProtocolString(isolate, value));
+    Utf8Value string(isolate, value);
+    cbor::EncodeString8(
+        crdtp::span<uint8_t>(reinterpret_cast<const uint8_t*>(*string),
+                             string.length()),
+        bytes);
+    return true;
   }
-
-  if (!value->IsObject()) {
-    return nullptr;
-  }
+  if (!value->IsObject()) return false;
 
   Local<Object> object = value.As<Object>();
-  if (ancestors->size() >= kMaxProtocolValueDepth) {
-    return nullptr;
-  }
+  if (ancestors->size() >= kMaxProtocolValueDepth) return false;
   for (const auto& ancestor : *ancestors) {
-    if (ancestor == object) {
-      return nullptr;
-    }
+    if (ancestor == object) return false;
   }
   ancestors->push_back(object);
   auto pop_ancestor = OnScopeLeave([ancestors]() { ancestors->pop_back(); });
-
+  cbor::EnvelopeEncoder envelope;
+  envelope.EncodeStart(bytes);
   if (value->IsArray()) {
     Local<Array> array = value.As<Array>();
-    std::unique_ptr<protocol::ListValue> list = protocol::ListValue::create();
-    list->reserve(array->Length());
+    bytes->push_back(cbor::EncodeIndefiniteLengthArrayStart());
     for (uint32_t i = 0; i < array->Length(); i++) {
       Local<Value> element;
-      if (!array->Get(context, i).ToLocal(&element)) {
-        return nullptr;
+      if (!array->Get(context, i).ToLocal(&element) ||
+          !EncodeV8Value(isolate, context, element, ancestors, bytes)) {
+        return false;
       }
-      std::unique_ptr<protocol::Value> protocol_value =
-          V8ToProtocolValue(isolate, context, element, ancestors);
-      if (!protocol_value) {
-        return nullptr;
+    }
+  } else {
+    Local<Array> property_names;
+    if (!object->GetOwnPropertyNames(context).ToLocal(&property_names)) {
+      return false;
+    }
+    bytes->push_back(cbor::EncodeIndefiniteLengthMapStart());
+    for (uint32_t i = 0; i < property_names->Length(); i++) {
+      Local<Value> property_name;
+      if (!property_names->Get(context, i).ToLocal(&property_name) ||
+          !property_name->IsString()) {
+        return false;
       }
-      list->pushValue(std::move(protocol_value));
+      if (has_call_frames != nullptr &&
+          property_name.As<v8::String>()->StringEquals(
+              FIXED_ONE_BYTE_STRING(isolate, "callFrames"))) {
+        *has_call_frames = true;
+      }
+      Local<Value> property;
+      if (!object->Get(context, property_name).ToLocal(&property) ||
+          !EncodeV8Value(isolate, context, property_name, ancestors, bytes) ||
+          !EncodeV8Value(isolate, context, property, ancestors, bytes)) {
+        return false;
+      }
     }
-    return list;
   }
-
-  Local<Array> property_names;
-  if (!object->GetOwnPropertyNames(context).ToLocal(&property_names)) {
-    return nullptr;
-  }
-  std::unique_ptr<protocol::DictionaryValue> dict =
-      protocol::DictionaryValue::create();
-  for (uint32_t i = 0; i < property_names->Length(); i++) {
-    Local<Value> property_name;
-    if (!property_names->Get(context, i).ToLocal(&property_name) ||
-        !property_name->IsString()) {
-      return nullptr;
-    }
-    Local<Value> property;
-    if (!object->Get(context, property_name).ToLocal(&property)) {
-      return nullptr;
-    }
-    std::unique_ptr<protocol::Value> protocol_value =
-        V8ToProtocolValue(isolate, context, property, ancestors);
-    if (!protocol_value) {
-      return nullptr;
-    }
-    dict->setValue(ToProtocolString(isolate, property_name),
-                   std::move(protocol_value));
-  }
-  return dict;
-}
-
-static std::unique_ptr<protocol::Value> V8ToProtocolValue(
-    Isolate* isolate, Local<Context> context, Local<Value> value) {
-  LocalVector<Object> ancestors(isolate);
-  return V8ToProtocolValue(isolate, context, value, &ancestors);
+  bytes->push_back(cbor::EncodeStop());
+  return envelope.EncodeStop(bytes);
 }
 
 // Create a protocol::Network::Headers from the v8 object.
@@ -179,25 +175,21 @@ NetworkAgent::createInitiatorFromObject(v8::Local<v8::Context> context,
 
   Local<Object> stack_obj;
   if (ObjectGetObject(context, initiator_obj, "stack").ToLocal(&stack_obj)) {
-    std::unique_ptr<protocol::Value> stack_value =
-        V8ToProtocolValue(isolate, context, stack_obj);
-    if (!stack_value) {
+    LocalVector<Object> ancestors(isolate);
+    std::vector<uint8_t> bytes;
+    bool has_call_frames = false;
+    if (!EncodeV8Value(isolate,
+                       context,
+                       stack_obj,
+                       &ancestors,
+                       &bytes,
+                       &has_call_frames) ||
+        !has_call_frames) {
       ThrowEventError(isolate, "Invalid initiator.stack in event");
       return {};
     }
-
-    protocol::DictionaryValue* stack_dict =
-        protocol::DictionaryValue::cast(stack_value.get());
-    if (!stack_dict || stack_dict->get("callFrames") == nullptr) {
-      ThrowEventError(isolate, "Invalid initiator.stack in event");
-      return {};
-    }
-
-    protocol::ErrorSupport errors;
-    std::unique_ptr<v8_inspector::protocol::Runtime::API::StackTrace> stack =
-        protocol::ValueConversions<v8_inspector::protocol::Runtime::API::
-                                       StackTrace>::fromValue(stack_value.get(),
-                                                              &errors);
+    auto stack = v8_inspector::protocol::Runtime::API::StackTrace::fromBinary(
+        bytes.data(), bytes.size());
     if (!stack) {
       ThrowEventError(isolate, "Invalid initiator.stack in event");
       return {};
