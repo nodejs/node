@@ -2,17 +2,19 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-use crate::extensions::unicode as unicode_ext;
-use crate::preferences::{extensions::unicode::keywords::RegionalSubdivision, LocalePreferences};
-use crate::subtags::{Language, Region, Script, Subtag, Variant};
-#[cfg(feature = "alloc")]
 use crate::ParseError;
+use crate::extensions::unicode as unicode_ext;
+use crate::parser::{
+    ParserMode, SubtagIterator,
+    parse_locale_with_single_variant_single_keyword_unicode_extension_from_iter,
+};
+use crate::preferences::{LocalePreferences, extensions::unicode::keywords::RegionalSubdivision};
+use crate::subtags::{Language, Region, Script, Subtag, Variant};
 use crate::{LanguageIdentifier, Locale};
 use core::cmp::Ordering;
 use core::default::Default;
 use core::fmt;
 use core::hash::Hash;
-#[cfg(feature = "alloc")]
 use core::str::FromStr;
 
 /// A locale type optimized for use in fallbacking and the ICU4X data pipeline.
@@ -53,7 +55,7 @@ use core::str::FromStr;
 /// lookup and fallback. This may change in the future.
 ///
 /// ```
-/// use icu_locale_core::{locale, Locale};
+/// use icu_locale_core::{Locale, locale};
 /// use icu_provider::DataLocale;
 ///
 /// let locale = "hi-IN-t-en-h0-hybrid-u-attr-ca-buddhist-sd-inas"
@@ -167,8 +169,17 @@ impl From<&Locale> for DataLocale {
     }
 }
 
-/// ✨ *Enabled with the `alloc` Cargo feature.*
-#[cfg(feature = "alloc")]
+impl From<(Language, Option<Script>, Option<Region>)> for DataLocale {
+    fn from((l, s, r): (Language, Option<Script>, Option<Region>)) -> Self {
+        Self::from_parts(
+            l,
+            s,
+            r.map(|r| unicode_ext::SubdivisionId::new(r, unicode_ext::SubdivisionSuffix::UNKNOWN)),
+            None,
+        )
+    }
+}
+
 impl FromStr for DataLocale {
     type Err = ParseError;
     #[inline]
@@ -180,42 +191,53 @@ impl FromStr for DataLocale {
 impl DataLocale {
     #[inline]
     /// Parses a [`DataLocale`].
-    ///
-    /// ✨ *Enabled with the `alloc` Cargo feature.*
-    #[cfg(feature = "alloc")]
-    pub fn try_from_str(s: &str) -> Result<Self, ParseError> {
+    pub const fn try_from_str(s: &str) -> Result<Self, ParseError> {
         Self::try_from_utf8(s.as_bytes())
     }
 
     /// Parses a [`DataLocale`] from a UTF-8 byte slice.
-    ///
-    /// ✨ *Enabled with the `alloc` Cargo feature.*
-    #[cfg(feature = "alloc")]
-    pub fn try_from_utf8(code_units: &[u8]) -> Result<Self, ParseError> {
-        let locale = Locale::try_from_utf8(code_units)?;
-        if locale.id.variants.len() > 1
-            || !locale.extensions.transform.is_empty()
-            || !locale.extensions.private.is_empty()
-            || !locale.extensions.other.is_empty()
-            || !locale.extensions.unicode.attributes.is_empty()
-        {
-            return Err(ParseError::InvalidExtension);
-        }
+    pub const fn try_from_utf8(code_units: &[u8]) -> Result<Self, ParseError> {
+        let (language, script, region, variant, keyword) =
+            match parse_locale_with_single_variant_single_keyword_unicode_extension_from_iter(
+                SubtagIterator::new(code_units),
+                ParserMode::Locale,
+            ) {
+                Ok(o) => o,
+                Err(e) => return Err(e),
+            };
 
-        let unicode_extensions_count = locale.extensions.unicode.keywords.iter().count();
+        let subdivision = if let Some((key, value)) = keyword {
+            if let Some(value) = value
+                && let RegionalSubdivision::UNICODE_EXTENSION_KEY = key
+            {
+                let Ok(subdivision) = unicode_ext::SubdivisionId::try_from_subtag(value) else {
+                    return Err(ParseError::InvalidExtension);
+                };
+                if let Some(region) = region
+                    && (region.into_raw()[0] != subdivision.region.into_raw()[0]
+                        || region.into_raw()[1] != subdivision.region.into_raw()[1]
+                        || region.into_raw()[2] != subdivision.region.into_raw()[2])
+                {
+                    Some(unicode_ext::SubdivisionId::new(
+                        region,
+                        unicode_ext::SubdivisionSuffix::UNKNOWN,
+                    ))
+                } else {
+                    Some(subdivision)
+                }
+            } else {
+                return Err(ParseError::InvalidExtension);
+            }
+        } else if let Some(region) = region {
+            Some(unicode_ext::SubdivisionId::new(
+                region,
+                unicode_ext::SubdivisionSuffix::UNKNOWN,
+            ))
+        } else {
+            None
+        };
 
-        if unicode_extensions_count != 0
-            && (unicode_extensions_count != 1
-                || !locale
-                    .extensions
-                    .unicode
-                    .keywords
-                    .contains_key(&RegionalSubdivision::UNICODE_EXTENSION_KEY))
-        {
-            return Err(ParseError::InvalidExtension);
-        }
-
-        Ok(locale.into())
+        Ok(Self::from_parts(language, script, subdivision, variant))
     }
 
     pub(crate) fn for_each_subtag_str<E, F>(&self, f: &mut F) -> Result<(), E>

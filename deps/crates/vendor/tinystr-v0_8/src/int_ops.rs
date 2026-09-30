@@ -128,7 +128,11 @@ impl Aligned4 {
 
     pub const fn to_ascii_lowercase(&self) -> [AsciiByte; 4] {
         let word = self.0;
-        let result = word | (((word + 0x3f3f_3f3f) & !(word + 0x2525_2525) & 0x8080_8080) >> 2);
+        let mask = ((word + 0x3f3f_3f3f) & !(word + 0x2525_2525) & 0x8080_8080) >> 2;
+        let result = word | mask;
+        // SAFETY: The existing word is ASCII, and it is bitwise-ORed with `mask`,
+        // a subset of 0x20_20_20_... (0x80_... >> 2), which keeps the word
+        // in the ASCII range (all bytes <= 127).
         unsafe { AsciiByte::to_ascii_byte_array(&result.to_ne_bytes()) }
     }
 
@@ -136,12 +140,18 @@ impl Aligned4 {
         let word = self.0.to_le();
         let mask = ((word + 0x3f3f_3f1f) & !(word + 0x2525_2505) & 0x8080_8080) >> 2;
         let result = (word | mask) & !(0x20 & mask);
+        // SAFETY: The existing word is ASCII, and it is bitwise-ORed with `mask`, a subset of 0x20_20_20_...
+        // (0x80_... >> 2), which keeps the word in the ASCII range (all bytes <= 127). It is then ANDed
+        // which cannot introduce new bits.
         unsafe { AsciiByte::to_ascii_byte_array(&u32::from_le(result).to_ne_bytes()) }
     }
 
     pub const fn to_ascii_uppercase(&self) -> [AsciiByte; 4] {
         let word = self.0;
-        let result = word & !(((word + 0x1f1f_1f1f) & !(word + 0x0505_0505) & 0x8080_8080) >> 2);
+        let mask = !(((word + 0x1f1f_1f1f) & !(word + 0x0505_0505) & 0x8080_8080) >> 2);
+        let result = word & mask;
+        // SAFETY: The existing word is ASCII, and it is bitwise-ANDed with `mask`,
+        // which cannot introduce new bits, so it stays ASCII.
         unsafe { AsciiByte::to_ascii_byte_array(&result.to_ne_bytes()) }
     }
 }
@@ -255,11 +265,14 @@ impl Aligned8 {
 
     pub const fn to_ascii_lowercase(&self) -> [AsciiByte; 8] {
         let word = self.0;
-        let result = word
-            | (((word + 0x3f3f_3f3f_3f3f_3f3f)
-                & !(word + 0x2525_2525_2525_2525)
-                & 0x8080_8080_8080_8080)
-                >> 2);
+        let mask = ((word + 0x3f3f_3f3f_3f3f_3f3f)
+            & !(word + 0x2525_2525_2525_2525)
+            & 0x8080_8080_8080_8080)
+            >> 2;
+        let result = word | mask;
+        // SAFETY: The existing word is ASCII, and it is bitwise-ORed with `mask`,
+        // a subset of 0x20_20_20_... (0x80_... >> 2), which keeps the word
+        // in the ASCII range (all bytes <= 127).
         unsafe { AsciiByte::to_ascii_byte_array(&result.to_ne_bytes()) }
     }
 
@@ -270,16 +283,21 @@ impl Aligned8 {
             & 0x8080_8080_8080_8080)
             >> 2;
         let result = (word | mask) & !(0x20 & mask);
+        // SAFETY: The existing word is ASCII, and it is bitwise-ORed with `mask`, a subset of 0x20_20_20_...
+        // (0x80_... >> 2), which keeps the word in the ASCII range (all bytes <= 127). It is then ANDed
+        // which cannot introduce new bits.
         unsafe { AsciiByte::to_ascii_byte_array(&u64::from_le(result).to_ne_bytes()) }
     }
 
     pub const fn to_ascii_uppercase(&self) -> [AsciiByte; 8] {
         let word = self.0;
-        let result = word
-            & !(((word + 0x1f1f_1f1f_1f1f_1f1f)
-                & !(word + 0x0505_0505_0505_0505)
-                & 0x8080_8080_8080_8080)
-                >> 2);
+        let mask = !(((word + 0x1f1f_1f1f_1f1f_1f1f)
+            & !(word + 0x0505_0505_0505_0505)
+            & 0x8080_8080_8080_8080)
+            >> 2);
+        let result = word & mask;
+        // SAFETY: The existing word is ASCII, and it is bitwise-ANDed with `mask`,
+        // which cannot introduce new bits, so it stays ASCII.
         unsafe { AsciiByte::to_ascii_byte_array(&result.to_ne_bytes()) }
     }
 }

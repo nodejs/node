@@ -11,11 +11,11 @@
 //!
 //! [`BufferProvider`]: crate::buf::BufferProvider
 
+use crate::DryDataProvider;
 use crate::buf::BufferFormat;
 use crate::buf::BufferProvider;
 use crate::data_provider::DynamicDryDataProvider;
 use crate::prelude::*;
-use crate::DryDataProvider;
 use serde::de::Deserialize;
 use yoke::Yokeable;
 

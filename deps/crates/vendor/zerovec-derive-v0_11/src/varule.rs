@@ -101,10 +101,10 @@ pub fn derive_impl(
         const #ule_size: usize = 0 #(+ #sizes)*;
         unsafe impl zerovec::ule::VarULE for #name {
             #[inline]
-            fn validate_bytes(bytes: &[u8]) -> Result<(), zerovec::ule::UleError> {
+            fn validate_bytes(bytes_one: &[u8]) -> Result<(), zerovec::ule::UleError> {
                 debug_assert_eq!(#remaining_offset, #ule_size);
 
-                let Some(last_field_bytes) = bytes.get(#remaining_offset..) else {
+                let Some(last_field_bytes) = bytes_one.get(#remaining_offset..) else {
                     return Err(zerovec::ule::UleError::parse::<Self>());
                 };
                 #validators
@@ -121,7 +121,7 @@ pub fn derive_impl(
                 // We should use the pointer metadata APIs here when they are stable: https://github.com/rust-lang/rust/issues/81513
                 // For now we rely on all DST metadata being a usize to extract it via a fake slice pointer
                 let (_ptr, metadata) = ::core::mem::transmute::<&#unsized_field, (usize, usize)>(unsized_ref);
-                let entire_struct_as_slice: *const [u8] = ::core::slice::from_raw_parts(bytes.as_ptr(), metadata);
+                let entire_struct_as_slice: *const [u8] = ::core::ptr::slice_from_raw_parts(bytes.as_ptr(), metadata);
                 &*(entire_struct_as_slice as *const Self)
             }
         }

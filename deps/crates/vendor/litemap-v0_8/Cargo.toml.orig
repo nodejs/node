@@ -4,13 +4,13 @@
 
 [package]
 name = "litemap"
-version = "0.8.1"
-keywords = ["sorted", "vec", "map", "hashmap", "btreemap"]
+version = "0.8.3"
+keywords = ["data-structures", "memory-efficiency", "sorted", "vec", "map"]
 description = "A key-value Map implementation based on a flat, sorted Vec."
 documentation = "https://docs.rs/litemap"
 
 authors.workspace = true
-edition.workspace = true
+edition = "2021"
 include.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -75,3 +75,9 @@ required-features = ["serde"]
 name = "litemap"
 harness = false
 required-features = ["serde"]
+
+[lints]
+workspace = true
+
+[package.metadata.cargo-all-features]
+max_combination_size = 3

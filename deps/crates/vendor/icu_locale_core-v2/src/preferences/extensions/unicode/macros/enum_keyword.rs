@@ -71,6 +71,8 @@ macro_rules! __enum_keyword {
         #[derive(Debug, Clone, Eq, PartialEq, Copy, Hash)]
         $(#[derive($derive_attrs)])?
         $(#[$doc])*
+        #[cfg_attr(feature = "databake", derive(databake::Bake))]
+        #[cfg_attr(feature = "databake", databake(path = icu_locale_core::preferences::extensions::unicode::keywords))]
         pub enum $name {
             $(
                 $(#[$variant_doc])*

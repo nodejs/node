@@ -52,13 +52,13 @@ mod variant;
 mod variants;
 
 #[doc(inline)]
-pub use language::{language, Language};
+pub use language::{Language, language};
 #[doc(inline)]
-pub use region::{region, Region};
+pub use region::{Region, region};
 #[doc(inline)]
-pub use script::{script, Script};
+pub use script::{Script, script};
 #[doc(inline)]
-pub use variant::{variant, Variant};
+pub use variant::{Variant, variant};
 pub use variants::Variants;
 
 impl_tinystr_subtag!(

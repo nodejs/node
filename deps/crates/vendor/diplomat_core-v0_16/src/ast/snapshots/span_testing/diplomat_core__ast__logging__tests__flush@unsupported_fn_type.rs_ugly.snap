@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Unsupported function type
+In src/ast/snapshots/span_testing/unsupported_fn_type.rs:3:41:
+...impl Fn<>) {}...
+        ^^^^
+Expected parentheses

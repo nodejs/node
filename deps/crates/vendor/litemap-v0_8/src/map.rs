@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::fmt::Debug;
-use core::iter::FromIterator;
+use core::iter::{FromIterator, FusedIterator};
 use core::marker::PhantomData;
 use core::mem;
 use core::ops::{Index, IndexMut, Range};
@@ -35,7 +35,7 @@ macro_rules! litemap_impl(
 );
 // You can't `cfg()` a default generic parameter, and we don't want to write this type twice
 // and keep them in sync so we use a small macro
-litemap_impl!(feature = "alloc", S = alloc::vec::Vec<(K, V)>);
+litemap_impl!(feature = "alloc", S = Vec<(K, V)>);
 litemap_impl!(not(feature = "alloc"), S);
 
 #[cfg(feature = "alloc")]
@@ -45,7 +45,7 @@ impl<K, V> LiteMap<K, V> {
     /// ✨ *Enabled with the `alloc` Cargo feature.*  
     pub const fn new_vec() -> Self {
         Self {
-            values: alloc::vec::Vec::new(),
+            values: Vec::new(),
             _key_type: PhantomData,
             _value_type: PhantomData,
         }
@@ -901,7 +901,7 @@ where
     S: StoreIterable<'a, K, V>,
 {
     /// Produce an ordered iterator over key-value pairs
-    pub fn iter(&'a self) -> impl DoubleEndedIterator<Item = (&'a K, &'a V)> {
+    pub fn iter(&'a self) -> S::KeyValueIter {
         self.values.lm_iter()
     }
 
@@ -918,13 +918,17 @@ where
     }
 
     /// Produce an ordered iterator over keys
-    pub fn keys(&'a self) -> impl DoubleEndedIterator<Item = &'a K> {
-        self.values.lm_iter().map(|val| val.0)
+    pub fn keys(&'a self) -> KeysIterWrap<S::KeyValueIter> {
+        KeysIterWrap {
+            iter: self.values.lm_iter(),
+        }
     }
 
     /// Produce an iterator over values, ordered by their keys
-    pub fn values(&'a self) -> impl DoubleEndedIterator<Item = &'a V> {
-        self.values.lm_iter().map(|val| val.1)
+    pub fn values(&'a self) -> ValuesIterWrap<S::KeyValueIter> {
+        ValuesIterWrap {
+            iter: self.values.lm_iter(),
+        }
     }
 }
 
@@ -933,7 +937,7 @@ where
     S: StoreIterableMut<'a, K, V>,
 {
     /// Produce an ordered mutable iterator over key-value pairs
-    pub fn iter_mut(&'a mut self) -> impl DoubleEndedIterator<Item = (&'a K, &'a mut V)> {
+    pub fn iter_mut(&'a mut self) -> S::KeyValueIterMut {
         self.values.lm_iter_mut()
     }
 }
@@ -1216,6 +1220,88 @@ impl_const_get_with_index_for_integer!(i32);
 impl_const_get_with_index_for_integer!(i64);
 impl_const_get_with_index_for_integer!(i128);
 impl_const_get_with_index_for_integer!(isize);
+
+/// An [`Iterator`] adapter over the keys of a [`StoreIterable::KeyValueIter`].
+///
+/// This `struct` is created by the [`LiteMap::keys`] method See its documentation for more.
+#[derive(Debug, Clone)]
+pub struct KeysIterWrap<I> {
+    iter: I,
+}
+
+/// An [`Iterator`] adapter over the values of a [`StoreIterable::KeyValueIter`].
+///
+/// This `struct` is created by the [`LiteMap::values`] method. See its documentation for more.
+#[derive(Debug, Clone)]
+pub struct ValuesIterWrap<I> {
+    iter: I,
+}
+
+impl<K, V, I: Iterator<Item = (K, V)>> Iterator for KeysIterWrap<I> {
+    type Item = K;
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(|val| val.0)
+    }
+    #[inline]
+    fn fold<B, F>(self, init: B, f: F) -> B
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> B,
+    {
+        self.iter.map(|val| val.0).fold(init, f)
+    }
+    #[inline]
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.iter.nth(n).map(|val| val.0)
+    }
+}
+impl<K, V, I: ExactSizeIterator<Item = (K, V)>> ExactSizeIterator for KeysIterWrap<I> {}
+impl<K, V, I: FusedIterator<Item = (K, V)>> FusedIterator for KeysIterWrap<I> {}
+impl<K, V, I: DoubleEndedIterator<Item = (K, V)>> DoubleEndedIterator for KeysIterWrap<I> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.iter.next_back().map(|val| val.0)
+    }
+}
+
+impl<K, V, I: Iterator<Item = (K, V)>> Iterator for ValuesIterWrap<I> {
+    type Item = V;
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(|val| val.1)
+    }
+    #[inline]
+    fn fold<B, F>(self, init: B, f: F) -> B
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> B,
+    {
+        self.iter.map(|val| val.1).fold(init, f)
+    }
+    #[inline]
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.iter.nth(n).map(|val| val.1)
+    }
+}
+impl<K, V, I: ExactSizeIterator<Item = (K, V)>> ExactSizeIterator for ValuesIterWrap<I> {}
+impl<K, V, I: FusedIterator<Item = (K, V)>> FusedIterator for ValuesIterWrap<I> {}
+impl<K, V, I: DoubleEndedIterator<Item = (K, V)>> DoubleEndedIterator for ValuesIterWrap<I> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.iter.next_back().map(|val| val.1)
+    }
+}
 
 /// An entry in a `LiteMap`, which may be either occupied or vacant.
 #[allow(clippy::exhaustive_enums)]

@@ -42,7 +42,7 @@ impl DynamicDataMarker for BufferMarker {
 ///
 /// ```
 /// # #[cfg(feature = "deserialize_json")] {
-/// use icu_locale_core::langid;
+/// use icu_locale_core::data_locale;
 /// use icu_provider::hello_world::*;
 /// use icu_provider::prelude::*;
 /// use std::borrow::Cow;
@@ -56,9 +56,9 @@ impl DynamicDataMarker for BufferMarker {
 ///             .load_data(
 ///                 HelloWorldV1::INFO,
 ///                 DataRequest {
-///                     id: DataIdentifierBorrowed::for_locale(
-///                         &langid!("de").into()
-///                     ),
+///                     id: DataIdentifierBorrowed::for_locale(&data_locale!(
+///                         "de"
+///                     )),
 ///                     ..Default::default()
 ///                 }
 ///             )
@@ -79,7 +79,7 @@ impl DynamicDataMarker for BufferMarker {
 /// assert_eq!(
 ///     deserializing_provider
 ///         .load(DataRequest {
-///             id: DataIdentifierBorrowed::for_locale(&langid!("de").into()),
+///             id: DataIdentifierBorrowed::for_locale(&data_locale!("de")),
 ///             ..Default::default()
 ///         })
 ///         .expect("load should succeed")

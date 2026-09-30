@@ -572,4 +572,23 @@ mod tests {
         check_size_of!(64 | 56 | 48, Option<ZeroMap<str, str>>);
         check_size_of!(120 | 104 | 96, Option<ZeroMap2d<str, str, str>>);
     }
+
+    #[test]
+    fn test_miri_repro_eyepatch_hack_truncate() {
+        let slice: &[u16] = &[1, 2, 3, 4];
+        let zv: ZeroVec<u16> = ZeroVec::try_from_slice(slice).unwrap();
+        let _truncated = zv.truncated(2);
+    }
+
+    #[test]
+    fn test_miri_repro_encode_varule_to_box() {
+        let str_slice: &str = "hello world";
+        let _boxed: Box<str> = ule::encode_varule_to_box(str_slice);
+    }
+
+    #[test]
+    fn test_miri_repro_varzerocow_new_owned() {
+        let boxed_str: Box<str> = Box::from("hello world");
+        let _cow: VarZeroCow<str> = VarZeroCow::new_owned(boxed_str);
+    }
 }

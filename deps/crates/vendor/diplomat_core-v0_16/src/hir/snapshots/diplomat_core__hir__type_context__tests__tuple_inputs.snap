@@ -1,0 +1,11 @@
+---
+source: core/src/hir/type_context.rs
+expression: output
+---
+Lowering error in TupleStruct::takes_self: Tuple structs cannot have non-static methods.
+Lowering error in TupleStruct::takes_self_ref: Tuple structs cannot have non-static methods.
+Lowering error in TupleStruct::takes_mut_self: Found a mutable struct ref &mut self. Try marking the struct def with `#[diplomat::attr(auto, mut_struct_ref)]`
+Lowering error in TupleStruct::takes_mut_self: Tuple structs cannot have non-static methods.
+Lowering error in TupleStruct::takes_ref: Tuple structs cannot be passed by reference, this is currently unsupported in Diplomat. See https://github.com/rust-diplomat/diplomat/issues/1143
+Lowering error in TupleStruct::takes_mut_ref: Found a mutable struct ref &mut TupleStruct. Try marking the struct def with `#[diplomat::attr(auto, mut_struct_ref)]`
+Lowering error in TupleStruct::takes_mut_ref: Tuple structs cannot be passed by reference, this is currently unsupported in Diplomat. See https://github.com/rust-diplomat/diplomat/issues/1143

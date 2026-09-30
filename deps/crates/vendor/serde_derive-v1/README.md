@@ -1,4 +1,4 @@
-# Serde &emsp; [![Build Status]][actions] [![Latest Version]][crates.io] [![serde msrv]][Rust 1.56] [![serde_derive msrv]][Rust 1.61]
+# Serde &emsp; [![Build Status]][actions] [![Latest Version]][crates.io] [![serde msrv]][Rust 1.56] [![serde_derive msrv]][Rust 1.71]
 
 [Build Status]: https://img.shields.io/github/actions/workflow/status/serde-rs/serde/ci.yml?branch=master
 [actions]: https://github.com/serde-rs/serde/actions?query=branch%3Amaster
@@ -6,8 +6,8 @@
 [crates.io]: https://crates.io/crates/serde
 [serde msrv]: https://img.shields.io/crates/msrv/serde.svg?label=serde%20msrv&color=lightgray
 [serde_derive msrv]: https://img.shields.io/crates/msrv/serde_derive.svg?label=serde_derive%20msrv&color=lightgray
-[Rust 1.56]: https://blog.rust-lang.org/2021/10/21/Rust-1.56.0.html
-[Rust 1.61]: https://blog.rust-lang.org/2022/05/19/Rust-1.61.0.html
+[Rust 1.56]: https://blog.rust-lang.org/2021/10/21/Rust-1.56.0/
+[Rust 1.71]: https://blog.rust-lang.org/2023/07/13/Rust-1.71.0/
 
 **Serde is a framework for *ser*ializing and *de*serializing Rust data structures efficiently and generically.**
 

@@ -1,0 +1,5 @@
+---
+source: core/src/hir/type_context.rs
+expression: output
+---
+Lowering error in PartialComparable::cmp: Comparators that return `Option` are not supported by this backend (Filter with #[diplomat::cfg(supports=partial_comparators)]).

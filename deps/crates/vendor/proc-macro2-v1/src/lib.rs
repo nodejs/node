@@ -53,7 +53,7 @@
 //! If parsing with [Syn], you'll use [`parse_macro_input!`] instead to
 //! propagate parse errors correctly back to the compiler when parsing fails.
 //!
-//! [`parse_macro_input!`]: https://docs.rs/syn/2.0/syn/macro.parse_macro_input.html
+//! [`parse_macro_input!`]: https://docs.rs/syn/3/syn/macro.parse_macro_input.html
 //!
 //! # Unstable features
 //!
@@ -63,7 +63,7 @@
 //!
 //! To opt into the additional APIs available in the most recent nightly
 //! compiler, the `procmacro2_semver_exempt` config flag must be passed to
-//! rustc. We will polyfill those nightly-only APIs back to Rust 1.68.0. As
+//! rustc. We will polyfill those nightly-only APIs back to Rust 1.71.0. As
 //! these are unstable APIs that track the nightly compiler, minor versions of
 //! proc-macro2 may make breaking changes to them at any time.
 //!
@@ -84,7 +84,7 @@
 //! a different thread.
 
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/proc-macro2/1.0.106")]
+#![doc(html_root_url = "https://docs.rs/proc-macro2/1.0.107")]
 #![cfg_attr(any(proc_macro_span, super_unstable), feature(proc_macro_span))]
 #![cfg_attr(super_unstable, feature(proc_macro_def_site))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -914,7 +914,7 @@ impl Debug for Punct {
 /// Rust keywords. Use `input.call(Ident::parse_any)` when parsing to match the
 /// behaviour of `Ident::new`.
 ///
-/// [`Parse`]: https://docs.rs/syn/2.0/syn/parse/trait.Parse.html
+/// [`Parse`]: https://docs.rs/syn/3/syn/parse/trait.Parse.html
 ///
 /// # Examples
 ///
@@ -1012,7 +1012,7 @@ impl Ident {
     /// Panics if the input string is neither a keyword nor a legal variable
     /// name. If you are not sure whether the string contains an identifier and
     /// need to handle an error case, use
-    /// <a href="https://docs.rs/syn/2.0/syn/fn.parse_str.html"><code
+    /// <a href="https://docs.rs/syn/3/syn/fn.parse_str.html"><code
     ///   style="padding-right:0;">syn::parse_str</code></a><code
     ///   style="padding-left:0;">::&lt;Ident&gt;</code>
     /// rather than `Ident::new`.

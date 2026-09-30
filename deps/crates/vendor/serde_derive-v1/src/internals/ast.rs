@@ -5,8 +5,8 @@ use proc_macro2::Ident;
 use syn::punctuated::Punctuated;
 use syn::Token;
 
-/// A source data structure annotated with `#[derive(Serialize)]` and/or `#[derive(Deserialize)]`,
-/// parsed into an internal representation.
+/// A source data structure annotated with `#[derive(Serialize)]` and/or
+/// `#[derive(Deserialize)]`, parsed into an internal representation.
 pub struct Container<'a> {
     /// The struct or enum name (without generics).
     pub ident: syn::Ident,
@@ -58,7 +58,8 @@ pub enum Style {
 }
 
 impl<'a> Container<'a> {
-    /// Convert the raw Syn ast into a parsed container object, collecting errors in `cx`.
+    /// Convert the raw Syn ast into a parsed container object, collecting
+    /// errors in `cx`.
     pub fn from_ast(
         cx: &Ctxt,
         item: &'a syn::DeriveInput,
@@ -88,10 +89,7 @@ impl<'a> Container<'a> {
                     variant.attrs.rename_by_rules(attrs.rename_all_rules());
                     for field in &mut variant.fields {
                         field.attrs.rename_by_rules(
-                            variant
-                                .attrs
-                                .rename_all_rules()
-                                .or(attrs.rename_all_fields_rules()),
+                            variant.attrs.rename_all_rules().or(attrs.rename_all_fields_rules()),
                         );
                     }
                 }
@@ -140,26 +138,14 @@ fn enum_from_ast<'a>(
         .iter()
         .map(|variant| {
             let attrs = attr::Variant::from_ast(cx, variant);
-            let (style, fields) = struct_from_ast(
-                cx,
-                &variant.fields,
-                Some(&attrs),
-                container_default,
-                private,
-            );
-            Variant {
-                ident: variant.ident.clone(),
-                attrs,
-                style,
-                fields,
-                original: variant,
-            }
+            let (style, fields) =
+                struct_from_ast(cx, &variant.fields, Some(&attrs), container_default, private);
+            Variant { ident: variant.ident.clone(), attrs, style, fields, original: variant }
         })
         .collect();
 
-    let index_of_last_tagged_variant = variants
-        .iter()
-        .rposition(|variant| !variant.attrs.untagged());
+    let index_of_last_tagged_variant =
+        variants.iter().rposition(|variant| !variant.attrs.untagged());
     if let Some(index_of_last_tagged_variant) = index_of_last_tagged_variant {
         for variant in &variants[..index_of_last_tagged_variant] {
             if variant.attrs.untagged() {
@@ -179,18 +165,16 @@ fn struct_from_ast<'a>(
     private: &Ident,
 ) -> (Style, Vec<Field<'a>>) {
     match fields {
-        syn::Fields::Named(fields) => (
-            Style::Struct,
-            fields_from_ast(cx, &fields.named, attrs, container_default, private),
-        ),
+        syn::Fields::Named(fields) => {
+            (Style::Struct, fields_from_ast(cx, &fields.named, attrs, container_default, private))
+        }
         syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1 => (
             Style::Newtype,
             fields_from_ast(cx, &fields.unnamed, attrs, container_default, private),
         ),
-        syn::Fields::Unnamed(fields) => (
-            Style::Tuple,
-            fields_from_ast(cx, &fields.unnamed, attrs, container_default, private),
-        ),
+        syn::Fields::Unnamed(fields) => {
+            (Style::Tuple, fields_from_ast(cx, &fields.unnamed, attrs, container_default, private))
+        }
         syn::Fields::Unit => (Style::Unit, Vec::new()),
     }
 }
@@ -202,17 +186,24 @@ fn fields_from_ast<'a>(
     container_default: &attr::Default,
     private: &Ident,
 ) -> Vec<Field<'a>> {
-    fields
-        .iter()
-        .enumerate()
-        .map(|(i, field)| Field {
+    let mut dst_fields = Vec::with_capacity(fields.len());
+    for field in fields {
+        dst_fields.push(Field {
             member: match &field.ident {
                 Some(ident) => syn::Member::Named(ident.clone()),
-                None => syn::Member::Unnamed(i.into()),
+                None => syn::Member::Unnamed(dst_fields.len().into()),
             },
-            attrs: attr::Field::from_ast(cx, i, field, attrs, container_default, private),
+            attrs: attr::Field::from_ast(
+                cx,
+                dst_fields.len(),
+                field,
+                attrs,
+                container_default,
+                private,
+            ),
             ty: &field.ty,
             original: field,
-        })
-        .collect()
+        });
+    }
+    dst_fields
 }

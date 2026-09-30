@@ -234,7 +234,7 @@ impl Default for DataIdentifierCow<'_> {
 #[derive(PartialEq, Eq, Ord, PartialOrd, Hash)]
 #[repr(transparent)]
 pub struct DataMarkerAttributes {
-    // Validated to be non-empty ASCII alphanumeric + hyphen + underscore
+    // Validated to be non-empty ASCII alphanumeric + hyphen + underscore + forward slash. Disallows leading, trailing, and double slashes.
     value: str,
 }
 
@@ -267,20 +267,38 @@ pub struct AttributeParseError;
 impl DataMarkerAttributes {
     /// Safety-usable invariant: validated bytes are ASCII only
     const fn validate(s: &[u8]) -> Result<(), AttributeParseError> {
+        if s.is_empty() {
+            return Ok(());
+        }
         let mut i = 0;
+        // Initialized to true in order to prevent leading slashes
+        let mut prev_was_slash = true;
         while i < s.len() {
             #[expect(clippy::indexing_slicing)] // duh
-            if !matches!(s[i], b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_') {
+            let c = s[i];
+            if !matches!(c, b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'/') {
                 return Err(AttributeParseError);
             }
+            if c == b'/' {
+                if prev_was_slash {
+                    return Err(AttributeParseError);
+                }
+                prev_was_slash = true;
+            } else {
+                prev_was_slash = false;
+            }
             i += 1;
+        }
+        // If the last character was a slash, it's a trailing slash, which is disallowed.
+        if prev_was_slash {
+            return Err(AttributeParseError);
         }
         Ok(())
     }
 
     /// Creates a borrowed [`DataMarkerAttributes`] from a borrowed string.
     ///
-    /// Returns an error if the string contains characters other than `[a-zA-Z0-9_\-]`.
+    /// Returns an error if the string contains characters other than `[a-zA-Z0-9_\-/]`.
     pub const fn try_from_str(s: &str) -> Result<&Self, AttributeParseError> {
         Self::try_from_utf8(s.as_bytes())
     }
@@ -299,14 +317,14 @@ impl DataMarkerAttributes {
     ///
     /// # Errors
     ///
-    /// Returns an error if the byte slice contains code units other than `[a-zA-Z0-9_\-]`.
+    /// Returns an error if the byte slice contains code units other than `[a-zA-Z0-9_\-/]`.
     pub const fn try_from_utf8(code_units: &[u8]) -> Result<&Self, AttributeParseError> {
         let Ok(()) = Self::validate(code_units) else {
             return Err(AttributeParseError);
         };
 
         // SAFETY: `validate` requires a UTF-8 subset
-        let s = unsafe { core::str::from_utf8_unchecked(code_units) };
+        let s = unsafe { str::from_utf8_unchecked(code_units) };
 
         // SAFETY: `Self` has the same layout as `str`
         Ok(unsafe { &*(s as *const str as *const Self) })
@@ -314,7 +332,7 @@ impl DataMarkerAttributes {
 
     /// Creates an owned [`DataMarkerAttributes`] from an owned string.
     ///
-    /// Returns an error if the string contains characters other than `[a-zA-Z0-9_\-]`.
+    /// Returns an error if the string contains characters other than `[a-zA-Z0-9_\-/]`.
     ///
     /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[cfg(feature = "alloc")]
@@ -323,13 +341,15 @@ impl DataMarkerAttributes {
             return Err(AttributeParseError);
         };
 
-        // SAFETY: `Self` has the same layout as `str`
-        Ok(unsafe { core::mem::transmute::<Box<str>, Box<Self>>(s.into_boxed_str()) })
+        let boxed = s.into_boxed_str();
+        // Safety: Box::into_raw fulfils Box::from_raw's requirements, as DataMarkerAttributes is
+        // repr(transparent) over str, and its (non-safety) validity constraints were validated above
+        Ok(unsafe { Box::from_raw(Box::into_raw(boxed) as *mut Self) })
     }
 
     /// Creates a borrowed [`DataMarkerAttributes`] from a borrowed string.
     ///
-    /// Panics if the string contains characters other than `[a-zA-Z0-9_\-]`.
+    /// Panics if the string contains characters other than `[a-zA-Z0-9_\-/]`.
     pub const fn from_str_or_panic(s: &str) -> &Self {
         #[allow(clippy::panic)] // documented
         let Ok(r) = Self::try_from_str(s) else {
@@ -355,8 +375,10 @@ impl DataMarkerAttributes {
 impl ToOwned for DataMarkerAttributes {
     type Owned = Box<Self>;
     fn to_owned(&self) -> Self::Owned {
-        // SAFETY: `Self` has the same layout as `str`
-        unsafe { core::mem::transmute::<Box<str>, Box<Self>>(self.as_str().to_boxed()) }
+        let boxed = self.as_str().to_boxed();
+        // Safety: Box::into_raw fulfils Box::from_raw's requirements, as DataMarkerAttributes is
+        // repr(transparent) over str, and `str` has strictly fewer validity constraints than DataMarkerAttributes
+        unsafe { Box::from_raw(Box::into_raw(boxed) as *mut Self) }
     }
 }
 
@@ -373,5 +395,44 @@ fn test_data_marker_attributes_from_utf8() {
     for bytes in bytes_vec {
         let marker = DataMarkerAttributes::try_from_utf8(bytes).unwrap();
         assert_eq!(marker.to_string().as_bytes(), bytes);
+    }
+}
+
+#[test]
+fn test_data_marker_attributes_syntax() {
+    let valid_cases = [
+        "long-meter",
+        "long",
+        "meter",
+        "short-meter-second",
+        "usd",
+        "nested/part",
+        "foo/bar/baz",
+        "",
+    ];
+
+    let invalid_cases = [
+        "/leading",
+        "trailing/",
+        "double//slash",
+        "invalid space",
+        "invalid$character",
+        "invalid\\backslash",
+    ];
+
+    for s in valid_cases {
+        assert!(
+            DataMarkerAttributes::try_from_str(s).is_ok(),
+            "Expected valid: {}",
+            s
+        );
+    }
+
+    for s in invalid_cases {
+        assert!(
+            DataMarkerAttributes::try_from_str(s).is_err(),
+            "Expected invalid: {}",
+            s
+        );
     }
 }

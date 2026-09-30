@@ -1,6 +1,6 @@
 [package]
 name = "smallvec"
-version = "1.15.1"
+version = "1.16.1"
 edition = "2018"
 authors = ["The Servo Project Developers"]
 license = "MIT OR Apache-2.0"
@@ -10,6 +10,7 @@ keywords = ["small", "vec", "vector", "stack", "no_std"]
 categories = ["data-structures"]
 readme = "README.md"
 documentation = "https://docs.rs/smallvec/"
+include = ["Cargo.toml", "LICENSE-MIT", "LICENSE-APACHE", "README.md", "src/**/*.rs"]
 
 [features]
 const_generics = []
@@ -22,10 +23,6 @@ drain_filter = []
 drain_keep_rest = ["drain_filter"]
 impl_bincode = ["bincode", "unty"]
 
-# UNSTABLE FEATURES (requires Rust nightly)
-# Enable to use the #[debugger_visualizer] attribute.
-debugger_visualizer = []
-
 [dependencies]
 serde = { version = "1", optional = true, default-features = false }
 malloc_size_of = { version = "0.1", optional = true, default-features = false }
@@ -35,20 +32,7 @@ unty = { version = "0.0.4", optional = true, default-features = false }
 
 [dev-dependencies]
 bincode1 = { package = "bincode", version = "1.0.1" }
-debugger_test = "0.1.0"
-debugger_test_parser = "0.1.0"
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs", "--generate-link-to-definition"]
-
-[[test]]
-name = "debugger_visualizer"
-path = "tests/debugger_visualizer.rs"
-required-features = ["debugger_visualizer"]
-# Do not run these tests by default. These tests need to
-# be run with the additional rustc flag `--test-threads=1`
-# since each test causes a debugger to attach to the current
-# test process. If multiple debuggers try to attach at the same
-# time, the test will fail.
-test = false

@@ -47,3 +47,51 @@ where
         }
     }
 }
+
+/// A [`TryWriteable`] impl that delegates to one type or another type.
+impl<W0, W1> TryWriteable for Either<W0, W1>
+where
+    W0: TryWriteable,
+    W1: TryWriteable,
+{
+    type Error = Either<W0::Error, W1::Error>;
+
+    fn try_write_to<W: fmt::Write + ?Sized>(
+        &self,
+        sink: &mut W,
+    ) -> Result<Result<(), Self::Error>, fmt::Error> {
+        match self {
+            Either::Left(w) => w.try_write_to(sink).map(|r| r.map_err(Either::Left)),
+            Either::Right(w) => w.try_write_to(sink).map(|r| r.map_err(Either::Right)),
+        }
+    }
+
+    fn try_write_to_parts<S: PartsWrite + ?Sized>(
+        &self,
+        sink: &mut S,
+    ) -> Result<Result<(), Self::Error>, fmt::Error> {
+        match self {
+            Either::Left(w) => w.try_write_to_parts(sink).map(|r| r.map_err(Either::Left)),
+            Either::Right(w) => w.try_write_to_parts(sink).map(|r| r.map_err(Either::Right)),
+        }
+    }
+
+    fn writeable_length_hint(&self) -> LengthHint {
+        match self {
+            Either::Left(w) => w.writeable_length_hint(),
+            Either::Right(w) => w.writeable_length_hint(),
+        }
+    }
+
+    #[cfg(feature = "alloc")]
+    fn try_write_to_string(&self) -> Result<Cow<'_, str>, (Self::Error, Cow<'_, str>)> {
+        match self {
+            Either::Left(w) => w
+                .try_write_to_string()
+                .map_err(|(e, s)| (Either::Left(e), s)),
+            Either::Right(w) => w
+                .try_write_to_string()
+                .map_err(|(e, s)| (Either::Right(e), s)),
+        }
+    }
+}

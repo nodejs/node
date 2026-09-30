@@ -130,10 +130,7 @@ pub(super) fn deserialize_generated(
     fallthrough: Option<TokenStream>,
 ) -> Fragment {
     let this_value = quote!(__Field);
-    let field_idents: &Vec<_> = &deserialized_fields
-        .iter()
-        .map(|field| &field.ident)
-        .collect();
+    let field_idents: &Vec<_> = &deserialized_fields.iter().map(|field| &field.ident).collect();
 
     let visitor_impl = Stmts(deserialize_identifier(
         &this_value,
@@ -145,11 +142,7 @@ pub(super) fn deserialize_generated(
         None,
     ));
 
-    let lifetime = if !is_variant && has_flatten {
-        Some(quote!(<'de>))
-    } else {
-        None
-    };
+    let lifetime = if !is_variant && has_flatten { Some(quote!(<'de>)) } else { None };
 
     quote_block! {
         #[allow(non_camel_case_types)]
@@ -205,10 +198,8 @@ fn deserialize_identifier(
     let bytes_mapping = deserialized_fields.iter().map(|field| {
         let ident = &field.ident;
         // `aliases` also contains a main name
-        let aliases = field
-            .aliases
-            .iter()
-            .map(|alias| Literal::byte_string(alias.value.as_bytes()));
+        let aliases =
+            field.aliases.iter().map(|alias| Literal::byte_string(alias.value.as_bytes()));
         let private2 = private;
         quote! {
             #(
@@ -217,11 +208,8 @@ fn deserialize_identifier(
         }
     });
 
-    let expecting = expecting.unwrap_or(if is_variant {
-        "variant identifier"
-    } else {
-        "field identifier"
-    });
+    let expecting =
+        expecting.unwrap_or(if is_variant { "variant identifier" } else { "field identifier" });
 
     let bytes_to_str = if fallthrough.is_some() || collect_other_fields {
         None
@@ -375,11 +363,8 @@ fn deserialize_identifier(
             fallthrough
         } else {
             let index_expecting = if is_variant { "variant" } else { "field" };
-            let fallthrough_msg = format!(
-                "{} index 0 <= i < {}",
-                index_expecting,
-                deserialized_fields.len(),
-            );
+            let fallthrough_msg =
+                format!("{} index 0 <= i < {}", index_expecting, deserialized_fields.len(),);
             u64_fallthrough_arm_tokens = quote! {
                 _serde::#private::Err(_serde::de::Error::invalid_value(
                     _serde::de::Unexpected::Unsigned(__value),
