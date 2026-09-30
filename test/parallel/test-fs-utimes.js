@@ -88,7 +88,9 @@ const cases = [
   [asPath, new Date()],
   [asPath, 123456.789],
   [asPath, stats.mtime],
-  ...(common.isAIX ? [] : [[asPath, '123456', -1]]),
+  // AIX rejects negative timestamps outright; Windows wraps them into a
+  // post-2038 date (see test-fs-utimes-y2K38.js).
+  ...(common.isAIX || common.isWindows ? [] : [[asPath, '123456', -1]]),
   [asPath, new Date('2017-04-08T17:59:38.008Z')],
   [asUrl, new Date()],
 ];
