@@ -1,5 +1,3 @@
-#include "ngtcp2/ngtcp2.h"
-#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <aliased_struct-inl.h>
@@ -14,6 +12,7 @@
 #include "application.h"
 #include "bindingdata.h"
 #include "defs.h"
+#include "ngtcp2/ngtcp2.h"
 #include "session.h"
 #include "streams.h"
 
@@ -1916,4 +1915,3 @@ void Stream::Unschedule() {
 }  // namespace node
 
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL && HAVE_QUIC
