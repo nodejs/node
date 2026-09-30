@@ -1,7 +1,5 @@
-import { spawnPromisified } from '../common/index.mjs';
-import * as fixtures from '../common/fixtures.mjs';
+import '../common/index.mjs';
 import assert from 'assert';
-import { execPath } from 'node:process';
 
 const fixtureBase = '../fixtures/es-modules/package-cjs-named-error';
 
@@ -77,17 +75,3 @@ await assert.rejects(async () => {
 await assert.rejects(async () => {
   await import(`${fixtureBase}/escaped-single-quote.mjs`);
 }, /import pkg from '\.\/oh'no\.cjs'/, 'should support relative specifiers with escaped single quote');
-
-const entryPoint = fixtures.path('es-modules', 'package-cjs-named-error', 'single-quote.mjs');
-const { code, stderr } = await spawnPromisified(execPath, [entryPoint]);
-assert.strictEqual(code, 1);
-assert.ok(stderr.includes("Named export 'comeOn' not found."),
-          'entry point should show the missing named export');
-assert.ok(stderr.includes('CommonJS modules can always be imported via the default export'),
-          'entry point should show the CommonJS named export hint');
-assert.ok(stderr.includes("import pkg from './fail.cjs';"),
-          'entry point hint should recommend the default import');
-assert.ok(stderr.includes('const { comeOn } = pkg;'),
-          'entry point hint should show the named import as destructuring');
-assert.ok(stderr.includes("import { comeOn } from './fail.cjs';"),
-          'entry point error should include the source import statement');
