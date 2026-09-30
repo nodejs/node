@@ -9,10 +9,10 @@
 #include "nbytes.h"
 #include "nghttp2/nghttp2ver.h"
 #include "node.h"
+#include "quic/guard.h"
 #include "simdjson.h"
 #include "simdutf.h"
 #if HAVE_SQLITE
-#include "quic/guard.h"
 #include "sqlite3.h"
 #endif  // HAVE_SQLITE
 #if HAVE_FFI
