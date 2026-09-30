@@ -485,7 +485,6 @@ WebCryptoKeyExportStatus EC_Raw_Export(const KeyObjectData& key_data,
                                        ByteSource* out) {
   const auto& m_pkey = key_data.GetAsymmetricKey();
   CHECK(m_pkey);
-  Mutex::ScopedLock lock(key_data.mutex());
 
   if (!m_pkey.isA(KeyAlgorithm::EC)) {
     switch (key_data.GetKeyType()) {
@@ -573,7 +572,6 @@ WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
         // the header but it is a somewhat silly hoop to jump through because
         // the header is for all practical purposes a static 26 byte sequence
         // where only the second byte changes.
-        Mutex::ScopedLock lock(key_data.mutex());
         ECKeyPointer ec_key(m_pkey);
         if (!ec_key) return WebCryptoKeyExportStatus::FAILED;
         const auto group = ec_key.getGroup();
@@ -617,7 +615,6 @@ WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
 bool ExportJWKEcKey(Environment* env,
                     const KeyObjectData& key,
                     Local<Object> target) {
-  Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
   DCHECK(m_pkey.isA(KeyAlgorithm::EC));
 
@@ -762,7 +759,6 @@ KeyObjectData ImportJWKEcKey(Environment* env, Local<Object> jwk) {
 bool GetEcKeyDetail(Environment* env,
                     const KeyObjectData& key,
                     Local<Object> target) {
-  Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
   DCHECK(m_pkey.isA(KeyAlgorithm::EC));
 

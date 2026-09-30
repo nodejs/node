@@ -188,7 +188,6 @@ KeyObjectData ImportJWKSecretKey(Environment* env, Local<Object> jwk) {
 static bool ExportJWKRawKey(Environment* env,
                             const KeyObjectData& key,
                             Local<Object> target) {
-  Mutex::ScopedLock lock(key.mutex());
   auto result =
       key.GetAsymmetricKey().exportRawJwk(key.GetKeyType() == kKeyTypePrivate);
   if (!result) {
@@ -417,7 +416,6 @@ bool KeyObjectData::ToEncodedPublicKey(
     return ExportJWKInner(
         env, addRefWithType(KeyType::kKeyTypePublic), *out, false);
   } else if (config.format == EVPKeyPointer::PKFormatType::RAW_PUBLIC) {
-    Mutex::ScopedLock lock(mutex());
     const auto& pkey = GetAsymmetricKey();
     const auto* algorithm = pkey.getAlgorithm();
     if (algorithm == &KeyAlgorithm::EC) {
@@ -472,7 +470,6 @@ bool KeyObjectData::ToEncodedPrivateKey(
     return ExportJWKInner(
         env, addRefWithType(KeyType::kKeyTypePrivate), *out, false);
   } else if (config.format == EVPKeyPointer::PKFormatType::RAW_PRIVATE) {
-    Mutex::ScopedLock lock(mutex());
     const auto& pkey = GetAsymmetricKey();
     const auto* algorithm = pkey.getAlgorithm();
     if (algorithm == &KeyAlgorithm::EC) {
@@ -498,7 +495,6 @@ bool KeyObjectData::ToEncodedPrivateKey(
     return Buffer::Copy(env, raw_data.get<const char>(), raw_data.size())
         .ToLocal(out);
   } else if (config.format == EVPKeyPointer::PKFormatType::RAW_SEED) {
-    Mutex::ScopedLock lock(mutex());
     const auto& pkey = GetAsymmetricKey();
     auto raw_data = pkey.rawSeed();
     if (!raw_data) {
@@ -1057,9 +1053,7 @@ KeyObjectData::KeyObjectData(ByteSource symmetric_key)
       data_(std::make_shared<Data>(std::move(symmetric_key))) {}
 
 KeyObjectData::KeyObjectData(KeyType type, EVPKeyPointer&& pkey)
-    : key_type_(type),
-      mutex_(std::make_shared<Mutex>()),
-      data_(std::make_shared<Data>(std::move(pkey))) {}
+    : key_type_(type), data_(std::make_shared<Data>(std::move(pkey))) {}
 
 void KeyObjectData::Data::MemoryInfo(MemoryTracker* tracker) const {
   if (asymmetric_key) {
@@ -1074,11 +1068,6 @@ void KeyObjectData::Data::MemoryInfo(MemoryTracker* tracker) const {
 
 void KeyObjectData::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("data", data_);
-}
-
-Mutex& KeyObjectData::mutex() const {
-  if (!mutex_) mutex_ = std::make_shared<Mutex>();
-  return *mutex_.get();
 }
 
 KeyObjectData KeyObjectData::CreateSecret(ByteSource key) {
@@ -1475,7 +1464,6 @@ void KeyObjectHandle::RawPublicKey(
   const KeyObjectData& data = key->Data();
   CHECK_NE(data.GetKeyType(), kKeyTypeSecret);
 
-  Mutex::ScopedLock lock(data.mutex());
   const auto& pkey = data.GetAsymmetricKey();
 
   const bool is_raw_supported = pkey.supportsRawPublic();
@@ -1503,7 +1491,6 @@ void KeyObjectHandle::RawPrivateKey(
   const KeyObjectData& data = key->Data();
   CHECK_EQ(data.GetKeyType(), kKeyTypePrivate);
 
-  Mutex::ScopedLock lock(data.mutex());
   const auto& pkey = data.GetAsymmetricKey();
 
   const bool is_raw_supported = pkey.supportsRawPrivate();
@@ -1531,7 +1518,6 @@ void KeyObjectHandle::ExportECPublicRaw(
   const KeyObjectData& data = key->Data();
   CHECK_NE(data.GetKeyType(), kKeyTypeSecret);
 
-  Mutex::ScopedLock lock(data.mutex());
   const auto& m_pkey = data.GetAsymmetricKey();
   if (!m_pkey.isA(KeyAlgorithm::EC)) {
     return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
@@ -1570,7 +1556,6 @@ void KeyObjectHandle::ExportECPrivateRaw(
   const KeyObjectData& data = key->Data();
   CHECK_EQ(data.GetKeyType(), kKeyTypePrivate);
 
-  Mutex::ScopedLock lock(data.mutex());
   const auto& m_pkey = data.GetAsymmetricKey();
   if (!m_pkey.isA(KeyAlgorithm::EC)) {
     return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
@@ -1593,7 +1578,6 @@ void KeyObjectHandle::ExportECPrivatePkcs8(
   ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
   const KeyObjectData& data = key->Data();
   CHECK_EQ(data.GetKeyType(), kKeyTypePrivate);
-  Mutex::ScopedLock lock(data.mutex());
   auto encoded = ncrypto::Ec::ExportPrivatePkcs8(data.GetAsymmetricKey());
   if (!encoded) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
@@ -1612,7 +1596,6 @@ void KeyObjectHandle::RawSeed(const v8::FunctionCallbackInfo<v8::Value>& args) {
   const KeyObjectData& data = key->Data();
   CHECK_EQ(data.GetKeyType(), kKeyTypePrivate);
 
-  Mutex::ScopedLock lock(data.mutex());
   const auto& pkey = data.GetAsymmetricKey();
 
   auto raw_data = pkey.rawSeed();
@@ -1800,7 +1783,6 @@ std::unique_ptr<worker::TransferData> NativeKeyObject::CloneForMessaging()
 WebCryptoKeyExportStatus PKEY_SPKI_Export(const KeyObjectData& key_data,
                                           ByteSource* out) {
   CHECK_EQ(key_data.GetKeyType(), kKeyTypePublic);
-  Mutex::ScopedLock lock(key_data.mutex());
   auto bio = key_data.GetAsymmetricKey().derPublicKey();
   if (!bio) return WebCryptoKeyExportStatus::FAILED;
   *out = ByteSource::FromBIO(bio);
@@ -1810,12 +1792,23 @@ WebCryptoKeyExportStatus PKEY_SPKI_Export(const KeyObjectData& key_data,
 WebCryptoKeyExportStatus PKEY_PKCS8_Export(const KeyObjectData& key_data,
                                            ByteSource* out) {
   CHECK_EQ(key_data.GetKeyType(), kKeyTypePrivate);
-  Mutex::ScopedLock lock(key_data.mutex());
   const auto& m_pkey = key_data.GetAsymmetricKey();
+  EVP_PKEY* export_key = m_pkey.get();
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  // OpenSSL's provider EC PKCS8 encoders temporarily change encoding flags.
+  // Use an independent key so concurrent exports do not change the source.
+  EVPKeyPointer key_copy;
+  if ((m_pkey.isA(KeyAlgorithm::EC) || m_pkey.isA(KeyAlgorithm::SM2)) &&
+      EVP_PKEY_get0_provider(m_pkey.get()) != nullptr) {
+    key_copy.reset(EVP_PKEY_dup(m_pkey.get()));
+    if (!key_copy) return WebCryptoKeyExportStatus::FAILED;
+    export_key = key_copy.get();
+  }
+#endif
 
   auto bio = BIOPointer::NewMem();
   CHECK(bio);
-  PKCS8Pointer p8inf(EVP_PKEY2PKCS8(m_pkey.get()));
+  PKCS8Pointer p8inf(EVP_PKEY2PKCS8(export_key));
   if (!i2d_PKCS8_PRIV_KEY_INFO_bio(bio.get(), p8inf.get()))
     return WebCryptoKeyExportStatus::FAILED;
 
