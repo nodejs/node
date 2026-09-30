@@ -219,6 +219,7 @@ typedef void (*uv_fs_callback_t)(uv_fs_t*);
 
 void FSContinuationData::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("paths", paths_);
+  tracker->TrackField("enoent_paths", enoent_paths_);
 }
 
 FileHandleReadWrap::~FileHandleReadWrap() = default;
@@ -1966,6 +1967,9 @@ int MKDirpSync(uv_loop_t* loop,
           std::string dirname =
               next_path.substr(0, next_path.find_last_of(kPathSeparator));
           if (dirname != next_path) {
+            if (!req_wrap->continuation_data()->ShouldRetryENOENT(next_path)) {
+              return err;
+            }
             req_wrap->continuation_data()->PushPath(std::move(next_path));
             req_wrap->continuation_data()->PushPath(std::move(dirname));
           } else if (req_wrap->continuation_data()->paths().empty()) {
@@ -2047,6 +2051,10 @@ int MKDirpAsync(
               std::string dirname =
                   path.substr(0, path.find_last_of(kPathSeparator));
               if (dirname != path) {
+                if (!req_wrap->continuation_data()->ShouldRetryENOENT(path)) {
+                  req_wrap->continuation_data()->Done(err);
+                  break;
+                }
                 req_wrap->continuation_data()->PushPath(path);
                 req_wrap->continuation_data()->PushPath(std::move(dirname));
               } else if (req_wrap->continuation_data()->paths().empty()) {
