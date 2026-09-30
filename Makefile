@@ -1523,10 +1523,10 @@ format-md: tools/lint-md/node_modules/remark-parse/package.json ## Format the ma
 	@$(call available-node,$(run-format-md))
 
 
-
+ESLINT_CACHE_FLAGS ?= --cache
 LINT_JS_TARGETS = eslint.config.mjs benchmark doc lib test tools
 
-run-lint-js = tools/eslint/node_modules/eslint/bin/eslint.js --cache \
+run-lint-js = tools/eslint/node_modules/eslint/bin/eslint.js $(ESLINT_CACHE_FLAGS) \
 	--max-warnings=0 --report-unused-disable-directives \
 	--concurrency auto $(LINT_JS_TARGETS)
 run-lint-js-fix = $(run-lint-js) --fix

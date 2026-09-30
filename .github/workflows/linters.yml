@@ -93,13 +93,29 @@ jobs:
         with:
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
+        id: setup-node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            tools/doc/package-lock.json
+            tools/eslint/package-lock.json
+            tools/lint-md/package-lock.json
+      - name: Cache ESLint results
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        env:
+          # ESLint only invalidates its cache on config changes, so the key also
+          # covers the custom rules and the files they read.
+          cache-prefix: eslint-${{ runner.os }}-${{ steps.setup-node.outputs.node-version }}-${{ hashFiles('eslint.config.mjs', '*/eslint.config_partial.mjs', 'tools/eslint/*', 'tools/eslint-rules/**', 'doc/api/errors.md', 'doc/api/deprecations.md') }}
+        with:
+          path: .eslintcache
+          key: ${{ env.cache-prefix }}-${{ github.sha }}
+          restore-keys: ${{ env.cache-prefix }}-
       - name: Lint JavaScript files
         run: |
           set +e
-          NODE=$(command -v node) make lint-js
+          NODE=$(command -v node) make lint-js ESLINT_CACHE_FLAGS='--cache --cache-strategy content'
           EXIT_CODE="$?"
           if [ "$EXIT_CODE" != "0" ]; then
             echo
