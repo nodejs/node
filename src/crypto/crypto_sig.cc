@@ -712,7 +712,6 @@ Maybe<void> SignTraits::AdditionalConfig(
     }
     // If this is an EC key (assuming ECDSA) we need to convert the
     // the signature from WebCrypto format into DER format...
-    Mutex::ScopedLock lock(params->key.mutex());
     const auto& akey = params->key.GetAsymmetricKey();
     if (UseP1363Encoding(akey, params->dsa_encoding)) {
       params->signature = ConvertSignatureToDER(akey, signature.ToByteSource());
