@@ -8,7 +8,6 @@ const experimentalBuiltins = [
   ['bench/reporters', '--experimental-bench', true],
   ['dtls', '--experimental-dtls', common.hasDtls],
   ['quic', '--experimental-quic', common.hasQuic],
-  ['vfs', '--experimental-vfs', true],
 ].filter(([, , available]) => available);
 
 for (const [id, flag] of experimentalBuiltins) {
@@ -25,6 +24,7 @@ for (const [id, flag] of experimentalBuiltins) {
 }
 
 const schemelessExperimentalBuiltins = [
+  ['vfs', '--experimental-vfs'],
   ['stream/iter', '--experimental-stream-iter'],
   ['zlib/iter', '--experimental-stream-iter'],
 ];

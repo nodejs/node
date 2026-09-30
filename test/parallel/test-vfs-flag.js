@@ -1,34 +1,45 @@
 'use strict';
 
-// node:vfs is gated behind --experimental-vfs. Without the flag the
-// module is not exposed; bare `vfs` (without the node: scheme) is also
-// blocked.
+// Both vfs and node:vfs are gated behind --experimental-vfs.
 
 require('../common');
 const { spawnSyncAndAssert } = require('../common/child_process');
 
-// Without the flag, requiring node:vfs throws ERR_UNKNOWN_BUILTIN_MODULE.
-{
-  spawnSyncAndAssert(process.execPath, [
-    '-e', 'require("node:vfs")',
-  ], { status: 1, stderr: /ERR_UNKNOWN_BUILTIN_MODULE/ });
+// Without the flag, or when explicitly disabled, neither specifier is exposed.
+for (const flags of [[], ['--no-experimental-vfs']]) {
+  for (const [id, requireError, importError] of [
+    ['vfs', 'MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND'],
+    ['node:vfs', 'ERR_UNKNOWN_BUILTIN_MODULE', 'ERR_UNKNOWN_BUILTIN_MODULE'],
+  ]) {
+    spawnSyncAndAssert(process.execPath, [
+      ...flags,
+      '-e',
+      `const assert = require('node:assert');
+       const { isBuiltin } = require('node:module');
+       assert.strictEqual(isBuiltin('${id}'), false);
+       assert.strictEqual(process.getBuiltinModule('${id}'), undefined);
+       assert.throws(() => require('${id}'), { code: '${requireError}' });`,
+    ], { status: 0 });
+
+    spawnSyncAndAssert(process.execPath, [
+      ...flags,
+      '--input-type=module',
+      '-e',
+      `import assert from 'node:assert';
+       await assert.rejects(import('${id}'), { code: '${importError}' });`,
+    ], { status: 0 });
+  }
 }
 
-// Without the flag, importing node:vfs throws ERR_UNKNOWN_BUILTIN_MODULE.
-{
-  spawnSyncAndAssert(process.execPath, [
-    '--input-type=module',
-    '-e', 'import("node:vfs").catch((e) => { console.error(e.code); process.exit(1); });',
-  ], {
-    status: 1,
-    stderr: /ERR_UNKNOWN_BUILTIN_MODULE/,
-  });
-}
-
-// With the flag, node:vfs loads and works.
-{
+// With the flag, both specifiers resolve to the same CommonJS exports.
+for (const id of ['vfs', 'node:vfs']) {
   const script =
-    'const v = require("node:vfs");' +
+    'const assert = require("node:assert");' +
+    `const v = require('${id}');` +
+    'assert.strictEqual(v, require("node:vfs"));' +
+    `assert.strictEqual(require.resolve('${id}'), '${id}');` +
+    `assert.strictEqual(require('node:module').isBuiltin('${id}'), true);` +
+    `assert.strictEqual(process.getBuiltinModule('${id}'), v);` +
     'const x = v.create();' +
     'x.writeFileSync("/x", "hi");' +
     'console.log(x.readFileSync("/x", "utf8"));';
@@ -38,15 +49,22 @@ const { spawnSyncAndAssert } = require('../common/child_process');
   });
 }
 
-// Bare `vfs` (no node: scheme) is always blocked.
+// Static and dynamic ESM imports share the same module and named exports.
 {
   spawnSyncAndAssert(process.execPath, [
     '--experimental-vfs',
-    '-e', "require('vfs')",
-  ], { status: 1, stderr: /Cannot find module 'vfs'/ });
+    '--input-type=module',
+    '-e',
+    `import assert from 'node:assert';
+     import vfs, { create } from 'vfs';
+     import nodeVfs, { create as nodeCreate } from 'node:vfs';
+     assert.strictEqual(vfs, nodeVfs);
+     assert.strictEqual(create, nodeCreate);
+     assert.strictEqual(await import('vfs'), await import('node:vfs'));`,
+  ], { status: 0 });
 }
 
-// Module.builtinModules reflects whether --experimental-vfs is active.
+// Module.builtinModules lists the bare name when --experimental-vfs is active.
 for (const [flag, expected] of [
   ['--experimental-vfs', 'true\n'],
   ['--no-experimental-vfs', 'false\n'],
@@ -54,6 +72,6 @@ for (const [flag, expected] of [
   spawnSyncAndAssert(process.execPath, [
     flag,
     '-p',
-    'require("node:module").builtinModules.includes("node:vfs")',
+    'require("node:module").builtinModules.includes("vfs")',
   ], { stdout: expected, stderr: '' });
 }
