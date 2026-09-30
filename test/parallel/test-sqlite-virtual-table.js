@@ -347,7 +347,7 @@ suite('Database.prototype.createModule()', () => {
     });
 
     test('does not pass null for parameters that are unavailable in a plan', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
 
       db.createModule('join_params', {
         columns: [
