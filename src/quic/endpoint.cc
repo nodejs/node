@@ -1,4 +1,3 @@
-#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <aliased_struct-inl.h>
@@ -2194,4 +2193,3 @@ JS_METHOD_IMPL(Endpoint::DoSetSNIContexts) {
 }  // namespace quic
 }  // namespace node
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL && HAVE_QUIC

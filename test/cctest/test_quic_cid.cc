@@ -1,4 +1,3 @@
-#if HAVE_OPENSSL && HAVE_QUIC
 #include "quic/guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <env-inl.h>
@@ -117,4 +116,3 @@ TEST(CID, Basic) {
   }
 }
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL && HAVE_QUIC

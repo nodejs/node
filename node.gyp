@@ -1331,11 +1331,7 @@
         }, {
           'sources!': [ '<@(node_cctest_openssl_sources)' ],
         }],
-        [ 'node_use_quic=="true"', {
-          'defines': [
-            'HAVE_QUIC=1',
-          ],
-        }, {
+        [ 'node_use_quic!="true"', {
           'sources!': [ '<@(node_cctest_quic_sources)' ],
         }],
         ['v8_enable_inspector==1', {
