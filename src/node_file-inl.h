@@ -6,6 +6,8 @@
 #include "node_file.h"
 #include "req_wrap-inl.h"
 
+#include <type_traits>
+
 namespace node {
 namespace fs {
 
@@ -204,6 +206,37 @@ FSReqPromise<AliasedBufferT>::~FSReqPromise() {
   CHECK_IMPLIES(!finished_, !env()->can_call_into_js());
 }
 
+inline bool FSOperationChannelHasSubscribers(FSOperationChannels& channels,
+                                             FSOperationChannel channel) {
+  diagnostics_channel::Channel* ch =
+      channels[static_cast<size_t>(channel)].get();
+  return ch != nullptr && ch->HasSubscribers();
+}
+
+inline bool AnyFSOperationChannelHasSubscribers(FSOperationChannels& channels) {
+  for (size_t i = 0; i < kNumFSOperationChannels; i++) {
+    diagnostics_channel::Channel* ch = channels[i].get();
+    if (ch != nullptr && ch->HasSubscribers()) return true;
+  }
+  return false;
+}
+
+// Returns the file descriptor an fs operation acts on, or -1 for operations
+// that take a path. libuv takes the descriptor as the first argument after
+// the request for every descriptor-based operation (close, read, write,
+// fstat, ...), while path-based operations take a string there.
+inline int FSOperationFd() {
+  return -1;
+}
+template <typename First, typename... Rest>
+inline int FSOperationFd(First first, Rest...) {
+  if constexpr (std::is_same_v<First, int>) {
+    return first;
+  } else {
+    return -1;
+  }
+}
+
 template <typename AliasedBufferT>
 FSReqPromise<AliasedBufferT>::FSReqPromise(BindingData* binding_data,
                                            v8::Local<v8::Object> obj,
@@ -214,6 +247,7 @@ FSReqPromise<AliasedBufferT>::FSReqPromise(BindingData* binding_data,
 template <typename AliasedBufferT>
 void FSReqPromise<AliasedBufferT>::Reject(v8::Local<v8::Value> reject) {
   finished_ = true;
+  PublishFSOpCompletionEvent(this, FSOperationChannel::kError, "error", reject);
   v8::HandleScope scope(env()->isolate());
   InternalCallbackScope callback_scope(this);
   v8::Local<v8::Value> value;
@@ -232,6 +266,8 @@ void FSReqPromise<AliasedBufferT>::Reject(v8::Local<v8::Value> reject) {
 template <typename AliasedBufferT>
 void FSReqPromise<AliasedBufferT>::Resolve(v8::Local<v8::Value> value) {
   finished_ = true;
+  PublishFSOpCompletionEvent(
+      this, FSOperationChannel::kAsyncEnd, "result", value);
   v8::HandleScope scope(env()->isolate());
   InternalCallbackScope callback_scope(this);
   v8::Local<v8::Value> val;
@@ -311,6 +347,7 @@ FSReqBase* GetReqWrap(const v8::FunctionCallbackInfo<v8::Value>& args,
         result =
             FSReqPromise<AliasedFloat64Array>::New(binding_data, use_bigint);
       }
+      result->set_is_promise(true);
     }
   }
   if (result != nullptr) {
@@ -328,6 +365,27 @@ FSReqBase* AsyncDestCall(Environment* env, FSReqBase* req_wrap,
                          Func fn, Args... fn_args) {
   CHECK_NOT_NULL(req_wrap);
   req_wrap->Init(syscall, dest, len, enc);
+  BindingData* binding = req_wrap->binding_data();
+  const char* api = req_wrap->is_promise() ? "promise" : "callback";
+  FSOperationChannels* channels = nullptr;
+  // See SyncCallAndThrowIf: instrumentation is unsafe with a pending
+  // exception.
+  if (binding != nullptr && !env->isolate()->HasPendingException()) {
+    channels = GetFSOperationChannels(binding, env, syscall);
+    req_wrap->set_op_channels(channels);
+    if (channels != nullptr && FSOperationChannelHasSubscribers(
+                                   *channels, FSOperationChannel::kStart)) {
+      PublishFSOperationEvent(env,
+                              *channels,
+                              FSOperationChannel::kStart,
+                              api,
+                              nullptr,
+                              req_wrap->data(),
+                              -1,
+                              nullptr,
+                              v8::Local<v8::Value>());
+    }
+  }
   int err = req_wrap->Dispatch(fn, fn_args..., after);
   if (err < 0) {
     uv_fs_t* uv_req = req_wrap->req();
@@ -335,6 +393,23 @@ FSReqBase* AsyncDestCall(Environment* env, FSReqBase* req_wrap,
     uv_req->path = nullptr;
     after(uv_req);  // after may delete req_wrap if there is an error
     req_wrap = nullptr;
+  } else if (channels != nullptr &&
+             AnyFSOperationChannelHasSubscribers(*channels)) {
+    const char* path = req_wrap->req()->path;
+    int fd = FSOperationFd(fn_args...);
+    req_wrap->set_fd(fd);
+    // The path is captured for the completion events; it requires a copy
+    // since the uv request is cleaned up before they fire.
+    req_wrap->set_op_path(path == nullptr ? std::string() : path);
+    PublishFSOperationEvent(env,
+                            *channels,
+                            FSOperationChannel::kEnd,
+                            api,
+                            path,
+                            req_wrap->data(),
+                            fd,
+                            nullptr,
+                            v8::Local<v8::Value>());
   }
   return req_wrap;
 }
@@ -389,7 +464,64 @@ int SyncCallAndThrowIf(Predicate should_throw,
                        Func fn,
                        Args... args) {
   env->PrintSyncTrace();
+  BindingData* binding = Realm::GetBindingData<BindingData>(env->context());
+  FSOperationChannels* channels = nullptr;
+  // The instrumentation creates V8 objects and may run subscribers, neither
+  // of which is safe with a pending exception (a multi-step operation keeps
+  // going after a failed step to clean up, e.g. write + close).
+  if (binding != nullptr && !env->isolate()->HasPendingException()) {
+    channels = GetFSOperationChannels(binding, env, req_wrap->syscall_p);
+    if (channels != nullptr && FSOperationChannelHasSubscribers(
+                                   *channels, FSOperationChannel::kStart)) {
+      PublishFSOperationEvent(env,
+                              *channels,
+                              FSOperationChannel::kStart,
+                              "sync",
+                              req_wrap->path_p,
+                              req_wrap->dest_p,
+                              -1,
+                              nullptr,
+                              v8::Local<v8::Value>());
+    }
+  }
   int result = fn(nullptr, &(req_wrap->req), args..., nullptr);
+  if (channels != nullptr) {
+    if (should_throw(result)) {
+      // The error object is only built when someone is listening; the throw
+      // path below creates its own copy.
+      if (FSOperationChannelHasSubscribers(*channels,
+                                           FSOperationChannel::kError)) {
+        int fd = FSOperationFd(args...);
+        v8::Local<v8::Value> error = UVException(env->isolate(),
+                                                 result,
+                                                 req_wrap->syscall_p,
+                                                 nullptr,
+                                                 req_wrap->path_p,
+                                                 req_wrap->dest_p);
+        PublishFSOperationEvent(env,
+                                *channels,
+                                FSOperationChannel::kError,
+                                "sync",
+                                req_wrap->path_p,
+                                req_wrap->dest_p,
+                                fd,
+                                "error",
+                                error);
+      }
+    } else if (FSOperationChannelHasSubscribers(*channels,
+                                                FSOperationChannel::kEnd)) {
+      int fd = FSOperationFd(args...);
+      PublishFSOperationEvent(env,
+                              *channels,
+                              FSOperationChannel::kEnd,
+                              "sync",
+                              req_wrap->path_p,
+                              req_wrap->dest_p,
+                              fd,
+                              "result",
+                              v8::Integer::New(env->isolate(), result));
+    }
+  }
   if (should_throw(result)) {
     env->ThrowUVException(result,
                           req_wrap->syscall_p,
