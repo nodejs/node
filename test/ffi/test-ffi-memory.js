@@ -371,6 +371,16 @@ test('ffi rejects unsafe integers as an offset or length', () => {
   }));
 });
 
+test('ffi toBuffer and toArrayBuffer throw when the copy cannot be allocated', {
+  skip: (bufferConstants.MAX_LENGTH < 2 ** 50 && 'requires a 64-bit buffer length limit') ||
+        (common.isASan && 'ASan aborts on huge allocations'),
+}, () => {
+  // The allocation fails before the source pointer is read.
+  const error = { code: 'ERR_MEMORY_ALLOCATION_FAILED' };
+  assert.throws(() => ffi.toBuffer(1n, 2 ** 50), error);
+  assert.throws(() => ffi.toArrayBuffer(1n, 2 ** 50), error);
+});
+
 test('ffi memory helpers reject missing required arguments', () => {
   const widths = ['Int8', 'Uint8', 'Int16', 'Uint16', 'Int32', 'Uint32',
                   'Int64', 'Uint64', 'Float32', 'Float64'];
