@@ -471,7 +471,6 @@
       'defines': [ 'NODE_SHARED_FFI=0' ]
     }],
     [ 'node_use_quic=="true"', {
-      'defines': [ 'HAVE_QUIC=1' ],
       'conditions': [
         [ 'node_shared_openssl=="false"', {
           'dependencies': [
@@ -484,8 +483,6 @@
           ],
         }],
       ],
-    }, {
-      'defines': [ 'HAVE_QUIC=0' ]
     }],
   ],
 }

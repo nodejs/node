@@ -1,5 +1,3 @@
-#include "util.h"
-#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <async_wrap-inl.h>
@@ -16,6 +14,7 @@
 #include "http3.h"
 #include "packet.h"
 #include "session.h"
+#include "util.h"
 
 namespace node {
 
@@ -460,4 +459,3 @@ std::unique_ptr<Session::Application> CreateDefaultApplication(
 }  // namespace node
 
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL && HAVE_QUIC
