@@ -187,7 +187,6 @@ KeyObjectData ImportJWKSecretKey(Environment* env, Local<Object> jwk) {
 static bool ExportJWKRawKey(Environment* env,
                             const KeyObjectData& key,
                             Local<Object> target) {
-  Mutex::ScopedLock lock(key.mutex());
   auto result =
       key.GetAsymmetricKey().exportRawJwk(key.GetKeyType() == kKeyTypePrivate);
   if (!result) {
@@ -416,7 +415,6 @@ bool KeyObjectData::ToEncodedPublicKey(
     return ExportJWKInner(
         env, addRefWithType(KeyType::kKeyTypePublic), *out, false);
   } else if (config.format == EVPKeyPointer::PKFormatType::RAW_PUBLIC) {
-    Mutex::ScopedLock lock(mutex());
     const auto& pkey = GetAsymmetricKey();
     const auto* algorithm = pkey.getAlgorithm();
     if (algorithm == &KeyAlgorithm::EC) {
@@ -471,7 +469,6 @@ bool KeyObjectData::ToEncodedPrivateKey(
     return ExportJWKInner(
         env, addRefWithType(KeyType::kKeyTypePrivate), *out, false);
   } else if (config.format == EVPKeyPointer::PKFormatType::RAW_PRIVATE) {
-    Mutex::ScopedLock lock(mutex());
     const auto& pkey = GetAsymmetricKey();
     const auto* algorithm = pkey.getAlgorithm();
     if (algorithm == &KeyAlgorithm::EC) {
@@ -497,7 +494,6 @@ bool KeyObjectData::ToEncodedPrivateKey(
     return Buffer::Copy(env, raw_data.get<const char>(), raw_data.size())
         .ToLocal(out);
   } else if (config.format == EVPKeyPointer::PKFormatType::RAW_SEED) {
-    Mutex::ScopedLock lock(mutex());
     const auto& pkey = GetAsymmetricKey();
     auto raw_data = pkey.rawSeed();
     if (!raw_data) {
@@ -1056,9 +1052,7 @@ KeyObjectData::KeyObjectData(ByteSource symmetric_key)
       data_(std::make_shared<Data>(std::move(symmetric_key))) {}
 
 KeyObjectData::KeyObjectData(KeyType type, EVPKeyPointer&& pkey)
-    : key_type_(type),
-      mutex_(std::make_shared<Mutex>()),
-      data_(std::make_shared<Data>(std::move(pkey))) {}
+    : key_type_(type), data_(std::make_shared<Data>(std::move(pkey))) {}
 
 void KeyObjectData::Data::MemoryInfo(MemoryTracker* tracker) const {
   if (asymmetric_key) {
@@ -1073,11 +1067,6 @@ void KeyObjectData::Data::MemoryInfo(MemoryTracker* tracker) const {
 
 void KeyObjectData::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("data", data_);
-}
-
-Mutex& KeyObjectData::mutex() const {
-  if (!mutex_) mutex_ = std::make_shared<Mutex>();
-  return *mutex_.get();
 }
 
 KeyObjectData KeyObjectData::CreateSecret(ByteSource key) {
@@ -1474,7 +1463,6 @@ void KeyObjectHandle::RawPublicKey(
   const KeyObjectData& data = key->Data();
   CHECK_NE(data.GetKeyType(), kKeyTypeSecret);
 
-  Mutex::ScopedLock lock(data.mutex());
   const auto& pkey = data.GetAsymmetricKey();
 
   const bool is_raw_supported = pkey.supportsRawPublic();
@@ -1502,7 +1490,6 @@ void KeyObjectHandle::RawPrivateKey(
   const KeyObjectData& data = key->Data();
   CHECK_EQ(data.GetKeyType(), kKeyTypePrivate);
 
-  Mutex::ScopedLock lock(data.mutex());
   const auto& pkey = data.GetAsymmetricKey();
 
   const bool is_raw_supported = pkey.supportsRawPrivate();
@@ -1530,7 +1517,6 @@ void KeyObjectHandle::ExportECPublicRaw(
   const KeyObjectData& data = key->Data();
   CHECK_NE(data.GetKeyType(), kKeyTypeSecret);
 
-  Mutex::ScopedLock lock(data.mutex());
   const auto& m_pkey = data.GetAsymmetricKey();
   if (!m_pkey.isA(KeyAlgorithm::EC)) {
     return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
@@ -1569,7 +1555,6 @@ void KeyObjectHandle::ExportECPrivateRaw(
   const KeyObjectData& data = key->Data();
   CHECK_EQ(data.GetKeyType(), kKeyTypePrivate);
 
-  Mutex::ScopedLock lock(data.mutex());
   const auto& m_pkey = data.GetAsymmetricKey();
   if (!m_pkey.isA(KeyAlgorithm::EC)) {
     return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
@@ -1592,7 +1577,6 @@ void KeyObjectHandle::ExportECPrivatePkcs8(
   ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
   const KeyObjectData& data = key->Data();
   CHECK_EQ(data.GetKeyType(), kKeyTypePrivate);
-  Mutex::ScopedLock lock(data.mutex());
   auto encoded = ncrypto::Ec::ExportPrivatePkcs8(data.GetAsymmetricKey());
   if (!encoded) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
@@ -1611,7 +1595,6 @@ void KeyObjectHandle::RawSeed(const v8::FunctionCallbackInfo<v8::Value>& args) {
   const KeyObjectData& data = key->Data();
   CHECK_EQ(data.GetKeyType(), kKeyTypePrivate);
 
-  Mutex::ScopedLock lock(data.mutex());
   const auto& pkey = data.GetAsymmetricKey();
 
   auto raw_data = pkey.rawSeed();
