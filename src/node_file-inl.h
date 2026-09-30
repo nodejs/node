@@ -6,6 +6,8 @@
 #include "node_file.h"
 #include "req_wrap-inl.h"
 
+#include <algorithm>
+
 namespace node {
 namespace fs {
 
@@ -25,6 +27,15 @@ void FSContinuationData::MaybeSetFirstPath(const std::string& path) {
   if (first_path_.empty()) {
     first_path_ = path;
   }
+}
+
+bool FSContinuationData::ShouldRetryENOENT(const std::string& path) {
+  if (std::find(enoent_paths_.begin(), enoent_paths_.end(), path) !=
+      enoent_paths_.end()) {
+    return false;
+  }
+  enoent_paths_.push_back(path);
+  return true;
 }
 
 std::string FSContinuationData::PopPath() {
