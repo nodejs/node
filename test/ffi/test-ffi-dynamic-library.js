@@ -290,6 +290,21 @@ test('closed libraries reject subsequent operations', () => {
   assert.throws(() => lib.getSymbols(), /Library is closed/);
 });
 
+test('closing the library from a signature getter of a cached function', () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+  lib.getFunction('add_i32', fixtureSymbols.add_i32);
+
+  assert.throws(() => {
+    lib.getFunction('add_i32', {
+      arguments: ['i32', 'i32'],
+      get return() {
+        lib.close();
+        return 'i32';
+      },
+    });
+  }, { code: 'ERR_FFI_LIBRARY_CLOSED' });
+});
+
 test('optimized fast calls reject calls after the library is closed', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
     multiply_f64: fixtureSymbols.multiply_f64,

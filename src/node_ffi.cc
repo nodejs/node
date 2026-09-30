@@ -144,12 +144,14 @@ Maybe<void*> DynamicLibrary::ResolveSymbol(Environment* env,
 Maybe<DynamicLibrary::PreparedFunction> DynamicLibrary::PrepareFunction(
     Environment* env, const std::string& name, Local<Object> signature) {
   std::shared_ptr<FFIFunction> fn;
-  auto existing = functions_.find(name);
   FunctionSignature parsed;
 
   if (!ParseFunctionSignature(env, name, signature).To(&parsed)) {
     return {};
   }
+  // Look up the cache only after parsing: the signature's getters run user
+  // code that may close the library, which clears `functions_`.
+  auto existing = functions_.find(name);
   auto [return_type, args, return_type_name, arg_type_names] =
       std::move(parsed);
 
