@@ -210,7 +210,6 @@ WebCryptoCipherStatus RSA_Cipher(Environment* env,
                                  const ByteSource& in,
                                  ByteSource* out) {
   CHECK_NE(key_data.GetKeyType(), kKeyTypeSecret);
-  Mutex::ScopedLock lock(key_data.mutex());
   const auto& m_pkey = key_data.GetAsymmetricKey();
   const ncrypto::Rsa::CipherParams nparams{
       .padding = params.padding,
