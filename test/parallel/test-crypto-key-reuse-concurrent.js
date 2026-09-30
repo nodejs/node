@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -18,6 +19,17 @@ const { once } = require('events');
 const { promisify } = require('util');
 const { Worker, parentPort, workerData } = require('worker_threads');
 const fixtures = require('../common/fixtures');
+const { internalBinding } = require('internal/test/binding');
+const { getKeyObjectHandle } = require('internal/crypto/keys');
+const {
+  ECKeyExportJob,
+  RSAKeyExportJob,
+  kCryptoJobWebCrypto,
+  kKeyVariantRSA_SSA_PKCS1_v1_5,
+  kWebCryptoKeyFormatRaw,
+  kWebCryptoKeyFormatPKCS8,
+  kWebCryptoKeyFormatSPKI,
+} = internalBinding('crypto');
 const { subtle } = globalThis.crypto;
 const signAsync = promisify(sign);
 const verifyAsync = promisify(verify);
@@ -28,6 +40,14 @@ const sec1 = { type: 'sec1', format: 'der' };
 const spki = { type: 'spki', format: 'der' };
 const iterations = 16;
 
+function exportLegacyKey(Job, format, key, expected, ...params) {
+  return new Job(
+    kCryptoJobWebCrypto, format, getKeyObjectHandle(key), ...params)
+    .run().then((encoded) => {
+      assert.deepStrictEqual(Buffer.from(encoded), Buffer.from(expected));
+    });
+}
+
 async function exercise({ keys, peer, expected }) {
   // Check generated signatures and exports with independent imports that do
   // not warm the shared key's provider caches before its first operation.
@@ -37,6 +57,9 @@ async function exercise({ keys, peer, expected }) {
   const referencePublic = createPublicKey({ key: expected.public, ...spki });
   const referencePem = referencePrivate.export(pkcs8Pem);
   const referenceSec1 = referencePrivate.export(sec1);
+  const referenceRsaPublic = createPublicKey({
+    key: expected.rsa.public, ...spki,
+  });
 
   for (let i = 0; i < iterations; i++) {
     const data = Buffer.from(`shared key operation ${i}`);
@@ -76,6 +99,40 @@ async function exercise({ keys, peer, expected }) {
       );
     }
 
+    // Public Web Crypto exports use direct bindings. Exercise the older
+    // export jobs explicitly while the same keys are used by other jobs.
+    pending.push(
+      exportLegacyKey(ECKeyExportJob, kWebCryptoKeyFormatRaw,
+                      keys.publicKey, expected.rawPublic),
+      exportLegacyKey(ECKeyExportJob, kWebCryptoKeyFormatSPKI,
+                      keys.publicKey, expected.public),
+      exportLegacyKey(ECKeyExportJob, kWebCryptoKeyFormatPKCS8,
+                      keys.privateKey, expected.originalPrivate),
+      exportLegacyKey(RSAKeyExportJob, kWebCryptoKeyFormatSPKI,
+                      keys.rsa.publicKey, expected.rsa.public,
+                      kKeyVariantRSA_SSA_PKCS1_v1_5),
+      exportLegacyKey(RSAKeyExportJob, kWebCryptoKeyFormatPKCS8,
+                      keys.rsa.privateKey, expected.rsa.private,
+                      kKeyVariantRSA_SSA_PKCS1_v1_5),
+      assert.rejects(new ECKeyExportJob(
+        kCryptoJobWebCrypto, kWebCryptoKeyFormatPKCS8,
+        getKeyObjectHandle(keys.publicKey)).run(), (err) => {
+        assert.strictEqual(err.name, 'OperationError');
+        assert.strictEqual(
+          err.message, 'The operation failed for an operation-specific reason');
+        assert.strictEqual(err.cause?.message, 'Invalid key type');
+        return true;
+      }),
+      signAsync('sha256', data, keys.rsa.privateKey).then((signature) => {
+        assert.strictEqual(
+          verify('sha256', data, referenceRsaPublic, signature), true);
+        return verifyAsync('sha256', data, keys.rsa.publicKey, signature)
+          .then((valid) => {
+            assert.strictEqual(valid, true);
+          });
+      }),
+    );
+
     // Export, compare, and query metadata while jobs use this same native key
     // in the threadpool and other Workers. Fresh wrappers also exercise the
     // native metadata getters on every iteration rather than their JS caches.
@@ -106,7 +163,8 @@ async function exercise({ keys, peer, expected }) {
       format: 'raw-public', type: 'compressed',
     }), Buffer.from(expected.compressedPublic));
     assert.deepStrictEqual(
-      publicKey.export(spki), Buffer.from(expected.public));
+      publicKey.export(spki),
+      Buffer.from(expected.originalPublic ?? expected.public));
     assert.deepStrictEqual(
       privateKey.export(pkcs8), Buffer.from(expected.originalPrivate));
     assert.strictEqual(privateKey.export(pkcs8Pem), referencePem);
@@ -161,8 +219,15 @@ if (workerData?.sharedKeyTest) {
     // exercising concurrent first use of the shared key. CryptoKey conversion
     // validates the key before its first concurrent sign/derive/export calls.
     const privateKey = createPrivateKey({ key: input, ...pkcs8 });
-    const publicKey = createPublicKey(privateKey);
-    const keys = { privateKey, publicKey };
+    const publicKey = expected.originalPublic === undefined ?
+      createPublicKey(privateKey) :
+      createPublicKey({ key: expected.originalPublic, ...spki });
+    const rsaPrivate = createPrivateKey({ key: expected.rsa.private, ...pkcs8 });
+    const keys = {
+      privateKey,
+      publicKey,
+      rsa: { privateKey: rsaPrivate, publicKey: createPublicKey(rsaPrivate) },
+    };
     if (webcrypto) {
       keys.ecdsaPrivate = privateKey.toCryptoKey({
         name: 'ECDSA', namedCurve: 'P-256',
@@ -198,6 +263,8 @@ if (workerData?.sharedKeyTest) {
       privateKey.export(pkcs8), Buffer.from(expected.originalPrivate));
     assert.deepStrictEqual(privateKey.export(sec1),
                            createPrivateKey({ key: input, ...pkcs8 }).export(sec1));
+    assert.deepStrictEqual(publicKey.export(spki),
+                           Buffer.from(expected.originalPublic ?? expected.public));
   }
 
   (async () => {
@@ -207,6 +274,7 @@ if (workerData?.sharedKeyTest) {
       namedCurve: 'prime256v1',
     });
     const privateJwk = reference.export({ format: 'jwk' });
+    const rsaPrivate = createPrivateKey(fixtures.readKey('rsa_private_2048.pem'));
     const expected = {
       private: reference.export(pkcs8),
       public: publicKey.export(spki),
@@ -224,6 +292,10 @@ if (workerData?.sharedKeyTest) {
           dsaEncoding: 'ieee-p1363',
         });
       }),
+      rsa: {
+        private: rsaPrivate.export(pkcs8),
+        public: createPublicKey(rsaPrivate).export(spki),
+      },
     };
     const cryptoPeer = peer.toCryptoKey({
       name: 'ECDH', namedCurve: 'P-256',
@@ -237,6 +309,14 @@ if (workerData?.sharedKeyTest) {
 
     const algorithmIdentifier = der(0x30, Buffer.from(
       '06072a8648ce3d020106082a8648ce3d030107', 'hex'));
+    const compressedPublic = der(
+      0x30, algorithmIdentifier,
+      der(0x03, Buffer.from([0]), expected.compressedPublic));
+    await run(expected.private, cryptoPeer, {
+      ...expected,
+      originalPrivate: expected.private,
+      originalPublic: compressedPublic,
+    });
     const ecPrivateKey = der(
       0x30, Buffer.from('020101', 'hex'),
       der(0x04, Buffer.from(privateJwk.d, 'base64url')));
