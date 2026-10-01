@@ -375,9 +375,9 @@ programs.
 #### Configuration file support
 
 In addition to passing permission flags on the command line, they can also be
-declared in a Node.js configuration file when using the experimental
-\[`--experimental-config-file`]\[] flag. Permission options must be placed inside
-the `permission` top-level object.
+declared in a Node.js configuration file when using the [`--config-file`][]
+flag. Permission options must be placed inside the `permission` top-level
+object.
 
 Example `node.config.json`:
 
@@ -400,7 +400,7 @@ When the `permission` namespace is present in the configuration file, Node.js
 automatically enables the `--permission` flag. Run with:
 
 ```console
-$ node --experimental-default-config-file app.js
+$ node --config-file app.js
 ```
 
 A configuration file, like the `NODE_OPTIONS` defined in an [`--env-file`][]
@@ -410,7 +410,7 @@ enable the Permission Model, the `allow-env` values these files define can only
 narrow the access that [`--allow-env`][] grants, and never widen it:
 
 ```console
-$ node --permission --allow-env=APP_* --experimental-config-file=node.config.json app.js
+$ node --permission --allow-env=APP_* --config-file=node.config.json app.js
 ```
 
 With `"allow-env": ["*"]` in `node.config.json`, only the variables starting with
@@ -539,6 +539,7 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
 [`--allow-openssl-store`]: cli.md#--allow-openssl-store
 [`--allow-wasi`]: cli.md#--allow-wasi
 [`--allow-worker`]: cli.md#--allow-worker
+[`--config-file`]: cli.md#--config-filepath---config-file
 [`--env-file-if-exists`]: cli.md#--env-file-if-existsfile
 [`--env-file`]: cli.md#--env-filefile
 [`--permission-audit`]: cli.md#--permission-audit
