@@ -8,14 +8,24 @@ const fake = { __proto__: Object.getPrototypeOf(queue) };
 const proxy = new Proxy(queue, {});
 
 const script = new vm.Script('');
-for (const invalid of [fake, proxy, {}, null, undefined, 1, 'queue']) {
-  const options = { microtaskMode: { type: 'manual', queue: invalid } };
-  for (const create of [
-    () => vm.createContext({}, options),
-    () => vm.runInNewContext('', {}, options),
-    () => script.runInNewContext({}, options),
-  ]) {
-    assert.throws(create, { code: 'ERR_INVALID_ARG_TYPE' });
+const createContext = (options) => vm.createContext({}, options);
+const runInNewContext = (options) => vm.runInNewContext('', {}, options);
+const scriptRunInNewContext =
+  (options) => script.runInNewContext({}, options);
+const contextCreators = [
+  createContext,
+  runInNewContext,
+  scriptRunInNewContext,
+];
+
+for (const create of contextCreators) {
+  assert.throws(() => {
+    create({ microtaskMode: { type: 'automatic', queue } });
+  }, { code: 'ERR_INVALID_ARG_VALUE' });
+
+  for (const invalid of [fake, proxy, {}, null, undefined, 1, 'queue']) {
+    const options = { microtaskMode: { type: 'manual', queue: invalid } };
+    assert.throws(() => create(options), { code: 'ERR_INVALID_ARG_TYPE' });
   }
 }
 
