@@ -848,7 +848,7 @@ for builtin in shareable_builtins:
 static_optgroup.add_argument('--static-zoslib-gyp',
     action='store',
     dest='static_zoslib_gyp',
-    help='path to zoslib.gyp file for includes and to link to static zoslib library')
+    help='path to zoslib.gyp file for includes and to link to static zoslib libraries')
 
 parser.add_argument('--tag',
     action='store',
@@ -1865,12 +1865,13 @@ def configure_mips(o, target_arch):
   o['variables']['v8_host_byteorder'] = host_byteorder
 
 def configure_zos(o):
-  o['variables']['node_static_zoslib'] = b(True)
-  if options.static_zoslib_gyp:
-    # Apply to all Node.js components for now
-    o['variables']['zoslib_include_dir'] = Path(options.static_zoslib_gyp).parent / 'include'
+  if 'ZOSLIB_INCLUDES' in os.environ and os.environ['ZOSLIB_INCLUDES']:
+    o['variables']['zoslib_include_dir'] = os.environ['ZOSLIB_INCLUDES']
     o['include_dirs'] += [o['variables']['zoslib_include_dir']]
   else:
+    raise Exception('Environment variable ZOSLIB_INCLUDES=<path to zoslib/include dir> is required.')
+
+  if not options.static_zoslib_gyp:
     raise Exception('--static-zoslib-gyp=<path to zoslib.gyp file> is required.')
 
 def clang_version_ge(version_checked):
@@ -2795,8 +2796,8 @@ def configure_intl(o):
     icu_config['variables']['icu_asm_ext'] = 'S'
     icu_config['variables']['icu_asm_opts'] = [ '-a', 'xlc' ]
   elif sys.platform == 'zos':
-    icu_config['variables']['icu_asm_ext'] = 'S'
-    icu_config['variables']['icu_asm_opts'] = [ '-a', 'zos' ]
+    icu_config['variables']['icu_asm_ext'] = 'c'
+    icu_config['variables']['icu_asm_opts'] = []
   else:
     # assume GCC-compatible asm is OK
     icu_config['variables']['icu_asm_ext'] = 'S'
