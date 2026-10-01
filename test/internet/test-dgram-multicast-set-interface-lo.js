@@ -31,11 +31,7 @@ const LOOPBACK = { IPv4: '127.0.0.1', IPv6: '::1' };
 const ANY = { IPv4: '0.0.0.0', IPv6: '::' };
 const FAM = 'IPv4';
 
-// Windows won't bind on multicasts so its filtering is by port.
 const PORTS = {};
-for (let i = 0; i < MULTICASTS[FAM].length; i++) {
-  PORTS[MULTICASTS[FAM][i]] = common.PORT + (common.isWindows ? i : 0);
-}
 
 const UDP = { IPv4: 'udp4', IPv6: 'udp6' };
 
@@ -116,6 +112,7 @@ if (process.argv[2] !== 'child') {
                          messagesNeeded.length,
                          NOW]);
     workers[worker.pid] = worker;
+    worker.multicast = MULTICAST;
 
     worker.messagesReceived = [];
     worker.messagesNeeded = messagesNeeded;
@@ -204,9 +201,32 @@ if (process.argv[2] !== 'child') {
     reuseAddr: true,
   });
 
-  // Don't bind the address explicitly when sending and start with
-  // the OSes default multicast interface selection.
-  sendSocket.bind(common.PORT, ANY[FAM]);
+  // Reserve the shared port before allowing the children to bind it.
+  // Windows won't bind on multicasts so its filtering is by port.
+  const sendSockets = [sendSocket];
+  if (common.isWindows) {
+    for (let i = 1; i < MULTICASTS[FAM].length; i++) {
+      sendSockets.push(dgram.createSocket({ type: UDP[FAM], reuseAddr: true }));
+    }
+  }
+  for (const [i, socket] of sendSockets.entries()) {
+    socket.on('listening', () => {
+      if (common.isWindows) {
+        PORTS[MULTICASTS[FAM][i]] = socket.address().port;
+      } else {
+        for (const multicast of MULTICASTS[FAM]) {
+          PORTS[multicast] = socket.address().port;
+        }
+      }
+      if (Object.keys(PORTS).length === MULTICASTS[FAM].length) {
+        for (const worker of Object.values(workers)) {
+          worker.send(PORTS[worker.multicast]);
+        }
+      }
+    });
+    // Start with the OS's default multicast interface selection.
+    socket.bind(0, ANY[FAM]);
+  }
   sendSocket.on('listening', () => {
     console.error(`outgoing iface ${interfaceAddress}`);
   });
@@ -219,7 +239,9 @@ if (process.argv[2] !== 'child') {
     const msg = messages[i++];
 
     if (!msg) {
-      sendSocket.close();
+      for (const socket of sendSockets) {
+        socket.close();
+      }
       return;
     }
     console.error(TMPL(NOW, msg.tail));
@@ -285,8 +307,10 @@ if (process.argv[2] === 'child') {
     process.send({ listening: true });
   });
 
-  if (common.isWindows)
-    listenSocket.bind(PORTS[MULTICAST], ANY[FAM]);
-  else
-    listenSocket.bind(common.PORT, MULTICAST);
+  process.once('message', common.mustCall((port) => {
+    if (common.isWindows)
+      listenSocket.bind(port, ANY[FAM]);
+    else
+      listenSocket.bind(port, MULTICAST);
+  }));
 }

@@ -39,7 +39,7 @@ const messages = [
 ];
 const workers = {};
 const listeners = 3;
-let listening, sendSocket, done, timer, dead;
+let listening, sendSocket, done, timer, dead, port;
 
 
 function launchChildProcess() {
@@ -151,7 +151,9 @@ if (process.argv[2] !== 'child') {
     launchChildProcess(x);
   }
 
-  sendSocket = dgram.createSocket('udp4');
+  // Share an ephemeral port with the receivers in this test.
+  sendSocket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+  sendSocket.bind(0);
 
   // The socket is actually created async now.
   sendSocket.on('listening', function() {
@@ -160,6 +162,10 @@ if (process.argv[2] !== 'child') {
     sendSocket.setMulticastTTL(1);
     sendSocket.setMulticastLoopback(true);
     sendSocket.setMulticastInterface(LOCAL_HOST_IFADDR);
+    port = sendSocket.address().port;
+    for (const worker of Object.values(workers)) {
+      worker.send(port);
+    }
   });
 
   sendSocket.on('close', function() {
@@ -180,12 +186,12 @@ if (process.argv[2] !== 'child') {
       buf,
       0,
       buf.length,
-      common.PORT,
+      port,
       LOCAL_BROADCAST_HOST,
       common.mustSucceed(() => {
         console.error('[PARENT] sent "%s" to %s:%s',
                       buf.toString(),
-                      LOCAL_BROADCAST_HOST, common.PORT);
+                      LOCAL_BROADCAST_HOST, port);
         process.nextTick(sendSocket.sendNext);
       }),
     );
@@ -230,5 +236,5 @@ if (process.argv[2] === 'child') {
     process.send({ listening: true });
   });
 
-  listenSocket.bind(common.PORT);
+  process.once('message', common.mustCall((port) => listenSocket.bind(port)));
 }

@@ -4,16 +4,17 @@ const common = require('../common');
 const { addresses } = require('../common/internet');
 const assert = require('assert');
 const dgram = require('dgram');
+const port = 12345;
 
 const client = dgram.createSocket('udp4');
-client.connect(common.PORT, addresses.INVALID_HOST, common.mustCall((err) => {
+client.connect(port, addresses.INVALID_HOST, common.mustCall((err) => {
   assert.ok(err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN');
 
   client.once('error', common.mustCall((err) => {
     assert.ok(err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN');
     client.once('connect', common.mustCall(() => client.close()));
-    client.connect(common.PORT);
+    client.connect(port);
   }));
 
-  client.connect(common.PORT, addresses.INVALID_HOST);
+  client.connect(port, addresses.INVALID_HOST);
 }));
