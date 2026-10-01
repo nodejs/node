@@ -617,6 +617,58 @@ test('should treat a space-separated config file path as the script',
        assert.strictEqual(result.code, 1);
      });
 
+describe('config file flags that are not Node.js options', () => {
+  const argsVariants = [
+    ['--config-file'],
+    ['--config-file', 'tool.config.mjs'],
+    ['--config-file=i-do-not-exist.json'],
+    ['--experimental-config-file'],
+    ['--experimental-config-file=i-do-not-exist.json'],
+    ['--experimental-default-config-file'],
+    ['--experimental-default-config-file=i-do-not-exist.json'],
+  ];
+
+  for (const args of argsVariants) {
+    it(`should not read ${args.join(' ')} after the script`, async () => {
+      const result = await spawnPromisified(process.execPath, [
+        fixtures.path('printA.js'),
+        ...args,
+      ], {
+        cwd: fixtures.path('rc'),
+      });
+      assert.strictEqual(result.stderr, '');
+      assert.strictEqual(result.stdout, 'A\n');
+      assert.strictEqual(result.code, 0);
+    });
+
+    it(`should not read ${args.join(' ')} after --`, async () => {
+      const result = await spawnPromisified(process.execPath, [
+        '-p', 'process.argv.slice(1).join(" ")',
+        '--',
+        ...args,
+      ], {
+        cwd: fixtures.path('rc'),
+      });
+      assert.strictEqual(result.stderr, '');
+      assert.strictEqual(result.stdout, `${args.join(' ')}\n`);
+      assert.strictEqual(result.code, 0);
+    });
+  }
+});
+
+test('should read the config file after an option that takes a separate value',
+     onlyIfNodeOptionsSupport, async () => {
+       const result = await spawnPromisified(process.execPath, [
+         '--no-warnings',
+         '--title', 'config-file-test',
+         `--config-file=${fixtures.path('rc/default/node.config.json')}`,
+         '-p', 'http.maxHeaderSize',
+       ]);
+       assert.strictEqual(result.stderr, '');
+       assert.strictEqual(result.stdout, '10\n');
+       assert.strictEqual(result.code, 0);
+     });
+
 test('should error when --config-file= has empty argument',
      onlyIfNodeOptionsSupport, async () => {
        const result = await spawnPromisified(process.execPath, [
