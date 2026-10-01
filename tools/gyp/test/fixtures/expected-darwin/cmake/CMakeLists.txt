@@ -1,5 +1,4 @@
-cmake_minimum_required(VERSION 2.8.8 FATAL_ERROR)
-cmake_policy(VERSION 2.8.8)
+cmake_minimum_required(VERSION 3.10)
 project(test)
 set(configuration "Default")
 enable_language(ASM)
