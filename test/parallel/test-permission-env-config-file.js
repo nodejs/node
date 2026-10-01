@@ -58,19 +58,19 @@ assert.deepStrictEqual(
   visible([
     '--permission',
     '--allow-env=PERMISSION_ENV_A',
-    `--experimental-config-file=${bothConfig}`,
+    `--config-file=${bothConfig}`,
   ]),
   ['PERMISSION_ENV_A']);
 
 assert.deepStrictEqual(
-  visible(['--permission', `--experimental-config-file=${allConfig}`]),
+  visible(['--permission', `--config-file=${allConfig}`]),
   []);
 
 assert.deepStrictEqual(
   visible([
     '--permission',
     '--allow-env=PERMISSION_ENV_PREFIX_*',
-    `--experimental-config-file=${prefixConfig}`,
+    `--config-file=${prefixConfig}`,
   ]),
   ['PERMISSION_ENV_PREFIX_DB_URL']);
 
@@ -86,7 +86,7 @@ assert.deepStrictEqual(
 // When only the configuration file enables the permission model, its
 // --allow-env values apply.
 assert.deepStrictEqual(
-  visible([`--experimental-config-file=${bothConfig}`]),
+  visible([`--config-file=${bothConfig}`]),
   ['PERMISSION_ENV_A', 'PERMISSION_ENV_B']);
 
 // The NODE_OPTIONS environment variable is not a file, and can grant access.

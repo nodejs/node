@@ -480,6 +480,130 @@ For example, to run a module with "development" resolutions:
 node -C development app.js
 .Ed
 .
+.It Fl -config-file Ns = Ns Ar path , Fl -config-file
+If present, Node.js will look for a configuration file at the specified path.
+If the path is not specified, Node.js will look for a \fBnode.config.json\fR file
+in the current working directory.
+To specify a custom path, use the \fB--config-file=path\fR form.
+The space-separated \fB--config-file path\fR form is not supported.
+Node.js will read the configuration file and apply the settings. The
+configuration file should be a JSON file with the following structure. \fBvX.Y.Z\fR
+in the \fB$schema\fR must be replaced with the version of Node.js you are using or
+\fBlatest-vX.x\fR for the latest version of that major release line.
+.Bd -literal
+{
+  "$schema": "https://nodejs.org/dist/vX.Y.Z/docs/node-config-schema.json",
+  "nodeOptions": {
+    "import": [
+      "amaro/strip"
+    ],
+    "watch-path": "src",
+    "watch-preserve-output": true
+  },
+  "test": {
+    "test-isolation": "process"
+  },
+  "watch": {
+    "watch-preserve-output": true
+  }
+}
+.Ed
+The configuration file supports namespace-specific options:
+.Bl -bullet
+.It
+The \fBnodeOptions\fR field contains CLI flags that are allowed in \fBNODE_OPTIONS\fR.
+.It
+Namespace fields like \fBtest\fR, \fBwatch\fR, and \fBpermission\fR contain configuration specific to that subsystem.
+.El
+The configuration file can target a specific Node.js major version with
+\fBnodeVersion\fR:
+.Bd -literal
+{
+  "nodeVersion": 25,
+  "nodeOptions": {
+    "watch-path": "src"
+  }
+}
+.Ed
+To keep multiple version-specific configurations in the same file, use the
+\fBconfigs\fR array. Node.js will use the first entry whose \fBnodeVersion\fR matches
+the current Node.js major version:
+.Bd -literal
+{
+  "$schema": "https://nodejs.org/dist/latest-v26.x/docs/node-config-schema.json",
+  "configs": [
+    {
+      "nodeVersion": 25,
+      "config": {
+        "$schema": "https://nodejs.org/dist/latest-v25.x/docs/node-config-schema.json",
+        "nodeOptions": {
+          "watch-path": "src"
+        }
+      }
+    }
+  ]
+}
+.Ed
+When \fBconfigs\fR is used, the top level may only contain \fB$schema\fR and
+\fBconfigs\fR. Each \fBconfigs\fR item must define an integer \fBnodeVersion\fR and an
+object \fBconfig\fR. A single top-level config does not require \fBnodeVersion\fR, but
+if present it must match the current Node.js major version.
+When a namespace is present in the
+configuration file, Node.js automatically enables the corresponding flag
+(e.g., \fB--test\fR, \fB--watch\fR, \fB--permission\fR). This allows you to configure
+subsystem-specific options without explicitly passing the flag on the command line.
+For example:
+.Bd -literal
+{
+  "test": {
+    "test-isolation": "process"
+  }
+}
+.Ed
+is equivalent to:
+.Bd -literal
+node --test --test-isolation=process
+.Ed
+To disable the automatic flag while still using namespace options, you can
+explicitly set the flag to \fBfalse\fR within the namespace:
+.Bd -literal
+{
+  "test": {
+    "test": false,
+    "test-isolation": "process"
+  }
+}
+.Ed
+No-op flags are not supported.
+Not all V8 flags are currently supported.
+It is possible to use the official JSON schema
+to validate the configuration file, which may vary depending on the Node.js version.
+Each key in the configuration file corresponds to a flag that can be passed
+as a command-line argument. The value of the key is the value that would be
+passed to the flag.
+For example, the configuration file above is equivalent to
+the following command-line arguments:
+.Bd -literal
+node --import amaro/strip --watch-path=src --watch-preserve-output --test-isolation=process
+.Ed
+The priority in configuration is as follows:
+.Bl -bullet
+.It
+NODE_OPTIONS and command-line options
+.It
+Dotenv NODE_OPTIONS
+.It
+Configuration file
+.El
+Values in the configuration file will not override the values in the environment
+variables, command-line options, or the \fBNODE_OPTIONS\fR env file parsed by the
+\fB--env-file\fR flag.
+Keys cannot be duplicated within the same or different namespaces.
+The configuration parser will throw an error if the configuration file contains
+unknown keys or keys that cannot be used in a namespace.
+Node.js will not sanitize or perform validation on the user-provided configuration,
+so \fBNEVER\fR use untrusted configuration files.
+.
 .It Fl -cpu-prof
 Starts the V8 CPU profiler on start up, and writes the CPU profile to disk
 before exit.
@@ -721,138 +845,6 @@ Enable experimental import support for \fB.node\fR addons.
 .
 .It Fl -experimental-bench
 Enable the experimental \fBnode:bench\fR module and command-line benchmark runner.
-.
-.It Fl -experimental-config-file Ns = Ns Ar path , Fl -experimental-config-file
-If present, Node.js will look for a configuration file at the specified path.
-If the path is not specified, Node.js will look for a \fBnode.config.json\fR file
-in the current working directory.
-To specify a custom path, use the \fB--experimental-config-file=path\fR form.
-The space-separated \fB--experimental-config-file path\fR form is not supported.
-The alias \fB--experimental-default-config-file\fR is equivalent to
-\fB--experimental-config-file\fR without an argument.
-Node.js will read the configuration file and apply the settings. The
-configuration file should be a JSON file with the following structure. \fBvX.Y.Z\fR
-in the \fB$schema\fR must be replaced with the version of Node.js you are using or
-\fBlatest-vX.x\fR for the latest version of that major release line.
-.Bd -literal
-{
-  "$schema": "https://nodejs.org/dist/vX.Y.Z/docs/node-config-schema.json",
-  "nodeOptions": {
-    "import": [
-      "amaro/strip"
-    ],
-    "watch-path": "src",
-    "watch-preserve-output": true
-  },
-  "test": {
-    "test-isolation": "process"
-  },
-  "watch": {
-    "watch-preserve-output": true
-  }
-}
-.Ed
-The configuration file supports namespace-specific options:
-.Bl -bullet
-.It
-The \fBnodeOptions\fR field contains CLI flags that are allowed in \fBNODE_OPTIONS\fR.
-.It
-Namespace fields like \fBtest\fR, \fBwatch\fR, and \fBpermission\fR contain configuration specific to that subsystem.
-.El
-The configuration file can target a specific Node.js major version with
-\fBnodeVersion\fR:
-.Bd -literal
-{
-  "nodeVersion": 25,
-  "nodeOptions": {
-    "watch-path": "src"
-  }
-}
-.Ed
-To keep multiple version-specific configurations in the same file, use the
-\fBconfigs\fR array. Node.js will use the first entry whose \fBnodeVersion\fR matches
-the current Node.js major version:
-.Bd -literal
-{
-  "$schema": "https://nodejs.org/dist/latest-v26.x/docs/node-config-schema.json",
-  "configs": [
-    {
-      "nodeVersion": 25,
-      "config": {
-        "$schema": "https://nodejs.org/dist/latest-v25.x/docs/node-config-schema.json",
-        "nodeOptions": {
-          "watch-path": "src"
-        }
-      }
-    }
-  ]
-}
-.Ed
-When \fBconfigs\fR is used, the top level may only contain \fB$schema\fR and
-\fBconfigs\fR. Each \fBconfigs\fR item must define an integer \fBnodeVersion\fR and an
-object \fBconfig\fR. A single top-level config does not require \fBnodeVersion\fR, but
-if present it must match the current Node.js major version.
-When a namespace is present in the
-configuration file, Node.js automatically enables the corresponding flag
-(e.g., \fB--test\fR, \fB--watch\fR, \fB--permission\fR). This allows you to configure
-subsystem-specific options without explicitly passing the flag on the command line.
-For example:
-.Bd -literal
-{
-  "test": {
-    "test-isolation": "process"
-  }
-}
-.Ed
-is equivalent to:
-.Bd -literal
-node --test --test-isolation=process
-.Ed
-To disable the automatic flag while still using namespace options, you can
-explicitly set the flag to \fBfalse\fR within the namespace:
-.Bd -literal
-{
-  "test": {
-    "test": false,
-    "test-isolation": "process"
-  }
-}
-.Ed
-No-op flags are not supported.
-Not all V8 flags are currently supported.
-It is possible to use the official JSON schema
-to validate the configuration file, which may vary depending on the Node.js version.
-Each key in the configuration file corresponds to a flag that can be passed
-as a command-line argument. The value of the key is the value that would be
-passed to the flag.
-For example, the configuration file above is equivalent to
-the following command-line arguments:
-.Bd -literal
-node --import amaro/strip --watch-path=src --watch-preserve-output --test-isolation=process
-.Ed
-The priority in configuration is as follows:
-.Bl -bullet
-.It
-NODE_OPTIONS and command-line options
-.It
-Dotenv NODE_OPTIONS
-.It
-Configuration file
-.El
-Values in the configuration file will not override the values in the environment
-variables, command-line options, or the \fBNODE_OPTIONS\fR env file parsed by the
-\fB--env-file\fR flag.
-Keys cannot be duplicated within the same or different namespaces.
-The configuration parser will throw an error if the configuration file contains
-unknown keys or keys that cannot be used in a namespace.
-Node.js will not sanitize or perform validation on the user-provided configuration,
-so \fBNEVER\fR use untrusted configuration files.
-.
-.It Fl -experimental-default-config-file
-This flag is an alias for \fB--experimental-config-file\fR without an argument.
-If present, Node.js will look for a
-\fBnode.config.json\fR file in the current working directory and load it as a
-configuration file.
 .
 .It Fl -experimental-dtls
 Enable experimental support for the DTLS protocol. See the
