@@ -1,6 +1,8 @@
 import contextlib
+import copy
 import io
 import os
+import socket
 import sys
 import threading
 import unittest
@@ -57,6 +59,27 @@ class SchedulerProgress(runner.ProgressIndicator):
     event = self.reported.get(output.test)
     if event:
       event.set()
+
+
+class EnvironmentCase(SchedulerCase):
+  def __init__(self, name, action=None, suite='sequential', parallel=False):
+    super().__init__(name, action, suite, parallel)
+    self.environments = []
+
+  def Run(self):
+    self.calls += 1
+    return runner.TestCase.Run(self)
+
+  def GetRunConfiguration(self):
+    return {'command': ['node', '/'.join(self.path)], 'envs': {'EXAMPLE': 'kept'}}
+
+  def GetLabel(self):
+    return '/'.join(self.path)
+
+  def RunCommand(self, command, env):
+    self.environments.append(env.copy())
+    output = self.action(self, env) if self.action else None
+    return runner.TestOutput(self, command, output or runner.CommandOutput(0, False, '', ''), False)
 
 
 class ExecuteTest(unittest.TestCase):
@@ -262,6 +285,131 @@ class SchedulerTest(unittest.TestCase):
     self.assertTrue(all(0 <= case.thread_id < 3 for case in cases))
     self.assertEqual(len(progress.completed), len(cases))
     self.assertTrue(all(case.duration is not None for case in cases))
+
+  def test_worker_port_ranges_allow_distinct_subsystem_listeners_to_overlap(self):
+    started = [threading.Event(), threading.Event()]
+    release = threading.Event()
+    # Select a base and check that its adjacent worker range is available.
+    for _ in range(20):
+      with socket.socket() as first, socket.socket() as second:
+        first.bind(('127.0.0.1', 0))
+        base = first.getsockname()[1]
+        if base + 2 * runner.SEQUENTIAL_PORT_RANGE - 1 > 65535:
+          continue
+        try:
+          second.bind(('127.0.0.1', base + runner.SEQUENTIAL_PORT_RANGE))
+        except OSError:
+          continue
+        break
+    else:
+      self.fail('could not find two available worker port ranges')
+
+    def listener(index):
+      def action(case, env):
+        with socket.socket() as server:
+          port = int(env.get('NODE_COMMON_PORT', os.environ['NODE_COMMON_PORT']))
+          server.bind(('127.0.0.1', port))
+          server.listen()
+          started[index].set()
+          self.wait_for(started[1 - index])
+          self.wait_for(release)
+      return action
+
+    cases = [EnvironmentCase('test-net-port', listener(0)),
+             EnvironmentCase('test-http-port', listener(1))]
+    progress = SchedulerProgress(cases)
+    with mock.patch.dict(os.environ, {'NODE_COMMON_PORT': str(base)}):
+      with self.running(progress, release=[release]) as complete:
+        for event in started:
+          self.wait_for(event)
+        release.set()
+        self.assertTrue(complete()['allPassed'])
+    ports = [int(case.environments[0]['NODE_COMMON_PORT']) for case in cases]
+    self.assertEqual(sorted(ports), [base, base + runner.SEQUENTIAL_PORT_RANGE])
+    self.assertTrue(all(env['EXAMPLE'] == 'kept' for case in cases for env in case.environments))
+
+  def test_port_ranges_preserve_retries_repeats_and_other_suites(self):
+    def retry(case, env):
+      if case.calls == 1:
+        return runner.CommandOutput(1, False, '', '')
+
+    retried = EnvironmentCase('test-net-retry', retry)
+    retried.outcomes.add(runner.FLAKY)
+    repeated = copy.deepcopy(retried)
+    parallel = EnvironmentCase('test-parallel', suite='parallel', parallel=True)
+    serial = EnvironmentCase('test-serial', suite='pummel')
+    progress = SchedulerProgress([parallel, serial, retried, repeated], runner.KEEP_RETRYING)
+    with mock.patch.dict(os.environ, {'NODE_COMMON_PORT': '20000'}), \
+         contextlib.redirect_stdout(io.StringIO()):
+      self.assertTrue(progress.Run(4)['allPassed'])
+    for case in [retried, repeated]:
+      self.assertEqual(case.calls, 2)
+      self.assertEqual([env['NODE_COMMON_PORT'] for env in case.environments],
+                       [str(20000 + case.thread_id * runner.SEQUENTIAL_PORT_RANGE)] * 2)
+      self.assertTrue(all(env['TEST_PARALLEL'] == '0' for env in case.environments))
+    for case in [parallel, serial]:
+      self.assertNotIn('NODE_COMMON_PORT', case.environments[0])
+
+  def test_single_worker_preserves_port_environment(self):
+    case = EnvironmentCase('test-net-port')
+    with mock.patch.dict(os.environ, {'NODE_COMMON_PORT': 'invalid'}), \
+         mock.patch.object(runner.threading, 'Thread') as thread:
+      self.assertTrue(SchedulerProgress([case]).Run(1)['allPassed'])
+      thread.assert_not_called()
+    self.assertNotIn('NODE_COMMON_PORT', case.environments[0])
+
+  def test_port_range_defaults_and_valid_boundary(self):
+    for configured, expected in [('', runner.DEFAULT_COMMON_PORT),
+                                 ('0', runner.DEFAULT_COMMON_PORT),
+                                 ('65136', 65136)]:
+      with self.subTest(configured=configured), \
+           mock.patch.dict(os.environ, {'NODE_COMMON_PORT': configured}):
+        case = EnvironmentCase('test-net-port')
+        self.assertTrue(SchedulerProgress([case]).Run(4)['allPassed'])
+        self.assertEqual(case.environments[0]['NODE_COMMON_PORT'],
+                         str(expected + case.thread_id * runner.SEQUENTIAL_PORT_RANGE))
+
+  def test_invalid_port_ranges_fail_before_starting_any_tests(self):
+    for base in ['invalid', '-1', '65137']:
+      with self.subTest(base=base), mock.patch.dict(os.environ, {'NODE_COMMON_PORT': base}), \
+           mock.patch.object(runner.threading, 'Thread') as thread:
+        cases = [EnvironmentCase('test-net-port'),
+                 EnvironmentCase('test-parallel', suite='parallel', parallel=True)]
+        progress = SchedulerProgress(cases)
+        with self.assertRaises(runner.PortRangeError):
+          progress.Run(4)
+        thread.assert_not_called()
+        self.assertEqual([case.calls for case in cases], [0, 0])
+        self.assertTrue(progress.shutdown_event.is_set())
+
+    with mock.patch.dict(os.environ, {'NODE_COMMON_PORT': 'invalid'}):
+      case = EnvironmentCase('test-serial', suite='pummel')
+      self.assertTrue(SchedulerProgress([case]).Run(4)['allPassed'])
+
+  def test_failure_report_includes_assigned_port(self):
+    def fail(case, env):
+      return runner.CommandOutput(1, False, '', '')
+
+    case = EnvironmentCase('test-net-failed', fail)
+    with mock.patch.dict(os.environ, {'NODE_COMMON_PORT': '20000'}):
+      progress = SchedulerProgress([case])
+      self.assertFalse(progress.Run(2)['allPassed'])
+    self.assertIn('Environment: NODE_COMMON_PORT=%d' % case.common_port,
+                  progress.GetFailureOutput(progress.failed[0]))
+
+    failure = progress.failed[0]
+    for indicator in [runner.MonochromeProgressIndicator, runner.ColorProgressIndicator]:
+      with self.subTest(indicator=indicator.__name__), \
+           contextlib.redirect_stdout(io.StringIO()) as report:
+        indicator([case], runner.RUN, 0).HasRun(failure)
+        self.assertIn('Environment: NODE_COMMON_PORT=%d' % case.common_port, report.getvalue())
+
+    with mock.patch.object(runner.logger, 'info') as log:
+      tap = runner.TapProgressIndicator([case], runner.RUN, 0)
+      tap.Starting()
+      tap.HasRun(failure)
+      self.assertIn(mock.call('  environment: {NODE_COMMON_PORT: %d}', case.common_port),
+                    log.call_args_list)
 
   def check_retries(self, measure_flakiness):
     retry_started = threading.Event()

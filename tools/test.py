@@ -87,6 +87,15 @@ skip_regex = re.compile(r'(?:\d+\.\.\d+|ok|not ok).*# SKIP\S*\s+(.*)', re.IGNORE
 
 VERBOSE = False
 
+# Inspector tests use offsets through common.PORT + 92.
+SEQUENTIAL_PORT_RANGE = 100
+DEFAULT_COMMON_PORT = 12346
+
+
+class PortRangeError(ValueError):
+  pass
+
+
 os.umask(0o022)
 os.environ.pop('NODE_OPTIONS', None)
 
@@ -106,6 +115,7 @@ class ProgressIndicator(object):
     self.serial_queue = Queue(len(cases))
     self.sequential_queue = []
     self.running_subsystems = set()
+    self.sequential_port_base = None
     self.condition = threading.Condition()
     for case in cases:
       if case.parallel:
@@ -133,6 +143,8 @@ class ProgressIndicator(object):
       output += ["--- stdout ---"]
       output += [failure.output.stdout.strip()]
     output += ["Command: %s" % failure.test.GetFailureCommand(failure.command)]
+    if failure.test.common_port is not None:
+      output += ["Environment: NODE_COMMON_PORT=%d" % failure.test.common_port]
     if failure.HasCrashed():
       output += ["--- %s ---" % PrintCrashed(failure.output.exit_code)]
     if failure.HasTimedOut():
@@ -157,6 +169,18 @@ class ProgressIndicator(object):
   def Run(self, tasks) -> Dict:
     self.Starting()
     try:
+      if self.sequential_queue and tasks > 1:
+        try:
+          self.sequential_port_base = int(os.environ.get('NODE_COMMON_PORT') or
+                                          DEFAULT_COMMON_PORT) or DEFAULT_COMMON_PORT
+        except ValueError as error:
+          raise PortRangeError('NODE_COMMON_PORT must be an integer') from error
+        if (self.sequential_port_base < 1 or
+            self.sequential_port_base + tasks * SEQUENTIAL_PORT_RANGE - 1 > 65535):
+          raise PortRangeError(
+              'NODE_COMMON_PORT=%d cannot provide %d worker ranges of %d ports; '
+              'lower NODE_COMMON_PORT or -j' %
+              (self.sequential_port_base, tasks, SEQUENTIAL_PORT_RANGE))
       self.RunPhase(self.parallel_queue, tasks)
       self.RunSingle(self.serial_queue, 0)
       self.RunPhase(self.sequential_queue, tasks)
@@ -271,6 +295,9 @@ class ProgressIndicator(object):
   def RunCase(self, case, thread_id):
     with self.lock:
       case.thread_id = thread_id
+      case.common_port = (self.sequential_port_base + thread_id * SEQUENTIAL_PORT_RANGE
+                          if case.path[0] == 'sequential' and
+                          self.sequential_port_base is not None else None)
       case.serial_id = self.serial_id
       self.serial_id += 1
       self.AboutToRun(case)
@@ -494,6 +521,8 @@ class TapProgressIndicator(SimpleProgressIndicator):
     duration = output.test.duration
     logger.info('  ---')
     logger.info('  duration_ms: %.5f' % (duration  / timedelta(milliseconds=1)))
+    if output.UnexpectedOutput() and output.test.common_port is not None:
+      logger.info('  environment: {NODE_COMMON_PORT: %d}', output.test.common_port)
     if self.severity != 'ok' or self.traceback != '':
       if output.HasTimedOut():
         self.traceback = 'timeout\n' + output.output.stdout + output.output.stderr
@@ -562,6 +591,8 @@ class CompactProgressIndicator(ProgressIndicator):
       if len(stderr):
         print(self.templates['stderr'] % stderr)
       print("Command: %s" % output.test.GetFailureCommand(output.command))
+      if output.test.common_port is not None:
+        print("Environment: NODE_COMMON_PORT=%d" % output.test.common_port)
       if output.HasCrashed():
         print("--- %s ---" % PrintCrashed(output.output.exit_code))
       if output.HasTimedOut():
@@ -660,6 +691,7 @@ class TestCase(object):
     self.max_virtual_memory = None
     self.serial_id = 0
     self.thread_id = 0
+    self.common_port = None
 
   def GetReportingName(self, command):
     prefix = abspath(join(dirname(__file__), '../test')) + os.sep
@@ -708,6 +740,8 @@ class TestCase(object):
         "TEST_PARALLEL" : "%d" % self.parallel,
         "GITHUB_STEP_SUMMARY": "",
       })
+      if self.common_port is not None:
+        envs['NODE_COMMON_PORT'] = str(self.common_port)
       result = self.RunCommand(
         command,
         envs
@@ -1931,6 +1965,9 @@ def Main():
       duration = time.time() - start
     except KeyboardInterrupt:
       print("Interrupted")
+      return 1
+    except PortRangeError as error:
+      PrintError(str(error))
       return 1
 
   if options.time:

@@ -53,8 +53,13 @@ The test runner finishes parallel tests first, followed by serial suites, then
 up to the worker count selected with `-j`. The subsystem is the first filename
 component after `test-`, so `test-net-server-bind.js` and
 `test-net-connect-econnrefused.js` cannot overlap, while a `test-fs-*` test can run
-alongside them. This scheduling does not isolate resources shared across
-subsystems, such as fixed ports.
+alongside them. Each worker gets a separate range of 100 ports through
+`NODE_COMMON_PORT`, starting at 12346 or the configured `NODE_COMMON_PORT` base.
+Tests and their child processes retain that range through retries. With `-j1`,
+the existing port environment is preserved. Multi-worker runs require a base
+that leaves room for every worker's range below port 65536.
+Ports specified independently of `common.PORT` and other shared resources
+still require isolation.
 
 [^1]: [Documentation](../test/common/README.md)
 
