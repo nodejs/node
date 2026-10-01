@@ -1341,8 +1341,8 @@ share where their microtasks (`Promise` reactions and `async function`
 continuations) are placed, and so that those microtasks are drained together,
 explicitly, by the embedder, instead of automatically by Node.js.
 
-Instances are created with [`vm.createMicrotaskQueue()`][]; there is no
-public constructor.
+Instances are created with [`vm.createMicrotaskQueue()`][]; the constructor is
+not exported by the `node:vm` module.
 
 ### `microtaskQueue.runMicrotasks()`
 

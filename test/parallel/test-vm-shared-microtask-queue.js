@@ -42,9 +42,8 @@ const vm = require('vm');
   assert.notStrictEqual(queue, other);
 }
 
-// `vm.MicrotaskQueue` (the constructor) is intentionally not exposed: only
-// `vm.createMicrotaskQueue()` is public, so there is no way to construct or
-// name the class directly from user code.
+// The constructor is intentionally not exported from `vm`; the public API for
+// creating queues is `vm.createMicrotaskQueue()`.
 assert.strictEqual(vm.MicrotaskQueue, undefined);
 
 // `microtaskQueue.runMicrotasks()` throws when called on an unrelated `this`.
@@ -129,28 +128,69 @@ assert.strictEqual(vm.MicrotaskQueue, undefined);
   assert.deepStrictEqual(trace, ['a', 'b']);
 }
 
-// `vm.runInNewContext()` and `script.runInNewContext()` also accept the
-// object form (they build their context via `getContextOptions()` +
-// `createContext()`, both of which now go through `getMicrotaskModeOptions()`).
+// All context-creation APIs parse the object form once. In particular, they
+// must not read either property a second time after validation.
 {
-  const queue = vm.createMicrotaskQueue();
-  const trace = [];
-  const record = (entry) => trace.push(entry);
-
-  vm.runInNewContext(
-    "Promise.resolve().then(() => record('runInNewContext'));",
-    { record },
-    { microtaskMode: { type: 'manual', queue } },
+  const script = new vm.Script(
+    "Promise.resolve().then(() => record('script.runInNewContext'));",
   );
-  assert.deepStrictEqual(trace, []);
-  queue.runMicrotasks();
-  assert.deepStrictEqual(trace, ['runInNewContext']);
+  const createAndRun = [
+    {
+      expected: 'createContext',
+      run(sandbox, options) {
+        const context = vm.createContext(sandbox, options);
+        vm.runInContext(
+          "Promise.resolve().then(() => record('createContext'));",
+          context,
+        );
+      },
+    },
+    {
+      expected: 'runInNewContext',
+      run(sandbox, options) {
+        vm.runInNewContext(
+          "Promise.resolve().then(() => record('runInNewContext'));",
+          sandbox,
+          options,
+        );
+      },
+    },
+    {
+      expected: 'script.runInNewContext',
+      run(sandbox, options) {
+        script.runInNewContext(sandbox, options);
+      },
+    },
+  ];
 
-  const script = new vm.Script("Promise.resolve().then(() => record('script.runInNewContext'));");
-  script.runInNewContext({ record }, { microtaskMode: { type: 'manual', queue } });
-  assert.deepStrictEqual(trace, ['runInNewContext']);
-  queue.runMicrotasks();
-  assert.deepStrictEqual(trace, ['runInNewContext', 'script.runInNewContext']);
+  for (const { expected, run } of createAndRun) {
+    const queue = vm.createMicrotaskQueue();
+    const trace = [];
+    const record = (entry) => trace.push(entry);
+    let typeGetCount = 0;
+    let queueGetCount = 0;
+    const microtaskMode = {
+      get type() {
+        if (++typeGetCount > 1) {
+          throw new Error('microtaskMode.type was read more than once');
+        }
+        return 'manual';
+      },
+      get queue() {
+        if (++queueGetCount > 1) {
+          throw new Error('microtaskMode.queue was read more than once');
+        }
+        return queue;
+      },
+    };
+
+    run({ record }, { microtaskMode });
+    assert.strictEqual(typeGetCount, 1);
+    assert.strictEqual(queueGetCount, 1);
+    assert.deepStrictEqual(trace, []);
+    queue.runMicrotasks();
+    assert.deepStrictEqual(trace, [expected]);
+  }
 }
 
 // `vm.constants.DONT_CONTEXTIFY` sandboxes (no wrapper object, the V8
