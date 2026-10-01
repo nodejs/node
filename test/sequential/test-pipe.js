@@ -25,8 +25,6 @@ const assert = require('assert');
 const http = require('http');
 const net = require('net');
 
-const webPort = common.PORT;
-const tcpPort = webPort + 1;
 const bufferSize = 5 * 1024 * 1024;
 
 let listenCount = 0;
@@ -45,7 +43,7 @@ const web = new http.Server(common.mustCall((req, res) => {
   web.close();
 
   const socket = net.Stream();
-  socket.connect(tcpPort);
+  socket.connect(tcp.address().port);
 
   socket.on('connect', common.mustCall());
 
@@ -60,7 +58,7 @@ const web = new http.Server(common.mustCall((req, res) => {
   req.connection.on('error', common.mustNotCall());
 }));
 
-web.listen(webPort, startClient);
+web.listen(0, startClient);
 
 
 const tcp = net.Server(common.mustCall((s) => {
@@ -83,14 +81,14 @@ const tcp = net.Server(common.mustCall((s) => {
   s.on('error', common.mustNotCall());
 }));
 
-tcp.listen(tcpPort, startClient);
+tcp.listen(0, startClient);
 
 function startClient() {
   listenCount++;
   if (listenCount < 2) return;
 
   const req = http.request({
-    port: common.PORT,
+    port: web.address().port,
     method: 'GET',
     path: '/',
     headers: {
