@@ -77,7 +77,6 @@
   V(internal_only_v8)                                                          \
   V(ipc_serdes)                                                                \
   V(js_stream)                                                                 \
-  V(js_udp_wrap)                                                               \
   V(locks)                                                                     \
   V(messaging)                                                                 \
   V(modules)                                                                   \
