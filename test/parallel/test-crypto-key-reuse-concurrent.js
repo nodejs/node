@@ -23,6 +23,8 @@ const signAsync = promisify(sign);
 const verifyAsync = promisify(verify);
 const ecdsa = { name: 'ECDSA', hash: 'SHA-256' };
 const pkcs8 = { type: 'pkcs8', format: 'der' };
+const pkcs8Pem = { type: 'pkcs8', format: 'pem' };
+const sec1 = { type: 'sec1', format: 'der' };
 const spki = { type: 'spki', format: 'der' };
 const iterations = 16;
 
@@ -33,6 +35,8 @@ async function exercise({ keys, peer, expected }) {
     key: expected.originalPrivate, ...pkcs8,
   });
   const referencePublic = createPublicKey({ key: expected.public, ...spki });
+  const referencePem = referencePrivate.export(pkcs8Pem);
+  const referenceSec1 = referencePrivate.export(sec1);
 
   for (let i = 0; i < iterations; i++) {
     const data = Buffer.from(`shared key operation ${i}`);
@@ -103,6 +107,10 @@ async function exercise({ keys, peer, expected }) {
     }), Buffer.from(expected.compressedPublic));
     assert.deepStrictEqual(
       publicKey.export(spki), Buffer.from(expected.public));
+    assert.deepStrictEqual(
+      privateKey.export(pkcs8), Buffer.from(expected.originalPrivate));
+    assert.strictEqual(privateKey.export(pkcs8Pem), referencePem);
+    assert.deepStrictEqual(privateKey.export(sec1), referenceSec1);
 
     if (keys.ecdsaPrivate === undefined) {
       assert.deepStrictEqual(diffieHellman({
@@ -184,12 +192,12 @@ if (workerData?.sharedKeyTest) {
     Atomics.notify(barrier, 0);
     await Promise.all([exercise(data), ...exited]);
 
-    // Ordinary PKCS8 encoding temporarily changes EC encoding flags in some
-    // OpenSSL versions, so compare only after all shared-key users finish.
-    // WebCrypto export must add the public point on a copy and leave the
-    // original key's encoding flags unchanged.
+    // PKCS8 export must leave the source encoding flags unchanged, including
+    // whether SEC1 includes parameters and whether the public point is omitted.
     assert.deepStrictEqual(
       privateKey.export(pkcs8), Buffer.from(expected.originalPrivate));
+    assert.deepStrictEqual(privateKey.export(sec1),
+                           createPrivateKey({ key: input, ...pkcs8 }).export(sec1));
   }
 
   (async () => {
