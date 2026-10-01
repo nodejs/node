@@ -121,6 +121,7 @@ process.on('exit', () => {
     },
     write: common.mustCall((chunk) => {
       assert.deepStrictEqual(chunk, dataToWrite);
+      assert.notStrictEqual(chunk, dataToWrite);
     })
   });
 
@@ -144,6 +145,7 @@ process.on('exit', () => {
     },
     write: common.mustCall((chunk) => {
       assert.deepStrictEqual(chunk, dataToWrite);
+      assert.notStrictEqual(chunk, dataToWrite);
     })
   });
 
