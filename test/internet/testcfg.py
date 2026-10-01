@@ -3,4 +3,5 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import testpy
 
 def GetConfiguration(context, root):
-  return testpy.SimpleTestConfiguration(context, root, 'internet')
+  # TODO: Isolate shared listening ports before allowing concurrent tests.
+  return testpy.SerialTestConfiguration(context, root, 'internet')

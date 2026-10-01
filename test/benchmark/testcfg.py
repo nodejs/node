@@ -3,4 +3,5 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import testpy
 
 def GetConfiguration(context, root):
-  return testpy.SimpleTestConfiguration(context, root, 'benchmark')
+  # TODO: Isolate fixed TCP/UDP ports before parallelizing benchmark tests.
+  return testpy.SerialTestConfiguration(context, root, 'benchmark')

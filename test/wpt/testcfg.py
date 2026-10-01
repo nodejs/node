@@ -17,6 +17,7 @@ class WPTTestCase(testpy.SimpleTestCase):
     super(WPTTestCase, self).__init__(
         path, file, arch, mode, context, config, config.additional_flags)
     self.group = group
+    # TODO: Audit serial groups for process isolation and timer sensitivity.
     self.parallel = not serial
 
   def GetName(self):
@@ -44,7 +45,7 @@ class WPTTestCase(testpy.SimpleTestCase):
     return configuration
 
 
-class WPTTestConfiguration(testpy.SimpleTestConfiguration):
+class WPTTestConfiguration(testpy.SerialTestConfiguration):
   def __init__(self, context, root):
     super(WPTTestConfiguration, self).__init__(context, root, 'wpt')
     self.manifests = {}

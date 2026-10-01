@@ -103,12 +103,17 @@ class ProgressIndicator(object):
     self.flaky_tests_mode = flaky_tests_mode
     self.measure_flakiness = measure_flakiness
     self.parallel_queue = Queue(len(cases))
-    self.sequential_queue = Queue(len(cases))
+    self.serial_queue = Queue(len(cases))
+    self.sequential_queue = []
+    self.running_subsystems = set()
+    self.condition = threading.Condition()
     for case in cases:
       if case.parallel:
         self.parallel_queue.put_nowait(case)
+      elif case.path[0] == 'sequential':
+        self.sequential_queue.append(case)
       else:
-        self.sequential_queue.put_nowait(case)
+        self.serial_queue.put_nowait(case)
     self.succeeded = 0
     self.remaining = len(cases)
     self.total = len(cases)
@@ -117,6 +122,7 @@ class ProgressIndicator(object):
     self.crashed = 0
     self.lock = threading.Lock()
     self.shutdown_event = threading.Event()
+    self.worker_errors = []
 
   def GetFailureOutput(self, failure):
     output = []
@@ -150,77 +156,165 @@ class ProgressIndicator(object):
 
   def Run(self, tasks) -> Dict:
     self.Starting()
+    try:
+      self.RunPhase(self.parallel_queue, tasks)
+      self.RunSingle(self.serial_queue, 0)
+      self.RunPhase(self.sequential_queue, tasks)
+    except (KeyboardInterrupt, SystemExit):
+      self.Shutdown()
+    except Exception:
+      self.Shutdown()
+      raise
+    self.Done()
+    return {
+      'allPassed': not self.failed and not self.shutdown_event.is_set() and self.remaining == 0,
+      'failed': self.failed,
+    }
+
+  def Shutdown(self):
+    with self.condition:
+      self.shutdown_event.set()
+      self.condition.notify_all()
+
+  def RunPhase(self, queue, tasks):
+    if self.shutdown_event.is_set():
+      return
+    if queue is self.sequential_queue:
+      empty = not queue
+    else:
+      empty = queue.empty()
+    if empty:
+      return
     threads = []
     # Spawn N-1 threads and then use this thread as the last one.
     # That way -j1 avoids threading altogether which is a nice fallback
     # in case of threading problems.
-    for i in range(tasks - 1):
-      thread = threading.Thread(target=self.RunSingle, args=[True, i + 1])
-      threads.append(thread)
-      thread.start()
     try:
-      self.RunSingle(False, 0)
-      # Wait for the remaining threads
-      for thread in threads:
-        # Use a timeout so that signals (ctrl-c) will be processed.
-        thread.join(timeout=1000000)
-    except (KeyboardInterrupt, SystemExit):
-      self.shutdown_event.set()
-    except Exception:
-      # If there's an exception we schedule an interruption for any
-      # remaining threads.
-      self.shutdown_event.set()
-      # ...and then reraise the exception to bail out
+      for i in range(tasks - 1):
+        finished = threading.Event()
+        thread = threading.Thread(target=self.RunWorker, args=[queue, i + 1, finished])
+        threads.append((thread, finished))
+        thread.start()
+      self.RunSingle(queue, 0)
+    except BaseException:
+      self.Shutdown()
       raise
-    self.Done()
-    return {
-      'allPassed': not self.failed and not self.shutdown_event.is_set(),
-      'failed': self.failed,
-    }
+    finally:
+      for thread, finished in threads:
+        if thread.ident is None:
+          continue
+        # Use a timeout so that signals (ctrl-c) will be processed.
+        # Interrupted joins can mark a live thread stopped on some Python versions.
+        while not finished.is_set():
+          try:
+            thread.join(timeout=0.1)
+            finished.wait(timeout=0.1)
+          except (KeyboardInterrupt, SystemExit):  # noqa: PERF203
+            self.Shutdown()
+    if self.worker_errors:
+      _, error, traceback = self.worker_errors[0]
+      raise error.with_traceback(traceback)
 
-  def RunSingle(self, parallel, thread_id):
+  def RunWorker(self, queue, thread_id, finished):
+    try:
+      self.RunSingle(queue, thread_id)
+    except BaseException:
+      with self.lock:
+        self.worker_errors.append(sys.exc_info())
+      self.Shutdown()
+    finally:
+      finished.set()
+
+  def GetSequentialTest(self):
+    with self.condition:
+      while not self.shutdown_event.is_set():
+        for index, case in enumerate(self.sequential_queue):
+          # The first component after test- names the subsystem. Skip busy
+          # subsystems without changing the order of their pending tests.
+          subsystem = case.path[-1].split('-', 2)[1]
+          if subsystem not in self.running_subsystems:
+            self.running_subsystems.add(subsystem)
+            return self.sequential_queue.pop(index)
+        if not self.sequential_queue:
+          return None
+        self.condition.wait()
+    return None
+
+  def RunSingle(self, queue, thread_id):
     while not self.shutdown_event.is_set():
-      try:
-        test = self.parallel_queue.get_nowait()
-      except Empty:
-        if parallel:
+      sequential = queue is self.sequential_queue
+      if sequential:
+        case = self.GetSequentialTest()
+        if case is None:
           return
+      else:
         try:
-          test = self.sequential_queue.get_nowait()
+          case = queue.get_nowait()
         except Empty:
           return
-      case = test
+      try:
+        if self.shutdown_event.is_set():
+          return
+        self.RunCase(case, thread_id)
+      except IOError:
+        self.Shutdown()
+        return
+      except BaseException:
+        self.Shutdown()
+        raise
+      finally:
+        if sequential:
+          with self.condition:
+            self.running_subsystems.remove(case.path[-1].split('-', 2)[1])
+            self.condition.notify_all()
+
+  def RunCase(self, case, thread_id):
+    with self.lock:
       case.thread_id = thread_id
-      self.lock.acquire()
       case.serial_id = self.serial_id
       self.serial_id += 1
       self.AboutToRun(case)
-      self.lock.release()
-      try:
-        start = datetime.now()
+    start = datetime.now()
+    output = case.Run()
+    # SmartOS has a bug that causes unexpected ECONNREFUSED errors.
+    # See https://smartos.org/bugview/OS-2767
+    # If ECONNREFUSED on SmartOS, retry the test one time.
+    if (output.UnexpectedOutput() and
+      sys.platform == 'sunos5' and
+      'ECONNREFUSED' in output.output.stderr):
         output = case.Run()
-        # SmartOS has a bug that causes unexpected ECONNREFUSED errors.
-        # See https://smartos.org/bugview/OS-2767
-        # If ECONNREFUSED on SmartOS, retry the test one time.
-        if (output.UnexpectedOutput() and
-          sys.platform == 'sunos5' and
-          'ECONNREFUSED' in output.output.stderr):
-            output = case.Run()
-            output.diagnostic.append('ECONNREFUSED received, test retried')
-        case.duration = (datetime.now() - start)
-      except IOError:
-        return
-      if self.shutdown_event.is_set():
-        return
-      self.lock.acquire()
-      if output.UnexpectedOutput():
-        if FLAKY in output.test.outcomes and self.flaky_tests_mode == DONTCARE:
+        output.diagnostic.append('ECONNREFUSED received, test retried')
+    case.duration = (datetime.now() - start)
+    if self.shutdown_event.is_set():
+      return
+
+    unexpected = output.UnexpectedOutput()
+    flaky = FLAKY in output.test.outcomes
+    retry_passed = False
+    measured_failures = None
+    if unexpected and flaky and self.flaky_tests_mode == KEEP_RETRYING:
+      for _ in range(99):
+        if self.shutdown_event.is_set():
+          return
+        if not case.Run().UnexpectedOutput():
+          retry_passed = True
+          break
+    elif unexpected and not (flaky and self.flaky_tests_mode == DONTCARE) and self.measure_flakiness:
+      measured_failures = 1
+      for _ in range(self.measure_flakiness):
+        if self.shutdown_event.is_set():
+          return
+        measured_failures += bool(case.Run().UnexpectedOutput())
+
+    if self.shutdown_event.is_set():
+      return
+    with self.lock:
+      if unexpected:
+        if flaky and self.flaky_tests_mode == DONTCARE:
           self.flaky_failed.append(output)
-        elif FLAKY in output.test.outcomes and self.flaky_tests_mode == KEEP_RETRYING:
-          for _ in range(99):
-            if not case.Run().UnexpectedOutput():
-              self.flaky_failed.append(output)
-              break
+        elif flaky and self.flaky_tests_mode == KEEP_RETRYING:
+          if retry_passed:
+            self.flaky_failed.append(output)
           else:
             # If after 100 tries, the test is not passing, it's not flaky.
             self.failed.append(output)
@@ -228,15 +322,13 @@ class ProgressIndicator(object):
           self.failed.append(output)
           if output.HasCrashed():
             self.crashed += 1
-          if self.measure_flakiness:
-            outputs = [case.Run() for _ in range(self.measure_flakiness)]
+          if measured_failures is not None:
             # +1s are there because the test already failed once at this point.
-            print(" failed %d out of %d" % (len([i for i in outputs if i.UnexpectedOutput()]) + 1, self.measure_flakiness + 1))
+            print(" failed %d out of %d" % (measured_failures, self.measure_flakiness + 1))
       else:
         self.succeeded += 1
       self.remaining -= 1
       self.HasRun(output)
-      self.lock.release()
 
 
 def EscapeCommand(command):
@@ -563,7 +655,7 @@ class TestCase(object):
     self.duration = None
     self.arch = arch
     self.mode = mode
-    self.parallel = False
+    self.parallel = True
     self.disable_core_files = False
     self.max_virtual_memory = None
     self.serial_id = 0

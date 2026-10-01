@@ -33,10 +33,25 @@ For the tests to run on Windows, be sure to clone Node.js source code with the
 | `parallel`       | Yes        | Various tests that are able to be run in parallel.                                                            |
 | `pseudo-tty`     | Yes        | Tests that require stdin/stdout/stderr to be a TTY.                                                           |
 | `pummel`         | No         | Various tests for various modules / system functionality operating under load.                                |
-| `sequential`     | Yes        | Various tests that must not run in parallel.                                                                  |
+| `sequential`     | Yes        | Tests that run sequentially within each filename subsystem.                                                   |
 | `testpy`         | _N/A_      | Test configuration utility used by various test suites.                                                       |
 | `tick-processor` | No         | Tests for the V8 tick processor integration.[^4]                                                              |
 | `v8-updates`     | No         | Tests for V8 performance integration.                                                                         |
+
+Tests run in parallel by default. Suite configurations opt out with
+`SerialTestConfiguration`, or `SerialAddonTestConfiguration` for addon layouts.
+The `addons`, `benchmark`, `internet`, `js-native-api`, `known_issues`, `node-api`,
+and `pummel` suites explicitly run serially. The `abort` and `wasm-allocation`
+suites also remain serial; WPT's group settings and SEA's disk-space guard retain
+their existing scheduling.
+
+The test runner finishes parallel tests first, followed by serial suites, then
+`sequential` tests. In `sequential`, different subsystems can run concurrently
+up to the worker count selected with `-j`. The subsystem is the first filename
+component after `test-`, so `test-net-server-bind.js` and
+`test-net-connect-econnrefused.js` cannot overlap, while a `test-fs-*` test can run
+alongside them. This scheduling does not isolate resources shared across
+subsystems, such as fixed ports.
 
 [^1]: [Documentation](../test/common/README.md)
 
