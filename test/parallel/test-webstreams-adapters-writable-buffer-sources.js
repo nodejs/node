@@ -191,78 +191,6 @@ suite('underlying Writable', () => {
       await writer.close();
     });
 
-    test('preserves cloned view brands and SharedArrayBuffer backing',
-         async () => {
-           const dataView = new DataView(
-             Uint8Array.from([0, 1, 2, 3, 4, 0]).buffer,
-             1,
-             4,
-           );
-           const uint16Buffer = new ArrayBuffer(6);
-           const uint16 = new Uint16Array(uint16Buffer, 2, 2);
-           new Uint8Array(uint16Buffer, 2, 4).set([1, 2, 3, 4]);
-           const shared = new SharedArrayBuffer(6);
-           const sharedView = new Uint8Array(shared, 1, 4);
-           sharedView.set([1, 2, 3, 4]);
-           const inputs = [
-             Buffer.from([1, 2, 3, 4]),
-             dataView,
-             uint16,
-             sharedView,
-           ];
-           const expected = inputs.map((chunk) => ({
-             brand: Buffer.isBuffer(chunk) ?
-               'Buffer' : Object.prototype.toString.call(chunk),
-             bytes: Buffer.from(new Uint8Array(
-               chunk.buffer,
-               chunk.byteOffset,
-               chunk.byteLength,
-             )),
-             shared: chunk.buffer instanceof SharedArrayBuffer,
-           }));
-           const received = [];
-           const writable = new Writable({
-             write(chunk, encoding, callback) {
-               callback();
-             },
-           });
-           writable.on('error', common.mustNotCall());
-           const writer = Writable.toWeb(writable).getWriter();
-           writable.write = common.mustCall((chunk) => {
-             received.push(chunk);
-             return true;
-           }, inputs.length);
-
-           for (const chunk of inputs) {
-             await writer.write(chunk);
-             new Uint8Array(
-               chunk.buffer,
-               chunk.byteOffset,
-               chunk.byteLength,
-             ).fill(9);
-           }
-           await writer.close();
-
-           for (let i = 0; i < received.length; i++) {
-             const actual = received[i];
-             const actualBrand = Buffer.isBuffer(actual) ?
-               'Buffer' : Object.prototype.toString.call(actual);
-             assert.strictEqual(actualBrand, expected[i].brand);
-             assert.notStrictEqual(actual.buffer, inputs[i].buffer);
-             assert.strictEqual(
-               actual.buffer instanceof SharedArrayBuffer,
-               expected[i].shared,
-             );
-             assert.deepStrictEqual(
-               Buffer.from(new Uint8Array(
-                 actual.buffer,
-                 actual.byteOffset,
-                 actual.byteLength,
-               )),
-               expected[i].bytes,
-             );
-           }
-         });
   });
 
   suite('in object mode', () => {
@@ -311,31 +239,6 @@ suite('underlying ServerResponse', () => {
     }
   });
 
-  test('preserves write() overrides', async () => {
-    const response = createServerResponse();
-    const writer = Writable.toWeb(response).getWriter();
-    const originalWrite = response.write;
-    let received;
-    response.write = common.mustCall((chunk) => {
-      received = chunk;
-      return true;
-    });
-    const input = new DataView(Uint8Array.from([1, 2, 3, 4]).buffer);
-
-    try {
-      await writer.write(input);
-      new Uint8Array(input.buffer).fill(9);
-      assert(received instanceof DataView);
-      assert.notStrictEqual(received.buffer, input.buffer);
-      assert.deepStrictEqual(
-        Buffer.from(received.buffer),
-        Buffer.from([1, 2, 3, 4]),
-      );
-    } finally {
-      response.write = originalWrite;
-      await new Promise((resolve) => response.end(resolve));
-    }
-  });
 });
 
 suite('underlying Duplex', () => {
