@@ -874,7 +874,7 @@ process.on('message', (message) => {
     const file = createTmpFile();
     const configFile = createTmpFile(JSON.stringify({ watch: { 'watch': true } }), '.json');
     const { stderr, stdout } = await runWriteSucceed({
-      file, watchedFile: file, args: [`--experimental-config-file=${configFile}`, file], options: {
+      file, watchedFile: file, args: [`--config-file=${configFile}`, file], options: {
         timeout: 10000,
       },
     });
@@ -899,7 +899,7 @@ process.on('message', (message) => {
     const watchedFile = createTmpFile('', '.js', dir);
     const configFile = createTmpFile(JSON.stringify({ watch: { 'watch-path': [dir] } }), '.json', dir);
 
-    const args = [`--experimental-config-file=${configFile}`, file];
+    const args = [`--config-file=${configFile}`, file];
     const { stderr, stdout } = await runWriteSucceed({ file, watchedFile, args });
 
     assert.strictEqual(stderr, '');
@@ -924,7 +924,7 @@ process.on('message', (message) => {
     const { stderr, stdout } = await runWriteSucceed({
       file,
       watchedFile: file,
-      args: ['--experimental-default-config-file', file],
+      args: ['--config-file', file],
       options: {
         timeout: 10000,
         cwd: dir,

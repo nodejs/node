@@ -7,7 +7,10 @@
 
 namespace node {
 
-constexpr std::string_view kConfigFileFlag = "--experimental-config-file";
+constexpr std::string_view kConfigFileFlag = "--config-file";
+// TODO(marco-ippolito): Remove these aliases in a semver-major.
+constexpr std::string_view kExperimentalConfigFileFlag =
+    "--experimental-config-file";
 constexpr std::string_view kDefaultConfigFileFlag =
     "--experimental-default-config-file";
 constexpr std::string_view kDefaultConfigFileName = "node.config.json";
@@ -26,23 +29,20 @@ std::optional<std::string_view> ConfigReader::GetDataFromArgs(
   for (size_t i = 0; i < args->size(); ++i) {
     std::string& arg = (*args)[i];
 
-    if (arg == kConfigFileFlag) {
-      // --experimental-config-file
-      arg = std::string(kConfigFileFlag) + "=" +
-            std::string(kDefaultConfigFileName);
-      result = kDefaultConfigFileName;
-    } else if (HasEqualsPrefix(arg, kConfigFileFlag)) {
-      // --experimental-config-file=path
-      std::string_view path =
-          std::string_view(arg).substr(kConfigFileFlag.size() + 1);
-      if (!path.empty()) {
-        result = path;
-      }
-    } else if (arg == kDefaultConfigFileFlag) {
+    if (arg == kConfigFileFlag || arg == kExperimentalConfigFileFlag ||
+        arg == kDefaultConfigFileFlag) {
+      // --config-file, --experimental-config-file or
       // --experimental-default-config-file
       arg = std::string(kConfigFileFlag) + "=" +
             std::string(kDefaultConfigFileName);
       result = kDefaultConfigFileName;
+    } else if (HasEqualsPrefix(arg, kConfigFileFlag) ||
+               HasEqualsPrefix(arg, kExperimentalConfigFileFlag)) {
+      // --config-file=path or --experimental-config-file=path
+      std::string_view path = std::string_view(arg).substr(arg.find('=') + 1);
+      if (!path.empty()) {
+        result = path;
+      }
     } else if (HasEqualsPrefix(arg, kDefaultConfigFileFlag)) {
       invalid_default_config_file_argument_ = true;
     }
