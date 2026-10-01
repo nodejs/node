@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import { strictEqual } from 'node:assert';
 import internal from 'internal/options';
 
-test('it should not receive --experimental-config-file option', () => {
-    const optionValue = internal.getOptionValue("--experimental-config-file");
+test('it should not receive --config-file option', () => {
+    const optionValue = internal.getOptionValue("--config-file");
     strictEqual(optionValue, '');
 })

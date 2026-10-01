@@ -150,7 +150,7 @@ class EnvironmentOptions : public Options {
   std::string watch_mode_kill_signal = "SIGTERM";
   std::string eval_string;
   std::string tls_keylog;
-  std::string experimental_config_file_path;
+  std::string config_file_path;
   std::string experimental_package_map_path;
   std::string vfs_load_source;
 #if HAVE_INSPECTOR
