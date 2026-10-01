@@ -58,7 +58,7 @@ class TestConfigurationTest(unittest.TestCase):
 
   def test_named_suites_explicitly_remain_serial(self):
     for suite in ['pummel', 'benchmark', 'known_issues', 'internet',
-                  'sequential', 'wasm-allocation', 'abort',
+                  'sequential', 'wasm-allocation',
                   'addons', 'js-native-api', 'node-api']:
       with self.subTest(suite=suite):
         config = self.module(suite).GetConfiguration(self.context, self.root)
@@ -67,7 +67,7 @@ class TestConfigurationTest(unittest.TestCase):
         self.assertTrue(all(not case.parallel for case in cases))
 
   def test_other_suites_use_parallel_default(self):
-    for suite in ['parallel', 'async-hooks', 'client-proxy', 'doctool',
+    for suite in ['parallel', 'abort', 'async-hooks', 'client-proxy', 'doctool',
                   'embedding', 'es-module', 'ffi', 'module-hooks', 'report',
                   'sqlite', 'test426', 'test-runner', 'tick-processor',
                   'trace_events', 'v8-updates', 'wasi']:
@@ -89,7 +89,7 @@ class TestConfigurationTest(unittest.TestCase):
     config = self.module('abort').GetConfiguration(self.context, self.root)
     case = self.cases(config, 'abort')[0]
     self.assertTrue(case.disable_core_files)
-    self.assertFalse(case.parallel)
+    self.assertTrue(case.parallel)
 
   def test_skipped_wpt_wrapper_retains_serial_configuration(self):
     config = self.module('wpt').GetConfiguration(self.context, self.root)

@@ -186,7 +186,7 @@ class SerialAddonTestConfiguration(AddonTestConfiguration):
   parallel = False
 
 
-class AbortTestConfiguration(SerialTestConfiguration):
+class AbortTestConfiguration(SimpleTestConfiguration):
   def __init__(self, context, root, section, additional=None):
     super(AbortTestConfiguration, self).__init__(context, root, section,
                                                  additional)

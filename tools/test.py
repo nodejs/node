@@ -891,12 +891,9 @@ def Execute(args, context, timeout=None, env=None, disable_core_files=False,
 
   preexec_fn = None
 
-  def disableCoreFiles():
-    import resource
-    resource.setrlimit(resource.RLIMIT_CORE, (0,0))
-
   if disable_core_files and not utils.IsWindows():
-    preexec_fn = disableCoreFiles
+    args = [sys.executable, join(dirname(__file__), 'test-resource-limits.py'),
+            '--disable-core-files', '--'] + args
 
   if max_virtual_memory is not None and utils.GuessOS() == 'linux':
     def setMaxVirtualMemory():
@@ -904,14 +901,7 @@ def Execute(args, context, timeout=None, env=None, disable_core_files=False,
       resource.setrlimit(resource.RLIMIT_CORE, (0,0))
       resource.setrlimit(resource.RLIMIT_AS, (max_virtual_memory,max_virtual_memory + 1))
 
-    if preexec_fn is not None:
-      prev_preexec_fn = preexec_fn
-      def setResourceLimits():
-        setMaxVirtualMemory()
-        prev_preexec_fn()
-      preexec_fn = setResourceLimits
-    else:
-      preexec_fn = setMaxVirtualMemory
+    preexec_fn = setMaxVirtualMemory
 
   (_process, exit_code, timed_out) = RunProcess(
     context,
@@ -925,8 +915,10 @@ def Execute(args, context, timeout=None, env=None, disable_core_files=False,
   )
   os.close(fd_out)
   os.close(fd_err)
-  output = open(outname, encoding='utf8').read()
-  errors = open(errname, encoding='utf8').read()
+  with open(outname, encoding='utf8') as output_file:
+    output = output_file.read()
+  with open(errname, encoding='utf8') as error_file:
+    errors = error_file.read()
   CheckedUnlink(outname)
   CheckedUnlink(errname)
 
