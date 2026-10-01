@@ -761,6 +761,8 @@ maintaining the Node.js project.
   **Haram Jeong** <<haramj.dev@gmail.com>>
 * [HBSPS](https://github.com/HBSPS) -
   **Wiyeong Seo** <<hbsps.dev@gmail.com>>
+* [HoonDongKang](https://github.com/HoonDongKang) -
+  **Donghoon Kang** <<d159123@gmail.com>>
 * [iam-frankqiu](https://github.com/iam-frankqiu) -
   **Frank Qiu** <<iam.frankqiu@gmail.com>> (he/him)
 * [inoway46](https://github.com/inoway46) -
