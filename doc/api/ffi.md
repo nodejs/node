@@ -206,11 +206,14 @@ const { suffix } = require('node:ffi');
 const path = `libsqlite3.${suffix}`;
 ```
 
-## `ffi.dlopen(path[, definitions])`
+## `ffi.dlopen(path[, definitions[, options]])`
 
 <!-- YAML
 added: v26.1.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Added the `options.supportsExceptions` option.
   - version: v26.10.0
     pr-url: https://github.com/nodejs/node/pull/65909
     description: Library paths inside a mounted virtual file system are now
@@ -220,6 +223,12 @@ changes:
 * `path` {string|null} Path to a dynamic library, or `null` to resolve symbols
   from the current process image.
 * `definitions` {Object} Symbol definitions to resolve immediately.
+* `options` {Object}
+  * `supportsExceptions` {boolean} Allow callbacks registered on the loaded
+    library to throw JavaScript exceptions that propagate to the caller of
+    the native function that invoked them, instead of crashing the process.
+    This requires the library to be built with exception unwinding support.
+    **Default:** `false`.
 * Returns: {Object}
 
 Loads a dynamic library and resolves the requested function definitions.
@@ -312,10 +321,13 @@ added: v26.1.0
 
 Represents a loaded dynamic library.
 
-### `new DynamicLibrary(path)`
+### `new DynamicLibrary(path[, options])`
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Added the `options.supportsExceptions` option.
   - version: v26.10.0
     pr-url: https://github.com/nodejs/node/pull/65909
     description: Library paths inside a mounted virtual file system are now
@@ -324,6 +336,12 @@ changes:
 
 * `path` {string|null} Path to a dynamic library, or `null` to resolve symbols
   from the current process image.
+* `options` {Object}
+  * `supportsExceptions` {boolean} Allow callbacks registered on this library
+    to throw JavaScript exceptions that propagate to the caller of the
+    native function that invoked them, instead of crashing the process.
+    This requires the library to be built with exception unwinding support.
+    **Default:** `false`.
 
 Loads the dynamic library without resolving any functions eagerly.
 
@@ -484,7 +502,7 @@ const callback = lib.registerCallback(
 Callbacks are subject to the following restrictions:
 
 * They must be invoked on the same system thread where they were created.
-* They must not throw exceptions.
+* By default, they must not throw exceptions.
 * They must not return promises.
 * They must return a value compatible with the declared return type.
 * They must not call `library.close()` on their owning library while running.
@@ -494,13 +512,26 @@ Closing the owning library or unregistering the currently executing callback
 from inside the callback is unsupported and dangerous. Doing so may crash the
 process, produce incorrect output, or corrupt memory.
 
+Callbacks may throw exceptions if the library has been loaded with
+`supportsExceptions: true` (see [`ffi.dlopen()`][] and [`new DynamicLibrary()`][])
+and every native function on the stack below the callback comes
+from a library that provides stack unwinding support. C++ libraries typically
+fulfill this requirement, but C libraries may need to be built with
+explicit support for this feature (e.g. the `-funwind-tables` flag of some
+compilers).
+
 If the thread running a callback is stopped while the callback executes, for
 example by `worker.terminate()`, by `process.exit()` in a Worker, or by the
 main thread exiting, only that thread stops. The callback returns to native
-code without a value: non-void return values are zero-initialized, so native
-code receives `0`, `false`, or a null pointer. Native code that does not
-handle such a value, for example by dereferencing a returned null pointer, can
-crash the process.
+code without a value:
+* If the library does not support exceptions, non-void return values are
+  zero-initialized, so native code receives `0`, `false`, or a null pointer.
+  Native code that does not handle such a value, for example by dereferencing
+  a returned null pointer, can crash the process.
+* If the library does support exceptions and was instantiated using
+  `supportsExceptions: true`, the termination will be passed down as a C++
+  exception. Execution will still terminate once control is returned back
+  from native code.
 
 ### `library.unregisterCallback(pointer)`
 
@@ -964,12 +995,13 @@ and keep callback and pointer lifetimes explicit on the native side.
 [Fast API call path]: #fast-api-call-path
 [Permission Model]: permissions.md#permission-model
 [`--allow-ffi`]: cli.md#--allow-ffi
-[`ffi.dlopen()`]: #ffidlopenpath-definitions
+[`ffi.dlopen()`]: #ffidlopenpath-definitions-options
 [`ffi.toBuffer(pointer, length, copy)`]: #ffitobufferpointer-length-copy
 [`library.functions`]: #libraryfunctions
 [`library.getFunction()`]: #librarygetfunctionname-signature
 [`library.getFunctions()`]: #librarygetfunctionsdefinitions
 [`library.registerCallback()`]: #libraryregistercallbacksignature-callback
+[`new DynamicLibrary()`]: #new-dynamiclibrarypath-options
 [`using`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/using
 [call paths]: #call-paths
 [generic call path]: #generic-call-path
