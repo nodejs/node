@@ -42,4 +42,5 @@ functions.call_int_callback(callback, 21);`,
 module.exports = {
   assertAborts,
   assertCallbackAborts,
+  spawnAbortingChild,
 };
