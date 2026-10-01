@@ -304,12 +304,9 @@ def WriteActions(target_name, actions, extra_sources, extra_deps, path_to_gyp, o
         output.write(path_to_gyp)
         output.write("\n")
 
-        output.write("  COMMENT ")
-        if "message" in action:
-            output.write(action["message"])
-        else:
-            output.write(action_target_name)
-        output.write("\n")
+        output.write('  COMMENT "')
+        output.write(CMakeStringEscape(action.get("message", action_target_name)))
+        output.write('"\n')
 
         output.write("  VERBATIM\n")
         output.write(")\n")
@@ -415,12 +412,9 @@ def WriteRules(target_name, rules, extra_sources, extra_deps, path_to_gyp, outpu
             output.write(path_to_gyp)
             output.write("\n")
 
-            output.write("  COMMENT ")
-            if "message" in rule:
-                output.write(rule["message"])
-            else:
-                output.write(action_name)
-            output.write("\n")
+            output.write('  COMMENT "')
+            output.write(CMakeStringEscape(rule.get("message", action_name)))
+            output.write('"\n')
 
             output.write("  VERBATIM\n")
             output.write(")\n")
@@ -537,9 +531,9 @@ def WriteCopies(target_name, copies, extra_deps, path_to_gyp, output):
     output.write(path_to_gyp)
     output.write("\n")
 
-    output.write("COMMENT Copying for ")
-    output.write(target_name)
-    output.write("\n")
+    output.write('COMMENT "Copying for ')
+    output.write(CMakeStringEscape(target_name))
+    output.write('"\n')
 
     output.write("VERBATIM\n")
     output.write(")\n")
@@ -779,8 +773,10 @@ def WriteTarget(
         other_sources_name = cmake_target_name + "__other_srcs"
         SetVariableList(output, other_sources_name, other_sources)
 
-    # CMake gets upset when executable targets provide no sources.
+    # CMake gets upset when executable or library targets provide no sources.
     # http://www.cmake.org/pipermail/cmake/2010-July/038461.html
+    # Libraries without sources are used to aggregate dependencies; build an
+    # empty library for them, as the make generator does.
     dummy_sources_name = None
     has_sources = (
         s_sources_name
@@ -789,7 +785,7 @@ def WriteTarget(
         or linkable_sources_name
         or other_sources_name
     )
-    if target_type == "executable" and not has_sources:
+    if target_type != "none" and not has_sources:
         dummy_sources_name = cmake_target_name + "__dummy_srcs"
         SetVariable(
             output, dummy_sources_name, "${obj}.${TOOLSET}/${TARGET}/genc/dummy.c"
@@ -1160,8 +1156,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_to_u
     gyp.common.EnsureDirExists(output_file)
 
     output = open(output_file, "w")
-    output.write("cmake_minimum_required(VERSION 2.8.8 FATAL_ERROR)\n")
-    output.write("cmake_policy(VERSION 2.8.8)\n")
+    output.write("cmake_minimum_required(VERSION 3.10)\n")
 
     gyp_file, project_target, _ = gyp.common.ParseQualifiedTarget(target_list[-1])
     output.write("project(")
