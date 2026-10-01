@@ -27,6 +27,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
       - name: Create PR with first commit
+        id: create-pull-request
         if: env.NEW_VERSION
         uses: gr2m/create-or-update-pull-request-action@b65137ca591da0b9f43bad7b24df13050ea45d1b  # v1.10.1
         # Creates a PR with the new OpenSSL source code committed
@@ -41,6 +42,7 @@ jobs:
           title: 'deps: update OpenSSL to ${{ env.NEW_VERSION }}'
           path: deps/openssl
           update-pull-request-title-and-body: true
+          draft: true
       - name: Regenerate platform specific files
         if: env.NEW_VERSION
         run: |
@@ -59,3 +61,9 @@ jobs:
           branch: actions/tools-update-openssl  # Custom branch *just* for this Action.
           commit-message: 'deps: update archs files for openssl-${{ env.NEW_VERSION }}'
           path: deps/openssl
+      - name: Mark PR as ready for review
+        if: env.NEW_VERSION
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          PR_ID: ${{ steps.create-pull-request.outputs.pull-request-number }}
+        run: gh --repo "$GITHUB_REPOSITORY" pr ready "$PR_ID"
