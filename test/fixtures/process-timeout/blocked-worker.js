@@ -10,6 +10,9 @@ const script = path.join(__dirname, 'wait-for-parent.js');
 const args = [script, String(process.pid), process.argv[2]];
 new Worker(`
   require('child_process').execFileSync(process.execPath, ${JSON.stringify(args)}, {
+    // The child can briefly outlive the parent. Do not keep the test's
+    // temporary directory open, which prevents cleanup on Windows.
+    cwd: ${JSON.stringify(__dirname)},
     stdio: 'ignore',
   });
 `, { eval: true, name: 'blocked' });
