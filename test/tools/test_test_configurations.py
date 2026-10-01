@@ -99,14 +99,17 @@ class TestConfigurationTest(unittest.TestCase):
     self.assertEqual(cases[0].path, ['wpt', 'test-example'])
     self.assertFalse(cases[0].parallel)
 
-  def test_sea_preserves_disk_space_gate_and_missing_binary_fallback(self):
+  def test_sea_uses_requested_jobs_for_disk_space_gate(self):
     sea = self.module('sea')
-    for exists, free, parallel in [(False, 1000, False), (True, 599, False),
-                                  (True, 600, True), (True, 1000, True)]:
-      with self.subTest(exists=exists, free=free):
+    for exists, jobs, free, parallel in [(False, 1, 1000, False),
+                                        (True, 1, 299, False),
+                                        (True, 1, 300, True),
+                                        (True, 4, 1199, False),
+                                        (True, 4, 1200, True)]:
+      with self.subTest(exists=exists, jobs=jobs, free=free):
+        self.context.jobs = jobs
         with mock.patch.object(sea.os.path, 'isfile', return_value=exists), \
              mock.patch.object(sea.os.path, 'getsize', return_value=100), \
-             mock.patch.object(sea.multiprocessing, 'cpu_count', return_value=2), \
              mock.patch.object(sea.shutil, 'disk_usage', return_value=SimpleNamespace(free=free)):
           config = sea.GetConfiguration(self.context, self.root)
         self.assertEqual(self.cases(config, 'sea')[0].parallel, parallel)

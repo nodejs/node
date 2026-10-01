@@ -1063,6 +1063,7 @@ class Context(object):
     self.store_unexpected_output = store_unexpected_output
     self.repeat = repeat
     self.abort_on_timeout = abort_on_timeout
+    self.jobs = 1
     self.v8_enable_inspector = True
     self.node_has_crypto = True
     self.node_has_ffi = True
@@ -1797,6 +1798,7 @@ def Main():
                     options.store_unexpected_output,
                     options.repeat,
                     options.abort_on_timeout)
+  context.jobs = options.j
   # Remember the primary mode requested on the CLI so suites can reuse it when
   # they need to probe for a binary outside of the normal test runner flow.
   for requested_mode in options.mode:
