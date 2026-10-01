@@ -27,10 +27,6 @@ module.exports = {
     },
   },
 
-  'idlharness-shadowrealm.window.js': {
-    skip: 'ShadowRealm support is not enabled',
-  },
-
   'window-worker-timeOrigin.window.js': {
     skip: 'depends on URL.createObjectURL(blob)',
   },

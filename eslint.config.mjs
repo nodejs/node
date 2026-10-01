@@ -143,7 +143,6 @@ export default [
         ReadableStreamDefaultReader: 'readonly',
         Response: 'readonly',
         sessionStorage: 'readonly',
-        ShadowRealm: 'readonly',
         Storage: 'readonly',
         SubtleCrypto: 'readonly',
         TextDecoderStream: 'readonly',
