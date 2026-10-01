@@ -494,6 +494,14 @@ Closing the owning library or unregistering the currently executing callback
 from inside the callback is unsupported and dangerous. Doing so may crash the
 process, produce incorrect output, or corrupt memory.
 
+If the thread running a callback is stopped while the callback executes, for
+example by `worker.terminate()`, by `process.exit()` in a Worker, or by the
+main thread exiting, only that thread stops. The callback returns to native
+code without a value: non-void return values are zero-initialized, so native
+code receives `0`, `false`, or a null pointer. Native code that does not
+handle such a value, for example by dereferencing a returned null pointer, can
+crash the process.
+
 ### `library.unregisterCallback(pointer)`
 
 * `pointer` {bigint}
