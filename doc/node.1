@@ -914,8 +914,16 @@ Enable experimental support for storage inspection
 Enable the experimental \fBnode:stream/iter\fR module.
 .
 .It Fl -experimental-strip-private-modules
-Enable type-stripping for TypeScript files under node_modules belonging to
-packages whose package.json contains \fB"private": true\fR.
+By default, Node.js refuses to strip types from TypeScript files inside
+folders under a \fBnode_modules\fR path. This flag enables type stripping for
+such files when they belong to a package whose \fBpackage.json\fR contains
+\fB"private": true\fR. Files belonging to non-private packages still throw
+\fBERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING\fR.
+The limitation to private packages should never be lifted,
+as publishing packages with TypeScript sources
+is highly discouraged.
+Stripping types inside \fBnode_modules\fR is intended only
+for local development.
 .
 .It Fl -experimental-test-coverage
 When used in conjunction with the \fBnode:test\fR module, a code coverage report is
@@ -2274,6 +2282,8 @@ one is included in the list below.
 \fB--experimental-specifier-resolution\fR
 .It
 \fB--experimental-stream-iter\fR
+.It
+\fB--experimental-strip-private-modules\fR
 .It
 \fB--experimental-test-isolation\fR
 .It

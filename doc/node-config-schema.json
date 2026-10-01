@@ -371,6 +371,10 @@
               "type": "boolean",
               "description": "experimental iterable streams API (node:stream/iter)"
             },
+            "experimental-strip-private-modules": {
+              "type": "boolean",
+              "description": "Type-stripping for TypeScript files under node_modules belonging to packages marked \"private\": true"
+            },
             "experimental-vm-modules": {
               "type": "boolean",
               "description": "experimental ES Module support in vm module"
