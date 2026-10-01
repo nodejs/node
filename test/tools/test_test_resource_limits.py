@@ -1,6 +1,7 @@
 import concurrent.futures
 import json
 import os
+import runpy
 import sys
 import unittest
 from types import SimpleNamespace
@@ -64,6 +65,51 @@ print(json.dumps([resource.getrlimit(resource.RLIMIT_CORE),
                              self.context, timeout=0.1, disable_core_files=True)
     self.assertTrue(timeout.timed_out)
     self.assertNotEqual(timeout.exit_code, 0)
+
+  def test_memory_launcher_sets_both_limits_before_exec(self):
+    limit = 512 * 1024 * 1024
+    helper = os.path.join(ROOT, 'tools', 'test-resource-limits.py')
+    command = [sys.executable, '-c', 'pass']
+    argv = [helper, '--max-virtual-memory', str(limit), '--'] + command
+    with mock.patch.object(sys, 'argv', argv), \
+         mock.patch.object(resource, 'setrlimit') as setrlimit, \
+         mock.patch.object(os, 'execvpe') as execvpe:
+      runpy.run_path(helper, run_name='__main__')
+    self.assertEqual(setrlimit.call_args_list,
+                     [mock.call(resource.RLIMIT_CORE, (0, 0)),
+                      mock.call(resource.RLIMIT_AS, (limit, limit + 1))])
+    execvpe.assert_called_once_with(command[0], command, os.environ)
+
+  def test_memory_limits_use_launcher_only_on_linux(self):
+    command = [sys.executable, '-c', 'pass']
+    for platform in ['linux', 'macos']:
+      with self.subTest(platform=platform), \
+           mock.patch.object(runner.utils, 'GuessOS', return_value=platform), \
+           mock.patch.object(runner, 'RunProcess', return_value=(None, 0, False)) as run:
+        runner.Execute(command, self.context, max_virtual_memory=123456)
+      actual = run.call_args.kwargs
+      self.assertNotIn('preexec_fn', actual)
+      if platform == 'linux':
+        self.assertEqual(actual['args'],
+                         [sys.executable, os.path.join(ROOT, 'tools', 'test-resource-limits.py'),
+                          '--max-virtual-memory', '123456', '--'] + command)
+      else:
+        self.assertEqual(actual['args'], command)
+
+  @unittest.skipUnless(sys.platform.startswith('linux'), 'Linux virtual memory limits')
+  def test_concurrent_memory_limits_are_inherited_by_tests(self):
+    parent_limits = resource.getrlimit(resource.RLIMIT_AS)
+    code = 'import json, resource; print(json.dumps(resource.getrlimit(resource.RLIMIT_AS)))'
+
+    def run(limit):
+      result = runner.Execute([sys.executable, '-c', code], self.context,
+                              timeout=5, max_virtual_memory=limit)
+      self.assertEqual(result.exit_code, 0, result.stderr)
+      self.assertEqual(json.loads(result.stdout), [limit, limit + 1])
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+      list(pool.map(run, [512 * 1024 * 1024, 768 * 1024 * 1024] * 4))
+    self.assertEqual(resource.getrlimit(resource.RLIMIT_AS), parent_limits)
 
 
 if __name__ == '__main__':

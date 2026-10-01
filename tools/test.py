@@ -889,19 +889,17 @@ def Execute(args, context, timeout=None, env=None, disable_core_files=False,
   # flags or environment variables defined via // Flags: and // Env:
   env_copy["NODE_SKIP_FLAG_CHECK"] = "true"
 
-  preexec_fn = None
+  resource_args = []
 
   if disable_core_files and not utils.IsWindows():
-    args = [sys.executable, join(dirname(__file__), 'test-resource-limits.py'),
-            '--disable-core-files', '--'] + args
+    resource_args.append('--disable-core-files')
 
   if max_virtual_memory is not None and utils.GuessOS() == 'linux':
-    def setMaxVirtualMemory():
-      import resource
-      resource.setrlimit(resource.RLIMIT_CORE, (0,0))
-      resource.setrlimit(resource.RLIMIT_AS, (max_virtual_memory,max_virtual_memory + 1))
+    resource_args.extend(['--max-virtual-memory', str(max_virtual_memory)])
 
-    preexec_fn = setMaxVirtualMemory
+  if resource_args:
+    args = [sys.executable, join(dirname(__file__), 'test-resource-limits.py')] + \
+        resource_args + ['--'] + args
 
   (_process, exit_code, timed_out) = RunProcess(
     context,
@@ -910,8 +908,7 @@ def Execute(args, context, timeout=None, env=None, disable_core_files=False,
     stdin = stdin,
     stdout = fd_out,
     stderr = fd_err,
-    env = env_copy,
-    preexec_fn = preexec_fn
+    env = env_copy
   )
   os.close(fd_out)
   os.close(fd_err)

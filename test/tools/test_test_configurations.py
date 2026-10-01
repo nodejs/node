@@ -58,7 +58,7 @@ class TestConfigurationTest(unittest.TestCase):
 
   def test_named_suites_explicitly_remain_serial(self):
     for suite in ['pummel', 'benchmark', 'known_issues', 'internet',
-                  'sequential', 'wasm-allocation',
+                  'sequential',
                   'addons', 'js-native-api', 'node-api']:
       with self.subTest(suite=suite):
         config = self.module(suite).GetConfiguration(self.context, self.root)
@@ -70,7 +70,7 @@ class TestConfigurationTest(unittest.TestCase):
     for suite in ['parallel', 'abort', 'async-hooks', 'client-proxy', 'doctool',
                   'embedding', 'es-module', 'ffi', 'module-hooks', 'report',
                   'sqlite', 'test426', 'test-runner', 'tick-processor',
-                  'trace_events', 'v8-updates', 'wasi']:
+                  'trace_events', 'v8-updates', 'wasi', 'wasm-allocation']:
       with self.subTest(suite=suite):
         config = self.module(suite).GetConfiguration(self.context, self.root)
         cases = self.cases(config, suite)

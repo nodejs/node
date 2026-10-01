@@ -41,9 +41,8 @@ For the tests to run on Windows, be sure to clone Node.js source code with the
 Tests run in parallel by default. Suite configurations opt out with
 `SerialTestConfiguration`, or `SerialAddonTestConfiguration` for addon layouts.
 The `addons`, `benchmark`, `internet`, `js-native-api`, `known_issues`, `node-api`,
-and `pummel` suites explicitly run serially. The `wasm-allocation`
-suite also remains serial; WPT's group settings and SEA's disk-space guard retain
-their existing scheduling.
+and `pummel` suites explicitly run serially. WPT's group settings and SEA's
+disk-space guard retain their existing scheduling.
 
 The test runner finishes parallel tests first, followed by serial suites, then
 `sequential` tests. In `sequential`, different subsystems can run concurrently
