@@ -11,7 +11,7 @@ function runBenchmark(name, env) {
 
   argv.push(name);
 
-  const mergedEnv = { ...process.env, ...env };
+  const mergedEnv = { ...process.env, ...env, PORT: '0' };
 
   const child = fork(runjs, argv, {
     env: mergedEnv,

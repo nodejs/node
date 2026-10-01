@@ -7,8 +7,8 @@ const fs = require('fs');
 const requirementsURL =
   'https://github.com/nodejs/node/blob/HEAD/doc/contributing/writing-and-running-benchmarks.md#http-benchmark-requirements';
 
-// The port used by servers and wrk
-exports.PORT = Number(process.env.PORT) || 12346;
+// The port used by servers and wrk. Zero lets the OS select an available port.
+exports.PORT = process.env.PORT === '0' ? 0 : Number(process.env.PORT) || 12346;
 
 class AutocannonBenchmarker {
   constructor() {

@@ -42,7 +42,7 @@ function main({ dur, len, type }) {
   });
 
   server.listen(PORT, () => {
-    const socket = net.connect(PORT);
+    const socket = net.connect(server.address().port);
     socket.on('connect', () => {
       bench.start();
 

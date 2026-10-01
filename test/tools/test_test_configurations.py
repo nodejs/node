@@ -57,7 +57,7 @@ class TestConfigurationTest(unittest.TestCase):
         self.assertTrue(all(case.parallel == parallel for case in cases))
 
   def test_named_suites_explicitly_remain_serial(self):
-    for suite in ['pummel', 'benchmark', 'known_issues', 'internet',
+    for suite in ['pummel', 'known_issues', 'internet',
                   'sequential',
                   'addons', 'js-native-api', 'node-api']:
       with self.subTest(suite=suite):
@@ -67,7 +67,7 @@ class TestConfigurationTest(unittest.TestCase):
         self.assertTrue(all(not case.parallel for case in cases))
 
   def test_other_suites_use_parallel_default(self):
-    for suite in ['parallel', 'abort', 'async-hooks', 'client-proxy', 'doctool',
+    for suite in ['parallel', 'abort', 'async-hooks', 'benchmark', 'client-proxy', 'doctool',
                   'embedding', 'es-module', 'ffi', 'module-hooks', 'report',
                   'sqlite', 'test426', 'test-runner', 'tick-processor',
                   'trace_events', 'v8-updates', 'wasi', 'wasm-allocation']:

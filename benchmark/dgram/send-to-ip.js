@@ -18,18 +18,20 @@ function main({ dur, n }) {
   const chunk = Buffer.allocUnsafe(1);
   let sent = 0;
   const socket = dgram.createSocket('udp4');
+  let port;
 
   function onsend() {
     if (sent++ % n === 0) {
       setImmediate(() => {
         for (let i = 0; i < n; i++) {
-          socket.send(chunk, PORT, '127.0.0.1', onsend);
+          socket.send(chunk, port, '127.0.0.1', onsend);
         }
       });
     }
   }
 
   socket.on('listening', () => {
+    port = socket.address().port;
     bench.start();
     onsend();
 

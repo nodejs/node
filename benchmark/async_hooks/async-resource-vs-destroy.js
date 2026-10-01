@@ -176,6 +176,7 @@ function main({ type, asyncMethod, connections, duration, path }) {
     .on('listening', () => {
 
       bench.http({
+        port: server.address().port,
         path,
         connections,
         duration,
