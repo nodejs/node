@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const test = require('node:test');
 const { DecompressionStream, CompressionStream } = require('stream/web');
@@ -48,14 +48,20 @@ test('DecompressionStream writable completion is not coupled to readable ' +
   const compressed = gzipSync(expected);
   const ds = new DecompressionStream('gzip');
   const writer = ds.writable.getWriter();
-  let settled = false;
-  const writePromise = writer.write(compressed).then(() => {
-    settled = true;
-  });
-
-  await new Promise(setImmediate);
-  const settledBeforeRead = settled;
-  if (settledBeforeRead) {
+  const writePromise = writer.write(compressed);
+  let timer;
+  let completedBeforeRead;
+  try {
+    completedBeforeRead = await Promise.race([
+      writePromise.then(() => true),
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(false), common.platformTimeout(2000));
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+  if (completedBeforeRead) {
     compressed.fill(0);
   }
 
@@ -66,6 +72,6 @@ test('DecompressionStream writable completion is not coupled to readable ' +
     (await outputPromise).map((chunk) => Buffer.from(chunk)),
   );
 
-  assert.strictEqual(settledBeforeRead, true);
+  assert.strictEqual(completedBeforeRead, true);
   assert.deepStrictEqual(output, expected);
 });
