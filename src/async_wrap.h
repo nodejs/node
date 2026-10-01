@@ -56,7 +56,6 @@ namespace node {
   V(DTLS_ENDPOINT)                                                             \
   V(DTLS_SESSION)                                                              \
   V(JSSTREAM)                                                                  \
-  V(JSUDPWRAP)                                                                 \
   V(MESSAGEPORT)                                                               \
   V(PIPECONNECTWRAP)                                                           \
   V(PIPESERVERWRAP)                                                            \
