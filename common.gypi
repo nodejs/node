@@ -129,10 +129,6 @@
       ['OS=="linux" or OS=="openharmony"', {
         'node_section_ordering_info%': ''
       }],
-      ['OS == "zos"', {
-        # use ICU data file on z/OS
-        'icu_use_data_file_flag%': 1
-      }]
     ],
   },
 
@@ -227,11 +223,7 @@
             # pull in V8's postmortem metadata
             'ldflags': [ '-Wl,-z,allextract' ]
           }],
-          ['OS=="zos"', {
-            # increase performance, number from experimentation
-            'cflags': [ '-qINLINE=::150:100000' ]
-          }],
-          ['OS!="mac" and OS!="win" and OS!="zos"', {
+          ['OS!="mac" and OS!="win"', {
             # -fno-omit-frame-pointer is necessary for the --perf_basic_prof
             # flag to work correctly. perf(1) gets confused about JS stack
             # frames otherwise, even with --call-graph dwarf.
@@ -485,7 +477,7 @@
       [ 'target_arch=="arm64"', {
         'msvs_configuration_platform': 'arm64',
       }],
-      ['asan == 1 and OS != "mac" and OS != "zos"', {
+      ['asan == 1 and OS != "mac"', {
         'cflags+': [
           '-fno-omit-frame-pointer',
           '-fsanitize=address',
@@ -513,7 +505,7 @@
           }],
         ],
       }],
-      ['ubsan == 1 and OS != "mac" and OS != "zos"', {
+      ['ubsan == 1 and OS != "mac"', {
         'cflags+': [
           '-fno-omit-frame-pointer',
           '-fsanitize=undefined',
@@ -596,11 +588,11 @@
           'NOMINMAX',
         ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris aix os400 openharmony"', {
+      [ 'OS in "linux freebsd openbsd solaris aix os400 openharmony zos"', {
         'cflags': [ '-pthread' ],
         'ldflags': [ '-pthread' ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris android aix os400 cloudabi openharmony"', {
+      [ 'OS in "linux freebsd openbsd solaris android aix os400 cloudabi openharmony zos"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
         'cflags_cc': [
           '-fno-rtti',
@@ -618,6 +610,9 @@
           ['OS=="openbsd"', {
             'cflags': [ '-I/usr/local/include' ],
             'ldflags': [ '-Wl,-z,wxneeded' ],
+          }],
+          [ 'OS=="zos"', {
+            'ldflags!': [ '-rdynamic' ],
           }],
           ['_toolset=="host"', {
             'conditions': [
@@ -837,6 +832,8 @@
       }],
       ['OS == "zos"', {
         'defines': [
+          'ZOSLIB_OVERRIDE_CLIB',
+          'ZOSLIB_ALIGNED_NEWDEL',
           '_XOPEN_SOURCE_EXTENDED',
           '_XOPEN_SOURCE=600',
           '_UNIX03_THREADS',
@@ -844,40 +841,37 @@
           '_UNIX03_SOURCE',
           '_OPEN_SYS_SOCK_IPV6',
           '_OPEN_SYS_FILE_EXT=1',
+          '_POSIX_C_SOURCE=200809L',
           '_POSIX_SOURCE',
           '_OPEN_SYS',
           '_OPEN_SYS_IF_EXT',
-          '_OPEN_SYS_SOCK_IPV6',
           '_OPEN_MSGQ_EXT',
           '_LARGE_TIME_API',
-          '_ALL_SOURCE',
           '_AE_BIMODAL=1',
-          '__IBMCPP_TR1__',
+          '_EXT',
           'NODE_PLATFORM="os390"',
           'PATH_MAX=1024',
           '_ENHANCED_ASCII_EXT=0xFFFFFFFF',
-          '_Export=extern',
-          '__static_assert=static_assert',
         ],
         'cflags': [
-          '-q64',
-          '-Wc,DLL',
-          '-Wa,GOFF',
-          '-qARCH=10',
-          '-qASCII',
-          '-qTUNE=12',
-          '-qENUM=INT',
-          '-qEXPORTALL',
-          '-qASM',
-        ],
-        'cflags_cc': [
-          '-qxclang=-std=c++14',
+          '-fno-short-enums',
+          '-fno-xl-pragma-pack',
+          '-fstack-protector',
+          '-fvisibility=default',
+          '-fzos-le-char-mode=ascii',
+          '-m64',
+          '-march=z14',
+          '-mzos-target=zosv2r5',
         ],
         'ldflags': [
-          '-q64',
+          '-m64',
+          '-mzos-target=zosv2r5',
         ],
         # for addons due to v8config.h include of "zos-base.h":
-        'include_dirs':  ['<(zoslib_include_dir)'],
+        'include_dirs':  [
+           '<(zoslib_include_dir)',
+           '<(zoslib_include_dir)/include-wrappers/c++',
+        ],
       }],
     ],
   }
