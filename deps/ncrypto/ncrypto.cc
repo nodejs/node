@@ -4401,11 +4401,26 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
       break;
     }
     case PKEncodingType::PKCS8: {
+      EVP_PKEY* export_key = get();
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+      // OpenSSL's provider EC PKCS8 encoders temporarily change encoding flags.
+      // Use an independent key so concurrent exports do not change the source.
+      EVPKeyPointer key_copy;
+      if ((isA(KeyAlgorithm::EC) || isA(KeyAlgorithm::SM2)) &&
+          EVP_PKEY_get0_provider(get()) != nullptr) {
+        key_copy.reset(EVP_PKEY_dup(get()));
+        if (!key_copy) {
+          return Result<BIOPointer, bool>(false,
+                                          mark_pop_error_on_return.peekError());
+        }
+        export_key = key_copy.get();
+      }
+#endif
       switch (config.format) {
         case PKFormatType::PEM: {
           // Encode PKCS#8 as PEM.
           err = PEM_write_bio_PKCS8PrivateKey(bio.get(),
-                                              get(),
+                                              export_key,
                                               config.cipher,
                                               passphrase.data,
                                               passphrase.len,
@@ -4415,7 +4430,7 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
         }
         case PKFormatType::DER: {
           err = i2d_PKCS8PrivateKey_bio(bio.get(),
-                                        get(),
+                                        export_key,
                                         config.cipher,
                                         passphrase.data,
                                         passphrase.len,
