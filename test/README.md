@@ -41,8 +41,9 @@ For the tests to run on Windows, be sure to clone Node.js source code with the
 Tests run in parallel by default. Suite configurations opt out with
 `SerialTestConfiguration`, or `SerialAddonTestConfiguration` for addon layouts.
 The `addons`, `js-native-api`, `known_issues`, `node-api`,
-and `pummel` suites explicitly run serially. WPT's group settings and SEA's
-disk-space guard retain their existing scheduling.
+and `pummel` suites explicitly run serially. WPT timer groups also run serially;
+managed web-locks and webstorage groups have isolated processes and run in
+parallel. SEA's disk-space guard uses the requested worker count.
 
 Benchmark smoke tests use TCP/UDP ports selected by the OS.
 Internet tests also allocate their listening ports dynamically.

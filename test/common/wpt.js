@@ -835,7 +835,8 @@ class WPTRunner {
       }
     }
     this.isListing = this.managed?.mode === 'list';
-    this.serial = options.concurrency === 1;
+    // Managed groups use separate processes, independent of worker concurrency.
+    this.serial = options.serial === true;
     if (this.managed?.mode === 'run') concurrency = 1;
 
     // RISC-V has very limited virtual address space in the currently common

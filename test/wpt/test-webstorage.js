@@ -4,6 +4,7 @@ skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const { WPTRunner } = require('../common/wpt');
 const { join } = require('node:path');
+// Standalone workers share this file; managed groups use separate test directories.
 const runner = new WPTRunner('webstorage', { concurrency: 1 });
 
 if (!runner.isListing) tmpdir.refresh();

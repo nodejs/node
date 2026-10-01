@@ -103,13 +103,15 @@ function main() {
   assert.match(skippedOutput, /1\.\.0 # SKIP/);
   assert.doesNotMatch(skippedOutput, /\[PASS\]/);
 
+  assert.strictEqual(discover('web-locks').serial, false);
+
   if (common.hasSQLite) {
     const root = path.join(tmpdir.path, 'discovery');
     const directory = path.join(root, '.tmp.probe');
     fs.mkdirSync(directory, { recursive: true });
     const sentinel = path.join(directory, 'sentinel');
     fs.writeFileSync(sentinel, 'preserved');
-    assert.strictEqual(discover('webstorage', { NODE_TEST_DIR: root, TEST_SERIAL_ID: 'probe' }).serial, true);
+    assert.strictEqual(discover('webstorage', { NODE_TEST_DIR: root, TEST_SERIAL_ID: 'probe' }).serial, false);
     assert.strictEqual(fs.readFileSync(sentinel, 'utf8'), 'preserved');
   }
 
