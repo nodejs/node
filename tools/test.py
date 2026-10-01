@@ -912,9 +912,9 @@ def Execute(args, context, timeout=None, env=None, disable_core_files=False,
   )
   os.close(fd_out)
   os.close(fd_err)
-  with open(outname, encoding='utf8') as output_file:
+  with open(outname, encoding='utf8', errors='replace') as output_file:
     output = output_file.read()
-  with open(errname, encoding='utf8') as error_file:
+  with open(errname, encoding='utf8', errors='replace') as error_file:
     errors = error_file.read()
   CheckedUnlink(outname)
   CheckedUnlink(errname)

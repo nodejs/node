@@ -4,6 +4,7 @@ import os
 import sys
 import threading
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -56,6 +57,30 @@ class SchedulerProgress(runner.ProgressIndicator):
     event = self.reported.get(output.test)
     if event:
       event.set()
+
+
+class ExecuteTest(unittest.TestCase):
+  def test_invalid_utf8_output_preserves_test_result(self):
+    context = SimpleNamespace(verbose=False, suppress_dialogs=False,
+                              abort_on_timeout=False)
+    code = '''import sys
+sys.stdout.buffer.write(b'valid: \\xc3\\xa9\\ninvalid: \\xe8!\\n')
+sys.stderr.buffer.write(b'valid: \\xe2\\x82\\xac\\ninvalid: \\xff!\\n')
+sys.exit(7)
+'''
+    output = runner.Execute([sys.executable, '-c', code], context, timeout=5)
+    self.assertEqual(output.stdout, 'valid: é\ninvalid: \ufffd!\n')
+    self.assertEqual(output.stderr, 'valid: €\ninvalid: \ufffd!\n')
+    self.assertEqual(output.exit_code, 7)
+    self.assertFalse(output.timed_out)
+
+    case = SchedulerCase('test-net-invalid-utf8')
+    failure = runner.TestOutput(case, ['node', 'test-net-invalid-utf8'], output, False)
+    self.assertTrue(failure.UnexpectedOutput())
+    report = SchedulerProgress([case]).GetFailureOutput(failure)
+    self.assertIn(output.stdout.strip(), report)
+    self.assertIn(output.stderr.strip(), report)
+    report.encode('utf8')
 
 
 class SchedulerTest(unittest.TestCase):
