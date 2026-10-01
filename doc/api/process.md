@@ -2723,8 +2723,10 @@ changes:
 
 * `path` {string | URL | Buffer | undefined}. **Default:** `'./.env'`
 
-Loads the `.env` file into `process.env`. Usage of `NODE_OPTIONS`
-in the `.env` file will not have any effect on Node.js.
+Loads the `.env` file into `process.env`. If a variable is already defined in
+`process.env`, its existing value takes precedence and is not overwritten by the
+`.env` file. Usage of `NODE_OPTIONS` in the `.env` file will not have any effect
+on Node.js.
 
 ```cjs
 const { loadEnvFile } = require('node:process');
