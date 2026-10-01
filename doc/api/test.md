@@ -885,10 +885,9 @@ test runner functionality:
 * `--experimental-test-tag-filter` - Filter expressions are validated by the parent
   process and re-emitted to child processes
 * `--watch` - Watch mode is handled at the parent level
-* `--experimental-default-config-file` - Config file loading is handled by the parent
 * `--test-reporter` - Reporting is managed by the parent process
 * `--test-reporter-destination` - Output destinations are controlled by the parent
-* `--experimental-config-file` - Config file paths are managed by the parent
+* `--config-file` - Config file paths are managed by the parent
 * `--test-randomize` - Randomization is managed by the parent process and
   propagated to child processes
 * `--test-random-seed` - Randomization seed is managed by the parent process and
@@ -5051,7 +5050,7 @@ test.describe('my suite', (suite) => {
 [`suite()`]: #suitename-options-fn
 [`test()`]: #testname-options-fn
 [code coverage]: #collecting-code-coverage
-[configuration files]: cli.md#--experimental-config-filepath---experimental-config-file
+[configuration files]: cli.md#--config-filepath---config-file
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [module customization hooks]: module.md#customization-hooks
