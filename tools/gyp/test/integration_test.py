@@ -11,7 +11,8 @@ import unittest
 import gyp
 
 fixture_dir = os.path.join(os.path.dirname(__file__), "fixtures")
-gyp_file = os.path.join(os.path.dirname(__file__), "fixtures/integration.gyp")
+gyp_file = os.path.join(fixture_dir, "integration.gyp")
+pch_gyp_file = os.path.join(fixture_dir, "pch.gyp")
 
 if sys.platform == "win32":
     sysname = sys.platform
@@ -91,3 +92,16 @@ class TestGypWindows(unittest.TestCase):
 
         assert_file(self, "test.vcproj", "msvs/test.vcproj")
         assert_file(self, "integration.sln", "msvs/integration.sln")
+
+    def test_ninja_precompiled_header(self) -> None:
+        try:
+            rc = gyp.main(["-f", "ninja", "--depth", fixture_dir, pch_gyp_file])
+        except ValueError as exc:
+            self.skipTest(str(exc))
+        assert rc == 0
+
+        with open(os.path.join(fixture_dir, "out/Default/obj/pch.ninja")) as in_file:
+            ninja_file = in_file.read()
+
+        assert "map object at" not in ninja_file
+        assert "/Ycpch.h" in ninja_file
