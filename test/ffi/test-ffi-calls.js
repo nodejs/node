@@ -16,8 +16,8 @@ test('ffi function pointers are independent callables with library guards', () =
   try {
     const signature = { arguments: ['i32', 'i32'], return: 'i32' };
     const address = lib.getSymbol('add_i32');
-    const first = lib.getFunctionFromPointer(address, signature);
-    const second = lib.getFunctionFromPointer(address, signature);
+    const first = lib.toFunction(address, signature);
+    const second = lib.toFunction(address, signature);
     assert.notStrictEqual(first, second);
     assert.strictEqual(first.pointer, address);
     assert.strictEqual(first(20, 22), 42);
@@ -26,11 +26,11 @@ test('ffi function pointers are independent callables with library guards', () =
     assert.deepStrictEqual(Object.keys(lib.getFunctions()), []);
     const named = lib.getFunction('add_i32', signature);
     assert.notStrictEqual(named, first);
-    assert.strictEqual(lib.getFunctionFromPointer(named.pointer, signature)(1, 2), 3);
+    assert.strictEqual(lib.toFunction(named.pointer, signature)(1, 2), 3);
     assert.throws(() => first(1), { code: 'ERR_INVALID_ARG_VALUE' });
     assert.throws(() => first(1, 2, 3), { code: 'ERR_INVALID_ARG_VALUE' });
     assert.throws(() => first(1, 2n), { code: 'ERR_INVALID_ARG_VALUE' });
-    const different = lib.getFunctionFromPointer(address, {
+    const different = lib.toFunction(address, {
       arguments: ['f64'], return: 'f64',
     });
     assert.notStrictEqual(different, first);
@@ -38,7 +38,7 @@ test('ffi function pointers are independent callables with library guards', () =
     for (const fn of [first, second, different]) {
       assert.throws(() => fn(), { code: 'ERR_FFI_LIBRARY_CLOSED' });
     }
-    assert.throws(() => lib.getFunctionFromPointer(address, signature), {
+    assert.throws(() => lib.toFunction(address, signature), {
       code: 'ERR_FFI_LIBRARY_CLOSED',
     });
   } finally {
@@ -53,7 +53,7 @@ test('ffi calls function pointers returned by C and stored in vtables', () => {
     get_pointer_size: { arguments: [], return: 'u32' },
   });
   try {
-    const increment = lib.getFunctionFromPointer(functions.get_function_pointer(), {
+    const increment = lib.toFunction(functions.get_function_pointer(), {
       arguments: ['i32'], return: 'i32',
     });
     assert.strictEqual(increment(41), 42);
@@ -61,7 +61,7 @@ test('ffi calls function pointers returned by C and stored in vtables', () => {
       (address) => ffi.getUint64(address) : (address) => BigInt(ffi.getUint32(address));
     const object = functions.get_pointer_test_object();
     const vtable = readPointer(object);
-    const method = lib.getFunctionFromPointer(readPointer(vtable), {
+    const method = lib.toFunction(readPointer(vtable), {
       arguments: ['pointer', 'i32'], return: 'i32',
     });
     assert.strictEqual(method(object, 2), 42);
@@ -84,10 +84,10 @@ test('ffi function pointers reuse scalar, buffer and string conversions', () => 
       ['pointer_string_lengths', { arguments: ['string', 'string'], return: 'u64' },
        ['first', 'second'], 11n],
     ]) {
-      const fn = lib.getFunctionFromPointer(lib.getSymbol(name), signature);
+      const fn = lib.toFunction(lib.getSymbol(name), signature);
       assert.strictEqual(fn(...values), expected);
     }
-    const identity = lib.getFunctionFromPointer(lib.getSymbol('identity_pointer'), {
+    const identity = lib.toFunction(lib.getSymbol('identity_pointer'), {
       arguments: ['pointer'], return: 'pointer',
     });
     const buffer = Buffer.from([1, 2, 3]);
@@ -96,7 +96,7 @@ test('ffi function pointers reuse scalar, buffer and string conversions', () => 
     assert.strictEqual(identity(view), ffi.getRawPointer(view));
     assert.strictEqual(identity(null), 0n);
     assert.strictEqual(identity(undefined), 0n);
-    const lengths = lib.getFunctionFromPointer(lib.getSymbol('pointer_string_lengths'), {
+    const lengths = lib.toFunction(lib.getSymbol('pointer_string_lengths'), {
       arguments: ['string', 'string'], return: 'u64',
     });
     assert.throws(() => lengths('first\0', 'second'), { code: 'ERR_INVALID_ARG_VALUE' });
@@ -113,7 +113,7 @@ test('ffi function pointers reject invalid addresses and signatures', () => {
     const address = lib.getSymbol('add_i32');
     for (const value of [undefined, null, 1, '1', {},
                          { valueOf: common.mustNotCall() }]) {
-      assert.throws(() => lib.getFunctionFromPointer(value, signature), {
+      assert.throws(() => lib.toFunction(value, signature), {
         code: 'ERR_INVALID_ARG_TYPE',
       });
     }
@@ -121,19 +121,19 @@ test('ffi function pointers reject invalid addresses and signatures', () => {
       arguments: [], return: 'u32',
     })();
     for (const value of [0n, -1n, 2n ** BigInt(pointerSize * 8), 2n ** 64n]) {
-      assert.throws(() => lib.getFunctionFromPointer(value, signature), {
+      assert.throws(() => lib.toFunction(value, signature), {
         code: 'ERR_INVALID_ARG_VALUE',
       });
     }
     for (const value of [undefined, null, 1, 'signature', []]) {
-      assert.throws(() => lib.getFunctionFromPointer(address, value), {
+      assert.throws(() => lib.toFunction(address, value), {
         code: 'ERR_INVALID_ARG_TYPE',
       });
     }
-    assert.throws(() => lib.getFunctionFromPointer(address, { return: 'unknown' }), {
+    assert.throws(() => lib.toFunction(address, { return: 'unknown' }), {
       code: 'ERR_INVALID_ARG_VALUE',
     });
-    assert.strictEqual(lib.getFunctionFromPointer(address, signature)(20, 22), 42);
+    assert.strictEqual(lib.toFunction(address, signature)(20, 22), 42);
   } finally {
     lib.close();
   }
@@ -147,7 +147,7 @@ test('ffi function pointer signature getters preserve errors and closure', () =>
       const failure = new Error('pointer signature getter failed');
       const signature = { arguments: ['i32', 'i32'], return: 'i32' };
       Object.defineProperty(signature, property, { get() { throw failure; } });
-      assert.throws(() => lib.getFunctionFromPointer(address, signature),
+      assert.throws(() => lib.toFunction(address, signature),
                     (error) => error === failure);
       Object.defineProperty(signature, property, {
         get() {
@@ -155,7 +155,7 @@ test('ffi function pointer signature getters preserve errors and closure', () =>
           return property === 'arguments' ? ['i32', 'i32'] : 'i32';
         },
       });
-      assert.throws(() => lib.getFunctionFromPointer(address, signature), {
+      assert.throws(() => lib.toFunction(address, signature), {
         code: 'ERR_FFI_LIBRARY_CLOSED',
       });
     } finally {
@@ -166,7 +166,7 @@ test('ffi function pointer signature getters preserve errors and closure', () =>
 
 test('ffi function pointer guards survive optimized JavaScript call sites', () => {
   const { lib } = ffi.dlopen(libraryPath);
-  const fn = lib.getFunctionFromPointer(lib.getSymbol('add_i32'), {
+  const fn = lib.toFunction(lib.getSymbol('add_i32'), {
     arguments: ['i32', 'i32'], return: 'i32',
   });
   function call(first, second) {

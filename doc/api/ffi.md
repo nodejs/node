@@ -433,7 +433,7 @@ console.log(add(20, 22));
 console.log(add.pointer);
 ```
 
-### `library.getFunctionFromPointer(pointer, signature)`
+### `library.toFunction(pointer, signature)`
 
 * `pointer` {bigint}
 * `signature` {Object}
@@ -450,7 +450,7 @@ const { DynamicLibrary, suffix } = require('node:ffi');
 const lib = new DynamicLibrary(`./mylib.${suffix}`);
 try {
   const address = lib.getSymbol('add_i32');
-  const add = lib.getFunctionFromPointer(address, {
+  const add = lib.toFunction(address, {
     arguments: ['int32', 'int32'],
     return: 'int32',
   });

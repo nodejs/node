@@ -893,8 +893,7 @@ void DynamicLibrary::GetFunction(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
-void DynamicLibrary::GetFunctionFromPointer(
-    const FunctionCallbackInfo<Value>& args) {
+void DynamicLibrary::ToFunction(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
 
@@ -1417,10 +1416,7 @@ Local<FunctionTemplate> DynamicLibrary::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "close", DynamicLibrary::Close);
     SetProtoDispose(isolate, tmpl, DynamicLibrary::Close);
     SetProtoMethod(isolate, tmpl, "getFunction", DynamicLibrary::GetFunction);
-    SetProtoMethod(isolate,
-                   tmpl,
-                   "getFunctionFromPointer",
-                   DynamicLibrary::GetFunctionFromPointer);
+    SetProtoMethod(isolate, tmpl, "toFunction", DynamicLibrary::ToFunction);
     SetProtoMethod(isolate, tmpl, "getFunctions", DynamicLibrary::GetFunctions);
     SetProtoMethod(isolate, tmpl, "getSymbol", DynamicLibrary::GetSymbol);
     SetProtoMethod(isolate, tmpl, "getSymbols", DynamicLibrary::GetSymbols);
