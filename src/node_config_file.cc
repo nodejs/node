@@ -3,11 +3,15 @@
 #include "node_version.h"
 #include "simdjson.h"
 
+#include <algorithm>
 #include <cinttypes>
 
 namespace node {
 
-constexpr std::string_view kConfigFileFlag = "--experimental-config-file";
+constexpr std::string_view kConfigFileFlag = "--config-file";
+// TODO(marco-ippolito): Remove these aliases in a semver-major.
+constexpr std::string_view kExperimentalConfigFileFlag =
+    "--experimental-config-file";
 constexpr std::string_view kDefaultConfigFileFlag =
     "--experimental-default-config-file";
 constexpr std::string_view kDefaultConfigFileName = "node.config.json";
@@ -18,31 +22,75 @@ inline bool HasEqualsPrefix(std::string_view arg, std::string_view flag) {
          arg[flag.size()] == '=';
 }
 
+inline bool IsBareConfigFileFlag(std::string_view arg) {
+  return arg == kConfigFileFlag || arg == kExperimentalConfigFileFlag ||
+         arg == kDefaultConfigFileFlag;
+}
+
+inline bool IsConfigFileFlag(std::string_view arg) {
+  return IsBareConfigFileFlag(arg) || HasEqualsPrefix(arg, kConfigFileFlag) ||
+         HasEqualsPrefix(arg, kExperimentalConfigFileFlag) ||
+         HasEqualsPrefix(arg, kDefaultConfigFileFlag);
+}
+
+inline std::string DefaultConfigFileArg() {
+  return std::string(kConfigFileFlag) + "=" +
+         std::string(kDefaultConfigFileName);
+}
+
+// Returns the index of the first entry in `args` that is neither the program
+// name nor an option for Node.js itself. Everything from there on is the
+// script and its arguments, or follows `--`, so it must not be read as a
+// config file flag.
+size_t GetNodeOptionsEnd(const std::vector<std::string>& args) {
+  // The bare flags take no value. Spell them out the way GetDataFromArgs()
+  // does before the real parse, otherwise the parser would consume the next
+  // argument as the path.
+  std::vector<std::string> remaining;
+  remaining.reserve(args.size());
+  for (const std::string& arg : args) {
+    remaining.push_back(IsBareConfigFileFlag(arg) ? DefaultConfigFileArg()
+                                                  : arg);
+  }
+
+  // Parsing into throwaway options stops exactly where the real parse will.
+  // Any errors are reported by the real parse later on.
+  PerProcessOptions options;
+  std::vector<std::string> v8_args;
+  std::vector<std::string> errors;
+  options_parser::Parse(
+      &remaining, nullptr, &v8_args, &options, kDisallowedInEnvvar, &errors);
+
+  // `remaining` is left with the program name and the unparsed arguments.
+  return args.size() - remaining.size() + 1;
+}
+
 std::optional<std::string_view> ConfigReader::GetDataFromArgs(
     std::vector<std::string>* args) {
   std::optional<std::string_view> result;
   invalid_default_config_file_argument_ = false;
 
-  for (size_t i = 0; i < args->size(); ++i) {
+  // Only pay for the extra parse when a config file flag might be present.
+  if (args->empty() || std::ranges::none_of(*args, IsConfigFileFlag)) {
+    return result;
+  }
+
+  const size_t node_options_end = GetNodeOptionsEnd(*args);
+  for (size_t i = 1; i < node_options_end; ++i) {
     std::string& arg = (*args)[i];
 
-    if (arg == kConfigFileFlag) {
-      // --experimental-config-file
-      arg = std::string(kConfigFileFlag) + "=" +
-            std::string(kDefaultConfigFileName);
+    if (IsBareConfigFileFlag(arg)) {
+      // --config-file, --experimental-config-file or
+      // --experimental-default-config-file
+      arg = DefaultConfigFileArg();
       result = kDefaultConfigFileName;
-    } else if (HasEqualsPrefix(arg, kConfigFileFlag)) {
-      // --experimental-config-file=path
-      std::string_view path =
-          std::string_view(arg).substr(kConfigFileFlag.size() + 1);
+    } else if (HasEqualsPrefix(arg, kConfigFileFlag) ||
+               HasEqualsPrefix(arg, kExperimentalConfigFileFlag)) {
+      // --config-file=path or --experimental-config-file=path
+      std::string_view path = std::string_view(arg).substr(arg.find('=') + 1);
       if (!path.empty()) {
         result = path;
       }
-    } else if (arg == kDefaultConfigFileFlag) {
-      // --experimental-default-config-file
-      arg = std::string(kConfigFileFlag) + "=" +
-            std::string(kDefaultConfigFileName);
-      result = kDefaultConfigFileName;
     } else if (HasEqualsPrefix(arg, kDefaultConfigFileFlag)) {
       invalid_default_config_file_argument_ = true;
     }

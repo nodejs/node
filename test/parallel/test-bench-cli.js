@@ -428,7 +428,7 @@ if (common.hasInspector) {
   const result = spawnNode([
     '--no-warnings',
     '--experimental-bench',
-    `--experimental-config-file=${fixtures.path('bench-runner/node.config.json')}`,
+    `--config-file=${fixtures.path('bench-runner/node.config.json')}`,
     fixtures.path('bench-runner/a.cjs'),
   ]);
   assert.strictEqual(result.status, 0);
