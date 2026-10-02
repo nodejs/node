@@ -2693,6 +2693,19 @@ void Database::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, db);
+
+  if (!args[0]->IsString()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"name\" argument must be a string.");
+    return;
+  }
+
+  if (!args[1]->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"options\" argument must be an object.");
+    return;
+  }
+
   Utf8Value name(env->isolate(), args[0].As<String>());
   Local<Object> options = args[1].As<Object>();
   Local<Value> start_v;
