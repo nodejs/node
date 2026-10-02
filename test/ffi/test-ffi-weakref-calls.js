@@ -86,6 +86,38 @@ test('ffi failed pointer callable construction releases its registration', async
   }
 });
 
+test('ffi pointer callable construction detects library closure', async (t) => {
+  const { lib } = ffi.dlopen(libraryPath);
+  t.after(() => lib.close());
+  const address = lib.getSymbol('add_i32');
+  const original = Object.getOwnPropertyDescriptor(Function.prototype, 'pointer');
+  let escaped;
+  try {
+    Object.defineProperty(Function.prototype, 'pointer', {
+      configurable: true,
+      get() { return undefined; },
+      set() {
+        escaped = this;
+        lib.close();
+      },
+    });
+    t.assert.throws(() => lib.getFunctionFromPointer(address, {
+      arguments: ['i32', 'i32'], return: 'i32',
+    }), { code: 'ERR_FFI_LIBRARY_CLOSED' });
+  } finally {
+    if (original === undefined) {
+      delete Function.prototype.pointer;
+    } else {
+      Object.defineProperty(Function.prototype, 'pointer', original);
+    }
+  }
+  t.assert.throws(() => escaped(20, 22), { code: 'ERR_FFI_LIBRARY_CLOSED' });
+  const ref = new WeakRef(escaped);
+  escaped = null;
+  await gcUntil('ffi pointer callable from closed library is collected',
+                () => ref.deref() === undefined);
+});
+
 test('ffi unrefCallback releases callback function', async (t) => {
   const { lib, functions: symbols } = ffi.dlopen(libraryPath, fixtureSymbols);
   t.after(() => lib.close());
