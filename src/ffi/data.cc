@@ -15,6 +15,8 @@
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
+using v8::BackingStoreOnFailureMode;
 using v8::BigInt;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
@@ -670,8 +672,15 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
 
   Local<ArrayBuffer> ab;
   if (copy) {
-    std::unique_ptr<BackingStore> store =
-        ArrayBuffer::NewBackingStore(isolate, len);
+    std::unique_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
+        isolate,
+        len,
+        BackingStoreInitializationMode::kUninitialized,
+        BackingStoreOnFailureMode::kReturnNull);
+    if (!store) [[unlikely]] {
+      THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+      return;
+    }
     if (len > 0) memcpy(store->Data(), reinterpret_cast<void*>(ptr), len);
     ab = ArrayBuffer::New(isolate, std::move(store));
   } else {
