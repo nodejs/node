@@ -4,6 +4,7 @@ const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
 const {
+  open,
   openSync,
   readFile,
   writeFileSync,
@@ -24,6 +25,173 @@ function getTempFile() {
 
 runTests(false);
 runTests(true);
+
+{
+  const dest = getTempFile();
+  const fd = openSync(dest, 'w');
+  const stream = new Utf8Stream({ fd, minLength: 10, sync: false });
+  let flushed = false;
+
+  assert.ok(stream.write('asynchronous flush\n'));
+  assert.ok(stream.write('queued\n'));
+  assert.strictEqual(stream.writing, true);
+  stream.flush(common.mustSucceed(() => {
+    flushed = true;
+    assert.strictEqual(stream.writing, false);
+    readFile(dest, 'utf8', common.mustSucceed((data) => {
+      assert.strictEqual(data, 'asynchronous flush\nqueued\n');
+      stream.end();
+    }));
+  }));
+  assert.strictEqual(flushed, false);
+}
+
+{
+  const dest = getTempFile();
+  const fd = openSync(dest, 'w');
+  const stream = new Utf8Stream({ fd, minLength: 0, sync: false });
+
+  assert.ok(stream.write('flush before end\n'));
+  stream.flush(common.mustSucceed());
+  stream.on('finish', common.mustCall(() => {
+    readFile(dest, 'utf8', common.mustSucceed((data) => {
+      assert.strictEqual(data, 'flush before end\n');
+    }));
+  }));
+  stream.end();
+}
+
+{
+  const dest = getTempFile();
+  const fd = openSync(dest, 'w');
+  const writeError = new Error('write failed');
+  const stream = new Utf8Stream({
+    fd,
+    minLength: 0,
+    sync: false,
+    fs: {
+      write: common.mustCall((_fd, _data, _encoding, callback) => {
+        process.nextTick(callback, writeError);
+      }),
+    },
+  });
+
+  stream.on('error', common.mustCall((error) => {
+    assert.strictEqual(error, writeError);
+  }));
+  assert.ok(stream.write('failed write before end\n'));
+  stream.flush(common.mustCall((error) => {
+    assert.strictEqual(error, writeError);
+  }));
+  stream.end();
+}
+
+{
+  const dest = getTempFile();
+  const fd = openSync(dest, 'w');
+  let fsyncCalls = 0;
+  const stream = new Utf8Stream({
+    fd,
+    minLength: 10,
+    sync: false,
+    fs: {
+      fsync: common.mustCall((_fd, callback) => {
+        fsyncCalls++;
+        if (fsyncCalls === 1) {
+          assert.ok(stream.write('late\n'));
+        }
+        process.nextTick(callback);
+      }, 2),
+    },
+  });
+
+  assert.ok(stream.write('initial write\n'));
+  stream.flush(common.mustSucceed());
+  stream.on('finish', common.mustCall(() => {
+    readFile(dest, 'utf8', common.mustSucceed((data) => {
+      assert.strictEqual(data, 'initial write\nlate\n');
+    }));
+  }));
+  stream.end();
+}
+
+{
+  const dest = getTempFile();
+  const fd = openSync(dest, 'w');
+  const flushError = new Error('flush failed');
+  let fsyncCalls = 0;
+  const stream = new Utf8Stream({
+    fd,
+    minLength: 0,
+    sync: false,
+    fs: {
+      fsync: common.mustCall((_fd, callback) => {
+        fsyncCalls++;
+        process.nextTick(callback, fsyncCalls === 1 ? flushError : null);
+      }, 2),
+    },
+  });
+
+  assert.ok(stream.write('failed flush before end\n'));
+  stream.flush(common.mustCall((error) => {
+    assert.strictEqual(error, flushError);
+  }));
+  stream.on('close', common.mustCall());
+  stream.end();
+}
+
+{
+  const dest = getTempFile();
+  const stream = new Utf8Stream({
+    dest,
+    fs: {
+      open(...args) {
+        setImmediate(() => open(...args));
+      },
+    },
+  });
+
+  stream.flush(common.mustSucceed());
+  stream.on('close', common.mustCall());
+  stream.end();
+}
+
+{
+  const dest = getTempFile();
+  const stream = new Utf8Stream({
+    dest,
+    fs: {
+      open(...args) {
+        setImmediate(() => open(...args));
+      },
+    },
+  });
+
+  stream.flush(common.mustCall((error) => {
+    assert.strictEqual(error?.code, 'ERR_INVALID_STATE');
+  }));
+  stream.on('close', common.mustCall());
+  stream.destroy();
+  stream.flush(common.mustCall((error) => {
+    assert.strictEqual(error?.code, 'ERR_INVALID_STATE');
+  }));
+}
+
+{
+  const dest = getTempFile();
+  const stream = new Utf8Stream({
+    dest,
+    fs: {
+      open(...args) {
+        setImmediate(() => open(...args));
+      },
+    },
+  });
+
+  stream.on('close', common.mustCall());
+  stream.end();
+  stream.destroy();
+}
 
 function runTests(sync) {
   {
