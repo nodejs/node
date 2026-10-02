@@ -4360,6 +4360,46 @@ test('test', (t) => {
 });
 ```
 
+#### `context.assert.callCount(fn, times[, message])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} A mock function created by the test runner's mocking API.
+* `times` {integer} The expected number of calls.
+* `message` {string} Optional error message.
+
+Asserts that the mock function `fn` has been called exactly `times` times.
+
+```js
+test('mock was called twice', (t) => {
+  const fn = t.mock.fn();
+  fn();
+  fn();
+  t.assert.callCount(fn, 2);
+});
+```
+
+#### `context.assert.called(fn[, message])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} A mock function created by the test runner's mocking API.
+* `message` {string} Optional error message.
+
+Asserts that the mock function `fn` has been called at least once.
+
+```js
+test('mock was called', (t) => {
+  const fn = t.mock.fn();
+  fn();
+  t.assert.called(fn);
+});
+```
+
 #### `context.assert.fileSnapshot(value, path[, options])`
 
 <!-- YAML
@@ -4398,6 +4438,52 @@ This function differs from `context.assert.snapshot()` in the following ways:
 
 These differences allow snapshot files to better support features such as syntax
 highlighting.
+
+#### `context.assert.lastCalledWith(fn[, ...args])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} A mock function created by the test runner's mocking API.
+* `...args` {any} The expected arguments.
+
+Asserts that the most recent call to the mock function `fn` received arguments
+deeply and strictly equal to `args`, using the same comparison as
+[`assert.deepStrictEqual()`][].
+
+```js
+test('mock was last called with arguments', (t) => {
+  const fn = t.mock.fn();
+  fn(1);
+  fn(2);
+  t.assert.lastCalledWith(fn, 2);
+});
+```
+
+#### `context.assert.nthCalledWith(fn, n[, ...args])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} A mock function created by the test runner's mocking API.
+* `n` {integer} The 1-based index of the call to check.
+* `...args` {any} The expected arguments.
+
+Asserts that the `n`th call to the mock function `fn` received arguments
+deeply and strictly equal to `args`, using the same comparison as
+[`assert.deepStrictEqual()`][]. `n` starts at `1`, so
+`t.assert.nthCalledWith(fn, 1)` checks `fn.mock.calls[0]`.
+
+```js
+test('mock was called with arguments on the second call', (t) => {
+  const fn = t.mock.fn();
+  fn(1);
+  fn(2);
+  t.assert.nthCalledWith(fn, 2, 2);
+});
+```
 
 #### `context.assert.snapshot(value[, options])`
 
@@ -5037,6 +5123,7 @@ test.describe('my suite', (suite) => {
 [`SuiteContext`]: #class-suitecontext
 [`TestContext`]: #class-testcontext
 [`TracingChannel`]: diagnostics_channel.md#class-tracingchannel
+[`assert.deepStrictEqual()`]: assert.md#assertdeepstrictequalactual-expected-message
 [`assert.throws`]: assert.md#assertthrowsfn-error-message
 [`context.diagnostic`]: #contextdiagnosticmessage
 [`context.log`]: #contextlogmessage-data
