@@ -1,3 +1,5 @@
+import type { AsyncWrap } from './async_wrap';
+
 interface QuicCallbacks {
   onEndpointClose: (context: number, status: number) => void;
   onSessionNew: (session: Session) => void;
@@ -53,10 +55,10 @@ interface EndpointOptions {
 interface SessionOptions {}
 interface SocketAddress {}
 
-interface Session {}
-interface Stream {}
+interface Session extends AsyncWrap {}
+interface Stream extends AsyncWrap {}
 
-interface Endpoint {
+interface Endpoint extends AsyncWrap {
   listen(options: SessionOptions): void;
   connect(address: SocketAddress, options: SessionOptions): Session;
   closeGracefully(): void;
