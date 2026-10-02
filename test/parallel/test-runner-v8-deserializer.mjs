@@ -27,11 +27,11 @@ const reportedDiagnosticEvent = {
 const chunks = await toArray(serializer([diagnosticEvent]));
 const defaultSerializer = new DefaultSerializer();
 defaultSerializer.writeHeader();
-const headerLength = defaultSerializer.releaseBuffer().length;
-const headerOnly = Buffer.from([0xff, 0x0f]);
-const oversizedLengthHeader = Buffer.from([0xff, 0x0f, 0x7f, 0xff, 0xff, 0xff]);
-const unsignedOversizedLengthHeader = Buffer.from([0xff, 0x0f, 0x80, 0x00, 0x00, 0x00]);
-const truncatedLengthHeader = Buffer.from([0xff, 0x0f, 0x00, 0x01, 0x00, 0x00]);
+const headerOnly = Buffer.from(defaultSerializer.releaseBuffer());
+const headerLength = headerOnly.length;
+const oversizedLengthHeader = Buffer.concat([headerOnly, Buffer.from([0x7f, 0xff, 0xff, 0xff])]);
+const unsignedOversizedLengthHeader = Buffer.concat([headerOnly, Buffer.from([0x80, 0x00, 0x00, 0x00])]);
+const truncatedLengthHeader = Buffer.concat([headerOnly, Buffer.from([0x00, 0x01, 0x00, 0x00])]);
 // Expected stdout for oversizedLengthHeader: first byte is emitted via
 // String.fromCharCode (byte-by-byte fallback in #drainRawBuffer), remaining
 // bytes go through the nonSerialized UTF-8 decode path in #processRawBuffer.
@@ -39,37 +39,42 @@ const oversizedLengthStdout = String.fromCharCode(oversizedLengthHeader[0]) +
   Buffer.from(oversizedLengthHeader.subarray(1)).toString('utf-8');
 const unsignedOversizedLengthStdout = String.fromCharCode(unsignedOversizedLengthHeader[0]) +
   Buffer.from(unsignedOversizedLengthHeader.subarray(1)).toString('utf-8');
-// FF 0F followed by a small, plausible size (8) and 8 payload bytes. Unlike the
+function payloadSize(size) {
+  const buffer = Buffer.alloc(4);
+  buffer.writeUInt32BE(size);
+  return buffer;
+}
+// The v8 header followed by a small, plausible size (8) and 8 payload bytes. Unlike the
 // oversized headers above, this passes the size check, but its payload does not
 // begin with the inner v8 header a real frame carries, so it is treated as
 // stdout instead of reaching the deserializer.
 // Regression fixture for https://github.com/nodejs/node/issues/66164
-const plausibleSizeFalseHeader = Buffer.from([
-  0xff, 0x0f,             // V8 serializer header magic
-  0x00, 0x00, 0x00, 0x08, // Payload size of 8 bytes
-  0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, // "ABCDEFGH", not a real payload
+const plausibleSizeFalseHeader = Buffer.concat([
+  headerOnly,
+  payloadSize(8),
+  Buffer.from('ABCDEFGH'), // Not a real payload
 ]);
 const plausibleSizeFalseHeaderStdout = String.fromCharCode(plausibleSizeFalseHeader[0]) +
   Buffer.from(plausibleSizeFalseHeader.subarray(1)).toString('utf-8');
-// FF 0F, a valid size, then the inner v8 header a real frame repeats, followed
+// The v8 header, a valid size, then the inner v8 header a real frame repeats, followed
 // by a byte that is not a valid serialized value. This passes the inner header
 // check and reaches the deserializer, which throws. This is what a genuine
 // report-protocol regression looks like, so the parser must let the error
 // surface instead of hiding it as stdout.
-const headeredCorruptFrame = Buffer.from([
-  0xff, 0x0f,             // Outer v8 serializer header magic
-  0x00, 0x00, 0x00, 0x03, // Payload size of 3 bytes
-  0xff, 0x0f,             // Inner v8 header that a real frame repeats
-  0xee,                   // Not a valid serialized value
+const headeredCorruptFrame = Buffer.concat([
+  headerOnly,
+  payloadSize(headerLength + 1),
+  headerOnly,
+  Buffer.from([0xee]), // Not a valid serialized value
 ]);
-// FF 0F with a declared size of 1, then more header bytes. The payload is
+// The v8 header with a declared size of 1, then more header bytes. The payload is
 // shorter than the inner v8 header a real frame carries, so it can never be a
 // real frame. The length guard must reject it as stdout without reaching the
 // deserializer.
-const shortPayloadFalseHeader = Buffer.from([
-  0xff, 0x0f,             // Outer v8 serializer header magic
-  0x00, 0x00, 0x00, 0x01, // Payload size of 1 byte, too short for a header
-  0xff, 0x0f,             // Trailing bytes that also look like a header
+const shortPayloadFalseHeader = Buffer.concat([
+  headerOnly,
+  payloadSize(1),
+  headerOnly, // Trailing bytes that also look like a header
 ]);
 
 function collectStdout(reported) {
@@ -144,10 +149,10 @@ describe('v8 deserializer', common.mustCall(() => {
 
   it('should not hang when buffer starts with v8Header followed by oversized length', async () => {
     // Regression test for https://github.com/nodejs/node/issues/62693
-    // FF 0F is the v8 serializer header; the next 4 bytes are read as a
-    // big-endian message size.  0x7FFFFFFF far exceeds any actual buffer
-    // size, causing #processRawBuffer to make no progress and
-    // #drainRawBuffer to loop forever without the no-progress guard.
+    // The v8 serializer header is followed by 4 bytes read as a big-endian
+    // message size. 0x7FFFFFFF far exceeds any actual buffer size, causing
+    // #processRawBuffer to make no progress and #drainRawBuffer to loop
+    // forever without the no-progress guard.
     const reported = await collectReported([oversizedLengthHeader]);
     assert.partialDeepStrictEqual(
       reported,
@@ -173,14 +178,14 @@ describe('v8 deserializer', common.mustCall(() => {
   });
 
   it('should flush v8Header-only bytes as stdout when stream ends', async () => {
-    // Just the two-byte v8 header with no size field at all.
+    // Just the v8 header bytes with no size field at all.
     const reported = await collectReported([headerOnly]);
     assert(reported.every((event) => event.type === 'test:stdout'));
     assert.strictEqual(collectStdout(reported), headerOnly.toString('latin1'));
   });
 
   it('should resync and parse valid messages after false v8 header', async () => {
-    // A false v8 header (FF 0F + oversized length) followed by a
+    // A false v8 header (header bytes + oversized length) followed by a
     // legitimate serialized message. The parser must skip the corrupt
     // bytes and still deserialize the real message.
     const reported = await collectReported([
