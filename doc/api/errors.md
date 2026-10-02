@@ -3645,14 +3645,6 @@ The WASI instance has already started.
 
 The WASI instance has not been started.
 
-<a id="ERR_WEBASSEMBLY_NOT_SUPPORTED"></a>
-
-### `ERR_WEBASSEMBLY_NOT_SUPPORTED`
-
-A feature requiring WebAssembly was used, but WebAssembly is not supported or
-has been disabled in the current environment (for example, when running with
-`--jitless`).
-
 <a id="ERR_WEBASSEMBLY_RESPONSE"></a>
 
 ### `ERR_WEBASSEMBLY_RESPONSE`
@@ -4487,6 +4479,18 @@ The linker function returned a module for which linking has failed.
 ### `ERR_VM_MODULE_NOT_LINKED`
 
 The module must be successfully linked before instantiation.
+
+<a id="ERR_WEBASSEMBLY_NOT_SUPPORTED"></a>
+
+### `ERR_WEBASSEMBLY_NOT_SUPPORTED`
+
+<!-- YAML
+removed: REPLACEME
+-->
+
+A feature requiring WebAssembly was used in an environment where WebAssembly
+was unavailable. Node.js now requires WebAssembly and no longer supports
+JIT-less execution.
 
 <a id="ERR_WORKER_UNSUPPORTED_EXTENSION"></a>
 

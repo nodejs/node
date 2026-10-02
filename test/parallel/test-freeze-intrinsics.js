@@ -1,7 +1,10 @@
-// Flags: --frozen-intrinsics --jitless
+// Flags: --frozen-intrinsics
 'use strict';
 require('../common');
 const assert = require('assert');
+
+assert(Object.isFrozen(WebAssembly));
+assert(Object.isFrozen(WebAssembly.Module.prototype));
 
 assert.throws(
   () => Object.defineProperty = 'asdf',
