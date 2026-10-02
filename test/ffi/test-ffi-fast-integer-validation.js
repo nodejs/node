@@ -83,15 +83,23 @@ test('fast FFI validates pointer BigInt ranges', () => {
         arguments: [type, 'u64'],
         return: 'u64',
       });
+      // Only pointer-like arguments, so no integer type forces the wrapper.
+      const stringConcat = lib.getFunction('string_concat', {
+        arguments: [type, type],
+        return: 'pointer',
+      });
       function callSingle(value) { return identityPointer(value); }
 
       function callMultiple(value) { return sumBuffer(value, 0n); }
 
+      function callPointers(value) { return stringConcat(value, 0n); }
+
       optimize(callSingle, 0n);
       optimize(callMultiple, 0n);
+      optimize(callPointers, 0n);
 
       const expect = { code: 'ERR_INVALID_ARG_VALUE' };
-      for (const call of [callSingle, callMultiple]) {
+      for (const call of [callSingle, callMultiple, callPointers]) {
         assert.throws(() => call(-1n), expect);
         assert.throws(() => call((2n ** 64n) + 5n), expect);
       }
