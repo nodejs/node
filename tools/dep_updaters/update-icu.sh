@@ -55,10 +55,12 @@ curl -sfL -o "$NEW_VERSION_TGZ_PATH" "$NEW_VERSION_TGZ_URL"
 KEYRING="$BASE_DIR/tools/dep_updaters/icu.kbx"
 if [ "$1" = "--update-keys" ]; then
   KEYS_FILE="$WORKSPACE/KEYS"
+  GNUPGHOME="$WORKSPACE/gnupg"
+  mkdir -m 700 "$GNUPGHOME"
   echo "Fetching the upstream KEYS file"
-  curl -sSLfo "$KEYS_FILE" https://github.com/unicode-org/icu/raw/refs/tags/release-${NEW_VERSION}/KEYS
-  rm -f "$KEYRING"
-  gpg --no-default-keyring --keyring "$KEYRING" --batch --import --import-options import-minimal < "$KEYS_FILE"
+  curl -sSLfo "$KEYS_FILE" "https://github.com/unicode-org/icu/raw/refs/tags/release-${NEW_VERSION}/KEYS"
+  GNUPGHOME="$GNUPGHOME" gpg --no-default-keyring --keyring "$WORKSPACE/icu.kbx" --batch --import --import-options import-minimal < "$KEYS_FILE"
+  mv "$WORKSPACE/icu.kbx" "$KEYRING"
 fi
 
 echo "Verifying PGP signature"
