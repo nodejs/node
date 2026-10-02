@@ -140,8 +140,7 @@ class DynamicLibrary : public BaseObject {
 
   static void GetPath(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetFunctionFromPointer(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ToFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetFunctions(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSymbol(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSymbols(const v8::FunctionCallbackInfo<v8::Value>& args);

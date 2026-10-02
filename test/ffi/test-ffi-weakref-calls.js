@@ -11,7 +11,7 @@ const { fixtureSymbols, libraryPath } = require('./ffi-test-common');
 test('ffi function pointer callables retain their library through GC', async (t) => {
   let library = ffi.dlopen(libraryPath);
   const ref = new WeakRef(library.lib);
-  const fn = library.lib.getFunctionFromPointer(library.lib.getSymbol('add_i32'), {
+  const fn = library.lib.toFunction(library.lib.getSymbol('add_i32'), {
     arguments: ['i32', 'i32'], return: 'i32',
   });
   library = null;
@@ -33,7 +33,7 @@ test('ffi function pointer registry does not retain callables', async (t) => {
     const address = lib.getSymbol('add_i32');
     const refs = [];
     for (let index = 0; index < 100; index++) {
-      let fn = lib.getFunctionFromPointer(address, {
+      let fn = lib.toFunction(address, {
         arguments: ['i32', 'i32'], return: 'i32',
       });
       refs.push(new WeakRef(fn));
@@ -41,7 +41,7 @@ test('ffi function pointer registry does not retain callables', async (t) => {
     }
     await gcUntil('ffi function pointer callables are collected',
                   () => refs.every((ref) => ref.deref() === undefined));
-    const fn = lib.getFunctionFromPointer(address, {
+    const fn = lib.toFunction(address, {
       arguments: ['i32', 'i32'], return: 'i32',
     });
     t.assert.strictEqual(fn(20, 22), 42);
@@ -66,7 +66,7 @@ test('ffi failed pointer callable construction releases its registration', async
         throw failure;
       },
     });
-    t.assert.throws(() => lib.getFunctionFromPointer(lib.getSymbol('add_i32'), {
+    t.assert.throws(() => lib.toFunction(lib.getSymbol('add_i32'), {
       arguments: ['i32', 'i32'], return: 'i32',
     }), (error) => error === failure);
   } finally {
@@ -101,7 +101,7 @@ test('ffi pointer callable construction detects library closure', async (t) => {
         lib.close();
       },
     });
-    t.assert.throws(() => lib.getFunctionFromPointer(address, {
+    t.assert.throws(() => lib.toFunction(address, {
       arguments: ['i32', 'i32'], return: 'i32',
     }), { code: 'ERR_FFI_LIBRARY_CLOSED' });
   } finally {
