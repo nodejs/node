@@ -40,7 +40,7 @@ declare namespace InternalFFIBinding {
 
     close(): void;
     getFunction(name: string, signature: FunctionSignature): FFIFunction;
-    getFunctionFromPointer(pointer: bigint, signature: FunctionSignature): FFIFunction;
+    toFunction(pointer: bigint, signature: FunctionSignature): FFIFunction;
     getFunctions(): Record<string, FFIFunction>;
     getFunctions(
       definitions: Record<string, FunctionSignature>,
