@@ -1865,8 +1865,8 @@ def configure_mips(o, target_arch):
   o['variables']['v8_host_byteorder'] = host_byteorder
 
 def configure_zos(o):
-  if 'ZOSLIB_INCLUDES' in os.environ and os.environ['ZOSLIB_INCLUDES']:
-    o['variables']['zoslib_include_dir'] = os.environ['ZOSLIB_INCLUDES']
+  if os.environ.get('ZOSLIB_INCLUDES'):
+    o['variables']['zoslib_include_dir'] = os.environ.get('ZOSLIB_INCLUDES')
     o['include_dirs'] += [o['variables']['zoslib_include_dir']]
   else:
     raise Exception('Environment variable ZOSLIB_INCLUDES=<path to zoslib/include dir> is required.')
