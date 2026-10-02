@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
-# Shell script to update icu in the source tree to a specific version
+# Shell script to update icu in the source tree to a specific version.
+# Pass `--update-keys` to update the local copy of the key files after verifying
+# the upstream file history.
 
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 DEPS_DIR="$BASE_DIR/deps"
@@ -36,28 +38,46 @@ NEW_VERSION_TGZ="icu4c-${NEW_VERSION}-sources.tgz"
 
 NEW_VERSION_TGZ_URL="https://github.com/unicode-org/icu/releases/download/release-${NEW_VERSION}/${NEW_VERSION_TGZ}"
 
-NEW_VERSION_MD5="https://github.com/unicode-org/icu/releases/download/release-${NEW_VERSION}/icu4c-${NEW_VERSION}-sources.md5"
+WORKSPACE=$(mktemp -d 2> /dev/null || mktemp -d -t 'tmp')
+NEW_VERSION_TGZ_PATH="$WORKSPACE/$NEW_VERSION_TGZ"
 
-CHECKSUM=$(curl -sL "$NEW_VERSION_MD5" | grep "$NEW_VERSION_TGZ" | grep -v "\.asc$" | awk '{print $1}')
+cleanup () {
+  EXIT_CODE=$?
+  [ -d "$WORKSPACE" ] && rm -rf "$WORKSPACE"
+  exit $EXIT_CODE
+}
 
-GENERATED_CHECKSUM=$( curl -sL "$NEW_VERSION_TGZ_URL" | md5sum | cut -d ' ' -f1)
+trap cleanup INT TERM EXIT
 
-echo "Comparing checksums: deposited '$CHECKSUM' with '$GENERATED_CHECKSUM'"
+echo "Fetching ICU source archive"
+curl -sfL -o "$NEW_VERSION_TGZ_PATH" "$NEW_VERSION_TGZ_URL"
 
-if [ "$CHECKSUM" != "$GENERATED_CHECKSUM" ]; then
-  echo "Skipped because checksums do not match."
-  exit 0
+KEYRING="$BASE_DIR/tools/dep_updaters/icu.kbx"
+if [ "$1" = "--update-keys" ]; then
+  KEYS_FILE="$(mktemp)"
+  echo "Fetching the upstream KEYS file"
+  curl -sSLfo "$KEYS_FILE" https://github.com/unicode-org/icu/raw/refs/tags/release-${NEW_VERSION}/KEYS
+  rm -f "$KEYRING"
+  gpg --no-default-keyring --keyring "$KEYRING" --batch --import --import-options import-minimal < "$KEYS_FILE"
 fi
 
-./configure --with-intl=full-icu --with-icu-source="$NEW_VERSION_TGZ_URL"
+echo "Verifying PGP signature"
+curl -sfL -o "$NEW_VERSION_TGZ_PATH.asc" "$NEW_VERSION_TGZ_URL.asc"
+gpgv --keyring "$KEYRING" "$NEW_VERSION_TGZ_PATH.asc" "$NEW_VERSION_TGZ_PATH"
+
+CHECKSUM=$(shasum -a 256 "$NEW_VERSION_TGZ_PATH" | cut -d ' ' -f1)
+echo "sha256: $CHECKSUM"
+
+./configure --with-intl=full-icu --with-icu-source="$NEW_VERSION_TGZ_PATH"
 
 "$TOOLS_DIR/icu/shrink-icu-src.py"
 
 rm -rf "$DEPS_DIR/icu"
 
-perl -i -pe "s|\"url\": .*|\"url\": \"$NEW_VERSION_TGZ_URL\",|" "$TOOLS_DIR/icu/current_ver.dep"
-
-perl -i -pe "s|\"md5\": .*|\"md5\": \"$CHECKSUM\"|" "$TOOLS_DIR/icu/current_ver.dep"
+URL="$NEW_VERSION_TGZ_URL" SHA256="$CHECKSUM" "$NODE" -e '
+  const { URL: url, SHA256: sha256 } = process.env;
+  console.log(JSON.stringify([{ url, sha256 }], null, 2));
+' > "$TOOLS_DIR/icu/current_ver.dep"
 
 rm -rf out "$DEPS_DIR/icu" "$DEPS_DIR/icu4c*"
 
