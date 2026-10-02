@@ -12,6 +12,7 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 // libffi only accelerates reusable call plans on x86-64 System V. Other
@@ -29,12 +30,18 @@ struct FFIFunction;
 
 struct FFIFunction {
   FFIFunction() = default;
+  ~FFIFunction() {
+    if (auto registry = pointer_registry.lock()) {
+      registry->erase(this);
+    }
+  }
   FFIFunction(const FFIFunction&) = delete;
   FFIFunction& operator=(const FFIFunction&) = delete;
   FFIFunction(FFIFunction&&) = delete;
   FFIFunction& operator=(FFIFunction&&) = delete;
 
   bool closed = false;
+  std::weak_ptr<std::unordered_set<FFIFunction*>> pointer_registry;
 
   void* ptr = nullptr;
   ffi_cif cif = {};
@@ -133,6 +140,8 @@ class DynamicLibrary : public BaseObject {
 
   static void GetPath(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetFunctionFromPointer(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetFunctions(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSymbol(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSymbols(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -156,11 +165,17 @@ class DynamicLibrary : public BaseObject {
   };
   v8::Maybe<PreparedFunction> PrepareFunction(Environment* env,
                                               const std::string& name,
-                                              v8::Local<v8::Object> signature);
+                                              v8::Local<v8::Object> signature,
+                                              void* ptr = nullptr);
   v8::MaybeLocal<v8::Function> CreateFunction(
       Environment* env,
       const std::string& name,
       const std::shared_ptr<FFIFunction>& fn);
+  v8::MaybeLocal<v8::Function> BuildFunction(
+      Environment* env,
+      const std::string& name,
+      const std::shared_ptr<FFIFunction>& fn,
+      bool optimize);
   static void CleanupFunctionInfo(
       const v8::WeakCallbackInfo<FFIFunctionInfo>& data);
   bool is_closed() const;
@@ -175,6 +190,7 @@ class DynamicLibrary : public BaseObject {
   // which keeps the map from rooting the library through the wrapper's
   // FFIFunctionInfo.
   std::unordered_map<std::string, v8::Global<v8::Function>> function_wrappers_;
+  std::shared_ptr<std::unordered_set<FFIFunction*>> pointer_functions_;
   std::unordered_map<void*, std::unique_ptr<FFICallback>> callbacks_;
 };
 
