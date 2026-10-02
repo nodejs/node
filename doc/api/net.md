@@ -1144,11 +1144,10 @@ added:
 * `family` {number} The family of the IP. It can be `6` for IPv6 or `4` for IPv4.
 
 Emitted when a connection attempt is still pending after the configured
-`autoSelectFamilyAttemptTimeout` and another attempt is about to start. The
+`autoSelectFamilyAttemptTimeout`. If another attempt is about to start, the
 pending attempt remains active and may still establish the connection, unless
 `localPort` requires sequential attempts. This is only emitted if the family
-autoselection algorithm is enabled in
-[`socket.connect(options)`][].
+autoselection algorithm is enabled in [`socket.connect(options)`][].
 
 ### Event: `'data'`
 
@@ -1403,23 +1402,24 @@ For TCP connections, available `options` are:
   connect to all obtained IPv6 and IPv4 addresses until a connection is
   established. The first valid address is tried first, followed by addresses
   from alternating families in their original order. After
-  `autoSelectFamilyAttemptTimeout` milliseconds, the next attempt starts without
-  canceling any pending attempts. The first successful TCP connection wins and
-  the other attempts are canceled. When `localPort` is set, attempts are made
-  sequentially because multiple connections cannot portably bind the same local
-  port. The option is ignored if `family` is not `0` or if `localAddress` is set.
-  Connection errors are not emitted if at least one
-  connection succeeds. If all connection attempts fail, a single
-  `AggregateError` with all failed attempts is emitted. **Default:**
-  [`net.getDefaultAutoSelectFamily()`][].
+  `autoSelectFamilyAttemptTimeout` milliseconds, or as soon as an attempt fails,
+  the next attempt starts without canceling any pending attempts. The first
+  successful TCP connection wins and the other attempts are canceled. If the
+  last attempt fails while others are still pending, they are given one more
+  `autoSelectFamilyAttemptTimeout` before the connection fails. When `localPort`
+  is set, attempts are made sequentially because multiple connections cannot
+  portably bind the same local port. The option is ignored if `family` is not
+  `0` or if `localAddress` is set. Connection errors are not emitted if at least
+  one connection succeeds. If all connection attempts fail, a single
+  `AggregateError` with all failed attempts, in attempt order, is emitted.
+  **Default:** [`net.getDefaultAutoSelectFamily()`][].
 * `autoSelectFamilyAttemptTimeout` {number}: The delay in milliseconds before
   starting the next connection attempt while the previous one is pending when
-  using the `autoSelectFamily` option. A failed attempt can start the next one
-  sooner. A pending attempt is not canceled when this delay elapses, except when
-  `localPort` requires sequential attempts. If set to a positive integer less
-  than `10`, then the value `10` will be used instead.
-  **Default:**
-  [`net.getDefaultAutoSelectFamilyAttemptTimeout()`][].
+  using the `autoSelectFamily` option. A failed attempt starts the next one
+  immediately. A pending attempt is not canceled when this delay elapses, except
+  when `localPort` requires sequential attempts. If set to a positive integer
+  less than `10`, then the value `10` will be used instead.
+  **Default:** [`net.getDefaultAutoSelectFamilyAttemptTimeout()`][].
 * `family` {number}: Version of IP stack. Must be `4`, `6`, or `0`. The value
   `0` indicates that both IPv4 and IPv6 addresses are allowed. **Default:** `0`.
 * `hints` {number} Optional [`dns.lookup()` hints][].
