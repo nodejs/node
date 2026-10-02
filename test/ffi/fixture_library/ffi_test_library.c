@@ -44,7 +44,7 @@ FFI_EXPORT PointerTestObject* get_pointer_test_object(void) {
 }
 
 FFI_EXPORT uint64_t pointer_string_lengths(const char* first,
-                                          const char* second) {
+                                           const char* second) {
   return strlen(first) + strlen(second);
 }
 
