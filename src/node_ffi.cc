@@ -911,8 +911,7 @@ void DynamicLibrary::GetFunctionFromPointer(
   bool lossless;
   uint64_t address = args[0].As<BigInt>()->Uint64Value(&lossless);
   if (!lossless || address == 0 ||
-      address > static_cast<uint64_t>(
-                    std::numeric_limits<uintptr_t>::max())) {
+      address > static_cast<uint64_t>(std::numeric_limits<uintptr_t>::max())) {
     THROW_ERR_INVALID_ARG_VALUE(env, "Invalid function pointer");
     return;
   }
@@ -1434,9 +1433,9 @@ Local<FunctionTemplate> DynamicLibrary::GetConstructorTemplate(
     SetProtoDispose(isolate, tmpl, DynamicLibrary::Close);
     SetProtoMethod(isolate, tmpl, "getFunction", DynamicLibrary::GetFunction);
     SetProtoMethod(isolate,
-             tmpl,
-             "getFunctionFromPointer",
-             DynamicLibrary::GetFunctionFromPointer);
+                   tmpl,
+                   "getFunctionFromPointer",
+                   DynamicLibrary::GetFunctionFromPointer);
     SetProtoMethod(isolate, tmpl, "getFunctions", DynamicLibrary::GetFunctions);
     SetProtoMethod(isolate, tmpl, "getSymbol", DynamicLibrary::GetSymbol);
     SetProtoMethod(isolate, tmpl, "getSymbols", DynamicLibrary::GetSymbols);
