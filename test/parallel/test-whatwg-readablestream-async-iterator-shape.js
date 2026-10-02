@@ -12,7 +12,18 @@ const proto = Object.getPrototypeOf(a);
 
 assert.strictEqual(Object.getPrototypeOf(b), proto);
 assert.deepStrictEqual(Reflect.ownKeys(a), []);
-assert.deepStrictEqual(Reflect.ownKeys(proto), ['next', 'return']);
+assert.deepStrictEqual(Reflect.ownKeys(proto),
+                       ['next', 'return', Symbol.toStringTag]);
+assert.strictEqual(Object.prototype.toString.call(a),
+                   '[object ReadableStream AsyncIterator]');
+assert.deepStrictEqual(
+  Object.getOwnPropertyDescriptor(proto, Symbol.toStringTag),
+  {
+    value: 'ReadableStream AsyncIterator',
+    writable: false,
+    enumerable: false,
+    configurable: true,
+  });
 assert.strictEqual(a[Symbol.asyncIterator](), a);
 
 for (const method of ['next', 'return']) {
