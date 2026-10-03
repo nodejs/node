@@ -49,6 +49,30 @@ FFI_EXPORT int32_t identity_i32(int32_t value) {
   return value;
 }
 
+FFI_EXPORT int64_t identity_i64(int64_t value) {
+  return value;
+}
+
+FFI_EXPORT uint64_t identity_u64(uint64_t value) {
+  return value;
+}
+
+FFI_EXPORT int64_t identity_i64_fallback(void* pointer,
+                                         int64_t value,
+                                         void (*callback)(void)) {
+  (void)pointer;
+  (void)callback;
+  return value;
+}
+
+FFI_EXPORT uint64_t identity_u64_fallback(void* pointer,
+                                          uint64_t value,
+                                          void (*callback)(void)) {
+  (void)pointer;
+  (void)callback;
+  return value;
+}
+
 FFI_EXPORT char identity_char(char value) {
   return value;
 }
