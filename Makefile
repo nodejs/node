@@ -320,8 +320,23 @@ v8: ## Build deps/v8.
 	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
 		tools/make-v8.sh $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
+ifneq ($(V8_USE_PERFETTO),0)
+TRACE_PROCESSOR_SHELL_PATH ?= tools/perfetto/trace_processor_shell
+
+# The downloaded copy has to match the vendored perfetto, so a version bump
+# re-downloads it. An overridden path is a build we do not manage and may not
+# be writable, so it gets no prerequisite and is left alone once it exists.
+ifeq ($(TRACE_PROCESSOR_SHELL_PATH),tools/perfetto/trace_processor_shell)
+TRACE_PROCESSOR_SHELL_DEPS = deps/perfetto/VERSION
+endif
+
+$(TRACE_PROCESSOR_SHELL_PATH): $(TRACE_PROCESSOR_SHELL_DEPS)
+	@tools/perfetto/get_trace_processor $@
+
+endif # </V8_USE_PERFETTO != 0>
+
 .PHONY: jstest
-jstest: build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests ## Run addon tests and JS tests.
+jstest: build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests $(TRACE_PROCESSOR_SHELL_PATH) ## Run addon tests and JS tests.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
 		$(TEST_CI_ARGS) \
 		--skip-tests=$(CI_SKIP_TESTS) \
@@ -338,18 +353,6 @@ coverage-run-js: ## Run JavaScript tests with coverage.
 	-NODE_V8_COVERAGE=coverage/tmp CI_SKIP_TESTS=$(COV_SKIP_TESTS) \
 					TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) jstest
 	$(MAKE) coverage-report-js
-
-TRACE_PROCESSOR_SHELL_PATH ?= tools/perfetto/trace_processor_shell
-
-# The downloaded copy has to match the vendored perfetto, so a version bump
-# re-downloads it. An overridden path is a build we do not manage and may not
-# be writable, so it gets no prerequisite and is left alone once it exists.
-ifeq ($(TRACE_PROCESSOR_SHELL_PATH),tools/perfetto/trace_processor_shell)
-TRACE_PROCESSOR_SHELL_DEPS = deps/perfetto/VERSION
-endif
-
-$(TRACE_PROCESSOR_SHELL_PATH): $(TRACE_PROCESSOR_SHELL_DEPS)
-	@tools/perfetto/get_trace_processor $@
 
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
@@ -660,7 +663,7 @@ test-ci-js: | clear-stalled ## Build and test JavaScript with building anything 
 .PHONY: test-ci
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 test-ci: LOGLEVEL := info ## Build and test everything (CI).
-test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests doc-only
+test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests doc-only $(TRACE_PROCESSOR_SHELL_PATH)
 	out/Release/cctest --gtest_output=xml:out/junit/cctest.xml
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \

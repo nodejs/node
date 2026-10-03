@@ -13,13 +13,13 @@
   # Build options
   icu ? pkgs.icu,
   withAmaro ? true,
+  withFFI ? true,
   withLief ? true,
+  withPerfetto ? true,
   withQuic ? false,
   withSQLite ? true,
-  withFFI ? true,
   withSSL ? true,
   withTemporal ? true,
-  withPerfetto ? false,
   sharedLibDeps ? (
     import ./tools/nix/sharedLibDeps.nix {
       inherit
@@ -87,7 +87,7 @@ let
     "--v8-${if withTemporal then "enable" else "disable"}-temporal-support"
   ]
   ++ builtins.map (depName: "--shared-${depName}") sharedV8Deps
-  ++ pkgs.lib.optional withPerfetto "--with-perfetto";
+  ++ pkgs.lib.optional (!withPerfetto) "--without-perfetto";
 in
 pkgs.mkShell {
   inherit nativeBuildInputs;

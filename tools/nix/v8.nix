@@ -59,7 +59,7 @@ let
           !(builtins.elem "--v8-disable-temporal-support" configureFlags)
       ) ../../deps/crates
       ++ lib.optional (
-        builtins.elem "--with-perfetto" configureFlags && !useSharedPerfetto
+        !(builtins.elem "--without-perfetto" configureFlags) && !useSharedPerfetto
       ) ../../deps/perfetto
       ++ lib.optionals (icu != null) [
         ../../tools/icu/icu_versions.json
