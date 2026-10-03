@@ -7,9 +7,9 @@
 // assertion failure in nghttp3 (conn->tx.ctrl != NULL).
 //
 // The test creates an H3 server and a client that immediately closes the
-// session before the handshake completes. The server creates the H3
-// application during ALPN negotiation, but Start() (which binds control
-// streams) hasn't been called yet when the session is torn down.
+// session before the handshake completes. The server attaches the H3
+// application, but Start() (which binds control streams) hasn't
+// been called yet when the session is torn down.
 // The server must handle this gracefully without crashing.
 
 import { hasQuic, skip, mustNotCall } from '../common/index.mjs';
@@ -29,6 +29,7 @@ const cert = fixtures.readKey('agent1-cert.pem');
 const serverEndpoint = await listen(async (serverSession) => {
   await serverSession.closed;
 }, {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
   onheaders: mustNotCall(),
 });
@@ -37,6 +38,7 @@ const serverEndpoint = await listen(async (serverSession) => {
 // This exercises the H3 shutdown path on the server while the H3 application
 // exists but hasn't started (control streams not yet bound).
 const clientSession = await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
   // h3 ALPN — must match the server so the H3 application is selected

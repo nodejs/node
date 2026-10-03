@@ -37,6 +37,7 @@ const endpoint = await listen((session) => {
     for await (const _ of stream) { /* reading extends the window */ }
   };
 }, {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
   transportParams: {
     initialMaxStreamDataBidiRemote: WINDOW,
@@ -46,6 +47,7 @@ const endpoint = await listen((session) => {
 });
 
 const session = await connect(endpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
 });

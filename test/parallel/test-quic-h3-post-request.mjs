@@ -42,6 +42,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverDone.resolve();
   });
 }), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
   onheaders: mustCall(function(headers) {
     assert.strictEqual(headers[':method'], 'POST');
@@ -64,6 +65,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 });
 
 const clientSession = await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
 });

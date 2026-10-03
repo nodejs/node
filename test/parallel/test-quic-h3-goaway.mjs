@@ -19,7 +19,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -46,6 +46,7 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
     serverSession = ss;
     ss.onstream = mustCall(2);
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       const path = headers[':path'];
@@ -66,9 +67,13 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
     }, 2),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const quicSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
+    autoWrap: false,
     servername: 'localhost',
     verifyPeer: 'manual',
+  });
+  const clientSession = Http3Session.from(quicSession, {
     // Ongoaway fires when the peer sends GOAWAY.
     ongoaway: mustCall(function(lastStreamId) {
       assert.strictEqual(lastStreamId, -1n);

@@ -1996,7 +1996,12 @@ void Endpoint::SocketAddressInfoTraits::Touch(const SocketAddress& address,
 // JavaScript call outs
 
 void Endpoint::EmitNewSession(const BaseObjectPtr<Session>& session) {
-  if (!env()->can_call_into_js()) return;
+  if (!env()->can_call_into_js()) {
+    // Even if we can't call into JS, we need to attach the app to handle
+    // other callbacks before we do proper teardown:
+    session->EnsureApplication();
+    return;
+  }
   CallbackScope<Endpoint> scope(this);
   session->set_wrapped();
   Local<Value> arg = session->object();
@@ -2009,9 +2014,11 @@ void Endpoint::EmitNewSession(const BaseObjectPtr<Session>& session) {
   // exists but it is in a destroyed state. Care should be taken accessing
   // session after this point.
 
-  // Deliver any qlog written while processing the packets that carried the
-  // ClientHello, which is the only output that can predate this callback.
+  // At this point, the session is active and JS has had its chance to request
+  // an application. We attach the application now, and then deliver any qlog
+  // written during the ClientHello - the only output that can predate this.
   if (!session->is_destroyed()) {
+    session->EnsureApplication();
     session->FlushPendingQlog();
   }
 }

@@ -13,7 +13,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -36,6 +36,7 @@ const decoder = new TextDecoder();
       serverDone.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: {
       // Wildcard entry should NOT appear in ORIGIN frame.
       '*': { keys: [key], certs: [cert] },
@@ -50,9 +51,13 @@ const decoder = new TextDecoder();
     }),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const quicSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
+    autoWrap: false,
     servername: 'example.com',
     verifyPeer: 'manual',
+  });
+  const clientSession = Http3Session.from(quicSession, {
     // Client receives ORIGIN frame via onorigin callback.
     onorigin: mustCall(function(origins) {
       assert.ok(Array.isArray(origins));
@@ -104,6 +109,7 @@ const decoder = new TextDecoder();
       serverDone.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: {
       '*': { keys: [key], certs: [cert] },
       // Non-default port → origin includes port.
@@ -128,9 +134,13 @@ const decoder = new TextDecoder();
     }),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const quicSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
+    autoWrap: false,
     servername: 'custom-port.example.com',
     verifyPeer: 'manual',
+  });
+  const clientSession = Http3Session.from(quicSession, {
     onorigin: mustCall(function(origins) {
       assert.ok(Array.isArray(origins));
 

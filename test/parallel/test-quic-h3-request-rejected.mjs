@@ -28,10 +28,12 @@ const H3_REQUEST_REJECTED = 0x10bn;
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onerror = () => {};
 }), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
 });
 
 const clientSession = await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
 });

@@ -36,6 +36,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
     stream.closed.then(mustCall(() => { liveServerStreams--; }));
   }, kRequests);
 }), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
   // Only one client-initiated bidi stream may be open at a time.
   transportParams: { initialMaxStreamsBidi: 1 },
@@ -48,6 +49,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 });
 
 const clientSession = await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
 });

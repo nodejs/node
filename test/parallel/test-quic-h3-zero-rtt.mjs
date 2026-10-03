@@ -44,6 +44,7 @@ const serverEndpoint = await listen(mustCall((ss) => {
     ss.close();
   });
 }, 2), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
   onheaders: mustCall(function(headers) {
     this.sendHeaders({ ':status': '200' });
@@ -54,6 +55,7 @@ const serverEndpoint = await listen(mustCall((ss) => {
 
 // --- First connection: establish H3 session, receive ticket ---
 const cs1 = await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
   onsessionticket: mustCall(function(ticket) {
@@ -96,6 +98,7 @@ assert.ok(savedToken);
 
 // --- Second connection: 0-RTT with H3 ---
 const cs2 = await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
   sessionTicket: savedTicket,
