@@ -26,16 +26,17 @@ requests in the Node.js project.
 
 ## What qualifies as a large pull request
 
-A pull request is considered large when it exceeds **5000 lines** of net
-change (lines added minus lines deleted). This threshold applies across all
+A pull request is considered large when it exceeds **5000 lines added** and/or
+**5000 lines deleted**, as reported by Git. This threshold applies across all
 files in the pull request, including changes in `deps/`, `test/`, `doc/`,
 `lib/`, `src/`, and `tools/`.
 
-Any pull request that adds a new subsystem, e.g. `node:foo` or `node:foo/bar`,
-is automatically considered a large pull request and subject to the same rules.
+Changes in `deps/` are deliberately included in this count. Dependency changes
+are sensitive because they often receive less scrutiny than first-party code.
 
-Changes in `deps/` are included in this count. Dependency changes are
-sensitive because they often receive less scrutiny than first-party code.
+Additionally, any pull request that adds a new module to the public API (e.g.
+`node:foo` or `node:foo/bar`) is automatically considered a large pull request,
+irrespective of its size.
 
 The following categories of pull requests are **excluded** from this policy,
 even if they exceed the line threshold:
