@@ -3,15 +3,36 @@
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
+const { spawnSync } = require('node:child_process');
 const {
+  closeSync,
   openSync,
+  fsync,
   fsyncSync,
+  readFileSync,
   writeSync,
   write,
 } = require('node:fs');
 const { join } = require('node:path');
 const { Utf8Stream } = require('node:fs');
 const { isMainThread } = require('node:worker_threads');
+
+if (process.argv[2] === 'child-stdout') {
+  // stdout is redirected to a regular file by the parent.
+  const stream = new Utf8Stream({
+    fd: 1,
+    minLength: 4096,
+    fs: {
+      fsync: common.mustCall((fd, cb) => {
+        assert.strictEqual(fd, 1);
+        fsync(fd, cb);
+      }),
+    },
+  });
+  stream.write('hello world\n');
+  stream.flush(common.mustSucceed());
+  return;
+}
 
 tmpdir.refresh();
 if (isMainThread) {
@@ -26,6 +47,38 @@ function getTempFile() {
 
 runTests(false);
 runTests(true);
+
+// Errors from fsync meaning the fd cannot be synchronized (e.g. a pipe or
+// TTY) or is already closed do not fail the flush.
+for (const code of ['EBADF', 'EINVAL', 'ENOTSUP', 'EOPNOTSUPP', 'EROFS']) {
+  const dest = getTempFile();
+  const fd = openSync(dest, 'w');
+  const fsOverride = {
+    fsync: common.mustCall((fd, cb) => {
+      const err = new Error(code);
+      err.code = code;
+      process.nextTick(cb, err);
+    }, 2),
+  };
+  const stream = new Utf8Stream({ fd, minLength: 4096, fs: fsOverride });
+
+  stream.on('ready', common.mustCall(() => {
+    assert.ok(stream.write('hello world\n'));
+    stream.flush(common.mustSucceed(() => stream.end()));
+  }));
+}
+
+// stdout redirected to a regular file is still fsynced by flush().
+{
+  const dest = getTempFile();
+  const fd = openSync(dest, 'w');
+  const child = spawnSync(process.execPath, [__filename, 'child-stdout'], {
+    stdio: ['ignore', fd, 'pipe'],
+  });
+  closeSync(fd);
+  assert.strictEqual(child.status, 0, child.stderr.toString());
+  assert.strictEqual(readFileSync(dest, 'utf8'), 'hello world\n');
+}
 
 function runTests(sync) {
 
