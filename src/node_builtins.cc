@@ -65,7 +65,7 @@ BuiltinLoader::BuiltinLoader()
 
 #if HAVE_AMARO
 #ifdef NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH
-  AddExternalizedBuiltin("internal/deps/amaro/dist/index",
+  AddExternalizedBuiltin("internal/deps/amaro/dist/internal",
                          STRINGIFY(NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH));
 #endif  // NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH
 #endif  // HAVE_AMARO

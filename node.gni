@@ -27,7 +27,7 @@ declare_args() {
   # the list between configure.py and GN configurations.
   node_builtin_shareable_builtins = [
     "deps/undici/undici.js",
-    "deps/amaro/dist/index.js",
+    "deps/amaro/dist/internal.js",
   ]
 }
 
