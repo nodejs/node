@@ -183,7 +183,10 @@ function testFromSyncIgnoresAsyncStreamable() {
 // Explicit async iterable rejected
 function testFromSyncRejectsAsyncIterable() {
   async function* gen() { yield [new TextEncoder().encode('a')]; }
-  assert.throws(() => fromSync(gen()), { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => fromSync(gen()), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: /must be a synchronous input, not an async iterable\./,
+  });
 }
 
 function testFromSyncPrefersIteratorForDualIterable() {
@@ -212,8 +215,10 @@ function testFromSyncPrefersIteratorForThenableIterable() {
 
 // Promise rejected
 function testFromSyncRejectsPromise() {
-  assert.throws(() => fromSync(Promise.resolve('hello')),
-                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => fromSync(Promise.resolve('hello')), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: /must be a synchronous input, not a promise\./,
+  });
 }
 
 // DataView input should be converted to Uint8Array (zero-copy)
