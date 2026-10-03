@@ -75,4 +75,56 @@ function runTests(sync) {
 
     stream.destroy();
   }
+
+  {
+    const dest = getTempFile();
+    const fd = openSync(dest, 'w');
+    const stream = new Utf8Stream({
+      fd,
+      sync,
+      minLength: 5000,
+      periodicFlush: common.platformTimeout(10),
+    });
+    const timeout = setTimeout(
+      common.mustNotCall('periodic flush did not complete'),
+      common.platformTimeout(1000),
+    );
+
+    stream.once('drain', common.mustCall(() => {
+      clearTimeout(timeout);
+      stream.destroy();
+      readFile(dest, 'utf8', common.mustSucceed((data) => {
+        assert.strictEqual(data, 'periodic flush\n');
+      }));
+    }));
+    assert.ok(stream.write('periodic flush\n'));
+  }
+
+  if (!sync) {
+    const dest = getTempFile();
+    const fd = openSync(dest, 'w');
+    let fsyncCalls = 0;
+    const stream = new Utf8Stream({
+      fd,
+      minLength: 5000,
+      periodicFlush: common.platformTimeout(10),
+      fs: {
+        fsync: common.mustCall((_fd, callback) => {
+          fsyncCalls++;
+          if (fsyncCalls === 1) {
+            setTimeout(common.mustCall(() => {
+              assert.strictEqual(fsyncCalls, 1);
+              stream.destroy();
+              callback();
+            }), common.platformTimeout(50));
+          } else {
+            process.nextTick(callback);
+          }
+        }, 2),
+      },
+    });
+
+    stream.on('close', common.mustCall());
+    assert.ok(stream.write('slow fsync\n'));
+  }
 }
