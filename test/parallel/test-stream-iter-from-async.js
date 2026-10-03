@@ -99,10 +99,38 @@ async function testFromBoundsNestedAsyncIterable() {
   const iterator = from(source())[Symbol.asyncIterator]();
   const first = await iterator.next();
   assert.strictEqual(first.done, false);
-  assert.strictEqual(first.value.length, 128);
+  assert.ok(first.value.length > 0);
+  assert.ok(first.value.length <= 128);
 
   await iterator.return();
   assert.strictEqual(nestedClosed, true);
+}
+
+async function testFromDoesNotHoldBackNestedAsyncIterable() {
+  // Chunks from a nested async iterable must be delivered as they become
+  // available, not held back until the nested iterable produces more data
+  // or ends.
+  const { promise: release, resolve } = Promise.withResolvers();
+  async function* nested() {
+    yield new Uint8Array([1]);
+    await release;
+    yield new Uint8Array([2]);
+  }
+
+  async function* source() {
+    yield nested();
+    yield [new Uint8Array([3]), Promise.resolve(new Uint8Array([4]))];
+  }
+
+  const iterator = from(source())[Symbol.asyncIterator]();
+  assert.deepStrictEqual(await iterator.next(),
+                         { done: false, value: [new Uint8Array([1])] });
+  resolve();
+  const rest = [];
+  for (let r = await iterator.next(); !r.done; r = await iterator.next()) {
+    for (const chunk of r.value) rest.push(chunk[0]);
+  }
+  assert.deepStrictEqual(rest, [2, 3, 4]);
 }
 
 async function testFromBoundsPreBatchedAsyncValues() {
@@ -485,6 +513,7 @@ Promise.all([
   testFromAsyncIteratorResultShapes(),
   testFromSourceErrorDoesNotWaitForReturn(),
   testFromBoundsNestedAsyncIterable(),
+  testFromDoesNotHoldBackNestedAsyncIterable(),
   testFromBoundsPreBatchedAsyncValues(),
   testFromSyncIterableAsAsync(),
   testFromSyncIterableAwaitsPromiseValues(),
