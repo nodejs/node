@@ -24,3 +24,19 @@ const { Readable } = require('node:stream');
     assert.deepStrictEqual(parsed[1], { text: 'Foo\u2029Bar' });
   }));
 }
+
+// Test 2: Default behavior remains unicodeLineSeparators: true
+{
+  const input = '012\n345\r67\r\n89\u{2028}ABC\u{2029}DEF';
+
+  const rli = readline.createInterface({
+    input: Readable.from(input),
+  });
+
+  const lines = [];
+  rli.on('line', (line) => lines.push(line));
+
+  rli.on('close', common.mustCall(() => {
+    assert.deepStrictEqual(lines, ['012', '345', '67', '89', 'ABC', 'DEF']);
+  }));
+}
