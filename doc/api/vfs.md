@@ -650,6 +650,56 @@ provider.setReadOnly();
 myVfs.writeFileSync('/x.txt', 'fail'); // throws EROFS
 ```
 
+## Class: `ComposableProvider`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+[`ComposableProvider`][] combines one or more providers in priority order. The first
+provider is the writable layer; reads search from first to last. Directories
+are merged, with entries in higher-priority layers shadowing entries with the
+same name in lower layers. Writes to a lower file copy it to the first provider
+before changing it. Removing a file hides lower copies without deleting them.
+The first provider must be writable to change the composed file system.
+
+### `new ComposableProvider(providers)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `providers` {VirtualProvider\[]} Non-empty array of providers, ordered from
+  highest to lowest priority.
+
+```cjs
+const vfs = require('node:vfs');
+
+const memory = new vfs.MemoryProvider();
+const disk = new vfs.RealFSProvider('/tmp/vfs-root');
+const combined = vfs.create(new vfs.ComposableProvider([memory, disk]));
+combined.writeFileSync('/config.json', '{"debug":true}');
+// The file in memory shadows /tmp/vfs-root/config.json.
+```
+
+### `composableProvider.providers`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {VirtualProvider\[]}
+
+A copy of the ordered provider list. Changes to this array do not affect the
+composition. File handles opened before a write continue to refer to the layer
+on which they were opened. Watching a path watches only its currently selected
+provider, not changes across the entire composition. Symbolic links are
+resolved by the provider containing them, not across providers. Traversal
+through a symbolic-link directory is not supported by the composition. Renaming
+a directory over a directory that exists only in a lower layer is not supported.
+Layer selection and copy-up use synchronous provider operations, including
+when invoked through the asynchronous VFS API.
+
 ## Class: `RealFSProvider`
 
 <!-- YAML
@@ -759,6 +809,7 @@ fields use synthetic but stable values:
 [`--import`]: cli.md#--importmodule
 [`--require`]: cli.md#-r---require-module
 [`--vfs-load`]: cli.md#--vfs-loadsource
+[`ComposableProvider`]: #class-composableprovider
 [`MemoryProvider`]: #class-memoryprovider
 [`RealFSProvider`]: #class-realfsprovider
 [`VirtualFileSystem`]: #class-virtualfilesystem
