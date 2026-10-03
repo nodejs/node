@@ -12,6 +12,7 @@ const files = [
   'finalization-cleanup.mjs',
   'gc-not-close.mjs',
   'unregister.mjs',
+  'unregister-function.mjs',
   'different-registry-per-thread.mjs',
 ];
 
