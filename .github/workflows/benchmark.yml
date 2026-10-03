@@ -136,14 +136,18 @@ jobs:
         run: |
           nix-shell \
             -I nixpkgs=./tools/nix/pkgs.nix \
-            --pure --keep SCCACHE_LOCAL_RW_MODE \
+            --pure --keep SCCACHE_LOCAL_RW_MODE --keep CATEGORIES \
             --arg withPerfetto ${{ matrix.perfetto || false }} \
             --arg ccache '(import <nixpkgs> {}).sccache' \
             --run '
+                set -e
                 make build-ci -j4 V=1
+                # The napi benchmarks load addons of their own, both binaries use these.
+                if [[ " $CATEGORIES " == *" napi "* ]]; then make bench-addons-build; fi
             ' tools/nix/ci-shell.nix
         env:
           SCCACHE_LOCAL_RW_MODE: READ_ONLY
+          CATEGORIES: ${{ inputs.category }}
 
       - name: Run benchmark
         run: |
