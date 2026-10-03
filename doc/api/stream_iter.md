@@ -1411,6 +1411,12 @@ Create a pull-model multi-consumer shared stream. Unlike `broadcast()`, the
 source is only read when a consumer pulls. Multiple consumers share a single
 buffer.
 
+A consumer created with `share.pull()` starts reading at the oldest entry still
+in the buffer. Entries are released once every consumer has read them. When
+every consumer has detached, the buffered data is kept for consumers that
+attach later, and the source is not closed. Call `share.cancel()` (or dispose
+the share) to release the source once it is no longer needed.
+
 ```mjs
 import { from, share, text } from 'node:stream/iter';
 
