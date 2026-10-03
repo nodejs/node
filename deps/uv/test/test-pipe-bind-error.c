@@ -73,6 +73,34 @@ TEST_IMPL(pipe_bind_error_addrinuse) {
 }
 
 
+TEST_IMPL(pipe_bind_error_addrinuse_pending_instances) {
+  uv_pipe_t server1, server2;
+  int r;
+
+  r = uv_pipe_init(uv_default_loop(), &server1, 0);
+  ASSERT_OK(r);
+  uv_pipe_pending_instances(&server1, 32);
+  r = uv_pipe_bind(&server1, TEST_PIPENAME);
+  ASSERT_OK(r);
+
+  r = uv_pipe_init(uv_default_loop(), &server2, 0);
+  ASSERT_OK(r);
+  uv_pipe_pending_instances(&server2, 32);
+  r = uv_pipe_bind(&server2, TEST_PIPENAME);
+  ASSERT_EQ(r, UV_EADDRINUSE);
+
+  uv_close((uv_handle_t*)&server1, close_cb);
+  uv_close((uv_handle_t*)&server2, close_cb);
+
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+
+  ASSERT_EQ(2, close_cb_called);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
+
+
 TEST_IMPL(pipe_bind_error_addrnotavail) {
   uv_pipe_t server;
   int r;
