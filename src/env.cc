@@ -133,7 +133,7 @@ void Environment::ResetPromiseHooks(Local<Function> init,
 void AsyncHooks::push_async_context(
     double async_id,
     double trigger_async_id,
-    std::variant<Local<Object>*, Global<Object>*> resource) {
+    const std::variant<Local<Object>*, Global<Object>*>& resource) {
   std::visit([](auto* ptr) { CHECK_IMPLIES(ptr != nullptr, !ptr->IsEmpty()); },
              resource);
 
@@ -161,9 +161,13 @@ void AsyncHooks::push_async_context(
   // False positive: https://github.com/cpplint/cpplint/issues/410
   // NOLINTNEXTLINE(whitespace/newline)
   if (std::visit([](auto* ptr) { return ptr != nullptr; }, resource)) {
-    native_execution_async_resources_.resize(offset + 1);
     // Caveat: This is a v8::Local<>* assignment, we do not keep a v8::Global<>!
-    native_execution_async_resources_[offset] = resource;
+    if (native_execution_async_resources_.size() == offset) {
+      native_execution_async_resources_.push_back(resource);
+    } else {
+      native_execution_async_resources_.resize(offset + 1);
+      native_execution_async_resources_[offset] = resource;
+    }
   }
 }
 
@@ -196,7 +200,11 @@ bool AsyncHooks::pop_async_context(double async_id) {
                  native_execution_async_resources_[i]);
     }
 #endif
-    native_execution_async_resources_.resize(offset);
+    if (native_execution_async_resources_.size() == offset + 1) {
+      native_execution_async_resources_.pop_back();
+    } else {
+      native_execution_async_resources_.resize(offset);
+    }
     native_execution_async_resources_.shrink_to_fit();
   }
 
