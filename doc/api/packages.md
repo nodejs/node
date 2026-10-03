@@ -828,6 +828,7 @@ is provided below to assist with ecosystem coordination.
 * `"types"` - can be used by typing systems to resolve the typing file for
   the given export. _This condition should always be included first._
 * `"browser"` - any web browser environment.
+* `"worker"` - Web Worker environment.
 * `"development"` - can be used to define a development-only environment
   entry point, for example to provide additional debugging context such as
   better error messages when running in a development mode. _Must always be
