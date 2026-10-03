@@ -44,6 +44,30 @@ const { once } = require('events');
 }
 
 {
+  // forEach awaits thenables returned by the callback.
+  const visited = [];
+  const receivers = [];
+  const thenables = [];
+  (async () => {
+    await Readable.from([1, 2]).forEach((value) => {
+      const thenable = {
+        then(resolve) {
+          receivers.push(this);
+          setImmediate(() => {
+            visited.push(value);
+            resolve();
+          });
+        },
+      };
+      thenables.push(thenable);
+      return thenable;
+    });
+    assert.deepStrictEqual(visited, [1, 2]);
+    assert.deepStrictEqual(receivers, thenables);
+  })().then(common.mustCall());
+}
+
+{
   // forEach works on an infinite stream
   const ac = new AbortController();
   const { signal } = ac;
