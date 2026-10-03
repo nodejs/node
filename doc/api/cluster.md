@@ -489,6 +489,8 @@ While a worker is alive, this is the key that indexes it in
 added: v0.11.14
 -->
 
+* Returns: {boolean}
+
 This function returns `true` if the worker is connected to its primary via its
 IPC channel, `false` otherwise. A worker is connected to its primary after it
 has been created. It is disconnected after the `'disconnect'` event is emitted.
@@ -498,6 +500,8 @@ has been created. It is disconnected after the `'disconnect'` event is emitted.
 <!-- YAML
 added: v0.11.14
 -->
+
+* Returns: {boolean}
 
 This function returns `true` if the worker's process has terminated (either
 because of exiting or being signaled). Otherwise, it returns `false`.
