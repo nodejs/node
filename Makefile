@@ -320,9 +320,23 @@ v8: ## Build deps/v8.
 	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
 		tools/make-v8.sh $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
+ifneq ($(V8_USE_PERFETTO),0)
+TRACE_PROCESSOR_SHELL_PATH ?= tools/perfetto/trace_processor_shell
+
+# The downloaded copy has to match the vendored perfetto, so a version bump
+# re-downloads it. An overridden path is a build we do not manage and may not
+# be writable, so it gets no prerequisite and is left alone once it exists.
+ifeq ($(TRACE_PROCESSOR_SHELL_PATH),tools/perfetto/trace_processor_shell)
+TRACE_PROCESSOR_SHELL_DEPS = deps/perfetto/VERSION
+endif
+
+$(TRACE_PROCESSOR_SHELL_PATH): $(TRACE_PROCESSOR_SHELL_DEPS)
+	@tools/perfetto/get_trace_processor $@
+
+endif # </V8_USE_PERFETTO != 0>
+
 .PHONY: jstest
-## Run addon tests and JS tests.
-jstest: build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests $(TRACE_PROCESSOR_SHELL_PATH)
+jstest: build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests $(TRACE_PROCESSOR_SHELL_PATH) ## Run addon tests and JS tests.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
 		$(TEST_CI_ARGS) \
 		--skip-tests=$(CI_SKIP_TESTS) \
@@ -339,19 +353,6 @@ coverage-run-js: ## Run JavaScript tests with coverage.
 	-NODE_V8_COVERAGE=coverage/tmp CI_SKIP_TESTS=$(COV_SKIP_TESTS) \
 					TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) jstest
 	$(MAKE) coverage-report-js
-
-TRACE_PROCESSOR_SHELL_PATH ?= tools/perfetto/trace_processor_shell
-
-# The downloaded copy has to match the vendored perfetto, so a version bump
-# re-downloads it. An overridden path is a build we do not manage and may not
-# be writable, so it gets no prerequisite and is left alone once it exists.
-ifeq ($(TRACE_PROCESSOR_SHELL_PATH),tools/perfetto/trace_processor_shell)
-TRACE_PROCESSOR_SHELL_DEPS = deps/perfetto/VERSION
-endif
-
-# Set TRACE_PROCESSOR_SHELL_PATH=/dev/null to disable the download
-$(TRACE_PROCESSOR_SHELL_PATH): $(TRACE_PROCESSOR_SHELL_DEPS)
-	@tools/perfetto/get_trace_processor $@
 
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
