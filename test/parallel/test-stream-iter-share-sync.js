@@ -212,6 +212,26 @@ function testShareSyncDropNewestUnboundedSource() {
 }
 
 // shareSync() accepts string source directly (normalized via fromSync())
+function testShareSyncRetainsBufferWhenAllConsumersDetach() {
+  // Data that a consumer had not read yet must stay available to consumers
+  // that attach after every previous consumer has detached.
+  const enc = new TextEncoder();
+  function* gen() {
+    yield [enc.encode('a')];
+    yield [enc.encode('b')];
+    yield [enc.encode('c')];
+  }
+  const shared = shareSync(gen(), { budget: 16384 });
+  const c1 = shared.pull()[Symbol.iterator]();
+  const c2 = shared.pull()[Symbol.iterator]();
+  assert.deepStrictEqual(c1.next().value, [enc.encode('a')]);
+  c1.return();
+  c2.return();
+  assert.strictEqual(shared.consumerCount, 0);
+
+  assert.strictEqual(textSync(shared.pull()), 'abc');
+}
+
 function testShareSyncStringSource() {
   const shared = shareSync('hello-sync-share');
   const result = textSync(shared.pull());
@@ -230,4 +250,5 @@ Promise.all([
   testShareSyncDropNewest(),
   testShareSyncDropNewestUnboundedSource(),
   testShareSyncStringSource(),
+  testShareSyncRetainsBufferWhenAllConsumersDetach(),
 ]).then(common.mustCall());
