@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // The `node_modules` lookup for modules inside a mounted VFS stops at the
@@ -91,7 +91,7 @@ const tmpdir = require('../common/tmpdir');
   fs.writeFileSync(path.join(globalDir, 'gdep', 'index.js'),
                    'module.exports = "from-node-path";');
 
-  const out = execFileSync(process.execPath, ['--experimental-vfs', '-e', `
+  const out = execFileSync(process.execPath, ['-e', `
     const vfs = require('node:vfs');
     const path = require('path');
     const myVfs = vfs.create();
