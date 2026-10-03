@@ -113,6 +113,10 @@ namespace {
 constexpr uint64_t kNanosecondsPerMillisecond = 1000 * 1000;
 // How long printing the diagnostics, writing the report and exiting may take.
 constexpr uint64_t kProcessTimeoutExitGraceMs = 5000;
+// Printed when the process is still exiting, e.g. joining Worker threads, once
+// --process-timeout has expired.
+constexpr char kProcessNotFinishedExitingMessage[] =
+    "The process did not finish exiting after the event loop had stopped.\n";
 
 std::string FormatProcessTimeoutHeader(const std::string& duration) {
   return SPrintF("(node:%d) Process timed out after %s (--process-timeout). "
@@ -460,6 +464,15 @@ void ProcessTimeoutWatchdog::Run(void* arg) {
   uv_mutex_lock(&state->mutex);
   state->WaitWhile(Phase::kArmed, state->deadline);
 
+  // Environment::Exit(), e.g. from process.exit() or for an uncaught
+  // exception, exits without returning to NodeMainInstance::Run(), so
+  // OnEnvironmentStopping() is not called while it joins Worker threads. The
+  // Environment is only freed after OnEnvironmentStopping(), so it is safe to
+  // read while the phase is still kArmed.
+  if (state->phase == Phase::kArmed && self->env_->is_stopping()) {
+    state->phase = Phase::kStopping;
+  }
+
   if (state->phase == Phase::kArmed) {
     // Barring the race described below, the process exits once the timeout
     // has fired, either through ForceProcessTimeoutExit() on this thread or
@@ -479,13 +492,18 @@ void ProcessTimeoutWatchdog::Run(void* arg) {
                      uv_hrtime() + kProcessTimeoutResponseGraceMs *
                                        kNanosecondsPerMillisecond);
     if (state->phase == Phase::kFired) {
+      // If Environment::Exit() started before the interrupt could run, the
+      // main thread is not blocked by the application but by exiting.
       ForceProcessTimeoutExit(
           FormatProcessTimeoutHeader(state->duration) +
-          SPrintF("The main thread did not respond within %dms. It is likely "
-                  "blocked in a synchronous native operation, e.g. "
-                  "child_process.execSync() or a native addon, so no "
-                  "JavaScript stack or resource information is available.\n",
-                  kProcessTimeoutResponseGraceMs));
+          (self->env_->is_stopping()
+               ? std::string(kProcessNotFinishedExitingMessage)
+               : SPrintF("The main thread did not respond within %dms. It is "
+                         "likely blocked in a synchronous native operation, "
+                         "e.g. child_process.execSync() or a native addon, so "
+                         "no JavaScript stack or resource information is "
+                         "available.\n",
+                         kProcessTimeoutResponseGraceMs)));
     }
 
     if (state->phase == Phase::kHandling) {
@@ -507,8 +525,8 @@ void ProcessTimeoutWatchdog::Run(void* arg) {
     // The event loop has stopped, but tearing down the Environment, e.g.
     // joining Worker threads, can still take arbitrarily long. If the deadline
     // has already passed, give the process a moment to finish exiting. That
-    // only happens if the event loop stopped right as the deadline was reached,
-    // a race that tests cannot reproduce reliably.
+    // happens if Environment::Exit() was still in progress at the deadline, or
+    // if the event loop stopped right as the deadline was reached.
     const uint64_t now = uv_hrtime();
     // LCOV_EXCL_START
     const uint64_t until =
@@ -520,8 +538,7 @@ void ProcessTimeoutWatchdog::Run(void* arg) {
     if (state->phase == Phase::kStopping) {
       // LCOV_EXCL_START
       ForceProcessTimeoutExit(FormatProcessTimeoutHeader(state->duration) +
-                              "The process did not finish exiting after the "
-                              "event loop had stopped.\n");
+                              kProcessNotFinishedExitingMessage);
       // LCOV_EXCL_STOP
     }
   }
