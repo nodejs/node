@@ -217,10 +217,10 @@ assert.doesNotMatch(
   assert.strictEqual(
     util.inspect(dv),
     'DataView {\n' +
-    '      [byteLength]: 0,\n' +
-    '      [byteOffset]: undefined,\n' +
-    '      [buffer]: ArrayBuffer { (detached), [byteLength]: 0 }\n' +
-    '    }',
+    '  [byteLength]: 0,\n' +
+    '  [byteOffset]: undefined,\n' +
+    '  [buffer]: ArrayBuffer { (detached), [byteLength]: 0 }\n' +
+    '}',
   );
 }
 
