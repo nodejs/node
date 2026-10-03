@@ -210,7 +210,6 @@ WebCryptoCipherStatus RSA_Cipher(Environment* env,
                                  const ByteSource& in,
                                  ByteSource* out) {
   CHECK_NE(key_data.GetKeyType(), kKeyTypeSecret);
-  Mutex::ScopedLock lock(key_data.mutex());
   const auto& m_pkey = key_data.GetAsymmetricKey();
   const ncrypto::Rsa::CipherParams nparams{
       .padding = params.padding,
@@ -299,7 +298,6 @@ WebCryptoCipherStatus RSACipherTraits::DoCipher(Environment* env,
 bool ExportJWKRsaKey(Environment* env,
                      const KeyObjectData& key,
                      Local<Object> target) {
-  Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
 
   const ncrypto::Rsa rsa = m_pkey;
@@ -527,7 +525,6 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
 bool GetRsaKeyDetail(Environment* env,
                      const KeyObjectData& key,
                      Local<Object> target) {
-  Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
 
   const auto rsa = ncrypto::Rsa::PublicOnly(m_pkey);

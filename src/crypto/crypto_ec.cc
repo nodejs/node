@@ -479,7 +479,6 @@ Maybe<void> EcKeyGenTraits::AdditionalConfig(
 bool ExportJWKEcKey(Environment* env,
                     const KeyObjectData& key,
                     Local<Object> target) {
-  Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
   DCHECK(m_pkey.isA(KeyAlgorithm::EC));
 
@@ -624,7 +623,6 @@ KeyObjectData ImportJWKEcKey(Environment* env, Local<Object> jwk) {
 bool GetEcKeyDetail(Environment* env,
                     const KeyObjectData& key,
                     Local<Object> target) {
-  Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
   DCHECK(m_pkey.isA(KeyAlgorithm::EC));
 
