@@ -1424,6 +1424,13 @@ Detaching keeps a consumer that is not retried (for example, one read with
 `for await...of`, which does not call `return()` when a read rejects) from
 holding buffered data and blocking the other consumers.
 
+With `'unbounded'`, such a consumer waits until the slowest consumer releases
+budget. With `'drop-newest'`, the entry pulled from the source is discarded
+and the consumer then waits in the same way, so in both cases a stalled
+consumer also stalls the consumers that are ahead of it. Only `'drop-oldest'`
+lets consumers that are ahead continue, by discarding the oldest buffered
+entries that the slowest consumer has not read yet.
+
 ```mjs
 import { from, share, text } from 'node:stream/iter';
 
@@ -1521,18 +1528,16 @@ added:
 * `options` {Object}
   * `budget` {number} Must be >= 16384.
     **Default:** `65536`.
-  * `backpressure` {string} `'strict'`, `'drop-oldest'`, or `'drop-newest'`.
+  * `backpressure` {string} `'strict'` or `'drop-oldest'`.
     **Default:** `'strict'`.
 * Returns: {SyncShare}
 
 Synchronous version of [`share()`][].
 
-Because there is no way to wait in a synchronous context, `'unbounded'` is not
-supported and throws `ERR_INVALID_ARG_VALUE`. With `'drop-newest'`, a consumer
-that reaches the end of the buffer while the budget is exhausted discards a
-single entry from the source and then returns `{ done: true }` without a
-value; the consumer is not detached, so it can resume once the slowest
-consumer advances and releases budget.
+A synchronous consumer cannot wait for the slowest consumer to release budget,
+and the slowest consumer cannot advance while another consumer's read is
+running. `'unbounded'` and `'drop-newest'` are therefore not supported and
+throw `ERR_INVALID_ARG_VALUE`.
 
 ### Class: `SyncShare`
 
