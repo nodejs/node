@@ -1,3 +1,4 @@
+import type { AsyncWrap } from './async_wrap';
 import { InternalFSBinding } from './fs';
 
 declare namespace InternalFSDirBinding {
@@ -11,6 +12,8 @@ declare namespace InternalFSDirBinding {
     close(callback: FSReqCallback): void;
     close(): void;
   }
+
+  interface DirHandle extends AsyncWrap {}
 
   function opendir(path: StringOrBuffer, encoding: string, req: FSReqCallback): DirHandle;
   function opendir(path: StringOrBuffer, encoding: string): DirHandle;
