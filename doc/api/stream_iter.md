@@ -815,7 +815,7 @@ added:
   readable side.
 * `options` {Object}
   * `budget` {number} Maximum number of buffered bytes before
-    backpressure is applied. Must be >= 16384.
+    backpressure is applied. Must be a positive integer.
     **Default:** `16384`.
   * `backpressure` {string} Backpressure policy: `'strict'`, `'unbounded'`,
     `'drop-oldest'`, or `'drop-newest'`. **Default:** `'strict'`.
@@ -881,7 +881,7 @@ added:
 
 * `options` {Object}
   * `budget` {number} Buffer size in bytes for both directions.
-    Must be >= 16384. **Default:** `16384`.
+    Must be a positive integer. **Default:** `16384`.
   * `backpressure` {string} Policy for both directions.
     **Default:** `'strict'`.
   * `signal` {AbortSignal} Cancellation signal for both channels.
@@ -1290,7 +1290,7 @@ added:
 -->
 
 * `options` {Object}
-  * `budget` {number} Buffer size in bytes. Must be >= 16384.
+  * `budget` {number} Buffer size in bytes. Must be a positive integer.
     **Default:** `65536`.
   * `backpressure` {string} `'strict'`, `'unbounded'`, `'drop-oldest'`, or
     `'drop-newest'`. **Default:** `'strict'`.
@@ -1404,7 +1404,7 @@ added:
 
 * `source` {AsyncIterable} The source to share.
 * `options` {Object}
-  * `budget` {number} Buffer size in bytes. Must be >= 16384.
+  * `budget` {number} Buffer size in bytes. Must be a positive integer.
     **Default:** `65536`.
   * `backpressure` {string} `'strict'`, `'unbounded'`, `'drop-oldest'`, or
     `'drop-newest'`. **Default:** `'strict'`.
@@ -1532,7 +1532,7 @@ added:
 
 * `source` {Iterable} The sync source to share.
 * `options` {Object}
-  * `budget` {number} Must be >= 16384.
+  * `budget` {number} Must be a positive integer.
     **Default:** `65536`.
   * `backpressure` {string} `'strict'` or `'drop-oldest'`.
     **Default:** `'strict'`.
