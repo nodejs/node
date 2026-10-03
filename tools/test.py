@@ -151,6 +151,12 @@ class ProgressIndicator(object):
   def Run(self, tasks) -> Dict:
     self.Starting()
     threads = []
+    # Flag the shutdown from the signal handler itself so that workers whose
+    # child died from the same ctrl-c do not report it as a failure first.
+    def on_sigint(signum, frame):
+      self.shutdown_event.set()
+      raise KeyboardInterrupt
+    previous_handler = signal.signal(signal.SIGINT, on_sigint)
     # Spawn N-1 threads and then use this thread as the last one.
     # That way -j1 avoids threading altogether which is a nice fallback
     # in case of threading problems.
@@ -172,6 +178,8 @@ class ProgressIndicator(object):
       self.shutdown_event.set()
       # ...and then reraise the exception to bail out
       raise
+    finally:
+      signal.signal(signal.SIGINT, previous_handler)
     self.Done()
     return {
       'allPassed': not self.failed and not self.shutdown_event.is_set(),
@@ -680,10 +688,6 @@ def KillProcessWithID(pid, signal_to_send=signal.SIGTERM):
     os.kill(pid, signal_to_send)
 
 
-MAX_SLEEP_TIME = 0.1
-INITIAL_SLEEP_TIME = 0.0001
-SLEEP_TIME_FACTOR = 1.25
-
 SEM_INVALID_VALUE = -1
 SEM_NOGPFAULTERRORBOX = 0x0002 # Microsoft Platform SDK WinBase.h
 
@@ -726,29 +730,28 @@ def RunProcess(context, timeout, args, **rest):
   )
   if utils.IsWindows() and context.suppress_dialogs and prev_error_mode != SEM_INVALID_VALUE:
     Win32SetErrorMode(prev_error_mode)
-  # Compute the end time - if the process crosses this limit we
-  # consider it timed out.
-  if timeout is None: end_time = None
-  else: end_time = time.time() + timeout
+  # Block in wait() instead of polling: a timer thread delivers the kill if
+  # the process crosses the timeout, and wait() then returns the exit code.
   timed_out = False
-  # Repeatedly check the exit code from the process in a
-  # loop and keep track of whether or not it times out.
-  exit_code = None
-  sleep_time = INITIAL_SLEEP_TIME
-
-  while exit_code is None:
-    if (not end_time is None) and (time.time() >= end_time):
-      # Kill the process and wait for it to exit.
-      KillTimedOutProcess(context, process.pid)
-      exit_code = process.wait()
+  if timeout is None:
+    exit_code = process.wait()
+  else:
+    def on_timeout():
+      nonlocal timed_out
+      if process.returncode is not None:
+        return
       timed_out = True
-    else:
-      exit_code = process.poll()
-      if exit_code is None:
-        time.sleep(sleep_time)
-        sleep_time = sleep_time * SLEEP_TIME_FACTOR
-        if sleep_time > MAX_SLEEP_TIME:
-          sleep_time = MAX_SLEEP_TIME
+      try:
+        KillTimedOutProcess(context, process.pid)
+      except OSError:
+        pass
+    timer = threading.Timer(timeout, on_timeout)
+    timer.daemon = True
+    timer.start()
+    try:
+      exit_code = process.wait()
+    finally:
+      timer.cancel()
   return (process, exit_code, timed_out)
 
 
