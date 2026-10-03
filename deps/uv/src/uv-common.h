@@ -58,20 +58,18 @@ extern int snprintf(char*, size_t, const char*, ...);
 #define container_of(ptr, type, member) \
   ((type *) ((char *) (ptr) - offsetof(type, member)))
 
-/* C11 defines static_assert to be a macro which calls _Static_assert. */
-#if defined(static_assert)
+/* C11 defines static_assert to be a macro which calls _Static_assert.
+ * tcc gets confused by glibc's definition of _Static_assert in sys/cdefs.h
+ * so fall back to our pre-C11 workaround.
+ */
+#if defined(static_assert) && !defined(__TINYC__)
 #define STATIC_ASSERT(expr) static_assert(expr, #expr)
 #else
+#define UV_CONCAT_MORE(x, y)  x##y
+#define UV_CONCAT(x, y)       UV_CONCAT_MORE(x, y)
 #define STATIC_ASSERT(expr)                                                   \
-  void uv__static_assert(int static_assert_failed[1 - 2 * !(expr)])
-#endif
-
-#ifdef _MSC_VER
-#define uv__exchange_int_relaxed(p, v)                                        \
-  InterlockedExchangeNoFence((LONG volatile*)(p), v)
-#else
-#define uv__exchange_int_relaxed(p, v)                                        \
-  atomic_exchange_explicit((_Atomic int*)(p), v, memory_order_relaxed)
+  void UV_CONCAT(uv__static_assert, __LINE__)(                                \
+      int static_assert_failed[1 - 2 * !(expr)])
 #endif
 
 #define UV__UDP_DGRAM_MAXSIZE (64 * 1024)
@@ -102,7 +100,7 @@ enum {
   UV_HANDLE_ZERO_READ                   = 0x00040000,
   UV_HANDLE_EMULATE_IOCP                = 0x00080000,
   UV_HANDLE_BLOCKING_WRITES             = 0x00100000,
-  UV_HANDLE_CANCELLATION_PENDING        = 0x00200000,
+  UV_HANDLE_READ_CANCELLATION_PENDING   = 0x00200000,
 
   /* Used by uv_tcp_t and uv_udp_t handles */
   UV_HANDLE_IPV6                        = 0x00400000,
@@ -137,6 +135,7 @@ enum {
   UV_HANDLE_POLL_SLOW                   = 0x01000000,
 
   /* Only used by uv_process_t handles. */
+  UV_HANDLE_ESRCH                       = 0x01000000,
   UV_HANDLE_REAP                        = 0x10000000
 };
 
@@ -147,6 +146,15 @@ static inline int uv__is_raw_tty_mode(uv_tty_mode_t m) {
 int uv__loop_configure(uv_loop_t* loop, uv_loop_option option, va_list ap);
 
 void uv__loop_close(uv_loop_t* loop);
+
+/* Sets the pending flag (bit 0) and waits for the busy counter (bits 1+) to
+ * drain. Returns the previous value of bit 0. */
+int uv__async_spin(uv_async_t* handle);
+
+/* Platform hook: post a wakeup notification for the given async handle. */
+void uv__async_notify(uv_async_t* handle);
+
+int uv__write_cancel(uv_write_t* req);
 
 int uv__read_start(uv_stream_t* stream,
                    uv_alloc_cb alloc_cb,
@@ -225,6 +233,12 @@ void uv__work_submit(uv_loop_t* loop,
 void uv__work_done(uv_async_t* handle);
 
 size_t uv__count_bufs(const uv_buf_t bufs[], unsigned int nbufs);
+
+/* On some platforms, notably macOS, attempting a read or write > 2GB returns
+ * an EINVAL. On Linux, IO syscalls will transfer at most this many bytes.
+ * Use this limit everywhere to avoid platform-specific failures.
+ */
+#define UV__IO_MAX_BYTES 0x7ffff000
 
 int uv__socket_sockopt(uv_handle_t* handle, int optname, int* value);
 

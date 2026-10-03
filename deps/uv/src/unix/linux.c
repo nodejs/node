@@ -27,6 +27,7 @@
 #include "internal.h"
 
 #include <inttypes.h>
+#include <limits.h>
 #include <stdatomic.h>
 #include <stddef.h>  /* offsetof */
 #include <stdint.h>
@@ -55,6 +56,14 @@
 #include <sys/utsname.h>
 #include <time.h>
 #include <unistd.h>
+
+/* android ndk workaround */
+#ifndef LLONG_MAX
+#define LLONG_MAX 9223372036854775807LL
+#endif
+#ifndef LLONG_MIN
+#define LLONG_MIN (-9223372036854775807LL - 1)
+#endif
 
 #ifndef __NR_io_uring_setup
 # define __NR_io_uring_setup 425
@@ -127,6 +136,10 @@
 enum {
   UV__IORING_SETUP_SQPOLL = 2u,
   UV__IORING_SETUP_NO_SQARRAY = 0x10000u,
+};
+
+enum {
+  UV__IORING_REGISTER_SYNC_CANCEL = 24,
 };
 
 enum {
@@ -249,6 +262,19 @@ struct uv__io_uring_params {
 STATIC_ASSERT(40 + 40 + 40 == sizeof(struct uv__io_uring_params));
 STATIC_ASSERT(40 == offsetof(struct uv__io_uring_params, sq_off));
 STATIC_ASSERT(80 == offsetof(struct uv__io_uring_params, cq_off));
+
+struct uv__io_uring_sync_cancel_reg {
+  uint64_t addr;
+  int32_t fd;
+  uint32_t flags;
+  struct {
+    int64_t tv_sec;
+    int64_t tv_nsec;
+  } timeout;
+  uint64_t reserved[4];
+};
+
+STATIC_ASSERT(64 == sizeof(struct uv__io_uring_sync_cancel_reg));
 
 STATIC_ASSERT(EPOLL_CTL_ADD < 4);
 STATIC_ASSERT(EPOLL_CTL_DEL < 4);
@@ -449,6 +475,35 @@ int uv__io_uring_enter(int fd,
 
 int uv__io_uring_register(int fd, unsigned opcode, void* arg, unsigned nargs) {
   return syscall(__NR_io_uring_register, fd, opcode, arg, nargs);
+}
+
+int uv__iou_cancel(uv_loop_t* loop, uv_fs_t* req) {
+  struct uv__io_uring_sync_cancel_reg reg;
+  struct uv__iou* iou;
+  int rc;
+
+  if (uv__kernel_version() < /* 6.0 */0x060000)
+    return UV_EBUSY;
+
+  iou = &uv__get_internal_fields(loop)->iou;
+  if (iou->ringfd < 0)
+    return UV_EBUSY;
+
+  memset(&reg, 0, sizeof(reg));
+  reg.addr = (uintptr_t) req;
+  reg.fd = -1;
+  reg.timeout.tv_sec = -1;
+  reg.timeout.tv_nsec = -1;
+
+  rc = uv__io_uring_register(iou->ringfd,
+                             UV__IORING_REGISTER_SYNC_CANCEL,
+                             &reg,
+                             1);
+
+  if (rc == 0)
+    return 0;
+
+  return UV_EBUSY;
 }
 
 
@@ -1159,6 +1214,21 @@ static void uv__iou_fs_statx_post(uv_fs_t* req) {
 }
 
 
+static void uv__iou_fs_cleanup_fallback(uv_fs_t* req) {
+  switch (req->fs_type) {
+    /* Free statxbuf */
+    case UV_FS_FSTAT:
+    case UV_FS_LSTAT:
+    case UV_FS_STAT:
+      uv__free(req->ptr);
+      req->ptr = NULL;
+      break;
+    default:
+      break;
+  }
+}
+
+
 static void uv__poll_io_uring(uv_loop_t* loop, struct uv__iou* iou) {
   struct uv__io_uring_cqe* cqe;
   struct uv__io_uring_cqe* e;
@@ -1189,6 +1259,7 @@ static void uv__poll_io_uring(uv_loop_t* loop, struct uv__iou* iou) {
 
     /* If the op is not supported by the kernel retry using the thread pool */
     if (e->res == -EOPNOTSUPP) {
+      uv__iou_fs_cleanup_fallback(req);
       uv__fs_post(loop, req);
       continue;
     }
@@ -1412,6 +1483,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     w->events = w->pevents;
     e.events = w->pevents;
+    if (w == &loop->async_io_watcher)
+      /* Enable edge-triggered mode on async_io_watcher(eventfd),
+       * so that we're able to eliminate the overhead of reading
+       * the eventfd via system call on each event loop wakeup.
+       */
+      e.events |= EPOLLET;
     e.data.fd = w->fd;
     fd = w->fd;
 
@@ -1515,25 +1592,6 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
        * requested us to watch.
        */
       pe->events &= w->pevents | POLLERR | POLLHUP;
-
-      /* Work around an epoll quirk where it sometimes reports just the
-       * EPOLLERR or EPOLLHUP event.  In order to force the event loop to
-       * move forward, we merge in the read/write events that the watcher
-       * is interested in; uv__read() and uv__write() will then deal with
-       * the error or hangup in the usual fashion.
-       *
-       * Note to self: happens when epoll reports EPOLLIN|EPOLLHUP, the user
-       * reads the available data, calls uv_read_stop(), then sometime later
-       * calls uv_read_start() again.  By then, libuv has forgotten about the
-       * hangup and the kernel won't report EPOLLIN again because there's
-       * nothing left to read.  If anything, libuv is to blame here.  The
-       * current hack is just a quick bandaid; to properly fix it, libuv
-       * needs to remember the error/hangup event.  We should get that for
-       * free when we switch over to edge-triggered I/O.
-       */
-      if (pe->events == POLLERR || pe->events == POLLHUP)
-        pe->events |=
-          w->pevents & (POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI);
 
       if (pe->events != 0) {
         /* Run signal watchers last.  This also affects child process watchers
@@ -1867,8 +1925,13 @@ nocpuinfo:
       continue;
 
     n++;
+    /* Use scaling_max_freq, not scaling_cur_freq: reading the latter takes
+     * ~20ms per core on some AMD CPUs because the ACPI cpufreq driver does
+     * a slow SMM round-trip on every read; scaling_max_freq is a plain
+     * policy value and, unlike cpuinfo_cur_freq, is world-readable.
+     */
     snprintf(buf, sizeof(buf),
-             "/sys/devices/system/cpu/cpu%u/cpufreq/scaling_cur_freq", cpu);
+             "/sys/devices/system/cpu/cpu%u/cpufreq/scaling_max_freq", cpu);
 
     fp = uv__open_file(buf);
     if (fp == NULL)

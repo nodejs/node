@@ -28,12 +28,14 @@
 #else /*  Unix */
 # include <fcntl.h>
 # include <unistd.h>
-# if defined(__linux__) && !defined(__ANDROID__)
+# if defined(__linux__) && !defined(__ANDROID__) || defined(__GNU__)
 #  include <pty.h>
 # elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 #  include <util.h>
 # elif defined(__FreeBSD__) || defined(__DragonFly__)
 #  include <libutil.h>
+# elif defined(__HAIKU__)
+#  include <pty.h>
 # endif
 #endif
 
@@ -118,6 +120,9 @@ TEST_IMPL(tty) {
 
   ASSERT_GT(width, 0);
   ASSERT_GT(height, 0);
+
+  r = uv_tty_set_mode(&tty_in, (uv_tty_mode_t) -1);
+  ASSERT_EQ(r, UV_EINVAL);
 
   /* Turn on raw mode. */
   r = uv_tty_set_mode(&tty_in, UV_TTY_MODE_RAW);
@@ -442,6 +447,10 @@ TEST_IMPL(tty_pty) {
   ASSERT(uv_is_writable((uv_stream_t*) &slave_tty));
   ASSERT(uv_is_readable((uv_stream_t*) &master_tty));
   ASSERT(uv_is_writable((uv_stream_t*) &master_tty));
+
+  r = uv_tty_set_mode(&slave_tty, (uv_tty_mode_t) -1);
+  ASSERT_EQ(r, UV_EINVAL);
+
   /* Check if the file descriptor was reopened. If it is,
    * UV_HANDLE_BLOCKING_WRITES (value 0x100000) isn't set on flags.
    */
@@ -515,7 +524,7 @@ TEST_IMPL(tty_pty_partial) {
   /* This test is not 100% deterministic. If the bug it is testing for is
    * present, then it fails about 1 in 3 times, that's why it runs in a loop.
    */
-  for (i = 0; i < 10; i++) {
+  for (i = 0; i < 50; i++) {
     if (openpty(&master_fd, &slave_fd, NULL, NULL, NULL))
       RETURN_SKIP("No pty available, skipping.");
 

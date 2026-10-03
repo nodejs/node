@@ -1,4 +1,248 @@
-2026.03.06, Version 1.52.1 (Stable)
+2026.09.24, Version 1.53.0 (Stable)
+
+Changes since version 1.52.1:
+
+* unix: fix pedantic compiler warnings (Ben Noordhuis)
+
+* win: fix const correctness compiler error (apocelipes)
+
+* doc: clarify handle close behavior of uv_spawn (Ben Noordhuis)
+
+* doc: name function crosslinks consistently (Ben Noordhuis)
+
+* win: fix const correctness warning (Ben Noordhuis)
+
+* win: fix off-by-one in utf-16 to wtf-8 conversion (locus-x64)
+
+* udp: validate nbufs in send functions (Oren)
+
+* unix: improve handling of uv_async_send mistakes (Jameson Nash)
+
+* unix,stream: verify uv_try_write2 handle (cui)
+
+* test,win: fix race in test runner (Jameson Nash)
+
+* unix,tty: don't drain when setting the TTY mode (Gabriel Baraldi)
+
+* inet: prefer sizeof with parenthesis (Juan José Arboleda)
+
+* test: remove unused headers and use newer ASSERT macros (Juan José Arboleda)
+
+* doc: Add textual images into libuv man page (Stacey Marshall)
+
+* darwin: replace EV_OOBAND handling with EVFILT_EXCEPT + NOTE_OOB (Juan José
+  Arboleda)
+
+* docs: add copybutton sphinx extension (HArsil)
+
+* doc: fix threading bugs in progress example (PRANAV KUMAR)
+
+* unix: support long path names in pipe.c (Edigleysson Silva (Edy))
+
+* win: fix some compiler warnings (Benjamin Gilbert)
+
+* docs: fix broken and redirected links (Jameson Nash)
+
+* doc: remove random reference to libev (Ben Noordhuis)
+
+* process: better validation for process->pid usage (Jameson Nash)
+
+* unix: check return value of fcntl call (Ben Noordhuis)
+
+* test: fix -Wunused-function warning (Ben Noordhuis)
+
+* linux: close streams without an extra read (Jameson Nash)
+
+* unix: enforce recvmmsg buffer size requirements (Ben Noordhuis)
+
+* android: fix termux build (BarryLhm)
+
+* io: make libuv 64-bit safe (Jameson Nash)
+
+* win,pipe: skip IOCP for pipe handles (Jameson Nash)
+
+* win: use WSA_FLAG_NO_HANDLE_INHERIT in all WSASocketW (Jameson Nash)
+
+* unix: use posix_spawn instead of fork (Jameson Nash)
+
+* test: use correct type for uv_fileno arguments (Saúl Ibarra Corretgé)
+
+* misc: revise security vulnerability reporting instructions (Jameson Nash)
+
+* win: fix watch loop logic (Stefan Stojanovic)
+
+* win: properly initialize OSVERSIONINFOW (Santiago Gimeno)
+
+* misc: fix error code returned from uv_wtf8_length_as_utf16 (Ryan Liptak)
+
+* stream: fix server stop accepting after uv_accept() error (ivinx)
+
+* unix,ibmi: abort on process_title_mutex init failure (Juan José Arboleda)
+
+* unix,stream: fix getsockopt error handling in connect (Juan José Arboleda)
+
+* unix: treat futimens() as best-effort in copyfile (skooch)
+
+* unix: free statxbuf on iouring statx fallback (Santiago Gimeno)
+
+* aix,ibmi: fix undeclared identifiers (SRAVANI GUNDEPALLI)
+
+* unix: fix uv__udp_recvmsg crash (theanarkh)
+
+* win: use PROC_THREAD_ATTRIBUTE_HANDLE_LIST in uv_spawn (Jameson Nash)
+
+* unix: avoid duplicate recvmmsg terminal callback (Isaac Elbaz)
+
+* win: fix spawn process with no argument (sturcotte06)
+
+* unix: handle cloexec failure in kqueue init (Juan José Arboleda)
+
+* unix: remove UV_HANDLE_READING flag (Edigleysson Silva (Edy))
+
+* src: use INET6_ADDRSTRLEN for IPv6 address buffer (orbisai0security)
+
+* test: include pty.h for GNU Hurd (Jérémy Lal)
+
+* test: skip recvmsg unreachable test when no ipv6 (Santiago Gimeno)
+
+* win: fix race condition in uv_async_send (Jameson Nash)
+
+* unix,fs: fix busyloop in big copyfile (Jameson Nash)
+
+* process,unix: avoid off-by-one in uv__spawn_resolve_and_spawn (Jameson Nash)
+
+* test: check that sizeof is constant (Jameson Nash)
+
+* async: make seq_cst the default (Jameson Nash)
+
+* Reland "linux: eliminate a read on eventfd per wakeup" (Jameson Nash)
+
+* win,process: skip dump silently if no valid folder can be determined (Jameson
+  Nash)
+
+* win: handle short path mismatch with a fallback in fs events (Joyee Cheung)
+
+* unix,udp: handle msg_hdr.msg_namelen=0 on recvmmsg (Santiago Gimeno)
+
+* ci: lock down permissions and pin action SHAs (Alb3e3)
+
+* docs: ignore unstable ncurses linkcheck URL (Alb3e3)
+
+* unix: handle EINTR in uv_resident_set_memory (Nandan Acharya)
+
+* build(deps): bump reactivecircus/android-emulator-runner (dependabot[bot])
+
+* build(deps): bump actions/setup-python from 6.2.0 to 6.3.0 (dependabot[bot])
+
+* unix: return EINVAL for invalid tty modes (Samuel Williams)
+
+* ci: use VS 18 / 2026 in Windows Server 2025 (Saúl Ibarra Corretgé)
+
+* win: fix use of wrong constant in tcp code (Ben Noordhuis)
+
+* unix: fix UV_FS_O_DIRECT on more linux architectures (Archkon)
+
+* doc: add UB warning to threading documentation (Ben Noordhuis)
+
+* build(deps): bump reactivecircus/android-emulator-runner (dependabot[bot])
+
+* sunos: use getrandom(2) for uv_random (Petr Sumbera)
+
+* unix,poll: fix callback event bits on error/hangup (Yuki Ibe)
+
+* haiku: build tests with libbsd (Jérôme Duval)
+
+* unix: fix static declaration in nested block for AIX and IBM i PASE
+  (sravani1510)
+
+* win: fix unique named pipes to work inside Windows AppContainer (Russ Cox)
+
+* build(deps): bump actions/setup-python from 6.3.0 to 7.0.0 (dependabot[bot])
+
+* build(deps): bump actions/checkout from 6.0.3 to 7.0.0 (dependabot[bot])
+
+* stream: Implement cancellation support for uv_write_t (Keno Fischer)
+
+* unix: handle trailing empty write buffers (Alb3e3)
+
+* stream: handle cancel write after close (Tyler Gibbs)
+
+* build(deps): bump actions/checkout from 7.0.0 to 7.0.1 (dependabot[bot])
+
+* test: don't generate io_uring variants of loopless fs tests (Jameson Nash)
+
+* test: close the loop in udp_recvmsg_unreachable_error{,6} (Jameson Nash)
+
+* linux: use scaling_max_freq in uv_cpu_info() (James Ross)
+
+* win: fix leak if uv_loop_init fails (Jameson Nash)
+
+* solaris: fix build and test failures, add CI (Petr Sumbera)
+
+* test: improve fs event filename assertion (Petr Sumbera)
+
+* build(deps): bump vmactions/solaris-vm from 1.3.7 to 1.3.8 (dependabot[bot])
+
+* build(deps): bump actions/checkout from 6.0.3 to 7.0.1 (dependabot[bot])
+
+* win: fix crash when closing a pipe after a failed bind (Yury Semikhatsky)
+
+* darwin: report physical footprint as rss (Jarred Sumner)
+
+* test: close file descriptors leaked by tests (Jameson Nash)
+
+* unix: short-circuit no-op event mask changes in uv__io_stop (Shelley Vohr)
+
+* unix,process: never shrink the stdio socket pair buffers (Shelley Vohr)
+
+* build(deps): bump vmactions/solaris-vm from 1.3.8 to 1.3.9 (dependabot[bot])
+
+* linux: fix tcc build (Ben Noordhuis)
+
+* aix: canonicalize fs event path with realpath() (Milad Fa)
+
+* openbsd: use fork instead of posix_spawn (Ben Noordhuis)
+
+* freebsd,netbsd,openbsd: add build CI (neil)
+
+* win,fs: suppress CRT assertion on close (Yiğit Tanrıverdi)
+
+* unix: drain tty reads on POLLHUP without POLLIN (Santiago Gimeno)
+
+* doc: fix on guide filesystem.rst (Viacheslav Muravyev)
+
+* linux: support cancelling io_uring file requests (hunterinvariants)
+
+* build: distribute Windows long path manifest (Yiğit Tanrıverdi)
+
+* netbsd: free cpu times on sysctl failure (cui fliter)
+
+* build(deps): bump vmactions/netbsd-vm from 1.4.8 to 1.4.9 (dependabot[bot])
+
+* freebsd: don't fail uv_cpu_info() when hw.clockrate is missing (Piotr Kubaj)
+
+* build(deps): bump vmactions/netbsd-vm from 1.4.9 to 1.5.0 (dependabot[bot])
+
+* build(deps): bump vmactions/solaris-vm from 1.3.9 to 1.4.0 (dependabot[bot])
+
+* build(deps): bump vmactions/freebsd-vm from 1.5.5 to 1.5.6 (dependabot[bot])
+
+* unix: fix warning in OpenBSD code (Brad Smith)
+
+* test: lower number of iterations (Ben Noordhuis)
+
+* openbsd: update EVFILT_USER comment (Brad Smith)
+
+* freebsd: don't use long AF_UNIX socket paths (Juan José Arboleda)
+
+* openbsd: use getexecpath in uv_exepath if present (Brad Smith)
+
+* build(deps): bump vmactions/freebsd-vm from 1.5.6 to 1.5.7 (dependabot[bot])
+
+* win: reserve explicit thread stack size (Zuohui Yang)
+
+
+2026.03.06, Version 1.52.1 (Stable), 1cfa32ff59c076ffb6ed735bbc8c18361558661f
 
 Changes since version 1.52.0:
 
