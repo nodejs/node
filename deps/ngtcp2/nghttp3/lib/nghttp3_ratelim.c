@@ -32,6 +32,8 @@
 
 void nghttp3_ratelim_init(nghttp3_ratelim *rlim, uint64_t burst, uint64_t rate,
                           nghttp3_tstamp ts) {
+  burst = nghttp3_min(burst, NGHTTP3_RATELIM_MAX_BURST);
+
   *rlim = (nghttp3_ratelim){
     .burst = burst,
     .rate = rate,
@@ -53,19 +55,16 @@ static void ratelim_update(nghttp3_ratelim *rlim, nghttp3_tstamp ts) {
   d = ts - rlim->ts;
   rlim->ts = ts;
 
-  if (rlim->rate > (UINT64_MAX - rlim->carry) / d) {
-    gain = UINT64_MAX;
-  } else {
+  if (rlim->rate <= (UINT64_MAX - rlim->carry) / d) {
     gain = rlim->rate * d + rlim->carry;
-  }
+    gps = gain / NGHTTP3_SECONDS;
 
-  gps = gain / NGHTTP3_SECONDS;
+    if (gps < rlim->burst && rlim->tokens < rlim->burst - gps) {
+      rlim->tokens += gps;
+      rlim->carry = gain % NGHTTP3_SECONDS;
 
-  if (gps < rlim->burst && rlim->tokens < rlim->burst - gps) {
-    rlim->tokens += gps;
-    rlim->carry = gain % NGHTTP3_SECONDS;
-
-    return;
+      return;
+    }
   }
 
   rlim->tokens = rlim->burst;
