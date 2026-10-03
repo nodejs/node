@@ -6,5 +6,5 @@ import * as fixtures from '../common/fixtures.mjs';
 spawnSyncAndAssert(
   process.execPath,
   ['--no-warnings', fixtures.path('es-modules/test-wasm-reject-wasm-export-names.mjs')],
-  { status: 1, stderr: /Invalid Wasm export/ }
+  { status: 1, stderr: /Invalid Wasm export name "wasm:invalid"/ }
 );
