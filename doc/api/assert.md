@@ -172,6 +172,9 @@ added: v0.1.21
     frames before this function.
   * `diff` {string} If set to `'full'`, shows the full diff in assertion errors. Defaults to `'simple'`.
     Accepted values: `'simple'`, `'full'`.
+  * `skipPrototype` {boolean} If set to `true`, the error message does not report a
+    mismatch of the top-level prototypes when the operator is `'deepStrictEqual'`.
+    Defaults to `false`.
 
 A subclass of {Error} that indicates the failure of an assertion.
 
