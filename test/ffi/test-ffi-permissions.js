@@ -74,7 +74,7 @@ test('permission model blocks ffi memory and helper APIs', () => {
     ffi.getCurrentEventLoop();
   }, denied);
 
-  assert.throws(() => {
-    ffi.dlclose({ close() {} });
-  }, denied);
+  // Like handle.close() and handle.getSymbol(), these do not check permissions.
+  ffi.dlclose({ close() {} });
+  assert.strictEqual(ffi.dlsym({ getSymbol: () => 1n }, 'x'), 1n);
 });
