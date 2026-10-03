@@ -1002,6 +1002,7 @@ export interface CryptoBinding {
   privateEncrypt: InternalCryptoBinding.PublicKeyCipher;
   publicDecrypt: InternalCryptoBinding.PublicKeyCipher;
   publicEncrypt: InternalCryptoBinding.PublicKeyCipher;
+  randomFillSync(buf: ArrayBufferLike | ArrayBufferView, offset: number, size: number): void;
   resetRootCertStore(): void;
   secureBuffer(length: number): Uint8Array | undefined;
   secureHeapUsed(): bigint | undefined;
