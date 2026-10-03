@@ -266,6 +266,20 @@ const regularFile = __filename;
   }));
 }
 
+// fs.mkstemp: the file is opened for reading and writing
+{
+  const expected = {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+  };
+  assert.throws(() => {
+    fs.mkstempSync(path.join(blockedFolder, 'any-file'));
+  }, expected);
+  fs.mkstemp(path.join(blockedFolder, 'any-file'), common.expectsError(expected));
+  assert.rejects(fs.promises.mkstemp(path.join(blockedFolder, 'any-file')), expected)
+    .then(common.mustCall());
+}
+
 // fs.opendir
 {
   fs.opendir(blockedFolder, common.expectsError({
