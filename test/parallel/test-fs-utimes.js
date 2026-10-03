@@ -46,7 +46,7 @@ function stat_resource(resource, statSync = fs.statSync) {
 }
 
 function check_mtime(resource, mtime, statSync) {
-  mtime = fs._toUnixTimestamp(mtime);
+  mtime = getExpectedMtime(mtime);
   const stats = stat_resource(resource, statSync);
   const real_mtime = fs._toUnixTimestamp(stats.mtime);
   return mtime - real_mtime;
@@ -64,14 +64,17 @@ function expect_ok(syscall, resource, err, atime, mtime, statSync) {
   assert(
     // Check up to single-second precision.
     // Sub-second precision is OS and fs dependent.
-    !err && (mtime_diff < 2) || err && err.code === 'ENOSYS',
+    !err && (Math.abs(mtime_diff) < 2) || err && err.code === 'ENOSYS',
     `FAILED: expect_ok ${util.inspect(arguments)}
      check_mtime: ${mtime_diff}`
   );
 }
 
 function getExpectedMtime(mtime) {
-  // Negative numeric timestamps are normalized to "now" at call time.
+  // Keep negative numeric timestamps so the test catches normalization to now.
+  if (typeof mtime === 'number' && mtime < 0) {
+    return mtime;
+  }
   return fs._toUnixTimestamp(mtime);
 }
 
@@ -85,7 +88,9 @@ const cases = [
   [asPath, new Date()],
   [asPath, 123456.789],
   [asPath, stats.mtime],
-  [asPath, '123456', -1],
+  // AIX rejects negative timestamps outright; Windows wraps them into a
+  // post-2038 date (see test-fs-utimes-y2K38.js).
+  ...(common.isAIX || common.isWindows ? [] : [[asPath, '123456', -1]]),
   [asPath, new Date('2017-04-08T17:59:38.008Z')],
   [asUrl, new Date()],
 ];
