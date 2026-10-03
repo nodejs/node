@@ -892,6 +892,13 @@ void AfterOpenFileHandle(uv_fs_t* req) {
   }
 }
 
+// Closes a file created by mkstemp() whose descriptor cannot be handed to JS.
+static void CloseMkstempFd(int fd) {
+  uv_fs_t close_req;
+  uv_fs_close(nullptr, &close_req, fd, nullptr);
+  uv_fs_req_cleanup(&close_req);
+}
+
 // Delivers the result of mkstemp(): [path, fd], or [path, FileHandle].
 static void AfterMkstempImpl(uv_fs_t* req, bool as_file_handle) {
   BaseObjectPtr<FSReqBase> req_wrap{FSReqBase::from_req(req)};
@@ -913,9 +920,10 @@ static void AfterMkstempImpl(uv_fs_t* req, bool as_file_handle) {
     after.Clear();
     return req_wrap->Reject(exception);
   }
-  if (!after.Proceed()) return;
-
   const int fd = static_cast<int>(req->result);
+  // The environment is shutting down: nothing will receive the descriptor.
+  if (!after.Proceed()) return CloseMkstempFd(fd);
+
   Local<Value> path;
   Local<Value> error;
   {
@@ -928,9 +936,7 @@ static void AfterMkstempImpl(uv_fs_t* req, bool as_file_handle) {
     }
   }
   if (!error.IsEmpty()) {
-    uv_fs_t close_req;
-    uv_fs_close(nullptr, &close_req, fd, nullptr);
-    uv_fs_req_cleanup(&close_req);
+    CloseMkstempFd(fd);
     return req_wrap->Reject(error);
   }
 
@@ -938,7 +944,7 @@ static void AfterMkstempImpl(uv_fs_t* req, bool as_file_handle) {
   if (as_file_handle) {
     FileHandle* handle =
         FileHandle::New(req_wrap->binding_data(), fd, {}, req->path);
-    if (handle == nullptr) return;
+    if (handle == nullptr) return CloseMkstempFd(fd);
     file = handle->object();
   } else {
     env->AddUnmanagedFd(fd);
@@ -4596,10 +4602,7 @@ static void Mkstemp(const FunctionCallbackInfo<Value>& args) {
   Local<Value> path;
   if (!StringBytes::Encode(isolate, req_wrap_sync.req.path, encoding)
            .ToLocal(&path)) {
-    uv_fs_t close_req;
-    uv_fs_close(nullptr, &close_req, fd, nullptr);
-    uv_fs_req_cleanup(&close_req);
-    return;
+    return CloseMkstempFd(fd);
   }
   env->AddUnmanagedFd(fd);
   Local<Value> result[] = {path, Integer::New(isolate, fd)};
