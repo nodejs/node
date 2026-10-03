@@ -18,6 +18,13 @@ functions or objects with a `transform` method.
 Data flows in **batches** ({Uint8Array\[]} per iteration) to amortize the cost
 of async operations.
 
+The module implements the WinterTC [Iterable Streams API][] draft. The
+classic stream interop functions ([`fromReadable()`][], [`fromWritable()`][],
+[`toReadable()`][], [`toReadableSync()`][] and [`toWritable()`][]),
+[`Broadcast.from()`][], [`Share.from()`][], [`SyncShare.fromSync()`][] and the
+protocol symbols exported by `Stream` are Node.js extensions that are not part
+of the draft.
+
 ```mjs
 import { from, pull, text } from 'node:stream/iter';
 import { compressGzip, decompressGzip } from 'node:zlib/iter';
@@ -407,6 +414,18 @@ converted to a `USVString` and then UTF-8 encoded. `writev()` and
 chunks. Writer option dictionaries treat `null` as an empty dictionary and
 ignore unknown members.
 
+Arguments are converted before the write itself starts. If the conversion runs
+user code (for example a `toString()` method, or the iterator of a `writev()`
+argument) that writes to the same writer, those writes are ordered before the
+write whose argument is being converted, and they count against the same
+backpressure limits.
+
+After `end()` or `endSync()` has been called, and until all buffered data has
+been consumed, the writer is _closing_. While closing, `canWrite` is `null`,
+`write()` and `writev()` reject with a `TypeError`, `writeSync()` and
+`writevSync()` return `false`, `endSync()` returns `-1`, and calling `end()`
+again returns the same promise as the first call.
+
 Each async method has a synchronous `*Sync` counterpart designed for a
 try-fallback pattern: attempt the fast synchronous path first, and fall back
 to the async version only when the synchronous call indicates it could not
@@ -707,6 +726,11 @@ Synchronous version of [`pipeTo()`][]. The `source`, all transforms, and the
 The `writer` must have the `*Sync` methods (`writeSync`, `writevSync`,
 `endSync`) and `fail()` for this to work.
 
+If `writer.endSync()` returns `-1` because the writer cannot close
+synchronously (for example, a [`push()`][] writer whose consumer has not read
+all of the data yet), `pipeToSync()` falls back to calling `writer.end()`
+without waiting for it, and returns normally.
+
 ### `pull(source[, ...transforms][, options])`
 
 <!-- YAML
@@ -723,8 +747,12 @@ added:
 
 Create a lazy async pipeline. Source conversion and streamable protocol
 dispatch occur when `pull()` is called, but data is not read from `source`
-until the returned iterable is consumed. A signal that is already aborted is
-thrown synchronously after source conversion. Transforms are applied in order.
+until the returned iterable is consumed. Transforms are applied in order.
+
+When `signal` aborts, the pending read (or the next one) rejects with
+`signal.reason`, and so does every later read. If `signal` is already aborted,
+`pull()` still returns an iterable; reading from it rejects with
+`signal.reason` without reading from `source`.
 
 ```mjs
 import { from, pull, text } from 'node:stream/iter';
@@ -811,7 +839,7 @@ added:
   readable side.
 * `options` {Object}
   * `budget` {number} Maximum number of buffered bytes before
-    backpressure is applied. Must be >= 16384.
+    backpressure is applied. Must be a positive integer.
     **Default:** `16384`.
   * `backpressure` {string} Backpressure policy: `'strict'`, `'unbounded'`,
     `'drop-oldest'`, or `'drop-newest'`. **Default:** `'strict'`.
@@ -865,6 +893,10 @@ run().catch(console.error);
 
 The writer returned by `push()` conforms to the \[Writer interface]\[].
 
+Zero-length chunks are accepted without being buffered: they are not delivered
+to the consumer, and `writeSync()` and `write()` report success for them even
+when backpressure is active.
+
 ## Duplex channels
 
 ### `duplex([options])`
@@ -877,7 +909,7 @@ added:
 
 * `options` {Object}
   * `budget` {number} Buffer size in bytes for both directions.
-    Must be >= 16384. **Default:** `16384`.
+    Must be a positive integer. **Default:** `16384`.
   * `backpressure` {string} Policy for both directions.
     **Default:** `'strict'`.
   * `signal` {AbortSignal} Cancellation signal for both channels.
@@ -1196,7 +1228,12 @@ added:
 
 Merge multiple async iterables by yielding batches in temporal order
 (whichever source produces data first). All sources are consumed
-concurrently.
+concurrently, with at most one pending `next()` call per source.
+
+If a source fails, the returned iterable rejects with its error. `merge()`
+calls `return()` on the other sources but does not wait for it to settle: an
+async generator source that is suspended in an `await` only runs its cleanup
+once that `await` completes.
 
 ```mjs
 import { from, merge, text } from 'node:stream/iter';
@@ -1224,8 +1261,9 @@ added:
  - v24.20.0
 -->
 
-* `callback` {Function} `(chunks) => void` Called with each batch and with
-  `null` when the source ends.
+* `callback` {Function} `(chunks, options) => void` Called with each batch and
+  with `null` when the source ends. `options.signal` is the pipeline's
+  {AbortSignal}.
 * Returns: {Function} A stateless transform.
 
 Create a pass-through transform that observes batches without modifying them.
@@ -1286,7 +1324,7 @@ added:
 -->
 
 * `options` {Object}
-  * `budget` {number} Buffer size in bytes. Must be >= 16384.
+  * `budget` {number} Buffer size in bytes. Must be a positive integer.
     **Default:** `65536`.
   * `backpressure` {string} `'strict'`, `'unbounded'`, `'drop-oldest'`, or
     `'drop-newest'`. **Default:** `'strict'`.
@@ -1354,6 +1392,10 @@ run().catch(console.error);
 Cancel the broadcast. If `reason` is provided, all consumers reject with that
 exact reason. If it is omitted, consumers complete normally.
 
+Cancelling also closes the paired writer: afterwards its `canWrite` is `null`
+and `write()` rejects with a `TypeError`. This lets a [`Broadcast.from()`][]
+pump stop pulling from its source.
+
 #### `broadcast.consumerCount`
 
 * {number}
@@ -1400,7 +1442,7 @@ added:
 
 * `source` {AsyncIterable} The source to share.
 * `options` {Object}
-  * `budget` {number} Buffer size in bytes. Must be >= 16384.
+  * `budget` {number} Buffer size in bytes. Must be a positive integer.
     **Default:** `65536`.
   * `backpressure` {string} `'strict'`, `'unbounded'`, `'drop-oldest'`, or
     `'drop-newest'`. **Default:** `'strict'`.
@@ -1410,6 +1452,28 @@ added:
 Create a pull-model multi-consumer shared stream. Unlike `broadcast()`, the
 source is only read when a consumer pulls. Multiple consumers share a single
 buffer.
+
+A consumer created with `share.pull()` starts reading at the oldest entry still
+in the buffer. Entries are released once every consumer has read them. When
+every consumer has detached, the buffered data is kept for consumers that
+attach later, and the source is not closed. Call `share.cancel()` (or dispose
+the share) to release the source once it is no longer needed.
+
+With `'strict'` backpressure, a consumer that needs to pull from the source
+while the buffer is at or above `budget` is rejected with `ERR_OUT_OF_RANGE`
+and detached; further reads from that consumer complete with `{ done: true }`.
+Detaching keeps a consumer that is not retried (for example, one read with
+`for await...of`, which does not call `return()` when a read rejects) from
+holding buffered data and blocking the other consumers.
+
+With `'unbounded'`, such a consumer waits until the slowest consumer releases
+budget. With `'drop-newest'`, the entry pulled from the source is discarded
+and the consumer then waits in the same way, so in both cases a stalled
+consumer also stalls the consumers that are ahead of it. Only `'drop-oldest'`
+lets consumers that are ahead continue, by discarding the oldest buffered
+entries that the slowest consumer has not read yet. A batch pulled from the
+source that is larger than `budget` is split into smaller entries first, so
+eviction keeps the newest chunks that fit within the budget.
 
 ```mjs
 import { from, share, text } from 'node:stream/iter';
@@ -1506,20 +1570,18 @@ added:
 
 * `source` {Iterable} The sync source to share.
 * `options` {Object}
-  * `budget` {number} Must be >= 16384.
+  * `budget` {number} Must be a positive integer.
     **Default:** `65536`.
-  * `backpressure` {string} `'strict'`, `'drop-oldest'`, or `'drop-newest'`.
+  * `backpressure` {string} `'strict'` or `'drop-oldest'`.
     **Default:** `'strict'`.
 * Returns: {SyncShare}
 
 Synchronous version of [`share()`][].
 
-Because there is no way to wait in a synchronous context, `'unbounded'` is not
-supported and throws `ERR_INVALID_ARG_VALUE`. With `'drop-newest'`, a consumer
-that reaches the end of the buffer while the budget is exhausted discards a
-single entry from the source and then returns `{ done: true }` without a
-value; the consumer is not detached, so it can resume once the slowest
-consumer advances and releases budget.
+A synchronous consumer cannot wait for the slowest consumer to release budget,
+and the slowest consumer cannot advance while another consumer's read is
+running. `'unbounded'` and `'drop-newest'` are therefore not supported and
+throw `ERR_INVALID_ARG_VALUE`.
 
 ### Class: `SyncShare`
 
@@ -2243,20 +2305,30 @@ const stream = fromSync(new Greeting('world'));
 console.log(textSync(stream)); // 'hello world'
 ```
 
+[Iterable Streams API]: https://iter-streams.proposal.wintertc.org/
 [`--experimental-stream-iter`]: cli.md#--experimental-stream-iter
+[`Broadcast.from()`]: #broadcastfrominput-options
+[`Share.from()`]: #static-method-sharefrominput-options
+[`SyncShare.fromSync()`]: #static-method-syncsharefromsyncinput-options
 [`array()`]: #arraysource-options
 [`arrayBuffer()`]: #arraybuffersource-options
 [`bytes()`]: #bytessource-options
 [`from()`]: #frominput
+[`fromReadable()`]: #fromreadablereadable
 [`fromSync()`]: #fromsyncinput
+[`fromWritable()`]: #fromwritablewritable-options
 [`node:zlib/iter`]: zlib.md#iterable-compression
 [`ondrain()`]: #ondraindrainable
 [`pipeTo()`]: #pipetosource-transforms-writer-options
 [`pull()`]: #pullsource-transforms-options
 [`pullSync()`]: #pullsyncsource-transforms
+[`push()`]: #pushtransforms-options
 [`share()`]: #sharesource-options
 [`stream.Readable`]: stream.md#class-streamreadable
 [`stream.Writable`]: stream.md#class-streamwritable
 [`tap()`]: #tapcallback
 [`text()`]: #textsource-options
 [`toAsyncStreamable`]: #streamtoasyncstreamable
+[`toReadable()`]: #toreadablesource-options
+[`toReadableSync()`]: #toreadablesyncsource-options
+[`toWritable()`]: #towritablewriter

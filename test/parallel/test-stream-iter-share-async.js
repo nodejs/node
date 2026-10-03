@@ -380,6 +380,64 @@ async function testShareLateJoiningConsumer() {
   assert.strictEqual(data2, '');
 }
 
+async function testShareRetainsBufferWhenAllConsumersDetach() {
+  // Data that a consumer had not read yet must stay available to consumers
+  // that attach after every previous consumer has detached.
+  const enc = new TextEncoder();
+  async function* gen() {
+    yield [enc.encode('a')];
+    yield [enc.encode('b')];
+    yield [enc.encode('c')];
+  }
+  const shared = share(gen(), { budget: 16384 });
+  const c1 = shared.pull()[Symbol.asyncIterator]();
+  const c2 = shared.pull()[Symbol.asyncIterator]();
+  assert.deepStrictEqual((await c1.next()).value, [enc.encode('a')]);
+  // c2 has not read 'a' yet; it is the last consumer to detach.
+  await c1.return();
+  await c2.return();
+  assert.strictEqual(shared.consumerCount, 0);
+
+  assert.strictEqual(await text(shared.pull()), 'abc');
+}
+
+async function testShareDropOldestSplitsOversizedBatches() {
+  // from() combines the values of this sync generator into a single batch
+  // that is much larger than the budget. Evicting that batch as a whole would
+  // leave the slower consumer with nothing at all.
+  function* source() {
+    for (let i = 0; i < 50; i++) {
+      const chunk = new Uint8Array(4096);
+      chunk[0] = i;
+      yield chunk;
+    }
+  }
+  const shared = share(source(), {
+    budget: 65536,
+    backpressure: 'drop-oldest',
+  });
+  const fast = shared.pull()[Symbol.asyncIterator]();
+  const slow = shared.pull()[Symbol.asyncIterator]();
+
+  const fastSeen = [];
+  for (let r = await fast.next(); !r.done; r = await fast.next()) {
+    for (const chunk of r.value) fastSeen.push(chunk[0]);
+  }
+  assert.deepStrictEqual(fastSeen, Array.from({ length: 50 }, (_, i) => i));
+
+  const slowSeen = [];
+  for (let r = await slow.next(); !r.done; r = await slow.next()) {
+    for (const chunk of r.value) slowSeen.push(chunk[0]);
+  }
+  // The slow consumer lost the oldest chunks but keeps an in-order suffix
+  // that fits the budget.
+  assert.ok(slowSeen.length > 0);
+  assert.ok(slowSeen.length * 4096 < 65536);
+  assert.deepStrictEqual(
+    slowSeen,
+    Array.from({ length: slowSeen.length }, (_, i) => 50 - slowSeen.length + i));
+}
+
 async function testShareConsumerBreak() {
   // Verify that a consumer breaking mid-iteration detaches properly
   const enc = new TextEncoder();
@@ -474,6 +532,8 @@ Promise.all([
   testShareSourceError(),
   testShareSourceErrorFollowsBufferedData(),
   testShareLateJoiningConsumer(),
+  testShareRetainsBufferWhenAllConsumersDetach(),
+  testShareDropOldestSplitsOversizedBatches(),
   testShareConsumerBreak(),
   testShareMultipleConsumersConcurrentPull(),
   testShareConsumerConcurrentNextCalls(),

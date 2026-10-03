@@ -103,6 +103,11 @@ await clientSession.opened;
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
   assert.strictEqual(w.endSync(), 12);
+  // Writes after the writer is closed reject with a TypeError.
+  await assert.rejects(w.write('closed'),
+                       { code: 'ERR_INVALID_STATE', name: 'TypeError' });
+  await assert.rejects(w.writev(['closed']),
+                       { code: 'ERR_INVALID_STATE', name: 'TypeError' });
   for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
   await stream.closed;
 }

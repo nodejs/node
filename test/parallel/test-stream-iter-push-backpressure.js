@@ -150,6 +150,22 @@ async function testStrictPendingQueueOverflow() {
   await iter.return();
 }
 
+async function testSmallBudget() {
+  // An explicit budget below the 16384-byte default is honored.
+  const { writer, readable } = push({ budget: 4 });
+  assert.strictEqual(writer.writeSync('abc'), true);
+  assert.strictEqual(writer.canWrite, true);
+  // The buffer may overshoot the budget by one write.
+  assert.strictEqual(writer.writeSync('defgh'), true);
+  assert.strictEqual(writer.canWrite, false);
+  assert.strictEqual(writer.writeSync('i'), false);
+  const write = writer.write('ij');
+  const result = text(readable);
+  await write;
+  writer.endSync();
+  assert.strictEqual(await result, 'abcdefghij');
+}
+
 Promise.all([
   testStrictBackpressure(),
   testDropOldest(),
@@ -157,4 +173,5 @@ Promise.all([
   testBlockBackpressure(),
   testBlockWriteSyncDoesNotEnqueue(),
   testStrictPendingQueueOverflow(),
+  testSmallBudget(),
 ]).then(common.mustCall());
