@@ -718,7 +718,7 @@ async function testWriteAfterEnd() {
 
   await assert.rejects(
     writer.write('should fail'),
-    { code: 'ERR_STREAM_WRITE_AFTER_END' },
+    { code: 'ERR_STREAM_WRITE_AFTER_END', name: 'TypeError' },
   );
 }
 
