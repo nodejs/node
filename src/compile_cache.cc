@@ -23,6 +23,7 @@ using v8::Local;
 using v8::Module;
 using v8::ScriptCompiler;
 using v8::String;
+using v8::WasmModuleObject;
 
 namespace {
 std::string Uint32ToHex(uint32_t crc) {
@@ -103,6 +104,8 @@ const char* CompileCacheEntry::type_name() const {
       return "ESM";
     case CachedCodeType::kStrippedTypeScript:
       return "StrippedTypeScript";
+    case CachedCodeType::kWasm:
+      return "Wasm";
     default:
       UNREACHABLE();
   }
@@ -249,6 +252,20 @@ static std::string GetRelativePath(std::string_view path,
 CompileCacheEntry* CompileCacheHandler::GetOrInsert(Local<String> code,
                                                     Local<String> filename,
                                                     CachedCodeType type) {
+  // TODO(joyeecheung): don't encode this again into UTF8. If we read the
+  // UTF8 content on disk as raw buffer (from the JS layer, while watching out
+  // for monkey patching), we can just hash it directly.
+  Utf8Value code_utf8(isolate_, code);
+  return GetOrInsert(reinterpret_cast<const uint8_t*>(code_utf8.out()),
+                     code_utf8.length(),
+                     filename,
+                     type);
+}
+
+CompileCacheEntry* CompileCacheHandler::GetOrInsert(const uint8_t* code,
+                                                    size_t code_size,
+                                                    Local<String> filename,
+                                                    CachedCodeType type) {
   DCHECK(!compile_cache_dir_.empty());
 
   Environment* env = Environment::GetCurrent(isolate_->GetCurrentContext());
@@ -275,11 +292,7 @@ CompileCacheEntry* CompileCacheHandler::GetOrInsert(Local<String> code,
   }
   uint32_t key = GetCacheKey(file_path, type);
 
-  // TODO(joyeecheung): don't encode this again into UTF8. If we read the
-  // UTF8 content on disk as raw buffer (from the JS layer, while watching out
-  // for monkey patching), we can just hash it directly.
-  Utf8Value code_utf8(isolate_, code);
-  uint32_t code_hash = GetHash(code_utf8.out(), code_utf8.length());
+  uint32_t code_hash = GetHash(reinterpret_cast<const char*>(code), code_size);
   auto loaded = compiler_cache_store_.find(key);
 
   // TODO(joyeecheung): let V8's in-isolate compilation cache take precedence.
@@ -295,7 +308,7 @@ CompileCacheEntry* CompileCacheHandler::GetOrInsert(Local<String> code,
   auto* result = emplaced.first->second.get();
 
   result->code_hash = code_hash;
-  result->code_size = code_utf8.length();
+  result->code_size = code_size;
   result->cache_key = key;
   result->cache_filename =
       compile_cache_dir_ + kPathSeparator + Uint32ToHex(key);
@@ -316,6 +329,18 @@ ScriptCompiler::CachedData* SerializeCodeCache(Local<Function> func) {
 
 ScriptCompiler::CachedData* SerializeCodeCache(Local<Module> mod) {
   return ScriptCompiler::CreateCodeCache(mod->GetUnboundModuleScript());
+}
+
+// V8 only serializes code compiled by the optimizing tier, and produces
+// nothing if there is none, e.g. for a module that has only been compiled
+// with the baseline tier so far.
+ScriptCompiler::CachedData* SerializeCodeCache(Local<WasmModuleObject> mod) {
+  v8::OwnedBuffer code = mod->GetCompiledModule().Serialize();
+  if (code.size == 0) return nullptr;
+  return new ScriptCompiler::CachedData(
+      code.buffer.release(),
+      static_cast<int>(code.size),
+      ScriptCompiler::CachedData::BufferOwned);
 }
 
 template <typename T>
@@ -341,6 +366,12 @@ void CompileCacheHandler::MaybeSaveImpl(CompileCacheEntry* entry,
         entry->cache == nullptr ? "initializing" : "refreshing");
 
   ScriptCompiler::CachedData* data = SerializeCodeCache(func_or_mod);
+  if (data == nullptr) {
+    Debug("[compile cache] nothing to serialize for %s %s\n",
+          entry->type_name(),
+          entry->source_filename);
+    return;
+  }
   DCHECK_EQ(data->buffer_policy, ScriptCompiler::CachedData::BufferOwned);
   entry->refreshed = true;
   entry->cache.reset(data);
@@ -357,6 +388,13 @@ void CompileCacheHandler::MaybeSave(CompileCacheEntry* entry,
                                     Local<Function> func,
                                     bool rejected) {
   MaybeSaveImpl(entry, func, rejected);
+}
+
+void CompileCacheHandler::MaybeSave(CompileCacheEntry* entry,
+                                    Local<WasmModuleObject> mod,
+                                    bool rejected) {
+  DCHECK(entry->type == CachedCodeType::kWasm);
+  MaybeSaveImpl(entry, mod, rejected);
 }
 
 void CompileCacheHandler::MaybeSave(CompileCacheEntry* entry,
