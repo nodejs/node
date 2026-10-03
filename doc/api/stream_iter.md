@@ -1429,7 +1429,9 @@ budget. With `'drop-newest'`, the entry pulled from the source is discarded
 and the consumer then waits in the same way, so in both cases a stalled
 consumer also stalls the consumers that are ahead of it. Only `'drop-oldest'`
 lets consumers that are ahead continue, by discarding the oldest buffered
-entries that the slowest consumer has not read yet.
+entries that the slowest consumer has not read yet. A batch pulled from the
+source that is larger than `budget` is split into smaller entries first, so
+eviction keeps the newest chunks that fit within the budget.
 
 ```mjs
 import { from, share, text } from 'node:stream/iter';
