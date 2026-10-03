@@ -348,7 +348,7 @@ void AccumulateStats(DirectHandle<String> cons_string, ConsStringStats* stats) {
 void AccumulateStatsWithOperator(Tagged<ConsString> cons_string,
                                  ConsStringStats* stats) {
   ConsStringIterator iter(cons_string);
-  int offset;
+  uint32_t offset;
   for (Tagged<String> string = iter.Next(&offset); !string.is_null();
        string = iter.Next(&offset)) {
     // Accumulate stats.
@@ -888,7 +888,7 @@ TEST(Utf8Conversion) {
                               v8::NewStringType::kNormal,
                               static_cast<int>(strlen(one_byte_string)))
           .ToLocalChecked()
-          ->Utf8LengthV2(CcTest::isolate());
+          ->Utf8Length(CcTest::isolate());
   CHECK_EQ(strlen(one_byte_string), len);
   // A mixed one-byte and two-byte string
   // U+02E4 -> CB A4
@@ -906,18 +906,19 @@ TEST(Utf8Conversion) {
       v8::String::NewFromTwoByte(CcTest::isolate(), mixed_string,
                                  v8::NewStringType::kNormal, 5)
           .ToLocalChecked();
-  CHECK_EQ(10, mixed->Utf8LengthV2(CcTest::isolate()));
+  CHECK_EQ(10, mixed->Utf8Length(CcTest::isolate()));
   // Try encoding the string with all capacities
   char buffer[11];
   const char kNoChar = static_cast<char>(-1);
   for (int i = 0; i <= 10; i++) {
     // Clear the buffer before reusing it
     for (int j = 0; j < 11; j++) buffer[j] = kNoChar;
-    size_t written = mixed->WriteUtf8V2(CcTest::isolate(), buffer, i);
+    size_t written = mixed->WriteUtf8(CcTest::isolate(), buffer, i);
     CHECK_EQ(lengths[i], written);
     // Check that the contents are correct
-    for (uint32_t j = 0; j < lengths[i]; j++)
+    for (uint32_t j = 0; j < lengths[i]; j++) {
       CHECK_EQ(as_utf8[j], static_cast<unsigned char>(buffer[j]));
+    }
     // Check that the rest of the buffer hasn't been touched
     for (uint32_t j = lengths[i]; j < 11; j++) CHECK_EQ(kNoChar, buffer[j]);
   }
@@ -940,21 +941,21 @@ TEST(Utf8ConversionPerf) {
   {
     v8::base::ElapsedTimer timer;
     timer.Start();
-    ascii_string->WriteUtf8V2(CcTest::isolate(), buffer, size);
+    ascii_string->WriteUtf8(CcTest::isolate(), buffer, size);
     printf("ascii string %0.3f\n", timer.Elapsed().InMillisecondsF());
     timer.Stop();
   }
   {
     v8::base::ElapsedTimer timer;
     timer.Start();
-    ascii_string->WriteUtf8V2(CcTest::isolate(), buffer, size);
+    ascii_string->WriteUtf8(CcTest::isolate(), buffer, size);
     printf("ascii string %0.3f\n", timer.Elapsed().InMillisecondsF());
     timer.Stop();
   }
   {
     v8::base::ElapsedTimer timer;
     timer.Start();
-    ascii_string->WriteUtf8V2(CcTest::isolate(), buffer, 4 * size);
+    ascii_string->WriteUtf8(CcTest::isolate(), buffer, 4 * size);
     printf("ascii string %0.3f\n", timer.Elapsed().InMillisecondsF());
     timer.Stop();
   }
@@ -962,21 +963,21 @@ TEST(Utf8ConversionPerf) {
   {
     v8::base::ElapsedTimer timer;
     timer.Start();
-    one_byte_string->WriteUtf8V2(CcTest::isolate(), buffer, size);
+    one_byte_string->WriteUtf8(CcTest::isolate(), buffer, size);
     printf("one byte string %0.3f\n", timer.Elapsed().InMillisecondsF());
     timer.Stop();
   }
   {
     v8::base::ElapsedTimer timer;
     timer.Start();
-    one_byte_string->WriteUtf8V2(CcTest::isolate(), buffer, size);
+    one_byte_string->WriteUtf8(CcTest::isolate(), buffer, size);
     printf("one byte string %0.3f\n", timer.Elapsed().InMillisecondsF());
     timer.Stop();
   }
   {
     v8::base::ElapsedTimer timer;
     timer.Start();
-    one_byte_string->WriteUtf8V2(CcTest::isolate(), buffer, 4 * size);
+    one_byte_string->WriteUtf8(CcTest::isolate(), buffer, 4 * size);
     printf("one byte string %0.3f\n", timer.Elapsed().InMillisecondsF());
     timer.Stop();
   }
@@ -984,21 +985,21 @@ TEST(Utf8ConversionPerf) {
   {
     v8::base::ElapsedTimer timer;
     timer.Start();
-    two_byte_string->WriteUtf8V2(CcTest::isolate(), buffer, size);
+    two_byte_string->WriteUtf8(CcTest::isolate(), buffer, size);
     printf("two byte string %0.3f\n", timer.Elapsed().InMillisecondsF());
     timer.Stop();
   }
   {
     v8::base::ElapsedTimer timer;
     timer.Start();
-    two_byte_string->WriteUtf8V2(CcTest::isolate(), buffer, size);
+    two_byte_string->WriteUtf8(CcTest::isolate(), buffer, size);
     printf("two byte string %0.3f\n", timer.Elapsed().InMillisecondsF());
     timer.Stop();
   }
   {
     v8::base::ElapsedTimer timer;
     timer.Start();
-    two_byte_string->WriteUtf8V2(CcTest::isolate(), buffer, 4 * size);
+    two_byte_string->WriteUtf8(CcTest::isolate(), buffer, 4 * size);
     printf("two byte string %0.3f\n", timer.Elapsed().InMillisecondsF());
     timer.Stop();
   }
@@ -1006,21 +1007,21 @@ TEST(Utf8ConversionPerf) {
   {
     v8::base::ElapsedTimer timer;
     timer.Start();
-    surrogate_string->WriteUtf8V2(CcTest::isolate(), buffer, size);
+    surrogate_string->WriteUtf8(CcTest::isolate(), buffer, size);
     printf("surrogate string %0.3f\n", timer.Elapsed().InMillisecondsF());
     timer.Stop();
   }
   {
     v8::base::ElapsedTimer timer;
     timer.Start();
-    surrogate_string->WriteUtf8V2(CcTest::isolate(), buffer, size);
+    surrogate_string->WriteUtf8(CcTest::isolate(), buffer, size);
     printf("surrogate string %0.3f\n", timer.Elapsed().InMillisecondsF());
     timer.Stop();
   }
   {
     v8::base::ElapsedTimer timer;
     timer.Start();
-    surrogate_string->WriteUtf8V2(CcTest::isolate(), buffer, 4 * size);
+    surrogate_string->WriteUtf8(CcTest::isolate(), buffer, 4 * size);
     printf("surrogate string %0.3f\n", timer.Elapsed().InMillisecondsF());
     timer.Stop();
   }
@@ -1142,15 +1143,14 @@ TEST(ReplaceInvalidUtf8) {
   v8::Local<v8::String> string = CompileRun("'ab\\ud800cd'").As<v8::String>();
   char buffer[7];
   memset(buffer, 0, 7);
-  size_t size =
-      string->WriteUtf8V2(CcTest::isolate(), buffer, 7,
-                          v8::String::WriteFlags::kReplaceInvalidUtf8);
+  size_t size = string->WriteUtf8(CcTest::isolate(), buffer, 7,
+                                  v8::String::WriteFlags::kReplaceInvalidUtf8);
   CHECK_EQ(7, size);
   CHECK_EQ(0, memcmp("\x61\x62\xef\xbf\xbd\x63\x64", buffer, 7));
 
   memset(buffer, 0, 7);
-  size = string->WriteUtf8V2(CcTest::isolate(), buffer, 6,
-                             v8::String::WriteFlags::kReplaceInvalidUtf8);
+  size = string->WriteUtf8(CcTest::isolate(), buffer, 6,
+                           v8::String::WriteFlags::kReplaceInvalidUtf8);
   CHECK_EQ(6, size);
   CHECK_EQ(0, memcmp("\x61\x62\xef\xbf\xbd\x63", buffer, 6));
 }
@@ -1284,8 +1284,7 @@ TEST(CachedHashOverflow) {
             .ToLocalChecked()
             ->Run(context)
             .ToLocalChecked();
-    CHECK_EQ(IsUndefined(*results[i], CcTest::i_isolate()),
-             result->IsUndefined());
+    CHECK_EQ(IsUndefined(*results[i]), result->IsUndefined());
     CHECK_EQ(IsNumber(*results[i]), result->IsNumber());
     if (result->IsNumber()) {
       int32_t value = 0;
@@ -1589,6 +1588,7 @@ TEST(CountBreakIterator) {
   // Make sure GC cleans up the break iterator, so we don't get a memory leak
   // reported by ASAN.
   CcTest::isolate()->LowMemoryNotification();
+  global_use_counts = nullptr;
 }
 
 TEST(StringReplaceAtomTwoByteResult) {
@@ -1976,16 +1976,31 @@ TEST(InternalizeExternalString) {
 }
 
 // Show that it is possible to internalize an external string without a copy, as
-// long as it is not uncached. Two byte version.
+// long as it is not uncached. Two byte version with genuine non-Latin-1
+// content; the 2-byte representation is preserved through internalization.
 TEST(InternalizeExternalStringTwoByte) {
   CcTest::InitializeVM();
   Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
 
-  // Create the string.
-  const char* raw_string = "external";
-  Resource* resource =
-      new Resource(AsciiToTwoByteString(raw_string), strlen(raw_string));
+  // Build the buffer explicitly rather than via a u"..." literal: the
+  // first code unit is a non-Latin-1 character (U+4E2D) so the content
+  // stays 2-byte and the test exercises the in-place external -> internalized
+  // path (otherwise internalization canonicalizes to a 1-byte copy; see
+  // InternalizeExternalStringTwoByteOneByteContent below). MSVC has had
+  // bugs parsing UCN escapes inside char16_t literals, so we sidestep that
+  // entirely.
+  static const size_t kLength = 8;
+  uint16_t* data = i::NewArray<uint16_t>(kLength);
+  data[0] = 0x4E2D;
+  data[1] = 'x';
+  data[2] = 't';
+  data[3] = 'e';
+  data[4] = 'r';
+  data[5] = 'n';
+  data[6] = 'a';
+  data[7] = 'l';
+  Resource* resource = new Resource(data, kLength);
   DirectHandle<String> string =
       factory->NewExternalStringFromTwoByte(resource).ToHandleChecked();
   CHECK(IsExternalString(*string));
@@ -1998,6 +2013,32 @@ TEST(InternalizeExternalStringTwoByte) {
   DirectHandle<String> internal = factory->InternalizeString(external);
   CHECK(IsInternalizedString(*string));
   CHECK(string.equals(internal));
+}
+
+// An external 2-byte string whose content fits in one byte is canonicalized
+// to a SeqOneByteString during internalization; identity is NOT preserved.
+TEST(InternalizeExternalStringTwoByteOneByteContent) {
+  CcTest::InitializeVM();
+  Factory* factory = CcTest::i_isolate()->factory();
+  v8::HandleScope scope(CcTest::isolate());
+
+  const char* raw_string = "external";
+  Resource* resource =
+      new Resource(AsciiToTwoByteString(raw_string), strlen(raw_string));
+  DirectHandle<String> string =
+      factory->NewExternalStringFromTwoByte(resource).ToHandleChecked();
+  CHECK(IsExternalString(*string));
+  CHECK(string->IsTwoByteRepresentation());
+
+  DirectHandle<ExternalString> external = Cast<ExternalString>(string);
+  CHECK(!external->is_uncached());
+
+  DirectHandle<String> internal = factory->InternalizeString(external);
+  CHECK(IsInternalizedString(*internal));
+  CHECK(internal->IsOneByteRepresentation());
+  CHECK(!string.equals(internal));
+  // The original external string is left untouched (no in-place transition).
+  CHECK(!IsInternalizedString(*string));
 }
 
 class UncachedExternalOneByteResource

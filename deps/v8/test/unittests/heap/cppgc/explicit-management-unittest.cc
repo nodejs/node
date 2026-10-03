@@ -5,12 +5,12 @@
 #include "include/cppgc/explicit-management.h"
 
 #include "include/cppgc/garbage-collected.h"
-#include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/heap-base.h"
-#include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/heap-space.h"
-#include "src/heap/cppgc/page-memory.h"
-#include "src/heap/cppgc/sweeper.h"
+#include "src/heap/cppgc-internal/globals.h"
+#include "src/heap/cppgc-internal/heap-base.h"
+#include "src/heap/cppgc-internal/heap-object-header.h"
+#include "src/heap/cppgc-internal/heap-space.h"
+#include "src/heap/cppgc-internal/page-memory.h"
+#include "src/heap/cppgc-internal/sweeper.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

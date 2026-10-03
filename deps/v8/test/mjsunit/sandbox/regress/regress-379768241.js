@@ -25,7 +25,5 @@ memory.setUint32(array_addr + kJSArrayElementsOffset, 0x1, true);
 
 // OOB write to the JS array such that the write happens on a writable page
 // even though the host object (supposedly a FixedArray) lives in RO space.
-assertFalse(Sandbox.isWritableObjectAt(0));
-assertTrue(Sandbox.isWritableObjectAt(16 * 1024 * 1024));
 let index = (16 * 1024 * 1024) / 4;
 array[index] = value;

@@ -65,6 +65,8 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
+        "@do_not_use_for_gloop_visibility_only//gloop/thread:__subpackages__",
     ],
     deps = [
         "//absl/base",
@@ -343,6 +345,7 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = [
         ":synchronization",

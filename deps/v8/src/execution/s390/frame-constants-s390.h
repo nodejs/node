@@ -33,6 +33,7 @@ class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
   static constexpr int kNumberOfSavedFpParamRegs = 4;
 
   // There's one spilled value (which doesn't need visiting) below the instance.
+  static constexpr int kCallingPCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   static constexpr int kInstanceSpillOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
 

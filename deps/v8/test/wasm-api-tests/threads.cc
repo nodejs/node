@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/wasm-api-tests/wasm-api-test.h"
-
 #include <mutex>
 #include <thread>
+
+#include "src/base/platform/platform.h"
+#include "src/wasm/c-api.h"
+#include "test/wasm-api-tests/wasm-api-test.h"
 
 namespace v8 {
 namespace internal {
@@ -27,6 +29,16 @@ own<Trap> Callback(void* env, const vec<Val>& args, vec<Val>& results) {
 
 void Main(Engine* engine, Shared<Module>* shared, std::mutex* mutex, int id) {
   own<Store> store = Store::make(engine);
+
+  // The physical stack size for std::thread on macOS is 512KB.
+  // We set V8's stack limit to the maximum possible size that fits:
+  // 512KB minus the safety margin.
+  v8::Isolate* isolate =
+      reinterpret_cast<::wasm::StoreImpl*>(store.get())->isolate();
+  uintptr_t stack_start = v8::base::Stack::GetStackStart();
+  uintptr_t limit = stack_start - 512 * KB + V8_STACK_LIMIT_MARGIN_KB * KB;
+  isolate->SetStackLimit(limit);
+
   own<Module> module = Module::obtain(store.get(), shared);
   EXPECT_NE(nullptr, module.get());
   for (int i = 0; i < kIterationsPerThread; i++) {

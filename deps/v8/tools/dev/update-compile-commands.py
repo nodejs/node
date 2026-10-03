@@ -78,12 +78,20 @@ def AddTargetsForArch(arch, combined):
 def UpdateCompileCommands():
   print(">>> Updating compile_commands.json...")
   combined = {}
-  AddTargetsForArch("x64", combined)
-  AddTargetsForArch("arm64", combined)
+  # Put the default architecture first so shared files use its flags.
+  arches = [DEFAULT_ARCH]
+
+  # Add other architectures to the list
+  other_arches = ["x64", "arm64"]
   if DEFAULT_ARCH != "arm64":
     # Mac arm64 doesn't like 32bit platforms:
-    AddTargetsForArch("ia32", combined)
-    AddTargetsForArch("arm", combined)
+    other_arches.extend(["ia32", "arm"])
+
+  arches = list(dict.fromkeys([DEFAULT_ARCH] + other_arches))
+
+  # Process them in order
+  for arch in arches:
+    AddTargetsForArch(arch, combined)
   commands = []
   for key in combined:
     commands.append(combined[key])

@@ -24,7 +24,7 @@ class OutProc(base.ExpectedOutProc):
 
     expected_lines = []
     # Can't use utils.ReadLinesFrom() here because it strips whitespace.
-    with open(self._basepath.with_suffix('.out')) as f:
+    with open(self._basepath.with_suffix('.out'), encoding="utf-8") as f:
       for line in f:
         if line.startswith("#") or not line.strip():
           continue
@@ -68,7 +68,5 @@ class OutProc(base.ExpectedOutProc):
         # Android linker warning.
         string.startswith('WARNING: linker:') or  #
         # Testing on Android devices mixes stderr into stdout.
-        string ==
-        "V8 is running with experimental features enabled. Stability and security will suffer."
-        or  #
+        string.startswith("V8 is running with") or
         string == "Concurrent maglev has been disabled for tracing.")

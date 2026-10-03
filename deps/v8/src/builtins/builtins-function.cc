@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api/api-inl.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/compiler.h"
+#include "src/handles/handle-scope-implementer-inl.h"
 #include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/api-callbacks.h"
@@ -104,7 +104,7 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
   // function has wrong initial map. To fix that we create a new
   // function object with correct initial map.
   DirectHandle<Object> unchecked_new_target = args.new_target();
-  if (!IsUndefined(*unchecked_new_target, isolate) &&
+  if (!IsUndefined(*unchecked_new_target) &&
       !unchecked_new_target.is_identical_to(target)) {
     DirectHandle<JSReceiver> new_target =
         Cast<JSReceiver>(unchecked_new_target);
@@ -162,6 +162,7 @@ BUILTIN(AsyncFunctionConstructor) {
   return *func;
 }
 
+// https://tc39.es/proposal-async-iteration/#sec-asyncgeneratorfunction-constructor
 BUILTIN(AsyncGeneratorFunctionConstructor) {
   HandleScope scope(isolate);
   DirectHandle<Object> maybe_func;
@@ -244,13 +245,7 @@ BUILTIN(FunctionPrototypeBind) {
   return DoFunctionBind(isolate, args, ProtoSource::kUseTargetPrototype);
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-BUILTIN(WebAssemblyFunctionPrototypeBind) {
-  return DoFunctionBind(isolate, args, ProtoSource::kNormalFunction);
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-// ES6 section 19.2.3.5 Function.prototype.toString ( )
+// https://tc39.es/ecma262/#sec-function.prototype.tostring
 BUILTIN(FunctionPrototypeToString) {
   HandleScope scope(isolate);
   DirectHandle<Object> receiver = args.receiver();

@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-module-builder.h"
 
+#include "src/base/logging.h"
 #include "src/codegen/signature.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/leb-helper.h"
@@ -87,6 +88,7 @@ WasmOpcode FromInitExprOperator(WasmInitExpr::Operator op) {
     case WasmInitExpr::kExternConvertAny:
       return kExprExternConvertAny;
   }
+  UNREACHABLE();
 }
 
 void WriteInitializerExpressionWithoutEnd(ZoneBuffer* buffer,
@@ -202,8 +204,7 @@ WasmFunctionBuilder::WasmFunctionBuilder(WasmModuleBuilder* builder)
       i64_temps_(builder->zone()),
       f32_temps_(builder->zone()),
       f64_temps_(builder->zone()),
-      direct_calls_(builder->zone()),
-      asm_offsets_(builder->zone(), 8) {}
+      direct_calls_(builder->zone()) {}
 
 void WasmFunctionBuilder::EmitByte(uint8_t val) { body_.write_u8(val); }
 
@@ -352,37 +353,6 @@ void WasmFunctionBuilder::SetName(base::Vector<const char> name) {
   name_ = name;
 }
 
-void WasmFunctionBuilder::AddAsmWasmOffset(size_t call_position,
-                                           size_t to_number_position) {
-  // We only want to emit one mapping per byte offset.
-  DCHECK(asm_offsets_.size() == 0 || body_.size() > last_asm_byte_offset_);
-
-  DCHECK_LE(body_.size(), kMaxUInt32);
-  uint32_t byte_offset = static_cast<uint32_t>(body_.size());
-  asm_offsets_.write_u32v(byte_offset - last_asm_byte_offset_);
-  last_asm_byte_offset_ = byte_offset;
-
-  DCHECK_GE(std::numeric_limits<uint32_t>::max(), call_position);
-  uint32_t call_position_u32 = static_cast<uint32_t>(call_position);
-  asm_offsets_.write_i32v(call_position_u32 - last_asm_source_position_);
-
-  DCHECK_GE(std::numeric_limits<uint32_t>::max(), to_number_position);
-  uint32_t to_number_position_u32 = static_cast<uint32_t>(to_number_position);
-  asm_offsets_.write_i32v(to_number_position_u32 - call_position_u32);
-  last_asm_source_position_ = to_number_position_u32;
-}
-
-void WasmFunctionBuilder::SetAsmFunctionStartPosition(
-    size_t function_position) {
-  DCHECK_EQ(0, asm_func_start_source_position_);
-  DCHECK_GE(std::numeric_limits<uint32_t>::max(), function_position);
-  uint32_t function_position_u32 = static_cast<uint32_t>(function_position);
-  // Must be called before emitting any asm.js source position.
-  DCHECK_EQ(0, asm_offsets_.size());
-  asm_func_start_source_position_ = function_position_u32;
-  last_asm_source_position_ = function_position_u32;
-}
-
 void WasmFunctionBuilder::DeleteCodeAfter(size_t position) {
   DCHECK_LE(position, body_.size());
   body_.Truncate(position);
@@ -409,23 +379,6 @@ void WasmFunctionBuilder::WriteBody(ZoneBuffer* buffer) const {
               static_cast<uint32_t>(builder_->function_imports_.size()));
     }
   }
-}
-
-void WasmFunctionBuilder::WriteAsmWasmOffsetTable(ZoneBuffer* buffer) const {
-  if (asm_func_start_source_position_ == 0 && asm_offsets_.size() == 0) {
-    buffer->write_size(0);
-    return;
-  }
-  size_t locals_enc_size = LEBHelper::sizeof_u32v(locals_.Size());
-  size_t func_start_size =
-      LEBHelper::sizeof_u32v(asm_func_start_source_position_);
-  buffer->write_size(asm_offsets_.size() + locals_enc_size + func_start_size);
-  // Offset of the recorded byte offsets.
-  DCHECK_GE(kMaxUInt32, locals_.Size());
-  buffer->write_u32v(static_cast<uint32_t>(locals_.Size()));
-  // Start position of the function.
-  buffer->write_u32v(asm_func_start_source_position_);
-  buffer->write(asm_offsets_.begin(), asm_offsets_.size());
 }
 
 WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
@@ -482,7 +435,7 @@ ModuleTypeIndex WasmModuleBuilder::ForceAddSignature(
     const FunctionSig* sig, bool is_final, ModuleTypeIndex supertype) {
   ModuleTypeIndex index{static_cast<uint32_t>(types_.size())};
   signature_map_.emplace(*sig, index);
-  types_.emplace_back(sig, supertype, is_final, false);
+  types_.emplace_back(sig, supertype, is_final, SharedFlag{false});
   return index;
 }
 
@@ -506,14 +459,14 @@ ModuleTypeIndex WasmModuleBuilder::AddStructType(StructType* type,
                                                  bool is_final,
                                                  ModuleTypeIndex supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
-  types_.emplace_back(type, supertype, is_final, false);
+  types_.emplace_back(type, supertype, is_final, SharedFlag{false});
   return ModuleTypeIndex{index};
 }
 
 ModuleTypeIndex WasmModuleBuilder::AddArrayType(ArrayType* type, bool is_final,
                                                 ModuleTypeIndex supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
-  types_.emplace_back(type, supertype, is_final, false);
+  types_.emplace_back(type, supertype, is_final, SharedFlag{false});
   return ModuleTypeIndex{index};
 }
 
@@ -589,13 +542,11 @@ uint32_t WasmModuleBuilder::AddElementSegment(WasmElemSegment segment) {
   return static_cast<uint32_t>(element_segments_.size() - 1);
 }
 
-void WasmModuleBuilder::SetIndirectFunction(
-    uint32_t table_index, uint32_t index_in_table,
-    uint32_t direct_function_index,
-    WasmElemSegment::FunctionIndexingMode indexing_mode) {
+void WasmModuleBuilder::SetIndirectFunction(uint32_t table_index,
+                                            uint32_t index_in_table,
+                                            uint32_t direct_function_index) {
   WasmElemSegment segment(zone_, kWasmFuncRef, table_index,
                           WasmInitExpr(static_cast<int>(index_in_table)));
-  segment.indexing_mode = indexing_mode;
   segment.entries.emplace_back(WasmElemSegment::Entry::kRefFuncEntry,
                                direct_function_index);
   AddElementSegment(std::move(segment));
@@ -937,16 +888,8 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
                 : entry.kind == WasmElemSegment::Entry::kRefFuncEntry
                       ? kExprRefFunc
                       : kExprRefNull;
-        bool needs_function_offset =
-            segment.indexing_mode ==
-                WasmElemSegment::kRelativeToDeclaredFunctions &&
-            entry.kind == WasmElemSegment::Entry::kRefFuncEntry;
-        uint32_t index =
-            entry.index + (needs_function_offset
-                               ? static_cast<uint32_t>(function_imports_.size())
-                               : 0);
         buffer->write_u8(opcode);
-        buffer->write_u32v(index);
+        buffer->write_u32v(entry.index);
         buffer->write_u8(kExprEnd);
       }
     }
@@ -1028,15 +971,6 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     }
     FixupSection(buffer, functions_start);
     FixupSection(buffer, start);
-  }
-}
-
-void WasmModuleBuilder::WriteAsmJsOffsetTable(ZoneBuffer* buffer) const {
-  // == Emit asm.js offset table ===============================================
-  buffer->write_size(functions_.size());
-  // Emit the offset table per function.
-  for (auto* function : functions_) {
-    function->WriteAsmWasmOffsetTable(buffer);
   }
 }
 }  // namespace wasm

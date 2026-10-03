@@ -100,7 +100,7 @@ struct inflate_state {
     unsigned char FAR *window;  /* allocated sliding window, if needed */
         /* bit accumulator */
     unsigned long hold;         /* input bit accumulator */
-    unsigned bits;              /* number of bits in "in" */
+    unsigned bits;              /* number of bits in hold */
         /* for string and stored block copying */
     unsigned length;            /* literal or length of data to copy */
     unsigned offset;            /* distance back to copy string from */

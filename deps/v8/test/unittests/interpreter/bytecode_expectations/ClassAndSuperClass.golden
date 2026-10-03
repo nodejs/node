@@ -25,10 +25,10 @@ parameter count: 1
 bytecode array length: 16
 bytecodes: [
   /*  104 S> */ B(LdaImmutableCurrentContextSlot), C8(2),
-  /*  117 E> */ B(GetNamedPropertyFromSuper), R(this), U8(0:"method"), FBV(1),
+  /*  117 E> */ B(GetNamedPropertyFromSuper), R(this), U8(0:"method"), FBV(0),
                 B(Star0),
-  /*  117 E> */ B(CallAnyReceiver), R(0), R(this), RegCount8(1), FBV(3),
-  /*  126 E> */ B(AddSmi), I8(1), FBV(0),
+  /*  117 E> */ B(CallAnyReceiver), R(0), R(this), RegCount8(1), FBV(2),
+  /*  126 E> */ B(AddSmi), I8(1), EmbeddedFeedback(),
   /*  130 S> */ B(Return),
 ]
 constant pool: [

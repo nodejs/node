@@ -30,6 +30,7 @@
 HWY_BEFORE_NAMESPACE();
 namespace hwy {
 namespace HWY_NAMESPACE {
+namespace {
 
 void PrintCompiler() {
   if (HWY_COMPILER_ICX) {
@@ -95,11 +96,16 @@ void PrintConfig() {
 
 void PrintHave() {
   fprintf(stderr,
-          "Have: constexpr_lanes:%d runtime_dispatch:%d auxv:%d "
-          "f16 type:%d/ops%d bf16 type:%d/ops%d\n",
+          "Have: constexpr_lanes:%d runtime_dispatch:%d auxv:%d scalable:%d "
+          "tuple:%d f16 type:%d/ops%d bf16 type:%d/ops%d\n",
           HWY_HAVE_CONSTEXPR_LANES, HWY_HAVE_RUNTIME_DISPATCH, HWY_HAVE_AUXV,
-          HWY_HAVE_SCALAR_F16_TYPE, HWY_HAVE_SCALAR_F16_OPERATORS,
-          HWY_HAVE_SCALAR_BF16_TYPE, HWY_HAVE_SCALAR_BF16_OPERATORS);
+          HWY_HAVE_SCALABLE, HWY_HAVE_TUPLE, HWY_HAVE_SCALAR_F16_TYPE,
+          HWY_HAVE_SCALAR_F16_OPERATORS, HWY_HAVE_SCALAR_BF16_TYPE,
+          HWY_HAVE_SCALAR_BF16_OPERATORS);
+  fprintf(stderr,
+          "Registers:%d Native: fma:%d mask:%d dotBF16:%d interleaveWhole:%d\n",
+          HWY_REGISTERS, HWY_NATIVE_FMA, HWY_NATIVE_MASK, HWY_NATIVE_DOT_BF16,
+          HWY_NATIVE_INTERLEAVE_WHOLE);
 }
 
 void PrintTargets(const char* msg, int64_t targets) {
@@ -141,6 +147,7 @@ void PrintAll() {
   TestVisitor();
 }
 
+}  // namespace
 // NOLINTNEXTLINE(google-readability-namespace-comments)
 }  // namespace HWY_NAMESPACE
 }  // namespace hwy

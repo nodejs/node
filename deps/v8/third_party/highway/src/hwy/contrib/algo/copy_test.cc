@@ -26,14 +26,6 @@
 #include "hwy/tests/test_util-inl.h"
 // clang-format on
 
-// If your project requires C++14 or later, you can ignore this and pass lambdas
-// directly to Transform, without requiring an lvalue as we do here for C++11.
-#if __cplusplus < 201402L
-#define HWY_GENERIC_LAMBDA 0
-#else
-#define HWY_GENERIC_LAMBDA 1
-#endif
-
 HWY_BEFORE_NAMESPACE();
 namespace hwy {
 namespace HWY_NAMESPACE {
@@ -44,19 +36,6 @@ template <typename T>
 T Random7Bit(RandomState& rng) {
   return ConvertScalarTo<T>(Random32(&rng) & 127);
 }
-
-// In C++14, we can instead define these as generic lambdas next to where they
-// are invoked.
-#if !HWY_GENERIC_LAMBDA
-
-struct IsOdd {
-  template <class D, class V>
-  Mask<D> operator()(D d, V v) const {
-    return TestBit(v, Set(d, TFromD<D>{1}));
-  }
-};
-
-#endif  // !HWY_GENERIC_LAMBDA
 
 // Invokes Test (e.g. TestCopyIf) with all arg combinations. T comes from
 // ForFloatTypes.
@@ -168,13 +147,9 @@ struct TestCopyIf {
       }
     }
 
-#if HWY_GENERIC_LAMBDA
     const auto is_odd = [](const auto d2, const auto v) HWY_ATTR {
       return TestBit(v, Set(d2, TFromD<decltype(d2)>{1}));
     };
-#else
-    const IsOdd is_odd;
-#endif
     T* end = CopyIf(d, a, count, b, is_odd);
     const size_t num_written = static_cast<size_t>(end - b);
     HWY_ASSERT_EQ(num_odd, num_written);

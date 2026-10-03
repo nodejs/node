@@ -73,7 +73,7 @@ constexpr bool IsPowerOf2(unsigned int x) noexcept {
 template <class T>
 [[nodiscard]] ABSL_ATTRIBUTE_ALWAYS_INLINE constexpr T RotateRight(
     T x, int s) noexcept {
-  static_assert(std::is_unsigned<T>::value, "T must be unsigned");
+  static_assert(std::is_unsigned_v<T>, "T must be unsigned");
   static_assert(IsPowerOf2(std::numeric_limits<T>::digits),
                 "T must have a power-of-2 size");
 
@@ -104,7 +104,7 @@ template <class T>
 template <class T>
 [[nodiscard]] ABSL_ATTRIBUTE_ALWAYS_INLINE constexpr T RotateLeft(
     T x, int s) noexcept {
-  static_assert(std::is_unsigned<T>::value, "T must be unsigned");
+  static_assert(std::is_unsigned_v<T>, "T must be unsigned");
   static_assert(IsPowerOf2(std::numeric_limits<T>::digits),
                 "T must have a power-of-2 size");
 
@@ -150,7 +150,7 @@ Popcount64(uint64_t x) noexcept {
 template <class T>
 ABSL_ATTRIBUTE_ALWAYS_INLINE ABSL_INTERNAL_CONSTEXPR_POPCOUNT inline int
 Popcount(T x) noexcept {
-  static_assert(std::is_unsigned<T>::value, "T must be unsigned");
+  static_assert(std::is_unsigned_v<T>, "T must be unsigned");
   static_assert(IsPowerOf2(std::numeric_limits<T>::digits),
                 "T must have a power-of-2 size");
   static_assert(sizeof(x) <= sizeof(uint64_t), "T is too large");
@@ -266,7 +266,7 @@ CountLeadingZeroes64(uint64_t x) {
 template <typename T>
 ABSL_ATTRIBUTE_ALWAYS_INLINE ABSL_INTERNAL_CONSTEXPR_CLZ inline int
 CountLeadingZeroes(T x) {
-  static_assert(std::is_unsigned<T>::value, "T must be unsigned");
+  static_assert(std::is_unsigned_v<T>, "T must be unsigned");
   static_assert(IsPowerOf2(std::numeric_limits<T>::digits),
                 "T must have a power-of-2 size");
   static_assert(sizeof(T) <= sizeof(uint64_t), "T too large");
@@ -351,7 +351,7 @@ CountTrailingZeroesNonzero16(uint16_t x) {
 template <class T>
 ABSL_ATTRIBUTE_ALWAYS_INLINE ABSL_INTERNAL_CONSTEXPR_CTZ inline int
 CountTrailingZeroes(T x) noexcept {
-  static_assert(std::is_unsigned<T>::value, "T must be unsigned");
+  static_assert(std::is_unsigned_v<T>, "T must be unsigned");
   static_assert(IsPowerOf2(std::numeric_limits<T>::digits),
                 "T must have a power-of-2 size");
   static_assert(sizeof(T) <= sizeof(uint64_t), "T too large");
@@ -368,15 +368,17 @@ CountTrailingZeroes(T x) noexcept {
 // want to force it to wraparound so that bit_ceil of an invalid value are not
 // core constant expressions.
 template <class T>
-ABSL_ATTRIBUTE_ALWAYS_INLINE ABSL_INTERNAL_CONSTEXPR_CLZ inline
-    typename std::enable_if<std::is_unsigned<T>::value, T>::type
+ABSL_ATTRIBUTE_ALWAYS_INLINE
+    ABSL_INTERNAL_CONSTEXPR_CLZ inline std::enable_if_t<std::is_unsigned_v<T>,
+                                                        T>
     BitCeilPromotionHelper(T x, T promotion) {
   return (T{1} << (x + promotion)) >> promotion;
 }
 
 template <class T>
-ABSL_ATTRIBUTE_ALWAYS_INLINE ABSL_INTERNAL_CONSTEXPR_CLZ inline
-    typename std::enable_if<std::is_unsigned<T>::value, T>::type
+ABSL_ATTRIBUTE_ALWAYS_INLINE
+    ABSL_INTERNAL_CONSTEXPR_CLZ inline std::enable_if_t<std::is_unsigned_v<T>,
+                                                        T>
     BitCeilNonPowerOf2(T x) {
   // If T is narrower than unsigned, it undergoes promotion to unsigned when we
   // shift.  We calculate the number of bits added by the wider type.

@@ -17,10 +17,11 @@ void Function::PrintDeclarationHeader(std::ostream& stream,
   stream << std::string(indentation, ' ') << "// " << pos_ << "\n";
   stream << std::string(indentation, ' ');
   if (IsExport()) stream << "V8_EXPORT_PRIVATE ";
-  if (IsV8Inline())
+  if (IsV8Inline()) {
     stream << "V8_INLINE ";
-  else if (IsInline())
+  } else if (IsInline()) {
     stream << "inline ";
+  }
   if (IsStatic()) stream << "static ";
   if (IsConstexpr()) stream << "constexpr ";
   stream << return_type_ << " " << name_ << "(";

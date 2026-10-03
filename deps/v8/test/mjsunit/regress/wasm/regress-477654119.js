@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-compilation-hints
+// Flags: --wasm-compilation-hints
 
 // Tests that we do not access past the end of the function if we get an
 // instruction frequency hint with an offset greater than the function length.

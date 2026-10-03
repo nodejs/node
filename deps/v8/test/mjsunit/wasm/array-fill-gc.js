@@ -11,7 +11,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
 
   let struct = builder.addStruct([makeField(kWasmI64, true)]);
-  let array = builder.addArray(wasmRefNullType(struct), true);
+  let array = builder.addArray(wasmRefNullType(struct));
 
   let gcFunc = builder.addImport("m", "gc", kSig_v_v);
 

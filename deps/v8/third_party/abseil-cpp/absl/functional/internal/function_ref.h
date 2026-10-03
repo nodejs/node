@@ -40,18 +40,16 @@ union VoidPtr {
 // Chooses the best type for passing T as an argument.
 // Attempt to be close to SystemV AMD64 ABI. Objects with trivial copy ctor are
 // passed by value.
-template <typename T,
-          bool IsLValueReference = std::is_lvalue_reference<T>::value>
+template <typename T, bool IsLValueReference = std::is_lvalue_reference_v<T>>
 struct PassByValue : std::false_type {};
 
 template <typename T>
 struct PassByValue<T, /*IsLValueReference=*/false>
-    : std::integral_constant<bool,
-                             absl::is_trivially_copy_constructible<T>::value &&
-                                 absl::is_trivially_copy_assignable<
-                                     typename std::remove_cv<T>::type>::value &&
-                                 std::is_trivially_destructible<T>::value &&
-                                 sizeof(T) <= 2 * sizeof(void*)> {};
+    : std::integral_constant<
+          bool, std::is_trivially_copy_constructible_v<T> &&
+                    std::is_trivially_copy_assignable_v<std::remove_cv_t<T>> &&
+                    std::is_trivially_destructible_v<T> &&
+                    sizeof(T) <= 2 * sizeof(void*)> {};
 
 template <typename T>
 struct ForwardT : std::conditional<PassByValue<T>::value, T, T&&> {};
@@ -142,7 +140,7 @@ void AssertNonNull(F C::* f) {
 }
 
 template <bool C>
-using EnableIf = typename ::std::enable_if<C, int>::type;
+using EnableIf = typename ::std::enable_if_t<C, int>;
 
 }  // namespace functional_internal
 ABSL_NAMESPACE_END

@@ -15,11 +15,14 @@
 #ifndef ABSL_STRINGS_INTERNAL_STRINGIFY_SINK_H_
 #define ABSL_STRINGS_INTERNAL_STRINGIFY_SINK_H_
 
+#include <array>
 #include <string>
 #include <type_traits>
 #include <utility>
 
+#include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/source_location.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -50,6 +53,15 @@ string_view ExtractStringification(StringifySink& sink, const T& v) {
 }
 
 }  // namespace strings_internal
+
+template <typename Sink>
+void AbslStringify(Sink& sink, SourceLocation l) {
+  sink.Append(l.file_name());
+  sink.Append(":");
+  std::array<char, numbers_internal::kFastToBufferSize> buffer;
+  numbers_internal::FastIntToBuffer(l.line(), buffer.data());
+  sink.Append(buffer.data());
+}
 
 ABSL_NAMESPACE_END
 }  // namespace absl

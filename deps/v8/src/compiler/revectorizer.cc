@@ -4,9 +4,11 @@
 
 #include "src/compiler/revectorizer.h"
 
-#include "src/base/cpu.h"
+#include "include/v8config.h"
+#include "src/base/cpu/cpu.h"
 #include "src/base/logging.h"
 #include "src/compiler/all-nodes.h"
+#include "src/compiler/backend/simd-shuffle.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-observer.h"
@@ -14,7 +16,6 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/verifier.h"
 #include "src/execution/isolate-inl.h"
-#include "src/wasm/simd-shuffle.h"
 
 namespace v8 {
 namespace internal {
@@ -153,10 +154,10 @@ namespace {
   V(I32x4Splat, I32x8Splat)  \
   V(I64x2Splat, I64x4Splat)
 
-// Currently, only Load/ProtectedLoad/LoadTransfrom are supported.
+// Currently, only Load/TrappingLoad/LoadTransform are supported.
 // TODO(jiepan): add support for UnalignedLoad, LoadLane, LoadTrapOnNull
 bool IsSupportedLoad(const Node* node) {
-  if (node->opcode() == IrOpcode::kProtectedLoad ||
+  if (node->opcode() == IrOpcode::kTrappingLoad ||
       node->opcode() == IrOpcode::kLoad ||
       node->opcode() == IrOpcode::kLoadTransform) {
     return true;
@@ -183,7 +184,7 @@ int64_t GetConstantValue(const Node* node) {
 
 int64_t GetMemoryOffsetValue(const Node* node) {
   DCHECK(IsSupportedLoad(node) || node->opcode() == IrOpcode::kStore ||
-         node->opcode() == IrOpcode::kProtectedStore);
+         node->opcode() == IrOpcode::kTrappingStore);
 
   Node* offset = node->InputAt(0);
   if (offset->opcode() == IrOpcode::kLoadFromObject ||
@@ -339,7 +340,7 @@ bool MaybePackSignExtensionOp(const ZoneVector<Node*>& node_group) {
   UNREACHABLE();
 }
 
-class EffectChainIterator {
+class V8_GSL_POINTER EffectChainIterator {
  public:
   explicit EffectChainIterator(Node* node) : node_(node), prev_(nullptr) {}
 
@@ -406,8 +407,8 @@ bool SLPTree::CanBePacked(const ZoneVector<Node*>& node_group) {
   // MachineRepresentation, only check the opcode itself.
   IrOpcode::Value op = node_group[0]->opcode();
   if (!NodeProperties::IsSimd128Operation(node_group[0]) &&
-      (op != IrOpcode::kStore) && (op != IrOpcode::kProtectedStore) &&
-      (op != IrOpcode::kLoad) && (op != IrOpcode::kProtectedLoad) &&
+      (op != IrOpcode::kStore) && (op != IrOpcode::kTrappingStore) &&
+      (op != IrOpcode::kLoad) && (op != IrOpcode::kTrappingLoad) &&
       (op != IrOpcode::kPhi) && (op != IrOpcode::kLoopExitValue) &&
       (op != IrOpcode::kExtractF128)) {
     return false;
@@ -560,8 +561,9 @@ bool SLPTree::IsSideEffectFreeLoad(const ZoneVector<Node*>& node_group) {
   // We only allows Loads that are connected by effect edges.
   if (node_group[0] != node_group[1] &&
       NodeProperties::GetEffectInput(node_group[0]) != node_group[1] &&
-      NodeProperties::GetEffectInput(node_group[1]) != node_group[0])
+      NodeProperties::GetEffectInput(node_group[1]) != node_group[0]) {
     return false;
+  }
 
   std::stack<Node*> to_visit;
   std::unordered_set<Node*> visited;
@@ -700,7 +702,7 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
     }
 
     if (!IsSplat(node_group)) {
-      if (node0->opcode() == IrOpcode::kProtectedLoad &&
+      if (node0->opcode() == IrOpcode::kTrappingLoad &&
           LoadRepresentationOf(node0->op()).representation() !=
               MachineRepresentation::kSimd128) {
         PopStack();
@@ -775,12 +777,10 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
       if (IsSplat(node_group)) {
         const uint8_t* shuffle = S128ImmediateParameterOf(node0->op()).data();
         int index;
-        if ((wasm::SimdShuffle::TryMatchSplat<4>(shuffle, &index) &&
-             node0->InputAt(index >> 2)->opcode() ==
-                 IrOpcode::kProtectedLoad) ||
-            (wasm::SimdShuffle::TryMatchSplat<2>(shuffle, &index) &&
-             node0->InputAt(index >> 1)->opcode() ==
-                 IrOpcode::kProtectedLoad)) {
+        if ((SimdShuffle::TryMatchSplat<4>(shuffle, &index) &&
+             node0->InputAt(index >> 2)->opcode() == IrOpcode::kTrappingLoad) ||
+            (SimdShuffle::TryMatchSplat<2>(shuffle, &index) &&
+             node0->InputAt(index >> 1)->opcode() == IrOpcode::kTrappingLoad)) {
           PopStack();
           return NewPackNode(node_group);
         }
@@ -832,7 +832,7 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
 
     // TODO(jiepan): UnalignedStore, StoreTrapOnNull.
     case IrOpcode::kStore:
-    case IrOpcode::kProtectedStore: {
+    case IrOpcode::kTrappingStore: {
       TRACE("Added a vector of stores.\n");
       if (!AllSameAddress(node_group)) {
         TRACE("Failed due to different store addr!\n");
@@ -952,10 +952,11 @@ void Revectorizer::SetEffectInput(PackNode* pnode, int index, Node*& input) {
     Node* node128 = nodes[i];
     PackNode* effect = GetPackNode(node128->InputAt(index));
     if (effect == pnode) continue;
-    if (effect)
+    if (effect) {
       pnode->SetOperand(index, effect);
-    else
+    } else {
       input = node128->InputAt(index);
+    }
     break;
   }
 }
@@ -1056,14 +1057,14 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
 
         // Match Splat and Revectorize to LoadSplat as AVX-256 does not support
         // shuffling across 128-bit lane.
-        if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle, &index)) {
+        if (SimdShuffle::TryMatchSplat<4>(shuffle, &index)) {
           new_op = mcgraph_->machine()->LoadTransform(
-              MemoryAccessKind::kProtectedByTrapHandler,
+              MemoryAccessKind::kTrapping,
               LoadTransformation::kS256Load32Splat);
           offset = index * 4;
-        } else if (wasm::SimdShuffle::TryMatchSplat<2>(shuffle, &index)) {
+        } else if (SimdShuffle::TryMatchSplat<2>(shuffle, &index)) {
           new_op = mcgraph_->machine()->LoadTransform(
-              MemoryAccessKind::kProtectedByTrapHandler,
+              MemoryAccessKind::kTrapping,
               LoadTransformation::kS256Load64Splat);
           offset = index * 8;
         } else {
@@ -1071,7 +1072,7 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
         }
 
         source = node0->InputAt(offset >> 4);
-        DCHECK_EQ(source->opcode(), IrOpcode::kProtectedLoad);
+        DCHECK_EQ(source->opcode(), IrOpcode::kTrappingLoad);
         inputs.resize(4);
         // Update LoadSplat offset.
         if (index) {
@@ -1134,10 +1135,10 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
       new_op = mcgraph_->machine()->S256Const(value);
       break;
     }
-    case IrOpcode::kProtectedLoad: {
+    case IrOpcode::kTrappingLoad: {
       DCHECK_EQ(LoadRepresentationOf(node0->op()).representation(),
                 MachineRepresentation::kSimd128);
-      new_op = mcgraph_->machine()->ProtectedLoad(MachineType::Simd256());
+      new_op = mcgraph_->machine()->TrappingLoad(MachineType::Simd256());
       SetMemoryOpInputs(inputs, pnode, 2);
       break;
     }
@@ -1148,11 +1149,11 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
       SetMemoryOpInputs(inputs, pnode, 2);
       break;
     }
-    case IrOpcode::kProtectedStore: {
+    case IrOpcode::kTrappingStore: {
       DCHECK_EQ(StoreRepresentationOf(node0->op()).representation(),
                 MachineRepresentation::kSimd128);
       new_op =
-          mcgraph_->machine()->ProtectedStore(MachineRepresentation::kSimd256);
+          mcgraph_->machine()->TrappingStore(MachineRepresentation::kSimd256);
       SetMemoryOpInputs(inputs, pnode, 3);
       break;
     }
@@ -1453,6 +1454,8 @@ void Revectorizer::PrintStores(ZoneMap<Node*, StoreNodeSet>* store_chains) {
     }
   }
 }
+
+#undef TRACE
 
 }  // namespace compiler
 }  // namespace internal

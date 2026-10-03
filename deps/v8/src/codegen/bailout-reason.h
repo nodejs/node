@@ -78,6 +78,8 @@ namespace internal {
     "Uint32 cannot be converted to Int32 without loss of precision")          \
   V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")          \
   V(kUnexpectedAdditionalPopValue, "Unexpected additional pop value")         \
+  V(kUnexpectedBigIntTerminationSentinel,                                     \
+    "Unexpected BigInt TerminationRequested sentinel")                        \
   V(kUnexpectedElementsKindInArrayConstructor,                                \
     "Unexpected ElementsKind in array constructor")                           \
   V(kUnexpectedFPCRMode, "Unexpected FPCR mode.")                             \
@@ -127,6 +129,8 @@ namespace internal {
   V(k32BitValueInRegisterIsNotSignExtended,                                   \
     "32 bit value in register is not sign-extended")                          \
   V(kUnexpectedSandboxMode, "The sandboxing mode is not as expected")         \
+  IF_TARGET_ARCH_X64(V, kOSREmptyCheckFailed,                                 \
+                     "OSR target slot should be empty")                       \
   V(kLastReason, "")
 
 #define TERMINAL_BAILOUT_MESSAGES_LIST(V)                                  \
@@ -152,10 +156,8 @@ namespace internal {
   TERMINAL_TURBOFAN_BAILOUT_MESSAGES_LIST(V)                                 \
   V(kBailedOutDueToDependencyChange, "Bailed out due to dependency change")  \
   V(kConcurrentMapDeprecation, "Maps became deprecated during optimization") \
-  V(kFunctionBeingDebugged, "Function is being debugged")                    \
   V(kDetachedNativeContext, "The native context is detached")                \
-  V(kCancelled, "Job got cancelled")                                         \
-  V(kLiveEdit, "LiveEdit")
+  V(kCancelled, "Job got cancelled")
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,
 enum class BailoutReason : uint8_t {

@@ -7,11 +7,15 @@
 
 namespace v8 {
 
+class Data;
 class Isolate;
+template <class T>
+class Local;
 
 // --- Microtasks Callbacks ---
 using MicrotasksCompletedCallbackWithData = void (*)(Isolate*, void*);
 using MicrotaskCallback = void (*)(void* data);
+using MicrotaskCallbackWithData = void (*)(Local<Data> data);
 
 /**
  * Policy for running microtasks:

@@ -14,7 +14,9 @@
 
 #include "absl/debugging/internal/demangle.h"
 
+#include <array>
 #include <cstdlib>
+#include <memory>
 #include <string>
 
 #include "gmock/gmock.h"
@@ -29,6 +31,7 @@ ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 namespace {
 
+using ::testing::Contains;
 using ::testing::ContainsRegex;
 
 TEST(Demangle, FunctionTemplate) {
@@ -1907,6 +1910,13 @@ TEST(Demangle, DelegatesToDemangleRustSymbolEncoding) {
   EXPECT_STREQ("my_crate::my_func", tmp);
 }
 
+TEST(Demangle, DemanglingNulTerminatesOnParsingFailure) {
+  std::array buf = {'\xAA', '\xAA', '\xAA', '\xAA'};
+  EXPECT_FALSE(Demangle("_ZN1xBE", std::data(buf), std::size(buf)));
+  // Ensure string is properly NUL-terminated despite parsing failure.
+  EXPECT_THAT(buf, Contains('\0'));
+}
+
 // Tests that verify that Demangle footprint is within some limit.
 // They are not to be run under sanitizers as the sanitizers increase
 // stack consumption by about 4x.
@@ -2000,7 +2010,7 @@ TEST(Demangle, DemangleStackConsumption) {
 
 static void TestOnInput(const char* input) {
   static const int kOutSize = 1048576;
-  auto out = absl::make_unique<char[]>(kOutSize);
+  auto out = std::make_unique<char[]>(kOutSize);
   Demangle(input, out.get(), kOutSize);
 }
 

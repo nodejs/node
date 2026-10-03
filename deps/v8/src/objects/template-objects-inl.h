@@ -16,8 +16,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/template-objects-tq-inl.inc"
-
 Tagged<FixedArray> TemplateObjectDescription::raw_strings() const {
   return raw_strings_.load();
 }

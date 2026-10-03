@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -281,6 +282,17 @@ TEST(SubstituteDeathTest, SubstituteDeath) {
   EXPECT_DEBUG_DEATH(
       static_cast<void>(absl::Substitute(absl::string_view("-$"))),
       "Invalid absl::Substitute\\(\\) format string: \"-\\$\"");
+}
+
+TEST(SubstituteDeathTest, OverflowDeath) {
+  // HACK: We pretend the string_view is extremely long, in order to test an
+  // overflow condition that only occurs in 32-bit without using an impractical
+  // amount of memory.
+  EXPECT_DEATH(static_cast<void>(absl::Substitute(
+                   "$0$0$0",
+                   absl::string_view(
+                       "abc", (std::numeric_limits<size_t>::max() / 3) + 100))),
+               "overflow");
 }
 
 #endif  // GTEST_HAS_DEATH_TEST

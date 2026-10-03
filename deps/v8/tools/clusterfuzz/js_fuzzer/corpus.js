@@ -20,7 +20,8 @@ const sourceHelpers = require('./source_helpers.js');
 const DROP_DISCOURAGED_FILES_PROB = 0.8;
 
 // Transpile some code patterns to ES2015 with a probability.
-const TRANSPILE_PROB = 0.1;
+// TODO(https://crbug.com/483980693): Fix packaging.
+const TRANSPILE_PROB = 0.01;
 
 const WASM_MODULE_BUILDER = 'test/mjsunit/wasm/wasm-module-builder.js';
 const WASM_LOAD_LINE = `d8.file.execute("${WASM_MODULE_BUILDER}")`;

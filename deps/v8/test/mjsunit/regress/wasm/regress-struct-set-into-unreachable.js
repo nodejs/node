@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-wasm-lazy-compilation --no-liftoff
+// Flags: --no-wasm-lazy-compilation
 
 // Tests the following scenario:
 // - Wasm load elimination puts an immutable struct.get in its state.
@@ -17,10 +17,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 var builder = new WasmModuleBuilder();
 
 let super_struct = builder.addStruct([]);
-let sub_struct_1 =  builder.addStruct([makeField(kWasmI32, false)],
-                                       super_struct);
-let sub_struct_2 =  builder.addStruct([makeField(kWasmI32, true)],
-                                       super_struct);
+let sub_struct_1 =  builder.addStruct(
+    {fields: [makeField(kWasmI32, false)], supertype: super_struct});
+let sub_struct_2 =  builder.addStruct(
+    {fields: [makeField(kWasmI32, true)], supertype: super_struct});
 
 builder.addFunction("tester", makeSig([wasmRefNullType(sub_struct_1)], []))
   .addLocals(kWasmI32, 1)

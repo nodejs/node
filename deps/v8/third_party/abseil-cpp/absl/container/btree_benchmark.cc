@@ -668,15 +668,13 @@ BIG_TYPE_BENCHMARKS(32, 32);
 template <int Size>
 struct BigTypePtr {
   BigTypePtr() : BigTypePtr(0) {}
-  explicit BigTypePtr(int x) {
-    ptr = absl::make_unique<BigType<Size, Size>>(x);
-  }
+  explicit BigTypePtr(int x) { ptr = std::make_unique<BigType<Size, Size>>(x); }
   BigTypePtr(const BigTypePtr& other) {
-    ptr = absl::make_unique<BigType<Size, Size>>(*other.ptr);
+    ptr = std::make_unique<BigType<Size, Size>>(*other.ptr);
   }
   BigTypePtr(BigTypePtr&& other) noexcept = default;
   BigTypePtr& operator=(const BigTypePtr& other) {
-    ptr = absl::make_unique<BigType<Size, Size>>(*other.ptr);
+    ptr = std::make_unique<BigType<Size, Size>>(*other.ptr);
   }
   BigTypePtr& operator=(BigTypePtr&& other) noexcept = default;
 

@@ -23,8 +23,9 @@ std::pair<uint8_t, uint8_t> SplitByte(uint8_t byte, uint8_t split) {
 v8::Maybe<uint8_t> DecodeByte(char byte) {
   if ('A' <= byte && byte <= 'Z') return v8::Just<uint8_t>(byte - 'A');
   if ('a' <= byte && byte <= 'z') return v8::Just<uint8_t>(byte - 'a' + 26);
-  if ('0' <= byte && byte <= '9')
+  if ('0' <= byte && byte <= '9') {
     return v8::Just<uint8_t>(byte - '0' + 26 + 26);
+  }
   if (byte == '+') return v8::Just<uint8_t>(62);
   if (byte == '/') return v8::Just<uint8_t>(63);
   return v8::Nothing<uint8_t>();
@@ -129,11 +130,12 @@ v8::Local<v8::String> toV8String(v8::Isolate* isolate,
                                  const StringView& string) {
   if (!string.length()) return v8::String::Empty(isolate);
   DCHECK_GT(v8::String::kMaxLength, string.length());
-  if (string.is8Bit())
+  if (string.is8Bit()) {
     return v8::String::NewFromOneByte(
                isolate, reinterpret_cast<const uint8_t*>(string.characters8()),
                v8::NewStringType::kNormal, static_cast<int>(string.length()))
         .ToLocalChecked();
+  }
   return v8::String::NewFromTwoByte(
              isolate, reinterpret_cast<const uint16_t*>(string.characters16()),
              v8::NewStringType::kNormal, static_cast<int>(string.length()))
@@ -144,7 +146,7 @@ String16 toProtocolString(v8::Isolate* isolate, v8::Local<v8::String> value) {
   if (value.IsEmpty() || value->IsNullOrUndefined()) return String16();
   uint32_t length = value->Length();
   std::unique_ptr<UChar[]> buffer(new UChar[length]);
-  value->WriteV2(isolate, 0, length, reinterpret_cast<uint16_t*>(buffer.get()));
+  value->Write(isolate, 0, length, reinterpret_cast<uint16_t*>(buffer.get()));
   return String16(buffer.get(), length);
 }
 
@@ -156,9 +158,10 @@ String16 toProtocolStringWithTypeCheck(v8::Isolate* isolate,
 
 String16 toString16(const StringView& string) {
   if (!string.length()) return String16();
-  if (string.is8Bit())
+  if (string.is8Bit()) {
     return String16(reinterpret_cast<const char*>(string.characters8()),
                     string.length());
+  }
   return String16(string.characters16(), string.length());
 }
 

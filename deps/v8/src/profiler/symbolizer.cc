@@ -42,6 +42,7 @@ CodeEntry* EntryForVMState(StateTag tag) {
     case IDLE:
       return CodeEntry::idle_entry();
   }
+  UNREACHABLE();
 }
 
 void UnwindInlineStack(CodeEntry* entry, int pc_offset,

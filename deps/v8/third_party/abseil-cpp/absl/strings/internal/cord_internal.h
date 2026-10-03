@@ -20,11 +20,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <string>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/endian.h"
+#include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
@@ -70,17 +72,6 @@ inline void enable_shallow_subcords(bool enable) {
 }
 
 enum Constants {
-  // The inlined size to use with absl::InlinedVector.
-  //
-  // Note: The InlinedVectors in this file (and in cord.h) do not need to use
-  // the same value for their inlined size. The fact that they do is historical.
-  // It may be desirable for each to use a different inlined size optimized for
-  // that InlinedVector's usage.
-  //
-  // TODO(jgm): Benchmark to see if there's a more optimal value than 47 for
-  // the inlined vector size (47 exists for backward compatibility).
-  kInlinedVectorSize = 47,
-
   // Prefer copying blocks of at most this size, otherwise reference count.
   kMaxBytesToCopy = 511
 };
@@ -144,9 +135,18 @@ class RefcountAndFlags {
   struct Immortal {};
   explicit constexpr RefcountAndFlags(Immortal) : count_(kImmortalFlag) {}
 
+  static void IncrementOverflow();
+
   // Increments the reference count. Imposes no memory ordering.
   inline void Increment() {
-    count_.fetch_add(kRefIncrement, std::memory_order_relaxed);
+    const int32_t prev_count =
+        count_.fetch_add(kRefIncrement, std::memory_order_relaxed);
+    if (ABSL_PREDICT_FALSE(
+            prev_count >=
+            ((std::numeric_limits<decltype(count_)::value_type>::max)() / 3) *
+                2)) {
+      IncrementOverflow();
+    }
   }
 
   // Asserts that the current refcount is greater than 0. If the refcount is

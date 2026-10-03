@@ -10,14 +10,14 @@ top level: yes
 snippet: "
   var a = 1;
 "
-frame size: 3
+frame size: 2
 parameter count: 1
 bytecode array length: 18
 bytecodes: [
                 B(LdaConstant), U8(0:FIXED_ARRAY_TYPE),
-                B(Star1),
-                B(Mov), R(closure), R(2),
-  /*    0 E> */ B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), RegCount8(2),
+                B(Star0),
+                B(Mov), R(closure), R(1),
+  /*    0 E> */ B(CallRuntime), U16(Runtime::kDeclareGlobals), R(0), RegCount8(2),
   /*    8 S> */ B(LdaSmi), I8(1),
   /*    8 E> */ B(StaGlobal), U8(1:"a"), FBV(0),
                 B(LdaUndefined),

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-gc --wasm-staging
+// Flags: --expose-gc
 
 (async function () {
   let __v_3 = function () {

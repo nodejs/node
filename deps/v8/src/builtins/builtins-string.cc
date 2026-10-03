@@ -58,7 +58,7 @@ base::uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
 
 }  // namespace
 
-// ES6 section 21.1.2.2 String.fromCodePoint ( ...codePoints )
+// https://tc39.es/ecma262/#sec-string.fromcodepoint
 BUILTIN(StringFromCodePoint) {
   HandleScope scope(isolate);
   int const length = args.length() - 1;
@@ -124,8 +124,7 @@ BUILTIN(StringFromCodePoint) {
   return *result;
 }
 
-// ES6 section 21.1.3.9
-// String.prototype.lastIndexOf ( searchString [ , position ] )
+// https://tc39.es/ecma262/#sec-string.prototype.lastindexof
 BUILTIN(StringPrototypeLastIndexOf) {
   HandleScope handle_scope(isolate);
   return String::LastIndexOf(isolate, args.receiver(),
@@ -134,7 +133,7 @@ BUILTIN(StringPrototypeLastIndexOf) {
 }
 
 #ifndef V8_INTL_SUPPORT
-// ES6 section 21.1.3.10 String.prototype.localeCompare ( that )
+// https://tc39.es/ecma262/#sec-string.prototype.localecompare
 //
 // For now, we do not do anything locale specific.
 // If internationalization is enabled, then intl.js will override this function
@@ -159,18 +158,24 @@ BUILTIN(StringPrototypeLocaleCompare) {
   // Decide trivial cases without flattening.
   if (str1_length == 0) {
     if (str2_length == 0) return Smi::zero();  // Equal.
-    return Smi::FromInt(-str2_length);
+    return Smi::FromInt(-1);
   } else {
-    if (str2_length == 0) return Smi::FromInt(str1_length);
+    if (str2_length == 0) return Smi::FromInt(1);
   }
 
   int end = str1_length < str2_length ? str1_length : str2_length;
+
+  // The spec allows StringPrototypeLocaleCompare to return any negative and
+  // positive integer, but the Intl version only returns -1/0/1, so to have the
+  // same behavior in the Intl and non-Intl versions, we also only return -1/0/1
+  // here.
+  auto sign = [](int val) { return val == 0 ? 0 : val < 0 ? -1 : 1; };
 
   // No need to flatten if we are going to find the answer on the first
   // character. At this point we know there is at least one character
   // in each string, due to the trivial case handling above.
   int d = str1->Get(0) - str2->Get(0);
-  if (d != 0) return Smi::FromInt(d);
+  if (d != 0) return Smi::FromInt(sign(d));
 
   str1 = String::Flatten(isolate, str1);
   str2 = String::Flatten(isolate, str2);
@@ -181,11 +186,11 @@ BUILTIN(StringPrototypeLocaleCompare) {
 
   for (int i = 0; i < end; i++) {
     if (flat1.Get(i) != flat2.Get(i)) {
-      return Smi::FromInt(flat1.Get(i) - flat2.Get(i));
+      return Smi::FromInt(sign(flat1.Get(i) - flat2.Get(i)));
     }
   }
 
-  return Smi::FromInt(str1_length - str2_length);
+  return Smi::FromInt(sign(str1_length - str2_length));
 }
 
 // ES6 section 21.1.3.12 String.prototype.normalize ( [form] )
@@ -198,7 +203,7 @@ BUILTIN(StringPrototypeNormalize) {
   TO_THIS_STRING(string, "String.prototype.normalize");
 
   DirectHandle<Object> form_input = args.atOrUndefined(isolate, 1);
-  if (IsUndefined(*form_input, isolate)) return *string;
+  if (IsUndefined(*form_input)) return *string;
 
   DirectHandle<String> form;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, form,
@@ -382,7 +387,7 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCase(
 
   Tagged<Object> answer =
       ConvertCaseHelper(isolate, *s, *result, length, mapping);
-  if (IsExceptionHole(answer, isolate) || IsString(answer)) return answer;
+  if (IsExceptionHole(answer) || IsString(answer)) return answer;
 
   DCHECK(IsSmi(answer));
   // In this case we need to retry with a new string of the given length.
@@ -431,7 +436,7 @@ BUILTIN(StringPrototypeToUpperCase) {
 }
 #endif  // !V8_INTL_SUPPORT
 
-// ES6 #sec-string.prototype.raw
+// https://tc39.es/ecma262/#sec-string.raw
 BUILTIN(StringRaw) {
   HandleScope scope(isolate);
   DirectHandle<Object> templ = args.atOrUndefined(isolate, 1);

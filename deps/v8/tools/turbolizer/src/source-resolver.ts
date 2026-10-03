@@ -198,6 +198,16 @@ export class SourceResolver {
           lastTurboshaftGraphPhase = turboshaftGraphPhase;
           lastGraphPhase = turboshaftGraphPhase;
           break;
+        case PhaseType.MaglevGraph:
+          const castedMaglevGraph = genericPhase as TurboshaftGraphPhase;
+          const maglevGraphPhase = new TurboshaftGraphPhase(castedMaglevGraph.name,
+            castedMaglevGraph.data, nodeMap, this.sources, this.inlinings, PhaseType.MaglevGraph);
+          this.phaseNames.set(maglevGraphPhase.name, this.phases.length);
+          this.phases.push(maglevGraphPhase);
+          selectedDynamicPhases.push(maglevGraphPhase);
+          lastTurboshaftGraphPhase = maglevGraphPhase;
+          lastGraphPhase = maglevGraphPhase;
+          break;
         case PhaseType.TurboshaftCustomData:
           const castedCustomData = camelize(genericPhase) as TurboshaftCustomDataPhase;
           const customDataPhase = new TurboshaftCustomDataPhase(castedCustomData.name,

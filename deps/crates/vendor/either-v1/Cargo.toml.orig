@@ -1,7 +1,6 @@
 [package]
 name = "either"
-version = "1.15.0"
-authors = ["bluss"]
+version = "1.16.0"
 edition = "2021"
 rust-version = "1.63.0"
 

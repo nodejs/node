@@ -32,6 +32,14 @@ namespace debugging_internal {
 // DemangleRustSymbolEncoding is async-signal-safe and runs in bounded C++
 // call-stack space.  It is suitable for symbolizing stack traces in a signal
 // handler.
+//
+// Note that this demangler purposefully omits some details: generic argument
+// lists become `<>`, function types `fn...`, and long tuples `(t, u, v, ...)`.
+// This simplification suits crash backtracing, where the signal handler must
+// not `malloc`, and the human troubleshooter won't want the `file:line` blame
+// drowned in generic arguments.  Applications better served by a freely
+// allocating detailed demangler might prefer to use Rust's own `rustc-demangle`
+// crate.
 bool DemangleRustSymbolEncoding(const char* mangled, char* out,
                                 size_t out_size);
 

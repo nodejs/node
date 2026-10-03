@@ -383,10 +383,16 @@ static void AbslFailureSignalHandler(int signo, siginfo_t*, void* ucontext) {
       // a bit for it to finish. If the other thread doesn't kill us,
       // we do so after sleeping.
       PortableSleepForSeconds(3);
-      RaiseToDefaultHandler(signo);
-      // The recursively raised signal may be blocked until we return.
-      return;
+    } else {
+      // Same thread re-entered: the handler itself faulted. Do NOT fall through
+      // and re-run the body (which would recurse under SA_NODEFER, resetting
+      // the alarm each time and consuming the unguarded altstack). Instead,
+      // terminate now.
     }
+
+    RaiseToDefaultHandler(signo);
+    // The recursively raised signal may be blocked until we return.
+    return;
   }
 
   // Increase the chance that the CPU we report was the same CPU on which the

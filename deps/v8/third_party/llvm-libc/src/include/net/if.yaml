@@ -1,0 +1,24 @@
+header: net/if.h
+standards:
+  - posix
+macros:
+  - macro_name: IF_NAMESIZE
+    macro_header: net-if-macros.h
+types:
+  - type_name: struct_ifreq
+enums: []
+objects: []
+functions:
+  - name: if_indextoname
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: unsigned int
+      - type: char *
+  - name: if_nametoindex
+    standards:
+      - posix
+    return_type: unsigned int
+    arguments:
+      - type: const char *

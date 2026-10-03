@@ -56,6 +56,7 @@ bool g_tracing_enabled = false;
 bool g_dead_vars_analysis = false;
 bool g_verbose = false;
 bool g_print_gc_call_chain = false;
+static std::string g_output_dir = ".";
 
 #define TRACE(str)                   \
   do {                               \
@@ -98,9 +99,126 @@ static bool GetMangledName(clang::MangleContext* ctx,
 }
 
 static bool InV8Namespace(const clang::NamedDecl* decl) {
-  return decl->getQualifiedNameAsString().compare(0, 4, "v8::") == 0;
+  const clang::DeclContext* ctx = decl->getDeclContext();
+  const clang::NamespaceDecl* last_ns = nullptr;
+  while (ctx) {
+    if (const auto* ns = llvm::dyn_cast<clang::NamespaceDecl>(ctx)) {
+      last_ns = ns;
+    }
+    ctx = ctx->getParent();
+  }
+  if (!last_ns) return false;
+  return last_ns->getIdentifier() == &decl->getASTContext().Idents.get("v8");
+}
+static bool HasAnonymousBase(const clang::CXXRecordDecl* record) {
+  if (!record->hasDefinition()) return false;
+  for (const auto& base : record->bases()) {
+    if (const clang::CXXRecordDecl* base_record =
+            base.getType()->getAsCXXRecordDecl()) {
+      const clang::CXXRecordDecl* base_def = base_record->getDefinition();
+      if (base_def) {
+        if (base_def->isInAnonymousNamespace() || HasAnonymousBase(base_def)) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
+static std::string GetRecordQualifiedName(const clang::CXXRecordDecl* record) {
+  std::string name = record->getQualifiedNameAsString();
+  if (record->isInAnonymousNamespace() || HasAnonymousBase(record)) {
+    clang::SourceManager& sm = record->getASTContext().getSourceManager();
+    clang::FileID main_file_id = sm.getMainFileID();
+    auto file_entry = sm.getFileEntryForID(main_file_id);
+    std::string filename_str =
+        file_entry ? file_entry->tryGetRealPathName().str() : "unknown";
+
+    std::string sanitized_path = filename_str;
+    for (char& c : sanitized_path) {
+      if (c == '/' || c == '\\' || c == '.' || c == ' ' || c == '-' || c == ':')
+        c = '_';
+    }
+    name += "$" + sanitized_path;
+  }
+  return name;
+}
+
+static std::string GetFunctionQualifiedName(const clang::FunctionDecl* decl) {
+  if (const auto* method = llvm::dyn_cast<clang::CXXMethodDecl>(decl)) {
+    const clang::CXXRecordDecl* record = method->getParent();
+    if (record) {
+      std::string class_name = GetRecordQualifiedName(record);
+      return class_name + "::" + method->getNameAsString();
+    }
+  }
+  return decl->getQualifiedNameAsString();
+}
+
+static bool IsDerivedFrom(const clang::CXXRecordDecl* record,
+                          const clang::CXXRecordDecl* base) {
+  return record->getCanonicalDecl() == base->getCanonicalDecl() ||
+         record->isDerivedFrom(base);
+}
+
+static std::string EscapeJSONString(const std::string& s) {
+  std::string out;
+  for (char c : s) {
+    if (c == '"')
+      out += "\\\"";
+    else if (c == '\\')
+      out += "\\\\";
+    else
+      out += c;
+  }
+  return out;
+}
+
+static bool IsVirtualOrVisitorCall(clang::MangleContext* ctx,
+                                   const clang::CallExpr* expr,
+                                   const clang::CXXRecordDecl** receiver_record,
+                                   const clang::CXXMethodDecl** method_decl,
+                                   bool* is_this_call) {
+  if (const clang::CXXMemberCallExpr* memcall =
+          llvm::dyn_cast_or_null<clang::CXXMemberCallExpr>(expr)) {
+    const clang::CXXMethodDecl* method = memcall->getMethodDecl();
+    if (!method) return false;
+
+    const clang::Expr* receiver =
+        memcall->getImplicitObjectArgument()->IgnoreParenImpCasts();
+    *is_this_call = llvm::isa<clang::CXXThisExpr>(receiver);
+
+    clang::QualType receiver_type = receiver->getType();
+    if (receiver_type->isPointerType()) {
+      receiver_type = receiver_type->getPointeeType();
+    }
+    if (const clang::CXXRecordDecl* record =
+            receiver_type->getAsCXXRecordDecl()) {
+      if (InV8Namespace(record) && IsDerivedFrom(record, method->getParent())) {
+        // Case 1: It is a virtual method.
+        if (method->isVirtual()) {
+          if (const auto* member_expr =
+                  llvm::dyn_cast<clang::MemberExpr>(memcall->getCallee())) {
+            if (member_expr->hasQualifier()) return false;
+          }
+          *receiver_record = record;
+          *method_decl = method;
+          return true;
+        }
+        // Case 2: It is the non-virtual ObjectVisitor::VisitRelocInfo.
+        if (method->getNameAsString() == "VisitRelocInfo" &&
+            method->getParent()->getQualifiedNameAsString() ==
+                "v8::internal::ObjectVisitor") {
+          *receiver_record = record;
+          *method_decl = method;
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
 static std::string EXTERNAL("EXTERNAL");
 static std::string STATE_TAG("enum v8::internal::StateTag");
 
@@ -179,9 +297,79 @@ struct Resolver {
 
 class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
  public:
-  explicit CalleesPrinter(clang::MangleContext* ctx) : ctx_(ctx) {}
+  explicit CalleesPrinter(clang::MangleContext* ctx,
+                          clang::CXXRecordDecl* no_gc_mole_decl)
+      : ctx_(ctx), no_gc_mole_decl_(no_gc_mole_decl) {}
+
+  virtual ~CalleesPrinter() {
+    for (auto& [_, set_ptr] : callgraph_) {
+      delete set_ptr;
+    }
+  }
+
+  struct GCScope {
+    bool is_guarded = false;
+  };
+
+  bool IsGuarded() {
+    for (const auto& s : gc_scopes_) {
+      if (s.is_guarded) return true;
+    }
+    return false;
+  }
+
+  bool TraverseStmt(clang::Stmt* S) {
+    if (!S) return true;
+    bool introduces_scope = IntroducesScope(S);
+    if (introduces_scope) {
+      gc_scopes_.push_back(GCScope());
+    }
+    bool result = clang::RecursiveASTVisitor<CalleesPrinter>::TraverseStmt(S);
+    if (introduces_scope) {
+      gc_scopes_.pop_back();
+    }
+    return result;
+  }
+
+  bool VisitVarDecl(clang::VarDecl* var) {
+    clang::QualType var_type = var->getType();
+    if (IsGCGuard(var_type)) {
+      if (!gc_scopes_.empty()) {
+        gc_scopes_.back().is_guarded = true;
+      }
+    }
+    return true;
+  }
 
   virtual bool VisitCallExpr(clang::CallExpr* expr) {
+    if (IsGuarded()) return true;
+
+    const clang::CXXRecordDecl* receiver_record = nullptr;
+    const clang::CXXMethodDecl* method_decl = nullptr;
+    bool is_this_call = false;
+    if (IsVirtualOrVisitorCall(ctx_, expr, &receiver_record, &method_decl,
+                               &is_this_call)) {
+      MangledName base_method_mangled;
+      if (GetMangledName(ctx_, method_decl, &base_method_mangled)) {
+        MangledName dummy_mangled;
+        std::string dummy_qualified;
+        std::string derived_name = GetRecordQualifiedName(receiver_record);
+        if (is_this_call) {
+          dummy_mangled =
+              "VIRTUALTHIS-" + derived_name + "-" + base_method_mangled;
+          dummy_qualified =
+              derived_name + "::" + method_decl->getNameAsString();
+        } else {
+          dummy_mangled = "VIRTUAL-" + derived_name + "-" + base_method_mangled;
+          dummy_qualified =
+              derived_name + "::" + method_decl->getNameAsString();
+        }
+
+        mangled_to_function_[dummy_mangled] = dummy_qualified;
+        AddCallee(dummy_mangled, dummy_qualified);
+        return true;  // Skip default
+      }
+    }
     const clang::FunctionDecl* callee = expr->getDirectCallee();
     if (callee != nullptr) AnalyzeFunction(callee);
     return true;
@@ -197,10 +385,11 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
   }
 
   void AnalyzeFunction(const clang::FunctionDecl* f) {
+    if (f->isNoReturn()) return;
     if (!InV8Namespace(f)) return;
     MangledName name;
     if (!GetMangledName(ctx_, f, &name)) return;
-    const std::string& function = f->getNameAsString();
+    const std::string function = GetFunctionQualifiedName(f);
     AddCallee(name, function);
 
     const clang::FunctionDecl* body = nullptr;
@@ -213,9 +402,13 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
 
   typedef std::map<MangledName, CalleesSet*> Callgraph;
 
-  bool Analyzed(const MangledName& name) { return callgraph_[name] != nullptr; }
+  bool Analyzed(const MangledName& name) {
+    return analyzed_.find(name) != analyzed_.end();
+  }
 
   void EnterScope(const MangledName& name) {
+    analyzed_.insert(name);
+
     CalleesSet* callees = callgraph_[name];
 
     if (callees == nullptr) {
@@ -232,6 +425,8 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
     mangled_to_function_[name] = function;
   }
 
+
+
   void PrintCallGraph() {
     for (Callgraph::const_iterator i = callgraph_.begin(), e = callgraph_.end();
          i != e; ++i) {
@@ -246,11 +441,42 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
   }
 
  private:
+  bool IntroducesScope(clang::Stmt* S) {
+    switch (S->getStmtClass()) {
+      case clang::Stmt::CompoundStmtClass:
+      case clang::Stmt::IfStmtClass:
+      case clang::Stmt::ForStmtClass:
+      case clang::Stmt::WhileStmtClass:
+      case clang::Stmt::SwitchStmtClass:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  bool IsSameType(clang::QualType qtype, clang::CXXRecordDecl* decl) {
+    if (!decl) return false;
+    if (qtype.isNull() || qtype->isNullPtrType()) return false;
+
+    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
+    if (!record) return false;
+
+    return record->getCanonicalDecl() == decl->getCanonicalDecl();
+  }
+
+  bool IsGCGuard(clang::QualType qtype) {
+    return IsSameType(qtype, no_gc_mole_decl_);
+  }
+
   clang::MangleContext* ctx_;
+  clang::CXXRecordDecl* no_gc_mole_decl_;
 
   std::stack<CalleesSet*> scopes_;
   Callgraph callgraph_;
   CalleesMap mangled_to_function_;
+  CalleesSet analyzed_;
+
+  std::vector<GCScope> gc_scopes_;
 };
 
 class FunctionDeclarationFinder
@@ -262,14 +488,36 @@ class FunctionDeclarationFinder
       clang::SourceManager& source_manager,
       const std::vector<std::string>& args)
       : diagnostics_engine_(diagnostics_engine),
-        source_manager_(source_manager) {}
+        source_manager_(source_manager),
+        mangle_context_(nullptr),
+        callees_printer_(nullptr),
+        args_(args) {}
+
+  ~FunctionDeclarationFinder() override {
+    delete callees_printer_;
+    delete mangle_context_;
+  }
+
+  struct ClassInfo {
+    std::vector<std::string> bases;
+    std::map<std::string, std::string> overrides;
+    std::vector<std::string> virtual_methods;
+  };
 
   void HandleTranslationUnit(clang::ASTContext& ctx) override {
+    if (TranslationUnitIgnored()) return;
     mangle_context_ =
         clang::ItaniumMangleContext::create(ctx, diagnostics_engine_);
-    callees_printer_ = new CalleesPrinter(mangle_context_);
+
+    Resolver r(ctx);
+    auto v8_internal = r.ResolveNamespace("v8").ResolveNamespace("internal");
+    clang::CXXRecordDecl* no_gc_mole_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("DisableGCMole");
+
+    callees_printer_ = new CalleesPrinter(mangle_context_, no_gc_mole_decl);
     TraverseDecl(ctx.getTranslationUnitDecl());
     callees_printer_->PrintCallGraph();
+    DumpClassHierarchy();
   }
 
   virtual bool VisitFunctionDecl(clang::FunctionDecl* decl) {
@@ -277,12 +525,152 @@ class FunctionDeclarationFinder
     return true;
   }
 
+  virtual bool VisitCXXRecordDecl(clang::CXXRecordDecl* record) {
+    if (record->isCompleteDefinition() && InV8Namespace(record)) {
+      RecordClassHierarchy(record);
+    }
+    return true;
+  }
+
  private:
+  void RecordClassHierarchy(const clang::CXXRecordDecl* record) {
+    std::string class_name = GetRecordQualifiedName(record);
+    if (class_hierarchy_.find(class_name) != class_hierarchy_.end()) return;
+
+    ClassInfo info;
+    for (const auto& base : record->bases()) {
+      if (const clang::CXXRecordDecl* base_record =
+              base.getType()->getAsCXXRecordDecl()) {
+        info.bases.push_back(GetRecordQualifiedName(base_record));
+      }
+    }
+
+    for (const auto* method : record->methods()) {
+      if (method->isVirtual()) {
+        MangledName method_mangled;
+        if (GetMangledName(mangle_context_, method, &method_mangled)) {
+          info.virtual_methods.push_back(method_mangled);
+          for (const auto* overridden : method->overridden_methods()) {
+            MangledName overridden_mangled;
+            if (GetMangledName(mangle_context_, overridden,
+                               &overridden_mangled)) {
+              info.overrides[overridden_mangled] = method_mangled;
+            }
+          }
+        }
+      }
+    }
+    class_hierarchy_[class_name] = info;
+  }
+
+  std::string GetOutputFilePath(const std::string& prefix) {
+    std::string output_dir = ".";
+    for (const auto& arg : args_) {
+      if (arg.compare(0, 11, "output-dir:") == 0) {
+        output_dir = arg.substr(11);
+      }
+    }
+
+    clang::FileID main_file_id = source_manager_.getMainFileID();
+    auto file_entry = source_manager_.getFileEntryForID(main_file_id);
+    std::string filename_str =
+        file_entry ? file_entry->tryGetRealPathName().str() : "unknown";
+
+    std::string sanitized_path = filename_str;
+    for (char& c : sanitized_path) {
+      if (c == '/' || c == '\\' || c == '.' || c == ' ' || c == '-' || c == ':')
+        c = '_';
+    }
+
+    return output_dir + "/" + prefix + "_" + sanitized_path + ".json";
+  }
+
+  void DumpClassHierarchy() {
+    std::string filepath = GetOutputFilePath("class_hierarchy");
+    std::ofstream fout(filepath);
+    if (!fout.is_open()) return;
+
+    fout << "{\n";
+    bool first_class = true;
+    for (const auto& [class_name, info] : class_hierarchy_) {
+      if (!first_class) fout << ",\n";
+      first_class = false;
+
+      fout << "  \"" << EscapeJSONString(class_name) << "\": {\n";
+      fout << "    \"bases\": [";
+      bool first_base = true;
+      for (const auto& base : info.bases) {
+        if (!first_base) fout << ", ";
+        first_base = false;
+        fout << "\"" << EscapeJSONString(base) << "\"";
+      }
+      fout << "],\n";
+
+      fout << "    \"overrides\": {\n";
+      bool first_override = true;
+      for (const auto& [base_m, der_m] : info.overrides) {
+        if (!first_override) fout << ",\n";
+        first_override = false;
+        fout << "      \"" << base_m << "\": \"" << der_m << "\"";
+      }
+      fout << "\n    },\n";
+
+      fout << "    \"virtual_methods\": [";
+      bool first_vm = true;
+      for (const auto& vm : info.virtual_methods) {
+        if (!first_vm) fout << ", ";
+        first_vm = false;
+        fout << "\"" << vm << "\"";
+      }
+      fout << "]\n";
+
+      fout << "  }";
+    }
+    fout << "\n}\n";
+  }
+
+  bool TranslationUnitIgnored() {
+    if (!ignored_files_loaded_) {
+      auto fileOrError =
+          llvm::MemoryBuffer::getFile("tools/gcmole/ignored_files");
+      if (auto error = fileOrError.getError()) {
+        llvm::errs() << "Failed to open ignored_files file\n";
+        std::terminate();
+      }
+      for (llvm::line_iterator it(*fileOrError->get()); !it.is_at_end(); ++it) {
+        ignored_files_.insert(*it);
+      }
+      ignored_files_loaded_ = true;
+    }
+
+    clang::FileID main_file_id = source_manager_.getMainFileID();
+    auto file_entry = source_manager_.getFileEntryForID(main_file_id);
+    if (!file_entry) return false;
+    llvm::StringRef filename = file_entry->tryGetRealPathName();
+
+    bool result = false;
+    for (const auto& entry : ignored_files_) {
+      if (filename.ends_with(entry.getKey())) {
+        result = true;
+        break;
+      }
+    }
+    if (result) {
+      llvm::outs() << "Ignoring file " << filename << "\n";
+    }
+    return result;
+  }
+
   clang::DiagnosticsEngine& diagnostics_engine_;
   clang::SourceManager& source_manager_;
   clang::MangleContext* mangle_context_;
 
   CalleesPrinter* callees_printer_;
+  std::vector<std::string> args_;
+  std::map<std::string, ClassInfo> class_hierarchy_;
+
+  bool ignored_files_loaded_ = false;
+  llvm::StringSet<> ignored_files_;
 };
 
 static bool gc_suspects_loaded = false;
@@ -294,10 +682,17 @@ static CalleesSet suspects_allowlist;
 
 static bool gc_causes_loaded = false;
 static std::map<MangledName, std::vector<MangledName>> gc_causes;
+static std::map<MangledName, std::string> demangled_names;
 
 static void LoadGCCauses() {
   if (gc_causes_loaded) return;
-  std::ifstream fin("gccauses");
+  std::ifstream fin;
+  if (g_output_dir != ".") {
+    fin.open(g_output_dir + "/gccauses");
+  }
+  if (!fin.is_open()) {
+    fin.open("gccauses");
+  }
   std::string mangled, function;
 
   if (!fin.is_open()) {
@@ -305,24 +700,28 @@ static void LoadGCCauses() {
     std::abort();
   }
 
-  while (!fin.eof()) {
-    std::getline(fin, mangled, ',');
-    std::getline(fin, function);
+  while (std::getline(fin, mangled, ',') && std::getline(fin, function)) {
     if (mangled.empty()) break;
     std::string parent = mangled;
+    demangled_names[parent] = function;
     // start,nested
-    std::getline(fin, mangled, ',');
+    if (!std::getline(fin, mangled, ',') || !std::getline(fin, function)) {
+      std::cerr << "Error: Truncated gccauses database." << std::endl;
+      std::abort();
+    }
     assert(mangled.compare("start") == 0);
-    std::getline(fin, function);
     assert(function.compare("nested") == 0);
     while (true) {
-      std::getline(fin, mangled, ',');
-      std::getline(fin, function);
+      if (!std::getline(fin, mangled, ',') || !std::getline(fin, function)) {
+        std::cerr << "Error: Truncated nested gccauses database." << std::endl;
+        std::abort();
+      }
       if (mangled.compare("end") == 0) {
         assert(function.compare("nested") == 0);
         break;
       }
       gc_causes[parent].push_back(mangled);
+      demangled_names[mangled] = function;
     }
   }
   gc_causes_loaded = true;
@@ -392,7 +791,7 @@ static bool IsSuspectedToCauseGC(clang::MangleContext* ctx,
       suspects_allowlist.end()) {
     return false;
   }
-  if (gc_functions.find(decl->getNameAsString()) != gc_functions.end()) {
+  if (gc_functions.find(GetFunctionQualifiedName(decl)) != gc_functions.end()) {
     TRACE_LLVM_DECL("Suspected by ", decl);
     return true;
   }
@@ -666,6 +1065,11 @@ class FunctionAnalyzer {
                    clang::CXXRecordDecl* tagged_index_decl,
                    clang::CXXRecordDecl* cleared_weak_value_decl,
                    clang::ClassTemplateDecl* tagged_decl,
+                   clang::CXXRecordDecl* js_dispatch_handle_decl,
+                   clang::CXXRecordDecl* js_dispatch_handle_member_decl,
+                   clang::ClassTemplateDecl* tagged_member_decl,
+                   clang::ClassTemplateDecl* unaligned_value_member_decl,
+                   clang::CXXRecordDecl* unaligned_double_member_decl,
                    clang::CXXRecordDecl* no_gc_mole_decl,
                    clang::CXXRecordDecl* conservative_pinning_scope_decl,
                    clang::DiagnosticsEngine& d, clang::SourceManager& sm)
@@ -675,11 +1079,18 @@ class FunctionAnalyzer {
         tagged_index_decl_(tagged_index_decl),
         cleared_weak_value_decl_(cleared_weak_value_decl),
         tagged_decl_(tagged_decl),
+        js_dispatch_handle_decl_(js_dispatch_handle_decl),
+        js_dispatch_handle_member_decl_(js_dispatch_handle_member_decl),
+        tagged_member_decl_(tagged_member_decl),
+        unaligned_value_member_decl_(unaligned_value_member_decl),
+        unaligned_double_member_decl_(unaligned_double_member_decl),
         no_gc_mole_decl_(no_gc_mole_decl),
         conservative_pinning_scope_decl_(conservative_pinning_scope_decl),
         d_(d),
         sm_(sm),
         block_(nullptr) {}
+
+  ~FunctionAnalyzer() { delete ctx_; }
 
   // --------------------------------------------------------------------------
   // Expressions
@@ -805,8 +1216,23 @@ class FunctionAnalyzer {
 
   DECL_VISIT_EXPR(AbstractConditionalOperator) {
     Environment after_cond = env.ApplyEffect(VisitExpr(expr->getCond(), env));
-    return ExprEffect::Merge(VisitExpr(expr->getTrueExpr(), after_cond),
-                             VisitExpr(expr->getFalseExpr(), after_cond));
+
+    std::vector<GCScope> saved_scopes = scopes_;
+
+    ExprEffect true_effect = VisitExpr(expr->getTrueExpr(), after_cond);
+    std::vector<GCScope> true_scopes = scopes_;
+
+    scopes_ = saved_scopes;
+
+    ExprEffect false_effect = VisitExpr(expr->getFalseExpr(), after_cond);
+    std::vector<GCScope> false_scopes = scopes_;
+
+    assert(true_scopes.size() == false_scopes.size());
+    for (size_t i = 0; i < true_scopes.size(); ++i) {
+      scopes_[i] = MergeScopes(true_scopes[i], false_scopes[i]);
+    }
+
+    return ExprEffect::Merge(true_effect, false_effect);
   }
 
   DECL_VISIT_EXPR(ArraySubscriptExpr) {
@@ -951,12 +1377,8 @@ class FunctionAnalyzer {
                  const Environment& env) {
     if (!g_dead_vars_analysis) return ExprEffect::None();
     if (!RepresentsRawPointerType(var_type)) return ExprEffect::None();
-    // We currently care only about our internal pointer types and not about
-    // raw C++ pointers, because normally special care is taken when storing
-    // raw pointers to the managed heap. Furthermore, checking for raw
-    // pointers produces too many false positives in the dead variable
-    // analysis.
-    if (!IsInternalPointerType(var_type)) return ExprEffect::None();
+    // Raw pointer tracking is enabled for HeapObject subclasses and internal
+    // pointer/handle/member types to catch stale pointers across GC calls.
     if (env.IsAlive(var_name)) return ExprEffect::None();
     if (HasActiveGuard()) return ExprEffect::None();
     if (HasActiveConservativePinning(var_location)) return ExprEffect::None();
@@ -1023,6 +1445,39 @@ class FunctionAnalyzer {
 
     clang::FunctionDecl* callee = call->getDirectCallee();
     if (callee == nullptr) return out;
+
+    const clang::CXXRecordDecl* receiver_record = nullptr;
+    const clang::CXXMethodDecl* method_decl = nullptr;
+    bool is_this_call = false;
+    if (IsVirtualOrVisitorCall(ctx_, call, &receiver_record, &method_decl,
+                               &is_this_call)) {
+      MangledName base_method_mangled;
+      if (GetMangledName(ctx_, method_decl, &base_method_mangled)) {
+        MangledName dummy_mangled;
+        std::string derived_name = GetRecordQualifiedName(receiver_record);
+        if (is_this_call) {
+          dummy_mangled =
+              "VIRTUALTHIS-" + derived_name + "-" + base_method_mangled;
+        } else {
+          dummy_mangled = "VIRTUAL-" + derived_name + "-" + base_method_mangled;
+        }
+
+        LoadGCSuspects();
+        LoadSuspectsAllowList();
+        bool is_allowlisted = false;
+        if (suspects_allowlist.find(method_decl->getNameAsString()) !=
+            suspects_allowlist.end()) {
+          is_allowlisted = true;
+        }
+        if (!is_allowlisted &&
+            gc_suspects.find(dummy_mangled) != gc_suspects.end()) {
+          out.setGC();
+          scopes_.back().SetGCCauseLocation(
+              clang::FullSourceLoc(call->getExprLoc(), sm_), callee);
+        }
+      }
+      return out;  // Always return out early for virtual calls!
+    }
 
     if (IsKnownToCauseGC(ctx_, callee)) {
       out.setGC();
@@ -1201,15 +1656,17 @@ class FunctionAnalyzer {
          ++s) {
       out = VisitStmt(*s, out);
     }
-    scopes_.pop_back();
+    PopScope();
     return out;
   }
 
   DECL_VISIT_STMT(WhileStmt) {
+    scopes_.push_back(GCScope());
     Block block(env, this);
     do {
       block.Loop(stmt->getCond(), stmt->getBody());
     } while (block.changed());
+    PopScope();
     return block.out();
   }
 
@@ -1233,24 +1690,44 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_STMT(ForStmt) {
+    scopes_.push_back(GCScope());
     Block block(VisitStmt(stmt->getInit(), env), this);
     do {
       block.Loop(stmt->getCond(), stmt->getBody(), stmt->getInc());
     } while (block.changed());
+    PopScope();
     return block.out();
   }
 
   DECL_VISIT_STMT(IfStmt) {
+    scopes_.push_back(GCScope());
     Environment init_out = VisitStmt(stmt->getInit(), env);
     Environment cond_out = VisitStmt(stmt->getCond(), init_out);
+
+    std::vector<GCScope> saved_scopes = scopes_;
+
     Environment then_out = VisitStmt(stmt->getThen(), cond_out);
+    std::vector<GCScope> then_scopes = scopes_;
+
+    scopes_ = saved_scopes;
+
     Environment else_out = VisitStmt(stmt->getElse(), cond_out);
+    std::vector<GCScope> else_scopes = scopes_;
+
+    assert(then_scopes.size() == else_scopes.size());
+    for (size_t i = 0; i < then_scopes.size(); ++i) {
+      scopes_[i] = MergeScopes(then_scopes[i], else_scopes[i]);
+    }
+
+    PopScope();
     return Environment::Merge(then_out, else_out);
   }
 
   DECL_VISIT_STMT(SwitchStmt) {
+    scopes_.push_back(GCScope());
     Block block(env, this);
     block.Sequential(stmt->getCond(), stmt->getBody());
+    PopScope();
     return block.out();
   }
 
@@ -1297,7 +1774,7 @@ class FunctionAnalyzer {
     return record->getDefinition();
   }
 
-  bool IsDerivedFromInternalPointer(const clang::CXXRecordDecl* record) {
+  bool IsTaggedPointer(const clang::CXXRecordDecl* record) {
     if (record == nullptr) return false;
     if (!InV8Namespace(record)) return false;
     auto* specialization =
@@ -1327,7 +1804,38 @@ class FunctionAnalyzer {
                tagged_type_record != cleared_weak_value_decl_;
       }
     }
+    return false;
+  }
 
+  bool IsRawPointerToOnHeapValue(const clang::CXXRecordDecl* record) {
+    if (record == nullptr) return false;
+
+    if (js_dispatch_handle_decl_ &&
+        record->getCanonicalDecl() == js_dispatch_handle_decl_) {
+      return true;
+    }
+    if (js_dispatch_handle_member_decl_ &&
+        record->getCanonicalDecl() == js_dispatch_handle_member_decl_) {
+      return true;
+    }
+    if (unaligned_double_member_decl_ &&
+        record->getCanonicalDecl() == unaligned_double_member_decl_) {
+      return true;
+    }
+
+    auto* specialization =
+        llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(record);
+    if (specialization) {
+      auto* template_decl =
+          specialization->getSpecializedTemplate()->getCanonicalDecl();
+      if ((tagged_member_decl_ && template_decl == tagged_member_decl_) ||
+          (unaligned_value_member_decl_ &&
+           template_decl == unaligned_value_member_decl_)) {
+        return true;
+      }
+    }
+
+    if (!InV8Namespace(record)) return false;
     const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
     if (!definition) return false;
     if (IsDerivedFrom(record, heap_object_decl_)) {
@@ -1336,9 +1844,13 @@ class FunctionAnalyzer {
     return false;
   }
 
+  bool IsOnHeapValue(const clang::CXXRecordDecl* record) {
+    return IsTaggedPointer(record) || IsRawPointerToOnHeapValue(record);
+  }
+
   bool IsRawPointerType(const clang::PointerType* type) {
     const clang::CXXRecordDecl* record = type->getPointeeCXXRecordDecl();
-    bool result = IsDerivedFromInternalPointer(record);
+    bool result = IsRawPointerToOnHeapValue(record);
     TRACE("is raw " << result << " "
                     << (record ? record->getNameAsString() : "nullptr"));
     return result;
@@ -1346,7 +1858,11 @@ class FunctionAnalyzer {
 
   bool IsInternalPointerType(clang::QualType qtype) {
     const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
-    bool result = IsDerivedFromInternalPointer(record);
+    if (record && js_dispatch_handle_decl_ &&
+        record->getCanonicalDecl() == js_dispatch_handle_decl_) {
+      return false;
+    }
+    bool result = IsOnHeapValue(record);
     TRACE_LLVM_TYPE("is internal " << result, qtype);
     return result;
   }
@@ -1432,7 +1948,7 @@ class FunctionAnalyzer {
       scopes_.push_back(GCScope());
       DefineAndVisitParameters(body, env);
       VisitStmt(body->getBody(), env);
-      scopes_.pop_back();
+      PopScope();
       Environment::ClearSymbolTable();
     }
   }
@@ -1471,6 +1987,76 @@ class FunctionAnalyzer {
     return record->getCanonicalDecl() == decl->getCanonicalDecl();
   }
 
+  void PrintGCCauseTree(const std::string& mangled,
+                        std::set<std::string>& visited, int depth = 0,
+                        bool is_caller_virtual = false) {
+    if (depth > 12) return;
+    std::string indent = "";
+    for (int i = 0; i < depth; ++i) indent += "    ";
+
+    auto name_it = demangled_names.find(mangled);
+    std::string disp_name =
+        (name_it != demangled_names.end()) ? name_it->second : mangled;
+
+    size_t pos = disp_name.find("v8::internal::");
+    if (pos != std::string::npos) {
+      disp_name.replace(pos, 14, "");
+    }
+
+    // Strip ugly anonymous namespace TU suffixes (like $_usr_local_...)
+    size_t tu_pos = disp_name.rfind("$_");
+    if (tu_pos != std::string::npos) {
+      size_t end_pos = disp_name.find("::", tu_pos);
+      if (end_pos != std::string::npos) {
+        if (end_pos - tu_pos > 10) {
+          disp_name.erase(tu_pos, end_pos - tu_pos);
+        }
+      } else {
+        if (disp_name.length() - tu_pos > 10) {
+          disp_name.erase(tu_pos);
+        }
+      }
+    }
+
+    // Construct semantic prefixes
+    std::string prefix = "";
+    bool is_virtual = (mangled.compare(0, 8, "VIRTUAL-") == 0) ||
+                      (mangled.compare(0, 12, "VIRTUALTHIS-") == 0);
+    if (is_virtual) {
+      prefix = "(virtual) ";
+    } else if ((mangled.compare(0, 10, "SYNTHOVER-") == 0) ||
+               is_caller_virtual) {
+      prefix = "(override) ";
+    }
+
+    disp_name = prefix + disp_name;
+
+    if (visited.find(mangled) != visited.end()) {
+      std::cout << "note: " << indent << "└── " << disp_name
+                << " [Recursion Cycle]\n";
+      return;
+    }
+
+    std::cout << "note: " << indent << "└── " << disp_name << "\n";
+
+    auto it = gc_causes.find(mangled);
+    if (it == gc_causes.end() || it->second.empty()) {
+      if (mangled == "<GC>") {
+        std::cout << "note: " << indent
+                  << "    └── <GC> [Heap Allocation / Collect Garbage]\n";
+      } else if (mangled == "<Safepoint>") {
+        std::cout << "note: " << indent << "    └── <Safepoint>\n";
+      }
+      return;
+    }
+
+    visited.insert(mangled);
+    for (const auto& callee : it->second) {
+      PrintGCCauseTree(callee, visited, depth + 1, is_virtual);
+    }
+    visited.erase(mangled);  // backtrack
+  }
+
   void ReportUnsafe(const clang::Expr* expr, const std::string& msg) {
     clang::SourceLocation error_loc =
         clang::FullSourceLoc(expr->getExprLoc(), sm_);
@@ -1479,9 +2065,9 @@ class FunctionAnalyzer {
         << msg;
     // Find the relevant GC scope (see HasActiveGuard).
     const GCScope* pscope = nullptr;
-    for (const auto& s : scopes_) {
-      if (!s.IsBeforeGCCause() && s.gccause_location.isValid()) {
-        pscope = &s;
+    for (auto ri = scopes_.rbegin(); ri != scopes_.rend(); ++ri) {
+      if (!ri->IsBeforeGCCause() && ri->gccause_location.isValid()) {
+        pscope = &(*ri);
         break;
       }
     }
@@ -1501,24 +2087,12 @@ class FunctionAnalyzer {
         d_.getCustomDiagID(clang::DiagnosticsEngine::Note, "GC call here."));
 
     if (!g_print_gc_call_chain) return;
-    // TODO(cbruni, v8::10009): print call-chain to gc with proper source
-    // positions.
     LoadGCCauses();
     MangledName name;
     if (!GetMangledName(ctx_, gccause_decl, &name)) return;
     std::cout << "Potential GC call chain:\n";
-    std::set<MangledName> stack;
-    while (true) {
-      if (!stack.insert(name).second) break;
-      std::cout << "\t" << name << "\n";
-      auto next = gc_causes.find(name);
-      if (next == gc_causes.end()) break;
-      std::vector<MangledName> calls = next->second;
-      for (MangledName call : calls) {
-        name = call;
-        if (stack.find(call) != stack.end()) break;
-      }
-    }
+    std::set<std::string> visited;
+    PrintGCCauseTree(name, visited);
   }
 
   clang::MangleContext* ctx_;
@@ -1527,6 +2101,11 @@ class FunctionAnalyzer {
   clang::CXXRecordDecl* tagged_index_decl_;
   clang::CXXRecordDecl* cleared_weak_value_decl_;
   clang::ClassTemplateDecl* tagged_decl_;
+  clang::CXXRecordDecl* js_dispatch_handle_decl_;
+  clang::CXXRecordDecl* js_dispatch_handle_member_decl_;
+  clang::ClassTemplateDecl* tagged_member_decl_;
+  clang::ClassTemplateDecl* unaligned_value_member_decl_;
+  clang::CXXRecordDecl* unaligned_double_member_decl_;
   clang::CXXRecordDecl* no_gc_mole_decl_;
   clang::CXXRecordDecl* conservative_pinning_scope_decl_;
 
@@ -1556,15 +2135,43 @@ class FunctionAnalyzer {
           decl_location);
     }
 
-    // After we set the first GC cause in the scope, we don't need the later
-    // ones.
     void SetGCCauseLocation(clang::FullSourceLoc gccause_location_,
                             clang::FunctionDecl* decl) {
-      if (gccause_location.isValid()) return;
       gccause_location = gccause_location_;
       gccause_decl = decl;
     }
   };
+
+  GCScope MergeScopes(const GCScope& a, const GCScope& b) {
+    GCScope merged = a;
+    if (a.gccause_location.isValid() && b.gccause_location.isValid()) {
+      if (a.gccause_location.isBeforeInTranslationUnitThan(
+              b.gccause_location)) {
+        merged.gccause_location = b.gccause_location;
+        merged.gccause_decl = b.gccause_decl;
+      } else {
+        merged.gccause_location = a.gccause_location;
+        merged.gccause_decl = a.gccause_decl;
+      }
+    } else if (b.gccause_location.isValid()) {
+      merged.gccause_location = b.gccause_location;
+      merged.gccause_decl = b.gccause_decl;
+    }
+    return merged;
+  }
+
+  void PopScope() {
+    if (scopes_.size() > 1) {
+      GCScope& inner = scopes_.back();
+      GCScope& outer = scopes_[scopes_.size() - 2];
+      if (inner.gccause_location.isValid()) {
+        outer.gccause_location = inner.gccause_location;
+        outer.gccause_decl = inner.gccause_decl;
+      }
+    }
+    scopes_.pop_back();
+  }
+
   std::vector<GCScope> scopes_;
 };
 
@@ -1573,15 +2180,21 @@ class ProblemsFinder : public clang::ASTConsumer,
  public:
   ProblemsFinder(clang::DiagnosticsEngine& d, clang::SourceManager& sm,
                  const std::vector<std::string>& args)
-      : d_(d), sm_(sm) {
+      : d_(d), sm_(sm), function_analyzer_(nullptr) {
     for (unsigned i = 0; i < args.size(); ++i) {
+      if (args[i].compare(0, 11, "output-dir:") == 0) {
+        g_output_dir = args[i].substr(11);
+      }
       if (args[i] == "--dead-vars") {
         g_dead_vars_analysis = true;
       }
       if (args[i] == "--verbose-trace") g_tracing_enabled = true;
       if (args[i] == "--verbose") g_verbose = true;
+      if (args[i] == "--print-gc-call-chain") g_print_gc_call_chain = true;
     }
   }
+
+  ~ProblemsFinder() override { delete function_analyzer_; }
 
   bool TranslationUnitIgnored() {
     if (!ignored_files_loaded_) {
@@ -1598,10 +2211,17 @@ class ProblemsFinder : public clang::ASTConsumer,
     }
 
     clang::FileID main_file_id = sm_.getMainFileID();
-    llvm::StringRef filename =
-        sm_.getFileEntryForID(main_file_id)->tryGetRealPathName();
+    auto file_entry = sm_.getFileEntryForID(main_file_id);
+    if (!file_entry) return false;
+    llvm::StringRef filename = file_entry->tryGetRealPathName();
 
-    bool result = ignored_files_.contains(filename);
+    bool result = false;
+    for (const auto& entry : ignored_files_) {
+      if (filename.ends_with(entry.getKey())) {
+        result = true;
+        break;
+      }
+    }
     if (result) {
       llvm::outs() << "Ignoring file " << filename << "\n";
     }
@@ -1638,6 +2258,21 @@ class ProblemsFinder : public clang::ASTConsumer,
     clang::ClassTemplateDecl* tagged_decl =
         v8_internal.Resolve<clang::ClassTemplateDecl>("Tagged");
 
+    clang::CXXRecordDecl* js_dispatch_handle_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("JSDispatchHandle");
+
+    clang::CXXRecordDecl* js_dispatch_handle_member_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("JSDispatchHandleMember");
+
+    clang::ClassTemplateDecl* tagged_member_decl =
+        v8_internal.Resolve<clang::ClassTemplateDecl>("TaggedMember");
+
+    clang::ClassTemplateDecl* unaligned_value_member_decl =
+        v8_internal.Resolve<clang::ClassTemplateDecl>("UnalignedValueMember");
+
+    clang::CXXRecordDecl* unaligned_double_member_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("UnalignedDoubleMember");
+
     if (heap_object_decl != nullptr) {
       heap_object_decl = heap_object_decl->getDefinition();
     }
@@ -1654,12 +2289,38 @@ class ProblemsFinder : public clang::ASTConsumer,
       tagged_decl = tagged_decl->getCanonicalDecl();
     }
 
+    if (js_dispatch_handle_decl != nullptr) {
+      js_dispatch_handle_decl = js_dispatch_handle_decl->getCanonicalDecl();
+    }
+
+    if (js_dispatch_handle_member_decl != nullptr) {
+      js_dispatch_handle_member_decl =
+          js_dispatch_handle_member_decl->getCanonicalDecl();
+    }
+
+    if (tagged_member_decl != nullptr) {
+      tagged_member_decl = tagged_member_decl->getCanonicalDecl();
+    }
+
+    if (unaligned_value_member_decl != nullptr) {
+      unaligned_value_member_decl =
+          unaligned_value_member_decl->getCanonicalDecl();
+    }
+
+    if (unaligned_double_member_decl != nullptr) {
+      unaligned_double_member_decl =
+          unaligned_double_member_decl->getCanonicalDecl();
+    }
+
     if (heap_object_decl != nullptr && smi_decl != nullptr &&
         tagged_index_decl != nullptr && tagged_decl != nullptr) {
       function_analyzer_ = new FunctionAnalyzer(
           clang::ItaniumMangleContext::create(ctx, d_), heap_object_decl,
           smi_decl, tagged_index_decl, cleared_weak_value_decl, tagged_decl,
-          no_gc_mole_decl, conservative_pinning_scope_decl, d_, sm_);
+          js_dispatch_handle_decl, js_dispatch_handle_member_decl,
+          tagged_member_decl, unaligned_value_member_decl,
+          unaligned_double_member_decl, no_gc_mole_decl,
+          conservative_pinning_scope_decl, d_, sm_);
       TraverseDecl(ctx.getTranslationUnitDecl());
     } else if (g_verbose) {
       if (heap_object_decl == nullptr) {

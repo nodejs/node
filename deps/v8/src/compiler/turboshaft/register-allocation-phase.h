@@ -5,6 +5,9 @@
 #ifndef V8_COMPILER_TURBOSHAFT_REGISTER_ALLOCATION_PHASE_H_
 #define V8_COMPILER_TURBOSHAFT_REGISTER_ALLOCATION_PHASE_H_
 
+#ifdef BUILTIN_BLOCK_POSITION
+#include "src/compiler/backend/block-position.h"
+#endif
 #include "src/compiler/backend/frame-elider.h"
 #include "src/compiler/backend/jump-threading.h"
 #include "src/compiler/backend/move-optimizer.h"
@@ -162,6 +165,21 @@ struct OptimizeMovesPhase {
   }
 };
 
+#ifdef BUILTIN_BLOCK_POSITION
+struct BlockPositioningPhase {
+  DECL_TURBOSHAFT_PHASE_CONSTANTS_WITH_LEGACY_NAME(BlockPositioning)
+  static constexpr bool kOutputIsTraceableGraph = false;
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    InstructionSequence* sequence = data->sequence();
+    BlockPositionNumberer block_position_numberer(sequence, temp_zone);
+    ZoneVector<int32_t> block_permutation =
+        block_position_numberer.ComputeProfileGuidedBlockPosition();
+
+    sequence->ReorderBlocks(base::VectorOf(block_permutation));
+  }
+};
+#endif
 struct FrameElisionPhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS_WITH_LEGACY_NAME(FrameElision)
   static constexpr bool kOutputIsTraceableGraph = false;

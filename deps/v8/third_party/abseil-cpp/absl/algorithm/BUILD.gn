@@ -6,16 +6,9 @@ import("//third_party/abseil-cpp/absl.gni")
 
 absl_source_set("algorithm") {
   public = [ "algorithm.h" ]
-  deps = [ "//third_party/abseil-cpp/absl/base:config" ]
-}
-
-absl_source_set("container") {
-  public = [ "container.h" ]
   deps = [
-    ":algorithm",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
-    "//third_party/abseil-cpp/absl/meta:type_traits",
   ]
 }
 
@@ -27,6 +20,18 @@ absl_test("algorithm_test") {
   ]
 }
 
+absl_source_set("container") {
+  public = [ "container.h" ]
+  deps = [
+    ":algorithm",
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:hardening",
+    "//third_party/abseil-cpp/absl/base:iterator_traits_internal",
+    "//third_party/abseil-cpp/absl/meta:type_traits",
+  ]
+}
+
 absl_test("container_test") {
   sources = [ "container_test.cc" ]
   deps = [
@@ -34,7 +39,9 @@ absl_test("container_test") {
     "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:hardening",
     "//third_party/abseil-cpp/absl/memory",
+    "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/random",
     "//third_party/abseil-cpp/absl/types:span",
   ]

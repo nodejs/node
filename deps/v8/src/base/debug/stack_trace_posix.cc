@@ -215,57 +215,61 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   internal::itoa_r(signal, buf, sizeof(buf), 10, 0);
   PrintToStderr(buf);
   if (signal == SIGBUS) {
-    if (info->si_code == BUS_ADRALN)
+    if (info->si_code == BUS_ADRALN) {
       PrintToStderr(" BUS_ADRALN ");
-    else if (info->si_code == BUS_ADRERR)
+    } else if (info->si_code == BUS_ADRERR) {
       PrintToStderr(" BUS_ADRERR ");
-    else if (info->si_code == BUS_OBJERR)
+    } else if (info->si_code == BUS_OBJERR) {
       PrintToStderr(" BUS_OBJERR ");
-    else
+    } else {
       PrintToStderr(" <unknown> ");
+    }
   } else if (signal == SIGFPE) {
-    if (info->si_code == FPE_FLTDIV)
+    if (info->si_code == FPE_FLTDIV) {
       PrintToStderr(" FPE_FLTDIV ");
-    else if (info->si_code == FPE_FLTINV)
+    } else if (info->si_code == FPE_FLTINV) {
       PrintToStderr(" FPE_FLTINV ");
-    else if (info->si_code == FPE_FLTOVF)
+    } else if (info->si_code == FPE_FLTOVF) {
       PrintToStderr(" FPE_FLTOVF ");
-    else if (info->si_code == FPE_FLTRES)
+    } else if (info->si_code == FPE_FLTRES) {
       PrintToStderr(" FPE_FLTRES ");
-    else if (info->si_code == FPE_FLTSUB)
+    } else if (info->si_code == FPE_FLTSUB) {
       PrintToStderr(" FPE_FLTSUB ");
-    else if (info->si_code == FPE_FLTUND)
+    } else if (info->si_code == FPE_FLTUND) {
       PrintToStderr(" FPE_FLTUND ");
-    else if (info->si_code == FPE_INTDIV)
+    } else if (info->si_code == FPE_INTDIV) {
       PrintToStderr(" FPE_INTDIV ");
-    else if (info->si_code == FPE_INTOVF)
+    } else if (info->si_code == FPE_INTOVF) {
       PrintToStderr(" FPE_INTOVF ");
-    else
+    } else {
       PrintToStderr(" <unknown> ");
+    }
   } else if (signal == SIGILL) {
-    if (info->si_code == ILL_BADSTK)
+    if (info->si_code == ILL_BADSTK) {
       PrintToStderr(" ILL_BADSTK ");
-    else if (info->si_code == ILL_COPROC)
+    } else if (info->si_code == ILL_COPROC) {
       PrintToStderr(" ILL_COPROC ");
-    else if (info->si_code == ILL_ILLOPN)
+    } else if (info->si_code == ILL_ILLOPN) {
       PrintToStderr(" ILL_ILLOPN ");
-    else if (info->si_code == ILL_ILLADR)
+    } else if (info->si_code == ILL_ILLADR) {
       PrintToStderr(" ILL_ILLADR ");
-    else if (info->si_code == ILL_ILLTRP)
+    } else if (info->si_code == ILL_ILLTRP) {
       PrintToStderr(" ILL_ILLTRP ");
-    else if (info->si_code == ILL_PRVOPC)
+    } else if (info->si_code == ILL_PRVOPC) {
       PrintToStderr(" ILL_PRVOPC ");
-    else if (info->si_code == ILL_PRVREG)
+    } else if (info->si_code == ILL_PRVREG) {
       PrintToStderr(" ILL_PRVREG ");
-    else
+    } else {
       PrintToStderr(" <unknown> ");
+    }
   } else if (signal == SIGSEGV) {
-    if (info->si_code == SEGV_MAPERR)
+    if (info->si_code == SEGV_MAPERR) {
       PrintToStderr(" SEGV_MAPERR ");
-    else if (info->si_code == SEGV_ACCERR)
+    } else if (info->si_code == SEGV_ACCERR) {
       PrintToStderr(" SEGV_ACCERR ");
-    else
+    } else {
       PrintToStderr(" <unknown> ");
+    }
   }
   if (signal == SIGBUS || signal == SIGFPE || signal == SIGILL ||
       signal == SIGSEGV) {

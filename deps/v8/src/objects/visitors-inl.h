@@ -65,7 +65,7 @@ bool ClientRootVisitor<Visitor>::IsSharedHeapObject(Tagged<Object> object) {
 template <typename Visitor>
 inline void ClientObjectVisitor<Visitor>::VisitMapPointer(
     Tagged<HeapObject> host) {
-  if (!IsSharedHeapObject(host->map(cage_base()))) return;
+  if (!IsSharedHeapObject(host->map())) return;
   actual_visitor_->VisitMapPointer(host);
 }
 
@@ -94,7 +94,7 @@ inline void ClientObjectVisitor<Visitor>::VisitCodeTarget(
 template <typename Visitor>
 inline void ClientObjectVisitor<Visitor>::VisitEmbeddedPointer(
     Tagged<InstructionStream> host, RelocInfo* rinfo) {
-  if (!IsSharedHeapObject(rinfo->target_object(cage_base()))) return;
+  if (!IsSharedHeapObject(rinfo->target_object())) return;
   actual_visitor_->VisitEmbeddedPointer(host, rinfo);
 }
 

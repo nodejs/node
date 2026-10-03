@@ -10,7 +10,7 @@
 
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/sandbox/isolate.h"
 
 namespace v8::internal {

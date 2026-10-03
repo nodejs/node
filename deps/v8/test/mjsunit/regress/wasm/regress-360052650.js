@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging --wasm-inlining-call-indirect
+// Flags: --wasm-inlining-call-indirect
 // Flags: --wasm-inlining-ignore-call-counts --allow-natives-syntax
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.startRecGroup();
-let $array0 = builder.addArray(kWasmI8, true, kNoSuperType, true);
+let $array0 = builder.addArray(kWasmI8, {final: true});
 builder.endRecGroup();
 let $sig5 = builder.addType(makeSig([], [kWasmI32]));
 let callee_017 = builder.addFunction(undefined, $sig5);

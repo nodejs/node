@@ -20,13 +20,23 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-list-format-tq-inl.inc"
+Tagged<String> JSListFormat::locale() const { return locale_.load(); }
+void JSListFormat::set_locale(Tagged<String> value, WriteBarrierMode mode) {
+  locale_.store(this, value, mode);
+}
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSListFormat)
+Tagged<Managed<icu::ListFormatter>> JSListFormat::icu_formatter() const {
+  return Cast<Managed<icu::ListFormatter>>(icu_formatter_.load());
+}
+void JSListFormat::set_icu_formatter(Tagged<Managed<icu::ListFormatter>> value,
+                                     WriteBarrierMode mode) {
+  icu_formatter_.store(this, value, mode);
+}
 
-// Base list format accessors.
-ACCESSORS(JSListFormat, icu_formatter, Tagged<Managed<icu::ListFormatter>>,
-          kIcuFormatterOffset)
+int JSListFormat::flags() const { return flags_.load().value(); }
+void JSListFormat::set_flags(int value) {
+  flags_.store(this, Smi::FromInt(value));
+}
 
 inline void JSListFormat::set_style(Style style) {
   DCHECK(StyleBits::is_valid(style));

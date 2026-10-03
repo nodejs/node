@@ -19,8 +19,8 @@ namespace wasm {
 int WasmExportWrapperCache::CountWrappersForTesting(Isolate* isolate) {
   int num_wrappers = 0;
   Tagged<WeakFixedArray> wrappers = isolate->heap()->js_to_wasm_wrappers();
-  for (int i = kReservedSlots, e = wrappers->length(); i < e;
-       i += kSlotsPerEntry) {
+  const uint32_t wrappers_length = wrappers->length().value();
+  for (uint32_t i = kReservedSlots; i < wrappers_length; i += kSlotsPerEntry) {
     // Each entry consists of two array slots, for key and value:
     // If the key is Smi(kUnused), then the value is also Smi(kUnused).
     // Otherwise the key is Smi(hash) for a non-negative "hash" (sig index
@@ -358,9 +358,7 @@ TEST(WrapperReplacement_IndirectExport) {
     builder->AddExport(base::CStrVector("exported_table"), kExternalTable, 0);
 
     // Point from the exported table to the Wasm function.
-    builder->SetIndirectFunction(
-        table_index, 0, function_index,
-        WasmModuleBuilder::WasmElemSegment::kRelativeToImports);
+    builder->SetIndirectFunction(table_index, 0, function_index);
 
     // Compile the module.
     DirectHandle<WasmInstanceObject> instance =

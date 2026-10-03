@@ -7,6 +7,8 @@
 
 #include <ostream>
 
+#include "src/base/logging.h"
+
 #define ARITHMETIC_BITWISE_OPERATION_LIST(V) \
   V(BitwiseAnd)                              \
   V(BitwiseOr)                               \
@@ -85,6 +87,7 @@ inline std::ostream& operator<<(std::ostream& os, const Operation& operation) {
     OPERATION_LIST(CASE)
 #undef CASE
   }
+  UNREACHABLE();
 }
 
 #endif  // V8_COMMON_OPERATION_H_

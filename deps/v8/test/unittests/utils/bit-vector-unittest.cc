@@ -52,6 +52,23 @@ TEST_F(BitVectorTest, SmallBitVectorIterator) {
   ++iter;
   EXPECT_TRUE(iter == end);
   EXPECT_FALSE(iter != end);
+
+  BitVector::ReverseIterator riter = v.rbegin();
+  BitVector::ReverseIterator rend = v.rend();
+  EXPECT_NE(riter, rend);
+  EXPECT_EQ(33, *riter);
+  ++riter;
+  EXPECT_NE(riter, rend);
+  EXPECT_EQ(31, *riter);
+  ++riter;
+  EXPECT_NE(riter, rend);
+  EXPECT_EQ(30, *riter);
+  ++riter;
+  EXPECT_NE(riter, rend);
+  EXPECT_EQ(27, *riter);
+  ++riter;
+  EXPECT_TRUE(riter == rend);
+  EXPECT_FALSE(riter != rend);
 }
 
 TEST_F(BitVectorTest, Union) {
@@ -146,6 +163,19 @@ TEST_F(BitVectorTest, BigBitVectorIterator) {
   ++iter;
   EXPECT_EQ(iter, end);
 
+  auto riter = v.rbegin();
+  auto rend = v.rend();
+  EXPECT_NE(riter, rend);
+  EXPECT_EQ(499, *riter);
+  ++riter;
+  EXPECT_NE(riter, rend);
+  EXPECT_EQ(300, *riter);
+  ++riter;
+  EXPECT_NE(riter, rend);
+  EXPECT_EQ(27, *riter);
+  ++riter;
+  EXPECT_EQ(riter, rend);
+
   // Remove small entries, add another big one.
   v.Resize(1000, zone());
   v.Remove(27);
@@ -160,6 +190,16 @@ TEST_F(BitVectorTest, BigBitVectorIterator) {
   EXPECT_EQ(500, *iter);
   ++iter;
   EXPECT_EQ(iter, end);
+
+  riter = v.rbegin();
+  rend = v.rend();
+  EXPECT_NE(riter, rend);
+  EXPECT_EQ(500, *riter);
+  ++riter;
+  EXPECT_NE(riter, rend);
+  EXPECT_EQ(499, *riter);
+  ++riter;
+  EXPECT_EQ(riter, rend);
 }
 
 TEST_F(BitVectorTest, MoveConstructorInline) {

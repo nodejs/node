@@ -1,0 +1,35 @@
+header: nl_types.h
+standards:
+  - posix
+macros:
+  - macro_name: NL_SETD
+    macro_header: nl_types-macros.h
+  - macro_name: NL_CAT_LOCALE
+    macro_header: nl_types-macros.h
+types:
+  - type_name: nl_catd
+enums: []
+objects: []
+functions:
+  - name: catopen
+    standards:
+      - posix
+    return_type: nl_catd
+    arguments:
+      - type: const char *
+      - type: int
+  - name: catclose
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: nl_catd
+  - name: catgets
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: nl_catd
+      - type: int
+      - type: int
+      - type: const char*

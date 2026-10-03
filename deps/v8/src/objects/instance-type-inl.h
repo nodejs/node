@@ -98,10 +98,6 @@ constexpr std::array<std::pair<InstanceTypeRange, TaggedAddressRange>, 9>
            LAST_SMALL_ORDERED_HASH_TABLE_TYPE},
           {StaticReadOnlyRoot::kSmallOrderedHashMapMap,
            StaticReadOnlyRoot::kSmallOrderedNameDictionaryMap}},
-         {{FIRST_ABSTRACT_INTERNAL_CLASS_TYPE,
-           LAST_ABSTRACT_INTERNAL_CLASS_TYPE},
-          {StaticReadOnlyRoot::kAbstractInternalClassSubclass1Map,
-           StaticReadOnlyRoot::kAbstractInternalClassSubclass2Map}},
          {{FIRST_TURBOFAN_TYPE_TYPE, LAST_TURBOFAN_TYPE_TYPE},
           {StaticReadOnlyRoot::kTurbofanBitsetTypeMap,
            StaticReadOnlyRoot::kTurbofanOtherNumberConstantTypeMap}}}};
@@ -343,6 +339,34 @@ V8_INLINE bool IsSeqString(Tagged<Map> map_object) {
 #endif
 }
 
+V8_INLINE constexpr bool IsSeqOneByteString(InstanceType instance_type) {
+  return (instance_type &
+          (kIsNotStringMask | kStringRepresentationAndEncodingMask)) ==
+         (kStringTag | kSeqOneByteStringTag);
+}
+
+V8_INLINE bool IsSeqOneByteString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  return IsSeqString(map_object) && IsOneByteString(map_object);
+#else
+  return IsSeqOneByteString(map_object->instance_type());
+#endif
+}
+
+V8_INLINE constexpr bool IsSeqTwoByteString(InstanceType instance_type) {
+  return (instance_type &
+          (kIsNotStringMask | kStringRepresentationAndEncodingMask)) ==
+         (kStringTag | kSeqTwoByteStringTag);
+}
+
+V8_INLINE bool IsSeqTwoByteString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  return IsSeqString(map_object) && IsTwoByteString(map_object);
+#else
+  return IsSeqTwoByteString(map_object->instance_type());
+#endif
+}
+
 V8_INLINE constexpr bool IsExternalString(InstanceType instance_type) {
   return (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
          kExternalStringTag;
@@ -354,6 +378,34 @@ V8_INLINE bool IsExternalString(Tagged<Map> map_object) {
                                map_object);
 #else
   return IsExternalString(map_object->instance_type());
+#endif
+}
+
+V8_INLINE constexpr bool IsExternalOneByteString(InstanceType instance_type) {
+  return (instance_type &
+          (kIsNotStringMask | kStringRepresentationAndEncodingMask)) ==
+         (kStringTag | kExternalOneByteStringTag);
+}
+
+V8_INLINE bool IsExternalOneByteString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  return IsExternalString(map_object) && IsOneByteString(map_object);
+#else
+  return IsExternalOneByteString(map_object->instance_type());
+#endif
+}
+
+V8_INLINE constexpr bool IsExternalTwoByteString(InstanceType instance_type) {
+  return (instance_type &
+          (kIsNotStringMask | kStringRepresentationAndEncodingMask)) ==
+         (kStringTag | kExternalTwoByteStringTag);
+}
+
+V8_INLINE bool IsExternalTwoByteString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  return IsExternalString(map_object) && IsTwoByteString(map_object);
+#else
+  return IsExternalTwoByteString(map_object->instance_type());
 #endif
 }
 
@@ -537,10 +589,6 @@ V8_INLINE bool IsFreeSpaceOrFiller(Tagged<Map> map) {
 #else   // !V8_STATIC_ROOTS_BOOL
   return IsFreeSpaceOrFiller(map->instance_type());
 #endif  // !V8_STATIC_ROOTS_BOOL
-}
-
-V8_INLINE bool IsHole(InstanceType instance_type) {
-  return instance_type == HOLE_TYPE;
 }
 
 // These JSObject types are wrappers around a set of primitive values

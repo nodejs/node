@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging --cpu-profiler-sampling-interval=10
+// Flags: --cpu-profiler-sampling-interval=10
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 

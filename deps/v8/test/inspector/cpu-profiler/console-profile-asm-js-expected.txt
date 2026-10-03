@@ -1,9 +1,0 @@
-Test console profiles for asm.js.
-testEnableProfilerEarly
-Compiling asm.js module with sentinel 0.
-testEnableProfilerLate
-Compiling asm.js module with sentinel 1.
-testEnableProfilerAfterDebugger
-Compiling asm.js module with sentinel 2.
-testEnableProfilerBeforeDebugger
-Compiling asm.js module with sentinel 3.

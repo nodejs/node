@@ -377,12 +377,14 @@ bool SourceTextModuleDescriptor::Validate(
   for (const auto& elem : regular_exports_) {
     const Entry* entry = elem.second;
     DCHECK_NOT_NULL(entry->local_name);
-    if (module_scope->LookupLocal(entry->local_name) == nullptr) {
+    Variable* var = module_scope->LookupLocal(entry->local_name);
+    if (var == nullptr) {
       error_handler->ReportMessageAt(
           entry->location.beg_pos, entry->location.end_pos,
           MessageTemplate::kModuleExportUndefined, entry->local_name);
       return false;
     }
+    var->set_is_used();
   }
 
   MakeIndirectExportsExplicit(zone);

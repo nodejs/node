@@ -111,6 +111,10 @@ class Driver(object):
         logging.critical('Missing file on host: %s' % file_on_host)
       return
 
+    if os.path.isdir(file_on_host):
+      self.push_files_rec(file_on_host, os.path.join(target_rel, file_name))
+      return
+
     # Work-around for 'text file busy' errors. Push the files to a temporary
     # location and then copy them with a shell command.
     output = self.device.adb.Push(file_on_host, file_on_device_tmp)
@@ -167,8 +171,14 @@ class Driver(object):
         return False
     return True
 
-  def run(self, target_dir, binary, args, rel_path, timeout, env=None,
-          logcat_file=False):
+  def run(self,
+          target_dir,
+          binary,
+          args,
+          rel_path,
+          timeout,
+          env=None,
+          logcat_file=None):
     """Execute a command on the device's shell.
 
     Args:

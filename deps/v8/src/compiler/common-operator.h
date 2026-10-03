@@ -596,7 +596,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Terminate();
 
   const Operator* Start(int value_output_count);
-  const Operator* Loop(int control_input_count);
+  const Operator* Loop(int control_input_count,
+                       const FeedbackSource& feedback = {});
   const Operator* Merge(int control_input_count);
   const Operator* Parameter(int index, const char* debug_name = nullptr);
 

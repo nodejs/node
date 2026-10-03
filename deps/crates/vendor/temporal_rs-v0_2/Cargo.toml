@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.86.0"
 name = "temporal_rs"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["boa-dev"]
 build = false
 exclude = [

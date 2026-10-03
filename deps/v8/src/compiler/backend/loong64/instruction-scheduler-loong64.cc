@@ -12,6 +12,13 @@ namespace compiler {
 // TODO(LOONG_dev): LOONG64 Support instruction scheduler.
 bool InstructionScheduler::SchedulerSupported() { return false; }
 
+ResourceAllocation InstructionScheduler::GetResourceTable() { UNREACHABLE(); }
+
+ArchInstResource InstructionScheduler::GetInstructionResource(
+    const Instruction* instr) {
+  UNREACHABLE();
+}
+
 int InstructionScheduler::GetTargetInstructionFlags(
     const Instruction* instr) const {
   UNREACHABLE();

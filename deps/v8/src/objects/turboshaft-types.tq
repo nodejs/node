@@ -8,6 +8,7 @@ extern enum AbortReason { kTurboshaftTypeAssertionFailed, ...}
 
 extern macro Abort(constexpr AbortReason): never;
 
+@cppScope('TurboshaftFloatSpecialValues')
 bitfield struct TurboshaftFloatSpecialValues extends uint32 {
   nan: bool: 1 bit;
   minus_zero: bool: 1 bit;
@@ -15,37 +16,30 @@ bitfield struct TurboshaftFloatSpecialValues extends uint32 {
 }
 
 @abstract
+@cppObjectLayoutDefinition
 extern class TurboshaftType extends HeapObject {}
 
-@generateBodyDescriptor
-@generateUniqueMap
-@generateFactoryFunction
+@abstract
+@cppObjectLayoutDefinition
 extern class TurboshaftWord32Type extends TurboshaftType {}
 
-@generateBodyDescriptor
-@generateUniqueMap
-@generateFactoryFunction
+@cppObjectLayoutDefinition
 extern class TurboshaftWord32RangeType extends TurboshaftWord32Type {
   from: uint32;
   to: uint32;
 }
 
-@generateBodyDescriptor
-@generateUniqueMap
-@generateFactoryFunction
+@cppObjectLayoutDefinition
 extern class TurboshaftWord32SetType extends TurboshaftWord32Type {
   const set_size: uint32;
   elements[set_size]: uint32;
 }
 
-@generateBodyDescriptor
-@generateUniqueMap
-@generateFactoryFunction
+@abstract
+@cppObjectLayoutDefinition
 extern class TurboshaftWord64Type extends TurboshaftType {}
 
-@generateBodyDescriptor
-@generateUniqueMap
-@generateFactoryFunction
+@cppObjectLayoutDefinition
 extern class TurboshaftWord64RangeType extends TurboshaftWord64Type {
   from_high: uint32;
   from_low: uint32;
@@ -53,34 +47,27 @@ extern class TurboshaftWord64RangeType extends TurboshaftWord64Type {
   to_low: uint32;
 }
 
-@generateBodyDescriptor
-@generateUniqueMap
-@generateFactoryFunction
+@cppObjectLayoutDefinition
 extern class TurboshaftWord64SetType extends TurboshaftWord64Type {
   const set_size: uint32;
   elements_high[set_size]: uint32;
   elements_low[set_size]: uint32;
 }
 
-@generateBodyDescriptor
-@generateUniqueMap
-@generateFactoryFunction
+@abstract
+@cppObjectLayoutDefinition
 extern class TurboshaftFloat64Type extends TurboshaftType {
   special_values: TurboshaftFloatSpecialValues;
 }
 
-@generateBodyDescriptor
-@generateUniqueMap
-@generateFactoryFunction
+@cppObjectLayoutDefinition
 extern class TurboshaftFloat64RangeType extends TurboshaftFloat64Type {
   _padding: uint32;
   min: float64;
   max: float64;
 }
 
-@generateBodyDescriptor
-@generateUniqueMap
-@generateFactoryFunction
+@cppObjectLayoutDefinition
 extern class TurboshaftFloat64SetType extends TurboshaftFloat64Type {
   const set_size: uint32;
   elements[set_size]: float64;
@@ -239,8 +226,8 @@ builtin CheckTurboshaftFloat64Type(
 }
 
 @customInterfaceDescriptor
-builtin DebugPrintWord32(implicit context: Context)(prefix: String|Smi,
-                          value: uint32): Undefined {
+builtin DebugPrintWord32(
+    implicit context: Context)(prefix: String|Smi, value: uint32): Undefined {
   typeswitch (prefix) {
     case (Smi): {
       Print(kCStringNull, value);
@@ -253,8 +240,8 @@ builtin DebugPrintWord32(implicit context: Context)(prefix: String|Smi,
 }
 
 @customInterfaceDescriptor
-builtin DebugPrintWord64(implicit context: Context)(prefix: String|Smi,
-                          value: uint64): Undefined {
+builtin DebugPrintWord64(
+    implicit context: Context)(prefix: String|Smi, value: uint64): Undefined {
   if constexpr (Is64()) {
     typeswitch (prefix) {
       case (Smi): {
@@ -272,8 +259,8 @@ builtin DebugPrintWord64(implicit context: Context)(prefix: String|Smi,
 }
 
 @customInterfaceDescriptor
-builtin DebugPrintFloat32(implicit context: Context)(prefix: String|Smi,
-                           value: float32): Undefined {
+builtin DebugPrintFloat32(
+    implicit context: Context)(prefix: String|Smi, value: float32): Undefined {
   typeswitch (prefix) {
     case (Smi): {
       Print(kCStringNull, value);
@@ -299,8 +286,8 @@ builtin DebugPrintFloat64(
   return Undefined;
 }
 
-builtin DebugPrintObject(implicit context: Context)(prefix: String|Smi,
-                          value: Object): Undefined {
+builtin DebugPrintObject(
+    implicit context: Context)(prefix: String|Smi, value: Object): Undefined {
   typeswitch (prefix) {
     case (Smi): {
       typeswitch (value) {

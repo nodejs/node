@@ -757,12 +757,12 @@ struct CommonOperatorGlobalCache final {
       kBeginRegionNotObservableOperator;
 
   template <size_t kInputCount>
-  struct LoopOperator final : public Operator {
+  struct LoopOperator final : public Operator1<FeedbackSource> {
     LoopOperator()
-        : Operator(                                 // --
+        : Operator1<FeedbackSource>(                // --
               IrOpcode::kLoop, Operator::kKontrol,  // opcode
               "Loop",                               // name
-              0, 0, kInputCount, 0, 0, 1) {}        // counts
+              0, 0, kInputCount, 0, 0, 1, {}) {}    // counts
   };
 #define CACHED_LOOP(input_count) \
   LoopOperator<input_count> kLoop##input_count##Operator;
@@ -1197,24 +1197,26 @@ const Operator* CommonOperatorBuilder::Start(int value_output_count) {
       0, 0, 0, value_output_count, 1, 1);                          // counts
 }
 
-
-const Operator* CommonOperatorBuilder::Loop(int control_input_count) {
-  switch (control_input_count) {
+const Operator* CommonOperatorBuilder::Loop(int control_input_count,
+                                            const FeedbackSource& feedback) {
+  if (!feedback.IsValid()) {
+    switch (control_input_count) {
 #define CACHED_LOOP(input_count) \
   case input_count:              \
     return &cache_.kLoop##input_count##Operator;
-    CACHED_LOOP_LIST(CACHED_LOOP)
+      CACHED_LOOP_LIST(CACHED_LOOP)
 #undef CACHED_LOOP
-    default:
-      break;
+      default:
+        break;
+    }
   }
   // Uncached.
-  return zone()->New<Operator>(             // --
-      IrOpcode::kLoop, Operator::kKontrol,  // opcode
-      "Loop",                               // name
-      0, 0, control_input_count, 0, 0, 1);  // counts
+  return zone()->New<Operator1<FeedbackSource>>(  // --
+      IrOpcode::kLoop, Operator::kKontrol,        // opcode
+      "Loop",                                     // name
+      0, 0, control_input_count, 0, 0, 1,         // counts
+      feedback);                                  // parameter
 }
-
 
 const Operator* CommonOperatorBuilder::Merge(int control_input_count) {
   switch (control_input_count) {
