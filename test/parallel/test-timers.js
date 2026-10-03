@@ -65,8 +65,8 @@ inputs.forEach((value, index) => {
   }, value);
 });
 
-// All values in inputs array coerce to 1 ms. Therefore, they should all run
-// before a timer set here for 2 ms.
+// All values in inputs array coerce to a short delay (0 ms or 1 ms).
+// Therefore, they should all run before a timer set here for 2 ms.
 
 setTimeout(common.mustCall(() => {
   // Assert that all other timers have run
