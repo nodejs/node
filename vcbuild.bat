@@ -237,7 +237,7 @@ if "%target_env%"=="vs2026" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2026
 if "%*"=="lint" if exist "%node_exe%" goto lint-cpp
 
 :: skip building if the only argument received was format-md
-if "%*"=="format-md" if exist "%node_exe%" goto format-md
+if "%*"=="format-md" if exist "%node_exe%" goto lint-md-build
 
 if "%config%"=="Debug"      set configure_flags=%configure_flags% --debug
 if defined nosnapshot       set configure_flags=%configure_flags% --without-snapshot
@@ -900,6 +900,7 @@ for /D %%D IN (doc\*) do (
 )
 %node_exe% tools\lint-md\lint-md.mjs --format %lint_md_files%
 ENDLOCAL
+goto exit
 
 :no-lint
 echo Linting is not available through the source tarball.
