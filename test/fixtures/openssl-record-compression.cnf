@@ -1,0 +1,11 @@
+nodejs_conf = nodejs_init
+
+[nodejs_init]
+ssl_conf = ssl_configuration
+
+[ssl_configuration]
+system_default = tls_system_default
+
+[tls_system_default]
+Options = Compression
+CipherString = DEFAULT:@SECLEVEL=1
