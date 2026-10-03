@@ -3,14 +3,10 @@ const common = require('../common');
 const assert = require('assert');
 const EventEmitter = require('events');
 
-// Tests that the error stack where the exception was thrown is *not* appended.
+// Tests that the error stack where the exception was emitted is appended.
 
 process.on('uncaughtException', common.mustCall((err) => {
-  const [firstLine, ...lines] = err.stack.split('\n');
-  assert.strictEqual(firstLine, 'Error');
-  for (const line of lines) {
-    assert.match(line, /^ {4}at/);
-  }
+  assert.match(err.stack, /Emitted 'error' event at:/);
 }));
 
 new EventEmitter().emit('error', new Error());
