@@ -322,8 +322,7 @@ v8: ## Build deps/v8.
 
 .PHONY: jstest
 ## Run addon tests and JS tests.
-jstest: build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests $(TRACE_PROCESSOR_SHELL_PATH))
-	@out/$(BUILDTYPE)/cctest --gtest_list_tests
+jstest: build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests $(TRACE_PROCESSOR_SHELL_PATH)
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
 		$(TEST_CI_ARGS) \
 		--skip-tests=$(CI_SKIP_TESTS) \
