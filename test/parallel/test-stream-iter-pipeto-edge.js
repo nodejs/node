@@ -5,7 +5,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { pipeToSync, fromSync } = require('stream/iter');
+const { pipeTo, pipeToSync, fromSync } = require('stream/iter');
 
 // pipeToSync cannot complete when endSync() requires async fallback.
 async function testPipeToSyncEndSyncFailure() {
@@ -68,9 +68,46 @@ async function testPipeToSyncPreventClose() {
   assert.strictEqual(endCalled, false);
 }
 
+// An exception thrown by writer.fail() must not replace the error that made
+// the pipe fail.
+async function testFailThrowingDoesNotMaskError() {
+  const cause = new Error('write failed');
+  const syncWriter = {
+    writeSync() { throw cause; },
+    endSync: common.mustNotCall(),
+    fail: common.mustCall((error) => {
+      assert.strictEqual(error, cause);
+      throw new Error('fail() threw');
+    }),
+  };
+  assert.throws(() => pipeToSync(fromSync('data'), syncWriter),
+                (error) => error === cause);
+
+  const asyncWriter = {
+    async write() { throw cause; },
+    end: common.mustNotCall(),
+    fail: common.mustCall((error) => {
+      assert.strictEqual(error, cause);
+      throw new Error('fail() threw');
+    }),
+  };
+  await assert.rejects(pipeTo(fromSync('data'), asyncWriter),
+                       (error) => error === cause);
+
+  // Same for the already-aborted signal path of pipeTo().
+  const signal = AbortSignal.abort();
+  await assert.rejects(
+    pipeTo(fromSync('data'), {
+      write: common.mustNotCall(),
+      fail() { throw new Error('fail() threw'); },
+    }, { signal }),
+    (error) => error === signal.reason);
+}
+
 Promise.all([
   testPipeToSyncEndSyncFailure(),
   testPipeToSyncNoEndSync(),
   testPipeToSyncPreventFail(),
   testPipeToSyncPreventClose(),
+  testFailThrowingDoesNotMaskError(),
 ]).then(common.mustCall());
