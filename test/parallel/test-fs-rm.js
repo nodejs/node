@@ -225,6 +225,30 @@ if (isGitPresent) {
     message: /^ENOENT: no such file or directory, lstat/
   });
 
+  // Should preserve the errno for errors returned by std::filesystem.
+  // Refs: https://github.com/nodejs/node/issues/65884
+  if (common.isLinux) {
+    const dotDir = nextDirPath('rm-dot');
+    fs.mkdirSync(path.join(dotDir, 'child'), { recursive: true });
+    try {
+      assert.throws(() => {
+        fs.rmSync(path.join(dotDir, '.'), common.mustNotMutateObjectDeep({
+          force: true,
+          recursive: true,
+        }));
+      }, {
+        code: 'EINVAL',
+        errno: -22,
+        syscall: 'rm',
+      });
+    } finally {
+      fs.rmSync(dotDir, common.mustNotMutateObjectDeep({
+        force: true,
+        recursive: true,
+      }));
+    }
+  }
+
   // Should delete a file
   const filePath = tmpdir.resolve('rm-file.txt');
   fs.writeFileSync(filePath, '');
