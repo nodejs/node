@@ -723,8 +723,12 @@ added:
 
 Create a lazy async pipeline. Source conversion and streamable protocol
 dispatch occur when `pull()` is called, but data is not read from `source`
-until the returned iterable is consumed. A signal that is already aborted is
-thrown synchronously after source conversion. Transforms are applied in order.
+until the returned iterable is consumed. Transforms are applied in order.
+
+When `signal` aborts, the pending read (or the next one) rejects with
+`signal.reason`, and so does every later read. If `signal` is already aborted,
+`pull()` still returns an iterable; reading from it rejects with
+`signal.reason` without reading from `source`.
 
 ```mjs
 import { from, pull, text } from 'node:stream/iter';
