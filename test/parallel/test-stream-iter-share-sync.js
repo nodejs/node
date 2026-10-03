@@ -227,6 +227,43 @@ function testShareSyncStrictForOfDoesNotWedgeOthers() {
   assert.strictEqual(count, 20);
 }
 
+function testShareSyncDropOldestSplitsOversizedBatches() {
+  // fromSync() combines the values of this generator into a single batch
+  // that is much larger than the budget. Evicting that batch as a whole would
+  // leave the slower consumer with nothing at all.
+  function* source() {
+    for (let i = 0; i < 50; i++) {
+      const chunk = new Uint8Array(4096);
+      chunk[0] = i;
+      yield chunk;
+    }
+  }
+  const shared = shareSync(source(), {
+    budget: 65536,
+    backpressure: 'drop-oldest',
+  });
+  const fast = shared.pull()[Symbol.iterator]();
+  const slow = shared.pull()[Symbol.iterator]();
+
+  const fastSeen = [];
+  for (let r = fast.next(); !r.done; r = fast.next()) {
+    for (const chunk of r.value) fastSeen.push(chunk[0]);
+  }
+  assert.deepStrictEqual(fastSeen, Array.from({ length: 50 }, (_, i) => i));
+
+  const slowSeen = [];
+  for (let r = slow.next(); !r.done; r = slow.next()) {
+    for (const chunk of r.value) slowSeen.push(chunk[0]);
+  }
+  // The slow consumer lost the oldest chunks but keeps an in-order suffix
+  // that fits the budget.
+  assert.ok(slowSeen.length > 0);
+  assert.ok(slowSeen.length * 4096 < 65536);
+  assert.deepStrictEqual(
+    slowSeen,
+    Array.from({ length: slowSeen.length }, (_, i) => 50 - slowSeen.length + i));
+}
+
 function testShareSyncStringSource() {
   const shared = shareSync('hello-sync-share');
   const result = textSync(shared.pull());
@@ -243,6 +280,7 @@ Promise.all([
   testShareSyncSourceError(),
   testShareSyncRejectsUnbounded(),
   testShareSyncRejectsDropNewest(),
+  testShareSyncDropOldestSplitsOversizedBatches(),
   testShareSyncStringSource(),
   testShareSyncRetainsBufferWhenAllConsumersDetach(),
   testShareSyncStrictBackpressureDetaches(),
