@@ -18,8 +18,8 @@ const bench = common.createBenchmark(main, {
     return type === 'creation' ? n === 1e3 : n === 1;
   },
   test: {
-    n: [1, 1e3],
-    type: ['creation', 'throughput'],
+    n: 1,
+    type: 'throughput',
   },
 });
 

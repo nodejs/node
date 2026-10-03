@@ -44,6 +44,7 @@ class SimpleTestCase(test.TestCase):
     super(SimpleTestCase, self).__init__(context, path, arch, mode)
     self.file = file
     self.config = config
+    self.parallel = config.parallel
     self.arch = arch
     self.mode = mode
     if additional is not None:
@@ -128,6 +129,8 @@ class SimpleTestCase(test.TestCase):
 
 
 class SimpleTestConfiguration(test.TestConfiguration):
+  parallel = True
+
   def __init__(self, context, root, section, additional=None):
     super(SimpleTestConfiguration, self).__init__(context, root, section)
     if additional is not None:
@@ -152,17 +155,8 @@ class SimpleTestConfiguration(test.TestConfiguration):
   def GetBuildRequirements(self):
     return ['sample', 'sample=shell']
 
-class ParallelTestConfiguration(SimpleTestConfiguration):
-  def __init__(self, context, root, section, additional=None):
-    super(ParallelTestConfiguration, self).__init__(context, root, section,
-                                                    additional)
-
-  def ListTests(self, current_path, path, arch, mode):
-    result = super(ParallelTestConfiguration, self).ListTests(
-         current_path, path, arch, mode)
-    for tst in result:
-      tst.parallel = True
-    return result
+class SerialTestConfiguration(SimpleTestConfiguration):
+  parallel = False
 
 class AddonTestConfiguration(SimpleTestConfiguration):
   def __init__(self, context, root, section, additional=None):
@@ -187,6 +181,10 @@ class AddonTestConfiguration(SimpleTestConfiguration):
         result.append(
             SimpleTestCase(tst, file_path, arch, mode, self.context, self, self.additional_flags))
     return result
+
+class SerialAddonTestConfiguration(AddonTestConfiguration):
+  parallel = False
+
 
 class AbortTestConfiguration(SimpleTestConfiguration):
   def __init__(self, context, root, section, additional=None):

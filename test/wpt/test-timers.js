@@ -4,7 +4,8 @@ const assert = require('assert');
 const { basename } = require('path');
 const { WPTRunner } = require('../common/wpt');
 
-const runner = new WPTRunner('html/webappapis/timers', { concurrency: 1 });
+// Keep timing-sensitive tests out of the parallel runner phase.
+const runner = new WPTRunner('html/webappapis/timers', { concurrency: 1, serial: true });
 
 runner.setScriptModifier((script) => {
   if (!['type-long-settimeout.any.js', 'type-long-setinterval.any.js']

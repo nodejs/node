@@ -23,7 +23,7 @@ function main({ type, len, c, duration }) {
   const w1 = cluster.fork();
   const w2 = cluster.fork();
 
-  cluster.on('listening', () => {
+  cluster.on('listening', (worker, address) => {
     workers++;
     if (workers < 2)
       return;
@@ -32,6 +32,7 @@ function main({ type, len, c, duration }) {
       const path = `/${type}/${len}`;
 
       bench.http({
+        port: address.port,
         path: path,
         connections: c,
         duration,

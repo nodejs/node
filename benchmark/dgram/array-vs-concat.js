@@ -25,6 +25,7 @@ function main({ dur, len, n, type, chunks }) {
   // Server
   let sent = 0;
   const socket = dgram.createSocket('udp4');
+  let port;
   const onsend = type === 'concat' ? onsendConcat : onsendMulti;
 
   function onsendConcat() {
@@ -33,7 +34,7 @@ function main({ dur, len, n, type, chunks }) {
       // that only perform synchronous I/O on nonblocking UDP sockets.
       setImmediate(() => {
         for (let i = 0; i < n; i++) {
-          socket.send(Buffer.concat(chunk), PORT, '127.0.0.1', onsend);
+          socket.send(Buffer.concat(chunk), port, '127.0.0.1', onsend);
         }
       });
     }
@@ -45,13 +46,14 @@ function main({ dur, len, n, type, chunks }) {
       // that only perform synchronous I/O on nonblocking UDP sockets.
       setImmediate(() => {
         for (let i = 0; i < n; i++) {
-          socket.send(chunk, PORT, '127.0.0.1', onsend);
+          socket.send(chunk, port, '127.0.0.1', onsend);
         }
       });
     }
   }
 
   socket.on('listening', () => {
+    port = socket.address().port;
     bench.start();
     onsend();
 

@@ -63,6 +63,7 @@ if (process.argv[2] !== 'child') {
   let i = 0;
   let done = 0;
   let timer = null;
+  let port;
 
   // Exit the test if it doesn't succeed within TIMEOUT
   timer = setTimeout(() => {
@@ -171,9 +172,13 @@ if (process.argv[2] !== 'child') {
 
   // Bind the address explicitly for sending
   // INADDR_BROADCAST to only one interface
-  sendSocket.bind(common.PORT, bindAddress);
+  sendSocket.bind(0, bindAddress);
   sendSocket.on('listening', () => {
     sendSocket.setBroadcast(true);
+    port = sendSocket.address().port;
+    for (const worker of Object.values(workers)) {
+      worker.send(port);
+    }
   });
 
   sendSocket.on('close', () => {
@@ -194,12 +199,12 @@ if (process.argv[2] !== 'child') {
       buf,
       0,
       buf.length,
-      common.PORT,
+      port,
       LOCAL_BROADCAST_HOST,
       common.mustSucceed(() => {
         console.error('[PARENT] sent %s to %s:%s',
                       util.inspect(buf.toString()),
-                      LOCAL_BROADCAST_HOST, common.PORT);
+                      LOCAL_BROADCAST_HOST, port);
 
         process.nextTick(sendSocket.sendNext);
       }),
@@ -248,5 +253,5 @@ if (process.argv[2] === 'child') {
 
   listenSocket.on('listening', () => { process.send({ listening: true }); });
 
-  listenSocket.bind(common.PORT);
+  process.once('message', common.mustCall((port) => listenSocket.bind(port)));
 }

@@ -1,4 +1,4 @@
-import sys, os, multiprocessing, shutil
+import sys, os, shutil
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import testpy
 
@@ -15,14 +15,13 @@ def GetConfiguration(context, root):
     vm = context.GetVm('none', preferred_mode)
 
   if not os.path.isfile(vm):
-    return testpy.SimpleTestConfiguration(context, root, 'sea')
+    return testpy.SerialTestConfiguration(context, root, 'sea')
 
   # Get the size of the executable to decide whether we can run tests in parallel.
   executable_size = os.path.getsize(vm)
-  num_cpus = multiprocessing.cpu_count()
   remaining_disk_space = shutil.disk_usage('.').free
   # Give it a bit of leeway by multiplying by 3.
-  if (executable_size * num_cpus * 3 > remaining_disk_space):
-    return testpy.SimpleTestConfiguration(context, root, 'sea')
+  if (executable_size * context.jobs * 3 > remaining_disk_space):
+    return testpy.SerialTestConfiguration(context, root, 'sea')
 
-  return testpy.ParallelTestConfiguration(context, root, 'sea')
+  return testpy.SimpleTestConfiguration(context, root, 'sea')

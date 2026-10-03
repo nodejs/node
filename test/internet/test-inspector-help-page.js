@@ -9,7 +9,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const https = require('https');
 const { spawnSync } = require('child_process');
-const child = spawnSync(process.execPath, ['--inspect', '-e', '""']);
+const child = spawnSync(process.execPath, ['--inspect=0', '-e', '""']);
 const stderr = child.stderr.toString();
 const helpUrl = stderr.match(/For help, see: (.+)/)[1];
 

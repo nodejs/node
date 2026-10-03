@@ -18,6 +18,7 @@ function main({ type, len, chunks, c, chunkedEnc, duration }) {
     const path = `/${type}/${len}/${chunks}/${chunkedEnc}`;
 
     bench.http({
+      port: server.address().port,
       path,
       connections: c,
       scheme: 'https',

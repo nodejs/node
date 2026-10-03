@@ -44,7 +44,7 @@ class WPTTestCase(testpy.SimpleTestCase):
     return configuration
 
 
-class WPTTestConfiguration(testpy.SimpleTestConfiguration):
+class WPTTestConfiguration(testpy.SerialTestConfiguration):
   def __init__(self, context, root):
     super(WPTTestConfiguration, self).__init__(context, root, 'wpt')
     self.manifests = {}

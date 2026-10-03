@@ -12,6 +12,7 @@ let clientConn = 0;
 let serverConn = 0;
 let dur;
 let concurrency;
+let port;
 let running = true;
 
 function main(conf) {
@@ -30,6 +31,7 @@ function main(conf) {
 }
 
 function onListening() {
+  port = this.address().port;
   setTimeout(done, dur * 1000);
   bench.start();
   for (let i = 0; i < concurrency; i++)
@@ -42,7 +44,7 @@ function onConnection(conn) {
 
 function makeConnection() {
   const options = {
-    port: common.PORT,
+    port,
     rejectUnauthorized: false,
   };
   const conn = tls.connect(options, () => {

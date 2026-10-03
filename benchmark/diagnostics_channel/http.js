@@ -22,6 +22,7 @@ function main({ apm, connections, duration, type, len, chunks, chunkedEnc }) {
     .on('listening', () => {
       const path = `/${type}/${len}/${chunks}/normal/${chunkedEnc}`;
       bench.http({
+        port: server.address().port,
         path,
         connections,
         duration,

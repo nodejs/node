@@ -2,7 +2,7 @@
 
 const { WPTRunner } = require('../common/wpt');
 
-// Run serially to avoid cross-test interference on the shared LockManager.
+// Standalone worker threads share a LockManager; managed groups have their own process.
 const runner = new WPTRunner('web-locks', { concurrency: 1 });
 
 runner.pretendGlobalThisAs('Window');

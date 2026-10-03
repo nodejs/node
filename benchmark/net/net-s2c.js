@@ -76,6 +76,7 @@ function main({ dur, sendchunklen, type, recvbuflen, recvbufgenfn }) {
   });
 
   server.listen(PORT, () => {
+    socketOpts.port = server.address().port;
     const socket = net.connect(socketOpts);
     socket.on('connect', () => {
       bench.start();

@@ -86,6 +86,7 @@ function main({ dur, type, sendchunklen, recvbuflen, recvbufgenfn }) {
 
   let conn;
   server.listen(common.PORT, () => {
+    socketOpts.port = server.address().port;
     conn = tls.connect(socketOpts, () => {
       setTimeout(done, dur * 1000);
       bench.start();

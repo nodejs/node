@@ -12,7 +12,7 @@ const fixtures = require('../../test/common/fixtures');
 const tls = require('tls');
 const net = require('net');
 
-const REDIRECT_PORT = 28347;
+const REDIRECT_PORT = common.PORT === 0 ? 0 : 28347;
 
 function main({ dur, size, securing }) {
   const chunk = Buffer.alloc(size, 'b');
@@ -33,7 +33,7 @@ function main({ dur, size, securing }) {
     const proxy = net.createServer(onProxyConnection);
     proxy.listen(common.PORT, () => {
       const clientOptions = {
-        port: common.PORT,
+        port: proxy.address().port,
         ca: options.ca,
         key: options.key,
         cert: options.cert,
@@ -66,7 +66,7 @@ function main({ dur, size, securing }) {
   });
 
   function onProxyConnection(conn) {
-    const client = net.connect(REDIRECT_PORT, () => {
+    const client = net.connect(server.address().port, () => {
       switch (securing) {
         case 'TLSSocket':
           secureTLSSocket(conn, client);

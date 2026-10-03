@@ -32,6 +32,7 @@ function main({ asyncHooks, connections, duration }) {
       const path = '/buffer/4/4/normal/1';
 
       bench.http({
+        port: server.address().port,
         connections,
         path,
         duration,

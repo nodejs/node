@@ -39,6 +39,11 @@ function main({ dur, len, type }) {
   if (err)
     fail(err, 'listen');
 
+  const address = {};
+  err = serverHandle.getsockname(address);
+  if (err)
+    fail(err, 'getsockname');
+
   serverHandle.onconnection = function(err, clientHandle) {
     if (err)
       fail(err, 'connect');
@@ -89,7 +94,7 @@ function main({ dur, len, type }) {
 
     const clientHandle = new TCP(TCPConstants.SOCKET);
     const connectReq = new TCPConnectWrap();
-    const err = clientHandle.connect(connectReq, '127.0.0.1', PORT);
+    const err = clientHandle.connect(connectReq, '127.0.0.1', address.port);
 
     if (err)
       fail(err, 'connect');

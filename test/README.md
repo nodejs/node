@@ -33,10 +33,33 @@ For the tests to run on Windows, be sure to clone Node.js source code with the
 | `parallel`       | Yes        | Various tests that are able to be run in parallel.                                                            |
 | `pseudo-tty`     | Yes        | Tests that require stdin/stdout/stderr to be a TTY.                                                           |
 | `pummel`         | No         | Various tests for various modules / system functionality operating under load.                                |
-| `sequential`     | Yes        | Various tests that must not run in parallel.                                                                  |
+| `sequential`     | Yes        | Tests that run sequentially within each filename subsystem.                                                   |
 | `testpy`         | _N/A_      | Test configuration utility used by various test suites.                                                       |
 | `tick-processor` | No         | Tests for the V8 tick processor integration.[^4]                                                              |
 | `v8-updates`     | No         | Tests for V8 performance integration.                                                                         |
+
+Tests run in parallel by default. Suite configurations opt out with
+`SerialTestConfiguration`, or `SerialAddonTestConfiguration` for addon layouts.
+The `addons`, `js-native-api`, `known_issues`, `node-api`,
+and `pummel` suites explicitly run serially. WPT timer groups also run serially;
+managed web-locks and webstorage groups have isolated processes and run in
+parallel. SEA's disk-space guard uses the requested worker count.
+
+Benchmark smoke tests use TCP/UDP ports selected by the OS.
+Internet tests also allocate their listening ports dynamically.
+
+The test runner finishes parallel tests first, followed by serial suites, then
+`sequential` tests. In `sequential`, different subsystems can run concurrently
+up to the worker count selected with `-j`. The subsystem is the first filename
+component after `test-`, so `test-net-server-bind.js` and
+`test-net-connect-econnrefused.js` cannot overlap, while a `test-fs-*` test can run
+alongside them. Each worker gets a separate range of 100 ports through
+`NODE_COMMON_PORT`, starting at 12346 or the configured `NODE_COMMON_PORT` base.
+Tests and their child processes retain that range through retries. With `-j1`,
+the existing port environment is preserved. Multi-worker runs require a base
+that leaves room for every worker's range below port 65536.
+Ports specified independently of `common.PORT` and other shared resources
+still require isolation.
 
 [^1]: [Documentation](../test/common/README.md)
 
