@@ -379,6 +379,7 @@ class ZstdCompressContext final : public ZstdContext {
 
   uint64_t pledged_src_size_ = ZSTD_CONTENTSIZE_UNKNOWN;
   std::optional<uint64_t> consumed_src_size_;
+  bool frame_ended_ = false;
 
   // A frame is complete once ZSTD_compressStream2() has been called with
   // ZSTD_e_end and has returned 0. Resetting an incomplete frame is only unsafe
@@ -1772,6 +1773,7 @@ CompressionError ZstdCompressContext::Init(uint64_t pledged_src_size,
                                            std::string_view dictionary,
                                            bool) {
   pledged_src_size_ = pledged_src_size;
+  frame_ended_ = false;
   frame_complete_ = true;
   frame_output_emitted_ = false;
   if (pledged_src_size == ZSTD_CONTENTSIZE_UNKNOWN) {
@@ -1844,6 +1846,7 @@ CompressionError ZstdCompressContext::ResetStream() {
   } else {
     consumed_src_size_ = 0;
   }
+  frame_ended_ = false;
   frame_complete_ = true;
   frame_output_emitted_ = false;
   error_ = ZSTD_error_no_error;
@@ -1853,6 +1856,10 @@ CompressionError ZstdCompressContext::ResetStream() {
 }
 
 void ZstdCompressContext::DoThreadPoolWork() {
+  // Ending an already ended frame would append an empty one.
+  if (frame_ended_ && input_.size == 0) {
+    return;
+  }
   // Zstd overrides a configured pledge when the first call uses ZSTD_e_end.
   size_t const input_pos = input_.pos;
   size_t const remaining =
@@ -1860,6 +1867,7 @@ void ZstdCompressContext::DoThreadPoolWork() {
   if (consumed_src_size_.has_value()) {
     *consumed_src_size_ += input_.pos - input_pos;
   }
+  frame_ended_ = remaining == 0 && flush_ == ZSTD_e_end;
   if (output_.pos > 0) {
     frame_output_emitted_ = true;
   }
