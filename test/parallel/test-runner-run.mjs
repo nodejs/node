@@ -239,32 +239,28 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     });
   });
 
-  it('should include test type in enqueue, dequeue events', async (t) => {
-    const stream = await run({
-      files: [join(testFixtures, 'default-behavior/test/suite_and_test.cjs')],
+  for (const randomize of [false, true]) {
+    it(`should include test type in enqueue, dequeue events (randomize=${randomize})`, async (t) => {
+      const stream = await run({
+        files: [join(testFixtures, 'default-behavior/test/suite_and_test.cjs')],
+        randomize,
+        randomSeed: randomize ? 1 : undefined,
+      });
+      t.plan(4);
+      stream.on('test:enqueue', common.mustCall(3));
+      stream.on('test:dequeue', common.mustCall(3));
+
+      for await (const { type, data } of stream) {
+        if (type !== 'test:enqueue' && type !== 'test:dequeue') continue;
+        if (data.name === 'this is a suite') {
+          t.assert.strictEqual(data.type, 'suite');
+        }
+        if (data.name === 'this is a test') {
+          t.assert.strictEqual(data.type, 'test');
+        }
+      }
     });
-    t.plan(4);
-
-    stream.on('test:enqueue', common.mustCall((data) => {
-      if (data.name === 'this is a suite') {
-        t.assert.strictEqual(data.type, 'suite');
-      }
-      if (data.name === 'this is a test') {
-        t.assert.strictEqual(data.type, 'test');
-      }
-    }, 3));
-    stream.on('test:dequeue', common.mustCall((data) => {
-      if (data.name === 'this is a suite') {
-        t.assert.strictEqual(data.type, 'suite');
-      }
-      if (data.name === 'this is a test') {
-        t.assert.strictEqual(data.type, 'test');
-      }
-    }, 3));
-
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
-  });
+  }
 
   describe('AbortSignal', () => {
     it('should accept a signal', async () => {
