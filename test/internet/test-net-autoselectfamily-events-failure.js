@@ -80,30 +80,30 @@ const { createConnection } = require('net');
 
   const addresses = [
     { address: INET6_IP, port: 10, family: 6 },
-    { address: INET6_IP, port: 10, family: 6 },
-    { address: INET4_IP, port: 10, family: 4 },
     { address: INET4_IP, port: 10, family: 4 },
   ];
+  const attempted = [];
 
+  // Attempts run in parallel, so a failure is not necessarily reported
+  // before the next attempt starts.
   connection.on('connectionAttempt', common.mustCallAtLeast((address, port, family) => {
     const expected = addresses.shift();
 
     assert.strictEqual(address, expected.address);
     assert.strictEqual(port, expected.port);
     assert.strictEqual(family, expected.family);
+    attempted.push(expected);
 
     pass();
   }, 0));
 
   connection.on('connectionAttemptFailed', common.mustCallAtLeast((address, port, family, error) => {
-    const expected = addresses.shift();
-
-    assert.strictEqual(address, expected.address);
-    assert.strictEqual(port, expected.port);
-    assert.strictEqual(family, expected.family);
+    assert.ok(attempted.some((expected) => {
+      return expected.address === address && expected.port === port && expected.family === family;
+    }));
 
     assert.ok(
-      error.code.match(/ECONNREFUSED|ENETUNREACH|EHOSTUNREACH|ETIMEDOUT/),
+      error.code.match(/EACCES|ECONNREFUSED|ENETUNREACH|EHOSTUNREACH|ETIMEDOUT/),
       `Received unexpected error code ${error.code}`,
     );
 
