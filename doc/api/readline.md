@@ -724,6 +724,10 @@ added: v17.0.0
   * `tabSize` {integer} The number of spaces a tab is equal to (minimum 1).
     **Default:** `8`.
   * `signal` {AbortSignal} Allows closing the interface using an AbortSignal.
+  * `unicodeLineSeparators` {boolean} If `true`, `\u2028` (LINE SEPARATOR) and
+    `\u2029` (PARAGRAPH SEPARATOR) are treated as line endings. If `false`,
+    only `\r\n`, `\n`, and `\r` are treated as line endings.
+    **Default:** `true`.
 * Returns: {readlinePromises.Interface}
 
 The `readlinePromises.createInterface()` method creates a new `readlinePromises.Interface`
