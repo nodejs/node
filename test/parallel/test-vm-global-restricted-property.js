@@ -18,3 +18,11 @@ assert.throws(
   () => vm.runInContext('let foo = 2;', ctx),
   vm.runInContext('SyntaxError', ctx),
 );
+
+// Global function declarations create non-configurable bindings even
+// though the corresponding sandbox properties are configurable.
+vm.runInContext('function bar() {}', ctx);
+assert.throws(
+  () => vm.runInContext('let bar;', ctx),
+  vm.runInContext('SyntaxError', ctx),
+);

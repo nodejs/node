@@ -534,6 +534,19 @@ Intercepted ContextifyContext::PropertyQueryCallback(
     if (!maybe_attr.FromMaybe(false)) {
       return Intercepted::kNo;
     }
+
+    // Function declarations can be reflected as configurable sandbox
+    // properties while V8 tracks their non-configurable global bindings.
+    PropertyAttribute global_attr;
+    if (ctx->global_proxy()
+            ->GetRealNamedPropertyAttributes(context, property)
+            .To(&global_attr)) {
+      attr = static_cast<PropertyAttribute>(
+          static_cast<int>(attr) |
+          (static_cast<int>(global_attr) &
+           static_cast<int>(PropertyAttribute::DontDelete)));
+    }
+
     args.GetReturnValue().Set(attr);
     return Intercepted::kYes;
   } else {
