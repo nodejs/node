@@ -657,3 +657,89 @@ if (isGitPresent) {
   // Clean up parent directory
   fs.rmSync(dirname, { recursive: true, force: true });
 }
+
+// Test that rm/rmSync normalize '.' and '..' in paths before processing.
+// Regression test for https://github.com/nodejs/node/issues/61958
+{
+  const cases = [
+    { segments: ['a', 'b', '..', '.'], target: 'a' },
+    { segments: ['a', 'b', '..'], target: 'a' },
+    { segments: ['a', '.'], target: 'a' },
+    { segments: ['a', 'b', 'c', '.'], target: path.join('a', 'b', 'c') },
+    { segments: ['a', 'b', 'c', '..', '..'], target: 'a' },
+    { segments: ['a', 'b', 'c', 'd', '..', '..', '..'], target: 'a' },
+    { segments: ['a', 'b', '..', '.', 'b'], target: path.join('a', 'b') },
+    { segments: ['.', 'a'], target: 'a' },
+  ];
+
+  for (const { segments, target } of cases) {
+    // rmSync with string path
+    {
+      const base = nextDirPath('rm-dot-sync-str');
+      fs.mkdirSync(path.join(base, 'a', 'b', 'c', 'd'),
+                   common.mustNotMutateObjectDeep({ recursive: true }));
+      const weirdPath = [base, ...segments].join(path.sep);
+      fs.rmSync(weirdPath, common.mustNotMutateObjectDeep({ recursive: true, force: true }));
+      assert.strictEqual(fs.existsSync(path.join(base, target)), false);
+    }
+
+    // rmSync with Buffer path
+    {
+      const base = nextDirPath('rm-dot-sync-buf');
+      fs.mkdirSync(path.join(base, 'a', 'b', 'c', 'd'),
+                   common.mustNotMutateObjectDeep({ recursive: true }));
+      const weirdPath = Buffer.from([base, ...segments].join(path.sep));
+      fs.rmSync(weirdPath, common.mustNotMutateObjectDeep({ recursive: true, force: true }));
+      assert.strictEqual(fs.existsSync(path.join(base, target)), false);
+    }
+
+    // fs.rm (callback) with string path
+    {
+      const base = nextDirPath('rm-dot-cb-str');
+      fs.mkdirSync(path.join(base, 'a', 'b', 'c', 'd'),
+                   common.mustNotMutateObjectDeep({ recursive: true }));
+      const weirdPath = [base, ...segments].join(path.sep);
+      fs.rm(weirdPath,
+            common.mustNotMutateObjectDeep({ recursive: true, force: true }),
+            common.mustSucceed(() => {
+              assert.strictEqual(fs.existsSync(path.join(base, target)), false);
+            }));
+    }
+
+    // fs.promises.rm with string path
+    {
+      const base = nextDirPath('rm-dot-prom-str');
+      fs.mkdirSync(path.join(base, 'a', 'b', 'c', 'd'),
+                   common.mustNotMutateObjectDeep({ recursive: true }));
+      const weirdPath = [base, ...segments].join(path.sep);
+      fs.promises.rm(weirdPath,
+                     common.mustNotMutateObjectDeep({ recursive: true, force: true }))
+        .then(common.mustCall(() => {
+          assert.strictEqual(fs.existsSync(path.join(base, target)), false);
+        }));
+    }
+
+    // fs.promises.rm with Buffer path
+    {
+      const base = nextDirPath('rm-dot-prom-buf');
+      fs.mkdirSync(path.join(base, 'a', 'b', 'c', 'd'),
+                   common.mustNotMutateObjectDeep({ recursive: true }));
+      const weirdPath = Buffer.from([base, ...segments].join(path.sep));
+      fs.promises.rm(weirdPath,
+                     common.mustNotMutateObjectDeep({ recursive: true, force: true }))
+        .then(common.mustCall(() => {
+          assert.strictEqual(fs.existsSync(path.join(base, target)), false);
+        }));
+    }
+  }
+
+  // Non-UTF-8 Buffer path byte preservation test
+  {
+    const base = nextDirPath('rm-dot-buf-latin1');
+    fs.mkdirSync(path.join(base, 'a', 'b'),
+                 common.mustNotMutateObjectDeep({ recursive: true }));
+    const bufPath = Buffer.from([base, 'a', 'b', '..', '.'].join(path.sep));
+    fs.rmSync(bufPath, common.mustNotMutateObjectDeep({ recursive: true, force: true }));
+    assert.strictEqual(fs.existsSync(path.join(base, 'a')), false);
+  }
+}
