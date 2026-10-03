@@ -507,12 +507,35 @@ function testFromUndefinedThrows() {
   assert.throws(() => from(undefined), { code: 'ERR_INVALID_ARG_TYPE' });
 }
 
+async function testFromFunctionWithProtocols() {
+  // Functions are objects and may implement the protocols.
+  function asyncSource() {}
+  asyncSource[Symbol.for('Stream.toAsyncStreamable')] =
+    async () => 'async-function';
+  assert.strictEqual(await text(from(asyncSource)), 'async-function');
+
+  function syncSource() {}
+  syncSource[Symbol.for('Stream.toStreamable')] = () => 'sync-function';
+  assert.strictEqual(await text(from(syncSource)), 'sync-function');
+
+  async function* nested() {
+    yield asyncSource;
+    yield syncSource;
+  }
+  assert.strictEqual(await text(from(nested())),
+                     'async-functionsync-function');
+
+  // A function without a protocol is still rejected.
+  assert.throws(() => from(() => {}), { code: 'ERR_INVALID_ARG_TYPE' });
+}
+
 Promise.all([
   testFromString(),
   testFromAsyncGenerator(),
   testFromAsyncIteratorResultShapes(),
   testFromSourceErrorDoesNotWaitForReturn(),
   testFromBoundsNestedAsyncIterable(),
+  testFromFunctionWithProtocols(),
   testFromDoesNotHoldBackNestedAsyncIterable(),
   testFromBoundsPreBatchedAsyncValues(),
   testFromSyncIterableAsAsync(),

@@ -239,6 +239,17 @@ function testFromSyncUndefinedThrows() {
   assert.throws(() => fromSync(undefined), { code: 'ERR_INVALID_ARG_TYPE' });
 }
 
+function testFromSyncFunctionWithToStreamable() {
+  // Functions are objects and may implement the protocol.
+  function source() {}
+  source[Symbol.for('Stream.toStreamable')] = () => 'from-function';
+  assert.strictEqual(textSync(fromSync(source)), 'from-function');
+  // ...also when nested inside another source.
+  assert.strictEqual(textSync(fromSync([source, '!'])), 'from-function!');
+  // A function without a protocol is still rejected.
+  assert.throws(() => fromSync(() => {}), { code: 'ERR_INVALID_ARG_TYPE' });
+}
+
 Promise.all([
   testFromSyncString(),
   testFromSyncUint8Array(),
@@ -260,4 +271,5 @@ Promise.all([
   testFromSyncPrefersIteratorForThenableIterable(),
   testFromSyncRejectsPromise(),
   testFromSyncDataView(),
+  testFromSyncFunctionWithToStreamable(),
 ]).then(common.mustCall());
