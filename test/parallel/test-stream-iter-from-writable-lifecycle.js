@@ -202,7 +202,7 @@ async function testAlreadyFinished() {
   const writer = fromWritable(writable);
   assert.strictEqual(writer.canWrite, null);
   await assert.rejects(writer.write('a'),
-                       { code: 'ERR_STREAM_WRITE_AFTER_END' });
+                       { code: 'ERR_STREAM_WRITE_AFTER_END', name: 'TypeError' });
   assert.strictEqual(await writer.end(), 0);
   assertNoTerminalListeners(writable);
 }
@@ -215,7 +215,7 @@ async function testAlreadyDestroyed() {
   const writer = fromWritable(writable);
   assert.strictEqual(writer.canWrite, null);
   await assert.rejects(writer.write('a'),
-                       { code: 'ERR_STREAM_WRITE_AFTER_END' });
+                       { code: 'ERR_STREAM_WRITE_AFTER_END', name: 'TypeError' });
   assertNoTerminalListeners(writable);
 }
 
