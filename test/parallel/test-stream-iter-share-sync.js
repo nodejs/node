@@ -264,6 +264,50 @@ function testShareSyncDropOldestSplitsOversizedBatches() {
     Array.from({ length: slowSeen.length }, (_, i) => 50 - slowSeen.length + i));
 }
 
+function testShareSyncReentrantSourceRead() {
+  const enc = new TextEncoder();
+  let sibling;
+  let reentrantError;
+  function* source() {
+    yield [enc.encode('a')];
+    try {
+      sibling.next();
+    } catch (err) {
+      reentrantError = err;
+    }
+    yield [enc.encode('b')];
+  }
+  const shared = shareSync(source());
+  const c1 = shared.pull()[Symbol.iterator]();
+  sibling = shared.pull()[Symbol.iterator]();
+
+  assert.deepStrictEqual(c1.next().value, [enc.encode('a')]);
+  assert.deepStrictEqual(sibling.next().value, [enc.encode('a')]);
+  // Pulling 'b' runs the source, which tries to read its own share.
+  assert.deepStrictEqual(c1.next().value, [enc.encode('b')]);
+  assert.strictEqual(reentrantError?.code, 'ERR_INVALID_STATE');
+  // The failed re-entrant read left the share intact.
+  assert.deepStrictEqual(sibling.next().value, [enc.encode('b')]);
+  assert.strictEqual(c1.next().done, true);
+  assert.strictEqual(sibling.next().done, true);
+}
+
+function testShareSyncReentrantSourceReadUncaught() {
+  let sibling;
+  function* source() {
+    yield [new Uint8Array(1)];
+    sibling.next();
+  }
+  const shared = shareSync(source());
+  const c1 = shared.pull()[Symbol.iterator]();
+  sibling = shared.pull()[Symbol.iterator]();
+  c1.next();
+  sibling.next();
+  // The error escapes the source, so it becomes the share's source error.
+  assert.throws(() => c1.next(), { code: 'ERR_INVALID_STATE' });
+  assert.throws(() => sibling.next(), { code: 'ERR_INVALID_STATE' });
+}
+
 function testShareSyncStringSource() {
   const shared = shareSync('hello-sync-share');
   const result = textSync(shared.pull());
@@ -281,6 +325,8 @@ Promise.all([
   testShareSyncRejectsUnbounded(),
   testShareSyncRejectsDropNewest(),
   testShareSyncDropOldestSplitsOversizedBatches(),
+  testShareSyncReentrantSourceRead(),
+  testShareSyncReentrantSourceReadUncaught(),
   testShareSyncStringSource(),
   testShareSyncRetainsBufferWhenAllConsumersDetach(),
   testShareSyncStrictBackpressureDetaches(),
