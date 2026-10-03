@@ -1,0 +1,13 @@
+[v3_ca]
+basicConstraints = critical,CA:TRUE,pathlen:0
+keyUsage = critical,keyCertSign,cRLSign
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+
+[v3_leaf]
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth,clientAuth
+subjectAltName = DNS:localhost,IP:127.0.0.1
+authorityInfoAccess = caIssuers;URI:http://127.0.0.1:12347/intermediate.der,\
+                      OCSP;URI:http://127.0.0.1:12347/ocsp
