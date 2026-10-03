@@ -989,6 +989,27 @@ int32_t FastCompare(Local<Value>,
 
 static CFunction fast_compare(CFunction::Make(FastCompare));
 
+bool IsImmutableImpl(Local<Value> view) {
+  return view.As<ArrayBufferView>()->Buffer()->IsImmutable();
+}
+
+void SlowIsImmutable(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsArrayBufferView());
+  args.GetReturnValue().Set(IsImmutableImpl(args[0]));
+}
+
+bool FastIsImmutable(Local<Value>,
+                     Local<Value> view,
+                     // NOLINTNEXTLINE(runtime/references)
+                     FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.isImmutable");
+  HandleScope scope(options.isolate);
+
+  return IsImmutableImpl(view);
+}
+
+static CFunction fast_is_immutable(CFunction::Make(FastIsImmutable));
+
 // Computes the offset for starting an indexOf or lastIndexOf search.
 // Returns either a valid offset in [0...<length - 1>], ie inside the Buffer,
 // or -1 to signal that there is no possible match.
@@ -1927,6 +1948,8 @@ void Initialize(Local<Object> target,
                             &fast_byte_length_utf8);
   SetFastMethod(context, target, "copy", SlowCopy, &fast_copy);
   SetFastMethodNoSideEffect(context, target, "compare", Compare, &fast_compare);
+  SetFastMethodNoSideEffect(
+      context, target, "isImmutable", SlowIsImmutable, &fast_is_immutable);
   SetMethodNoSideEffect(context, target, "compareOffset", CompareOffset);
   SetMethod(context, target, "fill", Fill);
   SetMethodNoSideEffect(context, target, "indexOfBuffer", IndexOfBuffer);
@@ -2014,6 +2037,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(fast_copy);
   registry->Register(Compare);
   registry->Register(fast_compare);
+  registry->Register(SlowIsImmutable);
+  registry->Register(fast_is_immutable);
   registry->Register(CompareOffset);
   registry->Register(Fill);
   registry->Register(IndexOfBuffer);
