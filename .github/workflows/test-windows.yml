@@ -1,0 +1,137 @@
+name: Test Windows
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - '**.md'
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - codecov.yml
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/actions/**
+      - tools/dep_updaters/**
+      - tools/doc/**
+      - tools/eslint-rules/**
+      - tools/eslint/**
+      - tools/lint-md/**
+      - tools/nix/**
+      - typings/**
+      - .**
+      - '!.github/workflows/test-windows.yml'
+  push:
+    branches:
+      - main
+      - canary
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+    paths-ignore:
+      - '**.md'
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - codecov.yml
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/actions/**
+      - tools/dep_updaters/**
+      - tools/doc/**
+      - tools/eslint-rules/**
+      - tools/eslint/**
+      - tools/lint-md/**
+      - tools/nix/**
+      - typings/**
+      - .**
+      - '!.github/workflows/test-windows.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.14'
+  FLAKY_TESTS: keep_retrying
+  RUSTC_VERSION: '1.88'
+  CCACHE_VERSION: '4.14'
+  test_ci_args: --measure-flakiness 9
+
+permissions:
+  contents: read
+
+jobs:
+  test-windows:
+    if: github.event.pull_request.draft == false
+    runs-on: windows-2025
+    env:
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_MAXSIZE: 2G
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+      - name: Install NASM
+        run: choco install nasm --yes --no-progress
+      - name: Install Rust ${{ env.RUSTC_VERSION }}
+        run: rustup override set "%RUSTC_VERSION%" && rustup --version
+      - name: Set up ccache
+        id: ccache
+        if: github.base_ref == 'main' || github.ref_name == 'main'
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'ccache.zip'
+          Invoke-WebRequest "https://github.com/ccache/ccache/releases/download/v$env:CCACHE_VERSION/ccache-$env:CCACHE_VERSION-windows-x86_64.zip" -OutFile $archive
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne '2568347a697e103ca1b073981c704ad76fb2507d066c38dba038dd73399d968f') {
+            throw 'ccache checksum mismatch'
+          }
+          Expand-Archive $archive -DestinationPath $env:RUNNER_TEMP
+          $wrapperDir = Join-Path $env:RUNNER_TEMP "ccache-$env:CCACHE_VERSION-windows-x86_64"
+          # vcbuild expects a compiler-masquerading executable named clang-cl.exe.
+          Copy-Item (Join-Path $wrapperDir 'ccache.exe') (Join-Path $wrapperDir 'clang-cl.exe')
+          $wrapperDir | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          # Use the Visual Studio compiler that vcbuild selects, not a standalone LLVM installation.
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $vs = & $vswhere -latest -prerelease -products * -version '[17.6,19.0)' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.Llvm.Clang Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset -property installationPath
+          $compiler = Join-Path $vs 'VC\Tools\Llvm\x64\bin\clang-cl.exe'
+          if (-not (Test-Path $compiler)) { throw 'Visual Studio clang-cl.exe not found' }
+          "CCACHE_COMPILER=$compiler" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "CCACHE_DIR=$env:RUNNER_TEMP\ccache" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "VCBUILD_CACHE_ARGS=ccache `"$wrapperDir`"" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Restore compiler cache
+        if: github.base_ref == 'main' || github.ref_name == 'main'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: windows-2025-${{ runner.arch }}-ccache-v1-${{ env.CCACHE_VERSION }}-${{ github.sha }}
+          restore-keys: |
+            windows-2025-${{ runner.arch }}-ccache-v1-${{ env.CCACHE_VERSION }}-
+      - name: Build
+        run: vcbuild.bat clang-cl v8temporal cctest %VCBUILD_CACHE_ARGS%
+      - name: Show compiler cache statistics
+        if: always() && steps.ccache.outcome == 'success'
+        run: ccache --show-stats
+      - name: Test JavaScript
+        run: vcbuild.bat noprojgen nobuild test-ci-js
+      - name: Test native
+        run: vcbuild.bat noprojgen nobuild test-ci-native
