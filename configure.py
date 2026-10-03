@@ -551,8 +551,7 @@ shared_optgroup.add_argument('--shared-perfetto',
     action='store_true',
     dest='shared_perfetto',
     default=None,
-    help='link to a shared perfetto SDK instead of the one in deps/perfetto '
-         '(requires --with-perfetto)')
+    help='link to a shared perfetto SDK instead of the one in deps/perfetto')
 
 shared_optgroup.add_argument('--shared-perfetto-includes',
     action='store',
@@ -3067,6 +3066,7 @@ Path('config.status').chmod(0o775)
 config = {
   'BUILDTYPE': 'Debug' if options.debug else 'Release',
   'NODE_TARGET_TYPE': variables['node_target_type'],
+  'V8_USE_PERFETTO': str(variables['v8_use_perfetto']),
 }
 
 # Not needed for trivial case. Useless when it's a win32 path.
