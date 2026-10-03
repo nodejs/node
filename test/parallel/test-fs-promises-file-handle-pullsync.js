@@ -473,6 +473,31 @@ async function testPullArgumentValidation() {
 // Run all tests
 // =============================================================================
 
+// =============================================================================
+// An iterable that is never consumed must not lock the handle
+// =============================================================================
+
+async function testPullSyncUnconsumedDoesNotLock() {
+  const filePath = path.join(tmpDir, 'pullsync-unconsumed.txt');
+  fs.writeFileSync(filePath, 'unconsumed');
+
+  const fh = await open(filePath, 'r');
+  try {
+    fh.pullSync();
+    // Returning an iterator that never started must not unlock or close
+    // the handle on behalf of another consumer.
+    fh.pullSync()[Symbol.iterator]().return();
+    const iter = fh.pullSync()[Symbol.iterator]();
+    assert.strictEqual(iter.next().done, false);
+    assert.throws(() => fh.writer(), { code: 'ERR_INVALID_STATE' });
+    iter.return();
+    const w = fh.writer();
+    assert.strictEqual(w.endSync(), 0);
+  } finally {
+    await fh.close();
+  }
+}
+
 Promise.all([
   testBasicPullSync(),
   testLargeFile(),
@@ -495,4 +520,5 @@ Promise.all([
   testPullSyncChunkSize(),
   testWriterChunkSize(),
   testPullArgumentValidation(),
+  testPullSyncUnconsumedDoesNotLock(),
 ]).then(common.mustCall());
