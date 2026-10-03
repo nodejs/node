@@ -707,6 +707,11 @@ Synchronous version of [`pipeTo()`][]. The `source`, all transforms, and the
 The `writer` must have the `*Sync` methods (`writeSync`, `writevSync`,
 `endSync`) and `fail()` for this to work.
 
+If `writer.endSync()` returns `-1` because the writer cannot close
+synchronously (for example, a [`push()`][] writer whose consumer has not read
+all of the data yet), `pipeToSync()` falls back to calling `writer.end()`
+without waiting for it, and returns normally.
+
 ### `pull(source[, ...transforms][, options])`
 
 <!-- YAML
@@ -2278,6 +2283,7 @@ console.log(textSync(stream)); // 'hello world'
 [`pipeTo()`]: #pipetosource-transforms-writer-options
 [`pull()`]: #pullsource-transforms-options
 [`pullSync()`]: #pullsyncsource-transforms
+[`push()`]: #pushtransforms-options
 [`share()`]: #sharesource-options
 [`stream.Readable`]: stream.md#class-streamreadable
 [`stream.Writable`]: stream.md#class-streamwritable
