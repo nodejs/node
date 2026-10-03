@@ -990,6 +990,10 @@ changes:
     **Default:** `8`.
   * `signal` {AbortSignal} Allows closing the interface using an AbortSignal.
     Aborting the signal will internally call `close` on the interface.
+  * `unicodeLineSeparators` {boolean} If `true`, `\u2028` (LINE SEPARATOR) and
+    `\u2029` (PARAGRAPH SEPARATOR) are treated as line endings. If `false`,
+    only `\r\n`, `\n`, and `\r` are treated as line endings.
+    **Default:** `true`.
 * Returns: {readline.Interface}
 
 The `readline.createInterface()` method creates a new `readline.Interface`
