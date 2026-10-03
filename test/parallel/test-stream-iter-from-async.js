@@ -105,6 +105,27 @@ async function testFromBoundsNestedAsyncIterable() {
   assert.strictEqual(nestedClosed, true);
 }
 
+async function testFromBoundsPreBatchedAsyncValues() {
+  // An async source yielding an already-batched Uint8Array[] larger than the
+  // batch bound is split, like the same batch from a sync source.
+  const big = Array.from({ length: 300 }, (_, i) => new Uint8Array([i & 0xff]));
+  async function* source() {
+    yield big;
+  }
+  const sizes = [];
+  for await (const batch of from(source())) sizes.push(batch.length);
+  assert.deepStrictEqual(sizes, [128, 128, 44]);
+
+  // Batches within the bound are still passed through as-is.
+  const small = [new Uint8Array([1]), new Uint8Array([2])];
+  async function* smallSource() {
+    yield small;
+  }
+  for await (const batch of from(smallSource())) {
+    assert.strictEqual(batch, small);
+  }
+}
+
 async function testFromSyncIterableAsAsync() {
   // Sync iterable passed to from() should work
   function* gen() {
@@ -464,6 +485,7 @@ Promise.all([
   testFromAsyncIteratorResultShapes(),
   testFromSourceErrorDoesNotWaitForReturn(),
   testFromBoundsNestedAsyncIterable(),
+  testFromBoundsPreBatchedAsyncValues(),
   testFromSyncIterableAsAsync(),
   testFromSyncIterableAwaitsPromiseValues(),
   testFromSyncIterableRejectsNestedAsyncIterable(),
