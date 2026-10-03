@@ -892,6 +892,70 @@ void AfterOpenFileHandle(uv_fs_t* req) {
   }
 }
 
+// Delivers the result of mkstemp(): [path, fd], or [path, FileHandle].
+static void AfterMkstempImpl(uv_fs_t* req, bool as_file_handle) {
+  BaseObjectPtr<FSReqBase> req_wrap{FSReqBase::from_req(req)};
+  FSReqAfterScope after(req_wrap.get(), req);
+  FS_ASYNC_TRACE_END1(
+      req->fs_type, req_wrap, "result", static_cast<int>(req->result))
+  Environment* env = req_wrap->env();
+  Isolate* isolate = env->isolate();
+
+  if (req->result < 0) {
+    if (!env->can_call_into_js()) return;
+    // libuv clears req->path when mkstemp() fails, so report the template
+    // that was saved in the request instead.
+    Local<Value> exception = UVException(isolate,
+                                         static_cast<int>(req->result),
+                                         req_wrap->syscall(),
+                                         nullptr,
+                                         req_wrap->data());
+    after.Clear();
+    return req_wrap->Reject(exception);
+  }
+  if (!after.Proceed()) return;
+
+  const int fd = static_cast<int>(req->result);
+  Local<Value> path;
+  Local<Value> error;
+  {
+    // Leave the TryCatch before calling into JS.
+    TryCatch try_catch(isolate);
+    if (!StringBytes::Encode(isolate, req->path, req_wrap->encoding())
+             .ToLocal(&path)) {
+      CHECK(try_catch.CanContinue());
+      error = try_catch.Exception();
+    }
+  }
+  if (!error.IsEmpty()) {
+    uv_fs_t close_req;
+    uv_fs_close(nullptr, &close_req, fd, nullptr);
+    uv_fs_req_cleanup(&close_req);
+    return req_wrap->Reject(error);
+  }
+
+  Local<Value> file;
+  if (as_file_handle) {
+    FileHandle* handle =
+        FileHandle::New(req_wrap->binding_data(), fd, {}, req->path);
+    if (handle == nullptr) return;
+    file = handle->object();
+  } else {
+    env->AddUnmanagedFd(fd);
+    file = Integer::New(isolate, fd);
+  }
+  Local<Value> result[] = {path, file};
+  req_wrap->Resolve(Array::New(isolate, result, arraysize(result)));
+}
+
+static void AfterMkstemp(uv_fs_t* req) {
+  AfterMkstempImpl(req, false);
+}
+
+static void AfterMkstempFileHandle(uv_fs_t* req) {
+  AfterMkstempImpl(req, true);
+}
+
 void AfterMkdirp(uv_fs_t* req) {
   FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
@@ -4410,6 +4474,15 @@ static void LUTimes(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+// Appends the placeholder that mkdtemp() and mkstemp() replace.
+static void AppendTemplateSuffix(BufferValue* tmpl) {
+  static constexpr std::string_view suffix = "XXXXXX";
+  const auto prefix_length = tmpl->length();
+  tmpl->AllocateSufficientStorage(prefix_length + suffix.size() + 1);
+  memcpy(tmpl->out() + prefix_length, suffix.data(), suffix.size());
+  tmpl->SetLengthAndZeroTerminate(prefix_length + suffix.size());
+}
+
 static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -4418,11 +4491,7 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue tmpl(isolate, args[0]);
-  const auto prefix_length = tmpl.length();
-  static constexpr std::string_view suffix = "XXXXXX";
-  tmpl.AllocateSufficientStorage(prefix_length + suffix.size() + 1);
-  memcpy(tmpl.out() + prefix_length, suffix.data(), suffix.size());
-  tmpl.SetLengthAndZeroTerminate(prefix_length + suffix.size());
+  AppendTemplateSuffix(&tmpl);
 
   CHECK_NOT_NULL(*tmpl);
 
@@ -4465,6 +4534,90 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
       args.GetReturnValue().Set(ret);
     }
   }
+}
+
+// mkstemp() creates the file and opens it for reading and writing, so it
+// needs the same permissions as the equivalent open().
+static constexpr int kMkstempFlags =
+    UV_FS_O_RDWR | UV_FS_O_CREAT | UV_FS_O_EXCL;
+
+static void MkstempAsync(const FunctionCallbackInfo<Value>& args,
+                         const BufferValue& tmpl,
+                         enum encoding encoding,
+                         uv_fs_cb after) {
+  Environment* env = Environment::GetCurrent(args);
+  FSReqBase* req_wrap_async = GetReqWrap(args, 2);
+  CHECK_NOT_NULL(req_wrap_async);
+  if (AsyncCheckOpenPermissions(env, req_wrap_async, tmpl, kMkstempFlags)
+          .IsNothing()) {
+    return;
+  }
+  FS_ASYNC_TRACE_BEGIN1(
+      UV_FS_MKSTEMP, req_wrap_async, "path", TRACE_STR_COPY(*tmpl))
+  // The template is saved in the request to report it if mkstemp() fails.
+  AsyncDestCall(env,
+                req_wrap_async,
+                args,
+                "mkstemp",
+                *tmpl,
+                tmpl.length(),
+                encoding,
+                after,
+                uv_fs_mkstemp,
+                *tmpl);
+}
+
+static void Mkstemp(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
+
+  BufferValue tmpl(isolate, args[0]);
+  AppendTemplateSuffix(&tmpl);
+  CHECK_NOT_NULL(*tmpl);
+
+  const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
+
+  if (argc > 2) {  // mkstemp(tmpl, encoding, req)
+    return MkstempAsync(args, tmpl, encoding, AfterMkstemp);
+  }
+
+  // mkstemp(tmpl, encoding)
+  if (CheckOpenPermissions(env, tmpl, kMkstempFlags).IsNothing()) return;
+  FSReqWrapSync req_wrap_sync("mkstemp", *tmpl);
+  FS_SYNC_TRACE_BEGIN(mkstemp);
+  int fd = SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_mkstemp, *tmpl);
+  FS_SYNC_TRACE_END(mkstemp);
+  if (is_uv_error(fd)) {
+    return;
+  }
+  Local<Value> path;
+  if (!StringBytes::Encode(isolate, req_wrap_sync.req.path, encoding)
+           .ToLocal(&path)) {
+    uv_fs_t close_req;
+    uv_fs_close(nullptr, &close_req, fd, nullptr);
+    uv_fs_req_cleanup(&close_req);
+    return;
+  }
+  env->AddUnmanagedFd(fd);
+  Local<Value> result[] = {path, Integer::New(isolate, fd)};
+  args.GetReturnValue().Set(Array::New(isolate, result, arraysize(result)));
+}
+
+static void MkstempFileHandle(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK_EQ(args.Length(), 3);  // mkstempFileHandle(tmpl, encoding, req)
+
+  BufferValue tmpl(isolate, args[0]);
+  AppendTemplateSuffix(&tmpl);
+  CHECK_NOT_NULL(*tmpl);
+
+  const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
+  MkstempAsync(args, tmpl, encoding, AfterMkstempFileHandle);
 }
 
 static void GetFormatOfExtensionlessFile(
@@ -5676,6 +5829,8 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "lutimes", LUTimes);
 
   SetMethod(isolate, target, "mkdtemp", Mkdtemp);
+  SetMethod(isolate, target, "mkstemp", Mkstemp);
+  SetMethod(isolate, target, "mkstempFileHandle", MkstempFileHandle);
 
 #ifdef _WIN32
   SetMethod(isolate, target, "handleToFd", HandleToFd);
@@ -5837,6 +5992,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(LUTimes);
 
   registry->Register(Mkdtemp);
+  registry->Register(Mkstemp);
+  registry->Register(MkstempFileHandle);
 #ifdef _WIN32
   registry->Register(HandleToFd);
 #endif

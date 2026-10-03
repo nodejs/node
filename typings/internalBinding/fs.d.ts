@@ -146,6 +146,10 @@ declare namespace InternalFSBinding {
   function mkdtemp(prefix: string, encoding: unknown, usePromises: typeof kUsePromises): Promise<string>;
   function mkdtemp(prefix: string, encoding: unknown): string;
 
+  function mkstemp(prefix: StringOrBuffer, encoding: unknown, req: FSReqCallback<[StringOrBuffer, number]>): void;
+  function mkstemp(prefix: StringOrBuffer, encoding: unknown): [StringOrBuffer, number];
+  function mkstempFileHandle(prefix: StringOrBuffer, encoding: unknown, usePromises: typeof kUsePromises): Promise<[StringOrBuffer, FileHandle]>;
+
   function mkdir(path: string, mode: number, recursive: boolean, req: FSReqCallback<void | string>): void;
   function mkdir(path: string, mode: number, recursive: true, req: FSReqCallback<string>): void;
   function mkdir(path: string, mode: number, recursive: false, req: FSReqCallback<void>): void;
@@ -277,6 +281,8 @@ export interface FsBinding {
   lstat: typeof InternalFSBinding.lstat;
   lutimes: typeof InternalFSBinding.lutimes;
   mkdtemp: typeof InternalFSBinding.mkdtemp;
+  mkstemp: typeof InternalFSBinding.mkstemp;
+  mkstempFileHandle: typeof InternalFSBinding.mkstempFileHandle;
   mkdir: typeof InternalFSBinding.mkdir;
   open: typeof InternalFSBinding.open;
   openFileHandle: typeof InternalFSBinding.openFileHandle;
