@@ -1563,10 +1563,6 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             "disallow eval and friends",
             V8Option{},
             kAllowedInEnvvar);
-  AddOption("--jitless",
-            "disable runtime allocation of executable memory",
-            V8Option{},
-            kAllowedInEnvvar);
   AddOption("--report-uncaught-exception",
             "generate diagnostic report on uncaught exceptions",
             BOOL_FIELD(report_uncaught_exception),

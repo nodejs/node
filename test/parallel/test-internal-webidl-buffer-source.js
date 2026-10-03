@@ -326,9 +326,7 @@ test('Shared buffer growability checks do not read JavaScript properties', () =>
   }
 });
 
-test('Shared WebAssembly buffer growability is checked per buffer', {
-  skip: typeof WebAssembly === 'undefined',
-}, () => {
+test('Shared WebAssembly buffer growability is checked per buffer', () => {
   const memory = new WebAssembly.Memory({ initial: 1, maximum: 2, shared: true });
   for (const [buffer, growable] of [
     [memory.buffer, false],

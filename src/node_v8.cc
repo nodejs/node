@@ -272,6 +272,10 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   Utf8Value flags(args.GetIsolate(), args[0]);
   V8::SetFlagsFromString(flags.out(), flags.length());
+  // Runtime flags must not re-enable modes that disable required WebAssembly
+  // support, even when contradiction checks are enabled.
+  V8::SetFlagsFromString("--allow-overwriting-for-next-flag --no-lite-mode "
+                         "--allow-overwriting-for-next-flag --no-jitless");
 }
 
 void StartCpuProfile(const FunctionCallbackInfo<Value>& args) {
