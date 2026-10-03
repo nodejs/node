@@ -57,3 +57,21 @@ const { Readable } = require('node:stream');
     assert.deepStrictEqual(lines, ['012', '345', '67', '89\u{2028}ABC\u{2029}DEF']);
   }));
 }
+
+// Test 4: Argument type validation for unicodeLineSeparators
+{
+  for (const badValue of ['false', 0, 1, {}, [], () => {}]) {
+    assert.throws(
+      () => {
+        readline.createInterface({
+          input: Readable.from(''),
+          unicodeLineSeparators: badValue,
+        });
+      },
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError',
+      },
+    );
+  }
+}
