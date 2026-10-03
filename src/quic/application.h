@@ -78,6 +78,13 @@ class Session::Application : public MemoryRetainer {
   // "no error" code.
   virtual error_code GetRequestRejectedCode() const = 0;
 
+  // The "request cancelled" code is sent on RESET_STREAM / STOP_SENDING
+  // when an endpoint deliberately abandons a request or response (e.g.
+  // stream.cancel()). For HTTP/3 this is NGHTTP3_H3_REQUEST_CANCELLED
+  // (0x10c); other applications have no such semantic and reuse the
+  // "no error" code.
+  virtual error_code GetRequestCancelledCode() const = 0;
+
   // Called after Session::Receive processes a packet, outside all callback
   // scopes. Applications can use this to handle deferred operations that
   // require calling into JS (e.g., HTTP/3 GOAWAY processing).
