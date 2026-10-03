@@ -100,7 +100,8 @@
       ],
       'sources': [
         '<@(zstd_sources)',
-      ]
-    }
+      ],
+      'toolsets': ['host', 'target'],
+    },
   ]
 }
