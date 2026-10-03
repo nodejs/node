@@ -93,7 +93,7 @@ http.createServer(common.mustCall(function(req, res) {
       'Date',
       null,
       'Connection',
-      'keep-alive',
+      'close',
       'Transfer-Encoding',
       'chunked',
     ];
@@ -101,7 +101,7 @@ http.createServer(common.mustCall(function(req, res) {
                             'keep-alive': 'timeout=1',
                             'trailer': 'x-foo',
                             'date': null,
-                            'connection': 'keep-alive',
+                            'connection': 'close',
                             'transfer-encoding': 'chunked' };
     res.rawHeaders[5] = null;
     res.headers.date = null;
