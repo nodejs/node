@@ -76,6 +76,19 @@ describe('node:test reporters', { concurrency: true }, () => {
     assert.match(fileContents, /✖ nested/);
   });
 
+  it('should create parent directories for a file destination', async () => {
+    const file = tmpdir.resolve(`${tmpFiles++}/nested/report.out`);
+    const child = spawnSync(process.execPath,
+                            ['--test', '--test-reporter', 'dot', '--test-reporter-destination', file, testFile]);
+    assert.strictEqual(child.stderr.toString(), '');
+    assert.strictEqual(child.stdout.toString(), '');
+    const fileContents = fs.readFileSync(file, 'utf8');
+    assert.match(fileContents, /\.XX\.\n/);
+    assert.match(fileContents, /Failed tests:/);
+    assert.match(fileContents, /✖ failing/);
+    assert.match(fileContents, /✖ nested/);
+  });
+
   it('should disallow using v8-serializer as reporter', async () => {
     const child = spawnSync(process.execPath, ['--test', '--test-reporter', 'v8-serializer', testFile]);
     assert.strictEqual(child.stdout.toString(), '');
