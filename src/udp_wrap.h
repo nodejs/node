@@ -152,6 +152,9 @@ class UDPWrap final : public HandleWrap,
   static void GetSendQueueCount(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  static double FastGetSendQueueSize(v8::Local<v8::Value> receiver);
+  static double FastGetSendQueueCount(v8::Local<v8::Value> receiver);
+
   // UDPListener implementation
   uv_buf_t OnAlloc(size_t suggested_size) override;
   void OnRecv(ssize_t nread,
