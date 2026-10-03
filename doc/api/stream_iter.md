@@ -18,6 +18,13 @@ functions or objects with a `transform` method.
 Data flows in **batches** ({Uint8Array\[]} per iteration) to amortize the cost
 of async operations.
 
+The module implements the WinterTC [Iterable Streams API][] draft. The
+classic stream interop functions ([`fromReadable()`][], [`fromWritable()`][],
+[`toReadable()`][], [`toReadableSync()`][] and [`toWritable()`][]),
+[`Broadcast.from()`][], [`Share.from()`][], [`SyncShare.fromSync()`][] and the
+protocol symbols exported by `Stream` are Node.js extensions that are not part
+of the draft.
+
 ```mjs
 import { from, pull, text } from 'node:stream/iter';
 import { compressGzip, decompressGzip } from 'node:zlib/iter';
@@ -406,6 +413,18 @@ converted to a `USVString` and then UTF-8 encoded. `writev()` and
 `writevSync()` accept any iterable object whose values can be converted to
 chunks. Writer option dictionaries treat `null` as an empty dictionary and
 ignore unknown members.
+
+Arguments are converted before the write itself starts. If the conversion runs
+user code (for example a `toString()` method, or the iterator of a `writev()`
+argument) that writes to the same writer, those writes are ordered before the
+write whose argument is being converted, and they count against the same
+backpressure limits.
+
+After `end()` or `endSync()` has been called, and until all buffered data has
+been consumed, the writer is _closing_. While closing, `canWrite` is `null`,
+`write()` and `writev()` reject with a `TypeError`, `writeSync()` and
+`writevSync()` return `false`, `endSync()` returns `-1`, and calling `end()`
+again returns the same promise as the first call.
 
 Each async method has a synchronous `*Sync` counterpart designed for a
 try-fallback pattern: attempt the fast synchronous path first, and fall back
@@ -869,6 +888,10 @@ run().catch(console.error);
 
 The writer returned by `push()` conforms to the \[Writer interface]\[].
 
+Zero-length chunks are accepted without being buffered: they are not delivered
+to the consumer, and `writeSync()` and `write()` report success for them even
+when backpressure is active.
+
 ## Duplex channels
 
 ### `duplex([options])`
@@ -1200,7 +1223,12 @@ added:
 
 Merge multiple async iterables by yielding batches in temporal order
 (whichever source produces data first). All sources are consumed
-concurrently.
+concurrently, with at most one pending `next()` call per source.
+
+If a source fails, the returned iterable rejects with its error. `merge()`
+calls `return()` on the other sources but does not wait for it to settle: an
+async generator source that is suspended in an `await` only runs its cleanup
+once that `await` completes.
 
 ```mjs
 import { from, merge, text } from 'node:stream/iter';
@@ -1228,8 +1256,9 @@ added:
  - v24.20.0
 -->
 
-* `callback` {Function} `(chunks) => void` Called with each batch and with
-  `null` when the source ends.
+* `callback` {Function} `(chunks, options) => void` Called with each batch and
+  with `null` when the source ends. `options.signal` is the pipeline's
+  {AbortSignal}.
 * Returns: {Function} A stateless transform.
 
 Create a pass-through transform that observes batches without modifying them.
@@ -1357,6 +1386,10 @@ run().catch(console.error);
 
 Cancel the broadcast. If `reason` is provided, all consumers reject with that
 exact reason. If it is omitted, consumers complete normally.
+
+Cancelling also closes the paired writer: afterwards its `canWrite` is `null`
+and `write()` rejects with a `TypeError`. This lets a [`Broadcast.from()`][]
+pump stop pulling from its source.
 
 #### `broadcast.consumerCount`
 
@@ -2267,12 +2300,18 @@ const stream = fromSync(new Greeting('world'));
 console.log(textSync(stream)); // 'hello world'
 ```
 
+[Iterable Streams API]: https://iter-streams.proposal.wintertc.org/
 [`--experimental-stream-iter`]: cli.md#--experimental-stream-iter
+[`Broadcast.from()`]: #broadcastfrominput-options
+[`Share.from()`]: #static-method-sharefrominput-options
+[`SyncShare.fromSync()`]: #static-method-syncsharefromsyncinput-options
 [`array()`]: #arraysource-options
 [`arrayBuffer()`]: #arraybuffersource-options
 [`bytes()`]: #bytessource-options
 [`from()`]: #frominput
+[`fromReadable()`]: #fromreadablereadable
 [`fromSync()`]: #fromsyncinput
+[`fromWritable()`]: #fromwritablewritable-options
 [`node:zlib/iter`]: zlib.md#iterable-compression
 [`ondrain()`]: #ondraindrainable
 [`pipeTo()`]: #pipetosource-transforms-writer-options
@@ -2284,3 +2323,6 @@ console.log(textSync(stream)); // 'hello world'
 [`tap()`]: #tapcallback
 [`text()`]: #textsource-options
 [`toAsyncStreamable`]: #streamtoasyncstreamable
+[`toReadable()`]: #toreadablesource-options
+[`toReadableSync()`]: #toreadablesyncsource-options
+[`toWritable()`]: #towritablewriter
