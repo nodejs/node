@@ -1645,6 +1645,13 @@ static const auto maybe_top_level_await_errors =
         "SyntaxError: Unexpected"         // example: `if(await 1)`
     };
 
+static ScriptCompiler::CompileOptions GetCompileOptionsForCJS(
+    ScriptCompiler::CachedData* cached_data, bool prefer_eager) {
+  if (cached_data != nullptr) return ScriptCompiler::kConsumeCodeCache;
+  return prefer_eager ? ScriptCompiler::kEagerCompile
+                       : ScriptCompiler::kNoCompileOptions;
+}
+
 // If cached_data is provided, it would be used for the compilation and
 // the on-disk compilation cache from NODE_COMPILE_CACHE (if configured)
 // would be ignored.
@@ -1656,7 +1663,8 @@ static MaybeLocal<Function> CompileFunctionForCJSLoader(
     bool* cache_rejected,
     bool is_cjs_scope,
     ScriptCompiler::CachedData* cached_data,
-    Local<Symbol> host_defined_option_symbol) {
+    Local<Symbol> host_defined_option_symbol,
+    bool prefer_eager = false) {
   Isolate* isolate = Isolate::GetCurrent();
   EscapableHandleScope scope(isolate);
 
@@ -1684,12 +1692,8 @@ static MaybeLocal<Function> CompileFunctionForCJSLoader(
   }
 
   ScriptCompiler::Source source(code, origin, cached_data);
-  ScriptCompiler::CompileOptions options;
-  if (cached_data == nullptr) {
-    options = ScriptCompiler::kNoCompileOptions;
-  } else {
-    options = ScriptCompiler::kConsumeCodeCache;
-  }
+  ScriptCompiler::CompileOptions options =
+      GetCompileOptionsForCJS(cached_data, prefer_eager);
 
   LocalVector<String> params(isolate);
   if (is_cjs_scope) {
@@ -1702,7 +1706,6 @@ static MaybeLocal<Function> CompileFunctionForCJSLoader(
       params.data(),
       0,       /* context extensions size */
       nullptr, /* context extensions data */
-      // TODO(joyeecheung): allow optional eager compilation.
       options);
 
   Local<Function> fn;
@@ -1754,9 +1757,10 @@ static void CompileFunctionForCJSLoader(
   Realm* realm = Realm::GetCurrent(context);
   Environment* env = realm->env();
 
+  bool is_embedder = args.Length() > 4 && args[4].As<Boolean>()->Value();
   Local<Symbol> host_defined_option_symbol =
       env->vm_dynamic_import_default_internal();
-  if (args.Length() > 4 && args[4].As<Boolean>()->Value()) {
+  if (is_embedder) {
     host_defined_option_symbol = env->embedder_module_hdo();
   }
 
@@ -1785,6 +1789,9 @@ static void CompileFunctionForCJSLoader(
   }
 #endif
 
+  // is_embedder doubles as the eager-compile preference here because it's
+  // currently the only caller that wants both; if a future caller needs
+  // these to diverge, compute prefer_eager separately instead of reusing it.
   {
     ShouldNotAbortOnUncaughtScope no_abort_scope(realm->env());
     TryCatchScope try_catch(env);
@@ -1795,7 +1802,8 @@ static void CompileFunctionForCJSLoader(
                                      &cache_rejected,
                                      true,
                                      cached_data,
-                                     host_defined_option_symbol)
+                                     host_defined_option_symbol,
+                                     is_embedder /* prefer_eager */)
              .ToLocal(&fn)) {
       CHECK(try_catch.HasCaught());
       CHECK(!try_catch.HasTerminated());
