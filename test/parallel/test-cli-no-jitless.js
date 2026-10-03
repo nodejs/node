@@ -15,7 +15,7 @@ const wasm = `
 
 for (const flag of [
   '--jitless', '--lite-mode', '--lite_mode', '-jitless', '-lite_mode',
-  '--jitless=true', '--lite_mode=true', '--no-jitless', '--no-lite-mode',
+  '--no-jitless', '--no-lite-mode',
 ]) {
   const result = spawnSync(process.execPath, [flag, '-e', wasm], { encoding: 'utf8' });
   assert.strictEqual(result.status, 0, result.stderr);
@@ -30,6 +30,25 @@ for (const flag of [
   `], { encoding: 'utf8' });
   assert.strictEqual(runtime.status, 0, runtime.stderr);
   assert.strictEqual(runtime.stderr, '');
+}
+
+// V8 boolean flags reject explicit values, even for overridden modes.
+for (const flag of ['--jitless=true', '--lite_mode=true']) {
+  const result = spawnSync(process.execPath, [flag, '-e', wasm], { encoding: 'utf8' });
+  assert.strictEqual(result.status, 9, result.stderr);
+  assert.strictEqual(result.signal, null);
+  assert.match(result.stderr, /illegal value for flag .* of type bool/);
+
+  // The runtime API reports invalid syntax without throwing, and Node must
+  // still override any flags V8 changed before reporting the error.
+  const runtime = spawnSync(process.execPath, ['-e', `
+    require('v8').setFlagsFromString(${JSON.stringify(flag)});
+    ${wasm}
+    new (require('worker_threads').Worker)(${JSON.stringify(wasm)}, { eval: true });
+  `], { encoding: 'utf8' });
+  assert.strictEqual(runtime.status, 0, runtime.stderr);
+  assert.strictEqual(runtime.signal, null);
+  assert.match(runtime.stderr, /illegal value for flag .* of type bool/);
 }
 
 // Node's overrides must not be treated as contradictory user-supplied flags.
