@@ -1417,6 +1417,13 @@ every consumer has detached, the buffered data is kept for consumers that
 attach later, and the source is not closed. Call `share.cancel()` (or dispose
 the share) to release the source once it is no longer needed.
 
+With `'strict'` backpressure, a consumer that needs to pull from the source
+while the buffer is at or above `budget` is rejected with `ERR_OUT_OF_RANGE`
+and detached; further reads from that consumer complete with `{ done: true }`.
+Detaching keeps a consumer that is not retried (for example, one read with
+`for await...of`, which does not call `return()` when a read rejects) from
+holding buffered data and blocking the other consumers.
+
 ```mjs
 import { from, share, text } from 'node:stream/iter';
 

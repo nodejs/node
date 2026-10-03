@@ -232,6 +232,56 @@ function testShareSyncRetainsBufferWhenAllConsumersDetach() {
   assert.strictEqual(textSync(shared.pull()), 'abc');
 }
 
+function testShareSyncStrictBackpressureDetaches() {
+  for (const transformed of [false, true]) {
+    function* source() {
+      for (let i = 0; i < 10; i++) {
+        yield [new Uint8Array(16384)];
+      }
+    }
+    const shared = shareSync(source(), {
+      budget: 32768,
+      backpressure: 'strict',
+    });
+    const consumer = transformed ?
+      shared.pull((chunks) => chunks) : shared.pull();
+    const fast = consumer[Symbol.iterator]();
+    // This consumer prevents the buffer from being trimmed.
+    const slow = shared.pull()[Symbol.iterator]();
+
+    fast.next();
+    fast.next();
+    assert.throws(() => fast.next(), { code: 'ERR_OUT_OF_RANGE' });
+    // The rejected consumer is detached, as with the async share.
+    assert.strictEqual(shared.consumerCount, 1);
+    assert.strictEqual(fast.next().done, true);
+
+    // The detached consumer no longer pins the buffer, so the remaining
+    // consumer can read the whole source.
+    let count = 0;
+    while (!slow.next().done) count++;
+    assert.strictEqual(count, 10);
+  }
+}
+
+function testShareSyncStrictForOfDoesNotWedgeOthers() {
+  // for...of does not call return() when next() throws. The consumer that
+  // hit the budget must still not keep the other consumers from reading.
+  function* source() {
+    for (let i = 0; i < 20; i++) yield [new Uint8Array(8192)];
+  }
+  const shared = shareSync(source(), { budget: 16384, backpressure: 'strict' });
+  const slow = shared.pull()[Symbol.iterator]();
+  assert.throws(() => {
+    // eslint-disable-next-line no-unused-vars
+    for (const _ of shared.pull()) { /* consume */ }
+  }, { code: 'ERR_OUT_OF_RANGE' });
+  assert.strictEqual(shared.consumerCount, 1);
+  let count = 0;
+  while (!slow.next().done) count++;
+  assert.strictEqual(count, 20);
+}
+
 function testShareSyncStringSource() {
   const shared = shareSync('hello-sync-share');
   const result = textSync(shared.pull());
@@ -251,4 +301,6 @@ Promise.all([
   testShareSyncDropNewestUnboundedSource(),
   testShareSyncStringSource(),
   testShareSyncRetainsBufferWhenAllConsumersDetach(),
+  testShareSyncStrictBackpressureDetaches(),
+  testShareSyncStrictForOfDoesNotWedgeOthers(),
 ]).then(common.mustCall());
