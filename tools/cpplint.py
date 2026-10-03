@@ -350,6 +350,7 @@ _ERROR_CATEGORIES = [
     "runtime/printf_format",
     "runtime/references",
     "runtime/string",
+    "runtime/thread_local",
     "runtime/threadsafe_fn",
     "runtime/vlog",
     "runtime/v8_persistent",
@@ -7446,6 +7447,25 @@ def CheckStringValueUsage(filename, lines, error):
             'Use node::TwoByteValue instead.')
 
 
+def CheckThreadLocalUsage(filename, lines, error):
+  """Logs an error if thread_local is used in src/.
+  Args:
+    filename: The name of the current file.
+    lines: An array of strings, each representing a line of the file.
+    error: The function to call with any errors found.
+  """
+  if not (filename.startswith('src/') or filename.startswith('src\\')):
+    return
+
+  for linenum, line in enumerate(lines):
+    if re.search(r'\bthread_local\b', line.split('//', 1)[0]):
+      error(filename, linenum, 'runtime/thread_local', 5,
+            'Several Environments can share a thread, so keep state that '
+            'belongs to one on the Environment or its BindingData. Mark '
+            'intentionally per-thread state with '
+            'NOLINTNEXTLINE(runtime/thread_local).')
+
+
 def ProcessLine(
     filename,
     file_extension,
@@ -7608,6 +7628,8 @@ def ProcessFileData(filename, file_extension, lines, error, extra_check_function
     CheckLocalVectorUsage(filename, lines, error)
 
     CheckStringValueUsage(filename, lines, error)
+
+    CheckThreadLocalUsage(filename, lines, error)
 
 
 def ProcessConfigOverrides(filename):
