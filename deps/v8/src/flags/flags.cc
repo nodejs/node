@@ -1042,10 +1042,6 @@ class ImplicationProcessor {
   bool EnforceImplications() {
     bool changed = false;
 
-    // Node.js retains these constants without exposing them as runtime flags.
-    const auto& jitless = v8_flags.jitless;
-    const auto& lite_mode = v8_flags.lite_mode;
-
     // For each flag, alias with a mutable reference so that implications don't
     // need the v8_flags prefix.
 #define FLAG_MODE_APPLY_NAME(name) \

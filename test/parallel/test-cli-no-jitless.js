@@ -4,29 +4,48 @@ const common = require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 
-// Interpreter-only modes must not bypass Node's WebAssembly requirement,
-// including through V8's alternate flag spellings and runtime flag API.
+// Interpreter-only modes are overridden to preserve Node's WebAssembly
+// requirement, including alternate spellings and the runtime flag API.
+const wasm = `
+  const assert = require('assert');
+  assert.strictEqual(typeof WebAssembly, 'object');
+  const bytes = Uint8Array.of(0, 97, 115, 109, 1, 0, 0, 0);
+  new WebAssembly.Instance(new WebAssembly.Module(bytes));
+`;
+
 for (const flag of [
   '--jitless', '--lite-mode', '--lite_mode', '-jitless', '-lite_mode',
   '--jitless=true', '--lite_mode=true', '--no-jitless', '--no-lite-mode',
 ]) {
-  const result = spawnSync(process.execPath, [flag, '-e', ''], { encoding: 'utf8' });
-  assert.strictEqual(result.status, 9, result.stderr);
+  const result = spawnSync(process.execPath, [flag, '-e', wasm], { encoding: 'utf8' });
+  assert.strictEqual(result.status, 0, result.stderr);
   assert.strictEqual(result.signal, null);
-  assert.match(result.stderr, /bad option:/);
+  assert.strictEqual(result.stderr, '');
 
   const runtime = spawnSync(process.execPath, ['-e', `
     require('v8').setFlagsFromString(${JSON.stringify(flag)});
-    const bytes = Uint8Array.of(0, 97, 115, 109, 1, 0, 0, 0);
-    new WebAssembly.Instance(new WebAssembly.Module(bytes));
+    ${wasm}
+    // A new isolate must also retain WebAssembly after changing runtime flags.
+    new (require('worker_threads').Worker)(${JSON.stringify(wasm)}, { eval: true });
   `], { encoding: 'utf8' });
   assert.strictEqual(runtime.status, 0, runtime.stderr);
-  assert.match(runtime.stderr, /unrecognized flag/);
+  assert.strictEqual(runtime.stderr, '');
+}
+
+// Node's overrides must not be treated as contradictory user-supplied flags.
+for (const flag of ['--jitless', '--lite-mode']) {
+  const result = spawnSync(process.execPath, [
+    '--abort-on-contradictory-flags', flag, '-e', wasm,
+  ], { encoding: 'utf8' });
+  assert.strictEqual(result.status, 0, result.stderr);
+  assert.strictEqual(result.signal, null);
+  assert.strictEqual(result.stderr, '');
 }
 
 const options = spawnSync(process.execPath, ['--v8-options'], { encoding: 'utf8' });
 assert.strictEqual(options.status, 0, options.stderr);
-assert.doesNotMatch(options.stdout, /--(?:jitless|lite[-_]mode)\b/);
+assert.match(options.stdout, /--jitless\b/);
+assert.match(options.stdout, /--lite-mode\b/);
 
 for (const flag of ['--jitless', '--lite-mode', '--lite_mode']) {
   assert.strictEqual(process.allowedNodeEnvironmentFlags.has(flag), false);

@@ -451,13 +451,8 @@ DEFINE_NEG_IMPLICATION(stress_snapshot, incremental_marking)
 #define V8_LITE_MODE_BOOL false
 #endif
 
-// Node.js requires WebAssembly for built-in functionality, including fetch and
-// TypeScript. Retain the constants for V8 internals, but do not register these
-// unsupported modes with the flag parser.
-#if defined(FLAG_MODE_DECLARE)
-DEFINE_BOOL_READONLY(lite_mode, false,
-                     "enables trade-off of performance for memory savings")
-#endif
+DEFINE_BOOL(lite_mode, V8_LITE_MODE_BOOL,
+            "enables trade-off of performance for memory savings")
 
 // Lite mode implies other flags to trade-off performance for memory.
 DEFINE_IMPLICATION(lite_mode, jitless)
@@ -942,14 +937,15 @@ DEFINE_STRING(
     "Select which native code sequence to use for wasm trace instruction: "
     "default or cpuid")
 
-#if defined(V8_JITLESS) || defined(V8_LITE_MODE)
-#error Node.js does not support interpreter-only V8 builds.
-#endif
-#define V8_JITLESS_BOOL false
-#if defined(FLAG_MODE_DECLARE)
-DEFINE_BOOL_READONLY(jitless, false,
+#ifdef V8_JITLESS
+#define V8_JITLESS_BOOL true
+DEFINE_BOOL_READONLY(jitless, true,
                      "Disable runtime allocation of executable memory.")
-#endif
+#else
+#define V8_JITLESS_BOOL false
+DEFINE_BOOL(jitless, V8_LITE_MODE_BOOL,
+            "Disable runtime allocation of executable memory.")
+#endif  // V8_JITLESS
 
 // Jitless V8 has a few implications:
 // Field type tracking is only used by TurboFan.
