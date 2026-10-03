@@ -3,7 +3,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 const assert = require('assert');
 const util = require('util');
 const crypto = require('crypto');
@@ -132,7 +132,7 @@ if (!isBoringSSL) {
   common.printSkipMessage('Skipping unsupported ed448/secp256k1/dsa test cases');
 }
 
-// Test Parallel Execution w/ KeyObject is threadsafe in openssl3
+// Test Parallel Execution w/ KeyObject is threadsafe in OpenSSL
 {
   const publicKey = {
     key: crypto.createPublicKey(
@@ -171,12 +171,10 @@ MCowBQYDK2VuAyEA6pwGRbadNQAI/tYN8+/p/0/hbsdHfOEGr1ADiLVk/Gc=
   const data = crypto.randomBytes(32);
   const signature = crypto.randomBytes(16);
 
-  let expected = /no default digest/;
-  let expectedCode = 'ERR_OSSL_EVP_NO_DEFAULT_DIGEST';
-  if (hasOpenSSL(3) || isBoringSSL) {
-    expected = /operation[\s_]not[\s_]supported[\s_]for[\s_]this[\s_]keytype/i;
-    expectedCode = 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE';
-  }
+  const expected =
+    /operation[\s_]not[\s_]supported[\s_]for[\s_]this[\s_]keytype/i;
+  const expectedCode =
+    'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE';
 
   crypto.verify(undefined, data, untrustedKey, signature, common.mustCall((err) => {
     assert.ok(err);

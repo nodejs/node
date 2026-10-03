@@ -102,12 +102,12 @@ for (const [asymmetricKeyType, pubLen] of [
 
   if (!hasOpenSSL(3, 5) && !isBoringSSL) {
     assert.throws(() => createPublicKey(keys.public), {
-      code: hasOpenSSL(3) ? 'ERR_OSSL_EVP_DECODE_ERROR' : 'ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM',
+      code: 'ERR_OSSL_EVP_DECODE_ERROR',
     });
 
     for (const pem of [keys.private, keys.private_seed_only, keys.private_priv_only]) {
       assert.throws(() => createPrivateKey(pem), {
-        code: hasOpenSSL(3) ? 'ERR_OSSL_UNSUPPORTED' : 'ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM',
+        code: 'ERR_OSSL_UNSUPPORTED',
       });
     }
   } else {

@@ -26,11 +26,7 @@ template("ncrypto_gn_build") {
   source_set(target_name) {
     forward_variables_from(invoker, "*")
     public_configs = [ ":ncrypto_config" ]
-    defines = [
-      "NCRYPTO_ENGINE_COMPAT=1",
-      "OPENSSL_SUPPRESS_DEPRECATED",
-    ]
-    sources = gypi_values.ncrypto_sources + gypi_values.ncrypto_engine_sources
+    sources = gypi_values.ncrypto_sources
     deps = [ "$node_openssl_path" ]
   }
 }

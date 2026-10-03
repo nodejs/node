@@ -5,7 +5,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 const isFipsEnabled = crypto.getFips() === 1;
 const fips3 = hasFIPS(3);
 
@@ -293,8 +293,8 @@ assert.throws(
   errMessage);
 
 // But all other IV lengths should be accepted.
-const minIvLength = hasOpenSSL(3) ? 8 : 1;
-const maxIvLength = hasOpenSSL(3) ? 64 : 256;
+const minIvLength = isBoringSSL ? 1 : 8;
+const maxIvLength = isBoringSSL ? 256 : 64;
 for (let n = minIvLength; n < maxIvLength; n += 1) {
   if (isFipsEnabled && n < 12) continue;
   crypto.createCipheriv('aes-128-gcm', Buffer.alloc(16), Buffer.alloc(n));

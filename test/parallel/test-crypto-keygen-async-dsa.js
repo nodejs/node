@@ -9,7 +9,6 @@ const {
   assertApproximateSize,
   testSignVerify,
   spkiExp,
-  hasOpenSSL,
 } = require('../common/crypto');
 
 if (isBoringSSL)
@@ -19,7 +18,6 @@ const assert = require('assert');
 const {
   generateKeyPair,
 } = require('crypto');
-
 // Test async DSA key generation.
 {
   const privateKeyEncoding = {
@@ -28,7 +26,7 @@ const {
   };
 
   generateKeyPair('dsa', {
-    modulusLength: hasOpenSSL(3) ? 2048 : 512,
+    modulusLength: 2048,
     divisorLength: 256,
     publicKeyEncoding: {
       type: 'spki',
@@ -45,8 +43,8 @@ const {
     // The private key is DER-encoded.
     assert(Buffer.isBuffer(privateKeyDER));
 
-    assertApproximateSize(publicKey, hasOpenSSL(3) ? 1194 : 440);
-    assertApproximateSize(privateKeyDER, hasOpenSSL(3) ? 721 : 336);
+    assertApproximateSize(publicKey, 1194);
+    assertApproximateSize(privateKeyDER, 721);
 
     // Since the private key is encrypted, signing shouldn't work anymore.
     assert.throws(() => {

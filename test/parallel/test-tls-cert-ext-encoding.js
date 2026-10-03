@@ -3,17 +3,11 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 
-if (hasOpenSSL(3))
-  // TODO(danbev) This test fails with the following error:
-  // error:0D00008F:asn1 encoding routines::no matching choice type
-  //
-  // I've not been able to figure out the reason for this but there
-  // is a note in https://wiki.openssl.org/index.php/OpenSSL_3.0 which
-  // indicates that this might not work at the moment:
-  // "OCSP, PEM, ASN.1 have some very limited library context support"
-  common.skip('when using OpenSSL 3.x');
+if (!isBoringSSL) {
+  common.skip('this test only applies to BoringSSL');
+}
 
 // NOTE: This certificate is hand-generated, hence it is not located in
 // `test/fixtures/keys` to avoid confusion.
