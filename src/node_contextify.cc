@@ -1286,6 +1286,8 @@ bool ContextifyScript::EvalMachine(Local<Context> context,
   MaybeLocal<Value> result;
   bool timed_out = false;
   bool received_signal = false;
+  const uint32_t async_stack_length =
+      env->async_hooks()->fields()[AsyncHooks::kStackLength];
   {
     auto wd = timeout != -1 ? std::make_optional<Watchdog>(
                                   env->isolate(), timeout, &timed_out)
@@ -1304,6 +1306,13 @@ bool ContextifyScript::EvalMachine(Local<Context> context,
     if (!env->is_main_thread() && env->is_stopping())
       return false;
     env->isolate()->CancelTerminateExecution();
+    // A promise job terminated by the watchdog never runs its async hook
+    // `after` callback, so drop the contexts it left on the stack.
+    AsyncHooks* async_hooks = env->async_hooks();
+    while (async_hooks->fields()[AsyncHooks::kStackLength] >
+           async_stack_length) {
+      async_hooks->pop_async_context(env->execution_async_id());
+    }
     // It is possible that execution was terminated by another timeout in
     // which this timeout is nested, so check whether one of the watchdogs
     // from this invocation is responsible for termination.
