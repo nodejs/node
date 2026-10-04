@@ -345,6 +345,52 @@ async function testPipeToSyncIterableAsyncValue() {
   assert.strictEqual(result, 'ab');
 }
 
+// pipeTo() reads sync iterables synchronously when it can. An error writing
+// a batch must still close the source, ignoring an error closing it, and an
+// error reading the source must not close it.
+async function testPipeToSyncIterableWriteError() {
+  for (const returnThrows of [false, true]) {
+    const error = new Error('write');
+    let closed = false;
+    const source = {
+      [Symbol.iterator]() {
+        let i = 0;
+        return {
+          next() {
+            return { done: false, value: [new Uint8Array([i++])] };
+          },
+          return() {
+            closed = true;
+            if (returnThrows) throw new Error('return');
+            return { done: true };
+          },
+        };
+      },
+    };
+    await assert.rejects(pipeTo(source, {
+      write: common.mustNotCall(),
+      writeSync: common.mustCall(() => { throw error; }),
+      fail: common.mustCall((reason) => assert.strictEqual(reason, error)),
+    }), error);
+    assert.strictEqual(closed, true);
+  }
+
+  const error = new Error('source');
+  const source = {
+    [Symbol.iterator]() {
+      return {
+        next() { throw error; },
+        return: common.mustNotCall(),
+      };
+    },
+  };
+  await assert.rejects(pipeTo(source, {
+    write: common.mustNotCall(),
+    writeSync: common.mustNotCall(),
+    fail: common.mustCall((reason) => assert.strictEqual(reason, error)),
+  }), error);
+}
+
 Promise.all([
   testPipeToSync(),
   testPipeTo(),
@@ -365,5 +411,6 @@ Promise.all([
   testPipeToSyncIterableUsesFromBatching(),
   testPipeToSyncIterableWriteFallback(),
   testPipeToSyncIterableAsyncValue(),
+  testPipeToSyncIterableWriteError(),
   testPipeToSourceNormalizationIndependentOfWriter(),
 ]).then(common.mustCall());
