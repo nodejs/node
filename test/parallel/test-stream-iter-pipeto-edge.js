@@ -5,7 +5,9 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { pipeTo, pipeToSync, fromSync } = require('stream/iter');
+const {
+  pipeTo, pipeToSync, fromSync, push, text,
+} = require('stream/iter');
 
 // pipeToSync cannot complete when endSync() requires async fallback.
 async function testPipeToSyncEndSyncFailure() {
@@ -20,6 +22,29 @@ async function testPipeToSyncEndSyncFailure() {
     { code: 'ERR_INVALID_STATE' },
   );
   assert.strictEqual(endCalled, false);
+}
+
+// The data was accepted, so endSync() returning -1 does not fail the writer,
+// even without preventFail, and the caller can still close it.
+async function testPipeToSyncEndSyncFailureDoesNotFailWriter() {
+  const writer = {
+    writeSync() { return true; },
+    endSync: common.mustCall(() => -1),
+    end: common.mustNotCall(),
+    fail: common.mustNotCall(),
+  };
+  assert.throws(() => pipeToSync(fromSync('data'), writer),
+                { code: 'ERR_INVALID_STATE' });
+
+  // A push() writer whose consumer has not read yet cannot close
+  // synchronously. After the throw, the data is intact and the writer can be
+  // ended asynchronously.
+  const { writer: pushWriter, readable } = push();
+  assert.throws(() => pipeToSync(fromSync(['abc', 'def']), pushWriter),
+                { code: 'ERR_INVALID_STATE' });
+  const result = text(readable);
+  assert.strictEqual(await pushWriter.end(), 6);
+  assert.strictEqual(await result, 'abcdef');
 }
 
 // pipeToSync requires endSync() when closing is enabled.
@@ -106,6 +131,7 @@ async function testFailThrowingDoesNotMaskError() {
 
 Promise.all([
   testPipeToSyncEndSyncFailure(),
+  testPipeToSyncEndSyncFailureDoesNotFailWriter(),
   testPipeToSyncNoEndSync(),
   testPipeToSyncPreventFail(),
   testPipeToSyncPreventClose(),
