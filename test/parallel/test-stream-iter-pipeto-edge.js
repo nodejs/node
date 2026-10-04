@@ -47,20 +47,18 @@ async function testPipeToSyncEndSyncFailureDoesNotFailWriter() {
   assert.strictEqual(await result, 'abcdef');
 }
 
-// pipeToSync requires endSync() when closing is enabled.
+// pipeToSync does not require endSync().
 async function testPipeToSyncNoEndSync() {
-  let writeCalled = false;
-  let endCalled = false;
+  // endSync() is optional. Without it the data is still written and the
+  // writer is not closed; pipeToSync() never falls back to end().
+  const written = [];
   const writer = {
-    writeSync() { writeCalled = true; return true; },
-    end() { endCalled = true; },
+    writeSync(chunk) { written.push(chunk); return true; },
+    end: common.mustNotCall(),
+    fail: common.mustNotCall(),
   };
-  assert.throws(
-    () => pipeToSync(fromSync('data'), writer),
-    { code: 'ERR_INVALID_ARG_TYPE' },
-  );
-  assert.strictEqual(writeCalled, false);
-  assert.strictEqual(endCalled, false);
+  assert.strictEqual(pipeToSync(fromSync('data'), writer), 4);
+  assert.deepStrictEqual(written, [new TextEncoder().encode('data')]);
 }
 
 // pipeToSync with preventFail: true — source error does NOT call fail()
