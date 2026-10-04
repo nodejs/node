@@ -167,6 +167,49 @@ async function testPipeRejectsWriterResize() {
   );
 }
 
+// Single-chunk batches are checked around writeSync() without a snapshot
+// object. Detaching or resizing the view in writeSync() must still be
+// rejected, for views on ArrayBuffers and on growable SharedArrayBuffers.
+async function testPipeRejectsSyncWriteDetachOrResize() {
+  const cases = [
+    ['detach', () => new ArrayBuffer(2), (buffer) => buffer.transfer()],
+    ['resize', () => new ArrayBuffer(1, { maxByteLength: 2 }),
+     (buffer) => buffer.resize(2)],
+    ['grow shared', () => new SharedArrayBuffer(1, { maxByteLength: 2 }),
+     (buffer) => buffer.grow(2)],
+  ];
+  for (const [, createBuffer, change] of cases) {
+    const asyncBuffer = createBuffer();
+    await assert.rejects(pipeTo([new Uint8Array(asyncBuffer)], {
+      writeSync() {
+        change(asyncBuffer);
+        return true;
+      },
+      write: common.mustNotCall(),
+      fail: common.mustCall(),
+    }), kResizeError);
+
+    const syncBuffer = createBuffer();
+    assert.throws(() => pipeToSync([new Uint8Array(syncBuffer)], {
+      writeSync() {
+        change(syncBuffer);
+        return true;
+      },
+      fail: common.mustCall(),
+    }, { preventClose: true }), kResizeError);
+  }
+
+  // An unchanged view is written; when writeSync() declines it, pipeTo()
+  // falls back to write() for it.
+  const chunk = Uint8Array.of(1, 2);
+  const written = [];
+  assert.strictEqual(await pipeTo([chunk], {
+    writeSync: () => false,
+    write(value) { written.push(value); },
+  }, { preventClose: true }), 2);
+  assert.deepStrictEqual(written, [chunk]);
+}
+
 async function testConsumersRejectDetachedViews() {
   // Views of fixed-length buffers are tracked without a full snapshot; they
   // must still be rejected when detached after being accepted.
@@ -205,4 +248,5 @@ Promise.all([
   testConsumersRejectResizedViews(),
   testConsumersRejectDetachedViews(),
   testPipeRejectsWriterResize(),
+  testPipeRejectsSyncWriteDetachOrResize(),
 ]).then(common.mustCall());
