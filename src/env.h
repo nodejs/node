@@ -368,6 +368,8 @@ extern std::shared_ptr<KVStore> system_environment;
 
 struct EnvSerializeInfo;
 
+class InternalCallbackScope;
+
 class AsyncHooks : public MemoryRetainer {
  public:
   SET_MEMORY_INFO_NAME(AsyncHooks)
@@ -386,6 +388,7 @@ class AsyncHooks : public MemoryRetainer {
     kCheck,
     kStackLength,
     kUsesExecutionAsyncResource,
+    kLazyScopes,
     kFieldsCount,
   };
 
@@ -502,6 +505,13 @@ class AsyncHooks : public MemoryRetainer {
   const SerializeInfo* info_ = nullptr;
 
   std::array<v8::Global<v8::Function>, 4> js_promise_hooks_;
+
+ public:
+  // Innermost InternalCallbackScope that swapped the ids without the stack,
+  // for executionAsyncResource(). Counted in fields_[kLazyScopes].
+  InternalCallbackScope* lazy_top_ = nullptr;
+  // Close of a scope that skipped the stack: the same check as pop.
+  void CheckLazyClose(double async_id, uint32_t depth);
 };
 
 class ImmediateInfo : public MemoryRetainer {
