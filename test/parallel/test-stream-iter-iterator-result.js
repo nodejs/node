@@ -3,8 +3,6 @@
 
 // Iterator results created by the stream/iter iterators themselves do not
 // inherit from Object.prototype, so prototype pollution cannot affect them.
-// (Iterators implemented as async generators, such as the one returned by
-// pull(), return ordinary iterator results created by the engine.)
 
 const common = require('../common');
 const assert = require('assert');
@@ -12,6 +10,7 @@ const { inspect } = require('util');
 const {
   broadcast,
   from,
+  pull,
   push,
   share,
   shareSync,
@@ -33,6 +32,11 @@ async function testAsyncIterators() {
       return readable;
     },
     'share()': () => share(from('a')).pull(),
+    'pull()': () => pull(from('a')),
+    'pull() with a signal': () => pull(from('a'), {
+      signal: new AbortController().signal,
+    }),
+    'pull() with a transform': () => pull(from('a'), (chunks) => chunks),
     'from() of an async iterable': () => from((async function*() {
       yield 'a';
     })()),
