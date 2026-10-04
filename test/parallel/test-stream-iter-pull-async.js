@@ -314,7 +314,7 @@ async function testPullReturnWhileSourceNextPending() {
   ]);
 
   assert.notStrictEqual(result, timeout);
-  assert.deepStrictEqual(result, { value: undefined, done: true });
+  assert.deepStrictEqual({ ...result }, { value: undefined, done: true });
   await next;
 }
 
