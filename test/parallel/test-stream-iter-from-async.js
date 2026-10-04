@@ -564,7 +564,9 @@ async function settle(log, label, promise) {
     const result = await promise;
     log.push(`${label}: ${result.done ? 'done' : result.value.length}`);
   } catch (error) {
-    log.push(`${label}: ${error.code ?? error.message}`);
+    const reason = error.name === 'AbortError' ? error.name :
+      error.code ?? error.message;
+    log.push(`${label}: ${reason}`);
   }
 }
 
@@ -679,6 +681,126 @@ async function testFromReturnAndThrowCloseSource() {
   }
 }
 
+// Creates a sync iterable source of `values`, recording calls in `log`.
+function createLoggedSyncSource(log, values, { failAt = -1, returnError } = {}) {
+  let i = 0;
+  return {
+    [Symbol.iterator]() {
+      log.push('iterator');
+      return {
+        next() {
+          log.push(`next ${i}`);
+          if (i === failAt) {
+            i++;
+            throw new Error('source failed');
+          }
+          if (i >= values.length) return { done: true, value: undefined };
+          return { done: false, value: values[i++] };
+        },
+        return() {
+          log.push('return');
+          if (returnError !== undefined) throw returnError;
+          return { done: true, value: undefined };
+        },
+      };
+    },
+  };
+}
+
+async function testFromSyncSourceBatching() {
+  // Single chunks are collected into batches of up to 128 chunks; any other
+  // value is yielded after the chunks collected before it.
+  const log = [];
+  const chunks = Array.from({ length: 130 }, () => new Uint8Array(1));
+  const iterator = from(createLoggedSyncSource(log, [
+    ...chunks, [Uint8Array.of(1), Uint8Array.of(2)], Uint8Array.of(3), 'ab',
+  ]))[Symbol.asyncIterator]();
+  for (let i = 0; i < 6; i++) await settle(log, `result ${i}`, iterator.next());
+  assert.deepStrictEqual(log, [
+    'iterator', ...Array.from({ length: 128 }, (_, i) => `next ${i}`),
+    'result 0: 128', 'next 128', 'next 129', 'next 130', 'result 1: 2',
+    'result 2: 2', 'next 131', 'next 132', 'result 3: 1', 'result 4: 1',
+    'next 133', 'result 5: done',
+  ]);
+}
+
+async function testFromSyncSourceErrors() {
+  // An error from the source does not close it.
+  let log = [];
+  let iterator = from(createLoggedSyncSource(log, [[Uint8Array.of(1)]], {
+    failAt: 1,
+  }))[Symbol.asyncIterator]();
+  for (let i = 0; i < 3; i++) await settle(log, `result ${i}`, iterator.next());
+  assert.deepStrictEqual(log, [
+    'iterator', 'next 0', 'result 0: 1', 'next 1', 'result 1: source failed',
+    'result 2: done',
+  ]);
+
+  // An error processing a value closes it, also after flushing the chunks
+  // collected before the value, and when normalizing a promise fails.
+  for (const value of [42, Promise.reject(new Error('rejected'))]) {
+    log = [];
+    iterator = from(createLoggedSyncSource(log, [Uint8Array.of(1), value]))[
+      Symbol.asyncIterator]();
+    for (let i = 0; i < 3; i++) {
+      await settle(log, `result ${i}`, iterator.next());
+    }
+    assert.deepStrictEqual(log, [
+      'iterator', 'next 0', 'next 1', 'result 0: 1', 'return',
+      `result 1: ${value === 42 ? 'ERR_INVALID_ARG_TYPE' : 'rejected'}`,
+      'result 2: done',
+    ]);
+  }
+}
+
+async function testFromSyncSourceReturnAndThrow() {
+  const returnError = new Error('return failed');
+  for (const method of ['return', 'throw']) {
+    // While reading the source, it is closed: return() propagates errors
+    // from closing it, throw() keeps its own error.
+    let log = [];
+    let iterator = from(createLoggedSyncSource(log, [
+      [Uint8Array.of(1)], [Uint8Array.of(2)],
+    ], { returnError }))[Symbol.asyncIterator]();
+    await settle(log, 'result', iterator.next());
+    await settle(log, method, iterator[method](new Error('thrown')));
+    await settle(log, 'after', iterator.next());
+    assert.deepStrictEqual(log, [
+      'iterator', 'next 0', 'result: 1', 'return',
+      method === 'return' ? 'return: return failed' : 'throw: thrown',
+      'after: done',
+    ]);
+
+    // Once the source has ended, it is not closed.
+    log = [];
+    iterator = from(createLoggedSyncSource(log, [Uint8Array.of(1)]))[
+      Symbol.asyncIterator]();
+    await settle(log, 'result', iterator.next());
+    await settle(log, method, iterator[method](new Error('thrown')));
+    assert.deepStrictEqual(log, [
+      'iterator', 'next 0', 'next 1', 'result: 1',
+      method === 'return' ? 'return: done' : 'throw: thrown',
+    ]);
+  }
+}
+
+async function testFromSyncSourceQueuesBehindReturn() {
+  // A next() made synchronously after another waits for it, and so sees a
+  // return() made synchronously after it as well.
+  const log = [];
+  const iterator = from(createLoggedSyncSource(log, [
+    [Uint8Array.of(1)], 'a', [Uint8Array.of(2)],
+  ]))[Symbol.asyncIterator]();
+  const results = [iterator.next(), iterator.next(), iterator.return()];
+  for (let i = 0; i < results.length; i++) {
+    await settle(log, `result ${i}`, results[i]);
+  }
+  assert.deepStrictEqual(log, [
+    'iterator', 'next 0', 'next 1', 'return', 'result 0: 1',
+    'result 1: AbortError', 'result 2: done',
+  ]);
+}
+
 Promise.all([
   testFromString(),
   testFromAsyncGenerator(),
@@ -719,4 +841,8 @@ Promise.all([
   testFromNormalizationErrorClosesSource(),
   testFromReturnAndThrowBeforeStart(),
   testFromReturnAndThrowCloseSource(),
+  testFromSyncSourceBatching(),
+  testFromSyncSourceErrors(),
+  testFromSyncSourceReturnAndThrow(),
+  testFromSyncSourceQueuesBehindReturn(),
 ]).then(common.mustCall());
