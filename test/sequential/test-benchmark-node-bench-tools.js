@@ -1,6 +1,9 @@
 // Flags: --no-warnings
 'use strict';
 
+// This test and its subprocesses allocate large, high-precision histograms.
+// Run sequentially to avoid exhausting memory on constrained CI hosts.
+
 require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
