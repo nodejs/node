@@ -34,6 +34,7 @@
 # include <malloc.h> /* malloc */
 #else
 # include <net/if.h> /* if_nametoindex */
+# include <sched.h>  /* sched_yield() */
 # include <sys/un.h> /* AF_UNIX, sockaddr_un */
 #endif
 
@@ -263,7 +264,11 @@ int uv_ip4_addr(const char* ip, int port, struct sockaddr_in* addr) {
 
 
 int uv_ip6_addr(const char* ip, int port, struct sockaddr_in6* addr) {
-  char address_part[40];
+  /* INET6_ADDRSTRLEN is needed for a full IPv4-mapped IPv6 address
+   * for the given platform plus a NUL byte. In posix this is defined to be 46.
+   * On Windows this buffer needs 65 bytes for additional optional
+   * formatting marks that may be present. */
+  char address_part[INET6_ADDRSTRLEN];
   size_t address_part_size;
   const char* zone_index;
 
@@ -453,7 +458,10 @@ int uv__udp_is_connected(uv_udp_t* handle) {
 }
 
 
-int uv__udp_check_before_send(uv_udp_t* handle, const struct sockaddr* addr) {
+int uv__udp_check_before_send(uv_udp_t* handle,
+                              const uv_buf_t bufs[],
+                              unsigned int nbufs,
+                              const struct sockaddr* addr) {
   unsigned int addrlen;
 
   if (handle->type != UV_UDP)
@@ -480,6 +488,12 @@ int uv__udp_check_before_send(uv_udp_t* handle, const struct sockaddr* addr) {
     addrlen = 0;
   }
 
+  if (nbufs < 1 || nbufs > 1024 * 1024)
+    return UV_EINVAL;
+
+  if (uv__count_bufs(bufs, nbufs) > UV__IO_MAX_BYTES)
+    return UV_EINVAL;
+
   return addrlen;
 }
 
@@ -492,7 +506,7 @@ int uv_udp_send(uv_udp_send_t* req,
                 uv_udp_send_cb send_cb) {
   int addrlen;
 
-  addrlen = uv__udp_check_before_send(handle, addr);
+  addrlen = uv__udp_check_before_send(handle, bufs, nbufs, addr);
   if (addrlen < 0)
     return addrlen;
 
@@ -506,7 +520,7 @@ int uv_udp_try_send(uv_udp_t* handle,
                     const struct sockaddr* addr) {
   int addrlen;
 
-  addrlen = uv__udp_check_before_send(handle, addr);
+  addrlen = uv__udp_check_before_send(handle, bufs, nbufs, addr);
   if (addrlen < 0)
     return addrlen;
 
@@ -520,11 +534,20 @@ int uv_udp_try_send2(uv_udp_t* handle,
                      unsigned int nbufs[/*count*/],
                      struct sockaddr* addrs[/*count*/],
                      unsigned int flags) {
+  unsigned int i;
+  int addrlen;
+
   if (count < 1)
     return UV_EINVAL;
 
   if (flags != 0)
     return UV_EINVAL;
+
+  for (i = 0; i < count; i++) {
+    addrlen = uv__udp_check_before_send(handle, bufs[i], nbufs[i], addrs[i]);
+    if (addrlen < 0)
+      return addrlen;
+  }
 
   if (handle->send_queue_count > 0)
     return UV_EAGAIN;
@@ -651,8 +674,11 @@ size_t uv__count_bufs(const uv_buf_t bufs[], unsigned int nbufs) {
   size_t bytes;
 
   bytes = 0;
-  for (i = 0; i < nbufs; i++)
-    bytes += (size_t) bufs[i].len;
+  for (i = 0; i < nbufs; i++) {
+    if (bufs[i].len > (size_t) INT32_MAX - bytes)
+      return INT32_MAX;
+    bytes += bufs[i].len;
+  }
 
   return bytes;
 }
@@ -875,6 +901,126 @@ uv_loop_t* uv_loop_new(void) {
 }
 
 
+/* Pause the CPU briefly to avoid burning power in spin-wait loops. */
+static void uv__cpu_relax(void) {
+#if defined(_WIN32)
+  YieldProcessor();
+#elif defined(__i386__) || defined(__x86_64__)
+  __asm__ __volatile__ ("rep; nop" ::: "memory");  /* a.k.a. PAUSE */
+#elif (defined(__arm__) && __ARM_ARCH >= 7) || defined(__aarch64__)
+  __asm__ __volatile__ ("isb" ::: "memory");
+#elif !defined(__APPLE__) && (defined(__powerpc64__) || defined(__ppc64__) || defined(__PPC64__))
+  __asm__ __volatile__ ("or 1,1,1; or 2,2,2" ::: "memory");
+#elif (defined(__ppc__) || defined(__ppc64__)) && defined(__APPLE__)
+  __asm volatile ("" : : : "memory");
+#elif defined(__riscv) && __riscv_xlen == 64
+  __asm__ volatile(".insn 0x0100000f" ::: "memory");  /* FENCE */
+#endif
+}
+
+
+/* Atomic helpers for the async pending field.
+ * Bit 0: pending flag (notification sent or handle closing).
+ * Bits 1+: busy counter (2 per in-flight uv_async_send call).
+ *
+ * uv__pending_cas and uv__pending_fetch_or are seq_cst (InterlockedXxx on
+ * MSVC, default memory_order_seq_cst on stdatomic). Their seq_cst pairing
+ * with the fetch_and/InterlockedAnd on the callback side makes uv_async_send
+ * and the uv_async_cb invocation sequentially consistent — all accesses
+ * (reads and writes) before uv_async_send are visible to the callback.
+ *
+ * uv__pending_load and uv__pending_fetch_add are relaxed; they touch only the
+ * busy counter and need not participate in that ordering. */
+#ifdef _MSC_VER
+
+static int uv__pending_cas(int* p, int* expected, int desired) {
+  LONG old;
+  old = InterlockedCompareExchange((LONG volatile*) p, (LONG) desired, (LONG) *expected);
+  if (old == (LONG) *expected) return 1;
+  *expected = (int) old;
+  return 0;
+}
+
+#define uv__pending_load(p)       ((int) *(volatile int*)(p))
+#define uv__pending_fetch_add(p, v) \
+  ((void) InterlockedExchangeAdd((LONG volatile*)(p), (LONG)(v)))
+#define uv__pending_fetch_or(p, v) \
+  ((int) InterlockedOr((LONG volatile*)(p), (LONG)(v)))
+
+#else  /* GCC / Clang / MinGW — use C11 stdatomic */
+
+static int uv__pending_cas(int* p, int* expected, int desired) {
+  return atomic_compare_exchange_weak((_Atomic int*) p, expected, desired);
+}
+
+#define uv__pending_load(p) \
+  atomic_load_explicit((_Atomic int*)(p), memory_order_relaxed)
+#define uv__pending_fetch_add(p, v) \
+  ((void) atomic_fetch_add_explicit((_Atomic int*)(p), (v), memory_order_relaxed))
+#define uv__pending_fetch_or(p, v) \
+  ((int) atomic_fetch_or((_Atomic int*)(p), (v)))
+
+#endif  /* _MSC_VER */
+
+
+int uv_async_send(uv_async_t* handle) {
+  int current = 0;
+
+  /* Atomically set the pending flag (bit 0) and increment the busy counter
+   * (bits 1+). Adding 3 sets bit 0 and adds 2 to the busy counter at once.
+   * The seq_cst CAS synchronizes with the seq_cst fetch_and in the callback,
+   * making all accesses before this call visible to the callback (and vice
+   * versa from the callback). */
+  while (!uv__pending_cas(&handle->pending, &current, current + 3))
+    if (current & 1)
+      return 0;
+
+  /* Wake up the event loop. The notification write establishes a
+   * happens-before relationship with the reader via the kernel. */
+  uv__async_notify(handle);
+
+  /* Decrement the busy counter (bits 1+). */
+  uv__pending_fetch_add(&handle->pending, -2);
+
+  return 0;
+}
+
+
+int uv__async_spin(uv_async_t* handle) {
+  int old;
+  int i;
+
+  /* Atomically set the pending flag (bit 0) so no new notifications will be
+   * sent after this function returns. Save whether the flag was already set
+   * so callers can determine whether a notification is in flight. */
+  old = uv__pending_fetch_or(&handle->pending, 1);
+
+  for (;;) {
+    /* 997 is not completely chosen at random. It's a prime number, acyclic by
+     * nature, and should therefore hopefully dampen sympathetic resonance.
+     */
+    for (i = 0; i < 997; i++) {
+      /* Wait until the busy counter (bits 1+) is zero. */
+      if ((uv__pending_load(&handle->pending) & ~1) == 0)
+        return old & 1;
+
+      /* Another thread is busy with this handle; spin until it's done. */
+      uv__cpu_relax();
+    }
+
+    /* Yield the CPU. We may have preempted the other thread while it's
+     * inside the critical section and if it's running on the same CPU
+     * as us, we'll just burn CPU cycles until the end of our time slice.
+     */
+#ifdef _WIN32
+    SwitchToThread();
+#else
+    sched_yield();
+#endif
+  }
+}
+
+
 int uv_loop_close(uv_loop_t* loop) {
   struct uv__queue* q;
   uv_handle_t* h;
@@ -928,8 +1074,13 @@ int uv_read_start(uv_stream_t* stream,
   if (stream->flags & UV_HANDLE_CLOSING)
     return UV_EINVAL;
 
-  if (stream->flags & UV_HANDLE_READING)
+#ifdef _WIN32
+   if (stream->flags & UV_HANDLE_READING)
+     return UV_EALREADY;
+#else
+  if (stream->read_cb != NULL)
     return UV_EALREADY;
+#endif
 
   if (!(stream->flags & UV_HANDLE_READABLE))
     return UV_ENOTCONN;
@@ -962,6 +1113,14 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
   uv__free(cpu_infos);
 #endif  /* __linux__ */
 }
+
+#ifdef _MSC_VER
+#define uv__exchange_int_relaxed(p, v)                                        \
+  InterlockedExchangeNoFence((LONG volatile*)(p), v)
+#else
+#define uv__exchange_int_relaxed(p, v)                                        \
+  atomic_exchange_explicit((_Atomic int*)(p), v, memory_order_relaxed)
+#endif
 
 
 /* Also covers __clang__ and __INTEL_COMPILER. Disabled on Windows because

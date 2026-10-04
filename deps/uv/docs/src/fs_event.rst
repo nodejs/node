@@ -23,8 +23,8 @@ the best backend for the job on each platform.
     creation/deletion within a directory that is being monitored.
     See the `IBM Knowledge centre`_ for more details.
 
-    .. _documentation: https://developer.ibm.com/articles/au-aix_event_infrastructure/
-    .. _`IBM Knowledge centre`: https://www.ibm.com/support/knowledgecenter/en/SSLTBW_2.2.0/com.ibm.zos.v2r1.bpxb100/ioc.htm
+    .. _documentation: https://www.ibm.com/docs/en/aix/7.2?topic=management-aix-event-infrastructure-aix-aix-clusters-ahafs
+    .. _`IBM Knowledge centre`: https://www.ibm.com/docs/en/zos/2.2.0?topic=SSLTBW_2.2.0/com.ibm.zos.v2r1.bpxb100/ioc.html
 
 
 

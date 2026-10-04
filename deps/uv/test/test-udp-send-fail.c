@@ -1,4 +1,4 @@
-/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+/* Copyright libuv project contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -19,67 +19,51 @@
  * IN THE SOFTWARE.
  */
 
-#include <errno.h>
-
-#ifndef _WIN32
-# include <fcntl.h>
-# include <sys/socket.h>
-# include <unistd.h>
-#endif
-
 #include "uv.h"
 #include "task.h"
 
-#define NUM_SOCKETS 64
+#include <string.h>
 
 
-static int close_cb_called = 0;
+TEST_IMPL(udp_send_fail_nbufs) {
+  struct sockaddr_in addr;
+  uv_udp_send_t req;
+  uv_udp_t client;
+  uv_buf_t buf;
+  int r;
 
+  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+  ASSERT_OK(uv_udp_init(uv_default_loop(), &client));
 
-static void close_cb(uv_handle_t* handle) {
-  close_cb_called++;
-}
+  buf = uv_buf_init("PING", 4);
 
+  /* nbufs=0 should be rejected. */
+  r = uv_udp_send(&req,
+                   &client,
+                   &buf,
+                   0,
+                   (const struct sockaddr*) &addr,
+                   NULL);
+  ASSERT_EQ(UV_EINVAL, r);
 
-/* uv_poll_init_socket() does not take ownership of the socket. */
-static void close_socket(uv_os_sock_t sock) {
-#ifdef _WIN32
-  ASSERT_OK(closesocket(sock));
-#else
-  ASSERT_OK(close(sock));
-#endif
-}
+  /* Negative nbufs undergoes sign conversion to a large unsigned value. */
+  r = uv_udp_send(&req,
+                   &client,
+                   &buf,
+                   -1,
+                   (const struct sockaddr*) &addr,
+                   NULL);
+  ASSERT_EQ(UV_EINVAL, r);
 
+  /* Same checks for uv_udp_try_send. */
+  r = uv_udp_try_send(&client, &buf, 0, (const struct sockaddr*) &addr);
+  ASSERT_EQ(UV_EINVAL, r);
 
-TEST_IMPL(poll_close) {
-  uv_os_sock_t sockets[NUM_SOCKETS];
-  uv_poll_t poll_handles[NUM_SOCKETS];
-  int i;
+  r = uv_udp_try_send(&client, &buf, -1, (const struct sockaddr*) &addr);
+  ASSERT_EQ(UV_EINVAL, r);
 
-#ifdef _WIN32
-  {
-    struct WSAData wsa_data;
-    int r = WSAStartup(MAKEWORD(2, 2), &wsa_data);
-    ASSERT_OK(r);
-  }
-#endif
-
-  for (i = 0; i < NUM_SOCKETS; i++) {
-    sockets[i] = socket(AF_INET, SOCK_STREAM, 0);
-    uv_poll_init_socket(uv_default_loop(), &poll_handles[i], sockets[i]);
-    uv_poll_start(&poll_handles[i], UV_READABLE | UV_WRITABLE, NULL);
-  }
-
-  for (i = 0; i < NUM_SOCKETS; i++) {
-    uv_close((uv_handle_t*) &poll_handles[i], close_cb);
-  }
-
+  uv_close((uv_handle_t*) &client, NULL);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
-
-  ASSERT_EQ(close_cb_called, NUM_SOCKETS);
-
-  for (i = 0; i < NUM_SOCKETS; i++)
-    close_socket(sockets[i]);
 
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;

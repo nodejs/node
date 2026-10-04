@@ -29,6 +29,21 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+union uv__sockaddr_un {
+  struct sockaddr sa;
+  struct uv__sockaddr_un_path {
+    char pad[offsetof(struct sockaddr_un, sun_path)];
+    /* FreeBSD advertises SOCK_MAXADDRLEN but nevertheless clamps the
+     * path length to sizeof(sun_path).
+     */
+#if defined(SOCK_MAXADDRLEN) && !defined(__FreeBSD__)
+    char path[SOCK_MAXADDRLEN - offsetof(struct sockaddr_un, sun_path)];
+#else
+    char path[sizeof(((struct sockaddr_un*)0)->sun_path)];
+#endif
+  } up;
+};
+
 
 /* Does the file path contain embedded nul bytes? */
 static int includes_invalid_nul(const char *s, size_t n) {
@@ -64,7 +79,7 @@ int uv_pipe_bind2(uv_pipe_t* handle,
                   const char* name,
                   size_t namelen,
                   unsigned int flags) {
-  struct sockaddr_un saddr;
+  union uv__sockaddr_un saddr;
   char* pipe_fname;
   int sockfd;
   int err;
@@ -90,12 +105,12 @@ int uv_pipe_bind2(uv_pipe_t* handle,
     return UV_EINVAL;
 
   if (flags & UV_PIPE_NO_TRUNCATE)
-    if (namelen > sizeof(saddr.sun_path))
+    if (namelen > sizeof(saddr.up.path))
       return UV_EINVAL;
 
   /* Truncate long paths. Documented behavior. */
-  if (namelen > sizeof(saddr.sun_path))
-    namelen = sizeof(saddr.sun_path);
+  if (namelen > sizeof(saddr.up.path))
+    namelen = sizeof(saddr.up.path);
 
   /* Already bound? */
   if (uv__stream_fd(handle) >= 0)
@@ -125,10 +140,10 @@ int uv_pipe_bind2(uv_pipe_t* handle,
   sockfd = err;
 
   memset(&saddr, 0, sizeof saddr);
-  memcpy(&saddr.sun_path, name, namelen);
-  saddr.sun_family = AF_UNIX;
+  memcpy(saddr.up.path, name, namelen);
+  saddr.sa.sa_family = AF_UNIX;
 
-  if (bind(sockfd, (struct sockaddr*)&saddr, addrlen)) {
+  if (bind(sockfd, &saddr.sa, addrlen)) {
     err = UV__ERR(errno);
     /* Convert ENOENT to EACCES for compatibility with Windows. */
     if (err == UV_ENOENT)
@@ -257,7 +272,7 @@ int uv_pipe_connect2(uv_connect_t* req,
                      size_t namelen,
                      unsigned int flags,
                      uv_connect_cb cb) {
-  struct sockaddr_un saddr;
+  union uv__sockaddr_un saddr;
   int new_sock;
   int err;
   int r;
@@ -276,12 +291,12 @@ int uv_pipe_connect2(uv_connect_t* req,
     return UV_EINVAL;
 
   if (flags & UV_PIPE_NO_TRUNCATE)
-    if (namelen > sizeof(saddr.sun_path))
+    if (namelen > sizeof(saddr.up.path))
       return UV_EINVAL;
 
   /* Truncate long paths. Documented behavior. */
-  if (namelen > sizeof(saddr.sun_path))
-    namelen = sizeof(saddr.sun_path);
+  if (namelen > sizeof(saddr.up.path))
+    namelen = sizeof(saddr.up.path);
 
   new_sock = (uv__stream_fd(handle) == -1);
 
@@ -293,8 +308,8 @@ int uv_pipe_connect2(uv_connect_t* req,
   }
 
   memset(&saddr, 0, sizeof saddr);
-  memcpy(&saddr.sun_path, name, namelen);
-  saddr.sun_family = AF_UNIX;
+  memcpy(saddr.up.path, name, namelen);
+  saddr.sa.sa_family = AF_UNIX;
 
   if (*name == '\0')
     addrlen = offsetof(struct sockaddr_un, sun_path) + namelen;
@@ -355,7 +370,7 @@ static int uv__pipe_getsockpeername(const uv_pipe_t* handle,
 #else
   static const int is_linux = 0;
 #endif
-  struct sockaddr_un sa;
+  union uv__sockaddr_un sa;
   socklen_t addrlen;
   size_t slop;
   char* p;
@@ -376,15 +391,15 @@ static int uv__pipe_getsockpeername(const uv_pipe_t* handle,
   }
 
   slop = 1;
-  if (is_linux && sa.sun_path[0] == '\0') {
+  if (is_linux && sa.up.path[0] == '\0') {
     /* Linux abstract namespace. Not zero-terminated. */
     slop = 0;
     addrlen -= offsetof(struct sockaddr_un, sun_path);
   } else {
-    p = memchr(sa.sun_path, '\0', sizeof(sa.sun_path));
+    p = memchr(sa.up.path, '\0', sizeof(sa.up.path));
     if (p == NULL)
-      p = ARRAY_END(sa.sun_path);
-    addrlen = p - sa.sun_path;
+      p = ARRAY_END(sa.up.path);
+    addrlen = p - sa.up.path;
   }
 
   if ((size_t)addrlen + slop > *size) {
@@ -392,7 +407,7 @@ static int uv__pipe_getsockpeername(const uv_pipe_t* handle,
     return UV_ENOBUFS;
   }
 
-  memcpy(buffer, sa.sun_path, addrlen);
+  memcpy(buffer, sa.up.path, addrlen);
   *size = addrlen;
 
   /* only null-terminate if it's not an abstract socket */

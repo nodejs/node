@@ -153,14 +153,9 @@ static void fs_event_cb_del_dir(uv_fs_event_t* handle,
   ASSERT_PTR_EQ(handle, &fs_event);
   ASSERT_OK(status);
   ASSERT(events == UV_CHANGE || events == UV_RENAME);
-  /* There is a bug in the FreeBSD kernel where the filename is sometimes NULL.
-   * Refs: https://github.com/libuv/libuv/issues/4606
-   */
-  #if defined(__FreeBSD__)
-  ASSERT(filename == NULL || strcmp(filename, "watch_del_dir") == 0);
-  #else
-  ASSERT_OK(strcmp(filename, "watch_del_dir"));
-  #endif
+  /* The filename may be NULL when it cannot be determined. */
+  if (filename != NULL)
+    ASSERT_STR_EQ(filename, "watch_del_dir");
   ASSERT_OK(uv_fs_event_stop(handle));
   uv_close((uv_handle_t*)handle, close_cb);
 }
@@ -519,6 +514,51 @@ TEST_IMPL(fs_event_watch_delete_dir) {
   return 0;
 }
 
+#ifdef _WIN32
+static int fs_event_cb_del_dir_perm_got_enoent;
+
+static void fs_event_cb_del_dir_perm(uv_fs_event_t* handle,
+                                     const char* filename,
+                                     int events,
+                                     int status) {
+  if (status == UV_ENOENT) {
+    fs_event_cb_del_dir_perm_got_enoent = 1;
+    uv_close((uv_handle_t*)handle, close_cb);
+  }
+}
+
+TEST_IMPL(fs_event_watch_delete_dir_win) {
+  uv_loop_t* loop = uv_default_loop();
+  int r;
+
+  /* Setup */
+  fs_event_cb_del_dir_perm_got_enoent = 0;
+  fs_event_unlink_files(NULL);
+  delete_dir("watch_del_dir/");
+  create_dir("watch_del_dir");
+
+  r = uv_fs_event_init(loop, &fs_event);
+  ASSERT_OK(r);
+  r = uv_fs_event_start(&fs_event, fs_event_cb_del_dir_perm, "watch_del_dir", 0);
+  ASSERT_OK(r);
+  r = uv_timer_init(loop, &timer);
+  ASSERT_OK(r);
+  r = uv_timer_start(&timer, fs_event_del_dir, 100, 0);
+  ASSERT_OK(r);
+
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  ASSERT_EQ(1, fs_event_cb_del_dir_perm_got_enoent);
+  ASSERT_EQ(2, close_cb_called);
+
+  /* Cleanup */
+  fs_event_unlink_files(NULL);
+
+  MAKE_VALGRIND_HAPPY(loop);
+  return 0;
+}
+#endif
+
 
 TEST_IMPL(fs_event_watch_dir_recursive) {
 #if defined(__APPLE__) && defined(__TSAN__)
@@ -628,7 +668,7 @@ static int short_path_make(const char* parent,
   memcpy(watch_dir, req.path, pathlen + 1);
   uv_fs_req_cleanup(&req);
 
-  /* The caller appends "\\file1" to both watch_dir and short_dir. If there is
+  /* The caller appends "\file1" to both watch_dir and short_dir. If there is
      no room for that suffix, skip this location. */
   if (pathlen + sizeof("\\file1") <= watch_n &&
       MultiByteToWideChar(CP_UTF8, 0, watch_dir, -1,
@@ -695,6 +735,7 @@ TEST_IMPL(fs_event_watch_dir_short_path) {
     ASSERT_EQ(1, fs_event_cb_called);
     ASSERT_EQ(1, timer_cb_called);
     ASSERT_EQ(1, close_cb_called);
+
     /* Cleanup */
     delete_file(watch_file);
     delete_dir(watch_dir);
