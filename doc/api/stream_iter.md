@@ -726,6 +726,13 @@ Synchronous version of [`pipeTo()`][]. The `source`, all transforms, and the
 The `writer` must have the `*Sync` methods (`writeSync`, `writevSync`,
 `endSync`) and `fail()` for this to work.
 
+`pipeToSync()` never falls back to the asynchronous writer methods. If
+`writer.endSync()` returns `-1` because the writer cannot close synchronously
+(for example, a `push()` writer whose consumer has not read all of the data
+yet), `pipeToSync()` throws `ERR_INVALID_STATE`. All of the data was accepted
+by then, so the writer is not failed: it can still be closed, for example with
+`await writer.end()`.
+
 ### `pull(source[, ...transforms][, options])`
 
 <!-- YAML
