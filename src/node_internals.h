@@ -230,6 +230,16 @@ v8::MaybeLocal<v8::Value> InternalMakeCallback(
     async_context asyncContext,
     v8::Local<v8::Value> context_frame);
 
+// The same, for a caller that already knows the Environment of `callback`.
+v8::MaybeLocal<v8::Value> MakeCallbackInEnvironment(
+    Environment* env,
+    v8::Local<v8::Object> recv,
+    const v8::Local<v8::Function> callback,
+    int argc,
+    v8::Local<v8::Value> argv[],
+    async_context asyncContext,
+    v8::Local<v8::Value> context_frame);
+
 v8::MaybeLocal<v8::Value> MakeSyncCallback(v8::Isolate* isolate,
                                            v8::Local<v8::Object> recv,
                                            v8::Local<v8::Function> callback,

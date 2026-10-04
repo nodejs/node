@@ -33,12 +33,12 @@ struct node_napi_env__ : public napi_env__ {
 
   void DeleteMe() override;
 
-  inline node::Environment* node_env() const {
-    return node::Environment::GetCurrent(context());
-  }
+  // Found once: a napi_env lives as long as its Environment.
+  inline node::Environment* node_env() const { return node_env_; }
   inline const char* GetFilename() const { return filename.c_str(); }
 
   std::string filename;
+  node::Environment* node_env_;
   bool destructing = false;
   bool finalization_scheduled = false;
 };
