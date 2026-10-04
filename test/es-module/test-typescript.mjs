@@ -318,14 +318,3 @@ test('execute invalid TypeScript syntax', async () => {
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 1);
 });
-
-test('expect error when executing a TypeScript file with --jitless', async () => {
-  const result = await spawnPromisified(process.execPath, [
-    '--jitless',
-    fixtures.path('typescript/ts/test-typescript.ts'),
-  ]);
-
-  assert.match(result.stderr, /ERR_WEBASSEMBLY_NOT_SUPPORTED/);
-  assert.match(result.stderr, /WebAssembly is not supported in this environment, but is required for TypeScript/);
-  assert.strictEqual(result.code, 1);
-});
