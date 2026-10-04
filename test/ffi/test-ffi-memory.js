@@ -238,6 +238,11 @@ test('ffi exportString and exportBuffer copy data into native memory', () => {
     ffi.exportArrayBuffer(arrayBuffer, arrayBufferPtr, 4);
     assert.deepStrictEqual([...ffi.toBuffer(arrayBufferPtr, 4)], [8, 9, 10, 11]);
 
+    const taggedArrayBuffer = new Uint8Array([12, 13, 14, 15]).buffer;
+    Object.defineProperty(taggedArrayBuffer, Symbol.toStringTag, { value: 'Custom' });
+    ffi.exportArrayBuffer(taggedArrayBuffer, arrayBufferPtr, 4);
+    assert.deepStrictEqual([...ffi.toBuffer(arrayBufferPtr, 4)], [12, 13, 14, 15]);
+
     const viewPtr = alloc(8);
     const viewSource = new Uint16Array([0x0102, 0x0304, 0x0506]);
     const middleBytes = new Uint8Array(viewSource.buffer, 2, 2);
@@ -318,6 +323,10 @@ test('ffi validates memory access arguments', () => {
     assert.throws(() => ffi.exportBuffer(Buffer.from([1]), ptr, -1), { code: 'ERR_OUT_OF_RANGE' });
     assert.throws(() => ffi.exportBuffer(Buffer.from([1, 2]), ptr, 1), { code: 'ERR_OUT_OF_RANGE' });
     assert.throws(() => ffi.exportArrayBuffer('bad', ptr, 4), { code: 'ERR_INVALID_ARG_TYPE' });
+    assert.throws(() => ffi.exportArrayBuffer({ [Symbol.toStringTag]: 'ArrayBuffer', byteLength: 1 }, ptr, 4), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "arrayBuffer" argument must be an instance of ArrayBuffer/,
+    });
     assert.throws(() => ffi.exportArrayBuffer(new ArrayBuffer(1), ptr, -1), { code: 'ERR_OUT_OF_RANGE' });
     assert.throws(() => ffi.exportArrayBuffer(new ArrayBuffer(2), ptr, 1), { code: 'ERR_OUT_OF_RANGE' });
     assert.throws(() => ffi.exportArrayBufferView('bad', ptr, 4), { code: 'ERR_INVALID_ARG_TYPE' });
