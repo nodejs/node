@@ -48,10 +48,6 @@
 #include "node_version.h"
 #include "permission/env_permission.h"
 
-#if defined(V8_JITLESS) || defined(V8_LITE_MODE)
-#error Node.js does not support interpreter-only V8 builds.
-#endif
-
 #if HAVE_OPENSSL
 #include "ncrypto.h"
 #if OPENSSL_VERSION_MAJOR >= 3
@@ -1111,12 +1107,6 @@ static ExitCode InitializeNodeWithArgsInternal(
   }
 
   allow_env_sources.Finish();
-
-  // Node.js requires WebAssembly for built-in functionality. Override these
-  // modes after all option sources, before V8 applies their implications.
-  // Explicitly allow overriding even when contradiction checks are enabled.
-  V8::SetFlagsFromString("--allow-overwriting-for-next-flag --no-lite-mode "
-                         "--allow-overwriting-for-next-flag --no-jitless");
 
   // Every option source has now been parsed, so cross-source option
   // constraints can finally be validated.

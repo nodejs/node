@@ -98,9 +98,6 @@ and libc version. The table below lists the support tier for each supported
 combination. A list of [supported compile toolchains](#supported-toolchains) is
 also supplied for tier 1 platforms.
 
-Node.js requires WebAssembly for built-in functionality, including `fetch()` and
-TypeScript support. JIT-less execution and V8 lite mode are not supported.
-
 **For production applications, run Node.js on supported platforms only (Tier 1 or 2).**
 
 Node.js does not support a platform version if a vendor has expired support

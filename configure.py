@@ -1224,6 +1224,14 @@ parser.add_argument('--v8-with-dchecks',
     default=False,
     help='compile V8 with debug checks and runtime debugging features enabled')
 
+parser.add_argument('--v8-lite-mode',
+    action='store_true',
+    dest='v8_lite_mode',
+    default=False,
+    help='compile V8 in lite mode for constrained environments (lowers V8 '+
+         'memory footprint, but also implies no just-in-time compilation ' +
+         'support, thus much slower execution)')
+
 parser.add_argument('--v8-enable-object-print',
     action='store_true',
     dest='v8_enable_object_print',
@@ -1309,10 +1317,6 @@ parser.add_argument('--use-ccache-win',
     help='Use ccache for compiling on Windows. ')
 
 (options, args) = parser.parse_known_args()
-
-# Reject the removed option before forwarding unknown arguments to GYP.
-if any(arg.split('=', 1)[0] == '--v8-lite-mode' for arg in args):
-  parser.error('--v8-lite-mode is no longer supported; Node.js requires WebAssembly')
 
 # Expand ~ in the install prefix now, it gets written to multiple files.
 options.prefix = str(Path(options.prefix or '').expanduser())
@@ -2227,8 +2231,9 @@ def configure_library(lib, output, pkgname=None):
 def configure_v8(o, configs):
   set_configuration_variable(configs, 'v8_enable_v8_checks', release=0, debug=1)
 
-  o['variables']['v8_enable_webassembly'] = 1
+  o['variables']['v8_enable_webassembly'] = 0 if options.v8_lite_mode else 1
   o['variables']['v8_enable_javascript_promise_hooks'] = 1
+  o['variables']['v8_enable_lite_mode'] = 1 if options.v8_lite_mode else 0
   is_gdbjit_supported_arch = (
       'x64' in o['variables']['target_arch'] or
       'ia32' in o['variables']['target_arch'] or
