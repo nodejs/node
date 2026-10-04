@@ -119,6 +119,10 @@ async function run() {
 }
 ```
 
+Some iterators of this module return iterator results (`{ done, value }`
+objects) that do not inherit from `Object.prototype`. Code should only rely on
+their `done` and `value` properties, as `for await...of` does.
+
 ### Transforms
 
 Transforms come in two forms:
@@ -597,6 +601,10 @@ Objects implementing `Symbol.for('Stream.toAsyncStreamable')` or
 `toAsyncStreamable` protocol takes precedence over `toStreamable`, which takes
 precedence over the iteration protocols (`Symbol.asyncIterator`,
 `Symbol.iterator`).
+
+The readable of a [`push()`][] stream without transforms and the iterables
+returned by [`fromReadable()`][] already yield normalized batches, so `from()`
+returns them unchanged.
 
 ```mjs
 import { Buffer } from 'node:buffer';
@@ -2415,6 +2423,7 @@ console.log(textSync(stream)); // 'hello world'
 [`pipeTo()`]: #pipetosource-transforms-writer-options
 [`pull()`]: #pullsource-transforms-options
 [`pullSync()`]: #pullsyncsource-transforms
+[`push()`]: #pushtransforms-options
 [`share()`]: #sharesource-options
 [`stream.Readable`]: stream.md#class-streamreadable
 [`stream.Writable`]: stream.md#class-streamwritable
