@@ -19,6 +19,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/handle-scope-implementer-inl.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/visitors.h"
 #include "src/roots/roots-inl.h"
@@ -165,6 +166,18 @@ void MicrotaskQueue::EnqueueMicrotask(Tagged<Microtask> microtask) {
 
 void MicrotaskQueue::PerformCheckpointInternal(v8::Isolate* v8_isolate) {
   DCHECK(ShouldPerfomCheckpoint());
+  DCHECK(!microtasks_completed_callbacks_cow_.has_value());
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  // Fast path: Checkpoints occur frequently when exiting script or microtask
+  // scopes. If there are no microtasks to drain, no completion callbacks to
+  // notify, and no kept objects from FinalizationRegistry / WeakRefs to clear,
+  // we can bail out immediately and avoid artificial MicrotasksScope setup and
+  // RunMicrotasks overhead.
+  if (size() == 0 && microtasks_completed_callbacks_.empty() &&
+      isolate->heap()->weak_refs_keep_during_job() ==
+          ReadOnlyRoots(isolate).undefined_value()) [[likely]] {
+    return;
+  }
   std::optional<MicrotasksScope> microtasks_scope;
   if (microtasks_policy_ == v8::MicrotasksPolicy::kScoped) {
     // If we're using microtask scopes to schedule microtask execution, V8
@@ -175,7 +188,6 @@ void MicrotaskQueue::PerformCheckpointInternal(v8::Isolate* v8_isolate) {
     microtasks_scope.emplace(v8_isolate, this,
                              v8::MicrotasksScope::kDoNotRunMicrotasks);
   }
-  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   RunMicrotasks(isolate);
   isolate->ClearKeptObjects();
 }
@@ -347,12 +359,18 @@ void MicrotaskQueue::RemoveMicrotasksCompletedCallback(
 }
 
 void MicrotaskQueue::OnCompleted(Isolate* isolate) {
+  DCHECK_IMPLIES(microtasks_completed_callbacks_.empty(),
+                 !microtasks_completed_callbacks_cow_.has_value());
+  if (microtasks_completed_callbacks_.empty()) [[likely]] {
+    return;
+  }
+
   is_running_completed_callbacks_ = true;
   for (auto& callback : microtasks_completed_callbacks_) {
     callback.first(reinterpret_cast<v8::Isolate*>(isolate), callback.second);
   }
   is_running_completed_callbacks_ = false;
-  if (V8_UNLIKELY(microtasks_completed_callbacks_cow_.has_value())) {
+  if (microtasks_completed_callbacks_cow_.has_value()) [[unlikely]] {
     microtasks_completed_callbacks_ =
         std::move(microtasks_completed_callbacks_cow_.value());
     microtasks_completed_callbacks_cow_.reset();
