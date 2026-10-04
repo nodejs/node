@@ -800,12 +800,15 @@ void FSReqAfterScope::Clear() {
 // in JS for more flexibility.
 void FSReqAfterScope::Reject(uv_fs_t* req) {
   BaseObjectPtr<FSReqBase> wrap{wrap_};
+  // libuv clears req->path when mkstemp() fails, so the template that was
+  // saved in the request is reported instead.
+  const bool is_mkstemp = req->fs_type == UV_FS_MKSTEMP;
   Local<Value> exception = UVException(wrap_->env()->isolate(),
                                        static_cast<int>(req->result),
                                        wrap_->syscall(),
                                        nullptr,
-                                       req->path,
-                                       wrap_->data());
+                                       is_mkstemp ? wrap_->data() : req->path,
+                                       is_mkstemp ? nullptr : wrap_->data());
   Clear();
   wrap->Reject(exception);
 }
@@ -892,66 +895,31 @@ void AfterOpenFileHandle(uv_fs_t* req) {
   }
 }
 
-// Closes a file created by mkstemp() whose descriptor cannot be handed to JS.
-static void CloseMkstempFd(int fd) {
-  uv_fs_t close_req;
-  uv_fs_close(nullptr, &close_req, fd, nullptr);
-  uv_fs_req_cleanup(&close_req);
-}
-
 // Delivers the result of mkstemp(): [path, fd], or [path, FileHandle].
 static void AfterMkstempImpl(uv_fs_t* req, bool as_file_handle) {
-  BaseObjectPtr<FSReqBase> req_wrap{FSReqBase::from_req(req)};
-  FSReqAfterScope after(req_wrap.get(), req);
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
+  FSReqAfterScope after(req_wrap, req);
   FS_ASYNC_TRACE_END1(
       req->fs_type, req_wrap, "result", static_cast<int>(req->result))
-  Environment* env = req_wrap->env();
-  Isolate* isolate = env->isolate();
-
-  if (req->result < 0) {
-    if (!env->can_call_into_js()) return;
-    // libuv clears req->path when mkstemp() fails, so report the template
-    // that was saved in the request instead.
-    Local<Value> exception = UVException(isolate,
-                                         static_cast<int>(req->result),
-                                         req_wrap->syscall(),
-                                         nullptr,
-                                         req_wrap->data());
-    after.Clear();
-    return req_wrap->Reject(exception);
-  }
   const int fd = static_cast<int>(req->result);
+  if (after.Proceed()) {
+    Environment* env = req_wrap->env();
+    return ResolveMkstemp(
+        req_wrap,
+        fd,
+        [&]() {
+          return StringBytes::Encode(
+              env->isolate(), req->path, req_wrap->encoding());
+        },
+        [&]() {
+          if (!as_file_handle) return MkstempFd(env, fd);
+          return MkstempFileHandle([&]() {
+            return FileHandle::New(req_wrap->binding_data(), fd, {}, req->path);
+          });
+        });
+  }
   // The environment is shutting down: nothing will receive the descriptor.
-  if (!after.Proceed()) return CloseMkstempFd(fd);
-
-  Local<Value> path;
-  Local<Value> error;
-  {
-    // Leave the TryCatch before calling into JS.
-    TryCatch try_catch(isolate);
-    if (!StringBytes::Encode(isolate, req->path, req_wrap->encoding())
-             .ToLocal(&path)) {
-      CHECK(try_catch.CanContinue());
-      error = try_catch.Exception();
-    }
-  }
-  if (!error.IsEmpty()) {
-    CloseMkstempFd(fd);
-    return req_wrap->Reject(error);
-  }
-
-  Local<Value> file;
-  if (as_file_handle) {
-    FileHandle* handle =
-        FileHandle::New(req_wrap->binding_data(), fd, {}, req->path);
-    if (handle == nullptr) return CloseMkstempFd(fd);
-    file = handle->object();
-  } else {
-    env->AddUnmanagedFd(fd);
-    file = Integer::New(isolate, fd);
-  }
-  Local<Value> result[] = {path, file};
-  req_wrap->Resolve(Array::New(isolate, result, arraysize(result)));
+  if (fd >= 0) CloseMkstempFd(fd);
 }
 
 static void AfterMkstemp(uv_fs_t* req) {
@@ -4547,32 +4515,6 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
 static constexpr int kMkstempFlags =
     UV_FS_O_RDWR | UV_FS_O_CREAT | UV_FS_O_EXCL;
 
-static void MkstempAsync(const FunctionCallbackInfo<Value>& args,
-                         const BufferValue& tmpl,
-                         enum encoding encoding,
-                         uv_fs_cb after) {
-  Environment* env = Environment::GetCurrent(args);
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-  CHECK_NOT_NULL(req_wrap_async);
-  if (AsyncCheckOpenPermissions(env, req_wrap_async, tmpl, kMkstempFlags)
-          .IsNothing()) {
-    return;
-  }
-  FS_ASYNC_TRACE_BEGIN1(
-      UV_FS_MKSTEMP, req_wrap_async, "path", TRACE_STR_COPY(*tmpl))
-  // The template is saved in the request to report it if mkstemp() fails.
-  AsyncDestCall(env,
-                req_wrap_async,
-                args,
-                "mkstemp",
-                *tmpl,
-                tmpl.length(),
-                encoding,
-                after,
-                uv_fs_mkstemp,
-                *tmpl);
-}
-
 static void Mkstemp(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -4587,40 +4529,46 @@ static void Mkstemp(const FunctionCallbackInfo<Value>& args) {
   const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
 
   if (argc > 2) {  // mkstemp(tmpl, encoding, req)
-    return MkstempAsync(args, tmpl, encoding, AfterMkstemp);
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
+    CHECK_NOT_NULL(req_wrap_async);
+    if (AsyncCheckOpenPermissions(env, req_wrap_async, tmpl, kMkstempFlags)
+            .IsNothing()) {
+      return;
+    }
+    // The callback API gets a file descriptor, the promise API a FileHandle.
+    uv_fs_cb after =
+        args[2]->IsObject() ? AfterMkstemp : AfterMkstempFileHandle;
+    FS_ASYNC_TRACE_BEGIN1(
+        UV_FS_MKSTEMP, req_wrap_async, "path", TRACE_STR_COPY(*tmpl))
+    // The template is saved in the request to report it if mkstemp() fails.
+    AsyncDestCall(env,
+                  req_wrap_async,
+                  args,
+                  "mkstemp",
+                  *tmpl,
+                  tmpl.length(),
+                  encoding,
+                  after,
+                  uv_fs_mkstemp,
+                  *tmpl);
+  } else {  // mkstemp(tmpl, encoding)
+    if (CheckOpenPermissions(env, tmpl, kMkstempFlags).IsNothing()) return;
+    FSReqWrapSync req_wrap_sync("mkstemp", *tmpl);
+    FS_SYNC_TRACE_BEGIN(mkstemp);
+    int fd = SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_mkstemp, *tmpl);
+    FS_SYNC_TRACE_END(mkstemp);
+    if (is_uv_error(fd)) {
+      return;
+    }
+    MaybeLocal<Value> result = MkstempResult(
+        isolate,
+        fd,
+        [&]() {
+          return StringBytes::Encode(isolate, req_wrap_sync.req.path, encoding);
+        },
+        [&]() { return MkstempFd(env, fd); });
+    args.GetReturnValue().Set(result.FromMaybe(Local<Value>()));
   }
-
-  // mkstemp(tmpl, encoding)
-  if (CheckOpenPermissions(env, tmpl, kMkstempFlags).IsNothing()) return;
-  FSReqWrapSync req_wrap_sync("mkstemp", *tmpl);
-  FS_SYNC_TRACE_BEGIN(mkstemp);
-  int fd = SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_mkstemp, *tmpl);
-  FS_SYNC_TRACE_END(mkstemp);
-  if (is_uv_error(fd)) {
-    return;
-  }
-  Local<Value> path;
-  if (!StringBytes::Encode(isolate, req_wrap_sync.req.path, encoding)
-           .ToLocal(&path)) {
-    return CloseMkstempFd(fd);
-  }
-  env->AddUnmanagedFd(fd);
-  Local<Value> result[] = {path, Integer::New(isolate, fd)};
-  args.GetReturnValue().Set(Array::New(isolate, result, arraysize(result)));
-}
-
-static void MkstempFileHandle(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-
-  CHECK_EQ(args.Length(), 3);  // mkstempFileHandle(tmpl, encoding, req)
-
-  BufferValue tmpl(isolate, args[0]);
-  AppendTemplateSuffix(&tmpl);
-  CHECK_NOT_NULL(*tmpl);
-
-  const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
-  MkstempAsync(args, tmpl, encoding, AfterMkstempFileHandle);
 }
 
 static void GetFormatOfExtensionlessFile(
@@ -5833,7 +5781,6 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
 
   SetMethod(isolate, target, "mkdtemp", Mkdtemp);
   SetMethod(isolate, target, "mkstemp", Mkstemp);
-  SetMethod(isolate, target, "mkstempFileHandle", MkstempFileHandle);
 
 #ifdef _WIN32
   SetMethod(isolate, target, "handleToFd", HandleToFd);
@@ -5996,7 +5943,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(Mkdtemp);
   registry->Register(Mkstemp);
-  registry->Register(MkstempFileHandle);
 #ifdef _WIN32
   registry->Register(HandleToFd);
 #endif

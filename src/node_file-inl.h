@@ -424,6 +424,70 @@ int SyncCallAndThrowOnError(Environment* env,
   return SyncCallAndThrowIf(is_uv_error, env, req_wrap, fn, args...);
 }
 
+// Closes a file created by mkstemp() whose descriptor cannot be handed to JS.
+inline void CloseMkstempFd(int fd) {
+  uv_fs_t close_req;
+  uv_fs_close(nullptr, &close_req, fd, nullptr);
+  uv_fs_req_cleanup(&close_req);
+}
+
+// The descriptor is handed to JS as a number, like the one of fs.open().
+inline v8::MaybeLocal<v8::Value> MkstempFd(Environment* env, int fd) {
+  env->AddUnmanagedFd(fd);
+  return v8::Integer::New(env->isolate(), fd);
+}
+
+// The descriptor is owned by the FileHandle that `new_handle` creates.
+template <typename NewHandle>
+v8::MaybeLocal<v8::Value> MkstempFileHandle(NewHandle&& new_handle) {
+  FileHandle* handle = new_handle();
+  if (handle == nullptr) return {};
+  return handle->object();
+}
+
+// Builds the [path, file] result for a file created by mkstemp(). `make_file`
+// takes ownership of the descriptor. If a step fails, the file is closed and
+// the exception is left pending.
+template <typename EncodePath, typename MakeFile>
+v8::MaybeLocal<v8::Value> MkstempResult(v8::Isolate* isolate,
+                                        int fd,
+                                        EncodePath&& encode_path,
+                                        MakeFile&& make_file) {
+  v8::Local<v8::Value> path;
+  v8::Local<v8::Value> file;
+  if (!encode_path().ToLocal(&path) || !make_file().ToLocal(&file)) {
+    CloseMkstempFd(fd);
+    return {};
+  }
+  v8::Local<v8::Value> result[] = {path, file};
+  return v8::Array::New(isolate, result, arraysize(result));
+}
+
+// Resolves `req_wrap` with the result of mkstemp(), or rejects it with the
+// exception thrown while building it. The TryCatch is left before calling
+// into JS.
+template <typename EncodePath, typename MakeFile>
+void ResolveMkstemp(FSReqBase* req_wrap,
+                    int fd,
+                    EncodePath&& encode_path,
+                    MakeFile&& make_file) {
+  v8::Isolate* isolate = req_wrap->env()->isolate();
+  v8::Local<v8::Value> result;
+  v8::Local<v8::Value> error;
+  {
+    v8::TryCatch try_catch(isolate);
+    if (!MkstempResult(isolate, fd, encode_path, make_file).ToLocal(&result)) {
+      CHECK(try_catch.CanContinue());
+      error = try_catch.Exception();
+    }
+  }
+  if (error.IsEmpty()) {
+    req_wrap->Resolve(result);
+  } else {
+    req_wrap->Reject(error);
+  }
+}
+
 }  // namespace fs
 }  // namespace node
 
