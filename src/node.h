@@ -1674,6 +1674,17 @@ v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        int argc,
                                        v8::Local<v8::Value>* argv,
                                        async_context asyncContext);
+/* The same, for an addon that calls into the same Environment many times:
+ * `env` is passed in, for example from GetCurrentEnvironment() once, instead
+ * of being looked up from the creation context of `callback` on every call.
+ * `callback` must belong to `env`. */
+NODE_EXTERN
+v8::MaybeLocal<v8::Value> MakeCallback(Environment* env,
+                                       v8::Local<v8::Object> recv,
+                                       v8::Local<v8::Function> callback,
+                                       int argc,
+                                       v8::Local<v8::Value>* argv,
+                                       async_context asyncContext);
 NODE_EXTERN
 v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        v8::Local<v8::Object> recv,
