@@ -728,6 +728,25 @@ promise_test(async (t) => {
       'deriveKey X25519-HMAC-SHA-256 should fail');
 }, 'deriveKey promise tests');
 
+// Test supports for exportKey op
+test(() => {
+  assert_true(SubtleCrypto.supports('exportKey', 'AES-GCM'),
+              'exportKey AES-GCM should pass');
+  assert_false(SubtleCrypto.supports('exportKey', 'HKDF'),
+               'exportKey HKDF should fail');
+  assert_false(SubtleCrypto.supports('exportKey', 'PBKDF2'),
+               'exportKey PBKDF2 should fail');
+}, 'exportKey tests');
+
+// Test supports for wrapKey op
+test(() => {
+  assert_true(SubtleCrypto.supports('wrapKey', 'AES-KW', 'AES-GCM'),
+              'wrapKey AES-KW-AES-GCM should pass');
+  assert_false(SubtleCrypto.supports('wrapKey', 'AES-KW', 'HKDF'),
+               'wrapKey AES-KW-HKDF should fail');
+  assert_false(SubtleCrypto.supports('wrapKey', 'AES-KW', 'PBKDF2'),
+               'wrapKey AES-KW-PBKDF2 should fail');
+}, 'wrapKey tests');
 
 
 done();
