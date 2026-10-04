@@ -210,6 +210,53 @@ async function testPipeRejectsSyncWriteDetachOrResize() {
   assert.deepStrictEqual(written, [chunk]);
 }
 
+// Batches of several chunks written one at a time are checked against the
+// byteLengths recorded when the batch was accepted, before and after each
+// writeSync(). Detaching a later chunk, or the chunk being written, must be
+// rejected.
+async function testPipeRejectsDetachInMultiChunkBatch() {
+  for (const detachIndex of [1, 0]) {
+    const asyncBuffers = [new ArrayBuffer(2), new ArrayBuffer(2)];
+    const asyncWritten = [];
+    await assert.rejects(pipeTo([asyncBuffers.map((b) => new Uint8Array(b))], {
+      writeSync(chunk) {
+        asyncWritten.push(chunk.byteLength);
+        if (asyncWritten.length === 1) asyncBuffers[detachIndex].transfer();
+        return true;
+      },
+      write: common.mustNotCall(),
+      fail: common.mustCall(),
+    }), kResizeError);
+    assert.deepStrictEqual(asyncWritten, [2]);
+
+    const syncBuffers = [new ArrayBuffer(2), new ArrayBuffer(2)];
+    const syncWritten = [];
+    assert.throws(() => pipeToSync([syncBuffers.map((b) => new Uint8Array(b))], {
+      writeSync(chunk) {
+        syncWritten.push(chunk.byteLength);
+        if (syncWritten.length === 1) syncBuffers[detachIndex].transfer();
+        return true;
+      },
+      fail: common.mustCall(),
+    }, { preventClose: true }), kResizeError);
+    assert.deepStrictEqual(syncWritten, [2]);
+  }
+
+  // When writeSync() declines a chunk, pipeTo() writes the rest of the batch
+  // with write().
+  const chunks = [Uint8Array.of(1), Uint8Array.of(2, 3), Uint8Array.of(4)];
+  const written = [];
+  assert.strictEqual(await pipeTo([chunks], {
+    writeSync(chunk) {
+      if (chunk === chunks[1]) return false;
+      written.push(chunk);
+      return true;
+    },
+    write(chunk) { written.push(chunk); },
+  }, { preventClose: true }), 4);
+  assert.deepStrictEqual(written, chunks);
+}
+
 async function testConsumersRejectDetachedViews() {
   // Views of fixed-length buffers are tracked without a full snapshot; they
   // must still be rejected when detached after being accepted.
@@ -249,4 +296,5 @@ Promise.all([
   testConsumersRejectDetachedViews(),
   testPipeRejectsWriterResize(),
   testPipeRejectsSyncWriteDetachOrResize(),
+  testPipeRejectsDetachInMultiChunkBatch(),
 ]).then(common.mustCall());
