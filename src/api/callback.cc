@@ -352,6 +352,17 @@ MaybeLocal<Value> InternalMakeCallback(Isolate* isolate,
       env, recv, callback, argc, argv, asyncContext, context_frame);
 }
 
+MaybeLocal<Value> MakeCallback(Environment* env,
+                               Local<Object> recv,
+                               Local<Function> callback,
+                               int argc,
+                               Local<Value> argv[],
+                               async_context asyncContext) {
+  CHECK_NOT_NULL(env);
+  return MakeCallbackInEnvironment(
+      env, recv, callback, argc, argv, asyncContext, Undefined(env->isolate()));
+}
+
 MaybeLocal<Value> MakeCallbackInEnvironment(Environment* env,
                                             Local<Object> recv,
                                             const Local<Function> callback,
