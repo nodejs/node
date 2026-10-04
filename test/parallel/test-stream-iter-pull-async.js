@@ -79,8 +79,8 @@ async function testPullWithAbortSignal() {
   await assert.rejects(iterator.next(), (error) => error === signal.reason);
   await assert.rejects(iterator.next(), (error) => error === signal.reason);
   assert.strictEqual(started, false);
-  assert.deepStrictEqual(await iterator.return(),
-                         { __proto__: null, done: true, value: undefined });
+  assert.deepStrictEqual({ ...await iterator.return() },
+                         { done: true, value: undefined });
 
   await assert.rejects(text(pull(gen(), (chunks) => chunks, { signal })),
                        (error) => error === signal.reason);

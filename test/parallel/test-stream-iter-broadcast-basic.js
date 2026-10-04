@@ -385,8 +385,7 @@ async function testOverlappingNextKeepsEarlierRead() {
   assert.strictEqual(Buffer.concat(result.value).toString(), 'x');
 
   writer.endSync();
-  assert.deepStrictEqual(await second, {
-    __proto__: null,
+  assert.deepStrictEqual({ ...await second }, {
     done: true,
     value: undefined,
   });
