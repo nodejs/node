@@ -7,7 +7,8 @@
 const common = require('../common');
 const assert = require('assert');
 const { setTimeout } = require('timers/promises');
-const { pipeTo, from } = require('stream/iter');
+const { getEventListeners } = require('events');
+const { bytes, pipeTo, from } = require('stream/iter');
 
 async function testPipeToPreAbortedSignalFailsWriter() {
   const reason = new Error('already aborted');
@@ -160,6 +161,57 @@ async function testPipeToLiveSignalWithTransformsCompletes() {
   assert.ok(written.length > 0);
 }
 
+async function testSignalAbortedWhileReadingSource() {
+  // The signal can abort while the source is producing a value; the read
+  // must still reject with the abort reason, and the source be closed, even
+  // if the value never comes.
+  for (const consume of [
+    (source, signal) => pipeTo(source, { write() {} }, { signal }),
+    (source, signal) => bytes(source, { signal }),
+  ]) {
+    const ac = new AbortController();
+    const reason = new Error('aborted while reading');
+    let closed = false;
+    const source = {
+      [Symbol.asyncIterator]() {
+        return {
+          next() {
+            ac.abort(reason);
+            return new Promise(() => {});
+          },
+          async return() {
+            closed = true;
+            return { done: true };
+          },
+        };
+      },
+    };
+    await assert.rejects(consume(source, ac.signal), reason);
+    assert.strictEqual(closed, true);
+  }
+}
+
+async function testSignalListenersRemoved() {
+  // No abort listener is left on the signal once reading completes, fails
+  // or is aborted.
+  const ac = new AbortController();
+  await pipeTo(from('abc'), { write() {} }, { signal: ac.signal });
+  await bytes(from('abc'), { signal: ac.signal });
+  await assert.rejects(bytes((async function*() {
+    yield 'a';
+    throw new Error('source failed');
+  })(), { signal: ac.signal }), /source failed/);
+  assert.strictEqual(getEventListeners(ac.signal, 'abort').length, 0);
+
+  const aborting = new AbortController();
+  await assert.rejects(bytes((async function*() {
+    yield 'a';
+    aborting.abort();
+    yield 'b';
+  })(), { signal: aborting.signal }), { name: 'AbortError' });
+  assert.strictEqual(getEventListeners(aborting.signal, 'abort').length, 0);
+}
+
 Promise.all([
   testPipeToPreAbortedSignalFailsWriter(),
   testPipeToPreAbortedSignalPreventFail(),
@@ -168,4 +220,6 @@ Promise.all([
   testPipeToLiveSignalWithTransforms(),
   testPipeToLiveSignalCompletes(),
   testPipeToLiveSignalWithTransformsCompletes(),
+  testSignalAbortedWhileReadingSource(),
+  testSignalListenersRemoved(),
 ]).then(common.mustCall());
