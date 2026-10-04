@@ -277,7 +277,40 @@ async function testSignalAbortedByUnderlyingEnd() {
   assert.strictEqual(await ending, 0);
 }
 
+// A write that fills the Writable resolves before 'drain'. If the Writable's
+// write callback runs on a microtask or a tick, 'drain' can be emitted before
+// the next write or wait; the adapter must not miss it.
+async function testDrainBeforeNextWrite() {
+  for (const defer of [queueMicrotask, process.nextTick]) {
+    const writable = new Writable({
+      highWaterMark: 4,
+      write(chunk, encoding, callback) { defer(callback); },
+    });
+    const writer = fromWritable(writable);
+
+    for (let i = 0; i < 3; i++) {
+      await writer.write('abcd');
+    }
+    await writer.writev(['ab', 'cd']);
+    await writer.writev(['ab', 'cd']);
+
+    await setImmediate();
+    assert.strictEqual(writer.canWrite, true);
+    // Nothing is waiting any more, so the 'drain' listener is removed.
+    assert.strictEqual(writable.listenerCount('drain'), 0);
+
+    writer.write('abcd');
+    assert.strictEqual(writer.canWrite, false);
+    assert.strictEqual(await ondrain(writer), true);
+    assert.strictEqual(writer.canWrite, true);
+
+    await writer.end();
+    assert.strictEqual(writable.listenerCount('drain'), 0);
+  }
+}
+
 Promise.all([
+  testDrainBeforeNextWrite(),
   testQueuedWriteThrowsDuringFlush(),
   testQueuedWriteErrorsDuringFlush(),
   testWriteErrorsSynchronously(),
