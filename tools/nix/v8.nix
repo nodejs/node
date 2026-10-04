@@ -130,6 +130,12 @@ stdenv.mkDerivation (finalAttrs: {
       fi
     done
   ''
+  # TODO: remove that custom patch in favor of https://chromium-review.googlesource.com/c/v8/v8/+/8500805
+  + (lib.optionalString (with stdenv.hostPlatform; isLinux && isArm64) ''
+    substituteInPlace deps/v8/src/base/memcopy.h --replace-fail '#define V8_BASE_MEMCOPY_H_' "$(
+      printf '%s\n\n%s\n' '#define V8_BASE_MEMCOPY_H_' '#include <limits.h>'
+    )"
+  '')
   # We also need to mock some Python util files that are not used to configure Python.
   # Mocking lets us avoid rebuilding the whole derivation if there's a unrelated
   # change in one of those files.
