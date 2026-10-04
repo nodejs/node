@@ -71,8 +71,10 @@ using v8::TryCatch;
 using v8::Uint8Array;
 using v8::Value;
 
-inline MaybeLocal<String> Utf8StringMaybeOneByte(Isolate* isolate,
-                                                 std::string_view input) {
+inline MaybeLocal<String> Utf8StringMaybeOneByte(
+    Isolate* isolate,
+    std::string_view input,
+    NewStringType type = NewStringType::kNormal) {
   // SQLITE_MAX_LENGTH exceeds String::kMaxLength, and V8 returns an empty
   // handle without throwing. Raise the error here or the value is dropped.
   if (input.size() > static_cast<size_t>(String::kMaxLength)) [[unlikely]] {
@@ -83,13 +85,9 @@ inline MaybeLocal<String> Utf8StringMaybeOneByte(Isolate* isolate,
   const int len = static_cast<int>(input.size());
   if (simdutf::validate_ascii(input.data(), input.size())) {
     return String::NewFromOneByte(
-        isolate,
-        reinterpret_cast<const uint8_t*>(input.data()),
-        NewStringType::kNormal,
-        len);
+        isolate, reinterpret_cast<const uint8_t*>(input.data()), type, len);
   }
-  return String::NewFromUtf8(
-      isolate, input.data(), NewStringType::kNormal, len);
+  return String::NewFromUtf8(isolate, input.data(), type, len);
 }
 
 BindingData::BindingData(Realm* realm, Local<Object> wrap)
@@ -4012,16 +4010,8 @@ MaybeLocal<Name> Statement::ColumnNameToName(const int column) {
     return MaybeLocal<Name>();
   }
 
-  const size_t len = strlen(col_name);
-  if (len > static_cast<size_t>(String::kMaxLength)) {
-    env()->isolate()->ThrowException(ERR_STRING_TOO_LONG(env()->isolate()));
-    return MaybeLocal<Name>();
-  }
-
-  return String::NewFromUtf8(env()->isolate(),
-                             col_name,
-                             NewStringType::kInternalized,
-                             static_cast<int>(len))
+  return Utf8StringMaybeOneByte(
+             env()->isolate(), col_name, NewStringType::kInternalized)
       .As<Name>();
 }
 
