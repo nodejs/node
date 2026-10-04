@@ -716,6 +716,10 @@ added:
 * `...transforms` {Function|Object} Zero or more sync transforms.
 * `writer` {Object} Destination with `write(chunk)` method.
 * `options` {Object}
+  * `failOnIncompleteClose` {boolean} If `true`, call `writer.fail()` when
+    `writer.endSync()` cannot close the writer synchronously. Ignored when
+    `preventFail` is `true`. This option is a Node.js extension.
+    **Default:** `false`.
   * `preventClose` {boolean} **Default:** `false`.
   * `preventFail` {boolean} **Default:** `false`.
 * Returns: {number} Total bytes written.
@@ -730,8 +734,10 @@ The `writer` must have the `*Sync` methods (`writeSync`, `writevSync`,
 `writer.endSync()` returns `-1` because the writer cannot close synchronously
 (for example, a `push()` writer whose consumer has not read all of the data
 yet), `pipeToSync()` throws `ERR_INVALID_STATE`. All of the data was accepted
-by then, so the writer is not failed: it can still be closed, for example with
-`await writer.end()`.
+by then, so by default the writer is not failed: it can still be closed, for
+example with `await writer.end()`. If the writer cannot be closed any other
+way (for example, it has no `end()` method), or the caller will not close it,
+set `failOnIncompleteClose` to fail it with the thrown error instead.
 
 ### `pull(source[, ...transforms][, options])`
 
