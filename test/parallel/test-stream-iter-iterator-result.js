@@ -33,6 +33,9 @@ async function testAsyncIterators() {
       return readable;
     },
     'share()': () => share(from('a')).pull(),
+    'from() of an async iterable': () => from((async function*() {
+      yield 'a';
+    })()),
     'broadcast()': () => {
       const { writer, broadcast: bc } = broadcast();
       const consumer = bc.push();

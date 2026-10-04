@@ -123,7 +123,7 @@ async function testFromDoesNotHoldBackNestedAsyncIterable() {
   }
 
   const iterator = from(source())[Symbol.asyncIterator]();
-  assert.deepStrictEqual(await iterator.next(),
+  assert.deepStrictEqual({ ...await iterator.next() },
                          { done: false, value: [new Uint8Array([1])] });
   resolve();
   const rest = [];
@@ -529,6 +529,156 @@ async function testFromFunctionWithProtocols() {
   assert.throws(() => from(() => {}), { code: 'ERR_INVALID_ARG_TYPE' });
 }
 
+// from() reads async sources like an async generator looping over them with
+// for await. The tests below check the parts of that behavior that are
+// observable from the source: when it is read and closed.
+
+// Creates an async iterable source of `values`, recording calls in `log`.
+function createLoggedSource(log, values, { failAt = -1, returnError } = {}) {
+  let i = 0;
+  return {
+    [Symbol.asyncIterator]() {
+      log.push('iterator');
+      return {
+        async next() {
+          log.push(`next ${i}`);
+          if (i === failAt) {
+            i++;
+            throw new Error('source failed');
+          }
+          if (i >= values.length) return { done: true, value: undefined };
+          return { done: false, value: values[i++] };
+        },
+        async return() {
+          log.push('return');
+          if (returnError !== undefined) throw returnError;
+          return { done: true, value: undefined };
+        },
+      };
+    },
+  };
+}
+
+async function settle(log, label, promise) {
+  try {
+    const result = await promise;
+    log.push(`${label}: ${result.done ? 'done' : result.value.length}`);
+  } catch (error) {
+    log.push(`${label}: ${error.code ?? error.message}`);
+  }
+}
+
+async function testFromQueuesConcurrentNext() {
+  const log = [];
+  const iterator = from(createLoggedSource(log, [
+    Uint8Array.of(1), Uint8Array.of(2),
+  ]))[Symbol.asyncIterator]();
+  const results = [iterator.next(), iterator.next(), iterator.next()];
+  for (let i = 0; i < results.length; i++) {
+    await settle(log, `result ${i}`, results[i]);
+  }
+  assert.deepStrictEqual(log, [
+    'iterator', 'next 0', 'next 1', 'result 0: 1', 'next 2', 'result 1: 1',
+    'result 2: done',
+  ]);
+}
+
+async function testFromSplitsOversizedBatches() {
+  const log = [];
+  const batch = Array.from({ length: 300 }, () => new Uint8Array(1));
+  const iterator = from(createLoggedSource(log, [batch, [], [batch[0]]]))[
+    Symbol.asyncIterator]();
+  for (let i = 0; i < 5; i++) await settle(log, `result ${i}`, iterator.next());
+  assert.deepStrictEqual(log, [
+    'iterator', 'next 0', 'result 0: 128', 'result 1: 128', 'result 2: 44',
+    'next 1', 'next 2', 'result 3: 1', 'next 3', 'result 4: done',
+  ]);
+}
+
+async function testFromSourceErrorDoesNotCloseSource() {
+  const log = [];
+  const iterator = from(createLoggedSource(log, [Uint8Array.of(1)], {
+    failAt: 1,
+  }))[Symbol.asyncIterator]();
+  for (let i = 0; i < 3; i++) await settle(log, `result ${i}`, iterator.next());
+  assert.deepStrictEqual(log, [
+    'iterator', 'next 0', 'result 0: 1', 'next 1', 'result 1: source failed',
+    'result 2: done',
+  ]);
+}
+
+async function testFromNormalizationErrorClosesSource() {
+  // A value that cannot be normalized.
+  let log = [];
+  let iterator = from(createLoggedSource(log, [Uint8Array.of(1), 42]))[
+    Symbol.asyncIterator]();
+  for (let i = 0; i < 3; i++) await settle(log, `result ${i}`, iterator.next());
+  assert.deepStrictEqual(log, [
+    'iterator', 'next 0', 'result 0: 1', 'next 1', 'return',
+    'result 1: ERR_INVALID_ARG_TYPE', 'result 2: done',
+  ]);
+
+  // A nested async iterable that fails.
+  async function* nested() {
+    yield Uint8Array.of(2);
+    throw new Error('nested failed');
+  }
+  log = [];
+  iterator = from(createLoggedSource(log, [nested()]))[Symbol.asyncIterator]();
+  for (let i = 0; i < 3; i++) await settle(log, `result ${i}`, iterator.next());
+  assert.deepStrictEqual(log, [
+    'iterator', 'next 0', 'result 0: 1', 'return', 'result 1: nested failed',
+    'result 2: done',
+  ]);
+}
+
+async function testFromReturnAndThrowBeforeStart() {
+  const log = [];
+  let iterator = from(createLoggedSource(log, [Uint8Array.of(1)]))[
+    Symbol.asyncIterator]();
+  assert.deepStrictEqual({ ...await iterator.return('v') },
+                         { done: true, value: 'v' });
+  await settle(log, 'after return', iterator.next());
+  iterator = from(createLoggedSource(log, [Uint8Array.of(1)]))[
+    Symbol.asyncIterator]();
+  await settle(log, 'throw', iterator.throw(new Error('thrown')));
+  await settle(log, 'after throw', iterator.next());
+  // The source is never read.
+  assert.deepStrictEqual(log, [
+    'after return: done', 'throw: thrown', 'after throw: done',
+  ]);
+}
+
+async function testFromReturnAndThrowCloseSource() {
+  const returnError = new Error('return failed');
+  for (const method of ['return', 'throw']) {
+    const log = [];
+    let nestedClosed = false;
+    async function* nested() {
+      try {
+        yield Uint8Array.of(1);
+        yield Uint8Array.of(2);
+      } finally {
+        nestedClosed = true;
+      }
+    }
+    const iterator = from(createLoggedSource(log, [nested()], {
+      returnError,
+    }))[Symbol.asyncIterator]();
+    await settle(log, 'result', iterator.next());
+    await settle(log, method, iterator[method](new Error('thrown')));
+    await settle(log, 'after', iterator.next());
+    assert.strictEqual(nestedClosed, true);
+    // return() propagates errors from closing the source; throw() keeps its
+    // own error.
+    assert.deepStrictEqual(log, [
+      'iterator', 'next 0', 'result: 1', 'return',
+      method === 'return' ? 'return: return failed' : 'throw: thrown',
+      'after: done',
+    ]);
+  }
+}
+
 Promise.all([
   testFromString(),
   testFromAsyncGenerator(),
@@ -563,4 +713,10 @@ Promise.all([
   testConsumerAbortClosesPendingNestedIterator(),
   testFromCancellationHandlesCleanupRejection(),
   testFromDataView(),
+  testFromQueuesConcurrentNext(),
+  testFromSplitsOversizedBatches(),
+  testFromSourceErrorDoesNotCloseSource(),
+  testFromNormalizationErrorClosesSource(),
+  testFromReturnAndThrowBeforeStart(),
+  testFromReturnAndThrowCloseSource(),
 ]).then(common.mustCall());
