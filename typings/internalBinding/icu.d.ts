@@ -1,3 +1,5 @@
+type Buffer = Uint8Array;
+
 export interface ICUBinding {
   Converter: object;
   decode(
