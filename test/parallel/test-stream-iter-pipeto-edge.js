@@ -129,9 +129,57 @@ async function testFailThrowingDoesNotMaskError() {
     (error) => error === signal.reason);
 }
 
+// failOnIncompleteClose fails a writer that cannot be closed synchronously,
+// e.g. a sync-only writer that has no end().
+async function testPipeToSyncFailOnIncompleteClose() {
+  let failReason;
+  const writer = {
+    writeSync() { return true; },
+    endSync: common.mustCall(() => -1),
+    fail: common.mustCall((reason) => { failReason = reason; }),
+  };
+  assert.throws(
+    () => pipeToSync(fromSync('data'), writer, { failOnIncompleteClose: true }),
+    (error) => {
+      assert.strictEqual(error.code, 'ERR_INVALID_STATE');
+      assert.strictEqual(error, failReason);
+      return true;
+    });
+
+  // preventFail takes precedence.
+  assert.throws(
+    () => pipeToSync(fromSync('data'), {
+      writeSync() { return true; },
+      endSync: common.mustCall(() => -1),
+      fail: common.mustNotCall(),
+    }, { failOnIncompleteClose: true, preventFail: true }),
+    { code: 'ERR_INVALID_STATE' });
+
+  // It has no effect when the writer closes synchronously.
+  assert.strictEqual(pipeToSync(fromSync('data'), {
+    writeSync() { return true; },
+    endSync: common.mustCall(() => 4),
+    fail: common.mustNotCall(),
+  }, { failOnIncompleteClose: true }), 4);
+
+  // A push() writer is failed with the error, so its consumer sees it.
+  const { writer: pushWriter, readable } = push();
+  let thrown;
+  assert.throws(() => {
+    try {
+      pipeToSync(fromSync('abc'), pushWriter, { failOnIncompleteClose: true });
+    } catch (error) {
+      thrown = error;
+      throw error;
+    }
+  }, { code: 'ERR_INVALID_STATE' });
+  await assert.rejects(text(readable), (error) => error === thrown);
+}
+
 Promise.all([
   testPipeToSyncEndSyncFailure(),
   testPipeToSyncEndSyncFailureDoesNotFailWriter(),
+  testPipeToSyncFailOnIncompleteClose(),
   testPipeToSyncNoEndSync(),
   testPipeToSyncPreventFail(),
   testPipeToSyncPreventClose(),
