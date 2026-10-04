@@ -392,8 +392,27 @@ async function testOverlappingNextKeepsEarlierRead() {
   assert.strictEqual(bc.consumerCount, 0);
 }
 
+async function testOverlappingNextResolvedInOrder() {
+  const { writer, broadcast: bc } = broadcast();
+  const it = bc.push()[Symbol.asyncIterator]();
+  const reads = [it.next(), it.next(), it.next(), it.next(), it.next()];
+
+  for (const value of ['a', 'b', 'c']) await writer.write(value);
+  const error = new Error('failed');
+  writer.fail(error);
+
+  for (const [i, value] of ['a', 'b', 'c'].entries()) {
+    const result = await reads[i];
+    assert.strictEqual(result.done, false);
+    assert.strictEqual(Buffer.concat(result.value).toString(), value);
+  }
+  await assert.rejects(reads[3], error);
+  await assert.rejects(reads[4], error);
+}
+
 Promise.all([
   testBasicBroadcast(),
+  testOverlappingNextResolvedInOrder(),
   testMultipleWrites(),
   testConsumerCount(),
   testWriteSync(),
