@@ -20,8 +20,8 @@ const TypedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype);
 const data = new TextEncoder().encode('prototype pollution');
 const modulusLength = getFips() === 1 ? 2048 : 1024;
 
-// Avoids SubtleCrypto.supports(), which warns and invokes the registry's
-// experimental-algorithm getters.
+// Avoids SubtleCrypto.supports(), which can invoke the registry's
+// experimental-algorithm warning getters.
 function supports(operation, name) {
   return Object.hasOwn(kSupportedAlgorithms[operation] ?? {}, name);
 }
