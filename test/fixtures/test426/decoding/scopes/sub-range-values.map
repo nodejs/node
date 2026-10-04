@@ -13,5 +13,6 @@
     "y_val",
     "x_sub_val2"
   ],
-  "scopes": "BCAAA,DCC,CKA,ECAA,GEF,HAADAADG,FK"
+  "scopes": ["BCAAA,DCC,CKA"],
+  "ranges": ["ECAAA,GEF,HAADAADG,FK"]
 }
