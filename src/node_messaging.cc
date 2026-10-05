@@ -651,7 +651,6 @@ void MessagePortData::AddToIncomingQueue(std::shared_ptr<Message> message) {
 
 void MessagePortData::AddWorkerExitNotification(uint64_t thread_id,
                                                 ExitCode exit_code) {
-  Mutex::ScopedLock lock(mutex_);
   auto message =
       std::make_shared<Message>(WorkerExitNotification{thread_id, exit_code});
   AddToIncomingQueue(std::move(message));
