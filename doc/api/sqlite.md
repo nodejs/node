@@ -1458,6 +1458,20 @@ resulting changes. The prepared statement [parameters are bound][] using the
 values in `namedParameters` and `anonymousParameters`. See
 [Binding parameters][].
 
+If reading integers as `BigInt`s is disabled and either `changes` or
+`lastInsertRowid` is outside the JavaScript safe integer range, this method throws
+an `ERR_OUT_OF_RANGE` error when converting the result metadata after executing
+the statement. This error does not itself roll back the changes made by the
+statement.
+
+The last insert rowid is associated with the database connection, rather than
+the prepared statement. A single insertion with an explicitly assigned rowid
+outside the safe integer range can therefore cause subsequent `run()` calls on
+the same connection to throw, including calls that execute `UPDATE` or `DELETE`
+statements. To read the result metadata as `BigInt`s, call
+[`statement.setReadBigInts(true)`][`statement.setReadBigInts()`] on each affected
+statement before calling `run()`.
+
 ### `statement.setAllowBareNamedParameters(enabled)`
 
 <!-- YAML
@@ -2150,6 +2164,7 @@ callback function to indicate what type of operation is being authorized.
 [`statement.close()`]: #statementclose
 [`statement.setAllowBareNamedParameters()`]: #statementsetallowbarenamedparametersenabled
 [`statement.setAllowUnknownNamedParameters()`]: #statementsetallowunknownnamedparametersenabled
+[`statement.setReadBigInts()`]: #statementsetreadbigintsenabled
 [`statement.stat()`]: #statementstatcounter
 [busy timeout]: https://sqlite.org/c3ref/busy_timeout.html
 [connection]: https://www.sqlite.org/c3ref/sqlite3.html
