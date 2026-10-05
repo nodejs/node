@@ -33,6 +33,7 @@ async function testCapture() {
       runner.bench('captured', {
         diagnosticChannels: [benchmarkName, nestedName],
         samples: 1,
+        warmup: 0,
       }, common.mustCall((context) => {
         const message = { value: 1 };
         inheritedChannel.publish(message);
@@ -45,7 +46,10 @@ async function testCapture() {
       }));
     }));
   }));
-  runner.bench('not captured', { samples: 1 }, common.mustCall((context) => {
+  runner.bench('not captured', {
+    samples: 1,
+    warmup: 0,
+  }, common.mustCall((context) => {
     inheritedChannel.publish({ value: 6 });
     recordSample(context);
   }));
@@ -79,6 +83,7 @@ async function testUncloneableMessage() {
   runner.bench('uncloneable', {
     diagnosticChannels: [name],
     samples: 1,
+    warmup: 0,
   }, common.mustCall((context) => {
     channel.publish(() => {});
     recordSample(context);
@@ -99,6 +104,7 @@ async function testAbortCleanup() {
     diagnosticChannels: [name],
     samples: 1,
     signal: controller.signal,
+    warmup: 0,
   }, common.mustCall((context) => {
     controller.abort(new Error('stop'));
     assert.strictEqual(channel.hasSubscribers, false);

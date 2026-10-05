@@ -67,7 +67,7 @@ suiteCompletion.then(common.mustCall());
 const completions = [];
 const sampleNames = [];
 let summary;
-const stream = run();
+const stream = run({ warmup: 0 });
 stream.on('bench:complete', (result) => completions.push(result));
 stream.on('bench:sample', (sample) => sampleNames.push(sample.name));
 stream.on('bench:summary', (result) => { summary = result; });

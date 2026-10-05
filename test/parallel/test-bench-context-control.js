@@ -36,7 +36,7 @@ const { createRunner } = require('node:bench');
   }, 4));
 
   const recordedCompletion = runner.bench(
-    'recorded', { samples: 3 }, common.mustCall((b) => {
+    'recorded', { samples: 3, warmup: 0 }, common.mustCall((b) => {
       const detail = { source: 'worker', value: 1n };
       const sample = b.record({
         __proto__: null,
@@ -64,6 +64,7 @@ const { createRunner } = require('node:bench');
   ];
   const variableCompletion = runner.bench('variable batch', {
     samples: variableSamples.length,
+    warmup: 0,
   }, common.mustCall((b) => {
     b.record(variableSamples[b.index]);
   }, variableSamples.length));
@@ -116,6 +117,7 @@ const { createRunner } = require('node:bench');
     [slowSample, slowSample, slowSample, fastSample, fastSample];
   const slowCompletion = slowRunner.bench('sub-resolution rates', {
     samples: slowSamples.length,
+    warmup: 0,
   }, common.mustCall((b) => {
     b.record(slowSamples[b.index]);
   }, slowSamples.length));

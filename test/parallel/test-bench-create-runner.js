@@ -17,12 +17,12 @@ const { setImmediate } = require('timers/promises');
   second.before(common.mustCall());
 
   const firstCompletion = first.bench(
-    'same name', { samples: 2 }, common.mustCall((b) => {
+    'same name', { samples: 2, warmup: 0 }, common.mustCall((b) => {
       firstCalls++;
       completeSample(b);
     }, 2));
   const secondCompletion = second.bench(
-    'same name', { samples: 1 }, common.mustCall((b) => {
+    'same name', { samples: 1, warmup: 0 }, common.mustCall((b) => {
       secondCalls++;
       completeSample(b);
     }));

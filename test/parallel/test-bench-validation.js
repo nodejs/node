@@ -69,7 +69,7 @@ bench('valid', { samples: 1 }, (b) => {
   completeSample(b);
 });
 
-const stream = run();
+const stream = run({ warmup: 0 });
 stream.on('bench:start', common.mustCall(() => {
   assert.throws(() => bench('late', noop), { code: 'ERR_INVALID_STATE' });
 }, 3));
