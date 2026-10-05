@@ -40,8 +40,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var wire_bytes = builder.toBuffer();
   var module = new WebAssembly.Module(wire_bytes);
   var mem_1 = new WebAssembly.Memory({initial: 1});
-  var view_1 = new Int32Array(mem_1.buffer);
-  view_1[0] = 42;
+  var view_1 = new DataView(mem_1.buffer);
+  view_1.setInt32(0, 42, true);
   var outval_1;
   var i1 = new WebAssembly.Instance(module, {"":
                                              {some_value: () => 1,
@@ -58,9 +58,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   module = d8.wasm.deserializeModule(buff, wire_bytes);
 
   var mem_2 = new WebAssembly.Memory({initial: 2});
-  var view_2 = new Int32Array(mem_2.buffer);
+  var view_2 = new DataView(mem_2.buffer);
 
-  view_2[0] = 50;
+  view_2.setInt32(0, 50, true);
 
   var outval_2;
   var i2 = new WebAssembly.Instance(module, {"":

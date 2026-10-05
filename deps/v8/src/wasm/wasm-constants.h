@@ -260,6 +260,10 @@ constexpr int kOptimizationPriorityExecutedOnceSentinel = 127;
 // priority was not specified.
 constexpr int kOptimizationPriorityNotSpecifiedSentinel = -1;
 
+// Numeric limits for i31ref.
+constexpr int32_t kInt31MaxValue = 0x3fffffff;
+constexpr int32_t kInt31MinValue = -kInt31MaxValue - 1;
+
 #if V8_TARGET_ARCH_X64
 constexpr int32_t kOSRTargetOffset = 4 * kSystemPointerSize;
 #endif

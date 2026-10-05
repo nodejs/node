@@ -6,8 +6,8 @@
 #define V8_OBJECTS_INSTANCE_TYPE_H_
 
 #include "include/v8-internal.h"
+#include "src/objects/instance-types-gen.h"
 #include "src/objects/objects-definitions.h"
-#include "torque-generated/instance-types.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -178,6 +178,14 @@ enum InstanceType : uint16_t {
   TORQUE_ASSIGNED_INSTANCE_TYPES(MAKE_TORQUE_INSTANCE_TYPE)
 #undef MAKE_TORQUE_INSTANCE_TYPE
 
+// During the metagen libclang harvest's bootstrap parse, the generated
+// IT symbols (SYMBOL_TYPE, FIRST_JS_FUNCTION_TYPE, ...) do not yet
+// exist -- metagen is parsing this file to produce them. Skip
+// file-scope references to those symbols so the parse succeeds; the
+// harvest only needs class declarations, not IT-value relationships.
+// Function-body uses of the same symbols are unaffected because the
+// harvest uses PARSE_SKIP_FUNCTION_BODIES.
+#ifndef V8_METAGEN_GENERATION_PASS
   // Pseudo-types
   FIRST_UNIQUE_NAME_TYPE = INTERNALIZED_TWO_BYTE_STRING_TYPE,
   LAST_UNIQUE_NAME_TYPE = SYMBOL_TYPE,
@@ -204,8 +212,13 @@ enum InstanceType : uint16_t {
   // TODO(ishell): define a dedicated instance type for DependentCode to
   // simplify CodeSerializer.
   DEPENDENT_CODE_TYPE = WEAK_ARRAY_LIST_TYPE,
+#endif  // V8_METAGEN_GENERATION_PASS
 };
 
+// See the comment on the matching guard inside the enum above. Same
+// rationale: file-scope references to symbols the harvest hasn't
+// emitted yet are skipped during metagen's bootstrap parse.
+#ifndef V8_METAGEN_GENERATION_PASS
 // This constant is defined outside of the InstanceType enum because the
 // string instance types are sparse and there's no such string instance type.
 // But it's still useful for range checks to have such a value.
@@ -273,6 +286,7 @@ TORQUE_ASSIGNED_INSTANCE_TYPE_LIST(CHECK_INSTANCE_TYPE)
 // Make sure it doesn't matter whether we sign-extend or zero-extend these
 // values, because Torque treats InstanceType as signed.
 static_assert(LAST_TYPE < 1 << 15);
+#endif  // V8_METAGEN_GENERATION_PASS
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            InstanceType instance_type);
@@ -369,12 +383,14 @@ V8_EXPORT_PRIVATE std::string ToString(InstanceType instance_type);
   IF_WASM(V, _, WasmStringViewIterMap, wasm_string_view_iter_map,              \
           WasmStringViewIter)
 
+#ifndef V8_METAGEN_GENERATION_PASS
 #ifdef V8_ENABLE_SWISS_NAME_DICTIONARY
 static constexpr InstanceType PROPERTY_DICTIONARY_TYPE =
     SWISS_NAME_DICTIONARY_TYPE;
 #else
 static constexpr InstanceType PROPERTY_DICTIONARY_TYPE = NAME_DICTIONARY_TYPE;
 #endif
+#endif  // V8_METAGEN_GENERATION_PASS
 
 namespace InstanceTypeChecker {
 V8_INLINE bool IsSeqString(Tagged<Map>);

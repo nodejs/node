@@ -9,6 +9,7 @@ load("@rules_python//python:defs.bzl", "py_binary", "py_test")
 load("@v8_python_deps//:requirements.bzl", "requirement")
 load(
     "@v8//:bazel/defs.bzl",
+    "metagen_instance_types",
     "v8_binary",
     "v8_build_config",
     "v8_config",
@@ -47,7 +48,6 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # v8_enable_local_off_stack_check
 # v8_enable_ignition_dispatch_counting
 # v8_enable_builtins_optimization
-# v8_enable_builtins_profiling
 # v8_enable_builtins_profiling_verbose
 # v8_builtins_profiling_log_file
 # v8_enable_builtins_reordering
@@ -95,11 +95,6 @@ v8_flag(name = "v8_annotate_torque_ir")
 v8_flag(name = "v8_code_comments")
 
 v8_flag(
-    name = "v8_cppgc_microtask_queue",
-    default = False,
-)
-
-v8_flag(
     name = "v8_deprecation_warnings",
     default = True,
 )
@@ -110,6 +105,8 @@ v8_flag(
 )
 
 v8_flag(name = "v8_enable_backtrace")
+
+v8_flag(name = "v8_enable_builtins_profiling")
 
 v8_flag(name = "v8_enable_debug_code")
 
@@ -146,13 +143,18 @@ v8_flag(name = "v8_enable_snapshot_code_comments")
 v8_flag(name = "v8_enable_snapshot_native_code_counters")
 
 v8_flag(
-  name = "v8_enable_static_roots",
-  default = True,
+    name = "v8_enable_static_roots",
+    default = True,
 )
 
 v8_flag(name = "v8_enable_trace_maps")
 
 v8_flag(name = "v8_enable_v8_checks")
+
+v8_flag(
+    name = "v8_disallow_js_in_api_interrupts_is_checked",
+    default = True,
+)
 
 v8_flag(name = "v8_enable_verify_csa")
 
@@ -175,6 +177,14 @@ v8_flag(
 )
 
 v8_flag(name = "v8_enable_experimental_tq_to_tsa")
+
+# Mirrors the GN arg of the same name: selects which instance-type
+# generator's output V8 compiles in, metagen or Torque's emission. When
+# off, the metagen action is not part of the build graph.
+v8_flag(
+    name = "v8_use_metagen_instance_types",
+    default = False,
+)
 
 v8_flag(
     name = "v8_use_host_cpu_arm_features",
@@ -506,10 +516,11 @@ v8_config(
     conditional_defines = {
         "v8_android_log_stdout": "V8_ANDROID_LOG_STDOUT",
         "v8_code_comments": "V8_CODE_COMMENTS",
-        "v8_cppgc_microtask_queue": "V8_CPPGC_MICROTASK_QUEUE",
         "v8_deprecation_warnings": "V8_DEPRECATION_WARNINGS",
+        "v8_disallow_js_in_api_interrupts_is_checked": "V8_DISALLOW_JS_IN_API_INTERRUPTS_IS_CHECKED",
         "v8_imminent_deprecation_warnings": "V8_IMMINENT_DEPRECATION_WARNINGS",
         "v8_enable_debug_code": "V8_ENABLE_DEBUG_CODE",
+        "v8_enable_builtins_profiling": "V8_ENABLE_BUILTINS_PROFILING",
         "v8_enable_disassembler": "ENABLE_DISASSEMBLER",
         "v8_enable_global_handle_zapping": "ENABLE_GLOBAL_HANDLE_ZAPPING",
         "v8_enable_local_handle_zapping": "ENABLE_LOCAL_HANDLE_ZAPPING",
@@ -544,22 +555,27 @@ v8_config(
         "V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA",
         "V8_TLS_USED_IN_LIBRARY",
     ] + select({
+        ":is_not_v8_use_metagen_instance_types": [
+            "V8_USE_METAGEN_INSTANCE_TYPES=0",
+        ],
+        "//conditions:default": [],
+    }) + select({
         "@v8//bazel/config:is_debug": [
             "DEBUG",
             "V8_ENABLE_CHECKS",
         ],
         "//conditions:default": [],
     }) + select({
-        "@v8//bazel/config:asan_enabled" : [ "V8_USE_ADDRESS_SANITIZER" ],
+        "@v8//bazel/config:asan_enabled": ["V8_USE_ADDRESS_SANITIZER"],
         "//conditions:default": [],
     }) + select({
-        "@v8//bazel/config:hwasan_enabled" : [ "V8_USE_HWADDRESS_SANITIZER" ],
+        "@v8//bazel/config:hwasan_enabled": ["V8_USE_HWADDRESS_SANITIZER"],
         "//conditions:default": [],
     }) + select({
-        "@v8//bazel/config:msan_enabled" : [ "V8_USE_MEMORY_SANITIZER" ],
+        "@v8//bazel/config:msan_enabled": ["V8_USE_MEMORY_SANITIZER"],
         "//conditions:default": [],
     }) + select({
-        "@v8//bazel/config:ubsan_enabled" : [ "V8_USE_UNDEFINED_BEHAVIOR_SANITIZER" ],
+        "@v8//bazel/config:ubsan_enabled": ["V8_USE_UNDEFINED_BEHAVIOR_SANITIZER"],
         "//conditions:default": [],
     }) + select(
         {
@@ -578,7 +594,7 @@ v8_config(
                 "V8_ENABLE_SPARKPLUG_PLUS",
             ],
             "@v8//bazel/config:v8_target_s390x": [
-                "V8_TARGET_ARCH_S390X"
+                "V8_TARGET_ARCH_S390X",
             ],
             "@v8//bazel/config:v8_target_riscv64": [
                 # NOTE: Bazel rules for riscv64 weren't tested on a real system.
@@ -587,7 +603,7 @@ v8_config(
             ],
             "@v8//bazel/config:v8_target_ppc64le": [
                 # NOTE: Bazel rules for ppc64le weren't tested on a real system.
-                "V8_TARGET_ARCH_PPC64"
+                "V8_TARGET_ARCH_PPC64",
             ],
         },
         no_match_error = "Please specify a target cpu supported by v8",
@@ -657,11 +673,10 @@ v8_config(
         "//conditions:default": [],
     }) + select({
         "v8_drumbrake_bounds_checks": [
-            "V8_DRUMBRAKE_BOUNDS_CHECKS"
+            "V8_DRUMBRAKE_BOUNDS_CHECKS",
         ],
         "//conditions:default": [],
     }),
-
     deps = [":default"],
 )
 
@@ -813,13 +828,11 @@ filegroup(
 filegroup(
     name = "v8_flags",
     srcs = [
+        "src/flags/feature-flags.h",
         "src/flags/flag-definitions.h",
         "src/flags/flags-impl.h",
         "src/flags/flags.h",
-    ] + select({
-        "is_v8_enable_webassembly": ["src/wasm/wasm-feature-flags.h"],
-        "//conditions:default": [],
-    }),
+    ],
 )
 
 filegroup(
@@ -1284,6 +1297,7 @@ filegroup(
         # "src/objects/js-temporal-objects.tq",
         "src/objects/js-weak-refs.tq",
         "src/objects/literal-objects.tq",
+        "src/objects/managed.tq",
         "src/objects/map.tq",
         "src/objects/megadom-handler.tq",
         "src/objects/microtask.tq",
@@ -1326,7 +1340,7 @@ filegroup(
             "src/wasm/wasm-objects.tq",
         ],
         ":is_v8_enable_drumbrake": [
-            "src/wasm/wasm-interpreter-objects.tq"
+            "src/wasm/wasm-interpreter-objects.tq",
         ],
         "//conditions:default": [],
     }),
@@ -1623,8 +1637,6 @@ filegroup(
         "src/common/ptr-compr-inl.h",
         "src/common/thread-local-storage.h",
         "src/common/scoped-modification.h",
-        "src/common/segmented-table.h",
-        "src/common/segmented-table-inl.h",
         "src/common/simd128.h",
         "src/common/synchronization-point-support.cc",
         "src/common/synchronization-point-support.h",
@@ -1650,6 +1662,8 @@ filegroup(
         "src/debug/debug-interface.h",
         "src/debug/debug-property-iterator.cc",
         "src/debug/debug-property-iterator.h",
+        "src/debug/debug-scope-info.cc",
+        "src/debug/debug-scope-info.h",
         "src/debug/debug-scope-iterator.cc",
         "src/debug/debug-scope-iterator.h",
         "src/debug/debug-scopes.cc",
@@ -1657,10 +1671,6 @@ filegroup(
         "src/debug/debug-stack-trace-iterator.cc",
         "src/debug/debug-stack-trace-iterator.h",
         "src/debug/interface-types.h",
-        "src/debug/liveedit.cc",
-        "src/debug/liveedit.h",
-        "src/debug/liveedit-diff.cc",
-        "src/debug/liveedit-diff.h",
         "src/deoptimizer/deoptimize-reason.cc",
         "src/deoptimizer/deoptimize-reason.h",
         "src/deoptimizer/deoptimized-frame-info.cc",
@@ -2097,6 +2107,7 @@ filegroup(
         "src/objects/abstract-code.h",
         "src/objects/abstract-code-inl.h",
         "src/objects/all-objects-inl.h",
+        "src/objects/all-objects.h",
         "src/objects/allocation-site.h",
         "src/objects/allocation-site-inl.h",
         "src/objects/allocation-site-scopes.h",
@@ -2196,6 +2207,7 @@ filegroup(
         "src/objects/instance-type.h",
         "src/objects/instance-type-checker.h",
         "src/objects/instance-type-inl.h",
+        "src/objects/instance-types-gen.h",
         "src/objects/internal-index.h",
         "src/objects/instruction-stream.cc",
         "src/objects/instruction-stream.h",
@@ -2270,6 +2282,7 @@ filegroup(
         "src/objects/managed.cc",
         "src/objects/managed.h",
         "src/objects/managed-inl.h",
+        "src/objects/managed-type-id.h",
         "src/objects/map.cc",
         "src/objects/map.h",
         "src/objects/map-inl.h",
@@ -2296,6 +2309,7 @@ filegroup(
         "src/objects/object-macros-undef.h",
         "src/objects/object-type.cc",
         "src/objects/object-type.h",
+        "src/objects/object-conversions-inl.h",
         "src/objects/object-predicates.h",
         "src/objects/object-predicates-inl.h",
         "src/objects/oddball-predicates.h",
@@ -2627,6 +2641,9 @@ filegroup(
         "src/sandbox/sandbox-malloc.h",
         "src/sandbox/sandboxed-pointer.h",
         "src/sandbox/sandboxed-pointer-inl.h",
+        "src/sandbox/segmented-table.cc",
+        "src/sandbox/segmented-table.h",
+        "src/sandbox/segmented-table-inl.h",
         "src/sandbox/tagged-payload.h",
         "src/sandbox/testing.cc",
         "src/sandbox/testing.h",
@@ -3269,7 +3286,6 @@ filegroup(
             "src/wasm/wasm-value.h",
             "src/wasm/well-known-imports.cc",
             "src/wasm/well-known-imports.h",
-
             "src/wasm/wasm-wrapper-cache-inl.h",
             "third_party/utf8-decoder/generalized-utf8-decoder.h",
         ],
@@ -4021,10 +4037,10 @@ filegroup(
         "//conditions:default": [],
     }) + select({
         ":enable_drumbrake_x64": [
-            "src/wasm/interpreter/x64/interpreter-builtins-x64.cc"
+            "src/wasm/interpreter/x64/interpreter-builtins-x64.cc",
         ],
         ":enable_drumbrake_arm64": [
-            "src/wasm/interpreter/arm64/interpreter-builtins-arm64.cc"
+            "src/wasm/interpreter/arm64/interpreter-builtins-arm64.cc",
         ],
         "//conditions:default": [],
     }),
@@ -4171,27 +4187,27 @@ filegroup(
 )
 
 v8_library(
-  name = "lib_dragonbox",
-  srcs = ["third_party/dragonbox/src/include/dragonbox/dragonbox.h"],
-  hdrs = [
-    "third_party/dragonbox/src/include/dragonbox/dragonbox.h",
-  ],
-  includes = [
-    "third_party/dragonbox/src/include",
-  ],
+    name = "lib_dragonbox",
+    srcs = ["third_party/dragonbox/src/include/dragonbox/dragonbox.h"],
+    hdrs = [
+        "third_party/dragonbox/src/include/dragonbox/dragonbox.h",
+    ],
+    includes = [
+        "third_party/dragonbox/src/include",
+    ],
 )
 
 v8_library(
-  name = "lib_fp16",
-  srcs = ["third_party/fp16/src/include/fp16.h"],
-  hdrs = [
-    "third_party/fp16/src/include/fp16/fp16.h",
-    "third_party/fp16/src/include/fp16/bitcasts.h",
-    "third_party/fp16/src/include/fp16/macros.h",
-  ],
-  includes = [
-    "third_party/fp16/src/include",
-  ],
+    name = "lib_fp16",
+    srcs = ["third_party/fp16/src/include/fp16.h"],
+    hdrs = [
+        "third_party/fp16/src/include/fp16/fp16.h",
+        "third_party/fp16/src/include/fp16/bitcasts.h",
+        "third_party/fp16/src/include/fp16/macros.h",
+    ],
+    includes = [
+        "third_party/fp16/src/include",
+    ],
 )
 
 filegroup(
@@ -4448,11 +4464,192 @@ v8_torque_files(
         "class-forward-declarations.h",
         # "debug-macros.cc",
         # "debug-macros.h",
+        "debug-reader-classes-list.h",
+        "instance-type-checker-lists.h",
         "instance-types.h",
         "interface-descriptors.inc",
     ],
     icu_srcs = [":icu/torque_files"],
     noicu_srcs = [":noicu/torque_files"],
+)
+
+# Metagen: libclang-driven IT generator. Produces gen/metagen/instance-types.h
+# which `src/objects/instance-types-gen.h` includes when
+# V8_USE_METAGEN_INSTANCE_TYPES is on. :v8_libshared reaches the targets
+# below only under that flag.
+filegroup(
+    name = "metagen_python_sources",
+    srcs = [
+        "tools/metagen/__init__.py",
+        "tools/metagen/clang_bootstrap.py",
+        "tools/metagen/compile_flags.py",
+        "tools/metagen/cpp_hier.py",
+        "tools/metagen/extract.py",
+        "tools/metagen/instance_types.py",
+        "tools/metagen/metagen.py",
+    ],
+)
+
+# V8 headers staged into the metagen action's sandbox so libclang can
+# resolve transitive #includes. Globbed wide on purpose: cheaper than
+# enumerating the transitive set, and the extra files only cost sandbox
+# materialization.
+filegroup(
+    name = "metagen_sandbox_headers",
+    srcs = glob([
+        "include/**/*.h",
+        "src/**/*.h",
+        "src/**/*.inc",
+        # Vendored third_party headers reached from V8's own (e.g.
+        # src/strings/unicode.h -> utf8-decoder.h). Enumerated rather
+        # than a blanket third_party/**, which would also stage the
+        # large gclient trees.
+        "third_party/utf8-decoder/**/*.h",
+        "third_party/simdutf/**/*.h",
+        "third_party/rapidhash-v8/**/*.h",
+        "third_party/fp16/**/*.h",
+        "third_party/wasm-api/**/*.h",
+        "third_party/siphash/**/*.h",
+        "third_party/vtune/**/*.h",
+    ]),
+)
+
+# Libclang runtime files: the Python bindings + host native library, both
+# from the llvm-libclang package (version-locked together). This filegroup
+# is consumed in the exec configuration, so the select follows the host
+# that runs metagen rather than the V8 target platform.
+filegroup(
+    name = "metagen_libclang_files",
+    srcs = [
+        "third_party/llvm-libclang/bindings/python/clang/__init__.py",
+        "third_party/llvm-libclang/bindings/python/clang/cindex.py",
+    ] + select({
+        "@v8//bazel/config:is_macos": [
+            "third_party/llvm-libclang/lib/libclang.dylib",
+        ],
+        "@v8//bazel/config:is_windows": [
+            "third_party/llvm-libclang/bin/libclang.dll",
+        ],
+        "//conditions:default": [
+            "third_party/llvm-libclang/lib/libclang.so",
+        ],
+    }),
+)
+
+# Clang's builtin headers (stddef.h, stdarg.h, the arch intrinsics).
+# Kept separate from the libclang files above because they are a
+# different input to the rule: metagen takes their directory explicitly
+# and passes it as -isystem. The llvm-libclang package ships the library
+# and the C API headers but no builtin headers, so these come from the
+# clang toolchain, which rolls from the same LLVM revision and therefore
+# matches the parsing library.
+filegroup(
+    name = "metagen_clang_builtin_headers",
+    srcs = glob([
+        "third_party/llvm-build/Release+Asserts/lib/clang/*/include/**",
+    ]),
+)
+
+# The harvest's checked-in C++ driver, shared with GN and metagen.py. It
+# includes src/objects/all-objects.h, whose feature-conditional groups
+# are selected by the normal V8 feature defines. Bazel always defines
+# V8_ENABLE_WEBASSEMBLY via :define_flags; V8_INTL_SUPPORT is added only by
+# the icu-prefixed action. Temporal is disabled because temporal_rs is not a
+# Bazel dependency.
+#
+# The headers themselves reach the action through the
+# `metagen_sandbox_headers` glob below, which already covers src/**.
+filegroup(
+    name = "metagen_driver",
+    srcs = ["tools/metagen/harvest-driver.cc"],
+)
+
+py_binary(
+    name = "metagen_tool",
+    srcs = [
+        "tools/metagen/__init__.py",
+        "tools/metagen/clang_bootstrap.py",
+        "tools/metagen/compile_flags.py",
+        "tools/metagen/cpp_hier.py",
+        "tools/metagen/extract.py",
+        "tools/metagen/instance_types.py",
+        "tools/metagen/metagen.py",
+    ],
+    # tools/metagen/ is a Python package, so the scripts import each
+    # other as `from metagen import ...`, which needs the package's
+    # parent -- tools/ -- on sys.path rather than the package dir
+    # itself. metagen.py arranges that itself when run as a script,
+    # rather than through the `imports` attribute, which not every
+    # py_binary rule this file is built with supports.
+    main = "tools/metagen/metagen.py",
+)
+
+metagen_instance_types(
+    name = "metagen_instance_types_h",
+    driver = ":metagen_driver",
+    clang_builtin_headers = [":metagen_clang_builtin_headers"],
+    libclang_files = [":metagen_libclang_files"],
+    python_srcs = [":metagen_python_sources"],
+    # V8 source-tree headers transitively #include'd from the input
+    # headers. The cc_compilation_context_from CcInfo only covers
+    # :v8_libbase and :define_flags, which doesn't reach src/objects,
+    # src/handles, src/wasm, etc. The natural target that would
+    # (:v8_libshared) depends on this rule's output, so we ship the
+    # headers as raw files in the action sandbox instead.
+    extra_sandbox_files = [":metagen_sandbox_headers"],
+    tool = ":metagen_tool",
+    # Source of the cflags fed to libclang: `:define_flags` carries V8's
+    # arch/feature defines, `:v8_libbase` the source-root / include/ /
+    # libc++ context, the cc toolchain the rest.
+    #
+    # The third_party libs need CcInfo rather than the sandbox glob
+    # because their includes resolve through the lib's own -I, which a
+    # glob cannot supply: abseil is included as absl/..., and fp16.h
+    # does #include "fp16/bitcasts.h". The rest are included by full
+    # path, resolve via -I., and the glob suffices.
+    cc_compilation_context_from = [
+        ":define_flags",
+        ":v8_libbase",
+        ":lib_fp16",
+        ":simdutf",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/container:node_hash_set",
+        "@abseil-cpp//absl/functional:function_ref",
+        "@abseil-cpp//absl/functional:overload",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/synchronization",
+    ],
+    # The icu variant of v8_library compiles with V8_INTL_SUPPORT (via
+    # ENABLE_I18N_SUPPORT_DEFINES copts, invisible to CcInfo) and the
+    # intl object sources, so its IT enum must include the intl types:
+    # the icu-prefixed harvest additionally parses the intl headers,
+    # with the same defines and with ICU's headers + include paths.
+    icu_cc_compilation_context_from = ["//external:icu"],
+    icu_extra_defines = [
+        "V8_INTL_SUPPORT",
+        "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC",
+        "UNISTR_FROM_CHAR_EXPLICIT=",
+    ],
+)
+
+# Header-only library wrapping the metagen output. strip_include_prefix
+# rewrites the include path so `#include "metagen/instance-types.h"`
+# resolves against the gen dir.
+cc_library(
+    name = "icu/metagen_instance_types_headers",
+    hdrs = [":icu/metagen_instance_types_h"],
+    copts = ["-Wno-implicit-fallthrough"],
+    strip_include_prefix = "icu",
+)
+
+cc_library(
+    name = "noicu/metagen_instance_types_headers",
+    hdrs = [":noicu/metagen_instance_types_h"],
+    copts = ["-Wno-implicit-fallthrough"],
+    strip_include_prefix = "noicu",
 )
 
 py_binary(
@@ -4571,6 +4768,9 @@ genrule(
 v8_mksnapshot(
     name = "generated_snapshot_files",
     args = select({
+        ":is_v8_enable_builtins_profiling": ["--turbo-profiling"],
+        "//conditions:default": [],
+    }) + select({
         ":is_v8_enable_verify_heap": ["--verify-heap"],
         "//conditions:default": [],
     }) + select({
@@ -4661,11 +4861,11 @@ cc_library(
 )
 
 cc_library(
-  name = "simdutf",
-  srcs = ["third_party/simdutf/simdutf.cpp"],
-  hdrs = ["third_party/simdutf/simdutf.h"],
-  strip_include_prefix = "third_party/simdutf",
-  copts = select({
+    name = "simdutf",
+    srcs = ["third_party/simdutf/simdutf.cpp"],
+    hdrs = ["third_party/simdutf/simdutf.h"],
+    strip_include_prefix = "third_party/simdutf",
+    copts = select({
         "@v8//bazel/config:is_clang": ["-std=c++20"],
         "@v8//bazel/config:is_gcc": ["-std=gnu++2a"],
         "@v8//bazel/config:is_windows": ["/std:c++20"],
@@ -4688,18 +4888,34 @@ v8_library(
     icu_deps = [
         ":icu/generated_torque_definitions_headers",
         "//external:icu",
-    ],
+    ] + select({
+        ":is_v8_use_metagen_instance_types": [
+            ":icu/metagen_instance_types_headers",
+        ],
+        "//conditions:default": [],
+    }),
     icu_srcs = [
         ":generated_regexp_special_case",
         ":icu/generated_torque_definitions",
         ":icu/v8_base_without_compiler_files",
-    ],
+    ] + select({
+        ":is_v8_use_metagen_instance_types": [":icu/metagen_instance_types_h"],
+        "//conditions:default": [],
+    }),
     noicu_deps = [
         ":noicu/generated_torque_definitions_headers",
-    ],
+    ] + select({
+        ":is_v8_use_metagen_instance_types": [
+            ":noicu/metagen_instance_types_headers",
+        ],
+        "//conditions:default": [],
+    }),
     noicu_srcs = [
         ":noicu/generated_torque_definitions",
-    ],
+    ] + select({
+        ":is_v8_use_metagen_instance_types": [":noicu/metagen_instance_types_h"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":lib_dragonbox",
         "//third_party/fast_float/src:fast_float",

@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/casts.h"
 #include "absl/base/config.h"
 #include "absl/container/internal/hashtablez_sampler.h"
 #include "absl/profiling/internal/profile_builder.h"

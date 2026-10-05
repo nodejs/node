@@ -49,7 +49,7 @@ namespace internal {
 
 #ifdef CAN_USE_RVA23U64_INSTRUCTIONS
 static const CpuFeatureSet kRVA23U64 =
-    CpuFeatureSet{} | ZFA | ZBB | ZBS | ZBA | ZICOND;
+    CpuFeatureSet{} | RVC | ZFA | ZBB | ZBS | ZBA | ZICOND | ZCB;
 #endif
 // Get the CPU features enabled by the build. For cross compilation the
 // preprocessor symbols __riscv_f and __riscv_d
@@ -105,6 +105,8 @@ static CpuFeatureSet SimulatorFeatures() {
   features.Add(ZFH);
   features.Add(ZVFH);
   features.Add(ZFA);
+  features.Add(RVC);
+  features.Add(ZCB);
   return features;
 }
 #endif

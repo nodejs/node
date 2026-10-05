@@ -46,7 +46,7 @@ bitfield struct JSDurationFormatDisplayFlags extends uint31 {
 extern class JSDurationFormat extends JSObject {
   style_flags: SmiTagged<JSDurationFormatStyleFlags>;
   display_flags: SmiTagged<JSDurationFormatDisplayFlags>;
-  icu_locale: Foreign;  // Managed<icu::Locale>
+  icu_locale: CppGCManagedBase;  // CppGCManaged<icu::Locale>
   icu_number_formatter:
-      Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
+      CppGCManagedBase;  // CppGCManaged<icu::number::LocalizedNumberFormatter>
 }

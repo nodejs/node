@@ -19,7 +19,12 @@ function test_iife() {
   return new test_func();
 }
 
+// Keep the objects and their maps alive throughout the test so that GC
+// doesn't collect them, which would trigger a lazy deopt.
+let keep_alive = [];
+
 function assert_test_iife(test_func) {
+  keep_alive.push(test_func);
   assertEquals(test_func.iife(), "test_function.prototype.iife");
   assertEquals(test_func.smi, 1);
 }

@@ -28,7 +28,6 @@
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/hole.h"
 #include "src/objects/instance-type-inl.h"
-#include "src/objects/objects-inl.h"
 #include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/scope-info-inl.h"
 #include "src/objects/script-inl.h"
@@ -384,8 +383,7 @@ void SharedFunctionInfo::SetName(Tagged<String> name) {
 
 bool SharedFunctionInfo::is_script() const {
   return scope_info(kAcquireLoad)->is_script_scope() &&
-         Cast<Script>(script())->compilation_type() ==
-             Script::CompilationType::kHost;
+         Cast<Script>(script())->is_host();
 }
 
 bool SharedFunctionInfo::needs_script_context() const {
@@ -503,8 +501,6 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, properties_are_final,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
                     private_name_lookup_skips_outer_class,
                     SharedFunctionInfo::PrivateNameLookupSkipsOuterClassBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, live_edited,
-                    SharedFunctionInfo::LiveEditedBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, is_hoisted_in_context,
                     SharedFunctionInfo::IsHoistedInContextBit)
 
@@ -1122,8 +1118,7 @@ void SharedFunctionInfo::set_builtin_id(Builtin builtin) {
 }
 
 bool SharedFunctionInfo::HasUncompiledData(IsolateForSandbox isolate) const {
-  return !HasUnpublishedTrustedData(isolate) &&
-         IsUncompiledData(GetTrustedData(isolate));
+  return IsUncompiledData(GetTrustedData(isolate));
 }
 
 Tagged<UncompiledData> SharedFunctionInfo::uncompiled_data(

@@ -137,6 +137,8 @@ static_assert(IsAligned(OFFSET_OF_DATA_START(PreparseData),
 // Abstract class representing extra data for an uncompiled function, which is
 // not stored in the SharedFunctionInfo.
 V8_OBJECT class UncompiledData : public ExposedTrustedObject {
+  V8_IT_ABSTRACT;
+
  public:
   inline Tagged<String> inferred_name() const;
   inline void set_inferred_name(Tagged<String> value,
@@ -169,6 +171,8 @@ V8_OBJECT class UncompiledData : public ExposedTrustedObject {
 // data from the pre-parser, either because it's a leaf function or because the
 // pre-parser bailed out.
 V8_OBJECT class UncompiledDataWithoutPreparseData : public UncompiledData {
+  V8_IT_OWN_TYPE;
+
  public:
   DECL_PRINTER(UncompiledDataWithoutPreparseData)
   DECL_VERIFIER(UncompiledDataWithoutPreparseData)
@@ -179,6 +183,8 @@ V8_OBJECT class UncompiledDataWithoutPreparseData : public UncompiledData {
 // Class representing data for an uncompiled function that has pre-parsed scope
 // data.
 V8_OBJECT class UncompiledDataWithPreparseData : public UncompiledData {
+  V8_IT_OWN_TYPE;
+
  public:
   inline Tagged<PreparseData> preparse_data() const;
   inline void set_preparse_data(Tagged<PreparseData> value,
@@ -283,7 +289,6 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
       PropertiesAreFinalBit::Next<bool, 1>;
   using IsHoistedInContextBit =
       PrivateNameLookupSkipsOuterClassBit::Next<bool, 1>;
-  using LiveEditedBit = IsHoistedInContextBit::Next<bool, 1>;
   // Bit positions in |flags2|.
   using ClassScopeHasPrivateBrandBit = base::BitField<bool, 0, 1, uint8_t>;
   using HasStaticPrivateMethodsOrAccessorsBit =
@@ -395,9 +400,6 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
 
   // Start position of this function in the script source.
   V8_EXPORT_PRIVATE int StartPosition() const;
-
-  V8_EXPORT_PRIVATE void UpdateFromFunctionLiteralForLiveEdit(
-      IsolateForSandbox isolate, FunctionLiteral* lit);
 
   // [outer scope info | feedback metadata] Shared storage for outer scope info
   // (on uncompiled functions) and feedback metadata (on compiled functions).
@@ -700,9 +702,6 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   // Indicates that the private name lookups inside the function skips the
   // closest outer class scope.
   DECL_BOOLEAN_ACCESSORS(private_name_lookup_skips_outer_class)
-
-  // Indicates that the shared function info was live-edited.
-  DECL_BOOLEAN_ACCESSORS(live_edited)
 
   // Indicates that the function is a hoisted-in-context declaration.
   DECL_BOOLEAN_ACCESSORS(is_hoisted_in_context)

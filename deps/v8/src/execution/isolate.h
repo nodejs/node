@@ -759,6 +759,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return &boilerplate_migration_access_;
   }
 
+#if V8_ENABLE_WEBASSEMBLY
+  base::Mutex* wasm_shared_canonical_types_mutex() {
+    return &wasm_shared_canonical_types_mutex_;
+  }
+#endif
+
   ReadOnlyArtifacts* read_only_artifacts() const {
     ReadOnlyArtifacts* artifacts = isolate_group()->read_only_artifacts();
     DCHECK_NOT_NULL(artifacts);
@@ -877,6 +883,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline bool is_catchable_by_javascript(Tagged<Object> exception);
   inline bool is_catchable_by_wasm(Tagged<Object> exception);
   inline bool is_execution_terminating();
+  inline bool is_javascript_execution_allowed() const;
 
   // JS execution stack (see frames.h).
   static Address c_entry_fp(ThreadLocalTop* thread) {
@@ -1072,7 +1079,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void OnPromiseAfter(DirectHandle<JSPromise> promise);
   void OnStackTraceCaptured(DirectHandle<StackTraceInfo> stack_trace);
   void OnTerminationDuringRunMicrotasks();
-#ifdef V8_CPPGC_MICROTASK_QUEUE
   // Remove dead microtask queues from the list.
   void CompactMicrotaskQueues();
   void RegisterMicrotaskQueue(MicrotaskQueue* queue);
@@ -1081,7 +1087,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       const {
     return microtask_queues_;
   }
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
   // Re-throw an exception.  This involves no error reporting since error
   // reporting was handled when the exception was thrown originally.
@@ -1157,6 +1162,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void RegisterTryCatchHandler(v8::TryCatch* that);
   void UnregisterTryCatchHandler(v8::TryCatch* that);
+  static void MarkTryCatchInternal(v8::TryCatch* that);
+  static bool IsInternalTryCatch(v8::TryCatch* that);
 
   char* ArchiveThread(char* to);
   char* RestoreThread(char* from);
@@ -1935,6 +1942,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void SetReleaseCppHeapCallback(v8::Isolate::ReleaseCppHeapCallback callback);
 
   void RunReleaseCppHeapCallback(std::unique_ptr<v8::CppHeap> cpp_heap);
+  std::shared_ptr<bool> cpp_heap_isolate_alive_token() const;
 
   void SetPromiseHook(PromiseHook hook);
   void RunPromiseHook(PromiseHookType type, DirectHandle<JSPromise> promise,
@@ -2432,7 +2440,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   SimulatorData* simulator_data() { return simulator_data_; }
 #endif
 
-#ifdef V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_WEBASSEMBLY
   bool IsOnCentralStack();
   std::vector<std::unique_ptr<wasm::StackMemory>>& wasm_stacks() {
     return wasm_stacks_;
@@ -2833,14 +2841,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #undef ISOLATE_FIELD_OFFSET
 #endif
 
-#ifdef V8_CPPGC_MICROTASK_QUEUE
   cppgc::Persistent<MicrotaskQueue> default_microtask_queue_;
   // This list is used for visiting Microtask objects within live
   // microtask queues during atomic pause.
   std::vector<cppgc::WeakPersistent<MicrotaskQueue>> microtask_queues_;
-#else
-  MicrotaskQueue* default_microtask_queue_ = nullptr;
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
   bool detailed_source_positions_for_profiling_;
   bool preprocessing_exception_ = false;
@@ -3007,7 +3011,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Stack size set with ResourceConstraints or Isolate::SetStackLimit, in
   // bytes. This is initialized with value of --stack-size.
   size_t stack_size_;
-#ifdef V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_WEBASSEMBLY
+  base::Mutex wasm_shared_canonical_types_mutex_;
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;
   std::vector<std::unique_ptr<wasm::StackMemory>> wasm_stacks_;
 #if V8_ENABLE_DRUMBRAKE
@@ -3015,7 +3020,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif  // V8_ENABLE_DRUMBRAKE
   wasm::WasmOrphanedGlobalHandle* wasm_orphaned_handle_ = nullptr;
   wasm::StackPool stack_pool_;
-#endif
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Enables the host application to provide a mechanism for recording a
   // predefined set of data as crash keys to be used in postmortem debugging
@@ -3168,9 +3173,14 @@ class StackLimitCheck {
 #endif
 
   // Use this to check for interrupt request in C++ code.
-  V8_INLINE bool InterruptRequested() {
+  V8_INLINE bool InterruptRequested(
+      StackGuard::InterruptLevel level =
+          StackGuard::InterruptLevel::kAnyEffect) {
     StackGuard* stack_guard = isolate_->stack_guard();
-    return GetCurrentStackPosition() < stack_guard->climit();
+    if (level == StackGuard::InterruptLevel::kAnyEffect) {
+      return GetCurrentStackPosition() < stack_guard->climit();
+    }
+    return stack_guard->CheckInterrupt(StackGuard::InterruptLevelMask(level));
   }
 
   // Precondition: InterruptRequested == true.

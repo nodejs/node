@@ -68,9 +68,17 @@ class MaglevSafepointTableBuilder;
 #ifdef V8_ENABLE_APX_F
 V8_EXPORT_PRIVATE bool UseApxSetzucc();
 V8_EXPORT_PRIVATE bool UseApxCmovcc();
+V8_EXPORT_PRIVATE bool UseApxCcmp();
 #else
 V8_EXPORT_PRIVATE inline bool UseApxSetzucc() { return false; }
 V8_EXPORT_PRIVATE inline bool UseApxCmovcc() { return false; }
+V8_EXPORT_PRIVATE inline bool UseApxCcmp() { return false; }
+#endif
+
+#ifdef V8_ENABLE_AVX10_1
+V8_EXPORT_PRIVATE bool UseAvx10_1();
+#else
+V8_EXPORT_PRIVATE inline bool UseAvx10_1() { return false; }
 #endif
 
 enum Condition : int {
@@ -345,6 +353,93 @@ class V8_EXPORT_PRIVATE Operand {
   V8_INLINE const LabelOperand& label() const {
     DCHECK(is_label_operand());
     return label_;
+  }
+
+  // Rewrite this memory operand's displacement into the EVEX compressed
+  // displacement form (disp8*N) when possible. {*this} should carry a raw
+  // (unscaled) displacement.
+  //
+  // In an EVEX-encoded instruction the 8-bit displacement is always multiplied
+  // by a scale factor N that is determined based on the vector length, the
+  // value of EVEX.b bit and the input element size of the instruction. Here N
+  // is passed in as {cd8_scale} (a power of two, in bytes).
+  //
+  // The compressed displacement (disp8*N) encoding can only represent a
+  // displacement that is a multiple of N and whose quotient disp/N fits in an
+  // int8. Displacements that don't qualify must use the 4-byte disp32 form,
+  // which EVEX does not scale.
+  //
+  // This returns an equivalent operand with either:
+  //   - mod=01 and the disp8 byte set to disp/N (compressing a disp32, or
+  //     re-scaling an already-present raw disp8), or
+  //   - mod=10 with an unscaled disp32 (when the value is too large or not a
+  //     multiple of N).
+  // Operands with no scalable displacement (no-displacement, register-direct,
+  // or RIP-relative) are returned unchanged.
+  Operand to_evex_cd8(uint8_t cd8_scale) const {
+    // N is 0 ("no scaling") or a power of two.
+    DCHECK_EQ(cd8_scale & (cd8_scale - 1), 0);
+
+    // N == 0: no compressed-displacement scaling requested.
+    if (cd8_scale == 0) return *this;
+
+    // RIP-relative (label) operands are mod==00/rm==101 disp32 — no disp8 form
+    // exists, so CD8 scaling never applies. Leave unchanged and let
+    // emit_operand emit the RIP-relative disp32.
+    if (is_label_operand()) return *this;
+
+    // mod==00: no displacement (or a no-base disp32 that cannot shrink without
+    // changing meaning); mod==11: register-direct r/m.
+    uint8_t mod = (memory_.buf[0] & 0xc0) >> 6;
+    if (mod == 0 || mod == 3) return *this;
+
+    // Read the current (unscaled) displacement. mod==01 stores a raw disp8 in
+    // the last byte; mod==10 stores a disp32 in the last four bytes.
+    int32_t disp = 0;
+    bool is_disp8 = mod == 1;
+    if (is_disp8) {
+      int8_t disp8 = 0;
+      memcpy(&disp8, memory_.buf + memory_.len - 1, 1);
+      disp = static_cast<int32_t>(disp8);
+    } else {
+      memcpy(&disp, memory_.buf + memory_.len - 4, 4);
+    }
+
+    // disp is not a multiple of N, so it cannot be represented as disp8*N.
+    if (disp & (cd8_scale - 1)) {
+      if (is_disp8) {
+        // EVEX has no un-scaled 8-bit displacement: any mod==01 disp8 is
+        // decoded as disp8*N. An operand built with a raw disp8 (the generic
+        // Operand ctors are EVEX-unaware) would therefore be misinterpreted
+        // here, so promote it to a disp32, which EVEX does not scale: switch
+        // mod=01 -> mod=10, drop the disp8 byte and append the full 32-bit
+        // value.
+        Operand new_operand(*this);
+        new_operand.memory_.buf[0] =
+            (new_operand.memory_.buf[0] & static_cast<uint8_t>(0x3f)) | 2 << 6;
+        new_operand.memory_.len -= 1;
+        new_operand.set_disp32(disp);
+        return new_operand;
+      }
+      // Already an (unscaled) disp32 — nothing to do.
+      return *this;
+    }
+
+    // disp is a multiple of N; the compressed byte is disp/N. If it doesn't fit
+    // in an int8, keep the (unscaled) disp32 form.
+    int32_t cdisp8 = disp / cd8_scale;
+    if (!is_int8(cdisp8)) {
+      return *this;
+    }
+
+    // Emit disp8*N: set mod=10 -> mod=01 and store disp/N in a single byte,
+    // shrinking a disp32 by dropping its trailing 3 bytes.
+    Operand new_operand(*this);
+    new_operand.memory_.buf[0] =
+        (new_operand.memory_.buf[0] & static_cast<uint8_t>(0x3f)) | 1 << 6;
+    if (!is_disp8) new_operand.memory_.len -= 3;
+    new_operand.memory_.buf[new_operand.memory_.len - 1] = cdisp8;
+    return new_operand;
   }
 
   // Checks whether either base or index register is the given register.
@@ -659,6 +754,24 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   enum VectorLength { kL128 = 0x0, kL256 = 0x4, kLIG = kL128, kLZ = kL128 };
   enum VexW { kW0 = 0x0, kW1 = 0x80, kWIG = kW0 };
   enum LeadingOpcode { k0F = 0x1, k0F38 = 0x2, k0F3A = 0x3 };
+  enum OpMask { k0 = 0x0, k1 = 0x1, k2 = 0x2 };
+  enum MaskingType { kMerging = 0x0, kZeroing = 0x80 };
+  enum TupleType {
+    kFull,
+    kFullMem,
+    kMem128,
+    kTuple1_Scalar_b,
+    kTuple1_Scalar_w,
+    kTuple1_Scalar,
+    kTuple1_Fixed_32,
+    kTuple1_Fixed_64,
+    kTuple2,
+    kHalf,
+    kHalfMem,
+    kQuarterMem,
+    kMovddup,
+    kNoValue
+  };
 
   // REX2 prefix encodings.
   enum Rex2MapID { kRex2Map0 = 0x0, kRex2Map1 = 0x80 };
@@ -1440,6 +1553,61 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   template <typename Reg1, typename Reg2, typename Op>
   void vinstr(uint8_t op, Reg1 dst, Reg2 src1, Op src2, SIMDPrefix pp,
               LeadingOpcode m, VexW w, CpuFeature feature = AVX2);
+
+  void vinstr_evex(uint8_t op, XMMRegister dst, XMMRegister src1,
+                   XMMRegister src2, SIMDPrefix pp, LeadingOpcode m, VexW w,
+                   OpMask mask = k0, MaskingType z = kMerging,
+                   CpuFeature feature = AVX10_1);
+  void vinstr_evex(uint8_t op, XMMRegister dst, XMMRegister src1, Operand src2,
+                   SIMDPrefix pp, LeadingOpcode m, VexW w, TupleType tuple_type,
+                   OpMask mask = k0, MaskingType z = kMerging,
+                   CpuFeature feature = AVX10_1);
+  void vinstr_evex(uint8_t op, YMMRegister dst, YMMRegister src1,
+                   YMMRegister src2, SIMDPrefix pp, LeadingOpcode m, VexW w,
+                   OpMask mask = k0, MaskingType z = kMerging,
+                   CpuFeature feature = AVX10_1);
+  void vinstr_evex(uint8_t op, YMMRegister dst, YMMRegister src1, Operand src2,
+                   SIMDPrefix pp, LeadingOpcode m, VexW w, TupleType tuple_type,
+                   OpMask mask = k0, MaskingType z = kMerging,
+                   CpuFeature feature = AVX10_1);
+
+  // Compressed-displacement (disp8*N) scale factor N in bytes, per Intel SDM
+  // Vol.2 §2.6.5, Tables 2-34..2-36. {vlen} is the vector length in bytes
+  // (16 for xmm/128-bit, 32 for ymm/256-bit). Broadcast (EVEX.b) is not yet
+  // supported. Most tuple types scale with the vector length; the rest are
+  // constant or depend on the element size selected by EVEX.W.
+  static uint8_t TupleTypeToN(TupleType tuple_type, VexW w, int vlen) {
+    // Element size for W-dependent tuples: 4 bytes (W0) or 8 bytes (W1).
+    const int elt = w == VexW::kW0 ? 4 : 8;
+    switch (tuple_type) {
+      case TupleType::kFull:
+      case TupleType::kFullMem:
+        return vlen;
+      case TupleType::kHalf:
+      case TupleType::kHalfMem:
+        return vlen / 2;
+      case TupleType::kQuarterMem:
+        return vlen / 4;
+      case TupleType::kMem128:
+        return 16;
+      case TupleType::kTuple1_Scalar_b:
+        return 1;
+      case TupleType::kTuple1_Scalar_w:
+        return 2;
+      case TupleType::kTuple1_Scalar:
+        return elt;
+      case TupleType::kTuple1_Fixed_32:
+        return 4;
+      case TupleType::kTuple1_Fixed_64:
+        return 8;
+      case TupleType::kTuple2:
+        return 2 * elt;
+      case TupleType::kMovddup:
+        return vlen == 16 ? 8 : vlen / 2;
+      default:
+        UNREACHABLE();
+    }
+  }
 
   // SSE instructions
   void sse_instr(XMMRegister dst, XMMRegister src, uint8_t escape,
@@ -2482,6 +2650,108 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x50, dst, src1, src2, kF2, k0F38, kW0, AVX_VNNI_INT8);
   }
 
+  // AVX10.1 instructions
+  void vpmullq(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0x40, dst, src1, src2, k66, k0F38, kW1);
+  }
+  void vpmullq(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0x40, dst, src1, src2, k66, k0F38, kW1, kFull);
+  }
+  void vpmullq(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr_evex(0x40, dst, src1, src2, k66, k0F38, kW1);
+  }
+  void vpmullq(YMMRegister dst, YMMRegister src1, Operand src2) {
+    vinstr_evex(0x40, dst, src1, src2, k66, k0F38, kW1, kFull);
+  }
+
+  // vpsraq — variable count (xmm/m128). The count is always a 128-bit memory
+  // operand regardless of destination width, so the tuple type is Mem128.
+  void vpsraq(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0xE2, dst, src1, src2, k66, k0F, kW1);
+  }
+  void vpsraq(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0xE2, dst, src1, src2, k66, k0F, kW1, kMem128);
+  }
+  // vpsraq — imm8 (opcode 0x72 /4; dst goes in EVEX.vvvv)
+  void vpsraq(XMMRegister dst, XMMRegister src, uint8_t imm8);
+  void vpsraq(YMMRegister dst, YMMRegister src, uint8_t imm8);
+  void vpsraq(XMMRegister dst, Operand src, uint8_t imm8);
+
+  // vpabsq — unary (src1 unused)
+  void vpabsq(XMMRegister dst, XMMRegister src) {
+    vinstr_evex(0x1F, dst, xmm0, src, k66, k0F38, kW1);
+  }
+  void vpabsq(YMMRegister dst, YMMRegister src) {
+    vinstr_evex(0x1F, dst, ymm0, src, k66, k0F38, kW1);
+  }
+  void vpabsq(XMMRegister dst, Operand src) {
+    vinstr_evex(0x1F, dst, xmm0, src, k66, k0F38, kW1, kFull);
+  }
+
+  // vpminsq — binary
+  void vpminsq(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0x39, dst, src1, src2, k66, k0F38, kW1);
+  }
+  void vpminsq(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr_evex(0x39, dst, src1, src2, k66, k0F38, kW1);
+  }
+  void vpminsq(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0x39, dst, src1, src2, k66, k0F38, kW1, kFull);
+  }
+
+  // vpopcntb — unary (W0, src1 unused)
+  void vpopcntb(XMMRegister dst, XMMRegister src) {
+    vinstr_evex(0x54, dst, xmm0, src, k66, k0F38, kW0);
+  }
+  void vpopcntb(YMMRegister dst, YMMRegister src) {
+    vinstr_evex(0x54, dst, ymm0, src, k66, k0F38, kW0);
+  }
+  void vpopcntb(XMMRegister dst, Operand src) {
+    vinstr_evex(0x54, dst, xmm0, src, k66, k0F38, kW0, kFull);
+  }
+
+  // vpternlogd/q — bitwise ternary logic.
+  void vpternlogd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                  uint8_t imm8, OpMask mask = k0, MaskingType z = kMerging) {
+    vinstr_evex(0x25, dst, src1, src2, k66, k0F3A, kW0, mask, z);
+    emit(imm8);
+  }
+  void vpternlogd(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
+                  OpMask mask = k0, MaskingType z = kMerging) {
+    vinstr_evex(0x25, dst, src1, src2, k66, k0F3A, kW0, kFull, mask, z);
+    emit(imm8);
+  }
+  void vpternlogd(YMMRegister dst, YMMRegister src1, YMMRegister src2,
+                  uint8_t imm8, OpMask mask = k0, MaskingType z = kMerging) {
+    vinstr_evex(0x25, dst, src1, src2, k66, k0F3A, kW0, mask, z);
+    emit(imm8);
+  }
+  void vpternlogd(YMMRegister dst, YMMRegister src1, Operand src2, uint8_t imm8,
+                  OpMask mask = k0, MaskingType z = kMerging) {
+    vinstr_evex(0x25, dst, src1, src2, k66, k0F3A, kW0, kFull, mask, z);
+    emit(imm8);
+  }
+  void vpternlogq(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                  uint8_t imm8, OpMask mask = k0, MaskingType z = kMerging) {
+    vinstr_evex(0x25, dst, src1, src2, k66, k0F3A, kW1, mask, z);
+    emit(imm8);
+  }
+  void vpternlogq(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
+                  OpMask mask = k0, MaskingType z = kMerging) {
+    vinstr_evex(0x25, dst, src1, src2, k66, k0F3A, kW1, kFull, mask, z);
+    emit(imm8);
+  }
+  void vpternlogq(YMMRegister dst, YMMRegister src1, YMMRegister src2,
+                  uint8_t imm8, OpMask mask = k0, MaskingType z = kMerging) {
+    vinstr_evex(0x25, dst, src1, src2, k66, k0F3A, kW1, mask, z);
+    emit(imm8);
+  }
+  void vpternlogq(YMMRegister dst, YMMRegister src1, Operand src2, uint8_t imm8,
+                  OpMask mask = k0, MaskingType z = kMerging) {
+    vinstr_evex(0x25, dst, src1, src2, k66, k0F3A, kW1, kFull, mask, z);
+    emit(imm8);
+  }
+
   // BMI instruction
   void andnq(Register dst, Register src1, Register src2) {
     bmi1q(0xf2, dst, src1, src2);
@@ -2965,6 +3235,23 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                               VectorLength l, SIMDPrefix pp, LeadingOpcode m,
                               VexW w);
 
+  // Emit the vector-form EVEX prefix (reuses emit_evex_byte0() above). Shared
+  // by any EVEX-encoded feature (AVX10, APX).
+  inline void emit_evex_byte1(XMMRegister reg, XMMRegister rm, LeadingOpcode m);
+  inline void emit_evex_byte1(XMMRegister reg, Operand rm, LeadingOpcode m);
+  inline void emit_evex_byte2(VexW w, XMMRegister v, SIMDPrefix pp);
+  inline void emit_evex_byte2(VexW w, XMMRegister v, Operand rm, SIMDPrefix pp);
+  inline void emit_evex_byte3(VectorLength l, XMMRegister v, OpMask aaa,
+                              MaskingType z);
+  inline void emit_evex_prefix(XMMRegister reg, XMMRegister vreg,
+                               XMMRegister rm, VectorLength l, SIMDPrefix pp,
+                               LeadingOpcode mm, VexW w, OpMask aaa = k0,
+                               MaskingType z = kMerging);
+  inline void emit_evex_prefix(XMMRegister reg, XMMRegister vreg, Operand rm,
+                               VectorLength l, SIMDPrefix pp, LeadingOpcode mm,
+                               VexW w, OpMask aaa = k0,
+                               MaskingType z = kMerging);
+
   // Emit the ModR/M byte, and optionally the SIB byte and
   // 1- or 4-byte offset for a memory operand.  Also encodes
   // the second operand of the operation, a register or operation
@@ -3004,6 +3291,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void emit_sse_operand(XMMRegister dst, Register src);
   void emit_sse_operand(Register dst, XMMRegister src);
   void emit_sse_operand(XMMRegister dst);
+  void emit_sse_operand(XMMRegister reg, Operand adr, uint8_t cd8_scale);
 
   // Emit machine code for one of the operations ADD, ADC, SUB, SBC,
   // AND, OR, XOR, or CMP.  The encodings of these operations are all

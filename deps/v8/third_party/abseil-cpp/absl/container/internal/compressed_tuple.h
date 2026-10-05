@@ -149,8 +149,7 @@ std::true_type Or(std::initializer_list<bool>);
 // of CompressedTuple below.
 template <typename... Ts>
 constexpr bool ShouldAnyUseBase() {
-  return decltype(
-      Or({std::integral_constant<bool, ShouldUseBase<Ts>()>()...})){};
+  return decltype(Or({std::bool_constant<ShouldUseBase<Ts>()>()...})){};
 }
 
 template <typename T, typename V>
@@ -176,10 +175,9 @@ struct compressed_tuple_size<CompressedTuple<Es...>>
 
 template <class T, class... Vs>
 struct TupleItemsMoveConstructible
-    : std::integral_constant<
-          bool, TupleMoveConstructible<compressed_tuple_size<T>::value ==
-                                           sizeof...(Vs),
-                                       T, Vs...>::value> {};
+    : std::bool_constant<TupleMoveConstructible<
+          compressed_tuple_size<T>::value == sizeof...(Vs), T, Vs...>::value> {
+};
 
 }  // namespace internal_compressed_tuple
 

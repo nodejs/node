@@ -62,8 +62,8 @@ V8_OBJECT class JSListFormat : public JSObject {
   inline void set_locale(Tagged<String> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Managed<icu::ListFormatter>> icu_formatter() const;
-  inline void set_icu_formatter(Tagged<Managed<icu::ListFormatter>> value,
+  inline Tagged<CppGCManaged<icu::ListFormatter>> icu_formatter() const;
+  inline void set_icu_formatter(Tagged<CppGCManaged<icu::ListFormatter>> value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline int flags() const;
@@ -109,7 +109,7 @@ V8_OBJECT class JSListFormat : public JSObject {
 
  public:
   TaggedMember<String> locale_;
-  TaggedMember<Foreign> icu_formatter_;
+  TaggedMember<CppGCManaged<icu::ListFormatter>> icu_formatter_;
   TaggedMember<Smi> flags_;
 } V8_OBJECT_END;
 

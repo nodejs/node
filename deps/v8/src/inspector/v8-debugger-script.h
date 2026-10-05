@@ -56,8 +56,8 @@ class V8DebuggerScript {
   enum class Language { JavaScript, WebAssembly };
 
   V8DebuggerScript(v8::Isolate* isolate, v8::Local<v8::debug::Script> script,
-                   bool hadCompileError, bool isLiveEdit,
-                   V8DebuggerAgentImpl* agent, V8InspectorClient* client);
+                   bool hadCompileError, V8DebuggerAgentImpl* agent,
+                   V8InspectorClient* client);
   ~V8DebuggerScript() = default;
   V8DebuggerScript(const V8DebuggerScript&) = delete;
   V8DebuggerScript& operator=(const V8DebuggerScript&) = delete;
@@ -80,16 +80,12 @@ class V8DebuggerScript {
   int codeOffset() const;
   int executionContextId() const { return m_executionContextId; }
   bool hadCompileError() const { return m_hadCompileError; }
-  bool isLiveEdit() const { return m_isLiveEdit; }
   bool isModule() const { return m_isModule; }
   int length() const;
 
   void setSourceURL(const String16&);
   void setSourceMappingURL(const String16&);
   void setBuildId(const String16&);
-  void setSource(const String16& source, bool preview,
-                 bool allowTopFrameLiveEditing,
-                 v8::debug::LiveEditResult* result);
 
   bool getPossibleBreakpoints(const v8::debug::Location& start,
                               const v8::debug::Location& end,
@@ -137,7 +133,6 @@ class V8DebuggerScript {
   mutable String16 m_buildId;
   Language m_language;
   bool m_hadCompileError = false;
-  bool m_isLiveEdit = false;
   bool m_isModule = false;
   mutable String16 m_hash;
   int m_startLine = 0;

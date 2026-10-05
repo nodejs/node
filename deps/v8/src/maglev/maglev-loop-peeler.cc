@@ -145,8 +145,7 @@ void RemapClonedDeoptInfo(NodeBase* src, NodeBase* clone, const ValueMap& vmap,
   }
 }
 
-void RemapClonedExceptionHandlerInfo(NodeBase* src, NodeBase* clone,
-                                     BasicBlock* dst_block) {
+void RemapClonedExceptionHandlerInfo(NodeBase* src, NodeBase* clone) {
   if (!clone->properties().can_throw()) return;
   ExceptionHandlerInfo* src_info = src->exception_handler_info();
   DCHECK(!src_info->HasExceptionHandler() || src_info->ShouldLazyDeopt());
@@ -155,9 +154,6 @@ void RemapClonedExceptionHandlerInfo(NodeBase* src, NodeBase* clone,
         ExceptionHandlerInfo(ExceptionHandlerInfo::kLazyDeopt);
   } else {
     new (clone->exception_handler_info()) ExceptionHandlerInfo();
-  }
-  if (clone->Is<CallKnownJSFunction>()) {
-    dst_block->AddExceptionHandler(clone->exception_handler_info());
   }
 }
 
@@ -201,7 +197,6 @@ Node* CloneNodeWithRemap(Node* src, const ValueMap& vmap, Zone* zone) {
 // loop's back-edge and produce no value used elsewhere.
 bool IsSkippableInPeel(Node* node) {
   return node->Is<HandleNoHeapWritesInterrupt>() ||
-         node->Is<TryOnStackReplacement>() ||
          node->Is<ReduceInterruptBudgetForLoop>();
 }
 
@@ -322,8 +317,6 @@ void MaglevLoopPeeler::ResolveLoopHeader() {
 // (e.g. it wouldn't count a block reached only via a `break` as in-loop);
 // switch to it in a follow-up.
 // Bails on:
-//   - more than one forward predecessor (Maglev loops have a single back-edge,
-//     so predecessor_count > 2 means extra forward edges into the header),
 //   - a nested loop in the body (a body block that is itself a loop header);
 //     this is what restricts peeling to innermost loops,
 //   - a body block with attached exception handlers.
@@ -334,16 +327,10 @@ std::optional<MaglevLoopPeeler::LoopInfo> MaglevLoopPeeler::BuildLoopInfo(
   DCHECK(header->is_loop());
   DCHECK(!header->state()->is_resumable_loop());
   DCHECK(!header->state()->is_unmerged_loop());
-  if (header->predecessor_count() != 2) {
-    // TODO(victorgomes): a loop header with more than one forward predecessor
-    // is peelable in principle; bailing here is conservative.
-    TRACE_PEEL_SKIP("@" << header_offset
-                        << ": skip (header has >1 forward predecessor)");
-    return std::nullopt;
-  }
+  DCHECK_EQ(header->predecessor_count(), 2);
 
   LoopInfo loop(zone());
-  loop.preheader = header->predecessor_at(0);
+  loop.preheader = header->forward_predecessor();
   BasicBlock* backedge = header->backedge_predecessor();
   // With predecessor_count == 2 and a fully-merged loop, both slots are set.
   DCHECK_NOT_NULL(backedge);
@@ -679,7 +666,7 @@ void MaglevLoopPeeler::CloneBodySubgraph(PeelContext& ctx) {
   // Header phis resolve to their pre-header input.
   if (ctx.loop.header()->has_phi()) {
     for (Phi* phi : *ctx.loop.header()->phis()) {
-      ctx.value_map[phi] = phi->input(0).node();
+      ctx.value_map[phi] = phi->forward_edge();
     }
   }
 
@@ -724,8 +711,8 @@ void MaglevLoopPeeler::CloneBodySubgraph(PeelContext& ctx) {
       for (Phi* phi : *block->phis()) {
         DCHECK(!phi->is_exception_phi());
         int input_count = phi->input_count();
-        Phi* clone_phi = NodeBase::New<Phi>(zone(), input_count,
-                                            dst_block->state(), phi->owner());
+        Phi* clone_phi = NodeBase::New<Phi>(
+            zone(), input_count, dst_block->state(), phi->owner(), phi->type());
         for (int i = 0; i < input_count; ++i) {
           clone_phi->set_input(i, Remap(ctx.value_map, phi->input(i).node()));
         }
@@ -761,7 +748,7 @@ void MaglevLoopPeeler::CloneBodySubgraph(PeelContext& ctx) {
       }
       Node* cloned = CloneNodeWithRemap(node, ctx.value_map, zone());
       cloned->set_owner(dst_block);
-      RemapClonedExceptionHandlerInfo(node, cloned, dst_block);
+      RemapClonedExceptionHandlerInfo(node, cloned);
       dst_block->nodes().push_back(cloned);
       if (auto* vn = cloned->TryCast<ValueNode>()) {
         ctx.value_map[node->Cast<ValueNode>()] = vn;
@@ -887,11 +874,11 @@ void MaglevLoopPeeler::BuildPeelExitMerge(PeelContext& ctx) {
       DCHECK(!phi->is_exception_phi());
       // The peeled-path value of a header phi is its pre-header input — exactly
       // what CloneBodySubgraph seeds into value_map for the header phis.
-      DCHECK_EQ(Remap(ctx.value_map, phi), phi->input(0).node());
+      DCHECK_EQ(Remap(ctx.value_map, phi), phi->forward_edge());
       Phi* pem_phi = NodeBase::New<Phi>(zone(), 2 * exit_edge_count, pem_state,
-                                        phi->owner());
+                                        phi->owner(), phi->type());
       for (int idx = 0; idx < exit_edge_count; ++idx) {
-        pem_phi->set_input(2 * idx, phi->input(0).node());
+        pem_phi->set_input(2 * idx, phi->forward_edge());
         pem_phi->set_input(2 * idx + 1, phi);
       }
       pem_state->phis()->Add(pem_phi);
@@ -1004,6 +991,7 @@ void MaglevLoopPeeler::CloneLoopBodyControl(PeelContext& ctx) {
       clone->set_input(i, Remap(ctx.value_map, control->input(i).node()));
     }
     RemapClonedDeoptInfo(control, clone, ctx.value_map, zone());
+    RemapClonedExceptionHandlerInfo(control, clone);
     return clone;
   };
 
@@ -1257,25 +1245,23 @@ void MaglevLoopPeeler::RewireDownstreamPhiRefs(PeelContext& ctx) {
   rewires.reserve(ctx.header_phi_to_pem_phi.size());
   PhiMap replacements(zone());
 
-  // After peeling, the loop header has exactly two predecessors regardless of
-  // the original phi's arity: a loop can have several forward edges but only
-  // one back-edge, so the peeled loop's only predecessors are the peeled
-  // back-edge (slot 0) and the original back-edge (slot 1). Every loop phi
-  // therefore has two inputs after peeling.
+  // After peeling, the loop header's only predecessors are the peeled back-edge
+  // (slot 0) and the original back-edge (slot 1). Every loop phi therefore has
+  // two inputs after peeling.
   static constexpr int kPhiInputCount = 2;
 
   // Create a new loop phi for each header phi and collect the rewires.
   for (auto& [old_phi, pem_phi] : ctx.header_phi_to_pem_phi) {
-    Phi* loop_phi = NodeBase::New<Phi>(
-        zone(), kPhiInputCount, old_phi->merge_state(), old_phi->owner());
+    Phi* loop_phi =
+        NodeBase::New<Phi>(zone(), kPhiInputCount, old_phi->merge_state(),
+                           old_phi->owner(), old_phi->type());
     // Slot 0 takes the peeled clone of the back-edge value (via value_map);
     // slot 1 the original back-edge value. If the back-edge value is itself a
     // header phi (a recursive loop phi), slot 1 still points at the old phi
     // here; it is rewired to the matching loop phi in the cross-reference pass
     // below, once every old->loop phi mapping has been recorded.
-    loop_phi->set_input(0,
-                        Remap(ctx.value_map, old_phi->backedge_input().node()));
-    loop_phi->set_input(1, old_phi->backedge_input().node());
+    loop_phi->set_input(0, Remap(ctx.value_map, old_phi->backedge()));
+    loop_phi->set_input(loop_phi->backedge_index(), old_phi->backedge());
     RegisterIfLabelled(graph_, loop_phi);
     replacements[old_phi] = loop_phi;
     rewires.push_back({old_phi, pem_phi, loop_phi});

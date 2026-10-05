@@ -20,6 +20,53 @@
 
 namespace v8::internal {
 
+constexpr std::optional<RootIndex> Map::TryGetMapRootIdxFor(InstanceType type) {
+  switch (type) {
+#define MAKE_CASE(TYPE, Name, name) \
+  case TYPE:                        \
+    return RootIndex::k##Name##Map;
+    STRUCT_LIST(MAKE_CASE)
+#undef MAKE_CASE
+    case DESCRIPTOR_ARRAY_TYPE:
+      return RootIndex::kDescriptorArrayMap;
+    case ON_HEAP_BASIC_BLOCK_PROFILER_DATA_TYPE:
+      return RootIndex::kOnHeapBasicBlockProfilerDataMap;
+    case TURBOFAN_BITSET_TYPE_TYPE:
+      return RootIndex::kTurbofanBitsetTypeMap;
+    case TURBOFAN_UNION_TYPE_TYPE:
+      return RootIndex::kTurbofanUnionTypeMap;
+    case TURBOFAN_RANGE_TYPE_TYPE:
+      return RootIndex::kTurbofanRangeTypeMap;
+    case TURBOFAN_HEAP_CONSTANT_TYPE_TYPE:
+      return RootIndex::kTurbofanHeapConstantTypeMap;
+    case TURBOFAN_OTHER_NUMBER_CONSTANT_TYPE_TYPE:
+      return RootIndex::kTurbofanOtherNumberConstantTypeMap;
+    case TURBOSHAFT_WORD32_RANGE_TYPE_TYPE:
+      return RootIndex::kTurboshaftWord32RangeTypeMap;
+    case TURBOSHAFT_WORD32_SET_TYPE_TYPE:
+      return RootIndex::kTurboshaftWord32SetTypeMap;
+    case TURBOSHAFT_WORD64_RANGE_TYPE_TYPE:
+      return RootIndex::kTurboshaftWord64RangeTypeMap;
+    case TURBOSHAFT_WORD64_SET_TYPE_TYPE:
+      return RootIndex::kTurboshaftWord64SetTypeMap;
+    case TURBOSHAFT_FLOAT64_RANGE_TYPE_TYPE:
+      return RootIndex::kTurboshaftFloat64RangeTypeMap;
+    case TURBOSHAFT_FLOAT64_SET_TYPE_TYPE:
+      return RootIndex::kTurboshaftFloat64SetTypeMap;
+    case SORT_STATE_TYPE:
+      return RootIndex::kSortStateMap;
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_FAST_API_CALL_DATA_TYPE:
+      return RootIndex::kWasmFastApiCallDataMap;
+    case WASM_STRING_VIEW_ITER_TYPE:
+      return RootIndex::kWasmStringViewIterMap;
+#endif  // V8_ENABLE_WEBASSEMBLY
+    default:
+      break;
+  }
+  return {};
+}
+
 namespace InstanceTypeChecker {
 
 // INSTANCE_TYPE_CHECKERS macro defines some "types" that do not have
@@ -32,8 +79,7 @@ namespace InstanceTypeTraits {
 
 #define DECL_TYPE(type, ...) class type;
 INSTANCE_TYPE_CHECKERS(DECL_TYPE)
-TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(DECL_TYPE)
-TORQUE_INSTANCE_CHECKERS_MULTIPLE_ONLY_DECLARED(DECL_TYPE)
+INSTANCE_TYPE_LIST_MULTIPLE(DECL_TYPE)
 HEAP_OBJECT_TYPE_LIST(DECL_TYPE)
 #undef DECL_TYPE
 
@@ -655,7 +701,9 @@ V8_INLINE bool IsJSApiWrapperObject(Tagged<Map> map_object) {
 V8_INLINE constexpr bool IsCppHeapPointerWrapperObject(
     InstanceType instance_type) {
   return IsJSApiWrapperObject(instance_type) ||
-         IsCppHeapExternalObject(instance_type);
+         IsCppHeapExternalObject(instance_type) ||
+         IsCppGCManagedBase(instance_type) ||
+         IsEmbedderDataArray(instance_type);
 }
 
 V8_INLINE bool IsCppHeapPointerWrapperObject(Tagged<Map> map_object) {
@@ -665,7 +713,7 @@ V8_INLINE bool IsCppHeapPointerWrapperObject(Tagged<Map> map_object) {
 }  // namespace InstanceTypeChecker
 
 #define TYPE_CHECKER(type, ...)                \
-  bool Is##type##Map(Tagged<Map> map) {        \
+  inline bool Is##type##Map(Tagged<Map> map) { \
     return InstanceTypeChecker::Is##type(map); \
   }
 

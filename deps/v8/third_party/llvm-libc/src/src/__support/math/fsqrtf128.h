@@ -11,7 +11,7 @@
 
 #include "include/llvm-libc-types/float128.h"
 
-#ifdef LIBC_TYPES_HAS_FLOAT128
+#ifdef LIBC_TYPES_HAS_NATIVE_FLOAT128
 
 #include "src/__support/FPUtil/generic/sqrt.h"
 #include "src/__support/common.h"
@@ -29,5 +29,5 @@ LIBC_INLINE LIBC_CONSTEXPR_DEFAULT float fsqrtf128(float128 x) {
 
 } // namespace LIBC_NAMESPACE_DECL
 
-#endif // LIBC_TYPES_HAS_FLOAT128
+#endif // LIBC_TYPES_HAS_NATIVE_FLOAT128
 #endif // LLVM_LIBC_SRC___SUPPORT_MATH_FSQRTF128_H

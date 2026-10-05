@@ -14,4 +14,6 @@ const pseudo_re = {
   constructor: { [Symbol.species]: Species },
 };
 
-RegExp.prototype[Symbol.matchAll].call(pseudo_re, '').next();
+const result = RegExp.prototype[Symbol.matchAll].call(pseudo_re, '').next();
+assertEquals({ value: [''], done: false }, result);
+assertEquals(1073741824, re.lastIndex);

@@ -31,22 +31,28 @@ const char* ToString(Script::Type type) {
   UNREACHABLE();
 }
 
-const char* ToString(Script::CompilationType type) {
-  switch (type) {
-    case Script::CompilationType::kHost:
-      return "host";
-    case Script::CompilationType::kEval:
-      return "eval";
-  }
-  UNREACHABLE();
-}
-
 const char* ToString(Script::CompilationState type) {
   switch (type) {
     case Script::CompilationState::kInitial:
       return "initial";
     case Script::CompilationState::kCompiled:
       return "compiled";
+  }
+  UNREACHABLE();
+}
+
+const char* ToString(Script::CompilationKind type) {
+  switch (type) {
+    case Script::CompilationKind::kHost:
+      return "host";
+    case Script::CompilationKind::kDirectEval:
+      return "direct-eval";
+    case Script::CompilationKind::kIndirectEval:
+      return "indirect-eval";
+    case Script::CompilationKind::kFunctionConstructor:
+      return "function-constructor";
+    case Script::CompilationKind::kWrapped:
+      return "wrapped";
   }
   UNREACHABLE();
 }
@@ -101,7 +107,7 @@ Tagged<Script> Script::Iterator::Next() {
 
 // static
 int Script::GetEvalPosition(Isolate* isolate, DirectHandle<Script> script) {
-  DCHECK(script->compilation_type() == Script::CompilationType::kEval);
+  DCHECK(script->has_eval_origin());
   int position = script->eval_from_position();
   if (position < 0) {
     // Due to laziness, the position may not have been translated from code
@@ -467,7 +473,8 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
   // For wasm, we use the byte offset as the column.
   if (type() == Script::Type::kWasm) {
     DCHECK_LE(0, position);
-    Managed<wasm::NativeModule>::Ptr native_module = wasm_native_module();
+    CppGCManaged<wasm::NativeModule>::Ptr native_module =
+        wasm_native_module();
     const wasm::WasmModule* module = native_module->module();
     if (module->functions.empty()) return false;
     info->line = 0;

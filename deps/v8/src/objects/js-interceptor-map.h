@@ -17,6 +17,8 @@ class InterceptorInfo;
 // Extended map for interceptor objects, it caches named and indexed
 // InterceptorInfo objects in the Map for faster access.
 V8_OBJECT class JSInterceptorMap : public ExtendedMap {
+  V8_IT_REUSE_PARENT;
+
  public:
   using SupportsFastIterableToListBit = base::BitField<bool, 0, 1, uint8_t>;
 

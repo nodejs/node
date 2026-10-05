@@ -38,6 +38,7 @@ the reference is never reported as a test failure.
 """
 
 import argparse
+import collections
 import contextlib
 import json
 import os
@@ -47,16 +48,13 @@ import subprocess
 import sys
 import tempfile
 
+import grammar
+
 # The d8 harness that actually constructs and runs each regexp, kept next to
 # this script so it ships with the tool instead of being written at runtime.
 # realpath so the harness is found even when the script is invoked via symlink.
 HARNESS_PATH = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), "harness.js")
-
-# Character menu kept small but spanning the interesting axes: ASCII
-# letters/digits/punctuation, a Latin-1 supplement char, a BMP two-byte
-# char, and a supplementary (surrogate-pair) char.
-CHARS = list("abcxyz019:.-") + ["é", "Ω", "\U0001f0a1"]
 
 
 def parse_config(spec):
@@ -69,105 +67,6 @@ def parse_config(spec):
   path = parts[0]
   flags = parts[1].split() if len(parts) > 1 and parts[1] else []
   return path, flags
-
-
-# ---- Random regexp generation --------------------------------------------
-
-# Supplementary (surrogate-pair) code points from the playing-card block:
-# these exercise the two-code-unit text and class-lowering paths.
-_SUPP = [chr(0x1F0A1 + i) for i in range(14)
-        ] + [chr(0x1F0B1 + i) for i in range(14)]
-
-# Range endpoints in ascending code-point order, so a range built from two
-# indices i <= j is always well-formed and not rejected as out-of-order.
-_CLASS_ATOMS = "0123456789abcdefxyz"
-
-
-def rand_class(r):
-  if r.random() < 0.18:
-    # Supplementary class: a few code points and/or a range, e.g.
-    # [\u{1f0a1}-\u{1f0ae}].
-    parts = []
-    for _ in range(r.randint(1, 3)):
-      if r.random() < 0.5:
-        a = r.choice(_SUPP)
-        b = chr(ord(a) + r.randint(0, 6))
-        parts.append("%s-%s" % (a, b))
-      else:
-        parts.append(r.choice(_SUPP))
-    neg = "^" if r.random() < 0.2 else ""
-    return "[%s%s]" % (neg, "".join(parts))
-  parts = []
-  for _ in range(r.randint(1, 4)):
-    if r.random() < 0.4:
-      i = r.randrange(len(_CLASS_ATOMS))
-      j = r.randint(i, min(i + 6, len(_CLASS_ATOMS) - 1))
-      parts.append("%s-%s" % (_CLASS_ATOMS[i], _CLASS_ATOMS[j]))
-    else:
-      parts.append(r.choice("abcxyz019"))
-  neg = "^" if r.random() < 0.2 else ""
-  return "[%s%s]" % (neg, "".join(parts))
-
-
-def rand_atom(r, depth):
-  roll = r.random()
-  if roll < 0.35:
-    return r.choice("abcxyz019:.") if r.random() < 0.8 else r.choice(CHARS)
-  if roll < 0.5:
-    return rand_class(r)
-  if roll < 0.58:
-    return r.choice([".", r"\d", r"\w", r"\s", r"\b", r"\B", "^", "$"])
-  if roll < 0.64 and depth < 3:
-    body = rand_re(r, depth + 1)
-    return "(" + body + ")" + (r"\1" if r.random() < 0.15 else "")
-  if roll < 0.74 and depth < 3:
-    kind = r.choice(["(?:", "(?=", "(?!", "(?<=", "(?<!", "("])
-    return kind + rand_re(r, depth + 1) + ")"
-  return r.choice("abcxyz")
-
-
-def rand_piece(r, depth):
-  a = rand_atom(r, depth)
-  if r.random() < 0.25:
-    q = r.choice(["*", "+", "?", "{0,2}", "{1,3}", "{2}", "{2,}", "{1,4}"])
-    if r.random() < 0.3:
-      q += "?"
-    return a + q
-  return a
-
-
-def rand_seq(r, depth):
-  return "".join(rand_piece(r, depth) for _ in range(r.randint(1, 5)))
-
-
-def rand_re(r, depth=0):
-  n = r.randint(1, 4)
-  alts = [rand_seq(r, depth) for _ in range(n)]
-  if r.random() < 0.15:
-    alts[r.randrange(n)] = ""  # empty alternative
-  return "|".join(alts)
-
-
-def rand_subject(r):
-  # Bias toward supplementary code points sometimes so surrogate-pair
-  # texts get matching input.
-  pool = CHARS + (_SUPP if r.random() < 0.5 else [])
-  return "".join(r.choice(pool) for _ in range(r.randint(0, 14)))
-
-
-def gen_case(r):
-  pat = rand_re(r)
-  flags = "".join(r.sample(["i", "m", "s", "y"], r.randint(0, 2)))
-  # 'u' and 'v' are mutually exclusive unicode modes; pick at most one,
-  # biased to include one since they change surrogate handling and class
-  # lowering materially.  Favor 'v' (unicodeSets): it is the newer mode with
-  # its own, more intricate class-lowering path.
-  roll = r.random()
-  if roll < 0.4:
-    flags += "v"
-  elif roll < 0.55:
-    flags += "u"
-  return [pat, flags, rand_subject(r)]
 
 
 # ---- Execution + diff -----------------------------------------------------
@@ -219,39 +118,43 @@ class Runner:
         results[int(key)] = value
     return results
 
-  def run_one(self, config, pattern, flags, subject):
-    with self._cases_file([[pattern, flags, subject]]) as casefile:
+  def run_one(self, config, pattern, flags, subject, last_index=0):
+    with self._cases_file([[pattern, flags, subject, last_index]]) as casefile:
       rc, out = self._run(config, casefile)
     return rc, self._results(out).get(0)
 
-  def finding(self, pattern, flags, subject):
+  def finding(self, pattern, flags, subject, last_index=0):
     """Classify a case as a finding, or return None.
 
     'CRASH' when either configuration aborts -- a CHECK/DCHECK failure or
     segfault, distinct from a syntax error, which the harness reports as a
-    clean 'ERR_' result.  'DIVERGENCE' when both run cleanly but the test
-    disagrees with the reference.  A reference syntax error, or a timeout on
-    either side, establishes no ground truth and is skipped.
+    clean 'ERR_' result.  'COLD/WARM' when one configuration disagrees with
+    itself across the two execs, which is a bug in that configuration alone.
+    'DIVERGENCE' when both run cleanly but the test disagrees with the
+    reference.  A reference syntax error, or a timeout on either side,
+    establishes no ground truth and is skipped.
     """
-    rc_r, res_r = self.run_one(self.ref, pattern, flags, subject)
-    rc_t, res_t = self.run_one(self.test, pattern, flags, subject)
-    if rc_r == TIMEOUT_RC or rc_t == TIMEOUT_RC:
-      return None
-    if rc_r != 0 or rc_t != 0:
-      return "CRASH"  # a hard abort on either side is a bug regardless
-    if res_r is None or res_r.startswith('"ERR_'):
-      return None  # reference doesn't establish ground truth here
-    return "DIVERGENCE" if res_t != res_r else None
+    rc_r, res_r = self.run_one(self.ref, pattern, flags, subject, last_index)
+    rc_t, res_t = self.run_one(self.test, pattern, flags, subject, last_index)
+    return classify(rc_r, res_r, rc_t, res_t)
 
   def run_batch(self, cases):
     with self._cases_file(cases) as casefile:
       rc_r, out_r = self._run(self.ref, casefile)
       rc_t, out_t = self._run(self.test, casefile)
     ref, test = self._results(out_r), self._results(out_t)
-    # First case whose result differs, including one side missing it (a
-    # crash or timeout that truncated that configuration's output).
     for i in range(len(cases)):
-      if ref.get(i) != test.get(i):
+      # Classified rather than string-compared, so the batch scan and finding()
+      # agree on what counts.  A raw diff would flag every case the reference
+      # merely rejects, which finding() then declines to reproduce -- leaving
+      # an unminimizable "finding" that the ground-truth policy says to skip.
+      #
+      # Both return codes are passed as 0: they belong to the whole process,
+      # not to this case, and feeding a crashed run's code in here would
+      # classify every case from the first one onward as a CRASH and report
+      # index 0 rather than the case that actually aborted.  That is what the
+      # rc check below is for.
+      if classify(0, ref.get(i), 0, test.get(i)):
         return i
     # Identical output but a hard exit on either side is a crash that
     # truncated both runs at the same case (e.g. a shared DCHECK), which the
@@ -261,31 +164,122 @@ class Runner:
     return None
 
 
+def _no_ground_truth(res):
+  """Does |res| leave the reference without an answer to compare against?
+
+  A missing line, or any error marker: a pattern the reference rejects
+  outright (ERR_CTOR) or one whose exec raised (ERR_EXEC), which a stack or
+  backtrack limit makes configuration-dependent rather than a wrong answer.
+  """
+  if res is None:
+    return True
+  try:
+    parsed = json.loads(res)
+  except json.JSONDecodeError:
+    return True
+  if isinstance(parsed, str):
+    return parsed.startswith("ERR_")
+  return any(
+      isinstance(v, str) and v.startswith("ERR_") for v in parsed.values())
+
+
+def _self_inconsistent(res):
+  """Do the two execs of one configuration disagree with each other?
+
+  Both run a freshly constructed JSRegExp over the same subject from the same
+  lastIndex, so they must agree whatever the answer is; only what the engine
+  has cached by the second one differs.  This holds within a single
+  configuration, so it catches a bug the reference and the test share.
+  """
+  if res is None:
+    return False
+  try:
+    parsed = json.loads(res)
+  except json.JSONDecodeError:
+    return False
+  if not isinstance(parsed, dict):
+    return False
+  return parsed.get("cold") != parsed.get("warm")
+
+
+def classify(rc_ref, res_ref, rc_test, res_test):
+  """Classify one case's pair of results, or return None if it is clean."""
+  if rc_ref == TIMEOUT_RC or rc_test == TIMEOUT_RC:
+    return None
+  if rc_ref != 0 or rc_test != 0:
+    return "CRASH"  # a hard abort on either side is a bug regardless
+  # Checked before the ground-truth filter: a configuration contradicting
+  # itself needs no external reference to be wrong.
+  if _self_inconsistent(res_ref) or _self_inconsistent(res_test):
+    return "COLD/WARM"
+  if _no_ground_truth(res_ref):
+    return None
+  return "DIVERGENCE" if res_test != res_ref else None
+
+
 # ---- Minimization ---------------------------------------------------------
 
 
-def minimize(runner, pattern, flags, subject):
+def _shrink_targets(n):
+  """Candidate smaller values for a quantifier bound, best first.
+
+  0 and 1 first because they are the shapes that usually still reproduce and
+  read best in a repro, then a halving sequence so a large bound converges in
+  log steps instead of one re-run of both configurations per unit.
+  """
+  seen = set()
+  for c in (0, 1, n // 2, n * 3 // 4, n - 1):
+    if 0 <= c < n and c not in seen:
+      seen.add(c)
+      yield c
+
+
+def _quantifier(lo, bounded, hi):
+  """Rebuild `{n}` (bounded=False) or `{n,}` / `{n,m}` (bounded=True)."""
+  if not bounded:
+    return "{%d}" % lo
+  return "{%d,%s}" % (lo, "" if hi is None else "%d" % hi)
+
+
+def minimize(runner, pattern, flags, subject, last_index=0):
 
   def cands(p):
     n = len(p)
     for size in (32, 16, 8, 4, 2, 1):
       for s in range(n - size + 1):
         yield p[:s] + p[s + size:]
-    for m in re.finditer(r"\{(\d+)(,(\d+)?)?\}", p):
-      a = int(m.group(1))
-      if a > 0:
-        yield p[:m.start()] + m.group(0).replace(str(a), str(a - 1),
-                                                 1) + p[m.end():]
-    yield p.replace("[0-9a-f]", "[0-9]", 1)
+    # Quantifier bounds are shrunk toward zero by halving rather than by
+    # decrementing: a bound in the hundreds would otherwise need one full
+    # re-run of both configurations per step.
+    for m in re.finditer(r"\{(\d+)(,)?(\d+)?\}", p):
+      lo = int(m.group(1))
+      bounded = m.group(2) is not None
+      hi = int(m.group(3)) if m.group(3) is not None else None
+      for lo_try in _shrink_targets(lo):
+        if hi is not None and lo_try > hi:
+          continue
+        yield p[:m.start()] + _quantifier(lo_try, bounded, hi) + p[m.end():]
+      if hi is not None:
+        for hi_try in _shrink_targets(hi):
+          if hi_try >= lo:
+            yield p[:m.start()] + _quantifier(lo, bounded, hi_try) + p[m.end():]
+
+  def size(p):
+    # Length alone would reject every same-length quantifier shrink ({5} to
+    # {0}), which is most of them; the bound total breaks the tie.
+    return (len(p),
+            sum(
+                int(m.group(1)) + int(m.group(3) or 0)
+                for m in re.finditer(r"\{(\d+)(,)?(\d+)?\}", p)))
 
   improved = True
   while improved:
     improved = False
     for c in cands(pattern):
-      if len(c) >= len(pattern):
+      if size(c) >= size(pattern):
         continue
       try:
-        if runner.finding(c, flags, subject):
+        if runner.finding(c, flags, subject, last_index):
           pattern = c
           improved = True
           break
@@ -295,10 +289,10 @@ def minimize(runner, pattern, flags, subject):
   changed = True
   while changed:
     changed = False
-    for size in (4, 2, 1):
-      for s in range(len(subject) - size + 1):
-        c = subject[:s] + subject[s + size:]
-        if runner.finding(pattern, flags, c):
+    for chunk in (4, 2, 1):
+      for s in range(len(subject) - chunk + 1):
+        c = subject[:s] + subject[s + chunk:]
+        if runner.finding(pattern, flags, c, last_index):
           subject = c
           changed = True
           break
@@ -307,21 +301,64 @@ def minimize(runner, pattern, flags, subject):
   # Drop flags that aren't load-bearing.
   for f in list(flags):
     cand = flags.replace(f, "")
-    if runner.finding(pattern, cand, subject):
+    if runner.finding(pattern, cand, subject, last_index):
       flags = cand
-  return pattern, flags, subject
+  # A zero lastIndex is the simpler repro; keep the nonzero one only when the
+  # finding needs it.
+  if last_index and runner.finding(pattern, flags, subject, 0):
+    last_index = 0
+  return pattern, flags, subject, last_index
 
 
-def report(runner, pattern, flags, subject, header):
-  pattern, flags, subject = minimize(runner, pattern, flags, subject)
-  rc_r, res_r = runner.run_one(runner.ref, pattern, flags, subject)
-  rc_t, res_t = runner.run_one(runner.test, pattern, flags, subject)
+def _print_case(runner, pattern, flags, subject, last_index, header):
+  rc_r, res_r = runner.run_one(runner.ref, pattern, flags, subject, last_index)
+  rc_t, res_t = runner.run_one(runner.test, pattern, flags, subject, last_index)
   print(header)
   print("  pattern: /%s/%s" % (pattern, flags))
   print("  subject: %r" % subject)
+  if last_index:
+    print("  lastIndex: %d" % last_index)
   print("  ref : rc=%d %s" % (rc_r, res_r))
   print("  test: rc=%d %s" % (rc_t, res_t))
   sys.stdout.flush()
+
+
+def report(runner, pattern, flags, subject, last_index, header):
+  # Minimization can take a while on a large pattern, and a Ctrl-C during it
+  # (the usual way a long run is stopped) would otherwise discard the finding
+  # before anything is printed.  On interrupt emit the un-minimized case, which
+  # is still a valid repro, before propagating.
+  try:
+    pattern, flags, subject, last_index = minimize(runner, pattern, flags,
+                                                   subject, last_index)
+  except KeyboardInterrupt:
+    _print_case(runner, pattern, flags, subject, last_index,
+                header + " (unminimized)")
+    raise
+  _print_case(runner, pattern, flags, subject, last_index, header)
+
+
+def _print_coverage(coverage):
+  """Report per-rule expansion counts, unexercised rules last.
+
+  A rule that never fired is the actionable part: it means the run tested
+  nothing about that grammar alternative, which no amount of case volume
+  reveals on its own.
+  """
+  rules = grammar.all_rules()
+  used = [(p, n) for (p, n) in rules if coverage[(p, n)]]
+  missed = [(p, n) for (p, n) in rules if not coverage[(p, n)]]
+  total = sum(coverage.values()) or 1
+  print("\ngrammar coverage: %d/%d rules, %d expansions" %
+        (len(used), len(rules), total))
+  for prod, name in sorted(used, key=lambda k: -coverage[k]):
+    count = coverage[(prod, name)]
+    print("  %-46s %8d  %5.2f%%" % ("%s.%s" %
+                                    (prod, name), count, 100.0 * count / total))
+  if missed:
+    print("  NOT EXERCISED:")
+    for prod, name in missed:
+      print("    %s.%s" % (prod, name))
 
 
 def main():
@@ -342,41 +379,100 @@ def main():
   ap.add_argument("--batch-size", type=int, default=500)
   ap.add_argument("--max-findings", type=int, default=20)
   ap.add_argument(
+      "--progress-every",
+      type=int,
+      default=25,
+      help="print a flushed progress line every N clean batches (0 disables); "
+      "the running trail is what survives an early Ctrl-C")
+  ap.add_argument(
+      "--profile",
+      default="default",
+      choices=sorted(grammar.PROFILES),
+      help="weight overlay aiming generation at a family of patterns")
+  ap.add_argument(
+      "--weight",
+      action="append",
+      metavar="Production.rule=N",
+      help="multiply one grammar rule's weight; repeatable")
+  ap.add_argument(
+      "--max-depth",
+      type=int,
+      default=5,
+      help="derivation depth budget; larger means bigger nested patterns. "
+      "The default is the smallest that reaches every grammar rule -- the "
+      "deepest v-mode class nesting needs 5 (verify with --coverage)")
+  ap.add_argument(
+      "--coverage",
+      action="store_true",
+      help="report which grammar rules the run exercised, and which it missed")
+  ap.add_argument(
       "--pattern", help="reproduce a single case instead of fuzzing")
   ap.add_argument("--flags", default="")
   ap.add_argument("--subject", default="")
+  ap.add_argument("--last-index", type=int, default=0)
   args = ap.parse_args()
+
+  try:
+    weights = grammar.parse_weights(args.profile, args.weight)
+  except ValueError as e:
+    ap.error(str(e))
 
   runner = Runner(args.ref, args.test)
 
   if args.pattern is not None:
-    kind = runner.finding(args.pattern, args.flags, args.subject)
+    kind = runner.finding(args.pattern, args.flags, args.subject,
+                          args.last_index)
     if kind:
-      report(runner, args.pattern, args.flags, args.subject, kind)
+      report(runner, args.pattern, args.flags, args.subject, args.last_index,
+             kind)
       return 1
     print("no divergence for the given case")
     return 0
 
   seed = args.seed if args.seed is not None else random.randrange(2**32)
-  if args.seed is None:
-    print("seed: %d (pass --seed %d to reproduce)" % (seed, seed))
+  # Print (flushed) up front so the seed survives an early abort; a long run is
+  # typically stopped with Ctrl-C, and the seed is what makes it reproducible.
+  print("seed: %d (pass --seed %d to reproduce)" % (seed, seed))
+  sys.stdout.flush()
 
   findings = 0
-  for it in range(args.batches):
-    r = random.Random(seed * 1_000_003 + it)
-    cases = [gen_case(r) for _ in range(args.batch_size)]
-    idx = runner.run_batch(cases)
-    if idx is None:
-      continue
-    pat, fl, sub = cases[idx]
-    kind = runner.finding(pat, fl, sub) or "DIVERGENCE"
-    report(runner, pat, fl, sub, "%s batch=%d case=%d" % (kind, it, idx))
-    findings += 1
-    if findings >= args.max_findings:
-      print("reached --max-findings; stopping")
-      break
-  print("done: %d batches x %d cases, %d divergence(s)" %
-        (args.batches, args.batch_size, findings))
+  done = 0
+  coverage = collections.Counter() if args.coverage else None
+  # A long run is usually ended by Ctrl-C or an external kill.  Catch the
+  # interrupt so the summary of what completed still prints; report() has
+  # already flushed each finding as it was found.
+  try:
+    for it in range(args.batches):
+      r = random.Random(seed * 1_000_003 + it)
+      cases = [
+          grammar.gen_case(r, args.max_depth, weights, coverage)
+          for _ in range(args.batch_size)
+      ]
+      idx = runner.run_batch(cases)
+      done = it + 1
+      if idx is None:
+        # Emit a flushed heartbeat so a clean run leaves a trail (cases fuzzed,
+        # findings so far) that survives an abort instead of only the final
+        # summary.
+        if args.progress_every and done % args.progress_every == 0:
+          print("progress: %d/%d batches, %d finding(s)" %
+                (done, args.batches, findings))
+          sys.stdout.flush()
+        continue
+      pat, fl, sub, li = cases[idx]
+      kind = runner.finding(pat, fl, sub, li) or "DIVERGENCE"
+      report(runner, pat, fl, sub, li, "%s batch=%d case=%d" % (kind, it, idx))
+      findings += 1
+      if findings >= args.max_findings:
+        print("reached --max-findings; stopping")
+        break
+  except KeyboardInterrupt:
+    print("\ninterrupted after %d batch(es)" % done)
+  print("done: %d/%d batches x %d cases, %d divergence(s)" %
+        (done, args.batches, args.batch_size, findings))
+  if coverage is not None:
+    _print_coverage(coverage)
+  sys.stdout.flush()
   return 1 if findings else 0
 
 

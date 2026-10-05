@@ -93,7 +93,7 @@ LIBC_INLINE float16 erfcf16(float16 x) {
   }
 
   if (LIBC_UNLIKELY(x_abs == 0))
-    return 1.0f16;
+    return fputil::cast<float16>(1.0f);
 
   // Asymptotic behavior: erfc(x) rounds to 0 or 2 for |x| >= 4.0.
   if (LIBC_UNLIKELY(x_abs >= 0x4400U)) { // |x| >= 4.0
@@ -109,7 +109,7 @@ LIBC_INLINE float16 erfcf16(float16 x) {
     if (fputil::fenv_is_round_up())
       return FPBits::min_subnormal().get_val();
 #endif
-    return 0.0f16;
+    return FPBits::zero().get_val();
   }
 
   // Polynomial approximation:

@@ -16,7 +16,12 @@
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type.h"
 #include "src/roots/roots.h"
+#ifndef V8_METAGEN_GENERATION_PASS
+// Forward declarations only, and generated after the metagen harvest
+// parses this header. The harvest reads class definitions, so nothing
+// it collects comes from here.
 #include "torque-generated/class-forward-declarations.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -32,12 +37,14 @@ template <typename T, typename Base>
 class FixedIntegerArrayBase;
 class FreshlyAllocatedBigInt;
 class FunctionLiteral;
+class FunctionTemplateRareData;
 class HeapObject;
 class ObjectBoilerplateDescription;
 template <typename T>
 class PodArray;
 class PreparseData;
 class RegExpBoilerplateDescription;
+class RegExpDataWrapper;
 class SeqOneByteString;
 class SeqTwoByteString;
 class SharedFunctionInfo;

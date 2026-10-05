@@ -218,7 +218,7 @@ struct IsSpan<std::span<T, Extent>> : std::true_type {};
 // types that satisfy std::ranges::borrowed_range.
 template <typename C>
 using IsPermissibleDestinationRange =
-    std::conditional_t<std::is_lvalue_reference<C>::value, std::true_type,
+    std::conditional_t<std::is_lvalue_reference_v<C>, std::true_type,
                        IsSpan<C>>;
 
 template <typename C, typename OutputRange>

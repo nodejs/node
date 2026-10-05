@@ -146,6 +146,14 @@ functions:
     arguments:
       - type: const char *
       - type: const char *
+  - name: freopen
+    standards:
+      - stdc
+    return_type: FILE *
+    arguments:
+      - type: const char *__restrict
+      - type: const char *__restrict
+      - type: FILE *__restrict
   - name: fopencookie
     standards:
       - gnu
@@ -396,6 +404,12 @@ functions:
       - type: const char *__restrict
       - type: const char *__restrict
       - type: '...'
+  - name: tmpfile
+    standards:
+      - stdc
+    return_type: FILE *
+    arguments:
+      - type: void
   - name: ungetc
     standards:
       - stdc

@@ -51,11 +51,14 @@ uint64_t MemoryController<Trait>::ComputeSqrtLimit(
   // by `limit_factor`. We also assume that GC cost (L/s) is proportional to
   // `total_size_excluding_external_at_last_gc_`, which includes young
   // objects and excludes external memory, for both old gen or global limit.
-  return std::min<uint64_t>(
+  const double computed_limit =
       heap_size_at_last_gc +
-          limit_factor * sqrt(allocation_speed * total_size_of_objects),
-      v8_flags.sqrt_allocation_limits_max_growing_factor *
-          heap_size_at_last_gc);
+      limit_factor * sqrt(allocation_speed * total_size_of_objects);
+  const double min_limit =
+      v8_flags.sqrt_allocation_limits_min_growing_factor * heap_size_at_last_gc;
+  const double max_limit =
+      v8_flags.sqrt_allocation_limits_max_growing_factor * heap_size_at_last_gc;
+  return std::clamp(computed_limit, min_limit, max_limit);
 }
 
 template <typename Trait>

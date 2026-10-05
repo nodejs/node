@@ -30,6 +30,7 @@
 #include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segmenter-inl.h"
 #include "src/objects/js-segments-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
 #include "src/objects/property-descriptor.h"
@@ -1240,7 +1241,8 @@ BUILTIN(CollatorInternalCompare) {
                                      Object::ToString(isolate, y));
 
   // 7. Return CompareStrings(collator, X, Y).
-  Managed<icu::Collator>::Ptr icu_collator = collator->icu_collator()->ptr();
+  CppGCManaged<icu::Collator>::Ptr icu_collator =
+      collator->icu_collator()->ptr();
   CHECK_NOT_NULL(icu_collator);
   int result = Intl::CompareStrings(isolate, *icu_collator, string_x, string_y);
   // See StringPrototypeLocaleCompareIntl: the inline fast path relies on
@@ -1325,7 +1327,7 @@ BUILTIN(SegmentsPrototypeIterator) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSSegments, segments, method_name);
 
-  Managed<IcuBreakIteratorWithText>::Ptr iterator_with_text =
+  CppGCManaged<IcuBreakIteratorWithText>::Ptr iterator_with_text =
       segments->icu_iterator_with_text()->ptr();
 
   RETURN_RESULT_OR_FAILURE(

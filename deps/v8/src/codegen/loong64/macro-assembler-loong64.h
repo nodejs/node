@@ -575,6 +575,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   DEFINE_INSTRUCTION2(Neg)
   DEFINE_INSTRUCTION(Andn)
   DEFINE_INSTRUCTION(Orn)
+  DEFINE_INSTRUCTION(Tst)
 
   DEFINE_INSTRUCTION(Slt)
   DEFINE_INSTRUCTION(Sltu)
@@ -1070,7 +1071,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Transform a SandboxedPointer from/to its encoded form, which is used when
   // the pointer is stored on the heap and ensures that the pointer will always
   // point into the sandbox.
-  void DecodeSandboxedPointer(Register value);
   void LoadSandboxedPointerField(Register destination, MemOperand field_operand,
                                  int* trap_pc = NULL);
   void StoreSandboxedPointerField(Register value, MemOperand dst_field_operand,
@@ -1446,7 +1446,19 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   template <typename Field>
   void DecodeField(Register dst, Register src) {
-    Bstrpick_d(dst, src, Field::kShift + Field::kSize - 1, Field::kShift);
+    static constexpr int shift = Field::kShift;
+    static constexpr uint64_t mask =
+        static_cast<uint64_t>(Field::kMask) >> shift;
+    if constexpr ((mask & (mask + 1)) == 0) {
+      Bstrpick_d(dst, src, shift + Field::kSize - 1, shift);
+    } else {
+      if constexpr (shift != 0) {
+        srli_d(dst, src, shift);
+        And(dst, dst, mask);
+      } else {
+        And(dst, src, mask);
+      }
+    }
   }
 
   template <typename Field>

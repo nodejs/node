@@ -1070,7 +1070,6 @@ TEST_F(DeclsTest, Regress3941_Reads) {
 }
 
 TEST_F(DeclsTest, TestUsing) {
-  i::v8_flags.js_explicit_resource_management = true;
   HandleScope scope(isolate());
 
   {
@@ -1109,7 +1108,6 @@ TEST_F(DeclsTest, TestUsing) {
 }
 
 TEST_F(DeclsTest, TestAwaitUsing) {
-  i::v8_flags.js_explicit_resource_management = true;
   HandleScope scope(isolate());
 
   {

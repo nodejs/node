@@ -373,6 +373,10 @@ class WasmJspiFrameConstants : public JSToWasmWrapperFrameConstants {
   //        |   spill slots   |                     | GC scan scan_count slots
   //        |      ....       | <- spill_slot_base--|
   //        |- - - - - - - - -|                     |
+  // After switching back to a parent stack, its wrapper buffer is no longer
+  // needed. Preserve the parent's return address in this untagged slot while
+  // fulfilling or rejecting the promise, which can reenter JSPI.
+  static constexpr int kParentReturnAddressOffset = kWrapperBufferOffset;
   // This slot contains the number of slots at the top of the frame that need to
   // be scanned by the GC.
   static constexpr int kGCScanSlotCountOffset =

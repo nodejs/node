@@ -11,6 +11,7 @@
 #include "src/base/bit-field.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
+#include "src/codegen/label.h"
 #include "src/regexp/regexp-flags.h"
 #include "src/regexp/regexp-nodes.h"
 
@@ -24,6 +25,15 @@ namespace regexp {
 class Diagnostics;
 class DynamicBitSet;
 class SpecialLoopState;
+
+class NonAssertingLabel : public Label {
+ public:
+  explicit NonAssertingLabel(Compiler* compiler) : compiler_(compiler) {}
+  ~NonAssertingLabel();
+
+ private:
+  Compiler* compiler_;
+};
 
 namespace compiler_constants {
 
@@ -503,7 +513,8 @@ class Trace {
 // regexp).
 class SpecialLoopState {
  public:
-  explicit SpecialLoopState(bool not_at_start, ChoiceNode* loop_choice_node);
+  SpecialLoopState(Compiler* compiler, bool not_at_start,
+                   ChoiceNode* loop_choice_node);
 
   void BindStepLabel(RegExpMacroAssembler* macro_assembler);
   void BindLoopTopLabel(RegExpMacroAssembler* macro_assembler);
@@ -514,8 +525,8 @@ class SpecialLoopState {
  private:
   // Step backwards (fixed length greed loop) or forwards (non-greedy
   // omnivourous loop.
-  Label step_label_;
-  Label loop_top_label_;
+  NonAssertingLabel step_label_;
+  NonAssertingLabel loop_top_label_;
   ChoiceNode* loop_choice_node_;
   Trace backtrack_trace_;
 };
@@ -532,8 +543,7 @@ struct PreloadState {
 // Analysis performs assertion propagation and computes eats_at_least_ values.
 // See the comments on AssertionPropagator and EatsAtLeastPropagator for more
 // details.
-Error AnalyzeRegExp(Isolate* isolate, bool is_one_byte, Flags flags,
-                    Node* node);
+Error AnalyzeRegExp(Isolate* isolate, bool is_one_byte, Node* node);
 
 class FrequencyCollator {
  public:
@@ -641,10 +651,14 @@ class V8_EXPORT_PRIVATE Compiler {
   // lead surrogate and start matching from there.
   Node* OptionallyStepBackToLeadSurrogate(Node* on_success);
 
+  struct WorkItem {
+    Node* node;
+  };
+
   inline void AddWork(Node* node) {
     if (!node->on_work_list() && !node->label()->is_bound()) {
       node->set_on_work_list(true);
-      work_list_->push_back(node);
+      work_list_->push_back({node});
     }
   }
 
@@ -682,6 +696,7 @@ class V8_EXPORT_PRIVATE Compiler {
   }
   bool read_backward() { return read_backward_; }
   void set_read_backward(bool value) { read_backward_ = value; }
+  bool has_search_prefix() const { return has_search_prefix_; }
   FrequencyCollator* frequency_collator() { return &frequency_collator_; }
 
   int current_expansion_factor() { return current_expansion_factor_; }
@@ -711,11 +726,16 @@ class V8_EXPORT_PRIVATE Compiler {
   static const int kNoRegister = -1;
 
  private:
+  // Computes the filters that let RegExpExecInternal reject a match attempt
+  // without entering the engine. Defined next to the match-set helpers it
+  // shares.
+  void ComputeQuickCheckFilters(Node* start, DirectHandle<RegExpData> re_data);
+
   EndNode* accept_;
   int next_register_;
   int unicode_lookaround_stack_register_;
   int unicode_lookaround_position_register_;
-  ZoneVector<Node*>* work_list_;
+  ZoneVector<WorkItem>* work_list_;
   int recursion_depth_;
   Flags flags_;
   RegExpMacroAssembler* macro_assembler_;
@@ -725,6 +745,8 @@ class V8_EXPORT_PRIVATE Compiler {
   int to_node_overflow_check_ticks_ = 0;
   bool optimize_;
   bool read_backward_;
+  // Set by PreprocessRegExp when it prepends the `.*?` search loop.
+  bool has_search_prefix_ = false;
   int current_expansion_factor_;
   FrequencyCollator frequency_collator_;
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS

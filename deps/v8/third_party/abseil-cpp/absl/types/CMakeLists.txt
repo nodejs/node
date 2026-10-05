@@ -58,7 +58,6 @@ absl_cc_test(
     absl::config
     absl::core_headers
     absl::exception_testing
-    absl::hardening
     absl::hash_testing
     absl::raw_logging_internal
     absl::span
@@ -102,7 +101,6 @@ absl_cc_test(
     absl::core_headers
     absl::exception_testing
     absl::fixed_array
-    absl::hardening
     absl::hash
     absl::inlined_vector
     absl::hash_testing

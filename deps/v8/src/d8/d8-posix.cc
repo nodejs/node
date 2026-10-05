@@ -163,12 +163,8 @@ class ExecArgs {
  public:
   ExecArgs() { exec_args_[0] = nullptr; }
   bool Init(Isolate* isolate, Local<Value> arg0, Local<Array> command_args) {
-    String::Utf8Value prog(isolate, arg0);
-    if (*prog == nullptr) {
-      ThrowError(isolate,
-                 "os.system(): String conversion of program name failed");
-      return false;
-    }
+    SafeUtf8Value prog(isolate, arg0);
+    if (!prog) return false;
     {
       size_t len = prog.length() + 3;
       char* c_arg = new char[len];
@@ -177,15 +173,16 @@ class ExecArgs {
     }
     int i = 1;
     for (unsigned j = 0; j < command_args->Length(); i++, j++) {
-      Local<Value> arg(
-          command_args
-              ->Get(isolate->GetCurrentContext(), Integer::New(isolate, j))
-              .ToLocalChecked());
-      String::Utf8Value utf8_arg(isolate, arg);
-      if (*utf8_arg == nullptr) {
+      Local<Value> arg;
+      if (!command_args
+               ->Get(isolate->GetCurrentContext(), Integer::New(isolate, j))
+               .ToLocal(&arg)) {
+        exec_args_[i] = nullptr;
+        return false;
+      }
+      SafeUtf8Value utf8_arg(isolate, arg);
+      if (!utf8_arg) {
         exec_args_[i] = nullptr;  // Consistent state for destructor.
-        ThrowError(isolate,
-                   "os.system(): String conversion of argument failed.");
         return false;
       }
       size_t len = utf8_arg.length() + 1;
@@ -568,11 +565,8 @@ void Shell::MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& info) {
     ThrowError(isolate, "mkdirp() takes one or two arguments");
     return;
   }
-  String::Utf8Value directory(isolate, info[0]);
-  if (*directory == nullptr) {
-    ThrowError(isolate, "os.mkdirp(): String conversion of argument failed.");
-    return;
-  }
+  SafeUtf8Value directory(isolate, info[0]);
+  if (!directory) return;
   mkdirp(isolate, *directory, mask);
 }
 
@@ -583,11 +577,8 @@ void Shell::RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& info) {
     ThrowError(isolate, "rmdir() takes one arguments");
     return;
   }
-  String::Utf8Value directory(isolate, info[0]);
-  if (*directory == nullptr) {
-    ThrowError(isolate, "os.rmdir(): String conversion of argument failed.");
-    return;
-  }
+  SafeUtf8Value directory(isolate, info[0]);
+  if (!directory) return;
   rmdir(*directory);
 }
 
@@ -598,18 +589,10 @@ void Shell::SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& info) {
     ThrowError(isolate, "setenv() takes two arguments");
     return;
   }
-  String::Utf8Value var(isolate, info[0]);
-  String::Utf8Value value(isolate, info[1]);
-  if (*var == nullptr) {
-    ThrowError(isolate,
-               "os.setenv(): String conversion of variable name failed.");
-    return;
-  }
-  if (*value == nullptr) {
-    ThrowError(isolate,
-               "os.setenv(): String conversion of variable contents failed.");
-    return;
-  }
+  SafeUtf8Value var(isolate, info[0]);
+  if (!var) return;
+  SafeUtf8Value value(isolate, info[1]);
+  if (!value) return;
   setenv(*var, *value, 1);
 }
 
@@ -620,12 +603,8 @@ void Shell::UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& info) {
     ThrowError(isolate, "unsetenv() takes one argument");
     return;
   }
-  String::Utf8Value var(isolate, info[0]);
-  if (*var == nullptr) {
-    ThrowError(isolate,
-               "os.setenv(): String conversion of variable name failed.");
-    return;
-  }
+  SafeUtf8Value var(isolate, info[0]);
+  if (!var) return;
   unsetenv(*var);
 }
 
@@ -753,12 +732,8 @@ void Shell::FileExists(const v8::FunctionCallbackInfo<v8::Value>& info) {
     ThrowError(isolate, "exists() takes one argument");
     return;
   }
-  String::Utf8Value file_name(isolate, info[0]);
-  if (*file_name == nullptr) {
-    ThrowError(isolate,
-               "d8.file.exists(): String conversion of argument failed.");
-    return;
-  }
+  SafeUtf8Value file_name(isolate, info[0]);
+  if (!file_name) return;
 
   struct stat stat_buf;
   bool exists = (stat(*file_name, &stat_buf) == 0);

@@ -17,6 +17,7 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/use-map.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/zone/zone-containers.h"
 
@@ -360,6 +361,58 @@ class WasmShuffleAnalyzer {
     DemandedBytes demanded_;
   };
 
+  struct DotCandidate {
+    OpIndex dot;
+    OpIndex left;
+    OpIndex right;
+  };
+
+  // Represents one candidate dot-product reduction rooted at an
+  // I32x4AddReduce. The search walks backwards through a tree of I32x4Add,
+  // Phi, and I32x4DotI8x16S operations, collecting dots whose generated input
+  // shuffles can be removed. For each discovered Dot we may remove the input
+  // shuffles, which are introduced in the machine-optimization-reducer, because
+  // we know that we have a partial sum and each addition can be performed in
+  // any lane.
+  //
+  // The use map is intentionally not needed during the backwards search. It is
+  // created lazily only after the cheap search finds at least one dot, and is
+  // then used to prove that all live uses of the discovered add/Phi/dot nodes
+  // stay inside the reduction, except for I32x4AddReduce users.
+  class Reduction {
+   public:
+    enum class SearchResult { kContinue, kAbort };
+
+    Reduction(const Graph& graph,
+              const ZoneUnorderedSet<OpIndex>& existing_dot_candidates,
+              Zone* phase_zone)
+        : input_graph_(graph),
+          existing_dot_candidates_(existing_dot_candidates),
+          phase_zone_(phase_zone) {}
+    SearchResult Search(const Operation& op);
+    SearchResult Search(const Simd128BinopOp& binop);
+    SearchResult Search(const PhiOp& phi);
+    const Graph& input_graph() const { return input_graph_; }
+    const base::SmallVector<DotCandidate, 2>& candidates() const {
+      return dot_candidates_;
+    }
+    bool UsesStayInReduction(const Simd128UseMap& use_map) const;
+
+   private:
+    const Graph& input_graph_;
+    // The set of I32x4DotI8x16S operations that we've previously discovered
+    // in a different search.
+    const ZoneUnorderedSet<OpIndex>& existing_dot_candidates_;
+    Zone* phase_zone_;
+    // All the operations that we've discovered during the search.
+    ZoneUnorderedSet<OpIndex> visited_{phase_zone_};
+    // All the operations that are considered a part of the reduction, which
+    // are: I32x4Add, I32x4DotI8x16S and Phis.
+    ZoneUnorderedSet<OpIndex> nodes_{phase_zone_};
+    // The list of candidates that this search discovers.
+    base::SmallVector<DotCandidate, 2> dot_candidates_;
+  };
+
   void ProcessShuffleOfLoads(const Simd128ShuffleOp& shfop, const LoadOp& left,
                              const LoadOp& right);
   bool CouldLoadPair(const LoadOp& load0, const LoadOp& load1) const;
@@ -378,10 +431,15 @@ class WasmShuffleAnalyzer {
     return {};
   }
 
-  WasmShuffleAnalyzer(Zone* phase_zone, const Graph& input_graph)
-      : phase_zone_(phase_zone), input_graph_(input_graph) {
-    Run();
+  std::optional<DotCandidate> GetDotCandidate(OpIndex node) {
+    for (auto& candidate : dot_candidates_) {
+      if (candidate.dot == node) return candidate;
+    }
+    return {};
   }
+
+  WasmShuffleAnalyzer(Zone* phase_zone, const Graph& input_graph)
+      : phase_zone_(phase_zone), input_graph_(input_graph) {}
 
   V8_EXPORT_PRIVATE void Run();
 
@@ -391,6 +449,7 @@ class WasmShuffleAnalyzer {
   void ProcessReplaceLane(const Simd128ReplaceLaneOp& replace_op);
   void ProcessExtractLane(const Simd128ExtractLaneOp& extract_op);
   void ProcessLaneMemory(const Simd128LaneMemoryOp& lane_op);
+  void ProcessReduce(const Simd128ReduceOp& reduce_op);
   void ProcessShuffle(const Simd128ShuffleOp& shuffle_op);
   void TryReduceFromMSB(OpIndex input, const Simd128ShuffleOp& shuffle,
                         const ShuffleSide side);
@@ -401,7 +460,7 @@ class WasmShuffleAnalyzer {
 
   bool ShouldReduce() const {
     return !demanded_byte_analysis_.demanded_bytes().empty() ||
-           !deinterleave_load_candidates_.empty() ||
+           !dot_candidates_.empty() || !deinterleave_load_candidates_.empty() ||
            !load_lane_candidates_.empty() ||
            !shuffles_to_read_shifted_.empty() || !shuffles_to_shift_.empty();
   }
@@ -442,6 +501,17 @@ class WasmShuffleAnalyzer {
     load_lanes_[replace] = load_lane;
   }
 
+  const ShuffleWindow* FindShiftWindow(const Simd128ShuffleOp& shuffle) const {
+    for (const auto& window : shuffles_to_shift_) {
+      if (window.shuffle() == &shuffle) return &window;
+    }
+    return nullptr;
+  }
+
+  bool IsShuffleToShift(const Simd128ShuffleOp& shuffle) const {
+    return FindShiftWindow(shuffle) != nullptr;
+  }
+
   const SmallZoneVector<ShuffleWindow, 8>& shuffles_to_shift() const {
     return shuffles_to_shift_;
   }
@@ -453,6 +523,13 @@ class WasmShuffleAnalyzer {
   const Graph& input_graph() const { return input_graph_; }
 
  private:
+  const Simd128UseMap& GetOrCreateUseMap() {
+    if (use_map_ == nullptr) {
+      use_map_ = phase_zone_->New<Simd128UseMap>(input_graph_, phase_zone_);
+    }
+    return *use_map_;
+  }
+
   std::optional<const Simd128ShuffleOp*> GetOtherShuffleUser(
       const LoadOp& left, const LoadOp& right,
       const SmallShuffleVector& shuffles) const {
@@ -471,6 +548,7 @@ class WasmShuffleAnalyzer {
   Zone* phase_zone_;
   const Graph& input_graph_;
   DemandedByteAnalysis demanded_byte_analysis_{phase_zone_, input_graph_};
+  Simd128UseMap* use_map_ = nullptr;
   SmallZoneVector<ShuffleWindow, 8> shuffles_to_shift_{phase_zone_};
   SmallZoneVector<ShuffleWindow, 8> shuffles_to_read_shifted_{phase_zone_};
   ZoneUnorderedMap<const LoadOp*, const Simd128ReplaceLaneOp*>
@@ -486,12 +564,14 @@ class WasmShuffleAnalyzer {
   SmallShuffleVector even_8x16_shuffles_{phase_zone_};
   SmallShuffleVector odd_8x16_shuffles_{phase_zone_};
   base::SmallVector<DeinterleaveLoadCandidate, 8> deinterleave_load_candidates_;
+  ZoneUnorderedSet<OpIndex> dot_candidate_nodes_{phase_zone_};
+  base::SmallVector<DotCandidate, 4> dot_candidates_;
 };
 
 template <class Next>
 class WasmShuffleReducer : public Next {
  private:
-  std::optional<WasmShuffleAnalyzer> analyzer_;
+  WasmShuffleAnalyzer* analyzer_ = nullptr;
 
   struct DeinterleaveLoadShuffle {
     const Simd128ShuffleOp* shuffle;
@@ -538,9 +618,32 @@ class WasmShuffleReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE(WasmShuffleReducer)
 
   void Analyze() {
-    analyzer_.emplace(__ phase_zone(), __ input_graph());
-    analyzer_->Run();
+    PipelineData* data = __ data();
+    if (data->has_wasm_shuffle_analyzer()) {
+      analyzer_ = data->wasm_shuffle_analyzer();
+    } else {
+      Zone* phase_zone = __ phase_zone();
+      analyzer_ = phase_zone->template New<WasmShuffleAnalyzer>(
+          phase_zone, __ input_graph());
+      analyzer_->Run();
+    }
     Next::Analyze();
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(Simd128Binop)(OpIndex ig_index,
+                                           const Simd128BinopOp& binop) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceInputGraphSimd128Binop(ig_index, binop);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    if (auto maybe_dot = analyzer_->GetDotCandidate(ig_index)) {
+      return __ Simd128Binop(__ MapToNewGraph(maybe_dot->left),
+                             __ MapToNewGraph(maybe_dot->right),
+                             Simd128BinopOp::Kind::kI32x4DotI8x16S);
+    }
+
+    goto no_change;
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Simd128ReplaceLane)(

@@ -184,6 +184,12 @@ void IntlBuiltinsAssembler::ToLowerCaseImpl(
          &call_c);
 
   {
+    // The allocation above may have internalized a shared source, forwarding
+    // it to a ThinString or freeing an external resource. The loop below would
+    // read that through a stale raw pointer, so bail out instead. {call_c}
+    // re-resolves the source and needs no such check.
+    to_direct.BailIfTransitioned(&runtime);
+
     const TNode<IntPtrT> dst_ptr = PointerToSeqStringData(dst);
     TVARIABLE(IntPtrT, var_cursor, IntPtrConstant(0));
 

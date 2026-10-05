@@ -641,7 +641,7 @@ class WasmCodeAllocator {
 
 class V8_EXPORT_PRIVATE NativeModule final {
  public:
-  static constexpr ExternalPointerTag kManagedTag = kWasmNativeModuleTag;
+  static constexpr ManagedTypeId kTypeID = ManagedTypeId::kWasmNativeModule;
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64 || \
     V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_LOONG64 ||                     \
@@ -1038,10 +1038,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // last.
   OperationsBarrier::Token engine_scope_;
 
-  // {WasmCodeAllocator} manages all code reservations and allocations for this
-  // {NativeModule}.
-  WasmCodeAllocator code_allocator_;
-
   // Features enabled for this module. We keep a copy of the features that
   // were enabled at the time of the creation of this native module,
   // to be consistent across asynchronous compilations later.
@@ -1133,6 +1129,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   std::unique_ptr<NamesProvider> names_provider_;
 
+  // {WasmCodeAllocator} manages all code reservations and allocations for this
+  // {NativeModule}. It must be declared after {owned_code_} so that its
+  // destructor runs before {owned_code_}, removing memory ranges from the
+  // global {WasmCodeManager::lookup_map_} before code objects are freed.
+  WasmCodeAllocator code_allocator_;
+
   DebugState debug_state_ = kNotDebugging;
 
   // End of fields protected by {allocation_mutex_}.
@@ -1164,7 +1166,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // The stack wrappers are compiled lazily and shared across modules, but the
   // cache itself only holds weak pointers. Keep strong pointers in the module
   // to keep them alive.
-  base::Mutex stack_wrapper_mutex_;
+  mutable base::Mutex stack_wrapper_mutex_;
   std::unordered_set<std::shared_ptr<WasmWrapperHandle>> stack_entry_wrappers_;
 };
 

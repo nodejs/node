@@ -156,6 +156,12 @@ class Builtins {
   static constexpr Builtin kLastTier0 =
       static_cast<Builtin>(kBuiltinTier0Count - 1);
 
+#ifdef V8_METAGEN_GENERATION_PASS
+  static constexpr int kFirstWideBytecodeHandler = 0;
+  static constexpr int kFirstExtraWideBytecodeHandler = 0;
+  static constexpr int kLastBytecodeHandlerPlusOne = 0;
+  static constexpr bool kBytecodeHandlersAreSortedLast = true;
+#else
   static constexpr int kFirstWideBytecodeHandler =
       static_cast<int>(Builtin::kFirstBytecodeHandler) +
       kNumberOfBytecodeHandlers;
@@ -165,6 +171,7 @@ class Builtins {
       kFirstExtraWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
   static constexpr bool kBytecodeHandlersAreSortedLast =
       kLastBytecodeHandlerPlusOne == kBuiltinCount;
+#endif  // V8_METAGEN_GENERATION_PASS
   static_assert(kBytecodeHandlersAreSortedLast);
 
 #if V8_ENABLE_GEARBOX
@@ -728,6 +735,11 @@ DEFINE_TYPED_OP_CHECKER(BitwiseAnd, None, SignedSmall)
 DEFINE_TYPED_OP_CHECKER(ShiftLeft, None, SignedSmall)
 DEFINE_TYPED_OP_CHECKER(ShiftRight, None, SignedSmall)
 DEFINE_TYPED_OP_CHECKER(ShiftRightLogical, None, SignedSmall)
+// Unary op typed-stub families.
+DEFINE_TYPED_OP_CHECKER(Increment, None, SignedSmall)
+DEFINE_TYPED_OP_CHECKER(Decrement, None, SignedSmall)
+DEFINE_TYPED_OP_CHECKER(Negate, None, Number)
+DEFINE_TYPED_OP_CHECKER(BitwiseNot, None, SignedSmall)
 #undef DEFINE_TYPED_OP_CHECKER
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 

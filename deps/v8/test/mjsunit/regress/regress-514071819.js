@@ -51,9 +51,9 @@ Realm.shared.mainCaptureStack = mainCaptureStack;
 Realm.eval(remoteRealm, `
   async function remoteBaz(throwFromRemote) {
     if (throwFromRemote) {
-      return Realm.shared.remoteCaptureStack();
+      return (0, Realm.shared.remoteCaptureStack)();
     } else {
-      return Realm.shared.mainCaptureStack();
+      return (0, Realm.shared.mainCaptureStack)();
     }
   }
   Realm.shared.remoteBaz = remoteBaz;
@@ -61,7 +61,7 @@ Realm.eval(remoteRealm, `
 
 async function bar(throwFromRemote) {
   await Promise.resolve();
-  return Realm.shared.remoteBaz(throwFromRemote);
+  return (0, Realm.shared.remoteBaz)(throwFromRemote);
 }
 
 async function foo(throwFromRemote) {
@@ -79,7 +79,7 @@ foo(true)
     checkStackTrace(remoteRealm, frames);
   })
   .catch((e) => {
-    console.error(e);
+    console.error(e.stack);
     quit(1);
   });
 
@@ -94,7 +94,7 @@ foo(false)
     checkStackTrace(mainRealm, frames);
   })
   .catch((e) => {
-    console.error(e);
+    console.error(e.stack);
     quit(1);
   });
 
@@ -109,7 +109,7 @@ Promise.all([foo(true)])
     checkStackTrace(remoteRealm, frames);
   })
   .catch((e) => {
-    console.error(e);
+    console.error(e.stack);
     quit(1);
   });
 
@@ -124,6 +124,6 @@ Promise.all([foo(false)])
     checkStackTrace(mainRealm, frames);
   })
   .catch((e) => {
-    console.error(e);
+    console.error(e.stack);
     quit(1);
   });

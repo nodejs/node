@@ -94,7 +94,7 @@ using set_params = typename ApplyWithoutDefaultSuffix<
              typename btree_set_defaults<Key>::TargetNodeSize,
              typename btree_set_defaults<Key>::IsMulti>,
     TypeList<Key, Compare, Alloc, std::integral_constant<int, TargetNodeSize>,
-             std::integral_constant<bool, IsMulti>>>::type;
+             std::bool_constant<IsMulti>>>::type;
 
 }  // namespace container_internal
 

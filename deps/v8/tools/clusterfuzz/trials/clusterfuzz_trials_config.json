@@ -1,6 +1,6 @@
 [
     {"app_args": "--always-osr", "app_name": "d8", "probability": 0.03},
-    {"app_args": "--always-osr-from-maglev", "app_name": "d8", "probability": 0.03},
+    {"app_args": "--osr-from-maglev=4", "app_name": "d8", "probability": 0.03},
     {"app_args": "--always-sparkplug", "app_name": "d8", "probability": 0.03},
     {"app_args": "--assert-types", "app_name": "d8", "probability": 0.25, "contradicts": ["--stress-concurrent-inlining", "--stress-concurrent-inlining-attach-code"]},
     {"app_args": "--wasm-assert-types --no-liftoff", "app_name": "d8", "probability": 0.1, "contradicts": ["--liftoff-only"]},
@@ -68,7 +68,9 @@
     {"app_args": "--turboshaft-verify-reductions", "app_name": "d8", "probability": 0.1},
     {"app_args": "--maglev-assert-types", "app_name": "d8", "probability": 0.1},
     {"app_args": "--maglev-untagged-phis", "app_name": "d8", "probability": 0.5},
+    {"app_args": "--disable-loop-stack-checks", "app_name": "d8", "probability": 0.1},
     {"app_args": "--no-maglev-loop-peeling", "app_name": "d8", "probability": 0.1},
+    {"app_args": "--maglev-disable-builtin-reducers", "app_name": "d8", "probability": 0.1},
     {"app_args": "--stress-wasm-code-gc", "app_name": "d8", "probability": 0.1},
     {"app_args": "--wasm-staging", "app_name": "d8", "probability": 0.25},
     {"app_args": "--stress-wasm-memory-moving", "app_name": "d8", "probability": 0.1},

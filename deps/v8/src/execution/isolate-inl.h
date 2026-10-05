@@ -12,7 +12,6 @@
 #include "src/objects/contexts-inl.h"
 #include "src/objects/js-function.h"
 #include "src/objects/lookup-inl.h"
-#include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/regexp-match-info.h"
@@ -123,6 +122,11 @@ bool Isolate::has_exception() {
 bool Isolate::is_execution_terminating() {
   return thread_local_top()->exception_ ==
          i::ReadOnlyRoots(this).termination_exception();
+}
+
+bool Isolate::is_javascript_execution_allowed() const {
+  return javascript_execution_assert() && javascript_execution_throws() &&
+         javascript_execution_dump();
 }
 
 #ifdef DEBUG

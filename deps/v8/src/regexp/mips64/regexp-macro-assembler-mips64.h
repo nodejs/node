@@ -63,6 +63,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   void CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;
   void Fail() override;
+  bool prologue_pushes_fail_label() const override { return true; }
   DirectHandle<HeapObject> GetCode(DirectHandle<RegExpData> re_data,
                                    Flags flags) override;
   void GoTo(Label* label) override;
@@ -199,6 +200,12 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
 
   // Register holding pointer to the current code object.
   static constexpr Register code_pointer() { return s1; }
+
+  // The real backtrack dispatch (pop a code offset and jump to it), emitted
+  // once in GetCode at backtrack_label_ when the backtrack stack is used.
+  // Backtrack() itself only jumps there, so emitting it does not by itself
+  // mark the backtrack stack as used.
+  void EmitBacktrack();
 
   // Equivalent to a conditional branch to the label, unless the label
   // is nullptr, in which case it is a conditional Backtrack.

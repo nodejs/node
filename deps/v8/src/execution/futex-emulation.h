@@ -64,6 +64,9 @@ class FutexWaitListNode {
   void NotifyWake();
 
   bool IsAsync() const { return async_state_ != nullptr; }
+  bool IsWaiting() const { return waiting_.load(std::memory_order_relaxed); }
+  bool IsInSyncWait() const { return in_sync_wait_; }
+  void SetInSyncWait(bool v) { in_sync_wait_ = v; }
 
   // Returns false if the cancelling failed, true otherwise.
   bool CancelTimeoutTask();
@@ -139,9 +142,13 @@ class FutexWaitListNode {
   // this node is alive.
   void* wait_location_ = nullptr;
 
-  // waiting_ and interrupted_ are protected by `GetWaitList()::mutex()`.
-  bool waiting_ = false;
+  // waiting_ is std::atomic<bool> to allow safe relaxed reads outside mutex
+  // locks.
+  std::atomic<bool> waiting_{false};
   bool interrupted_ = false;
+  // in_sync_wait_ tracks whether the isolate thread is executing inside a
+  // WaitSync scope. Modified exclusively by the isolate thread itself.
+  bool in_sync_wait_ = false;
 
   // State used for an async wait; nullptr on sync waits.
   const std::unique_ptr<AsyncState> async_state_;

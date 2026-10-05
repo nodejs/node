@@ -36,6 +36,8 @@ class V8_EXPORT_PRIVATE StringsStorage {
   PRINTF_FORMAT(2, 3) const char* GetFormatted(const char* format, ...);
   // Returns a stored string resulting from name, or "<symbol>" for a symbol.
   const char* GetName(Tagged<Name> name);
+  // Returns a stored string resulting from string without truncation.
+  const char* GetUntruncated(Tagged<String> string);
   // Returns the string representation of the int from the store.
   const char* GetName(int index);
   // Appends string resulting from name to prefix, then returns the stored

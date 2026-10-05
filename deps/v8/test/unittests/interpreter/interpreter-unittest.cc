@@ -812,33 +812,37 @@ TEST_F(InterpreterTest, InterpreterUnaryOpFeedback) {
       {Token::kInc, smi_one, smi_max, number, bigint, str},
       {Token::kDec, smi_one, smi_min, number, bigint, str}};
   for (TestCase const& test_case : kTestCases) {
-    i::FeedbackVectorSpec feedback_spec(zone());
-    BytecodeArrayBuilder builder(zone(), 6, 0, &feedback_spec);
-
-    i::FeedbackSlot slot0 = feedback_spec.AddBinaryOpICSlot();
-    i::FeedbackSlot slot1 = feedback_spec.AddBinaryOpICSlot();
-    i::FeedbackSlot slot2 = feedback_spec.AddBinaryOpICSlot();
-    i::FeedbackSlot slot3 = feedback_spec.AddBinaryOpICSlot();
-    i::FeedbackSlot slot4 = feedback_spec.AddBinaryOpICSlot();
-
-    Handle<i::FeedbackMetadata> metadata =
-        i::FeedbackMetadata::New(i_isolate(), &feedback_spec);
+    BytecodeArrayBuilder builder(zone(), 6, 0);
 
     builder.LoadAccumulatorWithRegister(builder.Parameter(0))
-        .UnaryOperation(test_case.op, GetIndex(slot0))
+        .UnaryOperation(test_case.op, kFeedbackIsEmbedded)
         .LoadAccumulatorWithRegister(builder.Parameter(1))
-        .UnaryOperation(test_case.op, GetIndex(slot1))
+        .UnaryOperation(test_case.op, kFeedbackIsEmbedded)
         .LoadAccumulatorWithRegister(builder.Parameter(2))
-        .UnaryOperation(test_case.op, GetIndex(slot2))
+        .UnaryOperation(test_case.op, kFeedbackIsEmbedded)
         .LoadAccumulatorWithRegister(builder.Parameter(3))
-        .UnaryOperation(test_case.op, GetIndex(slot3))
+        .UnaryOperation(test_case.op, kFeedbackIsEmbedded)
         .LoadAccumulatorWithRegister(builder.Parameter(4))
-        .UnaryOperation(test_case.op, GetIndex(slot4))
+        .UnaryOperation(test_case.op, kFeedbackIsEmbedded)
         .Return();
 
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-    InterpreterTester tester(i_isolate(), bytecode_array, metadata);
+    // Walk the built bytecode array to recover the exact unary-op offsets;
+    // the register optimizer may defer Ldar emissions so
+    // `current_bytecode_size()` at build time doesn't always match the final
+    // layout.
+    size_t unary_bytecode_offsets[5];
+    int unary_bytecode_count = 0;
+    for (BytecodeArrayIterator it(bytecode_array); !it.done(); it.Advance()) {
+      if (Bytecodes::IsUnaryOpWithEmbeddedFeedback(it.current_bytecode())) {
+        CHECK_LT(unary_bytecode_count, 5);
+        unary_bytecode_offsets[unary_bytecode_count++] = it.current_offset();
+      }
+    }
+    CHECK_EQ(unary_bytecode_count, 5);
+
+    InterpreterTester tester(i_isolate(), bytecode_array);
     using H = Handle<Object>;
     auto callable = tester.GetCallable<H, H, H, H, H>();
 
@@ -849,25 +853,25 @@ TEST_F(InterpreterTest, InterpreterUnaryOpFeedback) {
                  test_case.bigint_feedback_value, test_case.any_feedback_value)
             .ToHandleChecked();
     USE(return_val);
-    Tagged<MaybeObject> feedback0 = callable.vector()->Get(slot0);
-    CHECK(IsSmi(feedback0));
-    CHECK_EQ(BinaryOperationFeedback::kSignedSmall, feedback0.ToSmi().value());
+    auto feedback0 = tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+        test_case.op, unary_bytecode_offsets[0], /*feedback_value_offset=*/1);
+    CHECK_EQ(BinaryOperationFeedback::kSignedSmall, feedback0);
 
-    Tagged<MaybeObject> feedback1 = callable.vector()->Get(slot1);
-    CHECK(IsSmi(feedback1));
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1.ToSmi().value());
+    auto feedback1 = tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+        test_case.op, unary_bytecode_offsets[1], /*feedback_value_offset=*/1);
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1);
 
-    Tagged<MaybeObject> feedback2 = callable.vector()->Get(slot2);
-    CHECK(IsSmi(feedback2));
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback2.ToSmi().value());
+    auto feedback2 = tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+        test_case.op, unary_bytecode_offsets[2], /*feedback_value_offset=*/1);
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback2);
 
-    Tagged<MaybeObject> feedback3 = callable.vector()->Get(slot3);
-    CHECK(IsSmi(feedback3));
-    CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback3.ToSmi().value());
+    auto feedback3 = tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+        test_case.op, unary_bytecode_offsets[3], /*feedback_value_offset=*/1);
+    CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback3);
 
-    Tagged<MaybeObject> feedback4 = callable.vector()->Get(slot4);
-    CHECK(IsSmi(feedback4));
-    CHECK_EQ(BinaryOperationFeedback::kAny, feedback4.ToSmi().value());
+    auto feedback4 = tester.GetEmbeddedFeedback<BinaryOperationFeedback>(
+        test_case.op, unary_bytecode_offsets[4], /*feedback_value_offset=*/1);
+    CHECK_EQ(BinaryOperationFeedback::kAny, feedback4);
   }
 }
 

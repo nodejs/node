@@ -30,6 +30,7 @@ V8_EXPORT_PRIVATE constexpr Tagged<Smi>
 
 Tagged<Union<Smi, TrustedObject>> SharedFunctionInfo::GetTrustedData(
     IsolateForSandbox isolate) const {
+  if (HasUnpublishedTrustedData(isolate)) return Smi::zero();
   return TrustedPointerField::ReadMaybeEmptyTrustedPointerField<
       kTrustedDataIndirectPointerRange>(
       Tagged<HeapObject>(this),
@@ -222,17 +223,17 @@ void SharedFunctionInfo::SetScript(IsolateForSandbox isolate,
 
     // Remove shared function info from old script's list.
     Tagged<Script> old_script = Cast<Script>(script());
-
-    // Due to liveedit, it might happen that the old_script doesn't know
-    // about the SharedFunctionInfo, so we have to guard against that.
-    Tagged<WeakFixedArray> infos = old_script->infos();
-    if (static_cast<uint32_t>(function_literal_id) < infos->ulength().value()) {
-      Tagged<MaybeObject> raw = old_script->infos()->get(function_literal_id);
-      Tagged<HeapObject> heap_object;
-      if (raw.GetHeapObjectIfWeak(&heap_object) && heap_object == this) {
-        old_script->infos()->set(function_literal_id, roots.undefined_value());
-      }
+    Tagged<WeakFixedArray> list = old_script->infos();
+#ifdef DEBUG
+    DCHECK_LT(static_cast<uint32_t>(function_literal_id),
+              list->ulength().value());
+    Tagged<MaybeObject> maybe_object = list->get(function_literal_id);
+    Tagged<HeapObject> heap_object;
+    if (maybe_object.GetHeapObjectIfWeak(&heap_object)) {
+      DCHECK_EQ(heap_object, this);
     }
+#endif
+    list->set(function_literal_id, roots.undefined_value());
   }
 
   // Finally set new script.
@@ -819,43 +820,6 @@ int SharedFunctionInfo::EndPosition() const {
   return kNoSourcePosition;
 }
 
-void SharedFunctionInfo::UpdateFromFunctionLiteralForLiveEdit(
-    IsolateForSandbox isolate, FunctionLiteral* lit) {
-  Tagged<Object> maybe_scope_info = name_or_scope_info(kAcquireLoad);
-  // TODO(crbug.com/401059828): remove once crashes are gone.
-  set_live_edited(true);
-
-  if (IsScopeInfo(maybe_scope_info)) {
-    // Updating the ScopeInfo is safe since they are identical modulo
-    // source positions.
-    Tagged<ScopeInfo> new_scope_info = *lit->scope()->scope_info();
-    Tagged<ScopeInfo> old_scope_info = Cast<ScopeInfo>(maybe_scope_info);
-    DCHECK(new_scope_info->Equals(old_scope_info, true));
-    old_scope_info->SetPositionInfo(new_scope_info->position_info_start(),
-                                    new_scope_info->position_info_end());
-  } else if (!is_compiled()) {
-    CHECK(HasUncompiledData(isolate));
-    if (HasUncompiledDataWithPreparseData(isolate)) {
-      ClearPreparseData(isolate);
-    }
-    uncompiled_data(isolate)->set_start_position(lit->start_position());
-    uncompiled_data(isolate)->set_end_position(lit->end_position());
-
-    if (!is_toplevel()) {
-      Scope* outer_scope = lit->scope()->GetOuterScopeWithContext();
-      if (outer_scope) {
-        // Use the raw accessor since we have to replace the existing outer
-        // scope.
-        set_raw_outer_scope_info_or_feedback_metadata(
-            *outer_scope->scope_info());
-      }
-    }
-  }
-  SetFunctionTokenPosition(lit->function_token_position(),
-                           lit->start_position());
-  set_is_hoisted_in_context(lit->scope()->is_hoisted_in_context());
-}
-
 CachedTieringDecision SharedFunctionInfo::cached_tiering_decision() {
   return CachedTieringDecisionBits::decode(flags2());
 }
@@ -942,6 +906,7 @@ bool SharedFunctionInfo::UniqueIdsAreUnique(Isolate* isolate) {
   std::unordered_set<uint32_t> ids({isolate->next_unique_sfi_id()});
   CombinedHeapObjectIterator it(isolate->heap());
   for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
+    if (IsInaccessible(o)) continue;
     if (!IsSharedFunctionInfo(o)) continue;
     auto result = ids.emplace(Cast<SharedFunctionInfo>(o)->unique_id());
     // If previously inserted...

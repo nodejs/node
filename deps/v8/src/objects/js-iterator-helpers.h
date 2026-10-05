@@ -70,6 +70,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 // The superclass of all iterator helpers.
 V8_OBJECT class JSIteratorHelper : public JSObject {
+  V8_IT_ABSTRACT;
+
  public:
   inline JSIteratorHelperState state() const;
   inline void set_state(JSIteratorHelperState value);
@@ -85,6 +87,8 @@ V8_OBJECT class JSIteratorHelper : public JSObject {
 
 // The superclass of iterator helpers that have a single underlying iterator.
 V8_OBJECT class JSIteratorHelperSimple : public JSIteratorHelper {
+  V8_IT_ABSTRACT;
+
  public:
   inline Tagged<JSReceiver> underlying_iterator_object() const;
   inline void set_underlying_iterator_object(
@@ -219,6 +223,8 @@ V8_OBJECT class JSIteratorConcatHelper final : public JSIteratorHelperSimple {
 
 // The iterator helper returned by Iterator.zip and Iterator.zipKeyed.
 V8_OBJECT class JSIteratorZipHelper : public JSIteratorHelper {
+  V8_IT_OWN_TYPE;
+
  public:
   inline Tagged<FixedArray> underlying_iterators() const;
   inline void set_underlying_iterators(

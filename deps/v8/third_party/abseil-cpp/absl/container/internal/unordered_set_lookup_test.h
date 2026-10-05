@@ -52,11 +52,9 @@ TYPED_TEST_P(LookupTest, Find) {
   for (const auto& v : values) {
     typename TypeParam::iterator it = m.find(v);
     static_assert(
-        std::is_same_v<const typename TypeParam::value_type&, decltype(*it)>,
-        "");
+        std::is_same_v<const typename TypeParam::value_type&, decltype(*it)>);
     static_assert(std::is_same<const typename TypeParam::value_type*,
-                               decltype(it.operator->())>::value,
-                  "");
+                               decltype(it.operator->())>::value);
     EXPECT_TRUE(m.end() != it) << ::testing::PrintToString(v);
     EXPECT_EQ(v, *it) << ::testing::PrintToString(v);
   }

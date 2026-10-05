@@ -2607,11 +2607,12 @@ class MachineLoweringReducer : public Next {
         HeapObjectRef ref = MakeRef(broker_, cst->handle());
         if (ref.IsString()) {
           StringRef str = ref.AsString();
-          if (str.IsSeqString()) {
+          MapRef map = str.map(broker_);
+          if (map.IsSeqStringMap()) {
             V<Map> dynamic_map = __ LoadMapField(string);
-            Handle<Map> expected_map = str.map(broker_).object();
+            Handle<Map> expected_map = map.object();
             IF (__ TaggedEqual(dynamic_map, __ HeapConstant(expected_map))) {
-              bool one_byte = str.IsOneByteRepresentation();
+              bool one_byte = map.IsOneByteStringMap();
               GOTO(done,
                    LoadFromSeqString(string, pos, __ Word32Constant(one_byte)));
             }
@@ -3068,38 +3069,21 @@ class MachineLoweringReducer : public Next {
                                          V<LazyFrameState> frame_state,
                                          V<Context> context,
                                          LazyDeoptOnThrow lazy_deopt_on_throw) {
-    // Static classification by output-graph ConstantOp: lets us skip the type
-    // guard on inputs that we already know are SeqOneByteString.
-    enum class StaticShape : uint8_t {
-      kUnknown,       // Runtime check needed.
-      kIsSeqOneByte,  // Constant SeqOneByteString; type guard can be elided.
-      kCantBe,        // Constant of any other shape; inline can never succeed.
-    };
-    auto classify = [&](V<Object> value) {
+    // A constant operand whose map is outside the SeqOneByteString map set can
+    // never reach the fast path: no string transition enters that set, so the
+    // check below is statically false and the whole inline is dead.
+    auto can_be_seq_one_byte = [&](V<Object> value) {
       const ConstantOp* c =
           __ Get(value).template TryCast<Opmask::kHeapConstant>();
-      if (!c) return StaticShape::kUnknown;
-      JSHeapBroker* broker = __ data() -> broker();
-      if (broker == nullptr) return StaticShape::kUnknown;
-      UnparkedScopeIfNeeded scope(broker);
+      if (!c) return true;
+      UnparkedScopeIfNeeded scope(broker_);
       AllowHandleDereference allow_handle_dereference;
-      HeapObjectRef ref = MakeRef(broker, c->handle());
-      if (!ref.IsString()) return StaticShape::kCantBe;
-      StringRef sref = ref.AsString();
-      if (!sref.IsSeqString() || !sref.IsOneByteRepresentation()) {
-        return StaticShape::kCantBe;
-      }
-      // A SeqOneByteString can still be internalized in place after this code
-      // is compiled.
-      if (sref.IsInternalizedString()) return StaticShape::kIsSeqOneByte;
-      return StaticShape::kUnknown;
+      OptionalMapRef map =
+          MakeRef(broker_, c->handle()).map_direct_read(broker_);
+      return !map.has_value() || map->IsSeqOneByteStringMap();
     };
-    StaticShape recv_shape = classify(receiver);
-    StaticShape arg_shape = classify(compare_str);
-    const bool skip_recv_check = recv_shape == StaticShape::kIsSeqOneByte;
-    const bool skip_arg_check = arg_shape == StaticShape::kIsSeqOneByte;
     const bool always_bail =
-        recv_shape == StaticShape::kCantBe || arg_shape == StaticShape::kCantBe;
+        !can_be_seq_one_byte(receiver) || !can_be_seq_one_byte(compare_str);
 
     Label<Smi> done(this);
     Label<> bailout(this);
@@ -3117,25 +3101,16 @@ class MachineLoweringReducer : public Next {
 
     if (always_bail) return emit_bailout();
 
-    // Both inputs must be SeqOneByteString. The mask covers the
-    // string/non-string bit and the representation+encoding bits, both of
-    // which fit in the 16-bit Map::instance_type.
-    static constexpr uint32_t kSeqOneByteCheckMask =
-        kIsNotStringMask | kStringRepresentationAndEncodingMask;
-    static_assert(
-        kSeqOneByteStringTag == (kSeqOneByteCheckMask & kSeqOneByteStringTag),
-        "kSeqOneByteStringTag must be representable in the check mask");
-
+    // Both inputs must be SeqOneByteString. This has to be re-checked at
+    // runtime even for constants: a string can be thinned, externalized,
+    // internalized or shared in place after this code is compiled, and the
+    // first two shrink the object while String::length keeps its old value.
     auto check_seq_1byte = [&](V<Object> value) {
       GOTO_IF(__ ObjectIsSmi(value), bailout);
-      V<Map> map = __ LoadMapField(value);
-      V<Word32> instance_type = __ LoadInstanceTypeField(map);
-      V<Word32> masked =
-          __ Word32BitwiseAnd(instance_type, kSeqOneByteCheckMask);
-      GOTO_IF_NOT(__ Word32Equal(masked, kSeqOneByteStringTag), bailout);
+      GOTO_IF_NOT(IsSeqOneByteStringMap(__ LoadMapField(value)), bailout);
     };
-    if (!skip_recv_check) check_seq_1byte(receiver);
-    if (!skip_arg_check) check_seq_1byte(compare_str);
+    check_seq_1byte(receiver);
+    check_seq_1byte(compare_str);
 
     // Pointer-eq receiver/arg -> 0. Done after the type guards so a
     // non-string receiver passed via .call falls through to the bailout
@@ -3646,6 +3621,13 @@ class MachineLoweringReducer : public Next {
                 FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
 
     IF_NOT (__ WordPtrEqual(__ BitcastTaggedToWordPtr(array_entry), weak_map)) {
+      // 0. Special receivers must deopt. Access checks and named interceptors
+      // imply special receiver.
+      V<Word32> instance_type = __ LoadInstanceTypeField(map);
+      __ DeoptimizeIf(
+          __ Uint32LessThanOrEqual(instance_type, LAST_SPECIAL_RECEIVER_TYPE),
+          frame_state, DeoptimizeReason::kWrongMap, feedback);
+
       // 1. Check descriptor count.
       V<Word32> bitfield3 =
           __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField3());
@@ -4642,6 +4624,32 @@ class MachineLoweringReducer : public Next {
     }
     return __ template LoadField<Float64>(
         heap_object, AccessBuilder::ForHeapNumberOrOddballValue());
+  }
+
+  // Accepts the sequential, internalized and shared one-byte string maps
+  // alike, matching InstanceTypeChecker::IsSeqOneByteString(Tagged<Map>).
+  // Guards on a string constant's map need the whole set: the string can be
+  // internalized or shared in place afterwards, which stores one of the other
+  // maps without changing the layout the guarded code reads.
+  V<Word32> IsSeqOneByteStringMap(V<Map> map) {
+#if V8_STATIC_ROOTS_BOOL
+    using StringTypeRange = InstanceTypeChecker::kUniqueMapRangeOfStringType;
+    static_assert(StringTypeRange::kSeqString.first == 0);
+    V<Word32> map_bits =
+        __ TruncateWordPtrToWord32(__ BitcastTaggedToWordPtr(map));
+    return __ Word32BitwiseAnd(
+        __ Uint32LessThanOrEqual(map_bits, StringTypeRange::kSeqString.second),
+        __ Word32Equal(
+            __ Word32BitwiseAnd(map_bits,
+                                InstanceTypeChecker::kStringMapEncodingMask),
+            InstanceTypeChecker::kOneByteStringMapBit));
+#else
+    return __ Word32Equal(
+        __ Word32BitwiseAnd(
+            __ LoadInstanceTypeField(map),
+            kIsNotStringMask | kStringRepresentationAndEncodingMask),
+        kStringTag | kSeqOneByteStringTag);
+#endif  // V8_STATIC_ROOTS_BOOL
   }
 
   V<Word32> LoadFromSeqOneByteString(V<Object> receiver, V<WordPtr> position) {

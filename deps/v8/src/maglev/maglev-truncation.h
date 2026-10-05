@@ -5,9 +5,12 @@
 #ifndef V8_MAGLEV_MAGLEV_TRUNCATION_H_
 #define V8_MAGLEV_MAGLEV_TRUNCATION_H_
 
+#include <algorithm>
+#include <cmath>
 #include <type_traits>
 
 #include "src/base/logging.h"
+#include "src/base/small-vector.h"
 #include "src/common/scoped-modification.h"
 #include "src/flags/flags.h"
 #include "src/maglev/maglev-basic-block.h"
@@ -29,6 +32,73 @@ namespace maglev {
 template <typename T>
 concept IsValueNodeT = std::is_base_of_v<ValueNode, T>;
 
+// Truncating an operation to Int32 replaces a rounded Number result by an
+// exact wrapping one, so it is only value equivalent while every intermediate
+// it is computed from stays exactly representable as a double. One past
+// Number.MAX_SAFE_INTEGER: 2^53 is still exactly representable.
+constexpr int64_t kMaxExactlyRepresentableValue =
+    static_cast<int64_t>(kMaxSafeIntegerUint64) + 1;
+constexpr int64_t kMaxSaturatedValue = kMaxExactlyRepresentableValue + 1;
+
+inline Range RefinedInputRange(ValueNode* node) {
+  node = node->UnwrapIdentities();
+  Range refined = Range::All();
+  switch (node->opcode()) {
+    case Opcode::kInt32BitwiseAnd:
+      for (int i = 0; i < 2; ++i) {
+        if (auto mask = node->TryGetInt32ConstantInput(i); mask && *mask >= 0) {
+          refined = Range(0, *mask);
+          break;
+        }
+      }
+      break;
+    case Opcode::kInt32ShiftRight:
+      if (auto shift = node->TryGetInt32ConstantInput(1)) {
+        int32_t s = *shift & 0x1f;
+        refined = Range(int64_t{INT32_MIN} >> s, int64_t{INT32_MAX} >> s);
+      }
+      break;
+    case Opcode::kInt32ShiftRightLogical:
+      if (auto shift = node->TryGetInt32ConstantInput(1)) {
+        int32_t s = *shift & 0x1f;
+        refined = Range(0, int64_t{UINT32_MAX} >> s);
+      }
+      break;
+    default:
+      break;
+  }
+  return Range::Intersect(refined, node->GetStaticRange());
+}
+
+inline int64_t GetMaxExactValueOfRange(Range range) {
+  if (range.is_empty()) return kMaxSaturatedValue;
+  std::optional<int64_t> min = range.min();
+  std::optional<int64_t> max = range.max();
+  if (!min.has_value() || !max.has_value()) {
+    return kMaxSaturatedValue;
+  }
+  if (*min < -kMaxExactlyRepresentableValue ||
+      *max > kMaxExactlyRepresentableValue) {
+    return kMaxSaturatedValue;
+  }
+  return std::max(-*min, *max);
+}
+
+constexpr bool IsAdditiveOperation(Opcode opcode) {
+  switch (opcode) {
+    case Opcode::kFloat64Add:
+    case Opcode::kFloat64Subtract:
+    case Opcode::kFloat64SpeculateSafeAdd:
+    case Opcode::kInt32Add:
+    case Opcode::kInt32Subtract:
+    case Opcode::kInt32AddWithOverflow:
+    case Opcode::kInt32SubtractWithOverflow:
+      return true;
+    default:
+      return false;
+  }
+}
+
 // This pass propagates updates for the `CanTruncateToInt32` flag.
 // At the end of the pass, if a node has `CanTruncateToInt32` then all its uses
 // can handle the node's output being truncated to an int32. IMPORTANT: This is
@@ -36,6 +106,9 @@ concept IsValueNodeT = std::is_base_of_v<ValueNode, T>;
 // occur if all of the node's inputs can be truncated.
 class PropagateTruncationProcessor {
  public:
+  explicit PropagateTruncationProcessor(Graph* graph)
+      : max_exact_value_(graph->zone()) {}
+
   void PreProcessGraph(Graph* graph) {}
   BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
     return BlockProcessResult::kContinue;
@@ -66,38 +139,38 @@ class PropagateTruncationProcessor {
       return ProcessResult::kContinue;
     }
 
-    // Int32-representation inputs hold integral values, so wrapping composes
-    // exactly through int32 add/subtract: a truncatable result makes the
-    // inputs truncatable too. This includes the WithOverflow variants, since
-    // TruncationProcessor overwrites truncatable ones with the plain
-    // operation.
-    if constexpr (std::is_same_v<NodeT, Int32Add> ||
-                  std::is_same_v<NodeT, Int32Subtract> ||
-                  std::is_same_v<NodeT, Int32AddWithOverflow> ||
-                  std::is_same_v<NodeT, Int32SubtractWithOverflow>) {
+    // An addition composes linearly with its operands, so a truncatable result
+    // makes them truncatable too, as long as the value it stands for stays
+    // exactly representable. This covers the Int32 forms as well, including the
+    // WithOverflow variants, since TruncationProcessor overwrites truncatable
+    // ones with the plain operation.
+    if constexpr (IsAdditiveOperation(Node::opcode_of<NodeT>)) {
       if (node->can_truncate_to_int32()) {
+        if (GetMaxExactValue(node) > kMaxExactlyRepresentableValue) {
+          node->set_can_truncate_to_int32(false);
+          UnsetCanTruncateToInt32Inputs(node);
+          return ProcessResult::kContinue;
+        }
+        CheckOperandsFit(node);
+        // Otherwise don't unset truncation...
         return ProcessResult::kContinue;
       }
+      UnsetCanTruncateToInt32Inputs(node);
+      return ProcessResult::kContinue;
     }
 
     // TODO(marja): We can add a limited version of that, to support cases where
     // one of the operands is a constant and thus we can be sure the result
     // stays in the safe range.
 
-    // If the output is not a Float64, then it cannot (or doesn't need)
-    // to be truncated. Just propagate that all inputs should not be
-    // truncated.
-    if constexpr (NodeT::kProperties.value_representation() !=
-                  ValueRepresentation::kFloat64) {
-      UnsetCanTruncateToInt32Inputs(node);
-      return ProcessResult::kContinue;
-    }
-    // If the output node is a Float64 and cannot be truncated, then
-    // its inputs cannot be truncated.
+    UnsetCanTruncateToInt32Inputs(node);
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(ChangeInt32ToFloat64* node) {
     if (!node->can_truncate_to_int32()) {
       UnsetCanTruncateToInt32Inputs(node);
     }
-    // Otherwise don't unset truncation...
     return ProcessResult::kContinue;
   }
 
@@ -152,6 +225,121 @@ class PropagateTruncationProcessor {
   void PostProcessGraph(Graph* graph) {}
 
  private:
+  // Memoised GetMaxExactValue of every node it has been asked about.
+  ZoneAbslFlatHashMap<ValueNode*, int64_t> max_exact_value_;
+
+  static ValueNode* UnwrapForTruncation(ValueNode* node) {
+    node = node->UnwrapIdentities();
+    if (node->Is<ChangeInt32ToFloat64>()) {
+      return node->input_node(0)->UnwrapIdentities();
+    }
+    return node;
+  }
+
+  static bool IsTruncatableAdditiveOperation(ValueNode* node) {
+    return node->can_truncate_to_int32() && IsAdditiveOperation(node->opcode());
+  }
+
+  // Largest absolute value an input can hold, as an operand of `user_opcode`.
+  static int64_t GetMaxExactInputValue(Opcode user_opcode, ValueNode* node) {
+    node = UnwrapForTruncation(node);
+    if (auto constant = node->TryCast<Float64Constant>()) {
+      double value = std::abs(constant->value().get_scalar());
+      if (!(value <= static_cast<double>(kMaxExactlyRepresentableValue))) {
+        return kMaxSaturatedValue;
+      }
+      return static_cast<int64_t>(std::ceil(value));
+    }
+    // A multiply this pass truncates keeps only the low 32 bits of a product
+    // that its own safe integer check bounds by 2^53, so charge the product.
+    if ((node->opcode() == Opcode::kInt32MultiplyWithOverflow ||
+         node->opcode() == Opcode::kFloat64Multiply) &&
+        node->can_truncate_to_int32()) {
+      return GetMaxExactValueOfRange(
+          Range::Mul(RefinedInputRange(node->input_node(0)),
+                     RefinedInputRange(node->input_node(1))));
+    }
+    if (node->is_int32() || node->is_uint32()) {
+      return int64_t{kMaxUInt32};
+    }
+    // An operand the pass leaves untruncated has nothing truncated below it
+    // either, since refusing a node also refuses everything it is computed
+    // from, so its static range still describes the value it holds.
+    int64_t max_abs_value = GetMaxExactValueOfRange(node->GetStaticRange());
+    if (user_opcode == Opcode::kFloat64SpeculateSafeAdd) {
+      // Speculative truncation reaches a Float64 operand through a conversion
+      // that range checks it against the additive safe integer feedback range,
+      // so that check bounds it too.
+      max_abs_value = std::min(max_abs_value, -kMinAdditiveSafeIntegerFeedback);
+    }
+    return max_abs_value;
+  }
+
+  // Largest absolute value this node can reach before truncation wraps it.
+  // Addition composes linearly, so looking through every truncatable
+  // addition down to the operands they are built from, and summing those,
+  // bounds the whole subgraph and with it every intermediate the pass never
+  // checks.
+  int64_t GetMaxExactValue(ValueNode* root) {
+    // Anything above the largest exactly representable value is
+    // indistinguishable for our purposes, so saturate there rather than risk
+    // overflowing the sum.
+    auto add_saturated = [](int64_t a, int64_t b) {
+      if (a > kMaxExactlyRepresentableValue - b) {
+        return kMaxSaturatedValue;
+      }
+      return a + b;
+    };
+    // The additions walked here are acyclic: a value cycle passes through a
+    // Phi, and a Phi is not an additive operation, so it ends the walk as an
+    // operand.
+    base::SmallVector<ValueNode*, 16> stack{root};
+    while (!stack.empty()) {
+      ValueNode* node = stack.back();
+      if (max_exact_value_.contains(node)) {
+        stack.pop_back();
+        continue;
+      }
+      // Resolve first: queue up every operand still missing a bound, and come
+      // back to this node once they all have one.
+      bool has_pending_input = false;
+      for (int i = 0; i < node->input_count(); i++) {
+        ValueNode* input = UnwrapForTruncation(node->input_node(i));
+        if (IsTruncatableAdditiveOperation(input) &&
+            !max_exact_value_.contains(input)) {
+          stack.push_back(input);
+          has_pending_input = true;
+        }
+      }
+      if (has_pending_input) continue;
+      // Every operand is bounded now, so this node's bound is their sum.
+      int64_t max_abs_value = 0;
+      for (int i = 0; i < node->input_count(); i++) {
+        ValueNode* input = UnwrapForTruncation(node->input_node(i));
+        max_abs_value = add_saturated(
+            max_abs_value, IsTruncatableAdditiveOperation(input)
+                               ? max_exact_value_.at(input)
+                               : GetMaxExactInputValue(node->opcode(), input));
+      }
+      stack.pop_back();
+      max_exact_value_.emplace(node, max_abs_value);
+    }
+    return max_exact_value_.at(root);
+  }
+
+  // Accepting a node commits to accepting every truncatable addition below it,
+  // since refusing one later would strand the rest already truncated. Only
+  // reads the memo, which GetMaxExactValue has just filled in for them all.
+  void CheckOperandsFit(ValueNode* node) {
+#ifdef DEBUG
+    for (int i = 0; i < node->input_count(); i++) {
+      ValueNode* input = UnwrapForTruncation(node->input_node(i));
+      if (!IsTruncatableAdditiveOperation(input)) continue;
+      DCHECK_LE(max_exact_value_.at(input), kMaxExactlyRepresentableValue);
+    }
+#endif  // DEBUG
+  }
+
   template <typename NodeT, int I>
   void UnsetCanTruncateToInt32ForFixedInputNodes(NodeT* node) {
     if constexpr (I < static_cast<int>(NodeT::kInputCount)) {
@@ -404,40 +592,6 @@ class TruncationProcessor {
     }
     // TODO(marja): To support Int32DivideWithOverflow, we need to be able to
     // reason about ranges.
-  }
-
-  // Refined int32 bound of a value from its defining bit operation, intersected
-  // with the value's static range; falls back to the static range alone when
-  // the defining operation tells us nothing better.
-  static Range RefinedInputRange(ValueNode* node) {
-    node = node->UnwrapIdentities();
-    Range refined = Range::All();
-    switch (node->opcode()) {
-      case Opcode::kInt32BitwiseAnd:
-        for (int i = 0; i < 2; ++i) {
-          if (auto mask = node->TryGetInt32ConstantInput(i);
-              mask && *mask >= 0) {
-            refined = Range(0, *mask);
-            break;
-          }
-        }
-        break;
-      case Opcode::kInt32ShiftRight:
-        if (auto shift = node->TryGetInt32ConstantInput(1)) {
-          int32_t s = *shift & 0x1f;
-          refined = Range(int64_t{INT32_MIN} >> s, int64_t{INT32_MAX} >> s);
-        }
-        break;
-      case Opcode::kInt32ShiftRightLogical:
-        if (auto shift = node->TryGetInt32ConstantInput(1)) {
-          int32_t s = *shift & 0x1f;
-          refined = Range(0, int64_t{UINT32_MAX} >> s);
-        }
-        break;
-      default:
-        break;
-    }
-    return Range::Intersect(refined, node->GetStaticRange());
   }
 
   // The product provably fits the safe-integer range, so the wrapping Int32

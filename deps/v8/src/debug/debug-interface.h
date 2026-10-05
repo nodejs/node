@@ -162,26 +162,6 @@ bool CanBreakProgram(Isolate* isolate);
 
 class Script;
 
-struct LiveEditResult {
-  enum Status {
-    OK,
-    COMPILE_ERROR,
-    BLOCKED_BY_RUNNING_GENERATOR,
-    BLOCKED_BY_ACTIVE_FUNCTION,
-    BLOCKED_BY_TOP_LEVEL_ES_MODULE_CHANGE,
-    FEATURE_DISABLED,
-  };
-  Status status = OK;
-  bool stack_changed = false;
-  // Available only for OK.
-  v8::Local<v8::debug::Script> script;
-  bool restart_top_frame_required = false;
-  // Fields below are available only for COMPILE_ERROR.
-  v8::Local<v8::String> message;
-  int line_number = -1;
-  int column_number = -1;
-};
-
 /**
  * An internal representation of the source for a given
  * `v8::debug::Script`, which can be a `v8::String`, in
@@ -235,9 +215,6 @@ class V8_EXPORT_PRIVATE Script {
       const debug::Location& location,
       GetSourceOffsetMode mode = GetSourceOffsetMode::kStrict) const;
   v8::debug::Location GetSourceLocation(int offset) const;
-  bool SetScriptSource(v8::Local<v8::String> newSource, bool preview,
-                       bool allow_top_frame_live_editing,
-                       LiveEditResult* result) const;
   bool SetBreakpoint(v8::Local<v8::String> condition, debug::Location* location,
                      BreakpointId* id) const;
 #if V8_ENABLE_WEBASSEMBLY
@@ -306,7 +283,7 @@ enum ExceptionType { kException, kPromiseRejection };
 class DebugDelegate {
  public:
   virtual ~DebugDelegate() = default;
-  virtual void ScriptCompiled(v8::Local<Script> script, bool is_live_edited,
+  virtual void ScriptCompiled(v8::Local<Script> script,
                               bool has_compile_error) {}
   // |inspector_break_points_hit| contains id of breakpoints installed with
   // debug::Script::SetBreakpoint API.
@@ -544,8 +521,11 @@ class V8_EXPORT_PRIVATE StackTraceIterator {
   virtual bool CanBeRestarted() const = 0;
 
   virtual v8::MaybeLocal<v8::Value> Evaluate(v8::Local<v8::String> source,
-                                             bool throw_on_side_effect) = 0;
+                                             bool throw_on_side_effect,
+                                             int scope_index = 0) = 0;
 };
+
+V8_EXPORT_PRIVATE bool IsAPIFunctionWithSideEffects(v8::Local<v8::Value> value);
 
 void GlobalLexicalScopeNames(v8::Local<v8::Context> context,
                              std::vector<v8::Global<v8::String>>* names);

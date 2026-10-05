@@ -43,6 +43,7 @@
 #include "src/objects/smi.h"
 #include "src/utils/ostreams.h"
 #include "test/common/assembler-tester.h"
+#include "test/common/flag-utils.h"
 #include "test/common/value-helper.h"
 #include "test/unittests/test-utils.h"
 #include "third_party/fp16/src/include/fp16.h"
@@ -1328,9 +1329,12 @@ TEST_F(MacroAssemblerX64Test, SIMDMacros) {
   CHECK_EQ(0, result);
 }
 
+// Test the pre-AVX10 path.
 TEST_F(MacroAssemblerX64Test, S256Select) {
   if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
-
+#ifdef V8_ENABLE_AVX10_1
+  FlagScope<bool> avx10_scope(&v8_flags.enable_avx10_1, false);
+#endif
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
@@ -1414,6 +1418,231 @@ TEST_F(MacroAssemblerX64Test, S256Select) {
   }
 }
 
+#ifdef V8_ENABLE_AVX10_1
+// End-to-end execution tests for the AVX10.1 (vpternlogd) lowerings of
+// s128.not/select and s256.not/select.
+
+TEST_F(MacroAssemblerX64Test, S128NotAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const XMMRegister dst = xmm0;
+  const XMMRegister src = xmm1;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+
+  __ vmovdqu(src, Operand(kCArgRegs[0], 0));
+  __ S128Not(dst, src, kScratchDoubleReg);
+  __ vmovdqu(Operand(kCArgRegs[1], 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+  buffer->MakeExecutable();
+  auto f = GeneratedCode<F1>::FromBuffer(i_isolate(), buffer->start());
+
+  std::vector<std::array<uint64_t, 2>> test_cases = {
+      {0x0000000000000000, 0xFFFFFFFFFFFFFFFF},
+      {0x0123456789ABCDEF, 0xFEDCBA9876543210},
+      {0xAAAAAAAAAAAAAAAA, 0x5555555555555555}};
+
+  uint64_t input[2];
+  uint64_t output[2];
+
+  for (const auto& arr : test_cases) {
+    input[0] = arr[0];
+    input[1] = arr[1];
+
+    f.Call(input, output, nullptr);
+
+    for (int i = 0; i < 2; i++) {
+      CHECK_EQ(output[i], ~input[i]);
+    }
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, S128SelectAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  // The AVX10.1 lowering requires dst == mask.
+  const XMMRegister dst = xmm0;
+  const XMMRegister mask = xmm0;
+  const XMMRegister src1 = xmm1;
+  const XMMRegister src2 = xmm2;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+
+  __ vmovdqu(src1, Operand(kCArgRegs[0], 0));
+  __ vmovdqu(src2, Operand(kCArgRegs[1], 0));
+  __ vmovdqu(mask, Operand(kCArgRegs[2], 0));
+  __ S128Select(dst, mask, src1, src2, kScratchDoubleReg);
+  __ vmovdqu(Operand(kCArgRegs[3], 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+  buffer->MakeExecutable();
+  auto f = GeneratedCode<F2>::FromBuffer(i_isolate(), buffer->start());
+
+  std::vector<std::array<uint64_t, 6>> test_cases = {
+      // {src1[0], src1[1], src2[0], src2[1], mask[0], mask[1]}
+      {0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB,
+       0xBBBBBBBBBBBBBBBB, 0x00112345F00FFFFF, 0x10112021BBAABBAA},
+      {0x0123456789ABCDEF, 0xFEDCBA9876543210, 0xFEDCBA9876543210,
+       0x0123456789ABCDEF, 0x0000000000000000, 0xFFFFFFFFFFFFFFFF},
+      {0x0123456789ABCDEF, 0xFEDCBA9876543210, 0x55555555AAAAAAAA,
+       0x00000000FFFFFFFF, 0xAAAAAAAA55555555, 0xFFFFFFFF00000000}};
+
+  uint64_t v1[2];
+  uint64_t v2[2];
+  uint64_t c[2];
+  uint64_t output[2];
+
+  for (const auto& arr : test_cases) {
+    v1[0] = arr[0];
+    v1[1] = arr[1];
+    v2[0] = arr[2];
+    v2[1] = arr[3];
+    c[0] = arr[4];
+    c[1] = arr[5];
+
+    f.Call(v1, v2, c, output);
+
+    for (int i = 0; i < 2; i++) {
+      CHECK_EQ(output[i], (v1[i] & c[i]) | (v2[i] & ~c[i]));
+    }
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, S256NotAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const YMMRegister dst = ymm0;
+  const YMMRegister src = ymm1;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  __ vmovdqu(src, Operand(kCArgRegs[0], 0));
+  __ S256Not(dst, src, kScratchSimd256Reg);
+  __ vmovdqu(Operand(kCArgRegs[1], 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+  buffer->MakeExecutable();
+  auto f = GeneratedCode<F1>::FromBuffer(i_isolate(), buffer->start());
+
+  std::vector<std::array<uint64_t, 4>> test_cases = {
+      {0x0000000000000000, 0xFFFFFFFFFFFFFFFF, 0xAAAAAAAAAAAAAAAA,
+       0x5555555555555555},
+      {0x0123456789ABCDEF, 0xFEDCBA9876543210, 0x00112345F00FFFFF,
+       0x10112021BBAABBAA}};
+
+  uint64_t input[4];
+  uint64_t output[4];
+
+  for (const auto& arr : test_cases) {
+    for (int i = 0; i < 4; i++) input[i] = arr[i];
+
+    f.Call(input, output, nullptr);
+
+    for (int i = 0; i < 4; i++) {
+      CHECK_EQ(output[i], ~input[i]);
+    }
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, S256SelectAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  // The AVX10.1 lowering requires dst == mask.
+  const YMMRegister dst = ymm0;
+  const YMMRegister mask = ymm0;
+  const YMMRegister src1 = ymm1;
+  const YMMRegister src2 = ymm2;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  __ vmovdqu(src1, Operand(kCArgRegs[0], 0));
+  __ vmovdqu(src2, Operand(kCArgRegs[1], 0));
+  __ vmovdqu(mask, Operand(kCArgRegs[2], 0));
+  __ S256Select(dst, mask, src1, src2, kScratchSimd256Reg);
+  __ vmovdqu(Operand(kCArgRegs[3], 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+  buffer->MakeExecutable();
+  auto f = GeneratedCode<F2>::FromBuffer(i_isolate(), buffer->start());
+
+  std::vector<std::array<uint64_t, 12>> test_cases = {
+      {0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA,
+       0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB, 0xBBBBBBBBBBBBBBBB,
+       0xBBBBBBBBBBBBBBBB, 0xBBBBBBBBBBBBBBBB, 0x00112345F00FFFFF,
+       0x10112021BBAABBAA, 0x0000000000000000, 0x0000000000000000},
+      {0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA,
+       0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB, 0xBBBBBBBBBBBBBBBB,
+       0xBBBBBBBBBBBBBBBB, 0xBBBBBBBBBBBBBBBB, 0x1111111111111111,
+       0x1111111111111111, 0x0123456789ABCDEF, 0xFEDCBA9876543210},
+      {0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA,
+       0xAAAAAAAAAAAAAAAA, 0x5555555555555555, 0x5555555555555555,
+       0x5555555555555555, 0x5555555555555555, 0x0123456789ABCDEF,
+       0xFEDCBA9876543210, 0x55555555AAAAAAAA, 0x00000000FFFFFFFF},
+      {0x499602D2499602D2, 0x499602D2499602D2, 0x1234567812345678,
+       0x1234567812345678, 0xB669FD2EB669FD2E, 0xB669FD2EB669FD2E,
+       0x90ABCDEF90ABCDEF, 0x90ABCDEF90ABCDEF, 0xCDEFCDEFCDEFCDEF,
+       0xCDEFCDEFCDEFCDEF, 0xCDEFCDEFCDEFCDEF, 0xCDEFCDEFCDEFCDEF}};
+
+  uint64_t v1[4];
+  uint64_t v2[4];
+  uint64_t c[4];
+  uint64_t output[4];
+
+  for (const auto& arr : test_cases) {
+    for (int i = 0; i < 4; i++) {
+      v1[i] = arr[i];
+      v2[i] = arr[i + 4];
+      c[i] = arr[i + 8];
+    }
+
+    f.Call(v1, v2, c, output);
+
+    for (int i = 0; i < 4; i++) {
+      CHECK_EQ(output[i], (v1[i] & c[i]) | (v2[i] & ~c[i]));
+    }
+  }
+}
+#endif  // V8_ENABLE_AVX10_1
+
 TEST_F(MacroAssemblerX64Test, AreAliased) {
   DCHECK(!AreAliased(rax));
   DCHECK(!AreAliased(rax, no_reg));
@@ -1455,6 +1684,7 @@ TEST_F(MacroAssemblerX64Test, DeoptExitSizeIsFixed) {
   }
 }
 
+// Test the pre-AVX10 path.
 TEST_F(MacroAssemblerX64Test, I64x2Mul) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
@@ -1473,7 +1703,7 @@ TEST_F(MacroAssemblerX64Test, I64x2Mul) {
   __ movdqu(lhs, Operand(kCArgRegs[0], 0));
   __ movdqu(rhs, Operand(kCArgRegs[1], 0));
   // Calculation
-  __ I64x2Mul(dst, lhs, rhs, tmp1, tmp2);
+  __ I64x2MulPreAvx10(dst, lhs, rhs, tmp1, tmp2);
   // Store result array
   __ movdqu(Operand(kCArgRegs[2], 0), dst);
   __ ret(0);
@@ -1512,8 +1742,12 @@ TEST_F(MacroAssemblerX64Test, I64x2Mul) {
   }
 }
 
+// Test the pre-AVX10 path.
 TEST_F(MacroAssemblerX64Test, I64x4Mul) {
   if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+#ifdef V8_ENABLE_AVX10_1
+  FlagScope<bool> avx10_scope(&v8_flags.enable_avx10_1, false);
+#endif
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
@@ -2691,7 +2925,7 @@ TEST_F(MacroAssemblerX64Test, I64x2ShrS_SignReplication_63) {
     MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                         buffer->CreateView());
     masm.movdqu(xmm0, Operand(kCArgRegs[0], 0));
-    masm.I64x2ShrS(xmm0, xmm0, 63, xmm1);
+    masm.I64x2ShrSPreAvx10(xmm0, xmm0, 63, xmm1);
     masm.movdqu(Operand(kCArgRegs[1], 0), xmm0);
     masm.ret(0);
 
@@ -2716,7 +2950,7 @@ TEST_F(MacroAssemblerX64Test, I64x2ShrS_SignReplication_63) {
     MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                         buffer->CreateView());
     masm.movdqu(xmm0, Operand(kCArgRegs[0], 0));
-    masm.I64x2ShrS(xmm0, xmm0, 13, xmm1);
+    masm.I64x2ShrSPreAvx10(xmm0, xmm0, 13, xmm1);
     masm.movdqu(Operand(kCArgRegs[1], 0), xmm0);
     masm.ret(0);
 
@@ -2737,6 +2971,157 @@ TEST_F(MacroAssemblerX64Test, I64x2ShrS_SignReplication_63) {
   }
 
   CHECK_LT(size_63, size_other);
+}
+
+TEST_F(MacroAssemblerX64Test, I8x16ShrS_SignReplication_7) {
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+
+  // Expected Optimal Codegen for I8x16ShrS with shift count 7:
+  //   - x64: instruction sequence: pxor/vpxor + pcmpgtb/vpcmpgtb +
+  //   (if necessary based on register choices) movaps/vmovaps
+  auto run_test = [this, isolate](uint8_t shift) {
+    auto buffer = AllocateAssemblerBuffer();
+    MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
+                        buffer->CreateView());
+    masm.movdqu(xmm0, Operand(kCArgRegs[0], 0));
+    masm.I8x16ShrS(xmm0, xmm0, shift, xmm1);
+    masm.movdqu(Operand(kCArgRegs[1], 0), xmm0);
+    masm.ret(0);
+
+    CodeDesc desc;
+    masm.GetCode(isolate, &desc);
+
+    // Run and assert correctness
+    buffer->MakeExecutable();
+    using F = int(int8_t*, int8_t*);
+    auto f = GeneratedCode<F>::FromBuffer(i_isolate(), buffer->start());
+    int8_t input[16] = {1,  -2,  127, -128, 0,  -1,  42, -42,
+                        10, -20, 30,  -40,  50, -60, 70, -80};
+    int8_t output[16] = {0};
+    f.Call(input, output);
+    for (int i = 0; i < 16; ++i) {
+      CHECK_EQ(output[i], static_cast<int8_t>(input[i] >> shift));
+    }
+    return desc.instr_size;
+  };
+
+  CHECK_LT(run_test(7), run_test(3));
+}
+
+TEST_F(MacroAssemblerX64Test, PshufdOptimization) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+
+  const XMMRegister xmm_regs[] = {xmm0,  xmm1,  xmm2,  xmm3, xmm4,  xmm5,
+                                  xmm6,  xmm7,  xmm8,  xmm9, xmm10, xmm11,
+                                  xmm12, xmm13, xmm14, xmm15};
+
+  for (XMMRegister dst : xmm_regs) {
+    for (XMMRegister src : xmm_regs) {
+      auto buffer = AllocateAssemblerBuffer();
+      MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{false},
+                          buffer->CreateView());
+      CpuFeatureScope avx2_scope(&masm, AVX2);
+
+      int size_before = masm.pc_offset();
+      masm.Pshufd(dst, src, 0);
+      int size = masm.pc_offset() - size_before;
+
+      uint8_t* code = masm.buffer_start() + size_before;
+
+      EXPECT_EQ(size, 5);
+
+      if (src.code() > 7) {
+        // When src is in xmm8-xmm15, VPBROADCASTD is 5 bytes:
+        // 3-byte VEX prefix (0xC4) + opcode 0x58 + ModR/M
+        EXPECT_EQ(code[0], 0xC4);
+        EXPECT_EQ(code[3], 0x58);
+      } else {
+        // When src is in xmm0-xmm7, VPSHUFD is 5 bytes:
+        // 2-byte VEX prefix (0xC5) + opcode 0x70 + ModR/M + imm8(0x00)
+        EXPECT_EQ(code[0], 0xC5);
+        EXPECT_EQ(code[2], 0x70);
+        EXPECT_EQ(code[4], 0x00);
+      }
+    }
+  }
+
+  // Non-zero shuffle should always emit VPSHUFD
+  for (XMMRegister dst : xmm_regs) {
+    for (XMMRegister src : xmm_regs) {
+      auto buffer = AllocateAssemblerBuffer();
+      MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{false},
+                          buffer->CreateView());
+      CpuFeatureScope avx2_scope(&masm, AVX2);
+
+      int size_before = masm.pc_offset();
+      masm.Pshufd(dst, src, 0x55);
+      int size = masm.pc_offset() - size_before;
+
+      uint8_t* code = masm.buffer_start() + size_before;
+
+      if (src.code() > 7) {
+        // 3-byte VEX (0xC4) + opcode 0x70 + ModR/M + imm8
+        EXPECT_EQ(size, 6);
+        EXPECT_EQ(code[0], 0xC4);
+        EXPECT_EQ(code[3], 0x70);
+        EXPECT_EQ(code[5], 0x55);
+      } else {
+        // 2-byte VEX (0xC5) + opcode 0x70 + ModR/M + imm8
+        EXPECT_EQ(size, 5);
+        EXPECT_EQ(code[0], 0xC5);
+        EXPECT_EQ(code[2], 0x70);
+        EXPECT_EQ(code[4], 0x55);
+      }
+    }
+  }
+
+  // Verify functional execution correctness of Pshufd(dst, src, 0)
+  {
+    auto buffer = AllocateAssemblerBuffer();
+    MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{false},
+                        buffer->CreateView());
+    CpuFeatureScope avx2_scope(&masm, AVX2);
+
+    // Save callee-saved registers on Windows x64 (xmm6-xmm15 are non-volatile).
+    masm.AllocateStackSpace(3 * kSimd128Size);
+    masm.movdqu(Operand(rsp, 0 * kSimd128Size), xmm8);
+    masm.movdqu(Operand(rsp, 1 * kSimd128Size), xmm9);
+    masm.movdqu(Operand(rsp, 2 * kSimd128Size), xmm10);
+
+    // Test combinations: high-high, high-low, low-high, low-low
+    masm.movdqu(xmm8, Operand(kCArgRegs[0], 0));
+    masm.Pshufd(xmm9, xmm8, 0);   // src > 7: vpbroadcastd
+    masm.Pshufd(xmm0, xmm8, 0);   // src > 7: vpbroadcastd
+    masm.Pshufd(xmm10, xmm0, 0);  // src <= 7: vpshufd
+    masm.Pshufd(xmm1, xmm0, 0);   // src <= 7: vpshufd
+    masm.movdqu(Operand(kCArgRegs[1], 0), xmm9);
+    masm.movdqu(Operand(kCArgRegs[1], 16), xmm0);
+    masm.movdqu(Operand(kCArgRegs[1], 32), xmm10);
+    masm.movdqu(Operand(kCArgRegs[1], 48), xmm1);
+
+    // Restore callee-saved registers.
+    masm.movdqu(xmm8, Operand(rsp, 0 * kSimd128Size));
+    masm.movdqu(xmm9, Operand(rsp, 1 * kSimd128Size));
+    masm.movdqu(xmm10, Operand(rsp, 2 * kSimd128Size));
+    masm.addq(rsp, Immediate(3 * kSimd128Size));
+    masm.ret(0);
+
+    buffer->MakeExecutable();
+    using F = void(const uint32_t*, uint32_t*);
+    auto f = GeneratedCode<F>::FromBuffer(isolate, buffer->start());
+
+    uint32_t input[4] = {0x12345678, 0x9ABCDEF0, 0x13579BDF, 0x2468ACE0};
+    uint32_t output[16] = {0};
+    f.Call(input, output);
+
+    for (int i = 0; i < 16; ++i) {
+      EXPECT_EQ(output[i], input[0]);
+    }
+  }
 }
 
 #undef __

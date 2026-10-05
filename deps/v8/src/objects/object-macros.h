@@ -75,6 +75,76 @@
   ;                               \
   V8_OBJECT_PUSH static_assert(true)
 
+// Instance-type markers for V8_OBJECT classes. They exist solely for the
+// libclang-driven instance-type generator, which harvests them to drive
+// `instance-type.h` emission, and they reach no other build: outside the
+// harvest's parse they expand to a static_assert. Mirror the meanings of
+// the Torque annotations they replace (see `src/torque/...` and the IT
+// solver).
+//
+// Usage -- one per line in the class body, in any order:
+//
+//   V8_OBJECT class JSReceiver : public HeapObject {
+//    public:
+//     V8_IT_ABSTRACT;
+//     ...
+//   } V8_OBJECT_END;
+//
+// Only the harvest's parse declares anything here, and it has to: an
+// attribute must appertain to a declaration, and a bare `[[...]];` in a
+// class body declares nothing, so the attribute rides an alias -- the
+// carrier that adds no value, enumerator or function to the class.
+// Everywhere else the marker's own `;` terminates a static_assert and
+// the class is left untouched.
+#ifdef V8_METAGEN_GENERATION_PASS
+#define V8_IT_MARK(NAME, PAYLOAD) \
+  using V8IT_##NAME [[clang::annotate(PAYLOAD)]] = void
+#else
+#define V8_IT_MARK(NAME, PAYLOAD) static_assert(true)
+#endif
+#define V8_IT_ABSTRACT V8_IT_MARK(Abstract, "V8_IT_ABSTRACT")
+#define V8_IT_REUSE_PARENT V8_IT_MARK(ReuseParent, "V8_IT_REUSE_PARENT")
+#define V8_IT_FIXED_VALUE(N) V8_IT_MARK(FixedValue, "V8_IT_FIXED_VALUE(" #N ")")
+#define V8_IT_FLAG_BITS(N) V8_IT_MARK(FlagBits, "V8_IT_FLAG_BITS(" #N ")")
+#define V8_IT_ORDER(POS) V8_IT_MARK(Order, "V8_IT_ORDER(" #POS ")")
+// Explicit participation marker for concrete classes that also have
+// concrete subclasses among the IT participants (concrete
+// non-leaves). The default discovery rule -- "leaf in the candidate
+// set OR carries any V8_IT_* annotation" -- treats unannotated
+// intermediates as inheritance bookkeeping, not IT participants. A
+// concrete intermediate that wants its own _TYPE value emitted has
+// to opt in via this annotation.
+//
+// Examples: Map (has Map sub-types as children), JSArray (parent of
+// TemplateLiteralObject), FixedArray (parent of FixedArrayExact),
+// HashTable (parent of EphemeronHashTable / NameToIndexHashTable /
+// RegisteredSymbolTable), etc.
+//
+// Pure-leaf classes don't need this -- they auto-participate.
+// Abstract non-leaves use V8_IT_ABSTRACT (no own value, range
+// markers only). V8_IT_REUSE_PARENT classes share the parent's IT.
+#define V8_IT_OWN_TYPE V8_IT_MARK(OwnType, "V8_IT_OWN_TYPE")
+// Excludes the class from metagen's generated checker bucket lists. By
+// default it also excludes the class from the instance-type harvest entirely,
+// so it gets no instance-type value of its own. Combine it with
+// V8_IT_OWN_TYPE to retain the class and its own instance-type value while
+// suppressing only its generated checker entries.
+//
+// Used for classes with a hand-written `IsX(...)` predicate (in
+// instance-type-checker.h's INSTANCE_TYPE_CHECKERS_CUSTOM list, in the
+// SINGLE/RANGE manual extras, or via DEF_HEAP_OBJECT_PREDICATE across src/)
+// whose auto-emitted definition would collide with it.
+#define V8_IT_NO_AUTO_CHECKER V8_IT_MARK(NoAutoChecker, "V8_IT_NO_AUTO_CHECKER")
+// Excludes the class from the generated
+// HEAP_OBJECT_DIAGNOSTIC_DISPATCH_LIST even though it declares both
+// Name##Print and Name##Verify. Carriers are dispatched by hand-written
+// cases in HeapObject::HeapObjectPrint (objects-printer.cc) and
+// HeapObject::HeapObjectVerify (objects-debug.cc); without this marker
+// the generated entry would produce a duplicate case label there
+// (which is also the loud failure mode if the marker is forgotten).
+#define V8_IT_NO_AUTO_DISPATCH \
+  V8_IT_MARK(NoAutoDispatch, "V8_IT_NO_AUTO_DISPATCH")
+
 #define DECL_PRIMITIVE_GETTER(name, type) inline type name() const;
 
 #define DECL_PRIMITIVE_SETTER(name, type) inline void set_##name(type value);

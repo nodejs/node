@@ -28,11 +28,13 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 package(default_visibility = ["//visibility:public"])
 
 LIBCXX_COPTS = [
-    "-std=c++23",
+    "-std=c++26",
     "-fPIC",
     "-fstrict-aliasing",
     "-fexceptions",
     "-frtti",
+    "-Wno-pragma-clang-attribute",
+    "-Wno-ignored-attributes",
     "-D_LIBCPP_BUILDING_LIBRARY",
     "-D_LIBCPP_HARDENING_MODE_DEFAULT=_LIBCPP_HARDENING_MODE_NONE",
     "-DLIBC_NAMESPACE=__llvm_libc_cr",

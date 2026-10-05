@@ -654,6 +654,7 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kFunctionLogNextExecution:
     case Builtin::kMarkReoptimizeLazyDeoptimized:
     case Builtin::kMarkLazyDeoptimized:
+    case Builtin::kMarkFlushed:
     // All *DeoptContinuation builtins.
     case Builtin::kArrayEveryLoopEagerDeoptContinuation:
     case Builtin::kArrayEveryLoopLazyDeoptContinuation:
@@ -842,52 +843,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kSharedStructConstructor:
       RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(v8_flags.harmony_struct);
 
-    // --js-promise-try
-    case Builtin::kPromiseTry:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_promise_try);
-
-    // --js-atomics-pause
-    case Builtin::kAtomicsPause:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_atomics_pause);
-
-    // --js-error-iserror
-    case Builtin::kErrorIsError:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_error_iserror);
-
-    // --js-regexp-escape
-    case Builtin::kRegExpEscape:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_regexp_escape);
-
-    // --js-explicit-resource-management
-    case Builtin::kSuppressedErrorConstructor:
-    case Builtin::kDisposableStackConstructor:
-    case Builtin::kDisposableStackPrototypeUse:
-    case Builtin::kDisposableStackPrototypeDispose:
-    case Builtin::kDisposableStackPrototypeAdopt:
-    case Builtin::kDisposableStackPrototypeDefer:
-    case Builtin::kDisposableStackPrototypeMove:
-    case Builtin::kDisposableStackPrototypeGetDisposed:
-    case Builtin::kAsyncDisposableStackConstructor:
-    case Builtin::kAsyncDisposableStackPrototypeUse:
-    case Builtin::kAsyncDisposableStackPrototypeDisposeAsync:
-    case Builtin::kAsyncDisposableStackPrototypeAdopt:
-    case Builtin::kAsyncDisposableStackPrototypeDefer:
-    case Builtin::kAsyncDisposableStackPrototypeMove:
-    case Builtin::kAsyncDisposableStackPrototypeGetDisposed:
-    case Builtin::kIteratorPrototypeDispose:
-    case Builtin::kAsyncIteratorPrototypeAsyncDispose:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(
-          v8_flags.js_explicit_resource_management);
-
-    // --js-base-64
-    case Builtin::kUint8ArrayFromBase64:
-    case Builtin::kUint8ArrayFromHex:
-    case Builtin::kUint8ArrayPrototypeToBase64:
-    case Builtin::kUint8ArrayPrototypeSetFromBase64:
-    case Builtin::kUint8ArrayPrototypeToHex:
-    case Builtin::kUint8ArrayPrototypeSetFromHex:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_base_64);
-
     // --js-iterator-sequencing:
     case Builtin::kIteratorConcat:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_sequencing);
@@ -897,22 +852,11 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kIteratorZipKeyed:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_joint_iteration);
 
-    // --js-upsert
-    case Builtin::kMapPrototypeGetOrInsert:
-    case Builtin::kMapPrototypeGetOrInsertComputed:
-    case Builtin::kWeakMapPrototypeGetOrInsert:
-    case Builtin::kWeakMapPrototypeGetOrInsertComputed:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_upsert);
-
     // --js-immutable-arraybuffer
     case Builtin::kArrayBufferPrototypeGetImmutable:
     case Builtin::kArrayBufferPrototypeTransferToImmutable:
     case Builtin::kArrayBufferPrototypeSliceToImmutable:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_immutable_arraybuffer);
-
-    // --js-sum-precise
-    case Builtin::kMathSumPrecise:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_sum_precise);
 
     // --enable-queue-microtask
     case Builtin::kGlobalQueueMicrotask:
@@ -925,12 +869,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     // --js-iterator-includes
     case Builtin::kIteratorPrototypeIncludes:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_includes);
-
-#ifdef V8_INTL_SUPPORT
-    // --js-intl-locale-variants
-    case Builtin::kLocalePrototypeVariants:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_intl_locale_variants);
-#endif  // V8_INTL_SUPPORT
 
     default: {
       // Treat all other JS builtins as mandatory core JS language builtins.
@@ -962,7 +900,7 @@ void Builtins::VerifyGetJSBuiltinState(bool allow_non_initial_state) {
   // JSFunctions.
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (IsAnyHole(obj)) continue;
+    if (IsInaccessible(obj)) continue;
 
     Tagged<JSFunction> func;
     if (!TryCast(obj, &func)) continue;

@@ -440,6 +440,7 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
       trusted_pointer_entries;
 #endif  // V8_ENABLE_SANDBOX
   for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
+    if (IsInaccessible(o)) continue;
     const InstanceType instance_type = o->map()->instance_type();
     if (should_rehash()) {
       if (InstanceTypeChecker::IsString(instance_type)) {

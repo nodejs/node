@@ -12,10 +12,6 @@
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/fixed-primitive-array-inl.h"
 
-#ifdef V8_USE_ZLIB
-#include "third_party/zlib/google/compression_utils_portable.h"
-#endif  // V8_USE_ZLIB
-
 namespace v8 {
 namespace internal {
 
@@ -80,34 +76,20 @@ template <typename... T>
 void FrameTranslationBuilder::AddRawToContents(TranslationOpcode opcode,
                                                T... operands) {
   DCHECK_EQ(sizeof...(T), TranslationOpcodeOperandCount(opcode));
-  DCHECK(!v8_flags.turbo_compress_frame_translations);
   contents_.push_back(static_cast<uint8_t>(opcode));
   (..., operands.WriteVLQ(&contents_));
-}
-
-template <typename... T>
-void FrameTranslationBuilder::AddRawToContentsForCompression(
-    TranslationOpcode opcode, T... operands) {
-  DCHECK_EQ(sizeof...(T), TranslationOpcodeOperandCount(opcode));
-  DCHECK(v8_flags.turbo_compress_frame_translations);
-  contents_for_compression_.push_back(static_cast<uint8_t>(opcode));
-  (..., contents_for_compression_.push_back(operands.value()));
 }
 
 template <typename... T>
 void FrameTranslationBuilder::AddRawBegin(bool update_feedback, T... operands) {
   auto opcode = update_feedback ? TranslationOpcode::BEGIN_WITH_FEEDBACK
                                 : TranslationOpcode::BEGIN_WITHOUT_FEEDBACK;
-  if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
-    AddRawToContentsForCompression(opcode, operands...);
-  } else {
-    AddRawToContents(opcode, operands...);
+  AddRawToContents(opcode, operands...);
 #ifdef ENABLE_SLOW_DCHECKS
-    if (v8_flags.enable_slow_asserts) {
-      all_instructions_.emplace_back(opcode, operands...);
-    }
-#endif
+  if (v8_flags.enable_slow_asserts) {
+    all_instructions_.emplace_back(opcode, operands...);
   }
+#endif
 }
 
 int FrameTranslationBuilder::BeginTranslation(int frame_count,
@@ -177,10 +159,6 @@ void FrameTranslationBuilder::FinishPendingInstructionIfNeeded() {
 template <typename... T>
 void FrameTranslationBuilder::Add(TranslationOpcode opcode, T... operands) {
   DCHECK_EQ(sizeof...(T), TranslationOpcodeOperandCount(opcode));
-  if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
-    AddRawToContentsForCompression(opcode, operands...);
-    return;
-  }
 #ifdef ENABLE_SLOW_DCHECKS
   if (v8_flags.enable_slow_asserts) {
     all_instructions_.emplace_back(opcode, operands...);
@@ -210,35 +188,6 @@ void FrameTranslationBuilder::Add(TranslationOpcode opcode, T... operands) {
 
 DirectHandle<DeoptimizationFrameTranslation>
 FrameTranslationBuilder::ToFrameTranslation(LocalFactory* factory) {
-#ifdef V8_USE_ZLIB
-  if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
-    const uint32_t input_size = SizeInBytes();
-    uLongf compressed_data_size = compressBound(input_size);
-
-    ZoneVector<uint8_t> compressed_data(compressed_data_size, zone());
-
-    CHECK_EQ(
-        zlib_internal::CompressHelper(
-            zlib_internal::ZRAW, compressed_data.data(), &compressed_data_size,
-            reinterpret_cast<const Bytef*>(contents_for_compression_.data()),
-            input_size, Z_DEFAULT_COMPRESSION, nullptr, nullptr),
-        Z_OK);
-
-    const uint32_t translation_array_size =
-        static_cast<uint32_t>(compressed_data_size) +
-        DeoptimizationFrameTranslation::kUncompressedSizeSize;
-    DirectHandle<DeoptimizationFrameTranslation> result =
-        factory->NewDeoptimizationFrameTranslation(translation_array_size);
-
-    result->set_int(DeoptimizationFrameTranslation::kUncompressedSizeOffset,
-                    Size());
-    std::memcpy(
-        result->begin() + DeoptimizationFrameTranslation::kCompressedDataOffset,
-        compressed_data.data(), compressed_data_size);
-    return result;
-  }
-#endif
-  DCHECK(!v8_flags.turbo_compress_frame_translations);
   FinishPendingInstructionIfNeeded();
   const uint32_t input_size = SizeInBytes();
   DirectHandle<DeoptimizationFrameTranslation> result =
@@ -253,7 +202,6 @@ FrameTranslationBuilder::ToFrameTranslation(LocalFactory* factory) {
 }
 
 base::Vector<const uint8_t> FrameTranslationBuilder::ToFrameTranslationWasm() {
-  DCHECK(!v8_flags.turbo_compress_frame_translations);
   FinishPendingInstructionIfNeeded();
   base::Vector<const uint8_t> result = base::VectorOf(contents_);
 #ifdef ENABLE_SLOW_DCHECKS

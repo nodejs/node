@@ -198,7 +198,7 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
               ->AllocateAndInitializeEntry(wasm_code->instruction_start(),
                                            wasm_code->signature_hash());
 
-      RawMachineAssemblerTester<int32_t> mt(CodeKind::JS_TO_WASM_FUNCTION);
+      RawMachineAssemblerTester<int32_t> mt;
       const int input_count = 2 + param_count;
       Node* call_inputs[2 + kMaxParamCount];
       call_inputs[0] = mt.IntPtrConstant(code_pointer.value());

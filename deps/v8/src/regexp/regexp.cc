@@ -6,6 +6,7 @@
 
 #include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/interrupts-scope.h"
 #include "src/handles/global-handles-inl.h"
@@ -1210,11 +1211,13 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate,
   if (!regexp_data->ShouldProduceBytecode()) {
     do {
       EnsureCompiledIrregexp(isolate, regexp_data, subject, is_one_byte);
+      SYNCHRONIZATION_POINT("IrregexpExecRaw_JIT");
       // The stack is used to allocate registers for the compiled regexp code.
       // This means that in case of failure, the output registers array is left
       // untouched and contains the capture results from the previous successful
       // match.  We can use that to set the last match info lazily.
-      int res = NativeRegExpMacroAssembler::Match(regexp_data, subject, output,
+      int res = NativeRegExpMacroAssembler::Match(regexp_data, subject,
+                                                  is_one_byte, output,
                                                   output_size, index, isolate);
       if (res != NativeRegExpMacroAssembler::RETRY) {
         DCHECK(res != NativeRegExpMacroAssembler::EXCEPTION ||
@@ -1311,11 +1314,25 @@ std::optional<int> RegExpImpl::IrregexpExec(
     }
   }
 
+  const bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
+  const bool had_code = regexp_data->has_code(is_one_byte);
   int output_register_count =
       RegExpImpl::IrregexpPrepare(isolate, regexp_data, subject);
   if (output_register_count < 0) {
     DCHECK(isolate->has_exception());
     return {};
+  }
+
+  // The call above is what fills in the filters, so this exec already passed
+  // the builtin's check while they were still empty.  Check it here instead,
+  // so that the exec which compiles rejects like every later one.
+  if (!had_code && regexp_data->has_code(is_one_byte)) {
+    DisallowGarbageCollection no_gc;
+    String::FlatContent content = subject->GetFlatContent(no_gc);
+    if (content.IsOneByte() && regexp_data->QuickCheckRejects(
+                                   content.ToOneByteVector(), previous_index)) {
+      return 0;
+    }
   }
 
   // TODO(jgruber): Consider changing these into DCHECKs once we're convinced
@@ -1408,7 +1425,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, CompileData* data,
   if (data->error != Error::kNone) {
     return false;
   }
-  data->error = AnalyzeRegExp(isolate, is_one_byte, flags, data->node);
+  data->error = AnalyzeRegExp(isolate, is_one_byte, data->node);
   if (data->error != Error::kNone) {
     return false;
   }
@@ -1668,6 +1685,23 @@ int32_t* GlobalExecRunner::LastSuccessfulMatch() const {
   return &register_array_[index];
 }
 
+namespace {
+
+// The split cache is by far the largest of the regexp caches, so it is
+// allocated on first use rather than deserialized into every isolate. Enter is
+// the only place that has to materialize it: a lookup cannot hit before
+// something was entered, so it just misses.
+DirectHandle<FixedArray> EnsureRegExpSplitCache(Isolate* isolate) {
+  DirectHandle<FixedArray> cache = isolate->factory()->regexp_split_cache();
+  if (*cache != ReadOnlyRoots(isolate).empty_fixed_array()) return cache;
+  cache = isolate->factory()->NewFixedArrayWithZeroes(
+      ResultsCache::kRegExpSplitResultsCacheSize, AllocationType::kOld);
+  isolate->heap()->SetRegExpSplitCache(*cache);
+  return cache;
+}
+
+}  // namespace
+
 Tagged<Object> ResultsCache::Lookup(Heap* heap, Tagged<String> key_string,
                                     Tagged<Object> key_pattern,
                                     Tagged<FixedArray>* last_match_cache,
@@ -1675,23 +1709,30 @@ Tagged<Object> ResultsCache::Lookup(Heap* heap, Tagged<String> key_string,
   if (V8_UNLIKELY(!v8_flags.regexp_results_cache)) return Smi::zero();
   Tagged<FixedArray> cache;
   if (!IsInternalizedString(key_string)) return Smi::zero();
-  if (type == STRING_SPLIT_SUBSTRINGS) {
-    DCHECK(IsString(key_pattern));
-    if (!IsInternalizedString(key_pattern)) return Smi::zero();
-    cache = heap->string_split_cache();
-  } else {
-    DCHECK(type == REGEXP_MULTIPLE_INDICES);
-    DCHECK(IsRegExpDataWrapper(key_pattern));
-    cache = heap->regexp_multiple_cache();
+  switch (type) {
+    case STRING_SPLIT_SUBSTRINGS:
+      DCHECK(IsString(key_pattern));
+      if (!IsInternalizedString(key_pattern)) return Smi::zero();
+      cache = heap->string_split_cache();
+      break;
+    case REGEXP_SPLIT_SUBSTRINGS:
+      DCHECK(IsRegExpDataWrapper(key_pattern));
+      cache = heap->regexp_split_cache();
+      if (cache == ReadOnlyRoots(heap).empty_fixed_array()) return Smi::zero();
+      break;
+    case REGEXP_MULTIPLE_INDICES:
+      DCHECK(IsRegExpDataWrapper(key_pattern));
+      cache = heap->regexp_multiple_cache();
+      break;
   }
 
+  const int cache_size = SizeForType(type);
   uint32_t hash = key_string->hash();
-  uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
-                    ~(kArrayEntriesPerCacheEntry - 1));
+  uint32_t index =
+      ((hash & (cache_size - 1)) & ~(kArrayEntriesPerCacheEntry - 1));
   if (cache->get(index + kStringOffset) != key_string ||
       cache->get(index + kPatternOffset) != key_pattern) {
-    index =
-        ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
+    index = ((index + kArrayEntriesPerCacheEntry) & (cache_size - 1));
     if (cache->get(index + kStringOffset) != key_string ||
         cache->get(index + kPatternOffset) != key_pattern) {
       return Smi::zero();
@@ -1711,27 +1752,33 @@ void ResultsCache::Enter(Isolate* isolate, DirectHandle<String> key_string,
   Factory* factory = isolate->factory();
   DirectHandle<FixedArray> cache;
   if (!IsInternalizedString(*key_string)) return;
-  if (type == STRING_SPLIT_SUBSTRINGS) {
-    DCHECK(IsString(*key_pattern));
-    if (!IsInternalizedString(*key_pattern)) return;
-    cache = factory->string_split_cache();
-  } else {
-    DCHECK(type == REGEXP_MULTIPLE_INDICES);
-    DCHECK(IsRegExpDataWrapper(*key_pattern));
-    cache = factory->regexp_multiple_cache();
+  switch (type) {
+    case STRING_SPLIT_SUBSTRINGS:
+      DCHECK(IsString(*key_pattern));
+      if (!IsInternalizedString(*key_pattern)) return;
+      cache = factory->string_split_cache();
+      break;
+    case REGEXP_SPLIT_SUBSTRINGS:
+      DCHECK(IsRegExpDataWrapper(*key_pattern));
+      cache = EnsureRegExpSplitCache(isolate);
+      break;
+    case REGEXP_MULTIPLE_INDICES:
+      DCHECK(IsRegExpDataWrapper(*key_pattern));
+      cache = factory->regexp_multiple_cache();
+      break;
   }
 
+  const int cache_size = SizeForType(type);
   uint32_t hash = key_string->hash();
-  uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
-                    ~(kArrayEntriesPerCacheEntry - 1));
+  uint32_t index =
+      ((hash & (cache_size - 1)) & ~(kArrayEntriesPerCacheEntry - 1));
   if (cache->get(index + kStringOffset) == Smi::zero()) {
     cache->set(index + kStringOffset, *key_string);
     cache->set(index + kPatternOffset, *key_pattern);
     cache->set(index + kArrayOffset, *value_array);
     cache->set(index + kLastMatchOffset, *last_match_cache);
   } else {
-    uint32_t index2 =
-        ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
+    uint32_t index2 = ((index + kArrayEntriesPerCacheEntry) & (cache_size - 1));
     if (cache->get(index2 + kStringOffset) == Smi::zero()) {
       cache->set(index2 + kStringOffset, *key_string);
       cache->set(index2 + kPatternOffset, *key_pattern);
@@ -1763,8 +1810,36 @@ void ResultsCache::Enter(Isolate* isolate, DirectHandle<String> key_string,
       isolate, ReadOnlyRoots(isolate).fixed_cow_array_map());
 }
 
+// static
+Address ResultsCache::EnterRaw(Isolate* isolate, Address raw_key_string,
+                               Address raw_pattern, Address raw_value_array,
+                               Address raw_last_match_cache) {
+  // Entering may allocate the cache, and allocation is allowed in a fast C
+  // call, so every argument has to be handlified before that can happen.
+  HandleScope scope(isolate);
+  DirectHandle<String> key_string(Cast<String>(Tagged<Object>(raw_key_string)),
+                                  isolate);
+  DirectHandle<JSRegExp> pattern(Cast<JSRegExp>(Tagged<Object>(raw_pattern)),
+                                 isolate);
+  DirectHandle<JSArray> value_array(
+      Cast<JSArray>(Tagged<Object>(raw_value_array)), isolate);
+  DirectHandle<FixedArray> last_match_cache(
+      Cast<FixedArray>(Tagged<Object>(raw_last_match_cache)), isolate);
+
+  // The elements are cached as-is, so they must hold exactly the split parts.
+  // ToJSArray has already shrunk to fit, so no trimming is needed here.
+  DirectHandle<FixedArray> elements(Cast<FixedArray>(value_array->elements()),
+                                    isolate);
+  DCHECK_EQ(elements->length().value(), Smi::ToInt(value_array->length()));
+
+  Enter(isolate, key_string,
+        direct_handle(pattern->data(isolate)->wrapper(), isolate), elements,
+        last_match_cache, REGEXP_SPLIT_SUBSTRINGS);
+  return ReadOnlyRoots(isolate).undefined_value().ptr();
+}
+
 void ResultsCache::Clear(Tagged<FixedArray> cache) {
-  for (int i = 0; i < kRegExpResultsCacheSize; i++) {
+  for (int i = 0, length = cache->length().value(); i < length; i++) {
     cache->set(i, Smi::zero());
   }
 }

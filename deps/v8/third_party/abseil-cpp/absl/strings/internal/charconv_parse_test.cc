@@ -14,13 +14,16 @@
 
 #include "absl/strings/internal/charconv_parse.h"
 
+#include <cstdint>
 #include <string>
 #include <utility>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/log/check.h"
+#include "absl/strings/charconv.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 
 using absl::chars_format;
 using absl::strings_internal::FloatType;

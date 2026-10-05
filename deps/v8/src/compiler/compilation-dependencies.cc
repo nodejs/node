@@ -867,11 +867,12 @@ class FieldConstnessDependency final : public CompilationDependency {
 class GlobalPropertyDependency final : public CompilationDependency {
  public:
   GlobalPropertyDependency(PropertyCellRef cell, PropertyCellType type,
-                           bool read_only)
+                           bool read_only, OptionalMapRef value_map)
       : CompilationDependency(kGlobalProperty),
         cell_(cell),
         type_(type),
-        read_only_(read_only) {
+        read_only_(read_only),
+        value_map_(value_map) {
     DCHECK_EQ(type_, cell_.property_details().cell_type());
     DCHECK_EQ(read_only_, cell_.property_details().IsReadOnly());
   }
@@ -884,8 +885,24 @@ class GlobalPropertyDependency final : public CompilationDependency {
         *(broker->isolate()->factory()->property_cell_hole_value())) {
       return false;
     }
-    return type_ == cell->property_details().cell_type() &&
-           read_only_ == cell->property_details().IsReadOnly();
+    if (type_ != cell->property_details().cell_type() ||
+        read_only_ != cell->property_details().IsReadOnly()) {
+      return false;
+    }
+    // A same-map store can replace the value between the broker's read of the
+    // value and its read of the value's map. The replaced object can then
+    // transition without changing the cell details, and the recorded map stays
+    // stable, so neither existing check catches it.
+    if (value_map_.has_value()) {
+      DisallowGarbageCollection no_gc;
+      Tagged<Object> value = cell->value();
+      if (!IsHeapObject(value) ||
+          Cast<HeapObject>(value)->map() != *value_map_->object()) {
+        TRACE_BROKER_MISSING(broker, "Value map change detected in " << cell);
+        return false;
+      }
+    }
+    return true;
   }
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
     SLOW_DCHECK(IsValid(broker));
@@ -895,11 +912,16 @@ class GlobalPropertyDependency final : public CompilationDependency {
  private:
   size_t Hash() const override {
     ObjectRef::Hash h;
-    return base::hash_combine(h(cell_), static_cast<int>(type_), read_only_);
+    return base::hash_combine(h(cell_), static_cast<int>(type_), read_only_,
+                              value_map_.has_value() ? h(*value_map_) : 0);
   }
 
   bool Equals(const CompilationDependency* that) const override {
     const GlobalPropertyDependency* const zat = that->AsGlobalProperty();
+    if (value_map_.has_value() != zat->value_map_.has_value()) return false;
+    if (value_map_.has_value() && !value_map_->equals(*zat->value_map_)) {
+      return false;
+    }
     return cell_.equals(zat->cell_) && type_ == zat->type_ &&
            read_only_ == zat->read_only_;
   }
@@ -907,6 +929,8 @@ class GlobalPropertyDependency final : public CompilationDependency {
   const PropertyCellRef cell_;
   const PropertyCellType type_;
   const bool read_only_;
+  // Snapshotted value map for kConstantType heap objects; empty otherwise.
+  const OptionalMapRef value_map_;
 };
 
 class ContextCellDependency final : public CompilationDependency {
@@ -1287,7 +1311,15 @@ CompilationDependencies::FieldConstnessDependencyOffTheRecord(
 void CompilationDependencies::DependOnGlobalProperty(PropertyCellRef cell) {
   PropertyCellType type = cell.property_details().cell_type();
   bool read_only = cell.property_details().IsReadOnly();
-  RecordDependency(zone_->New<GlobalPropertyDependency>(cell, type, read_only));
+  // Read the map through the broker so validation checks the same map the
+  // compiler used.
+  OptionalMapRef value_map;
+  if (type == PropertyCellType::kConstantType) {
+    ObjectRef value = cell.value(broker_);
+    if (value.IsHeapObject()) value_map = value.AsHeapObject().map(broker_);
+  }
+  RecordDependency(
+      zone_->New<GlobalPropertyDependency>(cell, type, read_only, value_map));
 }
 
 bool CompilationDependencies::DependOnContextCell(ContextRef script_context,

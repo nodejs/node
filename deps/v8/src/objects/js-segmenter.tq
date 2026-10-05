@@ -14,6 +14,6 @@ bitfield struct JSSegmenterFlags extends uint31 {
 @cppObjectLayoutDefinition
 extern class JSSegmenter extends JSObject {
   locale: String;
-  icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
+  icu_break_iterator: CppGCManagedBase;  // CppGCManaged<icu::BreakIterator>
   flags: SmiTagged<JSSegmenterFlags>;
 }

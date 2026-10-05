@@ -259,6 +259,18 @@ class V8_EXPORT_PRIVATE GCTracer {
     // after the current GC.
     size_t end_holes_size = 0;
 
+    // Consumed bytes in old generation before the current GC.
+    size_t start_old_generation_consumed_size = 0;
+
+    // Consumed bytes in old generation after the current GC.
+    size_t end_old_generation_consumed_size = 0;
+
+    // Consumed bytes globally before the current GC.
+    size_t start_global_consumed_size = 0;
+
+    // Consumed bytes globally after the current GC.
+    size_t end_global_consumed_size = 0;
+
     // Size of young objects in constructor.
     size_t young_object_size = 0;
 

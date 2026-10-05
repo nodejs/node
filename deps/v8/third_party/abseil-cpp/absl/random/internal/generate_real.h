@@ -85,8 +85,7 @@ inline RealType GenerateRealFromBits(uint64_t bits, int exp_bias = 0) {
 
   static_assert((std::is_same_v<SignedTag, GeneratePositiveTag> ||
                  std::is_same_v<SignedTag, GenerateNegativeTag> ||
-                 std::is_same_v<SignedTag, GenerateSignedTag>),
-                "");
+                 std::is_same_v<SignedTag, GenerateSignedTag>));
 
   static constexpr int kExp = std::numeric_limits<real_type>::digits - 1;
   static constexpr uint_type kMask = (static_cast<uint_type>(1) << kExp) - 1u;

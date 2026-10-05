@@ -18,6 +18,7 @@
 #include "src/objects/js-number-format.h"
 #include "src/objects/js-relative-time-format-inl.h"
 #include "src/objects/managed-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
 #include "unicode/decimfmt.h"
@@ -212,9 +213,9 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
       isolate->factory()->NewStringFromAsciiChecked(
           Intl::GetNumberingSystem(icu_locale).c_str());
 
-  DirectHandle<Managed<icu::RelativeDateTimeFormatter>> managed_formatter =
-      Managed<icu::RelativeDateTimeFormatter>::From(isolate, 0,
-                                                    std::move(icu_formatter));
+  DirectHandle<CppGCManaged<icu::RelativeDateTimeFormatter>>
+      managed_formatter = CppGCManaged<icu::RelativeDateTimeFormatter>::Create(
+          isolate, 0, std::move(icu_formatter));
 
   DirectHandle<JSRelativeTimeFormat> relative_time_format_holder =
       Cast<JSRelativeTimeFormat>(
@@ -250,7 +251,7 @@ DirectHandle<String> StyleAsString(Isolate* isolate, Style style) {
 DirectHandle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSRelativeTimeFormat> format_holder) {
   Factory* factory = isolate->factory();
-  Managed<icu::RelativeDateTimeFormatter>::Ptr formatter =
+  CppGCManaged<icu::RelativeDateTimeFormatter>::Ptr formatter =
       format_holder->icu_formatter()->ptr();
   DCHECK_NOT_NULL(formatter);
   DirectHandle<JSObject> result =
@@ -355,7 +356,7 @@ MaybeDirectHandle<T> FormatCommon(
                      MessageTemplate::kNotFiniteNumber,
                      isolate->factory()->NewStringFromAsciiChecked(func_name)));
   }
-  Managed<icu::RelativeDateTimeFormatter>::Ptr formatter =
+  CppGCManaged<icu::RelativeDateTimeFormatter>::Ptr formatter =
       format->icu_formatter()->ptr();
   DCHECK_NOT_NULL(formatter);
   URelativeDateTimeUnit unit_enum;

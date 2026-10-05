@@ -68,6 +68,7 @@ namespace internal {
   V(Compare_Baseline)                                           \
   IF_SPARKPLUG_PLUS(V, CompareAndTryPatchCode)                  \
   IF_SPARKPLUG_PLUS(V, BinaryOpAndTryPatchCode)                 \
+  IF_SPARKPLUG_PLUS(V, UnaryOpAndTryPatchCode)                  \
   V(Compare_WithFeedback)                                       \
   V(Compare_WithEmbeddedFeedback)                               \
   V(Compare_WithEmbeddedFeedbackOffset)                         \
@@ -157,7 +158,8 @@ namespace internal {
   V(TypeConversionNoContext)                                    \
   V(Typeof)                                                     \
   V(UnaryOp_Baseline)                                           \
-  V(UnaryOp_WithFeedback)                                       \
+  V(UnaryOp_WithEmbeddedFeedback)                               \
+  V(UnaryOp_WithEmbeddedFeedbackOffset)                         \
   V(Void)                                                       \
   IF_WASM(V, WasmAllocateShared)                                \
   IF_WASM(V, WasmFXResume)                                      \
@@ -3128,6 +3130,20 @@ class BinaryOpAndTryPatchCodeDescriptor
 
   static constexpr inline auto registers();
 };
+
+class UnaryOpAndTryPatchCodeDescriptor
+    : public StaticCallInterfaceDescriptor<UnaryOpAndTryPatchCodeDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_PARAMETERS_NO_CONTEXT(kValue, kCurrentFeedback, kFeedbackOffset)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
+                         MachineType::Int32(),      // kCurrentFeedback
+                         MachineType::UintPtr())    // kFeedbackOffset
+  DECLARE_DESCRIPTOR(UnaryOpAndTryPatchCodeDescriptor)
+
+  static constexpr inline auto registers();
+};
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 class Compare_WithEmbeddedFeedbackOffsetDescriptor
@@ -3167,16 +3183,17 @@ class Construct_WithFeedbackDescriptor
   DECLARE_JS_COMPATIBLE_DESCRIPTOR(Construct_WithFeedbackDescriptor)
 };
 
-class UnaryOp_WithFeedbackDescriptor
-    : public StaticCallInterfaceDescriptor<UnaryOp_WithFeedbackDescriptor> {
+class UnaryOp_WithEmbeddedFeedbackDescriptor
+    : public StaticCallInterfaceDescriptor<
+          UnaryOp_WithEmbeddedFeedbackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS(kValue, kSlot, kFeedbackVector)
+  DEFINE_PARAMETERS(kValue, kFeedbackOffset, kBytecodeArray)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
-                         MachineType::UintPtr(),    // kSlot
-                         MachineType::AnyTagged())  // kFeedbackVector
-  DECLARE_DESCRIPTOR(UnaryOp_WithFeedbackDescriptor)
+                         MachineType::UintPtr(),    // kFeedbackOffset
+                         MachineType::AnyTagged())  // kBytecodeArray
+  DECLARE_DESCRIPTOR(UnaryOp_WithEmbeddedFeedbackDescriptor)
 };
 
 class UnaryOp_BaselineDescriptor
@@ -3188,6 +3205,18 @@ class UnaryOp_BaselineDescriptor
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
                          MachineType::UintPtr())    // kSlot
   DECLARE_DESCRIPTOR(UnaryOp_BaselineDescriptor)
+};
+
+class UnaryOp_WithEmbeddedFeedbackOffsetDescriptor
+    : public StaticCallInterfaceDescriptor<
+          UnaryOp_WithEmbeddedFeedbackOffsetDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_PARAMETERS_NO_CONTEXT(kValue, kFeedbackOffset)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
+                         MachineType::UintPtr())    // kFeedbackOffset
+  DECLARE_DESCRIPTOR(UnaryOp_WithEmbeddedFeedbackOffsetDescriptor)
 };
 
 class CheckTurboshaftFloat32TypeDescriptor

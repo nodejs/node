@@ -15,6 +15,7 @@
 #include "src/regexp/regexp-stack.h"
 #include "src/regexp/regexp.h"
 #include "src/regexp/special-case.h"
+#include "src/sandbox/check.h"
 #include "src/strings/unicode-inl.h"
 
 #ifdef V8_INTL_SUPPORT
@@ -592,7 +593,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
 // Returns a {Result} sentinel, or the number of successful matches.
 int NativeRegExpMacroAssembler::Match(DirectHandle<IrRegExpData> regexp_data,
                                       DirectHandle<String> subject,
-                                      int* offsets_vector,
+                                      bool is_one_byte, int* offsets_vector,
                                       int offsets_vector_length,
                                       int previous_index, Isolate* isolate) {
   DCHECK(subject->IsFlat());
@@ -622,8 +623,6 @@ int NativeRegExpMacroAssembler::Match(DirectHandle<IrRegExpData> regexp_data,
   if (StringShape(subject_ptr).IsThin()) {
     subject_ptr = Cast<ThinString>(subject_ptr)->actual();
   }
-  // Ensure that an underlying string has the same representation.
-  bool is_one_byte = subject_ptr->IsOneByteRepresentation();
   DCHECK(IsExternalString(subject_ptr) || IsSeqString(subject_ptr));
   // String is now either Sequential or External
   int char_size_shift = is_one_byte ? 0 : 1;
@@ -640,8 +639,8 @@ int NativeRegExpMacroAssembler::Match(DirectHandle<IrRegExpData> regexp_data,
   }
 #endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
   int res =
-      Execute(*subject, start_offset, input_start, input_end, offsets_vector,
-              offsets_vector_length, isolate, *regexp_data);
+      Execute(*subject, start_offset, input_start, input_end, is_one_byte,
+              offsets_vector, offsets_vector_length, isolate, *regexp_data);
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
   if (V8_UNLIKELY(v8_flags.trace_regexp_exec)) {
     RegExp::TraceExecutionEnd(reinterpret_cast<Address>(isolate),
@@ -658,8 +657,9 @@ int NativeRegExpMacroAssembler::ExecuteForTesting(
     const uint8_t* input_end, int* output, int output_size, Isolate* isolate,
     Tagged<JSRegExp> regexp) {
   Tagged<RegExpData> data = regexp->data(isolate);
-  return Execute(input, start_offset, input_start, input_end, output,
-                 output_size, isolate, SbxCast<IrRegExpData>(data));
+  bool is_one_byte = String::IsOneByteRepresentationUnderneath(input);
+  return Execute(input, start_offset, input_start, input_end, is_one_byte,
+                 output, output_size, isolate, SbxCast<IrRegExpData>(data));
 }
 
 // Returns a {Result} sentinel, or the number of successful matches.
@@ -667,10 +667,12 @@ int NativeRegExpMacroAssembler::Execute(
     Tagged<String>
         input,  // This needs to be the unpacked (sliced, cons) string.
     int start_offset, const uint8_t* input_start, const uint8_t* input_end,
-    int* output, int output_size, Isolate* isolate,
+    bool is_one_byte, int* output, int output_size, Isolate* isolate,
     Tagged<IrRegExpData> regexp_data) {
-  bool is_one_byte = String::IsOneByteRepresentationUnderneath(input);
   Tagged<Code> code = regexp_data->code(isolate, is_one_byte);
+  // Ensure code is in sync with subject strings 1-byte/2-byte.
+  // Code should always be RegExp JIT code (no trampoline).
+  SBXCHECK_EQ(code->kind(), CodeKind::REGEXP);
   RegExp::CallOrigin call_origin = RegExp::CallOrigin::kFromRuntime;
 
   using RegexpMatcherSig =

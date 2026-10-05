@@ -23,6 +23,7 @@
 #include <ostream>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "absl/hash/hash.h"
@@ -48,7 +49,7 @@ template <typename T>
 class SpyHashStateImpl : public HashStateBase<SpyHashStateImpl<T>> {
  public:
   SpyHashStateImpl() : error_(std::make_shared<std::optional<std::string>>()) {
-    static_assert(std::is_void_v<T>, "");
+    static_assert(std::is_void_v<T>);
   }
 
   // Move-only

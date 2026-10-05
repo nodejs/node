@@ -1172,7 +1172,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchAtomicStoreWithWriteBarrier: {
       DCHECK_EQ(AddressingModeField::decode(instr->opcode()), kMode_MRR);
       MacroAssembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
-      RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
+      RecordWriteMode mode =
+          AtomicStoreRecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
       Register object = i.InputRegister(0);
@@ -1376,12 +1377,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64Add_d:
       __ Add_d(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
+    case kLoong64AddOvf_w: {
+      if (instr->InputAt(1)->IsImmediate()) {
+        __ Add_w(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      } else {
+        __ Add_d(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      }
+      break;
+    }
     case kLoong64AddOvf_d: {
       UseScratchRegisterScope temps(masm());
       DCHECK(temps.hasAvailable());
       temps.Exclude(t8);
+      Register scratch = t8;
+      if (instr->flags_mode() == kFlags_set) {
+        scratch = i.OutputRegister(instr->OutputCount() - 1);
+      }
       __ AddOverflow_d(i.OutputRegister(), i.InputRegister(0),
-                       i.InputOperand(1), t8);
+                       i.InputOperand(1), scratch);
       break;
     }
     case kLoong64Add128: {
@@ -1401,12 +1414,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64Sub_d:
       __ Sub_d(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
+    case kLoong64SubOvf_w: {
+      if (instr->InputAt(1)->IsImmediate()) {
+        __ Sub_w(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      } else {
+        __ Sub_d(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      }
+      break;
+    }
     case kLoong64SubOvf_d: {
       UseScratchRegisterScope temps(masm());
       DCHECK(temps.hasAvailable());
       temps.Exclude(t8);
+      Register scratch = t8;
+      if (instr->flags_mode() == kFlags_set) {
+        scratch = i.OutputRegister(instr->OutputCount() - 1);
+      }
       __ SubOverflow_d(i.OutputRegister(), i.InputRegister(0),
-                       i.InputOperand(1), t8);
+                       i.InputOperand(1), scratch);
       break;
     }
     case kLoong64Sub128: {
@@ -1425,16 +1450,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       UseScratchRegisterScope temps(masm());
       DCHECK(temps.hasAvailable());
       temps.Exclude(t8);
+      Register scratch = t8;
+      if (instr->flags_mode() == kFlags_set) {
+        scratch = i.OutputRegister(instr->OutputCount() - 1);
+      }
       __ MulOverflow_w(i.OutputRegister(), i.InputRegister(0),
-                       i.InputOperand(1), t8);
+                       i.InputOperand(1), scratch);
       break;
     }
     case kLoong64MulOvf_d: {
       UseScratchRegisterScope temps(masm());
       DCHECK(temps.hasAvailable());
       temps.Exclude(t8);
+      Register scratch = t8;
+      if (instr->flags_mode() == kFlags_set) {
+        scratch = i.OutputRegister(instr->OutputCount() - 1);
+      }
       __ MulOverflow_d(i.OutputRegister(), i.InputRegister(0),
-                       i.InputOperand(1), t8);
+                       i.InputOperand(1), scratch);
       break;
     }
     case kLoong64Mulh_w:
@@ -1603,15 +1636,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64Rotr_d:
       __ Rotr_d(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kLoong64Tst: {
-      UseScratchRegisterScope temps(masm());
-      DCHECK(temps.hasAvailable());
-      temps.Exclude(t8);
-      __ And(t8, i.InputRegister(0), i.InputOperand(1));
+    case kLoong64Tst:
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
-    }
     case kLoong64Cmp32:
+    case kLoong64Cmp32Eq:
     case kLoong64Cmp64:
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
@@ -2304,8 +2333,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ amswap_db_w(i.OutputRegister(), i.InputRegister(2),
                        i.TempRegister(0));
         __ Bstrpick_d(i.OutputRegister(), i.OutputRegister(), 31, 0);
-        __ add_d(i.OutputRegister(), i.OutputRegister(),
-                 kPtrComprCageBaseRegister);
+        __ Or(i.OutputRegister(), i.OutputRegister(),
+              kPtrComprCageBaseRegister);
       } else {
         __ amswap_db_d(i.OutputRegister(), i.InputRegister(2),
                        i.TempRegister(0));
@@ -4470,6 +4499,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
                             Label* tlabel, Label* flabel, bool fallthru) {
 #undef __
 #define __ masm->
+  MacroAssemblerBase::BlockTrampolinePoolScope block_trampoline_pool(masm);
   Loong64OperandConverter i(gen, instr);
 
   // LOONG64 does not have condition code flags, so compare and branch are
@@ -4481,27 +4511,53 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
 
   if (instr->arch_opcode() == kLoong64Tst) {
     Condition cc = FlagsConditionToConditionTst(condition);
-    __ Branch(tlabel, cc, t8, Operand(zero_reg));
-    UseScratchRegisterScope temps(masm);
-    temps.Include(t8);
-  } else if (instr->arch_opcode() == kLoong64Add_d ||
-             instr->arch_opcode() == kLoong64Sub_d) {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
-    Register scratch2 = temps.Acquire();
-    Condition cc = FlagsConditionToConditionOvf(condition);
-    __ srai_d(scratch, i.OutputRegister(), 32);
-    __ srai_w(scratch2, i.OutputRegister(), 31);
-    __ Branch(tlabel, cc, scratch2, Operand(scratch));
+
+    __ Tst(scratch, i.InputRegister(0), i.InputOperand(1));
+    __ Branch(tlabel, cc, scratch, Operand(zero_reg));
+  } else if (instr->arch_opcode() == kLoong64AddOvf_w ||
+             instr->arch_opcode() == kLoong64SubOvf_w) {
+    if (!instr->InputAt(1)->IsImmediate()) {
+      UseScratchRegisterScope temps(masm);
+      Register scratch = temps.Acquire();
+      Condition cc = FlagsConditionToConditionOvf(condition);
+      __ slli_w(scratch, i.OutputRegister(), 0);
+      __ Branch(tlabel, cc, i.OutputRegister(), Operand(scratch));
+    } else {
+      DCHECK(!AreAliased(i.OutputRegister(), i.InputRegister(0)));
+      bool is_add = (instr->arch_opcode() == kLoong64AddOvf_w);
+      int64_t imm = i.ToConstant(instr->InputAt(1)).ToInt64();
+      // Define mapping from {is_add, imm < 0, is_overflow} to branch condition.
+      static const Condition cond_map[2][2][2] = {
+          {
+              /* Add_w */
+              {lt, ge},  // imm>=0: [kOverflow, !kOverflow]
+              {gt, le}   // imm<0:  [kOverflow, !kOverflow]
+          },
+          {
+              /* Sub_w */
+              {gt, le},  // imm>=0: [kOverflow, !kOverflow]
+              {lt, ge}   // imm<0:  [kOverflow, !kOverflow]
+          }};
+      bool is_overflow = (condition == kOverflow);
+      if (imm != 0) {
+        Condition cc = cond_map[is_add][imm < 0][is_overflow];
+        __ Branch(tlabel, cc, i.OutputRegister(), Operand(i.InputRegister(0)));
+      } else if (!is_overflow) {
+        __ Branch(tlabel);
+      }
+    }
   } else if (instr->arch_opcode() == kLoong64AddOvf_d ||
              instr->arch_opcode() == kLoong64SubOvf_d) {
+    DCHECK_LE(instr->OutputCount(), 1);
     switch (condition) {
-      // Overflow occurs if overflow register is negative
+      // Overflow occurs if overflow register is 1.
       case kOverflow:
-        __ Branch(tlabel, lt, t8, Operand(zero_reg));
+        __ Branch(tlabel, ne, t8, Operand(zero_reg));
         break;
       case kNotOverflow:
-        __ Branch(tlabel, ge, t8, Operand(zero_reg));
+        __ Branch(tlabel, eq, t8, Operand(zero_reg));
         break;
       default:
         UNSUPPORTED_COND(instr->arch_opcode(), condition);
@@ -4510,6 +4566,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
     temps.Include(t8);
   } else if (instr->arch_opcode() == kLoong64MulOvf_w ||
              instr->arch_opcode() == kLoong64MulOvf_d) {
+    DCHECK_LE(instr->OutputCount(), 1);
     // Overflow occurs if overflow register is not zero
     switch (condition) {
       case kOverflow:
@@ -4529,6 +4586,14 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
     Register left = i.InputRegister(0);
     Operand right = i.InputOperand(1);
     __ Branch(tlabel, cc, left, right);
+  } else if (instr->arch_opcode() == kLoong64Cmp32Eq) {
+    Condition cc = FlagsConditionToConditionCmp(condition);
+    Register left = i.InputRegister(0);
+    Operand right = i.InputOperand(1);
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ Sub_w(scratch, left, right);
+    __ Branch(tlabel, cc, scratch, Operand(zero_reg));
   } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
     Condition cc = FlagsConditionToConditionCmp(condition);
     DCHECK((cc == ls) || (cc == hi));
@@ -4608,36 +4673,64 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 
   if (instr->arch_opcode() == kLoong64Tst) {
     Condition cc = FlagsConditionToConditionTst(condition);
-    if (cc == eq) {
-      __ Sltu(result, t8, 1);
-    } else {
-      __ Sltu(result, zero_reg, t8);
-    }
-    UseScratchRegisterScope temps(masm());
-    temps.Include(t8);
-    return;
-  } else if (instr->arch_opcode() == kLoong64Add_d ||
-             instr->arch_opcode() == kLoong64Sub_d) {
     UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
-    Condition cc = FlagsConditionToConditionOvf(condition);
-    // Check for overflow creates 1 or 0 for result.
-    __ srli_d(scratch, i.OutputRegister(), 63);
-    __ srli_w(result, i.OutputRegister(), 31);
-    __ xor_(result, scratch, result);
-    if (cc == eq)  // Toggle result for not overflow.
-      __ xori(result, result, 1);
+    __ Tst(scratch, i.InputRegister(0), i.InputOperand(1));
+    if (cc == eq) {
+      __ Sltu(result, scratch, 1);
+    } else {
+      __ Sltu(result, zero_reg, scratch);
+    }
+    return;
+  } else if (instr->arch_opcode() == kLoong64AddOvf_w ||
+             instr->arch_opcode() == kLoong64SubOvf_w) {
+    if (!instr->InputAt(1)->IsImmediate()) {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      // Check for overflow creates 1 or 0 for result.
+      __ slli_w(scratch, i.OutputRegister(), 0);
+      __ xor_(scratch, scratch, i.OutputRegister());
+      if (condition == kNotOverflow) {
+        __ sltui(result, scratch, 1);
+      } else {
+        DCHECK(condition == kOverflow);
+        __ sltu(result, zero_reg, scratch);
+      }
+      return;
+    }
+    DCHECK(!AreAliased(i.OutputRegister(), i.InputRegister(0)));
+    bool is_add = (instr->arch_opcode() == kLoong64AddOvf_w);
+    int64_t imm = i.ToConstant(instr->InputAt(1)).ToInt64();
+    if (imm == 0) {
+      __ li(result, condition == kNotOverflow);
+      return;
+    }
+    // Define mapping from {is_add, imm < 0, is_overflow} to branch condition.
+    static const Condition cond_map[2][2][2] = {
+        {
+            /* Add_w */
+            {lt, gt},  // imm > 0: [kOverflow, !kOverflow]
+            {gt, lt}   // imm < 0:  [kOverflow, !kOverflow]
+        },
+        {
+            /* Sub_w */
+            {gt, lt},  // imm > 0: [kOverflow, !kOverflow]
+            {lt, gt}   // imm < 0:  [kOverflow, !kOverflow]
+        }};
+    bool is_overflow = (condition == kOverflow);
+    Condition cc = cond_map[is_add][imm < 0][is_overflow];
+    if (cc == lt) {
+      __ slt(result, i.OutputRegister(), i.InputRegister(0));
+    } else {
+      __ Sgt(result, i.OutputRegister(), i.InputRegister(0));
+    }
     return;
   } else if (instr->arch_opcode() == kLoong64AddOvf_d ||
              instr->arch_opcode() == kLoong64SubOvf_d) {
-    // Overflow occurs if overflow register is negative
-    __ slt(result, t8, zero_reg);
     UseScratchRegisterScope temps(masm());
     temps.Include(t8);
   } else if (instr->arch_opcode() == kLoong64MulOvf_w ||
              instr->arch_opcode() == kLoong64MulOvf_d) {
-    // Overflow occurs if overflow register is not zero
-    __ Sgtu(result, t8, zero_reg);
     UseScratchRegisterScope temps(masm());
     temps.Include(t8);
   } else if (instr->arch_opcode() == kLoong64Cmp32 ||
@@ -4646,6 +4739,16 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     Register left = i.InputRegister(0);
     Operand right = i.InputOperand(1);
     __ CompareWord(cc, result, left, right);
+    return;
+  } else if (instr->arch_opcode() == kLoong64Cmp32Eq) {
+    Register left = i.InputRegister(0);
+    Operand right = i.InputOperand(1);
+    __ Sub_w(result, left, right);
+    if (condition == kEqual) {
+      __ sltui(result, result, 1);
+    } else {
+      __ sltu(result, zero_reg, result);
+    }
     return;
   } else if (instr->arch_opcode() == kLoong64Float64Cmp ||
              instr->arch_opcode() == kLoong64Float32Cmp) {
@@ -4741,14 +4844,15 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
   if (instr->arch_opcode() == kLoong64Tst) {
     DCHECK_GE(instr->InputCount(), 4);
     Condition cc = FlagsConditionToConditionTst(condition);
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.Acquire();
     if (cc == eq) {
       Register temp = v_true;
       v_true = v_false;
       v_false = temp;
     }
-    __ SelectWord(result, t8, v_true, v_false);
-    UseScratchRegisterScope temps(masm());
-    temps.Include(t8);
+    __ Tst(scratch, i.InputRegister(0), i.InputOperand(1));
+    __ SelectWord(result, scratch, v_true, v_false);
     return;
   } else if (instr->arch_opcode() == kLoong64Cmp64 ||
              instr->arch_opcode() == kLoong64Cmp32 ||
@@ -4800,9 +4904,74 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
       __ bind(&done);
     }
     return;
-  } else if (instr->arch_opcode() == kLoong64Add_d ||
-             instr->arch_opcode() == kLoong64Sub_d) {
+  } else if (instr->arch_opcode() == kLoong64Cmp32Eq) {
+    Condition cc = FlagsConditionToConditionCmp(condition);
+    Register left = i.InputRegister(0);
+    Operand right = i.InputOperand(1);
+    UseScratchRegisterScope temps(masm());
+    Register scratch1 = temps.Acquire();
+    if (cc == eq) {
+      Register temp = v_true;
+      v_true = v_false;
+      v_false = temp;
+    }
+    __ Sub_w(scratch1, left, right);
+    __ SelectWord(result, scratch1, v_true, v_false);
+  } else if (instr->arch_opcode() == kLoong64AddOvf_w ||
+             instr->arch_opcode() == kLoong64SubOvf_w) {
     DCHECK_GE(instr->InputCount(), 4);
+    if (!instr->InputAt(1)->IsImmediate()) {
+      Condition cc = FlagsConditionToConditionOvf(condition);
+      if (cc == eq) {
+        Register temp = v_true;
+        v_true = v_false;
+        v_false = temp;
+        cc = ne;
+      }
+      UseScratchRegisterScope temps(masm());
+      Register scratch1 = temps.Acquire();
+      __ slli_w(scratch1, i.OutputRegister(), 0);
+      __ xor_(scratch1, scratch1, i.OutputRegister());
+      __ SelectWord(result, scratch1, v_true, v_false);
+      return;
+    }
+    DCHECK(!AreAliased(i.OutputRegister(), i.InputRegister(0)));
+    bool is_add = (instr->arch_opcode() == kLoong64AddOvf_w);
+    int64_t imm = i.ToConstant(instr->InputAt(1)).ToInt64();
+    if (imm == 0) {
+      if (condition == kOverflow) {
+        __ mov(result, v_false);
+      } else {
+        __ mov(result, v_true);
+      }
+      return;
+    }
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.Acquire();
+    // Define mapping from {is_add, imm < 0, is_overflow} to branch condition.
+    static const Condition cond_map[2][2][2] = {
+        {
+            /* Add_w */
+            {lt, gt},  // imm > 0: [kOverflow, !kOverflow]
+            {gt, lt}   // imm < 0:  [kOverflow, !kOverflow]
+        },
+        {
+            /* Sub_w */
+            {gt, lt},  // imm > 0: [kOverflow, !kOverflow]
+            {lt, gt}   // imm < 0:  [kOverflow, !kOverflow]
+        }};
+    bool is_overflow = (condition == kOverflow);
+    Condition cc = cond_map[is_add][imm < 0][is_overflow];
+    if (cc == lt) {
+      __ slt(scratch, i.OutputRegister(), i.InputRegister(0));
+    } else {
+      __ Sgt(scratch, i.OutputRegister(), i.InputRegister(0));
+    }
+    __ SelectWord(result, scratch, v_true, v_false);
+  } else if (instr->arch_opcode() == kLoong64AddOvf_d ||
+             instr->arch_opcode() == kLoong64SubOvf_d) {
+    DCHECK_GE(instr->InputCount(), 4);
+    Register ovf_reg = t8;
     Condition cc = FlagsConditionToConditionOvf(condition);
     if (cc == eq) {
       Register temp = v_true;
@@ -4810,82 +4979,21 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
       v_false = temp;
       cc = ne;
     }
-    UseScratchRegisterScope temps(masm());
-    Register scratch1 = temps.Acquire();
-    Register scratch2 = temps.Acquire();
-    __ srai_d(scratch1, i.OutputRegister(), 32);
-    __ srai_w(scratch2, i.OutputRegister(), 31);
-    if (v_false == zero_reg) {
-      __ xor_(scratch1, scratch1, scratch2);
-      __ maskeqz(result, v_true, scratch1);
-    } else if (v_true == zero_reg) {
-      __ xor_(scratch1, scratch1, scratch2);
-      __ masknez(result, v_false, scratch1);
-    } else if (result == v_true || result == v_false) {
-      if (result == v_false) {
-        v_false = v_true;
-        cc = NegateCondition(cc);
-      }
-      Label done;
-      __ Branch(&done, cc, scratch2, Operand(scratch1));
-      __ Move(result, v_false);
-      __ bind(&done);
-    } else {
-      Label true_label, done;
-      __ Branch(&true_label, cc, scratch2, Operand(scratch1));
-      __ Move(result, v_false);
-      __ Branch(&done);
-      __ bind(&true_label);
-      __ Move(result, v_true);
-      __ bind(&done);
-    }
-    return;
-  } else if (instr->arch_opcode() == kLoong64AddOvf_d ||
-             instr->arch_opcode() == kLoong64SubOvf_d) {
-    DCHECK_GE(instr->InputCount(), 4);
-    // Overflow occurs if overflow register is negative
-    Condition cc = lt;
-    if (condition == kNotOverflow) {
-      Register temp = v_true;
-      v_true = v_false;
-      v_false = temp;
-    }
-    if (v_false == zero_reg) {
-      __ slt(t8, t8, zero_reg);
-      __ maskeqz(result, v_true, t8);
-    } else if (v_true == zero_reg) {
-      __ slt(t8, t8, zero_reg);
-      __ masknez(result, v_false, t8);
-    } else if (result == v_true || result == v_false) {
-      if (result == v_false) {
-        v_false = v_true;
-        cc = NegateCondition(cc);
-      }
-      Label done;
-      __ Branch(&done, cc, t8, Operand(zero_reg));
-      __ Move(result, v_false);
-      __ bind(&done);
-    } else {
-      Label true_label, done;
-      __ Branch(&true_label, cc, t8, Operand(zero_reg));
-      __ Move(result, v_false);
-      __ Branch(&done);
-      __ bind(&true_label);
-      __ Move(result, v_true);
-      __ bind(&done);
-    }
+    // Overflow occurs if overflow register is 1.
+    __ SelectWord(result, ovf_reg, v_true, v_false);
     UseScratchRegisterScope temps(masm());
     temps.Include(t8);
   } else if (instr->arch_opcode() == kLoong64MulOvf_w ||
              instr->arch_opcode() == kLoong64MulOvf_d) {
     DCHECK_GE(instr->InputCount(), 4);
     Condition cc = FlagsConditionToConditionOvf(condition);
+    Register ovf_reg = t8;
     if (cc == eq) {
       Register temp = v_true;
       v_true = v_false;
       v_false = temp;
     }
-    __ SelectWord(result, t8, v_true, v_false);
+    __ SelectWord(result, ovf_reg, v_true, v_false);
     UseScratchRegisterScope temps(masm());
     temps.Include(t8);
     return;
@@ -5004,7 +5112,9 @@ void CodeGenerator::AssembleConstructFrame() {
   if (required_slots > 0) {
     DCHECK(frame_access_state()->has_frame());
 #if V8_ENABLE_WEBASSEMBLY
-    if (info()->IsWasm() && required_slots * kSystemPointerSize > 4 * KB) {
+    int32_t stack_space =
+        required_slots * kSystemPointerSize + GetStackCheckOffset();
+    if (info()->IsWasm() && stack_space > 4 * KB) {
       // For WebAssembly functions with big frames we have to do the stack
       // overflow check before we construct the frame. Otherwise we may not
       // have enough space on the stack to call the runtime for the stack
@@ -5014,12 +5124,11 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
+      if (stack_space < v8_flags.stack_size * KB) {
         UseScratchRegisterScope temps(masm());
         Register stack_limit = temps.Acquire();
         __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
-        __ Add_d(stack_limit, stack_limit,
-                 Operand(required_slots * kSystemPointerSize));
+        __ Add_d(stack_limit, stack_limit, Operand(stack_space));
         __ Branch(&done, uge, sp, Operand(stack_limit));
       }
 
@@ -5034,8 +5143,7 @@ void CodeGenerator::AssembleConstructFrame() {
         DoubleRegList fp_regs_to_save;
         for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.set(reg);
         __ MultiPushFPUOrLSX(fp_regs_to_save);
-        __ li(WasmHandleStackOverflowDescriptor::GapRegister(),
-              required_slots * kSystemPointerSize);
+        __ li(WasmHandleStackOverflowDescriptor::GapRegister(), stack_space);
         __ Add_d(
             WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
             Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +

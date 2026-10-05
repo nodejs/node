@@ -144,17 +144,18 @@ V8_OBJECT class WasmModuleObject : public JSObject {
  public:
   using Super = JSObject;
 
-  inline Tagged<Managed<wasm::NativeModule>> managed_native_module() const
+  inline Tagged<CppGCManaged<wasm::NativeModule>> managed_native_module() const
       V8_LIFETIME_BOUND;
   inline void set_managed_native_module(
-      Tagged<Managed<wasm::NativeModule>> value,
+      Tagged<CppGCManaged<wasm::NativeModule>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<Script> script() const V8_LIFETIME_BOUND;
   inline void set_script(Tagged<Script> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Managed<wasm::NativeModule>::Ptr native_module() V8_LIFETIME_BOUND;
+  inline CppGCManaged<wasm::NativeModule>::Ptr native_module()
+      V8_LIFETIME_BOUND;
 
   // Dispatched behavior.
   DECL_PRINTER(WasmModuleObject)
@@ -195,7 +196,7 @@ V8_OBJECT class WasmModuleObject : public JSObject {
       Isolate*, base::Vector<const uint8_t> wire_bytes, wasm::WireBytesRef,
       InternalizeString, SharedFlag shared = SharedFlag{false});
 
-  TaggedMember<Managed<wasm::NativeModule>> managed_native_module_;
+  TaggedMember<CppGCManaged<wasm::NativeModule>> managed_native_module_;
   TaggedMember<Script> script_;
 } V8_OBJECT_END;
 
@@ -361,8 +362,6 @@ inline constexpr int WasmTableObject::kTrustedDataOffsetEnd =
     offsetof(WasmTableObject, trusted_data_) + kTrustedPointerSize - 1;
 inline constexpr int WasmTableObject::kHeaderSize = sizeof(WasmTableObject);
 
-
-
 // Representation of a WebAssembly.Memory JavaScript-level object.
 V8_OBJECT class WasmMemoryObject : public JSObject {
  public:
@@ -374,9 +373,9 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   inline void set_array_buffer(Tagged<UnionOf<JSArrayBuffer, Undefined>> value,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Managed<BackingStore>> managed_backing_store() const;
+  inline Tagged<CppGCManaged<BackingStore>> managed_backing_store() const;
   inline void set_managed_backing_store(
-      Tagged<Managed<BackingStore>> value,
+      Tagged<CppGCManaged<BackingStore>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline int maximum_pages() const;
@@ -401,7 +400,7 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   }
 #endif  // TAGGED_SIZE_8_BYTES
 
-  inline Managed<BackingStore>::Ptr backing_store() const;
+  inline CppGCManaged<BackingStore>::Ptr backing_store() const;
 
   // Add a use of this memory object to the given instance. This updates the
   // internal weak list of instances that use this memory and also updates the
@@ -458,7 +457,7 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   // bit on the backing store is not authoritative).
   static DirectHandle<JSArrayBuffer> RefreshBuffer(
       Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
-      Managed<BackingStore>::Ptr backing_store,
+      CppGCManaged<BackingStore>::Ptr backing_store,
       std::optional<ResizableFlag> override_resizable = {});
 
   V8_EXPORT_PRIVATE static int32_t Grow(Isolate*,
@@ -484,7 +483,7 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   static const int kHeaderSize;
 
   TaggedMember<UnionOf<JSArrayBuffer, Undefined>> array_buffer_;
-  TaggedMember<Managed<BackingStore>> managed_backing_store_;
+  TaggedMember<CppGCManaged<BackingStore>> managed_backing_store_;
   TaggedMember<Smi> maximum_pages_;
   TaggedMember<WeakArrayList> instances_;
   uint8_t address_type_;
@@ -575,6 +574,8 @@ class FeedbackConstants {
 // This object lives in trusted space and is never modified from user space.
 V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
     : public ExposedTrustedObject {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   DECL_OPTIONAL_ACCESSORS(instance_object, Tagged<WasmInstanceObject>)
   DECL_OPTIONAL_ACCESSORS(native_context, Tagged<NativeContext>)
@@ -936,6 +937,8 @@ class WasmDispatchTableData {
 // WasmTrustedInstanceData which uses the table. It is used from generated code
 // for executing indirect calls.
 V8_OBJECT class WasmDispatchTable : public ExposedTrustedObject {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
 #if V8_ENABLE_DRUMBRAKE
   static const uint32_t kInvalidFunctionIndex = UINT_MAX;
@@ -1067,6 +1070,8 @@ V8_OBJECT class WasmDispatchTable : public ExposedTrustedObject {
 } V8_OBJECT_END;
 
 V8_OBJECT class WasmDispatchTableForImports : public TrustedObject {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   class BodyDescriptor;
 
@@ -1162,6 +1167,8 @@ V8_OBJECT class WasmDispatchTableForImports : public TrustedObject {
 
 // A Wasm exception that has been thrown out of Wasm code.
 V8_OBJECT class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   static DirectHandle<WasmExceptionPackage> New(
       Isolate* isolate, DirectHandle<WasmExceptionTag> exception_tag,
@@ -1218,6 +1225,8 @@ bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
 // A Wasm function that is wrapped and exported to JavaScript.
 // Representation of WebAssembly.Function JavaScript-level object.
 class WasmExportedFunction : public JSFunction {
+  V8_IT_REUSE_PARENT;
+
  public:
   V8_EXPORT_PRIVATE static bool IsWasmExportedFunction(Tagged<Object> object);
 
@@ -1247,13 +1256,15 @@ class WasmExportedFunction : public JSFunction {
 
 // An external function exposed to Wasm via the C/C++ API.
 class WasmCapiFunction : public JSFunction {
+  V8_IT_REUSE_PARENT;
+
  public:
   static bool IsWasmCapiFunction(Tagged<Object> object);
 
-  static DirectHandle<WasmCapiFunction> New(Isolate* isolate,
-                                            Address call_target,
-                                            DirectHandle<Foreign> embedder_data,
-                                            const wasm::CanonicalSig* sig);
+  static DirectHandle<WasmCapiFunction> New(
+      Isolate* isolate, Address call_target,
+      DirectHandle<CppGCManagedBase> embedder_data,
+      const wasm::CanonicalSig* sig);
 
   // TODO(clemensb): Remove this accessor.
   const wasm::CanonicalSig* sig() const;
@@ -1269,6 +1280,8 @@ class WasmCapiFunction : public JSFunction {
 //  - {WasmExportedFunction}: A proper Wasm function exported from a module.
 //  - {WasmCapiFunction}: A function constructed via the C/C++ API.
 class WasmExternalFunction : public JSFunction {
+  V8_IT_REUSE_PARENT;
+
  public:
   static bool IsWasmExternalFunction(Tagged<Object> object);
 
@@ -1276,6 +1289,8 @@ class WasmExternalFunction : public JSFunction {
 };
 
 V8_OBJECT class WasmFunctionData : public ExposedTrustedObject {
+  V8_IT_OWN_TYPE;
+
  public:
   DECL_CODE_POINTER_ACCESSORS(wrapper_code)
   DECL_PROTECTED_POINTER_ACCESSORS(internal, WasmInternalFunction)
@@ -1528,8 +1543,8 @@ inline constexpr int WasmFuncRef::kSize = sizeof(WasmFuncRef);
 
 V8_OBJECT class WasmCapiFunctionData : public WasmFunctionData {
  public:
-  inline Tagged<Foreign> embedder_data() const;
-  inline void set_embedder_data(Tagged<Foreign> value,
+  inline Tagged<CppGCManagedBase> embedder_data() const;
+  inline void set_embedder_data(Tagged<CppGCManagedBase> value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_PRINTER(WasmCapiFunctionData)
@@ -1541,7 +1556,7 @@ V8_OBJECT class WasmCapiFunctionData : public WasmFunctionData {
   static const int kSize;
 
  public:
-  TaggedMember<Foreign> embedder_data_;
+  TaggedMember<CppGCManagedBase> embedder_data_;
 } V8_OBJECT_END;
 
 inline constexpr int WasmCapiFunctionData::kHeaderSize =
@@ -1719,6 +1734,8 @@ constexpr int WasmTypeInfo::SizeFor(int supertypes_length) {
 // WasmArray). It carries no fields of its own; subclasses lay out their
 // payload directly after the JSReceiver header.
 V8_OBJECT class WasmObject : public JSReceiver {
+  V8_IT_ABSTRACT;
+
  public:
   static const int kHeaderSize;
 
@@ -1734,6 +1751,8 @@ V8_OBJECT class WasmObject : public JSReceiver {
 inline constexpr int WasmObject::kHeaderSize = sizeof(WasmObject);
 
 V8_OBJECT class WasmStruct : public WasmObject {
+  V8_IT_ORDER(LAST);
+
  public:
   static const wasm::CanonicalStructType* GcSafeType(Tagged<Map> map);
   static inline int Size(const wasm::StructType* type);
@@ -1742,6 +1761,9 @@ V8_OBJECT class WasmStruct : public WasmObject {
   static inline void EncodeInstanceSizeInMap(int instance_size,
                                              Tagged<Map> map);
   static inline int DecodeInstanceSizeFromMap(Tagged<Map> map);
+
+  // Useful for both WasmStruct and WasmCustomMap; {type} distinguishes.
+  static inline int FieldOffset(const wasm::StructType* type, int field_index);
 
   // Returns the address of the field at given offset.
   inline Address RawFieldAddress(int raw_offset);
@@ -1773,24 +1795,112 @@ V8_OBJECT class WasmStruct : public WasmObject {
 inline constexpr int WasmStruct::kHeaderSize = sizeof(WasmStruct);
 
 int WasmStruct::Size(const wasm::StructType* type) {
-  // Object size must fit into a Smi (because of filler objects), and its
+  // Object size must fit into a Smi (because of runtime functions), and its
   // computation must not overflow.
   static_assert(Smi::kMaxValue <= kMaxInt);
   DCHECK_LE(type->total_fields_size(), Smi::kMaxValue - kHeaderSize);
+  DCHECK_IMPLIES(v8_flags.wasm_merged_descriptors, !type->is_descriptor());
   return std::max(kHeaderSize + static_cast<int>(type->total_fields_size()),
                   Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
 }
 
 int WasmStruct::Size(const wasm::CanonicalStructType* type) {
-  // Object size must fit into a Smi (because of filler objects), and its
+  // Object size must fit into a Smi (because of runtime functions), and its
   // computation must not overflow.
   static_assert(Smi::kMaxValue <= kMaxInt);
   DCHECK_LE(type->total_fields_size(), Smi::kMaxValue - kHeaderSize);
+  DCHECK_IMPLIES(v8_flags.wasm_merged_descriptors, !type->is_descriptor());
   return std::max(kHeaderSize + static_cast<int>(type->total_fields_size()),
                   Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
 }
 
+V8_OBJECT class WasmCustomMap : public Map {
+ public:
+  static inline int Size(const wasm::StructType* type);
+  static inline int Size(const wasm::CanonicalStructType* type);
+
+  static DirectHandle<WasmCustomMap> AllocateUninitialized(
+      Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
+      wasm::ModuleTypeIndex index, DirectHandle<Map> map,
+      DirectHandle<Object> first_field);
+
+  inline Tagged<Union<WasmCustomMapWrapper, Null>> js_wrapper() const;
+  inline void set_js_wrapper(Tagged<Union<WasmCustomMapWrapper, Null>> wrapper,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<NativeContext> native_context_for_wrapper() const;
+  inline void set_native_context_for_wrapper(
+      Tagged<NativeContext> context,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  // Returns the address of the field at given offset.
+  inline Address RawFieldAddress(int raw_offset);
+
+  // Returns the ObjectSlot for tagged value at given offset.
+  inline ObjectSlot RawField(int raw_offset);
+
+  V8_EXPORT_PRIVATE wasm::WasmValue GetFieldValue(uint32_t field_index);
+
+  // Populates the {js_wrapper} slot with a suitable wrapper object.
+  static DirectHandle<WasmCustomMapWrapper> CreateJSWrapper(
+      Isolate* isolate, DirectHandle<WasmCustomMap> wasm_custom_map);
+
+  DECL_PRINTER(WasmCustomMap)
+  DECL_VERIFIER(WasmCustomMap)
+
+  class BodyDescriptor;
+
+  static const int kHeaderSize;
+
+  TaggedMember<Union<WasmCustomMapWrapper, Null>> js_wrapper_;
+  // To save memory, we could store the NativeContext in the {js_wrapper} field
+  // before allocating the wrapper, but that would make checking for the
+  // wrapper's presence more expensive.
+  TaggedMember<NativeContext> native_context_for_wrapper_;
+} V8_OBJECT_END;
+
+inline constexpr int WasmCustomMap::kHeaderSize = sizeof(WasmCustomMap);
+
+int WasmCustomMap::Size(const wasm::StructType* type) {
+  // Object size must fit into a Smi (because of runtime functions), and its
+  // computation must not overflow.
+  static_assert(Smi::kMaxValue <= kMaxInt);
+  static_assert(Heap::kMinObjectSizeInTaggedWords * kTaggedSize <= kHeaderSize);
+  DCHECK_LE(type->total_fields_size(), Smi::kMaxValue - kHeaderSize);
+  DCHECK(type->is_descriptor());
+  return kHeaderSize + static_cast<int>(type->total_fields_size());
+}
+
+int WasmCustomMap::Size(const wasm::CanonicalStructType* type) {
+  // Object size must fit into a Smi (because of runtime functions), and its
+  // computation must not overflow.
+  static_assert(Smi::kMaxValue <= kMaxInt);
+  static_assert(Heap::kMinObjectSizeInTaggedWords * kTaggedSize <= kHeaderSize);
+  DCHECK_LE(type->total_fields_size(), Smi::kMaxValue - kHeaderSize);
+  DCHECK(type->is_descriptor());
+  return kHeaderSize + static_cast<int>(type->total_fields_size());
+}
+
+V8_OBJECT class WasmCustomMapWrapper : public JSObject {
+ public:
+  inline Tagged<WasmCustomMap> wrapped() const;
+  inline void set_wrapped(Tagged<WasmCustomMap> custom_map,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_PRINTER(WasmCustomMapWrapper)
+  DECL_VERIFIER(WasmCustomMapWrapper)
+
+  static const int kHeaderSize;
+
+  TaggedMember<WasmCustomMap> wrapped_;
+} V8_OBJECT_END;
+
+inline constexpr int WasmCustomMapWrapper::kHeaderSize =
+    sizeof(WasmCustomMapWrapper);
+
 V8_OBJECT class WasmArray : public WasmObject {
+  V8_IT_ORDER(FIRST);
+
  public:
   inline uint32_t length() const;
   inline void set_length(uint32_t value);
@@ -1973,12 +2083,10 @@ V8_OBJECT class WasmFastApiCallData : public HeapObject {
 
   static constexpr int SizeFor() { return sizeof(WasmFastApiCallData); }
 
-
   TaggedMember<HeapObject> signature_;
   TaggedMember<Object> callback_data_;
   TaggedMember<MaybeObject> cached_map_;
 } V8_OBJECT_END;
-
 
 V8_OBJECT class WasmStringViewIter : public HeapObject {
  public:
@@ -2004,21 +2112,24 @@ V8_OBJECT class WasmStringViewIter : public HeapObject {
 } V8_OBJECT_END;
 
 V8_OBJECT class WasmNull : public HeapObject {
+  V8_IT_NO_AUTO_DISPATCH;
+  V8_IT_OWN_TYPE;
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
 #if V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL
   // TODO(manoskouk): Make it smaller if able and needed.
-  static constexpr int kPayloadSize = 64 * KB;
-  // Payload should be a multiple of page size.
-  static_assert(kPayloadSize % kMinimumOSPageSize == 0);
-
-  Address payload() { return reinterpret_cast<Address>(this) + kPayloadOffset; }
-
-  static const int kPayloadOffset;
-  static const int kSizeWithPayload;
+  static constexpr int kSize = 64 * KB;
+  // Inaccessible region should be a multiple of page size.
+  static_assert(kSize % kMinimumOSPageSize == 0);
+  // Any wasm struct offset should fit in the object.
+  static_assert(kSize >=
+                std::max(WasmStruct::kHeaderSize, WasmCustomMap::kHeaderSize) +
+                    (wasm::kMaxStructFieldIndexForImplicitNullCheck + 1) *
+                        wasm::kMaxValueTypeSize);
+#else
+  static constexpr int kSize = sizeof(HeapObject);
 #endif
-
-  static const int kHeaderSize;
-  static const int kSize;
 
   DECL_PRINTER(WasmNull)
   DECL_VERIFIER(WasmNull)
@@ -2027,21 +2138,6 @@ V8_OBJECT class WasmNull : public HeapObject {
   // (not fixed size) as kSize is too large for a fixed-size map.
   class BodyDescriptor;
 } V8_OBJECT_END;
-
-inline constexpr int WasmNull::kHeaderSize = sizeof(WasmNull);
-#if V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL
-inline constexpr int WasmNull::kPayloadOffset = WasmNull::kHeaderSize;
-inline constexpr int WasmNull::kSizeWithPayload =
-    WasmNull::kPayloadOffset + WasmNull::kPayloadSize;
-inline constexpr int WasmNull::kSize = WasmNull::kSizeWithPayload;
-// Any wasm struct offset should fit in the object.
-static_assert(WasmNull::kSizeWithPayload >=
-              WasmStruct::kHeaderSize +
-                  (wasm::kMaxStructFieldIndexForImplicitNullCheck + 1) *
-                      kSimd128Size);
-#else
-inline constexpr int WasmNull::kSize = WasmNull::kHeaderSize;
-#endif
 
 #undef DECL_OPTIONAL_ACCESSORS
 

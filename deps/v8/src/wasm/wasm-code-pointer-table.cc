@@ -9,7 +9,11 @@
 
 namespace v8::internal::wasm {
 
-void WasmCodePointerTable::Initialize() { Base::Initialize(); }
+void WasmCodePointerTable::Initialize() {
+  Base::Initialize(kWasmCodePointerTableReservationSize,
+                   0 /* no read only size*/,
+                   WasmCodePointerTableEntry::IsWriteProtected);
+}
 
 void WasmCodePointerTable::TearDown() {
   FreeNativeFunctionHandles();

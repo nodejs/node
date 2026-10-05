@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --js-sum-precise
-
 (function TestArrayIteratorClearedOnError() {
   const it = [10, 20, "bad", 30, 40][Symbol.iterator]();
   assertThrows(() => Math.sumPrecise(it), TypeError);

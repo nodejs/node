@@ -62,6 +62,7 @@ enum InstanceType : uint16_t;
   V(Context)                         \
   V(ContextCell)                     \
   V(CppHeapExternalObject)           \
+  V(CppGCManagedBase)                \
   V(DataHandler)                     \
   V(DescriptorArray)                 \
   V(DoubleStringCache)               \
@@ -120,6 +121,7 @@ enum InstanceType : uint16_t;
   V(ThinString)                      \
   V(TransitionArray)                 \
   IF_WASM(V, WasmArray)              \
+  IF_WASM(V, WasmCustomMap)          \
   IF_WASM(V, WasmFuncRef)            \
   IF_WASM(V, WasmGlobalObject)       \
   IF_WASM(V, WasmInstanceObject)     \
@@ -251,6 +253,8 @@ using MapHandlesSpan = std::span<DirectHandle<Map>>;
 // +---------------+-------------------------------------------------+
 
 V8_OBJECT class Map : public HeapObject {
+  V8_IT_OWN_TYPE;
+
  public:
   // Instance size.
   // Size in bytes or kVariableSizeSentinel if instances do not have
@@ -984,52 +988,7 @@ V8_OBJECT class Map : public HeapObject {
   inline bool CanTransition() const;
 
   static constexpr std::optional<RootIndex> TryGetMapRootIdxFor(
-      InstanceType type) {
-    switch (type) {
-#define MAKE_CASE(TYPE, Name, name) \
-  case TYPE:                        \
-    return RootIndex::k##Name##Map;
-      STRUCT_LIST(MAKE_CASE)
-#undef MAKE_CASE
-      case DESCRIPTOR_ARRAY_TYPE:
-        return RootIndex::kDescriptorArrayMap;
-      case ON_HEAP_BASIC_BLOCK_PROFILER_DATA_TYPE:
-        return RootIndex::kOnHeapBasicBlockProfilerDataMap;
-      case TURBOFAN_BITSET_TYPE_TYPE:
-        return RootIndex::kTurbofanBitsetTypeMap;
-      case TURBOFAN_UNION_TYPE_TYPE:
-        return RootIndex::kTurbofanUnionTypeMap;
-      case TURBOFAN_RANGE_TYPE_TYPE:
-        return RootIndex::kTurbofanRangeTypeMap;
-      case TURBOFAN_HEAP_CONSTANT_TYPE_TYPE:
-        return RootIndex::kTurbofanHeapConstantTypeMap;
-      case TURBOFAN_OTHER_NUMBER_CONSTANT_TYPE_TYPE:
-        return RootIndex::kTurbofanOtherNumberConstantTypeMap;
-      case TURBOSHAFT_WORD32_RANGE_TYPE_TYPE:
-        return RootIndex::kTurboshaftWord32RangeTypeMap;
-      case TURBOSHAFT_WORD32_SET_TYPE_TYPE:
-        return RootIndex::kTurboshaftWord32SetTypeMap;
-      case TURBOSHAFT_WORD64_RANGE_TYPE_TYPE:
-        return RootIndex::kTurboshaftWord64RangeTypeMap;
-      case TURBOSHAFT_WORD64_SET_TYPE_TYPE:
-        return RootIndex::kTurboshaftWord64SetTypeMap;
-      case TURBOSHAFT_FLOAT64_RANGE_TYPE_TYPE:
-        return RootIndex::kTurboshaftFloat64RangeTypeMap;
-      case TURBOSHAFT_FLOAT64_SET_TYPE_TYPE:
-        return RootIndex::kTurboshaftFloat64SetTypeMap;
-      case SORT_STATE_TYPE:
-        return RootIndex::kSortStateMap;
-#if V8_ENABLE_WEBASSEMBLY
-      case WASM_FAST_API_CALL_DATA_TYPE:
-        return RootIndex::kWasmFastApiCallDataMap;
-      case WASM_STRING_VIEW_ITER_TYPE:
-        return RootIndex::kWasmStringViewIterMap;
-#endif  // V8_ENABLE_WEBASSEMBLY
-      default:
-        break;
-    }
-    return {};
-  }
+      InstanceType type);
   static inline Tagged<Map> GetMapFor(ReadOnlyRoots roots, InstanceType type);
 
   bool IsMapInArrayPrototypeChain(Isolate* isolate) const;
@@ -1264,6 +1223,8 @@ static_assert(offsetof(Map, instance_type_) ==
 // Base class for Maps with extra fields. Subclasses must be defined with
 // @hasSameInstanceTypeAsParent and define padding fields up to kTaggedSize.
 V8_ABSTRACT_OBJECT class ExtendedMap : public Map {
+  V8_IT_REUSE_PARENT;
+
  public:
   // Bit positions for |bit_field_ex|.
   struct BitsEx {
@@ -1306,6 +1267,8 @@ inline constexpr int ExtendedMap::kStartOfStrongExtendedFieldsOffset =
 // Such maps do not have property descriptors, so a typical program
 // needs very limited number of distinct normalized maps.
 class NormalizedMapCache : public WeakFixedArray {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   static DirectHandle<NormalizedMapCache> New(Isolate* isolate);
 

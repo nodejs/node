@@ -50,7 +50,10 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   // An indirect pointer slot can only contain a Smi if it is uninitialized (in
   // which case the vaue will be Smi::zero()). However, at this point the slot
   // must have been initialized because it was just written to.
-  Tagged<HeapObject> value = Cast<HeapObject>(slot.load(isolate()));
+  // During deserialization, the referenced object may not yet have been
+  // published. We can still mark it here.
+  Tagged<HeapObject> value =
+      Cast<HeapObject>(slot.Relaxed_Load_AllowUnpublished(isolate()));
 
   // If the host is in shared space, the target must be in the shared trusted
   // space. No other edges indirect pointers are currently possible in shared

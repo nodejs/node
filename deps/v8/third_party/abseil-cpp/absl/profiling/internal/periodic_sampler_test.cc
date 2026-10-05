@@ -14,6 +14,7 @@
 
 #include "absl/profiling/internal/periodic_sampler.h"
 
+#include <cstdint>
 #include <thread>  // NOLINT(build/c++11)
 
 #include "gmock/gmock.h"

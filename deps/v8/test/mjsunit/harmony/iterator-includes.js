@@ -40,26 +40,35 @@
   assertFalse(returnCalled);
 })();
 
-/*
-// The following test is currently disabled because it relies on normative
-// spec changes (PR 3776) that have not yet been merged into the
-// iterator-includes proposal. It is kept here for future reference.
+(function TestIncludesSkippedElementsValidation() {
+  let closed = false;
+  function createClosable() {
+    closed = false;
+    return {
+      __proto__: Iterator.prototype,
+      get next() {
+        throw new Error('next should not be called');
+      },
+      return() {
+        closed = true;
+        return {};
+      },
+    };
+  }
 
-(function TestsForPR3776() {
+  assertThrows(() => createClosable().includes(42, -1), RangeError);
+  assertTrue(closed);
+
+  assertThrows(() => createClosable().includes(42, Number.MAX_SAFE_INTEGER + 1), RangeError);
+  assertTrue(closed);
+
+  assertThrows(() => createClosable().includes(42, 'invalid'), TypeError);
+  assertTrue(closed);
+
+  assertThrows(() => createClosable().includes(42, NaN), TypeError);
+  assertTrue(closed);
+
+  // Infinity is allowed and skips all elements without throwing.
   function* gen() { yield 42; yield 43; }
-  const iter = gen();
-
-  // Non-integers should be truncated.
-  assertTrue(gen().includes(43, 1.5));
-  assertFalse(gen().includes(42, 1.5));
-
-  // Negative should throw RangeError.
-  assertThrows(() => iter.includes(42, -1), RangeError);
-
-  // Large values > 2^53 - 1 should throw RangeError.
-  assertThrows(() => iter.includes(42, 2 ** 53), RangeError);
-
-  // NaN skippedElements should throw RangeError.
-  assertThrows(() => iter.includes(42, NaN), RangeError);
+  assertFalse(gen().includes(42, Infinity));
 })();
-*/

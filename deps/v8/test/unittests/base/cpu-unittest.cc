@@ -47,6 +47,7 @@ TEST(CPUTest, FeatureImplications) {
   EXPECT_TRUE(!cpu.has_avx() || cpu.has_sse2());
   EXPECT_TRUE(!cpu.has_fma3() || cpu.has_avx());
   EXPECT_TRUE(!cpu.has_avx2() || cpu.has_avx());
+  EXPECT_TRUE(!cpu.has_avx10_1() || cpu.has_avx2());
 
   // arm features
   EXPECT_TRUE(!cpu.has_vfp3_d32() || cpu.has_vfp3());

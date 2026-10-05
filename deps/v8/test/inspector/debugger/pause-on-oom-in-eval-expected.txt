@@ -1,0 +1,2 @@
+Tests that an OOM break triggered at the entry of a top-level strict eval pauses inside the eval
+reason: OOM

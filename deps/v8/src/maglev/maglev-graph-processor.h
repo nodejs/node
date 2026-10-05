@@ -70,6 +70,8 @@ enum class ProcessResult {
               // splice.
   kRevisit,   // Process this node again. Note that the node is allowed to have
               // changed.
+              // TODO(dmercadier): add a DCHECK to ensure that processors
+              // converge and that we're not revisiting identical nodes.
   kTruncateBlock,  // Remove all nodes from this point from the basic block
                    // (including the current node) and do not call the following
                    // processors. If the node processor supports splicing and
@@ -229,6 +231,14 @@ class GraphProcessor {
           ++node_it_;
           continue;
         }
+#ifdef DEBUG
+        const Node* const* debug_nodes_data = nullptr;
+        size_t debug_nodes_size = 0;
+        if constexpr (SupportsSplice<NodeProcessor>) {
+          debug_nodes_data = block->nodes().data();
+          debug_nodes_size = block->nodes().size();
+        }
+#endif
         ProcessResult result = ProcessNodeBase(
             node, GetCurrentState(node_it_ - block->nodes().begin()));
         if constexpr (SupportsSplice<NodeProcessor>) {
@@ -238,6 +248,13 @@ class GraphProcessor {
           DCHECK_IMPLIES(node_processor_.HasPendingSplice(),
                          result == ProcessResult::kRemove ||
                              result == ProcessResult::kTruncateBlock);
+#ifdef DEBUG
+          if (!node_processor_.HasPendingSplice() &&
+              result != ProcessResult::kTruncateBlock) {
+            DCHECK_EQ(debug_nodes_data, block->nodes().data());
+            DCHECK_EQ(debug_nodes_size, block->nodes().size());
+          }
+#endif
         }
         switch (result) {
           [[likely]] case ProcessResult::kContinue:

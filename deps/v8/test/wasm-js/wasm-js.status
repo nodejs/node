@@ -29,11 +29,6 @@
   'proposals/threads/memory/wait-notify-unshared': [FAIL],
   'limits': [FAIL, HEAVY],
 
-  # TODO(thibaudm): Test failing after the type-reflection change around
-  # WebAssembly.Function.type. The tests should be updated anyway since they
-  # still use the old API (which works but is deprecated).
-  'proposals/js-promise-integration/js-promise-integration/js-promise-integration': [FAIL],
-
   # TODO(402340845): This requires the type reflection proposal to be staged or enabled by default.
   'wpt/function/call.tentative': [FAIL],
   'wpt/function/table.tentative': [FAIL],

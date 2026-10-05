@@ -31,6 +31,8 @@ using DependableObject =
 // contents may shrink).
 // TODO(jgruber): Consider adding physical shrinking.
 class DependentCode : public WeakArrayList {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   enum DependencyGroup {
     // Group of code objects that embed a transition to this map, and depend on

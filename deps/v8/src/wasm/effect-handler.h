@@ -13,13 +13,13 @@ namespace wasm {
 
 struct __attribute__((packed)) EffectHandlerTagIndex {
   using IsSwitchField = base::BitField<bool, 0, 1>;
-  using IndexField = base::BitField<int, 1, 20>;
+  using IndexField = IsSwitchField::Next<uint32_t, 31>;
   uint32_t tag_and_kind;
 
   bool is_switch() const { return IsSwitchField::decode(tag_and_kind); }
-  int index() const { return IndexField::decode(tag_and_kind); }
+  uint32_t index() const { return IndexField::decode(tag_and_kind); }
 
-  void encode(bool is_switch, int tag_index) {
+  void encode(bool is_switch, uint32_t tag_index) {
     tag_and_kind =
         IsSwitchField::encode(is_switch) | IndexField::encode(tag_index);
   }

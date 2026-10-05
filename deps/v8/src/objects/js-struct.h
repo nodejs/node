@@ -15,6 +15,8 @@ namespace v8 {
 namespace internal {
 
 V8_OBJECT class AlwaysSharedSpaceJSObject : public JSObject {
+  V8_IT_ABSTRACT;
+
  public:
   // Prepare a Map to be used as the instance map for shared JS objects.
   static void PrepareMapNoEnumerableProperties(Tagged<Map> map);

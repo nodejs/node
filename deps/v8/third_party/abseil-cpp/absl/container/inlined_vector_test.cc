@@ -32,7 +32,6 @@
 #include "gtest/gtest.h"
 #include "absl/base/attributes.h"
 #include "absl/base/internal/exception_testing.h"
-#include "absl/base/internal/hardening.h"
 #include "absl/base/internal/iterator_traits_test_helper.h"
 #include "absl/base/macros.h"
 #include "absl/base/options.h"
@@ -295,7 +294,6 @@ TEST(IntVec, Hardened) {
   Fill(&v, 10);
   EXPECT_EQ(v[9], 9);
 #if !defined(NDEBUG) || ABSL_OPTION_HARDENED
-  absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   EXPECT_DEATH_IF_SUPPORTED(v[10], "");
   EXPECT_DEATH_IF_SUPPORTED(v[static_cast<size_t>(-1)], "");
 #endif
@@ -1806,7 +1804,9 @@ TEST(AllocatorSupportTest, Constructors) {
   MyAlloc alloc(&allocated);
   { AllocVec ABSL_ATTRIBUTE_UNUSED v; }
   { AllocVec ABSL_ATTRIBUTE_UNUSED v(alloc); }
-  { AllocVec ABSL_ATTRIBUTE_UNUSED v(ia, ia + ABSL_ARRAYSIZE(ia), alloc); }
+  {
+    AllocVec ABSL_ATTRIBUTE_UNUSED v(ia, ia + std::size(ia), alloc);
+  }
   { AllocVec ABSL_ATTRIBUTE_UNUSED v({1, 2, 3}, alloc); }
 
   AllocVec v2;
@@ -1829,7 +1829,7 @@ TEST(AllocatorSupportTest, CountAllocations) {
   EXPECT_THAT(bytes_allocated, Eq(0));
   EXPECT_THAT(instance_count, Eq(0));
   {
-    AllocVec ABSL_ATTRIBUTE_UNUSED v(ia, ia + ABSL_ARRAYSIZE(ia), alloc);
+    AllocVec ABSL_ATTRIBUTE_UNUSED v(ia, ia + std::size(ia), alloc);
     EXPECT_THAT(bytes_allocated,
                 Eq(static_cast<int64_t>(v.size() * sizeof(int))));
     EXPECT_THAT(instance_count, Eq(static_cast<int64_t>(v.size())));
@@ -1904,8 +1904,8 @@ TEST(AllocatorSupportTest, SwapBothAllocated) {
     const int ia2[] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
     MyAlloc a1(&allocated1);
     MyAlloc a2(&allocated2);
-    AllocVec v1(ia1, ia1 + ABSL_ARRAYSIZE(ia1), a1);
-    AllocVec v2(ia2, ia2 + ABSL_ARRAYSIZE(ia2), a2);
+    AllocVec v1(ia1, ia1 + std::size(ia1), a1);
+    AllocVec v2(ia2, ia2 + std::size(ia2), a2);
     EXPECT_LT(v1.capacity(), v2.capacity());
     EXPECT_THAT(allocated1,
                 Eq(static_cast<int64_t>(v1.capacity() * sizeof(int))));
@@ -1933,8 +1933,8 @@ TEST(AllocatorSupportTest, SwapOneAllocated) {
     const int ia2[] = {0, 1, 2, 3};
     MyAlloc a1(&allocated1);
     MyAlloc a2(&allocated2);
-    AllocVec v1(ia1, ia1 + ABSL_ARRAYSIZE(ia1), a1);
-    AllocVec v2(ia2, ia2 + ABSL_ARRAYSIZE(ia2), a2);
+    AllocVec v1(ia1, ia1 + std::size(ia1), a1);
+    AllocVec v2(ia2, ia2 + std::size(ia2), a2);
     EXPECT_THAT(allocated1,
                 Eq(static_cast<int64_t>(v1.capacity() * sizeof(int))));
     EXPECT_THAT(allocated2, Eq(0));

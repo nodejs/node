@@ -31,15 +31,15 @@ namespace internal {
 // body.
 #define DECL_ACCESSORS_FOR_RUST_WRAPPER(field, RustType_)                \
   typedef RustType_ RustType;                                            \
-  inline Tagged<Managed<RustType_>> field() const;                       \
-  inline void set_##field(Tagged<Managed<RustType_>> value,              \
+  inline Tagged<CppGCManaged<RustType_>> field() const;                  \
+  inline void set_##field(Tagged<CppGCManaged<RustType_>> value,         \
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER); \
   inline void initialize_with_wrapped_rust_value(                        \
-      Tagged<Managed<RustType_>> handle);                                \
-  inline Managed<RustType_>::Ptr wrapped_rust() const;                   \
+      Tagged<CppGCManaged<RustType_>> handle);                           \
+  inline CppGCManaged<RustType_>::Ptr wrapped_rust() const;              \
                                                                          \
  public:                                                                 \
-  TaggedMember<Managed<RustType_>> field##_;
+  TaggedMember<CppGCManaged<RustType_>> field##_;
 
 // Adds JSTemporalFoo::GetConstructorTarget()
 // that can be used to obtain a constructor target/new_target for constructing
@@ -51,22 +51,22 @@ namespace internal {
 // js-temporal-objects.tq, adding DEFINE_ACCESSORS_FOR_RUST_WRAPPER
 // to js-temporal-objects.cc, and adding an ACCESSORS entry to
 // js-temporal-objects-inl.h
-ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::Instant,
-                                        kTemporalInstantTag)
-ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::Duration,
-                                        kTemporalDurationTag)
-ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainDate,
-                                        kTemporalPlainDateTag)
-ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainDateTime,
-                                        kTemporalPlainDateTimeTag)
-ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainMonthDay,
-                                        kTemporalPlainMonthDayTag)
-ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainTime,
-                                        kTemporalPlainTimeTag)
-ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainYearMonth,
-                                        kTemporalPlainYearMonthTag)
-ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::ZonedDateTime,
-                                        kTemporalZonedDateTimeTag)
+ASSIGN_MANAGED_TYPE_ID_FOR_MANAGED(temporal_rs::Instant,
+                                   ManagedTypeId::kTemporalInstant)
+ASSIGN_MANAGED_TYPE_ID_FOR_MANAGED(temporal_rs::Duration,
+                                   ManagedTypeId::kTemporalDuration)
+ASSIGN_MANAGED_TYPE_ID_FOR_MANAGED(temporal_rs::PlainDate,
+                                   ManagedTypeId::kTemporalPlainDate)
+ASSIGN_MANAGED_TYPE_ID_FOR_MANAGED(temporal_rs::PlainDateTime,
+                                   ManagedTypeId::kTemporalPlainDateTime)
+ASSIGN_MANAGED_TYPE_ID_FOR_MANAGED(temporal_rs::PlainMonthDay,
+                                   ManagedTypeId::kTemporalPlainMonthDay)
+ASSIGN_MANAGED_TYPE_ID_FOR_MANAGED(temporal_rs::PlainTime,
+                                   ManagedTypeId::kTemporalPlainTime)
+ASSIGN_MANAGED_TYPE_ID_FOR_MANAGED(temporal_rs::PlainYearMonth,
+                                   ManagedTypeId::kTemporalPlainYearMonth)
+ASSIGN_MANAGED_TYPE_ID_FOR_MANAGED(temporal_rs::ZonedDateTime,
+                                   ManagedTypeId::kTemporalZonedDateTime)
 class JSTemporalPlainDate;
 class JSTemporalPlainMonthDay;
 class JSTemporalPlainYearMonth;

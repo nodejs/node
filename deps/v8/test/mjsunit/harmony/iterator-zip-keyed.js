@@ -245,3 +245,39 @@
     Iterator.zipKeyed(iterables, options);
   }, Error);
 })();
+
+(function RegressionTestOnExceptionDuringNext() {
+  const thrower = {
+    next() {
+      throw new Error('Oops');
+    }
+  };
+
+  const zippedKeyed = Iterator.zipKeyed({a: thrower});
+
+  assertThrows(() => zippedKeyed.next(), Error, 'Oops');
+
+  const resultKeyed = zippedKeyed.next();
+  assertEquals(undefined, resultKeyed.value);
+  assertEquals(true, resultKeyed.done);
+})();
+
+(function RegressionTestOnExceptionDuringNextStrict() {
+  const iter1 = (function*() {
+    yield 1;
+  })();
+
+  const iter2 = (function*() {
+    yield 1;
+    throw new Error('Oops');
+  })();
+
+  const zippedKeyed = Iterator.zipKeyed({a: iter1, b: iter2}, {mode: 'strict'});
+  zippedKeyed.next();  // { a: 1, b: 1 }
+  assertThrows(
+      () => zippedKeyed.next(), Error, 'Oops');  // iter1 done, iter2 throws
+
+  const resultKeyed = zippedKeyed.next();
+  assertEquals(undefined, resultKeyed.value);
+  assertEquals(true, resultKeyed.done);
+})();

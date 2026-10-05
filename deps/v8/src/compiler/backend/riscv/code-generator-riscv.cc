@@ -459,8 +459,8 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
       *predicate = true;
       return GE;
     case kFloatLessThanOrUnordered:
-      *predicate = true;
-      return LT;
+      *predicate = false;
+      return GE;
     case kFloatGreaterThanOrUnordered:
       *predicate = false;
       return LE;
@@ -468,13 +468,51 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
       *predicate = false;
       return LT;
     case kFloatLessThanOrEqualOrUnordered:
-      *predicate = true;
-      return LE;
+      *predicate = false;
+      return GT;
     default:
       *predicate = true;
       break;
   }
   UNREACHABLE();
+}
+
+// Emits the actual floating-point comparison for a kRiscvCmpS/kRiscvCmpD
+// instruction, materializing its boolean result (0 or 1) into {dst}.
+// The comparison itself is a pseudo-instruction (like the integer kRiscvCmp):
+// nothing is emitted at the instruction site. Instead, the comparison and the
+// FPUCondition-to-machine mapping are resolved together here, at the single
+// flags consumer (branch, boolean materialization, or select), using the
+// consumer's final FlagsCondition {condition} (which ComputeBranchInfo may
+// have negated for branches). This makes it structurally impossible for
+// complementary conditions to observe a comparison that was emitted for a
+// different condition.
+// The returned predicate tells the consumer how to interpret {dst}: when
+// false, the comparison result must be inverted to obtain the condition's
+// truth value (this is how conditions involving "unordered" are expressed
+// with RISC-V's NaN-false flt/fle/feq instructions).
+void EmitFPCompare(MacroAssembler* masm, RiscvOperandConverter& i,
+                   Instruction* instr, FlagsCondition condition, Register dst,
+                   bool* predicate) {
+  FPUCondition cc = FlagsConditionToConditionCmpFPU(predicate, condition);
+  if (instr->arch_opcode() == kRiscvCmpS) {
+    FPURegister left = i.InputOrZeroSingleRegister(0);
+    FPURegister right = i.InputOrZeroSingleRegister(1);
+    if ((left == kSingleRegZero || right == kSingleRegZero) &&
+        !masm->IsSingleZeroRegSet()) {
+      masm->LoadFPRImmediate(kSingleRegZero, 0.0f);
+    }
+    masm->CompareF32(dst, cc, left, right);
+  } else {
+    DCHECK_EQ(instr->arch_opcode(), kRiscvCmpD);
+    FPURegister left = i.InputOrZeroDoubleRegister(0);
+    FPURegister right = i.InputOrZeroDoubleRegister(1);
+    if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
+        !masm->IsDoubleZeroRegSet()) {
+      masm->LoadFPRImmediate(kDoubleRegZero, 0.0);
+    }
+    masm->CompareF64(dst, cc, left, right);
+  }
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -772,6 +810,23 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
       DCHECK(instr->arch_opcode() == kRiscvCmp32 ||
              instr->arch_opcode() == kRiscvCmp);
     }
+#if V8_TARGET_ARCH_RISCV64
+    if (COMPRESS_POINTERS_BOOL) {
+      // 32-bit comparisons must compare sign-extended values, since 32-bit
+      // producers may leave dirty upper bits in their result registers.
+      if (instr->arch_opcode() == kRiscvCmpZero32 ||
+          instr->arch_opcode() == kRiscvCmp32) {
+        Register temp = i.TempRegister(0);
+        __ SignExtendWord(temp, left);
+        left = temp;
+        if (instr->arch_opcode() == kRiscvCmp32 && i.InputOperand(1).is_reg()) {
+          Register temp1 = i.TempRegister(1);
+          __ SignExtendWord(temp1, i.InputOperand(1).rm());
+          right = Operand(temp1);
+        }
+      }
+    }
+#endif
     if ((output_rep == MachineRepresentation::kFloat32) ||
         (output_rep == MachineRepresentation::kFloat64)) {
       UNREACHABLE();
@@ -797,11 +852,10 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
     }
   } else {
     bool predicate;
-    FlagsConditionToConditionCmpFPU(&predicate, instr->flags_condition());
+    EmitFPCompare(masm(), i, instr, condition, kScratchReg, &predicate);
     auto true_op = i.InputOperand(true_value_index);
     auto false_op = i.InputOperand(false_value_index);
     Label true_label, end_label;
-    // floating-point compare result is set in kScratchReg
     if (predicate) {
       __ BranchTrueF(kScratchReg, &true_label);
     } else {
@@ -1712,26 +1766,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Pseudo-instruction used for cmpzero/branch. No opcode emitted here.
       break;
 
-    case kRiscvCmpS: {
-      FPURegister left = i.InputOrZeroSingleRegister(0);
-      FPURegister right = i.InputOrZeroSingleRegister(1);
-      bool predicate;
-      FPUCondition cc =
-          FlagsConditionToConditionCmpFPU(&predicate, instr->flags_condition());
-
-      if ((left == kSingleRegZero || right == kSingleRegZero) &&
-          !__ IsSingleZeroRegSet()) {
-        __ LoadFPRImmediate(kSingleRegZero, 0.0f);
-      }
-      switch (FlagsModeField::decode(instr->opcode())) {
-        case kFlags_set:
-          __ CompareF32(i.OutputRegister(), cc, left, right);
-          break;
-        default:
-          __ CompareF32(kScratchReg, cc, left, right);
-          break;
-      }
-    } break;
+    case kRiscvCmpS:
+      // Pseudo-instruction used for FP cmp/branch. No opcode emitted here;
+      // the comparison is emitted by the flags consumer via EmitFPCompare.
+      break;
     case kRiscvAddS:
       // TODO(plind): add special case: combine mult & add.
       __ fadd_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
@@ -1760,25 +1798,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ fsqrt_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
-    case kRiscvCmpD: {
-      FPURegister left = i.InputOrZeroDoubleRegister(0);
-      FPURegister right = i.InputOrZeroDoubleRegister(1);
-      bool predicate;
-      FPUCondition cc =
-          FlagsConditionToConditionCmpFPU(&predicate, instr->flags_condition());
-      if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
-          !__ IsDoubleZeroRegSet()) {
-        __ LoadFPRImmediate(kDoubleRegZero, 0.0);
-      }
-      switch (FlagsModeField::decode(instr->opcode())) {
-        case kFlags_set:
-          __ CompareF64(i.OutputRegister(), cc, left, right);
-          break;
-        default:
-          __ CompareF64(kScratchReg, cc, left, right);
-          break;
-      }
-    } break;
+    case kRiscvCmpD:
+      // Pseudo-instruction used for FP cmp/branch. No opcode emitted here;
+      // the comparison is emitted by the flags consumer via EmitFPCompare.
+      break;
 #if V8_TARGET_ARCH_RISCV32
     case kRiscvAddPair:
       __ AddPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
@@ -2510,8 +2533,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicExchangeWithWriteBarrier: {
       if constexpr (COMPRESS_POINTERS_BOOL) {
         ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Ll, Sc);
-        __ AddWord(i.OutputRegister(), i.OutputRegister(),
-                   kPtrComprCageBaseRegister);
+        __ ZeroExtendWord(i.OutputRegister(), i.OutputRegister());
+        __ Or(i.OutputRegister(), i.OutputRegister(),
+              kPtrComprCageBaseRegister);
       } else {
         ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Lld, Scd);
       }
@@ -2795,9 +2819,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvAtomicStoreCompressTagged: {
-      size_t index = 0;
-      MemOperand mem = i.MemoryOperand(&index);
-      __ AtomicStoreTaggedField(i.InputOrZeroRegister(index), mem, trapper);
+      MemOperand mem = i.MemoryOperand(1);
+      __ AtomicStoreTaggedField(i.InputOrZeroRegister(0), mem, trapper);
       break;
     }
     case kRiscvLoadDecompressTrapping: {
@@ -3054,9 +3077,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI8x16ShrU: {
       __ VU.SetSimd128(E8);
       if (instr->InputAt(1)->IsRegister()) {
-        __ andi(i.InputRegister(1), i.InputRegister(1), 8 - 1);
+        __ andi(kScratchReg, i.InputRegister(1), 8 - 1);
         __ vsrl_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   i.InputRegister(1));
+                   kScratchReg);
       } else {
         __ vsrl_vi(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputInt5(1) % 8);
@@ -3066,9 +3089,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI16x8ShrU: {
       __ VU.SetSimd128(E16);
       if (instr->InputAt(1)->IsRegister()) {
-        __ andi(i.InputRegister(1), i.InputRegister(1), 16 - 1);
+        __ andi(kScratchReg, i.InputRegister(1), 16 - 1);
         __ vsrl_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   i.InputRegister(1));
+                   kScratchReg);
       } else {
         __ vsrl_vi(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputInt5(1) % 16);
@@ -4853,8 +4876,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
   } else if (instr->arch_opcode() == kRiscvCmpS ||
              instr->arch_opcode() == kRiscvCmpD) {
     bool predicate;
-    FlagsConditionToConditionCmpFPU(&predicate, condition);
-    // floating-point compare result is set in kScratchReg
+    EmitFPCompare(masm, i, instr, condition, kScratchReg, &predicate);
     if (predicate) {
       __ BranchTrueF(kScratchReg, tlabel);
     } else {
@@ -5230,7 +5252,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   } else if (instr->arch_opcode() == kRiscvCmpD ||
              instr->arch_opcode() == kRiscvCmpS) {
     bool predicate;
-    FlagsConditionToConditionCmpFPU(&predicate, condition);
+    EmitFPCompare(masm(), i, instr, condition, result, &predicate);
     // RISCV compare returns 0 or 1, do nothing when predicate; otherwise
     // toggle result (i.e., 0 -> 1, 1 -> 0)
     if (!predicate) {
@@ -5282,6 +5304,7 @@ void CodeGenerator::AssembleArchBinarySearchSwitchRange(
 void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   RiscvOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
+  Register scratch = input;
   std::vector<std::pair<int32_t, Label*>> cases;
   for (size_t index = 2; index < instr->InputCount(); index += 2) {
     cases.push_back({i.InputInt32(index + 0), GetLabel(i.InputRpo(index + 1))});
@@ -5295,9 +5318,11 @@ void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   // AssembleArchBinarySearchSwitch, we perform the sign extension once here,
   // rather than repeatedly in JumpIfEqual and JumpIfLessThan. This reduces the
   // total number of sign extension operations and improves efficiency.
-  __ SignExtendWord(input, input);
+  UseScratchRegisterScope temps(masm());
+  scratch = temps.Acquire();
+  __ SignExtendWord(scratch, input);
 #endif
-  AssembleArchBinarySearchSwitchRange(input, i.InputRpo(1), cases.data(),
+  AssembleArchBinarySearchSwitchRange(scratch, i.InputRpo(1), cases.data(),
                                       cases.data() + cases.size());
 }
 
@@ -5390,7 +5415,10 @@ void CodeGenerator::AssembleConstructFrame() {
 
   if (required_slots > 0) {
     DCHECK(frame_access_state()->has_frame());
-    if (info()->IsWasm() && required_slots > 128) {
+#if V8_ENABLE_WEBASSEMBLY
+    int32_t stack_space =
+        required_slots * kSystemPointerSize + GetStackCheckOffset();
+    if (info()->IsWasm() && stack_space > 4 * KB) {
       // For WebAssembly functions with big frames we have to do the stack
       // overflow check before we construct the frame. Otherwise we may not
       // have enough space on the stack to call the runtime for the stack
@@ -5400,12 +5428,11 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if ((required_slots * kSystemPointerSize) < (v8_flags.stack_size * KB)) {
+      if (stack_space < (v8_flags.stack_size * KB)) {
         UseScratchRegisterScope temps(masm());
         Register stack_limit = temps.Acquire();
         __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
-        __ AddWord(stack_limit, stack_limit,
-                   Operand(required_slots * kSystemPointerSize));
+        __ AddWord(stack_limit, stack_limit, Operand(stack_space));
         __ Branch(&done, uge, sp, Operand(stack_limit));
       }
 
@@ -5423,8 +5450,7 @@ void CodeGenerator::AssembleConstructFrame() {
         for (auto reg : wasm::kSimd128ParamRegisters)
           simd128_regs_to_save.set(reg);
         __ SaveVectorRegisters(simd128_regs_to_save);
-        __ li(WasmHandleStackOverflowDescriptor::GapRegister(),
-              required_slots * kSystemPointerSize);
+        __ li(WasmHandleStackOverflowDescriptor::GapRegister(), stack_space);
         __ AddWord(
             WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
             Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
@@ -5455,6 +5481,7 @@ void CodeGenerator::AssembleConstructFrame() {
       }
       __ bind(&done);
     }
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
 
   const int returns = frame()->GetReturnSlotCount();

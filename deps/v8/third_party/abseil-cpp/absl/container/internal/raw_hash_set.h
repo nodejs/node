@@ -431,19 +431,22 @@ constexpr size_t PreviousCapacity(size_t n) {
 // General notes on capacity/growth methods below:
 // - We use 7/8th as maximum load factor. For 16-wide groups, that gives an
 //   average of two empty slots per group.
-// - For (capacity+1) >= Group::kWidth, growth is 7/8*capacity.
 // - For (capacity+1) < Group::kWidth, growth == capacity. In this case, we
 //   never need to probe (the whole table fits in one group) so we don't need a
 //   load factor less than 1.
+// - For tables with capacity <= kMaxCapacityForLoadFactorOne, we leave one
+//   empty slot.
+// - For capacity > kMaxCapacityForLoadFactorOne, growth is 7/8*capacity.
+constexpr inline size_t kMaxCapacityForLoadFactorOne = Group::kWidth * 4 - 1;
 
 // Given `capacity`, applies the load factor; i.e., it returns the maximum
 // number of values we should put into the table before a resizing rehash.
 constexpr size_t CapacityToGrowth(size_t capacity) {
   ABSL_SWISSTABLE_ASSERT(IsValidCapacity(capacity));
   // `capacity*7/8`
-  if (Group::kWidth == 8 && capacity == 7) {
-    // x-x/8 does not work when x==7.
-    return 6;
+  if (capacity <= kMaxCapacityForLoadFactorOne) {
+    // For small capacities we leave at most one empty slot.
+    return capacity - (capacity >= Group::kWidth - 1);
   }
   return capacity - capacity / 8;
 }
@@ -460,7 +463,13 @@ constexpr size_t SizeToCapacity(size_t size) {
   // The minimum possible capacity is NormalizeCapacity(size).
   // Shifting right `~size_t{}` by `leading_zeros` yields
   // NormalizeCapacity(size).
-  int leading_zeros = absl::countl_zero(size);
+  int leading_zeros = absl::countl_zero(
+      size +
+      // Tables larger than half a group require at least one empty slot.
+      (size >= Group::kWidth / 2));
+  if (size < kMaxCapacityForLoadFactorOne) {
+    return (~size_t{}) >> leading_zeros;
+  }
   constexpr size_t kLast3Bits = size_t{7} << (sizeof(size_t) * 8 - 3);
   // max_size_for_next_capacity = max_load_factor * next_capacity
   //                            = (7/8) * (~size_t{} >> leading_zeros)
@@ -469,10 +478,6 @@ constexpr size_t SizeToCapacity(size_t size) {
   size_t max_size_for_next_capacity = kLast3Bits >> leading_zeros;
   // Decrease shift if size is too big for the minimum capacity.
   leading_zeros -= static_cast<int>(size > max_size_for_next_capacity);
-  if constexpr (Group::kWidth == 8) {
-    // Formula doesn't work when size==7 for 8-wide groups.
-    leading_zeros -= (size == 7);
-  }
   return (~size_t{}) >> leading_zeros;
 }
 
@@ -563,7 +568,9 @@ class HashtableCapacityImpl {
   // We use these sentinel capacity values in debug mode to indicate different
   // classes of bugs.
   enum InvalidCapacity : IntType {
-    kAboveMaxValidCapacity = (std::numeric_limits<IntType>::max)() - 100,
+    kAboveMaxValidCapacity = StorageMode == kCapacityByValue
+                                 ? (std::numeric_limits<IntType>::max)() - 100
+                                 : 64 - 10,
     kReentrance,
     kDestroyed,
 
@@ -585,61 +592,92 @@ template <HashtableCapacityStorageMode StorageMode>
 class HashtableInlineDataImpl;
 
 // Returns next per-table seed.
-uint16_t NextHashTableSeed();
+uint8_t NextHashTableSeed();
 
 // Per table hash salt. This gets mixed into H1 to randomize iteration order
 // per-table.
 // The seed is needed to ensure non-determinism of iteration order.
-template <typename StorageType>
-class PerTableSeedImpl {
+class PerTableSeed {
  public:
-  using IntType = StorageType;
-
-  // The number of bits in the seed.
-  // It is big enough to ensure non-determinism of iteration order.
-  // We store the seed inside a uint64_t together with size and other metadata.
-  // Using 8 or 16 bits allows us to save one `and` instruction in H1 (we use
-  // zero-extended move instead of mov+and). When absl::Hash is inlined, it can
-  // also have lower latency knowing that the high bits of the seed are zero.
-  static constexpr size_t kBitCount = sizeof(IntType) * 8;
-
-  // We need to use a constant seed when the table is sampled so that sampled
-  // hashes use the same seed and can e.g. identify stuck bits accurately.
-  static constexpr IntType kSampledSeed = static_cast<IntType>(~IntType{0});
-
   // Returns the seed for the table.
   size_t seed() const { return seed_; }
 
  private:
-  template <HashtableCapacityStorageMode StorageMode>
+  template <HashtableCapacityStorageMode StorageModeOfData>
   friend class HashtableInlineDataImpl;
 
-  explicit PerTableSeedImpl(uint64_t seed)
-      : seed_(static_cast<IntType>(seed)) {}
+  explicit PerTableSeed(uint64_t seed)
+      : seed_(static_cast<uint16_t>(seed)) {}
 
-  const IntType seed_;
+  const uint16_t seed_;
+};
+
+// Represents blocked elements info: log2_period and tail_blocked.
+// Every `2**log2_period` is a blocked slot. The first blocked slot is at
+// index `2**log2_period-1`. E.g. if log2_period is 2, then every 4th slot
+// is blocked: 0, 1, 2, X, 4, 5, 6, X, ...
+//
+// tail_blocked is the number of blocked slots at the end in addition.
+// E.g., log2_period = 2 and tail_blocked = 3, then there are 6 blocked for
+// capacity = 15.
+// slots: 0, 1, 2, X, 4, 5, 6, X, 8, 9, 10, X, X, X, X, S. (S = sentinel)
+class BlockedInfo {
+ public:
+  constexpr BlockedInfo(uint8_t log2_period, uint8_t tail_blocked)
+      : log2_period_(log2_period), tail_blocked_(tail_blocked) {
+    ABSL_ASSUME(log2_period < 64);
+  }
+
+  // Returns the log2 of the period for blocked elements.
+  // Every `2**K` element is blocked starting from index `2**K - 1`.
+  constexpr uint8_t log2_period() const { return log2_period_; }
+  // Returns the number of blocked elements at the end of the table.
+  constexpr uint8_t tail_blocked() const { return tail_blocked_; }
+
+  // Returns the number of blocked elements before the given index.
+  // Doesn't account for tail_blocked because there are no useful indices in
+  // the blocked tail.
+  constexpr size_t blocked_before(size_t index) const {
+    return index >> log2_period();
+  }
+
+  // Returns the number of blocked elements in the table.
+  constexpr size_t total_blocked_count(size_t capacity) const {
+    return blocked_before(capacity) + tail_blocked();
+  }
+
+ private:
+  uint8_t log2_period_;
+  uint8_t tail_blocked_;
 };
 
 // Capacity, size and also has additionally
 // 1) one bit that stores whether we have infoz.
 // 2) kBlockedElementsBitCount bits that stores number of blocked elements in
 //    the table.
-// 3) PerTableSeed::kBitCount bits for the seed. (For SOO tables, the lowest
-//    bit of the seed is repurposed to track if sampling has been tried).
+// 3) kSeedBitCount bits for the seed. (For SOO tables, the lowest bit of the
+//    seed is repurposed to track if sampling has been tried).
 template <HashtableCapacityStorageMode StorageMode>
 class HashtableInlineDataImpl {
+  // The number of bits in the seed. It is big enough to ensure
+  // non-determinism of iteration order. We store the seed inside a uint64_t
+  // together with size and other metadata. When absl::Hash is inlined, it can
+  // have lower latency knowing that the high bits of the seed are zero.
+  static constexpr size_t kSeedBitCount = 5;
+
  public:
   static constexpr HashtableCapacityStorageMode kStorageMode = StorageMode;
-  using PerTableSeed = PerTableSeedImpl<
-      std::conditional_t<StorageMode == kCapacityByValue, uint16_t, uint8_t>>;
   using HashtableCapacity = HashtableCapacityImpl<StorageMode>;
   static constexpr size_t kBlockedElementBitCount = 3;
   static constexpr size_t kMaxBlockedElementCount =
       (uint64_t{1} << kBlockedElementBitCount) - 1;
+  static constexpr size_t kCapacityBitCount =
+      StorageMode == kCapacityByValue ? sizeof(HashtableCapacity) * 8 : 6;
+  static constexpr size_t kCapacityBitStoredInDataCount =
+      StorageMode == kCapacityByValue ? 0 : kCapacityBitCount;
   static constexpr size_t kSizeBitCount =
-      64 -
-      (kBlockedElementBitCount + PerTableSeed::kBitCount + /*has_infoz*/ 1 +
-       (StorageMode == kCapacityByValue ? 0 : sizeof(HashtableCapacity) * 8));
+      64 - (kBlockedElementBitCount + kSeedBitCount +
+            /*has_infoz*/ 1 + kCapacityBitStoredInDataCount);
 
   explicit HashtableInlineDataImpl(uninitialized_tag_t) {}
   explicit HashtableInlineDataImpl(HashtableCapacity capacity,
@@ -683,18 +721,18 @@ class HashtableInlineDataImpl {
         (data_ & kMetadataMask) | (static_cast<uint64_t>(size) << kSizeShift);
   }
 
-  PerTableSeed seed() const { return PerTableSeed(data_ & kSeedMask); }
-
-  void generate_new_seed() {
-    set_seed(static_cast<typename PerTableSeed::IntType>(NextHashTableSeed()));
+  PerTableSeed seed() const {
+    return PerTableSeed(ToPublicSeed(data_ & kSeedMask));
   }
+
+  void generate_new_seed() { set_seed(NextHashTableSeed()); }
 
   // We need to use a constant seed when the table is sampled so that sampled
   // hashes use the same seed and can e.g. identify stuck bits accurately.
-  void set_sampled_seed() { set_seed(PerTableSeed::kSampledSeed); }
+  void set_sampled_seed() { set_seed(kSampledSeed); }
 
   bool is_sampled_seed() const {
-    return seed().seed() == PerTableSeed::kSampledSeed;
+    return seed().seed() == ToPublicSeed(kSampledSeed);
   }
 
   // Returns true if the table has infoz.
@@ -723,34 +761,46 @@ class HashtableInlineDataImpl {
   void set_no_seed_for_testing() { data_ &= ~kSeedMask; }
 
  private:
-  // Bit layout of `data_` from MSB to LSB:
-  // (44 bits)      : size
+  // Bit layout of `data_` and `capacity_internal_` from MSB to LSB:
+  // (55/49 bits)   : size
   // (3 bits)       : blocked_element_count
   // (1 bit)        : has_infoz
-  // (16 or 8 bits) : seed
+  // (5 bits)       : seed
+  // (6 bits)       : capacity (only for kCapacityByLog)
   // We don't split these components of `data_` into separate bit field elements
   // because we get worse generated code that way.
+
   static constexpr size_t kDataBitCount =
-      PerTableSeed::kBitCount + 1 + kSizeBitCount + kBlockedElementBitCount;
+      kSeedBitCount + 1 + kSizeBitCount + kBlockedElementBitCount;
   static constexpr size_t kSizeShift = kDataBitCount - kSizeBitCount;
   static constexpr uint64_t kSizeOneNoMetadata = uint64_t{1} << kSizeShift;
   static constexpr uint64_t kMetadataMask = kSizeOneNoMetadata - 1;
-  static constexpr uint64_t kSeedMask =
-      (uint64_t{1} << PerTableSeed::kBitCount) - 1;
+  static constexpr uint64_t kSeedMask = (uint64_t{1} << kSeedBitCount) - 1;
   // The next bit after the seed.
   static constexpr uint64_t kHasInfozMask = kSeedMask + 1;
-  static constexpr uint64_t kBlockedElementsShift = PerTableSeed::kBitCount + 1;
+  static constexpr uint64_t kBlockedElementsShift = kSeedBitCount + 1;
   static constexpr uint64_t kBlockedElementMask = kMaxBlockedElementCount
                                                   << kBlockedElementsShift;
   // For SOO tables, the seed is unused, and bit 0 is repurposed to track
   // whether the table has already queried should_sample_soo().
   static constexpr uint64_t kSooHasTriedSamplingMask = 1;
 
-  void set_seed(typename PerTableSeed::IntType seed) {
-    data_ = (data_ & ~kSeedMask) | seed;
+  // We need to use a constant seed when the table is sampled so that sampled
+  // hashes use the same seed and can e.g. identify stuck bits accurately.
+  static constexpr uint8_t kSampledSeed = (1 << kSeedBitCount) - 1;
+
+  static constexpr uint64_t ToPublicSeed(uint64_t seed) {
+    // In kCapacityByLog mode, we shift public seed to the left to keep bits of
+    // the seed in the original place. It allows us to use single instruction to
+    // access the seed (e.g., `andl $0x7c0, %r8d`).
+    return seed << kCapacityBitStoredInDataCount;
   }
 
-  uint64_t capacity_internal_ : sizeof(HashtableCapacity) * 8;
+  void set_seed(uint8_t seed) {
+    data_ = (data_ & ~kSeedMask) | (seed & kSeedMask);
+  }
+
+  uint64_t capacity_internal_ : kCapacityBitCount;
   uint64_t data_ : kDataBitCount;
 };
 
@@ -770,7 +820,6 @@ using HashtableInlineData = HashtableInlineDataImpl<kCapacityByLog>;
 #else
 using HashtableInlineData = HashtableInlineDataImpl<kCapacityByValue>;
 #endif  // ABSL_SWISSTABLE_INTERNAL_ENABLE_CAPACITY_BY_VALUE
-using PerTableSeed = HashtableInlineData::PerTableSeed;
 using HashtableCapacity = HashtableInlineData::HashtableCapacity;
 
 // For large tables, we limit the number of blocked elements to maintain O(1)
@@ -2225,6 +2274,15 @@ class raw_hash_set {
   constexpr static bool kIsDefaultHash =
       std::is_same_v<hasher, absl::Hash<key_type>> ||
       std::is_same_v<hasher, absl::container_internal::StringHash>;
+  // For non-default hashers it is required to have low bits entropy because
+  // (a) in such cases, the seed is xor'ed with the hash value rather than being
+  // used as a seed for the hash function, (b) the seed has low bits that are
+  // all 0s, and (c) we require random iteration order for small tables.
+  // In ToPublicSeed we shift the seed by kCapacityBitStoredInDataCount as
+  // performance optimization for default hashers. For non-default hashers, we
+  // shift it back.
+  constexpr static size_t kSeedShift =
+      kIsDefaultHash ? 0 : HashtableInlineData::kCapacityBitStoredInDataCount;
 
   // TODO(b/289225379): we could add extra SOO space inside raw_hash_set
   // after CommonFields to allow inlining larger slot_types (e.g. std::string),
@@ -3456,12 +3514,13 @@ class raw_hash_set {
   }
   template <class K>
   ABSL_ATTRIBUTE_ALWAYS_INLINE size_t hash_of(const K& key) const {
-    return HashElement<hasher, kIsDefaultHash>{hash_ref(),
-                                               common().seed().seed()}(key);
+    return HashElement<hasher, kIsDefaultHash, kSeedShift>{
+        hash_ref(), common().seed().seed()}(key);
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE size_t hash_of(slot_type* slot) const {
     return PolicyTraits::apply(
-        HashElement<hasher, kIsDefaultHash>{hash_ref(), common().seed().seed()},
+        HashElement<hasher, kIsDefaultHash, kSeedShift>{hash_ref(),
+                                                        common().seed().seed()},
         PolicyTraits::element(slot));
   }
 
@@ -3536,7 +3595,7 @@ class raw_hash_set {
     hash_ref() = that.hash_ref();
     eq_ref() = that.eq_ref();
     CopyAlloc(char_alloc_ref(), that.char_alloc_ref(),
-              std::integral_constant<bool, propagate_alloc>());
+              std::bool_constant<propagate_alloc>());
     that.common() = CommonFields::CreateDefault<SooEnabled()>();
     annotate_for_bug_detection_on_move(that);
     return *this;
@@ -3600,9 +3659,10 @@ class raw_hash_set {
         GrowSooTableToNextCapacityAndPrepareInsert<
             kUseMemcpy ? OptimalMemcpySizeForSooSlotTransfer(sizeof(slot_type))
                        : 0,
-            kUseMemcpy>(common(), GetPolicyFunctions(),
-                        HashKey<hasher, K, kIsDefaultHash>{hash_ref(), key},
-                        force_sampling));
+            kUseMemcpy>(
+            common(), GetPolicyFunctions(),
+            HashKey<hasher, K, kIsDefaultHash, kSeedShift>{hash_ref(), key},
+            force_sampling));
     return {slot, true};
   }
 
@@ -3618,10 +3678,11 @@ class raw_hash_set {
         return {single_slot(), false};
       }
     }
-    return {to_slot(PrepareInsertSmallNonSoo(
-                common(), GetPolicyFunctions(),
-                HashKey<hasher, K, kIsDefaultHash>{hash_ref(), key})),
-            true};
+    return {
+        to_slot(PrepareInsertSmallNonSoo(
+            common(), GetPolicyFunctions(),
+            HashKey<hasher, K, kIsDefaultHash, kSeedShift>{hash_ref(), key})),
+        true};
   }
 
   template <class K>
@@ -3649,15 +3710,15 @@ class raw_hash_set {
       auto mask_empty = g.MaskEmpty();
       if (ABSL_PREDICT_TRUE(mask_empty)) {
         size_t target_group_offset = seq.offset();
-        void* slot =
-            SwisstableGenerationsEnabled()
-                ? PrepareInsertLargeGenerationsEnabled(
-                      common(), GetPolicyFunctions(), hash, mask_empty,
-                      FindInfo{target_group_offset, seq.index()},
-                      HashKey<hasher, K, kIsDefaultHash>{hash_ref(), key})
-                : PrepareInsertLarge(
-                      common(), GetPolicyFunctions(), hash, mask_empty,
-                      FindInfo{target_group_offset, seq.index()});
+        void* slot = SwisstableGenerationsEnabled()
+                         ? PrepareInsertLargeGenerationsEnabled(
+                               common(), GetPolicyFunctions(), hash, mask_empty,
+                               FindInfo{target_group_offset, seq.index()},
+                               HashKey<hasher, K, kIsDefaultHash, kSeedShift>{
+                                   hash_ref(), key})
+                         : PrepareInsertLarge(
+                               common(), GetPolicyFunctions(), hash, mask_empty,
+                               FindInfo{target_group_offset, seq.index()});
         return {to_slot(slot), true};
       }
       seq.next();
@@ -3958,7 +4019,8 @@ class raw_hash_set {
         // for standard layout and alignof(Hash) <= alignof(CommonFields).
         std::is_empty_v<hasher> ? &GetRefForEmptyClass
                                 : &raw_hash_set::get_hash_ref_fn,
-        PolicyTraits::template get_hash_slot_fn<hasher, kIsDefaultHash>(),
+        PolicyTraits::template get_hash_slot_fn<hasher, kIsDefaultHash,
+                                                kSeedShift>(),
         PolicyTraits::transfer_uses_memcpy()
             ? TransferNRelocatable<sizeof(slot_type)>
             : &raw_hash_set::transfer_n_slots_fn,

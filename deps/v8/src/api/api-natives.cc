@@ -443,9 +443,7 @@ MaybeHandle<JSFunction> InstantiateFunction(
   if (!info->needs_access_check() &&
       IsUndefined(info->GetNamedPropertyHandler()) &&
       IsUndefined(info->GetIndexedPropertyHandler())) {
-    function_type = v8_flags.experimental_embedder_instance_types
-                        ? info->GetInstanceType()
-                        : JS_API_OBJECT_TYPE;
+    function_type = JS_API_OBJECT_TYPE;
     DCHECK(InstanceTypeChecker::IsJSApiObject(function_type));
   }
 
@@ -735,6 +733,13 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   if (immutable_proto) map->set_is_immutable_proto(true);
 
   JSFunction::SetInitialMap(isolate, result, map, Cast<JSObject>(prototype));
+  if (map->supports_fast_iterable_to_list()) {
+    // %CheckFastIterableToListPrototype() relies on the constness tracking
+    // which requires the prototype to be in fast mode.
+    DirectHandle<Map> proto_map(Cast<JSObject>(prototype)->map(), isolate);
+    Map::SetShouldBeFastPrototypeMap(proto_map, true, isolate);
+  }
+
   return result;
 }
 

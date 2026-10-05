@@ -1812,6 +1812,28 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorAddSub128Test,
                          ::testing::ValuesIn(kAddOrSub128));
 
+TEST_F(TurboshaftInstructionSelectorTest, Word32EqualWithReadOnlyRoot) {
+  if (!V8_STATIC_ROOTS_BOOL &&
+      (!COMPRESS_POINTERS_BOOL || isolate()->bootstrapper())) {
+    return;
+  }
+
+  StreamBuilder m(this, MachineType::Int32(), MachineType::AnyTagged());
+  Handle<HeapObject> undefined_value = isolate()->factory()->undefined_value();
+
+  OpIndex param = m.Parameter(0);
+  OpIndex heap_constant = m.HeapConstant(undefined_value);
+  OpIndex eq = m.Word32Equal(param, heap_constant);
+
+  m.Return(eq);
+  Stream s = m.Build();
+
+  ASSERT_EQ(1u, s.size());
+  EXPECT_EQ(kRiscvCmp32, s[0]->arch_opcode());
+  ASSERT_EQ(2u, s[0]->InputCount());
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+}
+
 }  // namespace turboshaft
 }  // namespace compiler
 }  // namespace internal

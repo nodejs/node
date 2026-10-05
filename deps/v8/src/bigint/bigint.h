@@ -403,6 +403,15 @@ class Processor {
 
   RWDigits& AllocateCachedInverseFor(Digits& divisor);
 
+  // Crandall reduction, used by {CachedMod} when the cached divisor is close
+  // enough to a power of the digit base for {c} to be armed.
+  digit_t CachedModFold(RWDigits& R, Digits& A, digit_t c);
+
+  digit_t GetCachedModFoldFactor() { return cached_mod_fold_factor_; }
+  void set_cached_mod_fold_factor(digit_t factor) {
+    cached_mod_fold_factor_ = factor;
+  }
+
   // TODO(jkummerow): Consider merging ProcessorImpl and Processor.
   std::unique_ptr<Platform> platform_;
   Status status_{Status::kOk};
@@ -415,6 +424,7 @@ class Processor {
   RWDigits cached_inverse_{nullptr, 0};
   uint32_t cached_inverse_allocated_length_{0};
   int divisor_count_{0};
+  digit_t cached_mod_fold_factor_{0};
 };
 
 inline uint32_t AddResultLength(uint32_t x_length, uint32_t y_length) {

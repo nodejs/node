@@ -89,16 +89,15 @@ void Graph::RemoveUnreachableBlocks() {
     worklist.pop_back();
     if (current->is_dead()) continue;
 
-    for (auto handler : current->exception_handlers()) {
-      if (!handler->HasExceptionHandler()) continue;
-      if (handler->ShouldLazyDeopt()) continue;
-      BasicBlock* catch_block = handler->catch_block();
-      if (catch_block->is_dead()) continue;
+    current->ForEachNodeAndControl([&](NodeBase* node) {
+      BasicBlock* catch_block = node->GetLiveCatchBlock();
+      if (catch_block == nullptr) return;
+      if (catch_block->is_dead()) return;
       if (!reachable_blocks[catch_block->id()]) {
         reachable_blocks[catch_block->id()] = true;
         worklist.push_back(catch_block);
       }
-    }
+    });
     current->ForEachSuccessor([&](BasicBlock* succ) {
       if (!reachable_blocks[succ->id()]) {
         reachable_blocks[succ->id()] = true;

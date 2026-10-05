@@ -7,6 +7,7 @@
 from pathlib import Path
 import argparse
 import contextlib
+import json
 import subprocess
 import sys
 import threading
@@ -66,6 +67,17 @@ def run_benchmark(benchmark_path, d8_path, output_dir):
     cmd.append("--trace-gc")
     monitor_proc = True
   cmd.append(benchmark_file)
+
+  # https://crbug.com/487336000: Skip babylonjs-scene-es6 on ia32 due to memory
+  # issues.
+  build_config_path = d8_path_abs.parent / "v8_build_config.json"
+  if build_config_path.exists():
+    with open(build_config_path) as f:
+      build_config = json.load(f)
+    if build_config.get("arch") == "ia32":
+      cmd.append("--")
+      cmd.append("--exclude=babylonjs-scene-es6")
+
   try:
     run(cmd, cwd=benchmark_dir, monitor=monitor_proc)
   except:

@@ -22,6 +22,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots.h"
+#include "src/strings/unicode.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
@@ -131,6 +132,13 @@ struct assert_field_size {
 // from exceeding backend limits (like register allocation timeouts).
 constexpr int GetOpcodeCost(WasmOpcode opcode) {
   switch (opcode) {
+    // Opcodes that trigger memory growth and external memory reallocation.
+    // Memory allocation, zeroing, and external memory GC accounting have high
+    // overhead, so we charge a higher static cost to prevent GC thrashing in
+    // loops.
+    case kExprMemoryGrow:
+      return 10000;
+
     // Opcodes that trigger runtime calls and process bulk data.
     // These can have execution times significantly higher than a single
     // instruction and often involve complex backend lowering.
@@ -138,7 +146,6 @@ constexpr int GetOpcodeCost(WasmOpcode opcode) {
     case kExprMemoryFill:
     case kExprMemoryInit:
     case kExprDataDrop:
-    case kExprMemoryGrow:
     case kExprTableCopy:
     case kExprTableFill:
     case kExprTableInit:
@@ -450,7 +457,8 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
 
 #define LIST_FEATURE(name, ...) WasmEnabledFeature::name,
   constexpr WasmEnabledFeatures kExperimentalFeatures{
-      FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(LIST_FEATURE)};
+      FOREACH_EXPERIMENTAL_FEATURE_FLAG(IGNORE_NON_WASM_FEATURE, LIST_FEATURE,
+                                        IGNORE_NON_WASM_FEATURE)};
 #undef LIST_FEATURE
 
   // Bailout is allowed if any experimental feature is enabled.
@@ -2224,21 +2232,40 @@ class LiftoffCompiler {
 
   void ContNew(FullDecoder* decoder, const ContIndexImmediate& imm,
                const Value& func_ref, Value* result) {
-    unsupported(decoder, kWasmfx,
-                "unimplemented Liftoff instruction: cont.new");
+    // Use UNIMPLEMENTED under --liftoff-only to avoid spurious fuzzer reports.
+    // Otherwise, bail out to Turboshaft.
+    if (v8_flags.liftoff_only) {
+      UNIMPLEMENTED();
+    } else {
+      unsupported(decoder, kWasmfx,
+                  "unimplemented Liftoff instruction: cont.new");
+    }
   }
 
   void ContBind(FullDecoder* decoder, const ContIndexImmediate& orig_imm,
                 Value input_cont, const Value args[],
                 const ContIndexImmediate& new_imm, Value* result) {
-    unsupported(decoder, kWasmfx,
-                "unimplemented Liftoff instruction: cont.bind");
+    // Use UNIMPLEMENTED under --liftoff-only to avoid spurious fuzzer reports.
+    // Otherwise, bail out to Turboshaft.
+    if (v8_flags.liftoff_only) {
+      UNIMPLEMENTED();
+    } else {
+      unsupported(decoder, kWasmfx,
+                  "unimplemented Liftoff instruction: cont.bind");
+    }
   }
 
   void Resume(FullDecoder* decoder, const ContIndexImmediate& imm,
               base::Vector<HandlerCase> handlers, const Value& cont_ref,
               const Value args[], const Value returns[]) {
-    unsupported(decoder, kWasmfx, "unimplemented Liftoff instruction: resume");
+    // Use UNIMPLEMENTED under --liftoff-only to avoid spurious fuzzer reports.
+    // Otherwise, bail out to Turboshaft.
+    if (v8_flags.liftoff_only) {
+      UNIMPLEMENTED();
+    } else {
+      unsupported(decoder, kWasmfx,
+                  "unimplemented Liftoff instruction: resume");
+    }
   }
 
   void ResumeHandler(FullDecoder* decoder, const HandlerCase& handler,
@@ -2252,8 +2279,14 @@ class LiftoffCompiler {
                    const TagIndexImmediate& exc_imm,
                    base::Vector<wasm::HandlerCase> handlers, const Value& cont,
                    const Value args[], const Value returns[]) {
-    unsupported(decoder, kWasmfx,
-                "unimplemented Liftoff instruction: resume_throw");
+    // Use UNIMPLEMENTED under --liftoff-only to avoid spurious fuzzer reports.
+    // Otherwise, bail out to Turboshaft.
+    if (v8_flags.liftoff_only) {
+      UNIMPLEMENTED();
+    } else {
+      unsupported(decoder, kWasmfx,
+                  "unimplemented Liftoff instruction: resume_throw");
+    }
   }
 
   void ResumeThrowRef(FullDecoder* decoder,
@@ -2261,14 +2294,27 @@ class LiftoffCompiler {
                       base::Vector<wasm::HandlerCase> handlers,
                       const Value& cont, const Value& exn,
                       const Value returns[]) {
-    unsupported(decoder, kWasmfx,
-                "unimplemented Liftoff instruction: resume_throw_ref");
+    // Use UNIMPLEMENTED under --liftoff-only to avoid spurious fuzzer reports.
+    // Otherwise, bail out to Turboshaft.
+    if (v8_flags.liftoff_only) {
+      UNIMPLEMENTED();
+    } else {
+      unsupported(decoder, kWasmfx,
+                  "unimplemented Liftoff instruction: resume_throw_ref");
+    }
   }
 
   void Switch(FullDecoder* decoder, const TagIndexImmediate& tag_imm,
               const ContIndexImmediate& con_imm, const Value& cont_ref,
               const Value args[], Value returns[]) {
-    unsupported(decoder, kWasmfx, "unimplemented Liftoff instruction: switch");
+    // Use UNIMPLEMENTED under --liftoff-only to avoid spurious fuzzer reports.
+    // Otherwise, bail out to Turboshaft.
+    if (v8_flags.liftoff_only) {
+      UNIMPLEMENTED();
+    } else {
+      unsupported(decoder, kWasmfx,
+                  "unimplemented Liftoff instruction: switch");
+    }
   }
 
   void BeginEffectHandlers(FullDecoder* decoder) { UNREACHABLE(); }
@@ -2277,7 +2323,14 @@ class LiftoffCompiler {
 
   void Suspend(FullDecoder* decoder, const TagIndexImmediate& imm,
                const Value args[], const Value returns[]) {
-    unsupported(decoder, kWasmfx, "unimplemented Liftoff instruction: suspend");
+    // Use UNIMPLEMENTED under --liftoff-only to avoid spurious fuzzer reports.
+    // Otherwise, bail out to Turboshaft.
+    if (v8_flags.liftoff_only) {
+      UNIMPLEMENTED();
+    } else {
+      unsupported(decoder, kWasmfx,
+                  "unimplemented Liftoff instruction: suspend");
+    }
   }
 
   // Before emitting the conditional branch, {will_freeze} will be initialized
@@ -2928,7 +2981,8 @@ class LiftoffCompiler {
         return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_add,
                                         &LiftoffAssembler::emit_i32_addi);
       case kExprI32Sub:
-        return EmitBinOp<kI32, kI32>(&LiftoffAssembler::emit_i32_sub);
+        return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_sub,
+                                        &LiftoffAssembler::emit_i32_subi);
       case kExprI32Mul:
         return EmitBinOp<kI32, kI32>(&LiftoffAssembler::emit_i32_mul);
       case kExprI32And:
@@ -4620,18 +4674,28 @@ class LiftoffCompiler {
     if (!CheckSupportedType(decoder, kind, "store")) return;
 
     LiftoffRegList pinned;
-    LiftoffRegister value = pinned.set(__ PopToRegister());
+    // Where the architecture has an immediate store form, store an integer
+    // constant directly instead of materializing it in a register first. Only
+    // i32 and i64 values are ever constant in the cache state, and Liftoff
+    // keeps i64 constants as sign-extended 32-bit values.
+    VarState value = __ PopVarState();
+    if (!LiftoffAssembler::kSupportsStoreConst || !value.is_const()) {
+      LiftoffRegister reg = pinned.set(__ LoadToRegister(value, pinned));
+      value.MakeRegister(reg);
+    }
 
     if (type.value() == StoreType::kF32StoreF16 &&
         !asm_.supports_f16_mem_access()) {
       type = StoreType::kI32Store16;
-      // {value} is always a float, so can't alias with {i16}.
+      // {value} is always a float, so it is never a constant and cannot
+      // alias with {i16}.
       DCHECK_EQ(kF32, kind);
+      DCHECK(value.is_reg());
       LiftoffRegister i16 = pinned.set(__ GetUnusedRegister(kGpReg, {}));
       auto conv_ref = ExternalReference::wasm_float32_to_float16();
       GenerateCCallWithStackBuffer(&i16, kVoid, kI16,
-                                   {VarState{kF32, value, 0}}, conv_ref);
-      value = i16;
+                                   {VarState{kF32, value.reg(), 0}}, conv_ref);
+      value.MakeRegister(i16);
     }
 
     uintptr_t offset = imm.offset;
@@ -4645,13 +4709,19 @@ class LiftoffCompiler {
       __ cache_state()->stack_state.pop_back();
       SCOPED_CODE_COMMENT("store to memory (constant offset)");
       Register mem = pinned.set(GetMemoryStart(imm.mem_index, pinned));
-      __ Store(mem, no_reg, offset, value, type, pinned, nullptr, true,
-               i64_offset);
+      if (value.is_const()) {
+        __ StoreConst(mem, no_reg, offset, value.i32_const(), type, nullptr,
+                      i64_offset);
+      } else {
+        __ Store(mem, no_reg, offset, value.reg(), type, pinned, nullptr, true,
+                 i64_offset);
+      }
     } else {
       LiftoffRegister full_index = __ PopToRegister(pinned);
-      ForceCheck force_check = (kPartialOOBWritesAreNoops || type.size() == 1)
-                                   ? kDontForceCheck
-                                   : kDoForceCheck;
+      ForceCheck force_check =
+          (v8_flags.wasm_partial_oob_writes_are_noops || type.size() == 1)
+              ? kDontForceCheck
+              : kDoForceCheck;
       index =
           BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset,
                          full_index, pinned, force_check, kDontCheckAlignment);
@@ -4664,8 +4734,13 @@ class LiftoffCompiler {
       Register mem = pinned.set(GetMemoryStart(imm.mem_index, pinned));
       LiftoffRegList outer_pinned;
       if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) outer_pinned.set(index);
-      __ Store(mem, index, offset, value, type, outer_pinned,
-               &trapping_store_pc, true, i64_offset);
+      if (value.is_const()) {
+        __ StoreConst(mem, index, offset, value.i32_const(), type,
+                      &trapping_store_pc, i64_offset);
+      } else {
+        __ Store(mem, index, offset, value.reg(), type, outer_pinned,
+                 &trapping_store_pc, true, i64_offset);
+      }
       if (imm.memory->bounds_checks == kTrapHandler) {
         RegisterTrappingInstruction(decoder, trapping_store_pc);
       }
@@ -4684,9 +4759,10 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
     LiftoffRegister full_index = __ PopToRegister(pinned);
-    ForceCheck force_check = (kPartialOOBWritesAreNoops || type.size() == 1)
-                                 ? kDontForceCheck
-                                 : kDoForceCheck;
+    ForceCheck force_check =
+        (v8_flags.wasm_partial_oob_writes_are_noops || type.size() == 1)
+            ? kDontForceCheck
+            : kDoForceCheck;
     Register index =
         BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
                        pinned, force_check, kDontCheckAlignment);
@@ -6848,6 +6924,11 @@ class LiftoffCompiler {
     __ AtomicFence(imm.order);
   }
 
+  void Publish(FullDecoder* decoder, const Value& ref) {
+    // Overapproximate a release fence with an acquire-release fence.
+    __ AtomicFence(AtomicMemoryOrder::kAcqRel);
+  }
+
   void Pause(FullDecoder* decoder) { __ Pause(); }
 
   void StructAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
@@ -6861,9 +6942,8 @@ class LiftoffCompiler {
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    const bool requires_aligned_access = field_kind == ValueKind::kI64;
-    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
-        struct_object.type, field.field_imm.index, requires_aligned_access);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_object.type, field.field_imm.index);
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_object.type);
     }
@@ -6992,9 +7072,8 @@ class LiftoffCompiler {
     const StructType* struct_type = field.struct_imm.struct_type;
     ValueKind field_kind = struct_type->field(field.field_imm.index).kind();
     int offset = StructFieldOffset(struct_type, field.field_imm.index);
-    const bool requires_aligned_access = field_kind == ValueKind::kI64;
-    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
-        struct_object.type, field.field_imm.index, requires_aligned_access);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_object.type, field.field_imm.index);
 
 #if V8_TARGET_ARCH_IA32
     DCHECK(!implicit_check);  // No trap handler on 32-bit.
@@ -7895,9 +7974,8 @@ class LiftoffCompiler {
                                               const Value& descriptor_value) {
     LiftoffRegList pinned;
     LiftoffRegister descriptor = pinned.set(__ PopToRegister({}));
-    const bool requires_aligned_access = false;
-    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
-        descriptor_value.type, 0, requires_aligned_access);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(descriptor_value.type, 0);
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, descriptor.gp(), pinned,
                          descriptor_value.type);
@@ -7993,7 +8071,7 @@ class LiftoffCompiler {
       pinned.clear(value);
     }
 
-    if (type.is_shared) __ AtomicFence(AtomicMemoryOrder::kSeqCst);
+    if (type.is_shared) __ AtomicFence(AtomicMemoryOrder::kAcqRel);
 
     // If this assert fails then initialization of padding field might be
     // necessary.
@@ -8022,9 +8100,8 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    const bool requires_aligned_access = false;
-    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
-        struct_obj.type, field.field_imm.index, requires_aligned_access);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_obj.type, field.field_imm.index);
 
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
@@ -8045,9 +8122,8 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    const bool requires_aligned_access = field_kind == ValueKind::kI64;
-    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
-        struct_obj.type, field.field_imm.index, requires_aligned_access);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_obj.type, field.field_imm.index);
 
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
@@ -8068,9 +8144,8 @@ class LiftoffCompiler {
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    const bool requires_aligned_access = false;
-    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
-        struct_obj.type, field.field_imm.index, requires_aligned_access);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_obj.type, field.field_imm.index);
 
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
@@ -8092,9 +8167,8 @@ class LiftoffCompiler {
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    const bool requires_aligned_access = field_kind == ValueKind::kI64;
-    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
-        struct_obj.type, field.field_imm.index, requires_aligned_access);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_obj.type, field.field_imm.index);
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
     }
@@ -8162,7 +8236,7 @@ class LiftoffCompiler {
                       ? compiler::kFullWriteBarrier
                       : compiler::kNoWriteBarrier);
 
-    if (is_shared) __ AtomicFence(AtomicMemoryOrder::kSeqCst);
+    if (is_shared) __ AtomicFence(AtomicMemoryOrder::kAcqRel);
 
     __ PushRegister(kRef, obj);
   }
@@ -8409,7 +8483,7 @@ class LiftoffCompiler {
                        element, false, pinned, elem_kind, write_barrier);
     }
 
-    if (is_shared) __ AtomicFence(AtomicMemoryOrder::kSeqCst);
+    if (is_shared) __ AtomicFence(AtomicMemoryOrder::kAcqRel);
 
     // Push the array onto the stack.
     __ PushRegister(kRef, array);
@@ -8648,11 +8722,21 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister ref = pinned.set(__ PopToRegister());
 
-    // Implicit null checks don't cover the map load.
-    MaybeEmitNullCheck(decoder, ref.gp(), pinned, ref_val.type);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(ref_val.type, 0);
+
+    if (explicit_check) {
+      MaybeEmitNullCheck(decoder, ref.gp(), pinned, ref_val.type);
+    }
 
     LiftoffRegister value = __ GetUnusedRegister(kGpReg, pinned);
+    // Can't use {LoadObjectField} because it's not designed for negative
+    // offsets.
+    uint32_t protected_load_pc = __ pc_offset();
     __ LoadMap(value.gp(), ref.gp());
+    if (implicit_check) {
+      RegisterTrappingInstruction(decoder, protected_load_pc);
+    }
     LoadObjectField(decoder, value, value.gp(), no_reg,
                     offsetof(Map, instance_descriptors_) - kHeapObjectTag, kRef,
                     false, false, pinned);
@@ -8685,10 +8769,7 @@ class LiftoffCompiler {
     Label match;
     bool is_cast_from_any = obj_type.is_reference_to(GenericKind::kAny);
 
-    // Skip the null check if casting from any and not {null_succeeds}.
-    // In that case the instance type check will identify null as not being a
-    // wasm object and fail.
-    if (obj_type.is_nullable() && (!is_cast_from_any || null_succeeds)) {
+    if (obj_type.is_nullable()) {
       __ emit_cond_jump(kEqual, null_succeeds ? &match : no_match,
                         obj_type.kind(), obj_reg, scratch_null, frozen);
     }
@@ -9484,10 +9565,12 @@ class LiftoffCompiler {
 
     VarState memory_var{kI32, static_cast<int>(imm.index), 0};
 
-    LiftoffRegister variant_reg =
+    LiftoffRegister config_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(variant_reg, static_cast<int32_t>(variant));
-    VarState variant_var(kSmiKind, variant_reg, 0);
+    UnicodeConfig config(variant, imm.memory->is_shared,
+                         result->type.is_shared());
+    LoadSmi(config_reg, config.raw_as_int());
+    VarState config_var(kSmiKind, config_reg, 0);
 
     VarState& size_var = __ cache_state()->stack_state.end()[-1];
 
@@ -9497,7 +9580,7 @@ class LiftoffCompiler {
     CallBuiltin(
         Builtin::kWasmStringNewWtf8,
         MakeSig::Returns(kRefNull).Params(kIntPtrKind, kI32, kI32, kSmiKind),
-        {address, size_var, memory_var, variant_var}, decoder->position());
+        {address, size_var, memory_var, config_var}, decoder->position());
     __ DropValues(2);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
@@ -9517,19 +9600,19 @@ class LiftoffCompiler {
     MaybeEmitNullCheck(decoder, array_reg.gp(), pinned, array.type);
     VarState array_var(kRef, array_reg, 0);
 
-    LiftoffRegister variant_reg =
+    LiftoffRegister config_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(variant_reg, static_cast<int32_t>(variant));
-    VarState variant_var(kSmiKind, variant_reg, 0);
-    VarState shared_var(kSmiKind, 0, 0);
+    UnicodeConfig config(variant, array.type.is_shared(),
+                         result->type.is_shared());
+    LoadSmi(config_reg, config.raw_as_int());
+    VarState config_var(kSmiKind, config_reg, 0);
 
-    CallBuiltin(
-        Builtin::kWasmStringNewWtf8Array,
-        MakeSig::Returns(kRefNull).Params(kI32, kI32, kRef, kSmiKind, kSmiKind),
-        {__ cache_state()->stack_state.end()[-2],  // start
-         __ cache_state()->stack_state.end()[-1],  // end
-         array_var, variant_var, shared_var},
-        decoder->position());
+    CallBuiltin(Builtin::kWasmStringNewWtf8Array,
+                MakeSig::Returns(kRefNull).Params(kI32, kI32, kRef, kSmiKind),
+                {__ cache_state()->stack_state.end()[-2],  // start
+                 __ cache_state()->stack_state.end()[-1],  // end
+                 array_var, config_var},
+                decoder->position());
     __ cache_state()->stack_state.pop_back(3);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
@@ -9540,17 +9623,25 @@ class LiftoffCompiler {
   void StringNewWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                       const Value& offset, const Value& size, Value* result) {
     FuzzerChargeSteps(decoder, 0);
+    LiftoffRegList pinned;
+
     VarState memory_var{kI32, static_cast<int32_t>(imm.index), 0};
+
+    LiftoffRegister config_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    UnicodeConfig config(imm.memory->is_shared, result->type.is_shared());
+    LoadSmi(config_reg, config.raw_as_int());
+    VarState config_var(kSmiKind, config_reg, 0);
 
     VarState& size_var = __ cache_state()->stack_state.end()[-1];
 
-    LiftoffRegList pinned;
     DCHECK(MatchingMemType(imm.memory, 1));
     VarState address = IndexToVarStateSaturating(1, &pinned);
 
-    CallBuiltin(Builtin::kWasmStringNewWtf16,
-                MakeSig::Returns(kRef).Params(kI32, kIntPtrKind, kI32),
-                {memory_var, address, size_var}, decoder->position());
+    CallBuiltin(
+        Builtin::kWasmStringNewWtf16,
+        MakeSig::Returns(kRef).Params(kI32, kIntPtrKind, kI32, kSmiKind),
+        {memory_var, address, size_var, config_var}, decoder->position());
     __ DropValues(2);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
@@ -9569,12 +9660,19 @@ class LiftoffCompiler {
     MaybeEmitNullCheck(decoder, array_reg.gp(), pinned, array.type);
     VarState array_var(kRef, array_reg, 0);
 
+    LiftoffRegister config_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    UnicodeConfig config(array.type.is_shared(), result->type.is_shared());
+    LoadSmi(config_reg, config.raw_as_int());
+    VarState config_var(kSmiKind, config_reg, 0);
+
     CallBuiltin(Builtin::kWasmStringNewWtf16Array,
-                MakeSig::Returns(kRef).Params(kRef, kI32, kI32),
+                MakeSig::Returns(kRef).Params(kRef, kI32, kI32, kSmiKind),
                 {
                     array_var,
                     __ cache_state()->stack_state.end()[-2],  // start
                     __ cache_state()->stack_state.end()[-1],  // end
+                    config_var,
                 },
                 decoder->position());
     __ cache_state()->stack_state.pop_back(3);
@@ -10926,13 +11024,12 @@ class LiftoffCompiler {
            kHeapObjectTag;
   }
 
-  std::pair<bool, bool> null_checks_for_struct_op(
-      ValueType struct_type, int field_index, bool requires_aligned_access) {
+  std::pair<bool, bool> null_checks_for_struct_op(ValueType struct_type,
+                                                  int field_index) {
     bool explicit_null_check =
         struct_type.is_nullable() &&
         (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit ||
-         field_index > wasm::kMaxStructFieldIndexForImplicitNullCheck ||
-         requires_aligned_access);
+         field_index > wasm::kMaxStructFieldIndexForImplicitNullCheck);
     bool implicit_null_check =
         struct_type.is_nullable() && !explicit_null_check;
     return {explicit_null_check, implicit_null_check};
@@ -11486,6 +11583,15 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
       code->for_debugging() == kForStepping
           ? base::ArrayVector(kSteppingBreakpoints)
           : base::Vector<const int>{};
+  WasmFunctionCoverageData* coverage_data = nullptr;
+  if (V8_UNLIKELY(v8_flags.wasm_code_coverage)) {
+    DCHECK_NOT_NULL(env.module_coverage_data);
+    int declared_function_index =
+        code->index() - native_module->module()->num_imported_functions;
+    coverage_data = env.module_coverage_data->GetFunctionCoverageData(
+        declared_function_index);
+    DCHECK_NOT_NULL(coverage_data);
+  }
   WasmFullDecoder<Decoder::NoValidationTag, LiftoffCompiler> decoder(
       &zone, native_module->module(), env.enabled_features, &detected,
       func_body, call_descriptor, &env, &zone,
@@ -11494,7 +11600,7 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
       LiftoffOptions{.func_index = code->index(),
                      .for_debugging = code->for_debugging(),
                      .breakpoints = breakpoints},
-      nullptr);
+      coverage_data);
   decoder.Decode();
   DCHECK(decoder.ok());
   DCHECK(!decoder.interface().did_bailout());

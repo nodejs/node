@@ -9,7 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/objects/heap-object-inl.h"
-#include "src/objects/managed.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/struct-inl.h"
@@ -95,7 +95,8 @@ Tagged<Object> Script::wasm_managed_native_module() const {
 void Script::set_wasm_managed_native_module(Tagged<Object> value,
                                             WriteBarrierMode mode) {
   DCHECK_EQ(type(), Type::kWasm);
-  eval_from_position_.store(this, Cast<UnionOf<Smi, Foreign>>(value), mode);
+  eval_from_position_.store(this, Cast<UnionOf<Smi, CppGCManagedBase>>(value),
+                            mode);
 }
 
 Tagged<WeakArrayList> Script::wasm_weak_instance_list() const {
@@ -110,7 +111,30 @@ void Script::set_wasm_weak_instance_list(Tagged<WeakArrayList> value,
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 bool Script::is_wrapped() const {
-  return IsFixedArray(eval_from_shared_or_wrapped_arguments());
+  bool is_wrapped = compilation_kind() == CompilationKind::kWrapped;
+  DCHECK_EQ(is_wrapped, IsFixedArray(eval_from_shared_or_wrapped_arguments()));
+  return is_wrapped;
+}
+
+bool Script::is_eval() const {
+  return compilation_kind() == CompilationKind::kDirectEval ||
+         compilation_kind() == CompilationKind::kIndirectEval;
+}
+
+bool Script::has_eval_origin() const {
+  return is_eval() ||
+         compilation_kind() == CompilationKind::kFunctionConstructor;
+}
+
+bool Script::is_host() const {
+  return compilation_kind() == CompilationKind::kHost;
+}
+
+LanguageMode Script::outer_language_mode() const {
+  return OuterLanguageModeBit::decode(flags());
+}
+void Script::set_outer_language_mode(LanguageMode mode) {
+  set_flags(OuterLanguageModeBit::update(flags(), mode));
 }
 
 bool Script::has_eval_from_shared() const {
@@ -119,6 +143,7 @@ bool Script::has_eval_from_shared() const {
 
 void Script::set_wrapped_arguments(Tagged<FixedArray> value,
                                    WriteBarrierMode mode) {
+  DCHECK_EQ(compilation_kind(), CompilationKind::kWrapped);
   DCHECK(!has_eval_from_shared());
   set_eval_from_shared_or_wrapped_arguments(value, mode);
 }
@@ -176,8 +201,9 @@ bool Script::has_wasm_breakpoint_infos() const {
          wasm_breakpoint_infos()->ulength().value() > 0;
 }
 
-Managed<wasm::NativeModule>::Ptr Script::wasm_native_module() const {
-  return Cast<Managed<wasm::NativeModule>>(wasm_managed_native_module())->ptr();
+CppGCManaged<wasm::NativeModule>::Ptr Script::wasm_native_module() const {
+  return Cast<CppGCManaged<wasm::NativeModule>>(wasm_managed_native_module())
+      ->ptr();
 }
 
 bool Script::break_on_entry() const { return BreakOnEntryBit::decode(flags()); }
@@ -189,7 +215,7 @@ void Script::set_break_on_entry(bool value) {
 
 uint32_t Script::flags() const {
   // Use a relaxed load since background compile threads read the
-  // {compilation_type()} while the foreground thread might update e.g. the
+  // {compilation_kind()} while the foreground thread might update e.g. the
   // {origin_options}.
   return flags_.Relaxed_Load().value();
 }
@@ -199,12 +225,13 @@ void Script::set_flags(uint32_t new_flags) {
   flags_.Relaxed_Store(this, Smi::FromInt(new_flags));
 }
 
-Script::CompilationType Script::compilation_type() const {
-  return CompilationTypeBit::decode(flags());
+Script::CompilationKind Script::compilation_kind() const {
+  return CompilationKindBits::decode(flags());
 }
-void Script::set_compilation_type(CompilationType type) {
-  set_flags(CompilationTypeBit::update(flags(), type));
+void Script::set_compilation_kind(CompilationKind kind) {
+  set_flags(CompilationKindBits::update(flags(), kind));
 }
+
 Script::CompilationState Script::compilation_state() {
   return CompilationStateBit::decode(flags());
 }

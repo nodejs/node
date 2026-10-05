@@ -506,16 +506,16 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
   size_t marked_bytes = 0;
   size_t current_marked_bytes = 0;
   int objects_processed = 0;
+  YoungPendingAllocations* const young_pending_allocations =
+      heap_->young_pending_allocations();
+  YoungPendingAllocations::Snapshot young_pending_snapshot;
   YoungGenerationMarkingVisitor<marking_mode> visitor(
-      heap_, &task_state->local_pretenuring_feedback);
+      heap_, &task_state->local_pretenuring_feedback, &young_pending_snapshot);
   YoungGenerationRememberedSetsMarkingWorklist::Local remembered_sets(
       heap_->minor_mark_sweep_collector()->remembered_sets_marking_handler());
   auto& marking_worklists_local = visitor.marking_worklists_local();
   Isolate* isolate = heap_->isolate();
   minor_marking_state_->MarkerStarted();
-  YoungPendingAllocations* const young_pending_allocations =
-      heap_->young_pending_allocations();
-  YoungPendingAllocations::Snapshot young_pending_snapshot;
 
   do {
     if (delegate->IsJoiningThread()) {

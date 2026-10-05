@@ -50,6 +50,10 @@ macros:
     standards:
       - gnu
     macro_header: pthread-macros.h
+  - macro_name: "PTHREAD_STACK_DYNAMIC_NP"
+    standards:
+      - llvm_libc_ext
+    macro_header: pthread-macros.h
 types:
   - type_name: pthread_t
   - type_name: pthread_once_t
@@ -242,6 +246,14 @@ functions:
     return_type: void *
     arguments:
       - type: pthread_key_t
+  - name: pthread_getstack_np
+    standards:
+      - llvm_libc_ext
+    return_type: int
+    arguments:
+      - type: pthread_t
+      - type: void **__restrict
+      - type: size_t *__restrict
   - name: pthread_join
     return_type: int
     arguments:

@@ -16,12 +16,15 @@
 #define ABSL_STRINGS_INTERNAL_CORDZ_INFO_H_
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/const_init.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cordz_functions.h"
@@ -29,6 +32,7 @@
 #include "absl/strings/internal/cordz_statistics.h"
 #include "absl/strings/internal/cordz_update_tracker.h"
 #include "absl/synchronization/mutex.h"
+#include "absl/time/time.h"
 #include "absl/types/span.h"
 
 namespace absl {

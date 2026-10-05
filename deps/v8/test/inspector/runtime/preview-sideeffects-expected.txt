@@ -10,3 +10,8 @@ Running test: ObjectGetterBoundBuiltin
     callBindCalled : false
     reflectApplyCalled : false
 }
+
+Running test: ObjectGetterCallableProxy
+{
+    proxyCalled : false
+}

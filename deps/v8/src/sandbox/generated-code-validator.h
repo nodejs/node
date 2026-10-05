@@ -16,10 +16,11 @@
 
 namespace v8::internal {
 
+class InstructionChecker;
+
 class GeneratedCodeValidator {
  public:
-  static V8_EXPORT_PRIVATE void Validate(IsolateForSandbox isolate,
-                                         Tagged<Code> code);
+  static V8_EXPORT_PRIVATE void Validate(Isolate* isolate, Tagged<Code> code);
   static V8_EXPORT_PRIVATE bool IsValidated(Tagged<Code> code);
 
  private:
@@ -55,7 +56,48 @@ class GeneratedCodeValidator {
     disasm::Disassembler disasm_;
   };
 
-  static void ValidateImpl(IsolateForSandbox isolate, Tagged<Code> code);
+  class ViolationsReporter {
+   public:
+    explicit ViolationsReporter(Tagged<Code> code);
+    ~ViolationsReporter();
+
+    void ReportDisassemblyFailed(const uint8_t* pc,
+                                 size_t max_instruction_size);
+    void ReportViolationWithInstruction(const uint8_t* pc, std::string instr,
+                                        std::string error);
+    void RecordDisassembledInstruction(const uint8_t* pc,
+                                       size_t instruction_size,
+                                       std::string instr);
+
+   private:
+    void ReportViolation(const uint8_t* pc, std::string error);
+    void PrintPrologueIfNeeded();
+    void PrintEpilogueIfNeeded();
+
+    const Tagged<Code> code_;
+    const uint8_t* const code_start_;
+    std::stringstream disassembled_instructions_;
+    bool violations_found_ = false;
+  };
+
+  class Utils {
+   public:
+    static bool IsEntryCode(const Tagged<Code> code);
+    static bool IsDeoptCode(const Tagged<Code> code);
+  };
+
+  // TODO(523128533): Propagate `State` between instructions based on data flow.
+  struct State {
+    explicit State(const Tagged<Code> code);
+
+    bool is_root_reg_valid_;
+    // TODO(523128533): Check this field when checking memory writes to sandbox.
+    bool is_cage_base_reg_valid_;
+  };
+
+  static void ValidateImpl(Isolate* isolate, Tagged<Code> code);
+
+  friend class InstructionChecker;
 };
 
 }  // namespace v8::internal

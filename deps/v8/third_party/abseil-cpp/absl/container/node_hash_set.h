@@ -582,9 +582,9 @@ struct NodeHashSetPolicy
 
   static size_t element_space_used(const T*) { return sizeof(T); }
 
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
-    return &TypeErasedDerefAndApplyToSlotFn<Hash, T, kIsDefault>;
+    return &TypeErasedDerefAndApplyToSlotFn<Hash, T, kIsDefault, kSeedShift>;
   }
 };
 }  // namespace container_internal

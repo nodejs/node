@@ -204,7 +204,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
   // v8::debug::DebugEventListener implementation.
   void AsyncEventOccurred(v8::debug::DebugAsyncActionType type, int id,
                           bool isBlackboxed, int skipFrameCount = 0) override;
-  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
+  void ScriptCompiled(v8::Local<v8::debug::Script> script,
                       bool has_compile_error) override;
   void BreakProgramRequested(
       v8::Local<v8::Context> paused_context,

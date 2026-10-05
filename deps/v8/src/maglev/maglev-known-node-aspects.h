@@ -24,6 +24,8 @@ class KnownNodeAspects;
 class TraceLogger;
 
 enum class EnsureTypeResult { kAlreadyHadType, kTypeUpdated, kContradiction };
+using UpdateTypeOnContradiction =
+    base::StrongAlias<struct UpdateTypeOnContradictionTag, bool>;
 
 using PossibleMaps = compiler::ZoneRefSet<Map>;
 
@@ -70,6 +72,7 @@ class NodeInfo {
   }
 
   NodeType type() const { return type_; }
+  void set_type(NodeType type) { type_ = type; }
   NodeType IntersectType(NodeType other) {
     return type_ = maglev::IntersectType(type_, other);
   }
@@ -449,7 +452,7 @@ class KnownNodeAspects {
     loaded_context_slots_.clear();
     available_expressions_.clear();
     side_effects_require_invalidation_ = false;
-    may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kNone;
+    may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kNever;
     node_infos_.clear();
     virtual_objects_ = {};
   }
@@ -548,30 +551,15 @@ class KnownNodeAspects {
 
   EnsureTypeResult EnsureType(compiler::JSHeapBroker* broker, ValueNode* node,
                               NodeType type, NodeType* old_type = nullptr) {
-    NodeType static_type = node->GetStaticType(broker);
-    if (old_type) *old_type = static_type;
-    if (NodeTypeIs(static_type, type, NodeTypeIsVariant::kAllowNone)) {
-      if (static_type == NodeType::kNone) {
-        return EnsureTypeResult::kContradiction;
-      }
-      return EnsureTypeResult::kAlreadyHadType;
-    }
-    NodeInfo* known_info = GetOrCreateInfoFor(broker, node);
-    if (old_type) *old_type = known_info->type();
-    if (NodeTypeIs(known_info->type(), type, NodeTypeIsVariant::kAllowNone)) {
-      if (known_info->type() == NodeType::kNone) {
-        return EnsureTypeResult::kContradiction;
-      }
-      return EnsureTypeResult::kAlreadyHadType;
-    }
-    known_info->IntersectType(type);
-    if (auto phi = node->TryCast<Phi>()) {
-      known_info->IntersectType(phi->type());
-    }
-    if (known_info->type() == NodeType::kNone) {
-      return EnsureTypeResult::kContradiction;
-    }
-    return EnsureTypeResult::kTypeUpdated;
+    return EnsureTypeHelper(broker, node, type, old_type,
+                            UpdateTypeOnContradiction{true});
+  }
+
+  EnsureTypeResult TryEnsureType(compiler::JSHeapBroker* broker,
+                                 ValueNode* node, NodeType type,
+                                 NodeType* old_type = nullptr) {
+    return EnsureTypeHelper(broker, node, type, old_type,
+                            UpdateTypeOnContradiction{false});
   }
 
   void Merge(const KnownNodeAspects& other, Zone* zone);
@@ -723,10 +711,10 @@ class KnownNodeAspects {
   }
 
   enum class ContextSlotLoadsAlias : uint8_t {
-    kNone,
+    kNever,
     kOnlyLoadsRelativeToCurrentContext,
     kOnlyLoadsRelativeToConstant,
-    kYes,
+    kAlways,
   };
   ContextSlotLoadsAlias may_have_aliasing_contexts() const {
     return may_have_aliasing_contexts_;
@@ -734,9 +722,9 @@ class KnownNodeAspects {
   static ContextSlotLoadsAlias ContextSlotLoadsAliasMerge(
       ContextSlotLoadsAlias m1, ContextSlotLoadsAlias m2) {
     if (m1 == m2) return m1;
-    if (m1 == ContextSlotLoadsAlias::kNone) return m2;
-    if (m2 == ContextSlotLoadsAlias::kNone) return m1;
-    return ContextSlotLoadsAlias::kYes;
+    if (m1 == ContextSlotLoadsAlias::kNever) return m2;
+    if (m2 == ContextSlotLoadsAlias::kNever) return m1;
+    return ContextSlotLoadsAlias::kAlways;
   }
   struct ContextStoreResult {
     enum Type {
@@ -790,6 +778,16 @@ class KnownNodeAspects {
                                         : loaded_context_constants_.empty();
   }
 
+  static bool BuiltinInvalidatesKNA(Builtin builtin) {
+    switch (builtin) {
+      // TODO(victorgomes): Add more builtins to the list!
+      case Builtin::kCloneFastJSArray:
+        return false;
+      default:
+        return true;
+    }
+  }
+
   template <typename NodeT>
   void MarkPossibleSideEffect(NodeT* node, compiler::JSHeapBroker* broker,
                               bool is_tracing_enabled) {
@@ -800,6 +798,10 @@ class KnownNodeAspects {
 
     if constexpr (!PreservesTaggedKeyedProperties(Node::opcode_of<NodeT>)) {
       loaded_tagged_keyed_properties_.clear();
+    }
+
+    if constexpr (Node::opcode_of<NodeT> == Opcode::kCallBuiltin) {
+      if (!BuiltinInvalidatesKNA(node->builtin())) return;
     }
 
     if constexpr (Node::opcode_of<NodeT> == Opcode::kMaybeGrowFastElements) {
@@ -850,12 +852,56 @@ class KnownNodeAspects {
         loaded_context_slots_(zone),
         available_expressions_(zone),
         side_effects_require_invalidation_(false),
-        may_have_aliasing_contexts_(ContextSlotLoadsAlias::kNone),
+        may_have_aliasing_contexts_(ContextSlotLoadsAlias::kNever),
         effect_epoch_(0),
         node_infos_(zone),
         virtual_objects_() {}
 
  private:
+  EnsureTypeResult EnsureTypeHelper(
+      compiler::JSHeapBroker* broker, ValueNode* node, NodeType type,
+      NodeType* old_type,
+      UpdateTypeOnContradiction update_type_on_contradiction) {
+    NodeType static_type = node->GetStaticType(broker);
+    if (old_type) *old_type = static_type;
+    if (NodeTypeIs(static_type, type, NodeTypeIsVariant::kAllowNone)) {
+      if (static_type == NodeType::kNone) {
+        return EnsureTypeResult::kContradiction;
+      }
+      return EnsureTypeResult::kAlreadyHadType;
+    }
+    NodeInfo* known_info = update_type_on_contradiction
+                               ? GetOrCreateInfoFor(broker, node)
+                               : TryGetInfoFor(node);
+    NodeType current_type = static_type;
+    if (known_info) {
+      current_type = known_info->type();
+      if (old_type) *old_type = current_type;
+      if (NodeTypeIs(current_type, type, NodeTypeIsVariant::kAllowNone)) {
+        if (current_type == NodeType::kNone) {
+          return EnsureTypeResult::kContradiction;
+        }
+        return EnsureTypeResult::kAlreadyHadType;
+      }
+    }
+    NodeType new_type = IntersectType(current_type, type);
+    if (auto phi = node->TryCast<Phi>()) {
+      new_type = IntersectType(new_type, phi->type());
+    }
+    if (new_type == NodeType::kNone) {
+      if (update_type_on_contradiction) {
+        DCHECK_NOT_NULL(known_info);
+        known_info->set_type(NodeType::kNone);
+      }
+      return EnsureTypeResult::kContradiction;
+    }
+    if (!known_info) {
+      known_info = GetOrCreateInfoFor(broker, node);
+    }
+    known_info->set_type(new_type);
+    return EnsureTypeResult::kTypeUpdated;
+  }
+
   bool SetContextCachedValue(ValueNode* context, int offset, ValueNode* value,
                              MaybeAssignedFlag assigned);
 
@@ -880,6 +926,7 @@ class KnownNodeAspects {
   friend class MaglevReducer;
   friend class RecomputeKnownNodeAspectsProcessor;
   friend class MergePointInterpreterFrameState;
+  friend class LoopMergePointInterpreterFrameState;
 
   NodeType GetTypeUnchecked(compiler::JSHeapBroker* broker,
                             ValueNode* node) const {

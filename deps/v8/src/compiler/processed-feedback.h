@@ -192,7 +192,6 @@ class NamedAccessFeedback : public ProcessedFeedback {
                       bool has_deprecated_map_without_migration_target = false);
 
   NameRef name() const { return name_; }
-  NameRef original_name_maybe_thin() const { return original_name_maybe_thin_; }
   ZoneVector<MapRef> const& maps() const { return maps_; }
   ZoneVector<OptionalObjectRef> const& handlers() const { return handlers_; }
   bool has_deprecated_map_without_migration_target() const {
@@ -200,13 +199,9 @@ class NamedAccessFeedback : public ProcessedFeedback {
   }
 
  private:
-  // The unpacked name of the property. If the original name was a ThinString,
-  // this will be the actual underlying string. Used for optimizations that
-  // care about the string's content and require IsUniqueName.
+  // The unpacked name of the property. If the name recorded in the feedback
+  // was a ThinString, this is the actual underlying string.
   NameRef const name_;
-  // The original name of the property, which could be a ThinString. This is
-  // crucial for checks that rely on object identity.
-  NameRef const original_name_maybe_thin_;
   ZoneVector<MapRef> const maps_;
   ZoneVector<OptionalObjectRef> const handlers_;
   bool has_deprecated_map_without_migration_target_;

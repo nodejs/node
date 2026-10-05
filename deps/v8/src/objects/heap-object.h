@@ -61,6 +61,8 @@ using InSharedSpace = base::StrongAlias<struct InSharedSpaceTag, bool>;
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.
 V8_OBJECT class HeapObject {
+  V8_IT_ABSTRACT;
+
  public:
   // [map]: Contains a map which contains the object's reflective
   // information.

@@ -11,6 +11,7 @@
 #include "src/logging/log.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/prototype.h"
 

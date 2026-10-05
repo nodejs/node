@@ -27,6 +27,11 @@ transitioning javascript builtin WebAssemblyStringTest(
 extern runtime WasmCastToSpecialPrimitiveArray(
     Context, Object, Smi, Smi): WasmArray;
 
+const kWtf16Unshared: constexpr int31
+    generates 'UnicodeConfig::kWtf16Unshared().raw_as_int()';
+const kWtf16Shared: constexpr int31
+    generates 'UnicodeConfig::kWtf16Shared().raw_as_int()';
+
 transitioning javascript builtin WebAssemblyStringFromWtf16Array(
     js-implicit context: Context)(arrayArg: JSAny, startArg: JSAny,
     endArg: JSAny): JSAny {
@@ -34,7 +39,8 @@ transitioning javascript builtin WebAssemblyStringFromWtf16Array(
       context, arrayArg, SmiConstant(16), SmiConstant(0));
   const start = NumberToUint32(ToNumber_Inline(startArg));
   const end = NumberToUint32(ToNumber_Inline(endArg));
-  return wasm::WasmStringNewWtf16Array(array, start, end);
+  return wasm::WasmStringNewWtf16Array(
+      array, start, end, SmiConstant(kWtf16Unshared));
 }
 
 transitioning javascript builtin WebAssemblyStringFromWtf16ArrayShared(
@@ -44,11 +50,16 @@ transitioning javascript builtin WebAssemblyStringFromWtf16ArrayShared(
       context, arrayArg, SmiConstant(16), SmiConstant(1));
   const start = NumberToUint32(ToNumber_Inline(startArg));
   const end = NumberToUint32(ToNumber_Inline(endArg));
-  return wasm::WasmStringNewWtf16ArrayShared(array, start, end);
+  return wasm::WasmStringNewWtf16Array(
+      array, start, end, SmiConstant(kWtf16Shared));
 }
 
-const kLossyUtf8:
-    constexpr int31 generates 'unibrow::Utf8Variant::kLossyUtf8';
+const kLossyUtf8: constexpr int31
+    generates 'unibrow::Utf8Variant::kLossyUtf8';
+const kLossyUtf8Unshared: constexpr int31
+    generates 'UnicodeConfig::kLossyUtf8Unshared().raw_as_int()';
+const kLossyUtf8Shared: constexpr int31
+    generates 'UnicodeConfig::kLossyUtf8Shared().raw_as_int()';
 
 transitioning javascript builtin WebAssemblyStringFromUtf8Array(
     js-implicit context: Context)(arrayArg: JSAny, startArg: JSAny,
@@ -58,7 +69,7 @@ transitioning javascript builtin WebAssemblyStringFromUtf8Array(
   const start = NumberToUint32(ToNumber_Inline(startArg));
   const end = NumberToUint32(ToNumber_Inline(endArg));
   const result = wasm::WasmStringNewWtf8Array(
-      start, end, array, SmiConstant(kLossyUtf8), SmiConstant(0) /* shared */);
+      start, end, array, SmiConstant(kLossyUtf8Unshared));
   dcheck(Is<String>(result));
   return %RawDownCast<String>(result);
 }
@@ -71,7 +82,7 @@ transitioning javascript builtin WebAssemblyStringFromUtf8ArrayShared(
   const start = NumberToUint32(ToNumber_Inline(startArg));
   const end = NumberToUint32(ToNumber_Inline(endArg));
   const result = wasm::WasmStringNewWtf8Array(
-      start, end, array, SmiConstant(kLossyUtf8), SmiConstant(1) /* shared */);
+      start, end, array, SmiConstant(kLossyUtf8Shared));
   dcheck(Is<String>(result));
   return %RawDownCast<String>(result);
 }

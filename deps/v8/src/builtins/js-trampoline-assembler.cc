@@ -158,18 +158,24 @@ TF_BUILTIN(OptimizeTurbofanEager, JSTrampolineAssembler) {
 
 TF_BUILTIN(MarkLazyDeoptimized, JSTrampolineAssembler) {
   TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
-    CallRuntime(Runtime::kMarkLazyDeoptimized, context, function,
+    CallRuntime(Runtime::kMarkLazyDeoptimizedOrFlushed, context, function,
                 /* reoptimize */ SmiConstant(false));
   });
 }
 
 TF_BUILTIN(MarkReoptimizeLazyDeoptimized, JSTrampolineAssembler) {
   TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
-    CallRuntime(Runtime::kMarkLazyDeoptimized, context, function,
+    CallRuntime(Runtime::kMarkLazyDeoptimizedOrFlushed, context, function,
                 /* reoptimize */ SmiConstant(true));
   });
 }
 
+TF_BUILTIN(MarkFlushed, JSTrampolineAssembler) {
+  TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
+    CallRuntime(Runtime::kMarkLazyDeoptimizedOrFlushed, context, function,
+                /* reoptimize */ SmiConstant(false));
+  });
+}
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"
 

@@ -95,6 +95,8 @@ static const char* const ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT =
     "@hasSameInstanceTypeAsParent";
 static const char* const ANNOTATION_DO_NOT_GENERATE_CPP_CLASS =
     "@doNotGenerateCppClass";
+static const char* const ANNOTATION_DO_NOT_GENERATE_INSTANCE_TYPE_CHECK =
+    "@doNotGenerateInstanceTypeCheck";
 static const char* const ANNOTATION_CUSTOM_MAP = "@customMap";
 static const char* const ANNOTATION_CUSTOM_CPP_CLASS = "@customCppClass";
 static const char* const ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT =
@@ -173,9 +175,10 @@ enum class ClassFlag {
   kHighestInstanceTypeWithinParent = 1 << 6,
   kLowestInstanceTypeWithinParent = 1 << 7,
   kUndefinedLayout = 1 << 8,
-  kExport = 1 << 10,
-  kDoNotGenerateCast = 1 << 11,
-  kCppObjectLayoutDefinition = 1 << 14,
+  kExport = 1 << 9,
+  kDoNotGenerateCast = 1 << 10,
+  kDoNotGenerateInstanceTypeCheck = 1 << 11,
+  kCppObjectLayoutDefinition = 1 << 12,
 };
 using ClassFlags = base::Flags<ClassFlag>;
 

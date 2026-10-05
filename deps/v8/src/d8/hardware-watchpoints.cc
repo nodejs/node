@@ -4,6 +4,7 @@
 
 #include "src/d8/hardware-watchpoints.h"
 
+#include "src/d8/d8.h"
 #include "src/d8/memory-access-information.h"
 
 #ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
@@ -865,11 +866,8 @@ void SetHardwareWatchpointCallback(
 
   int32_t offset;
   if (!info[1]->IsInt32() || !info[1]->Int32Value(context).To(&offset)) {
-    v8::String::Utf8Value field_name(isolate, info[1]);
-    if (!*field_name) {
-      ThrowTypeError(isolate, "Second argument must be an integer or a string");
-      return;
-    }
+    SafeUtf8Value field_name(isolate, info[1]);
+    if (!field_name) return;
 
     i::InstanceType instance_type = object->map()->instance_type();
     if (std::optional<int> offset_from_name = i::SandboxTesting::GetFieldOffset(

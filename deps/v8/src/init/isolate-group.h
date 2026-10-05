@@ -74,6 +74,10 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 #ifdef V8_ENABLE_SANDBOX
   class BasePageTableEntry {
    public:
+    // This indicates that the metadata entry can be read from any isolates
+    // (in essence, for the read-only or shared pages).
+    static constexpr uintptr_t kReadOnlyOrSharedEntryIsolateSentinel = -1;
+
     void CheckIfMetadataAccessibleFromIsolate(const Isolate* isolate) const {
       if (isolate_ ==
           reinterpret_cast<Isolate*>(kReadOnlyOrSharedEntryIsolateSentinel)) {
@@ -94,9 +98,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
     BasePage** metadata_slot() { return &metadata_; }
 
    private:
-    // This indicates that the metadata entry can be read from any isolates
-    // (in essence, for the read-only or shared pages).
-    static constexpr uintptr_t kReadOnlyOrSharedEntryIsolateSentinel = -1;
+    friend class CodeStubAssembler;
 
     BasePage* metadata_ = nullptr;
     Isolate* isolate_ = nullptr;

@@ -26,22 +26,24 @@
 #include <string_view>
 #include <type_traits>
 
-#ifdef __ANDROID__
-#include <android/api-level.h>
-#endif
-
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/log/check.h"
 #include "absl/log/internal/test_matchers.h"
 #include "absl/log/log.h"
+#include "absl/log/log_entry.h"
 #include "absl/log/scoped_mock_log.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
+
+#ifdef __ANDROID__
+#include <android/api-level.h>
+#endif
 
 namespace {
 using ::absl::log_internal::AsString;

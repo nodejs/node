@@ -1,0 +1,28 @@
+Checks that a deferred module namespace reports the "deferredmodule" subtype, and that no other object can claim it.
+
+Runtime.evaluate on the unevaluated deferred namespace:
+deferredNs: type=object subtype=deferredmodule className=Deferred Module
+deferredNs: [[ModuleStatus]]=linked
+
+The namespace as a property value of the global object:
+deferredNs: type=object subtype=deferredmodule className=Deferred Module
+plainNs: type=object subtype=undefined className=Module
+forged: type=object subtype=undefined className=Deferred Module
+
+Nested in another object's preview:
+deferredNs: type=object subtype=deferredmodule value=Deferred Module
+
+Forcing evaluation of the deferred module:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : constExport
+        }
+    }
+}
+
+The subtype survives evaluation:
+deferredNs: type=object subtype=deferredmodule className=Deferred Module
+deferredNs: [[ModuleStatus]]=evaluated

@@ -804,6 +804,7 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
   V(StructWait, 0xfe05, _, "struct.wait")                                      \
   V(WaitqueueNotify, 0xfe06, _, "waitqueue.notify")                            \
   V(WaitqueueNew, 0xfe07, _, "waitqueue.new")                                  \
+  V(Publish, 0xfe0f, _, "publish")                                             \
   V(StructAtomicGet, 0xfe5c, _, "struct.atomic.get")                           \
   V(StructAtomicGetS, 0xfe5d, _, "struct.atomic.get_s")                        \
   V(StructAtomicGetU, 0xfe5e, _, "struct.atomic.get_u")                        \

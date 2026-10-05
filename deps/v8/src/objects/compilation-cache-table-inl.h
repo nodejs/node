@@ -11,6 +11,7 @@
 #include <optional>
 
 #include "src/objects/name-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"

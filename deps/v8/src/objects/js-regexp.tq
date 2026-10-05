@@ -24,6 +24,10 @@ extern class RegExpData extends ExposedTrustedObject {
   wrapper: RegExpDataWrapper;
   quick_check_mask: uint32;
   quick_check_value: uint32;
+  // One bit per latin-1 character; see RegExpData::kQuickCheckBitsetWords.
+  quick_check_reject_bitset[8]: uint32;
+  internal_flags: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
 }
 
 @cppObjectLayoutDefinition

@@ -62,9 +62,12 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
   void ResetContextGroup(int context_group_id);
   v8::Local<v8::Context> GetDefaultContext(int context_group_id);
   int GetContextGroupId(v8::Local<v8::Context> context);
+  // Compiles and instantiates the module, and registers it under |name| so
+  // that it can be resolved as a dependency. |evaluate| is false for modules
+  // that must stay unevaluated, e.g. the target of an `import defer`.
   void RegisterModule(v8::Local<v8::Context> context,
                       std::vector<uint16_t> name,
-                      v8::ScriptCompiler::Source* source);
+                      v8::ScriptCompiler::Source* source, bool evaluate);
 
   // Working with V8Inspector api.
   std::optional<int> ConnectSession(

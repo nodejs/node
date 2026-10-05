@@ -11,6 +11,7 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
+#include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/wasm-shuffle-reducer.h"
 #include "test/common/flag-utils.h"
 #include "test/unittests/compiler/turboshaft/reducer-test.h"
@@ -512,6 +513,80 @@ TEST_F(WasmSimdTest, FailureCaseMixedInputsI32x4AddReduce) {
   ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
 #endif
 }
+
+// GVN has to see through the member arrays of {Simd128ConstantOp},
+// {Simd128ShuffleOp} and {Simd256ConstantOp}.
+
+TEST_F(WasmSimdTest, Simd128ConstantValueNumbering) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    constexpr uint8_t kValue[kSimd128Size] = {1, 2,  3,  4,  5,  6,  7,  8,
+                                              9, 10, 11, 12, 13, 14, 15, 16};
+    V<Simd128> a = __ Simd128Constant(kValue);
+    V<Simd128> b = __ Simd128Constant(kValue);
+    __ Return(__ Simd128Binop(a, b, Simd128BinopOp::Kind::kS128Xor));
+  });
+
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Constant), 2u);
+  test.Run<ValueNumberingReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Constant), 1u);
+}
+
+// Counterpart to the test above: distinct constants must not collapse.
+TEST_F(WasmSimdTest, Simd128ConstantValueNumberingDistinctValues) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    constexpr uint8_t kValue[kSimd128Size] = {1, 2,  3,  4,  5,  6,  7,  8,
+                                              9, 10, 11, 12, 13, 14, 15, 16};
+    // Differs from {kValue} in the last byte only.
+    constexpr uint8_t kOther[kSimd128Size] = {1, 2,  3,  4,  5,  6,  7,  8,
+                                              9, 10, 11, 12, 13, 14, 15, 17};
+    V<Simd128> a = __ Simd128Constant(kValue);
+    V<Simd128> b = __ Simd128Constant(kOther);
+    __ Return(__ Simd128Binop(a, b, Simd128BinopOp::Kind::kS128Xor));
+  });
+
+  test.Run<ValueNumberingReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Constant), 2u);
+}
+
+TEST_F(WasmSimdTest, Simd128ShuffleValueNumbering) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    constexpr uint8_t kShuffle[kSimd128Size] = {0, 1, 2,  3,  4,  5,  6,  7,
+                                                8, 9, 10, 11, 12, 13, 14, 15};
+    // Differs in the first byte, which selects from the second operand.
+    constexpr uint8_t kOther[kSimd128Size] = {16, 1, 2,  3,  4,  5,  6,  7,
+                                              8,  9, 10, 11, 12, 13, 14, 15};
+    auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+    V<Simd128> input =
+        __ Simd128Splat(__ Float32Constant(1.0), Simd128SplatOp::Kind::kF32x4);
+    V<Simd128> a = __ Simd128Shuffle(input, input, ShuffleKind, kShuffle);
+    V<Simd128> b = __ Simd128Shuffle(input, input, ShuffleKind, kShuffle);
+    V<Simd128> c = __ Simd128Shuffle(input, input, ShuffleKind, kOther);
+    V<Simd128> ab = __ Simd128Binop(a, b, Simd128BinopOp::Kind::kS128Xor);
+    __ Return(__ Simd128Binop(ab, c, Simd128BinopOp::Kind::kS128Xor));
+  });
+
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Shuffle), 3u);
+  test.Run<ValueNumberingReducer>();
+  // {a} and {b} collapse; {c} has a different shuffle and stays.
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Shuffle), 2u);
+}
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST_F(WasmSimdTest, Simd256ConstantValueNumbering) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    constexpr uint8_t kValue[kSimd256Size] = {
+        1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
+    V<Simd256> a = __ Simd256Constant(kValue);
+    V<Simd256> b = __ Simd256Constant(kValue);
+    __ Return(__ Simd256Binop(a, b, Simd256BinopOp::Kind::kS256Xor));
+  });
+
+  ASSERT_EQ(test.CountOp(Opcode::kSimd256Constant), 2u);
+  test.Run<ValueNumberingReducer>();
+  ASSERT_EQ(test.CountOp(Opcode::kSimd256Constant), 1u);
+}
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 

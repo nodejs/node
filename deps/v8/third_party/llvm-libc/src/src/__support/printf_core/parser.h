@@ -44,9 +44,9 @@ struct int_type_of<T, cpp::enable_if_t<cpp::is_same_v<T, double>
 #if !defined(LIBC_TYPES_LONG_DOUBLE_IS_DOUBLE_DOUBLE)
                                        || cpp::is_same_v<T, long double>
 #endif // LIBC_TYPES_LONG_DOUBLE_IS_DOUBLE_DOUBLE
-#if defined(LIBC_TYPES_HAS_FLOAT128)
+#if defined(LIBC_TYPES_HAS_NATIVE_FLOAT128)
                                        || cpp::is_same_v<T, float128>
-#endif // LIBC_TYPES_HAS_FLOAT128
+#endif // LIBC_TYPES_HAS_NATIVE_FLOAT128
                                        >> {
   using type = typename fputil::FPBits<T>::StorageType;
 };

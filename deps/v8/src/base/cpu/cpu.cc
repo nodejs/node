@@ -201,6 +201,7 @@ bool CPU::StarboardDetectCPU() {
       has_popcnt_ = features.x86.has_popcnt;
       has_f16c_ = features.x86.has_f16c;
       // TODO(jiepan): Support APX_F on STARBOARD
+      // TODO(fanchen): Support AVX10.1 on STARBOARD
       break;
     default:
       return false;

@@ -39,12 +39,6 @@ constexpr auto GetDataImpl(C& c, char) noexcept  // NOLINT(runtime/references)
   return c.data();
 }
 
-// Before C++17, std::string::data returns a const char* in all cases.
-inline char* GetDataImpl(std::string& s,  // NOLINT(runtime/references)
-                         int) noexcept {
-  return &s[0];
-}
-
 template <typename C>
 constexpr auto GetData(C& c) noexcept  // NOLINT(runtime/references)
     -> decltype(GetDataImpl(c, 0)) {
@@ -86,7 +80,7 @@ using EnableIfMutable = std::enable_if_t<!std::is_const_v<T>, int>;
 
 template <template <typename> class SpanT, typename T>
 constexpr bool EqualImpl(SpanT<T> a, SpanT<T> b) {
-  static_assert(std::is_const_v<T>, "");
+  static_assert(std::is_const_v<T>);
   return std::equal(a.begin(), a.end(), b.begin(), b.end());
 }
 
@@ -94,7 +88,7 @@ template <template <typename> class SpanT, typename T>
 constexpr bool LessThanImpl(SpanT<T> a, SpanT<T> b) {
   // We can't use value_type since that is remove_cv_t<T>, so we go the long way
   // around.
-  static_assert(std::is_const_v<T>, "");
+  static_assert(std::is_const_v<T>);
   return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end());
 }
 

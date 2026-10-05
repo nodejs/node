@@ -11,6 +11,7 @@
 #include <optional>
 
 #include "src/common/globals.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/feedback-cell-inl.h"
@@ -266,22 +267,30 @@ bool FeedbackVector::tiering_in_progress() const {
 
 std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
     Isolate* isolate, Handle<BytecodeArray> bytecode, FeedbackSlot slot) {
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+
+  // Since this is only called in the main thread, we don't need to take the
+  // mutex for reading.
   Tagged<MaybeObject> maybe_code = Get(slot);
   if (maybe_code.IsCleared()) return {};
 
   Tagged<Code> code =
       Cast<CodeWrapper>(maybe_code.GetHeapObject())->code(isolate);
-  if (code->marked_for_deoptimization()) {
+  if (!code->marked_for_deoptimization()) return code;
+
+  {
     // Clear the cached Code object if deoptimized.
     // TODO(jgruber): Add tracing.
+    base::MutexGuard mutex_guard(isolate->feedback_vector_access());
     Set(slot, ClearedValue());
-    if (!bytecode.is_null()) {
-      RecomputeOptimizedOsrCodeFlags(isolate, bytecode);
-    }
-    return {};
   }
 
-  return code;
+  // RecomputeOptimizedOsrCodeFlags can take the mutex again, so it has to run
+  // after releasing it above.
+  if (!bytecode.is_null()) {
+    RecomputeOptimizedOsrCodeFlags(isolate, bytecode);
+  }
+  return {};
 }
 
 void FeedbackVector::RecomputeOptimizedOsrCodeFlags(
@@ -292,7 +301,7 @@ void FeedbackVector::RecomputeOptimizedOsrCodeFlags(
   for (; !it.done(); it.Advance()) {
     if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
     if (auto code = GetOptimizedOsrCode(isolate, {}, it.GetSlotOperand(2))) {
-      if ((*code)->marked_for_deoptimization()) continue;
+      DCHECK(!(*code)->marked_for_deoptimization());
       turbofan |= (*code)->is_turbofanned();
       maglev |= (*code)->is_maglevved();
     }

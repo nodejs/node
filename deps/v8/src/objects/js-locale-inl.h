@@ -21,11 +21,11 @@
 namespace v8 {
 namespace internal {
 
-Tagged<Managed<icu::Locale>> JSLocale::icu_locale() const {
-  return Cast<Managed<icu::Locale>>(icu_locale_.load());
+Tagged<CppGCManaged<icu::Locale>> JSLocale::icu_locale() const {
+  return Cast<CppGCManaged<icu::Locale>>(icu_locale_.load());
 }
 
-void JSLocale::set_icu_locale(Tagged<Managed<icu::Locale>> value,
+void JSLocale::set_icu_locale(Tagged<CppGCManaged<icu::Locale>> value,
                               WriteBarrierMode mode) {
   icu_locale_.store(this, value, mode);
 }

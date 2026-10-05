@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/execution/isolate-inl.h"
 #include "src/execution/isolate.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info-inl.h"
@@ -54,6 +56,19 @@ TEST_F(SloppyArgumentsScopeInfoTest, MappedArgumentsWithNonSimpleScopeInfo) {
   duplicate->shared()->SetScopeInfo(*non_simple_scope_info);
 
   EXPECT_DEATH_IF_SUPPORTED(RunJS("duplicate(1, 2)"), "");
+}
+
+// The mapped arguments path allocates with the sloppy arguments map and then
+// installs the fast aliased arguments map, so the two must have the same
+// instance size.
+TEST_F(SloppyArgumentsScopeInfoTest, ArgumentsMapInstanceSizes) {
+  v8::HandleScope scope(isolate());
+  Tagged<NativeContext> context = i_isolate()->raw_native_context();
+
+  const int sloppy_size = context->sloppy_arguments_map()->instance_size();
+  CHECK_EQ(sloppy_size, context->fast_aliased_arguments_map()->instance_size());
+  CHECK_EQ(sloppy_size, context->slow_aliased_arguments_map()->instance_size());
+  CHECK_LT(context->strict_arguments_map()->instance_size(), sloppy_size);
 }
 
 }  // namespace internal

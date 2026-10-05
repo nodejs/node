@@ -157,6 +157,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   State state() const { return state_; }
 
   inline DirectHandle<Name> name() const;
+  // Same as name() but with relaxed DCHECKs for transition case.
+  inline DirectHandle<Name> name_for_transition() const;
   inline DirectHandle<Name> GetName();
   size_t index() const { return index_; }
   uint32_t array_index() const {

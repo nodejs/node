@@ -133,10 +133,10 @@ class StackCheckLoweringReducer : public Next {
       V<WordPtr> limit = __ Load(
           __ LoadRootRegister(), LoadOp::Kind::RawAligned().NotLoadEliminable(),
           MemoryRepresentation::UintPtr(), IsolateData::jslimit_offset());
-      V<WordPtr> gap =
-          __ ChangeInt32ToIntPtr(__ UntagSmi(__ StackCheckOffset()));
       IF_NOT (LIKELY(
                   __ StackPointerGreaterThan(limit, StackCheckKind::kWasm))) {
+        V<WordPtr> gap =
+            __ ChangeInt32ToIntPtr(__ UntagSmi(__ StackCheckOffset()));
         V<WordPtr> target =
             __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuard);
         __ Call(target, {gap}, entry_ts_call_descriptor);

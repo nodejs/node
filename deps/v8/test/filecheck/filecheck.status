@@ -42,6 +42,7 @@
 
 ['official_build', {
   'wasm/crash/failed-type-assertion': [SKIP],
+  'wasm/crash/invalid-wasm-code-space-size': [SKIP],
   'wasm/crash/regress-481074858': [SKIP],
   'wasm/regress-509312806': [SKIP],
 }], # official_build

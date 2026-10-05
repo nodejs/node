@@ -17,7 +17,7 @@
 #include "src/base/small-vector.h"
 #include "src/common/globals.h"
 // The feature flags are declared in their own header.
-#include "src/wasm/wasm-feature-flags.h"
+#include "src/flags/feature-flags.h"
 
 // Features that are always enabled and do not have a flag.
 #define FOREACH_WASM_NON_FLAG_FEATURE(V) \
@@ -40,7 +40,19 @@
   V(sign_extension_ops)                  \
   V(jspi)                                \
   V(exnref)                              \
-  V(branch_hinting)
+  V(branch_hinting)                      \
+  V(gc_allocation)
+
+#define IGNORE_NON_WASM_FEATURE(feat, ...)
+#define FOREACH_WASM_FEATURE_FLAG(V)                            \
+  FOREACH_EXPERIMENTAL_FEATURE_FLAG(IGNORE_NON_WASM_FEATURE, V, \
+                                    IGNORE_NON_WASM_FEATURE)    \
+  FOREACH_PRE_STAGED_FEATURE_FLAG(IGNORE_NON_WASM_FEATURE, V,   \
+                                  IGNORE_NON_WASM_FEATURE)      \
+  FOREACH_STAGED_FEATURE_FLAG(IGNORE_NON_WASM_FEATURE, V,       \
+                              IGNORE_NON_WASM_FEATURE)          \
+  FOREACH_SHIPPED_FEATURE_FLAG(IGNORE_NON_WASM_FEATURE, V,      \
+                               IGNORE_NON_WASM_FEATURE)
 
 // All features, including features that do not have flags.
 #define FOREACH_WASM_FEATURE(V) \

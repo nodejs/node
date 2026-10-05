@@ -32,6 +32,7 @@
 #include "src/objects/js-temporal-objects.h"
 #endif  // V8_TEMPORAL_SUPPORT
 #include "src/objects/managed-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
 #include "src/objects/property-descriptor.h"
@@ -1013,7 +1014,7 @@ Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
   //
   // The actual conditions are verified in debug builds in
   // CollatorAllowsFastComparison.
-  static const char* const kFastLocales[] = {
+  static constexpr std::string_view kFastLocales[] = {
       "en-US", "en", "fr", "es",    "de",    "pt",    "it", "ca",
       "de-AT", "fi", "id", "id-ID", "ms",    "nl",    "pl", "ro",
       "sl",    "sv", "sw", "vi",    "en-DE", "en-GB",
@@ -1021,8 +1022,10 @@ Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
 
   if (IsUndefined(*locales)) {
     const std::string& default_locale = isolate->DefaultLocale();
-    for (const char* fast_locale : kFastLocales) {
-      if (strcmp(fast_locale, default_locale.c_str()) == 0) {
+    std::string_view default_view(default_locale);
+
+    for (const std::string_view& fast_locale : kFastLocales) {
+      if (fast_locale == default_view) {
         return CompareStringsOptions::kTryFastPath;
       }
     }
@@ -1033,8 +1036,8 @@ Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
   if (!IsString(*locales)) return CompareStringsOptions::kNone;
 
   auto locales_string = Cast<String>(locales);
-  for (const char* fast_locale : kFastLocales) {
-    if (locales_string->IsEqualTo(base::CStrVector(fast_locale), isolate)) {
+  for (const std::string_view& fast_locale : kFastLocales) {
+    if (locales_string->IsEqualTo(base::VectorOf(fast_locale), isolate)) {
       return CompareStringsOptions::kTryFastPath;
     }
   }
@@ -1084,7 +1087,8 @@ std::optional<int> Intl::StringLocaleCompare(Isolate* isolate,
   MaybeDirectHandle<JSCollator> maybe_collator =
       New<JSCollator>(isolate, constructor, locales, options, method_name);
   if (!maybe_collator.ToHandle(&collator)) return {};
-  Managed<icu::Collator>::Ptr icu_collator = collator->icu_collator()->ptr();
+  CppGCManaged<icu::Collator>::Ptr icu_collator =
+      collator->icu_collator()->ptr();
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultCollator, locales,
@@ -1603,7 +1607,7 @@ MaybeDirectHandle<String> Intl::NumberToLocaleString(
       isolate, number_format,
       New<JSNumberFormat>(isolate, constructor, locales, options, method_name));
 
-  Managed<icu::number::LocalizedNumberFormatter>::Ptr lfmt =
+  CppGCManaged<icu::number::LocalizedNumberFormatter>::Ptr lfmt =
       number_format->icu_number_formatter()->ptr();
 
   if (can_cache) {

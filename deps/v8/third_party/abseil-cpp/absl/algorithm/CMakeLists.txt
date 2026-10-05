@@ -37,7 +37,6 @@ absl_cc_test(
   DEPS
     absl::algorithm
     absl::config
-    absl::hardening
     GTest::gmock_main
 )
 

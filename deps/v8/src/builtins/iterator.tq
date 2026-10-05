@@ -385,9 +385,9 @@ transitioning javascript builtin AsyncIteratorPrototypeAsyncDispose(
       const returnMethod =
           GetMethod(receiver, kReturnString) otherwise IfUndefined;
       // 6. Else,
-      // a. Let result be Call(return, O, « undefined »).
+      // a. Let result be Call(return, O, « »).
       // b. IfAbruptRejectPromise(result, promiseCapability).
-      const result = Call(context, returnMethod, receiver, Undefined);
+      const result = Call(context, returnMethod, receiver);
 
       // c. Let resultWrapper be Completion(PromiseResolve(%Promise%, result)).
       // d. IfAbruptRejectPromise(resultWrapper, promiseCapability).

@@ -30,7 +30,6 @@
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/exception_testing.h"
-#include "absl/base/internal/hardening.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
 #include "absl/hash/hash_testing.h"
@@ -1042,7 +1041,6 @@ TYPED_TEST(AnySpanTest, SubspanToEnd) {
   EXPECT_THAT(span.subspan(3, AnySpan<int>::npos), ElementsAre());
 #if GTEST_HAS_DEATH_TEST
   if (IsHardened()) {
-    auto hardener = absl::base_internal::ScopedSetAbslHardeningForTesting(true);
     EXPECT_DEATH(span.subspan(4, AnySpan<int>::npos), "");
     EXPECT_DEATH(span.subspan(AnySpan<int>::npos, AnySpan<int>::npos), "");
   }
@@ -1054,7 +1052,6 @@ TEST(MutableAnySpanTest, NonTruncatingSubspan) {
   AnySpan<int> span(v);
 #if GTEST_HAS_DEATH_TEST
   if (IsHardened()) {
-    auto hardener = absl::base_internal::ScopedSetAbslHardeningForTesting(true);
     EXPECT_DEATH(span.subspan(5, 0), "");
     EXPECT_DEATH(span.subspan(5, 1), "");
     EXPECT_DEATH(span.subspan(AnySpan<int>::npos, 0), "");

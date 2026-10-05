@@ -431,7 +431,6 @@ namespace v8::internal {
   V(OptimizeConcurrentPrepare)                 \
   V(OptimizeFinalizePipelineJob)               \
   V(OptimizeHeapBrokerInitialization)          \
-  V(OptimizeRevectorizer)                      \
   V(OptimizeSerialization)                     \
   V(OptimizeSerializeMetadata)                 \
   V(OptimizeSynchronous)                       \

@@ -185,6 +185,12 @@ functions:
       - type: void **
       - type: size_t
       - type: size_t
+  - name: putenv
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: char *
   - name: qsort
     standards:
       - stdc

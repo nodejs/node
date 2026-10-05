@@ -33,7 +33,7 @@
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-feature-flags.h"
+#include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-limits.h"
@@ -1593,6 +1593,7 @@ void PublishDetectedFeatures(WasmDetectedFeatures detected_features,
       {WasmDetectedFeature::memory64, Feature::kWasmMemory64},
       {WasmDetectedFeature::multi_memory, Feature::kWasmMultiMemory},
       {WasmDetectedFeature::gc, Feature::kWasmGC},
+      {WasmDetectedFeature::gc_allocation, Feature::kWasmGCAllocation},
       {WasmDetectedFeature::imported_strings, Feature::kWasmImportedStrings},
       {WasmDetectedFeature::imported_strings_utf8,
        Feature::kWasmImportedStringsUtf8},
@@ -1636,8 +1637,10 @@ void PublishDetectedFeatures(WasmDetectedFeatures detected_features,
   };
 #define CHECK_USE_COUNTER(feat, ...) \
   static_assert(check_use_counter(WasmDetectedFeature::feat));
-  FOREACH_WASM_STAGING_FEATURE_FLAG(CHECK_USE_COUNTER)
-  FOREACH_WASM_SHIPPED_FEATURE_FLAG(CHECK_USE_COUNTER)
+  FOREACH_STAGED_FEATURE_FLAG(IGNORE_NON_WASM_FEATURE, CHECK_USE_COUNTER,
+                              IGNORE_NON_WASM_FEATURE)
+  FOREACH_SHIPPED_FEATURE_FLAG(IGNORE_NON_WASM_FEATURE, CHECK_USE_COUNTER,
+                               IGNORE_NON_WASM_FEATURE)
   FOREACH_WASM_NON_FLAG_FEATURE(CHECK_USE_COUNTER)
 #undef CHECK_USE_COUNTER
 
@@ -3371,7 +3374,7 @@ bool AsyncStreamingProcessor::Deserialize(
   }
 
   DCHECK_NULL(job_->new_native_module_);
-  Managed<NativeModule>::Ptr deserialized_native_module =
+  CppGCManaged<NativeModule>::Ptr deserialized_native_module =
       module_object->native_module();
   job_->wire_bytes_ = ModuleWireBytes(deserialized_native_module->wire_bytes());
   // Calling {FinishCompile} deletes the {AsyncCompileJob} and {this}.
@@ -3958,7 +3961,11 @@ void CompilationStateImpl::TriggerOutstandingCallbacks() {
 
   // For dynamic tiering, trigger "compilation chunk finished" after a new chunk
   // of size {v8_flags.wasm_caching_threshold}.
-  if (v8_flags.wasm_dynamic_tiering &&
+  // Only emit the kFinishedCompilationChunk event after
+  // kFinishedBaselineCompilation, and only when a non-zero amount of code has
+  // been generated (the threshold flag could be set to zero).
+  if (v8_flags.wasm_dynamic_tiering && outstanding_baseline_units_ == 0 &&
+      bytes_since_last_chunk_ > 0 &&
       static_cast<size_t>(v8_flags.wasm_caching_threshold) <=
           bytes_since_last_chunk_) {
     // Trigger caching immediately if

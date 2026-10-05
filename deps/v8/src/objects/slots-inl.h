@@ -321,6 +321,11 @@ void CppHeapPointerSlot::Release_StoreHandle(
   return base::AsAtomic32::Release_Store(location(), handle);
 }
 
+void CppHeapPointerSlot::Relaxed_StoreHandle(
+    CppHeapPointerHandle handle) const {
+  return base::AsAtomic32::Relaxed_Store(location(), handle);
+}
+
 #else
 
 void CppHeapPointerSlot::store(Address value) const {
@@ -350,7 +355,7 @@ CppHeapPointerSlot::GetAndClearContentForSerialization(
 #else
   Address content = ReadMaybeUnalignedValue<Address>(address());
   WriteMaybeUnalignedValue<Address>(address(), kNullAddress);
-#endif  // V8_CPPGC_MICROTASK_QUEUE
+#endif  // V8_COMPRESS_POINTERS
   return content;
 }
 
@@ -361,7 +366,7 @@ void CppHeapPointerSlot::RestoreContentAfterSerialization(
   Release_StoreHandle(content);
 #else
   WriteMaybeUnalignedValue<Address>(address(), content);
-#endif  // V8_CPPGC_MICROTASK_QUEUE
+#endif  // V8_COMPRESS_POINTERS
 }
 
 Tagged<Object> IndirectPointerSlot::load(IsolateForSandbox isolate) const {

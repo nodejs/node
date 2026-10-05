@@ -67,6 +67,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <iterator>
 #include <memory>
 
 #include "absl/base/casts.h"
@@ -712,7 +713,7 @@ static bool ShouldPickFirstSymbol(const ElfW(Sym) & symbol1,
   // If one of the symbols is weak and the other is not, pick the one
   // this is not a weak symbol.
   char bind1 = ELF_ST_BIND(symbol1.st_info);
-  char bind2 = ELF_ST_BIND(symbol1.st_info);
+  char bind2 = ELF_ST_BIND(symbol2.st_info);
   if (bind1 == STB_WEAK && bind2 != STB_WEAK) return false;
   if (bind2 == STB_WEAK && bind1 != STB_WEAK) return true;
 
@@ -728,7 +729,7 @@ static bool ShouldPickFirstSymbol(const ElfW(Sym) & symbol1,
   // If one of the symbols has no type and the other is not, pick the
   // one that has a type.
   char type1 = ELF_ST_TYPE(symbol1.st_info);
-  char type2 = ELF_ST_TYPE(symbol1.st_info);
+  char type2 = ELF_ST_TYPE(symbol2.st_info);
   if (type1 != STT_NOTYPE && type2 == STT_NOTYPE) {
     return true;
   }
@@ -1320,7 +1321,7 @@ const char *Symbolizer::FindSymbolInCache(const void *const pc) {
   if (pc == nullptr) return nullptr;
 
   SymbolCacheLine *line = GetCacheLine(pc);
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(line->pc); ++i) {
+  for (size_t i = 0; i < std::size(line->pc); ++i) {
     if (line->pc[i] == pc) {
       AgeSymbols(line);
       line->age[i] = 0;
@@ -1338,7 +1339,7 @@ const char *Symbolizer::InsertSymbolInCache(const void *const pc,
   uint32_t max_age = 0;
   size_t oldest_index = 0;
   bool found_oldest_index = false;
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(line->pc); ++i) {
+  for (size_t i = 0; i < std::size(line->pc); ++i) {
     if (line->pc[i] == nullptr) {
       AgeSymbols(line);
       line->pc[i] = pc;

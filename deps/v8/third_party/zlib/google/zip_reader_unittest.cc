@@ -35,7 +35,6 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
-#include "third_party/icu/source/i18n/unicode/timezone.h"
 #include "third_party/zlib/google/zip_internal.h"
 
 using ::testing::_;
@@ -367,10 +366,8 @@ TEST_F(ZipReaderTest, RegularFile) {
 
   EXPECT_EQ(target_path, entry->path);
   EXPECT_EQ(13527, entry->original_size);
-  EXPECT_EQ("2009-05-29 06:22:20.000",
-            base::UnlocalizedTimeFormatWithPattern(entry->last_modified,
-                                                   "y-MM-dd HH:mm:ss.SSS",
-                                                   icu::TimeZone::getGMT()));
+  EXPECT_EQ("2009-05-29T06:22:20.000Z",
+            base::TimeFormatAsIso8601(entry->last_modified));
   EXPECT_FALSE(entry->is_unsafe);
   EXPECT_FALSE(entry->is_directory);
 }
@@ -467,10 +464,8 @@ TEST_F(ZipReaderTest, Directory) {
   EXPECT_EQ(target_path, entry->path);
   // The directory size should be zero.
   EXPECT_EQ(0, entry->original_size);
-  EXPECT_EQ("2009-05-31 15:49:52.000",
-            base::UnlocalizedTimeFormatWithPattern(entry->last_modified,
-                                                   "y-MM-dd HH:mm:ss.SSS",
-                                                   icu::TimeZone::getGMT()));
+  EXPECT_EQ("2009-05-31T15:49:52.000Z",
+            base::TimeFormatAsIso8601(entry->last_modified));
   EXPECT_FALSE(entry->is_unsafe);
   EXPECT_TRUE(entry->is_directory);
 }

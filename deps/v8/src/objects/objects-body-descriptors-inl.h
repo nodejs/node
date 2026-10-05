@@ -78,7 +78,6 @@ void BodyDescriptorBase::IterateJSObjectBodyImpl(Tagged<Map> map,
                                                  int start_offset,
                                                  int end_offset,
                                                  ObjectVisitor* v) {
-#ifdef V8_COMPRESS_POINTERS
   static_assert(kEmbedderDataSlotSize == 2 * kTaggedSize);
   int header_end_offset = JSObject::GetHeaderSize(map);
   int inobject_fields_start_offset = map->GetInObjectPropertyOffset(0);
@@ -92,19 +91,13 @@ void BodyDescriptorBase::IterateJSObjectBodyImpl(Tagged<Map> map,
     for (int offset = header_end_offset; offset < inobject_fields_start_offset;
          offset += kEmbedderDataSlotSize) {
       IteratePointer(obj, offset + EmbedderDataSlot::kTaggedPayloadOffset, v);
-      v->VisitExternalPointer(
-          obj, obj->RawExternalPointerField(
-                   offset + EmbedderDataSlot::kExternalPointerOffset,
-                   {kFirstEmbedderDataTag, kLastEmbedderDataTag}));
+      v->VisitCppHeapPointer(
+          obj, obj->RawCppHeapPointerField(
+                   offset + EmbedderDataSlot::kCppHeapPointerOffset));
     }
     // Proceed processing inobject properties.
     start_offset = inobject_fields_start_offset;
   }
-#else
-  // We store raw aligned pointers as Smis, so it's safe to iterate the whole
-  // embedder field area as tagged slots.
-  static_assert(kEmbedderDataSlotSize == kTaggedSize);
-#endif
   IteratePointers(obj, start_offset, end_offset, v);
 }
 
@@ -966,6 +959,20 @@ class Foreign::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class CppGCManagedBase::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    Tagged<CppGCManagedBase> managed = UncheckedCast<CppGCManagedBase>(obj);
+    v->VisitCppHeapPointer(obj, CppHeapPointerSlot(&managed->cpp_gc_wrapper_));
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return CppGCManagedBase::kSize;
+  }
+};
+
 template <typename Derived>
 class V8_EXPORT_PRIVATE SmallOrderedHashTableImpl<Derived>::BodyDescriptor final
     : public BodyDescriptorBase {
@@ -1652,6 +1659,7 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
     Tagged<WasmStruct> wasm_struct = UncheckedCast<WasmStruct>(obj);
     const wasm::CanonicalStructType* type = WasmStruct::GcSafeType(map);
     if (type->is_descriptor()) {
+      DCHECK(!v8_flags.wasm_merged_descriptors);
       // The associated Map is stored where the first field would otherwise be.
       DCHECK(type->field_count() == 0 || type->field_offset(0) != 0);
       v->VisitPointer(wasm_struct, wasm_struct->RawField(0));
@@ -1786,6 +1794,34 @@ class Map::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+#if V8_ENABLE_WEBASSEMBLY
+
+class WasmCustomMap::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    Map::BodyDescriptor::IterateBody(map, obj, object_size, v);
+    IteratePointer(obj, offsetof(WasmCustomMap, js_wrapper_), v);
+
+    Tagged<WasmCustomMap> wasm_struct = UncheckedCast<WasmCustomMap>(obj);
+    // Not a typo: WasmCustomMap reuses some WasmStruct infrastructure.
+    const wasm::CanonicalStructType* type = WasmStruct::GcSafeType(map);
+    DCHECK(type->is_descriptor());
+    for (uint32_t i = 0; i < type->field_count(); i++) {
+      if (!type->field(i).is_ref()) continue;
+      int offset = static_cast<int>(type->field_offset(i));
+      v->VisitPointer(wasm_struct, wasm_struct->RawField(offset));
+    }
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
+    // Not a typo: WasmCustomMap reuses some WasmStruct infrastructure.
+    return WasmStruct::GcSafeSize(map);
+  }
+};
+
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 class DataHandler::BodyDescriptor final : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>
@@ -1827,14 +1863,8 @@ class NativeContext::BodyDescriptor final : public BodyDescriptorBase {
                     NativeContext::kEndOfStrongFieldsOffset, v);
     IterateCustomWeakPointers(obj, NativeContext::kStartOfWeakFieldsOffset,
                               NativeContext::kEndOfWeakFieldsOffset, v);
-#ifdef V8_CPPGC_MICROTASK_QUEUE
     v->VisitCppHeapPointer(obj,
                            obj->RawCppHeapPointerField(kMicrotaskQueueOffset));
-#else
-    v->VisitExternalPointer(
-        obj, obj->RawExternalPointerField(kMicrotaskQueueOffset,
-                                          kNativeContextMicrotaskQueueTag));
-#endif  // V8_CPPGC_MICROTASK_QUEUE
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
@@ -1888,23 +1918,14 @@ class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-#ifdef V8_COMPRESS_POINTERS
     static_assert(kEmbedderDataSlotSize == 2 * kTaggedSize);
     for (int offset = EmbedderDataArray::OffsetOfElementAt(0);
          offset < object_size; offset += kEmbedderDataSlotSize) {
       IteratePointer(obj, offset + EmbedderDataSlot::kTaggedPayloadOffset, v);
-      v->VisitExternalPointer(
-          obj, obj->RawExternalPointerField(
-                   offset + EmbedderDataSlot::kExternalPointerOffset,
-                   {kFirstEmbedderDataTag, kLastEmbedderDataTag}));
+      v->VisitCppHeapPointer(
+          obj, obj->RawCppHeapPointerField(
+                   offset + EmbedderDataSlot::kCppHeapPointerOffset));
     }
-
-#else
-    // We store raw aligned pointers as Smis, so it's safe to iterate the whole
-    // array.
-    static_assert(kEmbedderDataSlotSize == kTaggedSize);
-    IteratePointers(obj, sizeof(EmbedderDataArray), object_size, v);
-#endif
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {

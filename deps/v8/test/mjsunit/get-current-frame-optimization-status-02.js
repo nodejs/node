@@ -4,6 +4,7 @@
 
 // Flags: --sparkplug --no-always-sparkplug --maglev --turbofan
 // Flags: --allow-natives-syntax --concurrent-recompilation
+// Flags: --osr-from-maglev=4
 
 // Note: OSR from Maglev to Turbofan requires --concurrent-recompilation.
 

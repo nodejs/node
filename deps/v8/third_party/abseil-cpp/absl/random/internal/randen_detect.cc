@@ -19,21 +19,18 @@
 
 #include "absl/random/internal/randen_detect.h"
 
+#include <optional>  // IWYU pragma: keep
+
+#include "absl/base/config.h"
+#include "absl/random/internal/platform.h"
+
 #if defined(__APPLE__) && defined(__aarch64__)
-#if defined(__has_include)
 #if __has_include(<arm/cpu_capabilities_public.h>)
 #include <arm/cpu_capabilities_public.h>
-#endif
 #endif
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #endif
-
-#include <cstdint>
-#include <cstring>
-#include <optional>  // IWYU pragma: keep
-
-#include "absl/random/internal/platform.h"
 
 #if !defined(__UCLIBC__) && defined(__GLIBC__) && \
     (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 16))
@@ -90,6 +87,8 @@ static uint32_t GetAuxval(uint32_t hwcap_type) {
 // /proc/self/auxval.
 #if defined(ABSL_INTERNAL_USE_ANDROID_GETAUXVAL)
 #include <dlfcn.h>
+
+#include <cstring>
 
 static uint32_t GetAuxval(uint32_t hwcap_type) {
   // NOLINTNEXTLINE(runtime/int)

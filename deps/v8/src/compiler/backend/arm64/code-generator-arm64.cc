@@ -1394,7 +1394,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchAtomicStoreWithWriteBarrier: {
       DCHECK_EQ(AddressingModeField::decode(instr->opcode()), kMode_MRR);
-      RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
+      RecordWriteMode mode =
+          AtomicStoreRecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
       Register object = i.InputRegister(0);
@@ -2818,7 +2819,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicExchangeWithWriteBarrier: {
       if constexpr (COMPRESS_POINTERS_BOOL) {
         ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(, Register32);
-        __ Add(i.OutputRegister(), i.OutputRegister(),
+        __ Orr(i.OutputRegister(), i.OutputRegister(),
                kPtrComprCageBaseRegister);
       } else {
         ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(, Register);
@@ -3369,9 +3370,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       const int lane_size = LaneSizeBits(LaneSizeField::decode(opcode));
       VectorFormat format = VectorFormatFillQ(lane_size);
       if (instr->InputAt(1)->IsImmediate()) {
-        __ Sshr(i.OutputSimd128Register().Format(format),
-                i.InputSimd128Register(0).Format(format),
-                i.InputIntFromLaneSize(1, lane_size));
+        int shift = i.InputIntFromLaneSize(1, lane_size);
+        if (shift == lane_size - 1) {
+          __ Cmlt(i.OutputSimd128Register().Format(format),
+                  i.InputSimd128Register(0).Format(format), 0);
+        } else {
+          __ Sshr(i.OutputSimd128Register().Format(format),
+                  i.InputSimd128Register(0).Format(format), shift);
+        }
       } else {
         UseScratchRegisterScope temps(masm());
         VRegister tmp = temps.AcquireQ();

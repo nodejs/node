@@ -428,10 +428,6 @@ class ABSL_ATTRIBUTE_OWNER node_hash_map
   //   `node_hash_map` does not contain an element with a matching key, this
   //   function returns an empty node handle.
   //
-  // NOTE: when compiled in an earlier version of C++ than C++17,
-  // `node_type::key()` returns a const reference to the key instead of a
-  // mutable reference. We cannot safely return a mutable reference without
-  // std::launder (which is not available before C++17).
   using Base::extract;
 
   // node_hash_map::merge()
@@ -685,11 +681,11 @@ class NodeHashMapPolicy
   static Value& value(value_type* elem) { return elem->second; }
   static const Value& value(const value_type* elem) { return elem->second; }
 
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return memory_internal::IsLayoutCompatible<Key, Value>::value
                ? &TypeErasedDerefAndApplyToSlotFirstFn<Hash, value_type,
-                                                       kIsDefault>
+                                                       kIsDefault, kSeedShift>
                : nullptr;
   }
 };

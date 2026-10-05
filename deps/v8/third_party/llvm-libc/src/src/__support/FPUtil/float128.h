@@ -10,6 +10,7 @@
 #define LLVM_LIBC_SRC___SUPPORT_FPUTIL_FLOAT128_H
 
 #include "hdr/stdint_proxy.h"
+#include "src/__support/CPP/limits.h"
 #include "src/__support/CPP/type_traits.h"
 #include "src/__support/FPUtil/cast.h"
 #include "src/__support/FPUtil/comparison_operations.h"
@@ -69,13 +70,27 @@ struct Float128 {
 
   template <typename T, cpp::enable_if_t<cpp::is_integral_v<T>, int> = 0>
   LIBC_INLINE constexpr explicit operator T() const {
+    constexpr T MIN_T = cpp::numeric_limits<T>::min();
+    constexpr T MAX_T = cpp::numeric_limits<T>::max();
     FPBits<Float128> x_bits(*this);
     // Raise FE_INVALID for inf and NaN
     if (x_bits.is_inf_or_nan()) {
       raise_except_if_required(FE_INVALID);
+      return x_bits.is_neg() ? MIN_T : MAX_T;
     }
-    int x_bits_exp =
-        x_bits.get_explicit_exponent() - FPBits<Float128>::FRACTION_LEN;
+    int exponent = x_bits.get_explicit_exponent();
+    constexpr int EXPONENT_LIMIT = cpp::numeric_limits<T>::digits;
+    if (exponent > EXPONENT_LIMIT) {
+      raise_except_if_required(FE_INVALID);
+      return x_bits.is_neg() ? MIN_T : MAX_T;
+    } else if (exponent == EXPONENT_LIMIT) {
+      if (x_bits.is_pos() || x_bits.get_mantissa() != 0) {
+        raise_except_if_required(FE_INVALID);
+        return x_bits.is_neg() ? MIN_T : MAX_T;
+      }
+    }
+
+    int x_bits_exp = exponent - FPBits<Float128>::FRACTION_LEN;
     // sign * 2^(exp-bias) * mantissa
     DyadicFloat<FPBits<Float128>::STORAGE_LEN> xd(
         x_bits.sign(), x_bits_exp, x_bits.get_explicit_mantissa());

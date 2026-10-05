@@ -331,6 +331,106 @@ TEST_F(InterceptorTest, IndexedInterceptorIterableToList_MissingCallback) {
                             false);
 }
 
+TEST_F(InterceptorTest, IndexedInterceptorIterableToList_ValidityCellBypass) {
+  i::FlagScope<bool> enable_flag(&i::v8_flags.fast_api_iterable_to_list, true);
+  v8::HandleScope scope(isolate());
+  InterceptorData data;
+
+  Local<FunctionTemplate> tmpl =
+      CreateIterableToListInterceptorTemplate(isolate(), &data);
+  Local<Function> ctor = tmpl->GetFunction(context()).ToLocalChecked();
+  Local<Object> obj = ctor->NewInstance(context()).ToLocalChecked();
+  SetGlobalProperty("obj", obj);
+  ASSERT_EQ(data.call_count, 0);
+
+  // 1. Make sure the interceptor's prototype is still in setup mode.
+  Local<Object> prototype = obj->GetPrototype().As<Object>();
+  i::DirectHandle<i::JSObject> i_prototype =
+      i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*prototype));
+  ASSERT_TRUE(i_prototype->map()->is_dictionary_map());
+
+  // 2. Make Symbol.iterator mutable but keep the value unchanged.
+  RunJS(R"(
+      var proto = Object.getPrototypeOf(obj);
+      proto[Symbol.iterator] = function() {};
+      proto[Symbol.iterator] = Array.prototype.values;
+    )");
+  data.call_count = 0;
+
+  // 3. Trigger fast path and let it switch the prototype to fast mode and
+  // perform the necessary checks.
+  RunJS("Array.from(obj);");
+  ASSERT_EQ(data.call_count, 1);
+
+  // 4. Modify Symbol.iterator again, the fast path shouldn't be taken.
+  RunJS("proto[Symbol.iterator] = function*() { yield 42; };");
+  data.call_count = 0;
+
+  // 5. Array.from should now use the custom iterator.
+  Local<Value> res = RunJS("Array.from(obj)");
+  ASSERT_EQ(data.call_count, 0);
+  ASSERT_TRUE(res->IsArray());
+  Local<Array> arr = res.As<Array>();
+
+  // With the bug, arr->Length() will be 3 and arr[0] will be 11.
+  // We want to write a failing test, so we assert what it SHOULD be,
+  // and the bug will cause the assertion to fail.
+  ASSERT_EQ(1u, arr->Length());
+  ASSERT_EQ(42, arr->Get(context(), 0).ToLocalChecked().As<Integer>()->Value());
+}
+
+TEST_F(InterceptorTest, IndexedInterceptorIterableToList_SetPrototypeBypass) {
+  i::FlagScope<bool> enable_flag(&i::v8_flags.fast_api_iterable_to_list, true);
+  v8::HandleScope scope(isolate());
+  InterceptorData data;
+
+  Local<FunctionTemplate> tmpl =
+      CreateIterableToListInterceptorTemplate(isolate(), &data);
+  Local<Function> ctor = tmpl->GetFunction(context()).ToLocalChecked();
+  Local<Object> obj = ctor->NewInstance(context()).ToLocalChecked();
+  SetGlobalProperty("obj", obj);
+
+  // 1. Trigger fast path and create validity cell.
+  RunJS("Array.from(obj);");
+  ASSERT_EQ(data.call_count, 1);
+
+  // 2. Change prototype to an object with a custom iterator.
+  RunJS(R"(
+      var custom_proto = {
+        [Symbol.iterator]: function*() { yield 99; }
+      };
+      Object.setPrototypeOf(obj, custom_proto);
+    )");
+  data.call_count = 0;
+
+  // 3. Array.from should not take the fast path and must use the custom
+  // iterator.
+  Local<Value> res = RunJS("Array.from(obj)");
+  ASSERT_EQ(data.call_count, 0);
+  ASSERT_TRUE(res->IsArray());
+  Local<Array> arr = res.As<Array>();
+  ASSERT_EQ(1u, arr->Length());
+  ASSERT_EQ(99, arr->Get(context(), 0).ToLocalChecked().As<Integer>()->Value());
+
+  // 4. Change prototype to null.
+  RunJS("Object.setPrototypeOf(obj, null);");
+  data.call_count = 0;
+  Local<Value> res_null = RunJS("Array.from(obj)");
+  ASSERT_EQ(data.call_count, 0);
+  ASSERT_TRUE(res_null->IsArray());
+  ASSERT_EQ(0u, res_null.As<Array>()->Length());
+
+  Local<Value> is_error = RunJS(R"(
+      try {
+        ((...args) => args)(...obj);
+        false;
+      } catch (e) {
+        e instanceof TypeError;
+      }
+    )");
+  ASSERT_TRUE(is_error->IsTrue());
+}
+
 // namespace internal {
 namespace {
 

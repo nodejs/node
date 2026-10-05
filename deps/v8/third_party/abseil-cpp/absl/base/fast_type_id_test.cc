@@ -16,6 +16,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <map>
 #include <vector>
 
@@ -61,7 +62,7 @@ TEST(FastTypeIdTest, PrimitiveTypes) {
   };
   // clang-format on
 
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(kTypeIds); ++i) {
+  for (size_t i = 0; i < std::size(kTypeIds); ++i) {
     EXPECT_EQ(kTypeIds[i], kTypeIds[i]);
     for (size_t j = 0; j < i; ++j) {
       EXPECT_NE(kTypeIds[i], kTypeIds[j]);
@@ -97,7 +98,7 @@ TEST(FastTypeIdTest, FixedWidthTypes) {
   };
   // clang-format on
 
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(kTypeIds); ++i) {
+  for (size_t i = 0; i < std::size(kTypeIds); ++i) {
     EXPECT_EQ(kTypeIds[i], kTypeIds[i]);
     for (size_t j = 0; j < i; ++j) {
       EXPECT_NE(kTypeIds[i], kTypeIds[j]);

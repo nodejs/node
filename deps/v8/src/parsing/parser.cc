@@ -778,12 +778,6 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info,
   DCHECK_EQ(parsing_on_main_thread_, isolate != nullptr);
   DCHECK_NULL(scope_);
 
-  std::optional<base::ElapsedTimer> timer;
-  if (v8_flags.enable_parser_ablation && base::TimeTicks::IsHighResolution()) {
-    timer.emplace();
-    timer->Start();
-  }
-
   ScopedModification<Mode> mode_scope(
       &mode_, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
   ResetInfoId(kFunctionLiteralIdTopLevel);
@@ -892,16 +886,6 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info,
 
   RecordFunctionLiteralSourceRange(result);
 
-  if (timer && timer->Elapsed().InNanoseconds() > 0) {
-    auto end = timer->Elapsed();
-    end += std::min(base::TimeDelta::FromSeconds(1),
-                    base::TimeDelta::FromMicroseconds(
-                        static_cast<double>(end.InMicroseconds()) *
-                        v8_flags.parser_ablation_amount));
-    while (timer->Elapsed() < end) {
-    }
-  }
-
   return result;
 }
 
@@ -926,7 +910,9 @@ void Parser::PostProcessParseResult(IsolateT* isolate, ParseInfo* info,
     if (scope->is_script_scope()) {
       for (Variable* var : *scope->locals()) {
         var->set_is_used();
-        var->SetMaybeAssigned();
+        if (var->mode() != VariableMode::kConst || flags().is_repl_mode()) {
+          var->SetMaybeAssigned();
+        }
       }
     }
 
@@ -957,6 +943,8 @@ ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
   DirectHandle<FixedArray> arguments =
       maybe_wrapped_arguments_.ToHandleChecked();
   uint32_t arguments_length = arguments->ulength().value();
+  SBXCHECK_LE(arguments_length, static_cast<uint32_t>(Code::kMaxArguments -
+                                                      kJSArgcReceiverSlots));
   ZonePtrList<const AstRawString>* arguments_for_wrapped_function =
       zone->New<ZonePtrList<const AstRawString>>(arguments_length, zone);
   for (uint32_t i = 0; i < arguments_length; i++) {
@@ -1157,12 +1145,6 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
   DCHECK_NOT_NULL(raw_name);
   DCHECK_NULL(scope_);
 
-  std::optional<base::ElapsedTimer> timer;
-  if (v8_flags.enable_parser_ablation && base::TimeTicks::IsHighResolution()) {
-    timer.emplace();
-    timer->Start();
-  }
-
   DCHECK(ast_value_factory());
   fni_.PushEnclosingName(raw_name);
 
@@ -1275,16 +1257,6 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
   }
 
   info->set_max_info_id(GetLastInfoId());
-
-  if (timer && timer->Elapsed().InNanoseconds() > 0) {
-    auto end = timer->Elapsed();
-    end += std::min(base::TimeDelta::FromSeconds(1),
-                    base::TimeDelta::FromMicroseconds(
-                        static_cast<double>(end.InMicroseconds()) *
-                        v8_flags.parser_ablation_amount));
-    while (timer->Elapsed() < end) {
-    }
-  }
 
   DCHECK_IMPLIES(result, function_literal_id == result->function_literal_id());
   return result;
@@ -1772,18 +1744,22 @@ void Parser::ParseImportDeclaration() {
   if (module_namespace_binding != nullptr) {
     DCHECK(import_phase == ModuleImportPhase::kEvaluation ||
            import_phase == ModuleImportPhase::kDefer);
-    module()->AddStarImport(
+    bool is_new = module()->AddStarImport(
         module_namespace_binding, module_specifier, import_phase,
         import_attributes, module_namespace_binding_loc, specifier_loc, zone());
+    USE(is_new);
+    DCHECK_IMPLIES(!is_new, has_error());
   }
 
   if (import_default_binding != nullptr) {
     DCHECK_IMPLIES(import_phase == ModuleImportPhase::kSource,
                    v8_flags.js_source_phase_imports);
-    module()->AddImport(ast_value_factory()->default_string(),
-                        import_default_binding, module_specifier, import_phase,
-                        import_attributes, import_default_binding_loc,
-                        specifier_loc, zone());
+    bool is_new = module()->AddImport(
+        ast_value_factory()->default_string(), import_default_binding,
+        module_specifier, import_phase, import_attributes,
+        import_default_binding_loc, specifier_loc, zone());
+    USE(is_new);
+    DCHECK_IMPLIES(!is_new, has_error());
   }
 
   if (named_imports != nullptr) {
@@ -1793,9 +1769,12 @@ void Parser::ParseImportDeclaration() {
                                specifier_loc, zone());
     } else {
       for (const NamedImport* import : *named_imports) {
-        module()->AddImport(import->import_name, import->local_name,
-                            module_specifier, import_phase, import_attributes,
-                            import->location, specifier_loc, zone());
+        bool is_new = module()->AddImport(
+            import->import_name, import->local_name, module_specifier,
+            import_phase, import_attributes, import->location, specifier_loc,
+            zone());
+        USE(is_new);
+        DCHECK_IMPLIES(!is_new, has_error());
       }
     }
   }
@@ -1921,9 +1900,11 @@ void Parser::ParseExportStar() {
   const ImportAttributes* import_attributes = ParseImportWithOrAssertClause();
   ExpectSemicolon();
 
-  module()->AddStarImport(local_name, module_specifier,
-                          ModuleImportPhase::kEvaluation, import_attributes,
-                          local_name_loc, specifier_loc, zone());
+  bool is_new = module()->AddStarImport(
+      local_name, module_specifier, ModuleImportPhase::kEvaluation,
+      import_attributes, local_name_loc, specifier_loc, zone());
+  USE(is_new);
+  DCHECK(is_new);
   module()->AddExport(local_name, export_name, export_name_loc, zone());
 }
 
@@ -3115,29 +3096,12 @@ bool Parser::SkipFunction(int function_literal_id,
   // AST. This gathers the data needed to build a lazy function.
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
 
-  std::optional<base::ElapsedTimer> timer;
-  if (v8_flags.enable_preparser_ablation &&
-      base::TimeTicks::IsHighResolution()) {
-    timer.emplace();
-    timer->Start();
-  }
-
   reusable_preparser()->set_has_generator_in_scope_chain(
       has_generator_in_scope_chain());
   reusable_preparser()->set_max_drift(this->max_drift());
   PreParser::PreParseResult result = reusable_preparser()->PreParseFunction(
       function_literal_id, function_name, kind, function_syntax_kind,
       function_scope, use_counts_, produced_preparse_data);
-
-  if (timer && timer->Elapsed().InNanoseconds() > 0) {
-    auto end = timer->Elapsed();
-    end += std::min(base::TimeDelta::FromSeconds(1),
-                    base::TimeDelta::FromMicroseconds(
-                        static_cast<double>(end.InMicroseconds()) *
-                        v8_flags.preparser_ablation_amount));
-    while (timer->Elapsed() < end) {
-    }
-  }
 
   if (result == PreParser::kPreParseStackOverflow) {
     // Propagate stack overflow.

@@ -101,6 +101,8 @@ class Decoder {
   void PrintRvcImm8Addi4spn(Instruction* instr);
   void PrintRvcImm11CJ(Instruction* instr);
   void PrintRvcImm8B(Instruction* instr);
+  void PrintRvcImm2B(Instruction* instr);
+  void PrintRvcImm1H(Instruction* instr);
   void PrintRvvVm(Instruction* instr);
   void PrintAcquireRelease(Instruction* instr);
   void PrintBranchOffset(Instruction* instr);
@@ -396,6 +398,18 @@ void Decoder::PrintRvcImm11CJ(Instruction* instr) {
 
 void Decoder::PrintRvcImm8B(Instruction* instr) {
   int32_t imm = instr->RvcImm8BValue();
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+}
+
+void Decoder::PrintRvcImm2B(Instruction* instr) {
+  // Zcb byte load/store offset: uimm[1] = enc[5], uimm[0] = enc[6].
+  int32_t imm = (instr->Bits(5, 5) << 1) | instr->Bits(6, 6);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+}
+
+void Decoder::PrintRvcImm1H(Instruction* instr) {
+  // Zcb halfword load/store offset: uimm[1] = enc[5], uimm[0] = 0.
+  int32_t imm = instr->Bits(5, 5) << 1;
   out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
@@ -728,8 +742,16 @@ int Decoder::FormatRvcImm(Instruction* instr, const char* format) {
       DCHECK(STRING_STARTS_WITH(format, "Cimm11CJ"));
       PrintRvcImm11CJ(instr);
       return 8;
+    } else if (format[5] == 'H') {
+      DCHECK(STRING_STARTS_WITH(format, "Cimm1H"));
+      PrintRvcImm1H(instr);
+      return 6;
     }
     UNREACHABLE();
+  } else if (format[4] == '2') {
+    DCHECK(STRING_STARTS_WITH(format, "Cimm2B"));
+    PrintRvcImm2B(instr);
+    return 6;
   }
   UNREACHABLE();
 }
@@ -2262,6 +2284,9 @@ void Decoder::DecodeCAType(Instruction* instr) {
       Format(instr, "addw       'Crs1s, 'Crs1s, 'Crs2s");
       break;
 #endif
+    case RO_C_MUL:
+      Format(instr, "mul       'Crs1s, 'Crs1s, 'Crs2s");
+      break;
     default:
       UNSUPPORTED_RISCV();
   }
@@ -2365,7 +2390,19 @@ void Decoder::DecodeCLType(Instruction* instr) {
       Format(instr, "flw       'Cfs2s, 'Cimm5D('Crs1s)");
       break;
 #endif
-
+    case RO_C_LBU:  // Zcb loads, all sharing funct3=100.
+      if ((instr->InstructionBits() & (kRvcFunct6Mask | (1 << 6))) ==
+          RO_C_LHU) {
+        Format(instr, "lhu       'Crs2s, 'Cimm1H('Crs1s)");
+      } else if ((instr->InstructionBits() & (kRvcFunct6Mask | (1 << 6))) ==
+                 RO_C_LH) {
+        Format(instr, "lh        'Crs2s, 'Cimm1H('Crs1s)");
+      } else if ((instr->InstructionBits() & kRvcFunct6Mask) == RO_C_LBU) {
+        Format(instr, "lbu       'Crs2s, 'Cimm2B('Crs1s)");
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
     default:
       UNSUPPORTED_RISCV();
   }
@@ -2388,6 +2425,16 @@ void Decoder::DecodeCSType(Instruction* instr) {
       Format(instr, "fsw       'Cfs2s, 'Cimm5D('Crs1s)");
       break;
 #endif
+    case RO_C_LBU:  // Zcb stores, all sharing funct3=100.
+      if ((instr->InstructionBits() & kRvcFunct6Mask) == RO_C_SB) {
+        Format(instr, "sb        'Crs2s, 'Cimm2B('Crs1s)");
+      } else if ((instr->InstructionBits() & (kRvcFunct6Mask | (1 << 6))) ==
+                 RO_C_SH) {
+        Format(instr, "sh        'Crs2s, 'Cimm1H('Crs1s)");
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
     default:
       UNSUPPORTED_RISCV();
   }
@@ -2420,6 +2467,33 @@ void Decoder::DecodeCBType(Instruction* instr) {
         break;
       } else if (instr->RvcFunct2BValue() == 0b10) {
         Format(instr, "andi       'Crs1s, 'Crs1s, 'Cimm6");
+        break;
+      } else if (instr->RvcFunct2BValue() == 0b11) {
+        // Zcb unary instructions (CU format), distinguished by nzuimm[5:0].
+        switch (instr->RvcImm6Value() & 0b111111) {
+          case 0b111000:
+            Format(instr, "zext.b    'Crs1s, 'Crs1s");
+            break;
+          case 0b111001:
+            Format(instr, "sext.b    'Crs1s, 'Crs1s");
+            break;
+          case 0b111010:
+            Format(instr, "zext.h    'Crs1s, 'Crs1s");
+            break;
+          case 0b111011:
+            Format(instr, "sext.h    'Crs1s, 'Crs1s");
+            break;
+#ifdef V8_TARGET_ARCH_64_BIT
+          case 0b111100:
+            Format(instr, "zext.w    'Crs1s, 'Crs1s");
+            break;
+#endif
+          case 0b111101:
+            Format(instr, "not       'Crs1s, 'Crs1s");
+            break;
+          default:
+            UNSUPPORTED_RISCV();
+        }
         break;
       } else {
         UNSUPPORTED_RISCV();

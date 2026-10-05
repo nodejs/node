@@ -40,11 +40,17 @@ V8_INLINE void CheckMemoryIsZero(const void* address, size_t size) {
   }
 }
 
+#if defined(V8_USE_MEMORY_SANITIZER) || defined(V8_USE_ADDRESS_SANITIZER) || \
+    DEBUG
+#define CPPGC_SHOULD_ZAP_MEMORY 1
+#else
+#define CPPGC_SHOULD_ZAP_MEMORY 0
+#endif
+
 // Together `SetMemoryAccessible()` and `SetMemoryInaccessible()` form the
 // memory access model for allocation and free.
 
-#if defined(V8_USE_MEMORY_SANITIZER) || defined(V8_USE_ADDRESS_SANITIZER) || \
-    DEBUG
+#if CPPGC_SHOULD_ZAP_MEMORY
 
 void SetMemoryAccessible(void* address, size_t size);
 void SetMemoryInaccessible(void* address, size_t size);

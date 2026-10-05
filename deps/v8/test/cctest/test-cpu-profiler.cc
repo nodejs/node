@@ -43,6 +43,8 @@
 #include "src/codegen/source-position-table.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/embedder-state.h"
+#include "src/execution/frames-inl.h"
+#include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/flags/flags.h"
@@ -5031,6 +5033,47 @@ TEST(CpuProfileJSONSerializationWithEscapedStrings) {
       v8::String::NewExternalOneByte(env.isolate(), json_res).ToLocalChecked();
   v8::Local<v8::Context> context = v8::Context::New(env.isolate());
   v8::JSON::Parse(context, json_string).ToLocalChecked();
+}
+
+TEST(UnalignedFastCCallFP) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+
+  // We want to construct a fake stack that looks like an EntryFrame,
+  // but with an unaligned next_fast_c_call_fp.
+
+  // Allocate some memory to act as our stack.
+  constexpr int kStackSize = 1024;
+  uint8_t stack[kStackSize];
+
+  Address fp = reinterpret_cast<Address>(&stack[512]);
+  Address sp = fp - 128;
+  Address pc = reinterpret_cast<Address>(
+      isolate->builtins()->code(Builtin::kJSEntry)->instruction_start());
+
+  // Set up the EntryFrame layout.
+  // We need frame type to be ENTRY.
+  base::Memory<Address>(fp + TypedFrameConstants::kFrameTypeOffset) =
+      StackFrame::TypeToMarker(StackFrame::ENTRY);
+
+  // Set up kNextFastCallFrameFPOffset
+  base::Memory<Address>(fp + EntryFrameConstants::kNextFastCallFrameFPOffset) =
+      fp + 1;  // Unaligned but valid stack address!
+
+  // Set up kNextExitFrameFPOffset to a valid value just in case
+  base::Memory<Address>(fp + EntryFrameConstants::kNextExitFrameFPOffset) =
+      fp + 128;  // valid-ish
+
+  // Iterate over it.
+  StackFrameIteratorForProfilerForTesting it(isolate, pc, fp, sp, kNullAddress,
+                                             sp);
+
+  // Advance should safely terminate because HasValidExitIfEntryFrame will
+  // return false when it sees the unaligned fast C call FP, instead of doing an
+  // unaligned read.
+  while (!it.done()) {
+    it.Advance();
+  }
 }
 
 }  // namespace test_cpu_profiler

@@ -27,6 +27,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-function.h"
 #include "src/objects/managed-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/templates.h"
@@ -168,7 +169,7 @@ std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
   TRACE_EVENT("v8.wasm", "wasm.WasmStreaming.Unpack");
   i::HandleScope scope(reinterpret_cast<i::Isolate*>(isolate));
   auto managed =
-      i::Cast<i::Managed<WasmStreaming>>(Utils::OpenDirectHandle(*value));
+      i::Cast<i::CppGCManaged<WasmStreaming>>(Utils::OpenDirectHandle(*value));
   return managed->ptr().as_shared_ptr();
 }
 
@@ -238,11 +239,16 @@ class WasmModuleCompilation::Impl {
   const std::shared_ptr<i::wasm::StreamingDecoder> streaming_decoder_;
 };
 
-// TODO(clemensb): Pass enabled features and compile time imports.
-WasmModuleCompilation::WasmModuleCompilation()
-    : impl_(std::make_unique<Impl>(WasmEnabledFeatures::FromFlags(),
-                                   CompileTimeImports{})) {
+// TODO(clemensb): Pass enabled features.
+WasmModuleCompilation::WasmModuleCompilation(const CompileOptions& options)
+    : impl_(std::make_unique<Impl>(
+          WasmEnabledFeatures::FromFlags(),
+          i::wasm::CompileTimeImportsFromOptions(options))) {
   TRACE_EVENT("v8.wasm", "wasm.ModuleCompilation");
+  if (!options.source_url.empty()) {
+    impl_->SetUrl(
+        base::VectorOf(options.source_url.data(), options.source_url.size()));
+  }
 }
 
 WasmModuleCompilation::~WasmModuleCompilation() = default;
@@ -835,14 +841,14 @@ void StartAsyncCompilationWithResolver(
     return;
   }
 
-  // Allocate the streaming decoder in a Managed so we can pass it to the
+  // Allocate the streaming decoder in a CppGCManaged so we can pass it to the
   // embedder.
   std::shared_ptr<WasmStreaming> streaming = std::make_shared<WasmStreaming>(
       std::make_unique<WasmStreaming::WasmStreamingImpl>(
           i_isolate, js_api_scope.api_name(), std::move(compile_imports),
           resolver));
-  i::DirectHandle<i::Managed<WasmStreaming>> data =
-      i::Managed<WasmStreaming>::From(i_isolate, 0, streaming);
+  i::DirectHandle<i::CppGCManaged<WasmStreaming>> data =
+      i::CppGCManaged<WasmStreaming>::Create(i_isolate, 0, streaming);
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
   Local<v8::Function> compile_callback, reject_callback;
@@ -1583,44 +1589,23 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   DCHECK(!type.has_index());  // The JS API can't express type indices.
   i::wasm::CanonicalValueType canonical_type{type};
-  i::DirectHandle<i::WasmDispatchTable> dispatch_table;
-  i::DirectHandle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
-      i_isolate, i::DirectHandle<i::WasmTrustedInstanceData>(), type,
-      canonical_type, initial, maybe_maximum.has_value(),
-      maybe_maximum.value_or(0) /* note: unused if previous param is false */,
-      DefaultReferenceValue(i_isolate, type), address_type, &dispatch_table);
-
-  // The infrastructure for `new Foo` calls allocates an object, which is
-  // available here as {info.This()}. We're going to discard this object
-  // and use {table_obj} instead, but it does have the correct prototype,
-  // which we must harvest from it. This makes a difference when the JS
-  // constructor function wasn't {WebAssembly.Table} directly, but some
-  // subclass: {table_obj} has {WebAssembly.Table}'s prototype at this
-  // point, so we must overwrite that with the correct prototype for {Foo}.
-  if (!TransferPrototype(i_isolate, table_obj,
-                         Utils::OpenDirectHandle(*info.This()))) {
-    return js_api_scope.AssertException();
-  }
+  i::DirectHandle<i::Object> initial_value;
 
   if (initial > 0 && info.Length() >= 2 && !info[1]->IsUndefined()) {
     i::DirectHandle<i::Object> element = Utils::OpenDirectHandle(*info[1]);
     const char* error_message;
-    if (!i::WasmTableObject::JSToWasmElement(i_isolate, table_obj, element,
-                                             &error_message)
-             .ToHandle(&element)) {
+    if (!i::wasm::JSToWasmObject(i_isolate, element, canonical_type,
+                                 &error_message)
+             .ToHandle(&initial_value)) {
       thrower.TypeError(
           "Argument 2 must be undefined or a value of type compatible "
           "with the type of the new table: %s.",
           error_message);
       return;
     }
-    for (uint32_t index = 0; index < initial; ++index) {
-      i::WasmTableObject::Set(i_isolate, table_obj, dispatch_table, index,
-                              element);
-    }
-  } else if (initial > 0) {
-    DCHECK_EQ(type, table_obj->unsafe_type());
-    if (type.is_abstract_ref()) {
+  } else {
+    initial_value = DefaultReferenceValue(i_isolate, type);
+    if (initial > 0 && type.is_abstract_ref()) {
       switch (type.generic_kind()) {
         case i::wasm::GenericKind::kString:
           thrower.TypeError(
@@ -1636,6 +1621,26 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       }
     }
   }
+
+  i::DirectHandle<i::WasmDispatchTable> dispatch_table;
+  i::DirectHandle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
+      i_isolate, i::DirectHandle<i::WasmTrustedInstanceData>(), type,
+      canonical_type, initial, maybe_maximum.has_value(),
+      maybe_maximum.value_or(0) /* note: unused if previous param is false */,
+      initial_value, address_type, &dispatch_table);
+
+  // The infrastructure for `new Foo` calls allocates an object, which is
+  // available here as {info.This()}. We're going to discard this object
+  // and use {table_obj} instead, but it does have the correct prototype,
+  // which we must harvest from it. This makes a difference when the JS
+  // constructor function wasn't {WebAssembly.Table} directly, but some
+  // subclass: {table_obj} has {WebAssembly.Table}'s prototype at this
+  // point, so we must overwrite that with the correct prototype for {Foo}.
+  if (!TransferPrototype(i_isolate, table_obj,
+                         Utils::OpenDirectHandle(*info.This()))) {
+    return js_api_scope.AssertException();
+  }
+
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
   return_value.Set(Utils::ToLocal(i::Cast<i::JSObject>(table_obj)));
 }
@@ -2632,7 +2637,8 @@ void WebAssemblyMemoryGrowImpl(
   if (!maybe_delta_pages) return js_api_scope.AssertException();
   uint64_t delta_pages = *maybe_delta_pages;
 
-  i::Managed<i::BackingStore>::Ptr backing_store = receiver->backing_store();
+  i::CppGCManaged<i::BackingStore>::Ptr backing_store =
+      receiver->backing_store();
 #ifdef DEBUG
   if (i::Tagged<i::JSArrayBuffer> buffer;
       TryCast(receiver->array_buffer(), &buffer)) {
@@ -3575,6 +3581,27 @@ void WasmJs::InstallMemoryControl(Isolate* isolate,
                         constructor_handle, DONT_ENUM);
   context->set_wasm_memory_map_descriptor_constructor(*constructor_handle);
 }
+
+namespace wasm {
+CompileTimeImports CompileTimeImportsFromOptions(
+    const v8::WasmModuleObject::CompileOptions& options) {
+  CompileTimeImports result;
+  using Builtins = v8::WasmModuleObject::CompileOptions::Builtins;
+  if (options.builtins & Builtins::kJsString) {
+    result.Add(CompileTimeImport::kJsString);
+  }
+  if (options.imported_string_constants_module != nullptr) {
+    result.constants_module() = options.imported_string_constants_module;
+    result.Add(CompileTimeImport::kStringConstants);
+  }
+  // Mirror the JS `WebAssembly.Module` constructor, which disables denormal
+  // floats at compile time when the host FPU flushes them.
+  if (base::FPU::GetFlushDenormals()) {
+    result.Add(CompileTimeImport::kDisableDenormalFloats);
+  }
+  return result;
+}
+}  // namespace wasm
 
 // static
 CompileTimeImports WasmJs::CompileTimeImportsFromArgument(

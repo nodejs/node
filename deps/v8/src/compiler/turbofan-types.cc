@@ -197,6 +197,7 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case HEAP_NUMBER_TYPE:
       return kNumber;
     case CPP_HEAP_EXTERNAL_OBJECT_TYPE:
+    case CPP_GCMANAGED_BASE_TYPE:
     case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
     case JS_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
@@ -311,6 +312,8 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
 #endif  // V8_TEMPORAL_SUPPORT
     case JS_RAW_JSON_TYPE:
 #if V8_ENABLE_WEBASSEMBLY
+    case WASM_CUSTOM_MAP_TYPE:
+    case WASM_CUSTOM_MAP_WRAPPER_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_INSTANCE_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:

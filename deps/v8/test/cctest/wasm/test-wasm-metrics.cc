@@ -182,7 +182,7 @@ class InstantiateResolver : public InstantiationResultResolver {
 class CompileResolver : public CompilationResultResolver {
  public:
   CompileResolver(CompilationStatus* status, std::string* error_message,
-                  Isolate* isolate, Managed<NativeModule>::Ptr* native_module)
+                  Isolate* isolate, CppGCManaged<NativeModule>::Ptr* native_module)
       : status_(status),
         error_message_(error_message),
         isolate_(isolate),
@@ -211,7 +211,7 @@ class CompileResolver : public CompilationResultResolver {
   CompilationStatus* const status_;
   std::string* const error_message_;
   Isolate* isolate_;
-  Managed<NativeModule>::Ptr* const native_module_;
+  CppGCManaged<NativeModule>::Ptr* const native_module_;
 };
 
 }  // namespace test
@@ -288,7 +288,7 @@ COMPILE_TEST(TestEventMetrics) {
   auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate);
   test::CompilationStatus status = test::CompilationStatus::kPending;
   std::string error_message;
-  Managed<NativeModule>::Ptr native_module;
+  CppGCManaged<NativeModule>::Ptr native_module;
   base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(buffer);
   GetWasmEngine()->AsyncCompile(
       isolate, enabled_features, CompileTimeImports{},

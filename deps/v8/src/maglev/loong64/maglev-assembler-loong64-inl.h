@@ -532,10 +532,13 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
 inline MemOperand MaglevAssembler::TypedArrayElementOperand(
     Register data_pointer, Register index, int element_size) {
   const int shift = ShiftFromScale(element_size);
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  Bstrpick_d(scratch, index, 31, 0);
   if (shift == 0) {
-    Add_d(data_pointer, data_pointer, index);
+    Add_d(data_pointer, data_pointer, scratch);
   } else {
-    Alsl_d(data_pointer, index, data_pointer, shift);
+    Alsl_d(data_pointer, scratch, data_pointer, shift);
   }
   return MemOperand(data_pointer, 0);
 }
@@ -556,15 +559,28 @@ inline void MaglevAssembler::LoadDataViewElement(Register result,
   LoadSignedField(result, element_address, element_size);
 }
 
+inline void MaglevAssembler::LoadUnsignedDataViewElement(Register result,
+                                                         Register data_pointer,
+                                                         Register index,
+                                                         int element_size) {
+  MemOperand element_address = MemOperand(data_pointer, index);
+  LoadUnsignedField(result, element_address, element_size);
+}
+
 inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
                                                     Register object,
                                                     Register index, int scale,
                                                     int offset) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  // Int32 inputs are sign-extended on loong64; ensure the index contributes a
+  // non-negative offset to the 64-bit element address.
+  Bstrpick_d(scratch, index, 31, 0);
   const int shift = ShiftFromScale(scale);
   if (shift == 0) {
-    Add_d(result, object, index);
+    Add_d(result, object, scratch);
   } else {
-    Alsl_d(result, index, object, shift);
+    Alsl_d(result, scratch, object, shift);
   }
   LoadTaggedField(result, FieldMemOperand(result, offset));
 }
@@ -590,7 +606,9 @@ inline void MaglevAssembler::LoadExternalPointerField(Register result,
 void MaglevAssembler::LoadFixedArrayElement(Register result, Register array,
                                             Register index) {
   if (v8_flags.debug_code) {
-    AssertObjectType(array, FIXED_ARRAY_TYPE, AbortReason::kUnexpectedValue);
+    AssertObjectTypeInRange(array, FIRST_FIXED_ARRAY_TYPE,
+                            LAST_FIXED_ARRAY_TYPE,
+                            AbortReason::kUnexpectedValue);
     CompareInt32AndAssert(index, 0, kUnsignedGreaterThanEqual,
                           AbortReason::kUnexpectedNegativeValue);
   }
@@ -607,11 +625,16 @@ inline void MaglevAssembler::LoadTaggedFieldWithoutDecompressing(
 void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
     Register result, Register array, Register index) {
   if (v8_flags.debug_code) {
-    AssertObjectType(array, FIXED_ARRAY_TYPE, AbortReason::kUnexpectedValue);
+    AssertObjectTypeInRange(array, FIRST_FIXED_ARRAY_TYPE,
+                            LAST_FIXED_ARRAY_TYPE,
+                            AbortReason::kUnexpectedValue);
     CompareInt32AndAssert(index, 0, kUnsignedGreaterThanEqual,
                           AbortReason::kUnexpectedNegativeValue);
   }
-  Alsl_d(result, index, array, kTaggedSizeLog2);
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  Bstrpick_d(scratch, index, 31, 0);
+  Alsl_d(result, scratch, array, kTaggedSizeLog2);
   MacroAssembler::LoadTaggedFieldWithoutDecompressing(
       result, FieldMemOperand(result, OFFSET_OF_DATA_START(FixedArray)));
 }
@@ -627,7 +650,8 @@ void MaglevAssembler::LoadFixedDoubleArrayElement(DoubleRegister result,
   }
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  Alsl_d(scratch, index, array, kDoubleSizeLog2);
+  Bstrpick_d(scratch, index, 31, 0);
+  Alsl_d(scratch, scratch, array, kDoubleSizeLog2);
   Fld_d(result, FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)));
 }
 
@@ -635,7 +659,8 @@ inline void MaglevAssembler::StoreFixedDoubleArrayElement(
     Register array, Register index, DoubleRegister value) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  Alsl_d(scratch, index, array, kDoubleSizeLog2);
+  Bstrpick_d(scratch, index, 31, 0);
+  Alsl_d(scratch, scratch, array, kDoubleSizeLog2);
   Fst_d(value, FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)));
 }
 
@@ -672,8 +697,11 @@ inline void MaglevAssembler::SetSlotAddressForTaggedField(Register slot_reg,
 inline void MaglevAssembler::SetSlotAddressForFixedArrayElement(
     Register slot_reg, Register object, Register index) {
   DCHECK(!AreAliased(slot_reg, index));
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
   Add_d(slot_reg, object, OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
-  Alsl_d(slot_reg, index, slot_reg, kTaggedSizeLog2);
+  Bstrpick_d(scratch, index, 31, 0);
+  Alsl_d(slot_reg, scratch, slot_reg, kTaggedSizeLog2);
 }
 
 inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(Register object,
@@ -686,7 +714,8 @@ inline void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(
     Register array, Register index, Register value) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  Alsl_d(scratch, index, array, kTaggedSizeLog2);
+  Bstrpick_d(scratch, index, 31, 0);
+  Alsl_d(scratch, scratch, array, kTaggedSizeLog2);
   MacroAssembler::StoreTaggedField(
       value, FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)));
 }
@@ -744,6 +773,18 @@ inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
   if (size == 2) {
     revb_2h(value, value);
     ext_w_h(value, value);
+  } else if (size == 4) {
+    ByteSwap(value, value, 4);
+  } else {
+    DCHECK_EQ(size, 1);
+  }
+}
+
+inline void MaglevAssembler::ReverseByteOrderUnsigned(Register value,
+                                                      int size) {
+  if (size == 2) {
+    revb_2h(value, value);
+    bstrpick_w(value, value, 15, 0);
   } else if (size == 4) {
     ByteSwap(value, value, 4);
   } else {
@@ -899,6 +940,36 @@ inline void MaglevAssembler::LoadFloat64(DoubleRegister dst, MemOperand src) {
 }
 inline void MaglevAssembler::StoreFloat64(MemOperand dst, DoubleRegister src) {
   Fst_d(src, dst);
+}
+
+inline void MaglevAssembler::LoadUnalignedFloat32(DoubleRegister dst,
+                                                  Register base,
+                                                  Register index) {
+  LoadFloat32(dst, MemOperand(base, index));
+}
+inline void MaglevAssembler::LoadUnalignedFloat32AndReverseByteOrder(
+    DoubleRegister dst, Register base, Register index) {
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  Ld_w(scratch, MemOperand(base, index));
+  ByteSwap(scratch, scratch, 4);
+  movgr2fr_w(dst, scratch);
+  fcvt_d_s(dst, dst);
+}
+inline void MaglevAssembler::StoreUnalignedFloat32(Register base,
+                                                   Register index,
+                                                   DoubleRegister src) {
+  StoreFloat32(MemOperand(base, index), src);
+}
+inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat32(
+    Register base, Register index, DoubleRegister src) {
+  TemporaryRegisterScope temps(this);
+  DoubleRegister scratch_double = temps.AcquireScratchDouble();
+  fcvt_s_d(scratch_double, src);
+  Register scratch = temps.AcquireScratch();
+  movfr2gr_s(scratch, scratch_double);
+  ByteSwap(scratch, scratch, 4);
+  St_w(scratch, MemOperand(base, index));
 }
 
 inline void MaglevAssembler::LoadUnalignedFloat64(DoubleRegister dst,
@@ -1797,7 +1868,7 @@ inline Condition MaglevAssembler::FunctionEntryStackCheck(
     int stack_check_offset) {
   TemporaryRegisterScope temps(this);
   Register stack_cmp_reg = sp;
-  if (stack_check_offset >= kStackLimitSlackForDeoptimizationInBytes) {
+  if (stack_check_offset > kStackLimitSlackForDeoptimizationInBytes) {
     stack_cmp_reg = temps.AcquireScratch();
     Sub_d(stack_cmp_reg, sp, Operand(stack_check_offset));
   }
@@ -1861,6 +1932,8 @@ inline void MaglevAssembler::MoveRepr(MachineRepresentation repr,
 inline void MaglevAssembler::MaybeEmitPlaceHolderForDeopt() {
   // Implemented only for x64.
 }
+
+inline void MaglevAssembler::MemoryBarrier(AtomicMemoryOrder order) { dbar(0); }
 
 }  // namespace maglev
 }  // namespace internal

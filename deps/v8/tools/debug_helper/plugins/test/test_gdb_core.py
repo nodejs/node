@@ -16,6 +16,7 @@ from .helpers.inspect import check_inspect_recurses_into_map
 from .helpers.isolate import check_isolate_command
 from .helpers.isolate import check_isolate_none_on_idle_thread
 from .helpers.session import GdbSession
+from .helpers.source import check_source
 from .helpers.utils import DebuggerTestConfig
 from .helpers.utils import get_gdb_core_test_config
 from .helpers.utils import run_debugger_command
@@ -111,6 +112,22 @@ class GdbInspectCoreTest(unittest.TestCase):
     """Checks `v8 isolate` reports <none> on a thread outside V8."""
     with self._session() as session:
       check_isolate_none_on_idle_thread(session)
+
+
+class GdbSourceCoreTest(unittest.TestCase):
+  """Checks `v8 source` end-to-end with a core dump in GDB."""
+
+  def _session(self):
+    return GdbSession(
+        _CONFIG,
+        target_binary=_CONFIG.d8_binary,
+        core_path=os.path.join(_CORE_DIR, "throw.core"),
+    )
+
+  def test_source(self):
+    """Checks `v8 source` rendering, flags, and error handling."""
+    with self._session() as session:
+      check_source(session)
 
 
 class GdbCorruptedMapCoreTest(unittest.TestCase):

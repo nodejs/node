@@ -55,4 +55,19 @@ void ManagedObjectFinalizer(const v8::WeakCallbackInfo<void>& data) {
   data.SetSecondPassCallback(&ManagedObjectFinalizerSecondPass);
 }
 
+void CppGCManagedWrapper::UpdateEstimatedSize(size_t new_estimated_size,
+                                              Isolate* isolate) {
+  if (estimated_size_ == new_estimated_size) return;
+
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  if (estimated_size_ < new_estimated_size) {
+    external_memory_accounter_.Increase(v8_isolate,
+                                        new_estimated_size - estimated_size_);
+  } else {
+    external_memory_accounter_.Decrease(v8_isolate,
+                                        estimated_size_ - new_estimated_size);
+  }
+  estimated_size_ = new_estimated_size;
+}
+
 }  // namespace v8::internal

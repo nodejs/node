@@ -468,6 +468,19 @@ TEST_F(FeedbackVectorTest, VectorLoadICStates) {
   nexus.ExtractMaps(&maps);
   CHECK_EQ(4, maps.size());
 
+  // Fill up to max_valid_polymorphic_map_count.
+  TryRunJS(
+      "for (let i = 4; i < 10; ++i) {"
+      "  let obj = { foo: 2 };"
+      "  obj['p' + i] = i;"
+      "  f(obj);"
+      "}");
+  CHECK_EQ(InlineCacheState::POLYMORPHIC, nexus.ic_state());
+  maps.clear();
+  nexus.ExtractMaps(&maps);
+  CHECK_EQ(static_cast<size_t>(v8_flags.max_valid_polymorphic_map_count),
+           maps.size());
+
   // Finally driven megamorphic.
   TryRunJS("f({ blarg: 3, gran: 3, torino: 10, foo: 2 })");
   CHECK_EQ(InlineCacheState::MEGAMORPHIC, nexus.ic_state());

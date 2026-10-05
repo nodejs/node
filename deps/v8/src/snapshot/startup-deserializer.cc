@@ -50,6 +50,7 @@ void StartupDeserializer::DeserializeIntoIsolate() {
     isolate()->heap()->IterateWeakRoots(
         this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
     DeserializeDeferredObjects();
+    PostProcessExposedTrustedObjects();
     if (USE_SIMULATOR_BOOL) {
       for (DirectHandle<AccessorInfo> info : accessor_infos()) {
         info->RestoreCallbackRedirectionAfterDeserialization(isolate());

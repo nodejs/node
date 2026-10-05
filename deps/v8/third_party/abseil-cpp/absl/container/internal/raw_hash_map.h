@@ -95,11 +95,11 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   using key_type = typename Policy::key_type;
   using mapped_type = typename Policy::mapped_type;
 
-  static_assert(!std::is_reference_v<key_type>, "");
+  static_assert(!std::is_reference_v<key_type>);
 
   // TODO(b/187807849): Evaluate whether to support reference mapped_type and
   // remove this assertion if/when it is supported.
-  static_assert(!std::is_reference_v<mapped_type>, "");
+  static_assert(!std::is_reference_v<mapped_type>);
 
   using iterator = typename raw_hash_map::raw_hash_set::iterator;
   using const_iterator = typename raw_hash_map::raw_hash_set::const_iterator;

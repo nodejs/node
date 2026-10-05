@@ -483,6 +483,16 @@ UTEST_AMO_WITH_RES(amominu_w, false, false, uint32_t, 0xFBB1A75C, 0xA75C0A9C,
 UTEST_AMO_WITH_RES(amomaxu_w, false, false, uint32_t, 0xFBB1A75C, 0xA75C0A9C,
                    std::max((uint32_t)0xFBB1A75C, (uint32_t)0xA75C0A9C))
 
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_amo_w_sign_extends_result) {
+  auto fn = [](MacroAssembler& assm) {
+    __ amoswap_w(false, false, a1, a0, a2);
+    __ srli(a1, a1, 32);
+    __ sw(a1, a0, 0);
+  };
+  auto res = GenAndRunTestForAMO<uint32_t, int64_t>(0xFBB1A75C, 0xA75C0A9C, fn);
+  CHECK_EQ(-1, res);
+}
+
 // -- RV64A Standard Extension (in addition to RV32A) --
 UTEST_LR_SC(lr_d, sc_d, false, false, int64_t, 0xFBB10A9Cbfb76aa6)
 UTEST_AMO_WITH_RES(amoswap_d, false, false, int64_t, 0xFBB10A9Cbfb76aa6,
@@ -3207,6 +3217,111 @@ TEST_F(AssemblerRISCV64Test, RVC_CB_BRANCH) {
   CHECK_EQ(2.75e11, t.b);
   CHECK_EQ(1, t.result);
 }
+
+#ifdef USE_SIMULATOR  // Remove it when v8 can detect zcb.
+TEST_F(AssemblerRISCV64Test, RVC_ZCB) {
+  // Test RV64C extension Zcb instructions.
+
+  Isolate* isolate = i_isolate();
+  HandleScope scope(isolate);
+
+  // Test c.lbu / c.sb.
+  {
+    uint8_t mem[4];
+    auto fn = [](MacroAssembler& assm) {
+      __ c_lbu(a1, a0, 0);
+      __ c_lbu(a2, a0, 3);
+      __ c_sb(a1, a0, 1);
+      __ c_sb(a2, a0, 2);
+    };
+    auto f = AssembleCode<F3>(isolate, fn);
+
+    mem[0] = 0xAB;
+    mem[1] = 0;
+    mem[2] = 0;
+    mem[3] = 0x80;
+    f.Call(mem, 0, 0, 0, 0);
+    CHECK_EQ(0xAB, mem[1]);
+    CHECK_EQ(0x80, mem[2]);
+  }
+
+  // Test c.lhu / c.lh / c.sh.
+  {
+    uint8_t mem[4];
+    auto fn = [](MacroAssembler& assm) {
+      __ c_lhu(a1, a0, 0);  // a1 = zext(mem[0:1])
+      __ addi(a1, a1, 1);
+      __ c_sh(a1, a0, 0);   // mem[0:1] = a1.
+      __ c_lh(a2, a0, 2);   // a2 = sext(mem[2:3])
+      __ srli(a2, a2, 63);  // a2 = 1 if sign-extended.
+      __ c_sb(a2, a0, 1);
+    };
+    auto f = AssembleCode<F3>(isolate, fn);
+
+    mem[0] = 0x34;
+    mem[1] = 0x12;
+    mem[2] = 0x00;
+    mem[3] = 0x80;
+    f.Call(mem, 0, 0, 0, 0);
+    CHECK_EQ(0x35, mem[0]);
+    CHECK_EQ(0x01, mem[1]);
+    CHECK_EQ(0x00, mem[2]);
+    CHECK_EQ(0x80, mem[3]);
+  }
+
+  // Test c.mul
+  {
+    auto fn = [](MacroAssembler& assm) {
+      __ RV_li(a1, 6);
+      __ c_mul(a0, a1);
+    };
+    auto res = GenAndRunTest<int64_t>(7, fn);
+    CHECK_EQ(42, res);
+  }
+
+  // Test c.zext.b
+  {
+    auto fn = [](MacroAssembler& assm) { __ c_zext_b(a0); };
+    auto res = GenAndRunTest<int64_t>(0x1234'5678'9ABC'DEFF, fn);
+    CHECK_EQ(0xFF, res);
+  }
+
+  // Test c.sext.b
+  {
+    auto fn = [](MacroAssembler& assm) { __ c_sext_b(a0); };
+    auto res = GenAndRunTest<int64_t>(0x80, fn);
+    CHECK_EQ(-128, res);
+  }
+
+  // Test c.zext.h
+  {
+    auto fn = [](MacroAssembler& assm) { __ c_zext_h(a0); };
+    auto res = GenAndRunTest<int64_t>(0x1234'5678'9ABC'DEFF, fn);
+    CHECK_EQ(0xDEFF, res);
+  }
+
+  // Test c.sext.h
+  {
+    auto fn = [](MacroAssembler& assm) { __ c_sext_h(a0); };
+    auto res = GenAndRunTest<int64_t>(0x1234'5678'9ABC'8000, fn);
+    CHECK_EQ(static_cast<int64_t>(0xFFFFFFFFFFFF8000), res);
+  }
+
+  // Test c.zext.w
+  {
+    auto fn = [](MacroAssembler& assm) { __ c_zext_w(a0); };
+    auto res = GenAndRunTest<int64_t>(0x1234'5678'9ABC'DEFF, fn);
+    CHECK_EQ(static_cast<int64_t>(0x9ABCDEFF), res);
+  }
+
+  // Test c.not
+  {
+    auto fn = [](MacroAssembler& assm) { __ c_not(a0); };
+    auto res = GenAndRunTest<int64_t>(0x1234, fn);
+    CHECK_EQ(static_cast<int64_t>(0xFFFFFFFFFFFFEDCB), res);
+  }
+}
+#endif
 
 TEST_F(AssemblerRISCV64Test, TARGET_ADDR) {
   Isolate* isolate = i_isolate();

@@ -17,6 +17,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <initializer_list>
 #include <limits>
 #include <type_traits>
 #include <vector>

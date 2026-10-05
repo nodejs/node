@@ -74,12 +74,13 @@ class ExecuteStringTask : public TaskRunner::Task {
                     v8::Local<v8::String> name,
                     v8::Local<v8::Integer> line_offset,
                     v8::Local<v8::Integer> column_offset,
-                    v8::Local<v8::Boolean> is_module)
+                    v8::Local<v8::Boolean> is_module, bool evaluate = true)
       : expression_(expression),
         name_(ToVector(isolate, name)),
         line_offset_(line_offset.As<v8::Int32>()->Value()),
         column_offset_(column_offset.As<v8::Int32>()->Value()),
         is_module_(is_module->Value()),
+        evaluate_(evaluate),
         context_group_id_(context_group_id) {}
 
   ExecuteStringTask(const std::string& expression, int context_group_id)
@@ -98,6 +99,7 @@ class ExecuteStringTask : public TaskRunner::Task {
   int32_t line_offset_ = 0;
   int32_t column_offset_ = 0;
   bool is_module_ = false;
+  bool evaluate_ = true;
   int context_group_id_;
 };
 

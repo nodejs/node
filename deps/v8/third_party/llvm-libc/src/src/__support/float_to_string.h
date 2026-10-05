@@ -619,7 +619,7 @@ public:
 };
 
 #if !defined(LIBC_INTERNAL_FLOAT_TO_STR_LD_USE_RYU_IMPL) ||                    \
-    defined(LIBC_TYPES_HAS_FLOAT128)
+    defined(LIBC_TYPES_HAS_NATIVE_FLOAT128)
 // -------------------- LONG DOUBLE / FLOAT128 FUNCTIONS -----------------------
 
 // This algorithm will work exactly the same for 80 bit and 128 bit long
@@ -627,7 +627,7 @@ public:
 // constants should be calculated to be correct for any provided floating point
 // type.
 
-#if defined(LIBC_TYPES_HAS_FLOAT128)
+#if defined(LIBC_TYPES_HAS_NATIVE_FLOAT128)
 template <typename T> struct IsFloat128 : cpp::is_same<T, float128> {};
 #else
 template <typename T> struct IsFloat128 : cpp::bool_constant<false> {};
@@ -856,7 +856,8 @@ public:
   }
 };
 
-#endif // !LIBC_INTERNAL_FLOAT_TO_STR_LD_USE_RYU_IMPL || LIBC_TYPES_HAS_FLOAT128
+#endif // !LIBC_INTERNAL_FLOAT_TO_STR_LD_USE_RYU_IMPL ||
+       // LIBC_TYPES_HAS_NATIVE_FLOAT128
 
 } // namespace LIBC_NAMESPACE_DECL
 

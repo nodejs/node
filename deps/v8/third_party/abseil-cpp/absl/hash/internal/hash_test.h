@@ -18,6 +18,7 @@
 #ifndef ABSL_HASH_INTERNAL_HASH_TEST_H_
 #define ABSL_HASH_INTERNAL_HASH_TEST_H_
 
+#include <initializer_list>
 #include <type_traits>
 #include <utility>
 

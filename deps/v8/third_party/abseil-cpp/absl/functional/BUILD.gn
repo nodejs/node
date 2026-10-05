@@ -1,6 +1,8 @@
 # Copyright 2020 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+#
+# Generated file. DO NOT EDIT.
 
 import("//third_party/abseil-cpp/absl.gni")
 
@@ -60,6 +62,14 @@ absl_source_set("bind_front") {
     "//third_party/abseil-cpp/absl/container:compressed_tuple",
     "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/utility",
+  ]
+}
+
+absl_test("bind_front_test") {
+  sources = [ "bind_front_test.cc" ]
+  deps = [
+    ":bind_front",
+    "//third_party/abseil-cpp/absl/memory",
   ]
 }
 

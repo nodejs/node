@@ -970,7 +970,7 @@ bool SourceTextModule::MaybeHandleEvaluationException(
 }
 
 // https://tc39.es/ecma262/#sec-moduleevaluation
-MaybeDirectHandle<Object> SourceTextModule::Evaluate(
+MaybeDirectHandle<JSPromise> SourceTextModule::Evaluate(
     Isolate* isolate, Handle<SourceTextModule> module) {
   CHECK(module->status() == kLinked || module->status() == kEvaluatingAsync ||
         module->status() == kEvaluated || module->status() == kErrored);
@@ -1001,8 +1001,18 @@ MaybeDirectHandle<Object> SourceTextModule::Evaluate(
   if (InnerModuleEvaluation(isolate, module, &stack, &dfs_index).is_null()) {
     if (!module->MaybeHandleEvaluationException(isolate, &stack)) return {};
     CHECK(try_catch.HasCaught());
+
+    // We are clearing the internal exception here because JSPromise::Reject can
+    // call Isolate::ReportPromiseReject that will trap to a host defined hook
+    // and given we are already registering this exception on promise
+    // capability, we shouldn't keep it as pending on isolate. This is important
+    // because host might have paths that call `Isolate::ReportPendingMessages`
+    // while `AllowExceptions::IsAllowed` is `false` and leaving such exception
+    // pending will cause a DCHECK failure.
+    isolate->clear_internal_exception();
     // d. Perform ! Call(capability.[[Reject]], undefined,
     //                   «result.[[Value]]»).
+
     JSPromise::Reject(capability, direct_handle(module->exception(), isolate));
   } else {  // 10. Else,
     // a. Assert: module.[[Status]] is either EVALUATING-ASYNC or EVALUATED.
@@ -1512,6 +1522,26 @@ MaybeDirectHandle<Object> SourceTextModule::InnerModuleEvaluation(
   return result;
 }
 
+bool SourceTextModule::IsModuleSCCEvaluated(Handle<SourceTextModule> module) {
+  // It's necessary to check if [[CycleRoot]] is not empty here because:
+  //   1. A module starts with its [[CycleRoot]] as `TheHole` and it's set
+  //   once the cycle is detected, or when the module finishes its evaluation
+  //   without errors.
+  //   2. GatherAsynchronousTransitiveDependencies can be called with a module
+  //   where it's `[[CycleRoot]]` is not set yet, and since it depends on
+  //   `IsModuleSCCEvaluated`, we need such guard. A later call from
+  //   `ReadyForSyncExecution` for the same module will have its `[[CycleRoot]]`
+  //   set, unless its evaluation errored.
+  if (!IsTheHole(module->cycle_root())) {
+    Tagged<SourceTextModule> cycle_root =
+        Cast<SourceTextModule>(module->cycle_root());
+    return cycle_root->status() == Module::kEvaluated ||
+           cycle_root->status() == Module::kErrored;
+  }
+  return module->status() == Module::kEvaluated ||
+         module->status() == Module::kErrored;
+}
+
 // https://tc39.es/proposal-defer-import-eval/#sec-GatherAsynchronousTransitiveDependencies
 void SourceTextModule::GatherAsynchronousTransitiveDependencies(
     Isolate* isolate, Handle<Module> module, UnorderedModuleSet* evaluation_set,
@@ -1527,7 +1557,7 @@ void SourceTextModule::GatherAsynchronousTransitiveDependencies(
 
   Handle<SourceTextModule> source_text_module = Cast<SourceTextModule>(module);
   if (source_text_module->status() == kEvaluating ||
-      module->status() == kEvaluatingAsync || module->status() == kEvaluated) {
+      IsModuleSCCEvaluated(source_text_module)) {
     return;
   }
 
@@ -1573,7 +1603,7 @@ bool SourceTextModule::ReadyForSyncExecution(Isolate* isolate,
   }
 
   Handle<SourceTextModule> source_text_module = Cast<SourceTextModule>(module);
-  if (source_text_module->status() == kEvaluated) {
+  if (IsModuleSCCEvaluated(source_text_module)) {
     return true;
   }
 

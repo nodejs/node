@@ -12,6 +12,7 @@
 #include "src/objects/js-segments.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -20,13 +21,14 @@
 namespace v8 {
 namespace internal {
 
-Tagged<Managed<IcuBreakIteratorWithText>> JSSegments::icu_iterator_with_text()
-    const {
-  return Cast<Managed<IcuBreakIteratorWithText>>(
+Tagged<CppGCManaged<IcuBreakIteratorWithText>>
+JSSegments::icu_iterator_with_text() const {
+  return Cast<CppGCManaged<IcuBreakIteratorWithText>>(
       icu_iterator_with_text_.load());
 }
 void JSSegments::set_icu_iterator_with_text(
-    Tagged<Managed<IcuBreakIteratorWithText>> value, WriteBarrierMode mode) {
+    Tagged<CppGCManaged<IcuBreakIteratorWithText>> value,
+    WriteBarrierMode mode) {
   icu_iterator_with_text_.store(this, value, mode);
 }
 

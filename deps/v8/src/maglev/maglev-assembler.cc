@@ -10,6 +10,7 @@
 #include "src/codegen/reglist.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-code-generator.h"
+#include "src/maglev/maglev-ir-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/instance-type.h"
@@ -168,17 +169,20 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
   TemporaryRegisterScope temps(this);
 
   if (check_type == CheckType::kCheckHeapObject) {
-    // Check if {{value}} is Smi.
-    Condition is_smi = CheckSmi(value);
-    JumpToDeferredIf(
-        is_smi,
-        [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
-           ZoneLabelRef is_false) {
-          // Check if {value} is not zero.
-          __ CompareSmiAndJumpIf(value, Smi::FromInt(0), kEqual, *is_false);
-          __ Jump(*is_true);
-        },
-        value, is_true, is_false);
+    // Check if {{value}} is Smi. Going through JumpIfSmi rather than a
+    // CheckSmi condition lets arm64 use tbz instead of tst+b.eq.
+    if (v8_flags.code_comments) {
+      RecordComment("-- Jump to deferred code");
+    }
+    JumpIfSmi(value, MakeDeferredCode(
+                         [](MaglevAssembler* masm, Register value,
+                            ZoneLabelRef is_true, ZoneLabelRef is_false) {
+                           // Check if {value} is not zero.
+                           __ CompareSmiAndJumpIf(value, Smi::FromInt(0),
+                                                  kEqual, *is_false);
+                           __ Jump(*is_true);
+                         },
+                         value, is_true, is_false));
   } else if (v8_flags.debug_code) {
     AssertNotSmi(value);
   }
@@ -775,6 +779,116 @@ void MaglevAssembler::ResetLastYoungAllocation() {
   ExternalReference last_young_allocation_address =
       ExternalReference::last_young_allocation_address(isolate_);
   Move(last_young_allocation_address, 0);
+}
+
+namespace {
+
+void AttemptOnStackReplacement(MaglevAssembler* masm,
+                               ZoneLabelRef no_code_for_osr,
+                               ReduceInterruptBudgetForLoop* node,
+                               Register scratch0, Register scratch1,
+                               FeedbackSlot feedback_slot) {
+  // 1) Presence of cached OSR Turbofan code.
+  // 2) The OSR urgency exceeds the current loop depth - in that case, call
+  //    into runtime to trigger a Turbofan OSR compilation. A non-zero return
+  //    value means we should deopt into Ignition which will handle all further
+  //    necessary steps (rewriting the stack frame, jumping to OSR'd code).
+  //
+  // See also: InterpreterAssembler::OnStackReplacement.
+
+  __ AssertFeedbackVector(scratch0, scratch1);
+
+  // Case 1).
+  Label deopt;
+  __ TryLoadOptimizedOsrCode(scratch1, CodeKind::TURBOFAN_JS, scratch0,
+                             feedback_slot, &deopt, Label::kFar);
+
+  // Case 2).
+  {
+    __ LoadByte(scratch1, FieldMemOperand(
+                              scratch0, offsetof(FeedbackVector, osr_state_)));
+    __ DecodeField<FeedbackVector::OsrUrgencyBits>(scratch1);
+    __ JumpIfByte(kUnsignedLessThanEqual, scratch1, node->loop_depth(),
+                  *no_code_for_osr);
+
+    // If tiering is already in progress wait.
+    __ LoadByte(scratch1,
+                FieldMemOperand(scratch0, offsetof(FeedbackVector, flags_)));
+    __ DecodeField<FeedbackVector::OsrTieringInProgressBit>(scratch1);
+    __ JumpIfByte(kNotEqual, scratch1, 0, *no_code_for_osr);
+
+    {
+      // The osr_urgency exceeds the current loop_depth, signaling an OSR
+      // request. Call into runtime to compile.
+      RegisterSnapshot snapshot = node->register_snapshot();
+      DCHECK(!snapshot.live_registers.has(scratch1));
+      SaveRegisterStateForCall save_register_state(masm, snapshot);
+      __ Push(Smi::FromInt(node->osr_offset().ToInt()));
+      __ Move(kContextRegister, masm->native_context().object());
+      __ CallRuntime(Runtime::kCompileOptimizedOSRFromMaglev, 1);
+      save_register_state.DefineSafepoint();
+      __ Move(scratch1, kReturnRegister0);
+    }
+
+    // A `0` return value means there is no OSR code available yet. Continue
+    // execution in Maglev, OSR code will be picked up once it exists and is
+    // cached on the feedback vector.
+    __ CompareInt32AndJumpIf(scratch1, 0, kEqual, *no_code_for_osr);
+  }
+
+  __ bind(&deopt);
+  if (V8_LIKELY(v8_flags.turbofan)) {
+    // None of the mutated input registers should be a register input into the
+    // eager deopt info.
+    DCHECK_REGLIST_EMPTY(
+        RegList{scratch0, scratch1} &
+        GetGeneralRegistersUsedAsInputs(node->eager_deopt_info()));
+    __ EmitEagerDeopt(node, DeoptimizeReason::kPrepareForOnStackReplacement);
+  } else {
+    // Continue execution in Maglev. With TF disabled we cannot OSR and thus it
+    // doesn't make sense to start the process. We do still perform all
+    // remaining bookkeeping above though, to keep Maglev code behavior roughly
+    // the same in both configurations.
+    __ Jump(*no_code_for_osr);
+  }
+}
+
+}  // namespace
+
+void MaglevAssembler::TryOnStackReplacement(ReduceInterruptBudgetForLoop* node,
+                                            FeedbackSlot feedback_slot) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch0 = temps.Acquire();
+  Register scratch1 = temps.Acquire();
+
+  const Register osr_state = scratch1;
+  Move(scratch0,
+       compilation_info()->toplevel_compilation_unit()->feedback().object());
+  AssertFeedbackVector(scratch0, scratch1);
+  LoadByte(osr_state,
+           FieldMemOperand(scratch0, offsetof(FeedbackVector, osr_state_)));
+
+  ZoneLabelRef no_code_for_osr(this);
+
+  if (v8_flags.maglev_osr) {
+    // In case we use maglev_osr, we need to explicitly know if there is
+    // turbofan code waiting for us (i.e., ignore the
+    // MaybeHasMaglevOsrCodeBit).
+    DecodeField<
+        base::BitFieldUnion<FeedbackVector::OsrUrgencyBits,
+                            FeedbackVector::MaybeHasTurbofanOsrCodeBit>>(
+        osr_state);
+  }
+
+  // The quick initial OSR check. If it passes, we proceed on to more
+  // expensive OSR logic.
+  static_assert(FeedbackVector::MaybeHasTurbofanOsrCodeBit::encode(true) >
+                FeedbackVector::kMaxOsrUrgency);
+  CompareInt32AndJumpIf(
+      osr_state, node->loop_depth(), kUnsignedGreaterThan,
+      MakeDeferredCode(AttemptOnStackReplacement, no_code_for_osr, node,
+                       scratch0, scratch1, feedback_slot));
+  bind(*no_code_for_osr);
 }
 #undef __
 

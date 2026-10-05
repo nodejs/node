@@ -440,8 +440,18 @@ class WithInternalIsolateMixin : public TMixin {
     return Cast<T>(RunJSInternal(source));
   }
 
+  template <typename T = Object>
+  Handle<T> RunJS(v8::Local<v8::Context> context, const char* source) {
+    return Cast<T>(RunJSInternal(context, source));
+  }
+
   Handle<Object> RunJSInternal(const char* source) {
     return Utils::OpenHandle(*TMixin::RunJS(source));
+  }
+
+  Handle<Object> RunJSInternal(v8::Local<v8::Context> context,
+                               const char* source) {
+    return Utils::OpenHandle(*TMixin::RunJS(context, source));
   }
 
   template <typename T = Object>

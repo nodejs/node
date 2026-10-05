@@ -63,7 +63,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
@@ -145,8 +144,8 @@ T&& ForwardImpl(std::false_type);
 // as a workaround for b/206991861 on MSVC versions < 1924.
 template <class T>
 struct ForwardedParameter {
-  using type = decltype((
-      ForwardImpl<T>)(std::integral_constant<bool, std::is_scalar_v<T>>()));
+  using type =
+      decltype((ForwardImpl<T>)(std::bool_constant<std::is_scalar_v<T>>()));
 };
 
 template <class T>
@@ -252,7 +251,7 @@ void LocalManagerNontrivial(FunctionToCall operation,
     case FunctionToCall::relocate_from_to_and_query_rust:
       // NOTE: Requires that the left-hand operand is already empty.
       ::new (static_cast<void*>(&to->storage)) T(std::move(from_object));
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case FunctionToCall::dispose:
       from_object.~T();  // Must not throw. // NOLINT
       return;
@@ -607,8 +606,7 @@ using UnwrapStdReferenceWrapper =
 // NOTE: We avoid std::void_t here to avoid a bug in GCC < 11:
 // https://godbolt.org/z/sxbfGMdcb
 template <class... T>
-using TrueAlias =
-    std::integral_constant<bool, sizeof(std::common_type<T...>*) != 0>;
+using TrueAlias = std::bool_constant<sizeof(std::common_type<T...>*) != 0>;
 
 /*SFINAE constraints for the conversion-constructor.*/
 template <class Sig, class F,

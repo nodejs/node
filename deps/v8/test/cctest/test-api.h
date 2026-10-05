@@ -283,4 +283,10 @@ static T* GetData(const TCallbackInfo& info) {
       v8::External::Cast(*info.Data())->Value(kTestConfigTag));
 }
 
+template <typename T>
+static T* GetData(v8::Local<v8::Data> data) {
+  USE(MakeData);
+  return reinterpret_cast<T*>(v8::External::Cast(*data)->Value(kTestConfigTag));
+}
+
 #endif  // V8_TEST_CCTEST_TEST_API_H_

@@ -288,9 +288,7 @@ class RandomRescheduler : public Assembler<ReschedulingReducer, GraphVisitor> {
     if (ready_op_count == 0) return OpIndex::Invalid();
 
     size_t pick = static_cast<size_t>(rng_.NextInt64()) % ready_op_count;
-    auto it = ready_ops_.begin();
-    std::advance(it, pick);
-    return *it;
+    return ready_ops_[pick];
   }
 
   bool AllInputsScheduled(OpIndex index) {
@@ -342,7 +340,7 @@ class RandomRescheduler : public Assembler<ReschedulingReducer, GraphVisitor> {
         case OpState::kReady:
           // If this was ready before, it should still be.
           CHECK(IsReady(index, op, produced_effects));
-          ready_ops_.insert(index);
+          ready_ops_.push_back(index);
           if (!has_advanced) {
             has_advanced = true;
             first_unscheduled_iter = iter;
@@ -365,7 +363,7 @@ class RandomRescheduler : public Assembler<ReschedulingReducer, GraphVisitor> {
   }
 
  private:
-  ZoneAbslFlatHashSet<OpIndex> ready_ops_;
+  ZoneVector<OpIndex> ready_ops_;
   base::RandomNumberGenerator rng_;
 };
 

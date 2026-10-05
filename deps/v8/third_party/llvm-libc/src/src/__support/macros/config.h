@@ -26,6 +26,10 @@
 #define __has_builtin(b) 0
 #endif
 
+#ifndef __has_warning
+#define __has_warning(w) 0
+#endif
+
 // Compiler feature-detection.
 // clang.llvm.org/docs/LanguageExtensions.html#has-feature-and-has-extension
 #ifdef __has_feature

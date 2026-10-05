@@ -188,7 +188,14 @@ class RecomputePhiUseHintsProcessor {
           use_repr = UseRepresentation::kTruncatedInt32;
         } else if (node->Is<NumberToString>()) {
           use_repr = UseRepresentation::kTaggedForNumberToString;
-        } else if (node->Is<CheckedNumberOrOddballToUint8Clamped>()) {
+        } else if (node->Is<CheckedNumberOrOddballToUint8Clamped>() ||
+                   node->Is<CheckedNumberOrOddballToHoleyFloat64>() ||
+                   node->Is<UnsafeNumberOrOddballToHoleyFloat64>()) {
+          // These consume their input tagged, so is_conversion() is false and
+          // the use would otherwise default to kTagged, pinning the phi boxed.
+          // The two unboxers are how a holey-double element store consumes its
+          // value, so a phi feeding such a store can untag to HoleyFloat64 and
+          // be stored raw instead of being boxed into a HeapNumber.
           use_repr = UseRepresentation::kHoleyFloat64;
         }
         phi->RecordUseReprHint(UseRepresentationSet{use_repr},
@@ -245,7 +252,7 @@ class LoopOptimizationProcessor {
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     current_block = block;
     if (current_block->is_loop()) {
-      loop_effects = current_block->state()->loop_effects();
+      loop_effects = current_block->state()->AsLoopHeader()->loop_effects();
       if (loop_effects) return BlockProcessResult::kContinue;
     } else {
       // TODO(olivf): Some dominance analysis would allow us to keep loop
@@ -271,13 +278,13 @@ class LoopOptimizationProcessor {
     ValueNode* input = candidate->input(0).node();
     DCHECK(!IsLoopPhi(input));
     // For hoisting an instruction we need:
-    // * A unique loop entry block.
     // * Inputs live before the loop (i.e., not defined inside the loop).
     // * No hoisting over checks (done eagerly by clearing loop_effects).
-    // TODO(olivf): We should enforce loops having a unique entry block at graph
-    // building time.
-    if (current_block->predecessor_count() != 2) return false;
-    BasicBlock* loop_entry = current_block->predecessor_at(0);
+    // A resumable loop is also entered through resume edges that bypass its
+    // header, so it might not have a forward edge to hoist into at all.
+    if (current_block->state()->is_resumable_loop()) return false;
+    DCHECK_EQ(current_block->predecessor_count(), 2);
+    BasicBlock* loop_entry = current_block->forward_predecessor();
     if (loop_entry->successors().size() != 1) {
       return false;
     }

@@ -1209,42 +1209,36 @@ class ParserBase {
     //
     // `of`: for ( [lookahead ≠ using of] ForDeclaration[?Yield, ?Await, +Using]
     //       of AssignmentExpression[+In, ?Yield, ?Await] )
-    //
-    // If `using` is not considered a keyword, it is parsed as an identifier.
     Token::Value token_after_using =
         is_await_using ? PeekAheadAhead() : PeekAhead();
-    if (v8_flags.js_explicit_resource_management) {
-      switch (token_after_using) {
-        case Token::kIdentifier:
-        case Token::kStatic:
-        case Token::kLet:
-        case Token::kYield:
-        case Token::kAwait:
-        case Token::kGet:
-        case Token::kSet:
-        case Token::kUsing:
-        case Token::kAccessor:
-        case Token::kAsync:
+    switch (token_after_using) {
+      case Token::kIdentifier:
+      case Token::kStatic:
+      case Token::kLet:
+      case Token::kYield:
+      case Token::kAwait:
+      case Token::kGet:
+      case Token::kSet:
+      case Token::kUsing:
+      case Token::kAccessor:
+      case Token::kAsync:
+        return true;
+      case Token::kOf:
+        if (is_await_using) {
           return true;
-        case Token::kOf:
-          if (is_await_using) {
-            return true;
-          } else {
-            // In the case of synchronous `using`, `of` is disallowed as well
-            // with a negative lookahead for for-of loops. But, cursedly,
-            // `using of` is allowed as the initializer of C-style for loops,
-            // e.g. `for (using of = null;;)` parses.
-            Token::Value token_after_of = PeekAheadAhead();
-            return token_after_of == Token::kAssign;
-          }
-        case Token::kFutureStrictReservedWord:
-        case Token::kEscapedStrictReservedWord:
-          return is_sloppy(language_mode());
-        default:
-          return false;
-      }
-    } else {
-      return false;
+        } else {
+          // In the case of synchronous `using`, `of` is disallowed as well
+          // with a negative lookahead for for-of loops. But, cursedly,
+          // `using of` is allowed as the initializer of C-style for loops,
+          // e.g. `for (using of = null;;)` parses.
+          Token::Value token_after_of = PeekAheadAhead();
+          return token_after_of == Token::kAssign;
+        }
+      case Token::kFutureStrictReservedWord:
+      case Token::kEscapedStrictReservedWord:
+        return is_sloppy(language_mode());
+      default:
+        return false;
     }
   }
   bool IfStartsWithUsingOrAwaitUsingKeyword() {
@@ -4557,7 +4551,6 @@ void ParserBase<Impl>::ParseVariableDeclarations(
       // using [no LineTerminator here] BindingList[?In, ?Yield, ?Await,
       // ~Pattern] ;
       Consume(Token::kUsing);
-      DCHECK(v8_flags.js_explicit_resource_management);
       DCHECK_NE(var_context, kStatement);
       DCHECK(is_using_allowed());
       DCHECK(!scanner()->HasLineTerminatorBeforeNext());
@@ -4569,7 +4562,6 @@ void ParserBase<Impl>::ParseVariableDeclarations(
       // CoverAwaitExpressionAndAwaitUsingDeclarationHead[?Yield] [no
       // LineTerminator here] BindingList[?In, ?Yield, +Await, ~Pattern];
       Consume(Token::kAwait);
-      DCHECK(v8_flags.js_explicit_resource_management);
       DCHECK_NE(var_context, kStatement);
       DCHECK(is_using_allowed());
       DCHECK(is_await_allowed());
@@ -5846,7 +5838,6 @@ ParserBase<Impl>::ParseStatementListItem() {
       }
       break;
     case Token::kUsing:
-      if (!v8_flags.js_explicit_resource_management) break;
       if (!is_using_allowed()) break;
       if (!(scanner()->HasLineTerminatorAfterNext()) &&
           Token::IsAnyIdentifier(PeekAhead())) {
@@ -5854,7 +5845,6 @@ ParserBase<Impl>::ParseStatementListItem() {
       }
       break;
     case Token::kAwait:
-      if (!v8_flags.js_explicit_resource_management) break;
       if (!is_await_allowed()) break;
       if (!is_using_allowed()) break;
       if (!(scanner()->HasLineTerminatorAfterNext()) &&

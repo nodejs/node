@@ -16,6 +16,13 @@
   'memory64/memory64': [FAIL],
   'memory64/table64': [FAIL],
   'table': [FAIL],
+
+  # Temporarily disable custom descriptors tests while we update the spec to
+  # disallow "L" subtyping.
+  'proposals/custom-descriptors/custom-descriptors/descriptors': [FAIL],
+  'proposals/custom-descriptors/custom-descriptors/br_on_cast_desc_eq': [FAIL],
+  'proposals/custom-descriptors/custom-descriptors/br_on_cast_desc_eq_fail': [FAIL],
+  'proposals/custom-descriptors/custom-descriptors/ref_cast_desc_eq': [FAIL],
 }],  # ALWAYS
 
 ['lower_limits_mode', {
@@ -149,5 +156,11 @@
   # according to asan warning.
   'proposals/stack-switching/stack-switching/cont': [SKIP],
 }],  # system == windows and asan
+
+##############################################################################
+['clang_coverage and mode == debug', {
+  # Slow tests.
+  'simd/simd_f*': [PASS, SLOW],
+}],  # 'clang_coverage and mode == debug'
 
 ]

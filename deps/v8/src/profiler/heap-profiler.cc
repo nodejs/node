@@ -365,6 +365,7 @@ void HeapProfiler::QueryObjects(DirectHandle<Context> context,
           heap(), HeapObjectIterator::kFilterUnreachable);
       for (Tagged<HeapObject> heap_obj = heap_iterator.Next();
            !heap_obj.is_null(); heap_obj = heap_iterator.Next()) {
+        if (IsInaccessible(heap_obj)) continue;
         if (IsFeedbackVector(heap_obj)) {
           Cast<FeedbackVector>(heap_obj)->ClearSlots(isolate());
         } else if (IsJSTypedArray(heap_obj) &&
@@ -388,6 +389,7 @@ void HeapProfiler::QueryObjects(DirectHandle<Context> context,
         heap(), HeapObjectIterator::kFilterUnreachable);
     for (Tagged<HeapObject> heap_obj = heap_iterator.Next();
          !heap_obj.is_null(); heap_obj = heap_iterator.Next()) {
+      if (IsInaccessible(heap_obj)) continue;
       if (!IsJSObject(heap_obj) || IsJSExternalObject(heap_obj)) continue;
       v8::Local<v8::Object> v8_obj(
           Utils::ToLocal(direct_handle(Cast<JSObject>(heap_obj), isolate())));

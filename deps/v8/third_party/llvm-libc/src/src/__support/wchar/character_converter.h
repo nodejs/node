@@ -18,6 +18,7 @@
 #include "src/__support/CPP/type_traits.h"
 #include "src/__support/common.h"
 #include "src/__support/error_or.h"
+#include "src/__support/macros/properties/types.h"
 #include "src/__support/math_extras.h"
 #include "src/__support/wchar/mbstate.h"
 
@@ -63,6 +64,12 @@ public:
 
   ErrorOr<char8_t> pop_utf8();
   ErrorOr<char32_t> pop_utf32();
+
+#if defined(LIBC_TYPES_WCHAR_T_IS_UTF32)
+  int push(wchar_t wchar);
+  ErrorOr<wchar_t> pop_wchar();
+#endif // LIBC_TYPES_WCHAR_T_IS_UTF32
+
   template <typename CharType> ErrorOr<CharType> pop();
 };
 
@@ -200,6 +207,29 @@ template <> LIBC_INLINE size_t CharacterConverter::sizeAs<char8_t>() {
 template <> LIBC_INLINE size_t CharacterConverter::sizeAs<char32_t>() {
   return 1;
 }
+
+#if defined(LIBC_TYPES_WCHAR_T_IS_UTF32)
+
+LIBC_INLINE int CharacterConverter::push(wchar_t wchar) {
+  return push(static_cast<char32_t>(wchar));
+}
+
+LIBC_INLINE ErrorOr<wchar_t> CharacterConverter::pop_wchar() {
+  ErrorOr<char32_t> Result = pop_utf32();
+  if (!Result)
+    return Error(Result.error());
+  return static_cast<wchar_t>(*Result);
+}
+
+template <> LIBC_INLINE ErrorOr<wchar_t> CharacterConverter::pop() {
+  return pop_wchar();
+}
+
+template <> LIBC_INLINE size_t CharacterConverter::sizeAs<wchar_t>() {
+  return sizeAs<char32_t>();
+}
+
+#endif // LIBC_TYPES_WCHAR_T_IS_UTF32
 
 } // namespace internal
 } // namespace LIBC_NAMESPACE_DECL

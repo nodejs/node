@@ -9,6 +9,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/parked-scope-inl.h"
 #include "src/init/v8.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/utils.h"
@@ -539,22 +540,21 @@ size_t TypeCanonicalizer::GetCurrentNumberOfTypes() const {
   return canonical_supertypes_.size();
 }
 
-// static
-void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate,
-                                                  CanonicalTypeIndex id) {
-  if (!id.valid()) return;
-  Heap* heap = isolate->heap();
+namespace {
+MaybeDirectHandle<WeakFixedArray> MaybeGrowRtts(
+    Isolate* isolate, Tagged<WeakFixedArray> old_rtts_raw,
+    CanonicalTypeIndex id, AllocationType allocation) {
+  // The fast path is non-handlified.
+
   // This invocation's {id} may be the next invocation's {old_length}, and
   // the {old_length * 3} computation below must not overflow.
   static_assert(kMaxCanonicalTypes <= kMaxInt / 3 - 1);
   // Canonical types are zero-indexed.
   const uint32_t length = id.index + 1;
-  // The fast path is non-handlified.
-  Tagged<WeakFixedArray> old_rtts_raw = heap->wasm_canonical_rtts();
 
   // Fast path: length is sufficient.
   uint32_t old_length = old_rtts_raw->ulength().value();
-  if (old_length >= length) return;
+  if (old_length >= length) return {};
 
   // Allocate a bigger WeakFixedArray, growing exponentially.
   const uint32_t new_length = std::max(old_length * 3 / 2, length);
@@ -568,11 +568,44 @@ void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate,
   // pass the cleared value in a handle (see https://crbug.com/364591622). We
   // overwrite the new entries via {MemsetTagged} afterwards.
   DirectHandle<WeakFixedArray> new_rtts =
-      WeakFixedArray::New(isolate, new_length, AllocationType::kOld);
+      WeakFixedArray::New(isolate, new_length, allocation);
   WeakFixedArray::CopyElements(isolate, *new_rtts, 0, *old_rtts, 0, old_length);
   MemsetTagged(new_rtts->RawFieldOfFirstElement() + old_length, ClearedValue(),
                new_length - old_length);
-  heap->SetWasmCanonicalRtts(*new_rtts);
+  return new_rtts;
+}
+
+}  // namespace
+
+// static
+void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate,
+                                                  CanonicalTypeIndex id,
+                                                  SharedFlag shared) {
+  DirectHandle<WeakFixedArray> new_rtts;
+  if (MaybeGrowRtts(isolate, isolate->heap()->wasm_canonical_rtts(), id,
+                    AllocationType::kOld)
+          .ToHandle(&new_rtts)) {
+    isolate->heap()->SetWasmCanonicalRtts(*new_rtts);
+  }
+
+  if (shared) {
+    // Another thread may cause shared GC while holding this mutex. We have to
+    // use a safepoint-aware MutexGuard here, otherwise the GC might wait
+    // forever on this blocked thread.
+    ParkedMutexGuard mutex_guard(
+        isolate->main_thread_local_isolate(),
+        isolate->shared_space_isolate()->wasm_shared_canonical_types_mutex());
+    DirectHandle<WeakFixedArray> new_shared_rtts;
+    if (MaybeGrowRtts(isolate,
+                      isolate->shared_space_isolate()
+                          ->heap()
+                          ->wasm_shared_canonical_rtts(),
+                      id, AllocationType::kSharedOld)
+            .ToHandle(&new_shared_rtts)) {
+      isolate->shared_space_isolate()->heap()->SetWasmSharedCanonicalRtts(
+          *new_shared_rtts);
+    }
+  }
 }
 
 // static
@@ -585,7 +618,6 @@ void TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(Isolate* isolate) {
 SharedFlag TypeCanonicalizer::IsShared(CanonicalTypeIndex index) const {
   return canonical_types_[index]->is_shared;
 }
-// Currently only used for heap verification.
 bool TypeCanonicalizer::has_descriptor(CanonicalTypeIndex index) const {
   return canonical_types_[index]->descriptor.valid();
 }

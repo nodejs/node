@@ -326,6 +326,14 @@ constexpr auto BinaryOpAndTryPatchCodeDescriptor::registers() {
   // x3: feedback offset
   return RegisterArray(x1, x0, x2, x3);
 }
+
+// static
+constexpr auto UnaryOpAndTryPatchCodeDescriptor::registers() {
+  // x0: value
+  // x2: current feedback value
+  // x3: feedback offset
+  return RegisterArray(x0, x2, x3);
+}
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 // static

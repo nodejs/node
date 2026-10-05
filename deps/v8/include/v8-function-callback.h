@@ -243,9 +243,6 @@ class PropertyCallbackInfo {
    * would return the global proxy.
    */
   V8_INLINE Local<Object> Holder() const;
-  // TODO(http://crbug.com/333672197): deprecate and remove.
-  V8_DEPRECATED("Use Holder().")
-  V8_INLINE Local<Object> HolderV2() const;
 
   /**
    * \return The return value of the callback.
@@ -687,10 +684,6 @@ Local<Value> PropertyCallbackInfo<T>::Data() const {
 template <typename T>
 Local<Object> PropertyCallbackInfo<T>::Holder() const {
   return Local<Object>::FromSlot(&args_[kHolderIndex]);
-}
-template <typename T>
-Local<Object> PropertyCallbackInfo<T>::HolderV2() const {
-  return Holder();
 }
 
 template <typename T>

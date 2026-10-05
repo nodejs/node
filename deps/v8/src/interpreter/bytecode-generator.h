@@ -397,7 +397,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                   Register index, Register value,
                                   FeedbackSlot next_value_slot,
                                   FeedbackSlot next_done_slot,
-                                  FeedbackSlot index_slot,
                                   FeedbackSlot element_slot);
   // Create Array literals. |expr| can be nullptr, but if provided,
   // a boilerplate will be used to create an initial array for elements

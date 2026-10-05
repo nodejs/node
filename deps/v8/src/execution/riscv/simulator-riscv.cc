@@ -2814,8 +2814,7 @@ bool Simulator::test_fflags_bits(uint32_t mask) {
 template <typename T>
 T Simulator::FMaxMinHelper(T a, T b, MaxMinKind kind) {
   // set invalid bit for signaling nan
-  if ((a == std::numeric_limits<T>::signaling_NaN()) ||
-      (b == std::numeric_limits<T>::signaling_NaN())) {
+  if ((std::isnan(a) || std::isnan(b)) && (isSnan(a) || isSnan(b))) {
     set_csr_bits(csr_fflags, kInvalidOperation);
   }
 
@@ -4177,9 +4176,9 @@ struct ScopedRoundingMode {
       case RTZ:
         return FE_TOWARDZERO;
       case RDN:
-        return FE_UPWARD;
-      case RUP:
         return FE_DOWNWARD;
+      case RUP:
+        return FE_UPWARD;
       case RMM:
         return FE_TONEAREST;
       default:
@@ -4383,22 +4382,20 @@ bool Simulator::CompareFHelper(T input1, T input2, FPUCondition cc) {
       break;
 
     case EQ:
-      if (std::numeric_limits<T>::signaling_NaN() == input1 ||
-          std::numeric_limits<T>::signaling_NaN() == input2) {
-        set_fflags(kInvalidOperation);
-      }
       if (std::isnan(input1) || std::isnan(input2)) {
+        if (isSnan(input1) || isSnan(input2)) {
+          set_fflags(kInvalidOperation);
+        }
         result = false;
       } else {
         result = (input1 == input2);
       }
       break;
     case NE:
-      if (std::numeric_limits<T>::signaling_NaN() == input1 ||
-          std::numeric_limits<T>::signaling_NaN() == input2) {
-        set_fflags(kInvalidOperation);
-      }
       if (std::isnan(input1) || std::isnan(input2)) {
+        if (isSnan(input1) || isSnan(input2)) {
+          set_fflags(kInvalidOperation);
+        }
         result = true;
       } else {
         result = (input1 != input2);
@@ -4438,9 +4435,10 @@ static inline bool is_invalid_fsqrt(T src1) {
   return (src1 < 0);
 }
 
-template <typename T, typename OP>
+template <typename T, typename OP, typename FormatResult>
 void Simulator::AtomicMemoryHelper(sreg_t rs1, T value, OP f,
-                                   Instruction* instr) {
+                                   Instruction* instr,
+                                   FormatResult format_result) {
   unsigned element_size = sizeof(T);
   uintptr_t address = rs1;
   DCHECK_EQ(address % element_size, 0);
@@ -4468,10 +4466,11 @@ void Simulator::AtomicMemoryHelper(sreg_t rs1, T value, OP f,
   }
 
   WriteMem<T>(address, result, instr);
-  set_rd(T(data));
+  set_rd(format_result(data));
 }
 
 void Simulator::DecodeRVRAType() {
+  auto format_word_result = [](auto result) { return sext32(result); };
   // TODO(riscv): Add macro for RISCV A extension
   // Special handling for A extension instructions because it uses func5
   // For all A extension instruction, V8 simulator is pure sequential. No
@@ -4518,7 +4517,8 @@ void Simulator::DecodeRVRAType() {
       }
       AtomicMemoryHelper<uint32_t>(
           rs1(), (uint32_t)rs2(),
-          [&](uint32_t lhs, uint32_t rhs) { return rhs; }, instr_.instr());
+          [&](uint32_t lhs, uint32_t rhs) { return rhs; }, instr_.instr(),
+          format_word_result);
       break;
     }
     case RO_AMOADD_W: {
@@ -4527,8 +4527,8 @@ void Simulator::DecodeRVRAType() {
       }
       AtomicMemoryHelper<uint32_t>(
           rs1(), (uint32_t)(rs2()),
-          [&](uint32_t lhs, uint32_t rhs) { return lhs + rhs; },
-          instr_.instr());
+          [&](uint32_t lhs, uint32_t rhs) { return lhs + rhs; }, instr_.instr(),
+          format_word_result);
       break;
     }
     case RO_AMOXOR_W: {
@@ -4537,8 +4537,8 @@ void Simulator::DecodeRVRAType() {
       }
       AtomicMemoryHelper<uint32_t>(
           rs1(), (uint32_t)rs2(),
-          [&](uint32_t lhs, uint32_t rhs) { return lhs ^ rhs; },
-          instr_.instr());
+          [&](uint32_t lhs, uint32_t rhs) { return lhs ^ rhs; }, instr_.instr(),
+          format_word_result);
       break;
     }
     case RO_AMOAND_W: {
@@ -4547,8 +4547,8 @@ void Simulator::DecodeRVRAType() {
       }
       AtomicMemoryHelper<uint32_t>(
           rs1(), (uint32_t)rs2(),
-          [&](uint32_t lhs, uint32_t rhs) { return lhs & rhs; },
-          instr_.instr());
+          [&](uint32_t lhs, uint32_t rhs) { return lhs & rhs; }, instr_.instr(),
+          format_word_result);
       break;
     }
     case RO_AMOOR_W: {
@@ -4557,8 +4557,8 @@ void Simulator::DecodeRVRAType() {
       }
       AtomicMemoryHelper<uint32_t>(
           rs1(), (uint32_t)rs2(),
-          [&](uint32_t lhs, uint32_t rhs) { return lhs | rhs; },
-          instr_.instr());
+          [&](uint32_t lhs, uint32_t rhs) { return lhs | rhs; }, instr_.instr(),
+          format_word_result);
       break;
     }
     case RO_AMOMIN_W: {
@@ -4568,7 +4568,7 @@ void Simulator::DecodeRVRAType() {
       AtomicMemoryHelper<int32_t>(
           rs1(), (int32_t)rs2(),
           [&](int32_t lhs, int32_t rhs) { return std::min(lhs, rhs); },
-          instr_.instr());
+          instr_.instr(), format_word_result);
       break;
     }
     case RO_AMOMAX_W: {
@@ -4578,7 +4578,7 @@ void Simulator::DecodeRVRAType() {
       AtomicMemoryHelper<int32_t>(
           rs1(), (int32_t)rs2(),
           [&](int32_t lhs, int32_t rhs) { return std::max(lhs, rhs); },
-          instr_.instr());
+          instr_.instr(), format_word_result);
       break;
     }
     case RO_AMOMINU_W: {
@@ -4588,7 +4588,7 @@ void Simulator::DecodeRVRAType() {
       AtomicMemoryHelper<uint32_t>(
           rs1(), (uint32_t)rs2(),
           [&](uint32_t lhs, uint32_t rhs) { return std::min(lhs, rhs); },
-          instr_.instr());
+          instr_.instr(), format_word_result);
       break;
     }
     case RO_AMOMAXU_W: {
@@ -4598,7 +4598,7 @@ void Simulator::DecodeRVRAType() {
       AtomicMemoryHelper<uint32_t>(
           rs1(), (uint32_t)rs2(),
           [&](uint32_t lhs, uint32_t rhs) { return std::max(lhs, rhs); },
-          instr_.instr());
+          instr_.instr(), format_word_result);
       break;
     }
 #ifdef V8_TARGET_ARCH_RISCV64
@@ -6533,6 +6533,9 @@ void Simulator::DecodeCAType() {
     case RO_C_AND:
       set_rvc_rs1s(rvc_rs1s() & rvc_rs2s());
       break;
+    case RO_C_MUL:
+      set_rvc_rs1s(sext_xlen(rvc_rs1s() * rvc_rs2s()));
+      break;
 #if V8_TARGET_ARCH_RISCV64
     case RO_C_SUBW:
       set_rvc_rs1s(sext32(rvc_rs1s() - rvc_rs2s()));
@@ -6710,6 +6713,35 @@ void Simulator::DecodeCLType() {
       break;
     }
 #endif
+    case RO_C_LBU: {  // Zcb loads, all sharing funct3=100.
+      switch (instr_.InstructionBits() & kRvcFunct6Mask) {
+        case RO_C_LHU: {
+          sreg_t addr = rvc_rs1s() + (instr_.Bit(5) << 1);
+          if (!ProbeMemory(addr, sizeof(int16_t))) return;
+          if (instr_.Bit(6)) {  // c.lh
+            int16_t val = ReadMem<int16_t>(addr, instr_.instr());
+            set_rvc_rs2s(sext_xlen(val), false);
+            TraceMemRd(addr, val, get_register(rvc_rs2s_reg()));
+          } else {  // c.lhu
+            uint16_t val = ReadMem<uint16_t>(addr, instr_.instr());
+            set_rvc_rs2s(zext_xlen(val), false);
+            TraceMemRd(addr, val, get_register(rvc_rs2s_reg()));
+          }
+          break;
+        }
+        case RO_C_LBU: {  // c.lbu
+          sreg_t addr = rvc_rs1s() + (instr_.Bit(5) << 1) + instr_.Bit(6);
+          if (!ProbeMemory(addr, sizeof(int8_t))) return;
+          uint8_t val = ReadMem<uint8_t>(addr, instr_.instr());
+          set_rvc_rs2s(zext_xlen(val), false);
+          TraceMemRd(addr, val, get_register(rvc_rs2s_reg()));
+          break;
+        }
+        default:
+          UNSUPPORTED();
+      }
+      break;
+    }
     default:
       UNSUPPORTED();
   }
@@ -6735,6 +6767,28 @@ void Simulator::DecodeCSType() {
       sreg_t addr = rvc_rs1s() + rvc_imm5_d();
       if (!ProbeMemory(addr, sizeof(int64_t))) return;
       WriteMem<double>(addr, static_cast<double>(rvc_drs2s()), instr_.instr());
+      break;
+    }
+    case RO_C_LBU: {  // Zcb stores, all sharing funct3=100.
+      // c.sb: bits[12:10]=010; c.sh: bits[12:10]=011.
+      switch (instr_.InstructionBits() & kRvcFunct6Mask) {
+        case RO_C_SB: {  // c.sb
+          sreg_t addr = rvc_rs1s() + (instr_.Bit(5) << 1) + instr_.Bit(6);
+          if (!ProbeMemory(addr, sizeof(int8_t))) return;
+          WriteMem<uint8_t>(addr, static_cast<uint8_t>(rvc_rs2s()),
+                            instr_.instr());
+          break;
+        }
+        case RO_C_SH: {  // c.sh
+          sreg_t addr = rvc_rs1s() + (instr_.Bit(5) << 1);
+          if (!ProbeMemory(addr, sizeof(int16_t))) return;
+          WriteMem<uint16_t>(addr, static_cast<uint16_t>(rvc_rs2s()),
+                             instr_.instr());
+          break;
+        }
+        default:
+          UNSUPPORTED();
+      }
       break;
     }
     default:
@@ -6777,6 +6831,32 @@ void Simulator::DecodeCBType() {
         set_rvc_rs1s(sext_xlen(sext_xlen(rvc_rs1s()) >> rvc_shamt6()));
       } else if (instr_.RvcFunct2BValue() == 0b10) {  // c.andi
         set_rvc_rs1s(rvc_imm6() & rvc_rs1s());
+      } else if (instr_.RvcFunct2BValue() == 0b11) {
+        // Zcb unary instructions (CU format), distinguished by nzuimm[5:0].
+        switch (instr_.RvcImm6Value() & 0b111111) {
+          case 0b111000:  // c.zext.b
+            set_rvc_rs1s(rvc_rs1s() & 0xff);
+            break;
+          case 0b111001:  // c.sext.b
+            set_rvc_rs1s(sext_xlen(static_cast<int8_t>(rvc_rs1s())));
+            break;
+          case 0b111010:  // c.zext.h
+            set_rvc_rs1s(rvc_rs1s() & 0xffff);
+            break;
+          case 0b111011:  // c.sext.h
+            set_rvc_rs1s(sext_xlen(static_cast<int16_t>(rvc_rs1s())));
+            break;
+#ifdef V8_TARGET_ARCH_RISCV64
+          case 0b111100:  // c.zext.w
+            set_rvc_rs1s(rvc_rs1s() & 0xffffffff);
+            break;
+#endif
+          case 0b111101:  // c.not
+            set_rvc_rs1s(~rvc_rs1s());
+            break;
+          default:
+            UNSUPPORTED();
+        }
       } else {
         UNSUPPORTED();
       }

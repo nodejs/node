@@ -260,6 +260,7 @@ String16 descriptionForRegExp(v8::Isolate* isolate,
 }
 
 bool isBuiltinGetter(v8::Local<v8::Function> function) {
+  if (function->IsProxy()) return false;
   // A bound function may forward to user code via its bound receiver or
   // bound arguments even when the underlying target is a builtin, so it is
   // never treated as a plain builtin getter.
@@ -1138,6 +1139,10 @@ void getInternalPropertiesForPreview(
     allowlist.emplace_back("[[GeneratorState]]");
   } else if (object->IsWeakRef()) {
     allowlist.emplace_back("[[WeakRefTarget]]");
+  } else if (object->IsModuleNamespaceObject()) {
+    // Having it in the preview lets the front-end tell an unevaluated namespace
+    // from an evaluated one without a second round trip.
+    allowlist.emplace_back("[[ModuleStatus]]");
   }
   for (auto& mirror : mirrors) {
     if (std::find(allowlist.begin(), allowlist.end(), mirror.name) ==
@@ -1849,6 +1854,11 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
   if (clientSubtype) {
     String16 subtype = toString16(clientSubtype->string());
     return clientMirror(context, object, subtype);
+  }
+  if (object->IsDeferredModuleNamespaceObject()) {
+    return std::make_unique<ObjectMirror>(
+        object, RemoteObject::SubtypeEnum::Deferredmodule,
+        descriptionForObject(isolate, object));
   }
   if (object->IsRegExp()) {
     v8::Local<v8::RegExp> regexp = object.As<v8::RegExp>();

@@ -168,19 +168,20 @@ V8_OBJECT class JSDateTimeFormat : public JSObject {
   inline void set_locale(Tagged<String> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Managed<icu::Locale>> icu_locale() const;
-  inline void set_icu_locale(Tagged<Managed<icu::Locale>> value,
+  inline Tagged<CppGCManaged<icu::Locale>> icu_locale() const;
+  inline void set_icu_locale(Tagged<CppGCManaged<icu::Locale>> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Managed<icu::SimpleDateFormat>> icu_simple_date_format() const;
+  inline Tagged<CppGCManaged<icu::SimpleDateFormat>> icu_simple_date_format()
+      const;
   inline void set_icu_simple_date_format(
-      Tagged<Managed<icu::SimpleDateFormat>> value,
+      Tagged<CppGCManaged<icu::SimpleDateFormat>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Managed<icu::DateIntervalFormat>> icu_date_interval_format()
-      const;
+  inline Tagged<CppGCManaged<icu::DateIntervalFormat>>
+  icu_date_interval_format() const;
   inline void set_icu_date_interval_format(
-      Tagged<Managed<icu::DateIntervalFormat>> value,
+      Tagged<CppGCManaged<icu::DateIntervalFormat>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<UnionOf<JSFunction, Undefined>> bound_format() const;
@@ -201,9 +202,9 @@ V8_OBJECT class JSDateTimeFormat : public JSObject {
 
  public:
   TaggedMember<String> locale_;
-  TaggedMember<Foreign> icu_locale_;
-  TaggedMember<Foreign> icu_simple_date_format_;
-  TaggedMember<Foreign> icu_date_interval_format_;
+  TaggedMember<CppGCManaged<icu::Locale>> icu_locale_;
+  TaggedMember<CppGCManaged<icu::SimpleDateFormat>> icu_simple_date_format_;
+  TaggedMember<CppGCManaged<icu::DateIntervalFormat>> icu_date_interval_format_;
   TaggedMember<UnionOf<JSFunction, Undefined>> bound_format_;
   TaggedMember<Smi> flags_;
 } V8_OBJECT_END;

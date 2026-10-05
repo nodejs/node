@@ -15,6 +15,7 @@
 #include "absl/strings/internal/cord_rep_consume.h"
 
 #include <array>
+#include <cstddef>
 #include <utility>
 
 #include "absl/container/inlined_vector.h"

@@ -164,6 +164,7 @@ cc_binary(
     deps = [
         ":status",
         ":statusor",
+        "//absl/base:core_headers",
         "@google_benchmark//:benchmark_main",
     ],
 )
@@ -234,7 +235,6 @@ cc_test(
         ":status_builder",
         ":status_macros",
         ":statusor",
-        "//absl/base:core_headers",
         "//absl/strings:string_view",
         "//absl/types:source_location",
         "@googletest//:gtest",

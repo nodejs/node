@@ -11,13 +11,20 @@ import io
 import os
 import traceback
 
+from .format import (format_frame_location, format_frame_trailer,
+                     render_function_span)
 from .hints import resolve_current_isolate, resolve_heap_hints
-from .inspect import Formatter
+from .inspect import Formatter, read_frame_trailer
 from .models import HeapHints
 
 _V8_USAGE = ("usage: v8 <subcommand>\n"
              "  v8 inspect <addr> [--type T] [--depth N] [--array-length N]\n"
-             "  v8 isolate\n")
+             "  v8 isolate\n"
+             "  v8 source [frame#] [--max-lines N]\n")
+
+# Cap on the number of function span lines `v8 source` prints. Top-level
+# frames span the whole script, which can be arbitrarily large.
+_SOURCE_SPAN_MAX_LINES = 10
 
 _LIB_PATH_ENV = "V8_DEBUG_HELPER_LIB_PATH"
 
@@ -31,8 +38,11 @@ def debug_helper_lib_warning():
 
 
 def dispatch_v8_command(bridge, argv, *, read_memory, eval_address, resolver,
-                        verbose):
+                        verbose, frame_fp):
   """Run one `v8 <subcommand> ...` invocation, capturing its output.
+
+  `frame_fp` maps a frame number (None = the selected frame) to
+  `(resolved_number, frame_pointer)`, or None when it cannot be resolved.
 
   Returns `(True, output)` on success, `(False, error_message)` on failure.
   """
@@ -45,6 +55,8 @@ def dispatch_v8_command(bridge, argv, *, read_memory, eval_address, resolver,
                    resolver)
     elif argv[0] == "isolate":
       _run_isolate(argv[1:], buffer, resolver)
+    elif argv[0] == "source":
+      _run_source(bridge, argv[1:], buffer, read_memory, frame_fp)
     else:
       return (True, f"v8: unknown subcommand '{argv[0]}'\n{_V8_USAGE}")
   except Exception:
@@ -95,6 +107,61 @@ def _run_isolate(argv, output, resolver):
     output.write("isolate = <none>\n")
     return
   output.write(f"isolate = 0x{isolate_addr:x}\n")
+
+
+def _run_source(bridge, argv, output, read_memory, frame_fp):
+  """Print the source span of the function a stack frame is running."""
+  frame_index = None
+  max_lines = _SOURCE_SPAN_MAX_LINES
+  it = iter(argv)
+  for token in it:
+    if token == "--max-lines":
+      value = next(it, "")
+      if not value.isdigit() or int(value) < 1:
+        output.write("v8 source: --max-lines must be a positive integer\n")
+        return
+      max_lines = int(value)
+    elif token.startswith("-"):
+      output.write(f"v8 source: unknown flag '{token}'\n")
+      return
+    elif frame_index is not None:
+      output.write(f"v8 source: extra positional arg '{token}'\n")
+      return
+    elif token.isdigit():
+      frame_index = int(token)
+    else:
+      output.write(f"v8 source: frame number must be a non-negative integer, "
+                   f"got '{token}'\n")
+      return
+
+  frame_desc = ("the selected frame"
+                if frame_index is None else f"frame {frame_index}")
+  resolved = frame_fp(frame_index)
+  if resolved is None:
+    output.write(f"v8 source: cannot resolve {frame_desc}\n")
+    return
+  frame_number, frame_pointer = resolved
+  if frame_number is not None:
+    frame_desc = f"frame {frame_number}"
+
+  info = bridge.describe_js_frame(frame_pointer, read_memory)
+  if info is None:
+    output.write(f"v8 source: {frame_desc} is not a JS frame\n")
+    return
+  receiver, argc = read_frame_trailer(frame_pointer, bridge.ptr_size,
+                                      read_memory)
+
+  header = format_frame_location(info) + format_frame_trailer(receiver, argc)
+  if frame_number is not None:
+    header = f"#{frame_number}  {header}"
+  output.write(header + "\n\n")
+
+  function_name = info.get("function_name") or "<anonymous>"
+  span = render_function_span(info, f"{frame_desc}: {function_name}", max_lines)
+  if span is None:
+    output.write(f"v8 source: no source available for {frame_desc}\n")
+    return
+  output.write(span)
 
 
 def _run_inspect(bridge, argv, output, read_memory, eval_address, resolver):

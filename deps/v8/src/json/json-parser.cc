@@ -26,6 +26,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-data-object-builder-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/property-details.h"

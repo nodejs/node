@@ -181,6 +181,40 @@ void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Register rhs,
   __ AssertSmi(rhs);
   __ CompareTaggedAndBranch(lhs, rhs, cc, target);
 }
+
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+void BaselineAssembler::JumpIfNotBothSmi(Register lhs, Register rhs,
+                                         Label* target, Label::Distance) {
+  ScratchRegisterScope scope(this);
+  Register tmp = scope.AcquireScratch();
+  __ Orr(tmp, lhs, rhs);
+  __ JumpIfNotSmi(tmp, target);
+}
+
+void BaselineAssembler::JumpIfTagged(Condition cc, Register lhs, Register rhs,
+                                     Label* target, Label::Distance) {
+  __ CompareTaggedAndBranch(lhs, rhs, cc, target);
+}
+
+void BaselineAssembler::SmiAddConstantAndJumpIfOverflow(Register value,
+                                                        int constant,
+                                                        Label* overflow,
+                                                        Label::Distance) {
+  DCHECK(Smi::IsValid(constant));
+  ScratchRegisterScope scope(this);
+  Register tmp = scope.AcquireScratch();
+  if (SmiValuesAre31Bits()) {
+    __ Adds(tmp.W(), value.W(), Operand(Smi::FromInt(constant)));
+    __ B(overflow, vs);
+    __ Sxtw(value, tmp.W());
+  } else {
+    __ Adds(tmp, value, Operand(Smi::FromInt(constant)));
+    __ B(overflow, vs);
+    __ Mov(value, tmp);
+  }
+}
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+
 void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
                                      MemOperand operand, Label* target,
                                      Label::Distance) {

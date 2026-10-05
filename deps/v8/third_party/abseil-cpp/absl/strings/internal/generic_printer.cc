@@ -16,6 +16,7 @@
 
 #include <cstddef>
 #include <cstdlib>
+#include <limits>
 #include <ostream>
 #include <string>
 
@@ -24,6 +25,7 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

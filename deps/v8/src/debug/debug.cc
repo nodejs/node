@@ -17,7 +17,7 @@
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug-evaluate.h"
-#include "src/debug/liveedit.h"
+#include "src/debug/debug-scope-info.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -33,6 +33,7 @@
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/slots.h"
@@ -188,6 +189,39 @@ Debug::Debug(Isolate* isolate)
 }
 
 Debug::~Debug() { DCHECK_NULL(debug_delegate_); }
+
+DirectHandle<DebugScriptScopeInfo> Debug::GetScriptScopeInfo(
+    DirectHandle<Script> script) {
+  if (script_scope_infos_.is_null()) return {};
+  Tagged<Object> obj = script_scope_infos_->Lookup(script);
+  if (IsTheHole(obj)) return {};
+  return direct_handle(Cast<DebugScriptScopeInfo>(obj), isolate_);
+}
+
+void Debug::SetScriptScopeInfo(DirectHandle<Script> script,
+                               DirectHandle<DebugScriptScopeInfo> info) {
+  HandleScope scope(isolate_);
+  Handle<EphemeronHashTable> table;
+  if (script_scope_infos_.is_null()) {
+    table = EphemeronHashTable::New(isolate_, 16);
+  } else {
+    table = script_scope_infos_;
+  }
+  table = EphemeronHashTable::Put(isolate_, table, script, info);
+  if (script_scope_infos_.is_null()) {
+    script_scope_infos_ = isolate_->global_handles()->Create(*table);
+  } else if (*table != *script_scope_infos_) {
+    GlobalHandles::Destroy(script_scope_infos_.location());
+    script_scope_infos_ = isolate_->global_handles()->Create(*table);
+  }
+}
+
+void Debug::ClearScriptScopeInfos() {
+  if (!script_scope_infos_.is_null()) {
+    GlobalHandles::Destroy(script_scope_infos_.location());
+    script_scope_infos_ = {};
+  }
+}
 
 BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
                                        JavaScriptFrame* frame) {
@@ -480,7 +514,7 @@ void Debug::ThreadInit() {
   base::Relaxed_Store(&thread_local_.current_debug_scope_,
                       static_cast<base::AtomicWord>(0));
   thread_local_.break_on_next_function_call_ = false;
-  thread_local_.scheduled_break_on_next_function_call_ = false;
+  thread_local_.scheduled_break_on_next_function_call_ = {};
   UpdateHookOnFunctionCall();
   thread_local_.muted_function_ = Smi::zero();
   thread_local_.muted_position_ = -1;
@@ -621,6 +655,7 @@ void Debug::Unload() {
   ClearStepping();
   RemoveAllCoverageInfos();
   ClearAllDebuggerHints();
+  ClearScriptScopeInfos();
   debug_delegate_ = nullptr;
 }
 
@@ -687,8 +722,9 @@ void Debug::Break(JavaScriptFrame* frame,
   if (!break_points_hit.is_null() || break_on_next_function_call() ||
       scheduled_break) {
     StepAction lastStepAction = last_step_action();
-    debug::BreakReasons break_reasons;
-    if (scheduled_break) {
+    debug::BreakReasons break_reasons =
+        thread_local_.scheduled_break_on_next_function_call_;
+    if (shouldPauseAfterInstrumentation) {
       break_reasons.Add(debug::BreakReason::kScheduled);
     }
     // If it's a debugger statement, add the reason and then mute the location
@@ -1393,7 +1429,8 @@ void Debug::PrepareStepOnThrow() {
     if (last_step_action() == StepInto) {
       // Deoptimize frame to ensure calls are checked for step-in.
       Deoptimizer::DeoptimizeFunction(frame->function(),
-                                      LazyDeoptimizeReason::kDebugger);
+                                      LazyDeoptimizeReason::kDebugger,
+                                      frame->LookupCode());
     }
     FrameSummaries summaries = frame->Summarize();
     for (size_t i = summaries.size(); i != 0; i--, current_frame_count--) {
@@ -1596,7 +1633,8 @@ void Debug::PrepareStep(StepAction step_action) {
         if (last_step_action() == StepInto) {
           // Deoptimize frame to ensure calls are checked for step-in.
           Deoptimizer::DeoptimizeFunction(js_frame->function(),
-                                          LazyDeoptimizeReason::kDebugger);
+                                          LazyDeoptimizeReason::kDebugger,
+                                          js_frame->LookupCode());
         }
         HandleScope inner_scope(isolate_);
         std::vector<Handle<SharedFunctionInfo>> infos;
@@ -1673,7 +1711,7 @@ void Debug::ClearStepping() {
   thread_local_.last_frame_count_ = -1;
   thread_local_.target_frame_count_ = -1;
   thread_local_.break_on_next_function_call_ = false;
-  thread_local_.scheduled_break_on_next_function_call_ = false;
+  thread_local_.scheduled_break_on_next_function_call_ = {};
   clear_restart_frame();
   UpdateHookOnFunctionCall();
 }
@@ -2002,8 +2040,7 @@ void FindBreakablePositions(Handle<DebugInfo> debug_info, int start_position,
 
 bool CompileTopLevel(Isolate* isolate, Handle<Script> script,
                      MaybeHandle<SharedFunctionInfo>* result = nullptr) {
-  if (script->compilation_type() == Script::CompilationType::kEval ||
-      script->is_wrapped()) {
+  if (!script->is_host()) {
     return false;
   }
   UnoptimizedCompileState compile_state;
@@ -2321,13 +2358,19 @@ bool Debug::EnsureBreakInfo(Handle<SharedFunctionInfo> shared) {
                          &is_compiled_scope, CreateSourcePositions{true})) {
     return false;
   }
-  CreateBreakInfo(shared);
-  return true;
+  return CreateBreakInfo(shared);
 }
 
-void Debug::CreateBreakInfo(DirectHandle<SharedFunctionInfo> shared) {
+bool Debug::CreateBreakInfo(DirectHandle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   HandleScope scope(isolate_);
+
+  SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
+  if (shared->HasBytecodeArray() &&
+      !shared->GetBytecodeArray(isolate_)->HasSourcePositionTable()) {
+    return false;
+  }
+
   DirectHandle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
 
   // Initialize with break information.
@@ -2344,7 +2387,7 @@ void Debug::CreateBreakInfo(DirectHandle<SharedFunctionInfo> shared) {
   debug_info->set_flags(flags, kRelaxedStore);
   debug_info->set_break_points(*break_points);
 
-  SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
+  return true;
 }
 
 Handle<DebugInfo> Debug::GetOrCreateDebugInfo(
@@ -2778,24 +2821,6 @@ bool Debug::CanBreakAtEntry(DirectHandle<SharedFunctionInfo> shared) {
   return false;
 }
 
-bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
-                            bool preview, bool allow_top_frame_live_editing,
-                            debug::LiveEditResult* result) {
-  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  DebugScope debug_scope(this);
-
-  if (v8_flags.inspector_live_edit) {
-    running_live_edit_ = true;
-    LiveEdit::PatchScript(isolate_, script, source, preview,
-                          allow_top_frame_live_editing, result);
-    running_live_edit_ = false;
-  } else {
-    result->status = debug::LiveEditResult::FEATURE_DISABLED;
-  }
-
-  return result->status == debug::LiveEditResult::OK;
-}
-
 void Debug::OnCompileError(DirectHandle<Script> script) {
   ProcessCompileEvent(true, script);
 }
@@ -2809,9 +2834,6 @@ void Debug::ProcessCompileEvent(bool has_compile_error,
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Ignore temporary scripts.
   if (script->id() == Script::kTemporaryScriptId) return;
-  // TODO(kozyatinskiy): teach devtools to work with liveedit scripts better
-  // first and then remove this fast return.
-  if (running_live_edit_) return;
   // Attach the correct debug id to the script. The debug id is used by the
   // inspector to filter scripts by native context.
   script->set_context_data(isolate_->native_context()->debug_context_id());
@@ -2826,7 +2848,7 @@ void Debug::ProcessCompileEvent(bool has_compile_error,
   {
     RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebuggerCallback);
     debug_delegate_->ScriptCompiled(ToApiHandle<debug::Script>(script),
-                                    running_live_edit_, has_compile_error);
+                                    has_compile_error);
   }
 }
 
@@ -2911,18 +2933,19 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
       // caller frames are at a call site, which acts as a memory serialization
       // barrier, forcing them to reload all heap state upon return anyway.
       if (frame->is_optimized()) {
-        Deoptimizer::DeoptimizeFunction(*function,
-                                        LazyDeoptimizeReason::kDebugger);
+        Deoptimizer::DeoptimizeFunction(
+            *function, LazyDeoptimizeReason::kDebugger, frame->LookupCode());
       }
 
-      // kScheduled breaks are triggered by the stack check. While we could
-      // pause here, the JSFunction didn't have time yet to create and push
-      // it's context. Instead, we step into the function and pause at the
+      // kScheduled and kOOM breaks are triggered by the stack check. While we
+      // could pause here, the JSFunction didn't have time yet to create and
+      // push its context. Instead, we step into the function and pause at the
       // first official breakable position.
       // This behavior mirrors "BreakOnNextFunctionCall".
-      if (break_reasons.contains(v8::debug::BreakReason::kScheduled) &&
+      if ((break_reasons.contains(v8::debug::BreakReason::kScheduled) ||
+           break_reasons.contains(v8::debug::BreakReason::kOOM)) &&
           BreakLocation::IsPausedInJsFunctionEntry(frame)) {
-        thread_local_.scheduled_break_on_next_function_call_ = true;
+        thread_local_.scheduled_break_on_next_function_call_.Add(break_reasons);
         PrepareStepIn(function);
         return;
       }
@@ -3434,7 +3457,8 @@ void Debug::PrepareRestartFrame(JavaScriptFrame* frame,
                                 int inlined_frame_index) {
   if (frame->is_optimized()) {
     Deoptimizer::DeoptimizeFunction(frame->function(),
-                                    LazyDeoptimizeReason::kDebugger);
+                                    LazyDeoptimizeReason::kDebugger,
+                                    frame->LookupCode());
   }
 
   thread_local_.restart_frame_id_ = frame->id();

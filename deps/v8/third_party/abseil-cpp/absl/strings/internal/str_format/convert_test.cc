@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <climits>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <cwctype>
@@ -37,6 +38,7 @@
 #include "gtest/gtest.h"
 #include "absl/base/attributes.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/log/absl_check.h"
 #include "absl/log/log.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/ascii.h"
@@ -315,14 +317,17 @@ void TestStringConvert(const T& str) {
 
 TEST_F(FormatConvertTest, BasicString) {
   TestStringConvert("hello");  // As char array.
-  TestStringConvert(L"hello");
   TestStringConvert(static_cast<const char*>("hello"));
-  TestStringConvert(static_cast<const wchar_t*>(L"hello"));
   TestStringConvert(std::string("hello"));
-  TestStringConvert(std::wstring(L"hello"));
   TestStringConvert(string_view("hello"));
   TestStringConvert(std::string_view("hello"));
+
+#if GTEST_HAS_STD_WSTRING
+  TestStringConvert(L"hello");
+  TestStringConvert(static_cast<const wchar_t*>(L"hello"));
+  TestStringConvert(std::wstring(L"hello"));
   TestStringConvert(std::wstring_view(L"hello"));
+#endif  // GTEST_HAS_STD_WSTRING
 }
 
 TEST_F(FormatConvertTest, NullString) {
@@ -330,9 +335,11 @@ TEST_F(FormatConvertTest, NullString) {
   UntypedFormatSpecImpl format("%s");
   EXPECT_EQ("", FormatPack(format, {FormatArgImpl(p)}));
 
+#if GTEST_HAS_STD_WSTRING
   const wchar_t* wp = nullptr;
   UntypedFormatSpecImpl wformat("%ls");
   EXPECT_EQ("", FormatPack(wformat, {FormatArgImpl(wp)}));
+#endif  // GTEST_HAS_STD_WSTRING
 }
 
 TEST_F(FormatConvertTest, StringPrecision) {
@@ -342,19 +349,23 @@ TEST_F(FormatConvertTest, StringPrecision) {
   UntypedFormatSpecImpl format("%.1s");
   EXPECT_EQ("a", FormatPack(format, {FormatArgImpl(p)}));
 
+  // We cap at the NUL-terminator.
+  p = "ABC";
+  UntypedFormatSpecImpl format2("%.10s");
+  EXPECT_EQ("ABC", FormatPack(format2, {FormatArgImpl(p)}));
+
+#if GTEST_HAS_STD_WSTRING
+  // We cap at the precision.
   wchar_t wc = L'a';
   const wchar_t* wp = &wc;
   UntypedFormatSpecImpl wformat("%.1ls");
   EXPECT_EQ("a", FormatPack(wformat, {FormatArgImpl(wp)}));
 
   // We cap at the NUL-terminator.
-  p = "ABC";
-  UntypedFormatSpecImpl format2("%.10s");
-  EXPECT_EQ("ABC", FormatPack(format2, {FormatArgImpl(p)}));
-
   wp = L"ABC";
   UntypedFormatSpecImpl wformat2("%.10ls");
   EXPECT_EQ("ABC", FormatPack(wformat2, {FormatArgImpl(wp)}));
+#endif  // GTEST_HAS_STD_WSTRING
 }
 
 TEST_F(FormatConvertTest, WideStringUnpairedSurrogate) {
@@ -411,29 +422,38 @@ MATCHER_P(MatchesPointerString, ptr, "") {
 TEST_F(FormatConvertTest, Pointer) {
   static int x = 0;
   const int *xp = &x;
+  const int* inil = nullptr;
+
+  using VoidF = void (*)();
+  VoidF fp = [] {};
+  VoidF fnil = nullptr;
+
   char c = 'h';
   char *mcp = &c;
   const char *cp = "hi";
   const char *cnil = nullptr;
+  volatile char vc;
+  volatile char* vcp = &vc;
+  volatile char* vcnil = nullptr;
+
+#if GTEST_HAS_STD_WSTRING
   wchar_t wc = L'h';
   wchar_t *mwcp = &wc;
   const wchar_t *wcp = L"hi";
   const wchar_t *wcnil = nullptr;
-  const int *inil = nullptr;
-  using VoidF = void (*)();
-  VoidF fp = [] {}, fnil = nullptr;
-  volatile char vc;
-  volatile char *vcp = &vc;
-  volatile char *vcnil = nullptr;
   volatile wchar_t vwc;
   volatile wchar_t *vwcp = &vwc;
   volatile wchar_t *vwcnil = nullptr;
+#endif  // GTEST_HAS_STD_WSTRING
+
   const FormatArgImpl args_array[] = {
-      FormatArgImpl(xp),    FormatArgImpl(cp),     FormatArgImpl(wcp),
-      FormatArgImpl(inil),  FormatArgImpl(cnil),   FormatArgImpl(wcnil),
-      FormatArgImpl(mcp),   FormatArgImpl(mwcp),   FormatArgImpl(fp),
-      FormatArgImpl(fnil),  FormatArgImpl(vcp),    FormatArgImpl(vwcp),
-      FormatArgImpl(vcnil), FormatArgImpl(vwcnil),
+      FormatArgImpl(xp),   FormatArgImpl(inil),   FormatArgImpl(fp),
+      FormatArgImpl(fnil), FormatArgImpl(mcp),     FormatArgImpl(cp),
+      FormatArgImpl(cnil),  FormatArgImpl(vcp),    FormatArgImpl(vcnil),
+#if GTEST_HAS_STD_WSTRING
+      FormatArgImpl(mwcp),  FormatArgImpl(wcp),   FormatArgImpl(wcnil),
+      FormatArgImpl(vwcp), FormatArgImpl(vwcnil),
+#endif  // GTEST_HAS_STD_WSTRING
   };
   auto args = absl::MakeConstSpan(args_array);
 
@@ -462,47 +482,52 @@ TEST_F(FormatConvertTest, Pointer) {
   // const int*
   EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%1$p"), args),
               MatchesPointerString(xp));
-  // const char*
-  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%2$p"), args),
-              MatchesPointerString(cp));
-  // const wchar_t*
-  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%3$p"), args),
-              MatchesPointerString(wcp));
   // null const int*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%2$p"), args),
+              MatchesPointerString(nullptr));
+
+  // function pointer
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%3$p"), args),
+              MatchesPointerString(reinterpret_cast<const void*>(fp)));
+  // null function pointer
   EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%4$p"), args),
               MatchesPointerString(nullptr));
-  // null const char*
-  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%5$p"), args),
-              MatchesPointerString(nullptr));
-  // null const wchar_t*
-  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%6$p"), args),
-              MatchesPointerString(nullptr));
+
   // nonconst char*
-  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%7$p"), args),
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%5$p"), args),
               MatchesPointerString(mcp));
-  // nonconst wchar_t*
-  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%8$p"), args),
-              MatchesPointerString(mwcp));
-  // function pointer
-  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%9$p"), args),
-              MatchesPointerString(reinterpret_cast<const void *>(fp)));
-  // null function pointer
-  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%10$p"), args),
+  // const char*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%6$p"), args),
+              MatchesPointerString(cp));
+  // null const char*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%7$p"), args),
               MatchesPointerString(nullptr));
   // volatile char*
   EXPECT_THAT(
-      FormatPack(UntypedFormatSpecImpl("%11$p"), args),
-      MatchesPointerString(reinterpret_cast<volatile const void *>(vcp)));
+      FormatPack(UntypedFormatSpecImpl("%8$p"), args),
+      MatchesPointerString(reinterpret_cast<volatile const void*>(vcp)));
+  // null volatile char*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%9$p"), args),
+              MatchesPointerString(nullptr));
+
+#if GTEST_HAS_STD_WSTRING
+  // nonconst wchar_t*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%10$p"), args),
+              MatchesPointerString(mwcp));
+  // const wchar_t*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%11$p"), args),
+              MatchesPointerString(wcp));
+  // null const wchar_t*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%12$p"), args),
+              MatchesPointerString(nullptr));
   // volatile wchar_t*
   EXPECT_THAT(
-      FormatPack(UntypedFormatSpecImpl("%12$p"), args),
+      FormatPack(UntypedFormatSpecImpl("%13$p"), args),
       MatchesPointerString(reinterpret_cast<volatile const void *>(vwcp)));
-  // null volatile char*
-  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%13$p"), args),
-              MatchesPointerString(nullptr));
   // null volatile wchar_t*
   EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%14$p"), args),
               MatchesPointerString(nullptr));
+#endif  // GTEST_HAS_STD_WSTRING
 }
 
 struct Cardinal {
@@ -741,6 +766,7 @@ TEST_F(FormatConvertTest, VectorBool) {
                             FormatArgImpl(cv[0]), FormatArgImpl(cv[1])})));
 }
 
+#if GTEST_HAS_STD_WSTRING
 TEST_F(FormatConvertTest, UnicodeWideString) {
   // StrFormat() should be able to convert wide strings containing Unicode
   // characters (to UTF-8).
@@ -757,6 +783,7 @@ TEST_F(FormatConvertTest, UnicodeWideString) {
   EXPECT_EQ(output,
             FormatPack(UntypedFormatSpecImpl("%ls"), absl::MakeSpan(args)));
 }
+#endif  // GTEST_HAS_STD_WSTRING
 
 TEST_F(FormatConvertTest, Int128) {
   absl::int128 positive = static_cast<absl::int128>(0x1234567890abcdef) * 1979;

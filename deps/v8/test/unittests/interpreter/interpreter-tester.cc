@@ -24,8 +24,7 @@ InterpreterTester::InterpreterTester(
     : isolate_(isolate),
       source_(source),
       bytecode_(bytecode),
-      feedback_metadata_(feedback_metadata) {
-}
+      feedback_metadata_(feedback_metadata) {}
 
 InterpreterTester::InterpreterTester(
     Isolate* isolate, Handle<BytecodeArray> bytecode,
@@ -82,7 +81,8 @@ EmbeddedFeedbackType::Type InterpreterTester::GetEmbeddedFeedback(
     DCHECK(Token::IsCompareOpWithEmbeddedFeedback(token));
   } else if constexpr (std::is_same_v<EmbeddedFeedbackType,
                                       BinaryOperationFeedback>) {
-    DCHECK(Token::IsBinaryOpWithEmbeddedFeedback(token));
+    DCHECK(Token::IsBinaryOpWithEmbeddedFeedback(token) ||
+           Token::IsUnaryOpWithEmbeddedFeedback(token));
   }
 
   auto bytecode_array = bytecode_.ToHandleChecked();

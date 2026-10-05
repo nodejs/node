@@ -91,6 +91,7 @@ DEF_CAST_TRAITS(Context)
 DEF_CAST_TRAITS(ContextCell)
 DEF_CAST_TRAITS(CoverageInfo)
 DEF_CAST_TRAITS(CppHeapExternalObject)
+DEF_CAST_TRAITS(CppGCManagedBase)
 DEF_CAST_TRAITS(DataHandler)
 DEF_CAST_TRAITS(DeoptimizationData)
 DEF_CAST_TRAITS(DescriptorArray)
@@ -234,6 +235,9 @@ DEF_CAST_TRAITS(TurboshaftWord64SetType)
 DEF_CAST_TRAITS(TurboshaftWord64Type)
 #if V8_ENABLE_WEBASSEMBLY
 DEF_CAST_TRAITS(WasmArray)
+DEF_CAST_TRAITS(WasmContinuationObject)
+DEF_CAST_TRAITS(WasmCustomMap)
+DEF_CAST_TRAITS(WasmCustomMapWrapper)
 DEF_CAST_TRAITS(WasmExceptionPackage)
 DEF_CAST_TRAITS(WasmFastApiCallData)
 DEF_CAST_TRAITS(WasmFuncRef)
@@ -244,11 +248,10 @@ DEF_CAST_TRAITS(WasmModuleObject)
 DEF_CAST_TRAITS(WasmNull)
 DEF_CAST_TRAITS(WasmObject)
 DEF_CAST_TRAITS(WasmResumeData)
+DEF_CAST_TRAITS(WasmStackObject)
 DEF_CAST_TRAITS(WasmStringViewIter)
 DEF_CAST_TRAITS(WasmStruct)
 DEF_CAST_TRAITS(WasmSuspendingObject)
-DEF_CAST_TRAITS(WasmContinuationObject)
-DEF_CAST_TRAITS(WasmStackObject)
 DEF_CAST_TRAITS(WasmTableObject)
 DEF_CAST_TRAITS(WasmTagObject)
 DEF_CAST_TRAITS(WasmTypeInfo)
@@ -355,6 +358,8 @@ struct CastTraits<FieldType> {
 
 template <typename T>
 struct CastTraits<Managed<T>> : public CastTraits<Foreign> {};
+template <typename T>
+struct CastTraits<CppGCManaged<T>> : public CastTraits<CppGCManagedBase> {};
 template <typename T>
 struct CastTraits<TrustedManaged<T>> : public CastTraits<TrustedForeign> {};
 template <typename T>
@@ -611,24 +616,6 @@ DEF_HEAP_OBJECT_PREDICATE(IsAccessCheckNeeded) {
 }
 
 // static
-double Object::NumberValue(Tagged<Number> obj) {
-  DCHECK(IsNumber(obj));
-  return IsSmi(obj) ? static_cast<double>(UncheckedCast<Smi>(obj).value())
-                    : UncheckedCast<HeapNumber>(obj)->value();
-}
-// TODO(leszeks): Remove in favour of Tagged<Number>
-// static
-double Object::NumberValue(Tagged<Object> obj) {
-  return NumberValue(Cast<Number>(obj));
-}
-double Object::NumberValue(Tagged<HeapNumber> obj) {
-  return NumberValue(Cast<Number>(obj));
-}
-double Object::NumberValue(Tagged<Smi> obj) {
-  return NumberValue(Cast<Number>(obj));
-}
-
-// static
 template <typename T, template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 Maybe<double> Object::IntegerValue(Isolate* isolate, HandleType<T> input) {
@@ -741,21 +728,6 @@ bool Object::FitsRepresentation(Tagged<Object> obj,
     return false;
   }
   return true;
-}
-
-// static
-bool Object::ToUint32(Tagged<Object> obj, uint32_t* value) {
-  if (IsSmi(obj)) {
-    int num = Smi::ToInt(obj);
-    if (num < 0) return false;
-    *value = static_cast<uint32_t>(num);
-    return true;
-  }
-  if (IsHeapNumber(obj)) {
-    double num = Cast<HeapNumber>(obj)->value();
-    return DoubleToUint32IfEqualToSelf(num, value);
-  }
-  return false;
 }
 
 // static
@@ -963,40 +935,6 @@ bool IsCustomElementsReceiverMap(Tagged<Map> map) {
   return IsCustomElementsReceiverInstanceType(map->instance_type());
 }
 
-// static
-bool Object::ToArrayLength(Tagged<Object> obj, uint32_t* index) {
-  return Object::ToUint32(obj, index);
-}
-
-// static
-bool Object::ToArrayIndex(Tagged<Object> obj, uint32_t* index) {
-  return Object::ToUint32(obj, index) && *index != kMaxUInt32;
-}
-
-// static
-bool Object::ToIntegerIndex(Tagged<Object> obj, size_t* index) {
-  if (IsSmi(obj)) {
-    int num = Smi::ToInt(obj);
-    if (num < 0) return false;
-    *index = static_cast<size_t>(num);
-    return true;
-  }
-  if (IsHeapNumber(obj)) {
-    double num = Cast<HeapNumber>(obj)->value();
-    if (!(num >= 0)) return false;  // Negation to catch NaNs.
-    constexpr double max =
-        std::min(kMaxSafeInteger,
-                 // The maximum size_t is reserved as "invalid" sentinel.
-                 static_cast<double>(std::numeric_limits<size_t>::max() - 1));
-    if (num > max) return false;
-    size_t result = static_cast<size_t>(num);
-    if (num != result) return false;  // Conversion lost fractional precision.
-    *index = result;
-    return true;
-  }
-  return false;
-}
-
 WriteBarrierModeScope HeapObject::GetWriteBarrierMode(
     const DisallowGarbageCollection& promise) {
   return WriteBarrier::GetWriteBarrierModeForObject(this, promise);
@@ -1031,7 +969,8 @@ AllocationAlignment HeapObject::RequiredAlignment(InSharedSpace in_shared_space,
 #if V8_ENABLE_WEBASSEMBLY
   if (in_shared_space && v8_flags.wasm_shared) [[unlikely]] {
     int instance_type = map->instance_type();
-    if (instance_type == WASM_STRUCT_TYPE) {
+    if (instance_type == WASM_STRUCT_TYPE ||
+        instance_type == WASM_CUSTOM_MAP_TYPE) {
       // The map of a shared wasm struct needs to be in the shared space.
       DCHECK(HeapLayout::InWritableSharedSpace(map));
       return kDoubleAligned;
@@ -1198,7 +1137,8 @@ bool Object::CanBeHeldWeakly(Tagged<Object> obj) {
     // to shared values in weak collections. For now, disallow them as weak
     // collection keys.
 #if V8_ENABLE_WEBASSEMBLY
-    if (v8_flags.wasm_shared && (IsWasmStruct(obj) || IsWasmArray(obj)) &&
+    if (v8_flags.wasm_shared &&
+        (IsWasmStruct(obj) || IsWasmCustomMap(obj) || IsWasmArray(obj)) &&
         HeapLayout::InAnySharedSpace(Cast<HeapObject>(obj))) {
       return false;
     }

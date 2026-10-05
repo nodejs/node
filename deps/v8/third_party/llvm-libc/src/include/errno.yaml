@@ -8,5 +8,9 @@ macros: []
 types:
   - type_name: errno_t
 enums: []
-objects: []
+objects:
+  - object_name: program_invocation_name
+    object_type: char *
+  - object_name: program_invocation_short_name
+    object_type: char *
 functions: []

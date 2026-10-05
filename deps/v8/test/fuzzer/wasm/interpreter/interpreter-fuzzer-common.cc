@@ -24,7 +24,6 @@
 #include "src/wasm/interpreter/wasm-interpreter.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-feature-flags.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -110,13 +109,18 @@ WasmInterpretationResult FastInterpretWasmModule(
   wasm::WasmInterpreterThread* thread =
       wasm::WasmInterpreterThread::GetCurrentInterpreterThread(isolate);
 
-  DirectHandle<Tuple2> interpreter_object =
-      v8::internal::WasmTrustedInstanceData::GetOrCreateInterpreterObject(
-          instance);
+  DirectHandle<WasmTrustedInstanceData> trusted_data =
+      direct_handle(instance->trusted_data(isolate), isolate);
+  // SANDBOX SAFETY: the in-cage instance->trusted_data() handle is
+  // attacker-swappable, so re-validate that it still belongs to {instance}
+  // before using its interpreter handle. This preserves the check that the
+  // removed WasmTrustedInstanceData::GetOrCreateInterpreterObject performed.
+  SBXCHECK(trusted_data->has_instance_object() &&
+           trusted_data->instance_object() == *instance);
 
   // Assume an instance can run in only one thread.
-  DirectHandle<Managed<wasm::InterpreterHandle>> handle =
-      wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
+  DirectHandle<TrustedManaged<wasm::InterpreterHandle>> handle =
+      wasm::GetOrCreateInterpreterHandle(isolate, trusted_data);
 
   for (const WasmValue& arg : args) {
     if (arg.type().is_ref()) {
@@ -124,7 +128,7 @@ WasmInterpretationResult FastInterpretWasmModule(
       CHECK(!IsNull(*arg.to_ref()));
     }
   }
-  bool success = handle->ptr()->Execute(
+  bool success = handle->raw()->Execute(
       thread, 0, static_cast<uint32_t>(function_index), args, rets);
 
   // Returned values should not be the hole value.
@@ -174,7 +178,8 @@ Handle<JSFunction> GenerateJSFunction(Isolate* isolate) {
 MaybeDirectHandle<WasmTableObject> GenerateWasmTable(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
     uint32_t table_index) {
-  Managed<NativeModule>::Ptr native_module = module_object->native_module();
+  CppGCManaged<NativeModule>::Ptr native_module =
+      module_object->native_module();
   const WasmTable& table = native_module->module()->tables[table_index];
 
   uint32_t table_initial = 10;
@@ -221,7 +226,8 @@ Handle<JSObject> CreateImportObjectInternal(
   for (size_t index = 0;
        index < module_object->native_module()->module()->import_table.size();
        ++index) {
-    Managed<NativeModule>::Ptr native_module = module_object->native_module();
+    CppGCManaged<NativeModule>::Ptr native_module =
+        module_object->native_module();
     const WasmImport& import = native_module->module()->import_table[index];
 
     Handle<String> module_name = ExtractUtf8StringFromModuleBytes(
@@ -278,9 +284,8 @@ Handle<JSObject> CreateImportObjectInternal(
         const WasmGlobal& global =
             native_module->module()->globals[import.index];
         DirectHandle<WasmTrustedInstanceData> trusted_data =
-            WasmTrustedInstanceData::New(
-                isolate, module_object,
-                module_object->native_module().as_shared_ptr());
+            WasmTrustedInstanceData::New(isolate, module_object,
+                                         native_module.as_shared_ptr());
         MaybeDirectHandle<WasmGlobalObject> maybe_global_obj =
             WasmGlobalObject::New(isolate, trusted_data,
                                   MaybeHandle<WasmGlobalObject::BufferType>(),
@@ -372,9 +377,8 @@ std::vector<WasmValue> FastMakeDefaultInterpreterArguments(
       }
       case kS128: {
         int64_t rand_num2 = mt_generator_64();
-        const int64_t simd_value[2] = {rand_num, rand_num2};
-        arguments[i] = WasmValue(reinterpret_cast<const uint8_t*>(simd_value),
-                                 (CanonicalValueType)sig->GetParam(i));
+        Simd128 simd_value(Simd128::int64x2{rand_num, rand_num2});
+        arguments[i] = WasmValue(simd_value);
         break;
       }
       case kRef:
@@ -473,10 +477,13 @@ int FastInterpretAndExecuteModules(
     i::Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
     DirectHandle<WasmModuleObject> other_module_object,
     std::mt19937_64 rand_generator) {
-  if (module_object->native_module()->module()->start_function_index >= 0)
-    return -1;
-  if (other_module_object->native_module()->module()->start_function_index >= 0)
-    return -1;
+  CppGCManaged<wasm::NativeModule>::Ptr native_module =
+      module_object->native_module();
+  CppGCManaged<wasm::NativeModule>::Ptr other_native_module =
+      other_module_object->native_module();
+  if (native_module->module()->start_function_index >= 0) return -1;
+  const WasmModule* other_module = other_native_module->module();
+  if (other_module->start_function_index >= 0) return -1;
 
   HandleScope handle_scope(isolate);  // Avoid leaking handles.
 
@@ -492,11 +499,8 @@ int FastInterpretAndExecuteModules(
   Handle<JSObject> imports_obj =
       CreateImportObjectInternal(isolate, module_object);
 
-  for (size_t i = 0;
-       i < other_module_object->native_module()->module()->export_table.size();
-       ++i) {
-    WasmExport exp =
-        other_module_object->native_module()->module()->export_table[i];
+  for (size_t i = 0; i < other_module->export_table.size(); ++i) {
+    WasmExport exp = other_module->export_table[i];
 
     if (exp.kind != kExternalFunction) continue;
 

@@ -12,7 +12,6 @@
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/fuzzing/random-module-generation.h"
 #include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-feature-flags.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-subtyping.h"
@@ -120,7 +119,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
 
   DirectHandle<WasmModuleObject> module_object =
       compiled_module.ToHandleChecked();
-  Managed<wasm::NativeModule>::Ptr native_module =
+  CppGCManaged<wasm::NativeModule>::Ptr native_module =
       module_object->native_module();
   const WasmModule* module = native_module->module();
   DirectHandle<WasmInstanceObject> instance =

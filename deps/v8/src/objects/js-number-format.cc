@@ -17,6 +17,7 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-number-format-inl.h"
 #include "src/objects/managed-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
 #include "src/strings/char-predicates-inl.h"
@@ -876,7 +877,7 @@ DirectHandle<JSObject> JSNumberFormat::ResolvedOptions(
   Factory* factory = isolate->factory();
 
   UErrorCode status = U_ZERO_ERROR;
-  Managed<icu::number::LocalizedNumberFormatter>::Ptr fmt =
+  CppGCManaged<icu::number::LocalizedNumberFormatter>::Ptr fmt =
       number_format->icu_number_formatter()->ptr();
   icu::UnicodeString skeleton = fmt->toSkeleton(status);
   DCHECK(U_SUCCESS(status));
@@ -1462,9 +1463,9 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   //
   icu::number::LocalizedNumberFormatter fmt = settings.locale(icu_locale);
 
-  DirectHandle<Managed<icu::number::LocalizedNumberFormatter>>
+  DirectHandle<CppGCManaged<icu::number::LocalizedNumberFormatter>>
       managed_number_formatter =
-          Managed<icu::number::LocalizedNumberFormatter>::From(
+          CppGCManaged<icu::number::LocalizedNumberFormatter>::Create(
               isolate, 0,
               std::make_shared<icu::number::LocalizedNumberFormatter>(fmt));
 
@@ -2019,7 +2020,7 @@ MaybeDirectHandle<T> PartitionNumberRangePattern(
                                factory->NewStringFromStaticChars("end"), end));
   }
 
-  Managed<icu::number::LocalizedNumberFormatter>::Ptr icu_number_formatter =
+  CppGCManaged<icu::number::LocalizedNumberFormatter>::Ptr icu_number_formatter =
       number_format->icu_number_formatter()->ptr();
 
   Maybe<icu::number::LocalizedNumberRangeFormatter> maybe_range_formatter =
@@ -2121,7 +2122,7 @@ MaybeDirectHandle<String> JSNumberFormat::NumberFormatFunction(
                              IntlMathematicalValue::From(isolate, value));
 
   // 5. Return FormatNumeric(nf, x).
-  Managed<icu::number::LocalizedNumberFormatter>::Ptr lfmt =
+  CppGCManaged<icu::number::LocalizedNumberFormatter>::Ptr lfmt =
       number_format->icu_number_formatter()->ptr();
   Maybe<icu::number::FormattedNumber> maybe_formatted =
       IntlMathematicalValue::FormatNumeric(isolate, lfmt.raw(), x);
@@ -2139,7 +2140,7 @@ MaybeDirectHandle<JSArray> JSNumberFormat::FormatToParts(
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                              IntlMathematicalValue::From(isolate, numeric_obj));
 
-  Managed<icu::number::LocalizedNumberFormatter>::Ptr lfmt =
+  CppGCManaged<icu::number::LocalizedNumberFormatter>::Ptr lfmt =
       number_format->icu_number_formatter()->ptr();
   Maybe<icu::number::FormattedNumber> maybe_formatted =
       IntlMathematicalValue::FormatNumeric(isolate, lfmt.raw(), value);

@@ -26,6 +26,8 @@ class JSProxy;
 // that represents load handlers that can't be encoded in a Smi.
 // TODO(ishell): move to load-handler.h
 V8_OBJECT class LoadHandler final : public DataHandler {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   DECL_PRINTER(LoadHandler)
   DECL_VERIFIER(LoadHandler)
@@ -255,6 +257,8 @@ V8_OBJECT class LoadHandler final : public DataHandler {
 // that represents store handlers that can't be encoded in a Smi.
 // TODO(ishell): move to store-handler.h
 V8_OBJECT class StoreHandler final : public DataHandler {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   DECL_PRINTER(StoreHandler)
   DECL_VERIFIER(StoreHandler)

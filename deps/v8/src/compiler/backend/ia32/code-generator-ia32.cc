@@ -1030,8 +1030,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchStoreWithWriteBarrier:  // Fall thrugh.
     case kArchAtomicStoreWithWriteBarrier: {
-      RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
-      AtomicMemoryOrder order = AtomicMemoryOrderField::decode(instr->opcode());
+      RecordWriteMode mode =
+          arch_opcode == kArchStoreWithWriteBarrier
+              ? RecordWriteModeField::decode(instr->opcode())
+              : AtomicStoreRecordWriteModeField::decode(instr->opcode());
       Register object = i.InputRegister(0);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
@@ -1048,11 +1050,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, operand, value, scratch, mode, DetermineStubCallMode());
       if (arch_opcode == kArchStoreWithWriteBarrier ||
-          order == AtomicMemoryOrder::kAcqRel) {
+          AtomicMemoryOrderField::decode(instr->opcode()) ==
+              AtomicMemoryOrder::kAcqRel) {
         __ mov(operand, value);
       } else {
         DCHECK_EQ(arch_opcode, kArchAtomicStoreWithWriteBarrier);
-        DCHECK_EQ(order, AtomicMemoryOrder::kSeqCst);
+        DCHECK_EQ(AtomicMemoryOrderField::decode(instr->opcode()),
+                  AtomicMemoryOrder::kSeqCst);
         __ mov(scratch, value);
         __ xchg(scratch, operand);
       }
@@ -1072,7 +1076,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Operand operand = i.MemoryOperand(&index);
       Register value = i.InputRegister(index);
       Register scratch = i.TempRegister(0);
-      AtomicMemoryOrder order = AtomicMemoryOrderField::decode(instr->opcode());
 
       if (v8_flags.debug_code) {
         // Checking that |value| is not a cleared weakref: our write barrier
@@ -1088,11 +1091,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
 
       if (arch_opcode == kArchStoreSkippedWriteBarrier ||
-          order == AtomicMemoryOrder::kAcqRel) {
+          AtomicMemoryOrderField::decode(instr->opcode()) ==
+              AtomicMemoryOrder::kAcqRel) {
         __ mov(operand, value);
       } else {
         DCHECK_EQ(arch_opcode, kArchAtomicStoreSkippedWriteBarrier);
-        DCHECK_EQ(order, AtomicMemoryOrder::kSeqCst);
+        DCHECK_EQ(AtomicMemoryOrderField::decode(instr->opcode()),
+                  AtomicMemoryOrder::kSeqCst);
         __ mov(scratch, value);
         __ xchg(scratch, operand);
       }
@@ -3066,8 +3071,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32I8x16Popcnt: {
       __ I8x16Popcnt(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                     kScratchDoubleReg, i.TempSimd128Register(0),
-                     i.TempRegister(1));
+                     i.TempRegister(1), kScratchDoubleReg,
+                     i.TempSimd128Register(0));
       break;
     }
     case kIA32S128Const: {

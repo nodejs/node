@@ -48,7 +48,7 @@ endif()
 
 set(target_error_mapper libc.src.__support.printf_core.${LIBC_TARGET_OS}.error_mapper)
 if(NOT TARGET ${target_error_mapper})
-    set(target_error_mapper libc.src.__support.printf_core.generic.error_mapper)
+  set(target_error_mapper libc.src.__support.printf_core.generic.error_mapper)
 endif()
 
 if(LIBC_CONF_PRINTF_DISABLE_WIDE)
@@ -74,7 +74,7 @@ add_header_library(
   printf_config
   HDRS
     printf_config.h
-  ${printf_config_copts}
+    ${printf_config_copts}
 )
 
 add_header_library(
@@ -212,6 +212,5 @@ add_header_library(
     libc.src.__support.arg_list
     libc.src.__support.printf_core.printf_main
     libc.src.__support.printf_core.writer
-  ${use_system_file}
+    ${use_system_file}
 )
-

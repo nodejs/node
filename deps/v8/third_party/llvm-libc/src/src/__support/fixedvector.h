@@ -1,9 +1,15 @@
-//===-- A data structure for a fixed capacity data store --------*- C++ -*-===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Defines the FixedVector class: a fixed-capacity container with vector-like
+/// operations.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LIBC_SRC___SUPPORT_FIXEDVECTOR_H
@@ -11,33 +17,32 @@
 
 #include "src/__support/CPP/array.h"
 #include "src/__support/CPP/iterator.h"
+#include "src/__support/CPP/type_traits/is_trivially_copyable.h"
 #include "src/__support/libc_assert.h"
 #include "src/__support/macros/config.h"
 #include "src/string/memory_utils/inline_memset.h"
 
 namespace LIBC_NAMESPACE_DECL {
 
-// A fixed size data store backed by an underlying cpp::array data structure. It
-// supports vector like API but is not resizable like a vector.
+/// A fixed size data store backed by an underlying cpp::array data structure.
+/// It supports vector-like API but is not resizable like a vector.
 template <typename T, size_t CAPACITY> class FixedVector {
+  static_assert(cpp::is_trivially_copyable_v<T>,
+                "Non-trivially-copyable types not currently supported!");
   cpp::array<T, CAPACITY> store;
   size_t item_count = 0;
 
 public:
+  using iterator = typename cpp::array<T, CAPACITY>::iterator;
+  using const_iterator = typename cpp::array<T, CAPACITY>::const_iterator;
+  using reverse_iterator = typename cpp::array<T, CAPACITY>::reverse_iterator;
+
   LIBC_INLINE constexpr FixedVector() = default;
 
-  using iterator = typename cpp::array<T, CAPACITY>::iterator;
-  LIBC_INLINE constexpr FixedVector(iterator begin, iterator end)
-      : store{}, item_count{} {
-    LIBC_ASSERT(begin + CAPACITY >= end);
-    for (; begin != end; ++begin)
-      push_back(*begin);
-  }
-
-  using const_iterator = typename cpp::array<T, CAPACITY>::const_iterator;
   LIBC_INLINE constexpr FixedVector(const_iterator begin, const_iterator end)
       : store{}, item_count{} {
-    LIBC_ASSERT(begin + CAPACITY >= end);
+    LIBC_ASSERT(end >= begin);
+    LIBC_ASSERT(static_cast<size_t>(end - begin) <= CAPACITY);
     for (; begin != end; ++begin)
       push_back(*begin);
   }
@@ -100,25 +105,24 @@ public:
   // of the `reset` method. Considering that FixedVector is of fixed storage,
   // a `destroy` method like this should not be required. However, FixedVector
   // is used in a few places as an alternate for data structures which use
-  // dynamically allocated storate. So, the `destroy` method like this
+  // dynamically allocated storage. So, the `destroy` method like this
   // matches the `destroy` API of those other data structures so that users
   // can easily swap one data structure for the other.
   LIBC_INLINE static void destroy(FixedVector<T, CAPACITY> *store) {
     store->reset();
   }
 
-  using reverse_iterator = typename cpp::array<T, CAPACITY>::reverse_iterator;
   LIBC_INLINE constexpr reverse_iterator rbegin() {
-    return reverse_iterator{&store[item_count]};
+    return reverse_iterator(begin() + item_count);
   }
   LIBC_INLINE constexpr reverse_iterator rend() { return store.rend(); }
 
   LIBC_INLINE constexpr iterator begin() { return store.begin(); }
-  LIBC_INLINE constexpr iterator end() { return iterator{&store[item_count]}; }
+  LIBC_INLINE constexpr iterator end() { return begin() + item_count; }
 
   LIBC_INLINE constexpr const_iterator begin() const { return store.begin(); }
   LIBC_INLINE constexpr const_iterator end() const {
-    return const_iterator{&store[item_count]};
+    return begin() + item_count;
   }
 };
 

@@ -995,18 +995,21 @@ void WasmInterpreterRuntime::BeginExecution(
   const FunctionSig* sig = module_->functions[func_index].sig;
   size_t args_count = 0;
   uint32_t rets_slots_size = 0;
+  uint32_t args_slots_size = 0;
   uint32_t ref_rets_count = 0;
   uint32_t ref_args_count = 0;
   WasmBytecode* target_function = GetFunctionBytecode(func_index);
   if (target_function) {
     args_count = target_function->args_count();
     rets_slots_size = target_function->rets_slots_size();
+    args_slots_size = target_function->args_slots_size();
     ref_rets_count = target_function->ref_rets_count();
     ref_args_count = target_function->ref_args_count();
   } else {
     // We begin execution by calling an imported function.
     args_count = sig->parameter_count();
     rets_slots_size = WasmBytecode::RetsSizeInSlots(sig);
+    args_slots_size = WasmBytecode::ArgsSizeInSlots(sig);
     ref_rets_count = WasmBytecode::RefRetsCount(sig);
     ref_args_count = WasmBytecode::RefArgsCount(sig);
   }
@@ -1023,19 +1026,43 @@ void WasmInterpreterRuntime::BeginExecution(
 
   uint8_t* p = interpreter_fp + rets_slots_size * kSlotSize;
 
-  // Check stack overflow.
+  // The interpreter stack frame holds slots for return values, arguments,
+  // locals, constants and the result of each instruction (the SSA-like
+  // registers). For an imported function we don't enter a new interpreter
+  // frame, so only the args+rets we write here need to fit.
+  size_t required_frame_size =
+      target_function ? target_function->frame_size()
+                      : (rets_slots_size + args_slots_size) * kSlotSize;
   const uint8_t* stack_limit = thread->StackLimitAddress();
-  if (V8_UNLIKELY(p + (ref_rets_count + ref_args_count) * sizeof(WasmRef) >=
-                  stack_limit)) {
+  if (V8_UNLIKELY(stack_limit <= interpreter_fp ||
+                  static_cast<size_t>(stack_limit - interpreter_fp) <
+                      required_frame_size)) {
     size_t additional_required_size =
-        p + (ref_rets_count + ref_args_count) * sizeof(WasmRef) - stack_limit;
+        required_frame_size - (stack_limit - interpreter_fp);
     if (!thread->ExpandStack(additional_required_size)) {
       // TODO(paolosev@microsoft.com) - Calculate initial function offset.
-      SealHandleScope shs(isolate_);
-      isolate_->StackOverflow();
+      {
+        // Raising the stack-overflow RangeError allocates. Both entries into
+        // the interpreter hold a DisallowHeapAllocation across this call:
+        // Runtime_WasmRunInterpreter, to protect the raw arg buffer, and
+        // CallExternalWasmFunction, to protect the raw ref args that
+        // StoreRefArgsIntoStackSlots just wrote into the callee's (unscanned)
+        // interpreter stack slots. Re-enabling allocation is safe here only
+        // because this branch returns without reading either raw buffer again:
+        // the JS entry has already boxed its ref arguments into handles, and
+        // the cross-instance entry abandons the callee frame it just filled.
+        // Keep the allowance as narrow as possible so the invariant stays in
+        // force for the rest of the function. Handles created below belong to
+        // the HandleScope opened above.
+        AllowHeapAllocation allow_allocation;
+        isolate_->StackOverflow();
+      }
       const pc_t trap_pc = 0;
       SetTrap(MessageTemplate::kWasmTrapUnreachable, trap_pc);
       thread->FinishActivation();
+      // Restore the caller's frame state.
+      const FrameState* frame_state = thread->GetCurrentActivationFor(this);
+      current_frame_ = frame_state ? *frame_state : FrameState();
       return;
     }
   }
@@ -2221,10 +2248,9 @@ void WasmInterpreterRuntime::ExecuteCallRef(
 
     // Use the callee's declared canonical signature for JS return-value
     // validation, matching compiled code's per-import wrapper behavior.
-    // {actual_sig_index} (computed above) is the actual callee's canonical
-    // signature index.
     const CanonicalSig* callee_canonical_sig =
-        GetTypeCanonicalizer()->LookupFunctionSignature(actual_sig_index);
+        GetTypeCanonicalizer()->LookupFunctionSignature(
+            internal->sig()->index());
 
     ExternalCallResult result = CallExternalJSFunction(
         current_code, module_, func_ref, signature,
@@ -2507,7 +2533,7 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
   {
     // Packing the raw refs must not allocate; the only allocation in this
     // block is the JS call below, which re-enables GC via its own nested
-    // {AllowGarbageCollection} scope.
+    // {AllowHeapAllocation} scope.
     DisallowGarbageCollection no_gc_packing;
     size_t ref_idx = 0;
     uint32_t* p = sp + WasmBytecode::RetsSizeInSlots(callsite_sig);
@@ -2547,6 +2573,13 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
     DCHECK_NOT_NULL(current_thread_);
     current_thread_->StopExecutionTimer();
     {
+      // The enclosing {no_gc_packing} scope is a DisallowGarbageCollection,
+      // which disables both heap allocation AND safepoints. Calling into JS
+      // runs arbitrary code that must be allowed to allocate and to safepoint
+      // (GC). AllowHeapAllocation only re-enables allocation, leaving
+      // safepoints disallowed, so an allocation inside the JS callee trips
+      // DCHECK(AllowSafepoints::IsAllowed()) in LocalHeap::Safepoint. Use
+      // AllowGarbageCollection to re-enable both for the duration of the call.
       AllowGarbageCollection allow_gc;
       CallWasmToJSBuiltin(isolate_, object_ref, packer.argv(), callsite_sig);
     }
@@ -2623,7 +2656,6 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
           continue;
         }
         DirectHandle<Object>& ref = ref_returns[ref_idx++];
-
         // Normalize JS null -> wasm_null for funcref returns (funcref uses
         // wasm_null, not JS null).
         bool is_funcref =
@@ -2643,7 +2675,6 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
         } else {
           ref = JSToWasmObject(ref, callsite_sig->GetReturn(i));
         }
-
         if (isolate_->has_exception()) {
           return ExternalCallResult::EXTERNAL_EXCEPTION;
         }
@@ -2786,9 +2817,10 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalWasmFunction(
 DirectHandle<Map> WasmInterpreterRuntime::RttCanon(uint32_t type_index) const {
   // {managed_object_maps} holds the canonical RTTs for all (shared and
   // non-shared) types on the single trusted instance data.
-  DirectHandle<WasmTrustedInstanceData> data = wasm_trusted_instance_data();
   DirectHandle<Map> rtt{
-      TrustedCast<Map>(data->managed_object_maps()->get(type_index)), isolate_};
+      TrustedCast<Map>(
+          wasm_trusted_instance_data()->managed_object_maps()->get(type_index)),
+      isolate_};
   return rtt;
 }
 
@@ -2989,6 +3021,9 @@ WasmRef WasmInterpreterRuntime::JSToWasmObject(WasmRef extern_ref,
 }
 
 WasmRef WasmInterpreterRuntime::WasmToJSObject(WasmRef value) const {
+  if (IsWasmNull(*value) || i::IsNull(*value)) {
+    return direct_handle(ReadOnlyRoots(isolate_).null_value(), isolate_);
+  }
   if (Is<WasmFuncRef>(*value)) {
     Tagged<WasmFuncRef> wasm_func_ref = Cast<WasmFuncRef>(*value);
     value = direct_handle(wasm_func_ref->internal(isolate_), isolate_);
@@ -2999,9 +3034,6 @@ WasmRef WasmInterpreterRuntime::WasmToJSObject(WasmRef value) const {
     DirectHandle<WasmInternalFunction> internal =
         direct_handle(wasm_internal_function, isolate_);
     return WasmInternalFunction::GetOrCreateExternal(internal);
-  }
-  if (IsWasmNull(*value)) {
-    return direct_handle(ReadOnlyRoots(isolate_).null_value(), isolate_);
   }
   return value;
 }
@@ -3042,7 +3074,7 @@ bool WasmInterpreterRuntime::SubtypeCheck(const WasmRef obj,
   // Skip the null check if casting from any and not {null_succeeds}.
   // In that case the instance type check will identify null as not being a
   // wasm object and fail.
-  if (obj_type.is_nullable() && (!is_cast_from_any || null_succeeds)) {
+  if (obj_type.is_nullable()) {
     if (obj_type == kWasmExternRef || obj_type == kWasmNullExternRef) {
       if (i::IsNull(*obj)) return null_succeeds;
     } else {
@@ -3091,9 +3123,8 @@ using TypeChecker = bool (*)(const WasmRef obj);
 template <TypeChecker type_checker>
 bool AbstractTypeCast(Isolate* isolate, const WasmRef obj,
                       const ValueType obj_type, bool null_succeeds) {
-  if (null_succeeds && obj_type.is_nullable() &&
-      WasmInterpreterRuntime::IsNull(isolate, obj, obj_type)) {
-    return true;
+  if (WasmInterpreterRuntime::IsNull(isolate, obj, obj_type)) {
+    return null_succeeds;
   }
   return type_checker(obj);
 }
@@ -3104,6 +3135,7 @@ static bool EqCheck(const WasmRef obj) {
   }
   Tagged<HeapObject> heap_obj;
   if (!TryCast(*obj, &heap_obj)) return false;
+  if (i::IsWasmNull(heap_obj)) return false;
   InstanceType instance_type = heap_obj->map()->instance_type();
   return instance_type >= FIRST_WASM_OBJECT_TYPE &&
          instance_type <= LAST_WASM_OBJECT_TYPE;
@@ -3127,6 +3159,7 @@ static bool StructCheck(const WasmRef obj) {
   }
   Tagged<HeapObject> heap_obj;
   if (!TryCast(*obj, &heap_obj)) return false;
+  if (i::IsWasmNull(heap_obj)) return false;
   InstanceType instance_type = heap_obj->map()->instance_type();
   return instance_type == WASM_STRUCT_TYPE;
 }
@@ -3142,6 +3175,7 @@ static bool ArrayCheck(const WasmRef obj) {
   }
   Tagged<HeapObject> heap_obj;
   if (!TryCast(*obj, &heap_obj)) return false;
+  if (i::IsWasmNull(heap_obj)) return false;
   InstanceType instance_type = heap_obj->map()->instance_type();
   return instance_type == WASM_ARRAY_TYPE;
 }
@@ -3157,6 +3191,7 @@ static bool StringCheck(const WasmRef obj) {
   }
   Tagged<HeapObject> heap_obj;
   if (!TryCast(*obj, &heap_obj)) return false;
+  if (i::IsWasmNull(heap_obj)) return false;
   InstanceType instance_type = heap_obj->map()->instance_type();
   return instance_type < FIRST_NONSTRING_TYPE;
 }

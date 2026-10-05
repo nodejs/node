@@ -11,7 +11,7 @@
 
 #include "include/llvm-libc-types/float128.h"
 
-#ifdef LIBC_TYPES_HAS_FLOAT128
+#ifdef LIBC_TYPES_HAS_NATIVE_FLOAT128
 
 #include "hdr/float_macros.h"
 #include "src/__support/FPUtil/ManipulationFunctions.h"
@@ -31,6 +31,6 @@ LIBC_INLINE constexpr float128 scalblnf128(float128 x, long n) {
 } // namespace math
 } // namespace LIBC_NAMESPACE_DECL
 
-#endif // LIBC_TYPES_HAS_FLOAT128
+#endif // LIBC_TYPES_HAS_NATIVE_FLOAT128
 
 #endif // LLVM_LIBC_SRC___SUPPORT_MATH_SCALBLNF128_H

@@ -24,6 +24,7 @@
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-promise-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/promise-inl.h"

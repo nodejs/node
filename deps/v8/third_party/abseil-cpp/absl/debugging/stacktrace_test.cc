@@ -312,7 +312,8 @@ TEST(StackTrace, CustomUnwinderPerformsFixup) {
 const void* g_return_address = nullptr;
 bool g_sigusr2_raised = false;
 
-void SigUsr2Handler(int, siginfo_t*, void* uc) {
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS void SigUsr2Handler(int, siginfo_t*,
+                                                       void* uc) {
   absl::base_internal::ErrnoSaver errno_saver;
   // Many platforms don't support this by default.
   bool support_is_expected = false;
@@ -333,18 +334,19 @@ void SigUsr2Handler(int, siginfo_t*, void* uc) {
   g_sigusr2_raised = true;
 }
 
-void SigUsr1Handler(int, siginfo_t*, void*) {
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS void SigUsr1Handler(int, siginfo_t*, void*) {
   raise(SIGUSR2);
   ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
 }
 
-ABSL_ATTRIBUTE_NOINLINE void RaiseSignal() {
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS ABSL_ATTRIBUTE_NOINLINE void RaiseSignal() {
   g_return_address = __builtin_return_address(0);
   raise(SIGUSR1);
   ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
 }
 
-ABSL_ATTRIBUTE_NOINLINE void TestNestedSignal() {
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS ABSL_ATTRIBUTE_NOINLINE void
+TestNestedSignal() {
   constexpr size_t kAltstackSize = 1 << 14;
   // Allocate altstack on regular stack to make sure it'll have a higher
   // address than some of the regular stack frames.

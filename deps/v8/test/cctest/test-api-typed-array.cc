@@ -6,6 +6,7 @@
 #include "src/base/strings.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-buffer.h"
+#include "src/objects/object-conversions-inl.h"
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/test-api.h"
 

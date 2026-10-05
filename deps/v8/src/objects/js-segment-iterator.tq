@@ -11,7 +11,8 @@ bitfield struct JSSegmentIteratorFlags extends uint31 {
 
 @cppObjectLayoutDefinition
 extern class JSSegmentIterator extends JSObject {
-  icu_iterator_with_text: Foreign;  // Managed<IcuBreakIteratorWithText>
+  icu_iterator_with_text:
+      CppGCManagedBase;  // CppGCManaged<IcuBreakIteratorWithText>
   raw_string: String;
   flags: SmiTagged<JSSegmentIteratorFlags>;
 }

@@ -289,7 +289,7 @@ WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
   runner.Build({WASM_NOP, WASM_I32_ADD(WASM_ZERO, WASM_ONE)});
 
   Tagged<WasmInstanceObject> instance = *runner.builder().instance_object();
-  Managed<NativeModule>::Ptr native_module =
+  CppGCManaged<NativeModule>::Ptr native_module =
       instance->module_object()->native_module();
 
   std::vector<debug::Location> locations;

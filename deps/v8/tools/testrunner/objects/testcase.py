@@ -36,6 +36,7 @@ from testrunner.local import statusfile
 from testrunner.local.variants import INCOMPATIBLE_FLAGS_PER_VARIANT
 from testrunner.local.variants import INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE
 from testrunner.local.variants import INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG
+from testrunner.local.variants import negate_flag
 
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
@@ -222,16 +223,9 @@ class TestCase(object):
     def normalize_flags(flags):
       return [normalize_flag(flag) for flag in filter_flags(flags)]
 
-    # Note this can get it wrong if the flag name starts with the characters
-    # "--no" where "no" is part of the flag name, e.g. "--nobodys-perfect".
-    # In that case the negation "--bodys-perfect" would be returned. This is
-    # a weakness we accept and hope to never run into.
-    def negate_flag(normalized_flag):
-      return ("--" + normalized_flag[4:] if normalized_flag.startswith("--no")
-              else "--no" + normalized_flag[2:])
-
     def negate_flags(normalized_flags):
-      return [negate_flag(flag) for flag in normalized_flags]
+      negated = (negate_flag(f) for f in normalized_flags)
+      return [f for f in negated if f is not None]
 
     def find_flag(conflicting_flag, flags):
       conflicting_flag = normalize_flag(conflicting_flag)

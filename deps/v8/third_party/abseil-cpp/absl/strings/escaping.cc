@@ -389,39 +389,35 @@ constexpr std::array<unsigned char, 256> kCEscapedLen = {
 };
 /* clang-format on */
 
-constexpr uint32_t MakeCEscapedLittleEndianUint32(size_t c) {
-  size_t char_len = kCEscapedLen[c];
-  if (char_len == 1) {
-    return static_cast<uint32_t>(c);
-  }
-  if (char_len == 2) {
-    switch (c) {
-      case '\n':
-        return '\\' | (static_cast<uint32_t>('n') << 8);
-      case '\r':
-        return '\\' | (static_cast<uint32_t>('r') << 8);
-      case '\t':
-        return '\\' | (static_cast<uint32_t>('t') << 8);
-      case '\"':
-        return '\\' | (static_cast<uint32_t>('\"') << 8);
-      case '\'':
-        return '\\' | (static_cast<uint32_t>('\'') << 8);
-      case '\\':
-        return '\\' | (static_cast<uint32_t>('\\') << 8);
+constexpr std::array<std::array<char, 4>, 256> kCEscapedSequence = []() {
+  std::array<std::array<char, 4>, 256> a{};
+  for (size_t c = 0; c < 256; ++c) {
+    size_t char_len = kCEscapedLen[c];
+    if (char_len == 1) {
+      a[c][0] = static_cast<char>(c);
+    } else if (char_len == 2) {
+      a[c][0] = '\\';
+      // clang-format off
+      switch (c) {
+        case '\n': a[c][1] = 'n'; break;
+        case '\r': a[c][1] = 'r'; break;
+        case '\t': a[c][1] = 't'; break;
+        case '\"': a[c][1] = '\"'; break;
+        case '\'': a[c][1] = '\''; break;
+        case '\\': a[c][1] = '\\'; break;
+      }
+      // clang-format on
+    } else {
+      assert(char_len == 4);
+      // A backslash followed by the octal value of the byte.
+      a[c][0] = '\\';
+      a[c][1] = static_cast<char>('0' + (c / 64));
+      a[c][2] = static_cast<char>('0' + ((c % 64) / 8));
+      a[c][3] = static_cast<char>('0' + (c % 8));
     }
   }
-  return static_cast<uint32_t>('\\' | (('0' + (c / 64)) << 8) |
-                               (('0' + ((c % 64) / 8)) << 16) |
-                               (('0' + (c % 8)) << 24));
-}
-
-template <size_t... indexes>
-inline constexpr std::array<uint32_t, sizeof...(indexes)>
-MakeCEscapedLittleEndianUint32Array(std::index_sequence<indexes...>) {
-  return {MakeCEscapedLittleEndianUint32(indexes)...};
-}
-constexpr std::array<uint32_t, 256> kCEscapedLittleEndianUint32Array =
-    MakeCEscapedLittleEndianUint32Array(std::make_index_sequence<256>());
+  return a;
+}();
 
 // Calculates the length of the C-style escaped version of 'src'.
 // Assumes that non-printable characters are escaped using octal sequences, and
@@ -456,8 +452,8 @@ void CEscapeAndAppendInternal(absl::string_view src,
     return;
   }
 
-  // We keep 3 slop bytes so that we can call `little_endian::Store32`
-  // invariably regardless of the length of the escaped character.
+  // The small `memcpy` is faster when the size is a compile-time constant, so
+  // keep 3 slop bytes so that we can call memcpy with size=4.
   constexpr size_t kSlopBytes = 3;
   ABSL_INTERNAL_CHECK(
       escaped_len <= std::numeric_limits<size_t>::max() - kSlopBytes,
@@ -467,10 +463,8 @@ void CEscapeAndAppendInternal(absl::string_view src,
       *dest, append_buf_len, [src, escaped_len](char* append_ptr, size_t) {
         for (char c : src) {
           unsigned char uc = static_cast<unsigned char>(c);
-          size_t char_len = kCEscapedLen[uc];
-          uint32_t little_endian_uint32 = kCEscapedLittleEndianUint32Array[uc];
-          little_endian::Store32(append_ptr, little_endian_uint32);
-          append_ptr += char_len;
+          memcpy(append_ptr, kCEscapedSequence[uc].data(), 4);
+          append_ptr += kCEscapedLen[uc];
         }
         return escaped_len;
       });

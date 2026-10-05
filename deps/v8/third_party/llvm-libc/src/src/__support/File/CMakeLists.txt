@@ -1,5 +1,5 @@
 if(NOT (TARGET libc.src.__support.threads.mutex)
-   OR LIBC_TARGET_OS_IS_GPU)
+  OR LIBC_TARGET_OS_IS_GPU)
   # Not all platforms have a mutex implementation. If mutex is unvailable,
   # we just skip everything about files.
   return()

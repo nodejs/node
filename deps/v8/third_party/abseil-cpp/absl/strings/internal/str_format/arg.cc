@@ -82,7 +82,7 @@ class IntDigits {
   // Supports unsigned integral types and uint128.
   template <typename T>
   void PrintAsOct(T v) {
-    static_assert(!IsSigned<T>::value, "");
+    static_assert(!IsSigned<T>::value);
     char *p = storage_ + sizeof(storage_);
     do {
       *--p = static_cast<char>('0' + (static_cast<size_t>(v) & 7));
@@ -96,7 +96,7 @@ class IntDigits {
   // Supports all integral types.
   template <typename T>
   void PrintAsDec(T v) {
-    static_assert(std::is_integral_v<T>, "");
+    static_assert(std::is_integral_v<T>);
     start_ = storage_;
     size_ = static_cast<size_t>(numbers_internal::FastIntToBuffer(v, storage_) -
                                 storage_);
@@ -136,7 +136,7 @@ class IntDigits {
   // Supports unsigned integral types and uint128.
   template <typename T>
   void PrintAsHexLower(T v) {
-    static_assert(!IsSigned<T>::value, "");
+    static_assert(!IsSigned<T>::value);
     char *p = storage_ + sizeof(storage_);
 
     do {
@@ -158,7 +158,7 @@ class IntDigits {
   // Supports unsigned integral types and uint128.
   template <typename T>
   void PrintAsHexUpper(T v) {
-    static_assert(!IsSigned<T>::value, "");
+    static_assert(!IsSigned<T>::value);
     char *p = storage_ + sizeof(storage_);
 
     // kHexTable is only lowercase, so do it manually for uppercase.

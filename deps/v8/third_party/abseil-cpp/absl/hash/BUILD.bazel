@@ -98,6 +98,7 @@ cc_test(
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/numeric:bits",
+        "//absl/strings:cord",
         "//absl/strings:cord_test_helpers",
         "//absl/strings:string_view",
         "@googletest//:gtest",

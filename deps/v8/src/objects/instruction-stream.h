@@ -34,6 +34,8 @@ class WritableJitAllocation;
 // and contains trusted content (machine code). However, it is special in that
 // it doesn't live in the trusted space but instead in the code space.
 V8_OBJECT class InstructionStream : public TrustedObject {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   // All InstructionStream objects have the following layout:
   //

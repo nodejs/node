@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-"""
+r"""
 Performance runner for d8.
 
 Call e.g. with tools/run-perf.py --arch x64 some_suite.json

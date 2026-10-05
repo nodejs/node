@@ -16,6 +16,7 @@ from .helpers.inspect import check_inspect_recurses_into_map
 from .helpers.isolate import check_isolate_command
 from .helpers.isolate import check_isolate_none_on_idle_thread
 from .helpers.session import LldbSession
+from .helpers.source import check_source
 from .helpers.utils import DebuggerTestConfig
 from .helpers.utils import FIXTURES_DIR
 from .helpers.utils import get_lldb_live_test_config
@@ -113,6 +114,25 @@ class LldbInspectLiveTest(unittest.TestCase):
     with self._session() as session:
       session.run_to_abort()
       check_isolate_none_on_idle_thread(session)
+
+
+class LldbSourceLiveTest(unittest.TestCase):
+  """Checks `v8 source` end-to-end with a live d8 process in LLDB."""
+
+  def _session(self):
+    script = os.path.join(FIXTURES_DIR, "throw.js")
+    return LldbSession(
+        _CONFIG,
+        target_binary=_CONFIG.d8_binary,
+        target_args=f'{_CONFIG.d8_args} --abort-on-uncaught-exception '
+        f'"{script}"',
+    )
+
+  def test_source(self):
+    """Checks `v8 source` rendering, flags, and error handling."""
+    with self._session() as session:
+      session.run_to_abort()
+      check_source(session)
 
 
 class LldbCorruptedMapTest(unittest.TestCase):

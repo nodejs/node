@@ -74,7 +74,10 @@ class OutputStreamWriter {
     if (chunk_pos_ != 0) {
       WriteChunk();
     }
-    stream_->EndOfStream();
+    // Writing the final chunk above may itself have been aborted by the
+    // stream. v8::OutputStream guarantees that EndOfStream() is not called
+    // once writing was aborted.
+    if (!aborted_) stream_->EndOfStream();
   }
 
  private:

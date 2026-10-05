@@ -20,7 +20,7 @@ function load(o) {
 %EnsureFeedbackVectorForFunction(load);
 %NeverOptimizeFunction(load);
 
-for (let i = 0; i < 10; i++) {
+for (let i = 0; i < 11; i++) {
   let o = {x: 42};
   o['p' + i] = i;
   load(o);

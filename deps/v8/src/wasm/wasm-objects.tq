@@ -11,14 +11,14 @@
 type PodArrayOfWasmValueType extends ByteArray
     constexpr 'PodArray<wasm::ValueType>';
 @useParentTypeChecker
-type ManagedWasmNativeModule extends Foreign
-    constexpr 'Managed<wasm::NativeModule>';
+type ManagedWasmNativeModule extends CppGCManagedBase
+    constexpr 'CppGCManaged<wasm::NativeModule>';
 @useParentTypeChecker
 type TrustedManagedWasmNativeModule extends TrustedForeign
     constexpr 'TrustedManaged<wasm::NativeModule>';
 @useParentTypeChecker
-type ManagedBackingStore extends Foreign
-    constexpr 'Managed<BackingStore>';
+type ManagedBackingStore extends CppGCManagedBase
+    constexpr 'CppGCManaged<BackingStore>';
 
 type RawFunctionSigPtr extends RawPtr constexpr 'const wasm::CanonicalSig*';
 
@@ -163,7 +163,7 @@ extern operator '.instance_data' macro
 
 @cppObjectLayoutDefinition
 extern class WasmCapiFunctionData extends WasmFunctionData {
-  embedder_data: Foreign;  // Managed<wasm::FuncData>
+  embedder_data: CppGCManagedBase;  // CppGCManaged<wasm::FuncData>
 }
 
 @cppObjectLayoutDefinition
@@ -321,6 +321,25 @@ extern class WasmArray extends WasmObject {
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
 }
 
+// For Wasm structs with Custom Descriptor: begins with the regular fields
+// of a Map, then adds the custom descriptor's fields (which are accessible
+// to userspace).
+// When a WasmCustomMap is passed to JS (or converted to externref), we
+// switch to its {js_wrapper}.
+@cppObjectLayoutDefinition
+extern class WasmCustomMap extends Map {
+  js_wrapper: WasmCustomMapWrapper|Null;
+  // To save memory, we could store the NativeContext in the {js_wrapper} field
+  // before allocating the wrapper, but that would make checking for the
+  // wrapper's presence more expensive.
+  native_context_for_wrapper: NativeContext;
+}
+
+@cppObjectLayoutDefinition
+extern class WasmCustomMapWrapper extends JSObject {
+  wrapped: WasmCustomMap;
+}
+
 @cppObjectLayoutDefinition
 extern class WasmStringViewIter extends HeapObject {
   string: String;
@@ -330,6 +349,8 @@ extern class WasmStringViewIter extends HeapObject {
 }
 
 @cppObjectLayoutDefinition
+@doNotGenerateCast
+@doNotGenerateInstanceTypeCheck
 extern class WasmNull extends HeapObject {}
 
 extern macro WasmNullConstant(): WasmNull;

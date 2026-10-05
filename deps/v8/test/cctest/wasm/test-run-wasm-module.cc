@@ -354,7 +354,7 @@ TEST(TestInterruptLoop) {
                                         base::VectorOf(buffer))
             .ToHandleChecked();
 
-    Managed<BackingStore>::Ptr backing_store =
+    CppGCManaged<BackingStore>::Ptr backing_store =
         instance->trusted_data(isolate)->memory_object(0)->backing_store();
     std::atomic<int32_t>* memory_array =
         reinterpret_cast<std::atomic<int32_t>*>(backing_store->buffer_start());

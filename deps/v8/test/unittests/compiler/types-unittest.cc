@@ -8,6 +8,7 @@
 #include "src/compiler/turbofan-types.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects.h"
 #include "test/common/types-fuzz.h"
 #include "test/unittests/test-utils.h"

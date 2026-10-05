@@ -32,6 +32,8 @@ namespace internal {
 // b) it's independent of the pointer compression base and pointer compression
 //    scheme.
 V8_OBJECT class FreeSpace : public HeapObject {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   static constexpr uint32_t kMaxSizeInBytes =
       uint32_t{Smi::kMaxValue} * kTaggedSize;

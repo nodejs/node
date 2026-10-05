@@ -114,7 +114,7 @@ MaglevGraphLabeller* GetCurrentGraphLabeller();
 
 #ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
 
-class PrintNode {
+class V8_EXPORT_PRIVATE PrintNode {
  public:
   explicit PrintNode(const NodeBase* node, bool has_regalloc_data = false,
                      bool skip_targets = false)
@@ -132,7 +132,7 @@ class PrintNode {
   const bool skip_targets_;
 };
 
-class PrintNodeLabel {
+class V8_EXPORT_PRIVATE PrintNodeLabel {
  public:
   explicit PrintNodeLabel(const NodeBase* node) : node_(node) {}
 

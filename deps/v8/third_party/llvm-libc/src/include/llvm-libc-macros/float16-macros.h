@@ -15,14 +15,14 @@
     (!defined(__GNUC__) || __GNUC__ >= 13 ||                                   \
      (defined(__clang__) && __clang_major__ >= 12)) &&                         \
     !defined(__arm__) && !defined(_M_ARM) && !defined(__riscv) &&              \
-    !defined(_WIN32)
+    !defined(_WIN32) && (!defined(__i386__) || defined(__SSE2__))
 #define LIBC_TYPES_HAS_FLOAT16
 
 // TODO: This would no longer be required if HdrGen let us guard function
 // declarations with multiple macros.
-#ifdef LIBC_TYPES_HAS_FLOAT128
+#ifdef LIBC_TYPES_HAS_NATIVE_FLOAT128
 #define LIBC_TYPES_HAS_FLOAT16_AND_FLOAT128
-#endif // LIBC_TYPES_HAS_FLOAT128
+#endif // LIBC_TYPES_HAS_NATIVE_FLOAT128
 #endif
 
 #endif // LLVM_LIBC_MACROS_FLOAT16_MACROS_H

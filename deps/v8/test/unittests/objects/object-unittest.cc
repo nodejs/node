@@ -8,6 +8,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/codegen/compiler.h"
+#include "src/objects/contexts.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -155,6 +156,51 @@ TEST_F(ObjectWithIsolate, DictionaryGrowth) {
   dict = NumberDictionary::New(isolate(), 1);
   dict = NumberDictionary::EnsureCapacity(isolate(), dict, 30);
   CHECK_EQ(64, dict->Capacity());
+}
+
+TEST_F(TestWithNativeContext, ContextMaps) {
+  auto VerifyFunctionPrototypeMap = [this](int stored_map_context_index,
+                                           int stored_ctor_context_index) {
+    DirectHandle<Context> context = native_context();
+
+    DirectHandle<Map> this_map(
+        Cast<Map>(context->GetNoCell(stored_map_context_index)), i_isolate());
+
+    DirectHandle<JSFunction> fun(
+        Cast<JSFunction>(context->GetNoCell(stored_ctor_context_index)),
+        i_isolate());
+    DirectHandle<JSObject> proto(
+        Cast<JSObject>(fun->initial_map()->prototype()), i_isolate());
+    DirectHandle<Map> that_map(proto->map(), i_isolate());
+
+    EXPECT_TRUE(proto->HasFastProperties());
+    EXPECT_EQ(*this_map, *that_map);
+  };
+
+  VerifyFunctionPrototypeMap(Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX,
+                             Context::STRING_FUNCTION_INDEX);
+  VerifyFunctionPrototypeMap(Context::REGEXP_PROTOTYPE_MAP_INDEX,
+                             Context::REGEXP_FUNCTION_INDEX);
+  VerifyFunctionPrototypeMap(Context::OBJECT_FUNCTION_PROTOTYPE_MAP_INDEX,
+                             Context::OBJECT_FUNCTION_INDEX);
+}
+
+TEST_F(TestWithNativeContext, InitialObjects) {
+  // Initial ArrayIterator prototype.
+  EXPECT_EQ(native_context()->initial_array_iterator_prototype(),
+            *RunJS<JSObject>("[][Symbol.iterator]().__proto__"));
+  // Initial Array prototype.
+  EXPECT_EQ(native_context()->initial_array_prototype(),
+            *RunJS<JSObject>("Array.prototype"));
+  // Initial Generator prototype.
+  EXPECT_EQ(native_context()->initial_generator_prototype(),
+            *RunJS<JSObject>("(function*(){}).__proto__.prototype"));
+  // Initial Iterator prototype.
+  EXPECT_EQ(native_context()->initial_iterator_prototype(),
+            *RunJS<JSObject>("[][Symbol.iterator]().__proto__.__proto__"));
+  // Initial Object prototype.
+  EXPECT_EQ(native_context()->initial_object_prototype(),
+            *RunJS<JSObject>("Object.prototype"));
 }
 
 TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
@@ -899,6 +945,69 @@ TEST_F(ObjectTest, LookupIteratorWithStringLookupStartObject) {
               .IsNothing());
     ii->clear_exception();
   }
+}
+
+TEST_F(ObjectTest, JSObjectCopy) {
+  v8::HandleScope scope(isolate());
+  Factory* factory = i_isolate()->factory();
+  DirectHandle<JSFunction> constructor = i_isolate()->object_function();
+  Handle<JSObject> obj = factory->NewJSObject(constructor);
+  DirectHandle<String> first = factory->InternalizeUtf8String("first");
+  DirectHandle<String> second = factory->InternalizeUtf8String("second");
+
+  DirectHandle<Smi> one(Smi::FromInt(1), i_isolate());
+  DirectHandle<Smi> two(Smi::FromInt(2), i_isolate());
+
+  Object::SetProperty(i_isolate(), obj, first, one).Check();
+  Object::SetProperty(i_isolate(), obj, second, two).Check();
+
+  Object::SetElement(i_isolate(), obj, 0, first, ShouldThrow::kDontThrow)
+      .Check();
+  Object::SetElement(i_isolate(), obj, 1, second, ShouldThrow::kDontThrow)
+      .Check();
+
+  // Make the clone.
+  DirectHandle<JSObject> clone = factory->CopyJSObject(obj);
+  EXPECT_FALSE(clone.is_identical_to(obj));
+
+  DirectHandle<Object> value1 =
+      Object::GetElement(i_isolate(), obj, 0).ToHandleChecked();
+  DirectHandle<Object> value2 =
+      Object::GetElement(i_isolate(), clone, 0).ToHandleChecked();
+  EXPECT_EQ(*value1, *value2);
+  value1 = Object::GetElement(i_isolate(), obj, 1).ToHandleChecked();
+  value2 = Object::GetElement(i_isolate(), clone, 1).ToHandleChecked();
+  EXPECT_EQ(*value1, *value2);
+
+  value1 = Object::GetProperty(i_isolate(), obj, first).ToHandleChecked();
+  value2 = Object::GetProperty(i_isolate(), clone, first).ToHandleChecked();
+  EXPECT_EQ(*value1, *value2);
+  value1 = Object::GetProperty(i_isolate(), obj, second).ToHandleChecked();
+  value2 = Object::GetProperty(i_isolate(), clone, second).ToHandleChecked();
+  EXPECT_EQ(*value1, *value2);
+
+  // Flip the values on the clone.
+  Object::SetProperty(i_isolate(), clone, first, two).Check();
+  Object::SetProperty(i_isolate(), clone, second, one).Check();
+
+  Object::SetElement(i_isolate(), clone, 0, second, ShouldThrow::kDontThrow)
+      .Check();
+  Object::SetElement(i_isolate(), clone, 1, first, ShouldThrow::kDontThrow)
+      .Check();
+
+  value1 = Object::GetElement(i_isolate(), obj, 1).ToHandleChecked();
+  value2 = Object::GetElement(i_isolate(), clone, 0).ToHandleChecked();
+  EXPECT_EQ(*value1, *value2);
+  value1 = Object::GetElement(i_isolate(), obj, 0).ToHandleChecked();
+  value2 = Object::GetElement(i_isolate(), clone, 1).ToHandleChecked();
+  EXPECT_EQ(*value1, *value2);
+
+  value1 = Object::GetProperty(i_isolate(), obj, second).ToHandleChecked();
+  value2 = Object::GetProperty(i_isolate(), clone, first).ToHandleChecked();
+  EXPECT_EQ(*value1, *value2);
+  value1 = Object::GetProperty(i_isolate(), obj, first).ToHandleChecked();
+  value2 = Object::GetProperty(i_isolate(), clone, second).ToHandleChecked();
+  EXPECT_EQ(*value1, *value2);
 }
 
 }  // namespace internal

@@ -254,14 +254,17 @@ class Genesis {
   void InitializeConsole(DirectHandle<JSObject> extras_binding);
 
 #define DECLARE_FEATURE_INITIALIZATION(id, descr) void InitializeGlobal_##id();
-
-  HARMONY_INPROGRESS(DECLARE_FEATURE_INITIALIZATION)
-  JAVASCRIPT_INPROGRESS_FEATURES(DECLARE_FEATURE_INITIALIZATION)
-  HARMONY_STAGED(DECLARE_FEATURE_INITIALIZATION)
-  JAVASCRIPT_STAGED_FEATURES(DECLARE_FEATURE_INITIALIZATION)
-  HARMONY_SHIPPING(DECLARE_FEATURE_INITIALIZATION)
-  JAVASCRIPT_SHIPPING_FEATURES(DECLARE_FEATURE_INITIALIZATION)
+#define IGNORE_FEATURE(id, descr)
+  FOREACH_EXPERIMENTAL_FEATURE_FLAG(DECLARE_FEATURE_INITIALIZATION,
+                                    IGNORE_FEATURE, IGNORE_FEATURE)
+  FOREACH_PRE_STAGED_FEATURE_FLAG(DECLARE_FEATURE_INITIALIZATION,
+                                  IGNORE_FEATURE, IGNORE_FEATURE)
+  FOREACH_STAGED_FEATURE_FLAG(DECLARE_FEATURE_INITIALIZATION, IGNORE_FEATURE,
+                              IGNORE_FEATURE)
+  FOREACH_SHIPPED_FEATURE_FLAG(DECLARE_FEATURE_INITIALIZATION, IGNORE_FEATURE,
+                               IGNORE_FEATURE)
 #undef DECLARE_FEATURE_INITIALIZATION
+#undef IGNORE_FEATURE
   void InitializeGlobal_regexp_linear_flag();
   void InitializeGlobal_sharedarraybuffer();
 #if V8_ENABLE_WEBASSEMBLY
@@ -1524,6 +1527,8 @@ void InstallError(Isolate* isolate, DirectHandle<JSObject> global,
   if (context_index == Context::ERROR_FUNCTION_INDEX) {
     SimpleInstallFunction(isolate, error_fun, "captureStackTrace",
                           Builtin::kErrorCaptureStackTrace, 2, kDontAdapt);
+    SimpleInstallFunction(isolate, error_fun, "isError", Builtin::kErrorIsError,
+                          1, kAdapt);
   }
 
   InstallWithIntrinsicDefaultProto(isolate, error_fun, context_index);
@@ -3149,6 +3154,8 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     native_context()->set_promise_withresolvers_result_map(*result_map);
     InstallFunctionWithBuiltinId(isolate_, promise_fun, "withResolvers",
                                  Builtin::kPromiseWithResolvers, 0, kAdapt);
+    InstallFunctionWithBuiltinId(isolate_, promise_fun, "try",
+                                 Builtin::kPromiseTry, 1, kDontAdapt);
 
     SetConstructorInstanceType(isolate_, promise_fun,
                                JS_PROMISE_CONSTRUCTOR_TYPE);
@@ -3351,6 +3358,9 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
       INSTALL_CAPTURE_GETTER(8);
       INSTALL_CAPTURE_GETTER(9);
 #undef INSTALL_CAPTURE_GETTER
+
+      SimpleInstallFunction(isolate_, regexp_fun, "escape",
+                            Builtin::kRegExpEscape, 1, kAdapt);
     }
     SetConstructorInstanceType(isolate_, regexp_fun,
                                JS_REG_EXP_CONSTRUCTOR_TYPE);
@@ -3436,6 +3446,11 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   // -- U R I E r r o r
   InstallError(isolate_, global, factory->URIError_string(),
                Context::URI_ERROR_FUNCTION_INDEX);
+
+  // -- S u p p r e s s e d E r r o r
+  InstallError(isolate_, global, factory->SuppressedError_string(),
+               Context::SUPPRESSED_ERROR_FUNCTION_INDEX,
+               Builtin::kSuppressedErrorConstructor, 3);
 
   // Initialize the embedder data slot.
   // TODO(ishell): microtask queue pointer will be moved from native context
@@ -3545,6 +3560,8 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
                           kAdapt);
     SimpleInstallFunction(isolate_, math, "sqrt", Builtin::kMathSqrt, 1,
                           kAdapt);
+    SimpleInstallFunction(isolate_, math, "sumPrecise",
+                          Builtin::kMathSumPrecise, 1, kAdapt);
     SimpleInstallFunction(isolate_, math, "tan", Builtin::kMathTan, 1, kAdapt);
     SimpleInstallFunction(isolate_, math, "tanh", Builtin::kMathTanh, 1,
                           kAdapt);
@@ -3842,6 +3859,8 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
                           Builtin::kLocalePrototypeScript, kAdapt);
       SimpleInstallGetter(isolate(), prototype, factory->region_string(),
                           Builtin::kLocalePrototypeRegion, kAdapt);
+      SimpleInstallGetter(isolate(), prototype, factory->variants_string(),
+                          Builtin::kLocalePrototypeVariants, kAdapt);
       SimpleInstallGetter(isolate(), prototype, factory->baseName_string(),
                           Builtin::kLocalePrototypeBaseName, kAdapt);
       // Unicode extension getters.
@@ -4190,6 +4209,8 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
                           Builtin::kAtomicsWaitAsync, 4, kAdapt);
     SimpleInstallFunction(isolate_, atomics_object, "notify",
                           Builtin::kAtomicsNotify, 3, kAdapt);
+    SimpleInstallFunction(isolate_, atomics_object, "pause",
+                          Builtin::kAtomicsPause, 0, kDontAdapt);
   }
 
   {  // -- T y p e d A r r a y
@@ -4317,6 +4338,34 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   }
     TYPED_ARRAYS_BASE(INSTALL_TYPED_ARRAY)
 #undef INSTALL_TYPED_ARRAY
+
+    std::array<DirectHandle<Name>, 2> fields{factory->read_string(),
+                                             factory->written_string()};
+    DirectHandle<Map> map = CreateLiteralObjectMapFromCache(isolate(), fields);
+    native_context()->set_set_unit8_array_result_map(*map);
+
+    DirectHandle<JSObject> uint8_array_function =
+        Cast<JSObject>(JSReceiver::GetProperty(isolate(), global, "Uint8Array")
+                           .ToHandleChecked());
+    SimpleInstallFunction(isolate(), uint8_array_function, "fromBase64",
+                          Builtin::kUint8ArrayFromBase64, 1, kDontAdapt);
+    SimpleInstallFunction(isolate(), uint8_array_function, "fromHex",
+                          Builtin::kUint8ArrayFromHex, 1, kDontAdapt);
+
+    DirectHandle<JSObject> uint8_array_prototype(
+        Cast<JSObject>(
+            Cast<JSFunction>(uint8_array_function)->instance_prototype()),
+        isolate());
+    SimpleInstallFunction(isolate(), uint8_array_prototype, "toBase64",
+                          Builtin::kUint8ArrayPrototypeToBase64, 0, kDontAdapt);
+    SimpleInstallFunction(isolate(), uint8_array_prototype, "setFromBase64",
+                          Builtin::kUint8ArrayPrototypeSetFromBase64, 1,
+                          kDontAdapt);
+    SimpleInstallFunction(isolate(), uint8_array_prototype, "toHex",
+                          Builtin::kUint8ArrayPrototypeToHex, 0, kDontAdapt);
+    SimpleInstallFunction(isolate(), uint8_array_prototype, "setFromHex",
+                          Builtin::kUint8ArrayPrototypeSetFromHex, 1,
+                          kDontAdapt);
   }
 
   {  // -- D a t a V i e w
@@ -4453,10 +4502,10 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate_, prototype, "values",
                           Builtin::kMapPrototypeValues, 0, kAdapt);
 
-    // TODO(olivf, 434977728): Remove initial_map_prototype once --js-upsert
-    // flag is removed.
-    USE(v8_flags.js_upsert);
-    native_context()->set_initial_map_prototype(*prototype);
+    SimpleInstallFunction(isolate_, prototype, "getOrInsert",
+                          Builtin::kMapPrototypeGetOrInsert, 2, kAdapt);
+    SimpleInstallFunction(isolate_, prototype, "getOrInsertComputed",
+                          Builtin::kMapPrototypeGetOrInsertComputed, 2, kAdapt);
     native_context()->set_initial_map_prototype_map(prototype->map());
 
     InstallSpeciesGetter(isolate_, js_map_fun);
@@ -4778,10 +4827,11 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
 
     InstallToStringTag(isolate_, prototype, "WeakMap");
 
-    // TODO(olivf, 434977728): Remove initial_weakmap_prototype once --js-upsert
-    // flag is removed.
-    USE(v8_flags.js_upsert);
-    native_context()->set_initial_weakmap_prototype(*prototype);
+    SimpleInstallFunction(isolate_, prototype, "getOrInsert",
+                          Builtin::kWeakMapPrototypeGetOrInsert, 2, kAdapt);
+    SimpleInstallFunction(isolate_, prototype, "getOrInsertComputed",
+                          Builtin::kWeakMapPrototypeGetOrInsertComputed, 2,
+                          kAdapt);
     native_context()->set_initial_weakmap_prototype_map(prototype->map());
   }
 
@@ -5080,6 +5130,100 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
         Builtin::kHandleApiCallAsConstructorDelegate, 0, kDontAdapt);
     native_context()->set_call_as_constructor_delegate(*delegate);
   }
+
+  {  // -- D i s p o s a b l e S t a c k
+    DirectHandle<Map> js_disposable_stack_map =
+        factory->NewContextfulMapForCurrentContext(
+            JS_DISPOSABLE_STACK_BASE_TYPE, sizeof(JSDisposableStackBase));
+    js_disposable_stack_map->SetConstructor(
+        native_context()->object_function());
+    native_context()->set_js_disposable_stack_map(*js_disposable_stack_map);
+    LOG(isolate(), MapDetails(*js_disposable_stack_map));
+
+    // SyncDisposableStack
+    DirectHandle<JSFunction> disposable_stack_function = InstallFunction(
+        isolate(), global, "DisposableStack", JS_SYNC_DISPOSABLE_STACK_TYPE,
+        sizeof(JSSyncDisposableStack), 0, factory->the_hole_value(),
+        Builtin::kDisposableStackConstructor, 0, kDontAdapt);
+    DirectHandle<JSObject> sync_disposable_stack_prototype(
+        Cast<JSObject>(disposable_stack_function->instance_prototype()),
+        isolate());
+    InstallWithIntrinsicDefaultProto(
+        isolate(), disposable_stack_function,
+        Context::JS_DISPOSABLE_STACK_FUNCTION_INDEX);
+
+    SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "use",
+                          Builtin::kDisposableStackPrototypeUse, 1, kAdapt);
+    DirectHandle<JSFunction> dispose = SimpleInstallFunction(
+        isolate(), sync_disposable_stack_prototype, "dispose",
+        Builtin::kDisposableStackPrototypeDispose, 0, kAdapt);
+    JSObject::AddProperty(isolate(), sync_disposable_stack_prototype,
+                          factory->dispose_symbol(), dispose, DONT_ENUM);
+    SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "adopt",
+                          Builtin::kDisposableStackPrototypeAdopt, 2, kAdapt);
+    SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "defer",
+                          Builtin::kDisposableStackPrototypeDefer, 1, kAdapt);
+    SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "move",
+                          Builtin::kDisposableStackPrototypeMove, 0, kAdapt);
+
+    InstallToStringTag(isolate(), sync_disposable_stack_prototype,
+                       "DisposableStack");
+    SimpleInstallGetter(isolate(), sync_disposable_stack_prototype,
+                        factory->disposed_string(),
+                        Builtin::kDisposableStackPrototypeGetDisposed, kAdapt);
+
+    // AsyncDisposableStack
+    DirectHandle<JSFunction> async_disposable_stack_function = InstallFunction(
+        isolate(), global, "AsyncDisposableStack",
+        JS_ASYNC_DISPOSABLE_STACK_TYPE, sizeof(JSAsyncDisposableStack), 0,
+        factory->the_hole_value(), Builtin::kAsyncDisposableStackConstructor, 0,
+        kDontAdapt);
+    DirectHandle<JSObject> async_disposable_stack_prototype(
+        Cast<JSObject>(async_disposable_stack_function->instance_prototype()),
+        isolate());
+    InstallWithIntrinsicDefaultProto(
+        isolate(), async_disposable_stack_function,
+        Context::JS_ASYNC_DISPOSABLE_STACK_FUNCTION_INDEX);
+
+    SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "use",
+                          Builtin::kAsyncDisposableStackPrototypeUse, 1,
+                          kAdapt);
+    DirectHandle<JSFunction> dispose_async = SimpleInstallFunction(
+        isolate(), async_disposable_stack_prototype, "disposeAsync",
+        Builtin::kAsyncDisposableStackPrototypeDisposeAsync, 0, kAdapt);
+    JSObject::AddProperty(isolate(), async_disposable_stack_prototype,
+                          factory->async_dispose_symbol(), dispose_async,
+                          DONT_ENUM);
+    SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "adopt",
+                          Builtin::kAsyncDisposableStackPrototypeAdopt, 2,
+                          kAdapt);
+    SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "defer",
+                          Builtin::kAsyncDisposableStackPrototypeDefer, 1,
+                          kAdapt);
+    SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "move",
+                          Builtin::kAsyncDisposableStackPrototypeMove, 0,
+                          kAdapt);
+
+    InstallToStringTag(isolate(), async_disposable_stack_prototype,
+                       "AsyncDisposableStack");
+    SimpleInstallGetter(
+        isolate(), async_disposable_stack_prototype, factory->disposed_string(),
+        Builtin::kAsyncDisposableStackPrototypeGetDisposed, kAdapt);
+
+    // Add symbols to iterator prototypes
+    DirectHandle<JSObject> iterator_prototype(
+        native_context()->initial_iterator_prototype(), isolate());
+    InstallFunctionAtSymbol(isolate(), iterator_prototype,
+                            factory->dispose_symbol(), "[Symbol.dispose]",
+                            Builtin::kIteratorPrototypeDispose, 0, kAdapt);
+
+    DirectHandle<JSObject> async_iterator_prototype(
+        native_context()->initial_async_iterator_prototype(), isolate());
+    InstallFunctionAtSymbol(
+        isolate(), async_iterator_prototype, factory->async_dispose_symbol(),
+        "[Symbol.asyncDispose]", Builtin::kAsyncIteratorPrototypeAsyncDispose,
+        0, kAdapt);
+  }
 }
 
 DirectHandle<JSFunction> Genesis::InstallTypedArray(
@@ -5144,17 +5288,21 @@ DirectHandle<JSFunction> Genesis::InstallTypedArray(
 
 void Genesis::InitializeExperimentalGlobal() {
 #define FEATURE_INITIALIZE_GLOBAL(id, descr) InitializeGlobal_##id();
+#define IGNORE_FEATURE(id, descr)
 
   // Initialize features from more mature to less mature, because less mature
   // features may depend on more mature features having been initialized
   // already.
-  HARMONY_SHIPPING(FEATURE_INITIALIZE_GLOBAL)
-  JAVASCRIPT_SHIPPING_FEATURES(FEATURE_INITIALIZE_GLOBAL)
-  HARMONY_STAGED(FEATURE_INITIALIZE_GLOBAL)
-  JAVASCRIPT_STAGED_FEATURES(FEATURE_INITIALIZE_GLOBAL)
-  HARMONY_INPROGRESS(FEATURE_INITIALIZE_GLOBAL)
-  JAVASCRIPT_INPROGRESS_FEATURES(FEATURE_INITIALIZE_GLOBAL)
+  FOREACH_SHIPPED_FEATURE_FLAG(FEATURE_INITIALIZE_GLOBAL, IGNORE_FEATURE,
+                               IGNORE_FEATURE)
+  FOREACH_STAGED_FEATURE_FLAG(FEATURE_INITIALIZE_GLOBAL, IGNORE_FEATURE,
+                              IGNORE_FEATURE)
+  FOREACH_PRE_STAGED_FEATURE_FLAG(FEATURE_INITIALIZE_GLOBAL, IGNORE_FEATURE,
+                                  IGNORE_FEATURE)
+  FOREACH_EXPERIMENTAL_FEATURE_FLAG(FEATURE_INITIALIZE_GLOBAL, IGNORE_FEATURE,
+                                    IGNORE_FEATURE)
 #undef FEATURE_INITIALIZE_GLOBAL
+#undef IGNORE_FEATURE
   InitializeGlobal_regexp_linear_flag();
   InitializeGlobal_sharedarraybuffer();
 
@@ -5549,8 +5697,6 @@ void Genesis::InitializeConsole(DirectHandle<JSObject> extras_binding) {
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_attributes)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_import_text)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_regexp_buffer_boundaries)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_regexp_modifiers)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_regexp_duplicate_named_groups)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_decorators)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_import_bytes)
 
@@ -5561,32 +5707,9 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
 
 void Genesis::InitializeGlobal_js_esm_ns_reexport() {}
+void Genesis::InitializeGlobal_js_pr_3883() {}
 
-void Genesis::InitializeGlobal_js_atomics_pause() {
-  if (!v8_flags.js_atomics_pause) return;
-  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
-                                      isolate());
-  DirectHandle<JSObject> atomics_object = Cast<JSObject>(
-      JSReceiver::GetProperty(isolate(), global, "Atomics").ToHandleChecked());
-  InstallFunctionWithBuiltinId(isolate(), atomics_object, "pause",
-                               Builtin::kAtomicsPause, 0, kDontAdapt);
-}
 
-void Genesis::InitializeGlobal_js_promise_try() {
-  if (!v8_flags.js_promise_try) return;
-  DirectHandle<JSFunction> promise_fun(native_context()->promise_function(),
-                                       isolate());
-  InstallFunctionWithBuiltinId(isolate(), promise_fun, "try",
-                               Builtin::kPromiseTry, 1, kDontAdapt);
-}
-
-void Genesis::InitializeGlobal_js_error_iserror() {
-  if (!v8_flags.js_error_iserror) return;
-  DirectHandle<JSFunction> error_fun(native_context()->error_function(),
-                                     isolate());
-  InstallFunctionWithBuiltinId(isolate(), error_fun, "isError",
-                               Builtin::kErrorIsError, 1, kAdapt);
-}
 
 void Genesis::InitializeGlobal_js_immutable_arraybuffer() {
   if (!v8_flags.js_immutable_arraybuffer) return;
@@ -5654,30 +5777,6 @@ void Genesis::InitializeGlobal_js_joint_iteration() {
     LOG(isolate_, MapDetails(*map));
     SimpleInstallFunction(isolate_, iterator_function, "zipKeyed",
                           Builtin::kIteratorZipKeyed, 1, kDontAdapt);
-  }
-}
-
-void Genesis::InitializeGlobal_js_upsert() {
-  if (!v8_flags.js_upsert) return;
-
-  {
-    auto prototype =
-        handle(native_context()->initial_map_prototype(), isolate_);
-    SimpleInstallFunction(isolate_, prototype, "getOrInsert",
-                          Builtin::kMapPrototypeGetOrInsert, 2, kAdapt);
-    SimpleInstallFunction(isolate_, prototype, "getOrInsertComputed",
-                          Builtin::kMapPrototypeGetOrInsertComputed, 2, kAdapt);
-    native_context()->set_initial_map_prototype_map(prototype->map());
-  }
-  {
-    auto prototype =
-        handle(native_context()->initial_weakmap_prototype(), isolate_);
-    SimpleInstallFunction(isolate_, prototype, "getOrInsert",
-                          Builtin::kWeakMapPrototypeGetOrInsert, 2, kAdapt);
-    SimpleInstallFunction(isolate_, prototype, "getOrInsertComputed",
-                          Builtin::kWeakMapPrototypeGetOrInsertComputed, 2,
-                          kAdapt);
-    native_context()->set_initial_weakmap_prototype_map(prototype->map());
   }
 }
 
@@ -5870,115 +5969,9 @@ void Genesis::InitializeGlobal_sharedarraybuffer() {
                         isolate()->shared_array_buffer_fun(), DONT_ENUM);
 }
 
-void Genesis::InitializeGlobal_js_explicit_resource_management() {
-  if (!v8_flags.js_explicit_resource_management) return;
 
-  Factory* factory = isolate()->factory();
-  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
-                                      isolate());
 
-  // -- S u p p r e s s e d E r r o r
-  InstallError(isolate(), global, factory->SuppressedError_string(),
-               Context::SUPPRESSED_ERROR_FUNCTION_INDEX,
-               Builtin::kSuppressedErrorConstructor, 3);
 
-  // -- D i s p o s a b l e S t a c k
-  DirectHandle<Map> js_disposable_stack_map =
-      factory->NewContextfulMapForCurrentContext(JS_DISPOSABLE_STACK_BASE_TYPE,
-                                                 sizeof(JSDisposableStackBase));
-  js_disposable_stack_map->SetConstructor(native_context()->object_function());
-  native_context()->set_js_disposable_stack_map(*js_disposable_stack_map);
-  LOG(isolate(), MapDetails(*js_disposable_stack_map));
-
-  // SyncDisposableStack
-  DirectHandle<JSFunction> disposable_stack_function = InstallFunction(
-      isolate(), global, "DisposableStack", JS_SYNC_DISPOSABLE_STACK_TYPE,
-      sizeof(JSSyncDisposableStack), 0, factory->the_hole_value(),
-      Builtin::kDisposableStackConstructor, 0, kDontAdapt);
-  DirectHandle<JSObject> sync_disposable_stack_prototype(
-      Cast<JSObject>(disposable_stack_function->instance_prototype()),
-      isolate());
-  InstallWithIntrinsicDefaultProto(isolate(), disposable_stack_function,
-                                   Context::JS_DISPOSABLE_STACK_FUNCTION_INDEX);
-
-  SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "use",
-                        Builtin::kDisposableStackPrototypeUse, 1, kAdapt);
-  DirectHandle<JSFunction> dispose = SimpleInstallFunction(
-      isolate(), sync_disposable_stack_prototype, "dispose",
-      Builtin::kDisposableStackPrototypeDispose, 0, kAdapt);
-  JSObject::AddProperty(isolate(), sync_disposable_stack_prototype,
-                        factory->dispose_symbol(), dispose, DONT_ENUM);
-  SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "adopt",
-                        Builtin::kDisposableStackPrototypeAdopt, 2, kAdapt);
-  SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "defer",
-                        Builtin::kDisposableStackPrototypeDefer, 1, kAdapt);
-  SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "move",
-                        Builtin::kDisposableStackPrototypeMove, 0, kAdapt);
-
-  InstallToStringTag(isolate(), sync_disposable_stack_prototype,
-                     "DisposableStack");
-  SimpleInstallGetter(isolate(), sync_disposable_stack_prototype,
-                      factory->disposed_string(),
-                      Builtin::kDisposableStackPrototypeGetDisposed, kAdapt);
-
-  // AsyncDisposableStack
-  DirectHandle<JSFunction> async_disposable_stack_function = InstallFunction(
-      isolate(), global, "AsyncDisposableStack", JS_ASYNC_DISPOSABLE_STACK_TYPE,
-      sizeof(JSAsyncDisposableStack), 0, factory->the_hole_value(),
-      Builtin::kAsyncDisposableStackConstructor, 0, kDontAdapt);
-  DirectHandle<JSObject> async_disposable_stack_prototype(
-      Cast<JSObject>(async_disposable_stack_function->instance_prototype()),
-      isolate());
-  InstallWithIntrinsicDefaultProto(
-      isolate(), async_disposable_stack_function,
-      Context::JS_ASYNC_DISPOSABLE_STACK_FUNCTION_INDEX);
-
-  SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "use",
-                        Builtin::kAsyncDisposableStackPrototypeUse, 1, kAdapt);
-  DirectHandle<JSFunction> dispose_async = SimpleInstallFunction(
-      isolate(), async_disposable_stack_prototype, "disposeAsync",
-      Builtin::kAsyncDisposableStackPrototypeDisposeAsync, 0, kAdapt);
-  JSObject::AddProperty(isolate(), async_disposable_stack_prototype,
-                        factory->async_dispose_symbol(), dispose_async,
-                        DONT_ENUM);
-  SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "adopt",
-                        Builtin::kAsyncDisposableStackPrototypeAdopt, 2,
-                        kAdapt);
-  SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "defer",
-                        Builtin::kAsyncDisposableStackPrototypeDefer, 1,
-                        kAdapt);
-  SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "move",
-                        Builtin::kAsyncDisposableStackPrototypeMove, 0, kAdapt);
-
-  InstallToStringTag(isolate(), async_disposable_stack_prototype,
-                     "AsyncDisposableStack");
-  SimpleInstallGetter(
-      isolate(), async_disposable_stack_prototype, factory->disposed_string(),
-      Builtin::kAsyncDisposableStackPrototypeGetDisposed, kAdapt);
-
-  // Add symbols to iterator prototypes
-  DirectHandle<JSObject> iterator_prototype(
-      native_context()->initial_iterator_prototype(), isolate());
-  InstallFunctionAtSymbol(isolate(), iterator_prototype,
-                          factory->dispose_symbol(), "[Symbol.dispose]",
-                          Builtin::kIteratorPrototypeDispose, 0, kAdapt);
-
-  DirectHandle<JSObject> async_iterator_prototype(
-      native_context()->initial_async_iterator_prototype(), isolate());
-  InstallFunctionAtSymbol(
-      isolate(), async_iterator_prototype, factory->async_dispose_symbol(),
-      "[Symbol.asyncDispose]", Builtin::kAsyncIteratorPrototypeAsyncDispose, 0,
-      kAdapt);
-}
-
-void Genesis::InitializeGlobal_js_regexp_escape() {
-  if (!v8_flags.js_regexp_escape) return;
-
-  DirectHandle<JSFunction> regexp_fun(native_context()->regexp_function(),
-                                      isolate());
-  SimpleInstallFunction(isolate(), regexp_fun, "escape", Builtin::kRegExpEscape,
-                        1, kAdapt);
-}
 
 void Genesis::InitializeGlobal_js_defer_import_eval() {}
 
@@ -6008,40 +6001,6 @@ void Genesis::InitializeGlobal_js_source_phase_imports() {
                       Builtin::kAbstractModuleSourceToStringTag, kAdapt);
 }
 
-void Genesis::InitializeGlobal_js_base_64() {
-  if (!v8_flags.js_base_64) return;
-
-  std::array<DirectHandle<Name>, 2> fields{
-      isolate()->factory()->read_string(),
-      isolate()->factory()->written_string()};
-  DirectHandle<Map> map = CreateLiteralObjectMapFromCache(isolate(), fields);
-  native_context()->set_set_unit8_array_result_map(*map);
-
-  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
-                                      isolate());
-  DirectHandle<JSObject> uint8_array_function =
-      Cast<JSObject>(JSReceiver::GetProperty(isolate(), global, "Uint8Array")
-                         .ToHandleChecked());
-  SimpleInstallFunction(isolate(), uint8_array_function, "fromBase64",
-                        Builtin::kUint8ArrayFromBase64, 1, kDontAdapt);
-  SimpleInstallFunction(isolate(), uint8_array_function, "fromHex",
-                        Builtin::kUint8ArrayFromHex, 1, kDontAdapt);
-
-  DirectHandle<JSObject> uint8_array_prototype(
-      Cast<JSObject>(
-          Cast<JSFunction>(uint8_array_function)->instance_prototype()),
-      isolate());
-  SimpleInstallFunction(isolate(), uint8_array_prototype, "toBase64",
-                        Builtin::kUint8ArrayPrototypeToBase64, 0, kDontAdapt);
-  SimpleInstallFunction(isolate(), uint8_array_prototype, "setFromBase64",
-                        Builtin::kUint8ArrayPrototypeSetFromBase64, 1,
-                        kDontAdapt);
-  SimpleInstallFunction(isolate(), uint8_array_prototype, "toHex",
-                        Builtin::kUint8ArrayPrototypeToHex, 0, kDontAdapt);
-  SimpleInstallFunction(isolate(), uint8_array_prototype, "setFromHex",
-                        Builtin::kUint8ArrayPrototypeSetFromHex, 1, kDontAdapt);
-}
-
 void Genesis::InitializeGlobal_regexp_linear_flag() {
   if (!v8_flags.enable_experimental_regexp_engine) return;
 
@@ -6056,17 +6015,6 @@ void Genesis::InitializeGlobal_regexp_linear_flag() {
   // Store regexp prototype map again after change.
   native_context()->set_regexp_prototype_map(regexp_prototype->map());
 }
-
-#ifdef V8_INTL_SUPPORT
-void Genesis::InitializeGlobal_js_intl_locale_variants() {
-  if (!v8_flags.js_intl_locale_variants) return;
-  DirectHandle<JSObject> prototype(
-      Cast<JSObject>(isolate()->intl_locale_function()->prototype()),
-      isolate());
-  SimpleInstallGetter(isolate(), prototype, factory()->variants_string(),
-                      Builtin::kLocalePrototypeVariants, kAdapt);
-}
-#endif  // V8_INTL_SUPPORT
 
 void Genesis::InitializeGlobal_harmony_temporal() {
 #ifdef V8_TEMPORAL_SUPPORT
@@ -6097,17 +6045,6 @@ void Genesis::InitializeGlobal_harmony_temporal() {
     JSObject::SetAccessor(date_prototype, name, accessor, DONT_ENUM).Check();
   }
 #endif  // V8_TEMPORAL_SUPPORT
-}
-
-void Genesis::InitializeGlobal_js_sum_precise() {
-  if (!v8_flags.js_sum_precise) return;
-  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
-                                      isolate());
-  DirectHandle<JSObject> math = Cast<JSObject>(
-      JSReceiver::GetProperty(isolate(), global, "Math").ToHandleChecked());
-
-  SimpleInstallFunction(isolate_, math, "sumPrecise", Builtin::kMathSumPrecise,
-                        1, kAdapt);
 }
 
 void Genesis::InitializeGlobal_queueMicrotask() {

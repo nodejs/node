@@ -269,13 +269,13 @@ namespace interpreter {
                                                                                \
   /* Unary Operators */                                                        \
   V(Inc, ImplicitRegisterUse::kReadWriteAccumulator,                           \
-    OperandType::kFeedbackSlot)                                                \
+    OperandType::kEmbeddedFeedback)                                            \
   V(Dec, ImplicitRegisterUse::kReadWriteAccumulator,                           \
-    OperandType::kFeedbackSlot)                                                \
+    OperandType::kEmbeddedFeedback)                                            \
   V(Negate, ImplicitRegisterUse::kReadWriteAccumulator,                        \
-    OperandType::kFeedbackSlot)                                                \
+    OperandType::kEmbeddedFeedback)                                            \
   V_TSA(BitwiseNot, ImplicitRegisterUse::kReadWriteAccumulator,                \
-        OperandType::kFeedbackSlot)                                            \
+        OperandType::kEmbeddedFeedback)                                        \
   V(ToBooleanLogicalNot, ImplicitRegisterUse::kReadWriteAccumulator)           \
   V(LogicalNot, ImplicitRegisterUse::kReadWriteAccumulator)                    \
   V(TypeOf, ImplicitRegisterUse::kReadWriteAccumulator,                        \
@@ -956,10 +956,23 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
     }
   }
 
+  static constexpr bool IsUnaryOpWithEmbeddedFeedback(Bytecode bytecode) {
+    switch (bytecode) {
+      case Bytecode::kInc:
+      case Bytecode::kDec:
+      case Bytecode::kNegate:
+      case Bytecode::kBitwiseNot:
+        return true;
+      default:
+        return false;
+    }
+  }
+
   // Returns true if the bytecode has a embedded feedback slot
   static constexpr bool IsEmbeddedFeedbackBytecode(Bytecode bytecode) {
     return IsCompareWithEmbeddedFeedback(bytecode) ||
-           IsBinaryOpWithEmbeddedFeedback(bytecode);
+           IsBinaryOpWithEmbeddedFeedback(bytecode) ||
+           IsUnaryOpWithEmbeddedFeedback(bytecode);
   }
 
   // Returns true if the bytecode returns.

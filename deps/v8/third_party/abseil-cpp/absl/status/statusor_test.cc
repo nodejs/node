@@ -38,7 +38,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
-#include "absl/utility/utility.h"
 
 namespace {
 
@@ -87,26 +86,26 @@ testing::Matcher<const CopyDetector&> CopyDetectorHas(int a, bool b, bool c) {
 
 class Base1 {
  public:
-  virtual ~Base1() {}
+  virtual ~Base1() = default;
   int pad;
 };
 
 class Base2 {
  public:
-  virtual ~Base2() {}
+  virtual ~Base2() = default;
   int yetotherpad;
 };
 
 class Derived : public Base1, public Base2 {
  public:
-  virtual ~Derived() {}
+  ~Derived() override = default;
   int evenmorepad;
 };
 
 class CopyNoAssign {
  public:
   explicit CopyNoAssign(int value) : foo(value) {}
-  CopyNoAssign(const CopyNoAssign& other) : foo(other.foo) {}
+  CopyNoAssign(const CopyNoAssign& other) = default;
   int foo;
 
  private:
@@ -119,8 +118,8 @@ absl::StatusOr<std::unique_ptr<int>> ReturnUniquePtr() {
 }
 
 TEST(StatusOr, ElementType) {
-  static_assert(std::is_same<absl::StatusOr<int>::value_type, int>(), "");
-  static_assert(std::is_same<absl::StatusOr<char>::value_type, char>(), "");
+  static_assert(std::is_same<absl::StatusOr<int>::value_type, int>());
+  static_assert(std::is_same<absl::StatusOr<char>::value_type, char>());
 }
 
 TEST(StatusOr, TestMoveOnlyInitialization) {
@@ -809,19 +808,19 @@ TEST(StatusOr, NestedStatusOrCopyAndMoveAssignment) {
 }
 
 struct Copyable {
-  Copyable() {}
-  Copyable(const Copyable&) {}
-  Copyable& operator=(const Copyable&) { return *this; }
+  Copyable() = default;
+  Copyable(const Copyable&) = default;
+  Copyable& operator=(const Copyable&) = default;
 };
 
 struct MoveOnly {
-  MoveOnly() {}
+  MoveOnly() = default;
   MoveOnly(MoveOnly&&) {}
   MoveOnly& operator=(MoveOnly&&) { return *this; }
 };
 
 struct NonMovable {
-  NonMovable() {}
+  NonMovable() = default;
   NonMovable(const NonMovable&) = delete;
   NonMovable(NonMovable&&) = delete;
   NonMovable& operator=(const NonMovable&) = delete;
@@ -1394,7 +1393,7 @@ TEST(StatusOr, TestPointerValueConst) {
 
 TEST(StatusOr, StatusOrVectorOfUniquePointerCanReserveAndResize) {
   using EvilType = std::vector<std::unique_ptr<int>>;
-  static_assert(std::is_copy_constructible_v<EvilType>, "");
+  static_assert(std::is_copy_constructible_v<EvilType>);
   std::vector<::absl::StatusOr<EvilType>> v(5);
   v.reserve(v.capacity() + 10);
   v.resize(v.capacity() + 10);

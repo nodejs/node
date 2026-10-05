@@ -9,24 +9,21 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_ISCANONICALF128_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_ISCANONICALF128_H
 
-#include "include/llvm-libc-types/float128.h"
-
-#ifdef LIBC_TYPES_HAS_FLOAT128
-
 #include "src/__support/FPUtil/BasicOperations.h"
+#include "src/__support/FPUtil/float128.h"
 #include "src/__support/macros/config.h"
 
 namespace LIBC_NAMESPACE_DECL {
 namespace math {
 
-LIBC_INLINE constexpr int iscanonicalf128(float128 x) {
-  float128 temp{};
+using LIBC_NAMESPACE::fputil::Float128;
+
+LIBC_INLINE constexpr int iscanonicalf128(Float128 x) {
+  Float128 temp{};
   return fputil::canonicalize(temp, x) == 0;
 }
 
 } // namespace math
 } // namespace LIBC_NAMESPACE_DECL
-
-#endif // LIBC_TYPES_HAS_FLOAT128
 
 #endif // LLVM_LIBC_SRC___SUPPORT_MATH_ISCANONICALF128_H

@@ -16,6 +16,7 @@
 // spinlock.  If the spinlock is working properly, all elements of the
 // array should be equal at the end of the test.
 
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <mutex>  // NOLINT(build/c++11)
@@ -127,7 +128,7 @@ static void ThreadedTest(SpinLock* spinlock) {
 }
 
 #ifndef ABSL_HAVE_THREAD_SANITIZER
-static_assert(std::is_trivially_destructible<SpinLock>(), "");
+static_assert(std::is_trivially_destructible<SpinLock>());
 #endif
 
 TEST(SpinLock, StackNonCooperativeDisablesScheduling) {

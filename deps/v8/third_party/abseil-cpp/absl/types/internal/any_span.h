@@ -68,8 +68,7 @@ constexpr bool kIsTransformCopied =
 // Type to pass as extra argument to TransformPtr to ensure that our
 // assumption about Transform copyability is valid.
 template <typename Transform>
-using IsTransformCopied =
-    std::integral_constant<bool, kIsTransformCopied<Transform>>;
+using IsTransformCopied = std::bool_constant<kIsTransformCopied<Transform>>;
 
 // A pointer to the transform function or functor that should be applied to
 // elements of the container.
@@ -466,7 +465,7 @@ bool IsCheap(AnySpan<T> s) {
 
 template <typename T>
 bool EqualImpl(AnySpan<T> a, AnySpan<T> b) {
-  static_assert(std::is_const_v<T>, "");
+  static_assert(std::is_const_v<T>);
   return std::equal(a.begin(), a.end(), b.begin(), b.end());
 }
 

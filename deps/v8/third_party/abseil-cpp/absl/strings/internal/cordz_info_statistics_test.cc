@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <iostream>
 #include <random>
 #include <vector>
@@ -30,8 +33,11 @@
 #include "absl/strings/internal/cordz_statistics.h"
 #include "absl/strings/internal/cordz_update_scope.h"
 #include "absl/strings/internal/cordz_update_tracker.h"
+#include "absl/strings/string_view.h"
 #include "absl/synchronization/internal/thread_pool.h"
 #include "absl/synchronization/notification.h"
+#include "absl/time/clock.h"
+#include "absl/time/time.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

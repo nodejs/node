@@ -229,14 +229,35 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Cmp(Register dst, Tagged<Smi> src);
   void Cmp(Operand dst, Tagged<Smi> src);
   void Cmp(Register dst, int32_t src);
+  void Cmpq(Register dst, int32_t src);
+  void Cmpb(Register dst, int32_t src);
 
   void CmpTagged(const Register& src1, const Register& src2) {
     cmp_tagged(src1, src2);
   }
 
+  // SIMD128
+  void I64x2Abs(XMMRegister dst, XMMRegister src, XMMRegister scratch);
+  void I64x2ShrS(XMMRegister dst, XMMRegister src, uint8_t shift,
+                 XMMRegister xmm_tmp);
+  void I64x2ShrS(XMMRegister dst, XMMRegister src, Register shift,
+                 XMMRegister xmm_tmp, XMMRegister xmm_shift,
+                 Register tmp_shift);
+  void I64x2Mul(XMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                XMMRegister tmp1 = XMMRegister::no_reg(),
+                XMMRegister tmp2 = XMMRegister::no_reg());
+  void I8x16Popcnt(XMMRegister dst, XMMRegister src, Register scratch,
+                   XMMRegister tmp1 = XMMRegister::no_reg(),
+                   XMMRegister tmp2 = XMMRegister::no_reg());
+  void S128Not(XMMRegister dst, XMMRegister src, XMMRegister scratch);
+  // AVX10 and SSE paths require dst == mask.
+  void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,
+                  XMMRegister src2, XMMRegister scratch);
+
   // SIMD256
   void I64x4Mul(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
-                YMMRegister tmp1, YMMRegister tmp2);
+                YMMRegister tmp1 = YMMRegister::no_reg(),
+                YMMRegister tmp2 = YMMRegister::no_reg());
   void F64x4Min(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
                 YMMRegister scratch);
   void F64x4Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
@@ -278,6 +299,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
                  XMMRegister src3, YMMRegister tmp, YMMRegister tmp2);
 
   void S256Not(YMMRegister dst, YMMRegister src, YMMRegister scratch);
+  // AVX10 path requires dst == mask.
   void S256Select(YMMRegister dst, YMMRegister mask, YMMRegister src1,
                   YMMRegister src2, YMMRegister scratch);
 
@@ -590,6 +612,48 @@ class V8_EXPORT_PRIVATE MacroAssembler
                    ComparisonMode mode = ComparisonMode::kDefault);
   void CompareTaggedRoot(Register with, RootIndex index);
   void CompareRoot(Operand with, RootIndex index);
+
+#ifdef V8_ENABLE_APX_F
+  template <typename Dst, typename Src>
+  void Ccmp(Dst lhs, Src rhs, OszcFlags dfv, Condition cond, int size) {
+    switch (size) {
+      case kInt8Size:
+        ccmpb(lhs, rhs, dfv, cond);
+        break;
+      case kInt16Size:
+        ccmpw(lhs, rhs, dfv, cond);
+        break;
+      case kInt32Size:
+        ccmpl(lhs, rhs, dfv, cond);
+        break;
+      case kInt64Size:
+        ccmpq(lhs, rhs, dfv, cond);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  template <typename Dst, typename Src>
+  void Ctest(Dst lhs, Src rhs, OszcFlags dfv, Condition cond, int size) {
+    switch (size) {
+      case kInt8Size:
+        ctestb(lhs, rhs, dfv, cond);
+        break;
+      case kInt16Size:
+        ctestw(lhs, rhs, dfv, cond);
+        break;
+      case kInt32Size:
+        ctestl(lhs, rhs, dfv, cond);
+        break;
+      case kInt64Size:
+        ctestq(lhs, rhs, dfv, cond);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+#endif
 
   // Generates function and stub prologue code.
   void StubPrologue(StackFrame::Type type);

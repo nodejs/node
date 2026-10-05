@@ -7,7 +7,8 @@
 @cppObjectLayoutDefinition
 extern class JSV8BreakIterator extends JSObject {
   locale: String;
-  icu_iterator_with_text: Foreign;  // Managed<IcuBreakIteratorWithText>
+  icu_iterator_with_text:
+      CppGCManagedBase;  // CppGCManaged<IcuBreakIteratorWithText>
   bound_adopt_text: Undefined|JSFunction;
   bound_first: Undefined|JSFunction;
   bound_next: Undefined|JSFunction;

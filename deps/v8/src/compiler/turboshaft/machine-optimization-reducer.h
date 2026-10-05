@@ -1603,6 +1603,61 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceOverflowCheckedBinop(left, right, kind, rep);
   }
 
+  // Checks if {al, ah} is the result of an add128(x, 0, y, 0) and {bh} is
+  // another constant 0 high half, and returns the nested add128 if so.
+  // Returns nullptr if it fails to match the pattern.
+  const Word64AddSub128BinopOp* TryMatchAdd3(V<Word64> al, V<Word64> ah,
+                                             V<Word64> bh) {
+    const ProjectionOp* p0 = matcher_.TryCast<ProjectionOp>(al);
+    if (!p0 || p0->index != 0) return nullptr;
+    const ProjectionOp* p1 = matcher_.TryCast<ProjectionOp>(ah);
+    if (!p1 || p1->index != 1) return nullptr;
+    if (p0->input() != p1->input()) return nullptr;
+    if (!matcher_.Get(al).saturated_use_count.Is(0) ||
+        !matcher_.Get(ah).saturated_use_count.Is(0)) {
+      return nullptr;
+    }
+    const Word64AddSub128BinopOp* nested =
+        matcher_.TryCast<Word64AddSub128BinopOp>(p0->input());
+    if (!nested) return nullptr;
+    if (nested->kind != Word64AddSub128BinopOp::Kind::kAdd) return nullptr;
+    int64_t cx, cy, cz;
+    if (!matcher_.MatchIntegralWord64Constant(nested->left_high(), &cx) ||
+        !matcher_.MatchIntegralWord64Constant(nested->right_high(), &cy) ||
+        !matcher_.MatchIntegralWord64Constant(bh, &cz)) {
+      return nullptr;
+    }
+    if (cx != 0 || cy != 0 || cz != 0) return nullptr;
+    return nested;
+  }
+
+  V<Word64Pair> REDUCE(Word64AddSub128Binop)(
+      V<Word64> al, V<Word64> ah, V<Word64> bl, V<Word64> bh,
+      Word64AddSub128BinopOp::Kind kind) {
+    if (ShouldSkipOptimizationStep()) {
+      return Next::ReduceWord64AddSub128Binop(al, ah, bl, bh, kind);
+    }
+
+    // TODO(ryandiaz): implement on arm64
+#ifdef V8_TARGET_ARCH_X64
+    if (kind == Word64AddSub128BinopOp::Kind::kAdd) {
+      // add128(add128(x, 0, y, 0), z, 0) -> add3(x, y, z)
+      if (const Word64AddSub128BinopOp* nested = TryMatchAdd3(al, ah, bh)) {
+        return __ Word64Add3(nested->left_low(), nested->right_low(), bl);
+      }
+
+      // add128(x, 0, add128(y, 0, z, 0)) -> add3(x, y, z)
+      if (const Word64AddSub128BinopOp* nested = TryMatchAdd3(bl, bh, ah)) {
+        return __ Word64Add3(al, nested->left_low(), nested->right_low());
+      }
+
+      // TODO(ryandiaz): sub128(sub128(x, 0, y, 0), z, 0) -> sub2(x, y, z)
+      // TODO(ryandiaz): sub128(x, 0, add128(y, 0, z, 0)) -> sub2(x, y, z)
+    }
+#endif  // V8_TARGET_ARCH_X64
+    return Next::ReduceWord64AddSub128Binop(al, ah, bl, bh, kind);
+  }
+
   V<Word32> REDUCE(Comparison)(V<Any> left, V<Any> right,
                                ComparisonOp::Kind kind,
                                RegisterRepresentation rep) {
@@ -2202,8 +2257,8 @@ class MachineOptimizationReducer : public Next {
     if (stored_rep.SizeInBytes() <= 4) {
       value = TryRemoveWord32ToWord64Conversion(value);
     }
-    index = ReduceMemoryIndex(index.value_or_invalid(), &offset, &element_scale,
-                              kind.tagged_base);
+    index =
+        ReduceMemoryIndex(index.value_or_invalid(), &offset, &element_scale);
     switch (stored_rep) {
       case MemoryRepresentation::Uint8():
       case MemoryRepresentation::Int8():
@@ -2267,14 +2322,13 @@ class MachineOptimizationReducer : public Next {
 #endif
 
     while (true) {
-      index = ReduceMemoryIndex(index.value_or_invalid(), &offset,
-                                &element_scale, kind.tagged_base);
+      index =
+          ReduceMemoryIndex(index.value_or_invalid(), &offset, &element_scale);
       if (!kind.tagged_base && !index.valid()) {
         if (V<WordPtr> left, right;
             matcher_.MatchWordAdd(base_idx, &left, &right,
                                   WordRepresentation::WordPtr()) &&
-            TryAdjustOffset(&offset, matcher_.Get(right), element_scale,
-                            kind.tagged_base)) {
+            TryAdjustOffset(&offset, matcher_.Get(right), element_scale)) {
           base_idx = left;
           continue;
         }
@@ -2886,7 +2940,7 @@ class MachineOptimizationReducer : public Next {
   // Try to match a constant and add it to `offset`. Return `true` if
   // successful.
   bool TryAdjustOffset(int32_t* offset, const Operation& maybe_constant,
-                       uint8_t element_scale, bool tagged_base) {
+                       uint8_t element_scale) {
     if (!maybe_constant.Is<ConstantOp>()) return false;
     const ConstantOp& constant = maybe_constant.Cast<ConstantOp>();
     if (constant.rep != WordRepresentation::WordPtr() ||
@@ -2904,8 +2958,7 @@ class MachineOptimizationReducer : public Next {
         !base::bits::SignedAddOverflow32(
             *offset,
             static_cast<int32_t>(base::bits::Unsigned(diff) << element_scale),
-            &new_offset) &&
-        LoadOp::OffsetIsValid(new_offset, tagged_base)) {
+            &new_offset)) {
       *offset = new_offset;
       return true;
     }
@@ -2953,10 +3006,10 @@ class MachineOptimizationReducer : public Next {
   // `element_scale` and returning the updated `index`.
   // Return `OpIndex::Invalid()` if the resulting index is zero.
   OpIndex ReduceMemoryIndex(OpIndex index, int32_t* offset,
-                            uint8_t* element_scale, bool tagged_base) {
+                            uint8_t* element_scale) {
     while (index.valid()) {
       const Operation& index_op = matcher_.Get(index);
-      if (TryAdjustOffset(offset, index_op, *element_scale, tagged_base)) {
+      if (TryAdjustOffset(offset, index_op, *element_scale)) {
         index = OpIndex::Invalid();
         *element_scale = 0;
       } else if (TryAdjustIndex(*offset, &index, index_op, *element_scale)) {
@@ -2980,7 +3033,7 @@ class MachineOptimizationReducer : public Next {
         // instruction selector to support xchg with index *and* offset.
         if (binary_op->kind == WordBinopOp::Kind::kAdd &&
             TryAdjustOffset(offset, matcher_.Get(binary_op->right()),
-                            *element_scale, tagged_base)) {
+                            *element_scale)) {
           index = binary_op->left();
           continue;
         }
@@ -3383,13 +3436,17 @@ class MachineOptimizationReducer : public Next {
 
   JSHeapBroker* broker = __ data() -> broker();
   const OperationMatcher& matcher_ = __ matcher();
+  // TODO(victorgomes): This also applies to JS. The bit patterns for `the_hole`
+  // and `undefined` are signalling NaNs. Optimizing away an arithmetic
+  // operation skips NaN quieting, allowing these sentinel bit patterns to
+  // survive and be misinterpreted when stored in a FixedDoubleArray. This
+  // could be re-enabled if we prove that the node does not flow into a
+  // FixedDoubleArray store, or if we emit a silencing instead.
+  static constexpr bool signalling_nan_possible = true;
 #if V8_ENABLE_WEBASSEMBLY
-  // Note: `signalling_nan_possible` and `ensure_deterministic_nan` are always
-  // the same value; we introduce both to better express intent at use sites.
-  const bool signalling_nan_possible = __ data() -> is_wasm();
-  const bool ensure_deterministic_nan = signalling_nan_possible;
+  // Only wasm needs NaNs to be deterministic.
+  const bool ensure_deterministic_nan = __ data() -> is_wasm();
 #else
-  static constexpr bool signalling_nan_possible = false;
   static constexpr bool ensure_deterministic_nan = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
 };

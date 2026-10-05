@@ -82,6 +82,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 // The Name abstract class captures anything that can be used as a property
 // name, i.e., strings and symbols.  All names store a hash value.
 V8_OBJECT class Name : public PrimitiveHeapObject {
+  V8_IT_ABSTRACT;
+
  public:
   // Tells whether the hash code has been computed.
   // Note: Use TryGetHash() whenever you want to use the hash, instead of a

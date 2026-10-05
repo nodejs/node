@@ -418,14 +418,10 @@ LIBC_INLINE FloatConvertReturn<T> simple_decimal_conversion(
 
   // Handle subnormals
   if (exp2 <= 0) {
-    // Shift right until there is a valid exponent
-    while (exp2 < 0) {
-      hpd.shift(-1);
-      ++exp2;
-    }
-    // Shift right one more time to compensate for the left shift to get it
-    // between 1 and 2.
-    hpd.shift(-1);
+    // Shift right until there is a valid exponent, and once more to compensate
+    // for the left shift to get it between 1 and 2.
+    hpd.shift(exp2 - 1);
+    exp2 = 0;
     final_mantissa = hpd.round_to_integer_type<StorageType>(round);
 
     // Check if by shifting right we've caused this to round to a normal number.

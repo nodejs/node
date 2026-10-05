@@ -16,15 +16,16 @@
 
 #include <algorithm>
 #include <bitset>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <random>
 #include <sstream>
 #include <type_traits>
 
-#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/log/log.h"
 #include "absl/random/internal/explicit_seed_seq.h"
-#include "absl/strings/str_cat.h"
 #include "absl/time/clock.h"
 
 #define UPDATE_GOLDEN 0

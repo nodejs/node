@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdint.h>
-
-#include <new>
+#include "absl/base/internal/low_level_alloc.h"  // IWYU pragma: keep
 
 // This file is a no-op if the required LowLevelAlloc support is missing.
-#include "absl/base/internal/low_level_alloc.h"
-#include "absl/synchronization/internal/waiter.h"
 #ifndef ABSL_LOW_LEVEL_ALLOC_MISSING
 
-#include <string.h>
+#include <atomic>
+#include <cstdint>
+#include <new>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
+#include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/internal/spinlock.h"
 #include "absl/base/internal/thread_identity.h"
 #include "absl/synchronization/internal/per_thread_sem.h"

@@ -1,0 +1,19 @@
+header: sys/statfs.h
+standards:
+  - linux
+macros:
+  - macro_name: ADFS_SUPER_MAGIC
+    macro_header: sys-statfs-macros.h
+types:
+  - type_name: struct_statfs
+functions:
+  - name: fstatfs
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct statfs *
+  - name: statfs
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: struct statfs *

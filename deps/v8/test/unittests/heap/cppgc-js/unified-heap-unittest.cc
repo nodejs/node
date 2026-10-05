@@ -25,6 +25,7 @@
 #include "src/heap/cppgc-internal/sweeper.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/gc-tracer-inl.h"
+#include "src/heap/heap-controller.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/heap/cppgc-js/unified-heap-utils.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -964,6 +965,34 @@ TEST_F(UnifiedHeapTest, WrappedWithConservativeGCInCtor) {
           });
   v8::Local<v8::Value> name = object->data(isolate)->Name();
   CHECK(name->IsString());
+}
+
+TEST_F(UnifiedHeapTest, TriggerGCWithNoIncrementalMarking) {
+  if (v8_flags.stress_incremental_marking) return;
+  if (v8_flags.stress_concurrent_allocation) return;
+  // This test should ensure that we trigger GC on cppgc allocations even when
+  // incremental marking is disabled.
+  v8_flags.incremental_marking = false;
+  const int initial_gc_count = heap()->ms_count();
+
+  // Set the allocation limits close to current consumption to trigger GC
+  // quickly.
+  const size_t current_old = heap()->OldGenerationConsumedBytes();
+  const size_t current_global = heap()->GlobalConsumedBytes();
+  heap()->limits()->SetAllocationLimit(current_old + 512 * KB,
+                                       current_global + 512 * KB);
+
+  static constexpr size_t kAllocationSize = 16 * KB;
+  static constexpr size_t kMaxAllocations = KB;
+  for (size_t i = 0;
+       i < kMaxAllocations && heap()->ms_count() == initial_gc_count; ++i) {
+    cppgc::MakeGarbageCollected<Wrappable>(
+        allocation_handle(), cppgc::AdditionalBytes(kAllocationSize));
+  }
+
+  EXPECT_GT(heap()->ms_count(), initial_gc_count)
+      << "GC should have been triggered when allocation limits are reached "
+         "even without incremental marking";
 }
 
 }  // namespace v8::internal

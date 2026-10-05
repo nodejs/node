@@ -108,6 +108,7 @@ class TurbofanTypeHighBits {
 };
 
 V8_OBJECT class TurbofanType : public HeapObject {
+  V8_IT_ABSTRACT;
 } V8_OBJECT_END;
 
 V8_OBJECT class TurbofanBitsetType : public TurbofanType {

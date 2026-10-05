@@ -241,8 +241,8 @@ class Representation {
 
 static const int kDescriptorIndexBitCount = 10;
 // The maximum bits to describe the first offset of the first field in an
-// object. Limits the header size of JSObjects.
-static const int kFirstInobjectPropertyOffsetBitCount = 7;
+// object. Limits the space available for the header and the embedder fields.
+static const int kFirstInobjectPropertyOffsetBitCount = 8;
 // The maximum number of descriptors we want in a descriptor array.  It should
 // fit in a page and also the following should hold:
 // kMaxNumberOfDescriptors + kFieldsAdded <= PropertyArray::kMaxLength.

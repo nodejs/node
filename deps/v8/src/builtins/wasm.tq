@@ -60,10 +60,10 @@ extern runtime WasmArrayInitSegment(
 extern runtime WasmStringNewWtf8(
     Context, WasmTrustedInstanceData, Smi, Smi, Number, Number): String
     |WasmNull;
-extern runtime WasmStringNewWtf8Array(Context, Smi, WasmArray, Smi, Smi, Smi):
-    String|WasmNull;
+extern runtime WasmStringNewWtf8Array(Context, Smi, WasmArray, Smi, Smi): String
+    |WasmNull;
 extern runtime WasmStringNewWtf16(
-    Context, WasmTrustedInstanceData, Smi, Number, Number): String;
+    Context, WasmTrustedInstanceData, Smi, Number, Number, Smi): String;
 extern runtime WasmStringNewWtf16Array(Context, WasmArray, Smi, Smi, Smi):
     String;
 extern runtime WasmStringConst(Context, WasmTrustedInstanceData, Smi): String;
@@ -106,6 +106,8 @@ namespace unsafe {
 extern macro Allocate(intptr): HeapObject;
 extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
 }
+
+extern macro Retain(Object): void;
 
 macro NumberToInt32(input: Number): int32 {
   return Convert<int32>(input);
@@ -167,19 +169,15 @@ builtin WasmInt32ToSharedHeapNumber(val: int32): HeapNumber {
 
 builtin WasmFuncRefToJS(
     implicit context: Context)(val: WasmFuncRef|WasmNull): JSFunction|Null {
-  typeswitch (val) {
-    case (WasmNull): {
-      return Null;
-    }
-    case (func: WasmFuncRef): {
-      const internal: WasmInternalFunction = func.internal;
-      const maybeExternal: Object = internal.external;
-      if (maybeExternal != Undefined) {
-        return %RawDownCast<JSFunction>(maybeExternal);
-      }
-      tail runtime::WasmInternalFunctionCreateExternal(context, internal);
-    }
+  if (val == kWasmNull) return Null;
+
+  const func = Cast<WasmFuncRef>(val) otherwise unreachable;
+  const internal: WasmInternalFunction = func.internal;
+  const maybeExternal: Object = internal.external;
+  if (maybeExternal != Undefined) {
+    return %RawDownCast<JSFunction>(maybeExternal);
   }
+  tail runtime::WasmInternalFunctionCreateExternal(context, internal);
 }
 
 builtin WasmTaggedNonSmiToInt32(implicit context: Context)(val: HeapObject):
@@ -353,11 +351,10 @@ builtin WasmTableGetFuncRef(tableIndex: intptr, index: intptr): Object {
     const entry: HeapObject =
         UnsafeCast<HeapObject>(LoadFixedArrayElement(entries, index));
 
-    dcheck(Is<WasmFuncRef>(entry) || Is<WasmNull>(entry) || Is<Tuple2>(entry));
-    if (IsTuple2Map(entry.map)) goto CallRuntime;
-    if (Is<WasmNull>(entry)) return entry;
-    dcheck(Is<WasmFuncRef>(entry));
-    return entry;
+    if (entry == kWasmNull) return entry;
+    if (Is<WasmFuncRef>(entry)) return entry;
+    dcheck(IsTuple2Map(entry.map));
+    goto CallRuntime;
   } label CallRuntime deferred {
     tail runtime::WasmFunctionTableGet(
         LoadContextFromInstanceData(trustedData), trustedData,
@@ -381,7 +378,7 @@ builtin WasmFunctionTableGet(tableIndex: intptr, index: intptr): Object {
 builtin WasmTableSetFuncRef(
     tableIndex: intptr, index: intptr, value: WasmFuncRef): Object {
   const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
-  dcheck(Is<WasmFuncRef>(value) || Is<WasmNull>(value));
+  dcheck(value == kWasmNull || Is<WasmFuncRef>(value));
   try {
     dcheck(IsValidPositiveSmi(tableIndex));
 
@@ -948,37 +945,36 @@ macro GetRefAt<T: type, From: type>(base: From, offset: intptr): &T {
 extern macro LoadPointerFromRootRegister(intptr): RawPtr;
 
 builtin WasmStringNewWtf8(
-    offset: uintptr, size: uint32, memory: uint32, utf8Variant: Smi): String
+    offset: uintptr, size: uint32, memory: uint32, utf8Config: Smi): String
     |WasmNull {
   const trustedData = LoadInstanceDataFromFrame();
   tail runtime::WasmStringNewWtf8(
       LoadContextFromInstanceData(trustedData), trustedData,
-      SmiFromUint32(memory), utf8Variant, UintPtrToNumberRounding(offset),
+      SmiFromUint32(memory), utf8Config, UintPtrToNumberRounding(offset),
       WasmUint32ToNumber(size));
 }
 builtin WasmStringNewWtf8Array(
-    start: uint32, end: uint32, array: WasmArray, utf8Variant: Smi,
-    shared: Smi): String|WasmNull {
+    start: uint32, end: uint32, array: WasmArray, utf8Config: Smi): String
+    |WasmNull {
   // This can be called from Wasm and from "JS String Builtins".
   const context = LoadContextFromWasmOrJsFrame();
   try {
     if (array.length < end) goto OffsetOutOfRange;
     if (end < start) goto OffsetOutOfRange;
     tail runtime::WasmStringNewWtf8Array(
-        context, utf8Variant, array, SmiFromUint32(start), SmiFromUint32(end),
-        shared);
+        context, utf8Config, array, SmiFromUint32(start), SmiFromUint32(end));
   } label OffsetOutOfRange deferred {
     const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
     runtime::ThrowWasmError(context, SmiConstant(error));
   }
 }
-builtin WasmStringNewWtf16(memory: uint32, offset: uintptr, size: uint32):
-    String {
+builtin WasmStringNewWtf16(
+    memory: uint32, offset: uintptr, size: uint32, config: Smi): String {
   const trustedData = LoadInstanceDataFromFrame();
   tail runtime::WasmStringNewWtf16(
       LoadContextFromInstanceData(trustedData), trustedData,
       SmiFromUint32(memory), UintPtrToNumberRounding(offset),
-      WasmUint32ToNumber(size));
+      WasmUint32ToNumber(size), config);
 }
 
 struct TwoByteToOneByteIterator {
@@ -1060,13 +1056,16 @@ macro StringFromTwoByteSlice(length: uint32, slice: ConstSlice<char16>):
   });
 }
 
-builtin WasmStringNewWtf16Array(array: WasmArray, start: uint32, end: uint32):
-    String {
+builtin WasmStringNewWtf16Array(
+    array: WasmArray, start: uint32, end: uint32, config: Smi): String {
   try {
     if (array.length < end) goto OffsetOutOfRange;
     if (end < start) goto OffsetOutOfRange;
     const length: uint32 = end - start;
     if (length == 0) return kEmptyString;
+    // TODO(448741522): Support inline creation of short shared Strings.
+    // "config == 0" means both array and string are unshared.
+    if (config != SmiConstant(0)) goto Runtime;
     if (length == 1) {
       const offset = kWasmArrayHeaderSize +
           torque_internal::TimesSizeOf<char16>(Convert<intptr>(start));
@@ -1095,31 +1094,7 @@ builtin WasmStringNewWtf16Array(array: WasmArray, start: uint32, end: uint32):
   } label Runtime deferred {
     const context = LoadContextFromWasmOrJsFrame();
     tail runtime::WasmStringNewWtf16Array(
-        context, array, SmiFromUint32(start), SmiFromUint32(end),
-        SmiConstant(0) /* shared */);
-  }
-}
-
-builtin WasmStringNewWtf16ArrayShared(
-    array: WasmArray, start: uint32, end: uint32): String {
-  try {
-    if (array.length < end) goto OffsetOutOfRange;
-    if (end < start) goto OffsetOutOfRange;
-    const length: uint32 = end - start;
-    if (length == 0) return kEmptyString;
-    // TODO(448741522): Inline creation of Strings of size 1 and small size
-    // (<32);
-    goto Runtime;
-  } label OffsetOutOfRange deferred {
-    // This can be called from Wasm and from "JS String Builtins".
-    const context = LoadContextFromWasmOrJsFrame();
-    const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
-    runtime::ThrowWasmError(context, SmiConstant(error));
-  } label Runtime deferred {
-    const context = LoadContextFromWasmOrJsFrame();
-    tail runtime::WasmStringNewWtf16Array(
-        context, array, SmiFromUint32(start), SmiFromUint32(end),
-        SmiConstant(1) /* shared */);
+        context, array, SmiFromUint32(start), SmiFromUint32(end), config);
   }
 }
 
@@ -1434,13 +1409,17 @@ transitioning builtin WasmStringViewWtf16Slice(
       let subslice = Subslice(
           slice, Convert<intptr>(start), Convert<intptr>(clampedLength))
           otherwise unreachable;
-      return AllocateNonEmptySeqOneByteString(
-          clampedLength, subslice.Iterator());
+      const result =
+          AllocateNonEmptySeqOneByteString(clampedLength, subslice.Iterator());
+      Retain(string);
+      return result;
     } label TwoByte(slice: ConstSlice<char16>) {
       let subslice = Subslice(
           slice, Convert<intptr>(start), Convert<intptr>(clampedLength))
           otherwise unreachable;
-      return StringFromTwoByteSlice(clampedLength, subslice);
+      const result = StringFromTwoByteSlice(clampedLength, subslice);
+      Retain(string);
+      return result;
     } label Runtime deferred {
       const context = LoadContextFromWasmOrJsFrame();
       tail runtime::WasmSubstring(
@@ -1681,38 +1660,39 @@ builtin WasmStringIndexOf(s: String, searchString: String, start: Smi): Smi {
 // TODO(mliedtke): It would be nice to type the result as bool, however that is
 // not supported.
 builtin WasmLiftoffIsEqRefUnshared(obj: Object, nullSucceeds: bool): int32 {
+  if (Is<Smi>(obj)) return 1;
+  if (obj == kWasmNull) return Convert<int32>(nullSucceeds);
   try {
-    if (Is<Smi>(obj)) {
-      return 1;
-    }
     const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise ReturnFalse;
     return Convert<int32>(
         !InSharedSpace(heapObject) &&
-        (Is<WasmArray>(heapObject) || Is<WasmStruct>(heapObject) ||
-         (nullSucceeds && Is<WasmNull>(heapObject))));
-  } label ReturnFalse {}
-  return 0;
+        (Is<WasmArray>(heapObject) || Is<WasmStruct>(heapObject)));
+  } label ReturnFalse {
+    return 0;
+  }
 }
 
 builtin WasmLiftoffIsArrayRefUnshared(obj: Object, nullSucceeds: bool): int32 {
+  if (obj == kWasmNull) return Convert<int32>(nullSucceeds);
   try {
     const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise ReturnFalse;
     return Convert<int32>(
-        !InSharedSpace(heapObject) && Is<WasmArray>(heapObject) ||
-        (nullSucceeds && Is<WasmNull>(heapObject)));
-  } label ReturnFalse {}
-  return 0;
+        !InSharedSpace(heapObject) && Is<WasmArray>(heapObject));
+  } label ReturnFalse {
+    return 0;
+  }
 }
 
 builtin WasmLiftoffIsStructRefUnshared(obj: Object, nullSucceeds: bool):
     int32 {
+  if (obj == kWasmNull) return Convert<int32>(nullSucceeds);
   try {
     const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise ReturnFalse;
     return Convert<int32>(
-        !InSharedSpace(heapObject) && Is<WasmStruct>(heapObject) ||
-        (nullSucceeds && Is<WasmNull>(heapObject)));
-  } label ReturnFalse {}
-  return 0;
+        !InSharedSpace(heapObject) && Is<WasmStruct>(heapObject));
+  } label ReturnFalse {
+    return 0;
+  }
 }
 
 // Return type JSAny to be able to tail-call ThrowWasmTrapIllegalCast(). It must
@@ -1722,22 +1702,31 @@ builtin WasmLiftoffCastEqRefUnshared(obj: Object, nullSucceeds: bool): JSAny {
   if (Is<Smi>(obj)) {
     return SmiConstant(0);
   }
-  const heapObject: HeapObject = UnsafeCast<HeapObject>(obj);
-  if (InSharedSpace(heapObject) ||
-      (!Is<WasmArray>(heapObject) && !Is<WasmStruct>(heapObject) &&
-       (!nullSucceeds || !Is<WasmNull>(heapObject)))) {
+  try {
+    if (obj == kWasmNull) {
+      if (nullSucceeds) return SmiConstant(0);
+      goto IllegalCast;
+    }
+    const heapObject: HeapObject = UnsafeCast<HeapObject>(obj);
+    if (InSharedSpace(heapObject) ||
+        (!Is<WasmArray>(heapObject) && !Is<WasmStruct>(heapObject))) {
+      goto IllegalCast;
+    }
+    return SmiConstant(0);
+  } label IllegalCast {
     tail ThrowWasmTrapIllegalCast();
   }
-  return SmiConstant(0);
 }
 
 builtin WasmLiftoffCastArrayRefUnshared(obj: Object, nullSucceeds: bool):
     JSAny {
   try {
+    if (obj == kWasmNull) {
+      if (nullSucceeds) return SmiConstant(0);
+      goto IllegalCast;
+    }
     const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise IllegalCast;
-    if (InSharedSpace(heapObject) ||
-        (!Is<WasmArray>(heapObject) &&
-         (!nullSucceeds || !Is<WasmNull>(heapObject)))) {
+    if (InSharedSpace(heapObject) || (!Is<WasmArray>(heapObject))) {
       goto IllegalCast;
     }
     return SmiConstant(0);
@@ -1749,10 +1738,12 @@ builtin WasmLiftoffCastArrayRefUnshared(obj: Object, nullSucceeds: bool):
 builtin WasmLiftoffCastStructRefUnshared(obj: Object, nullSucceeds: bool):
     JSAny {
   try {
+    if (obj == kWasmNull) {
+      if (nullSucceeds) return SmiConstant(0);
+      goto IllegalCast;
+    }
     const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise IllegalCast;
-    if (InSharedSpace(heapObject) ||
-        (!Is<WasmStruct>(heapObject) &&
-         (!nullSucceeds || !Is<WasmNull>(heapObject)))) {
+    if (InSharedSpace(heapObject) || (!Is<WasmStruct>(heapObject))) {
       goto IllegalCast;
     }
     return SmiConstant(0);

@@ -15,6 +15,7 @@
 #ifndef ABSL_STRINGS_HAS_ABSL_STRINGIFY_H_
 #define ABSL_STRINGS_HAS_ABSL_STRINGIFY_H_
 
+#include <cstddef>
 #include <type_traits>
 #include <utility>
 

@@ -92,8 +92,8 @@ V8_OBJECT class JSLocale : public JSObject {
   // Help function to check well-formed "3alpha"
   static bool Is3Alpha(std::string_view value);
 
-  inline Tagged<Managed<icu::Locale>> icu_locale() const;
-  inline void set_icu_locale(Tagged<Managed<icu::Locale>> value,
+  inline Tagged<CppGCManaged<icu::Locale>> icu_locale() const;
+  inline void set_icu_locale(Tagged<CppGCManaged<icu::Locale>> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_PRINTER(JSLocale)
@@ -102,7 +102,7 @@ V8_OBJECT class JSLocale : public JSObject {
   static const int kHeaderSize;
 
  public:
-  TaggedMember<Foreign> icu_locale_;
+  TaggedMember<CppGCManaged<icu::Locale>> icu_locale_;
 } V8_OBJECT_END;
 
 inline constexpr int JSLocale::kHeaderSize = sizeof(JSLocale);

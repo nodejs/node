@@ -10,7 +10,6 @@
 #include "src/codegen/compiler.h"
 #include "src/common/globals.h"
 #include "src/diagnostics/code-tracer.h"
-#include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
 #include "src/execution/tiering-manager.h"
@@ -22,8 +21,10 @@
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/object-predicates-inl.h"
 #include "src/objects/objects.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/roots/roots.h"
 #include "src/strings/string-builder-inl.h"
 
@@ -923,7 +924,7 @@ void JSFunction::SetInitialMap(Isolate* isolate,
     if (function->TryGetPrototypeOrInitialMap(&pomd) &&
         pomd.has_non_instance_prototype) {
       pomd.non_instance_prototype_tuple->set_value1(*initial_map,
-                                                    kRelaxedStore);
+                                                    kReleaseStore);
     } else {
       function->set_prototype_or_initial_map(*initial_map, kReleaseStore);
     }
@@ -1591,11 +1592,21 @@ void JSFunction::ClearAllTypeFeedbackInfoForTesting(Isolate* isolate) {
               it.current_bytecode())) {
         continue;
       }
-      bytecode_array->set(
-          it.GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex) +
-              kHeapObjectTag - BytecodeArray::kHeaderSize,
-          kUninitializedEmbeddedFeedback);
+      int operand_index = interpreter::Bytecodes::IsUnaryOpWithEmbeddedFeedback(
+                              it.current_bytecode())
+                              ? kUnaryEmbeddedFeedbackOperandIndex
+                              : kEmbeddedFeedbackOperandIndex;
+      bytecode_array->set(it.GetEmbeddedFeedbackOffset(operand_index) +
+                              kHeapObjectTag - BytecodeArray::kHeaderSize,
+                          kUninitializedEmbeddedFeedback);
     }
+  }
+  if (shared()->HasBaselineCode()) {
+    shared()->FlushBaselineCode();
+  }
+  if (ActiveTierIsBaseline(isolate)) {
+    ResetTieringRequests(isolate);
+    UpdateCode(isolate, *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
   }
 }
 

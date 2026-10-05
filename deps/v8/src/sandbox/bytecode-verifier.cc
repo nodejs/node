@@ -279,15 +279,28 @@ bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
     case Runtime::kLoadLookupSlotForCall_Baseline:
     case Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug:
     case Runtime::kBytecodeBudgetInterrupt_Sparkplug:
-    case Runtime::kBytecodeBudgetInterruptWithStackCheck_Maglev:
     case Runtime::kBytecodeBudgetInterrupt_Maglev:
+    case Runtime::kBytecodeBudgetLoopInterrupt_Maglev:
     case Runtime::kPatchLoadICUninitializedBaseline:
     case Runtime::kLoadIC_Miss_FromBaseline:
+    case Runtime::kInstallBaselineCode:
+    case Runtime::kSwissTableAdd:
+    case Runtime::kSwissTableAllocate:
+    case Runtime::kSwissTableDelete:
+    case Runtime::kSwissTableDetailsAt:
+    case Runtime::kSwissTableElementsCount:
+    case Runtime::kSwissTableEquals:
+    case Runtime::kSwissTableFindEntry:
+    case Runtime::kSwissTableUpdate:
+    case Runtime::kSwissTableValueAt:
+    case Runtime::kSwissTableKeyAt:
 #if V8_ENABLE_SPARKPLUG_PLUS
     case Runtime::kPatchCompareOpBaselineCode:
     case Runtime::kPatchCompareOpBaselineCodeAndThrow:
     case Runtime::kPatchBinopBaselineCode:
     case Runtime::kPatchBinopBaselineCodeAndThrow:
+    case Runtime::kPatchUnaryOpBaselineCode:
+    case Runtime::kPatchUnaryOpBaselineCodeAndThrow:
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
       return false;
 #if V8_ENABLE_WEBASSEMBLY

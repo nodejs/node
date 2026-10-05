@@ -14,13 +14,13 @@
 
 #include "absl/base/internal/scoped_set_env.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
 #include <cstdlib>
 
 #include "absl/base/internal/raw_logging.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

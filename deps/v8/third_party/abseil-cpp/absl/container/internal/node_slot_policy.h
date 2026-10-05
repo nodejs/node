@@ -47,7 +47,7 @@ namespace container_internal {
 
 template <class Reference, class Policy>
 struct node_slot_policy {
-  static_assert(std::is_lvalue_reference_v<Reference>, "");
+  static_assert(std::is_lvalue_reference_v<Reference>);
 
   using slot_type = std::remove_cv_t<std::remove_reference_t<Reference>>*;
 

@@ -6,7 +6,7 @@
 
 @cppObjectLayoutDefinition
 extern class JSCollator extends JSObject {
-  icu_collator: Foreign;  // Managed<icu::Collator>
+  icu_collator: CppGCManagedBase;  // CppGCManaged<icu::Collator>
   bound_compare: Undefined|JSFunction;
   locale: String;
 }

@@ -20,6 +20,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-descriptor.h"
@@ -1216,6 +1217,12 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(DirectHandle<JSObject> object) {
     }
     return Just(false);
   }
+
+  if (filter_ & PRIVATE_NAMES_ONLY) {
+    RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectPrivateNames(object));
+    return Just(true);
+  }
+
   if (IsJSDeferredModuleNamespace(*object)) [[unlikely]] {
     DirectHandle<JSDeferredModuleNamespace> ns =
         Cast<JSDeferredModuleNamespace>(object);
@@ -1223,10 +1230,6 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(DirectHandle<JSObject> object) {
       JSDeferredModuleNamespace::EvaluateModuleSync(isolate_, ns);
       RETURN_EXCEPTION_IF_EXCEPTION(isolate_);
     }
-  }
-  if (filter_ & PRIVATE_NAMES_ONLY) {
-    RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectPrivateNames(object));
-    return Just(true);
   }
 
   if (may_have_elements_) {

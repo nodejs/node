@@ -1227,7 +1227,7 @@ class MarkExternalPointerFromExternalStringTable : public RootVisitor {
       DCHECK(!slot.tag_range().IsEmpty());
       DCHECK(IsSharedExternalPointerType(slot.tag_range()));
       ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-      table_->Mark(space_, handle, slot.address());
+      table_->Mark(space_, handle, slot.address(), slot.tag_range());
     }
     void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                        ObjectSlot end) override {
@@ -2953,7 +2953,9 @@ class FullStringForwardingTableCleaner final
       }
       TryExternalize(original_string, record);
       TryInternalize(original_string, record);
-      original_string->set_raw_hash_field(record->raw_hash(isolate_));
+      if (!HeapLayout::InReadOnlySpace(original_string)) {
+        original_string->set_raw_hash_field(record->raw_hash(isolate_));
+      }
     } else {
       DisposeExternalResource(record);
     }
@@ -2973,11 +2975,27 @@ class FullStringForwardingTableCleaner final
     if (external_resource == nullptr) return;
 
     if (is_one_byte) {
+      // The string could have been internalized in the meantime and converted
+      // to a ThinString, with the actual string pointing to a
+      // non-externalizable string (e.g. in RO space).
+      if (V8_UNLIKELY(!original_string->SupportsExternalization(
+              v8::String::Encoding::ONE_BYTE_ENCODING))) {
+        DisposeExternalResource(record);
+        return;
+      }
       original_string->MakeExternalDuringGC(
           isolate_,
           reinterpret_cast<v8::String::ExternalOneByteStringResource*>(
               external_resource));
     } else {
+      // The string could have been internalized in the meantime and converted
+      // to a ThinString, with the actual string pointing to a
+      // non-externalizable string (e.g. in RO space).
+      if (V8_UNLIKELY(!original_string->SupportsExternalization(
+              v8::String::Encoding::TWO_BYTE_ENCODING))) {
+        DisposeExternalResource(record);
+        return;
+      }
       original_string->MakeExternalDuringGC(
           isolate_, reinterpret_cast<v8::String::ExternalStringResource*>(
                         external_resource));
@@ -3262,6 +3280,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
         JSDispatchTable& jdt = isolate->js_dispatch_table();
         Tagged<Code> compile_lazy =
             heap_->isolate()->builtins()->code(Builtin::kCompileLazy);
+        Tagged<Code> mark_flushed =
+            heap_->isolate()->builtins()->code(Builtin::kMarkFlushed);
         jdt.Sweep(heap_->js_dispatch_table_space(),
                   heap_->isolate()->counters(), [&](JSDispatchEntry& entry) {
                     Tagged<Code> code = entry.GetCode();
@@ -3286,7 +3306,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
                              code->kind() == CodeKind::TURBOFAN_JS ||
                              code->is_interpreter_trampoline_builtin());
                       entry.SetCodeAndEntrypointPointer(
-                          compile_lazy.ptr(), compile_lazy->instruction_start(),
+                          compile_lazy.ptr(), mark_flushed->instruction_start(),
                           isolate);
                     }
                   });
@@ -3641,6 +3661,13 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   // Replace the bytecode with an uncompiled data object.
   Tagged<BytecodeArray> bytecode_array =
       shared_info->GetBytecodeArrayForGC(heap_->isolate());
+
+  // With in-sandbox corruption, the SFI::trusted_function_data_ handle could be
+  // swapped before getting flushed. The SBXCHECK ensures that we haven't marked
+  // this bytecode as live, so we don't flush out functions that are currently
+  // executing on the stack.
+  SBXCHECK(!MarkingHelper::IsMarkedOrAlwaysLive(
+      heap_, non_atomic_marking_state_, bytecode_array));
 
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(!HeapLayout::InWritableSharedSpace(shared_info));

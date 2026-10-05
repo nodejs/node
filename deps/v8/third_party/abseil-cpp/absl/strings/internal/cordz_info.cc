@@ -14,11 +14,18 @@
 
 #include "absl/strings/internal/cordz_info.h"
 
+#include <atomic>
+#include <cassert>
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 #include "absl/base/config.h"
 #include "absl/base/const_init.h"
+#include "absl/base/macros.h"
 #include "absl/base/no_destructor.h"
+#include "absl/base/optimization.h"
+#include "absl/base/thread_annotations.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/strings/internal/cord_internal.h"

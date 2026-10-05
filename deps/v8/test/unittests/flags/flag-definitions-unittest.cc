@@ -240,22 +240,6 @@ TEST_F(FlagDefinitionsTest, FreezeFlags) {
   CHECK_EQ(42, *direct_testing_int_ptr);
 }
 
-// Stress implications after setting a flag. We only set one flag, as multiple
-// might just lead to known flag contradictions.
-void StressFlagImplications(const std::string& s1) {
-  int result = FlagList::SetFlagsFromString(s1.c_str(), s1.length());
-  // Only process implications if a flag was set successfully (which happens
-  // only in a small portion of fuzz runs).
-  if (result == 0) FlagList::EnforceFlagImplications();
-  // Ensure a clean state in each iteration.
-  for (Flag& flag : Flags()) {
-    if (!flag.IsReadOnly()) flag.Reset();
-  }
-}
-
-V8_FUZZ_TEST(FlagDefinitionsFuzzTest, StressFlagImplications)
-    .WithDomains(fuzztest::InRegexp("^--(\\w|\\-){1,50}(=\\w{1,5})?$"));
-
 struct FlagAndName {
   FlagValue<bool>* value;
   const char* name;
@@ -346,19 +330,35 @@ TEST(FlagContradictionsTest, ResolvesContradictions) {
 
 TEST(FlagContradictionsTest, ResolvesNegContradictions) {
 #ifdef V8_ENABLE_MAGLEV
-  int argc = 4;
-  const char* argv[] = {"Test", "--fuzzing", "--no-turbofan",
-                        "--always-osr-from-maglev"};
-  FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv), false);
-  CHECK(v8_flags.fuzzing);
-  CHECK(!v8_flags.turbofan);
-  CHECK(v8_flags.always_osr_from_maglev);
-  CHECK(!v8_flags.osr_from_maglev);
-  FlagList::ResolveContradictionsWhenFuzzing();
-  FlagList::EnforceFlagImplications();
-  CHECK(v8_flags.fuzzing);
-  CHECK(!v8_flags.turbofan);
-  CHECK(!v8_flags.osr_from_maglev);
+  {
+    int argc = 4;
+    const char* argv[] = {"Test", "--fuzzing", "--no-turbofan",
+                          "--always-osr-from-maglev"};
+    FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv), false);
+    CHECK(v8_flags.fuzzing);
+    CHECK(!v8_flags.turbofan);
+    CHECK(v8_flags.always_osr_from_maglev);
+    FlagList::ResolveContradictionsWhenFuzzing();
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.fuzzing);
+    CHECK(!v8_flags.turbofan);
+    CHECK(!v8_flags.always_osr_from_maglev);
+    CHECK_EQ(v8_flags.osr_from_maglev, 0);
+  }
+  {
+    int argc = 4;
+    const char* argv[] = {"Test", "--fuzzing", "--no-turbofan",
+                          "--osr-from-maglev=4"};
+    FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv), false);
+    CHECK(v8_flags.fuzzing);
+    CHECK(!v8_flags.turbofan);
+    CHECK_EQ(v8_flags.osr_from_maglev, 4);
+    FlagList::ResolveContradictionsWhenFuzzing();
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.fuzzing);
+    CHECK(!v8_flags.turbofan);
+    CHECK_EQ(v8_flags.osr_from_maglev, 0);
+  }
 #endif
 }
 

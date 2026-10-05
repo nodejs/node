@@ -55,12 +55,8 @@ void Shell::FileExists(const v8::FunctionCallbackInfo<v8::Value>& info) {
     ThrowError(isolate, "exists() takes one argument");
     return;
   }
-  String::Utf8Value file_name(isolate, info[0]);
-  if (*file_name == nullptr) {
-    ThrowError(isolate,
-               "d8.file.exists(): String conversion of argument failed.");
-    return;
-  }
+  SafeUtf8Value file_name(isolate, info[0]);
+  if (!file_name) return;
 
   std::wstring wide_name = v8::base::OS::ConvertUtf8StringToUtf16(*file_name);
   DWORD attr = GetFileAttributesW(wide_name.c_str());

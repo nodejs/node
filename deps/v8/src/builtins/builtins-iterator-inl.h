@@ -17,6 +17,7 @@
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 

@@ -123,7 +123,7 @@ Tagged<MaybeObject> PrototypeInfo::ObjectCreateMap(AcquireLoadTag tag) {
   // Index 0 is the map for object create
   Tagged<WeakArrayList> derived_list = Cast<WeakArrayList>(derived);
   DCHECK_GT(derived_list->length().value(), 0);
-  Tagged<MaybeObject> el = derived_list->Get(0);
+  Tagged<MaybeObject> el = derived_list->get(0, kAcquireLoad);
   DCHECK(el.IsWeakOrCleared());
   return el;
 }
@@ -141,7 +141,7 @@ void PrototypeInfo::SetObjectCreateMap(DirectHandle<PrototypeInfo> info,
     Tagged<WeakArrayList> derived = Cast<WeakArrayList>(info->derived_maps());
     DCHECK(derived->Get(0).IsCleared());
     DCHECK_GT(derived->length().value(), 0);
-    derived->Set(0, MakeWeak(*map));
+    derived->set(0, MakeWeak(*map), kReleaseStore);
   }
 }
 

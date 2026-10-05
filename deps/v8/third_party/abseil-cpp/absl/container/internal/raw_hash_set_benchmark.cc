@@ -69,7 +69,7 @@ struct IntPolicy {
     return std::forward<F>(f)(x, x);
   }
 
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return nullptr;
   }
@@ -136,7 +136,7 @@ class StringPolicy {
                       PairArgs(std::forward<Args>(args)...));
   }
 
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return nullptr;
   }

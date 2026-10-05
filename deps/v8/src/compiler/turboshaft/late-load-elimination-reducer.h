@@ -1076,7 +1076,6 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
   V<Object> REDUCE_INPUT_GRAPH(LoadTrustedPointer)(
       V<Object> ig_index, const LoadTrustedPointerOp& load) {
     if (v8_flags.turboshaft_trusted_load_elimination) {
-      CHECK(v8_flags.turboshaft_load_elimination);
       Replacement replacement = analyzer_.GetReplacement(ig_index);
       if (replacement.IsLoadElimination()) {
         OpIndex replacement_ig_index = replacement.replacement();

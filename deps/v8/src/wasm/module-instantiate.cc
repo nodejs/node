@@ -13,12 +13,14 @@
 #include "src/compiler/fast-api-calls.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/handles/handle-scope-implementer-inl.h"
+#include "src/heap/parked-scope-inl.h"
 #include "src/logging/counters-scopes.h"
 #include "src/logging/metrics.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/managed.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/sandbox/trusted-pointer-scope.h"
 #include "src/tracing/trace-event.h"
@@ -68,6 +70,31 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   }
 
   const TypeDefinition type = module->type(type_index);
+
+  Isolate* shared_space_isolate;
+  // Another thread may cause shared GC while holding this mutex. We have to use
+  // a safepoint-aware MutexGuard here, otherwise the GC might wait forever on
+  // this blocked thread.
+  std::optional<ParkedMutexGuard> lock;
+  if (type.is_shared) {
+    shared_space_isolate = isolate->shared_space_isolate();
+    lock.emplace(isolate->main_thread_local_isolate(),
+                 shared_space_isolate->wasm_shared_canonical_types_mutex());
+    DirectHandle<WeakFixedArray> shared_canonical_rtts(
+        shared_space_isolate->heap()->wasm_shared_canonical_rtts(), isolate);
+    DCHECK_GT(shared_canonical_rtts->ulength().value(),
+              canonical_type_index.index);
+    Tagged<MaybeObject> maybe_shared_canonical_map =
+        shared_canonical_rtts->get(canonical_type_index.index);
+    if (!maybe_shared_canonical_map.IsCleared()) {
+      canonical_rtts->set(canonical_type_index.index,
+                          maybe_shared_canonical_map);
+      maps->set(type_index.index,
+                maybe_shared_canonical_map.GetHeapObjectAssumeWeak());
+      return;
+    }
+  }
+
   int num_supertypes = type.subtyping_depth;
   DirectHandle<Map> rtt_parent;
   ModuleTypeIndex supertype = module->supertype(type_index);
@@ -76,9 +103,10 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
     // create maps in order, so the supertype map must exist already.
     DCHECK_LT(supertype.index, type_index.index);
     DCHECK(IsMap(maps->get(supertype.index)));
-    DCHECK(num_supertypes == module->type(supertype).subtyping_depth + 1);
+    DCHECK_EQ(num_supertypes, module->type(supertype).subtyping_depth + 1);
     rtt_parent = direct_handle(Cast<Map>(maps->get(supertype.index)), isolate);
   }
+
   DirectHandle<Map> map;
   switch (type.kind) {
     case TypeDefinition::kStruct: {
@@ -101,6 +129,10 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   }
   canonical_rtts->set(canonical_type_index.index, MakeWeak(*map));
   maps->set(type_index.index, *map);
+  if (type.is_shared) {
+    shared_space_isolate->heap()->wasm_shared_canonical_rtts()->set(
+        canonical_type_index.index, MakeWeak(*map));
+  }
 }
 
 namespace {
@@ -322,11 +354,17 @@ bool ResolveBoundJSFastApiFunction(const wasm::CanonicalSig* expected_sig,
 }
 
 bool IsStringRef(wasm::CanonicalValueType type) {
-  return type.is_abstract_ref() && type.generic_kind() == GenericKind::kString;
+  // We could use {type == kWasmStringRef} for simplicity, but that would
+  // reject non-nullable types.
+  return type.is_abstract_ref() && !type.is_shared() &&
+         type.generic_kind() == GenericKind::kString;
 }
 
 bool IsExternRef(wasm::CanonicalValueType type) {
-  return type.is_abstract_ref() && type.generic_kind() == GenericKind::kExtern;
+  // We could use {type == kWasmExternRef} for simplicity, but that would
+  // reject non-nullable types.
+  return type.is_abstract_ref() && !type.is_shared() &&
+         type.generic_kind() == GenericKind::kExtern;
 }
 
 bool IsStringOrExternRef(wasm::CanonicalValueType type) {
@@ -978,7 +1016,8 @@ MaybeDirectHandle<WasmInstanceObject> InstantiateToInstanceObject(
   InstanceBuilder builder(isolate, context_id, thrower, module_object, imports);
   MaybeDirectHandle<WasmInstanceObject> instance_object = builder.Build();
   if (!instance_object.is_null()) {
-    Managed<NativeModule>::Ptr native_module = module_object->native_module();
+    CppGCManaged<NativeModule>::Ptr native_module =
+        module_object->native_module();
     if (v8_flags.wasm_pgo_to_file && native_module->ShouldPgoDataBeWritten() &&
         native_module->module()->num_declared_functions > 0) {
       WriteOutPGOTask::Schedule(std::move(native_module).as_shared_ptr());
@@ -1182,7 +1221,8 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
     // Make sure all canonical indices have been set.
     DCHECK(module_->MaxCanonicalTypeIndex().valid());
     TypeCanonicalizer::PrepareForCanonicalTypeId(
-        isolate_, module_->MaxCanonicalTypeIndex());
+        isolate_, module_->MaxCanonicalTypeIndex(),
+        SharedFlag{module_->has_shared_part});
   }
   DirectHandle<FixedArray> managed_object_maps =
       isolate_->factory()->NewFixedArray(
@@ -1203,7 +1243,12 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
     } else if (module_->has_array(index)) {
       DCHECK_EQ(map->instance_type(), WASM_ARRAY_TYPE);
     } else if (module_->has_struct(index)) {
-      DCHECK_EQ(map->instance_type(), WASM_STRUCT_TYPE);
+      if (module_->types[i].is_descriptor() &&
+          v8_flags.wasm_merged_descriptors) {
+        DCHECK_EQ(map->instance_type(), WASM_CUSTOM_MAP_TYPE);
+      } else {
+        DCHECK_EQ(map->instance_type(), WASM_STRUCT_TYPE);
+      }
     }
   }
 #endif
@@ -2093,7 +2138,8 @@ bool InstanceBuilder::ProcessImportedMemories(
     uint32_t memory_index = import.index;
     auto memory_object = Cast<WasmMemoryObject>(value);
 
-    Managed<BackingStore>::Ptr backing_store = memory_object->backing_store();
+    CppGCManaged<BackingStore>::Ptr backing_store =
+        memory_object->backing_store();
 #ifdef DEBUG
     if (Tagged<JSArrayBuffer> buffer;
         TryCast(memory_object->array_buffer(), &buffer)) {

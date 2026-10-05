@@ -213,6 +213,26 @@ class Range {
     return Range(min, max);
   }
 
+  // [a, b] % [c, d]: the result has the sign of the lhs and a magnitude
+  // strictly smaller than the largest divisor magnitude.
+  static Range Mod(Range r1, Range r2) {
+    if (r1.is_empty() || r2.is_empty()) return Range::Empty();
+    int64_t bound = kInfMax;
+    if (r2.min_ != kInfMin && r2.max_ != kInfMax) {
+      int64_t divisor_max = std::max(std::abs(r2.min_), std::abs(r2.max_));
+      // A zero divisor deopts, so no value flows out of the node.
+      if (divisor_max == 0) return Range::Empty();
+      bound = divisor_max - 1;
+    }
+    int64_t min = r1.min_ == kInfMin ? kInfMin : std::min<int64_t>(r1.min_, 0);
+    int64_t max = r1.max_ == kInfMax ? kInfMax : std::max<int64_t>(r1.max_, 0);
+    if (bound != kInfMax) {
+      min = std::max(min, -bound);
+      max = std::min(max, bound);
+    }
+    return Range(min, max);
+  }
+
   static Range BitwiseAnd(Range r1, Range r2) {
     // TODO(victorgomes): This is copying OperationTyper::NumberBitwiseAnd. Not
     // sure if we need to force both sides to be int32s. I guess a safe int

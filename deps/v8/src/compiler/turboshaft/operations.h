@@ -301,6 +301,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(FloatBinop)                              \
   V(Word32PairBinop)                         \
   V(Word64AddSub128Binop)                    \
+  V(Word64Add3)                              \
   V(Word64MulWide)                           \
   V(OverflowCheckedBinop)                    \
   V(WordUnary)                               \
@@ -1826,6 +1827,30 @@ struct Word64MulWideOp : FixedArityOperationT<2, Word64MulWideOp> {
   void PrintOptions(std::ostream& os) const;
 };
 
+struct Word64Add3Op : FixedArityOperationT<3, Word64Add3Op> {
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word64(),
+                     RegisterRepresentation::Word64()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      const ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Word64(),
+                          MaybeRegisterRepresentation::Word64(),
+                          MaybeRegisterRepresentation::Word64()>();
+  }
+
+  Word64Add3Op(V<Word64> a, V<Word64> b, V<Word64> c) : Base(a, b, c) {}
+
+  V<Word64> first() const { return input<Word64>(0); }
+  V<Word64> second() const { return input<Word64>(1); }
+  V<Word64> third() const { return input<Word64>(2); }
+
+  auto options() const { return std::tuple{}; }
+};
+
 struct Word64AddSub128BinopOp
     : FixedArityOperationT<4, Word64AddSub128BinopOp> {
   enum class Kind : uint8_t { kAdd, kSub };
@@ -3186,16 +3211,6 @@ struct LoadOp : OperationT<LoadOp> {
     return input_count == 2 ? input(1) : OpIndex::Invalid();
   }
 
-  static constexpr bool OffsetIsValid(int32_t offset, bool tagged_base) {
-    if (tagged_base) {
-      // When a Load has the tagged_base Kind, it means that {offset} will
-      // eventually need a "-kHeapObjectTag". If the {offset} is
-      // min_int, then subtracting kHeapObjectTag will underflow.
-      return offset >= std::numeric_limits<int32_t>::min() + kHeapObjectTag;
-    }
-    return true;
-  }
-
   LoadOp(OpIndex base, OptionalOpIndex index, Kind kind,
          MemoryRepresentation loaded_rep, RegisterRepresentation result_rep,
          int32_t offset, uint8_t element_size_log2)
@@ -3225,7 +3240,6 @@ struct LoadOp : OperationT<LoadOp> {
     DCHECK_IMPLIES(element_size_log2 > 0, index().valid());
     DCHECK_IMPLIES(kind.maybe_unaligned,
                    !SupportedOperations::IsUnalignedLoadSupported(loaded_rep));
-    DCHECK(OffsetIsValid(offset, kind.tagged_base));
   }
   static LoadOp& New(Graph* graph, OpIndex base, OptionalOpIndex index,
                      Kind kind, MemoryRepresentation loaded_rep,
@@ -3733,7 +3747,6 @@ struct StoreOp : OperationT<StoreOp> {
     DCHECK_IMPLIES(element_size_log2 > 0, index().valid());
     DCHECK_IMPLIES(kind.maybe_unaligned,
                    !SupportedOperations::IsUnalignedLoadSupported(stored_rep));
-    DCHECK(LoadOp::OffsetIsValid(offset, kind.tagged_base));
     DCHECK_EQ(kind.is_atomic, memory_order().has_value());
   }
   static StoreOp& New(
@@ -8670,6 +8683,15 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   bool IsZero() const { return std::memcmp(kZero, value, kSimd128Size) == 0; }
 
   auto options() const { return std::tuple{value}; }
+  // {options()} decays {value} to a pointer, so the inherited {operator==} and
+  // {hash_value} would compare addresses.
+  bool operator==(const Simd128ConstantOp& other) const {
+    return std::memcmp(value, other.value, kSimd128Size) == 0;
+  }
+  size_t hash_value(
+      HashingStrategy strategy = HashingStrategy::kDefault) const {
+    return HashWithOptions(base::VectorOf(value));
+  }
   void PrintOptions(std::ostream& os) const;
 };
 
@@ -9693,6 +9715,16 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
   }
 
   auto options() const { return std::tuple{kind, shuffle}; }
+  // {options()} decays {shuffle} to a pointer, so the inherited {operator==}
+  // and {hash_value} would compare addresses.
+  bool operator==(const Simd128ShuffleOp& other) const {
+    return inputs() == other.inputs() && kind == other.kind &&
+           std::memcmp(shuffle, other.shuffle, kSimd128Size) == 0;
+  }
+  size_t hash_value(
+      HashingStrategy strategy = HashingStrategy::kDefault) const {
+    return HashWithOptions(kind, base::VectorOf(shuffle));
+  }
   void PrintOptions(std::ostream& os) const;
 };
 
@@ -9788,6 +9820,15 @@ struct Simd256ConstantOp : FixedArityOperationT<0, Simd256ConstantOp> {
   bool IsZero() const { return std::memcmp(kZero, value, kSimd256Size) == 0; }
 
   auto options() const { return std::tuple{value}; }
+  // {options()} decays {value} to a pointer, so the inherited {operator==} and
+  // {hash_value} would compare addresses.
+  bool operator==(const Simd256ConstantOp& other) const {
+    return std::memcmp(value, other.value, kSimd256Size) == 0;
+  }
+  size_t hash_value(
+      HashingStrategy strategy = HashingStrategy::kDefault) const {
+    return HashWithOptions(base::VectorOf(value));
+  }
   void PrintOptions(std::ostream& os) const;
 };
 

@@ -22,6 +22,9 @@
 #include "absl/hash/internal/city.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <utility>
 
 #include "absl/base/config.h"
 #include "absl/base/internal/endian.h"

@@ -25,8 +25,8 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "absl/algorithm/container.h"
 #include "absl/container/flat_hash_set.h"
-#include "absl/meta/type_traits.h"
 #include "absl/random/distributions.h"
 #include "absl/random/random.h"
 #include "absl/synchronization/mutex.h"
@@ -213,7 +213,7 @@ TEST(NonsecureURBGBase, DistinctSequencesPerThread) {
         absl::BitGen gen;
 
         std::vector<result_type> v(kValuesPerThread);
-        std::generate(v.begin(), v.end(), [&]() { return gen(); });
+        absl::c_generate(v, [&]() { return gen(); });
         absl::MutexLock l(mu);
         data.push_back(std::move(v));
       });

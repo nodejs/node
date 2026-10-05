@@ -179,7 +179,16 @@ inline void StoreToMemory(LiftoffAssembler* assm, MemOperand dst,
       src_reg = temps.Acquire();
       assm->li(src_reg, src.i32_const());
     }
-    assm->StoreWord(src_reg, dst);
+    switch (src.kind()) {
+      case kI32:
+        assm->Sw(src_reg, dst);
+        break;
+      case kI64:
+        assm->StoreWord(src_reg, dst);
+        break;
+      default:
+        UNREACHABLE();
+    }
   } else if (src.is_reg()) {
     switch (src.kind()) {
       case kI16:
@@ -499,12 +508,35 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
   Register result_reg = result.gp();
   if (result_reg == value.gp() || result_reg == dst_addr ||
       result_reg == offset_reg) {
-    result_reg = __ GetUnusedRegister(kGpReg, pinned).gp();
+    result_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
   }
 
   UseScratchRegisterScope temps(lasm);
   Register actual_addr = liftoff::CalculateActualAddress(
       lasm, temps, dst_addr, offset_reg, offset_imm);
+
+  bool is_subword = type.value() == StoreType::kI64Store8 ||
+                    type.value() == StoreType::kI32Store8 ||
+                    type.value() == StoreType::kI64Store16 ||
+                    type.value() == StoreType::kI32Store16;
+  Register word = no_reg;
+  Register shift = no_reg;
+  if (is_subword) {
+    // TODO(riscv): use Zabha instruction if enabled
+    word = pinned.set(lasm->GetUnusedRegister(kGpReg, pinned)).gp();
+    shift = pinned.set(lasm->GetUnusedRegister(kGpReg, pinned)).gp();
+    Register addr = pinned.set(lasm->GetUnusedRegister(kGpReg, pinned)).gp();
+    __ mv(addr, actual_addr);
+    if (offset_reg != no_reg || offset_imm != 0) {
+      temps.Include(actual_addr);
+    }
+    actual_addr = addr;
+    bool is_doubleword = type.value() == StoreType::kI64Store8 ||
+                         type.value() == StoreType::kI64Store16;
+    __ andi(shift, actual_addr, is_doubleword ? 0x7 : 0x3);
+    __ Sub64(actual_addr, actual_addr, Operand(shift));
+    __ Sll32(shift, shift, 3);
+  }
 
   Label retry;
   __ bind(&retry);
@@ -603,22 +635,22 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
         break;
     }
   } else {
-    // Allocate an additional {temp} register to hold the result that should be
-    // stored to memory. Note that {temp} and {store_result} are not allowed to
-    // be the same register.
-    Register temp = temps.Acquire();
+    Register temp =
+        is_subword ? pinned.set(lasm->GetUnusedRegister(kGpReg, pinned)).gp()
+                   : temps.Acquire();
     if (trapping_load_pc) *trapping_load_pc = lasm->pc_offset();
-    // TODO(riscv): use Zabha instruction if enabled
     switch (type.value()) {
       case StoreType::kI64Store8:
-      case StoreType::kI32Store8:
-        __ lbu(result_reg, actual_addr, 0);
-        __ sync();
-        break;
       case StoreType::kI64Store16:
+        __ lr_d(true, false, word, actual_addr);
+        __ ExtractBits(result_reg, word, shift,
+                       type.value() == StoreType::kI64Store8 ? 8 : 16, false);
+        break;
+      case StoreType::kI32Store8:
       case StoreType::kI32Store16:
-        __ lhu(result_reg, actual_addr, 0);
-        __ sync();
+        __ lr_w(true, false, word, actual_addr);
+        __ ExtractBits(result_reg, word, shift,
+                       type.value() == StoreType::kI32Store8 ? 8 : 16, false);
         break;
       case StoreType::kI64Store32:
         __ lr_w(true, false, result_reg, actual_addr);
@@ -656,18 +688,16 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
     }
     switch (type.value()) {
       case StoreType::kI64Store8:
-      case StoreType::kI32Store8:
-        __ sync();
-        __ sb(temp, actual_addr, 0);
-        __ sync();
-        __ mv(store_result, zero_reg);
-        break;
       case StoreType::kI64Store16:
+        __ InsertBits(word, temp, shift,
+                      type.value() == StoreType::kI64Store8 ? 8 : 16);
+        __ sc_d(false, true, store_result, actual_addr, word);
+        break;
+      case StoreType::kI32Store8:
       case StoreType::kI32Store16:
-        __ sync();
-        __ sh(temp, actual_addr, 0);
-        __ sync();
-        __ mv(store_result, zero_reg);
+        __ InsertBits(word, temp, shift,
+                      type.value() == StoreType::kI32Store8 ? 8 : 16);
+        __ sc_w(false, true, store_result, actual_addr, word);
         break;
       case StoreType::kI64Store32:
       case StoreType::kI32Store:
@@ -844,7 +874,7 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, uint32_t* trapping_store_pc,
-                                   AtomicMemoryOrder /* memory_order */,
+                                   AtomicMemoryOrder memory_order,
                                    LiftoffRegList /* pinned */,
                                    bool /* i64_offset */,
                                    Endianness /* endianness */) {
@@ -872,6 +902,7 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
     default:
       UNREACHABLE();
   }
+  if (memory_order == AtomicMemoryOrder::kSeqCst) sync();
   DCHECK_IMPLIES(trapping_store_pc != nullptr,
                  InstructionAt(*trapping_store_pc)->IsStore());
 }
@@ -887,12 +918,13 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     if (trapping_store_pc) *trapping_store_pc = static_cast<uint32_t>(offset);
   };
 
+  sync();
   if (COMPRESS_POINTERS_BOOL) {
     Sw(src, MemOperand(dst_reg, 0), trapper);
   } else {
     Sd(src, MemOperand(dst_reg, 0), trapper);
   }
-  sync();
+  if (memory_order == AtomicMemoryOrder::kSeqCst) sync();
   if (v8_flags.disable_write_barriers) return;
   // The write barrier.
   Label exit;
@@ -989,7 +1021,8 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
     if (trapping_load_pc) *trapping_load_pc = pc_offset();
     if constexpr (COMPRESS_POINTERS_BOOL) {
       amoswap_w(true, true, result.gp(), actual_addr, value.gp());
-      AddWord(result.gp(), result.gp(), kPtrComprCageBaseRegister);
+      ZeroExtendWord(result.gp(), result.gp());
+      Or(result.gp(), result.gp(), kPtrComprCageBaseRegister);
     } else {
       amoswap_d(true, true, result.gp(), actual_addr, value.gp());
     }

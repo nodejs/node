@@ -29,9 +29,6 @@ struct LoadStoreSimplificationConfiguration {
   // TODO(12783): This needs to be extended for all architectures that don't
   // have loads with the base + index * element_size + offset pattern.
 #if V8_TARGET_ARCH_RESTRICTIVE_LOAD_STORE
-  // As tagged loads result in modfiying the offset by -1, those loads are
-  // converted into raw loads.
-  static constexpr bool kNeedsUntaggedBase = true;
   // By setting {kMinOffset} > {kMaxOffset}, we ensure that all offsets
   // (including 0) are merged into the computed index.
   static constexpr int32_t kMinOffset = 1;
@@ -41,7 +38,6 @@ struct LoadStoreSimplificationConfiguration {
   // typically support only a limited `element_size_log2`.
   static constexpr int kMaxElementSizeLog2 = 0;
 #elif V8_TARGET_ARCH_S390X
-  static constexpr bool kNeedsUntaggedBase = false;
   // s390x supports *(base + index + displacement), element_size isn't
   // supported.
   static constexpr int32_t kDisplacementBits = 20;  // 20 bit signed integer.
@@ -51,8 +47,7 @@ struct LoadStoreSimplificationConfiguration {
       (static_cast<int32_t>(1) << (kDisplacementBits - 1)) - 1;
   static constexpr int kMaxElementSizeLog2 = 0;
 #else
-  static constexpr bool kNeedsUntaggedBase = false;
-  // We don't want to encode INT32_MIN in the offset becauce instruction
+  // We don't want to encode INT32_MIN in the offset because instruction
   // selection might not be able to put this into an immediate operand.
   static constexpr int32_t kMinOffset = std::numeric_limits<int32_t>::min() + 1;
   static constexpr int32_t kMaxOffset = std::numeric_limits<int32_t>::max();
@@ -138,11 +133,7 @@ class LoadStoreSimplificationReducer : public Next,
     // If the base is tagged we also need to subtract the kHeapObjectTag
     // eventually.
     const int32_t min = kMinOffset + (tagged_base ? kHeapObjectTag : 0);
-    if (min <= offset && offset <= kMaxOffset) {
-      DCHECK(LoadOp::OffsetIsValid(offset, tagged_base));
-      return true;
-    }
-    return false;
+    return min <= offset && offset <= kMaxOffset;
   }
 
   bool CanEncodeAtomic(OptionalOpIndex index, uint8_t element_size_log2,
@@ -161,26 +152,19 @@ class LoadStoreSimplificationReducer : public Next,
       element_size_log2 = 0;
     }
 
-    if (kNeedsUntaggedBase) {
-      if (kind.tagged_base) {
-        kind.tagged_base = false;
-        DCHECK_LE(std::numeric_limits<int32_t>::min() + kHeapObjectTag, offset);
-        offset -= kHeapObjectTag;
-        base = __ BitcastHeapObjectToWordPtr(base);
-      }
-    }
-
     // TODO(nicohartmann@): Remove the case for atomics once crrev.com/c/5237267
     // is ported to x64.
     if (!CanEncodeOffset(offset, kind.tagged_base) ||
         (kind.is_atomic &&
          !CanEncodeAtomic(index, element_size_log2, offset))) {
+      intptr_t displacement = offset;
       if (kind.tagged_base) {
         kind.tagged_base = false;
-        DCHECK_LE(std::numeric_limits<int32_t>::min() + kHeapObjectTag, offset);
-        offset -= kHeapObjectTag;
+        displacement = static_cast<intptr_t>(
+            static_cast<uintptr_t>(displacement) - kHeapObjectTag);
         base = __ BitcastHeapObjectToWordPtr(base);
       }
+      offset = 0;
       // If an index is present, the element_size_log2 is changed to zero.
       // So any load follows the form *(base + offset). To simplify
       // instruction selection, both static and dynamic offsets are stored in
@@ -188,30 +172,30 @@ class LoadStoreSimplificationReducer : public Next,
       // As tagged loads result in modifying the offset by -1, those loads are
       // converted into raw loads (above).
       if (!index.has_value() || matcher_.MatchIntegralZero(index.value())) {
-        index = __ IntPtrConstant(offset);
+        index = __ IntPtrConstant(displacement);
         element_size_log2 = 0;
-        offset = 0;
-      } else if (element_size_log2 != 0) {
-        index = __ WordPtrShiftLeft(index.value(), element_size_log2);
-        element_size_log2 = 0;
-      }
-      if (offset != 0) {
-#if V8_TARGET_ARCH_RESTRICTIVE_LOAD_STORE
-        if (allow_base_index_hoisting) {
-          // Hoist the *(base + index) out to a new base if possible to reduce
-          // number of add ops from one per memory access to one per block of
-          // memory accesses. Common subexpression elimination will get rid of
-          // the redundant adds.
-          DCHECK(!kind.tagged_base);
-          base = __ WordPtrAdd(base, index.value());
-          index = __ IntPtrConstant(offset);
-        } else {
-          index = __ WordPtrAdd(index.value(), offset);
+      } else {
+        if (element_size_log2 != 0) {
+          index = __ WordPtrShiftLeft(index.value(), element_size_log2);
+          element_size_log2 = 0;
         }
+        if (displacement != 0) {
+#if V8_TARGET_ARCH_RESTRICTIVE_LOAD_STORE
+          if (allow_base_index_hoisting) {
+            // Hoist the *(base + index) out to a new base if possible to reduce
+            // number of add ops from one per memory access to one per block of
+            // memory accesses. Common subexpression elimination will get rid of
+            // the redundant adds.
+            DCHECK(!kind.tagged_base);
+            base = __ WordPtrAdd(base, index.value());
+            index = __ IntPtrConstant(displacement);
+          } else {
+            index = __ WordPtrAdd(index.value(), displacement);
+          }
 #else
-        index = __ WordPtrAdd(index.value(), offset);
+          index = __ WordPtrAdd(index.value(), displacement);
 #endif
-        offset = 0;
+        }
       }
       DCHECK_EQ(offset, 0);
       DCHECK_EQ(element_size_log2, 0);

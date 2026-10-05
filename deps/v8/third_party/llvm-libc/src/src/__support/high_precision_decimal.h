@@ -135,7 +135,8 @@ class HighPrecisionDecimal {
   // The maximum amount we can shift is the number of bits used in the
   // accumulator, minus the number of bits needed to represent the base (in this
   // case 4).
-  static constexpr uint32_t MAX_SHIFT_AMOUNT = sizeof(uint64_t) - 4;
+  static constexpr uint32_t MAX_SHIFT_AMOUNT =
+      cpp::numeric_limits<uint64_t>::digits - 4;
 
   // 800 is an arbitrary number of digits, but should be
   // large enough for any practical number.

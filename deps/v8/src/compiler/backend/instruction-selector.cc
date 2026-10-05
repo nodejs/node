@@ -93,6 +93,10 @@ InstructionSelector::InstructionSelector(
       node_count_(node_count),
       phi_states_(zone)
 #endif
+#if V8_TARGET_ARCH_ARM64 || defined(V8_ENABLE_APX_F)
+      ,
+      ccmp_cascade_info_(zone)
+#endif
 {
   turboshaft_use_map_.emplace(*schedule_, zone);
   trapping_loads_to_remove_.emplace(static_cast<int>(node_count), zone);
@@ -2119,7 +2123,7 @@ void InstructionSelector::VisitProjection(OpIndex node) {
       MarkAsUsed(projection.input());
     }
   } else if (value_op.Is<Word64AddSub128BinopOp>() ||
-             value_op.Is<Word64MulWideOp>()) {
+             value_op.Is<Word64MulWideOp>() || value_op.Is<Word64Add3Op>()) {
     MarkAsUsed(projection.input());
   } else if (value_op.Is<DidntThrowOp>()) {
     // Nothing to do here?
@@ -2736,6 +2740,178 @@ void InstructionSelector::VisitRetain(OpIndex node) {
   Emit(kArchNop, g.NoOutput(), g.UseAny(retain.retained()));
 }
 
+#if V8_TARGET_ARCH_ARM64 || defined(V8_ENABLE_APX_F)
+namespace {
+// Returns the sole Goto target of `block` iff `block` contains nothing but a
+// single Goto; otherwise nullptr.
+Block* GetSingleGotoTarget(const Block* block, const Graph* graph) {
+  const Operation& first = block->FirstOperation(*graph);
+  const GotoOp* goto_op = first.TryCast<GotoOp>();
+  if (!goto_op) return nullptr;
+  DCHECK_EQ(&first, &block->LastOperation(*graph));
+  return goto_op->destination;
+}
+
+// Follows a chain of empty single-Goto blocks (edge-split pads).
+// Returns the final real target, or the direct predecessor of `stop_before`
+// on the chain if provided.
+constexpr int kMaxGotoDepth = 16;
+const Block* ResolveThroughEmptyGotos(const Block* block, const Graph* graph,
+                                      const Block* stop_before = nullptr) {
+  for (int depth = 0; depth < kMaxGotoDepth; ++depth) {
+    Block* next = GetSingleGotoTarget(block, graph);
+    if (!next || next == stop_before) break;
+    block = next;
+  }
+  return block;
+}
+}  // namespace
+
+// Rewrites `if (x==C1) goto T1; else if (x==C2) goto T2; else goto F;` (T1/T2
+// identical or merging with matching phi inputs) into a single ccmp chain. CFG
+// analysis is arch-independent; ccmp emission goes through the per-arch hooks.
+//
+// The two branch blocks:
+//  * Block A is the head block. Its branch tests `x==C1` with if_true=T1 and
+//    if_false=Block B.
+//  * Block B is Block A's if_false successor. Its branch tests `x==C2` with
+//    if_true=T2 and if_false=F.
+//
+// Blocks are visited in reversed RPO, so Block B is visited before Block A.
+// That ordering drives the two stages, keyed on ccmp_cascade_info_:
+//  * Case 1 (visiting Block B): validate the pattern, record Block A in the map
+//    for Case 2 to consume, and rewrite Block B into a plain Goto to F. Block A
+//    is only recorded here, not yet rewritten.
+//  * Case 2 (visiting Block A): Block A is found in the map, so emit the fused
+//    ccmp branch in place of Block A's original branch.
+bool InstructionSelector::TryCascadeCcmpFuseOrEmit(OpIndex node, Block* tbranch,
+                                                   Block* fbranch) {
+  if (!SupportsCcmpBranchCascade()) return false;
+
+  const Block* block = current_block();
+  const Graph* graph = turboshaft_graph();
+
+  // Case 2: Current block is the head of a cascade (info stored by Case 1).
+  if (ccmp_cascade_info_.find(block->index().id()) !=
+      ccmp_cascade_info_.end()) {
+    EmitCascadeCcmpBranch(node);
+    return true;
+  }
+
+  // Case 1: Check if current block is the fused block (Block B).
+  if (block->PredecessorCount() != 1) return false;
+
+  const Block* block_a = block->LastPredecessor();
+
+  const Operation& a_last_op = block_a->LastOperation(*graph);
+  const BranchOp* branch_a = a_last_op.TryCast<BranchOp>();
+  if (!branch_a) return false;
+  if (branch_a->if_false != block) return false;
+
+  const BranchOp& branch_b = Cast<BranchOp>(node);
+
+  const ComparisonOp* cmp_a =
+      graph->Get(branch_a->condition()).TryCast<Opmask::kWord32Equal>();
+  const ComparisonOp* cmp_b =
+      graph->Get(branch_b.condition()).TryCast<Opmask::kWord32Equal>();
+  if (!cmp_a || !cmp_b) return false;
+  if (cmp_a->left() != cmp_b->left()) return false;
+
+  // Both comparisons must be exclusively used by their branch.
+  // If a comparison has other users (e.g. deoptimization frame states),
+  // the CCMP chain won't materialize the boolean result those users need.
+  if (!cmp_a->saturated_use_count.Is(1)) return false;
+  if (!cmp_b->saturated_use_count.Is(1)) return false;
+
+  // Only fuse when both RHS constants are cheap immediates. cmp_a is the
+  // initial compare, cmp_b the fused ccmp (tighter immediate range).
+  if (!CcmpCascadeConstantOk(cmp_a->right(), /*is_ccmp_operand=*/false)) {
+    return false;
+  }
+  if (!CcmpCascadeConstantOk(cmp_b->right(), /*is_ccmp_operand=*/true)) {
+    return false;
+  }
+
+  Block* t1 = branch_a->if_true;
+  Block* t2 = tbranch;
+  Block* final_false = fbranch;
+
+  // Both true edges must reach the same block (resolving through edge-split
+  // pads).
+  const Block* merge = ResolveThroughEmptyGotos(t1, graph);
+  if (merge != ResolveThroughEmptyGotos(t2, graph)) {
+    return false;
+  }
+
+  if (final_false->PredecessorCount() != 1) return false;
+
+  // Fusing routes x==C2 through T1's edge and drops the T2 edge, so the merge
+  // block's phis must take the same input from both edges; otherwise the
+  // T2-edge value is picked wrong and orphaned (use without a definition).
+  if (t1 != t2 && merge->HasPhis(*graph)) {
+    const Block* pred1 = ResolveThroughEmptyGotos(t1, graph, merge);
+    const Block* pred2 = ResolveThroughEmptyGotos(t2, graph, merge);
+    int idx1 = merge->GetPredecessorIndex(pred1);
+    int idx2 = merge->GetPredecessorIndex(pred2);
+    DCHECK_NE(idx1, Block::kInvalidPredecessorIndex);
+    DCHECK_NE(idx2, Block::kInvalidPredecessorIndex);
+    for (const Operation& phi_op : graph->operations(*merge)) {
+      const PhiOp* phi = phi_op.TryCast<PhiOp>();
+      if (!phi) continue;
+      if (phi->input(idx1) != phi->input(idx2)) return false;
+    }
+  }
+
+  for (const auto& pure_op :
+       base::IterateWithoutLast(graph->operations(*block))) {
+    if (!pure_op.Effects().hoistable_before_a_branch()) return false;
+  }
+
+  // Record Block A for Case 2 to consume, and make Block B a Goto to F:
+  // reaching Block B means the ccmp already proved x != C1 && x != C2, so its
+  // branch is dead.
+  ccmp_cascade_info_[block_a->index().id()] = {t1, final_false};
+  VisitGoto(final_false);
+
+  return true;
+}
+
+// Case 2 emission: builds the two-element ccmp chain (`x==C1` head, `x==C2`
+// fused) and branches to the head's original targets. Block B was already
+// rewritten to Goto->F by Case 1.
+void InstructionSelector::EmitCascadeCcmpBranch(OpIndex node) {
+  const Graph* graph = turboshaft_graph();
+  const BranchOp& head_branch = Cast<BranchOp>(node);
+  const ComparisonOp& head_cmp =
+      graph->Get(head_branch.condition()).Cast<ComparisonOp>();
+
+  const Block* fused_block = head_branch.if_false;
+  const BranchOp& fused_branch =
+      fused_block->LastOperation(*graph).Cast<BranchOp>();
+  const ComparisonOp& fused_cmp =
+      graph->Get(fused_branch.condition()).Cast<ComparisonOp>();
+
+  compare_chain::CompareSequence sequence;
+  sequence.InitialCompare(head_branch.condition(), head_cmp.left(),
+                          head_cmp.right(), CcmpCmpOpcode(head_cmp.rep));
+
+  FlagsCondition head_cond = FlagsCondition::kEqual;
+  FlagsCondition fused_cond = FlagsCondition::kEqual;
+  FlagsCondition ccmp_condition = NegateFlagsCondition(head_cond);
+  FlagsCondition default_flags = fused_cond;
+
+  sequence.AddConditionalCompare(CcmpCmpOpcode(fused_cmp.rep), ccmp_condition,
+                                 default_flags, fused_cmp.left(),
+                                 fused_cmp.right());
+
+  FlagsContinuation cont = FlagsContinuation::ForConditionalBranch(
+      sequence.ccmps(), sequence.num_ccmps(), fused_cond, head_branch.if_true,
+      head_branch.if_false);
+
+  EmitCcmpCompareChain(sequence, head_cmp.rep, &cont);
+}
+#endif  // V8_TARGET_ARCH_ARM64 || V8_ENABLE_APX_F
+
 void InstructionSelector::VisitControl(const Block* block) {
 #ifdef DEBUG
   // SSA deconstruction requires targets of branches not to have phis.
@@ -2780,6 +2956,10 @@ void InstructionSelector::VisitControl(const Block* block) {
       Block* fbranch = branch.if_false;
       if (tbranch == fbranch) {
         VisitGoto(tbranch);
+#if V8_TARGET_ARCH_ARM64 || defined(V8_ENABLE_APX_F)
+      } else if (TryCascadeCcmpFuseOrEmit(node, tbranch, fbranch)) {
+        // Cascade CCMP handled the branch.
+#endif
       } else {
         VisitBranch(node, tbranch, fbranch);
       }
@@ -3320,6 +3500,10 @@ void InstructionSelector::VisitNode(OpIndex node) {
           return VisitUint64Sub128(node);
       }
       UNREACHABLE();
+    }
+    case Opcode::kWord64Add3: {
+      MarkPairProjectionsAsWord64(node);
+      return VisitUint64Add3WithCarry(node);
     }
     case Opcode::kWord64MulWide: {
       const Word64MulWideOp& wideop = op.Cast<Word64MulWideOp>();
@@ -4233,6 +4417,342 @@ InstructionSelector InstructionSelector::ForTurboshaft(
 }
 
 #undef VISIT_UNSUPPORTED_OP
+
+namespace compare_chain {
+
+std::optional<FlagsCondition> GetFlagsCondition(OpIndex node,
+                                                InstructionSelector* selector,
+                                                bool supports_float_cmp) {
+  if (const ComparisonOp* comparison =
+          selector->Get(node).TryCast<ComparisonOp>()) {
+    if (comparison->rep == RegisterRepresentation::Word32() ||
+        comparison->rep == RegisterRepresentation::Word64() ||
+        comparison->rep == RegisterRepresentation::Tagged()) {
+      switch (comparison->kind) {
+        case ComparisonOp::Kind::kEqual:
+          return FlagsCondition::kEqual;
+        case ComparisonOp::Kind::kSignedLessThan:
+          return FlagsCondition::kSignedLessThan;
+        case ComparisonOp::Kind::kSignedLessThanOrEqual:
+          return FlagsCondition::kSignedLessThanOrEqual;
+        case ComparisonOp::Kind::kUnsignedLessThan:
+          return FlagsCondition::kUnsignedLessThan;
+        case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
+          return FlagsCondition::kUnsignedLessThanOrEqual;
+        default:
+          UNREACHABLE();
+      }
+    } else if (supports_float_cmp &&
+               (comparison->rep == RegisterRepresentation::Float32() ||
+                comparison->rep == RegisterRepresentation::Float64())) {
+      switch (comparison->kind) {
+        case ComparisonOp::Kind::kEqual:
+          return FlagsCondition::kEqual;
+        case ComparisonOp::Kind::kSignedLessThan:
+          return FlagsCondition::kFloatLessThan;
+        case ComparisonOp::Kind::kSignedLessThanOrEqual:
+          return FlagsCondition::kFloatLessThanOrEqual;
+        default:
+          UNREACHABLE();
+      }
+    }
+  }
+  return std::nullopt;
+}
+
+// Search through AND, OR and comparisons.
+// To make life a little easier, we currently don't handle combining two logic
+// operations. There are restrictions on what logical combinations can be
+// performed with ccmp, so this implementation builds a ccmp chain from the LHS
+// of the tree while combining one more compare from the RHS at each step. So,
+// currently, if we discover a pattern like this:
+//   logic(logic(cmp, cmp), logic(cmp, cmp))
+// The search will fail from the outermost logic operation, but it will succeed
+// for the two inner operations. This will result in, suboptimal, codegen:
+//   cmp
+//   ccmp
+//   cset x
+//   cmp
+//   ccmp
+//   cset y
+//   logic x, y
+std::optional<CompareChainNode*> FindCompareChain(
+    OpIndex user, OpIndex node, InstructionSelector* selector, Zone* zone,
+    ZoneVector<CompareChainNode*>& nodes, bool supports_float_cmp,
+    bool supports_test_pattern) {
+  const Operation& op = selector->Get(node);
+  if (op.Is<Opmask::kWord32BitwiseAnd>() || op.Is<Opmask::kWord32BitwiseOr>()) {
+    const WordBinopOp& binop = op.Cast<WordBinopOp>();
+    auto maybe_lhs =
+        FindCompareChain(node, binop.left(), selector, zone, nodes,
+                         supports_float_cmp, supports_test_pattern);
+    auto maybe_rhs =
+        FindCompareChain(node, binop.right(), selector, zone, nodes,
+                         supports_float_cmp, supports_test_pattern);
+    if (maybe_lhs.has_value() && maybe_rhs.has_value()) {
+      CompareChainNode* lhs = maybe_lhs.value();
+      CompareChainNode* rhs = maybe_rhs.value();
+      // Ensure we don't try to combine a logic operation with two logic inputs.
+      if (lhs->IsFlagSetting() || rhs->IsFlagSetting()) {
+        nodes.push_back(zone->New<CompareChainNode>(node, lhs, rhs));
+        return nodes.back();
+      }
+    }
+    // Ensure we remove any valid sub-trees that now cannot be used.
+    nodes.clear();
+    return std::nullopt;
+  } else if (user.valid() && selector->CanCover(user, node)) {
+    std::optional<FlagsCondition> user_condition =
+        GetFlagsCondition(node, selector, supports_float_cmp);
+    if (!user_condition.has_value()) {
+      return std::nullopt;
+    }
+    const ComparisonOp& comparison = selector->Cast<ComparisonOp>(node);
+    if (comparison.kind == ComparisonOp::Kind::kEqual &&
+        selector->MatchIntegralZero(comparison.right())) {
+      // Check if this is a TEST pattern: Equal(BitwiseAnd(x, mask), 0).
+      // If so, create a TEST leaf node instead of recursing into the
+      // BitwiseAnd (which would be treated as a logical combiner).
+      // Only architectures with a TEST-style conditional compare (x64's ctest)
+      // may do this; others fall through to the negation path below.
+      const Operation& left_op = selector->Get(comparison.left());
+      if (supports_test_pattern && left_op.Is<Opmask::kWord32BitwiseAnd>() &&
+          selector->CanCover(node, comparison.left())) {
+        return zone->New<CompareChainNode>(node, FlagsCondition::kEqual,
+                                           /*is_test=*/true);
+      }
+
+      auto maybe_negated =
+          FindCompareChain(node, comparison.left(), selector, zone, nodes,
+                           supports_float_cmp, supports_test_pattern);
+      if (maybe_negated.has_value()) {
+        CompareChainNode* negated = maybe_negated.value();
+        negated->MarkRequiresNegation();
+        return negated;
+      }
+    }
+    return zone->New<CompareChainNode>(node, user_condition.value());
+  }
+  return std::nullopt;
+}
+
+void GetFlagSettingOperands(const CompareChainNode* node,
+                            InstructionSelector* selector, OpIndex* out_lhs,
+                            OpIndex* out_rhs, RegisterRepresentation* out_rep) {
+  OpIndex cmp = node->node();
+  const ComparisonOp& cmp_op = selector->Cast<ComparisonOp>(cmp);
+  if (node->IsTest()) {
+    // TEST pattern: Equal(BitwiseAnd(x, mask), 0)
+    // Operands are the BitwiseAnd's inputs.
+    const WordBinopOp& and_op =
+        selector->Get(cmp_op.left()).Cast<WordBinopOp>();
+    *out_lhs = and_op.left();
+    *out_rhs = and_op.right();
+    *out_rep = cmp_op.rep;
+  } else {
+    *out_lhs = cmp_op.left();
+    *out_rhs = cmp_op.right();
+    *out_rep = cmp_op.rep;
+  }
+}
+
+// Overview -------------------------------------------------------------------
+//
+// A compare operation will generate a 'user condition', which is the
+// FlagCondition of the opcode. For this algorithm, we generate the default
+// flags from the LHS of the logic op, while the RHS is used to predicate the
+// new ccmp. Depending on the logical user, those conditions are either used
+// as-is or negated:
+// > For OR, the generated ccmp will negate the LHS condition for its predicate
+//   while the default flags are taken from the RHS.
+// > For AND, the generated ccmp will take the LHS condition for its predicate
+//   while the default flags are a negation of the RHS.
+//
+// The new ccmp will now generate a user condition of its own, and this is
+// always forwarded from the RHS.
+//
+// Chaining compares, including with OR, needs to be equivalent to combining
+// all the results with AND, and NOT.
+//
+// AND Example ----------------------------------------------------------------
+//
+//  cmpA      cmpB
+//   |         |
+// condA     condB
+//   |         |
+//   --- AND ---
+//
+// As the AND becomes the ccmp, it is predicated on condA and the cset is
+// predicated on condB. The user of the ccmp is always predicated on the
+// condition from the RHS of the logic operation. The default flags are
+// not(condB) so cset only produces one when both condA and condB are true:
+//   cmpA
+//   ccmpB not(condB), condA
+//   cset condB
+//
+// OR Example -----------------------------------------------------------------
+//
+//  cmpA      cmpB
+//   |         |
+// condA     condB
+//   |         |
+//   --- OR  ---
+//
+//                    cmpA          cmpB
+//   equivalent ->     |             |
+//                    not(condA)  not(condB)
+//                     |             |
+//                     ----- AND -----
+//                            |
+//                           NOT
+//
+// In this case, the input conditions to the AND (the ccmp) have been negated
+// so the user condition and default flags have been negated compared to the
+// previous example. The cset still uses condB because it is negated twice:
+//   cmpA
+//   ccmpB condB, not(condA)
+//   cset condB
+//
+// Combining AND and OR -------------------------------------------------------
+//
+//  cmpA      cmpB    cmpC
+//   |         |       |
+// condA     condB    condC
+//   |         |       |
+//   --- AND ---       |
+//        |            |
+//       OR -----------
+//
+//  equivalent -> cmpA      cmpB      cmpC
+//                 |         |         |
+//               condA     condB  not(condC)
+//                 |         |         |
+//                 --- AND ---         |
+//                      |              |
+//                     NOT             |
+//                      |              |
+//                     AND -------------
+//                      |
+//                     NOT
+//
+// For this example the 'user condition', coming out, of the first ccmp is
+// condB but it is negated as the input predicate for the next ccmp as that
+// one is performing an OR:
+//   cmpA
+//   ccmpB not(condB), condA
+//   ccmpC condC, not(condB)
+//   cset condC
+//
+void CombineFlagSettingOps(CompareChainNode* logic_node,
+                           InstructionSelector* selector,
+                           CompareSequence* sequence, GetOpcodeFunc get_opcode,
+                           AdjustInitialOrderFunc adjust_initial_order,
+                           AdjustCcmpOperandsFunc adjust_ccmp_operands) {
+  const CompareChainNode* lhs = logic_node->lhs();
+  const CompareChainNode* rhs = logic_node->rhs();
+
+  if (!sequence->HasCompare()) {
+    // This is the beginning of the conditional compare chain.
+    DCHECK(lhs->IsFlagSetting());
+    DCHECK(rhs->IsFlagSetting());
+
+    // Allow architecture to reorder the initial cmp/ccmp pair for better
+    // immediate encoding (e.g., ARM64 ccmp has smaller immediate range).
+    if (adjust_initial_order) {
+      adjust_initial_order(lhs, rhs, selector);
+    }
+
+    OpIndex lhs_l, lhs_r;
+    RegisterRepresentation lhs_rep;
+    GetFlagSettingOperands(lhs, selector, &lhs_l, &lhs_r, &lhs_rep);
+    InstructionCode opcode = get_opcode(lhs_rep, lhs->IsTest());
+    sequence->InitialCompare(lhs->node(), lhs_l, lhs_r, opcode);
+  }
+
+  bool is_logical_or =
+      selector->Get(logic_node->node()).Is<Opmask::kWord32BitwiseOr>();
+  FlagsCondition ccmp_condition =
+      is_logical_or ? NegateFlagsCondition(lhs->user_condition())
+                    : lhs->user_condition();
+  FlagsCondition default_flags =
+      is_logical_or ? rhs->user_condition()
+                    : NegateFlagsCondition(rhs->user_condition());
+
+  // We canonicalise the chain so that the rhs is always a cmp, whereas lhs
+  // will either be the initial cmp or the previous logic, now ccmp, op and
+  // only provides ccmp_condition.
+  FlagsCondition user_condition = rhs->user_condition();
+
+  OpIndex rhs_l, rhs_r;
+  RegisterRepresentation rhs_rep;
+  GetFlagSettingOperands(rhs, selector, &rhs_l, &rhs_r, &rhs_rep);
+
+  // Allow architecture to adjust ccmp operands (e.g., ARM64 swaps lhs/rhs
+  // if lhs is a small immediate to use the immediate encoding).
+  if (adjust_ccmp_operands) {
+    adjust_ccmp_operands(rhs_l, rhs_r, user_condition, default_flags, selector);
+  }
+
+  InstructionCode code = get_opcode(rhs_rep, rhs->IsTest());
+  sequence->AddConditionalCompare(code, ccmp_condition, default_flags, rhs_l,
+                                  rhs_r);
+  // Ensure the user_condition is kept up-to-date for the next ccmp/cset.
+  logic_node->SetCondition(user_condition);
+}
+
+bool TryBuildConditionalCompareChain(
+    InstructionSelector* selector, Zone* zone, OpIndex node,
+    FlagsContinuation* cont, CompareSequence* sequence,
+    FlagsCondition* condition, GetOpcodeFunc get_opcode,
+    bool supports_float_cmp, bool supports_test_pattern,
+    AdjustInitialOrderFunc adjust_initial_order,
+    AdjustCcmpOperandsFunc adjust_ccmp_operands) {
+  if (!cont->IsBranch() && !cont->IsTrap()) return false;
+  DCHECK(cont->condition() == kNotEqual || cont->condition() == kEqual);
+
+  // Instead of:
+  //  cmp x0, y0
+  //  cset cc0
+  //  cmp x1, y1
+  //  cset cc1
+  //  and/orr
+  // Try to merge logical combinations of flags into:
+  //  cmp x0, y0
+  //  ccmp x1, y1 ..
+  //  cset ..
+  // So, for AND:
+  //  (cset cc1 (ccmp x1 y1 !cc1 cc0 (cmp x0, y0)))
+  // and for ORR:
+  //  (cset cc1 (ccmp x1 y1 cc1 !cc0 (cmp x0, y0))
+
+  // Look for a potential chain.
+  ZoneVector<CompareChainNode*> logic_nodes(zone);
+  auto root =
+      FindCompareChain(OpIndex::Invalid(), node, selector, zone, logic_nodes,
+                       supports_float_cmp, supports_test_pattern);
+  if (!root.has_value()) return false;
+
+  if (logic_nodes.size() > FlagsContinuation::kMaxCompareChainSize) {
+    return false;
+  }
+  if (!logic_nodes.front()->IsLegalFirstCombine()) {
+    return false;
+  }
+
+  for (CompareChainNode* logic_node : logic_nodes) {
+    CombineFlagSettingOps(logic_node, selector, sequence, get_opcode,
+                          adjust_initial_order, adjust_ccmp_operands);
+  }
+  DCHECK_LE(sequence->num_ccmps(), FlagsContinuation::kMaxCompareChainSize);
+
+  FlagsCondition final_cond = logic_nodes.back()->user_condition();
+  *condition = cont->condition() == kNotEqual
+                   ? final_cond
+                   : NegateFlagsCondition(final_cond);
+  return true;
+}
+
+}  // namespace compare_chain
 
 }  // namespace compiler
 }  // namespace internal

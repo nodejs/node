@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --js-base-64
-
 const shared_array_buffer = new SharedArrayBuffer(1.5);
 const uint8_array = new Uint8Array(shared_array_buffer);
 const from_hex_result = uint8_array.setFromHex('666f6f626172');

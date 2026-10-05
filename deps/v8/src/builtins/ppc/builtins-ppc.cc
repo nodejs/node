@@ -426,7 +426,9 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     Label next;
     __ Move(r4, ExternalReference::address_of_log_or_trace_osr());
     __ LoadU8(r4, MemOperand(r4));
-    __ andi(r0, r4, Operand(0xFF));  // Mask to the LSB.
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ andi(scratch, r4, Operand(0xFF));  // Mask to the LSB.
     __ beq(&next, cr0);
 
     {
@@ -471,10 +473,12 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
                 LeaveRC);
 
     // Compute the target address = code start + osr_offset
-    __ add(r0, r3, r4);
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ add(scratch, r3, r4);
 
     // And "return" to the OSR entry point of the function.
-    __ mtlr(r0);
+    __ mtlr(scratch);
     __ blr();
   }
 }
@@ -1826,7 +1830,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   Label non_constructor;
   __ LoadMap(r5, r4);
   __ lbz(r5, FieldMemOperand(r5, offsetof(Map, bit_field_)));
-  __ TestBit(r5, Map::Bits1::IsConstructorBit::kShift, r0);
+  __ TestBit(r5, Map::Bits1::IsConstructorBit::kShift);
   __ beq(&non_constructor, cr0);
 
   // Add a stack check before pushing arguments.
@@ -1993,7 +1997,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   if (v8_flags.debug_code) {
     // Check function data field is actually a BytecodeArray object.
-    __ TestIfSmi(kInterpreterBytecodeArrayRegister, r0);
+    __ TestIfSmi(kInterpreterBytecodeArrayRegister);
     __ Assert(ne,
               AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,
               cr0);
@@ -2208,7 +2212,7 @@ static void GenerateCall(MacroAssembler* masm, Register argc, Register target,
     DCHECK(!AreAliased(argc, target, flags));
     __ lbz(flags, FieldMemOperand(map, offsetof(Map, bit_field_)));
     map = no_reg;
-    __ TestBit(flags, Map::Bits1::IsCallableBit::kShift, r0);
+    __ TestBit(flags, Map::Bits1::IsCallableBit::kShift);
     __ beq(&non_callable, cr0);
   }
 
@@ -2588,7 +2592,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ LoadTaggedField(scratch,
                        FieldMemOperand(r6, offsetof(HeapObject, map_)));
     __ lbz(scratch, FieldMemOperand(scratch, offsetof(Map, bit_field_)));
-    __ TestBit(scratch, Map::Bits1::IsConstructorBit::kShift, r0);
+    __ TestBit(scratch, Map::Bits1::IsConstructorBit::kShift);
     __ bne(&new_target_constructor, cr0);
     __ bind(&new_target_not_constructor);
     {
@@ -2937,7 +2941,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
     Register flags = r5;
     DCHECK(!AreAliased(r3, target, map, instance_type, flags));
     __ lbz(flags, FieldMemOperand(map, offsetof(Map, bit_field_)));
-    __ TestBit(flags, Map::Bits1::IsConstructorBit::kShift, r0);
+    __ TestBit(flags, Map::Bits1::IsConstructorBit::kShift);
     __ beq(&non_constructor, cr0);
   }
 
@@ -3271,6 +3275,7 @@ void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
 void ReloadParentStack(MacroAssembler* masm, Register return_reg,
                        Register return_value, Register context, Register tmp1,
                        Register tmp2, Register tmp3) {
+  DCHECK(!AreAliased(tmp1, tmp2, tmp3));
   Register active_stack = tmp1;
   __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());
 
@@ -3283,7 +3288,10 @@ void ReloadParentStack(MacroAssembler* masm, Register return_reg,
   // Switch stack!
   SwitchStacks(masm, ExternalReference::wasm_return_jspi_stack(), parent,
                nullptr, no_reg, {return_reg, return_value, context, parent});
+  __ LoadU64(tmp1, MemOperand(parent, wasm::kStackPcOffset));
   LoadJumpBuffer(masm, parent, false, tmp3);
+  __ StoreU64(
+      tmp1, MemOperand(fp, WasmJspiFrameConstants::kParentReturnAddressOffset));
 }
 
 void RestoreParentSuspender(MacroAssembler* masm, Register tmp1) {
@@ -3527,6 +3535,9 @@ namespace {
 // forwards the value, the onRejected variant throws the value.
 
 void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
+  __ CmpS64(kJavaScriptCallArgCountRegister, Operand(JSParameterCount(1)));
+  __ Check(eq, AbortReason::kJSSignatureMismatch);
+
   auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
   __ EnterFrame(StackFrame::WASM_JSPI);
 
@@ -3985,6 +3996,10 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, RegisterAllocator& regs,
   FREE_REG(promise);
   FREE_REG(return_value);
   __ bind(return_promise);
+  // The initial wrapper and a resume callback have different argument cleanup.
+  __ LoadU64(
+      tmp, MemOperand(fp, WasmJspiFrameConstants::kParentReturnAddressOffset));
+  __ Jump(tmp);
 }
 
 void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
@@ -4219,6 +4234,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   Label return_promise;
   if (stack_switch) {
     SwitchBackAndReturnPromise(masm, regs, mode, &return_promise);
+    __ Trap();  // Unreachable.
   }
   __ bind(&suspend);
 
@@ -4476,9 +4492,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // r14: still holds argc (C caller-saved).
   __ LeaveExitFrame();
   if (argv_mode == ArgvMode::kStack) {
-    DCHECK(!AreAliased(scratch, argc_sav));
-    __ ShiftLeftU64(scratch, argc_sav, Operand(kSystemPointerSizeLog2));
-    __ AddS64(sp, sp, scratch);
+    __ Drop(argc_sav);
   }
 
   __ blr();
@@ -4609,7 +4623,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
                           result_reg, d0);
 
 // Test for overflow
-  __ TestIfInt32(result_reg, r0);
+  __ TestIfInt32(result_reg);
   __ beq(&fastpath_done);
 
   __ Push(scratch_high, scratch_low);
@@ -5251,7 +5265,7 @@ void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::INTERPRETED);
 
   // The arguments are already in the stack, but we might need to adapt them
-  // if the function signature changed (e.g. via LiveEdit).
+  // if the function signature changed.
   __ LoadTaggedField(
       r5, FieldMemOperand(r4, offsetof(JSFunction, shared_function_info_)));
   __ LoadU16(r5, FieldMemOperand(r5, offsetof(SharedFunctionInfo,

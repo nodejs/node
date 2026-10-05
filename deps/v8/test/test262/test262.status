@@ -702,9 +702,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'annexB/language/comments/single-line-html-close-first-line-1': [SKIP],
-  'annexB/language/comments/single-line-html-close-first-line-2': [SKIP],
-  'annexB/language/comments/single-line-html-close-first-line-3': [SKIP],
   'intl402/DateTimeFormat/timezone-legacy-non-iana': [SKIP],
 }],
 # End roll-watcher patch
@@ -862,15 +859,7 @@
 ####
 
 
-####
-# Roll-watcher patch
 [ALWAYS, {
-  'built-ins/Atomics/notify/retrieve-length-before-index-coercion': [SKIP],
-  'built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared': [SKIP],
-  'built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared-detached': [SKIP],
-  'built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared-resize-to-zero': [SKIP],
-  'built-ins/Atomics/wait/retrieve-length-before-index-coercion': [SKIP],
-  'built-ins/Atomics/waitAsync/retrieve-length-before-index-coercion': [SKIP],
   'harness/verifyProperty-value-error': [SKIP],
 }],
 # End roll-watcher patch
@@ -896,14 +885,6 @@
   'language/expressions/assignmenttargettype/direct-callexpression-in-prefix-update': [SKIP],
   'language/expressions/assignmenttargettype/parenthesized-callexpression': [SKIP],
   'language/expressions/assignmenttargettype/parenthesized-callexpression-in-compound-assignment': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'built-ins/Iterator/concat/get-value-after-done': [SKIP],
 }],
 # End roll-watcher patch
 ####
@@ -1059,14 +1040,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/ArrayBuffer/prototype/sliceToImmutable/argument-coercion': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
   'built-ins/Error/prototype/stack/getter-cross-realm': [SKIP],
   'built-ins/Error/prototype/stack/getter-data-property-shadows': [SKIP],
   'built-ins/Error/prototype/stack/getter-error-as-prototype': [SKIP],
@@ -1102,7 +1075,6 @@
   'built-ins/Error/prototype/stack/setter-receiver-is-proxy': [SKIP],
   'built-ins/Error/prototype/stack/setter-this-not-object': [SKIP],
   'built-ins/Error/prototype/stack/setter-via-assignment': [SKIP],
-  'built-ins/TypedArray/prototype/set/immutable-buffer': [SKIP],
   'intl402/Temporal/ZonedDateTime/prototype/round/same-date-starts-twice': [SKIP],
   'language/module-code/ambiguous-export-bindings/namespace-unambiguous-if-import-source-and-export': [SKIP],
   'language/module-code/source-phase-import/reexport-source-binding-named-import': [SKIP],
@@ -1155,7 +1127,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/invokes-return': [SKIP],
   'built-ins/Promise/allKeyed/capability-resolve-throws-reject': [SKIP],
   'built-ins/Promise/allKeyed/get-value-not-called-for-non-enumerable': [SKIP],
   'built-ins/Promise/allKeyed/get-value-throws-reject': [SKIP],
@@ -1189,8 +1160,86 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'intl402/Locale/prototype/getHourCycles/region-priority': [SKIP],
-  'intl402/Locale/prototype/getHourCycles/subdivision-region': [SKIP],
+  'language/statements/await-using/initializer-Symbol.asyncDispose-disposed-at-end-of-imported-module': [SKIP],
+  'language/statements/await-using/initializer-Symbol.dispose-disposed-at-end-of-imported-module': [SKIP],
+  'language/statements/using/initializer-disposed-at-end-of-imported-module': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Iterator/prototype/chunks/argument-effect-order': [SKIP],
+  'built-ins/Iterator/prototype/chunks/argument-validation-failure-close-throws': [SKIP],
+  'built-ins/Iterator/prototype/chunks/argument-validation-failure-closes-underlying': [SKIP],
+  'built-ins/Iterator/prototype/chunks/callable': [SKIP],
+  'built-ins/Iterator/prototype/chunks/chunkSize-out-of-range': [SKIP],
+  'built-ins/Iterator/prototype/chunks/chunks-evenly-divisible': [SKIP],
+  'built-ins/Iterator/prototype/chunks/chunks-last-chunk-partial': [SKIP],
+  'built-ins/Iterator/prototype/chunks/chunks-size-1': [SKIP],
+  'built-ins/Iterator/prototype/chunks/chunks-size-larger-than-iterator': [SKIP],
+  'built-ins/Iterator/prototype/chunks/exhaustion-does-not-call-return': [SKIP],
+  'built-ins/Iterator/prototype/chunks/get-next-method-only-once': [SKIP],
+  'built-ins/Iterator/prototype/chunks/get-next-method-throws': [SKIP],
+  'built-ins/Iterator/prototype/chunks/get-return-method-throws': [SKIP],
+  'built-ins/Iterator/prototype/chunks/is-function': [SKIP],
+  'built-ins/Iterator/prototype/chunks/iterator-already-exhausted': [SKIP],
+  'built-ins/Iterator/prototype/chunks/iterator-return-method-throws': [SKIP],
+  'built-ins/Iterator/prototype/chunks/length': [SKIP],
+  'built-ins/Iterator/prototype/chunks/name': [SKIP],
+  'built-ins/Iterator/prototype/chunks/next-method-returns-non-object': [SKIP],
+  'built-ins/Iterator/prototype/chunks/next-method-returns-throwing-done': [SKIP],
+  'built-ins/Iterator/prototype/chunks/next-method-returns-throwing-value': [SKIP],
+  'built-ins/Iterator/prototype/chunks/next-method-returns-throwing-value-done': [SKIP],
+  'built-ins/Iterator/prototype/chunks/next-method-throws': [SKIP],
+  'built-ins/Iterator/prototype/chunks/prop-desc': [SKIP],
+  'built-ins/Iterator/prototype/chunks/proto': [SKIP],
+  'built-ins/Iterator/prototype/chunks/result-is-iterator': [SKIP],
+  'built-ins/Iterator/prototype/chunks/return-is-forwarded-to-underlying-iterator': [SKIP],
+  'built-ins/Iterator/prototype/chunks/return-is-not-forwarded-after-exhaustion': [SKIP],
+  'built-ins/Iterator/prototype/chunks/this-non-callable-next': [SKIP],
+  'built-ins/Iterator/prototype/chunks/this-plain-iterator': [SKIP],
+  'built-ins/Iterator/prototype/chunks/throws-typeerror-when-generator-is-running': [SKIP],
+  'built-ins/Iterator/prototype/chunks/underlying-iterator-advanced-in-parallel': [SKIP],
+  'built-ins/Iterator/prototype/chunks/underlying-iterator-closed-in-parallel': [SKIP],
+  'built-ins/Iterator/prototype/chunks/yields-distinct-arrays': [SKIP],
+  'built-ins/Iterator/prototype/windows/argument-effect-order': [SKIP],
+  'built-ins/Iterator/prototype/windows/argument-validation-failure-close-throws': [SKIP],
+  'built-ins/Iterator/prototype/windows/argument-validation-failure-closes-underlying': [SKIP],
+  'built-ins/Iterator/prototype/windows/callable': [SKIP],
+  'built-ins/Iterator/prototype/windows/exhaustion-does-not-call-return': [SKIP],
+  'built-ins/Iterator/prototype/windows/get-next-method-only-once': [SKIP],
+  'built-ins/Iterator/prototype/windows/get-next-method-throws': [SKIP],
+  'built-ins/Iterator/prototype/windows/get-return-method-throws': [SKIP],
+  'built-ins/Iterator/prototype/windows/is-function': [SKIP],
+  'built-ins/Iterator/prototype/windows/iterator-already-exhausted': [SKIP],
+  'built-ins/Iterator/prototype/windows/iterator-return-method-throws': [SKIP],
+  'built-ins/Iterator/prototype/windows/length': [SKIP],
+  'built-ins/Iterator/prototype/windows/name': [SKIP],
+  'built-ins/Iterator/prototype/windows/next-method-returns-non-object': [SKIP],
+  'built-ins/Iterator/prototype/windows/next-method-returns-throwing-done': [SKIP],
+  'built-ins/Iterator/prototype/windows/next-method-returns-throwing-value': [SKIP],
+  'built-ins/Iterator/prototype/windows/next-method-returns-throwing-value-done': [SKIP],
+  'built-ins/Iterator/prototype/windows/next-method-throws': [SKIP],
+  'built-ins/Iterator/prototype/windows/prop-desc': [SKIP],
+  'built-ins/Iterator/prototype/windows/proto': [SKIP],
+  'built-ins/Iterator/prototype/windows/result-is-iterator': [SKIP],
+  'built-ins/Iterator/prototype/windows/return-is-forwarded-to-underlying-iterator': [SKIP],
+  'built-ins/Iterator/prototype/windows/return-is-not-forwarded-after-exhaustion': [SKIP],
+  'built-ins/Iterator/prototype/windows/this-non-callable-next': [SKIP],
+  'built-ins/Iterator/prototype/windows/this-plain-iterator': [SKIP],
+  'built-ins/Iterator/prototype/windows/throws-typeerror-when-generator-is-running': [SKIP],
+  'built-ins/Iterator/prototype/windows/underlying-iterator-advanced-in-parallel': [SKIP],
+  'built-ins/Iterator/prototype/windows/underlying-iterator-closed-in-parallel': [SKIP],
+  'built-ins/Iterator/prototype/windows/undersized-default': [SKIP],
+  'built-ins/Iterator/prototype/windows/windowSize-out-of-range': [SKIP],
+  'built-ins/Iterator/prototype/windows/windows-allow-partial': [SKIP],
+  'built-ins/Iterator/prototype/windows/windows-basic': [SKIP],
+  'built-ins/Iterator/prototype/windows/windows-size-1': [SKIP],
+  'built-ins/Iterator/prototype/windows/windows-size-3': [SKIP],
+  'built-ins/Iterator/prototype/windows/yields-distinct-arrays': [SKIP],
+  'staging/source-phase-imports/module-source-prototype-chain': [SKIP],
 }],
 # End roll-watcher patch
 ####

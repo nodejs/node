@@ -9,13 +9,10 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_SQRTF128_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_SQRTF128_H
 
-#include "include/llvm-libc-types/float128.h"
-
-#ifdef LIBC_TYPES_HAS_FLOAT128
-
 #include "src/__support/CPP/bit.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
+#include "src/__support/FPUtil/float128.h"
 #include "src/__support/FPUtil/rounding_mode.h"
 #include "src/__support/common.h"
 #include "src/__support/macros/optimization.h"
@@ -57,6 +54,8 @@
 
 namespace LIBC_NAMESPACE_DECL {
 namespace math {
+
+using LIBC_NAMESPACE::fputil::Float128;
 
 namespace sqrtf128_internal {
 
@@ -280,9 +279,9 @@ LIBC_INLINE constexpr uint64_t rsqrt_approx(uint64_t m) {
 
 } // namespace sqrtf128_internal
 
-LIBC_INLINE float128 sqrtf128(float128 x) {
+LIBC_INLINE Float128 sqrtf128(Float128 x) {
   using namespace sqrtf128_internal;
-  using FPBits = fputil::FPBits<float128>;
+  using FPBits = fputil::FPBits<Float128>;
   // Get rounding mode.
   uint32_t rm = fputil::get_round();
 
@@ -441,12 +440,10 @@ LIBC_INLINE float128 sqrtf128(float128 x) {
   // if(frac) fputil::raise_except_if_required(FE_INEXACT);
 
   v += static_cast<UInt128>(e2) << FPBits::FRACTION_LEN; // place exponent
-  return cpp::bit_cast<float128>(v);
+  return cpp::bit_cast<Float128>(v);
 }
 
 } // namespace math
 } // namespace LIBC_NAMESPACE_DECL
-
-#endif // LIBC_TYPES_HAS_FLOAT128
 
 #endif // LLVM_LIBC_SRC___SUPPORT_MATH_SQRTF128_H

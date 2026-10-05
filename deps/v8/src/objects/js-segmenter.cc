@@ -98,9 +98,9 @@ MaybeDirectHandle<JSSegmenter> JSSegmenter::New(
   DCHECK(U_SUCCESS(status));
   DCHECK_NOT_NULL(icu_break_iterator.get());
 
-  DirectHandle<Managed<icu::BreakIterator>> managed_break_iterator =
-      Managed<icu::BreakIterator>::From(isolate, 0,
-                                        std::move(icu_break_iterator));
+  DirectHandle<CppGCManaged<icu::BreakIterator>> managed_break_iterator =
+      CppGCManaged<icu::BreakIterator>::Create(isolate, 0,
+                                               std::move(icu_break_iterator));
 
   // Now all properties are ready, so we can allocate the result object.
   DirectHandle<JSSegmenter> segmenter =

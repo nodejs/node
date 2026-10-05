@@ -22,6 +22,16 @@ class MoveOptimizerTest : public InstructionSequenceTest {
 
   Instruction* LastInstruction() { return sequence()->instructions().back(); }
 
+  // Unlike Const(), which encodes the virtual register only, this registers
+  // an actual constant value for it, as required by paths that inspect the
+  // value (such as the one-instruction-constant heuristic on arm64). Unlike
+  // InstructionSequenceTest::DefineConstant(), it emits no instruction.
+  TestOperand ConstWithValue(int32_t value) {
+    int virtual_register = sequence()->NextVirtualRegister();
+    sequence()->AddConstant(virtual_register, Constant(value));
+    return Const(virtual_register);
+  }
+
   void AddMove(Instruction* instr, TestOperand from, TestOperand to,
                Instruction::GapPosition pos = Instruction::START) {
     auto parallel_move = instr->GetOrCreateParallelMove(pos, zone());
@@ -139,6 +149,56 @@ TEST_F(MoveOptimizerTest, SplitsConstants) {
   CHECK(Contains(move, Reg(0), Slot(0)));
   CHECK(Contains(move, Reg(0), Slot(1)));
   CHECK(Contains(move, Reg(0), Slot(2)));
+}
+
+TEST_F(MoveOptimizerTest, KeepsCheapConstantsIndependent) {
+  StartBlock();
+  EndBlock(Last());
+
+  auto gap = LastInstruction();
+  TestOperand cheap = ConstWithValue(1);
+  AddMove(gap, cheap, Reg(0));
+  AddMove(gap, cheap, Reg(1));
+
+  Optimize();
+
+  auto move = gap->parallel_moves()[0];
+#if V8_TARGET_ARCH_ARM64
+  // A one-instruction constant rematerializes into each register; grouping
+  // would only make the second move depend on the first.
+  CHECK_EQ(2, NonRedundantSize(move));
+  CHECK(Contains(move, cheap, Reg(0)));
+  CHECK(Contains(move, cheap, Reg(1)));
+  auto follow = gap->parallel_moves()[1];
+  CHECK(follow == nullptr || NonRedundantSize(follow) == 0);
+#else
+  CHECK_EQ(1, NonRedundantSize(move));
+  CHECK(Contains(move, cheap, Reg(0)));
+  auto follow = gap->parallel_moves()[1];
+  CHECK_EQ(1, NonRedundantSize(follow));
+  CHECK(Contains(follow, Reg(0), Reg(1)));
+#endif
+}
+
+TEST_F(MoveOptimizerTest, GroupsExpensiveConstants) {
+  StartBlock();
+  EndBlock(Last());
+
+  auto gap = LastInstruction();
+  // 0x12345678 is no single MOVZ/MOVN/ORR-immediate on arm64, so grouping
+  // still pays off: materialize once, then copy.
+  TestOperand expensive = ConstWithValue(0x12345678);
+  AddMove(gap, expensive, Reg(0));
+  AddMove(gap, expensive, Reg(1));
+
+  Optimize();
+
+  auto move = gap->parallel_moves()[0];
+  CHECK_EQ(1, NonRedundantSize(move));
+  CHECK(Contains(move, expensive, Reg(0)));
+  auto follow = gap->parallel_moves()[1];
+  CHECK_EQ(1, NonRedundantSize(follow));
+  CHECK(Contains(follow, Reg(0), Reg(1)));
 }
 
 TEST_F(MoveOptimizerTest, SimpleMerge) {

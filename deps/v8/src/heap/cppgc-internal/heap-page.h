@@ -237,6 +237,10 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   Address PayloadEnd();
   ConstAddress PayloadEnd() const;
 
+  static constexpr size_t PageHeaderSize() {
+    return RoundUp(sizeof(NormalPage), kAllocationGranularity);
+  }
+
   static constexpr size_t PayloadSize();
 
   bool PayloadContains(ConstAddress address) const {

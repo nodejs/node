@@ -18,7 +18,7 @@
 #include "src/objects/internal-index.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/name-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/property-details.h"
 
 namespace v8 {
@@ -220,6 +220,11 @@ DirectHandle<Name> PropertyKey::GetName(Isolate* isolate) {
 DirectHandle<Name> LookupIterator::name() const {
   DCHECK_IMPLIES(holder_.is_null(), !IsElement());
   DCHECK_IMPLIES(!holder_.is_null(), !IsElement(*holder_));
+  return name_;
+}
+
+DirectHandle<Name> LookupIterator::name_for_transition() const {
+  DCHECK_IMPLIES(holder_.is_null(), !IsElement());
   return name_;
 }
 

@@ -27,6 +27,7 @@ class BreakPoint;
 class BreakPointInfo;
 class StackFrameInfo;
 class StackTraceInfo;
+class DebugScriptScopeInfo;
 class BytecodeArray;
 class StructBodyDescriptor;
 
@@ -427,6 +428,31 @@ V8_OBJECT class ErrorStackData : public Struct {
   TaggedMember<UnionOf<FixedArray, JSAny>>
       raw_data_for_call_site_infos_or_formatted_stack_;
   TaggedMember<StackTraceInfo> stack_trace_;
+} V8_OBJECT_END;
+
+// DebugScriptScopeInfo holds the serialized scope tree of a Script for the
+// debugger. It caches lexical scope information (scopes, variables, positions)
+// to avoid reparsing the script on every pause or inspection step.
+//
+// The exact encoding of the data in `numeric_data` is described in
+// src/debug/debug-scope-info.cc.
+V8_OBJECT class DebugScriptScopeInfo : public Struct {
+ public:
+  inline Tagged<ByteArray> numeric_data() const;
+  inline void set_numeric_data(Tagged<ByteArray> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> string_table() const;
+  inline void set_string_table(Tagged<FixedArray> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_VERIFIER(DebugScriptScopeInfo)
+  DECL_PRINTER(DebugScriptScopeInfo)
+
+  using BodyDescriptor = StructBodyDescriptor;
+
+  TaggedMember<ByteArray> numeric_data_;
+  TaggedMember<FixedArray> string_table_;
 } V8_OBJECT_END;
 
 }  // namespace internal

@@ -185,6 +185,15 @@ extern class ScopeInfo extends HeapObject {
   module_variables[flags.scope_type == ScopeType::MODULE_SCOPE ? module_variable_count : 0]:
       ModuleVariable;
 
+  // Maps a module variable's name to its index in module_variables. Only
+  // present when a module scope has enough module variables that a linear
+  // scan in ModuleIndex() would be costly (same threshold as the context
+  // local names hashtable).
+  module_variables_hashtable?
+      [flags.scope_type == ScopeType::MODULE_SCOPE ?
+           kMaxInlinedLocalNamesSize <= Convert<intptr>(module_variable_count) :
+           false]: NameToIndexHashTable;
+
   // EmptyContextExtension-dependent code objects.
   dependent_code?[flags.sloppy_eval_can_extend_vars]: DependentCode;
 

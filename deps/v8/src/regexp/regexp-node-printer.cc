@@ -103,9 +103,6 @@ void NodePrinter<Node>::VisitAction(ActionNode* node) {
       os() << "clear captures " << node->register_from() << " -- "
            << node->register_to();
       break;
-    case ActionNode::MODIFY_FLAGS:
-      os() << "modify flags " << Flags(node->data_.u_modify_flags.flags);
-      break;
     case ActionNode::EATS_AT_LEAST:
       os() << "eats at least " << node->data_.u_eats_at_least.characters;
       break;

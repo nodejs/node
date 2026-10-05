@@ -764,9 +764,9 @@ TEST_F(MacroAssemblerTest, OverflowInstructions) {
       expected_mul_ovf =
           base::bits::SignedMulOverflow32(ii32, jj32, &expected_mul);
 
-      CHECK_EQ(expected_add_ovf, t.overflow_add1 < 0);
-      CHECK_EQ(expected_sub_ovf, t.overflow_sub1 < 0);
-      CHECK_EQ(expected_mul_ovf, t.overflow_mul1 != 0);
+      CHECK_EQ(expected_add_ovf, t.overflow_add1);
+      CHECK_EQ(expected_sub_ovf, t.overflow_sub1);
+      CHECK_EQ(expected_mul_ovf, t.overflow_mul1);
 
       CHECK_EQ(t.overflow_add1, t.overflow_add2);
       CHECK_EQ(t.overflow_sub1, t.overflow_sub2);

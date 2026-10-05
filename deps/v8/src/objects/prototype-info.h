@@ -112,6 +112,8 @@ V8_OBJECT class PrototypeInfo : public Struct {
 // A growing array with an additional API for marking slots "empty". When adding
 // new elements, we reuse the empty slots instead of growing the array.
 class V8_EXPORT_PRIVATE PrototypeUsers : public WeakArrayList {
+  V8_IT_REUSE_PARENT;
+
  public:
   static Handle<WeakArrayList> Add(Isolate* isolate,
                                    Handle<WeakArrayList> array,

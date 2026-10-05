@@ -31,9 +31,8 @@ namespace internal {
 
 ReadOnlyHeap::~ReadOnlyHeap() {
 #if V8_ENABLE_WEBASSEMBLY && V8_STATIC_ROOTS_BOOL
-  if (wasm_null_payload_ != kNullAddress) {
-    trap_handler::UnregisterCoveredMemory(wasm_null_payload_,
-                                          WasmNull::kPayloadSize);
+  if (wasm_null_ != kNullAddress) {
+    trap_handler::UnregisterCoveredMemory(wasm_null_, WasmNull::kSize);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY && V8_STATIC_ROOTS_BOOL
 }
@@ -166,10 +165,9 @@ void ReadOnlyHeap::InitFromIsolate(Isolate* isolate) {
 
 #if V8_ENABLE_WEBASSEMBLY && V8_STATIC_ROOTS_BOOL
   if (trap_handler::IsTrapHandlerEnabled()) {
-    CHECK_EQ(wasm_null_payload_, kNullAddress);
-    wasm_null_payload_ = isolate->factory()->wasm_null()->payload();
-    CHECK(trap_handler::RegisterCoveredMemory(wasm_null_payload_,
-                                              WasmNull::kPayloadSize));
+    CHECK_EQ(wasm_null_, kNullAddress);
+    wasm_null_ = isolate->factory()->wasm_null()->address();
+    CHECK(trap_handler::RegisterCoveredMemory(wasm_null_, WasmNull::kSize));
   }
 #endif  // V8_ENABLE_WEBASSEMBLY && V8_STATIC_ROOTS_BOOL
 
@@ -276,6 +274,12 @@ Tagged<HeapObject> ReadOnlyPageObjectIterator::Next() {
     if (current_addr_ == end) return {};
 
     Tagged<HeapObject> object = HeapObject::FromAddress(current_addr_);
+#if V8_ENABLE_WEBASSEMBLY
+    if (IsWasmNull(object)) {
+      current_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(WasmNull::kSize);
+      return object;
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
     const uint32_t object_size = object->SafeSize().value();
     current_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
 

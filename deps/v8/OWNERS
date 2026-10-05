@@ -2,6 +2,7 @@
 # Disagreement among owners should be escalated to eng reviewers.
 file:ENG_REVIEW_OWNERS
 
+per-file vpython.toml*=file:INFRA_OWNERS
 per-file .*=file:INFRA_OWNERS
 per-file .bazelrc=file:COMMON_OWNERS
 per-file .mailmap=file:COMMON_OWNERS

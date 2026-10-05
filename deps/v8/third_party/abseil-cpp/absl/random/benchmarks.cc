@@ -74,13 +74,13 @@ class PrecompiledSeedSeq {
     static size_t idx = 0;
     for (; begin != end; begin++) {
       *begin = kSeedData[idx++];
-      if (idx >= ABSL_ARRAYSIZE(kSeedData)) {
+      if (idx >= std::size(kSeedData)) {
         idx = 0;
       }
     }
   }
 
-  size_t size() const { return ABSL_ARRAYSIZE(kSeedData); }
+  size_t size() const { return std::size(kSeedData); }
 
   template <typename OutIterator>
   void param(OutIterator out) const {

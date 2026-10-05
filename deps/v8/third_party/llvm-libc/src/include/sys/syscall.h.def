@@ -169,6 +169,10 @@
 #define SYS_clock_getres __NR_clock_getres
 #endif
 
+#ifdef __NR_clock_getres_time64
+#define SYS_clock_getres_time64 __NR_clock_getres_time64
+#endif
+
 #ifdef __NR_clock_gettime
 #define SYS_clock_gettime __NR_clock_gettime
 #endif
@@ -195,6 +199,10 @@
 
 #ifdef __NR_clone2
 #define SYS_clone2 __NR_clone2
+#endif
+
+#ifdef __NR_clone3
+#define SYS_clone3 __NR_clone3
 #endif
 
 #ifdef __NR_close
@@ -2213,8 +2221,16 @@
 #define SYS_timer_gettime __NR_timer_gettime
 #endif
 
+#ifdef __NR_timer_gettime64
+#define SYS_timer_gettime64 __NR_timer_gettime64
+#endif
+
 #ifdef __NR_timer_settime
 #define SYS_timer_settime __NR_timer_settime
+#endif
+
+#ifdef __NR_timer_settime64
+#define SYS_timer_settime64 __NR_timer_settime64
 #endif
 
 #ifdef __NR_timerfd

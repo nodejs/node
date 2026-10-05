@@ -75,7 +75,7 @@ class TestResolver : public CompilationResultResolver {
   bool done_ = false;
   bool failed_ = false;
   std::string error_message_;
-  Managed<NativeModule>::Ptr native_module_;
+  CppGCManaged<NativeModule>::Ptr native_module_;
 };
 
 CompilationResult CompileStreaming(v8_fuzzer::FuzzerSupport* support,

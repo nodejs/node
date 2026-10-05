@@ -177,6 +177,110 @@ TEST(ArrayPrototypeHasElements) {
   global_use_counts = nullptr;
 }
 
+TEST(RegExpMatchAllUseCounters) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+
+  // Normal RegExp matchAll: neither counter is triggered.
+  CompileRun("/a/g[Symbol.matchAll]('a');");
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpCustomSpecies]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatcherFlagsMismatch]);
+
+  // Object without custom species:
+  CompileRun(
+      "const re0 = { flags: 'g', constructor: RegExp };"
+      "RegExp.prototype[Symbol.matchAll].call(re0, 'a');");
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpCustomSpecies]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatcherFlagsMismatch]);
+
+  // Custom species returning a global RegExp:
+  CompileRun(
+      "function CustomSpecies(pattern, flags) { return new RegExp(pattern, "
+      "flags); }"
+      "const re1 = { flags: 'g', constructor: { [Symbol.species]: "
+      "CustomSpecies } };"
+      "RegExp.prototype[Symbol.matchAll].call(re1, 'a');");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpCustomSpecies]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatcherFlagsMismatch]);
+
+  // Custom species returning a non-global RegExp:
+  CompileRun(
+      "function NonGlobalSpecies() { return /(?:)/; }"
+      "const re2 = { flags: 'g', constructor: { [Symbol.species]: "
+      "NonGlobalSpecies } };"
+      "RegExp.prototype[Symbol.matchAll].call(re2, 'a');");
+  CHECK_EQ(2, use_counts[v8::Isolate::kRegExpCustomSpecies]);
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpMatcherFlagsMismatch]);
+
+  // Custom species returning global RegExp with mismatched unicode flag:
+  CompileRun(
+      "function NonUnicodeSpecies() { return /a/g; }"
+      "const re3 = { flags: 'gu', constructor: { [Symbol.species]: "
+      "NonUnicodeSpecies } };"
+      "RegExp.prototype[Symbol.matchAll].call(re3, 'a');");
+  CHECK_EQ(3, use_counts[v8::Isolate::kRegExpCustomSpecies]);
+  CHECK_EQ(2, use_counts[v8::Isolate::kRegExpMatcherFlagsMismatch]);
+
+  // Custom species returning global RegExp when receiver is non-global:
+  CompileRun(
+      "function GlobalSpecies() { return /a/g; }"
+      "const re4 = { flags: '', constructor: { [Symbol.species]: "
+      "GlobalSpecies } };"
+      "RegExp.prototype[Symbol.matchAll].call(re4, 'a');");
+  CHECK_EQ(4, use_counts[v8::Isolate::kRegExpCustomSpecies]);
+  CHECK_EQ(3, use_counts[v8::Isolate::kRegExpMatcherFlagsMismatch]);
+
+  global_use_counts = nullptr;
+}
+
+TEST(RegExpSplitUseCounters) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+
+  // Normal RegExp split: neither counter is triggered.
+  CompileRun("/a/[Symbol.split]('a-a');");
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpCustomSpecies]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatcherFlagsMismatch]);
+
+  // Custom species returning a sticky RegExp:
+  CompileRun(
+      "function CustomSpecies(pattern, flags) { return new RegExp(pattern, "
+      "flags); }"
+      "const re1 = { flags: '', constructor: { [Symbol.species]: "
+      "CustomSpecies } };"
+      "RegExp.prototype[Symbol.split].call(re1, 'a-a');");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpCustomSpecies]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatcherFlagsMismatch]);
+
+  // Custom species returning a non-sticky RegExp:
+  CompileRun(
+      "function NonStickySpecies() { return /a/; }"
+      "const re2 = { flags: '', constructor: { [Symbol.species]: "
+      "NonStickySpecies } };"
+      "RegExp.prototype[Symbol.split].call(re2, 'a-a');");
+  CHECK_EQ(2, use_counts[v8::Isolate::kRegExpCustomSpecies]);
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpMatcherFlagsMismatch]);
+
+  // Custom species returning sticky RegExp with mismatched unicode flag:
+  CompileRun(
+      "function NonUnicodeSplitSpecies() { return /a/y; }"
+      "const re3 = { flags: 'u', constructor: { [Symbol.species]: "
+      "NonUnicodeSplitSpecies } };"
+      "RegExp.prototype[Symbol.split].call(re3, 'a-a');");
+  CHECK_EQ(3, use_counts[v8::Isolate::kRegExpCustomSpecies]);
+  CHECK_EQ(2, use_counts[v8::Isolate::kRegExpMatcherFlagsMismatch]);
+
+  global_use_counts = nullptr;
+}
+
 }  // namespace test_usecounters
 }  // namespace internal
 }  // namespace v8

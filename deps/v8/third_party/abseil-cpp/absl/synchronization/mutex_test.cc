@@ -14,16 +14,13 @@
 
 #include "absl/synchronization/mutex.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
 #include <algorithm>
 #include <atomic>
 #include <cstdlib>
 #include <functional>
 #include <memory>
 #include <mutex>  // NOLINT(build/c++11)
+#include <ostream>
 #include <random>
 #include <shared_mutex>  // NOLINT(build/c++14)
 #include <string>
@@ -32,17 +29,19 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/sysinfo.h"
+#include "absl/base/thread_annotations.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
-#include "absl/memory/memory.h"
 #include "absl/random/random.h"
 #include "absl/synchronization/internal/create_thread_identity.h"
 #include "absl/synchronization/internal/thread_pool.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #ifdef ABSL_HAVE_PTHREAD_GETSCHEDPARAM
 #include <pthread.h>

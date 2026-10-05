@@ -898,7 +898,7 @@ bool ShouldMovePage(NormalPage* p, intptr_t live_bytes, intptr_t wasted_bytes) {
 
 }  // namespace
 
-void MinorMarkSweepCollector::EvacuateExternalPointerReferences(
+void MinorMarkSweepCollector::EvacuateExternalPointerReferencesDuringSweeping(
     MutablePage* p) {
 #ifdef V8_COMPRESS_POINTERS
   using BasicSlotSet = ::heap::base::BasicSlotSet<kTaggedSize>;
@@ -911,7 +911,8 @@ void MinorMarkSweepCollector::EvacuateExternalPointerReferences(
     ExternalPointerHandle handle =
         *reinterpret_cast<ExternalPointerHandle*>(handle_location);
     table.Evacuate(young, old, handle, handle_location,
-                   ExternalPointerTable::EvacuateMarkMode::kClearMark);
+                   ExternalPointerTable::EvacuateMarkMode::kClearMark,
+                   kAnyExternalPointerTagRange);
     return KEEP_SLOT;
   };
   auto slot_count = slots->Iterate<BasicSlotSet::AccessMode::NON_ATOMIC>(
@@ -949,7 +950,7 @@ bool MinorMarkSweepCollector::StartSweepNewSpace() {
     }
 
     if (ShouldMovePage(p, live_bytes_on_page, p->wasted_memory())) {
-      EvacuateExternalPointerReferences(p);
+      EvacuateExternalPointerReferencesDuringSweeping(p);
       // free list categories will be relinked by the sweeper after sweeping is
       // done.
       p->set_will_be_promoted(true);
@@ -1029,7 +1030,7 @@ bool MinorMarkSweepCollector::SweepNewLargeSpace() {
     current->ClearFlagNonExecutable(MemoryChunk::TO_PAGE);
     current->SetFlagNonExecutable(MemoryChunk::FROM_PAGE);
     current->marking_progress_tracker().ResetIfEnabled();
-    EvacuateExternalPointerReferences(current);
+    EvacuateExternalPointerReferencesDuringSweeping(current);
     old_lo_space->PromoteNewLargeObject(current);
     has_promoted_pages = true;
     sweeper()->AddPromotedPage(current);

@@ -171,13 +171,6 @@ class Float64 {
 #endif
         is_hole_nan();
   }
-  bool has_undefined_or_hole_nan_high_bits() const {
-    return
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-        ((get_bits() >> 32) == kUndefinedNanUpper32) ||
-#endif
-        ((get_bits() >> 32) == kHoleNanUpper32);
-  }
 
   bool is_nan() const {
     // Even though {get_scalar()} might set the quiet NaN bit, it's ok here,
@@ -190,6 +183,8 @@ class Float64 {
   bool is_quiet_nan() const {
     return is_nan() && (bit_pattern_ & (uint64_t{1} << 51));
   }
+
+  bool is_signalling_nan() const { return is_nan() && !is_quiet_nan(); }
 
   V8_WARN_UNUSED_RESULT Float64 to_quiet_nan() const {
     DCHECK(is_nan());

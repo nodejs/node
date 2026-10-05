@@ -491,7 +491,8 @@ StoreImpl::~StoreImpl() {
 }
 
 struct ManagedData {
-  static constexpr i::ExternalPointerTag kManagedTag = i::kWasmManagedDataTag;
+  static constexpr i::ManagedTypeId kTypeID =
+      i::ManagedTypeId::kWasmManagedData;
 
   ManagedData(void* info, void (*finalizer)(void*))
       : info(info), finalizer(finalizer) {}
@@ -512,7 +513,7 @@ void StoreImpl::SetHostInfo(i::DirectHandle<i::Object> object, void* info,
   // but all we get from the embedder is a {void*}, so our best estimate
   // is the size of the metadata.
   size_t estimated_size = sizeof(ManagedData);
-  i::DirectHandle<i::Object> wrapper = i::Managed<ManagedData>::From(
+  i::DirectHandle<i::Object> wrapper = i::CppGCManaged<ManagedData>::Create(
       i_isolate(), estimated_size,
       std::make_shared<ManagedData>(info, finalizer));
   int32_t hash = i::Object::GetOrCreateHash(*object, i_isolate()).value();
@@ -526,7 +527,7 @@ void* StoreImpl::GetHostInfo(i::DirectHandle<i::Object> key,
   i::Tagged<i::Object> raw =
       i::Cast<i::EphemeronHashTable>(host_info_map_->table())->Lookup(key);
   if (IsTheHole(raw)) return nullptr;
-  return i::Cast<i::Managed<ManagedData>>(raw)->raw(no_gc)->info;
+  return i::Cast<i::CppGCManaged<ManagedData>>(raw)->raw(no_gc)->info;
 }
 
 template <>
@@ -1270,7 +1271,7 @@ WASM_EXPORT auto Module::make(Store* store_abs, const vec<byte_t>& binary)
 }
 
 WASM_EXPORT auto Module::imports() const -> ownvec<ImportType> {
-  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+  i::CppGCManaged<i::wasm::NativeModule>::Ptr native_module =
       impl(this)->v8_object()->native_module();
   const i::wasm::WasmModule* module = native_module->module();
   const v8::base::Vector<const uint8_t> wire_bytes =
@@ -1291,7 +1292,7 @@ WASM_EXPORT auto Module::imports() const -> ownvec<ImportType> {
 
 ownvec<ExportType> ExportsImpl(
     i::DirectHandle<i::WasmModuleObject> module_obj) {
-  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+  i::CppGCManaged<i::wasm::NativeModule>::Ptr native_module =
       module_obj->native_module();
   const i::wasm::WasmModule* module = native_module->module();
   const v8::base::Vector<const uint8_t> wire_bytes =
@@ -1322,7 +1323,7 @@ WASM_EXPORT auto Module::serialize() const -> vec<byte_t> {
   i::Isolate* isolate = impl(this)->isolate();
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
-  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+  i::CppGCManaged<i::wasm::NativeModule>::Ptr native_module =
       impl(this)->v8_object()->native_module();
   native_module->compilation_state()->TierUpAllFunctions();
   v8::base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
@@ -1506,7 +1507,7 @@ WASM_EXPORT void Func::destroy() { delete impl(this); }
 WASM_EXPORT auto Func::copy() const -> own<Func> { return impl(this)->copy(); }
 
 struct FuncData {
-  static constexpr i::ExternalPointerTag kManagedTag = i::kWasmFuncDataTag;
+  static constexpr i::ManagedTypeId kTypeID = i::ManagedTypeId::kWasmFuncData;
 
   Store* store;
   own<FuncType> type;
@@ -1600,8 +1601,8 @@ auto make_func(Store* store_abs, std::shared_ptr<FuncData> data) -> own<Func> {
   v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
   CheckAndHandleInterrupts(isolate);
-  i::DirectHandle<i::Managed<FuncData>> embedder_data =
-      i::Managed<FuncData>::From(isolate, sizeof(FuncData), data);
+  i::DirectHandle<i::CppGCManaged<FuncData>> embedder_data =
+      i::CppGCManaged<FuncData>::Create(isolate, sizeof(FuncData), data);
   i::wasm::CanonicalTypeIndex sig_index =
       SignatureHelper::Canonicalize(data->type.get());
   const i::wasm::CanonicalSig* sig =
@@ -1795,8 +1796,8 @@ void PopArgs(const i::wasm::CanonicalSig* sig, vec<Val>& results,
 
 own<Trap> CallWasmCapiFunction(i::Tagged<i::WasmCapiFunctionData> data,
                                const vec<Val>& args, vec<Val>& results) {
-  i::Managed<FuncData>::Ptr func_data =
-      i::Cast<i::Managed<FuncData>>(data->embedder_data())->ptr();
+  i::CppGCManaged<FuncData>::Ptr func_data =
+      i::Cast<i::CppGCManaged<FuncData>>(data->embedder_data())->ptr();
   if (func_data->kind == FuncData::kCallback) {
     return (func_data->callback)(args, results);
   }
@@ -1910,8 +1911,9 @@ WASM_EXPORT auto Func::call(const vec<Val>& args, vec<Val>& results) const
 
 i::Address FuncData::v8_callback(i::Address host_data_foreign,
                                  i::Address argv) {
-  i::Managed<FuncData>::Ptr self =
-      i::Cast<i::Managed<FuncData>>(i::Tagged<i::Object>(host_data_foreign))
+  i::CppGCManaged<FuncData>::Ptr self =
+      i::Cast<i::CppGCManaged<FuncData>>(
+          i::Tagged<i::Object>(host_data_foreign))
           ->ptr();
   StoreImpl* store = impl(self->store);
   i::Isolate* isolate = store->i_isolate();
@@ -2070,13 +2072,12 @@ WASM_EXPORT auto Global::get() const -> Val {
       StoreImpl* store = impl(this)->store();
       i::HandleScope scope(store->i_isolate());
       i::DirectHandle<i::Object> result = v8_global->GetRef();
-      if (IsWasmFuncRef(*result)) {
+      if (IsWasmNull(*result)) {
+        result = i::Isolate::Current()->factory()->null_value();
+      } else if (IsWasmFuncRef(*result)) {
         result = i::WasmInternalFunction::GetOrCreateExternal(i::direct_handle(
             i::Cast<i::WasmFuncRef>(*result)->internal(store->i_isolate()),
             store->i_isolate()));
-      }
-      if (IsWasmNull(*result)) {
-        result = i::Isolate::Current()->factory()->null_value();
       }
       return Val(V8RefValueToWasm(store, result));
     }
@@ -2222,12 +2223,11 @@ WASM_EXPORT auto Table::get(size_t index) const -> own<Ref> {
   i::HandleScope handle_scope(isolate);
   i::DirectHandle<i::Object> result =
       i::WasmTableObject::Get(isolate, table, static_cast<uint32_t>(index));
-  if (IsWasmFuncRef(*result)) {
-    result = i::WasmInternalFunction::GetOrCreateExternal(i::direct_handle(
-        i::Cast<i::WasmFuncRef>(*result)->internal(isolate), isolate));
-  }
   if (IsWasmNull(*result)) {
     result = isolate->factory()->null_value();
+  } else if (IsWasmFuncRef(*result)) {
+    result = i::WasmInternalFunction::GetOrCreateExternal(i::direct_handle(
+        i::Cast<i::WasmFuncRef>(*result)->internal(isolate), isolate));
   }
   DCHECK(IsNull(*result) || IsJSReceiver(*result));
   return V8RefValueToWasm(impl(this)->store(), result);

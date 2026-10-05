@@ -47,83 +47,85 @@ class MaybeObjectSize final {
 
 // Visitation in here will refer to BodyDescriptors with the regular instance
 // size.
-#define TYPED_VISITOR_ID_LIST(V)      \
-  V(AccessorInfo)                     \
-  V(AllocationSite)                   \
-  V(BigInt)                           \
-  V(BytecodeWrapper)                  \
-  V(CallSiteInfo)                     \
-  V(Cell)                             \
-  V(CodeWrapper)                      \
-  V(ConsString)                       \
-  V(Context)                          \
-  V(ContextCell)                      \
-  V(CoverageInfo)                     \
-  V(DataHandler)                      \
-  V(DescriptorArray)                  \
-  V(DoubleStringCache)                \
-  V(EmbedderDataArray)                \
-  V(EphemeronHashTable)               \
-  V(ExternalString)                   \
-  V(FeedbackCell)                     \
-  V(FeedbackMetadata)                 \
-  V(FeedbackVector)                   \
-  V(Foreign)                          \
-  V(FunctionTemplateInfo)             \
-  V(HeapNumber)                       \
-  V(HashSeedWrapper)                  \
-  V(InterceptorInfo)                  \
-  V(Hole)                             \
-  V(Map)                              \
-  V(MegaDomHandler)                   \
-  V(NativeContext)                    \
-  V(Oddball)                          \
-  V(OnHeapBasicBlockProfilerData)     \
-  V(PreparseData)                     \
-  V(PropertyArray)                    \
-  V(PropertyCell)                     \
-  V(JSProxy)                          \
-  V(PrototypeInfo)                    \
-  V(PrototypeSharedClosureInfo)       \
-  V(RegExpBoilerplateDescription)     \
-  V(RegExpDataWrapper)                \
-  V(ScopeInfo)                        \
-  V(SeqOneByteString)                 \
-  V(SeqTwoByteString)                 \
-  V(SharedFunctionInfo)               \
-  V(SlicedString)                     \
-  V(SmallOrderedHashMap)              \
-  V(SmallOrderedHashSet)              \
-  V(SmallOrderedNameDictionary)       \
-  V(SortState)                        \
-  V(SourceTextModule)                 \
-  V(SwissNameDictionary)              \
-  V(Symbol)                           \
-  V(SyntheticModule)                  \
-  V(ThinString)                       \
-  V(TransitionArray)                  \
-  V(WeakCell)                         \
-  IF_WASM(V, WasmArray)               \
-  IF_WASM(V, WasmFastApiCallData)     \
-  IF_WASM(V, WasmFuncRef)             \
-  IF_WASM(V, WasmNull)                \
-  IF_WASM(V, WasmResumeData)          \
-  IF_WASM(V, WasmStringViewIter)      \
-  IF_WASM(V, WasmStruct)              \
-  IF_WASM(V, WasmContinuationObject)  \
-  IF_WASM(V, WasmStackObject)         \
-  IF_WASM(V, WasmTypeInfo)            \
-  V(TurbofanBitsetType)               \
-  V(TurbofanHeapConstantType)         \
-  V(TurbofanOtherNumberConstantType)  \
-  V(TurbofanRangeType)                \
-  V(TurbofanUnionType)                \
-  V(TurboshaftFloat64RangeType)       \
-  V(TurboshaftFloat64SetType)         \
-  V(TurboshaftWord32RangeType)        \
-  V(TurboshaftWord32SetType)          \
-  V(TurboshaftWord64RangeType)        \
-  V(TurboshaftWord64SetType)          \
+#define TYPED_VISITOR_ID_LIST(V) /*                           force 80 cols */ \
+  V(AccessorInfo)                                                              \
+  V(AllocationSite)                                                            \
+  V(BigInt)                                                                    \
+  V(BytecodeWrapper)                                                           \
+  V(CallSiteInfo)                                                              \
+  V(Cell)                                                                      \
+  V(CodeWrapper)                                                               \
+  V(ConsString)                                                                \
+  V(Context)                                                                   \
+  V(ContextCell)                                                               \
+  V(CoverageInfo)                                                              \
+  V(CppGCManagedBase)                                                          \
+  V(DataHandler)                                                               \
+  V(DescriptorArray)                                                           \
+  V(DoubleStringCache)                                                         \
+  V(EmbedderDataArray)                                                         \
+  V(EphemeronHashTable)                                                        \
+  V(ExternalString)                                                            \
+  V(FeedbackCell)                                                              \
+  V(FeedbackMetadata)                                                          \
+  V(FeedbackVector)                                                            \
+  V(Foreign)                                                                   \
+  V(FunctionTemplateInfo)                                                      \
+  V(HeapNumber)                                                                \
+  V(HashSeedWrapper)                                                           \
+  V(InterceptorInfo)                                                           \
+  V(Hole)                                                                      \
+  V(Map)                                                                       \
+  V(MegaDomHandler)                                                            \
+  V(NativeContext)                                                             \
+  V(Oddball)                                                                   \
+  V(OnHeapBasicBlockProfilerData)                                              \
+  V(PreparseData)                                                              \
+  V(PropertyArray)                                                             \
+  V(PropertyCell)                                                              \
+  V(JSProxy)                                                                   \
+  V(PrototypeInfo)                                                             \
+  V(PrototypeSharedClosureInfo)                                                \
+  V(RegExpBoilerplateDescription)                                              \
+  V(RegExpDataWrapper)                                                         \
+  V(ScopeInfo)                                                                 \
+  V(SeqOneByteString)                                                          \
+  V(SeqTwoByteString)                                                          \
+  V(SharedFunctionInfo)                                                        \
+  V(SlicedString)                                                              \
+  V(SmallOrderedHashMap)                                                       \
+  V(SmallOrderedHashSet)                                                       \
+  V(SmallOrderedNameDictionary)                                                \
+  V(SortState)                                                                 \
+  V(SourceTextModule)                                                          \
+  V(SwissNameDictionary)                                                       \
+  V(Symbol)                                                                    \
+  V(SyntheticModule)                                                           \
+  V(ThinString)                                                                \
+  V(TransitionArray)                                                           \
+  V(WeakCell)                                                                  \
+  IF_WASM(V, WasmArray)                                                        \
+  IF_WASM(V, WasmCustomMap)                                                    \
+  IF_WASM(V, WasmFastApiCallData)                                              \
+  IF_WASM(V, WasmFuncRef)                                                      \
+  IF_WASM(V, WasmNull)                                                         \
+  IF_WASM(V, WasmResumeData)                                                   \
+  IF_WASM(V, WasmStringViewIter)                                               \
+  IF_WASM(V, WasmStruct)                                                       \
+  IF_WASM(V, WasmContinuationObject)                                           \
+  IF_WASM(V, WasmStackObject)                                                  \
+  IF_WASM(V, WasmTypeInfo)                                                     \
+  V(TurbofanBitsetType)                                                        \
+  V(TurbofanHeapConstantType)                                                  \
+  V(TurbofanOtherNumberConstantType)                                           \
+  V(TurbofanRangeType)                                                         \
+  V(TurbofanUnionType)                                                         \
+  V(TurboshaftFloat64RangeType)                                                \
+  V(TurboshaftFloat64SetType)                                                  \
+  V(TurboshaftWord32RangeType)                                                 \
+  V(TurboshaftWord32SetType)                                                   \
+  V(TurboshaftWord64RangeType)                                                 \
+  V(TurboshaftWord64SetType)                                                   \
   SIMPLE_HEAP_OBJECT_LIST1(V)
 
 // Visitation in here will refer to BodyDescriptors with the used size of the

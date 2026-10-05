@@ -42,28 +42,14 @@ bool IsHardenedSlow() {
   return hardened;
 }
 
-class HardeningTest : public testing::Test {
- public:
-  ~HardeningTest() override {
-    absl::base_internal::SetAbslHardeningEnabled(true);
-  }
-};
-
-class HardeningDeathTest : public testing::Test {
- public:
-  ~HardeningDeathTest() override {
-    absl::base_internal::SetAbslHardeningEnabled(true);
-  }
-};
-
-TEST_F(HardeningTest, HardeningAssertSlow) {
+TEST(HardeningTest, HardeningAssertSlow) {
   absl::base_internal::HardeningAssertSlow(true);
   if (!IsHardenedSlow()) {
     absl::base_internal::HardeningAssertSlow(false);
   }
 }
 
-TEST_F(HardeningDeathTest, HardeningAssertSlow) {
+TEST(HardeningDeathTest, HardeningAssertSlow) {
 #if GTEST_HAS_DEATH_TEST
   if (IsHardenedSlow()) {
     // The underlying mechanism of termination varies, and may include SIGILL
@@ -73,114 +59,107 @@ TEST_F(HardeningDeathTest, HardeningAssertSlow) {
 #endif
 }
 
-TEST_F(HardeningTest, HardeningAssertGT) {
+TEST(HardeningTest, HardeningAssertGT) {
   absl::base_internal::HardeningAssertGT(1, 0);
 }
 
-TEST_F(HardeningDeathTest, HardeningAssertGT) {
+TEST(HardeningDeathTest, HardeningAssertGT) {
 #if GTEST_HAS_DEATH_TEST
   if (IsHardened()) {
     // The underlying mechanism of termination varies, and may include SIGILL
     // or SIGABRT.
-    absl::base_internal::SetAbslHardeningEnabled(true);
     EXPECT_DEATH(absl::base_internal::HardeningAssertGT(1, 1), "");
     EXPECT_DEATH(absl::base_internal::HardeningAssertGT(0, 1), "");
   }
 #endif
 }
 
-TEST_F(HardeningTest, HardeningAssertGE) {
+TEST(HardeningTest, HardeningAssertGE) {
   absl::base_internal::HardeningAssertGE(1, 0);
   absl::base_internal::HardeningAssertGE(1, 1);
 }
 
-TEST_F(HardeningDeathTest, HardeningAssertGE) {
+TEST(HardeningDeathTest, HardeningAssertGE) {
 #if GTEST_HAS_DEATH_TEST
   if (IsHardened()) {
     // The underlying mechanism of termination varies, and may include SIGILL
     // or SIGABRT.
-    absl::base_internal::SetAbslHardeningEnabled(true);
     EXPECT_DEATH(absl::base_internal::HardeningAssertGE(0, 1), "");
   }
 #endif
 }
 
-TEST_F(HardeningTest, HardeningAssertLT) {
+TEST(HardeningTest, HardeningAssertLT) {
   absl::base_internal::HardeningAssertLT(0, 1);
 }
 
-TEST_F(HardeningDeathTest, HardeningAssertLT) {
+TEST(HardeningDeathTest, HardeningAssertLT) {
 #if GTEST_HAS_DEATH_TEST
   if (IsHardened()) {
     // The underlying mechanism of termination varies, and may include SIGILL
     // or SIGABRT.
-    absl::base_internal::SetAbslHardeningEnabled(true);
     EXPECT_DEATH(absl::base_internal::HardeningAssertLT(1, 1), "");
     EXPECT_DEATH(absl::base_internal::HardeningAssertLT(1, 0), "");
   }
 #endif
 }
 
-TEST_F(HardeningTest, HardeningAssertLE) {
+TEST(HardeningTest, HardeningAssertLE) {
   absl::base_internal::HardeningAssertLE(0, 1);
   absl::base_internal::HardeningAssertLE(1, 1);
 }
 
-TEST_F(HardeningDeathTest, HardeningAssertLE) {
+TEST(HardeningDeathTest, HardeningAssertLE) {
 #if GTEST_HAS_DEATH_TEST
   if (IsHardened()) {
     // The underlying mechanism of termination varies, and may include SIGILL
     // or SIGABRT.
-    absl::base_internal::SetAbslHardeningEnabled(true);
     EXPECT_DEATH(absl::base_internal::HardeningAssertLE(1, 0), "");
   }
 #endif
 }
 
-TEST_F(HardeningTest, HardeningAssertInBounds) {
+TEST(HardeningTest, HardeningAssertInBounds) {
   absl::base_internal::HardeningAssertInBounds(0, 10);
 }
 
-TEST_F(HardeningDeathTest, HardeningAssertInBounds) {
+TEST(HardeningDeathTest, HardeningAssertInBounds) {
 #if GTEST_HAS_DEATH_TEST
   if (IsHardened()) {
     // The underlying mechanism of termination varies, and may include SIGILL
     // or SIGABRT.
-    absl::base_internal::SetAbslHardeningEnabled(true);
     EXPECT_DEATH(absl::base_internal::HardeningAssertInBounds(10, 10), "");
   }
 #endif
 }
 
-TEST_F(HardeningTest, HardeningAssertNonEmpty) {
+TEST(HardeningTest, HardeningAssertNonEmpty) {
   std::vector<int> v = {1};
   absl::base_internal::HardeningAssertNonEmpty(v);
 }
 
-TEST_F(HardeningDeathTest, HardeningAssertNonEmpty) {
+TEST(HardeningDeathTest, HardeningAssertNonEmpty) {
 #if GTEST_HAS_DEATH_TEST
   if (IsHardened()) {
     // The underlying mechanism of termination varies, and may include SIGILL
     // or SIGABRT.
     std::vector<int> v = {};
-    absl::base_internal::SetAbslHardeningEnabled(true);
     EXPECT_DEATH(absl::base_internal::HardeningAssertNonEmpty(v), "");
   }
 #endif
 }
 
-TEST_F(HardeningTest, HardeningAssertNonNull) {
+TEST(HardeningTest, HardeningAssertNonNull) {
   int x = 1;
   absl::base_internal::HardeningAssertNonNull(&x);
 }
 
-TEST_F(HardeningDeathTest, HardeningAssertNonNull) {
+TEST(HardeningDeathTest, HardeningAssertNonNull) {
 #if GTEST_HAS_DEATH_TEST
   if (IsHardened()) {
     // The underlying mechanism of termination varies, and may include SIGILL
     // or SIGABRT.
     int *x = nullptr;
-    absl::base_internal::SetAbslHardeningEnabled(true);
     EXPECT_DEATH(absl::base_internal::HardeningAssertNonNull(x), "");
   }
 #endif

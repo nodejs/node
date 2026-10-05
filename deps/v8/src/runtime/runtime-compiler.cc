@@ -122,6 +122,38 @@ Builtin GetTypedBuiltinForBinop(int hint, Builtin current_builtin) noexcept {
 #undef TYPED_BINOP_DISPATCH_CASE
 }
 
+Builtin GetTypedBuiltinForUnary(int hint, Builtin current_builtin) noexcept {
+  Builtin target_builtin = Builtin::kNoBuiltinId;
+
+#define TYPED_UNOP_DISPATCH_CASE(hint_value, op_type)                       \
+  case static_cast<int>(BinaryOperationFeedback::TypeIndex::k##hint_value): \
+    target_builtin = Builtin::k##op_type##_##hint_value##_Baseline;         \
+    break;
+
+#define TYPED_UNOP_FAMILY_SWITCH(stub_list, op_type)                 \
+  if (IsTyped##op_type##Builtin(current_builtin)) {                  \
+    switch (hint) {                                                  \
+      stub_list(TYPED_UNOP_DISPATCH_CASE, op_type) default           \
+          : target_builtin = Builtin::k##op_type##_Generic_Baseline; \
+      break;                                                         \
+    }                                                                \
+  } else /* NOLINT */
+
+#define TYPED_UNOP_DISPATCH_LIST(V)   \
+  V(TYPED_UNARY_STUB_LIST, Increment) \
+  V(TYPED_UNARY_STUB_LIST, Decrement) \
+  V(TYPED_NEGATE_STUB_LIST, Negate)   \
+  V(TYPED_UNARY_STUB_LIST, BitwiseNot)
+
+  TYPED_UNOP_DISPATCH_LIST(TYPED_UNOP_FAMILY_SWITCH)
+  /* else */ {}
+
+  return target_builtin;
+#undef TYPED_UNOP_DISPATCH_LIST
+#undef TYPED_UNOP_FAMILY_SWITCH
+#undef TYPED_UNOP_DISPATCH_CASE
+}
+
 V8_INLINE void UpdateEmbeddedFeedback(Tagged<BytecodeArray> bytecode_array,
                                       int feedback_offset,
                                       int current_feedback) {
@@ -164,6 +196,11 @@ V8_INLINE void TryPatchCompareOpBaselineCode(Isolate* isolate,
 V8_INLINE void TryPatchBinaryOpBaselineCode(Isolate* isolate,
                                             int current_feedback) {
   TryPatchBaselineCodeImpl(isolate, current_feedback, GetTypedBuiltinForBinop);
+}
+
+V8_INLINE void TryPatchUnaryOpBaselineCode(Isolate* isolate,
+                                           int current_feedback) {
+  TryPatchBaselineCodeImpl(isolate, current_feedback, GetTypedBuiltinForUnary);
 }
 
 V8_INLINE int UpdateEmbeddedFeedbackAndGetCurrent(RuntimeArguments args) {
@@ -339,7 +376,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeTurbofanEager) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_MarkLazyDeoptimized) {
+RUNTIME_FUNCTION(Runtime_MarkLazyDeoptimizedOrFlushed) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   DirectHandle<JSFunction> function = args.at<JSFunction>(0);
@@ -687,7 +724,6 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
 }
 
 namespace {
-
 Tagged<Object> CompileOptimizedOSRFromMaglev(Isolate* isolate,
                                              DirectHandle<JSFunction> function,
                                              BytecodeOffset osr_offset) {
@@ -729,7 +765,6 @@ Tagged<Object> CompileOptimizedOSRFromMaglev(Isolate* isolate,
   return CompileOptimizedOSR(isolate, function, CodeKind::TURBOFAN_JS,
                              osr_offset);
 }
-
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglev) {
@@ -774,7 +809,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglevInlined) {
 RUNTIME_FUNCTION(Runtime_LogOrTraceOptimizedOSREntry) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(0, args.length());
-  CHECK(v8_flags.trace_osr || v8_flags.log_function_events);
+  CHECK(v8_flags.log_or_trace_osr);
 
   BytecodeOffset osr_offset = BytecodeOffset::None();
   Handle<JSFunction> function;
@@ -898,6 +933,28 @@ RUNTIME_FUNCTION(Runtime_PatchBinopBaselineCodeAndThrow) {
   DirectHandle<Object> exception = args.at<Object>(1);
   TryPatchBinaryOpBaselineCode(isolate,
                                UpdateEmbeddedFeedbackAndGetCurrent(args));
+  return isolate->ReThrow(*exception);
+}
+
+RUNTIME_FUNCTION(Runtime_PatchUnaryOpBaselineCode) {
+  HandleScope scope(isolate);
+  CHECK(v8_flags.sparkplug_plus);
+  DCHECK_EQ(4, args.length());
+
+  DirectHandle<Object> result = args.at<Object>(1);
+  TryPatchUnaryOpBaselineCode(isolate,
+                              UpdateEmbeddedFeedbackAndGetCurrent(args));
+  return *result;
+}
+
+RUNTIME_FUNCTION(Runtime_PatchUnaryOpBaselineCodeAndThrow) {
+  HandleScope scope(isolate);
+  CHECK(v8_flags.sparkplug_plus);
+  DCHECK_EQ(4, args.length());
+
+  DirectHandle<Object> exception = args.at<Object>(1);
+  TryPatchUnaryOpBaselineCode(isolate,
+                              UpdateEmbeddedFeedbackAndGetCurrent(args));
   return isolate->ReThrow(*exception);
 }
 #endif  // V8_ENABLE_SPARKPLUG_PLUS

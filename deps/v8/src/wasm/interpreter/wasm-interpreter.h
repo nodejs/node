@@ -11,6 +11,7 @@
 
 #include <atomic>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
@@ -398,7 +399,12 @@ class V8_EXPORT_PRIVATE WasmInterpreterThreadMap {
   void NotifyIsolateDisposal(Isolate* isolate);
 
  private:
-  typedef absl::flat_hash_map<int, std::unique_ptr<WasmInterpreterThread>>
+  // The map is process-global and shared by all isolates. A single OS thread
+  // can be time-shared by multiple isolates (e.g. an embedder that multiplexes
+  // isolates on one thread via v8::Locker), so entries must be keyed by both
+  // the OS thread id and the isolate.
+  typedef absl::flat_hash_map<std::pair<int, Isolate*>,
+                              std::unique_ptr<WasmInterpreterThread>>
       ThreadInterpreterMap;
   ThreadInterpreterMap map_;
   base::Mutex mutex_;
@@ -606,6 +612,48 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
   };
 
+  // The interpreter dedicates a per-thread stack to Wasm frames, distinct from
+  // the C++ stack. Its memory layout is:
+  //
+  //   stack_mem_ -> +------------------------------+
+  //                 | committed region             |   grows in
+  //                 | ([0, current_stack_size_))   |   kStackSizeIncrement
+  //                 | readable/writable            |   chunks via
+  //                 |                              |   ExpandStack(), up to
+  //                 |                              |   kMaxStackSize.
+  //                 +------------------------------+
+  //                 | reserved-but-uncommitted     |   permanently kNoAccess;
+  //                 | growth region                |   the ExpandStack path
+  //                 | ([current_stack_size_,       |   commits pages out of
+  //                 |   kMaxStackSize))            |   this region on demand.
+  //                 +------------------------------+
+  //                 | guard region                 |   permanently kNoAccess.
+  //                 | ([kMaxStackSize,             |   Defense in depth: see
+  //                 |  kInterpreterStackReservationSize))  the comment on
+  //                 |                              | kInterpreterStackGuardSize
+  //                 |                              |   below.
+  //                 +------------------------------+
+  static constexpr uint32_t kInitialStackSize = 1 * MB;
+  static constexpr uint32_t kStackSizeIncrement = 1 * MB;
+  static constexpr uint32_t kMaxStackSize = 32 * MB;
+
+  // Tail guard region appended to the reservation, kept permanently kNoAccess.
+  //
+  // Defense in depth against bugs where the stack-overflow check undercounts
+  // the callee frame: if such a check ever lets a frame execute when it doesn't
+  // fit in the committed region, the callee's frame writes (args copy, slot
+  // initialization, etc.) progress sequentially from low to high addresses,
+  // so the very first byte that crosses into kNoAccess memory raises an access
+  // violation. The remaining bytes of the would-be write never happen. A single
+  // page is therefore sufficient; we use kStackSizeIncrement for a generous
+  // margin (still essentially free on 64-bit, since the tail is reserved-only
+  // and never committed).
+  static constexpr uint32_t kInterpreterStackGuardSize = kStackSizeIncrement;
+  static constexpr uint32_t kInterpreterStackReservationSize =
+      kMaxStackSize + kInterpreterStackGuardSize;
+  static_assert(kInterpreterStackReservationSize > kMaxStackSize,
+                "Reservation must leave a non-empty guard region.");
+
   explicit WasmInterpreterThread(Isolate* isolate);
   ~WasmInterpreterThread();
 
@@ -779,9 +827,6 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
   // used to access the stack.
   Address fuzzer_entry_frame_pointer_;
 
-  static constexpr uint32_t kInitialStackSize = 1 * MB;
-  static constexpr uint32_t kStackSizeIncrement = 1 * MB;
-  static constexpr uint32_t kMaxStackSize = 32 * MB;
   uint32_t current_stack_size_;
   void* stack_mem_;
 

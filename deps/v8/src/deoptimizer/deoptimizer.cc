@@ -501,7 +501,7 @@ void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT("v8", "V8.DeoptimizeCode");
   function->ResetIfCodeFlushed(isolate);
-  if (code.is_null()) code = function->code(isolate);
+  DCHECK(!code.is_null());
 
   if (CodeKindCanDeoptimize(code->kind())) {
     // Mark the code for deoptimization and unlink any functions that also
@@ -1546,7 +1546,8 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
   // code generator).
   // Note that we explicitly allow deopts to exceed the limit by a certain
   // number of slack bytes.
-  CHECK_GT(
+  // GE and not GT because the runtime stack check allows SP == stack limit.
+  CHECK_GE(
       static_cast<uintptr_t>(caller_frame_top_) - total_output_frame_size,
       stack_guard->real_jslimit() - kStackLimitSlackForDeoptimizationInBytes);
 }
@@ -1939,7 +1940,8 @@ void Deoptimizer::DoComputeOutputFrames() {
   // code generator).
   // Note that we explicitly allow deopts to exceed the limit by a certain
   // number of slack bytes.
-  CHECK_GT(
+  // GE and not GT because the runtime stack check allows SP == stack limit.
+  CHECK_GE(
       static_cast<uintptr_t>(caller_frame_top_) - total_output_frame_size,
       stack_guard->real_jslimit() - kStackLimitSlackForDeoptimizationInBytes);
 }

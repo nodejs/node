@@ -309,9 +309,8 @@ using FormatSpec = str_format_internal::FormatSpecTemplate<
 //     ... error case ...
 //   }
 
-#if defined(__cpp_nontype_template_parameter_auto)
-// If C++17 is available, an 'extended' format is also allowed that can specify
-// multiple conversion characters per format argument, using a combination of
+// An 'extended' format is also allowed that can specify multiple conversion
+// characters per format argument, using a combination of
 // `absl::FormatConversionCharSet` enum values (logically a set union)
 //  via the `|` operator. (Single character-based arguments are still accepted,
 // but cannot be combined). Some common conversions also have predefined enum
@@ -333,11 +332,6 @@ using FormatSpec = str_format_internal::FormatSpecTemplate<
 template <auto... Conv>
 using ParsedFormat = absl::str_format_internal::ExtendedParsedFormat<
     absl::str_format_internal::ToFormatConversionCharSet(Conv)...>;
-#else
-template <char... Conv>
-using ParsedFormat = str_format_internal::ExtendedParsedFormat<
-    absl::str_format_internal::ToFormatConversionCharSet(Conv)...>;
-#endif  // defined(__cpp_nontype_template_parameter_auto)
 
 // StrFormat()
 //

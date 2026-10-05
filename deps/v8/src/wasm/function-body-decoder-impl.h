@@ -1566,6 +1566,7 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
   F(AtomicOp, WasmOpcode opcode, const Value args[], const size_t argc,        \
     const MemoryAccessImmediate& imm, Value* result)                           \
   F(AtomicFence, const MemoryOrderImmediate& imm)                              \
+  F(Publish, const Value& value)                                               \
   F(Pause)                                                                     \
   F(MemoryInit, const MemoryInitImmediate& imm, const Value& dst,              \
     const Value& src, const Value& size)                                       \
@@ -2816,6 +2817,7 @@ class WasmDecoder : public Decoder {
             (ios.MemoryOrder(memory_order), ...);
             return length + memory_order.length;
           }
+          case kExprPublish:
           case kExprPause:
           case kExprWaitqueueNew:
           case kExprWaitqueueNotify:
@@ -5811,6 +5813,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     switch (opcode) {
       case kExprStructNew:
       case kExprStructNewDesc: {
+        this->detected_->add_gc_allocation();
         StructIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         Value descriptor =
@@ -5824,6 +5827,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       case kExprStructNewDefault:
       case kExprStructNewDefaultDesc: {
+        this->detected_->add_gc_allocation();
         StructIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         if (ValidationTag::validate) {
@@ -5907,6 +5911,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length + field.length;
       }
       case kExprArrayNew: {
+        this->detected_->add_gc_allocation();
         ArrayIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         auto [initial_value, length] =
@@ -5918,6 +5923,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length + imm.length;
       }
       case kExprArrayNewDefault: {
+        this->detected_->add_gc_allocation();
         ArrayIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         if (!VALIDATE(imm.array_type->element_type().is_defaultable())) {
@@ -5936,6 +5942,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprArrayNewData: {
         // TODO(14616): Add check that array sharedness == segment sharedness?
         NON_CONST_ONLY
+        this->detected_->add_gc_allocation();
         ArrayIndexImmediate array_imm(this, this->pc_ + opcode_length,
                                       validate);
         if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
@@ -5964,6 +5971,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprArrayNewElem: {
         // TODO(14616): Add check that array sharedness == segment sharedness?
         NON_CONST_ONLY
+        this->detected_->add_gc_allocation();
         ArrayIndexImmediate array_imm(this, this->pc_ + opcode_length,
                                       validate);
         if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
@@ -6196,6 +6204,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length + array_imm.length;
       }
       case kExprArrayNewFixed: {
+        this->detected_->add_gc_allocation();
         ArrayIndexImmediate array_imm(this, this->pc_ + opcode_length,
                                       validate);
         if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
@@ -7441,6 +7450,27 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         CHECK_PROTOTYPE_OPCODE(shared);
         Value* result = Push(kWasmWaitqueueRef.AsNonNull());
         CALL_INTERFACE_IF_OK_AND_REACHABLE(WaitqueueNew, result);
+        return opcode_length;
+      }
+      case kExprPublish: {
+        CHECK_PROTOTYPE_OPCODE(shared);
+        NON_CONST_ONLY
+        Value value = Peek();
+        if (!VALIDATE(value.type.is_ref() || value.type == kWasmBottom)) {
+          PopTypeError(0, value, "reference type");
+          return 0;
+        }
+        // No-op for unshared types.
+        if (!value.type.is_shared()) {
+          return opcode_length;
+        }
+        // No-op for references to anything that cannot be a struct or array.
+        RefTypeKind kind = value.type.ref_type_kind();
+        if (kind == RefTypeKind::kStruct || kind == RefTypeKind::kArray ||
+            value.type.is_reference_to(GenericKind::kEq) ||
+            value.type.is_reference_to(GenericKind::kAny)) {
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(Publish, value);
+        }
         return opcode_length;
       }
       case kExprArrayAtomicGet: {

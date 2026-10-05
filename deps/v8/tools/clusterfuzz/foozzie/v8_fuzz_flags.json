@@ -1,6 +1,6 @@
 [
   [0.05, "--always-osr"],
-  [0.05, "--always-osr-from-maglev"],
+  [0.05, "--osr-from-maglev=4"],
   [0.05, "--always-sparkplug"],
   [0.05, "--stress-compaction-random"],
   [0.05, "--stress-delay-tasks"],
@@ -42,7 +42,9 @@
   [0.2, "--optimize-maglev-optimizes-to-turbofan"],
   [0.5, "--optimize-on-next-call-optimizes-to-maglev"],
   [0.5, "--maglev-untagged-phis"],
+  [0.1, "--disable-loop-stack-checks"],
   [0.1, "--no-maglev-loop-peeling"],
+  [0.1, "--maglev-disable-builtin-reducers"],
   [0.0001, "--simulate-errors"],
   [0.1, "--minor-ms"],
   [0.1, "--shared-string-table"],

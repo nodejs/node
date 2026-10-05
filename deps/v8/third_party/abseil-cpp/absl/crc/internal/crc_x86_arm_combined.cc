@@ -40,7 +40,9 @@ namespace crc_internal {
 
 using ::absl::base_internal::CpuType;
 using ::absl::base_internal::GetCpuType;
+#if defined(__aarch64__)
 using ::absl::base_internal::SupportsArmCRC32PMULL;
+#endif
 
 #if defined(ABSL_INTERNAL_CAN_USE_SIMD_CRC32C)
 
@@ -214,11 +216,11 @@ constexpr uint64_t kClmulConstants[] = {
     0x19fb2a8b0, 0x02178513a, 0x1a0f717c4, 0x0170076fa,
 };
 
-enum class CutoffStrategy {
-  // Use 3 CRC streams to fold into 1.
-  Fold3,
-  // Unroll CRC instructions for 64 bytes.
-  Unroll64CRC,
+enum class PclmulStreamType {
+  PCLMUL,
+  VPCLMUL,
+  NEON_PCLMUL,
+  NEON_PCLMUL_EOR3,
 };
 
 // Base class for CRC32AcceleratedX86ARMCombinedMultipleStreams containing the
@@ -234,6 +236,85 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreamsBase
   // Computation for Generic Polynomials Using PCLMULQDQ Instruction"
   // https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-crc-computation-generic-polynomials-pclmulqdq-paper.pdf
   // We are applying it to CRC32C polynomial.
+#if defined(ABSL_CRC_INTERNAL_HAVE_ARM_SIMD)
+  template <bool kUseEor3 = false>
+  ABSL_ATTRIBUTE_ALWAYS_INLINE void Process64BytesNeonPclmul(
+      const uint8_t* p, V128* partialCRC) const {
+    V128 loopMultiplicands =
+        V128_Load(reinterpret_cast<const V128*>(kFoldAcross512Bits));
+
+    V128 partialCRC1 = partialCRC[0];
+    V128 partialCRC2 = partialCRC[1];
+    V128 partialCRC3 = partialCRC[2];
+    V128 partialCRC4 = partialCRC[3];
+
+    V128 tmp1 = V128_PMulHi(partialCRC1, loopMultiplicands);
+    V128 tmp2 = V128_PMulHi(partialCRC2, loopMultiplicands);
+    V128 tmp3 = V128_PMulHi(partialCRC3, loopMultiplicands);
+    V128 tmp4 = V128_PMulHi(partialCRC4, loopMultiplicands);
+    V128 data1 = V128_LoadU(reinterpret_cast<const V128*>(p + 16 * 0));
+    V128 data2 = V128_LoadU(reinterpret_cast<const V128*>(p + 16 * 1));
+    V128 data3 = V128_LoadU(reinterpret_cast<const V128*>(p + 16 * 2));
+    V128 data4 = V128_LoadU(reinterpret_cast<const V128*>(p + 16 * 3));
+    partialCRC1 = V128_PMulLow(partialCRC1, loopMultiplicands);
+    partialCRC2 = V128_PMulLow(partialCRC2, loopMultiplicands);
+    partialCRC3 = V128_PMulLow(partialCRC3, loopMultiplicands);
+    partialCRC4 = V128_PMulLow(partialCRC4, loopMultiplicands);
+    partialCRC1 = V128_Xor3<kUseEor3>(tmp1, partialCRC1, data1);
+    partialCRC2 = V128_Xor3<kUseEor3>(tmp2, partialCRC2, data2);
+    partialCRC3 = V128_Xor3<kUseEor3>(tmp3, partialCRC3, data3);
+    partialCRC4 = V128_Xor3<kUseEor3>(tmp4, partialCRC4, data4);
+    partialCRC[0] = partialCRC1;
+    partialCRC[1] = partialCRC2;
+    partialCRC[2] = partialCRC3;
+    partialCRC[3] = partialCRC4;
+  }
+
+  // Reduce partialCRC produced by Process64BytesNeonPclmul into a single value,
+  // that represents crc checksum of all the processed bytes.
+  template <bool kUseEor3 = false>
+  ABSL_ATTRIBUTE_ALWAYS_INLINE uint64_t
+  FinalizeNeonPclmulStream(V128* partialCRC) const {
+    V128 partialCRC1 = partialCRC[0];
+    V128 partialCRC2 = partialCRC[1];
+    V128 partialCRC3 = partialCRC[2];
+    V128 partialCRC4 = partialCRC[3];
+
+    // Combine 4 vectors of partial crc into a single vector.
+    V128 reductionMultiplicands =
+        V128_Load(reinterpret_cast<const V128*>(kFoldAcross256Bits));
+
+    V128 low = V128_PMulLow(reductionMultiplicands, partialCRC1);
+    V128 high = V128_PMulHi(reductionMultiplicands, partialCRC1);
+
+    partialCRC1 = V128_Xor3<kUseEor3>(low, high, partialCRC3);
+
+    low = V128_PMulLow(reductionMultiplicands, partialCRC2);
+    high = V128_PMulHi(reductionMultiplicands, partialCRC2);
+
+    partialCRC2 = V128_Xor3<kUseEor3>(low, high, partialCRC4);
+
+    reductionMultiplicands =
+        V128_Load(reinterpret_cast<const V128*>(kFoldAcross128Bits));
+
+    low = V128_PMulLow(reductionMultiplicands, partialCRC1);
+    high = V128_PMulHi(reductionMultiplicands, partialCRC1);
+    V128 fullCRC = V128_Xor3<kUseEor3>(low, high, partialCRC2);
+
+    // Reduce fullCRC into scalar value.
+    uint32_t crc = 0;
+    crc = CRC32_u64(crc, V128_Extract64<0>(fullCRC));
+    crc = CRC32_u64(crc, V128_Extract64<1>(fullCRC));
+    return crc;
+  }
+
+  ABSL_ATTRIBUTE_ALWAYS_INLINE void Process64BytesPclmul(const uint8_t*,
+                                                         V128*) const {}
+
+  ABSL_ATTRIBUTE_ALWAYS_INLINE uint64_t FinalizePclmulStream(V128*) const {
+    return 0;
+  }
+#else
   ABSL_ATTRIBUTE_ALWAYS_INLINE void Process64BytesPclmul(
       const uint8_t* p, V128* partialCRC) const {
     V128 loopMultiplicands =
@@ -310,6 +391,16 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreamsBase
     return crc;
   }
 
+  template <bool kUseEor3 = false>
+  ABSL_ATTRIBUTE_ALWAYS_INLINE void Process64BytesNeonPclmul(const uint8_t*,
+                                                             V128*) const {}
+
+  template <bool kUseEor3 = false>
+  ABSL_ATTRIBUTE_ALWAYS_INLINE uint64_t FinalizeNeonPclmulStream(V128*) const {
+    return 0;
+  }
+#endif
+
   // Update crc with 64 bytes of data from p.
   ABSL_ATTRIBUTE_ALWAYS_INLINE uint64_t Process64BytesCRC(const uint8_t* p,
                                                           uint64_t crc) const {
@@ -361,7 +452,8 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreamsBase
     crc[2] = crc2;
   }
 
-#if defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD) && defined(__AVX__)
+#if defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD) && defined(__AVX__) && \
+    (!defined(_MSC_VER) || defined(__clang__))
   // This is only used if we have vector version of PCLMULQDQ.
   // We don't have it on arm, and it isn't supported by default
   // compiler targets on x86. If we want to use it, we need to either use
@@ -424,7 +516,8 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreamsBase
   ABSL_ATTRIBUTE_ALWAYS_INLINE uint64_t FinalizeVpclmulStream(V256*) const {
     return 0;
   }
-#endif  // defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD) && defined(__AVX__)
+#endif  // defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD) && defined(__AVX__) &&
+        // (!defined(_MSC_VER) || defined(__clang__))
 
   // Constants generated by './scripts/gen-crc-consts.py x86_pclmul
   // crc32_lsb_0x82f63b78' from the Linux kernel.
@@ -455,7 +548,7 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreamsBase
 };
 
 template <size_t num_crc_streams, size_t num_pclmul_streams,
-          size_t num_vpclmul_streams, CutoffStrategy strategy>
+          PclmulStreamType pclmul_stream_type>
 class CRC32AcceleratedX86ARMCombinedMultipleStreams
     : public CRC32AcceleratedX86ARMCombinedMultipleStreamsBase {
   ABSL_ATTRIBUTE_HOT
@@ -465,9 +558,6 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
                   "Invalid number of crc streams");
     static_assert(num_pclmul_streams >= 0 && num_pclmul_streams <= kMaxStreams,
                   "Invalid number of pclmul streams");
-    static_assert(
-        num_vpclmul_streams >= 0 && num_vpclmul_streams <= kMaxStreams,
-        "Invalid number of vpclmul streams");
     const uint8_t* p = static_cast<const uint8_t*>(bytes);
     const uint8_t* e = p + length;
     uint32_t l = *crc;
@@ -475,15 +565,15 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
 
     // For small blocks just run simple loop, because cost of combining multiple
     // streams is significant.
-    if (strategy != CutoffStrategy::Unroll64CRC && (length < kSmallCutoff)) {
+    if (num_crc_streams > 1 && (length < kSmallCutoff)) {
       // fallthrough; Use the same strategy as we do for processing the
       // remaining bytes after any other strategy.
-    }  else if (length < kMediumCutoff) {
+    } else if (length < kMediumCutoff) {
       // For medium blocks we run 3 crc streams and combine them as described in
       // Intel paper above. Running 4th stream doesn't help, because crc
       // instruction has latency 3 and throughput 1.
       l64 = l;
-      if (strategy == CutoffStrategy::Fold3) {
+      if (num_crc_streams > 1) {
         uint64_t l641 = 0;
         uint64_t l642 = 0;
         const size_t blockSize = 32;
@@ -524,7 +614,7 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
         l64 = CRC32_u64(static_cast<uint32_t>(l642), l64);
 
         p = p2 + 8;
-      } else if (strategy == CutoffStrategy::Unroll64CRC) {
+      } else {
         while ((e - p) >= 64) {
           l64 = Process64BytesCRC(p, l64);
           p += 64;
@@ -546,8 +636,7 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
       }
 
       size_t bs = static_cast<size_t>(e - p) /
-                  (num_crc_streams + num_pclmul_streams + num_vpclmul_streams) /
-                  64;
+                  (num_crc_streams + num_pclmul_streams) / 64;
       const uint8_t* stream_start = p;
       const uint8_t* crc_streams[kMaxStreams];
       for (size_t i = 0; i < num_crc_streams; i++) {
@@ -557,11 +646,6 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
       const uint8_t* pclmul_streams[kMaxStreams];
       for (size_t i = 0; i < num_pclmul_streams; i++) {
         pclmul_streams[i] = stream_start;
-        stream_start += bs * 64;
-      }
-      const uint8_t* vpclmul_streams[kMaxStreams];
-      for (size_t i = 0; i < num_vpclmul_streams; i++) {
-        vpclmul_streams[i] = stream_start;
         stream_start += bs * 64;
       }
 
@@ -585,29 +669,10 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
         crc_streams[2] += 16 * 4;
       }
 
-      V128 partialCRC[kMaxStreams][4];
+      // Align to 32 bytes for vpclmul implementation.
+      alignas(32) V128 partialCRC[kMaxStreams][4];
       for (size_t i = 0; i < num_pclmul_streams; i++) {
-        partialCRC[i][0] = V128_LoadU(
-            reinterpret_cast<const V128*>(pclmul_streams[i] + 16 * 0));
-        partialCRC[i][1] = V128_LoadU(
-            reinterpret_cast<const V128*>(pclmul_streams[i] + 16 * 1));
-        partialCRC[i][2] = V128_LoadU(
-            reinterpret_cast<const V128*>(pclmul_streams[i] + 16 * 2));
-        partialCRC[i][3] = V128_LoadU(
-            reinterpret_cast<const V128*>(pclmul_streams[i] + 16 * 3));
-        pclmul_streams[i] += 16 * 4;
-      }
-
-      V256 vpartialCRC[kMaxStreams][2];
-      V256 loopMultiplicands{};
-      loopMultiplicands =
-          V256_Broadcast128(reinterpret_cast<const V128*>(kFoldAcross512Bits));
-      for (size_t i = 0; i < num_vpclmul_streams; i++) {
-        vpartialCRC[i][0] = V256_LoadU(
-            reinterpret_cast<const V256*>(vpclmul_streams[i] + 32 * 0));
-        vpartialCRC[i][1] = V256_LoadU(
-            reinterpret_cast<const V256*>(vpclmul_streams[i] + 32 * 1));
-        vpclmul_streams[i] += 16 * 4;
+        InitPclmulStream(&pclmul_streams[i], partialCRC[i]);
       }
 
       for (size_t i = 1; i < bs; i++) {
@@ -619,10 +684,6 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
         for (size_t j = 0; j < num_pclmul_streams; j++) {
           PrefetchToLocalCache(reinterpret_cast<const char*>(pclmul_streams[j] +
                                                              kPrefetchHorizon));
-        }
-        for (size_t j = 0; j < num_vpclmul_streams; j++) {
-          PrefetchToLocalCache(reinterpret_cast<const char*>(
-              vpclmul_streams[j] + kPrefetchHorizon));
         }
 
         // We process each stream in 64 byte blocks. This can be written as
@@ -650,23 +711,8 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
           crc_streams[1] += 16 * 4;
           crc_streams[2] += 16 * 4;
         }
-        if (num_pclmul_streams > 0) {
-          Process64BytesPclmul(pclmul_streams[0], partialCRC[0]);
-          pclmul_streams[0] += 16 * 4;
-        }
-        if (num_pclmul_streams > 1) {
-          Process64BytesPclmul(pclmul_streams[1], partialCRC[1]);
-          pclmul_streams[1] += 16 * 4;
-        }
-        if (num_pclmul_streams > 2) {
-          Process64BytesPclmul(pclmul_streams[2], partialCRC[2]);
-          pclmul_streams[2] += 16 * 4;
-        }
-
-        if constexpr (num_vpclmul_streams > 0) {
-          Process64BytesVpclmul(vpclmul_streams[0], vpartialCRC[0],
-                                loopMultiplicands);
-          vpclmul_streams[0] += 16 * 4;
+        for (size_t j = 0; j < num_pclmul_streams; j++) {
+          ProcessPclmulStream(&pclmul_streams[j], partialCRC[j]);
         }
       }
 
@@ -674,13 +720,6 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
       // CRC based don't.
       for (size_t i = 0; i < num_pclmul_streams; i++) {
         l64_pclmul[i] = FinalizePclmulStream(partialCRC[i]);
-      }
-
-      uint64_t l64_vpclmul[kMaxStreams] = {0};
-      if constexpr (num_vpclmul_streams > 0) {
-        for (size_t i = 0; i < num_vpclmul_streams; i++) {
-          l64_vpclmul[i] = FinalizeVpclmulStream(vpartialCRC[i]);
-        }
       }
 
       // Combine all streams into single result.
@@ -695,15 +734,9 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
         l64 = MultiplyWithExtraX33(static_cast<uint32_t>(l64), magic);
         l64 ^= l64_pclmul[i];
       }
-      for (size_t i = 0; i < num_vpclmul_streams; i++) {
-        l64 = MultiplyWithExtraX33(static_cast<uint32_t>(l64), magic);
-        l64 ^= l64_vpclmul[i];
-      }
 
       // Update p.
-      if constexpr (num_vpclmul_streams > 0) {
-        p = vpclmul_streams[num_vpclmul_streams - 1];
-      } else if constexpr (num_pclmul_streams > 0) {
+      if constexpr (num_pclmul_streams > 0) {
         p = pclmul_streams[num_pclmul_streams - 1];
       } else {
         p = crc_streams[num_crc_streams - 1];
@@ -733,6 +766,63 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
 
     *crc = l;
   }
+
+ private:
+  ABSL_ATTRIBUTE_ALWAYS_INLINE void InitPclmulStream(
+      const uint8_t** pclmul_stream, V128* partialCRC) const {
+    if constexpr (pclmul_stream_type == PclmulStreamType::VPCLMUL) {
+      V256* vpartialCRC = reinterpret_cast<V256*>(partialCRC);
+      vpartialCRC[0] =
+          V256_LoadU(reinterpret_cast<const V256*>(*pclmul_stream + 32 * 0));
+      vpartialCRC[1] =
+          V256_LoadU(reinterpret_cast<const V256*>(*pclmul_stream + 32 * 1));
+    } else {
+      partialCRC[0] =
+          V128_LoadU(reinterpret_cast<const V128*>(*pclmul_stream + 16 * 0));
+      partialCRC[1] =
+          V128_LoadU(reinterpret_cast<const V128*>(*pclmul_stream + 16 * 1));
+      partialCRC[2] =
+          V128_LoadU(reinterpret_cast<const V128*>(*pclmul_stream + 16 * 2));
+      partialCRC[3] =
+          V128_LoadU(reinterpret_cast<const V128*>(*pclmul_stream + 16 * 3));
+    }
+    *pclmul_stream += 16 * 4;
+  }
+
+  ABSL_ATTRIBUTE_ALWAYS_INLINE void ProcessPclmulStream(
+      const uint8_t** pclmul_stream, V128* partialCRC) const {
+    if constexpr (pclmul_stream_type == PclmulStreamType::VPCLMUL) {
+      V256 loopMultiplicands =
+          V256_Broadcast128(reinterpret_cast<const V128*>(kFoldAcross512Bits));
+      Process64BytesVpclmul(*pclmul_stream, reinterpret_cast<V256*>(partialCRC),
+                            loopMultiplicands);
+    } else if constexpr (pclmul_stream_type == PclmulStreamType::NEON_PCLMUL ||
+                         pclmul_stream_type ==
+                             PclmulStreamType::NEON_PCLMUL_EOR3) {
+      constexpr bool kUseEor3 =
+          (pclmul_stream_type == PclmulStreamType::NEON_PCLMUL_EOR3);
+      Process64BytesNeonPclmul<kUseEor3>(*pclmul_stream, partialCRC);
+    } else {
+      Process64BytesPclmul(*pclmul_stream, partialCRC);
+    }
+    *pclmul_stream += 16 * 4;
+  }
+
+  ABSL_ATTRIBUTE_ALWAYS_INLINE uint64_t
+  FinalizePclmulStream(V128* partialCRC) const {
+    if constexpr (pclmul_stream_type == PclmulStreamType::VPCLMUL) {
+      return FinalizeVpclmulStream(reinterpret_cast<V256*>(partialCRC));
+    } else if constexpr (pclmul_stream_type == PclmulStreamType::NEON_PCLMUL ||
+                         pclmul_stream_type ==
+                             PclmulStreamType::NEON_PCLMUL_EOR3) {
+      constexpr bool kUseEor3 =
+          (pclmul_stream_type == PclmulStreamType::NEON_PCLMUL_EOR3);
+      return FinalizeNeonPclmulStream<kUseEor3>(partialCRC);
+    } else {
+      return CRC32AcceleratedX86ARMCombinedMultipleStreamsBase::
+          FinalizePclmulStream(partialCRC);
+    }
+  }
 };
 
 #undef ABSL_INTERNAL_STEP8BY3
@@ -751,22 +841,23 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
   switch (type) {
     case CpuType::kAmdRome:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
-          3, 0, 0, CutoffStrategy::Fold3>();
+          3, 0, PclmulStreamType::PCLMUL>();
     case CpuType::kIntelHaswell:
     case CpuType::kAmdNaples:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
-          3, 1, 0, CutoffStrategy::Fold3>();
+          3, 1, PclmulStreamType::PCLMUL>();
     case CpuType::kAmdMilan:
     case CpuType::kAmdGenoa:
     case CpuType::kAmdTurin:
-#if defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD) && defined(__AVX__)
+#if defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD) && defined(__AVX__) && \
+    (!defined(_MSC_VER) || defined(__clang__))
       // We don't have vector pclmul on arm, but this still needs to
       // compile.
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
-          3, 0, 1, CutoffStrategy::Fold3>();
+          3, 1, PclmulStreamType::VPCLMUL>();
 #else
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
-          3, 1, 0, CutoffStrategy::Fold3>();
+          3, 1, PclmulStreamType::PCLMUL>();
 #endif
     // PCLMULQDQ is fast, use combined PCLMULQDQ + CRC implementation.
     case CpuType::kIntelCascadelakeXeon:
@@ -778,33 +869,35 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
     case CpuType::kIntelEmeraldrapids:
     case CpuType::kIntelGraniterapids:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
-          3, 2, 0, CutoffStrategy::Fold3>();
+          3, 2, PclmulStreamType::PCLMUL>();
     // PCLMULQDQ is slow, don't use it.
     case CpuType::kIntelIvybridge:
     case CpuType::kIntelSandybridge:
     case CpuType::kIntelWestmere:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
-          3, 0, 0, CutoffStrategy::Fold3>();
+          3, 0, PclmulStreamType::PCLMUL>();
     case CpuType::kArmNeoverseN1:
-    case CpuType::kArmNeoverseN2:
     case CpuType::kArmNeoverseV1:
+      return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
+          1, 1, PclmulStreamType::NEON_PCLMUL>();
+    case CpuType::kArmNeoverseN2:
     case CpuType::kArmNeoverseN3:
     case CpuType::kNvidiaGrace:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
-          1, 1, 0, CutoffStrategy::Unroll64CRC>();
+          1, 1, PclmulStreamType::NEON_PCLMUL_EOR3>();
     case CpuType::kAmpereSiryn:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
-          3, 2, 0, CutoffStrategy::Fold3>();
+          3, 2, PclmulStreamType::NEON_PCLMUL_EOR3>();
     case CpuType::kArmNeoverseV2:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
-          1, 2, 0, CutoffStrategy::Unroll64CRC>();
+          1, 2, PclmulStreamType::NEON_PCLMUL_EOR3>();
 #if defined(__aarch64__)
     default:
       // Not all ARM processors support the needed instructions, so check here
       // before trying to use an accelerated implementation.
       if (SupportsArmCRC32PMULL()) {
         return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
-            1, 1, 0, CutoffStrategy::Unroll64CRC>();
+            1, 1, PclmulStreamType::NEON_PCLMUL>();
       } else {
         return nullptr;
       }
@@ -812,7 +905,7 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
     default:
       // Something else, play it safe and assume slow PCLMULQDQ.
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
-          3, 0, 0, CutoffStrategy::Fold3>();
+          3, 0, PclmulStreamType::PCLMUL>();
 #endif
   }
 }

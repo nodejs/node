@@ -396,6 +396,10 @@ constexpr inline bool IsSimd128(MachineRepresentation rep) {
   return rep == MachineRepresentation::kSimd128;
 }
 
+constexpr inline bool IsSimd256(MachineRepresentation rep) {
+  return rep == MachineRepresentation::kSimd256;
+}
+
 constexpr inline bool CanBeTaggedPointer(MachineRepresentation rep) {
   return rep == MachineRepresentation::kTagged ||
          rep == MachineRepresentation::kTaggedPointer ||

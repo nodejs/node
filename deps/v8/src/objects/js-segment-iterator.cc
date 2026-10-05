@@ -42,8 +42,9 @@ MaybeDirectHandle<JSSegmentIterator> JSSegmentIterator::Create(
       incoming_break_iterator.clone()};
   auto iterator_with_text = std::make_shared<IcuBreakIteratorWithText>(
       isolate, std::move(cloned_iterator), input_string);
-  DirectHandle<Managed<IcuBreakIteratorWithText>> managed =
-      Managed<IcuBreakIteratorWithText>::From(isolate, 0, iterator_with_text);
+  DirectHandle<CppGCManaged<IcuBreakIteratorWithText>> managed =
+      CppGCManaged<IcuBreakIteratorWithText>::Create(isolate, 0,
+                                                     iterator_with_text);
 
   // 5. Set iterator.[[IteratedStringNextSegmentCodeUnitIndex]] to 0.
   iterator_with_text->iterator()->first();
@@ -92,7 +93,7 @@ MaybeDirectHandle<JSReceiver> JSSegmentIterator::Next(
   STACK_CHECK(isolate, MaybeDirectHandle<JSReceiver>());
 
   Factory* factory = isolate->factory();
-  Managed<IcuBreakIteratorWithText>::Ptr iterator_with_text =
+  CppGCManaged<IcuBreakIteratorWithText>::Ptr iterator_with_text =
       segment_iterator->icu_iterator_with_text()->ptr();
   icu::BreakIterator* const icu_break_iterator = iterator_with_text->iterator();
 

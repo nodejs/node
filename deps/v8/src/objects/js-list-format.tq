@@ -15,6 +15,6 @@ bitfield struct JSListFormatFlags extends uint31 {
 @cppObjectLayoutDefinition
 extern class JSListFormat extends JSObject {
   locale: String;
-  icu_formatter: Foreign;  // Managed<icu::ListFormatter>
+  icu_formatter: CppGCManagedBase;  // CppGCManaged<icu::ListFormatter>
   flags: SmiTagged<JSListFormatFlags>;
 }

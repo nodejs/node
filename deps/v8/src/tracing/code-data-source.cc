@@ -34,12 +34,11 @@ using ::perfetto::protos::pbzero::TracePacket;
 using ::protozero::ConstChars;
 
 InternedV8JsScript::Type GetJsScriptType(Tagged<Script> script) {
-  if (script->compilation_type() == Script::CompilationType::kEval) {
+  if (script->has_eval_origin()) {
     return InternedV8JsScript::TYPE_EVAL;
   }
 
-  // TODO(carlscab): Camillo to extend the Script::Type enum. compilation_type
-  // will no longer be needed.
+  // TODO(carlscab): Camillo to extend the Script::Type enum.
 
   switch (script->type()) {
     case Script::Type::kNative:

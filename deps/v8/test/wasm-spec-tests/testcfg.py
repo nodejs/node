@@ -9,37 +9,52 @@ from testrunner.objects import testcase
 # that were merged into that branch.
 default_flags = []
 
-proposal_flags = [{
-    'name': 'tail-call',
-    'flags': []
-}, {
-    'name': 'memory64',
-    'flags': []
-}, {
-    'name': 'extended-const',
-    'flags': []
-}, {
-    'name': 'function-references',
-    'flags': []
-}, {
-    'name': 'gc',
-    'flags': []
-}, {
-    'name': 'multi-memory',
-    'flags': []
-}, {
-    'name': 'exception-handling',
-    'flags': []
-}, {
-    'name': 'js-promise-integration',
-    'flags': []
-}, {
-    'name': 'stack-switching',
-    'flags': ['--wasm-wasmfx']
-}, {
-    'name': 'custom-descriptors',
-    'flags': ['--wasm-custom-descriptors']
-}]
+proposal_flags = [
+    {
+        'name': 'tail-call',
+        'flags': []
+    },
+    {
+        'name': 'memory64',
+        'flags': []
+    },
+    {
+        'name': 'extended-const',
+        'flags': []
+    },
+    {
+        'name': 'function-references',
+        'flags': []
+    },
+    {
+        'name': 'gc',
+        'flags': []
+    },
+    {
+        'name': 'multi-memory',
+        'flags': []
+    },
+    {
+        'name': 'exception-handling',
+        'flags': []
+    },
+    {
+        'name': 'js-promise-integration',
+        'flags': []
+    },
+    {
+        'name': 'stack-switching',
+        'flags': ['--wasm-wasmfx']
+    },
+    {
+        'name': 'custom-descriptors',
+        'flags': ['--wasm-custom-descriptors']
+    },
+    {
+        'name': 'wide-arithmetic',
+        'flags': ['--wasm-wide-arithmetic']
+    },
+]
 
 
 class TestLoader(testsuite.JSTestLoader):

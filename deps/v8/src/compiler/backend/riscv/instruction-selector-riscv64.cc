@@ -1098,7 +1098,7 @@ void VisitWideAddSub(InstructionSelector* selector, OpIndex node, bool is_add) {
   OptionalOpIndex out_high = selector->FindProjection(node, 1);
 
   if (!out_high.valid() || !selector->IsUsed(out_high.value())) {
-    if (out_low.valid()) {
+    if (out_low.valid() && selector->IsUsed(out_low.value())) {
       InstructionOperand b_low_op =
           g.UseOperand(op.right_low(), opcode_no_high);
       selector->Emit(opcode_no_high, g.DefineAsRegister(out_low.value()),
@@ -1984,7 +1984,13 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
       case MachineRepresentation::kTaggedPointer:  // Fall through.
       case MachineRepresentation::kTagged:
         DCHECK_EQ(AtomicWidthSize(width), kTaggedSize);
-        code = kRiscvStoreCompressTagged;
+        code = kRiscvAtomicStoreCompressTagged;
+        break;
+      case MachineRepresentation::kCompressedPointer:  // Fall through.
+      case MachineRepresentation::kCompressed:
+        DCHECK(COMPRESS_POINTERS_BOOL);
+        DCHECK_EQ(width, AtomicWidth::kWord32);
+        code = kRiscvAtomicStoreCompressTagged;
         break;
       default:
         UNREACHABLE();
@@ -2277,12 +2283,12 @@ void InstructionSelector::VisitWord32Equal(OpIndex node) {
     RiscvOperandGenerator g(this);
     const RootsTable& roots_table = isolate()->roots_table();
     RootIndex root_index;
-    Handle<HeapObject> right;
+    Handle<HeapObject> heap_object;
     // HeapConstants and CompressedHeapConstants can be treated the same when
     // using them as an input to a 32-bit comparison. Check whether either is
     // present.
-    if (MatchHeapConstant(node, &right) && !right.is_null() &&
-        roots_table.IsRootHandle(right, &root_index)) {
+    if (MatchHeapConstant(right, &heap_object) && !heap_object.is_null() &&
+        roots_table.IsRootHandle(heap_object, &root_index)) {
       if (RootsTable::IsReadOnly(root_index)) {
         Tagged_t ptr =
             MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());

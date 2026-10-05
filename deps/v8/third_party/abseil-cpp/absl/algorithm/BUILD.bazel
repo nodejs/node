@@ -88,7 +88,6 @@ cc_test(
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
-        "//absl/base:hardening",
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/random",

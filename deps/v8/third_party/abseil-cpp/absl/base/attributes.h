@@ -494,8 +494,8 @@
 //
 // These attributes only take effect when the following conditions are met:
 //
-//   * The file/target is built in at least C++11 mode, with a Clang compiler
-//     that supports XRay attributes.
+//   * The file/target is built with a Clang compiler that supports XRay
+//     attributes.
 //   * The file/target is built with the -fxray-instrument flag set for the
 //     Clang/LLVM compiler.
 //   * The function is defined in the translation unit (the compiler honors the
@@ -639,47 +639,16 @@
 //
 // Annotates implicit fall-through between switch labels, allowing a case to
 // indicate intentional fallthrough and turn off warnings about any lack of a
-// `break` statement. The ABSL_FALLTHROUGH_INTENDED macro should be followed by
-// a semicolon and can be used in most places where `break` can, provided that
-// no statements exist between it and the next switch label.
+// `break` statement.
 //
-// Example:
+// Deprecated: Use the standard C++17 `[[fallthrough]]` instead.
 //
-//  switch (x) {
-//    case 40:
-//    case 41:
-//      if (truth_is_out_there) {
-//        ++x;
-//        ABSL_FALLTHROUGH_INTENDED;  // Use instead of/along with annotations
-//                                    // in comments
-//      } else {
-//        return x;
-//      }
-//    case 42:
-//      ...
-//
-// Notes: When supported, GCC and Clang can issue a warning on switch labels
-// with unannotated fallthrough using the warning `-Wimplicit-fallthrough`. See
-// clang documentation on language extensions for details:
-// https://clang.llvm.org/docs/AttributeReference.html#fallthrough-clang-fallthrough
-//
-// When used with unsupported compilers, the ABSL_FALLTHROUGH_INTENDED macro has
-// no effect on diagnostics. In any case this macro has no effect on runtime
-// behavior and performance of code.
+// This macro has no effect on runtime behavior and performance of code.
 
 #ifdef ABSL_FALLTHROUGH_INTENDED
 #error "ABSL_FALLTHROUGH_INTENDED should not be defined."
-#elif ABSL_HAVE_CPP_ATTRIBUTE(fallthrough)
-#define ABSL_FALLTHROUGH_INTENDED [[fallthrough]]
-#elif ABSL_HAVE_CPP_ATTRIBUTE(clang::fallthrough)
-#define ABSL_FALLTHROUGH_INTENDED [[clang::fallthrough]]
-#elif ABSL_HAVE_CPP_ATTRIBUTE(gnu::fallthrough)
-#define ABSL_FALLTHROUGH_INTENDED [[gnu::fallthrough]]
-#else
-#define ABSL_FALLTHROUGH_INTENDED \
-  do {                            \
-  } while (0)
 #endif
+#define ABSL_FALLTHROUGH_INTENDED [[fallthrough]]
 
 // ABSL_DEPRECATED()
 //
@@ -813,22 +782,20 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 
 // ABSL_CONST_INIT
 //
-// A variable declaration annotated with the `ABSL_CONST_INIT` attribute will
-// not compile (on supported platforms) unless the variable has a constant
-// initializer. This is useful for variables with static and thread storage
-// duration, because it guarantees that they will not suffer from the so-called
-// "static init order fiasco".
+// A variable declared with `ABSL_CONST_INIT` will not compile (on supported
+// platforms) unless the variable has a constant initializer. This is useful for
+// variables with static and thread storage duration, because it guarantees that
+// they will not suffer from the so-called "static init order fiasco".
 //
-// This attribute must be placed on the initializing declaration of the
-// variable. Some compilers will give a -Wmissing-constinit warning when this
-// attribute is placed on some other declaration but missing from the
-// initializing declaration.
+// `ABSL_CONST_INIT` must be placed on the initializing declaration
+// (i.e. definition) of the variable. Some compilers will give a
+// `-Wmissing-constinit` warning when it is placed on some other
+// declaration but missing from the initializing declaration.
 //
-// In some cases (notably with thread_local variables), `ABSL_CONST_INIT` can
-// also be used in a non-initializing declaration to tell the compiler that a
-// variable is already initialized, reducing overhead that would otherwise be
-// incurred by a hidden guard variable. Thus annotating all declarations with
-// this attribute is recommended to potentially enhance optimization.
+// For thread_local variables, placing `ABSL_CONST_INIT` on the non-initializing
+// declaration tells the compiler that the variable is already initialized,
+// reducing overhead that would otherwise be incurred by a hidden guard
+// variable.
 //
 // Example:
 //
@@ -840,9 +807,10 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 //   ABSL_CONST_INIT MyType MyClass::my_var = MakeMyType(...);
 //
 // For code or headers that are assured to only build with C++20 and up, prefer
-// just using the standard `constinit` keyword directly over this macro.
+// using the standard `constinit` keyword directly over this macro.
 //
-// Note that this attribute is redundant if the variable is declared constexpr.
+// Note that `ABSL_CONST_INIT` must not be used on a variable declared
+// constexpr.
 #if defined(__cpp_constinit) && __cpp_constinit >= 201907L
 #define ABSL_CONST_INIT constinit
 #elif ABSL_HAVE_CPP_ATTRIBUTE(clang::require_constant_initialization)

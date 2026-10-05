@@ -390,7 +390,7 @@ class ABSL_ATTRIBUTE_VIEW AnySpan {
   using difference_type = std::ptrdiff_t;
   using absl_internal_is_view = std::true_type;
 
-  static const size_type npos = static_cast<size_type>(-1);  // NOLINT
+  static constexpr size_type npos = static_cast<size_type>(-1);  // NOLINT
 
   using reference = T&;
   using const_reference = std::add_const_t<T>&;
@@ -892,9 +892,6 @@ AnySpan<const T> MakeConstAnySpan(const T* absl_nullable ptr,
 //
 // Implementation details follow.
 //
-
-template <typename T>
-const typename AnySpan<T>::size_type AnySpan<T>::npos;
 
 // Iterator base class. Uses CRTP (Iter should be the child class). Constness of
 // the iterator is determined by the constness of Value.

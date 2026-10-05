@@ -134,9 +134,11 @@ LIBC_INLINE float16 erff16(float16 x) {
         return x;
       }
       // Inf -> returns 1.0 or -1.0
-      return is_neg ? -1.0f16 : 1.0f16;
+      constexpr float16 ONE_F16 = fputil::cast<float16>(1.0f);
+      return is_neg ? -ONE_F16 : ONE_F16;
     }
 
+    // FIXME: Handle f16 constant emission without triggering -Wc++23-extensions
     return fputil::cast<float16>(is_neg ? -1.0f - xf * 0x1.0p-28f
                                         : 1.0f - xf * 0x1.0p-28f);
   }
@@ -144,7 +146,8 @@ LIBC_INLINE float16 erff16(float16 x) {
   // Polynomial approximation:
   //   erf(x) ~ x * (c0 + c1 * x^2 + c2 * x^4 + ... + c7 * x^14)
 
-  int idx = static_cast<int>(xbits.abs().get_val() * 8.0f16);
+  constexpr float16 EIGHT_F16 = fputil::cast<float16>(8.0f);
+  int idx = static_cast<int>(xbits.abs().get_val() * EIGHT_F16);
 
   float xsq = xf * xf;
   float x4 = xsq * xsq;

@@ -26,8 +26,8 @@ cc_configure = use_extension(
 )
 use_repo(cc_configure, "local_config_cc")
 
-bazel_dep(name = "rules_cc", version = "0.2.18")
-bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "rules_cc", version = "0.2.22")
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
 bazel_dep(name = "platforms", version = "1.1.0")
 
 bazel_dep(
@@ -40,7 +40,7 @@ bazel_dep(
 # intended to be used by Abseil users depend on GoogleTest.
 bazel_dep(
     name = "googletest",
-    version = "1.17.0.bcr.2",
+    version = "1.18.0",
 )
 
 # Note: Gloop is NOT a dev_dependency, but should never be used directly.  It is only included here

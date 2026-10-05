@@ -32,6 +32,14 @@
 #endif
 #endif
 
+#ifndef RPC_GLOBAL
+#ifdef RPC_TARGET_IS_GPU
+#define RPC_GLOBAL __gpu_global
+#else
+#define RPC_GLOBAL
+#endif
+#endif
+
 namespace rpc {
 
 template <typename T> struct type_identity {
@@ -452,19 +460,21 @@ template <typename T, typename U> RPC_ATTRS T *advance(T *ptr, U bytes) {
 }
 
 /// Wrapper around the optimal memory copy implementation for the target.
-RPC_ATTRS void rpc_memcpy(void *dst, const void *src, uint64_t count) {
+template <typename D, typename S>
+RPC_ATTRS void rpc_memcpy(D *dst, S *src, uint64_t count) {
 #if __has_builtin(__builtin_memcpy)
   if (count)
     __builtin_memcpy(dst, src, count);
 #else
+  // The casts are C-style as they may need to change the address space.
   for (uint64_t i = 0; i < count; ++i)
-    static_cast<uint8_t *>(dst)[i] = static_cast<const uint8_t *>(src)[i];
+    ((uint8_t *)dst)[i] = ((const uint8_t *)src)[i];
 #endif
 }
 
 /// Minimal string length function.
-RPC_ATTRS constexpr uint64_t string_length(const char *s) {
-  const char *end = s;
+template <typename T> RPC_ATTRS constexpr uint64_t string_length(const T *s) {
+  const T *end = s;
   for (; *end != '\0'; ++end)
     ;
   return static_cast<uint64_t>(end - s + 1);

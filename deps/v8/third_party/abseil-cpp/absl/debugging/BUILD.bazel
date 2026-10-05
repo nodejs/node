@@ -202,6 +202,7 @@ cc_test(
         ":failure_signal_handler",
         ":stacktrace",
         ":symbolize",
+        "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/log:check",
         "//absl/strings",

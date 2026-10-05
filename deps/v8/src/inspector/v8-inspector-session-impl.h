@@ -57,10 +57,10 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   int sessionId() const { return m_sessionId; }
 
   Response findInjectedScript(
-      int contextId, InjectedScript*&,
+      int contextId, std::shared_ptr<InjectedScript>&,
       std::shared_ptr<InspectedContext>* inspectedContext = nullptr);
   Response findInjectedScript(
-      RemoteObjectIdBase*, InjectedScript*&,
+      RemoteObjectIdBase*, std::shared_ptr<InjectedScript>&,
       std::shared_ptr<InspectedContext>* inspectedContext = nullptr);
   void reset();
   void discardInjectedScripts();

@@ -1666,6 +1666,10 @@ void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitUint64Sub128(OpIndex node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
+  UNREACHABLE();
+}
+
 void InstructionSelector::VisitUint32MulHigh(OpIndex node) {
   auto [left, right] = Inputs<WordBinopOp>(node);
   ArmOperandGenerator g(this);

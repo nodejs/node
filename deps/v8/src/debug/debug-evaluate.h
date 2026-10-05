@@ -38,7 +38,8 @@ class DebugEvaluate : public AllStatic {
   // provided to peek into the Wasm state.
   static V8_EXPORT_PRIVATE MaybeDirectHandle<Object> Local(
       Isolate* isolate, StackFrameId frame_id, int inlined_jsframe_index,
-      DirectHandle<String> source, bool throw_on_side_effect);
+      DirectHandle<String> source, bool throw_on_side_effect,
+      int scope_index = 0);
 
   // This is used for break-at-entry for builtins and API functions.
   // Evaluate a piece of JavaScript in the native context, but with the
@@ -77,7 +78,7 @@ class DebugEvaluate : public AllStatic {
   class ContextBuilder {
    public:
     ContextBuilder(Isolate* isolate, JavaScriptFrame* frame,
-                   int inlined_jsframe_index);
+                   int inlined_jsframe_index, int scope_index = 0);
 
     void UpdateValues();
 
@@ -98,6 +99,7 @@ class DebugEvaluate : public AllStatic {
     Isolate* isolate_;
     FrameInspector frame_inspector_;
     ScopeIterator scope_iterator_;
+    int scope_index_;
   };
 
   static MaybeDirectHandle<Object> Evaluate(

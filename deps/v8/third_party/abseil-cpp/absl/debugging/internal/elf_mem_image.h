@@ -22,6 +22,7 @@
 // Including this will define the __GLIBC__ macro if glibc is being
 // used.
 #include <climits>
+#include <cstddef>
 #include <cstdint>
 
 #include "absl/base/config.h"

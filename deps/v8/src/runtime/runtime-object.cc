@@ -1738,17 +1738,25 @@ RUNTIME_FUNCTION(Runtime_CheckFastIterableToListPrototype) {
                                      isolate);
   DCHECK(map->supports_fast_iterable_to_list());
 
-  // The interceptor's prototype must have [Symbol.iterator] property and
-  // "length" property accessor.
-  DCHECK(IsJSObject(map->prototype()));
+  // The interceptor's prototype must be JSObject with
+  // [Symbol.iterator] data property and "length" property accessor.
+  if (!IsJSObject(map->prototype())) {
+    return ReadOnlyRoots(isolate).false_value();
+  }
   DirectHandle<JSObject> prototype(Cast<JSObject>(map->prototype()), isolate);
 
-  // 1. Check if the prototype has expected [Symbol.iterator] property.
+  // Switch prototype to fast mode in order to ensure that constness tracking
+  // will invalidate the prototype's validity cell in case of modification.
+  JSObject::OptimizeAsPrototype(prototype);
+
+  // 1. Check if the prototype has expected [Symbol.iterator] property (kData
+  // and kConst).
   {
     DirectHandle<Name> iterator_symbol = isolate->factory()->iterator_symbol();
     LookupIterator it_iterator(isolate, prototype, iterator_symbol,
                                LookupIterator::OWN_SKIP_INTERCEPTOR);
-    if (it_iterator.state() != LookupIterator::DATA) {
+    if (it_iterator.state() != LookupIterator::DATA ||
+        it_iterator.constness() != PropertyConstness::kConst) {
       return ReadOnlyRoots(isolate).false_value();
     }
     DirectHandle<Object> iterator_val = it_iterator.GetDataValue();

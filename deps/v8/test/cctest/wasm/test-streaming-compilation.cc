@@ -231,7 +231,7 @@ class StreamTester {
   }
 
   // Compiled native module, valid after successful compile.
-  Managed<NativeModule>::Ptr native_module() const {
+  CppGCManaged<NativeModule>::Ptr native_module() const {
     return module_object()->native_module();
   }
 
@@ -332,7 +332,7 @@ ZoneBuffer GetValidCompiledModuleBytes(v8::Isolate* isolate, Zone* zone,
   tester.RunCompilerTasks();
   CHECK(tester.IsPromiseFulfilled());
 
-  Managed<NativeModule>::Ptr native_module = tester.native_module();
+  CppGCManaged<NativeModule>::Ptr native_module = tester.native_module();
   CHECK_NOT_NULL(native_module);
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -1292,7 +1292,7 @@ STREAM_TEST(TestIncrementalCaching) {
     CHECK(!thrower.error());
 
     WasmCodeRefScope code_scope;
-    Managed<NativeModule>::Ptr module = tester.native_module();
+    CppGCManaged<NativeModule>::Ptr module = tester.native_module();
     CHECK(module->GetCode(0) == nullptr || module->GetCode(0)->is_liftoff());
     CHECK(module->GetCode(1) == nullptr || module->GetCode(1)->is_liftoff());
     CHECK(module->GetCode(2) == nullptr || module->GetCode(2)->is_liftoff());
@@ -1304,7 +1304,7 @@ STREAM_TEST(TestIncrementalCaching) {
   size_t serialized_size;
   {
     WasmCodeRefScope code_scope;
-    Managed<NativeModule>::Ptr module = tester.native_module();
+    CppGCManaged<NativeModule>::Ptr module = tester.native_module();
     CHECK(!module->GetCode(0)->is_liftoff());
     CHECK(module->GetCode(1) == nullptr || module->GetCode(1)->is_liftoff());
     CHECK(module->GetCode(2) == nullptr || module->GetCode(2)->is_liftoff());
@@ -1318,7 +1318,7 @@ STREAM_TEST(TestIncrementalCaching) {
   tester.RunCompilerTasks();
   {
     WasmCodeRefScope code_scope;
-    Managed<NativeModule>::Ptr module = tester.native_module();
+    CppGCManaged<NativeModule>::Ptr module = tester.native_module();
     CHECK(!module->GetCode(0)->is_liftoff());
     CHECK(!module->GetCode(1)->is_liftoff());
     CHECK(module->GetCode(2) == nullptr || module->GetCode(2)->is_liftoff());

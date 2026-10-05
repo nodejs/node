@@ -29,6 +29,8 @@ namespace internal {
 // objects stored inside the sandbox. However, ExposedTrustedObject can be
 // referenced via indirect pointers, which guarantee memory-safe access.
 V8_OBJECT class TrustedObject : public HeapObject {
+  V8_IT_ABSTRACT;
+
  public:
   DECL_VERIFIER(TrustedObject)
 
@@ -99,6 +101,8 @@ V8_OBJECT class TrustedObject : public HeapObject {
 // utility objects on top of this class, but hopefully this comment serves to
 // document the potential pitfalls when doing so.
 V8_OBJECT class ExposedTrustedObject : public TrustedObject {
+  V8_IT_ABSTRACT;
+
  public:
   // Initializes this object by allocating its pointer table entry. This
   // initializer function immediately makes the trusted object accessible from

@@ -141,9 +141,8 @@ inline void* PrevSlot(void* slot, size_t slot_size) {
 
 // Must be defined out-of-line to avoid MSVC error C2482 on some platforms,
 // which is caused by non-constexpr initialization.
-uint16_t NextHashTableSeed() {
-  static_assert(PerTableSeed::kBitCount <= 16);
-  return static_cast<uint16_t>(RandomSeed());
+uint8_t NextHashTableSeed() {
+  return static_cast<uint8_t>(RandomSeed());
 }
 
 GenerationType* EmptyGeneration() {
@@ -943,6 +942,7 @@ void Clear(CommonFields& c, const PolicyFunctions& __restrict policy,
         destroy_slot(&c, SingleSlotAddress<kSooEnabled>(c));
       }
       DecrementSmallSize<kSooEnabled>(c);
+      c.infoz().RecordStorageChanged(0, cap);
     }
   } else {
     if (destroy_slot != nullptr) {
@@ -2289,7 +2289,10 @@ void Copy(CommonFields& common, const PolicyFunctions& __restrict policy,
   const size_t slot_size = policy.slot_size;
   const bool soo_enabled = policy.soo_enabled;
   if (size == 1) {
-    if (!soo_enabled) ReserveTableToFitNewSize(common, policy, 1);
+    if (!soo_enabled) {
+      ReserveEmptyNonAllocatedTableToFitNewSize(common, policy, 1);
+      common.infoz().RecordStorageChanged(1, 1);
+    }
     IncrementSmallSize(common, policy);
     const size_t other_capacity = other.capacity();
     const void* other_slot =

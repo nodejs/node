@@ -20,6 +20,10 @@
 
 #include "absl/base/config.h"
 
+#ifdef __SSE4_2__
+#include <immintrin.h>
+#endif
+
 // -------------------------------------------------------------------------
 // Many x86 and ARM machines have CRC acceleration hardware.
 // We can do a faster version of Extend() on such machines.
@@ -107,6 +111,12 @@ V128 V128_PMul10(const V128 l, const V128 r);
 // Produces a XOR operation of |l| and |r|.
 V128 V128_Xor(const V128 l, const V128 r);
 
+// Produces a 3-way XOR operation of |a|, |b|, and |c|.
+// When `kUseEor3` is true, uses the ARMv8.2-A `EOR3` (3-way Exclusive-OR)
+// instruction.
+template <bool kUseEor3 = false>
+V128 V128_Xor3(const V128 a, const V128 b, const V128 c);
+
 // Sets the lower half of a 128 bit register to the given 64-bit value and
 // zeroes the upper half.
 // dst[63:0] := |r|
@@ -181,6 +191,11 @@ inline V128 V128_PMul10(const V128 l, const V128 r) {
 }
 
 inline V128 V128_Xor(const V128 l, const V128 r) { return _mm_xor_si128(l, r); }
+
+template <bool kUseEor3>
+inline V128 V128_Xor3(const V128 a, const V128 b, const V128 c) {
+  return V128_Xor(V128_Xor(a, b), c);
+}
 
 inline V128 V128_From64WithZeroFill(const uint64_t r) {
   return _mm_set_epi64x(static_cast<int64_t>(0), static_cast<int64_t>(r));
@@ -265,6 +280,28 @@ inline V128 V128_PMul10(const V128 l, const V128 r) {
 }
 
 inline V128 V128_Xor(const V128 l, const V128 r) { return veorq_u64(l, r); }
+
+template <bool kUseEor3>
+inline V128 V128_Xor3(const V128 a, const V128 b, const V128 c) {
+#ifndef __ARM_FEATURE_SHA3
+  if constexpr (kUseEor3) {
+    // If the binary is compiled without SHA3 support, we need inline assembly
+    // to use the EOR3 instruction. We want to only use the below inline
+    // assembly block when both the CPU supports EOR3 and the binary is built
+    // without it, since we remove the sha3 extension support after the eor3
+    // instruction.
+    uint64x2_t res;
+    __asm__ __volatile__(
+        ".arch_extension sha3 \n\t"
+        "eor3 %0.16b, %1.16b, %2.16b, %3.16b \n\t"
+        ".arch_extension nosha3 \n\t"
+        : "=w"(res)
+        : "w"(a), "w"(b), "w"(c));
+    return res;
+  }
+#endif
+  return V128_Xor(V128_Xor(a, b), c);
+}
 
 inline V128 V128_From64WithZeroFill(const uint64_t r){
   constexpr uint64x2_t kZero = {0, 0};

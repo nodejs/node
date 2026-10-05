@@ -9,15 +9,12 @@
 
 #include <memory>
 
+#include "cppgc/garbage-collected.h"
 #include "cppgc/macros.h"
+#include "cppgc/name-provider.h"
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-microtask.h"     // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
-
-#ifdef V8_CPPGC_MICROTASK_QUEUE
-#include "cppgc/garbage-collected.h"
-#include "cppgc/name-provider.h"
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 namespace v8 {
 
@@ -43,27 +40,15 @@ class MicrotaskQueue;
  * other synchronously. E.g. for Web embedding, use the same instance for all
  * origins that share the same URL scheme and eTLD+1.
  */
-class V8_EXPORT MicrotaskQueue
-#ifdef V8_CPPGC_MICROTASK_QUEUE
-    : public cppgc::GarbageCollected<MicrotaskQueue>,
-      public cppgc::NameProvider
-#endif  // V8_CPPGC_MICROTASK_QUEUE
-{
+class V8_EXPORT MicrotaskQueue : public cppgc::GarbageCollected<MicrotaskQueue>,
+                                 public cppgc::NameProvider {
  public:
   /**
    * Creates an empty MicrotaskQueue instance.
    */
-#ifdef V8_CPPGC_MICROTASK_QUEUE
   static MicrotaskQueue* New(Isolate* isolate,
                              MicrotasksPolicy policy = MicrotasksPolicy::kAuto);
   virtual void Trace(cppgc::Visitor* visitor) const {}
-#else
-  V8_DEPRECATE_SOON(
-      "Use MicrotaskQueue allocated in cppgc, "
-      "see gn flag: v8_cppgc_microtask_queue.")
-  static std::unique_ptr<MicrotaskQueue> New(
-      Isolate* isolate, MicrotasksPolicy policy = MicrotasksPolicy::kAuto);
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
   virtual ~MicrotaskQueue() = default;
 

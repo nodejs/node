@@ -33,6 +33,7 @@ enum CpuFeature {
   CETSS,
   F16C,
   APX_F,
+  AVX10_1,
 
 #elif V8_TARGET_ARCH_ARM
   // - Standard configurations. The baseline is ARMv6+VFPv2.
@@ -111,6 +112,7 @@ enum CpuFeature {
   ZICOND,
   ZICFISS,
   RVC,
+  ZCB,
 #endif
 
   NUMBER_OF_CPU_FEATURES

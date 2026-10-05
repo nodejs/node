@@ -124,7 +124,7 @@ CompilationJob::Status MaglevCompilationJob::AbortOptimization(
 
 CompilationJob::Status MaglevCompilationJob::PrepareJobImpl(Isolate* isolate) {
   if (function()->shared()->GetBytecodeArray(isolate)->length() >
-      v8_flags.max_optimized_bytecode_size) {
+      v8_flags.max_maglev_optimized_bytecode_size) {
     return AbortOptimization(isolate, BailoutReason::kFunctionTooBig);
   }
   BeginPhaseKind("V8.MaglevPrepareJob");
@@ -304,13 +304,15 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
                   RuntimeCallCounterId::kOptimizeBackgroundMaglev);
         CompilationJob::Status status =
             job->ExecuteJob(local_isolate.runtime_call_stats(), &local_isolate);
-        if (status == CompilationJob::SUCCEEDED) {
-          outgoing_queue()->Enqueue(std::move(job));
-          isolate()->stack_guard()->RequestInstallMaglevCode();
-        } else {
-          UnparkedScope unparked_scope(&local_isolate);
-          job.reset();
-        }
+        // A retry leaves the job in kReadyToExecute, which finalization cannot
+        // handle, so it must never reach the outgoing queue.
+        CHECK_NE(status, CompilationJob::RETRY_ON_MAIN_THREAD);
+        outgoing_queue()->Enqueue(std::move(job));
+        // Requests the interrupt that finalizes the job on the main thread,
+        // which happens even in case of failure.
+        // TODO(victorgomes): Consider renaming this to
+        // RequestMaglevJobFinalization.
+        isolate()->stack_guard()->RequestInstallMaglevCode();
       } else if (destruction_queue()->Dequeue(&job)) {
         // Maglev jobs aren't cheap to destruct, so destroy them here in the
         // background thread rather than on the main thread.

@@ -25,7 +25,7 @@ namespace gpu {
 template <typename T> using Private = __gpu_private T;
 template <typename T> using Constant = __gpu_constant T;
 template <typename T> using Local = __gpu_local T;
-template <typename T> using Global = __gpu_local T;
+template <typename T> using Global = __gpu_global T;
 
 LIBC_INLINE uint32_t get_num_blocks_x() { return __gpu_num_blocks(0); }
 

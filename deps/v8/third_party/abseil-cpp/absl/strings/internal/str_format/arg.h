@@ -440,10 +440,10 @@ class FormatArgImpl {
 
   template <typename T>
   struct store_by_value
-      : std::integral_constant<
-            bool, (sizeof(T) <= kInlinedSpace) &&
-                      (std::is_integral_v<T> || std::is_floating_point_v<T> ||
-                       std::is_pointer_v<T> || std::is_same_v<VoidPtr, T>)> {};
+      : std::bool_constant<
+            (sizeof(T) <= kInlinedSpace) &&
+            (std::is_integral_v<T> || std::is_floating_point_v<T> ||
+             std::is_pointer_v<T> || std::is_same_v<VoidPtr, T>)> {};
 
   enum StoragePolicy { ByPointer, ByVolatilePointer, ByValue };
   template <typename T>

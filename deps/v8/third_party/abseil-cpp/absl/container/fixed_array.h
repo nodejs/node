@@ -430,8 +430,8 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
     return std::addressof(ptr->array);
   }
 
-  static_assert(sizeof(StorageElement) == sizeof(value_type), "");
-  static_assert(alignof(StorageElement) == alignof(value_type), "");
+  static_assert(sizeof(StorageElement) == sizeof(value_type));
+  static_assert(alignof(StorageElement) == alignof(value_type));
 
   class NonEmptyInlinedStorage {
    public:

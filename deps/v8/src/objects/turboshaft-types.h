@@ -22,9 +22,12 @@ class TurboshaftFloatSpecialValues {
 };
 
 V8_OBJECT class TurboshaftType : public HeapObject {
+  V8_IT_ABSTRACT;
 } V8_OBJECT_END;
 
 V8_OBJECT class TurboshaftWord32Type : public TurboshaftType {
+  V8_IT_ABSTRACT;
+
  public:
   DECL_VERIFIER(TurboshaftWord32Type)
 } V8_OBJECT_END;
@@ -77,6 +80,8 @@ constexpr int TurboshaftWord32SetType::SizeFor(int set_size) {
 }
 
 V8_OBJECT class TurboshaftWord64Type : public TurboshaftType {
+  V8_IT_ABSTRACT;
+
  public:
   DECL_VERIFIER(TurboshaftWord64Type)
 } V8_OBJECT_END;
@@ -139,6 +144,8 @@ constexpr int TurboshaftWord64SetType::SizeFor(int set_size) {
 }
 
 V8_OBJECT class TurboshaftFloat64Type : public TurboshaftType {
+  V8_IT_ABSTRACT;
+
  public:
   inline uint32_t special_values() const;
   inline void set_special_values(uint32_t value);

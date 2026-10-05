@@ -403,7 +403,8 @@ BlockProcessResult MaglevPrintingVisitor::PreProcessBasicBlock(
     if (block->state()->is_loop_with_peeled_iteration()) {
       os_ << " peeled";
     }
-    if (const LoopEffects* loop_effects = block->state()->loop_effects()) {
+    if (const LoopEffects* loop_effects =
+            block->state()->AsLoopHeader()->loop_effects()) {
       os_ << " (effects:";
       if (loop_effects->unstable_aspects_cleared) {
         os_ << " ua";
@@ -1086,7 +1087,7 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
         os_ << "\n";
       }
 #ifdef V8_ENABLE_MAGLEV
-      if (target->state()->register_state().is_initialized()) {
+      if (target->state()->has_register_state()) {
         PrintVerticalArrows(os_, targets_);
         PrintPadding(os_, max_node_id_, -1);
         os_ << (has_fallthrough ? "│" : " ");

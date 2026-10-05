@@ -425,7 +425,10 @@ class CppHeapPointerSlot
   // should generally be accessed atomically as they may be accessed from other
   // threads, for example GC marking threads.
   inline CppHeapPointerHandle Relaxed_LoadHandle() const;
+
   inline void Release_StoreHandle(CppHeapPointerHandle handle) const;
+
+  inline void Relaxed_StoreHandle(CppHeapPointerHandle handle) const;
 
 #else
 

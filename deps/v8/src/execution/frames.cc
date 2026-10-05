@@ -258,33 +258,23 @@ StackFrame* StackFrameIterator::Reframe() {
 }
 
 namespace {
-StackFrame::Type GetStateForFastCCallCallerFP(Isolate* isolate, Address fp,
-                                              Address pc, Address pc_address,
-                                              StackFrame::State* state) {
+StackFrame::Type GetStateForFastCCallCallerFP(
+    const StackFrameIteratorBase* frame_iter, Address fp, Address pc_address,
+    StackFrame::State* state) {
   // 'Fast C calls' are a special type of C call where we call directly from
   // JS to C without an exit frame in between. The CEntryStub is responsible
   // for setting Isolate::c_entry_fp, meaning that it won't be set for fast C
   // calls. To keep the stack iterable, we store the FP and PC of the caller
-  // of the fast C call on the isolate. This is guaranteed to be the topmost
-  // JS frame, because fast C calls cannot call back into JS. We start
-  // iterating the stack from this topmost JS frame.
-  DCHECK_NE(kNullAddress, pc);
+  // of the fast C call on the isolate.
+  // We start iterating the stack from this topmost JS frame.
+  DCHECK_NE(kNullAddress, StackFrame::unauthenticated_pc(
+                              reinterpret_cast<Address*>(pc_address)));
   state->fp = fp;
   state->sp = kNullAddress;
   state->pc_address = reinterpret_cast<Address*>(pc_address);
   state->callee_pc = kNullAddress;
   state->constant_pool_address = nullptr;
-#if V8_ENABLE_WEBASSEMBLY
-  if (wasm::WasmCode* code =
-          wasm::GetWasmCodeManager()->LookupCode(isolate, pc)) {
-    if (code->kind() == wasm::WasmCode::kWasmToJsWrapper) {
-      return StackFrame::WASM_TO_JS;
-    }
-    DCHECK_EQ(code->kind(), wasm::WasmCode::kWasmFunction);
-    return StackFrame::WASM;
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-  return StackFrame::TURBOFAN_JS;
+  return frame_iter->ComputeStackFrameType(state);
 }
 }  // namespace
 
@@ -295,11 +285,10 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
   const Address fast_c_call_caller_fp =
       isolate_->isolate_data()->fast_c_call_caller_fp();
   if (fast_c_call_caller_fp != kNullAddress) {
-    const Address caller_pc = isolate_->isolate_data()->fast_c_call_caller_pc();
     const Address caller_pc_address =
         isolate_->isolate_data()->fast_c_call_caller_pc_address();
-    type = GetStateForFastCCallCallerFP(isolate_, fast_c_call_caller_fp,
-                                        caller_pc, caller_pc_address, &state);
+    type = GetStateForFastCCallCallerFP(this, fast_c_call_caller_fp,
+                                        caller_pc_address, &state);
   } else {
     type = ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
   }
@@ -696,6 +685,24 @@ bool StackFrameIteratorForProfiler::HasValidExitIfEntryFrame(
     const StackFrame* frame) const {
   if (!frame->is_entry() && !frame->is_construct_entry()) return true;
 
+  // See EntryFrame::GetCallerState. It checks the fast C call caller FP
+  // and if it's not null, it uses it. We need to be sure that caller FP
+  // address is valid to avoid an unaligned read in
+  // GetStateForFastCCallCallerFP.
+  Address next_fast_c_call_fp_address =
+      frame->fp() + EntryFrameConstants::kNextFastCallFrameFPOffset;
+  MSAN_MEMORY_IS_INITIALIZED(next_fast_c_call_fp_address, kSystemPointerSize);
+  Address next_fast_c_call_fp = Memory<Address>(next_fast_c_call_fp_address);
+  if (next_fast_c_call_fp != kNullAddress) {
+    if (!IsAligned(next_fast_c_call_fp, kSystemPointerSize) ||
+        !IsValidStackAddress(next_fast_c_call_fp)) {
+      return false;
+    }
+    // EntryFrame::GetCallerState will use this FP and won't read the
+    // next_exit_frame_fp, so we don't need to validate it.
+    return true;
+  }
+
   // See EntryFrame::GetCallerState. It computes the caller FP address
   // and calls ExitFrame::GetStateForFramePointer on it. We need to be
   // sure that caller FP address is valid.
@@ -929,7 +936,9 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
   }
 #endif
 
-  const Address pc = StackFrame::ReadPC(state->pc_address);
+  // We use unauthenticated_pc because it may come from
+  // fast_c_call_caller_pc_address, for which authentication does not work.
+  const Address pc = StackFrame::unauthenticated_pc(state->pc_address);
 
 #if V8_ENABLE_WEBASSEMBLY
   // If the {pc} does not point into WebAssembly code we can rely on the
@@ -1116,9 +1125,8 @@ StackFrame::Type EntryFrame::GetCallerState(State* state) const {
   if (fast_c_call_caller_fp != kNullAddress) {
     Address caller_pc_address =
         fp() + EntryFrameConstants::kNextFastCallFramePCOffset;
-    Address caller_pc = Memory<Address>(caller_pc_address);
-    return GetStateForFastCCallCallerFP(isolate(), fast_c_call_caller_fp,
-                                        caller_pc, caller_pc_address, state);
+    return GetStateForFastCCallCallerFP(iterator_, fast_c_call_caller_fp,
+                                        caller_pc_address, state);
   }
   Address next_exit_frame_fp =
       Memory<Address>(fp() + EntryFrameConstants::kNextExitFrameFPOffset);
@@ -2057,8 +2065,9 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   //  |  return addr    |                                v
   //  +-----------------+-----------------------------------------
 
-  // Find the code and compute the safepoint information.
-  Address inner_pointer = pc();
+  // Find the code and compute the safepoint information. The pc is
+  // unauthenticated when it comes from IsolateData, i.e. during a fast C call.
+  Address inner_pointer = maybe_unauthenticated_pc();
   InnerPointerToCodeCache::Entry* entry =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
   CHECK(entry->code.has_value());
@@ -2092,56 +2101,57 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   FullObjectSlot frame_header_base(&Memory<Address>(fp() - frame_header_size));
   FullObjectSlot frame_header_limit(
       &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
-  // Parameters passed to the callee.
-#if V8_ENABLE_WEBASSEMBLY
-  // Frame layout without stack switching (stack grows upwards):
-  //
-  //         | callee      |
-  //         | frame       |
-  //         |-------------| <- sp()
-  //         | out params  |
-  //         |-------------| <- frame_header_base - spill_slot_space
-  //         | spill slots |
-  //         |-------------| <- frame_header_base
-  //         | frame header|
-  //         |-------------| <- fp()
-  //
-  // With stack-switching:
-  //
-  //        Secondary stack:      Central stack:
-  //
-  //                              | callee     |
-  //                              | frame      |
-  //                              |------------| <- sp()
-  //                              | out params |
-  //        |-------------|       |------------| <- maybe_stack_switch.target_sp
-  //        | spill slots |
-  //        |-------------| <- frame_header_base
-  //        | frame header|
-  //        |-------------| <- fp()
-  //
-  // The base (lowest address) of the outgoing stack parameters area is always
-  // sp(), and the limit (highest address) is either {frame_header_base -
-  // spill_slot_size} or {maybe_stack_switch.target_sp} depending on
-  // stack-switching.
-  wasm::StackMemory::StackSwitchInfo maybe_stack_switch;
-  if (iterator_->wasm_stack() != nullptr) {
-    maybe_stack_switch = iterator_->wasm_stack()->stack_switch_info();
-  }
-  FullObjectSlot parameters_limit(
-      maybe_stack_switch.has_value() && maybe_stack_switch.source_fp == fp()
-          ? maybe_stack_switch.target_sp
-          : frame_header_base.address() - spill_slots_size);
-#else
-  FullObjectSlot parameters_limit(frame_header_base.address() -
-                                  spill_slots_size);
-#endif
-  FullObjectSlot parameters_base(&Memory<Address>(sp()));
   FullObjectSlot spill_slots_end(frame_header_base.address() -
                                  spill_slots_size);
 
-  // Visit the rest of the parameters.
-  if (HasTaggedOutgoingParams(code)) {
+  // Visit the rest of the parameters. A fast C call has no outgoing parameters
+  // to visit, and its sp() is unknown.
+  if (!InFastCCall() && HasTaggedOutgoingParams(code)) {
+    // Parameters passed to the callee.
+#if V8_ENABLE_WEBASSEMBLY
+    // Frame layout without stack switching (stack grows upwards):
+    //
+    //         | callee      |
+    //         | frame       |
+    //         |-------------| <- sp()
+    //         | out params  |
+    //         |-------------| <- frame_header_base - spill_slot_space
+    //         | spill slots |
+    //         |-------------| <- frame_header_base
+    //         | frame header|
+    //         |-------------| <- fp()
+    //
+    // With stack-switching:
+    //
+    //        Secondary stack:      Central stack:
+    //
+    //                              | callee     |
+    //                              | frame      |
+    //                              |------------| <- sp()
+    //                              | out params |
+    //        |-------------|       |------------|
+    //        | spill slots |       ^ maybe_stack_switch.target_sp
+    //        |-------------| <- frame_header_base
+    //        | frame header|
+    //        |-------------| <- fp()
+    //
+    // The base (lowest address) of the outgoing stack parameters area is always
+    // sp(), and the limit (highest address) is either {frame_header_base -
+    // spill_slot_size} or {maybe_stack_switch.target_sp} depending on
+    // stack-switching.
+    wasm::StackMemory::StackSwitchInfo maybe_stack_switch;
+    if (iterator_->wasm_stack() != nullptr) {
+      maybe_stack_switch = iterator_->wasm_stack()->stack_switch_info();
+    }
+    FullObjectSlot parameters_limit(
+        maybe_stack_switch.has_value() && maybe_stack_switch.source_fp == fp()
+            ? maybe_stack_switch.target_sp
+            : frame_header_base.address() - spill_slots_size);
+#else
+    FullObjectSlot parameters_limit(frame_header_base.address() -
+                                    spill_slots_size);
+#endif
+    FullObjectSlot parameters_base(&Memory<Address>(sp()));
     v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
                          parameters_limit);
   }
@@ -2833,8 +2843,7 @@ FrameSummary::JavaScriptFrameSummary::CreateStackFrameInfo() const {
   DirectHandle<Script> script(Cast<Script>(shared->script()), isolate());
   DirectHandle<String> function_name =
       JSFunction::GetDebugName(isolate(), function_);
-  if (function_name->length() == 0 &&
-      script->compilation_type() == Script::CompilationType::kEval) {
+  if (function_name->length() == 0 && script->is_eval()) {
     function_name = isolate()->factory()->eval_string();
   }
   int bytecode_offset = code_offset();
@@ -3586,7 +3595,7 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode, int index,
 
   if (wasm_code()->index() == wasm::kAnonymousFuncIndex) {
     accumulator->Add("Anonymous wasm wrapper [pc: %p]\n",
-                     reinterpret_cast<void*>(pc()));
+                     reinterpret_cast<void*>(maybe_unauthenticated_pc()));
     return;
   }
   wasm::WasmCodeRefScope code_ref_scope;
@@ -3608,9 +3617,11 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode, int index,
   int func_code_offset = module->functions[func_index].code.offset();
   accumulator->Add(
       "], function #%u ('%s'), pc=%p (+0x%x), pos=%d (+%d) instance=%p\n",
-      func_index, func_name, reinterpret_cast<void*>(pc()),
-      static_cast<int>(pc() - top_summary.code()->instruction_start()), pos,
-      pos - func_code_offset,
+      func_index, func_name,
+      reinterpret_cast<void*>(maybe_unauthenticated_pc()),
+      static_cast<int>(maybe_unauthenticated_pc() -
+                       top_summary.code()->instruction_start()),
+      pos, pos - func_code_offset,
       reinterpret_cast<void*>(trusted_instance_data()->ptr()));
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
@@ -3645,7 +3656,8 @@ Tagged<Script> WasmFrame::script() const { return module_object()->script(); }
 std::tuple<SourcePosition, int>
 WasmFrame::GetInnermostSourcePositionAndFunctionIndex() const {
   wasm::WasmCode* code = wasm_code();
-  int offset = static_cast<int>(pc() - code->instruction_start());
+  int offset =
+      static_cast<int>(maybe_unauthenticated_pc() - code->instruction_start());
   SourcePosition pos = code->GetSourcePositionBefore(offset);
   int func_index = code->index();
   if (pos.isInlined()) {
@@ -3715,11 +3727,12 @@ FrameSummaries WasmFrame::Summarize(AllowAllocation allow_allocation) const {
 }
 
 int WasmFrame::LookupExceptionHandlerInTable() {
-  wasm::WasmCode* code =
-      wasm::GetWasmCodeManager()->LookupCode(isolate(), pc());
+  wasm::WasmCode* code = wasm::GetWasmCodeManager()->LookupCode(
+      isolate(), maybe_unauthenticated_pc());
   if (!code->IsAnonymous() && code->handler_table_size() > 0) {
     HandlerTable table(code);
-    int pc_offset = static_cast<int>(pc() - code->instruction_start());
+    int pc_offset = static_cast<int>(maybe_unauthenticated_pc() -
+                                     code->instruction_start());
     return table.LookupReturn(pc_offset);
   }
   return -1;

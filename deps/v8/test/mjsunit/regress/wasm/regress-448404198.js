@@ -10,7 +10,7 @@ const builder = new WasmModuleBuilder();
 builder.startRecGroup();
 let $struct1 = builder.nextTypeIndex() + 1;
 let $struct0 = builder.addStruct({fields: [], descriptor: $struct1});
-/* $struct1 */ builder.addStruct({fields: [], final: true, describes: $struct0});
+/* $struct1 */ builder.addStruct({fields: [], describes: $struct0});
 builder.endRecGroup();
 builder.addFunction("main", kSig_v_v).exportFunc()
   .addLocals(wasmRefType($struct1), 1)

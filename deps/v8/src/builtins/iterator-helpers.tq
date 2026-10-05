@@ -1750,6 +1750,7 @@ transitioning macro IteratorZipHelperNextCommon(
           //    ii. Return ? IteratorCloseAll(openIters, result).
           iterators.objects[kIteratorRecordFieldCount * i] = TheHole;
           IteratorZipCloseAll(iterators, false);
+          MarkIteratorHelperAsExhausted(helper);
           goto DoneWithException(exception, message);
         } label IterDone {
           // d. If result is done, then
@@ -1809,6 +1810,7 @@ transitioning macro IteratorZipHelperNextCommon(
                 //      ii. Return ? IteratorCloseAll(openIters, open).
                 iterators.objects[kIteratorRecordFieldCount * k] = TheHole;
                 IteratorZipCloseAll(iterators, false);
+                MarkIteratorHelperAsExhausted(helper);
                 goto DoneWithException(e, message);
               } label InnerDone {
                 // v. If open is done, then
@@ -2119,17 +2121,21 @@ transitioning javascript builtin IteratorPrototypeIncludes(
   }
 
   // 6. If toSkip < -0𝔽, then
-  if (toSkip < 0) {
-    // a. Let error be ThrowCompletion(a newly created RangeError object).
-    // b. Return ? IteratorClose(iterated, error).
+  //   a. Let error be ThrowCompletion(a newly created RangeError object).
+  //   b. Return ? IteratorClose(iterated, error).
+  // 7. If toSkip is finite and toSkip > 𝔽(2^53 - 1), then
+  //   a. Let error be ThrowCompletion(a newly created RangeError object).
+  //   b. Return ? IteratorClose(iterated, error).
+  if (toSkip < 0 ||
+      (!NumberIsSomeInfinity(toSkip) && toSkip > kMaxSafeInteger)) {
     IteratorCloseOnException(o);
     ThrowRangeError(MessageTemplate::kMustBePositive, skippedElements);
   }
 
-  // 7. Let skipped be +0𝔽.
+  // 8. Let skipped be +0𝔽.
   let skipped: Number = 0;
 
-  // 8. Set iterated to ? GetIteratorDirect(O).
+  // 9. Set iterated to ? GetIteratorDirect(O).
   const iterated = GetIteratorDirect(o);
 
   const fastIteratorResultMap = GetIteratorResultMap();

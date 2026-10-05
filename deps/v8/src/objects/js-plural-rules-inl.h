@@ -31,21 +31,21 @@ void JSPluralRules::set_flags(int value) {
   flags_.store(this, Smi::FromInt(value));
 }
 
-Tagged<Managed<icu::PluralRules>> JSPluralRules::icu_plural_rules() const {
-  return Cast<Managed<icu::PluralRules>>(icu_plural_rules_.load());
+Tagged<CppGCManaged<icu::PluralRules>> JSPluralRules::icu_plural_rules() const {
+  return Cast<CppGCManaged<icu::PluralRules>>(icu_plural_rules_.load());
 }
 void JSPluralRules::set_icu_plural_rules(
-    Tagged<Managed<icu::PluralRules>> value, WriteBarrierMode mode) {
+    Tagged<CppGCManaged<icu::PluralRules>> value, WriteBarrierMode mode) {
   icu_plural_rules_.store(this, value, mode);
 }
 
-Tagged<Managed<icu::number::LocalizedNumberFormatter>>
+Tagged<CppGCManaged<icu::number::LocalizedNumberFormatter>>
 JSPluralRules::icu_number_formatter() const {
-  return Cast<Managed<icu::number::LocalizedNumberFormatter>>(
+  return Cast<CppGCManaged<icu::number::LocalizedNumberFormatter>>(
       icu_number_formatter_.load());
 }
 void JSPluralRules::set_icu_number_formatter(
-    Tagged<Managed<icu::number::LocalizedNumberFormatter>> value,
+    Tagged<CppGCManaged<icu::number::LocalizedNumberFormatter>> value,
     WriteBarrierMode mode) {
   icu_number_formatter_.store(this, value, mode);
 }

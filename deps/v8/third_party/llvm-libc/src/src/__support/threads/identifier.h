@@ -23,7 +23,7 @@ namespace internal {
 
 LIBC_INLINE pid_t *get_tid_cache() {
 #ifdef LIBC_FULL_BUILD
-  return &self.attrib->tid;
+  return &current_thread().attrib->tid;
 #else
   // in non-full build mode, we do not control the fork routine. Therefore,
   // we do not cache tid at all.

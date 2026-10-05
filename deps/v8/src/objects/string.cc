@@ -2100,15 +2100,17 @@ SeqString::DataAndPaddingSizes SeqString::GetDataAndPaddingSizes() const {
 
 SeqString::DataAndPaddingSizes SeqOneByteString::GetDataAndPaddingSizes()
     const {
-  int data_size = sizeof(SeqOneByteString) + length() * kOneByteSize;
-  int padding_size = SizeFor(length()) - data_size;
+  uint32_t len = length();
+  int data_size = DataSizeFor(len);
+  int padding_size = SizeFor(len) - data_size;
   return DataAndPaddingSizes{data_size, padding_size};
 }
 
 SeqString::DataAndPaddingSizes SeqTwoByteString::GetDataAndPaddingSizes()
     const {
-  int data_size = sizeof(SeqTwoByteString) + length() * base::kUC16Size;
-  int padding_size = SizeFor(length()) - data_size;
+  uint32_t len = length();
+  int data_size = DataSizeFor(len);
+  int padding_size = SizeFor(len) - data_size;
   return DataAndPaddingSizes{data_size, padding_size};
 }
 

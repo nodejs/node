@@ -24,8 +24,6 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "absl/base/attributes.h"
-#include "absl/base/optimization.h"
 #include "absl/status/status.h"
 #include "absl/status/status_builder.h"
 #include "absl/status/statusor.h"

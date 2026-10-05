@@ -66,6 +66,7 @@ MaybeDirectHandle<Object> ContextDeserializer::Deserialize(
                               embedder_fields_deserializer);
     DeserializeApiWrapperFields(
         embedder_fields_deserializer.api_wrapper_callback);
+    PostProcessExposedTrustedObjects();
     LogNewMapEvents();
   }
 

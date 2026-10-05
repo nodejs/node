@@ -94,6 +94,7 @@ namespace compiler {
 #define TARGET_ARCH_OPCODE_LIST(V)                   \
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
   V(X64Add)                                          \
+  V(X64Add64_3)                                      \
   V(X64Add128)                                       \
   V(X64Add32)                                        \
   V(X64Sub128)                                       \

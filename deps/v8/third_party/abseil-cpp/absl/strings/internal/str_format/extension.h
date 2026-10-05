@@ -290,7 +290,7 @@ class FormatConversionSpecImpl {
   FormatConversionChar conversion_char() const {
     // Keep this field first in the struct . It generates better code when
     // accessing it when ConversionSpec is passed by value in registers.
-    static_assert(offsetof(FormatConversionSpecImpl, conv_) == 0, "");
+    static_assert(offsetof(FormatConversionSpecImpl, conv_) == 0);
     return conv_;
   }
 

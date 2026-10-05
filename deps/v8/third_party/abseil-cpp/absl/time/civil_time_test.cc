@@ -14,14 +14,17 @@
 
 #include "absl/time/civil_time.h"
 
+#include <cstddef>
 #include <iomanip>
+#include <iterator>
 #include <limits>
 #include <sstream>
 #include <type_traits>
 
 #include "gtest/gtest.h"
-#include "absl/base/macros.h"
 #include "absl/hash/hash_testing.h"
+#include "absl/strings/has_absl_stringify.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 
 namespace {
@@ -293,33 +296,33 @@ struct HasDiff {
 
 TEST(CivilTime, DisallowCrossAlignedDifference) {
   // Difference is allowed between types with the same alignment.
-  static_assert(HasDiff<absl::CivilSecond, absl::CivilSecond>::value, "");
-  static_assert(HasDiff<absl::CivilMinute, absl::CivilMinute>::value, "");
-  static_assert(HasDiff<absl::CivilHour, absl::CivilHour>::value, "");
-  static_assert(HasDiff<absl::CivilDay, absl::CivilDay>::value, "");
-  static_assert(HasDiff<absl::CivilMonth, absl::CivilMonth>::value, "");
-  static_assert(HasDiff<absl::CivilYear, absl::CivilYear>::value, "");
+  static_assert(HasDiff<absl::CivilSecond, absl::CivilSecond>::value);
+  static_assert(HasDiff<absl::CivilMinute, absl::CivilMinute>::value);
+  static_assert(HasDiff<absl::CivilHour, absl::CivilHour>::value);
+  static_assert(HasDiff<absl::CivilDay, absl::CivilDay>::value);
+  static_assert(HasDiff<absl::CivilMonth, absl::CivilMonth>::value);
+  static_assert(HasDiff<absl::CivilYear, absl::CivilYear>::value);
 
   // Difference is disallowed between types with different alignments.
-  static_assert(!HasDiff<absl::CivilSecond, absl::CivilMinute>::value, "");
-  static_assert(!HasDiff<absl::CivilSecond, absl::CivilHour>::value, "");
-  static_assert(!HasDiff<absl::CivilSecond, absl::CivilDay>::value, "");
-  static_assert(!HasDiff<absl::CivilSecond, absl::CivilMonth>::value, "");
-  static_assert(!HasDiff<absl::CivilSecond, absl::CivilYear>::value, "");
+  static_assert(!HasDiff<absl::CivilSecond, absl::CivilMinute>::value);
+  static_assert(!HasDiff<absl::CivilSecond, absl::CivilHour>::value);
+  static_assert(!HasDiff<absl::CivilSecond, absl::CivilDay>::value);
+  static_assert(!HasDiff<absl::CivilSecond, absl::CivilMonth>::value);
+  static_assert(!HasDiff<absl::CivilSecond, absl::CivilYear>::value);
 
-  static_assert(!HasDiff<absl::CivilMinute, absl::CivilHour>::value, "");
-  static_assert(!HasDiff<absl::CivilMinute, absl::CivilDay>::value, "");
-  static_assert(!HasDiff<absl::CivilMinute, absl::CivilMonth>::value, "");
-  static_assert(!HasDiff<absl::CivilMinute, absl::CivilYear>::value, "");
+  static_assert(!HasDiff<absl::CivilMinute, absl::CivilHour>::value);
+  static_assert(!HasDiff<absl::CivilMinute, absl::CivilDay>::value);
+  static_assert(!HasDiff<absl::CivilMinute, absl::CivilMonth>::value);
+  static_assert(!HasDiff<absl::CivilMinute, absl::CivilYear>::value);
 
-  static_assert(!HasDiff<absl::CivilHour, absl::CivilDay>::value, "");
-  static_assert(!HasDiff<absl::CivilHour, absl::CivilMonth>::value, "");
-  static_assert(!HasDiff<absl::CivilHour, absl::CivilYear>::value, "");
+  static_assert(!HasDiff<absl::CivilHour, absl::CivilDay>::value);
+  static_assert(!HasDiff<absl::CivilHour, absl::CivilMonth>::value);
+  static_assert(!HasDiff<absl::CivilHour, absl::CivilYear>::value);
 
-  static_assert(!HasDiff<absl::CivilDay, absl::CivilMonth>::value, "");
-  static_assert(!HasDiff<absl::CivilDay, absl::CivilYear>::value, "");
+  static_assert(!HasDiff<absl::CivilDay, absl::CivilMonth>::value);
+  static_assert(!HasDiff<absl::CivilDay, absl::CivilYear>::value);
 
-  static_assert(!HasDiff<absl::CivilMonth, absl::CivilYear>::value, "");
+  static_assert(!HasDiff<absl::CivilMonth, absl::CivilYear>::value);
 }
 
 TEST(CivilTime, ValueSemantics) {
@@ -870,19 +873,34 @@ TEST(CivilTime, ParseFieldNormalizationCarriesYear) {
 }
 
 TEST(CivilTime, AbslStringify) {
+  static_assert(absl::HasAbslStringify<absl::CivilSecond>::value);
+  static_assert(absl::HasAbslStringify<absl::CivilMinute>::value);
+  static_assert(absl::HasAbslStringify<absl::CivilHour>::value);
+  static_assert(absl::HasAbslStringify<absl::CivilDay>::value);
+  static_assert(absl::HasAbslStringify<absl::CivilMonth>::value);
+  static_assert(absl::HasAbslStringify<absl::CivilYear>::value);
+
+  EXPECT_EQ("2015-01-02T03:04:05",
+            absl::StrCat(absl::CivilSecond(2015, 1, 2, 3, 4, 5)));
   EXPECT_EQ("2015-01-02T03:04:05",
             absl::StrFormat("%v", absl::CivilSecond(2015, 1, 2, 3, 4, 5)));
 
   EXPECT_EQ("2015-01-02T03:04",
+            absl::StrCat(absl::CivilMinute(2015, 1, 2, 3, 4)));
+  EXPECT_EQ("2015-01-02T03:04",
             absl::StrFormat("%v", absl::CivilMinute(2015, 1, 2, 3, 4)));
 
+  EXPECT_EQ("2015-01-02T03", absl::StrCat(absl::CivilHour(2015, 1, 2, 3)));
   EXPECT_EQ("2015-01-02T03",
             absl::StrFormat("%v", absl::CivilHour(2015, 1, 2, 3)));
 
+  EXPECT_EQ("2015-01-02", absl::StrCat(absl::CivilDay(2015, 1, 2)));
   EXPECT_EQ("2015-01-02", absl::StrFormat("%v", absl::CivilDay(2015, 1, 2)));
 
+  EXPECT_EQ("2015-01", absl::StrCat(absl::CivilMonth(2015, 1)));
   EXPECT_EQ("2015-01", absl::StrFormat("%v", absl::CivilMonth(2015, 1)));
 
+  EXPECT_EQ("2015", absl::StrCat(absl::CivilYear(2015)));
   EXPECT_EQ("2015", absl::StrFormat("%v", absl::CivilYear(2015)));
 }
 
@@ -1188,7 +1206,7 @@ TEST(CivilTime, LeapYears) {
       {2009, 365, {3, 1}},  {2100, 365, {3, 1}},
   };
 
-  for (int i = 0; i < ABSL_ARRAYSIZE(kLeapYearTable); ++i) {
+  for (size_t i = 0; i < std::size(kLeapYearTable); ++i) {
     const int y = kLeapYearTable[i].year;
     const int m = kLeapYearTable[i].leap_day.month;
     const int d = kLeapYearTable[i].leap_day.day;

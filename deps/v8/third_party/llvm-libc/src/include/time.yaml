@@ -6,20 +6,31 @@ macros:
     macro_header: null-macro.h
   - macro_name: CLOCKS_PER_SEC
     macro_header: time-macros.h
+  - macro_name: TIMER_ABSTIME
+    macro_header: time-macros.h
 types:
   - type_name: struct_timeval
   - type_name: clockid_t
   - type_name: errno_t
   - type_name: struct_timespec
+  - type_name: struct_itimerspec
   - type_name: struct_tm
   - type_name: time_t
+  - type_name: timer_t
   - type_name: clock_t
   - type_name: rsize_t
   - type_name: size_t
   - type_name: locale_t
   - type_name: tm_gmtoff_t
+  - type_name: pid_t
 enums: []
-objects: []
+objects:
+  - object_name: tzname
+    object_type: char *[2]
+  - object_name: timezone
+    object_type: long
+  - object_name: daylight
+    object_type: int
 functions:
   - name: asctime
     standards:
@@ -132,6 +143,14 @@ functions:
       - type: const char *__restrict
       - type: const struct tm *__restrict
       - type: locale_t
+  - name: strptime
+    standards:
+      - stdc
+    return_type: char *
+    arguments:
+      - type: const char *__restrict
+      - type: const char *__restrict
+      - type: struct tm *__restrict
   - name: time
     standards:
       - stdc
@@ -145,3 +164,46 @@ functions:
     arguments:
       - type: struct timespec *
       - type: int
+  - name: timer_create
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: clockid_t
+      - type: struct sigevent *__restrict
+      - type: timer_t *__restrict
+  - name: timer_delete
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: timer_t
+  - name: timer_gettime
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: timer_t
+      - type: struct itimerspec *
+  - name: timer_settime
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: timer_t
+      - type: int
+      - type: const struct itimerspec *__restrict
+      - type: struct itimerspec *__restrict
+  - name: tzset
+    standards:
+      - posix
+    return_type: void
+    arguments:
+      - type: void
+  - name: clock_getcpuclockid
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: pid_t
+      - type: clockid_t *

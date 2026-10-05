@@ -5,6 +5,7 @@
 #include "src/objects/js-temporal-helpers.h"
 
 #include "src/objects/js-objects-inl.h"
+#include "src/objects/object-conversions-inl.h"
 
 namespace v8::internal::temporal {
 

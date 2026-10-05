@@ -86,7 +86,8 @@ struct EmbeddedFeedbackHintTraits<BinaryOperationFeedback> {
   using Hint = BinaryOperationHint;
   static Hint FromFeedback(uint32_t feedback_value);
   static bool IsWithEmbeddedFeedbackOp(Bytecode bc) {
-    return Bytecodes::IsBinaryOpWithEmbeddedFeedback(bc);
+    return Bytecodes::IsBinaryOpWithEmbeddedFeedback(bc) ||
+           Bytecodes::IsUnaryOpWithEmbeddedFeedback(bc);
   }
 };
 

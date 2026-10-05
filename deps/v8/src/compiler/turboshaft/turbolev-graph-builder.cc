@@ -738,8 +738,7 @@ class GraphBuildingNodeProcessor {
 #endif
 
     if (maglev_block->is_loop() &&
-        (loop_single_edge_predecessors_.contains(maglev_block) ||
-         pre_loop_generator_blocks_.contains(maglev_block))) {
+        generator_analyzer_.HeaderIsBypassed(maglev_block)) {
       EmitLoopSinglePredecessorBlock(maglev_block);
     }
 
@@ -783,33 +782,29 @@ class GraphBuildingNodeProcessor {
         // their inputs (and also, Maglev exception blocks have no
         // predecessors).
         !maglev_block->is_exception_handler_block()) {
-      ComputePredecessorPermutations(maglev_block, turboshaft_block, false,
-                                     false);
+      ComputePredecessorPermutations(maglev_block, turboshaft_block);
     }
     return maglev::BlockProcessResult::kContinue;
   }
 
   void ComputePredecessorPermutations(maglev::BasicBlock* maglev_block,
-                                      Block* turboshaft_block,
-                                      bool skip_backedge,
-                                      bool ignore_last_predecessor) {
-    // This function is only called for loops that need a "single block
-    // predecessor" (from EmitLoopSinglePredecessorBlock). The backedge should
-    // always be skipped in thus cases. Additionally, this means that when
-    // even when {maglev_block} is a loop, {turboshaft_block} shouldn't and
-    // should instead be the new single forward predecessor of the loop.
-    DCHECK_EQ(skip_backedge, maglev_block->is_loop());
+                                      Block* turboshaft_block) {
+    // When {maglev_block} is a loop, it is one whose header is bypassed by
+    // generator resumes, and {turboshaft_block} is the single forward
+    // predecessor that EmitLoopSinglePredecessorBlock created for it: the
+    // backedge is not one of its predecessors, and its last predecessor is the
+    // block gathering the resume edges, which has no Maglev origin.
+    const bool is_loop = maglev_block->is_loop();
     DCHECK(!turboshaft_block->IsLoop());
 
     DCHECK(maglev_block->has_phi());
     DCHECK(turboshaft_block->IsBound());
     DCHECK_EQ(__ current_block(), turboshaft_block);
 
-    // Collecting the Maglev predecessors.
+    // Collecting the Maglev predecessors, skipping the backedge for a loop.
     base::SmallVector<const maglev::BasicBlock*, 16> maglev_predecessors;
     maglev_predecessors.resize(maglev_block->predecessor_count());
-    for (int i = 0; i < maglev_block->predecessor_count() - skip_backedge;
-         ++i) {
+    for (int i = 0; i < maglev_block->predecessor_count() - is_loop; ++i) {
       maglev_predecessors[i] = maglev_block->predecessor_at(i);
     }
 
@@ -820,8 +815,7 @@ class GraphBuildingNodeProcessor {
     // Iterating predecessors from the end (because it's simpler and more
     // efficient in Turboshaft).
     for (const Block* pred : turboshaft_block->PredecessorsIterable()) {
-      if (ignore_last_predecessor &&
-          index == turboshaft_block->PredecessorCount() - 1) {
+      if (is_loop && index == turboshaft_block->PredecessorCount() - 1) {
         // When generator resumes bypass loop headers, we add an additional
         // predecessor to the header's predecessor (called {pred_for_generator}
         // in EmitLoopSinglePredecessorBlock). This block doesn't have Maglev
@@ -1000,43 +994,39 @@ class GraphBuildingNodeProcessor {
   void EmitLoopSinglePredecessorBlock(maglev::BasicBlock* maglev_loop_header) {
     DCHECK(maglev_loop_header->is_loop());
 
-    bool has_special_generator_handling = false;
-    V<Word32> switch_var_first_input;
-    if (pre_loop_generator_blocks_.contains(maglev_loop_header)) {
-      // This loop header used to be bypassed by generator resume edges. It will
-      // now act as a secondary switch for the generator resumes.
-      std::vector<GeneratorSplitEdge>& generator_preds =
-          pre_loop_generator_blocks_[maglev_loop_header];
-      // {generator_preds} contains all of the edges that were bypassing this
-      // loop header. Rather than adding that many predecessors to the loop
-      // header, will create a single predecessor, {pred_for_generator}, to
-      // which all of the edges of {generator_preds} will go.
-      Block* pred_for_generator = __ NewBlock();
+    DCHECK(pre_loop_generator_blocks_.contains(maglev_loop_header));
 
-      for (GeneratorSplitEdge pred : generator_preds) {
-        __ Bind(pred.pre_loop_dst);
-        __ SetVariable(header_switch_input_,
-                       __ Word32Constant(pred.switch_value));
-        __ Goto(pred_for_generator);
-      }
+    // This loop header used to be bypassed by generator resume edges. It will
+    // now act as a secondary switch for the generator resumes.
+    std::vector<GeneratorSplitEdge>& generator_preds =
+        pre_loop_generator_blocks_[maglev_loop_header];
+    // {generator_preds} contains all of the edges that were bypassing this
+    // loop header. Rather than adding that many predecessors to the loop
+    // header, will create a single predecessor, {pred_for_generator}, to
+    // which all of the edges of {generator_preds} will go.
+    Block* pred_for_generator = __ NewBlock();
 
-      __ Bind(pred_for_generator);
-      switch_var_first_input = __ GetVariable(header_switch_input_);
-      DCHECK(switch_var_first_input.valid());
-
-      BuildJump(maglev_loop_header);
-
-      has_special_generator_handling = true;
-      on_generator_switch_loop_ = true;
+    for (GeneratorSplitEdge pred : generator_preds) {
+      __ Bind(pred.pre_loop_dst);
+      __ SetVariable(header_switch_input_,
+                     __ Word32Constant(pred.switch_value));
+      __ Goto(pred_for_generator);
     }
+
+    __ Bind(pred_for_generator);
+    V<Word32> switch_var_first_input = __ GetVariable(header_switch_input_);
+    DCHECK(switch_var_first_input.valid());
+
+    BuildJump(maglev_loop_header);
+
+    on_generator_switch_loop_ = true;
 
     DCHECK(loop_single_edge_predecessors_.contains(maglev_loop_header));
     Block* loop_pred = loop_single_edge_predecessors_[maglev_loop_header];
     __ Bind(loop_pred);
 
     if (maglev_loop_header->has_phi()) {
-      ComputePredecessorPermutations(maglev_loop_header, loop_pred, true,
-                                     has_special_generator_handling);
+      ComputePredecessorPermutations(maglev_loop_header, loop_pred);
 
       // Now we need to emit Phis (one per loop phi in {block}, which should
       // contain the same input except for the backedge).
@@ -1046,58 +1036,51 @@ class GraphBuildingNodeProcessor {
         constexpr int kSkipBackedge = 1;
         int input_count = phi->input_count() - kSkipBackedge;
 
-        if (has_special_generator_handling) {
-          // Adding an input to the Phis to account for the additional
-          // generator-related predecessor.
-          V<Any> additional_input;
-          switch (phi->value_representation()) {
-            case maglev::ValueRepresentation::kTagged:
-              additional_input = dummy_object_input_;
-              break;
-            case maglev::ValueRepresentation::kInt32:
-            case maglev::ValueRepresentation::kUint32:
-              additional_input = dummy_word32_input_;
-              break;
-            case maglev::ValueRepresentation::kFloat64:
-            case maglev::ValueRepresentation::kHoleyFloat64:
-              additional_input = dummy_float64_input_;
-              break;
-            case maglev::ValueRepresentation::kIntPtr:
-            case maglev::ValueRepresentation::kRawPtr:
-            case maglev::ValueRepresentation::kNone:
-              // Maglev doesn't have IntPtr / RawPtr Phis.
-              UNREACHABLE();
-          }
-          loop_phis_first_input_.push_back(
-              MakePhiMaybePermuteInputs(phi, input_count, additional_input));
-        } else {
-          loop_phis_first_input_.push_back(
-              MakePhiMaybePermuteInputs(phi, input_count));
+        // Adding an input to the Phis to account for the additional
+        // generator-related predecessor.
+        V<Any> additional_input;
+        switch (phi->value_representation()) {
+          case maglev::ValueRepresentation::kTagged:
+            additional_input = dummy_object_input_;
+            break;
+          case maglev::ValueRepresentation::kInt32:
+          case maglev::ValueRepresentation::kUint32:
+            additional_input = dummy_word32_input_;
+            break;
+          case maglev::ValueRepresentation::kFloat64:
+          case maglev::ValueRepresentation::kHoleyFloat64:
+            additional_input = dummy_float64_input_;
+            break;
+          case maglev::ValueRepresentation::kIntPtr:
+          case maglev::ValueRepresentation::kRawPtr:
+          case maglev::ValueRepresentation::kNone:
+            // Maglev doesn't have IntPtr / RawPtr Phis.
+            UNREACHABLE();
         }
+        loop_phis_first_input_.push_back(
+            MakePhiMaybePermuteInputs(phi, input_count, additional_input));
       }
     }
 
-    if (has_special_generator_handling) {
-      // We now emit the Phi that will be used in the loop's main switch.
-      base::SmallVector<OpIndex, 16> inputs;
-      constexpr int kSkipGeneratorPredecessor = 1;
+    // We now emit the Phi that will be used in the loop's main switch.
+    base::SmallVector<OpIndex, 16> inputs;
+    constexpr int kSkipGeneratorPredecessor = 1;
 
-      // We insert a default input for all of the non-generator predecessor.
-      int input_count_without_generator =
-          loop_pred->PredecessorCount() - kSkipGeneratorPredecessor;
-      DCHECK(loop_default_generator_value_.valid());
-      inputs.insert(inputs.begin(), input_count_without_generator,
-                    loop_default_generator_value_);
+    // We insert a default input for all of the non-generator predecessor.
+    int input_count_without_generator =
+        loop_pred->PredecessorCount() - kSkipGeneratorPredecessor;
+    DCHECK(loop_default_generator_value_.valid());
+    inputs.insert(inputs.begin(), input_count_without_generator,
+                  loop_default_generator_value_);
 
-      // And we insert the "true" input for the generator predecessor (which is
-      // {pred_for_generator} above).
-      DCHECK(switch_var_first_input.valid());
-      inputs.push_back(switch_var_first_input);
+    // And we insert the "true" input for the generator predecessor (which is
+    // {pred_for_generator} above).
+    DCHECK(switch_var_first_input.valid());
+    inputs.push_back(switch_var_first_input);
 
-      __ SetVariable(
-          header_switch_input_,
-          __ Phi(base::VectorOf(inputs), RegisterRepresentation::Word32()));
-    }
+    __ SetVariable(
+        header_switch_input_,
+        __ Phi(base::VectorOf(inputs), RegisterRepresentation::Word32()));
 
     // Actually jumping to the loop.
     __ Goto(Map(maglev_loop_header));
@@ -1339,12 +1322,11 @@ class GraphBuildingNodeProcessor {
     if (__ current_block()->IsLoop()) {
       DCHECK(state.block()->is_loop());
       OpIndex first_phi_input;
-      if (state.block()->predecessor_count() > 2 ||
-          generator_analyzer_.HeaderIsBypassed(state.block())) {
-        // This loop has multiple forward edges in Maglev, so we should have
-        // created an intermediate block in Turboshaft, which will be the only
-        // predecessor of the Turboshaft loop, and from which we'll find the
-        // first input for this loop phi.
+      if (generator_analyzer_.HeaderIsBypassed(state.block())) {
+        // Resume jumps enter this loop without going through its header, so we
+        // should have created an intermediate block in Turboshaft, which will
+        // be the only predecessor of the Turboshaft loop, and from which we'll
+        // find the first input for this loop phi.
         DCHECK_EQ(loop_phis_first_input_.size(),
                   static_cast<size_t>(state.block()->phis()->LengthForTest()));
         DCHECK_GE(loop_phis_first_input_index_, 0);
@@ -2742,8 +2724,8 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     __ DeoptimizeIfNot(
-        __ Uint32LessThan(Map(node->ValueInput()), Smi::kMaxValue), frame_state,
-        DeoptimizeReason::kNotASmi,
+        __ Uint32LessThanOrEqual(Map(node->ValueInput()), Smi::kMaxValue),
+        frame_state, DeoptimizeReason::kNotASmi,
         node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
@@ -3549,35 +3531,6 @@ class GraphBuildingNodeProcessor {
                      __ ChangeInt32ToIntPtr(Map(node->IndexInput()))));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(
-      maglev::LoadHoleyFixedDoubleArrayElementCheckedNotHole* node,
-      const maglev::ProcessingState& state) {
-    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    V<Float64> result = __ LoadFixedDoubleArrayElement(
-        Map(node->ElementsInput()),
-        __ ChangeInt32ToIntPtr(Map(node->IndexInput())));
-    __ DeoptimizeIf(__ Float64IsHole(result), frame_state,
-                    DeoptimizeReason::kHole,
-                    node->eager_deopt_info()->feedback_to_update());
-    SetMap(node, result);
-    return maglev::ProcessResult::kContinue;
-  }
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-  maglev::ProcessResult Process(
-      maglev::LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole* node,
-      const maglev::ProcessingState& state) {
-    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    V<Float64> result = __ LoadFixedDoubleArrayElement(
-        Map(node->ElementsInput()),
-        __ ChangeInt32ToIntPtr(Map(node->IndexInput())));
-    __ DeoptimizeIf(__ Float64IsUndefinedOrHole(result), frame_state,
-                    DeoptimizeReason::kHole,
-                    node->eager_deopt_info()->feedback_to_update());
-    SetMap(node, result);
-    return maglev::ProcessResult::kContinue;
-  }
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
-
   // Maps a maglev static type to the memory representation of a tagged
   // field access.
   MemoryRepresentation TaggedMemoryRepresentation(maglev::NodeType type) {
@@ -3695,14 +3648,35 @@ class GraphBuildingNodeProcessor {
                               WriteBarrierKind::kFullWriteBarrier);
     return maglev::ProcessResult::kContinue;
   }
-  template <Either<maglev::StoreFixedDoubleArrayElement,
-                   maglev::StoreFixedHoleyDoubleArrayElement>
-                T>
-  maglev::ProcessResult Process(T* node, const maglev::ProcessingState& state) {
+  maglev::ProcessResult Process(maglev::StoreFixedDoubleArrayElement* node,
+                                const maglev::ProcessingState& state) {
     __ StoreFixedDoubleArrayElement(
         Map(node->ElementsInput()),
         __ ChangeInt32ToIntPtr(Map(node->IndexInput())),
         Map(node->ValueInput()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StoreFixedDoubleArrayHole* node,
+                                const maglev::ProcessingState& state) {
+    __ StoreFixedDoubleArrayElement(
+        Map(node->ElementsInput()),
+        __ ChangeInt32ToIntPtr(Map(node->IndexInput())),
+        __ Float64Constant(internal::Float64::hole_nan()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StoreFixedHoleyDoubleArrayElement* node,
+                                const maglev::ProcessingState& state) {
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    ScopedVar<Float64, AssemblerT> value(this, Map(node->ValueInput()));
+    IF (__ Float64IsHole(value)) {
+      value = __ Float64Constant(internal::Float64::undefined_nan());
+    }
+#else
+    V<Float64> value = Map(node->ValueInput());
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+    __ StoreFixedDoubleArrayElement(
+        Map(node->ElementsInput()),
+        __ ChangeInt32ToIntPtr(Map(node->IndexInput())), value);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StoreMap* node,
@@ -3929,15 +3903,15 @@ class GraphBuildingNodeProcessor {
                       DeoptimizeReason::kOutOfBounds,
                       node->eager_deopt_info()->feedback_to_update());
     }
-    __ DeoptimizeIfNot(
-        __ Uint32LessThan(Map<Word32>(node->IndexInput()),
-                          __ TruncateWordPtrToWord32(byte_length)),
-        frame_state, DeoptimizeReason::kOutOfBounds,
-        node->eager_deopt_info()->feedback_to_update());
+    __ DeoptimizeIfNot(__ UintPtrLessThan(__ ChangeInt32ToIntPtr(
+                                              Map<Word32>(node->IndexInput())),
+                                          byte_length),
+                       frame_state, DeoptimizeReason::kOutOfBounds,
+                       node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::LoadSignedIntDataViewElement* node,
+  maglev::ProcessResult Process(maglev::LoadInt32DataViewElement* node,
                                 const maglev::ProcessingState& state) {
     V<WordPtr> storage = Map<WordPtr>(node->DataPointerInput());
     // TODO(dmercadier): Peephole optimize TruncateJSPrimitiveToUntagged(Boolean
@@ -3949,11 +3923,11 @@ class GraphBuildingNodeProcessor {
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
     SetMap(node, __ LoadDataViewElement(
                      Map(node->ObjectInput()), storage,
-                     __ ChangeUint32ToUintPtr(Map<Word32>(node->IndexInput())),
+                     __ ChangeInt32ToIntPtr(Map<Word32>(node->IndexInput())),
                      is_little_endian, node->external_array_type()));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::LoadDoubleDataViewElement* node,
+  maglev::ProcessResult Process(maglev::LoadUint32DataViewElement* node,
                                 const maglev::ProcessingState& state) {
     V<WordPtr> storage = Map<WordPtr>(node->DataPointerInput());
     // TODO(dmercadier): Peephole optimize TruncateJSPrimitiveToUntagged(Boolean
@@ -3966,12 +3940,33 @@ class GraphBuildingNodeProcessor {
     SetMap(node,
            __ LoadDataViewElement(
                Map(node->ObjectInput()), storage,
-               __ ChangeUint32ToUintPtr(Map<Word32>(node->IndexInput())),
-               is_little_endian, ExternalArrayType::kExternalFloat64Array));
+               __ ChangeInt32ToIntPtr(Map<Word32>(node->IndexInput())),
+               is_little_endian, ExternalArrayType::kExternalUint32Array));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::LoadDoubleDataViewElement* node,
+                                const maglev::ProcessingState& state) {
+    V<WordPtr> storage = Map<WordPtr>(node->DataPointerInput());
+    // TODO(dmercadier): Peephole optimize TruncateJSPrimitiveToUntagged(Boolean
+    // -> Bit) in SimplifiedOptimizationReducer, since the
+    // is_little_endian_input will often be a constant True/False boolean in
+    // practice.
+    V<Word32> is_little_endian =
+        ToBit(node->IsLittleEndianInput(),
+              TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
+    V<Float> value = V<Float>::Cast(__ LoadDataViewElement(
+        Map(node->ObjectInput()), storage,
+        __ ChangeInt32ToIntPtr(Map<Word32>(node->IndexInput())),
+        is_little_endian, node->external_array_type()));
+    if (node->external_array_type() ==
+        ExternalArrayType::kExternalFloat32Array) {
+      value = __ ChangeFloat32ToFloat64(V<Float32>::Cast(value));
+    }
+    SetMap(node, value);
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::StoreSignedIntDataViewElement* node,
+  maglev::ProcessResult Process(maglev::StoreInt32DataViewElement* node,
                                 const maglev::ProcessingState& state) {
     V<WordPtr> storage = Map<WordPtr>(node->DataPointerInput());
     // TODO(dmercadier): Peephole optimize TruncateJSPrimitiveToUntagged(Boolean
@@ -3983,11 +3978,12 @@ class GraphBuildingNodeProcessor {
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
     __ StoreDataViewElement(
         Map(node->ObjectInput()), storage,
-        __ ChangeUint32ToUintPtr(Map<Word32>(node->IndexInput())),
+        __ ChangeInt32ToIntPtr(Map<Word32>(node->IndexInput())),
         Map<Word32>(node->ValueInput()), is_little_endian,
         node->external_array_type());
     return maglev::ProcessResult::kContinue;
   }
+
   maglev::ProcessResult Process(maglev::StoreDoubleDataViewElement* node,
                                 const maglev::ProcessingState& state) {
     V<WordPtr> storage = Map<WordPtr>(node->DataPointerInput());
@@ -3998,11 +3994,15 @@ class GraphBuildingNodeProcessor {
     V<Word32> is_little_endian =
         ToBit(node->IsLittleEndianInput(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
+    OpIndex value = Map<Float64>(node->ValueInput());
+    if (node->external_array_type() ==
+        ExternalArrayType::kExternalFloat32Array) {
+      value = __ TruncateFloat64ToFloat32(value);
+    }
     __ StoreDataViewElement(
         Map(node->ObjectInput()), storage,
-        __ ChangeUint32ToUintPtr(Map<Word32>(node->IndexInput())),
-        Map<Float64>(node->ValueInput()), is_little_endian,
-        ExternalArrayType::kExternalFloat64Array);
+        __ ChangeInt32ToIntPtr(Map<Word32>(node->IndexInput())), value,
+        is_little_endian, node->external_array_type());
     return maglev::ProcessResult::kContinue;
   }
 
@@ -4020,10 +4020,11 @@ class GraphBuildingNodeProcessor {
 
   void BuildJump(maglev::BasicBlock* target) {
     Block* destination = Map(target);
-    if (target->is_loop() && (target->predecessor_count() > 2 ||
-                              generator_analyzer_.HeaderIsBypassed(target))) {
-      // This loop has multiple forward edges in Maglev, so we'll create an
-      // extra block in Turboshaft that will be the only predecessor.
+    DCHECK_IMPLIES(target->is_loop(), target->predecessor_count() <= 2);
+    if (target->is_loop() && generator_analyzer_.HeaderIsBypassed(target)) {
+      // Resume jumps enter this loop without going through its header, so
+      // we'll create an extra block in Turboshaft that will be the only
+      // predecessor.
       auto it = loop_single_edge_predecessors_.find(target);
       if (it != loop_single_edge_predecessors_.end()) {
         destination = it->second;
@@ -5138,27 +5139,34 @@ class GraphBuildingNodeProcessor {
                node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
+  // The narrowest kind that still admits everything the conversion is allowed
+  // to assume about its input.
+  static ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind
+  JSPrimitiveKindFor(maglev::NodeType assumed_input_type) {
+    if (maglev::NodeTypeIs(assumed_input_type, maglev::NodeType::kNumber)) {
+      return ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber;
+    }
+    if (maglev::NodeTypeIs(assumed_input_type,
+                           maglev::NodeType::kNumberOrBoolean)) {
+      return ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+          kNumberOrBoolean;
+    }
+    if (maglev::NodeTypeIs(assumed_input_type,
+                           maglev::NodeType::kNumberOrUndefined)) {
+      return ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+          kNumberOrUndefined;
+    }
+    DCHECK(maglev::NodeTypeIs(assumed_input_type,
+                              maglev::NodeType::kNumberOrOddball));
+    return ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+        kNumberOrOddball;
+  }
+
   maglev::ProcessResult Process(maglev::CheckedNumberOrOddballToFloat64* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind;
-    switch (node->conversion_type()) {
-      case maglev::TaggedToFloat64ConversionType::kOnlyNumber:
-        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber;
-        break;
-      case maglev::TaggedToFloat64ConversionType::kNumberOrUndefined:
-        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
-            kNumberOrUndefined;
-        break;
-      case maglev::TaggedToFloat64ConversionType::kNumberOrBoolean:
-        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
-            kNumberOrBoolean;
-        break;
-      case maglev::TaggedToFloat64ConversionType::kNumberOrOddball:
-        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
-            kNumberOrOddball;
-        break;
-    }
+    ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind =
+        JSPrimitiveKindFor(node->assumed_input_type());
     SetMap(node,
            __ ConvertJSPrimitiveToUntaggedOrDeopt(
                Map(node->ValueInput()), frame_state, kind,
@@ -5171,24 +5179,8 @@ class GraphBuildingNodeProcessor {
       maglev::CheckedNumberOrOddballToHoleyFloat64* node,
       const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind;
-    switch (node->conversion_type()) {
-      case maglev::TaggedToFloat64ConversionType::kOnlyNumber:
-        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber;
-        break;
-      case maglev::TaggedToFloat64ConversionType::kNumberOrUndefined:
-        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
-            kNumberOrUndefined;
-        break;
-      case maglev::TaggedToFloat64ConversionType::kNumberOrBoolean:
-        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
-            kNumberOrBoolean;
-        break;
-      case maglev::TaggedToFloat64ConversionType::kNumberOrOddball:
-        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
-            kNumberOrOddball;
-        break;
-    }
+    ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind =
+        JSPrimitiveKindFor(node->assumed_input_type());
     SetMap(
         node,
         __ ConvertJSPrimitiveToUntaggedOrDeopt(
@@ -5204,9 +5196,9 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::UnsafeNumberToFloat64* node,
                                 const maglev::ProcessingState& state) {
-    // `node->conversion_type()` doesn't matter here, since for both HeapNumbers
-    // and Oddballs, the Float64 value is at the same index (and this node never
-    // deopts, regardless of its input).
+    // `node->assumed_input_type()` doesn't matter here, since for both
+    // HeapNumbers and Oddballs, the Float64 value is at the same index (and
+    // this node never deopts, regardless of its input).
     SetMap(node, __ ConvertJSPrimitiveToUntagged(
                      Map(node->ValueInput()),
                      ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64,
@@ -5216,9 +5208,9 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::UnsafeNumberOrOddballToFloat64* node,
                                 const maglev::ProcessingState& state) {
-    // `node->conversion_type()` doesn't matter here, since for both HeapNumbers
-    // and Oddballs, the Float64 value is at the same index (and this node never
-    // deopts, regardless of its input).
+    // `node->assumed_input_type()` doesn't matter here, since for both
+    // HeapNumbers and Oddballs, the Float64 value is at the same index (and
+    // this node never deopts, regardless of its input).
     SetMap(node, __ ConvertJSPrimitiveToUntagged(
                      Map(node->ValueInput()),
                      ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64,
@@ -5229,9 +5221,9 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(
       maglev::UnsafeNumberOrOddballToHoleyFloat64* node,
       const maglev::ProcessingState& state) {
-    // `node->conversion_type()` doesn't matter here, since for both HeapNumbers
-    // and Oddballs, the Float64 value is at the same index (and this node never
-    // deopts, regardless of its input).
+    // `node->assumed_input_type()` doesn't matter here, since for both
+    // HeapNumbers and Oddballs, the Float64 value is at the same index (and
+    // this node never deopts, regardless of its input).
     SetMap(node,
            __ ConvertJSPrimitiveToUntagged(
                Map(node->ValueInput()),
@@ -5310,15 +5302,18 @@ class GraphBuildingNodeProcessor {
         ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kArrayIndex,
         CheckForMinusZeroMode::kCheckForMinusZero, feedback);
     if constexpr (Is64()) {
-      // ArrayIndex is 32-bit in Maglev, but 64 in Turboshaft. This means that
-      // we have to convert it to 32-bit before the following `SetMap`, and we
-      // thus have to check that it actually fits in a Uint32.
-      __ DeoptimizeIfNot(__ Uint64LessThanOrEqual(
-                             result, std::numeric_limits<uint32_t>::max()),
+      // UntaggedKind::kArrayIndex produces signed Word64 in Turboshaft, but
+      // Maglev's CheckedObjectToIndex produces signed Int32. Ensure the value
+      // fits in a signed Int32 before mapping it (negative indices are valid
+      // and handled downstream by bounds checks).
+      V<Word32> i32 = __ TruncateWord64ToWord32(result);
+      __ DeoptimizeIfNot(__ Word64Equal(__ ChangeInt32ToInt64(i32), result),
                          frame_state, DeoptimizeReason::kNotInt32, feedback);
       RETURN_IF_UNREACHABLE();
+      SetMap(node, i32);
+    } else {
+      SetMap(node, result);
     }
-    SetMap(node, Is64() ? __ TruncateWord64ToWord32(result) : result);
     return maglev::ProcessResult::kContinue;
   }
   template <
@@ -5438,21 +5433,21 @@ class GraphBuildingNodeProcessor {
       maglev::TruncateCheckedNumberOrOddballToInt32* node,
       const maglev::ProcessingState& state) {
     TruncateJSPrimitiveToWord32OrDeoptOp::InputRequirement input_requirement;
-    switch (node->conversion_type()) {
-      case maglev::TaggedToFloat64ConversionType::kOnlyNumber:
-        input_requirement =
-            TruncateJSPrimitiveToWord32OrDeoptOp::InputRequirement::kNumber;
-        break;
-      case maglev::TaggedToFloat64ConversionType::kNumberOrUndefined:
-        UNREACHABLE();
-      case maglev::TaggedToFloat64ConversionType::kNumberOrBoolean:
-        input_requirement = TruncateJSPrimitiveToWord32OrDeoptOp::
-            InputRequirement::kNumberOrBoolean;
-        break;
-      case maglev::TaggedToFloat64ConversionType::kNumberOrOddball:
-        input_requirement = TruncateJSPrimitiveToWord32OrDeoptOp::
-            InputRequirement::kNumberOrOddball;
-        break;
+    if (maglev::NodeTypeIs(node->assumed_input_type(),
+                           maglev::NodeType::kNumber)) {
+      input_requirement =
+          TruncateJSPrimitiveToWord32OrDeoptOp::InputRequirement::kNumber;
+    } else if (maglev::NodeTypeIs(node->assumed_input_type(),
+                                  maglev::NodeType::kNumberOrBoolean)) {
+      input_requirement = TruncateJSPrimitiveToWord32OrDeoptOp::
+          InputRequirement::kNumberOrBoolean;
+    } else {
+      DCHECK(maglev::NodeTypeIs(node->assumed_input_type(),
+                                maglev::NodeType::kNumberOrOddball));
+      DCHECK_NE(node->assumed_input_type(),
+                maglev::NodeType::kNumberOrUndefined);
+      input_requirement = TruncateJSPrimitiveToWord32OrDeoptOp::
+          InputRequirement::kNumberOrOddball;
     }
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     SetMap(node, __ TruncateJSPrimitiveToWord32OrDeopt(
@@ -5485,10 +5480,8 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-  template <Either<maglev::Float64ToSilencedFloat64,
-                   maglev::HoleyFloat64ToSilencedFloat64>
-                T>
-  maglev::ProcessResult Process(T* node, const maglev::ProcessingState& state) {
+  maglev::ProcessResult Process(maglev::Float64ToSilencedFloat64* node,
+                                const maglev::ProcessingState& state) {
     SetMap(node, __ Float64SilenceNaN(Map(node->ValueInput())));
     return maglev::ProcessResult::kContinue;
   }
@@ -5498,21 +5491,6 @@ class GraphBuildingNodeProcessor {
     SetMap(node, __ Float64SilenceNaN(Map(node->ValueInput())));
     return maglev::ProcessResult::kContinue;
   }
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-  maglev::ProcessResult Process(
-      maglev::HoleyFloat64ConvertHoleToUndefined* node,
-      const maglev::ProcessingState& state) {
-    V<Float64> input = Map(node->ValueInput());
-
-    ScopedVar<Float64, AssemblerT> result(this, input);
-    IF (__ Float64IsHole(input)) {
-      result = __ Float64Constant(internal::Float64::undefined_nan());
-    }
-
-    SetMap(node, result);
-    return maglev::ProcessResult::kContinue;
-  }
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   maglev::ProcessResult Process(maglev::CheckedHoleyFloat64ToFloat64* node,
                                 const maglev::ProcessingState& state) {
     V<Float64> input = Map(node->ValueInput());
@@ -5857,11 +5835,6 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::TryOnStackReplacement*,
-                                const maglev::ProcessingState&) {
-    // Turboshaft is the top tier compiler, so we never need to OSR from it.
-    return maglev::ProcessResult::kContinue;
-  }
   maglev::ProcessResult Process(maglev::ReduceInterruptBudgetForReturn*,
                                 const maglev::ProcessingState&) {
     // No need to update the interrupt budget once we reach Turboshaft.
@@ -5875,6 +5848,7 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::HandleNoHeapWritesInterrupt* node,
                                 const maglev::ProcessingState&) {
+    DCHECK(!v8_flags.disable_loop_stack_checks);
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
     __ JSLoopStackCheck(native_context(), frame_state);
     return maglev::ProcessResult::kContinue;
@@ -6402,9 +6376,12 @@ class GraphBuildingNodeProcessor {
                   value->Cast<maglev::HeapConstant>()->ref().object()));
           break;
 
-        case maglev::Opcode::kFloat64Constant: {
+        case maglev::Opcode::kFloat64Constant:
+        case maglev::Opcode::kHoleyFloat64Constant: {
           i::Float64 value_as_float =
-              value->Cast<maglev::Float64Constant>()->value();
+              value->opcode() == maglev::Opcode::kFloat64Constant
+                  ? value->Cast<maglev::Float64Constant>()->value()
+                  : value->Cast<maglev::HoleyFloat64Constant>()->value();
           DCHECK(vobj->has_static_map());
           const bool is_fixed_double_array =
               vobj->map()->IsFixedDoubleArrayMap();
@@ -6888,9 +6865,8 @@ class GraphBuildingNodeProcessor {
           __ output_graph().Get(phi_index).Cast<PendingLoopPhiOp>();
       __ output_graph().Replace<PhiOp>(
           phi_index,
-          base::VectorOf(
-              {pending_phi.first(),
-               Map(maglev_phi -> backedge_input(), kIndexCanBeInvalid)}),
+          base::VectorOf({pending_phi.first(),
+                          Map(maglev_phi -> backedge(), kIndexCanBeInvalid)}),
           pending_phi.rep);
     }
   }
@@ -7217,20 +7193,20 @@ class GraphBuildingNodeProcessor {
   // to map the exception phi corresponding to the accumulator.
   V<Object> catch_block_begin_ = V<Object>::Invalid();
 
-  // Maglev loops can have multiple forward edges, while Turboshaft should only
-  // have a single one. When a Maglev loop has multiple forward edges, we create
-  // an additional Turboshaft block before (which we record in
-  // {loop_single_edge_predecessors_}), and jumps to the loop will instead go to
-  // this additional block, which will become the only forward predecessor of
-  // the loop.
+  // Maglev generator loops can be entered through resume jumps that bypass
+  // their header, while a Turboshaft loop should only have a single forward
+  // edge. For those loops we create an additional Turboshaft block before
+  // (which we record in {loop_single_edge_predecessors_}), and jumps to the
+  // loop will instead go to this additional block, which will become the only
+  // forward predecessor of the loop.
   ZoneUnorderedMap<const maglev::BasicBlock*, Block*>
       loop_single_edge_predecessors_;
-  // When we create an additional loop predecessor for loops that have multiple
-  // forward predecessors, we store the newly created phis in
-  // {loop_phis_first_input_}, so that we can then use them as the first input
-  // of the original loop phis. {loop_phis_first_input_index_} is used as an
-  // index in {loop_phis_first_input_} in VisitPhi so that we know where to find
-  // the first input for the current loop phi.
+  // When we create an additional loop predecessor for such loops, we store the
+  // newly created phis in {loop_phis_first_input_}, so that we can then use
+  // them as the first input of the original loop phis.
+  // {loop_phis_first_input_index_} is used as an index in
+  // {loop_phis_first_input_} in VisitPhi so that we know where to find the
+  // first input for the current loop phi.
   base::SmallVector<OpIndex, 16> loop_phis_first_input_;
   int loop_phis_first_input_index_ = -1;
 

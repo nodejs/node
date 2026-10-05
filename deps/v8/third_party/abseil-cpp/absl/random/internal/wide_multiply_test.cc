@@ -17,6 +17,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/numeric/int128.h"
+#include "absl/random/internal/traits.h"
 
 using absl::random_internal::MultiplyU128ToU256;
 using absl::random_internal::U256;

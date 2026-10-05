@@ -153,7 +153,7 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
   DCHECK(!space->is_internal_read_only_space());
 
   ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-  table.Mark(space, handle, slot.address());
+  table.Mark(space, handle, slot.address(), slot.tag_range());
 
   if (marking_barrier->is_minor() && HeapLayout::InYoungGeneration(host)) {
     MutablePage* host_page =

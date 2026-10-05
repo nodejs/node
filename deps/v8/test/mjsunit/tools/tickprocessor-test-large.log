@@ -468,10 +468,10 @@ tick,0x7f3662e68f6f,9690,0,0x0,6
 tick,0x7f3662dfac6d,9705,0,0x0,6
 tick,0x5574259875be,9719,0,0x0,6
 code-creation,Builtin,2,9734,0x5574263758e0,1204,GreaterThanOrEqual_WithFeedback
-code-creation,Builtin,2,9748,0x557426375da0,448,BitwiseNot_Baseline
-code-creation,Builtin,2,9757,0x557426375f80,448,Decrement_Baseline
-code-creation,Builtin,2,9766,0x557426376160,448,Increment_Baseline
-code-creation,Builtin,2,9774,0x557426376340,472,Negate_Baseline
+code-creation,Builtin,2,9748,0x557426375da0,448,BitwiseNot_Generic_Baseline
+code-creation,Builtin,2,9757,0x557426375f80,448,Decrement_Generic_Baseline
+code-creation,Builtin,2,9766,0x557426376160,448,Increment_Generic_Baseline
+code-creation,Builtin,2,9774,0x557426376340,472,Negate_Generic_Baseline
 code-creation,Builtin,2,9783,0x557426376520,424,BitwiseNot_WithFeedback
 code-creation,Builtin,2,9792,0x5574263766e0,420,Decrement_WithFeedback
 code-creation,Builtin,2,9801,0x5574263768a0,420,Increment_WithFeedback

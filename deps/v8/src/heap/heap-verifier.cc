@@ -146,6 +146,7 @@ void VerifyPointersVisitor::VisitMapPointer(Tagged<HeapObject> host) {
 void VerifyPointersVisitor::VerifyHeapObjectImpl(
     Tagged<HeapObject> heap_object) {
   CHECK(IsValidHeapObject(heap_, heap_object));
+  if (IsInaccessible(heap_object)) return;
   CHECK(IsMap(heap_object->map()));
   // Heap::InToPage() is not available with sticky mark-bits.
   CHECK_IMPLIES(

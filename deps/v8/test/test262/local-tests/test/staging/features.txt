@@ -73,6 +73,10 @@ await-dictionary
 # https://github.com/tc39/proposal-error-stack-accessor
 error-stack-accessor
 
+# Iterator Join
+# https://github.com/tc39/proposal-iterator-join
+Iterator.prototype.join
+
 ## Standard language features
 #
 # Language features that have been included in a published version of the
@@ -145,7 +149,9 @@ globalThis
 hashbang
 import-attributes
 import.meta
+iterator-chunking
 iterator-helpers
+iterator-includes
 iterator-sequencing
 Int8Array
 Int16Array

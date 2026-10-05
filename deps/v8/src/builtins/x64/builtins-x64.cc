@@ -3190,7 +3190,7 @@ void Builtins::Generate_AdaptShadowStackForDeopt(MacroAssembler* masm) {
   __ popq(count_reg);
   // Now `kReturnRegister0` is the address we want to jump to.
 
-  __ cmpl(count_reg, Immediate(0));
+  __ Cmp(count_reg, 0);
   Label finished;
   __ j(equal, &finished, Label::kNear);
   // This will jump to CallToAdaptShadowStackForDeopt which call back into this
@@ -3489,6 +3489,7 @@ void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
 void ReloadParentStack(MacroAssembler* masm, Register promise,
                        Register return_value, Register context, Register tmp1,
                        Register tmp2) {
+  DCHECK_NE(tmp1, tmp2);
   Register active_stack = tmp1;
   __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());
 
@@ -3497,7 +3498,10 @@ void ReloadParentStack(MacroAssembler* masm, Register promise,
   // Switch stack!
   SwitchStacks(masm, ExternalReference::wasm_return_jspi_stack(), parent,
                nullptr, no_reg, {promise, return_value, context, parent});
+  __ movq(tmp1, MemOperand(parent, wasm::kStackPcOffset));
   LoadJumpBuffer(masm, parent, false);
+  __ movq(MemOperand(rbp, WasmJspiFrameConstants::kParentReturnAddressOffset),
+          tmp1);
 }
 
 // Loads the context field of the WasmTrustedInstanceData or WasmImportData
@@ -3621,6 +3625,8 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp1,
   }
 
   __ bind(return_promise);
+  // The initial wrapper and a resume callback have different argument cleanup.
+  __ jmp(MemOperand(rbp, WasmJspiFrameConstants::kParentReturnAddressOffset));
 }
 
 void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
@@ -3820,6 +3826,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   Label return_promise;
   if (stack_switch) {
     SwitchBackAndReturnPromise(masm, r8, rdi, mode, &return_promise);
+    __ Trap();  // Unreachable.
   }
   __ bind(&suspend);
   __ endbr64();
@@ -3938,18 +3945,17 @@ namespace {
 // forwards the value, the onRejected variant throws the value.
 
 void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
+  __ cmpq(kJavaScriptCallArgCountRegister, Immediate(JSParameterCount(1)));
+  __ Check(equal, AbortReason::kJSSignatureMismatch);
+
   __ EnterFrame(StackFrame::WASM_JSPI);
 
-  Register param_count = rax;
-  __ decq(param_count);                    // Exclude receiver.
   Register closure = kJSFunctionRegister;  // rdi
 
   __ AllocateStackSpace(WasmJspiFrameConstants::kNumSpillSlots *
                         kSystemPointerSize);
   // Set a sentinel value for the spill slots visited by the GC.
   ResetWasmJspiFrameStackSlots(masm);
-
-  param_count = no_reg;
 
   // -------------------------------------------
   // Load suspender from closure.
@@ -4362,7 +4368,7 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm,
   using ER = ExternalReference;
 
   Label no_stack_change;
-  __ cmpq(kOldSPRegister, Immediate(0));
+  __ Cmpq(kOldSPRegister, 0);
   __ j(equal, &no_stack_change);
   __ movq(rsp, kOldSPRegister);
 
@@ -5670,7 +5676,7 @@ void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::INTERPRETED);
 
   // The arguments are already in the stack, but we might need to adapt them
-  // if the function signature changed (e.g. via LiveEdit).
+  // if the function signature changed.
   __ InvokeFunction(rdi, no_reg, rax, InvokeType::kJump,
                     ArgumentAdaptionMode::kAdapt);
 }

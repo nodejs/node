@@ -12,7 +12,7 @@
 
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/hash-table-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/property-cell-inl.h"
 
 // Has to be the last include (doesn't have include guards):

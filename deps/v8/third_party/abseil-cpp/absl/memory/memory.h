@@ -29,6 +29,7 @@
 #include <new>
 #include <type_traits>
 #include <utility>
+#include <version>
 
 #include "absl/base/macros.h"
 #include "absl/meta/type_traits.h"

@@ -6,7 +6,7 @@
 #define V8_WASM_WASM_CODE_POINTER_TABLE_H_
 
 #include "include/v8-internal.h"
-#include "src/common/segmented-table.h"
+#include "src/sandbox/segmented-table.h"
 
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.

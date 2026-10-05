@@ -333,8 +333,8 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
 
   // 14. Set durationFormat.[[Style]] to style.
   // 15. Set durationFormat.[[DataLocale]] to r.[[dataLocale]].
-  DirectHandle<Managed<icu::Locale>> managed_locale =
-      Managed<icu::Locale>::From(
+  DirectHandle<CppGCManaged<icu::Locale>> managed_locale =
+      CppGCManaged<icu::Locale>::Create(
           isolate, 0, std::shared_ptr<icu::Locale>{icu_locale.clone()});
   // 16. Let prevStyle be the empty String.
   // 17. For each row of Table 1, except the header row, in table order, do
@@ -449,9 +449,9 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
         numbering_system.c_str(), status));
     DCHECK(U_SUCCESS(status));
   }
-  DirectHandle<Managed<icu::number::LocalizedNumberFormatter>>
+  DirectHandle<CppGCManaged<icu::number::LocalizedNumberFormatter>>
       managed_number_formatter =
-          Managed<icu::number::LocalizedNumberFormatter>::From(
+          CppGCManaged<icu::number::LocalizedNumberFormatter>::Create(
               isolate, 0,
               std::make_shared<icu::number::LocalizedNumberFormatter>(fmt));
 

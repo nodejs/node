@@ -16,6 +16,10 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/canonical-types.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 // In multi-cage mode we create one cage per isolate
 // and we don't share objects between cages.
 #if V8_CAN_CREATE_SHARED_HEAP_BOOL && !COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL
@@ -935,6 +939,107 @@ TEST_F(SharedHeapTest, WriteBarrierForRange_SharedHeapMarking) {
 
   InvokeMajorGC(isolate);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+namespace {
+
+// The index the shared rtts array is grown to up front, and the larger one the
+// blocking thread asks for so that it has to grow the array again.
+constexpr uint32_t kPreparedTypeIndex = 8;
+constexpr uint32_t kBlockingTypeIndex = 4096;
+
+// Runs into wasm_shared_canonical_types_mutex_ through production code, while
+// the main thread holds it.
+class PrepareSharedCanonicalTypeThread final : public ParkingThread {
+ public:
+  PrepareSharedCanonicalTypeThread(base::Semaphore* sema_mutex_held,
+                                   base::Semaphore* sema_done)
+      : ParkingThread(Options("PrepareSharedCanonicalTypeThread")),
+        sema_mutex_held_(sema_mutex_held),
+        sema_done_(sema_done) {}
+
+  void Run() override {
+    SetupClientIsolateAndRunCallback(
+        [this](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
+          HandleScope scope(i_client_isolate);
+          // Only start once the main thread holds the mutex, so that this call
+          // is guaranteed to block on it.
+          sema_mutex_held_->Wait();
+          wasm::TypeCanonicalizer::PrepareForCanonicalTypeId(
+              i_client_isolate, wasm::CanonicalTypeIndex{kBlockingTypeIndex},
+              SharedFlag{true});
+          sema_done_->Signal();
+        });
+  }
+
+ private:
+  base::Semaphore* sema_mutex_held_;
+  base::Semaphore* sema_done_;
+};
+
+// Fails the process if the interaction below does not finish. The deadlocked
+// threads cannot report anything themselves, and a hung test would otherwise
+// only be caught by the test runner's global timeout.
+class DeadlockWatchdogThread final : public base::Thread {
+ public:
+  explicit DeadlockWatchdogThread(base::Semaphore* sema_done)
+      : Thread(Options("DeadlockWatchdogThread")), sema_done_(sema_done) {}
+
+  void Run() override {
+    if (!sema_done_->WaitFor(base::TimeDelta::FromSeconds(30))) {
+      FATAL(
+          "deadlock: an isolate blocked on wasm_shared_canonical_types_mutex_ "
+          "never reached a safepoint, so the shared GC could not complete");
+    }
+  }
+
+ private:
+  base::Semaphore* sema_done_;
+};
+
+}  // namespace
+
+// Regression test for b/538572369: wasm_shared_canonical_types_mutex_ is held
+// across shared-heap allocations in PrepareForCanonicalTypeId and
+// CreateMapForType, so it has to be acquired in a parked state. A client
+// isolate blocked on it without parking never reaches the safepoint that a
+// concurrent shared GC waits for, and both threads hang.
+TEST_F(SharedHeapTest, SharedCanonicalTypesMutexIsSafepointAware) {
+  Isolate* isolate = i_isolate();
+  CHECK(isolate->is_shared_space_isolate());
+  LocalIsolate* local_isolate = isolate->main_thread_local_isolate();
+
+  // Grow the shared rtts array once, so that the background thread's request
+  // for a larger index gets past the fast path and has to take the mutex.
+  wasm::TypeCanonicalizer::PrepareForCanonicalTypeId(
+      isolate, wasm::CanonicalTypeIndex{kPreparedTypeIndex}, SharedFlag{true});
+
+  base::Semaphore sema_mutex_held(0);
+  base::Semaphore sema_done(0);
+
+  auto blocker = std::make_unique<PrepareSharedCanonicalTypeThread>(
+      &sema_mutex_held, &sema_done);
+  CHECK(blocker->Start());
+
+  DeadlockWatchdogThread watchdog(&sema_done);
+  CHECK(watchdog.Start());
+
+  {
+    base::MutexGuard lock(isolate->wasm_shared_canonical_types_mutex());
+    sema_mutex_held.Signal();
+    // There is no way to observe that the other thread is blocked inside
+    // base::Mutex::Lock, so give it a moment to get there. Losing this race
+    // makes the test pass spuriously, never fail spuriously.
+    base::OS::Sleep(base::TimeDelta::FromMilliseconds(200));
+    // Waits for a global safepoint, which the blocked isolate cannot reach.
+    isolate->heap()->CollectGarbageShared(isolate->main_thread_local_heap(),
+                                          GarbageCollectionReason::kTesting);
+  }
+
+  blocker->ParkedJoin(local_isolate);
+  watchdog.Join();
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename TMixin>
 class WithEmptySharedHeapFlagsMixin : public TMixin {

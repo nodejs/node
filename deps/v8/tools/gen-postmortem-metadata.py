@@ -672,7 +672,7 @@ def load_objects_from_file(objfilename, checktypes):
       in_torque_insttype = True
       continue
 
-    if (line.startswith('#define TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED')):
+    if (line.startswith('#define TORQUE_DEBUG_READER_CLASSES_SINGLE')):
       in_torque_fulldef = True
       continue
 

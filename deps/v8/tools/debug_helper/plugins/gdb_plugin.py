@@ -11,8 +11,11 @@ import traceback
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import gdb
-from gdb.FrameDecorator import FrameDecorator
+# The gdb module only exists inside gdb's embedded Python, where typeshed
+# provides stubs but no importable source.
+import gdb  # pyright: ignore[reportMissingModuleSource]
+from gdb.FrameDecorator import (  # pyright: ignore[reportMissingModuleSource]
+    FrameDecorator)
 
 from v8dbg.commands import debug_helper_lib_warning
 from v8dbg.commands import dispatch_v8_command
@@ -104,6 +107,45 @@ def _evaluate_address_in_gdb(text):
     return None
 
 
+def _frame_pointer(frame):
+  """Read the frame pointer of a gdb.Frame, or 0 when unavailable."""
+  # Extend this register list as the plugin grows support for more
+  # architectures. Today the tested targets are x64 and arm64.
+  for register_name in ("rbp", "fp", "x29"):
+    try:
+      value = frame.read_register(register_name)
+    except Exception:
+      continue
+    try:
+      frame_pointer = int(value)
+    except Exception:
+      frame_pointer = 0
+    if frame_pointer:
+      return frame_pointer
+  return 0
+
+
+def _resolve_frame_fp(index):
+  """Map a frame number (None = selected frame) to (level, frame pointer)."""
+  try:
+    if index is None:
+      frame = gdb.selected_frame()
+    else:
+      frame = gdb.newest_frame()
+      while frame is not None and frame.level() != index:
+        frame = frame.older()
+    if frame is None:
+      return None
+    frame_pointer = _frame_pointer(frame)
+    if not frame_pointer:
+      return None
+    return (frame.level(), frame_pointer)
+  except Exception:
+    if _VERBOSE:
+      traceback.print_exc()
+    return None
+
+
 class V8DbgFrameDecorator(FrameDecorator):
   """Appends V8 JS frame annotations to backtraces."""
 
@@ -134,20 +176,7 @@ class V8DbgFrameDecorator(FrameDecorator):
     # if it's a genuine JS frame.
     if base_name and not base_name.startswith("Builtins_"):
       return base_name
-    frame_pointer = 0
-    # Extend this register list as the plugin grows support for more
-    # architectures. Today the tested targets are x64 and arm64.
-    for register_name in ("rbp", "fp", "x29"):
-      try:
-        value = frame.read_register(register_name)
-      except Exception:
-        continue
-      try:
-        frame_pointer = int(value)
-      except Exception:
-        frame_pointer = 0
-      if frame_pointer:
-        break
+    frame_pointer = _frame_pointer(frame)
     if not frame_pointer:
       return base_name
 
@@ -197,6 +226,16 @@ class V8Command(gdb.Command):
     - isolate -- Print the current Isolate address of the selected thread.
 
       v8 isolate
+
+    - source -- Print the source span of the function a JS frame is running.
+
+      v8 source [frame#] [--max-lines N]
+
+      * frame#: the frame to show (default: the selected frame).
+      * --max-lines N: cap the number of span lines shown (default: 10).
+
+      The span covers the whole function; the exact executing line is not
+      recovered.
   """
 
   def __init__(self):
@@ -216,6 +255,7 @@ class V8Command(gdb.Command):
         eval_address=_evaluate_address_in_gdb,
         resolver=_GdbResolver(bridge.ptr_size),
         verbose=_VERBOSE,
+        frame_fp=_resolve_frame_fp,
     )
     if not ok:
       gdb.write(text + "\n", gdb.STDERR)

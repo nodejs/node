@@ -613,25 +613,29 @@ constexpr int kJSDispatchTableEntrySizeLog2 = 4;
 // The size of the virtual memory reservation for the JSDispatchTable.
 // As with the other tables, a maximum table size in combination with shifted
 // indices allows omitting bounds checks.
-#if defined(V8_TARGET_OS_IOS)
+#if defined(V8_TARGET_OS_IOS) && !defined(V8_ENABLE_BUILTINS_OPTIMIZATION)
 // iOS has limited virtual address space (64GB); reduce table size to fit more
-// isolates.
+// isolates. However, the existing built-ins PGO profiles (generated on x64)
+// assume the default constants, so we must use the default when built-ins PGO
+// is enabled (crbug.com/545490388).
 constexpr size_t kJSDispatchTableReservationSize = 128 * MB;
 #else
 constexpr size_t kJSDispatchTableReservationSize =
     (V8_LOWER_LIMITS_MODE_BOOL ? 16 : 256) * MB;
-#endif  // defined(V8_TARGET_OS_IOS)
+#endif  // defined(V8_TARGET_OS_IOS) &&
+        // !defined(V8_ENABLE_BUILTINS_OPTIMIZATION)
 // The maximum number of entries in a JSDispatchTable.
 constexpr size_t kMaxJSDispatchEntries =
     kJSDispatchTableReservationSize / kJSDispatchTableEntrySize;
 
 #ifdef V8_TARGET_ARCH_64_BIT
 
-#if defined(V8_TARGET_OS_IOS)
+#if defined(V8_TARGET_OS_IOS) && !defined(V8_ENABLE_BUILTINS_OPTIMIZATION)
 constexpr uint32_t kJSDispatchHandleShift = 9;
 #else
 constexpr uint32_t kJSDispatchHandleShift = V8_LOWER_LIMITS_MODE_BOOL ? 12 : 8;
-#endif  // defined(V8_TARGET_OS_IOS)
+#endif  // defined(V8_TARGET_OS_IOS) &&
+        // !defined(V8_ENABLE_BUILTINS_OPTIMIZATION)
 static_assert((1 << (32 - kJSDispatchHandleShift)) == kMaxJSDispatchEntries,
               "kJSDispatchTableReservationSize and kJSDispatchEntryHandleShift "
               "don't match");
@@ -720,7 +724,7 @@ constexpr JSDispatchHandle kPlaceholderDispatchHandle(0x0);
 constexpr JSDispatchHandle kInvalidDispatchHandle(0xffffffff
                                                   << kJSDispatchHandleShift);
 
-constexpr int kEmbedderDataSlotSize = kSystemPointerSize;
+constexpr int kEmbedderDataSlotSize = 2 * kTaggedSize;
 
 constexpr int kEmbedderDataSlotSizeInTaggedSlots =
     kEmbedderDataSlotSize / kTaggedSize;
@@ -950,7 +954,10 @@ constexpr int kFeedbackIsEmbedded = -1;
 // byteocode, indicating an uninitialized state.
 constexpr int kUninitializedEmbeddedFeedback = 0;
 
-// The bytecode operand index for embedded feedback.
+// The bytecode operand indices for embedded feedback. Unary bytecodes only
+// have a single operand (the embedded feedback itself), while binary and
+// compare bytecodes carry the embedded feedback as their second operand.
+constexpr int kUnaryEmbeddedFeedbackOperandIndex = 0;
 constexpr int kEmbeddedFeedbackOperandIndex = 1;
 
 // These constants are internal duplicates for v8::Intercepted enum values.
@@ -2204,10 +2211,10 @@ static_assert(kMinAdditiveSafeInteger + kMinAdditiveSafeInteger >=
               kMinSafeInteger);
 
 constexpr int64_t kMaxAdditiveSafeIntegerFeedback =
-    (int64_t{1} << 51) - 1;  // 2^51 - 1
+    (int64_t{1} << 50) - 1;  // 2^50 - 1
 constexpr int64_t kMinAdditiveSafeIntegerFeedback =
-    -(int64_t{1} << 51);  // - 2^51
-constexpr int kAdditiveSafeIntegerFeedbackBitLength = 52;
+    -(int64_t{1} << 50);  // - 2^50
+constexpr int kAdditiveSafeIntegerFeedbackBitLength = 51;
 // Number of bits to shift left before addition to detect potential overflow.
 constexpr int kAdditiveSafeIntegerFeedbackShift =
     64 - kAdditiveSafeIntegerFeedbackBitLength;
@@ -2548,6 +2555,17 @@ class BinaryOperationFeedback : public AllStatic {
     return Type::kAny;
   }
 
+  static constexpr const char* TypeIndexToString(TypeIndex index) {
+    switch (index) {
+#define CASE_NAME(name)    \
+  case TypeIndex::k##name: \
+    return #name;
+      BINARY_OPERATION_FEEDBACK_TYPES(CASE_NAME)
+#undef CASE_NAME
+    }
+    return "Unknown";
+  }
+
  private:
   static constexpr TypeIndex CalculateTypeIndex(uint32_t feedback_value) {
 #define CALCULATE_TYPE_INDEX(name)                               \
@@ -2686,6 +2704,17 @@ class CompareOperationFeedback : public AllStatic {
 #undef CASE_TYPE
     }
     return Type::kAny;
+  }
+
+  static constexpr const char* TypeIndexToString(TypeIndex index) {
+    switch (index) {
+#define CASE_NAME(name)    \
+  case TypeIndex::k##name: \
+    return #name;
+      COMPARE_OPERATION_FEEDBACK_TYPES(CASE_NAME)
+#undef CASE_NAME
+    }
+    return "Unknown";
   }
 
   static constexpr uint32_t kNumTypeIndices =
@@ -2958,6 +2987,14 @@ enum class CachedTieringDecision : int32_t {
 #define TYPED_EXP_STUB_LIST(V, ...) \
   V(None, ##__VA_ARGS__)            \
   V(Number, ##__VA_ARGS__)
+
+#define TYPED_UNARY_STUB_LIST(V, ...) \
+  V(None, ##__VA_ARGS__)              \
+  V(SignedSmall, ##__VA_ARGS__)
+
+#define TYPED_NEGATE_STUB_LIST(V, ...)    \
+  TYPED_UNARY_STUB_LIST(V, ##__VA_ARGS__) \
+  V(Number, ##__VA_ARGS__)
 #else
 #define IF_SPARKPLUG_PLUS(V, ...)
 
@@ -2968,6 +3005,8 @@ enum class CachedTieringDecision : int32_t {
 #define TYPED_ADD_STUB_LIST(V, ...)
 #define TYPED_EXP_STUB_LIST(V, ...)
 #define TYPED_BITWISE_BINOP_STUB_LIST(V, ...)
+#define TYPED_UNARY_STUB_LIST(V, ...)
+#define TYPED_NEGATE_STUB_LIST(V, ...)
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 enum class SpeculationMode {

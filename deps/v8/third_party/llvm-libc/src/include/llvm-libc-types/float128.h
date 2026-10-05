@@ -19,17 +19,17 @@
 //   https://github.com/llvm/llvm-project/issues/80195
 #if defined(__STDC_IEC_60559_BFP__) && !defined(__clang__) &&                  \
     !defined(__cplusplus)
-#define LIBC_TYPES_HAS_FLOAT128
+#define LIBC_TYPES_HAS_NATIVE_FLOAT128
 typedef _Float128 float128;
 #elif defined(__FLOAT128__) || defined(__SIZEOF_FLOAT128__)
 // Use __float128 type.  gcc and clang sometime use __SIZEOF_FLOAT128__ to
 // notify the availability of __float128.
 // clang also uses __FLOAT128__ macro to notify the availability of __float128
 // type: https://reviews.llvm.org/D15120
-#define LIBC_TYPES_HAS_FLOAT128
+#define LIBC_TYPES_HAS_NATIVE_FLOAT128
 typedef __float128 float128;
 #elif (LDBL_MANT_DIG == 113)
-#define LIBC_TYPES_HAS_FLOAT128
+#define LIBC_TYPES_HAS_NATIVE_FLOAT128
 typedef long double float128;
 #endif
 

@@ -30,14 +30,14 @@ namespace LIBC_NAMESPACE_DECL {
 namespace internal {
 
 /// Populates `statbuf` via a call to the `statx` syscall.
-LIBC_INLINE ErrorOr<int> stat_via_statx(int dirfd, const char *__restrict path,
-                                        int flags,
-                                        struct stat *__restrict statbuf) {
+LIBC_INLINE ErrorOr<void> stat_via_statx(int dirfd, const char *__restrict path,
+                                         int flags,
+                                         struct stat *__restrict statbuf) {
   kernel_statx_buf xbuf;
   ErrorOr<int> result = linux_syscalls::statx(
       dirfd, path, flags, KERNEL_STATX_BASIC_STATS_MASK, &xbuf);
   if (!result)
-    return result;
+    return Error(result.error());
 
   statbuf->st_dev = MKDEV(xbuf.stx_dev_major, xbuf.stx_dev_minor);
   statbuf->st_ino = static_cast<decltype(statbuf->st_ino)>(xbuf.stx_ino);
@@ -57,7 +57,7 @@ LIBC_INLINE ErrorOr<int> stat_via_statx(int dirfd, const char *__restrict path,
   statbuf->st_blocks =
       static_cast<decltype(statbuf->st_blocks)>(xbuf.stx_blocks);
 
-  return 0;
+  return {};
 }
 
 } // namespace internal

@@ -8,7 +8,9 @@
 #include <optional>
 
 #include "src/codegen/label.h"
+#include "src/regexp/regexp-flags.h"
 #include "src/regexp/regexp-macro-assembler.h"
+#include "src/strings/unicode.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -287,8 +289,9 @@ enum class ParkedGrant : uint8_t {
 
 class V8_EXPORT_PRIVATE Node : public ZoneObject {
  public:
-  explicit Node(Zone* zone)
+  explicit Node(Flags flags, Zone* zone)
       : replacement_(nullptr),
+        flags_(flags),
         on_work_list_(false),
         trace_count_(0),
         zone_(zone) {
@@ -394,6 +397,7 @@ class V8_EXPORT_PRIVATE Node : public ZoneObject {
   virtual SeqNode* AsSeqNode() { return nullptr; }
 
   Zone* zone() const { return zone_; }
+  Flags flags() const { return flags_; }
 
   virtual bool IsBacktrack() const { return false; }
 
@@ -410,6 +414,7 @@ class V8_EXPORT_PRIVATE Node : public ZoneObject {
  private:
   static const int kFirstCharBudget = 10;
   Label label_;
+  Flags flags_;
   bool on_work_list_;
   NodeInfo info_;
 
@@ -430,8 +435,8 @@ class V8_EXPORT_PRIVATE Node : public ZoneObject {
 
 class V8_EXPORT_PRIVATE SeqNode : public Node {
  public:
-  explicit SeqNode(Node* on_success)
-      : Node(on_success->zone()), on_success_(on_success) {}
+  SeqNode(Node* on_success, Flags flags)
+      : Node(flags, on_success->zone()), on_success_(on_success) {}
   Node* on_success() const { return on_success_; }
   void set_on_success(Node* node) { on_success_ = node; }
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
@@ -457,29 +462,32 @@ class ActionNode : public SeqNode {
     POSITIVE_SUBMATCH_SUCCESS,
     EMPTY_MATCH_CHECK,
     CLEAR_CAPTURES,
-    MODIFY_FLAGS,
     EATS_AT_LEAST,
   };
-  static ActionNode* SetRegisterForLoop(int reg, int val, Node* on_success);
-  static ActionNode* IncrementRegister(int reg, Node* on_success);
-  static ActionNode* StorePosition(int reg, Node* on_success);
-  static ActionNode* RestorePosition(int reg, Node* on_success);
-  static ActionNode* ClearCaptures(Interval range, Node* on_success);
+  static ActionNode* SetRegisterForLoop(int reg, int val, Node* on_success,
+                                        Flags flags);
+  static ActionNode* IncrementRegister(int reg, Node* on_success, Flags flags);
+  static ActionNode* StorePosition(int reg, Node* on_success, Flags flags);
+  static ActionNode* RestorePosition(int reg, Node* on_success, Flags flags);
+  static ActionNode* ClearCaptures(Interval range, Node* on_success,
+                                   Flags flags);
   static ActionNode* BeginPositiveSubmatch(int stack_pointer_reg,
                                            int position_reg, Node* body,
-                                           ActionNode* success_node);
+                                           ActionNode* success_node,
+                                           Flags flags);
   static ActionNode* BeginNegativeSubmatch(int stack_pointer_reg,
-                                           int position_reg, Node* on_success);
+                                           int position_reg, Node* on_success,
+                                           Flags flags);
   static ActionNode* PositiveSubmatchSuccess(int stack_pointer_reg,
                                              int restore_reg,
                                              int clear_capture_count,
                                              int clear_capture_from,
-                                             Node* on_success);
+                                             Node* on_success, Flags flags);
   static ActionNode* EmptyMatchCheck(int start_register,
                                      int repetition_register,
-                                     int repetition_limit, Node* on_success);
-  static ActionNode* ModifyFlags(Flags flags, Node* on_success);
-  static ActionNode* EatsAtLeast(int characters, Node* on_success);
+                                     int repetition_limit, Node* on_success,
+                                     Flags flags);
+  static ActionNode* EatsAtLeast(int characters, Node* on_success, Flags flags);
   ActionNode* AsActionNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
   V8_WARN_UNUSED_RESULT EmitResult Emit(Compiler* compiler,
@@ -493,10 +501,6 @@ class ActionNode : public SeqNode {
   // TODO(erikcorry): We should allow some action nodes in fixed length loops.
   int FixedLengthLoopLength() override {
     return kNodeIsTooComplexForFixedLengthLoops;
-  }
-  Flags flags() const {
-    DCHECK_EQ(action_type(), MODIFY_FLAGS);
-    return Flags{data_.u_modify_flags.flags};
   }
   ActionNode* success_node() const {
     DCHECK_EQ(action_type(), BEGIN_POSITIVE_SUBMATCH);
@@ -541,12 +545,12 @@ class ActionNode : public SeqNode {
   int register_to() const { return data_.u_simple.register_to; }
 
  protected:
-  ActionNode(ActionType action_type, Node* on_success)
-      : SeqNode(on_success), action_type_(action_type) {}
+  ActionNode(ActionType action_type, Node* on_success, Flags flags)
+      : SeqNode(on_success, flags), action_type_(action_type) {}
 
-  ActionNode(ActionType action_type, Node* on_success, int from, int to = -1,
-             int value = 0)
-      : SeqNode(on_success), action_type_(action_type) {
+  ActionNode(ActionType action_type, Node* on_success, Flags flags, int from,
+             int to = -1, int value = 0)
+      : SeqNode(on_success, flags), action_type_(action_type) {
     data_.u_simple.register_from = from;
     data_.u_simple.register_to = to == -1 ? from : to;
     data_.u_simple.value = value;
@@ -573,9 +577,6 @@ class ActionNode : public SeqNode {
       int repetition_limit;
     } u_empty_match_check;
     struct {
-      int flags;
-    } u_modify_flags;
-    struct {
       int characters;
     } u_eats_at_least;
   } data_;
@@ -588,10 +589,13 @@ class ActionNode : public SeqNode {
 
 class V8_EXPORT_PRIVATE TextNode : public SeqNode {
  public:
-  TextNode(ZoneList<TextElement>* elms, bool read_backward, Node* on_success)
-      : SeqNode(on_success), elms_(elms), read_backward_(read_backward) {}
-  TextNode(ClassRanges* that, bool read_backward, Node* on_success)
-      : SeqNode(on_success),
+  TextNode(ZoneList<TextElement>* elms, bool read_backward, Node* on_success,
+           Flags flags)
+      : SeqNode(on_success, flags),
+        elms_(elms),
+        read_backward_(read_backward) {}
+  TextNode(ClassRanges* that, bool read_backward, Node* on_success, Flags flags)
+      : SeqNode(on_success, flags),
         elms_(zone()->New<ZoneList<TextElement>>(1, zone())),
         read_backward_(read_backward) {
     elms_->Add(TextElement::FromClassRanges(that), zone());
@@ -600,16 +604,17 @@ class V8_EXPORT_PRIVATE TextNode : public SeqNode {
   static TextNode* CreateForCharacterRanges(Zone* zone,
                                             ZoneList<CharacterRange>* ranges,
                                             bool read_backward,
-                                            Node* on_success);
+                                            Node* on_success, Flags flags);
   // Create TextNode for a surrogate pair (i.e. match a sequence of two uc16
   // code unit ranges).
   static TextNode* CreateForSurrogatePair(
       Zone* zone, CharacterRange lead, ZoneList<CharacterRange>* trail_ranges,
-      bool read_backward, Node* on_success);
+      bool read_backward, Node* on_success, Flags flags);
   static TextNode* CreateForSurrogatePair(Zone* zone,
                                           ZoneList<CharacterRange>* lead_ranges,
                                           CharacterRange trail,
-                                          bool read_backward, Node* on_success);
+                                          bool read_backward, Node* on_success,
+                                          Flags flags);
   TextNode* AsTextNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
   V8_WARN_UNUSED_RESULT EmitResult Emit(Compiler* compiler,
@@ -619,7 +624,7 @@ class V8_EXPORT_PRIVATE TextNode : public SeqNode {
                             int budget) override;
   ZoneList<TextElement>* elements() { return elms_; }
   bool read_backward() const { return read_backward_; }
-  void MakeCaseIndependent(Isolate* isolate, bool is_one_byte, Flags flags);
+  void MakeCaseIndependent(Isolate* isolate, bool is_one_byte);
   int FixedLengthLoopLength() override;
   Node* GetSuccessorOfOmnivorousTextNode(Compiler* compiler) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
@@ -627,10 +632,23 @@ class V8_EXPORT_PRIVATE TextNode : public SeqNode {
   void CalculateOffsets();
   int Length();
 
+  // Returns the number of characters in the equivalence class, omitting those
+  // that cannot occur in the source string because it is Latin1.
+  int GetCaseIndependentLetters(Compiler* compiler, base::uc16 character,
+                                unibrow::uchar* letters,
+                                int letter_length) const;
+
   // Returns false if the text node can't match in one-byte mode.
   bool CanMatchLatin1(Compiler* compiler);
 
  private:
+  bool EmitSimpleCharacter(Compiler* compiler, base::uc16 c, Label* on_failure,
+                           int cp_offset, bool check, bool preloaded);
+  bool EmitAtomNonLetter(Compiler* compiler, base::uc16 c, Label* on_failure,
+                         int cp_offset, bool check, bool preloaded);
+  bool EmitAtomLetter(Compiler* compiler, base::uc16 c, Label* on_failure,
+                      int cp_offset, bool check, bool preloaded);
+
   enum TextEmitPassType {
     NON_LATIN1_MATCH,            // Check for characters that can never match.
     SIMPLE_CHARACTER_MATCH,      // Case-dependent single character check.
@@ -654,20 +672,23 @@ class AssertionNode : public SeqNode {
     AT_NON_BOUNDARY,
     AFTER_NEWLINE
   };
-  static AssertionNode* AtEnd(Node* on_success) {
-    return on_success->zone()->New<AssertionNode>(AT_END, on_success);
+  static AssertionNode* AtEnd(Node* on_success, Flags flags) {
+    return on_success->zone()->New<AssertionNode>(AT_END, on_success, flags);
   }
-  static AssertionNode* AtStart(Node* on_success) {
-    return on_success->zone()->New<AssertionNode>(AT_START, on_success);
+  static AssertionNode* AtStart(Node* on_success, Flags flags) {
+    return on_success->zone()->New<AssertionNode>(AT_START, on_success, flags);
   }
-  static AssertionNode* AtBoundary(Node* on_success) {
-    return on_success->zone()->New<AssertionNode>(AT_BOUNDARY, on_success);
+  static AssertionNode* AtBoundary(Node* on_success, Flags flags) {
+    return on_success->zone()->New<AssertionNode>(AT_BOUNDARY, on_success,
+                                                  flags);
   }
-  static AssertionNode* AtNonBoundary(Node* on_success) {
-    return on_success->zone()->New<AssertionNode>(AT_NON_BOUNDARY, on_success);
+  static AssertionNode* AtNonBoundary(Node* on_success, Flags flags) {
+    return on_success->zone()->New<AssertionNode>(AT_NON_BOUNDARY, on_success,
+                                                  flags);
   }
-  static AssertionNode* AfterNewline(Node* on_success) {
-    return on_success->zone()->New<AssertionNode>(AFTER_NEWLINE, on_success);
+  static AssertionNode* AfterNewline(Node* on_success, Flags flags) {
+    return on_success->zone()->New<AssertionNode>(AFTER_NEWLINE, on_success,
+                                                  flags);
   }
   AssertionNode* AsAssertionNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
@@ -688,16 +709,16 @@ class AssertionNode : public SeqNode {
   enum IfPrevious { kIsNonWord, kIsWord };
   V8_WARN_UNUSED_RESULT EmitResult BacktrackIfPrevious(
       Compiler* compiler, Trace* trace, IfPrevious backtrack_if_previous);
-  AssertionNode(AssertionType t, Node* on_success)
-      : SeqNode(on_success), assertion_type_(t) {}
+  AssertionNode(AssertionType t, Node* on_success, Flags flags)
+      : SeqNode(on_success, flags), assertion_type_(t) {}
   AssertionType assertion_type_;
 };
 
 class BackReferenceNode : public SeqNode {
  public:
   BackReferenceNode(int start_reg, int end_reg, bool read_backward,
-                    Node* on_success)
-      : SeqNode(on_success),
+                    Node* on_success, Flags flags)
+      : SeqNode(on_success, flags),
         start_reg_(start_reg),
         end_reg_(end_reg),
         read_backward_(read_backward) {}
@@ -724,7 +745,8 @@ class BackReferenceNode : public SeqNode {
 
 class UnanchoredAdvanceNode : public SeqNode {
  public:
-  explicit UnanchoredAdvanceNode(Node* on_success) : SeqNode(on_success) {}
+  explicit UnanchoredAdvanceNode(Node* on_success, Flags flags)
+      : SeqNode(on_success, flags) {}
   UnanchoredAdvanceNode* AsUnanchoredAdvanceNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
   V8_WARN_UNUSED_RESULT EmitResult Emit(Compiler* compiler,
@@ -739,7 +761,8 @@ class UnanchoredAdvanceNode : public SeqNode {
 class V8_EXPORT_PRIVATE EndNode : public Node {
  public:
   enum Action { ACCEPT, BACKTRACK, NEGATIVE_SUBMATCH_SUCCESS };
-  EndNode(Action action, Zone* zone) : Node(zone), action_(action) {
+  EndNode(Action action, Flags flags, Zone* zone)
+      : Node(flags, zone), action_(action) {
     EatsAtLeastInfo large(kLargeEatsAtLeastValue);
     if (action == BACKTRACK) set_eats_at_least_info(large);
   }
@@ -764,8 +787,8 @@ class NegativeSubmatchSuccess : public EndNode {
  public:
   NegativeSubmatchSuccess(int stack_pointer_reg, int position_reg,
                           int clear_capture_count, int clear_capture_start,
-                          Zone* zone)
-      : EndNode(NEGATIVE_SUBMATCH_SUCCESS, zone),
+                          Flags flags, Zone* zone)
+      : EndNode(NEGATIVE_SUBMATCH_SUCCESS, flags, zone),
         stack_pointer_register_(stack_pointer_reg),
         current_position_register_(position_reg),
         clear_capture_count_(clear_capture_count),
@@ -816,8 +839,8 @@ class AlternativeGeneration;
 
 class ChoiceNode : public Node {
  public:
-  explicit ChoiceNode(int expected_size, Zone* zone)
-      : Node(zone),
+  ChoiceNode(int expected_size, Flags flags, Zone* zone)
+      : Node(flags, zone),
         alternatives_(
             zone->New<ZoneList<GuardedAlternative>>(expected_size, zone)),
         not_at_start_(false),
@@ -916,17 +939,15 @@ class ChoiceNode : public Node {
   V8_WARN_UNUSED_RESULT Trace* EmitFixedLengthLoop(
       Compiler* compiler, Trace* trace, AlternativeGenerationList* alt_gens,
       PreloadState* preloads, SpecialLoopState* fixed_length_loop_state,
-      int text_length, Flags flags, DrainMode drain_mode,
-      ParkedGrant body_parked_grant);
-  V8_WARN_UNUSED_RESULT EmitResult
-  EmitChoices(Compiler* compiler, AlternativeGenerationList* alt_gens,
-              int first_choice, Trace* trace, PreloadState* preloads,
-              Flags flags, ParkedGrant body_parked_grant);
+      int text_length, DrainMode drain_mode, ParkedGrant body_parked_grant);
+  V8_WARN_UNUSED_RESULT EmitResult EmitChoices(
+      Compiler* compiler, AlternativeGenerationList* alt_gens, int first_choice,
+      Trace* trace, PreloadState* preloads, ParkedGrant body_parked_grant);
   // Emits the choice as a dispatch over a shared masked quick-check value
   // when all alternatives agree on the mask; nullopt if not eligible.
   std::optional<EmitResult> TryEmitMaskedValueDispatch(
       Compiler* compiler, AlternativeGenerationList* alt_gens, Trace* trace,
-      PreloadState* preload, Flags flags);
+      PreloadState* preload);
 
   // If true, this node is never checked at the start of the input.
   // Allows a new trace to start with at_start() set to false.
@@ -936,10 +957,10 @@ class ChoiceNode : public Node {
 
 class NegativeLookaroundChoiceNode : public ChoiceNode {
  public:
-  explicit NegativeLookaroundChoiceNode(GuardedAlternative this_must_fail,
-                                        GuardedAlternative then_do_this,
-                                        Zone* zone)
-      : ChoiceNode(2, zone) {
+  NegativeLookaroundChoiceNode(GuardedAlternative this_must_fail,
+                               GuardedAlternative then_do_this, Flags flags,
+                               Zone* zone)
+      : ChoiceNode(2, flags, zone) {
     AddAlternative(this_must_fail);
     AddAlternative(then_do_this);
   }
@@ -974,8 +995,9 @@ class NegativeLookaroundChoiceNode : public ChoiceNode {
 
 class LoopChoiceNode : public ChoiceNode {
  public:
-  LoopChoiceNode(bool body_can_be_zero_length, bool read_backward, Zone* zone)
-      : ChoiceNode(2, zone),
+  LoopChoiceNode(bool body_can_be_zero_length, bool read_backward, Flags flags,
+                 Zone* zone)
+      : ChoiceNode(2, flags, zone),
         loop_node_(nullptr),
         continue_node_(nullptr),
         body_can_be_zero_length_(body_can_be_zero_length),
@@ -995,10 +1017,8 @@ class LoopChoiceNode : public ChoiceNode {
   bool read_backward() const override { return read_backward_; }
   LoopChoiceNode* AsLoopChoiceNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
-  // The atomic-loop classification of this node (see AtomicLoopKind),
-  // memoized per |flags|: group modifiers (MODIFY_FLAGS) and work-list
-  // re-emission can legitimately emit the same node under different flags.
-  AtomicLoopKind atomic_loop_kind(Flags flags);
+  // The atomic-loop classification of this node (see AtomicLoopKind).
+  AtomicLoopKind atomic_loop_kind();
   // The fixed match length of one body iteration, or
   // kNodeIsTooComplexForFixedLengthLoops.  Meaningful when atomic_loop_kind()
   // is not kNone (the body is then a fixed-length chain).
@@ -1031,7 +1051,6 @@ class LoopChoiceNode : public ChoiceNode {
   // Memo for atomic_loop_kind.
   bool atomic_loop_kind_valid_ = false;
   AtomicLoopKind atomic_loop_kind_ = AtomicLoopKind::kNone;
-  Flags atomic_loop_kind_flags_ = {};
 };
 
 class NodeVisitor {

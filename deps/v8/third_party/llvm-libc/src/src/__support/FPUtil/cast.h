@@ -33,7 +33,9 @@ cast(InType x) {
     if constexpr (cpp::is_same_v<OutType, bfloat16> ||
                   cpp::is_same_v<InType, bfloat16> ||
                   cpp::is_same_v<OutType, Float128> ||
-                  cpp::is_same_v<InType, Float128>
+                  cpp::is_same_v<InType, Float128> ||
+                  cpp::is_same_v<OutType, Float80> ||
+                  cpp::is_same_v<InType, Float80>
 #if defined(LIBC_TYPES_HAS_FLOAT16) && !defined(__LIBC_USE_FLOAT16_CONVERSION)
                   || cpp::is_same_v<OutType, float16> ||
                   cpp::is_same_v<InType, float16>

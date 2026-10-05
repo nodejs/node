@@ -9,6 +9,7 @@
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/roots/roots.h"

@@ -1,6 +1,7 @@
 EXPORTS
     ?$TSS0@?1??CrcAndCopy@CrcMemcpy@crc_internal@absl@@SA?AVcrc32c_t@4@PIAXPIBXIV54@_N@Z@4HA
     ??$?0$$V$0A@@?$NoDestructor@V?$SampleRecorder@UHashtablezInfo@container_internal@absl@@@profiling_internal@absl@@@absl@@QAE@XZ
+    ??$?0PAI@?$SaltedSeedSeq@Vseed_seq@__Cr@std@@@random_internal@absl@@QAE@PAI0@Z
     ??$?0V?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@$0A@@Cord@absl@@QAE@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@@Z
     ??$?6C@LogMessage@log_internal@absl@@QAEAAV012@ABC@Z
     ??$?6D@LogMessage@log_internal@absl@@QAEAAV012@ABD@Z
@@ -44,6 +45,7 @@ EXPORTS
     ??$CallOnceImpl@A6AXXZ$$V@base_internal@absl@@YAXPAU?$atomic@I@__Cr@std@@W4SchedulingMode@01@A6AXXZ@Z
     ??$CallOnceImpl@P8FlagImpl@flags_internal@absl@@AEXXZPAV123@@base_internal@absl@@YAXPAU?$atomic@I@__Cr@std@@W4SchedulingMode@01@$$QAP8FlagImpl@flags_internal@1@AEXXZ$$QAPAV671@@Z
     ??$CastAndCallFunction@$$CBU?$atomic@_N@__Cr@std@@@Condition@absl@@CA_NPBV01@@Z
+    ??$CheckedAdd@$SI@substitute_internal@absl@@YAIII@Z
     ??$Clear@$00@container_internal@absl@@YAXAAVCommonFields@01@ABUPolicyFunctions@01@P6AXPAX2@Z2@Z
     ??$Clear@$0A@@container_internal@absl@@YAXAAVCommonFields@01@ABUPolicyFunctions@01@P6AXPAX2@Z2@Z
     ??$ConsumeConversion@$00@str_format_internal@absl@@YAPBDPBDQBDPAUUnboundConversion@01@PAH@Z
@@ -110,7 +112,7 @@ EXPORTS
     ??$GrowSooTableToNextCapacityAndPrepareInsert@$00$00@container_internal@absl@@YAPAXAAVCommonFields@01@ABUPolicyFunctions@01@V?$FunctionRef@$$A6AII@Z@1@_N@Z
     ??$GrowSooTableToNextCapacityAndPrepareInsert@$03$00@container_internal@absl@@YAPAXAAVCommonFields@01@ABUPolicyFunctions@01@V?$FunctionRef@$$A6AII@Z@1@_N@Z
     ??$GrowSooTableToNextCapacityAndPrepareInsert@$0A@$0A@@container_internal@absl@@YAPAXAAVCommonFields@01@ABUPolicyFunctions@01@V?$FunctionRef@$$A6AII@Z@1@_N@Z
-    ??$InvokeObject@AAU?$HashKey@UStringHash@container_internal@absl@@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@$00@container_internal@absl@@II@functional_internal@absl@@YAITVoidPtr@01@I@Z
+    ??$InvokeObject@AAU?$HashKey@UStringHash@container_internal@absl@@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@$00$0A@@container_internal@absl@@II@functional_internal@absl@@YAITVoidPtr@01@I@Z
     ??$JoinAlgorithm@V?$__wrap_iter@PBV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@@__Cr@std@@X@strings_internal@absl@@YA?AV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@V?$__wrap_iter@PBV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@@34@0V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@34@UNoFormatter@01@@Z
     ??$MakeCheckOpString@ABV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@ABV123@@log_internal@absl@@YAPBDABV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@0PBD@Z
     ??$MakeCheckOpString@ABV?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@ABV123@@log_internal@absl@@YAPBDABV?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@0PBD@Z
@@ -125,23 +127,38 @@ EXPORTS
     ??$MakeCheckOpString@_J_J@log_internal@absl@@YAPBD_J0PBD@Z
     ??$MakeCheckOpString@_K_K@log_internal@absl@@YAPBD_K0PBD@Z
     ??$MakeCheckOpString@_N_N@log_internal@absl@@YAPBD_N0PBD@Z
-    ??$MakeErrorImpl@$00@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
-    ??$MakeErrorImpl@$01@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
-    ??$MakeErrorImpl@$02@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
-    ??$MakeErrorImpl@$03@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
-    ??$MakeErrorImpl@$04@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
-    ??$MakeErrorImpl@$05@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
-    ??$MakeErrorImpl@$06@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
-    ??$MakeErrorImpl@$07@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
-    ??$MakeErrorImpl@$08@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
-    ??$MakeErrorImpl@$09@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
-    ??$MakeErrorImpl@$0A@@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
-    ??$MakeErrorImpl@$0BA@@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
-    ??$MakeErrorImpl@$0L@@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
-    ??$MakeErrorImpl@$0M@@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
-    ??$MakeErrorImpl@$0N@@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
-    ??$MakeErrorImpl@$0O@@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
-    ??$MakeErrorImpl@$0P@@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringRvalueImpl@$00@status_internal@absl@@YA?AVStatus@1@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringRvalueImpl@$01@status_internal@absl@@YA?AVStatus@1@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringRvalueImpl@$02@status_internal@absl@@YA?AVStatus@1@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringRvalueImpl@$03@status_internal@absl@@YA?AVStatus@1@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringRvalueImpl@$04@status_internal@absl@@YA?AVStatus@1@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringRvalueImpl@$05@status_internal@absl@@YA?AVStatus@1@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringRvalueImpl@$06@status_internal@absl@@YA?AVStatus@1@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringRvalueImpl@$07@status_internal@absl@@YA?AVStatus@1@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringRvalueImpl@$08@status_internal@absl@@YA?AVStatus@1@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringRvalueImpl@$09@status_internal@absl@@YA?AVStatus@1@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringRvalueImpl@$0BA@@status_internal@absl@@YA?AVStatus@1@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringRvalueImpl@$0L@@status_internal@absl@@YA?AVStatus@1@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringRvalueImpl@$0M@@status_internal@absl@@YA?AVStatus@1@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringRvalueImpl@$0N@@status_internal@absl@@YA?AVStatus@1@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringRvalueImpl@$0O@@status_internal@absl@@YA?AVStatus@1@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringRvalueImpl@$0P@@status_internal@absl@@YA?AVStatus@1@$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringViewImpl@$00@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringViewImpl@$01@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringViewImpl@$02@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringViewImpl@$03@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringViewImpl@$04@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringViewImpl@$05@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringViewImpl@$06@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringViewImpl@$07@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringViewImpl@$08@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringViewImpl@$09@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringViewImpl@$0BA@@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringViewImpl@$0L@@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringViewImpl@$0M@@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringViewImpl@$0N@@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringViewImpl@$0O@@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
+    ??$MakeErrorStringViewImpl@$0P@@status_internal@absl@@YA?AVStatus@1@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@VSourceLocation@1@@Z
     ??$Merge@$00@CordRepBtree@cord_internal@absl@@CAPAV012@PAV012@0@Z
     ??$Merge@$0A@@CordRepBtree@cord_internal@absl@@CAPAV012@PAV012@0@Z
     ??$NewLeaf@$00@CordRepBtree@cord_internal@absl@@CAPAV012@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@I@Z
@@ -159,6 +176,7 @@ EXPORTS
     ??$Prepend@V?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@$0A@@Cord@absl@@QAEX$$QAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@@Z
     ??$Register@AB_JAAIAAIAAIAAG@?$SampleRecorder@UHashtablezInfo@container_internal@absl@@@profiling_internal@absl@@QAEPAUHashtablezInfo@container_internal@2@AB_JAAI11AAG@Z
     ??$SNPrintF@DHHH@absl@@YAHPADIABV?$FormatSpecTemplate@$0BPPPL@$0JPPPL@$0JPPPL@$0JPPPL@@str_format_internal@0@ABDABH33@Z
+    ??$SharedCompareImpl@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@@absl@@YAHABVCord@0@ABV?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@@Z
     ??$StrCat@I@absl@@YA?AV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@I@Z
     ??$StrCat@PBD@absl@@YA?AV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@ABVAlphaNum@0@0000ABQBD@Z
     ??$StrCat@V?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@$$BY02D@absl@@YA?AV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@ABVAlphaNum@0@0000ABV123@AAY02$$CBD@Z
@@ -172,7 +190,7 @@ EXPORTS
     ??$StringResizeAndOverwriteFallback@V?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@V<lambda_1>@?0???$JoinAlgorithm@V?$__wrap_iter@PBV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@@__Cr@std@@X@strings_internal@absl@@YA?AV123@V?$__wrap_iter@PBV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@@23@0V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@23@UNoFormatter@56@@Z@@strings_internal@absl@@YAXAAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@IV<lambda_1>@?0???$JoinAlgorithm@V?$__wrap_iter@PBV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@@__Cr@std@@X@01@YA?AV234@V?$__wrap_iter@PBV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@@34@1V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@34@UNoFormatter@01@@Z@@Z
     ??$TransferNRelocatable@$0M@@container_internal@absl@@YAXPAX00I@Z
     ??$TryFindNewIndexWithoutProbing@X@container_internal@absl@@YAIIIIPAW4ctrl_t@01@I@Z
-    ??$TypeErasedApplyToSlotFn@UStringHash@container_internal@absl@@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@$00@container_internal@absl@@YAIPBXPAXI@Z
+    ??$TypeErasedApplyToSlotFn@UStringHash@container_internal@absl@@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@$00$0A@@container_internal@absl@@YAIPBXPAXI@Z
     ??$UnparseFloatingPointVal@M@flags_internal@absl@@YA?AV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@M@Z
     ??$UnparseFloatingPointVal@N@flags_internal@absl@@YA?AV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@N@Z
     ??$__append_with_size@V?$__deque_iterator@UPrefixCrc@CrcCordState@crc_internal@absl@@PBU1234@ABU1234@PBQBU1234@H$0A@@__Cr@std@@@?$deque@UPrefixCrc@CrcCordState@crc_internal@absl@@V?$allocator@UPrefixCrc@CrcCordState@crc_internal@absl@@@__Cr@std@@@__Cr@std@@AAEXV?$__deque_iterator@UPrefixCrc@CrcCordState@crc_internal@absl@@PBU1234@ABU1234@PBQBU1234@H$0A@@12@I@Z
@@ -192,10 +210,11 @@ EXPORTS
     ??$emplace@$$V@?$vector@UTransition@cctz@time_internal@absl@@V?$allocator@UTransition@cctz@time_internal@absl@@@__Cr@std@@@__Cr@std@@QAE?AV?$__wrap_iter@PAUTransition@cctz@time_internal@absl@@@12@V?$__wrap_iter@PBUTransition@cctz@time_internal@absl@@@12@@Z
     ??$emplace@$$V@?$vector@UTransitionType@cctz@time_internal@absl@@V?$allocator@UTransitionType@cctz@time_internal@absl@@@__Cr@std@@@__Cr@std@@QAE?AV?$__wrap_iter@PAUTransitionType@cctz@time_internal@absl@@@12@V?$__wrap_iter@PBUTransitionType@cctz@time_internal@absl@@@12@@Z
     ??$emplace@AAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@$0A@@?$optional@VStream@status_internal@absl@@@__Cr@std@@QAEAAVStream@status_internal@absl@@AAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@12@@Z
-    ??$emplace_back@$$V@?$__split_buffer@UTransition@cctz@time_internal@absl@@V?$allocator@UTransition@cctz@time_internal@absl@@@__Cr@std@@V__split_buffer_pointer_layout@67@@__Cr@std@@QAEXXZ
-    ??$emplace_back@$$V@?$__split_buffer@UTransitionType@cctz@time_internal@absl@@V?$allocator@UTransitionType@cctz@time_internal@absl@@@__Cr@std@@V__split_buffer_pointer_layout@67@@__Cr@std@@QAEXXZ
+    ??$emplace_back@$$V@?$__split_buffer@UTransition@cctz@time_internal@absl@@V?$allocator@UTransition@cctz@time_internal@absl@@@__Cr@std@@V__split_buffer_size_layout@67@@__Cr@std@@QAEXXZ
+    ??$emplace_back@$$V@?$__split_buffer@UTransitionType@cctz@time_internal@absl@@V?$allocator@UTransitionType@cctz@time_internal@absl@@@__Cr@std@@V__split_buffer_size_layout@67@@__Cr@std@@QAEXXZ
     ??$emplace_back@AAPAPBVImpl@time_zone@cctz@time_internal@absl@@@?$__split_buffer@PAPBVImpl@time_zone@cctz@time_internal@absl@@V?$allocator@PAPBVImpl@time_zone@cctz@time_internal@absl@@@__Cr@std@@V__split_buffer_pointer_layout@78@@__Cr@std@@QAEXAAPAPBVImpl@time_zone@cctz@time_internal@absl@@@Z
     ??$emplace_back@AAPAUPrefixCrc@CrcCordState@crc_internal@absl@@@?$__split_buffer@PAUPrefixCrc@CrcCordState@crc_internal@absl@@V?$allocator@PAUPrefixCrc@CrcCordState@crc_internal@absl@@@__Cr@std@@V__split_buffer_pointer_layout@67@@__Cr@std@@QAEXAAPAUPrefixCrc@CrcCordState@crc_internal@absl@@@Z
+    ??$emplace_back@ABUUnrecognizedFlag@absl@@@?$vector@UUnrecognizedFlag@absl@@V?$allocator@UUnrecognizedFlag@absl@@@__Cr@std@@@__Cr@std@@QAEAAUUnrecognizedFlag@absl@@ABU34@@Z
     ??$emplace_back@HVcrc32c_t@absl@@@?$deque@UPrefixCrc@CrcCordState@crc_internal@absl@@V?$allocator@UPrefixCrc@CrcCordState@crc_internal@absl@@@__Cr@std@@@__Cr@std@@QAEAAUPrefixCrc@CrcCordState@crc_internal@absl@@$$QAH$$QAVcrc32c_t@6@@Z
     ??$emplace_back@PAPBVImpl@time_zone@cctz@time_internal@absl@@@?$__split_buffer@PAPBVImpl@time_zone@cctz@time_internal@absl@@V?$allocator@PAPBVImpl@time_zone@cctz@time_internal@absl@@@__Cr@std@@V__split_buffer_pointer_layout@78@@__Cr@std@@QAEX$$QAPAPBVImpl@time_zone@cctz@time_internal@absl@@@Z
     ??$emplace_back@PAUPrefixCrc@CrcCordState@crc_internal@absl@@@?$__split_buffer@PAUPrefixCrc@CrcCordState@crc_internal@absl@@V?$allocator@PAUPrefixCrc@CrcCordState@crc_internal@absl@@@__Cr@std@@V__split_buffer_pointer_layout@67@@__Cr@std@@QAEX$$QAPAUPrefixCrc@CrcCordState@crc_internal@absl@@@Z
@@ -445,6 +464,7 @@ EXPORTS
     ?Append@Cord@absl@@QAEXABV12@@Z
     ?Append@CordRepBtree@cord_internal@absl@@SAPAV123@PAV123@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@I@Z
     ?Append@FormatSinkImpl@str_format_internal@absl@@QAEXID@Z
+    ?Append@ParsedFormatConsumer@ParsedFormatBase@str_format_internal@absl@@QAE_NV?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@@Z
     ?Append@StringifySink@detect_specialization@log_internal@absl@@QAEXID@Z
     ?Append@StringifySink@detect_specialization@log_internal@absl@@QAEXV?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@@Z
     ?Append@StringifySink@strings_internal@absl@@QAEXID@Z
@@ -587,6 +607,7 @@ EXPORTS
     ?DieBecauseNull@log_internal@absl@@YAXPBDH0@Z
     ?Digits10@?$BigUnsigned@$03@strings_internal@absl@@SAHXZ
     ?Digits10@?$BigUnsigned@$0FE@@strings_internal@absl@@SAHXZ
+    ?DisableFlagfileAndEnvParsing@absl@@YAXXZ
     ?DoIgnoreLeak@absl@@YAXPBX@Z
     ?Dtor@Mutex@absl@@AAEXXZ
     ?DummyFunction@?$AtomicHook@P6A?AV?$optional@V?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@@__Cr@std@@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@23@ABVCord@absl@@@Z@base_internal@absl@@CA?AV?$optional@V?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@@__Cr@std@@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@56@ABVCord@3@@Z
@@ -862,6 +883,7 @@ EXPORTS
     ?IsFlat@CordRepBtree@cord_internal@absl@@QBE_NIIPAV?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@@Z
     ?IsFlat@CordRepBtree@cord_internal@absl@@QBE_NPAV?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@@Z
     ?IsHashtablezEnabled@container_internal@absl@@YA_NXZ
+    ?IsIndirectFlagExpansionEnabled@flags_internal@absl@@YA_NXZ
     ?IsInitialized@log_internal@absl@@YA_NXZ
     ?IsInternal@absl@@YA_NABVStatus@1@@Z
     ?IsInvalidArgument@absl@@YA_NABVStatus@1@@Z
@@ -952,7 +974,7 @@ EXPORTS
     ?NewString@CheckOpMessageBuilder@log_internal@absl@@QAEPBDXZ
     ?Next@CordRepBtreeReader@cord_internal@absl@@QAE?AV?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@XZ
     ?Next@CordzInfo@cord_internal@absl@@QBEPAV123@ABVCordzSnapshot@23@@Z
-    ?NextHashTableSeed@container_internal@absl@@YAGXZ
+    ?NextHashTableSeed@container_internal@absl@@YAEXZ
     ?NextTransition@TimeZone@absl@@QBE_NVTime@2@PAUCivilTransition@12@@Z
     ?NextTransition@TimeZoneInfo@cctz@time_internal@absl@@UBE_NABV?$time_point@Vsystem_clock@chrono@__Cr@std@@V?$duration@_JV?$ratio@$00$00@__Cr@std@@@234@@chrono@__Cr@std@@PAUcivil_transition@time_zone@234@@Z
     ?NextTransition@TimeZoneLibC@cctz@time_internal@absl@@UBE_NABV?$time_point@Vsystem_clock@chrono@__Cr@std@@V?$duration@_JV?$ratio@$00$00@__Cr@std@@@234@@chrono@__Cr@std@@PAUcivil_transition@time_zone@234@@Z
@@ -1101,7 +1123,6 @@ EXPORTS
     ?Seek@CordRepBtreeReader@cord_internal@absl@@QAE?AV?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@I@Z
     ?SendToLog@LogMessage@log_internal@absl@@AAEXXZ
     ?Set@MaskedPointer@flags_internal@absl@@QAEXP6APAXW4FlagOp@23@PBXPAX2@Z1_N@Z
-    ?SetAbslHardeningEnabled@base_internal@absl@@YAX_N@Z
     ?SetAndroidNativeTag@absl@@YAXPBD@Z
     ?SetCallback@FlagImpl@flags_internal@absl@@QAEXQ6AXXZ@Z
     ?SetCode@StatusBuilder@absl@@QGAEAAV12@W4StatusCode@2@@Z
@@ -1343,6 +1364,7 @@ EXPORTS
     ?WebSafeBase64Escape@absl@@YA?AV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@V?$basic_string_view@DU?$char_traits@D@__Cr@std@@@34@@Z
     ?WebSafeBase64Unescape@absl@@YA_NV?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@PAV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@34@@Z
     ?WideToUtf8@strings_internal@absl@@YAI_WPADAAUShiftState@12@@Z
+    ?WithContextImpl@Status@absl@@CAIIV?$basic_string_view@DU?$char_traits@D@__Cr@std@@@__Cr@std@@@Z
     ?WithMetadataFrom@LogMessage@log_internal@absl@@QAEAAV123@ABVLogEntry@3@@Z
     ?WithPerror@LogMessage@log_internal@absl@@QAEAAV123@XZ
     ?WithThreadID@LogMessage@log_internal@absl@@QAEAAV123@I@Z

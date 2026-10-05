@@ -23,6 +23,7 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/megadom-handler-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-cell.h"
 
@@ -436,7 +437,6 @@ NamedAccessFeedback::NamedAccessFeedback(
     bool has_deprecated_map_without_migration_target)
     : ProcessedFeedback(kNamedAccess, slot_kind),
       name_(name.UnpackIfThin(broker)),
-      original_name_maybe_thin_(name),
       maps_(maps),
       handlers_(handlers),
       has_deprecated_map_without_migration_target_(
@@ -728,7 +728,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForInstanceOf(
         nexus.GetConstructorFeedback();
     DirectHandle<JSObject> constructor;
     if (maybe_constructor.ToHandle(&constructor)) {
-      optional_constructor = MakeRefAssumeMemoryFence(this, *constructor);
+      // Written by generated code so this needs TryMakeRef.
+      optional_constructor = TryMakeRef(this, *constructor);
     }
   }
   return *zone()->New<InstanceOfFeedback>(optional_constructor, nexus.kind());
@@ -753,9 +754,11 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForArrayOrObjectLiteral(
     return NewInsufficientFeedback(nexus.kind());
   }
 
-  AllocationSiteRef site =
-      MakeRefAssumeMemoryFence(this, Cast<AllocationSite>(object));
-  return *zone()->New<LiteralFeedback>(site, nexus.kind());
+  // Written by generated code so this needs TryMakeRef.
+  OptionalAllocationSiteRef site =
+      TryMakeRef(this, Cast<AllocationSite>(object));
+  if (!site.has_value()) return NewInsufficientFeedback(nexus.kind());
+  return *zone()->New<LiteralFeedback>(*site, nexus.kind());
 }
 
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForRegExpLiteral(
@@ -783,8 +786,10 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForTemplateObject(
     return NewInsufficientFeedback(nexus.kind());
   }
 
-  JSArrayRef array = MakeRefAssumeMemoryFence(this, Cast<JSArray>(object));
-  return *zone()->New<TemplateObjectFeedback>(array, nexus.kind());
+  // Written by generated code so this needs TryMakeRef.
+  OptionalJSArrayRef array = TryMakeRef(this, Cast<JSArray>(object));
+  if (!array.has_value()) return NewInsufficientFeedback(nexus.kind());
+  return *zone()->New<TemplateObjectFeedback>(*array, nexus.kind());
 }
 
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(

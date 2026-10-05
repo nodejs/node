@@ -51,11 +51,17 @@ V8_OBJECT class Script : public Struct {
     kInspector = 4
   };
 
-  // Script compilation types.
-  enum class CompilationType { kHost = 0, kEval = 1 };
-
   // Script compilation state.
   enum class CompilationState { kInitial = 0, kCompiled = 1 };
+
+  // Script compilation kinds.
+  enum class CompilationKind {
+    kHost = 0,
+    kDirectEval = 1,
+    kIndirectEval = 2,
+    kFunctionConstructor = 3,
+    kWrapped = 4,
+  };
 
   // [source]: the script source.
   inline Tagged<UnionOf<String, Undefined>> source() const;
@@ -112,6 +118,25 @@ V8_OBJECT class Script : public Struct {
   // Whether the script is implicitly wrapped in a function.
   inline bool is_wrapped() const;
 
+  // Whether the script was compiled via eval (direct or indirect).
+  inline bool is_eval() const;
+
+  // Whether the script originated from an eval or Function constructor.
+  inline bool has_eval_origin() const;
+
+  // Whether the script is a top-level host script.
+  inline bool is_host() const;
+
+  // [compilation_kind]: how the script was compiled (host, direct/indirect
+  // eval, Function constructor, or wrapped). Encoded in the 'flags' field.
+  inline CompilationKind compilation_kind() const;
+  inline void set_compilation_kind(CompilationKind kind);
+
+  // [outer_language_mode]: the lexical language mode of the enclosing scope.
+  // Encoded in the 'flags' field.
+  inline LanguageMode outer_language_mode() const;
+  inline void set_outer_language_mode(LanguageMode mode);
+
   // Whether the eval_from_shared field is set with a shared function info
   // for the eval site.
   inline bool has_eval_from_shared() const;
@@ -150,7 +175,7 @@ V8_OBJECT class Script : public Struct {
   inline void set_wasm_managed_native_module(
       Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Managed<wasm::NativeModule>::Ptr wasm_native_module() const;
+  inline CppGCManaged<wasm::NativeModule>::Ptr wasm_native_module() const;
 
   // [wasm_weak_instance_list]: the list of all {WasmInstanceObject} being
   // affected by breakpoints that are managed via this script.
@@ -173,11 +198,6 @@ V8_OBJECT class Script : public Struct {
   // main thread.
   inline uint32_t flags() const;
   inline void set_flags(uint32_t new_flags);
-
-  // [compilation_type]: how the script was compiled. Encoded in the
-  // 'flags' field.
-  inline CompilationType compilation_type() const;
-  inline void set_compilation_type(CompilationType type);
 
   inline bool produce_compile_hints() const;
   inline void set_produce_compile_hints(bool produce_compile_hints);
@@ -367,7 +387,7 @@ V8_OBJECT class Script : public Struct {
   TaggedMember<UnionOf<FixedArray, Smi>> line_ends_;
   TaggedMember<Smi> id_;
   TaggedMember<Object> eval_from_shared_or_wrapped_arguments_;
-  TaggedMember<UnionOf<Smi, Foreign>> eval_from_position_;
+  TaggedMember<UnionOf<Smi, CppGCManagedBase>> eval_from_position_;
   TaggedMember<UnionOf<ScopeInfo, Undefined>> eval_from_scope_info_;
   TaggedMember<UnionOf<WeakFixedArray, WeakArrayList>> infos_;
   TaggedMember<UnionOf<ArrayList, Undefined>> compiled_lazy_function_positions_;
@@ -393,15 +413,16 @@ V8_OBJECT class Script : public Struct {
   friend class TorqueGeneratedBitFieldAsserts;
 
   // Bit positions in the flags field.
-  using CompilationTypeBit =
-      base::BitField<Script::CompilationType, 0, 1, uint32_t>;
+  using CompilationKindBits =
+      base::BitField<Script::CompilationKind, 0, 3, uint32_t>;
   using CompilationStateBit =
-      CompilationTypeBit::Next<Script::CompilationState, 1>;
+      CompilationKindBits::Next<Script::CompilationState, 1>;
   using IsReplModeBit = CompilationStateBit::Next<bool, 1>;
   using OriginOptionsBits = IsReplModeBit::Next<int32_t, 4>;
   using BreakOnEntryBit = OriginOptionsBits::Next<bool, 1>;
   using ProduceCompileHintsBit = BreakOnEntryBit::Next<bool, 1>;
   using DeserializedBit = ProduceCompileHintsBit::Next<bool, 1>;
+  using OuterLanguageModeBit = DeserializedBit::Next<LanguageMode, 1>;
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
@@ -410,8 +431,8 @@ V8_OBJECT class Script : public Struct {
 } V8_OBJECT_END;
 
 V8_EXPORT_PRIVATE const char* ToString(Script::Type type);
-V8_EXPORT_PRIVATE const char* ToString(Script::CompilationType type);
 V8_EXPORT_PRIVATE const char* ToString(Script::CompilationState type);
+V8_EXPORT_PRIVATE const char* ToString(Script::CompilationKind type);
 
 }  // namespace internal
 }  // namespace v8

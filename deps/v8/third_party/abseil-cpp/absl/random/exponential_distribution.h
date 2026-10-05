@@ -17,8 +17,10 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <istream>
 #include <limits>
+#include <ostream>
 #include <type_traits>
 
 #include "absl/base/config.h"

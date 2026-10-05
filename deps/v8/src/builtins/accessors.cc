@@ -22,6 +22,7 @@
 #include "src/objects/js-function.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/property-details.h"
 #include "src/objects/prototype.h"
 
@@ -635,6 +636,15 @@ class FrameFunctionIterator {
     if (frame_iterator_.done()) return;
     JavaScriptFrame* frame = frame_iterator_.frame();
     summaries_ = frame->Summarize();
+#if V8_ENABLE_WEBASSEMBLY
+    if (summaries_.size() == 0) {
+      // We skip method wrappers from summaries and stack traces, because
+      // they are not interesting.
+      DCHECK_EQ(frame->function()->shared()->builtin_id(),
+                Builtin::kWasmMethodWrapper);
+      return;
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
     inlined_frame_index_ = static_cast<int>(summaries_.size());
     DCHECK_LT(0, inlined_frame_index_);
   }

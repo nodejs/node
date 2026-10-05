@@ -137,6 +137,12 @@ void CPU::DetectFeatures() {
     has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
     has_f16c_ = (cpu_info[2] & 0x20000000) != 0;
     has_apx_f_ = (cpu_info71[3] & 0x00200000) != 0;
+    if ((cpu_info71[3] & 0x00080000) != 0 && num_ids >= 0x24) {
+      int cpu_info24[4] = {0};
+      __cpuid(cpu_info24, 0x24);
+      has_avx10_1_ = (cpu_info24[1] & 0xff) >= 1;
+      DCHECK_IMPLIES(has_avx10_1_, (cpu_info24[1] & 0x70000) == 0x70000);
+    }
     // CET shadow stack feature flag. See
     // https://en.wikipedia.org/wiki/CPUID#EAX=7,_ECX=0:_Extended_Features
     has_cetss_ = (cpu_info70[2] & 0x00000080) != 0;

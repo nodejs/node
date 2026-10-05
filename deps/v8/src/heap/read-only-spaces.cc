@@ -252,6 +252,16 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
         continue;
       }
       Tagged<HeapObject> obj = HeapObject::FromAddress(cur_addr_);
+#if V8_ENABLE_WEBASSEMBLY && \
+    (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL)
+      if (IsWasmNull(obj)) {
+        cur_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(WasmNull::kSize);
+        DCHECK_LE(cur_addr_, cur_end_);
+        // For the few specific callers of this function, skipping WasmNull
+        // here makes things simpler.
+        continue;
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY && ...
       const uint32_t obj_size = obj->SafeSize().value();
       cur_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(obj_size);
       DCHECK_LE(cur_addr_, cur_end_);

@@ -69,15 +69,9 @@ class MicrotaskQueueBuiltinsAssembler : public CodeStubAssembler {
 TNode<RawPtrT> MicrotaskQueueBuiltinsAssembler::GetMicrotaskQueue(
     TNode<Context> native_context) {
   CSA_DCHECK(this, IsNativeContext(native_context));
-#ifdef V8_CPPGC_MICROTASK_QUEUE
   return LoadCppHeapPointerFromObject(native_context,
                                       NativeContext::kMicrotaskQueueOffset,
                                       CppHeapPointerTag::kMicrotaskQueueTag);
-#else
-  return LoadExternalPointerFromObject(native_context,
-                                       NativeContext::kMicrotaskQueueOffset,
-                                       kNativeContextMicrotaskQueueTag);
-#endif
 }
 
 TNode<RawPtrT> MicrotaskQueueBuiltinsAssembler::GetMicrotaskRingBuffer(

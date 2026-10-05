@@ -196,7 +196,7 @@ TEST(NodeHashMap, MergeExtractInsert) {
 
   // NonMovableKey is neither copyable nor movable. We should still be able to
   // move nodes around.
-  static_assert(!std::is_move_constructible_v<NonMovableKey>, "");
+  static_assert(!std::is_move_constructible_v<NonMovableKey>);
   set1.merge(set2);
 
   EXPECT_THAT(set1,

@@ -324,6 +324,23 @@ Tagged<Object> FutexEmulation::WaitWasm64(Isolate* isolate,
                            rel_timeout_ns, CallType::kIsWasm);
 }
 
+namespace {
+class InSyncWaitScope {
+ public:
+  explicit InSyncWaitScope(FutexWaitListNode* node) : node_(node) {
+    DCHECK(!node_->IsInSyncWait());
+    node_->SetInSyncWait(true);
+  }
+  ~InSyncWaitScope() {
+    DCHECK(node_->IsInSyncWait());
+    node_->SetInSyncWait(false);
+  }
+
+ private:
+  FutexWaitListNode* node_;
+};
+}  // namespace
+
 #if V8_ENABLE_WEBASSEMBLY
 Tagged<Object> FutexEmulation::WaitWasmManagedObject(
     Isolate* isolate, Tagged<HeapObject> object, int32_t offset,
@@ -334,6 +351,12 @@ Tagged<Object> FutexEmulation::WaitWasmManagedObject(
       base::TimeDelta::FromNanoseconds(rel_timeout_ns);
 
   FutexWaitListNode* node = isolate->futex_wait_list_node();
+  if (node->IsInSyncWait()) {
+    return isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kAtomicsOperationNotAllowed,
+        isolate->factory()->NewStringFromAsciiChecked("Atomics.wait")));
+  }
+  InSyncWaitScope wait_scope(node);
 
   bool use_timeout = rel_timeout_ns >= 0;
 
@@ -401,6 +424,13 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate, void* wait_location,
   FutexWaitList* wait_list = GetWaitList();
   FutexWaitListNode* node = isolate->futex_wait_list_node();
 
+  if (node->IsInSyncWait()) {
+    return isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kAtomicsOperationNotAllowed,
+        isolate->factory()->NewStringFromAsciiChecked("Atomics.wait")));
+  }
+  InSyncWaitScope wait_scope(node);
+
   base::TimeTicks timeout_time;
   if (use_timeout) {
     base::TimeTicks current_time = base::TimeTicks::Now();
@@ -430,9 +460,10 @@ DirectHandle<Object> FutexEmulation::WaitSyncImpl(
     NoGarbageCollectionMutexGuard& lock_guard, bool use_timeout,
     base::TimeTicks timeout_time, T value, T loaded_value,
     std::optional<void*> wait_location) {
+  DCHECK(!node->IsWaiting());
+
   DirectHandle<Object> result;
   if (loaded_value != value) {
-    DCHECK(!node->waiting_);
     return direct_handle(Smi::FromInt(WaitReturnValue::kNotEqualValue),
                          isolate);
   }

@@ -100,12 +100,14 @@ for (const wasm_obj of [struct, array]) {
   testThrowsRepeated(
       () => {class SubClass extends wasm_obj {}}, TypeError,
       'Class extends value [object Object] is not a constructor or null');
-  repeated(() => {
+  {
     class TestMemberInit {
       x = wasm_obj;
-    };
-    assertSame(wasm_obj, new TestMemberInit().x);
-  });
+    }
+    repeated(() => {
+      assertSame(wasm_obj, new TestMemberInit().x);
+    });
+  }
   repeated(() => assertSame(wasm_obj, eval('wasm_obj')));
 
   // Test functions of the global object.

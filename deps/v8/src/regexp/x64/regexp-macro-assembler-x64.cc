@@ -835,7 +835,7 @@ void RegExpMacroAssemblerX64::SkipUntilCharAndSimd(
   __ j(not_zero, &found, Label::kNear);
 
   AdvanceCurrentPosition(kCharsPerVector);
-  __ cmpl(rdi, Immediate(-check_offset * char_size()));
+  __ Cmp(rdi, -check_offset * char_size());
   __ j(less, &simd_loop, Label::kNear);
 
   __ jmp(&scalar, Label::kNear);
@@ -921,7 +921,7 @@ void RegExpMacroAssemblerX64::SkipUntilCharSimd(int cp_offset, int advance_by,
   __ j(not_zero, &found, Label::kNear);
 
   AdvanceCurrentPosition(kCharsPerVector);
-  __ cmpl(rdi, Immediate(-check_offset * char_size()));
+  __ Cmp(rdi, -check_offset * char_size());
   __ j(less, &simd_loop, Label::kNear);
 
   __ jmp(&scalar, Label::kNear);
@@ -982,7 +982,7 @@ void RegExpMacroAssemblerX64::SkipUntilCharOrCharSimd(
   __ j(not_zero, &found, Label::kNear);
 
   AdvanceCurrentPosition(kCharsPerVector);
-  __ cmpl(rdi, Immediate(-check_offset * char_size()));
+  __ Cmp(rdi, -check_offset * char_size());
   __ j(less, &simd_loop, Label::kNear);
 
   __ jmp(&scalar, Label::kNear);
@@ -2091,7 +2091,7 @@ void RegExpMacroAssemblerX64::ReadStackPointerFromRegister(int reg) {
 
 void RegExpMacroAssemblerX64::SetCurrentPositionFromEnd(int by) {
   Label after_position;
-  __ cmpq(rdi, Immediate(-by * char_size()));
+  __ Cmpq(rdi, -by * char_size());
   __ j(greater_equal, &after_position, Label::kNear);
   __ Move(rdi, -by * char_size());
   // On RegExp code entry (where this operation is used), the character before
@@ -2213,7 +2213,7 @@ Operand RegExpMacroAssemblerX64::register_location(int register_index) {
 void RegExpMacroAssemblerX64::CheckPosition(int cp_offset,
                                             Label* on_outside_input) {
   if (cp_offset >= 0) {
-    __ cmpl(rdi, Immediate(-cp_offset * char_size()));
+    __ Cmp(rdi, -cp_offset * char_size());
     BranchOrBacktrack(greater_equal, on_outside_input);
   } else {
     __ leaq(rax, Operand(rdi, cp_offset * char_size()));

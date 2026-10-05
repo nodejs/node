@@ -66,4 +66,3 @@ add_object_library(
     .lower_to_upper
     .upper_to_lower
 )
-

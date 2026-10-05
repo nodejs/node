@@ -8,6 +8,7 @@
 #include "src/base/flags.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/keys.h"
+#include "src/objects/module-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/property-details.h"
 
@@ -197,6 +198,11 @@ bool DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
     auto typed_array = Cast<JSTypedArray>(receiver);
     current_keys_length_ =
         typed_array->WasDetached() ? 0 : typed_array->GetLength();
+    return true;
+  }
+  if (IsJSDeferredModuleNamespace(*receiver) &&
+      Cast<JSDeferredModuleNamespace>(receiver)->module()->status() !=
+          Module::kEvaluated) [[unlikely]] {
     return true;
   }
   PropertyFilter filter =

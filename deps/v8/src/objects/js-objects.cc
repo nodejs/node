@@ -55,6 +55,8 @@
 #include "src/objects/js-shadow-realm.h"
 #include "src/objects/js-shared-array.h"
 #include "src/objects/js-struct.h"
+#include "src/objects/map-word.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/property-details.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
@@ -139,6 +141,7 @@ Maybe<bool> JSReceiver::HasProperty(LookupIterator* it) {
           JSDeferredModuleNamespace::EvaluateModuleSync(it->isolate(), holder);
           RETURN_EXCEPTION_IF_EXCEPTION(it->isolate());
         }
+        JSModuleNamespace::MaybeCountMissingDefaultWithStarExport(it);
         continue;
       }
       case LookupIterator::ACCESSOR:
@@ -865,23 +868,31 @@ int GetIdentityHashHelper(Tagged<JSReceiver> object) {
     return Smi::ToInt(properties);
   }
 
-  if (IsPropertyArray(properties)) {
-    return Cast<PropertyArray>(properties)->Hash();
+  Tagged<HeapObject> properties_object = Cast<HeapObject>(properties);
+  if (MapWord properties_object_map = properties_object->map_word(kRelaxedLoad);
+      properties_object_map.IsForwardingAddress()) {
+    properties_object =
+        properties_object_map.ToForwardingAddress(properties_object);
+    DCHECK(!properties_object->map_word(kRelaxedLoad).IsForwardingAddress());
   }
 
-  if (IsPropertyDictionary(properties)) {
-    return Cast<PropertyDictionary>(properties)->Hash();
+  if (IsPropertyArray(properties_object)) {
+    return Cast<PropertyArray>(properties_object)->Hash();
   }
 
-  if (IsGlobalDictionary(properties)) {
-    return Cast<GlobalDictionary>(properties)->Hash();
+  if (IsPropertyDictionary(properties_object)) {
+    return Cast<PropertyDictionary>(properties_object)->Hash();
+  }
+
+  if (IsGlobalDictionary(properties_object)) {
+    return Cast<GlobalDictionary>(properties_object)->Hash();
   }
 
 #ifdef DEBUG
   ReadOnlyRoots roots = GetReadOnlyRoots();
-  DCHECK(properties == roots.empty_fixed_array() ||
-         properties == roots.empty_property_dictionary() ||
-         properties == roots.empty_swiss_property_dictionary());
+  DCHECK(properties_object == roots.empty_fixed_array() ||
+         properties_object == roots.empty_property_dictionary() ||
+         properties_object == roots.empty_swiss_property_dictionary());
 #endif
 
   return PropertyArray::kNoHashSentinel;
@@ -1868,45 +1879,46 @@ Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
   DCHECK(it->GetName()->IsAnyPrivateName());
   DirectHandle<Symbol> symbol = Cast<Symbol>(it->GetName());
 
-  switch (it->state()) {
-    case LookupIterator::JSPROXY: {
-      PropertyDescriptor new_desc;
-      new_desc.set_value(Cast<JSAny>(value));
-      new_desc.set_writable(true);
-      new_desc.set_enumerable(true);
-      new_desc.set_configurable(true);
-      return JSProxy::SetPrivateSymbol(isolate, Cast<JSProxy>(receiver), symbol,
-                                       &new_desc, should_throw);
-    }
-    case LookupIterator::WASM_OBJECT:
-      RETURN_FAILURE(isolate, kThrowOnError,
-                     NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
-    case LookupIterator::MODULE_NAMESPACE:
-    case LookupIterator::DATA:
-    case LookupIterator::INTERCEPTOR:
-    case LookupIterator::ACCESSOR:
-    case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
-    case LookupIterator::STRING_LOOKUP_START_OBJECT:
-      UNREACHABLE();
-
-    case LookupIterator::ACCESS_CHECK: {
-      if (!it->HasAccess()) {
-        RETURN_ON_EXCEPTION_VALUE(
-            isolate,
-            it->isolate()->ReportFailedAccessCheck(it->GetHolder<JSObject>()),
-            Nothing<bool>());
-        UNREACHABLE();
+  for (;; it->Next()) {
+    switch (it->state()) {
+      case LookupIterator::JSPROXY: {
+        PropertyDescriptor new_desc;
+        new_desc.set_value(Cast<JSAny>(value));
+        new_desc.set_writable(true);
+        new_desc.set_enumerable(true);
+        new_desc.set_configurable(true);
+        return JSProxy::SetPrivateSymbol(isolate, Cast<JSProxy>(receiver),
+                                         symbol, &new_desc, should_throw);
       }
-      break;
+      case LookupIterator::WASM_OBJECT:
+        RETURN_FAILURE(isolate, kThrowOnError,
+                       NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+      case LookupIterator::MODULE_NAMESPACE:
+      case LookupIterator::DATA:
+      case LookupIterator::INTERCEPTOR:
+      case LookupIterator::ACCESSOR:
+      case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        UNREACHABLE();
+
+      case LookupIterator::ACCESS_CHECK: {
+        if (!it->HasAccess()) {
+          RETURN_ON_EXCEPTION_VALUE(
+              isolate,
+              it->isolate()->ReportFailedAccessCheck(it->GetHolder<JSObject>()),
+              Nothing<bool>());
+          UNREACHABLE();
+        }
+        continue;
+      }
+
+      case LookupIterator::TRANSITION:
+      case LookupIterator::NOT_FOUND:
+        return Object::TransitionAndWriteDataProperty(
+            it, value, NONE, should_throw, StoreOrigin::kMaybeKeyed);
     }
-
-    case LookupIterator::TRANSITION:
-    case LookupIterator::NOT_FOUND:
-      break;
+    UNREACHABLE();
   }
-
-  return Object::TransitionAndWriteDataProperty(it, value, NONE, should_throw,
-                                                StoreOrigin::kMaybeKeyed);
 }
 
 // static
@@ -2734,6 +2746,8 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSSegments::kHeaderSize;
 #endif  // V8_INTL_SUPPORT
 #if V8_ENABLE_WEBASSEMBLY
+    case WASM_CUSTOM_MAP_WRAPPER_TYPE:
+      return WasmCustomMapWrapper::kHeaderSize;
     case WASM_GLOBAL_OBJECT_TYPE:
       return WasmGlobalObject::kHeaderSize;
     case WASM_INSTANCE_OBJECT_TYPE:
@@ -3034,6 +3048,9 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       break;
     case CPP_HEAP_EXTERNAL_OBJECT_TYPE:
       accumulator->Add("<CppHeapExternalObject>");
+      break;
+    case CPP_GCMANAGED_BASE_TYPE:
+      accumulator->Add("<CppGCManagedBase>");
       break;
 
     default: {
@@ -3817,9 +3834,9 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
         InterceptorResult result;
         if (semantics == EnforceDefineSemantics::kDefine) {
           PropertyDescriptor descriptor;
-          descriptor.set_configurable((attributes & DONT_DELETE) != 0);
-          descriptor.set_enumerable((attributes & DONT_ENUM) != 0);
-          descriptor.set_writable((attributes & READ_ONLY) != 0);
+          descriptor.set_configurable((attributes & DONT_DELETE) == 0);
+          descriptor.set_enumerable((attributes & DONT_ENUM) == 0);
+          descriptor.set_writable((attributes & READ_ONLY) == 0);
           descriptor.set_value(Cast<JSAny>(value));
           if (!DefinePropertyWithInterceptorInternal(it, it->GetInterceptor(),
                                                      should_throw, &descriptor)
@@ -4315,7 +4332,9 @@ bool TestDictionaryPropertiesIntegrityLevel(Tagged<Dictionary> dict,
     if (Object::FilterKey(key, ALL_PROPERTIES)) continue;
     PropertyDetails details = dict->DetailsAt(i);
     if (details.IsConfigurable()) return false;
-    if (level == FROZEN && details.kind() == PropertyKind::kData &&
+    if (level == FROZEN &&
+        (details.kind() == PropertyKind::kData ||
+         IsAccessorInfo(dict->ValueAt(i))) &&
         !details.IsReadOnly()) {
       return false;
     }
@@ -4334,7 +4353,9 @@ bool TestFastPropertiesIntegrityLevel(Tagged<Map> map,
     if (descriptors->GetKey(i)->IsAnyPrivate()) continue;
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.IsConfigurable()) return false;
-    if (level == FROZEN && details.kind() == PropertyKind::kData &&
+    if (level == FROZEN &&
+        (details.kind() == PropertyKind::kData ||
+         IsAccessorInfo(descriptors->GetStrongValue(i))) &&
         !details.IsReadOnly()) {
       return false;
     }

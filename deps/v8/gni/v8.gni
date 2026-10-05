@@ -34,6 +34,12 @@ declare_args() {
   # Turns on compiler optimizations in V8 in Debug build.
   v8_optimized_debug = true
 
+  # Selects which instance-type generator's output V8 compiles in:
+  # metagen (tools/metagen/) or Torque's emission. When off, the metagen
+  # action is out of the build graph entirely, so nothing depends on the
+  # llvm-libclang package. Sets -DV8_USE_METAGEN_INSTANCE_TYPES=0 when off.
+  v8_use_metagen_instance_types = true
+
   # Support for backtrace_symbols on linux.
   v8_enable_backtrace = ""
 
@@ -42,6 +48,7 @@ declare_args() {
   v8_use_external_startup_data = ""
 
   # Includes profiles to optimize builtins.
+  # Sets -DV8_ENABLE_BUILTINS_OPTIMIZATION.
   v8_enable_builtins_optimization = ""
 
   # Turns on all V8 debug features. Enables running V8 in a pseudo debug mode
@@ -61,10 +68,6 @@ declare_args() {
   #
   # Furthermore, some architectures don't have Rust toolchains in Chromium
   v8_enable_temporal_support = !(defined(build_with_node) && build_with_node)
-
-  # by default, don't enable compiling Temporal with a system ICU4C
-  # (assume private headers are available)
-  v8_enable_temporal_systemicu = false
 
   # Use static libraries instead of source_sets.
   v8_static_library = false
@@ -87,19 +90,15 @@ declare_args() {
   v8_expose_symbols = false
 
   # Implement tracing using Perfetto (https://perfetto.dev).
-  v8_use_perfetto = false
+  # Chromium is configured to use the perfetto client library, v8 should also
+  # use perfetto for tracing.
+  v8_use_perfetto = build_with_chromium && !use_fuzzing_engine
 
   # Use Perfetto JSON Export.
   v8_use_perfetto_json_export = ""
 
   # Use Perfetto SDK headers.
   v8_use_perfetto_sdk = false
-
-  # Enable definition of v8::MicrotaskQueue as a cppgc object.
-  # TODO(https://crbug.com/515252150): remove this flag once the old
-  # v8::MicrotaskQueue::New() returning std::unique_ptr<> gets through
-  # the V8 API deprecation process.
-  v8_cppgc_microtask_queue = true
 
   # Override global symbol level setting for v8.
   v8_symbol_level = symbol_level
@@ -314,12 +313,6 @@ if (v8_use_perfetto_sdk) {
   v8_use_perfetto = true
 }
 
-# Chromium is configured to use the perfetto client library, v8 should also
-# use perfetto for tracing.
-if (build_with_chromium && !use_fuzzing_engine) {
-  v8_use_perfetto = true
-}
-
 # Enable JSON export by default when using perfetto but not the SDK.
 if (v8_use_perfetto_json_export == "") {
   v8_use_perfetto_json_export = v8_use_perfetto && !v8_use_perfetto_sdk
@@ -463,6 +456,7 @@ template("v8_source_set") {
   } else {
     link_target_type = "source_set"
   }
+
   target(link_target_type, target_name) {
     forward_variables_from(invoker,
                            "*",

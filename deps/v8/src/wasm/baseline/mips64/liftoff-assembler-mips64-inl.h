@@ -335,7 +335,9 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
   }
 
   // Set the new stack and frame pointer.
-  daddiu(sp, fp, -stack_param_delta * 8);
+  // WebAssembly allows functions to have up to 1000 parameters
+  // (see kV8MaxWasmFunctionParams).
+  Daddu(sp, fp, Operand(-stack_param_delta * 8));
   Pop(ra, fp);
 }
 

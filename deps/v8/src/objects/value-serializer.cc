@@ -30,6 +30,7 @@
 #include "src/objects/js-shared-array.h"
 #include "src/objects/js-struct.h"
 #include "src/objects/map-updater.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
@@ -188,6 +189,9 @@ enum class SerializationTag : uint8_t {
   kArrayBuffer = 'B',
   // Immutable array buffer. byteLength:uint32_t, then raw data.
   kImmutableArrayBuffer = 'C',
+  // Shared immutable array buffer (zero-copy for postMessage).
+  // backingStoreID:uint32_t
+  kSharedImmutableArrayBuffer = 'E',
   // Resizable array buffer. byteLength:uint32_t, maxLength:uint32_t, raw data.
   kResizableArrayBuffer = '~',
   // Array buffer (transferred). transferID:uint32_t
@@ -297,14 +301,21 @@ enum class WasmMemoryArrayBufferTag : uint8_t {
 
 }  // namespace
 
-ValueSerializer::ValueSerializer(Isolate* isolate,
-                                 v8::ValueSerializer::Delegate* delegate)
+ValueSerializer::ValueSerializer(
+    Isolate* isolate, v8::ValueSerializer::SharedImmutableArrayBufferMode
+                          share_immutable_array_buffer)
+    : ValueSerializer(isolate, nullptr, share_immutable_array_buffer) {}
+
+ValueSerializer::ValueSerializer(
+    Isolate* isolate, v8::ValueSerializer::Delegate* delegate,
+    v8::ValueSerializer::SharedImmutableArrayBufferMode
+        share_immutable_array_buffer)
     : isolate_(isolate),
       delegate_(delegate),
       zone_(isolate->allocator(), ZONE_NAME),
       id_map_(isolate->heap(), ZoneAllocationPolicy(&zone_)),
-      array_buffer_transfer_map_(isolate->heap(),
-                                 ZoneAllocationPolicy(&zone_)) {
+      array_buffer_transfer_map_(isolate->heap(), ZoneAllocationPolicy(&zone_)),
+      share_immutable_array_buffer_(share_immutable_array_buffer) {
   if (delegate_) {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
     has_custom_host_objects_ = delegate_->HasCustomHostObject(v8_isolate);
@@ -312,6 +323,12 @@ ValueSerializer::ValueSerializer(Isolate* isolate,
 }
 
 ValueSerializer::~ValueSerializer() {
+  DCHECK_IMPLIES(
+      !buffer_ && !out_of_memory_ &&
+          share_immutable_array_buffer_ ==
+              v8::ValueSerializer::SharedImmutableArrayBufferMode::kEnabled &&
+          v8_flags.js_postmessage_share_immutable_arraybuffer,
+      shared_immutable_backing_stores_.empty());
   if (buffer_) {
     if (delegate_) {
       delegate_->FreeBufferMemory(buffer_);
@@ -1061,9 +1078,28 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
   }
 
   if (array_buffer->is_immutable()) {
-    // TODO(olivf): Since the AB is not mutable we could share the backing
-    // store in postMessage. Needs a ForStorage flag for the ValueSerializer to
-    // know when sharing is possible.
+    if (share_immutable_array_buffer_ ==
+            v8::ValueSerializer::SharedImmutableArrayBufferMode::kEnabled &&
+        v8_flags.js_postmessage_share_immutable_arraybuffer) {
+      auto backing_store = array_buffer->GetBackingStore();
+      DCHECK_IMPLIES(!backing_store, byte_length == 0);
+      if (backing_store) {
+        uint32_t id = 0;
+        auto it =
+            std::find(shared_immutable_backing_stores_.begin(),
+                      shared_immutable_backing_stores_.end(), backing_store);
+        if (it != shared_immutable_backing_stores_.end()) {
+          id = static_cast<uint32_t>(it -
+                                     shared_immutable_backing_stores_.begin());
+        } else {
+          id = static_cast<uint32_t>(shared_immutable_backing_stores_.size());
+          shared_immutable_backing_stores_.push_back(backing_store);
+        }
+        WriteTag(SerializationTag::kSharedImmutableArrayBuffer);
+        WriteVarint<uint32_t>(id);
+        return ThrowIfOutOfMemory();
+      }
+    }
     WriteTag(SerializationTag::kImmutableArrayBuffer);
   } else {
     WriteTag(SerializationTag::kArrayBuffer);
@@ -1223,8 +1259,6 @@ Maybe<bool> ValueSerializer::WriteWasmMemory(
   if (!shared_ab->is_shared()) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
   }
-
-  GlobalBackingStoreRegistry::Register(shared_ab->GetBackingStore());
 
   WriteTag(SerializationTag::kWasmMemoryTransfer);
   WriteZigZag<int32_t>(object->maximum_pages());
@@ -1740,6 +1774,9 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
       return ReadJSArrayBuffer(SharedFlag{false}, ResizableFlag{false},
                                /*is_immutable*/ true);
     }
+    case SerializationTag::kSharedImmutableArrayBuffer: {
+      return ReadSharedImmutableJSArrayBuffer();
+    }
     case SerializationTag::kArrayBufferTransfer: {
       return ReadTransferredJSArrayBuffer();
     }
@@ -2241,6 +2278,29 @@ ValueDeserializer::ReadTransferredJSArrayBuffer() {
   return array_buffer;
 }
 
+MaybeDirectHandle<JSArrayBuffer>
+ValueDeserializer::ReadSharedImmutableJSArrayBuffer() {
+  uint32_t id = next_id_++;
+  uint32_t backing_store_id;
+  if (!ReadVarint<uint32_t>().To(&backing_store_id)) {
+    return MaybeDirectHandle<JSArrayBuffer>();
+  }
+  if (backing_store_id >= shared_immutable_backing_stores_.size()) {
+    return MaybeDirectHandle<JSArrayBuffer>();
+  }
+  std::shared_ptr<BackingStore> backing_store =
+      shared_immutable_backing_stores_[backing_store_id];
+  if (!backing_store) {
+    return MaybeDirectHandle<JSArrayBuffer>();
+  }
+  CHECK(!backing_store->is_resizable_by_js());
+  DirectHandle<JSArrayBuffer> array_buffer =
+      isolate_->factory()->NewJSArrayBuffer(std::move(backing_store));
+  array_buffer->MakeImmutable(isolate_);
+  AddObjectWithID(id, array_buffer);
+  return array_buffer;
+}
+
 MaybeDirectHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
     DirectHandle<JSArrayBuffer> buffer) {
   size_t buffer_byte_length = buffer->GetByteLength();
@@ -2510,7 +2570,8 @@ MaybeDirectHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   // buffer is stale. If it grows between the registration and the check, we
   // will see it's stale. If it grows after the check, we will receive a
   // broadcast and refresh the buffer on the next access.
-  backing_store->AttachSharedWasmMemoryObject(isolate_, result);
+  GlobalBackingStoreRegistry::AddSharedWasmMemoryObject(isolate_, backing_store,
+                                                        result);
 
   if (buffer->GetByteLength() >= backing_store->byte_length()) {
     // Link the two.

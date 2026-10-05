@@ -7,4 +7,6 @@ Call tree size: 2
 Call tree contains allocationChunk: true
 Starting heap profiler with stack depth: 0
 Expected error: Invalid stack depth
+Starting heap profiler with stack depth: 0.5
+Expected error: Invalid stack depth
 Successfully finished

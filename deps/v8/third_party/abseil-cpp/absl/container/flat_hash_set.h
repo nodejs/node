@@ -588,9 +588,9 @@ struct FlatHashSetPolicy {
 
   static size_t space_used(const T*) { return 0; }
 
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
-    return &TypeErasedApplyToSlotFn<Hash, T, kIsDefault>;
+    return &TypeErasedApplyToSlotFn<Hash, T, kIsDefault, kSeedShift>;
   }
 };
 }  // namespace container_internal

@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
+#include "src/objects/object-conversions-inl.h"
 
 namespace v8 {
 namespace internal {

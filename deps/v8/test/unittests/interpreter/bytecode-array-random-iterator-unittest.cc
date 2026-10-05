@@ -7,6 +7,7 @@
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-random-iterator.h"
 #include "src/numbers/hash-seed-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "test/unittests/interpreter/bytecode-utils.h"

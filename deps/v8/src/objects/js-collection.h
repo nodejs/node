@@ -18,6 +18,8 @@ class OrderedHashSet;
 class OrderedHashMap;
 
 V8_OBJECT class JSCollection : public JSObject {
+  V8_IT_ABSTRACT;
+
  public:
   // The backing hash table.
   inline Tagged<Object> table() const;
@@ -47,6 +49,8 @@ V8_OBJECT class JSSet final : public JSCollection {
 
 V8_OBJECT class JSSetIterator
     : public OrderedHashTableIterator<JSSetIterator, OrderedHashSet> {
+  V8_IT_ABSTRACT;
+
  public:
   // Dispatched behavior.
   DECL_PRINTER(JSSetIterator)
@@ -67,6 +71,8 @@ V8_OBJECT class JSMap final : public JSCollection {
 
 V8_OBJECT class JSMapIterator
     : public OrderedHashTableIterator<JSMapIterator, OrderedHashMap> {
+  V8_IT_ABSTRACT;
+
  public:
   // Dispatched behavior.
   DECL_PRINTER(JSMapIterator)
@@ -79,6 +85,8 @@ V8_OBJECT class JSMapIterator
 
 // Base class for both JSWeakMap and JSWeakSet
 V8_OBJECT class JSWeakCollection : public JSObject {
+  V8_IT_ABSTRACT;
+
  public:
   // The backing hash table mapping keys to values.
   inline Tagged<Object> table() const;

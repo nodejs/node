@@ -4,6 +4,10 @@
 
 #include <memory>
 
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
 #include "include/cppgc/platform.h"
 #include "include/libplatform/libplatform.h"
 #include "include/v8-initialization.h"
@@ -45,6 +49,11 @@ class CppGCEnvironment final : public ::testing::Environment {
 
 
 int main(int argc, char** argv) {
+#if defined(_WIN32)
+  // Preload these DLLs before symbolization can reenter ASAN's allocator.
+  ::LoadLibraryW(L"dbghelp.dll");
+  ::LoadLibraryW(L"msdia140.dll");
+#endif
   // Don't catch SEH exceptions and continue as the following tests might hang
   // in an broken environment on windows.
   GTEST_FLAG_SET(catch_exceptions, false);

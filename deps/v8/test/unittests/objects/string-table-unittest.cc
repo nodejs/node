@@ -47,5 +47,41 @@ TEST_F(StringTableTest, HasString) {
   EXPECT_TRUE(string_table->HasString(isolate(), bar));
 }
 
+TEST_F(StringTableTest, InternalizeUtf8String) {
+  static const char* const kTestStrings[] = {
+      "abstract",   "boolean",      "break",      "byte",    "case",
+      "catch",      "char",         "class",      "const",   "continue",
+      "debugger",   "default",      "delete",     "do",      "double",
+      "else",       "enum",         "export",     "extends", "false",
+      "final",      "finally",      "float",      "for",     "function",
+      "goto",       "if",           "implements", "import",  "in",
+      "instanceof", "int",          "interface",  "long",    "native",
+      "new",        "null",         "package",    "private", "protected",
+      "public",     "return",       "short",      "static",  "super",
+      "switch",     "synchronized", "this",       "throw",   "throws",
+      "transient",  "true",         "try",        "typeof",  "var",
+      "void",       "volatile",     "while",      "with",    nullptr};
+
+  auto check_internalized_strings = [this](const char* const* strings) {
+    for (const char* const* ptr = strings; *ptr != nullptr; ++ptr) {
+      const char* string = *ptr;
+      HandleScope scope(isolate());
+      DirectHandle<String> a =
+          factory()->InternalizeUtf8String(base::CStrVector(string));
+      EXPECT_TRUE(IsInternalizedString(*a));
+      DirectHandle<String> b = factory()->InternalizeUtf8String(string);
+      EXPECT_EQ(*b, *a);
+      EXPECT_TRUE(b->IsOneByteEqualTo(base::CStrVector(string)));
+      b = factory()->InternalizeUtf8String(base::CStrVector(string));
+      EXPECT_EQ(*b, *a);
+      EXPECT_TRUE(b->IsOneByteEqualTo(base::CStrVector(string)));
+    }
+  };
+
+  check_internalized_strings(kTestStrings);
+  // Re-checking lookups of already internalized strings.
+  check_internalized_strings(kTestStrings);
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -47,18 +47,20 @@ class Notation;
 
 namespace v8::internal {
 
-#define ICU_EXTERNAL_POINTER_TAG_LIST(V)                              \
-  V(icu::BreakIterator, kIcuBreakIteratorTag)                         \
-  V(icu::Locale, kIcuLocaleTag)                                       \
-  V(icu::SimpleDateFormat, kIcuSimpleDateFormatTag)                   \
-  V(icu::DateIntervalFormat, kIcuDateIntervalFormatTag)               \
-  V(icu::RelativeDateTimeFormatter, kIcuRelativeDateTimeFormatterTag) \
-  V(icu::ListFormatter, kIcuListFormatterTag)                         \
-  V(icu::Collator, kIcuCollatorTag)                                   \
-  V(icu::PluralRules, kIcuPluralRulesTag)                             \
-  V(icu::number::LocalizedNumberFormatter, kIcuLocalizedNumberFormatterTag)
-ICU_EXTERNAL_POINTER_TAG_LIST(ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED)
-#undef ICU_EXTERNAL_POINTER_TAG_LIST
+#define ICU_MANAGED_TYPE_ID_LIST(V)                                   \
+  V(icu::BreakIterator, ManagedTypeId::kIcuBreakIterator)             \
+  V(icu::Locale, ManagedTypeId::kIcuLocale)                           \
+  V(icu::SimpleDateFormat, ManagedTypeId::kIcuSimpleDateFormat)       \
+  V(icu::DateIntervalFormat, ManagedTypeId::kIcuDateIntervalFormat)   \
+  V(icu::RelativeDateTimeFormatter,                                   \
+    ManagedTypeId::kIcuRelativeDateTimeFormatter)                     \
+  V(icu::ListFormatter, ManagedTypeId::kIcuListFormatter)             \
+  V(icu::Collator, ManagedTypeId::kIcuCollator)                       \
+  V(icu::PluralRules, ManagedTypeId::kIcuPluralRules)                 \
+  V(icu::number::LocalizedNumberFormatter,                            \
+    ManagedTypeId::kIcuLocalizedNumberFormatter)
+ICU_MANAGED_TYPE_ID_LIST(ASSIGN_MANAGED_TYPE_ID_FOR_MANAGED)
+#undef ICU_MANAGED_TYPE_ID_LIST
 
 struct NumberFormatSpan {
   int32_t field_id;
@@ -78,8 +80,8 @@ class JSCollator;
 // Owns the ICU break iterator together with the string buffer it refers to.
 class IcuBreakIteratorWithText final {
  public:
-  static constexpr ExternalPointerTag kManagedTag =
-      kIcuBreakIteratorWithTextTag;
+  static constexpr ManagedTypeId kTypeID =
+      ManagedTypeId::kIcuBreakIteratorWithText;
 
   // Adopts the given iterator with an empty string.
   explicit IcuBreakIteratorWithText(

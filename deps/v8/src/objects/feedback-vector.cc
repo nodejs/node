@@ -15,6 +15,7 @@
 #include "src/heap/local-factory-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-inl.h"
+#include "src/objects/code-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/feedback-vector-inl.h"
@@ -405,10 +406,17 @@ void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
                                          Tagged<Code> code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
   DCHECK(!slot.IsInvalid());
+
+  // The synchronization mechanism to use here depends on the slot size:
+  DCHECK_EQ(GetKind(slot), FeedbackSlotKind::kJumpLoop);
+  DCHECK_GT(FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kJumpLoop), 1);
+
   auto current = GetOptimizedOsrCode(isolate, {}, slot);
   if (V8_UNLIKELY(current && current.value()->kind() > code->kind())) {
     return;
   }
+
+  base::MutexGuard mutex_guard(isolate->feedback_vector_access());
   Set(slot, MakeWeak(code->wrapper()));
   set_maybe_has_optimized_osr_code(true, code->kind());
 }
@@ -1095,6 +1103,21 @@ SpeculationMode FeedbackNexus::GetSpeculationMode() {
   CHECK(IsSmi(call_count));
   uint32_t value = static_cast<uint32_t>(Smi::ToInt(call_count));
   return SpeculationModeField::decode(value);
+}
+
+std::optional<Tagged<Code>> FeedbackNexus::GetOptimizedOsrCode(
+    IsolateForSandbox isolate) const {
+  DCHECK_EQ(kind(), FeedbackSlotKind::kJumpLoop);
+  Tagged<MaybeObject> maybe_code = GetFeedback();
+  Tagged<HeapObject> heap_object;
+  if (maybe_code.GetHeapObjectIfWeak(&heap_object)) {
+    Tagged<CodeWrapper> code_wrapper = Cast<CodeWrapper>(heap_object);
+    Tagged<Code> code = code_wrapper->code(isolate, kAcquireLoad);
+    if (!code->marked_for_deoptimization()) {
+      return code;
+    }
+  }
+  return {};
 }
 
 CallFeedbackContent FeedbackNexus::GetCallFeedbackContent() {

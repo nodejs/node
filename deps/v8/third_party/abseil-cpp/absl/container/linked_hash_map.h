@@ -21,6 +21,7 @@
 // order.
 //
 // This class is thread-compatible.
+// This class is NOT exception-safe.
 //
 // Iterators point into the list and should be stable in the face of
 // mutations, except for an iterator pointing to an element that was just

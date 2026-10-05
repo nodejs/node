@@ -23,7 +23,6 @@
 #include <ostream>
 #include <type_traits>
 
-#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/meta/type_traits.h"
 #include "absl/random/internal/fast_uniform_bits.h"
@@ -387,7 +386,6 @@ beta_distribution<RealType>::operator()(URBG& g,  // NOLINT(runtime/references)
     case param_type::JOEHNK:
       return AlgorithmJoehnk(g, p);
     case param_type::CHENG_BA:
-      ABSL_FALLTHROUGH_INTENDED;
     case param_type::CHENG_BB:
       return AlgorithmCheng(g, p);
     default:
