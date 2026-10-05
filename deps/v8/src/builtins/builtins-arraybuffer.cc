@@ -10,6 +10,7 @@
 #include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {

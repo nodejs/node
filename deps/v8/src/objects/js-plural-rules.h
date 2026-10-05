@@ -74,15 +74,15 @@ V8_OBJECT class JSPluralRules : public JSObject {
   inline int flags() const;
   inline void set_flags(int value);
 
-  inline Tagged<Managed<icu::PluralRules>> icu_plural_rules() const;
+  inline Tagged<CppGCManaged<icu::PluralRules>> icu_plural_rules() const;
   inline void set_icu_plural_rules(
-      Tagged<Managed<icu::PluralRules>> value,
+      Tagged<CppGCManaged<icu::PluralRules>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Managed<icu::number::LocalizedNumberFormatter>>
+  inline Tagged<CppGCManaged<icu::number::LocalizedNumberFormatter>>
   icu_number_formatter() const;
   inline void set_icu_number_formatter(
-      Tagged<Managed<icu::number::LocalizedNumberFormatter>> value,
+      Tagged<CppGCManaged<icu::number::LocalizedNumberFormatter>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_VERIFIER(JSPluralRules)
@@ -92,8 +92,9 @@ V8_OBJECT class JSPluralRules : public JSObject {
  public:
   TaggedMember<String> locale_;
   TaggedMember<Smi> flags_;
-  TaggedMember<Foreign> icu_plural_rules_;
-  TaggedMember<Foreign> icu_number_formatter_;
+  TaggedMember<CppGCManaged<icu::PluralRules>> icu_plural_rules_;
+  TaggedMember<CppGCManaged<icu::number::LocalizedNumberFormatter>>
+      icu_number_formatter_;
 } V8_OBJECT_END;
 
 inline constexpr int JSPluralRules::kHeaderSize = sizeof(JSPluralRules);

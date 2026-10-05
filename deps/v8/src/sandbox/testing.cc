@@ -23,7 +23,9 @@
 #include "src/objects/feedback-vector.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/fixed-primitive-array-inl.h"
+#include "src/objects/foreign.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-array-buffer.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/objects/templates.h"
@@ -1481,6 +1483,7 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["JS_BOUND_FUNCTION_TYPE"] = JS_BOUND_FUNCTION_TYPE;
     types["JS_ARRAY_TYPE"] = JS_ARRAY_TYPE;
     types["JS_ARRAY_BUFFER_TYPE"] = JS_ARRAY_BUFFER_TYPE;
+    types["FOREIGN_TYPE"] = FOREIGN_TYPE;
     types["JS_REG_EXP_TYPE"] = JS_REG_EXP_TYPE;
     types["JS_TYPED_ARRAY_TYPE"] = JS_TYPED_ARRAY_TYPE;
     types["SEQ_ONE_BYTE_STRING_TYPE"] = SEQ_ONE_BYTE_STRING_TYPE;
@@ -1539,6 +1542,10 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         offsetof(JSBoundFunction, bound_arguments_);
     fields[JS_ARRAY_TYPE]["elements"] = offsetof(JSObject, elements_);
     fields[JS_ARRAY_TYPE]["length"] = offsetof(JSArray, length_);
+    fields[JS_ARRAY_BUFFER_TYPE]["extension"] =
+        offsetof(JSArrayBuffer, extension_);
+    fields[FOREIGN_TYPE]["foreign_address"] =
+        offsetof(Foreign, foreign_address_);
     fields[JS_REG_EXP_TYPE]["data"] = offsetof(JSRegExp, data_);
     fields[JS_TYPED_ARRAY_TYPE]["byte_length"] =
         offsetof(JSArrayBufferView, raw_byte_length_);
@@ -1553,6 +1560,11 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
       InstanceType instance_type = static_cast<InstanceType>(string_type);
       fields[instance_type]["length"] = offsetof(String, length_);
       fields[instance_type]["hash"] = offsetof(String, raw_hash_field_);
+      if (InstanceTypeChecker::IsExternalString(instance_type)) {
+        fields[instance_type]["resource"] = offsetof(ExternalString, resource_);
+        fields[instance_type]["resource_data"] =
+            offsetof(ExternalString, resource_data_);
+      }
     }
     fields[SLICED_ONE_BYTE_STRING_TYPE]["parent"] =
         offsetof(SlicedString, parent_);
@@ -1576,6 +1588,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         offsetof(JSPromise, reactions_or_result_);
     fields[PROMISE_REACTION_TYPE]["fulfill_handler"] =
         offsetof(PromiseReaction, fulfill_handler_);
+    fields[PROMISE_REACTION_TYPE]["reject_handler"] =
+        offsetof(PromiseReaction, reject_handler_);
     fields[FEEDBACK_CELL_TYPE]["value"] = offsetof(FeedbackCell, value_);
     fields[FEEDBACK_VECTOR_TYPE]["length"] = offsetof(FeedbackVector, length_);
     fields[FEEDBACK_VECTOR_TYPE]["data"] =

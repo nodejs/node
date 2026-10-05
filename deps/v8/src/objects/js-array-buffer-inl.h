@@ -169,6 +169,23 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
   WriteBarrier::ForArrayBufferExtension(this, extension);
 }
 
+ArrayBufferExtension* JSArrayBuffer::extract_extension(
+    Isolate* isolate,
+    const DisallowGarbageCollection& disallow_gc V8_LIFETIME_BOUND) {
+#if V8_COMPRESS_POINTERS
+  ExternalPointerHandle handle =
+      base::AsAtomic32::Relaxed_Load(extension_handle_location());
+  if (handle == kNullExternalPointerHandle) {
+    return nullptr;
+  }
+  return reinterpret_cast<ArrayBufferExtension*>(
+      isolate->external_pointer_table().Exchange(handle, kNullAddress,
+                                                 kArrayBufferExtensionTag));
+#else
+  return base::AsAtomicPointer::Relaxed_Swap(extension_location(), nullptr);
+#endif  // V8_COMPRESS_POINTERS
+}
+
 #if V8_COMPRESS_POINTERS
 ExternalPointerHandle* JSArrayBuffer::extension_handle_location() const {
   return reinterpret_cast<ExternalPointerHandle*>(extension_.storage_address());

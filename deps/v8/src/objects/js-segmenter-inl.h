@@ -25,11 +25,11 @@ void JSSegmenter::set_locale(Tagged<String> value, WriteBarrierMode mode) {
   locale_.store(this, value, mode);
 }
 
-Tagged<Managed<icu::BreakIterator>> JSSegmenter::icu_break_iterator() const {
-  return Cast<Managed<icu::BreakIterator>>(icu_break_iterator_.load());
+Tagged<CppGCManaged<icu::BreakIterator>> JSSegmenter::icu_break_iterator() const {
+  return Cast<CppGCManaged<icu::BreakIterator>>(icu_break_iterator_.load());
 }
 void JSSegmenter::set_icu_break_iterator(
-    Tagged<Managed<icu::BreakIterator>> value, WriteBarrierMode mode) {
+    Tagged<CppGCManaged<icu::BreakIterator>> value, WriteBarrierMode mode) {
   icu_break_iterator_.store(this, value, mode);
 }
 

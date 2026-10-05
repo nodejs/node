@@ -26,6 +26,10 @@ To use them, you need to run the appropriate installation script from the
   generate the subagent files in `.gemini/agents/`.
 - **For Jetski**: Run `vpython3 scripts/install_for_jetski.py` to create
   symlinks in `.agents/agents/`.
+- **For GitHub Copilot CLI**: Run `vpython3 scripts/install_for_copilot_cli.py`
+  to generate repository instructions in `.github/copilot-instructions.md`,
+  install compatible V8 rules as instruction files in `.github/instructions/`,
+  and expose compatible V8 skills in `.github/skills/`.
 
 ## Contributing
 

@@ -17,15 +17,8 @@
 #ifndef ABSL_DEBUGGING_INTERNAL_STACKTRACE_X86_INL_INC_
 #define ABSL_DEBUGGING_INTERNAL_STACKTRACE_X86_INL_INC_
 
-#if defined(__linux__) && (defined(__i386__) || defined(__x86_64__))
-#include <ucontext.h>  // for ucontext_t
-#endif
-
-#if !defined(_WIN32)
-#include <unistd.h>
-#endif
-
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 
@@ -36,6 +29,14 @@
 #include "absl/debugging/internal/addresses.h"
 #include "absl/debugging/internal/vdso_support.h"  // a no-op on non-elf or non-glibc systems
 #include "absl/debugging/stacktrace.h"
+
+#if defined(__linux__) && (defined(__i386__) || defined(__x86_64__))
+#include <ucontext.h>  // for ucontext_t
+#endif
+
+#if !defined(_WIN32)
+#include <unistd.h>
+#endif
 
 using absl::debugging_internal::AddressIsReadable;
 

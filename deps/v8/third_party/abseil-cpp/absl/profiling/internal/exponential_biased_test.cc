@@ -16,12 +16,16 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
+#include <string>
 #include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/attributes.h"
 #include "absl/strings/str_cat.h"
 
 using ::testing::Ge;
@@ -130,6 +134,49 @@ TEST(ExponentialBiasedTest, CoinTossDemoWithGetSkipCount) {
     ++heads;
   }
   printf("Heads = %d (%f%%)\n", heads, 100.0 * heads / 10000000);
+}
+
+// In simplified idealized world, `GetSkipCount(m) == 0` translates to
+// `-log(X) * m + B <= 1/2`, where X is a uniform random number in (0, 1],
+// and B is uniform random number in [-0.5, 0.5). Let U = 0.5 - B, that makes
+// U a uniform random number in (0, 1]. After exponentiation we get
+// `X >= exp(-U / m)`. Probability of this is `1 - exp(-U / m)`, so we have to
+// integrate for all possible values of U: `1 - m * (1 - exp(-1 / m))`. For
+// simplicity take just two terms of Taylor series expansion:
+// `1/(2*m) - 1/(6*m^2)`. Reciprocal of that is `2*m + 2/3 + O(1/m)`. If we use
+// more math tricks we can get "exact" approximation, but result will still be
+// `2*m + 2/3 + O(1/m)`.
+TEST(ExponentialBiasedTest, OnePerNDemoWithGetSkipCount) {
+  ExponentialBiased eb;
+  int n = 22;
+  int rounds = 220000;
+  int hits = 0;
+  for (int i = 0; i < rounds; i++) {
+    if (eb.GetSkipCount(n / 2) == 0) ++hits;
+  }
+  double inverse_hit_rate = rounds / static_cast<double>(hits);
+  printf("N = %d, rounds = %d, inverse hit rate = %f (should be ~= N + 0.67)\n",
+         n, rounds, inverse_hit_rate);
+}
+
+// Large requested mean flattens density function near zero, making it almost
+// linear.
+TEST(ExponentialBiasedTest, OneOfNDemoWithGetSkipCount) {
+  ExponentialBiased eb;
+  int n = 6;
+  int large_mean = 10000000;
+  int rounds = n * 10000;
+  std::vector<int> hits(static_cast<size_t>(n), 0);
+  for (int i = 0; i < rounds; i++) {
+    int64_t v = eb.GetSkipCount(large_mean);
+    int64_t a = v % n;
+    ++hits[static_cast<size_t>(a)];
+  }
+  printf("N = %d, rounds = %d, mean = %d\n", n, rounds, large_mean);
+  for (int i = 0; i < n; i++) {
+    printf("  inverse hit rate for %d: %f (should be ~= N)\n", i,
+           rounds / static_cast<double>(hits[static_cast<size_t>(i)]));
+  }
 }
 
 TEST(ExponentialBiasedTest, SampleDemoWithStride) {

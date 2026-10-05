@@ -217,14 +217,19 @@ bool JSArrayBuffer::TryDetachViews(DirectHandle<JSArrayBuffer> array_buffer,
 void JSArrayBuffer::DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
                                    bool force_for_wasm_memory,
                                    Isolate* isolate) {
-  ArrayBufferExtension* extension = array_buffer->extension();
-
-  if (extension) {
+  {
     DisallowGarbageCollection disallow_gc;
-    isolate->heap()->DetachArrayBufferExtension(extension);
-    std::shared_ptr<BackingStore> backing_store =
-        array_buffer->RemoveExtension();
-    CHECK_IMPLIES(force_for_wasm_memory, backing_store->is_wasm_memory());
+    ArrayBufferExtension* extension =
+        array_buffer->extract_extension(isolate, disallow_gc);
+    if (extension) {
+      isolate->heap()->DetachArrayBufferExtension(extension);
+      // Prevent concurrent detachment vs background copying if an attacker
+      // swapped the extension pointer to a shared buffer's extension.
+      SBXCHECK(!extension->is_shared());
+      std::shared_ptr<BackingStore> backing_store =
+          extension->RemoveBackingStore();
+      CHECK_IMPLIES(force_for_wasm_memory, backing_store->is_wasm_memory());
+    }
   }
 
   array_buffer->set_was_detached(true, kReleaseStore);
@@ -329,19 +334,6 @@ ArrayBufferExtension* JSArrayBuffer::CreateExtension(
   set_extension(extension);
   isolate->heap()->AppendArrayBufferExtension(extension);
   return extension;
-}
-
-std::shared_ptr<BackingStore> JSArrayBuffer::RemoveExtension() {
-  ArrayBufferExtension* extension = this->extension();
-  DCHECK_NOT_NULL(extension);
-  // Prevent concurrent detachment vs background copying if an attacker
-  // swapped the extension pointer to a shared buffer's extension.
-  SBXCHECK(!extension->is_shared());
-  auto result = extension->RemoveBackingStore();
-  // Remove pointer to extension such that the next GC will free it
-  // automatically.
-  set_extension(nullptr);
-  return result;
 }
 
 Handle<JSArrayBuffer> JSTypedArray::GetBuffer(Isolate* isolate) {

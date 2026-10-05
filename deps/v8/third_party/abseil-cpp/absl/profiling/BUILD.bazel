@@ -93,6 +93,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":exponential_biased",
+        "//absl/base:core_headers",
         "//absl/strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -159,6 +160,7 @@ cc_library(
         "//absl/base:raw_logging_internal",
         "//absl/container:btree",
         "//absl/container:flat_hash_map",
+        "//absl/container:hash_container_defaults",
         "//absl/strings",
         "//absl/strings:str_format",
         "//absl/types:span",
@@ -176,6 +178,7 @@ cc_library(
     ],
     deps = [
         ":profile_builder",
+        "//absl/base",
         "//absl/base:config",
         "//absl/container:hashtablez_sampler",
         "//absl/status:statusor",

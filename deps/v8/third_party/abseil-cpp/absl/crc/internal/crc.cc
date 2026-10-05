@@ -41,7 +41,9 @@
 
 #include "absl/crc/internal/crc.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <iterator>
 
 #include "absl/base/internal/endian.h"
 #include "absl/base/internal/raw_logging.h"
@@ -206,7 +208,7 @@ void CRC32::InitTables() {
   }
 
   int j = FillZeroesTable(kCrc32cPoly, t);
-  ABSL_RAW_CHECK(j <= static_cast<int>(ABSL_ARRAYSIZE(this->zeroes_)), "");
+  ABSL_RAW_CHECK(j <= static_cast<int>(std::size(this->zeroes_)), "");
   for (int i = 0; i < j; i++) {
     this->zeroes_[i] = t[0][i];
   }
@@ -250,8 +252,7 @@ void CRC32::InitTables() {
   FillWordTable(kCrc32cUnextendPoly, kCrc32cUnextendPoly, 1, &reverse_table0_);
 
   j = FillZeroesTable(kCrc32cUnextendPoly, &reverse_zeroes_);
-  ABSL_RAW_CHECK(j <= static_cast<int>(ABSL_ARRAYSIZE(this->reverse_zeroes_)),
-                 "");
+  ABSL_RAW_CHECK(j <= static_cast<int>(std::size(this->reverse_zeroes_)), "");
 }
 
 void CRC32::Extend(uint32_t* crc, const void* bytes, size_t length) const {

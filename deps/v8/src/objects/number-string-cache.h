@@ -18,6 +18,8 @@ namespace v8::internal {
 
 // Used for mapping non-zero Smi to Strings.
 V8_OBJECT class SmiStringCache : public FixedArray {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   using Super = FixedArray;
 
@@ -73,6 +75,8 @@ V8_OBJECT class SmiStringCache : public FixedArray {
 
 // Used for mapping raw doubles to Strings.
 V8_OBJECT class DoubleStringCache : public HeapObject {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   V8_OBJECT struct Entry {
     UnalignedDoubleMember key_;

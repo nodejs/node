@@ -2728,15 +2728,21 @@ std::pair<std::string, std::string> GetClassInstanceTypeRange(
     const ClassType* class_type) {
   std::pair<std::string, std::string> result;
   if (class_type->InstanceTypeRange()) {
-    auto instance_type_range = *class_type->InstanceTypeRange();
-    std::string instance_type_string_first =
-        "static_cast<InstanceType>(" +
-        std::to_string(instance_type_range.first) + ")";
-    std::string instance_type_string_second =
-        "static_cast<InstanceType>(" +
-        std::to_string(instance_type_range.second) + ")";
+    // Emit the named FIRST_/LAST_ range markers rather than the integer
+    // literals Torque computed at codegen time. After the metagen cutover
+    // the IT values come from tools/metagen/, not from Torque, so any
+    // literal here would be stale. Always use the range form, never the
+    // bare _TYPE symbol: whether a class covers one instance type or a
+    // range is also metagen's call (its C++-derived hierarchy can have
+    // subclasses Torque doesn't know about), and DownCastForTorqueClass
+    // decides equality-check vs range-check from these constants at C++
+    // compile time. Both generators emit FIRST_/LAST_ markers for every
+    // class, aliasing the sole value for single-instance-type classes.
+    const std::string type_name =
+        CapifyStringWithUnderscores(class_type->name()) + "_TYPE";
     result =
-        std::make_pair(instance_type_string_first, instance_type_string_second);
+        std::make_pair("static_cast<InstanceType>(FIRST_" + type_name + ")",
+                       "static_cast<InstanceType>(LAST_" + type_name + ")");
   } else {
     ReportError(
         "%Min/MaxInstanceType must take a class type that is either a string "
@@ -4023,11 +4029,6 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
     std::string parent_name = use_templates ? "P" : parent->name();
 
     if (type->IsLayoutDefinedInCpp()) {
-      if (parent) {
-        if (std::optional<size_t> packed_size = parent->size().SingleValue()) {
-          return std::to_string(*packed_size);
-        }
-      }
       return "sizeof(" + parent_name + ")";
     }
 
@@ -4116,8 +4117,7 @@ void CppClassGenerator::GenerateCppObjectLayoutDefinitionAsserts() {
           << "::" << f.name_and_type.name << " in C++ do not match\");\n";
   }
   if (!type_->IsAbstract() && type_->HasStaticSize()) {
-    impl_ << "  static_assert(kSize <= sizeof(" + name_ + ") && sizeof(" +
-                 name_ + ") < kSize + alignof(" + name_ + "));\n";
+    impl_ << "  static_assert(kSize == sizeof(" + name_ + "));\n";
   }
 
   impl_ << "};\n\n";

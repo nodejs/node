@@ -154,6 +154,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       std::optional<bool> includeCommandLineAPI, std::optional<bool> silent,
       std::optional<bool> returnByValue, std::optional<bool> generatePreview,
       std::optional<bool> throwOnSideEffect, std::optional<double> timeout,
+      std::optional<int> scopeNumber,
       std::unique_ptr<protocol::Runtime::RemoteObject>* result,
       std::unique_ptr<protocol::Runtime::ExceptionDetails>*) override;
   Response setVariableValue(

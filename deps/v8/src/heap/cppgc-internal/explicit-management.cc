@@ -92,6 +92,7 @@ bool Grow(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
           size_t size_delta) {
   DCHECK_GE(new_size, header.AllocatedSize() + kAllocationGranularity);
   DCHECK_GE(size_delta, kAllocationGranularity);
+  DCHECK_LT(new_size, kLargeObjectSizeThreshold);
   DCHECK(!base_page.is_large());
 
   auto& normal_space = *static_cast<NormalPageSpace*>(&base_page.space());
@@ -120,6 +121,7 @@ bool Shrink(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
             size_t size_delta) {
   DCHECK_GE(header.AllocatedSize(), new_size + kAllocationGranularity);
   DCHECK_GE(size_delta, kAllocationGranularity);
+  DCHECK_GE(new_size, sizeof(HeapObjectHeader));
   DCHECK(!base_page.is_large());
 
   auto& normal_space = *static_cast<NormalPageSpace*>(&base_page.space());
@@ -176,9 +178,14 @@ bool ExplicitManagementImpl::Resize(void* object, size_t new_object_size) {
 
   const size_t new_size = RoundUp<kAllocationGranularity>(
       sizeof(HeapObjectHeader) + new_object_size);
+
+  if (new_size < sizeof(HeapObjectHeader) ||
+      new_size >= kLargeObjectSizeThreshold) {
+    return false;
+  }
+
   auto& header = HeapObjectHeader::FromObject(object);
   const size_t old_size = header.AllocatedSize();
-
   if (new_size > old_size) {
     return Grow(header, *base_page, new_size, new_size - old_size);
   } else if (old_size > new_size) {

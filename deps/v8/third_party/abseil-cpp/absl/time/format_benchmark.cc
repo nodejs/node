@@ -12,6 +12,7 @@
 // limitations under the License.
 
 #include <cstddef>
+#include <iterator>
 #include <string>
 
 #include "absl/time/internal/test_util.h"
@@ -29,7 +30,7 @@ const char* const kFormats[] = {
     "%Y-%m-%d%ET%H:%M:%S",  // 4
     "%Y-%m-%d",             // 5
 };
-const int kNumFormats = sizeof(kFormats) / sizeof(kFormats[0]);
+const int kNumFormats = std::size(kFormats);
 }  // namespace
 
 void BM_Format_FormatTime(benchmark::State& state) {

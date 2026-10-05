@@ -462,32 +462,6 @@ std::string FormatCivilTime(CivilDay c);
 std::string FormatCivilTime(CivilMonth c);
 std::string FormatCivilTime(CivilYear c);
 
-// Support for StrFormat(), StrCat(), etc
-template <typename Sink>
-void AbslStringify(Sink& sink, CivilSecond c) {
-  sink.Append(FormatCivilTime(c));
-}
-template <typename Sink>
-void AbslStringify(Sink& sink, CivilMinute c) {
-  sink.Append(FormatCivilTime(c));
-}
-template <typename Sink>
-void AbslStringify(Sink& sink, CivilHour c) {
-  sink.Append(FormatCivilTime(c));
-}
-template <typename Sink>
-void AbslStringify(Sink& sink, CivilDay c) {
-  sink.Append(FormatCivilTime(c));
-}
-template <typename Sink>
-void AbslStringify(Sink& sink, CivilMonth c) {
-  sink.Append(FormatCivilTime(c));
-}
-template <typename Sink>
-void AbslStringify(Sink& sink, CivilYear c) {
-  sink.Append(FormatCivilTime(c));
-}
-
 // absl::ParseCivilTime()
 //
 // Parses a civil-time value from the specified `absl::string_view` into the
@@ -550,6 +524,32 @@ bool ParseLenientCivilTime(absl::string_view s, CivilMonth* c);
 bool ParseLenientCivilTime(absl::string_view s, CivilYear* c);
 
 namespace time_internal {  // For functions found via ADL on civil-time tags.
+
+// Support for StrFormat(), StrCat(), etc
+template <typename Sink>
+void AbslStringify(Sink& sink, CivilSecond c) {
+  sink.Append(FormatCivilTime(c));
+}
+template <typename Sink>
+void AbslStringify(Sink& sink, CivilMinute c) {
+  sink.Append(FormatCivilTime(c));
+}
+template <typename Sink>
+void AbslStringify(Sink& sink, CivilHour c) {
+  sink.Append(FormatCivilTime(c));
+}
+template <typename Sink>
+void AbslStringify(Sink& sink, CivilDay c) {
+  sink.Append(FormatCivilTime(c));
+}
+template <typename Sink>
+void AbslStringify(Sink& sink, CivilMonth c) {
+  sink.Append(FormatCivilTime(c));
+}
+template <typename Sink>
+void AbslStringify(Sink& sink, CivilYear c) {
+  sink.Append(FormatCivilTime(c));
+}
 
 // Streaming Operators
 //

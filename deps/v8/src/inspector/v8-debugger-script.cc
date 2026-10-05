@@ -47,7 +47,7 @@ String16 calculateHash(v8::Isolate* isolate, v8::Local<v8::String> source) {
 
 V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate,
                                    v8::Local<v8::debug::Script> script,
-                                   bool hadCompileError, bool isLiveEdit,
+                                   bool hadCompileError,
                                    V8DebuggerAgentImpl* agent,
                                    V8InspectorClient* client)
     : m_id(String16::fromInteger(script->Id())),
@@ -55,8 +55,7 @@ V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate,
       m_isolate(isolate),
       m_embedderName(GetScriptName(isolate, script, client)),
       m_agent(agent),
-      m_hadCompileError(hadCompileError),
-      m_isLiveEdit(isLiveEdit) {
+      m_hadCompileError(hadCompileError) {
   Initialize(script);
 }
 
@@ -117,23 +116,6 @@ int V8DebuggerScript::length() const {
 
 void V8DebuggerScript::setSourceMappingURL(const String16& sourceMappingURL) {
   m_sourceMappingURL = sourceMappingURL;
-}
-
-void V8DebuggerScript::setSource(const String16& newSource, bool preview,
-                                 bool allowTopFrameLiveEditing,
-                                 v8::debug::LiveEditResult* result) {
-  v8::EscapableHandleScope scope(m_isolate);
-  v8::Local<v8::String> v8Source = toV8String(m_isolate, newSource);
-  if (!m_script.Get(m_isolate)->SetScriptSource(
-          v8Source, preview, allowTopFrameLiveEditing, result)) {
-    result->message = scope.Escape(result->message);
-    return;
-  }
-  // NOP if preview or unchanged source (diffs.empty() in PatchScript)
-  if (preview || result->script.IsEmpty()) return;
-
-  m_hash = String16();
-  Initialize(scope.Escape(result->script));
 }
 
 bool V8DebuggerScript::getPossibleBreakpoints(

@@ -21,5 +21,5 @@ function typed_arr() {
 let a1 = typed_arr();
 %OptimizeFunctionOnNextCall(typed_arr);
 let a2 = typed_arr();
-assertEquals(a1, a2);
 assertOptimized(typed_arr);
+assertEquals(a1, a2);

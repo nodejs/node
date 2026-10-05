@@ -22,7 +22,7 @@
 #include "src/__support/libc_assert.h"       // LIBC_ASSERT
 #include "src/__support/macros/attributes.h" // LIBC_INLINE, LIBC_INLINE_VAR
 #include "src/__support/macros/config.h"
-#include "src/__support/macros/properties/types.h" // LIBC_TYPES_HAS_FLOAT128
+#include "src/__support/macros/properties/types.h" // LIBC_TYPES_HAS_NATIVE_FLOAT128
 #include "src/__support/math_extras.h"             // mask_trailing_ones
 #include "src/__support/sign.h"                    // Sign
 #include "src/__support/uint128.h"
@@ -794,20 +794,21 @@ template <typename T> LIBC_INLINE static constexpr FPType get_fp_type() {
   else if constexpr (cpp::is_same_v<UnqualT, double> && DBL_MANT_DIG == 53)
     return FPType::IEEE754_Binary64;
   else if constexpr (cpp::is_same_v<UnqualT, long double>) {
-    if constexpr (LDBL_MANT_DIG == 53)
-      return FPType::IEEE754_Binary64;
-    else if constexpr (LDBL_MANT_DIG == 64)
-      return FPType::X86_Binary80;
+#if defined(LIBC_TYPES_LONG_DOUBLE_IS_FLOAT64)
+    return FPType::IEEE754_Binary64;
+#elif defined(LIBC_TYPES_LONG_DOUBLE_IS_X86_FLOAT80)
+    return FPType::X86_Binary80;
+#else
     // TODO: properly treat double-double type.
-    // else if constexpr (LDBL_MANT_DIG == 113)
-    else
-      return FPType::IEEE754_Binary128;
+    // #elif defined(LIBC_TYPES_LONG_DOUBLE_IS_FLOAT128)
+    return FPType::IEEE754_Binary128;
+#endif
   }
 #if defined(LIBC_TYPES_HAS_FLOAT16)
   else if constexpr (cpp::is_same_v<UnqualT, float16>)
     return FPType::IEEE754_Binary16;
 #endif
-#if defined(LIBC_TYPES_HAS_FLOAT128)
+#if defined(LIBC_TYPES_HAS_NATIVE_FLOAT128)
   else if constexpr (cpp::is_same_v<UnqualT, float128>)
     return FPType::IEEE754_Binary128;
 #endif
@@ -815,6 +816,8 @@ template <typename T> LIBC_INLINE static constexpr FPType get_fp_type() {
     return FPType::BFloat16;
   else if constexpr (cpp::is_same_v<UnqualT, Float128>)
     return FPType::IEEE754_Binary128;
+  else if constexpr (cpp::is_same_v<UnqualT, Float80>)
+    return FPType::X86_Binary80;
   else
     static_assert(cpp::always_false<UnqualT>, "Unsupported type");
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --js-import-text --js-defer-import-eval
+// Flags: --js-defer-import-eval
 
 let r1 = Realm.create();
 

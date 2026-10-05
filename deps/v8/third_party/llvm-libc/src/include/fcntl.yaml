@@ -11,8 +11,12 @@ macros:
   - macro_name: AT_EACCESS
     macro_header: fcntl-macros.h
 types:
-  - type_name: off_t
   - type_name: mode_t
+  - type_name: off_t
+  - type_name: pid_t
+  - type_name: struct_f_owner_ex
+  - type_name: struct_flock
+  - type_name: struct_flock64
 enums: []
 objects: []
 functions:

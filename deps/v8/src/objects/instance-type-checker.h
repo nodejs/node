@@ -18,15 +18,13 @@ namespace internal {
 class Map;
 
 // List of object types that have a single unique instance type.
-#define INSTANCE_TYPE_CHECKERS_SINGLE(V)           \
-  TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(V) \
-  TORQUE_INSTANCE_CHECKERS_SINGLE_ONLY_DECLARED(V) \
-  V(BigInt, BIGINT_TYPE)                           \
+#define INSTANCE_TYPE_CHECKERS_SINGLE(V) \
+  INSTANCE_TYPE_LIST_SINGLE(V)           \
+  V(BigInt, BIGINT_TYPE)                 \
   V(FixedArrayExact, FIXED_ARRAY_TYPE)
 
 #define INSTANCE_TYPE_CHECKERS_RANGE(V)                  \
-  TORQUE_INSTANCE_CHECKERS_RANGE_FULLY_DEFINED(V)        \
-  TORQUE_INSTANCE_CHECKERS_RANGE_ONLY_DECLARED(V)        \
+  INSTANCE_TYPE_LIST_RANGE(V)                            \
   V(CallableJSFunction, FIRST_CALLABLE_JS_FUNCTION_TYPE, \
     LAST_CALLABLE_JS_FUNCTION_TYPE)
 

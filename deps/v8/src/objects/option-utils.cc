@@ -5,6 +5,7 @@
 #include "src/objects/option-utils.h"
 
 #include "src/numbers/conversions.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {

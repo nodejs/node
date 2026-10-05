@@ -2,6 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-Reflect.get(new Error(), "stack", false);
-assertThrows(() => Reflect.get(new Error(), "stack", null), TypeError);
-assertThrows(() => Reflect.get(new Error(), "stack", undefined), TypeError);
+assertEquals(undefined, Reflect.get(new Error(), 'stack', false));
+assertEquals(undefined, Reflect.get(new Error(), 'stack', null));
+assertEquals(undefined, Reflect.get(new Error(), 'stack', undefined));

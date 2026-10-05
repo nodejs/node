@@ -34,11 +34,11 @@
 
 #include "hdr/errno_macros.h"
 #include "hdr/fcntl_macros.h"
+#include "hdr/sched_macros.h" // For CLONE_* flags.
 #include "hdr/stdint_proxy.h"
 #include "hdr/sys_mman_macros.h" // For PROT_* and MAP_* definitions.
 #include <linux/param.h> // For EXEC_PAGESIZE.
 #include <linux/prctl.h> // For PR_SET_NAME
-#include <linux/sched.h> // For CLONE_* flags.
 #include <sys/syscall.h> // For syscall numbers.
 
 namespace LIBC_NAMESPACE_DECL {
@@ -180,8 +180,8 @@ cleanup_thread_resources(ThreadAttributes *attrib) {
 [[gnu::noinline]] void start_thread() {
   auto *start_args = reinterpret_cast<StartArgs *>(get_start_args_addr());
   auto *attrib = start_args->thread_attrib;
-  self.attrib = attrib;
-  self.attrib->atexit_callback_mgr = internal::get_thread_atexit_callback_mgr();
+  internal::self.attrib = attrib;
+  attrib->atexit_callback_mgr = internal::get_thread_atexit_callback_mgr();
 
   if (attrib->style == ThreadStyle::POSIX) {
     attrib->retval.posix_retval =
@@ -342,21 +342,22 @@ int Thread::run(ThreadStyle style, ThreadRunner runner, void *arg, void *stack,
 }
 
 int Thread::join(ThreadReturnValue &retval) {
-  if (self.attrib) {
+  if (current_thread().attrib) {
     // Reject self join.
-    if (self.attrib == attrib)
+    if (current_thread().attrib == attrib)
       return EDEADLK;
 
     // Do a best-effort check of concurrent/repeated join.
     // This cmpxchg establishes exclusive joiner role by setting the joiner
     // field iff there is no previous joiner
     ThreadAttributes *expected = nullptr;
-    if (!attrib->joiner.compare_exchange_strong(expected, self.attrib,
-                                                cpp::MemoryOrder::ACQ_REL))
+    if (!attrib->joiner.compare_exchange_strong(
+            expected, current_thread().attrib, cpp::MemoryOrder::ACQ_REL))
       return EINVAL;
 
     // Reject mutual join.
-    if (self.attrib->joiner.load(cpp::MemoryOrder::ACQUIRE) == attrib) {
+    if (current_thread().attrib->joiner.load(cpp::MemoryOrder::ACQUIRE) ==
+        attrib) {
       attrib->joiner.store(nullptr, cpp::MemoryOrder::RELEASE);
       return EDEADLK;
     }
@@ -423,7 +424,7 @@ int Thread::set_name(const cpp::string_view &name) {
   if (name.size() >= NAME_SIZE_MAX)
     return ERANGE;
 
-  if (*this == self) {
+  if (*this == current_thread()) {
     // If we are setting the name of the current thread, then we can
     // use the syscall to set the name.
     int retval =
@@ -459,7 +460,7 @@ int Thread::get_name(cpp::StringStream &name) const {
 
   char name_buffer[NAME_SIZE_MAX];
 
-  if (*this == self) {
+  if (*this == current_thread()) {
     // If we are getting the name of the current thread, then we can
     // use the syscall to get the name.
     int retval =
@@ -515,7 +516,7 @@ ErrorOr<SchedParameters> Thread::getschedparam() const {
 }
 
 void thread_exit(ThreadReturnValue retval, ThreadStyle style) {
-  auto attrib = self.attrib;
+  auto attrib = current_thread().attrib;
 
   // The very first thing we do is to call the thread's atexit callbacks.
   // These callbacks could be the ones registered by the language runtimes,

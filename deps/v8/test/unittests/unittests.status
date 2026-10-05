@@ -44,6 +44,16 @@
   # Those smoke tests fail nondeterministically to test fuzzer infrastructure.
   # We cannot run them in unittest mode as they would produce flakes.
   'SmokeTest.*': [SKIP],
+
+  ##############################################################################
+  # Behavioural differences between Maglev and Turbofan when the former is used
+  # for OptimizeFunctionOnNextCall.
+  #
+  # Maglev doesn't support compiler::NodeObserver machinery.
+  'SloppyEqualityTest.SloppyEqualityTest': [SKIP],
+   # RunDeoptTest checks frame->is_turbofan().
+  'RunDeoptTest.DeoptSimple': [SKIP],
+  'RunDeoptTest.DeoptSimpleInExpr': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -339,14 +349,6 @@
   'Torque.ImportNonExistentFile': [FAIL],
   'Torque.Enums': [FAIL],
 }],  # 'official_build'
-
-##############################################################################
-# Behavioural differences between Maglev and Turbofan when the former is used
-# for OptimizeFunctionOnNextCall.
-['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
-  # Maglev doesn't support compiler::NodeObserver machinery.
-  'SloppyEqualityTest.SloppyEqualityTest': [FAIL],
-}],  # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 
 ##############################################################################
 ['system == windows', {

@@ -94,7 +94,7 @@ TEST(StrJoin, APIExamples) {
   {
     // Array of ints
     const int a[] = {1, 2, 3, -4};
-    EXPECT_EQ("1-2-3--4", absl::StrJoin(a, a + ABSL_ARRAYSIZE(a), "-"));
+    EXPECT_EQ("1-2-3--4", absl::StrJoin(a, a + std::size(a), "-"));
   }
 
   {

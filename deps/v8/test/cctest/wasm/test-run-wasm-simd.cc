@@ -6556,6 +6556,150 @@ TEST(RunWasmTurbofan_ShuffleToS256Load8x8UExpectFail5) {
   }
 }
 
+// Test that Load8x8U revectorization still succeeds, and still produces
+// correct results, when a store intervenes between the load and the
+// shuffles. The vector load-transform is emitted at the load's own
+// position (see WasmRevecReducer::REDUCE_INPUT_GRAPH
+// (Simd128LoadTransform)), so it can't observe the later store.
+TEST(RunWasmTurbofan_ShuffleToS256Load8x8USideEffectCheck) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int8_t> r(TestExecutionTier::kTurbofan);
+  int8_t* memory = r.builder().AddMemoryElems<int8_t>(48);
+
+  constexpr std::array<int8_t, 16> shuffle0 = {16, 1, 2,  3,  17, 5,  6,  7,
+                                               18, 9, 10, 11, 19, 13, 14, 15};
+  constexpr std::array<int8_t, 16> shuffle1 = {4, 17, 18, 19, 5, 21, 22, 23,
+                                               6, 25, 26, 27, 7, 29, 30, 31};
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  std::array<uint8_t, kSimd128Size> all_zero = {0};
+
+  {
+    // Revectorization is expected to succeed despite the intervening store
+    // between load and shuffles, since the vector load-transform is emitted
+    // at the load's own position and can't observe the later store.
+    TSSimd256VerifyScope ts_scope(r.zone(),
+                                  TSSimd256VerifyScope::VerifyHaveAnySimd256Op);
+    r.Build({// Load from memory[0]
+             WASM_LOCAL_SET(temp1,
+                            WASM_SIMD_LOAD_OP(kExprS128Load64Zero, WASM_ZERO)),
+             // Intervening store: write to memory[0]
+             WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO, WASM_I32V(99)),
+             // Shuffles that match Load8x8U pattern
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 8, WASM_ZERO,
+                 WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle0,
+                                            WASM_SIMD_CONSTANT(all_zero),
+                                            WASM_LOCAL_GET(temp1))),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 24, WASM_ZERO,
+                 WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle1,
+                                            WASM_LOCAL_GET(temp1),
+                                            WASM_SIMD_CONSTANT(all_zero))),
+             WASM_ONE});
+  }
+
+  // Initialize memory with test values matching Load8x8U test case
+  std::pair<std::vector<int8_t>, std::vector<int32_t>> test_case = {
+      {0, 1, 2, 3, 4, 5, 6, -1}, {0, 1, 2, 3, 4, 5, 6, 255}};
+  auto input = test_case.first;
+  auto expected_output = test_case.second;
+  for (int i = 0; i < 8; ++i) {
+    r.builder().WriteMemory(&memory[i], input[i]);
+  }
+  r.Call();
+
+  // Verify the result: shuffles produce expected values based on Load8x8U
+  // pattern. The load happens before the intervening store, so it reads the
+  // input values. The intervening store to memory[0] should not affect the
+  // shuffle results since they operate on the already-loaded value.
+  int32_t* memory_int32_t = reinterpret_cast<int32_t*>(memory);
+  for (int i = 0; i < 8; ++i) {
+    int32_t result = r.builder().ReadMemory(&memory_int32_t[i + 2]);
+    CHECK_EQ(expected_output[i], result);
+  }
+}
+
+// Test that Load8x8U revectorization is rejected when the shared load and
+// its consuming shuffles are not in the same basic block, since emitting
+// the vector load-transform at the load's own position is only sound when
+// it and the shuffles are reduced in the same relative order as they
+// appear here, which requires them to be in the same block.
+TEST(RunWasmTurbofan_ShuffleToS256Load8x8UDifferentBlock) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  r.builder().AddMemoryElems<int8_t>(48);
+
+  constexpr std::array<int8_t, 16> shuffle0 = {16, 1, 2,  3,  17, 5,  6,  7,
+                                               18, 9, 10, 11, 19, 13, 14, 15};
+  constexpr std::array<int8_t, 16> shuffle1 = {4, 17, 18, 19, 5, 21, 22, 23,
+                                               6, 25, 26, 27, 7, 29, 30, 31};
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  std::array<uint8_t, kSimd128Size> all_zero = {0};
+
+  TSSimd256VerifyScope ts_scope(r.zone(),
+                                TSSimd256VerifyScope::VerifyHaveAnySimd256Op,
+                                ExpectedResult::kFail);
+  r.Build(
+      {// Load in the entry block.
+       WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_OP(kExprS128Load64Zero, WASM_ZERO)),
+       // Shuffles and stores live in the if's block, not the entry block.
+       WASM_IF(
+           WASM_LOCAL_GET(0),
+           WASM_SEQ(
+               WASM_LOCAL_SET(temp2, WASM_SIMD_I8x16_SHUFFLE_OP(
+                                         kExprI8x16Shuffle, shuffle0,
+                                         WASM_SIMD_CONSTANT(all_zero),
+                                         WASM_LOCAL_GET(temp1))),
+               WASM_LOCAL_SET(temp3, WASM_SIMD_I8x16_SHUFFLE_OP(
+                                         kExprI8x16Shuffle, shuffle1,
+                                         WASM_LOCAL_GET(temp1),
+                                         WASM_SIMD_CONSTANT(all_zero))),
+               WASM_SIMD_STORE_MEM_OFFSET(8, WASM_ZERO, WASM_LOCAL_GET(temp2)),
+               WASM_SIMD_STORE_MEM_OFFSET(24, WASM_ZERO,
+                                          WASM_LOCAL_GET(temp3)))),
+       WASM_ONE});
+  r.Call(1);
+}
+
+// Test that Load splat revectorization is rejected when the shared load and
+// its consuming shuffle are not in the same basic block, similar to Load8x8U.
+TEST(RunWasmTurbofan_ShuffleToS256Load32SplatDifferentBlock) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
+
+  // Splat pattern: shuffle selecting lane 2 (bytes 8-11) repeated
+  constexpr Shuffle splat_shuffle = {8, 9, 10, 11, 8, 9, 10, 11,
+                                     8, 9, 10, 11, 8, 9, 10, 11};
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+
+  TSSimd256VerifyScope ts_scope(r.zone(),
+                                TSSimd256VerifyScope::VerifyHaveAnySimd256Op,
+                                ExpectedResult::kFail);
+  r.Build(
+      {// Load in the entry block.
+       WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+       // Shuffle and two adjacent stores live in the if's block, not the entry
+       // block. The two stores trigger revectorization pattern matching.
+       WASM_IF(
+           WASM_LOCAL_GET(0),
+           WASM_SEQ(WASM_LOCAL_SET(temp2, WASM_SIMD_I8x16_SHUFFLE_OP(
+                                              kExprI8x16Shuffle, splat_shuffle,
+                                              WASM_LOCAL_GET(temp1),
+                                              WASM_LOCAL_GET(temp1))),
+                    WASM_SIMD_STORE_MEM(WASM_ZERO, WASM_LOCAL_GET(temp2)),
+                    WASM_SIMD_STORE_MEM_OFFSET(16, WASM_ZERO,
+                                               WASM_LOCAL_GET(temp2)))),
+       WASM_ONE});
+  r.Call(1);
+}
+
 template <typename T, bool use_memory64 = false>
 void RunLoadSplatRevecTest(WasmOpcode op, WasmOpcode bin_op,
                            T (*expected_op)(T, T)) {
@@ -10883,6 +11027,44 @@ TEST(RunWasmTurbofan_ProjectionRevecExpectFail) {
                                   WASM_LOCAL_GET(temp2)))});
   CHECK_EQ(2, r.Call(0));
 #undef CALL_FUNCTION_WITH_DROP
+}
+
+TEST(RunWasmTurbofan_RegressStoreInfoCompareCollision) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  TSSimd256VerifyScope ts_scope(
+      r.zone(), [](const compiler::turboshaft::Graph& graph) {
+        for (const compiler::turboshaft::Operation& op :
+             graph.AllOperations()) {
+          if (const auto* store = op.TryCast<compiler::turboshaft::StoreOp>()) {
+            if (store->stored_rep ==
+                compiler::turboshaft::MemoryRepresentation::Simd256()) {
+              return true;
+            }
+          }
+        }
+        return false;
+      });
+
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  r.builder().AddMemoryElems<int32_t>(kWasmPageSize / 4,
+                                      wasm::AddressType::kI32);
+
+  r.Build(
+      {WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_SPLAT(WASM_I32V_1(42))),
+       // Store 3: offset = 16, indexc = 64
+       WASM_SIMD_STORE_MEM_OFFSET(16, WASM_I32V_2(64), WASM_LOCAL_GET(temp1)),
+       // Store 2: offset = 0, indexc = 64
+       WASM_SIMD_STORE_MEM(WASM_I32V_2(64), WASM_LOCAL_GET(temp1)),
+       // Store 1: offset = 0, indexc = 0 (decoy)
+       // Flaw in StoreInfoCompare: this store with offset 0 and constant index
+       // 0 collides with Store 2 (offset 0, constant index 64) and causes Store
+       // 2 to be dropped from the ZoneSet, suppressing vectorization.
+       WASM_SIMD_STORE_MEM(WASM_I32V_1(0), WASM_LOCAL_GET(temp1)), WASM_ONE});
+
+  r.Call(0);
 }
 
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC

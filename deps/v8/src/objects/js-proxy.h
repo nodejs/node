@@ -7,7 +7,6 @@
 
 #include "src/objects/js-objects.h"
 #include "src/objects/oddball.h"
-#include "torque-generated/builtin-definitions.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -161,6 +160,8 @@ static_assert(static_cast<int>(offsetof(JSObject, elements_)) ==
 // Shape-style: no own C++ storage; fields live in the parent JSObject's
 // in-object property slots at fixed offsets past JSObject::kHeaderSize.
 class JSProxyRevocableResult : public JSObject {
+  V8_IT_REUSE_PARENT;
+
  public:
   static constexpr int kProxySlotIndex = 0;
   static constexpr int kRevokeSlotIndex = 1;

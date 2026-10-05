@@ -247,6 +247,8 @@ void Assembler::emit_vex3_byte1(XMMRegister reg, Operand rm, LeadingOpcode m) {
 // byte 1 of 2-byte VEX
 void Assembler::emit_vex2_byte1(XMMRegister reg, XMMRegister v, VectorLength l,
                                 SIMDPrefix pp) {
+  // The 2-byte VEX prefix encodes can only address xmm0-15.
+  DCHECK_EQ(v.code() & 0xf, v.code());
   uint8_t rv = static_cast<uint8_t>(~((reg.high_bit() << 4) | v.code())) << 3;
   emit(rv | l | pp);
 }
@@ -298,6 +300,74 @@ void Assembler::emit_vex_prefix(Register reg, Register vreg, Operand rm,
   XMMRegister ireg = XMMRegister::from_code(reg.code());
   XMMRegister ivreg = XMMRegister::from_code(vreg.code());
   emit_vex_prefix(ireg, ivreg, rm, l, pp, mm, w);
+}
+
+// Vector-form EVEX prefix, shared by AVX10.1 and APX.
+void Assembler::emit_evex_byte1(XMMRegister reg, XMMRegister rm,
+                                LeadingOpcode m) {
+  uint8_t rxb = static_cast<uint8_t>(
+                    ~((reg.high_bit() << 2) | (rm.bit4() << 1) | rm.high_bit()))
+                << 5;
+  uint8_t r1 = reg.bit4() ? 0 : 0x10;
+  emit(rxb | r1 | m);
+}
+
+void Assembler::emit_evex_byte1(XMMRegister reg, Operand rm, LeadingOpcode m) {
+  // Same base/index EGPR routing as the APX legacy-extended EVEX prefix; the
+  // only vector-specific field here is the 3-bit map id (m).
+  uint8_t r3 = (~reg.high_bit()) & 0x1;
+  uint8_t x3b3 = (~rm.rex()) & 0x3;
+  uint8_t r4 = (~reg.bit4()) & 0x1;
+#ifdef V8_ENABLE_APX_F
+  // EVEX.B4: fifth bit of the r/m base register for EGPR (r16-31) addressing.
+  uint8_t b4 = rm.rex2() & 0x1;
+#else
+  uint8_t b4 = 0;
+#endif
+  emit((r3 << 7) | (x3b3 << 5) | (r4 << 4) | (b4 << 3) | m);
+}
+
+void Assembler::emit_evex_byte2(VexW w, XMMRegister v, SIMDPrefix pp) {
+  // Register-direct r/m (ModRM.Mod == 3): EVEX.U must be 1.
+  emit(w | ((~v.code() & 0xf) << 3) | 0x4 | pp);
+}
+
+void Assembler::emit_evex_byte2(VexW w, XMMRegister v, Operand rm,
+                                SIMDPrefix pp) {
+#ifdef V8_ENABLE_APX_F
+  // EVEX.U carries ~X4: fifth bit of the index register for EGPR addressing.
+  uint8_t u = (~rm.rex2() & 0x2) >> 1;
+#else
+  uint8_t u = 1;
+#endif
+  emit(w | ((~v.code() & 0xf) << 3) | (u << 2) | pp);
+}
+
+// TODO(fanchen): support b(broadcast).
+void Assembler::emit_evex_byte3(VectorLength l, XMMRegister v, OpMask aaa,
+                                MaskingType z) {
+  uint8_t v1 = v.bit4() ? 0 : 0x8;
+  emit(z | (l << 3) | v1 | aaa);
+}
+
+void Assembler::emit_evex_prefix(XMMRegister reg, XMMRegister vreg,
+                                 XMMRegister rm, VectorLength l, SIMDPrefix pp,
+                                 LeadingOpcode mm, VexW w, OpMask aaa,
+                                 MaskingType z) {
+  emit_evex_byte0();
+  emit_evex_byte1(reg, rm, mm);
+  emit_evex_byte2(w, vreg, pp);
+  emit_evex_byte3(l, vreg, aaa, z);
+}
+
+void Assembler::emit_evex_prefix(XMMRegister reg, XMMRegister vreg, Operand rm,
+                                 VectorLength l, SIMDPrefix pp,
+                                 LeadingOpcode mm, VexW w, OpMask aaa,
+                                 MaskingType z) {
+  emit_evex_byte0();
+  emit_evex_byte1(reg, rm, mm);
+  emit_evex_byte2(w, vreg, rm, pp);
+  emit_evex_byte3(l, vreg, aaa, z);
 }
 
 Address Assembler::target_address_at(Address pc, Address constant_pool) {

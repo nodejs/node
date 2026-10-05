@@ -81,47 +81,46 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   let instance = builder.instantiate();
   let exports = instance.exports;
-  let i32 = new Int32Array(instance.exports.memory.buffer);
+  let view = new DataView(instance.exports.memory.buffer);
   let u8 = new Uint8Array(instance.exports.memory.buffer);
-  let u16 = new Uint16Array(instance.exports.memory.buffer);
 
-  i32[0] = 10;
+  view.setInt32(0, 10, true);
   assertEquals(10, exports.i32_atomic_add_acq_rel(0, 5));
-  assertEquals(15, i32[0]);
+  assertEquals(15, view.getInt32(0, true));
 
   u8[0] = 10;
   assertEquals(10, exports.i32_atomic_add8_u_acq_rel(0, 5));
   assertEquals(15, u8[0]);
 
-  u16[0] = 10;
+  view.setUint16(0, 10, true);
   assertEquals(10, exports.i32_atomic_add16_u_acq_rel(0, 5));
-  assertEquals(15, u16[0]);
+  assertEquals(15, view.getUint16(0, true));
 
-  i32[0] = 15;
+  view.setInt32(0, 15, true);
   assertEquals(15, exports.i32_atomic_sub_acq_rel(0, 7));
-  assertEquals(8, i32[0]);
+  assertEquals(8, view.getInt32(0, true));
 
-  i32[0] = 0b1100;
+  view.setInt32(0, 0b1100, true);
   assertEquals(0b1100, exports.i32_atomic_and_acq_rel(0, 0b1010));
-  assertEquals(0b1000, i32[0]);
+  assertEquals(0b1000, view.getInt32(0, true));
 
-  i32[0] = 0b1000;
+  view.setInt32(0, 0b1000, true);
   assertEquals(0b1000, exports.i32_atomic_or_acq_rel(0, 0b0101));
-  assertEquals(0b1101, i32[0]);
+  assertEquals(0b1101, view.getInt32(0, true));
 
-  i32[0] = 0b1101;
+  view.setInt32(0, 0b1101, true);
   assertEquals(0b1101, exports.i32_atomic_xor_acq_rel(0, 0b0110));
-  assertEquals(0b1011, i32[0]);
+  assertEquals(0b1011, view.getInt32(0, true));
 
-  i32[0] = 0b1011;
+  view.setInt32(0, 0b1011, true);
   assertEquals(0b1011, exports.i32_atomic_xchg_acq_rel(0, 12345));
-  assertEquals(12345, i32[0]);
+  assertEquals(12345, view.getInt32(0, true));
 
-  i32[0] = 10;
+  view.setInt32(0, 10, true);
   assertEquals(10, exports.i32_atomic_cmpxchg_acq_rel(0, 10, 20));
-  assertEquals(20, i32[0]);
+  assertEquals(20, view.getInt32(0, true));
   assertEquals(20, exports.i32_atomic_cmpxchg_acq_rel(0, 10, 30));
-  assertEquals(20, i32[0]);
+  assertEquals(20, view.getInt32(0, true));
 })();
 
 (function TestI64AtomicRmwAcqRel() {
@@ -197,50 +196,48 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   let instance = builder.instantiate();
   let exports = instance.exports;
-  let i64 = new BigInt64Array(instance.exports.memory.buffer);
+  let view = new DataView(instance.exports.memory.buffer);
   let u8 = new Uint8Array(instance.exports.memory.buffer);
-  let u16 = new Uint16Array(instance.exports.memory.buffer);
-  let u32 = new Uint32Array(instance.exports.memory.buffer);
 
-  i64[0] = 10n;
+  view.setBigInt64(0, 10n, true);
   assertEquals(10n, exports.i64_atomic_add_acq_rel(0, 5n));
-  assertEquals(15n, i64[0]);
+  assertEquals(15n, view.getBigInt64(0, true));
 
   u8[0] = 10;
   assertEquals(10n, exports.i64_atomic_add8_u_acq_rel(0, 5n));
   assertEquals(15, u8[0]);
 
-  u16[0] = 10;
+  view.setUint16(0, 10, true);
   assertEquals(10n, exports.i64_atomic_add16_u_acq_rel(0, 5n));
-  assertEquals(15, u16[0]);
+  assertEquals(15, view.getUint16(0, true));
 
-  u32[0] = 10;
+  view.setUint32(0, 10, true);
   assertEquals(10n, exports.i64_atomic_add32_u_acq_rel(0, 5n));
-  assertEquals(15, u32[0]);
+  assertEquals(15, view.getUint32(0, true));
 
-  i64[0] = 15n;
+  view.setBigInt64(0, 15n, true);
   assertEquals(15n, exports.i64_atomic_sub_acq_rel(0, 7n));
-  assertEquals(8n, i64[0]);
+  assertEquals(8n, view.getBigInt64(0, true));
 
-  i64[0] = 0b1100n;
+  view.setBigInt64(0, 0b1100n, true);
   assertEquals(0b1100n, exports.i64_atomic_and_acq_rel(0, 0b1010n));
-  assertEquals(0b1000n, i64[0]);
+  assertEquals(0b1000n, view.getBigInt64(0, true));
 
-  i64[0] = 0b1000n;
+  view.setBigInt64(0, 0b1000n, true);
   assertEquals(0b1000n, exports.i64_atomic_or_acq_rel(0, 0b0101n));
-  assertEquals(0b1101n, i64[0]);
+  assertEquals(0b1101n, view.getBigInt64(0, true));
 
-  i64[0] = 0b1101n;
+  view.setBigInt64(0, 0b1101n, true);
   assertEquals(0b1101n, exports.i64_atomic_xor_acq_rel(0, 0b0110n));
-  assertEquals(0b1011n, i64[0]);
+  assertEquals(0b1011n, view.getBigInt64(0, true));
 
-  i64[0] = 0b1011n;
+  view.setBigInt64(0, 0b1011n, true);
   assertEquals(0b1011n, exports.i64_atomic_xchg_acq_rel(0, 1234567890n));
-  assertEquals(1234567890n, i64[0]);
+  assertEquals(1234567890n, view.getBigInt64(0, true));
 
-  i64[0] = 10n;
+  view.setBigInt64(0, 10n, true);
   assertEquals(10n, exports.i64_atomic_cmpxchg_acq_rel(0, 10n, 20n));
-  assertEquals(20n, i64[0]);
+  assertEquals(20n, view.getBigInt64(0, true));
   assertEquals(20n, exports.i64_atomic_cmpxchg_acq_rel(0, 10n, 30n));
-  assertEquals(20n, i64[0]);
+  assertEquals(20n, view.getBigInt64(0, true));
 })();

@@ -47,7 +47,7 @@ bool NameToIndexHashTableEquals(Tagged<NameToIndexHashTable> a,
 }  // namespace
 
 // TODO(crbug.com/401059828): make it DEBUG only, once investigation is over.
-bool ScopeInfo::Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare,
+bool ScopeInfo::Equals(Tagged<ScopeInfo> other,
                        int* out_last_checked_field) const {
   if (length() != other->length()) return false;
   // Fixed header fields.
@@ -57,20 +57,14 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare,
   if (out_last_checked_field) *out_last_checked_field = kParameterCount;
   if (context_local_count() != other->context_local_count()) return false;
   if (out_last_checked_field) *out_last_checked_field = kContextLocalCount;
-  if (!is_live_edit_compare) {
-    if (position_info_start() != other->position_info_start()) return false;
-    if (out_last_checked_field) *out_last_checked_field = kPositionInfoStart;
-    if (position_info_end() != other->position_info_end()) return false;
-    if (out_last_checked_field) *out_last_checked_field = kPositionInfoEnd;
-  }
+  if (position_info_start() != other->position_info_start()) return false;
+  if (out_last_checked_field) *out_last_checked_field = kPositionInfoStart;
+  if (position_info_end() != other->position_info_end()) return false;
+  if (out_last_checked_field) *out_last_checked_field = kPositionInfoEnd;
   // Variable-part tail.
-  const int inferred_function_name_index = InferredFunctionNameIndex();
   for (int index = 0; index < length(); ++index) {
     if (out_last_checked_field) {
       *out_last_checked_field = kVariablePartStart + index;
-    }
-    if (is_live_edit_compare && index == inferred_function_name_index) {
-      continue;
     }
     Tagged<Object> entry = get(index);
     Tagged<Object> other_entry = other->get(index);
@@ -86,13 +80,11 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare,
           return false;
         }
       } else if (IsScopeInfo(entry)) {
-        if (!is_live_edit_compare && !Cast<ScopeInfo>(entry)->Equals(
-                                         Cast<ScopeInfo>(other_entry), false)) {
+        if (!Cast<ScopeInfo>(entry)->Equals(Cast<ScopeInfo>(other_entry))) {
           return false;
         }
       } else if (IsSourceTextModuleInfo(entry)) {
-        if (!is_live_edit_compare &&
-            !Cast<SourceTextModuleInfo>(entry)->Equals(
+        if (!Cast<SourceTextModuleInfo>(entry)->Equals(
                 Cast<SourceTextModuleInfo>(other_entry))) {
           return false;
         }
@@ -103,9 +95,6 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare,
         }
       } else if (IsDependentCode(entry)) {
         DCHECK(IsDependentCode(other_entry));
-        // Ignore the dependent code field since all the code have to be
-        // deoptimized anyway in case of a live-edit.
-
       } else if (IsNameToIndexHashTable(entry)) {
         if (!NameToIndexHashTableEquals(
                 Cast<NameToIndexHashTable>(entry),
@@ -237,6 +226,12 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
       has_inlined_local_names ? context_local_count : 1;
 
   const int has_dependent_code = sloppy_eval_can_extend_vars;
+  // Module scopes with many module variables also carry a name -> entry
+  // hash table so ModuleIndex() need not scan the entries linearly (same
+  // threshold as the context-local names hashtable).
+  const bool has_module_vars_hashtable =
+      scope->is_module_scope() &&
+      module_vars_count >= kScopeInfoMaxInlinedLocalNamesSize;
   const int length =
       local_names_container_size + context_local_count +
       (should_save_class_variable ? 1 : 0) +
@@ -245,13 +240,19 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
       (scope->is_module_scope()
            ? 2 + kModuleVariableEntryLength * module_vars_count
            : 0) +
-      (has_dependent_code ? 1 : 0) + (scope->is_function_scope() ? 1 : 0);
+      (has_module_vars_hashtable ? 1 : 0) + (has_dependent_code ? 1 : 0) +
+      (scope->is_function_scope() ? 1 : 0);
 
   // Create hash table if local names are not inlined.
   Handle<NameToIndexHashTable> local_names_hashtable;
   if (!has_inlined_local_names) {
     local_names_hashtable = NameToIndexHashTable::New(
         isolate, context_local_count, AllocationType::kOld);
+  }
+  Handle<NameToIndexHashTable> module_vars_hashtable;
+  if (has_module_vars_hashtable) {
+    module_vars_hashtable = NameToIndexHashTable::New(
+        isolate, module_vars_count, AllocationType::kOld);
   }
 
   Handle<ScopeInfo> scope_info_handle =
@@ -315,6 +316,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     int context_local_info_base =
         context_local_base + local_names_container_size;
     int module_var_entry = scope_info->ModuleVariablesIndex();
+    int module_var_number = 0;
 
     for (Variable* var : *scope->locals()) {
       switch (var->location()) {
@@ -388,7 +390,16 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
               module_var_entry +
                   offsetof(ModuleVariableInfo, properties) / kTaggedSize,
               Smi::FromInt(properties));
+          if (has_module_vars_hashtable) {
+            // The table was sized for module_vars_count entries, so Add()
+            // never reallocates (and thus never allocates under no_gc).
+            Handle<NameToIndexHashTable> new_table = NameToIndexHashTable::Add(
+                isolate, module_vars_hashtable, var->name(), module_var_number);
+            DCHECK_EQ(*new_table, *module_vars_hashtable);
+            USE(new_table);
+          }
           module_var_entry += kModuleVariableEntryLength;
+          ++module_var_number;
           break;
         }
         default:
@@ -467,6 +478,13 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
       DCHECK_EQ(index, scope_info->ModuleVariablesIndex());
       // The variable entries themselves have already been written above.
       index += kModuleVariableEntryLength * module_vars_count;
+      DCHECK_EQ(index, scope_info->ModuleVariablesHashtableIndex());
+      DCHECK_EQ(has_module_vars_hashtable,
+                scope_info->HasModuleVariablesHashtable());
+      if (has_module_vars_hashtable) {
+        DCHECK_EQ(module_var_number, module_vars_count);
+        scope_info->set(index++, *module_vars_hashtable);
+      }
     }
 
     DCHECK_EQ(index, scope_info->DependentCodeIndex());
@@ -995,7 +1013,6 @@ Tagged<String> ScopeInfo::ContextInlinedLocalName(int var) const {
   return context_local_names(var);
 }
 
-
 VariableMode ScopeInfo::ContextLocalMode(int var) const {
   int value = context_local_infos(var);
   return VariableModeBits::decode(value);
@@ -1037,6 +1054,7 @@ MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) const {
   return MaybeAssignedFlagBit::decode(value);
 }
 
+// LINT.IfChange(VariableIsSynthetic)
 // static
 bool ScopeInfo::VariableIsSynthetic(Tagged<String> name) {
   // There's currently no flag stored on the ScopeInfo to indicate that a
@@ -1046,6 +1064,7 @@ bool ScopeInfo::VariableIsSynthetic(Tagged<String> name) {
   return name->length() == 0 || name->Get(0) == '.' || name->Get(0) == '#' ||
          name->Equals(GetReadOnlyRoots().this_string());
 }
+// LINT.ThenChange(/src/debug/debug-scope-info.cc:VariableIsSynthetic)
 
 int ScopeInfo::ModuleVariableCount() const {
   DCHECK_EQ(scope_type(), MODULE_SCOPE);
@@ -1062,6 +1081,17 @@ int ScopeInfo::ModuleIndex(Tagged<String> name, VariableMode* mode,
   DCHECK_NOT_NULL(mode);
   DCHECK_NOT_NULL(init_flag);
   DCHECK_NOT_NULL(maybe_assigned_flag);
+
+  if (HasModuleVariablesHashtable()) {
+    int i = module_variables_hashtable()->Lookup(name);
+    if (i == -1) return 0;
+    DCHECK_LT(i, module_variable_count());
+    DCHECK(name->Equals(module_variables_name(i)));
+    int index;
+    ModuleVariable(i, nullptr, &index, mode, init_flag, maybe_assigned_flag,
+                   initializer_position);
+    return index;
+  }
 
   int module_vars_count = module_variable_count();
   for (int i = 0; i < module_vars_count; ++i) {
@@ -1217,6 +1247,10 @@ int ScopeInfo::ModuleVariableCountIndex() const {
 
 int ScopeInfo::ModuleVariablesIndex() const {
   return ConvertOffsetToIndex(ModuleVariablesOffset());
+}
+
+int ScopeInfo::ModuleVariablesHashtableIndex() const {
+  return ConvertOffsetToIndex(ModuleVariablesHashtableOffset());
 }
 
 void ScopeInfo::ModuleVariable(int i, Tagged<String>* name, int* index,
@@ -1441,6 +1475,20 @@ int SourceTextModuleInfo::RegularExportCellIndex(int i) const {
 Tagged<FixedArray> SourceTextModuleInfo::RegularExportExportNames(int i) const {
   return Cast<FixedArray>(regular_exports()->get(
       i * kRegularExportLength + kRegularExportExportNamesOffset));
+}
+
+bool SourceTextModuleInfo::HasStarExports() const {
+  DisallowGarbageCollection no_gc;
+  Tagged<FixedArray> exports = special_exports();
+  const uint32_t length = exports->ulength().value();
+  for (uint32_t i = 0; i < length; ++i) {
+    // Star exports are the only special exports without a name.
+    if (IsUndefined(
+            Cast<SourceTextModuleInfoEntry>(exports->get(i))->export_name())) {
+      return true;
+    }
+  }
+  return false;
 }
 
 const char* ToString(ScopeType type) {

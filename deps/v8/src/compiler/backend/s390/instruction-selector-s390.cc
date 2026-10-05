@@ -3372,6 +3372,10 @@ void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitUint64Sub128(OpIndex node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
+  UNREACHABLE();
+}
+
 void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
                                                         int first_input_index,
                                                         OpIndex node) {

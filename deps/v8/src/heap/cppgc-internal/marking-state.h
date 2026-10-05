@@ -48,8 +48,6 @@ class MarkingStateBase {
   }
 
  protected:
-  inline void MarkAndPush(HeapObjectHeader&, TraceDescriptor);
-
   inline bool MarkNoPush(HeapObjectHeader&);
 
   HeapBase& heap_;
@@ -68,13 +66,9 @@ MarkingStateBase::MarkingStateBase(HeapBase& heap,
 
 void MarkingStateBase::MarkAndPush(const void* object, TraceDescriptor desc) {
   DCHECK_NOT_NULL(object);
-  MarkAndPush(
-      HeapObjectHeader::FromObject(const_cast<void*>(desc.base_object_payload)),
-      desc);
-}
+  HeapObjectHeader& header =
+      HeapObjectHeader::FromObject(const_cast<void*>(desc.base_object_payload));
 
-void MarkingStateBase::MarkAndPush(HeapObjectHeader& header,
-                                   TraceDescriptor desc) {
   DCHECK_NOT_NULL(desc.callback);
 
   if (header.IsInConstruction<AccessMode::kAtomic>()) {
@@ -94,10 +88,14 @@ bool MarkingStateBase::MarkNoPush(HeapObjectHeader& header) {
 }
 
 void MarkingStateBase::MarkAndPush(HeapObjectHeader& header) {
-  MarkAndPush(
-      header,
-      {header.ObjectStart(),
-       GlobalGCInfoTable::GCInfoFromIndex(header.GetGCInfoIndex()).trace});
+  if (header.IsInConstruction<AccessMode::kAtomic>()) {
+    not_fully_constructed_worklist_.Push<AccessMode::kAtomic>(&header);
+  } else if (MarkNoPush(header)) {
+    PushMarked(
+        header,
+        {header.ObjectStart(),
+         GlobalGCInfoTable::GCInfoFromIndex(header.GetGCInfoIndex()).trace});
+  }
 }
 
 void MarkingStateBase::PushMarked(HeapObjectHeader& header,

@@ -55,7 +55,7 @@ bool SourceTextModuleDescriptor::ModuleRequestComparer::operator()(
   return false;
 }
 
-void SourceTextModuleDescriptor::AddImport(
+bool SourceTextModuleDescriptor::AddImport(
     const AstRawString* import_name, const AstRawString* local_name,
     const AstRawString* specifier, const ModuleImportPhase import_phase,
     const ImportAttributes* import_attributes, const Scanner::Location loc,
@@ -65,10 +65,10 @@ void SourceTextModuleDescriptor::AddImport(
   entry->import_name = import_name;
   entry->module_request = AddModuleRequest(
       specifier, import_phase, import_attributes, specifier_loc, zone);
-  AddRegularImport(entry);
+  return AddRegularImport(entry);
 }
 
-void SourceTextModuleDescriptor::AddStarImport(
+bool SourceTextModuleDescriptor::AddStarImport(
     const AstRawString* local_name, const AstRawString* specifier,
     const ModuleImportPhase import_phase,
     const ImportAttributes* import_attributes, const Scanner::Location loc,
@@ -77,7 +77,7 @@ void SourceTextModuleDescriptor::AddStarImport(
   entry->local_name = local_name;
   entry->module_request = AddModuleRequest(
       specifier, import_phase, import_attributes, specifier_loc, zone);
-  AddNamespaceImport(entry, zone);
+  return AddNamespaceImport(entry, zone);
 }
 
 void SourceTextModuleDescriptor::AddEmptyImport(

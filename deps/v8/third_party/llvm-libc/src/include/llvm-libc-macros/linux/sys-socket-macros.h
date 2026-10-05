@@ -12,11 +12,12 @@
 // IEEE Std 1003.1-2017 - basedefs/sys_socket.h.html
 // Macro values come from the Linux syscall interface.
 
-#define AF_UNSPEC 0 // Unspecified
-#define AF_UNIX 1   // Unix domain sockets
-#define AF_LOCAL 1  // POSIX name for AF_UNIX
-#define AF_INET 2   // Internet IPv4 Protocol
-#define AF_INET6 10 // IP version 6
+#define AF_UNSPEC 0   // Unspecified
+#define AF_UNIX 1     // Unix domain sockets
+#define AF_LOCAL 1    // POSIX name for AF_UNIX
+#define AF_INET 2     // Internet IPv4 Protocol
+#define AF_INET6 10   // IP version 6
+#define AF_NETLINK 16 // Netlink sockets
 
 // 4.2BSD protocol families
 #define PF_UNSPEC AF_UNSPEC
@@ -24,6 +25,7 @@
 #define PF_LOCAL AF_LOCAL
 #define PF_INET AF_INET
 #define PF_INET6 AF_INET6
+#define PF_NETLINK AF_NETLINK
 
 #define SOCK_STREAM 1
 #define SOCK_DGRAM 2

@@ -51,6 +51,7 @@ public:
   void *realloc(void *ptr, size_t size);
   void *calloc(size_t num, size_t size);
   size_t allocation_size(const void *ptr) const;
+  LIBC_INLINE void integrity_check() const { free_store.integrity_check(); }
 
   cpp::span<cpp::byte> region() const { return {begin, end}; }
 

@@ -562,14 +562,14 @@ Response V8HeapProfilerAgentImpl::startSampling(
   const unsigned defaultSamplingInterval = 1 << 15;
   double samplingIntervalValue =
       samplingInterval.value_or(defaultSamplingInterval);
-  if (samplingIntervalValue <= 0.0) {
+  if (samplingIntervalValue < 1.0) {
     return Response::ServerError("Invalid sampling interval");
   }
   m_state->setDouble(HeapProfilerAgentState::samplingHeapProfilerInterval,
                      samplingIntervalValue);
   const unsigned defaultStackDepth = 128;
   double stackDepthValue = stackDepth.value_or(defaultStackDepth);
-  if (stackDepthValue <= 0.0) {
+  if (stackDepthValue < 1.0) {
     return Response::ServerError("Invalid stack depth");
   }
   m_state->setDouble(HeapProfilerAgentState::samplingHeapProfilerStackDepth,

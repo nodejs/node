@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
@@ -365,6 +366,7 @@ class HeapObjectsMap {
       IsNativeObject is_native_object = IsNativeObject::kNo);
   SnapshotObjectId FindMergedNativeEntry(NativeObject addr);
   void AddMergedNativeEntry(NativeObject addr, Address canonical_addr);
+  void ClearMergedNativeEntries();
   V8_EXPORT_PRIVATE bool ContainsEntryWithIdForTesting(
       SnapshotObjectId id) const;
 
@@ -458,6 +460,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   HeapEntry* AllocateEntry(Tagged<Smi> smi) override;
   uint32_t EstimateObjectsCount();
   void PopulateLineEnds();
+  void RecordScriptSources();
   bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
 
   struct NativeContextTagInfo {
@@ -574,6 +577,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractInternalReferences(Tagged<JSObject> js_obj, HeapEntry* entry);
   void ExtractCppHeapExternalReferences(HeapEntry* entry,
                                         Tagged<CppHeapExternalObject> obj);
+  void ExtractCppGCManagedBaseReferences(HeapEntry* entry,
+                                         Tagged<CppGCManagedBase> obj);
 
 #if V8_ENABLE_WEBASSEMBLY
   void ExtractWasmStructReferences(Tagged<WasmStruct> obj, HeapEntry* entry);
@@ -637,6 +642,9 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
                                   HeapEntry::Type type, int recursion_limit);
 
   HeapEntry* GetEntry(Tagged<Object> obj);
+  bool IsScriptSource(Tagged<String> string) const {
+    return script_sources_.contains(string);
+  }
 
   Heap* heap_;
   HeapSnapshot* snapshot_;
@@ -648,6 +656,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
       native_context_tag_map_;
   UnorderedHeapObjectMap<const char*> strong_gc_subroot_names_;
   std::unordered_set<Tagged<NativeContext>, Object::Hasher> user_roots_;
+  absl::flat_hash_set<Tagged<String>, Object::Hasher, Object::KeyEqualSafe>
+      script_sources_;
   v8::HeapProfiler::ContextNameResolver* native_context_name_resolver_;
 
   std::vector<bool> visited_fields_;

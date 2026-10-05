@@ -13,7 +13,6 @@
 #include "src/wasm/fuzzing/random-module-generation.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-feature-flags.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-subtyping.h"

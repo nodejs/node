@@ -107,6 +107,14 @@ class LiftoffAssembler : public MacroAssembler {
   // A tagged value known to be a Smi can be treated like a ptr-sized int.
   static constexpr ValueKind kSmiKind = kTaggedSize == kInt32Size ? kI32 : kI64;
 
+  // Whether {StoreConst} is implemented, i.e. whether integer constants can be
+  // stored to memory as immediates.
+#if V8_TARGET_ARCH_X64
+  static constexpr bool kSupportsStoreConst = true;
+#else
+  static constexpr bool kSupportsStoreConst = false;
+#endif
+
   using ValueKindSig = Signature<ValueKind>;
 
   using VarState = LiftoffVarState;
@@ -769,6 +777,20 @@ class LiftoffAssembler : public MacroAssembler {
                     LiftoffRegList pinned,
                     uint32_t* trapping_store_pc = nullptr,
                     bool is_store_mem = false, bool i64_offset = false);
+  // Store the integer constant {value} (sign-extended for i64 stores) as an
+  // immediate. Only implemented on architectures with an immediate store form;
+  // see {kSupportsStoreConst}.
+#if V8_TARGET_ARCH_X64
+  inline void StoreConst(Register dst_addr, Register offset_reg,
+                         uintptr_t offset_imm, int32_t value, StoreType type,
+                         uint32_t* trapping_store_pc, bool i64_offset);
+#else
+  inline void StoreConst(Register dst_addr, Register offset_reg,
+                         uintptr_t offset_imm, int32_t value, StoreType type,
+                         uint32_t* trapping_store_pc, bool i64_offset) {
+    UNREACHABLE();
+  }
+#endif
   inline void AtomicLoad(LiftoffRegister dst, Register src_addr,
                          Register offset_reg, uintptr_t offset_imm,
                          LoadType type, uint32_t* trapping_load_pc,

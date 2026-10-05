@@ -34,6 +34,7 @@ add_object_library(
     libc.include.sys_syscall
     libc.hdr.fcntl_macros
     libc.hdr.errno_macros
+    libc.hdr.sched_macros
     libc.hdr.sys_mman_macros
     libc.src.errno.errno
     libc.src.__support.CPP.atomic
@@ -55,9 +56,9 @@ add_object_library(
   COMPILE_OPTIONS
     ${libc_opt_high_flag}
     -fno-omit-frame-pointer # This allows us to sniff out the thread args from
-                            # the new thread's stack reliably.
-    -Wno-frame-address      # Yes, calling __builtin_return_address with a
-                            # value other than 0 is dangerous. We know.
+    # the new thread's stack reliably.
+    -Wno-frame-address # Yes, calling __builtin_return_address with a
+  # value other than 0 is dangerous. We know.
 )
 
 add_header_library(

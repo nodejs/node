@@ -66,7 +66,7 @@ transitioning javascript builtin ArrayFrom(
     const fastIteratorResultMap = GetIteratorResultMap();
 
     // d. Let k be 0.
-    let k: Smi = 0;
+    let k: Number = 0;
     // e. Repeat,
     while (true) {
       // i. If k ≥ 2^53-1, then
@@ -164,7 +164,7 @@ transitioning javascript builtin ArrayFrom(
     }
 
     // 11. Let k be 0.
-    let k: Smi = 0;
+    let k: Number = 0;
     // 12. Repeat, while k < len
     while (k < len) {
       // a. Let Pk be ! ToString(k).

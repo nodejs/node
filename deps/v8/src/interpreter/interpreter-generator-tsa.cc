@@ -330,10 +330,10 @@ IGNITION_HANDLER_TS(BitwiseNot, NumberBuiltinsBytecodeHandlerAssembler) {
   V<Object> value = GetAccumulator();
   V<Context> context = GetContext();
 
-  constexpr int kSlotIndex = 0;
-  SetFeedbackSlot(__ ChangeUint32ToUintPtr(
-      __ BytecodeOperandFeedbackSlotInt32(kSlotIndex)));
-  LoadFeedbackVectorOrUndefinedIfJitless();
+  SetEmbeddedFeedback(
+      BytecodeArrayTaggedPointer(),
+      __ WordPtrAdd(BytecodeOffset(),
+                    OperandOffset(kUnaryEmbeddedFeedbackOperandIndex)));
 
   V<Object> result = BitwiseNot(context, value);
   SetAccumulator(result);

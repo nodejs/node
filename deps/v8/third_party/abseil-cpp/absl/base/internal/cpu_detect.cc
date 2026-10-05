@@ -26,7 +26,7 @@
 #endif
 
 #if defined(__aarch64__) && defined(__APPLE__)
-#if defined(__has_include) && __has_include(<arm/cpu_capabilities_public.h>)
+#if __has_include(<arm/cpu_capabilities_public.h>)
 #include <arm/cpu_capabilities_public.h>
 #endif
 #include <sys/sysctl.h>
@@ -350,31 +350,34 @@ static std::optional<T> ReadSysctlByName(const char* name) {
 }
 
 bool SupportsArmCRC32PMULL() {
+  static const bool supported = []() {
   // Newer XNU kernels support querying all capabilities in a single
   // sysctlbyname.
 #if defined(CAP_BIT_CRC32) && defined(CAP_BIT_FEAT_PMULL)
-  static const std::optional<uint64_t> caps =
-      ReadSysctlByName<uint64_t>("hw.optional.arm.caps");
-  if (caps.has_value()) {
-    constexpr uint64_t kCrc32AndPmullCaps =
-        (uint64_t{1} << CAP_BIT_CRC32) | (uint64_t{1} << CAP_BIT_FEAT_PMULL);
-    return (*caps & kCrc32AndPmullCaps) == kCrc32AndPmullCaps;
-  }
+    const std::optional<uint64_t> caps =
+        ReadSysctlByName<uint64_t>("hw.optional.arm.caps");
+    if (caps.has_value()) {
+      constexpr uint64_t kCrc32AndPmullCaps =
+          (uint64_t{1} << CAP_BIT_CRC32) | (uint64_t{1} << CAP_BIT_FEAT_PMULL);
+      return (*caps & kCrc32AndPmullCaps) == kCrc32AndPmullCaps;
+    }
 #endif
 
-  // https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics#3915619
-  static const std::optional<int> armv8_crc32 =
-      ReadSysctlByName<int>("hw.optional.armv8_crc32");
-  if (armv8_crc32.value_or(0) == 0) {
-    return false;
-  }
-  // https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics#3918855
-  static const std::optional<int> feat_pmull =
-      ReadSysctlByName<int>("hw.optional.arm.FEAT_PMULL");
-  if (feat_pmull.value_or(0) == 0) {
-    return false;
-  }
-  return true;
+    // https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics#3915619
+    const std::optional<int> armv8_crc32 =
+        ReadSysctlByName<int>("hw.optional.armv8_crc32");
+    if (armv8_crc32.value_or(0) == 0) {
+      return false;
+    }
+    // https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics#3918855
+    const std::optional<int> feat_pmull =
+        ReadSysctlByName<int>("hw.optional.arm.FEAT_PMULL");
+    if (feat_pmull.value_or(0) == 0) {
+      return false;
+    }
+    return true;
+  }();
+  return supported;
 }
 
 bool SupportsBmi2() { return false; }

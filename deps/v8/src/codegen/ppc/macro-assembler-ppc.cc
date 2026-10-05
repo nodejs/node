@@ -405,7 +405,9 @@ void MacroAssembler::Drop(int count) {
   }
 }
 
-void MacroAssembler::Drop(Register count, Register scratch) {
+void MacroAssembler::Drop(Register count) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   ShiftLeftU64(scratch, count, Operand(kSystemPointerSizeLog2));
   add(sp, sp, scratch);
 }
@@ -950,8 +952,10 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
                                  SaveFPRegsMode fp_mode, SmiCheck smi_check) {
   DCHECK(!AreAliased(object, value, slot_address));
   if (v8_flags.slow_debug_code) {
-    LoadTaggedField(r0, MemOperand(slot_address));
-    CmpS64(r0, value);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    LoadTaggedField(scratch, MemOperand(slot_address));
+    CmpS64(scratch, value);
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
 
@@ -1015,21 +1019,23 @@ void MacroAssembler::PopLR(Register scratch) {
 
 void MacroAssembler::PushCommonFrame(Register marker_reg) {
   int fp_delta = 0;
-  mflr(r0);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  mflr(scratch);
   if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     if (marker_reg.is_valid()) {
-      Push(r0, fp, kConstantPoolRegister, marker_reg);
+      Push(scratch, fp, kConstantPoolRegister, marker_reg);
       fp_delta = 2;
     } else {
-      Push(r0, fp, kConstantPoolRegister);
+      Push(scratch, fp, kConstantPoolRegister);
       fp_delta = 1;
     }
   } else {
     if (marker_reg.is_valid()) {
-      Push(r0, fp, marker_reg);
+      Push(scratch, fp, marker_reg);
       fp_delta = 1;
     } else {
-      Push(r0, fp);
+      Push(scratch, fp);
       fp_delta = 0;
     }
   }
@@ -1038,21 +1044,23 @@ void MacroAssembler::PushCommonFrame(Register marker_reg) {
 
 void MacroAssembler::PushStandardFrame(Register function_reg) {
   int fp_delta = 0;
-  mflr(r0);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  mflr(scratch);
   if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     if (function_reg.is_valid()) {
-      Push(r0, fp, kConstantPoolRegister, cp, function_reg);
+      Push(scratch, fp, kConstantPoolRegister, cp, function_reg);
       fp_delta = 3;
     } else {
-      Push(r0, fp, kConstantPoolRegister, cp);
+      Push(scratch, fp, kConstantPoolRegister, cp);
       fp_delta = 2;
     }
   } else {
     if (function_reg.is_valid()) {
-      Push(r0, fp, cp, function_reg);
+      Push(scratch, fp, cp, function_reg);
       fp_delta = 2;
     } else {
-      Push(r0, fp, cp);
+      Push(scratch, fp, cp);
       fp_delta = 1;
     }
   }
@@ -1066,9 +1074,11 @@ void MacroAssembler::RestoreFrameStateForTailCall() {
             MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
     set_constant_pool_available(false);
   }
-  LoadU64(r0, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadU64(scratch, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
   LoadU64(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  mtlr(r0);
+  mtlr(scratch);
 }
 
 void MacroAssembler::CanonicalizeNaN(const DoubleRegister dst,
@@ -1216,12 +1226,7 @@ void MacroAssembler::Prologue() {
   }
 }
 
-void MacroAssembler::DropArguments(Register count) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  ShiftLeftU64(scratch, count, Operand(kSystemPointerSizeLog2));
-  add(sp, sp, scratch);
-}
+void MacroAssembler::DropArguments(Register count) { Drop(count); }
 
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
                                                      Register receiver) {
@@ -1259,7 +1264,8 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
 int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
   ConstantPoolUnavailableScope constant_pool_unavailable(this);
   UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
+  Register scratch1 = temps.Acquire();
+  Register scratch2 = temps.Acquire();
   // r3: preserved
   // r4: preserved
   // r5: preserved
@@ -1267,17 +1273,17 @@ int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
   // Drop the execution stack down to the frame pointer and restore
   // the caller's state.
   int frame_ends;
-  LoadU64(r0, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-  LoadU64(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  LoadU64(scratch2, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+  LoadU64(scratch1, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     LoadU64(kConstantPoolRegister,
             MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
   }
-  mtlr(r0);
+  mtlr(scratch2);
   frame_ends = pc_offset();
   AddS64(sp, fp,
          Operand(StandardFrameConstants::kCallerSPOffset + stack_adjustment));
-  mr(fp, scratch);
+  mr(fp, scratch1);
   return frame_ends;
 }
 
@@ -1342,9 +1348,9 @@ void MacroAssembler::EnterExitFrame(int stack_space,
     ClearRightImm(sp, sp,
                   Operand(base::bits::WhichPowerOfTwo(frame_alignment)));
   }
-  li(r0, Operand::Zero());
-  StoreU64WithUpdate(
-      r0, MemOperand(sp, -kNumRequiredStackFrameSlots * kSystemPointerSize));
+  li(scratch, Operand::Zero());
+  StoreU64WithUpdate(scratch, MemOperand(sp, -kNumRequiredStackFrameSlots *
+                                                 kSystemPointerSize));
 
   // Set the exit frame sp value to point just before the return address
   // location.
@@ -1452,18 +1458,19 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     Label copy, skip;
     Register src = r9, dest = r8;
     addi(src, sp, Operand(-kSystemPointerSize));
-    ShiftLeftU64(r0, expected_parameter_count, Operand(kSystemPointerSizeLog2));
-    sub(sp, sp, r0);
+    ShiftLeftU64(scratch, expected_parameter_count,
+                 Operand(kSystemPointerSizeLog2));
+    sub(sp, sp, scratch);
     // Update stack pointer.
     addi(dest, sp, Operand(-kSystemPointerSize));
-    mr(r0, actual_parameter_count);
-    cmpi(r0, Operand::Zero());
+    mr(scratch, actual_parameter_count);
+    cmpi(scratch, Operand::Zero());
     ble(&skip);
-    mtctr(r0);
+    mtctr(scratch);
 
     bind(&copy);
-    LoadU64WithUpdate(r0, MemOperand(src, kSystemPointerSize));
-    StoreU64WithUpdate(r0, MemOperand(dest, kSystemPointerSize));
+    LoadU64WithUpdate(scratch, MemOperand(src, kSystemPointerSize));
+    StoreU64WithUpdate(scratch, MemOperand(dest, kSystemPointerSize));
     bdnz(&copy);
     bind(&skip);
   }
@@ -1618,8 +1625,10 @@ void MacroAssembler::PushStackHandler() {
 
   // Link the current handler as the next handler.
   // Preserve r4-r8.
-  LoadU64(r0, AsMemOperand(IsolateFieldId::kHandler));
-  push(r0);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadU64(scratch, AsMemOperand(IsolateFieldId::kHandler));
+  push(scratch);
 
   // Set this new handler as the current one.
   StoreU64(sp, AsMemOperand(IsolateFieldId::kHandler));
@@ -1680,8 +1689,10 @@ void MacroAssembler::CompareTaggedRoot(const Register& obj, RootIndex index) {
   // Some smi roots contain system pointer size values like stack limits.
   DCHECK(base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
                          RootIndex::kLastStrongOrReadOnlyRoot));
-  LoadRoot(r0, index);
-  CompareTagged(obj, r0);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadRoot(scratch, index);
+  CompareTagged(obj, scratch);
 }
 
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
@@ -1689,8 +1700,10 @@ void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
   if (!base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
                        RootIndex::kLastStrongOrReadOnlyRoot)) {
     // Some smi roots contain system pointer size values like stack limits.
-    LoadRoot(r0, index);
-    CmpU64(obj, r0);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    LoadRoot(scratch, index);
+    CmpU64(obj, scratch);
     return;
   }
   CompareTaggedRoot(obj, index);
@@ -1771,7 +1784,7 @@ void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
                        result, double_scratch);
 
 // Test for overflow
-  TestIfInt32(result, r0);
+  TestIfInt32(result);
   beq(done);
 }
 
@@ -2036,7 +2049,7 @@ void MacroAssembler::AssertZeroExtended(Register int32_register) {
 void MacroAssembler::AssertMap(Register object) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
-  TestIfSmi(object, r0);
+  TestIfSmi(object);
   Check(ne, AbortReason::kOperandIsNotAMap);
   UseScratchRegisterScope temps(this);
   Register temp = temps.Acquire();
@@ -2047,7 +2060,7 @@ void MacroAssembler::AssertMap(Register object) {
 void MacroAssembler::AssertNotSmi(Register object) {
   if (v8_flags.debug_code) {
     static_assert(kSmiTag == 0);
-    TestIfSmi(object, r0);
+    TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmi, cr0);
   }
 }
@@ -2055,7 +2068,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
 void MacroAssembler::AssertSmi(Register object) {
   if (v8_flags.debug_code) {
     static_assert(kSmiTag == 0);
-    TestIfSmi(object, r0);
+    TestIfSmi(object);
     Check(eq, AbortReason::kOperandIsNotASmi, cr0);
   }
 }
@@ -2063,7 +2076,7 @@ void MacroAssembler::AssertSmi(Register object) {
 void MacroAssembler::AssertConstructor(Register object) {
   if (v8_flags.debug_code) {
     static_assert(kSmiTag == 0);
-    TestIfSmi(object, r0);
+    TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor, cr0);
     push(object);
     LoadMap(object, object);
@@ -2077,7 +2090,7 @@ void MacroAssembler::AssertConstructor(Register object) {
 void MacroAssembler::AssertFunction(Register object) {
   if (v8_flags.debug_code) {
     static_assert(kSmiTag == 0);
-    TestIfSmi(object, r0);
+    TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, cr0);
     UseScratchRegisterScope temps(this);
     Register temp = temps.Acquire();
@@ -2092,7 +2105,7 @@ void MacroAssembler::AssertCallableFunction(Register object) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   static_assert(kSmiTag == 0);
-  TestIfSmi(object, r0);
+  TestIfSmi(object);
   Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, cr0);
   UseScratchRegisterScope temps(this);
   Register temp = temps.Acquire();
@@ -2105,7 +2118,7 @@ void MacroAssembler::AssertCallableFunction(Register object) {
 void MacroAssembler::AssertBoundFunction(Register object) {
   if (v8_flags.debug_code) {
     static_assert(kSmiTag == 0);
-    TestIfSmi(object, r0);
+    TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction, cr0);
     UseScratchRegisterScope temps(this);
     Register temp = temps.Acquire();
@@ -2116,7 +2129,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
   if (!v8_flags.debug_code) return;
-  TestIfSmi(object, r0);
+  TestIfSmi(object);
   Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject, cr0);
 
   // Check if JSGeneratorObject
@@ -5189,8 +5202,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   } else {
     // {argc_operand} was loaded into {argc_reg} above.
     __ AddS64(sp, sp, Operand(slots_to_drop_on_return * kSystemPointerSize));
-    __ ShiftLeftU64(r0, argc_reg, Operand(kSystemPointerSizeLog2));
-    __ AddS64(sp, sp, r0);
+    __ Drop(argc_reg);
   }
 
   __ blr();

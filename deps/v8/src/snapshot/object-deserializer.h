@@ -44,6 +44,9 @@ class OffThreadObjectDeserializer final : public Deserializer<LocalIsolate> {
   // Deserialize an object graph. Fail gracefully.
   MaybeDirectHandle<HeapObject> Deserialize(
       std::vector<IndirectHandle<Script>>* deserialized_scripts);
+
+  void CommitPostProcessedObjects(
+      std::vector<IndirectHandle<Script>>* deserialized_scripts);
 };
 
 }  // namespace internal

@@ -91,7 +91,7 @@ class BlockingCounter {
 
  private:
   // Convenience helper to reduce verbosity at call sites.
-  static inline constexpr base_internal::ObjectKind TraceObjectKind() {
+  static constexpr base_internal::ObjectKind TraceObjectKind() {
     return base_internal::ObjectKind::kBlockingCounter;
   }
 

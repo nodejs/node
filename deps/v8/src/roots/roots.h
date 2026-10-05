@@ -419,6 +419,8 @@ class RootVisitor;
   /* Caches */                                                              \
   V(SmiStringCache, smi_string_cache, SmiStringCache)                       \
   V(DoubleStringCache, double_string_cache, DoubleStringCache)              \
+  /* Allocated on first use, so it must be loaded rather than baked in. */  \
+  V(FixedArray, regexp_split_cache, RegExpSplitCache)                       \
   /* undefined or BigInt. Caching divisors used for modulo divisions. */    \
   V(Object, cached_bigint_divisor, CachedBigIntDivisor)                     \
   V(Object, next_cached_bigint_divisor, NextCachedBigIntDivisor)            \
@@ -447,6 +449,9 @@ class RootVisitor;
   V(HeapObject, locals_block_list_cache, DebugLocalsBlockListCache)         \
   IF_WASM(V, WeakFixedArray, js_to_wasm_wrappers, JSToWasmWrappers)         \
   IF_WASM(V, WeakFixedArray, wasm_canonical_rtts, WasmCanonicalRtts)        \
+  /* Only updated/used on the shared-space isolate */                       \
+  IF_WASM(V, WeakFixedArray, wasm_shared_canonical_rtts,                    \
+          WasmSharedCanonicalRtts)                                          \
   /* Internal SharedFunctionInfos */                                        \
   V(FunctionTemplateInfo, error_stack_getter_fun_template,                  \
     ErrorStackGetterSharedFun)                                              \
@@ -504,20 +509,21 @@ class RootVisitor;
 #define ACCESSOR_INFO_ROOT_LIST(V) \
   ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_INFO_ROOT_LIST_ADAPTER, V)
 
-#define READ_ONLY_ROOT_LIST(V)                   \
-  STRONG_READ_ONLY_ROOT_LIST(V)                  \
-  INTERNALIZED_STRING_ROOT_LIST(V)               \
-  PRIVATE_SYMBOL_ROOT_LIST(V)                    \
-  PUBLIC_SYMBOL_ROOT_LIST(V)                     \
-  WELL_KNOWN_SYMBOL_ROOT_LIST(V)                 \
-  STRUCT_MAPS_LIST(V)                            \
-  ALLOCATION_SITE_MAPS_LIST(V)                   \
-  NAME_FOR_PROTECTOR_ROOT_LIST(V)                \
-  DATA_HANDLER_MAPS_LIST(V)                      \
-  /* Maps */                                     \
-  V(Map, external_map, ExternalMap)              \
-  V(Map, message_object_map, JSMessageObjectMap) \
-  V(Map, cpp_heap_external_map, CppHeapExternalMap)
+#define READ_ONLY_ROOT_LIST(V)                      \
+  STRONG_READ_ONLY_ROOT_LIST(V)                     \
+  INTERNALIZED_STRING_ROOT_LIST(V)                  \
+  PRIVATE_SYMBOL_ROOT_LIST(V)                       \
+  PUBLIC_SYMBOL_ROOT_LIST(V)                        \
+  WELL_KNOWN_SYMBOL_ROOT_LIST(V)                    \
+  STRUCT_MAPS_LIST(V)                               \
+  ALLOCATION_SITE_MAPS_LIST(V)                      \
+  NAME_FOR_PROTECTOR_ROOT_LIST(V)                   \
+  DATA_HANDLER_MAPS_LIST(V)                         \
+  /* Maps */                                        \
+  V(Map, external_map, ExternalMap)                 \
+  V(Map, message_object_map, JSMessageObjectMap)    \
+  V(Map, cpp_heap_external_map, CppHeapExternalMap) \
+  V(Map, cpp_gc_managed_base_map, CppGCManagedBaseMap)
 
 #define MUTABLE_ROOT_LIST(V)            \
   STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V) \

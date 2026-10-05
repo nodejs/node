@@ -420,7 +420,6 @@ GdbServer::DebugDelegate::~DebugDelegate() {
 }
 
 void GdbServer::DebugDelegate::ScriptCompiled(Local<debug::Script> script,
-                                              bool is_live_edited,
                                               bool has_compile_error) {
   // Executed in the isolate thread.
   if (script->IsWasm()) {

@@ -49,7 +49,6 @@ V8_OBJECT class PrototypeSharedClosureInfo : public Struct {
   TaggedMember<Context> context_;
 } V8_OBJECT_END;
 
-
 // ObjectBoilerplateDescription is a list of properties consisting of name
 // value pairs. In addition to the properties, it provides the projected number
 // of properties in the backing store. This number includes properties with

@@ -263,6 +263,7 @@ cc_test(
     deps = [
         ":distributions",
         ":random",
+        "//absl/numeric:int128",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -282,6 +283,7 @@ cc_test(
     deps = [
         ":distributions",
         ":random",
+        "//absl/base:core_headers",
         "//absl/log",
         "//absl/random/internal:distribution_test_util",
         "//absl/random/internal:pcg_engine",

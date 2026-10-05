@@ -97,6 +97,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_lzcnt() const { return has_lzcnt_; }
   bool has_popcnt() const { return has_popcnt_; }
   bool has_apx_f() const { return has_apx_f_; }
+  bool has_avx10_1() const { return has_avx10_1_; }
   bool is_atom() const { return is_atom_; }
   bool has_intel_jcc_erratum() const { return has_intel_jcc_erratum_; }
   bool has_cetss() const { return has_cetss_; }
@@ -145,6 +146,8 @@ class V8_BASE_EXPORT CPU final {
   bool has_zbs() const { return has_zbs_; }
   bool has_zfa() const { return has_zfa_; }
   bool has_rvc() const { return has_rvc_; }
+  bool has_zfh() const { return has_zfh_; }
+  bool has_zvfh() const { return has_zvfh_; }
   enum class RV_MMU_MODE {
     kRiscvSV39,
     kRiscvSV48,
@@ -202,6 +205,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_lzcnt_ = false;
   bool has_popcnt_ = false;
   bool has_apx_f_ = false;
+  bool has_avx10_1_ = false;
   bool has_idiva_ = false;
   bool has_neon_ = false;
   bool has_thumb2_ = false;
@@ -231,6 +235,8 @@ class V8_BASE_EXPORT CPU final {
   bool has_zbb_ = false;
   bool has_zbs_ = false;
   bool has_zfa_ = false;
+  bool has_zfh_ = false;
+  bool has_zvfh_ = false;
   bool has_rvc_ = false;
   bool has_lsx_ = false;
   bool has_lasx_ = false;

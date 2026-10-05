@@ -15,6 +15,8 @@
 #include "absl/numeric/int128.h"
 
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <limits>
 #include <random>
 #include <tuple>
@@ -93,10 +95,10 @@ TEST(Uint128, IntrinsicTypeTraitsTest) {
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
 TEST(Uint128, TrivialTraitsTest) {
-  static_assert(std::is_trivially_default_constructible_v<absl::uint128>, "");
-  static_assert(std::is_trivially_copy_constructible_v<absl::uint128>, "");
-  static_assert(std::is_trivially_copy_assignable_v<absl::uint128>, "");
-  static_assert(std::is_trivially_destructible_v<absl::uint128>, "");
+  static_assert(std::is_trivially_default_constructible_v<absl::uint128>);
+  static_assert(std::is_trivially_copy_constructible_v<absl::uint128>);
+  static_assert(std::is_trivially_copy_assignable_v<absl::uint128>);
+  static_assert(std::is_trivially_destructible_v<absl::uint128>);
 }
 
 TEST(Uint128, AllTests) {
@@ -483,9 +485,9 @@ TEST(Uint128, ConstexprTest) {
 }
 
 TEST(Uint128, NumericLimitsTest) {
-  static_assert(std::numeric_limits<absl::uint128>::is_specialized, "");
-  static_assert(!std::numeric_limits<absl::uint128>::is_signed, "");
-  static_assert(std::numeric_limits<absl::uint128>::is_integer, "");
+  static_assert(std::numeric_limits<absl::uint128>::is_specialized);
+  static_assert(!std::numeric_limits<absl::uint128>::is_signed);
+  static_assert(std::numeric_limits<absl::uint128>::is_integer);
   EXPECT_EQ(static_cast<int>(128 * std::log10(2)),
             std::numeric_limits<absl::uint128>::digits10);
   EXPECT_EQ(0, std::numeric_limits<absl::uint128>::min());
@@ -617,10 +619,10 @@ TEST(Int128, IntrinsicTypeTraitsTest) {
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
 TEST(Int128, TrivialTraitsTest) {
-  static_assert(std::is_trivially_default_constructible_v<absl::int128>, "");
-  static_assert(std::is_trivially_copy_constructible_v<absl::int128>, "");
-  static_assert(std::is_trivially_copy_assignable_v<absl::int128>, "");
-  static_assert(std::is_trivially_destructible_v<absl::int128>, "");
+  static_assert(std::is_trivially_default_constructible_v<absl::int128>);
+  static_assert(std::is_trivially_copy_constructible_v<absl::int128>);
+  static_assert(std::is_trivially_copy_assignable_v<absl::int128>);
+  static_assert(std::is_trivially_destructible_v<absl::int128>);
 }
 
 TEST(Int128, BoolConversionTest) {
@@ -1345,9 +1347,9 @@ TEST(Int128, BitwiseShiftTest) {
 }
 
 TEST(Int128, NumericLimitsTest) {
-  static_assert(std::numeric_limits<absl::int128>::is_specialized, "");
-  static_assert(std::numeric_limits<absl::int128>::is_signed, "");
-  static_assert(std::numeric_limits<absl::int128>::is_integer, "");
+  static_assert(std::numeric_limits<absl::int128>::is_specialized);
+  static_assert(std::numeric_limits<absl::int128>::is_signed);
+  static_assert(std::numeric_limits<absl::int128>::is_integer);
   EXPECT_EQ(static_cast<int>(127 * std::log10(2)),
             std::numeric_limits<absl::int128>::digits10);
   EXPECT_EQ(absl::Int128Min(), std::numeric_limits<absl::int128>::min());

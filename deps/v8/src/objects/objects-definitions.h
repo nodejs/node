@@ -6,7 +6,7 @@
 #define V8_OBJECTS_OBJECTS_DEFINITIONS_H_
 
 #include "src/init/heap-symbols.h"
-#include "torque-generated/instance-types.h"
+#include "src/objects/instance-types-gen.h"
 
 namespace v8 {
 
@@ -161,6 +161,8 @@ namespace internal {
   V(_, CLASS_BOILERPLATE_TYPE, ClassBoilerplate, class_boilerplate)           \
   V(_, CLASS_POSITIONS_TYPE, ClassPositions, class_positions)                 \
   V(_, CODE_WRAPPER_TYPE, CodeWrapper, code_wrapper)                          \
+  V(_, DEBUG_SCRIPT_SCOPE_INFO_TYPE, DebugScriptScopeInfo,                    \
+    debug_script_scope_info)                                                  \
   V(_, ENUM_CACHE_TYPE, EnumCache, enum_cache)                                \
   V(_, ERROR_STACK_DATA_TYPE, ErrorStackData, error_stack_data)               \
   V(_, FUNCTION_TEMPLATE_RARE_DATA_TYPE, FunctionTemplateRareData,            \

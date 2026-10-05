@@ -146,7 +146,7 @@ template <class Policy, class = void>
     return P::value(elem);
   }
 
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
 // get_hash_slot_fn may return nullptr to signal that non type erased function
 // should be used. GCC warns against comparing function address with nullptr.
@@ -155,9 +155,11 @@ template <class Policy, class = void>
 // silent error: the address of * will never be NULL [-Werror=address]
 #pragma GCC diagnostic ignored "-Waddress"
 #endif
-    return Policy::template get_hash_slot_fn<Hash, kIsDefault>() == nullptr
-               ? &hash_slot_fn_non_type_erased<Hash, kIsDefault>
-               : Policy::template get_hash_slot_fn<Hash, kIsDefault>();
+    return Policy::template get_hash_slot_fn<Hash, kIsDefault, kSeedShift>() ==
+                   nullptr
+               ? &hash_slot_fn_non_type_erased<Hash, kIsDefault, kSeedShift>
+               : Policy::template get_hash_slot_fn<Hash, kIsDefault,
+                                                   kSeedShift>();
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
@@ -167,11 +169,12 @@ template <class Policy, class = void>
   static constexpr bool soo_enabled() { return soo_enabled_impl(Rank1{}); }
 
  private:
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static size_t hash_slot_fn_non_type_erased(const void* hash_fn, void* slot,
                                              size_t seed) {
     return Policy::apply(
-        HashElement<Hash, kIsDefault>{*static_cast<const Hash*>(hash_fn), seed},
+        HashElement<Hash, kIsDefault, kSeedShift>{
+            *static_cast<const Hash*>(hash_fn), seed},
         Policy::element(static_cast<slot_type*>(slot)));
   }
 

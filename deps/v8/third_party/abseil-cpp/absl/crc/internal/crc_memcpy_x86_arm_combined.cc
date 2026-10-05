@@ -38,14 +38,6 @@
 // using 3 CRCs over fixed-size blocks where the zero-extensions required for
 // CRC32C::Concat can be precomputed.
 
-#ifdef __SSE4_2__
-#include <immintrin.h>
-#endif
-
-#ifdef _MSC_VER
-#include <intrin.h>
-#endif
-
 #include <array>
 #include <cstddef>
 #include <cstdint>

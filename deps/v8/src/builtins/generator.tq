@@ -43,7 +43,8 @@ transitioning javascript builtin GeneratorPrototypeNextLazyDeoptContinuation(
 
   // Allocating the iterator result object was skipped; allocate it here.
   if (result == TheHole) {
-    return AllocateJSIteratorResult(yieldedValue, False);
+    const val = (yieldedValue == TheHole) ? Undefined : yieldedValue;
+    return AllocateJSIteratorResult(val, False);
   }
 
   return result;

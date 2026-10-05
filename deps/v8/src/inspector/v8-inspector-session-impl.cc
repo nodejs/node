@@ -138,11 +138,11 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(
       this, this, agentState(protocol::Console::Metainfo::domainName)));
   protocol::Console::Dispatcher::wire(&m_dispatcher, m_consoleAgent.get());
 
-  m_profilerAgent.reset(new V8ProfilerAgentImpl(
-      this, this, agentState(protocol::Profiler::Metainfo::domainName)));
-  protocol::Profiler::Dispatcher::wire(&m_dispatcher, m_profilerAgent.get());
-
   if (m_clientTrustLevel == V8Inspector::kFullyTrusted) {
+    m_profilerAgent.reset(new V8ProfilerAgentImpl(
+        this, this, agentState(protocol::Profiler::Metainfo::domainName)));
+    protocol::Profiler::Dispatcher::wire(&m_dispatcher, m_profilerAgent.get());
+
     m_heapProfilerAgent.reset(new V8HeapProfilerAgentImpl(
         this, this, agentState(protocol::HeapProfiler::Metainfo::domainName)));
     protocol::HeapProfiler::Dispatcher::wire(&m_dispatcher,
@@ -156,7 +156,7 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(
     m_runtimeAgent->restore();
     m_debuggerAgent->restore();
     if (m_heapProfilerAgent) m_heapProfilerAgent->restore();
-    m_profilerAgent->restore();
+    if (m_profilerAgent) m_profilerAgent->restore();
     m_consoleAgent->restore();
   }
 }
@@ -165,7 +165,7 @@ V8InspectorSessionImpl::~V8InspectorSessionImpl() {
   v8::Isolate::Scope scope(m_inspector->isolate());
   discardInjectedScripts();
   m_consoleAgent->disable();
-  m_profilerAgent->disable();
+  if (m_profilerAgent) m_profilerAgent->disable();
   if (m_heapProfilerAgent) m_heapProfilerAgent->disable();
   m_debuggerAgent->disable();
   m_runtimeAgent->disable();
@@ -225,7 +225,7 @@ void V8InspectorSessionImpl::discardInjectedScripts() {
 }
 
 Response V8InspectorSessionImpl::findInjectedScript(
-    int contextId, InjectedScript*& injectedScript,
+    int contextId, std::shared_ptr<InjectedScript>& injectedScript,
     std::shared_ptr<InspectedContext>* inspectedContext) {
   injectedScript = nullptr;
   std::shared_ptr<InspectedContext> context =
@@ -245,7 +245,8 @@ Response V8InspectorSessionImpl::findInjectedScript(
 }
 
 Response V8InspectorSessionImpl::findInjectedScript(
-    RemoteObjectIdBase* objectId, InjectedScript*& injectedScript,
+    RemoteObjectIdBase* objectId,
+    std::shared_ptr<InjectedScript>& injectedScript,
     std::shared_ptr<InspectedContext>* inspectedContext) {
   if (objectId->isolateId() != m_inspector->isolateId()) {
     return Response::ServerError("Cannot find context with specified id");
@@ -262,7 +263,8 @@ void V8InspectorSessionImpl::releaseObjectGroup(const String16& objectGroup) {
   int sessionId = m_sessionId;
   m_inspector->forEachContext(
       m_contextGroupId, [&objectGroup, &sessionId](InspectedContext* context) {
-        InjectedScript* injectedScript = context->getInjectedScript(sessionId);
+        std::shared_ptr<InjectedScript> injectedScript =
+            context->getInjectedScript(sessionId);
         if (injectedScript) injectedScript->releaseObjectGroup(objectGroup);
       });
   if (!objectGroup.isEmpty()) {
@@ -298,9 +300,10 @@ Response V8InspectorSessionImpl::unwrapObject(const String16& objectId,
   std::unique_ptr<RemoteObjectId> remoteId;
   Response response = RemoteObjectId::parse(objectId, &remoteId);
   if (!response.IsSuccess()) return response;
-  InjectedScript* injectedScript = nullptr;
+  std::shared_ptr<InjectedScript> injectedScript;
   std::shared_ptr<InspectedContext> inspectedContext;
-  response = findInjectedScript(remoteId.get(), injectedScript, &inspectedContext);
+  response =
+      findInjectedScript(remoteId.get(), injectedScript, &inspectedContext);
   if (!response.IsSuccess()) return response;
   response = injectedScript->findObject(*remoteId, object);
   if (!response.IsSuccess()) return response;
@@ -321,7 +324,7 @@ V8InspectorSessionImpl::wrapObject(v8::Local<v8::Context> context,
                                    v8::Local<v8::Value> value,
                                    const String16& groupName,
                                    bool generatePreview) {
-  InjectedScript* injectedScript = nullptr;
+  std::shared_ptr<InjectedScript> injectedScript;
   std::shared_ptr<InspectedContext> inspectedContext;
   findInjectedScript(InspectedContext::contextId(context), injectedScript,
                      &inspectedContext);
@@ -338,7 +341,7 @@ std::unique_ptr<protocol::Runtime::RemoteObject>
 V8InspectorSessionImpl::wrapTable(v8::Local<v8::Context> context,
                                   v8::Local<v8::Object> table,
                                   v8::MaybeLocal<v8::Array> columns) {
-  InjectedScript* injectedScript = nullptr;
+  std::shared_ptr<InjectedScript> injectedScript;
   std::shared_ptr<InspectedContext> inspectedContext;
   findInjectedScript(InspectedContext::contextId(context), injectedScript,
                      &inspectedContext);
@@ -351,7 +354,8 @@ void V8InspectorSessionImpl::setCustomObjectFormatterEnabled(bool enabled) {
   int sessionId = m_sessionId;
   m_inspector->forEachContext(
       m_contextGroupId, [&enabled, &sessionId](InspectedContext* context) {
-        InjectedScript* injectedScript = context->getInjectedScript(sessionId);
+        std::shared_ptr<InjectedScript> injectedScript =
+            context->getInjectedScript(sessionId);
         if (injectedScript) {
           injectedScript->setCustomObjectFormatterEnabled(enabled);
         }
@@ -367,6 +371,8 @@ void V8InspectorSessionImpl::reportAllContexts(V8RuntimeAgentImpl* agent) {
 
 void V8InspectorSessionImpl::dispatchProtocolMessage(
     StringView message, StringView associated_data) {
+  v8::Isolate::AllowJavascriptExecutionScope allow_script(
+      m_inspector->isolate());
   KeepSessionAliveScope keepAlive(*this);
 
   using v8_crdtp::span;
@@ -442,18 +448,20 @@ V8InspectorSessionImpl::supportedDomainsImpl() {
                        .setName(protocol::Debugger::Metainfo::domainName)
                        .setVersion(protocol::Debugger::Metainfo::version)
                        .build());
-  result.push_back(protocol::Schema::Domain::create()
-                       .setName(protocol::Profiler::Metainfo::domainName)
-                       .setVersion(protocol::Profiler::Metainfo::version)
-                       .build());
-  result.push_back(protocol::Schema::Domain::create()
-                       .setName(protocol::HeapProfiler::Metainfo::domainName)
-                       .setVersion(protocol::HeapProfiler::Metainfo::version)
-                       .build());
-  result.push_back(protocol::Schema::Domain::create()
-                       .setName(protocol::Schema::Metainfo::domainName)
-                       .setVersion(protocol::Schema::Metainfo::version)
-                       .build());
+  if (m_clientTrustLevel == V8Inspector::kFullyTrusted) {
+    result.push_back(protocol::Schema::Domain::create()
+                         .setName(protocol::Profiler::Metainfo::domainName)
+                         .setVersion(protocol::Profiler::Metainfo::version)
+                         .build());
+    result.push_back(protocol::Schema::Domain::create()
+                         .setName(protocol::HeapProfiler::Metainfo::domainName)
+                         .setVersion(protocol::HeapProfiler::Metainfo::version)
+                         .build());
+    result.push_back(protocol::Schema::Domain::create()
+                         .setName(protocol::Schema::Metainfo::domainName)
+                         .setVersion(protocol::Schema::Metainfo::version)
+                         .build());
+  }
   return result;
 }
 
@@ -521,7 +529,9 @@ V8InspectorSessionImpl::searchInTextByLines(StringView text, StringView query,
 
 void V8InspectorSessionImpl::triggerPreciseCoverageDeltaUpdate(
     StringView occasion) {
-  m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occasion));
+  if (m_profilerAgent) {
+    m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occasion));
+  }
 }
 
 V8InspectorSession::EvaluateResult V8InspectorSessionImpl::evaluate(

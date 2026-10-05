@@ -22,6 +22,7 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/lookup-inl.h"
 #include "src/objects/managed-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
@@ -726,7 +727,7 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
   int32_t expected_value = NumberToInt32(args[3]);
   Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
 
-  Managed<BackingStore>::Ptr backing_store =
+  CppGCManaged<BackingStore>::Ptr backing_store =
       trusted_instance_data->memory_object(memory_index)->backing_store();
   // Should have trapped if address was OOB.
   DCHECK_LT(offset, backing_store->byte_length());
@@ -752,7 +753,7 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
   Tagged<BigInt> expected_value = Cast<BigInt>(args[3]);
   Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
 
-  Managed<BackingStore>::Ptr backing_store =
+  CppGCManaged<BackingStore>::Ptr backing_store =
       trusted_instance_data->memory_object(memory_index)->backing_store();
   // Should have trapped if address was OOB.
   DCHECK_LT(offset, backing_store->byte_length());
@@ -799,6 +800,7 @@ RUNTIME_FUNCTION(Runtime_WasmWaitqueueNew) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
 
+  // Memory fence is implemented in Managed<>::From.
   auto ptr = std::make_shared<FutexManagedObjectWaitList>();
   DirectHandle<Managed<FutexManagedObjectWaitList>> managed =
       Managed<FutexManagedObjectWaitList>::From(
@@ -1734,8 +1736,7 @@ class PrototypesSetup : public wasm::Decoder {
       return {};
     }
     // TODO(jkummerow): Can we tighten the spec to require non-nullable arrays?
-    if (!IsWasmFuncRef(*maybe_func)) {
-      DCHECK(IsWasmNull(*maybe_func));
+    if (IsWasmNull(*maybe_func)) {
       ThrowWasmError(isolate_, MessageTemplate::kWasmTrapNullFunc);
       return {};
     }
@@ -2290,15 +2291,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
       TrustedCast<WasmTrustedInstanceData>(args[0]);
   uint32_t memory = args.positive_smi_value_at(1);
-  uint32_t utf8_variant_value = args.positive_smi_value_at(2);
+  UnicodeConfig config(args.positive_smi_value_at(2));
   double offset_double = args.number_value_at(3);
   uintptr_t offset = static_cast<uintptr_t>(offset_double);
   uint32_t size = NumberToUint32(args[4]);
-
-  DCHECK(utf8_variant_value <=
-         static_cast<uint32_t>(unibrow::Utf8Variant::kLastUtf8Variant));
-
-  auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
 
   uint64_t mem_size = trusted_instance_data->memory_size(memory);
   if (!base::IsInBounds<uint64_t>(offset, size, mem_size)) {
@@ -2308,8 +2304,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
   const base::Vector<const uint8_t> bytes{
       trusted_instance_data->memory_base(memory) + offset, size};
   MaybeDirectHandle<v8::internal::String> result_string =
-      isolate->factory()->NewStringFromUtf8(bytes, utf8_variant);
-  if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
+      isolate->factory()->NewStringFromUtf8(bytes, config);
+  if (config.variant() == unibrow::Utf8Variant::kUtf8NoTrap) {
     // If the input was invalid, then the decoder has failed silently, and
     // the string.new_utf8_try instruction should return null.
     if (result_string.is_null() && !isolate->has_exception()) {
@@ -2322,24 +2318,16 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
-  DCHECK_EQ(5, args.length());
+  DCHECK_EQ(4, args.length());
   HandleScope scope(isolate);
-  uint32_t utf8_variant_value = args.positive_smi_value_at(0);
+  UnicodeConfig config(args.positive_smi_value_at(0));
   DirectHandle<WasmArray> array(Cast<WasmArray>(args[1]), isolate);
   uint32_t start = NumberToUint32(args[2]);
   uint32_t end = NumberToUint32(args[3]);
-  int shared = args.smi_value_at(4);
-
-  DCHECK(utf8_variant_value <=
-         static_cast<uint32_t>(unibrow::Utf8Variant::kLastUtf8Variant));
-  auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
 
   MaybeDirectHandle<v8::internal::String> result_string =
-      shared ? isolate->factory()->NewSharedStringFromUtf8(array, start, end,
-                                                           utf8_variant)
-             : isolate->factory()->NewStringFromUtf8(array, start, end,
-                                                     utf8_variant);
-  if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
+      isolate->factory()->NewStringFromUtf8(array, start, end, config);
+  if (config.variant() == unibrow::Utf8Variant::kUtf8NoTrap) {
     // If the input was invalid, then the decoder has failed silently, and
     // the string.new_utf8_array_try instruction should return null.
     if (result_string.is_null() && !isolate->has_exception()) {
@@ -2352,7 +2340,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(5, args.length());
   HandleScope scope(isolate);
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
       TrustedCast<WasmTrustedInstanceData>(args[0]);
@@ -2360,6 +2348,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
   double offset_double = args.number_value_at(2);
   uintptr_t offset = static_cast<uintptr_t>(offset_double);
   uint32_t size_in_codeunits = NumberToUint32(args[3]);
+  UnicodeConfig config(args.positive_smi_value_at(4));
 
   uint64_t mem_size = trusted_instance_data->memory_size(memory);
   if (size_in_codeunits > kMaxUInt32 / 2 ||
@@ -2373,7 +2362,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
   const uint8_t* bytes = trusted_instance_data->memory_base(memory) + offset;
   const base::uc16* codeunits = reinterpret_cast<const base::uc16*>(bytes);
   RETURN_RESULT_OR_TRAP(isolate->factory()->NewStringFromTwoByteLittleEndian(
-      {codeunits, size_in_codeunits}));
+      {codeunits, size_in_codeunits}, config));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16Array) {
@@ -2382,11 +2371,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16Array) {
   DirectHandle<WasmArray> array(Cast<WasmArray>(args[0]), isolate);
   uint32_t start = NumberToUint32(args[1]);
   uint32_t end = NumberToUint32(args[2]);
-  int shared = args.number_value_at(3);
+  UnicodeConfig config(args.positive_smi_value_at(3));
 
   RETURN_RESULT_OR_TRAP(
-      shared ? isolate->factory()->NewSharedStringFromUtf16(array, start, end)
-             : isolate->factory()->NewStringFromUtf16(array, start, end));
+      isolate->factory()->NewStringFromUtf16(array, start, end, config));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmSubstring) {
@@ -2680,6 +2668,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
   DirectHandle<String> string(Cast<String>(args[0]), isolate);
   int32_t shared = args.smi_value_at(1);
   uint32_t length = MeasureWtf8(isolate, string);
+  constexpr int kElemSize = wasm::kWasmI8.value_kind_size();
+  if (length > static_cast<uint32_t>(WasmArray::MaxLength(kElemSize))) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapArrayTooLarge);
+  }
   wasm::WasmValue initial_value(int8_t{0});
   Tagged<WeakFixedArray> rtts = isolate->heap()->wasm_canonical_rtts();
   // This function can only get called from Wasm code, so we can safely assume
@@ -2974,15 +2966,16 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   stack->jmpbuf()->pc = wrapper->code()->instruction_start();
   trusted_instance_data->native_module()->RegisterStackEntryWrapper(
       std::move(wrapper));
-  stack->set_func_ref(*func_ref);
   stack->set_param_types(sig->parameters());
   stack->set_signature_id(sig->index());
-  wasm::StackMemory* stack_ptr = stack.get();
-  isolate->wasm_stacks().emplace_back(std::move(stack));
   DirectHandle<WasmContinuationObject> cont =
       isolate->factory()->NewWasmContinuationObject(stack_obj);
-  stack_ptr->set_current_continuation(*cont);
-  stack_ptr->set_stack_obj(*stack_obj);
+  // Set the references after the heap allocation, so that they are not
+  // immediately stale from a potential GC.
+  stack->set_func_ref(*func_ref);
+  stack->set_current_continuation(*cont);
+  stack->set_stack_obj(*stack_obj);
+  isolate->wasm_stacks().emplace_back(std::move(stack));
   return *cont;
 }
 

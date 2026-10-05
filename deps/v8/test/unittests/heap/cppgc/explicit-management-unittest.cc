@@ -139,6 +139,14 @@ TEST_F(ExplicitManagementTest, GrowAtLAB) {
             header.ObjectSize());
 }
 
+TEST_F(ExplicitManagementTest, GrowPastLargeObjectThreshold) {
+  auto* o =
+      MakeGarbageCollected<DynamicallySized>(GetHeap()->GetAllocationHandle());
+  auto& header = HeapObjectHeader::FromObject(o);
+  ASSERT_TRUE(!header.IsLargeObject());
+  EXPECT_FALSE(subtle::Resize(*o, AdditionalBytes(kLargeObjectSizeThreshold)));
+}
+
 TEST_F(ExplicitManagementTest, GrowShrinkAtLAB) {
   auto* o =
       MakeGarbageCollected<DynamicallySized>(GetHeap()->GetAllocationHandle());

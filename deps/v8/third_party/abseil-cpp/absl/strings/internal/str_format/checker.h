@@ -16,11 +16,14 @@
 #define ABSL_STRINGS_INTERNAL_STR_FORMAT_CHECKER_H_
 
 #include <algorithm>
+#include <cstddef>
 
 #include "absl/base/attributes.h"
+#include "absl/base/const_init.h"
 #include "absl/strings/internal/str_format/arg.h"
 #include "absl/strings/internal/str_format/constexpr_parser.h"
 #include "absl/strings/internal/str_format/extension.h"
+#include "absl/strings/string_view.h"
 
 // Compile time check support for entry points.
 

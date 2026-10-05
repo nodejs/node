@@ -1545,375 +1545,62 @@ void InstructionSelector::VisitUnalignedStore(OpIndex node) { UNREACHABLE(); }
 
 namespace turboshaft {
 
-class CompareSequence {
- public:
-  void InitialCompare(OpIndex op, OpIndex l, OpIndex r,
-                      RegisterRepresentation rep) {
-    DCHECK(!HasCompare());
-    cmp_ = op;
-    left_ = l;
-    right_ = r;
-    opcode_ = GetOpcode(rep);
-  }
-  bool HasCompare() const { return cmp_.valid(); }
-  OpIndex cmp() const { return cmp_; }
-  OpIndex left() const { return left_; }
-  OpIndex right() const { return right_; }
-  InstructionCode opcode() const { return opcode_; }
-  uint32_t num_ccmps() const { return num_ccmps_; }
-  FlagsContinuation::compare_chain_t& ccmps() { return ccmps_; }
-  void AddConditionalCompare(RegisterRepresentation rep,
-                             FlagsCondition ccmp_condition,
-                             FlagsCondition default_flags, OpIndex ccmp_lhs,
-                             OpIndex ccmp_rhs) {
-    InstructionCode code = GetOpcode(rep);
-    ccmps_.at(num_ccmps_) = FlagsContinuation::ConditionalCompare{
-        code, ccmp_condition, default_flags, ccmp_lhs, ccmp_rhs};
-    ++num_ccmps_;
-  }
-  bool IsFloatCmp() const {
-    return opcode() == kArm64Float32Cmp || opcode() == kArm64Float64Cmp;
-  }
+using compare_chain::CompareChainNode;
+using compare_chain::CompareSequence;
 
- private:
-  InstructionCode GetOpcode(RegisterRepresentation rep) const {
-    switch (rep.MapTaggedToWord().value()) {
-      case RegisterRepresentation::Word32():
-        return kArm64Cmp32;
-      case RegisterRepresentation::Word64():
-        return kArm64Cmp;
-      case RegisterRepresentation::Float32():
-        return kArm64Float32Cmp;
-      case RegisterRepresentation::Float64():
-        return kArm64Float64Cmp;
-      default:
-        UNREACHABLE();
-    }
+static InstructionCode Arm64GetCmpOpcode(RegisterRepresentation rep,
+                                         bool is_test) {
+  DCHECK(!is_test);  // ARM64 doesn't use TEST pattern in compare chains.
+  switch (rep.MapTaggedToWord().value()) {
+    case RegisterRepresentation::Word32():
+      return kArm64Cmp32;
+    case RegisterRepresentation::Word64():
+      return kArm64Cmp;
+    case RegisterRepresentation::Float32():
+      return kArm64Float32Cmp;
+    case RegisterRepresentation::Float64():
+      return kArm64Float64Cmp;
+    default:
+      UNREACHABLE();
   }
-
-  OpIndex cmp_;
-  OpIndex left_;
-  OpIndex right_;
-  InstructionCode opcode_;
-  FlagsContinuation::compare_chain_t ccmps_;
-  uint32_t num_ccmps_ = 0;
-};
-
-class CompareChainNode final : public ZoneObject {
- public:
-  enum class NodeKind : uint8_t { kFlagSetting, kLogicalCombine };
-
-  explicit CompareChainNode(OpIndex n, FlagsCondition condition)
-      : node_kind_(NodeKind::kFlagSetting),
-        user_condition_(condition),
-        node_(n) {}
-
-  explicit CompareChainNode(OpIndex n, CompareChainNode* l, CompareChainNode* r)
-      : node_kind_(NodeKind::kLogicalCombine), node_(n), lhs_(l), rhs_(r) {
-    // Canonicalise the chain with cmps on the right.
-    if (lhs_->IsFlagSetting() && !rhs_->IsFlagSetting()) {
-      std::swap(lhs_, rhs_);
-    }
-  }
-  void SetCondition(FlagsCondition condition) {
-    DCHECK(IsLogicalCombine());
-    user_condition_ = condition;
-    if (requires_negation_) {
-      NegateFlags();
-    }
-  }
-  void MarkRequiresNegation() {
-    if (IsFlagSetting()) {
-      NegateFlags();
-    } else {
-      requires_negation_ = !requires_negation_;
-    }
-  }
-  void NegateFlags() {
-    user_condition_ = NegateFlagsCondition(user_condition_);
-    requires_negation_ = false;
-  }
-  bool IsLegalFirstCombine() const {
-    DCHECK(IsLogicalCombine());
-    // We need two cmps feeding the first logic op.
-    return lhs_->IsFlagSetting() && rhs_->IsFlagSetting();
-  }
-  bool IsFlagSetting() const { return node_kind_ == NodeKind::kFlagSetting; }
-  bool IsLogicalCombine() const {
-    return node_kind_ == NodeKind::kLogicalCombine;
-  }
-  OpIndex node() const { return node_; }
-  FlagsCondition user_condition() const { return user_condition_; }
-  CompareChainNode* lhs() const {
-    DCHECK(IsLogicalCombine());
-    return lhs_;
-  }
-  CompareChainNode* rhs() const {
-    DCHECK(IsLogicalCombine());
-    return rhs_;
-  }
-
- private:
-  NodeKind node_kind_;
-  FlagsCondition user_condition_;
-  bool requires_negation_ = false;
-  OpIndex node_;
-  CompareChainNode* lhs_ = nullptr;
-  CompareChainNode* rhs_ = nullptr;
-};
-
-static std::optional<FlagsCondition> GetFlagsCondition(
-    OpIndex node, InstructionSelector* selector) {
-  if (const ComparisonOp* comparison =
-          selector->Get(node).TryCast<ComparisonOp>()) {
-    if (comparison->rep == RegisterRepresentation::Word32() ||
-        comparison->rep == RegisterRepresentation::Word64() ||
-        comparison->rep == RegisterRepresentation::Tagged()) {
-      switch (comparison->kind) {
-        case ComparisonOp::Kind::kEqual:
-          return FlagsCondition::kEqual;
-        case ComparisonOp::Kind::kSignedLessThan:
-          return FlagsCondition::kSignedLessThan;
-        case ComparisonOp::Kind::kSignedLessThanOrEqual:
-          return FlagsCondition::kSignedLessThanOrEqual;
-        case ComparisonOp::Kind::kUnsignedLessThan:
-          return FlagsCondition::kUnsignedLessThan;
-        case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
-          return FlagsCondition::kUnsignedLessThanOrEqual;
-        default:
-          UNREACHABLE();
-      }
-    } else if (comparison->rep == RegisterRepresentation::Float32() ||
-               comparison->rep == RegisterRepresentation::Float64()) {
-      switch (comparison->kind) {
-        case ComparisonOp::Kind::kEqual:
-          return FlagsCondition::kEqual;
-        case ComparisonOp::Kind::kSignedLessThan:
-          return FlagsCondition::kFloatLessThan;
-        case ComparisonOp::Kind::kSignedLessThanOrEqual:
-          return FlagsCondition::kFloatLessThanOrEqual;
-        default:
-          UNREACHABLE();
-      }
-    }
-  }
-  return std::nullopt;
 }
 
-// Search through AND, OR and comparisons.
-// To make life a little easier, we currently don't handle combining two logic
-// operations. There are restrictions on what logical combinations can be
-// performed with ccmp, so this implementation builds a ccmp chain from the LHS
-// of the tree while combining one more compare from the RHS at each step. So,
-// currently, if we discover a pattern like this:
-//   logic(logic(cmp, cmp), logic(cmp, cmp))
-// The search will fail from the outermost logic operation, but it will succeed
-// for the two inner operations. This will result in, suboptimal, codegen:
-//   cmp
-//   ccmp
-//   cset x
-//   cmp
-//   ccmp
-//   cset y
-//   logic x, y
-static std::optional<CompareChainNode*> FindCompareChain(
-    OpIndex user, OpIndex node, InstructionSelector* selector, Zone* zone,
-    ZoneVector<CompareChainNode*>& nodes) {
-  const Operation& op = selector->Get(node);
-  if (op.Is<Opmask::kWord32BitwiseAnd>() || op.Is<Opmask::kWord32BitwiseOr>()) {
-    const WordBinopOp& binop = op.Cast<WordBinopOp>();
-    auto maybe_lhs =
-        FindCompareChain(node, binop.left(), selector, zone, nodes);
-    auto maybe_rhs =
-        FindCompareChain(node, binop.right(), selector, zone, nodes);
-    if (maybe_lhs.has_value() && maybe_rhs.has_value()) {
-      CompareChainNode* lhs = maybe_lhs.value();
-      CompareChainNode* rhs = maybe_rhs.value();
-      // Ensure we don't try to combine a logic operation with two logic inputs.
-      if (lhs->IsFlagSetting() || rhs->IsFlagSetting()) {
-        nodes.push_back(std::move(zone->New<CompareChainNode>(node, lhs, rhs)));
-        return nodes.back();
-      }
-    }
-    // Ensure we remove any valid sub-trees that now cannot be used.
-    nodes.clear();
-    return std::nullopt;
-  } else if (user.valid() && selector->CanCover(user, node)) {
-    std::optional<FlagsCondition> user_condition =
-        GetFlagsCondition(node, selector);
-    if (!user_condition.has_value()) {
-      return std::nullopt;
-    }
-    const ComparisonOp& comparison = selector->Cast<ComparisonOp>(node);
-    if (comparison.kind == ComparisonOp::Kind::kEqual &&
-        selector->MatchIntegralZero(comparison.right())) {
-      auto maybe_negated =
-          FindCompareChain(node, comparison.left(), selector, zone, nodes);
-      if (maybe_negated.has_value()) {
-        CompareChainNode* negated = maybe_negated.value();
-        negated->MarkRequiresNegation();
-        return negated;
-      }
-    }
-    return zone->New<CompareChainNode>(node, user_condition.value());
-  }
-  return std::nullopt;
+static bool IsFloatCmp(InstructionCode opcode) {
+  return opcode == kArm64Float32Cmp || opcode == kArm64Float64Cmp;
 }
 
-// Overview -------------------------------------------------------------------
-//
-// A compare operation will generate a 'user condition', which is the
-// FlagCondition of the opcode. For this algorithm, we generate the default
-// flags from the LHS of the logic op, while the RHS is used to predicate the
-// new ccmp. Depending on the logical user, those conditions are either used
-// as-is or negated:
-// > For OR, the generated ccmp will negate the LHS condition for its predicate
-//   while the default flags are taken from the RHS.
-// > For AND, the generated ccmp will take the LHS condition for its predicate
-//   while the default flags are a negation of the RHS.
-//
-// The new ccmp will now generate a user condition of its own, and this is
-// always forwarded from the RHS.
-//
-// Chaining compares, including with OR, needs to be equivalent to combining
-// all the results with AND, and NOT.
-//
-// AND Example ----------------------------------------------------------------
-//
-//  cmpA      cmpB
-//   |         |
-// condA     condB
-//   |         |
-//   --- AND ---
-//
-// As the AND becomes the ccmp, it is predicated on condA and the cset is
-// predicated on condB. The user of the ccmp is always predicated on the
-// condition from the RHS of the logic operation. The default flags are
-// not(condB) so cset only produces one when both condA and condB are true:
-//   cmpA
-//   ccmpB not(condB), condA
-//   cset condB
-//
-// OR Example -----------------------------------------------------------------
-//
-//  cmpA      cmpB
-//   |         |
-// condA     condB
-//   |         |
-//   --- OR  ---
-//
-//                    cmpA          cmpB
-//   equivalent ->     |             |
-//                    not(condA)  not(condB)
-//                     |             |
-//                     ----- AND -----
-//                            |
-//                           NOT
-//
-// In this case, the input conditions to the AND (the ccmp) have been negated
-// so the user condition and default flags have been negated compared to the
-// previous example. The cset still uses condB because it is negated twice:
-//   cmpA
-//   ccmpB condB, not(condA)
-//   cset condB
-//
-// Combining AND and OR -------------------------------------------------------
-//
-//  cmpA      cmpB    cmpC
-//   |         |       |
-// condA     condB    condC
-//   |         |       |
-//   --- AND ---       |
-//        |            |
-//       OR -----------
-//
-//  equivalent -> cmpA      cmpB      cmpC
-//                 |         |         |
-//               condA     condB  not(condC)
-//                 |         |         |
-//                 --- AND ---         |
-//                      |              |
-//                     NOT             |
-//                      |              |
-//                     AND -------------
-//                      |
-//                     NOT
-//
-// For this example the 'user condition', coming out, of the first ccmp is
-// condB but it is negated as the input predicate for the next ccmp as that
-// one is performing an OR:
-//   cmpA
-//   ccmpB not(condB), condA
-//   ccmpC condC, not(condB)
-//   cset condC
-//
-void CombineFlagSettingOps(CompareChainNode* logic_node,
-                           InstructionSelector* selector,
-                           CompareSequence* sequence) {
-  const CompareChainNode* lhs = logic_node->lhs();
-  const CompareChainNode* rhs = logic_node->rhs();
-
+// ARM64-specific: ccmp has a much smaller immediate range (5-bit) than cmp
+// (12-bit), so swap the initial cmp/ccmp pair if the ccmp operand's immediate
+// could be used by cmp but not by ccmp.
+static void Arm64AdjustInitialOrder(const CompareChainNode*& lhs,
+                                    const CompareChainNode*& rhs,
+                                    InstructionSelector* selector) {
   Arm64OperandGenerator g(selector);
-  if (!sequence->HasCompare()) {
-    // This is the beginning of the conditional compare chain.
-    DCHECK(lhs->IsFlagSetting());
-    DCHECK(rhs->IsFlagSetting());
-
-    {
-      // ccmp has a much smaller immediate range than cmp, so swap the
-      // operations if possible.
-      OpIndex cmp = lhs->node();
-      OpIndex ccmp = rhs->node();
-      const Operation& cmp_op = selector->Get(cmp);
-      const Operation& ccmp_op = selector->Get(ccmp);
-      OpIndex cmp_right = cmp_op.input(1);
-      OpIndex ccmp_right = ccmp_op.input(1);
-      if (g.CanBeImmediate(cmp_right, kConditionalCompareImm) &&
-          !g.CanBeImmediate(ccmp_right, kConditionalCompareImm)) {
-        // If the ccmp could use the cmp immediate, swap them.
-        std::swap(lhs, rhs);
-      } else if (g.CanBeImmediate(ccmp_right, kArithmeticImm) &&
-                 !g.CanBeImmediate(ccmp_right, kConditionalCompareImm)) {
-        // If the ccmp can't use its immediate, but a cmp could, swap them.
-        std::swap(lhs, rhs);
-      }
-    }
-    OpIndex cmp = lhs->node();
-    const ComparisonOp& cmp_op = selector->Cast<ComparisonOp>(cmp);
-
-    // Initialize chain with the compare which will hold the continuation.
-    sequence->InitialCompare(cmp, cmp_op.left(), cmp_op.right(), cmp_op.rep);
+  OpIndex cmp_right = selector->Get(lhs->node()).input(1);
+  OpIndex ccmp_right = selector->Get(rhs->node()).input(1);
+  if (g.CanBeImmediate(cmp_right, kConditionalCompareImm) &&
+      !g.CanBeImmediate(ccmp_right, kConditionalCompareImm)) {
+    // If the ccmp could use the cmp immediate, swap them.
+    std::swap(lhs, rhs);
+  } else if (g.CanBeImmediate(ccmp_right, kArithmeticImm) &&
+             !g.CanBeImmediate(ccmp_right, kConditionalCompareImm)) {
+    // If the ccmp can't use its immediate, but a cmp could, swap them.
+    std::swap(lhs, rhs);
   }
+}
 
-  bool is_logical_or =
-      selector->Get(logic_node->node()).Is<Opmask::kWord32BitwiseOr>();
-  FlagsCondition ccmp_condition =
-      is_logical_or ? NegateFlagsCondition(lhs->user_condition())
-                    : lhs->user_condition();
-  FlagsCondition default_flags =
-      is_logical_or ? rhs->user_condition()
-                    : NegateFlagsCondition(rhs->user_condition());
-
-  // We canonicalise the chain so that the rhs is always a cmp, whereas lhs
-  // will either be the initial cmp or the previous logic, now ccmp, op and
-  // only provides ccmp_condition.
-  FlagsCondition user_condition = rhs->user_condition();
-  OpIndex ccmp = rhs->node();
-  const ComparisonOp& ccmp_op = selector->Cast<ComparisonOp>(ccmp);
-  OpIndex ccmp_lhs = ccmp_op.left();
-  OpIndex ccmp_rhs = ccmp_op.right();
-
-  // Switch ccmp lhs/rhs if lhs is a small immediate.
+// ARM64-specific: swap ccmp lhs/rhs if lhs is a small immediate so it can
+// be encoded as an immediate operand.
+static void Arm64AdjustCcmpOperands(OpIndex& ccmp_lhs, OpIndex& ccmp_rhs,
+                                    FlagsCondition& user_condition,
+                                    FlagsCondition& default_flags,
+                                    InstructionSelector* selector) {
+  Arm64OperandGenerator g(selector);
   if (g.CanBeImmediate(ccmp_lhs, kConditionalCompareImm)) {
     user_condition = CommuteFlagsCondition(user_condition);
     default_flags = CommuteFlagsCondition(default_flags);
     std::swap(ccmp_lhs, ccmp_rhs);
   }
-
-  sequence->AddConditionalCompare(ccmp_op.rep, ccmp_condition, default_flags,
-                                  ccmp_lhs, ccmp_rhs);
-  // Ensure the user_condition is kept up-to-date for the next ccmp/cset.
-  logic_node->SetCondition(user_condition);
 }
 
 static void VisitCompareChain(InstructionSelector* selector, OpIndex left_node,
@@ -1972,44 +1659,15 @@ static bool TryMatchConditionalCompareChain(InstructionSelector* selector,
   if (!cont->IsBranch() && !cont->IsTrap()) return false;
   DCHECK(cont->condition() == kNotEqual || cont->condition() == kEqual);
 
-  // Instead of:
-  //  cmp x0, y0
-  //  cset cc0
-  //  cmp x1, y1
-  //  cset cc1
-  //  and/orr
-  // Try to merge logical combinations of flags into:
-  //  cmp x0, y0
-  //  ccmp x1, y1 ..
-  //  cset ..
-  // So, for AND:
-  //  (cset cc1 (ccmp x1 y1 !cc1 cc0 (cmp x0, y0)))
-  // and for ORR:
-  //  (cset cc1 (ccmp x1 y1 cc1 !cc0 (cmp x0, y0))
-
-  // Look for a potential chain.
-  ZoneVector<CompareChainNode*> logic_nodes(zone);
-  auto root =
-      FindCompareChain(OpIndex::Invalid(), node, selector, zone, logic_nodes);
-  if (!root.has_value()) return false;
-
-  if (logic_nodes.size() > FlagsContinuation::kMaxCompareChainSize) {
-    return false;
-  }
-  if (!logic_nodes.front()->IsLegalFirstCombine()) {
-    return false;
-  }
-
   CompareSequence sequence;
-  for (CompareChainNode* logic_node : logic_nodes) {
-    CombineFlagSettingOps(logic_node, selector, &sequence);
+  FlagsCondition condition;
+  if (!compare_chain::TryBuildConditionalCompareChain(
+          selector, zone, node, cont, &sequence, &condition, Arm64GetCmpOpcode,
+          /*supports_float_cmp=*/true, /*supports_test_pattern=*/false,
+          Arm64AdjustInitialOrder, Arm64AdjustCcmpOperands)) {
+    return false;
   }
-  DCHECK_LE(sequence.num_ccmps(), FlagsContinuation::kMaxCompareChainSize);
 
-  FlagsCondition final_cond = logic_nodes.back()->user_condition();
-  FlagsCondition condition = cont->condition() == kNotEqual
-                                 ? final_cond
-                                 : NegateFlagsCondition(final_cond);
   FlagsContinuation new_cont =
       cont->IsBranch() ? FlagsContinuation::ForConditionalBranch(
                              sequence.ccmps(), sequence.num_ccmps(), condition,
@@ -2019,7 +1677,7 @@ static bool TryMatchConditionalCompareChain(InstructionSelector* selector,
                              cont->trap_id());
 
   ImmediateMode imm_mode =
-      sequence.IsFloatCmp() ? kNoImmediate : kArithmeticImm;
+      IsFloatCmp(sequence.opcode()) ? kNoImmediate : kArithmeticImm;
   VisitCompareChain(selector, sequence.left(), sequence.right(),
                     selector->Get(sequence.cmp()).Cast<ComparisonOp>().rep,
                     sequence.opcode(), imm_mode, &new_cont);
@@ -2028,6 +1686,33 @@ static bool TryMatchConditionalCompareChain(InstructionSelector* selector,
 }
 
 }  // end namespace turboshaft
+
+// Per-arch ccmp cascade hooks (driven by TryCascadeCcmpFuseOrEmit in
+// instruction-selector.cc). ccmp is native on ARM64, so always available.
+bool InstructionSelector::SupportsCcmpBranchCascade() const { return true; }
+
+bool InstructionSelector::CcmpCascadeConstantOk(OpIndex node,
+                                                bool is_ccmp_operand) {
+  // Gate on the range each operand is actually emitted with: ccmp's immediate
+  // range is much narrower than cmp's. A constant in between would be emitted
+  // as a register by VisitCompareChain, but the now-dead fused block never
+  // materializes it (use without a definition).
+  Arm64OperandGenerator g(this);
+  return g.CanBeImmediate(
+      node, is_ccmp_operand ? kConditionalCompareImm : kArithmeticImm);
+}
+
+InstructionCode InstructionSelector::CcmpCmpOpcode(
+    RegisterRepresentation rep) const {
+  return Arm64GetCmpOpcode(rep, /*is_test=*/false);
+}
+
+void InstructionSelector::EmitCcmpCompareChain(
+    compare_chain::CompareSequence& sequence, RegisterRepresentation rep,
+    FlagsContinuation* cont) {
+  VisitCompareChain(this, sequence.left(), sequence.right(), rep,
+                    sequence.opcode(), kArithmeticImm, cont);
+}
 
 static void VisitLogical(InstructionSelector* selector, Zone* zone,
                          OpIndex node, WordRepresentation rep,
@@ -2378,6 +2063,15 @@ void InstructionSelector::VisitWord64Shl(OpIndex node) {
       Emit(kArm64Lsl, g.DefineAsRegister(node),
            g.UseRegister(lhs.Cast<ChangeOp>().input()),
            g.UseImmediate64(shift_by));
+      return;
+    }
+    if (base::IsInRange(shift_by, 1, 31) && CanCover(node, shift_op.left())) {
+      // A bitfield insert (sbfiz/ubfiz) sign/zero-extends the low 32 bits of
+      // the input and shifts them into place in a single instruction.
+      Emit(lhs.Is<Opmask::kChangeInt32ToInt64>() ? kArm64Sbfiz : kArm64Ubfiz,
+           g.DefineAsRegister(node),
+           g.UseRegister(lhs.Cast<ChangeOp>().input()),
+           g.UseImmediate(static_cast<int32_t>(shift_by)), g.UseImmediate(32));
       return;
     }
   }
@@ -2953,6 +2647,10 @@ void InstructionSelector::VisitUint64Add128(OpIndex node) {
 
 void InstructionSelector::VisitUint64Sub128(OpIndex node) {
   VisitWideAddSub(this, node, false);
+}
+
+void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
+  UNIMPLEMENTED();
 }
 
 #if V8_ENABLE_SIMD128
@@ -3647,10 +3345,9 @@ bool TryEmitCbzOrTbz(InstructionSelector* selector, OpIndex node,
     case kSignedGreaterThanOrEqual: {
       // Here we handle sign tests, aka. comparisons with zero.
       if (value != 0) return false;
-      // We don't generate TBZ/TBNZ for deoptimisations, as they have a
-      // shorter range than conditional branches and generating them for
-      // deoptimisations results in more veneers.
-      if (cont->IsDeoptimize()) return false;
+      // Deoptimisations are handled like branches: TBZ/TBNZ have a shorter
+      // range than conditional branches, but deopt exits normally land
+      // within it, and the assembler veneers the rare out-of-range case.
       Arm64OperandGenerator g(selector);
       cont->Overwrite(MapForTbz(cond));
 
@@ -3682,7 +3379,8 @@ bool TryEmitCbzOrTbz(InstructionSelector* selector, OpIndex node,
         // Emit a tbz/tbnz if we are comparing with a single-bit mask:
         //   Branch(WordEqual(WordAnd(x, 1 << N), 1 << N), true, false)
         uint64_t actual_value;
-        if (cont->IsBranch() && base::bits::IsPowerOfTwo(value) &&
+        if ((cont->IsBranch() || cont->IsDeoptimize()) &&
+            base::bits::IsPowerOfTwo(value) &&
             selector->MatchUnsignedIntegralConstant(bitwise_and->right(),
                                                     &actual_value) &&
             actual_value == value && selector->CanCover(user, node)) {
@@ -4274,13 +3972,12 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
 
     if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchAtomicStoreSkippedWriteBarrier;
-      code |= RecordWriteModeField::encode(RecordWriteMode::kValueIsAny);
       temps[temp_count++] = g.TempRegister();
     } else {
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
       code = kArchAtomicStoreWithWriteBarrier;
-      code |= RecordWriteModeField::encode(record_write_mode);
+      code |= AtomicStoreRecordWriteModeField::encode(record_write_mode);
     }
   } else {
     switch (rep) {
@@ -4366,10 +4063,12 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
   ConsumeEqualZero(&user, &value, cont);
 
   // Remove Word64->Word32 truncation.
+  bool needs_truncation = false;
   if (V<Word64> value64;
       MatchTruncateWord64ToWord32(value, &value64) && CanCover(user, value)) {
     user = value;
     value = value64;
+    needs_truncation = true;
   }
 
   // Try to match bit checks to create TBZ/TBNZ instructions.
@@ -4377,9 +4076,12 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
   // If there are several uses of the given operation, we will generate a TBZ
   // instruction for each. This is useful even if there are other uses of the
   // arithmetic result, because it moves dependencies further back.
+  // Deoptimizations take this path too: their exits are laid out at the end
+  // of the code and are normally within TBZ/TBNZ range; when a function
+  // outgrows it, the assembler routes the branch through a veneer.
   const Operation& value_op = Get(value);
 
-  if (cont->IsBranch()) {
+  if (cont->IsBranch() || cont->IsDeoptimize()) {
     if (value_op.Is<Opmask::kWord64Equal>()) {
       const ComparisonOp& equal = value_op.Cast<ComparisonOp>();
       if (MatchIntegralZero(equal.right())) {
@@ -4404,12 +4106,13 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
 
     if (const WordBinopOp* value_binop = value_op.TryCast<WordBinopOp>()) {
       TestAndBranchMatcherTurboshaft matcher(this, *value_binop);
-      if (matcher.Matches()) {
+      if (matcher.Matches() && (!needs_truncation || matcher.bit() < 32)) {
         // If the mask has only one bit set, we can use tbz/tbnz.
         DCHECK((cont->condition() == kEqual) ||
                (cont->condition() == kNotEqual));
         InstructionCode opcode = value_binop->rep.MapTaggedToWord() ==
-                                         RegisterRepresentation::Word32()
+                                             RegisterRepresentation::Word32() ||
+                                         needs_truncation
                                      ? kArm64TestAndBranch32
                                      : kArm64TestAndBranch;
         Arm64OperandGenerator gen(this);
@@ -4537,7 +4240,10 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
       }
       return VisitWordCompare(this, value, kArm64Tst32, cont, kLogical32Imm);
     } else if (value_op.Is<Opmask::kWord64BitwiseAnd>()) {
-      return VisitWordCompare(this, value, kArm64Tst, cont, kLogical64Imm);
+      InstructionCode opcode = needs_truncation ? kArm64Tst32 : kArm64Tst;
+      ImmediateMode immediate_mode =
+          needs_truncation ? kLogical32Imm : kLogical64Imm;
+      return VisitWordCompare(this, value, opcode, cont, immediate_mode);
     } else if (value_op.Is<Opmask::kWord32BitwiseOr>()) {
       if (TryMatchConditionalCompareChain(this, zone(), value, cont)) {
         return;
@@ -4554,6 +4260,12 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
     Emit(cont->Encode(kArm64CompareAndBranch32), g.NoOutput(),
          g.UseRegister(value), g.Label(cont->true_block()),
          g.Label(cont->false_block()));
+  } else if (cont->IsDeoptimize()) {
+    // Deoptimization checks compare-and-branch too, saving the tst:
+    // their exits are laid out at the end of the code, within cbz/cbnz
+    // range, and AssembleArchDeoptBranch assembles this pseudo
+    // instruction exactly as AssembleArchBranch does.
+    EmitWithContinuation(kArm64CompareAndBranch32, g.UseRegister(value), cont);
   } else {
     VisitCompare(this, cont->Encode(kArm64Tst32), g.UseRegister(value),
                  g.UseRegister(value), cont);
@@ -4637,12 +4349,12 @@ void InstructionSelector::VisitWord32Equal(OpIndex node) {
     Arm64OperandGenerator g(this);
     const RootsTable& roots_table = isolate()->roots_table();
     RootIndex root_index;
-    Handle<HeapObject> right;
+    Handle<HeapObject> heap_object;
     // HeapConstants and CompressedHeapConstants can be treated the same when
     // using them as an input to a 32-bit comparison. Check whether either is
     // present.
-    if (MatchHeapConstant(node, &right) && !right.is_null() &&
-        roots_table.IsRootHandle(right, &root_index)) {
+    if (MatchHeapConstant(right, &heap_object) && !heap_object.is_null() &&
+        roots_table.IsRootHandle(heap_object, &root_index)) {
       if (RootsTable::IsReadOnly(root_index)) {
         Tagged_t ptr =
             MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --js-sum-precise
-
 (function TestSetIteratorNotClearedOnError() {
   let s = new Set([1, "a", 3]);
   let it = s[Symbol.iterator]();

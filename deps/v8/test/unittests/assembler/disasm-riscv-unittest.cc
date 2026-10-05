@@ -658,6 +658,48 @@ TEST_F(DisasmRiscvTest, RV64C) {
   VERIFY_RUN();
 }
 #endif
+#ifdef V8_TARGET_ARCH_RISCV64
+TEST_F(DisasmRiscvTest, Zcb) {
+  SET_UP();
+
+  // Zcb loads (CL format, funct3=100).
+  COMPARE(c_lbu(s1, a0, 3), "00008164       lbu       s1, 3(a0)");
+  COMPARE(c_lbu(a0, a1, 1), "000081c8       lbu       a0, 1(a1)");
+  COMPARE(c_lhu(s1, a0, 2), "00008524       lhu       s1, 2(a0)");
+  COMPARE(c_lhu(a0, a1, 2), "000085a8       lhu       a0, 2(a1)");
+  COMPARE(c_lh(s1, a0, 2), "00008564       lh        s1, 2(a0)");
+  COMPARE(c_lh(a0, a1, 2), "000085e8       lh        a0, 2(a1)");
+
+  // Zcb stores (CS format, funct3=100).
+  COMPARE(c_sb(s1, a0, 3), "00008964       sb        s1, 3(a0)");
+  COMPARE(c_sb(a0, a1, 3), "000089e8       sb        a0, 3(a1)");
+  COMPARE(c_sh(s1, a0, 2), "00008d24       sh        s1, 2(a0)");
+  COMPARE(c_sh(a0, a1, 2), "00008da8       sh        a0, 2(a1)");
+
+  // Zcb multiply (CA format).
+  COMPARE(c_mul(a0, s1), "00009d45       mul       a0, a0, s1");
+  COMPARE(c_mul(s1, a0), "00009cc9       mul       s1, s1, a0");
+
+  // Zcb unary instructions (CU format).
+  COMPARE(c_zext_b(a0), "00009d61       zext.b    a0, a0");
+  COMPARE(c_zext_b(a1), "00009de1       zext.b    a1, a1");
+
+  COMPARE(c_sext_b(a0), "00009d65       sext.b    a0, a0");
+  COMPARE(c_sext_b(a2), "00009e65       sext.b    a2, a2");
+
+  COMPARE(c_zext_h(a0), "00009d69       zext.h    a0, a0");
+  COMPARE(c_zext_h(a3), "00009ee9       zext.h    a3, a3");
+
+  COMPARE(c_sext_h(a0), "00009d6d       sext.h    a0, a0");
+  COMPARE(c_sext_h(a4), "00009f6d       sext.h    a4, a4");
+
+  COMPARE(c_zext_w(a0), "00009d71       zext.w    a0, a0");
+  COMPARE(c_not(a0), "00009d75       not       a0, a0");
+  COMPARE(c_not(a5), "00009ff5       not       a5, a5");
+
+  VERIFY_RUN();
+}
+#endif
 /*
 TEST_F(DisasmRiscvTest,  Previleged) {
   SET_UP();

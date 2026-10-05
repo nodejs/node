@@ -13,7 +13,7 @@
 #include "include/llvm-libc-types/float128.h"
 
 #ifdef LIBC_TYPES_HAS_FLOAT16
-#ifdef LIBC_TYPES_HAS_FLOAT128
+#ifdef LIBC_TYPES_HAS_NATIVE_FLOAT128
 
 #include "shared/libc_common.h"
 #include "src/__support/math/f16subf128.h"
@@ -26,7 +26,7 @@ using math::f16subf128;
 } // namespace shared
 } // namespace LIBC_NAMESPACE_DECL
 
-#endif // LIBC_TYPES_HAS_FLOAT128
+#endif // LIBC_TYPES_HAS_NATIVE_FLOAT128
 #endif // LIBC_TYPES_HAS_FLOAT16
 
 #endif // LLVM_LIBC_SHARED_MATH_F16SUBF128_H

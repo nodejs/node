@@ -8,6 +8,7 @@
 #include "src/builtins/builtins.h"
 #include "src/builtins/superspread.h"
 #include "src/common/message-template.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/messages.h"
@@ -460,7 +461,8 @@ Tagged<Object> BytecodeBudgetInterruptWithStackCheck(Isolate* isolate,
 Tagged<Object> BytecodeBudgetInterrupt(Isolate* isolate, RuntimeArguments& args,
                                        CodeKind code_kind) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK(args.length() == 1 ||
+         (code_kind == CodeKind::MAGLEV && args.length() == 2));
   DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   function->TraceOptimizationStatus("budget from %s",
                                     CodeKindToString(code_kind));
@@ -491,11 +493,36 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt_Sparkplug) {
 }
 
 RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt_Maglev) {
+  DCHECK_EQ(1, args.length());
   return BytecodeBudgetInterrupt(isolate, args, CodeKind::MAGLEV);
 }
 
-RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptWithStackCheck_Maglev) {
-  return BytecodeBudgetInterruptWithStackCheck(isolate, args, CodeKind::MAGLEV);
+RUNTIME_FUNCTION(Runtime_BytecodeBudgetLoopInterrupt_Maglev) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
+  BytecodeOffset osr_offset = BytecodeOffset(args.smi_value_at(1));
+
+  // Check for stack interrupts here so that we can fold the interrupt check
+  // into bytecode budget interrupts.
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed()) {
+    return isolate->StackOverflow();
+  } else if (check.InterruptRequested(
+                 StackGuard::InterruptLevel::kNoHeapWrites)) {
+    Tagged<Object> return_value = isolate->stack_guard()->HandleInterrupts(
+        StackGuard::InterruptLevel::kNoHeapWrites);
+    if (!IsUndefined(return_value)) {
+      return return_value;
+    }
+  }
+
+  if (!osr_offset.IsNone() && isolate->concurrent_recompilation_enabled() &&
+      isolate->stack_guard()->CheckInstallCode()) {
+    isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctionsIfReady(
+        function, osr_offset);
+  }
+  return BytecodeBudgetInterrupt(isolate, args, CodeKind::MAGLEV);
 }
 
 RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {

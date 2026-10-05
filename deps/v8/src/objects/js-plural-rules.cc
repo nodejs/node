@@ -179,12 +179,13 @@ MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
   icu::number::LocalizedNumberFormatter icu_number_formatter =
       settings.locale(icu_locale);
 
-  DirectHandle<Managed<icu::PluralRules>> managed_plural_rules =
-      Managed<icu::PluralRules>::From(isolate, 0, std::move(icu_plural_rules));
+  DirectHandle<CppGCManaged<icu::PluralRules>> managed_plural_rules =
+      CppGCManaged<icu::PluralRules>::Create(isolate, 0,
+                                             std::move(icu_plural_rules));
 
-  DirectHandle<Managed<icu::number::LocalizedNumberFormatter>>
+  DirectHandle<CppGCManaged<icu::number::LocalizedNumberFormatter>>
       managed_number_formatter =
-          Managed<icu::number::LocalizedNumberFormatter>::From(
+          CppGCManaged<icu::number::LocalizedNumberFormatter>::Create(
               isolate, 0,
               std::make_shared<icu::number::LocalizedNumberFormatter>(
                   icu_number_formatter));
@@ -210,11 +211,11 @@ MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
 
 MaybeDirectHandle<String> JSPluralRules::ResolvePlural(
     Isolate* isolate, DirectHandle<JSPluralRules> plural_rules, double number) {
-  Managed<icu::PluralRules>::Ptr icu_plural_rules =
+  CppGCManaged<icu::PluralRules>::Ptr icu_plural_rules =
       plural_rules->icu_plural_rules()->ptr();
   DCHECK_NOT_NULL(icu_plural_rules);
 
-  Managed<icu::number::LocalizedNumberFormatter>::Ptr fmt =
+  CppGCManaged<icu::number::LocalizedNumberFormatter>::Ptr fmt =
       plural_rules->icu_number_formatter()->ptr();
   DCHECK_NOT_NULL(fmt);
 
@@ -233,7 +234,7 @@ MaybeDirectHandle<String> JSPluralRules::ResolvePlural(
 MaybeDirectHandle<String> JSPluralRules::ResolvePluralRange(
     Isolate* isolate, DirectHandle<JSPluralRules> plural_rules, double x,
     double y) {
-  Managed<icu::PluralRules>::Ptr icu_plural_rules =
+  CppGCManaged<icu::PluralRules>::Ptr icu_plural_rules =
       plural_rules->icu_plural_rules()->ptr();
   DCHECK_NOT_NULL(icu_plural_rules);
 
@@ -294,7 +295,7 @@ DirectHandle<JSObject> JSPluralRules::ResolvedOptions(
                                plural_rules->TypeAsString(isolate), "type");
 
   UErrorCode status = U_ZERO_ERROR;
-  Managed<icu::number::LocalizedNumberFormatter>::Ptr icu_number_formatter =
+  CppGCManaged<icu::number::LocalizedNumberFormatter>::Ptr icu_number_formatter =
       plural_rules->icu_number_formatter()->ptr();
   icu::UnicodeString skeleton = icu_number_formatter->toSkeleton(status);
   DCHECK(U_SUCCESS(status));
@@ -336,7 +337,7 @@ DirectHandle<JSObject> JSPluralRules::ResolvedOptions(
   // results of PluralRuleSelect for the selected locale pr.[[Locale]], sorted
   // according to the following order: "zero", "one", "two", "few", "many",
   // "other".
-  Managed<icu::PluralRules>::Ptr icu_plural_rules =
+  CppGCManaged<icu::PluralRules>::Ptr icu_plural_rules =
       plural_rules->icu_plural_rules()->ptr();
   DCHECK_NOT_NULL(icu_plural_rules);
 

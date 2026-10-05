@@ -62,7 +62,7 @@ When the budget is exceeded, V8 calls into the C++ runtime. Each tier has its ow
 
 *   **Ignition**: `Runtime::kBytecodeBudgetInterruptWithStackCheck_Ignition` and `Runtime::kBytecodeBudgetInterrupt_Ignition`.
 *   **Sparkplug**: `Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug` and `Runtime::kBytecodeBudgetInterrupt_Sparkplug`.
-*   **Maglev**: `Runtime::kBytecodeBudgetInterruptWithStackCheck_Maglev` and `Runtime::kBytecodeBudgetInterrupt_Maglev`.
+*   **Maglev**: `Runtime::kBytecodeBudgetLoopInterrupt_Maglev` and `Runtime::kBytecodeBudgetInterrupt_Maglev`.
 
 The "WithStackCheck" variants are typically used at loop back-edges to handle both interrupts (e.g., GC requests, debugging pauses) and stack limit checks simultaneously.
 

@@ -254,7 +254,7 @@ class BytecodeGraphBuilder {
                  std::initializer_list<Node*> args, FeedbackSource source) {
     BuildCall(receiver_mode, args.begin(), args.size(), source);
   }
-  void BuildUnaryOp(const Operator* op);
+  void BuildUnaryOpWithEmbeddedFeedback(const Operator* op);
   void BuildCompareOp(const Operator* op);
   void BuildCompareOpWithEmbeddedFeedback(const Operator* op);
   void BuildBinaryOpWithEmbeddedFeedback(const Operator* op);
@@ -267,8 +267,10 @@ class BytecodeGraphBuilder {
   // Optional early lowering to the simplified operator level.  Note that
   // the result has already been wired into the environment just like
   // any other invocation of {NewNode} would do.
-  JSTypeHintLowering::LoweringResult TryBuildSimplifiedUnaryOp(
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedTypeOf(
       const Operator* op, Node* operand, FeedbackSlot slot);
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedUnaryOp(
+      const Operator* op, Node* operand);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedBinaryOp(
       const Operator* op, Node* left, Node* right, FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedBinaryOp(
@@ -540,7 +542,6 @@ class BytecodeGraphBuilder {
   static constexpr int kBinaryOperationHintIndex = 1;
   static constexpr int kCompareOperationHintIndex = 1;
   static constexpr int kCountOperationHintIndex = 0;
-  static constexpr int kUnaryOperationHintIndex = 0;
 };
 
 // The abstract execution environment simulates the content of the interpreter
@@ -1374,6 +1375,7 @@ void BytecodeGraphBuilder::BuildFunctionEntryStackCheck() {
 }
 
 void BytecodeGraphBuilder::BuildIterationBodyStackCheck() {
+  if (V8_UNLIKELY(v8_flags.disable_loop_stack_checks)) return;
   Node* node =
       NewNode(javascript()->StackCheck(StackCheckKind::kJSIterationBody));
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
@@ -3121,15 +3123,14 @@ void BytecodeGraphBuilder::VisitThrowIfNotSuperConstructor() {
                               constructor);
 }
 
-void BytecodeGraphBuilder::BuildUnaryOp(const Operator* op) {
-  DCHECK(JSOperator::IsUnaryWithFeedback(op->opcode()));
+void BytecodeGraphBuilder::BuildUnaryOpWithEmbeddedFeedback(
+    const Operator* op) {
+  DCHECK(JSOperator::IsUnaryWithEmbeddedFeedback(op->opcode()));
   PrepareEagerCheckpoint();
   Node* operand = environment()->LookupAccumulator();
 
-  FeedbackSlot slot =
-      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex);
   JSTypeHintLowering::LoweringResult lowering =
-      TryBuildSimplifiedUnaryOp(op, operand, slot);
+      TryBuildSimplifiedUnaryOp(op, operand);
   if (lowering.IsExit()) return;
 
   Node* node = nullptr;
@@ -3138,7 +3139,7 @@ void BytecodeGraphBuilder::BuildUnaryOp(const Operator* op) {
   } else {
     DCHECK(!lowering.Changed());
     DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
-    node = NewNode(op, operand, feedback_vector_node());
+    node = NewNode(op, operand);
   }
 
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
@@ -3214,27 +3215,31 @@ CallFeedbackRelation BytecodeGraphBuilder::ComputeCallFeedbackRelation(
 }
 
 void BytecodeGraphBuilder::VisitBitwiseNot() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex));
-  BuildUnaryOp(javascript()->BitwiseNot(feedback));
+  const BinaryOperationHint hint =
+      bytecode_iterator()
+          .GetEmbeddedOperationHint<v8::internal::BinaryOperationFeedback>();
+  BuildUnaryOpWithEmbeddedFeedback(javascript()->BitwiseNot(hint));
 }
 
 void BytecodeGraphBuilder::VisitDec() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex));
-  BuildUnaryOp(javascript()->Decrement(feedback));
+  const BinaryOperationHint hint =
+      bytecode_iterator()
+          .GetEmbeddedOperationHint<v8::internal::BinaryOperationFeedback>();
+  BuildUnaryOpWithEmbeddedFeedback(javascript()->Decrement(hint));
 }
 
 void BytecodeGraphBuilder::VisitInc() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex));
-  BuildUnaryOp(javascript()->Increment(feedback));
+  const BinaryOperationHint hint =
+      bytecode_iterator()
+          .GetEmbeddedOperationHint<v8::internal::BinaryOperationFeedback>();
+  BuildUnaryOpWithEmbeddedFeedback(javascript()->Increment(hint));
 }
 
 void BytecodeGraphBuilder::VisitNegate() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex));
-  BuildUnaryOp(javascript()->Negate(feedback));
+  const BinaryOperationHint hint =
+      bytecode_iterator()
+          .GetEmbeddedOperationHint<v8::internal::BinaryOperationFeedback>();
+  BuildUnaryOpWithEmbeddedFeedback(javascript()->Negate(hint));
 }
 
 void BytecodeGraphBuilder::VisitAdd() {
@@ -3469,7 +3474,7 @@ void BytecodeGraphBuilder::VisitTypeOf() {
 
   FeedbackSlot slot = bytecode_iterator().GetSlotOperand(0);
   JSTypeHintLowering::LoweringResult lowering =
-      TryBuildSimplifiedUnaryOp(simplified()->TypeOf(), operand, slot);
+      TryBuildSimplifiedTypeOf(simplified()->TypeOf(), operand, slot);
   if (lowering.IsExit()) return;
 
   Node* node = nullptr;
@@ -4440,14 +4445,26 @@ void BytecodeGraphBuilder::BuildJumpIfForInDone() {
 }
 
 JSTypeHintLowering::LoweringResult
-BytecodeGraphBuilder::TryBuildSimplifiedUnaryOp(const Operator* op,
-                                                Node* operand,
-                                                FeedbackSlot slot) {
+BytecodeGraphBuilder::TryBuildSimplifiedTypeOf(const Operator* op,
+                                               Node* operand,
+                                               FeedbackSlot slot) {
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
-      type_hint_lowering().ReduceUnaryOperation(op, operand, effect, control,
-                                                slot);
+      type_hint_lowering().ReduceTypeOfOperation(op, operand, effect, control,
+                                                 slot);
+  ApplyEarlyReduction(result);
+  return result;
+}
+
+JSTypeHintLowering::LoweringResult
+BytecodeGraphBuilder::TryBuildSimplifiedUnaryOp(const Operator* op,
+                                                Node* operand) {
+  Node* effect = environment()->GetEffectDependency();
+  Node* control = environment()->GetControlDependency();
+  JSTypeHintLowering::LoweringResult result =
+      type_hint_lowering().ReduceUnaryOperationWithEmbeddedHint(
+          op, operand, effect, control);
   ApplyEarlyReduction(result);
   return result;
 }

@@ -443,8 +443,13 @@ typename EmbeddedFeedbackHintTraits<Feedback>::Hint
 BytecodeArrayIterator::GetEmbeddedOperationHint() {
   using Traits = EmbeddedFeedbackHintTraits<Feedback>;
   DCHECK(Traits::IsWithEmbeddedFeedbackOp(current_bytecode()));
-  uint32_t type_feedback = Feedback::DecodeTypeIndex(
-      static_cast<typename Feedback::TypeIndex>(GetEmbeddedFeedback(1)));
+  int operand_index =
+      Bytecodes::IsUnaryOpWithEmbeddedFeedback(current_bytecode())
+          ? kUnaryEmbeddedFeedbackOperandIndex
+          : kEmbeddedFeedbackOperandIndex;
+  uint32_t type_feedback =
+      Feedback::DecodeTypeIndex(static_cast<typename Feedback::TypeIndex>(
+          GetEmbeddedFeedback(operand_index)));
   return Traits::FromFeedback(type_feedback);
 }
 

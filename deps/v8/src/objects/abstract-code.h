@@ -23,6 +23,8 @@ class Code;
 // profiling. Perhaps methods should be specialized instead of this wrapper
 // class?
 class AbstractCode : public HeapObject {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   int SourcePosition(Isolate* isolate, int offset);
   int SourceStatementPosition(Isolate* isolate, int offset);

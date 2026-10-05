@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --maglev --no-turbofan
+// Flags: --max-maglev-optimized-bytecode-size=61440
 
 // Keeps `count` Int32 and Float64 values live at once, so Maglev needs roughly
 // two stack slots per value while the bytecode stays small.

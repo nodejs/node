@@ -206,3 +206,171 @@ d8.file.execute('test/mjsunit/value-helper.js');
     }
   }
 })();
+
+(function I32x4DotI8x16SAddReduce() {
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+
+  const load_offsets = [0, 3, 8, 16, 32];
+  builder.addFunction('simd_dot_reduce', kSig_i_ii)
+      .addLocals(kWasmS128, 3)
+      .addBody([
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalTee, 2,
+        kExprLocalGet, 1,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalTee, 3,
+        ...SimdInstr(kExprI16x8ExtMulLowI8x16S),
+        ...SimdInstr(kExprI32x4ExtAddPairwiseI16x8S),
+        kExprLocalGet, 2,
+        kExprLocalGet, 3,
+        ...SimdInstr(kExprI16x8ExtMulHighI8x16S),
+        ...SimdInstr(kExprI32x4ExtAddPairwiseI16x8S),
+        ...SimdInstr(kExprI32x4Add),
+        kExprLocalTee, 4,
+        kSimdPrefix, kExprI32x4ExtractLane, 0,
+        kExprLocalGet, 4,
+        kSimdPrefix, kExprI32x4ExtractLane, 1,
+        kExprLocalGet, 4,
+        kSimdPrefix, kExprI32x4ExtractLane, 2,
+        kExprLocalGet, 4,
+        kSimdPrefix, kExprI32x4ExtractLane, 3,
+        kExprI32Add,
+        kExprI32Add,
+        kExprI32Add,
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+  const mem = new Int8Array(instance.exports.memory.buffer);
+  for (let i = 0; i < 64; ++i) {
+    mem[i] = int8_array[i % int8_array.length];
+  }
+
+  function expectedDotReduce(left, right) {
+    let sum = 0;
+    for (let i = 0; i < 16; ++i) {
+      sum += mem[left + i] * mem[right + i];
+    }
+    return sum;
+  }
+
+  for (const left of load_offsets) {
+    for (const right of load_offsets) {
+      assertEquals(
+          expectedDotReduce(left, right),
+          instance.exports.simd_dot_reduce(left, right));
+    }
+  }
+})();
+
+(function I32x4DotI8x16SAddReduceLoopWithTwoDotChains() {
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+
+  const load_offsets = [0, 3, 8, 16, 32];
+  const sig = makeSig(
+      [kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32], [kWasmI32]);
+
+  builder.addFunction('simd_two_dot_chains_loop_reduce', sig)
+      .addLocals(kWasmS128, 3)
+      .addBody([
+        ...wasmS128Const(new Array(16).fill(0)),
+        kExprLocalSet, 5,
+
+        kExprBlock, kWasmVoid,
+          kExprLoop, kWasmVoid,
+            kExprLocalGet, 4,
+            kExprI32Eqz,
+            kExprBrIf, 1,
+
+            kExprLocalGet, 5,
+
+            kExprLocalGet, 0,
+            kSimdPrefix, kExprS128LoadMem, 0, 0,
+            kExprLocalTee, 6,
+            kExprLocalGet, 1,
+            kSimdPrefix, kExprS128LoadMem, 0, 0,
+            kExprLocalTee, 7,
+            ...SimdInstr(kExprI16x8ExtMulLowI8x16S),
+            ...SimdInstr(kExprI32x4ExtAddPairwiseI16x8S),
+            kExprLocalGet, 6,
+            kExprLocalGet, 7,
+            ...SimdInstr(kExprI16x8ExtMulHighI8x16S),
+            ...SimdInstr(kExprI32x4ExtAddPairwiseI16x8S),
+            ...SimdInstr(kExprI32x4Add),
+
+            kExprLocalGet, 2,
+            kSimdPrefix, kExprS128LoadMem, 0, 0,
+            kExprLocalTee, 6,
+            kExprLocalGet, 3,
+            kSimdPrefix, kExprS128LoadMem, 0, 0,
+            kExprLocalTee, 7,
+            ...SimdInstr(kExprI16x8ExtMulLowI8x16S),
+            ...SimdInstr(kExprI32x4ExtAddPairwiseI16x8S),
+            kExprLocalGet, 6,
+            kExprLocalGet, 7,
+            ...SimdInstr(kExprI16x8ExtMulHighI8x16S),
+            ...SimdInstr(kExprI32x4ExtAddPairwiseI16x8S),
+            ...SimdInstr(kExprI32x4Add),
+
+            ...SimdInstr(kExprI32x4Add),
+            ...SimdInstr(kExprI32x4Add),
+            kExprLocalSet, 5,
+
+            kExprLocalGet, 4,
+            kExprI32Const, 1,
+            kExprI32Sub,
+            kExprLocalSet, 4,
+            kExprBr, 0,
+          kExprEnd,
+        kExprEnd,
+
+        kExprLocalGet, 5,
+        kExprLocalTee, 6,
+        kSimdPrefix, kExprI32x4ExtractLane, 0,
+        kExprLocalGet, 6,
+        kSimdPrefix, kExprI32x4ExtractLane, 1,
+        kExprLocalGet, 6,
+        kSimdPrefix, kExprI32x4ExtractLane, 2,
+        kExprLocalGet, 6,
+        kSimdPrefix, kExprI32x4ExtractLane, 3,
+        kExprI32Add,
+        kExprI32Add,
+        kExprI32Add,
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+  const mem = new Int8Array(instance.exports.memory.buffer);
+  for (let i = 0; i < 128; ++i) {
+    mem[i] = int8_array[i % int8_array.length];
+  }
+
+  function expectedDotReduce(left, right) {
+    let sum = 0;
+    for (let i = 0; i < 16; ++i) {
+      sum += mem[left + i] * mem[right + i];
+    }
+    return sum;
+  }
+
+  for (const left0 of load_offsets) {
+    for (const right0 of load_offsets) {
+      for (const left1 of load_offsets) {
+        for (const right1 of load_offsets) {
+          for (const iterations of [0, 1, 2, 5]) {
+            assertEquals(
+                iterations * (expectedDotReduce(left0, right0) +
+                              expectedDotReduce(left1, right1)) | 0,
+                instance.exports.simd_two_dot_chains_loop_reduce(
+                    left0, right0, left1, right1, iterations));
+          }
+        }
+      }
+    }
+  }
+})();

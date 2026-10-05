@@ -33,7 +33,7 @@ typedef struct {
     /* POSIX.1b timers */
     struct {
       int si_tid;             /* timer id */
-      int _overrun;           /* overrun count */
+      int si_overrun;         /* overrun count */
       union sigval si_sigval; /* same as below */
     } _timer;
 

@@ -42,8 +42,8 @@ V8_OBJECT class JSCollator : public JSObject {
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
-  inline Tagged<Managed<icu::Collator>> icu_collator() const;
-  inline void set_icu_collator(Tagged<Managed<icu::Collator>> value,
+  inline Tagged<CppGCManaged<icu::Collator>> icu_collator() const;
+  inline void set_icu_collator(Tagged<CppGCManaged<icu::Collator>> value,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<UnionOf<Undefined, JSFunction>> bound_compare() const;
@@ -60,7 +60,7 @@ V8_OBJECT class JSCollator : public JSObject {
   static const int kHeaderSize;
 
  public:
-  TaggedMember<Foreign> icu_collator_;
+  TaggedMember<CppGCManaged<icu::Collator>> icu_collator_;
   TaggedMember<UnionOf<Undefined, JSFunction>> bound_compare_;
   TaggedMember<String> locale_;
 } V8_OBJECT_END;

@@ -115,7 +115,7 @@ class SyntheticBinary {
     sites[num_tus - 1]->next_.store(nullptr, std::memory_order_seq_cst);
   }
   ~SyntheticBinary() {
-    static_assert(std::is_trivially_destructible_v<VLogSite>, "");
+    static_assert(std::is_trivially_destructible_v<VLogSite>);
     absl::log_internal::SetVModuleListHeadForTestOnly(nullptr);
   }
 

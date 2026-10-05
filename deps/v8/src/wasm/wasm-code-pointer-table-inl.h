@@ -9,7 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/common/code-memory-access-inl.h"
-#include "src/common/segmented-table-inl.h"
+#include "src/sandbox/segmented-table-inl.h"
 
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.

@@ -66,6 +66,8 @@ class V8_EXPORT_PRIVATE BaseShape {
 };
 
 class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   // Returns the number of elements in the hash table.
   inline uint32_t NumberOfElements() const;
@@ -124,6 +126,8 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
 V8_OBJECT template <typename Derived, typename ShapeT>
 class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
     : public HashTableBase {
+  V8_IT_OWN_TYPE;
+
  public:
   // TODO(jgruber): Derive from TaggedArrayBase instead of FixedArray, and
   // merge with TaggedArrayBase's Shape class. Once the naming conflict is
@@ -461,6 +465,8 @@ EXTERN_DECLARE_OBJECT_BASE_HASH_TABLE(ObjectHashTable, ObjectHashTableShape)
 // using the identity hash of the key for hashing purposes.
 class V8_EXPORT_PRIVATE ObjectHashTable
     : public ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape> {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   DECL_PRINTER(ObjectHashTable)
 };
@@ -504,6 +510,8 @@ class ObjectMultiHashTableShape : public ObjectHashTableShape {
 template <typename Derived, int N>
 class ObjectMultiHashTableBase
     : public HashTable<Derived, ObjectMultiHashTableShape<N>> {
+  V8_IT_REUSE_PARENT;
+
  public:
   static_assert(N > 1, "use ObjectHashTable instead if N = 1");
 
@@ -528,7 +536,9 @@ class ObjectMultiHashTableBase
 };
 
 class ObjectTwoHashTable
-    : public ObjectMultiHashTableBase<ObjectTwoHashTable, 2> {};
+    : public ObjectMultiHashTableBase<ObjectTwoHashTable, 2> {
+  V8_IT_NO_AUTO_CHECKER;
+};
 
 class ObjectHashSetShape : public ObjectHashTableShape {
  public:
@@ -540,6 +550,8 @@ EXTERN_DECLARE_HASH_TABLE(ObjectHashSet, ObjectHashSetShape)
 
 class V8_EXPORT_PRIVATE ObjectHashSet
     : public HashTable<ObjectHashSet, ObjectHashSetShape> {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   static Handle<ObjectHashSet> Add(Isolate* isolate, Handle<ObjectHashSet> set,
                                    DirectHandle<Object> key);

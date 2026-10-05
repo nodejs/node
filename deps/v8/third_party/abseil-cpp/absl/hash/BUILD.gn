@@ -1,8 +1,9 @@
 # Copyright 2018 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+#
+# Generated file. DO NOT EDIT.
 
-import("//build_overrides/build.gni")
 import("//third_party/abseil-cpp/absl.gni")
 
 absl_source_set("hash") {
@@ -23,6 +24,7 @@ absl_source_set("hash") {
     "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/numeric:bits",
     "//third_party/abseil-cpp/absl/numeric:int128",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/types:optional",
     "//third_party/abseil-cpp/absl/types:variant",
@@ -38,6 +40,7 @@ absl_source_set("hash_testing") {
     "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/types:variant",
+    "//third_party/googletest:gmock",
     "//third_party/googletest:gtest",
   ]
 }
@@ -57,6 +60,7 @@ absl_test("hash_test") {
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/numeric:bits",
+    "//third_party/abseil-cpp/absl/strings:cord",
     "//third_party/abseil-cpp/absl/strings:cord_test_helpers",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
@@ -82,18 +86,19 @@ absl_test("hash_instantiated_test") {
 absl_source_set("spy_hash_state") {
   testonly = true
   public = [ "internal/spy_hash_state.h" ]
+  visibility = [ ":*" ]
   deps = [
     ":hash",
     ":weakly_mixed_integer",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:str_format",
   ]
-  visibility = [ "//third_party/abseil-cpp/absl/*" ]
 }
 
 absl_source_set("city") {
-  public = [ "internal/city.h" ]
   sources = [ "internal/city.cc" ]
+  public = [ "internal/city.h" ]
+  visibility = [ ":*" ]
   deps = [
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
@@ -102,9 +107,19 @@ absl_source_set("city") {
   ]
 }
 
+absl_test("city_test") {
+  sources = [ "internal/city_test.cc" ]
+  deps = [ ":city" ]
+}
+
 absl_source_set("weakly_mixed_integer") {
   public = [ "internal/weakly_mixed_integer.h" ]
-  visibility = [ "//third_party/abseil-cpp/absl/*" ]
+  visibility = [
+    ":*",
+    "//third_party/abseil-cpp/absl/container:*",
+    "//third_party/abseil-cpp/absl/strings:*",
+    "//third_party/abseil-cpp/absl/types:*",
+  ]
   deps = [ "//third_party/abseil-cpp/absl/base:config" ]
 }
 
@@ -113,5 +128,6 @@ absl_test("low_level_hash_test") {
   deps = [
     ":hash",
     "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }

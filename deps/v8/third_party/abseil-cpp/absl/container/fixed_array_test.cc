@@ -18,6 +18,7 @@
 
 #include <cstring>
 #include <forward_list>
+#include <iterator>
 #include <list>
 #include <memory>
 #include <numeric>
@@ -31,7 +32,6 @@
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/exception_testing.h"
-#include "absl/base/internal/hardening.h"
 #include "absl/base/internal/iterator_traits_test_helper.h"
 #include "absl/base/options.h"
 #include "absl/container/internal/test_allocator.h"
@@ -197,7 +197,6 @@ TEST(FixedArrayTest, AtThrows) {
 
 TEST(FixedArrayTest, Hardened) {
 #if !defined(NDEBUG) || ABSL_OPTION_HARDENED
-  absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   absl::FixedArray<int> a = {1, 2, 3};
   EXPECT_EQ(a[2], 3);
   EXPECT_DEATH_IF_SUPPORTED(a[3], "");
@@ -361,20 +360,20 @@ static void TestArrayOfArrays(int n) {
 
 TEST(IteratorConstructorTest, NonInline) {
   int const kInput[] = {2, 3, 5, 7, 11, 13, 17};
-  absl::FixedArray<int, ABSL_ARRAYSIZE(kInput) - 1> const fixed(
-      kInput, kInput + ABSL_ARRAYSIZE(kInput));
-  ASSERT_EQ(ABSL_ARRAYSIZE(kInput), fixed.size());
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(kInput); ++i) {
+  absl::FixedArray<int, std::size(kInput) - 1> const fixed(
+      kInput, kInput + std::size(kInput));
+  ASSERT_EQ(std::size(kInput), fixed.size());
+  for (size_t i = 0; i < std::size(kInput); ++i) {
     ASSERT_EQ(kInput[i], fixed[i]);
   }
 }
 
 TEST(IteratorConstructorTest, Inline) {
   int const kInput[] = {2, 3, 5, 7, 11, 13, 17};
-  absl::FixedArray<int, ABSL_ARRAYSIZE(kInput)> const fixed(
-      kInput, kInput + ABSL_ARRAYSIZE(kInput));
-  ASSERT_EQ(ABSL_ARRAYSIZE(kInput), fixed.size());
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(kInput); ++i) {
+  absl::FixedArray<int, std::size(kInput)> const fixed(
+      kInput, kInput + std::size(kInput));
+  ASSERT_EQ(std::size(kInput), fixed.size());
+  for (size_t i = 0; i < std::size(kInput); ++i) {
     ASSERT_EQ(kInput[i], fixed[i]);
   }
 }
@@ -382,10 +381,9 @@ TEST(IteratorConstructorTest, Inline) {
 TEST(IteratorConstructorTest, NonPod) {
   char const* kInput[] = {"red",  "orange", "yellow", "green",
                           "blue", "indigo", "violet"};
-  absl::FixedArray<std::string> const fixed(kInput,
-                                            kInput + ABSL_ARRAYSIZE(kInput));
-  ASSERT_EQ(ABSL_ARRAYSIZE(kInput), fixed.size());
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(kInput); ++i) {
+  absl::FixedArray<std::string> const fixed(kInput, kInput + std::size(kInput));
+  ASSERT_EQ(std::size(kInput), fixed.size());
+  for (size_t i = 0; i < std::size(kInput); ++i) {
     ASSERT_EQ(kInput[i], fixed[i]);
   }
 }
@@ -399,7 +397,7 @@ TEST(IteratorConstructorTest, FromEmptyVector) {
 
 TEST(IteratorConstructorTest, FromNonEmptyVector) {
   int const kInput[] = {2, 3, 5, 7, 11, 13, 17};
-  std::vector<int> const items(kInput, kInput + ABSL_ARRAYSIZE(kInput));
+  std::vector<int> const items(kInput, kInput + std::size(kInput));
   absl::FixedArray<int> const fixed(items.begin(), items.end());
   ASSERT_EQ(items.size(), fixed.size());
   for (size_t i = 0; i < items.size(); ++i) {
@@ -409,7 +407,7 @@ TEST(IteratorConstructorTest, FromNonEmptyVector) {
 
 TEST(IteratorConstructorTest, FromBidirectionalIteratorRange) {
   int const kInput[] = {2, 3, 5, 7, 11, 13, 17};
-  std::list<int> const items(kInput, kInput + ABSL_ARRAYSIZE(kInput));
+  std::list<int> const items(kInput, kInput + std::size(kInput));
   absl::FixedArray<int> const fixed(items.begin(), items.end());
   EXPECT_THAT(fixed, testing::ElementsAreArray(kInput));
 }
@@ -695,7 +693,7 @@ TEST(AllocatorSupportTest, CountOutoflineAllocations) {
     const int ia[] = {0, 1, 2, 3, 4, 5, 6, 7};
     Alloc alloc(&allocated, &active_instances);
 
-    AllocFxdArr arr(ia, ia + ABSL_ARRAYSIZE(ia), alloc);
+    AllocFxdArr arr(ia, ia + std::size(ia), alloc);
 
     EXPECT_EQ(allocated, arr.size() * sizeof(int));
     static_cast<void>(arr);

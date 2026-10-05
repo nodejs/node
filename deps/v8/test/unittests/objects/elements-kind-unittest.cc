@@ -520,5 +520,48 @@ TEST_F(ElementsKindTest, IsFastPackedElementsKind) {
   }
 }
 
+TEST_F(ElementsKindTest, JSArraySetLengthDictionaryElements) {
+  v8::HandleScope scope(isolate());
+  DirectHandle<String> name =
+      i_isolate()->factory()->InternalizeUtf8String("Array");
+  DirectHandle<JSArray> array = i_isolate()->factory()->NewJSArray(
+      ElementsKind::PACKED_SMI_ELEMENTS, 0, 0);
+
+  // Set array length to 0.
+  JSArray::SetLength(i_isolate(), array, 0);
+  EXPECT_EQ(Smi::zero(), array->length());
+  EXPECT_TRUE(array->HasSmiOrObjectElements());
+
+  // array[0] = name.
+  Object::SetElement(i_isolate(), array, 0, name, ShouldThrow::kDontThrow)
+      .Check();
+  EXPECT_EQ(Smi::FromInt(1), array->length());
+  DirectHandle<Object> element =
+      Object::GetElement(i_isolate(), array, 0).ToHandleChecked();
+  EXPECT_EQ(*element, *name);
+
+  // Set array length with large value exceeding Smi range.
+  uint32_t large_length = static_cast<uint32_t>(Smi::kMaxValue) + 1;
+  JSArray::SetLength(i_isolate(), array, large_length);
+
+  uint32_t int_length = 0;
+  EXPECT_TRUE(Object::ToArrayIndex(array->length(), &int_length));
+  EXPECT_EQ(large_length, int_length);
+  EXPECT_TRUE(array->HasDictionaryElements());
+
+  // array[length] = name.
+  Object::SetElement(i_isolate(), array, int_length, name,
+                     ShouldThrow::kDontThrow)
+      .Check();
+  uint32_t new_int_length = 0;
+  EXPECT_TRUE(Object::ToArrayIndex(array->length(), &new_int_length));
+  EXPECT_EQ(int_length + 1, new_int_length);
+  element =
+      Object::GetElement(i_isolate(), array, int_length).ToHandleChecked();
+  EXPECT_EQ(*element, *name);
+  element = Object::GetElement(i_isolate(), array, 0).ToHandleChecked();
+  EXPECT_EQ(*element, *name);
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -9,27 +9,70 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_LIBC_ASSERT_H
 #define LLVM_LIBC_SRC___SUPPORT_LIBC_ASSERT_H
 
+#include "src/__support/macros/attributes.h" // For LIBC_INLINE
+#include "src/__support/macros/config.h"
+#include "src/__support/macros/hardening.h"
+#include "src/__support/macros/macro-utils.h"
+#include "src/__support/macros/optimization.h" // For LIBC_UNLIKELY
+#include "src/__support/macros/properties/os.h"
+
+#ifdef LIBC_FULL_BUILD
+#include "src/__support/OSUtil/exit.h"
+#include "src/__support/OSUtil/io.h"
+#include "src/__support/integer_to_string.h"
+#endif
+
+//===----------------------------------------------------------------------===//
+// LIBC_REQUIRE(COND, MSG) (always-on assert regardless of NDEBUG)
+//===----------------------------------------------------------------------===//
+#ifndef LIBC_FULL_BUILD
+#ifdef LIBC_TARGET_OS_IS_LINUX
+// __assert_fail is in Linux Standard Base (LSB), hence we should always be able
+// to use it here.
+#include <assert.h>
+#define LIBC_REQUIRE(COND, MSG)                                                \
+  do {                                                                         \
+    if (LIBC_UNLIKELY(!(COND)))                                                \
+      __assert_fail(MSG, __FILE__, __LINE__, __PRETTY_FUNCTION__);             \
+  } while (false)
+#else
+// Fallback path will just trap: we cannot reliably do anything else.
+#define LIBC_REQUIRE(COND, MSG)                                                \
+  do {                                                                         \
+    if (LIBC_UNLIKELY(!(COND)))                                                \
+      __builtin_trap();                                                        \
+  } while (false)
+#endif // LIBC_TARGET_OS_IS_LINUX
+#else
+// FIXME: Calling abort on assertion is actually required by standards like LSB.
+// Calling exit also confuses the debugger as exiting will not trigger
+// debugger's stop-on-signal behavior by default. Currently, adding abort will
+// result in cyclic dependency.
+#define LIBC_REQUIRE(COND, MSG)                                                \
+  do {                                                                         \
+    if (LIBC_UNLIKELY(!(COND))) {                                              \
+      LIBC_NAMESPACE::write_to_stderr(__FILE__ ":" LLVM_LIBC_STRINGIFY(        \
+          __LINE__) ": Assertion failed: '" MSG "' in function: '");           \
+      LIBC_NAMESPACE::write_to_stderr(__PRETTY_FUNCTION__);                    \
+      LIBC_NAMESPACE::write_to_stderr("'\n");                                  \
+      LIBC_NAMESPACE::internal::exit(0xFF);                                    \
+    }                                                                          \
+  } while (false)
+#endif // LIBC_FULL_BUILD
+
+//===----------------------------------------------------------------------===//
+// LIBC_ASSERT(COND) (NDEBUG guarded assertion)
+//===----------------------------------------------------------------------===//
 #if defined(LIBC_COPT_USE_C_ASSERT) || !defined(LIBC_FULL_BUILD)
 
 // The build is configured to just use the public <assert.h> API
 // for libc's internal assertions.
-
 #ifndef LIBC_ASSERT
 #include <assert.h>
-
 #define LIBC_ASSERT(COND) assert(COND)
 #endif // LIBC_ASSERT
 
 #else // Not LIBC_COPT_USE_C_ASSERT
-
-#include "src/__support/OSUtil/exit.h"
-#include "src/__support/OSUtil/io.h"
-#include "src/__support/integer_to_string.h"
-#include "src/__support/macros/attributes.h" // For LIBC_INLINE
-#include "src/__support/macros/config.h"
-#include "src/__support/macros/macro-utils.h"
-#include "src/__support/macros/optimization.h" // For LIBC_UNLIKELY
-
 namespace LIBC_NAMESPACE_DECL {
 
 // This is intended to be removed in a future patch to use a similar design to
@@ -54,30 +97,30 @@ LIBC_INLINE void report_assertion_failure(const char *assertion,
 #error "Unexpected: LIBC_ASSERT macro already defined"
 #endif
 
-// The public "assert" macro calls abort on failure. Should it be same here?
-// The libc internal assert can fire from anywhere inside the libc. So, to
-// avoid potential chicken-and-egg problems, it is simple to do an exit
-// on assertion failure instead of calling abort. We also don't want to use
-// __builtin_trap as it could potentially be implemented using illegal
-// instructions which can be very misleading when debugging.
 #ifdef NDEBUG
 #define LIBC_ASSERT(COND)                                                      \
   do {                                                                         \
   } while (false)
 #else
-
-#define LIBC_ASSERT(COND)                                                      \
-  do {                                                                         \
-    if (LIBC_UNLIKELY(!(COND))) {                                              \
-      LIBC_NAMESPACE::write_to_stderr(__FILE__ ":" LLVM_LIBC_STRINGIFY(        \
-          __LINE__) ": Assertion failed: '" #COND "' in function: '");         \
-      LIBC_NAMESPACE::write_to_stderr(__PRETTY_FUNCTION__);                    \
-      LIBC_NAMESPACE::write_to_stderr("'\n");                                  \
-      LIBC_NAMESPACE::internal::exit(0xFF);                                    \
-    }                                                                          \
-  } while (false)
+// Forward to LIBC_REQUIRE with the condition stringified.
+#define LIBC_ASSERT(COND) LIBC_REQUIRE(COND, #COND)
 #endif // NDEBUG
 
 #endif // LIBC_COPT_USE_C_ASSERT
 
+//===----------------------------------------------------------------------===//
+// Hardening runtime check
+//===----------------------------------------------------------------------===//
+
+#if LIBC_COPT_HARDENING_MODE == LIBC_HARDENING_MODE_NONE
+#define LIBC_HEAP_INTEGRITY_CHECK(COND, MSG) ((void)0)
+#elif LIBC_COPT_HARDENING_MODE == LIBC_HARDENING_MODE_FAST
+#define LIBC_HEAP_INTEGRITY_CHECK(COND, MSG) ((void)0)
+#elif LIBC_COPT_HARDENING_MODE == LIBC_HARDENING_MODE_EXTENSIVE
+#define LIBC_HEAP_INTEGRITY_CHECK(COND, MSG) LIBC_REQUIRE(COND, MSG)
+#elif LIBC_COPT_HARDENING_MODE == LIBC_HARDENING_MODE_DEBUG
+#define LIBC_HEAP_INTEGRITY_CHECK(COND, MSG) LIBC_REQUIRE(COND, MSG)
+#else
+#error "Unsupported hardening mode"
+#endif
 #endif // LLVM_LIBC_SRC___SUPPORT_LIBC_ASSERT_H

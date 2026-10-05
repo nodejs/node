@@ -24,6 +24,7 @@
 #include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
+#include "src/sandbox/check.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/serializer-deserializer.h"
@@ -536,6 +537,7 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
     // initialized before the pending reference is resolved. Otherwise, the
     // object cannot be referenced.
     if (V8_ENABLE_SANDBOX_BOOL && IsExposedTrustedObject(*object_)) {
+      SBXCHECK_EQ(space, SnapshotSpace::kTrusted);
       sink_->Put(kInitializeSelfIndirectPointer,
                  "InitializeSelfIndirectPointer");
     }
@@ -712,17 +714,11 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
   if (serializer_->external_reference_encoder_.TryEncode(resource).To(
           &reference)) {
     DCHECK(reference.is_from_api());
-#ifdef V8_ENABLE_SANDBOX
-    uint32_t external_pointer_entry =
-        string->GetResourceRefForDeserialization();
-#endif
-    string->SetResourceRefForSerialization(reference.index());
+    // The string stays live in this isolate, so both external pointer fields
+    // have to be put back once it has been serialized.
+    auto refs = string->SetResourceRefForSerialization(reference.index());
     SerializeObject();
-#ifdef V8_ENABLE_SANDBOX
-    string->SetResourceRefForSerialization(external_pointer_entry);
-#else
-    string->set_address_as_resource(isolate(), resource);
-#endif
+    string->RestoreResourceRefs(isolate(), refs);
   } else {
     SerializeExternalStringAsSequentialString();
   }
@@ -1141,12 +1137,14 @@ void Serializer::ObjectSerializer::VisitCppHeapPointer(
 
   PtrComprCageBase cage_base(isolate());
   // Currently there's only very limited support for CppHeapPointerSlot
-  // serialization as it's only used for API wrappers.
+  // serialization.
   //
   // We serialize the slot as initialized-but-unused slot.  The actual API
   // wrapper serialization is implemented in
   // `ContextSerializer::SerializeApiWrapperFields()`.
-  DCHECK(IsJSApiWrapperObjectMap(object_->map()) || IsNativeContext(*object_));
+  DCHECK(IsJSApiWrapperObjectMap(object_->map()) || IsNativeContext(*object_) ||
+         IsCppGCManagedBase(*object_) ||
+         IsEmbedderDataArray(*object_));
   static_assert(kCppHeapPointerSlotSize % kTaggedSize == 0);
   sink_->Put(
       FixedRawDataWithSize::Encode(kCppHeapPointerSlotSize >> kTaggedSizeLog2),
@@ -1166,39 +1164,27 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
       InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
     // If necessary, output any raw data preceding this slot.
     OutputRawData(slot.address());
-    Address value = slot.load(isolate());
 #ifdef V8_ENABLE_SANDBOX
+    ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+    const ExternalPointerTable& table =
+        IsolateForSandbox(isolate()).GetExternalPointerTableFor(
+            slot.tag_range());
+    Address value = table.Get(handle, slot.tag_range());
     // We need to load the actual tag from the table here since the slot may
     // use a generic tag (e.g. kAnyExternalPointerTag) if the concrete tag is
     // unknown by the visitor (for example the case for Foreigns).
-    ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-    ExternalPointerTag tag = isolate()->external_pointer_table().GetTag(handle);
+    ExternalPointerTag tag = table.GetTag(handle);
 #else
+    Address value = slot.load(isolate());
     ExternalPointerTag tag = kExternalPointerNullTag;
 #endif  // V8_ENABLE_SANDBOX
     const bool sandboxify = V8_ENABLE_SANDBOX_BOOL;
     OutputExternalReference(value, kSystemPointerSize, sandboxify, tag);
     bytes_processed_so_far_ += kExternalPointerSlotSize;
-
-#ifndef V8_CPPGC_MICROTASK_QUEUE
-  } else if (InstanceTypeChecker::IsNativeContext(instance_type)) {
-    // If necessary, output any raw data preceding this slot.
-    OutputRawData(slot.address());
-    // Serialize MicrotaskQueue* value as nullptr (it'll be set to correct
-    // value during deserialization anyway).
-    const bool sandboxify = V8_ENABLE_SANDBOX_BOOL;
-    OutputExternalReference(kNullAddress, kSystemPointerSize, sandboxify,
-                            kNativeContextMicrotaskQueueTag);
-    bytes_processed_so_far_ += kExternalPointerSlotSize;
-#endif  // V8_CPPGC_MICROTASK_QUEUE
-
   } else {
     // Serialization of external references in other objects is handled
     // elsewhere or not supported.
     DCHECK(
-        // Serialization of external pointers stored in EmbedderDataArray
-        // is not supported yet, mostly because it's not used.
-        InstanceTypeChecker::IsEmbedderDataArray(instance_type) ||
         // See ObjectSerializer::SerializeJSTypedArray().
         InstanceTypeChecker::IsJSTypedArray(instance_type) ||
         // See ObjectSerializer::SerializeJSArrayBuffer().
@@ -1346,7 +1332,6 @@ void Serializer::ObjectSerializer::VisitJSDispatchTableEntry(
     sink_->Put(kJSDispatchEntry, "JSDispatchEntry");
     sink_->PutUint30(it->second, "EntryID");
   }
-
 }
 namespace {
 
@@ -1419,8 +1404,10 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
       // make the snapshot content deterministic.
       SeqString::DataAndPaddingSizes sizes =
           Cast<SeqString>(*object_)->GetDataAndPaddingSizes();
-      DCHECK_EQ(bytes_to_output, sizes.data_size - base + sizes.padding_size);
+      SBXCHECK_EQ(bytes_to_output, sizes.data_size - base + sizes.padding_size);
       int data_bytes_to_output = sizes.data_size - base;
+      SBXCHECK_GE(data_bytes_to_output, 0);
+      SBXCHECK_GE(sizes.padding_size, 0);
       sink_->PutRaw(reinterpret_cast<uint8_t*>(object_start + base),
                     data_bytes_to_output, "SeqStringData");
       sink_->PutN(sizes.padding_size, 0, "SeqStringPadding");

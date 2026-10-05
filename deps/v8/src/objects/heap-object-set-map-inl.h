@@ -83,7 +83,8 @@ void HeapObject::set_map(IsolateT* isolate, Tagged<Map> value,
 #if V8_ENABLE_WEBASSEMBLY
   // In {WasmGraphBuilder::SetMap} and {WasmGraphBuilder::LoadMap}, we treat
   // maps as immutable. Therefore we are not allowed to mutate them here.
-  DCHECK(!IsWasmStructMap(value) && !IsWasmArrayMap(value));
+  DCHECK(!IsWasmStructMap(value) && !IsWasmArrayMap(value) &&
+         !IsWasmCustomMapMap(value));
 #endif
   if (v8_flags.verify_heap) {
     if (mode == VerificationMode::kSafeMapTransition) {

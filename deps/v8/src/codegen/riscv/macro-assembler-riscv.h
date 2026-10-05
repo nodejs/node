@@ -810,10 +810,21 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Popcnt32(Register rd, Register rs, Register scratch);
 
 #if V8_TARGET_ARCH_RISCV64
-  void SignExtendWord(Register rd, Register rs) { sext_w(rd, rs); }
+  void SignExtendWord(Register rd, Register rs) {
+    if (rd == rs && IsRvcReg(rs) && CpuFeatures::IsSupported(ZCB)) {
+      c_sext_w(rd);
+    } else {
+      sext_w(rd, rs);
+    }
+  }
+
   void ZeroExtendWord(Register rd, Register rs) {
     if (CpuFeatures::IsSupported(ZBA)) {
-      zextw(rd, rs);
+      if (rd == rs && IsRvcReg(rs) && CpuFeatures::IsSupported(ZCB)) {
+        c_zext_w(rd);
+      } else {
+        zextw(rd, rs);
+      }
     } else {
       Sll64(rd, rs, 32);
       Srl64(rd, rd, 32);
@@ -1451,7 +1462,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Transform a SandboxedPointer from/to its encoded form, which is used when
   // the pointer is stored on the heap and ensures that the pointer will always
   // point into the sandbox.
-  void DecodeSandboxedPointer(Register value);
   void LoadSandboxedPointerField(Register destination,
                                  const MemOperand& field_operand,
                                  Trapper&& trapper = [](int){});

@@ -13,7 +13,8 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/objects/js-function.h"
-#include "src/objects/objects-inl.h"  // For CastTraits<Managed<T>>.
+#include "src/objects/managed-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/tagged-field-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -29,14 +30,15 @@ void JSV8BreakIterator::set_locale(Tagged<String> value,
   locale_.store(this, value, mode);
 }
 
-Tagged<Managed<IcuBreakIteratorWithText>>
+Tagged<CppGCManaged<IcuBreakIteratorWithText>>
 JSV8BreakIterator::icu_iterator_with_text() const {
-  return Cast<Managed<IcuBreakIteratorWithText>>(
+  return Cast<CppGCManaged<IcuBreakIteratorWithText>>(
       icu_iterator_with_text_.load());
 }
 
 void JSV8BreakIterator::set_icu_iterator_with_text(
-    Tagged<Managed<IcuBreakIteratorWithText>> value, WriteBarrierMode mode) {
+    Tagged<CppGCManaged<IcuBreakIteratorWithText>> value,
+    WriteBarrierMode mode) {
   icu_iterator_with_text_.store(this, value, mode);
 }
 

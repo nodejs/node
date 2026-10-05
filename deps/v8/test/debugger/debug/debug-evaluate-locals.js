@@ -124,6 +124,9 @@ function listener(event, exec_state, event_data, data) {
       assertEquals(6, exec_state.frame(2).evaluate('b').value());
       assertEquals("function",
                    exec_state.frame(2).evaluate('typeof eval').value());
+      assertEquals(1,
+                   exec_state.frame(0).scope(0).evaluate('a').value());
+      assertThrows(() => exec_state.frame(0).scope(1).evaluate('a').value());
       assertEquals("foo",
                    exec_state.frame(0).evaluate('a = "foo"').value());
       assertEquals("bar",

@@ -27,6 +27,7 @@
 #include "absl/log/internal/test_helpers.h"
 #include "absl/log/internal/test_matchers.h"
 #include "absl/log/log.h"
+#include "absl/log/log_entry.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"

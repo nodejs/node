@@ -100,9 +100,15 @@ int BytecodeArrayWriter::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
     int bytes_need_to_check = it.current_bytecode_size();
     // skip embedded feedback value.
     if (Bytecodes::IsEmbeddedFeedbackBytecode(it.current_bytecode())) {
-      bytes_need_to_check -= static_cast<int>(
-          Bytecodes::GetOperandSize(it.current_bytecode(), /*operand_idx=*/1,
-                                    it.current_operand_scale()));
+      // Unary bytecodes only have a single operand (the embedded feedback
+      // itself), while binary/compare bytecodes have the embedded feedback
+      // as their second operand.
+      int operand_idx =
+          Bytecodes::IsUnaryOpWithEmbeddedFeedback(it.current_bytecode())
+              ? kUnaryEmbeddedFeedbackOperandIndex
+              : kEmbeddedFeedbackOperandIndex;
+      bytes_need_to_check -= static_cast<int>(Bytecodes::GetOperandSize(
+          it.current_bytecode(), operand_idx, it.current_operand_scale()));
     }
 
     int start_idx = it.current_offset();

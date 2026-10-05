@@ -296,11 +296,13 @@ class Variable final : public ZoneObject {
 
   int index() const { return index_; }
 
+  // LINT.IfChange(VariableIsReceiver)
   bool IsReceiver() const {
     DCHECK(IsParameter());
 
     return index_ == -1;
   }
+  // LINT.ThenChange(/src/debug/debug-scope-info.cc:VariableIsReceiver)
 
   bool IsExport() const {
     DCHECK_EQ(location(), VariableLocation::MODULE);

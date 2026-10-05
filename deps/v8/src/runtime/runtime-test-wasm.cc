@@ -375,7 +375,7 @@ RUNTIME_FUNCTION(Runtime_IsWasmTrapHandlerEnabled) {
 RUNTIME_FUNCTION(Runtime_IsWasmPartialOOBWriteNoop) {
   SealHandleScope shs(isolate);
   DisallowGarbageCollection no_gc;
-  return isolate->heap()->ToBoolean(wasm::kPartialOOBWritesAreNoops);
+  return isolate->heap()->ToBoolean(v8_flags.wasm_partial_oob_writes_are_noops);
 }
 
 RUNTIME_FUNCTION(Runtime_GenerateWasmCompilationHints) {
@@ -538,7 +538,9 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
       isolate->factory()->NewFixedArray(values_len);
   for (uint32_t i = 0; i < values_len; i++) {
     DirectHandle<Object> value(values->get(i), isolate);
-    if (!IsSmi(*value)) {
+    if (IsWasmNull(*value)) {
+      value = isolate->factory()->null_value();
+    } else if (!IsSmi(*value)) {
       // When fuzzers use this function, don't leak anything that the JS side
       // can't handle.
       if (IsByteArray(*value) ||  // Probably a stringview_wtf8.
@@ -797,7 +799,7 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
     DCHECK(isolate->has_exception());
     return ReadOnlyRoots(isolate).exception();
   }
-  Managed<wasm::NativeModule>::Ptr native_module =
+  CppGCManaged<wasm::NativeModule>::Ptr native_module =
       module_object->native_module();
   const wasm::WasmModule* module = native_module->module();
   wasm::WasmValue value(int64_t{0x7AADF00DBAADF00D});
@@ -807,12 +809,12 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
           type_index.index));
   if (is_struct) {
     const wasm::StructType* struct_type = module->struct_type(type_index);
-    DCHECK_EQ(struct_type->field_count(), 1);
-    DCHECK_EQ(struct_type->field(0), wasm::kWasmI64);
+    SBXCHECK_EQ(struct_type->field_count(), 1);
+    SBXCHECK_EQ(struct_type->field(0), wasm::kWasmI64);
     return *isolate->factory()->NewWasmStruct(struct_type, &value,
                                               direct_handle(map, isolate));
   } else {
-    DCHECK_EQ(module->array_type(type_index)->element_type(), wasm::kWasmI64);
+    SBXCHECK_EQ(module->array_type(type_index)->element_type(), wasm::kWasmI64);
     return *isolate->factory()->NewWasmArray(
         wasm::kWasmI64, 1, value, direct_handle(map, isolate),
         AllocationType::kYoung, SKIP_WRITE_BARRIER);
@@ -1006,10 +1008,9 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerCodeGC) {
 }
 
 RUNTIME_FUNCTION(Runtime_EstimateCurrentMemoryConsumption) {
-  SealHandleScope shs(isolate);
-  DisallowGarbageCollection no_gc;
+  HandleScope shs(isolate);
   size_t result = wasm::GetWasmEngine()->EstimateCurrentMemoryConsumption();
-  return Smi::FromInt(static_cast<int>(result));
+  return *isolate->factory()->NewNumberFromSize(result);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmCompiledExportWrappersCount) {

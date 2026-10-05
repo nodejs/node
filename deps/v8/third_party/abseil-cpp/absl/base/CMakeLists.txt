@@ -61,8 +61,6 @@ absl_cc_library(
     hardening
   HDRS
     "internal/hardening.h"
-  SRCS
-    "internal/hardening.cc"
   DEPS
     absl::config
     absl::core_headers

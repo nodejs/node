@@ -22,6 +22,7 @@
 #include "src/objects/js-temporal-objects-inl.h"
 #include "src/objects/js-temporal-zoneinfo64.h"
 #include "src/objects/managed-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
 #include "src/objects/property-descriptor.h"
@@ -203,12 +204,12 @@ MaybeDirectHandle<JSType> ConstructRustWrappingType(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<HeapObject> new_target,
     std::unique_ptr<typename JSType::RustType>&& rust_value) {
-  // Managed requires shared ownership
+  // CppGCManaged requires shared ownership
   std::shared_ptr<typename JSType::RustType> rust_shared =
       std::move(rust_value);
 
-  DirectHandle<Managed<typename JSType::RustType>> managed =
-      Managed<typename JSType::RustType>::From(isolate, 0, rust_shared);
+  DirectHandle<CppGCManaged<typename JSType::RustType>> managed =
+      CppGCManaged<typename JSType::RustType>::Create(isolate, 0, rust_shared);
 
   ORDINARY_CREATE_FROM_CONSTRUCTOR(object, target, new_target, JSType)
   object->initialize_with_wrapped_rust_value(*managed);
@@ -2521,12 +2522,12 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
 // handles the midnight-setting
 //
 // https://tc39.es/proposal-temporal/#sec-temporal-totimerecordormidnight
-Maybe<Managed<temporal_rs::PlainTime>::Ptr> ToTimeRecordOrMidnight(
+Maybe<CppGCManaged<temporal_rs::PlainTime>::Ptr> ToTimeRecordOrMidnight(
     Isolate* isolate, DirectHandle<Object> item,
     DirectHandle<JSTemporalPlainTime>& output_time, const char* method_name) {
   // 1. If item is undefined, return MidnightTimeRecord().
   if (IsUndefined(*item)) {
-    return Just(Managed<temporal_rs::PlainTime>::Ptr());
+    return Just(CppGCManaged<temporal_rs::PlainTime>::Ptr());
   }
 
   // 2. Let plainTime be ? ToTemporalTime(item).
@@ -2534,7 +2535,7 @@ Maybe<Managed<temporal_rs::PlainTime>::Ptr> ToTimeRecordOrMidnight(
                              ToTemporalTime(isolate, item, {}, method_name));
 
   // 3. Return plainTime.[[Time]].
-  Managed<temporal_rs::PlainTime>::Ptr empty = output_time->wrapped_rust();
+  CppGCManaged<temporal_rs::PlainTime>::Ptr empty = output_time->wrapped_rust();
   return Just(std::move(empty));
 }
 
@@ -3540,7 +3541,7 @@ MaybeDirectHandle<JSType> AddDurationToGeneric(
 template <typename JSType, typename PartialType>
 MaybeDirectHandle<JSType> GenericWithHelper(
     Isolate* isolate,
-    const typename Managed<typename JSType::RustType>::Ptr& rust_object,
+    const typename CppGCManaged<typename JSType::RustType>::Ptr& rust_object,
     CombinedRecord& fields, DirectHandle<Object> options_obj,
     const char* method_name) {
   // 8. Let resolvedOptions be ? GetOptionsObject(options).
@@ -3566,7 +3567,7 @@ template <>
 MaybeDirectHandle<JSTemporalZonedDateTime>
 GenericWithHelper<JSTemporalZonedDateTime, temporal_rs::PartialZonedDateTime>(
     Isolate* isolate,
-    const Managed<JSTemporalZonedDateTime::RustType>::Ptr& rust_object,
+    const CppGCManaged<JSTemporalZonedDateTime::RustType>::Ptr& rust_object,
     CombinedRecord& fields, DirectHandle<Object> options_obj,
     const char* method_name) {
   // 19. Let resolvedOptions be ? GetOptionsObject(options).
@@ -4309,7 +4310,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDate::ToPlainDateTime(
   static const char method_name[] = "Temporal.PlainDate.toPlainDateTime";
 
   // 3. Let time be ? ToTimeRecordOrMidnight(temporalTime).
-  Managed<temporal_rs::PlainTime>::Ptr maybe_time;
+  CppGCManaged<temporal_rs::PlainTime>::Ptr maybe_time;
   DirectHandle<JSTemporalPlainTime> time_output;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, maybe_time,
@@ -4399,7 +4400,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
   }
 
   DirectHandle<JSTemporalPlainTime> temporal_time;
-  Managed<temporal_rs::PlainTime>::Ptr temporal_time_rust;
+  CppGCManaged<temporal_rs::PlainTime>::Ptr temporal_time_rust;
 
   // 5. If temporalTime is undefined, then
   if (temporal_time_obj.is_null() || IsUndefined(*temporal_time_obj)) {
@@ -4750,7 +4751,7 @@ JSTemporalPlainDateTime::WithPlainTime(
       "Temporal.PlainDateTime.prototype.withPlainTime";
 
   // 3. Let time be ? ToTimeRecordOrMidnight(plainTimeLike).
-  Managed<temporal_rs::PlainTime>::Ptr maybe_time;
+  CppGCManaged<temporal_rs::PlainTime>::Ptr maybe_time;
   DirectHandle<JSTemporalPlainTime> time_output;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, maybe_time,
@@ -6142,7 +6143,7 @@ JSTemporalZonedDateTime::WithPlainTime(
   // (handled later in Rust, idempotent)
 
   DirectHandle<JSTemporalPlainTime> plain_time_obj;
-  Managed<temporal_rs::PlainTime>::Ptr plain_time;
+  CppGCManaged<temporal_rs::PlainTime>::Ptr plain_time;
 
   // 6. If plainTimeLike is undefined, then
   if (IsUndefined(*plain_time_like)) {

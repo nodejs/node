@@ -37,6 +37,7 @@
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/sandbox/bytecode-verifier.h"
 #include "src/utils/utils.h"
@@ -99,8 +100,7 @@ V8_WARN_UNUSED_RESULT bool CheckMarkedForManualOptimization(
     PrintF(
         " should be prepared for optimization with "
         "%%PrepareFunctionForOptimization before  "
-        "%%OptimizeFunctionOnNextCall / %%OptimizeMaglevOnNextCall / "
-        "%%OptimizeOsr ");
+        "%%OptimizeFunctionOnNextCall / %%OptimizeMaglevOnNextCall");
     return false;
   }
   return true;
@@ -254,7 +254,8 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   }
 
   if (function->HasAttachedOptimizedCode(isolate)) {
-    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting);
+    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting,
+                                    function->code(isolate));
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -271,7 +272,8 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
   CHECK_UNLESS_FUZZING(!function.is_null());
 
   if (function->HasAttachedOptimizedCode(isolate)) {
-    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting);
+    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting,
+                                    function->code(isolate));
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -742,10 +744,15 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
   CHECK_UNLESS_FUZZING(!function->shared()->all_optimization_disabled());
 
-  // If we're fuzzing, allow having not marked the function for manual
-  // optimization (if the steps below succeed).
-  if (!v8_flags.fuzzing) {
-    CHECK(CheckMarkedForManualOptimization(isolate, *function));
+  if (!v8_flags.fuzzing &&
+      !ManualOptimizationTable::IsMarkedForManualOptimization(isolate,
+                                                              *function)) {
+    PrintF("Warning: Function ");
+    ShortPrint(*function);
+    PrintF(
+        " might have to be prepared for optimization with "
+        "%%PrepareFunctionForOptimization before  "
+        "%%OptimizeOsr");
   }
 
   if (function->HasAvailableOptimizedCode(isolate) &&
@@ -911,7 +918,8 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (!isolate->use_optimizer()) {
     status |= static_cast<int>(OptimizationStatus::kNeverOptimize);
   }
-  if (v8_flags.deopt_every_n_times) {
+  if (v8_flags.deopt_every_n_times || v8_flags.stress_flush_code ||
+      v8_flags.gc_interval > 0 || v8_flags.random_gc_interval > 0) {
     status |= static_cast<int>(OptimizationStatus::kMaybeDeopted);
   }
   if (v8_flags.optimize_on_next_call_optimizes_to_maglev) {
@@ -1294,7 +1302,7 @@ static void DebugPrintImpl(Tagged<MaybeObject> maybe_object, std::ostream& os) {
     os << "DebugPrint: ";
     if (weak) os << "[weak] ";
     Print(object, os);
-    if (IsHeapObject(object)) {
+    if (IsHeapObject(object) && !IsInaccessible(Cast<HeapObject>(object))) {
       Print(Cast<HeapObject>(object)->map(), os);
     }
 #else
@@ -1848,6 +1856,25 @@ RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
     }
   }
   return isolate->heap()->ToBoolean(result);
+}
+
+// Returns true iff the regexp cannot match a string starting with |c|,
+// according to the quick-check filters.  Lets tests assert that a filter was
+// actually built, which exec results alone cannot show.
+RUNTIME_FUNCTION(Runtime_RegexpQuickCheckRejects) {
+  SealHandleScope shs(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 2);
+  CHECK_UNLESS_FUZZING(IsJSRegExp(args[0]));
+  CHECK_UNLESS_FUZZING(IsString(args[1]));
+  auto regexp = args.at<JSRegExp>(0);
+  auto string = args.at<String>(1);
+  CHECK_UNLESS_FUZZING(string->length() == 1);
+  if (!regexp->has_data()) return ReadOnlyRoots(isolate).false_value();
+  DisallowGarbageCollection no_gc;
+  String::FlatContent content = string->GetFlatContent(no_gc);
+  if (!content.IsOneByte()) return ReadOnlyRoots(isolate).false_value();
+  return isolate->heap()->ToBoolean(
+      regexp->data(isolate)->QuickCheckRejects(content.ToOneByteVector(), 0));
 }
 
 RUNTIME_FUNCTION(Runtime_RegexpTypeTag) {
@@ -2439,6 +2466,12 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
         feedback_value.slot_kind_ = out.str();
         out << ":" << it.GetEmbeddedOperationHint<BinaryOperationFeedback>();
         feedback_value.details_ = out.str();
+      } else if (interpreter::Bytecodes::IsUnaryOpWithEmbeddedFeedback(
+                     bytecode)) {
+        out << "UnaryOp";
+        feedback_value.slot_kind_ = out.str();
+        out << ":" << it.GetEmbeddedOperationHint<BinaryOperationFeedback>();
+        feedback_value.details_ = out.str();
       } else {
         UNREACHABLE();
       }
@@ -2836,7 +2869,8 @@ RUNTIME_FUNCTION(Runtime_InstallBytecode) {
   shared->set_bytecode_array(*new_bytecode);
 
   if (function->HasAttachedOptimizedCode(isolate)) {
-    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting);
+    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting,
+                                    function->code(isolate));
   }
   function->UpdateCode(isolate,
                        *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));

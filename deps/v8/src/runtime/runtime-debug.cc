@@ -8,7 +8,6 @@
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
-#include "src/debug/liveedit.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/interpreter/bytecodes.h"
@@ -19,6 +18,7 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
+#include "src/objects/module-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded/embedded-data.h"
@@ -354,6 +354,39 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[WeakRefTarget]]"),
         direct_handle(js_weak_ref->target(), isolate));
+  } else if (IsJSDeferredModuleNamespace(*object)) {
+    auto ns = Cast<JSDeferredModuleNamespace>(object);
+
+    const char* status = nullptr;
+    switch (ns->module()->status()) {
+      case Module::kUnlinked:
+        status = "unlinked";
+        break;
+      case Module::kPreLinking:
+      case Module::kLinking:
+        status = "linking";
+        break;
+      case Module::kLinked:
+        status = "linked";
+        break;
+      case Module::kEvaluating:
+        status = "evaluating";
+        break;
+      case Module::kEvaluatingAsync:
+        status = "evaluating-async";
+        break;
+      case Module::kEvaluated:
+        status = "evaluated";
+        break;
+      case Module::kErrored:
+        status = "errored";
+        break;
+    }
+
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[ModuleStatus]]"),
+        isolate->factory()->NewStringFromAsciiChecked(status));
   } else if (IsJSArrayBuffer(*object)) {
     DirectHandle<JSArrayBuffer> js_array_buffer = Cast<JSArrayBuffer>(object);
     if (js_array_buffer->was_detached()) {
@@ -858,7 +891,7 @@ RUNTIME_FUNCTION(Runtime_DebugCollectWasmCoverage) {
     const CoverageScript& script_data = coverage->at(i);
     Handle<Script> script = script_data.script;
     DCHECK_EQ(script->type(), Script::Type::kWasm);
-    Managed<wasm::NativeModule>::Ptr native_module =
+    CppGCManaged<wasm::NativeModule>::Ptr native_module =
         script->wasm_native_module();
     const wasm::WasmModule* module = native_module->module();
 
@@ -975,40 +1008,6 @@ RUNTIME_FUNCTION(Runtime_DebugPromiseThen) {
     isolate->OnPromiseThen(Cast<JSPromise>(promise));
   }
   return *promise;
-}
-
-RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  DirectHandle<JSFunction> script_function = args.at<JSFunction>(0);
-  Handle<String> new_source = args.at<String>(1);
-
-  Handle<Script> script(Cast<Script>(script_function->shared()->script()),
-                        isolate);
-  v8::debug::LiveEditResult result;
-  isolate->debug()->SetScriptSource(script, new_source, /* preview */ false,
-                                    /* allow_top_frame_live_editing */ false,
-                                    &result);
-  switch (result.status) {
-    case v8::debug::LiveEditResult::COMPILE_ERROR:
-      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
-          "LiveEdit failed: COMPILE_ERROR"));
-    case v8::debug::LiveEditResult::BLOCKED_BY_RUNNING_GENERATOR:
-      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
-          "LiveEdit failed: BLOCKED_BY_RUNNING_GENERATOR"));
-    case v8::debug::LiveEditResult::BLOCKED_BY_ACTIVE_FUNCTION:
-      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
-          "LiveEdit failed: BLOCKED_BY_ACTIVE_FUNCTION"));
-    case v8::debug::LiveEditResult::BLOCKED_BY_TOP_LEVEL_ES_MODULE_CHANGE:
-      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
-          "LiveEdit failed: BLOCKED_BY_TOP_LEVEL_ES_MODULE_CHANGE"));
-    case v8::debug::LiveEditResult::FEATURE_DISABLED:
-      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
-          "LiveEdit failed: FEATURE_DISABLED"));
-    case v8::debug::LiveEditResult::OK:
-      return ReadOnlyRoots(isolate).undefined_value();
-  }
-  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_ProfileCreateSnapshotDataBlob) {

@@ -51,6 +51,7 @@ class MaglevGraphVerifier {
     CHECK(!seen_[block->id()]);
     seen_[block->id()] = true;
     current_block_ = block;
+    VerifyPredecessors(block);
     return BlockProcessResult::kContinue;
   }
   void PostPhiProcessing() {}
@@ -85,6 +86,22 @@ class MaglevGraphVerifier {
   }
 
  private:
+  void VerifyPredecessors(BasicBlock* block) {
+    if (block->is_loop()) {
+      CHECK_GE(block->predecessor_count(), 1);
+      CHECK_LE(block->predecessor_count(), 2);
+      CHECK_IMPLIES(
+          block->predecessor_count() == 1,
+          block->state()->is_resumable_loop() || block->IsUnreachable());
+      CHECK(block->backedge_predecessor()->control_node()->Is<JumpLoop>());
+    }
+    if (block->has_phi()) {
+      for (Phi* phi : *block->phis()) {
+        CHECK_EQ(phi->input_count(), block->predecessor_count());
+      }
+    }
+  }
+
   // Immediate dominators (Cooper-Harvey-Kennedy) and each value's defining
   // block, so the dominance checks below can ask real dominance questions.
   // TODO(victorgomes): Consider merging this with Turboshaft's dominator-tree

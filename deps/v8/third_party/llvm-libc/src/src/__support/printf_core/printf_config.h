@@ -36,7 +36,7 @@
 #define LIBC_INTERNAL_PRINTF_HAS_FIXED_POINT
 #endif
 
-#if defined(LIBC_TYPES_HAS_FLOAT128) &&                                        \
+#if defined(LIBC_TYPES_HAS_NATIVE_FLOAT128) &&                                 \
     !defined(LIBC_COPT_PRINTF_NO_CONVERT_FLOAT128)
 #define LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128
 #endif

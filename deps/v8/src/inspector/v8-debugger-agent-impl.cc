@@ -1219,29 +1219,6 @@ Response V8DebuggerAgentImpl::searchInContent(
   return Response::Success();
 }
 
-namespace {
-const char* buildStatus(v8::debug::LiveEditResult::Status status) {
-  switch (status) {
-    case v8::debug::LiveEditResult::OK:
-      return protocol::Debugger::SetScriptSource::StatusEnum::Ok;
-    case v8::debug::LiveEditResult::COMPILE_ERROR:
-      return protocol::Debugger::SetScriptSource::StatusEnum::CompileError;
-    case v8::debug::LiveEditResult::BLOCKED_BY_ACTIVE_FUNCTION:
-      return protocol::Debugger::SetScriptSource::StatusEnum::
-          BlockedByActiveFunction;
-    case v8::debug::LiveEditResult::BLOCKED_BY_RUNNING_GENERATOR:
-      return protocol::Debugger::SetScriptSource::StatusEnum::
-          BlockedByActiveGenerator;
-    case v8::debug::LiveEditResult::BLOCKED_BY_TOP_LEVEL_ES_MODULE_CHANGE:
-      return protocol::Debugger::SetScriptSource::StatusEnum::
-          BlockedByTopLevelEsModuleChange;
-    case v8::debug::LiveEditResult::FEATURE_DISABLED:
-      UNREACHABLE();
-  }
-  UNREACHABLE();
-}
-}  // namespace
-
 Response V8DebuggerAgentImpl::setScriptSource(
     const String16& scriptId, const String16& newContent,
     std::optional<bool> dryRun, std::optional<bool> allowTopFrameEditing,
@@ -1253,59 +1230,8 @@ Response V8DebuggerAgentImpl::setScriptSource(
     String16* status,
     std::unique_ptr<protocol::Runtime::ExceptionDetails>* optOutCompileError) {
   if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
-
-  std::shared_ptr<V8DebuggerScript> script;
-  {
-    v8::debug::DisallowGarbageCollectionScope no_gc;
-    if (getScriptById(scriptId, no_gc)) {
-      script = m_scripts.at(scriptId);
-    }
-  }
-  if (!script) {
-    return Response::ServerError("No script with given id found");
-  }
-  int contextId = script->executionContextId();
-  std::shared_ptr<InspectedContext> inspected =
-      m_inspector->getContext(contextId);
-  if (!inspected) {
-    return Response::InternalError();
-  }
-  v8::HandleScope handleScope(m_isolate);
-  v8::Local<v8::Context> context = inspected->context();
-  v8::Context::Scope contextScope(context);
-  const bool allowTopFrameLiveEditing = allowTopFrameEditing.value_or(false);
-
-  v8::debug::LiveEditResult result;
-  script->setSource(newContent, dryRun.value_or(false),
-                    allowTopFrameLiveEditing, &result);
-  if (result.status == v8::debug::LiveEditResult::FEATURE_DISABLED) {
-    return Response::ServerError(
-        "setScriptSource functionality no longer available");
-  }
-  *status = buildStatus(result.status);
-  if (result.status == v8::debug::LiveEditResult::COMPILE_ERROR) {
-    *optOutCompileError =
-        protocol::Runtime::ExceptionDetails::create()
-            .setExceptionId(m_inspector->nextExceptionId())
-            .setText(toProtocolString(m_isolate, result.message))
-            .setLineNumber(result.line_number != -1 ? result.line_number - 1
-                                                    : 0)
-            .setColumnNumber(result.column_number != -1 ? result.column_number
-                                                        : 0)
-            .build();
-    return Response::Success();
-  }
-
-  if (result.restart_top_frame_required) {
-    CHECK(allowTopFrameLiveEditing);
-    // Nothing could have happened to the JS stack since the live edit so
-    // restarting the top frame is guaranteed to be successful.
-    CHECK(m_debugger->restartFrame(m_session->contextGroupId(),
-                                   /* callFrameOrdinal */ 0));
-    m_session->releaseObjectGroup(kBacktraceObjectGroup);
-  }
-
-  return Response::Success();
+  return Response::ServerError(
+      "setScriptSource functionality no longer available");
 }
 
 Response V8DebuggerAgentImpl::restartFrame(
@@ -1705,7 +1631,7 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
     std::optional<bool> includeCommandLineAPI, std::optional<bool> silent,
     std::optional<bool> returnByValue, std::optional<bool> generatePreview,
     std::optional<bool> throwOnSideEffect, std::optional<double> timeout,
-    std::unique_ptr<RemoteObject>* result,
+    std::optional<int> scopeNumber, std::unique_ptr<RemoteObject>* result,
     std::unique_ptr<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
   InjectedScript::CallFrameScope scope(m_session, callFrameId);
@@ -1726,6 +1652,18 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
     return Response::ServerError("Could not find call frame with given id");
   }
 
+  if (scopeNumber.has_value()) {
+    auto scopeIterator = it->GetScopeIterator();
+    int number = scopeNumber.value();
+    while (!scopeIterator->Done() && number > 0) {
+      --number;
+      scopeIterator->Advance();
+    }
+    if (number != 0 || scopeIterator->Done()) {
+      return Response::ServerError("Could not find scope with given number");
+    }
+  }
+
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
     V8InspectorImpl::EvaluateScope evaluateScope(scope);
@@ -1734,7 +1672,8 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
       if (!response.IsSuccess()) return response;
     }
     maybeResultValue = it->Evaluate(toV8String(m_isolate, expression),
-                                    throwOnSideEffect.value_or(false));
+                                    throwOnSideEffect.value_or(false),
+                                    scopeNumber.value_or(0));
   }
   // Re-initialize after running client's code, as it could have destroyed
   // context or session.
@@ -1926,7 +1865,7 @@ Response V8DebuggerAgentImpl::currentCallFrames(
   int frameOrdinal = 0;
   for (; !iterator->Done(); iterator->Advance(), frameOrdinal++) {
     int contextId = iterator->GetContextId();
-    InjectedScript* injectedScript = nullptr;
+    std::shared_ptr<InjectedScript> injectedScript;
     std::shared_ptr<InspectedContext> inspectedContext;
     if (contextId) {
       m_session->findInjectedScript(contextId, injectedScript,
@@ -1939,8 +1878,8 @@ Response V8DebuggerAgentImpl::currentCallFrames(
 
     std::unique_ptr<Array<Scope>> scopes;
     auto scopeIterator = iterator->GetScopeIterator();
-    Response res =
-        buildScopes(m_isolate, scopeIterator.get(), injectedScript, &scopes);
+    Response res = buildScopes(m_isolate, scopeIterator.get(),
+                               injectedScript.get(), &scopes);
     if (!res.IsSuccess()) return res;
 
     std::unique_ptr<RemoteObject> protocolReceiver;
@@ -2117,7 +2056,6 @@ void V8DebuggerAgentImpl::didParseSource(
     executionContextAuxData = protocol::DictionaryValue::cast(
         protocol::Value::parseBinary(cbor.data(), cbor.size()));
   }
-  bool isLiveEdit = script->isLiveEdit();
   bool hasSourceURLComment = script->hasSourceURLComment();
   bool isModule = script->isModule();
   String16 scriptId = script->scriptId();
@@ -2151,7 +2089,6 @@ void V8DebuggerAgentImpl::didParseSource(
   scriptRef->resetBlackboxedStateCache();
 
   std::optional<String16> sourceMapURLParam = scriptRef->sourceMappingURL();
-  const bool* isLiveEditParam = isLiveEdit ? &isLiveEdit : nullptr;
   const bool* hasSourceURLParam =
       hasSourceURLComment ? &hasSourceURLComment : nullptr;
   const bool* isModuleParam = isModule ? &isModule : nullptr;
@@ -2216,7 +2153,7 @@ void V8DebuggerAgentImpl::didParseSource(
       scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
       scriptRef->endLine(), scriptRef->endColumn(), contextId,
       scriptRef->hash(), scriptRef->buildId(),
-      std::move(executionContextAuxData), isLiveEditParam,
+      std::move(executionContextAuxData), /* isLiveEdit */ false,
       std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam,
       scriptRef->length(), std::move(stackTrace), std::move(codeOffset),
       std::move(scriptLanguage), std::move(debugSymbols), embedderName,
@@ -2309,7 +2246,7 @@ void V8DebuggerAgentImpl::didPause(
     hitReasons.push_back(std::make_pair(
         protocol::Debugger::Paused::ReasonEnum::Assert, nullptr));
   } else if (breakReasons.contains(v8::debug::BreakReason::kException)) {
-    InjectedScript* injectedScript = nullptr;
+    std::shared_ptr<InjectedScript> injectedScript;
     std::shared_ptr<InspectedContext> inspectedContext;
     m_session->findInjectedScript(contextId, injectedScript, &inspectedContext);
     if (injectedScript) {

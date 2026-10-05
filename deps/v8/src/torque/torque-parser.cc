@@ -1039,6 +1039,7 @@ std::optional<ParseResult> MakeClassDeclaration(
        ANNOTATION_DO_NOT_GENERATE_CPP_CLASS, ANNOTATION_CUSTOM_CPP_CLASS,
        ANNOTATION_CUSTOM_MAP, ANNOTATION_EXPORT,
        ANNOTATION_DO_NOT_GENERATE_CAST,
+       ANNOTATION_DO_NOT_GENERATE_INSTANCE_TYPE_CHECK,
        ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT,
        ANNOTATION_LOWEST_INSTANCE_TYPE_WITHIN_PARENT,
        ANNOTATION_CPP_OBJECT_LAYOUT_DEFINITION},
@@ -1067,6 +1068,9 @@ std::optional<ParseResult> MakeClassDeclaration(
   }
   if (annotations.Contains(ANNOTATION_DO_NOT_GENERATE_CAST)) {
     flags |= ClassFlag::kDoNotGenerateCast;
+  }
+  if (annotations.Contains(ANNOTATION_DO_NOT_GENERATE_INSTANCE_TYPE_CHECK)) {
+    flags |= ClassFlag::kDoNotGenerateInstanceTypeCheck;
   }
   if (annotations.Contains(ANNOTATION_EXPORT)) {
     flags |= ClassFlag::kExport;

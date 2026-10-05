@@ -112,6 +112,7 @@
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"
@@ -155,7 +156,6 @@
 #include "src/utils/version.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/base/fpu.h"
 #include "src/debug/debug-wasm-objects.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/streaming-decoder.h"
@@ -955,8 +955,8 @@ Context::BackupIncumbentScope::~BackupIncumbentScope() {
 }
 
 static_assert(i::Internals::kEmbedderDataSlotSize == i::kEmbedderDataSlotSize);
-static_assert(i::Internals::kEmbedderDataSlotExternalPointerOffset ==
-              i::EmbedderDataSlot::kExternalPointerOffset);
+static_assert(i::Internals::kEmbedderDataSlotCppHeapPointerOffset ==
+              i::EmbedderDataSlot::kCppHeapPointerOffset);
 
 static i::DirectHandle<i::EmbedderDataArray> EmbedderDataFor(
     Context* context, int index, bool can_grow, const char* location) {
@@ -1035,8 +1035,8 @@ void Context::SetEmbedderDataV2(int index, v8::Local<Data> value) {
             *Utils::OpenDirectHandle(*GetEmbedderDataV2(index)));
 }
 
-void* Context::SlowGetAlignedPointerFromEmbedderData(int index,
-                                                     EmbedderDataTypeTag tag) {
+void* Context::GetAlignedPointerFromEmbedderData(int index,
+                                                 EmbedderDataTypeTag tag) {
   const char* location = "v8::Context::GetAlignedPointerFromEmbedderData()";
   i::Isolate* i_isolate = i::Isolate::Current();
   i::HandleScope handle_scope(i_isolate);
@@ -1051,17 +1051,42 @@ void* Context::SlowGetAlignedPointerFromEmbedderData(int index,
   return result;
 }
 
+void* Context::SlowGetAlignedPointerFromEmbedderData(int index,
+                                                     CppHeapPointerTag tag) {
+  const char* location = "v8::Context::GetAlignedPointerFromEmbedderData()";
+  i::Isolate* i_isolate = i::Isolate::Current();
+  i::HandleScope handle_scope(i_isolate);
+  i::DirectHandle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, false, location);
+  if (data.is_null()) return nullptr;
+  void* result;
+  Utils::ApiCheck(i::EmbedderDataSlot(*data, index)
+                      .ToAlignedPointer(i_isolate, &result, tag),
+                  location, "Pointer is not aligned");
+  return result;
+}
+
 void Context::SetAlignedPointerInEmbedderData(int index, void* value,
                                               EmbedderDataTypeTag tag) {
   const char* location = "v8::Context::SetAlignedPointerInEmbedderData()";
   i::Isolate* i_isolate = i::Isolate::Current();
   i::DirectHandle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, true, location);
-  bool ok = i::EmbedderDataSlot(*data, index)
-                .store_aligned_pointer(i_isolate, *data, value,
-                                       ToExternalPointerTag(tag));
+  bool ok = i::EmbedderDataSlot::store_aligned_pointer(
+      i_isolate, data, index, value, ToExternalPointerTag(tag));
   Utils::ApiCheck(ok, location, "Pointer is not aligned");
   DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index, tag));
+}
+
+void Context::SetAlignedPointerInEmbedderDataInternal(int index, void* value,
+                                                      CppHeapPointerTag tag) {
+  const char* location = "v8::Context::SetAlignedPointerInEmbedderData()";
+  i::Isolate* i_isolate = i::Isolate::Current();
+  i::DirectHandle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, true, location);
+  bool ok = i::EmbedderDataSlot(*data, index)
+                .store_aligned_pointer(i_isolate, *data, value, tag);
+  Utils::ApiCheck(ok, location, "Pointer is not aligned");
 }
 
 // --- T e m p l a t e ---
@@ -1563,17 +1588,6 @@ void Template::SetNativeDataProperty(v8::Local<Name> name,
                       getter_side_effect_type, setter_side_effect_type);
 }
 
-void Template::SetNativeDataProperty(v8::Local<Name> name,
-                                     AccessorNameGetterCallback getter,
-                                     AccessorNameSetterCallback setter,
-                                     v8::Local<Value> data,
-                                     PropertyAttribute attribute,
-                                     SideEffectType getter_side_effect_type,
-                                     SideEffectType setter_side_effect_type) {
-  TemplateSetAccessor(this, name, getter, setter, data, attribute, false,
-                      getter_side_effect_type, setter_side_effect_type);
-}
-
 void Template::SetLazyDataProperty(v8::Local<Name> name,
                                    AccessorNameGetterCallback getter,
                                    v8::Local<Value> data,
@@ -1581,7 +1595,7 @@ void Template::SetLazyDataProperty(v8::Local<Name> name,
                                    SideEffectType getter_side_effect_type,
                                    SideEffectType setter_side_effect_type) {
   TemplateSetAccessor(
-      this, name, getter, static_cast<AccessorNameSetterCallback>(nullptr),
+      this, name, getter, static_cast<AccessorNameSetterCallbackV2>(nullptr),
       data, attribute, true, getter_side_effect_type, setter_side_effect_type);
 }
 
@@ -2438,7 +2452,7 @@ Maybe<bool> Module::InstantiateModule(Local<Context> context,
   return Just(true);
 }
 
-MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
+MaybeLocal<Promise> Module::Evaluate(Local<Context> context) {
   auto i_isolate = i::Isolate::Current();
   TRACE_EVENT_CALL_STATS_SCOPED(i_isolate, "v8", "V8.Execute");
   EnterV8Scope<InternalEscapableScope> api_scope{i_isolate, context,
@@ -2456,7 +2470,7 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
   return api_scope.EscapeMaybe(i::Module::Evaluate(i_isolate, self));
 }
 
-MaybeLocal<Value> Module::EvaluateForImportDefer(Local<Context> context) {
+MaybeLocal<Promise> Module::EvaluateForImportDefer(Local<Context> context) {
   auto i_isolate = i::Isolate::Current();
   TRACE_EVENT_CALL_STATS_SCOPED(i_isolate, "v8", "V8.Execute");
   EnterV8Scope<InternalEscapableScope> api_scope{i_isolate, context,
@@ -2486,7 +2500,7 @@ MaybeLocal<Value> Module::EvaluateForImportDefer(Local<Context> context) {
     Local<Module> v8_dep_module = Utils::ToLocal(dep_module);
     MaybeLocal<Value> maybe_eval_result = v8_dep_module->Evaluate(context);
     if (maybe_eval_result.IsEmpty()) {
-      return api_scope.EscapeMaybe(MaybeLocal<Value>());
+      return api_scope.EscapeMaybe(MaybeLocal<Promise>());
     }
     Local<Value> eval_result = maybe_eval_result.ToLocalChecked();
     CHECK(eval_result->IsPromise());
@@ -2501,7 +2515,7 @@ MaybeLocal<Value> Module::EvaluateForImportDefer(Local<Context> context) {
   i::MaybeHandle<i::JSPromise> maybe_promise_all_result =
       i::JSPromise::PerformPromiseAll(i_isolate, promises);
   if (maybe_promise_all_result.is_null()) {
-    return api_scope.EscapeMaybe(MaybeLocal<Value>());
+    return api_scope.EscapeMaybe(MaybeLocal<Promise>());
   }
   return api_scope.Escape(
       Utils::ToLocal(maybe_promise_all_result.ToHandleChecked()));
@@ -2536,6 +2550,34 @@ Local<Module> Module::CreateSyntheticModule(
           i_module_name, i_export_names, evaluation_steps,
           i_host_defined_options)));
 }
+
+START_ALLOW_USE_DEPRECATED()
+Local<Module> Module::CreateSyntheticModule(
+    Isolate* v8_isolate, Local<String> module_name,
+    const std::span<const Local<String>>& export_names,
+    v8::Module::LegacySyntheticModuleEvaluationSteps evaluation_steps,
+    Local<Data> host_defined_options) {
+  // TODO(https://crbug.com/545375591): Remove once
+  // LegacySyntheticModuleEvaluationSteps is gone.
+#if (__GNUC__ >= 8) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+  // Cast from 'v8::MaybeLocal<v8::Value> (*)(v8::Local<v8::Context>,
+  // v8::Local<v8::Module>)' to 'v8::MaybeLocal<v8::Promise>
+  // (*)(v8::Local<v8::Context>, v8::Local<v8::Module>)'. Both return types are
+  // pointer-sized, trivially copyable handle wrappers, so they share the same
+  // representation. SyntheticModule::Evaluate() checks at runtime that the
+  // returned value really is a Promise.
+  auto promise_returning_steps =
+      reinterpret_cast<SyntheticModuleEvaluationSteps>(evaluation_steps);
+#if (__GNUC__ >= 8) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+  return CreateSyntheticModule(v8_isolate, module_name, export_names,
+                               promise_returning_steps, host_defined_options);
+}
+END_ALLOW_USE_DEPRECATED()
 
 Local<Data> Module::GetSyntheticModuleHostDefinedOptions() const {
   auto self = Utils::OpenDirectHandle(this);
@@ -3006,6 +3048,7 @@ using TryCatchIsVerboseField = v8::base::BitField<bool, 0, 1, uint8_t>;
 using TryCatchCanContinueField = TryCatchIsVerboseField::Next<bool, 1>;
 using TryCatchCaptureMessageField = TryCatchCanContinueField::Next<bool, 1>;
 using TryCatchRethrowField = TryCatchCaptureMessageField::Next<bool, 1>;
+using TryCatchIsInternalField = TryCatchRethrowField::Next<bool, 1>;
 }  // namespace
 
 v8::TryCatch::TryCatch(v8::Isolate* v8_isolate)
@@ -3014,7 +3057,8 @@ v8::TryCatch::TryCatch(v8::Isolate* v8_isolate)
       flags_(TryCatchIsVerboseField::encode(false) |
              TryCatchCanContinueField::encode(true) |
              TryCatchCaptureMessageField::encode(true) |
-             TryCatchRethrowField::encode(false)) {
+             TryCatchRethrowField::encode(false) |
+             TryCatchIsInternalField::encode(false)) {
   ResetInternal();
   // Special handling for simulators which have a separate JS stack.
   js_stack_comparable_address_ = static_cast<internal::Address>(
@@ -3158,6 +3202,14 @@ bool v8::TryCatch::rethrow() const {
 
 void v8::TryCatch::set_rethrow(bool value) {
   flags_ = TryCatchRethrowField::update(flags_, value);
+}
+
+bool v8::TryCatch::IsInternal() const {
+  return TryCatchIsInternalField::decode(flags_);
+}
+
+void v8::TryCatch::SetIsInternal(bool value) {
+  flags_ = TryCatchIsInternalField::update(flags_, value);
 }
 
 // --- M e s s a g e ---
@@ -3477,8 +3529,7 @@ Local<String> StackFrame::GetFunctionName() const {
 
 bool StackFrame::IsEval() const {
   auto self = Utils::OpenDirectHandle(this);
-  return self->script()->compilation_type() ==
-         i::Script::CompilationType::kEval;
+  return self->script()->has_eval_origin();
 }
 
 bool StackFrame::IsConstructor() const {
@@ -3610,18 +3661,24 @@ void ValueSerializer::Delegate::FreeBufferMemory(void* buffer) {
 }
 
 struct ValueSerializer::PrivateData {
-  explicit PrivateData(i::Isolate* i, ValueSerializer::Delegate* delegate)
-      : isolate(i), serializer(i, delegate) {}
+  explicit PrivateData(
+      i::Isolate* i, ValueSerializer::Delegate* delegate,
+      SharedImmutableArrayBufferMode share_immutable_array_buffer)
+      : isolate(i), serializer(i, delegate, share_immutable_array_buffer) {}
   i::Isolate* isolate;
   i::ValueSerializer serializer;
 };
 
-ValueSerializer::ValueSerializer(Isolate* v8_isolate)
-    : ValueSerializer(v8_isolate, nullptr) {}
+ValueSerializer::ValueSerializer(
+    Isolate* v8_isolate,
+    SharedImmutableArrayBufferMode share_immutable_array_buffer)
+    : ValueSerializer(v8_isolate, nullptr, share_immutable_array_buffer) {}
 
-ValueSerializer::ValueSerializer(Isolate* v8_isolate, Delegate* delegate)
+ValueSerializer::ValueSerializer(
+    Isolate* v8_isolate, Delegate* delegate,
+    SharedImmutableArrayBufferMode share_immutable_array_buffer)
     : private_(new PrivateData(reinterpret_cast<i::Isolate*>(v8_isolate),
-                               delegate)) {}
+                               delegate, share_immutable_array_buffer)) {}
 
 ValueSerializer::~ValueSerializer() { delete private_; }
 
@@ -3629,6 +3686,18 @@ void ValueSerializer::WriteHeader() { private_->serializer.WriteHeader(); }
 
 void ValueSerializer::SetTreatArrayBufferViewsAsHostObjects(bool mode) {
   private_->serializer.SetTreatArrayBufferViewsAsHostObjects(mode);
+}
+
+std::vector<std::shared_ptr<v8::BackingStore>>
+ValueSerializer::ReleaseSharedImmutableBackingStores() {
+  auto i_stores = private_->serializer.ReleaseSharedImmutableBackingStores();
+  std::vector<std::shared_ptr<v8::BackingStore>> result;
+  result.reserve(i_stores.size());
+  for (auto& bs : i_stores) {
+    std::shared_ptr<i::BackingStoreBase> bs_base = bs;
+    result.push_back(std::static_pointer_cast<v8::BackingStore>(bs_base));
+  }
+  return result;
 }
 
 Maybe<bool> ValueSerializer::WriteValue(Local<Context> context,
@@ -3773,6 +3842,17 @@ void ValueDeserializer::TransferSharedArrayBuffer(
     uint32_t transfer_id, Local<SharedArrayBuffer> shared_array_buffer) {
   private_->deserializer.TransferArrayBuffer(
       transfer_id, Utils::OpenDirectHandle(*shared_array_buffer));
+}
+
+void ValueDeserializer::SetSharedImmutableBackingStores(
+    std::vector<std::shared_ptr<BackingStore>> backing_stores) {
+  std::vector<std::shared_ptr<i::BackingStore>> i_stores;
+  i_stores.reserve(backing_stores.size());
+  for (auto& bs : backing_stores) {
+    std::shared_ptr<i::BackingStoreBase> bs_base = bs;
+    i_stores.push_back(std::static_pointer_cast<i::BackingStore>(bs_base));
+  }
+  private_->deserializer.SetSharedImmutableBackingStores(std::move(i_stores));
 }
 
 bool ValueDeserializer::ReadUint32(uint32_t* value) {
@@ -3993,6 +4073,10 @@ bool Value::IsPromise() const {
 
 bool Value::IsModuleNamespaceObject() const {
   return IsJSModuleNamespace(*Utils::OpenDirectHandle(this));
+}
+
+bool Value::IsDeferredModuleNamespaceObject() const {
+  return IsJSDeferredModuleNamespace(*Utils::OpenDirectHandle(this));
 }
 
 MaybeLocal<String> Value::ToString(Local<Context> context) const {
@@ -5234,24 +5318,13 @@ Maybe<bool> Object::SetNativeDataProperty(
                            setter_side_effect_type);
 }
 
-Maybe<bool> Object::SetNativeDataProperty(
-    v8::Local<v8::Context> context, v8::Local<Name> name,
-    AccessorNameGetterCallback getter, AccessorNameSetterCallback setter,
-    v8::Local<Value> data, PropertyAttribute attributes,
-    SideEffectType getter_side_effect_type,
-    SideEffectType setter_side_effect_type) {
-  return ObjectSetAccessor(context, this, name, getter, setter, data,
-                           attributes, false, getter_side_effect_type,
-                           setter_side_effect_type);
-}
-
 Maybe<bool> Object::SetLazyDataProperty(
     v8::Local<v8::Context> context, v8::Local<Name> name,
     AccessorNameGetterCallback getter, v8::Local<Value> data,
     PropertyAttribute attributes, SideEffectType getter_side_effect_type,
     SideEffectType setter_side_effect_type) {
   return ObjectSetAccessor(context, this, name, getter,
-                           static_cast<AccessorNameSetterCallback>(nullptr),
+                           static_cast<AccessorNameSetterCallbackV2>(nullptr),
                            data, attributes, true, getter_side_effect_type,
                            setter_side_effect_type);
 }
@@ -5465,10 +5538,10 @@ Local<v8::Context> v8::Object::GetCreationContextChecked() {
 }
 
 namespace {
+template <typename TagType>
 V8_INLINE void* GetAlignedPointerFromEmbedderDataInCreationContextImpl(
-    i::DirectHandle<i::JSReceiver> object,
-    i::IsolateForSandbox i_isolate_for_sandbox, int index,
-    EmbedderDataTypeTag tag) {
+    i::DirectHandle<i::JSReceiver> object, i::Isolate* i_isolate, int index,
+    TagType tag) {
   const char* location =
       "v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext()";
   auto maybe_context = object->GetCreationContext();
@@ -5482,8 +5555,7 @@ V8_INLINE void* GetAlignedPointerFromEmbedderDataInCreationContextImpl(
     // cleared on Detach to avoid leaks). Since we're doing a global proxy
     // access though, the Isolate's current native context must be the native
     // context we care about.
-    i::Isolate* isolate = i::Isolate::Current();
-    i::Tagged<i::Context> context = isolate->context();
+    i::Tagged<i::Context> context = i_isolate->context();
     CHECK_EQ(context->global_proxy(), *object);
     native_context = context->native_context();
   }
@@ -5504,8 +5576,7 @@ V8_INLINE void* GetAlignedPointerFromEmbedderDataInCreationContextImpl(
                 static_cast<unsigned>(data->length()))) {
     void* result;
     Utils::ApiCheck(i::EmbedderDataSlot(data, index)
-                        .ToAlignedPointer(i_isolate_for_sandbox, &result,
-                                          ToExternalPointerTag(tag)),
+                        .ToAlignedPointer(i_isolate, &result, tag),
                     location, "Pointer is not aligned");
     return result;
   }
@@ -5521,15 +5592,22 @@ void* v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext(
     v8::Isolate* isolate, int index, EmbedderDataTypeTag tag) {
   auto self = Utils::OpenDirectHandle(this);
   auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  return GetAlignedPointerFromEmbedderDataInCreationContextImpl(self, i_isolate,
-                                                                index, tag);
+  return GetAlignedPointerFromEmbedderDataInCreationContextImpl(
+      self, i_isolate, index, ToExternalPointerTag(tag));
 }
 
 void* v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext(
     int index, EmbedderDataTypeTag tag) {
   auto self = Utils::OpenDirectHandle(this);
-  i::IsolateForSandbox isolate = i::GetCurrentIsolateForSandbox();
-  return GetAlignedPointerFromEmbedderDataInCreationContextImpl(self, isolate,
+  return GetAlignedPointerFromEmbedderDataInCreationContextImpl(
+      self, i::Isolate::Current(), index, ToExternalPointerTag(tag));
+}
+
+void* v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext(
+    v8::Isolate* isolate, int index, CppHeapPointerTag tag) {
+  auto self = Utils::OpenDirectHandle(this);
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  return GetAlignedPointerFromEmbedderDataInCreationContextImpl(self, i_isolate,
                                                                 index, tag);
 }
 
@@ -6281,10 +6359,9 @@ void v8::Object::SetAlignedPointerInInternalField(int index, void* value,
   const char* location = "v8::Object::SetAlignedPointerInInternalField()";
   if (!InternalFieldOK(obj, index, location)) return;
 
-  i::DisallowGarbageCollection no_gc;
-  Utils::ApiCheck(i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
-                      .store_aligned_pointer(i::Isolate::Current(), *obj, value,
-                                             ToExternalPointerTag(tag)),
+  Utils::ApiCheck(i::EmbedderDataSlot::store_aligned_pointer(
+                      i::Isolate::Current(), i::Cast<i::JSObject>(obj), index,
+                      value, ToExternalPointerTag(tag)),
                   location, "Unaligned pointer");
   DCHECK_EQ(value, GetAlignedPointerFromInternalField(index, tag));
 }
@@ -6950,6 +7027,7 @@ bool IsJSReceiverSafeToFreeze(i::InstanceType obj_type) {
       return true;
 #if V8_ENABLE_WEBASSEMBLY
     case i::WASM_ARRAY_TYPE:
+    case i::WASM_CUSTOM_MAP_TYPE:
     case i::WASM_STRUCT_TYPE:
     case i::WASM_TAG_OBJECT_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -8273,11 +8351,6 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
                                    void* callback_data) {
   // Instead of relying on callers to check condition, this function returns
   // {kSlowPath} for situations it can't handle.
-  // Most code paths below don't allocate, and rely on {callback} not allocating
-  // either, but this isn't enforced with {DisallowHeapAllocation} to allow
-  // embedders to allocate error objects before terminating the iteration.
-  // Since {callback} must not allocate anyway, we can get away with fake
-  // handles, reducing per-element overhead.
   if (!CanUseFastIteration(isolate, array)) return FastIterateResult::kSlowPath;
   using Result = v8::Array::CallbackResult;
   DisallowJavascriptExecution no_js(isolate);
@@ -8289,14 +8362,12 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
     case PACKED_NONEXTENSIBLE_ELEMENTS: {
-      Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
-      for (uint32_t i = 0; i < length; i++) {
-        Tagged<Object> element = elements->get(static_cast<int>(i));
-        // TODO(13270): When we switch to CSS, we can pass {element} to
-        // the callback directly, without {fake_handle}.
-        IndirectHandle<Object> fake_handle(
-            reinterpret_cast<Address*>(&element));
-        Result result = callback(i, Utils::ToLocal(fake_handle), callback_data);
+      DirectHandle<FixedArray> elements(Cast<FixedArray>(array->elements()),
+                                        isolate);
+      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t i = 0, i, i < length, i++) {
+        DirectHandle<Object> element(elements->get(static_cast<int>(i)),
+                                     isolate);
+        Result result = callback(i, Utils::ToLocal(element), callback_data);
         if (result != Result::kContinue) {
           return static_cast<FastIterateResult>(result);
         }
@@ -8309,16 +8380,16 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
     case HOLEY_SEALED_ELEMENTS:
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
-      Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
-      for (uint32_t i = 0; i < length; i++) {
-        Tagged<Object> element = elements->get(static_cast<int>(i));
-        // TODO(13270): When we switch to CSS, we can pass {element} to
-        // the callback directly, without {fake_handle}.
-        auto fake_handle =
-            IsTheHole(element)
-                ? isolate->factory()->undefined_value()
-                : IndirectHandle<Object>(reinterpret_cast<Address*>(&element));
-        Result result = callback(i, Utils::ToLocal(fake_handle), callback_data);
+      DirectHandle<FixedArray> elements(Cast<FixedArray>(array->elements()),
+                                        isolate);
+      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t i = 0, i, i < length, i++) {
+        DirectHandle<Object> element(elements->get(static_cast<int>(i)),
+                                     isolate);
+        DirectHandle<Object> value =
+            IsTheHole(*element)
+                ? DirectHandle<Object>(isolate->factory()->undefined_value())
+                : element;
+        Result result = callback(i, Utils::ToLocal(value), callback_data);
         if (result != Result::kContinue) {
           return static_cast<FastIterateResult>(result);
         }
@@ -8334,10 +8405,10 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t i = 0, i, i < length, i++) {
         DirectHandle<Object> value;
         if (elements->is_the_hole(i)) {
-          value = Handle<Object>(isolate->factory()->undefined_value());
+          value = isolate->factory()->undefined_value();
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
         } else if (elements->is_undefined(i)) {
-          value = Handle<Object>(isolate->factory()->undefined_value());
+          value = isolate->factory()->undefined_value();
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
         } else {
           value = isolate->factory()->NewNumber(elements->get_scalar(i));
@@ -8351,32 +8422,32 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
       return FastIterateResult::kFinished;
     }
     case DICTIONARY_ELEMENTS: {
-      DisallowGarbageCollection no_gc;
-      Tagged<NumberDictionary> dict = array->element_dictionary();
       struct Entry {
         uint32_t index;
         InternalIndex entry;
       };
       std::vector<Entry> sorted;
-      sorted.reserve(dict->NumberOfElements());
-      ReadOnlyRoots roots(isolate);
-      for (InternalIndex i : dict->IterateEntries()) {
-        Tagged<Object> key = dict->KeyAt(i);
-        if (!dict->IsKey(roots, key)) continue;
-        uint32_t index =
-            static_cast<uint32_t>(Object::NumberValue(Cast<Number>(key)));
-        sorted.push_back({index, i});
+      DirectHandle<NumberDictionary> dict(array->element_dictionary(), isolate);
+      {
+        DisallowGarbageCollection no_gc;
+        ReadOnlyRoots roots(isolate);
+        sorted.reserve(dict->NumberOfElements());
+        for (InternalIndex i : dict->IterateEntries()) {
+          Tagged<Object> key = dict->KeyAt(i);
+          if (!dict->IsKey(roots, key)) continue;
+          uint32_t index =
+              static_cast<uint32_t>(Object::NumberValue(Cast<Number>(key)));
+          sorted.push_back({index, i});
+        }
+        std::sort(
+            sorted.begin(), sorted.end(),
+            [](const Entry& a, const Entry& b) { return a.index < b.index; });
       }
-      std::sort(
-          sorted.begin(), sorted.end(),
-          [](const Entry& a, const Entry& b) { return a.index < b.index; });
-      for (const Entry& entry : sorted) {
-        Tagged<Object> value = dict->ValueAt(entry.entry);
-        // TODO(13270): When we switch to CSS, we can pass {element} to
-        // the callback directly, without {fake_handle}.
-        IndirectHandle<Object> fake_handle(reinterpret_cast<Address*>(&value));
+      FOR_WITH_HANDLE_SCOPE(isolate, size_t i = 0, i, i < sorted.size(), i++) {
+        const Entry& entry = sorted[i];
+        DirectHandle<Object> value(dict->ValueAt(entry.entry), isolate);
         Result result =
-            callback(entry.index, Utils::ToLocal(fake_handle), callback_data);
+            callback(entry.index, Utils::ToLocal(value), callback_data);
         if (result != Result::kContinue) {
           return static_cast<FastIterateResult>(result);
         }
@@ -8986,16 +9057,17 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-namespace {
-MaybeLocal<WasmModuleObject> CompileWasmModuleImpl(
+MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
+    Isolate* v8_isolate, std::span<const uint8_t> wire_bytes) {
+  return Compile(v8_isolate, wire_bytes, CompileOptions{});
+}
+
+MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
     Isolate* v8_isolate, std::span<const uint8_t> wire_bytes,
-    i::wasm::CompileTimeImports compile_imports) {
-  // Mirror the JS `WebAssembly.Module` constructor, which disables denormal
-  // floats at compile time when the host FPU flushes them.
-  if (base::FPU::GetFlushDenormals()) {
-    compile_imports.Add(i::wasm::CompileTimeImport::kDisableDenormalFloats);
-  }
+    const CompileOptions& options) {
+#if V8_ENABLE_WEBASSEMBLY
+  i::wasm::CompileTimeImports compile_imports =
+      i::wasm::CompileTimeImportsFromOptions(options);
   base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(wire_bytes);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   // We don't check for `IsWasmCodegenAllowed` here, because this function is
@@ -9008,42 +9080,13 @@ MaybeLocal<WasmModuleObject> CompileWasmModuleImpl(
         i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate);
     maybe_compiled = i::wasm::GetWasmEngine()->SyncCompile(
         i_isolate, enabled_features, std::move(compile_imports), &thrower,
-        std::move(bytes));
+        std::move(bytes),
+        base::Vector<const char>(options.source_url.data(),
+                                 options.source_url.size()));
   }
   CHECK_EQ(maybe_compiled.is_null(), i_isolate->has_exception());
   if (maybe_compiled.is_null()) return {};
   return Utils::ToLocal(maybe_compiled.ToHandleChecked());
-}
-}  // namespace
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
-    Isolate* v8_isolate, std::span<const uint8_t> wire_bytes) {
-#if V8_ENABLE_WEBASSEMBLY
-  return CompileWasmModuleImpl(v8_isolate, wire_bytes,
-                               i::wasm::CompileTimeImports{});
-#else
-  Utils::ApiCheck(false, "WasmModuleObject::Compile",
-                  "WebAssembly support is not enabled");
-  UNREACHABLE();
-#endif  // V8_ENABLE_WEBASSEMBLY
-}
-
-MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
-    Isolate* v8_isolate, std::span<const uint8_t> wire_bytes,
-    const CompileTimeImports& compile_imports) {
-#if V8_ENABLE_WEBASSEMBLY
-  i::wasm::CompileTimeImports imports;
-  using Builtins = CompileTimeImports::Builtins;
-  if (compile_imports.builtins & Builtins::kJsString) {
-    imports.Add(i::wasm::CompileTimeImport::kJsString);
-  }
-  if (compile_imports.imported_string_constants_module != nullptr) {
-    imports.constants_module() =
-        compile_imports.imported_string_constants_module;
-    imports.Add(i::wasm::CompileTimeImport::kStringConstants);
-  }
-  return CompileWasmModuleImpl(v8_isolate, wire_bytes, std::move(imports));
 #else
   Utils::ApiCheck(false, "WasmModuleObject::Compile",
                   "WebAssembly support is not enabled");
@@ -10454,26 +10497,12 @@ i::ValueHelper::InternalRepresentationType Isolate::GetDataFromSnapshotOnce(
   return GetSerializedDataFromFixedArray(i_isolate, list, index);
 }
 
-Local<Value> Isolate::GetContinuationPreservedEmbedderData() {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  return ToApiHandle<Object>(i::direct_handle(
-      i_isolate->isolate_data()->continuation_preserved_embedder_data(),
-      i_isolate));
-#else   // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  return v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+Local<Data> Isolate::GetContinuationPreservedEmbedderData() {
+  return GetContinuationPreservedEmbedderDataV2();
 }
 
-void Isolate::SetContinuationPreservedEmbedderData(Local<Value> data) {
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  if (data.IsEmpty()) {
-    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(this));
-  }
-  i_isolate->isolate_data()->set_continuation_preserved_embedder_data(
-      *Utils::OpenDirectHandle(*data));
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+void Isolate::SetContinuationPreservedEmbedderData(Local<Data> data) {
+  SetContinuationPreservedEmbedderDataV2(data);
 }
 
 Local<Data> Isolate::GetContinuationPreservedEmbedderDataV2() {
@@ -10856,8 +10885,8 @@ int Isolate::ContextDisposedNotification(bool dependant_context) {
 }
 
 void Isolate::ContextDisposedNotification(ContextDependants dependants) {
-  // TODO(mlippautz): Replace implementation with the old version of
-  // ContextDisposedNotification() that still has a return parameter.
+  // TODO(mlippautz): Move implementation here once the deprecated version of
+  // ContextDisposedNotification() with the return parameter is removed.
   START_ALLOW_USE_DEPRECATED()
   ContextDisposedNotification(dependants == ContextDependants::kSomeDependants);
   END_ALLOW_USE_DEPRECATED()
@@ -11249,7 +11278,6 @@ bool v8::Object::IsCodeLike(v8::Isolate* v8_isolate) const {
 }
 
 // static
-#ifdef V8_CPPGC_MICROTASK_QUEUE
 MicrotaskQueue* MicrotaskQueue::New(Isolate* v8_isolate,
                                     MicrotasksPolicy policy) {
   auto* microtask_queue =
@@ -11257,16 +11285,6 @@ MicrotaskQueue* MicrotaskQueue::New(Isolate* v8_isolate,
   microtask_queue->set_microtasks_policy(policy);
   return microtask_queue;
 }
-#else
-std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* v8_isolate,
-                                                    MicrotasksPolicy policy) {
-  auto microtask_queue =
-      i::MicrotaskQueue::New(reinterpret_cast<i::Isolate*>(v8_isolate));
-  microtask_queue->set_microtasks_policy(policy);
-  std::unique_ptr<MicrotaskQueue> ret(std::move(microtask_queue));
-  return ret;
-}
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 MicrotasksScope::MicrotasksScope(Local<Context> v8_context,
                                  MicrotasksScope::Type type)

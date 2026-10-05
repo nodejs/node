@@ -19,10 +19,12 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/log_severity.h"
 #include "absl/log/internal/test_actions.h"
 #include "absl/log/internal/test_helpers.h"
 #include "absl/log/internal/test_matchers.h"
 #include "absl/log/log.h"
+#include "absl/log/log_entry.h"
 #include "absl/log/log_sink.h"
 #include "absl/log/scoped_mock_log.h"
 #include "absl/strings/match.h"

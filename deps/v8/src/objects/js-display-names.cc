@@ -79,7 +79,8 @@ UDisplayContext ToUDisplayContext(JSDisplayNames::Style style) {
 // Abstract class for all different types.
 class DisplayNamesInternal {
  public:
-  static constexpr ExternalPointerTag kManagedTag = kDisplayNamesInternalTag;
+  static constexpr ManagedTypeId kTypeID =
+      ManagedTypeId::kDisplayNamesInternal;
 
   DisplayNamesInternal() = default;
   virtual ~DisplayNamesInternal() = default;
@@ -531,8 +532,9 @@ MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
 
-  DirectHandle<Managed<DisplayNamesInternal>> managed_internal =
-      Managed<DisplayNamesInternal>::From(isolate, 0, std::move(internal));
+  DirectHandle<CppGCManaged<DisplayNamesInternal>> managed_internal =
+      CppGCManaged<DisplayNamesInternal>::Create(isolate, 0,
+                                                 std::move(internal));
 
   DirectHandle<JSDisplayNames> display_names =
       Cast<JSDisplayNames>(factory->NewFastOrSlowJSObjectFromMap(map));
@@ -556,7 +558,7 @@ DirectHandle<JSObject> JSDisplayNames::ResolvedOptions(
   DirectHandle<JSObject> options =
       factory->NewJSObject(isolate->object_function());
 
-  Managed<DisplayNamesInternal>::Ptr internal =
+  CppGCManaged<DisplayNamesInternal>::Ptr internal =
       display_names->internal()->ptr();
 
   Maybe<std::string> maybe_locale = Intl::ToLanguageTag(internal->locale());
@@ -609,7 +611,7 @@ MaybeDirectHandle<Object> JSDisplayNames::Of(
   DirectHandle<String> code;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, code,
                              Object::ToString(isolate, code_obj));
-  Managed<DisplayNamesInternal>::Ptr internal =
+  CppGCManaged<DisplayNamesInternal>::Ptr internal =
       display_names->internal()->ptr();
   Maybe<icu::UnicodeString> maybe_result =
       internal->of(isolate, code->ToCString().get());

@@ -164,6 +164,7 @@ V8_OBJECT class FixedDoubleArray
 // ByteArray represents fixed sized arrays containing raw bytes that will not
 // be scanned by the garbage collector.
 V8_OBJECT class ByteArray : public PrimitiveArrayBase<ByteArray, uint8_t> {
+  V8_IT_OWN_TYPE;
   using Super = PrimitiveArrayBase<ByteArray, uint8_t>;
 
  public:
@@ -200,6 +201,7 @@ V8_OBJECT class ByteArray : public PrimitiveArrayBase<ByteArray, uint8_t> {
 V8_OBJECT
 class TrustedByteArray : public PrimitiveArrayBase<TrustedByteArray, uint8_t,
                                                    TrustedFixedArrayBase> {
+  V8_IT_OWN_TYPE;
   using Super =
       PrimitiveArrayBase<TrustedByteArray, uint8_t, TrustedFixedArrayBase>;
 
@@ -273,6 +275,7 @@ using FixedUInt64Array = FixedIntegerArrayBase<uint64_t, ByteArray>;
 V8_OBJECT
 class TrustedFixedAddressArray
     : public FixedIntegerArrayBase<Address, TrustedByteArray> {
+  V8_IT_REUSE_PARENT;
   using Underlying = FixedIntegerArrayBase<Address, TrustedByteArray>;
 
  public:

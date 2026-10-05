@@ -893,8 +893,8 @@ class ABSL_ATTRIBUTE_WARN_UNUSED InlinedVector {
     // Assumption check: we shouldn't be told to use memcpy to implement move
     // assignment unless we have trivially destructible elements and an
     // allocator that does nothing fancy.
-    static_assert(std::is_trivially_destructible_v<value_type>, "");
-    static_assert(std::is_same_v<A, std::allocator<value_type>>, "");
+    static_assert(std::is_trivially_destructible_v<value_type>);
+    static_assert(std::is_same_v<A, std::allocator<value_type>>);
 
     // Throw away our existing heap allocation, if any. There is no need to
     // destroy the existing elements one by one because we know they are

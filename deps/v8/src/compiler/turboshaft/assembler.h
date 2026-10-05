@@ -3498,10 +3498,15 @@ class AssemblerOpInterface : public Next {
 
   void JSStackCheck(V<Context> context, OptionalV<LazyFrameState> frame_state,
                     JSStackCheckOp::Kind kind) {
+    if (V8_UNLIKELY(v8_flags.disable_loop_stack_checks &&
+                    kind == JSStackCheckOp::Kind::kLoop)) {
+      return;
+    }
     ReduceIfReachableJSStackCheck(context, frame_state, kind);
   }
 
   void JSLoopStackCheck(V<Context> context, V<LazyFrameState> frame_state) {
+    if (V8_UNLIKELY(v8_flags.disable_loop_stack_checks)) return;
     JSStackCheck(context, frame_state, JSStackCheckOp::Kind::kLoop);
   }
   void JSFunctionEntryStackCheck(V<Context> context,
@@ -4029,7 +4034,7 @@ class AssemblerOpInterface : public Next {
                      lazy_deopt_on_throw, !compiling_builtins);
     return returns_t::CastIfNeeded(
         Call(CEntryStubConstant(isolate, result_size), frame_state,
-             base::VectorOf(arguments), desc));
+             base::VectorOf(arguments), desc, Desc::kEffects));
   }
 
   template <typename Desc>
@@ -4818,6 +4823,10 @@ class AssemblerOpInterface : public Next {
                                 Word64AddSub128BinopOp::Kind::kSub);
   }
 
+  V<Word64Pair> Word64Add3(V<Word64> a, V<Word64> b, V<Word64> c) {
+    return ReduceIfReachableWord64Add3(a, b, c);
+  }
+
   V<Word64Pair> Word64MulWide(V<Word64> left, V<Word64> right,
                               Word64MulWideOp::Kind kind) {
     return ReduceIfReachableWord64MulWide(left, right, kind);
@@ -5404,6 +5413,11 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableStringPrepareForGetCodeUnit(string);
   }
 
+  V<Object> LoadWasmTypeInfo(V<Map> map) {
+    int offset = offsetof(Map, constructor_or_back_pointer_or_native_context_);
+    return Load(map, LoadOp::Kind::TaggedBase().Immutable(),
+                MemoryRepresentation::TaggedPointer(), offset);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_ENABLE_SIMD128

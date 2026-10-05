@@ -1369,6 +1369,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Int32T> TruncateFloat32ToInt32(TNode<Float32T> value);
   TNode<Int64T> TruncateFloat64ToInt64(TNode<Float64T> value);
 
+  // No-op that guarantees that the value is kept alive till this point even
+  // if GC happens.
+  void Retain(TNode<Object> value);
+
   // Projections
   template <int index, class T1, class T2>
   TNode<std::tuple_element_t<index, std::tuple<T1, T2>>> Projection(

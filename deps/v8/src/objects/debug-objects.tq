@@ -119,3 +119,18 @@ extern class ErrorStackData extends Struct {
   // This holds the StackTraceInfo for inspector stack trace.
   stack_trace: StackTraceInfo;
 }
+
+// DebugScriptScopeInfo holds the serialized scope tree of a Script for the
+// debugger. It caches lexical scope information (scopes, variables, positions)
+// to avoid reparsing the script on every pause or debug evaluate.
+//
+// By default, V8 does not create instances of `DebugScriptScopeInfo`. Only
+// when the debugger is turned on AND we pause in a script the first time.
+//
+// The exact encoding of the data in `numeric_data` is described in
+// src/debug/debug-scope-info.cc.
+@cppObjectLayoutDefinition
+extern class DebugScriptScopeInfo extends Struct {
+  numeric_data: ByteArray;
+  string_table: FixedArray;
+}

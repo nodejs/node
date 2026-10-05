@@ -304,7 +304,6 @@ Tagged<Map> Context::GetInitialJSArrayMap(ElementsKind kind) const {
   return Cast<Map>(initial_js_array_map);
 }
 
-#ifdef V8_CPPGC_MICROTASK_QUEUE
 MicrotaskQueue* NativeContext::microtask_queue() const {
   i::IsolateForPointerCompression isolate = Isolate::Current();
   return microtask_queue(isolate);
@@ -335,11 +334,6 @@ void NativeContext::init_microtask_queue(IsolateForPointerCompression isolate,
     set_microtask_queue(isolate, queue);
   }
 }
-#else
-EXTERNAL_POINTER_ACCESSORS(NativeContext, microtask_queue, MicrotaskQueue*,
-                           kMicrotaskQueueOffset,
-                           kNativeContextMicrotaskQueueTag)
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 bool NativeContext::HasSameSecurityTokenAs(Tagged<NativeContext> that) const {
   return this == that || this->security_token() == that->security_token();

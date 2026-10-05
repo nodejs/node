@@ -513,26 +513,30 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
     ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
     Heap* heap = scavenger_->heap();
     ExternalPointerTable& table = heap->isolate()->external_pointer_table();
-    ArrayBufferExtension* array_buffer_extension =
-        slot.tag_range() == kArrayBufferExtensionTag
-            ? reinterpret_cast<ArrayBufferExtension*>(
-                  table.Get(handle, kArrayBufferExtensionTag))
-            : nullptr;
     if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
       // For survivor objects, mark their EPT entries when they are
       // copied. Scavenger then sweeps the young EPT space at the end of
       // collection, reclaiming unmarked EPT entries.
-      table.Mark(heap->young_external_pointer_space(), handle, slot.address());
+      table.Mark(heap->young_external_pointer_space(), handle, slot.address(),
+                 slot.tag_range());
     } else {
       // When promoting, we just evacuate the entry from new to old space.
       // Usually the entry will be unmarked, unless the slot was initialized
       // since the last GC (external pointer tags have the mark bit set), in
       // which case it may be marked already. In any case, transfer the color
       // from new to old EPT space.
-      table.Evacuate(heap->young_external_pointer_space(),
-                     heap->old_external_pointer_space(), handle, slot.address(),
-                     ExternalPointerTable::EvacuateMarkMode::kTransferMark);
+      handle = table.Evacuate(
+          heap->young_external_pointer_space(),
+          heap->old_external_pointer_space(), handle, slot.address(),
+          ExternalPointerTable::EvacuateMarkMode::kTransferMark,
+          slot.tag_range());
     }
+
+    ArrayBufferExtension* array_buffer_extension =
+        slot.tag_range() == kArrayBufferExtensionTag
+            ? reinterpret_cast<ArrayBufferExtension*>(
+                  table.Get(handle, kArrayBufferExtensionTag))
+            : nullptr;
 #else   // !V8_COMPRESS_POINTERS
     ArrayBufferExtension* array_buffer_extension =
         slot.tag_range() == kArrayBufferExtensionTag
@@ -1456,6 +1460,10 @@ class RootScavengeVisitor final : public RootVisitor {
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) final;
 
+  GarbageCollector collector() const final {
+    return GarbageCollector::SCAVENGER;
+  }
+
  private:
   void ScavengePointer(FullObjectSlot p);
 
@@ -1833,7 +1841,6 @@ void ScavengerCollector::CollectGarbage() {
 
   // Since we promote all surviving large objects immediately, all remaining
   // large objects must be dead.
-  // TODO(hpayer): Don't free all as soon as we have an intermediate generation.
   heap_->new_lo_space()->FreeDeadObjects(
       [](Tagged<HeapObject>) { return true; });
 

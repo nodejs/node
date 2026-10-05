@@ -7,9 +7,53 @@
 #include "src/base/platform/platform.h"
 #include "src/execution/frames.h"
 #include "src/execution/simulator.h"
+#include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
+#include "src/objects/code-inl.h"
+#include "src/objects/slots-inl.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8::internal::wasm {
+
+namespace {
+
+class YoungPointerTrackingVisitor : public RootVisitor {
+ public:
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    if (found_young_) return;
+    for (FullObjectSlot slot = start; slot < end; ++slot) {
+      Tagged<Object> obj = *slot;
+      // Stack slots only hold strong references or Smis; weak references
+      // cannot appear on the execution stack.
+      if (HAS_STRONG_HEAP_OBJECT_TAG(obj.ptr()) &&
+          HeapLayout::InYoungGeneration(obj)) {
+        found_young_ = true;
+        return;
+      }
+    }
+  }
+
+  bool found_young() const { return found_young_; }
+
+ private:
+  bool found_young_ = false;
+};
+
+#ifdef DEBUG
+class VerifyNoYoungPointersVisitor : public RootVisitor {
+ public:
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    for (FullObjectSlot slot = start; slot < end; ++slot) {
+      Tagged<Object> obj = *slot;
+      DCHECK(!HeapLayout::InYoungGeneration(obj));
+    }
+  }
+};
+#endif  // DEBUG
+
+}  // namespace
 
 // static
 StackMemory* StackMemory::GetCentralStackView(Isolate* isolate) {
@@ -111,31 +155,73 @@ StackMemory::StackSegment::~StackSegment() {
   }
 }
 
+void StackMemory::IterateWasmFXRoots(v8::internal::RootVisitor* v) {
+  if (!v8_flags.wasm_wasmfx) return;
+  v->VisitRootPointer(
+      Root::kStackRoots, nullptr,
+      FullObjectSlot(reinterpret_cast<Address>(&current_cont_)));
+  v->VisitRootPointer(Root::kStackRoots, nullptr,
+                      FullObjectSlot(reinterpret_cast<Address>(&func_ref_)));
+  v->VisitRootPointer(Root::kStackRoots, nullptr,
+                      FullObjectSlot(reinterpret_cast<Address>(&stack_obj_)));
+  IterateWasmFXArgBuffer(param_types_, [this, v](size_t index, int offset) {
+    if (static_cast<int>(index) < num_bound_args_ &&
+        param_types_[index].is_ref()) {
+      v->VisitRootPointer(Root::kStackRoots, "wasm cont ref bound argument",
+                          FullObjectSlot(reinterpret_cast<Address>(
+                              this->arg_buffer_ + offset)));
+    }
+  });
+}
+
 void StackMemory::Iterate(v8::internal::RootVisitor* v, Isolate* isolate,
                           ThreadLocalTop* thread) {
-  StackFrameIterator it =
-      IsActive() ? StackFrameIterator(isolate, thread,
-                                      StackFrameIterator::FirstStackOnly{})
-                 : StackFrameIterator(isolate, this);
-  for (; !it.done(); it.Advance()) {
-    it.frame()->Iterate(v);
-  }
-  if (v8_flags.wasm_wasmfx) {
-    v->VisitRootPointer(
-        Root::kStackRoots, nullptr,
-        FullObjectSlot(reinterpret_cast<Address>(&current_cont_)));
-    v->VisitRootPointer(Root::kStackRoots, nullptr,
-                        FullObjectSlot(reinterpret_cast<Address>(&func_ref_)));
-    v->VisitRootPointer(Root::kStackRoots, nullptr,
-                        FullObjectSlot(reinterpret_cast<Address>(&stack_obj_)));
-    IterateWasmFXArgBuffer(param_types_, [this, v](size_t index, int offset) {
-      if (static_cast<int>(index) < num_bound_args_ &&
-          param_types_[index].is_ref()) {
-        v->VisitRootPointer(Root::kStackRoots, "wasm cont ref bound argument",
-                            FullObjectSlot(reinterpret_cast<Address>(
-                                this->arg_buffer_ + offset)));
+  if (IsActive()) {
+    StackFrameIterator it(isolate, thread,
+                          StackFrameIterator::FirstStackOnly{});
+    for (; !it.done(); it.Advance()) {
+      it.frame()->Iterate(v);
+    }
+    IterateWasmFXRoots(v);
+  } else {
+    if (Heap::IsYoungGenerationCollector(v->collector())) {
+      if (contains_only_old_pointers_) {
+#ifdef DEBUG
+        VerifyNoYoungPointersVisitor verifier;
+        StackFrameIterator it(isolate, this);
+        for (; !it.done(); it.Advance()) {
+          it.frame()->Iterate(&verifier);
+        }
+        IterateWasmFXRoots(&verifier);
+#endif
+        return;
       }
-    });
+
+      YoungPointerTrackingVisitor tracking_visitor;
+      StackFrameIterator it(isolate, this);
+      for (; !it.done(); it.Advance()) {
+        it.frame()->Iterate(v);
+        it.frame()->Iterate(&tracking_visitor);
+      }
+      IterateWasmFXRoots(v);
+      IterateWasmFXRoots(&tracking_visitor);
+
+      contains_only_old_pointers_ = !tracking_visitor.found_young();
+    } else {
+      StackFrameIterator it(isolate, this);
+      for (; !it.done(); it.Advance()) {
+        it.frame()->Iterate(v);
+      }
+      IterateWasmFXRoots(v);
+
+      // Non-GC passes (e.g. Heap::Verify under --verify-heap) also use
+      // non-young-generation visitors. Only set contains_only_old_pointers_ to
+      // true during an actual Major GC (Mark-Compact), after which the young
+      // generation is guaranteed to be empty.
+      if (isolate->heap()->gc_state() == Heap::MARK_COMPACT) {
+        contains_only_old_pointers_ = true;
+      }
+    }
   }
 }
 
@@ -234,6 +320,7 @@ void StackMemory::Reset() {
   param_types_ = {};
   signature_id_ = CanonicalTypeIndex{kInvalidCanonicalIndex};
   wasm_code_ = nullptr;
+  contains_only_old_pointers_ = false;
 }
 
 bool StackMemory::IsValidContinuation(Tagged<WasmContinuationObject> cont) {
@@ -241,7 +328,9 @@ bool StackMemory::IsValidContinuation(Tagged<WasmContinuationObject> cont) {
 }
 
 std::unique_ptr<StackMemory> StackPool::GetOrAllocate() {
-  while (size_ > kMaxSize) {
+  while (v8_flags.wasm_stack_pool_capacity_mb >= 0 &&
+         size_ >
+             static_cast<size_t>(v8_flags.wasm_stack_pool_capacity_mb) * MB) {
     size_ -= freelist_.back()->allocated_size();
     freelist_.pop_back();
   }

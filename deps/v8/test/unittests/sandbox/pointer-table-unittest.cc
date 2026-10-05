@@ -85,9 +85,19 @@ class PointerTableTest : public TestWithContext {
     return handles;
   }
 
-  template <typename Table, typename Handles>
-  void MarkAll(Table& table, typename Table::Space* space,
-               const Handles& handles) {
+  void MarkAll(
+      ExternalPointerTable& table, ExternalPointerTable::Space* space,
+      const std::vector<std::unique_ptr<ExternalPointerHandle>>& handles,
+      ExternalPointerTagRange tag_range) {
+    for (const auto& handle : handles) {
+      table.Mark(space, *handle, reinterpret_cast<Address>(handle.get()),
+                 tag_range);
+    }
+  }
+
+  void MarkAll(
+      CppHeapPointerTable& table, CppHeapPointerTable::Space* space,
+      const std::vector<std::unique_ptr<CppHeapPointerHandle>>& handles) {
     for (const auto& handle : handles) {
       table.Mark(space, *handle, reinterpret_cast<Address>(handle.get()));
     }
@@ -123,9 +133,9 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
 
   // Simulate a sweep where dead_handle is dead (unmarked) and all other entries
   // are marked.
-  MarkAll(table, space.get(), handles);
+  MarkAll(table, space.get(), handles, kLastExternalTypeTag);
   table.Mark(space.get(), *target_loc,
-             reinterpret_cast<Address>(target_loc.get()));
+             reinterpret_cast<Address>(target_loc.get()), kLastExternalTypeTag);
   table.SweepAndCompact(space.get(), i_isolate()->counters());
   CHECK_EQ(2, space->NumSegmentsForTesting());
   CHECK_GE(space->freelist_length(), 1u);
@@ -133,9 +143,9 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
   // Now perform compaction. Start compaction and mark all live entries.
   space->StartCompactingIfNeeded();
   CHECK(space->IsCompacting());
-  MarkAll(table, space.get(), handles);
+  MarkAll(table, space.get(), handles, kLastExternalTypeTag);
   table.Mark(space.get(), *target_loc,
-             reinterpret_cast<Address>(target_loc.get()));
+             reinterpret_cast<Address>(target_loc.get()), kLastExternalTypeTag);
 
   // Sweeping should now evacuate target_loc into the first segment and
   // deallocate the second segment.
@@ -324,9 +334,9 @@ TEST_F(PointerTableTest, ExternalPointerTableFieldInvalidation) {
   ExternalPointerHandle handle_before_sweep = *target_loc;
 
   // Free slot 0 on first segment by marking the other handles.
-  MarkAll(table, space.get(), handles);
+  MarkAll(table, space.get(), handles, kLastExternalTypeTag);
   table.Mark(space.get(), *target_loc,
-             reinterpret_cast<Address>(target_loc.get()));
+             reinterpret_cast<Address>(target_loc.get()), kLastExternalTypeTag);
   table.SweepAndCompact(space.get(), i_isolate()->counters());
   CHECK_EQ(2, space->NumSegmentsForTesting());
   CHECK_GE(space->freelist_length(), 1u);
@@ -335,9 +345,9 @@ TEST_F(PointerTableTest, ExternalPointerTableFieldInvalidation) {
   // for target_loc.
   space->StartCompactingIfNeeded();
   CHECK(space->IsCompacting());
-  MarkAll(table, space.get(), handles);
+  MarkAll(table, space.get(), handles, kLastExternalTypeTag);
   table.Mark(space.get(), *target_loc,
-             reinterpret_cast<Address>(target_loc.get()));
+             reinterpret_cast<Address>(target_loc.get()), kLastExternalTypeTag);
 
   // Invalidate the field pointing to target_loc before sweeping.
   space->NotifyExternalPointerFieldInvalidated(
@@ -378,11 +388,13 @@ TEST_F(PointerTableTest, ExternalPointerTableHandleOverwriteBailouts) {
   CHECK_EQ(2, space->NumSegmentsForTesting());
 
   // Free slots 0 and 1 on first segment by marking the other handles.
-  MarkAll(table, space.get(), handles);
+  MarkAll(table, space.get(), handles, kLastExternalTypeTag);
   table.Mark(space.get(), *target_loc_null,
-             reinterpret_cast<Address>(target_loc_null.get()));
+             reinterpret_cast<Address>(target_loc_null.get()),
+             kLastExternalTypeTag);
   table.Mark(space.get(), *target_loc_valid,
-             reinterpret_cast<Address>(target_loc_valid.get()));
+             reinterpret_cast<Address>(target_loc_valid.get()),
+             kLastExternalTypeTag);
   table.SweepAndCompact(space.get(), i_isolate()->counters());
   CHECK_EQ(2, space->NumSegmentsForTesting());
   CHECK_GE(space->freelist_length(), 2u);
@@ -390,11 +402,13 @@ TEST_F(PointerTableTest, ExternalPointerTableHandleOverwriteBailouts) {
   // Start compaction and mark all live entries, creating evacuation entries.
   space->StartCompactingIfNeeded();
   CHECK(space->IsCompacting());
-  MarkAll(table, space.get(), handles);
+  MarkAll(table, space.get(), handles, kLastExternalTypeTag);
   table.Mark(space.get(), *target_loc_null,
-             reinterpret_cast<Address>(target_loc_null.get()));
+             reinterpret_cast<Address>(target_loc_null.get()),
+             kLastExternalTypeTag);
   table.Mark(space.get(), *target_loc_valid,
-             reinterpret_cast<Address>(target_loc_valid.get()));
+             reinterpret_cast<Address>(target_loc_valid.get()),
+             kLastExternalTypeTag);
 
   // Simulate mutator overwriting handles after evacuation entries were created:
   // 1. Overwrite with null handle.

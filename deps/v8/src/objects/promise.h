@@ -34,6 +34,8 @@ using PromiseReactionHandler =
 // classes, which are used to represent either reactions, and we distinguish
 // them by their instance types.
 V8_OBJECT class PromiseReactionJobTask : public Microtask {
+  V8_IT_ABSTRACT;
+
  public:
   inline Tagged<Object> argument() const;
   inline void set_argument(Tagged<Object> value,

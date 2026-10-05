@@ -334,8 +334,8 @@ FieldAccess AccessBuilder::ForJSFunctionFeedbackCell() {
       Handle<Name>(),       OptionalMapRef(),
       Type::Internal(),     MachineType::TaggedPointer(),
       kPointerWriteBarrier, "JSFunctionFeedbackCell"};
-  // The feedback cell is only set when the JSFunction is allocated, or via
-  // LiveEdit, but that doesn't concern optimized code, so treat it as const.
+  // The feedback cell is only set when the JSFunction is allocated, so treat
+  // it as const.
   access.is_immutable = true;
   return access;
 }

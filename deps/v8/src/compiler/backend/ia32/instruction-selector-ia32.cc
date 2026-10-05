@@ -1055,7 +1055,9 @@ void VisitStoreCommon(InstructionSelector* selector,
                        : kArchStoreWithWriteBarrier;
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
-      code |= RecordWriteModeField::encode(record_write_mode);
+      code |= is_atomic
+                  ? AtomicStoreRecordWriteModeField::encode(record_write_mode)
+                  : RecordWriteModeField::encode(record_write_mode);
     }
     code |= AddressingModeField::encode(addressing_mode);
     if (atomic_order.has_value()) {
@@ -1727,6 +1729,10 @@ void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
 void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitUint64Sub128(OpIndex node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
+  UNREACHABLE();
+}
 
 void InstructionSelector::VisitInt32MulHigh(OpIndex node) {
   VisitMulHigh(this, node, kIA32ImulHigh);

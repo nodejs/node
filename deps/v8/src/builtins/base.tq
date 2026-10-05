@@ -263,14 +263,20 @@ extern class JSSetIteratorPrototype extends JSInternalPrototypeBase
 extern class JSStringIteratorPrototype extends JSInternalPrototypeBase
     generates 'JSObject';
 
+// OrderedHashMap/Set and OrderedNameDictionary are OrderedHashTable
+// instances. OrderedHashTable extends FixedArray directly (a separate
+// family from HashTable, with a different layout) and is a class template
+// with no instance type of its own, so FixedArray is their nearest
+// instance-typed base.
+extern class OrderedHashMap extends FixedArray;
+extern class OrderedHashSet extends FixedArray;
+extern class OrderedNameDictionary extends FixedArray;
+
 // The HashTable inheritance hierarchy doesn't actually look like this in C++
 // because it uses some class templates that we can't yet (and may never)
 // express in Torque, but this is the expected organization of instance types.
 @doNotGenerateCast
 extern class HashTable extends FixedArray generates 'FixedArray';
-extern class OrderedHashMap extends HashTable;
-extern class OrderedHashSet extends HashTable;
-extern class OrderedNameDictionary extends HashTable;
 extern class NameToIndexHashTable extends HashTable;
 extern class RegisteredSymbolTable extends HashTable;
 extern class NameDictionary extends HashTable;
@@ -1506,6 +1512,7 @@ extern macro IsTypedArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsPromiseSpeciesProtectorCellInvalid(): bool;
 extern macro IsMockArrayBufferAllocatorFlag(): bool;
 extern macro HasBuiltinSubclassingFlag(): bool;
+extern macro HasJsPr3883Flag(): bool;
 extern macro IsPrototypeTypedArrayPrototype(
     implicit context: Context)(Map): bool;
 extern macro IsSetIteratorProtectorCellInvalid(): bool;
@@ -1519,6 +1526,7 @@ extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):
     ElementsKind;
 
 extern operator '.length' macro LoadFastJSArrayLength(FastJSArray): Smi;
+extern operator '.length' macro LoadFastJSArrayLength(FastJSArrayForRead): Smi;
 operator '.length=' macro StoreFastJSArrayLength(
     array: FastJSArray, length: Smi): void {
   const array: JSArray = array;

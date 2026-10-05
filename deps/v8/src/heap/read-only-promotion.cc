@@ -475,7 +475,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
                              const HeapObjectMap& moves) {
     Heap* heap = isolate->heap();
 #ifdef V8_COMPRESS_POINTERS
-    ExternalPointerTable::UnsealReadOnlySegmentScope unseal_scope(
+    SegmentedTableBase::UnsealReadOnlySegmentScope unseal_scope(
         &isolate->external_pointer_table());
 #endif  // V8_COMPRESS_POINTERS
     UpdatePointersVisitor v(isolate, &moves);
@@ -763,7 +763,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 
       DisallowJavascriptExecution no_js(isolate_);
       TrustedPointerPublishingScope scope(isolate_, no_js);
-      TrustedPointerTable::UnsealReadOnlySegmentScope unseal_scope(tpt);
+      SegmentedTableBase::UnsealReadOnlySegmentScope unseal_scope(tpt);
       IndirectPointerHandle new_handle =
           tpt->AllocateAndInitializeEntry(space, obj.ptr(), tag, &scope);
       scope.MarkSuccess();

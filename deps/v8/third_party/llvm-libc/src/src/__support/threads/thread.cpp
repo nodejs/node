@@ -131,6 +131,7 @@ public:
       atexit_unit.callback(atexit_unit.obj);
       mtx.lock();
     }
+    mtx.unlock();
   }
 };
 
@@ -162,8 +163,6 @@ void call_atexit_callbacks(ThreadAttributes *attrib) {
       unit.dtor(unit.payload);
   }
 }
-
-extern "C" void __cxa_thread_finalize() { call_atexit_callbacks(self.attrib); }
 
 } // namespace internal
 

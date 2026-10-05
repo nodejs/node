@@ -22,6 +22,7 @@ from testrunner.objects import output
 from testrunner.local.context import DefaultOSContext
 from testrunner.local.pool import SingleThreadedExecutionPool
 from testrunner.local.variants import REQUIRED_BUILD_VARIABLES
+from testrunner.base_runner import AI_AGENT_ENV_VARS
 
 TOOLS_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -73,6 +74,22 @@ def capture():
   finally:
     sys.stdout = oldout
     sys.stderr = olderr
+
+
+@contextlib.contextmanager
+def ai_agent_env(active=None):
+  """Wrapper controlling the AI agent environment, so that the expected output
+  doesn't depend on whether an agent or a human runs the tests. All agent
+  variables are cleared, then those in `active` are set."""
+  saved = {name: os.environ.pop(name, None) for name in AI_AGENT_ENV_VARS}
+  os.environ.update({name: '1' for name in active or []})
+  try:
+    yield
+  finally:
+    for name, value in saved.items():
+      os.environ.pop(name, None)
+      if value is not None:
+        os.environ[name] = value
 
 
 def with_json_output(basedir):
@@ -193,9 +210,14 @@ class TestRunnerTest(unittest.TestCase):
     command.setup_testing()
     pool.setup_testing()
 
-  def run_tests(
-      self, *args, baseroot='testroot1', config_overrides=None,
-      with_build_config=True, outdir='out', **kwargs):
+  def run_tests(self,
+                *args,
+                baseroot='testroot1',
+                config_overrides=None,
+                with_build_config=True,
+                outdir='out',
+                ai_agent_vars=None,
+                **kwargs):
     """Executes the test runner with captured output."""
     with temp_base(baseroot=baseroot) as basedir:
       if with_build_config:
@@ -211,7 +233,7 @@ class TestRunnerTest(unittest.TestCase):
           return json_out_path
         return arg
       resolved_args = [resolve_arg(arg) for arg in args]
-      with capture() as (stdout, stderr):
+      with capture() as (stdout, stderr), ai_agent_env(ai_agent_vars):
         sys_args = ['--command-prefix', sys.executable] + resolved_args
         if kwargs.get('infra_staging', False):
           sys_args.append('--infra-staging')

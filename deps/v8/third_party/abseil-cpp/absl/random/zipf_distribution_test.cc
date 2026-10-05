@@ -15,10 +15,14 @@
 #include "absl/random/zipf_distribution.h"
 
 #include <algorithm>
+#include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <limits>
 #include <random>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>

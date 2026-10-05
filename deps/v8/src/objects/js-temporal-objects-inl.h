@@ -10,6 +10,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/objects/contexts-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 
 // Rust includes to transitively include
@@ -29,13 +30,13 @@ namespace v8 {
 namespace internal {
 
 // temporal_rs object getters
-#define DEFINE_TEMPORAL_ACCESSORS(JSType, field, RustType_)         \
-  inline Tagged<Managed<RustType_>> JSType::field() const {         \
-    return field##_.load();                                         \
-  }                                                                 \
-  inline void JSType::set_##field(Tagged<Managed<RustType_>> value, \
-                                  WriteBarrierMode mode) {          \
-    field##_.store(this, value, mode);                              \
+#define DEFINE_TEMPORAL_ACCESSORS(JSType, field, RustType_)              \
+  inline Tagged<CppGCManaged<RustType_>> JSType::field() const {         \
+    return field##_.load();                                              \
+  }                                                                      \
+  inline void JSType::set_##field(Tagged<CppGCManaged<RustType_>> value, \
+                                  WriteBarrierMode mode) {               \
+    field##_.store(this, value, mode);                                   \
   }
 
 DEFINE_TEMPORAL_ACCESSORS(JSTemporalInstant, instant, temporal_rs::Instant)
@@ -72,13 +73,13 @@ DEFINE_CTOR_HELPER(JSTemporalZonedDateTime, zoned_date_time)
 
 // Paired with DECL_ACCESSORS_FOR_RUST_WRAPPER
 // Can be omitted and overridden if needed.
-#define DEFINE_ACCESSORS_FOR_RUST_WRAPPER(field, JSType)               \
-  inline void JSType::initialize_with_wrapped_rust_value(              \
-      Tagged<Managed<JSType::RustType>> handle) {                      \
-    this->set_##field(handle);                                         \
-  }                                                                    \
-  inline Managed<JSType::RustType>::Ptr JSType::wrapped_rust() const { \
-    return this->field()->ptr();                                       \
+#define DEFINE_ACCESSORS_FOR_RUST_WRAPPER(field, JSType)                    \
+  inline void JSType::initialize_with_wrapped_rust_value(                   \
+      Tagged<CppGCManaged<JSType::RustType>> handle) {                      \
+    this->set_##field(handle);                                              \
+  }                                                                         \
+  inline CppGCManaged<JSType::RustType>::Ptr JSType::wrapped_rust() const { \
+    return this->field()->ptr();                                            \
   }
 
 DEFINE_ACCESSORS_FOR_RUST_WRAPPER(instant, JSTemporalInstant)

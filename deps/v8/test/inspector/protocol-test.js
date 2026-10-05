@@ -162,7 +162,7 @@ InspectorTest.ContextGroup = class {
   }
 
   addScript(string, lineOffset, columnOffset, url) {
-    utils.compileAndRunWithOrigin(this.id, string, url || '', lineOffset || 0, columnOffset || 0, false);
+    utils.compileAndRunWithOrigin(this.id, string, url || '', lineOffset || 0, columnOffset || 0, false, true);
   }
 
   addInlineScript(string, url) {
@@ -172,7 +172,13 @@ InspectorTest.ContextGroup = class {
   }
 
   addModule(string, url, lineOffset, columnOffset) {
-    utils.compileAndRunWithOrigin(this.id, string, url, lineOffset || 0, columnOffset || 0, true);
+    utils.compileAndRunWithOrigin(this.id, string, url, lineOffset || 0, columnOffset || 0, true, true);
+  }
+
+  // Registers a module so that it can be resolved as a dependency, but leaves
+  // it unevaluated. Used to set up the target of an `import defer`.
+  addModuleWithoutEvaluating(string, url, lineOffset, columnOffset) {
+    utils.compileAndRunWithOrigin(this.id, string, url, lineOffset || 0, columnOffset || 0, true, false);
   }
 
   loadScript(fileName) {

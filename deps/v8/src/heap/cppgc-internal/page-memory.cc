@@ -11,6 +11,7 @@
 #include "include/v8config.h"
 #include "src/base/macros.h"
 #include "src/base/sanitizer/asan.h"
+#include "src/heap/cppgc-internal/heap-page.h"
 #include "src/heap/cppgc-internal/memory.h"
 #include "src/heap/cppgc-internal/platform.h"
 
@@ -110,7 +111,13 @@ void NormalPageMemoryPool::Add(PageMemoryRegion* pmr) {
   // Oilpan requires the pages to be zero-initialized.
   {
     void* base = pmr->region().base();
+#if CPPGC_SHOULD_ZAP_MEMORY
     const size_t size = pmr->region().size();
+#else
+    // In release builds, swept page payloads are already zero-initialized by
+    // SetMemoryInaccessible(). Only the page header needs to be zeroed.
+    const size_t size = NormalPage::PageHeaderSize();
+#endif
     AsanUnpoisonScope unpoison_for_memset(base, size);
     std::memset(base, 0, size);
   }

@@ -112,8 +112,15 @@ class AsAtomicImpl {
   template <typename T>
   static T SeqCst_Swap(T* addr, std::remove_reference_t<T> new_value) {
     static_assert(sizeof(T) <= sizeof(AtomicStorageType));
-    return base::SeqCst_AtomicExchange(
-        to_storage_addr(addr), cast_helper<T>::to_storage_type(new_value));
+    return cast_helper<T>::to_return_type(base::SeqCst_AtomicExchange(
+        to_storage_addr(addr), cast_helper<T>::to_storage_type(new_value)));
+  }
+
+  template <typename T>
+  static T Relaxed_Swap(T* addr, std::remove_reference_t<T> new_value) {
+    static_assert(sizeof(T) <= sizeof(AtomicStorageType));
+    return cast_helper<T>::to_return_type(base::Relaxed_AtomicExchange(
+        to_storage_addr(addr), cast_helper<T>::to_storage_type(new_value)));
   }
 
   template <typename T>

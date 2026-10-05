@@ -91,6 +91,20 @@ bool IsCompatibleOpAndKind(const Operation& op0, const Operation& op1) {
   return IsSupportedSameSimd128OpKind(op0, op1);
 }
 
+// Returns true if {op} is a SIMD128 operation, i.e. it produces a SIMD128
+// value or stores one. Used to compute the denominator for the SIMD256
+// conversion percentage.
+bool IsSimd128Operation(const Operation& op) {
+  for (RegisterRepresentation rep : op.outputs_rep()) {
+    if (rep == RegisterRepresentation::Simd128()) return true;
+  }
+  if (const StoreOp* store_op = op.TryCast<StoreOp>()) {
+    return store_op->stored_rep == MemoryRepresentation::Simd128();
+  }
+  // Store-lane has no output and is not a StoreOp, but is a SIMD128 operation.
+  return op.Is<Simd128LaneMemoryOp>();
+}
+
 // Save the result of a uint64_t subtraction.
 class OffsetDiff {
  public:
@@ -214,10 +228,24 @@ class StoreLoadInfo {
 
   bool is_valid() const { return op_ != nullptr; }
 
+  const Operation* base() const { return base_; }
   const Operation* index() const { return index_; }
-  uint64_t indexc_ = 0;
+  uint64_t indexc() const { return indexc_; }
   uint64_t offset() const { return offset_; }
   const Op* op() const { return op_; }
+
+  // Comparison for ordering in StoreInfoSet. Must match operator-()
+  // compatibility check to ensure only compatible stores are grouped. ZoneSet
+  // discards entries that compare equal (neither < the other per strict weak
+  // ordering), so all distinguishing fields must be compared. E.g., without
+  // indexc comparison, stores with offset=0,indexc=0 and offset=0,indexc=64
+  // would compare equal and the second would be discarded from the set.
+  bool operator<(const StoreLoadInfo<Op>& other) const {
+    if (base_ != other.base_) return base_ < other.base_;
+    if (index_ != other.index_) return index_ < other.index_;
+    if (indexc_ != other.indexc_) return indexc_ < other.indexc_;
+    return offset_ < other.offset_;
+  }
 
  private:
   void set_invalid() { op_ = nullptr; }
@@ -226,15 +254,13 @@ class StoreLoadInfo {
   const Operation* base_;
   const Operation* index_;
   uint64_t offset_;
+  uint64_t indexc_ = 0;
 };
 
 struct StoreInfoCompare {
   bool operator()(const StoreLoadInfo<StoreOp>& lhs,
                   const StoreLoadInfo<StoreOp>& rhs) const {
-    if (lhs.index() != rhs.index()) {
-      return lhs.index() < rhs.index();
-    }
-    return lhs.offset() < rhs.offset();
+    return lhs < rhs;
   }
 };
 
@@ -489,6 +515,18 @@ PackNode* SLPTree::NewIntersectPackNode(const NodeGroup& node_group) {
   return intersect_pnode;
 }
 
+void SLPTree::AddLoadToShufflePackNode(OpIndex load_idx,
+                                       ShufflePackNode* pnode) {
+  auto it = load_to_shuffle_packnodes_.find(load_idx);
+  if (it == load_to_shuffle_packnodes_.end()) {
+    bool result;
+    std::tie(it, result) = load_to_shuffle_packnodes_.emplace(
+        load_idx, ZoneVector<ShufflePackNode*>(phase_zone_));
+    DCHECK(result);
+  }
+  it->second.push_back(pnode);
+}
+
 PackNode* SLPTree::NewCommutativePackNodeAndRecurse(const NodeGroup& node_group,
                                                     unsigned depth) {
   PackNode* pnode = NewPackNode(node_group);
@@ -635,9 +673,24 @@ ShufflePackNode* SLPTree::Try256ShuffleMatchLoad8x8U(
         return nullptr;
       }
     }
+    // The vector load-transform is emitted when the reducer visits the
+    // shared load transform itself (see WasmRevecReducer::REDUCE_INPUT_GRAPH
+    // (Simd128LoadTransform)), not when it visits the shuffles, so it can
+    // never be reordered past an intervening store. This is only sound if
+    // the load and the shuffles are reduced in the same relative order as
+    // they appear here, which requires them to be in the same block.
+    if (graph_.BlockIndexOf(shuffle0_left_idx) !=
+        graph_.BlockIndexOf(op_idx0)) {
+      TRACE(
+          "Load transform and shuffle are not in the same block for "
+          "k8x8U\n");
+      return nullptr;
+    }
     TRACE("match load extend 8x8->32x8\n");
-    return NewShufflePackNode(
+    ShufflePackNode* pnode = NewShufflePackNode(
         node_group, ShufflePackNode::SpecificInfo::Kind::kS256Load8x8U);
+    AddLoadToShufflePackNode(shuffle0_left_idx, pnode);
+    return pnode;
   }
   TRACE("Shuffle's left input is not k64Zero load transform.\n");
   return nullptr;
@@ -780,7 +833,7 @@ SLPTree::TryGetExtendIntToF32x4Info(OpIndex index) {
 
   // Get information for lane 0 (splat).
   const Simd128SplatOp* splat = graph_.Get(current).TryCast<Simd128SplatOp>();
-  if (!splat) {
+  if (!splat || splat->kind != Simd128SplatOp::Kind::kF32x4) {
     TRACE("Mismatch in splat\n");
     return {};
   }
@@ -859,29 +912,27 @@ bool SLPTree::TryMatchExtendIntToF32x4(const NodeGroup& node_group,
     return false;
   }
 
-  // Use uint8_t to match start_lane type and avoid type mismatch.
-  uint8_t min_lane_index =
-      std::min(info0.value().start_lane, info1.value().start_lane);
-  uint8_t max_lane_index =
-      std::max(info0.value().start_lane, info1.value().start_lane);
-
-  // Check lane difference without std::abs on unsigned types.
-  if (max_lane_index - min_lane_index != 4) {
+  // The group is revectorized into a single 256-bit conversion of the eight
+  // lanes starting at {start_lane}, whose lower half feeds node_group[0] and
+  // whose upper half feeds node_group[1] (see GetExtractOpIfNeeded). So node0
+  // has to extend from the lower four lanes and node1 from the upper four.
+  // The reversed order would need an extra shuffle and is not supported.
+  const uint8_t start_lane = info0.value().start_lane;
+  if (info1.value().start_lane != start_lane + 4) {
     return false;
   }
   if (info0.value().lane_size == 1) {
-    if (min_lane_index != 0 && min_lane_index != 8) {
+    if (start_lane != 0 && start_lane != 8) {
       return false;
     }
   } else {
     DCHECK_EQ(info0.value().lane_size, 2);
-    if (min_lane_index != 0) {
+    if (start_lane != 0) {
       return false;
     }
   }
 
   *info = info0.value();
-  info->start_lane = min_lane_index;
   return true;
 }
 
@@ -1338,6 +1389,9 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
         TRACE("Failed due to unsupported Simd128Shuffle op kind!\n");
         return nullptr;
       }
+      // Simd128Shuffle has no side effects, so emitting the vector
+      // load-transform at the load's position (earlier in the program) is safe.
+      DCHECK(op0.Effects() == OpEffects());
       // We pack shuffles only if it can match specific patterns. We should
       // avoid packing general shuffles because it will cause regression.
       const auto& shuffle0 = shuffle_op0.shuffle;
@@ -1367,18 +1421,50 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
           int index;
           if (SimdShuffle::TryMatchSplat<4>(shuffle0, &index) &&
               graph_.Get(op0.input(index >> 2)).opcode == Opcode::kLoad) {
+            OpIndex load_index = op0.input(index >> 2);
+            // The vector load-transform is emitted when the reducer visits
+            // the load itself (see WasmRevecReducer::REDUCE_INPUT_GRAPH
+            // (Load)), not when it visits the shuffle, so it can never be
+            // reordered past an intervening store. This is only sound if
+            // the load and the shuffle are reduced in the same relative
+            // order as they appear here, which requires them to be in the
+            // same block.
+            if (V8_UNLIKELY(graph_.BlockIndexOf(load_index) !=
+                            graph_.BlockIndexOf(node0))) {
+              TRACE(
+                  "Load and shuffle are not in the same block for "
+                  "k32Splat\n");
+              return nullptr;
+            }
             ShufflePackNode* pnode = NewShufflePackNode(
                 node_group,
                 ShufflePackNode::SpecificInfo::Kind::kS256Load32Transform);
             pnode->info().set_splat_index(index);
+            AddLoadToShufflePackNode(load_index, pnode);
             return pnode;
           } else if (SimdShuffle::TryMatchSplat<2>(shuffle0, &index) &&
                      graph_.Get(op0.input(index >> 1)).opcode ==
                          Opcode::kLoad) {
+            OpIndex load_index = op0.input(index >> 1);
+            // The vector load-transform is emitted when the reducer visits
+            // the load itself (see WasmRevecReducer::REDUCE_INPUT_GRAPH
+            // (Load)), not when it visits the shuffle, so it can never be
+            // reordered past an intervening store. This is only sound if
+            // the load and the shuffle are reduced in the same relative
+            // order as they appear here, which requires them to be in the
+            // same block.
+            if (V8_UNLIKELY(graph_.BlockIndexOf(load_index) !=
+                            graph_.BlockIndexOf(node0))) {
+              TRACE(
+                  "Load and shuffle are not in the same block for "
+                  "k64Splat\n");
+              return nullptr;
+            }
             ShufflePackNode* pnode = NewShufflePackNode(
                 node_group,
                 ShufflePackNode::SpecificInfo::Kind::kS256Load64Transform);
             pnode->info().set_splat_index(index);
+            AddLoadToShufflePackNode(load_index, pnode);
             return pnode;
           }
         }
@@ -1443,6 +1529,23 @@ void WasmRevecAnalyzer::MergeSLPTree(SLPTree& slp_tree) {
                 intersect_pnodes.end());
   }
 
+  // Different SLPTrees (rooted at different store seeds) can independently
+  // match distinct shuffle patterns that share the same underlying load, so
+  // accumulate into the existing vector rather than dropping on key
+  // collision (as a plain unordered_map::merge would).
+  for (const auto& entry : slp_tree.GetLoadToShufflePackNodesMapping()) {
+    auto it = revectorizable_load_shuffle_node_.find(entry.first);
+    if (it == revectorizable_load_shuffle_node_.end()) {
+      bool result;
+      std::tie(it, result) = revectorizable_load_shuffle_node_.emplace(
+          entry.first, ZoneVector<ShufflePackNode*>(phase_zone_));
+      DCHECK(result);
+    }
+    ZoneVector<ShufflePackNode*>& shuffle_pnodes = it->second;
+    shuffle_pnodes.insert(shuffle_pnodes.end(), entry.second.begin(),
+                          entry.second.end());
+  }
+
   revectorizable_node_.merge(slp_tree.GetNodeMapping());
   reorder_inputs_.merge(slp_tree.GetReorderInputs());
 }
@@ -1463,6 +1566,9 @@ bool WasmRevecAnalyzer::IsSupportedReduceSeed(const Operation& op) {
 void WasmRevecAnalyzer::ProcessBlock(const Block& block) {
   StoreInfoSet simd128_stores(phase_zone_);
   for (const Operation& op : base::Reversed(graph_.operations(block))) {
+    if (IsSimd128Operation(op)) {
+      ++simd128_op_count_;
+    }
     if (const StoreOp* store_op = op.TryCast<StoreOp>()) {
       if (store_op->stored_rep == MemoryRepresentation::Simd128()) {
         StoreLoadInfo<StoreOp> info(&graph_, store_op);
@@ -1564,6 +1670,12 @@ void WasmRevecAnalyzer::Run() {
   use_map_ = phase_zone_->New<Simd128UseMap>(graph_, phase_zone_);
   if (DecideVectorize()) {
     should_reduce_ = true;
+    for (const auto& entry : revectorizable_node_) {
+      // Force-packed and intersect nodes still execute as two SIMD128
+      // operations plus a SimdPack128To256, so they are not combined into a
+      // SIMD256 operation and must not count towards the conversion ratio.
+      if (!entry.second->is_force_packing()) ++revectorized_simd128_count_;
+    }
     Print("Decided to vectorize");
   }
 }

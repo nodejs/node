@@ -58,6 +58,8 @@ class PodArrayBase : public Super {
 V8_OBJECT
 template <class T>
 class PodArray : public PodArrayBase<T, ByteArray> {
+  V8_IT_REUSE_PARENT;
+
  public:
   static Handle<PodArray<T>> New(
       Isolate* isolate, uint32_t length,
@@ -70,6 +72,8 @@ class PodArray : public PodArrayBase<T, ByteArray> {
 V8_OBJECT
 template <class T>
 class TrustedPodArray : public PodArrayBase<T, TrustedByteArray> {
+  V8_IT_REUSE_PARENT;
+
  public:
   static DirectHandle<TrustedPodArray<T>> New(Isolate* isolate,
                                               uint32_t length);

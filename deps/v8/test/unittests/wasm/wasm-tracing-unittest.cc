@@ -77,7 +77,7 @@ class WasmTracingTest : public TestWithContextAndZone {
     WasmTracesForTesting& traces = GetWasmTracesForTesting();
     traces.should_store_trace = true;
 
-    std::optional<Managed<NativeModule>::Ptr> native_module;
+    std::optional<CppGCManaged<NativeModule>::Ptr> native_module;
     CompileAndRun(sigs_.v_v(), code_a, &native_module);
 
     MemoryTrace memory_trace_a = std::move(traces.memory_trace);
@@ -113,7 +113,7 @@ class WasmTracingTest : public TestWithContextAndZone {
  private:
   DirectHandle<WasmInstanceObject> CompileAndRun(
       const FunctionSig* sig, base::Vector<const uint8_t> code,
-      std::optional<Managed<NativeModule>::Ptr>* native_module) {
+      std::optional<CppGCManaged<NativeModule>::Ptr>* native_module) {
     WasmModuleBuilder builder(zone());
 
     builder.AddMemory(1);

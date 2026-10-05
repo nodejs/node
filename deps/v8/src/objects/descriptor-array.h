@@ -84,6 +84,8 @@ V8_OBJECT class EnumCache : public Struct {
 // FieldType::None(), FieldType::Any() or a weak reference to a Map. All other
 // references are strong.
 V8_OBJECT class DescriptorArray : public HeapObject {
+  V8_IT_OWN_TYPE;
+
  public:
   // Do linear search for small arrays, and for searches in the background
   // thread.

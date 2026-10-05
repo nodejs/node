@@ -35,6 +35,8 @@ using detail::WaiterQueueNode;
 // mutex and the condition variable.
 
 V8_OBJECT class JSSynchronizationPrimitive : public AlwaysSharedSpaceJSObject {
+  V8_IT_ABSTRACT;
+
  public:
   class BodyDescriptor;
 

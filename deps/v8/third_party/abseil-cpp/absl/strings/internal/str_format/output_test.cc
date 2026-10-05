@@ -14,6 +14,7 @@
 
 #include "absl/strings/internal/str_format/output.h"
 
+#include <algorithm>
 #include <sstream>
 #include <string>
 

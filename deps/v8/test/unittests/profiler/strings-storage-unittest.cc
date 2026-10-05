@@ -198,5 +198,13 @@ TEST_F(StringsStorageWithIsolate, Truncation) {
   }
 }
 
+TEST_F(StringsStorageWithIsolate, Untruncated) {
+  StringsStorage storage(2);
+  DirectHandle<String> str =
+      isolate()->factory()->NewStringFromAsciiChecked("foobar");
+  const char* stored_str = storage.GetUntruncated(*str);
+  CHECK(StringEq("foobar", stored_str));
+}
+
 }  // namespace internal
 }  // namespace v8

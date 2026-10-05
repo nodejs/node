@@ -21,6 +21,7 @@ class StructBodyDescriptor;
 // Superclass for all objects with instance type {JS_ARGUMENTS_OBJECT_TYPE}
 V8_OBJECT class JSArgumentsObject : public JSObject {
  public:
+  V8_IT_OWN_TYPE;
   DECL_VERIFIER(JSArgumentsObject)
   DECL_PRINTER(JSArgumentsObject)
 
@@ -38,6 +39,7 @@ inline constexpr int JSArgumentsObject::kHeaderSize = sizeof(JSArgumentsObject);
 // JSArgumentsObject::kHeaderSize.
 class JSSloppyArgumentsObject : public JSArgumentsObject {
  public:
+  V8_IT_REUSE_PARENT;
   // Slot indices of the in-object properties, relative to the parent's
   // kHeaderSize.
   static constexpr int kLengthSlotIndex = 0;
@@ -58,6 +60,8 @@ class JSSloppyArgumentsObject : public JSArgumentsObject {
 // JSStrictArgumentsObject is just a JSArgumentsObject with specific initial
 // map. This initial map adds an in-object property for "length".
 class JSStrictArgumentsObject : public JSArgumentsObject {
+  V8_IT_REUSE_PARENT;
+
  public:
   static constexpr int kLengthSlotIndex = 0;
   static constexpr int kInObjectPropertyCount = 1;

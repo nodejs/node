@@ -105,7 +105,7 @@ class ReadOnlyHeap final {
   ReadOnlySpace* read_only_space_ = nullptr;
 
 #if V8_ENABLE_WEBASSEMBLY
-  Address wasm_null_payload_ = kNullAddress;
+  Address wasm_null_ = kNullAddress;
 #endif
 
  private:

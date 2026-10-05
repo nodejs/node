@@ -24,6 +24,7 @@
 #include "src/heap/heap-inl.h"  // For MutablePage. TODO(jkummerow): Drop.
 #include "src/heap/mutable-page.h"
 #include "src/ic/binary-op-assembler.h"
+#include "src/ic/unary-op-assembler.h"
 #include "src/logging/counters.h"
 #include "src/numbers/integer-literal-inl.h"
 #include "src/numbers/math-random.h"
@@ -2216,16 +2217,7 @@ TNode<Code> CodeStubAssembler::LoadCodeObjectFromJSDispatchTable(
   TNode<UintPtrT> shifted_value;
   if (JSDispatchEntry::kObjectPointerOffset == 0) {
     shifted_value =
-#if defined(__illumos__) && defined(V8_HOST_ARCH_64_BIT)
-    // Pointers in illumos span both the low 2^47 range and the high 2^47 range
-    // as well. Checking the high bit being set in illumos means all higher bits
-    // need to be set to 1 after shifting right.
-    // Use WordSar() so any high-bit check wouldn't be necessary.
-        UncheckedCast<UintPtrT>(WordSar(UncheckedCast<IntPtrT>(value),
-            IntPtrConstant(JSDispatchEntry::kObjectPointerShift)));
-#else
         WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift));
-#endif /* __illumos__ and 64-bit */
   } else {
     shifted_value = UintPtrAdd(
         WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift)),
@@ -4272,6 +4264,18 @@ void CodeStubAssembler::StoreMapNoWriteBarrier(TNode<HeapObject> object,
 
 void CodeStubAssembler::StoreMapNoWriteBarrier(TNode<HeapObject> object,
                                                TNode<Map> map) {
+  OptimizedStoreMap(object, map);
+  DcheckHasValidMap(object);
+}
+
+void CodeStubAssembler::StoreMapReleaseNoWriteBarrier(
+    TNode<HeapObject> object, RootIndex map_root_index) {
+  StoreMapReleaseNoWriteBarrier(object, CAST(LoadRoot(map_root_index)));
+}
+
+void CodeStubAssembler::StoreMapReleaseNoWriteBarrier(TNode<HeapObject> object,
+                                                      TNode<Map> map) {
+  MemoryBarrier(AtomicMemoryOrder::kAcqRel);
   OptimizedStoreMap(object, map);
   DcheckHasValidMap(object);
 }
@@ -6693,7 +6697,12 @@ void CodeStubAssembler::CopyRange(TNode<HeapObject> dst_object, int dst_offset,
         TNode<Object> value = LoadObjectField(src_object, current_src_offset);
         TNode<IntPtrT> current_dst_offset =
             IntPtrAdd(TimesTaggedSize(index), IntPtrConstant(dst_offset));
-        if (mode == SKIP_WRITE_BARRIER) {
+        if (mode == UNSAFE_SKIP_WRITE_BARRIER) {
+          UnsafeStoreNoWriteBarrier(
+              MachineRepresentation::kTagged, dst_object,
+              IntPtrSub(current_dst_offset, IntPtrConstant(kHeapObjectTag)),
+              value);
+        } else if (mode == SKIP_WRITE_BARRIER) {
           StoreObjectFieldNoWriteBarrier(dst_object, current_dst_offset, value);
         } else {
           StoreObjectField(dst_object, current_dst_offset, value);
@@ -9789,6 +9798,17 @@ TNode<String> ToDirectStringAssembler::ToDirect() {
   return var_string_.value();
 }
 
+void ToDirectStringAssembler::BailIfTransitioned(Label* if_bailout) {
+#if V8_STATIC_ROOTS_BOOL
+  GotoIfNot(TaggedEqual(LoadMap(var_string_.value()), var_map_.value()),
+            if_bailout);
+#else
+  GotoIfNot(Word32Equal(LoadInstanceType(var_string_.value()),
+                        var_instance_type_.value()),
+            if_bailout);
+#endif
+}
+
 TNode<BoolT> ToDirectStringAssembler::IsOneByte() {
 #if V8_STATIC_ROOTS_BOOL
   return IsOneByteStringMap(var_map_.value());
@@ -12783,7 +12803,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessorAndBailoutOnLazyClosures(
               // signature and receiver is not a JSReceiver the signature check
               // in CallFunctionTemplate builtin will fail anyway, so we can
               // short cut it here and throw kIllegalInvocation immediately.
-              js_receiver = ToObject_Inline(context, receiver);
+              js_receiver = ConvertReceiver(context, receiver);
               break;
           }
           TNode<JSReceiver> holder_receiver = *holder;
@@ -13586,10 +13606,16 @@ TNode<Boolean> CodeStubAssembler::OrdinaryHasInstance(
     CSA_DCHECK(this, IsJSReceiver(object));
 
     // Throw TypeError in case of non-instance prototype.
-    TNode<JSReceiver> callable_prototype = CAST(LoadJSFunctionPrototype(
+    TNode<JSPrototype> maybe_callable_prototype = CAST(LoadJSFunctionPrototype(
         CAST(callable), &return_runtime, &if_non_instance_prototype,
         &var_non_instance_prototype));
+    // Usually, we don't expect JSFunctions with prototypes to have initial
+    // maps with null prototype, however this is currently the case for shared
+    // struct constructors.
+    var_non_instance_prototype = maybe_callable_prototype;
+    GotoIf(IsNull(maybe_callable_prototype), &if_non_instance_prototype);
 
+    TNode<JSReceiver> callable_prototype = CAST(maybe_callable_prototype);
     // Loop through the prototype chain looking for the {callable} prototype.
     var_result = HasInPrototypeChain(context, object, callable_prototype);
     Goto(&return_result);
@@ -15203,6 +15229,7 @@ TNode<IntPtrT> CodeStubAssembler::MemoryChunkFromAddress(
                  IntPtrConstant(~MemoryChunk::GetAlignmentMaskForAssembler()));
 }
 
+// LINT.IfChange(BasePageFromMemoryChunk)
 TNode<IntPtrT> CodeStubAssembler::BasePageFromMemoryChunk(
     TNode<IntPtrT> address) {
 #ifdef V8_ENABLE_SANDBOX
@@ -15219,17 +15246,34 @@ TNode<IntPtrT> CodeStubAssembler::BasePageFromMemoryChunk(
                         MemoryChunkConstants::kMetadataPointerTableSizeMask));
   TNode<IntPtrT> offset = ChangeInt32ToIntPtr(
       Word32Shl(index, UniqueUint32Constant(kBasePageTableEntrySizeLog2)));
+  static_assert(offsetof(IsolateGroup::BasePageTableEntry, metadata_) == 0);
   TNode<IntPtrT> metadata = Load<IntPtrT>(table, offset);
   // Check that the Metadata belongs to this Chunk, since an attacker with write
   // inside the sandbox could've swapped the index.
   TNode<IntPtrT> metadata_chunk = MemoryChunkFromAddress(
       Load<IntPtrT>(metadata, IntPtrConstant(BasePage::AreaStartOffset())));
   CSA_CHECK(this, WordEqual(metadata_chunk, address));
+
+  // Check that the page is accessible from the current isolate.
+  TNode<RawPtrT> isolate = Load<RawPtrT>(
+      table,
+      IntPtrAdd(offset, IntPtrConstant(offsetof(
+                            IsolateGroup::BasePageTableEntry, isolate_))));
+  TNode<RawPtrT> current_isolate = UncheckedCast<RawPtrT>(
+      ExternalConstant(ExternalReference::isolate_address()));
+  CSA_CHECK(
+      this,
+      Word32Or(WordEqual(isolate, current_isolate),
+               WordEqual(
+                   isolate,
+                   IntPtrConstant(IsolateGroup::BasePageTableEntry::
+                                      kReadOnlyOrSharedEntryIsolateSentinel))));
   return metadata;
 #else
   return Load<IntPtrT>(address, IntPtrConstant(MemoryChunk::MetadataOffset()));
 #endif
 }
+// LINT.ThenChange(/src/heap/memory-chunk-inl.h:BasePageFromMemoryChunk)
 
 TNode<IntPtrT> CodeStubAssembler::BasePageFromAddress(TNode<IntPtrT> address) {
   return BasePageFromMemoryChunk(MemoryChunkFromAddress(address));
@@ -16953,8 +16997,7 @@ void CodeStubAssembler::GenerateNumberBinaryOp(Operation op, TNode<Object> lhs,
 }
 
 void CodeStubAssembler::GenerateStringAdd(TNode<Object> lhs, TNode<Object> rhs,
-                                          TNode<UintPtrT> feedback_offset,
-                                          Builtin fallback_builtin) {
+                                          TNode<UintPtrT> feedback_offset) {
   Label fallback(this, Label::kDeferred);
 
   GotoIf(TaggedIsSmi(lhs), &fallback);
@@ -16971,10 +17014,11 @@ void CodeStubAssembler::GenerateStringAdd(TNode<Object> lhs, TNode<Object> rhs,
 
   BIND(&fallback);
   {
-    TailCallBuiltin(fallback_builtin, LoadContextFromBaseline(), lhs, rhs,
-                    Int32Constant(static_cast<int32_t>(
-                        BinaryOperationFeedback::TypeIndex::kString)),
-                    feedback_offset);
+    TailCallBuiltin(
+        Builtin::kAddAndTryPatchCode, LoadContextFromBaseline(), lhs, rhs,
+        Int32Constant(
+            static_cast<int32_t>(BinaryOperationFeedback::TypeIndex::kString)),
+        feedback_offset);
   }
 }
 
@@ -17066,6 +17110,149 @@ void CodeStubAssembler::GenerateBinaryOpAndTryPatchCode(
     new_feedback = CombineEmbeddedFeedback<BinaryOperationFeedback>(
         current_type_feedback, feedback_index.value());
     TailCallRuntime(Runtime::kPatchBinopBaselineCodeAndThrow,
+                    NoContextConstant(), SmiFromInt32(new_feedback.value()),
+                    var_exception.value(), bytecode_array,
+                    ChangeUintPtrToTagged(feedback_offset));
+  }
+}
+
+void CodeStubAssembler::GenerateSmiUnaryOp(Operation op, TNode<Object> value,
+                                           TNode<UintPtrT> feedback_offset,
+                                           Builtin fallback_builtin) {
+  Label fallback(this, Label::kDeferred);
+  GotoIfNot(TaggedIsSmi(value), &fallback);
+  TNode<Smi> smi = CAST(value);
+
+  switch (op) {
+    case Operation::kIncrement:
+      Return(TrySmiAdd(smi, SmiConstant(1), &fallback));
+      break;
+    case Operation::kDecrement:
+      Return(TrySmiAdd(smi, SmiConstant(-1), &fallback));
+      break;
+    case Operation::kNegate:
+      // 0 negates to -0; kMinValue overflows. Both bail so feedback widens
+      // correctly.
+      GotoIf(SmiEqual(smi, SmiConstant(0)), &fallback);
+      GotoIf(SmiEqual(smi, SmiConstant(Smi::kMinValue)), &fallback);
+      Return(SmiSub(SmiConstant(0), smi));
+      break;
+    case Operation::kBitwiseNot: {
+      TNode<Object> result =
+          ChangeInt32ToTagged(Word32BitwiseNot(SmiToInt32(smi)));
+      // On 32-bit Smi builds the result may not fit a Smi; bail if so.
+      GotoIfNot(TaggedIsSmi(result), &fallback);
+      Return(result);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+
+  BIND(&fallback);
+  {
+    TailCallBuiltin(fallback_builtin, LoadContextFromBaseline(), value,
+                    Int32Constant(static_cast<int32_t>(
+                        BinaryOperationFeedback::TypeIndex::kSignedSmall)),
+                    feedback_offset);
+  }
+}
+
+void CodeStubAssembler::GenerateNumberNegate(TNode<Object> value,
+                                             TNode<UintPtrT> feedback_offset) {
+  Label fallback(this, Label::kDeferred), do_float(this);
+  TVARIABLE(Float64T, var_float);
+
+  Label if_smi(this);
+  GotoIf(TaggedIsSmi(value), &if_smi);
+  GotoIfNot(IsHeapNumber(CAST(value)), &fallback);
+  var_float = LoadHeapNumberValue(CAST(value));
+  Goto(&do_float);
+
+  BIND(&if_smi);
+  {
+    TNode<Smi> smi = CAST(value);
+    Label if_zero(this), if_min(this);
+    GotoIf(SmiEqual(smi, SmiConstant(0)), &if_zero);
+    GotoIf(SmiEqual(smi, SmiConstant(Smi::kMinValue)), &if_min);
+    Return(SmiSub(SmiConstant(0), smi));
+
+    BIND(&if_zero);
+    Return(MinusZeroConstant());
+
+    BIND(&if_min);
+    var_float = SmiToFloat64(smi);
+    Goto(&do_float);
+  }
+
+  BIND(&do_float);
+  Return(AllocateHeapNumberWithValue(Float64Neg(var_float.value())));
+
+  BIND(&fallback);
+  {
+    TailCallBuiltin(
+        Builtin::kNegateAndTryPatchCode, LoadContextFromBaseline(), value,
+        Int32Constant(
+            static_cast<int32_t>(BinaryOperationFeedback::TypeIndex::kNumber)),
+        feedback_offset);
+  }
+}
+
+void CodeStubAssembler::GenerateUnaryOpAndTryPatchCode(
+    Operation op, TNode<Object> value, TNode<Int32T> current_type_feedback,
+    TNode<UintPtrT> feedback_offset) {
+  TVARIABLE(Smi, var_type_feedback,
+            SmiConstant(BinaryOperationFeedback::kNone));
+  TVARIABLE(Object, var_exception);
+  TVARIABLE(Object, var_result);
+  TVARIABLE(Uint8T, new_feedback);
+  TVARIABLE(Int32T, feedback_index);
+
+  auto bytecode_array = LoadBytecodeArrayFromBaseline();
+  Label if_exception(this, Label::kDeferred);
+  {
+    ScopedExceptionHandler handler(this, &if_exception, &var_exception);
+    UnaryOpAssembler unary_asm(state());
+    auto context = LoadContextFromBaseline();
+    auto record_feedback = [&](TNode<Smi> feedback) {
+      var_type_feedback = feedback;
+    };
+    switch (op) {
+      case Operation::kIncrement:
+        var_result = unary_asm.Generate_IncrementWithFeedback(context, value,
+                                                              record_feedback);
+        break;
+      case Operation::kDecrement:
+        var_result = unary_asm.Generate_DecrementWithFeedback(context, value,
+                                                              record_feedback);
+        break;
+      case Operation::kNegate:
+        var_result = unary_asm.Generate_NegateWithFeedback(context, value,
+                                                           record_feedback);
+        break;
+      case Operation::kBitwiseNot:
+        var_result = unary_asm.Generate_BitwiseNotWithFeedback(context, value,
+                                                               record_feedback);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  feedback_index = EncodeEmbeddedFeedback<BinaryOperationFeedback>(
+      var_type_feedback.value());
+  new_feedback = CombineEmbeddedFeedback<BinaryOperationFeedback>(
+      current_type_feedback, feedback_index.value());
+  TailCallRuntime(Runtime::kPatchUnaryOpBaselineCode, NoContextConstant(),
+                  SmiFromInt32(new_feedback.value()), var_result.value(),
+                  bytecode_array, ChangeUintPtrToTagged(feedback_offset));
+
+  BIND(&if_exception);
+  {
+    feedback_index = EncodeEmbeddedFeedback<BinaryOperationFeedback>(
+        var_type_feedback.value());
+    new_feedback = CombineEmbeddedFeedback<BinaryOperationFeedback>(
+        current_type_feedback, feedback_index.value());
+    TailCallRuntime(Runtime::kPatchUnaryOpBaselineCodeAndThrow,
                     NoContextConstant(), SmiFromInt32(new_feedback.value()),
                     var_exception.value(), bytecode_array,
                     ChangeUintPtrToTagged(feedback_offset));

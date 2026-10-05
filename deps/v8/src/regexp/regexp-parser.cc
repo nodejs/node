@@ -1583,10 +1583,6 @@ ParserState<mode>* ParserImpl<CharT, mode>::ParseOpenParenthesis(
       base::uc32 next = Next();
       switch (next) {
         case '-':
-          if (!v8_flags.js_regexp_modifiers) {
-            ReportError(Error::kInvalidGroup);
-            return nullptr;
-          }
           Advance();
           parsing_modifiers = true;
           if (modifiers_polarity == false) {
@@ -1598,10 +1594,6 @@ ParserState<mode>* ParserImpl<CharT, mode>::ParseOpenParenthesis(
         case 'm':
         case 'i':
         case 's': {
-          if (!v8_flags.js_regexp_modifiers) {
-            ReportError(Error::kInvalidGroup);
-            return nullptr;
-          }
           Advance();
           parsing_modifiers = true;
           Flag flag = TryFlagFromChar(next).value();
@@ -1621,7 +1613,6 @@ ParserState<mode>* ParserImpl<CharT, mode>::ParseOpenParenthesis(
         case '=':
           Advance(2);
           if (parsing_modifiers) {
-            DCHECK(v8_flags.js_regexp_modifiers);
             ReportError(Error::kInvalidGroup);
             return nullptr;
           }
@@ -1631,7 +1622,6 @@ ParserState<mode>* ParserImpl<CharT, mode>::ParseOpenParenthesis(
         case '!':
           Advance(2);
           if (parsing_modifiers) {
-            DCHECK(v8_flags.js_regexp_modifiers);
             ReportError(Error::kInvalidGroup);
             return nullptr;
           }
@@ -1641,7 +1631,6 @@ ParserState<mode>* ParserImpl<CharT, mode>::ParseOpenParenthesis(
         case '<':
           Advance();
           if (parsing_modifiers) {
-            DCHECK(v8_flags.js_regexp_modifiers);
             ReportError(Error::kInvalidGroup);
             return nullptr;
           }
@@ -1919,46 +1908,39 @@ bool ParserImpl<CharT, mode>::CreateNamedCaptureAtIndex(
     // Check for duplicates and bail if we find any.
     const auto& named_capture_it = named_captures_->find(capture);
     if (named_capture_it != named_captures_->end()) {
-      if (v8_flags.js_regexp_duplicate_named_groups) {
-        ZoneList<int>* named_capture_indices = named_capture_it->second;
-        DCHECK_NOT_NULL(named_capture_indices);
-        DCHECK(!named_capture_indices->is_empty());
-        for (int named_index : *named_capture_indices) {
-          bool is_duplicate = true;
-          for (Interval interval : non_participating_capture_group_intervals) {
-            DCHECK(!interval.is_empty());
-            // We can stop as soon as we are inside one non-participating
-            // interval. There can't be a non-participating and participating
-            // interval, as intervals are never decreasing.
-            if (interval.Contains(named_index)) {
-              is_duplicate = false;
-              break;
-            }
-            // Intervals are ordered strictly increasing, so we can stop early
-            // when the current interval is past the current index.
-            if (named_index <= interval.from()) {
-              break;
-            }
+      ZoneList<int>* named_capture_indices = named_capture_it->second;
+      DCHECK_NOT_NULL(named_capture_indices);
+      DCHECK(!named_capture_indices->is_empty());
+      for (int named_index : *named_capture_indices) {
+        bool is_duplicate = true;
+        for (Interval interval : non_participating_capture_group_intervals) {
+          DCHECK(!interval.is_empty());
+          // We can stop as soon as we are inside one non-participating
+          // interval. There can't be a non-participating and participating
+          // interval, as intervals are never decreasing.
+          if (interval.Contains(named_index)) {
+            is_duplicate = false;
+            break;
           }
-          if (is_duplicate) {
-            ReportError(Error::kDuplicateCaptureGroupName);
-            return false;
+          // Intervals are ordered strictly increasing, so we can stop early
+          // when the current interval is past the current index.
+          if (named_index <= interval.from()) {
+            break;
           }
         }
-      } else {
-        ReportError(Error::kDuplicateCaptureGroupName);
-        return false;
+        if (is_duplicate) {
+          ReportError(Error::kDuplicateCaptureGroupName);
+          return false;
+        }
       }
     }
   }
-  if (v8_flags.js_regexp_duplicate_named_groups) {
-    // Check for nested named captures. This is necessary to find duplicate
-    // named captures within the same disjunct.
-    ParserState<mode>* parent_state = state->previous_state();
-    if (parent_state && parent_state->IsInsideCaptureGroup(name)) {
-      ReportError(Error::kDuplicateCaptureGroupName);
-      return false;
-    }
+  // Check for nested named captures. This is necessary to find duplicate
+  // named captures within the same disjunct.
+  ParserState<mode>* parent_state = state->previous_state();
+  if (parent_state && parent_state->IsInsideCaptureGroup(name)) {
+    ReportError(Error::kDuplicateCaptureGroupName);
+    return false;
   }
 
   auto entry = named_captures_->try_emplace(
@@ -2027,8 +2009,6 @@ void ParserImpl<CharT, mode>::PatchNamedBackReferences() {
       return;
     }
 
-    DCHECK_IMPLIES(!v8_flags.js_regexp_duplicate_named_groups,
-                   capture_it->second->length() == 1);
     if constexpr (mode == ParseMode::kBuildAST) {
       for (int index : *capture_it->second) {
         ref->add_capture(GetCapture(index), zone());
@@ -2065,8 +2045,6 @@ ZoneVector<Capture*>* ParserImpl<CharT, mode>::GetNamedCaptures() {
   ZoneVector<Capture*>* flattened_named_captures =
       zone()->template New<ZoneVector<Capture*>>(zone());
   for (auto capture : *named_captures_) {
-    DCHECK_IMPLIES(!v8_flags.js_regexp_duplicate_named_groups,
-                   capture.second->length() == 1);
     for (int index : *capture.second) {
       flattened_named_captures->push_back(GetCapture(index));
     }

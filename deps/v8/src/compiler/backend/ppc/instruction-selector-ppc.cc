@@ -1194,6 +1194,10 @@ void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitUint64Sub128(OpIndex node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
+  UNREACHABLE();
+}
+
 void InstructionSelector::VisitUint32MulHigh(OpIndex node) {
   PPCOperandGenerator g(this);
   const WordBinopOp& op = Cast<WordBinopOp>(node);

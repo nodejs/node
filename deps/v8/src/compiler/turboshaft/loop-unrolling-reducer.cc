@@ -29,7 +29,9 @@ void LoopUnrollingAnalyzer::DetectUnrollableLoops() {
   for (const auto& [start, info] : loop_finder_.LoopHeaders()) {
     IterationCount iter_count = GetLoopIterationCount(info);
     TRACE("LoopUnrollingAnalyzer: loop at "
-          << start->index() << " ==> iter_count=" << iter_count);
+          << start->index() << " ==> iter_count=" << iter_count
+          << " op_count=" << loop_finder_.GetLoopInfo(start).op_count
+          << " has_any_call=" << loop_finder_.GetLoopInfo(start).has_any_call);
     loop_iteration_count_.insert({start, iter_count});
 
     if (ShouldFullyUnrollLoop(start) || ShouldPartiallyUnrollLoop(start)) {

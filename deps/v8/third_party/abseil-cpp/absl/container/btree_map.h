@@ -94,7 +94,7 @@ using map_params = typename ApplyWithoutDefaultSuffix<
              typename btree_map_defaults<Key, Data>::IsMulti>,
     TypeList<Key, Data, Compare, Alloc,
              std::integral_constant<int, TargetNodeSize>,
-             std::integral_constant<bool, IsMulti>>>::type;
+             std::bool_constant<IsMulti>>>::type;
 
 }  // namespace container_internal
 
@@ -370,11 +370,6 @@ class ABSL_ATTRIBUTE_OWNER btree_map
   //   returns a node handle owning that extracted data. If the `btree_map`
   //   does not contain an element with a matching key, this function returns an
   //   empty node handle.
-  //
-  // NOTE: when compiled in an earlier version of C++ than C++17,
-  // `node_type::key()` returns a const reference to the key instead of a
-  // mutable reference. We cannot safely return a mutable reference without
-  // std::launder (which is not available before C++17).
   //
   // NOTE: In this context, `node_type` refers to the C++17 concept of a
   // move-only type that owns and provides access to the elements in associative
@@ -736,11 +731,6 @@ class ABSL_ATTRIBUTE_OWNER btree_multimap
   //   returns a node handle owning that extracted data. If the `btree_multimap`
   //   does not contain an element with a matching key, this function returns an
   //   empty node handle.
-  //
-  // NOTE: when compiled in an earlier version of C++ than C++17,
-  // `node_type::key()` returns a const reference to the key instead of a
-  // mutable reference. We cannot safely return a mutable reference without
-  // std::launder (which is not available before C++17).
   //
   // NOTE: In this context, `node_type` refers to the C++17 concept of a
   // move-only type that owns and provides access to the elements in associative

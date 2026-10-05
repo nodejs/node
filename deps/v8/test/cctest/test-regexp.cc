@@ -135,7 +135,13 @@ class InterruptTest {
     CHECK(string->ContainsOnlyOneByte());
     // Internalize the subject by using it as a computed property name in an
     // object.
-    CompileRun("o = { [subject_string]: 'foo' }");
+    {
+      // This test is technically wrong for running JS in a C++ interrupt.
+      // However we know that the interuptee here is the regexp engine, which
+      // does not care.
+      Isolate::AllowJavascriptExecutionScope allow_script(isolate);
+      CompileRun("o = { [subject_string]: 'foo' }");
+    }
     CHECK(string->IsOneByte());
   }
 

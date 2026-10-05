@@ -357,6 +357,16 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
   }
 }
 
+void OptimizingCompileDispatcher::InstallOptimizedFunctionsIfReady(
+    DirectHandle<JSFunction> function,
+    std::optional<BytecodeOffset> osr_offset) {
+  HandleScope handle_scope(isolate_);
+
+  if (output_queue_.IsJobReady(function, osr_offset)) {
+    InstallOptimizedFunctions();
+  }
+}
+
 int OptimizingCompileDispatcher::InstallGeneratedBuiltins(int installed_count) {
   return output_queue_.InstallGeneratedBuiltins(isolate_, installed_count);
 }
@@ -479,6 +489,23 @@ OptimizingCompileOutputQueue::Dequeue() {
   std::unique_ptr<TurbofanCompilationJob> job(queue_.front());
   queue_.pop_front();
   return job;
+}
+
+bool OptimizingCompileOutputQueue::IsJobReady(
+    DirectHandle<JSFunction> function,
+    std::optional<BytecodeOffset> osr_offset) {
+  base::MutexGuard guard(&mutex_);
+  for (auto it = queue_.begin(); it != queue_.end(); ++it) {
+    TurbofanCompilationJob* job = *it;
+    OptimizedCompilationInfo* info = job->compilation_info();
+    if (*info->closure() == *function) {
+      if (!osr_offset ||
+          (info->is_osr() && info->osr_offset() == *osr_offset)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 size_t OptimizingCompileOutputQueue::size() const { return queue_.size(); }

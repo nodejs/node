@@ -203,7 +203,9 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
       case OperandType::kEmbeddedFeedback: {
         // Ignore embedded feedback bytes in bytecode expectation test.
         DCHECK(Bytecodes::IsEmbeddedFeedbackBytecode(bytecode));
-        DCHECK_EQ(op_index, kEmbeddedFeedbackOperandIndex);
+        DCHECK_EQ(op_index, Bytecodes::IsUnaryOpWithEmbeddedFeedback(bytecode)
+                                ? kUnaryEmbeddedFeedbackOperandIndex
+                                : kEmbeddedFeedbackOperandIndex);
         *stream << "EmbeddedFeedback(";
         break;
       }

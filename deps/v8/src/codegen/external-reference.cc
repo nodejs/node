@@ -846,6 +846,10 @@ ExternalReference ExternalReference::address_of_builtin_subclassing_flag() {
   return ExternalReference(&v8_flags.builtin_subclassing);
 }
 
+ExternalReference ExternalReference::address_of_js_pr_3883_flag() {
+  return ExternalReference(&v8_flags.js_pr_3883);
+}
+
 ExternalReference ExternalReference::address_of_runtime_stats_flag() {
   return ExternalReference(&TracingFlags::runtime_stats);
 }
@@ -1111,6 +1115,8 @@ FUNCTION_REFERENCE(re_experimental_match_for_call_from_js,
                    regexp::ExperimentalRegExp::MatchForCallFromJs)
 
 FUNCTION_REFERENCE(re_atom_exec_raw, RegExp::AtomExecRaw)
+
+FUNCTION_REFERENCE(re_split_cache_enter, regexp::ResultsCache::EnterRaw)
 
 FUNCTION_REFERENCE(allocate_regexp_result_vector,
                    regexp::ResultVector::Allocate)

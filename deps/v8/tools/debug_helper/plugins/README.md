@@ -47,6 +47,7 @@ when you print a backtrace via `bt`, and adds a `v8` command. Currently, `v8` su
 ```
 v8 inspect <addr> [--type T] [--depth N] [--array-length N]
 v8 isolate
+v8 source [frame#] [--max-lines N]
 ```
 
 #### Frame annotations
@@ -110,6 +111,28 @@ isolate = 0x7f1efd3c8000
 If the selected thread has not entered an isolate (e.g. an idle worker
 thread), it prints `isolate = <none>`.
 
+#### `v8 source [frame#] [--max-lines N]`
+
+Prints the source span of the function a JS frame is running.
+`frame#` is the frame number shown by `bt` and defaults to the selected frame.
+
+```
+(gdb) v8 source 5
+#5  test_func_3 @ throw.js:15:21 (this=0x1d190100497d, argc=4)
+
+  14
+     +---- frame 5: test_func_3 -----
+  15 | function test_func_3(n, b, o, s) {
+  16 |   throw new Error("v8dbg bridge test: " + s);
+  17 | }
+     +---- frame 5: test_func_3 -----
+```
+
+The span covers the whole function the frame is running, from the start of its scope
+to its last character. Long spans (e.g. for top-level frames, whose span is the
+whole script) are truncated with a `... (<K> more lines)` note after 10 lines,
+or after `--max-lines N` lines when the flag is given.
+
 #### Examples
 
 To display the JS frames on stack, and inspect the receiver, paste the address
@@ -126,6 +149,16 @@ in the frame annotation into `v8 inspect`:
   .properties_or_hash=<Smi: 940196>
   .elements=0x1d19000007e5 <FixedArray: EmptyFixedArray>
   .cpp_heap_wrappable=0x00000000
+(gdb) frame 5
+(gdb) v8 source
+#5  test_func_3 @ throw.js:15:21 (this=0x1d190100497d, argc=4)
+
+  14
+     +---- frame 5: test_func_3 -----
+  15 | function test_func_3(n, b, o, s) {
+  16 |   throw new Error("v8dbg bridge test: " + s);
+  17 | }
+     +---- frame 5: test_func_3 -----
 ```
 
 ## How To Test It

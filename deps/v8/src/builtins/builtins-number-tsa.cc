@@ -418,12 +418,11 @@ TS_BUILTIN(BitwiseNot_WithFeedback, NumberBuiltinsAssemblerTS) {
   // Descriptor directly.
   V<Object> value = Parameter<Object>(Descriptor::kValue);
   V<Context> context = Parameter<Context>(Descriptor::kContext);
-  V<FeedbackVector> feedback_vector =
-      Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
-  V<WordPtr> slot = Parameter<WordPtr>(Descriptor::kSlot);
+  V<BytecodeArray> bytecode_array =
+      Parameter<BytecodeArray>(Descriptor::kBytecodeArray);
+  V<WordPtr> feedback_offset = Parameter<WordPtr>(Descriptor::kFeedbackOffset);
 
-  SetFeedbackSlot(slot);
-  SetFeedbackVector(feedback_vector);
+  SetEmbeddedFeedback(bytecode_array, feedback_offset);
 
   V<Object> result = BitwiseNot(context, value);
   Return(result);

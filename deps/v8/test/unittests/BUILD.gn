@@ -5,12 +5,6 @@
 import("../../gni/cluster_build.gni")
 import("../../gni/v8.gni")
 
-if (v8_enable_webassembly) {
-  if (!v8_target_is_simulator && v8_current_cpu == "x64") {
-    v8_enable_wasm_simd256_revec = true
-  }
-}
-
 if (is_fuchsia) {
   import("//build/config/fuchsia/generate_runner_scripts.gni")
   import("//third_party/fuchsia-sdk/sdk/build/component.gni")
@@ -356,6 +350,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "date/date-cache-unittest.cc",
     "date/date-unittest.cc",
     "debug/debug-property-iterator-unittest.cc",
+    "debug/debug-scope-info-unittest.cc",
     "deoptimizer/deoptimization-unittest.cc",
     "diagnostics/eh-frame-iterator-unittest.cc",
     "diagnostics/eh-frame-writer-unittest.cc",
@@ -507,6 +502,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "profiler/circular-queue-unittest.cc",
     "profiler/heap-snapshot-utils.cc",
     "profiler/heap-snapshot-utils.h",
+    "profiler/output-stream-writer-unittest.cc",
     "profiler/strings-storage-unittest.cc",
     "regexp/regexp-unittest.cc",
     "regress/regress-536271629-unittest.cc",
@@ -523,6 +519,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "sandbox/sandbox-hardware-support-unittest.cc",
     "sandbox/sandbox-unittest.cc",
     "sandbox/sandbox-violation-unittest.cc",
+    "sandbox/segmented-table-unittest.cc",
     "sandbox/trap-fuzzer-unittest.cc",
     "strings/char-predicates-unittest.cc",
     "strings/unicode-unittest.cc",
@@ -556,10 +553,10 @@ v8_cluster_source_set("v8_unittests_sources") {
 
   exclude_from_cluster = [
     "api/dictionary-template-unittest.cc",
+    "api/interceptor-unittest.cc",
     "base/virtual-address-space-unittest.cc",
     "base/hashing-unittest.cc",
     "compiler/run-variables-unittest.cc",
-    "compiler/linear-scheduler-unittest.cc",
     "compiler/linkage-unittest.cc",
     "heap/cppgc-js/cpp-heap-stack-start-marker-unittest.cc",
     "heap/cppgc-js/embedder-roots-handler-unittest.cc",
@@ -718,6 +715,7 @@ v8_cluster_source_set("v8_unittests_sources") {
       "wasm/wasm-disassembler-unittest-too-many-ends.wasm.inc",
       "wasm/wasm-disassembler-unittest-too-many-ends.wat.inc",
       "wasm/wasm-disassembler-unittest.cc",
+      "wasm/wasm-interpreter-thread-unittest.cc",
       "wasm/wasm-macro-gen-unittest.cc",
       "wasm/wasm-module-builder-unittest.cc",
       "wasm/wasm-module-sourcemap-unittest.cc",
@@ -728,13 +726,6 @@ v8_cluster_source_set("v8_unittests_sources") {
     if (v8_current_cpu == "arm64") {
       sources += [ "compiler/turboshaft/wasm-shuffle-reducer-unittest.cc" ]
     }
-  }
-
-  if (v8_enable_wasm_simd256_revec) {
-    sources += [
-      "compiler/linear-scheduler-unittest.cc",
-      "compiler/revec-unittest.cc",
-    ]
   }
 
   if (v8_enable_wasm_gdb_remote_debugging) {
@@ -833,6 +824,7 @@ v8_cluster_source_set("v8_unittests_sources") {
       "assembler/assembler-x64-unittest.cc",
       "assembler/disasm-x64-unittest.cc",
       "assembler/macro-assembler-x64-unittest.cc",
+      "regress/regress-536954139-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources +=

@@ -22,6 +22,8 @@ namespace internal {
 //       Please note: push and pop can be used to grow and shrink the array.
 //    - slow, backing storage is a HashTable with numbers as keys.
 V8_OBJECT class JSArray : public JSObject {
+  V8_IT_OWN_TYPE;
+
  public:
   // [length]: The length property.
   inline Tagged<Number> length() const;
@@ -197,6 +199,9 @@ V8_OBJECT class JSArrayIterator : public JSObject {
 
 // Helper class for JSArrays that are template literal objects
 V8_OBJECT class TemplateLiteralObject : public JSArray {
+  V8_IT_REUSE_PARENT;
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   inline Tagged<JSArray> raw() const;
   inline void set_raw(Tagged<JSArray> value,

@@ -15,8 +15,10 @@
 #include "absl/random/uniform_int_distribution.h"
 
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <limits>
 #include <random>
 #include <sstream>
 #include <string>

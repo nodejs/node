@@ -1263,7 +1263,22 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
   template <typename Field>
   void DecodeField(Register dst, Register src) {
-    Ext(dst, src, Field::kShift, Field::kSize);
+    static constexpr int shift = Field::kShift;
+    static constexpr uint64_t mask =
+        static_cast<uint64_t>(Field::kMask) >> shift;
+    if constexpr ((mask & (mask + 1)) == 0) {
+      Ext(dst, src, shift, Field::kSize);
+    } else {
+      if constexpr (shift == 0) {
+        And(dst, src, mask);
+      } else if constexpr (shift < 32) {
+        dsrl(dst, src, shift);
+        And(dst, dst, mask);
+      } else {
+        dsrl32(dst, src, shift - 32);
+        And(dst, dst, mask);
+      }
+    }
   }
 
   template <typename Field>

@@ -15,9 +15,11 @@
 #ifndef ABSL_STRINGS_INTERNAL_CORD_REP_FLAT_H_
 #define ABSL_STRINGS_INTERNAL_CORD_REP_FLAT_H_
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 
 #include "absl/base/config.h"
@@ -69,9 +71,8 @@ constexpr size_t TagToAllocatedSize(uint8_t tag) {
                    ((512 / 8) + ((8192 - 512) / 64)) * 4096;
 }
 
-static_assert(AllocatedSizeToTagUnchecked(kMinFlatSize) == FLAT, "");
-static_assert(AllocatedSizeToTagUnchecked(kMaxLargeFlatSize) == MAX_FLAT_TAG,
-              "");
+static_assert(AllocatedSizeToTagUnchecked(kMinFlatSize) == FLAT);
+static_assert(AllocatedSizeToTagUnchecked(kMaxLargeFlatSize) == MAX_FLAT_TAG);
 
 // RoundUp logically performs `((n + m - 1) / m) * m` to round up to the nearest
 // multiple of `m`, optimized for the invariant that `m` is a power of 2.

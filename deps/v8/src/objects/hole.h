@@ -14,6 +14,9 @@ namespace v8 {
 namespace internal {
 
 V8_OBJECT class Hole : public HeapObject {
+  V8_IT_OWN_TYPE;
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   DECL_VERIFIER(Hole)
   DECL_PRINTER(Hole)
@@ -34,6 +37,7 @@ V8_OBJECT class Hole : public HeapObject {
 
 #define DEFINE_HOLE_TYPE(Name, name, Root) \
   V8_OBJECT class Name : public Hole {     \
+    V8_IT_REUSE_PARENT;                    \
   } V8_OBJECT_END;
 
 HOLE_LIST(DEFINE_HOLE_TYPE)

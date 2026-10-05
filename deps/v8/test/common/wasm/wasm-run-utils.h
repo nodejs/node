@@ -19,6 +19,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/function-body-decoder.h"

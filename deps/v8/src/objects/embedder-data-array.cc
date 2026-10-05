@@ -10,17 +10,11 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 namespace {
-ExternalPointerHandle LoadExternalPointerHandle(const EmbedderDataSlot& slot) {
-  Address loc = slot.address() + EmbedderDataSlot::kExternalPointerOffset;
-  return ExternalPointerSlot(loc, kAnyExternalPointerTagRange)
-      .Relaxed_LoadHandle();
-}
-void StoreTaggedWithoutBarrier(const EmbedderDataSlot& slot,
-                               Tagged<Object> value) {
-  Address loc = slot.address() + EmbedderDataSlot::kTaggedPayloadOffset;
-  ObjectSlot(loc).Relaxed_Store(value);
+CppHeapPointerHandle LoadCppHeapPointerHandle(const EmbedderDataSlot& slot) {
+  Address loc = slot.address() + EmbedderDataSlot::kCppHeapPointerOffset;
+  return CppHeapPointerSlot(loc).Relaxed_LoadHandle();
 }
 }  // namespace
 #endif
@@ -34,22 +28,22 @@ DirectHandle<EmbedderDataArray> EmbedderDataArray::EnsureCapacity(
       isolate->factory()->NewEmbedderDataArray(index + 1);
   DisallowGarbageCollection no_gc;
   // Last new space allocation does not require any write barriers.
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   for (int i = 0; i < array->length(); i++) {
     EmbedderDataSlot src(*array, i);
     EmbedderDataSlot dest(*new_array, i);
-    ExternalPointerHandle src_handle = LoadExternalPointerHandle(src);
-    if (src_handle != kNullExternalPointerHandle) {
-      CHECK(dest.store_handle(isolate, *new_array, src_handle));
+    CppHeapPointerHandle src_handle = LoadCppHeapPointerHandle(src);
+    if (src_handle != kNullCppHeapPointerHandle) {
+      CHECK(dest.store_handle_without_barrier(isolate, src_handle));
     } else {
-      StoreTaggedWithoutBarrier(dest, src.load_tagged());
+      dest.store_tagged_without_barrier(src.load_tagged());
     }
   }
 #else
   size_t size = array->length() * kEmbedderDataSlotSize;
   MemCopy(reinterpret_cast<void*>(new_array->slots_start()),
           reinterpret_cast<void*>(array->slots_start()), size);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
   return new_array;
 }
 

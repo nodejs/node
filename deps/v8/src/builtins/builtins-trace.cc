@@ -7,6 +7,7 @@
 #include "src/builtins/builtins.h"
 #include "src/json/json-stringifier.h"
 #include "src/logging/counters.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/roots/roots-inl.h"
 #include "src/tracing/perfetto-sdk.h"

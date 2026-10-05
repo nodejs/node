@@ -136,6 +136,13 @@ WasmOrphanedGlobalHandle* WasmEngine::NewOrphanedGlobalHandle(
   return orphan;
 }
 
+void WasmEngine::DestroyOrphanedGlobalHandle(WasmOrphanedGlobalHandle* that) {
+  // Acquire the lock because updating the linked list must not happen
+  // concurrently with {NewOrphanedGlobalHandle} inserting a node.
+  base::MutexGuard guard(&mutex_);
+  WasmOrphanedGlobalHandle::Destroy(that);
+}
+
 // static
 void WasmEngine::FreeAllOrphanedGlobalHandles(WasmOrphanedGlobalHandle* start) {
   // This is meant to be called from ~Isolate, so we no longer care about
@@ -213,7 +220,7 @@ class ClearWeakScriptHandleTask : public CancelableTask {
   // it might well be too late to do that safely).
 
   void RunInternal() override {
-    WasmOrphanedGlobalHandle::Destroy(handle_);
+    GetWasmEngine()->DestroyOrphanedGlobalHandle(handle_);
     handle_ = nullptr;
   }
 
@@ -949,14 +956,14 @@ DirectHandle<Script> CreateWasmScript(
   }
 
   // Use the given shared {NativeModule}, but increase its reference count by
-  // allocating a new {Managed<T>} that the {Script} references.
+  // allocating a new {CppGCManaged<T>} that the {Script} references.
   size_t code_size_estimate = native_module->committed_code_space();
   size_t memory_estimate =
       code_size_estimate +
       wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
-  DirectHandle<Managed<wasm::NativeModule>> managed_native_module =
-      Managed<wasm::NativeModule>::From(isolate, memory_estimate,
-                                        std::move(native_module));
+  DirectHandle<CppGCManaged<wasm::NativeModule>> managed_native_module =
+      CppGCManaged<wasm::NativeModule>::Create(isolate, memory_estimate,
+                                               std::move(native_module));
 
   DirectHandle<Script> script =
       isolate->factory()->NewScript(isolate->factory()->undefined_value());
@@ -1658,7 +1665,7 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
 
     // Flush the Wasm code lookup cache, since it may refer to some
     // code within native modules that we are going to release (if a
-    // Managed<wasm::NativeModule> object is no longer referenced).
+    // CppGCManaged<wasm::NativeModule> object is no longer referenced).
     GetWasmCodeManager()->FlushCodeLookupCache(isolate);
 
     // {CodeToLogPerScript} keeps the NativeModule alive, so if it dies, there

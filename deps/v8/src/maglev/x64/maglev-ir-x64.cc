@@ -422,16 +422,16 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   // If the result is zero, check if either lhs or rhs is negative.
   Label end;
-  __ cmpl(result, Immediate(0));
+  __ Cmp(result, 0);
   __ j(not_zero, &end);
   {
     __ orl(saved_left, right);
-    __ cmpl(saved_left, Immediate(0));
+    __ Cmp(saved_left, 0);
     // If one of them is negative, we must have a -0 result, which is non-int32,
     // so deopt.
     // TODO(leszeks): Consider splitting these deopts to have distinct deopt
     // reasons. Otherwise, the reason has to match the above.
-    __ EmitEagerDeoptIf(less, DeoptimizeReason::kOverflow, this);
+    __ EmitEagerDeoptIf(negative, DeoptimizeReason::kOverflow, this);
   }
   __ bind(&end);
 }
@@ -489,7 +489,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   ZoneLabelRef done(masm);
   ZoneLabelRef rhs_checked(masm);
 
-  __ cmpl(rhs, Immediate(0));
+  __ Cmp(rhs, 0);
   __ JumpToDeferredIf(
       less_equal,
       [](MaglevAssembler* masm, ZoneLabelRef rhs_checked, Register rhs,
@@ -501,7 +501,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
       rhs_checked, rhs, this);
   __ bind(*rhs_checked);
 
-  __ cmpl(lhs, Immediate(0));
+  __ Cmp(lhs, 0);
   __ JumpToDeferredIf(
       less,
       [](MaglevAssembler* masm, ZoneLabelRef done, Register lhs, Register rhs,
@@ -568,7 +568,7 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
   // REDUCE(WordBinopDeoptOnOverflow) in machine-lowering-reducer-inl.h
 
   // Check if {right} is positive (and not zero).
-  __ cmpl(right, Immediate(0));
+  __ Cmp(right, 0);
   ZoneLabelRef done(masm);
   __ JumpToDeferredIf(
       less_equal,
@@ -586,9 +586,9 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
 
         // Check if {left} is zero, as that would produce minus zero. Left is in
         // rax already.
-        __ cmpl(rax, Immediate(0));
+        __ Cmp(rax, 0);
         // TODO(leszeks): Better DeoptimizeReason = kMinusZero.
-        __ EmitEagerDeoptIf(equal, DeoptimizeReason::kNotInt32, node);
+        __ EmitEagerDeoptIf(zero, DeoptimizeReason::kNotInt32, node);
 
         // Check if {left} is kMinInt and {right} is -1, in which case we'd have
         // to return -kMinInt, which is not representable as Int32.
@@ -607,12 +607,12 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ idivl(right);
 
   // Check that the remainder is zero.
-  __ cmpl(rdx, Immediate(0));
+  __ Cmp(rdx, 0);
   // None of the mutated input registers should be a register input into the
   // eager deopt info.
   DCHECK_REGLIST_EMPTY(RegList{rax, rdx} &
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
-  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotInt32, this);
+  __ EmitEagerDeoptIf(not_zero, DeoptimizeReason::kNotInt32, this);
   DCHECK_EQ(ToRegister(result()), rax);
 }
 
@@ -736,7 +736,7 @@ void Int32AbsWithOverflow::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
   Register value = ToRegister(result());
   Label done;
-  __ cmpl(value, Immediate(0));
+  __ Cmp(value, 0);
   __ j(greater_equal, &done);
   __ negl(value);
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
@@ -1054,19 +1054,6 @@ void ChangeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
   __ Subsd(value, kScratchDoubleReg);
 }
 
-void HoleyFloat64ToSilencedFloat64::SetValueLocationConstraints() {
-  UseRegister(ValueInput());
-  DefineSameAsFirst(this);
-}
-void HoleyFloat64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
-                                                 const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(ValueInput());
-  // The hole value is a signalling NaN, so just silence it to get the
-  // float64 value.
-  __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
-  __ Subsd(value, kScratchDoubleReg);
-}
-
 void Float64ToSilencedFloat64::SetValueLocationConstraints() {
   UseRegister(ValueInput());
   DefineSameAsFirst(this);
@@ -1087,21 +1074,6 @@ void UnsafeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
 void UnsafeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
                                                const ProcessingState& state) {}
 
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-void HoleyFloat64ConvertHoleToUndefined::SetValueLocationConstraints() {
-  UseRegister(ValueInput());
-  DefineSameAsFirst(this);
-}
-void HoleyFloat64ConvertHoleToUndefined::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(ValueInput());
-  Label done;
-  __ JumpIfNotHoleNan(value, kScratchRegister, &done);
-  __ Move(value, UndefinedNan());
-  __ bind(&done);
-}
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
-
 namespace {
 
 enum class ReduceInterruptBudgetType { kLoop, kReturn };
@@ -1113,38 +1085,23 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     __ ResetLastYoungAllocation();
   }
 
-  // For loops, first check for interrupts. Don't do this for returns, as we
-  // can't lazy deopt to the end of a return.
+  // Call into the TieringManager. For loops, pass the OSR bytecode offset and
+  // define a lazy deopt point since they double as interrupt checks.
   if (type == ReduceInterruptBudgetType::kLoop) {
-    Label next;
-
-    // Here, we only care about interrupts since we've already guarded against
-    // real stack overflows on function entry.
-    __ cmpq(rsp, __ StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
-    __ j(above, &next);
-
-    // An interrupt has been requested and we must call into runtime to handle
-    // it; since we already pay the call cost, combine with the TieringManager
-    // call.
-    {
-      SaveRegisterStateForCall save_register_state(masm,
-                                                   node->register_snapshot());
-      __ Move(kContextRegister, masm->native_context().object());
-      __ Push(MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
-      __ CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck_Maglev, 1);
-      save_register_state.DefineSafepointWithLazyDeopt(node->lazy_deopt_info());
-    }
-    __ jmp(*done);  // All done, continue.
-
-    __ bind(&next);
-  }
-
-  // No pending interrupts. Call into the TieringManager if needed.
-  {
     SaveRegisterStateForCall save_register_state(masm,
                                                  node->register_snapshot());
-    __ Move(kContextRegister, masm->native_context().object());
     __ Push(MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
+    __ Push(Smi::FromInt(
+        node->Cast<ReduceInterruptBudgetForLoop>()->osr_offset().ToInt()));
+    __ Move(kContextRegister, masm->native_context().object());
+    __ CallRuntime(Runtime::kBytecodeBudgetLoopInterrupt_Maglev, 2);
+    save_register_state.DefineSafepointWithLazyDeopt(node->lazy_deopt_info());
+  } else {
+    DCHECK_EQ(type, ReduceInterruptBudgetType::kReturn);
+    SaveRegisterStateForCall save_register_state(masm,
+                                                 node->register_snapshot());
+    __ Push(MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
+    __ Move(kContextRegister, masm->native_context().object());
     // Note: must not cause a lazy deopt!
     __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Maglev, 1);
     save_register_state.DefineSafepoint();
@@ -1166,14 +1123,19 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
 
 }  // namespace
 
-int ReduceInterruptBudgetForLoop::MaxCallStackArgs() const { return 1; }
 void ReduceInterruptBudgetForLoop::SetValueLocationConstraints() {
   UseRegister(FeedbackCellInput());
+  if (try_osr()) {
+    set_temporaries_needed(2);
+  }
 }
 void ReduceInterruptBudgetForLoop::GenerateCode(MaglevAssembler* masm,
                                                 const ProcessingState& state) {
   GenerateReduceInterruptBudget(masm, this, ToRegister(FeedbackCellInput()),
                                 ReduceInterruptBudgetType::kLoop, amount());
+  if (try_osr()) {
+    masm->TryOnStackReplacement(this, feedback_slot());
+  }
 }
 
 int ReduceInterruptBudgetForReturn::MaxCallStackArgs() const { return 1; }
@@ -1296,8 +1258,7 @@ void LoadDictionaryField::GenerateCode(MaglevAssembler* masm,
                            entry_index + NameDictionary::kEntryDetailsIndex));
     __ SmiUntag(scratch);
     __ andl(scratch, Immediate(PropertyDetails::KindField::kMask));
-    __ cmpl(scratch,
-            Immediate(PropertyDetails::KindField::encode(PropertyKind::kData)));
+    __ Cmp(scratch, PropertyDetails::KindField::encode(PropertyKind::kData));
     __ j(not_equal, deferred_fallback);
 
     __ LoadTaggedField(result_reg, properties,

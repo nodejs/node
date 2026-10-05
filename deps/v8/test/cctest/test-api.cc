@@ -82,6 +82,7 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/lookup.h"
 #include "src/objects/map-updater.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/synthetic-module-inl.h"
@@ -9039,6 +9040,28 @@ THREADED_TEST(StringWrite) {
                               String::WriteFlags::kNone, &processed_characters);
     CHECK_EQ(std::get<2>(test_case), len);
     CHECK_EQ(0, processed_characters);
+  }
+}
+
+THREADED_TEST(NewFromTwoBytePreservesNonLatin1Characters) {
+  LocalContext context;
+  v8::Isolate* isolate = context.isolate();
+  v8::HandleScope scope(isolate);
+
+  // Exercise the word-at-a-time one-byte check in String::NonOneByteStart.
+  constexpr int kLength = static_cast<int>(sizeof(uintptr_t));
+  alignas(uintptr_t) const uint16_t input[kLength] = {0x3000};
+  Local<String> string =
+      String::NewFromTwoByte(isolate, input, v8::NewStringType::kNormal,
+                             kLength)
+          .ToLocalChecked();
+
+  CHECK_EQ(kLength, string->Length());
+  CHECK(!string->IsOneByte());
+  uint16_t output[kLength];
+  string->Write(isolate, 0, kLength, output);
+  for (int i = 0; i < kLength; ++i) {
+    CHECK_EQ(input[i], output[i]);
   }
 }
 
@@ -22491,6 +22514,26 @@ TEST(RequestInterruptSmallScripts) {
   CHECK(interrupt_was_called);
 }
 
+#ifdef V8_DISALLOW_JS_IN_API_INTERRUPTS_IS_CHECKED
+static bool interrupt_check_no_js = false;
+void DisallowJsInterruptCallback(v8::Isolate* isolate, void* data) {
+  CHECK(!i::AllowJavascriptExecution::IsAllowed(
+      reinterpret_cast<i::Isolate*>(isolate)));
+  interrupt_check_no_js = true;
+}
+
+TEST(RequestInterruptDisallowsJavascript) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  interrupt_check_no_js = false;
+  isolate->RequestInterrupt(&DisallowJsInterruptCallback, nullptr);
+  CompileRun("(function(x){return x;})(1);");
+  CHECK(interrupt_check_no_js);
+}
+#endif  // V8_DISALLOW_JS_IN_API_INTERRUPTS_IS_CHECKED
+
 static v8::Global<Value> function_new_expected_env_global;
 static void FunctionNewCallback(const v8::FunctionCallbackInfo<Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
@@ -23805,6 +23848,123 @@ TEST_WITH_PLATFORM(DumpOnJavascriptExecution, MockPlatform) {
   CHECK(platform.dump_without_crashing_called());
 }
 
+namespace {
+void TestMicrotaskCheckpointCallback(v8::Local<v8::Data> data) {
+  int* count = GetData<int>(data);
+  (*count)++;
+}
+void TestMicrotaskFunctionCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  int* count = GetData<int>(info);
+  (*count)++;
+}
+}  // namespace
+
+TEST(MicrotaskCheckpointDisallowJavascriptExecutionScope) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  v8::MicrotaskQueue* microtask_queue = env.local()->GetMicrotaskQueue();
+
+  // 1. Explicit policy: C++ microtask callback with CRASH_ON_FAILURE.
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  int microtasks_run_count = 0;
+  microtask_queue->EnqueueMicrotask(isolate, TestMicrotaskCheckpointCallback,
+                                    MakeData(isolate, &microtasks_run_count));
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    v8::MicrotasksScope::PerformCheckpoint(isolate);
+    CHECK_EQ(0, microtasks_run_count);
+  }
+  v8::MicrotasksScope::PerformCheckpoint(isolate);
+  CHECK_EQ(1, microtasks_run_count);
+
+  // 2. Explicit policy: JS function microtask callback with CRASH_ON_FAILURE.
+  microtasks_run_count = 0;
+  v8::Local<v8::FunctionTemplate> t =
+      v8::FunctionTemplate::New(isolate, TestMicrotaskFunctionCallback,
+                                MakeData(isolate, &microtasks_run_count));
+  v8::Local<v8::Function> fn = t->GetFunction(env.local()).ToLocalChecked();
+  microtask_queue->EnqueueMicrotask(isolate, fn);
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    v8::MicrotasksScope::PerformCheckpoint(isolate);
+    CHECK_EQ(0, microtasks_run_count);
+  }
+  v8::MicrotasksScope::PerformCheckpoint(isolate);
+  CHECK_EQ(1, microtasks_run_count);
+
+  // 3. THROW_ON_FAILURE.
+  microtasks_run_count = 0;
+  microtask_queue->EnqueueMicrotask(isolate, TestMicrotaskCheckpointCallback,
+                                    MakeData(isolate, &microtasks_run_count));
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+    v8::MicrotasksScope::PerformCheckpoint(isolate);
+    CHECK_EQ(0, microtasks_run_count);
+  }
+  v8::MicrotasksScope::PerformCheckpoint(isolate);
+  CHECK_EQ(1, microtasks_run_count);
+
+  // 4. DUMP_ON_FAILURE.
+  microtasks_run_count = 0;
+  microtask_queue->EnqueueMicrotask(isolate, TestMicrotaskCheckpointCallback,
+                                    MakeData(isolate, &microtasks_run_count));
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::DUMP_ON_FAILURE);
+    v8::MicrotasksScope::PerformCheckpoint(isolate);
+    CHECK_EQ(0, microtasks_run_count);
+  }
+  v8::MicrotasksScope::PerformCheckpoint(isolate);
+  CHECK_EQ(1, microtasks_run_count);
+
+  // 5. Scoped policy: MicrotasksScope destructor inside
+  // DisallowJavascriptExecutionScope.
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
+  microtasks_run_count = 0;
+  microtask_queue->EnqueueMicrotask(isolate, TestMicrotaskCheckpointCallback,
+                                    MakeData(isolate, &microtasks_run_count));
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    {
+      v8::MicrotasksScope microtasks_scope(env.local(),
+                                           v8::MicrotasksScope::kRunMicrotasks);
+    }
+    CHECK_EQ(0, microtasks_run_count);
+  }
+  {
+    v8::MicrotasksScope microtasks_scope(env.local(),
+                                         v8::MicrotasksScope::kRunMicrotasks);
+  }
+  CHECK_EQ(1, microtasks_run_count);
+
+  // 6. kAuto policy: top-level Api call (v8::Object::HasOwnProperty()) inside
+  // DisallowJavascriptExecutionScope.
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kAuto);
+  microtasks_run_count = 0;
+  microtask_queue->EnqueueMicrotask(isolate, TestMicrotaskCheckpointCallback,
+                                    MakeData(isolate, &microtasks_run_count));
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    CHECK(env->Global()->HasOwnProperty(env.local(), v8_str("foo")).IsJust());
+    CHECK_EQ(0, microtasks_run_count);
+  }
+  CHECK(env->Global()->HasOwnProperty(env.local(), v8_str("foo")).IsJust());
+  CHECK_EQ(1, microtasks_run_count);
+}
+
 TEST(Regress354123) {
   LocalContext current;
   v8::Isolate* isolate = current.isolate();
@@ -24961,33 +25121,52 @@ TEST(CodeCache) {
   isolate2->Dispose();
 }
 
-v8::MaybeLocal<Value> UnexpectedSyntheticModuleEvaluationStepsCallback(
+v8::MaybeLocal<Promise> UnexpectedSyntheticModuleEvaluationStepsCallback(
     Local<Context> context, Local<Module> module) {
   CHECK_WITH_MSG(false, "Unexpected call to synthetic module re callback");
 }
 
 static int synthetic_module_callback_count;
 
-v8::MaybeLocal<Value> SyntheticModuleEvaluationStepsCallback(
+v8::MaybeLocal<Promise> SyntheticModuleEvaluationStepsCallback(
     Local<Context> context, Local<Module> module) {
   synthetic_module_callback_count++;
-  return v8::Undefined(reinterpret_cast<v8::Isolate*>(CcTest::isolate()));
+  Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context).ToLocalChecked();
+  resolver->Resolve(context, v8::Undefined(CcTest::isolate())).Check();
+  return resolver->GetPromise();
 }
 
-v8::MaybeLocal<Value> SyntheticModuleEvaluationStepsCallbackFail(
+v8::MaybeLocal<Promise> SyntheticModuleEvaluationStepsCallbackFail(
     Local<Context> context, Local<Module> module) {
   synthetic_module_callback_count++;
   CcTest::isolate()->ThrowException(
       v8_str("SyntheticModuleEvaluationStepsCallbackFail exception"));
-  return v8::MaybeLocal<Value>();
+  return v8::MaybeLocal<Promise>();
 }
 
-v8::MaybeLocal<Value> SyntheticModuleEvaluationStepsCallbackSetExport(
+// Deprecated version of the evaluation steps, returning a MaybeLocal<Value>
+// that holds a Promise.
+// TODO(https://crbug.com/545375591): Remove together with
+// v8::Module::LegacySyntheticModuleEvaluationSteps.
+v8::MaybeLocal<Value> LegacySyntheticModuleEvaluationStepsCallback(
+    Local<Context> context, Local<Module> module) {
+  synthetic_module_callback_count++;
+  Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context).ToLocalChecked();
+  resolver->Resolve(context, v8::Undefined(CcTest::isolate())).Check();
+  return resolver->GetPromise();
+}
+
+v8::MaybeLocal<Promise> SyntheticModuleEvaluationStepsCallbackSetExport(
     Local<Context> context, Local<Module> module) {
   Maybe<bool> set_export_result = module->SetSyntheticModuleExport(
       CcTest::isolate(), v8_str("test_export"), v8_num(42));
   CHECK(set_export_result.FromJust());
-  return v8::Undefined(reinterpret_cast<v8::Isolate*>(CcTest::isolate()));
+  Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context).ToLocalChecked();
+  resolver->Resolve(context, v8::Undefined(CcTest::isolate())).Check();
+  return resolver->GetPromise();
 }
 
 namespace {
@@ -25318,7 +25497,44 @@ TEST(SyntheticModuleEvaluationStepsNoThrow) {
       context, export_names, SyntheticModuleEvaluationStepsCallback);
   CHECK_EQ(synthetic_module_callback_count, 0);
   Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
-  CHECK(completion_value->IsUndefined());
+  CHECK(completion_value->IsPromise());
+  Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+  CHECK(promise->Result()->IsUndefined());
+  CHECK_EQ(synthetic_module_callback_count, 1);
+  CHECK_EQ(module->GetStatus(), Module::kEvaluated);
+}
+
+// Covers the deprecated evaluation steps version, where the returned Promise is
+// only checked at runtime.
+// TODO(https://crbug.com/545375591): Remove together with
+// v8::Module::LegacySyntheticModuleEvaluationSteps.
+TEST(SyntheticModuleEvaluationStepsLegacyCallback) {
+  synthetic_module_callback_count = 0;
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::Isolate::Scope iscope(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope cscope(context);
+
+  auto export_names = std::to_array<Local<v8::String>>({v8_str("default")});
+
+  START_ALLOW_USE_DEPRECATED()
+  Local<Module> module = v8::Module::CreateSyntheticModule(
+      isolate,
+      v8_str("SyntheticModuleEvaluationStepsLegacyCallback-"
+             "TestSyntheticModule"),
+      export_names, LegacySyntheticModuleEvaluationStepsCallback);
+  END_ALLOW_USE_DEPRECATED()
+  module->InstantiateModule(context, UnexpectedModuleResolveCallback)
+      .ToChecked();
+
+  CHECK_EQ(synthetic_module_callback_count, 0);
+  Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
+  CHECK(completion_value->IsPromise());
+  Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
   CHECK_EQ(synthetic_module_callback_count, 1);
   CHECK_EQ(module->GetStatus(), Module::kEvaluated);
 }
@@ -25376,7 +25592,10 @@ TEST(SyntheticModuleEvaluationStepsSetExport) {
   CHECK(IsUndefined(test_export_cell->value()));
 
   Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
-  CHECK(completion_value->IsUndefined());
+  CHECK(completion_value->IsPromise());
+  Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+  CHECK(promise->Result()->IsUndefined());
   CHECK_EQ(42, i::Object::NumberValue(test_export_cell->value()));
   CHECK_EQ(module->GetStatus(), Module::kEvaluated);
 }
@@ -26205,6 +26424,8 @@ TEST(FutexInterruption) {
   CHECK(try_catch.HasTerminated());
   timeout_thread.Join();
 }
+
+
 
 TEST(StackCheckTermination) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -27304,7 +27525,7 @@ MaybeLocal<Module> CheckResolveModuleWithImportSource(
 
   return v8::Module::CreateSyntheticModule(
       isolate, v8_str("my-mod"), {},
-      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Value> {
+      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Promise> {
         // Do nothing.
         Local<v8::Promise::Resolver> resolver =
             v8::Promise::Resolver::New(context).ToLocalChecked();
@@ -30652,17 +30873,10 @@ TEST(CodeLikeFunction) {
 }
 
 namespace {
-#ifdef V8_CPPGC_MICROTASK_QUEUE
 template <typename T>
 T* GetRaw(T* ptr) {
   return ptr;
 }
-#else
-template <typename T>
-T* GetRaw(const std::unique_ptr<T>& ptr) {
-  return ptr.get();
-}
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 }  // namespace
 
 THREADED_TEST(MicrotaskQueueOfContext) {
@@ -30745,69 +30959,6 @@ TEST(TestSetSabConstructorEnabledCallback) {
   CHECK(i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
 }
 
-namespace {
-void NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CHECK(i::ValidateCallbackInfo(info));
-  v8::Isolate* isolate = info.GetIsolate();
-  info.GetReturnValue().Set(v8::Number::New(isolate, 1));
-}
-}  // namespace
-
-TEST(EmbedderInstanceTypes) {
-  LocalContext env;
-  v8::Isolate* isolate = env.isolate();
-  v8::HandleScope scope(isolate);
-  i::v8_flags.experimental_embedder_instance_types = true;
-  Local<FunctionTemplate> node = FunctionTemplate::New(isolate);
-  Local<ObjectTemplate> proto_template = node->PrototypeTemplate();
-
-  enum JSApiInstanceType : uint16_t {
-    kGenericApiObject = 0,  // FunctionTemplateInfo::kNoJSApiObjectType.
-    kElement,
-    kHTMLElement,
-    kHTMLDivElement,
-  };
-
-  Local<FunctionTemplate> nodeType = v8::FunctionTemplate::New(
-      isolate, NodeTypeCallback, Local<Value>(),
-      v8::Signature::New(isolate, node), 0, v8::ConstructorBehavior::kThrow,
-      v8::SideEffectType::kHasSideEffect, nullptr, kGenericApiObject, kElement,
-      kHTMLDivElement);
-  proto_template->SetAccessorProperty(
-      String::NewFromUtf8Literal(isolate, "nodeType"), nodeType);
-
-  Local<FunctionTemplate> element = FunctionTemplate::New(
-      isolate, nullptr, Local<Value>(), Local<v8::Signature>(), 0,
-      v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
-      nullptr, kElement);
-  element->Inherit(node);
-
-  Local<FunctionTemplate> html_element = FunctionTemplate::New(
-      isolate, nullptr, Local<Value>(), Local<v8::Signature>(), 0,
-      v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
-      nullptr, kHTMLElement);
-  html_element->Inherit(element);
-
-  Local<FunctionTemplate> div_element = FunctionTemplate::New(
-      isolate, nullptr, Local<Value>(), Local<v8::Signature>(), 0,
-      v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
-      nullptr, kHTMLDivElement);
-  div_element->Inherit(html_element);
-
-  CHECK(env->Global()
-            ->Set(env.local(), v8_str("div"),
-                  div_element->GetFunction(env.local())
-                      .ToLocalChecked()
-                      ->NewInstance(env.local())
-                      .ToLocalChecked())
-            .FromJust());
-
-  CompileRun("var x = div.nodeType;");
-
-  Local<Value> res =
-      env->Global()->Get(env.local(), v8_str("x")).ToLocalChecked();
-  CHECK_EQ(1, res->ToInt32(env.local()).ToLocalChecked()->Value());
-}
 
 template <typename T>
 void TestCopyAndMoveConstructionAndAssignment() {
@@ -31962,6 +32113,65 @@ TEST(ContinuationPreservedEmbedderDataV2_CppHeapExternal) {
                              v8::CppHeapPointerTag::kTagForTesting,
                              v8::CppHeapPointerTag::kTagForTesting));
     CHECK_EQ(data, cpp_object.Get());
+  }
+
+  isolate->Exit();
+  isolate->Dispose();
+}
+
+TEST(EmbedderDataAlignedPointers_CppHeapPointer) {
+  v8::Isolate::CreateParams create_params = CreateTestParams();
+  create_params.cpp_heap =
+      v8::CppHeap::Create(::v8::internal::V8::GetCurrentPlatform(),
+                          v8::CppHeapCreateParams({}))
+          .release();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+  v8::CppHeap* cpp_heap = isolate->GetCppHeap();
+
+  {
+    v8::HandleScope scope(isolate);
+    LocalContext env(isolate);
+    v8::Local<v8::Object> obj = v8::Object::New(isolate);
+
+    cppgc::Persistent<TestGarbagedCollectedData> cpp_object(
+        cppgc::MakeGarbageCollected<TestGarbagedCollectedData>(
+            cpp_heap->GetAllocationHandle()));
+
+    // Null pointer test.
+    (*env)->SetAlignedPointerInEmbedderData(
+        0, static_cast<TestGarbagedCollectedData*>(nullptr),
+        v8::CppHeapPointerTag::kTagForTesting);
+    CHECK_EQ(
+        nullptr,
+        (*env)->GetAlignedPointerFromEmbedderData<TestGarbagedCollectedData>(
+            isolate, 0, v8::CppHeapPointerTag::kTagForTesting));
+    CHECK_EQ(nullptr, obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                          isolate, 0, v8::CppHeapPointerTag::kTagForTesting));
+
+    // Valid cppgc object test.
+    (*env)->SetAlignedPointerInEmbedderData(
+        1, cpp_object.Get(), v8::CppHeapPointerTag::kTagForTesting);
+    CHECK_EQ(
+        cpp_object.Get(),
+        (*env)->GetAlignedPointerFromEmbedderData<TestGarbagedCollectedData>(
+            isolate, 1, v8::CppHeapPointerTag::kTagForTesting));
+    CHECK_EQ(cpp_object.Get(),
+             obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                 isolate, 1, v8::CppHeapPointerTag::kTagForTesting));
+
+    // Detached global proxy test.
+    v8::Local<v8::Object> global_obj = env->Global();
+    (*env)->SetAlignedPointerInEmbedderData(
+        2, cpp_object.Get(), v8::CppHeapPointerTag::kTagForTesting);
+    CHECK_EQ(cpp_object.Get(),
+             global_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                 isolate, 2, v8::CppHeapPointerTag::kTagForTesting));
+
+    env->DetachGlobal();
+    CHECK_EQ(cpp_object.Get(),
+             global_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                 isolate, 2, v8::CppHeapPointerTag::kTagForTesting));
   }
 
   isolate->Exit();

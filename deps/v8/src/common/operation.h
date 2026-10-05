@@ -79,6 +79,18 @@ constexpr inline bool IsBinaryOperation(Operation op) {
   return !IsUnaryOperation(op);
 }
 
+constexpr inline bool IsComparisonOperation(Operation op) {
+  switch (op) {
+#define COMPARISON_CASE(name) \
+  case Operation::k##name:    \
+    return true;
+    COMPARISON_OPERATION_LIST(COMPARISON_CASE)
+#undef COMPARISON_CASE
+    default:
+      return false;
+  }
+}
+
 inline std::ostream& operator<<(std::ostream& os, const Operation& operation) {
   switch (operation) {
 #define CASE(name)         \

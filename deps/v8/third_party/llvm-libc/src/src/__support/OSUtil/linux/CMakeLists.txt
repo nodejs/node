@@ -41,6 +41,22 @@ add_header_library(
 )
 
 add_header_library(
+  network_syscall_policy
+  HDRS
+    network_syscall_policy.h
+  DEPENDS
+    libc.hdr.types.socklen_t
+    libc.hdr.types.ssize_t
+    libc.hdr.types.struct_sockaddr
+    libc.src.__support.OSUtil.linux.syscall_wrappers.close
+    libc.src.__support.OSUtil.linux.syscall_wrappers.recvfrom
+    libc.src.__support.OSUtil.linux.syscall_wrappers.sendto
+    libc.src.__support.OSUtil.linux.syscall_wrappers.socket
+    libc.src.__support.common
+    libc.src.__support.error_or
+)
+
+add_header_library(
   path
   HDRS
     path.h

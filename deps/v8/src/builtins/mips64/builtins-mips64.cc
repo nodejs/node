@@ -391,8 +391,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   Register argc = kJavaScriptCallArgCountRegister;
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   Register code = kJavaScriptCallCodeStartRegister;
-  __ Lw(dispatch_handle,
-        FieldMemOperand(a5, offsetof(JSFunction, dispatch_handle_)));
+  __ Lwu(dispatch_handle,
+         FieldMemOperand(a5, offsetof(JSFunction, dispatch_handle_)));
   __ LoadEntrypointAndParameterCountFromJSDispatchTable(code, argc,
                                                         dispatch_handle, t3);
   // In case the formal parameter count is kDontAdaptArgumentsSentinel the
@@ -4223,7 +4223,7 @@ void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::INTERPRETED);
 
   // The arguments are already in the stack, but we might need to adapt them
-  // if the function signature changed (e.g. via LiveEdit).
+  // if the function signature changed.
   __ InvokeFunction(a1, a0, InvokeType::kJump, ArgumentAdaptionMode::kAdapt);
 }
 

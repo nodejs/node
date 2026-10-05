@@ -178,6 +178,34 @@ listener_delegate = function(exec_state) {
 (f5())()();
 EndTest();
 
+BeginTest("Check evaluating on outer closure scopes with shadowing");
+function test_scopes_shadowing() {
+  let x = 'outer_x';
+  let y = 'outer_y';
+  () => [x, y];  // context allocate x and y in f7
+  return function g() {
+    let x = 'middle_x';
+    () => x;  // context allocate x in g
+    return function h() {
+      let x = 'inner_x_stack';  // stack allocate x in h
+      debugger;
+    };
+  };
+}
+
+listener_delegate = function(exec_state) {
+  assertEquals('inner_x_stack', exec_state.frame(0).scope(0).evaluate("x").value());
+  assertEquals('outer_y', exec_state.frame(0).scope(0).evaluate("y").value());
+
+  assertEquals('middle_x', exec_state.frame(0).scope(1).evaluate("x").value());
+  assertEquals('outer_y', exec_state.frame(0).scope(1).evaluate("y").value());
+
+  assertEquals('outer_x', exec_state.frame(0).scope(2).evaluate("x").value());
+  assertEquals('outer_y', exec_state.frame(0).scope(2).evaluate("y").value());
+};
+(test_scopes_shadowing())()();
+EndTest();
+
 BeginTest("Check that outer functions also get the correct block list calculated");
 // This test is important once we reuse block list info. The block list for `g`
 // needs to be correctly calculated already when we stop on break_position 1.
@@ -207,6 +235,23 @@ listener_delegate = function (exec_state) {
 }
 break_position = 2;
 (f6())()();
+EndTest();
+
+BeginTest("Check evaluating on outer closure scope with stack-allocated shadowed variable");
+var x = 'global_x';
+function test_outer_shadow() {
+  let x = 'outer_stack';
+  let closure_y = 'closure_y';
+  () => closure_y; // force context allocation for closure_y
+  return function inner() {
+    debugger;
+  };
+}
+listener_delegate = function(exec_state) {
+  assertThrows(() => exec_state.frame(0).scope(1).evaluate("x").value(), ReferenceError);
+  assertEquals('closure_y', exec_state.frame(0).scope(1).evaluate("closure_y").value());
+};
+(test_outer_shadow())();
 EndTest();
 
 assertEquals(begin_test_count, break_count,

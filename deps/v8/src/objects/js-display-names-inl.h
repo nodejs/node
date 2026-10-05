@@ -12,6 +12,7 @@
 #include "src/objects/js-display-names.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -20,12 +21,12 @@
 namespace v8 {
 namespace internal {
 
-Tagged<Managed<DisplayNamesInternal>> JSDisplayNames::internal() const {
-  return Cast<Managed<DisplayNamesInternal>>(internal_.load());
+Tagged<CppGCManaged<DisplayNamesInternal>> JSDisplayNames::internal() const {
+  return Cast<CppGCManaged<DisplayNamesInternal>>(internal_.load());
 }
 
-void JSDisplayNames::set_internal(Tagged<Managed<DisplayNamesInternal>> value,
-                                  WriteBarrierMode mode) {
+void JSDisplayNames::set_internal(
+    Tagged<CppGCManaged<DisplayNamesInternal>> value, WriteBarrierMode mode) {
   internal_.store(this, value, mode);
 }
 

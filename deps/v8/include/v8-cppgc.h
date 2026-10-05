@@ -87,15 +87,6 @@ class V8_EXPORT CppHeap {
   cppgc::HeapHandle& GetHeapHandle();
 
   /**
-   * Terminate clears all roots and performs multiple garbage collections to
-   * reclaim potentially newly created objects in destructors.
-   *
-   * After this call, object allocation is prohibited.
-   */
-  V8_DEPRECATED("Terminate gets automatically called in the CppHeap destructor")
-  void Terminate();
-
-  /**
    * \param detail_level specifies whether should return detailed
    *   statistics or only brief summary statistics.
    * \returns current CppHeap statistics regarding memory consumption
@@ -135,6 +126,28 @@ class V8_EXPORT CppHeap {
    */
   void CollectGarbageInYoungGenerationForTesting(
       cppgc::EmbedderStackState stack_state);
+
+  /**
+   * Controls whether forced garbage collections sweep atomically.
+   *
+   * A forced garbage collection (including
+   * `Isolate::RequestGarbageCollectionForTesting()`) normally sweeps
+   * atomically, so finalizers have already run by the time the collection
+   * returns. When this is enabled, forced collections instead sweep according
+   * to the heap's sweeping support, leaving finalization deferred as it would
+   * be in a natural garbage collection. This lets a test observe an object in
+   * the window between being discovered unreachable and being finalized.
+   *
+   * Note that sweeping may then be concurrent; pass `--single-threaded-gc` for
+   * sweeping that only makes progress on the main thread, and use
+   * `FinishSweepingForTesting()` to close the window deterministically.
+   */
+  void SetForceIncrementalSweepingForTesting(bool value);
+
+  /**
+   * Finishes any in-progress sweeping, running the finalizers it discovers.
+   */
+  void FinishSweepingForTesting();
 
  private:
   CppHeap() = default;

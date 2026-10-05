@@ -109,8 +109,8 @@
 // implemented as aliases to the std:: ordering types, or as an independent
 // implementation.
 //
-// A value of 0 means to use Abseil's implementation.  This requires only C++11
-// support, and is expected to work on every toolchain we support.
+// A value of 0 means to use Abseil's implementation.  This is expected to
+// work on every toolchain we support.
 //
 // A value of 1 means to use aliases.  This requires that all code using Abseil
 // is built in C++20 mode or later.

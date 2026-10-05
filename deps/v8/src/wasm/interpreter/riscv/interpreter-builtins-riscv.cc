@@ -190,15 +190,13 @@ void LoadWasmInstanceFromFunctionData(MacroAssembler* masm,
 #if V8_ENABLE_SANDBOX
   __ DecompressProtected(
       trusted_instance_data,
-      MemOperand(function_data,
-                 offsetof(WasmExportedFunctionData, protected_instance_data_) -
-                     kHeapObjectTag));
+      FieldMemOperand(function_data, offsetof(WasmExportedFunctionData,
+                                              protected_instance_data_)));
 #else
   __ LoadTaggedField(
       trusted_instance_data,
-      MemOperand(function_data,
-                 offsetof(WasmExportedFunctionData, protected_instance_data_) -
-                     kHeapObjectTag));
+      FieldMemOperand(function_data, offsetof(WasmExportedFunctionData,
+                                              protected_instance_data_)));
 #endif
   __ LoadTaggedField(
       wasm_instance,
@@ -341,6 +339,15 @@ void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
           wrapper_buffer,
           JSToWasmWrapperFrameConstants::kWrapperBufferStackReturnBufferStart));
   __ Push(params_start, wrapper_buffer);
+  // Load the FixedArray of converted reference parameters (or Undefined)
+  // from the wrapper buffer into a3, which WasmInterpreterEntry will
+  // forward to Runtime_WasmRunInterpreter.
+  DEFINE_PINNED(ref_params_array, a3);
+  __ LoadWord(
+      ref_params_array,
+      MemOperand(
+          wrapper_buffer,
+          WasmInterpreterWrapperConstants::kWrapperBufferRefParamsArray));
   // Load the FixedArray of converted reference parameters (or Undefined)
   // from the wrapper buffer into a3, which WasmInterpreterEntry will
   // forward to Runtime_WasmRunInterpreter.

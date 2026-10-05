@@ -102,6 +102,7 @@
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor.h"
@@ -730,6 +731,14 @@ void Isolate::UnregisterTryCatchHandler(v8::TryCatch* that) {
   SimulatorStack::UnregisterJSStackComparableAddress(this);
 }
 
+void Isolate::MarkTryCatchInternal(v8::TryCatch* that) {
+  that->SetIsInternal(true);
+}
+
+bool Isolate::IsInternalTryCatch(v8::TryCatch* that) {
+  return that->IsInternal();
+}
+
 DirectHandle<String> Isolate::StackTraceString() {
   if (stack_trace_nesting_level_ == 0) {
     stack_trace_nesting_level_++;
@@ -853,7 +862,8 @@ StackTraceFailureMessage::StackTraceFailureMessage(
     const size_t buffer_length = arraysize(js_stack_trace_);
     FixedStringAllocator fixed(&js_stack_trace_[0], buffer_length - 1);
     StringStream accumulator(&fixed, StringStream::kPrintObjectConcise);
-    isolate_->PrintStack(&accumulator, Isolate::kPrintStackVerbose);
+    isolate_->PrintStack(&accumulator, Isolate::kPrintStackVerbose,
+                         AllowAllocation{false});
     // Keeping a reference to the last code objects to increase likelihood that
     // they get included in the minidump.
     const size_t code_objects_length = arraysize(code_objects_);
@@ -1789,15 +1799,12 @@ MaybeDirectHandle<JSObject> Isolate::CaptureAndSetErrorStack(
           static_cast<uint32_t>(
               stack_trace_for_uncaught_exceptions_frame_limit_));
       DCHECK_GE(stack_trace_limit, 0);
-      // Compare in frames rather than raw slots to avoid overflowing for
-      // large Error.stackTraceLimit values.
-      uint32_t frame_count = raw_data_for_call_site_infos->ulength().value() /
-                             CallSiteInfo::Fields::kCount;
-      if (static_cast<uint32_t>(stack_trace_limit) < frame_count) {
+      if (static_cast<uint32_t>(stack_trace_limit) *
+              CallSiteInfo::Fields::kCount <
+          raw_data_for_call_site_infos->ulength().value()) {
         call_site_infos_or_formatted_stack = FixedArray::RightTrimOrEmpty(
             this, raw_data_for_call_site_infos,
-            static_cast<uint32_t>(stack_trace_limit) *
-                CallSiteInfo::Fields::kCount);
+            stack_trace_limit * CallSiteInfo::Fields::kCount);
       }
       // Notify the debugger.
       OnStackTraceCaptured(stack_trace);
@@ -2616,6 +2623,13 @@ void Isolate::InvokeApiInterruptCallbacks() {
     }
     VMState<EXTERNAL> state(this);
     HandleScope handle_scope(this);
+    // API interrupt callbacks are forbidden from executing JavaScript on the
+    // interrupted Isolate (see v8::Isolate::RequestInterrupt contract in
+    // v8-isolate.h: "Registered |callback| must not reenter interrupted
+    // Isolate.").
+#ifdef V8_DISALLOW_JS_IN_API_INTERRUPTS_IS_CHECKED
+    DisallowJavascriptExecution no_js(this);
+#endif  // V8_DISALLOW_JS_IN_API_INTERRUPTS_IS_CHECKED
     entry.first(reinterpret_cast<v8::Isolate*>(this), entry.second);
   }
 }
@@ -3484,7 +3498,9 @@ Isolate::CatchType PredictExceptionCatchAtFrame(
       // The exception has been externally caught if and only if there is an
       // external handler which is on top of the top-most JS_ENTRY handler.
       if (external_handler != kNullAddress &&
-          !iterator.isolate()->try_catch_handler()->IsVerbose()) {
+          !iterator.isolate()->try_catch_handler()->IsVerbose() &&
+          !Isolate::IsInternalTryCatch(
+              iterator.isolate()->try_catch_handler())) {
         if (entry_handler == kNullAddress || entry_handler > external_handler) {
           return Isolate::CAUGHT_BY_EXTERNAL;
         }
@@ -3528,7 +3544,9 @@ Isolate::CatchType PredictExceptionCatchAtFrame(
 Isolate::CatchType Isolate::PredictExceptionCatcher() {
   if (TopExceptionHandlerType(Tagged<Object>()) ==
       ExceptionHandlerType::kExternalTryCatch) {
-    return CAUGHT_BY_EXTERNAL;
+    if (!try_catch_handler()->IsInternal()) {
+      return CAUGHT_BY_EXTERNAL;
+    }
   }
 
   // Search for an exception handler by performing a full walk over the stack.
@@ -4566,6 +4584,7 @@ void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to,
 
     from->jmpbuf()->is_on_central_stack =
         thread_local_top()->is_on_central_stack_flag_;
+    from->set_contains_only_old_pointers(false);
   }
   SBXCHECK_EQ(to->jmpbuf()->state, expected_target_state);
   to->jmpbuf()->state = wasm::JumpBuffer::Active;
@@ -4862,11 +4881,11 @@ Isolate::Isolate(IsolateGroup* isolate_group)
 
 void Isolate::CheckIsolateLayout() {
 #ifdef V8_ENABLE_SANDBOX
-  static_assert(static_cast<int>(OFFSET_OF(ExternalPointerTable, base_)) ==
+  static_assert(static_cast<int>(ExternalPointerTable::BaseOffset()) ==
                 Internals::kExternalEntityTableBasePointerOffset);
-  static_assert(static_cast<int>(OFFSET_OF(TrustedPointerTable, base_)) ==
+  static_assert(static_cast<int>(TrustedPointerTable::BaseOffset()) ==
                 Internals::kExternalEntityTableBasePointerOffset);
-  static_assert(static_cast<int>(OFFSET_OF(JSDispatchTable, base_)) ==
+  static_assert(static_cast<int>(JSDispatchTable::BaseOffset()) ==
                 Internals::kExternalEntityTableBasePointerOffset);
   static_assert(static_cast<int>(sizeof(ExternalPointerTable)) ==
                 Internals::kExternalEntityTableSize);
@@ -5046,7 +5065,6 @@ void Isolate::PrintAndClearRegExpSubjectStrings() {
 }
 #endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
-#ifdef V8_CPPGC_MICROTASK_QUEUE
 void Isolate::CompactMicrotaskQueues() {
   microtask_queues_.erase(
       std::remove_if(microtask_queues_.begin(), microtask_queues_.end(),
@@ -5057,7 +5075,6 @@ void Isolate::RegisterMicrotaskQueue(MicrotaskQueue* queue) {
   CompactMicrotaskQueues();
   microtask_queues_.push_back(queue);
 }
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 void Isolate::Deinit() {
   TRACE_ISOLATE(deinit);
@@ -5437,20 +5454,12 @@ Isolate::~Isolate() {
 
   DCHECK_NULL(builtins_effects_analyzer_);
 
-#ifdef V8_CPPGC_MICROTASK_QUEUE
   // Assert that |default_microtask_queue_| is the last MicrotaskQueue instance.
   CompactMicrotaskQueues();
   if (DEBUG_BOOL && default_microtask_queue_) {
     DCHECK_EQ(microtask_queues_.size(), 1);
   }
   default_microtask_queue_ = nullptr;
-#else
-  // Assert that |default_microtask_queue_| is the last MicrotaskQueue instance.
-  DCHECK_IMPLIES(default_microtask_queue_,
-                 default_microtask_queue_ == default_microtask_queue_->next());
-  delete default_microtask_queue_;
-  default_microtask_queue_ = nullptr;
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
   // isolate_group_ released in caller, to ensure that all member destructors
   // run before potentially unmapping the isolate's VirtualMemoryArea.
@@ -6087,6 +6096,10 @@ void Isolate::VerifyStaticRoots() {
   // such that the static map range is restored (consult static-roots.h for a
   // sorted list of addresses) or remove the offending entry from the list.
   for (idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
+#if V8_ENABLE_WEBASSEMBLY
+    // WasmNull is entirely inaccessible, we cannot loads its instance type.
+    if (idx == RootIndex::kWasmNull) continue;
+#endif  // V8_ENABLE_WEBASSEMBLY
     Tagged<Object> obj = roots_table().slot(idx).load(this);
     if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
     Tagged<Map> map = Cast<Map>(obj);
@@ -6621,8 +6634,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #if V8_STATIC_ROOTS_BOOL
   // Protect the payload of wasm null.
   if (!page_allocator()->DecommitPages(
-          reinterpret_cast<void*>(factory()->wasm_null()->payload()),
-          WasmNull::kPayloadSize)) {
+          reinterpret_cast<void*>(factory()->wasm_null()->address()),
+          WasmNull::kSize)) {
     V8::FatalProcessOutOfMemory(this, "decommitting WasmNull payload");
   }
 #endif  // V8_STATIC_ROOTS_BOOL
@@ -6833,6 +6846,7 @@ void Isolate::DumpAndResetStats() {
 
 void Isolate::DumpAndResetBuiltinsProfileData() {
   if (BasicBlockProfiler::Get()->HasData(this)) {
+#ifndef V8_FUZZILLI
     if (v8_flags.turbo_profiling_output) {
       FILE* f = std::fopen(v8_flags.turbo_profiling_output, "w");
       if (f == nullptr) {
@@ -6845,6 +6859,7 @@ void Isolate::DumpAndResetBuiltinsProfileData() {
       StdoutStream out;
       BasicBlockProfiler::Get()->Print(this, out);
     }
+#endif  // !V8_FUZZILLI
     BasicBlockProfiler::Get()->ResetCounts(this);
   }
 }
@@ -7688,8 +7703,15 @@ void Isolate::SetReleaseCppHeapCallback(
 
 void Isolate::RunReleaseCppHeapCallback(std::unique_ptr<v8::CppHeap> cpp_heap) {
   if (release_cpp_heap_callback_) {
+    // Invalidate the isolate alive token, as the CppHeap will continue to exist
+    // after the isolate is destroyed.
+    CppHeap::From(cpp_heap.get())->invalidate_isolate_alive_token();
     release_cpp_heap_callback_(std::move(cpp_heap));
   }
+}
+
+std::shared_ptr<bool> Isolate::cpp_heap_isolate_alive_token() const {
+  return CppHeap::From(heap_.cpp_heap())->isolate_alive_token();
 }
 
 void Isolate::SetPromiseHook(PromiseHook hook) {

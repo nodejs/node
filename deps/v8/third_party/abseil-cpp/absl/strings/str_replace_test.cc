@@ -156,6 +156,14 @@ TEST(StrReplaceAll, ManyReplacementsInMap) {
   EXPECT_EQ("Bob bought 5 Apples. Thanks Bob!", s);
 }
 
+TEST(StrReplaceAll, ManyReplacementsInArray) {
+  std::pair<std::string, std::string> replacements[] = {
+      {"$who", "Bob"}, {"$count", "5"}, {"#Noun", "Apples"}};
+  std::string s = absl::StrReplaceAll("$who bought $count #Noun. Thanks $who!",
+                                      replacements);
+  EXPECT_EQ("Bob bought 5 Apples. Thanks Bob!", s);
+}
+
 TEST(StrReplaceAll, ReplacementsInPlace) {
   std::string s = std::string("$who bought $count #Noun. Thanks $who!");
   int count;
@@ -172,6 +180,16 @@ TEST(StrReplaceAll, ReplacementsInPlaceInMap) {
   replacements["$who"] = "Bob";
   replacements["$count"] = "5";
   replacements["#Noun"] = "Apples";
+  int count;
+  count = absl::StrReplaceAll(replacements, &s);
+  EXPECT_EQ(count, 4);
+  EXPECT_EQ("Bob bought 5 Apples. Thanks Bob!", s);
+}
+
+TEST(StrReplaceAll, ReplacementsInPlaceInArray) {
+  std::string s = std::string("$who bought $count #Noun. Thanks $who!");
+  std::pair<std::string, std::string> replacements[] = {
+      {"$who", "Bob"}, {"$count", "5"}, {"#Noun", "Apples"}};
   int count;
   count = absl::StrReplaceAll(replacements, &s);
   EXPECT_EQ(count, 4);

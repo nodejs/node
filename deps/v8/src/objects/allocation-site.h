@@ -19,6 +19,9 @@ namespace internal {
 enum InstanceType : uint16_t;
 
 V8_OBJECT class AllocationSite : public HeapObject {
+  V8_IT_OWN_TYPE;
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
 
@@ -152,6 +155,8 @@ V8_OBJECT class AllocationSite : public HeapObject {
 } V8_OBJECT_END;
 
 V8_OBJECT class AllocationSiteWithWeakNext : public AllocationSite {
+  V8_IT_REUSE_PARENT;
+
  public:
   // heap->allocation_site_list() points to the last AllocationSite which form
   // a linked list through the weak_next property. The GC might remove elements

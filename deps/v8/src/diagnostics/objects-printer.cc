@@ -278,6 +278,13 @@ void HeapObject::PrintHeader(std::ostream& os, const char* id) {
 }
 
 void HeapObject::HeapObjectPrint(std::ostream& os) {
+#if V8_ENABLE_WEBASSEMBLY
+  if (IsWasmNull(Tagged<HeapObject>(this))) {
+    os << "WasmNull";
+    return;
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   InstanceType instance_type = map()->instance_type();
 
   if (instance_type < FIRST_NONSTRING_TYPE) {
@@ -392,6 +399,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case WASM_EXCEPTION_PACKAGE_TYPE:
       Cast<WasmExceptionPackage>(this)->WasmExceptionPackagePrint(os);
       break;
+    case WASM_NULL_TYPE:
+      // Handled before the switch.
+      UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
     case INSTRUCTION_STREAM_TYPE:
       TrustedCast<InstructionStream>(this)->InstructionStreamPrint(os);
@@ -411,15 +421,12 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case JS_MAP_VALUE_ITERATOR_TYPE:
       Cast<JSMapIterator>(this)->JSMapIteratorPrint(os);
       break;
-#define MAKE_TORQUE_CASE(Name, TYPE)          \
+#define MAKE_PRINT_CASE(Name, TYPE)           \
   case TYPE:                                  \
     TrustedCast<Name>(this)->Name##Print(os); \
     break;
-      // Every class that has its fields defined in a .tq file and corresponds
-      // to exactly one InstanceType value is included in the following list.
-      TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
-      TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
-#undef MAKE_TORQUE_CASE
+      HEAP_OBJECT_DIAGNOSTIC_DISPATCH_LIST(MAKE_PRINT_CASE)
+#undef MAKE_PRINT_CASE
 
     case HOLE_TYPE:
       Cast<Hole>(this)->HolePrint(os);
@@ -764,7 +771,7 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
   }
 }
 
-void PrintEmbedderData(IsolateForSandbox isolate, std::ostream& os,
+void PrintEmbedderData(IsolateForPointerCompression isolate, std::ostream& os,
                        EmbedderDataSlot slot) {
   DisallowGarbageCollection no_gc;
   Tagged<Object> value = slot.load_tagged();
@@ -882,11 +889,10 @@ void JSObjectPrintBody(std::ostream& os, Tagged<JSObject> obj,
   }
   int embedder_fields = obj->GetEmbedderFieldCount();
   if (embedder_fields > 0) {
-    IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
     os << " - embedder fields = {";
     for (int i = 0; i < embedder_fields; i++) {
       os << "\n    ";
-      PrintEmbedderData(isolate, os, EmbedderDataSlot(obj, i));
+      PrintEmbedderData(Isolate::Current(), os, EmbedderDataSlot(obj, i));
     }
     os << "\n }\n";
   }
@@ -1240,14 +1246,13 @@ void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionPrint(
 }
 
 void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
-  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   PrintHeader(os, "EmbedderDataArray");
   os << "\n - length: " << length();
   EmbedderDataSlot start(this, 0);
   EmbedderDataSlot end(this, length());
   for (EmbedderDataSlot slot = start; slot < end; ++slot) {
     os << "\n    ";
-    PrintEmbedderData(isolate, os, slot);
+    PrintEmbedderData(Isolate::Current(), os, slot);
   }
   os << "\n";
 }
@@ -1400,6 +1405,8 @@ void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {
     os << "\n - enumerator: " << AS_PTR(indexed_enumerator(isolate));
     os << "\n - definer: " << AS_PTR(indexed_definer(isolate));
     os << "\n - index_of: " << AS_PTR(indexed_index_of(isolate));
+    os << "\n - iterable_to_list: "
+       << AS_PTR(indexed_iterable_to_list(isolate));
   }
 
   os << "\n --- flags: ";
@@ -2964,6 +2971,11 @@ void Foreign::ForeignPrint(std::ostream& os) {
   os << "\n";
 }
 
+void CppGCManagedBase::CppGCManagedBasePrint(std::ostream& os) {
+  PrintHeader(os, "CppGCManagedBase");
+  os << "\n";
+}
+
 void TrustedForeign::TrustedForeignPrint(std::ostream& os) {
   PrintHeader(os, "TrustedForeign");
   os << "\n - foreign address: " << reinterpret_cast<void*>(foreign_address());
@@ -3212,20 +3224,21 @@ void WasmTypeInfo::WasmTypeInfoPrint(std::ostream& os) {
   os << "\n";
 }
 
-void WasmStruct::WasmStructPrint(std::ostream& os) {
-  PrintHeader(os, "WasmStruct");
+namespace {
+void WasmStructPrintImpl(std::ostream& os, HeapObject* obj, int header_size) {
   const wasm::CanonicalStructType* struct_type =
       wasm::GetTypeCanonicalizer()->LookupStruct(
-          map()->wasm_type_info()->type_index());
-  if (struct_type->is_descriptor()) {
-    os << "\n - describes RTT: " << Brief(described_rtt());
+          obj->map()->wasm_type_info()->type_index());
+  if (!v8_flags.wasm_merged_descriptors && struct_type->is_descriptor()) {
+    os << "\n - describes RTT: "
+       << Brief(Cast<WasmStruct>(obj)->described_rtt());
   }
   os << "\n - fields (" << struct_type->field_count() << "):";
   for (uint32_t i = 0; i < struct_type->field_count(); i++) {
     wasm::CanonicalValueType field = struct_type->field(i);
     os << "\n   - " << field.short_name() << ": ";
-    uint32_t field_offset = struct_type->field_offset(i);
-    Address field_address = RawFieldAddress(field_offset);
+    uint32_t field_offset = header_size + struct_type->field_offset(i);
+    Address field_address = obj->GetFieldAddress(field_offset);
     switch (field.kind()) {
       case wasm::kI32:
         os << base::ReadUnalignedValue<int32_t>(field_address);
@@ -3253,11 +3266,11 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
       case wasm::kRefNull: {
         Tagged_t raw = base::ReadUnalignedValue<Tagged_t>(field_address);
 #if V8_COMPRESS_POINTERS
-        Address obj = V8HeapCompressionScheme::DecompressTagged(raw);
+        Address value = V8HeapCompressionScheme::DecompressTagged(raw);
 #else
-        Address obj = raw;
+        Address value = raw;
 #endif
-        os << Brief(Tagged<Object>(obj));
+        os << Brief(Tagged<Object>(value));
         break;
       }
       case wasm::kS128:
@@ -3279,6 +3292,21 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
     }
   }
   os << "\n";
+}
+}  // namespace
+
+void WasmStruct::WasmStructPrint(std::ostream& os) {
+  PrintHeader(os, "WasmStruct");
+  WasmStructPrintImpl(os, this, WasmStruct::kHeaderSize);
+}
+void WasmCustomMap::WasmCustomMapPrint(std::ostream& os) {
+  PrintHeader(os, "WasmCustomMap");
+  WasmStructPrintImpl(os, this, WasmCustomMap::kHeaderSize);
+}
+
+void WasmCustomMapWrapper::WasmCustomMapWrapperPrint(std::ostream& os) {
+  PrintHeader(os, "WasmCustomMapWrapper");
+  os << "\n - wrapped: " << Brief(wrapped());
 }
 
 void WasmArray::WasmArrayPrint(std::ostream& os) {
@@ -3730,6 +3758,13 @@ void ErrorStackData::ErrorStackDataPrint(std::ostream& os) {
   os << "\n";
 }
 
+void DebugScriptScopeInfo::DebugScriptScopeInfoPrint(std::ostream& os) {
+  this->PrintHeader(os, "DebugScriptScopeInfo");
+  os << "\n - numeric_data: " << Brief(this->numeric_data());
+  os << "\n - string_table: " << Brief(this->string_table());
+  os << "\n";
+}
+
 void LoadHandler::LoadHandlerPrint(std::ostream& os) {
   PrintHeader(os, "LoadHandler");
   // TODO(ishell): implement printing based on handler kind
@@ -3903,7 +3938,7 @@ void Script::ScriptPrint(std::ostream& os) {
   os << "\n - source_url: " << Brief(source_url());
   os << "\n - source_mapping_url: " << Brief(source_mapping_url());
   os << "\n - host_defined_options: " << Brief(host_defined_options());
-  os << "\n - compilation type: " << static_cast<int>(compilation_type());
+  os << "\n - compilation kind: " << ToString(compilation_kind());
   os << "\n - compiled lazy function positions: "
      << compiled_lazy_function_positions();
   bool is_wasm = false;
@@ -4274,7 +4309,12 @@ void HeapObject::Print(Tagged<Object> obj, std::ostream& os) {
 
 void HeapObject::HeapObjectShortPrint(std::ostream& os) {
   os << AsHex::Address(this->ptr()) << " ";
-
+#if V8_ENABLE_WEBASSEMBLY
+  if (IsWasmNull(Tagged<HeapObject>(this))) {
+    os << "WasmNull";
+    return;
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
   if (Is<String>(this)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);

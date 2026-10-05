@@ -1204,6 +1204,10 @@ void CodeAssembler::StoreRoot(RootIndex root_index, TNode<Object> value) {
   StoreFullTaggedNoWriteBarrier(isolate_root, IntPtrConstant(offset), value);
 }
 
+void CodeAssembler::Retain(TNode<Object> value) {
+  raw_assembler()->Retain(value);
+}
+
 Node* CodeAssembler::Projection(int index, Node* value) {
   DCHECK_LT(index, value->op()->ValueOutputCount());
   return raw_assembler()->Projection(index, value);

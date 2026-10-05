@@ -8,6 +8,7 @@
 #include "src/base/logging.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 #include "test/unittests/test-utils.h"
 #include "test/unittests/wasm/wasm-compile-module.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -32,7 +33,12 @@ class WasmUseCounterTest
   }
 
   void AddFunction(std::initializer_list<const uint8_t> body) {
-    WasmFunctionBuilder* f = builder_.AddFunction(sigs_.v_i());
+    AddFunction(sigs_.v_i(), body);
+  }
+
+  void AddFunction(const FunctionSig* sig,
+                   std::initializer_list<const uint8_t> body) {
+    WasmFunctionBuilder* f = builder_.AddFunction(sig);
     f->EmitCode(body);
     builder_.WriteTo(&buffer_);
   }
@@ -118,6 +124,36 @@ TEST_P(WasmUseCounterTest, Memory64AndRefTypes) {
   CheckUseCounters({{UC::kWasmModuleCompilation, 1},
                     {UC::kWasmMemory64, 1},
                     {UC::kWasmRefTypes, 1}});
+}
+
+TEST_P(WasmUseCounterTest, RefTest) {
+  StructType::Builder<Zone> type_builder(zone(), 1, false, SharedFlag{false});
+  type_builder.AddField(kWasmI32, true);
+  ModuleTypeIndex type_idx =
+      builder().AddStructType(type_builder.Build(), true);
+  ValueType reps[] = {kWasmI32, kWasmAnyRef};
+  FunctionSig sig(1, 1, reps);
+  AddFunction(&sig,
+              {WASM_REF_TEST(WASM_LOCAL_GET(0), type_idx.index), kExprEnd});
+  Compile();
+  CheckUseCounters({{UC::kWasmModuleCompilation, 1}, {UC::kWasmGC, 1}});
+}
+
+TEST_P(WasmUseCounterTest, StructNew) {
+  StructType::Builder<Zone> type_builder(zone(), 1, false, SharedFlag{false});
+  type_builder.AddField(kWasmI32, true);
+  ModuleTypeIndex type_idx =
+      builder().AddStructType(type_builder.Build(), true);
+  HeapType struct_heap_type =
+      HeapType::Index(type_idx, SharedFlag{false}, RefTypeKind::kStruct);
+  ValueType struct_ref = ValueType::Ref(struct_heap_type);
+  ValueType reps[] = {struct_ref};
+  FunctionSig sig(1, 0, reps);
+  AddFunction(&sig, {WASM_STRUCT_NEW(type_idx.index, WASM_I32V(42)), kExprEnd});
+  Compile();
+  CheckUseCounters({{UC::kWasmModuleCompilation, 1},
+                    {UC::kWasmGC, 1},
+                    {UC::kWasmGCAllocation, 1}});
 }
 
 }  // namespace v8::internal::wasm

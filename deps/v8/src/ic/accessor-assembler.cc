@@ -212,6 +212,14 @@ void AccessorAssembler::TryHomomorphicCase(TNode<Object> lookup_start_object,
     CSA_DCHECK(this,
                Word32BitwiseNot(IsDictionaryMap(lookup_start_object_map)));
 
+    // Reject special receivers. Access checks and named interceptors imply
+    // special receiver.
+    GotoIf(IsSpecialReceiverMap(lookup_start_object_map), miss);
+    CSA_DCHECK(this, Word32BinaryNot(IsSetWord32(
+                         LoadMapBitField(lookup_start_object_map),
+                         Map::Bits1::HasNamedInterceptorBit::kMask |
+                             Map::Bits1::IsAccessCheckNeededBit::kMask)));
+
     // Load the descriptor at the index and verify that the key matches the
     // loaded name.
     TNode<DescriptorArray> descriptors =

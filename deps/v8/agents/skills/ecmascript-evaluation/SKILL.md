@@ -88,30 +88,45 @@ your answers:
 
 ### I. Navigation & Grammar Extraction
 
-- `ecma262_get_operation(name)`: **[RECOMMENDED]** Use this to directly fetch
-  the algorithm for an abstract operation by name (e.g., `ToObject`, `GetValue`,
-  `CreateMutableBinding`). **Try this FIRST** whenever you know the name of the
-  operation you need, as it bypasses search-then-fetch and saves steps.
-- `ecma262_get_evaluation(production_name)`: **[RECOMMENDED]** Use this to
-  directly fetch the evaluation rules for a specific grammar production (e.g.,
-  `VariableStatement`). This saves steps and is much faster than searching.
-- `ecma262_search(query)`: Use this to locate the exact section ID for a syntax
-  node (e.g., `VariableStatement`) or when you don't know the exact name of the
-  operation.
-- `ecma262_signature(name)` / `ecma262_dependencies(id)`: Use these to map out
-  the call graph before writing out an evaluation. This ensures you know which
-  operations you will need to invoke.
-- `ecma262_section(id)`: Fetch the actual algorithm steps. Treat these steps as
-  law.
-- `ecma262_lookup(id)`: Resolves the ancestry (parent chain) of a given section
-  ID, helping to understand its context in the specification hierarchy.
-- `ecma262_sections(ids)`: Fetch full HTML content for multiple section IDs at
-  once to reduce tool calls.
-- `ecma262_production(symbol)`: Use this to fetch Syntactic or Lexical grammar
-  rules (e.g., `StringNumericLiteral` or `AssignmentExpression`) to explain
-  parsing edge cases.
+- `ecma262_get_operation(name, proposal=None)`: **[RECOMMENDED]** Use this to
+  directly fetch the algorithm for an abstract operation by name (e.g.,
+  `ToObject`, `GetValue`, `CreateMutableBinding`, `PrivateFieldAdd`). Steps that
+  can invoke JavaScript user code (getters, setters, Proxy traps,
+  `Symbol.toPrimitive`, etc.) are annotated with `⚡`.
+- `ecma262_get_evaluation(production_name, proposal=None)`: **[RECOMMENDED]**
+  Use this to directly fetch the evaluation rules for a specific grammar
+  production (e.g., `VariableStatement`). This saves steps and is much faster
+  than searching.
+- `ecma262_callers(name, proposal=None)`: Find all algorithm steps across the
+  specification (or active TC39 proposal) that call or reference a given
+  operation (e.g., `IsExtensible`, `HostEnsureCanAddPrivateElement`).
+- `ecma262_search(query, proposal=None)`: Use this to locate the exact section
+  ID for a syntax node (e.g., `VariableStatement`) or when you don't know the
+  exact name of the operation.
+- `ecma262_signature(name, proposal=None)`: Fetch the formal type signature of
+  an abstract operation.
+- `ecma262_section(id, proposal=None)`: Fetch the rendered Markdown content of a
+  specific section ID.
+- `ecma262_sections(ids, proposal=None)`: Fetch content for multiple section IDs
+  at once.
+- `ecma262_lookup(id, proposal=None)`: Resolves the ancestry (parent chain) of a
+  given section ID, helping to understand its context in the specification
+  hierarchy.
 
-### II. State Alteration (JSON Scratchpad)
+### II. TC39 Proposal Research & Diffing
+
+- `ecma262_load_proposal(name)`: Fetch and index an official TC39 proposal
+  (e.g., `defer-import-eval`, `explicit-resource-management`, `temporal`,
+  `decorators`, `shadowrealm`) and set it as the active context.
+- `ecma262_list_proposals()`: List all loaded proposals and see which
+  specification context is currently active.
+- `ecma262_use_proposal(name)`: Switch the active specification context between
+  Base ECMA-262 (`"base"`) and any loaded proposal.
+- `ecma262_diff(name, proposal=None)`: Compare an abstract operation or clause
+  between Base ECMA-262 and a TC39 proposal, displaying `<ins>` additions and
+  `<del>` deletions side-by-side.
+
+### III. State Alteration (JSON Scratchpad)
 
 You **MUST** use the following tools to maintain the abstract machine state.
 Call `init()` at the start of evaluation. The tool will automatically generate a

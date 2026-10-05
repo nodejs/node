@@ -162,7 +162,7 @@ class InjectedScript final {
     void allowCodeGenerationFromStrings();
     void setTryCatchVerbose();
     v8::Local<v8::Context> context() const { return m_context; }
-    InjectedScript* injectedScript() const { return m_injectedScript; }
+    InjectedScript* injectedScript() const { return m_injectedScript.get(); }
     const v8::TryCatch& tryCatch() const { return m_tryCatch; }
     V8InspectorImpl* inspector() const { return m_inspector; }
 
@@ -172,7 +172,7 @@ class InjectedScript final {
     virtual Response findInjectedScript(V8InspectorSessionImpl*) = 0;
 
     V8InspectorImpl* m_inspector;
-    InjectedScript* m_injectedScript;
+    std::shared_ptr<InjectedScript> m_injectedScript;
     std::shared_ptr<InspectedContext> m_inspectedContext;
 
    private:

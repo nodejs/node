@@ -189,6 +189,19 @@ HeapObjectHeader::HeapObjectHeader(size_t size, GCInfoIndex gc_info_index) {
   DCHECK_LT(gc_info_index, kMaxGCInfoIndex);
   DCHECK_EQ(0u, size & (sizeof(HeapObjectHeader) - 1));
   DCHECK_GE(kMaxSize, size);
+#if defined(V8_HOST_ARCH_64_BIT)
+#if defined(V8_TARGET_BIG_ENDIAN)
+  const uint64_t header_word =
+      (static_cast<uint64_t>(GCInfoIndexField::encode(gc_info_index)) << 16) |
+      static_cast<uint64_t>(EncodeSize(size));
+#else   // !defined(V8_TARGET_BIG_ENDIAN)
+  const uint64_t header_word =
+      (static_cast<uint64_t>(GCInfoIndexField::encode(gc_info_index)) << 32) |
+      (static_cast<uint64_t>(EncodeSize(size)) << 48);
+#endif  // !defined(V8_TARGET_BIG_ENDIAN)
+  std::atomic_ref<uint64_t>(*reinterpret_cast<uint64_t*>(this))
+      .store(header_word, std::memory_order_relaxed);
+#else   // !defined(V8_HOST_ARCH_64_BIT)
   encoded_low_ = EncodeSize(size);
   // Objects may get published to the marker without any other synchronization
   // (e.g., write barrier) in which case the in-construction bit is read
@@ -199,6 +212,7 @@ HeapObjectHeader::HeapObjectHeader(size_t size, GCInfoIndex gc_info_index) {
   std::atomic_ref<uint16_t>(encoded_high_)
       .store(GCInfoIndexField::encode(gc_info_index),
              std::memory_order_relaxed);
+#endif  // !defined(V8_HOST_ARCH_64_BIT)
   DCHECK(IsInConstruction());
 #ifdef DEBUG
   CheckApiConstants();

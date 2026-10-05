@@ -2473,9 +2473,9 @@ bytecodes: [
                 B(Wide), B(Mov), R16(1), R16(157),
                 B(Star1),
   /* 2176 S> */ B(Wide), B(Ldar), R16(128),
-                B(Inc), FBV(0),
+                B(Inc), EmbeddedFeedback(),
                 B(Wide), B(Star), R16(128),
-  /* 2146 E> */ B(JumpLoop), U8(33), I8(0), FBV(1),
+  /* 2146 E> */ B(JumpLoop), U8(33), I8(0), FBV(0),
   /* 2195 S> */ B(Wide), B(Ldar), R16(128),
   /* 2207 S> */ B(Return),
 ]

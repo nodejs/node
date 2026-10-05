@@ -1298,7 +1298,7 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
       if (trapping_load_pc) *trapping_load_pc = pc_offset();
       if constexpr (COMPRESS_POINTERS_BOOL) {
         swpal(value.gp().W(), result.gp().W(), MemOperand(actual_addr));
-        add(result.gp().X(), result.gp().X(), kPtrComprCageBaseRegister);
+        orr(result.gp().X(), result.gp().X(), kPtrComprCageBaseRegister);
       } else {
         swpal(value.gp(), result.gp(), MemOperand(actual_addr));
       }
@@ -1318,7 +1318,7 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
       }
       Cbnz(store_result.W(), &retry);
       if constexpr (COMPRESS_POINTERS_BOOL) {
-        add(result.gp().X(), result.gp().X(), kPtrComprCageBaseRegister);
+        orr(result.gp().X(), result.gp().X(), kPtrComprCageBaseRegister);
       }
     }
   }
@@ -1495,7 +1495,7 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   Bind(&done);
 
   if constexpr (COMPRESS_POINTERS_BOOL) {
-    add(result.gp().X(), result.gp().X(), kPtrComprCageBaseRegister);
+    orr(result.gp().X(), result.gp().X(), kPtrComprCageBaseRegister);
   }
 }
 

@@ -41,6 +41,7 @@
 #include "src/objects/api-callbacks.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/code.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/profiler/tick-sample.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/strings/unicode-inl.h"
@@ -2320,6 +2321,7 @@ void V8FileLogger::LogAllMaps() {
   CombinedHeapObjectIterator iterator(heap);
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
+    if (IsInaccessible(obj)) continue;
     if (!IsMap(obj)) continue;
     Tagged<Map> map = Cast<Map>(obj);
     MapCreate(map);
@@ -2650,6 +2652,7 @@ void ExistingCodeLogger::LogCodeObjects() {
   DisallowGarbageCollection no_gc;
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
+    if (IsInaccessible(obj)) continue;
     InstanceType instance_type = obj->map()->instance_type();
     if (InstanceTypeChecker::IsCode(instance_type) ||
         InstanceTypeChecker::IsBytecodeArray(instance_type)) {

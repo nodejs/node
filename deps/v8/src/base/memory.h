@@ -37,12 +37,10 @@ static inline V ReadUnalignedValue(const char p[sizeof(V)]) {
   return ReadUnalignedValue<V>(reinterpret_cast<Address>(p));
 }
 
-#if !defined(V8_OS_SOLARIS)
 template <typename V>
 static inline V ReadUnalignedValue(const int8_t p[sizeof(V)]) {
   return ReadUnalignedValue<V>(reinterpret_cast<Address>(p));
 }
-#endif
 
 template <typename V>
 static inline V ReadUnalignedValue(const uint8_t p[sizeof(V)]) {

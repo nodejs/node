@@ -866,6 +866,7 @@ class WasmInJsInliningInterface {
   BAILOUT_WASM_OP(AtomicWait)
   BAILOUT_WASM_OP(AtomicOp)
   BAILOUT_WASM_OP(AtomicFence)
+  BAILOUT_WASM_OP(Publish)
   BAILOUT_WASM_OP(Pause)
 
   BAILOUT_WASM_OP(StructAtomicRMW)

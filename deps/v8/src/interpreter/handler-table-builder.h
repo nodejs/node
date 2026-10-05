@@ -45,11 +45,11 @@ class V8_EXPORT_PRIVATE HandlerTableBuilder final {
 
  private:
   struct Entry {
-    size_t offset_start;   // Bytecode offset starting try-region.
-    size_t offset_end;     // Bytecode offset ending try-region.
-    size_t offset_target;  // Bytecode offset of handler target.
-    Register context;      // Register holding context for handler.
-                           // Optimistic prediction for handler.
+    int offset_start;   // Bytecode offset starting try-region.
+    int offset_end;     // Bytecode offset ending try-region.
+    int offset_target;  // Bytecode offset of handler target.
+    Register context;   // Register holding context for handler.
+                        // Optimistic prediction for handler.
     HandlerTable::CatchPrediction catch_prediction_;
     bool dropped;
   };

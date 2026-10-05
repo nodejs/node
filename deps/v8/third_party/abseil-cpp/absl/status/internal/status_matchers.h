@@ -123,7 +123,7 @@ class StatusCode {
 
   explicit operator int() const { return static_cast<int>(code_); }
 
-  friend inline void PrintTo(const StatusCode& code, std::ostream* os) {
+  friend void PrintTo(const StatusCode& code, std::ostream* os) {
     absl::string_view text =
         absl::StatusCodeToStringView(static_cast<absl::StatusCode>(code.code_));
     if (!text.empty()) {

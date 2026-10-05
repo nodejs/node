@@ -317,11 +317,10 @@ std::string TypeName() {
 // Can `T` be a template argument of `Layout`?
 template <class T>
 using IsLegalElementType =
-    std::integral_constant<bool,
-                           !std::is_reference_v<T> && !std::is_volatile_v<T> &&
-                               !std::is_reference_v<typename Type<T>::type> &&
-                               !std::is_volatile_v<typename Type<T>::type> &&
-                               adl_barrier::IsPow2(AlignOf<T>::value)>;
+    std::bool_constant<!std::is_reference_v<T> && !std::is_volatile_v<T> &&
+                       !std::is_reference_v<typename Type<T>::type> &&
+                       !std::is_volatile_v<typename Type<T>::type> &&
+                       adl_barrier::IsPow2(AlignOf<T>::value)>;
 
 template <class Elements, class StaticSizeSeq, class RuntimeSizeSeq,
           class SizeSeq, class OffsetSeq>
@@ -387,7 +386,7 @@ class LayoutImpl<std::tuple<Elements...>, std::index_sequence<StaticSizeSeq...>,
 
   template <size_t N>
   using ElementAlignment =
-      AlignOf<typename std::tuple_element<N, std::tuple<Elements...>>::type>;
+      AlignOf<std::tuple_element_t<N, std::tuple<Elements...>>>;
 
  public:
   // Element types of all arrays packed in a tuple.
@@ -395,7 +394,7 @@ class LayoutImpl<std::tuple<Elements...>, std::index_sequence<StaticSizeSeq...>,
 
   // Element type of the Nth array.
   template <size_t N>
-  using ElementType = typename std::tuple_element<N, ElementTypes>::type;
+  using ElementType = std::tuple_element_t<N, ElementTypes>;
 
   constexpr explicit LayoutImpl(IntToSize<RuntimeSizeSeq>... sizes)
       : size_{sizes...} {}
@@ -739,8 +738,7 @@ class LayoutWithStaticSizes
   // Requires: all arguments are convertible to `size_t`.
   template <class... Sizes>
   static constexpr PartialType<sizeof...(Sizes)> Partial(Sizes&&... sizes) {
-    static_assert(sizeof...(Sizes) + StaticSizeSeq::size() <= sizeof...(Ts),
-                  "");
+    static_assert(sizeof...(Sizes) + StaticSizeSeq::size() <= sizeof...(Ts));
     return PartialType<sizeof...(Sizes)>(
         static_cast<size_t>(std::forward<Sizes>(sizes))...);
   }

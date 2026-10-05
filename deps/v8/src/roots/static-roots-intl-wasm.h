@@ -205,7 +205,8 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kClassBoilerplateMap = kBytecodeWrapperMap + 40;
   static constexpr Tagged_t kClassPositionsMap = kClassBoilerplateMap + 40;
   static constexpr Tagged_t kCodeWrapperMap = kClassPositionsMap + 40;
-  static constexpr Tagged_t kErrorStackDataMap = kCodeWrapperMap + 40;
+  static constexpr Tagged_t kDebugScriptScopeInfoMap = kCodeWrapperMap + 40;
+  static constexpr Tagged_t kErrorStackDataMap = kDebugScriptScopeInfoMap + 40;
   static constexpr Tagged_t kFunctionTemplateRareDataMap =
       kErrorStackDataMap + 40;
   static constexpr Tagged_t kModuleRequestMap =
@@ -1217,7 +1218,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kManyClosuresCell = kShadowRealmScopeInfo + 24;
   static constexpr Tagged_t kPreallocatedNumberStringTable =
       kManyClosuresCell + 16;
-  static constexpr Tagged_t kWasmNull = 0xfffd;
+  static constexpr Tagged_t kWasmNull = 0x10001;
   static constexpr Tagged_t kTheHoleValue = 0x2fffd;
   // -- End of page 0 --
   static constexpr Tagged_t kPropertyCellHoleValue = 0x4fffd;
@@ -1239,17 +1240,18 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kJSMessageObjectMap = 0x1a0001;
   static constexpr Tagged_t kExternalMap = 0x1a0029;
   static constexpr Tagged_t kCppHeapExternalMap = 0x1a0051;
-  static constexpr Tagged_t kJSSharedArrayMap = 0x1a0079;
-  static constexpr Tagged_t kJSAtomicsMutexMap = 0x1a00bd;
-  static constexpr Tagged_t kJSAtomicsConditionMap = 0x1a00e5;
-  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1a010d;
-  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1a0161;
+  static constexpr Tagged_t kCppGCManagedBaseMap = 0x1a0079;
+  static constexpr Tagged_t kJSSharedArrayMap = 0x1a00a1;
+  static constexpr Tagged_t kJSAtomicsMutexMap = 0x1a00e5;
+  static constexpr Tagged_t kJSAtomicsConditionMap = 0x1a010d;
+  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1a0135;
+  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1a0189;
 
   static constexpr Tagged_t kFirstAllocatedRoot = 0x11;
-  static constexpr Tagged_t kLastAllocatedRoot = 0x1a0161;
+  static constexpr Tagged_t kLastAllocatedRoot = 0x1a0189;
 };
 
-static constexpr std::array<Tagged_t, 1039> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 1041> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -2244,6 +2246,7 @@ static constexpr std::array<Tagged_t, 1039> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kClassBoilerplateMap,
     StaticReadOnlyRoot::kClassPositionsMap,
     StaticReadOnlyRoot::kCodeWrapperMap,
+    StaticReadOnlyRoot::kDebugScriptScopeInfoMap,
     StaticReadOnlyRoot::kEnumCacheMap,
     StaticReadOnlyRoot::kErrorStackDataMap,
     StaticReadOnlyRoot::kFunctionTemplateRareDataMap,
@@ -2289,6 +2292,7 @@ static constexpr std::array<Tagged_t, 1039> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kExternalMap,
     StaticReadOnlyRoot::kJSMessageObjectMap,
     StaticReadOnlyRoot::kCppHeapExternalMap,
+    StaticReadOnlyRoot::kCppGCManagedBaseMap,
 };
 
 }  // namespace internal

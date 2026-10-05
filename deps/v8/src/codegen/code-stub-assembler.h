@@ -1871,6 +1871,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreMapNoWriteBarrier(TNode<HeapObject> object,
                               RootIndex map_root_index);
   void StoreMapNoWriteBarrier(TNode<HeapObject> object, TNode<Map> map);
+  void StoreMapReleaseNoWriteBarrier(TNode<HeapObject> object,
+                                     RootIndex map_root_index);
+  void StoreMapReleaseNoWriteBarrier(TNode<HeapObject> object, TNode<Map> map);
   void StoreObjectFieldRoot(TNode<HeapObject> object, int offset,
                             RootIndex root);
 
@@ -3082,6 +3085,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         ExternalReference::address_of_builtin_subclassing_flag());
   }
 
+  TNode<BoolT> HasJsPr3883Flag() {
+    return LoadRuntimeFlag(ExternalReference::address_of_js_pr_3883_flag());
+  }
+
   TNode<BoolT> HasSharedStringTableFlag() {
     return LoadRuntimeFlag(
         ExternalReference::address_of_shared_string_table_flag());
@@ -4287,13 +4294,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               Builtin fallback_builtin);
 
   void GenerateStringAdd(TNode<Object> lhs, TNode<Object> rhs,
-                         TNode<UintPtrT> feedback_offset,
-                         Builtin fallback_builtin);
+                         TNode<UintPtrT> feedback_offset);
 
   void GenerateBinaryOpAndTryPatchCode(Operation op, TNode<Object> lhs,
                                        TNode<Object> rhs,
                                        TNode<Int32T> current_type_feedback,
                                        TNode<UintPtrT> feedback_offset);
+
+  void GenerateSmiUnaryOp(Operation op, TNode<Object> value,
+                          TNode<UintPtrT> feedback_offset,
+                          Builtin fallback_builtin);
+
+  void GenerateNumberNegate(TNode<Object> value,
+                            TNode<UintPtrT> feedback_offset);
+
+  void GenerateUnaryOpAndTryPatchCode(Operation op, TNode<Object> value,
+                                      TNode<Int32T> current_type_feedback,
+                                      TNode<UintPtrT> feedback_offset);
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
   TNode<Boolean> Equal(TNode<Object> lhs, TNode<Object> rhs,
@@ -5284,6 +5301,12 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   TNode<RawPtrT> PointerToString(Label* if_bailout) {
     return TryToSequential(PTR_TO_STRING, if_bailout);
   }
+
+  // Jumps to {if_bailout} if the direct string's map changed since the last
+  // TryToDirect, i.e. if a GC thinned it or swapped in an external resource.
+  // Callers must re-check across an allocation before using string(),
+  // PointerToData() or PointerToString().
+  void BailIfTransitioned(Label* if_bailout);
 
   TNode<BoolT> IsOneByte();
 

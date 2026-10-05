@@ -107,6 +107,11 @@ bool CppHeapPointerTableEntry::HasEvacuationEntry() const {
   return payload.ContainsEvacuationEntry();
 }
 
+void CppHeapPointerTableEntry::CopyFrom(const CppHeapPointerTableEntry& other) {
+  auto payload = other.payload_.load(std::memory_order_relaxed);
+  payload_.store(payload, std::memory_order_relaxed);
+}
+
 void CppHeapPointerTableEntry::Evacuate(CppHeapPointerTableEntry& dest,
                                         EvacuateMarkMode mode) {
   auto payload = payload_.load(std::memory_order_relaxed);
@@ -144,6 +149,17 @@ CppHeapPointerHandle CppHeapPointerTable::AllocateAndInitializeEntry(
   CppHeapPointerHandle handle = IndexToHandle(index);
 
   return handle;
+}
+
+CppHeapPointerHandle CppHeapPointerTable::DuplicateEntry(
+    Space* space, CppHeapPointerHandle handle) {
+  DCHECK_NE(handle, kNullCppHeapPointerHandle);
+  uint32_t old_index = HandleToIndex(handle);
+  uint32_t new_index = AllocateEntry(space);
+  if (new_index == 0) return kNullCppHeapPointerHandle;
+
+  at(new_index).CopyFrom(at(old_index));
+  return IndexToHandle(new_index);
 }
 
 void CppHeapPointerTable::Mark(Space* space, CppHeapPointerHandle handle,

@@ -207,4 +207,6 @@ bool Pipeline::CreateGraphFromTurbofan(compiler::TFPipelineData* turbofan_data,
   return true;
 }
 
+#undef RUN_MAYBE_ABORT
+
 }  // namespace v8::internal::compiler::turboshaft

@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/v8config.h"  // For V8_TARGET_OS_LINUX.
+#include "include/v8config.h"  // For V8_OS_LINUX && !V8_OS_ANDROID.
 
-#if V8_TARGET_OS_LINUX
+#if V8_OS_LINUX && !V8_OS_ANDROID
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -12,7 +12,7 @@
 // Since we don't need `sys/mman.h`'s `MAP_TYPE`, we undefine it immediately
 // after the `#include`.
 #undef MAP_TYPE
-#endif  // V8_TARGET_OS_LINUX
+#endif  // V8_OS_LINUX && !V8_OS_ANDROID
 
 #include "include/cppgc/allocation.h"
 #include "include/v8-cppgc.h"
@@ -32,7 +32,7 @@ WasmMemoryMapDescriptor::WasmMemoryMapDescriptor(PlatformFileDescriptor fd,
 
 WasmMemoryMapDescriptor::~WasmMemoryMapDescriptor() {
   mapped_memory_.Reset();
-#if V8_TARGET_OS_LINUX
+#if V8_OS_LINUX && !V8_OS_ANDROID
   // TODO(crbug.com/339678654): Define a constant somewhere in the platform
   // instead of hardcoding -1 here.
   if (fd_ownership_ == FdOwnership::kAnonymousFdOwnedByV8 &&
@@ -74,7 +74,7 @@ v8::Local<v8::Object> WasmMemoryMapDescriptor::NewFromFileDescriptor(
 v8::MaybeLocal<v8::Object> WasmMemoryMapDescriptor::NewFromAnonymous(
     v8::Isolate* isolate, size_t length, v8::Local<v8::Object> wrapper) {
   CHECK(v8_flags.wasm_memory_control);
-#if V8_TARGET_OS_LINUX
+#if V8_OS_LINUX && !V8_OS_ANDROID
   int fd = memfd_create("wasm_memory_map_descriptor", MFD_CLOEXEC);
   if (fd == -1) return {};
   if (ftruncate(fd, length) == -1) {
@@ -96,7 +96,7 @@ size_t WasmMemoryMapDescriptor::Map(v8::Isolate* isolate,
     isolate->ThrowError("WasmMemoryMapDescriptor::Map called more than once");
     return 0;
   }
-  Managed<BackingStore>::Ptr backing_store = memory->backing_store();
+  CppGCManaged<BackingStore>::Ptr backing_store = memory->backing_store();
   if (backing_store->is_shared()) {
     // TODO(ahaas): Handle concurrent calls to `MapDescriptor`. To prevent
     // concurrency issues, we disable `MapDescriptor` for shared wasm memories
@@ -109,7 +109,7 @@ size_t WasmMemoryMapDescriptor::Map(v8::Isolate* isolate,
     return 0;
   }
 
-#if V8_TARGET_OS_LINUX
+#if V8_OS_LINUX && !V8_OS_ANDROID
   uint8_t* target =
       reinterpret_cast<uint8_t*>(backing_store->buffer_start()) + offset;
 
@@ -155,7 +155,7 @@ bool WasmMemoryMapDescriptor::Unmap(v8::Isolate* isolate) {
   mapped_memory_.Reset();
   CHECK(!memory.is_null());
 
-  Managed<BackingStore>::Ptr backing_store = memory->backing_store();
+  CppGCManaged<BackingStore>::Ptr backing_store = memory->backing_store();
 
   // The following checks already passed during `MapDescriptor`, and they should
   // still pass.
@@ -165,7 +165,7 @@ bool WasmMemoryMapDescriptor::Unmap(v8::Isolate* isolate) {
   CHECK_GE(size_ + offset_, size_);
   CHECK_LE(size_ + offset_, backing_store->byte_length());
 
-#if V8_TARGET_OS_LINUX
+#if V8_OS_LINUX && !V8_OS_ANDROID
   uint8_t* target =
       reinterpret_cast<uint8_t*>(backing_store->buffer_start()) + offset_;
 

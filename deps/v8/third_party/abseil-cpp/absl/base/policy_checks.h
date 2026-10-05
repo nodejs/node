@@ -52,7 +52,7 @@
 #error "This package requires Visual Studio 2022 (MSVC++ 17.0) or higher."
 #endif
 
-// We support GCC 7 and later.
+// We support GCC 10 and later.
 // This minimum will go up.
 #if defined(__GNUC__) && !defined(__clang__)
 #if __GNUC__ < 10

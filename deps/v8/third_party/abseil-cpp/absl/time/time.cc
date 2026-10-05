@@ -33,16 +33,16 @@
 
 #include "absl/time/time.h"
 
-#if defined(_MSC_VER)
-#include <winsock2.h>  // for timeval
-#endif
-
 #include <cstring>
 #include <ctime>
 #include <limits>
 
 #include "absl/time/internal/cctz/include/cctz/civil_time.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
+
+#if defined(_MSC_VER)
+#include <winsock2.h>  // for timeval
+#endif
 
 namespace cctz = absl::time_internal::cctz;
 

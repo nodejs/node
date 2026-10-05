@@ -8,7 +8,15 @@
 #include "src/objects/managed.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "include/cppgc/allocation.h"
+#include "include/cppgc/heap.h"
+#include "include/v8-isolate.h"
+#include "include/v8-sandbox.h"
+#include "src/execution/isolate.h"
 #include "src/handles/global-handles-inl.h"
+#include "src/heap/factory.h"
+#include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/heap-object-field-inl.h"
 
 namespace v8::internal {
 
@@ -27,6 +35,7 @@ template <class CppType>
 DirectHandle<Managed<CppType>> Managed<CppType>::From(
     Isolate* isolate, size_t estimated_size,
     std::shared_ptr<CppType> shared_ptr, AllocationType allocation_type) {
+  SharedObjectConditionalSafePublishGuard publish_guard(allocation_type);
   static constexpr ExternalPointerTag kTag = TagForManaged<CppType>::value;
   static_assert(IsManagedExternalPointerType(kTag));
   SharedFlag shared = SharedFlag(IsSharedAllocationType(allocation_type));
@@ -72,6 +81,74 @@ DirectHandle<TrustedManaged<CppType>> TrustedManaged<CppType>::From(
                           v8::WeakCallbackType::kParameter);
   isolate->RegisterManagedPtrDestructor(destructor);
   return handle;
+}
+
+inline CppGCManagedWrapper* CppGCManagedBase::GetWrapper() const {
+  return reinterpret_cast<CppGCManagedWrapper*>(ReadCppHeapPointerField(
+      offsetof(CppGCManagedBase, cpp_gc_wrapper_), Isolate::Current(),
+      CppHeapPointerTag::kCppGCManagedTag));
+}
+
+inline size_t CppGCManagedBase::estimated_size() const {
+  return GetWrapper()->estimated_size();
+}
+
+// static
+template <class CppType>
+Handle<CppGCManaged<CppType>> CppGCManaged<CppType>::Create(
+    Isolate* isolate, size_t estimated_size,
+    std::shared_ptr<CppType> shared_ptr, AllocationType allocation_type) {
+  auto* shared_ptr_ptr = new std::shared_ptr<CppType>(std::move(shared_ptr));
+  auto* destructor = cppgc::MakeGarbageCollected<CppGCManagedWrapper>(
+      reinterpret_cast<v8::Isolate*>(isolate)
+          ->GetCppHeap()
+          ->GetAllocationHandle(),
+      TypeIdForManaged<CppType>::value, estimated_size, shared_ptr_ptr,
+      detail::Destructor<CppType>, reinterpret_cast<v8::Isolate*>(isolate),
+      isolate->cpp_heap_isolate_alive_token());
+  Tagged<CppGCManagedBase> raw =
+      *isolate->factory()->NewCppGCManagedBase(allocation_type);
+  raw->WriteLazilyInitializedCppHeapPointerField(
+      offsetof(CppGCManagedBase, cpp_gc_wrapper_), isolate,
+      reinterpret_cast<Address>(destructor),
+      CppHeapPointerTag::kCppGCManagedTag);
+  WriteBarrier::ForCppHeapPointer(
+      raw,
+      raw->RawCppHeapPointerField(offsetof(CppGCManagedBase, cpp_gc_wrapper_)),
+      destructor);
+  return handle(Cast<CppGCManaged<CppType>>(raw), isolate);
+}
+
+template <class CppType>
+typename CppGCManaged<CppType>::Ptr CppGCManaged<CppType>::ptr() const {
+  return Ptr(get());
+}
+
+template <class CppType>
+CppType* CppGCManaged<CppType>::raw(
+    const DisallowGarbageCollection& no_gc) const {
+  return GetSharedPtr()->get();
+}
+
+template <class CppType>
+std::shared_ptr<CppType> CppGCManaged<CppType>::get() const {
+  return *GetSharedPtr();
+}
+
+template <class CppType>
+std::shared_ptr<CppType>* CppGCManaged<CppType>::GetSharedPtr() const {
+  auto wrapper = GetWrapper();
+  CHECK_EQ(wrapper->type_id(), TypeIdForManaged<CppType>::value);
+  return reinterpret_cast<std::shared_ptr<CppType>*>(wrapper->shared_ptr_ptr());
+}
+
+template <class CppType>
+void CppGCManaged<CppType>::SetManagedObject(
+    std::shared_ptr<CppType> new_managed, Isolate* isolate,
+    size_t new_estimated_size) {
+  CppGCManagedWrapper* wrapper = GetWrapper();
+  *GetSharedPtr() = std::move(new_managed);
+  wrapper->UpdateEstimatedSize(new_estimated_size, isolate);
 }
 
 }  // namespace v8::internal

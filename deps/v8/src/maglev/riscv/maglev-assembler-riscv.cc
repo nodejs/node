@@ -584,7 +584,6 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
   TryInlineTruncateDoubleToI(dst, src, *done);
   Jump(slow_path);
   bind(*done);
-  ZeroExtendWord(dst, dst);  // FIXME: is zero extension really needed here?
 }
 
 void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,

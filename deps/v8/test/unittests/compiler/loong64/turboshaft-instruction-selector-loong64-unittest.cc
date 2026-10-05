@@ -1770,12 +1770,12 @@ std::ostream& operator<<(std::ostream& os, const OverflowBinopOp& bop) {
 // Note that multiplication isn't tested because multiplication doesn't set
 // flags on Arm64, and thus BranchIfOverflow fusion cannot happen.
 const OverflowBinopOp kOverflowBinaryOperationsForBranchFusion[] = {
-    {TSBinop::kInt32AddCheckOverflow, "Int32AddCheckOverflow", kLoong64Add_d,
+    {TSBinop::kInt32AddCheckOverflow, "Int32AddCheckOverflow", kLoong64AddOvf_w,
      false},
     {TSBinop::kInt64AddCheckOverflow, "Int64AddCheckOverflow", kLoong64AddOvf_d,
      true},
-    {TSBinop::kInt32SubCheckOverflow, "kInt32SubCheckOverflow", kLoong64Sub_d,
-     false},
+    {TSBinop::kInt32SubCheckOverflow, "kInt32SubCheckOverflow",
+     kLoong64SubOvf_w, false},
     {TSBinop::kInt64SubCheckOverflow, "kInt64SubCheckOverflow",
      kLoong64SubOvf_d, true},
     {TSBinop::kInt32MulCheckOverflow, "Int32MulCheckOverflow", kLoong64MulOvf_w,
@@ -2131,4 +2131,45 @@ TEST_P(TurboshaftInstructionSelectorAddSub128Test,
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorAddSub128Test,
                          ::testing::ValuesIn(kAddOrSub128));
+
+TEST_F(TurboshaftInstructionSelectorTest, AtomicStoreWithWriteBarrier) {
+  if (v8_flags.disable_write_barriers) return;
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                  MachineType::Int64(), MachineType::AnyTagged());
+  m.Store(m.Parameter(0), m.Parameter(1), m.Parameter(2),
+          StoreOp::Kind::Aligned(BaseTaggedness::kTaggedBase).Atomic(),
+          MemoryRepresentation::TaggedPointer(),
+          WriteBarrierKind::kFullWriteBarrier, AtomicMemoryOrder::kSeqCst);
+  m.Return(m.Int32Constant(0));
+  Stream s = m.Build(kAllExceptNopInstructions);
+  ASSERT_EQ(3U, s.size());
+  EXPECT_EQ(kLoong64Add_d, s[0]->arch_opcode());
+  EXPECT_EQ(kArchAtomicStoreWithWriteBarrier, s[1]->arch_opcode());
+  EXPECT_EQ(kMode_MRR, s[1]->addressing_mode());
+  EXPECT_EQ(AtomicStoreRecordWriteModeField::decode(s[1]->opcode()),
+            RecordWriteMode::kValueIsAny);
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word32EqualWithReadOnlyRoot) {
+  if (!V8_STATIC_ROOTS_BOOL &&
+      (!COMPRESS_POINTERS_BOOL || isolate()->bootstrapper())) {
+    return;
+  }
+
+  StreamBuilder m(this, MachineType::Int32(), MachineType::AnyTagged());
+  Handle<HeapObject> undefined_value = isolate()->factory()->undefined_value();
+
+  OpIndex param = m.Parameter(0);
+  OpIndex heap_constant = m.HeapConstant(undefined_value);
+  OpIndex eq = m.Word32Equal(param, heap_constant);
+
+  m.Return(eq);
+  Stream s = m.Build();
+
+  ASSERT_EQ(1u, s.size());
+  EXPECT_EQ(kLoong64Cmp32Eq, s[0]->arch_opcode());
+  ASSERT_EQ(2u, s[0]->InputCount());
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+}
+
 }  // namespace v8::internal::compiler::turboshaft

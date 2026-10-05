@@ -1,19 +1,21 @@
 # Copyright 2018 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+#
+# Generated file. DO NOT EDIT.
 
 import("//third_party/abseil-cpp/absl.gni")
 
 absl_source_set("status") {
-  public = [
-    "status.h",
-    "status_payload_printer.h",
-  ]
   sources = [
     "internal/status_internal.cc",
     "internal/status_internal.h",
     "status.cc",
     "status_payload_printer.cc",
+  ]
+  public = [
+    "status.h",
+    "status_payload_printer.h",
   ]
   deps = [
     "//third_party/abseil-cpp/absl/base:atomic_hook",
@@ -48,16 +50,17 @@ absl_test("status_test") {
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:cord",
     "//third_party/abseil-cpp/absl/strings:str_format",
+    "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/types:source_location",
   ]
 }
 
 absl_source_set("statusor") {
-  public = [ "statusor.h" ]
   sources = [
     "internal/statusor_internal.h",
     "statusor.cc",
   ]
+  public = [ "statusor.h" ]
   deps = [
     ":status",
     "//third_party/abseil-cpp/absl/base",
@@ -105,6 +108,7 @@ absl_source_set("status_builder") {
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:cord",
     "//third_party/abseil-cpp/absl/strings:internal",
+    "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/strings:stringify_stream",
     "//third_party/abseil-cpp/absl/time",
     "//third_party/abseil-cpp/absl/types:source_location",
@@ -124,6 +128,7 @@ absl_test("status_builder_test") {
     "//third_party/abseil-cpp/absl/log:log_entry",
     "//third_party/abseil-cpp/absl/log:log_sink",
     "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/types:source_location",
   ]
 }
@@ -147,7 +152,6 @@ absl_test("status_macros_test") {
     ":status_builder",
     ":status_macros",
     ":statusor",
-    "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/types:source_location",
   ]
@@ -155,11 +159,11 @@ absl_test("status_macros_test") {
 
 absl_source_set("status_matchers") {
   testonly = true
-  public = [ "status_matchers.h" ]
   sources = [
     "internal/status_matchers.cc",
     "internal/status_matchers.h",
   ]
+  public = [ "status_matchers.h" ]
   deps = [
     ":status",
     ":statusor",
@@ -178,5 +182,17 @@ absl_test("status_matchers_test") {
     ":status_matchers",
     ":statusor",
     "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
+}
+
+absl_test("status_matchers_with_unqualified_macros_test") {
+  sources = [ "status_matchers_test.cc" ]
+  deps = [
+    ":status",
+    ":status_matchers",
+    ":statusor",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }

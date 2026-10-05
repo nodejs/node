@@ -10,6 +10,7 @@
 #include "src/heap/factory.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/numbers/hash-seed-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/test-utils.h"
 

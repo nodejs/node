@@ -181,7 +181,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                   "V8.Maglev.Truncation");
       SYNCHRONIZATION_POINT("MaglevTruncation");
-      GraphBackwardProcessor<PropagateTruncationProcessor> propagate;
+      GraphBackwardProcessor<PropagateTruncationProcessor> propagate(graph);
       propagate.ProcessGraph(graph);
       PrintGraph(graph, v8_flags.print_maglev_graphs,
                  MaglevPhase::kTruncationPropagation);

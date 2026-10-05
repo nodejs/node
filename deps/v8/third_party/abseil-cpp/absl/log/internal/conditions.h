@@ -23,11 +23,6 @@
 #ifndef ABSL_LOG_INTERNAL_CONDITIONS_H_
 #define ABSL_LOG_INTERNAL_CONDITIONS_H_
 
-#if defined(_WIN32) || defined(__hexagon__)
-#include <cstdlib>
-#else
-#include <unistd.h>
-#endif
 #include <stdlib.h>
 
 #include <atomic>
@@ -36,6 +31,12 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/log/internal/voidify.h"
+
+#if defined(_WIN32) || defined(__hexagon__)
+#include <cstdlib>
+#else
+#include <unistd.h>
+#endif
 
 // `ABSL_LOG_INTERNAL_CONDITION` prefixes another macro that expands to a
 // temporary `LogMessage` instantiation followed by zero or more streamed

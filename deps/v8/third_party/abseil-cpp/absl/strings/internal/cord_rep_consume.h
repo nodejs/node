@@ -15,6 +15,7 @@
 #ifndef ABSL_STRINGS_INTERNAL_CORD_REP_CONSUME_H_
 #define ABSL_STRINGS_INTERNAL_CORD_REP_CONSUME_H_
 
+#include <cstddef>
 #include <functional>
 
 #include "absl/functional/function_ref.h"

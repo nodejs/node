@@ -31,7 +31,6 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
 #include "absl/base/throw_delegate.h"
 #include "absl/container/internal/test_allocator.h"
@@ -804,7 +803,6 @@ TEST(ChunkedQueue, Hardening) {
     GTEST_SKIP() << "Not a hardened build";
   }
 
-  absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   absl::chunked_queue<int> q;
   EXPECT_DEATH_IF_SUPPORTED(q.front(), "");
   EXPECT_DEATH_IF_SUPPORTED(q.back(), "");

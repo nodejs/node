@@ -16,13 +16,13 @@ RootIndexMap::RootIndexMap(Isolate* isolate) {
   map_ = new HeapObjectToIndexHashMap();
   for (RootIndex root_index = RootIndex::kFirstStrongOrReadOnlyRoot;
        root_index <= RootIndex::kLastStrongOrReadOnlyRoot; ++root_index) {
-    Tagged<Object> root = isolate->root(root_index);
-    if (!IsHeapObject(root)) continue;
     // Omit root entries that can be written after initialization. They must
     // not be referenced through the root list in the snapshot.
     // Since we map the raw address of an root item to its root list index, the
     // raw address must be constant, i.e. the object must be immovable.
     if (RootsTable::IsImmortalImmovable(root_index)) {
+      Tagged<Object> root = isolate->root(root_index);
+      DCHECK(IsHeapObject(root));
       Tagged<HeapObject> heap_object = Cast<HeapObject>(root);
       Maybe<uint32_t> maybe_index = map_->Get(heap_object);
       uint32_t index = static_cast<uint32_t>(root_index);

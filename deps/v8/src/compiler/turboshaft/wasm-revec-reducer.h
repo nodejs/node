@@ -479,7 +479,8 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
         phase_zone_(zone),
         root_(nullptr),
         node_to_packnode_(zone),
-        node_to_intersect_packnodes_(zone) {}
+        node_to_intersect_packnodes_(zone),
+        load_to_shuffle_packnodes_(zone) {}
 
   // Information for extending i8x16/i16x8 to f32x4.
   struct ExtendIntToF32x4Info {
@@ -509,6 +510,14 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
   }
   ZoneUnorderedMap<OpIndex, ZoneVector<PackNode*>>& GetIntersectNodeMapping() {
     return node_to_intersect_packnodes_;
+  }
+  // Maps the shared Load/Simd128LoadTransform feeding matched shuffle-splat
+  // or Load8x8U patterns to the ShufflePackNodes that consume it, so the
+  // reducer can emit the vector load-transform when it visits the load
+  // itself, rather than re-deriving it when visiting each shuffle.
+  ZoneUnorderedMap<OpIndex, ZoneVector<ShufflePackNode*>>&
+  GetLoadToShufflePackNodesMapping() {
+    return load_to_shuffle_packnodes_;
   }
   ZoneUnorderedSet<OpIndex>& GetReorderInputs() { return reorder_inputs_; }
 
@@ -542,6 +551,12 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
 
   ShufflePackNode* NewShufflePackNode(const NodeGroup& node_group,
                                       ShufflePackNode::SpecificInfo::Kind kind);
+
+  // Registers {pnode} as one of the (possibly several) ShufflePackNodes
+  // that consume {load_idx} (a Load or Simd128LoadTransform) as their shared
+  // input, so the reducer can later emit the vector load-transform(s) when
+  // it visits {load_idx} itself.
+  void AddLoadToShufflePackNode(OpIndex load_idx, ShufflePackNode* pnode);
 
   // Try match the following pattern:
   //   1. simd128_load64zero(memargs)
@@ -577,7 +592,10 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
                                 ExtendIntToF32x4Info* info);
   std::optional<ExtendIntToF32x4Info> TryGetExtendIntToF32x4Info(OpIndex index);
 
-  bool IsSideEffectFreeRange(OpIndex first, OpIndex second);
+  // Checks that no operation strictly between {from} and {to} has an effect
+  // that conflicts with {to}'s effects, so that {to} can safely be hoisted
+  // earlier, next to {from} (e.g. merging two isomorphic ops for packing).
+  bool IsSideEffectFreeRange(OpIndex from, OpIndex to);
   bool IsEqual(const OpIndex node0, const OpIndex node1);
   // Check if the nodes in the node_group depend on the result of each other.
   bool HasInputDependencies(const NodeGroup& node_group);
@@ -595,6 +613,10 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
   ZoneUnorderedMap<OpIndex, PackNode*> node_to_packnode_;
   // Maps a node to multiple IntersectPackNodes.
   ZoneUnorderedMap<OpIndex, ZoneVector<PackNode*>> node_to_intersect_packnodes_;
+  // Maps the shared Load/Simd128LoadTransform of matched shuffle-splat or
+  // Load8x8U patterns to the ShufflePackNodes that consume it.
+  ZoneUnorderedMap<OpIndex, ZoneVector<ShufflePackNode*>>
+      load_to_shuffle_packnodes_;
   ZoneUnorderedSet<OpIndex> reorder_inputs_{phase_zone_};
 };
 
@@ -610,6 +632,16 @@ class WasmRevecAnalyzer {
   void MergeSLPTree(SLPTree& slp_tree);
   bool ShouldReduce() const { return should_reduce_; }
 
+  // Percentage (0-100) of this function's SIMD128 operations that were
+  // combined into SIMD256 operations. Only meaningful once the analysis has
+  // decided to vectorize (i.e. when ShouldReduce() is true).
+  int revectorized_percent() const {
+    if (simd128_op_count_ == 0) return 0;
+    DCHECK_LE(revectorized_simd128_count_, simd128_op_count_);
+    return static_cast<int>(revectorized_simd128_count_ * 100 /
+                            simd128_op_count_);
+  }
+
   PackNode* GetPackNode(const OpIndex ig_index) {
     auto it = revectorizable_node_.find(ig_index);
     if (it != revectorizable_node_.end()) {
@@ -621,6 +653,18 @@ class WasmRevecAnalyzer {
   ZoneVector<PackNode*>* GetIntersectPackNodes(const OpIndex node) {
     auto it = revectorizable_intersect_node_.find(node);
     if (it != revectorizable_intersect_node_.end()) {
+      return &(it->second);
+    }
+    return nullptr;
+  }
+
+  // Returns the ShufflePackNodes that {node} (a Load or Simd128LoadTransform)
+  // feeds as the shared input of matched shuffle-splat or Load8x8U
+  // pattern(s), if any. A single load can feed multiple distinct shuffle
+  // patterns (e.g. two different splats of the same 128-bit load).
+  ZoneVector<ShufflePackNode*>* GetLoadShufflePackNodes(const OpIndex node) {
+    auto it = revectorizable_load_shuffle_node_.find(node);
+    if (it != revectorizable_load_shuffle_node_.end()) {
       return &(it->second);
     }
     return nullptr;
@@ -664,7 +708,15 @@ class WasmRevecAnalyzer {
   ZoneUnorderedMap<OpIndex, PackNode*> revectorizable_node_{phase_zone_};
   ZoneUnorderedMap<OpIndex, ZoneVector<PackNode*>>
       revectorizable_intersect_node_{phase_zone_};
+  ZoneUnorderedMap<OpIndex, ZoneVector<ShufflePackNode*>>
+      revectorizable_load_shuffle_node_{phase_zone_};
   bool should_reduce_{false};
+  // Numerator/denominator for revectorized_percent(): number of SIMD128
+  // operations combined into SIMD256, and the total number of SIMD128
+  // operations in the function. Force-packed and intersect nodes are excluded
+  // from the numerator.
+  size_t revectorized_simd128_count_{0};
+  size_t simd128_op_count_{0};
   Simd128UseMap* use_map_{nullptr};
   ZoneUnorderedSet<OpIndex> reorder_inputs_{phase_zone_};
   // Used as a local hash-set, always clear after use.
@@ -748,6 +800,28 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
 
   V<Simd128> REDUCE_INPUT_GRAPH(Simd128LoadTransform)(
       V<Simd128> ig_index, const Simd128LoadTransformOp& load_transform) {
+    // If this load transform is the shared k64Zero input of one or more
+    // matched Load8x8U shuffle patterns, emit the vector load-transform(s)
+    // here, at the load transform's own position, so they can't be
+    // reordered past a store that may follow before the shuffles are
+    // reached. A single load transform can feed multiple distinct shuffle
+    // patterns.
+    if (ZoneVector<ShufflePackNode*>* shuffle_pnodes =
+            analyzer_.GetLoadShufflePackNodes(ig_index)) {
+      for (ShufflePackNode* shuffle_pnode : *shuffle_pnodes) {
+        if (shuffle_pnode->RevectorizedNode().valid()) continue;
+        DCHECK_EQ(load_transform.transform_kind,
+                  Simd128LoadTransformOp::TransformKind::k64Zero);
+        V<WordPtr> base = __ MapToNewGraph(load_transform.base());
+        V<WordPtr> index = __ MapToNewGraph(load_transform.index());
+        V<Simd256> shuffle_og_index = __ Simd256LoadTransform(
+            base, index, load_transform.load_kind,
+            Simd256LoadTransformOp::TransformKind::k8x8U,
+            load_transform.offset);
+        shuffle_pnode->SetRevectorizedNode(shuffle_og_index);
+      }
+    }
+
     PackNode* pnode = analyzer_.GetPackNode(ig_index);
     if (!pnode || !pnode->IsDefaultPackNode()) {
       return Adapter::ReduceInputGraphSimd128LoadTransform(ig_index,
@@ -799,6 +873,47 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Load)(OpIndex ig_index, const LoadOp& load) {
+    // If this load is the shared input of one or more matched shuffle-splat
+    // patterns (k32Splat/k64Splat), emit the vector load-transform(s) here,
+    // at the load's own position, so they can't be reordered past a store
+    // that may follow before the shuffle(s) are reached. A single load can
+    // feed multiple distinct splat patterns (e.g. splatting two different
+    // lanes of the same 128-bit load). The scalar load below is still
+    // emitted normally afterward, since it may have other, non-packed uses.
+    if (ZoneVector<ShufflePackNode*>* shuffle_pnodes =
+            analyzer_.GetLoadShufflePackNodes(ig_index)) {
+      for (ShufflePackNode* shuffle_pnode : *shuffle_pnodes) {
+        if (shuffle_pnode->RevectorizedNode().valid()) continue;
+        const bool is_32 =
+            shuffle_pnode->info().kind() ==
+            ShufflePackNode::SpecificInfo::Kind::kS256Load32Transform;
+        const int bytes_per_lane = is_32 ? 4 : 8;
+        // Mask splat_index to get the lane offset within the 128-bit vector.
+        // For 32-bit lanes: mask is 3 (bits 0-1), for 64-bit lanes: mask is 1
+        // (bit 0).
+        const int lane_mask = is_32 ? 3 : 1;
+        // splat_index*bytes_per_lane is at most 12 (for 32-bit) or 8 (for
+        // 64-bit); load.offset is the WASM memarg immediate (up to
+        // INT32_MAX). Compute in int64 to avoid signed-int32 overflow that
+        // would sign-extend to a negative base.
+        const int64_t splat_offset =
+            (shuffle_pnode->info().splat_index() & lane_mask) * bytes_per_lane;
+        const int64_t offset = splat_offset + load.offset;
+
+        V<WordPtr> base = __ WordPtrAdd(__ MapToNewGraph(load.base()),
+                                        __ IntPtrConstant(offset));
+        V<WordPtr> index = load.index().has_value()
+                               ? __ MapToNewGraph(load.index().value())
+                               : __ IntPtrConstant(0);
+        const Simd256LoadTransformOp::TransformKind transform_kind =
+            is_32 ? Simd256LoadTransformOp::TransformKind::k32Splat
+                  : Simd256LoadTransformOp::TransformKind::k64Splat;
+        V<Simd256> shuffle_og_index =
+            __ Simd256LoadTransform(base, index, load.kind, transform_kind, 0);
+        shuffle_pnode->SetRevectorizedNode(shuffle_og_index);
+      }
+    }
+
     PackNode* pnode = analyzer_.GetPackNode(ig_index);
     if (!pnode || !pnode->IsDefaultPackNode()) {
       return Adapter::ReduceInputGraphLoad(ig_index, load);
@@ -1046,65 +1161,17 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     if (!og_index.valid()) {
       const ShufflePackNode::SpecificInfo::Kind kind = pnode->info().kind();
       switch (kind) {
+        // The vector load-transform for these two kinds is emitted when the
+        // reducer visits the shared Load/Simd128LoadTransform itself (see
+        // REDUCE_INPUT_GRAPH(Load) and REDUCE_INPUT_GRAPH
+        // (Simd128LoadTransform)), which always happens before this shuffle
+        // is visited. So RevectorizedNode() is already valid by the time we
+        // get here, and the `!og_index.valid()` check above already skipped
+        // this switch entirely.
         case ShufflePackNode::SpecificInfo::Kind::kS256Load32Transform:
-        case ShufflePackNode::SpecificInfo::Kind::kS256Load64Transform: {
-          const bool is_32 =
-              kind == ShufflePackNode::SpecificInfo::Kind::kS256Load32Transform;
-
-          const OpIndex load_index =
-              op.input(pnode->info().splat_index() >> (is_32 ? 2 : 1));
-          const LoadOp& load =
-              __ input_graph().Get(load_index).template Cast<LoadOp>();
-
-          const int bytes_per_lane = is_32 ? 4 : 8;
-          // splat_index*bytes_per_lane is at most 28; load.offset is the WASM
-          // memarg immediate (up to INT32_MAX). Compute in int64 to avoid
-          // signed-int32 overflow that would sign-extend to a negative base.
-          const int64_t splat_index =
-              pnode->info().splat_index() * bytes_per_lane;
-          const int64_t offset = splat_index + load.offset;
-
-          V<WordPtr> base = __ WordPtrAdd(__ MapToNewGraph(load.base()),
-                                          __ IntPtrConstant(offset));
-
-          V<WordPtr> index = load.index().has_value()
-                                 ? __ MapToNewGraph(load.index().value())
-                                 : __ IntPtrConstant(0);
-
-          const Simd256LoadTransformOp::TransformKind transform_kind =
-              is_32 ? Simd256LoadTransformOp::TransformKind::k32Splat
-                    : Simd256LoadTransformOp::TransformKind::k64Splat;
-          og_index = __ Simd256LoadTransform(base, index, load.kind,
-                                             transform_kind, 0);
-          pnode->SetRevectorizedNode(og_index);
-          break;
-        }
-        case ShufflePackNode::SpecificInfo::Kind::kS256Load8x8U: {
-          const Simd128ShuffleOp& op0 = __ input_graph()
-                                            .Get(pnode -> nodes()[0])
-                                            .template Cast<Simd128ShuffleOp>();
-
-          V<Simd128> load_transform_idx =
-              __ input_graph()
-                      .Get(op0.left())
-                      .template Is<Simd128LoadTransformOp>()
-                  ? op0.left()
-                  : op0.right();
-          const Simd128LoadTransformOp& load_transform =
-              __ input_graph()
-                  .Get(load_transform_idx)
-                  .template Cast<Simd128LoadTransformOp>();
-          DCHECK_EQ(load_transform.transform_kind,
-                    Simd128LoadTransformOp::TransformKind::k64Zero);
-          V<WordPtr> base = __ MapToNewGraph(load_transform.base());
-          V<WordPtr> index = __ MapToNewGraph(load_transform.index());
-          og_index = __ Simd256LoadTransform(
-              base, index, load_transform.load_kind,
-              Simd256LoadTransformOp::TransformKind::k8x8U,
-              load_transform.offset);
-          pnode->SetRevectorizedNode(og_index);
-          break;
-        }
+        case ShufflePackNode::SpecificInfo::Kind::kS256Load64Transform:
+        case ShufflePackNode::SpecificInfo::Kind::kS256Load8x8U:
+          UNREACHABLE();
 #ifdef V8_TARGET_ARCH_X64
         case ShufflePackNode::SpecificInfo::Kind::kShufd: {
           V<Simd256> og_left = analyzer_.GetReducedInput(pnode, 0);
@@ -1211,11 +1278,11 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     while (!inputs.empty()) {
       OpIndex idx = inputs.front();
       inputs.pop_front();
-      visited.insert(idx);
 
       const Operation& op = __ input_graph().Get(idx);
       for (OpIndex input : op.inputs()) {
-        if (input > start_marker && !visited.contains(input)) {
+        if (input > start_marker) {
+          if (!visited.insert(input).second) continue;
           inputs.push_back(input);
         }
       }

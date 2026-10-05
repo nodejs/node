@@ -432,6 +432,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   static WasmOrphanedGlobalHandle* NewOrphanedGlobalHandle(
       WasmOrphanedGlobalHandle** pointer);
+  void DestroyOrphanedGlobalHandle(WasmOrphanedGlobalHandle* that);
   static void FreeAllOrphanedGlobalHandles(WasmOrphanedGlobalHandle* start);
 
   size_t NativeModuleCount() const;

@@ -5,6 +5,7 @@
 #ifndef V8_REGEXP_REGEXP_H_
 #define V8_REGEXP_REGEXP_H_
 
+#include "src/base/bits.h"
 #include "src/common/assert-scope.h"
 #include "src/handles/handles.h"
 #include "src/regexp/regexp-error.h"
@@ -238,7 +239,11 @@ class GlobalExecRunner final {
 // @@split.
 class ResultsCache final : public AllStatic {
  public:
-  enum ResultsCacheType { REGEXP_MULTIPLE_INDICES, STRING_SPLIT_SUBSTRINGS };
+  enum ResultsCacheType {
+    REGEXP_MULTIPLE_INDICES,
+    STRING_SPLIT_SUBSTRINGS,
+    REGEXP_SPLIT_SUBSTRINGS
+  };
 
   // Attempt to retrieve a cached result.  On failure, 0 is returned as a Smi.
   // On success, the returned result is guaranteed to be a COW-array.
@@ -256,13 +261,37 @@ class ResultsCache final : public AllStatic {
   static void Clear(Tagged<FixedArray> cache);
 
   static constexpr int kRegExpResultsCacheSize = 0x100;
+  // Splits reuse many more distinct (subject, pattern) pairs than the other
+  // cache types.
+  static constexpr int kRegExpSplitResultsCacheSize = 0x400;
 
- private:
+  // Sizes are used as masks.
+  static_assert(base::bits::IsPowerOfTwo(kRegExpResultsCacheSize));
+  static_assert(base::bits::IsPowerOfTwo(kRegExpSplitResultsCacheSize));
+
   static constexpr int kStringOffset = 0;
   static constexpr int kPatternOffset = 1;
   static constexpr int kArrayOffset = 2;
   static constexpr int kLastMatchOffset = 3;
   static constexpr int kArrayEntriesPerCacheEntry = 4;
+  static_assert(base::bits::IsPowerOfTwo(kArrayEntriesPerCacheEntry));
+
+  static constexpr int SizeForType(ResultsCacheType type) {
+    switch (type) {
+      case REGEXP_SPLIT_SUBSTRINGS:
+        return kRegExpSplitResultsCacheSize;
+      case REGEXP_MULTIPLE_INDICES:
+      case STRING_SPLIT_SUBSTRINGS:
+        return kRegExpResultsCacheSize;
+    }
+  }
+
+  // Enter, for generated code. {raw_pattern} is a JSRegExp, keyed on its
+  // RegExpData wrapper; {raw_value_array} a JSArray, cached by its elements.
+  // Does not allocate.
+  static Address EnterRaw(Isolate* isolate, Address raw_key_string,
+                          Address raw_pattern, Address raw_value_array,
+                          Address raw_last_match_cache);
 };
 
 // Caches results of RegExpPrototypeMatch when:

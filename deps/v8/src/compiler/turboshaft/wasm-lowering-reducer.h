@@ -73,38 +73,27 @@ class WasmLoweringReducer : public Next {
                                   OptionalV<EagerFrameState> frame_state,
                                   wasm::ValueType type, TrapId trap_id) {
     if (trap_id == TrapId::kTrapNullDereference) {
-      // Skip the check altogether if null checks are turned off.
-      if (!v8_flags.wasm_skip_null_checks) {
-        if (null_check_strategy_ == NullCheckStrategy::kTrapHandler) {
-          // To make sure load elimination sees consistent representations, we
-          // load known fields of objects.
-          if (wasm::IsSubtypeOf(type.AsNonShared(), wasm::kWasmStructRef,
-                                module_) ||
-              wasm::IsSubtypeOf(type.AsNonShared(), wasm::kWasmArrayRef,
-                                module_)) {
-            __ Load(object, LoadOp::Kind::TrapOnNull().Immutable(),
-                    MemoryRepresentation::AnyTagged(),
-                    offsetof(WasmObject, properties_or_hash_));
-          } else if (wasm::IsSubtypeOf(type, wasm::kWasmWaitqueueRef,
-                                       module_)) {
-            __ Load(object, LoadOp::Kind::TrapOnNull().Immutable(),
-                    MemoryRepresentation::Uint32(),
-                    offsetof(Foreign, foreign_address_));
-          } else if (wasm::IsSubtypeOf(type.AsNonShared(), wasm::kWasmFuncRef,
-                                       module_)) {
-            __ Load(object, LoadOp::Kind::TrapOnNull().Immutable(),
-                    MemoryRepresentation::AnyTagged(),
-                    offsetof(WasmFuncRef, trusted_internal_));
-          } else {
-            __ TrapIf(__ IsNull(object, type), frame_state, trap_id);
-          }
-        } else {
-          __ TrapIf(__ IsNull(object, type), frame_state, trap_id);
-        }
+      if (v8_flags.wasm_skip_null_checks) return object;
+
+      // Use an explicit null check if
+      // (1) we cannot use trap handler or
+      // (2) the object might be a Smi (anyref, externref, exnref) or
+      // (3) null checks for the object's type must check for JS null.
+      bool use_explicit_check =
+          null_check_strategy_ == NullCheckStrategy::kExplicit ||
+          wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), type.AsNonShared(),
+                            module_) ||
+          wasm::IsSubtypeOf(wasm::kWasmExnRef.AsNonNull(), type.AsNonShared(),
+                            module_) ||
+          !type.use_wasm_null();
+      if (!use_explicit_check) {
+        __ Load(object, LoadOp::Kind::TrapOnNull().Immutable(),
+                MemoryRepresentation::TaggedPointer(),
+                offsetof(HeapObject, map_));
+        return object;
       }
-    } else {
-      __ TrapIf(__ IsNull(object, type), frame_state, trap_id);
     }
+    __ TrapIf(__ IsNull(object, type), frame_state, trap_id);
     return object;
   }
 
@@ -143,9 +132,6 @@ class WasmLoweringReducer : public Next {
     Label<> int_to_smi_label(&Asm());
     Label<> heap_number_label(&Asm());
 
-    constexpr int32_t kInt31MaxValue = 0x3fffffff;
-    constexpr int32_t kInt31MinValue = -kInt31MaxValue - 1;
-
     if (is_nullable) {
       GOTO_IF(__ IsNull(object, wasm::kWasmExternRef), null_label);
     }
@@ -168,9 +154,9 @@ class WasmLoweringReducer : public Next {
       V<Word32> int_value = __ UntagSmi(V<Smi>::Cast(object));
 
       // Convert to heap number if the int32 does not fit into an i31ref.
-      GOTO_IF(__ Int32LessThan(kInt31MaxValue, int_value),
+      GOTO_IF(__ Int32LessThan(wasm::kInt31MaxValue, int_value),
               convert_to_heap_number_label);
-      GOTO_IF(__ Int32LessThan(int_value, kInt31MinValue),
+      GOTO_IF(__ Int32LessThan(int_value, wasm::kInt31MinValue),
               convert_to_heap_number_label);
       GOTO(end_label, object);
 
@@ -189,9 +175,11 @@ class WasmLoweringReducer : public Next {
     V<Float64> float_value =
         __ LoadHeapNumberValue(V<HeapNumber>::Cast(object));
     // Check range of float value.
-    GOTO_IF(__ Float64LessThan(float_value, __ Float64Constant(kInt31MinValue)),
+    GOTO_IF(__ Float64LessThan(float_value,
+                               __ Float64Constant(wasm::kInt31MinValue)),
             end_label, object);
-    GOTO_IF(__ Float64LessThan(__ Float64Constant(kInt31MaxValue), float_value),
+    GOTO_IF(__ Float64LessThan(__ Float64Constant(wasm::kInt31MaxValue),
+                               float_value),
             end_label, object);
     // Check if value is -0.
     V<Word32> is_minus_zero;
@@ -245,23 +233,8 @@ class WasmLoweringReducer : public Next {
                            wasm::ModuleTypeIndex type_index, int field_index,
                            bool is_signed, CheckForNull null_check,
                            std::optional<AtomicMemoryOrder> memory_order) {
-    if (field_index == StructGetOp::kDescFieldIndex) {
-      if (null_check == kWithNullCheck) {
-        __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef), frame_state,
-                  TrapId::kTrapNullDereference);
-      }
-      V<Map> map = __ LoadMapField(object);
-      return __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
-                     MemoryRepresentation::TaggedPointer(),
-                     offsetof(Map, instance_descriptors_));
-    }
-
-    // TODO(mliedtke): Get rid of the requires_aligned_access by aligning
-    // WasmNull to 8 bytes.
-    bool requires_aligned_access =
-        memory_order.has_value() && type->field(field_index) == wasm::kWasmI64;
-    auto [explicit_null_check, implicit_null_check] = null_checks_for_struct_op(
-        null_check, field_index, requires_aligned_access);
+    auto [explicit_null_check, implicit_null_check] =
+        null_checks_for_struct_op(null_check, field_index);
 
     if (explicit_null_check) {
       __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef), frame_state,
@@ -270,6 +243,20 @@ class WasmLoweringReducer : public Next {
 
     LoadOp::Kind load_kind = implicit_null_check ? LoadOp::Kind::TrapOnNull()
                                                  : LoadOp::Kind::TaggedBase();
+    if (field_index == StructGetOp::kDescFieldIndex) {
+      // Can't use {LoadMapField} because that doesn't support specifying
+      // {LoadOp::Kind::TrapOnNull}.
+      V<Map> map = __ Load(object, load_kind.Immutable(),
+                           MemoryRepresentation::TaggedPointer(),
+                           offsetof(HeapObject, map_));
+#if V8_MAP_PACKING
+      UNIMPLEMENTED();
+#endif
+      return __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
+                     MemoryRepresentation::TaggedPointer(),
+                     offsetof(Map, instance_descriptors_));
+    }
+
     if (!type->mutability(field_index)) {
       load_kind = load_kind.Immutable();
     }
@@ -297,12 +284,8 @@ class WasmLoweringReducer : public Next {
     if (memory_order == AtomicMemoryOrder::kAcqRel) {
       memory_order = AtomicMemoryOrder::kSeqCst;
     }
-    // TODO(mliedtke): Get rid of the requires_aligned_access by aligning
-    // WasmNull to 8 bytes.
-    bool requires_aligned_access =
-        memory_order.has_value() && type->field(field_index) == wasm::kWasmI64;
-    auto [explicit_null_check, implicit_null_check] = null_checks_for_struct_op(
-        null_check, field_index, requires_aligned_access);
+    auto [explicit_null_check, implicit_null_check] =
+        null_checks_for_struct_op(null_check, field_index);
 
     if (explicit_null_check) {
       __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef), frame_state,
@@ -338,11 +321,8 @@ class WasmLoweringReducer : public Next {
                                   wasm::ModuleTypeIndex type_index,
                                   int field_index, CheckForNull null_check,
                                   AtomicMemoryOrder memory_order) {
-    // TODO(mliedtke): Get rid of the requires_aligned_access by aligning
-    // WasmNull to 8 bytes.
-    bool requires_aligned_access = type->field(field_index) == wasm::kWasmI64;
-    auto [explicit_null_check, implicit_null_check] = null_checks_for_struct_op(
-        null_check, field_index, requires_aligned_access);
+    auto [explicit_null_check, implicit_null_check] =
+        null_checks_for_struct_op(null_check, field_index);
 
     if (explicit_null_check) {
       __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef),
@@ -718,8 +698,6 @@ class WasmLoweringReducer : public Next {
 
   V<Word32> ReduceWasmTypeCheckAbstract(V<Object> object,
                                         WasmTypeCheckConfig config) {
-    const bool object_can_be_null = config.from.is_nullable();
-    const bool null_succeeds = config.to.is_nullable();
     const bool object_can_be_i31 =
         wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(),
                           config.from.AsNonShared(), module_) ||
@@ -737,10 +715,9 @@ class WasmLoweringReducer : public Next {
         break;
       }
       // Null checks performed by any other type check need control flow. We can
-      // skip the null check if null fails, because it's covered by the Smi
-      // check or instance type check we'll do later.
-      if (object_can_be_null && null_succeeds) {
-        const int kResult = 1;
+      // skip the null check if success is determined by a Smi check.
+      if (config.from.is_nullable() && config.to != wasm::kWasmRefI31) {
+        const int kResult = config.to.is_nullable() ? 1 : 0;
         GOTO_IF(UNLIKELY(__ IsNull(object, config.from)), end_label,
                 __ Word32Constant(kResult));
       }
@@ -806,8 +783,6 @@ class WasmLoweringReducer : public Next {
   V<Object> ReduceWasmTypeCastAbstract(V<Object> object,
                                        OptionalV<EagerFrameState> frame_state,
                                        WasmTypeCheckConfig config) {
-    const bool object_can_be_null = config.from.is_nullable();
-    const bool null_succeeds = config.to.is_nullable();
     const bool object_can_be_i31 =
         wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(),
                           config.from.AsNonShared(), module_) ||
@@ -825,12 +800,18 @@ class WasmLoweringReducer : public Next {
                      TrapId::kTrapIllegalCast);
         break;
       }
-      // Null checks performed by any other type cast can be skipped if null
-      // fails, because it's covered by the Smi check
-      // or instance type check we'll do later.
-      if (object_can_be_null && null_succeeds &&
-          !v8_flags.wasm_skip_null_checks) {
-        GOTO_IF(UNLIKELY(__ IsNull(object, config.from)), end_label);
+      // Null checks performed by any other type cast can only be skipped if
+      // a Smi check is the only operation we'll need (i.e. the target type
+      // is non-nullable (ref i31).
+      if (config.from.is_nullable() && config.to != wasm::kWasmRefI31) {
+        V<Word32> is_null = __ IsNull(object, config.from);
+        if (config.to.is_nullable()) {
+          GOTO_IF(UNLIKELY(is_null), end_label);
+        } else if (!v8_flags.wasm_skip_null_checks) {
+          // TODO(jkummerow): Consider using a trapping map load instead, and
+          // adjusting its message to be "illegal cast" instead of "null deref".
+          __ TrapIf(is_null, frame_state, TrapId::kTrapIllegalCast);
+        }
       }
       if (to_kind == wasm::GenericKind::kI31) {
         // If earlier optimization passes reached the limit of possible graph
@@ -895,7 +876,6 @@ class WasmLoweringReducer : public Next {
                                   WasmTypeCheckConfig config) {
     DCHECK(rtt.has_value());
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
-    bool object_can_be_null = config.from.is_nullable();
     bool object_can_be_i31 = wasm::IsSubtypeOf(
         wasm::kWasmI31Ref.AsNonNull(), config.from.AsNonShared(), module_);
 
@@ -903,14 +883,13 @@ class WasmLoweringReducer : public Next {
     bool is_cast_from_any =
         config.from.is_reference_to(wasm::GenericKind::kAny);
 
-    // If we are casting from any and null results in check failure, then the
-    // {IsDataRefMap} check below subsumes the null check. Otherwise, perform
-    // an explicit null check now.
-    if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
+    if (config.from.is_nullable()) {
       V<Word32> is_null = __ IsNull(object, wasm::kWasmAnyRef);
       if (config.to.is_nullable()) {
         GOTO_IF(UNLIKELY(is_null), end_label);
       } else if (!v8_flags.wasm_skip_null_checks) {
+        // TODO(jkummerow): Consider using a trapping map load instead, and
+        // adjusting its message to be "illegal cast" instead of "null deref".
         __ TrapIf(is_null, frame_state, TrapId::kTrapIllegalCast);
       }
     }
@@ -952,7 +931,7 @@ class WasmLoweringReducer : public Next {
         __ TrapIfNot(is_wasm_obj, frame_state, TrapId::kTrapIllegalCast);
       }
 
-      V<Object> type_info = LoadWasmTypeInfo(map);
+      V<Object> type_info = __ LoadWasmTypeInfo(map);
       DCHECK_GE(rtt_depth, 0);
       // If the depth of the rtt is known to be less that the minimum supertype
       // array length, we can access the supertype without bounds-checking the
@@ -985,7 +964,6 @@ class WasmLoweringReducer : public Next {
                                    WasmTypeCheckConfig config) {
     DCHECK(rtt.has_value());
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
-    bool object_can_be_null = config.from.is_nullable();
     bool object_can_be_i31 = wasm::IsSubtypeOf(
         wasm::kWasmI31Ref.AsNonNull(), config.from.AsNonShared(), module_);
     bool is_cast_from_any =
@@ -993,10 +971,7 @@ class WasmLoweringReducer : public Next {
 
     Label<Word32> end_label(&Asm());
 
-    // If we are casting from any and null results in check failure, then the
-    // {IsDataRefMap} check below subsumes the null check. Otherwise, perform
-    // an explicit null check now.
-    if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
+    if (config.from.is_nullable()) {
       const int kResult = config.to.is_nullable() ? 1 : 0;
       GOTO_IF(UNLIKELY(__ IsNull(object, wasm::kWasmAnyRef)), end_label,
               kResult);
@@ -1035,7 +1010,7 @@ class WasmLoweringReducer : public Next {
         GOTO_IF_NOT(LIKELY(is_wasm_obj), end_label, 0);
       }
 
-      V<Object> type_info = LoadWasmTypeInfo(map);
+      V<Object> type_info = __ LoadWasmTypeInfo(map);
       DCHECK_GE(rtt_depth, 0);
       // If the depth of the rtt is known to be less that the minimum supertype
       // array length, we can access the supertype without bounds-checking the
@@ -1145,20 +1120,12 @@ class WasmLoweringReducer : public Next {
         comparison_value, LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE);
   }
 
-  V<Object> LoadWasmTypeInfo(V<Map> map) {
-    int offset = offsetof(Map, constructor_or_back_pointer_or_native_context_);
-    return __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
-                   MemoryRepresentation::TaggedPointer(), offset);
-  }
-
   std::pair<bool, bool> null_checks_for_struct_op(CheckForNull null_check,
-                                                  int field_index,
-                                                  bool requires_alignment) {
+                                                  int field_index) {
     bool explicit_null_check =
         null_check == kWithNullCheck &&
         (null_check_strategy_ == NullCheckStrategy::kExplicit ||
-         field_index > wasm::kMaxStructFieldIndexForImplicitNullCheck ||
-         requires_alignment);
+         field_index > wasm::kMaxStructFieldIndexForImplicitNullCheck);
     bool implicit_null_check =
         null_check == kWithNullCheck && !explicit_null_check;
     return {explicit_null_check, implicit_null_check};

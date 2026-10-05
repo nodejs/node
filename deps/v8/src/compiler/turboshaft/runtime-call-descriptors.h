@@ -27,6 +27,11 @@ struct runtime : CallDescriptorBuilder {
 
   template <typename Derived>
   struct Descriptor {
+    // Default effects are CanCallAnything to be as safe as possible. Individual
+    // RuntimeCallDescriptor can declare their own kEffects fields with narrower
+    // effects if desired.
+    static constexpr OpEffects kEffects = OpEffects().CanCallAnything();
+
     static const TSCallDescriptor* Create(size_t actual_argument_count,
                                           Zone* zone,
                                           LazyDeoptOnThrow lazy_deopt_on_throw,
@@ -439,6 +444,8 @@ struct runtime : CallDescriptorBuilder {
     // frame.
     static constexpr bool kCanTriggerLazyDeopt = false;
     static constexpr Operator::Properties kProperties = Operator::kFoldable;
+    static constexpr OpEffects kEffects =
+        OpEffects().CanAllocate().RequiredWhenUnused();
   };
 
   struct ArrayIsArray : public Descriptor<ArrayIsArray> {

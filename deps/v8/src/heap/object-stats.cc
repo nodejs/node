@@ -25,6 +25,8 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/object-conversions-inl.h"
+#include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/prototype-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/templates.h"
@@ -955,6 +957,8 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
                                  StatsEnum::NUMBER_STRING_CACHE_TYPE);
   RecordSimpleVirtualObjectStats({}, heap_->string_split_cache(),
                                  StatsEnum::STRING_SPLIT_CACHE_TYPE);
+  RecordSimpleVirtualObjectStats({}, heap_->regexp_split_cache(),
+                                 StatsEnum::STRING_SPLIT_CACHE_TYPE);
   RecordSimpleVirtualObjectStats({}, heap_->regexp_multiple_cache(),
                                  StatsEnum::REGEXP_MULTIPLE_CACHE_TYPE);
 
@@ -1131,6 +1135,7 @@ void ObjectStatsCollectorImpl::
     RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
         Tagged<HeapObject> parent, Tagged<HeapObject> object,
         ObjectStats::VirtualInstanceType type) {
+  if (IsInaccessible(object)) return;
   if (!RecordSimpleVirtualObjectStats(parent, object, type)) return;
   if (IsFixedArrayExact(object)) {
     Tagged<FixedArray> array = Cast<FixedArray>(object);
@@ -1210,7 +1215,8 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(
   int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
   for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-    Tagged<Object> target = it.rinfo()->target_object();
+    Tagged<HeapObject> target = it.rinfo()->target_object();
+    if (IsInaccessible(target)) continue;
     if (IsFixedArrayExact(target)) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           istream, Cast<HeapObject>(target), StatsEnum::EMBEDDED_OBJECT_TYPE);
@@ -1272,6 +1278,7 @@ void IterateHeap(Heap* heap, ObjectStatsVisitor* visitor) {
   CombinedHeapObjectIterator iterator(heap);
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
+    if (IsInaccessible(obj)) continue;
     visitor->Visit(obj);
   }
 }

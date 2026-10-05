@@ -15,6 +15,7 @@
 #include "src/__support/CPP/new.h"
 #include "src/__support/File/file.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/close.h"
+#include "src/__support/OSUtil/linux/syscall_wrappers/dup2.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/fcntl.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/lseek.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/open.h"
@@ -52,21 +53,23 @@ ErrorOr<off_t> linux_file_seek(File *f, off_t offset, int whence) {
 int linux_file_close(File *f) {
   File::remove_file(f);
   auto *lf = reinterpret_cast<LinuxFile *>(f);
-  auto ret = linux_syscalls::close(lf->get_fd());
-  if (!ret) {
-    return ret.error();
+  int retval = 0;
+  if (lf->get_fd() >= 0) {
+    // Linux closes the file descriptor early in the syscall, so we assume it's
+    // always closed after the call. That means we should also delete the
+    // LinuxFile on error.
+    auto result = linux_syscalls::close(lf->get_fd());
+    if (!result)
+      retval = result.error();
+  } else {
+    retval = EBADF;
   }
   delete lf;
-  return 0;
+  return retval;
 }
 
-ErrorOr<File *> openfile(const char *path, const char *mode) {
+static int mode_flags_to_open_flags(File::ModeFlags modeflags) {
   using ModeFlags = File::ModeFlags;
-  auto modeflags = File::mode_flags(mode);
-  if (modeflags == 0) {
-    // return {nullptr, EINVAL};
-    return Error(EINVAL);
-  }
   int open_flags = 0;
   if (modeflags & ModeFlags(File::OpenMode::APPEND)) {
     open_flags = O_CREAT | O_APPEND;
@@ -86,6 +89,15 @@ ErrorOr<File *> openfile(const char *path, const char *mode) {
     else
       open_flags |= O_RDONLY;
   }
+  return open_flags;
+}
+
+ErrorOr<File *> openfile(const char *path, const char *mode) {
+  auto modeflags = File::mode_flags(mode);
+  if (modeflags == 0) {
+    return Error(EINVAL);
+  }
+  int open_flags = mode_flags_to_open_flags(modeflags);
 
   // File created will have 0666 permissions.
   constexpr mode_t OPEN_MODE =
@@ -125,10 +137,18 @@ ErrorOr<LinuxFile *> create_file_from_fd(int fd, const char *mode) {
   int fd_flags = result.value();
 
   using OpenMode = File::OpenMode;
-  if (((fd_flags & O_ACCMODE) == O_RDONLY &&
-       !(modeflags & static_cast<ModeFlags>(OpenMode::READ))) ||
-      ((fd_flags & O_ACCMODE) == O_WRONLY &&
-       !(modeflags & static_cast<ModeFlags>(OpenMode::WRITE)))) {
+  using ModeFlags = File::ModeFlags;
+
+  constexpr ModeFlags REQUIRES_WRITE =
+      static_cast<ModeFlags>(OpenMode::WRITE) |
+      static_cast<ModeFlags>(OpenMode::APPEND) |
+      static_cast<ModeFlags>(OpenMode::PLUS);
+
+  constexpr ModeFlags REQUIRES_READ = static_cast<ModeFlags>(OpenMode::READ) |
+                                      static_cast<ModeFlags>(OpenMode::PLUS);
+
+  if (((fd_flags & O_ACCMODE) == O_RDONLY && (modeflags & REQUIRES_WRITE)) ||
+      ((fd_flags & O_ACCMODE) == O_WRONLY && (modeflags & REQUIRES_READ))) {
     return Error(EINVAL);
   }
 
@@ -169,9 +189,138 @@ ErrorOr<LinuxFile *> create_file_from_fd(int fd, const char *mode) {
   return file;
 }
 
+int LinuxFile::reopen_unlocked(const char *path, const char *mode) {
+  flush_unlocked();
+
+  auto modeflags = File::mode_flags(mode);
+
+  if (path != nullptr) {
+    int old_fd = get_fd();
+
+    if (modeflags == 0) {
+      if (old_fd >= 0) {
+        linux_syscalls::close(old_fd);
+        set_fd(-1);
+      }
+      reset_stream_state_unlocked(modeflags);
+      return EINVAL;
+    }
+
+    int open_flags = mode_flags_to_open_flags(modeflags);
+
+    constexpr mode_t OPEN_MODE =
+        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+
+    ErrorOr<int> new_fd = linux_syscalls::open(path, open_flags, OPEN_MODE);
+
+    // If the new file fails to open, POSIX says we still have to close the old
+    // file.
+    if (!new_fd) {
+      if (old_fd >= 0) {
+        // POSIX: "Failure to close the file descriptor successfully shall be
+        // ignored"
+        linux_syscalls::close(old_fd);
+
+        set_fd(-1);
+      }
+      reset_stream_state_unlocked(modeflags);
+      return new_fd.error();
+    }
+
+    // Else the new file successfully opened, so we move it into the fd the old
+    // file was using if the old fd exists.
+    if (old_fd >= 0) {
+      auto dup_result = linux_syscalls::dup2(new_fd.value(), old_fd);
+      if (!dup_result) {
+        linux_syscalls::close(new_fd.value());
+        reset_stream_state_unlocked(modeflags);
+        return dup_result.error();
+      }
+      auto close_result = linux_syscalls::close(new_fd.value());
+      if (!close_result) {
+        reset_stream_state_unlocked(modeflags);
+        return close_result.error();
+      }
+    } else {
+      set_fd(new_fd.value());
+    }
+
+    reset_stream_state_unlocked(modeflags);
+    return 0;
+  }
+
+  if (modeflags == 0)
+    return EINVAL;
+
+  if (fd < 0)
+    return EBADF;
+
+  auto result = linux_syscalls::fcntl(fd, F_GETFL);
+  if (!result.has_value())
+    return EBADF;
+  int fd_flags = result.value();
+
+  using OpenMode = File::OpenMode;
+  using ModeFlags = File::ModeFlags;
+
+  constexpr ModeFlags REQUIRES_WRITE =
+      static_cast<ModeFlags>(OpenMode::WRITE) |
+      static_cast<ModeFlags>(OpenMode::APPEND) |
+      static_cast<ModeFlags>(OpenMode::PLUS);
+
+  constexpr ModeFlags REQUIRES_READ = static_cast<ModeFlags>(OpenMode::READ) |
+                                      static_cast<ModeFlags>(OpenMode::PLUS);
+
+  if (((fd_flags & O_ACCMODE) == O_RDONLY && (modeflags & REQUIRES_WRITE)) ||
+      ((fd_flags & O_ACCMODE) == O_WRONLY && (modeflags & REQUIRES_READ))) {
+    return EBADF;
+  }
+
+  bool do_seek = false;
+  bool is_append = modeflags & static_cast<ModeFlags>(OpenMode::APPEND);
+  bool has_append_flag = fd_flags & O_APPEND;
+
+  if (is_append && !has_append_flag) {
+    if (!linux_syscalls::fcntl(fd, F_SETFL,
+                               reinterpret_cast<void *>(fd_flags | O_APPEND))
+             .has_value()) {
+      return EBADF;
+    }
+    do_seek = true;
+  } else if (!is_append && has_append_flag) {
+    if (!linux_syscalls::fcntl(fd, F_SETFL,
+                               reinterpret_cast<void *>(fd_flags & ~O_APPEND))
+             .has_value()) {
+      return EBADF;
+    }
+  }
+
+  reset_stream_state_unlocked(modeflags);
+
+  if (do_seek) {
+    auto seek_result = linux_file_seek(this, 0, SEEK_END);
+    if (!seek_result.has_value())
+      return seek_result.error();
+  }
+  return 0;
+}
+
 int get_fileno(File *f) {
   auto *lf = reinterpret_cast<LinuxFile *>(f);
   return lf->get_fd();
+}
+
+int reopenfile(File *f, const char *path, const char *mode) {
+  f->lock();
+  int ret = reopenfile_unlocked(f, path, mode);
+  f->unlock();
+
+  return ret;
+}
+
+int reopenfile_unlocked(File *f, const char *path, const char *mode) {
+  auto *lf = reinterpret_cast<LinuxFile *>(f);
+  return lf->reopen_unlocked(path, mode);
 }
 
 } // namespace LIBC_NAMESPACE_DECL

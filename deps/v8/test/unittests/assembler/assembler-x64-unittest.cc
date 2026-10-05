@@ -3269,6 +3269,189 @@ TEST_F(AssemblerX64Test, AssemblerX64AVXVNNIINT8) {
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
+#ifdef V8_ENABLE_AVX10_1
+TEST_F(AssemblerX64Test, AVX10RegisterCodes) {
+  CHECK_EQ(16, xmm16.code());
+  CHECK_EQ(31, xmm31.code());
+  CHECK_EQ(1, xmm16.bit4());  // bit 4 set
+  CHECK_EQ(0, xmm15.bit4());
+  CHECK_EQ(0, xmm16.high_bit());  // bit 3 clear for code 16
+  CHECK_EQ(1, xmm24.high_bit());  // bit 3 set for code 24
+}
+#endif  // V8_ENABLE_AVX10_1
+
+#ifdef V8_ENABLE_AVX10_1
+TEST_F(AssemblerX64Test, AVX10Vpmullq) {
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  // Encoding-only test: force-enable AVX10_1 so it runs on any host.
+  CpuFeatureScope fscope(&masm, AVX10_1, CpuFeatureScope::kDontCheckSupported);
+
+  __ vpmullq(xmm3, xmm2, xmm1);
+  __ vpmullq(xmm19, xmm18, xmm17);
+  __ vpmullq(xmm3, xmm2, Operand(rbx, 64));
+  __ vpmullq(ymm3, ymm2, ymm1);
+  __ vpmullq(ymm3, ymm2, Operand(rbx, 128));
+  // CD8 edge cases (exercise Operand::to_evex_cd8 fallbacks):
+  __ vpmullq(xmm3, xmm2, Operand(rbx, 16));  // divisible -> compressed disp8
+  __ vpmullq(xmm3, xmm2, Operand(rbx, 20));  // not divisible -> disp32 fallback
+  __ vpmullq(xmm3, xmm2, Operand(rbx, 3200));  // cdisp8 out of int8 -> disp32
+  // SIB (base+index) memory operand: exercises the to_evex_cd8 path where a SIB
+  // byte precedes the displacement.
+  __ vpmullq(xmm3, xmm2, Operand(rbx, rcx, times_1, 64));  // CD8: 64/16 = 4
+  // RIP-relative (label) operand: must pass through to_evex_cd8 unchanged.
+  Label rip_label;
+  __ bind(&rip_label);
+  __ vpmullq(xmm3, xmm2, Operand(&rip_label));
+
+  // Capture the emitted instruction length before GetCode(): GetCode() pads the
+  // stream to kMetadataAlignment (desc.instr_size would include that padding).
+  int instruction_length = masm.pc_offset();
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+
+  uint8_t expected[] = {
+      // vpmullq xmm3, xmm2, xmm1
+      0x62, 0xf2, 0xed, 0x08, 0x40, 0xd9,
+      // vpmullq xmm19, xmm18, xmm17   (high registers: R'/V'/B')
+      0x62, 0xa2, 0xed, 0x00, 0x40, 0xd9,
+      // vpmullq xmm3, xmm2, [rbx+0x40]  (CD8: 64/16 = 4)
+      0x62, 0xf2, 0xed, 0x08, 0x40, 0x5b, 0x04,
+      // vpmullq ymm3, ymm2, ymm1
+      0x62, 0xf2, 0xed, 0x28, 0x40, 0xd9,
+      // vpmullq ymm3, ymm2, [rbx+0x80]  (CD8: 128/32 = 4)
+      0x62, 0xf2, 0xed, 0x28, 0x40, 0x5b, 0x04,
+      // vpmullq xmm3, xmm2, [rbx+0x10]  (CD8: 16/16 = 1, compressed disp8)
+      0x62, 0xf2, 0xed, 0x08, 0x40, 0x5b, 0x01,
+      // vpmullq xmm3, xmm2, [rbx+0x14]  (20 not divisible by 16 -> disp32)
+      0x62, 0xf2, 0xed, 0x08, 0x40, 0x9b, 0x14, 0x00, 0x00, 0x00,
+      // vpmullq xmm3, xmm2, [rbx+0xc80]  (3200/16=200 out of int8 -> disp32)
+      0x62, 0xf2, 0xed, 0x08, 0x40, 0x9b, 0x80, 0x0c, 0x00, 0x00,
+      // vpmullq xmm3, xmm2, [rbx+rcx*1+0x40]  (SIB; CD8: 64/16 = 4)
+      0x62, 0xf2, 0xed, 0x08, 0x40, 0x5c, 0x0b, 0x04,
+      // vpmullq xmm3, xmm2, [rip-0xa]  (RIP-relative disp32, no CD8 scaling)
+      0x62, 0xf2, 0xed, 0x08, 0x40, 0x1d, 0xf6, 0xff, 0xff, 0xff};
+  CHECK_EQ(static_cast<int>(sizeof(expected)), instruction_length);
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+#endif  // V8_ENABLE_AVX10_1
+
+#ifdef V8_ENABLE_AVX10_1
+TEST_F(AssemblerX64Test, AVX10IntegerArith) {
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, AVX10_1, CpuFeatureScope::kDontCheckSupported);
+
+  // vpsraq — variable count (xmm/m128)
+  __ vpsraq(xmm3, xmm2, xmm1);
+  __ vpsraq(xmm3, xmm2, Operand(rbx, 64));
+  // vpsraq — imm8
+  __ vpsraq(xmm3, xmm2, uint8_t{5});
+  __ vpsraq(ymm3, ymm2, uint8_t{5});
+  __ vpsraq(xmm3, Operand(rbx, 64), uint8_t{5});
+  // vpabsq — unary
+  __ vpabsq(xmm2, xmm1);
+  __ vpabsq(ymm2, ymm1);
+  __ vpabsq(xmm2, Operand(rbx, 64));
+  // vpminsq — binary
+  __ vpminsq(xmm3, xmm2, xmm1);
+  __ vpminsq(ymm3, ymm2, ymm1);
+  __ vpminsq(xmm3, xmm2, Operand(rbx, 64));
+  // vpopcntb — unary (W0)
+  __ vpopcntb(xmm2, xmm1);
+  __ vpopcntb(ymm18, ymm17);
+  __ vpopcntb(xmm2, Operand(rbx, 32));
+
+  // Capture the emitted instruction length before GetCode(): GetCode() pads the
+  // stream to kMetadataAlignment (desc.instr_size would include that padding).
+  int instruction_length = masm.pc_offset();
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+
+  uint8_t expected[] = {
+      // vpsraq xmm3, xmm2, xmm1
+      0x62, 0xf1, 0xed, 0x08, 0xe2, 0xd9,
+      // vpsraq xmm3, xmm2, [rbx+0x40]  (CD8: 64/16 = 4)
+      0x62, 0xf1, 0xed, 0x08, 0xe2, 0x5b, 0x04,
+      // vpsraq xmm3, xmm2, 0x5
+      0x62, 0xf1, 0xe5, 0x08, 0x72, 0xe2, 0x05,
+      // vpsraq ymm3, ymm2, 0x5
+      0x62, 0xf1, 0xe5, 0x28, 0x72, 0xe2, 0x05,
+      // vpsraq xmm3, [rbx+0x40], 0x5  (CD8: 64/16 = 4)
+      0x62, 0xf1, 0xe5, 0x08, 0x72, 0x63, 0x04, 0x05,
+      // vpabsq xmm2, xmm1
+      0x62, 0xf2, 0xfd, 0x08, 0x1f, 0xd1,
+      // vpabsq ymm2, ymm1
+      0x62, 0xf2, 0xfd, 0x28, 0x1f, 0xd1,
+      // vpabsq xmm2, [rbx+0x40]  (CD8: 64/16 = 4)
+      0x62, 0xf2, 0xfd, 0x08, 0x1f, 0x53, 0x04,
+      // vpminsq xmm3, xmm2, xmm1
+      0x62, 0xf2, 0xed, 0x08, 0x39, 0xd9,
+      // vpminsq ymm3, ymm2, ymm1
+      0x62, 0xf2, 0xed, 0x28, 0x39, 0xd9,
+      // vpminsq xmm3, xmm2, [rbx+0x40]  (CD8: 64/16 = 4)
+      0x62, 0xf2, 0xed, 0x08, 0x39, 0x5b, 0x04,
+      // vpopcntb xmm2, xmm1
+      0x62, 0xf2, 0x7d, 0x08, 0x54, 0xd1,
+      // vpopcntb ymm18, ymm17   (high registers)
+      0x62, 0xa2, 0x7d, 0x28, 0x54, 0xd1,
+      // vpopcntb xmm2, [rbx+0x20]  (byte element, CD8: 32/16 = 2)
+      0x62, 0xf2, 0x7d, 0x08, 0x54, 0x53, 0x02};
+  CHECK_EQ(static_cast<int>(sizeof(expected)), instruction_length);
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+#endif  // V8_ENABLE_AVX10_1
+
+#ifdef V8_ENABLE_AVX10_1
+TEST_F(AssemblerX64Test, AVX10TernaryLogic) {
+  Isolate* isolate = i_isolate();
+  HandleScope scope(isolate);
+  uint8_t buffer[256];
+  Assembler masm(AssemblerOptions{},
+                 ExternalAssemblerBuffer(buffer, sizeof(buffer)));
+  // Encoding-only test: force-enable AVX10_1 so it runs on any host.
+  CpuFeatureScope fscope(&masm, AVX10_1, CpuFeatureScope::kDontCheckSupported);
+
+  // vpternlogd — W0. reg-reg, high registers (R'/V'/B'), one reg-mem case.
+  __ vpternlogd(xmm3, xmm2, xmm1, 0x33);
+  __ vpternlogd(xmm19, xmm18, xmm17, 0x33);
+  __ vpternlogd(xmm3, xmm2, Operand(rbx, 64), 0x33);
+  __ vpternlogd(ymm3, ymm2, ymm1, 0x33);
+  // vpternlogq — W1.
+  __ vpternlogq(xmm3, xmm2, xmm1, 0xca);
+  __ vpternlogq(ymm3, ymm2, ymm1, 0xca);
+  // Masking: {k1} merging and {k1}{z} zeroing.
+  __ vpternlogd(xmm3, xmm2, xmm1, 0x33, Assembler::k1);
+  __ vpternlogd(xmm3, xmm2, xmm1, 0x33, Assembler::k1, Assembler::kZeroing);
+
+  int instruction_length = masm.pc_offset();
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+
+  uint8_t expected[] = {
+      // vpternlogd xmm3,xmm2,xmm1,0x33
+      0x62, 0xf3, 0x6d, 0x08, 0x25, 0xd9, 0x33,
+      // vpternlogd xmm19,xmm18,xmm17,0x33   (high regs: R'/V'/B')
+      0x62, 0xa3, 0x6d, 0x00, 0x25, 0xd9, 0x33,
+      // vpternlogd xmm3,xmm2,[rbx+0x40],0x33   (CD8: 64/16 = 4)
+      0x62, 0xf3, 0x6d, 0x08, 0x25, 0x5b, 0x04, 0x33,
+      // vpternlogd ymm3,ymm2,ymm1,0x33
+      0x62, 0xf3, 0x6d, 0x28, 0x25, 0xd9, 0x33,
+      // vpternlogq xmm3,xmm2,xmm1,0xca   (W1)
+      0x62, 0xf3, 0xed, 0x08, 0x25, 0xd9, 0xca,
+      // vpternlogq ymm3,ymm2,ymm1,0xca
+      0x62, 0xf3, 0xed, 0x28, 0x25, 0xd9, 0xca,
+      // vpternlogd xmm3{k1},xmm2,xmm1,0x33   (masked, merging)
+      0x62, 0xf3, 0x6d, 0x09, 0x25, 0xd9, 0x33,
+      // vpternlogd xmm3{k1}{z},xmm2,xmm1,0x33   (masked, zeroing)
+      0x62, 0xf3, 0x6d, 0x89, 0x25, 0xd9, 0x33};
+  CHECK_EQ(static_cast<int>(sizeof(expected)), instruction_length);
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+#endif  // V8_ENABLE_AVX10_1
+
 TEST_F(AssemblerX64Test, CpuFeatures_ProbeImpl) {
   // Support for a newer extension implies support for the older extensions.
   CHECK_IMPLIES(CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(AVX));

@@ -14,12 +14,6 @@
 
 #include "absl/time/time.h"
 
-#include "absl/time/civil_time.h"
-
-#if defined(_MSC_VER)
-#include <winsock2.h>  // for timeval
-#endif
-
 #include "absl/base/config.h"
 
 // For feature testing and determining which headers can be included.
@@ -45,8 +39,13 @@
 #include "absl/hash/hash_testing.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/str_format.h"
+#include "absl/time/civil_time.h"
 #include "absl/time/clock.h"
 #include "absl/time/internal/test_util.h"
+
+#if defined(_MSC_VER)
+#include <winsock2.h>  // for timeval
+#endif
 
 namespace {
 
@@ -194,46 +193,46 @@ TEST(Time, RelationalOperators) {
   constexpr absl::Time t2 = absl::FromUnixNanos(1);
   constexpr absl::Time t3 = absl::FromUnixNanos(2);
 
-  static_assert(absl::UnixEpoch() == t1, "");
-  static_assert(t1 == t1, "");
-  static_assert(t2 == t2, "");
-  static_assert(t3 == t3, "");
+  static_assert(absl::UnixEpoch() == t1);
+  static_assert(t1 == t1);
+  static_assert(t2 == t2);
+  static_assert(t3 == t3);
 
-  static_assert(t1 < t2, "");
-  static_assert(t2 < t3, "");
-  static_assert(t1 < t3, "");
+  static_assert(t1 < t2);
+  static_assert(t2 < t3);
+  static_assert(t1 < t3);
 
-  static_assert(t1 <= t1, "");
-  static_assert(t1 <= t2, "");
-  static_assert(t2 <= t2, "");
-  static_assert(t2 <= t3, "");
-  static_assert(t3 <= t3, "");
-  static_assert(t1 <= t3, "");
+  static_assert(t1 <= t1);
+  static_assert(t1 <= t2);
+  static_assert(t2 <= t2);
+  static_assert(t2 <= t3);
+  static_assert(t3 <= t3);
+  static_assert(t1 <= t3);
 
-  static_assert(t2 > t1, "");
-  static_assert(t3 > t2, "");
-  static_assert(t3 > t1, "");
+  static_assert(t2 > t1);
+  static_assert(t3 > t2);
+  static_assert(t3 > t1);
 
-  static_assert(t2 >= t2, "");
-  static_assert(t2 >= t1, "");
-  static_assert(t3 >= t3, "");
-  static_assert(t3 >= t2, "");
-  static_assert(t1 >= t1, "");
-  static_assert(t3 >= t1, "");
+  static_assert(t2 >= t2);
+  static_assert(t2 >= t1);
+  static_assert(t3 >= t3);
+  static_assert(t3 >= t2);
+  static_assert(t1 >= t1);
+  static_assert(t3 >= t1);
 
 #ifdef ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON
 
-  static_assert((t1 <=> t1) == std::strong_ordering::equal, "");
-  static_assert((t2 <=> t2) == std::strong_ordering::equal, "");
-  static_assert((t3 <=> t3) == std::strong_ordering::equal, "");
+  static_assert((t1 <=> t1) == std::strong_ordering::equal);
+  static_assert((t2 <=> t2) == std::strong_ordering::equal);
+  static_assert((t3 <=> t3) == std::strong_ordering::equal);
 
-  static_assert((t1 <=> t2) == std::strong_ordering::less, "");
-  static_assert((t2 <=> t3) == std::strong_ordering::less, "");
-  static_assert((t1 <=> t3) == std::strong_ordering::less, "");
+  static_assert((t1 <=> t2) == std::strong_ordering::less);
+  static_assert((t2 <=> t3) == std::strong_ordering::less);
+  static_assert((t1 <=> t3) == std::strong_ordering::less);
 
-  static_assert((t2 <=> t1) == std::strong_ordering::greater, "");
-  static_assert((t3 <=> t2) == std::strong_ordering::greater, "");
-  static_assert((t3 <=> t1) == std::strong_ordering::greater, "");
+  static_assert((t2 <=> t1) == std::strong_ordering::greater);
+  static_assert((t3 <=> t2) == std::strong_ordering::greater);
+  static_assert((t3 <=> t1) == std::strong_ordering::greater);
 
 #endif  // ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON
 }
@@ -242,17 +241,17 @@ TEST(Time, Infinity) {
   constexpr absl::Time ifuture = absl::InfiniteFuture();
   constexpr absl::Time ipast = absl::InfinitePast();
 
-  static_assert(ifuture == ifuture, "");
-  static_assert(ipast == ipast, "");
-  static_assert(ipast < ifuture, "");
-  static_assert(ifuture > ipast, "");
+  static_assert(ifuture == ifuture);
+  static_assert(ipast == ipast);
+  static_assert(ipast < ifuture);
+  static_assert(ifuture > ipast);
 
 #ifdef ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON
 
-  static_assert((ifuture <=> ifuture) == std::strong_ordering::equal, "");
-  static_assert((ipast <=> ipast) == std::strong_ordering::equal, "");
-  static_assert((ipast <=> ifuture) == std::strong_ordering::less, "");
-  static_assert((ifuture <=> ipast) == std::strong_ordering::greater, "");
+  static_assert((ifuture <=> ifuture) == std::strong_ordering::equal);
+  static_assert((ipast <=> ipast) == std::strong_ordering::equal);
+  static_assert((ipast <=> ifuture) == std::strong_ordering::less);
+  static_assert((ifuture <=> ipast) == std::strong_ordering::greater);
 
 #endif  // ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON
 
@@ -268,15 +267,15 @@ TEST(Time, Infinity) {
   EXPECT_EQ(-absl::InfiniteDuration(), ipast - ipast);
 
   constexpr absl::Time t = absl::UnixEpoch();  // Any finite time.
-  static_assert(t < ifuture, "");
-  static_assert(t > ipast, "");
+  static_assert(t < ifuture);
+  static_assert(t > ipast);
 
 #ifdef ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON
 
-  static_assert((t <=> ifuture) == std::strong_ordering::less, "");
-  static_assert((t <=> ipast) == std::strong_ordering::greater, "");
-  static_assert((ipast <=> t) == std::strong_ordering::less, "");
-  static_assert((ifuture <=> t) == std::strong_ordering::greater, "");
+  static_assert((t <=> ifuture) == std::strong_ordering::less);
+  static_assert((t <=> ipast) == std::strong_ordering::greater);
+  static_assert((ipast <=> t) == std::strong_ordering::less);
+  static_assert((ifuture <=> t) == std::strong_ordering::greater);
 
 #endif  // ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON
 

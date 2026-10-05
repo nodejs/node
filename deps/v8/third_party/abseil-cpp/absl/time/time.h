@@ -62,19 +62,6 @@
 #ifndef ABSL_TIME_TIME_H_
 #define ABSL_TIME_TIME_H_
 
-#if !defined(_MSC_VER)
-#include <sys/time.h>
-#else
-// We don't include `winsock2.h` because it drags in `windows.h` and friends,
-// and they define conflicting macros like OPAQUE, ERROR, and more. This has the
-// potential to break Abseil users.
-//
-// Instead we only forward declare `timeval` and require Windows users include
-// `winsock2.h` themselves. This is both inconsistent and troublesome, but so is
-// including 'windows.h' so we are picking the lesser of two evils here.
-struct timeval;
-#endif
-
 #include "absl/base/config.h"
 
 // For feature testing and determining which headers can be included.
@@ -101,6 +88,19 @@ struct timeval;
 #include "absl/strings/string_view.h"
 #include "absl/time/civil_time.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
+
+#if !defined(_MSC_VER)
+#include <sys/time.h>
+#else
+// We don't include `winsock2.h` because it drags in `windows.h` and friends,
+// and they define conflicting macros like OPAQUE, ERROR, and more. This has the
+// potential to break Abseil users.
+//
+// Instead we only forward declare `timeval` and require Windows users include
+// `winsock2.h` themselves. This is both inconsistent and troublesome, but so is
+// including 'windows.h' so we are picking the lesser of two evils here.
+struct timeval;
+#endif
 
 #if defined(__cpp_impl_three_way_comparison) && \
     defined(__cpp_lib_three_way_comparison)

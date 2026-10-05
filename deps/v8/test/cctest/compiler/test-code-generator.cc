@@ -16,6 +16,7 @@
 #include "src/compiler/linkage.h"
 #include "src/execution/isolate.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "test/cctest/cctest.h"

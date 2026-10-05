@@ -42,8 +42,6 @@ MutablePage::MutablePage(Heap* heap, BaseSpace* space, size_t chunk_size,
   // aligning the metadata on x64 (before, the metadata started at offset 0x10).
   // After reordering, the impact is still 0.1%/0.2% on jetstream2/speedometer3,
   // so there should be some more optimization potential here.
-  // TODO(mlippautz): Replace 64 below with
-  // `hardware_destructive_interference_size` once supported.
   static constexpr auto kOffsetOfFirstFastField = offsetof(MutablePage, heap_);
   static constexpr auto kOffsetOfLastFastField =
       offsetof(MutablePage, slot_set_) +
@@ -51,7 +49,9 @@ MutablePage::MutablePage(Heap* heap, BaseSpace* space, size_t chunk_size,
   // This assert is merely necessary but not sufficient to guarantee that the
   // fields sit on the same cacheline as the metadata object itself is
   // dynamically allocated without alignment restrictions.
-  static_assert(kOffsetOfFirstFastField / 64 == kOffsetOfLastFastField / 64);
+  static_assert(
+      kOffsetOfFirstFastField / std::hardware_destructive_interference_size ==
+      kOffsetOfLastFastField / std::hardware_destructive_interference_size);
 }
 
 // static

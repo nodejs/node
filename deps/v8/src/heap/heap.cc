@@ -1023,9 +1023,6 @@ void Heap::PublishMainThreadPendingAllocations() {
 }
 
 void Heap::DeoptMarkedAllocationSites() {
-  // TODO(hpayer): If iterating over the allocation sites list becomes a
-  // performance issue, use a cache data structure in heap instead.
-
   ForeachAllocationSite(
       allocation_sites_list(), [this](Tagged<AllocationSite> site) {
         if (site->deopt_dependent_code()) {
@@ -2608,6 +2605,7 @@ void Heap::MarkCompactPrologue() {
   TRACE_GC(tracer(), GCTracer::Scope::MC_PROLOGUE);
   isolate_->descriptor_lookup_cache()->Clear();
   regexp::ResultsCache::Clear(string_split_cache());
+  regexp::ResultsCache::Clear(regexp_split_cache());
   regexp::ResultsCache::Clear(regexp_multiple_cache());
   regexp::ResultsCache_MatchGlobalAtom::Clear(this);
 
@@ -4502,6 +4500,7 @@ bool IsInterestingObjectStart(MapWord map_word) {
 bool ClearStaleLeftTrimmedPointerVisitor::IsLeftTrimmed(FullObjectSlot p) {
   Tagged<HeapObject> current;
   if (!TryCast<HeapObject>(*p, &current)) return false;
+  if (IsInaccessible(current)) return false;
   // Using MapWord instead of `current` directly defends against concurrent
   // Scavenge tasks installing forward pointers on `current`.
   MapWord map_word = current->map_word(kRelaxedLoad);
@@ -4665,23 +4664,11 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
     v->Synchronize(VisitorSynchronization::kEternalHandles);
 
     // Iterate over pending Microtasks stored in MicrotaskQueues.
-#ifdef V8_CPPGC_MICROTASK_QUEUE
     for (const auto& weak_ptr : isolate_->microtask_queues()) {
       if (weak_ptr) {
         weak_ptr->IterateMicrotasks(v);
       }
     }
-#else
-    MicrotaskQueue* default_microtask_queue =
-        isolate_->default_microtask_queue();
-    if (default_microtask_queue) {
-      MicrotaskQueue* microtask_queue = default_microtask_queue;
-      do {
-        microtask_queue->IterateMicrotasks(v);
-        microtask_queue = microtask_queue->next();
-      } while (microtask_queue != default_microtask_queue);
-    }
-#endif  // V8_CPPGC_MICROTASK_QUEUE
     v->Synchronize(VisitorSynchronization::kMicroTasks);
 
     // Iterate over other strong roots (currently only identity maps and

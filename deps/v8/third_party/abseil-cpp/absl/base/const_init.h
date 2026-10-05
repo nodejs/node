@@ -30,8 +30,8 @@
 // undefined behavior, unless their constructors and destructors are designed
 // with this issue in mind.
 //
-// The normal way to deal with this issue in C++11 is to use constant
-// initialization and trivial destructors.
+// The normal way to deal with this issue is to use constant initialization and
+// trivial destructors.
 //
 // Constant initialization is guaranteed to occur before any other code
 // executes.  Constructors that are declared 'constexpr' are eligible for

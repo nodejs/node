@@ -665,6 +665,10 @@ class V8_EXPORT Isolate {
     kOBSOLETE_WasmResizableBuffers = 183,
     kInvalidatedArrayBufferMutableProtector = 184,
     kHoleyArrayReadthrough = 185,
+    kWasmGCAllocation = 186,
+    kModuleNamespaceMissingDefaultWithStarExport = 187,
+    kRegExpMatcherFlagsMismatch = 188,
+    kRegExpCustomSpecies = 189,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -971,18 +975,19 @@ class V8_EXPORT Isolate {
   V8_INLINE MaybeLocal<T> GetDataFromSnapshotOnce(size_t index);
 
   /**
-   * Returns the value that was set or restored by
-   * SetContinuationPreservedEmbedderData(), if any.
+   * Returns the value set by `SetContinuationPreservedEmbedderData()` or
+   * restored during microtask execution for the currently running continuation,
+   * if any. Returns undefiend if no continuation preserved embedder data was
+   * set.
    */
-  V8_DEPRECATED("Use GetContinuationPreservedEmbedderDataV2 instead")
-  Local<Value> GetContinuationPreservedEmbedderData();
+  Local<Data> GetContinuationPreservedEmbedderData();
 
   /**
-   * Sets a value that will be stored on continuations and reset while the
-   * continuation runs.
+   * Sets a value that will be stored on continuations and restored while the
+   * continuation runs. If `data` is empty, the continuation preserved embedder
+   * data is set to undefined.
    */
-  V8_DEPRECATED("Use SetContinuationPreservedEmbedderDataV2 instead")
-  void SetContinuationPreservedEmbedderData(Local<Value> data);
+  void SetContinuationPreservedEmbedderData(Local<Data> data);
 
   /**
    * Returns the value set by `SetContinuationPreservedEmbedderDataV2()` or
@@ -1509,7 +1514,7 @@ class V8_EXPORT Isolate {
    * The optional parameter |dependant_context| specifies whether the disposed
    * context was depending on state from other contexts or not.
    */
-  V8_DEPRECATE_SOON("Use version that passes ContextDependants.")
+  V8_DEPRECATED("Use version that passes ContextDependants.")
   int ContextDisposedNotification(bool dependant_context = true);
 
   /**

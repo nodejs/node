@@ -491,6 +491,43 @@ TEST_F(LateLoadEliminationReducerTest,
 #endif
 }
 
+TEST_F(LateLoadEliminationReducerTest,
+       IndexedStore_Invalidates_Offset_On_Other_Object) {
+  auto test = CreateFromGraph(
+      base::VectorOf({RegisterRepresentation::Tagged(),
+                      RegisterRepresentation::Tagged(),
+                      RegisterRepresentation::WordPtr()}),
+      [](auto& Asm) {
+        V<HeapObject> obj1 = V<HeapObject>::Cast(Asm.GetParameter(0));
+        V<HeapObject> obj2 = V<HeapObject>::Cast(Asm.GetParameter(1));
+        V<WordPtr> index = Asm.template GetParameter<WordPtr>(2);
+
+        // Initial load from obj2 at offset 8.
+        constexpr int kOffset = 8;
+        constexpr MemoryRepresentation kRep = MemoryRepresentation::Int32();
+        V<Word32> C(load0) = __ Load(obj2, {}, LoadOp::Kind::TaggedBase(), kRep,
+                                     RegisterRepresentation::Word32(), kOffset);
+
+        // Indexed store to obj1 (which may alias obj2).
+        __ Store(obj1, index, __ Word32Constant(42),
+                 StoreOp::Kind::TaggedBase(), kRep,
+                 WriteBarrierKind::kNoWriteBarrier, /* offset= */ 0,
+                 kRep.SizeInBytesLog2());
+
+        // Second load from obj2 at offset 8.
+        V<Word32> C(load1) = __ Load(obj2, {}, LoadOp::Kind::TaggedBase(), kRep,
+                                     RegisterRepresentation::Word32(), kOffset);
+
+        __ Return(__ Word32Constant(0), base::VectorOf({load0, load1}));
+      });
+
+  test.Run<LateLoadEliminationReducer>();
+
+  // load1 MUST NOT be eliminated because obj1 may alias obj2 at runtime!
+  const LoadOp* load1 = test.GetCapturedAs<LoadOp>("load1");
+  ASSERT_NE(load1, nullptr);
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 
 class WasmLateLoadEliminationReducerTest

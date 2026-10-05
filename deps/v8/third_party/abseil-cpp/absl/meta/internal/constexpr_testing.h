@@ -49,8 +49,7 @@ constexpr F default_instance = default_instance<F>;
 #endif
 
 template <typename F>
-constexpr std::integral_constant<bool, (default_instance<F>(), true)> Tester(
-    int) {
+constexpr std::bool_constant<(default_instance<F>(), true)> Tester(int) {
   return {};
 }
 

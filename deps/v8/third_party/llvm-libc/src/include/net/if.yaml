@@ -6,9 +6,16 @@ macros:
     macro_header: net-if-macros.h
 types:
   - type_name: struct_ifreq
+  - type_name: struct_if_nameindex
 enums: []
 objects: []
 functions:
+  - name: if_freenameindex
+    standards:
+      - posix
+    return_type: void
+    arguments:
+      - type: struct if_nameindex *
   - name: if_indextoname
     standards:
       - posix
@@ -16,6 +23,11 @@ functions:
     arguments:
       - type: unsigned int
       - type: char *
+  - name: if_nameindex
+    standards:
+      - posix
+    return_type: struct if_nameindex *
+    arguments: []
   - name: if_nametoindex
     standards:
       - posix

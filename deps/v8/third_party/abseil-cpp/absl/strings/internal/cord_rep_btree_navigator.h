@@ -16,8 +16,11 @@
 #define ABSL_STRINGS_INTERNAL_CORD_REP_BTREE_NAVIGATOR_H_
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <iostream>
 
+#include "absl/base/optimization.h"
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cord_rep_btree.h"
 

@@ -74,6 +74,9 @@ function withProperty() {
 function sortSameKind(a) {
   return a.sort((x, y) => 0);
 }
+// The inlined path embeds the receiver maps weakly, so keep an instance of the
+// with-property map alive for the assertOptimized below.
+const keepAlive = withProperty();
 %PrepareFunctionForOptimization(sortSameKind);
 for (let i = 0; i < 100; ++i) {
   sortSameKind([{}, {}]);

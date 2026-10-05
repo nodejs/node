@@ -257,10 +257,6 @@ void DotPrinterImpl::VisitAction(ActionNode* that) {
           << that->register_to() << "\", shape=septagon";
       break;
     }
-    case ActionNode::MODIFY_FLAGS: {
-      os_ << "label=\"flags $" << that->flags() << "\", shape=septagon";
-      break;
-    }
     case ActionNode::EATS_AT_LEAST: {
       os_ << "label=\"eats at least $" << that->stored_eats_at_least()
           << "\", shape=septagon";

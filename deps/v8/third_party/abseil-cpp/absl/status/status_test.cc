@@ -19,6 +19,7 @@
 #include <array>
 #include <cstddef>
 #include <sstream>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -46,41 +47,82 @@ TEST(StatusCode, InsertionOperator) {
 }
 
 // This structure holds the details for testing a single error code,
-// its creator, and its classifier.
+// its creator, its rvalue creator, and its classifier.
 struct ErrorTest {
   absl::StatusCode code;
   using Creator = absl::Status (*)(absl::string_view, absl::SourceLocation);
-  using Classifier = bool (*)(const absl::Status&);
   Creator creator;
+  using CreatorRValue = absl::Status (*)(std::string&&, absl::SourceLocation);
+  CreatorRValue creator_rvalue;
+  using Classifier = bool (*)(const absl::Status&);
   Classifier classifier;
 };
 
 constexpr ErrorTest kErrorTests[]{
-    {absl::StatusCode::kCancelled, absl::CancelledError, absl::IsCancelled},
-    {absl::StatusCode::kUnknown, absl::UnknownError, absl::IsUnknown},
-    {absl::StatusCode::kInvalidArgument, absl::InvalidArgumentError,
-     absl::IsInvalidArgument},
-    {absl::StatusCode::kDeadlineExceeded, absl::DeadlineExceededError,
-     absl::IsDeadlineExceeded},
-    {absl::StatusCode::kNotFound, absl::NotFoundError, absl::IsNotFound},
-    {absl::StatusCode::kAlreadyExists, absl::AlreadyExistsError,
-     absl::IsAlreadyExists},
-    {absl::StatusCode::kPermissionDenied, absl::PermissionDeniedError,
-     absl::IsPermissionDenied},
-    {absl::StatusCode::kResourceExhausted, absl::ResourceExhaustedError,
-     absl::IsResourceExhausted},
-    {absl::StatusCode::kFailedPrecondition, absl::FailedPreconditionError,
-     absl::IsFailedPrecondition},
-    {absl::StatusCode::kAborted, absl::AbortedError, absl::IsAborted},
-    {absl::StatusCode::kOutOfRange, absl::OutOfRangeError, absl::IsOutOfRange},
-    {absl::StatusCode::kUnimplemented, absl::UnimplementedError,
-     absl::IsUnimplemented},
-    {absl::StatusCode::kInternal, absl::InternalError, absl::IsInternal},
-    {absl::StatusCode::kUnavailable, absl::UnavailableError,
-     absl::IsUnavailable},
-    {absl::StatusCode::kDataLoss, absl::DataLossError, absl::IsDataLoss},
-    {absl::StatusCode::kUnauthenticated, absl::UnauthenticatedError,
-     absl::IsUnauthenticated},
+    {absl::StatusCode::kCancelled,           //
+     absl::CancelledError,                   //
+     absl::CancelledError,                   //
+     absl::IsCancelled},                     //
+    {absl::StatusCode::kUnknown,             //
+     absl::UnknownError,                     //
+     absl::UnknownError,                     //
+     absl::IsUnknown},                       //
+    {absl::StatusCode::kInvalidArgument,     //
+     absl::InvalidArgumentError,             //
+     absl::InvalidArgumentError,             //
+     absl::IsInvalidArgument},               //
+    {absl::StatusCode::kDeadlineExceeded,    //
+     absl::DeadlineExceededError,            //
+     absl::DeadlineExceededError,            //
+     absl::IsDeadlineExceeded},              //
+    {absl::StatusCode::kNotFound,            //
+     absl::NotFoundError,                    //
+     absl::NotFoundError,                    //
+     absl::IsNotFound},                      //
+    {absl::StatusCode::kAlreadyExists,       //
+     absl::AlreadyExistsError,               //
+     absl::AlreadyExistsError,               //
+     absl::IsAlreadyExists},                 //
+    {absl::StatusCode::kPermissionDenied,    //
+     absl::PermissionDeniedError,            //
+     absl::PermissionDeniedError,            //
+     absl::IsPermissionDenied},              //
+    {absl::StatusCode::kResourceExhausted,   //
+     absl::ResourceExhaustedError,           //
+     absl::ResourceExhaustedError,           //
+     absl::IsResourceExhausted},             //
+    {absl::StatusCode::kFailedPrecondition,  //
+     absl::FailedPreconditionError,          //
+     absl::FailedPreconditionError,          //
+     absl::IsFailedPrecondition},            //
+    {absl::StatusCode::kAborted,             //
+     absl::AbortedError,                     //
+     absl::AbortedError,                     //
+     absl::IsAborted},                       //
+    {absl::StatusCode::kOutOfRange,          //
+     absl::OutOfRangeError,                  //
+     absl::OutOfRangeError,                  //
+     absl::IsOutOfRange},                    //
+    {absl::StatusCode::kUnimplemented,       //
+     absl::UnimplementedError,               //
+     absl::UnimplementedError,               //
+     absl::IsUnimplemented},                 //
+    {absl::StatusCode::kInternal,            //
+     absl::InternalError,                    //
+     absl::InternalError,                    //
+     absl::IsInternal},                      //
+    {absl::StatusCode::kUnavailable,         //
+     absl::UnavailableError,                 //
+     absl::UnavailableError,                 //
+     absl::IsUnavailable},                   //
+    {absl::StatusCode::kDataLoss,            //
+     absl::DataLossError,                    //
+     absl::DataLossError,                    //
+     absl::IsDataLoss},                      //
+    {absl::StatusCode::kUnauthenticated,     //
+     absl::UnauthenticatedError,             //
+     absl::UnauthenticatedError,             //
+     absl::IsUnauthenticated},               //
 };
 
 TEST(Status, CreateAndClassify) {
@@ -96,9 +138,16 @@ TEST(Status, CreateAndClassify) {
     EXPECT_EQ(test.code, status.code());
     EXPECT_EQ(message, status.message());
 
+    // Testing the rvalue creator.
+    absl::Status status_rvalue = test.creator_rvalue(
+        std::string(message), absl::SourceLocation::current());
+    EXPECT_EQ(test.code, status_rvalue.code());
+    EXPECT_EQ(message, status_rvalue.message());
+
     // Ensure that the classifier returns true for a status produced by the
     // creator.
     EXPECT_TRUE(test.classifier(status));
+    EXPECT_TRUE(test.classifier(status_rvalue));
 
     // Ensure that the classifier returns false for status with a different
     // code.
@@ -109,6 +158,37 @@ TEST(Status, CreateAndClassify) {
       }
     }
   }
+}
+
+// Test that status convenience functions can be called with a string literal.
+// Doing so to make sure it's not ambiguous between the string_view and string&&
+// overloads.
+TEST(Status, StringLiteralCreation) {
+  EXPECT_EQ(absl::AbortedError("msg").code(), absl::StatusCode::kAborted);
+  EXPECT_EQ(absl::AlreadyExistsError("msg").code(),
+            absl::StatusCode::kAlreadyExists);
+  EXPECT_EQ(absl::CancelledError("msg").code(), absl::StatusCode::kCancelled);
+  EXPECT_EQ(absl::DataLossError("msg").code(), absl::StatusCode::kDataLoss);
+  EXPECT_EQ(absl::DeadlineExceededError("msg").code(),
+            absl::StatusCode::kDeadlineExceeded);
+  EXPECT_EQ(absl::FailedPreconditionError("msg").code(),
+            absl::StatusCode::kFailedPrecondition);
+  EXPECT_EQ(absl::InternalError("msg").code(), absl::StatusCode::kInternal);
+  EXPECT_EQ(absl::InvalidArgumentError("msg").code(),
+            absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(absl::NotFoundError("msg").code(), absl::StatusCode::kNotFound);
+  EXPECT_EQ(absl::OutOfRangeError("msg").code(), absl::StatusCode::kOutOfRange);
+  EXPECT_EQ(absl::PermissionDeniedError("msg").code(),
+            absl::StatusCode::kPermissionDenied);
+  EXPECT_EQ(absl::ResourceExhaustedError("msg").code(),
+            absl::StatusCode::kResourceExhausted);
+  EXPECT_EQ(absl::UnauthenticatedError("msg").code(),
+            absl::StatusCode::kUnauthenticated);
+  EXPECT_EQ(absl::UnavailableError("msg").code(),
+            absl::StatusCode::kUnavailable);
+  EXPECT_EQ(absl::UnimplementedError("msg").code(),
+            absl::StatusCode::kUnimplemented);
+  EXPECT_EQ(absl::UnknownError("msg").code(), absl::StatusCode::kUnknown);
 }
 
 TEST(Status, DefaultConstructor) {
@@ -340,37 +420,37 @@ TEST(Status, ToStringMode) {
 
 TEST(Status, OstreamOperator) {
   absl::Status status(absl::StatusCode::kInternal, "fail");
-  { std::stringstream stream;
+  {
+    std::stringstream stream;
     stream << status;
-    EXPECT_THAT(stream.str(),
-                AllOf(HasSubstr("INTERNAL: fail"),
-                      HasSubstr("status_test.cc:")));
+    EXPECT_THAT(stream.str(), AllOf(HasSubstr("INTERNAL: fail"),
+                                    HasSubstr("status_test.cc:")));
   }
   status.SetPayload("foo", absl::Cord("bar"));
-  { std::stringstream stream;
+  {
+    std::stringstream stream;
     stream << status;
     EXPECT_THAT(stream.str(),
                 AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
                       HasSubstr("status_test.cc:")));
   }
   status.SetPayload("bar", absl::Cord("\377"));
-  { std::stringstream stream;
+  {
+    std::stringstream stream;
     stream << status;
-    EXPECT_THAT(stream.str(),
-                AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
-                      HasSubstr("[bar='\\xff']"),
-                      HasSubstr("status_test.cc:")));
+    EXPECT_THAT(
+        stream.str(),
+        AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
+              HasSubstr("[bar='\\xff']"), HasSubstr("status_test.cc:")));
   }
 }
 
 TEST(Status, AbslStringify) {
   absl::Status status(absl::StatusCode::kInternal, "fail");
   EXPECT_THAT(absl::StrCat(status),
-              AllOf(HasSubstr("INTERNAL: fail"),
-                    HasSubstr("status_test.cc:")));
+              AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("status_test.cc:")));
   EXPECT_THAT(absl::StrFormat("%v", status),
-              AllOf(HasSubstr("INTERNAL: fail"),
-                    HasSubstr("status_test.cc:")));
+              AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("status_test.cc:")));
   EXPECT_EQ(absl::StrCat(status), absl::StrFormat("%v", status));
   status.SetPayload("foo", absl::Cord("bar"));
   EXPECT_THAT(absl::StrCat(status),
@@ -379,8 +459,7 @@ TEST(Status, AbslStringify) {
   status.SetPayload("bar", absl::Cord("\377"));
   EXPECT_THAT(absl::StrCat(status),
               AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
-                    HasSubstr("[bar='\\xff']"),
-                    HasSubstr("status_test.cc:")));
+                    HasSubstr("[bar='\\xff']"), HasSubstr("status_test.cc:")));
 }
 
 TEST(Status, OstreamEqStringify) {
@@ -867,8 +946,7 @@ TEST(Status, AddSourceLocation) {
   {
     // Status that ignores source location.
     absl::Status status_ignores_source_location[] = {
-        absl::Status(),
-        absl::Status(absl::StatusCode::kInternal, "")};
+        absl::Status(), absl::Status(absl::StatusCode::kInternal, "")};
     for (absl::Status& s : status_ignores_source_location) {
       for (int i = 0; i < max_iter; ++i) {
         s.AddSourceLocation(absl::SourceLocation::current());
@@ -967,27 +1045,27 @@ TEST(Status, SourceLocationToStringMode) {
 
   s.SetPayload("bar", absl::Cord("\377"));
 
-  EXPECT_THAT(s.ToString(absl::StatusToStringMode::kWithEverything),
-              AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
-                    HasSubstr("[bar='\\xff']"),
-                    HasSubstr(source_location_string),
-                    HasSubstr(source_location_stack)));
-  EXPECT_THAT(s.ToString(absl::StatusToStringMode::kWithPayload |
-                         absl::StatusToStringMode::kWithSourceLocation),
-              AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
-                    HasSubstr("[bar='\\xff']"),
-                    HasSubstr(source_location_string),
-                    HasSubstr(source_location_stack)));
-  EXPECT_THAT(s.ToString(absl::StatusToStringMode::kWithSourceLocation),
-              AllOf(HasSubstr("INTERNAL: fail"), Not(HasSubstr("[foo='bar']")),
-                    Not(HasSubstr("[bar='\\xff']")),
-                    HasSubstr(source_location_string),
-                    HasSubstr(source_location_stack)));
-  EXPECT_THAT(s.ToString(absl::StatusToStringMode::kWithPayload),
-              AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
-                    HasSubstr("[bar='\\xff']"),
-                    Not(HasSubstr(source_location_string)),
-                    Not(HasSubstr(source_location_stack))));
+  EXPECT_THAT(
+      s.ToString(absl::StatusToStringMode::kWithEverything),
+      AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
+            HasSubstr("[bar='\\xff']"), HasSubstr(source_location_string),
+            HasSubstr(source_location_stack)));
+  EXPECT_THAT(
+      s.ToString(absl::StatusToStringMode::kWithPayload |
+                 absl::StatusToStringMode::kWithSourceLocation),
+      AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
+            HasSubstr("[bar='\\xff']"), HasSubstr(source_location_string),
+            HasSubstr(source_location_stack)));
+  EXPECT_THAT(
+      s.ToString(absl::StatusToStringMode::kWithSourceLocation),
+      AllOf(HasSubstr("INTERNAL: fail"), Not(HasSubstr("[foo='bar']")),
+            Not(HasSubstr("[bar='\\xff']")), HasSubstr(source_location_string),
+            HasSubstr(source_location_stack)));
+  EXPECT_THAT(
+      s.ToString(absl::StatusToStringMode::kWithPayload),
+      AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
+            HasSubstr("[bar='\\xff']"), Not(HasSubstr(source_location_string)),
+            Not(HasSubstr(source_location_stack))));
 }
 
 TEST(Status, StackTracePayloadOverflow) {

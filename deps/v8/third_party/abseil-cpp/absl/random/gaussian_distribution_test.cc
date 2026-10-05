@@ -17,9 +17,12 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <ios>
 #include <iterator>
+#include <limits>
 #include <random>
+#include <sstream>
 #include <string>
 #include <type_traits>
 #include <vector>

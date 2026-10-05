@@ -203,3 +203,38 @@
   const options = { mode: 'longest', padding };
   assertThrows(() => Iterator.zip(manyIterables, options), Error);
 })();
+
+(function RegressionTestOnExceptionDuringNext() {
+  const thrower = {
+    next() {
+      throw new Error('Oops');
+    }
+  };
+
+  const zipped = Iterator.zip([thrower]);
+
+  assertThrows(() => zipped.next(), Error, 'Oops');
+
+  const result = zipped.next();
+  assertEquals(undefined, result.value);
+  assertEquals(true, result.done);
+})();
+
+(function RegressionTestOnExceptionDuringNextStrict() {
+  const iter1 = (function*() {
+    yield 1;
+  })();
+
+  const iter2 = (function*() {
+    yield 1;
+    throw new Error('Oops');
+  })();
+
+  const zipped = Iterator.zip([iter1, iter2], {mode: 'strict'});
+  zipped.next();                                     // [1, 1]
+  assertThrows(() => zipped.next(), Error, 'Oops');  // iter1 done, iter2 throws
+
+  const result = zipped.next();
+  assertEquals(undefined, result.value);
+  assertEquals(true, result.done);
+})();

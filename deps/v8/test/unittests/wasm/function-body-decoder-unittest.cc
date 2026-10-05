@@ -5432,6 +5432,9 @@ TEST_F(WasmOpcodeLengthTest, Atomics) {
 
   // kExprAtomicNotify: prefix + opcode + align + offset.
   ExpectLength(4, kAtomicPrefix, kExprAtomicNotify & 0xFF, 0x02, 0x00);
+
+  // kExprPublish: prefix + opcode.
+  ExpectLength(2, kAtomicPrefix, static_cast<uint8_t>(kExprPublish));
 }
 
 class TypeReaderTest : public TestWithZone {
@@ -7204,6 +7207,146 @@ TEST_F(FunctionBodyDecoderTest, Waitqueue) {
       &impl::kSig_i_v,
       {WASM_REF_TEST_NULL(WASM_REF_NULL(kWaitqueueRefCode), struct_type_index)},
       kAppendEnd, "Invalid types for ref.test null");
+}
+
+template <typename Subclass,
+          typename ValidationTag = Decoder::FullValidationTag>
+class EmptyInterfaceBase {
+ public:
+  static constexpr DecodingMode decoding_mode = kFunctionBody;
+  static constexpr bool kUsesPoppedArgs = false;
+  using Value = ValueBase<ValidationTag>;
+  using Control = ControlBase<Value, ValidationTag>;
+  using FullDecoder = WasmFullDecoder<ValidationTag, Subclass>;
+
+#define DEFINE_EMPTY_CALLBACK(name, ...) \
+  void name(FullDecoder* decoder, ##__VA_ARGS__) {}
+  INTERFACE_FUNCTIONS(DEFINE_EMPTY_CALLBACK)
+#undef DEFINE_EMPTY_CALLBACK
+};
+
+class PublishTrackingInterface
+    : public EmptyInterfaceBase<PublishTrackingInterface> {
+ public:
+  bool publish_called = false;
+  void Publish(FullDecoder* decoder, const Value& value) {
+    publish_called = true;
+  }
+};
+
+TEST_F(FunctionBodyDecoderTest, Publish) {
+  ValueType any_shared =
+      ValueType::Generic(GenericKind::kAny, kNonNullable, SharedFlag{true});
+  ValueType any_shared_params[] = {any_shared};
+  FunctionSig any_shared_sig(0, 1, any_shared_params);
+
+  // 0. Decoding fails without --wasm-shared.
+  ExpectFailure(&any_shared_sig,
+                {WASM_LOCAL_GET(0), kAtomicPrefix,
+                 static_cast<uint8_t>(kExprPublish), WASM_DROP},
+                kAppendEnd, "enable with --wasm-shared");
+
+  WASM_FEATURE_SCOPE(shared);
+
+  // Non-reference types (e.g. i32) fail validation.
+  ExpectFailure(sigs.v_i(),
+                {WASM_LOCAL_GET(0), kAtomicPrefix,
+                 static_cast<uint8_t>(kExprPublish), WASM_DROP},
+                kAppendEnd, "expected reference type");
+
+  // Empty stack fails validation.
+  ExpectFailure(sigs.v_v(), {kAtomicPrefix, static_cast<uint8_t>(kExprPublish)},
+                kAppendEnd, "not enough arguments on the stack for publish");
+
+  auto ExpectPublish = [&](const FunctionSig* sig,
+                           std::initializer_list<const uint8_t> raw_code) {
+    base::Vector<const uint8_t> code =
+        PrepareBytecode(CodeToVector(raw_code), kAppendEnd);
+    FunctionBody body(sig, 0, code.begin(), code.end());
+    WasmDetectedFeatures detected_features;
+    WasmFullDecoder<Decoder::FullValidationTag, PublishTrackingInterface>
+        decoder(this->zone(), module, enabled_features_, &detected_features,
+                body);
+    decoder.Decode();
+    EXPECT_TRUE(decoder.ok());
+    return decoder.interface().publish_called;
+  };
+
+  auto TestPublish = [&](ValueType type) {
+    ValueType params[] = {type};
+    FunctionSig sig(0, 1, params);
+    return ExpectPublish(&sig, {WASM_LOCAL_GET(0), kAtomicPrefix,
+                                static_cast<uint8_t>(kExprPublish), WASM_DROP});
+  };
+
+  // 1. Indexed types: struct, array, func
+  HeapType shared_struct =
+      builder.AddStruct({{kWasmI32, true}}, kNoSuperType, SharedFlag{true});
+  HeapType unshared_struct =
+      builder.AddStruct({{kWasmI32, true}}, kNoSuperType, SharedFlag{false});
+  HeapType shared_array = builder.AddArray(kWasmI32, true, SharedFlag{true});
+  HeapType unshared_array = builder.AddArray(kWasmI32, true, SharedFlag{false});
+  HeapType unshared_func = FuncHeapType(builder.AddSignature(sigs.v_v()));
+
+  // Publish is only emitted for shared references that can possibly be structs
+  // or arrays.
+  EXPECT_TRUE(TestPublish(ValueType::Ref(shared_struct)));
+  EXPECT_FALSE(TestPublish(ValueType::Ref(unshared_struct)));
+
+  EXPECT_TRUE(TestPublish(ValueType::Ref(shared_array)));
+  EXPECT_FALSE(TestPublish(ValueType::Ref(unshared_array)));
+
+  EXPECT_FALSE(TestPublish(ValueType::Ref(unshared_func)));
+
+  // Nullable types accepted.
+  EXPECT_TRUE(TestPublish(ValueType::RefNull(shared_struct)));
+
+  // any
+  EXPECT_TRUE(TestPublish(
+      ValueType::Generic(GenericKind::kAny, kNonNullable, SharedFlag{true})));
+  EXPECT_FALSE(TestPublish(
+      ValueType::Generic(GenericKind::kAny, kNonNullable, SharedFlag{false})));
+
+  // eq
+  EXPECT_TRUE(TestPublish(
+      ValueType::Generic(GenericKind::kEq, kNonNullable, SharedFlag{true})));
+  EXPECT_FALSE(TestPublish(
+      ValueType::Generic(GenericKind::kEq, kNonNullable, SharedFlag{false})));
+
+  // struct
+  EXPECT_TRUE(TestPublish(ValueType::Generic(GenericKind::kStruct, kNonNullable,
+                                             SharedFlag{true})));
+  EXPECT_FALSE(TestPublish(ValueType::Generic(
+      GenericKind::kStruct, kNonNullable, SharedFlag{false})));
+
+  // array
+  EXPECT_TRUE(TestPublish(
+      ValueType::Generic(GenericKind::kArray, kNonNullable, SharedFlag{true})));
+  EXPECT_FALSE(TestPublish(ValueType::Generic(GenericKind::kArray, kNonNullable,
+                                              SharedFlag{false})));
+
+  // i31 (publish is a no-op)
+  EXPECT_FALSE(TestPublish(
+      ValueType::Generic(GenericKind::kI31, kNonNullable, SharedFlag{true})));
+  EXPECT_FALSE(TestPublish(
+      ValueType::Generic(GenericKind::kI31, kNonNullable, SharedFlag{false})));
+
+  // none (publish is a no-op)
+  EXPECT_FALSE(TestPublish(
+      ValueType::Generic(GenericKind::kNone, kNonNullable, SharedFlag{true})));
+  EXPECT_FALSE(TestPublish(
+      ValueType::Generic(GenericKind::kNone, kNonNullable, SharedFlag{false})));
+
+  // extern (publish is a no-op)
+  EXPECT_FALSE(TestPublish(ValueType::Generic(GenericKind::kExtern,
+                                              kNonNullable, SharedFlag{true})));
+  EXPECT_FALSE(TestPublish(ValueType::Generic(
+      GenericKind::kExtern, kNonNullable, SharedFlag{false})));
+
+  // Bottom type from unreachable does not require a publish.
+  EXPECT_FALSE(ExpectPublish(sigs.v_v(),
+                             {kExprUnreachable, kAtomicPrefix,
+                              static_cast<uint8_t>(kExprPublish), WASM_DROP}));
 }
 
 #undef B1

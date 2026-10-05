@@ -909,9 +909,11 @@ class Heap final {
   V8_INLINE void SetDoubleStringCache(Tagged<DoubleStringCache> cache);
   V8_INLINE void SetCachedBigIntDivisor(Tagged<BigInt> divisor);
   V8_INLINE void SetNextCachedBigIntDivisor(Tagged<BigInt> divisor);
+  V8_INLINE void SetRegExpSplitCache(Tagged<FixedArray> cache);
 
 #if V8_ENABLE_WEBASSEMBLY
   V8_INLINE void SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts);
+  V8_INLINE void SetWasmSharedCanonicalRtts(Tagged<WeakFixedArray> rtts);
   V8_INLINE void SetJSToWasmWrappers(
       Tagged<WeakFixedArray> js_to_wasm_wrappers);
 #endif
@@ -2520,11 +2522,12 @@ class Heap final {
   // The Isolate constructs us.
   friend class Isolate;
 
-  // Used in cctest.
+  // Used in cctest and unittests.
   friend class heap::HeapTester;
   FRIEND_TEST(SpacesTest, InlineAllocationObserverCadence);
   FRIEND_TEST(SpacesTest, AllocationObserver);
   FRIEND_TEST(MinimalStackTest, MinimalStackInTurbofanAllocate);
+  FRIEND_TEST(HeapTest, Regress10560);
   friend class HeapInternalsBase;
 };
 
@@ -2850,6 +2853,8 @@ class ClearStaleLeftTrimmedPointerVisitor : public RootVisitor {
   void Synchronize(VisitorSynchronization::SyncTag tag) override {
     visitor_->Synchronize(tag);
   }
+
+  GarbageCollector collector() const override { return visitor_->collector(); }
 
   // The pointer compression cage base value used for decompression of all
   // tagged values except references to InstructionStream objects.

@@ -2181,6 +2181,84 @@ TEST(NativeSnapshotObjectIdMoving) {
   heap_profiler->StopTrackingHeapObjects();
 }
 
+TEST(NativeSnapshotObjectIdReplaced) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  v8::Persistent<v8::String> wrapper(isolate, v8_str("wrapper"));
+  int native1;
+  int native2;
+  int replacement;
+
+  EmbedderGraphBuilderForNativeSnapshotObjectId::BuildParameter parameter{
+      &wrapper, &native1, &native2};
+  auto callback =
+      EmbedderGraphBuilderForNativeSnapshotObjectId::BuildEmbedderGraph;
+  heap_profiler->AddBuildEmbedderGraphCallback(callback, &parameter);
+  CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot()));
+
+  const auto wrapper_id = heap_profiler->GetObjectId(&native2);
+  CHECK_NE(v8::HeapProfiler::kUnknownObjectId, wrapper_id);
+  CHECK_EQ(wrapper_id, heap_profiler->GetObjectId(wrapper.Get(isolate)));
+
+  CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot()));
+  CHECK_EQ(wrapper_id, heap_profiler->GetObjectId(&native2));
+  CHECK_EQ(wrapper_id, heap_profiler->GetObjectId(wrapper.Get(isolate)));
+
+  parameter.native2 = &replacement;
+  CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot()));
+  CHECK_EQ(wrapper_id, heap_profiler->GetObjectId(&replacement));
+  CHECK_EQ(wrapper_id, heap_profiler->GetObjectId(wrapper.Get(isolate)));
+  CHECK_EQ(v8::HeapProfiler::kUnknownObjectId,
+           heap_profiler->GetObjectId(&native2));
+
+  heap_profiler->RemoveBuildEmbedderGraphCallback(callback, &parameter);
+  CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot()));
+  CHECK_EQ(v8::HeapProfiler::kUnknownObjectId,
+           heap_profiler->GetObjectId(&replacement));
+}
+
+TEST(NativeSnapshotObjectIdUnmerged) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  v8::Persistent<v8::String> wrapper(isolate, v8_str("wrapper"));
+  int native1;
+  int native2;
+  int replacement;
+
+  EmbedderGraphBuilderForNativeSnapshotObjectId::BuildParameter parameter{
+      &wrapper, &native1, &native2};
+  auto callback =
+      EmbedderGraphBuilderForNativeSnapshotObjectId::BuildEmbedderGraph;
+  heap_profiler->AddBuildEmbedderGraphCallback(callback, &parameter);
+  CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot()));
+
+  const auto wrapper_id = heap_profiler->GetObjectId(&native2);
+  CHECK_NE(v8::HeapProfiler::kUnknownObjectId, wrapper_id);
+  CHECK_EQ(wrapper_id, heap_profiler->GetObjectId(wrapper.Get(isolate)));
+
+  // The old native object stays in the graph without its former wrapper.
+  parameter.native1 = &native2;
+  parameter.native2 = &replacement;
+
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const auto unmerged_id = heap_profiler->GetObjectId(&native2);
+  CHECK_NE(v8::HeapProfiler::kUnknownObjectId, unmerged_id);
+  CHECK_NE(wrapper_id, unmerged_id);
+  CHECK_NOT_NULL(snapshot->GetNodeById(unmerged_id));
+  CHECK_EQ(wrapper_id, heap_profiler->GetObjectId(&replacement));
+  CHECK_EQ(wrapper_id, heap_profiler->GetObjectId(wrapper.Get(isolate)));
+  CHECK_NOT_NULL(snapshot->GetNodeById(wrapper_id));
+
+  heap_profiler->RemoveBuildEmbedderGraphCallback(callback, &parameter);
+}
+
 TEST(DeleteAllHeapSnapshots) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -2841,6 +2919,9 @@ TEST(JSGeneratorObject) {
       GetProperty(env.isolate(), g, v8::HeapGraphEdge::kInternal,
                   "parameters_and_registers");
   CHECK(parameters_and_registers);
+  const v8::HeapGraphNode* continuation = GetProperty(
+      env.isolate(), g, v8::HeapGraphEdge::kInternal, "continuation");
+  CHECK(continuation);
 }
 
 bool HasWeakEdge(const v8::HeapGraphNode* node) {
@@ -4858,21 +4939,16 @@ TEST(HeapSnapshotWithWasmInstance) {
   CheckProperties(isolate, module_node,
                   {"__proto__", "managed_native_module", "map", "script"});
   // Check the "managed_native_module" specifically. It should say
-  // "Managed<wasm::NativeModule>" and should have a reasonable size.
+  // "CppGCManaged<wasm::NativeModule>" and should have a reasonable size.
   const v8::HeapGraphNode* managed_node =
       GetProperty(isolate, module_node, v8::HeapGraphEdge::kInternal,
                   "managed_native_module");
   CHECK_NOT_NULL(managed_node);
   v8::String::Utf8Value managed_name{isolate, managed_node->GetName()};
-#if V8_ENABLE_SANDBOX
-  CHECK_EQ(std::string_view{"system / Managed (WasmNativeModuleTag)"},
+  CHECK_EQ(std::string_view{"system / CppGCManaged (WasmNativeModule)"},
            std::string_view{*managed_name});
-  // The size of the Managed is computed from the size of the NativeModule. This
-  // is multiple kB, just conservatively assume >= 500b here.
+  // The size of the CppGCManaged is computed from the size of the NativeModule.
+  // This is multiple kB, just conservatively assume >= 500b here.
   CHECK_LE(500, managed_node->GetShallowSize());
-#else
-  CHECK_EQ(std::string_view{"system / Foreign"},
-           std::string_view{*managed_name});
-#endif  // V8_ENABLE_SANDBOX
 }
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -120,6 +120,8 @@
       'V8 Linux64 - runtime call stats - builder': 'release_x64_runtime_call_stats',
       'V8 Linux64 - debug - single generation - builder': 'debug_x64_single_generation',
       'V8 Linux64 - dumpling - builder': 'release_x64_dumpling',
+      'V8 Linux64 - no metagen - debug builder':
+          'debug_x64_no_metagen',
       'V8 Linux64 - no pointer compression - builder': 'release_x64_no_pointer_compression',
       'V8 Linux64 - sticky mark bits - debug builder': 'debug_x64_sticky_mark_bits',
       'V8 Linux64 - undefined double - debug builder': 'debug_x64_undefined_double',
@@ -305,6 +307,8 @@
       'v8_linux64_fyi_compile_rel': 'release_x64_test_features_trybot',
       'v8_linux64_nodcheck_compile_rel': 'release_x64',
       'v8_linux64_perfetto_compile_dbg': 'debug_x64_perfetto',
+      'v8_linux64_no_metagen_compile_dbg':
+          'debug_x64_no_metagen',
       'v8_linux64_no_pointer_compression_compile_rel': 'release_x64_no_pointer_compression',
       'v8_linux64_compile_rel': 'release_x64_test_features_gcmole_trybot',
       'v8_linux64_no_sandbox_compile_rel': 'release_x64_no_sandbox',
@@ -753,6 +757,8 @@
       'debug_bot', 'x64', 'non_default_cppgc'],
     'debug_x64_perfetto': [
       'debug_bot', 'x64', 'perfetto'],
+    'debug_x64_no_metagen': [
+      'debug_bot', 'x64', 'v8_disable_metagen_instance_types'],
     'debug_x64_no_sandbox': [
       'debug_bot', 'x64', 'no_sandbox'],
     'debug_x64_sandbox_hardware_support': [
@@ -1178,6 +1184,9 @@
       'gn_args': 'v8_dict_property_const_tracking=true',
     },
 
+    'v8_disable_metagen_instance_types': {
+      'gn_args': 'v8_use_metagen_instance_types=false',
+    },
     'v8_disable_pointer_compression': {
       'gn_args': 'v8_enable_pointer_compression=false',
     },

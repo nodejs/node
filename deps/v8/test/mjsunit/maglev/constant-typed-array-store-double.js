@@ -37,3 +37,24 @@ function test() {
 test();
 
 assertTrue(isMaglevved(foo));
+
+const source = new ArrayBuffer(8);
+new BigUint64Array(source)[0] = 0xfff2800000000000n;
+const signalingNaN = new Float64Array(source)[0];
+
+const target = new Float64Array(1);
+const targetBits = new BigUint64Array(target.buffer);
+
+function storeSignalingNaN(value) {
+  target[0] = value;
+}
+
+%PrepareFunctionForOptimization(storeSignalingNaN);
+storeSignalingNaN(signalingNaN);
+const expectedBits = targetBits[0];
+
+%OptimizeMaglevOnNextCall(storeSignalingNaN);
+storeSignalingNaN(signalingNaN);
+
+assertTrue(isMaglevved(storeSignalingNaN));
+assertEquals(expectedBits, targetBits[0]);

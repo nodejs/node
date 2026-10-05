@@ -11,6 +11,7 @@
 #include "src/base/threaded-list.h"
 #include "src/base/vlq.h"
 #include "src/baseline/baseline-assembler.h"
+#include "src/common/operation.h"
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -137,6 +138,24 @@ class BaselineCompiler {
   // select "true", otherwise it should fall through.
   void SelectBooleanConstant(
       Register output, std::function<void(Label*, Label::Distance)> jump_func);
+
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+  // Emits an inlined Smi compare for |kOperation|, followed by a slow-path
+  // call to |kSmiStub|. Returns false without emitting anything when inlining
+  // is disabled or when the compile-time embedded feedback hint is not exactly
+  // kSignedSmall.
+  template <Operation kOperation, Builtin kSmiBuiltin, Builtin kGenericBuiltin>
+  bool TryEmitInlineSmiCompare(CompareOperationFeedback::Type feedback_type,
+                               int feedback_index_offset);
+
+  // Emits an inlined Smi Inc/Dec for |kOperation|, followed by a slow-path
+  // call to |kSmiStub|. Returns false without emitting anything when inlining
+  // is disabled or when the compile-time embedded feedback hint is not exactly
+  // kSignedSmall.
+  template <Operation kOperation, Builtin kSmiBuiltin, Builtin kGenericBuiltin>
+  bool TryEmitInlineSmiUnary(BinaryOperationFeedback::Type feedback_type,
+                             int feedback_index_offset);
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
 
   // Jumps based on calling ToBoolean on kInterpreterAccumulatorRegister.
   void JumpIfToBoolean(bool do_jump_if_true, Label* label,

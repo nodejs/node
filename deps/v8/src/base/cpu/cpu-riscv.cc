@@ -63,6 +63,12 @@ void CPU::DetectFeatures() {
     if (pairs[0].value & RISCV_HWPROBE_EXT_ZFA) {
       has_zfa_ = true;
     }
+    if (pairs[0].value & RISCV_HWPROBE_EXT_ZFH) {
+      has_zfh_ = true;
+    }
+    if (pairs[0].value & RISCV_HWPROBE_EXT_ZVFH) {
+      has_zvfh_ = true;
+    }
     if (pairs[0].value & RISCV_HWPROBE_IMA_C) {
       has_rvc_ = true;
     }

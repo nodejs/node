@@ -57,6 +57,8 @@
 #include "slide_hash_simd.h"
 #endif
 
+#include "compare256.h"
+
 #if defined(QAT_COMPRESSION_ENABLED)
 #include "contrib/qat/deflate_qat.h"
 #endif
@@ -1492,7 +1494,13 @@ local uInt longest_match(deflate_state *s, IPos cur_match) {
     Posf *prev = s->prev;
     uInt wmask = s->w_mask;
 
-#ifdef UNALIGNED_OK
+#if defined(DEFLATE_COMPARE256_64LE)
+    /* Quickly reject non-matches with the 2-byte prefilter
+     * (scan_start/scan_end); candidates that pass are extended 8 bytes at a
+     * time with compare256(). */
+    uInt scan_start = read16(scan);
+    uInt scan_end   = read16(scan + best_len - 1);
+#elif defined(UNALIGNED_OK)
     /* Compare two bytes at a time. Note: this is not always beneficial.
      * Try with and without -DUNALIGNED_OK to check.
      */
@@ -1534,7 +1542,13 @@ local uInt longest_match(deflate_state *s, IPos cur_match) {
          * However the length of the match is limited to the lookahead, so
          * the output of deflate is not affected by the uninitialized values.
          */
-#if (defined(UNALIGNED_OK) && MAX_MATCH == 258)
+#if defined(DEFLATE_COMPARE256_64LE)
+        if (read16(match + best_len - 1) != scan_end ||
+            read16(match) != scan_start) continue;
+        /* scan_start matched, so bytes 0..1 are equal; compare the remaining
+         * up to 256 bytes so the length can still reach MAX_MATCH (258). */
+        len = 2 + compare256(scan + 2, match + 2);
+#elif (defined(UNALIGNED_OK) && MAX_MATCH == 258)
         /* This code assumes sizeof(unsigned short) == 2. Do not use
          * UNALIGNED_OK if your compiler uses a different size.
          */
@@ -1624,7 +1638,9 @@ local uInt longest_match(deflate_state *s, IPos cur_match) {
             s->match_start = cur_match;
             best_len = len;
             if (len >= nice_match) break;
-#ifdef UNALIGNED_OK
+#if defined(DEFLATE_COMPARE256_64LE)
+            scan_end = read16(scan + best_len - 1);
+#elif defined(UNALIGNED_OK)
             scan_end = *(ushf*)(scan + best_len - 1);
 #else
             scan_end1  = scan[best_len - 1];

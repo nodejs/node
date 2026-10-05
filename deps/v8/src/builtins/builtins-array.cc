@@ -26,6 +26,7 @@
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-shared-array.h"
 #include "src/objects/lookup.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/prototype.h"
 #include "src/objects/smi.h"

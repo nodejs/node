@@ -362,7 +362,7 @@ TEST(OptionalRefTest, AsOptional) {
 TEST(OptionalRefTest, Constexpr) {
   static constexpr int foo = 123;
   constexpr optional_ref<const int> ref(foo);
-  static_assert(ref.has_value() && *ref == foo && ref.value() == foo, "");
+  static_assert(ref.has_value() && *ref == foo && ref.value() == foo);
 }
 
 }  // namespace

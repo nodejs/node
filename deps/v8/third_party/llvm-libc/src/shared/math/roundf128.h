@@ -9,10 +9,6 @@
 #ifndef LLVM_LIBC_SHARED_MATH_ROUNDF128_H
 #define LLVM_LIBC_SHARED_MATH_ROUNDF128_H
 
-#include "include/llvm-libc-types/float128.h"
-
-#ifdef LIBC_TYPES_HAS_FLOAT128
-
 #include "shared/libc_common.h"
 #include "src/__support/math/roundf128.h"
 
@@ -23,7 +19,5 @@ using math::roundf128;
 
 } // namespace shared
 } // namespace LIBC_NAMESPACE_DECL
-
-#endif // LIBC_TYPES_HAS_FLOAT128
 
 #endif // LLVM_LIBC_SHARED_MATH_ROUNDF128_H

@@ -1,32 +1,36 @@
 # Copyright 2019 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+#
+# Generated file. DO NOT EDIT.
 
 import("//third_party/abseil-cpp/absl.gni")
 
 absl_source_set("path_util") {
   public = [ "internal/path_util.h" ]
+  visibility = [ ":*" ]
   deps = [
     "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
-  visibility = [ ":*" ]
 }
 
 absl_source_set("program_name") {
   sources = [ "internal/program_name.cc" ]
   public = [ "internal/program_name.h" ]
+  visibility = [
+    ":*",
+    "//third_party/abseil-cpp/absl/log:*",
+  ]
   deps = [
     ":path_util",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:no_destructor",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/synchronization",
-  ]
-  visibility = [
-    ":*",
-    "../log:*",
   ]
 }
 
@@ -39,7 +43,6 @@ config("absl_flags_config") {
 
 absl_source_set("config") {
   sources = [ "usage_config.cc" ]
-  public_configs = [ ":absl_flags_config" ]
   public = [
     "config.h",
     "usage_config.h",
@@ -54,6 +57,7 @@ absl_source_set("config") {
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/synchronization",
   ]
+  public_configs = [ ":absl_flags_config" ]
 }
 
 absl_source_set("marshalling") {
@@ -72,9 +76,9 @@ absl_source_set("marshalling") {
 }
 
 absl_source_set("commandlineflag_internal") {
-  visibility = [ ":*" ]
-  public = [ "internal/commandlineflag.h" ]
   sources = [ "internal/commandlineflag.cc" ]
+  public = [ "internal/commandlineflag.h" ]
+  visibility = [ ":*" ]
   deps = [
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:fast_type_id",
@@ -89,6 +93,7 @@ absl_source_set("commandlineflag") {
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:fast_type_id",
     "//third_party/abseil-cpp/absl/base:nullability",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/types:optional",
   ]
@@ -97,13 +102,17 @@ absl_source_set("commandlineflag") {
 absl_source_set("private_handle_accessor") {
   sources = [ "internal/private_handle_accessor.cc" ]
   public = [ "internal/private_handle_accessor.h" ]
+  visibility = [
+    ":*",
+    "//third_party/abseil-cpp/absl/flags/rust:*",
+  ]
   deps = [
     ":commandlineflag",
     ":commandlineflag_internal",
     "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
-  visibility = [ ":*" ]
 }
 
 absl_source_set("reflection") {
@@ -134,6 +143,10 @@ absl_source_set("flag_internal") {
     "internal/flag.h",
     "internal/sequence_lock.h",
   ]
+  visibility = [
+    ":*",
+    "//third_party/abseil-cpp/absl/base/*",
+  ]
   deps = [
     ":commandlineflag",
     ":commandlineflag_internal",
@@ -153,10 +166,6 @@ absl_source_set("flag_internal") {
     "//third_party/abseil-cpp/absl/synchronization",
     "//third_party/abseil-cpp/absl/utility",
   ]
-  visibility = [
-    ":*",
-    "//third_party/abseil-cpp/absl/base/*",
-  ]
 }
 
 absl_source_set("flag") {
@@ -172,6 +181,7 @@ absl_source_set("flag") {
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:nullability",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
@@ -179,6 +189,7 @@ absl_source_set("flag") {
 absl_source_set("usage_internal") {
   sources = [ "internal/usage.cc" ]
   public = [ "internal/usage.h" ]
+  visibility = [ ":*" ]
   deps = [
     ":commandlineflag",
     ":config",
@@ -195,7 +206,6 @@ absl_source_set("usage_internal") {
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/synchronization",
   ]
-  visibility = [ ":*" ]
 }
 
 absl_source_set("usage") {
@@ -206,6 +216,7 @@ absl_source_set("usage") {
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:raw_logging_internal",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/synchronization",
   ]
@@ -238,6 +249,14 @@ absl_source_set("parse") {
   ]
 }
 
+# Conflicts at link_time with "parse_test" because defines the same flags.
+# absl_test("commandlineflag_test")
+
+absl_test("config_test") {
+  sources = [ "config_test.cc" ]
+  deps = [ ":config" ]
+}
+
 absl_test("flag_test") {
   sources = [
     "flag_test.cc",
@@ -259,3 +278,67 @@ absl_test("flag_test") {
     "//third_party/abseil-cpp/absl/time",
   ]
 }
+
+absl_test("marshalling_test") {
+  sources = [ "marshalling_test.cc" ]
+  deps = [ ":marshalling" ]
+}
+
+absl_test("parse_test") {
+  sources = [ "parse_test.cc" ]
+  deps = [
+    ":config",
+    ":flag",
+    ":parse",
+    ":reflection",
+    ":usage_internal",
+    "//third_party/abseil-cpp/absl/base:scoped_set_env",
+    "//third_party/abseil-cpp/absl/log",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+    "//third_party/abseil-cpp/absl/types:span",
+  ]
+  if (is_ios) {
+    sources = []
+  }
+}
+
+absl_test("path_util_test") {
+  sources = [ "internal/path_util_test.cc" ]
+  deps = [ ":path_util" ]
+}
+
+absl_test("program_name_test") {
+  sources = [ "internal/program_name_test.cc" ]
+  deps = [
+    ":program_name",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
+}
+
+# Conflicts at link time with "flag_test" because defines the same flags.
+# absl_test("reflection_test")
+
+absl_test("sequence_lock_test") {
+  sources = [ "internal/sequence_lock_test.cc" ]
+  deps = [
+    ":flag_internal",
+    "//third_party/abseil-cpp/absl/base",
+    "//third_party/abseil-cpp/absl/container:fixed_array",
+    "//third_party/abseil-cpp/absl/time",
+  ]
+}
+
+absl_test("usage_config_test") {
+  sources = [ "usage_config_test.cc" ]
+  deps = [
+    ":config",
+    ":path_util",
+    ":program_name",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
+}
+# usage_test is excluded because defines its own main function
+# absl_test("usage_test")

@@ -276,7 +276,7 @@ class V8_EXPORT_PRIVATE LoopUnrollingAnalyzer {
   // count we have seen in some huge Wasm functions in the past, e.g., function
   // #21937 of https://crbug.com/383661627 (1.7M operations, 2.7MB wire bytes).
   static constexpr size_t kMaxFunctionSizeForPartialUnrolling = 1'000'000;
-  static constexpr size_t kJSMaxLoopSizeForPartialUnrolling = 50;
+  static constexpr size_t kJSMaxLoopSizeForPartialUnrolling = 64;
   static constexpr size_t kWasmMaxLoopSizeForPartialUnrolling = 80;
   static constexpr size_t kWasmMaxUnrolledLoopSize = 240;
   static constexpr size_t kMaxLoopIterationsForFullUnrolling = 4;

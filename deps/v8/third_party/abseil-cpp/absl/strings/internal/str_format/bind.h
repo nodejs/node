@@ -19,6 +19,7 @@
 #include <cstdio>
 #include <ostream>
 #include <string>
+#include <utility>
 
 #include "absl/base/config.h"
 #include "absl/container/inlined_vector.h"

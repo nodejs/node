@@ -137,7 +137,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     {
       DisallowGarbageCollection no_gc;
       Tagged<Script> script_obj = Cast<Script>(*obj);
-      DCHECK_NE(script_obj->compilation_type(), Script::CompilationType::kEval);
+      DCHECK(!script_obj->has_eval_origin());
       // We want to differentiate between undefined and uninitialized_symbol for
       // context_data for now. It is hack to allow debugging for scripts that
       // are included as a part of custom snapshot. (see

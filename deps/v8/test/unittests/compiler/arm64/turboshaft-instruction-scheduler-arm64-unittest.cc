@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/flags/flags.h"
 #include "test/common/flag-utils.h"
 #include "test/unittests/compiler/backend/turboshaft-instruction-selector-unittest.h"
 
@@ -58,14 +59,14 @@ TEST_F(InstructionSchedulerTurboshaftArm64Test, ParallelLdrQFmulStrQ) {
   constexpr int32_t kArithBase = kNumLoads;
   EXPECT_EQ(kArm64FMul, s[kArithBase]->arch_opcode());
   EXPECT_EQ(kArm64FMul, s[kArithBase + 1]->arch_opcode());
-  EXPECT_EQ(kArm64StrQ, s[kArithBase + 2]->arch_opcode());
+  EXPECT_EQ(kArm64FMul, s[kArithBase + 2]->arch_opcode());
   EXPECT_EQ(kArm64FMul, s[kArithBase + 3]->arch_opcode());
-  EXPECT_EQ(kArm64StrQ, s[kArithBase + 4]->arch_opcode());
-  EXPECT_EQ(kArm64FMul, s[kArithBase + 5]->arch_opcode());
-  EXPECT_EQ(kArm64StrQ, s[kArithBase + 6]->arch_opcode());
-  EXPECT_EQ(kArm64FMul, s[kArithBase + 7]->arch_opcode());
+  EXPECT_EQ(kArm64FMul, s[kArithBase + 4]->arch_opcode());
+  EXPECT_EQ(kArm64StrQ, s[kArithBase + 5]->arch_opcode());
+  EXPECT_EQ(kArm64FMul, s[kArithBase + 6]->arch_opcode());
+  EXPECT_EQ(kArm64StrQ, s[kArithBase + 7]->arch_opcode());
   EXPECT_EQ(kArm64StrQ, s[kArithBase + 8]->arch_opcode());
-  EXPECT_EQ(kArm64FMul, s[kArithBase + 9]->arch_opcode());
+  EXPECT_EQ(kArm64StrQ, s[kArithBase + 9]->arch_opcode());
   EXPECT_EQ(kArm64StrQ, s[kArithBase + 10]->arch_opcode());
   EXPECT_EQ(kArm64StrQ, s[kArithBase + 11]->arch_opcode());
 }
@@ -99,34 +100,27 @@ TEST_F(InstructionSchedulerTurboshaftArm64Test, LdrQIntoFMA) {
               InstructionSelector::kEnableScheduling);
 
   // First loads.
-  EXPECT_EQ(kArm64LdrQ, s[0]->arch_opcode());
-  EXPECT_EQ(kArm64LdrQ, s[1]->arch_opcode());
-  EXPECT_EQ(kArm64LdrQ, s[2]->arch_opcode());
-  EXPECT_EQ(kArm64LdrQ, s[3]->arch_opcode());
-  EXPECT_EQ(kArm64LdrQ, s[4]->arch_opcode());
+  for (int i = 0; i < 6; ++i) {
+    EXPECT_EQ(kArm64LdrQ, s[i]->arch_opcode());
+  }
 
   // Then one fma.
-  EXPECT_EQ(kArm64Ffma, s[5]->arch_opcode());
+  EXPECT_EQ(kArm64Ffma, s[6]->arch_opcode());
 
-  // Then two loads.
-  EXPECT_EQ(kArm64LdrQ, s[6]->arch_opcode());
+  // Then three loads.
   EXPECT_EQ(kArm64LdrQ, s[7]->arch_opcode());
+  EXPECT_EQ(kArm64LdrQ, s[8]->arch_opcode());
+  EXPECT_EQ(kArm64LdrQ, s[9]->arch_opcode());
 
   // Then one fma.
-  EXPECT_EQ(kArm64Ffma, s[8]->arch_opcode());
+  EXPECT_EQ(kArm64Ffma, s[10]->arch_opcode());
 
   // Then two loads.
-  EXPECT_EQ(kArm64LdrQ, s[9]->arch_opcode());
-  EXPECT_EQ(kArm64LdrQ, s[10]->arch_opcode());
-
-  // Then one fma.
-  EXPECT_EQ(kArm64Ffma, s[11]->arch_opcode());
-
-  // Final two loads.
+  EXPECT_EQ(kArm64LdrQ, s[11]->arch_opcode());
   EXPECT_EQ(kArm64LdrQ, s[12]->arch_opcode());
-  EXPECT_EQ(kArm64LdrQ, s[13]->arch_opcode());
 
-  // Final two fmas.
+  // Final three fmas.
+  EXPECT_EQ(kArm64Ffma, s[13]->arch_opcode());
   EXPECT_EQ(kArm64Ffma, s[14]->arch_opcode());
   EXPECT_EQ(kArm64Ffma, s[15]->arch_opcode());
 }
@@ -167,22 +161,31 @@ TEST_F(InstructionSchedulerTurboshaftArm64Test, LdrQIntoFixedFP) {
               InstructionSelector::kAllSourcePositions,
               InstructionSelector::kEnableScheduling);
 
-  // The loads are the longest latency.
-  for (unsigned i = 0; i < kNumLoads; ++i) {
-    EXPECT_EQ(kArm64LdrQ, s[i]->arch_opcode());
+  // The divide is longer than the loads and is scheduled once its inputs are
+  // available.
+  int early_loads = 0;
+  int early_divides = 0;
+  for (unsigned i = 0; i <= kNumLoads; ++i) {
+    if (s[i]->arch_opcode() == kArm64LdrQ) {
+      ++early_loads;
+    } else {
+      EXPECT_EQ(kArm64FDiv, s[i]->arch_opcode());
+      ++early_divides;
+    }
   }
+  EXPECT_EQ(kNumLoads, early_loads);
+  EXPECT_EQ(1, early_divides);
 
   constexpr int32_t kArithBase = kNumLoads;
-  EXPECT_EQ(kArm64FMul, s[kArithBase]->arch_opcode());
-  EXPECT_EQ(kArm64FAdd, s[kArithBase + 1]->arch_opcode());
-  EXPECT_EQ(kArm64StrQ, s[kArithBase + 2]->arch_opcode());
+  EXPECT_EQ(kArm64FMul, s[kArithBase + 1]->arch_opcode());
+  EXPECT_EQ(kArm64FAdd, s[kArithBase + 2]->arch_opcode());
   EXPECT_EQ(kArm64FSub, s[kArithBase + 3]->arch_opcode());
   EXPECT_EQ(kArm64StrQ, s[kArithBase + 4]->arch_opcode());
   EXPECT_EQ(kArm64FMin, s[kArithBase + 5]->arch_opcode());
   EXPECT_EQ(kArm64StrQ, s[kArithBase + 6]->arch_opcode());
   EXPECT_EQ(kArm64FMax, s[kArithBase + 7]->arch_opcode());
   EXPECT_EQ(kArm64StrQ, s[kArithBase + 8]->arch_opcode());
-  EXPECT_EQ(kArm64FDiv, s[kArithBase + 9]->arch_opcode());
+  EXPECT_EQ(kArm64StrQ, s[kArithBase + 9]->arch_opcode());
   EXPECT_EQ(kArm64StrQ, s[kArithBase + 10]->arch_opcode());
   EXPECT_EQ(kArm64StrQ, s[kArithBase + 11]->arch_opcode());
 }
@@ -224,21 +227,34 @@ TEST_F(InstructionSchedulerTurboshaftArm64Test, LdrSIntoFixedFP) {
               InstructionSelector::kAllSourcePositions,
               InstructionSelector::kEnableScheduling);
 
-  // All the loads happen first.
-  for (unsigned i = 0; i < kNumLoads; ++i) {
-    EXPECT_EQ(kArm64LdrS, s[i]->arch_opcode());
+  // The divide is longer than the loads and is scheduled once its inputs are
+  // available.
+  int early_loads = 0;
+  int early_divides = 0;
+  for (unsigned i = 0; i <= kNumLoads; ++i) {
+    if (s[i]->arch_opcode() == kArm64LdrS) {
+      ++early_loads;
+    } else {
+      EXPECT_EQ(kArm64Float32Div, s[i]->arch_opcode());
+      ++early_divides;
+    }
   }
+  EXPECT_EQ(kNumLoads, early_loads);
+  EXPECT_EQ(1, early_divides);
 
   constexpr int32_t kArithBase = kNumLoads;
-  // The divide has been scheduled earlier than the other arith ops.
-  EXPECT_EQ(kArm64Float32Div, s[kArithBase]->arch_opcode());
-  EXPECT_EQ(kArm64Float32Add, s[kArithBase + 1]->arch_opcode());
-  EXPECT_EQ(kArm64Float32Sub, s[kArithBase + 2]->arch_opcode());
-  EXPECT_EQ(kArm64Float32Mul, s[kArithBase + 3]->arch_opcode());
+  if (v8_flags.experimental_turbo_instruction_scheduling) {
+    EXPECT_EQ(kArm64Float32Mul, s[kArithBase + 1]->arch_opcode());
+    EXPECT_EQ(kArm64Float32Add, s[kArithBase + 2]->arch_opcode());
+  } else {
+    EXPECT_EQ(kArm64Float32Add, s[kArithBase + 1]->arch_opcode());
+    EXPECT_EQ(kArm64Float32Mul, s[kArithBase + 2]->arch_opcode());
+  }
+  EXPECT_EQ(kArm64Float32Sub, s[kArithBase + 3]->arch_opcode());
   EXPECT_EQ(kArm64Float32Min, s[kArithBase + 4]->arch_opcode());
   EXPECT_EQ(kArm64StrS, s[kArithBase + 5]->arch_opcode());
-  EXPECT_EQ(kArm64StrS, s[kArithBase + 6]->arch_opcode());
-  EXPECT_EQ(kArm64Float32Max, s[kArithBase + 7]->arch_opcode());
+  EXPECT_EQ(kArm64Float32Max, s[kArithBase + 6]->arch_opcode());
+  EXPECT_EQ(kArm64StrS, s[kArithBase + 7]->arch_opcode());
   EXPECT_EQ(kArm64StrS, s[kArithBase + 8]->arch_opcode());
   EXPECT_EQ(kArm64StrS, s[kArithBase + 9]->arch_opcode());
   EXPECT_EQ(kArm64StrS, s[kArithBase + 10]->arch_opcode());
@@ -273,16 +289,16 @@ TEST_F(InstructionSchedulerTurboshaftArm64Test, ScheduleBackwards) {
               InstructionSelector::kAllSourcePositions,
               InstructionSelector::kEnableScheduling);
 
-  // The address-calculation chain is scheduled before the independent divide
-  // feeding the store. Backward scheduling should pull the divide/store chain
-  // first, saving cycles, but we need to be using 'data' predecessors to
-  // calculate the latency accurately.
+  // The divide feeding the store is scheduled before the address-calculation
+  // chain. Backward scheduling should pull this long-latency chain first,
+  // saving cycles, but we need to be using 'data' predecessors to calculate
+  // the latency accurately.
   ASSERT_GE(s.size(), 7U);
-  EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
-  EXPECT_EQ(kArm64Sub, s[1]->arch_opcode());
+  EXPECT_EQ(kArm64Udiv, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64Add, s[1]->arch_opcode());
   EXPECT_EQ(kArm64Sub, s[2]->arch_opcode());
-  EXPECT_EQ(kArm64Ldr, s[3]->arch_opcode());
-  EXPECT_EQ(kArm64Udiv, s[4]->arch_opcode());
+  EXPECT_EQ(kArm64Sub, s[3]->arch_opcode());
+  EXPECT_EQ(kArm64Ldr, s[4]->arch_opcode());
   EXPECT_EQ(kArm64LdrW, s[5]->arch_opcode());
   EXPECT_EQ(kArm64Str, s[6]->arch_opcode());
 }

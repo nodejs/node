@@ -207,7 +207,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         ],
     "jitless":
         kIncompatibleFlagsForNoTurbofan + [
-            "--no-jitless",
             "--track-field-types",
             "--sparkplug",
             "--concurrent-sparkplug",
@@ -219,7 +218,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
             "--script-context-cells",
         ],
     "nooptimization": [
-        "--no-disable-optimizing-compilers",
         "--turbofan",
         "--turboshaft",
         "--wasm-in-js-inlining-body",
@@ -235,7 +233,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--additive-safe-int-feedback",
         "--script-context-cells",
     ],
-    "slow_path": ["--no-force-slow-path"],
     "stress_concurrent_allocation": [
         "--single-threaded", "--single-threaded-gc", "--predictable"
     ],
@@ -257,20 +254,16 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         kIncompatibleFlagsForNoLiftoff,
     "turbofan_random_rescheduling":
         kIncompatibleFlagsForNoLiftoff,
-    "sparkplug": ["--jitless", "--no-sparkplug"],
+    "sparkplug": ["--jitless"],
     "concurrent_sparkplug": ["--jitless"],
-    "maglev": ["--jitless", "--no-maglev"],
-    "maglev_future": ["--jitless", "--no-maglev", "--no-maglev-future"],
+    "maglev": ["--jitless"],
+    "maglev_future": ["--jitless"],
     "maglev_no_turbofan": [
         "--jitless",
-        "--no-maglev",
-        "--turbofan",
         "--stress-concurrent-inlining",
     ],
     "maglev_no_turbofan_regexp_from_bc": [
         "--jitless",
-        "--no-maglev",
-        "--turbofan",
         "--stress-concurrent-inlining",
         "--no-regexp-tier-up",
         "--regexp-interpret-all",
@@ -278,18 +271,16 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     "stress_maglev": ["--jitless"],
     "stress_maglev_tracing": ["--jitless"],
     "stress_maglev_non_eager_inlining": ["--jitless"],
-    "stress_maglev_future": ["--jitless", "--no-maglev", "--no-maglev-future"],
+    "stress_maglev_future": ["--jitless"],
     "stress_maglev_no_turbofan": [
         "--jitless",
-        "--no-maglev",
-        "--turbofan",
         "--stress-concurrent-inlining",
     ],
     "stress_maglev_tests_with_turbofan": ["--jitless"],
     "turbolev_future": ["--no-turbolev",],
     "stress_turbolev_future": ["--no-turbolev",],
-    "always_sparkplug": ["--jitless", "--no-sparkplug"],
-    "always_sparkplug_and_stress_regexp_jit": ["--jitless", "--no-sparkplug"],
+    "always_sparkplug": ["--jitless"],
+    "always_sparkplug_and_stress_regexp_jit": ["--jitless"],
     "code_serializer": [
         "--cache=after-execute", "--cache=full-code-cache", "--cache=none"
     ],
@@ -300,8 +291,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--no-regexp-tier-up", "--regexp-interpret-all", "--jitless"
     ],
     "assert_types": [
-        "--concurrent-recompilation", "--stress_concurrent_inlining",
-        "--no-assert-types"
+        "--concurrent-recompilation", "--stress_concurrent_inlining"
     ],
     "wasm_assert_types": [
         # 'wasm_assert_types' disables Liftoff, which conflicts with flags that
@@ -311,8 +301,32 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--wasm-deopt",
     ],
     "verify_turboshaft": ["--jitless"],
-    "stress_wasm_stack_switching": ["--no-stress-wasm-stack-switching"],
 }
+
+
+# Note this can get it wrong if the flag name starts with the characters "--no"
+# where "no" is part of the flag name, e.g. "--nobodys-perfect". In that case
+# the negation "--bodys-perfect" would be returned. This is a weakness we accept
+# and hope to never run into.
+def negate_flag(flag):
+  # Exclude flags with values, like --regexp-tier-up-ticks=0
+  if '=' in flag:
+    return None
+  if flag.startswith("--no-"):
+    return "--" + flag.removeprefix("--no-")
+  if flag.startswith("--no"):
+    return "--" + flag.removeprefix("--no")
+  return "--no-" + flag.removeprefix("--")
+
+
+for _variant, _flags in ALL_VARIANT_FLAGS.items():
+  # Create a new list to avoid modifying constants.
+  _incompatible = list(INCOMPATIBLE_FLAGS_PER_VARIANT.get(_variant, []))
+  for _flag in _flags:
+    _negated = negate_flag(_flag)
+    if _negated and _negated not in _incompatible:
+      _incompatible.append(_negated)
+  INCOMPATIBLE_FLAGS_PER_VARIANT[_variant] = _incompatible
 
 # Flags that lead to a contradiction under certain build variables.
 # This corresponds to the build variables usable in status files as generated

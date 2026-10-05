@@ -125,7 +125,16 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   std::shared_ptr<const std::string> shared_url() const { return url_; }
 
   void SetUrl(base::Vector<const char> url) {
+    // We shouldn't modify {url_} while it is being read. The API contract
+    // hence states that {SetUrl()} must be called early.
+    // Enforcing this with a CHECK is possibly racy when an attacker with an
+    // in-sandbox corruption primitive performs a swapping attack. If that
+    // becomes a problem, we can add a lock. As an attack mitigation, a CHECK
+    // that fails most of the time is probably good enough.
+    SBXCHECK_EQ(stream_state_, kReceivingBytes);
     url_->assign(url.begin(), url.size());
+    // Safely crash if a race did happen:
+    SBXCHECK_EQ(stream_state_, kReceivingBytes);
   }
 
   static std::unique_ptr<StreamingDecoder> Create(

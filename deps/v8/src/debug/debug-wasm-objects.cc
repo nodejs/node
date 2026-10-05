@@ -363,7 +363,7 @@ struct GlobalsProxy : NamedDebugProxy<GlobalsProxy, kGlobalsProxy> {
   static DirectHandle<String> GetName(Isolate* isolate,
                                       DirectHandle<WasmInstanceObject> instance,
                                       uint32_t index) {
-    Managed<wasm::NativeModule>::Ptr native_module =
+    CppGCManaged<wasm::NativeModule>::Ptr native_module =
         instance->module_object()->native_module();
     wasm::NamesProvider* names = native_module->GetNamesProvider();
     StringBuilder sb;
@@ -391,7 +391,7 @@ struct MemoriesProxy : NamedDebugProxy<MemoriesProxy, kMemoriesProxy> {
   static DirectHandle<String> GetName(Isolate* isolate,
                                       DirectHandle<WasmInstanceObject> instance,
                                       uint32_t index) {
-    Managed<wasm::NativeModule>::Ptr native_module =
+    CppGCManaged<wasm::NativeModule>::Ptr native_module =
         instance->module_object()->native_module();
     wasm::NamesProvider* names = native_module->GetNamesProvider();
     StringBuilder sb;
@@ -419,7 +419,7 @@ struct TablesProxy : NamedDebugProxy<TablesProxy, kTablesProxy> {
   static DirectHandle<String> GetName(Isolate* isolate,
                                       DirectHandle<WasmInstanceObject> instance,
                                       uint32_t index) {
-    Managed<wasm::NativeModule>::Ptr native_module =
+    CppGCManaged<wasm::NativeModule>::Ptr native_module =
         instance->module_object()->native_module();
     wasm::NamesProvider* names = native_module->GetNamesProvider();
     StringBuilder sb;
@@ -466,7 +466,7 @@ struct LocalsProxy : NamedDebugProxy<LocalsProxy, kLocalsProxy, FixedArray> {
                                       DirectHandle<FixedArray> values,
                                       uint32_t index) {
     uint32_t count = Count(isolate, values);
-    Managed<wasm::NativeModule>::Ptr native_module =
+    CppGCManaged<wasm::NativeModule>::Ptr native_module =
         Cast<WasmModuleObject>(values->get(count + 0))->native_module();
     auto function_index = Smi::ToInt(Cast<Smi>(values->get(count + 1)));
     wasm::NamesProvider* names = native_module->GetNamesProvider();
@@ -1052,6 +1052,9 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
         t = isolate->factory()->InternalizeString(
             base::StaticCharVector("exnref"));
         v = ref;
+      } else if (IsWasmNull(*ref)) {
+        v = isolate->factory()->null_value();
+        t = GetRefTypeName(isolate, value.type());
       } else if (IsWasmStruct(*ref)) {
         Tagged<WasmTypeInfo> type_info =
             Cast<HeapObject>(*ref)->map()->wasm_type_info();
@@ -1066,9 +1069,6 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
         DirectHandle<WasmInternalFunction> internal_fct{
             Cast<WasmFuncRef>(*ref)->internal(isolate), isolate};
         v = WasmInternalFunction::GetOrCreateExternal(internal_fct);
-        t = GetRefTypeName(isolate, value.type());
-      } else if (IsWasmNull(*ref)) {
-        v = isolate->factory()->null_value();
         t = GetRefTypeName(isolate, value.type());
       } else if (IsJSFunction(*ref) || IsSmi(*ref) || IsNull(*ref) ||
                  IsString(*ref) ||

@@ -16,6 +16,7 @@
 #include "src/strings/unicode-inl.h"
 #include "torque-generated/class-debug-readers.h"
 #include "torque-generated/debug-macros.h"
+#include "torque-generated/debug-reader-classes-list.h"
 
 namespace i = v8::internal;
 
@@ -64,8 +65,8 @@ TypedObject GetTypedObjectByHint(uintptr_t address,
             std::make_unique<Tq##ClassName>(address)};   \
   }
 
-  TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(TYPE_NAME_CASE)
-  TORQUE_INSTANCE_CHECKERS_RANGE_FULLY_DEFINED(TYPE_NAME_CASE)
+  TORQUE_DEBUG_READER_CLASSES_SINGLE(TYPE_NAME_CASE)
+  TORQUE_DEBUG_READER_CLASSES_RANGE(TYPE_NAME_CASE)
   STRING_CLASS_TYPES(TYPE_NAME_CASE)
 
 #undef TYPE_NAME_CASE
@@ -103,8 +104,8 @@ TypedObject GetTypedObjectByInstanceType(uintptr_t address,
 #define INSTANCE_TYPE_CASE(ClassName, INSTANCE_TYPE) \
   case i::INSTANCE_TYPE:                             \
     return {type_source, std::make_unique<Tq##ClassName>(address)};
-    TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(INSTANCE_TYPE_CASE)
-    TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(INSTANCE_TYPE_CASE)
+    TORQUE_DEBUG_READER_CLASSES_SINGLE(INSTANCE_TYPE_CASE)
+    TORQUE_DEBUG_READER_CLASSES_MULTIPLE(INSTANCE_TYPE_CASE)
 #undef INSTANCE_TYPE_CASE
 
     default:
@@ -120,7 +121,7 @@ TypedObject GetTypedObjectByInstanceType(uintptr_t address,
   if (type >= i::FIRST_TYPE && type <= i::LAST_TYPE) {              \
     return {type_source, std::make_unique<Tq##ClassName>(address)}; \
   }
-      TORQUE_INSTANCE_CHECKERS_RANGE_FULLY_DEFINED(INSTANCE_RANGE_CASE)
+      TORQUE_DEBUG_READER_CLASSES_RANGE(INSTANCE_RANGE_CASE)
 #undef INSTANCE_RANGE_CASE
 
       return {d::TypeCheckResult::kUnknownInstanceType,

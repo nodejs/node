@@ -394,6 +394,9 @@ void GCTracer::StartInSafepoint(base::TimeTicks time) {
   current_.start_object_size = heap_->SizeOfObjects();
   current_.start_memory_size = heap_->memory_allocator()->Size();
   current_.start_holes_size = CountTotalHolesSize(heap_);
+  current_.start_old_generation_consumed_size =
+      heap_->OldGenerationConsumedBytes();
+  current_.start_global_consumed_size = heap_->GlobalConsumedBytes();
   size_t new_space_size = (heap_->new_space() ? heap_->new_space()->Size() : 0);
   size_t new_lo_space_size =
       (heap_->new_lo_space() ? heap_->new_lo_space()->SizeOfObjects() : 0);
@@ -405,6 +408,9 @@ void GCTracer::StopInSafepoint(base::TimeTicks time) {
   current_.end_object_size = heap_->SizeOfObjects();
   current_.end_memory_size = heap_->memory_allocator()->Size();
   current_.end_holes_size = CountTotalHolesSize(heap_);
+  current_.end_old_generation_consumed_size =
+      heap_->OldGenerationConsumedBytes();
+  current_.end_global_consumed_size = heap_->GlobalConsumedBytes();
   current_.survived_young_object_size = heap_->SurvivedYoungObjectSize();
   current_.end_atomic_pause_time = time;
 
@@ -972,6 +978,11 @@ void GCTracer::PrintNVP() const {
       .p("end_memory_size", current_.end_memory_size)
       .p("start_holes_size", current_.start_holes_size)
       .p("end_holes_size", current_.end_holes_size)
+      .p("start_old_gen_consumed_size",
+         current_.start_old_generation_consumed_size)
+      .p("end_old_gen_consumed_size", current_.end_old_generation_consumed_size)
+      .p("start_global_consumed_size", current_.start_global_consumed_size)
+      .p("end_global_consumed_size", current_.end_global_consumed_size)
       .p("pool_local_chunks", heap_->memory_allocator()->GetPooledChunksCount())
       .p("pool_shared_chunks",
          heap_->memory_allocator()->GetSharedPooledChunksCount())

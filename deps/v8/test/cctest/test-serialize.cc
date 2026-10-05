@@ -57,6 +57,7 @@
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"
@@ -2905,6 +2906,81 @@ TEST(CodeSerializerExternalString) {
   delete cache;
 }
 
+namespace {
+
+// The addresses of these resources are registered as API external references
+// below, so that ObjectSerializer::SerializeExternalString() takes the "known
+// resource" path for the strings backed by them. This is the state an embedder
+// ends up in when it externalizes strings it also hands to the compiler, e.g.
+// builtin module sources that are later turned into a code cache.
+constexpr char kExternalCodeCacheSource[] =
+    "function f() { return 'abc'; }; f() + 'def';";
+constexpr char kExternalCodeCacheName[] = "external-script-name";
+
+SerializerOneByteResource external_code_cache_source_resource(
+    kExternalCodeCacheSource, sizeof(kExternalCodeCacheSource) - 1);
+SerializerOneByteResource external_code_cache_name_resource(
+    kExternalCodeCacheName, sizeof(kExternalCodeCacheName) - 1);
+
+const intptr_t external_code_cache_references[] = {
+    reinterpret_cast<intptr_t>(&external_code_cache_source_resource),
+    reinterpret_cast<intptr_t>(&external_code_cache_name_resource), 0};
+
+}  // namespace
+
+// Serializing a live cached ExternalString must leave its resource_data_
+// (cached data pointer) external pointer handle intact, so that reads of the
+// string's characters from generated code keep working afterwards.
+UNINITIALIZED_TEST(CodeSerializerExternalStringResourceDataRestored) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.external_references = external_code_cache_references;
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(context);
+
+    v8::Local<v8::String> source_string =
+        v8::String::NewExternalOneByte(isolate,
+                                       &external_code_cache_source_resource)
+            .ToLocalChecked();
+    v8::Local<v8::String> name_string =
+        v8::String::NewExternalOneByte(isolate,
+                                       &external_code_cache_name_resource)
+            .ToLocalChecked();
+    // Only cached external strings have a resource_data_ field.
+    CHECK(!Cast<ExternalString>(*Utils::OpenDirectHandle(*source_string))
+               ->is_uncached());
+    CHECK(!Cast<ExternalString>(*Utils::OpenDirectHandle(*name_string))
+               ->is_uncached());
+
+    v8::ScriptCompiler::Source source(source_string, {name_string});
+    v8::Local<v8::UnboundScript> script =
+        v8::ScriptCompiler::CompileUnboundScript(
+            isolate, &source, v8::ScriptCompiler::kEagerCompile)
+            .ToLocalChecked();
+
+    // Serializes the script name in every build, and additionally the script
+    // source in DEBUG builds - CodeSerializer::Serialize() only attaches the
+    // source instead of serializing it when DEBUG is not defined. Both strings
+    // stay live in this isolate afterwards.
+    std::unique_ptr<v8::ScriptCompiler::CachedData> cache(
+        v8::ScriptCompiler::CreateCodeCache(script));
+    CHECK(cache);
+
+    // Read the character data of both strings from generated code.
+    v8::Local<v8::Object> global = context->Global();
+    CHECK(global->Set(context, v8_str("source"), source_string).FromJust());
+    CHECK(global->Set(context, v8_str("name"), name_string).FromJust());
+    ExpectTrue("source.startsWith('function f()')");
+    ExpectTrue("source.indexOf('def') > 0");
+    ExpectTrue("name.startsWith('external-script')");
+  }
+  isolate->Dispose();
+}
+
 TEST(CodeSerializerLargeExternalString) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -4670,18 +4746,10 @@ UNINITIALIZED_TEST(SerializeContextData) {
         v8::Local<v8::Context> context =
             v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
         CHECK_NULL(context->GetAlignedPointerFromEmbedderData(0, kRawDataTag));
-        // It would be more consistent if the API would always null out pointers
-        // stored in embedder slots (if no custom serializer/deserializer is
-        // provided), but in the wide pointer case we don't actually know
-        // whether it's a pointer or a Smi, so we just let these values pass
-        // through.
-        if (V8_ENABLE_SANDBOX_BOOL) {
-          CHECK_NULL(
-              context->GetAlignedPointerFromEmbedderData(1, kRawDataTag));
-        } else {
-          CHECK_EQ(raw_data,
-                   context->GetAlignedPointerFromEmbedderData(1, kRawDataTag));
-        }
+        // Embedder pointers stored in embedder slots are always cleared during
+        // snapshot serialization if no custom serializer/deserializer is
+        // provided.
+        CHECK_NULL(context->GetAlignedPointerFromEmbedderData(1, kRawDataTag));
       }
       isolate->Dispose();
     }

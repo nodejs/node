@@ -14,7 +14,10 @@
 
 #include "absl/time/clock.h"
 
+#include "gtest/gtest.h"
 #include "absl/base/config.h"
+#include "absl/time/time.h"
+
 #if defined(ABSL_HAVE_ALARM)
 #include <signal.h>
 #include <unistd.h>
@@ -25,9 +28,6 @@ typedef void (*sig_t)(int);
 #elif defined(__linux__) || defined(__APPLE__)
 #error all known Linux and Apple targets have alarm
 #endif
-
-#include "gtest/gtest.h"
-#include "absl/time/time.h"
 
 namespace {
 

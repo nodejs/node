@@ -249,6 +249,9 @@ function assertInvalid(fn, message) {
                "WebAssembly.Table(): " +
                "Missing initial value when creating stringref table");
 
+  let t_zero = new WebAssembly.Table({ element: 'stringref', initial: 0 });
+  assertEquals(0, t_zero.length);
+
   let kSig_w_v = makeSig([], [kWasmStringRef]);
   let kSig_v_w = makeSig([kWasmStringRef], []);
   let builder = new WasmModuleBuilder();

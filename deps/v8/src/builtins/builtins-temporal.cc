@@ -6,6 +6,7 @@
 #include "src/builtins/builtins.h"
 #include "src/objects/bigint.h"
 #include "src/objects/js-temporal-objects-inl.h"
+#include "src/objects/object-conversions-inl.h"
 
 namespace v8 {
 namespace internal {

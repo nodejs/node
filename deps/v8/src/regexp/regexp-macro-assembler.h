@@ -477,9 +477,9 @@ class NativeRegExpMacroAssembler : public RegExpMacroAssembler {
 
   // Returns a {Result} sentinel, or the number of successful matches.
   static int Match(DirectHandle<IrRegExpData> regexp_data,
-                   DirectHandle<String> subject, int* offsets_vector,
-                   int offsets_vector_length, int previous_index,
-                   Isolate* isolate);
+                   DirectHandle<String> subject, bool is_one_byte,
+                   int* offsets_vector, int offsets_vector_length,
+                   int previous_index, Isolate* isolate);
 
   V8_EXPORT_PRIVATE static int ExecuteForTesting(
       Tagged<String> input, int start_offset, const uint8_t* input_start,
@@ -517,8 +517,8 @@ class NativeRegExpMacroAssembler : public RegExpMacroAssembler {
   // Returns a {Result} sentinel, or the number of successful matches.
   static int Execute(Tagged<String> input, int start_offset,
                      const uint8_t* input_start, const uint8_t* input_end,
-                     int* output, int output_size, Isolate* isolate,
-                     Tagged<IrRegExpData> regexp_data);
+                     bool is_one_byte, int* output, int output_size,
+                     Isolate* isolate, Tagged<IrRegExpData> regexp_data);
 
   ZoneUnorderedMap<uint32_t, IndirectHandle<FixedUInt16Array>>
       range_array_cache_;

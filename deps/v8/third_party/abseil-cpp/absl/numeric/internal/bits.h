@@ -19,14 +19,14 @@
 #include <limits>
 #include <type_traits>
 
+#include "absl/base/attributes.h"
+#include "absl/base/config.h"
+
 // Clang on Windows has __builtin_clzll; otherwise we need to use the
 // windows intrinsic functions.
 #if defined(_MSC_VER) && !defined(__clang__)
 #include <intrin.h>
 #endif
-
-#include "absl/base/attributes.h"
-#include "absl/base/config.h"
 
 #if defined(__GNUC__) && !defined(__clang__)
 // GCC

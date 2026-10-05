@@ -19,14 +19,6 @@
 
 #include <sys/ucontext.h>
 
-#include "absl/base/config.h"
-#include "absl/debugging/internal/addresses.h"
-#if defined(__linux__)
-#include <sys/mman.h>
-#include <ucontext.h>
-#include <unistd.h>
-#endif
-
 #include <atomic>
 #include <cassert>
 #include <cstdint>
@@ -35,7 +27,15 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
+#include "absl/debugging/internal/addresses.h"
 #include "absl/debugging/stacktrace.h"
+
+#if defined(__linux__)
+#include <sys/mman.h>
+#include <ucontext.h>
+#include <unistd.h>
+#endif
 
 static constexpr ptrdiff_t kUnknownFrameSize = 0;
 

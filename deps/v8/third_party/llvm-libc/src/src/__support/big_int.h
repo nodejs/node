@@ -124,10 +124,14 @@ LIBC_INLINE constexpr DoubleWide<word> mul2(word a, word b) {
     word no_carry = 0;
     word carry = 0;
     [[maybe_unused]] word _ = 0; // unused carry variable.
-    lo_digit = add_with_carry<word>(lo_digit, shiftl(step2), no_carry, carry);
-    hi_digit = add_with_carry<word>(hi_digit, shiftr(step2), carry, _);
-    lo_digit = add_with_carry<word>(lo_digit, shiftl(step3), no_carry, carry);
-    hi_digit = add_with_carry<word>(hi_digit, shiftr(step3), carry, _);
+    lo_digit = LIBC_NAMESPACE::add_with_carry<word>(lo_digit, shiftl(step2),
+                                                    no_carry, carry);
+    hi_digit =
+        LIBC_NAMESPACE::add_with_carry<word>(hi_digit, shiftr(step2), carry, _);
+    lo_digit = LIBC_NAMESPACE::add_with_carry<word>(lo_digit, shiftl(step3),
+                                                    no_carry, carry);
+    hi_digit =
+        LIBC_NAMESPACE::add_with_carry<word>(hi_digit, shiftr(step3), carry, _);
     return DoubleWide<word>(lo_digit, hi_digit);
   }
 }

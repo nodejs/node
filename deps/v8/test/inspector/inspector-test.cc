@@ -223,19 +223,19 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
 
   static void CompileAndRunWithOrigin(
       const v8::FunctionCallbackInfo<v8::Value>& info) {
-    if (info.Length() != 6 || !info[0]->IsInt32() || !info[1]->IsString() ||
+    if (info.Length() != 7 || !info[0]->IsInt32() || !info[1]->IsString() ||
         !info[2]->IsString() || !info[3]->IsInt32() || !info[4]->IsInt32() ||
-        !info[5]->IsBoolean()) {
+        !info[5]->IsBoolean() || !info[6]->IsBoolean()) {
       FATAL(
           "Internal error: compileAndRunWithOrigin(context_group_id, source, "
-          "name, line, column, is_module).");
+          "name, line, column, is_module, evaluate).");
     }
-
     backend_runner_->Append(std::make_unique<ExecuteStringTask>(
         info.GetIsolate(), info[0].As<v8::Int32>()->Value(),
         ToVector(info.GetIsolate(), info[1].As<v8::String>()),
         info[2].As<v8::String>(), info[3].As<v8::Int32>(),
-        info[4].As<v8::Int32>(), info[5].As<v8::Boolean>()));
+        info[4].As<v8::Int32>(), info[5].As<v8::Boolean>(),
+        info[6].As<v8::Boolean>()->Value()));
   }
 
   static void CompileAndRunWrapped(

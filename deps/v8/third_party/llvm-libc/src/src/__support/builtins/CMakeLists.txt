@@ -1,4 +1,43 @@
 add_header_library(
+  cmp_helper
+  HDRS
+    cmp_helper.h
+  DEPENDS
+    libc.src.__support.FPUtil.comparison_operations
+    libc.src.__support.FPUtil.fp_bits
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.c
+)
+
+add_header_library(
+  floatint_helper
+  HDRS
+    floatint_helper.h
+  DEPENDS
+    libc.src.__support.CPP.type_traits
+    libc.src.__support.FPUtil.dyadic_float
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.config
+    libc.src.__support.sign
+)
+
+add_header_library(
+  fpconvert_helper
+  HDRS
+    fpconvert_helper.h
+  DEPENDS
+    libc.hdr.fenv_macros
+    libc.src.__support.CPP.algorithm
+    libc.src.__support.CPP.bit
+    libc.src.__support.CPP.type_traits
+    libc.src.__support.FPUtil.dyadic_float
+    libc.src.__support.FPUtil.fenv_impl
+    libc.src.__support.FPUtil.fp_bits
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.config
+)
+
+add_header_library(
   addtf3
   HDRS
     addtf3.h
@@ -84,12 +123,29 @@ add_header_library(
 )
 
 add_header_library(
+  negsf2
+  HDRS
+    negsf2.h
+  DEPENDS
+    libc.src.__support.macros.config
+    libc.src.__support.FPUtil.fp_bits
+)
+
+add_header_library(
+  negdf2
+  HDRS
+    negdf2.h
+  DEPENDS
+    libc.src.__support.macros.config
+    libc.src.__support.FPUtil.fp_bits
+)
+
+add_header_library(
   subsf3
   HDRS
     subsf3.h
   DEPENDS
     libc.src.__support.FPUtil.generic.add_sub
-    libc.src.__support.macros.config
 )
 
 add_header_library(
@@ -108,4 +164,336 @@ add_header_library(
   DEPENDS
     libc.src.__support.FPUtil.generic.div
     libc.src.__support.macros.config
+)
+
+add_header_library(
+  extendsftf2
+  HDRS
+    extendsftf2.h
+  DEPENDS
+    libc.include.llvm-libc-types.float128
+    libc.src.__support.builtins.fpconvert_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  extenddftf2
+  HDRS
+    extenddftf2.h
+  DEPENDS
+    libc.include.llvm-libc-types.float128
+    libc.src.__support.builtins.fpconvert_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  extendxftf2
+  HDRS
+    extendxftf2.h
+  DEPENDS
+    libc.include.llvm-libc-types.float128
+    libc.src.__support.builtins.fpconvert_helper
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.types
+)
+
+add_header_library(
+  trunctfdf2
+  HDRS
+    trunctfdf2.h
+  DEPENDS
+    libc.include.llvm-libc-types.float128
+    libc.src.__support.builtins.fpconvert_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  trunctfsf2
+  HDRS
+    trunctfsf2.h
+  DEPENDS
+    libc.include.llvm-libc-types.float128
+    libc.src.__support.builtins.fpconvert_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  trunctfxf2
+  HDRS
+    trunctfxf2.h
+  DEPENDS
+    libc.include.llvm-libc-types.float128
+    libc.src.__support.builtins.fpconvert_helper
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.types
+)
+
+add_header_library(
+  extendsfdf2
+  HDRS
+    extendsfdf2.h
+  DEPENDS
+    libc.src.__support.builtins.fpconvert_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  truncdfsf2
+  HDRS
+    truncdfsf2.h
+  DEPENDS
+    libc.src.__support.builtins.fpconvert_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  fixdfdi
+  HDRS
+    fixdfdi.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.fixint_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  fixdfti
+  HDRS
+    fixdfti.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.fixint_helper
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.types
+    libc.src.__support.uint128
+)
+
+add_header_library(
+  fixdfsi
+  HDRS
+    fixdfsi.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.fixint_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  fixsfsi
+  HDRS
+    fixsfsi.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.fixint_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  fixsfdi
+  HDRS
+    fixsfdi.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.fixint_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  fixsfti
+  HDRS
+    fixsfti.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.fixint_helper
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.types
+    libc.src.__support.uint128
+)
+
+add_header_library(
+  fixunsdfsi
+  HDRS
+    fixunsdfsi.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.fixint_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  fixunsdfdi
+  HDRS
+    fixunsdfdi.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.fixint_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  fixunsdfti
+  HDRS
+    fixunsdfti.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.fixint_helper
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.types
+    libc.src.__support.uint128
+)
+
+add_header_library(
+  fixunssfsi
+  HDRS
+    fixunssfsi.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.fixint_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  fixunssfdi
+  HDRS
+    fixunssfdi.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.fixint_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  fixunssfti
+  HDRS
+    fixunssfti.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.fixint_helper
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.types
+    libc.src.__support.uint128
+)
+
+add_header_library(
+  floatsidf
+  HDRS
+    floatsidf.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.floatint_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  floatdidf
+  HDRS
+    floatdidf.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.floatint_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  floattidf
+  HDRS
+    floattidf.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.floatint_helper
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.types
+)
+
+add_header_library(
+  floatsisf
+  HDRS
+    floatsisf.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.floatint_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  floatdisf
+  HDRS
+    floatdisf.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.floatint_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  floattisf
+  HDRS
+    floattisf.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.floatint_helper
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.types
+)
+
+add_header_library(
+  floatunsidf
+  HDRS
+    floatunsidf.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.floatint_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  floatundidf
+  HDRS
+    floatundidf.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.floatint_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  floatuntidf
+  HDRS
+    floatuntidf.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.floatint_helper
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.types
+)
+
+add_header_library(
+  floatunsisf
+  HDRS
+    floatunsisf.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.floatint_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  floatundisf
+  HDRS
+    floatundisf.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.floatint_helper
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  floatuntisf
+  HDRS
+    floatuntisf.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.builtins.floatint_helper
+    libc.src.__support.macros.config
+    libc.src.__support.macros.properties.types
 )

@@ -3,13 +3,6 @@
 
 // Generate stack tracer for aarch64
 
-#if defined(__linux__)
-#include <signal.h>
-#include <sys/mman.h>
-#include <ucontext.h>
-#include <unistd.h>
-#endif
-
 #include <atomic>
 #include <cassert>
 #include <cstddef>
@@ -22,6 +15,13 @@
 #include "absl/debugging/internal/addresses.h"
 #include "absl/debugging/internal/vdso_support.h"  // a no-op on non-elf or non-glibc systems
 #include "absl/debugging/stacktrace.h"
+
+#if defined(__linux__)
+#include <signal.h>
+#include <sys/mman.h>
+#include <ucontext.h>
+#include <unistd.h>
+#endif
 
 static const size_t kUnknownFrameSize = 0;
 // Stack end to use when we don't know the actual stack end

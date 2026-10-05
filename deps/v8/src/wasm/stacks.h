@@ -92,6 +92,7 @@ class StackMemory {
   }
   void set_current_continuation(Tagged<WasmContinuationObject> cont) {
     current_cont_ = cont;
+    contains_only_old_pointers_ = false;
   }
   void set_stack_obj(Tagged<WasmStackObject> stack) { stack_obj_ = stack; }
   Tagged<WasmStackObject> stack_obj() { return stack_obj_; }
@@ -138,6 +139,13 @@ class StackMemory {
   bool Grow(Address current_fp, size_t min_size);
   Address Shrink();
   void ShrinkTo(Address stack_address);
+  bool contains_only_old_pointers() const {
+    return contains_only_old_pointers_;
+  }
+  void set_contains_only_old_pointers(bool value) {
+    contains_only_old_pointers_ = value;
+  }
+
   void Reset();
 
   class StackSegment {
@@ -258,6 +266,8 @@ class StackMemory {
   // Overload to represent a view of the libc stack.
   StackMemory(uint8_t* limit, size_t size);
 
+  void IterateWasmFXRoots(v8::internal::RootVisitor* v);
+
   uint8_t* limit_;
   size_t size_;
   bool owned_;
@@ -298,6 +308,10 @@ class StackMemory {
   // The pointer is cleared when we return/suspend back to this stack to avoid
   // keeping a dangling pointer if the frame is popped.
   WasmCode* wasm_code_ = nullptr;
+
+  // Generational state for optimizing minor GC root iteration on suspended
+  // stacks.
+  bool contains_only_old_pointers_ = false;
   // When adding fields here, also check if it needs to be cleared in
   // StackMemory::Reset() when the stack is moved to the stack pool after
   // retiring.
@@ -331,9 +345,6 @@ class StackPool {
  private:
   std::vector<std::unique_ptr<StackMemory>> freelist_;
   size_t size_ = 0;
-  // If the next finished stack would move the total size above this limit, the
-  // stack is freed instead of being added to the free list.
-  static constexpr int kMaxSize = 4 * MB;
 };
 
 using WasmFXArgBufferCallback =

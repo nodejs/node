@@ -9,6 +9,7 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include "src/base/bits.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -387,35 +388,6 @@ class Int64LoweringReducer : public Next {
     FATAL("%s", str.str().c_str());
   }
 
-  std::pair<OptionalV<Word32>, int32_t> IncreaseOffset(
-      OptionalV<Word32> index, int32_t offset, int32_t add_offset,
-      uint8_t element_size_log2, bool tagged_base) {
-    uint32_t element_size = 1 << element_size_log2;
-    // Note that the offset will just wrap around. Still, we need to always
-    // use an offset that is not std::numeric_limits<int32_t>::min() on tagged
-    // loads.
-    // TODO(dmercadier): Replace LoadOp::OffsetIsValid by taking care of this
-    // special case in the LoadStoreSimplificationReducer instead.
-    int32_t new_offset =
-        static_cast<uint32_t>(offset) + static_cast<uint32_t>(add_offset);
-    OptionalV<Word32> new_index = index;
-    if (!LoadOp::OffsetIsValid(new_offset, tagged_base)) {
-      // We cannot encode the new offset because it has the one invalid value.
-      // We can choose any other value and the only requirement is that we end
-      // up at the same final location after calculating
-      // |  index * element_size + offset
-      // So we'll just subtract "one element" and increase the index by one.
-      // We could do this for almost any arbitrary value larger than 0.
-      new_offset -= element_size;
-      if (index.has_value()) {
-        new_index = __ Word32Add(new_index.value(), 1);
-      } else {
-        new_index = __ Word32Constant(1);
-      }
-    }
-    return {new_index, new_offset};
-  }
-
   OpIndex REDUCE(Load)(OpIndex base, OptionalOpIndex index, LoadOp::Kind kind,
                        MemoryRepresentation loaded_rep,
                        RegisterRepresentation result_rep, int32_t offset,
@@ -443,15 +415,15 @@ class Int64LoweringReducer : public Next {
     }
     if (loaded_rep == MemoryRepresentation::Int64() ||
         loaded_rep == MemoryRepresentation::Uint64()) {
-      auto [high_index, high_offset] = IncreaseOffset(
-          index, offset, sizeof(int32_t), element_scale, kind.tagged_base);
+      int32_t high_offset =
+          base::bits::WraparoundAdd32(offset, sizeof(int32_t));
       return __ MakeTuple(
           Next::ReduceLoad(base, index, kind, MemoryRepresentation::Int32(),
                            RegisterRepresentation::Word32(), offset,
                            element_scale),
-          Next::ReduceLoad(
-              base, high_index, kind, MemoryRepresentation::Int32(),
-              RegisterRepresentation::Word32(), high_offset, element_scale));
+          Next::ReduceLoad(base, index, kind, MemoryRepresentation::Int32(),
+                           RegisterRepresentation::Word32(), high_offset,
+                           element_scale));
     }
     return Next::ReduceLoad(base, index, kind, loaded_rep, result_rep, offset,
                             element_scale);
@@ -488,12 +460,12 @@ class Int64LoweringReducer : public Next {
                         maybe_initializing_or_transitioning,
                         maybe_indirect_pointer_tag);
       // high store
-      auto [high_index, high_offset] = IncreaseOffset(
-          index, offset, sizeof(int32_t), element_size_log2, kind.tagged_base);
-      Next::ReduceStore(
-          base, high_index, high, kind, MemoryRepresentation::Int32(),
-          write_barrier, memory_order, high_offset, element_size_log2,
-          maybe_initializing_or_transitioning, maybe_indirect_pointer_tag);
+      int32_t high_offset =
+          base::bits::WraparoundAdd32(offset, sizeof(int32_t));
+      Next::ReduceStore(base, index, high, kind, MemoryRepresentation::Int32(),
+                        write_barrier, memory_order, high_offset,
+                        element_size_log2, maybe_initializing_or_transitioning,
+                        maybe_indirect_pointer_tag);
       return V<None>::Invalid();
     }
     return Next::ReduceStore(

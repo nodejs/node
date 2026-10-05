@@ -12,6 +12,17 @@ types:
   - type_name: struct_dl_phdr_info
     standards:
       - gnu
+  - type_name: struct_link_map
+    standards:
+      - svid
+  - type_name: struct_r_debug
+    standards:
+      - svid
+objects:
+  - object_name: _r_debug
+    standards:
+      - svid
+    object_type: struct r_debug
 functions:
   - name: dl_iterate_phdr
     standards:

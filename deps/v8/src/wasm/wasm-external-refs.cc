@@ -1362,6 +1362,7 @@ void cont_bind(Address cont_raw, wasm::StackMemory* stack, int num_args,
   stack->bind_arguments(num_args);
   stack->set_signature_id(CanonicalTypeIndex{new_sig});
   stack->set_current_continuation(cont);
+  stack->set_contains_only_old_pointers(false);
 }
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t current_sp) {

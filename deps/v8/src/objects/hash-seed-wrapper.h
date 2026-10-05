@@ -16,6 +16,8 @@ namespace v8 {
 namespace internal {
 
 V8_OBJECT class HashSeedWrapper : public HeapObject {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   inline const HashSeed::Data& data() const;
   inline void set_data(const HashSeed::Data& value);

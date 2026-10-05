@@ -56,7 +56,7 @@ bool StatusIsMatcherCommonImpl::MatchAndExplain(
     return false;
   }
 
-  if (!message_matcher_.Matches(std::string(status.message()))) {
+  if (!message_matcher_.Matches(status.message())) {
     *result_listener << "whose error message is wrong";
     return false;
   }

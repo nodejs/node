@@ -22,11 +22,11 @@
 namespace v8 {
 namespace internal {
 
-Tagged<Managed<icu::Collator>> JSCollator::icu_collator() const {
-  return Cast<Managed<icu::Collator>>(icu_collator_.load());
+Tagged<CppGCManaged<icu::Collator>> JSCollator::icu_collator() const {
+  return Cast<CppGCManaged<icu::Collator>>(icu_collator_.load());
 }
 
-void JSCollator::set_icu_collator(Tagged<Managed<icu::Collator>> value,
+void JSCollator::set_icu_collator(Tagged<CppGCManaged<icu::Collator>> value,
                                   WriteBarrierMode mode) {
   icu_collator_.store(this, value, mode);
 }

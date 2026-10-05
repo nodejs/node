@@ -51,9 +51,6 @@
   # is enabled.
   #'test-api-interceptors/Crash*': [FAIL, CRASH],
 
-  # This test always fails.  It tests that LiveEdit causes abort when turned off.
-  'test-debug/LiveEditDisabled': [FAIL],
-
   # This test always fails.  It tests that DisallowJavascriptExecutionScope
   # works as intended.
   'test-api/DisallowJavascriptExecutionScope': [FAIL],
@@ -97,7 +94,6 @@
   'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL, ['official_build', CRASH]],
 
   # Slow tests.
-  'test-api/FastApiCalls': [PASS, SLOW],
   'test-api/InternalFieldsSubclassing': [PASS, SLOW],
   'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [PASS, SLOW],
   'test-cpu-profiler/NoProfilingProtectorCPUProfiler': [PASS, SLOW],
@@ -144,6 +140,59 @@
 
   # TODO(https://crbug.com/467830526): Currently too flaky:
   'test-mark-compact/RegressJoinThreadsOnIsolateDeinit': [SKIP],
+
+  ##############################################################################
+  # Behavioural differences between Maglev and Turbofan when the former is used
+  # for OptimizeFunctionOnNextCall or as a frontend for Turboshaft.
+  #
+  # Maglev doesn't support compiler::NodeObserver machinery.
+  'test-js-to-wasm/TestFastJSWasmCall_I32Arg': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_Nop': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_MixedMistypedArgs': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_MistypedArgs': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_LazyDeopt_F64Result': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_MixedArgs': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_LazyDeopt_I64Result': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_NoArgs': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_I64Arg': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_I32ArgNotSmi': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_I64ArgExpectsBigInt': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_I32ArgDoesntExpectBigInt': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_LazyDeopt_VoidResult': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_LazyDeopt_I32Result': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_I64NegativeResult': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_LazyDeopt_F32Result': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_MismatchedArity': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_MultipleArgs': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_EagerDeopt': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_F64ArgDoesntExpectBigInt': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_ExternrefArg': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_F32Arg': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_F64Arg': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_NoReturnTypes': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_ExternrefNullArg': [SKIP],
+  'test-js-to-wasm/TestFastJSWasmCall_F32ArgDoesntExpectBigInt': [SKIP],
+  'test-calls-with-arraylike-or-spread/ReduceJSCallWithArrayLike': [SKIP],
+  'test-calls-with-arraylike-or-spread/ReduceJSCallWithSpread': [SKIP],
+  'test-calls-with-arraylike-or-spread/ReduceJSCreateBoundFunction': [SKIP],
+  'test-calls-with-arraylike-or-spread/ReduceJSCreateClosure': [SKIP],
+  'test-verify-type/TestVerifyType': [SKIP],
+  'test-js-to-wasm/*': [SKIP],
+  # Maglev doesn't support FastApi calls.
+  'test-api/FastApiCalls': [SKIP, SLOW],
+  'test-api/FastApiCallWithAllocationAndGCInJS': [SKIP],
+  'test-api/FastApiCallWithAllocationAndGCInC': [SKIP],
+  'test-api/FastApiSequenceOverloads': [SKIP],
+  'test-api/FastApiCallRecursionNoException': [SKIP],
+  'test-api/FastApiCallRecursionWithException': [SKIP],
+  'test-api/FastApiCallWithThrowInReentrantCode': [SKIP],
+  'test-api/FastApiCallsString': [SKIP],
+  # Maglev is still missing some optimizations compared to Turbofan, which means
+  # that some old Turbofan tests don't pass when using Maglev as a frontend for
+  # Turboshaft.
+  'test-cpu-profiler/FastApiCPUProfiler': [SKIP],
+  'test-run-unwinding-info/RunUnwindingInfo': [SKIP],
+
 }],  # ALWAYS
 
 ##############################################################################
@@ -161,6 +210,17 @@
   # into the handler after the stack has drifted from the context on the
   # signal.
   'test-cpu-profiler/*': [SKIP],
+
+  # Slow tests on TSAN
+  'test-heap/Regress8014': [SKIP],
+  'test-run-wasm/RunWasmTurbofan_Float32Add_Consts': [SKIP],
+  'test-run-wasm/RunWasmTurbofan_Float32Sub_Consts': [SKIP],
+  'test-run-wasm/RunWasmTurbofan_Float32Mul_Consts': [SKIP],
+  'test-run-wasm/RunWasmTurbofan_Float32Div_Consts': [SKIP],
+  'test-run-wasm/RunWasmLiftoff_Float32Add_Consts': [SKIP],
+  'test-run-wasm/RunWasmLiftoff_Float32Sub_Consts': [SKIP],
+  'test-run-wasm/RunWasmLiftoff_Float32Mul_Consts': [SKIP],
+  'test-run-wasm/RunWasmLiftoff_Float32Div_Consts': [SKIP],
 }],
 
 ##############################################################################
@@ -546,6 +606,15 @@
 ##############################################################################
 ['variant == stress_incremental_marking', {
   'test-heap-profiler/SamplingHeapProfiler': [SKIP],
+  # Tests time out in stress_incremental_marking.
+  'test-run-wasm/RunWasmTurbofan_Float32Add_Consts': [SKIP],
+  'test-run-wasm/RunWasmTurbofan_Float32Sub_Consts': [SKIP],
+  'test-run-wasm/RunWasmTurbofan_Float32Mul_Consts': [SKIP],
+  'test-run-wasm/RunWasmTurbofan_Float32Div_Consts': [SKIP],
+  'test-run-wasm/RunWasmLiftoff_Float32Add_Consts': [SKIP],
+  'test-run-wasm/RunWasmLiftoff_Float32Sub_Consts': [SKIP],
+  'test-run-wasm/RunWasmLiftoff_Float32Mul_Consts': [SKIP],
+  'test-run-wasm/RunWasmLiftoff_Float32Div_Consts': [SKIP],
 
   # BUG(https://crbug.com/v8/12999): Very slow test.
   'test-api/InternalFieldsSubclassing': [PASS, ['mode == debug and arch == ia32', SKIP]],
@@ -668,6 +737,7 @@
   'turboshaft-test-branch-combine/*': [SKIP],
   'turboshaft-test-compare-combine/*': [SKIP],
   'turboshaft-test-select-combine/*': [SKIP],
+  'turboshaft-test-simd-shift/*': [SKIP],
 
   'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
   'test-heap-profiler/WeakReference': [SKIP],
@@ -806,62 +876,6 @@
   # always triggers a concurrent compilation.
   'test-concurrent-shared-function-info/TestConcurrentSharedFunctionInfo': [SKIP],
 }],  # variant == assert_types
-
-##############################################################################
-# Behavioural differences between Maglev and Turbofan when the former is used
-# for OptimizeFunctionOnNextCall or as a frontend for Turboshaft.
-['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)', {
-  # Maglev doesn't support compiler::NodeObserver machinery.
-  'test-js-to-wasm/TestFastJSWasmCall_I32Arg': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_Nop': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_MixedMistypedArgs': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_MistypedArgs': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_LazyDeopt_F64Result': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_MixedArgs': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_LazyDeopt_I64Result': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_NoArgs': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_I64Arg': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_I32ArgNotSmi': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_I64ArgExpectsBigInt': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_I32ArgDoesntExpectBigInt': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_LazyDeopt_VoidResult': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_LazyDeopt_I32Result': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_I64NegativeResult': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_LazyDeopt_F32Result': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_MismatchedArity': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_MultipleArgs': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_EagerDeopt': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_F64ArgDoesntExpectBigInt': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_ExternrefArg': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_F32Arg': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_F64Arg': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_NoReturnTypes': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_ExternrefNullArg': [FAIL],
-  'test-js-to-wasm/TestFastJSWasmCall_F32ArgDoesntExpectBigInt': [FAIL],
-  'test-calls-with-arraylike-or-spread/ReduceJSCallWithArrayLike': [FAIL],
-  'test-calls-with-arraylike-or-spread/ReduceJSCallWithSpread': [FAIL],
-  'test-calls-with-arraylike-or-spread/ReduceJSCreateBoundFunction': [FAIL],
-  'test-calls-with-arraylike-or-spread/ReduceJSCreateClosure': [FAIL],
-  'test-verify-type/TestVerifyType': [FAIL],
-  'test-js-to-wasm/*': [SKIP],
-  # Maglev doesn't support FastApi calls.
-  'test-api/FastApiCalls': [FAIL],
-  'test-api/FastApiCallWithAllocationAndGCInJS': [FAIL],
-  'test-api/FastApiCallWithAllocationAndGCInC': [FAIL],
-  'test-api/FastApiSequenceOverloads': [FAIL],
-  'test-api/FastApiCallRecursionNoException': [FAIL],
-  'test-api/FastApiCallRecursionWithException': [FAIL],
-  'test-api/FastApiCallWithThrowInReentrantCode': [FAIL],
-  'test-api/FastApiCallsString': [FAIL],
-}],  # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)
-
-# Maglev is still missing some optimizations compared to Turbofan, which means
-# that some old Turbofan tests don't pass when using Maglev as a frontend for
-# Turboshaft.
-['variant in (turbolev, turbolev_future, stress_turbolev_future)', {
-  'test-cpu-profiler/FastApiCPUProfiler': [SKIP],
-  'test-run-unwinding-info/RunUnwindingInfo': [SKIP],
-}],
 
 ['direct_handle', {
   # Needs --predictable.

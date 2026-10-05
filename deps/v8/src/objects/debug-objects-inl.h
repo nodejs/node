@@ -261,6 +261,22 @@ void ErrorStackData::set_stack_trace(Tagged<StackTraceInfo> value,
   stack_trace_.store(this, value, mode);
 }
 
+Tagged<ByteArray> DebugScriptScopeInfo::numeric_data() const {
+  return numeric_data_.load();
+}
+void DebugScriptScopeInfo::set_numeric_data(Tagged<ByteArray> value,
+                                            WriteBarrierMode mode) {
+  numeric_data_.store(this, value, mode);
+}
+
+Tagged<FixedArray> DebugScriptScopeInfo::string_table() const {
+  return string_table_.load();
+}
+void DebugScriptScopeInfo::set_string_table(Tagged<FixedArray> value,
+                                            WriteBarrierMode mode) {
+  string_table_.store(this, value, mode);
+}
+
 // CoverageInfo.
 int32_t CoverageInfo::slot_count() const { return slot_count_; }
 void CoverageInfo::set_slot_count(int32_t value) { slot_count_ = value; }

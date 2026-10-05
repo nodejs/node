@@ -100,6 +100,10 @@ wheel: <
   version: "version:8.0.3"
 >
 wheel: <
+  name: "infra/python/wheels/colorama-py2_py3"
+  version: "version:0.4.1"
+>
+wheel: <
   name: "infra/python/wheels/perfetto-py3"
   version: "version:0.16.0"
 >

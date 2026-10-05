@@ -335,8 +335,13 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
   base::SmallVector<OpIndex, 16> args(args_count);
   args[0] = instance_data;
   for (int i = 0; i < wasm_param_count; ++i) {
-    args[i + 1] =
+    OptionalOpIndex arg =
         FromJS(params[i], js_context, sig_->GetParam(i), caller_frame_state);
+    if (!arg.has_value()) {
+      DCHECK(__ generating_unreachable_operations());
+      return OpIndex::Invalid();
+    }
+    args[i + 1] = arg.value();
   }
 
   // Inline the Wasm function body, if possible.
@@ -560,19 +565,29 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
   // Convert the return value(s) back.
   OpIndex val;
   base::SmallVector<OpIndex, 8> wasm_values;
-  if (sig_->return_count() <= 1) {
-    val = sig_->return_count() == 0
-              ? __ Word32Constant(0)
-              : FromJS(call, native_context, sig_->GetReturn());
+  if (sig_->return_count() == 0) {
+    val = __ Word32Constant(0);
+  } else if (sig_->return_count() == 1) {
+    OptionalOpIndex from_js_val =
+        FromJS(call, native_context, sig_->GetReturn());
+    if (!from_js_val.has_value()) return;
+    val = from_js_val.value();
   } else {
     V<FixedArray> fixed_array =
         BuildMultiReturnFixedArrayFromIterable(call, native_context);
     wasm_values.resize(sig_->return_count());
     for (unsigned i = 0; i < sig_->return_count(); ++i) {
-      wasm_values[i] = FromJS(__ LoadFixedArrayElement(fixed_array, i),
-                              native_context, sig_->GetReturn(i));
+      OptionalOpIndex from_js_val =
+          FromJS(__ LoadFixedArrayElement(fixed_array, i), native_context,
+                 sig_->GetReturn(i));
+      if (!from_js_val.has_value()) {
+        DCHECK(__ generating_unreachable_operations());
+        return;
+      }
+      wasm_values[i] = from_js_val.value();
     }
   }
+
   this->BuildSwitchBackFromCentralStack(old_sp, old_limit);
   if (sig_->return_count() <= 1) {
     __ Return(val);

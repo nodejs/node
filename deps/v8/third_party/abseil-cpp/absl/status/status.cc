@@ -15,29 +15,19 @@
 
 #include <errno.h>
 
-#include <atomic>
-#include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <memory>
 #include <ostream>
 #include <string>
 #include <type_traits>
 #include <utility>
 
-#include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/strerror.h"
-#include "absl/base/macros.h"
 #include "absl/base/no_destructor.h"
 #include "absl/base/nullability.h"
-#include "absl/debugging/stacktrace.h"
-#include "absl/debugging/symbolize.h"
 #include "absl/status/internal/status_internal.h"
 #include "absl/strings/str_cat.h"
-#include "absl/strings/str_format.h"
-#include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
 
@@ -140,11 +130,13 @@ uintptr_t Status::MakeRepFromStringView(uintptr_t inlined_rep,
   return MakeStatusRepImpl<absl::string_view>(inlined_rep, msg, loc);
 }
 
+#ifndef SWIG
 uintptr_t Status::MakeRepFromStringRvalue(uintptr_t inlined_rep,
                                           std::string&& msg,
                                           absl::SourceLocation loc) {
   return MakeStatusRepImpl<std::string&&>(inlined_rep, std::move(msg), loc);
 }
+#endif  // SWIG
 
 uintptr_t Status::AddSourceLocationImpl(uintptr_t rep,
                                         absl::SourceLocation loc) {
@@ -152,6 +144,17 @@ uintptr_t Status::AddSourceLocationImpl(uintptr_t rep,
   if (loc.file_name()[0] == '\0') return rep;
   status_internal::StatusRep* rep_ptr = PrepareToModify(rep);
   rep_ptr->AddSourceLocation(loc);
+  return PointerToRep(rep_ptr);
+}
+
+uintptr_t Status::WithContextImpl(uintptr_t rep, absl::string_view context) {
+  if (context.empty()) return rep;
+  status_internal::StatusRep* rep_ptr = PrepareToModify(rep);
+  if (rep_ptr->message_.empty()) {
+    rep_ptr->message_ = std::string(context);
+  } else {
+    absl::StrAppend(&rep_ptr->message_, "; ", context);
+  }
   return PointerToRep(rep_ptr);
 }
 
@@ -179,7 +182,7 @@ std::ostream& operator<<(std::ostream& os, const Status& x) {
 namespace status_internal {
 // We use an int in the template parameter to shorten mangled names.
 template <int error_code>
-Status MakeErrorImpl(string_view message, SourceLocation loc) {
+Status MakeErrorStringViewImpl(string_view message, SourceLocation loc) {
   return Status(static_cast<StatusCode>(error_code), message, loc);
 }
 
@@ -187,23 +190,53 @@ Status MakeErrorImpl(string_view message, SourceLocation loc) {
 // If we add more error code, we need to add their values on this list.
 // Using ints here instead of static_cast<int>(StatusCode::kFoo) makes it easier
 // to see that the list is complete.
-template Status MakeErrorImpl<0>(string_view, SourceLocation);
-template Status MakeErrorImpl<1>(string_view, SourceLocation);
-template Status MakeErrorImpl<2>(string_view, SourceLocation);
-template Status MakeErrorImpl<3>(string_view, SourceLocation);
-template Status MakeErrorImpl<4>(string_view, SourceLocation);
-template Status MakeErrorImpl<5>(string_view, SourceLocation);
-template Status MakeErrorImpl<6>(string_view, SourceLocation);
-template Status MakeErrorImpl<7>(string_view, SourceLocation);
-template Status MakeErrorImpl<8>(string_view, SourceLocation);
-template Status MakeErrorImpl<9>(string_view, SourceLocation);
-template Status MakeErrorImpl<10>(string_view, SourceLocation);
-template Status MakeErrorImpl<11>(string_view, SourceLocation);
-template Status MakeErrorImpl<12>(string_view, SourceLocation);
-template Status MakeErrorImpl<13>(string_view, SourceLocation);
-template Status MakeErrorImpl<14>(string_view, SourceLocation);
-template Status MakeErrorImpl<15>(string_view, SourceLocation);
-template Status MakeErrorImpl<16>(string_view, SourceLocation);
+template Status MakeErrorStringViewImpl<1>(string_view, SourceLocation);
+template Status MakeErrorStringViewImpl<2>(string_view, SourceLocation);
+template Status MakeErrorStringViewImpl<3>(string_view, SourceLocation);
+template Status MakeErrorStringViewImpl<4>(string_view, SourceLocation);
+template Status MakeErrorStringViewImpl<5>(string_view, SourceLocation);
+template Status MakeErrorStringViewImpl<6>(string_view, SourceLocation);
+template Status MakeErrorStringViewImpl<7>(string_view, SourceLocation);
+template Status MakeErrorStringViewImpl<8>(string_view, SourceLocation);
+template Status MakeErrorStringViewImpl<9>(string_view, SourceLocation);
+template Status MakeErrorStringViewImpl<10>(string_view, SourceLocation);
+template Status MakeErrorStringViewImpl<11>(string_view, SourceLocation);
+template Status MakeErrorStringViewImpl<12>(string_view, SourceLocation);
+template Status MakeErrorStringViewImpl<13>(string_view, SourceLocation);
+template Status MakeErrorStringViewImpl<14>(string_view, SourceLocation);
+template Status MakeErrorStringViewImpl<15>(string_view, SourceLocation);
+template Status MakeErrorStringViewImpl<16>(string_view, SourceLocation);
+
+// Same as above, but for rvalue strings.
+#ifndef SWIG
+// We use an int in the template parameter to shorten mangled names.
+template <int error_code>
+Status MakeErrorStringRvalueImpl(std::string&& message, SourceLocation loc) {
+  return Status(static_cast<StatusCode>(error_code), std::move(message), loc);
+}
+
+// Explicit instantiation for all the error codes.
+// If we add more error code, we need to add their values on this list.
+// Using ints here instead of static_cast<int>(StatusCode::kFoo) makes it easier
+// to see that the list is complete.
+template Status MakeErrorStringRvalueImpl<1>(std::string&&, SourceLocation);
+template Status MakeErrorStringRvalueImpl<2>(std::string&&, SourceLocation);
+template Status MakeErrorStringRvalueImpl<3>(std::string&&, SourceLocation);
+template Status MakeErrorStringRvalueImpl<4>(std::string&&, SourceLocation);
+template Status MakeErrorStringRvalueImpl<5>(std::string&&, SourceLocation);
+template Status MakeErrorStringRvalueImpl<6>(std::string&&, SourceLocation);
+template Status MakeErrorStringRvalueImpl<7>(std::string&&, SourceLocation);
+template Status MakeErrorStringRvalueImpl<8>(std::string&&, SourceLocation);
+template Status MakeErrorStringRvalueImpl<9>(std::string&&, SourceLocation);
+template Status MakeErrorStringRvalueImpl<10>(std::string&&, SourceLocation);
+template Status MakeErrorStringRvalueImpl<11>(std::string&&, SourceLocation);
+template Status MakeErrorStringRvalueImpl<12>(std::string&&, SourceLocation);
+template Status MakeErrorStringRvalueImpl<13>(std::string&&, SourceLocation);
+template Status MakeErrorStringRvalueImpl<14>(std::string&&, SourceLocation);
+template Status MakeErrorStringRvalueImpl<15>(std::string&&, SourceLocation);
+template Status MakeErrorStringRvalueImpl<16>(std::string&&, SourceLocation);
+#endif  // SWIG
+
 }  // namespace status_internal
 
 bool IsAborted(const Status& status) {

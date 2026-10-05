@@ -14,9 +14,13 @@
 
 #include "absl/random/internal/iostream_state_saver.h"
 
-#include <errno.h>
 #include <stdio.h>
 
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <ios>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <type_traits>

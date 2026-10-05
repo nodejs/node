@@ -358,7 +358,12 @@ constexpr auto kFlagsMetadata = []() {
     const char* comment;
   };
   constexpr RawMetadata raw[] = {
-#define FLAG_MODE_APPLY(ctype, nam, primary, cmt) {#nam, #primary, cmt},
+#define FLAG_MODE_APPLY(ctype, nam, primary, cmt)    \
+  [] {                                               \
+    static_assert(#nam[0] != 'n' || #nam[1] != 'o',  \
+                  "Flags must not start with 'no'"); \
+    return RawMetadata{#nam, #primary, cmt};         \
+  }(),
 #define FLAG_MODE_INCLUDE_READONLY
 #define FLAG_MODE_INCLUDE_ALIASES
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
@@ -629,10 +634,16 @@ uint32_t ComputeFlagListHash() {
     // The following flags are implied by --predictable (some negated).
     if (flag.PointsTo(&v8_flags.concurrent_sparkplug) ||
         flag.PointsTo(&v8_flags.concurrent_recompilation) ||
+        flag.PointsTo(&v8_flags.concurrent_cache_deserialization) ||
         flag.PointsTo(&v8_flags.lazy_feedback_allocation) ||
 #ifdef V8_ENABLE_MAGLEV
         flag.PointsTo(&v8_flags.maglev_deopt_data_on_background) ||
         flag.PointsTo(&v8_flags.maglev_build_code_on_background) ||
+        flag.PointsTo(&v8_flags.maglev_destroy_on_background) ||
+#endif
+#if V8_ENABLE_WEBASSEMBLY
+        flag.PointsTo(&v8_flags.wasm_sync_tier_up) ||
+        flag.PointsTo(&v8_flags.wasm_test_streaming) ||
 #endif
         flag.PointsTo(&v8_flags.parallel_scavenge) ||
         flag.PointsTo(&v8_flags.concurrent_marking) ||
@@ -1086,35 +1097,50 @@ void FlagList::PrintFeatureFlagsJSON() {
 
   {
     std::vector<const char*> inprogress_flags;
+    std::vector<const char*> inprogress_harmony_flags;
     std::vector<const char*> staged_flags;
+    std::vector<const char*> staged_harmony_flags;
     std::vector<const char*> shipping_flags;
+    std::vector<const char*> shipping_harmony_flags;
 
-#define ADD_JS_INPROGRESS_FLAG(name, desc) inprogress_flags.push_back(#name);
-#define ADD_JS_STAGED_FLAG(name, desc) staged_flags.push_back(#name);
-#define ADD_JS_SHIPPING_FLAG(name, desc) shipping_flags.push_back(#name);
+#define IGNORE_FEATURE(name, desc)
 
-    JAVASCRIPT_INPROGRESS_FEATURES(ADD_JS_INPROGRESS_FLAG)
-    JAVASCRIPT_STAGED_FEATURES(ADD_JS_STAGED_FLAG)
-    JAVASCRIPT_SHIPPING_FEATURES(ADD_JS_SHIPPING_FLAG)
+#define ADD_JS_INPROGRESS_FLAG(name, desc)     \
+  if (strncmp("harmony_", #name, 8) == 0) {    \
+    inprogress_harmony_flags.push_back(#name); \
+  } else {                                     \
+    inprogress_flags.push_back(#name);         \
+  }
+#define ADD_JS_STAGED_FLAG(name, desc)      \
+  if (strncmp("harmony_", #name, 8) == 0) { \
+    staged_harmony_flags.push_back(#name);  \
+  } else {                                  \
+    staged_flags.push_back(#name);          \
+  }
+#define ADD_JS_SHIPPING_FLAG(name, desc)     \
+  if (strncmp("harmony_", #name, 8) == 0) {  \
+    shipping_harmony_flags.push_back(#name); \
+  } else {                                   \
+    shipping_flags.push_back(#name);         \
+  }
+
+    FOREACH_EXPERIMENTAL_FEATURE_FLAG(ADD_JS_INPROGRESS_FLAG, IGNORE_FEATURE,
+                                      IGNORE_FEATURE)
+    FOREACH_PRE_STAGED_FEATURE_FLAG(ADD_JS_INPROGRESS_FLAG, IGNORE_FEATURE,
+                                    IGNORE_FEATURE)
+    FOREACH_STAGED_FEATURE_FLAG(ADD_JS_STAGED_FLAG, IGNORE_FEATURE,
+                                IGNORE_FEATURE)
+    FOREACH_SHIPPED_FEATURE_FLAG(ADD_JS_SHIPPING_FLAG, IGNORE_FEATURE,
+                                 IGNORE_FEATURE)
 
     os << "  \"js\": ";
     PrintFeatureFlagsJSONObject(os, inprogress_flags, staged_flags,
                                 shipping_flags);
     os << ",\n";
-  }
-
-  {
-    std::vector<const char*> inprogress_flags;
-    std::vector<const char*> staged_flags;
-    std::vector<const char*> shipping_flags;
-
-    HARMONY_INPROGRESS(ADD_JS_INPROGRESS_FLAG)
-    HARMONY_STAGED(ADD_JS_STAGED_FLAG)
-    HARMONY_SHIPPING(ADD_JS_SHIPPING_FLAG)
 
     os << "  \"harmony\": ";
-    PrintFeatureFlagsJSONObject(os, inprogress_flags, staged_flags,
-                                shipping_flags);
+    PrintFeatureFlagsJSONObject(os, inprogress_harmony_flags,
+                                staged_harmony_flags, shipping_harmony_flags);
     os << ",\n";
   }
 
@@ -1124,16 +1150,20 @@ void FlagList::PrintFeatureFlagsJSON() {
     std::vector<const char*> staged_flags;
     std::vector<const char*> shipping_flags;
 
-#define ADD_WASM_INPROGRESS_FLAG(name, desc, val) \
+#define ADD_WASM_INPROGRESS_FLAG(name, desc) \
   inprogress_flags.push_back("wasm_" #name);
-#define ADD_WASM_STAGED_FLAG(name, desc, val) \
-  staged_flags.push_back("wasm_" #name);
-#define ADD_WASM_SHIPPED_FLAG(name, desc, val) \
+#define ADD_WASM_STAGED_FLAG(name, desc) staged_flags.push_back("wasm_" #name);
+#define ADD_WASM_SHIPPED_FLAG(name, desc) \
   shipping_flags.push_back("wasm_" #name);
 
-    FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(ADD_WASM_INPROGRESS_FLAG)
-    FOREACH_WASM_STAGING_FEATURE_FLAG(ADD_WASM_STAGED_FLAG)
-    FOREACH_WASM_SHIPPED_FEATURE_FLAG(ADD_WASM_SHIPPED_FLAG)
+    FOREACH_EXPERIMENTAL_FEATURE_FLAG(IGNORE_FEATURE, ADD_WASM_INPROGRESS_FLAG,
+                                      IGNORE_FEATURE)
+    FOREACH_PRE_STAGED_FEATURE_FLAG(IGNORE_FEATURE, ADD_WASM_INPROGRESS_FLAG,
+                                    IGNORE_FEATURE)
+    FOREACH_STAGED_FEATURE_FLAG(IGNORE_FEATURE, ADD_WASM_STAGED_FLAG,
+                                IGNORE_FEATURE)
+    FOREACH_SHIPPED_FEATURE_FLAG(IGNORE_FEATURE, ADD_WASM_SHIPPED_FLAG,
+                                 IGNORE_FEATURE)
 
     os << "  \"wasm\": ";
     PrintFeatureFlagsJSONObject(os, inprogress_flags, staged_flags,
@@ -1151,6 +1181,7 @@ void FlagList::PrintFeatureFlagsJSON() {
 #undef ADD_WASM_INPROGRESS_FLAG
 #undef ADD_WASM_STAGED_FLAG
 #undef ADD_WASM_SHIPPED_FLAG
+#undef IGNORE_FEATURE
 }
 
 namespace {
@@ -1341,6 +1372,11 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   CONTRADICTION(always_osr_from_maglev, lite_mode);
   CONTRADICTION(always_osr_from_maglev, turbofan);
   CONTRADICTION(always_osr_from_maglev, turboshaft);
+  CONTRADICTION(osr_from_maglev, disable_optimizing_compilers);
+  CONTRADICTION(osr_from_maglev, jitless);
+  CONTRADICTION(osr_from_maglev, lite_mode);
+  CONTRADICTION(osr_from_maglev, turbofan);
+  CONTRADICTION(osr_from_maglev, turboshaft);
   CONTRADICTION(assert_types, stress_concurrent_inlining);
   CONTRADICTION(assert_types, stress_concurrent_inlining_attach_code);
   CONTRADICTION(disable_optimizing_compilers, maglev_future);
@@ -1390,6 +1426,7 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   CONTRADICTION(predictable_gc_schedule, stress_compaction);
   CONTRADICTION(single_threaded, stress_concurrent_inlining_attach_code);
 #if V8_ENABLE_WEBASSEMBLY
+  CONTRADICTION(wasm_test_streaming, predictable);
   CONTRADICTION(single_threaded, wasm_pgo_to_file);
   CONTRADICTION(single_threaded, wasm_generate_compilation_hints);
   CONTRADICTION(single_threaded, trace_wasm_generate_compilation_hints);
@@ -1441,6 +1478,11 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   // Not useful for differential fuzzing: https://crbug.com/496356383
   RESET_WHEN_CORRECTNESS_FUZZING(heap_snapshot_on_gc);
 
+  // https://crbug.com/550629905
+#if V8_ENABLE_WEBASSEMBLY
+  RESET_WHEN_CORRECTNESS_FUZZING(wasm_pgo_to_file);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   // https://crbug.com/369974230
   RESET_WHEN_FUZZING(expose_async_hooks);
 
@@ -1456,6 +1498,21 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   if (v8_flags.turbofan && !v8_flags.turbolev) {
     RESET_WHEN_FUZZING(array_destructure_bytecode);
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (v8_flags.wasm_max_code_space_size_mb > kDefaultMaxWasmCodeSpaceSizeMb) {
+    // Skip the warning on correctness (differential) fuzzing to prevent false
+    // positives.
+    if (!v8_flags.correctness_fuzzer_suppressions) {
+      std::cerr << "Warning: lowering flag --wasm-max-code-space-size-mb="
+                << v8_flags.wasm_max_code_space_size_mb
+                << " to --wasm-max-code-space-size-mb="
+                << kDefaultMaxWasmCodeSpaceSizeMb
+                << ", larger values are unsupported";
+    }
+    v8_flags.wasm_max_code_space_size_mb = kDefaultMaxWasmCodeSpaceSizeMb;
+  }
+#endif
 
   for (auto [flag1, flag2] : contradictions) {
     if (!flag1 || !flag2) continue;

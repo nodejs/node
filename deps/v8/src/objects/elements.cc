@@ -23,6 +23,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-shared-array.h"
 #include "src/objects/keys.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots-atomic-inl.h"
 #include "src/objects/slots.h"
@@ -2099,11 +2100,66 @@ class DictionaryElementsAccessor
     return Just(false);
   }
 
+  static bool IndexOfValueFastPath(Isolate* isolate,
+                                   DirectHandle<JSObject> receiver,
+                                   DirectHandle<Object> value,
+                                   size_t start_from, size_t length,
+                                   Maybe<int64_t>* result) {
+    DisallowGarbageCollection no_gc;
+    Tagged<NumberDictionary> dictionary =
+        Cast<NumberDictionary>(receiver->elements());
+    Tagged<Object> the_hole = ReadOnlyRoots(isolate).the_hole_value();
+    Tagged<Object> undefined = ReadOnlyRoots(isolate).undefined_value();
+
+    // Iterate the dictionary's entries directly (O(entries)) instead of
+    // probing every index in [start_from, length) (O(length)). This is
+    // unobservable as long as no entry is an accessor: reading data values
+    // and comparing them with StrictEquals has no side effects, and indexOf
+    // skips holes (HasProperty gates the Get in the spec), so the smallest
+    // matching entry index is exactly the spec's answer. If accessors are
+    // present, elements must be accessed in order via the slow path.
+    bool found = false;
+    uint32_t found_index = 0;
+    for (InternalIndex i : dictionary->IterateEntries()) {
+      Tagged<Object> k = dictionary->KeyAt(i);
+      if (k == the_hole) continue;
+      if (k == undefined) continue;
+
+      uint32_t index;
+      if (!Object::ToArrayIndex(k, &index) || index < start_from ||
+          index >= length) {
+        continue;
+      }
+
+      if (dictionary->DetailsAt(i).kind() == PropertyKind::kAccessor) {
+        // Restart from the beginning in the slow path, otherwise we may
+        // observably access getters out of order.
+        return false;
+      } else if (!found || index < found_index) {
+        Tagged<Object> element_k = dictionary->ValueAt(i);
+        if (Object::StrictEquals(*value, element_k)) {
+          found = true;
+          found_index = index;
+        }
+      }
+    }
+
+    *result = found ? Just(static_cast<int64_t>(found_index))
+                    : Just(static_cast<int64_t>(-1));
+    return true;
+  }
+
   static Maybe<int64_t> IndexOfValueImpl(Isolate* isolate,
                                          DirectHandle<JSObject> receiver,
                                          DirectHandle<Object> value,
                                          size_t start_from, size_t length) {
     DCHECK(JSObject::PrototypeHasNoElements(isolate, *receiver));
+
+    Maybe<int64_t> fast_result = Nothing<int64_t>();
+    if (DictionaryElementsAccessor::IndexOfValueFastPath(
+            isolate, receiver, value, start_from, length, &fast_result)) {
+      return fast_result;
+    }
 
     ElementsKind original_elements_kind = receiver->GetElementsKind();
     USE(original_elements_kind);
@@ -2853,9 +2909,10 @@ class FastSmiOrObjectElementsAccessor
         Subclass::EnsureFillRangeCapacity(isolate, receiver, start, end));
 
     if (IsSmi(*obj_value)) {
-      MemsetTagged(Cast<FixedArray>(receiver->elements())
-                       ->RawFieldOfElementAt(static_cast<uint32_t>(start)),
-                   *obj_value, end - start);
+      Relaxed_MemsetTagged(
+          Cast<FixedArray>(receiver->elements())
+              ->RawFieldOfElementAt(static_cast<uint32_t>(start)),
+          *obj_value, end - start);
       return MaybeDirectHandle<Object>(receiver);
     }
 

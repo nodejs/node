@@ -209,14 +209,14 @@ V8_OBJECT class JSDurationFormat : public JSObject {
   inline int display_flags() const;
   inline void set_display_flags(int value);
 
-  inline Tagged<Managed<icu::Locale>> icu_locale() const;
-  inline void set_icu_locale(Tagged<Managed<icu::Locale>> value,
+  inline Tagged<CppGCManaged<icu::Locale>> icu_locale() const;
+  inline void set_icu_locale(Tagged<CppGCManaged<icu::Locale>> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Managed<icu::number::LocalizedNumberFormatter>>
+  inline Tagged<CppGCManaged<icu::number::LocalizedNumberFormatter>>
   icu_number_formatter() const;
   inline void set_icu_number_formatter(
-      Tagged<Managed<icu::number::LocalizedNumberFormatter>> value,
+      Tagged<CppGCManaged<icu::number::LocalizedNumberFormatter>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_PRINTER(JSDurationFormat)
@@ -227,8 +227,9 @@ V8_OBJECT class JSDurationFormat : public JSObject {
  public:
   TaggedMember<Smi> style_flags_;
   TaggedMember<Smi> display_flags_;
-  TaggedMember<Foreign> icu_locale_;
-  TaggedMember<Foreign> icu_number_formatter_;
+  TaggedMember<CppGCManaged<icu::Locale>> icu_locale_;
+  TaggedMember<CppGCManaged<icu::number::LocalizedNumberFormatter>>
+      icu_number_formatter_;
 } V8_OBJECT_END;
 
 inline constexpr int JSDurationFormat::kHeaderSize = sizeof(JSDurationFormat);

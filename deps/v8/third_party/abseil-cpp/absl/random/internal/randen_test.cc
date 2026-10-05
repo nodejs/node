@@ -14,11 +14,11 @@
 
 #include "absl/random/internal/randen.h"
 
+#include <cstdint>
 #include <cstring>
 #include <type_traits>
 
 #include "gtest/gtest.h"
-#include "absl/meta/type_traits.h"
 
 namespace {
 

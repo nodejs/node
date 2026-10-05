@@ -968,4 +968,22 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          ::testing::ValuesIn(kSwizzleConstants));
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+TEST_F(TurboshaftInstructionSelectorTest, AtomicStoreWithWriteBarrier) {
+  if (v8_flags.disable_write_barriers) return;
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
+                  MachineType::Pointer(), MachineType::AnyTagged());
+  m.Store(m.Parameter(0), m.Parameter(1), m.Parameter(2),
+          StoreOp::Kind::Aligned(BaseTaggedness::kTaggedBase).Atomic(),
+          MemoryRepresentation::TaggedPointer(),
+          WriteBarrierKind::kFullWriteBarrier, AtomicMemoryOrder::kSeqCst);
+  m.Return(m.Int32Constant(0));
+  Stream s = m.Build(kAllExceptNopInstructions);
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kArchAtomicStoreWithWriteBarrier, s[0]->arch_opcode());
+  EXPECT_EQ(AtomicMemoryOrderField::decode(s[0]->opcode()),
+            AtomicMemoryOrder::kSeqCst);
+  EXPECT_EQ(AtomicStoreRecordWriteModeField::decode(s[0]->opcode()),
+            RecordWriteMode::kValueIsAny);
+}
+
 }  // namespace v8::internal::compiler::turboshaft

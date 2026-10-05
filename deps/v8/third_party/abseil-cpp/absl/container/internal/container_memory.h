@@ -60,7 +60,7 @@ struct alignas(Alignment) AlignedType {
 // returns insufficiently alignment pointer, that's what you are going to get.
 template <size_t Alignment, class Alloc>
 void* Allocate(Alloc* alloc, size_t n) {
-  static_assert(Alignment > 0, "");
+  static_assert(Alignment > 0);
   assert(n && "n must be positive");
   using M = AlignedType<Alignment>;
   using A = typename std::allocator_traits<Alloc>::template rebind_alloc<M>;
@@ -84,14 +84,14 @@ constexpr auto IsDestructionTrivial() {
       std::is_same_v<typename std::allocator_traits<
                          Allocator>::template rebind_alloc<char>,
                      std::allocator<char>>;
-  return std::integral_constant<bool, result>();
+  return std::bool_constant<result>();
 }
 
 // The pointer must have been previously obtained by calling
 // Allocate<Alignment>(alloc, n).
 template <size_t Alignment, class Alloc>
 void Deallocate(Alloc* alloc, void* p, size_t n) {
-  static_assert(Alignment > 0, "");
+  static_assert(Alignment > 0);
   assert(n && "n must be positive");
   using M = AlignedType<Alignment>;
   using A = typename std::allocator_traits<Alloc>::template rebind_alloc<M>;
@@ -144,10 +144,10 @@ auto TupleRefImpl(T&& t, std::index_sequence<Is...>)
 template <class T>
 auto TupleRef(T&& t) -> decltype(TupleRefImpl(
     std::forward<T>(t),
-    std::make_index_sequence<std::tuple_size<std::decay_t<T>>::value>())) {
+    std::make_index_sequence<std::tuple_size_v<std::decay_t<T>>>())) {
   return TupleRefImpl(
       std::forward<T>(t),
-      std::make_index_sequence<std::tuple_size<std::decay_t<T>>::value>());
+      std::make_index_sequence<std::tuple_size_v<std::decay_t<T>>>());
 }
 
 template <class F, class K, class V>
@@ -167,7 +167,7 @@ template <class Alloc, class T, class Tuple>
 void ConstructFromTuple(Alloc* alloc, T* ptr, Tuple&& t) {
   memory_internal::ConstructFromTupleImpl(
       alloc, ptr, std::forward<Tuple>(t),
-      std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value>());
+      std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>());
 }
 
 // Constructs T using the args specified in the tuple and calls F with the
@@ -177,7 +177,7 @@ decltype(std::declval<F>()(std::declval<T>())) WithConstructed(Tuple&& t,
                                                                F&& f) {
   return memory_internal::WithConstructedImpl<T>(
       std::forward<Tuple>(t),
-      std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value>(),
+      std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>(),
       std::forward<F>(f));
 }
 
@@ -486,9 +486,9 @@ struct map_slot_policy {
 
 // Variadic arguments hash function that ignore the rest of the arguments.
 // Useful for usage with policy traits.
-template <class Hash, bool kIsDefault>
+template <class Hash, bool kIsDefault, size_t kSeedShift>
 struct HashElement {
-  HashElement(const Hash& h, size_t s) : hash(h), seed(s) {}
+  HashElement(const Hash& h, size_t s) : hash(h), seed(s >> kSeedShift) {}
 
   template <class K, class... Args>
   size_t operator()(const K& key, Args&&...) const {
@@ -506,12 +506,12 @@ struct HashElement {
 };
 
 // No arguments function hash function for a specific key.
-template <class Hash, class Key, bool kIsDefault>
+template <class Hash, class Key, bool kIsDefault, size_t kSeedShift>
 struct HashKey {
   HashKey(const Hash& h, const Key& k) : hash(h), key(k) {}
 
   size_t operator()(size_t seed) const {
-    return HashElement<Hash, kIsDefault>{hash, seed}(key);
+    return HashElement<Hash, kIsDefault, kSeedShift>{hash, seed}(key);
   }
   const Hash& hash;
   const Key& key;
@@ -534,30 +534,31 @@ using HashSlotFn = size_t (*)(const void* hash_fn, void* slot, size_t seed);
 
 // Type erased function to apply `Fn` to data inside of the `slot`.
 // The data is expected to have type `T`.
-template <class Fn, class T, bool kIsDefault>
+template <class Fn, class T, bool kIsDefault, size_t kSeedShift>
 size_t TypeErasedApplyToSlotFn(const void* fn, void* slot, size_t seed) {
   const auto* f = static_cast<const Fn*>(fn);
-  return HashElement<Fn, kIsDefault>{*f, seed}(*static_cast<const T*>(slot));
+  return HashElement<Fn, kIsDefault, kSeedShift>{
+      *f, seed}(*static_cast<const T*>(slot));
 }
 
 // Type erased function to apply `Fn` to data inside of the `*slot_ptr`.
 // The data is expected to have type `T`.
-template <class Fn, class T, bool kIsDefault>
+template <class Fn, class T, bool kIsDefault, size_t kSeedShift>
 size_t TypeErasedDerefAndApplyToSlotFn(const void* fn, void* slot_ptr,
                                        size_t seed) {
   const auto* f = static_cast<const Fn*>(fn);
   const T* slot = *static_cast<T**>(slot_ptr);
-  return HashElement<Fn, kIsDefault>{*f, seed}(*slot);
+  return HashElement<Fn, kIsDefault, kSeedShift>{*f, seed}(*slot);
 }
 
 // Type erased function to apply `Fn` to data inside of the `slot_ptr->first`.
 // The data is expected to have type `T`.
-template <class Fn, class T, bool kIsDefault>
+template <class Fn, class T, bool kIsDefault, size_t kSeedShift>
 size_t TypeErasedDerefAndApplyToSlotFirstFn(const void* fn, void* slot_ptr,
                                             size_t seed) {
   const auto* f = static_cast<const Fn*>(fn);
   const T* slot = *static_cast<T**>(slot_ptr);
-  return HashElement<Fn, kIsDefault>{*f, seed}(slot->first);
+  return HashElement<Fn, kIsDefault, kSeedShift>{*f, seed}(slot->first);
 }
 
 }  // namespace container_internal

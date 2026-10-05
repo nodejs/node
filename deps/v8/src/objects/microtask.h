@@ -22,6 +22,8 @@ class JSGeneratorObject;
 // microtask queue. This class merely serves the purpose of a marker
 // interface.
 V8_OBJECT class Microtask : public Struct {
+  V8_IT_ABSTRACT;
+
  public:
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   inline Tagged<Object> continuation_preserved_embedder_data() const;

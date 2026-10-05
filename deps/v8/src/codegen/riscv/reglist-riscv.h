@@ -37,6 +37,14 @@ const DoubleRegList kCallerSavedFPU = {ft0, ft1, ft2, ft3, ft4,  ft5, ft6,
 
 const int kNumCallerSavedFPU = kCallerSavedFPU.Count();
 
+// Caller-saved vector registers. The RISC-V V psABI defines v1-v7 and v24-v31
+// as callee-saved, so only v8-v23 need to be preserved across C calls. v0 is
+// the vector mask register and is never used by V8 for SIMD values.
+const Simd128RegList kCallerSavedVR = {v8,  v9,  v10, v11, v12, v13, v14, v15,
+                                       v16, v17, v18, v19, v20, v21, v22, v23};
+
+const int kNumCallerSavedVR = kCallerSavedVR.Count();
+
 // Number of registers for which space is reserved in safepoints. Must be a
 // multiple of 8.
 const int kNumSafepointRegisters = 32;

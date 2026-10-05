@@ -82,6 +82,8 @@ InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
 #else
       UNREACHABLE();
 #endif
+    } else if (RelocInfo::IsJSDispatchHandle(mode)) {
+      write_barrier_promise.RegisterAddress(it.rinfo()->pc());
     } else {
       intptr_t delta =
           instruction_start() - reinterpret_cast<Address>(desc.buffer);
@@ -110,6 +112,10 @@ void InstructionStream::RelocateFromDescWriteBarriers(
           InstructionStream::FromTargetAddress(it.rinfo()->target_address());
       WriteBarrier::ForRelocInfo(this, it.rinfo(), target_istream,
                                  UPDATE_WRITE_BARRIER);
+      write_barrier_promise.ResolveAddress(it.rinfo()->pc());
+    } else if (RelocInfo::IsJSDispatchHandle(mode)) {
+      JSDispatchHandle handle = it.rinfo()->js_dispatch_handle();
+      WriteBarrier::ForJSDispatchHandle(this, handle, UPDATE_WRITE_BARRIER);
       write_barrier_promise.ResolveAddress(it.rinfo()->pc());
     }
   }

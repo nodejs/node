@@ -177,7 +177,7 @@ enum class CordMemoryAccounting {
 // Additionally, the API provides iterator utilities to iterate through Cord
 // data via chunks or character bytes.
 //
-class Cord {
+class ABSL_ATTRIBUTE_TRIVIAL_ABI Cord {
  private:
   template <typename T>
   using EnableIfString = std::enable_if_t<std::is_same_v<T, std::string>, int>;
@@ -915,10 +915,10 @@ class Cord {
   // to the representation.
   //
   // InlineRep holds either a tree pointer, or an array of kMaxInline bytes.
-  class InlineRep {
+  class ABSL_ATTRIBUTE_TRIVIAL_ABI InlineRep {
    public:
     static constexpr unsigned char kMaxInline = cord_internal::kMaxInline;
-    static_assert(kMaxInline >= sizeof(absl::cord_internal::CordRep*), "");
+    static_assert(kMaxInline >= sizeof(absl::cord_internal::CordRep*));
 
     constexpr InlineRep() : data_() {}
     explicit InlineRep(InlineData::DefaultInitType init) : data_(init) {}
@@ -1124,7 +1124,6 @@ class Cord {
   void CopyToArrayImpl(char* absl_nonnull dst) const;
 };
 
-
 // allow a Cord to be logged
 extern std::ostream& operator<<(std::ostream& out, const Cord& cord);
 
@@ -1285,7 +1284,7 @@ inline size_t Cord::InlineRep::size() const {
 
 inline cord_internal::CordRepFlat* absl_nonnull
 Cord::InlineRep::MakeFlatWithExtraCapacity(size_t extra) {
-  static_assert(cord_internal::kMinFlatLength >= sizeof(data_), "");
+  static_assert(cord_internal::kMinFlatLength >= sizeof(data_));
   size_t len = data_.inline_size();
   auto* result = CordRepFlat::New(len + extra);
   result->length = len;

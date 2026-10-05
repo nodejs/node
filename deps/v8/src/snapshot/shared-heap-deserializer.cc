@@ -26,6 +26,7 @@ void SharedHeapDeserializer::DeserializeIntoIsolate() {
   IterateSharedHeapObjectCache(isolate(), this);
   DeserializeStringTable();
   DeserializeDeferredObjects();
+  PostProcessExposedTrustedObjects();
 
   if (should_rehash()) {
     // The hash seed has already been initialized in ReadOnlyDeserializer, thus

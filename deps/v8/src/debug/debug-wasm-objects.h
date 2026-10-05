@@ -36,6 +36,8 @@ class WasmModuleObject;
 class WasmTableObject;
 
 V8_OBJECT class WasmValueObject : public JSObject {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   DECL_ACCESSORS(type, Tagged<String>)
   DECL_ACCESSORS(value, Tagged<Object>)

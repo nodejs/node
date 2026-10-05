@@ -1457,12 +1457,6 @@ Reduction JSNativeContextSpecialization::ReduceMegaDOMPropertyAccess(
   }
 
   FunctionTemplateInfoRef function_template_info = feedback.info();
-  int16_t range_start =
-      function_template_info.allowed_receiver_instance_type_range_start();
-  int16_t range_end =
-      function_template_info.allowed_receiver_instance_type_range_end();
-  DCHECK_IMPLIES(range_start == 0, range_end == 0);
-  DCHECK_LE(range_start, range_end);
 
   // TODO(mslekova): This could be a new InstanceTypeCheck operator
   // that gets lowered later on (e.g. during generic lowering).
@@ -1473,21 +1467,7 @@ Reduction JSNativeContextSpecialization::ReduceMegaDOMPropertyAccess(
       simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
       receiver_map, effect, control);
 
-  if (v8_flags.experimental_embedder_instance_types && range_start != 0) {
-    // Embedder instance ID is set, doing a simple range check.
-    Node* diff_to_start =
-        graph()->NewNode(simplified()->NumberSubtract(), receiver_instance_type,
-                         jsgraph()->ConstantNoHole(range_start));
-    Node* range_length = jsgraph()->ConstantNoHole(range_end - range_start);
-
-    // TODO(mslekova): Once we have the InstanceTypeCheck operator, we could
-    // lower it to Uint32LessThan later on to perform what is done in bounds.h.
-    Node* check = graph()->NewNode(simplified()->NumberLessThanOrEqual(),
-                                   diff_to_start, range_length);
-    effect = graph()->NewNode(
-        simplified()->CheckIf(DeoptimizeReason::kWrongInstanceType), check,
-        effect, control);
-  } else if (function_template_info.is_signature_undefined(broker())) {
+  if (function_template_info.is_signature_undefined(broker())) {
     // Signature is undefined, enough to check if the receiver is a JSApiObject.
     Node* check =
         graph()->NewNode(simplified()->NumberEqual(), receiver_instance_type,
@@ -1636,8 +1616,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
   // Ensure that {key} matches the specified name (if {key} is given).
   if (key != nullptr) {
-    effect = BuildCheckEqualsName(feedback.original_name_maybe_thin(), key,
-                                  effect, &control);
+    effect = BuildCheckEqualsName(feedback.name(), key, effect, &control);
   }
 
   // Collect call nodes to rewire exception edges.

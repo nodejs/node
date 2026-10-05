@@ -56,7 +56,8 @@ V8_OBJECT class EmbedderDataArray : public HeapObject {
 } V8_OBJECT_END;
 
 constexpr int EmbedderDataArray::SizeFor(int length) {
-  static_assert(kEmbedderDataSlotSize == sizeof(Address));
+  static_assert(kEmbedderDataSlotSize >= sizeof(Address));
+  static_assert(kEmbedderDataSlotSize % sizeof(Address) == 0);
   return OFFSET_OF_DATA_START(EmbedderDataArray) +
          length * kEmbedderDataSlotSize;
 }

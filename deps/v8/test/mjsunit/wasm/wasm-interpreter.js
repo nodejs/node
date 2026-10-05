@@ -3558,6 +3558,272 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(42, instance.exports.main());
 })();
 
+(function testStackResizing() {
+  print(arguments.callee.name);
+
+  const kParams = 1000;
+  const kBloat = 130600;
+  const kPayloadBase = 0x4141414141410000n;
+
+  const builder = new WasmModuleBuilder();
+
+  const reenter_sig = builder.addType(makeSig([], []));
+  const inner_sig = builder.addType(
+      makeSig(new Array(kParams).fill(kWasmI64), [kWasmI32]));
+
+  const reenter_index = builder.addImport('m', 'reenter', reenter_sig);
+
+  builder.addFunction('inner', inner_sig)
+      .addBody([
+        kExprI32Const, 7,
+      ])
+      .exportFunc();
+
+  const outer_body = [
+    kExprCallFunction, reenter_index,
+    kExprReturn,
+  ];
+  for (let i = 0; i < kBloat; i++) {
+    outer_body.push(...wasmI64Const(i + 1));
+    outer_body.push(kExprDrop);
+  }
+  builder.addFunction('outer', kSig_v_v)
+      .addBody(outer_body)
+      .exportFunc();
+
+  const args = Array.from({length: kParams},
+                          (_, i) => kPayloadBase + BigInt(i));
+  let wasm;
+  const imports = {
+    m: {
+      reenter() {
+        // Re-enter inner from JS while outer is still on the interpreter
+        // stack. Ensure that the interpreter can handle the increased stack
+        // size.
+        assertEquals(7, wasm.inner(...args));
+      },
+    },
+  };
+
+  const instance = builder.instantiate(imports);
+  wasm = instance.exports;
+  wasm.outer();
+})();
+
+// Regression test for a call_indirect bug. The interpreter cached the
+// FunctionSig* derived from the first sig_index used on a given table entry.
+// A subsequent call_indirect on the same entry with a narrower subtype
+// signature passed the canonical subtype check but then used the stale cached
+// signature to coerce the JS import's return value. As a result, a JS value
+// returned from `() -> anyref` could end up on the typed Wasm stack as a
+// `(ref struct ...)` / `(ref array ...)`, causing later typed accesses to
+// observe the wrong type. The interpreter must instead coerce JS<->Wasm
+// values against the callee's declared signature, matching the behavior of
+// compiled wrappers, so that the narrow callsite still rejects a non-
+// conforming return value.
+(function testCallIndirectStaleSignature() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const array_type = builder.addArray(kWasmI32, {mutable: true});
+
+  // Wide cache-poisoning signature.
+  const sig_any =
+      builder.addType(makeSig([], [kWasmAnyRef]), kNoSuperType,
+                      /* is_final */ false);
+  // Narrow signature: a subtype of sig_any.
+  const sig_array =
+      builder.addType(makeSig([], [wasmRefType(array_type)]), sig_any,
+                      /* is_final */ false);
+
+  builder.addImport('m', 'imp', sig_array);
+  builder.addTable(kWasmFuncRef, 1, 1);
+  builder.addActiveElementSegment(0, wasmI32Const(0), [0]);
+
+  // First call: invoke the entry through the wider signature. Without the
+  // fix, this populates the interpreter's per-entry cache with sig_any's
+  // FunctionSig*.
+  builder.addFunction('warm_any', kSig_v_v).addBody([
+    kExprI32Const, 0,
+    kExprCallIndirect, sig_any, kTableZero,
+    kExprDrop,
+  ]).exportFunc();
+
+  // Second call: invoke the same entry through the narrower signature and
+  // immediately use the result as the typed array reference that the
+  // signature promises. With the bug present, the JS return value (a Smi)
+  // is coerced under the cached sig_any and reaches array.get unchecked.
+  builder.addFunction('trigger', kSig_i_v).addBody([
+    kExprI32Const, 0,
+    kExprCallIndirect, sig_array, kTableZero,
+    kExprI32Const, 0,
+    kGCPrefix, kExprArrayGet, array_type,
+  ]).exportFunc();
+
+  // The JS import advertises sig_array, but actually returns a Smi.
+  // The Wasm-to-JS boundary must reject this for sig_array, regardless of
+  // any sig_any-warmed cache state.
+  const instance = builder.instantiate({m: {imp() { return 13; }}});
+
+  // Attempt to warm the cache through the wider sig_any callsite. With the
+  // fix in place, JS<->Wasm coercion uses the callee's declared signature
+  // (sig_array), so returning a Smi here already throws. The test only
+  // requires that whatever cache state results cannot be used to bypass the
+  // type check at the narrow callsite below.
+  try {
+    instance.exports.warm_any();
+  } catch (e) {
+    // Ignore.
+  }
+
+  // Now invoke through sig_array. The runtime must coerce the JS return
+  // value against sig_array, so returning a Smi must trap with a typed-
+  // conversion error rather than smuggling a Smi onto the typed stack.
+  assertThrows(
+      () => instance.exports.trigger(),
+      TypeError);
+})();
+
+// The WasmInterpreterRuntime previously held its WasmInstanceObject through a
+// weak global handle (with a no-op finalizer). When the instance was collected,
+// the handle slot was freed and could be reused by an unrelated
+// WasmInstanceObject.
+// Subsequent interpreter calls would silently dereference the wrong instance's
+// trusted_data, aliasing globals across instances and corrupting memory. The fix
+// replaces the weak handle with a stack-rooted InstanceScope published at every
+// C++ entry into the runtime.
+//
+// The outer module uses Wasm exception handling (try/throw/catch with
+// return_call in the catch handler) because the interpreter's exception
+// unwinding path is what leaves the runtime in the stale state.
+// The host import re-enters the first instance (read) and the outer instance
+// (nop) before throwing a JS exception, creating nested activations that
+// exercise the problematic cleanup path.
+(function testRegressInterpreterInstanceUaf() {
+  print(arguments.callee.name);
+
+  const TARGET_REF_SLOT = 3669;
+  const ATTACKER_REF_GLOBALS = 0;
+  const ATTEMPTS = 128;
+  const keepAlive = [];
+  const refPayload = {marker: 0x41414141};
+
+  function buildVictimModule(targetRefSlot) {
+    const builder = new WasmModuleBuilder();
+    builder.addGlobal(kWasmI32, true, false, wasmI32Const(123));
+    for (let i = 0; i < targetRefSlot; i++) {
+      builder.addGlobal(kWasmExternRef, true);
+    }
+    const sinkGlobalIndex = 1 + targetRefSlot;
+    builder.addGlobal(kWasmExternRef, true);
+
+    builder.addFunction('read', kSig_i_v)
+        .addBody([kExprGlobalGet, ...wasmUnsignedLeb(0)])
+        .exportFunc();
+    builder.addFunction('write', kSig_v_i)
+        .addBody([kExprLocalGet, 0, kExprGlobalSet, ...wasmUnsignedLeb(0)])
+        .exportFunc();
+    builder.addFunction('writeControlledRef', kSig_v_r)
+        .addBody([
+          kExprLocalGet, 0,
+          kExprGlobalSet, ...wasmUnsignedLeb(sinkGlobalIndex),
+        ])
+        .exportFunc();
+
+    return builder.toModule();
+  }
+
+  function buildAttackerModule(refGlobals) {
+    const builder = new WasmModuleBuilder();
+    builder.addGlobal(kWasmI32, true, false, wasmI32Const(456));
+    for (let i = 0; i < refGlobals; i++) {
+      builder.addGlobal(kWasmExternRef, true);
+    }
+    builder.addFunction('read', kSig_i_v)
+        .addBody([kExprGlobalGet, ...wasmUnsignedLeb(0)])
+        .exportFunc();
+    return builder.toModule();
+  }
+
+  function buildOuterModule() {
+    const builder = new WasmModuleBuilder();
+    const hostImport = builder.addImport('m', 'host', kSig_v_v);
+    const tag = builder.addTag(kSig_v_v);
+    builder.addFunction('nop', kSig_i_v)
+        .addBody([kExprI32Const, 7])
+        .exportFunc();
+    builder.addFunction('outer', kSig_v_v)
+        .addBody([
+          kExprTry, kWasmVoid,
+            kExprThrow, tag,
+          kExprCatch, tag,
+            kExprReturnCall, hostImport,
+          kExprEnd,
+        ])
+        .exportFunc();
+    return builder.toModule();
+  }
+
+  const outerModule = buildOuterModule();
+  const victimModule = buildVictimModule(TARGET_REF_SLOT);
+  const attackerModule = buildAttackerModule(ATTACKER_REF_GLOBALS);
+
+  function fail(message) {
+    throw new Error(message);
+  }
+
+  function triggerStaleCleanup(victim) {
+    let outer = null;
+
+    function host() {
+      const first = victim.exports.read();
+      if (first !== 123) fail("unexpected victim first read " + first);
+
+      const nop = outer.exports.nop();
+      if (nop !== 7) fail("unexpected nop result " + nop);
+
+      throw 13;
+    }
+
+    outer = new WebAssembly.Instance(outerModule, {m: {host}});
+    try {
+      outer.exports.outer();
+    } catch (_) {}
+  }
+
+  function runAttempt(attempt) {
+    const victim = new WebAssembly.Instance(victimModule);
+    const attacker = new WebAssembly.Instance(attackerModule);
+    keepAlive.push(victim, attacker);
+
+    triggerStaleCleanup(victim);
+
+    attacker.exports.read();
+
+    const marker = 789 + attempt;
+    victim.exports.write(marker);
+
+    if (attacker.exports.read() !== marker) {
+      return false;
+    }
+
+    print("controlled write alias observed");
+    return true;
+  }
+
+  let bugDetected = false;
+  for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+    if (runAttempt(attempt)) {
+      bugDetected = true;
+      break;
+    }
+  }
+
+  // With the fix (InstanceScope), globals must remain isolated across instances.
+  if (bugDetected) {
+    throw new Error("FAIL: cross-instance globals aliasing detected");
+  }
+})();
+
 // The WasmInterpreterRuntime previously held its WasmInstanceObject through a
 // weak global handle (with a no-op finalizer). When the instance was collected,
 // the handle slot was freed and could be reused by an unrelated

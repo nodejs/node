@@ -19,6 +19,7 @@
 #include "src/codegen/script-details.h"
 #include "src/heap/factory.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "test/unittests/heap/heap-utils.h"  // For ManualGCScope.

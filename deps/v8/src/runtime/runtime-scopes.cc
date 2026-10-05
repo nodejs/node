@@ -222,10 +222,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
     // Compute the property attributes. According to ECMA-262,
     // the property must be non-configurable except in eval.
     Tagged<Script> script = Cast<Script>(closure->shared()->script());
-    PropertyAttributes attr =
-        script->compilation_type() == Script::CompilationType::kEval
-            ? NONE
-            : DONT_DELETE;
+    PropertyAttributes attr = script->is_eval() ? NONE : DONT_DELETE;
 
     // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 5.d:
     // If hasRestrictedGlobal is true, throw a SyntaxError exception.
@@ -554,7 +551,7 @@ DirectHandle<JSObject> NewSloppyArguments(Isolate* isolate,
   CHECK(!IsDerivedConstructor(callee->shared()->kind()));
   CHECK(callee->shared()->has_simple_parameters());
   DirectHandle<JSObject> result =
-      isolate->factory()->NewArgumentsObject(callee, argument_count);
+      isolate->factory()->NewSloppyArgumentsObject(callee, argument_count);
 
   // Allocate the elements if needed.
   const uint32_t parameter_count =
@@ -573,8 +570,10 @@ DirectHandle<JSObject> NewSloppyArguments(Isolate* isolate,
           isolate->factory()->NewSloppyArgumentsElements(
               mapped_count, context, arguments, AllocationType::kYoung);
 
-      result->set_map(isolate,
-                      isolate->native_context()->fast_aliased_arguments_map());
+      Tagged<Map> aliased_map =
+          isolate->native_context()->fast_aliased_arguments_map();
+      CHECK_EQ(aliased_map->instance_size(), result->map()->instance_size());
+      result->set_map(isolate, aliased_map);
       result->set_elements(*parameter_map);
 
       // Loop over the actual parameters backwards.

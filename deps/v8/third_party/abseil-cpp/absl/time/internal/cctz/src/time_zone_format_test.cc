@@ -1002,6 +1002,27 @@ TEST(Parse, ErrorCases) {
   EXPECT_FALSE(parse("%Ez", "-00:-0", tz, &tp));
 }
 
+TEST(Parse, NonAsciiInput) {
+  const time_zone tz = utc_time_zone();
+  auto tp = chrono::system_clock::from_time_t(0);
+
+  // High-bit-set bytes reach the ctype functions during parsing. 0xA0 is not
+  // ASCII whitespace, so the leading-whitespace skip must not consume it and
+  // the parse must fail rather than pass a negative char to std::isspace().
+  EXPECT_FALSE(parse("%Y-%m-%d",
+                     "\xA0"
+                     "2016-01-02",
+                     tz, &tp));
+  EXPECT_FALSE(parse("%Y",
+                     "\xA0"
+                     "2016",
+                     tz, &tp));
+
+  // A leading ASCII space is still skipped as before.
+  EXPECT_TRUE(parse("%Y-%m-%d", " 2016-01-02", tz, &tp));
+  EXPECT_EQ(2016, convert(tp, utc_time_zone()).year());
+}
+
 TEST(Parse, PosixConversions) {
   time_zone tz = utc_time_zone();
   auto tp = chrono::system_clock::from_time_t(0);

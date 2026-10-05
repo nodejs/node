@@ -40,6 +40,14 @@
   'fail/map-grow-failed': [PASS, HEAVY],
   'fail/set-grow-failed': [PASS, HEAVY],
   'wasm-trace-memory64*': [PASS, HEAVY],
+
+  ##############################################################################
+  # Behavioural differences between Maglev and Turbofan when the former is used
+  # for OptimizeFunctionOnNextCall or as a frontend for Turboshaft.
+  #
+  # Maglev doesn't support inlining of Wasm code.
+  'wasm-inlining-into-js': [SKIP],
+
 }],  # ALWAYS
 
 # Skip Liftoff tests on platforms that don't support Liftoff.
@@ -146,14 +154,6 @@
   'wasm-trace-memory64': [SKIP],
   'wasm-trace-memory64-liftoff': [SKIP],
 }],  # 'arch in (ia32, arm, riscv32)'
-
-##############################################################################
-# Behavioural differences between Maglev and Turbofan when the former is used
-# for OptimizeFunctionOnNextCall or as a frontend for Turboshaft.
-['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)', {
-  # Maglev doesn't support inlining of Wasm code.
-  'wasm-inlining-into-js': [FAIL],
-}],  # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev_future, stress_turbolev_future)
 
 ##############################################################################
 # The output for Turbolev wrapper inlining tests can be different with these

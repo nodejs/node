@@ -41,6 +41,8 @@ using DisposeCallTypeBit =
 using DisposeHintBit = DisposeCallTypeBit::Next<DisposeMethodHint, 1>;
 
 V8_OBJECT class JSDisposableStackBase : public JSObject {
+  V8_IT_OWN_TYPE;
+
  public:
   inline Tagged<FixedArray> stack() const;
   inline void set_stack(Tagged<FixedArray> value,

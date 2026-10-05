@@ -704,13 +704,13 @@ std::ostream& operator<<(std::ostream& os, StatusBuilder&& builder);
 // would prevent use of operator<<.  For example:
 //
 //   ABSL_RETURN_IF_ERROR(foo(val))
-//       .With(util::ExtraMessage("when calling foo()"))
+//       .With(absl::ExtraMessage("when calling foo()"))
 //       .With(util::TaskReturn(task));
 //
 // or
 //
 //   ABSL_RETURN_IF_ERROR(foo(val))
-//       .With(util::ExtraMessage() << "val: " << val)
+//       .With(absl::ExtraMessage() << "val: " << val)
 //       .With(util::TaskReturn(task));
 //
 // Note in the above example, the ABSL_RETURN_IF_ERROR macro ensures the

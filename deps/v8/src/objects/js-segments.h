@@ -51,10 +51,10 @@ V8_OBJECT class JSSegments : public JSObject {
   Handle<String> GranularityAsString(Isolate* isolate) const;
 
   // SegmentIterator accessors.
-  inline Tagged<Managed<IcuBreakIteratorWithText>> icu_iterator_with_text()
+  inline Tagged<CppGCManaged<IcuBreakIteratorWithText>> icu_iterator_with_text()
       const;
   inline void set_icu_iterator_with_text(
-      Tagged<Managed<IcuBreakIteratorWithText>> value,
+      Tagged<CppGCManaged<IcuBreakIteratorWithText>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<String> raw_string() const;
@@ -81,7 +81,7 @@ V8_OBJECT class JSSegments : public JSObject {
   static const int kHeaderSize;
 
  public:
-  TaggedMember<Foreign> icu_iterator_with_text_;
+  TaggedMember<CppGCManaged<IcuBreakIteratorWithText>> icu_iterator_with_text_;
   TaggedMember<String> raw_string_;
   TaggedMember<Smi> flags_;
 } V8_OBJECT_END;

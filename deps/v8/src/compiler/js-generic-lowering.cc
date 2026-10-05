@@ -133,18 +133,15 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
-void JSGenericLowering::ReplaceUnaryOpWithBuiltinCall(
-    Node* node, Builtin builtin_without_feedback,
-    Builtin builtin_with_feedback) {
-  DCHECK(JSOperator::IsUnaryWithFeedback(node->opcode()));
-  node->RemoveInput(JSUnaryOpNode::FeedbackVectorIndex());
-  ReplaceWithBuiltinCall(node, builtin_without_feedback);
+void JSGenericLowering::ReplaceUnaryOpWithBuiltinCall(Node* node,
+                                                      Builtin builtin) {
+  DCHECK(JSOperator::IsUnaryWithEmbeddedFeedback(node->opcode()));
+  ReplaceWithBuiltinCall(node, builtin);
 }
 
-#define DEF_UNARY_LOWERING(Name)                                    \
-  void JSGenericLowering::LowerJS##Name(Node* node) {               \
-    ReplaceUnaryOpWithBuiltinCall(node, Builtin::k##Name,           \
-                                  Builtin::k##Name##_WithFeedback); \
+#define DEF_UNARY_LOWERING(Name)                           \
+  void JSGenericLowering::LowerJS##Name(Node* node) {      \
+    ReplaceUnaryOpWithBuiltinCall(node, Builtin::k##Name); \
   }
 DEF_UNARY_LOWERING(BitwiseNot)
 DEF_UNARY_LOWERING(Decrement)

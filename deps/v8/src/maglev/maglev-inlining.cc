@@ -196,13 +196,12 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
       !call_exception_handler_info->ShouldLazyDeopt()) {
     BasicBlock* catch_block = call_exception_handler_info->catch_block();
     catch_block_might_be_unreachable = true;
-    for (ExceptionHandlerInfo* info : call_block->exception_handlers()) {
-      if (info != call_exception_handler_info && info->HasExceptionHandler() &&
-          !info->ShouldLazyDeopt() && info->catch_block() == catch_block) {
+    call_block->ForEachNodeAndControl([&](NodeBase* node) {
+      if (node == call_node) return;
+      if (node->GetLiveCatchBlock() == catch_block) {
         catch_block_might_be_unreachable = false;
-        break;
       }
-    }
+    });
   }
   // Remove unreachable catch block if no throwable nodes were added during
   // inlining.
@@ -211,12 +210,6 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   if (catch_block_might_be_unreachable) {
     graph_->set_may_have_unreachable_blocks(true);
   }
-
-  // Remove exception handler info from call block.
-  ExceptionHandlerInfo::List rem_handlers_in_call_block;
-  call_block->exception_handlers().TruncateAt(&rem_handlers_in_call_block,
-                                              call_exception_handler_info);
-  rem_handlers_in_call_block.DropHead();
 
   // Truncate the basic block.
   ZoneVector<Node*> rem_nodes_in_call_block =
@@ -341,8 +334,6 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   BasicBlock* final_block = inner_graph_builder.FinishInlinedBlockForCaller(
       control_node, rem_nodes_in_call_block);
   DCHECK_NOT_NULL(final_block);
-  final_block->exception_handlers().Append(
-      std::move(rem_handlers_in_call_block));
 
   // Update the predecessor of the successors of the {final_block}, that were
   // previously pointing to {call_block}.

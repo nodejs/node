@@ -137,20 +137,21 @@ DEF_BINOP(ShiftRightSmi, ShiftRight, true)
 DEF_BINOP(ShiftRightLogicalSmi, ShiftRightLogical, true)
 #undef DEF_BINOP
 
-#define DEF_UNOP(Name, Generator)                                \
-  TF_BUILTIN(Name, CodeStubAssembler) {                          \
-    auto value = Parameter<Object>(Descriptor::kValue);          \
-    auto context = Parameter<Context>(Descriptor::kContext);     \
-    auto feedback_vector =                                       \
-        Parameter<FeedbackVector>(Descriptor::kFeedbackVector);  \
-    auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot); \
-                                                                 \
-    UnaryOpAssembler a(state());                                 \
-    TNode<Object> result =                                       \
-        a.Generator(context, value, slot, feedback_vector,       \
-                    UpdateFeedbackMode::kGuaranteedFeedback);    \
-                                                                 \
-    Return(result);                                              \
+#define DEF_UNOP(Name, Generator)                                        \
+  TF_BUILTIN(Name, CodeStubAssembler) {                                  \
+    auto value = Parameter<Object>(Descriptor::kValue);                  \
+    auto context = Parameter<Context>(Descriptor::kContext);             \
+    auto bytecode_array =                                                \
+        Parameter<BytecodeArray>(Descriptor::kBytecodeArray);            \
+    auto feedback_offset =                                               \
+        UncheckedParameter<IntPtrT>(Descriptor::kFeedbackOffset);        \
+                                                                         \
+    UnaryOpAssembler a(state());                                         \
+    TNode<Object> result = a.Generator(                                  \
+        context, value,                                                  \
+        a.MakeEmbeddedFeedbackUpdater(bytecode_array, feedback_offset)); \
+                                                                         \
+    Return(result);                                                      \
   }
 #ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 DEF_UNOP(BitwiseNot_WithFeedback, Generate_BitwiseNotWithFeedback)
@@ -160,25 +161,23 @@ DEF_UNOP(Increment_WithFeedback, Generate_IncrementWithFeedback)
 DEF_UNOP(Negate_WithFeedback, Generate_NegateWithFeedback)
 #undef DEF_UNOP
 
-#define DEF_UNOP(Name, Generator)                                \
-  TF_BUILTIN(Name, CodeStubAssembler) {                          \
-    auto value = Parameter<Object>(Descriptor::kValue);          \
-    auto context = LoadContextFromBaseline();                    \
-    auto feedback_vector = LoadFeedbackVectorFromBaseline();     \
-    auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot); \
-                                                                 \
-    UnaryOpAssembler a(state());                                 \
-    TNode<Object> result =                                       \
-        a.Generator(context, value, slot, feedback_vector,       \
-                    UpdateFeedbackMode::kGuaranteedFeedback);    \
-                                                                 \
-    Return(result);                                              \
+#define DEF_UNOP_GENERIC(Name, Generator)                                   \
+  TF_BUILTIN(Name##_Generic_Baseline, CodeStubAssembler) {                  \
+    auto value = Parameter<Object>(Descriptor::kValue);                     \
+    auto feedback_offset =                                                  \
+        UncheckedParameter<IntPtrT>(Descriptor::kFeedbackOffset);           \
+    UnaryOpAssembler a(state());                                            \
+    TNode<Object> result =                                                  \
+        a.Generator(LoadContextFromBaseline(), value,                       \
+                    a.MakeEmbeddedFeedbackUpdater(                          \
+                        LoadBytecodeArrayFromBaseline(), feedback_offset)); \
+    Return(result);                                                         \
   }
-DEF_UNOP(BitwiseNot_Baseline, Generate_BitwiseNotWithFeedback)
-DEF_UNOP(Decrement_Baseline, Generate_DecrementWithFeedback)
-DEF_UNOP(Increment_Baseline, Generate_IncrementWithFeedback)
-DEF_UNOP(Negate_Baseline, Generate_NegateWithFeedback)
-#undef DEF_UNOP
+DEF_UNOP_GENERIC(BitwiseNot, Generate_BitwiseNotWithFeedback)
+DEF_UNOP_GENERIC(Decrement, Generate_DecrementWithFeedback)
+DEF_UNOP_GENERIC(Increment, Generate_IncrementWithFeedback)
+DEF_UNOP_GENERIC(Negate, Generate_NegateWithFeedback)
+#undef DEF_UNOP_GENERIC
 
 #define DEF_RELATIONAL_COMPARE(Name)                                       \
   TF_BUILTIN(Name##_WithEmbeddedFeedback, CodeStubAssembler) {             \
@@ -404,6 +403,47 @@ TF_BUILTIN(StrictEqual_Generic_Baseline, CodeStubAssembler) {
 }
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
+#define DEF_TYPED_UNOP_COMMON(OpName)                                          \
+  TF_BUILTIN(OpName##AndTryPatchCode, CodeStubAssembler) {                     \
+    auto value = Parameter<Object>(Descriptor::kValue);                        \
+    auto current_feedback =                                                    \
+        UncheckedParameter<Int32T>(Descriptor::kCurrentFeedback);              \
+    auto feedback_offset =                                                     \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);             \
+    GenerateUnaryOpAndTryPatchCode(Operation::k##OpName, value,                \
+                                   current_feedback, feedback_offset);         \
+  }                                                                            \
+  TF_BUILTIN(OpName##_None_Baseline, CodeStubAssembler) {                      \
+    auto value = Parameter<Object>(Descriptor::kValue);                        \
+    auto feedback_offset =                                                     \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);             \
+    TailCallBuiltin(                                                           \
+        Builtin::k##OpName##AndTryPatchCode, LoadContextFromBaseline(), value, \
+        Int32Constant(                                                         \
+            static_cast<int32_t>(BinaryOperationFeedback::TypeIndex::kNone)),  \
+        feedback_offset);                                                      \
+  }                                                                            \
+  TF_BUILTIN(OpName##_SignedSmall_Baseline, CodeStubAssembler) {               \
+    auto value = Parameter<Object>(Descriptor::kValue);                        \
+    auto feedback_offset =                                                     \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);             \
+    GenerateSmiUnaryOp(Operation::k##OpName, value, feedback_offset,           \
+                       Builtin::k##OpName##AndTryPatchCode);                   \
+  }
+DEF_TYPED_UNOP_COMMON(Increment)
+DEF_TYPED_UNOP_COMMON(Decrement)
+DEF_TYPED_UNOP_COMMON(Negate)
+DEF_TYPED_UNOP_COMMON(BitwiseNot)
+#undef DEF_TYPED_UNOP_COMMON
+
+// Negate-only Number stub.
+TF_BUILTIN(Negate_Number_Baseline, CodeStubAssembler) {
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto feedback_offset =
+      UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);
+  GenerateNumberNegate(value, feedback_offset);
+}
+
 #define DEFINE_TYPED_EQUALITY_COMMON(Name)                         \
   TF_BUILTIN(Name##_None_Baseline, CodeStubAssembler) {            \
     auto lhs = Parameter<Object>(Descriptor::kLeft);               \
@@ -626,7 +666,7 @@ TF_BUILTIN(Add_String_Baseline, CodeStubAssembler) {
   auto rhs = Parameter<Object>(Descriptor::kRight);
   auto feedback_offset =
       UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);
-  GenerateStringAdd(lhs, rhs, feedback_offset, Builtin::kAddAndTryPatchCode);
+  GenerateStringAdd(lhs, rhs, feedback_offset);
 }
 
 TF_BUILTIN(ExponentiateAndTryPatchCode, CodeStubAssembler) {

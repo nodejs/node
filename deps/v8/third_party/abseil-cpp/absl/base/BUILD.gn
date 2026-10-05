@@ -1,39 +1,40 @@
 # Copyright 2018 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+#
+# Generated file. DO NOT EDIT.
 
 import("//third_party/abseil-cpp/absl.gni")
 
 absl_source_set("atomic_hook") {
   public = [ "internal/atomic_hook.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
   deps = [
     ":config",
     ":core_headers",
   ]
-  visibility = [ "//third_party/abseil-cpp/absl/*" ]
 }
 
 absl_source_set("errno_saver") {
   public = [ "internal/errno_saver.h" ]
-  deps = [ ":config" ]
   visibility = [ "//third_party/abseil-cpp/absl/*" ]
+  deps = [ ":config" ]
 }
 
 absl_source_set("cpu_detect") {
-  public = [ "internal/cpu_detect.h" ]
   sources = [ "internal/cpu_detect.cc" ]
-  deps = [ ":config" ]
+  public = [ "internal/cpu_detect.h" ]
   visibility = [ "//third_party/abseil-cpp/absl/*" ]
+  deps = [ ":config" ]
 }
 
 absl_source_set("hardening") {
   public = [ "internal/hardening.h" ]
-  sources = [ "internal/hardening.cc" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
   deps = [
     ":config",
     ":core_headers",
   ]
-  visibility = [ "//third_party/abseil-cpp/absl/*" ]
 }
 
 absl_source_set("log_severity") {
@@ -60,26 +61,26 @@ absl_source_set("nullability") {
 
 absl_source_set("nullability_traits_internal") {
   public = [ "internal/nullability_traits.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
   deps = [
     ":config",
     ":nullability",
   ]
-  visibility = [ "//third_party/abseil-cpp/absl/*" ]
 }
 
 absl_source_set("raw_logging_internal") {
   sources = [ "internal/raw_logging.cc" ]
   public = [ "internal/raw_logging.h" ]
+  visibility = [
+    "//third_party/abseil-cpp:absl_component_deps",
+    "//third_party/abseil-cpp/absl/*",
+  ]
   deps = [
     ":atomic_hook",
     ":config",
     ":core_headers",
     ":errno_saver",
     ":log_severity",
-  ]
-  visibility = [
-    "//third_party/abseil-cpp:absl_component_deps",
-    "//third_party/abseil-cpp/absl/*",
   ]
 }
 
@@ -92,12 +93,12 @@ absl_source_set("spinlock_wait") {
     "internal/spinlock_win32.inc",
   ]
   public = [ "internal/spinlock_wait.h" ]
+  visibility = [ ":*" ]
   deps = [
     ":base_internal",
     ":core_headers",
     ":errno_saver",
   ]
-  visibility = [ "//third_party/abseil-cpp/absl/base:*" ]
 }
 
 absl_source_set("config") {
@@ -122,9 +123,6 @@ absl_source_set("cycleclock_internal") {
 
 absl_source_set("dynamic_annotations") {
   public = [ "dynamic_annotations.h" ]
-
-  # Abseil's dynamic annotations are only visible inside Abseil because
-  # their usage is deprecated in Chromium (see README.chromium for more info).
   visibility = [
     "//third_party/abseil-cpp:absl_component_deps",
     "//third_party/abseil-cpp/absl/*",
@@ -168,11 +166,11 @@ absl_source_set("base_internal") {
     "internal/hide_ptr.h",
     "internal/scheduling_mode.h",
   ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
   deps = [
     ":config",
     "//third_party/abseil-cpp/absl/meta:type_traits",
   ]
-  visibility = [ "//third_party/abseil-cpp/absl/*" ]
 }
 
 absl_source_set("base") {
@@ -196,10 +194,6 @@ absl_source_set("base") {
     "internal/tsan_mutex_interface.h",
     "internal/unscaledcycleclock.h",
   ]
-
-  # TODO(mbonadei): The bazel file has:
-  #   "-DEFAULTLIB:advapi32.lib"
-  # understand if this is needed here as well.
   deps = [
     ":atomic_hook",
     ":base_internal",
@@ -210,6 +204,34 @@ absl_source_set("base") {
     ":raw_logging_internal",
     ":spinlock_wait",
     "//third_party/abseil-cpp/absl/meta:type_traits",
+  ]
+}
+
+absl_source_set("atomic_hook_test_helper") {
+  testonly = true
+  sources = [ "internal/atomic_hook_test_helper.cc" ]
+  public = [ "internal/atomic_hook_test_helper.h" ]
+  visibility = [ ":*" ]
+  deps = [
+    ":atomic_hook",
+    ":core_headers",
+  ]
+}
+
+absl_test("atomic_hook_test") {
+  sources = [ "internal/atomic_hook_test.cc" ]
+  deps = [
+    ":atomic_hook",
+    ":atomic_hook_test_helper",
+    ":core_headers",
+  ]
+}
+
+absl_test("bit_cast_test") {
+  sources = [ "bit_cast_test.cc" ]
+  deps = [
+    ":base",
+    ":core_headers",
   ]
 }
 
@@ -241,11 +263,31 @@ absl_source_set("throw_delegate") {
   ]
 }
 
+absl_test("throw_delegate_test") {
+  sources = [ "throw_delegate_test.cc" ]
+  deps = [
+    ":config",
+    ":throw_delegate",
+  ]
+}
+
+absl_test("errno_saver_test") {
+  sources = [ "internal/errno_saver_test.cc" ]
+  deps = [
+    ":errno_saver",
+    ":strerror",
+  ]
+}
+
 absl_source_set("exception_testing") {
   testonly = true
   public = [ "internal/exception_testing.h" ]
-  deps = [ ":config" ]
   visibility = [ "//third_party/abseil-cpp/absl/*" ]
+  deps = [
+    ":config",
+    "//third_party/googletest:gmock",
+    "//third_party/googletest:gtest",
+  ]
 }
 
 absl_source_set("pretty_function") {
@@ -253,8 +295,48 @@ absl_source_set("pretty_function") {
   visibility = [ "//third_party/abseil-cpp/absl/*" ]
 }
 
+absl_source_set("exception_safety_testing") {
+  testonly = true
+  sources = [ "internal/exception_safety_testing.cc" ]
+  public = [ "internal/exception_safety_testing.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
+  deps = [
+    ":config",
+    ":pretty_function",
+    "//third_party/abseil-cpp/absl/memory",
+    "//third_party/abseil-cpp/absl/meta:type_traits",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+    "//third_party/abseil-cpp/absl/utility",
+    "//third_party/googletest:gmock",
+    "//third_party/googletest:gtest",
+  ]
+}
+
+absl_test("exception_safety_testing_test") {
+  sources = [ "exception_safety_testing_test.cc" ]
+  deps = [
+    ":exception_safety_testing",
+    "//third_party/abseil-cpp/absl/memory",
+  ]
+}
+
 absl_source_set("spinlock_test_common") {
   testonly = true
+  sources = [ "spinlock_test_common.cc" ]
+  visibility = [ ":*" ]
+  deps = [
+    ":base",
+    ":base_internal",
+    ":config",
+    ":core_headers",
+    "//third_party/abseil-cpp/absl/synchronization",
+    "//third_party/googletest:gmock",
+    "//third_party/googletest:gtest",
+  ]
+}
+
+absl_test("spinlock_test") {
   sources = [ "spinlock_test_common.cc" ]
   deps = [
     ":base",
@@ -262,7 +344,6 @@ absl_source_set("spinlock_test_common") {
     ":config",
     ":core_headers",
     "//third_party/abseil-cpp/absl/synchronization",
-    "//third_party/googletest:gtest",
   ]
 }
 
@@ -280,107 +361,11 @@ absl_source_set("endian") {
   ]
 }
 
-absl_source_set("scoped_set_env") {
-  testonly = true
-  public = [ "internal/scoped_set_env.h" ]
-  sources = [ "internal/scoped_set_env.cc" ]
+absl_test("endian_test") {
+  sources = [ "internal/endian_test.cc" ]
   deps = [
     ":config",
-    ":raw_logging_internal",
-  ]
-  visibility = [ "//third_party/abseil-cpp/absl/*" ]
-}
-
-absl_source_set("strerror") {
-  sources = [ "internal/strerror.cc" ]
-  public = [ "internal/strerror.h" ]
-  deps = [
-    ":config",
-    ":core_headers",
-    ":errno_saver",
-  ]
-  visibility = [ "//third_party/abseil-cpp/absl/*" ]
-}
-
-absl_source_set("fast_type_id") {
-  public = [ "fast_type_id.h" ]
-  deps = [ ":config" ]
-}
-
-absl_source_set("prefetch") {
-  public = [ "prefetch.h" ]
-  deps = [
-    ":config",
-    ":core_headers",
-  ]
-}
-
-absl_test("prefetch_test") {
-  sources = [ "prefetch_test.cc" ]
-  deps = [ ":prefetch" ]
-}
-
-absl_source_set("poison") {
-  public = [ "internal/poison.h" ]
-  sources = [ "internal/poison.cc" ]
-  deps = [
-    ":config",
-    ":core_headers",
-    ":malloc_internal",
-  ]
-}
-
-absl_test("poison_test") {
-  sources = [ "internal/poison_test.cc" ]
-  deps = [
-    ":config",
-    ":poison",
-  ]
-}
-
-absl_source_set("iterator_traits_internal") {
-  public = [ "internal/iterator_traits.h" ]
-  visibility = [ "//third_party/abseil-cpp/absl/*" ]
-  deps = [
-    ":config",
-    "//third_party/abseil-cpp/absl/meta:type_traits",
-  ]
-}
-
-absl_test("iterator_traits_test") {
-  sources = [ "internal/iterator_traits_test.cc" ]
-  deps = [
-    ":config",
-    ":iterator_traits_internal",
-    ":iterator_traits_test_helper",
-  ]
-}
-
-absl_source_set("tracing_internal") {
-  public = [ "internal/tracing.h" ]
-  sources = [ "internal/tracing.cc" ]
-  deps = [
-    ":config",
-    ":core_headers",
-  ]
-}
-
-absl_source_set("iterator_traits_test_helper") {
-  public = [ "internal/iterator_traits_test_helper.h" ]
-  deps = [ ":config" ]
-}
-
-absl_test("tracing_internal_weak_test") {
-  sources = [ "internal/tracing_weak_test.cc" ]
-  deps = [ ":tracing_internal" ]
-}
-
-absl_test("tracing_internal_strong_test") {
-  sources = [ "internal/tracing_strong_test.cc" ]
-  deps = [
-    ":config",
-    ":core_headers",
-    ":tracing_internal",
+    ":endian",
   ]
 }
 
@@ -389,6 +374,15 @@ absl_test("config_test") {
   deps = [
     ":config",
     "//third_party/abseil-cpp/absl/synchronization:thread_pool",
+  ]
+}
+
+absl_test("call_once_test") {
+  sources = [ "call_once_test.cc" ]
+  deps = [
+    ":base",
+    ":core_headers",
+    "//third_party/abseil-cpp/absl/synchronization",
   ]
 }
 
@@ -461,7 +455,7 @@ absl_test("cpu_detect_test") {
   ]
 }
 
-# low_level_alloc_test is not included because it has own main function.
+# low_level_alloc_test is excluded because defines its own main function
 # absl_test("low_level_alloc_test")
 
 absl_test("thread_identity_test") {
@@ -473,7 +467,155 @@ absl_test("thread_identity_test") {
   ]
 }
 
+absl_source_set("scoped_set_env") {
+  testonly = true
+  sources = [ "internal/scoped_set_env.cc" ]
+  public = [ "internal/scoped_set_env.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
+  deps = [
+    ":config",
+    ":raw_logging_internal",
+  ]
+}
+
+absl_test("scoped_set_env_test") {
+  sources = [ "internal/scoped_set_env_test.cc" ]
+  deps = [ ":scoped_set_env" ]
+}
+
+absl_test("log_severity_test") {
+  sources = [ "log_severity_test.cc" ]
+  deps = [
+    ":log_severity",
+    "//third_party/abseil-cpp/absl/flags:flag_internal",
+    "//third_party/abseil-cpp/absl/flags:marshalling",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
+}
+
+absl_source_set("strerror") {
+  sources = [ "internal/strerror.cc" ]
+  public = [ "internal/strerror.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
+  deps = [
+    ":config",
+    ":core_headers",
+    ":errno_saver",
+  ]
+}
+
+absl_test("strerror_test") {
+  sources = [ "internal/strerror_test.cc" ]
+  deps = [
+    ":strerror",
+    "//third_party/abseil-cpp/absl/strings",
+  ]
+}
+
+absl_source_set("fast_type_id") {
+  public = [ "fast_type_id.h" ]
+  deps = [ ":config" ]
+}
+
+absl_test("fast_type_id_test") {
+  sources = [ "fast_type_id_test.cc" ]
+  deps = [
+    ":core_headers",
+    ":fast_type_id",
+  ]
+}
+
+absl_source_set("prefetch") {
+  public = [ "prefetch.h" ]
+  deps = [
+    ":config",
+    ":core_headers",
+  ]
+}
+
+absl_test("prefetch_test") {
+  sources = [ "prefetch_test.cc" ]
+  deps = [ ":prefetch" ]
+}
+
+absl_source_set("poison") {
+  sources = [ "internal/poison.cc" ]
+  public = [ "internal/poison.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
+  deps = [
+    ":config",
+    ":core_headers",
+    ":malloc_internal",
+  ]
+}
+
+absl_test("poison_test") {
+  sources = [ "internal/poison_test.cc" ]
+  deps = [
+    ":config",
+    ":poison",
+  ]
+}
+
+absl_test("unique_small_name_test") {
+  sources = [ "internal/unique_small_name_test.cc" ]
+  deps = [
+    ":core_headers",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
+}
+
 absl_test("optimization_test") {
   sources = [ "optimization_test.cc" ]
   deps = [ ":core_headers" ]
+}
+
+absl_source_set("iterator_traits_internal") {
+  public = [ "internal/iterator_traits.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
+  deps = [
+    ":config",
+    "//third_party/abseil-cpp/absl/meta:type_traits",
+  ]
+}
+
+absl_test("iterator_traits_test") {
+  sources = [ "internal/iterator_traits_test.cc" ]
+  deps = [
+    ":config",
+    ":iterator_traits_internal",
+    ":iterator_traits_test_helper",
+  ]
+}
+
+absl_source_set("tracing_internal") {
+  sources = [ "internal/tracing.cc" ]
+  public = [ "internal/tracing.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
+  deps = [
+    ":config",
+    ":core_headers",
+  ]
+}
+
+absl_source_set("iterator_traits_test_helper") {
+  public = [ "internal/iterator_traits_test_helper.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
+  deps = [ ":config" ]
+}
+
+absl_test("tracing_internal_weak_test") {
+  sources = [ "internal/tracing_weak_test.cc" ]
+  deps = [ ":tracing_internal" ]
+}
+
+absl_test("tracing_internal_strong_test") {
+  sources = [ "internal/tracing_strong_test.cc" ]
+  deps = [
+    ":config",
+    ":core_headers",
+    ":tracing_internal",
+  ]
 }

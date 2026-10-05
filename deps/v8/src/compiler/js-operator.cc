@@ -264,8 +264,7 @@ std::ostream& operator<<(std::ostream& os, FeedbackParameter const& p) {
 }
 
 FeedbackParameter const& FeedbackParameterOf(const Operator* op) {
-  DCHECK(JSOperator::IsUnaryWithFeedback(op->opcode()) ||
-         JSOperator::IsBinaryWithFeedback(op->opcode()) ||
+  DCHECK(JSOperator::IsBinaryWithFeedback(op->opcode()) ||
          op->opcode() == IrOpcode::kJSCreateEmptyLiteralArray ||
          op->opcode() == IrOpcode::kJSInstanceOf ||
          op->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
@@ -315,7 +314,8 @@ std::ostream& operator<<(std::ostream& os, EmbeddedHintParameter const& p) {
 }
 
 EmbeddedHintParameter const& EmbeddedHintParameterOf(const Operator* op) {
-  DCHECK(JSOperator::IsBinaryWithEmbeddedFeedback(op->opcode()));
+  DCHECK(JSOperator::IsBinaryWithEmbeddedFeedback(op->opcode()) ||
+         JSOperator::IsUnaryWithEmbeddedFeedback(op->opcode()));
   return OpParameter<EmbeddedHintParameter>(op);
 }
 
@@ -948,15 +948,15 @@ JSOperatorBuilder::JSOperatorBuilder(Zone* zone)
 CACHED_OP_LIST(CACHED_OP)
 #undef CACHED_OP
 
-#define UNARY_OP(JSName, Name)                                                \
-  const Operator* JSOperatorBuilder::Name(FeedbackSource const& feedback) {   \
-    FeedbackParameter parameters(feedback);                                   \
-    return zone()->New<Operator1<FeedbackParameter>>(                         \
-        IrOpcode::k##JSName, Operator::kNoProperties, #JSName, 2, 1, 1, 1, 1, \
-        2, parameters);                                                       \
+#define UNOP_WITH_EMBEDDED_FEEDBACK(JSName, Name)                             \
+  const Operator* JSOperatorBuilder::Name(BinaryOperationHint hint) {         \
+    EmbeddedHintParameter hint_parameter(hint);                               \
+    return zone()->New<Operator1<EmbeddedHintParameter>>(                     \
+        IrOpcode::k##JSName, Operator::kNoProperties, #JSName, 1, 1, 1, 1, 1, \
+        2, hint_parameter);                                                   \
   }
-JS_UNOP_WITH_FEEDBACK(UNARY_OP)
-#undef UNARY_OP
+JS_UNOP_WITH_EMBEDDED_FEEDBACK(UNOP_WITH_EMBEDDED_FEEDBACK)
+#undef UNOP_WITH_EMBEDDED_FEEDBACK
 
 #define BINARY_OP(JSName, Name)                                               \
   const Operator* JSOperatorBuilder::Name(FeedbackSource const& feedback) {   \

@@ -493,7 +493,12 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
 int Disassembler::Decode(Isolate* isolate, std::ostream& os, uint8_t* begin,
                          uint8_t* end, CodeReference code, Address current_pc,
                          size_t range_limit) {
-  DCHECK_WITH_MSG(v8_flags.text_is_readable,
+  // Only the decoded range itself must be readable; a non-readable .text
+  // section holds the embedded blob, so on-heap code is fine either way. With
+  // no isolate the buffer is caller-owned and thus readable.
+  DCHECK_WITH_MSG(v8_flags.text_is_readable || !isolate ||
+                      !OffHeapInstructionStream::PcIsOffHeap(
+                          isolate, reinterpret_cast<Address>(begin)),
                   "Builtins disassembly requires a readable .text section");
   V8NameConverter v8NameConverter(isolate, code);
   if (isolate) {

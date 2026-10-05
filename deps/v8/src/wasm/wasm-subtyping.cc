@@ -42,11 +42,11 @@ bool ValidStructSubtypeDefinition(ModuleTypeIndex subtype_index,
     }
   }
   if (sub_def.descriptor.valid()) {
-    // If a type has a descriptor, its supertype must either have no descriptor,
-    // or the supertype's descriptor must be a declared supertype of the
+    // If a type has a descriptor, its supertype must also have a descriptor,
+    // and the supertype's descriptor must be a declared supertype of the
     // subtype's descriptor.
-    if (super_def.descriptor.valid() &&
-        module->supertype(sub_def.descriptor) != super_def.descriptor) {
+    if (!super_def.descriptor.valid()) return false;
+    if (module->supertype(sub_def.descriptor) != super_def.descriptor) {
       return false;
     }
   } else {

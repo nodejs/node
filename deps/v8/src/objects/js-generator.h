@@ -20,6 +20,8 @@ class JSPromise;
 class StructBodyDescriptor;
 
 V8_OBJECT class JSGeneratorObject : public JSObject {
+  V8_IT_OWN_TYPE;
+
  public:
   enum ResumeMode { kNext, kReturn, kThrow, kRethrow };
 

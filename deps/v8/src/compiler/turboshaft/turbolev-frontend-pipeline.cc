@@ -244,7 +244,7 @@ struct TruncationPhase {
 
   PhaseResult Run(maglev::Graph* graph) {
     maglev::GraphBackwardProcessor<maglev::PropagateTruncationProcessor>
-        propagate;
+        propagate(graph);
     propagate.ProcessGraph(graph);
     // TODO(victorgomes): Support identities to flow to next passes?
     maglev::GraphProcessor<maglev::TruncationProcessor> truncate(graph);
@@ -257,9 +257,17 @@ struct PhiUntaggingPhase {
   DECL_TURBOLEV_PHASE_CONSTANTS(PhiUntagging)
 
   PhaseResult Run(maglev::Graph* graph) {
-    maglev::GraphProcessor<maglev::MaglevPhiRepresentationSelector> processor(
-        graph);
+    maglev::ReachableExceptionHandlerTracker tracker(graph);
+    maglev::MaglevPhiRepresentationSelector representation_selector(graph);
+    maglev::GraphMultiProcessor<maglev::ReachableExceptionHandlerTracker&,
+                                maglev::MaglevPhiRepresentationSelector&>
+        processor(tracker, representation_selector);
     processor.ProcessGraph(graph);
+
+    if (graph->may_have_unreachable_blocks()) {
+      graph->RemoveUnreachableBlocks();
+    }
+
     return PhaseResult::kContinue;
   }
 };
@@ -393,20 +401,20 @@ auto TurbolevFrontendPipeline::Run(Args&&... args) {
   Phase phase;
   SYNCHRONIZATION_POINT(Phase::synchronization_point_name());
   PhaseResult result = phase.Run(graph_, std::forward<Args>(args)...);
-  if (V8_UNLIKELY(ShouldPrintMaglevGraph(Phase::phase))) {
-    PrintMaglevGraph(Phase::phase);
-  }
-  if (compilation_info_->trace_json_enabled()) {
-    maglev::PrintMaglevGraphAsJSON(compilation_info_.get(), graph_,
-                                   Phase::phase);
-  }
-#ifdef DEBUG
   if (result == PhaseResult::kContinue) {
+    if (V8_UNLIKELY(ShouldPrintMaglevGraph(Phase::phase))) {
+      PrintMaglevGraph(Phase::phase);
+    }
+    if (compilation_info_->trace_json_enabled()) {
+      maglev::PrintMaglevGraphAsJSON(compilation_info_.get(), graph_,
+                                     Phase::phase);
+    }
+#ifdef DEBUG
     maglev::GraphProcessor<maglev::MaglevGraphVerifier> verifier(
         compilation_info_.get(), Phase::phase);
     verifier.ProcessGraph(graph_);
-  }
 #endif
+  }
   return result;
 }
 

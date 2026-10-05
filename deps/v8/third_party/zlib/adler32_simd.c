@@ -53,7 +53,7 @@
 
 #include <tmmintrin.h>
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__clang__)
 __attribute__((__target__("ssse3")))
 #endif
 uint32_t ZLIB_INTERNAL adler32_simd_(  /* SSSE3 */

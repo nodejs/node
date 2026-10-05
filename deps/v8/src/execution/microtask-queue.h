@@ -7,18 +7,15 @@
 
 #include <stdint.h>
 
-#include <memory>
 #include <vector>
 
 #include "include/v8-internal.h"  // For Address.
 #include "include/v8-microtask-queue.h"
 #include "src/base/macros.h"
 
-#ifdef V8_CPPGC_MICROTASK_QUEUE
 namespace cppgc {
 class Visitor;
 }  // namespace cppgc
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 namespace v8 {
 namespace internal {
@@ -33,19 +30,13 @@ class Tagged;
 class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
  public:
   static void SetUpDefaultMicrotaskQueue(Isolate* isolate);
-#ifdef V8_CPPGC_MICROTASK_QUEUE
   static MicrotaskQueue* New(Isolate* isolate);
-#else
-  static std::unique_ptr<MicrotaskQueue> New(Isolate* isolate);
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
   ~MicrotaskQueue() override;
 
-#ifdef V8_CPPGC_MICROTASK_QUEUE
   MicrotaskQueue();
   void Trace(cppgc::Visitor* visitor) const override;
   const char* GetHumanReadableName() const override { return "MicrotaskQueue"; }
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
   // Uses raw Address values because it's called via ExternalReference.
   // {raw_microtask} is a tagged Microtask pointer.
@@ -63,14 +54,11 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
                         v8::MicrotaskCallbackWithData callback,
                         v8::Local<v8::Data> data) override;
   void PerformCheckpoint(v8::Isolate* isolate) override {
-    if (!ShouldPerfomCheckpoint()) return;
+    if (!ShouldPerformCheckpoint(isolate)) return;
     PerformCheckpointInternal(isolate);
   }
 
-  bool ShouldPerfomCheckpoint() const {
-    return !IsRunningMicrotasks() && !GetMicrotasksScopeDepth() &&
-           !HasMicrotasksSuppressions();
-  }
+  bool ShouldPerformCheckpoint(v8::Isolate* isolate) const;
 
   void EnqueueMicrotask(Tagged<Microtask> microtask);
   void AddMicrotasksCompletedCallback(
@@ -126,11 +114,6 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
 
   Tagged<Microtask> get(intptr_t index) const;
 
-#ifndef V8_CPPGC_MICROTASK_QUEUE
-  MicrotaskQueue* next() const { return next_; }
-  MicrotaskQueue* prev() const { return prev_; }
-#endif  // V8_CPPGC_MICROTASK_QUEUE
-
   static const size_t kRingBufferOffset;
   static const size_t kCapacityOffset;
   static const size_t kSizeOffset;
@@ -144,9 +127,6 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
 
   void OnCompleted(Isolate* isolate);
 
-#ifndef V8_CPPGC_MICROTASK_QUEUE
-  MicrotaskQueue();
-#endif  // V8_CPPGC_MICROTASK_QUEUE
   void ResizeBuffer(intptr_t new_capacity);
 
   // A ring buffer to hold Microtask instances.
@@ -159,11 +139,6 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
 
   // The number of finished microtask.
   intptr_t finished_microtask_count_ = 0;
-
-#ifndef V8_CPPGC_MICROTASK_QUEUE
-  MicrotaskQueue* next_ = nullptr;
-  MicrotaskQueue* prev_ = nullptr;
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
   int microtasks_depth_ = 0;
   int microtasks_suppressions_ = 0;

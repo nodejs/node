@@ -23,4 +23,7 @@
 
 #define CLOCKS_PER_SEC 1000000
 
+// timer flags
+#define TIMER_ABSTIME 1
+
 #endif // LLVM_LIBC_MACROS_LINUX_TIME_MACROS_H

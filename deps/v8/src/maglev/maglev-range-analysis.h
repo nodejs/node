@@ -327,6 +327,12 @@ class RangeProcessor {
         node, Range::Mul(Get(node->input_node(0)), Get(node->input_node(1))));
     return ProcessResult::kContinue;
   }
+  ProcessResult Process(Int32ModulusWithOverflow* node,
+                        const ProcessingState&) {
+    UnionUpdateInt32(
+        node, Range::Mod(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
   ProcessResult Process(Int32BitwiseAnd* node, const ProcessingState&) {
     UnionUpdateInt32(node, Range::BitwiseAnd(Get(node->input_node(0)),
                                              Get(node->input_node(1))));
@@ -543,11 +549,10 @@ class RangeProcessor {
     DCHECK_EQ(backedge_pred, block->backedge_predecessor());
     ranges_.EnsureMapExistsFor(block);  // TODO(victorgomes): not sure if needed
     TRACE_RANGE(">>>> Processing backedges for Block b" << block->id());
-    int backedge_id = block->state()->predecessor_count() - 1;
     bool is_done = true;
     for (Phi* phi : *block->phis()) {
       Range range = ranges_.Get(block, phi);
-      Range backedge = ranges_.Get(backedge_pred, phi->input_node(backedge_id));
+      Range backedge = ranges_.Get(backedge_pred, phi->backedge());
       Range widened = Range::Widen(range, backedge);
       if (phi->is_int32()) {
         // Since phi representation selector promoted this phi to Int32,

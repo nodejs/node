@@ -482,7 +482,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
           } else if (control->Is<Return>()) {
             printing_visitor_->os() << " " << control->id() << ".";
             break;
-          } else if (control->Is<Deopt>() || control->Is<Abort>()) {
+          } else if (control->Is<TerminalControlNode>()) {
             printing_visitor_->os() << " " << control->id() << "✖️";
             break;
           }
@@ -2293,8 +2293,9 @@ void StraightForwardRegisterAllocator::HoistLoopSpills(BasicBlock* target) {
 
 void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
     ControlNode* source, BasicBlock* target) {
-  MergePointRegisterState& target_state = target->state()->register_state();
-  DCHECK(!target_state.is_initialized());
+  DCHECK(!target->state()->has_register_state());
+  MergePointRegisterState* target_state =
+      compilation_info_->zone()->New<MergePointRegisterState>();
   auto init = [&](auto& registers, auto reg, RegisterState& state) {
     ValueNode* node = nullptr;
     DCHECK(registers.blocked().is_empty());
@@ -2307,7 +2308,8 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
   HoistLoopReloads(target, general_registers_);
   HoistLoopReloads(target, double_registers_);
   HoistLoopSpills(target);
-  ForEachMergePointRegisterState(target_state, init);
+  ForEachMergePointRegisterState(*target_state, init);
+  target->state()->set_register_state(target_state);
 }
 
 void StraightForwardRegisterAllocator::InitializeEmptyBlockRegisterValues(
@@ -2316,7 +2318,6 @@ void StraightForwardRegisterAllocator::InitializeEmptyBlockRegisterValues(
   MergePointRegisterState* register_state =
       compilation_info_->zone()->New<MergePointRegisterState>();
 
-  DCHECK(!register_state->is_initialized());
   auto init = [&](auto& registers, auto reg, RegisterState& state) {
     ValueNode* node = nullptr;
     DCHECK(registers.blocked().is_empty());
@@ -2338,11 +2339,11 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
     return InitializeEmptyBlockRegisterValues(control, target);
   }
 
-  MergePointRegisterState& target_state = target->state()->register_state();
-  if (!target_state.is_initialized()) {
+  if (!target->state()->has_register_state()) {
     // This is the first block we're merging, initialize the values.
     return InitializeBranchTargetRegisterValues(control, target);
   }
+  MergePointRegisterState& target_state = target->state()->register_state();
 
   if (v8_flags.trace_maglev_regalloc) {
     printing_visitor_->os() << "Merging registers...\n";

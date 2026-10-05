@@ -646,8 +646,7 @@ class ThrowingAllocator : private exceptions_internal::TrackedObject {
   using size_type = size_t;
   using difference_type = ptrdiff_t;
 
-  using is_nothrow =
-      std::integral_constant<bool, Spec == AllocSpec::kNoThrowAllocate>;
+  using is_nothrow = std::bool_constant<Spec == AllocSpec::kNoThrowAllocate>;
   using propagate_on_container_copy_assignment = std::true_type;
   using propagate_on_container_move_assignment = std::true_type;
   using propagate_on_container_swap = std::true_type;

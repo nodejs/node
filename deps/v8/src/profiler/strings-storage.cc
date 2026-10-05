@@ -107,6 +107,12 @@ const char* StringsStorage::GetName(Tagged<Name> name) {
   return "";
 }
 
+const char* StringsStorage::GetUntruncated(Tagged<String> string) {
+  size_t data_length = 0;
+  std::unique_ptr<char[]> data = string->ToCString(&data_length);
+  return AddOrDisposeString(data.release(), data_length);
+}
+
 const char* StringsStorage::GetName(int index) {
   return GetFormatted("%d", index);
 }

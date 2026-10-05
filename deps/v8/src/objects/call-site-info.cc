@@ -117,7 +117,7 @@ bool CallSiteInfo::IsNative() const {
 
 bool CallSiteInfo::IsEval() const {
   if (auto script = GetScript()) {
-    return script.value()->compilation_type() == Script::CompilationType::kEval;
+    return script.value()->has_eval_origin();
   }
   return false;
 }
@@ -288,7 +288,7 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate,
       DirectHandle<Script> eval_script(Cast<Script>(eval_shared->script()),
                                        isolate);
       builder.AppendCStringLiteral(" (");
-      if (eval_script->compilation_type() == Script::CompilationType::kEval) {
+      if (eval_script->has_eval_origin()) {
         // Eval script originated from another eval.
         DirectHandle<String> str;
         ASSIGN_RETURN_ON_EXCEPTION(isolate, str,
@@ -328,7 +328,7 @@ Handle<PrimitiveHeapObject> CallSiteInfo::GetEvalOrigin(
   auto isolate = Isolate::Current();
   DirectHandle<Script> script;
   if (!GetScript(isolate, info).ToHandle(&script) ||
-      script->compilation_type() != Script::CompilationType::kEval) {
+      !script->has_eval_origin()) {
     return isolate->factory()->undefined_value();
   }
   return FormatEvalOrigin(isolate, script).ToHandleChecked();

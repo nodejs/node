@@ -15,6 +15,8 @@
 #ifndef ABSL_CRC_INTERNAL_CRC32C_H_
 #define ABSL_CRC_INTERNAL_CRC32C_H_
 
+#include <cstddef>
+
 #include "absl/base/config.h"
 #include "absl/crc/crc32c.h"
 

@@ -125,8 +125,9 @@ MaybeDirectHandle<JSListFormat> JSListFormat::New(
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
 
-  DirectHandle<Managed<icu::ListFormatter>> managed_formatter =
-      Managed<icu::ListFormatter>::From(isolate, 0, std::move(formatter));
+  DirectHandle<CppGCManaged<icu::ListFormatter>> managed_formatter =
+      CppGCManaged<icu::ListFormatter>::Create(isolate, 0,
+                                               std::move(formatter));
 
   // Now all properties are ready, so we can allocate the result object.
   DirectHandle<JSListFormat> list_format =
@@ -225,7 +226,8 @@ MaybeDirectHandle<T> FormatListCommon(
   MAYBE_RETURN(maybe_array, DirectHandle<T>());
   std::vector<icu::UnicodeString> array = maybe_array.FromJust();
 
-  Managed<icu::ListFormatter>::Ptr formatter = format->icu_formatter()->ptr();
+  CppGCManaged<icu::ListFormatter>::Ptr formatter =
+      format->icu_formatter()->ptr();
   DCHECK_NOT_NULL(formatter);
 
   UErrorCode status = U_ZERO_ERROR;

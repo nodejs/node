@@ -34,7 +34,7 @@ ValueNode* EscapeAnalysisData::Get(InlinedAllocation* base, int offset) {
   ObjectField addr = ObjectField{base, offset};
   Key key = TryGetKeyFor(addr);
   DCHECK(key.valid());
-  return field_values.Get(key);
+  return GetFieldValue(key);
 }
 
 Key EscapeAnalysisData::GetOrCreateKey(InlinedAllocation* base, int offset) {
@@ -133,9 +133,9 @@ ValueNode* EscapeAnalysisData::ResolveLoadBase(ValueNode* base, int offset,
       return fallback;
     }
     DCHECK(key.valid());
-    ValueNode* val = predecessor_index == -1 ? field_values.Get(key)
-                                             : field_values.GetPredecessorValue(
-                                                   key, predecessor_index);
+    ValueNode* val = predecessor_index == -1
+                         ? GetFieldValue(key)
+                         : GetPredecessorFieldValue(key, predecessor_index);
     if (val == nullptr) {
       // The key is valid, but the value is nullptr (e.g. because it is
       // uninitialized on this path, or merged to nullptr due to predecessor
@@ -873,7 +873,7 @@ class CandidateAnalyzer {
     // flow into Phis.
     // When visiting a loop header for the 1st time, the backedge predecessor
     // has no snapshot yet, and thus no value to look up: its inputs are handled
-    // by CheckLoopPhiInvalidation when reaching the JumpLoop instead.
+    // by MarkEscapingLoopPhiBackedges when reaching the JumpLoop instead.
     DCHECK_LE(data_.merged_predecessor_count, phi->input_count());
     for (int i = 0; i < data_.merged_predecessor_count; i++) {
       ValueNode* input = phi->input_node(i);
@@ -1005,7 +1005,8 @@ class FieldValuesTracker : public CandidateAnalyzer {
     return BlockProcessResult::kContinue;
   }
 
-  bool CreateSnapshotFor(BasicBlock* block) {
+  bool CreateSnapshotFor(BasicBlock* block,
+                         bool is_loop_fixpoint_check = false) {
     TRACE("> CreateSnapshotFor " << BLOCK_ID(block));
     DCHECK(field_values().IsSealed());
     base::SmallVector<Snapshot, 4> predecessors_snapshots;
@@ -1057,6 +1058,21 @@ class FieldValuesTracker : public CandidateAnalyzer {
       if (all_predecessors_equal) {
         // All of the predecessors have the same value recorded for {key}, so
         // there is no need to insert a Phi.
+        for (auto [phi, other_key] : old_phis_) {
+          if (other_key == key) {
+            // If there was already a Phi in {old_phis_} for {key}, then it
+            // might be referenced within the loop. We thus overwrite it with an
+            // Identity so that those references remain valid. Note that there
+            // is no need to trigger a loop revisit in such a case, since loop
+            // phis are anyways treated as opaque (which means that replacing a
+            // Phi with a non-phi doesn't invalidate any previous decisions).
+            // Also note that {phi} will not be added to the graph, but that's
+            // fine: the MaglevGraphOptimizer that runs after this phase will
+            // take care of rewiring the users to bypass this Identity.
+            phi->OverwriteWithIdentityTo(predecessors[0]);
+            break;
+          }
+        }
         return predecessors[0];
       }
 
@@ -1087,25 +1103,35 @@ class FieldValuesTracker : public CandidateAnalyzer {
       // Trying to find an already-created Phi for this field. If we find it, we
       // reuse it, for 2 reasons:
       //
-      //   - termination: if there is already a Phi for this field, then it's
-      //     guaranteed to already have the right values (cf comment below), and
-      //     thus we don't need to trigger a revisit of the loop. Creating a
-      //     branch new phi would trigger loop revisits for ever (since it
-      //     always set {need_revisit} to true).
+      //   - performance (always): we avoid reallocating a new phi.
       //
-      //   - performance: we avoid reallocating a new phi.
+      //   - correctness / termination (when {is_loop_fixpoint_check} is true):
+      //     if there is already a Phi for this field, we reuse it and do not
+      //     trigger a revisit of the loop. Creating a brand new phi would
+      //     trigger loop revisits forever (since it always sets {need_revisit}
+      //     to true).
+      //
+      // Note that when {is_loop_fixpoint_check} is false (for example, when an
+      // outer loop revisits an inner loop), the forward-edge predecessor of
+      // the inner loop header may have changed across outer-loop iterations.
+      // Therefore, we update any changed inputs on the reused Phi to match the
+      // incoming predecessors.
       for (auto [phi, other_key] : old_phis_) {
         if (other_key != key) continue;
-#ifdef DEBUG
-        // Forward edges shouldn't have changed, and PatchLoopPhisBackedges
-        // should have already patched the backedge. So, if we find a phi, its
-        // inputs should already have the correct values.
         DCHECK_EQ(phi->input_count(), predecessors.size());
+        bool any_input_changed = false;
         for (int i = 0; i < phi->input_count(); i++) {
-          DCHECK_EQ(phi->input_node(i), predecessors[i]);
+          if (phi->input_node(i) != predecessors[i]) {
+            DCHECK(!is_loop_fixpoint_check);
+            phi->change_input(i, predecessors[i]);
+            any_input_changed = true;
+          }
         }
-#endif
+        DCHECK_IMPLIES(is_loop_fixpoint_check, !any_input_changed);
         RegisterNewPhi(phi, block, key);
+        if (any_input_changed) {
+          CandidateAnalyzer::ProcessPhi(phi);
+        }
         return phi;
       }
 
@@ -1118,18 +1144,18 @@ class FieldValuesTracker : public CandidateAnalyzer {
       constexpr interpreter::Register kFakeOwner =
           interpreter::Register::invalid_value();
 
-      // When visiting a loop with multiple forward edge for the 1st time, we
-      // may need to insert a phi to merge the forward values but we won't have
-      // a backedge value yet. Still, we'll create a valid loop phi with enough
-      // inputs and we'll set itself as backedge input.
-      int phi_input_count =
-          block->is_loop() ? block->predecessor_count() : predecessor_count;
+      // A loop header has a single forward edge, so its first visit merges a
+      // single predecessor and returns above without reaching this point. By
+      // the time a loop phi is created here, the backedge has been visited too.
+      DCHECK_IMPLIES(
+          block->is_loop(),
+          predecessor_count == static_cast<int>(block->predecessor_count()));
       // TODO(dmercadier): instead of creating a proper Phi (which are 64 bytes
       // long + inputs!), we could have a custom "PseudoPhi" (name tbd)
       // structure that contains the bare minimum and would basically just be a
       // vector of Union(ValueNodes, PseudoPhi)., and only create real Phis in
       // the elider once we're sure that we're going to need them.
-      Phi* phi = NodeBase::New<Phi>(zone(), phi_input_count, state.value(),
+      Phi* phi = NodeBase::New<Phi>(zone(), predecessor_count, state.value(),
                                     kFakeOwner);
 #ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
       // TODO(dmercadier): should we register Phis only once we're sure that
@@ -1139,10 +1165,6 @@ class FieldValuesTracker : public CandidateAnalyzer {
 #endif
       for (int i = 0; i < predecessor_count; i++) {
         phi->set_input(i, predecessors[i]);
-      }
-      if (block->is_loop() && predecessor_count < phi_input_count) {
-        DCHECK_EQ(predecessor_count, phi_input_count - 1);
-        phi->set_input(phi_input_count - 1, predecessors[0]);
       }
       phi->change_representation(predecessors[0]->value_representation());
       TRACE(">> Created new phi: " << PRINT_NODE(phi));
@@ -1170,17 +1192,18 @@ class FieldValuesTracker : public CandidateAnalyzer {
     if (JumpLoop* jump_loop = block->control_node()->TryCast<JumpLoop>()) {
       BasicBlock* loop_header = jump_loop->target();
 
-      // Loop phis backedges need to be patched in 2 situations:
-      //
-      //   - this is a loop with multiple forward edges that was requiring Phis
-      //     to merge forward values. In that case, during the first visit of
-      //     the loop, this Phi was created with itself as backedge (because it
-      //     needs a backedge value to be a valid loop phi); and we're now
-      //     patching this with the correct value of the backedge.
-      //
-      //   - we have just revisited the loop, and when creating the loop phis
-      //     initially we were using the old backedge value (since it's the only
-      //     one that we had); and we're now patching it with the correct value.
+      // Any candidate flowing into a backedge need to be invalidated. When this
+      // happens, MarkAsEscaped will be called, which might set
+      // has_escaped_candidate for the current loop, which could trigger a
+      // revisit of the current loop. This means that it's important to run
+      // MarkEscapingLoopPhiBackedges before popping the current loop from
+      // `data_.loop_stack`.
+      MarkEscapingLoopPhiBackedges(loop_header);
+
+      // Loop phis backedges need to be patched when we have just revisited the
+      // loop: when creating the loop phis initially we were using the old
+      // backedge value (since it's the only one that we had), and we're now
+      // patching it with the correct value.
       //
       // Note that the fact that a loop phi needs to be patched isn't a reason
       // to revisit the loop: while visiting the loop, phis are treated as
@@ -1189,10 +1212,10 @@ class FieldValuesTracker : public CandidateAnalyzer {
       // will not lead to making any different decision when revisiting the
       // loop.
       //
-      // Also note that PatchLoopPhisBackedges needs to be called before popping
-      // the current loop from `data_.loop_stack` to ensure that if
-      // `MarkAsEscaped(alloc)` is called inside it, it will find the current
-      // loop on the stack if needed.
+      // Similarly to MarkEscapingLoopPhiBackedges above, PatchLoopPhisBackedges
+      // needs to be called before popping the current loop from
+      // `data_.loop_stack` to ensure that if `MarkAsEscaped(alloc)` is called
+      // inside it, it will find the current loop on the stack if needed.
       PatchLoopPhisBackedges(loop_header, snapshot);
 
       DCHECK_GT(data_.loop_stack.size(), 1);
@@ -1203,16 +1226,15 @@ class FieldValuesTracker : public CandidateAnalyzer {
 
       auto prev_header_phis = new_phis().find(loop_header);
       if (prev_header_phis != new_phis().end()) {
-        old_phis_.swap(*prev_header_phis->second);
-        DCHECK(prev_header_phis->second->empty());
+        old_phis_ = std::move(*prev_header_phis->second);
+        prev_header_phis->second->clear();
       }
 
       // TODO(dmercadier): we could try to reuse the snapshot created by
       // CreateSnapshotFor when revisiting the loop, instead of discarding it
       // and recomputing it afterwards.
       bool needs_revisit = has_escaped_candidate ||
-                           CheckLoopPhiInvalidation(loop_header) ||
-                           CreateSnapshotFor(loop_header);
+                           CreateSnapshotFor(loop_header, true);
       if (needs_revisit) {
         TRACE("> Will revisit loop");
         // Discarding temporary snapshot.
@@ -1224,9 +1246,6 @@ class FieldValuesTracker : public CandidateAnalyzer {
       } else {
         // Discarding temporary snapshot.
         if (!field_values().IsSealed()) field_values().Seal();
-        // Discarding the backedge's snapshot, so that if we're currently in a
-        // nested loop, we can still revisit it if we revisit the outer loop.
-        block_snapshots_.erase(block);
       }
     }
 
@@ -1242,7 +1261,6 @@ class FieldValuesTracker : public CandidateAnalyzer {
     // VariableReducer creates in Turboshaft.
     field_values().StartNewSnapshot({backedge_snapshot});
 
-    int backedge_index = header->predecessor_count() - 1;
     for (auto& [phi, key] : *new_phis().at(header)) {
       InlinedAllocation* alloc = key.data().base;
       if (data_.HasEscaped(alloc)) {
@@ -1252,7 +1270,7 @@ class FieldValuesTracker : public CandidateAnalyzer {
         continue;
       }
 
-      ValueNode* backedge_val = field_values().Get(key);
+      ValueNode* backedge_val = data_.GetFieldValue(key);
 
       if (InlinedAllocation* backedge_alloc =
               data_.TryGetCandidateInlinedAllocation(backedge_val)) {
@@ -1265,50 +1283,40 @@ class FieldValuesTracker : public CandidateAnalyzer {
         // decisions based on the inputs of Phis, so the fact that the backedge
         // of {phi} is now escaping doesn't invalidate any decision made in the
         // loop.
-#ifdef DEBUG
-        bool needed_revisit_before =
-            data_.loop_stack.back().has_escaped_candidate;
-#endif
         data_.MarkAsEscaped(backedge_alloc);
-        // Calling MarkAsEscaped should not have marked the current loop as
-        // needing to be revisited.
-        DCHECK_EQ(needed_revisit_before,
-                  data_.loop_stack.back().has_escaped_candidate);
       }
 
       DCHECK_NOT_NULL(backedge_val);
       TRACE(">> Updating loop phi backedge: "
-            << PRINT_NODE(phi) << " backedge "
-            << PRINT_NODE(phi->input(backedge_index).node()) << " -> "
-            << PRINT_NODE(backedge_val));
-      phi->change_input(backedge_index, backedge_val);
+            << PRINT_NODE(phi) << " backedge " << PRINT_NODE(phi->backedge())
+            << " -> " << PRINT_NODE(backedge_val));
+      phi->change_input(phi->backedge_index(), backedge_val);
     }
 
     field_values().Seal();
   }
 
-  // Returns true if a candidate for eliding flows into a loop phi. In that
-  // case, we'll invalidate it and reprocess the loop.
+  // Invalidates any candidate that flows into a loop phi. This might trigger a
+  // loop revisit via has_escaped_candidate if the allocation was defined
+  // outside the current loop.
   // TODO(dmercadier): try to merge objects in that case, instead of
-  // invalidating.
-  bool CheckLoopPhiInvalidation(BasicBlock* loop_header) {
-    TRACE("CheckLoopPhiInvalidation");
+  // marking them as escaping.
+  void MarkEscapingLoopPhiBackedges(BasicBlock* loop_header) {
+    TRACE("MarkEscapingLoopPhiBackedges");
     if (!loop_header->has_phi()) {
       TRACE("> no phis");
-      return false;
+      return;
     }
 
-    bool invalidated = false;
     for (Phi* phi : *loop_header->phis()) {
       if (InlinedAllocation* alloc =
-              data_.TryGetCandidateInlinedAllocation(phi->backedge_input())) {
-        TRACE("> Marking " << NODE_ID(alloc) << " as escaping, will revisit");
+              data_.TryGetCandidateInlinedAllocation(phi->backedge())) {
+        TRACE("> Marking " << NODE_ID(alloc) << " as escaping");
         data_.MarkAsEscaped(alloc);
-        invalidated = true;
       }
     }
-    return invalidated;
   }
+
   ProcessResult Process(InlinedAllocation* node, const ProcessingState& state) {
     BasicBlock* current_loop = data_.loop_stack.back().header;
     data_.alloc_definition_loop[node] = current_loop;
@@ -1829,7 +1837,7 @@ class Elider {
       }
       DCHECK(keys_mappings().contains(addr));
       Key key = keys_mappings().at(addr);
-      ValueNode* replacement = field_values().Get(key);
+      ValueNode* replacement = data_.GetFieldValue(key);
 
       if (replacement == nullptr || (replacement->value_representation() !=
                                      node->value_representation())) {

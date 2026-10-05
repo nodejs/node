@@ -1599,12 +1599,40 @@ void InterpreterAssembler::OnStackReplacement(
 
   BIND(&osr_to_sparkplug);
   {
+    Label skip_osr_to_sparkplug(this);
+    // InterpreterEntryTrampoline only checks BytecodeArray::frame_size_,
+    // whereas baseline code requires BytecodeArray::max_frame_size()
+    // (frame_size_ + max_arguments_) so it can push outgoing call arguments
+    // without a stack check. Since frame_size_ is already allocated in the
+    // current interpreter frame, verify that there is enough remaining stack
+    // space for max_arguments_ before OSRing into baseline code.
+    //
+    // If there isn't enough space, we skip OSR and stay in the interpreter
+    // rather than throwing a StackOverflow here: exception handler lookup in
+    // the interpreter is keyed by bytecode offset, so throwing at JumpLoop
+    // could be caught by an inner try-catch wrapping the loop (and the call
+    // requiring max_arguments_ might not even be reached). Skipping means we
+    // will re-check on subsequent backedge interrupts while near the stack
+    // limit, which is an acceptable cost for this edge case.
+    TNode<Uint16T> max_arguments = LoadObjectField<Uint16T>(
+        BytecodeArrayTaggedPointer(), offsetof(BytecodeArray, max_arguments_));
+    TNode<UintPtrT> max_arguments_bytes =
+        TimesSystemPointerSize(ChangeUint32ToWord(max_arguments));
+    TNode<UintPtrT> stack_limit =
+        Load<UintPtrT>(IsolateField(IsolateFieldId::kRealJsLimit));
+    GotoIfNot(
+        StackPointerGreaterThan(IntPtrAdd(stack_limit, max_arguments_bytes)),
+        &skip_osr_to_sparkplug);
+
     // We already compiled the baseline code, so we don't need to handle failed
     // compilation as in the Ignition -> Turbofan case. Therefore we can just
     // tailcall to the OSR builtin.
     SaveBytecodeOffset();
     TailCallBuiltin(Builtin::kInterpreterOnStackReplacement_ToBaseline,
                     context);
+
+    BIND(&skip_osr_to_sparkplug);
+    JumpBackward(relative_jump);
   }
 }
 

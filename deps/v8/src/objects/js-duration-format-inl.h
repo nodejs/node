@@ -34,11 +34,11 @@ void JSDurationFormat::set_display_flags(int value) {
   display_flags_.store(this, Smi::FromInt(value));
 }
 
-Tagged<Managed<icu::Locale>> JSDurationFormat::icu_locale() const {
-  return Cast<Managed<icu::Locale>>(icu_locale_.load());
+Tagged<CppGCManaged<icu::Locale>> JSDurationFormat::icu_locale() const {
+  return Cast<CppGCManaged<icu::Locale>>(icu_locale_.load());
 }
-void JSDurationFormat::set_icu_locale(Tagged<Managed<icu::Locale>> value,
-                                      WriteBarrierMode mode) {
+void JSDurationFormat::set_icu_locale(
+    Tagged<CppGCManaged<icu::Locale>> value, WriteBarrierMode mode) {
   icu_locale_.store(this, value, mode);
 }
 
@@ -111,13 +111,13 @@ inline int32_t JSDurationFormat::fractional_digits() const {
   return v;
 }
 
-Tagged<Managed<icu::number::LocalizedNumberFormatter>>
+Tagged<CppGCManaged<icu::number::LocalizedNumberFormatter>>
 JSDurationFormat::icu_number_formatter() const {
-  return Cast<Managed<icu::number::LocalizedNumberFormatter>>(
+  return Cast<CppGCManaged<icu::number::LocalizedNumberFormatter>>(
       icu_number_formatter_.load());
 }
 void JSDurationFormat::set_icu_number_formatter(
-    Tagged<Managed<icu::number::LocalizedNumberFormatter>> value,
+    Tagged<CppGCManaged<icu::number::LocalizedNumberFormatter>> value,
     WriteBarrierMode mode) {
   icu_number_formatter_.store(this, value, mode);
 }

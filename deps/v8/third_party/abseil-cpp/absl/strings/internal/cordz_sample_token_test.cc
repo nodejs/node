@@ -14,6 +14,8 @@
 
 #include "absl/strings/internal/cordz_sample_token.h"
 
+#include <cstddef>
+#include <iterator>
 #include <memory>
 #include <type_traits>
 #include <vector>
@@ -26,6 +28,7 @@
 #include "absl/strings/internal/cord_rep_flat.h"
 #include "absl/strings/internal/cordz_handle.h"
 #include "absl/strings/internal/cordz_info.h"
+#include "absl/strings/internal/cordz_update_tracker.h"
 #include "absl/synchronization/internal/thread_pool.h"
 #include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
@@ -44,33 +47,27 @@ using ::testing::Ne;
 auto constexpr kTrackCordMethod = CordzUpdateTracker::kConstructorString;
 
 TEST(CordzSampleTokenTest, IteratorTraits) {
-  static_assert(std::is_copy_constructible_v<CordzSampleToken::Iterator>, "");
-  static_assert(std::is_copy_assignable_v<CordzSampleToken::Iterator>, "");
-  static_assert(std::is_move_constructible_v<CordzSampleToken::Iterator>, "");
-  static_assert(std::is_move_assignable_v<CordzSampleToken::Iterator>, "");
+  static_assert(std::is_copy_constructible_v<CordzSampleToken::Iterator>);
+  static_assert(std::is_copy_assignable_v<CordzSampleToken::Iterator>);
+  static_assert(std::is_move_constructible_v<CordzSampleToken::Iterator>);
+  static_assert(std::is_move_assignable_v<CordzSampleToken::Iterator>);
   static_assert(
       std::is_same_v<
           std::iterator_traits<CordzSampleToken::Iterator>::iterator_category,
-          std::input_iterator_tag>,
-      "");
-  static_assert(
-      std::is_same_v<
-          std::iterator_traits<CordzSampleToken::Iterator>::value_type,
-          const CordzInfo&>,
-      "");
+          std::input_iterator_tag>);
+  static_assert(std::is_same_v<
+                std::iterator_traits<CordzSampleToken::Iterator>::value_type,
+                const CordzInfo&>);
   static_assert(
       std::is_same_v<
           std::iterator_traits<CordzSampleToken::Iterator>::difference_type,
-          ptrdiff_t>,
-      "");
+          ptrdiff_t>);
   static_assert(
       std::is_same_v<std::iterator_traits<CordzSampleToken::Iterator>::pointer,
-                     const CordzInfo*>,
-      "");
+                     const CordzInfo*>);
   static_assert(std::is_same_v<
-                    std::iterator_traits<CordzSampleToken::Iterator>::reference,
-                    const CordzInfo&>,
-                "");
+                std::iterator_traits<CordzSampleToken::Iterator>::reference,
+                const CordzInfo&>);
 }
 
 TEST(CordzSampleTokenTest, IteratorEmpty) {

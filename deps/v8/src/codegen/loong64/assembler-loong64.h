@@ -133,6 +133,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   virtual ~Assembler() {}
 
+  // Distance between the address of the near call instruction and the return
+  // address pushed on the stack.
+  static const int kCallTargetAddressOffset = 4;
+
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
   static constexpr SafepointTableBuilderBase* kNoSafepointTable = nullptr;

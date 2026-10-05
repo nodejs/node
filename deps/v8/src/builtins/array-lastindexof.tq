@@ -3,64 +3,131 @@
 // found in the LICENSE file.
 
 namespace array {
-macro LoadWithHoleCheck<Elements : type extends FixedArrayBase>(
-    elements: FixedArrayBase, index: Smi): JSAny
-    labels IfHole;
-
-LoadWithHoleCheck<FixedArray>(
-    implicit context: Context)(elements: FixedArrayBase, index: Smi): JSAny
-    labels IfHole {
-  const elements: FixedArray = UnsafeCast<FixedArray>(elements);
-  const element: Object = elements.objects[index];
-  if (element == TheHole) goto IfHole;
-  return UnsafeCast<JSAny>(element);
-}
-
-LoadWithHoleCheck<FixedDoubleArray>(
-    implicit context: Context)(elements: FixedArrayBase, index: Smi): JSAny
-    labels IfHole {
-  const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
-  try {
-    const element: float64 =
-        elements.values[index].Value() otherwise IfUndefined,
-                   IfHole;
-    return AllocateHeapNumberWithValue(element);
-  } label IfUndefined {
-    return Undefined;
-  }
-}
-
-macro FastArrayLastIndexOf<Elements : type extends FixedArrayBase>(
-    context: Context, array: JSArray, from: Smi, searchElement: JSAny): Smi {
-  const elements: FixedArrayBase = array.elements;
-  const elementsLen: Smi = Convert<Smi>(elements.length_intptr);
-  let k: Smi = from;
-
+macro ClampLastIndexOfFrom(from: Smi, elementsLen: Smi): Smi {
   // Bug(898785): Due to side-effects in the evaluation of `fromIndex`
   // the {from} can be out-of-bounds here, so we need to clamp {k} to
   // the {elements} length. We might be reading holes / hole NaNs still
   // due to that, but those will be ignored below.
-  if (k >= elementsLen) {
-    k = elementsLen - 1;
+  if (from >= elementsLen) {
+    return elementsLen - 1;
   }
+  return from;
+}
 
+macro LastIndexOfNumberInFixedArray(
+    elements: FixedArray, from: Smi, search: Number): Smi {
+  const searchNum: float64 = Convert<float64>(search);
+  if (Float64IsNaN(searchNum)) return -1;
+
+  let k: Smi = from;
   while (k >= 0) {
-    try {
-      const element: JSAny = LoadWithHoleCheck<Elements>(elements, k)
-          otherwise Hole;
-
-      const same: Boolean = StrictEqual(searchElement, element);
-      if (same == True) {
-        dcheck(Is<FastJSArray>(array));
-        return k;
+    const element = UnsafeCast<(JSAny | TheHole)>(elements.objects[k]);
+    if (TaggedEqual(element, search)) return k;
+    typeswitch (element) {
+      case (n: Number): {
+        if (searchNum == Convert<float64>(n)) return k;
       }
-    } label Hole {}  // Do nothing for holes.
-
+      case (JSAny | TheHole): {
+        // Fallthrough.
+      }
+    }
     --k;
   }
-
-  dcheck(Is<FastJSArray>(array));
   return -1;
+}
+
+macro LastIndexOfAnyInFixedArray(
+    implicit context: Context)(elements: FixedArray, from: Smi,
+    searchElement: JSAny): Smi {
+  let k: Smi = from;
+  while (k >= 0) {
+    const element = UnsafeCast<(JSAny | TheHole)>(elements.objects[k]);
+    if (TaggedEqual(searchElement, element)) return k;
+    typeswitch (element) {
+      case (e: JSAny): {
+        if (StrictEqual(searchElement, e) == True) return k;
+      }
+      case (TheHole): {
+        // Fallthrough.
+      }
+    }
+    --k;
+  }
+  return -1;
+}
+
+macro FastArrayLastIndexOfFixedArray(
+    context: Context, array: FastJSArrayForRead, from: Smi,
+    searchElement: JSAny): Smi {
+  const elements: FixedArray = UnsafeCast<FixedArray>(array.elements);
+  const elementsLen: Smi = Convert<Smi>(elements.length_intptr);
+  const k: Smi = ClampLastIndexOfFrom(from, elementsLen);
+
+  typeswitch (searchElement) {
+    case (search: Number): {
+      return LastIndexOfNumberInFixedArray(elements, k, search);
+    }
+    case (JSAny): {
+      return LastIndexOfAnyInFixedArray(elements, k, searchElement);
+    }
+  }
+}
+
+macro LastIndexOfDoubleValue(
+    elements: FixedDoubleArray, from: Smi, searchNum: float64): Smi {
+  let k: Smi = from;
+  while (k >= 0) {
+    try {
+      const element: float64 = elements.values[k].Value() otherwise IfUndefined,
+                     IfHole;
+      if (element == searchNum) return k;
+    } label IfUndefined {
+      // Fallthrough.
+    } label IfHole {
+      // Fallthrough.
+    }
+    --k;
+  }
+  return -1;
+}
+
+macro LastIndexOfUndefinedInDoubles(elements: FixedDoubleArray, from: Smi):
+    Smi {
+  let k: Smi = from;
+  while (k >= 0) {
+    try {
+      elements.values[k].Value() otherwise IfUndefined, IfHole;
+    } label IfUndefined {
+      return k;
+    } label IfHole {
+      // Fallthrough.
+    }
+    --k;
+  }
+  return -1;
+}
+
+macro FastArrayLastIndexOfDoubles(
+    context: Context, array: FastJSArrayForRead, from: Smi,
+    searchElement: JSAny): Smi {
+  const elements: FixedDoubleArray =
+      UnsafeCast<FixedDoubleArray>(array.elements);
+  const elementsLen: Smi = Convert<Smi>(elements.length_intptr);
+  const k: Smi = ClampLastIndexOfFrom(from, elementsLen);
+
+  typeswitch (searchElement) {
+    case (search: Number): {
+      const searchNum: float64 = Convert<float64>(search);
+      if (Float64IsNaN(searchNum)) return -1;
+      return LastIndexOfDoubleValue(elements, k, searchNum);
+    }
+    case (Undefined): {
+      return LastIndexOfUndefinedInDoubles(elements, k);
+    }
+    case (JSAny): {
+      return -1;
+    }
+  }
 }
 
 transitioning macro GetFromIndex(
@@ -87,19 +154,19 @@ macro TryFastArrayLastIndexOf(
     context: Context, receiver: JSReceiver, searchElement: JSAny,
     from: Number): JSAny
     labels Slow {
-  const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+  const array: FastJSArrayForRead = Cast<FastJSArrayForRead>(receiver)
+      otherwise Slow;
   const length: Smi = array.length;
   if (length == 0) return SmiConstant(-1);
 
   const fromSmi: Smi = Cast<Smi>(from) otherwise Slow;
   const kind: ElementsKind = array.map.elements_kind;
-  if (IsFastSmiOrTaggedElementsKind(kind)) {
-    return FastArrayLastIndexOf<FixedArray>(
-        context, array, fromSmi, searchElement);
+  if (IsDoubleElementsKind(kind)) {
+    return FastArrayLastIndexOfDoubles(context, array, fromSmi, searchElement);
   }
-  dcheck(IsDoubleElementsKind(kind));
-  return FastArrayLastIndexOf<FixedDoubleArray>(
-      context, array, fromSmi, searchElement);
+  dcheck(IsElementsKindLessThanOrEqual(
+      kind, ElementsKind::LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND));
+  return FastArrayLastIndexOfFixedArray(context, array, fromSmi, searchElement);
 }
 
 transitioning macro GenericArrayLastIndexOf(

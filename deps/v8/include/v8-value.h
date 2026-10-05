@@ -367,6 +367,13 @@ class V8_EXPORT Value : public Data {
   bool IsModuleNamespaceObject() const;
 
   /**
+   * Returns true if the value is a Deferred Module Namespace Object, i.e. the
+   * namespace object created by `import defer * as ns from ...`. Note that
+   * IsModuleNamespaceObject() is also true for such values.
+   */
+  bool IsDeferredModuleNamespaceObject() const;
+
+  /**
    * Returns true if the value is a primitive.
    */
   bool IsPrimitive() const;

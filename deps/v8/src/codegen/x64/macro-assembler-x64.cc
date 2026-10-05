@@ -434,13 +434,13 @@ void MacroAssembler::DecompressTagged(Register destination,
                                       Operand field_operand) {
   ASM_CODE_COMMENT(this);
   movl(destination, field_operand);
-  addq(destination, kPtrComprCageBaseRegister);
+  orq(destination, kPtrComprCageBaseRegister);
 }
 
 void MacroAssembler::DecompressTagged(Register destination, Register source) {
   ASM_CODE_COMMENT(this);
   movl(destination, source);
-  addq(destination, kPtrComprCageBaseRegister);
+  orq(destination, kPtrComprCageBaseRegister);
 }
 
 void MacroAssembler::DecompressTagged(Register destination,
@@ -2031,6 +2031,12 @@ void MacroAssembler::Cmpeqsd(XMMRegister dst, XMMRegister src) {
 void MacroAssembler::S256Not(YMMRegister dst, YMMRegister src,
                              YMMRegister scratch) {
   ASM_CODE_COMMENT(this);
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    // 0x33 = ~src1 (independent of dst and src2).
+    vpternlogd(dst, src, src, 0x33);
+    return;
+  }
   CpuFeatureScope avx2_scope(this, AVX2);
   if (dst == src) {
     vpcmpeqd(scratch, scratch, scratch);
@@ -2045,6 +2051,14 @@ void MacroAssembler::S256Select(YMMRegister dst, YMMRegister mask,
                                 YMMRegister src1, YMMRegister src2,
                                 YMMRegister scratch) {
   ASM_CODE_COMMENT(this);
+  if (UseAvx10_1()) {
+    // 0xCA = dst ? src1 : src2,
+    // so the destination must already hold the mask.
+    CHECK_EQ(dst, mask);
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vpternlogd(dst, src1, src2, 0xca);
+    return;
+  }
   CpuFeatureScope avx2_scope(this, AVX2);
   // v256.select = v256.or(v256.and(v1, c), v256.andnot(v2, c)).
   // pandn(x, y) = !x & y, so we have to flip the mask and input.
@@ -2069,9 +2083,143 @@ void MacroAssembler::Cmp(Register dst, int32_t src) {
   }
 }
 
+void MacroAssembler::Cmpq(Register dst, int32_t src) {
+  if (src == 0) {
+    testq(dst, dst);
+  } else {
+    cmpq(dst, Immediate(src));
+  }
+}
+
+void MacroAssembler::Cmpb(Register dst, int32_t src) {
+  if (src == 0) {
+    testb(dst, dst);
+  } else {
+    cmpb(dst, Immediate(src));
+  }
+}
+
+void MacroAssembler::I64x2Abs(XMMRegister dst, XMMRegister src,
+                              XMMRegister scratch) {
+  if (UseAvx10_1()) {
+    ASM_CODE_COMMENT(this);
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vpabsq(dst, src);
+    return;
+  }
+  I64x2AbsPreAvx10(dst, src, scratch);
+}
+
+void MacroAssembler::I64x2ShrS(XMMRegister dst, XMMRegister src, uint8_t shift,
+                               XMMRegister xmm_tmp) {
+  DCHECK_GT(64, shift);
+  if (UseAvx10_1()) {
+    ASM_CODE_COMMENT(this);
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vpsraq(dst, src, shift);
+    return;
+  }
+  DCHECK(xmm_tmp.is_valid());
+  DCHECK_NE(xmm_tmp, dst);
+  DCHECK_NE(xmm_tmp, src);
+  I64x2ShrSPreAvx10(dst, src, shift, xmm_tmp);
+}
+
+void MacroAssembler::I64x2ShrS(XMMRegister dst, XMMRegister src, Register shift,
+                               XMMRegister xmm_tmp, XMMRegister xmm_shift,
+                               Register tmp_shift) {
+  DCHECK(xmm_shift.is_valid());
+  DCHECK(tmp_shift.is_valid());
+  DCHECK_NE(xmm_shift, dst);
+  DCHECK_NE(xmm_shift, src);
+  if (UseAvx10_1()) {
+    ASM_CODE_COMMENT(this);
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    Move(tmp_shift, shift);
+    And(tmp_shift, Immediate(0x3F));
+    Movd(xmm_shift, tmp_shift);
+    vpsraq(dst, src, xmm_shift);
+    return;
+  }
+
+  DCHECK(xmm_tmp.is_valid());
+  DCHECK_NE(xmm_tmp, dst);
+  DCHECK_NE(xmm_tmp, src);
+  DCHECK_NE(xmm_tmp, xmm_shift);
+  I64x2ShrSPreAvx10(dst, src, shift, xmm_tmp, xmm_shift, tmp_shift);
+}
+
+void MacroAssembler::I64x2Mul(XMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                              XMMRegister tmp1, XMMRegister tmp2) {
+  if (UseAvx10_1()) {
+    ASM_CODE_COMMENT(this);
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vpmullq(dst, lhs, rhs);
+    return;
+  }
+  DCHECK(tmp1.is_valid());
+  DCHECK(tmp2.is_valid());
+  DCHECK(!AreAliased(dst, tmp1, tmp2));
+  DCHECK(!AreAliased(lhs, tmp1, tmp2));
+  DCHECK(!AreAliased(rhs, tmp1, tmp2));
+  I64x2MulPreAvx10(dst, lhs, rhs, tmp1, tmp2);
+}
+
+void MacroAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
+                                 Register scratch, XMMRegister tmp1,
+                                 XMMRegister tmp2) {
+  if (UseAvx10_1()) {
+    ASM_CODE_COMMENT(this);
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vpopcntb(dst, src);
+    return;
+  }
+  DCHECK(tmp1.is_valid());
+  DCHECK(tmp2.is_valid());
+  DCHECK(scratch.is_valid());
+  DCHECK(!AreAliased(dst, tmp1, tmp2));
+  DCHECK(!AreAliased(src, tmp1, tmp2));
+  I8x16PopcntPreAvx10(dst, src, tmp1, tmp2, scratch);
+}
+
+void MacroAssembler::S128Not(XMMRegister dst, XMMRegister src,
+                             XMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    // 0x33 = ~src1 (independent of dst and src2).
+    vpternlogd(dst, src, src, 0x33);
+    return;
+  }
+  S128NotPreAvx10(dst, src, scratch);
+}
+
+void MacroAssembler::S128Select(XMMRegister dst, XMMRegister mask,
+                                XMMRegister src1, XMMRegister src2,
+                                XMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  if (UseAvx10_1()) {
+    // 0xCA = dst ? src1 : src2,
+    // so the destination must already hold the mask.
+    CHECK_EQ(dst, mask);
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vpternlogd(dst, src1, src2, 0xca);
+    return;
+  }
+  S128SelectPreAvx10(dst, mask, src1, src2, scratch);
+}
+
 void MacroAssembler::I64x4Mul(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
                               YMMRegister tmp1, YMMRegister tmp2) {
   ASM_CODE_COMMENT(this);
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vpmullq(dst, lhs, rhs);
+    return;
+  }
+
+  DCHECK(tmp1.is_valid());
+  DCHECK(tmp2.is_valid());
   DCHECK(!AreAliased(dst, tmp1, tmp2));
   DCHECK(!AreAliased(lhs, tmp1, tmp2));
   DCHECK(!AreAliased(rhs, tmp1, tmp2));

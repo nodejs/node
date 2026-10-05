@@ -40,7 +40,7 @@ static void AddCounter(v8::Isolate* isolate,
     v8::Local<v8::Number> value =
         v8::Number::New(isolate, *counter->GetInternalPointer());
     // Ignore failure due to throwing setters.
-    std::ignore = object->Set(context, key, value);
+    std::ignore = object->CreateDataProperty(context, key, value);
   }
 }
 
@@ -51,7 +51,7 @@ static void AddNumber(v8::Isolate* isolate, v8::Local<v8::Object> object,
       v8::String::NewFromUtf8(isolate, name).ToLocalChecked();
   v8::Local<v8::Number> val = v8::Number::New(isolate, value);
   // Ignore failure due to throwing setters.
-  std::ignore = object->Set(context, key, val);
+  std::ignore = object->CreateDataProperty(context, key, val);
 }
 
 
@@ -65,7 +65,7 @@ static void AddNumber64(v8::Isolate* isolate,
   v8::Local<v8::Number> val =
       v8::Number::New(isolate, static_cast<double>(value));
   // Ignore failure due to throwing setters.
-  std::ignore = object->Set(context, key, val);
+  std::ignore = object->CreateDataProperty(context, key, val);
 }
 
 void StatisticsExtension::GetCounters(

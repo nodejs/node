@@ -50,6 +50,8 @@
 #define V8_EXECUTION_RISCV_SIMULATOR_RISCV_H_
 
 // globals.h defines USE_SIMULATOR.
+#include <functional>
+
 #include "src/base/float16.h"
 #include "src/common/globals.h"
 
@@ -709,8 +711,9 @@ class Simulator : public SimulatorBase {
     // WORD_DWORD
   };
 
-  template <typename T, typename OP>
-  void AtomicMemoryHelper(sreg_t rs1, T value, OP f, Instruction* instr);
+  template <typename T, typename OP, typename FormatResult = std::identity>
+  void AtomicMemoryHelper(sreg_t rs1, T value, OP f, Instruction* instr,
+                          FormatResult format_result = {});
 
   void CheckMemoryAccess(uintptr_t address, uintptr_t stack);
   // "Probe" if an address range can be read. This is currently implemented

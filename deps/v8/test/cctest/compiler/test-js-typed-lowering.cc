@@ -150,7 +150,6 @@ class JSTypedLoweringTester : public HandleAndZoneScope,
   }
 
   Node* Unop(const Operator* op, Node* input) {
-    DCHECK(!JSOperator::IsUnaryWithFeedback(op->opcode()));
     // JS unops also require context, effect, and control
     if (OperatorProperties::GetFrameStateInputCount(op) > 0) {
       CHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(op));

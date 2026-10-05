@@ -397,6 +397,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_SPECIAL_API_OBJECT_TYPE:
       return kVisitJSApiObject;
 
+    case CPP_GCMANAGED_BASE_TYPE:
+      return kVisitCppGCManagedBase;
+
     case CPP_HEAP_EXTERNAL_OBJECT_TYPE:
       return kVisitCppHeapExternalObject;
 
@@ -452,6 +455,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case BREAK_POINT_INFO_TYPE:
     case CLASS_BOILERPLATE_TYPE:
     case CLASS_POSITIONS_TYPE:
+    case DEBUG_SCRIPT_SCOPE_INFO_TYPE:
     case ENUM_CACHE_TYPE:
     case ERROR_STACK_DATA_TYPE:
     case FUNCTION_TEMPLATE_RARE_DATA_TYPE:
@@ -504,6 +508,10 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_ARRAY_TYPE:
       return kVisitWasmArray;
+    case WASM_CUSTOM_MAP_TYPE:
+      return kVisitWasmCustomMap;
+    case WASM_CUSTOM_MAP_WRAPPER_TYPE:
+      return kVisitJSObject;
     case WASM_FUNC_REF_TYPE:
       return kVisitWasmFuncRef;
     case WASM_GLOBAL_OBJECT_TYPE:
@@ -2664,6 +2672,11 @@ void Map::SetPrototype(Isolate* isolate, DirectHandle<Map> map,
     DCHECK(IsNull(*prototype) || IsJSProxy(*prototype) ||
            IsWasmObject(*prototype) ||
            HeapLayout::InWritableSharedSpace(*prototype));
+  }
+
+  if (IsJSInterceptorMap(*map) && map->prototype() != *prototype) {
+    Cast<JSInterceptorMap>(*map)->set_fast_case_validity_cell(
+        ReadOnlyRoots(isolate).invalid_prototype_validity_cell());
   }
 
   WriteBarrierMode wb_mode =

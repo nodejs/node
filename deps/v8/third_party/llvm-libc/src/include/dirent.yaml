@@ -1,10 +1,31 @@
 header: dirent.h
 standards:
   - posix
+macros:
+  - macro_name: DT_UNKNOWN
+    macro_header: dirent-macros.h
+  - macro_name: DT_FIFO
+    macro_header: dirent-macros.h
+  - macro_name: DT_CHR
+    macro_header: dirent-macros.h
+  - macro_name: DT_DIR
+    macro_header: dirent-macros.h
+  - macro_name: DT_BLK
+    macro_header: dirent-macros.h
+  - macro_name: DT_REG
+    macro_header: dirent-macros.h
+  - macro_name: DT_LNK
+    macro_header: dirent-macros.h
+  - macro_name: DT_SOCK
+    macro_header: dirent-macros.h
 types:
   - type_name: struct_dirent
+  - type_name: struct_posix_dent
   - type_name: DIR
   - type_name: ino_t
+  - type_name: reclen_t
+  - type_name: size_t
+  - type_name: ssize_t
 functions:
   - name: alphasort
     standards:

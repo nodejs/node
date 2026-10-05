@@ -56,16 +56,19 @@ XX	+611305-1495401	America/Anchorage	most of Alaska (AKST/AKDT)
 XX	-2504-13005	Pacific/Pitcairn	Pitcairn
 #
 # -08/-07 - PST/PDT (North America DST)
-XX	+340308-1181434	America/Los_Angeles	Pacific (PST/PDT) - US & Canada; Mexico near US border
+XX	+340308-1181434	America/Los_Angeles	Pacific (PST/PDT) - US; Mexico near US border
 #
 # -08/-07 - PST/PDT (North America DST) until 2026-11-01 02:00; then MST
-XX	+4916-12307	America/Vancouver	MST - BC (most areas)
+XX	+4916-12307	America/Vancouver	Mountain Standard (MST) - British Columbia (most areas)
 #
 # -07 - MST
 XX	+332654-1120424	America/Phoenix	Mountain Standard (MST) - Arizona; western Mexico; Yukon
 #
 # -07/-06 - MST/MDT (North America DST)
-XX	+394421-1045903	America/Denver	Mountain (MST/MDT) - US & Canada; Mexico near US border
+XX	+394421-1045903	America/Denver	Mountain (MST/MDT) - US; Mexico near US border; northern Canada
+#
+# -07/-06 - MST/MDT (North America DST) until 2026-11-01 02:00; then CST
+XX	+5333-11328	America/Edmonton	Central Standard (CST) - Alberta and some neighbors
 #
 # -06
 XX	-0054-08936	Pacific/Galapagos	Galápagos

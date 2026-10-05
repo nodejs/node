@@ -1,0 +1,26 @@
+header: pwd.h
+standards:
+  - posix
+types:
+  - type_name: struct_passwd
+  - type_name: gid_t
+  - type_name: uid_t
+  - type_name: size_t
+enums: []
+objects: []
+functions:
+  - name: getpwent
+    standards:
+      - posix
+    return_type: struct passwd *
+    arguments: []
+  - name: setpwent
+    standards:
+      - posix
+    return_type: void
+    arguments: []
+  - name: endpwent
+    standards:
+      - posix
+    return_type: void
+    arguments: []

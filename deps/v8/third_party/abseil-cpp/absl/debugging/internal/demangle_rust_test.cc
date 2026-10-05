@@ -118,6 +118,11 @@ TEST(DemangleRust, UnicodeIdentifiers) {
                     "ice_cap::Eyjafjallajökull");
   EXPECT_DEMANGLING("_RNvC7ice_caps_u19Eyjafjallajkull_jtb",
                     "ice_cap::Eyjafjallajökull");
+
+  // A punycode byte count larger than the remaining input is rejected instead
+  // of running the decoder past the end of the buffer.
+  EXPECT_DEMANGLING_FAILS("_RNvC7ice_caps_u2000000000Eyjafjallajkull_jtb");
+  EXPECT_DEMANGLING_FAILS("_RNvC7ice_caps_u99Eyj_a");
 }
 
 TEST(DemangleRust, FunctionInModule) {
@@ -522,6 +527,15 @@ TEST(DemangleRust, ExternOther) {
   EXPECT_DEMANGLING(
       "_RNvYFK5not_CEuNtC1c1t1f",  // <extern "not-C" fn() as c::t>::f
       "<fn... as c::t>::f");
+}
+
+TEST(DemangleRust, ExternPunycodedAbiIsSuppressed) {
+  // The abi is part of the silenced function signature, so a punycoded abi must
+  // be suppressed like any other identifier; its decoded form must not leak
+  // into the output.
+  EXPECT_DEMANGLING(
+      // <extern "Eyjafjallajökull" fn() as c::t>::f
+      "_RNvYFKu19Eyjafjallajkull_jtbEuNtC1c1t1f", "<fn... as c::t>::f");
 }
 
 TEST(DemangleRust, Unsafe) {

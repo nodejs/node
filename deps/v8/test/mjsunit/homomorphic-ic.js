@@ -9,7 +9,7 @@ function load(o) {
 }
 
 let objects = [];
-for (let i = 0; i < 10; i++) {
+for (let i = 0; i < 11; i++) {
   // Create functions with different maps but same shape
   let F = new Function("x", "this.x = x;");
   objects.push(new F(i));
@@ -17,7 +17,7 @@ for (let i = 0; i < 10; i++) {
 
 // Warm up
 %PrepareFunctionForOptimization(load);
-for (let i = 0; i < 10; i++) {
+for (let i = 0; i < 11; i++) {
   load(objects[i]);
 }
 
@@ -35,7 +35,7 @@ load(objects[0]);
 assertOptimized(load);
 
 // Check result
-for (let i = 0; i < 10; i++) {
+for (let i = 0; i < 11; i++) {
   assertEquals(i, load(objects[i]));
   assertOptimized(load);
 }

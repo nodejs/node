@@ -2084,10 +2084,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchAtomicStoreWithWriteBarrier: {
       // {EmitTSANAwareStore} calls RecordTrapInfoIfNeeded. No need to do it
       // here.
-      RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
+      RecordWriteMode mode =
+          arch_opcode == kArchStoreWithWriteBarrier
+              ? RecordWriteModeField::decode(instr->opcode())
+              : AtomicStoreRecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
-      AtomicMemoryOrder order = AtomicMemoryOrderField::decode(instr->opcode());
       Register object = i.InputRegister(0);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
@@ -2111,6 +2113,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                            MachineRepresentation::kTagged, instr);
       } else {
         DCHECK_EQ(arch_opcode, kArchAtomicStoreWithWriteBarrier);
+        AtomicMemoryOrder order =
+            AtomicMemoryOrderField::decode(instr->opcode());
         EmitTSANAwareStore(zone(), this, masm(), operand, value, i,
                            DetermineStubCallMode(),
                            MachineRepresentation::kTagged, instr, order);
@@ -2139,7 +2143,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       Register value = i.InputRegister(index);
-      AtomicMemoryOrder order = AtomicMemoryOrderField::decode(instr->opcode());
 
       DCHECK(v8_flags.verify_write_barriers);
       auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
@@ -2154,6 +2157,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                            MachineRepresentation::kTagged, instr);
       } else {
         DCHECK_EQ(arch_opcode, kArchAtomicStoreSkippedWriteBarrier);
+        AtomicMemoryOrder order =
+            AtomicMemoryOrderField::decode(instr->opcode());
         EmitTSANAwareStore(zone(), this, masm(), operand, value, i,
                            DetermineStubCallMode(),
                            MachineRepresentation::kTagged, instr, order);
@@ -2299,6 +2304,48 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64Sub128:
       ASSEMBLE_BINOP_WIDE(subq, sbbq);
       break;
+    case kX64Add64_3: {
+      DCHECK_EQ(i.InputRegister(0), i.OutputRegister(0));
+      size_t last_input_index = instr->InputCount() - 1;
+      DCHECK(HasRegisterInput(instr, last_input_index));
+      Register carry_in = i.InputRegister(last_input_index);
+      Register out_low = i.OutputRegister(0);
+      Register out_high = no_reg;
+      Register temp = no_reg;
+      bool use_out_high = instr->OutputCount() > 1;
+      bool use_temp = false;
+      if (use_out_high) {
+        out_high = i.OutputRegister(1);
+        temp = i.TempRegister(0);
+        size_t end = instr->InputCount();
+        for (size_t j = 0; j < end; j++) {
+          if (HasRegisterInput(instr, j)) {
+            CHECK_NE(i.InputRegister(j), temp);
+            if (i.InputRegister(j) == out_high) {
+              use_temp = true;
+              out_high = temp;
+            }
+          }
+        }
+      }
+
+      // GCC style: just addc, no setcc.
+      if (use_out_high) __ xorq(out_high, out_high);
+      size_t index = 1;
+      if (HasAddressingMode(instr)) {
+        Operand b = i.MemoryOperand(&index);
+        __ addq(out_low, b);
+      } else {
+        ASSEMBLE_RHS(addq, out_low, index);
+      }
+      DCHECK_EQ(index, last_input_index);
+      if (use_out_high) __ adcq(out_high, Immediate(0));
+      __ addq(out_low, carry_in);
+      if (use_out_high) __ adcq(out_high, Immediate(0));
+      if (use_temp) __ movq(i.OutputRegister(1), temp);
+      break;
+    }
+
     case kX64And32:
       ASSEMBLE_BINOP(andl);
       break;
@@ -5183,14 +5230,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           }
           case LaneSize::kL64: {
             // I64x2ShrS
-            // TODO(zhin): there is vpsraq but requires AVX512
             XMMRegister dst = i.OutputSimd128Register();
             XMMRegister src = i.InputSimd128Register(0);
             if (HasImmediateInput(instr, 1)) {
               __ I64x2ShrS(dst, src, i.InputInt6(1), kScratchDoubleReg);
             } else {
-              __ I64x2ShrS(dst, src, i.InputRegister(1), kScratchDoubleReg,
-                           i.TempSimd128Register(0), kScratchRegister);
+              XMMRegister temp = UseAvx10_1() ? XMMRegister::no_reg()
+                                              : i.TempSimd128Register(0);
+              __ I64x2ShrS(dst, src, i.InputRegister(1), temp,
+                           kScratchDoubleReg, kScratchRegister);
             }
             break;
           }
@@ -5361,9 +5409,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           }
           case LaneSize::kL64: {
             // I64x2Mul
+            XMMRegister temp =
+                UseAvx10_1() ? XMMRegister::no_reg() : i.TempSimd128Register(0);
             __ I64x2Mul(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                        i.InputSimd128Register(1), i.TempSimd128Register(0),
-                        kScratchDoubleReg);
+                        i.InputSimd128Register(1), temp, kScratchDoubleReg);
             break;
           }
           default:
@@ -5383,9 +5432,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           }
           case LaneSize::kL64: {
             // I64x4Mul
+            YMMRegister temp =
+                UseAvx10_1() ? YMMRegister::no_reg() : i.TempSimd256Register(0);
             __ I64x4Mul(i.OutputSimd256Register(), i.InputSimd256Register(0),
-                        i.InputSimd256Register(1), i.TempSimd256Register(0),
-                        kScratchSimd256Reg);
+                        i.InputSimd256Register(1), temp, kScratchSimd256Reg);
             break;
           }
           default:
@@ -6866,9 +6916,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I8x16Popcnt: {
-      __ I8x16Popcnt(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                     i.TempSimd128Register(0), kScratchDoubleReg,
-                     kScratchRegister);
+      if (UseAvx10_1()) {
+        __ I8x16Popcnt(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                       kScratchRegister);
+      } else {
+        __ I8x16Popcnt(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                       kScratchRegister, i.TempSimd128Register(0),
+                       kScratchDoubleReg);
+      }
       break;
     }
     case kX64S128Load8Splat: {
@@ -7386,7 +7441,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Decompress pointer.
       if constexpr (COMPRESS_POINTERS_BOOL) {
         DCHECK_EQ(i.InputRegister(0), i.OutputRegister(0));
-        __ addq(i.InputRegister(0), kPtrComprCageBaseRegister);
+        __ orq(i.InputRegister(0), kPtrComprCageBaseRegister);
       }
       if (v8_flags.disable_write_barriers) break;
       // Emit write barrier.
@@ -7824,6 +7879,28 @@ constexpr Condition FlagsConditionToCondition(FlagsCondition condition) {
   UNREACHABLE();
 }
 
+#ifdef V8_ENABLE_APX_F
+// Map FlagsCondition to one implementation of EVEX-CCMP dfv.
+OszcFlags EncodeDefaultFlagsValue(FlagsCondition condition) {
+  switch (condition) {
+    case kUnorderedEqual:
+    case kEqual:
+    case kSignedLessThanOrEqual:
+    case kUnsignedLessThanOrEqual:
+      return OszcFlags({OszcBit::kZF});
+    case kSignedLessThan:
+      return OszcFlags({OszcBit::kSF});
+    case kUnsignedLessThan:
+      return OszcFlags({OszcBit::kCF});
+    case kOverflow:
+      return OszcFlags({OszcBit::kOF});
+    default:
+      return OszcFlags();
+  }
+  UNREACHABLE();
+}
+#endif  // V8_ENABLE_APX_F
+
 }  // namespace
 
 // Assembles branches after this instruction.
@@ -7959,16 +8036,165 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ bind(&done);
 }
 
+#ifdef V8_ENABLE_APX_F
+namespace {
+void AssembleConditionalCompareChain(Instruction* instr, int64_t num_ccmps,
+                                     size_t ccmp_base_index,
+                                     CodeGenerator* gen) {
+  X64OperandConverter i(gen, instr);
+
+  for (int n = 0; n < num_ccmps; ++n) {
+    size_t opcode_index = ccmp_base_index + kCcmpOffsetOfOpcode;
+    size_t compare_lhs_index = ccmp_base_index + kCcmpOffsetOfLhs;
+    size_t compare_rhs_index = ccmp_base_index + kCcmpOffsetOfRhs;
+    size_t default_condition_index =
+        ccmp_base_index + kCcmpOffsetOfDefaultFlags;
+    size_t compare_condition_index =
+        ccmp_base_index + kCcmpOffsetOfCompareCondition;
+    ccmp_base_index += kNumCcmpOperands;
+    DCHECK_LT(ccmp_base_index, instr->InputCount() - 1);
+
+    InstructionCode code = static_cast<InstructionCode>(
+        i.ToConstant(instr->InputAt(opcode_index)).ToInt64());
+
+    FlagsCondition default_condition = static_cast<FlagsCondition>(
+        i.ToConstant(instr->InputAt(default_condition_index)).ToInt64());
+    OszcFlags dfv = EncodeDefaultFlagsValue(default_condition);
+    FlagsCondition compare_condition = static_cast<FlagsCondition>(
+        i.ToConstant(instr->InputAt(compare_condition_index)).ToInt64());
+    Condition cc = FlagsConditionToCondition(compare_condition);
+
+    const bool lhs_is_reg = HasRegisterInput(instr, compare_lhs_index);
+    const bool rhs_is_imm = HasImmediateInput(instr, compare_rhs_index);
+    const bool rhs_is_reg = HasRegisterInput(instr, compare_rhs_index);
+
+    int kSize;
+    bool is_test = false;
+    switch (ArchOpcodeField::decode(code)) {
+      case kX64Cmp8:
+        kSize = kInt8Size;
+        break;
+      case kX64Cmp16:
+        kSize = kInt16Size;
+        break;
+      case kX64Cmp32:
+        kSize = kInt32Size;
+        break;
+      case kX64Cmp:
+        kSize = kInt64Size;
+        break;
+      case kX64Test8:
+        kSize = kInt8Size;
+        is_test = true;
+        break;
+      case kX64Test16:
+        kSize = kInt16Size;
+        is_test = true;
+        break;
+      case kX64Test32:
+        kSize = kInt32Size;
+        is_test = true;
+        break;
+      case kX64Test:
+        kSize = kInt64Size;
+        is_test = true;
+        break;
+      default:
+        UNREACHABLE();
+    }
+
+    if (lhs_is_reg) {
+      Register lhs = i.InputRegister(compare_lhs_index);
+      if (rhs_is_imm) {
+        Immediate rhs = i.InputImmediate(compare_rhs_index);
+        if (is_test) {
+          gen->masm()->Ctest(lhs, rhs, dfv, cc, kSize);
+        } else {
+          gen->masm()->Ccmp(lhs, rhs, dfv, cc, kSize);
+        }
+      } else if (rhs_is_reg) {
+        Register rhs = i.InputRegister(compare_rhs_index);
+        if (is_test) {
+          gen->masm()->Ctest(lhs, rhs, dfv, cc, kSize);
+        } else {
+          gen->masm()->Ccmp(lhs, rhs, dfv, cc, kSize);
+        }
+      } else {
+        Operand rhs = i.InputOperand(compare_rhs_index);
+        if (is_test) {
+          // CTEST has no (Register, Operand) encoding; swap since TEST is
+          // symmetric: A AND B sets the same flags as B AND A.
+          gen->masm()->Ctest(rhs, lhs, dfv, cc, kSize);
+        } else {
+          gen->masm()->Ccmp(lhs, rhs, dfv, cc, kSize);
+        }
+      }
+    } else {
+      Operand lhs = i.InputOperand(compare_lhs_index);
+      if (rhs_is_imm) {
+        Immediate rhs = i.InputImmediate(compare_rhs_index);
+        if (is_test) {
+          gen->masm()->Ctest(lhs, rhs, dfv, cc, kSize);
+        } else {
+          gen->masm()->Ccmp(lhs, rhs, dfv, cc, kSize);
+        }
+      } else if (rhs_is_reg) {
+        Register rhs = i.InputRegister(compare_rhs_index);
+        if (is_test) {
+          gen->masm()->Ctest(lhs, rhs, dfv, cc, kSize);
+        } else {
+          gen->masm()->Ccmp(lhs, rhs, dfv, cc, kSize);
+        }
+      } else {
+        UNREACHABLE();
+      }
+    }
+  }
+}
+}  // namespace
+#endif  // V8_ENABLE_APX_F
+
 #ifdef V8_ENABLE_WEBASSEMBLY
 void CodeGenerator::AssembleArchConditionalTrap(Instruction* instr,
                                                 FlagsCondition condition) {
+#ifdef V8_ENABLE_APX_F
+  DCHECK_GE(instr->InputCount(), 6);
+  X64OperandConverter i(this, instr);
+  size_t num_ccmps_index =
+      instr->InputCount() - kConditionalTrapEndOffsetOfNumCcmps;
+  int64_t num_ccmps = i.ToConstant(instr->InputAt(num_ccmps_index)).ToInt64();
+  size_t ccmp_base_index = instr->InputCount() -
+                           kConditionalTrapEndOffsetOfCondition -
+                           kNumCcmpOperands * num_ccmps;
+  AssembleConditionalCompareChain(instr, num_ccmps, ccmp_base_index, this);
+  Condition cc = FlagsConditionToCondition(condition);
+  auto ool = zone()->New<WasmOutOfLineTrap>(this, instr);
+  Label* tlabel = ool->entry();
+  __ j(cc, tlabel);
+#else
   UNREACHABLE();
+#endif  // V8_ENABLE_APX_F
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
                                                   BranchInfo* branch) {
+#ifdef V8_ENABLE_APX_F
+  DCHECK_GE(instr->InputCount(), 6);
+  X64OperandConverter i(this, instr);
+  size_t num_ccmps_index =
+      instr->InputCount() - kConditionalBranchEndOffsetOfNumCcmps;
+  int64_t num_ccmps = i.ToConstant(instr->InputAt(num_ccmps_index)).ToInt64();
+  size_t ccmp_base_index = instr->InputCount() -
+                           kConditionalBranchEndOffsetOfCondition -
+                           kNumCcmpOperands * num_ccmps;
+  AssembleConditionalCompareChain(instr, num_ccmps, ccmp_base_index, this);
+  Condition cc = FlagsConditionToCondition(branch->condition);
+  __ j(cc, branch->true_label);
+  if (!branch->fallthru) __ jmp(branch->false_label);
+#else
   UNREACHABLE();
+#endif  // V8_ENABLE_APX_F
 }
 
 void CodeGenerator::AssembleArchBinarySearchSwitchRange(

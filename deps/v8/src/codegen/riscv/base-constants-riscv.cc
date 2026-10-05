@@ -366,6 +366,12 @@ InstructionBase::Type InstructionBase::InstructionType() const {
       case RO_C_LD:
 #endif
         return kCLType;
+      case RO_C_LBU:  // Zcb loads/stores, all sharing funct3=100.
+        // The five Zcb load/store instructions are distinguished by the
+        // fixed bits [12:10]: 000/001 are CL-format loads, 010/011 are
+        // CS-format stores.
+        return (Bits(12, 10) == 0b000 || Bits(12, 10) == 0b001) ? kCLType
+                                                                : kCSType;
       case RO_C_FSD:
       case RO_C_SW:
 #ifdef V8_TARGET_ARCH_RISCV64
@@ -380,10 +386,12 @@ InstructionBase::Type InstructionBase::InstructionType() const {
       case RO_C_LUI_ADD:
         return kCIType;
       case RO_C_MISC_ALU:
-        if (Bits(11, 10) != 0b11)
-          return kCBType;
-        else
-          return kCAType;
+        if (Bits(11, 10) != 0b11) return kCBType;
+        // CU-format Zcb unary instructions (c.zext.b, c.not, ...) share the
+        // funct3=100 and bits [12:10]=111 encodings with the RV64 CA
+        // instructions but use funct2=11 at bits [6:5].
+        if (Bits(12, 10) == 0b111 && Bits(6, 5) == 0b11) return kCBType;
+        return kCAType;
       case RO_C_J:
         return kCJType;
       case RO_C_BEQZ:

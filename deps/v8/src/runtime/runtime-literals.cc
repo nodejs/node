@@ -20,6 +20,7 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup.h"
 #include "src/objects/map-updater.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/property-descriptor.h"

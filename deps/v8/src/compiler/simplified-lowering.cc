@@ -1839,7 +1839,7 @@ class RepresentationSelector {
   }
 
   bool CanSpeculateAdditiveSafeInteger(Node* node) {
-    if (!v8_flags.additive_safe_int_feedback) return false;
+    if (!v8_flags.turbofan_additive_safe_int_feedback) return false;
     return NumberOperationHintOf(node->op()) ==
            NumberOperationHint::kAdditiveSafeInteger;
   }
@@ -5018,6 +5018,8 @@ class RepresentationSelector {
         return SetOutput<T>(node, MachineRepresentation::kTagged);
       case IrOpcode::kDeadValue:
         ProcessInput<T>(node, 0, UseInfo::Any());
+        return SetOutput<T>(node, MachineRepresentation::kNone);
+      case IrOpcode::kMemoryBarrier:
         return SetOutput<T>(node, MachineRepresentation::kNone);
       case IrOpcode::kMajorGCForCompilerTesting:
         ProcessRemainingInputs<T>(node, 0);

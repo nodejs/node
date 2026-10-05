@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --js-base-64 --js-immutable-arraybuffer
+// Flags: --js-immutable-arraybuffer
 
 const ab = new ArrayBuffer(10);
 const immutable_ab = ab.transferToImmutable();

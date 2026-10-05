@@ -431,6 +431,14 @@ class ReadOnlyHeapImageSerializer {
     int size;
   };
   static std::optional<UnmappedBody> GetUnmappedBody(Tagged<HeapObject> obj) {
+#if V8_ENABLE_WEBASSEMBLY && \
+    (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL)
+    // We must check for WasmNull before any of the other TryCast<...> below
+    // attempt to load obj's instance type.
+    if (Tagged<WasmNull> wasm_null; TryCast<WasmNull>(obj, &wasm_null)) {
+      return {{wasm_null.address(), WasmNull::kSize}};
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY && ...
     if (Tagged<FreeSpace> free_space; TryCast<FreeSpace>(obj, &free_space)) {
       return {{free_space.address() + sizeof(FreeSpace),
                free_space->Size() - static_cast<int>(sizeof(FreeSpace))}};
@@ -439,12 +447,6 @@ class ReadOnlyHeapImageSerializer {
       return {{hole.address() + sizeof(HeapObject),
                sizeof(Hole) - sizeof(HeapObject)}};
     }
-#ifdef V8_ENABLE_WEBASSEMBLY
-    if (Tagged<WasmNull> wasm_null; TryCast<WasmNull>(obj, &wasm_null)) {
-      return {{wasm_null.address() + WasmNull::kHeaderSize,
-               WasmNull::kSize - WasmNull::kHeaderSize}};
-    }
-#endif
     return {};
   }
 
@@ -495,10 +497,11 @@ class ReadOnlyHeapImageSerializer {
       // Serialize a segment from the current pos, up to the start of the
       // unmapped body.
       ptrdiff_t segment_size = unmapped_body->start - pos;
-      CHECK_GT(segment_size, 0);
-      ReadOnlySegmentForSerialization segment(isolate_, page, pos, segment_size,
-                                              &pre_processor_);
-      EmitSegment(&segment);
+      if (segment_size > 0) {
+        ReadOnlySegmentForSerialization segment(isolate_, page, pos,
+                                                segment_size, &pre_processor_);
+        EmitSegment(&segment);
+      }
 
       if (v8_flags.trace_serializer) {
         PrintF(
@@ -570,6 +573,7 @@ void ReadOnlySerializer::Serialize() {
 
   ReadOnlyHeapObjectIterator it(isolate()->read_only_heap());
   for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
+    if (IsInaccessible(o)) continue;
     CheckRehashability(o);
     if (v8_flags.serialization_statistics) {
       CountAllocation(o->map(), o->Size(), SnapshotSpace::kReadOnlyHeap);

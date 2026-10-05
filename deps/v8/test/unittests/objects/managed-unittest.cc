@@ -18,7 +18,7 @@ using ManagedTest = TestWithIsolate;
 
 class DeleteCounter {
  public:
-  static constexpr ExternalPointerTag kManagedTag = kGenericManagedTag;
+  static constexpr ManagedTypeId kTypeID = ManagedTypeId::kTestDeleteCounter;
 
   explicit DeleteCounter(int* deleted) : deleted_(deleted) { *deleted_ = 0; }
   ~DeleteCounter() { (*deleted_)++; }
@@ -47,7 +47,7 @@ TEST_F(ManagedTest, GCCausesDestruction) {
   auto d2 = std::make_unique<DeleteCounter>(&deleted2);
   {
     HandleScope scope(isolate());
-    USE(Managed<DeleteCounter>::From(
+    USE(CppGCManaged<DeleteCounter>::Create(
         isolate(), 0, std::make_shared<DeleteCounter>(&deleted1)));
   }
 
@@ -61,6 +61,20 @@ TEST_F(ManagedTest, GCCausesDestruction) {
   CHECK_EQ(1, deleted2);
 }
 
+TEST_F(ManagedTest, CppGCManagedGCCausesDestruction) {
+  int deleted = 0;
+  {
+    HandleScope scope(isolate());
+    USE(CppGCManaged<DeleteCounter>::Create(
+        isolate(), 0, std::make_shared<DeleteCounter>(&deleted)));
+  }
+
+  DisableConservativeStackScanningScopeForTesting scope(isolate()->heap());
+  InvokeMemoryReducingMajorGCs(isolate());
+
+  CHECK_EQ(1, deleted);
+}
+
 TEST_F(ManagedTest, DisposeCausesDestruction1) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = isolate()->array_buffer_allocator();
@@ -71,7 +85,7 @@ TEST_F(ManagedTest, DisposeCausesDestruction1) {
   int deleted1 = 0;
   {
     HandleScope scope(i_isolate);
-    USE(Managed<DeleteCounter>::From(
+    USE(CppGCManaged<DeleteCounter>::Create(
         i_isolate, 0, std::make_shared<DeleteCounter>(&deleted1)));
   }
   isolate->Exit();
@@ -90,7 +104,7 @@ TEST_F(ManagedTest, DisposeCausesDestruction2) {
   int deleted2 = 0;
   {
     HandleScope scope(i_isolate);
-    USE(Managed<DeleteCounter>::From(
+    USE(CppGCManaged<DeleteCounter>::Create(
         i_isolate, 0, std::make_shared<DeleteCounter>(&deleted1)));
   }
   DeleteCounter* d2 = new DeleteCounter(&deleted2);
@@ -116,7 +130,7 @@ TEST_F(ManagedTest, DisposeWithAnotherSharedPtr) {
     auto shared = std::make_shared<DeleteCounter>(&deleted1);
     {
       HandleScope scope(i_isolate);
-      USE(Managed<DeleteCounter>::From(i_isolate, 0, shared));
+      USE(CppGCManaged<DeleteCounter>::Create(i_isolate, 0, shared));
     }
     isolate->Exit();
     isolate->Dispose();
@@ -181,19 +195,19 @@ TEST_F(ManagedTest, DisposeAcrossIsolates) {
   {
     HandleScope scope1(i_isolate1);
     auto shared = std::make_shared<DeleteCounter>(&deleted);
-    USE(Managed<DeleteCounter>::From(i_isolate1, 0, shared));
+    USE(CppGCManaged<DeleteCounter>::Create(i_isolate1, 0, shared));
 
     v8::Isolate* isolate2 = v8::Isolate::New(create_params);
     Isolate* i_isolate2 = reinterpret_cast<i::Isolate*>(isolate2);
     isolate2->Enter();
     {
       HandleScope scope(i_isolate2);
-      USE(Managed<DeleteCounter>::From(i_isolate2, 0, shared));
+      USE(CppGCManaged<DeleteCounter>::Create(i_isolate2, 0, shared));
       shared.reset();
     }
     isolate2->Exit();
     isolate2->Dispose();
-    // The DeleteCounter is kept alive by the Managed in the first isolate.
+    // The DeleteCounter is kept alive by the CppGCManaged in the first isolate.
     CHECK_EQ(0, deleted);
   }
   // Should be deleted after the first isolate is destroyed.
@@ -214,14 +228,14 @@ TEST_F(ManagedTest, CollectAcrossIsolates) {
   {
     HandleScope scope1(i_isolate1);
     auto shared = std::make_shared<DeleteCounter>(&deleted);
-    USE(Managed<DeleteCounter>::From(i_isolate1, 0, shared));
+    USE(CppGCManaged<DeleteCounter>::Create(i_isolate1, 0, shared));
 
     v8::Isolate* isolate2 = v8::Isolate::New(create_params);
     Isolate* i_isolate2 = reinterpret_cast<i::Isolate*>(isolate2);
     isolate2->Enter();
     {
       HandleScope scope(i_isolate2);
-      USE(Managed<DeleteCounter>::From(i_isolate2, 0, shared));
+      USE(CppGCManaged<DeleteCounter>::Create(i_isolate2, 0, shared));
       shared.reset();
     }
     InvokeMemoryReducingMajorGCs(i_isolate2);

@@ -19,11 +19,6 @@
 #ifndef ABSL_HASH_INTERNAL_HASH_H_
 #define ABSL_HASH_INTERNAL_HASH_H_
 
-#ifdef __APPLE__
-#include <Availability.h>
-#include <TargetConditionals.h>
-#endif
-
 // We include config.h here to make sure that ABSL_INTERNAL_CPLUSPLUS_LANG is
 // defined.
 #include "absl/base/config.h"
@@ -31,10 +26,8 @@
 // GCC15 warns that <ciso646> is deprecated in C++17 and suggests using
 // <version> instead, even though <version> is not available in C++17 mode prior
 // to GCC9.
-#if defined(__has_include)
 #if __has_include(<version>)
 #define ABSL_INTERNAL_VERSION_HEADER_AVAILABLE 1
-#endif
 #endif
 
 // For feature testing and determining which headers can be included.
@@ -91,6 +84,11 @@
 #include "absl/types/optional.h"
 #include "absl/types/variant.h"
 #include "absl/utility/utility.h"
+
+#ifdef __APPLE__
+#include <Availability.h>
+#include <TargetConditionals.h>
+#endif
 
 #if defined(__cpp_lib_filesystem) && __cpp_lib_filesystem >= 201703L && \
     !defined(__XTENSA__)
@@ -397,7 +395,7 @@ struct is_uniquely_represented<unsigned __int128> : std::true_type {};
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
 template <typename T>
-struct FitsIn64Bits : std::integral_constant<bool, sizeof(T) <= 8> {};
+struct FitsIn64Bits : std::bool_constant<sizeof(T) <= 8> {};
 
 struct CombineRaw {
   template <typename H>
@@ -575,9 +573,7 @@ H AbslHashValue(H hash_state, T C::*ptr) {
 #else
   // On other platforms, we assume that pointers-to-members do not have
   // padding.
-#ifdef __cpp_lib_has_unique_object_representations
     static_assert(std::has_unique_object_representations_v<T C::*>);
-#endif  // __cpp_lib_has_unique_object_representations
     return n;
 #endif
   };
@@ -809,6 +805,9 @@ AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
     for (size_t j = 0; j < 64; ++j) {
       word |= static_cast<uint64_t>(vector[i + j]) << j;
     }
+    if constexpr (absl::endian::native == absl::endian::big) {
+      word = absl::byteswap(word);
+    }
     hash_state = combiner.add_buffer(
         std::move(hash_state), reinterpret_cast<const unsigned char*>(&word),
         sizeof(word));
@@ -820,6 +819,9 @@ AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
     const size_t rem = size - i;
     for (size_t j = 0; j < rem; ++j) {
       word |= static_cast<uint64_t>(vector[i + j]) << j;
+    }
+    if constexpr (absl::endian::native == absl::endian::big) {
+      word = absl::byteswap(word);
     }
     hash_state = combiner.add_buffer(
         std::move(hash_state), reinterpret_cast<const unsigned char*>(&word),
@@ -988,6 +990,9 @@ H AbslHashValue(H hash_state, const std::bitset<N>& set) {
     for (size_t j = 0; j < 64; ++j) {
       word |= static_cast<uint64_t>(set[i + j]) << j;
     }
+    if constexpr (absl::endian::native == absl::endian::big) {
+      word = absl::byteswap(word);
+    }
     hash_state = combiner.add_buffer(
         std::move(hash_state), reinterpret_cast<const unsigned char*>(&word),
         sizeof(word));
@@ -999,6 +1004,9 @@ H AbslHashValue(H hash_state, const std::bitset<N>& set) {
     const size_t rem = N - i;
     for (size_t j = 0; j < rem; ++j) {
       word |= static_cast<uint64_t>(set[i + j]) << j;
+    }
+    if constexpr (absl::endian::native == absl::endian::big) {
+      word = absl::byteswap(word);
     }
     hash_state = combiner.add_buffer(
         std::move(hash_state), reinterpret_cast<const unsigned char*>(&word),
@@ -1416,8 +1424,8 @@ struct HashSelect {
 };
 
 template <typename T>
-struct is_hashable
-    : std::integral_constant<bool, HashSelect::template Apply<T>::value> {};
+struct is_hashable : std::bool_constant<HashSelect::template Apply<T>::value> {
+};
 
 class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
   template <typename T>

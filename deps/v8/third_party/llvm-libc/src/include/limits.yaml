@@ -86,6 +86,8 @@ macros:
     macro_header: limits-macros.h
   - macro_name: PTHREAD_DESTRUCTOR_ITERATIONS
     macro_header: limits-macros.h
+  - macro_name: SEM_VALUE_MAX
+    macro_header: limits-macros.h
   - macro_name: SSIZE_MAX
     macro_header: limits-macros.h
 types: []

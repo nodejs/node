@@ -30,6 +30,7 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/map-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/string.h"
 
@@ -2203,6 +2204,10 @@ void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
     DirectHandle<Object> value = frame->values_[*value_index].GetValue();
     if (IsNumber(*value)) {
       array->set(i, Object::NumberValue(*value));
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    } else if (value.is_identical_to(isolate()->factory()->undefined_value())) {
+      array->set_undefined(i);
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     } else {
       CHECK(value.is_identical_to(isolate()->factory()->the_hole_value()));
       array->set_the_hole(isolate(), i);

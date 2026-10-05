@@ -23,7 +23,7 @@
 // Example:
 //   absl::weak_ordering compare(const std::string& a, const std::string& b);
 //
-// These are C++11 compatible versions of the C++20 corresponding types
+// These are C++17 compatible versions of the C++20 corresponding types
 // (`std::partial_ordering`, etc.) and are designed to be drop-in replacements
 // for code compliant with C++20.
 
@@ -110,71 +110,15 @@ enum class ord : value_type { less = -1, greater = 1 };
 
 enum class ncmp : value_type { unordered = -127 };
 
-// Define macros to allow for creation or emulation of C++17 inline variables
-// based on whether the feature is supported. Note: we can't use
-// ABSL_INTERNAL_INLINE_CONSTEXPR here because the variables here are of
-// incomplete types so they need to be defined after the types are complete.
-#ifdef __cpp_inline_variables
-
-// A no-op expansion that can be followed by a semicolon at class level.
-#define ABSL_COMPARE_INLINE_BASECLASS_DECL(name) static_assert(true, "")
-
-#define ABSL_COMPARE_INLINE_SUBCLASS_DECL(type, name) static const type name
-
-#define ABSL_COMPARE_INLINE_INIT(type, name, init) \
-  inline constexpr type type::name(init)
-
-#else  // __cpp_inline_variables
-
-#define ABSL_COMPARE_INLINE_BASECLASS_DECL(name) \
-  ABSL_CONST_INIT static const T name
-
-// A no-op expansion that can be followed by a semicolon at class level.
-#define ABSL_COMPARE_INLINE_SUBCLASS_DECL(type, name) static_assert(true, "")
-
-#define ABSL_COMPARE_INLINE_INIT(type, name, init) \
-  template <typename T>                            \
-  const T compare_internal::type##_base<T>::name(init)
-
-#endif  // __cpp_inline_variables
-
-// These template base classes allow for defining the values of the constants
-// in the header file (for performance) without using inline variables (which
-// aren't available in C++11).
-template <typename T>
-struct partial_ordering_base {
-  ABSL_COMPARE_INLINE_BASECLASS_DECL(less);
-  ABSL_COMPARE_INLINE_BASECLASS_DECL(equivalent);
-  ABSL_COMPARE_INLINE_BASECLASS_DECL(greater);
-  ABSL_COMPARE_INLINE_BASECLASS_DECL(unordered);
-};
-
-template <typename T>
-struct weak_ordering_base {
-  ABSL_COMPARE_INLINE_BASECLASS_DECL(less);
-  ABSL_COMPARE_INLINE_BASECLASS_DECL(equivalent);
-  ABSL_COMPARE_INLINE_BASECLASS_DECL(greater);
-};
-
-template <typename T>
-struct strong_ordering_base {
-  ABSL_COMPARE_INLINE_BASECLASS_DECL(less);
-  ABSL_COMPARE_INLINE_BASECLASS_DECL(equal);
-  ABSL_COMPARE_INLINE_BASECLASS_DECL(equivalent);
-  ABSL_COMPARE_INLINE_BASECLASS_DECL(greater);
-};
-
 }  // namespace compare_internal
 
-class partial_ordering
-    : public compare_internal::partial_ordering_base<partial_ordering> {
+class partial_ordering {
   explicit constexpr partial_ordering(compare_internal::eq v) noexcept
       : value_(static_cast<compare_internal::value_type>(v)) {}
   explicit constexpr partial_ordering(compare_internal::ord v) noexcept
       : value_(static_cast<compare_internal::value_type>(v)) {}
   explicit constexpr partial_ordering(compare_internal::ncmp v) noexcept
       : value_(static_cast<compare_internal::value_type>(v)) {}
-  friend struct compare_internal::partial_ordering_base<partial_ordering>;
 
   constexpr bool is_ordered() const noexcept {
     return value_ !=
@@ -182,10 +126,10 @@ class partial_ordering
   }
 
  public:
-  ABSL_COMPARE_INLINE_SUBCLASS_DECL(partial_ordering, less);
-  ABSL_COMPARE_INLINE_SUBCLASS_DECL(partial_ordering, equivalent);
-  ABSL_COMPARE_INLINE_SUBCLASS_DECL(partial_ordering, greater);
-  ABSL_COMPARE_INLINE_SUBCLASS_DECL(partial_ordering, unordered);
+  static const partial_ordering less;
+  static const partial_ordering equivalent;
+  static const partial_ordering greater;
+  static const partial_ordering unordered;
 
   // Comparisons
   friend constexpr bool operator==(partial_ordering v,
@@ -248,26 +192,25 @@ class partial_ordering
  private:
   compare_internal::value_type value_;
 };
-ABSL_COMPARE_INLINE_INIT(partial_ordering, less, compare_internal::ord::less);
-ABSL_COMPARE_INLINE_INIT(partial_ordering, equivalent,
-                         compare_internal::eq::equivalent);
-ABSL_COMPARE_INLINE_INIT(partial_ordering, greater,
-                         compare_internal::ord::greater);
-ABSL_COMPARE_INLINE_INIT(partial_ordering, unordered,
-                         compare_internal::ncmp::unordered);
+inline constexpr partial_ordering partial_ordering::less(
+    compare_internal::ord::less);
+inline constexpr partial_ordering partial_ordering::equivalent(
+    compare_internal::eq::equivalent);
+inline constexpr partial_ordering partial_ordering::greater(
+    compare_internal::ord::greater);
+inline constexpr partial_ordering partial_ordering::unordered(
+    compare_internal::ncmp::unordered);
 
-class weak_ordering
-    : public compare_internal::weak_ordering_base<weak_ordering> {
+class weak_ordering {
   explicit constexpr weak_ordering(compare_internal::eq v) noexcept
       : value_(static_cast<compare_internal::value_type>(v)) {}
   explicit constexpr weak_ordering(compare_internal::ord v) noexcept
       : value_(static_cast<compare_internal::value_type>(v)) {}
-  friend struct compare_internal::weak_ordering_base<weak_ordering>;
 
  public:
-  ABSL_COMPARE_INLINE_SUBCLASS_DECL(weak_ordering, less);
-  ABSL_COMPARE_INLINE_SUBCLASS_DECL(weak_ordering, equivalent);
-  ABSL_COMPARE_INLINE_SUBCLASS_DECL(weak_ordering, greater);
+  static const weak_ordering less;
+  static const weak_ordering equivalent;
+  static const weak_ordering greater;
 
   // Conversions
   constexpr operator partial_ordering() const noexcept {  // NOLINT
@@ -336,25 +279,23 @@ class weak_ordering
  private:
   compare_internal::value_type value_;
 };
-ABSL_COMPARE_INLINE_INIT(weak_ordering, less, compare_internal::ord::less);
-ABSL_COMPARE_INLINE_INIT(weak_ordering, equivalent,
-                         compare_internal::eq::equivalent);
-ABSL_COMPARE_INLINE_INIT(weak_ordering, greater,
-                         compare_internal::ord::greater);
+inline constexpr weak_ordering weak_ordering::less(compare_internal::ord::less);
+inline constexpr weak_ordering weak_ordering::equivalent(
+    compare_internal::eq::equivalent);
+inline constexpr weak_ordering weak_ordering::greater(
+    compare_internal::ord::greater);
 
-class strong_ordering
-    : public compare_internal::strong_ordering_base<strong_ordering> {
+class strong_ordering {
   explicit constexpr strong_ordering(compare_internal::eq v) noexcept
       : value_(static_cast<compare_internal::value_type>(v)) {}
   explicit constexpr strong_ordering(compare_internal::ord v) noexcept
       : value_(static_cast<compare_internal::value_type>(v)) {}
-  friend struct compare_internal::strong_ordering_base<strong_ordering>;
 
  public:
-  ABSL_COMPARE_INLINE_SUBCLASS_DECL(strong_ordering, less);
-  ABSL_COMPARE_INLINE_SUBCLASS_DECL(strong_ordering, equal);
-  ABSL_COMPARE_INLINE_SUBCLASS_DECL(strong_ordering, equivalent);
-  ABSL_COMPARE_INLINE_SUBCLASS_DECL(strong_ordering, greater);
+  static const strong_ordering less;
+  static const strong_ordering equal;
+  static const strong_ordering equivalent;
+  static const strong_ordering greater;
 
   // Conversions
   constexpr operator partial_ordering() const noexcept {  // NOLINT
@@ -428,16 +369,14 @@ class strong_ordering
  private:
   compare_internal::value_type value_;
 };
-ABSL_COMPARE_INLINE_INIT(strong_ordering, less, compare_internal::ord::less);
-ABSL_COMPARE_INLINE_INIT(strong_ordering, equal, compare_internal::eq::equal);
-ABSL_COMPARE_INLINE_INIT(strong_ordering, equivalent,
-                         compare_internal::eq::equivalent);
-ABSL_COMPARE_INLINE_INIT(strong_ordering, greater,
-                         compare_internal::ord::greater);
-
-#undef ABSL_COMPARE_INLINE_BASECLASS_DECL
-#undef ABSL_COMPARE_INLINE_SUBCLASS_DECL
-#undef ABSL_COMPARE_INLINE_INIT
+inline constexpr strong_ordering strong_ordering::less(
+    compare_internal::ord::less);
+inline constexpr strong_ordering strong_ordering::equal(
+    compare_internal::eq::equal);
+inline constexpr strong_ordering strong_ordering::equivalent(
+    compare_internal::eq::equivalent);
+inline constexpr strong_ordering strong_ordering::greater(
+    compare_internal::ord::greater);
 
 #endif  // ABSL_USES_STD_ORDERING
 
@@ -479,7 +418,8 @@ constexpr absl::weak_ordering compare_result_as_ordering(
 template <
     typename Compare, typename K, typename LK,
     std::enable_if_t<
-        !std::is_same_v<bool, absl::result_of_t<Compare(const K&, const LK&)>>,
+        !std::is_same_v<bool,
+                        std::invoke_result_t<Compare, const K&, const LK&>>,
         int> = 0>
 constexpr absl::weak_ordering do_three_way_comparison(const Compare& compare,
                                                       const K& x, const LK& y) {
@@ -488,7 +428,8 @@ constexpr absl::weak_ordering do_three_way_comparison(const Compare& compare,
 template <
     typename Compare, typename K, typename LK,
     std::enable_if_t<
-        std::is_same_v<bool, absl::result_of_t<Compare(const K&, const LK&)>>,
+        std::is_same_v<bool,
+                       std::invoke_result_t<Compare, const K&, const LK&>>,
         int> = 0>
 constexpr absl::weak_ordering do_three_way_comparison(const Compare& compare,
                                                       const K& x, const LK& y) {

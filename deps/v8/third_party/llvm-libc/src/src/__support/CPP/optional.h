@@ -131,6 +131,17 @@ public:
   LIBC_INLINE constexpr T &&operator*() && {
     return move(storage.stored_value);
   }
+
+  template <typename U>
+  LIBC_INLINE constexpr T value_or(U &&default_value) const & {
+    return has_value() ? storage.stored_value
+                       : static_cast<T>(forward<U>(default_value));
+  }
+
+  template <typename U> LIBC_INLINE constexpr T value_or(U &&default_value) && {
+    return has_value() ? move(storage.stored_value)
+                       : static_cast<T>(forward<U>(default_value));
+  }
 };
 
 } // namespace cpp

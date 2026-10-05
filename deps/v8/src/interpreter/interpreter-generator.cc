@@ -1276,20 +1276,21 @@ IGNITION_HANDLER(BitwiseAndSmi, InterpreterBitwiseBinaryOpAssembler) {
 
 #ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 
-// BitwiseNot <feedback_slot>
+// BitwiseNot <feedback_index>
 //
 // Perform bitwise-not on the accumulator.
 IGNITION_HANDLER(BitwiseNot, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
   TNode<Context> context = GetContext();
-  TNode<UintPtrT> slot_index = BytecodeOperandFeedbackSlot(0);
-  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
-      LoadFeedbackVectorOrUndefinedIfJitless();
-  static constexpr UpdateFeedbackMode mode = DefaultUpdateFeedbackMode();
+  TNode<BytecodeArray> bytecode_array = BytecodeArrayTaggedPointer();
+  TNode<IntPtrT> feedback_offset =
+      BytecodeOperandOffset(kUnaryEmbeddedFeedbackOperandIndex);
 
   UnaryOpAssembler unary_op_asm(state());
   TNode<Object> result = unary_op_asm.Generate_BitwiseNotWithFeedback(
-      context, value, slot_index, maybe_feedback_vector, mode);
+      context, value,
+      unary_op_asm.MakeEmbeddedFeedbackUpdater(bytecode_array,
+                                               feedback_offset));
 
   SetAccumulator(result);
   Dispatch();
@@ -1324,20 +1325,21 @@ IGNITION_HANDLER(ShiftRightLogicalSmi, InterpreterBitwiseBinaryOpAssembler) {
   BitwiseBinarySmiOpWithEmbeddedFeedback(Operation::kShiftRightLogical);
 }
 
-// Negate <feedback_slot>
+// Negate <feedback_index>
 //
 // Perform arithmetic negation on the accumulator.
 IGNITION_HANDLER(Negate, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
   TNode<Context> context = GetContext();
-  TNode<UintPtrT> slot_index = BytecodeOperandFeedbackSlot(0);
-  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
-      LoadFeedbackVectorOrUndefinedIfJitless();
-  static constexpr UpdateFeedbackMode mode = DefaultUpdateFeedbackMode();
+  TNode<BytecodeArray> bytecode_array = BytecodeArrayTaggedPointer();
+  TNode<IntPtrT> feedback_offset =
+      BytecodeOperandOffset(kUnaryEmbeddedFeedbackOperandIndex);
 
   UnaryOpAssembler unary_op_asm(state());
   TNode<Object> result = unary_op_asm.Generate_NegateWithFeedback(
-      context, value, slot_index, maybe_feedback_vector, mode);
+      context, value,
+      unary_op_asm.MakeEmbeddedFeedbackUpdater(bytecode_array,
+                                               feedback_offset));
 
   SetAccumulator(result);
   Dispatch();
@@ -1410,39 +1412,41 @@ IGNITION_HANDLER(ToBoolean, InterpreterAssembler) {
   Dispatch();
 }
 
-// Inc
+// Inc <feedback_index>
 //
 // Increments value in the accumulator by one.
 IGNITION_HANDLER(Inc, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
   TNode<Context> context = GetContext();
-  TNode<UintPtrT> slot_index = BytecodeOperandFeedbackSlot(0);
-  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
-      LoadFeedbackVectorOrUndefinedIfJitless();
-  static constexpr UpdateFeedbackMode mode = DefaultUpdateFeedbackMode();
+  TNode<BytecodeArray> bytecode_array = BytecodeArrayTaggedPointer();
+  TNode<IntPtrT> feedback_offset =
+      BytecodeOperandOffset(kUnaryEmbeddedFeedbackOperandIndex);
 
   UnaryOpAssembler unary_op_asm(state());
   TNode<Object> result = unary_op_asm.Generate_IncrementWithFeedback(
-      context, value, slot_index, maybe_feedback_vector, mode);
+      context, value,
+      unary_op_asm.MakeEmbeddedFeedbackUpdater(bytecode_array,
+                                               feedback_offset));
 
   SetAccumulator(result);
   Dispatch();
 }
 
-// Dec
+// Dec <feedback_index>
 //
 // Decrements value in the accumulator by one.
 IGNITION_HANDLER(Dec, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
   TNode<Context> context = GetContext();
-  TNode<UintPtrT> slot_index = BytecodeOperandFeedbackSlot(0);
-  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
-      LoadFeedbackVectorOrUndefinedIfJitless();
-  static constexpr UpdateFeedbackMode mode = DefaultUpdateFeedbackMode();
+  TNode<BytecodeArray> bytecode_array = BytecodeArrayTaggedPointer();
+  TNode<IntPtrT> feedback_offset =
+      BytecodeOperandOffset(kUnaryEmbeddedFeedbackOperandIndex);
 
   UnaryOpAssembler unary_op_asm(state());
   TNode<Object> result = unary_op_asm.Generate_DecrementWithFeedback(
-      context, value, slot_index, maybe_feedback_vector, mode);
+      context, value,
+      unary_op_asm.MakeEmbeddedFeedbackUpdater(bytecode_array,
+                                               feedback_offset));
 
   SetAccumulator(result);
   Dispatch();

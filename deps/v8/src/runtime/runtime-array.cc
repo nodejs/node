@@ -10,6 +10,7 @@
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/elements.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/object-conversions-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -9,6 +9,7 @@
 
 #include <vector>
 
+#include "cppgc/type-traits.h"  // NOLINT(build/include_directory)
 #include "v8-data.h"          // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-maybe.h"         // NOLINT(build/include_directory)
@@ -316,39 +317,22 @@ class V8_EXPORT Context : public Data {
    */
   V8_INLINE void* GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
                                                     EmbedderDataTypeTag tag);
-  V8_INLINE void* GetAlignedPointerFromEmbedderData(int index,
-                                                    EmbedderDataTypeTag tag);
-
-  V8_DEPRECATED(
-      "Use GetAlignedPointerFromEmbedderData with EmbedderDataTypeTag "
-      "parameter instead.")
-  V8_INLINE void* GetAlignedPointerFromEmbedderData(Isolate* isolate,
-                                                    int index) {
-    return GetAlignedPointerFromEmbedderData(isolate, index,
-                                             kEmbedderDataTypeTagDefault);
-  }
-
-  V8_DEPRECATED(
-      "Use GetAlignedPointerFromEmbedderData with EmbedderDataTypeTag "
-      "parameter instead.")
-  V8_INLINE void* GetAlignedPointerFromEmbedderData(int index) {
-    return GetAlignedPointerFromEmbedderData(index,
-                                             kEmbedderDataTypeTagDefault);
-  }
+  void* GetAlignedPointerFromEmbedderData(int index,
+                                          EmbedderDataTypeTag tag);
+  template <typename T>
+    requires cppgc::IsGarbageCollectedTypeV<T>
+  V8_INLINE T* GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
+                                                 CppHeapPointerTag tag);
 
   void SetAlignedPointerInEmbedderData(int index, void* value,
                                        EmbedderDataTypeTag tag);
 
-  /**
-   * Sets a 2-byte-aligned native pointer in the embedder data with the given
-   * index, growing the data as needed. Note that index 0 currently has a
-   * special meaning for Chrome's debugger.
-   */
-  V8_DEPRECATED(
-      "Use SetAlignedPointerInEmbedderData with EmbedderDataTypeTag parameter "
-      "instead.")
-  void SetAlignedPointerInEmbedderData(int index, void* value) {
-    SetAlignedPointerInEmbedderData(index, value, kEmbedderDataTypeTagDefault);
+  template <typename T>
+    requires cppgc::IsGarbageCollectedTypeV<T>
+  void SetAlignedPointerInEmbedderData(int index, T* value,
+                                       CppHeapPointerTag tag) {
+    SetAlignedPointerInEmbedderDataInternal(index, static_cast<void*>(value),
+                                            tag);
   }
 
   /**
@@ -477,8 +461,9 @@ class V8_EXPORT Context : public Data {
       size_t index);
   Local<Value> SlowGetEmbedderData(int index);
   Local<Data> SlowGetEmbedderDataV2(int index);
-  void* SlowGetAlignedPointerFromEmbedderData(int index,
-                                              EmbedderDataTypeTag tag);
+  void* SlowGetAlignedPointerFromEmbedderData(int index, CppHeapPointerTag tag);
+  void SetAlignedPointerInEmbedderDataInternal(int index, void* value,
+                                               CppHeapPointerTag tag);
 };
 
 // --- Implementation ---
@@ -529,26 +514,15 @@ V8_INLINE Local<Data> Context::GetEmbedderDataV2(int index) {
 #endif
 }
 
-void* Context::GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
-                                                 EmbedderDataTypeTag tag) {
-#if !defined(V8_ENABLE_CHECKS)
-  using A = internal::Address;
-  using I = internal::Internals;
-  A ctx = internal::ValueHelper::ValueAsAddress(this);
-  A embedder_data =
-      I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
-  int value_offset = I::kEmbedderDataArrayHeaderSize +
-                     (I::kEmbedderDataSlotSize * index) +
-                     I::kEmbedderDataSlotExternalPointerOffset;
-  return reinterpret_cast<void*>(I::ReadExternalPointerField(
-      isolate, embedder_data, value_offset, ToExternalPointerTag(tag)));
-#else
-  return SlowGetAlignedPointerFromEmbedderData(index, tag);
-#endif
+V8_INLINE void* Context::GetAlignedPointerFromEmbedderData(
+    Isolate* isolate, int index, EmbedderDataTypeTag tag) {
+  return GetAlignedPointerFromEmbedderData(index, tag);
 }
 
-void* Context::GetAlignedPointerFromEmbedderData(int index,
-                                                 EmbedderDataTypeTag tag) {
+template <typename T>
+  requires cppgc::IsGarbageCollectedTypeV<T>
+T* Context::GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
+                                              CppHeapPointerTag tag) {
 #if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
   using I = internal::Internals;
@@ -557,12 +531,11 @@ void* Context::GetAlignedPointerFromEmbedderData(int index,
       I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
   int value_offset = I::kEmbedderDataArrayHeaderSize +
                      (I::kEmbedderDataSlotSize * index) +
-                     I::kEmbedderDataSlotExternalPointerOffset;
-  Isolate* isolate = I::GetCurrentIsolateForSandbox();
-  return reinterpret_cast<void*>(I::ReadExternalPointerField(
-      isolate, embedder_data, value_offset, ToExternalPointerTag(tag)));
+                     I::kEmbedderDataSlotCppHeapPointerOffset;
+  return internal::ReadCppHeapPointerField<T>(
+      isolate, embedder_data, value_offset, CppHeapPointerTagRange(tag, tag));
 #else
-  return SlowGetAlignedPointerFromEmbedderData(index, tag);
+  return static_cast<T*>(SlowGetAlignedPointerFromEmbedderData(index, tag));
 #endif
 }
 

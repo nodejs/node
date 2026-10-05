@@ -2632,13 +2632,13 @@ TEST_F(RegExpTest, QuickCheckDeterminesPerfectly) {
   Zone zone(i_isolate()->allocator(), ZONE_NAME);
 
   // Create an EndNode to serve as the successor.
-  regexp::EndNode* accept =
-      zone.New<regexp::EndNode>(regexp::EndNode::ACCEPT, &zone);
+  regexp::EndNode* accept = zone.New<regexp::EndNode>(regexp::EndNode::ACCEPT,
+                                                      regexp::Flags(), &zone);
 
   auto check_determines_perfectly =
       [&](ZoneList<regexp::CharacterRange>* ranges, bool is_one_byte) {
         regexp::TextNode* node = regexp::TextNode::CreateForCharacterRanges(
-            &zone, ranges, false, accept);
+            &zone, ranges, false, accept, regexp::Flags());
         regexp::Compiler compiler(i_isolate(), &zone, 0, regexp::Flags(),
                                   is_one_byte);
         regexp::QuickCheckDetails details(1);

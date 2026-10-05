@@ -24,6 +24,8 @@ class Tuple2;
 // It doesn't carry any functionality but allows function classes to be
 // identified in the type system.
 V8_OBJECT class JSFunctionOrBoundFunctionOrWrappedFunction : public JSObject {
+  V8_IT_ABSTRACT;
+
  public:
   static const int kLengthDescriptorIndex = 0;
   static const int kNameDescriptorIndex = 1;
@@ -127,6 +129,8 @@ enum class BudgetModification { kReduce, kRaise, kReset };
 // prototype. Respective subclass defines the layout of the object in memory
 // but all the JSFunction related logic lives in this class.
 V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
+  V8_IT_ABSTRACT;
+
  public:
   DECL_RELEASE_ACQUIRE_ACCESSORS(
       prototype_or_initial_map,
@@ -253,7 +257,6 @@ V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
   // Tells whether function's code object checks its tiering state (some code
   // kinds, e.g. TURBOFAN, ignore the tiering state).
   inline bool ChecksTieringState(IsolateForSandbox isolate);
-
 
   // Tiering up a function happens as follows:
   // 1. RequestOptimization is called
@@ -564,6 +567,8 @@ inline constexpr int JSFunctionWithoutPrototype::kMinSize =
 
 // Defines layout of JavaScript functions with prototype.
 V8_OBJECT class JSFunctionWithPrototype : public JSFunction {
+  V8_IT_ORDER(LAST);
+
  public:
   static const int kHeaderSize;
   static const int kMinSize;
@@ -595,6 +600,7 @@ inline constexpr int JSFunctionWithPrototype::kMinSize =
     sizeof(JSFunctionWithPrototype);
 
 V8_OBJECT class JSClassConstructor : public JSFunctionWithPrototype {
+  V8_IT_ORDER(LAST);
 } V8_OBJECT_END;
 
 }  // namespace v8::internal

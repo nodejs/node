@@ -14,6 +14,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/dependent-code-inl.h"
 #include "src/objects/js-objects-inl.h"
+#include "src/objects/object-conversions-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

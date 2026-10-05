@@ -53,7 +53,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
       bytecode_generated_(false),
       constant_array_builder_(zone),
       handler_table_builder_(zone),
-      parameter_count_(parameter_count),
+      parameter_count_(base::checked_cast<uint16_t>(parameter_count)),
       max_arguments_(0),
       local_register_count_(locals_count),
       register_allocator_(fixed_register_count()),
@@ -530,19 +530,23 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::UnaryOperation(Token::Value op,
                                                            int feedback_slot) {
   switch (op) {
     case Token::kInc:
-      OutputInc(feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputInc(kUninitializedEmbeddedFeedback);
       break;
     case Token::kDec:
-      OutputDec(feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputDec(kUninitializedEmbeddedFeedback);
       break;
     case Token::kAdd:
       OutputToNumber(feedback_slot);
       break;
     case Token::kSub:
-      OutputNegate(feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputNegate(kUninitializedEmbeddedFeedback);
       break;
     case Token::kBitNot:
-      OutputBitwiseNot(feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputBitwiseNot(kUninitializedEmbeddedFeedback);
       break;
     default:
       UNREACHABLE();

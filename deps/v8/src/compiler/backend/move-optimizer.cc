@@ -6,6 +6,10 @@
 
 #include "src/codegen/register-configuration.h"
 
+#if V8_TARGET_ARCH_ARM64
+#include "src/codegen/macro-assembler.h"
+#endif
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -510,6 +514,38 @@ bool IsSlot(const InstructionOperand& op) {
   return op.IsStackSlot() || op.IsFPStackSlot();
 }
 
+#if V8_TARGET_ARCH_ARM64
+// On arm64, a constant that materializes in one MOVZ/MOVN/ORR-immediate
+// instruction costs exactly as much as a register-register copy, so replacing
+// its rematerialization with a copy from the first destination only makes the
+// second move depend on the first. Copies into stack slots still win: STR from
+// the first destination beats materialize-into-scratch + STR.
+bool IsOneInstrConstant(const InstructionSequence* code,
+                        const InstructionOperand& op) {
+  if (!op.IsConstant()) return false;
+  Constant constant =
+      code->GetConstant(ConstantOperand::cast(op).virtual_register());
+  uint64_t imm;
+  unsigned size;
+  switch (constant.type()) {
+    case Constant::kInt32:
+      imm = static_cast<uint32_t>(constant.ToInt32());
+      size = kWRegSizeInBits;
+      break;
+    case Constant::kInt64:
+      imm = static_cast<uint64_t>(constant.ToInt64());
+      size = kXRegSizeInBits;
+      break;
+    default:
+      return false;
+  }
+  unsigned n, imm_s, imm_r;
+  return MacroAssembler::IsImmMovz(imm, size) ||
+         MacroAssembler::IsImmMovn(imm, size) ||
+         Assembler::IsImmLogical(imm, size, &n, &imm_s, &imm_r);
+}
+#endif  // V8_TARGET_ARCH_ARM64
+
 bool Is64BitsWide(const InstructionOperand& op) {
   MachineRepresentation rep = LocationOperand::cast(&op)->representation();
 #if V8_COMPRESS_POINTERS
@@ -581,6 +617,14 @@ void MoveOptimizer::FinalizeMoves(Instruction* instr) {
       group_begin = load;
       continue;
     }
+#if V8_TARGET_ARCH_ARM64
+    // Rematerializing a one-instruction constant costs the same as copying it
+    // from {group_begin} and leaves the two moves independent.
+    if (!IsSlot(load->destination()) &&
+        IsOneInstrConstant(code(), load->source())) {
+      continue;
+    }
+#endif
     // Insert new move into slot 1.
     ParallelMove* slot_1 = instr->GetOrCreateParallelMove(
         static_cast<Instruction::GapPosition>(1), code_zone());

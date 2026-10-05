@@ -55,10 +55,10 @@ V8_OBJECT class JSV8BreakIterator : public JSObject {
   inline void set_locale(Tagged<String> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Managed<IcuBreakIteratorWithText>> icu_iterator_with_text()
+  inline Tagged<CppGCManaged<IcuBreakIteratorWithText>> icu_iterator_with_text()
       const;
   inline void set_icu_iterator_with_text(
-      Tagged<Managed<IcuBreakIteratorWithText>> value,
+      Tagged<CppGCManaged<IcuBreakIteratorWithText>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<UnionOf<Undefined, JSFunction>> bound_adopt_text() const;
@@ -90,7 +90,7 @@ V8_OBJECT class JSV8BreakIterator : public JSObject {
 
  public:
   TaggedMember<String> locale_;
-  TaggedMember<Foreign> icu_iterator_with_text_;
+  TaggedMember<CppGCManaged<IcuBreakIteratorWithText>> icu_iterator_with_text_;
   TaggedMember<UnionOf<Undefined, JSFunction>> bound_adopt_text_;
   TaggedMember<UnionOf<Undefined, JSFunction>> bound_first_;
   TaggedMember<UnionOf<Undefined, JSFunction>> bound_next_;

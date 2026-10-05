@@ -25,30 +25,32 @@ void JSDateTimeFormat::set_locale(Tagged<String> value, WriteBarrierMode mode) {
   locale_.store(this, value, mode);
 }
 
-Tagged<Managed<icu::Locale>> JSDateTimeFormat::icu_locale() const {
-  return Cast<Managed<icu::Locale>>(icu_locale_.load());
+Tagged<CppGCManaged<icu::Locale>> JSDateTimeFormat::icu_locale() const {
+  return Cast<CppGCManaged<icu::Locale>>(icu_locale_.load());
 }
-void JSDateTimeFormat::set_icu_locale(Tagged<Managed<icu::Locale>> value,
-                                      WriteBarrierMode mode) {
+void JSDateTimeFormat::set_icu_locale(
+    Tagged<CppGCManaged<icu::Locale>> value, WriteBarrierMode mode) {
   icu_locale_.store(this, value, mode);
 }
 
-Tagged<Managed<icu::SimpleDateFormat>>
+Tagged<CppGCManaged<icu::SimpleDateFormat>>
 JSDateTimeFormat::icu_simple_date_format() const {
-  return Cast<Managed<icu::SimpleDateFormat>>(icu_simple_date_format_.load());
+  return Cast<CppGCManaged<icu::SimpleDateFormat>>(
+      icu_simple_date_format_.load());
 }
 void JSDateTimeFormat::set_icu_simple_date_format(
-    Tagged<Managed<icu::SimpleDateFormat>> value, WriteBarrierMode mode) {
+    Tagged<CppGCManaged<icu::SimpleDateFormat>> value, WriteBarrierMode mode) {
   icu_simple_date_format_.store(this, value, mode);
 }
 
-Tagged<Managed<icu::DateIntervalFormat>>
+Tagged<CppGCManaged<icu::DateIntervalFormat>>
 JSDateTimeFormat::icu_date_interval_format() const {
-  return Cast<Managed<icu::DateIntervalFormat>>(
+  return Cast<CppGCManaged<icu::DateIntervalFormat>>(
       icu_date_interval_format_.load());
 }
 void JSDateTimeFormat::set_icu_date_interval_format(
-    Tagged<Managed<icu::DateIntervalFormat>> value, WriteBarrierMode mode) {
+    Tagged<CppGCManaged<icu::DateIntervalFormat>> value,
+    WriteBarrierMode mode) {
   icu_date_interval_format_.store(this, value, mode);
 }
 

@@ -194,7 +194,6 @@ enum ContextLookupFlags {
     initial_disposable_stack_prototype)                                        \
   V(INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX, JSObject,                            \
     initial_map_iterator_prototype)                                            \
-  V(INITIAL_MAP_PROTOTYPE_INDEX, JSObject, initial_map_prototype)              \
   V(INITIAL_MAP_PROTOTYPE_MAP_INDEX, Map, initial_map_prototype_map)           \
   V(INITIAL_OBJECT_PROTOTYPE_INDEX, JSObject, initial_object_prototype)        \
   V(INITIAL_SET_ITERATOR_PROTOTYPE_INDEX, JSObject,                            \
@@ -205,7 +204,6 @@ enum ContextLookupFlags {
   V(INITIAL_STRING_ITERATOR_PROTOTYPE_INDEX, JSObject,                         \
     initial_string_iterator_prototype)                                         \
   V(INITIAL_STRING_PROTOTYPE_INDEX, JSObject, initial_string_prototype)        \
-  V(INITIAL_WEAKMAP_PROTOTYPE_INDEX, JSObject, initial_weakmap_prototype)      \
   V(INITIAL_WEAKMAP_PROTOTYPE_MAP_INDEX, Map, initial_weakmap_prototype_map)   \
   V(INITIAL_WEAKSET_PROTOTYPE_MAP_INDEX, Map, initial_weakset_prototype_map)   \
   V(INTL_COLLATOR_FUNCTION_INDEX, JSFunction, intl_collator_function)          \
@@ -498,6 +496,7 @@ enum ContextLookupFlags {
 
 V8_OBJECT class Context : public HeapObject {
  public:
+  V8_IT_ABSTRACT;
   inline int length() const;
   inline void set_length(int value);
   inline int length(RelaxedLoadTag) const;
@@ -790,6 +789,8 @@ V8_OBJECT class FunctionContext : public Context {
 } V8_OBJECT_END;
 
 V8_OBJECT class NativeContext : public Context {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   // TODO(neis): Move some stuff from Context here.
 
@@ -805,13 +806,8 @@ V8_OBJECT class NativeContext : public Context {
                      ReleaseStoreTag);
 
   // [microtask_queue]: pointer to the MicrotaskQueue object.
-#ifdef V8_CPPGC_MICROTASK_QUEUE
   static constexpr int kMicrotaskQueueSlotSize = kCppHeapPointerSlotSize;
   DECL_CPP_POINTER_ACCESSORS(microtask_queue, MicrotaskQueue*)
-#else
-  static constexpr int kMicrotaskQueueSlotSize = kExternalPointerSlotSize;
-  DECL_EXTERNAL_POINTER_ACCESSORS(microtask_queue, MicrotaskQueue*)
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
   inline void synchronized_set_script_context_table(
       Tagged<ScriptContextTable> script_context_table);

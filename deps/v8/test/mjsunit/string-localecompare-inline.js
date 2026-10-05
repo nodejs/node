@@ -116,3 +116,40 @@ check(long_a, long_a, 0);
 // Tagged-equal long string (pointer-eq path after type guards).
 const long_eq = "Aircraft ".repeat(8);
 check(long_eq, long_eq, 0);
+
+// --- Constant operands. A string literal is baked into the code as a
+// constant, so the compiler knows its shape and guards accordingly. Feed the
+// other shapes in as arguments: each must reach the builtin instead of being
+// walked as one-byte characters.
+function constCmp(x) { return "Aircraft 0".localeCompare(x); }
+%PrepareFunctionForOptimization(constCmp);
+constCmp("Aircraft 1");
+constCmp("Aircraft 1");
+%OptimizeFunctionOnNextCall(constCmp);
+// Several of these have equal content and differ only in shape, so the shape
+// is what the failure message has to name.
+for (const [shape, arg] of [["seq one-byte", "Aircraft 1"],
+                            ["equal content", "Aircraft 0"],
+                            ["two-byte", "Aircraft 中"],
+                            ["cons", "Air" + "craft 1"],
+                            ["sliced", "xAircraft 1".substring(1)]]) {
+  assertEquals(Math.sign(unopt("Aircraft 0", arg)), Math.sign(constCmp(arg)),
+               `constCmp(${shape})`);
+}
+
+// Two-byte constant receiver, which the inline can never handle. The
+// character must be outside Latin-1 ("café" is still stored one-byte) and
+// must come first, since reading a two-byte body as one-byte only changes
+// the answer once the walk reaches it.
+const kTwoByte = "中af";
+function constTwoByte(x) { return "中af".localeCompare(x); }
+%PrepareFunctionForOptimization(constTwoByte);
+constTwoByte("zzz");
+constTwoByte("zzz");
+%OptimizeFunctionOnNextCall(constTwoByte);
+for (let c = 0; c < 128; c++) {
+  const arg = String.fromCharCode(c) + "af";
+  assertEquals(Math.sign(unopt(kTwoByte, arg)), Math.sign(constTwoByte(arg)),
+               `constTwoByte(${JSON.stringify(arg)})`);
+}
+assertEquals(0, constTwoByte(kTwoByte));

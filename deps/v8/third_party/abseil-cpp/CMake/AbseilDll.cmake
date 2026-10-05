@@ -21,7 +21,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "base/internal/direct_mmap.h"
   "base/internal/endian.h"
   "base/internal/errno_saver.h"
-  "base/internal/hardening.cc"
   "base/internal/hardening.h"
   "base/internal/hide_ptr.h"
   "base/internal/iterator_traits.h"
@@ -723,10 +722,18 @@ set(ABSL_INTERNAL_TEST_DLL_TARGETS
   "status_matchers"
 )
 
-include(CheckCXXSourceCompiles)
+if(DEFINED CMAKE_CXX_STANDARD AND CMAKE_CXX_STANDARD_REQUIRED)
+  if(CMAKE_CXX_STANDARD GREATER_EQUAL 20)
+    set(ABSL_INTERNAL_AT_LEAST_CXX20 ON)
+    set(ABSL_INTERNAL_AT_LEAST_CXX17 ON)
+  elseif(CMAKE_CXX_STANDARD GREATER_EQUAL 17)
+    set(ABSL_INTERNAL_AT_LEAST_CXX17 ON)
+  endif()
+else()
+  include(CheckCXXSourceCompiles)
 
-check_cxx_source_compiles(
-  [==[
+  check_cxx_source_compiles(
+    [==[
 #ifdef _MSC_VER
 #  if _MSVC_LANG < 201703L
 #    error "The compiler defaults or is configured for C++ < 17"
@@ -736,10 +743,10 @@ check_cxx_source_compiles(
 #endif
 int main() { return 0; }
 ]==]
-  ABSL_INTERNAL_AT_LEAST_CXX17)
+    ABSL_INTERNAL_AT_LEAST_CXX17)
 
-check_cxx_source_compiles(
-  [==[
+  check_cxx_source_compiles(
+    [==[
 #ifdef _MSC_VER
 #  if _MSVC_LANG < 202002L
 #    error "The compiler defaults or is configured for C++ < 20"
@@ -749,7 +756,8 @@ check_cxx_source_compiles(
 #endif
 int main() { return 0; }
 ]==]
-  ABSL_INTERNAL_AT_LEAST_CXX20)
+    ABSL_INTERNAL_AT_LEAST_CXX20)
+endif()
 
 if(ABSL_INTERNAL_AT_LEAST_CXX20)
   set(ABSL_INTERNAL_CXX_STD_FEATURE cxx_std_20)

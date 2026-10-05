@@ -138,6 +138,63 @@ class StandardRunnerTest(TestRunnerTest):
     result.stdout_includes('sweet/strawberries default: FAIL')
     result.has_returncode(1)
 
+  def testQuiet(self):
+    """Test that quiet mode drops everything but failures and the counts."""
+    result = self.run_tests(
+        '--quiet',
+        '--variants=default',
+        'sweet/bananas',
+        'sweet/strawberries',
+        infra_staging=False,
+    )
+    result.stdout_includes('sweet/strawberries')
+    result.stdout_includes('1 tests failed')
+    result.stdout_includes('>>> 2 tests ran')
+    result.stdout_excludes('Statusfile variables')
+    result.stdout_excludes('Build found')
+    result.stdout_excludes('Running with test processors')
+    result.stdout_excludes('non-filtered tests')
+    result.has_returncode(1)
+
+  def testQuietReportsZeroTestsRan(self):
+    """Test that quiet mode doesn't report a filter matching nothing as a
+    plain success."""
+    result = self.run_tests(
+        '--quiet',
+        '--variants=default',
+        'sweet/no-such-test',
+        infra_staging=False,
+    )
+    result.stdout_includes('>>> 0 tests ran')
+    result.has_returncode(2)
+
+  def testQuietFromAiAgentEnv(self):
+    """Test that an AI agent environment implies quiet mode."""
+    result = self.run_tests(
+        '--variants=default',
+        'sweet/bananas',
+        infra_staging=False,
+        ai_agent_vars=['AI_AGENT'],
+    )
+    result.stdout_includes('Detected AI agent env (AI_AGENT)')
+    result.stdout_includes('>>> 1 tests ran')
+    result.stdout_excludes('Statusfile variables')
+    result.stdout_excludes('non-filtered tests')
+    result.has_returncode(0)
+
+  def testNoQuietOverridesAiAgentEnv(self):
+    """Test that --no-quiet wins over the environment."""
+    result = self.run_tests(
+        '--no-quiet',
+        '--variants=default',
+        'sweet/bananas',
+        infra_staging=False,
+        ai_agent_vars=['AI_AGENT'],
+    )
+    result.stdout_includes('Statusfile variables')
+    result.stdout_excludes('Detected AI agent env')
+    result.has_returncode(0)
+
   def testGN(self):
     """Test setup with legacy GN out dir."""
     result = self.run_tests('--gn', baseroot="testroot5", outdir='out.gn')

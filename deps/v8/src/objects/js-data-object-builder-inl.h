@@ -17,6 +17,7 @@
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/map-updater.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/transitions-inl.h"
 

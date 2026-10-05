@@ -19,6 +19,7 @@
 #include <sys/types.h>
 
 #include <cstddef>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <type_traits>

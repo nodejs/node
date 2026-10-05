@@ -236,6 +236,24 @@ class BaselineAssembler {
 
   inline void Word32And(Register output, Register lhs, int rhs);
 
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+  // Jumps to |target| unless both |lhs| and |rhs| are Smis, using a single
+  // merged tag test.
+  inline void JumpIfNotBothSmi(Register lhs, Register rhs, Label* target,
+                               Label::Distance distance = Label::kFar);
+
+  // Compares two tagged values without asserting that they are Smis.
+  inline void JumpIfTagged(Condition cc, Register lhs, Register rhs,
+                           Label* target,
+                           Label::Distance distance = Label::kFar);
+
+  // value := value + Smi(constant). Jumps to |overflow| when the result is not
+  // a valid Smi.
+  inline void SmiAddConstantAndJumpIfOverflow(
+      Register value, int constant, Label* overflow,
+      Label::Distance distance = Label::kFar);
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+
   inline void Switch(Register reg, int case_value_base, Label** labels,
                      int num_labels);
 

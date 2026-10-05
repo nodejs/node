@@ -99,6 +99,8 @@ writeUint32(0, 0xdeadbeef);
 assertEquals(0xdeadbeef, dataview.getUint32(0));
 writeUint32(0, 0xefbeadde, true);
 assertEquals(0xdeadbeef, dataview.getUint32(0));
+writeUint32(0, -1);
+assertEquals(0xffffffff, dataview.getUint32(0));
 
 // TurboFan valid setInt32.
 warmup(writeInt32);

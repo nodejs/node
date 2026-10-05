@@ -1023,7 +1023,60 @@ inline std::pair<bool, digit_t> ModuloSmall(RWDigits& R, Digits& A, Digits& B) {
   return {false, 0};
 }
 
+ALWAYS_INLINE digit_t Processor::CachedModFold(RWDigits& R, Digits& A,
+                                               digit_t c) {
+  Digits& B = GetCachedDivisor();
+  uint32_t n = B.len();
+  DCHECK(n >= 2);
+  DCHECK(n <= A.len() && A.len() <= 2 * n);
+  DCHECK(R.len() == n);
+
+  // Each column sums A[i] + A[n+i]*c + carry, which for digit base D is at
+  // most (D-1) + (D-1)^2 + (D-1) == D^2 - 1. It therefore fits in two digits
+  // and {carry} stays single-digit for any {c}, including ~digit_t{0}.
+  digit_t carry = 0;
+  for (uint32_t i = 0; i < n; ++i) {
+    digit_t high = 0;
+    // A is always at least n digits: the only caller is {BigIntModulusImpl},
+    // which returns early when |x| < |y|.
+    digit_t low = A[i];
+    if (n + i < A.len()) {
+      digit_t product_low = digit_mul(A[n + i], c, &high);
+      digit_t add_carry;
+      low = digit_add2(low, product_low, &add_carry);
+      high += add_carry;
+    }
+    digit_t sum_carry;
+    R[i] = digit_add2(low, carry, &sum_carry);
+    DCHECK(high <= ~digit_t{0} - sum_carry);
+    carry = high + sum_carry;
+  }
+
+  if (carry) {
+    digit_t product_high;
+    digit_t product_low = digit_mul(carry, c, &product_high);
+    R[0] = digit_add2(R[0], product_low, &carry);
+    carry += product_high;
+    for (uint32_t i = 1; i < n && carry; ++i) {
+      R[i] = digit_add2(R[i], carry, &carry);
+    }
+  }
+
+  while (carry || GreaterThanOrEqual(R, B)) {
+    carry -= InplaceSubAndReturnBorrow(R, B);
+  }
+
+  return R[n - 1];
+}
+
 ALWAYS_INLINE digit_t Processor::CachedMod(RWDigits& R, Digits& A) {
+  digit_t c = GetCachedModFoldFactor();
+  if (c != 0) {
+    // A fold-armed divisor leaves {cached_inverse_} allocated but stale; this
+    // path never reads it.
+    return CachedModFold(R, A, c);
+  }
+
   Digits& B = GetCachedDivisor();
   Digits& inv = GetCachedInverse();
   uint32_t n = B.len();

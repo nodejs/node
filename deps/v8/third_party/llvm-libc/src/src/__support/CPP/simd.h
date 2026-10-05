@@ -22,6 +22,7 @@
 #include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
+#include "src/__support/macros/properties/cpu_features.h"
 
 #include <stddef.h>
 
@@ -208,9 +209,22 @@ LIBC_INLINE constexpr static simd<T, N> abs(simd<T, N> x) {
   return __builtin_elementwise_abs(x);
 }
 template <typename T, size_t N>
-LIBC_INLINE constexpr static simd<T, N> fma(simd<T, N> x, simd<T, N> y,
-                                            simd<T, N> z) {
-  return __builtin_elementwise_fma(x, y, z);
+LIBC_INLINE constexpr static simd<T, N> multiply_add(simd<T, N> x, simd<T, N> y,
+                                                     simd<T, N> z) {
+#if __has_builtin(__builtin_elementwise_fma)
+#ifdef LIBC_TARGET_CPU_HAS_FMA_FLOAT
+  if constexpr (cpp::is_same_v<T, float>)
+    return __builtin_elementwise_fma(x, y, z);
+#endif // LIBC_TARGET_CPU_HAS_FMA_FLOAT
+
+#ifdef LIBC_TARGET_CPU_HAS_FMA_DOUBLE
+  if constexpr (cpp::is_same_v<T, double>)
+    return __builtin_elementwise_fma(x, y, z);
+#endif // LIBC_TARGET_CPU_HAS_FMA_DOUBLE
+#endif // __has_builtin(__builtin_elementwise_fma)
+
+  simd<T, N> mul = x * y;
+  return mul + z;
 }
 template <typename T, size_t N>
 LIBC_INLINE constexpr static simd<T, N> ceil(simd<T, N> x) {

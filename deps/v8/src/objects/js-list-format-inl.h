@@ -25,11 +25,11 @@ void JSListFormat::set_locale(Tagged<String> value, WriteBarrierMode mode) {
   locale_.store(this, value, mode);
 }
 
-Tagged<Managed<icu::ListFormatter>> JSListFormat::icu_formatter() const {
-  return Cast<Managed<icu::ListFormatter>>(icu_formatter_.load());
+Tagged<CppGCManaged<icu::ListFormatter>> JSListFormat::icu_formatter() const {
+  return Cast<CppGCManaged<icu::ListFormatter>>(icu_formatter_.load());
 }
-void JSListFormat::set_icu_formatter(Tagged<Managed<icu::ListFormatter>> value,
-                                     WriteBarrierMode mode) {
+void JSListFormat::set_icu_formatter(
+    Tagged<CppGCManaged<icu::ListFormatter>> value, WriteBarrierMode mode) {
   icu_formatter_.store(this, value, mode);
 }
 

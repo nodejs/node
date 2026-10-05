@@ -3487,7 +3487,7 @@ class ContextCheckEventListener : public v8::debug::DebugDelegate {
       v8::debug::BreakReasons break_reasons) override {
     CheckContext();
   }
-  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
+  void ScriptCompiled(v8::Local<v8::debug::Script> script,
                       bool has_compile_error) override {
     CheckContext();
   }
@@ -3631,7 +3631,7 @@ TEST(EvalContextData) {
 // Debug event listener which counts script compiled events.
 class ScriptCompiledDelegate : public v8::debug::DebugDelegate {
  public:
-  void ScriptCompiled(v8::Local<v8::debug::Script>, bool,
+  void ScriptCompiled(v8::Local<v8::debug::Script>,
                       bool has_compile_error) override {
     if (!has_compile_error) {
       after_compile_event_count++;
@@ -4537,7 +4537,7 @@ TEST(DebugPromiseInterceptedByTryCatch) {
 
 class NoInterruptsOnDebugEvent : public v8::debug::DebugDelegate {
  public:
-  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
+  void ScriptCompiled(v8::Local<v8::debug::Script> script,
                       bool has_compile_error) override {
     ++after_compile_handler_depth_;
     // Do not allow nested AfterCompile events.
@@ -4608,6 +4608,61 @@ TEST(BreakLocationIterator) {
     iterator.Next();
     CHECK(iterator.Done());
   }
+
+  DisableDebugger(isolate);
+}
+
+TEST(EnsureBreakInfoFailedSourcePositions) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Value> result =
+      CompileRun("function f() { return 42; } f(); f");
+  DirectHandle<i::Object> function_obj = v8::Utils::OpenDirectHandle(*result);
+  DirectHandle<i::JSFunction> function = Cast<i::JSFunction>(function_obj);
+  Handle<i::SharedFunctionInfo> shared(function->shared(), i_isolate);
+
+  // Clear source position table if any so it needs collection.
+  shared->GetBytecodeArray(i_isolate)->clear_source_position_table(
+      v8::kReleaseStore);
+  CHECK(!shared->GetBytecodeArray(i_isolate)->HasSourcePositionTable());
+
+  // Simulate stack exhaustion by moving stack limit above current stack
+  // pointer. Using numeric_limits::max() - 1024 ensures it works on both 32-bit
+  // and 64-bit architectures without integer overflow.
+  uintptr_t original_limit = i_isolate->stack_guard()->real_climit();
+  uintptr_t exhausted_limit = std::numeric_limits<uintptr_t>::max() - 1024;
+  i_isolate->stack_guard()->SetStackLimit(exhausted_limit);
+
+  EnableDebugger(isolate);
+  // EnsureBreakInfo fails because source position collection fails due to
+  // exhausted stack.
+  CHECK(!i_isolate->debug()->EnsureBreakInfo(shared));
+  CHECK(!shared->HasBreakInfo(i_isolate));
+
+  // Verify SetBreakpoint also fails gracefully when stack is exhausted.
+  DirectHandle<i::BreakPoint> breakpoint = i_isolate->factory()->NewBreakPoint(
+      1, i_isolate->factory()->empty_string());
+  int position = 0;
+  CHECK(!i_isolate->debug()->SetBreakpoint(shared, breakpoint, &position));
+
+  // Restore the original stack limit so stack is no longer exhausted.
+  i_isolate->stack_guard()->SetStackLimit(original_limit);
+
+  // When conditions are right, EnsureBreakInfo can be retried successfully.
+  CHECK(i_isolate->debug()->EnsureBreakInfo(shared));
+  CHECK(shared->HasBreakInfo(i_isolate));
+  CHECK(shared->GetBytecodeArray(i_isolate)->HasSourcePositionTable());
+
+  // Verify SetBreakpoint now succeeds.
+  CHECK(i_isolate->debug()->SetBreakpoint(shared, breakpoint, &position));
+
+  // Verify BreakIterator works without crash.
+  Handle<i::DebugInfo> debug_info(shared->GetDebugInfo(i_isolate), i_isolate);
+  i::BreakIterator iterator(debug_info);
+  CHECK(!iterator.Done());
 
   DisableDebugger(isolate);
 }
@@ -5218,7 +5273,7 @@ TEST(SourceInfo) {
 namespace {
 class SetBreakpointOnScriptCompiled : public v8::debug::DebugDelegate {
  public:
-  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
+  void ScriptCompiled(v8::Local<v8::debug::Script> script,
                       bool has_compile_error) override {
     v8::Local<v8::String> name;
     if (!script->SourceURL().ToLocal(&name)) return;
@@ -5869,6 +5924,157 @@ TEST(GetPrivateAutoAccessors) {
       CHECK(accessors->setter()->IsFunction());
     }
   }
+}
+
+namespace {
+v8::Global<v8::Module> deferred_module_dependency;
+
+v8::MaybeLocal<v8::Module> DeferredModuleResolveCallback(
+    v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
+    v8::Local<v8::FixedArray> import_attributes,
+    v8::Local<v8::Module> referrer) {
+  return deferred_module_dependency.Get(CcTest::isolate());
+}
+
+// Sets up `globalThis.ns`, the namespace of a deferred module whose body would
+// set `globalThis.evaluated`, and returns it. |dependency_source| must define
+// `globalThis.evaluated = true;` at the top level.
+v8::Local<v8::Object> SetUpDeferredModuleNamespace(
+    v8::Local<v8::Context> context, const char* dependency_source) {
+  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::ScriptOrigin dependency_origin(v8_str("dependency"), 0, 0, false, -1,
+                                     v8::Local<v8::Value>(), false, false,
+                                     true);
+  v8::ScriptCompiler::Source compiled_dependency_source(
+      v8_str(dependency_source), dependency_origin);
+  deferred_module_dependency.Reset(
+      v8_isolate,
+      v8::ScriptCompiler::CompileModule(v8_isolate, &compiled_dependency_source)
+          .ToLocalChecked());
+
+  v8::ScriptOrigin script_origin(v8_str("test"), 0, 0, false, -1,
+                                 v8::Local<v8::Value>(), false, false, true);
+  v8::ScriptCompiler::Source script_compiler_source(
+      v8_str("import defer * as ns from 'dependency';\n"
+             "globalThis.ns = ns;"),
+      script_origin);
+  v8::Local<v8::Module> module =
+      v8::ScriptCompiler::CompileModule(v8_isolate, &script_compiler_source)
+          .ToLocalChecked();
+  CHECK(module->InstantiateModule(context, DeferredModuleResolveCallback)
+            .ToChecked());
+  module->Evaluate(context).ToLocalChecked();
+
+  // Importing the module namespace does not evaluate the deferred module.
+  CHECK(context->Global()
+            ->Get(context, v8_str("evaluated"))
+            .ToLocalChecked()
+            ->IsUndefined());
+
+  return context->Global()
+      ->Get(context, v8_str("ns"))
+      .ToLocalChecked()
+      .As<v8::Object>();
+}
+}  // namespace
+
+// The inspector collects the private members of an object while JavaScript
+// execution is disallowed, so collecting them from a deferred module namespace
+// must not evaluate the module. See crbug.com/451791624.
+TEST(GetPrivateMembersDoesNotEvaluateDeferredModule) {
+  i::v8_flags.js_defer_import_eval = true;
+  LocalContext env;
+  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::HandleScope scope(v8_isolate);
+  v8::Local<v8::Context> context = env.local();
+
+  v8::Local<v8::Object> object =
+      SetUpDeferredModuleNamespace(context,
+                                   "globalThis.evaluated = true;\n"
+                                   "export const foo = 1;");
+  v8::LocalVector<v8::Value> names(v8_isolate);
+  v8::LocalVector<v8::Value> values(v8_isolate);
+  int filter =
+      static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateFields) |
+      static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateMethods) |
+      static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateAccessors);
+  {
+    // Evaluating the deferred module here would be fatal.
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        v8_isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    CHECK(
+        v8::debug::GetPrivateMembers(context, object, filter, &names, &values));
+  }
+
+  CHECK_EQ(names.size(), 0);
+  CHECK(env->Global()
+            ->Get(context, v8_str("evaluated"))
+            .ToLocalChecked()
+            ->IsUndefined());
+
+  deferred_module_dependency.Reset();
+}
+
+// The inspector enumerates the properties of an object while JavaScript
+// execution is disallowed. A deferred module namespace whose module has not run
+// yet therefore reports no properties at all: every export is uninitialized, so
+// listing one would either evaluate the module or throw for an export still in
+// TDZ. The [[ModuleStatus]] internal property describes such an object instead.
+TEST(PropertyIteratorDoesNotEvaluateDeferredModule) {
+  i::v8_flags.js_defer_import_eval = true;
+  LocalContext env;
+  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::HandleScope scope(v8_isolate);
+  v8::Local<v8::Context> context = env.local();
+
+  v8::Local<v8::Object> object =
+      SetUpDeferredModuleNamespace(context,
+                                   "globalThis.evaluated = true;\n"
+                                   "export const constExport = 1;\n"
+                                   "export let letExport = 2;");
+
+  {
+    // Evaluating the deferred module here would be fatal.
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        v8_isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    auto iterator = v8::debug::PropertyIterator::Create(context, object);
+    CHECK(iterator);
+    CHECK(iterator->Done());
+  }
+
+  CHECK(env->Global()
+            ->Get(context, v8_str("evaluated"))
+            .ToLocalChecked()
+            ->IsUndefined());
+
+  // Reading an export still evaluates the module, and the namespace then
+  // enumerates like any other one.
+  CHECK(!object->Get(context, v8_str("constExport")).IsEmpty());
+  CHECK(env->Global()
+            ->Get(context, v8_str("evaluated"))
+            .ToLocalChecked()
+            ->IsTrue());
+
+  std::vector<std::string> names;
+  auto iterator = v8::debug::PropertyIterator::Create(context, object);
+  CHECK(iterator);
+  while (!iterator->Done()) {
+    v8::Local<v8::Name> name = iterator->name();
+    if (name->IsString()) {
+      v8::String::Utf8Value utf8(v8_isolate, name);
+      names.push_back(*utf8);
+    }
+    CHECK(iterator->Advance().FromJust());
+  }
+  std::sort(names.begin(), names.end());
+  names.erase(std::unique(names.begin(), names.end()), names.end());
+  CHECK_EQ(names.size(), 2);
+  CHECK_EQ(names[0], "constExport");
+  CHECK_EQ(names[1], "letExport");
+
+  deferred_module_dependency.Reset();
 }
 
 namespace {
@@ -7065,8 +7271,7 @@ class FailedScriptCompiledDelegate : public v8::debug::DebugDelegate {
  public:
   explicit FailedScriptCompiledDelegate(v8::Isolate* isolate)
       : isolate(isolate) {}
-  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool,
-                      bool) override {
+  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool) override {
     script_.Reset(isolate, script);
     script_.SetWeak();
   }

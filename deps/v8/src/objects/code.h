@@ -63,6 +63,8 @@ enum class LazyDeoptimizeReason : uint8_t;
 // and referenced through indirect pointers, so they need to inherit from
 // ExposedTrustedObject.
 V8_OBJECT class Code : public ExposedTrustedObject {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   // When V8_EXTERNAL_CODE_SPACE is enabled, InstructionStream objects are
   // allocated in a separate pointer compression cage instead of the cage where
@@ -536,6 +538,8 @@ V8_OBJECT class Code : public ExposedTrustedObject {
 // InstructionStream may be forwarding pointers, thus type checks and normal
 // (checked) casts do not work on GcSafeCode.
 V8_OBJECT class GcSafeCode : public HeapObject {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   // Safe accessors (these just forward to Code methods).
   inline Address instruction_start() const;
@@ -578,6 +582,8 @@ V8_OBJECT class GcSafeCode : public HeapObject {
 // for example when a reference to a Code needs to be stored along other tagged
 // pointers inside an array or similar container datastructure.
 V8_OBJECT class CodeWrapper : public Struct {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   DECL_CODE_POINTER_ACCESSORS(code)
 

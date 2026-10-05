@@ -72,6 +72,7 @@
 #include "src/objects/megadom-handler-inl.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/promise-inl.h"
@@ -478,6 +479,16 @@ template <template <typename> typename HandleType>
 typename HandleType<String>::MaybeType Object::ConvertToString(
     Isolate* isolate, HandleType<Object> input) {
   while (true) {
+#if V8_ENABLE_WEBASSEMBLY
+    // We generally don't let the WasmNull escape into the JavaScript world,
+    // but some builtins may encounter it when called directly from Wasm code.
+    // This must be checked first, because WasmNull is entirely inaccessible,
+    // even its map, so we have to compare it by pointer before loading
+    // anything from it.
+    if (IsWasmNull(*input)) {
+      return isolate->factory()->null_string();
+    }
+#endif
     if (IsOddball(*input)) {
       HandleType<String> result(Cast<Oddball>(input)->to_string(), isolate);
       return result;
@@ -491,13 +502,6 @@ typename HandleType<String>::MaybeType Object::ConvertToString(
     if (IsBigInt(*input)) {
       return BigInt::ToString(isolate, Cast<BigInt>(input));
     }
-#if V8_ENABLE_WEBASSEMBLY
-    // We generally don't let the WasmNull escape into the JavaScript world,
-    // but some builtins may encounter it when called directly from Wasm code.
-    if (IsWasmNull(*input)) {
-      return isolate->factory()->null_string();
-    }
-#endif
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, input,
         JSReceiver::ToPrimitive(isolate, Cast<JSReceiver>(input),
@@ -1364,6 +1368,7 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
               isolate, it->GetHolder<JSDeferredModuleNamespace>());
           RETURN_EXCEPTION_IF_EXCEPTION(isolate);
         }
+        JSModuleNamespace::MaybeCountMissingDefaultWithStarExport(it);
         continue;
       }
       case LookupIterator::ACCESSOR:
@@ -2142,6 +2147,10 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
         UncheckedCast<WasmTypeInfo>(this)->supertypes_length());
   }
   if (instance_type == WASM_STRUCT_TYPE) {
+    return WasmStruct::GcSafeSize(map);
+  }
+  if (instance_type == WASM_CUSTOM_MAP_TYPE) {
+    // Not a typo: WasmCustomMap reuses some WasmStruct infrastructure.
     return WasmStruct::GcSafeSize(map);
   }
   if (instance_type == WASM_ARRAY_TYPE) {
@@ -4431,7 +4440,18 @@ void WriteChunkListToFlat(Tagged<FixedArray> chunk_list_head,
         const uint32_t string_length = string->length();
 
         DCHECK(string_length == 0 || sink < sink_end);
-        String::WriteToFlat(string, sink, 0, string_length);
+        // WriteToFlat is not inlined even with PGO and ThinLTO, so we handle
+        // the common sequential cases here to avoid the call overhead.
+        StringShape shape(string);
+        if (shape.IsSequentialOneByte()) {
+          CopyChars(sink, Cast<SeqOneByteString>(string)->GetChars(no_gc),
+                    string_length);
+        } else if (shape.IsSequentialTwoByte()) {
+          CopyChars(sink, Cast<SeqTwoByteString>(string)->GetChars(no_gc),
+                    string_length);
+        } else {
+          String::WriteToFlat(string, sink, 0, string_length);
+        }
         sink += string_length;
 
         // Next string element, needs at least one separator preceding it.

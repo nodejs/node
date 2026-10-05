@@ -117,7 +117,7 @@ bytecode array length: 6
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(13),
                 B(Star0),
-  /*   53 S> */ B(BitwiseNot), FBV(0),
+  /*   53 S> */ B(BitwiseNot), EmbeddedFeedback(),
   /*   56 S> */ B(Return),
 ]
 constant pool: [
@@ -155,7 +155,7 @@ bytecode array length: 6
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(13),
                 B(Star0),
-  /*   53 S> */ B(Negate), FBV(0),
+  /*   53 S> */ B(Negate), EmbeddedFeedback(),
   /*   56 S> */ B(Return),
 ]
 constant pool: [

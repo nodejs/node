@@ -312,6 +312,8 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
 // TODO(olivf): The slots for prototype transitions and side-steps could be
 // shared.
 V8_OBJECT class TransitionArray : public WeakFixedArray {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   // Do linear search for small arrays, and for searches in the background
   // thread.

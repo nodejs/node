@@ -38,6 +38,8 @@ struct CFunctionWithSignature {
 };
 
 V8_OBJECT class TemplateInfo : public HeapObject {
+  V8_IT_ABSTRACT;
+
  public:
   static const int kFastTemplateInstantiationsCacheSize = 1 * KB;
 
@@ -104,6 +106,8 @@ V8_OBJECT class TemplateInfo : public HeapObject {
 } V8_OBJECT_END;
 
 V8_OBJECT class TemplateInfoWithProperties : public TemplateInfo {
+  V8_IT_ABSTRACT;
+
  public:
   inline int number_of_properties() const;
   inline void set_number_of_properties(int value);

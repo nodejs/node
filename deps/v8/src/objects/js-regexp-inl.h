@@ -129,6 +129,29 @@ void RegExpData::set_quick_check_value(uint32_t value) {
   quick_check_value_ = value;
 }
 
+void RegExpData::set_quick_check_reject_bitset_word(int index, uint32_t value) {
+  DCHECK_LT(static_cast<unsigned>(index), kQuickCheckBitsetWords);
+  quick_check_reject_bitset_[index] = value;
+}
+
+uint32_t RegExpData::internal_flags() const { return internal_flags_; }
+void RegExpData::set_internal_flags(uint32_t value) { internal_flags_ = value; }
+
+void RegExpData::clear_quick_check() {
+  quick_check_mask_ = 0;
+  quick_check_value_ = 0;
+  for (int i = 0; i < kQuickCheckBitsetWords; i++) {
+    quick_check_reject_bitset_[i] = 0;
+  }
+  // kHasQuickCheck is the only internal flag, so this clears the quick check
+  // too.  The padding just tags along, since it sits in the same tail and is
+  // otherwise never written.
+  internal_flags_ = 0;
+#if TAGGED_SIZE_8_BYTES
+  optional_padding_ = 0;
+#endif
+}
+
 int RegExpData::capture_count() const {
   switch (type_tag()) {
     case Type::ATOM:

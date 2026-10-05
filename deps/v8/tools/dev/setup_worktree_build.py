@@ -197,6 +197,12 @@ def should_skip_worktree_deps(worktree_dir: Path) -> bool:
 
 
 def sync_dependencies(main_repo: Path, worktree_dir: Path):
+  if not worktree_dir.is_dir() or not (worktree_dir / ".git").exists():
+    print(
+        f"Error: {worktree_dir} is not an initialized git worktree.",
+        file=sys.stderr)
+    sys.exit(1)
+
   if main_repo.resolve() == worktree_dir.resolve():
     return
 

@@ -105,9 +105,9 @@ MaybeDirectHandle<JSV8BreakIterator> JSV8BreakIterator::New(
   // Construct the managed holder; initially the string is null
   auto iterator_with_text =
       std::make_shared<IcuBreakIteratorWithText>(std::move(break_iterator));
-  DirectHandle<Managed<IcuBreakIteratorWithText>> managed =
-      Managed<IcuBreakIteratorWithText>::From(isolate, 0,
-                                              std::move(iterator_with_text));
+  DirectHandle<CppGCManaged<IcuBreakIteratorWithText>> managed =
+      CppGCManaged<IcuBreakIteratorWithText>::Create(
+          isolate, 0, std::move(iterator_with_text));
 
   DirectHandle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());

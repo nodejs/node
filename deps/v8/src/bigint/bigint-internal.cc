@@ -135,10 +135,45 @@ void ProcessorImpl::CachedMod_MakeInverse(Digits& B) {
   // from concurrent mutation.
   Digits& cached_B = GetCachedDivisor();
   CHECK(cached_B.msd() != 0);  // {B} must have been canonicalized.
-  // We can't use {GetSmallScratch()} here, because {DivideSchoolbook} already
-  // does that (usually). It's fine because we don't expect to call this
-  // function very often.
-  ScratchDigits A(n * 2, platform());
+
+  set_cached_mod_fold_factor(0);
+
+  // {CachedMod} relies on the "small scratch" having been allocated, so make
+  // sure that has happened regardless of {DivideSchoolbook}'s internal
+  // decisions, and of which of the two paths below we take.
+  GetSmallScratch();
+
+  // We can't use {GetSmallScratch()} for the working space below, because
+  // {DivideSchoolbook} already does that (usually). It's fine because we don't
+  // expect to call this function very often. One allocation serves both the
+  // fold check below and the inverse computation afterwards, which needs
+  // {n * 2} digits.
+  ScratchDigits scratch(n + 1 + 2 + n, platform());
+
+  {
+    // T := 1 << (n * kDigitBits), i.e. the smallest power of the digit base
+    // above the divisor. If T == q * B + C has a small q and a single-digit C,
+    // then C is the factor {CachedModFold} folds the dividend's high half by.
+    RWDigits T(scratch, 0, n + 1);
+    T.Clear();
+    T[n] = 1;
+
+    RWDigits Q(scratch, n + 1, 2);
+    RWDigits R(scratch, n + 3, n);
+    DivideSchoolbook(Q, R, T, cached_B);
+
+    Q.Normalize();
+    R.Normalize();
+    // Cap the quotient so the corrective while loop in {CachedModFold} doesn't
+    // have to subtract the divisor too many times.
+    constexpr digit_t kMaxFoldQuotient = 4;
+    if (Q.len() == 1 && Q[0] <= kMaxFoldQuotient && R.len() == 1) {
+      set_cached_mod_fold_factor(R[0]);
+      return;
+    }
+  }
+
+  RWDigits A(scratch, 0, n * 2);
   // The idea is to set A = 1 << 2*n, and then compute Inv = A / B. However,
   // having that lone "1" bit in A's top digit is inefficient and far-reaching:
   // it requires us to make Inv bigger too. So we use a trick: first we
@@ -159,11 +194,6 @@ void ProcessorImpl::CachedMod_MakeInverse(Digits& B) {
   // corrective loop in {CachedDiv}. But don't do it when there's a risk
   // of overflowing {inv}.
   if (Inv[0] != ~digit_t{0} || Inv.msd() != ~digit_t{0}) Add(Inv, 1);
-
-  // {CachedMod} relies on the "small scratch" having been allocated, so
-  // make sure that has happened regardless of {DivideSchoolbook}'s internal
-  // decisions.
-  GetSmallScratch();
 }
 
 void Processor::CachedMod_MakeInverse(Digits& B) {

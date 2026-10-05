@@ -323,7 +323,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   // For accounting purposes, whether a GC was necessary.
   bool did_retry = false;
 
-  auto gc_retry = [&](const auto& fn) {
+  auto gc_retry = [&](const std::function<bool()>& fn) {
     if (fn()) return true;
     // Collect garbage and retry.
     did_retry = true;
@@ -584,15 +584,6 @@ std::optional<size_t> BackingStore::GrowWasmMemoryInPlace(Isolate* isolate,
   return {old_length / wasm::kWasmPageSize};
 }
 
-void BackingStore::AttachSharedWasmMemoryObject(
-    Isolate* isolate, DirectHandle<WasmMemoryObject> memory_object) {
-  DCHECK(is_wasm_memory());
-  DCHECK(is_shared());
-  // We need to take the global registry lock for this operation.
-  GlobalBackingStoreRegistry::AddSharedWasmMemoryObject(isolate, this,
-                                                        memory_object);
-}
-
 void BackingStore::BroadcastSharedWasmMemoryGrow(Isolate* isolate) const {
   GlobalBackingStoreRegistry::BroadcastSharedWasmMemoryGrow(isolate, this);
 }
@@ -804,23 +795,6 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(GlobalBackingStoreRegistryImpl,
                                 GetGlobalBackingStoreRegistryImpl)
 }  // namespace
 
-void GlobalBackingStoreRegistry::Register(
-    std::shared_ptr<BackingStore> backing_store) {
-  if (!backing_store || !backing_store->buffer_start()) return;
-  // Only wasm memory backing stores need to be registered globally.
-  CHECK(backing_store->is_wasm_memory());
-
-  GlobalBackingStoreRegistryImpl* impl = GetGlobalBackingStoreRegistryImpl();
-  base::MutexGuard scope_lock(&impl->mutex_);
-  if (backing_store->globally_registered()) return;
-  TRACE_BS("BS:reg    bs=%p mem=%p (length=%zu, capacity=%zu)\n",
-           backing_store.get(), backing_store->buffer_start(),
-           backing_store->byte_length(), backing_store->byte_capacity());
-  std::weak_ptr<BackingStore> weak = backing_store;
-  auto result = impl->map_.insert({backing_store->buffer_start(), weak});
-  CHECK(result.second);
-  backing_store->set_flag(BackingStore::kGloballyRegistered);
-}
 
 void GlobalBackingStoreRegistry::Unregister(BackingStore* backing_store) {
   if (!backing_store->globally_registered()) return;
@@ -871,14 +845,29 @@ void GlobalBackingStoreRegistry::Purge(Isolate* isolate) {
 
 #if V8_ENABLE_WEBASSEMBLY
 void GlobalBackingStoreRegistry::AddSharedWasmMemoryObject(
-    Isolate* isolate, BackingStore* backing_store,
+    Isolate* isolate, std::shared_ptr<BackingStore> backing_store,
     DirectHandle<WasmMemoryObject> memory_object) {
+  DCHECK(backing_store->is_wasm_memory());
+  DCHECK(backing_store->is_shared());
+
   // Add to the weak array list of shared memory objects in the isolate.
   isolate->AddSharedWasmMemory(memory_object);
 
-  // Add the isolate to the list of isolates sharing this backing store.
   GlobalBackingStoreRegistryImpl* impl = GetGlobalBackingStoreRegistryImpl();
   base::MutexGuard scope_lock(&impl->mutex_);
+
+  // Register this backing store globally.
+  if (!backing_store->globally_registered() && backing_store->buffer_start()) {
+    TRACE_BS("BS:reg    bs=%p mem=%p (length=%zu, capacity=%zu)\n",
+             backing_store.get(), backing_store->buffer_start(),
+             backing_store->byte_length(), backing_store->byte_capacity());
+    std::weak_ptr<BackingStore> weak = backing_store;
+    auto result = impl->map_.insert({backing_store->buffer_start(), weak});
+    CHECK(result.second);
+    backing_store->set_flag(BackingStore::kGloballyRegistered);
+  }
+
+  // Add the isolate to the list of isolates sharing this backing store.
   SharedWasmMemoryData* shared_data =
       backing_store->get_shared_wasm_memory_data();
   auto& isolates = shared_data->isolates_;

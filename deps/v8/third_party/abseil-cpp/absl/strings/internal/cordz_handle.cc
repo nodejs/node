@@ -14,9 +14,13 @@
 #include "absl/strings/internal/cordz_handle.h"
 
 #include <atomic>
+#include <cassert>
+#include <vector>
 
 #include "absl/base/internal/raw_logging.h"  // For ABSL_RAW_CHECK
+#include "absl/base/macros.h"
 #include "absl/base/no_destructor.h"
+#include "absl/base/thread_annotations.h"
 #include "absl/synchronization/mutex.h"
 
 namespace absl {

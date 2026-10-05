@@ -5,6 +5,7 @@
 #ifndef V8_D8_D8_H_
 #define V8_D8_D8_H_
 
+#include <atomic>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -60,6 +61,36 @@ inline Local<Value> ThrowException(Isolate* isolate, Local<Value> exception) {
   if (isolate->IsExecutionTerminating()) return v8::Undefined(isolate);
   return isolate->ThrowException(exception);
 }
+
+// Converts a v8::Value to a UTF-8 string safely.
+// Unlike v8::String::Utf8Value, this does not swallow user exceptions or
+// terminate silently on string conversion failure.
+class SafeUtf8Value {
+ public:
+  SafeUtf8Value(Isolate* isolate, Local<Value> value)
+      : SafeUtf8Value(isolate, isolate->GetCurrentContext(), value) {}
+
+  SafeUtf8Value(Isolate* isolate, Local<Context> context, Local<Value> value) {
+    if (value.IsEmpty()) return;
+    Local<String> str;
+    if (value->ToString(context).ToLocal(&str)) {
+      utf8_.emplace(isolate, str);
+    }
+  }
+
+  bool is_valid() const { return utf8_.has_value(); }
+  explicit operator bool() const { return is_valid(); }
+
+  const char* operator*() const { return is_valid() ? **utf8_ : nullptr; }
+  char* operator*() { return is_valid() ? **utf8_ : nullptr; }
+  size_t length() const { return is_valid() ? utf8_->length() : 0; }
+  std::string_view as_view() const {
+    return is_valid() ? utf8_->as_view() : std::string_view();
+  }
+
+ private:
+  std::optional<v8::String::Utf8Value> utf8_;
+};
 
 class BackingStore;
 class CompiledWasmModule;
@@ -168,6 +199,7 @@ class SourceGroup {
   i::ParkingSemaphore next_semaphore_;
   i::ParkingSemaphore done_semaphore_;
   base::Thread* thread_;
+  std::atomic<bool> terminate_{false};
 
   void ExitShell(int exit_code);
 
@@ -193,6 +225,10 @@ class SerializationData {
   const std::vector<CompiledWasmModule>& compiled_wasm_modules() {
     return compiled_wasm_modules_;
   }
+  const std::vector<std::shared_ptr<v8::BackingStore>>&
+  shared_immutable_backing_stores() {
+    return shared_immutable_backing_stores_;
+  }
   const std::optional<v8::SharedValueConveyor>& shared_value_conveyor() {
     return shared_value_conveyor_;
   }
@@ -206,6 +242,8 @@ class SerializationData {
   size_t size_ = 0;
   std::vector<std::shared_ptr<v8::BackingStore>> backing_stores_;
   std::vector<std::shared_ptr<v8::BackingStore>> sab_backing_stores_;
+  std::vector<std::shared_ptr<v8::BackingStore>>
+      shared_immutable_backing_stores_;
   std::vector<CompiledWasmModule> compiled_wasm_modules_;
   std::optional<v8::SharedValueConveyor> shared_value_conveyor_;
 
@@ -227,7 +265,7 @@ class SerializationDataQueue {
 
 class Worker : public std::enable_shared_from_this<Worker> {
  public:
-  static constexpr i::ExternalPointerTag kManagedTag = i::kD8WorkerTag;
+  static constexpr i::ManagedTypeId kTypeID = i::ManagedTypeId::kD8Worker;
 
   explicit Worker(Isolate* parent_isolate, const char* script,
                   bool flush_denormals);
@@ -328,6 +366,7 @@ class Worker : public std::enable_shared_from_this<Worker> {
   // the worker_mutex_ and after checking the worker state.
   Isolate* isolate_ = nullptr;
   Isolate* parent_isolate_;
+  std::shared_ptr<TaskRunner> parent_task_runner_;
 
   // Only accessed by the worker thread.
   Global<Context> context_;
@@ -335,22 +374,10 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
 struct Realm {
   Global<Context> context;
-#ifndef V8_CPPGC_MICROTASK_QUEUE
-  std::unique_ptr<v8::MicrotaskQueue> microtask_queue;
-#endif
 
   Realm() = default;
-#ifdef V8_CPPGC_MICROTASK_QUEUE
   Realm(Isolate* isolate, const Global<Context>& ctx) : context(isolate, ctx) {}
   Realm(Isolate* isolate, Local<Context> ctx) : context(isolate, ctx) {}
-#else
-  Realm(Isolate* isolate, const Global<Context>& ctx,
-        std::unique_ptr<v8::MicrotaskQueue> mq = nullptr)
-      : context(isolate, ctx), microtask_queue(std::move(mq)) {}
-  Realm(Isolate* isolate, Local<Context> ctx,
-        std::unique_ptr<v8::MicrotaskQueue> mq = nullptr)
-      : context(isolate, ctx), microtask_queue(std::move(mq)) {}
-#endif
 };
 
 class PerIsolateData {
@@ -519,7 +546,13 @@ class ShellOptions {
   DisallowReassignment<bool> fuzzilli_coverage_statistics = {
       "fuzzilli-coverage-statistics", false};
   DisallowReassignment<bool> fuzzilli_enable_builtins_coverage = {
-      "fuzzilli-enable-builtins-coverage", false};
+      "fuzzilli-enable-builtins-coverage",
+#ifdef V8_ENABLE_BUILTINS_PROFILING
+      true
+#else
+      false
+#endif
+  };
   DisallowReassignment<bool> send_idle_notification = {"send-idle-notification",
                                                        false};
   DisallowReassignment<bool> invoke_weak_callbacks = {"invoke-weak-callbacks",
@@ -980,6 +1013,13 @@ class Shell : public i::AllStatic {
   static Local<FunctionTemplate> CreateTestFastCApiTemplate(Isolate* isolate);
   static Local<FunctionTemplate> CreateLeafInterfaceTypeTemplate(
       Isolate* isolate);
+  static void CreateInterceptorObject(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void CreateAccessCheckedObject(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void CreateSpecialObject(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void SetAccessPolicy(const v8::FunctionCallbackInfo<v8::Value>& info);
 
   static MaybeLocal<Context> CreateRealm(
       const v8::FunctionCallbackInfo<v8::Value>& info, int index,
@@ -996,22 +1036,25 @@ class Shell : public i::AllStatic {
                                             const std::string& file_name,
                                             ModuleType module_type);
 
-  static MaybeLocal<Value> JSONModuleEvaluationSteps(Local<Context> context,
-                                                     Local<Module> module);
-  static MaybeLocal<Value> TextModuleEvaluationSteps(Local<Context> context,
-                                                     Local<Module> module);
-  static MaybeLocal<Value> BytesModuleEvaluationSteps(Local<Context> context,
-                                                      Local<Module> module);
+  static MaybeLocal<Promise> JSONModuleEvaluationSteps(Local<Context> context,
+                                                       Local<Module> module);
+  static MaybeLocal<Promise> TextModuleEvaluationSteps(Local<Context> context,
+                                                       Local<Module> module);
+  static MaybeLocal<Promise> BytesModuleEvaluationSteps(Local<Context> context,
+                                                        Local<Module> module);
 
   template <class T>
   static MaybeLocal<T> CompileSource(Isolate* isolate, Local<Context> context,
                                      const Source& source,
                                      const ScriptOrigin& origin);
 
-  static ScriptCompiler::CachedData* LookupCodeCache(Isolate* isolate,
-                                                     Local<Value> name);
+  static ScriptCompiler::CachedData* LookupCodeCache(
+      Isolate* isolate, Local<Value> name,
+      ScriptType type = ScriptType::kClassic);
   static void StoreInCodeCache(Isolate* isolate, Local<Value> name,
-                               const ScriptCompiler::CachedData* data);
+                               const ScriptCompiler::CachedData* data,
+                               ScriptType type = ScriptType::kClassic);
+  static void ProduceModuleCodeCacheAfterExecute(Isolate* isolate);
 
   // We may have multiple isolates running concurrently, so the access to
   // the isolate_status_ needs to be concurrency-safe.
@@ -1019,9 +1062,12 @@ class Shell : public i::AllStatic {
   static std::map<Isolate*, bool> isolate_status_;
   static std::map<Isolate*, int> isolate_running_streaming_tasks_;
 
+  using CodeCacheKey = std::pair<std::string, ScriptType>;
+  using CodeCacheMap =
+      std::map<CodeCacheKey, std::unique_ptr<ScriptCompiler::CachedData>>;
+
   static base::LazyMutex cached_code_mutex_;
-  static std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
-      cached_code_map_;
+  static CodeCacheMap cached_code_map_;
   static std::atomic<int> unhandled_promise_rejections_;
 
 #if V8_ENABLE_WEBASSEMBLY

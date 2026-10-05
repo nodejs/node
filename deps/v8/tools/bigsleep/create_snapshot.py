@@ -74,33 +74,6 @@ def get_recent_v8_commits(v8_dir: pathlib.Path, days: int = 30) -> list[str]:
     print(f"Found {len(commit_hashes)} commits")
     return commit_hashes
 
-def get_shared_libraries(binary_path: pathlib.Path) -> list[pathlib.Path]:
-    """Determines the shared library dependencies of a binary using ldd.
-
-    Args:
-        binary_path: Path to the binary file.
-
-    Returns:
-        A list of paths to the discovered shared libraries.
-    """
-    try:
-        env = os.environ.copy()
-        env["LD_TRACE_LOADED_OBJECTS"] = "1"
-        result = subprocess.run(
-            ["ldd", str(binary_path)], env=env, capture_output=True, text=True
-        )
-        libs = []
-        for line in result.stdout.splitlines():
-            match = re.search(r"=>\s+(\/\S+)", line)
-            if match:
-                libs.append(pathlib.Path(match.group(1)))
-        return libs
-    except Exception as e:
-        logging.warning(
-            f"Failed to get shared libraries for {binary_path}: {e}"
-        )
-        return []
-
 def format_commit(v8_dir: pathlib.Path, commit_id: str) -> GitCommit:
     """Formats commit information including message and diff.
 
@@ -307,11 +280,9 @@ def main():
         if wasm_builder.exists():
             shutil.copy(wasm_builder, artifact_dir / "wasm-module-builder.js")
 
-        # Shared libraries and patching
-        lib_path = artifact_dir / "lib"
-        lib_path.mkdir(exist_ok=True)
-        for lib in get_shared_libraries(artifact_dir / "d8"):
-            shutil.copy(lib, lib_path / lib.name)
+        # Copy built shared libraries (e.g. libsanitizer_shared_hooks.so, component DSOs)
+        for so_path in args.build_dir.glob("*.so"):
+            shutil.copy(so_path, artifact_dir / so_path.name)
 
         # Seeds generation
         seeds = []

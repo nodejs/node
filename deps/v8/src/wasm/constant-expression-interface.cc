@@ -171,11 +171,11 @@ DirectHandle<Map> ConstantExpressionInterface::GetRtt(
   DCHECK(type.has_descriptor());
   WasmValue desc = descriptor.runtime_value;
   DirectHandle<Object> maybe_obj = desc.to_ref();
-  if (!IsWasmStruct(*maybe_obj)) {
-    DCHECK(IsWasmNull(*maybe_obj));
+  if (IsWasmNull(*maybe_obj)) {
     error_ = MessageTemplate::kWasmTrapNullDereference;
     return {};
   }
+  DCHECK(IsWasmStruct(*maybe_obj));
   DCHECK_EQ(desc.type().ref_index(),
             module_->canonical_type_id(type.descriptor));
   return direct_handle(Cast<WasmStruct>(*maybe_obj)->described_rtt(), isolate_);
@@ -192,7 +192,9 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
   ends_with_struct_new_ = decoder->lookahead(offset_to_next_instr, kExprEnd);
 
   if (!generate_value()) return;
+
   const TypeDefinition& type = module_->type(imm.index);
+  SharedObjectConditionalSafePublishGuard publish_guard(type.is_shared);
   const StructType* struct_type = type.struct_type;
   DCHECK_EQ(struct_type, imm.struct_type);
 
@@ -299,7 +301,9 @@ void ConstantExpressionInterface::StructNewDefault(
   ends_with_struct_new_ = decoder->lookahead(offset_to_next_instr, kExprEnd);
 
   if (!generate_value()) return;
+
   const TypeDefinition& type = module_->type(imm.index);
+  SharedObjectConditionalSafePublishGuard publish_guard(type.is_shared);
   const StructType* struct_type = type.struct_type;
   DCHECK_EQ(struct_type, imm.struct_type);
 
@@ -372,6 +376,7 @@ void ConstantExpressionInterface::ArrayNewDefault(
 void ConstantExpressionInterface::ArrayNewImpl(
     FullDecoder* decoder, const ArrayIndexImmediate& imm, const Value& length,
     const Value& initial_value, Value* result, WriteBarrierMode write_barrier) {
+  SharedObjectConditionalSafePublishGuard publish_guard(imm.shared);
   DirectHandle<Map> rtt{
       Cast<Map>(
           trusted_instance_data_->managed_object_maps()->get(imm.index.index)),
@@ -395,6 +400,7 @@ void ConstantExpressionInterface::ArrayNewFixed(
     FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
     const IndexImmediate& length_imm, const Value elements[], Value* result) {
   if (!generate_value()) return;
+  SharedObjectConditionalSafePublishGuard publish_guard(array_imm.shared);
   DirectHandle<Map> rtt{
       Cast<Map>(trusted_instance_data_->managed_object_maps()->get(
           array_imm.index.index)),
@@ -423,6 +429,7 @@ void ConstantExpressionInterface::ArrayNewSegment(
     const Value& length_value, Value* result) {
   if (!generate_value()) return;
 
+  SharedObjectConditionalSafePublishGuard publish_guard(array_imm.shared);
   DirectHandle<Map> rtt{
       Cast<Map>(trusted_instance_data_->managed_object_maps()->get(
           array_imm.index.index)),
@@ -511,6 +518,7 @@ void ConstantExpressionInterface::WaitqueueNew(FullDecoder* decoder,
                                                Value* result) {
   if (!generate_value()) return;
 
+  // Memory fence is implemented in Managed<>::From.
   auto ptr = std::make_shared<FutexManagedObjectWaitList>();
   DirectHandle<Managed<FutexManagedObjectWaitList>> managed =
       Managed<FutexManagedObjectWaitList>::From(

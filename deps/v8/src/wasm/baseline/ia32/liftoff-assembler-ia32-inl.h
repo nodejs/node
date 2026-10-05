@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "src/base/overflowing-math.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/backend/simd-shuffle.h"
@@ -1647,9 +1648,7 @@ void LiftoffAssembler::emit_i32_sub(Register dst, Register lhs, Register rhs) {
 
 void LiftoffAssembler::emit_i32_subi(Register dst, Register lhs, int32_t imm) {
   if (dst != lhs) {
-    // We'll have to implement an UB-safe version if we need this corner case.
-    DCHECK_NE(imm, kMinInt);
-    lea(dst, Operand(lhs, -imm));
+    lea(dst, Operand(lhs, base::NegateWithWraparound(imm)));
   } else {
     sub(dst, Immediate(imm));
   }
@@ -3340,7 +3339,7 @@ void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
   Register scratch = GetUnusedRegister(RegClass::kGpReg, {}).gp();
   XMMRegister tmp =
       GetUnusedRegister(RegClass::kFpReg, LiftoffRegList{dst, src}).fp();
-  I8x16Popcnt(dst.fp(), src.fp(), liftoff::kScratchDoubleReg, tmp, scratch);
+  I8x16Popcnt(dst.fp(), src.fp(), scratch, liftoff::kScratchDoubleReg, tmp);
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
@@ -4049,12 +4048,9 @@ void LiftoffAssembler::emit_i16x8_q15mulr_sat_s(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_relaxed_q15mulr_s(LiftoffRegister dst,
                                                     LiftoffRegister src1,
                                                     LiftoffRegister src2) {
-  if (CpuFeatures::IsSupported(AVX) || dst == src1) {
-    Pmulhrsw(dst.fp(), src1.fp(), src2.fp());
-  } else {
-    movdqa(dst.fp(), src1.fp());
-    pmulhrsw(dst.fp(), src2.fp());
-  }
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmulhrsw,
+                                    &Assembler::pmulhrsw>(this, dst, src1, src2,
+                                                          SSSE3);
 }
 
 void LiftoffAssembler::emit_i16x8_dot_i8x16_i7x16_s(LiftoffRegister dst,

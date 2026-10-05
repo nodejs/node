@@ -12,7 +12,7 @@ add_header_library(
 )
 
 list(FIND TARGET_ENTRYPOINT_NAME_LIST getrandom getrandom_index)
-if (NOT ${getrandom_index} EQUAL -1)
+if(NOT ${getrandom_index} EQUAL -1)
   message(STATUS "Using getrandom for hashtable randomness")
   libc_set_definition(randomness_compile_flags LIBC_HASHTABLE_USE_GETRANDOM)
   set(randomness_extra_depends

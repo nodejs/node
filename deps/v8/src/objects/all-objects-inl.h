@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_ALL_OBJECTS_INL_H_
 #define V8_OBJECTS_ALL_OBJECTS_INL_H_
 
-// This file includes all inline headers from src/objects, which is handy for
-// compilation units that need it like object printing or verification.
-// New inline headers should be added here.
+#include "src/objects/all-objects.h"
+
+// Inline definitions for compilation units that operate on every heap object,
+// such as object printing and verification. Add new object declarations to
+// all-objects.h. Add an inline header here when these consumers need it.
 
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/allocation-site-scopes-inl.h"
@@ -99,6 +101,7 @@
 #include "src/objects/turboshaft-types-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects-inl.h"
 #include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 

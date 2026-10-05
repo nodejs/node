@@ -35,6 +35,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Add:
     case kX64Add32:
     case kX64Add128:
+    case kX64Add64_3:
     case kX64Sub128:
     case kX64And:
     case kX64And32:

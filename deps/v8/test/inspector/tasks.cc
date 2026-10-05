@@ -128,7 +128,7 @@ void ExecuteStringTask::Run(InspectorIsolateData* data) {
     v8::MaybeLocal<v8::Value> result;
     result = script->Run(context);
   } else {
-    data->RegisterModule(context, name_, &scriptSource);
+    data->RegisterModule(context, name_, &scriptSource, evaluate_);
   }
 }
 

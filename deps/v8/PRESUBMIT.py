@@ -436,7 +436,7 @@ def _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api):
       r'//.*({})'.format(base_function_pattern))
   exclusion_pattern = input_api.re.compile(
       r'::[A-Za-z0-9_]+({})|({})[^;]+'.format(base_function_pattern,
-                                              base_function_pattern) + '\{')
+                                              base_function_pattern) + r'\{')
 
   def FilterFile(affected_file):
     files_to_skip = (_EXCLUDED_PATHS +
@@ -679,6 +679,7 @@ def _CommonChecks(input_api, output_api):
       _CheckNoInlineHeaderIncludesInNormalHeaders,
       _CheckInlineHeadersIncludeNonInlineHeadersFirst,
       _CheckJSONFiles,
+      _CheckMetagenHeaders,
       _CheckNoexceptAnnotations,
       _CheckBannedCpp,
       _RunTestsWithVPythonSpec,
@@ -746,6 +747,8 @@ def _CheckLandOnChromiumBranch(input_api, output_api):
   if not target_branch.startswith('refs/'):
     target_branch = 'refs/heads/%s' % target_branch
   if not target_branch.startswith('refs/heads/chromium/'):
+    return []
+  if '_' in target_branch:  # Allow merges to mini branches.
     return []
 
   description = input_api.change.FullDescriptionText()
@@ -842,6 +845,82 @@ def _CheckNoexceptAnnotations(input_api, output_api):
         'Please report false positives on https://crbug.com/v8/8616.',
         errors)]
   return []
+
+
+def _CheckMetagenHeaders(input_api, output_api):
+  """Check that tools/metagen's driver still reaches every heap object.
+
+  tools/metagen/metagen.py harvests the InstanceType enum from the class
+  declarations its driver's include closure reaches. A header that grows a
+  V8_OBJECT / V8_IT_ class but that nothing in the closure includes is
+  silently skipped -- the class simply gets no instance type -- so catch the
+  drift at upload time.
+
+  Reachability is resolved textually rather than by preprocessing, and
+  conditional includes are followed regardless of their guard: a header
+  reachable only under V8_INTL_SUPPORT still counts as reached, because the
+  harvest runs per build configuration and sees it in the configs that
+  enable it.
+  """
+  import subprocess
+  v8_root = input_api.PresubmitLocalPath()
+  join = input_api.os_path.join
+
+  # A header takes part in the harvest if it declares a V8_OBJECT /
+  # V8_ABSTRACT_OBJECT class or carries a `V8_IT_<name>` marker, which is
+  # a member of the class body. Leading whitespace is allowed for both;
+  # requiring the marker at the start of its line is what keeps a
+  # comment that mentions a marker out. object-macros.h matches
+  # structurally because it defines the markers themselves; exclude it.
+  marker_regex = (
+      r"^[[:space:]]*V8_(ABSTRACT_)?OBJECT|^[[:space:]]*V8_IT_[A-Z_]+")
+  try:
+    res = subprocess.run([
+        "git", "grep", "-lE", marker_regex, "--", "src/**/*.h",
+        ":!src/objects/object-macros.h"
+    ],
+                         cwd=v8_root,
+                         capture_output=True,
+                         text=True,
+                         check=True)
+  except (subprocess.CalledProcessError, FileNotFoundError) as e:
+    return [
+        output_api.PresubmitNotifyResult(
+            f"_CheckMetagenHeaders: skipping (git grep failed: {e})")
+    ]
+  live = set(res.stdout.split())
+
+  include_re = re.compile(r'^\s*#\s*include\s+"([^"]+)"', re.MULTILINE)
+  driver = join("tools", "metagen", "harvest-driver.cc")
+  reached = set()
+  queue = [driver]
+  while queue:
+    rel = queue.pop()
+    if rel in reached:
+      continue
+    reached.add(rel)
+    try:
+      with open(join(v8_root, rel)) as f:
+        body = f.read()
+    except OSError:
+      # Not a V8 file (a system or third_party header); its includes
+      # cannot reach a V8_OBJECT declaration we care about.
+      continue
+    queue.extend(include_re.findall(body))
+
+  missing = sorted(live - reached)
+  if not missing:
+    return []
+  return [
+      output_api.PresubmitError("\n".join([
+          f"{driver} no longer reaches every heap object.",
+          "These headers carry a V8_OBJECT/V8_IT_ marker but nothing in the "
+          "driver's include closure includes them, so metagen assigns their "
+          "classes no instance type:",
+      ] + [f"    {h}" for h in missing] + [
+          "Add them to src/objects/all-objects.h.",
+      ]))
+  ]
 
 
 def _CheckBannedCpp(input_api, output_api):

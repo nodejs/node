@@ -807,9 +807,12 @@ void VisitWideAddSub(InstructionSelector* selector, OpIndex node, bool is_add) {
   InstructionCode opcode_no_high = is_add ? kMips64Dadd : kMips64Dsub;
 
   if (!out_high.valid() || !selector->IsUsed(out_high.value())) {
-    InstructionOperand b_low_op = g.UseOperand(op.right_low(), opcode_no_high);
-    selector->Emit(opcode_no_high, g.DefineAsRegister(out_low.value()),
-                   g.UseRegister(op.left_low()), b_low_op);
+    if (out_low.valid() && selector->IsUsed(out_low.value())) {
+      InstructionOperand b_low_op =
+          g.UseOperand(op.right_low(), opcode_no_high);
+      selector->Emit(opcode_no_high, g.DefineAsRegister(out_low.value()),
+                     g.UseRegister(op.left_low()), b_low_op);
+    }
     return;
   }
 
@@ -1831,7 +1834,7 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     size_t const temp_count = arraysize(temps);
     code = kArchAtomicStoreWithWriteBarrier;
-    code |= RecordWriteModeField::encode(record_write_mode);
+    code |= AtomicStoreRecordWriteModeField::encode(record_write_mode);
     selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
     switch (rep) {

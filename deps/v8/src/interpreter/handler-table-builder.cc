@@ -33,20 +33,19 @@ DirectHandle<TrustedByteArray> HandlerTableBuilder::ToHandlerTable(
     Entry& entry = entries_[i];
     if (entry.dropped) continue;
     HandlerTable::CatchPrediction pred = entry.catch_prediction_;
-    table.SetRangeStart(table_index, static_cast<int>(entry.offset_start));
-    table.SetRangeEnd(table_index, static_cast<int>(entry.offset_end));
-    table.SetRangeHandler(table_index, static_cast<int>(entry.offset_target),
-                          pred);
+    table.SetRangeStart(table_index, entry.offset_start);
+    table.SetRangeEnd(table_index, entry.offset_end);
+    table.SetRangeHandler(table_index, entry.offset_target, pred);
     table.SetRangeData(table_index, entry.context.index());
     table_index++;
   }
   return table_byte_array;
 }
 
-template DirectHandle<TrustedByteArray> HandlerTableBuilder::ToHandlerTable(
-    Isolate* isolate);
-template DirectHandle<TrustedByteArray> HandlerTableBuilder::ToHandlerTable(
-    LocalIsolate* isolate);
+template V8_EXPORT_PRIVATE DirectHandle<TrustedByteArray>
+HandlerTableBuilder::ToHandlerTable(Isolate* isolate);
+template V8_EXPORT_PRIVATE DirectHandle<TrustedByteArray>
+HandlerTableBuilder::ToHandlerTable(LocalIsolate* isolate);
 
 int HandlerTableBuilder::NewHandlerEntry() {
   int handler_id = static_cast<int>(entries_.size());
@@ -58,22 +57,19 @@ int HandlerTableBuilder::NewHandlerEntry() {
   return handler_id;
 }
 
-
 void HandlerTableBuilder::SetTryRegionStart(int handler_id, size_t offset) {
-  DCHECK(Smi::IsValid(offset));  // Encoding of handler table requires this.
-  entries_[handler_id].offset_start = offset;
+  DCHECK(base::IsValueInRangeForNumericType<int>(offset));
+  entries_[handler_id].offset_start = static_cast<int>(offset);
 }
-
 
 void HandlerTableBuilder::SetTryRegionEnd(int handler_id, size_t offset) {
-  DCHECK(Smi::IsValid(offset));  // Encoding of handler table requires this.
-  entries_[handler_id].offset_end = offset;
+  DCHECK(base::IsValueInRangeForNumericType<int>(offset));
+  entries_[handler_id].offset_end = static_cast<int>(offset);
 }
 
-
 void HandlerTableBuilder::SetHandlerTarget(int handler_id, size_t offset) {
-  DCHECK(Smi::IsValid(offset));  // Encoding of handler table requires this.
-  entries_[handler_id].offset_target = offset;
+  DCHECK(base::IsValueInRangeForNumericType<int>(offset));
+  entries_[handler_id].offset_target = static_cast<int>(offset);
 }
 
 void HandlerTableBuilder::SetPrediction(

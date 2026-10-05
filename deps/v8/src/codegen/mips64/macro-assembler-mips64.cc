@@ -5075,7 +5075,11 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
   Register index = destination;
   CHECK(root_array_available());
   Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
-  dsrl(index, dispatch_handle, kJSDispatchHandleShift);
+  // JSDispatchHandle is an unsigned 32-bit value; dext extracts bits
+  // [31:kJSDispatchHandleShift] into the low bits in a single instruction, so
+  // handles with bit 31 set don't produce a negative table offset.
+  Dext(index, dispatch_handle, kJSDispatchHandleShift,
+       32 - kJSDispatchHandleShift);
   dsll(destination, index, kJSDispatchTableEntrySizeLog2);
   Daddu(scratch, scratch, destination);
   Ld(destination, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
@@ -5089,7 +5093,11 @@ void MacroAssembler::LoadParameterCountFromJSDispatchTable(
   // MSARegister index = MSARegister::from_code(destination.code());
   Register index = destination;
   Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
-  dsrl(index, dispatch_handle, kJSDispatchHandleShift);
+  // JSDispatchHandle is an unsigned 32-bit value; dext extracts bits
+  // [31:kJSDispatchHandleShift] into the low bits in a single instruction, so
+  // handles with bit 31 set don't produce a negative table offset.
+  Dext(index, dispatch_handle, kJSDispatchHandleShift,
+       32 - kJSDispatchHandleShift);
   dsll(destination, index, kJSDispatchTableEntrySizeLog2);
   Daddu(scratch, scratch, destination);
   static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
@@ -5105,7 +5113,11 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
   // MSARegister index = MSARegister::from_code(parameter_count.code());
   Register index = parameter_count;
   Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
-  dsrl(index, dispatch_handle, kJSDispatchHandleShift);
+  // JSDispatchHandle is an unsigned 32-bit value; dext extracts bits
+  // [31:kJSDispatchHandleShift] into the low bits in a single instruction, so
+  // handles with bit 31 set don't produce a negative table offset.
+  Dext(index, dispatch_handle, kJSDispatchHandleShift,
+       32 - kJSDispatchHandleShift);
   dsll(parameter_count, index, kJSDispatchTableEntrySizeLog2);
   Daddu(scratch, scratch, parameter_count);
   Ld(entrypoint, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
@@ -5274,8 +5286,8 @@ void MacroAssembler::InvokeFunctionCode(
   DCHECK_IMPLIES(new_target.is_valid(), new_target == a3);
 
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
-  Lw(dispatch_handle,
-     FieldMemOperand(function, offsetof(JSFunction, dispatch_handle_)));
+  Lwu(dispatch_handle,
+      FieldMemOperand(function, offsetof(JSFunction, dispatch_handle_)));
 
   // On function call, call into the debugger if necessary.
   Label debug_hook, continue_after_hook;
@@ -6497,8 +6509,8 @@ void MacroAssembler::CallJSFunction(Register function_object,
   Register parameter_count = s1;
   Register scratch = s2;
 
-  Lw(dispatch_handle,
-     FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
+  Lwu(dispatch_handle,
+      FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
                                                      dispatch_handle, scratch);
 

@@ -1,0 +1,44 @@
+header: netdb.h
+standards:
+  - posix
+macros:
+  - macro_name: EAI_AGAIN
+    macro_header: netdb-macros.h
+  - macro_name: EAI_BADFLAGS
+    macro_header: netdb-macros.h
+  - macro_name: EAI_FAIL
+    macro_header: netdb-macros.h
+  - macro_name: EAI_FAMILY
+    macro_header: netdb-macros.h
+  - macro_name: EAI_MEMORY
+    macro_header: netdb-macros.h
+  - macro_name: EAI_NONAME
+    macro_header: netdb-macros.h
+  - macro_name: EAI_SERVICE
+    macro_header: netdb-macros.h
+  - macro_name: EAI_SOCKTYPE
+    macro_header: netdb-macros.h
+  - macro_name: EAI_SYSTEM
+    macro_header: netdb-macros.h
+  - macro_name: EAI_OVERFLOW
+    macro_header: netdb-macros.h
+types:
+  - type_name: struct_addrinfo
+enums: []
+objects: []
+functions:
+  - name: freeaddrinfo
+    standards:
+      - posix
+    return_type: void
+    arguments:
+      - type: struct addrinfo *
+  - name: getaddrinfo
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *__restrict
+      - type: const char *__restrict
+      - type: const struct addrinfo *__restrict
+      - type: struct addrinfo **__restrict

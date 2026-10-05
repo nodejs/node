@@ -12,3 +12,15 @@ Running test: ErrorStackBoundBuiltin
     stackCalledViaBoundApply : false
     stackCalledViaBoundCall : false
 }
+
+Running test: ErrorStackProxy
+{
+    stackCalledViaProxy : false
+}
+
+Running test: ErrorDescriptionProxy
+{
+    messageCalled : false
+    nameCalled : false
+    stackCalled : false
+}

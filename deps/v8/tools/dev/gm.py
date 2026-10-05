@@ -340,6 +340,7 @@ v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_slow_dchecks = true
 v8_optimized_debug = false
+v8_use_perfetto = false
 """
 
 OPTDEBUG_ARGS_TEMPLATE = f"""\

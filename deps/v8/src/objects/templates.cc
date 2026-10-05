@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <span>
 
@@ -27,6 +28,7 @@
 #include "src/objects/managed-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/name-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/string-inl.h"
@@ -79,15 +81,6 @@ bool FunctionTemplateInfo::IsTemplateFor(Tagged<Map> map) const {
   // There is a constraint on the object; check.
   if (!IsJSObjectMap(map)) return false;
 
-  if (v8_flags.experimental_embedder_instance_types) {
-    DCHECK_IMPLIES(allowed_receiver_instance_type_range_start() == 0,
-                   allowed_receiver_instance_type_range_end() == 0);
-    if (base::IsInRange(map->instance_type(),
-                        allowed_receiver_instance_type_range_start(),
-                        allowed_receiver_instance_type_range_end())) {
-      return true;
-    }
-  }
 
   // Fetch the constructor function of the object.
   Tagged<Object> cons_obj = map->GetConstructor();
@@ -299,9 +292,12 @@ DirectHandle<JSObject> DictionaryTemplateInfo::NewInstance(
         if (details.representation().Equals(Representation::Double())) {
           // We allowed coercion in `FitsRepresentation` above which means that
           // we may deal with a Smi here.
-          property_values[i] =
-              ToApiHandle<v8::Object>(isolate->factory()->NewHeapNumber(
-                  Object::NumberValue(Cast<Number>(*value))));
+          double value_as_double = Object::NumberValue(Cast<Number>(*value));
+          if (std::isnan(value_as_double)) {
+            value_as_double = std::numeric_limits<double>::quiet_NaN();
+          }
+          property_values[i] = ToApiHandle<v8::Object>(
+              isolate->factory()->NewHeapNumber(value_as_double));
         }
       }
       if (V8_LIKELY(can_use_cached_map)) {

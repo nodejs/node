@@ -26,7 +26,11 @@
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'runtime/console-messages-limits': [PASS, SLOW, HEAVY],
   'runtime/regression-732717': [PASS, HEAVY],
+
+  # Use-after-free regression tests, only meaningful under ASan.
   'runtime/regress-520052954': [PASS, ['not asan', SKIP]],
+  'runtime/regress-520052954-2': [PASS, ['not asan', SKIP]],
+  'runtime/regress-520052954-3': [PASS, ['not asan', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -182,7 +186,6 @@
   'debugger/script-on-after-compile': [SKIP],
   'debugger/set-breakpoint-at-last-line': [SKIP],
   'debugger/set-breakpoint-breaks-on-first-breakable-location': [SKIP],
-  'debugger/set-script-source-repl-mode': [SKIP],
   'heap-profiler/collect-garbage' : [SKIP],
   'runtime/context-destroyed-on-context-collected': [SKIP],
   'runtime/evaluate-async': [SKIP],

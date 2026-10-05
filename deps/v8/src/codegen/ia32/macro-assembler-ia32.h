@@ -363,6 +363,37 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void PinsrdPreSse41(XMMRegister dst, Operand src, uint8_t imm8,
                       uint32_t* load_pc_offset);
 
+  // SIMD128
+  void I64x2Abs(XMMRegister dst, XMMRegister src, XMMRegister scratch) {
+    I64x2AbsPreAvx10(dst, src, scratch);
+  }
+  void I64x2ShrS(XMMRegister dst, XMMRegister src, uint8_t shift,
+                 XMMRegister xmm_tmp) {
+    I64x2ShrSPreAvx10(dst, src, shift, xmm_tmp);
+  }
+  void I64x2ShrS(XMMRegister dst, XMMRegister src, Register shift,
+                 XMMRegister xmm_tmp, XMMRegister xmm_shift,
+                 Register tmp_shift) {
+    I64x2ShrSPreAvx10(dst, src, shift, xmm_tmp, xmm_shift, tmp_shift);
+  }
+  void I64x2Mul(XMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                XMMRegister tmp1, XMMRegister tmp2) {
+    I64x2MulPreAvx10(dst, lhs, rhs, tmp1, tmp2);
+  }
+  void I8x16Popcnt(XMMRegister dst, XMMRegister src, Register scratch,
+                   XMMRegister tmp1, XMMRegister tmp2) {
+    I8x16PopcntPreAvx10(dst, src, tmp1, tmp2, scratch);
+  }
+  void S128Not(XMMRegister dst, XMMRegister src, XMMRegister scratch) {
+    ASM_CODE_COMMENT(this);
+    S128NotPreAvx10(dst, src, scratch);
+  }
+  void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,
+                  XMMRegister src2, XMMRegister scratch) {
+    ASM_CODE_COMMENT(this);
+    S128SelectPreAvx10(dst, mask, src1, src2, scratch);
+  }
+
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use

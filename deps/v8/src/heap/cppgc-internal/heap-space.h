@@ -70,24 +70,24 @@ class V8_EXPORT_PRIVATE NormalPageSpace final : public BaseSpace {
   class LinearAllocationBuffer {
    public:
     Address Allocate(size_t alloc_size) {
-      DCHECK_GE(size_, alloc_size);
+      DCHECK_GE(size(), alloc_size);
       Address result = start_;
       start_ += alloc_size;
-      size_ -= alloc_size;
       return result;
     }
 
     void Set(Address ptr, size_t size) {
       start_ = ptr;
-      size_ = size;
+      limit_ = ptr + size;
     }
 
     Address start() const { return start_; }
-    size_t size() const { return size_; }
+    Address limit() const { return limit_; }
+    size_t size() const { return static_cast<size_t>(limit_ - start_); }
 
    private:
     Address start_ = nullptr;
-    size_t size_ = 0;
+    Address limit_ = nullptr;
   };
 
   static NormalPageSpace& From(BaseSpace& space) {

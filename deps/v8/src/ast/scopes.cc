@@ -3063,6 +3063,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
           }
         } else {
           scope_info = Cast<ScopeInfo>(info);
+          if (scope_info->IsEmpty()) continue;
         }
         while (true) {
           if (scope_info == outer) break;
@@ -3074,8 +3075,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
             // TODO(crbug.com/401059828): remove once crashes are gone.
             int last_checked_field_index = 0;
             bool equal_scopes =
-                it->second->Equals(scope_info, parse_info_sfi->live_edited(),
-                                   &last_checked_field_index);
+                it->second->Equals(scope_info, &last_checked_field_index);
 
             std::unique_ptr<char[]> script_name_or_url;
             size_t script_name_or_url_length = 0;

@@ -439,11 +439,6 @@ class ABSL_ATTRIBUTE_OWNER flat_hash_map
   //   key value and returns a node handle owning that extracted data. If the
   //   `flat_hash_map` does not contain an element with a matching key, this
   //   function returns an empty node handle.
-  //
-  // NOTE: when compiled in an earlier version of C++ than C++17,
-  // `node_type::key()` returns a const reference to the key instead of a
-  // mutable reference. We cannot safely return a mutable reference without
-  // std::launder (which is not available before C++17).
   using Base::extract;
 
   // flat_hash_map::merge()
@@ -691,10 +686,10 @@ struct FlatHashMapPolicy {
                                                    std::forward<Args>(args)...);
   }
 
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return memory_internal::IsLayoutCompatible<K, V>::value
-               ? &TypeErasedApplyToSlotFn<Hash, K, kIsDefault>
+               ? &TypeErasedApplyToSlotFn<Hash, K, kIsDefault, kSeedShift>
                : nullptr;
   }
 

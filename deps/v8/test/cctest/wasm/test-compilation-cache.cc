@@ -44,7 +44,7 @@ class TestResolver : public CompilationResultResolver {
   }
 
  private:
-  Managed<NativeModule>::Ptr native_module_;
+  CppGCManaged<NativeModule>::Ptr native_module_;
   std::atomic<int>* pending_;
 };
 
@@ -85,7 +85,7 @@ ZoneBuffer GetValidModuleBytes(Zone* zone, uint8_t n) {
   return buffer;
 }
 
-Managed<NativeModule>::Ptr SyncCompile(base::Vector<const uint8_t> bytes) {
+CppGCManaged<NativeModule>::Ptr SyncCompile(base::Vector<const uint8_t> bytes) {
   ErrorThrower thrower(CcTest::i_isolate(), "Test");
   auto enabled_features = WasmEnabledFeatures::FromIsolate(CcTest::i_isolate());
   DirectHandle<WasmModuleObject> module =
@@ -211,7 +211,7 @@ TEST(TestStreamingAndSyncCache) {
       base::OwnedVector<uint8_t>::New(kPrefixSize + kFunctionSize);
   memcpy(full_bytes.begin(), kPrefix, kPrefixSize);
   memcpy(full_bytes.begin() + kPrefixSize, kFunctionA, kFunctionSize);
-  Managed<NativeModule>::Ptr native_module_sync =
+  CppGCManaged<NativeModule>::Ptr native_module_sync =
       SyncCompile(full_bytes.as_vector());
 
   // Streaming compilation should just discard its native module now and use the
@@ -253,7 +253,7 @@ void TestModuleSharingBetweenIsolates() {
         memcpy(full_bytes.begin(), kPrefix, kPrefixSize);
         memcpy(full_bytes.begin() + kPrefixSize, kFunctionA, kFunctionSize);
         ErrorThrower thrower(i_isolate, "Test");
-        Managed<NativeModule>::Ptr native_module =
+        CppGCManaged<NativeModule>::Ptr native_module =
             GetWasmEngine()
                 ->SyncCompile(i_isolate, WasmEnabledFeatures::All(),
                               CompileTimeImports{}, &thrower,

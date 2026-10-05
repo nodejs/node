@@ -181,17 +181,34 @@ int InterruptBudgetFor(Isolate* isolate, std::optional<CodeKind> code_kind,
                        Tagged<JSFunction> function,
                        CachedTieringDecision cached_tiering_decision,
                        int bytecode_length) {
-  // Avoid interrupts while we're already tiering.
-  if (function->tiering_in_progress()) return INT_MAX / 2;
-
   const std::optional<CodeKind> existing_request =
       function->GetRequestedOptimizationIfAny(isolate);
-  if (existing_request == CodeKind::TURBOFAN_JS ||
-      (code_kind.has_value() && code_kind.value() == CodeKind::TURBOFAN_JS)) {
-    return v8_flags.invocation_count_for_osr * bytecode_length;
+
+  bool maybe_ml_osr =
+      maglev::IsMaglevOsrEnabled() && existing_request == CodeKind::MAGLEV;
+  bool maybe_tf_osr =
+      v8_flags.use_osr &&
+      (existing_request == CodeKind::TURBOFAN_JS ||
+       (code_kind.has_value() && code_kind.value() == CodeKind::TURBOFAN_JS));
+  bool tiering_in_progress = function->tiering_in_progress();
+  bool osr_tiering_in_progress = function->osr_tiering_in_progress();
+
+  // Avoid interrupts while we're already tiering.
+  if (tiering_in_progress && !osr_tiering_in_progress) {
+    return INT_MAX / 2;
   }
-  if (maglev::IsMaglevOsrEnabled() && existing_request == CodeKind::MAGLEV) {
-    return v8_flags.invocation_count_for_maglev_osr * bytecode_length;
+
+  // Stretch loop interrupts while tiering is already in progress.
+  double osr_factor =
+      osr_tiering_in_progress
+          ? v8_flags.invocation_count_for_osr_factor_while_tiering_in_progress
+          : 1;
+  if (maybe_tf_osr) {
+    return osr_factor * v8_flags.invocation_count_for_osr * bytecode_length;
+  }
+  if (maybe_ml_osr) {
+    return osr_factor * v8_flags.invocation_count_for_maglev_osr *
+           bytecode_length;
   }
 
   if (TiersUpToMaglev(code_kind) &&

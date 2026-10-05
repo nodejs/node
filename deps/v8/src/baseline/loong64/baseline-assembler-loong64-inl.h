@@ -179,6 +179,41 @@ void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
   __ CompareTaggedAndBranch(target, cc, scratch, Operand(value));
 }
 
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+void BaselineAssembler::JumpIfNotBothSmi(Register lhs, Register rhs,
+                                         Label* target, Label::Distance) {
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  __ Or(scratch, lhs, rhs);
+  __ JumpIfNotSmi(scratch, target);
+}
+
+void BaselineAssembler::JumpIfTagged(Condition cc, Register lhs, Register rhs,
+                                     Label* target, Label::Distance) {
+  __ CompareTaggedAndBranch(target, cc, lhs, Operand(rhs));
+}
+
+void BaselineAssembler::SmiAddConstantAndJumpIfOverflow(Register value,
+                                                        int constant,
+                                                        Label* overflow,
+                                                        Label::Distance) {
+  DCHECK(Smi::IsValid(constant));
+  ScratchRegisterScope temps(this);
+  Register scratch1 = temps.AcquireScratch();
+  Register scratch2 = temps.AcquireScratch();
+  if (SmiValuesAre31Bits()) {
+    __ slli_w(scratch1, value, 0);
+    __ Add_w(scratch2, scratch1, Operand(Smi::FromInt(constant)));
+    __ Branch(overflow, constant > 0 ? lt : gt, scratch2, Operand(scratch1));
+    __ Move(value, scratch2);
+  } else {
+    __ Add_d(scratch1, value, Operand(Smi::FromInt(constant)));
+    __ Branch(overflow, constant > 0 ? lt : gt, scratch1, Operand(value));
+    __ Move(value, scratch1);
+  }
+}
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+
 #ifdef V8_STATIC_ROOTS
 void BaselineAssembler::JumpIfStaticRootToBoolean(
     Register value, Label* true_target, Label::Distance true_distance,

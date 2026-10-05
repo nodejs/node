@@ -426,6 +426,8 @@ V8_OBJECT class V8_EXPORT_PRIVATE OrderedHashMap
 // implementation -- methods using Derived-specific constants -- lives
 // on the CRTP SmallOrderedHashTableImpl<Derived> below.
 V8_OBJECT class SmallOrderedHashTable : public HeapObject {
+  V8_IT_ABSTRACT;
+
  public:
   static const int kMinCapacity = 4;
   static const uint8_t kNotFound = 0xFF;

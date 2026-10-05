@@ -112,6 +112,8 @@ EXTERN_DECLARE_HASH_TABLE(CompilationCacheTable, CompilationCacheShape)
 
 class CompilationCacheTable
     : public HashTable<CompilationCacheTable, CompilationCacheShape> {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   // The 'script' cache contains SharedFunctionInfos. Once a root
   // SharedFunctionInfo has become old enough that its bytecode is flushed, the

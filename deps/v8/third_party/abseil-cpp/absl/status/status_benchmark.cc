@@ -57,4 +57,14 @@ void BM_LongMessageRValue(benchmark::State& state) {
 }
 BENCHMARK(BM_LongMessageRValue);
 
+void BM_LongMessageRValueConvenienceFn(benchmark::State& state) {
+  for (auto _ : state) {
+    std::string msg(100, 'X');
+    benchmark::DoNotOptimize(msg);
+    absl::Status s = absl::InvalidArgumentError(std::move(msg));
+    benchmark::DoNotOptimize(s);
+  }
+}
+BENCHMARK(BM_LongMessageRValueConvenienceFn);
+
 }  // namespace

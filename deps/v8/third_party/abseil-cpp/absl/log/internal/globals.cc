@@ -17,10 +17,6 @@
 #include <atomic>
 #include <cstdio>
 
-#if defined(__EMSCRIPTEN__)
-#include <emscripten/console.h>
-#endif
-
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
@@ -28,6 +24,10 @@
 #include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"  // IWYU pragma: keep
 #include "absl/time/time.h"
+
+#if defined(__EMSCRIPTEN__)
+#include <emscripten/console.h>
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

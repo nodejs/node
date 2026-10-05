@@ -141,7 +141,9 @@ void HandlerTable::SetRangeEnd(uint32_t index, int value) {
 
 void HandlerTable::SetRangeHandler(uint32_t index, int handler_offset,
                                    CatchPrediction prediction) {
-  CHECK(HandlerOffsetField::is_valid(handler_offset));
+  // Use CHECK_NO_SECURITY_IMPACT to prevent fuzzers from reporting bitfield
+  // overflow on large functions as a security bug.
+  CHECK_NO_SECURITY_IMPACT(HandlerOffsetField::is_valid(handler_offset));
   int value = HandlerOffsetField::encode(handler_offset) |
               HandlerWasUsedField::encode(false) |
               HandlerPredictionField::encode(prediction);

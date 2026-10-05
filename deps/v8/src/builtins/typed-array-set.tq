@@ -55,14 +55,23 @@ transitioning javascript builtin TypedArrayPrototypeSet(
         arguments.length > 1 ? arguments[1] : SmiConstant(0);
     typeswitch (offsetArg) {
       case (offsetSmi: Smi): {
-        // 5. Let targetOffset be ? ToInteger(offset).
+        // 5. Let targetOffset be ? ToIntegerOrInfinity(offset).
         // 6. If targetOffset < 0, throw a RangeError exception.
-        if (offsetSmi < 0) goto OffsetOutOfBounds;
+        if (offsetSmi < 0) {
+          // For negative Smi offsets, integer conversion has no side effects,
+          // but we still need to perform step 4 before throwing a RangeError.
+          // 4. If IsImmutableBuffer(target.[[ViewedArrayBuffer]]) is true,
+          //    throw a TypeError exception.
+          if (IsImmutableArrayBuffer(target.buffer)) deferred {
+              goto Fail;
+            }
+          goto OffsetOutOfBounds;
+        }
         targetOffset = Unsigned(SmiUntag(offsetSmi));
 
-        // For Smi offsets, integer conversion has no side effects, so step 4
-        // (IsImmutableBuffer check) can be deferred and combined with steps 7-9
-        // in EnsureValidAndReadLength without observable differences.
+        // For non-negative Smi offsets, integer conversion has no side effects,
+        // so step 4 (IsImmutableBuffer check) can be deferred and combined with
+        // steps 7-9 in EnsureValidAndReadLength without observable differences.
         // 4. If IsImmutableBuffer(target.[[ViewedArrayBuffer]]) is true, throw
         //    a TypeError exception.
         // 7. Let targetBuffer be target.[[ViewedArrayBuffer]].
@@ -79,7 +88,7 @@ transitioning javascript builtin TypedArrayPrototypeSet(
             goto Fail;
           }
 
-        // 5. Let targetOffset be ? ToInteger(offset).
+        // 5. Let targetOffset be ? ToIntegerOrInfinity(offset).
         // 6. If targetOffset < 0, throw a RangeError exception.
         try {
           targetOffset = ToUintPtr(offsetOther)

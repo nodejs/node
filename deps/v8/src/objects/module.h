@@ -29,6 +29,8 @@ class ZoneForwardList;
 // to Abstract Module Record.
 // https://tc39.es/ecma262/#sec-abstract-module-records
 V8_OBJECT class Module : public HeapObject {
+  V8_IT_ABSTRACT;
+
  public:
   DECL_VERIFIER(Module)
   DECL_PRINTER(Module)
@@ -72,7 +74,7 @@ V8_OBJECT class Module : public HeapObject {
       const UserResolveCallbacks& callbacks);
 
   // Implementation of spec operation ModuleEvaluation.
-  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Evaluate(
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSPromise> Evaluate(
       Isolate* isolate, Handle<Module> module);
 
   // Get the namespace object for [module].  If it doesn't exist yet, it is
@@ -169,6 +171,8 @@ struct ObjectTraits<Module> {
 // JSModuleNamespace object (representing module "bar") is created and bound to
 // the declared variable (foo).  A module can have at most one namespace object.
 V8_OBJECT class JSModuleNamespace : public JSSpecialObject {
+  V8_IT_OWN_TYPE;
+
  public:
   inline Tagged<Module> module() const;
   inline void set_module(Tagged<Module> value,
@@ -184,6 +188,15 @@ V8_OBJECT class JSModuleNamespace : public JSSpecialObject {
       Isolate* isolate, DirectHandle<String> name);
 
   bool HasExport(Isolate* isolate, DirectHandle<String> name);
+
+  // Counts an access to a missing `default` export on the namespace [it] starts
+  // at, when that module has an `export * from '...'` statement. Such a
+  // `default` is absent today because `export *` skips it, but would resolve to
+  // the star-exported default (if it exists) under the export-star-default
+  // proposal (https://github.com/tc39/proposal-export-star-default).
+  // Called from [[Get]] and [[HasProperty]]. Only valid while [it] is in the
+  // LookupIterator::MODULE_NAMESPACE state.
+  static void MaybeCountMissingDefaultWithStarExport(LookupIterator* it);
 
   // Return the (constant) property attributes for the referenced property,
   // which is assumed to correspond to an export. If the export is

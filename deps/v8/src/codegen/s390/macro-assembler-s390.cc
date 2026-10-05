@@ -2927,10 +2927,17 @@ void MacroAssembler::AddS32(Register dst, const Operand& opnd) {
 
 // Add Pointer Size (Register dst = Register dst + Immediate opnd)
 void MacroAssembler::AddS64(Register dst, const Operand& opnd) {
-  if (is_int16(opnd.immediate()))
+  if (is_int16(opnd.immediate())) {
     aghi(dst, opnd);
-  else
+  } else if (is_int32(opnd.immediate())) {
     agfi(dst, opnd);
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    DCHECK(dst != scratch);
+    mov(scratch, opnd);
+    agr(dst, scratch);
+  }
 }
 
 void MacroAssembler::AddS32(Register dst, Register src, int32_t opnd) {

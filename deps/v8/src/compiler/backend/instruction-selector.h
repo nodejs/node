@@ -44,6 +44,9 @@ class SwitchInfo;
 struct CaseInfo;
 class TurbofanStateObjectDeduplicator;
 class TurboshaftStateObjectDeduplicator;
+namespace compare_chain {
+class CompareSequence;
+}  // namespace compare_chain
 
 // The flags continuation is a way to combine a branch or a materialization
 // of a boolean value with an instruction that sets the flags register.
@@ -686,6 +689,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   bool IsLoopHeader(const turboshaft::Block* block) const {
     return block->IsLoop();
   }
+
+  const turboshaft::Block* current_block() const { return current_block_; }
 
   size_t PredecessorCount(const turboshaft::Block* block) const {
     return block->PredecessorCount();
@@ -1400,6 +1405,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   void VisitWord64MulWide(turboshaft::OpIndex node, bool is_signed);
   void VisitUint64Add128(turboshaft::OpIndex node);
   void VisitUint64Sub128(turboshaft::OpIndex node);
+  void VisitUint64Add3WithCarry(turboshaft::OpIndex node);
 
   void TryPrepareScheduleFirstProjection(turboshaft::OpIndex maybe_projection);
 
@@ -1634,6 +1640,38 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   // for non-phi nodes.
   ZoneVector<Upper32BitsState> phi_states_;
 #endif
+
+// CCMP branch-cascade fusion is compiled only where a ccmp emission path
+// exists: ARM64 (native) and x64 with APX (runtime-gated on APX availability).
+#if V8_TARGET_ARCH_ARM64 || defined(V8_ENABLE_APX_F)
+  struct CascadeCcmpInfo {
+    turboshaft::Block* true_target;
+    turboshaft::Block* final_false;
+  };
+  // Arch-independent driver: detects the `x==C1 ? T1 : x==C2 ? T2 : F` cascade
+  // and rewrites it into a ccmp chain. Driver and Case-2 emission live in
+  // instruction-selector.cc; only the hooks below are per-arch.
+  bool TryCascadeCcmpFuseOrEmit(turboshaft::OpIndex node,
+                                turboshaft::Block* tbranch,
+                                turboshaft::Block* fbranch);
+  void EmitCascadeCcmpBranch(turboshaft::OpIndex head_branch_node);
+  // Per-arch hooks (in instruction-selector-<arch>.cc). Whether ccmp chains can
+  // be emitted at all (APX-gated on x64, always true on ARM64).
+  bool SupportsCcmpBranchCascade() const;
+  // Whether the constant fits the immediate range for its role, so it can be
+  // folded into the chain. `is_ccmp_operand` selects the fused compare's
+  // narrower ccmp range vs the initial compare's regular cmp range; a constant
+  // outside its range would be emitted as a register operand that the now-dead
+  // fused block never materializes (use without a definition).
+  bool CcmpCascadeConstantOk(turboshaft::OpIndex node, bool is_ccmp_operand);
+  // Arch integer-compare opcode seeding the chain.
+  InstructionCode CcmpCmpOpcode(turboshaft::RegisterRepresentation rep) const;
+  // Emits the arch ccmp compare-chain for the built sequence.
+  void EmitCcmpCompareChain(compare_chain::CompareSequence& sequence,
+                            turboshaft::RegisterRepresentation rep,
+                            FlagsContinuation* cont);
+  ZoneUnorderedMap<uint32_t, CascadeCcmpInfo> ccmp_cascade_info_;
+#endif  // V8_TARGET_ARCH_ARM64 || V8_ENABLE_APX_F
 };
 
 }  // namespace compiler

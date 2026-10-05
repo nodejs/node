@@ -115,11 +115,6 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       Isolate* isolate, DirectHandle<JSFunction> function,
       BytecodeOffset osr_offset, ConcurrencyMode mode, CodeKind code_kind);
 
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<SharedFunctionInfo>
-  CompileForLiveEdit(ParseInfo* parse_info, Handle<Script> script,
-                     MaybeDirectHandle<ScopeInfo> outer_scope_info,
-                     Isolate* isolate);
-
   // Collect source positions for a function that has already been compiled to
   // bytecode, but for which source positions were not collected (e.g. because
   // they were not immediately needed).

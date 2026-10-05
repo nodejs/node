@@ -14,6 +14,7 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-proxy-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/sandbox/bounded-size-inl.h"
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -347,7 +348,13 @@ std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
     }
 
     if (field_index.is_inobject()) {
+      // The main thread can store into this field while we read it. The race is
+      // benign: the snapshot protocol keeps the load in bounds, and
+      // OwnConstantDataPropertyDependency revalidates the value on the main
+      // thread.
+      TSAN_IGNORE_READS_BEGIN;
       constant = holder.object()->RawInobjectPropertyAt(map, field_index);
+      TSAN_IGNORE_READS_END;
       if (!constant.has_value()) {
         TRACE_BROKER_MISSING(
             broker, "Constant field in " << holder << " is unsafe to read");
@@ -740,8 +747,8 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
       ObjectData* proto_or_map = prototype_or_initial_map_;
       if (proto_or_map->IsTuple2()) {
         Tagged<Tuple2> tuple = Cast<Tuple2>(*proto_or_map->object());
-        proto_or_map =
-            broker->GetOrCreateData(tuple->value1(), kAssumeMemoryFence);
+        proto_or_map = broker->GetOrCreateData(tuple->value1(kAcquireLoad),
+                                               kAssumeMemoryFence);
       }
 
       has_initial_map_ = proto_or_map->IsMap();

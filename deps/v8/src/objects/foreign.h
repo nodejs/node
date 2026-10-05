@@ -15,6 +15,8 @@ namespace v8::internal {
 
 // Foreign describes objects pointing from JavaScript to C structures.
 V8_OBJECT class Foreign : public HeapObject {
+  V8_IT_FIXED_VALUE(0xcc);
+
  public:
   // [foreign_address]: field containing the address.
   template <ExternalPointerTag tag>
@@ -49,6 +51,8 @@ V8_OBJECT class Foreign : public HeapObject {
 
 // TrustedForeign is similar to Foreign but lives in trusted space.
 V8_OBJECT class TrustedForeign : public TrustedObject {
+  V8_IT_OWN_TYPE;
+
  public:
   // [foreign_address]: field containing the address of a C object.
   inline Address foreign_address() const;

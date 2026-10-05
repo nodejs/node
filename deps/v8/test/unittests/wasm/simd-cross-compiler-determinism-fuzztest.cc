@@ -25,13 +25,14 @@ struct FuzzExtMulPairwiseOp {
 };
 
 struct FuzzExtMulPairwiseTree {
-  WasmOpcode add_opcode;
   FuzzExtMulPairwiseOp left_branch;
   FuzzExtMulPairwiseOp right_branch;
   WasmOpcode final_binop_opcode;
   uint8_t final_rhs_local;
+  // Add a side user of the root add by feeding it into another SIMD binop.
   bool use_root_add_again;
   WasmOpcode root_add_reuse_binop_opcode;
+  bool suppress_final_binop;
 };
 
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
@@ -41,9 +42,7 @@ struct AVXSupport {
     if (!allow) CpuFeatures::SetUnsupported(AVX);
   }
   ~AVXSupport() {
-    if (previous_) {
-      CpuFeatures::SetSupported(AVX);
-    }
+    if (previous_) CpuFeatures::SetSupported(AVX);
   }
 };
 #endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
@@ -353,16 +352,18 @@ class SimdCrossCompilerDeterminismTest
     CommonWasmRunner<void> runner(isolate(), tier);
     Simd128* memory = runner.builder().AddMemoryElems<Simd128>(4);
 
-    uint8_t locals_start = runner.AllocateLocals(5, kWasmS128);
+    uint8_t locals_start = runner.AllocateLocals(7, kWasmS128);
     auto locals_idx = [locals_start](uint8_t offset) -> uint8_t {
       return static_cast<uint8_t>(locals_start + offset);
     };
+    uint8_t iteration = runner.AllocateLocal(kWasmI32);
 
     // Build the bytecode.
     // Note: `kMaxBytecodeSize` is big enough to hold all bytes we generate
     // below across all configuration. If the DCHECK below fails, increase it as
     // necessary.
-    constexpr size_t kMaxBytecodeSize = 150 + 19 * kMaxPreconsumedLiftoffRegs;
+    constexpr size_t kMaxBytecodeSize = 250 + 19 * kMaxPreconsumedLiftoffRegs;
+    constexpr uint8_t kLoopIterations = 4;
     base::SmallVector<uint8_t, kMaxBytecodeSize> bytecode;
 
     // Preconsume some registers.
@@ -386,39 +387,84 @@ class SimdCrossCompilerDeterminismTest
                     Config::template GetInput<3>(memory, inputs[3]));
     bytecode.insert(bytecode.end(), {kExprLocalSet, locals_idx(3)});
 
+    bytecode.insert(bytecode.end(), {WASM_SIMD_CONSTANT(Simd128{}.bytes())});
+    bytecode.insert(bytecode.end(), {kExprLocalSet, locals_idx(4)});
+    bytecode.insert(bytecode.end(), {WASM_ZERO});
+    bytecode.insert(bytecode.end(), {kExprLocalSet, iteration});
+
     // Push the memory index for the final store.
     bytecode.insert(bytecode.end(), {WASM_ZERO});
 
+    bytecode.insert(
+        bytecode.end(),
+        {kExprBlock, static_cast<uint8_t>((kWasmS128).value_type_code()),
+         kExprLoop, kVoidCode});
+
     // The extmul opcodes, their inputs, and extadd_pairwise opcode are fuzzed.
-    auto emit_extmul_pairwise = [&](FuzzExtMulPairwiseOp op) {
+    auto emit_extmul_pairwise = [&](FuzzExtMulPairwiseOp op,
+                                    uint8_t local_offset = 0) {
+      auto shifted_local = [local_offset](uint8_t local) {
+        return static_cast<uint8_t>((local + local_offset) % 4);
+      };
       bytecode.insert(bytecode.end(),
-                      {kExprLocalGet, locals_idx(op.local_lhs)});
+                      {kExprLocalGet, locals_idx(shifted_local(op.local_lhs))});
       bytecode.insert(bytecode.end(),
-                      {kExprLocalGet, locals_idx(op.local_rhs)});
+                      {kExprLocalGet, locals_idx(shifted_local(op.local_rhs))});
       bytecode.insert(bytecode.end(), {WASM_SIMD_OP(op.extmul_opcode)});
       bytecode.insert(bytecode.end(), {WASM_SIMD_OP(op.pairwise_opcode)});
     };
 
-    emit_extmul_pairwise(tree.left_branch);
-    emit_extmul_pairwise(tree.right_branch);
+    auto emit_extmul_pairwise_tree = [&](bool use_root_add_again,
+                                         uint8_t local_offset = 0) {
+      emit_extmul_pairwise(tree.left_branch, local_offset);
+      emit_extmul_pairwise(tree.right_branch, local_offset);
 
-    // We also fuzz the root add.
-    bytecode.insert(bytecode.end(), {WASM_SIMD_OP(tree.add_opcode)});
+      bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprI32x4Add)});
 
-    // Sometimes we insert an extra user of the add, so keep it in a local.
-    if (tree.use_root_add_again) {
-      bytecode.insert(bytecode.end(), {kExprLocalTee, locals_idx(4)});
-    }
-    bytecode.insert(bytecode.end(),
-                    {kExprLocalGet, locals_idx(tree.final_rhs_local)});
-    bytecode.insert(bytecode.end(), {WASM_SIMD_OP(tree.final_binop_opcode)});
+      if (!tree.suppress_final_binop) {
+        // Sometimes we insert an extra user of the add, so keep it in a local.
+        if (use_root_add_again) {
+          bytecode.insert(bytecode.end(), {kExprLocalTee, locals_idx(5)});
+        }
+        bytecode.insert(bytecode.end(),
+                        {kExprLocalGet, locals_idx(tree.final_rhs_local)});
+        bytecode.insert(bytecode.end(),
+                        {WASM_SIMD_OP(tree.final_binop_opcode)});
 
-    // The extra user of the add.
-    if (tree.use_root_add_again) {
-      bytecode.insert(bytecode.end(), {kExprLocalGet, locals_idx(4)});
-      bytecode.insert(bytecode.end(),
-                      {WASM_SIMD_OP(tree.root_add_reuse_binop_opcode)});
-    }
+        // The extra user of the add.
+        if (use_root_add_again) {
+          bytecode.insert(bytecode.end(), {kExprLocalGet, locals_idx(5)});
+          bytecode.insert(bytecode.end(),
+                          {WASM_SIMD_OP(tree.root_add_reuse_binop_opcode)});
+        }
+      }
+    };
+
+    // For the first pairwise add, never add an extra user so it's always
+    // chained with the second, only with an add, for a multiply-accumulate.
+    emit_extmul_pairwise_tree(false);
+    emit_extmul_pairwise_tree(tree.use_root_add_again, 2);
+    bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprI32x4Add)});
+    bytecode.insert(bytecode.end(), {kExprLocalGet, locals_idx(4)});
+    bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprI32x4Add)});
+    bytecode.insert(bytecode.end(), {kExprLocalTee, locals_idx(4)});
+    bytecode.insert(
+        bytecode.end(),
+        {kExprLocalGet, iteration, WASM_ONE, kExprI32Add, kExprLocalTee,
+         iteration, WASM_I32V_1(kLoopIterations), kExprI32Eq, kExprBrIf, 1,
+         kExprDrop, kExprBr, 0, kExprEnd, kExprUnreachable, kExprEnd});
+
+    // Horizontally add the lanes.
+    bytecode.insert(bytecode.end(), {kExprLocalTee, locals_idx(6)});
+    bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprI32x4ExtractLane), 0});
+    bytecode.insert(bytecode.end(), {kExprLocalGet, locals_idx(6)});
+    bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprI32x4ExtractLane), 1});
+    bytecode.insert(bytecode.end(), {kExprLocalGet, locals_idx(6)});
+    bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprI32x4ExtractLane), 2});
+    bytecode.insert(bytecode.end(), {kExprLocalGet, locals_idx(6)});
+    bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprI32x4ExtractLane), 3});
+    bytecode.insert(bytecode.end(), {kExprI32Add, kExprI32Add, kExprI32Add});
+    bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprI32x4Splat)});
 
     // Store the result in memory.
     bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprS128StoreMem),
@@ -515,7 +561,9 @@ constexpr std::array kSkippedTernOps = {kExprF16x8Qfma, kExprF16x8Qfms};
 // fp16 instructions in `kTernOps`.
 #define IS_EXPERIMENTAL_FP16(name, ...) \
   +(std::string_view(#name) == "fp16" ? 1 : 0)
-static_assert(FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(IS_EXPERIMENTAL_FP16) == 1,
+static_assert(FOREACH_EXPERIMENTAL_FEATURE_FLAG(IGNORE_NON_WASM_FEATURE,
+                                                IS_EXPERIMENTAL_FP16,
+                                                IGNORE_NON_WASM_FEATURE) == 1,
               "move fp16 instructions to kTernOps before shipping fp16");
 #undef IS_EXPERIMENTAL_FP16
 
@@ -604,32 +652,58 @@ void SimdCrossCompilerDeterminismTest::TestExtMulPairwiseTree(
       << PrintCollection(base::VectorOf(results));
 }
 
+constexpr FuzzExtMulPairwiseTree kDotI8x16AddReduceTree = {
+    {kExprI16x8ExtMulLowI8x16S, kExprI32x4ExtAddPairwiseI16x8S, 0, 1},
+    {kExprI16x8ExtMulHighI8x16S, kExprI32x4ExtAddPairwiseI16x8S, 0, 1},
+    kExprI32x4Add,
+    2,
+    false,
+    kExprI32x4Add,
+    true};
+
+constexpr FuzzExtMulPairwiseTree kDotI8x16AddReduceTreeWithSideUser = {
+    {kExprI16x8ExtMulLowI8x16S, kExprI32x4ExtAddPairwiseI16x8S, 0, 1},
+    {kExprI16x8ExtMulHighI8x16S, kExprI32x4ExtAddPairwiseI16x8S, 0, 1},
+    kExprI32x4Add,
+    2,
+    true,
+    kExprI32x4Add,
+    false};
+
 inline fuzztest::Domain<FuzzExtMulPairwiseTree> ExtMulPairwiseTree() {
+  // ExtMul opcodes cover both input widths, signedness variants, and low/high
+  // halves. Pairing these independently with the pairwise-add opcodes below
+  // lets the fuzzer exercise a broad set of wasm SIMD shapes.
   constexpr std::array kExtMulOps = {
       kExprI16x8ExtMulLowI8x16S, kExprI16x8ExtMulHighI8x16S,
       kExprI16x8ExtMulLowI8x16U, kExprI16x8ExtMulHighI8x16U,
       kExprI32x4ExtMulLowI16x8S, kExprI32x4ExtMulHighI16x8S,
       kExprI32x4ExtMulLowI16x8U, kExprI32x4ExtMulHighI16x8U};
 
+  // Pairwise-add opcodes are generated separately from extmul opcodes because
+  // this test is interested in compiler determinism across many SIMD trees, not
+  // only the hand-written dot-product-shaped trees below.
   constexpr std::array kExtAddPairwiseOps = {
       kExprI16x8ExtAddPairwiseI8x16S, kExprI16x8ExtAddPairwiseI8x16U,
       kExprI32x4ExtAddPairwiseI16x8S, kExprI32x4ExtAddPairwiseI16x8U};
 
-  constexpr std::array kExtMulPairwiseRootAddOps = {
-      kExprI16x8Add, kExprI32x4Add, kExprI64x2Add};
-
+  // After the two extmul/pairwise branches are added together, optionally feed
+  // that root through another SIMD binop. All selected opcodes have s128 inputs
+  // and s128 results, so they fit the same generated bytecode shape.
   constexpr std::array kExtMulPairwiseFinalBinOps = {
       kExprS128And,  kExprS128Or,   kExprS128Xor,  kExprI8x16Add,
       kExprI8x16Sub, kExprI16x8Add, kExprI16x8Sub, kExprI32x4Add,
       kExprI32x4Sub, kExprI64x2Add, kExprI64x2Sub};
 
-  return fuzztest::Map(
-      [](WasmOpcode add_opcode, WasmOpcode left_extmul_opcode,
-         WasmOpcode left_pairwise_opcode, uint8_t left_lhs, uint8_t left_rhs,
-         WasmOpcode right_extmul_opcode, WasmOpcode right_pairwise_opcode,
-         uint8_t right_lhs, uint8_t right_rhs, WasmOpcode final_binop_opcode,
-         uint8_t final_rhs_local, bool use_root_add_again,
-         WasmOpcode root_add_reuse_binop_opcode) {
+  // Model a tree as simple scalar choices so fuzztest can mutate and shrink
+  // each opcode, input-local index, and optional side user independently.
+  auto random_tree = fuzztest::Map(
+      [](WasmOpcode left_extmul_opcode, WasmOpcode left_pairwise_opcode,
+         uint8_t left_lhs, uint8_t left_rhs, WasmOpcode right_extmul_opcode,
+         WasmOpcode right_pairwise_opcode, uint8_t right_lhs, uint8_t right_rhs,
+         WasmOpcode final_binop_opcode, uint8_t final_rhs_local,
+         bool use_root_add_again, WasmOpcode root_add_reuse_binop_opcode,
+         bool suppress_final_binop) {
         auto make_branch = [](WasmOpcode extmul_opcode,
                               WasmOpcode pairwise_opcode, uint8_t local_lhs,
                               uint8_t local_rhs) {
@@ -637,7 +711,6 @@ inline fuzztest::Domain<FuzzExtMulPairwiseTree> ExtMulPairwiseTree() {
                                       local_rhs};
         };
         return FuzzExtMulPairwiseTree{
-            add_opcode,
             make_branch(left_extmul_opcode, left_pairwise_opcode, left_lhs,
                         left_rhs),
             make_branch(right_extmul_opcode, right_pairwise_opcode, right_lhs,
@@ -645,18 +718,29 @@ inline fuzztest::Domain<FuzzExtMulPairwiseTree> ExtMulPairwiseTree() {
             final_binop_opcode,
             final_rhs_local,
             use_root_add_again,
-            root_add_reuse_binop_opcode};
+            root_add_reuse_binop_opcode,
+            suppress_final_binop};
       },
-      fuzztest::ElementOf<WasmOpcode>(kExtMulPairwiseRootAddOps),
       fuzztest::ElementOf<WasmOpcode>(kExtMulOps),
       fuzztest::ElementOf<WasmOpcode>(kExtAddPairwiseOps),
+      // Branch inputs refer to the four initial s128 locals loaded from the
+      // fuzzed Simd128 inputs.
       fuzztest::InRange<uint8_t>(0, 3), fuzztest::InRange<uint8_t>(0, 3),
       fuzztest::ElementOf<WasmOpcode>(kExtMulOps),
       fuzztest::ElementOf<WasmOpcode>(kExtAddPairwiseOps),
       fuzztest::InRange<uint8_t>(0, 3), fuzztest::InRange<uint8_t>(0, 3),
       fuzztest::ElementOf<WasmOpcode>(kExtMulPairwiseFinalBinOps),
+      // When the optional final binop is emitted, its RHS is another one of
+      // the four original s128 input locals.
       fuzztest::InRange<uint8_t>(0, 3), fuzztest::Arbitrary<bool>(),
-      fuzztest::ElementOf<WasmOpcode>(kExtMulPairwiseFinalBinOps));
+      fuzztest::ElementOf<WasmOpcode>(kExtMulPairwiseFinalBinOps),
+      fuzztest::Arbitrary<bool>());
+
+  // Always include focused dot-product-shaped trees in addition to the fully
+  // random tree so shrinking can land on known interesting patterns.
+  return fuzztest::OneOf(fuzztest::Just(kDotI8x16AddReduceTree),
+                         fuzztest::Just(kDotI8x16AddReduceTreeWithSideUser),
+                         random_tree);
 }
 
 V8_FUZZ_TEST_F(SimdCrossCompilerDeterminismTest, TestExtMulPairwiseTree)

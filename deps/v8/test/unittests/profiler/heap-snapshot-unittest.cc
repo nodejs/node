@@ -202,6 +202,12 @@ TEST_F(HeapSnapshotTest, ScopeInfoProperties) {
     ASSERT_NE(nullptr, scope_type_name_edge);
     EXPECT_STREQ("FUNCTION_SCOPE", scope_type_name_edge->to()->name());
 
+    std::optional<int> scope_id = GetIntEdge(scope_info, "scope_id");
+    ASSERT_TRUE(scope_id.has_value());
+    // scope id is the start position of that scope. So needs to be updated when
+    // the script changes.
+    EXPECT_EQ(88, scope_id.value());
+
     std::optional<int> parameter_count =
         GetIntEdge(scope_info, "parameter_count");
     ASSERT_TRUE(parameter_count.has_value());
@@ -252,6 +258,12 @@ TEST_F(HeapSnapshotTest, ScopeInfoProperties) {
         GetNamedEdge(*scope_info, "scope_type_name");
     ASSERT_NE(nullptr, scope_type_name_edge);
     EXPECT_STREQ("FUNCTION_SCOPE", scope_type_name_edge->to()->name());
+
+    std::optional<int> scope_id = GetIntEdge(scope_info, "scope_id");
+    ASSERT_TRUE(scope_id.has_value());
+    // scope id is the start position of that scope. So needs to be updated when
+    // the script changes.
+    EXPECT_EQ(30, scope_id.value());
 
     std::optional<int> parameter_count =
         GetIntEdge(scope_info, "parameter_count");
@@ -697,6 +709,333 @@ TEST_F(HeapSnapshotTest, ScriptMetadata) {
       EXPECT_TRUE(val.value()) << "Edge is false: " << edge_name;
     }
   }
+}
+
+TEST_F(HeapSnapshotTest, InstructionStreamReferences) {
+  if (v8_flags.jitless) return;
+  v8_flags.allow_natives_syntax = true;
+  RunJS(
+      "function bar(x) { return x.a + 1; }\n"
+      "function foo(obj) { return bar(obj) + 'constant_string'; }\n"
+      "let obj = {a: 1};\n"
+      "%NeverOptimizeFunction(bar);\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "bar(obj);\n"
+      "foo(obj);\n"
+      "%OptimizeFunctionOnNextCall(foo);\n"
+      "foo(obj);\n");
+
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* foo_entry =
+      GetEntryByName(snapshot, "foo", HeapEntry::kClosure);
+  ASSERT_NE(nullptr, foo_entry);
+
+  const HeapGraphEdge* code_edge = GetNamedEdge(*foo_entry, "code");
+  ASSERT_NE(nullptr, code_edge);
+  const HeapEntry* code_entry = code_edge->to();
+  ASSERT_NE(nullptr, code_entry);
+
+  const HeapGraphEdge* istream_edge =
+      GetNamedEdge(*code_entry, "instruction_stream");
+  ASSERT_NE(nullptr, istream_edge);
+  const HeapEntry* istream_entry = istream_edge->to();
+  ASSERT_NE(nullptr, istream_entry);
+
+  const HeapGraphEdge* back_code_edge = GetNamedEdge(*istream_entry, "code");
+  ASSERT_NE(nullptr, back_code_edge);
+  EXPECT_EQ(code_entry, back_code_edge->to());
+
+  const HeapGraphEdge* reloc_info_edge =
+      GetNamedEdge(*istream_entry, "relocation_info");
+  ASSERT_NE(nullptr, reloc_info_edge);
+  EXPECT_EQ(HeapGraphEdge::kInternal, reloc_info_edge->type());
+
+  // foo has a weak edge to bar's InstructionStream.
+  const HeapEntry* bar_entry =
+      GetEntryByName(snapshot, "bar", HeapEntry::kClosure);
+  ASSERT_NE(nullptr, bar_entry);
+
+  const HeapGraphEdge* bar_code_edge = GetNamedEdge(*bar_entry, "code");
+  ASSERT_NE(nullptr, bar_code_edge);
+  const HeapEntry* bar_code_entry = bar_code_edge->to();
+  ASSERT_NE(nullptr, bar_code_entry);
+
+  const HeapGraphEdge* call_edge = FindFirstEdgeTo(*istream_entry, *bar_entry);
+  ASSERT_NE(nullptr, call_edge);
+  EXPECT_EQ(HeapGraphEdge::kWeak, call_edge->type());
+
+  // foo should also reference the string "constant_string".
+  const HeapEntry* string_entry = GetEntryByName(snapshot, "constant_string");
+  ASSERT_NE(nullptr, string_entry);
+
+  const HeapGraphEdge* string_edge =
+      FindFirstEdgeTo(*istream_entry, *string_entry);
+  ASSERT_NE(nullptr, string_edge);
+  EXPECT_EQ(HeapGraphEdge::kHidden, string_edge->type());
+
+  int hidden_edge_count = 0;
+  int weak_edge_count = 0;
+  for (int i = 0; i < istream_entry->children_count(); ++i) {
+    const HeapGraphEdge* edge = istream_entry->child(i);
+    // ExtractInstructionStreamReferences emits RelocInfo edges as either weak
+    // or hidden. The code and relocation_info fields are emitted as internal
+    // edges.
+    EXPECT_TRUE(edge->type() == HeapGraphEdge::kInternal ||
+                edge->type() == HeapGraphEdge::kHidden ||
+                edge->type() == HeapGraphEdge::kWeak);
+    if (edge->type() == HeapGraphEdge::kHidden) {
+      hidden_edge_count++;
+    } else if (edge->type() == HeapGraphEdge::kWeak) {
+      weak_edge_count++;
+    }
+  }
+  EXPECT_GT(hidden_edge_count, 0);
+  EXPECT_GT(weak_edge_count, 0);
+}
+
+const HeapEntry* GetClosureContext(HeapSnapshot* snapshot, const char* name) {
+  const HeapEntry* closure =
+      GetEntryByName(snapshot, name, HeapEntry::kClosure);
+  if (!closure) return nullptr;
+  const HeapGraphEdge* context_edge = GetNamedEdge(*closure, "context");
+  if (!context_edge) return nullptr;
+  return context_edge->to();
+}
+
+void AssertContextType(const HeapEntry* context_entry,
+                       InstanceType expected_instance_type,
+                       const char* expected_instance_type_name,
+                       ScopeType expected_scope_type,
+                       const char* expected_scope_type_name) {
+  ASSERT_NE(nullptr, context_entry);
+
+  const HeapGraphEdge* map_edge = GetNamedEdge(*context_entry, "map");
+  ASSERT_NE(nullptr, map_edge);
+  const HeapEntry* map_entry = map_edge->to();
+  EXPECT_EQ(static_cast<int>(expected_instance_type),
+            GetIntEdge(map_entry, "instance_type"));
+  const HeapGraphEdge* instance_type_name_edge =
+      GetNamedEdge(*map_entry, "instance_type_name");
+  ASSERT_NE(nullptr, instance_type_name_edge);
+  EXPECT_STREQ(expected_instance_type_name,
+               instance_type_name_edge->to()->name());
+
+  const HeapGraphEdge* scope_info_edge =
+      GetNamedEdge(*context_entry, "scope_info");
+  ASSERT_NE(nullptr, scope_info_edge);
+  const HeapEntry* scope_info_entry = scope_info_edge->to();
+  EXPECT_EQ(static_cast<int>(expected_scope_type),
+            GetIntEdge(scope_info_entry, "scope_type"));
+  const HeapGraphEdge* scope_type_name_edge =
+      GetNamedEdge(*scope_info_entry, "scope_type_name");
+  ASSERT_NE(nullptr, scope_type_name_edge);
+  EXPECT_STREQ(expected_scope_type_name, scope_type_name_edge->to()->name());
+}
+
+TEST_F(HeapSnapshotTest, FunctionContextVariables) {
+  RunJS(
+      "function factory() {\n"
+      "  let func_var = { name: 'function_scope_object' };\n"
+      "  return function closure() { return func_var; };\n"
+      "}\n"
+      "globalThis.f = factory();");
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* func_context_entry = GetClosureContext(snapshot, "closure");
+  AssertContextType(func_context_entry, FUNCTION_CONTEXT_TYPE,
+                    "FUNCTION_CONTEXT_TYPE", FUNCTION_SCOPE, "FUNCTION_SCOPE");
+
+  const HeapGraphEdge* func_var_edge =
+      GetNamedEdge(*func_context_entry, "func_var");
+  ASSERT_NE(nullptr, func_var_edge);
+  EXPECT_EQ(HeapGraphEdge::kContextVariable, func_var_edge->type());
+}
+
+TEST_F(HeapSnapshotTest, BlockContextVariables) {
+  RunJS(
+      "function factory() {\n"
+      "  {\n"
+      "    let block_var = { name: 'block_scope_object' };\n"
+      "    return function closure() { return block_var; };\n"
+      "  }\n"
+      "}\n"
+      "globalThis.f = factory();");
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* block_context_entry = GetClosureContext(snapshot, "closure");
+  AssertContextType(block_context_entry, BLOCK_CONTEXT_TYPE,
+                    "BLOCK_CONTEXT_TYPE", BLOCK_SCOPE, "BLOCK_SCOPE");
+
+  const HeapGraphEdge* block_var_edge =
+      GetNamedEdge(*block_context_entry, "block_var");
+  ASSERT_NE(nullptr, block_var_edge);
+  EXPECT_EQ(HeapGraphEdge::kContextVariable, block_var_edge->type());
+}
+
+TEST_F(HeapSnapshotTest, CatchContextVariables) {
+  RunJS(
+      "function factory() {\n"
+      "  try {\n"
+      "    throw { name: 'catch_scope_object' };\n"
+      "  } catch (catch_var) {\n"
+      "    return function closure() { return catch_var; };\n"
+      "  }\n"
+      "}\n"
+      "globalThis.f = factory();");
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* catch_context_entry = GetClosureContext(snapshot, "closure");
+  AssertContextType(catch_context_entry, CATCH_CONTEXT_TYPE,
+                    "CATCH_CONTEXT_TYPE", CATCH_SCOPE, "CATCH_SCOPE");
+
+  const HeapGraphEdge* catch_var_edge =
+      GetNamedEdge(*catch_context_entry, "catch_var");
+  ASSERT_NE(nullptr, catch_var_edge);
+  EXPECT_EQ(HeapGraphEdge::kContextVariable, catch_var_edge->type());
+}
+
+TEST_F(HeapSnapshotTest, SloppyEvalContextVariables) {
+  RunJS(
+      "function factory() {\n"
+      "  return eval('let eval_var = { name: \"eval_scope_object\" }; "
+      "function closure() { return eval_var; }; closure;');\n"
+      "}\n"
+      "globalThis.f = factory();");
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* eval_context_entry = GetClosureContext(snapshot, "closure");
+  AssertContextType(eval_context_entry, EVAL_CONTEXT_TYPE, "EVAL_CONTEXT_TYPE",
+                    EVAL_SCOPE, "EVAL_SCOPE");
+
+  const HeapGraphEdge* eval_var_edge =
+      GetNamedEdge(*eval_context_entry, "eval_var");
+  ASSERT_NE(nullptr, eval_var_edge);
+  EXPECT_EQ(HeapGraphEdge::kContextVariable, eval_var_edge->type());
+}
+
+TEST_F(HeapSnapshotTest, ForOfLoopBlockContextVariables) {
+  RunJS(
+      "function factory() {\n"
+      "  const closures = [];\n"
+      "  for (let item of [{ name: 'item_1' }, { name: 'item_2' }]) {\n"
+      "    closures.push(function closure() { return item; });\n"
+      "  }\n"
+      "  return closures;\n"
+      "}\n"
+      "globalThis.closures = factory();");
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* block_context_entry = GetClosureContext(snapshot, "closure");
+  AssertContextType(block_context_entry, BLOCK_CONTEXT_TYPE,
+                    "BLOCK_CONTEXT_TYPE", BLOCK_SCOPE, "BLOCK_SCOPE");
+
+  const HeapGraphEdge* item_var_edge =
+      GetNamedEdge(*block_context_entry, "item");
+  ASSERT_NE(nullptr, item_var_edge);
+  EXPECT_EQ(HeapGraphEdge::kContextVariable, item_var_edge->type());
+}
+
+TEST_F(HeapSnapshotTest, NativeContextGlobalVariable) {
+  RunJS("var global_var = { name: 'global_var_object' };");
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* native_context_entry =
+      GetEntryByName(snapshot, "system / NativeContext", HeapEntry::kNative);
+  AssertContextType(native_context_entry, NATIVE_CONTEXT_TYPE,
+                    "NATIVE_CONTEXT_TYPE", SCRIPT_SCOPE, "SCRIPT_SCOPE");
+
+  const HeapGraphEdge* global_obj_edge =
+      GetNamedEdge(*native_context_entry, "global_object");
+  ASSERT_NE(nullptr, global_obj_edge);
+  const HeapEntry* global_obj_entry = global_obj_edge->to();
+  ASSERT_NE(nullptr, global_obj_entry);
+
+  const HeapGraphEdge* global_var_edge =
+      GetNamedEdge(*global_obj_entry, "global_var");
+  ASSERT_NE(nullptr, global_var_edge);
+  EXPECT_EQ(HeapGraphEdge::kProperty, global_var_edge->type());
+}
+
+TEST_F(HeapSnapshotTest, ScriptContextVariables) {
+  RunJS(
+      "let script_let_var = { name: 'script_let_object' };\n"
+      "const script_const_var = { name: 'script_const_object' };\n"
+      "globalThis.closure = function closure() {\n"
+      "  return [script_let_var, script_const_var];\n"
+      "};");
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* script_context_entry =
+      GetClosureContext(snapshot, "closure");
+  AssertContextType(script_context_entry, SCRIPT_CONTEXT_TYPE,
+                    "SCRIPT_CONTEXT_TYPE", SCRIPT_SCOPE, "SCRIPT_SCOPE");
+
+  const HeapGraphEdge* let_var_edge =
+      GetNamedEdge(*script_context_entry, "script_let_var");
+  ASSERT_NE(nullptr, let_var_edge);
+  EXPECT_EQ(HeapGraphEdge::kContextVariable, let_var_edge->type());
+
+  const HeapGraphEdge* const_var_edge =
+      GetNamedEdge(*script_context_entry, "script_const_var");
+  ASSERT_NE(nullptr, const_var_edge);
+  EXPECT_EQ(HeapGraphEdge::kContextVariable, const_var_edge->type());
+
+  const HeapGraphEdge* previous_edge =
+      GetNamedEdge(*script_context_entry, "previous");
+  ASSERT_NE(nullptr, previous_edge);
+  const HeapEntry* native_context_entry = previous_edge->to();
+  AssertContextType(native_context_entry, NATIVE_CONTEXT_TYPE,
+                    "NATIVE_CONTEXT_TYPE", SCRIPT_SCOPE, "SCRIPT_SCOPE");
+}
+
+TEST_F(HeapSnapshotTest, ScriptSourceStringsUntruncated) {
+  std::string script_source = "function very_long_function_name() { /* " +
+                              std::string(1500, 'x') + " */ return 42; }";
+  RunJS(script_source.c_str());
+
+  // Also test a dynamically constructed ConsString script source via eval.
+  std::string eval_script_source =
+      "function cons_script_func() { /* " + std::string(1500, 'z') + " */ }";
+  RunJS(
+      "eval('function cons_script_func() { /* ' + 'z'.repeat(1500) + ' */ "
+      "}');");
+
+  std::string regular_content(1500, 'y');
+  RunJS(
+      ("globalThis.regular_long_string = '" + regular_content + "';").c_str());
+
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* script_source_entry =
+      GetEntryByName(snapshot, script_source.c_str(), HeapEntry::kString);
+  ASSERT_NE(nullptr, script_source_entry);
+  EXPECT_STREQ(script_source.c_str(), script_source_entry->name());
+
+  // Truncated flag should not be present on script source entry.
+  std::optional<bool> script_truncated =
+      GetBoolEdge(script_source_entry, "truncated");
+  EXPECT_FALSE(script_truncated.has_value());
+
+  // ConsString script source should also not be truncated.
+  const HeapEntry* eval_source_entry =
+      GetEntryByName(snapshot, eval_script_source.c_str(), HeapEntry::kString);
+  ASSERT_NE(nullptr, eval_source_entry);
+  EXPECT_STREQ(eval_script_source.c_str(), eval_source_entry->name());
+  std::optional<bool> eval_script_truncated =
+      GetBoolEdge(eval_source_entry, "truncated");
+  EXPECT_FALSE(eval_script_truncated.has_value());
+
+  // Regular long string should be truncated to 1024 characters.
+  std::string expected_truncated_regular = regular_content.substr(0, 1024);
+  const HeapEntry* regular_string_entry = GetEntryByName(
+      snapshot, expected_truncated_regular.c_str(), HeapEntry::kString);
+  ASSERT_NE(nullptr, regular_string_entry);
+
+  std::optional<bool> regular_truncated =
+      GetBoolEdge(regular_string_entry, "truncated");
+  ASSERT_TRUE(regular_truncated.has_value());
+  EXPECT_TRUE(regular_truncated.value());
 }
 
 }  // namespace v8::internal

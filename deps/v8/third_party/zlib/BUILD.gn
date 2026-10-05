@@ -98,10 +98,6 @@ source_set("zlib_adler32_simd") {
       "adler32_simd.c",
       "adler32_simd.h",
     ]
-
-    if (!is_win || is_clang) {
-      cflags = [ "-mssse3" ]
-    }
   }
 
   if (use_arm_neon_optimizations) {
@@ -165,6 +161,15 @@ if (use_arm_neon_optimizations) {
     public_configs = [ ":zlib_arm_crc32_config" ]
 
     public_deps = [ ":zlib_common_headers" ]
+  }
+}
+
+# Enables 64-bit word-at-a-time compare256() in deflate's longest_match() on
+# 64-bit little-endian architectures (x64 and arm64). Follows the same pattern
+# as INFLATE_CHUNK_READ_64LE and DEFLATE_CHUNK_WRITE_64LE below.
+config("zlib_compare256_config") {
+  if (current_cpu == "x64" || current_cpu == "arm64") {
+    defines = [ "DEFLATE_COMPARE256_64LE" ]
   }
 }
 
@@ -234,13 +239,6 @@ source_set("zlib_crc32_simd") {
       "crc32_simd.h",
       "crc_folding.c",
     ]
-
-    if (!is_win || is_clang) {
-      cflags = [
-        "-msse4.2",
-        "-mpclmul",
-      ]
-    }
   }
 
   configs += [ ":zlib_internal_config" ]
@@ -296,6 +294,7 @@ component("zlib") {
   sources = [
     "adler32.c",
     "chromeconf.h",
+    "compare256.h",
     "compress.c",
     "contrib/optimizations/insert_string.h",
     "cpu_features.c",
@@ -370,6 +369,7 @@ component("zlib") {
   public_configs = [ ":zlib_config" ]
 
   configs += [
+    ":zlib_compare256_config",
     ":zlib_internal_config",
 
     # Must be after no_chromium_code for warning flags to be ordered correctly.

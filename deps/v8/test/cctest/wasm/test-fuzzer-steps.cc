@@ -29,16 +29,16 @@ TEST(FuzzerStepsPrefixedOpcode) {
 
 TEST(FuzzerStepsNonPrefixedOpcode) {
   WasmRunner<uint32_t> r(TestExecutionTier::kLiftoffForFuzzing);
-  // Entry: 16. MemoryGrow: 1000. Constant: 1. Total: 1017.
+  // Entry: 16. MemoryGrow: 10000. Constant: 1. Total: 10017.
   r.builder().AddMemory(kWasmPageSize);
   r.Build({WASM_MEMORY_GROW(WASM_I32V_1(1)), WASM_DROP, WASM_I32V_1(42)});
 
   // 1. Run which does not trap.
-  r.SetMaxSteps(2000);
+  r.SetMaxSteps(20000);
   CHECK_EQ(42, r.Call());
 
   // 2. Run which should trap.
-  r.SetMaxSteps(500);
+  r.SetMaxSteps(5000);
   r.CheckCallViaJSTraps();
 }
 

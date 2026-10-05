@@ -76,6 +76,9 @@ struct CppHeapPointerTableEntry {
   // Returns true if this entry contains an evacuation entry.
   inline bool HasEvacuationEntry() const;
 
+  // Copy the content of the provided entry into this entry.
+  inline void CopyFrom(const CppHeapPointerTableEntry& other);
+
   // Move the content of this entry into the provided entry, possibly clearing
   // the marking bit. Used during table compaction and during promotion.
   // Invalidates the source entry.
@@ -191,6 +194,12 @@ class V8_EXPORT_PRIVATE CppHeapPointerTable
   inline CppHeapPointerHandle AllocateAndInitializeEntry(Space* space,
                                                          Address initial_value,
                                                          CppHeapPointerTag tag);
+
+  // Duplicates an entry, returning a handle to the new entry.
+  //
+  // This method is atomic and can be called from background threads.
+  inline CppHeapPointerHandle DuplicateEntry(Space* space,
+                                             CppHeapPointerHandle handle);
 
   // Marks the specified entry as alive.
   //

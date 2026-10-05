@@ -343,6 +343,11 @@ constexpr Register kPtrComprCageBaseRegister = s11;  // callee save
 constexpr Register kPtrComprCageBaseRegister = no_reg;
 #endif
 
+template <typename T>
+inline bool IsRvcReg(T reg) {
+  return (reg.code() & 0b11000) == 0b01000;
+}
+
 }  // namespace internal
 }  // namespace v8
 

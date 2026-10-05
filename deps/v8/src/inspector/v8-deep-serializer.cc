@@ -94,9 +94,9 @@ Response SerializeArrayValue(v8::Local<v8::Array> value,
   serializedValue->reserve(length);
   for (uint32_t i = 0; i < length; i++) {
     v8::Local<v8::Value> elementValue;
-    bool success = value->Get(context, i).ToLocal(&elementValue);
-    CHECK(success);
-    USE(success);
+    if (!value->Get(context, i).ToLocal(&elementValue)) {
+      return Response::ServerError("exception during deep serialization");
+    }
 
     std::unique_ptr<protocol::DictionaryValue> elementProtocolValue;
     Response response = ValueMirror::create(context, elementValue)
@@ -151,12 +151,10 @@ Response SerializeMap(v8::Local<v8::Map> value, v8::Local<v8::Context> context,
       std::unique_ptr<protocol::Value> keyProtocolValue;
       std::unique_ptr<protocol::DictionaryValue> propertyProtocolValue;
 
-      bool success = propertiesAndValues->Get(context, i).ToLocal(&keyV8Value);
-      CHECK(success);
-      success =
-          propertiesAndValues->Get(context, i + 1).ToLocal(&propertyV8Value);
-      CHECK(success);
-      USE(success);
+      if (!propertiesAndValues->Get(context, i).ToLocal(&keyV8Value) ||
+          !propertiesAndValues->Get(context, i + 1).ToLocal(&propertyV8Value)) {
+        return Response::ServerError("exception during deep serialization");
+      }
 
       if (keyV8Value->IsString()) {
         keyProtocolValue = protocol::StringValue::create(toProtocolString(
@@ -220,15 +218,15 @@ Response SerializeObjectValue(v8::Local<v8::Object> value,
       protocol::ListValue::create();
   // Iterate through object's enumerable properties ignoring symbols.
   v8::Local<v8::Array> propertyNames;
-  bool success =
-      value
-          ->GetOwnPropertyNames(context,
-                                static_cast<v8::PropertyFilter>(
-                                    v8::PropertyFilter::ONLY_ENUMERABLE |
-                                    v8::PropertyFilter::SKIP_SYMBOLS),
-                                v8::KeyConversionMode::kConvertToString)
-          .ToLocal(&propertyNames);
-  CHECK(success);
+  if (!value
+           ->GetOwnPropertyNames(context,
+                                 static_cast<v8::PropertyFilter>(
+                                     v8::PropertyFilter::ONLY_ENUMERABLE |
+                                     v8::PropertyFilter::SKIP_SYMBOLS),
+                                 v8::KeyConversionMode::kConvertToString)
+           .ToLocal(&propertyNames)) {
+    return Response::ServerError("exception during deep serialization");
+  }
 
   uint32_t length = propertyNames->Length();
   serializedValue->reserve(length);
@@ -237,22 +235,28 @@ Response SerializeObjectValue(v8::Local<v8::Object> value,
     std::unique_ptr<protocol::Value> keyProtocolValue;
     std::unique_ptr<protocol::DictionaryValue> propertyProtocolValue;
 
-    success = propertyNames->Get(context, i).ToLocal(&keyV8Value);
-    CHECK(success);
-    CHECK(keyV8Value->IsString());
+    if (!propertyNames->Get(context, i).ToLocal(&keyV8Value)) {
+      return Response::ServerError("exception during deep serialization");
+    }
+    if (!keyV8Value->IsString()) {
+      continue;
+    }
 
     v8::Maybe<bool> hasRealNamedProperty =
         value->HasRealNamedProperty(context, keyV8Value.As<v8::String>());
+    if (hasRealNamedProperty.IsNothing()) {
+      return Response::ServerError("exception during deep serialization");
+    }
     // Don't access properties with interceptors.
-    if (hasRealNamedProperty.IsNothing() || !hasRealNamedProperty.FromJust()) {
+    if (!hasRealNamedProperty.FromJust()) {
       continue;
     }
     keyProtocolValue = protocol::StringValue::create(toProtocolString(
         v8::Isolate::GetCurrent(), keyV8Value.As<v8::String>()));
 
-    success = value->Get(context, keyV8Value).ToLocal(&propertyV8Value);
-    CHECK(success);
-    USE(success);
+    if (!value->Get(context, keyV8Value).ToLocal(&propertyV8Value)) {
+      return Response::ServerError("exception during deep serialization");
+    }
 
     Response response = ValueMirror::create(context, propertyV8Value)
                             ->buildDeepSerializedValue(

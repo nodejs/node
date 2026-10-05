@@ -35,6 +35,15 @@ bool UseApxSetzucc() {
 bool UseApxCmovcc() {
   return v8_flags.enable_apx_f_cmovcc && CpuFeatures::IsSupported(APX_F);
 }
+bool UseApxCcmp() {
+  return v8_flags.enable_apx_f_ccmp && CpuFeatures::IsSupported(APX_F);
+}
+#endif
+
+#ifdef V8_ENABLE_AVX10_1
+bool UseAvx10_1() {
+  return v8_flags.enable_avx10_1 && CpuFeatures::IsSupported(AVX10_1);
+}
 #endif
 // -----------------------------------------------------------------------------
 // Implementation of CpuFeatures
@@ -87,6 +96,15 @@ bool OSHasAPXFSupport() {
   return (feature_mask >> 19) & 0x1;
 }
 #endif  // V8_ENABLE_APX_F
+
+#ifdef V8_ENABLE_AVX10_1
+bool OSHasAVX10Support() {
+  // The OS must enable saving of the opmask, ZMM_Hi256, and Hi16_ZMM
+  // state (in addition to SSE and AVX).
+  uint64_t feature_mask = xgetbv(0);  // XCR_XFEATURE_ENABLED_MASK
+  return (feature_mask & 0xe6) == 0xe6;
+}
+#endif  // V8_ENABLE_AVX10_1
 
 #endif  // V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 
@@ -153,6 +171,9 @@ static constexpr CpuFeatureSet CpuFeaturesFromCompiler() {
 #ifdef __APX_F__
   features.Add(APX_F);
 #endif
+#ifdef __AVX10_1_512__
+  features.Add(AVX10_1);
+#endif
 
   return features;
 }
@@ -200,6 +221,11 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_apx_f() && cpu.has_osxsave() && OSHasAPXFSupport())
     SetSupported(APX_F);
 #endif  // V8_ENABLE_APX_F
+#ifdef V8_ENABLE_AVX10_1
+  if (cpu.has_avx10_1() && cpu.has_osxsave() && OSHasAVX10Support()) {
+    SetSupported(AVX10_1);
+  }
+#endif  // V8_ENABLE_AVX10_1
 
   // Ensure that supported cpu features make sense. E.g. it is wrong to support
   // AVX but not SSE4_2, if we have --enable-avx and --no-enable-sse4-2, the
@@ -220,6 +246,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #ifdef V8_ENABLE_APX_F
   if (!v8_flags.enable_apx_f) SetUnsupported(APX_F);
 #endif  // V8_ENABLE_APX_F
+#ifdef V8_ENABLE_AVX10_1
+  if (!v8_flags.enable_avx10_1 || !IsSupported(AVX2)) SetUnsupported(AVX10_1);
+#endif  // V8_ENABLE_AVX10_1
 
   // Set a static value on whether Simd is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
@@ -247,6 +276,7 @@ void CpuFeatures::PrintInformation() {
       "LZCNT=%d "
       "POPCNT=%d "
       "APX_F=%d "
+      "AVX10_1=%d "
       "ATOM=%d\n",
       CpuFeatures::IsSupported(SSE3), CpuFeatures::IsSupported(SSSE3),
       CpuFeatures::IsSupported(SSE4_1), CpuFeatures::IsSupported(SSE4_2),
@@ -256,7 +286,7 @@ void CpuFeatures::PrintInformation() {
       CpuFeatures::IsSupported(F16C), CpuFeatures::IsSupported(BMI1),
       CpuFeatures::IsSupported(BMI2), CpuFeatures::IsSupported(LZCNT),
       CpuFeatures::IsSupported(POPCNT), CpuFeatures::IsSupported(APX_F),
-      CpuFeatures::IsSupported(INTEL_ATOM));
+      CpuFeatures::IsSupported(AVX10_1), CpuFeatures::IsSupported(INTEL_ATOM));
 }
 
 // -----------------------------------------------------------------------------
@@ -4703,6 +4733,79 @@ void Assembler::emit_sse_operand(Register dst, XMMRegister src) {
 
 void Assembler::emit_sse_operand(XMMRegister dst) {
   emit(0xD8 | dst.low_bits());
+}
+
+void Assembler::emit_sse_operand(XMMRegister reg, Operand adr,
+                                 uint8_t cd8_scale) {
+  if (cd8_scale > 0) {
+    adr = adr.to_evex_cd8(cd8_scale);
+  }
+  // The high register bits (for xmm8-31) are carried by the EVEX prefix; the
+  // ModR/M reg field only encodes the low 3 bits.
+  emit_operand(reg.low_bits(), adr);
+}
+
+void Assembler::vinstr_evex(uint8_t op, XMMRegister dst, XMMRegister src1,
+                            XMMRegister src2, SIMDPrefix pp, LeadingOpcode m,
+                            VexW w, OpMask mask, MaskingType z,
+                            CpuFeature feature) {
+  DCHECK(IsEnabled(feature));
+  EnsureSpace ensure_space(this);
+  emit_evex_prefix(dst, src1, src2, kL128, pp, m, w, mask, z);
+  emit(op);
+  emit_sse_operand(dst, src2);
+}
+
+void Assembler::vinstr_evex(uint8_t op, XMMRegister dst, XMMRegister src1,
+                            Operand src2, SIMDPrefix pp, LeadingOpcode m,
+                            VexW w, TupleType tuple_type, OpMask mask,
+                            MaskingType z, CpuFeature feature) {
+  DCHECK(IsEnabled(feature));
+  EnsureSpace ensure_space(this);
+  emit_evex_prefix(dst, src1, src2, kL128, pp, m, w, mask, z);
+  emit(op);
+  auto cd8_scale = TupleTypeToN(tuple_type, w, /*vlen=*/16);
+  emit_sse_operand(dst, src2, cd8_scale);
+}
+
+void Assembler::vinstr_evex(uint8_t op, YMMRegister dst, YMMRegister src1,
+                            YMMRegister src2, SIMDPrefix pp, LeadingOpcode m,
+                            VexW w, OpMask mask, MaskingType z,
+                            CpuFeature feature) {
+  DCHECK(IsEnabled(feature));
+  EnsureSpace ensure_space(this);
+  emit_evex_prefix(dst, src1, src2, kL256, pp, m, w, mask, z);
+  emit(op);
+  emit_sse_operand(dst, src2);
+}
+
+void Assembler::vinstr_evex(uint8_t op, YMMRegister dst, YMMRegister src1,
+                            Operand src2, SIMDPrefix pp, LeadingOpcode m,
+                            VexW w, TupleType tuple_type, OpMask mask,
+                            MaskingType z, CpuFeature feature) {
+  DCHECK(IsEnabled(feature));
+  EnsureSpace ensure_space(this);
+  emit_evex_prefix(dst, src1, src2, kL256, pp, m, w, mask, z);
+  emit(op);
+  auto cd8_scale = TupleTypeToN(tuple_type, w, /*vlen=*/32);
+  emit_sse_operand(dst, src2, cd8_scale);
+}
+
+void Assembler::vpsraq(XMMRegister dst, XMMRegister src, uint8_t imm8) {
+  // Opcode 0x72 /4: reg field carries the /4 extension (xmm4); the shift dst is
+  // encoded in EVEX.vvvv, the source in ModR/M.rm.
+  vinstr_evex(0x72, xmm4, dst, src, k66, k0F, kW1);
+  emit(imm8);
+}
+
+void Assembler::vpsraq(YMMRegister dst, YMMRegister src, uint8_t imm8) {
+  vinstr_evex(0x72, ymm4, dst, src, k66, k0F, kW1);
+  emit(imm8);
+}
+
+void Assembler::vpsraq(XMMRegister dst, Operand src, uint8_t imm8) {
+  vinstr_evex(0x72, xmm4, dst, src, k66, k0F, kW1, kFull);
+  emit(imm8);
 }
 
 void Assembler::db(uint8_t data) {

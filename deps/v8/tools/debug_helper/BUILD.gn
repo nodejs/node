@@ -75,7 +75,7 @@ _debug_helper_sources = [
   "$target_gen_dir/../../torque-generated/class-debug-readers.h",
   "$target_gen_dir/../../torque-generated/debug-macros.cc",
   "$target_gen_dir/../../torque-generated/debug-macros.h",
-  "$target_gen_dir/../../torque-generated/instance-types.h",
+  "$target_gen_dir/../../torque-generated/debug-reader-classes-list.h",
   "$target_gen_dir/heap-constants-gen.cc",
   "../../src/common/ptr-compr.cc",
   "compiler-types.cc",
@@ -98,6 +98,10 @@ _debug_helper_deps = [
   "../..:v8_shared_internal_headers",
   "../..:v8_tracing",
 ]
+if (v8_use_metagen_instance_types) {
+  _debug_helper_sources += [ "$target_gen_dir/../../metagen/instance-types.h" ]
+  _debug_helper_deps += [ "../..:metagen_instance_types_h" ]
+}
 if (v8_enable_temporal_support) {
   _debug_helper_deps += [ "//third_party/rust/temporal_capi" ]
 }

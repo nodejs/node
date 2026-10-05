@@ -22,6 +22,8 @@ It is okay to just set to the current stable or extended stable milestone if unk
 - **Introduced In**: Should point to the milestone this was introduced.
 It is okay to be conservative if unknown, e.g., to assume that the bug was present when a feature was launched.
 
+Triage is based on available information; initial classifications (such as type, severity, impact) may be revised as expert analysis or new evidence emerges.
+
 ### Sandbox bypasses
 
 V8 Sandbox bypasses are included in Chrome’s VRP.
@@ -116,6 +118,14 @@ Rationale: These issues are not considered security vulnerabilities because the 
 Invalid ("bogus") `DCHECK`s should still be fixed or removed.
 
 Note: `CHECK`s must not be behind special builds or phases, such as `--verify-*`.
+
+### Leaking _Hole_ values into JavaScript
+
+Fields: **Type=Bug**, **[Security_Impact-None][hl-impact-none]**
+
+Rationale: V8 uses internal sentinel _Hole_ values.
+While leaking them historically enabled type confusion, _Hole_ sentinels are now immutable in read-only space, segregated by type (preventing cross-subsystem confusion), and have unmapped payloads (since M146) that deterministically crash on access.
+Leaks are therefore triaged as functional bugs unless exploitability is demonstrated.
 
 ### Breakage through directly invoking internal runtime functions with `%`-syntax
 

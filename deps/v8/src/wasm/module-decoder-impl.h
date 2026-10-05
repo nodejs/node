@@ -853,6 +853,12 @@ class ModuleDecoderImpl : public Decoder {
                      i, type_def.descriptor.index);
               return;
             }
+            if (V8_UNLIKELY(descriptor.is_final != type_def.is_final)) {
+              errorf(pc_,
+                     "Type %u and its descriptor %u must have same finality", i,
+                     type_def.descriptor.index);
+              return;
+            }
           }
           if (type_def.describes.valid()) {
             if (V8_UNLIKELY(module->type(type_def.describes).descriptor.index !=

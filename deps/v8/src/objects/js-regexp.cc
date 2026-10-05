@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/base/memory.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/objects/code.h"
@@ -98,7 +99,6 @@ DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     // are undefined. In the latter case we don't do anything, in the former
     // case we update the entry.
     if (group_entry.is_found()) {
-      DCHECK(v8_flags.js_regexp_duplicate_named_groups);
       if (!IsUndefined(*capture_indices)) {
         DCHECK(IsUndefined(group_names_dict->ValueAt(group_entry)));
         group_names_dict->ValueAtPut(group_entry, *capture_indices);
@@ -227,6 +227,32 @@ bool RegExpData::HasCompiledCode() const {
   if (type_tag() != Type::IRREGEXP) return false;
   Tagged<IrRegExpData> re_data = TrustedCast<IrRegExpData>(this);
   return re_data->has_latin1_code() || re_data->has_uc16_code();
+}
+
+bool RegExpData::QuickCheckRejects(base::Vector<const uint8_t> subject,
+                                   int index) const {
+  DCHECK_LE(0, index);
+  DCHECK_LE(index, subject.length());
+  if ((internal_flags() & kHasQuickCheck) == 0) return false;
+
+  const int remaining = subject.length() - index;
+
+  // The mask compares four characters at once, so it needs four to be left.
+  // Near the end of the subject we skip it and fall through to the bitset,
+  // which only ever looks at one.
+  if (quick_check_mask() != 0 &&
+      remaining >= static_cast<int>(sizeof(uint32_t))) {
+    uint32_t chars = base::ReadUnalignedValue<uint32_t>(
+        reinterpret_cast<Address>(subject.begin() + index));
+    if ((chars & quick_check_mask()) != quick_check_value()) return true;
+  }
+
+  // A set bit means "no match can start with this character", so an all-zero
+  // bitset rejects nothing and costs us only the test.  There is nothing to
+  // look at only once the position is past the last character.
+  if (remaining == 0) return false;
+  const auto [word, bit] = QuickCheckBitsetBit(subject[index]);
+  return (quick_check_reject_bitset_[word] & bit) != 0;
 }
 
 // Only irregexps are subject to tier-up.

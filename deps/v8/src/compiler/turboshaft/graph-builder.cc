@@ -2758,6 +2758,8 @@ OpIndex GraphBuilder::Process(
           Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(4)),
           Map(node->InputAt(5)), Map(node->InputAt(2)), Map(node->InputAt(3)),
           0);
+    case IrOpcode::kMemoryBarrier:
+      return __ MemoryBarrier(OpParameter<AtomicMemoryOrder>(node->op()));
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 #define SIMD128_BINOP(name)                                              \

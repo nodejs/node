@@ -573,12 +573,6 @@ class chunked_queue {
 };
 
 template <typename T, size_t BLo, size_t BHi, typename Allocator>
-constexpr size_t chunked_queue<T, BLo, BHi, Allocator>::kBlockSizeMin;
-
-template <typename T, size_t BLo, size_t BHi, typename Allocator>
-constexpr size_t chunked_queue<T, BLo, BHi, Allocator>::kBlockSizeMax;
-
-template <typename T, size_t BLo, size_t BHi, typename Allocator>
 inline void swap(chunked_queue<T, BLo, BHi, Allocator>& a,
                  chunked_queue<T, BLo, BHi, Allocator>& b) noexcept {
   a.swap(b);

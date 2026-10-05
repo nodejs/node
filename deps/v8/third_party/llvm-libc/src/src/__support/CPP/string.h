@@ -12,11 +12,15 @@
 #include "hdr/func/free.h"
 #include "hdr/func/malloc.h"
 #include "hdr/func/realloc.h"
+#include "hdr/stdint_proxy.h"
+#include "src/__support/CPP/algorithm.h"
 #include "src/__support/CPP/string_view.h"
 #include "src/__support/integer_to_string.h" // IntegerToString
+#include "src/__support/libc_assert.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/null_check.h"
 #include "src/string/memory_utils/inline_memcpy.h"
+#include "src/string/memory_utils/inline_memmove.h"
 #include "src/string/memory_utils/inline_memset.h"
 #include "src/string/string_utils.h" // string_length
 
@@ -31,6 +35,19 @@ char *realloc_or_die(char *ptr, size_t size) {
   // Out of memory: this is not handled in current implementation, so crash.
   LIBC_CRASH_ON_NULLPTR(new_ptr);
   return reinterpret_cast<char *>(new_ptr);
+}
+
+char *malloc_or_die(size_t size) { return realloc_or_die(nullptr, size); }
+
+// Returns whether the address of a is less than or equal to the address of b.
+LIBC_INLINE bool ptr_le(const char *a, const char *b) {
+  return reinterpret_cast<uintptr_t>(a) <= reinterpret_cast<uintptr_t>(b);
+}
+
+// Whether the memory spanned by a and b have any overlap.
+LIBC_INLINE bool memory_overlaps(cpp::string_view a, cpp::string_view b) {
+  return !(ptr_le(b.data() + b.size(), a.data()) ||
+           ptr_le(a.data() + a.size(), b.data()));
 }
 
 } // namespace
@@ -67,6 +84,50 @@ private:
       buffer_[size_] = NULL_CHARACTER;
   }
 
+  // Assigns the new buffer, capacity, and size to this string,
+  // freeing the current internal buffer.
+  void move_assign_from_buffer(char *new_buffer, size_t new_capacity,
+                               size_t new_size) {
+    if (buffer_ != get_empty_string())
+      ::free(buffer_);
+
+    buffer_ = new_buffer;
+    size_ = new_size;
+    capacity_ = new_capacity;
+  }
+
+  // The size of the buffer that should be allocated for requested_capacity.
+  LIBC_INLINE static size_t amortized_capacity(size_t requested_capacity) {
+    size_t new_capacity = requested_capacity + 1; // +1 for the terminating '\0'
+
+    // We extend the capacity to amortize buffer_ reallocations.
+    // We choose to augment the value by 11 / 8, this is about +40% and division
+    // by 8 is cheap. We guard the extension so the operation doesn't overflow.
+    if (new_capacity < SIZE_MAX / 11)
+      new_capacity = new_capacity * 11 / 8;
+    return new_capacity;
+  }
+
+  // Replaces the current buffer with a new larger one that is the concatenation
+  // the first keep_prefix_size bytes of the current string, new_data, and the
+  // last keep_suffix_size bytes of the current string.
+  LIBC_INLINE void grow_and_replace(size_t keep_prefix_size,
+                                    cpp::string_view new_data,
+                                    size_t keep_suffix_size) {
+    size_t new_size = keep_prefix_size + new_data.size() + keep_suffix_size;
+    size_t new_capacity = amortized_capacity(new_size);
+    char *new_buffer = malloc_or_die(new_capacity);
+
+    inline_memcpy(new_buffer, buffer_, keep_prefix_size);
+    inline_memcpy(new_buffer + keep_prefix_size, new_data.data(),
+                  new_data.size());
+    inline_memcpy(new_buffer + keep_prefix_size + new_data.size(),
+                  buffer_ + size_ - keep_suffix_size, keep_suffix_size);
+
+    move_assign_from_buffer(new_buffer, new_capacity, new_size);
+    set_size_and_add_null_character(new_size);
+  }
+
 public:
   LIBC_INLINE constexpr string() {}
   LIBC_INLINE string(const string &other) { this->operator+=(other); }
@@ -78,7 +139,7 @@ public:
     resize(count);
     inline_memcpy(buffer_, cstr, count);
   }
-  LIBC_INLINE string(const string_view &view)
+  LIBC_INLINE explicit string(const string_view &view)
       : string(view.data(), view.size()) {}
   LIBC_INLINE string(const char *cstr)
       : string(cstr, ::LIBC_NAMESPACE::internal::string_length(cstr)) {}
@@ -88,29 +149,38 @@ public:
     inline_memset((void *)buffer_, static_cast<uint8_t>(value), size_);
   }
 
-  LIBC_INLINE string &operator=(const string &other) {
-    resize(0);
-    return (*this) += other;
-  }
+  LIBC_INLINE string &assign(cpp::string_view view) {
+    if (view.empty()) {
+      set_size_and_add_null_character(0);
+      return *this;
+    }
 
-  LIBC_INLINE string &operator=(char other) {
-    resize(0);
-    return (*this) += other;
-  }
+    if (capacity() < view.size()) {
+      grow_and_replace(/* keep_prefix_size= */ 0, view,
+                       /* keep_suffix_size= */ 0);
+      return *this;
+    }
 
-  LIBC_INLINE string &operator=(string &&other) {
-    if (buffer_ != get_empty_string())
-      ::free(buffer_);
-
-    buffer_ = other.buffer_;
-    size_ = other.size_;
-    capacity_ = other.capacity_;
-    other.reset_no_deallocate();
+    inline_memmove(buffer_, view.data(), view.size());
+    set_size_and_add_null_character(view.size());
     return *this;
   }
 
-  LIBC_INLINE string &operator=(const string_view &view) {
-    return *this = string(view);
+  LIBC_INLINE string &operator=(const string &other) { return assign(other); }
+
+  LIBC_INLINE string &operator=(char other) {
+    return assign(string_view(&other, 1));
+  }
+
+  LIBC_INLINE string &operator=(string_view view) { return assign(view); }
+
+  LIBC_INLINE string &operator=(string &&other) {
+    if (this == &other)
+      return *this;
+
+    move_assign_from_buffer(other.buffer_, other.capacity_, other.size_);
+    other.reset_no_deallocate();
+    return *this;
   }
 
   LIBC_INLINE ~string() {
@@ -155,18 +225,12 @@ public:
   }
 
   LIBC_INLINE void reserve(size_t new_cap) {
-    size_t allocation_size = new_cap + 1; // +1 for terminating '\0'
-    if (allocation_size <= capacity_)
+    if (new_cap <= capacity())
       return;
-
-    // We extend the capacity to amortize buffer_ reallocations.
-    // We choose to augment the value by 11 / 8, this is about +40% and division
-    // by 8 is cheap. We guard the extension so the operation doesn't overflow.
-    if (allocation_size < SIZE_MAX / 11)
-      allocation_size = allocation_size * 11 / 8;
+    size_t allocation_size = amortized_capacity(new_cap);
 
     if (buffer_ == get_empty_string()) {
-      buffer_ = realloc_or_die(nullptr, allocation_size);
+      buffer_ = malloc_or_die(allocation_size);
       buffer_[0] = NULL_CHARACTER;
     } else {
       buffer_ = realloc_or_die(buffer_, allocation_size);
@@ -197,7 +261,7 @@ public:
     if (buffer_ == get_empty_string()) {
       // Ensure the buffer is heap allocated,
       // so that it may later be passed to `free`.
-      char *res = realloc_or_die(nullptr, 1);
+      char *res = malloc_or_die(1);
       res[0] = '\0';
       return res;
     }
@@ -207,18 +271,58 @@ public:
     return res;
   }
 
-  LIBC_INLINE string &operator+=(const string &rhs) {
-    const size_t new_size = size_ + rhs.size();
-    reserve(new_size);
-    inline_memcpy(buffer_ + size_, rhs.data(), rhs.size());
+  LIBC_INLINE string &append(cpp::string_view view) {
+    if (view.empty())
+      return *this;
+
+    if (capacity() - size_ < view.size()) {
+      grow_and_replace(/* keep_prefix_size= */ size_, view,
+                       /* keep_suffix_size= */ 0);
+      return *this;
+    }
+
+    size_t new_size = size_ + view.size();
+    inline_memcpy(buffer_ + size_, view.data(), view.size());
     set_size_and_add_null_character(new_size);
     return *this;
   }
 
+  LIBC_INLINE string &operator+=(string_view rhs) { return append(rhs); }
+
   LIBC_INLINE string &operator+=(const char c) {
-    const size_t new_size = size_ + 1;
-    reserve(new_size);
-    buffer_[size_] = c;
+    return append(string_view(&c, 1));
+  }
+
+  // Replaces the span [pos, pos + count) in this string with `str`.
+  LIBC_INLINE string &replace(size_t pos, size_t count, string_view str) {
+    LIBC_ASSERT(pos <= size_); // Out of bounds.
+
+    count = min(count, size_ - pos);
+    size_t new_size = str.size() + size_ - count;
+
+    if (new_size > capacity()) {
+      grow_and_replace(/* keep_prefix_size= */ pos, str, size_ - pos - count);
+      return *this;
+    }
+
+    // If the input references a section of this string that will be edited,
+    // fall back to a slow approach. libc++ implements this efficiently via
+    // pointer arithmetic. If self-referential replace is used frequently,
+    // this can be updated to avoid the extra temporary.
+    bool has_overlap =
+        memory_overlaps(str, string_view(buffer_ + pos, size_ - pos));
+    string tmp;
+    if (LIBC_UNLIKELY(has_overlap)) {
+      // Save str in a temp string, then update the view to reference it.
+      tmp = str;
+      str = tmp;
+    }
+
+    if (str.size() != count)
+      inline_memmove(buffer_ + pos + str.size(), buffer_ + pos + count,
+                     size_ - pos - count);
+
+    inline_memcpy(buffer_ + pos, str.data(), str.size());
     set_size_and_add_null_character(new_size);
     return *this;
   }
@@ -257,7 +361,7 @@ LIBC_INLINE string operator+(const char *lhs, const string &rhs) {
 namespace internal {
 template <typename T> string to_dec_string(T value) {
   const IntegerToString<T> buffer(value);
-  return buffer.view();
+  return string(buffer.view());
 }
 } // namespace internal
 

@@ -85,10 +85,10 @@ class RecomputeKnownNodeAspectsProcessor {
       // for all loops.
       known_node_aspects_ = zone()->New<KnownNodeAspects>(zone());
     } else if (block->is_loop()) {
-      DCHECK_GT(block->predecessor_count(), 1);
+      DCHECK_EQ(block->predecessor_count(), 2);
       known_node_aspects_ = block->state()->TakeKnownNodeAspects();
       KnownNodeAspects* backedge_known_node_aspects =
-          block->state()->backedge_known_node_aspects();
+          block->state()->AsLoopHeader()->backedge_known_node_aspects();
       // Merge saved backedge KNA to the forward one.
       TRACE_KNA("Merging KNA at loop header B"
                 << block->id() << ":" << TraceNewline{}
@@ -96,8 +96,9 @@ class RecomputeKnownNodeAspectsProcessor {
                 << TraceNewline{} << "## Backward KNA:" << TraceNewline{}
                 << *backedge_known_node_aspects);
       backedge_known_node_aspects->UnwrapIdentitiesAndPhisInKeys(zone());
-      known_node_aspects_->MergeForLoop(*backedge_known_node_aspects, zone(),
-                                        block->state()->loop_effects());
+      known_node_aspects_->MergeForLoop(
+          *backedge_known_node_aspects, zone(),
+          block->state()->AsLoopHeader()->loop_effects());
     } else if (block->has_state()) {
       known_node_aspects_ = block->state()->TakeKnownNodeAspects();
     } else if (block->is_edge_split_block()) {
@@ -333,7 +334,7 @@ class RecomputeKnownNodeAspectsProcessor {
 
   ProcessResult ProcessNode(CheckedNumberOrOddballToFloat64* node);
   ProcessResult ProcessNode(UnsafeNumberOrOddballToFloat64* node);
-  ProcessResult ProcessNode(HoleyFloat64ToSilencedFloat64* node);
+  ProcessResult ProcessNode(UnsafeHoleyFloat64ToFloat64* node);
 
 // TODO(victorgomes): Ideally we would like to check we already know the type,
 // but currently we cannot. The issue is that if the GraphBuilder emits a
@@ -363,7 +364,7 @@ class RecomputeKnownNodeAspectsProcessor {
   PROCESS_UNSAFE_CONV(ChangeIntPtrToFloat64, float64, Number)
   PROCESS_UNSAFE_CONV(UnsafeNumberToFloat64, float64, Number)
   // Note: NumberOrOddball->Float64 conversions (such as
-  // UnsafeNumberOrOddballToFloat64 and HoleyFloat64ToSilencedFloat64) lose
+  // UnsafeNumberOrOddballToFloat64 and UnsafeHoleyFloat64ToFloat64) lose
   // oddball identity and are promoted to float64 alternative by explicit
   // handlers if and only if KNA has statically proven the input is strictly
   // NodeType::kNumber without oddballs.
@@ -516,6 +517,12 @@ class RecomputeKnownNodeAspectsProcessor {
 
   ProcessResult ProcessNode(AssumeType* node) {
     return RecordType(node->input_node(0), node->asserted_type());
+  }
+
+  ProcessResult ProcessNode(CheckInt32IsSmi* node) {
+    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));
+    info->IntersectType(NodeType::kSmi);
+    return ProcessResult::kContinue;
   }
 
   ProcessResult ProcessNode(Node* node) { return ProcessResult::kContinue; }

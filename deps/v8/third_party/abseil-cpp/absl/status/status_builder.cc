@@ -40,7 +40,7 @@ void StatusBuilder::Destroy(std::unique_ptr<Rep>) {
 
 // These constructors are not-inlined and defined in the .cc file to reduce
 // binary size. See cl/354351433 for a quantification.
-StatusBuilder::StatusBuilder() {}
+StatusBuilder::StatusBuilder() = default;
 
 StatusBuilder::StatusBuilder(const absl::Status& original_status,
                              absl::SourceLocation location)
@@ -53,7 +53,7 @@ StatusBuilder::operator absl::Status() const& {
 
 StatusBuilder::Rep::Rep(const absl::Status& s) : status(s) {}
 StatusBuilder::Rep::Rep(absl::Status&& s) : status(std::move(s)) {}
-StatusBuilder::Rep::~Rep() {}
+StatusBuilder::Rep::~Rep() = default;
 
 StatusBuilder::Rep* StatusBuilder::InitRepImpl(absl::Status s) {
   if (s.ok()) {

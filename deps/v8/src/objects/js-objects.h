@@ -42,6 +42,9 @@ class Null;
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
 V8_OBJECT class JSReceiver : public HeapObject {
+  V8_IT_ABSTRACT;
+  V8_IT_ORDER(LAST);
+
  public:
   using Properties =
       UnionOf<SwissNameDictionary, FixedArrayBase, PropertyArray>;
@@ -377,6 +380,9 @@ V8_OBJECT class JSReceiver : public HeapObject {
 // Note that the map of JSObject changes during execution to enable inline
 // caching.
 V8_OBJECT class JSObject : public JSReceiver {
+  V8_IT_FIXED_VALUE(0x421);
+  V8_IT_ORDER(LAST);
+
  public:
   static const int kEndOfStrongFieldsOffset;
   static const int kHeaderSize;
@@ -1057,6 +1063,8 @@ static_assert(JSObject::kHeaderSize + JSObject::kMaxEmbedderFields *
 // by [in-object properties]) is managed by the Map + BodyDescriptor and never
 // shows up as a C++ member.
 V8_OBJECT class JSObjectWithEmbedderSlots : public JSObject {
+  V8_IT_OWN_TYPE;
+
  public:
   DECL_PRINTER(JSObjectWithEmbedderSlots)
   DECL_VERIFIER(JSObjectWithEmbedderSlots)
@@ -1074,6 +1082,8 @@ static_assert(JSObjectWithEmbedderSlots::kHeaderSize == JSObject::kHeaderSize);
 // [embedder fields] + [in-object properties] tail is managed by the Map +
 // BodyDescriptor.
 V8_OBJECT class JSAPIObjectWithEmbedderSlots : public JSObject {
+  V8_IT_ABSTRACT;
+
  public:
   class BodyDescriptor;
 
@@ -1091,6 +1101,9 @@ inline constexpr int JSAPIObjectWithEmbedderSlots::kHeaderSize =
 // functionality but allows function classes to be identified in the type
 // system.
 V8_OBJECT class JSCustomElementsObject : public JSObject {
+  V8_IT_ABSTRACT;
+  V8_IT_ORDER(FIRST);
+
  public:
   static const int kHeaderSize;
 } V8_OBJECT_END;
@@ -1107,6 +1120,9 @@ static_assert(JSCustomElementsObject::kHeaderSize == JSObject::kHeaderSize);
 // can access both sibling hierarchies at the same offset (see the
 // static_assert in cpp-heap-object-wrapper.h).
 V8_OBJECT class JSSpecialObject : public JSCustomElementsObject {
+  V8_IT_ABSTRACT;
+  V8_IT_ORDER(FIRST);
+
  public:
   static const int kHeaderSize;
 
@@ -1150,6 +1166,8 @@ V8_OBJECT class JSExternalObject : public JSObject {
 // "enumerable" and "configurable" properties, as assigned by the
 // FromPropertyDescriptor function for regular accessor properties.
 class JSAccessorPropertyDescriptor : public JSObject {
+  V8_IT_REUSE_PARENT;
+
  public:
   // Layout description.
 #define JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS(V) \
@@ -1173,6 +1191,8 @@ class JSAccessorPropertyDescriptor : public JSObject {
 // "enumerable" and "configurable" properties, as assigned by the
 // FromPropertyDescriptor function for regular data properties.
 class JSDataPropertyDescriptor : public JSObject {
+  V8_IT_REUSE_PARENT;
+
  public:
   // Layout description.
 #define JS_DATA_PROPERTY_DESCRIPTOR_FIELDS(V) \
@@ -1195,6 +1215,8 @@ class JSDataPropertyDescriptor : public JSObject {
 // This initial map adds in-object properties for "done" and "value",
 // as specified by ES6 section 25.1.1.3 The IteratorResult Interface.
 class JSIteratorResult : public JSObject {
+  V8_IT_REUSE_PARENT;
+
  public:
   DECL_ACCESSORS(value, Tagged<Object>)
 
@@ -1596,6 +1618,8 @@ V8_OBJECT class JSValidIteratorWrapper : public JSObject {
 // This initial map adds in-object properties for "promise", "resolve", and
 // "reject", in that order.
 class JSPromiseWithResolversResult : public JSObject {
+  V8_IT_REUSE_PARENT;
+
  public:
   DECL_ACCESSORS(promise, Tagged<Object>)
 
@@ -1627,6 +1651,8 @@ class JSPromiseWithResolversResult : public JSObject {
 // JSUint8ArraySetFromResult is just a JSObject with a specific initial map.
 // This initial map adds in-object properties for "read" and "written",
 class JSUint8ArraySetFromResult : public JSObject {
+  V8_IT_REUSE_PARENT;
+
  public:
   DECL_ACCESSORS(read, Tagged<Object>)
 
@@ -1652,6 +1678,7 @@ class JSUint8ArraySetFromResult : public JSObject {
 };
 
 V8_OBJECT class JSInternalPrototypeBase : public JSObject {
+  V8_IT_ABSTRACT;
 } V8_OBJECT_END;
 V8_OBJECT class JSObjectPrototype : public JSInternalPrototypeBase {
 } V8_OBJECT_END;
@@ -1675,15 +1702,14 @@ V8_OBJECT class JSStringIteratorPrototype : public JSInternalPrototypeBase {
 } V8_OBJECT_END;
 
 V8_OBJECT class JSApiObject : public JSAPIObjectWithEmbedderSlots {
+  V8_IT_FIXED_VALUE(0x422);
 } V8_OBJECT_END;
-// TODO(jgruber): This only exists to widen the JSApiObject instance type into
-// the embedder-reservable range [kFirstJSApiObjectType, kLastJSApiObjectType],
-// by pinning the upper bound at kLastJSApiObjectType. Removing it requires a
-// way to reserve an arbitrary-width instance type range for a childless class
-// in the instance type generator.
 V8_OBJECT class JSLastDummyApiObject : public JSApiObject {
+  V8_IT_ORDER(LAST);
+  V8_IT_FIXED_VALUE(0x80a);
 } V8_OBJECT_END;
 V8_OBJECT class JSSpecialApiObject : public JSSpecialObject {
+  V8_IT_FIXED_VALUE(0x410);
 } V8_OBJECT_END;
 
 V8_OBJECT class JSContextExtensionObject : public JSObject {

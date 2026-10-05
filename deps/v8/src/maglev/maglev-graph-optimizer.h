@@ -23,14 +23,14 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-class MaglevGraphOptimizer {
+class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
  public:
   explicit MaglevGraphOptimizer(
       Graph* graph, RecomputeKnownNodeAspectsProcessor& kna_processor,
       NodeRanges* ranges = nullptr);
 
   void PreProcessGraph(Graph* graph) {}
-  void PostProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph);
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block);
   BlockProcessResult PostProcessBasicBlock(BasicBlock* block);
   void PostPhiProcessing() {}
@@ -60,16 +60,10 @@ class MaglevGraphOptimizer {
     kna_processor_.set_known_node_aspects(known_node_aspects);
   }
 
-  DeoptFrame* GetDeoptFrameForEagerDeopt() {
-    CHECK(current_node()->properties().has_eager_deopt_info());
-    return &current_node()->eager_deopt_info()->top_frame();
-  }
+  DeoptFrame* GetDeoptFrameForEagerDeopt();
 
   std::tuple<DeoptFrame*, interpreter::Register, int> GetDeoptFrameForLazyDeopt(
-      bool can_throw) {
-    CHECK(current_node()->properties().can_lazy_deopt());
-    return current_node()->lazy_deopt_info()->GetFrameForCloning();
-  }
+      bool can_throw);
 
   void AttachExceptionHandlerInfo(NodeBase* node);
 
@@ -118,6 +112,10 @@ class MaglevGraphOptimizer {
   // for refinements done in the middle of the block.
   ZoneMap<ValueNode*, Range> block_range_refinements_;
 
+  // Identities removed from the graph, whose forwarding use is dropped in
+  // PostProcessGraph. See VisitIdentity.
+  ZoneVector<Identity*> removed_identities_;
+
   NodeBase* current_node_;
 
   NodeBase* current_node() const {
@@ -139,13 +137,13 @@ class MaglevGraphOptimizer {
 
   ValueNode* GetConstantWithRepresentation(
       ValueNode* node, UseRepresentation repr,
-      std::optional<TaggedToFloat64ConversionType> conversion_type);
+      std::optional<NodeType> assumed_input_type);
 
   // Returns a variant of the node with the value representation given. It
   // returns nullptr if we need to emit a tagged conversion.
   MaybeReduceResult GetUntaggedValueWithRepresentation(
       ValueNode* node, UseRepresentation repr,
-      std::optional<TaggedToFloat64ConversionType> conversion_type);
+      std::optional<NodeType> assumed_input_type);
 
   // Records the untagged input of a tagging conversion as the matching
   // untagged alternative of `tagged`, so a later untagging use can reuse it.
@@ -198,7 +196,7 @@ class MaglevGraphOptimizer {
 // the GraphProcessor can stitch the new blocks into the live graph at the
 // node currently being visited.
 template <>
-class Subgraph<MaglevGraphOptimizer>
+class V8_EXPORT_PRIVATE Subgraph<MaglevGraphOptimizer>
     : public SubgraphBase<Subgraph<MaglevGraphOptimizer>,
                           MaglevGraphOptimizer> {
  public:
@@ -245,6 +243,9 @@ class Subgraph<MaglevGraphOptimizer>
   KnownNodeAspects* saved_kna_;
   // Enclosing subgraph, or nullptr if this is a top-level subgraph.
   Subgraph<MaglevGraphOptimizer>* parent_;
+
+  ZoneVector<std::pair<int, Node*>> stashed_nodes_at_;
+  ZoneVector<Node*> stashed_nodes_at_end_;
 };
 
 }  // namespace maglev

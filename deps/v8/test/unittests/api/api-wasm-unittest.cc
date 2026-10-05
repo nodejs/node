@@ -14,6 +14,7 @@
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/handles/global-handles.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
@@ -48,6 +49,27 @@ class ApiWasmTest : public TestWithIsolate {
         Local<Promise>::Cast(RunJS("WebAssembly.compileStreaming(null)"));
     EmptyMessageQueues();
     CHECK_EQ(expected_state, promise->State());
+  }
+
+  Local<WasmModuleObject> FinishModuleCompilation(
+      WasmModuleCompilation& compilation, std::span<const uint8_t> bytes) {
+    compilation.OnBytesReceived(bytes.data(), bytes.size());
+    // The resolution callback runs within a separate task with its own
+    // HandleScope, so persist the result in a Global.
+    Global<WasmModuleObject> module_object;
+    compilation.Finish(
+        isolate(), {},
+        [this,
+         &module_object](std::variant<Local<WasmModuleObject>, Local<Value>>
+                             module_or_error) {
+          CHECK(
+              std::holds_alternative<Local<WasmModuleObject>>(module_or_error));
+          module_object.Reset(
+              isolate(), std::get<Local<WasmModuleObject>>(module_or_error));
+        });
+    EmptyMessageQueues();
+    CHECK(!module_object.IsEmpty());
+    return module_object.Get(isolate());
   }
 };
 
@@ -211,8 +233,8 @@ TEST_F(ApiWasmTest, WasmCompileWithJsStringBuiltins) {
               '-', 's', 't', 'r', 'i', 'n', 'g', 10, 'c', 'h', 'a', 'r', 'C',
               'o', 'd', 'e', 'A', 't', kExternalFunction, 0)};
 
-  WasmModuleObject::CompileTimeImports imports;
-  imports.builtins = WasmModuleObject::CompileTimeImports::Builtins::kJsString;
+  WasmModuleObject::CompileOptions options{
+      .builtins = WasmModuleObject::CompileOptions::Builtins::kJsString};
 
   // Without compile-time imports the "wasm:js-string" import is an ordinary
   // import resolved at instantiation, so it is reflected and both modules
@@ -225,14 +247,14 @@ TEST_F(ApiWasmTest, WasmCompileWithJsStringBuiltins) {
   // With the builtins enabled the valid import is bound at compile time, so it
   // is no longer reflected.
   Local<WasmModuleObject> bound =
-      WasmModuleObject::Compile(isolate(), valid_module, imports)
+      WasmModuleObject::Compile(isolate(), valid_module, options)
           .ToLocalChecked();
   CHECK_EQ(0, ReflectedImportCount(isolate(), bound));
 
   // The invalid signature is rejected at compile time.
   {
     TryCatch try_catch(isolate());
-    CHECK(WasmModuleObject::Compile(isolate(), invalid_module, imports)
+    CHECK(WasmModuleObject::Compile(isolate(), invalid_module, options)
               .IsEmpty());
     CHECK(try_catch.HasCaught());
   }
@@ -260,11 +282,31 @@ TEST_F(ApiWasmTest, WasmCompileWithImportedStringConstants) {
 
   // Naming "strings" as the constants module binds the import at compile time,
   // so it is no longer reflected.
-  WasmModuleObject::CompileTimeImports imports;
-  imports.imported_string_constants_module = "strings";
   Local<WasmModuleObject> bound =
-      WasmModuleObject::Compile(isolate(), module, imports).ToLocalChecked();
+      WasmModuleObject::Compile(isolate(), module,
+                                {.imported_string_constants_module = "strings"})
+          .ToLocalChecked();
   CHECK_EQ(0, ReflectedImportCount(isolate(), bound));
+}
+
+TEST_F(ApiWasmTest, WasmCompileWithSourceUrl) {
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+
+  constexpr std::string_view kUrl = "file:///test/module.wasm";
+  Local<WasmModuleObject> with_url =
+      WasmModuleObject::Compile(isolate(), kMinimalWasmModuleBytes,
+                                {.source_url = kUrl})
+          .ToLocalChecked();
+  CHECK_EQ(kUrl, with_url->GetCompiledModule().source_url());
+
+  // A distinct module, since scripts (and their URLs) are cached per module
+  // per isolate. Without a source URL a wasm:// URL is synthesized.
+  const uint8_t distinct_module[] = {0x00, 0x61, 0x73, 0x6d, 0x01, 0x00,
+                                     0x00, 0x00, 0x00, 0x02, 0x01, 'x'};
+  Local<WasmModuleObject> plain =
+      WasmModuleObject::Compile(isolate(), distinct_module).ToLocalChecked();
+  CHECK_EQ(0u, plain->GetCompiledModule().source_url().find("wasm://wasm/"));
 }
 
 TEST_F(ApiWasmTest, WasmStreamingSetCallback) {
@@ -404,6 +446,66 @@ TEST_F(ApiWasmTest, WasmModuleCompilation_Basic) {
   CHECK(!module_object.IsEmpty());
   CHECK(!try_catch.HasCaught());
   CHECK(!isolate()->HasPendingException());
+}
+
+TEST_F(ApiWasmTest, WasmModuleCompilation_CompileOptions) {
+  using namespace internal::wasm;  // NOLINT(build/namespaces)
+  Isolate::Scope iscope(isolate());
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope cscope(context);
+  TryCatch try_catch(isolate());
+
+  // Imports `charCodeAt` from the "wasm:js-string" builtins module, matching
+  // the builtin signature, so it binds at compile time when enabled.
+  const uint8_t module_bytes[] = {
+      WASM_MODULE_HEADER,
+      SECTION(Type, ENTRY_COUNT(1),
+              SIG_ENTRY_x_xx(kI32Code, kExternRefCode, kI32Code)),
+      SECTION(Import, ENTRY_COUNT(1), 14, 'w', 'a', 's', 'm', ':', 'j', 's',
+              '-', 's', 't', 'r', 'i', 'n', 'g', 10, 'c', 'h', 'a', 'r', 'C',
+              'o', 'd', 'e', 'A', 't', kExternalFunction, 0)};
+
+  constexpr std::string_view kUrl = "file:///test/async-module.wasm";
+  WasmModuleCompilation compilation(
+      {.builtins = WasmModuleObject::CompileOptions::Builtins::kJsString,
+       .source_url = kUrl});
+  Local<WasmModuleObject> module =
+      FinishModuleCompilation(compilation, module_bytes);
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(0, ReflectedImportCount(isolate(), module));
+  CHECK_EQ(kUrl, module->GetCompiledModule().source_url());
+}
+
+TEST_F(ApiWasmTest, WasmModuleCompilation_SourceUrl) {
+  Isolate::Scope iscope(isolate());
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope cscope(context);
+  TryCatch try_catch(isolate());
+
+  // SetUrl cleanly replaces a URL provided via compile options.
+  {
+    constexpr std::string_view kSetUrl = "file:///test/replaced.wasm";
+    WasmModuleCompilation compilation(
+        {.source_url = "file:///test/original.wasm"});
+    compilation.SetUrl(kSetUrl.data(), kSetUrl.size());
+    Local<WasmModuleObject> module =
+        FinishModuleCompilation(compilation, kMinimalWasmModuleBytes);
+    CHECK_EQ(kSetUrl, module->GetCompiledModule().source_url());
+  }
+
+  // Without a URL, a wasm:// URL is synthesized. A distinct module, since
+  // scripts (and their URLs) are cached per module per isolate.
+  {
+    const uint8_t distinct_module[] = {0x00, 0x61, 0x73, 0x6d, 0x01, 0x00,
+                                       0x00, 0x00, 0x00, 0x02, 0x01, 'y'};
+    WasmModuleCompilation compilation;
+    Local<WasmModuleObject> module =
+        FinishModuleCompilation(compilation, distinct_module);
+    CHECK_EQ(0u, module->GetCompiledModule().source_url().find("wasm://wasm/"));
+  }
+  CHECK(!try_catch.HasCaught());
 }
 
 TEST_F(ApiWasmTest, GetWasmMemoryReservationSizeInBytes) {
