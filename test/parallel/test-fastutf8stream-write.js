@@ -268,3 +268,67 @@ function runTests(sync) {
   assert.strictEqual(stream.maxLength, 65536);
   stream.end();
 }
+
+// maxLength drop behavior: writing past maxLength must emit 'drop' and
+// never write the overflowing chunk (see SonicBoom write tests).
+{
+  const dest = getTempFile();
+  const fd = openSync(dest, 'w');
+
+  const buf = Buffer.alloc(100).fill('x').toString();
+
+  const stream = new Utf8Stream({
+    fd,
+    minLength: 101,
+    maxLength: 102,
+    sync: false,
+    fs: {
+      write: common.mustCall((...args) => {
+        const data = args[1];
+        const callback = args[args.length - 1];
+        assert.strictEqual(data.length, buf.length + 2);
+        process.nextTick(callback, null, data.length);
+        stream.end();
+      }, 1),
+    }
+  });
+
+  stream.on('drop', common.mustNotCall());
+
+  stream.on('ready', common.mustCall(() => {
+    assert.ok(stream.write(buf));
+    assert.ok(stream.write('aa'));
+  }));
+}
+
+{
+  const dest = getTempFile();
+  const fd = openSync(dest, 'w');
+
+  const buf = Buffer.alloc(100).fill('x').toString();
+
+  const stream = new Utf8Stream({
+    fd,
+    minLength: 101,
+    maxLength: 102,
+    sync: false,
+    fs: {
+      write: common.mustCall((...args) => {
+        const data = args[1];
+        const callback = args[args.length - 1];
+        assert.strictEqual(data.length, buf.length);
+        process.nextTick(callback, null, data.length);
+      }, 1),
+    }
+  });
+
+  stream.on('drop', common.mustCall((data) => {
+    assert.strictEqual(data.length, 3);
+    stream.end();
+  }));
+
+  stream.on('ready', common.mustCall(() => {
+    assert.ok(stream.write(buf));
+    assert.ok(stream.write('aaa'));
+  }));
+}
