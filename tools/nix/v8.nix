@@ -131,7 +131,7 @@ stdenv.mkDerivation (finalAttrs: {
     done
   ''
   # TODO: remove that custom patch in favor of https://chromium-review.googlesource.com/c/v8/v8/+/8500805
-  + (lib.optionalString (with stdenv.hostPlatform; isLinux && isArm64) ''
+  + (lib.optionalString (with stdenv.hostPlatform; isLinux && isAarch) ''
     substituteInPlace deps/v8/src/base/memcopy.h --replace-fail '#define V8_BASE_MEMCOPY_H_' "$(
       printf '%s\n\n%s\n' '#define V8_BASE_MEMCOPY_H_' '#include <limits.h>'
     )"
