@@ -1901,7 +1901,7 @@ equality.
 ## `util.isPartialDeepStrictEqual(val1, val2)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.11.0
 -->
 
 * `val1` {any}

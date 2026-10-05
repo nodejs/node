@@ -877,7 +877,7 @@ console.log(allUsers);
 ### `database.createModule(name, options)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.11.0
 -->
 
 * `name` {string} The name of the virtual table module. This name is used in

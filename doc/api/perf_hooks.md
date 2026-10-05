@@ -889,7 +889,7 @@ setImmediate(() => {
 ### `performanceNodeTiming.uvMetricsInfoBigInt`
 
 <!-- YAML
-added: REPLACEME
+added: v26.11.0
 -->
 
 * Type: {Object}
@@ -1817,7 +1817,7 @@ console.log(snapshot.percentile(99));
 <!-- YAML
 added: v26.9.0
 changes:
-  - version: REPLACEME
+  - version: v26.11.0
     pr-url: https://github.com/nodejs/node/pull/66098
     description: Format version 2 is supported. Unknown keys in version 2
                  data are ignored.
@@ -1926,7 +1926,7 @@ are not guaranteed to reflect any correct state of the event loop.
 <!-- YAML
 added: v11.10.0
 changes:
-  - version: REPLACEME
+  - version: v26.11.0
     pr-url: https://github.com/nodejs/node/pull/66115
     description: Added the `lowest`, `highest`, and `figures` options.
   - version:
@@ -2223,7 +2223,7 @@ value range of the given value.
 ### `histogram.diff(other)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.11.0
 -->
 
 * `other` {Histogram} An earlier snapshot of this histogram.
@@ -2295,7 +2295,7 @@ histogram's highest recordable value.
 <!-- YAML
 added: v26.9.0
 changes:
-  - version: REPLACEME
+  - version: v26.11.0
     pr-url: https://github.com/nodejs/node/pull/66098
     description: The output uses format version 2.
 -->
@@ -2744,7 +2744,7 @@ Resets the collected histogram data and increments `histogram.resetCount`.
 ### `histogram.resetCount`
 
 <!-- YAML
-added: REPLACEME
+added: v26.11.0
 -->
 
 * Type: {number}
@@ -2773,7 +2773,7 @@ indicates a left-skewed distribution.
 ### `histogram.snapshot()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.11.0
 -->
 
 * Returns: {Histogram}
@@ -2916,7 +2916,7 @@ added:
   - v15.9.0
   - v14.18.0
 changes:
-  - version: REPLACEME
+  - version: v26.11.0
     pr-url: https://github.com/nodejs/node/pull/66114
     description: Recording `0` is now supported.
 -->
@@ -2945,7 +2945,7 @@ added:
  - v26.8.0
  - v24.21.0
 changes:
-  - version: REPLACEME
+  - version: v26.11.0
     pr-url: https://github.com/nodejs/node/pull/66114
     description: Recording `0` is now supported.
 -->

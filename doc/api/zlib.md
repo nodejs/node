@@ -2193,7 +2193,7 @@ Only applicable to deflate algorithm.
 <!-- YAML
 added: v0.7.0
 changes:
-  - version: REPLACEME
+  - version: v26.11.0
     pr-url: https://github.com/nodejs/node/pull/66157
     description: Brotli streams preserve parameters and dictionary on reset.
 -->
@@ -3076,7 +3076,7 @@ added:
   - v23.8.0
   - v22.15.0
 changes:
-  - version: REPLACEME
+  - version: v26.11.0
     pr-url: https://github.com/nodejs/node/pull/66358
     description: The `pledgedSrcSize` option defaults to the byte length of
                  `buffer`.

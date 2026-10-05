@@ -155,7 +155,7 @@ $ node --experimental-vfs --require ./provider.js \
 ## `vfs.vfsBase()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.11.0
 -->
 
 * Returns: {string} The absolute path of the [reserved root directory][].

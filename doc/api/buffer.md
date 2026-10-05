@@ -1018,7 +1018,7 @@ the byte length as reported by `.byteLength` is returned.
 ### Static method: `Buffer.stringLength(input[, encoding])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.11.0
 -->
 
 * `input` {Buffer | ArrayBuffer | TypedArray} The bytes that would be decoded.
@@ -5417,7 +5417,7 @@ A detached `ArrayBuffer`, or a `TypedArray` backed by one, is treated as empty.
 ### `buffer.isLatin1(input)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.11.0
 -->
 
 * `input` {string} The string to validate.
