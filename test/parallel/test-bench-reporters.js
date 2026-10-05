@@ -55,6 +55,9 @@ bench('json failed', { samples: 1 }, () => {
     skipped: 0,
     total: 2,
   });
+  // The failed run sets the exit code; reset it so the test itself passes.
+  assert.strictEqual(process.exitCode, 1);
+  process.exitCode = 0;
 
   const synthetic = [
     {
