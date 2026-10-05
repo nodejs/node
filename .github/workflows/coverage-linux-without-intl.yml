@@ -36,9 +36,9 @@ concurrency:
 env:
   PYTHON_VERSION: '3.14'
   FLAKY_TESTS: keep_retrying
-  CLANG_VERSION: '19'
-  CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang-19
-  CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang++-19
+  CLANG_VERSION: '21'
+  CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang-21
+  CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang++-21
   SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
   SCCACHE_IDLE_TIMEOUT: '0'
 
@@ -48,7 +48,7 @@ permissions:
 jobs:
   coverage-linux-without-intl:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
