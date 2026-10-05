@@ -57,6 +57,9 @@ stream.on('end', common.mustCall(() => {
     total: 4,
   });
   assert.strictEqual(summary.success, false);
+  // The failed run sets the exit code; reset it so the test itself passes.
+  assert.strictEqual(process.exitCode, 1);
+  process.exitCode = 0;
 
   const byName = new Map(completions.map((result) => [result.name, result]));
   assert.strictEqual(byName.get('blocked by before').error.message,
