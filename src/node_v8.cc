@@ -279,9 +279,7 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   while (input >> flag) {
     if (options_parser::IsUnsupportedV8Mode(flag)) {
       return THROW_ERR_INVALID_ARG_VALUE(
-          args.GetIsolate(),
-          "Node.js does not support V8 flag %s.",
-          flag);
+          args.GetIsolate(), "Node.js does not support V8 flag %s.", flag);
     }
   }
   V8::SetFlagsFromString(flags.out(), flags.length());
