@@ -1,4 +1,4 @@
-type Buffer = Uint8Array;
+import { FastBuffer as Buffer } from 'internal/buffer';
 
 export interface ICUBinding {
   Converter: object;

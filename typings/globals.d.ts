@@ -108,11 +108,9 @@ interface InternalBindingMap {
 
 type InternalBindingKeys = keyof InternalBindingMap;
 
-declare function internalBinding<T extends InternalBindingKeys>(binding: T): InternalBindingMap[T]
-
 declare global {
   // Supplied to internal modules by the builtin function wrapper.
-  let internalBinding: typeof import('./globals').internalBinding;
+  function internalBinding<T extends InternalBindingKeys>(binding: T): InternalBindingMap[T]
 
   type TypedArray =
     | Uint8Array
