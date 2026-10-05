@@ -384,6 +384,8 @@ selected benchmark. A benchmark may finish earlier by calling
 .It Fl -bench-warmup Ns = Ns Ar count
 Overrides the number of unreported warmup callback invocations for every
 selected benchmark. \fBcount\fR must be an integer between \fB0\fR and \fB4294967295\fR.
+Without this option, each benchmark uses its own \fBwarmup\fR value, which defaults
+to \fB10\fR.
 .
 .It Fl -build-sea Ns = Ns Ar config
 Generates a single executable application from a JSON

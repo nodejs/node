@@ -2,7 +2,7 @@
 
 const { bench } = require('node:bench');
 
-bench('recorded detail', { samples: 3 }, (b) => {
+bench('recorded detail', { samples: 3, warmup: 0 }, (b) => {
   b.record({
     __proto__: null,
     detail: {

@@ -2,7 +2,7 @@
 
 const { bench } = require('node:bench');
 
-bench('many records', { samples: 30 }, (b) => {
+bench('many records', { samples: 30, warmup: 0 }, (b) => {
   process.stdout.write(`${b.index}\n`);
   b.record({ duration_ns: 1n, operations: 1 });
 });

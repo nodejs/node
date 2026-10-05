@@ -47,7 +47,7 @@ const suiteCompletion = suite('group', { tags: ['Group'] }, async () => {
     active = false;
   }, 3));
 
-  bench('async', { samples: 2 }, common.mustCall(async (b) => {
+  bench('async', { samples: 2, warmup: 0 }, common.mustCall(async (b) => {
     assert.strictEqual(active, false);
     active = true;
     contexts.add(b);
