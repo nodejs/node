@@ -668,8 +668,7 @@ static_assert(V8_ENABLE_SIMD128);
 #endif  // defined(__clang__)
 
 // Disable/enable -Wlifetime-safety warnings in code.
-#if defined(__clang__) && defined(__has_warning) && \
-    __has_warning("-Wlifetime-safety")
+#if V8_HAS_WARNING("-Wlifetime-safety")
 #define START_IGNORE_LIFETIME_SAFETY_WARNINGS() \
   _Pragma("clang diagnostic push")              \
       _Pragma("clang diagnostic ignored \"-Wlifetime-safety\"")
@@ -677,11 +676,10 @@ static_assert(V8_ENABLE_SIMD128);
 #else
 #define START_IGNORE_LIFETIME_SAFETY_WARNINGS()
 #define END_IGNORE_LIFETIME_SAFETY_WARNINGS()
-#endif  // defined(__clang__)
+#endif  // V8_HAS_WARNING("-Wlifetime-safety")
 
 // Disable/enable -Wreturn-stack-address warnings in code.
-#if defined(__clang__) && defined(__has_warning) && \
-    __has_warning("-Wreturn-stack-address")
+#if V8_HAS_WARNING("-Wreturn-stack-address")
 #define START_IGNORE_RETURN_STACK_ADDRESS_WARNINGS() \
   _Pragma("clang diagnostic push")                   \
       _Pragma("clang diagnostic ignored \"-Wreturn-stack-address\"")
@@ -690,6 +688,6 @@ static_assert(V8_ENABLE_SIMD128);
 #else
 #define START_IGNORE_RETURN_STACK_ADDRESS_WARNINGS()
 #define END_IGNORE_RETURN_STACK_ADDRESS_WARNINGS()
-#endif  // defined(__clang__)
+#endif  // V8_HAS_WARNING("-Wreturn-stack-address")
 
 #endif  // V8_BASE_MACROS_H_
