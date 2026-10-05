@@ -1453,6 +1453,9 @@
         ['node_shared_abseil=="false"', {
           'dependencies': ['abseil.gyp:abseil'],
         }],
+        ['node_shared_simdutf=="false"', {
+          'dependencies': ['simdutf.gyp:simdutf'],
+        }],
       ],
     },  # torque_base
     {
