@@ -1608,6 +1608,7 @@ import {
   buffer,
   json,
   text,
+  concat,
 } from 'node:stream/consumers';
 ```
 
@@ -1618,6 +1619,7 @@ const {
   buffer,
   json,
   text,
+  concat,
 } = require('node:stream/consumers');
 ```
 
@@ -1848,14 +1850,195 @@ text(readable).then((data) => {
 });
 ```
 
+#### `streamConsumers.concat(sources[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `sources` {Iterable|AsyncIterable} An iterable or async iterable of sources.
+  Each item may be a {Stream}, a {ReadableStream}, an {Iterable} or
+  {AsyncIterable} of chunks, a chunk ({string}, {Buffer}, {TypedArray} or
+  {DataView}), or a {Function} returning any of those, optionally as a
+  {Promise}.
+* `options` {Object}
+  * `signal` {AbortSignal} Aborting the signal fails the returned iterator
+    with `signal.reason` and destroys every source.
+  * `lazy` {boolean} Whether sources are obtained one at a time rather than up
+    front. **Default:** `true` when `sources` is an async iterable, `false`
+    otherwise. See [Collections and producers][].
+  * `destroyOnReturn` {boolean} When `false`, sources that were never consumed
+    are returned to the caller live and without error handlers attached rather
+    than being destroyed. **Default:** `true`.
+* Returns: {AsyncIterator} Yields the chunks of each source in turn.
+
+Reads a sequence of sources as though they were one. Each source is consumed
+to completion before the next is started.
+
+Unlike the other utility consumers, `concat()` does not consume anything by
+itself and does not return a promise. It returns an async iterator, which the
+other consumers in this module accept directly.
+
+```mjs
+import { concat, text } from 'node:stream/consumers';
+import { createReadStream } from 'node:fs';
+
+const document = await text(concat([
+  createReadStream('header.txt'),
+  createReadStream('body.txt'),
+  createReadStream('footer.txt'),
+]));
+```
+
+```cjs
+const { concat, text } = require('node:stream/consumers');
+const { createReadStream } = require('node:fs');
+
+text(concat([
+  createReadStream('header.txt'),
+  createReadStream('body.txt'),
+  createReadStream('footer.txt'),
+])).then((document) => {
+  console.log(document.length);
+});
+```
+
+Returning an iterator rather than a stream means `concat()` has no
+`objectMode` of its own to configure and no `highWaterMark`: chunks pass
+through exactly as their source produced them, and the sequence is read only
+as fast as it is consumed. Use [`stream.Readable.from()`][] to obtain a
+stream:
+
+```mjs
+import { concat } from 'node:stream/consumers';
+import { Readable } from 'node:stream';
+
+const readable = Readable.from(concat(sources), { objectMode: false });
+```
+
+`sources` must be a collection, not a single source. Passing a string or a
+{Buffer} throws [`ERR_INVALID_ARG_TYPE`][], since iterating one would yield
+its individual characters or bytes rather than treating it as one chunk. Wrap
+it in an array instead.
+
+##### Collections and producers
+
+A {stream.Readable} begins consuming its underlying resource as soon as it is
+constructed, and one that emits `'error'` with no listener attached will throw
+an uncaught exception. `concat()` therefore attaches an error handler to every
+source at the moment it obtains a reference to it, and never holds a reference
+it is not listening to.
+
+The shape of `sources` determines when those references are obtained:
+
+* When `sources` is a synchronous iterable it is treated as a **collection**.
+  It is drained when `concat()` is called and every stream it contains is
+  guarded immediately. Synchronous iteration cannot block, and anything
+  already in the collection is already running, so nothing is gained by
+  deferring.
+
+* When `sources` is an async iterable it is treated as a **producer**. Sources
+  are obtained one at a time and guarded as they arrive; the producer is never
+  read ahead of the consumer, and an unbounded producer is safe.
+
+There is no way to distinguish a collection that already holds live streams
+from a producer that creates one per iteration — a `Set` of open file streams
+and a generator that opens one per `yield` present the identical interface —
+so the two cases are separated by the protocol rather than by inspection. Use
+`options.lazy` where the default is wrong, for example with a synchronous
+generator that opens a resource per iteration:
+
+```mjs
+import { concat } from 'node:stream/consumers';
+import { createReadStream } from 'node:fs';
+
+function* openEach(paths) {
+  for (const path of paths) yield createReadStream(path);
+}
+
+// Without `lazy`, every file would be opened when concat() is called.
+const parts = concat(openEach(paths), { lazy: true });
+```
+
+Alternatively, supply factories. A factory is inert until reached, which gives
+laziness under either default and never leaves an unguarded source:
+
+```mjs
+import { concat } from 'node:stream/consumers';
+import { createReadStream } from 'node:fs';
+
+const parts = concat(paths.map((path) => () => createReadStream(path)));
+```
+
+Guarding applies only to {stream.Readable} sources. A {ReadableStream} or an
+async iterable stores its own failure and surfaces it on the next read, and so
+has no unhandled-`'error'` path to protect against.
+
+##### Error handling
+
+If any source fails — including one that has not been read yet — iteration
+rejects with that error. The first error wins; later ones are discarded. The
+error is raised as soon as it occurs rather than when the current source
+finishes, so a failure elsewhere in the sequence will not be delayed behind a
+source that is slow or stalled.
+
+`concat()` calls `stream.destroy(err)` on every stream it is still holding,
+and cancels every {ReadableStream}, when iteration ends for any reason other
+than reading every source to completion: an error, an abort, or leaving a
+`for await...of` loop through `break`, `return` or `throw`. Sources that were
+read to completion are left as their own semantics leave them, with the
+listeners `concat()` added removed.
+
+Set `destroyOnReturn` to `false` to take ownership of the unconsumed sources
+instead. They are handed back live and unguarded, and an `'error'` from one is
+then the caller's to handle.
+
+```mjs
+import { concat } from 'node:stream/consumers';
+import process from 'node:process';
+
+const ac = new AbortController();
+setTimeout(() => ac.abort(), 5000);
+
+try {
+  for await (const chunk of concat(sources, { signal: ac.signal })) {
+    process.stdout.write(chunk);
+  }
+} catch (err) {
+  if (err.name === 'AbortError') {
+    // Every source has been destroyed.
+  } else {
+    throw err;
+  }
+}
+```
+
+A source that never produces data and never ends cannot be escaped with
+`break` or by calling `return()` on the iterator: an async iterator suspended
+awaiting a read cannot be interrupted, and the request queues behind the read
+that will not complete. `options.signal` is the only way to abandon a stalled
+source.
+
+`options.signal` aborts the iteration and destroys the sources. It is not
+forwarded to the sources themselves, so a source with its own `signal` support
+is destroyed rather than cancelled at the underlying operation. Pass the same
+signal to the source directly, or use [`stream.addAbortSignal()`][], where
+that distinction matters.
+
+[Collections and producers]: #collections-and-producers
 [Streams]: stream.md
 [WHATWG Streams Standard]: https://streams.spec.whatwg.org/
+[`ERR_INVALID_ARG_TYPE`]: errors.md#err_invalid_arg_type
 [`stream.Duplex.fromWeb`]: stream.md#streamduplexfromwebpair-options
 [`stream.Duplex.toWeb`]: stream.md#streamduplextowebstreamduplex-options
 [`stream.Duplex`]: stream.md#class-streamduplex
+[`stream.Readable.from()`]: stream.md#streamreadablefromiterable-options
 [`stream.Readable.fromWeb`]: stream.md#streamreadablefromwebreadablestream-options
 [`stream.Readable.toWeb`]: stream.md#streamreadabletowebstreamreadable-options
 [`stream.Readable`]: stream.md#class-streamreadable
 [`stream.Writable.fromWeb`]: stream.md#streamwritablefromwebwritablestream-options
 [`stream.Writable.toWeb`]: stream.md#streamwritabletowebstreamwritable
 [`stream.Writable`]: stream.md#class-streamwritable
+[`stream.addAbortSignal()`]: stream.md#streamaddabortsignalsignal-stream
