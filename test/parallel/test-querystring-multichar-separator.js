@@ -7,9 +7,10 @@ function check(actual, expected) {
   assert(!(actual instanceof Object));
   assert.deepStrictEqual(Object.keys(actual).sort(),
                          Object.keys(expected).sort());
-  Object.keys(expected).forEach(function(key) {
+
+  for (const key of Object.keys(expected)) {
     assert.deepStrictEqual(actual[key], expected[key]);
-  });
+  }
 }
 
 check(qs.parse('foo=>bar&&bar=>baz', '&&', '=>'),
