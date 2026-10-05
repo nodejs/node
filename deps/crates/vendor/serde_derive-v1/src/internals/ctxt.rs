@@ -7,7 +7,8 @@ use std::thread;
 ///
 /// Dropping this object will cause a panic. It must be consumed using `check`.
 ///
-/// References can be shared since this type uses run-time exclusive mut checking.
+/// References can be shared since this type uses run-time exclusive mut
+/// checking.
 #[derive(Default)]
 pub struct Ctxt {
     // The contents will be set to `None` during checking. This is so that checking can be
@@ -18,14 +19,13 @@ pub struct Ctxt {
 impl Ctxt {
     /// Create a new context object.
     ///
-    /// This object contains no errors, but will still trigger a panic if it is not `check`ed.
+    /// This object contains no errors, but will still trigger a panic if it is
+    /// not `check`ed.
     pub fn new() -> Self {
-        Ctxt {
-            errors: RefCell::new(Some(Vec::new())),
-        }
+        Ctxt { errors: RefCell::new(Some(Vec::new())) }
     }
 
-    /// Add an error to the context object with a tokenenizable object.
+    /// Add an error to the context object with a tokenizable object.
     ///
     /// The object is used for spanning in error messages.
     pub fn error_spanned_by<A: ToTokens, T: Display>(&self, obj: A, msg: T) {
@@ -42,13 +42,13 @@ impl Ctxt {
         self.errors.borrow_mut().as_mut().unwrap().push(err);
     }
 
-    /// Consume this object, producing a formatted error string if there are errors.
+    /// Consume this object, producing a formatted error string if there are
+    /// errors.
     pub fn check(self) -> syn::Result<()> {
         let mut errors = self.errors.borrow_mut().take().unwrap().into_iter();
 
-        let mut combined = match errors.next() {
-            Some(first) => first,
-            None => return Ok(()),
+        let Some(mut combined) = errors.next() else {
+            return Ok(());
         };
 
         for rest in errors {

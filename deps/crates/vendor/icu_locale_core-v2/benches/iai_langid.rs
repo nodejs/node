@@ -2,7 +2,7 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-use icu_locale_core::{langid, subtags::language, subtags::region, LanguageIdentifier};
+use icu_locale_core::{LanguageIdentifier, langid, subtags::language, subtags::region};
 use std::borrow::Cow;
 use writeable::Writeable;
 

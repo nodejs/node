@@ -15,7 +15,8 @@ use crate::private;
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 
-/// Generates `Deserialize::deserialize` body for an `enum Enum {...}` with `#[serde(tag, content)]` attributes
+/// Generates `Deserialize::deserialize` body for an `enum Enum {...}` with
+/// `#[serde(tag, content)]` attributes
 pub(super) fn deserialize(
     params: &Parameters,
     variants: &[Variant],
@@ -31,20 +32,19 @@ pub(super) fn deserialize(
 
     let (variants_stmt, variant_visitor) = enum_::prepare_enum_variant_enum(variants);
 
-    let variant_arms: &Vec<_> = &variants
-        .iter()
-        .enumerate()
-        .filter(|&(_, variant)| !variant.attrs.skip_deserializing())
-        .map(|(i, variant)| {
-            let variant_index = field_i(i);
+    let mut variant_arms = Vec::new();
+    for (i, variant) in variants.iter().enumerate() {
+        if variant.attrs.skip_deserializing() {
+            continue;
+        }
+        let variant_index = field_i(i);
 
-            let block = Match(enum_untagged::deserialize_variant(params, variant, cattrs));
+        let block = Match(enum_untagged::deserialize_variant(params, variant, cattrs));
 
-            quote! {
-                __Field::#variant_index => #block
-            }
-        })
-        .collect();
+        variant_arms.push(quote! {
+            __Field::#variant_index => #block
+        });
+    }
 
     let rust_name = params.type_name();
     let expecting = format!("adjacently tagged enum {}", rust_name);
@@ -64,35 +64,35 @@ pub(super) fn deserialize(
         _serde::#private::Err(<__A::Error as _serde::de::Error>::missing_field(#content))
     };
     let mut missing_content_fallthrough = quote!();
-    let missing_content_arms = variants
-        .iter()
-        .enumerate()
-        .filter(|&(_, variant)| !variant.attrs.skip_deserializing())
-        .filter_map(|(i, variant)| {
-            let variant_index = field_i(i);
-            let variant_ident = &variant.ident;
+    let mut missing_content_arms = Vec::new();
+    for (i, variant) in variants.iter().enumerate() {
+        if variant.attrs.skip_deserializing() {
+            continue;
+        }
+        let variant_index = field_i(i);
+        let variant_ident = &variant.ident;
 
-            let arm = match variant.style {
-                Style::Unit => quote! {
-                    _serde::#private::Ok(#this_value::#variant_ident)
-                },
-                Style::Newtype if variant.attrs.deserialize_with().is_none() => {
-                    let span = variant.original.span();
-                    let func = quote_spanned!(span=> _serde::#private::de::missing_field);
-                    quote! {
-                        #func(#content).map(#this_value::#variant_ident)
-                    }
+        let arm = match variant.style {
+            Style::Unit => quote! {
+                _serde::#private::Ok(#this_value::#variant_ident)
+            },
+            Style::Newtype if variant.attrs.deserialize_with().is_none() => {
+                let span = variant.original.span();
+                let func = quote_spanned!(span=> _serde::#private::de::missing_field);
+                quote! {
+                    #func(#content).map(#this_value::#variant_ident)
                 }
-                _ => {
-                    missing_content_fallthrough = quote!(_ => #missing_content);
-                    return None;
-                }
-            };
-            Some(quote! {
-                __Field::#variant_index => #arm,
-            })
-        })
-        .collect::<Vec<_>>();
+            }
+            _ => {
+                missing_content_fallthrough = quote!(_ => #missing_content);
+                continue;
+            }
+        };
+        missing_content_arms.push(quote! {
+            __Field::#variant_index => #arm,
+        });
+    }
+
     if !missing_content_arms.is_empty() {
         missing_content = quote! {
             match __field {
@@ -282,8 +282,8 @@ pub(super) fn deserialize(
                 __A: _serde::de::SeqAccess<#delife>,
             {
                 // Visit the first element - the tag.
-                match _serde::de::SeqAccess::next_element(&mut __seq)? {
-                    _serde::#private::Some(__variant) => {
+                match _serde::de::SeqAccess::next_element(&mut __seq) {
+                    _serde::#private::Ok(_serde::#private::Some(__variant)) => {
                         // Visit the second element - the content.
                         match _serde::de::SeqAccess::next_element_seed(
                             &mut __seq,
@@ -292,18 +292,20 @@ pub(super) fn deserialize(
                                 marker: _serde::#private::PhantomData,
                                 lifetime: _serde::#private::PhantomData,
                             },
-                        )? {
-                            _serde::#private::Some(__ret) => _serde::#private::Ok(__ret),
+                        ) {
+                            _serde::#private::Ok(_serde::#private::Some(__ret)) => _serde::#private::Ok(__ret),
                             // There is no second element.
-                            _serde::#private::None => {
+                            _serde::#private::Ok(_serde::#private::None) => {
                                 _serde::#private::Err(_serde::de::Error::invalid_length(1, &self))
                             }
+                            _serde::#private::Err(__err) => _serde::#private::Err(__err),
                         }
                     }
                     // There is no first element.
-                    _serde::#private::None => {
+                    _serde::#private::Ok(_serde::#private::None) => {
                         _serde::#private::Err(_serde::de::Error::invalid_length(0, &self))
                     }
+                    _serde::#private::Err(__err) => _serde::#private::Err(__err),
                 }
             }
         }

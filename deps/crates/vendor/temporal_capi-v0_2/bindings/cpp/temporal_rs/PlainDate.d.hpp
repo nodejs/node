@@ -79,7 +79,7 @@ public:
 
   inline static temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::PlainDate>, temporal_rs::TemporalError> from_utf16(std::u16string_view s);
 
-  inline const temporal_rs::Calendar& calendar() const;
+  inline const temporal_rs::Calendar& calendar() const DIPLOMAT_LIFETIME_BOUND;
 
   inline bool is_valid() const;
 

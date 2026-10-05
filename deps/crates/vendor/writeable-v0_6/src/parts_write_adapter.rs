@@ -114,9 +114,4 @@ impl<T: Writeable + ?Sized> Writeable for WithPart<T> {
     }
 }
 
-impl<T: Writeable + ?Sized> fmt::Display for WithPart<T> {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Writeable::write_to(&self, f)
-    }
-}
+crate::impl_display_with_writeable!(@display, WithPart<T>, where T: Writeable + ?Sized);

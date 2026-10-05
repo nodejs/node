@@ -95,15 +95,10 @@ pub fn encode_varule_to_box<S: EncodeAsVarULE<T> + ?Sized, T: VarULE + ?Sized>(x
     // zero-fill the vector to avoid uninitialized data UB
     let mut vec: Vec<u8> = vec![0; x.encode_var_ule_len()];
     x.encode_var_ule_write(&mut vec);
-    let boxed = core::mem::ManuallyDrop::new(vec.into_boxed_slice());
-    unsafe {
-        // Safety: `ptr` is a box, and `T` is a VarULE which guarantees it has the same memory layout as `[u8]`
-        // and can be recouped via from_bytes_unchecked()
-        let ptr: *mut T = T::from_bytes_unchecked(&boxed) as *const T as *mut T;
-
-        // Safety: we can construct an owned version since we have mem::forgotten the older owner
-        Box::from_raw(ptr)
-    }
+    // SAFETY:
+    // - T::from_bytes_unchecked is safe because the bytes were written by x.encode_var_ule_write
+    //   which guarantees a valid representation of T.
+    unsafe { cast_box(vec.into_boxed_slice()) }
 }
 
 unsafe impl<T: VarULE + ?Sized> EncodeAsVarULE<T> for T {

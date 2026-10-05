@@ -1,0 +1,128 @@
+---
+source: core/src/ast/methods.rs
+expression: "Method::from_syn(&syn::parse_quote!\n{\n    #[doc = r\" Some docs.\"] #[diplomat::rust_link(foo::Bar::batz, FnInStruct)]\n    #[cfg(any(feature = \"foo\", not(feature = \"bar\")))] fn\n    foo(x: u64, y: MyCustomStruct) {}\n},\nPathType::new(Path::empty().sub_path(Ident::from(\"MyStructContainingMethod\"))),\nNone, &Attrs::default(), &crate::ast::SpanLocation::None)"
+---
+name:
+  - foo
+  - start:
+      line: 1
+      col: 0
+    end:
+      line: 1
+      col: 0
+    range:
+      start: 0
+      end: 0
+    span_location: None
+docs:
+  - - cfg: Star
+      lines: Some docs.
+  - - path:
+        elements:
+          - - foo
+            - start:
+                line: 1
+                col: 0
+              end:
+                line: 1
+                col: 0
+              range:
+                start: 0
+                end: 0
+              span_location:
+                LocalSource: ", FnInStruct"
+          - - Bar
+            - start:
+                line: 1
+                col: 0
+              end:
+                line: 1
+                col: 0
+              range:
+                start: 0
+                end: 0
+              span_location:
+                LocalSource: ", FnInStruct"
+          - - batz
+            - start:
+                line: 1
+                col: 0
+              end:
+                line: 1
+                col: 0
+              range:
+                start: 0
+                end: 0
+              span_location:
+                LocalSource: ", FnInStruct"
+      typ: FnInStruct
+      display: Normal
+abi_name:
+  - MyStructContainingMethod_foo
+  - start:
+      line: 1
+      col: 0
+    end:
+      line: 1
+      col: 0
+    range:
+      start: 0
+      end: 0
+    span_location: None
+self_param: ~
+self_type:
+  path:
+    elements:
+      - - MyStructContainingMethod
+        - ~
+  lifetimes: []
+params:
+  - name:
+      - x
+      - start:
+          line: 1
+          col: 0
+        end:
+          line: 1
+          col: 0
+        range:
+          start: 0
+          end: 0
+        span_location: None
+    ty:
+      Primitive: u64
+    attrs: {}
+  - name:
+      - y
+      - start:
+          line: 1
+          col: 0
+        end:
+          line: 1
+          col: 0
+        range:
+          start: 0
+          end: 0
+        span_location: None
+    ty:
+      Named:
+        path:
+          elements:
+            - - MyCustomStruct
+              - start:
+                  line: 1
+                  col: 0
+                end:
+                  line: 1
+                  col: 0
+                range:
+                  start: 0
+                  end: 0
+                span_location: None
+        lifetimes: []
+    attrs: {}
+return_type: ~
+lifetime_env: {}
+attrs:
+  cfg:
+    - "# [cfg (any (feature = \"foo\" , not (feature = \"bar\")))]"

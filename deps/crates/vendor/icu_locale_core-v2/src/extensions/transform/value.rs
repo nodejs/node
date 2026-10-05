@@ -6,7 +6,7 @@ use crate::parser::ParseError;
 #[cfg(feature = "alloc")]
 use crate::parser::SubtagIterator;
 use crate::shortvec::ShortBoxSlice;
-use crate::subtags::{subtag, Subtag};
+use crate::subtags::{Subtag, subtag};
 use core::ops::RangeInclusive;
 #[cfg(feature = "alloc")]
 use core::str::FromStr;

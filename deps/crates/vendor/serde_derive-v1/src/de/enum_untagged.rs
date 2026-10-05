@@ -18,7 +18,8 @@ use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 
-/// Generates `Deserialize::deserialize` body for an `enum Enum {...}` with `#[serde(untagged)]` attribute
+/// Generates `Deserialize::deserialize` body for an `enum Enum {...}` with
+/// `#[serde(untagged)]` attribute
 pub(super) fn deserialize(
     params: &Parameters,
     variants: &[Variant],
@@ -35,10 +36,8 @@ pub(super) fn deserialize(
     // largest number of fields. I'm not sure I like that. Maybe it would be
     // better to save all the errors and combine them into one message that
     // explains why none of the variants matched.
-    let fallthrough_msg = format!(
-        "data did not match any variant of untagged enum {}",
-        params.type_name()
-    );
+    let fallthrough_msg =
+        format!("data did not match any variant of untagged enum {}", params.type_name());
     let fallthrough_msg = cattrs.expecting().unwrap_or(&fallthrough_msg);
 
     let private2 = private;
@@ -93,12 +92,9 @@ pub(super) fn deserialize_variant(
             }
         }
         Style::Newtype => deserialize_newtype_variant(variant_ident, params, &variant.fields[0]),
-        Style::Tuple => tuple::deserialize(
-            params,
-            &variant.fields,
-            cattrs,
-            TupleForm::Untagged(variant_ident),
-        ),
+        Style::Tuple => {
+            tuple::deserialize(params, &variant.fields, cattrs, TupleForm::Untagged(variant_ident))
+        }
         Style::Struct => struct_::deserialize(
             params,
             &variant.fields,

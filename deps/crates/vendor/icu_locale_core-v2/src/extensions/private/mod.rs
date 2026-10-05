@@ -14,7 +14,7 @@
 //!
 //! ```
 //! use icu::locale::extensions::private::subtag;
-//! use icu::locale::{locale, Locale};
+//! use icu::locale::{Locale, locale};
 //!
 //! let mut loc: Locale = "en-US-x-foo-faa".parse().expect("Parsing failed.");
 //!
@@ -36,7 +36,7 @@ use core::ops::Deref;
 use core::str::FromStr;
 
 #[doc(inline)]
-pub use other::{subtag, Subtag};
+pub use other::{Subtag, subtag};
 
 #[cfg(feature = "alloc")]
 use super::ExtensionType;

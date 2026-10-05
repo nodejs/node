@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Failed to parse diplomat::demo
+In src/ast/snapshots/span_testing/malformed_demo.rs:3:22:
+...demo(123)]...
+        ^^^
+expected identifier

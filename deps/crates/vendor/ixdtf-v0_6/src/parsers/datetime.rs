@@ -144,6 +144,7 @@ pub(crate) fn parse_annotated_year_month<'a, T: EncodingType>(
     }
 
     let annotation_set = annotations::parse_annotation_set(cursor, handler)?;
+    cursor.close()?;
 
     Ok(IxdtfParseRecord {
         date: Some(year_month),
@@ -190,6 +191,7 @@ pub(crate) fn parse_annotated_month_day<'a, T: EncodingType>(
     }
 
     let annotation_set = annotations::parse_annotation_set(cursor, handler)?;
+    cursor.close()?;
 
     Ok(IxdtfParseRecord {
         date: Some(date),

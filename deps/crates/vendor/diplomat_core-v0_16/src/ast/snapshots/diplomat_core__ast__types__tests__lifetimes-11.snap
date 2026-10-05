@@ -1,0 +1,20 @@
+---
+source: core/src/ast/types.rs
+expression: "TypeName::from_syn(&syn::parse_quote! { DiplomatSliceMut<'a, f32> }, None,\n&SpanLocation::None)"
+---
+PrimitiveSlice:
+  - - Named:
+        - a
+        - start:
+            line: 1
+            col: 0
+          end:
+            line: 1
+            col: 0
+          range:
+            start: 0
+            end: 0
+          span_location: None
+    - Mutable
+  - f32
+  - Diplomat

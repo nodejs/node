@@ -11,7 +11,7 @@ members = [
 
 [workspace.package]
 edition = "2021"
-version = "0.2.4"
+version = "0.2.6"
 rust-version = "1.86.0"
 authors = ["boa-dev"]
 license = "MIT OR Apache-2.0"
@@ -29,8 +29,8 @@ exclude = [
 
 [workspace.dependencies]
 # Self
-temporal_rs = { version = "0.2.3", path = ".", default-features = false }
-timezone_provider = { version = "0.2.3", path = "./provider", default-features = false }
+temporal_rs = { version = "0.2.6", path = ".", default-features = false }
+timezone_provider = { version = "0.2.6", path = "./provider", default-features = false }
 zoneinfo_rs = { version = "0.1.0", path = "./zoneinfo", default-features = false }
 
 # Dependencies
@@ -55,9 +55,9 @@ zoneinfo64 = "0.3.0"
 ixdtf = "0.6.4"
 
 # Diplomat
-diplomat-tool = { version = "0.15.0", default-features = false }
-diplomat-runtime = { version = "0.15.0", default-features = false }
-diplomat = { version = "0.15.0", default-features = false }
+diplomat-tool = { version = "0.16.0", default-features = false }
+diplomat-runtime = { version = ">= 0.15.2, < 0.17.0", default-features = false }
+diplomat = { version = "0.16.0", default-features = false }
 
 
 [package]

@@ -11,8 +11,8 @@
 //! # Examples
 //!
 //! ```
-//! use icu::locale::extensions::unicode::{attribute, key, value, Unicode};
 //! use icu::locale::Locale;
+//! use icu::locale::extensions::unicode::{Unicode, attribute, key, value};
 //!
 //! let loc: Locale = "en-US-u-foobar-hc-h12".parse().expect("Parsing failed.");
 //!
@@ -20,11 +20,12 @@
 //!     loc.extensions.unicode.keywords.get(&key!("hc")),
 //!     Some(&value!("h12"))
 //! );
-//! assert!(loc
-//!     .extensions
-//!     .unicode
-//!     .attributes
-//!     .contains(&attribute!("foobar")));
+//! assert!(
+//!     loc.extensions
+//!         .unicode
+//!         .attributes
+//!         .contains(&attribute!("foobar"))
+//! );
 //! ```
 mod attribute;
 mod attributes;
@@ -38,15 +39,15 @@ use core::cmp::Ordering;
 use core::str::FromStr;
 
 #[doc(inline)]
-pub use attribute::{attribute, Attribute};
+pub use attribute::{Attribute, attribute};
 pub use attributes::Attributes;
 #[doc(inline)]
-pub use key::{key, Key};
+pub use key::{Key, key};
 pub use keywords::Keywords;
 #[doc(inline)]
-pub use subdivision::{subdivision_suffix, SubdivisionId, SubdivisionSuffix};
+pub use subdivision::{SubdivisionId, SubdivisionSuffix, subdivision_suffix};
 #[doc(inline)]
-pub use value::{value, Value};
+pub use value::{Value, value};
 
 #[cfg(feature = "alloc")]
 use super::ExtensionType;
@@ -74,8 +75,8 @@ pub(crate) const UNICODE_EXT_STR: &str = "u";
 /// # Examples
 ///
 /// ```
-/// use icu::locale::extensions::unicode::{key, value};
 /// use icu::locale::Locale;
+/// use icu::locale::extensions::unicode::{key, value};
 ///
 /// let loc: Locale =
 ///     "de-u-hc-h12-ca-buddhist".parse().expect("Parsing failed.");

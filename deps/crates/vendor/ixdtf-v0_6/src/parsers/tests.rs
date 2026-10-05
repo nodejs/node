@@ -429,6 +429,10 @@ fn invalid_year_month() {
     let bad_value = "-00202011Z[Europe/Berlin]";
     let err = IxdtfParser::from_str(bad_value).parse_year_month();
     assert_eq!(err, Err(ParseError::InvalidEnd));
+
+    let bad_value = "2020-11[u-ca=iso8601]junk";
+    let err = IxdtfParser::from_str(bad_value).parse_year_month();
+    assert_eq!(err, Err(ParseError::InvalidEnd));
 }
 
 #[test]
@@ -449,7 +453,11 @@ fn temporal_month_day() {
 fn invalid_month_day() {
     let bad_value = "-11-07";
     let err = IxdtfParser::from_str(bad_value).parse_month_day();
-    assert_eq!(err, Err(ParseError::MonthDayHyphen))
+    assert_eq!(err, Err(ParseError::MonthDayHyphen));
+
+    let bad_value = "11-07[+04:00]junk";
+    let err = IxdtfParser::from_str(bad_value).parse_month_day();
+    assert_eq!(err, Err(ParseError::InvalidEnd));
 }
 
 #[test]

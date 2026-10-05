@@ -3,8 +3,8 @@
 [package]
 edition = "2021"
 name = "node_crates"
-version = "15.2.124"
-rust-version = "1.86"
+version = "15.5.35"
+rust-version = "1.88"
 
 [lib]
 crate-type = [ "staticlib" ]
@@ -23,14 +23,14 @@ version = "2.2.0"
 default-features = false
 
 [dependencies.syn]
-version = "2"
+version = "3"
 features = [ "full" ]
 
 [dependencies.temporal_capi]
-version = "0.2.4"
+version = "0.2.6"
 features = [ "zoneinfo64" ]
 
 [dependencies.temporal_rs]
-version = "0.2.4"
+version = "0.2.6"
 default-features = false
 features = [ "float64_representable_durations" ]

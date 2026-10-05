@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.86.0"
 name = "temporal_capi"
-version = "0.2.4"
+version = "0.2.6"
 authors = ["boa-dev"]
 build = false
 include = [
@@ -50,11 +50,11 @@ name = "temporal_capi"
 path = "src/lib.rs"
 
 [dependencies.diplomat]
-version = "0.15.0"
+version = "0.16.0"
 default-features = false
 
 [dependencies.diplomat-runtime]
-version = "0.15.0"
+version = ">= 0.15.2, < 0.17.0"
 default-features = false
 
 [dependencies.icu_calendar]
@@ -69,11 +69,11 @@ version = "0.2.19"
 default-features = false
 
 [dependencies.temporal_rs]
-version = "0.2.3"
+version = "0.2.6"
 default-features = false
 
 [dependencies.timezone_provider]
-version = "0.2.3"
+version = "0.2.6"
 default-features = false
 
 [dependencies.writeable]

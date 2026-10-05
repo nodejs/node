@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Could not read rust link
+In src/ast/snapshots/span_testing/malformed_rust_link.rs:3:27:
+...link(*)]...
+        ^
+expected identifier

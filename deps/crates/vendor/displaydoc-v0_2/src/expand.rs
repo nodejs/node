@@ -5,7 +5,7 @@ use syn::{
     punctuated::Punctuated,
     token::{Colon, Comma, PathSep, Plus, Where},
     Data, DataEnum, DataStruct, DeriveInput, Error, Fields, Generics, Ident, Path, PathArguments,
-    PathSegment, PredicateType, Result, TraitBound, TraitBoundModifier, Type, TypeParam,
+    PathSegment, PredicateType, Result, TraitBound, TraitBoundModifiers, Type, TypeParam,
     TypeParamBound, TypePath, WhereClause, WherePredicate,
 };
 
@@ -116,8 +116,10 @@ fn new_empty_where_type_predicate(ident: Ident) -> PredicateType {
         arguments: PathArguments::None,
     });
     PredicateType {
+        attrs: Vec::new(),
         lifetimes: None,
         bounded_ty: Type::Path(TypePath {
+            attrs: Vec::new(),
             qself: None,
             path: Path {
                 leading_colon: None,
@@ -200,8 +202,9 @@ fn add_display_constraint_to_type_predicate(
 
     let display_bound = TypeParamBound::Trait(TraitBound {
         paren_token: None,
-        modifier: TraitBoundModifier::None,
         lifetimes: None,
+        modifiers: TraitBoundModifiers::default(),
+        maybe: None,
         path: display_path,
     });
     if !predicate_that_needs_a_display_impl.bounds.is_empty() {
@@ -249,7 +252,11 @@ fn extract_trait_constraints_from_source(
         // We only care about type and not lifetime constraints here.
         if let WherePredicate::Type(ref pred_ty) = predicate {
             let ident = match &pred_ty.bounded_ty {
-                Type::Path(TypePath { path, qself: None }) => match path.get_ident() {
+                Type::Path(TypePath {
+                    path,
+                    qself: None,
+                    attrs: _,
+                }) => match path.get_ident() {
                     None => continue,
                     Some(ident) => ident,
                 },

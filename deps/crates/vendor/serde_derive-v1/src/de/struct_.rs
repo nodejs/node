@@ -58,10 +58,7 @@ pub(super) fn deserialize(
         // Skip fields that shouldn't be deserialized or that were flattened,
         // so they don't appear in the storage in their literal form
         .filter(|&(_, field)| !field.attrs.skip_deserializing() && !field.attrs.flatten())
-        .map(|(i, field)| FieldWithAliases {
-            ident: field_i(i),
-            aliases: field.attrs.aliases(),
-        })
+        .map(|(i, field)| FieldWithAliases { ident: field_i(i), aliases: field.attrs.aliases() })
         .collect();
 
     let has_flatten = has_flatten(fields);
@@ -73,15 +70,11 @@ pub(super) fn deserialize(
         StructForm::Untagged(_) => None,
         _ if has_flatten => None,
         _ => {
-            let mut_seq = if deserialized_fields.is_empty() {
-                quote!(_)
-            } else {
-                quote!(mut __seq)
-            };
+            let mut_seq =
+                if deserialized_fields.is_empty() { quote!(_) } else { quote!(mut __seq) };
 
-            let visit_seq = Stmts(deserialize_seq(
-                &type_path, params, fields, true, cattrs, expecting,
-            ));
+            let visit_seq =
+                Stmts(deserialize_seq(&type_path, params, fields, true, cattrs, expecting));
 
             Some(quote! {
                 #[inline]
@@ -94,13 +87,7 @@ pub(super) fn deserialize(
             })
         }
     };
-    let visit_map = Stmts(deserialize_map(
-        &type_path,
-        params,
-        fields,
-        cattrs,
-        has_flatten,
-    ));
+    let visit_map = Stmts(deserialize_map(&type_path, params, fields, cattrs, has_flatten));
 
     let visitor_seed = match form {
         StructForm::ExternallyTagged(..) if has_flatten => Some(quote! {
@@ -204,11 +191,8 @@ fn deserialize_map(
     has_flatten: bool,
 ) -> Fragment {
     // Create the field names for the fields.
-    let fields_names: Vec<_> = fields
-        .iter()
-        .enumerate()
-        .map(|(i, field)| (field, field_i(i)))
-        .collect();
+    let fields_names: Vec<_> =
+        fields.iter().enumerate().map(|(i, field)| (field, field_i(i))).collect();
 
     // Declare each field that will be deserialized.
     let let_values = fields_names
@@ -418,7 +402,8 @@ fn deserialize_map(
     }
 }
 
-/// Generates `Deserialize::deserialize_in_place` body for a `struct Struct {...}`
+/// Generates `Deserialize::deserialize_in_place` body for a `struct Struct
+/// {...}`
 #[cfg(feature = "deserialize_in_place")]
 pub(super) fn deserialize_in_place(
     params: &Parameters,
@@ -443,19 +428,12 @@ pub(super) fn deserialize_in_place(
         .iter()
         .enumerate()
         .filter(|&(_, field)| !field.attrs.skip_deserializing())
-        .map(|(i, field)| FieldWithAliases {
-            ident: field_i(i),
-            aliases: field.attrs.aliases(),
-        })
+        .map(|(i, field)| FieldWithAliases { ident: field_i(i), aliases: field.attrs.aliases() })
         .collect();
 
     let field_visitor = deserialize_field_identifier(&deserialized_fields, cattrs, false);
 
-    let mut_seq = if deserialized_fields.is_empty() {
-        quote!(_)
-    } else {
-        quote!(mut __seq)
-    };
+    let mut_seq = if deserialized_fields.is_empty() { quote!(_) } else { quote!(mut __seq) };
     let visit_seq = Stmts(deserialize_seq_in_place(params, fields, cattrs, expecting));
     let visit_map = Stmts(deserialize_map_in_place(params, fields, cattrs));
     let field_names = deserialized_fields.iter().flat_map(|field| field.aliases);
@@ -521,11 +499,8 @@ fn deserialize_map_in_place(
     );
 
     // Create the field names for the fields.
-    let fields_names: Vec<_> = fields
-        .iter()
-        .enumerate()
-        .map(|(i, field)| (field, field_i(i)))
-        .collect();
+    let fields_names: Vec<_> =
+        fields.iter().enumerate().map(|(i, field)| (field, field_i(i))).collect();
 
     // For deserialize_in_place, declare booleans for each field that will be
     // deserialized.

@@ -39,7 +39,7 @@ jobs:
       - run: cargo test
         if: matrix.rust != '1.71.0'
       - run: cargo run --manifest-path benches/Cargo.toml
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: matrix.rust == 'nightly' && always()
         with:
           name: Cargo.lock

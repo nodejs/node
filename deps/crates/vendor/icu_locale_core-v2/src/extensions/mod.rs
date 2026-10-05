@@ -20,8 +20,8 @@
 //! # Examples
 //!
 //! ```
-//! use icu::locale::extensions::unicode::{Key, Value};
 //! use icu::locale::Locale;
+//! use icu::locale::extensions::unicode::{Key, Value};
 //!
 //! let loc: Locale = "en-US-u-ca-buddhist-t-en-us-h0-hybrid-x-foo"
 //!     .parse()
@@ -60,9 +60,9 @@ pub mod unicode;
 use core::cmp::Ordering;
 
 use other::Other;
-use private::{Private, PRIVATE_EXT_CHAR};
-use transform::{Transform, TRANSFORM_EXT_CHAR};
-use unicode::{Unicode, UNICODE_EXT_CHAR};
+use private::{PRIVATE_EXT_CHAR, Private};
+use transform::{TRANSFORM_EXT_CHAR, Transform};
+use unicode::{UNICODE_EXT_CHAR, Unicode};
 
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
@@ -237,8 +237,8 @@ impl Extensions {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::extensions::ExtensionType;
     /// use icu::locale::Locale;
+    /// use icu::locale::extensions::ExtensionType;
     ///
     /// let loc: Locale =
     ///     "und-a-hello-t-mul-u-world-z-zzz-x-extra".parse().unwrap();

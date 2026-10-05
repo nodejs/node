@@ -1634,15 +1634,23 @@ where
     }
 }
 
-impl<L, R> fmt::Display for Either<L, R>
-where
-    L: fmt::Display,
-    R: fmt::Display,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for_both!(self, inner => inner.fmt(f))
+macro_rules! impl_fmt_traits {
+    ($($trait:ident),*) => {
+        $(
+            impl <L, R> fmt::$trait for Either<L, R>
+            where
+                L: fmt::$trait,
+                R: fmt::$trait,
+            {
+                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                    for_both!(self, inner => fmt::$trait::fmt(inner, f))
+                }
+            }
+        )*
     }
 }
+
+impl_fmt_traits!(Binary, Display, LowerExp, LowerHex, Octal, Pointer, UpperExp, UpperHex);
 
 impl<L, R> fmt::Write for Either<L, R>
 where
@@ -1698,6 +1706,31 @@ fn deref() {
     fn is_str(_: &str) {}
     let value: Either<String, &str> = Left(String::from("test"));
     is_str(&value);
+}
+
+#[test]
+fn fmt_traits() {
+    use std::format;
+
+    let value: Either<u32, i32> = Left(0xC0DE);
+    // fmt::Binary
+    assert_eq!("1100000011011110", format!("{value:b}"));
+    // fmt::Display
+    assert_eq!("49374", format!("{value}"));
+    // fmt::LowerExp
+    assert_eq!("4.9374e4", format!("{value:e}"));
+    // fmt::LowerHex
+    assert_eq!("c0de", format!("{value:x}"));
+    // fmt::Octal
+    assert_eq!("140336", format!("{value:o}"));
+    // fmt::UpperExp
+    assert_eq!("4.9374E4", format!("{value:E}"));
+    // fmt::UpperHex
+    assert_eq!("C0DE", format!("{value:X}"));
+
+    // fmt::Pointer
+    let pointer: Either<*const u32, &mut i32> = Left(std::ptr::null());
+    assert_eq!("0x0", format!("{pointer:p}"));
 }
 
 #[test]

@@ -32,7 +32,7 @@ enum Action {
     Finish,
 }
 
-static INIT: [(Input, Action); 28] = [
+static INIT: [(Input, Action); 29] = [
     (ConsumeDelimiter, SetState(&POSTFIX)),
     (Keyword("async"), SetState(&ASYNC)),
     (Keyword("break"), SetState(&BREAK_LABEL)),
@@ -46,6 +46,7 @@ static INIT: [(Input, Action); 28] = [
     (Keyword("move"), SetState(&CLOSURE)),
     (Keyword("return"), SetState(&RETURN)),
     (Keyword("static"), SetState(&CLOSURE)),
+    (Keyword("try"), SetState(&BLOCK)),
     (Keyword("unsafe"), SetState(&BLOCK)),
     (Keyword("while"), IncDepth),
     (Keyword("yield"), SetState(&RETURN)),
@@ -84,10 +85,8 @@ static ASYNC: [(Input, Action); 3] = [
 
 static BLOCK: [(Input, Action); 1] = [(ConsumeBrace, SetState(&POSTFIX))];
 
-static BREAK_LABEL: [(Input, Action); 2] = [
-    (ConsumeLifetime, SetState(&BREAK_VALUE)),
-    (Otherwise, SetState(&BREAK_VALUE)),
-];
+static BREAK_LABEL: [(Input, Action); 2] =
+    [(ConsumeLifetime, SetState(&BREAK_VALUE)), (Otherwise, SetState(&BREAK_VALUE))];
 
 static BREAK_VALUE: [(Input, Action); 3] = [
     (ConsumeNestedBrace, SetState(&IF_THEN)),
@@ -105,25 +104,20 @@ static CLOSURE: [(Input, Action); 7] = [
     (ConsumeIdent, SetState(&CLOSURE)),
 ];
 
-static CLOSURE_ARGS: [(Input, Action); 2] = [
-    (Punct("|"), SetState(&CLOSURE_RET)),
-    (ConsumeAny, SetState(&CLOSURE_ARGS)),
-];
+static CLOSURE_ARGS: [(Input, Action); 2] =
+    [(Punct("|"), SetState(&CLOSURE_RET)), (ConsumeAny, SetState(&CLOSURE_ARGS))];
 
-static CLOSURE_RET: [(Input, Action); 2] = [
-    (Punct("->"), SetState(&[(ExpectType, SetState(&BLOCK))])),
-    (Otherwise, SetState(&INIT)),
-];
+static CLOSURE_RET: [(Input, Action); 2] =
+    [(Punct("->"), SetState(&[(ExpectType, SetState(&BLOCK))])), (Otherwise, SetState(&INIT))];
 
-static CONST: [(Input, Action); 2] = [
+static CONST: [(Input, Action); 3] = [
+    (Keyword("move"), SetState(&CLOSURE)),
     (Punct("|"), SetState(&CLOSURE_ARGS)),
     (ConsumeBrace, SetState(&POSTFIX)),
 ];
 
-static CONTINUE: [(Input, Action); 2] = [
-    (ConsumeLifetime, SetState(&POSTFIX)),
-    (Otherwise, SetState(&POSTFIX)),
-];
+static CONTINUE: [(Input, Action); 2] =
+    [(ConsumeLifetime, SetState(&POSTFIX)), (Otherwise, SetState(&POSTFIX))];
 
 static DOT: [(Input, Action); 3] = [
     (Keyword("await"), SetState(&POSTFIX)),
@@ -131,10 +125,8 @@ static DOT: [(Input, Action); 3] = [
     (ConsumeLiteral, SetState(&POSTFIX)),
 ];
 
-static FOR: [(Input, Action); 2] = [
-    (Punct("<"), SetState(&CLOSURE)),
-    (Otherwise, SetState(&PATTERN)),
-];
+static FOR: [(Input, Action); 2] =
+    [(Punct("<"), SetState(&CLOSURE)), (Otherwise, SetState(&PATTERN))];
 
 static IF_ELSE: [(Input, Action); 2] = [(Keyword("if"), SetState(&INIT)), (ConsumeBrace, DecDepth)];
 static IF_THEN: [(Input, Action); 2] =
@@ -188,10 +180,8 @@ static REFERENCE: [(Input, Action); 3] = [
     (Otherwise, SetState(&INIT)),
 ];
 
-static RETURN: [(Input, Action); 2] = [
-    (CanBeginExpr, SetState(&INIT)),
-    (Otherwise, SetState(&POSTFIX)),
-];
+static RETURN: [(Input, Action); 2] =
+    [(CanBeginExpr, SetState(&INIT)), (Otherwise, SetState(&POSTFIX))];
 
 pub(crate) fn scan_expr(input: ParseStream) -> Result<()> {
     let mut state = INIT.as_slice();

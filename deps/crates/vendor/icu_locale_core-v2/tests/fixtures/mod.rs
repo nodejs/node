@@ -5,12 +5,12 @@
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
+use icu_locale_core::extensions::Extensions;
 use icu_locale_core::extensions::other;
 use icu_locale_core::extensions::private;
 use icu_locale_core::extensions::transform;
 use icu_locale_core::extensions::unicode;
-use icu_locale_core::extensions::Extensions;
-use icu_locale_core::{subtags, LanguageIdentifier, Locale, ParseError};
+use icu_locale_core::{LanguageIdentifier, Locale, ParseError, subtags};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
