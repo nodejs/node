@@ -11,9 +11,11 @@ function test(mimes) {
     const { input, output } = entry;
     if (output === null) {
       assert.throws(() => new MIMEType(input), /ERR_INVALID_MIME_SYNTAX/i);
+      assert.strictEqual(MIMEType.parse(input), null);
     } else {
       const str = `${new MIMEType(input)}`;
       assert.strictEqual(str, output);
+      assert.strictEqual(`${MIMEType.parse(input)}`, output);
     }
   }
 }
