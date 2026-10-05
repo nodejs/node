@@ -147,7 +147,7 @@ platforms. This is true regardless of entries in the table below.
 [^4]: Our macOS Binaries are compiled with 13.5 as a target. Xcode 16 is
     required to compile.
 
-[^5]: Native riscv64 builds need GCC >= 14 or Clang >= 19 because V8
+[^5]: Native riscv64 builds need GCC >= 14 or Clang >= 21 because V8
     includes `<riscv_vector.h>` and uses `target("arch=+v")` in
     `deps/v8/src/base/cpu.cc`. GCC 13's `riscv_vector.h` errors out without
     `-march=rv64gcv` and doesn't support the `target` attribute at all.
@@ -162,9 +162,9 @@ Depending on the host platform, the selection of toolchains may vary.
 
 | Operating System | Compiler Versions                                                   |
 | ---------------- | ------------------------------------------------------------------- |
-| Linux            | GCC >= 13.2 or Clang >= 19.1                                        |
+| Linux            | GCC >= 13.2 or Clang >= 21                                          |
 | Windows          | Visual Studio 2022 or 2026 with the Windows 11 SDK on a 64-bit host |
-| macOS            | Xcode >= 16.4 (Apple LLVM >= 19)                                    |
+| macOS            | Xcode >= 26.4 (Apple LLVM >= 21)                                    |
 
 ### Official binary platforms and toolchains
 
@@ -241,7 +241,7 @@ tarball and/or browse the git repository checked out at the relevant tag.
 
 #### Unix prerequisites
 
-* `gcc` and `g++` >= 13.2 or `clang` and `clang++` >= 19.1
+* `gcc` and `g++` >= 13.2 or `clang` and `clang++` >= 21
 * GNU Make 3.81 or newer
 * [A supported version of Python][Python versions]
   * For test coverage, your Python installation must include pip.
@@ -259,7 +259,7 @@ FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 
 #### macOS prerequisites
 
-* Xcode Command Line Tools >= 16.4 for macOS
+* Xcode Command Line Tools >= 26.4 for macOS
 * [A supported version of Python][Python versions]
   * For test coverage, your Python installation must include pip.
 
@@ -1036,7 +1036,7 @@ Node.js supports the [Temporal](https://github.com/tc39/proposal-temporal) APIs,
 linking statically or dynamically with a version of [temporal\_rs](https://github.com/boa-dev/temporal).
 Building it requires a Rust toolchain:
 
-* rustc >= 1.88 (with LLVM >= 19)
+* rustc >= 1.88 (with LLVM >= 21)
 * cargo >= 1.86
 
 Refer to [Install Rust](https://rust-lang.org/tools/install/) for instructions.
