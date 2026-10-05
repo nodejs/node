@@ -4743,8 +4743,10 @@ much before user code is run. For more information, see the [libuv threadpool do
 
 ## Useful V8 options
 
-V8 has its own set of CLI options. Any V8 CLI option that is provided to `node`
-will be passed on to V8 to handle. V8's options have _no stability guarantee_.
+V8 has its own set of CLI options. Supported V8 CLI options provided to `node`
+are passed on to V8 to handle. Node.js rejects `--jitless` and `--lite-mode`
+with exit code 9 because built-in functionality requires WebAssembly.
+V8's options have _no stability guarantee_.
 The V8 team themselves don't consider them to be part of their formal API,
 and reserve the right to change them at any time. Likewise, they are not
 covered by the Node.js stability guarantees. Many of the V8

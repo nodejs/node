@@ -1312,7 +1312,7 @@ parser.add_argument('--use-ccache-win',
 
 # Reject the removed option before forwarding unknown arguments to GYP.
 if any(arg.split('=', 1)[0] == '--v8-lite-mode' for arg in args):
-  parser.error('--v8-lite-mode is no longer supported; Node.js requires WebAssembly')
+  parser.error('Node.js does not support V8 flag --v8-lite-mode.')
 
 # Expand ~ in the install prefix now, it gets written to multiple files.
 options.prefix = str(Path(options.prefix or '').expanduser())

@@ -26,6 +26,7 @@
 #include "memory_tracker-inl.h"
 #include "node.h"
 #include "node_external_reference.h"
+#include "node_options-inl.h"
 #include "node_profiling.h"
 #include "permission/permission.h"
 #include "util-inl.h"
@@ -271,11 +272,19 @@ void UpdateHeapCodeStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   Utf8Value flags(args.GetIsolate(), args[0]);
+  // Match V8's whitespace-separated tokens, stopping at the first NUL. Check
+  // before applying any flags so a rejected mode cannot affect other isolates.
+  std::istringstream input(flags.out());
+  std::string flag;
+  while (input >> flag) {
+    if (options_parser::IsUnsupportedV8Mode(flag)) {
+      return THROW_ERR_INVALID_ARG_VALUE(
+          args.GetIsolate(),
+          "Node.js does not support V8 flag %s.",
+          flag);
+    }
+  }
   V8::SetFlagsFromString(flags.out(), flags.length());
-  // Runtime flags must not re-enable modes that disable required WebAssembly
-  // support, even when contradiction checks are enabled.
-  V8::SetFlagsFromString("--allow-overwriting-for-next-flag --no-lite-mode "
-                         "--allow-overwriting-for-next-flag --no-jitless");
 }
 
 void StartCpuProfile(const FunctionCallbackInfo<Value>& args) {

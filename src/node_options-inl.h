@@ -7,6 +7,7 @@
 #include <charconv>
 #include <cstdlib>
 #include <ranges>
+#include <string_view>
 #include <type_traits>
 #include "node_options.h"
 #include "util.h"
@@ -29,6 +30,20 @@ std::shared_ptr<PerIsolateOptions> PerIsolateOptions::Clone() const {
 }
 
 namespace options_parser {
+
+// Reject interpreter-only modes before V8 can apply them or their implications.
+// V8 accepts both dash prefixes and treats underscores as hyphens in names.
+inline bool IsUnsupportedV8Mode(std::string_view flag) {
+  if (flag.starts_with("--")) {
+    flag.remove_prefix(2);
+  } else if (flag.starts_with('-')) {
+    flag.remove_prefix(1);
+  } else {
+    return false;
+  }
+  flag = flag.substr(0, flag.find('='));
+  return flag == "jitless" || flag == "lite-mode" || flag == "lite_mode";
+}
 
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,

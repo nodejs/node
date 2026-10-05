@@ -770,6 +770,15 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
 
   if (!errors->empty()) return ExitCode::kInvalidCommandLineArgument;
 
+  // Do not silently enable executable-memory allocation when jitless is
+  // requested. Reject unsupported modes before passing any flags to V8.
+  for (size_t i = 1; i < v8_args.size(); ++i) {
+    if (options_parser::IsUnsupportedV8Mode(v8_args[i])) {
+      errors->push_back("Node.js does not support V8 flag " + v8_args[i] + ".");
+      return ExitCode::kInvalidCommandLineArgument;
+    }
+  }
+
   std::string revert_error;
   for (const std::string& cve : per_process::cli_options->security_reverts) {
     Revert(cve.c_str(), &revert_error);
@@ -1111,12 +1120,6 @@ static ExitCode InitializeNodeWithArgsInternal(
   }
 
   allow_env_sources.Finish();
-
-  // Node.js requires WebAssembly for built-in functionality. Override these
-  // modes after all option sources, before V8 applies their implications.
-  // Explicitly allow overriding even when contradiction checks are enabled.
-  V8::SetFlagsFromString("--allow-overwriting-for-next-flag --no-lite-mode "
-                         "--allow-overwriting-for-next-flag --no-jitless");
 
   // Every option source has now been parsed, so cross-source option
   // constraints can finally be validated.
