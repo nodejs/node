@@ -45,6 +45,13 @@ The following targets are not supported by bundled libffi:
 When using the [Permission Model][], FFI APIs are
 restricted unless the [`--allow-ffi`][] flag is provided.
 
+Some FFI operations require runtime allocation of executable memory. If an
+otherwise eligible Fast API function cannot be created because executable memory
+is unavailable, creation throws
+[`ERR_RX_MEMORY_NOT_SUPPORTED`](errors.md#err_rx_memory_not_supported) rather than
+selecting another call path. Callback allocation can also report this error.
+Loading the module or a library does not itself require generated trampolines.
+
 ## Overview
 
 The `node:ffi` module exposes two groups of APIs:
@@ -465,6 +472,11 @@ Returns an object containing all previously resolved symbol addresses.
 
 Creates a native callback pointer backed by a JavaScript function.
 
+If libffi cannot allocate a closure and executable memory is unavailable, this
+method throws [`ERR_RX_MEMORY_NOT_SUPPORTED`](errors.md#err_rx_memory_not_supported).
+Other closure allocation failures throw `ERR_FFI_CALL_FAILED`. Platform-specific
+libffi implementations may provide callbacks without dynamically generated code.
+
 When `signature` is omitted, the callback uses a default `void ()` signature.
 
 The return value is the callback pointer address as a `bigint`. It can be
@@ -640,7 +652,8 @@ met:
   PPC64 always use another call path.
 * The process can allocate executable memory. Node.js checks once per process
   whether it can allocate memory and mark it executable. If that check fails,
-  this path is disabled for the entire process.
+  creating an otherwise eligible function throws
+  [`ERR_RX_MEMORY_NOT_SUPPORTED`](errors.md#err_rx_memory_not_supported).
 * Neither the return type nor any argument type is `function`.
 * The signature has at most 8 arguments, and every argument fits in the
   argument registers available to the trampoline on the current platform.
@@ -650,8 +663,10 @@ The register limits are platform-specific. Integer and pointer-like arguments
 share one set of registers, and floating-point arguments share another. The
 limits for each architecture are listed in [Type names][].
 
-A signature that fails any of these checks is not an error. The function is
-created on the next call path that supports it.
+A signature that is unsupported by the Fast API types, argument limits, or
+platform is not an error. The function is created on the next call path that
+supports it. Missing executable-memory support is checked only after signature
+and platform eligibility and does not select another call path.
 
 ### Shared buffer call path
 

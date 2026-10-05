@@ -2209,6 +2209,16 @@ Disable [runtime allocation of executable memory][jitless]. This may be
 required on some platforms for security reasons. It can also reduce attack
 surface on other platforms, but the performance impact may be severe.
 
+When WebAssembly is unavailable in this mode, TypeScript parsing and WebAssembly
+module imports throw [`ERR_WEBASSEMBLY_NOT_SUPPORTED`][]. Node.js does not
+guarantee alternative implementations of features that require WebAssembly or
+runtime allocation of executable memory when those capabilities are unavailable.
+
+This flag controls V8's runtime code generation. It does not impose an
+operating-system restriction on executable memory allocated by native addons or
+[`node:ffi`][]. FFI operations that require unavailable executable memory can
+throw [`ERR_RX_MEMORY_NOT_SUPPORTED`][].
+
 ### `--localstorage-file=file`
 
 <!-- YAML
@@ -4928,7 +4938,9 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
 [`ERR_INVALID_TYPESCRIPT_SYNTAX`]: errors.md#err_invalid_typescript_syntax
+[`ERR_RX_MEMORY_NOT_SUPPORTED`]: errors.md#err_rx_memory_not_supported
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
+[`ERR_WEBASSEMBLY_NOT_SUPPORTED`]: errors.md#err_webassembly_not_supported
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NODE_USE_ENV_PROXY=1`]: #node_use_env_proxy1
 [`NODE_V8_COVERAGE=dir`]: #node_v8_coveragedir
