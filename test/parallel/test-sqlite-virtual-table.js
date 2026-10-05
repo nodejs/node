@@ -622,6 +622,41 @@ suite('Database.prototype.createModule()', () => {
       assert.deepStrictEqual(cleanedUp, [1, 2]);
     });
 
+    test('does not call return() on a normally exhausted iterator', () => {
+      // Once next() reports `done: true` the iterator is finished, so no
+      // cleanup should run. A throwing return() must not fail an otherwise
+      // successful query. Matches `for...of`, which only calls return() on
+      // abrupt termination.
+      const db = new Database(':memory:');
+      for (const [label, makeRows] of [
+        ['empty', () => {
+          return {
+            [Symbol.iterator]() { return this; },
+            next() { return { value: [], done: true }; },
+            return() { throw new Error('cleanup boom'); },
+          };
+        }],
+        ['fully_consumed', () => {
+          let i = 0;
+          return {
+            [Symbol.iterator]() { return this; },
+            next() { return { value: [i++], done: i > 2 }; },
+            return() { throw new Error('cleanup boom'); },
+          };
+        }],
+      ]) {
+        db.createModule(`exhausted_${label}`, {
+          columns: [{ name: 'v', type: 'INTEGER' }],
+          rows: makeRows,
+        });
+
+        const rows = db.prepare(`SELECT v FROM exhausted_${label}`).all();
+        assert.deepStrictEqual(
+          rows.map((row) => row.v),
+          label === 'empty' ? [] : [0, 1]);
+      }
+    });
+
     test('does not run cleanup when the statement is collected', () => {
       // The destructor runs from a GC callback, where JavaScript cannot be
       // executed. An abandoned generator does not run `finally` in JavaScript
