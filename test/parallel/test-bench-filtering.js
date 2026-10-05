@@ -16,7 +16,7 @@ function complete(name) {
 }
 
 suite('selected', { only: true }, () => {
-  bench('included', { samples: 1 }, complete('included'));
+  bench('included', { samples: 1, warmup: 0 }, complete('included'));
   bench.skip('explicitly skipped', { samples: 1 },
              common.mustNotCall());
   bench('pattern filtered', { samples: 1 },

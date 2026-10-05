@@ -6,7 +6,7 @@ const { bench } = require('node:bench');
 const output = Buffer.from('split:\u20ac\n');
 process.stdout.write(output.subarray(0, 7));
 
-bench('UTF-8 output', { samples: 1 }, async (b) => {
+bench('UTF-8 output', { samples: 1, warmup: 0 }, async (b) => {
   b.start();
   await setTimeout(20);
   process.stdout.write(output.subarray(7));

@@ -9,7 +9,7 @@ module.exports = function register(name) {
   fs.writeFileSync(lock, `${process.pid}`, { flag: 'wx' });
   process.on('exit', () => fs.unlinkSync(lock));
 
-  bench(name, { samples: 1 }, async (b) => {
+  bench(name, { samples: 1, warmup: 0 }, async (b) => {
     b.start();
     await setTimeout(25);
     b.end(1);

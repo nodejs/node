@@ -74,6 +74,12 @@ once to provide an externally measured sample. Setup before `start()` and
 cleanup after `end()` are outside the measured region. Promise-returning
 functions are awaited.
 
+By default, ten unreported warmup invocations run before the measured samples
+so that early samples are less likely to be taken before the measured code has
+been optimized. A fixed warmup count does not guarantee a stable optimization
+state; inspect raw `samples` and increase `warmup` when early samples are
+consistently slower. Set `warmup` to `0` to measure from the first invocation.
+
 By default, an event loop turn occurs between sample invocations. An embedded
 runner can disable this using `yieldBetweenSamples`. The runner executes
 benchmarks serially, but it does not provide process isolation. Other work in
@@ -336,7 +342,7 @@ added: v26.9.0
   * `timeout` {number} The number of milliseconds after which the benchmark
     fails. **Default:** `Infinity`.
   * `warmup` {number} The number of unreported callback invocations before
-    measured samples. Must be a 32-bit unsigned integer. **Default:** `0`.
+    measured samples. Must be a 32-bit unsigned integer. **Default:** `10`.
 * `fn` {Function|AsyncFunction} The benchmark function. It receives a
   {BenchContext}.
 * Returns: {Promise} Fulfilled with the benchmark result after a top-level
