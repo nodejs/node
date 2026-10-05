@@ -9,7 +9,7 @@ const {
 
 const bench = common.createBenchmark(main, {
   n: [5e4],
-  kind: ['readable', 'pipe-to', 'pipe-through'],
+  kind: ['readable', 'async-iterator', 'pipe-to', 'pipe-through'],
 });
 
 const chunk = Buffer.alloc(1024);
@@ -32,6 +32,18 @@ async function readable(n) {
   for (let i = 0; i < n; i++) {
     const reader = new ReadableStream(makeSource()).getReader();
     while (!(await reader.read()).done) chunks++;
+  }
+  bench.end(n);
+  assert.strictEqual(chunks, n * 4);
+}
+
+async function asyncIterator(n) {
+  let chunks = 0;
+  bench.start();
+  for (let i = 0; i < n; i++) {
+    for await (const chunk of new ReadableStream(makeSource())) {
+      if (chunk) chunks++;
+    }
   }
   bench.end(n);
   assert.strictEqual(chunks, n * 4);
@@ -65,6 +77,9 @@ function main({ n, kind }) {
   switch (kind) {
     case 'readable':
       readable(n);
+      break;
+    case 'async-iterator':
+      asyncIterator(n);
       break;
     case 'pipe-to':
       pipeTo(n);
