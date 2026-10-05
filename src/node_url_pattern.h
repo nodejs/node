@@ -102,7 +102,7 @@ class URLPattern : public BaseObject {
       Environment* env,
       const ada::url_pattern_input& input,
       std::optional<std::string_view>& baseURL);  // NOLINT (runtime/references)
-  bool Test(
+  v8::Maybe<bool> Test(
       Environment* env,
       const ada::url_pattern_input& input,
       std::optional<std::string_view>& baseURL);  // NOLINT (runtime/references)
