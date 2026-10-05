@@ -4378,7 +4378,7 @@ and the `cause`, if one was provided.
 ## `http.isValidHeaderName(name)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.11.0
 -->
 
 * `name` {any}
@@ -4415,7 +4415,7 @@ console.log(isValidHeaderName(42)); // false
 ## `http.isValidHeaderValue(value[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.11.0
 -->
 
 * `value` {any}

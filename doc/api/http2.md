@@ -2810,7 +2810,7 @@ Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v26.11.0
     pr-url: https://github.com/nodejs/node/pull/65619
     description: Added the `connectionWindowSize` option.
   - version: v25.7.0
@@ -3044,7 +3044,7 @@ server.listen(8000);
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v26.11.0
     pr-url: https://github.com/nodejs/node/pull/65619
     description: Added the `connectionWindowSize` option.
   - version: v25.7.0
@@ -3255,7 +3255,7 @@ server.listen(8443);
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v26.11.0
     pr-url: https://github.com/nodejs/node/pull/65619
     description: Added the `connectionWindowSize` option.
   - version:

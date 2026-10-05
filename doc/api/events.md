@@ -1883,7 +1883,7 @@ added:
  - v20.5.0
  - v18.18.0
 changes:
- - version: REPLACEME
+ - version: v26.11.0
    pr-url: https://github.com/nodejs/node/pull/65640
    description: When the signal is already aborted, the listener now receives an
                 `abort` event and disposing cancels the pending call.

@@ -4714,7 +4714,7 @@ async function example() {
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v26.11.0
     pr-url: https://github.com/nodejs/node/pull/65988
     description: Documentation-only deprecation.
 -->
@@ -4728,7 +4728,7 @@ is kept as a deprecated alias. Use `Database` instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v26.11.0
     pr-url: https://github.com/nodejs/node/pull/65988
     description: Documentation-only deprecation.
 -->

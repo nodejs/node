@@ -2642,7 +2642,7 @@ Identical to `-e` but prints the result.
 ### `--process-timeout=duration`
 
 <!-- YAML
-added: REPLACEME
+added: v26.11.0
 -->
 
 > Stability: 1.1 - Active development
@@ -2822,7 +2822,7 @@ error.
 ### `--report-on-process-timeout`
 
 <!-- YAML
-added: REPLACEME
+added: v26.11.0
 -->
 
 > Stability: 1.1 - Active development
