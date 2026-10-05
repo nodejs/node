@@ -1245,6 +1245,19 @@ enables it.
 Disable support for loading a synchronous ES module graph in \fBrequire()\fR.
 See Loading ECMAScript modules using \fBrequire()\fR.
 .
+.It Fl -no-restore-terminal-state
+On POSIX systems, disable restoration of the terminal settings captured at startup
+when the process exits. These settings are restored by default.
+This option can be useful when piping output to an interactive pager that changes
+the same terminal's settings:
+.Bd -literal
+node --no-restore-terminal-state --help | less
+.Ed
+This option does not disable libuv's terminal mode cleanup or restoration of the
+\fBO_NONBLOCK\fR flag on standard I/O file descriptors. Applications using this option
+must restore terminal settings not restored by libuv, including changes made
+through native addons or child processes. It has no effect on Windows.
+.
 .It Fl -no-strip-types
 Disable type-stripping for TypeScript files.
 For more information, see the TypeScript type-stripping documentation.
@@ -2340,6 +2353,8 @@ one is included in the list below.
 \fB--no-global-search-paths\fR
 .It
 \fB--no-network-family-autoselection\fR
+.It
+\fB--no-restore-terminal-state\fR
 .It
 \fB--no-strip-types\fR
 .It

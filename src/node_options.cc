@@ -1636,6 +1636,11 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "automatically zero-fill all newly allocated Buffer instances",
             BOOL_FIELD(zero_fill_all_buffers),
             kAllowedInEnvvar);
+  AddOption("--restore-terminal-state",
+            "disable restoration of startup terminal settings",
+            BOOL_FIELD(restore_terminal_state),
+            kAllowedInEnvvar,
+            true);
   AddOption("--debug-arraybuffer-allocations",
             "", /* undocumented, only for debugging */
             BOOL_FIELD(debug_arraybuffer_allocations),

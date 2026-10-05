@@ -2435,6 +2435,26 @@ Disable support for loading a synchronous ES module graph in `require()`.
 
 See [Loading ECMAScript modules using `require()`][].
 
+### `--no-restore-terminal-state`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+On POSIX systems, disable restoration of the terminal settings captured at startup
+when the process exits. These settings are restored by default.
+This option can be useful when piping output to an interactive pager that changes
+the same terminal's settings:
+
+```bash
+node --no-restore-terminal-state --help | less
+```
+
+This option does not disable libuv's terminal mode cleanup or restoration of the
+`O_NONBLOCK` flag on standard I/O file descriptors. Applications using this option
+must restore terminal settings not restored by libuv, including changes made
+through native addons or child processes. It has no effect on Windows.
+
 ### `--no-strip-types`
 
 <!-- YAML
@@ -4302,6 +4322,7 @@ one is included in the list below.
 * `--no-force-async-hooks-checks`
 * `--no-global-search-paths`
 * `--no-network-family-autoselection`
+* `--no-restore-terminal-state`
 * `--no-strip-types`
 * `--no-warnings`
 * `--no-webstorage`
