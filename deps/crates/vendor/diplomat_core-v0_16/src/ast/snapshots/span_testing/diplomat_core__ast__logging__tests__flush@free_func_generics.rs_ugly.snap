@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Generic type arguments are unsupported
+In src/ast/snapshots/span_testing/free_func_generics.rs:3:12:
+...b fn with_generics<T>()...
+        ^^^^^^^^^^^^^
+Functions with generic arguments are unsupported

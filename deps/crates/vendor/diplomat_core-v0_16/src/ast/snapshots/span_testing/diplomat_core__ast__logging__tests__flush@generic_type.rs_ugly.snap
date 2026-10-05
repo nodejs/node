@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Generic type arguments are unsupported
+In src/ast/snapshots/span_testing/generic_type.rs:3:10:
+...impl Test<T> {...
+        ^^^^^^^
+Type paths with generic arguments are unsupported.

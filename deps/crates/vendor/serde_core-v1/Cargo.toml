@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.56"
 name = "serde_core"
-version = "1.0.228"
+version = "1.0.229"
 authors = [
     "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
     "David Tolnay <dtolnay@gmail.com>",
@@ -84,4 +84,4 @@ version = "1"
 version = "1"
 
 [target."cfg(any())".dependencies.serde_derive]
-version = "=1.0.228"
+version = "=1.0.229"

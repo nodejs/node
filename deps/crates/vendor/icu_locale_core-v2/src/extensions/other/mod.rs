@@ -13,8 +13,8 @@
 //! # Examples
 //!
 //! ```
-//! use icu::locale::extensions::other::Other;
 //! use icu::locale::Locale;
+//! use icu::locale::extensions::other::Other;
 //!
 //! let mut loc: Locale = "en-US-a-foo-faa".parse().expect("Parsing failed.");
 //! ```
@@ -158,7 +158,7 @@ impl Other {
     pub fn get_ext_str(&self) -> &str {
         debug_assert!(self.ext.is_ascii_alphanumeric());
         // Safety: from safety invariant on self.ext (that it is ASCII)
-        unsafe { core::str::from_utf8_unchecked(core::slice::from_ref(&self.ext)) }
+        unsafe { str::from_utf8_unchecked(core::slice::from_ref(&self.ext)) }
     }
 
     /// Gets the tag character for this extension as a char.

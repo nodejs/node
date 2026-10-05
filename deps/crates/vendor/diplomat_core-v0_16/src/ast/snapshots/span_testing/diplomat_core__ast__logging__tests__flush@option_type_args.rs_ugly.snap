@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Expected first argument for Option to be a type
+In src/ast/snapshots/span_testing/option_type_args.rs:3:28:
+...ption<32>) {}...
+        ^^^^
+Should be a type

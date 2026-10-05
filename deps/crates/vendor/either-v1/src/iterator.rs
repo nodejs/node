@@ -39,6 +39,48 @@ where
     }
 }
 
+impl<A, B, L, R> Extend<Either<L, R>> for (A, B)
+where
+    A: Extend<L>,
+    B: Extend<R>,
+{
+    fn extend<T>(&mut self, iter: T)
+    where
+        T: IntoIterator<Item = Either<L, R>>,
+    {
+        iter.into_iter().for_each(move |item| match item {
+            // TODO: use `Extend::extend_one` <https://github.com/rust-lang/rust/issues/72631>
+            Left(item) => self.0.extend(iter::once(item)),
+            Right(item) => self.1.extend(iter::once(item)),
+        });
+    }
+}
+
+/// Collects `Left` and `Right` items into separate collections
+///
+/// ```
+/// use either::Either::*;
+/// let (threes, other): (Vec<i32>, Vec<i32>) = (1..10)
+///     .map(|i| if i % 3 == 0 { Left(i) } else { Right(i) })
+///     .collect();
+/// assert_eq!(threes, [3, 6, 9]);
+/// assert_eq!(other, [1, 2, 4, 5, 7, 8]);
+/// ```
+impl<A, B, L, R> FromIterator<Either<L, R>> for (A, B)
+where
+    A: Default + Extend<L>,
+    B: Default + Extend<R>,
+{
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = Either<L, R>>,
+    {
+        let mut pair = (A::default(), B::default());
+        pair.extend(iter);
+        pair
+    }
+}
+
 /// `Either<L, R>` is an iterator if both `L` and `R` are iterators.
 impl<L, R> Iterator for Either<L, R>
 where

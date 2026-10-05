@@ -472,10 +472,7 @@ macro_rules! num_128 {
             if v as i128 >= Self::Value::MIN as i128 && v as u128 <= Self::Value::MAX as u128 {
                 Ok(v as Self::Value)
             } else {
-                Err(Error::invalid_value(
-                    Unexpected::Other(stringify!($ty)),
-                    &self,
-                ))
+                Err(Error::invalid_value(Unexpected::Other(stringify!($ty)), &self))
             }
         }
     };
@@ -492,10 +489,7 @@ macro_rules! num_128 {
                     Err(Error::invalid_value(Unexpected::Unsigned(0), &self))
                 }
             } else {
-                Err(Error::invalid_value(
-                    Unexpected::Other(stringify!($ty)),
-                    &self,
-                ))
+                Err(Error::invalid_value(Unexpected::Other(stringify!($ty)), &self))
             }
         }
     };
@@ -619,10 +613,7 @@ impl<'de> Visitor<'de> for StringVisitor {
     {
         match String::from_utf8(v) {
             Ok(s) => Ok(s),
-            Err(e) => Err(Error::invalid_value(
-                Unexpected::Bytes(&e.into_bytes()),
-                &self,
-            )),
+            Err(e) => Err(Error::invalid_value(Unexpected::Bytes(&e.into_bytes()), &self)),
         }
     }
 }
@@ -675,10 +666,7 @@ impl<'a, 'de> Visitor<'de> for StringInPlaceVisitor<'a> {
                 *self.0 = s;
                 Ok(())
             }
-            Err(e) => Err(Error::invalid_value(
-                Unexpected::Bytes(&e.into_bytes()),
-                &self,
-            )),
+            Err(e) => Err(Error::invalid_value(Unexpected::Bytes(&e.into_bytes()), &self)),
         }
     }
 }
@@ -921,9 +909,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_option(OptionVisitor {
-            marker: PhantomData,
-        })
+        deserializer.deserialize_option(OptionVisitor { marker: PhantomData })
     }
 
     // The Some variant's repr is opaque, so we can't play cute tricks with its
@@ -966,9 +952,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        let visitor = PhantomDataVisitor {
-            marker: PhantomData,
-        };
+        let visitor = PhantomDataVisitor { marker: PhantomData };
         deserializer.deserialize_unit_struct("PhantomData", visitor)
     }
 }
@@ -1047,16 +1031,16 @@ macro_rules! seq_impl {
                     }
 
                     #[inline]
-                    fn visit_seq<A>(mut self, mut $access: A) -> Result<Self::Value, A::Error>
+                    fn visit_seq<A>(self, mut $access: A) -> Result<Self::Value, A::Error>
                     where
                         A: SeqAccess<'de>,
                     {
-                        $clear(&mut self.0);
-                        $reserve(&mut self.0, size_hint::cautious::<T>($access.size_hint()));
+                        $clear(&mut *self.0);
+                        $reserve(&mut *self.0, size_hint::cautious::<T>($access.size_hint()));
 
                         // FIXME: try to overwrite old values here? (Vec, VecDeque, LinkedList)
                         while let Some(value) = tri!($access.next_element()) {
-                            $insert(&mut self.0, value);
+                            $insert(&mut *self.0, value);
                         }
 
                         Ok(())
@@ -1169,9 +1153,7 @@ where
             }
         }
 
-        let visitor = VecVisitor {
-            marker: PhantomData,
-        };
+        let visitor = VecVisitor { marker: PhantomData };
         deserializer.deserialize_seq(visitor)
     }
 
@@ -1232,9 +1214,7 @@ struct ArrayInPlaceVisitor<'a, A: 'a>(&'a mut A);
 
 impl<A> ArrayVisitor<A> {
     fn new() -> Self {
-        ArrayVisitor {
-            marker: PhantomData,
-        }
+        ArrayVisitor { marker: PhantomData }
     }
 }
 
@@ -1467,10 +1447,7 @@ macro_rules! tuple_impl_body {
 }
 
 #[cfg_attr(docsrs, doc(fake_variadic))]
-#[cfg_attr(
-    docsrs,
-    doc = "This trait is implemented for tuples up to 16 items long."
-)]
+#[cfg_attr(docsrs, doc = "This trait is implemented for tuples up to 16 items long.")]
 impl<'de, T> Deserialize<'de> for (T,)
 where
     T: Deserialize<'de>,
@@ -1914,9 +1891,9 @@ impl<'de> Visitor<'de> for OsStringVisitor {
 
         match tri!(data.variant()) {
             (OsStringKind::Unix, v) => v.newtype_variant().map(OsString::from_vec),
-            (OsStringKind::Windows, _) => Err(Error::custom(
-                "cannot deserialize Windows OS string on Unix",
-            )),
+            (OsStringKind::Windows, _) => {
+                Err(Error::custom("cannot deserialize Windows OS string on Unix"))
+            }
         }
     }
 
@@ -1928,12 +1905,12 @@ impl<'de> Visitor<'de> for OsStringVisitor {
         use std::os::windows::ffi::OsStringExt;
 
         match tri!(data.variant()) {
-            (OsStringKind::Windows, v) => v
-                .newtype_variant::<Vec<u16>>()
-                .map(|vec| OsString::from_wide(&vec)),
-            (OsStringKind::Unix, _) => Err(Error::custom(
-                "cannot deserialize Unix OS string on Windows",
-            )),
+            (OsStringKind::Windows, v) => {
+                v.newtype_variant::<Vec<u16>>().map(|vec| OsString::from_wide(&vec))
+            }
+            (OsStringKind::Unix, _) => {
+                Err(Error::custom("cannot deserialize Unix OS string on Windows"))
+            }
         }
     }
 }
@@ -1998,10 +1975,7 @@ where
 ///
 /// [`"rc"`]: https://serde.rs/feature-flags.html#-features-rc
 #[cfg(all(feature = "rc", any(feature = "std", feature = "alloc")))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(all(feature = "rc", any(feature = "std", feature = "alloc"))))
-)]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "rc", any(feature = "std", feature = "alloc")))))]
 impl<'de, T> Deserialize<'de> for RcWeak<T>
 where
     T: Deserialize<'de>,
@@ -2020,10 +1994,7 @@ where
 ///
 /// [`"rc"`]: https://serde.rs/feature-flags.html#-features-rc
 #[cfg(all(feature = "rc", any(feature = "std", feature = "alloc")))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(all(feature = "rc", any(feature = "std", feature = "alloc"))))
-)]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "rc", any(feature = "std", feature = "alloc")))))]
 impl<'de, T> Deserialize<'de> for ArcWeak<T>
 where
     T: Deserialize<'de>,
@@ -2431,10 +2402,7 @@ where
         let (start, end) = tri!(deserializer.deserialize_struct(
             "Range",
             range::FIELDS,
-            range::RangeVisitor {
-                expecting: "struct Range",
-                phantom: PhantomData,
-            },
+            range::RangeVisitor { expecting: "struct Range", phantom: PhantomData },
         ));
         Ok(start..end)
     }
@@ -2451,10 +2419,7 @@ where
         let (start, end) = tri!(deserializer.deserialize_struct(
             "RangeInclusive",
             range::FIELDS,
-            range::RangeVisitor {
-                expecting: "struct RangeInclusive",
-                phantom: PhantomData,
-            },
+            range::RangeVisitor { expecting: "struct RangeInclusive", phantom: PhantomData },
         ));
         Ok(RangeInclusive::new(start, end))
     }
@@ -2610,10 +2575,7 @@ where
         let start = tri!(deserializer.deserialize_struct(
             "RangeFrom",
             range_from::FIELDS,
-            range_from::RangeFromVisitor {
-                expecting: "struct RangeFrom",
-                phantom: PhantomData,
-            },
+            range_from::RangeFromVisitor { expecting: "struct RangeFrom", phantom: PhantomData },
         ));
         Ok(start..)
     }
@@ -2749,10 +2711,7 @@ where
         let end = tri!(deserializer.deserialize_struct(
             "RangeTo",
             range_to::FIELDS,
-            range_to::RangeToVisitor {
-                expecting: "struct RangeTo",
-                phantom: PhantomData,
-            },
+            range_to::RangeToVisitor { expecting: "struct RangeTo", phantom: PhantomData },
         ));
         Ok(..end)
     }
@@ -3145,10 +3104,7 @@ struct FromStrVisitor<T> {
 #[cfg(any(feature = "std", not(no_core_net)))]
 impl<T> FromStrVisitor<T> {
     fn new(expecting: &'static str) -> Self {
-        FromStrVisitor {
-            expecting,
-            ty: PhantomData,
-        }
+        FromStrVisitor { expecting, ty: PhantomData }
     }
 }
 

@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.56.0"
+rust-version = "1.71.0"
 name = "displaydoc"
-version = "0.2.6"
+version = "0.2.7"
 authors = ["Jane Lusby <jlusby@yaah.dev>"]
 build = false
 include = [
@@ -129,7 +129,7 @@ version = "1.0"
 version = "1.0"
 
 [dependencies.syn]
-version = "2.0"
+version = "3.0"
 
 [dev-dependencies.libc]
 version = "0.2"

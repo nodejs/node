@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.83"
 name = "zerovec"
-version = "0.11.6"
+version = "0.11.8"
 authors = ["The ICU4X Project Developers"]
 build = false
 include = [
@@ -140,7 +140,7 @@ optional = true
 default-features = false
 
 [dependencies.yoke]
-version = "0.8.2"
+version = "0.8.3"
 optional = true
 default-features = false
 
@@ -149,7 +149,7 @@ version = "0.1.6"
 default-features = false
 
 [dependencies.zerovec-derive]
-version = "0.11.3"
+version = "0.11.5"
 optional = true
 default-features = false
 
@@ -193,7 +193,7 @@ default-features = false
 version = "1.0.45"
 
 [dev-dependencies.yoke]
-version = "0.8.2"
+version = "0.8.3"
 features = ["derive"]
 default-features = false
 
@@ -201,8 +201,9 @@ default-features = false
 version = "0.5.0"
 
 [lints.clippy]
-alloc-instead-of-core = "warn"
-branches-sharing-code = "warn"
+alloc_instead_of_core = "warn"
+bool_assert_comparison = "allow"
+branches_sharing_code = "warn"
 collection_is_never_read = "warn"
 crosspointer_transmute = "warn"
 dbg_macro = "warn"
@@ -217,7 +218,7 @@ mismatching_type_param_order = "warn"
 missing_fields_in_debug = "warn"
 missing_transmute_annotations = "warn"
 negative_feature_names = "warn"
-or-fun-call = "warn"
+or_fun_call = "warn"
 same_functions_in_if_condition = "warn"
 todo = "warn"
 transmute_bytes_to_str = "warn"
@@ -228,7 +229,7 @@ transmute_ptr_to_ref = "warn"
 transmute_undefined_repr = "warn"
 transmutes_expressible_as_ptr_casts = "warn"
 trivially_copy_pass_by_ref = "deny"
-unnecessary-wraps = "warn"
+unnecessary_wraps = "warn"
 useless_transmute = "warn"
 wildcard_dependencies = "warn"
 
@@ -245,6 +246,7 @@ priority = 0
 check-cfg = [
     "cfg(icu4c_enable_renaming)",
     "cfg(needs_alloc_error_handler)",
+    "cfg(icu4x_nightly_tests)",
     "cfg(icu4x_run_size_tests)",
     "cfg(icu4x_unstable_fast_trie_only)",
 ]

@@ -294,7 +294,7 @@ pub(crate) mod parsing {
     use crate::verbatim;
     use alloc::boxed::Box;
     use alloc::vec::Vec;
-    use proc_macro2::Span;
+    use proc_macro2::{Span, TokenStream};
 
     #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
     impl Parse for Type {
@@ -324,7 +324,7 @@ pub(crate) mod parsing {
         allow_plus: bool,
         allow_group_generic: bool,
     ) -> Result<Type> {
-        let begin = input.fork();
+        let begin = input.cursor();
 
         if input.peek(token::Group) {
             let mut group: TypeGroup = input.parse()?;
@@ -384,10 +384,7 @@ pub(crate) mod parsing {
             let content;
             let paren_token = parenthesized!(content in input);
             if content.is_empty() {
-                return Ok(Type::Tuple(TypeTuple {
-                    paren_token,
-                    elems: Punctuated::new(),
-                }));
+                return Ok(Type::Tuple(TypeTuple { paren_token, elems: Punctuated::new() }));
             }
             if content.peek(Lifetime) {
                 return Ok(Type::Paren(TypeParen {
@@ -450,15 +447,10 @@ pub(crate) mod parsing {
                                 path,
                             })
                         }
-                        Type::TraitObject(TypeTraitObject {
-                            dyn_token: None,
-                            bounds,
-                        }) => {
+                        Type::TraitObject(TypeTraitObject { dyn_token: None, bounds }) => {
                             if bounds.len() > 1 || bounds.trailing_punct() {
-                                first = Type::TraitObject(TypeTraitObject {
-                                    dyn_token: None,
-                                    bounds,
-                                });
+                                first =
+                                    Type::TraitObject(TypeTraitObject { dyn_token: None, bounds });
                                 break;
                             }
                             match bounds.into_iter().next().unwrap() {
@@ -497,10 +489,7 @@ pub(crate) mod parsing {
                     }));
                 }
             }
-            Ok(Type::Paren(TypeParen {
-                paren_token,
-                elem: Box::new(first),
-            }))
+            Ok(Type::Paren(TypeParen { paren_token, elem: Box::new(first) }))
         } else if lookahead.peek(Token![fn])
             || lookahead.peek(Token![unsafe])
             || lookahead.peek(Token![extern])
@@ -508,6 +497,17 @@ pub(crate) mod parsing {
             let mut bare_fn: TypeBareFn = input.parse()?;
             bare_fn.lifetimes = lifetimes;
             Ok(Type::BareFn(bare_fn))
+        } else if cfg!(feature = "full")
+            && token::parsing::peek_keyword(input.cursor(), "builtin")
+            && input.peek2(Token![#])
+        {
+            token::parsing::keyword(input, "builtin")?;
+            input.parse::<Token![#]>()?;
+            input.parse::<Ident>()?;
+            let args;
+            parenthesized!(args in input);
+            args.parse::<TokenStream>()?;
+            Ok(Type::Verbatim(verbatim::between(begin, input.cursor())))
         } else if lookahead.peek(Ident)
             || input.peek(Token![super])
             || input.peek(Token![self])
@@ -525,12 +525,7 @@ pub(crate) mod parsing {
                 let bang_token: Token![!] = input.parse()?;
                 let (delimiter, tokens) = mac::parse_delimiter(input)?;
                 return Ok(Type::Macro(TypeMacro {
-                    mac: Macro {
-                        path: ty.path,
-                        bang_token,
-                        delimiter,
-                        tokens,
-                    },
+                    mac: Macro { path: ty.path, bang_token, delimiter, tokens },
                 }));
             }
 
@@ -560,10 +555,7 @@ pub(crate) mod parsing {
                         });
                     }
                 }
-                return Ok(Type::TraitObject(TypeTraitObject {
-                    dyn_token: None,
-                    bounds,
-                }));
+                return Ok(Type::TraitObject(TypeTraitObject { dyn_token: None, bounds }));
             }
 
             Ok(Type::Path(ty))
@@ -573,12 +565,9 @@ pub(crate) mod parsing {
             let star_token: Option<Token![*]> = input.parse()?;
             let bounds = TypeTraitObject::parse_bounds(dyn_span, input, allow_plus)?;
             Ok(if star_token.is_some() {
-                Type::Verbatim(verbatim::between(&begin, input))
+                Type::Verbatim(verbatim::between(begin, input.cursor()))
             } else {
-                Type::TraitObject(TypeTraitObject {
-                    dyn_token: Some(dyn_token),
-                    bounds,
-                })
+                Type::TraitObject(TypeTraitObject { dyn_token: Some(dyn_token), bounds })
             })
         } else if lookahead.peek(token::Bracket) {
             let content;
@@ -592,10 +581,7 @@ pub(crate) mod parsing {
                     len: content.parse()?,
                 }))
             } else {
-                Ok(Type::Slice(TypeSlice {
-                    bracket_token,
-                    elem: Box::new(elem),
-                }))
+                Ok(Type::Slice(TypeSlice { bracket_token, elem: Box::new(elem) }))
             }
         } else if lookahead.peek(Token![*]) {
             input.parse().map(Type::Ptr)
@@ -618,10 +604,7 @@ pub(crate) mod parsing {
     impl Parse for TypeSlice {
         fn parse(input: ParseStream) -> Result<Self> {
             let content;
-            Ok(TypeSlice {
-                bracket_token: bracketed!(content in input),
-                elem: content.parse()?,
-            })
+            Ok(TypeSlice { bracket_token: bracketed!(content in input), elem: content.parse()? })
         }
     }
 
@@ -724,18 +707,14 @@ pub(crate) mod parsing {
     #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
     impl Parse for TypeNever {
         fn parse(input: ParseStream) -> Result<Self> {
-            Ok(TypeNever {
-                bang_token: input.parse()?,
-            })
+            Ok(TypeNever { bang_token: input.parse()? })
         }
     }
 
     #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
     impl Parse for TypeInfer {
         fn parse(input: ParseStream) -> Result<Self> {
-            Ok(TypeInfer {
-                underscore_token: input.parse()?,
-            })
+            Ok(TypeInfer { underscore_token: input.parse()? })
         }
     }
 
@@ -746,10 +725,7 @@ pub(crate) mod parsing {
             let paren_token = parenthesized!(content in input);
 
             if content.is_empty() {
-                return Ok(TypeTuple {
-                    paren_token,
-                    elems: Punctuated::new(),
-                });
+                return Ok(TypeTuple { paren_token, elems: Punctuated::new() });
             }
 
             let first: Type = content.parse()?;
@@ -775,9 +751,7 @@ pub(crate) mod parsing {
     #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
     impl Parse for TypeMacro {
         fn parse(input: ParseStream) -> Result<Self> {
-            Ok(TypeMacro {
-                mac: input.parse()?,
-            })
+            Ok(TypeMacro { mac: input.parse()? })
         }
     }
 
@@ -937,11 +911,7 @@ pub(crate) mod parsing {
             }
             if !at_least_one_trait {
                 let msg = "at least one trait must be specified";
-                return Err(error::new2(
-                    impl_token.span,
-                    last_nontrait_span.unwrap(),
-                    msg,
-                ));
+                return Err(error::new2(impl_token.span, last_nontrait_span.unwrap(), msg));
             }
             Ok(TypeImplTrait { impl_token, bounds })
         }
@@ -951,10 +921,7 @@ pub(crate) mod parsing {
     impl Parse for TypeGroup {
         fn parse(input: ParseStream) -> Result<Self> {
             let group = crate::group::parse_group(input)?;
-            Ok(TypeGroup {
-                group_token: group.token,
-                elem: group.content.parse()?,
-            })
+            Ok(TypeGroup { group_token: group.token, elem: group.content.parse()? })
         }
     }
 
@@ -990,7 +957,7 @@ pub(crate) mod parsing {
     fn parse_bare_fn_arg(input: ParseStream, allow_self: bool) -> Result<BareFnArg> {
         let attrs = input.call(Attribute::parse_outer)?;
 
-        let begin = input.fork();
+        let begin = input.cursor();
 
         let has_mut_self = allow_self && input.peek(Token![mut]) && input.peek2(Token![self]);
         if has_mut_self {
@@ -1028,7 +995,7 @@ pub(crate) mod parsing {
             Some(ty) if !has_mut_self => ty,
             _ => {
                 name = None;
-                Type::Verbatim(verbatim::between(&begin, input))
+                Type::Verbatim(verbatim::between(begin, input.cursor()))
             }
         };
 
@@ -1053,10 +1020,7 @@ pub(crate) mod parsing {
     #[cfg_attr(docsrs, doc(cfg(feature = "parsing")))]
     impl Parse for Abi {
         fn parse(input: ParseStream) -> Result<Self> {
-            Ok(Abi {
-                extern_token: input.parse()?,
-                name: input.parse()?,
-            })
+            Ok(Abi { extern_token: input.parse()?, name: input.parse()? })
         }
     }
 

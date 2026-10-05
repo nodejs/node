@@ -3,8 +3,8 @@
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
 use alloc::borrow::Cow;
-use serde::de::Deserializer;
 use serde::Deserialize;
+use serde::de::Deserializer;
 
 #[derive(Deserialize)]
 #[serde(transparent)]
@@ -40,7 +40,7 @@ where
     D: Deserializer<'de>,
     (CowWrap<'de>, CowWrap<'de>): Deserialize<'de>,
 {
-    <(CowWrap<'de>, CowWrap<'de>)>::deserialize(deserializer).map(|x| (x.0 .0, x.1 .0))
+    <(CowWrap<'de>, CowWrap<'de>)>::deserialize(deserializer).map(|x| (x.0.0, x.1.0))
 }
 
 #[test]

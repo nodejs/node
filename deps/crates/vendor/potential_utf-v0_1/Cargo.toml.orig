@@ -5,16 +5,17 @@
 [package]
 name = "potential_utf"
 description = "Unvalidated string and character types"
-version = "0.1.5"
-rust-version = "1.82"
-authors.workspace = true
-edition.workspace = true
-repository.workspace = true
-homepage.workspace = true
-license.workspace = true
-categories.workspace = true
+version = "0.1.6"
 keywords = ["text-processing", "encoding"]
+
+authors.workspace = true
+categories.workspace = true
+edition = "2021"
+homepage.workspace = true
 include.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version = "1.82"
 
 [dependencies]
 databake = { workspace = true, optional = true }

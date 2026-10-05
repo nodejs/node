@@ -4,7 +4,7 @@
 
 extern crate alloc;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use icu_provider::prelude::*;
 use std::str::FromStr;
 use writeable::Writeable;

@@ -37,7 +37,11 @@ jobs:
         env:
           CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
         # Note that this uses the runner's pre-installed stable cargo
-        run: cargo generate-lockfile
+        # Also, the resolver is still too greedy, pulling in too-new serde_derive:
+        # https://github.com/serde-rs/serde/issues/3088
+        run: |
+          cargo generate-lockfile
+          cargo update -p serde --precise 1.0.228
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@master

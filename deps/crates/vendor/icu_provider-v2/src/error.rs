@@ -27,7 +27,9 @@ pub enum DataErrorKind {
     InvalidRequest,
 
     /// The data for two [`DataMarker`]s is not consistent.
-    #[displaydoc("The data for two markers is not consistent: {0:?} (were they generated in different datagen invocations?)")]
+    #[displaydoc(
+        "The data for two markers is not consistent: {0:?} (were they generated in different datagen invocations?)"
+    )]
     InconsistentData(DataMarkerInfo),
 
     /// An error occured during [`Any`](core::any::Any) downcasting.

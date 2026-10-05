@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Mutable string references disallowed
+In src/ast/snapshots/span_testing/mut_string.rs:3:30:
+...&mut DiplomatStr) {}...
+        ^^^^^^^^^^^
+Suggestion: make reference immutable

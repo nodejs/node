@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Failed to parse diplomat::attr
+In src/ast/snapshots/span_testing/malformed_attr.rs:3:23:
+...ttr(**)]...
+        ^
+expected `,`

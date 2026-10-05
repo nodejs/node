@@ -1,7 +1,9 @@
 [package]
 name = "diplomat-runtime"
 description = "Common runtime utilities used by diplomat codegen"
-version = "0.15.1"
+# We are working on decoupling diplomat-runtime's version from the rest
+# https://github.com/rust-diplomat/diplomat/issues/958
+version = "0.15.2"
 rust-version.workspace = true
 authors.workspace = true
 categories.workspace = true

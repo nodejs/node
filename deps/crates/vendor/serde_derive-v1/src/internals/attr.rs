@@ -30,12 +30,7 @@ pub(crate) struct Attr<'c, T> {
 
 impl<'c, T> Attr<'c, T> {
     fn none(cx: &'c Ctxt, name: Symbol) -> Self {
-        Attr {
-            cx,
-            name,
-            tokens: TokenStream::new(),
-            value: None,
-        }
+        Attr { cx, name, tokens: TokenStream::new(), value: None }
     }
 
     fn set<A: ToTokens>(&mut self, obj: A, value: T) {
@@ -99,12 +94,7 @@ pub(crate) struct VecAttr<'c, T> {
 
 impl<'c, T> VecAttr<'c, T> {
     fn none(cx: &'c Ctxt, name: Symbol) -> Self {
-        VecAttr {
-            cx,
-            name,
-            first_dup_tokens: TokenStream::new(),
-            values: Vec::new(),
-        }
+        VecAttr { cx, name, first_dup_tokens: TokenStream::new(), values: Vec::new() }
     }
 
     fn insert<A: ToTokens>(&mut self, obj: A, value: T) {
@@ -626,11 +616,8 @@ fn decide_tag(
     internal_tag: Attr<String>,
     content: Attr<String>,
 ) -> TagType {
-    match (
-        untagged.0.get_with_tokens(),
-        internal_tag.get_with_tokens(),
-        content.get_with_tokens(),
-    ) {
+    match (untagged.0.get_with_tokens(), internal_tag.get_with_tokens(), content.get_with_tokens())
+    {
         (None, None, None) => TagType::External,
         (Some(_), None, None) => TagType::None,
         (None, Some((_, tag)), None) => {
@@ -686,11 +673,8 @@ fn decide_identifier(
     field_identifier: BoolAttr,
     variant_identifier: BoolAttr,
 ) -> Identifier {
-    match (
-        &item.data,
-        field_identifier.0.get_with_tokens(),
-        variant_identifier.0.get_with_tokens(),
-    ) {
+    match (&item.data, field_identifier.0.get_with_tokens(), variant_identifier.0.get_with_tokens())
+    {
         (_, None, None) => Identifier::No,
         (_, Some((field_identifier_tokens, ())), Some((variant_identifier_tokens, ()))) => {
             let msg =
@@ -857,16 +841,10 @@ impl Variant {
                     let borrow_attribute = if meta.input.peek(Token![=]) {
                         // #[serde(borrow = "'a + 'b")]
                         let lifetimes = parse_lit_into_lifetimes(cx, &meta)?;
-                        BorrowAttribute {
-                            path: meta.path.clone(),
-                            lifetimes: Some(lifetimes),
-                        }
+                        BorrowAttribute { path: meta.path.clone(), lifetimes: Some(lifetimes) }
                     } else {
                         // #[serde(borrow)]
-                        BorrowAttribute {
-                            path: meta.path.clone(),
-                            lifetimes: None,
-                        }
+                        BorrowAttribute { path: meta.path.clone(), lifetimes: None }
                     };
                     match &variant.fields {
                         syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
@@ -928,13 +906,10 @@ impl Variant {
                 rules.serialize.apply_to_variant(&self.name.serialize.value);
         }
         if !self.name.deserialize_renamed {
-            self.name.deserialize.value = rules
-                .deserialize
-                .apply_to_variant(&self.name.deserialize.value);
+            self.name.deserialize.value =
+                rules.deserialize.apply_to_variant(&self.name.deserialize.value);
         }
-        self.name
-            .deserialize_aliases
-            .insert(self.name.deserialize.clone());
+        self.name.deserialize_aliases.insert(self.name.deserialize.clone());
     }
 
     pub fn rename_all_rules(&self) -> RenameAllRules {
@@ -1037,10 +1012,7 @@ impl Field {
 
         let ident = match &field.ident {
             Some(ident) => Name::from(&unraw(ident)),
-            None => Name {
-                value: index.to_string(),
-                span: Span::call_site(),
-            },
+            None => Name { value: index.to_string(), span: Span::call_site() },
         };
 
         if let Some(borrow_attribute) = attrs.and_then(|variant| variant.borrow.as_ref()) {
@@ -1185,13 +1157,11 @@ impl Field {
             }
         }
 
-        // Is skip_deserializing, initialize the field to Default::default() unless a
+        // If skip_deserializing, initialize the field to Default::default() unless a
         // different default is specified by `#[serde(default = "...")]` on
         // ourselves or our container (e.g. the struct we are in).
-        if let Default::None = *container_default {
-            if skip_deserializing.0.value.is_some() {
-                default.set_if_none(Default::Default);
-            }
+        if container_default.is_none() && skip_deserializing.0.value.is_some() {
+            default.set_if_none(Default::Default);
         }
 
         let mut borrowed_lifetimes = borrowed_lifetimes.get().unwrap_or_default();
@@ -1206,38 +1176,22 @@ impl Field {
             //     impl<'de: 'a, 'a> Deserialize<'de> for Cow<'a, str>
             //     impl<'de: 'a, 'a> Deserialize<'de> for Cow<'a, [u8]>
             if is_cow(&field.ty, is_str) {
-                let mut path = syn::Path {
-                    leading_colon: None,
-                    segments: Punctuated::new(),
-                };
+                let mut path = syn::Path { leading_colon: None, segments: Punctuated::new() };
                 let span = Span::call_site();
                 path.segments.push(Ident::new("_serde", span).into());
                 path.segments.push(private.clone().into());
                 path.segments.push(Ident::new("de", span).into());
-                path.segments
-                    .push(Ident::new("borrow_cow_str", span).into());
-                let expr = syn::ExprPath {
-                    attrs: Vec::new(),
-                    qself: None,
-                    path,
-                };
+                path.segments.push(Ident::new("borrow_cow_str", span).into());
+                let expr = syn::ExprPath { attrs: Vec::new(), qself: None, path };
                 deserialize_with.set_if_none(expr);
             } else if is_cow(&field.ty, is_slice_u8) {
-                let mut path = syn::Path {
-                    leading_colon: None,
-                    segments: Punctuated::new(),
-                };
+                let mut path = syn::Path { leading_colon: None, segments: Punctuated::new() };
                 let span = Span::call_site();
                 path.segments.push(Ident::new("_serde", span).into());
                 path.segments.push(private.clone().into());
                 path.segments.push(Ident::new("de", span).into());
-                path.segments
-                    .push(Ident::new("borrow_cow_bytes", span).into());
-                let expr = syn::ExprPath {
-                    attrs: Vec::new(),
-                    qself: None,
-                    path,
-                };
+                path.segments.push(Ident::new("borrow_cow_bytes", span).into());
+                let expr = syn::ExprPath { attrs: Vec::new(), qself: None, path };
                 deserialize_with.set_if_none(expr);
             }
         } else if is_implicitly_borrowed(&field.ty) {
@@ -1276,13 +1230,10 @@ impl Field {
             self.name.serialize.value = rules.serialize.apply_to_field(&self.name.serialize.value);
         }
         if !self.name.deserialize_renamed {
-            self.name.deserialize.value = rules
-                .deserialize
-                .apply_to_field(&self.name.deserialize.value);
+            self.name.deserialize.value =
+                rules.deserialize.apply_to_field(&self.name.deserialize.value);
         }
-        self.name
-            .deserialize_aliases
-            .insert(self.name.deserialize.clone());
+        self.name.deserialize_aliases.insert(self.name.deserialize.clone());
     }
 
     pub fn skip_serializing(&self) -> bool {
@@ -1429,17 +1380,10 @@ fn get_lit_str2(
     while let syn::Expr::Group(e) = value {
         value = &e.expr;
     }
-    if let syn::Expr::Lit(syn::ExprLit {
-        lit: syn::Lit::Str(lit),
-        ..
-    }) = value
-    {
+    if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(lit), .. }) = value {
         let suffix = lit.suffix();
         if !suffix.is_empty() {
-            cx.error_spanned_by(
-                lit,
-                format!("unexpected suffix `{}` on string literal", suffix),
-            );
+            cx.error_spanned_by(lit, format!("unexpected suffix `{}` on string literal", suffix));
         }
         Ok(Some(lit.clone()))
     } else {
@@ -1459,18 +1403,14 @@ fn parse_lit_into_path(
     attr_name: Symbol,
     meta: &ParseNestedMeta,
 ) -> syn::Result<Option<syn::Path>> {
-    let string = match get_lit_str(cx, attr_name, meta)? {
-        Some(string) => string,
-        None => return Ok(None),
+    let Some(string) = get_lit_str(cx, attr_name, meta)? else {
+        return Ok(None);
     };
 
     Ok(match string.parse() {
         Ok(path) => Some(path),
         Err(_) => {
-            cx.error_spanned_by(
-                &string,
-                format!("failed to parse path: {:?}", string.value()),
-            );
+            cx.error_spanned_by(&string, format!("failed to parse path: {:?}", string.value()));
             None
         }
     })
@@ -1481,18 +1421,14 @@ fn parse_lit_into_expr_path(
     attr_name: Symbol,
     meta: &ParseNestedMeta,
 ) -> syn::Result<Option<syn::ExprPath>> {
-    let string = match get_lit_str(cx, attr_name, meta)? {
-        Some(string) => string,
-        None => return Ok(None),
+    let Some(string) = get_lit_str(cx, attr_name, meta)? else {
+        return Ok(None);
     };
 
     Ok(match string.parse() {
         Ok(expr) => Some(expr),
         Err(_) => {
-            cx.error_spanned_by(
-                &string,
-                format!("failed to parse path: {:?}", string.value()),
-            );
+            cx.error_spanned_by(&string, format!("failed to parse path: {:?}", string.value()));
             None
         }
     })
@@ -1504,20 +1440,17 @@ fn parse_lit_into_where(
     meta_item_name: Symbol,
     meta: &ParseNestedMeta,
 ) -> syn::Result<Vec<syn::WherePredicate>> {
-    let string = match get_lit_str2(cx, attr_name, meta_item_name, meta)? {
-        Some(string) => string,
-        None => return Ok(Vec::new()),
+    let Some(string) = get_lit_str2(cx, attr_name, meta_item_name, meta)? else {
+        return Ok(Vec::new());
     };
 
-    Ok(
-        match string.parse_with(Punctuated::<syn::WherePredicate, Token![,]>::parse_terminated) {
-            Ok(predicates) => Vec::from_iter(predicates),
-            Err(err) => {
-                cx.error_spanned_by(string, err);
-                Vec::new()
-            }
-        },
-    )
+    Ok(match string.parse_with(Punctuated::<syn::WherePredicate, Token![,]>::parse_terminated) {
+        Ok(predicates) => Vec::from_iter(predicates),
+        Err(err) => {
+            cx.error_spanned_by(string, err);
+            Vec::new()
+        }
+    })
 }
 
 fn parse_lit_into_ty(
@@ -1525,9 +1458,8 @@ fn parse_lit_into_ty(
     attr_name: Symbol,
     meta: &ParseNestedMeta,
 ) -> syn::Result<Option<syn::Type>> {
-    let string = match get_lit_str(cx, attr_name, meta)? {
-        Some(string) => string,
-        None => return Ok(None),
+    let Some(string) = get_lit_str(cx, attr_name, meta)? else {
+        return Ok(None);
     };
 
     Ok(match string.parse() {
@@ -1548,9 +1480,8 @@ fn parse_lit_into_lifetimes(
     cx: &Ctxt,
     meta: &ParseNestedMeta,
 ) -> syn::Result<BTreeSet<syn::Lifetime>> {
-    let string = match get_lit_str(cx, BORROW, meta)? {
-        Some(string) => string,
-        None => return Ok(BTreeSet::new()),
+    let Some(string) = get_lit_str(cx, BORROW, meta)? else {
+        return Ok(BTreeSet::new());
     };
 
     if let Ok(lifetimes) = string.parse_with(|input: ParseStream| {
@@ -1558,10 +1489,7 @@ fn parse_lit_into_lifetimes(
         while !input.is_empty() {
             let lifetime: Lifetime = input.parse()?;
             if !set.insert(lifetime.clone()) {
-                cx.error_spanned_by(
-                    &string,
-                    format!("duplicate borrowed lifetime `{}`", lifetime),
-                );
+                cx.error_spanned_by(&string, format!("duplicate borrowed lifetime `{}`", lifetime));
             }
             if input.is_empty() {
                 break;
@@ -1620,11 +1548,8 @@ fn is_cow(ty: &syn::Type, elem: fn(&syn::Type) -> bool) -> bool {
             return false;
         }
     };
-    let seg = match path.segments.last() {
-        Some(seg) => seg,
-        None => {
-            return false;
-        }
+    let Some(seg) = path.segments.last() else {
+        return false;
     };
     let args = match &seg.arguments {
         syn::PathArguments::AngleBracketed(bracketed) => &bracketed.args,
@@ -1647,11 +1572,8 @@ fn is_option(ty: &syn::Type, elem: fn(&syn::Type) -> bool) -> bool {
             return false;
         }
     };
-    let seg = match path.segments.last() {
-        Some(seg) => seg,
-        None => {
-            return false;
-        }
+    let Some(seg) = path.segments.last() else {
+        return false;
     };
     let args = match &seg.arguments {
         syn::PathArguments::AngleBracketed(bracketed) => &bracketed.args,
@@ -1798,7 +1720,7 @@ fn collect_lifetimes(ty: &syn::Type, out: &mut BTreeSet<syn::Lifetime>) {
         syn::Type::Macro(ty) => {
             collect_lifetimes_from_tokens(ty.mac.tokens.clone(), out);
         }
-        syn::Type::BareFn(_)
+        syn::Type::FnPtr(_)
         | syn::Type::Never(_)
         | syn::Type::TraitObject(_)
         | syn::Type::ImplTrait(_)
@@ -1815,10 +1737,7 @@ fn collect_lifetimes_from_tokens(tokens: TokenStream, out: &mut BTreeSet<syn::Li
         match &tt {
             TokenTree::Punct(op) if op.as_char() == '\'' && op.spacing() == Spacing::Joint => {
                 if let Some(TokenTree::Ident(ident)) = iter.next() {
-                    out.insert(syn::Lifetime {
-                        apostrophe: op.span(),
-                        ident,
-                    });
+                    out.insert(syn::Lifetime { apostrophe: op.span(), ident });
                 }
             }
             TokenTree::Group(group) => {

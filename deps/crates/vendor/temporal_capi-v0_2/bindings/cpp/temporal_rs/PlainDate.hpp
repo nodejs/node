@@ -239,7 +239,7 @@ inline temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::PlainDate>, te
     return result.is_ok ? temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::PlainDate>, temporal_rs::TemporalError>(temporal_rs::diplomat::Ok<std::unique_ptr<temporal_rs::PlainDate>>(std::unique_ptr<temporal_rs::PlainDate>(temporal_rs::PlainDate::FromFFI(result.ok)))) : temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::PlainDate>, temporal_rs::TemporalError>(temporal_rs::diplomat::Err<temporal_rs::TemporalError>(temporal_rs::TemporalError::FromFFI(result.err)));
 }
 
-inline const temporal_rs::Calendar& temporal_rs::PlainDate::calendar() const {
+inline const temporal_rs::Calendar& temporal_rs::PlainDate::calendar() const DIPLOMAT_LIFETIME_BOUND {
     auto result = temporal_rs::capi::temporal_rs_PlainDate_calendar(this->AsFFI());
     return *temporal_rs::Calendar::FromFFI(result);
 }

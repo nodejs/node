@@ -57,7 +57,7 @@ public:
 
   inline uint8_t day() const;
 
-  inline const temporal_rs::Calendar& calendar() const;
+  inline const temporal_rs::Calendar& calendar() const DIPLOMAT_LIFETIME_BOUND;
 
   inline uint8_t month() const;
 

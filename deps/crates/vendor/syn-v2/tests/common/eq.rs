@@ -119,7 +119,6 @@ use rustc_ast::ast::MetaItemInner;
 use rustc_ast::ast::MetaItemKind;
 use rustc_ast::ast::MetaItemLit;
 use rustc_ast::ast::MethodCall;
-use rustc_ast::ast::MgcaDisambiguation;
 use rustc_ast::ast::ModKind;
 use rustc_ast::ast::ModSpans;
 use rustc_ast::ast::Movability;
@@ -250,10 +249,7 @@ impl<T: SpanlessEq> SpanlessEq for Vec<T> {
 impl<T: SpanlessEq> SpanlessEq for ThinVec<T> {
     fn eq(&self, other: &Self) -> bool {
         self.len() == other.len()
-            && self
-                .iter()
-                .zip(other.iter())
-                .all(|(a, b)| SpanlessEq::eq(a, b))
+            && self.iter().zip(other.iter()).all(|(a, b)| SpanlessEq::eq(a, b))
     }
 }
 
@@ -261,9 +257,7 @@ impl<K: Eq + Hash, V: SpanlessEq, S: BuildHasher> SpanlessEq for HashMap<K, V, S
     fn eq(&self, other: &Self) -> bool {
         self.len() == other.len()
             && self.iter().all(|(key, this_v)| {
-                other
-                    .get(key)
-                    .is_some_and(|other_v| SpanlessEq::eq(this_v, other_v))
+                other.get(key).is_some_and(|other_v| SpanlessEq::eq(this_v, other_v))
             })
     }
 }
@@ -490,15 +484,15 @@ macro_rules! spanless_eq_enum {
 }
 
 spanless_eq_struct!(AngleBracketedArgs; span args);
-spanless_eq_struct!(AnonConst; id value !mgca_disambiguation);
+spanless_eq_struct!(AnonConst; id value);
 spanless_eq_struct!(Arm; attrs pat guard body span id is_placeholder);
 spanless_eq_struct!(AssocItemConstraint; id ident gen_args kind span);
-spanless_eq_struct!(AttrItem; unsafety path args tokens);
+spanless_eq_struct!(AttrItem; unsafety path args);
 spanless_eq_struct!(AttrTokenStream; 0);
 spanless_eq_struct!(Attribute; kind id style span);
 spanless_eq_struct!(AttrsTarget; attrs tokens);
 spanless_eq_struct!(BindingMode; 0 1);
-spanless_eq_struct!(Block; stmts id rules span tokens);
+spanless_eq_struct!(Block; stmts id rules span);
 spanless_eq_struct!(Closure; binder capture_clause constness coroutine_kind movability fn_decl body !fn_decl_span !fn_arg_span);
 spanless_eq_struct!(ConstBlockItem; id span block);
 spanless_eq_struct!(ConstItem; defaultness ident generics ty rhs_kind define_opaque);
@@ -529,7 +523,7 @@ spanless_eq_struct!(GenericParam; id ident attrs bounds is_placeholder kind !col
 spanless_eq_struct!(Generics; params where_clause span);
 spanless_eq_struct!(Guard; cond span_with_leading_if);
 spanless_eq_struct!(Impl; generics constness of_trait self_ty items);
-spanless_eq_struct!(ImplRestriction; kind span tokens);
+spanless_eq_struct!(ImplRestriction; kind span);
 spanless_eq_struct!(InlineAsm; asm_macro template template_strs operands clobber_abis options line_spans);
 spanless_eq_struct!(InlineAsmSym; id qself path);
 spanless_eq_struct!(Item<K>; attrs id span vis kind !tokens);
@@ -544,13 +538,13 @@ spanless_eq_struct!(MetaItem; unsafety path kind span);
 spanless_eq_struct!(MetaItemLit; symbol suffix kind span);
 spanless_eq_struct!(MethodCall; seg receiver args !span);
 spanless_eq_struct!(ModSpans; !inner_span !inject_use_span);
-spanless_eq_struct!(MutRestriction; kind span tokens);
+spanless_eq_struct!(MutRestriction; kind span);
 spanless_eq_struct!(MutTy; ty mutbl);
 spanless_eq_struct!(NormalAttr; item tokens);
 spanless_eq_struct!(ParenthesizedArgs; span inputs inputs_span output);
-spanless_eq_struct!(Pat; id kind span tokens);
+spanless_eq_struct!(Pat; id kind span);
 spanless_eq_struct!(PatField; ident pat is_shorthand attrs id span is_placeholder);
-spanless_eq_struct!(Path; span segments tokens);
+spanless_eq_struct!(Path; span segments);
 spanless_eq_struct!(PathSegment; ident id args);
 spanless_eq_struct!(PolyTraitRef; bound_generic_params modifiers trait_ref span parens);
 spanless_eq_struct!(QSelf; ty path_span position);
@@ -564,13 +558,13 @@ spanless_eq_struct!(TraitAlias; constness ident generics bounds);
 spanless_eq_struct!(TraitBoundModifiers; constness asyncness polarity);
 spanless_eq_struct!(TraitImplHeader; defaultness safety polarity trait_ref);
 spanless_eq_struct!(TraitRef; path ref_id);
-spanless_eq_struct!(Ty; id kind span tokens);
+spanless_eq_struct!(Ty; id kind span);
 spanless_eq_struct!(TyAlias; defaultness ident generics after_where_clause bounds ty);
-spanless_eq_struct!(TyPat; id kind span tokens);
+spanless_eq_struct!(TyPat; id kind span);
 spanless_eq_struct!(UnsafeBinderTy; generic_params inner_ty);
 spanless_eq_struct!(UseTree; prefix kind);
 spanless_eq_struct!(Variant; attrs id span !vis ident data disr_expr is_placeholder);
-spanless_eq_struct!(Visibility; kind span tokens);
+spanless_eq_struct!(Visibility; kind span);
 spanless_eq_struct!(WhereBoundPredicate; bound_generic_params bounded_ty bounds);
 spanless_eq_struct!(WhereClause; has_where_token predicates span);
 spanless_eq_struct!(WhereEqPredicate; lhs_ty rhs_ty);
@@ -630,7 +624,6 @@ spanless_eq_enum!(MacStmtStyle; Semicolon Braces NoBraces);
 spanless_eq_enum!(MatchKind; Prefix Postfix);
 spanless_eq_enum!(MetaItemInner; MetaItem(0) Lit(0));
 spanless_eq_enum!(MetaItemKind; Word List(0) NameValue(0));
-spanless_eq_enum!(MgcaDisambiguation; AnonConst Direct);
 spanless_eq_enum!(ModKind; Loaded(0 1 2) Unloaded);
 spanless_eq_enum!(Movability; Static Movable);
 spanless_eq_enum!(Mutability; Mut Not);
@@ -672,7 +665,7 @@ spanless_eq_enum!(ExprKind; Array(0) ConstBlock(0) Call(0 1) MethodCall(0)
     Underscore Range(0 1 2) Path(0 1) AddrOf(0 1 2) Break(0 1) Continue(0)
     Ret(0) InlineAsm(0) OffsetOf(0 1) MacCall(0) Struct(0) Repeat(0 1) Paren(0)
     Try(0) Yield(0) Yeet(0) Become(0) IncludedBytes(0) FormatArgs(0)
-    UnsafeBinderCast(0 1 2) Err(0) Dummy);
+    UnsafeBinderCast(0 1 2) DirectConstArg(0) Err(0) Dummy);
 spanless_eq_enum!(InlineAsmOperand; In(reg expr) Out(reg late expr)
     InOut(reg late expr) SplitInOut(reg late in_expr out_expr) Const(anon_const)
     Sym(sym) Label(block));
@@ -689,7 +682,7 @@ spanless_eq_enum!(PatKind; Missing Wild Ident(0 1 2) Struct(0 1 2 3)
 spanless_eq_enum!(TyKind; Slice(0) Array(0 1) Ptr(0) Ref(0 1) PinnedRef(0 1)
     FnPtr(0) UnsafeBinder(0) Never Tup(0) Path(0 1) TraitObject(0 1)
     ImplTrait(0 1) Paren(0) Infer ImplicitSelf MacCall(0) CVarArgs Pat(0 1)
-    FieldOf(0 1 2) Dummy Err(0));
+    FieldOf(0 1 2) View(0 1) DirectConstArg(0) Dummy Err(0));
 
 impl SpanlessEq for Ident {
     fn eq(&self, other: &Self) -> bool {
@@ -707,14 +700,7 @@ impl SpanlessEq for RangeSyntax {
 
 impl SpanlessEq for Param {
     fn eq(&self, other: &Self) -> bool {
-        let Param {
-            attrs,
-            ty,
-            pat,
-            id,
-            span: _,
-            is_placeholder,
-        } = self;
+        let Param { attrs, ty, pat, id, span: _, is_placeholder } = self;
         let Param {
             attrs: attrs2,
             ty: ty2,
@@ -791,13 +777,7 @@ fn doc_comment<'a>(
         AttrStyle::Inner => true,
     } {
         match trees.next() {
-            Some(TokenTree::Token(
-                Token {
-                    kind: TokenKind::Bang,
-                    span: _,
-                },
-                _spacing,
-            )) => {}
+            Some(TokenTree::Token(Token { kind: TokenKind::Bang, span: _ }, _spacing)) => {}
             _ => return false,
         }
     }
@@ -808,22 +788,13 @@ fn doc_comment<'a>(
     let mut trees = stream.iter();
     match trees.next() {
         Some(TokenTree::Token(
-            Token {
-                kind: TokenKind::Ident(symbol, IdentIsRaw::No),
-                span: _,
-            },
+            Token { kind: TokenKind::Ident(symbol, IdentIsRaw::No), span: _ },
             _spacing,
         )) if *symbol == sym::doc => {}
         _ => return false,
     }
     match trees.next() {
-        Some(TokenTree::Token(
-            Token {
-                kind: TokenKind::Eq,
-                span: _,
-            },
-            _spacing,
-        )) => {}
+        Some(TokenTree::Token(Token { kind: TokenKind::Eq, span: _ }, _spacing)) => {}
         _ => return false,
     }
     match trees.next() {
@@ -836,39 +807,33 @@ fn doc_comment<'a>(
 
 fn is_escaped_literal_token(token: &Token, unescaped: Symbol) -> bool {
     match token {
-        Token {
-            kind: TokenKind::Literal(lit),
-            span: _,
-        } => match MetaItemLit::from_token_lit(*lit, DUMMY_SP) {
-            Ok(lit) => is_escaped_literal_meta_item_lit(&lit, unescaped),
-            Err(_) => false,
-        },
+        Token { kind: TokenKind::Literal(lit), span: _ } => {
+            match MetaItemLit::from_token_lit(*lit, DUMMY_SP) {
+                Ok(lit) => is_escaped_literal_meta_item_lit(&lit, unescaped),
+                Err(_) => false,
+            }
+        }
         _ => false,
     }
 }
 
 fn is_escaped_literal_meta_item_lit(lit: &MetaItemLit, unescaped: Symbol) -> bool {
     match lit {
-        MetaItemLit {
-            symbol: _,
-            suffix: None,
-            kind,
-            span: _,
-        } => is_escaped_lit_kind(kind, unescaped),
+        MetaItemLit { symbol: _, suffix: None, kind, span: _ } => {
+            is_escaped_lit_kind(kind, unescaped)
+        }
         _ => false,
     }
 }
 
 fn is_escaped_lit(lit: &Lit, unescaped: Symbol) -> bool {
     match lit {
-        Lit {
-            kind: token::LitKind::Str,
-            symbol: _,
-            suffix: None,
-        } => match LitKind::from_token_lit(*lit) {
-            Ok(lit_kind) => is_escaped_lit_kind(&lit_kind, unescaped),
-            _ => false,
-        },
+        Lit { kind: token::LitKind::Str, symbol: _, suffix: None } => {
+            match LitKind::from_token_lit(*lit) {
+                Ok(lit_kind) => is_escaped_lit_kind(&lit_kind, unescaped),
+                _ => false,
+            }
+        }
         _ => false,
     }
 }

@@ -236,4 +236,24 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    #[should_panic(expected = "Hashmap too large for u32")]
+    #[cfg(target_pointer_width = "64")]
+    fn test_hashmap_too_large() {
+        struct HugeIter;
+        impl Iterator for HugeIter {
+            type Item = u64;
+            fn next(&mut self) -> Option<Self::Item> {
+                None
+            }
+        }
+        impl ExactSizeIterator for HugeIter {
+            fn len(&self) -> usize {
+                // Return something that is > u32::MAX on 64-bit systems
+                (u32::MAX as usize) + 1
+            }
+        }
+        let _ = compute_displacements(HugeIter);
+    }
 }

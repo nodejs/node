@@ -1,0 +1,8 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Expected both type arguments for Result to be a type
+In src/ast/snapshots/span_testing/result_type_args.rs:3:39:
+...esult<32, i32>) {}...
+        ^^^^^^^^^

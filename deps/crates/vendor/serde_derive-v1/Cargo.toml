@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.61"
+rust-version = "1.71"
 name = "serde_derive"
-version = "1.0.228"
+version = "1.0.229"
 authors = [
     "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
     "David Tolnay <dtolnay@gmail.com>",
@@ -73,7 +73,7 @@ features = ["proc-macro"]
 default-features = false
 
 [dependencies.syn]
-version = "2.0.81"
+version = "3"
 features = [
     "clone-impls",
     "derive",

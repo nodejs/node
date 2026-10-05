@@ -2,11 +2,11 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
+#[cfg(feature = "alloc")]
+use crate::Locale;
 use crate::extensions;
 use crate::parser::{ParseError, ParserMode, SubtagIterator};
 use crate::subtags::{self, Subtag};
-#[cfg(feature = "alloc")]
-use crate::Locale;
 
 use super::parse_locale_with_single_variant_single_keyword_unicode_extension_from_iter;
 

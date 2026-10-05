@@ -1,7 +1,7 @@
 [package]
 name = "displaydoc"
-version = "0.2.6"
-rust-version = "1.56.0"
+version = "0.2.7"
+rust-version = "1.71.0"
 authors = ["Jane Lusby <jlusby@yaah.dev>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
@@ -24,7 +24,7 @@ default = ["std"]
 std = []
 
 [dependencies]
-syn = "2.0"
+syn = "3.0"
 quote = "1.0"
 proc-macro2 = "1.0"
 

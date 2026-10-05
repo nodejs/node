@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.63.0"
 name = "either"
-version = "1.16.0"
+version = "1.18.0"
 build = false
 autolib = false
 autobins = false
@@ -24,7 +24,7 @@ description = """
 The enum `Either` with variants `Left` and `Right` is a general purpose sum type with two cases.
 """
 documentation = "https://docs.rs/either/1/"
-readme = "README-crates.io.md"
+readme = "README.md"
 keywords = [
     "data-structure",
     "no_std",

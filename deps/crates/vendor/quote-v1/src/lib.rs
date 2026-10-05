@@ -89,7 +89,7 @@
 //! [prettyplease]: https://github.com/dtolnay/prettyplease
 
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/quote/1.0.46")]
+#![doc(html_root_url = "https://docs.rs/quote/1.0.47")]
 #![allow(
     clippy::doc_markdown,
     clippy::elidable_lifetime_names,
@@ -424,7 +424,7 @@ macro_rules! __quote {
         /// appears suffixed as integer literals by interpolating them as [`syn::Index`]
         /// instead.
         ///
-        /// [`syn::Index`]: https://docs.rs/syn/2.0/syn/struct.Index.html
+        /// [`syn::Index`]: https://docs.rs/syn/3/syn/struct.Index.html
         ///
         /// ```compile_fail
         /// let i = 0usize..self.fields.len();

@@ -99,7 +99,7 @@ impl AttrsHelper {
                 .join("\n")
                 .trim()
                 .to_string();
-            (!doc_str.is_empty()).then(|| doc_str)
+            (!doc_str.is_empty()).then_some(doc_str)
         });
 
         let joined = if self.ignore_extra_doc_attributes {

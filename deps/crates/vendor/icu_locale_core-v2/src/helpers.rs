@@ -79,9 +79,9 @@ macro_rules! impl_tinystr_subtag {
             ///
             /// This function is safe iff [`Self::try_from_raw`] returns an `Ok`. This is the case
             /// for inputs that are correctly normalized.
-            pub const unsafe fn from_raw_unchecked(v: [u8; $len_end]) -> Self {
+            pub const unsafe fn from_raw_unchecked(v: [u8; $len_end]) -> Self { unsafe {
                 Self(tinystr::TinyAsciiStr::from_utf8_unchecked(v))
-            }
+            }}
 
             /// Deconstructs into a raw format to be consumed by
             /// [`from_raw_unchecked`](Self::from_raw_unchecked()) or
@@ -146,20 +146,7 @@ macro_rules! impl_tinystr_subtag {
             }
         }
 
-        impl writeable::Writeable for $name {
-            #[inline]
-            fn write_to<W: core::fmt::Write + ?Sized>(&self, sink: &mut W) -> core::fmt::Result {
-                sink.write_str(self.as_str())
-            }
-            #[inline]
-            fn writeable_length_hint(&self) -> writeable::LengthHint {
-                writeable::LengthHint::exact(self.0.len())
-            }
-            fn writeable_borrow(&self) -> Option<&str> {
-                Some(self.0.as_str())
-            }
-        }
-
+        writeable::impl_writeable_delegate!($name, |&self| self.as_str(), #[cfg(feature = "alloc")] fn write_to_string);
         writeable::impl_display_with_writeable!($name, #[cfg(feature = "alloc")]);
 
         #[doc = concat!("A macro allowing for compile-time construction of valid [`", stringify!($name), "`] subtags.")]

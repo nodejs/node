@@ -76,8 +76,18 @@ impl PotentialUtf8 {
     #[inline]
     #[cfg(feature = "alloc")]
     pub fn from_boxed_bytes(other: Box<[u8]>) -> Box<Self> {
-        // Safety: PotentialUtf8 is transparent over [u8]
-        unsafe { core::mem::transmute::<Box<[u8]>, Box<Self>>(other) }
+        // Safety: PotentialUtf8 is transparent over [u8] therefore
+        // the cast between [u8] and Self is sound.
+        // Box::into_raw returns a well aligned pointer that is not
+        // null. The cast then changes the type, but the pointer
+        // is still well aligned, not null and created by the
+        // same global allocator, so it's safe to use Box::from_raw
+        // to create a new Box instance out of it.
+        //
+        // We cannot directly transmute the `Box` here as
+        // there is no gurantee about the layout of `Box` with
+        // unsized types.
+        unsafe { Box::from_raw(Box::into_raw(other) as *mut Self) }
     }
 
     /// Create a [`PotentialUtf8`] from a boxed `str`.

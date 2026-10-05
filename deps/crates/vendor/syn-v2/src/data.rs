@@ -217,10 +217,7 @@ impl<'a> Iterator for Members<'a> {
                 let span = crate::spanned::Spanned::span(&field.ty);
                 #[cfg(not(all(feature = "parsing", feature = "printing")))]
                 let span = proc_macro2::Span::call_site();
-                Member::Unnamed(Index {
-                    index: self.index,
-                    span,
-                })
+                Member::Unnamed(Index { index: self.index, span })
             }
         };
         self.index += 1;
@@ -230,10 +227,7 @@ impl<'a> Iterator for Members<'a> {
 
 impl<'a> Clone for Members<'a> {
     fn clone(&self) -> Self {
-        Members {
-            fields: self.fields.clone(),
-            index: self.index,
-        }
+        Members { fields: self.fields.clone(), index: self.index }
     }
 }
 
@@ -274,13 +268,13 @@ pub(crate) mod parsing {
                 let discriminant: Expr = input.parse()?;
                 #[cfg(not(feature = "full"))]
                 let discriminant = {
-                    let begin = input.fork();
+                    let begin = input.cursor();
                     let ahead = input.fork();
                     let mut discriminant: Result<Expr> = ahead.parse();
                     if discriminant.is_ok() {
                         input.advance_to(&ahead);
                     } else if scan_expr(input).is_ok() {
-                        discriminant = Ok(Expr::Verbatim(verbatim::between(&begin, input)));
+                        discriminant = Ok(Expr::Verbatim(verbatim::between(begin, input.cursor())));
                     }
                     discriminant?
                 };
@@ -288,12 +282,7 @@ pub(crate) mod parsing {
             } else {
                 None
             };
-            Ok(Variant {
-                attrs,
-                ident,
-                fields,
-                discriminant,
-            })
+            Ok(Variant { attrs, ident, fields, discriminant })
         }
     }
 
@@ -327,11 +316,7 @@ pub(crate) mod parsing {
             let vis: Visibility = input.parse()?;
 
             let unnamed_field = cfg!(feature = "full") && input.peek(Token![_]);
-            let ident = if unnamed_field {
-                input.call(Ident::parse_any)
-            } else {
-                input.parse()
-            }?;
+            let ident = if unnamed_field { input.call(Ident::parse_any) } else { input.parse() }?;
 
             let colon_token: Token![:] = input.parse()?;
 
@@ -339,10 +324,10 @@ pub(crate) mod parsing {
                 && (input.peek(Token![struct])
                     || input.peek(Token![union]) && input.peek2(token::Brace))
             {
-                let begin = input.fork();
+                let begin = input.cursor();
                 input.call(Ident::parse_any)?;
                 input.parse::<FieldsNamed>()?;
-                Type::Verbatim(verbatim::between(&begin, input))
+                Type::Verbatim(verbatim::between(begin, input.cursor()))
             } else {
                 input.parse()?
             };

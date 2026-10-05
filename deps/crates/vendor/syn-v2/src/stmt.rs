@@ -82,6 +82,7 @@ ast_struct! {
 #[cfg(feature = "parsing")]
 pub(crate) mod parsing {
     use crate::attr::Attribute;
+    use crate::buffer::Cursor;
     use crate::classify;
     use crate::error::Result;
     use crate::expr::{Expr, ExprBlock, ExprMacro};
@@ -95,8 +96,10 @@ pub(crate) mod parsing {
     use crate::stmt::{Block, Local, LocalInit, Stmt, StmtMacro};
     use crate::token;
     use crate::ty::Type;
+    use crate::verbatim;
     use alloc::boxed::Box;
     use alloc::vec::Vec;
+    use core::mem;
     use proc_macro2::TokenStream;
 
     struct AllowNoSemi(bool);
@@ -200,8 +203,9 @@ pub(crate) mod parsing {
     }
 
     fn parse_stmt(input: ParseStream, allow_nosemi: AllowNoSemi) -> Result<Stmt> {
-        let begin = input.fork();
+        let begin = input.cursor();
         let attrs = input.call(Attribute::parse_outer)?;
+        let attrs_end = input.cursor();
 
         // brace-style macros; paren and bracket macros get parsed as
         // expression statements.
@@ -263,7 +267,7 @@ pub(crate) mod parsing {
             let item = item::parsing::parse_rest_of_item(begin, attrs, input)?;
             Ok(Stmt::Item(item))
         } else {
-            stmt_expr(input, allow_nosemi, attrs)
+            stmt_expr(begin, input, allow_nosemi, attrs, attrs_end)
         }
     }
 
@@ -272,16 +276,7 @@ pub(crate) mod parsing {
         let (delimiter, tokens) = mac::parse_delimiter(input)?;
         let semi_token: Option<Token![;]> = input.parse()?;
 
-        Ok(StmtMacro {
-            attrs,
-            mac: Macro {
-                path,
-                bang_token,
-                delimiter,
-                tokens,
-            },
-            semi_token,
-        })
+        Ok(StmtMacro { attrs, mac: Macro { path, bang_token, delimiter, tokens }, semi_token })
     }
 
     fn stmt_local(input: ParseStream, attrs: Vec<Attribute>) -> Result<Local> {
@@ -305,40 +300,28 @@ pub(crate) mod parsing {
 
             let diverge = if !classify::expr_trailing_brace(&expr) && input.peek(Token![else]) {
                 let else_token: Token![else] = input.parse()?;
-                let diverge = ExprBlock {
-                    attrs: Vec::new(),
-                    label: None,
-                    block: input.parse()?,
-                };
+                let diverge = ExprBlock { attrs: Vec::new(), label: None, block: input.parse()? };
                 Some((else_token, Box::new(Expr::Block(diverge))))
             } else {
                 None
             };
 
-            Some(LocalInit {
-                eq_token,
-                expr: Box::new(expr),
-                diverge,
-            })
+            Some(LocalInit { eq_token, expr: Box::new(expr), diverge })
         } else {
             None
         };
 
         let semi_token: Token![;] = input.parse()?;
 
-        Ok(Local {
-            attrs,
-            let_token,
-            pat,
-            init,
-            semi_token,
-        })
+        Ok(Local { attrs, let_token, pat, init, semi_token })
     }
 
     fn stmt_expr(
+        begin: Cursor,
         input: ParseStream,
         allow_nosemi: AllowNoSemi,
         mut attrs: Vec<Attribute>,
+        attrs_end: Cursor,
     ) -> Result<Stmt> {
         let mut e = Expr::parse_with_earlier_boundary_rule(input)?;
 
@@ -387,8 +370,18 @@ pub(crate) mod parsing {
                 | Expr::Verbatim(_) => break,
             };
         }
-        attrs.extend(attr_target.replace_attrs(Vec::new()));
-        attr_target.replace_attrs(attrs);
+
+        if !attrs.is_empty() {
+            if let Expr::Verbatim(expr_tokens) = attr_target {
+                let mut attr_tokens = verbatim::between(begin, attrs_end);
+                attr_tokens.extend(mem::replace(expr_tokens, TokenStream::new()));
+                *expr_tokens = attr_tokens;
+            } else {
+                let inner_attrs = attr_target.replace_attrs(Vec::new());
+                attrs.extend(inner_attrs);
+                attr_target.replace_attrs(attrs);
+            }
+        }
 
         let semi_token: Option<Token![;]> = input.parse()?;
 
@@ -396,11 +389,7 @@ pub(crate) mod parsing {
             Expr::Macro(ExprMacro { attrs, mac })
                 if semi_token.is_some() || mac.delimiter.is_brace() =>
             {
-                return Ok(Stmt::Macro(StmtMacro {
-                    attrs,
-                    mac,
-                    semi_token,
-                }));
+                return Ok(Stmt::Macro(StmtMacro { attrs, mac, semi_token }));
             }
             _ => {}
         }
