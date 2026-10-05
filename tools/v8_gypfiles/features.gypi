@@ -309,6 +309,11 @@
     # This option can be on unconditionally.
     'v8_enable_temporal_systemicu%': 1,
 
+    # Lite mode disables a number of performance optimizations to reduce memory
+    # at the cost of performance.
+    # Sets --DV8_LITE_MODE.
+    'v8_enable_lite_mode%': 0,
+
     # Enable the Turbofan compiler.
     # Sets -dV8_ENABLE_TURBOFAN
     'v8_enable_turbofan%': 1,
@@ -345,6 +350,9 @@
       }],
       ['v8_enable_future==1', {
         'defines': ['V8_ENABLE_FUTURE',],
+      }],
+      ['v8_enable_lite_mode==1', {
+        'defines': ['V8_LITE_MODE',],
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],

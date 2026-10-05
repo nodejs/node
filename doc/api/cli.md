@@ -2196,6 +2196,19 @@ added: v0.7.7
 
 Opens the REPL even if stdin does not appear to be a terminal.
 
+### `--jitless`
+
+<!-- YAML
+added: v12.0.0
+-->
+
+> Stability: 1 - Experimental. This flag is inherited from V8 and is subject to
+> change upstream.
+
+Disable [runtime allocation of executable memory][jitless]. This may be
+required on some platforms for security reasons. It can also reduce attack
+surface on other platforms, but the performance impact may be severe.
+
 ### `--localstorage-file=file`
 
 <!-- YAML
@@ -4398,6 +4411,7 @@ V8 options that are allowed are:
 * `--enable-etw-stack-walking`
 * `--expose-gc`
 * `--interpreted-frames-native-stack`
+* `--jitless`
 * `--max-heap-size`
 * `--max-old-space-size`
 * `--max-semi-space-size`
@@ -4768,6 +4782,8 @@ documented here:
 
 ### `--interpreted-frames-native-stack`
 
+### `--jitless`
+
 ### `--max-heap-size`
 
 Specifies the maximum heap size (in megabytes) for the process.
@@ -4960,6 +4976,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [environment_variables]: #environment-variables-1
 [filtering tests by name]: test.md#filtering-tests-by-name
 [global setup and teardown]: test.md#global-setup-and-teardown
+[jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [module compile cache]: module.md#module-compile-cache
 [preloading asynchronous module customization hooks]: module.md#registration-of-asynchronous-customization-hooks

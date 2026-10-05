@@ -159,4 +159,4 @@ for await (const dirent of await fs.opendir(new URL('../../out/doc/api/', import
 }
 
 assert.strictEqual(numberOfDeprecatedSections, 49); // Increase this number every time a new API is deprecated.
-assert.strictEqual(numberOfRemovedAPIs, 47); // Increase this number every time a section is marked as removed.
+assert.strictEqual(numberOfRemovedAPIs, 46); // Increase this number every time a section is marked as removed.

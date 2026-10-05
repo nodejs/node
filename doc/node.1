@@ -1175,6 +1175,11 @@ See V8 Inspector integration for Node.js for further explanation on Node.js debu
 .It Fl i , Fl -interactive
 Opens the REPL even if stdin does not appear to be a terminal.
 .
+.It Fl -jitless
+Disable runtime allocation of executable memory. This may be
+required on some platforms for security reasons. It can also reduce attack
+surface on other platforms, but the performance impact may be severe.
+.
 .It Fl -localstorage-file Ns = Ns Ar file
 The file used to store \fBlocalStorage\fR data. If the file does not exist, it is
 created the first time \fBlocalStorage\fR is accessed. The same file may be shared
@@ -2522,6 +2527,8 @@ V8 options that are allowed are:
 \fB--expose-gc\fR
 .It
 \fB--interpreted-frames-native-stack\fR
+.It
+\fB--jitless\fR
 .It
 \fB--max-heap-size\fR
 .It
