@@ -10,5 +10,6 @@
     "foo",
     "function"
   ],
-  "scopes": "BCAAA,BHBACE,CEA,CFA,ECAA,EGCC,FC,FG"
+  "scopes": ["BCAAA,BHBACE,CEA,CFA"],
+  "ranges": ["ECAAA,EGCAC,FC,FG"]
 }
