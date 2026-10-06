@@ -34,9 +34,14 @@
 #  define HDR_UNLIKELY(x) (x)
 #endif
 
-/* Runtime-dispatched AVX2 path: keep the rest of this TU at the project's
-   baseline ISA so the shipped binary does not silently require AVX2. */
-#if (defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)) \
+/* Runtime-dispatched AVX2 path; rest of TU stays at baseline ISA so the binary
+   doesn't silently require AVX2. 64-bit x86 + GCC/Clang only:
+     - 32-bit x86: _mm_extract_epi64 unavailable in 32-bit codegen.
+     - _MSC_VER: __builtin_cpu_supports's __cpu_model isn't linked under MSVC;
+       clang-cl also defines __x86_64__/__clang__ so this exclusion is load-bearing.
+     - __INTEL_COMPILER: ICC classic. */
+#if !defined(HDR_DISABLE_AVX2) \
+    && defined(__x86_64__) \
     && (defined(__GNUC__) || defined(__clang__)) && !defined(__INTEL_COMPILER) && !defined(_MSC_VER)
 #  define HDR_HAS_AVX2_DISPATCH 1
 #  include <immintrin.h>
@@ -187,7 +192,8 @@ static int64_t power(int64_t base, int64_t exp)
 static int32_t count_leading_zeros_64(int64_t value)
 {
 #if defined(_MSC_VER) && !(defined(__clang__) && (defined(_M_ARM) || defined(_M_ARM64)))
-    uint32_t leading_zero = 0;
+    /* _BitScanReverse writes an unsigned long */
+    unsigned long leading_zero = 0;
 #if defined(_WIN64)
     _BitScanReverse64(&leading_zero, value);
 #else
@@ -291,12 +297,26 @@ static int64_t lowest_equivalent_value_given_bucket_indices(
 
 int64_t hdr_next_non_equivalent_value(const struct hdr_histogram *h, int64_t value)
 {
-    return lowest_equivalent_value(h, value) + hdr_size_of_equivalent_value_range(h, value);
+    int64_t low  = lowest_equivalent_value(h, value);
+    int64_t size = hdr_size_of_equivalent_value_range(h, value);
+    /* saturate: top-bucket low+size overflows int64 (UB) */
+    if (low > INT64_MAX - size)
+    {
+        return INT64_MAX;
+    }
+    return low + size;
 }
 
 static int64_t highest_equivalent_value(const struct hdr_histogram* h, int64_t value)
 {
-    return hdr_next_non_equivalent_value(h, value) - 1;
+    int64_t low  = lowest_equivalent_value(h, value);
+    int64_t size = hdr_size_of_equivalent_value_range(h, value);
+    /* clamp: top-bucket low+size-1 overflows int64; keep value <= highest_equivalent_value */
+    if (low > INT64_MAX - size)
+    {
+        return INT64_MAX;
+    }
+    return low + size - 1;
 }
 
 int64_t hdr_median_equivalent_value(const struct hdr_histogram *h, int64_t value)
@@ -314,8 +334,9 @@ static int64_t non_zero_min(const struct hdr_histogram* h)
     return lowest_equivalent_value(h, h->min_value);
 }
 
-void hdr_reset_internal_counters(struct hdr_histogram* h)
+bool hdr_reset_internal_counters_checked(struct hdr_histogram* h)
 {
+    bool overflow = false;
     int min_non_zero_index = -1;
     int max_index = -1;
     int64_t observed_total_count = 0;
@@ -325,9 +346,18 @@ void hdr_reset_internal_counters(struct hdr_histogram* h)
     {
         int64_t count_at_index;
 
-        if ((count_at_index = counts_get_direct(h, i)) > 0)
+        /* logical index: pair the count with hdr_value_at_index below (offset-aware) */
+        if ((count_at_index = counts_get_normalised(h, i)) > 0)
         {
-            observed_total_count += count_at_index;
+            if (count_at_index > INT64_MAX - observed_total_count)
+            {
+                observed_total_count = INT64_MAX;
+                overflow = true;
+            }
+            else
+            {
+                observed_total_count += count_at_index;
+            }
             max_index = i;
             if (min_non_zero_index == -1 && i != 0)
             {
@@ -356,6 +386,12 @@ void hdr_reset_internal_counters(struct hdr_histogram* h)
     }
 
     h->total_count = observed_total_count;
+    return !overflow;
+}
+
+void hdr_reset_internal_counters(struct hdr_histogram* h)
+{
+    (void) hdr_reset_internal_counters_checked(h);
 }
 
 static int32_t buckets_needed_to_cover_value(int64_t value, int32_t sub_bucket_count, int32_t unit_magnitude)
@@ -392,9 +428,14 @@ int hdr_calculate_bucket_config(
     int32_t sub_bucket_count_magnitude;
     int64_t largest_value_with_single_unit_resolution;
 
+    /* define cfg on every reject path so a two-step-init caller that mishandles
+       the EINVAL return never reads uninitialized fields */
+    memset(cfg, 0, sizeof(*cfg));
+
     if (lowest_discernible_value < 1 ||
             significant_figures < 1 || 5 < significant_figures ||
-            lowest_discernible_value * 2 > highest_trackable_value)
+            /* division form: lowest*2 near INT64_MAX overflows int64 (UB) */
+            lowest_discernible_value > highest_trackable_value / 2)
     {
         return EINVAL;
     }
@@ -416,12 +457,14 @@ int hdr_calculate_bucket_config(
     cfg->unit_magnitude = (int32_t) unit_magnitude;
     cfg->sub_bucket_count      = (int32_t) pow(2, (cfg->sub_bucket_half_count_magnitude + 1));
     cfg->sub_bucket_half_count = cfg->sub_bucket_count / 2;
-    cfg->sub_bucket_mask       = ((int64_t) cfg->sub_bucket_count - 1) << cfg->unit_magnitude;
 
+    /* reject before shifting: sub_bucket_mask shift past bit 61 is signed-shift UB */
     if (cfg->unit_magnitude + cfg->sub_bucket_half_count_magnitude > 61)
     {
         return EINVAL;
     }
+
+    cfg->sub_bucket_mask       = ((int64_t) cfg->sub_bucket_count - 1) << cfg->unit_magnitude;
 
     cfg->bucket_count = buckets_needed_to_cover_value(highest_trackable_value, cfg->sub_bucket_count, (int32_t)cfg->unit_magnitude);
     cfg->counts_len = (cfg->bucket_count + 1) * (cfg->sub_bucket_count / 2);
@@ -521,17 +564,9 @@ size_t hdr_get_memory_size(struct hdr_histogram *h)
 /*  #######  ##        ########  ##     ##    ##    ########  ######  */
 
 
-bool hdr_record_value(struct hdr_histogram* h, int64_t value)
-{
-    return hdr_record_values(h, value, 1);
-}
-
-bool hdr_record_value_atomic(struct hdr_histogram* h, int64_t value)
-{
-    return hdr_record_values_atomic(h, value, 1);
-}
-
-bool hdr_record_values(struct hdr_histogram* h, int64_t value, int64_t count)
+/* Shared record body. The count-sign check lives in hdr_record_values()/_atomic()
+   below, keeping the single-value hot path (count == 1, never negative) free of it. */
+static bool record_value_counted(struct hdr_histogram* h, int64_t value, int64_t count)
 {
     int32_t counts_index;
 
@@ -552,7 +587,7 @@ bool hdr_record_values(struct hdr_histogram* h, int64_t value, int64_t count)
     return true;
 }
 
-bool hdr_record_values_atomic(struct hdr_histogram* h, int64_t value, int64_t count)
+static bool record_value_counted_atomic(struct hdr_histogram* h, int64_t value, int64_t count)
 {
     int32_t counts_index;
 
@@ -562,7 +597,6 @@ bool hdr_record_values_atomic(struct hdr_histogram* h, int64_t value, int64_t co
     }
 
     counts_index = counts_index_for(h, value);
-
     if ((uint32_t)counts_index >= (uint32_t)h->counts_len)
     {
         return false;
@@ -572,6 +606,46 @@ bool hdr_record_values_atomic(struct hdr_histogram* h, int64_t value, int64_t co
     update_min_max_atomic(h, value);
 
     return true;
+}
+
+bool hdr_record_value(struct hdr_histogram* h, int64_t value)
+{
+    return record_value_counted(h, value, 1);
+}
+
+bool hdr_record_value_atomic(struct hdr_histogram* h, int64_t value)
+{
+    return record_value_counted_atomic(h, value, 1);
+}
+
+bool hdr_record_value_capped(struct hdr_histogram* h, int64_t value)
+{
+    int64_t capped = (value > h->highest_trackable_value) ? h->highest_trackable_value : value;
+    return hdr_record_value(h, capped < 0 ? 0 : capped);
+}
+
+bool hdr_record_value_capped_atomic(struct hdr_histogram* h, int64_t value)
+{
+    int64_t capped = (value > h->highest_trackable_value) ? h->highest_trackable_value : value;
+    return hdr_record_value_atomic(h, capped < 0 ? 0 : capped);
+}
+
+bool hdr_record_values(struct hdr_histogram* h, int64_t value, int64_t count)
+{
+    if (count < 0)  /* non-negative counts; scan assumes a monotonic prefix */
+    {
+        return false;
+    }
+    return record_value_counted(h, value, count);
+}
+
+bool hdr_record_values_atomic(struct hdr_histogram* h, int64_t value, int64_t count)
+{
+    if (count < 0)  /* see hdr_record_values */
+    {
+        return false;
+    }
+    return record_value_counted_atomic(h, value, count);
 }
 
 bool hdr_record_corrected_value(struct hdr_histogram* h, int64_t value, int64_t expected_interval)
@@ -698,6 +772,12 @@ int64_t hdr_max(const struct hdr_histogram* h)
     return highest_equivalent_value(h, h->max_value);
 }
 
+int64_t hdr_total_count(const struct hdr_histogram* h)
+{
+    /* atomic load: safe to call while other threads use the *_atomic record functions */
+    return h != NULL ? hdr_atomic_load_64((int64_t*) &h->total_count) : 0;
+}
+
 int64_t hdr_min(const struct hdr_histogram* h)
 {
     if (0 < hdr_count_at_index(h, 0))
@@ -711,12 +791,62 @@ int64_t hdr_min(const struct hdr_histogram* h)
 static int64_t get_value_from_idx_up_to_count_scalar(
     const struct hdr_histogram* h, int64_t count_at_percentile)
 {
-    int64_t count_to_idx = 0;
-    for (int32_t idx = 0; idx < h->counts_len; idx++) {
-        count_to_idx += h->counts[idx];
-        if (count_to_idx >= count_at_percentile)
+    /* Block-summed scan: sum BLK counts, test the running total once per block,
+       and do the exact per-element walk only for the crossing block. offset != 0
+       (decoded/rotated) reads via the offset-aware accessor. */
+    enum { BLK = 4 };
+    const int64_t* counts = h->counts;
+    const int32_t n = h->counts_len;
+    int32_t idx = 0;
+    int64_t running = 0;
+
+    if (HDR_UNLIKELY(h->normalizing_index_offset != 0))
+    {
+        for (idx = 0; idx < n; idx++)
+        {
+            running += counts_get_normalised(h, idx);
+            if (running >= count_at_percentile)
+                return hdr_value_at_index(h, idx);
+        }
+        return 0;
+    }
+
+    {
+        const int32_t blk_limit = n - (n % BLK);
+        for (; idx < blk_limit; idx += BLK)
+        {
+            /* unsigned block sum: cannot overflow under valid state (matches AVX2 path) */
+            uint64_t block_sum_u = 0;
+            int32_t j;
+            for (j = 0; j < BLK; j++)
+                block_sum_u += (uint64_t)counts[idx + j];
+            if (HDR_UNLIKELY((uint64_t)running + block_sum_u >= (uint64_t)count_at_percentile))
+            {
+#if defined(__aarch64__) && defined(__clang__) && !defined(__APPLE__)
+                /* Keep crossing-block prefix sums out of the block-sum loop. */
+#pragma clang loop unroll(disable)
+#endif
+                for (j = 0; j < BLK; j++)
+                {
+                    running += counts[idx + j];
+                    if (running >= count_at_percentile)
+                        return hdr_value_at_index(h, idx + j);
+                }
+            }
+            else
+            {
+                running += (int64_t)block_sum_u;
+            }
+        }
+    }
+
+    for (; idx < n; idx++)
+    {
+        running += counts[idx];
+        if (running >= count_at_percentile)
             return hdr_value_at_index(h, idx);
     }
+
     return 0;
 }
 
@@ -727,30 +857,44 @@ static int64_t get_value_from_idx_up_to_count_avx2(
 {
     int64_t running = 0;
     int32_t idx = 0;
-    const int32_t limit = h->counts_len & ~3;
+    /* 16 int64 (4x256-bit) per iteration: amortize the horizontal reduction +
+       extract + target-cross branch over 16 elements instead of 4. */
+    const int32_t limit = h->counts_len & ~15;
 
-    for (; idx < limit; idx += 4) {
-        __m256i v = _mm256_loadu_si256((const __m256i*)&h->counts[idx]);
-        __m128i lo = _mm256_castsi256_si128(v);
-        __m128i hi = _mm256_extracti128_si256(v, 1);
+    for (; idx < limit; idx += 16) {
+        /* prefetch 512 B ahead to hide L2/L3 latency; clamp in-bounds — a
+           past-end pointer is UB even for a hint. */
+        int32_t pf = idx + 4 * 16;
+        _mm_prefetch((const char*)&h->counts[pf < h->counts_len ? pf : h->counts_len - 1], _MM_HINT_T0);
+        __m256i a = _mm256_loadu_si256((const __m256i*)&h->counts[idx]);
+        __m256i b = _mm256_loadu_si256((const __m256i*)&h->counts[idx + 4]);
+        __m256i c = _mm256_loadu_si256((const __m256i*)&h->counts[idx + 8]);
+        __m256i d = _mm256_loadu_si256((const __m256i*)&h->counts[idx + 12]);
+        __m256i vsum = _mm256_add_epi64(_mm256_add_epi64(a, b), _mm256_add_epi64(c, d));
+        __m128i lo = _mm256_castsi256_si128(vsum);
+        __m128i hi = _mm256_extracti128_si256(vsum, 1);
         __m128i s = _mm_add_epi64(lo, hi);
-        /* Lanes are non-negative counts whose total fits in int64_t (total_count
-           invariant), so the chunk sum cannot overflow under valid state. Use
-           unsigned add to avoid signed-overflow UB if invariants are violated. */
+        /* Reduce with unsigned arithmetic to avoid signed-overflow UB. */
         int64_t chunk = (int64_t)((uint64_t)_mm_extract_epi64(s, 0)
                                 + (uint64_t)_mm_extract_epi64(s, 1));
 
-        if (__builtin_expect(running + chunk >= count_at_percentile, 0)) {
-            for (int32_t j = idx; j < idx + 4; j++) {
-                running += h->counts[j];
+        /* counts[] are non-negative (the record path rejects count < 0), so the
+           prefix sum is monotonic: block-skip is exact and only the crossing block
+           is walked. */
+        int64_t next = (int64_t)((uint64_t)running + (uint64_t)chunk);
+        if (HDR_UNLIKELY(next >= count_at_percentile)) {
+            for (int32_t j = idx; j < idx + 16; j++) {
+                running = (int64_t)((uint64_t)running + (uint64_t)h->counts[j]);
                 if (running >= count_at_percentile)
                     return hdr_value_at_index(h, j);
             }
         }
-        running += chunk;
+        else {
+            running = next;
+        }
     }
     for (; idx < h->counts_len; idx++) {
-        running += h->counts[idx];
+        running = (int64_t)((uint64_t)running + (uint64_t)h->counts[idx]);
         if (running >= count_at_percentile)
             return hdr_value_at_index(h, idx);
     }
@@ -762,7 +906,8 @@ static int64_t get_value_from_idx_up_to_count(const struct hdr_histogram* h, int
 {
     count_at_percentile = count_at_percentile > 0 ? count_at_percentile : 1;
 #ifdef HDR_HAS_AVX2_DISPATCH
-    if (__builtin_cpu_supports("avx2"))
+    /* AVX2 reads counts[] directly; offset != 0 (rotated) must use the scalar scan */
+    if (h->normalizing_index_offset == 0 && __builtin_cpu_supports("avx2"))
         return get_value_from_idx_up_to_count_avx2(h, count_at_percentile);
 #endif
     return get_value_from_idx_up_to_count_scalar(h, count_at_percentile);
@@ -801,16 +946,68 @@ int hdr_value_at_percentiles(const struct hdr_histogram *h, const double *percen
         values[i] = count_at_percentile > 1 ? count_at_percentile : 1;
     }
 
-    hdr_iter_init(&iter, h);
-    int64_t total = 0;
+    uint64_t total = 0; /* unsigned: no signed-overflow UB when a hostile block sum is added at once */
     size_t at_pos = 0;
-    while (hdr_iter_next(&iter) && at_pos < length)
+
+    if (HDR_LIKELY(h->normalizing_index_offset == 0))
     {
-        total += iter.count;
-        while (at_pos < length && total >= values[at_pos])
+        /* Skip whole blocks that cannot reach the next target. counts[] are
+           non-negative (the record path rejects count < 0), so the prefix sum is
+           monotonic and this block-skip is exact for any valid histogram. */
+        enum { BATCH_SCAN_BLOCK = 8 };
+        const int64_t* counts = h->counts;
+        const int32_t len = h->counts_len;
+        int32_t idx = 0;
+        for (; idx + BATCH_SCAN_BLOCK <= len && at_pos < length; idx += BATCH_SCAN_BLOCK)
         {
-            values[at_pos] = highest_equivalent_value(h, iter.value);
-            at_pos++;
+            /* unsigned sum keeps the accumulation UB-free even at the int64 boundary */
+            const uint64_t s =
+                (uint64_t)counts[idx]     + (uint64_t)counts[idx + 1] +
+                (uint64_t)counts[idx + 2] + (uint64_t)counts[idx + 3] +
+                (uint64_t)counts[idx + 4] + (uint64_t)counts[idx + 5] +
+                (uint64_t)counts[idx + 6] + (uint64_t)counts[idx + 7];
+            if ((int64_t)(total + s) >= values[at_pos])
+            {
+                int32_t j;
+                for (j = idx; j < idx + BATCH_SCAN_BLOCK; j++)
+                {
+                    total += (uint64_t)counts[j];
+                    while (at_pos < length && (int64_t)total >= values[at_pos])
+                    {
+                        values[at_pos] = highest_equivalent_value(h, hdr_value_at_index(h, j));
+                        at_pos++;
+                    }
+                }
+            }
+            else
+            {
+                total += s;
+            }
+        }
+        /* Tail: fewer than BATCH_SCAN_BLOCK counters remain. */
+        for (; idx < len && at_pos < length; idx++)
+        {
+            total += (uint64_t)counts[idx];
+            while (at_pos < length && (int64_t)total >= values[at_pos])
+            {
+                values[at_pos] = highest_equivalent_value(h, hdr_value_at_index(h, idx));
+                at_pos++;
+            }
+        }
+    }
+    else
+    {
+        /* offset-aware fallback (normalizing_index_offset != 0): iterator
+           dereferences counts through the normalized index */
+        hdr_iter_init(&iter, h);
+        while (hdr_iter_next(&iter) && at_pos < length)
+        {
+            total += (uint64_t)iter.count;
+            while (at_pos < length && (int64_t)total >= values[at_pos])
+            {
+                values[at_pos] = highest_equivalent_value(h, iter.value);
+                at_pos++;
+            }
         }
     }
     return 0;
@@ -819,7 +1016,8 @@ int hdr_value_at_percentiles(const struct hdr_histogram *h, const double *percen
 double hdr_mean(const struct hdr_histogram* h)
 {
     struct hdr_iter iter;
-    int64_t total = 0, count = 0;
+    double total = 0;
+    int64_t count = 0;
     int64_t total_count = h->total_count;
 
     hdr_iter_init(&iter, h);
@@ -829,11 +1027,12 @@ double hdr_mean(const struct hdr_histogram* h)
         if (0 != iter.count)
         {
             count += iter.count;
-            total += iter.count * hdr_median_equivalent_value(h, iter.value);
+            /* sum in double: count*median can overflow int64 (UB) for large values */
+            total += (double) iter.count * (double) hdr_median_equivalent_value(h, iter.value);
         }
     }
 
-    return (total * 1.0) / total_count;
+    return total / total_count;
 }
 
 double hdr_stddev(const struct hdr_histogram* h)
@@ -868,11 +1067,26 @@ int64_t hdr_lowest_equivalent_value(const struct hdr_histogram* h, int64_t value
 
 int64_t hdr_count_at_value(const struct hdr_histogram* h, int64_t value)
 {
-    return counts_get_normalised(h, counts_index_for(h, value));
+    int32_t counts_index;
+
+    if (value < 0) { return 0; }
+    /* value past the array's top half-bucket maps outside counts[] (OOB); count 0 */
+    counts_index = counts_index_for(h, value);
+    if ((uint32_t)counts_index >= (uint32_t)h->counts_len)
+    {
+        return 0;
+    }
+
+    return counts_get_normalised(h, counts_index);
 }
 
 int64_t hdr_count_at_index(const struct hdr_histogram* h, int32_t index)
 {
+    /* reject index outside counts[] (OOB read); unsigned compare also catches negatives */
+    if ((uint32_t)index >= (uint32_t)h->counts_len)
+    {
+        return 0;
+    }
     return counts_get_normalised(h, index);
 }
 
@@ -915,7 +1129,11 @@ static bool move_next(struct hdr_iter* iter)
         iter->h, bucket_index, sub_bucket_index);
     iter->lowest_equivalent_value = leq;
     iter->value = value;
-    iter->highest_equivalent_value = leq + size_of_equivalent_value_range - 1;
+    /* saturate: top-bucket leq+size overflows int64 (UB) */
+    iter->highest_equivalent_value =
+        (leq > INT64_MAX - size_of_equivalent_value_range)
+            ? INT64_MAX
+            : leq + size_of_equivalent_value_range - 1;
     iter->median_equivalent_value = leq + (size_of_equivalent_value_range >> 1);
 
     return true;
@@ -923,7 +1141,22 @@ static bool move_next(struct hdr_iter* iter)
 
 static int64_t peek_next_value_from_index(struct hdr_iter* iter)
 {
-    return hdr_value_at_index(iter->h, iter->counts_index + 1);
+    const int32_t index = iter->counts_index + 1;
+    int32_t bucket_index = (int32_t) ((uint32_t) index >> iter->h->sub_bucket_half_count_magnitude) - 1;
+    int32_t sub_bucket_index = (index & (iter->h->sub_bucket_half_count - 1)) + iter->h->sub_bucket_half_count;
+    int32_t shift;
+    if (bucket_index < 0)
+    {
+        sub_bucket_index -= iter->h->sub_bucket_half_count;
+        bucket_index = 0;
+    }
+    shift = bucket_index + iter->h->unit_magnitude;
+    /* one past the top bucket shifts into the sign bit for a near-INT64_MAX range; saturate */
+    if (shift >= 63 || (uint64_t) sub_bucket_index > ((uint64_t) INT64_MAX >> shift))
+    {
+        return INT64_MAX;
+    }
+    return value_from_index(bucket_index, sub_bucket_index, iter->h->unit_magnitude);
 }
 
 static bool next_value_greater_than_reporting_level_upper_bound(
@@ -1142,9 +1375,25 @@ static bool iter_linear_next(struct hdr_iter* iter)
             {
                 update_iterated_values(iter, linear->next_value_reporting_level);
 
-                linear->next_value_reporting_level += linear->value_units_per_bucket;
-                linear->next_value_reporting_level_lowest_equivalent =
-                    lowest_equivalent_value(iter->h, linear->next_value_reporting_level);
+                /* Emit the saturated final level once before entering the terminal state. */
+                if (linear->next_value_reporting_level == INT64_MAX)
+                {
+                    linear->next_value_reporting_level_lowest_equivalent = INT64_MAX;
+                }
+                else if (linear->value_units_per_bucket <= 0 ||
+                    linear->next_value_reporting_level > INT64_MAX - linear->value_units_per_bucket)
+                {
+                    /* step <= 0 first: never-advances (infinite loop) and guards the subtraction; second clause is the overflow guard */
+                    linear->next_value_reporting_level = INT64_MAX;
+                    linear->next_value_reporting_level_lowest_equivalent =
+                        lowest_equivalent_value(iter->h, INT64_MAX);
+                }
+                else
+                {
+                    linear->next_value_reporting_level += linear->value_units_per_bucket;
+                    linear->next_value_reporting_level_lowest_equivalent =
+                        lowest_equivalent_value(iter->h, linear->next_value_reporting_level);
+                }
 
                 return true;
             }
@@ -1169,10 +1418,30 @@ void hdr_iter_linear_init(struct hdr_iter* iter, const struct hdr_histogram* h, 
 
     iter->specifics.linear.count_added_in_this_iteration_step = 0;
     iter->specifics.linear.value_units_per_bucket = value_units_per_bucket;
-    iter->specifics.linear.next_value_reporting_level = value_units_per_bucket;
-    iter->specifics.linear.next_value_reporting_level_lowest_equivalent = lowest_equivalent_value(h, value_units_per_bucket);
+    if (value_units_per_bucket <= 0)
+    {
+        /* non-positive step never advances; a negative one also reaches
+           negative left-shift UB in lowest_equivalent_value below. Pin to the
+           terminating state (matches the advance-path guard). */
+        iter->specifics.linear.next_value_reporting_level = INT64_MAX;
+        iter->specifics.linear.next_value_reporting_level_lowest_equivalent = INT64_MAX;
+    }
+    else
+    {
+        iter->specifics.linear.next_value_reporting_level = value_units_per_bucket;
+        iter->specifics.linear.next_value_reporting_level_lowest_equivalent = lowest_equivalent_value(h, value_units_per_bucket);
+    }
 
     iter->_next_fp = iter_linear_next;
+}
+
+void hdr_iter_linear_set_value_units_per_bucket(struct hdr_iter* iter, int64_t value_units_per_bucket)
+{
+    /* specifics is a union: writing it on any other iterator would corrupt it */
+    if (iter->_next_fp == iter_linear_next)
+    {
+        iter->specifics.linear.value_units_per_bucket = value_units_per_bucket;
+    }
 }
 
 /* ##        #######   ######      ###    ########  #### ######## ##     ## ##     ## ####  ######  */
@@ -1199,8 +1468,27 @@ static bool log_iter_next(struct hdr_iter *iter)
             {
                 update_iterated_values(iter, logarithmic->next_value_reporting_level);
 
-                logarithmic->next_value_reporting_level *= (int64_t)logarithmic->log_base;
-                logarithmic->next_value_reporting_level_lowest_equivalent = lowest_equivalent_value(iter->h, logarithmic->next_value_reporting_level);
+                /* Emit the saturated final level once before entering the terminal state. */
+                {
+                    int64_t base = (int64_t) logarithmic->log_base;
+                    if (logarithmic->next_value_reporting_level == INT64_MAX)
+                    {
+                        logarithmic->next_value_reporting_level_lowest_equivalent = INT64_MAX;
+                    }
+                    else if (base <= 1 || logarithmic->next_value_reporting_level <= 0 || logarithmic->next_value_reporting_level > INT64_MAX / base)
+                    {
+                        /* base <= 1 first: never-advances (infinite loop) and short-circuits /base so base==0 can't divide-by-zero; level <= 0 never advances (0*=base loops) and *=base on a negative is overflow UB; last clause is the positive-overflow guard */
+                        logarithmic->next_value_reporting_level = INT64_MAX;
+                        logarithmic->next_value_reporting_level_lowest_equivalent =
+                            lowest_equivalent_value(iter->h, INT64_MAX);
+                    }
+                    else
+                    {
+                        logarithmic->next_value_reporting_level *= base;
+                        logarithmic->next_value_reporting_level_lowest_equivalent =
+                            lowest_equivalent_value(iter->h, logarithmic->next_value_reporting_level);
+                    }
+                }
 
                 return true;
             }
@@ -1228,7 +1516,22 @@ void hdr_iter_log_init(
     iter->specifics.log.count_added_in_this_iteration_step = 0;
     iter->specifics.log.log_base = log_base;
     iter->specifics.log.next_value_reporting_level = value_units_first_bucket;
-    iter->specifics.log.next_value_reporting_level_lowest_equivalent = lowest_equivalent_value(h, value_units_first_bucket);
+    if (value_units_first_bucket <= 0 || !isfinite(log_base) || log_base <= 1.0 ||
+        log_base >= (double) INT64_MAX)
+    {
+        /* non-positive first bucket or base <= 1 never advances; a negative
+           first bucket also reaches negative left-shift UB in
+           lowest_equivalent_value below. A non-finite (NaN/Inf) or out-of-int64-
+           range base would hit float-cast-overflow UB at the (int64_t) log_base
+           cast in log_iter_next. Pin to the terminating state (matches the
+           advance-path guard) so that cast is never reached for a bad base. */
+        iter->specifics.log.next_value_reporting_level = INT64_MAX;
+        iter->specifics.log.next_value_reporting_level_lowest_equivalent = INT64_MAX;
+    }
+    else
+    {
+        iter->specifics.log.next_value_reporting_level_lowest_equivalent = lowest_equivalent_value(h, value_units_first_bucket);
+    }
 
     iter->_next_fp = log_iter_next;
 }
