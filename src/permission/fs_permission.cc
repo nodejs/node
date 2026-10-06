@@ -218,15 +218,26 @@ void FSPermission::RebuildTree(PermissionScope scope) {
 
 void FSPermission::GrantAccess(PermissionScope perm, const std::string& res) {
   const std::string path = WildcardIfDir(res);
-  if (perm == PermissionScope::kFileSystemRead &&
-      !granted_in_fs_.Lookup(path)) {
-    granted_in_fs_.Insert(path);
-    granted_paths_in_.push_back(path);
+  // Track every explicit grant, even when already covered by another one,
+  // so that it still applies if the covering grant is dropped later.
+  if (perm == PermissionScope::kFileSystemRead) {
+    if (std::find(granted_paths_in_.begin(), granted_paths_in_.end(), path) ==
+        granted_paths_in_.end()) {
+      granted_paths_in_.push_back(path);
+    }
+    if (!granted_in_fs_.Lookup(path)) {
+      granted_in_fs_.Insert(path);
+    }
     deny_all_in_ = false;
-  } else if (perm == PermissionScope::kFileSystemWrite &&
-             !granted_out_fs_.Lookup(path)) {
-    granted_out_fs_.Insert(path);
-    granted_paths_out_.push_back(path);
+  } else if (perm == PermissionScope::kFileSystemWrite) {
+    if (std::find(granted_paths_out_.begin(),
+                  granted_paths_out_.end(),
+                  path) == granted_paths_out_.end()) {
+      granted_paths_out_.push_back(path);
+    }
+    if (!granted_out_fs_.Lookup(path)) {
+      granted_out_fs_.Insert(path);
+    }
     deny_all_out_ = false;
   }
 }
