@@ -2928,9 +2928,12 @@ changes:
     limit to be exceeded, but new `Http2Stream` instances will be rejected
     while this limit is exceeded. The current number of `Http2Stream` sessions,
     the current memory use of the header compression tables, header blocks
-    retained by open streams, current data queued to be sent, and
-    unacknowledged `PING` and `SETTINGS` frames are all counted towards the
-    current limit. **Default:** `10`.
+    retained by open streams, current data queued to be sent, inbound DATA
+    frames retained by undrained streams, and unacknowledged `PING` and
+    `SETTINGS` frames are all counted towards the current limit. When the limit
+    is exceeded the session stops reading from the socket (applying
+    backpressure) until the application consumes the queued data. **Default:**
+    `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     This is similar to [`server.maxHeadersCount`][] or
     [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
@@ -3160,9 +3163,12 @@ changes:
     limit to be exceeded, but new `Http2Stream` instances will be rejected
     while this limit is exceeded. The current number of `Http2Stream` sessions,
     the current memory use of the header compression tables, header blocks
-    retained by open streams, current data queued to be sent, and
-    unacknowledged `PING` and `SETTINGS` frames are all counted towards the
-    current limit. **Default:** `10`.
+    retained by open streams, current data queued to be sent, inbound DATA
+    frames retained by undrained streams, and unacknowledged `PING`
+    and `SETTINGS` frames are all counted towards the current limit. When the
+    limit is exceeded the session stops reading from the socket (applying
+    backpressure) until the application consumes the queued data. **Default:**
+    `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     This is similar to [`server.maxHeadersCount`][] or
     [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
@@ -3352,9 +3358,12 @@ changes:
     limit to be exceeded, but new `Http2Stream` instances will be rejected
     while this limit is exceeded. The current number of `Http2Stream` sessions,
     the current memory use of the header compression tables, header blocks
-    retained by open streams, current data queued to be sent, and
+    retained by open streams, current data queued to be sent, inbound DATA
+    frames retained by undrained streams, and
     unacknowledged `PING` and `SETTINGS` frames are all counted towards the
-    current limit. For received headers on locally initiated streams, including
+    current limit. When the limit is exceeded the session stops reading from the
+    socket (applying backpressure) until the application consumes the queued data.
+    For received headers on locally initiated streams, including
     informational responses and trailers, queued outbound data across the session
     is excluded from the memory check. Retained headers still count towards the
     limit. This exception does not apply to server push streams.
