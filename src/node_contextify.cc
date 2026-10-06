@@ -155,7 +155,7 @@ ContextifyContext* ContextifyContext::New(Environment* env,
 
   MicrotaskQueue* queue =
       options->own_microtask_queue
-          ? options->own_microtask_queue.get()
+          ? options->own_microtask_queue
           : env->isolate()->GetCurrentContext()->GetMicrotaskQueue();
 
   Local<Context> v8_context;
@@ -176,9 +176,7 @@ ContextifyContext::ContextifyContext(Environment* env,
                                      Local<Object> wrapper,
                                      Local<Context> v8_context,
                                      ContextOptions* options)
-    : microtask_queue_(options->own_microtask_queue
-                           ? options->own_microtask_queue.release()
-                           : nullptr) {
+    : microtask_queue_(options->own_microtask_queue) {
   CppgcMixin::Wrap(this, env, wrapper);
 
   context_.Reset(env->isolate(), v8_context);
