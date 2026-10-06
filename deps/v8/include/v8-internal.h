@@ -532,7 +532,7 @@ struct TagRange {
 
   // Construct the inclusive tag range [first, last].
   constexpr TagRange(Tag first, Tag last) : first(first), last(last) {
-#ifdef V8_ENABLE_CHECKS
+#if defined(V8_ENABLE_CHECKS) && V8_HAS_BUILTIN_UNREACHABLE
     // This would typically be a DCHECK, but that's not available here.
     if (first > last) __builtin_unreachable();  // Invalid tag range.
 #endif
