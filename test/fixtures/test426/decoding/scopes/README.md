@@ -1,5 +1,8 @@
 ## Test cases
 
+These file were copied from https://github.com/tc39/source-map-tests/blob/main/decoding/scopes
+and modified to match changes in the source maps specification.
+
 - **empty-scopes-field**: Empty original scopes field
 - **nil-scopes**: Multiple null original scopes
 - **close-start-end-position-scopes**: Scopes with very close start and end

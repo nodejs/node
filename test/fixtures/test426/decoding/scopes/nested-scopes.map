@@ -10,5 +10,5 @@
     "innerOriginalFunction",
     "block"
   ],
-  "scopes": "BAAA,BFKAA,BFFCC,BCFEE,CFE,CBC,CBA,CBA"
+  "scopes": ["BAAA,BFKAA,BFFCC,BCFEE,CFE,CBC,CBA,CBA"]
 }

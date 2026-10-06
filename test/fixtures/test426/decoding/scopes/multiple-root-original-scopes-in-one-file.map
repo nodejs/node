@@ -1,0 +1,16 @@
+{
+  "version": 3,
+  "file": "multiple-root-original-scopes-in-one-file.js",
+  "sources": [
+    "original_0.js"
+  ],
+  "mappings": "",
+  "names": [
+    "global",
+    "henry",
+    "synth",
+    "synth=",
+    "value"
+  ],
+  "scopes": ["BDAACA,CKA,BCBAA,CtSA,BCkDKA,CAe,BHAACA,CAA,BHAACA,DI,CAA"]
+}

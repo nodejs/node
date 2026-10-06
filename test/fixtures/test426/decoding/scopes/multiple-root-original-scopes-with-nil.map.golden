@@ -6,47 +6,51 @@
       "url": "original_0.js",
       "content": null,
       "ignored": false,
-      "scope": {
-        "start": {
-          "line": 0,
-          "column": 0
-        },
-        "end": {
-          "line": 10,
-          "column": 0
-        },
-        "name": null,
-        "kind": "global",
-        "isStackFrame": false,
-        "variables": [],
-        "children": []
-      }
+      "rootScopes": [
+        {
+          "start": {
+            "line": 0,
+            "column": 0
+          },
+          "end": {
+            "line": 10,
+            "column": 0
+          },
+          "name": null,
+          "kind": "global",
+          "isStackFrame": false,
+          "variables": [],
+          "children": []
+        }
+      ]
     },
     {
       "url": "original_1.js",
       "content": null,
       "ignored": false,
-      "scope": null
+      "rootScopes": []
     },
     {
       "url": "original_2.js",
       "content": null,
       "ignored": false,
-      "scope": {
-        "start": {
-          "line": 0,
-          "column": 0
-        },
-        "end": {
-          "line": 10,
-          "column": 0
-        },
-        "name": null,
-        "kind": "global",
-        "isStackFrame": false,
-        "variables": [],
-        "children": []
-      }
+      "rootScopes": [
+        {
+          "start": {
+            "line": 0,
+            "column": 0
+          },
+          "end": {
+            "line": 10,
+            "column": 0
+          },
+          "name": null,
+          "kind": "global",
+          "isStackFrame": false,
+          "variables": [],
+          "children": []
+        }
+      ]
     }
   ],
   "ranges": []
