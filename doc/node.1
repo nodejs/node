@@ -1179,6 +1179,14 @@ Opens the REPL even if stdin does not appear to be a terminal.
 Disable runtime allocation of executable memory. This may be
 required on some platforms for security reasons. It can also reduce attack
 surface on other platforms, but the performance impact may be severe.
+When WebAssembly is unavailable in this mode, TypeScript parsing and WebAssembly
+module imports throw \fBERR_WEBASSEMBLY_NOT_SUPPORTED\fR. Node.js does not
+guarantee alternative implementations of features that require WebAssembly or
+runtime allocation of executable memory when those capabilities are unavailable.
+This flag controls V8's runtime code generation. It does not impose an
+operating-system restriction on executable memory allocated by native addons or
+\fBnode:ffi\fR. FFI operations that require unavailable executable memory can
+throw \fBERR_RX_MEMORY_NOT_SUPPORTED\fR.
 .
 .It Fl -localstorage-file Ns = Ns Ar file
 The file used to store \fBlocalStorage\fR data. If the file does not exist, it is

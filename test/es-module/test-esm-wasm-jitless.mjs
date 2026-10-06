@@ -1,11 +1,7 @@
 // Flags: --jitless
-import { skip } from '../common/index.mjs';
+import '../common/index.mjs';
 import assert from 'node:assert/strict';
 import * as fixtures from '../common/fixtures.mjs';
-
-if (typeof WebAssembly !== 'undefined') {
-  skip('WebAssembly is available in jitless mode');
-}
 
 const url = fixtures.fileURL('es-modules/simple.wasm').href;
 const error = {
