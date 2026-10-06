@@ -47,19 +47,12 @@ binary.
    single executable application (see
    [Generating single executable preparation blobs][] for details):
 
-   * On systems other than Windows:
-
    ```bash
    echo '{ "main": "hello.js", "output": "sea" }' > sea-config.json
    ```
 
-   * On Windows:
-
-   ```bash
-   echo '{ "main": "hello.js", "output": "sea.exe" }' > sea-config.json
-   ```
-
-   The `.exe` extension is necessary.
+   When generating a Windows executable, Node.js appends `.exe` to the output
+   path if it does not already end in `.exe`.
 
 3. Generate the target executable:
    ```bash
@@ -126,6 +119,9 @@ The configuration currently reads the following top-level fields:
   }
 }
 ```
+
+When the target executable is Windows, `.exe` is appended to `output` if it
+does not already end in `.exe`.
 
 If the paths are not absolute, Node.js will use the path relative to the
 current working directory. The version of the Node.js binary used to produce
