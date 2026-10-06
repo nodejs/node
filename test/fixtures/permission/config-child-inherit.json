@@ -1,0 +1,10 @@
+{
+    "permission": {
+        "permission": true,
+        "allow-child-process": true,
+        "allow-worker": true,
+        "allow-fs-read": [
+            "*"
+        ]
+    }
+}

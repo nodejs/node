@@ -64,6 +64,40 @@ describe('Permission model config file support', () => {
     }
   });
 
+  it('should propagate config file permissions to child processes', {
+    skip: process.config.variables.node_without_node_options && 'missing NODE_OPTIONS support',
+  }, async () => {
+    const childTestPath = fixtures.path('permission/child-process-inherit-test.js');
+    const expected = JSON.stringify(['object', true, false, true, true]);
+
+    // --permission set in the config file
+    {
+      const configPath = fixtures.path('permission/config-child-inherit.json');
+      const result = await spawnPromisified(process.execPath, [
+        `--config-file=${configPath}`,
+        childTestPath,
+      ]);
+      assert.strictEqual(result.code, 0, result.stderr);
+      const child = JSON.parse(result.stdout);
+      assert.strictEqual(child.status, 0, child.stderr);
+      assert.strictEqual(child.stdout, expected);
+    }
+
+    // --permission set in the command line
+    {
+      const configPath = fixtures.path('permission/config-child-inherit-allow-only.json');
+      const result = await spawnPromisified(process.execPath, [
+        '--permission',
+        `--config-file=${configPath}`,
+        childTestPath,
+      ]);
+      assert.strictEqual(result.code, 0, result.stderr);
+      const child = JSON.parse(result.stdout);
+      assert.strictEqual(child.status, 0, child.stderr);
+      assert.strictEqual(child.stdout, expected);
+    }
+  });
+
   it('should load network and inspector permissions from config file', async () => {
     const configPath = fixtures.path('permission/config-net-inspector.json');
     const readOnlyConfigPath = fixtures.path('permission/config-fs-read-only.json');
