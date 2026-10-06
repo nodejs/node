@@ -4,7 +4,6 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node_internals.h"
-#include "simdjson.h"
 #include "spawn_sync.h"
 #include "uv.h"
 
