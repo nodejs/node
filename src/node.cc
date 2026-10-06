@@ -786,8 +786,10 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
     v8_args.emplace_back("--js-source-phase-imports");
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   // WebAssembly JS Promise Integration
   v8_args.emplace_back("--experimental-wasm-jspi");
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef __POSIX__
   // Block SIGPROF signals when sleeping in epoll_wait/kevent/etc.  Avoids the
