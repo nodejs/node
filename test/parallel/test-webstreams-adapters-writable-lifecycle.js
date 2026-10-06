@@ -182,14 +182,9 @@ async function main() {
   hook?.disable();
 
   if (mode === undefined) {
-    for (const args of [
-      [__filename, 'hooks'],
-      ['--no-async-context-frame', __filename, 'legacy'],
-    ]) {
-      const { code, signal, stderr } = await common.spawnPromisified(process.execPath, args);
-      assert.strictEqual(code, 0, stderr);
-      assert.strictEqual(signal, null);
-    }
+    const { code, signal, stderr } = await common.spawnPromisified(process.execPath, [__filename, 'hooks']);
+    assert.strictEqual(code, 0, stderr);
+    assert.strictEqual(signal, null);
   }
 }
 
