@@ -1,0 +1,89 @@
+{
+  "file": "multiple-root-original-scopes-in-one-file.js",
+  "mappings": [],
+  "sources": [
+    {
+      "url": "original_0.js",
+      "content": null,
+      "ignored": false,
+      "rootScopes": [
+        {
+          "start": {
+            "line": 0,
+            "column": 0
+          },
+          "end": {
+            "line": 10,
+            "column": 0
+          },
+          "name": "henry",
+          "kind": "global",
+          "isStackFrame": false,
+          "variables": [],
+          "children": []
+        },
+        {
+          "start": {
+            "line": 11,
+            "column": 0
+          },
+          "end": {
+            "line": 600,
+            "column": 0
+          },
+          "name": null,
+          "kind": "global",
+          "isStackFrame": false,
+          "variables": [],
+          "children": []
+        },
+        {
+          "start": {
+            "line": 700,
+            "column": 10
+          },
+          "end": {
+            "line": 700,
+            "column": 40
+          },
+          "name": null,
+          "kind": "global",
+          "isStackFrame": false,
+          "variables": [],
+          "children": []
+        },
+        {
+          "start": {
+            "line": 700,
+            "column": 40
+          },
+          "end": {
+            "line": 700,
+            "column": 40
+          },
+          "name": "synth",
+          "kind": "global",
+          "isStackFrame": true,
+          "variables": [],
+          "children": []
+        },
+        {
+          "start": {
+            "line": 700,
+            "column": 40
+          },
+          "end": {
+            "line": 700,
+            "column": 40
+          },
+          "name": "synth=",
+          "kind": "global",
+          "isStackFrame": true,
+          "variables": ["value"],
+          "children": []
+        }
+      ]
+    }
+  ],
+  "ranges": []
+}
