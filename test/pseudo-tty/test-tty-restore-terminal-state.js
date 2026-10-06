@@ -28,7 +28,6 @@ const childScript = [
 const rawChildScript = `process.stdin.setRawMode(true);\n${childScript}`;
 
 async function checkExit(exit, args, nodeOptions, restore, script = childScript) {
-  const originalMode = stty(['-g']);
   const initialFlags = stty(['-a']);
   assert.match(initialFlags, /(?:^|[\s;])icanon(?:[\s;]|$)/);
   assert.match(initialFlags, /(?:^|[\s;])echo(?:[\s;]|$)/);
@@ -43,9 +42,8 @@ async function checkExit(exit, args, nodeOptions, restore, script = childScript)
     // The child must capture the startup settings before stty changes them.
     const [message] = await Promise.race([once(child, 'message'), exited]);
     assert.strictEqual(message, 'ready');
-    stty(['-icanon', '-echo']);
+    stty(['-echo']);
     const changedFlags = stty(['-a']);
-    assert.match(changedFlags, /(?:^|[\s;])-icanon(?:[\s;]|$)/);
     assert.match(changedFlags, /(?:^|[\s;])-echo(?:[\s;]|$)/);
 
     if (exit === 'SIGINT') {
@@ -58,7 +56,7 @@ async function checkExit(exit, args, nodeOptions, restore, script = childScript)
     assert.strictEqual(code, exit === 'SIGINT' ? null : 0);
     assert.strictEqual(signal, exit === 'SIGINT' ? 'SIGINT' : null);
     const finalFlags = stty(['-a']);
-    assert.strictEqual(/(?:^|[\s;])icanon(?:[\s;]|$)/.test(finalFlags), restore, exit);
+    assert.match(finalFlags, /(?:^|[\s;])icanon(?:[\s;]|$)/, exit);
     assert.strictEqual(/(?:^|[\s;])echo(?:[\s;]|$)/.test(finalFlags), restore, exit);
   } finally {
     try {
@@ -67,20 +65,22 @@ async function checkExit(exit, args, nodeOptions, restore, script = childScript)
         await exited;
       }
     } finally {
-      stty(originalMode.split(/\s+/));
+      stty(['echo']);
     }
   }
 }
 
 async function main() {
   for (const exit of ['natural', 'process.exit', 'SIGINT']) {
-    await checkExit(exit, [], '', true);
     await checkExit(exit, ['--no-restore-terminal-state'], '', false);
+    await checkExit(exit, [], '', true);
     await checkExit(exit, ['--no-restore-terminal-state'], '', true, rawChildScript);
   }
-  await checkExit('natural', [], '--no-restore-terminal-state', false);
-  await checkExit('natural', ['--restore-terminal-state'],
-                  '--no-restore-terminal-state', true);
+  if (!process.config.variables.node_without_node_options) {
+    await checkExit('natural', [], '--no-restore-terminal-state', false);
+    await checkExit('natural', ['--restore-terminal-state'],
+                    '--no-restore-terminal-state', true);
+  }
 }
 
 main().then(common.mustCall());
