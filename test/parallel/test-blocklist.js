@@ -885,11 +885,15 @@ const util = require('util');
 
   // Mixed-notation IPv6 is 45 chars. uv_ip6_addr keeps up to
   // INET6_ADDRSTRLEN - 1 chars of the address part when a zone is
-  // present, so this is a hit.
+  // present, so this is a hit on libuv 1.53+.
   const mixed = 'ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255';
   blockList.addAddress(mixed, 'ipv6');
   assert.strictEqual(blockList.check(mixed, 'ipv6'), true);
-  assert.strictEqual(blockList.check(`${mixed}%${'z'.repeat(200)}`, 'ipv6'), true);
+  const isModernLibuv = ((versionString) => {
+    const [major, minor] = versionString.split('.', 2).map(Number);
+    return major >= 1 && minor >= 53;
+  })(process.versions.uv);
+  assert.strictEqual(blockList.check(`${mixed}%${'z'.repeat(200)}`, 'ipv6'), isModernLibuv);
 }
 
 // check() family parameter is case-insensitive.
