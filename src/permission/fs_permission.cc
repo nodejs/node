@@ -17,8 +17,8 @@ std::string WildcardIfDir(const std::string& res) noexcept {
   uv_fs_t req;
   int rc = uv_fs_stat(nullptr, &req, res.c_str(), nullptr);
   const bool is_dir =
-      rc == 0 && (static_cast<const uv_stat_t*>(req.ptr)->st_mode & S_IFMT) ==
-                     S_IFDIR;
+      rc == 0 &&
+      (static_cast<const uv_stat_t*>(req.ptr)->st_mode & S_IFMT) == S_IFDIR;
   uv_fs_req_cleanup(&req);
   if (is_dir) {
     // add wildcard when directory
