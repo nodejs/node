@@ -230,9 +230,8 @@ void FSPermission::GrantAccess(PermissionScope perm, const std::string& res) {
     }
     deny_all_in_ = false;
   } else if (perm == PermissionScope::kFileSystemWrite) {
-    if (std::find(granted_paths_out_.begin(),
-                  granted_paths_out_.end(),
-                  path) == granted_paths_out_.end()) {
+    if (std::find(granted_paths_out_.begin(), granted_paths_out_.end(), path) ==
+        granted_paths_out_.end()) {
       granted_paths_out_.push_back(path);
     }
     if (!granted_out_fs_.Lookup(path)) {
