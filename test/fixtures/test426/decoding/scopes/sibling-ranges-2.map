@@ -10,5 +10,5 @@
     "global"
   ],
   "scopes": ["BCAAA,CKA","BCKAA,CKA"],
-  "ranges": ["ECAAA,FK,EDKACA,FK,EBKAA,FK"]
+  "ranges": ["ECAAA,FK","EDKACA,FK","EBUAA,FK"]
 }

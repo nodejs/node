@@ -10,5 +10,5 @@
   "names": [
     "global"
   ],
-  "scopes": "BCAAA,CKA,A,BCAAA,CKA"
+  "scopes": ["BCAAA,CKA", null, "BCAAA,CKA"]
 }
