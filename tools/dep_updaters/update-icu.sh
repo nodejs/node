@@ -50,7 +50,7 @@ cleanup () {
 trap cleanup INT TERM EXIT
 
 echo "Fetching ICU source archive"
-curl -sfL -o "$NEW_VERSION_TGZ_PATH" "$NEW_VERSION_TGZ_URL"
+curl -sSLfo "$NEW_VERSION_TGZ_PATH" "$NEW_VERSION_TGZ_URL"
 
 KEYRING="$BASE_DIR/tools/dep_updaters/icu.kbx"
 if [ "$1" = "--update-keys" ]; then
@@ -64,7 +64,7 @@ if [ "$1" = "--update-keys" ]; then
 fi
 
 echo "Verifying PGP signature"
-curl -sfL -o "$NEW_VERSION_TGZ_PATH.asc" "$NEW_VERSION_TGZ_URL.asc"
+curl -sSLfo "$NEW_VERSION_TGZ_PATH.asc" "$NEW_VERSION_TGZ_URL.asc"
 gpgv --keyring "$KEYRING" "$NEW_VERSION_TGZ_PATH.asc" "$NEW_VERSION_TGZ_PATH"
 
 CHECKSUM=$(shasum -a 256 "$NEW_VERSION_TGZ_PATH" | cut -d ' ' -f1)
