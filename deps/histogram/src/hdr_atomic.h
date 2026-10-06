@@ -14,29 +14,9 @@
 #include <intrin.h>
 #include <stdbool.h>
 
-static void __inline * hdr_atomic_load_pointer(void** pointer)
-{
-	_ReadBarrier();
-	return *pointer;
-}
-
-static void hdr_atomic_store_pointer(void** pointer, void* value)
-{
-	_WriteBarrier();
-	*pointer = value;
-}
-
-static int64_t __inline hdr_atomic_load_64(int64_t* field)
-{ 
-	_ReadBarrier();
-	return *field;
-}
-
-static void __inline hdr_atomic_store_64(int64_t* field, int64_t value)
-{
-	_WriteBarrier();
-	*field = value;
-}
+/* Type-generic so callers pass a typed T** without an incompatible (void**) cast. */
+#define hdr_atomic_load_pointer(x) (_ReadBarrier(), *(x))
+#define hdr_atomic_store_pointer(f, v) (_WriteBarrier(), (void)(*(f) = (v)))
 
 static int64_t __inline hdr_atomic_exchange_64(volatile int64_t* field, int64_t value)
 {
@@ -79,6 +59,27 @@ static bool __inline hdr_atomic_compare_exchange_64(volatile int64_t* field, int
     return *expected == _InterlockedCompareExchange64(field, desired, *expected);
 }
 
+/* A plain 64-bit access is two 32-bit accesses on 32-bit Windows and can tear. */
+static int64_t __inline hdr_atomic_load_64(int64_t* field)
+{
+#if defined(_WIN64)
+    _ReadBarrier();
+    return *field;
+#else
+    return _InterlockedCompareExchange64(field, 0, 0);
+#endif
+}
+
+static void __inline hdr_atomic_store_64(int64_t* field, int64_t value)
+{
+#if defined(_WIN64)
+    _WriteBarrier();
+    *field = value;
+#else
+    (void) hdr_atomic_exchange_64(field, value);
+#endif
+}
+
 #elif defined(__ATOMIC_SEQ_CST)
 
 #define hdr_atomic_load_pointer(x) __atomic_load_n(x, __ATOMIC_SEQ_CST)
@@ -94,17 +95,11 @@ static bool __inline hdr_atomic_compare_exchange_64(volatile int64_t* field, int
 #include <stdint.h>
 #include <stdbool.h>
 
-static inline void* hdr_atomic_load_pointer(void** pointer)
-{
-   void* p =  *pointer;
-	asm volatile ("" ::: "memory");
-	return p;
-}
-
-static inline void hdr_atomic_store_pointer(void** pointer, void* value)
-{
-    asm volatile ("lock; xchgq %0, %1" : "+q" (value), "+m" (*pointer));
-}
+/* Type-generic so callers pass a typed T** without an incompatible (void**) cast. */
+#define hdr_atomic_load_pointer(x) \
+    __extension__({ __typeof__(*(x)) _p = *(x); asm volatile ("" ::: "memory"); _p; })
+#define hdr_atomic_store_pointer(f, v) \
+    __extension__({ __typeof__(*(f)) _v = (v); asm volatile ("lock; xchgq %0, %1" : "+q" (_v), "+m" (*(f))); })
 
 static inline int64_t hdr_atomic_load_64(int64_t* field)
 {
