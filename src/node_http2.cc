@@ -205,6 +205,10 @@ Http2Options::Http2Options(Http2State* http2_state, SessionType type) {
   // this is a credit based system. Existing streams may cause the limit
   // to be temporarily exceeded but once over the limit, new streams cannot
   // created.
+  // Inbound DATA that is queued in the readable buffer of an undrained stream
+  // also counts against this limit, and when the limit is reached the session
+  // stops reading from the socket (applying backpressure) until the
+  // application consumes the data.
   // Important: The maxSessionMemory option in javascript is expressed in
   //            terms of MB increments (i.e. the value 1 == 1 MB)
   if (flags & (1 << IDX_OPTIONS_MAX_SESSION_MEMORY))
@@ -951,8 +955,18 @@ BaseObjectPtr<Http2Stream> Http2Session::RemoveStream(int32_t id) {
       DecrementCurrentSessionMemory(stream->retained_headers_length_);
       stream->retained_headers_length_ = 0;
     }
+    if (stream->inbound_consumed_data_while_paused_memory_ > 0) {
+      DecrementCurrentSessionMemory(
+          stream->inbound_consumed_data_while_paused_memory_);
+      inbound_queued_data_memory_ -=
+          stream->inbound_consumed_data_while_paused_memory_;
+      stream->inbound_consumed_data_while_paused_memory_ = 0;
+    }
     DecrementCurrentSessionMemory(sizeof(*stream));
   }
+  // Removing the stream may have freed inbound data memory that was keeping
+  // the session from reading; resume if it now can make progress.
+  MaybeStartReading();
   return stream;
 }
 
@@ -1477,10 +1491,22 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
     // If the stream owner (e.g. the JS Http2Stream) wants more data, just
     // tell nghttp2 that all data has been consumed. Otherwise, defer until
     // more data is being requested.
-    if (stream->is_reading())
+    if (stream->is_reading()) {
       nghttp2_session_consume_stream(handle, id, avail);
-    else
+    } else {
       stream->inbound_consumed_data_while_paused_ += avail;
+
+      // The Buffer handed to JS may stay alive in the readable queue for as
+      // long as the stream remains paused. Charge it (including a per-chunk
+      // overhead for the Buffer view) against maxSessionMemory so that a peer
+      // cannot make the session retain an unbounded amount of memory by
+      // sending many tiny DATA frames.
+      uint64_t memory =
+          static_cast<uint64_t>(avail) + kHttp2SessionDataChunkOverhead;
+      stream->inbound_consumed_data_while_paused_memory_ += memory;
+      session->inbound_queued_data_memory_ += memory;
+      session->IncrementCurrentSessionMemory(memory);
+    }
 
     // If we have a gathered a lot of data for output, try sending it now.
     if (session->outgoing_length_ > 4096 ||
@@ -1930,9 +1956,27 @@ void Http2Session::MaybeStopReading() {
   if (is_reading_stopped() || is_closing()) return;
   int want_read = nghttp2_session_want_read(session_.get());
   Debug(this, "wants read? %d", want_read);
-  if (want_read == 0) {
+  // Stop reading if nghttp2 does not want more data, a write is in progress,
+  // or the session is already holding more inbound DATA than its memory budget
+  // allows. The last condition bounds the amount of memory a peer can make the
+  // session retain by sending many small DATA frames on undrained streams.
+  if (want_read == 0 || inbound_queued_data_memory_ >= max_session_memory_) {
     set_reading_stopped();
     stream_->ReadStop();
+  }
+}
+
+void Http2Session::MaybeStartReading() {
+  // Restart reading once the session can make progress: nghttp2 wants more
+  // data, no write is in flight, and the inbound DATA queued while streams
+  // were paused no longer exceeds the session memory budget.
+  if (!is_reading_stopped() || is_closing() || is_destroyed()) return;
+  int want_read = nghttp2_session_want_read(session_.get());
+  Debug(this, "want read? %d", want_read);
+  if (want_read != 0 && !is_write_in_progress() &&
+      inbound_queued_data_memory_ < max_session_memory_) {
+    set_reading_stopped(false);
+    stream_->ReadStart();
   }
 }
 
@@ -2701,6 +2745,21 @@ int Http2Stream::ReadStart() {
       id_,
       inbound_consumed_data_while_paused_);
   inbound_consumed_data_while_paused_ = 0;
+
+  // The data that was queued while paused is now being consumed by the
+  // application, so release the memory charged against maxSessionMemory.
+  if (inbound_consumed_data_while_paused_memory_ > 0) {
+    session_->DecrementCurrentSessionMemory(
+        inbound_consumed_data_while_paused_memory_);
+    session_->DecrementInboundQueuedDataMemory(
+        inbound_consumed_data_while_paused_memory_);
+    inbound_consumed_data_while_paused_memory_ = 0;
+  }
+
+  // The session may have stopped reading because the memory limit was
+  // reached; now that the application is consuming data, it may be able to
+  // make progress again.
+  session_->MaybeStartReading();
 
   return 0;
 }
