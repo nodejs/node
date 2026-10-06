@@ -93,6 +93,7 @@ template("uv_gn_build") {
           "iphlpapi.lib",
           "psapi.lib",
           "shell32.lib",
+          "synchronization.lib",
           "user32.lib",
           "userenv.lib",
           "ws2_32.lib",

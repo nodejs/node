@@ -13,7 +13,7 @@ const {
   SocketAddress,
   kHandle: kSocketAddressHandle,
 } = require('internal/socketaddress');
-const { AF_INET } = internalBinding('block_list');
+const { AF_INET, AF_INET6 } = internalBinding('block_list');
 
 const blockList = new BlockList();
 blockList.addAddress('1.1.1.1');
@@ -50,4 +50,22 @@ if (common.isDebug) {
   const { getV8FastApiCallCount } = internalBinding('debug');
   assert.strictEqual(getV8FastApiCallCount('blocklist.check'), 3);
   assert.strictEqual(getV8FastApiCallCount('blocklist.checkString'), 3);
+}
+
+// An IPv6 string longer than the fast path's stack buffer (address part plus
+// an overlong %zone) must give the same answer in the fast path as in the
+// slow path. V8 only takes the fast path for flat one-byte strings.
+{
+  const mixed = 'ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255';
+  const list = new BlockList();
+  list.addAddress(mixed, 'ipv6');
+  const handle6 = list[kBlockListHandle];
+  const zoned = Buffer.from(`${mixed}%${'z'.repeat(200)}`).toString('latin1');
+  function checkString6(address) {
+    return handle6.checkString(address, AF_INET6);
+  }
+  eval('%PrepareFunctionForOptimization(checkString6)');
+  const slow = checkString6(zoned);
+  eval('%OptimizeFunctionOnNextCall(checkString6)');
+  assert.strictEqual(checkString6(zoned), slow);
 }

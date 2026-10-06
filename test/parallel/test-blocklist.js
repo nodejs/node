@@ -883,12 +883,13 @@ const util = require('util');
   blockList.addAddress('1.1.1.1');
   assert.strictEqual(blockList.check(`1.1.1.1%${'z'.repeat(200)}`), false);
 
-  // Mixed-notation IPv6 is 45 chars. uv_ip6_addr truncates the
-  // address part to 39 when a zone is present, so this is a miss.
+  // Mixed-notation IPv6 is 45 chars. uv_ip6_addr keeps up to
+  // INET6_ADDRSTRLEN - 1 chars of the address part when a zone is
+  // present, so this is a hit.
   const mixed = 'ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255';
   blockList.addAddress(mixed, 'ipv6');
   assert.strictEqual(blockList.check(mixed, 'ipv6'), true);
-  assert.strictEqual(blockList.check(`${mixed}%${'z'.repeat(200)}`, 'ipv6'), false);
+  assert.strictEqual(blockList.check(`${mixed}%${'z'.repeat(200)}`, 'ipv6'), true);
 }
 
 // check() family parameter is case-insensitive.

@@ -208,6 +208,7 @@
               '-liphlpapi',
               '-lpsapi',
               '-lshell32',
+              '-lsynchronization',
               '-luser32',
               '-luserenv',
               '-luuid',
