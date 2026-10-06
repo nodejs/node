@@ -13,7 +13,9 @@
 
 #include <cinttypes>
 #include <limits>
+#include <optional>
 #include <sstream>
+#include "simdjson.h"
 #include "simdutf.h"
 
 namespace node {
@@ -109,6 +111,28 @@ bool StringViewToUTF8(const v8_inspector::StringView& source,
   return *utf8_length == result_len;
 }
 
+// Return the raw JSON of the profile object in `result`: either the
+// `field` member of `result` or, if `field` is nullptr, `result` itself.
+static std::optional<std::string_view> GetProfile(
+    simdjson::ondemand::object* result, const char* field, const char* type) {
+  simdjson::ondemand::object profile_object;
+  if (field == nullptr) {
+    profile_object = *result;
+  } else if ((*result)[field].get_object().get(profile_object)) {
+    fprintf(
+        stderr, "'%s' from %s profile result is not an Object\n", field, type);
+    return std::nullopt;
+  }
+  std::string_view profile_raw;
+  if (profile_object.raw_json().get(profile_raw)) {
+    fprintf(stderr,
+            "Cannot get raw string of the 'profile' field from %s profile\n",
+            type);
+    return std::nullopt;
+  }
+  return profile_raw;
+}
+
 void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
     const v8_inspector::StringView& message) {
   Environment* env = connection_->env();
@@ -134,9 +158,10 @@ void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
     return;
   }
 
+  simdjson::ondemand::parser json_parser;
   simdjson::ondemand::document parsed;
   simdjson::ondemand::object response;
-  if (connection_->json_parser_
+  if (json_parser
           .iterate(
               message_utf8.data(), message_utf8_length, message_utf8.size())
           .get(parsed) ||
@@ -184,7 +209,10 @@ void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
     return;
   }
 
-  connection_->WriteProfile(&result);
+  auto profile = GetProfile(&result, connection_->profile_field(), type);
+  if (profile.has_value()) {
+    connection_->WriteProfile(*profile);
+  }
   connection_->RemoveProfileId(id);
 }
 
@@ -214,32 +242,7 @@ std::string V8CoverageConnection::GetFilename() const {
       env()->thread_id());
 }
 
-std::optional<std::string_view> V8ProfilerConnection::GetProfile(
-    simdjson::ondemand::object* result) {
-  simdjson::ondemand::object profile_object;
-  if ((*result)["profile"].get_object().get(profile_object)) {
-    fprintf(
-        stderr, "'profile' from %s profile result is not an Object\n", type());
-    return std::nullopt;
-  }
-  std::string_view profile_raw;
-  if (profile_object.raw_json().get(profile_raw)) {
-    fprintf(stderr,
-            "Cannot get raw string of the 'profile' field from %s profile\n",
-            type());
-    return std::nullopt;
-  }
-  return profile_raw;
-}
-
-void V8ProfilerConnection::WriteProfile(simdjson::ondemand::object* result) {
-  // Generate the profile output from the subclass.
-  auto profile_opt = GetProfile(result);
-  if (!profile_opt.has_value()) {
-    return;
-  }
-  std::string_view profile = profile_opt.value();
-
+void V8ProfilerConnection::WriteProfile(std::string_view profile) {
   // Create the directory if necessary.
   std::string directory = GetDirectory();
   DCHECK(!directory.empty());
@@ -254,7 +257,7 @@ void V8ProfilerConnection::WriteProfile(simdjson::ondemand::object* result) {
   WriteResult(env_, path.c_str(), profile);
 }
 
-void V8CoverageConnection::WriteProfile(simdjson::ondemand::object* result) {
+void V8CoverageConnection::WriteProfile(std::string_view profile) {
   Isolate* isolate = env_->isolate();
   HandleScope handle_scope(isolate);
 
@@ -270,13 +273,6 @@ void V8CoverageConnection::WriteProfile(simdjson::ondemand::object* result) {
 
   Local<Context> context = env_->context();
   Context::Scope context_scope(context);
-
-  // Generate the profile output from the subclass.
-  auto profile_opt = GetProfile(result);
-  if (!profile_opt.has_value()) {
-    return;
-  }
-  std::string_view profile = profile_opt.value();
 
   // append source-map cache information to coverage object:
   Local<Value> source_map_cache_v;
@@ -347,18 +343,6 @@ void V8CoverageConnection::WriteProfile(simdjson::ondemand::object* result) {
   } else {
     WriteResult(env_, path.c_str(), profile);
   }
-}
-
-std::optional<std::string_view> V8CoverageConnection::GetProfile(
-    simdjson::ondemand::object* result) {
-  std::string_view profile_raw;
-  if (result->raw_json().get(profile_raw)) {
-    fprintf(stderr,
-            "Cannot get raw string of the 'profile' field from %s profile\n",
-            type());
-    return std::nullopt;
-  }
-  return profile_raw;
 }
 
 std::string V8CoverageConnection::GetDirectory() const {
