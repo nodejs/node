@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "smallvec"
-version = "1.15.2"
+version = "1.16.1"
 authors = ["The Servo Project Developers"]
 build = false
 include = [
@@ -52,7 +52,6 @@ rustdoc-args = [
 [features]
 const_generics = []
 const_new = ["const_generics"]
-debugger_visualizer = []
 drain_filter = []
 drain_keep_rest = ["drain_filter"]
 impl_bincode = [
@@ -95,9 +94,3 @@ default-features = false
 [dev-dependencies.bincode1]
 version = "1.0.1"
 package = "bincode"
-
-[dev-dependencies.debugger_test]
-version = "0.1.0"
-
-[dev-dependencies.debugger_test_parser]
-version = "0.1.0"

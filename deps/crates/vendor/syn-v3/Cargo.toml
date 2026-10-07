@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.71"
 name = "syn"
-version = "3.0.4"
+version = "3.0.5"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
 build = false
 include = [
