@@ -264,7 +264,12 @@ then untrusted input must not lead to arbitrary JavaScript code execution.
 
 * The developers and infrastructure that run it.
 * The operating system that Node.js is running under and its configuration,
-  along with anything under the control of the operating system.
+  along with anything under the control of the operating system. An attacker
+  who can already run commands on the host and uses an official, signed
+  Node.js binary to execute malicious JavaScript does not exploit a
+  vulnerability in Node.js. A code signature identifies the publisher of the
+  Node.js binary; it is not a statement about the trustworthiness of the
+  scripts that binary executes.
 * The deployment network environment for the privacy of traffic and routing
   decisions, including internal networks through which Node.js traffic passes
   and configured HTTP(S) proxy servers. Built-in proxy support is intended to
