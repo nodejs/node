@@ -54,20 +54,14 @@ class RegExpTextBuilder {
       : zone_(zone), flags_(flags), terms_(terms_storage), text_(zone) {}
   void AddCharacter(base::uc16 character);
   void AddUnicodeCharacter(base::uc32 character);
-  void AddEscapedUnicodeCharacter(base::uc32 character);
   void AddAtom(RegExpTree* atom);
   void AddTerm(RegExpTree* term);
   void AddClassRanges(RegExpClassRanges* cc);
-  void FlushPendingSurrogate();
   void FlushText();
   RegExpTree* PopLastAtom();
   RegExpTree* ToRegExp();
 
  private:
-  static const base::uc16 kNoPendingSurrogate = 0;
-
-  void AddLeadSurrogate(base::uc16 lead_surrogate);
-  void AddTrailSurrogate(base::uc16 trail_surrogate);
   void FlushCharacters();
   bool NeedsDesugaringForUnicode(RegExpClassRanges* cc);
   bool NeedsDesugaringForIgnoreCase(base::uc32 c);
@@ -83,53 +77,11 @@ class RegExpTextBuilder {
   Zone* const zone_;
   const RegExpFlags flags_;
   ZoneList<base::uc16>* characters_ = nullptr;
-  base::uc16 pending_surrogate_ = kNoPendingSurrogate;
   SmallRegExpTreeVector* terms_;
   SmallRegExpTreeVector text_;
 };
 
-void RegExpTextBuilder::AddLeadSurrogate(base::uc16 lead_surrogate) {
-  DCHECK(unibrow::Utf16::IsLeadSurrogate(lead_surrogate));
-  FlushPendingSurrogate();
-  // Hold onto the lead surrogate, waiting for a trail surrogate to follow.
-  pending_surrogate_ = lead_surrogate;
-}
-
-void RegExpTextBuilder::AddTrailSurrogate(base::uc16 trail_surrogate) {
-  DCHECK(unibrow::Utf16::IsTrailSurrogate(trail_surrogate));
-  if (pending_surrogate_ != kNoPendingSurrogate) {
-    base::uc16 lead_surrogate = pending_surrogate_;
-    pending_surrogate_ = kNoPendingSurrogate;
-    DCHECK(unibrow::Utf16::IsLeadSurrogate(lead_surrogate));
-    base::uc32 combined =
-        unibrow::Utf16::CombineSurrogatePair(lead_surrogate, trail_surrogate);
-    if (NeedsDesugaringForIgnoreCase(combined)) {
-      AddClassRangesForDesugaring(combined);
-    } else {
-      ZoneList<base::uc16> surrogate_pair(2, zone());
-      surrogate_pair.Add(lead_surrogate, zone());
-      surrogate_pair.Add(trail_surrogate, zone());
-      RegExpAtom* atom =
-          zone()->New<RegExpAtom>(surrogate_pair.ToConstVector());
-      AddAtom(atom);
-    }
-  } else {
-    pending_surrogate_ = trail_surrogate;
-    FlushPendingSurrogate();
-  }
-}
-
-void RegExpTextBuilder::FlushPendingSurrogate() {
-  if (pending_surrogate_ != kNoPendingSurrogate) {
-    DCHECK(IsUnicodeMode());
-    base::uc32 c = pending_surrogate_;
-    pending_surrogate_ = kNoPendingSurrogate;
-    AddClassRangesForDesugaring(c);
-  }
-}
-
 void RegExpTextBuilder::FlushCharacters() {
-  FlushPendingSurrogate();
   if (characters_ != nullptr) {
     RegExpTree* atom = zone()->New<RegExpAtom>(characters_->ToConstVector());
     characters_ = nullptr;
@@ -155,7 +107,6 @@ void RegExpTextBuilder::FlushText() {
 }
 
 void RegExpTextBuilder::AddCharacter(base::uc16 c) {
-  FlushPendingSurrogate();
   if (characters_ == nullptr) {
     characters_ = zone()->New<ZoneList<base::uc16>>(4, zone());
   }
@@ -165,23 +116,22 @@ void RegExpTextBuilder::AddCharacter(base::uc16 c) {
 void RegExpTextBuilder::AddUnicodeCharacter(base::uc32 c) {
   if (c > static_cast<base::uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
     DCHECK(IsUnicodeMode());
-    AddLeadSurrogate(unibrow::Utf16::LeadSurrogate(c));
-    AddTrailSurrogate(unibrow::Utf16::TrailSurrogate(c));
-  } else if (IsUnicodeMode() && unibrow::Utf16::IsLeadSurrogate(c)) {
-    AddLeadSurrogate(c);
-  } else if (IsUnicodeMode() && unibrow::Utf16::IsTrailSurrogate(c)) {
-    AddTrailSurrogate(c);
+    if (NeedsDesugaringForIgnoreCase(c)) {
+      AddClassRangesForDesugaring(c);
+    } else {
+      ZoneList<base::uc16> surrogate_pair(2, zone());
+      surrogate_pair.Add(unibrow::Utf16::LeadSurrogate(c), zone());
+      surrogate_pair.Add(unibrow::Utf16::TrailSurrogate(c), zone());
+      RegExpAtom* atom =
+          zone()->template New<RegExpAtom>(surrogate_pair.ToConstVector());
+      AddAtom(atom);
+    }
+  } else if (IsUnicodeMode() && (unibrow::Utf16::IsLeadSurrogate(c) ||
+                                 unibrow::Utf16::IsTrailSurrogate(c))) {
+    AddClassRangesForDesugaring(c);
   } else {
     AddCharacter(static_cast<base::uc16>(c));
   }
-}
-
-void RegExpTextBuilder::AddEscapedUnicodeCharacter(base::uc32 character) {
-  // A lead or trail surrogate parsed via escape sequence will not
-  // pair up with any preceding lead or following trail surrogate.
-  FlushPendingSurrogate();
-  AddUnicodeCharacter(character);
-  FlushPendingSurrogate();
 }
 
 void RegExpTextBuilder::AddClassRanges(RegExpClassRanges* cr) {
@@ -256,7 +206,6 @@ bool RegExpTextBuilder::NeedsDesugaringForIgnoreCase(base::uc32 c) {
 }
 
 RegExpTree* RegExpTextBuilder::PopLastAtom() {
-  FlushPendingSurrogate();
   RegExpTree* atom;
   if (characters_ != nullptr) {
     base::Vector<const base::uc16> char_vector = characters_->ToConstVector();
@@ -298,7 +247,6 @@ class RegExpBuilder {
         text_builder_(RegExpTextBuilder{zone, &terms_, flags}) {}
   void AddCharacter(base::uc16 character);
   void AddUnicodeCharacter(base::uc32 character);
-  void AddEscapedUnicodeCharacter(base::uc32 character);
   // "Adds" an empty expression. Does nothing except consume a
   // following quantifier
   void AddEmpty();
@@ -510,8 +458,7 @@ class RegExpParserImpl final {
                                    base::uc32* character);
   base::uc32 ParseClassSetCharacter();
   // Parses and returns a single escaped character.
-  base::uc32 ParseCharacterEscape(InClassEscapeState in_class_escape_state,
-                                  bool* is_escaped_unicode_character);
+  base::uc32 ParseCharacterEscape(InClassEscapeState in_class_escape_state);
 
   void AddMaybeSimpleCaseFoldedRange(ZoneList<CharacterRange>* ranges,
                                      CharacterRange new_range);
@@ -1218,15 +1165,9 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
           // AtomEscape ::
           //   CharacterEscape
           default: {
-            bool is_escaped_unicode_character = false;
             base::uc32 c = ParseCharacterEscape(
-                InClassEscapeState::kNotInClass,
-                &is_escaped_unicode_character CHECK_FAILED);
-            if (is_escaped_unicode_character) {
-              builder->AddEscapedUnicodeCharacter(c);
-            } else {
-              builder->AddCharacter(c);
-            }
+                InClassEscapeState::kNotInClass CHECK_FAILED);
+            builder->AddUnicodeCharacter(c);
             break;
           }
         }
@@ -2346,8 +2287,7 @@ bool RegExpParserImpl<CharT>::ParseUnlimitedLengthHexNumber(int max_value,
 // https://tc39.es/ecma262/#prod-CharacterEscape
 template <class CharT>
 base::uc32 RegExpParserImpl<CharT>::ParseCharacterEscape(
-    InClassEscapeState in_class_escape_state,
-    bool* is_escaped_unicode_character) {
+    InClassEscapeState in_class_escape_state) {
   DCHECK_EQ('\\', current());
   DCHECK(has_next());
 
@@ -2451,10 +2391,7 @@ base::uc32 RegExpParserImpl<CharT>::ParseCharacterEscape(
     case 'u': {
       Advance();
       base::uc32 value;
-      if (ParseUnicodeEscape(&value)) {
-        *is_escaped_unicode_character = true;
-        return value;
-      }
+      if (ParseUnicodeEscape(&value)) return value;
       if (IsUnicodeMode()) {
         // With /u or /v, invalid escapes are not treated as identity escapes.
         ReportError(RegExpError::kInvalidUnicodeEscape);
@@ -2596,8 +2533,7 @@ void RegExpParserImpl<CharT>::ParseClassEscape(
                                    add_unicode_case_equivalents);
   if (*is_class_escape) return;
 
-  bool dummy = false;  // Unused.
-  *char_out = ParseCharacterEscape(kInClassEscape, &dummy);
+  *char_out = ParseCharacterEscape(kInClassEscape);
 }
 
 // https://tc39.es/ecma262/#prod-CharacterClassEscape
@@ -2807,8 +2743,7 @@ base::uc32 RegExpParserImpl<CharT>::ParseClassSetCharacter() {
     static constexpr InClassEscapeState kInClassEscape =
         InClassEscapeState::kInClass;
 
-    bool dummy = false;  // Unused.
-    return ParseCharacterEscape(kInClassEscape, &dummy);
+    return ParseCharacterEscape(kInClassEscape);
   }
   if (IsClassSetSyntaxCharacter(c)) {
     ReportError(RegExpError::kInvalidCharacterInClass);
@@ -3176,13 +3111,7 @@ void RegExpBuilder::AddUnicodeCharacter(base::uc32 c) {
   text_builder().AddUnicodeCharacter(c);
 }
 
-void RegExpBuilder::AddEscapedUnicodeCharacter(base::uc32 character) {
-  pending_empty_ = false;
-  text_builder().AddEscapedUnicodeCharacter(character);
-}
-
 void RegExpBuilder::AddEmpty() {
-  text_builder().FlushPendingSurrogate();
   pending_empty_ = true;
 }
 
