@@ -67,17 +67,20 @@ is strongly recommended for users of this module.
 
 ## Architecture
 
-The `quic` module is built around three core abstractions:
+The `quic` module is built around four core abstractions:
 
 * `QuicEndpoint`: represents the local UDP socket binding for QUIC. It is
   used to send and receive QUIC packets and can be shared across multiple
   sessions. A single endpoint can be used as both a client and a server
   simultaneously.
 
-* `QuicSession`: represents a QUIC connection between the local endpoint and
-  a remote peer. A session is created either by initiating a connection to a
+* `QuicConnection`: represents a QUIC connection between the local endpoint
+  and a remote peer. A connection is created either by initiating it to a
   remote peer using `quic.connect()` or by accepting an incoming connection
   from a remote peer via `quic.listen()`.
+
+* `QuicSession` and `Http3Session`: the application protocol session started
+  on a connection, which carries its data - raw QUIC, or HTTP/3.
 
 * `QuicStream`: represents a QUIC stream within a session. Streams are
   created by either local or remote peers and can be bidirectional or
@@ -239,20 +242,25 @@ counter tracks how many packets have been dropped by the filter.
 
 ### Applications
 
-Every active `QuicSession` is associated with a single application protocol
-implementation. The `quic` module is designed to be application-agnostic
-in general, but includes optional built-in support for HTTP/3 as a specific
-application protocol. When using HTTP/3, the `quic` module provides
-additional APIs for handling HTTP/3-specific features such as headers, trailers,
-and prioritization. For other application protocols, users can implement their
-own message framing and multiplexing on top of the core QUIC transport features.
+Every `QuicConnection` is associated with a single application protocol. The
+application protocol is selected by starting an application session on the
+connection, either automatically by using `autoStart` with ALPN negotiation, or
+by using `autoStart: false` and calling `.start(connection)` from a session
+class.
+
+The `quic` module is designed to be application-agnostic in general, but also
+includes built-in support for HTTP/3 as a specific application protocol. When
+using HTTP/3, the `quic` module provides additional APIs for handling
+HTTP/3-specific features such as headers, trailers, and prioritization. For
+other application protocols, users can implement their own message framing and
+multiplexing on top of the core QUIC transport features.
 
 When initiating a TLS handshake, the client will include a list of supported
 ALPN protocols in the `ClientHello`. The server selects one of these protocols
-(if any) and includes it in the `ServerHello`. The negotiated protocol does not
-automatically change how the session behaves: HTTP/3 is attached explicitly
-using the [`Http3Session`][] API, and a session it is never attached to uses
-the raw QUIC protocol directly.
+(if any) and includes it in the `ServerHello`. For example, when the `h3`
+protocol is negotiated for HTTP/3 and [`sessionOptions.autoStart`][] is enabled
+(the default), connections will be exposed as instances of [`Http3Session`][]
+which exposes APIs for various HTTP/3-specific features.
 
 Currently, the `quic` module only supports HTTP/3 as a built-in application protocol.
 All other protocols must be implemented by the user on top of the provided JavaScript
@@ -263,9 +271,9 @@ API.
 The QUIC API is designed to be flexible and highly configurable to support a wide
 range of use cases. Users can configure various aspects of the QUIC transport,
 TLS handshake, and application behavior via options passed to the `quic.connect()`
-and `quic.listen()` functions, as well as dynamically on `QuicEndpoint` and
-`QuicSession` instances. The API also provides access to detailed statistics and
-events for monitoring and debugging.
+and `quic.listen()` functions, as well as dynamically on `QuicEndpoint`,
+`QuicConnection`, and session instances. The API also provides access to
+detailed statistics and events for monitoring and debugging.
 
 QUIC transport parameters are exchanged during the TLS handshake to negotiate
 various transport-level settings such as maximum stream counts, idle timeouts,
@@ -285,7 +293,7 @@ operations. For example, initiating a connection with `quic.connect()` returns
 a promise for the established session, while incoming sessions on the server
 side are handled via a callback passed to `quic.listen()`. Within a session,
 events such as incoming streams, datagrams, and session state changes are handled
-via callbacks on the `QuicSession` instance. Promises are used for operations
+via callbacks on the session and its connection. Promises are used for operations
 that have a clear completion point, such as completion of the TLS handshake or
 graceful closure of a session.
 
@@ -382,11 +390,11 @@ reconnection.
 
 Two pieces of state from a prior connection make this possible:
 
-* A **session ticket**, received via the [`session.onsessionticket`][] callback,
+* A **session ticket**, received via the [`connection.onsessionticket`][] callback,
   enables TLS session resumption and 0-RTT encryption. Pass it as the
   [`sessionOptions.sessionTicket`][] option on a subsequent connection to the
   same server.
-* An **address validation token**, received via the [`session.onnewtoken`][]
+* An **address validation token**, received via the [`connection.onnewtoken`][]
   callback, allows the client to skip the server's address validation step
   (avoiding a Retry round-trip). Pass it as the [`sessionOptions.token`][]
   option.
@@ -396,7 +404,7 @@ completes is 0-RTT early data. On the server side, `stream.early` is `true`
 for streams carrying early data. The server can reject the 0-RTT attempt
 (for example, if its configuration has changed since the ticket was issued).
 When this happens, all streams opened during the 0-RTT phase are destroyed and
-the client's [`session.onearlyrejected`][] callback fires. The connection
+the client's [`connection.onearlyrejected`][] callback fires. The connection
 falls back to a normal 1-RTT handshake and the application can reopen streams.
 
 Early data is less secure than data sent after the handshake completes — it
@@ -409,7 +417,7 @@ during the early data phase.
 A typical client session progresses through these stages:
 
 1. Call [`quic.connect()`][] with a server address and options. This returns a
-   `QuicSession`.
+   session: `Http3Session` for HTTP/3 or `QuicSession` for other protocols.
 2. The TLS handshake runs automatically. `session.opened` resolves when the
    handshake completes, providing the negotiated ALPN, cipher, and certificate
    validation results.
@@ -424,18 +432,19 @@ streams arrive via the [`session.onstream`][] callback, or, for HTTP/3
 sessions with an `onheaders` callback configured, directly through that
 callback (see the [minimal HTTP/3 server][] example).
 
-[`session.destroy()`][] is available for immediate teardown — all open streams
+[`connection.destroy()`][] is available for immediate teardown — all open streams
 are destroyed and the session is closed without waiting for them to finish.
 
-`QuicEndpoint` and `QuicSession` support `Symbol.asyncDispose`, so they can
-be used with `await using` for automatic cleanup.
+`QuicEndpoint`, `QuicConnection`, `QuicSession`, and `Http3Session` support
+`Symbol.asyncDispose`, so they can be used with `await using` for automatic
+cleanup.
 
 ### Error handling
 
 Errors in the `quic` module are communicated through two complementary
 mechanisms: the `onerror` callback and the `closed` promise.
 
-Both `QuicSession` and `QuicStream` expose an optional `onerror` callback.
+Sessions and `QuicStream` expose an optional `onerror` callback.
 When a session or stream is destroyed with an error — including errors thrown
 by other user callbacks — the `onerror` callback is invoked with the error
 before the object is torn down. Setting `onerror` also marks the `closed`
@@ -476,8 +485,9 @@ added: v23.8.0
 
 * `address` {string|net.SocketAddress}
 * `options` {quic.SessionOptions}
-* Returns: {Promise} a promise for a {quic.QuicSession}, or {quic.Http3Session}
-  if [`sessionOptions.autoWrap`][] is enabled and an HTTP/3 ALPN is negotiated.
+* Returns: {Promise} a promise for a {quic.QuicSession} or {quic.Http3Session},
+  depending on ALPN negotiation, if [`sessionOptions.autoStart`][] is true
+  (the default) or for a {quic.QuicConnection} otherwise.
 
 Initiate a new client-side session.
 
@@ -946,15 +956,44 @@ added: v23.8.0
 * Type: {bigint} The total number of incoming packets dropped by the
   block list filter. Read only.
 
-## Class: `QuicSession`
+## Class: `QuicConnection`
 
 <!-- YAML
 added: v23.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65993
+    description: Renamed from `QuicSession`, which is now the raw QUIC session
+                 started on a connection.
 -->
 
-A `QuicSession` represents the local side of a QUIC connection.
+A `QuicConnection` represents the local side of a QUIC connection: its TLS
+state, network path, transport parameters, statistics, and lifecycle.
+Application data is carried by a session started on the connection: a
+[`QuicSession`][] for raw QUIC, or an [`Http3Session`][] for HTTP/3. Each
+session exposes its connection as `session.connection`.
 
-### `session.applicationOptions`
+### Starting a session
+
+<!-- YAML
+added: REPLACEME
+-->
+
+By default [`sessionOptions.autoStart`][] is `true`, and sessions are started
+and provided automatically by both [`quic.connect()`][] and [`quic.listen()`][]
+according to the ALPN protocol negotiated on the connection.
+
+If this is set to `false`, both APIs will instead provide a [`QuicConnection`][]
+and the session on top must be started manually. When doing so, a server must
+start the session synchronously inside the [`quic.listen()`][] callback, and
+a client must start one within the tick when its [`connection.opened`][]
+promise resolves. A connection with no session started by then is closed with
+an error.
+
+Starting a session throws `ERR_INVALID_STATE` if the connection already has
+one, has been destroyed, or if the local session initialization fails.
+
+### `connection.applicationOptions`
 
 <!-- YAML
 added:
@@ -964,12 +1003,410 @@ added:
 
 * Type: {quic.ApplicationOptions}
 
-The current application-level options for this session. These include settings
-that are specific to the installed application protocol (e.g. HTTP/3) and may
-be negotiated separately from the transport parameters. `undefined` until an
-application is attached. Read only.
+The current application-level options for this connection. These include settings
+that are specific to the negotiated application protocol (e.g. HTTP/3) and may
+be negotiated separately from the transport parameters. Read only.
 You can use the callback [`http3session.onsettings`][] to be informed, when settings
 from the remote arrive.
+
+### `connection.opened`
+
+<!-- YAML
+added:
+ - v26.2.0
+ - v24.20.0
+-->
+
+* Type: {Promise} for an {Object}
+  * `local` {net.SocketAddress} The local socket address.
+  * `remote` {net.SocketAddress} The remote socket address.
+  * `servername` {string} The SNI server name negotiated during the handshake.
+  * `protocol` {string} The ALPN protocol negotiated during the handshake.
+  * `cipher` {string} The name of the negotiated TLS cipher suite.
+  * `cipherVersion` {string} The TLS protocol version of the cipher suite
+    (e.g., `'TLSv1.3'`).
+  * `validationErrorReason` {string} If certificate validation failed, the
+    reason string. Empty string if validation succeeded.
+  * `validationErrorCode` {number} If certificate validation failed, the
+    error code. `0` if validation succeeded.
+  * `earlyDataAttempted` {boolean} Whether 0-RTT early data was attempted.
+  * `earlyDataAccepted` {boolean} Whether 0-RTT early data was accepted by
+    the server.
+
+A promise that is fulfilled once the TLS handshake completes successfully.
+The resolved value contains information about the established connection
+including the negotiated protocol, cipher suite, certificate validation
+status, and 0-RTT early data status.
+
+If the handshake fails or the connection is destroyed before the handshake
+completes, the promise will be rejected.
+
+### `connection.closed`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {Promise}
+
+A promise that is fulfilled once the connection is destroyed.
+
+### `connection.closing`
+
+<!-- YAML
+added:
+ - v26.2.0
+ - v24.20.0
+-->
+
+* Type: {boolean}
+
+True if the connection is closing gracefully, after [`session.close()`][] was
+called on its session, and has not yet been destroyed. Read only.
+
+### `connection.destroy([error[, options]])`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* `error` {any}
+* `options` {Object}
+  * `code` {bigint|number} The error code to include in the `CONNECTION_CLOSE`
+    frame sent to the peer. Must be a non-negative 62-bit unsigned varint
+    (`0n <= code <= 2n ** 62n - 1n`). **Default:** `0`.
+  * `type` {string} Either `'transport'` or `'application'`. **Default:**
+    `'transport'`.
+  * `reason` {string} An optional human-readable reason string included in
+    the `CONNECTION_CLOSE` frame.
+
+Immediately destroy the connection. All streams will be destroyed and the
+connection will be closed. If `error` is provided, the session's `onerror`
+callback (e.g. [`session.onerror`][]) is invoked before destruction, if set.
+The `connection.closed` promise will reject with the error. If `options` is
+provided, the `CONNECTION_CLOSE` frame sent to the peer will include the
+specified error code, type, and reason.
+
+### `connection.destroyed`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {boolean}
+
+True if `connection.destroy()` has been called. Read only.
+
+### `connection.localTransportParams`
+
+<!-- YAML
+added:
+ - v26.3.0
+ - v24.20.0
+-->
+
+* Type: {quic.TransportParams|null}
+
+The transport parameters advertised by the local endpoint during the handshake.
+Returns `null` if the connection has been destroyed. Read only.
+
+### `connection.endpoint`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {quic.QuicEndpoint|null}
+
+The endpoint that created this connection. Returns `null` if the connection
+has been destroyed. Read only.
+
+### `connection.onearlyrejected`
+
+<!-- YAML
+added:
+ - v26.2.0
+ - v24.20.0
+-->
+
+* Type: {Function|undefined}
+
+The callback to invoke when the server rejects 0-RTT early data. When
+this fires, all streams that were opened during the 0-RTT phase have
+been destroyed. The application should re-open streams if needed.
+Read/write.
+
+This callback only fires on the client side when the server rejects
+the client's 0-RTT attempt. The connection falls back to 1-RTT and
+continues normally.
+
+### `connection.onpathvalidation`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {quic.OnPathValidationCallback}
+
+The callback to invoke when the path validation is updated. Read/write.
+
+### `connection.onsessionticket`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {quic.OnSessionTicketCallback}
+
+The callback to invoke when a new session ticket is received. Read/write.
+
+### `connection.onversionnegotiation`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {quic.OnVersionNegotiationCallback}
+
+The callback to invoke when a version negotiation is initiated. Read/write.
+
+### `connection.onhandshake`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {quic.OnHandshakeCallback}
+
+The callback to invoke when the TLS handshake is completed. Read/write.
+
+### `connection.onnewtoken`
+
+<!-- YAML
+added:
+ - v26.2.0
+ - v24.20.0
+-->
+
+* Type: {quic.OnNewTokenCallback}
+
+The callback to invoke when a NEW\_TOKEN token is received from the server.
+The token can be passed as the `token` option on a future connection to
+the same server to skip address validation. Read/write.
+
+### `connection.onkeylog`
+
+<!-- YAML
+added:
+ - v26.2.0
+ - v24.20.0
+-->
+
+* Type: {quic.OnKeylogCallback}
+
+The callback to invoke when TLS key material is available. Requires
+[`sessionOptions.keylog`][] to be `true`. Each invocation receives a single
+line of [NSS Key Log Format][] text (including a trailing newline). This is
+useful for decrypting packet captures with tools like Wireshark. Read/write.
+
+Can also be set via the `onkeylog` option in [`quic.connect()`][] or
+[`quic.listen()`][].
+
+### `connection.onqlog`
+
+<!-- YAML
+added:
+ - v26.2.0
+ - v24.20.0
+-->
+
+* Type: {quic.OnQlogCallback}
+
+The callback to invoke when qlog data is available. Requires
+[`sessionOptions.qlog`][] to be `true`. The callback receives a string
+chunk of [JSON-SEQ][] formatted qlog data and a boolean `fin` flag. When
+`fin` is `true`, the chunk is the final qlog output for this connection and
+the concatenated chunks form a complete qlog trace. Read/write.
+
+Qlog data arrives during the connection lifecycle. The first chunk contains
+the qlog header with format metadata. Subsequent chunks contain trace
+events. The final chunk (with `fin` set to `true`) is emitted during
+connection destruction and completes the JSON-SEQ output.
+
+Can also be set via the `onqlog` option in [`quic.connect()`][] or
+[`quic.listen()`][].
+
+### `connection.path`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {Object|undefined}
+  * `local` {net.SocketAddress}
+  * `remote` {net.SocketAddress}
+
+The local and remote socket addresses associated with the connection. Read only.
+
+### `connection.remoteTransportParams`
+
+<!-- YAML
+added:
+ - v26.3.0
+ - v24.20.0
+-->
+
+* Type: {quic.TransportParams|null|undefined}
+
+The transport parameters advertised by the remote peer during the handshake.
+Returns `null` if the connection has been destroyed, `undefined` if the
+handshake has not yet completed and the remote parameters are not yet
+available. Read only.
+
+### `connection.servername`
+
+<!-- YAML
+added:
+ - v26.6.0
+ - v24.20.0
+-->
+
+* Type: {string|boolean|null}
+
+The SNI (Server Name Indication) host name associated with the connection. This is
+`null` before the client hello is processed. Once the hello has been
+processed, this is either the host name string or `false` if the handshake
+had no SNI.
+
+### `connection.alpnProtocol`
+
+<!-- YAML
+added:
+ - v26.6.0
+ - v24.20.0
+-->
+
+* Type: {string|null}
+
+The negotiated ALPN protocol. This is `null` before the client hello is
+processed. Once ALPN has been negotiated, this is the protocol string. ALPN
+is mandatory in QUIC so this is never `false` on successful connections,
+unlike `node:tls` where this is optional.
+
+### `connection.certificate`
+
+<!-- YAML
+added:
+ - v26.2.0
+ - v24.20.0
+-->
+
+* Type: {crypto.X509Certificate|undefined}
+
+The local certificate as a [`crypto.X509Certificate`][] instance. Server
+connections return the certificate configured for the negotiated SNI host.
+Client connections return `undefined` unless a client certificate was sent.
+Returns `undefined` if the connection is destroyed.
+
+### `connection.peerCertificate`
+
+<!-- YAML
+added:
+ - v26.2.0
+ - v24.20.0
+-->
+
+* Type: {crypto.X509Certificate|undefined}
+
+The peer's certificate as a [`crypto.X509Certificate`][] instance. Returns
+`undefined` if the peer did not present a certificate or the connection is
+destroyed.
+
+### `connection.ephemeralKeyInfo`
+
+<!-- YAML
+added:
+ - v26.2.0
+ - v24.20.0
+-->
+
+* Type: {Object|undefined}
+
+The ephemeral key information for the connection, with properties such as
+`type`, `name`, and `size`. Only available on client connections. Returns
+`undefined` for server connections or if the connection is destroyed.
+
+### `connection.stats`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {quic.QuicConnection.Stats}
+
+Return the current statistics for the connection. Read only.
+
+### `connection.updateKey()`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+Initiate a key update for the connection.
+
+### `connection[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+Calls `connection.destroy()`. To close gracefully, dispose of the session
+started on the connection instead.
+
+## Class: `QuicSession`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+A `QuicSession` is a raw QUIC session, which exchanges application data directly
+over the streams and datagrams of its [`QuicConnection`][]. This provides raw
+QUIC APIs so that custom application protocols can be implemented on top.
+
+### `QuicSession.start(connection)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `connection` {quic.QuicConnection} The connection to start the session on.
+* Returns: {quic.QuicSession}
+
+Starts a raw QUIC session on a connection that has no session yet. See
+[Starting a session][].
+
+### Members forwarded to the QUIC connection
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Each of the following behaves exactly as the member of the same name on the
+underlying [`QuicConnection`][]: `closed`, `closing`, `destroy()`,
+`destroyed`, `opened`, and `stats`.
+
+Any callback set through the `QuicSession` is invoked with the `QuicSession`
+as `this`.
+
+### `session.connection`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.QuicConnection}
+
+The QUIC connection on which this session is running.
 
 ### `session.close([options])`
 
@@ -997,118 +1434,6 @@ the session will be destroyed. The returned promise will be fulfilled once
 the session has been destroyed. If a non-zero `code` is specified, the
 promise will reject with an `ERR_QUIC_TRANSPORT_ERROR` or
 `ERR_QUIC_APPLICATION_ERROR` depending on the `type`.
-
-### `session.opened`
-
-<!-- YAML
-added:
- - v26.2.0
- - v24.20.0
--->
-
-* Type: {Promise} for an {Object}
-  * `local` {net.SocketAddress} The local socket address.
-  * `remote` {net.SocketAddress} The remote socket address.
-  * `servername` {string} The SNI server name negotiated during the handshake.
-  * `protocol` {string} The ALPN protocol negotiated during the handshake.
-  * `cipher` {string} The name of the negotiated TLS cipher suite.
-  * `cipherVersion` {string} The TLS protocol version of the cipher suite
-    (e.g., `'TLSv1.3'`).
-  * `validationErrorReason` {string} If certificate validation failed, the
-    reason string. Empty string if validation succeeded.
-  * `validationErrorCode` {number} If certificate validation failed, the
-    error code. `0` if validation succeeded.
-  * `earlyDataAttempted` {boolean} Whether 0-RTT early data was attempted.
-  * `earlyDataAccepted` {boolean} Whether 0-RTT early data was accepted by
-    the server.
-
-A promise that is fulfilled once the TLS handshake completes successfully.
-The resolved value contains information about the established session
-including the negotiated protocol, cipher suite, certificate validation
-status, and 0-RTT early data status.
-
-If the handshake fails or the session is destroyed before the handshake
-completes, the promise will be rejected.
-
-### `session.closed`
-
-<!-- YAML
-added: v23.8.0
--->
-
-* Type: {Promise}
-
-A promise that is fulfilled once the session is destroyed.
-
-### `session.closing`
-
-<!-- YAML
-added:
- - v26.2.0
- - v24.20.0
--->
-
-* Type: {boolean}
-
-True if [`session.close()`][] has been called and the session has not yet
-been destroyed. Read only.
-
-### `session.destroy([error[, options]])`
-
-<!-- YAML
-added: v23.8.0
--->
-
-* `error` {any}
-* `options` {Object}
-  * `code` {bigint|number} The error code to include in the `CONNECTION_CLOSE`
-    frame sent to the peer. Must be a non-negative 62-bit unsigned varint
-    (`0n <= code <= 2n ** 62n - 1n`). **Default:** `0`.
-  * `type` {string} Either `'transport'` or `'application'`. **Default:**
-    `'transport'`.
-  * `reason` {string} An optional human-readable reason string included in
-    the `CONNECTION_CLOSE` frame.
-
-Immediately destroy the session. All streams will be destroyed and the
-session will be closed. If `error` is provided and [`session.onerror`][] is
-set, the `onerror` callback is invoked before destruction. The
-`session.closed` promise will reject with the error. If `options` is
-provided, the `CONNECTION_CLOSE` frame sent to the peer will include the
-specified error code, type, and reason.
-
-### `session.destroyed`
-
-<!-- YAML
-added: v23.8.0
--->
-
-* Type: {boolean}
-
-True if `session.destroy()` has been called. Read only.
-
-### `session.localTransportParams`
-
-<!-- YAML
-added:
- - v26.3.0
- - v24.20.0
--->
-
-* Type: {quic.TransportParams|null}
-
-The transport parameters advertised by the local endpoint during the handshake.
-Returns `null` if the session has been destroyed. Read only.
-
-### `session.endpoint`
-
-<!-- YAML
-added: v23.8.0
--->
-
-* Type: {quic.QuicEndpoint|null}
-
-The endpoint that created this session. Returns `null` if the session
-has been destroyed. Read only.
 
 ### `session.onerror`
 
@@ -1140,10 +1465,6 @@ added: v23.8.0
 
 The callback to invoke when a new stream is initiated by a remote peer. Read/write.
 
-Setting this on a `QuicSession`, including via the `onstream` option in
-[`quic.connect()`][] or [`quic.listen()`][], selects raw QUIC for the session,
-so HTTP/3 can no longer be attached to it.
-
 If no `onstream` callback is set and the stream has no other consumer, an
 incoming stream is destroyed on arrival and a warning is emitted. An
 `onheaders` callback counts as a consumer when the negotiated application
@@ -1172,121 +1493,6 @@ added: v23.8.0
 * Type: {quic.OnDatagramStatusCallback}
 
 The callback to invoke when the status of a datagram is updated. Read/write.
-
-### `session.onearlyrejected`
-
-<!-- YAML
-added:
- - v26.2.0
- - v24.20.0
--->
-
-* Type: {Function|undefined}
-
-The callback to invoke when the server rejects 0-RTT early data. When
-this fires, all streams that were opened during the 0-RTT phase have
-been destroyed. The application should re-open streams if needed.
-Read/write.
-
-This callback only fires on the client side when the server rejects
-the client's 0-RTT attempt. The connection falls back to 1-RTT and
-continues normally.
-
-### `session.onpathvalidation`
-
-<!-- YAML
-added: v23.8.0
--->
-
-* Type: {quic.OnPathValidationCallback}
-
-The callback to invoke when the path validation is updated. Read/write.
-
-### `session.onsessionticket`
-
-<!-- YAML
-added: v23.8.0
--->
-
-* Type: {quic.OnSessionTicketCallback}
-
-The callback to invoke when a new session ticket is received. Read/write.
-
-### `session.onversionnegotiation`
-
-<!-- YAML
-added: v23.8.0
--->
-
-* Type: {quic.OnVersionNegotiationCallback}
-
-The callback to invoke when a version negotiation is initiated. Read/write.
-
-### `session.onhandshake`
-
-<!-- YAML
-added: v23.8.0
--->
-
-* Type: {quic.OnHandshakeCallback}
-
-The callback to invoke when the TLS handshake is completed. Read/write.
-
-### `session.onnewtoken`
-
-<!-- YAML
-added:
- - v26.2.0
- - v24.20.0
--->
-
-* Type: {quic.OnNewTokenCallback}
-
-The callback to invoke when a NEW\_TOKEN token is received from the server.
-The token can be passed as the `token` option on a future connection to
-the same server to skip address validation. Read/write.
-
-### `session.onkeylog`
-
-<!-- YAML
-added:
- - v26.2.0
- - v24.20.0
--->
-
-* Type: {quic.OnKeylogCallback}
-
-The callback to invoke when TLS key material is available. Requires
-[`sessionOptions.keylog`][] to be `true`. Each invocation receives a single
-line of [NSS Key Log Format][] text (including a trailing newline). This is
-useful for decrypting packet captures with tools like Wireshark. Read/write.
-
-Can also be set via the `onkeylog` option in [`quic.connect()`][] or
-[`quic.listen()`][].
-
-### `session.onqlog`
-
-<!-- YAML
-added:
- - v26.2.0
- - v24.20.0
--->
-
-* Type: {quic.OnQlogCallback}
-
-The callback to invoke when qlog data is available. Requires
-[`sessionOptions.qlog`][] to be `true`. The callback receives a string
-chunk of [JSON-SEQ][] formatted qlog data and a boolean `fin` flag. When
-`fin` is `true`, the chunk is the final qlog output for this session and
-the concatenated chunks form a complete qlog trace. Read/write.
-
-Qlog data arrives during the connection lifecycle. The first chunk contains
-the qlog header with format metadata. Subsequent chunks contain trace
-events. The final chunk (with `fin` set to `true`) is emitted during
-session destruction and completes the JSON-SEQ output.
-
-Can also be set via the `onqlog` option in [`quic.connect()`][] or
-[`quic.listen()`][].
 
 ### `session.createBidirectionalStream([options])`
 
@@ -1369,33 +1575,6 @@ the stream's outgoing side remains writable and no FIN is sent
 immediately. The `priority` and `incremental`
 options are only used when the session supports priority (e.g. HTTP/3).
 
-### `session.path`
-
-<!-- YAML
-added: v23.8.0
--->
-
-* Type: {Object|undefined}
-  * `local` {net.SocketAddress}
-  * `remote` {net.SocketAddress}
-
-The local and remote socket addresses associated with the session. Read only.
-
-### `session.remoteTransportParams`
-
-<!-- YAML
-added:
- - v26.3.0
- - v24.20.0
--->
-
-* Type: {quic.TransportParams|null|undefined}
-
-The transport parameters advertised by the remote peer during the handshake.
-Returns `null` if the session has been destroyed, `undefined` if the handshake
-has not yet completed and the remote parameters are not yet available. Read
-only.
-
 ### `session.sendDatagram(datagram[, encoding])`
 
 <!-- YAML
@@ -1427,13 +1606,12 @@ If the datagram payload is zero-length (empty string after encoding, detached
 buffer, or zero-length view), `0n` is returned and no datagram is sent.
 
 For HTTP/3 sessions, the peer must advertise `SETTINGS_H3_DATAGRAM=1`
-(via the `enableDatagrams` setting of [`Http3Session.from()`][]) for datagrams
-to be sent.
+(via `application: { enableDatagrams: true }`) for datagrams to be sent.
 If the peer's setting is `0`, `sendDatagram()` returns `0n` (per RFC 9297
 §3, an endpoint MUST NOT send HTTP Datagrams unless the peer indicated
 support).
 
-Datagrams cannot be fragmented — each must fit within a single QUIC packet.
+Datagrams cannot be fragmented - each must fit within a single QUIC packet.
 The maximum datagram size is determined by the peer's
 `maxDatagramFrameSize` transport parameter (which the peer advertises during
 the handshake). If the peer sets this to `0`, datagrams are not supported
@@ -1441,79 +1619,6 @@ and `0n` will be returned. If the datagram exceeds the peer's limit, it
 will be silently dropped and `0n` returned. The local
 `maxDatagramFrameSize` transport parameter (default: `1200` bytes) controls
 what this endpoint advertises to the peer as its own maximum.
-
-### `session.servername`
-
-<!-- YAML
-added:
- - v26.6.0
- - v24.20.0
--->
-
-* Type: {string|boolean|null}
-
-The SNI (Server Name Indication) host name associated with the session. This is
-`null` before the client hello is processed. Once the hello has been
-processed, this is either the host name string or `false` if the handshake
-had no SNI.
-
-### `session.alpnProtocol`
-
-<!-- YAML
-added:
- - v26.6.0
- - v24.20.0
--->
-
-* Type: {string|null}
-
-The negotiated ALPN protocol. This is `null` before the client hello is
-processed. Once ALPN has been negotiated, this is the protocol string. ALPN
-is mandatory in QUIC so this is never `false` on successful connections,
-unlike `node:tls` where this is optional.
-
-### `session.certificate`
-
-<!-- YAML
-added:
- - v26.2.0
- - v24.20.0
--->
-
-* Type: {crypto.X509Certificate|undefined}
-
-The local certificate as a [`crypto.X509Certificate`][] instance. Server
-sessions return the certificate configured for the negotiated SNI host.
-Client sessions return `undefined` unless a client certificate was sent.
-Returns `undefined` if the session is destroyed.
-
-### `session.peerCertificate`
-
-<!-- YAML
-added:
- - v26.2.0
- - v24.20.0
--->
-
-* Type: {crypto.X509Certificate|undefined}
-
-The peer's certificate as a [`crypto.X509Certificate`][] instance. Returns
-`undefined` if the peer did not present a certificate or the session is
-destroyed.
-
-### `session.ephemeralKeyInfo`
-
-<!-- YAML
-added:
- - v26.2.0
- - v24.20.0
--->
-
-* Type: {Object|undefined}
-
-The ephemeral key information for the session, with properties such as
-`type`, `name`, and `size`. Only available on client sessions. Returns
-`undefined` for server sessions or if the session is destroyed.
 
 ### `session.maxDatagramSize`
 
@@ -1554,24 +1659,6 @@ This property can be changed dynamically to adjust queue capacity
 based on application activity or memory pressure. The valid range
 is `0` to `65535`.
 
-### `session.stats`
-
-<!-- YAML
-added: v23.8.0
--->
-
-* Type: {quic.QuicSession.Stats}
-
-Return the current statistics for the session. Read only.
-
-### `session.updateKey()`
-
-<!-- YAML
-added: v23.8.0
--->
-
-Initiate a key update for the session.
-
 ### `session[Symbol.asyncDispose]()`
 
 <!-- YAML
@@ -1581,7 +1668,7 @@ added: v23.8.0
 Calls `session.close()` and returns a promise that fulfills when the
 session has closed.
 
-## Class: `QuicSession.Stats`
+## Class: `QuicConnection.Stats`
 
 <!-- YAML
 added: v23.8.0
@@ -1933,7 +2020,7 @@ changes:
     coerced to `BigInt`. When omitted, the wire code is derived from `error`
     (see below).
   * `reason` {string} An optional human-readable reason string. Accepted for
-    symmetry with [`session.close()`][] and [`session.destroy()`][], but
+    symmetry with [`session.close()`][] and [`connection.destroy()`][], but
     **not transmitted on the wire** — neither `RESET_STREAM` nor
     `STOP_SENDING` carry a reason field. Provided for application logging
     and for use by the [`stream.onerror`][] callback.
@@ -2500,7 +2587,7 @@ the writer has been accessed.
 added: v23.8.0
 -->
 
-* Type: {quic.QuicSession|null}
+* Type: {quic.QuicSession|quic.Http3Session|null}
 
 The session that created this stream, or `null` if the stream has been
 destroyed. Read only.
@@ -2662,7 +2749,7 @@ added:
 * Type: {Object}
 
 The application specific options, configured for HTTP/3 with
-[`Http3Session.from()`][].
+[`Http3Session.start()`][].
 
 #### `applicationOptions.maxHeaderPairs`
 
@@ -3064,7 +3151,36 @@ list that the client also supports.
 
 This option is required; omitting it throws `ERR_MISSING_OPTION`.
 
-#### `sessionOptions.autoWrap`
+#### `sessionOptions.application`
+
+<!-- YAML
+added:
+ - v26.2.0
+ - v24.20.0
+-->
+
+* Type: {quic.ApplicationOptions}
+
+Application-specific options, such as the HTTP/3 settings of an
+[`Http3Session`][], for the session started by [`sessionOptions.autoStart`][].
+When `autoStart` is `false`, pass the settings to [`Http3Session.start()`][]
+instead.
+
+```mjs
+const { listen } = await import('node:quic');
+
+await listen((session) => { /* ... */ }, {
+  alpn: ['h3'],
+  application: {
+    maxHeaderPairs: 64,
+    qpackMaxDTableCapacity: 8192,
+    enableDatagrams: true,
+  },
+  // ... other session options
+});
+```
+
+#### `sessionOptions.autoStart`
 
 <!-- YAML
 added: REPLACEME
@@ -3073,13 +3189,18 @@ added: REPLACEME
 * Type: {boolean}
 * **Default:** `true`
 
-If this option is set for [`quic.connect()`][] or [`quic.listen()`][], then
-sessions are automatically exposed as wrapped [`Http3Session`][] instances
-instead of raw [`QuicSession`][], if an HTTP/3 ALPN (`h3` or an `h3-*` draft)
-is negotiated.
+When `true`, calls to [`quic.connect()`][] or [`quic.listen()`][] will expose
+connections as session instances automatically - either an [`Http3Session`][]
+or a raw [`QuicSession`][], depending on the negotiated ALPN value.
 
-Set this to `false` to always receive a raw [`QuicSession`][] and configure
-HTTP/3 yourself with [`Http3Session.from()`][] instead.
+Set this to `false` to receive a [`QuicConnection`][] from both APIs instead.
+In this case, no session will be started automatically, and the application
+protocol session must be selected & started manually instead, see
+[Starting a session][] for details.
+
+The `onerror`, `onstream`, `ondatagram`, `ondatagramstatus`, and `application`
+options only configure the automatically started sessions, and so these will
+throw an error if provided with `autoStart: false`.
 
 #### `sessionOptions.ca`
 
@@ -3199,7 +3320,7 @@ added: v23.8.0
 * Type: {boolean}
 
 When `true`, enables TLS key logging for the session. Key material is
-delivered to the [`session.onkeylog`][] callback in [NSS Key Log Format][].
+delivered to the [`connection.onkeylog`][] callback in [NSS Key Log Format][].
 Each callback invocation receives a single line of key material. The output
 can be used with tools such as Wireshark to decrypt captured QUIC traffic.
 
@@ -3287,7 +3408,7 @@ added: v23.8.0
 * Type: {boolean}
 
 When `true`, enables [qlog][] diagnostic output for the session. Qlog data
-is delivered to the [`session.onqlog`][] callback as chunks of [JSON-SEQ][]
+is delivered to the [`connection.onqlog`][] callback as chunks of [JSON-SEQ][]
 formatted text. The output can be analyzed with qlog visualization tools
 such as [qvis][].
 
@@ -3541,7 +3662,7 @@ added:
 * Type: {ArrayBufferView}
 
 An opaque address validation token previously received from the server
-via the [`session.onnewtoken`][] callback. Providing a valid token on
+via the [`connection.onnewtoken`][] callback. Providing a valid token on
 reconnection allows the client to skip the server's address validation,
 reducing handshake latency.
 
@@ -3644,7 +3765,7 @@ added: v23.8.0
 The `TransportParams` type represents the QUIC transport parameters that are
 negotiated during session establishment. These parameters are used when
 creating a session. The negotiated values can be observed via the
-`session.localTransportParams` and `session.remoteTransportParams` properties.
+`connection.localTransportParams` and `connection.remoteTransportParams` properties.
 
 #### `transportParams.initialSCID`
 
@@ -3658,8 +3779,8 @@ added:
 
 The initial source connection ID (SCID) specified. This field is ignored on
 creation of the session and is provided for informational purposes only when
-available in the `session.localTransportParams` and
-`session.remoteTransportParams` properties.
+available in the `connection.localTransportParams` and
+`connection.remoteTransportParams` properties.
 
 #### `transportParams.originalDCID`
 
@@ -3673,8 +3794,8 @@ added:
 
 The original destination connection ID (DCID) specified. This field is
 ignored on creation of the session and is provided for informational
-purposes only when available in the `session.localTransportParams` and
-`session.remoteTransportParams` properties.
+purposes only when available in the `connection.localTransportParams` and
+`connection.remoteTransportParams` properties.
 
 #### `transportParams.preferredAddressIpv4`
 
@@ -3801,8 +3922,8 @@ added:
 
 The retry connection ID specified. This field is ignored on creation
 of the session and is provided for informational purposes only when
-available in the `session.localTransportParams` and
-`session.remoteTransportParams` properties.
+available in the `connection.localTransportParams` and
+`connection.remoteTransportParams` properties.
 
 ## Callbacks
 
@@ -3836,7 +3957,9 @@ added: v23.8.0
 -->
 
 * `this` {quic.QuicEndpoint}
-* `session` {quic.QuicSession|quic.Http3Session}
+* `session` {quic.QuicSession|quic.Http3Session|quic.QuicConnection} The
+  session started on the new connection, or the connection itself if
+  [`sessionOptions.autoStart`][] is `false`.
 
 The callback function that is invoked when a new server session is initiated by
 a remote peer. It is called once the peer's TLS `ClientHello` has been
@@ -3850,7 +3973,7 @@ never surfaced.
 added: v23.8.0
 -->
 
-* `this` {quic.QuicSession}
+* `this` {quic.QuicSession|quic.Http3Session}
 * `stream` {quic.QuicStream}
 
 ### Callback: `OnDatagramCallback`
@@ -3859,7 +3982,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* `this` {quic.QuicSession}
+* `this` {quic.QuicSession|quic.Http3Session}
 * `datagram` {Uint8Array}
 * `early` {boolean}
 
@@ -3869,7 +3992,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* `this` {quic.QuicSession}
+* `this` {quic.QuicSession|quic.Http3Session}
 * `id` {bigint}
 * `status` {string} One of `'acknowledged'`, `'lost'`, or `'abandoned'`.
   `'acknowledged'` means the peer confirmed receipt. `'lost'` means the
@@ -3896,7 +4019,7 @@ may arrive after the connection is established.
 added: v23.8.0
 -->
 
-* `this` {quic.QuicSession}
+* `this` {quic.QuicConnection}
 * `result` {string} One of either `'success'`, `'failure'`, or `'aborted'`.
 * `newLocalAddress` {net.SocketAddress} The local address of the validated path.
 * `newRemoteAddress` {net.SocketAddress} The remote address of the validated path.
@@ -3914,7 +4037,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* `this` {quic.QuicSession}
+* `this` {quic.QuicConnection}
 * `ticket` {Object}
 
 ### Callback: `OnVersionNegotiationCallback`
@@ -3923,7 +4046,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* `this` {quic.QuicSession}
+* `this` {quic.QuicConnection}
 * `version` {number} The QUIC version that was configured for this session
   (the version that the server did not support).
 * `requestedVersions` {number\[]} The versions advertised by the server in
@@ -3942,8 +4065,8 @@ callback returns.
 added: v23.8.0
 -->
 
-* `this` {quic.QuicSession}
-* `info` {Object} The same object that `session.opened` resolves with.
+* `this` {quic.QuicConnection}
+* `info` {Object} The same object that `connection.opened` resolves with.
   * `local` {net.SocketAddress} The local socket address.
   * `remote` {net.SocketAddress} The remote socket address.
   * `servername` {string} The SNI server name negotiated during the handshake.
@@ -3965,7 +4088,7 @@ added:
  - v24.20.0
 -->
 
-* `this` {quic.QuicSession}
+* `this` {quic.QuicConnection}
 * `token` {Buffer} The NEW\_TOKEN token data.
 * `address` {SocketAddress} The remote address the token is associated with.
 
@@ -3988,7 +4111,7 @@ added:
  - v24.20.0
 -->
 
-* `this` {quic.QuicSession}
+* `this` {quic.QuicConnection}
 * `line` {string} A single line of [NSS Key Log Format][] text, including
   a trailing newline character.
 
@@ -4005,7 +4128,7 @@ added:
  - v24.20.0
 -->
 
-* `this` {quic.QuicSession}
+* `this` {quic.QuicConnection}
 * `data` {string} A chunk of [JSON-SEQ][] formatted [qlog][] data.
 * `fin` {boolean} `true` if this is the final qlog chunk for the session.
 
@@ -4086,12 +4209,12 @@ added:
 HTTP/3, backed by `nghttp3`, runs on top of a QUIC session as an
 [`Http3Session`][]. By default, [`quic.listen()`][] and [`quic.connect()`][]
 provide one whenever an HTTP/3 ALPN is negotiated (see
-[`sessionOptions.autoWrap`][]).
+[`sessionOptions.autoStart`][]).
 
-HTTP/3 can also be configured manually, by setting `autoWrap: false` and using
-the [`Http3Session.from()`][] API to attach HTTP/3 to an existing QUIC session.
+HTTP/3 can also be configured manually, by setting `autoStart: false` and using
+the [`Http3Session.start()`][] API to start HTTP/3 on a QUIC connection.
 
-Attaching the HTTP/3 application enables a number of stream- and
+Selecting the HTTP/3 application enables a number of stream- and
 session-level capabilities that are not available to non-HTTP/3
 applications:
 
@@ -4118,11 +4241,13 @@ applications:
   [`http3session.ongoaway`][] and stops opening new bidirectional streams.
 * **Extended CONNECT settings (RFC 9220)** — the
   `SETTINGS_ENABLE_CONNECT_PROTOCOL` setting can be enabled via
-  [`application.enableConnectProtocol`][]. The setting is exchanged
+  [`application.enableConnectProtocol`][] (see
+  [`sessionOptions.application`][]). The setting is exchanged
   but the application is responsible for handling the `:protocol`
   pseudo-header and any payload framing on top.
 * **QPACK tuning** — dynamic-table size and blocked-streams limits
-  via [`application.qpackMaxDTableCapacity`][] and friends.
+  via [`application.qpackMaxDTableCapacity`][] and friends (see
+  [`sessionOptions.application`][]).
 
 ### Minimal HTTP/3 client
 
@@ -4243,37 +4368,24 @@ Server-side notes:
 added: REPLACEME
 -->
 
-This class wraps a [`QuicSession`][], attaching an HTTP/3 application protocol
-implementation which interprets the raw QUIC data and exposes APIs to allow
-you to use HTTP/3 over QUIC. Once the HTTP/3 application is attached, this
-session should be used instead of the raw QUIC session for all HTTP/3
-interactions. The streams that this session exposes are still `QuicStream`
+An HTTP/3 session, started on a [`QuicConnection`][]. HTTP/3 interprets the
+data on the connection's streams and exposes APIs to allow you to use HTTP/3
+over QUIC. The streams that this session exposes are still `QuicStream`
 instances, but they gain HTTP/3 APIs and functionality from the application.
 
 The HTTP/3 session API exposes the HTTP/3 session details: the settings,
 statistics, and HTTP/3-level events. The connection details underneath (e.g.
 the TLS identity and negotiated ALPN, paths, transport parameters, and key
-updates) remain on the QUIC session, accessible as
-[`http3session.quicSession`][].
+updates) are on the QUIC connection, accessible as
+[`http3session.connection`][].
 
-HTTP/3 frames every stream on the connection, so once this is attached,
-streams cannot be opened on the QUIC session directly:
-[`session.createBidirectionalStream()`][] and
-[`session.createUnidirectionalStream()`][] will throw `ERR_INVALID_STATE`,
-and request streams should be opened with
-[`http3session.createBidirectionalStream()`][] instead. Similarly, incoming
-streams are then only reported through [`http3session.onstream`][]: setting
-`onstream` on the QUIC session throws `ERR_INVALID_STATE`. Errors are the
-exception: they are transport-level, so they reach [`session.onerror`][] and
-then [`http3session.onerror`][], each of which may be set independently.
-
-### `Http3Session.from(session[, options])`
+### `Http3Session.start(connection[, options])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `session` {quic.QuicSession} The QUIC session to attach HTTP/3 to.
+* `connection` {quic.QuicConnection} The connection to start HTTP/3 on.
 * `options` {Object}
   * `settings` {quic.ApplicationOptions} The HTTP/3 settings to use.
     Defaults apply to anything left out.
@@ -4282,34 +4394,21 @@ added: REPLACEME
   * `onsettings` {Function} See [`http3session.onsettings`][].
 * Returns: {quic.Http3Session}
 
-HTTP/3 can only be attached before the session becomes **active**. A session
-becomes active when: a stream is created on it; a datagram is sent with
-[`session.sendDatagram()`][]; immediately after a server session's
-[`quic.listen()`][] callback returns; or immediately after a client's
-`session.opened` promise resolves.
+Starts HTTP/3 on a connection that has no session yet. See
+[Starting a session][].
 
-Only what this side does is listed, because nothing the peer sends can arrive
-any earlier: its streams and datagrams need keys that are only unlocked once
-the session is already active.
-
-In practice this means a server session must be attached synchronously
-inside the [`quic.listen()`][] callback, and a client session must be
-attached synchronously when the [`session.opened`][] promise resolves (or
-before), and in both cases before anything is sent on the session.
-
-Attaching to a session that is already active throws `ERR_INVALID_STATE`, and
-leaves the session untouched. The same applies once [`session.onstream`][] has
-been set, as that selects raw QUIC for the session.
-
-### Members forwarded to the QUIC session
+### Members forwarded to the QUIC connection
 
 <!-- YAML
 added: REPLACEME
 -->
 
 Each of the following behaves exactly as the member of the same name on the
-underlying [`QuicSession`][]: `close()`, `closed`, `closing`, `destroy()`,
+underlying [`QuicConnection`][]: `closed`, `closing`, `destroy()`,
 `destroyed`, `opened`, and `stats`.
+
+The datagram members `sendDatagram()`, `ondatagram`, `ondatagramstatus`,
+`maxDatagramSize`, and `maxPendingDatagrams` behave as on a [`QuicSession`][].
 
 Any callback set through the `Http3Session` - `onerror` and the
 HTTP/3-specific ones below - is invoked with the `Http3Session` as `this`.
@@ -4323,14 +4422,21 @@ added: REPLACEME
 * Type: {Function|undefined}
 
 The HTTP/3 session's error handler, invoked with the error the session is
-destroyed with. Setting this alone is enough: like [`session.onerror`][], it
-marks the session's promises as handled, and a throw or rejection here
-surfaces as an uncaught exception.
+destroyed with. It behaves as [`session.onerror`][]. Read/write.
 
-The underlying `QuicSession`'s [`session.onerror`][] is separate, for code
-that wants to observe transport errors regardless of the application. When
-both are set, it is invoked first, with the same error, and one throwing does
-not prevent the other from running. Read/write.
+### `http3session.close([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object} The same options as [`session.close()`][].
+* Returns: {Promise}
+
+Initiates a graceful shutdown of the HTTP/3 session, sending a `GOAWAY` frame to
+the peer. Requests already in progress are allowed to complete, but no new ones
+can be started. Once they have all finished, the connection is closed. The
+returned promise behaves as for [`session.close()`][].
 
 ### `http3session.createBidirectionalStream([options])`
 
@@ -4340,8 +4446,8 @@ added: REPLACEME
 
 * Returns: {Promise} fulfilled with a {quic.QuicStream}
 
-Opens an HTTP/3 request stream. Equivalent to
-[`session.createBidirectionalStream()`][] on the underlying session.
+Opens an HTTP/3 request stream. Takes the same options as
+[`session.createBidirectionalStream()`][].
 
 HTTP/3 has no server-initiated request streams, so on a server session the
 returned promise is rejected with `ERR_INVALID_STATE`.
@@ -4404,15 +4510,15 @@ added: REPLACEME
 The callback to invoke when the peer's HTTP/3 SETTINGS arrive, which may be
 after the session opens. See [`http3session.settings`][]. Read/write.
 
-### `http3session.quicSession`
+### `http3session.connection`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* Type: {quic.QuicSession}
+* Type: {quic.QuicConnection}
 
-The QUIC session on which this HTTP/3 session is running.
+The QUIC connection on which this HTTP/3 session is running.
 
 ### `http3session.settings`
 
@@ -4434,14 +4540,14 @@ added:
  - v24.20.0
 -->
 
-QUIC sessions, streams, and endpoints emit [`PerformanceEntry`][] objects
+QUIC connections, streams, and endpoints emit [`PerformanceEntry`][] objects
 with `entryType` set to `'quic'`. These entries are only created when a
 [`PerformanceObserver`][] is observing the `'quic'` entry type, ensuring
 zero overhead when not in use.
 
 Each entry provides:
 
-* `name` {string} One of `'QuicEndpoint'`, `'QuicSession'`, or `'QuicStream'`.
+* `name` {string} One of `'QuicEndpoint'`, `'QuicConnection'`, or `'QuicStream'`.
 * `entryType` {string} Always `'quic'`.
 * `startTime` {number} High-resolution timestamp (ms) when the object was created.
 * `duration` {number} Lifetime in milliseconds from creation to destruction.
@@ -4452,9 +4558,9 @@ Each entry provides:
 * `detail.stats` {QuicEndpointStats} The endpoint's statistics object
   (frozen at destruction time).
 
-### `QuicSession` entries
+### `QuicConnection` entries
 
-* `detail.stats` {QuicSessionStats} The session's statistics object
+* `detail.stats` {quic.QuicConnection.Stats} The connection's statistics object
   (frozen at destruction time). Includes bytes sent/received, RTT
   measurements, congestion window, packet counts, and more.
 * `detail.handshake` {Object|undefined} Timing-relevant handshake metadata,
@@ -4463,7 +4569,7 @@ Each entry provides:
   * `protocol` {string} The negotiated ALPN protocol.
   * `earlyDataAttempted` {boolean} Whether 0-RTT early data was attempted.
   * `earlyDataAccepted` {boolean} Whether 0-RTT early data was accepted.
-* `detail.path` {Object|undefined} The session's network path, or
+* `detail.path` {Object|undefined} The connection's network path, or
   `undefined` if not yet established.
   * `local` {net.SocketAddress}
   * `remote` {net.SocketAddress}
@@ -4483,7 +4589,7 @@ import { PerformanceObserver } from 'node:perf_hooks';
 const obs = new PerformanceObserver((list) => {
   for (const entry of list.getEntries()) {
     console.log(`${entry.name}: ${entry.duration.toFixed(1)}ms`);
-    if (entry.name === 'QuicSession') {
+    if (entry.name === 'QuicConnection') {
       const { stats, handshake } = entry.detail;
       console.log(`  protocol: ${handshake?.protocol}`);
       console.log(`  bytes sent: ${stats.bytesSent}`);
@@ -4585,7 +4691,7 @@ added: v23.8.0
 -->
 
 * `applicationoptions` {quic.ApplicationOptions} Current application options.
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 
 Published when a locally-initiated stream is opened.
 
@@ -4596,7 +4702,7 @@ added: v23.8.0
 -->
 
 * `endpoint` {quic.QuicEndpoint}
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 * `address` {net.SocketAddress} The remote server address.
 * `options` {quic.SessionOptions}
 
@@ -4609,7 +4715,7 @@ added: v23.8.0
 -->
 
 * `endpoint` {quic.QuicEndpoint}
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 * `address` {net.SocketAddress|undefined} The remote peer address.
 
 Published when a server-side session is created for an incoming connection.
@@ -4621,7 +4727,7 @@ added: v23.8.0
 -->
 
 * `stream` {quic.QuicStream}
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 * `direction` {string} Either `'bidi'` or `'uni'`.
 
 Published when a locally-initiated stream is opened.
@@ -4633,7 +4739,7 @@ added: v23.8.0
 -->
 
 * `stream` {quic.QuicStream}
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 * `direction` {string} Either `'bidi'` or `'uni'`.
 
 Published when a remotely-initiated stream is received.
@@ -4646,7 +4752,7 @@ added: v23.8.0
 
 * `id` {bigint} The datagram ID.
 * `length` {number} The datagram payload size in bytes.
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 
 Published when a datagram is queued for sending.
 
@@ -4656,7 +4762,7 @@ Published when a datagram is queued for sending.
 added: v23.8.0
 -->
 
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 
 Published when a TLS key update is initiated.
 
@@ -4666,7 +4772,7 @@ Published when a TLS key update is initiated.
 added: v23.8.0
 -->
 
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 
 Published when a session begins gracefully closing (including when a
 GOAWAY frame is received from the peer).
@@ -4677,9 +4783,9 @@ GOAWAY frame is received from the peer).
 added: v23.8.0
 -->
 
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 * `error` {any} The error that caused the close, or `undefined` if clean.
-* `stats` {quic.QuicSession.Stats} Final session statistics.
+* `stats` {quic.QuicConnection.Stats} Final connection statistics.
 
 Published when a session is destroyed. The `stats` object is a snapshot
 of the final statistics at the time of destruction.
@@ -4692,7 +4798,7 @@ added:
  - v24.20.0
 -->
 
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 * `error` {any} The error that caused the session to be destroyed.
 
 Published when a session is destroyed due to an error. Fires before the
@@ -4709,7 +4815,7 @@ added: v23.8.0
 
 * `length` {number} The datagram payload size in bytes.
 * `early` {boolean} Whether the datagram was received as 0-RTT early data.
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 
 Published when a datagram is received from the remote peer.
 
@@ -4721,7 +4827,7 @@ added: v23.8.0
 
 * `id` {bigint} The datagram ID.
 * `status` {string} One of `'acknowledged'`, `'lost'`, or `'abandoned'`.
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 
 Published when the delivery status of a sent datagram is updated.
 
@@ -4737,7 +4843,7 @@ added: v23.8.0
 * `oldLocalAddress` {net.SocketAddress|null}
 * `oldRemoteAddress` {net.SocketAddress|null}
 * `preferredAddress` {boolean}
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 
 Published when a path validation attempt completes.
 
@@ -4751,7 +4857,7 @@ added:
 
 * `token` {Buffer} The NEW\_TOKEN token data.
 * `address` {net.SocketAddress} The remote server address.
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 
 Published when a client session receives a NEW\_TOKEN frame from the
 server.
@@ -4763,7 +4869,7 @@ added: v23.8.0
 -->
 
 * `ticket` {Object} The opaque session ticket.
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 
 Published when a new TLS session ticket is received.
 
@@ -4776,7 +4882,7 @@ added: v23.8.0
 * `version` {number} The QUIC version that was configured for this session.
 * `requestedVersions` {number\[]} The versions advertised by the server.
 * `supportedVersions` {number\[]} The versions supported locally.
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 
 Published when the client receives a Version Negotiation packet from the
 server. The session is always destroyed immediately after.
@@ -4790,7 +4896,7 @@ added:
 -->
 
 * `origins` {string\[]} The list of origins the server is authoritative for.
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 
 Published when the session receives an ORIGIN frame (RFC 9412) from
 the peer.
@@ -4801,7 +4907,7 @@ the peer.
 added: v23.8.0
 -->
 
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 * `servername` {string}
 * `protocol` {string}
 * `cipher` {string}
@@ -4821,7 +4927,7 @@ added:
  - v24.20.0
 -->
 
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 * `lastStreamId` {bigint} The highest stream ID the peer may have processed.
 
 Published when the peer sends an HTTP/3 GOAWAY frame. Streams with IDs
@@ -4837,7 +4943,7 @@ added:
  - v24.20.0
 -->
 
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 
 Published when the server rejects 0-RTT early data. All streams that were
 opened during the 0-RTT phase have been destroyed. Useful for diagnosing
@@ -4852,7 +4958,7 @@ added:
 -->
 
 * `stream` {quic.QuicStream}
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 * `error` {any} The error that caused the close, or `undefined` if clean.
 * `stats` {quic.QuicStream.Stats} Final stream statistics.
 
@@ -4868,7 +4974,7 @@ added:
 -->
 
 * `stream` {quic.QuicStream}
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 * `headers` {Object} The initial request or response headers.
 
 Published when initial headers are received on a stream. For HTTP/3
@@ -4885,7 +4991,7 @@ added:
 -->
 
 * `stream` {quic.QuicStream}
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 * `trailers` {Object} The trailing headers.
 
 Published when trailing headers are received on a stream.
@@ -4899,7 +5005,7 @@ added:
 -->
 
 * `stream` {quic.QuicStream}
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 * `headers` {Object} The informational headers.
 
 Published when informational (1xx) headers are received on a stream
@@ -4914,7 +5020,7 @@ added:
 -->
 
 * `stream` {quic.QuicStream}
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 * `error` {any} The QUIC error associated with the reset.
 
 Published when a stream receives a RESET\_STREAM frame from the peer,
@@ -4930,7 +5036,7 @@ added:
 -->
 
 * `stream` {quic.QuicStream}
-* `session` {quic.QuicSession}
+* `session` {quic.QuicConnection}
 
 Published when a stream is flow-control blocked and cannot send data
 until the peer increases the flow control window. Useful for diagnosing
@@ -4961,17 +5067,26 @@ throughput issues caused by flow control.
 [RFC 9369]: https://www.rfc-editor.org/rfc/rfc9369
 [RFC 9412]: https://www.rfc-editor.org/rfc/rfc9412
 [RFC 9443]: https://www.rfc-editor.org/rfc/rfc9443
-[`Http3Session.from()`]: #http3sessionfromsession-options
+[Starting a session]: #starting-a-session
+[`Http3Session.start()`]: #http3sessionstartconnection-options
 [`Http3Session`]: #class-http3session
 [`PerformanceEntry`]: perf_hooks.md#class-performanceentry
 [`PerformanceObserver`]: perf_hooks.md#class-performanceobserver
+[`QuicConnection`]: #class-quicconnection
 [`QuicEndpoint`]: #class-quicendpoint
 [`QuicError`]: #class-quicerror
 [`QuicSession`]: #class-quicsession
 [`application.enableConnectProtocol`]: #applicationoptionsenableconnectprotocol
-[`application.enableDatagrams`]: #applicationoptionsenabledatagrams
+[`application.enableDatagrams`]: #sessionoptionsapplication
 [`application.qpackMaxDTableCapacity`]: #applicationoptionsqpackmaxdtablecapacity
 [`certificateCompression`]: #sessionoptionscertificatecompression
+[`connection.destroy()`]: #connectiondestroyerror-options
+[`connection.onearlyrejected`]: #connectiononearlyrejected
+[`connection.onkeylog`]: #connectiononkeylog
+[`connection.onnewtoken`]: #connectiononnewtoken
+[`connection.onqlog`]: #connectiononqlog
+[`connection.onsessionticket`]: #connectiononsessionticket
+[`connection.opened`]: #connectionopened
 [`crypto.X509Certificate`]: crypto.md#class-x509certificate
 [`endpoint.busy`]: #endpointbusy
 [`endpoint.maxConnectionsPerHost`]: #endpointmaxconnectionsperhost
@@ -4990,13 +5105,10 @@ throughput issues caused by flow control.
 [`endpointOptions.versionNegotiationRate`]: #endpointoptionsversionnegotiationrate
 [`error.errorCode`]: #errorerrorcode
 [`fs.promises.open(path, 'r')`]: fs.md#fspromisesopenpath-flags-mode
-[`http3session.createBidirectionalStream()`]: #http3sessioncreatebidirectionalstreamoptions
-[`http3session.onerror`]: #http3sessiononerror
+[`http3session.connection`]: #http3sessionconnection
 [`http3session.ongoaway`]: #http3sessionongoaway
 [`http3session.onorigin`]: #http3sessiononorigin
 [`http3session.onsettings`]: #http3sessiononsettings
-[`http3session.onstream`]: #http3sessiononstream
-[`http3session.quicSession`]: #http3sessionquicsession
 [`http3session.settings`]: #http3sessionsettings
 [`maxDatagramFrameSize`]: #transportparamsmaxdatagramframesize
 [`net.BlockList`]: net.md#class-netblocklist
@@ -5005,20 +5117,14 @@ throughput issues caused by flow control.
 [`session.close()`]: #sessioncloseoptions
 [`session.createBidirectionalStream()`]: #sessioncreatebidirectionalstreamoptions
 [`session.createUnidirectionalStream()`]: #sessioncreateunidirectionalstreamoptions
-[`session.destroy()`]: #sessiondestroyerror-options
 [`session.maxPendingDatagrams`]: #sessionmaxpendingdatagrams
 [`session.ondatagram`]: #sessionondatagram
 [`session.ondatagramstatus`]: #sessionondatagramstatus
-[`session.onearlyrejected`]: #sessiononearlyrejected
 [`session.onerror`]: #sessiononerror
-[`session.onkeylog`]: #sessiononkeylog
-[`session.onnewtoken`]: #sessiononnewtoken
-[`session.onqlog`]: #sessiononqlog
-[`session.onsessionticket`]: #sessiononsessionticket
 [`session.onstream`]: #sessiononstream
-[`session.opened`]: #sessionopened
 [`session.sendDatagram()`]: #sessionsenddatagramdatagram-encoding
-[`sessionOptions.autoWrap`]: #sessionoptionsautowrap
+[`sessionOptions.application`]: #sessionoptionsapplication
+[`sessionOptions.autoStart`]: #sessionoptionsautostart
 [`sessionOptions.cc`]: #sessionoptionscc
 [`sessionOptions.ciphers`]: #sessionoptionsciphers
 [`sessionOptions.datagramDropPolicy`]: #sessionoptionsdatagramdroppolicy

@@ -12,7 +12,7 @@ if (!hasQuic) {
 
 const { createRequire } = await import('node:module');
 const require = createRequire(import.meta.url);
-const { getQuicSessionState } = require('internal/quic/quic');
+const { getQuicConnectionState } = require('internal/quic/quic');
 const { listen, connect } = await import('../common/quic.mjs');
 
 const sessionSeen = Promise.withResolvers();
@@ -21,19 +21,19 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   // All assertions run synchronously in the onsession emit frame.
 
   // The TLS details from the ClientHello are readable on the session.
-  assert.strictEqual(serverSession.servername, 'localhost');
-  assert.strictEqual(serverSession.alpnProtocol, 'quic-test');
+  assert.strictEqual(serverSession.connection.servername, 'localhost');
+  assert.strictEqual(serverSession.connection.alpnProtocol, 'quic-test');
 
   // The client's transport params arrived in the first flight and have
   // been processed by the time the session is surfaced.
-  const params = serverSession.remoteTransportParams;
+  const params = serverSession.connection.remoteTransportParams;
   assert.notStrictEqual(params, undefined);
   assert.notStrictEqual(params, null);
   assert.ok(params.initialMaxStreamsBidi >= 0n);
 
-  // ALPN negotiation completed, but no application has been installed yet
-  // (type 0): the window to attach one is still open in this frame.
-  assert.strictEqual(getQuicSessionState(serverSession).applicationType, 0);
+  // ALPN negotiation has completed: headers support is resolved (2 =
+  // unsupported, confirming non-h3 test ALPN)
+  assert.strictEqual(getQuicConnectionState(serverSession.connection).headersSupported, 2);
 
   sessionSeen.resolve();
 }));

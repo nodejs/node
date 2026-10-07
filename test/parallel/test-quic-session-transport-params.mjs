@@ -30,7 +30,7 @@ let serverRemoteParams;
 
 const serverEndpoint = await listen(mustCall((serverSession) => {
   // localTransportParams should be available immediately.
-  serverLocalParams = serverSession.localTransportParams;
+  serverLocalParams = serverSession.connection.localTransportParams;
   assert.ok(serverLocalParams != null, 'server localTransportParams should be available immediately');
   assert.strictEqual(typeof serverLocalParams, 'object');
   assert.strictEqual(Object.getPrototypeOf(serverLocalParams), null);
@@ -53,7 +53,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     // After the stream arrives, the handshake is complete and
     // remoteTransportParams should be available.
-    serverRemoteParams = serverSession.remoteTransportParams;
+    serverRemoteParams = serverSession.connection.remoteTransportParams;
     assert.ok(serverRemoteParams != null,
               'server remoteTransportParams should be available after handshake');
     assert.strictEqual(typeof serverRemoteParams, 'object');
@@ -86,7 +86,7 @@ await clientSession.opened;
 
 // After opened, the handshake is complete. Both local and remote
 // transport params should be available on the client session.
-const clientLocalParams = clientSession.localTransportParams;
+const clientLocalParams = clientSession.connection.localTransportParams;
 assert.ok(clientLocalParams != null, 'client localTransportParams should be available');
 assert.strictEqual(typeof clientLocalParams, 'object');
 assert.strictEqual(Object.getPrototypeOf(clientLocalParams), null);
@@ -97,7 +97,7 @@ assert.strictEqual(clientLocalParams.initialMaxStreamsBidi,
 assert.strictEqual(clientLocalParams.initialMaxData,
                    BigInt(clientTransportParams.initialMaxData));
 
-const clientRemoteParams = clientSession.remoteTransportParams;
+const clientRemoteParams = clientSession.connection.remoteTransportParams;
 assert.ok(clientRemoteParams != null,
           'client remoteTransportParams should be available after handshake');
 assert.strictEqual(typeof clientRemoteParams, 'object');

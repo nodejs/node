@@ -9,11 +9,11 @@ if (!hasQuic) {
 
 const { QuicEndpoint } = await import('node:quic');
 const {
-  QuicSessionState,
+  QuicConnectionState,
   QuicStreamState,
 } = (await import('internal/quic/state')).default;
 const {
-  QuicSessionStats,
+  QuicConnectionStats,
   QuicStreamStats,
 } = (await import('internal/quic/stats')).default;
 const {
@@ -145,7 +145,7 @@ const {
 // temporarily while the rest of the functionality is being
 // implemented.
 const streamState = new QuicStreamState(kPrivateConstructor, new ArrayBuffer(1024));
-const sessionState = new QuicSessionState(kPrivateConstructor, new ArrayBuffer(1024));
+const sessionState = new QuicConnectionState(kPrivateConstructor, new ArrayBuffer(1024));
 
 assert.strictEqual(streamState.pending, false);
 assert.strictEqual(streamState.finSent, false);
@@ -172,13 +172,7 @@ assert.strictEqual(sessionState.isHandshakeCompleted, false);
 assert.strictEqual(sessionState.isHandshakeConfirmed, false);
 assert.strictEqual(sessionState.isStreamOpenAllowed, false);
 assert.strictEqual(sessionState.isPrioritySupported, false);
-// No application has been installed on this session, so everything an
-// application populates reads as undefined rather than as a stand-in value.
-assert.strictEqual(sessionState.headersSupported, undefined);
-assert.strictEqual(sessionState.streamCallbacksSupported, undefined);
-assert.strictEqual(sessionState.noErrorCode, undefined);
-assert.strictEqual(sessionState.internalErrorCode, undefined);
-assert.strictEqual(sessionState.requestRejectedCode, undefined);
+assert.strictEqual(sessionState.headersSupported, 0);
 assert.strictEqual(sessionState.isWrapped, false);
 assert.strictEqual(sessionState.maxDatagramSize, 0);
 assert.strictEqual(sessionState.lastDatagramId, 0n);
@@ -190,7 +184,7 @@ assert.strictEqual(typeof inspect(streamState), 'string');
 assert.strictEqual(typeof inspect(sessionState), 'string');
 
 const streamStats = new QuicStreamStats(kPrivateConstructor, new ArrayBuffer(1024));
-const sessionStats = new QuicSessionStats(kPrivateConstructor, new ArrayBuffer(1024));
+const sessionStats = new QuicConnectionStats(kPrivateConstructor, new ArrayBuffer(1024));
 assert.strictEqual(streamStats.createdAt, 0n);
 assert.strictEqual(streamStats.openedAt, 0n);
 assert.strictEqual(streamStats.receivedAt, 0n);

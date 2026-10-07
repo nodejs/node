@@ -38,11 +38,11 @@ const serverEndpoint = await listen(async (serverSession) => {
 // This exercises the H3 shutdown path on the server while the H3 application
 // exists but hasn't started (control streams not yet bound).
 const clientSession = await connect(serverEndpoint.address, {
-  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
   // h3 ALPN — must match the server so the H3 application is selected
   // on the server side before we tear it down.
+  alpn: 'h3',
 });
 
 // Close immediately — don't wait for handshake.

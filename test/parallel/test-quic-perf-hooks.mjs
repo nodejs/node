@@ -63,11 +63,11 @@ obs.disconnect();
 
 // Verify we got all expected entry types.
 const endpointEntries = entries.filter((e) => e.name === 'QuicEndpoint');
-const sessionEntries = entries.filter((e) => e.name === 'QuicSession');
+const sessionEntries = entries.filter((e) => e.name === 'QuicConnection');
 const streamEntries = entries.filter((e) => e.name === 'QuicStream');
 
 assert.ok(endpointEntries.length >= 1, `Expected QuicEndpoint entries, got ${endpointEntries.length}`);
-assert.ok(sessionEntries.length >= 2, `Expected >= 2 QuicSession entries, got ${sessionEntries.length}`);
+assert.ok(sessionEntries.length >= 2, `Expected >= 2 QuicConnection entries, got ${sessionEntries.length}`);
 assert.ok(streamEntries.length >= 2, `Expected >= 2 QuicStream entries, got ${streamEntries.length}`);
 
 // Verify common fields on all entries.

@@ -138,9 +138,7 @@ uint64_t MaxDatagramPayload(uint64_t max_frame_size) {
   V(HEADERS_SUPPORTED, headers_supported, uint8_t)                             \
   V(STREAM_CALLBACKS_SUPPORTED, stream_callbacks_supported, uint8_t)           \
   V(WRAPPED, wrapped, uint8_t)                                                 \
-  V(IS_SERVER, is_server, uint8_t)                                             \
   V(APPLICATION_TYPE, application_type, uint8_t)                               \
-  V(APPLICATION_INSTALLED, application_installed, uint8_t)                     \
   V(NO_ERROR_CODE, no_error_code, error_code)                                  \
   V(INTERNAL_ERROR_CODE, internal_error_code, error_code)                      \
   V(REQUEST_REJECTED_CODE, request_rejected_code, error_code)                  \
@@ -201,7 +199,8 @@ uint64_t MaxDatagramPayload(uint64_t max_frame_size) {
   V(SendDatagram, sendDatagram, SIDE_EFFECT)                                   \
   V(LocalTransportParams, localTransportParams, NO_SIDE_EFFECT)                \
   V(RemoteTransportParams, remoteTransportParams, NO_SIDE_EFFECT)              \
-  V(ApplicationOptions, applicationOptions, NO_SIDE_EFFECT)
+  V(ApplicationOptions, applicationOptions, NO_SIDE_EFFECT)                    \
+  V(StartApplication, startApplication, SIDE_EFFECT)
 
 struct Session::State final {
 #define V(_, name, type) type name;
@@ -625,7 +624,8 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
       !SET(keep_alive_timeout) || !SET(max_stream_window) || !SET(max_window) ||
       !SET(max_payload_size) || !SET(unacknowledged_packet_threshold) ||
       !SET(cc_algorithm) || !SET(draining_period_multiplier) ||
-      !SET(max_datagram_send_attempts) || !SET(stream_idle_timeout)) {
+      !SET(max_datagram_send_attempts) || !SET(stream_idle_timeout) ||
+      !SET(auto_start)) {
     return Nothing<Options>();
   }
 
@@ -651,6 +651,20 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
         options.datagram_drop_policy = DatagramDropPolicy::DROP_NEWEST;
       }
       // Default is DROP_OLDEST, no need to check for "drop-oldest".
+    }
+  }
+
+  // Parse the application-specific options (HTTP/3 qpack settings, etc.).
+  // These are used if the negotiated ALPN selects Http3ApplicationImpl.
+  {
+    Local<Value> app_val;
+    if (params->Get(env->context(), state.application_string())
+            .ToLocal(&app_val) &&
+        !app_val->IsUndefined()) {
+      if (!Application_Options::From(env, app_val)
+               .To(&options.application_options)) {
+        return Nothing<Options>();
+      }
     }
   }
 
@@ -1226,6 +1240,25 @@ struct Session::Impl final : public MemoryRetainer {
     }
   }
 
+  JS_METHOD(StartApplication) {
+    auto env = Environment::GetCurrent(args);
+    Session* session;
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+    if (session->is_destroyed()) return args.GetReturnValue().Set(false);
+    CHECK(!session->has_application());
+    CHECK(args[0]->IsUint32());
+    auto type = static_cast<Application::Type>(args[0].As<Uint32>()->Value());
+    Application_Options options = Application_Options::kDefault;
+    if (!args[1]->IsUndefined() &&
+        !Application_Options::From(env, args[1]).To(&options)) {
+      return;
+    }
+    session->SetApplication(type == Application::Type::HTTP3
+                                ? CreateHttp3Application(session, options)
+                                : CreateDefaultApplication(session, options));
+    args.GetReturnValue().Set(!session->flags_.application_start_failed);
+  }
+
   JS_METHOD(ApplicationOptions) {
     auto env = Environment::GetCurrent(args);
     Session* session;
@@ -1233,15 +1266,10 @@ struct Session::Impl final : public MemoryRetainer {
 
     Local<Object> obj;
     if (!session->has_application()) {
-      // Not installed yet. If an attach has been scheduled, its settings are
-      // already known and can be reported before the install happens.
-      if (session->application_type() != Application::Type::HTTP3) {
-        return args.GetReturnValue().SetUndefined();
-      }
-      if (Http3SettingsFromHandle(*session).ToObject(env).ToLocal(&obj)) {
-        args.GetReturnValue().Set(obj);
-      }
-      return;
+      // The application has not yet been selected (ALPN negotiation is not
+      // yet complete on the server) or the session has been destroyed. In
+      // either case, the application options are not available.
+      return args.GetReturnValue().SetUndefined();
     }
     auto& options = session->application().options();
     if (options.ToObject(env).ToLocal(&obj)) {
@@ -1440,6 +1468,8 @@ struct Session::Impl final : public MemoryRetainer {
 
     if (level != NGTCP2_ENCRYPTION_LEVEL_1RTT) return NGTCP2_SUCCESS;
 
+    // A client that hasn't started its session yet can still start one
+    // until the handshake completes, see SetApplication().
     session->keys_ready_ = true;
     if (!session->impl_->application_) return NGTCP2_SUCCESS;
 
@@ -1502,7 +1532,6 @@ struct Session::Impl final : public MemoryRetainer {
     // application for processing. If it ends up being a user stream, the
     // application will handle creating the Stream handle and passing that off
     // to the JavaScript side.
-    CHECK(session->impl_->application_);
     if (!session->application().ReceiveStreamData(
             stream_id, data, datalen, data_flags, stream_user_data)) {
       return NGTCP2_ERR_CALLBACK_FAILURE;
@@ -1527,10 +1556,10 @@ struct Session::Impl final : public MemoryRetainer {
       if (level != NGTCP2_ENCRYPTION_LEVEL_0RTT) return NGTCP2_SUCCESS;
     }
 
-    session->keys_ready_ = true;
-    // A session with no application installed has nothing to start; whichever
-    // one is installed later starts itself, see EnsureApplication().
-    if (!session->impl_->application_) return NGTCP2_SUCCESS;
+    // application_ may be null if ALPN selection hasn't happened yet
+    // (e.g., ALPN mismatch causes the handshake to fail during key
+    // installation). Without an application, we can't start.
+    if (!session->impl_->application_) return NGTCP2_ERR_CALLBACK_FAILURE;
 
     Debug(session,
           "Receiving TX key for level %s for dcid %s",
@@ -1594,7 +1623,6 @@ struct Session::Impl final : public MemoryRetainer {
 
   static int on_stream_open(ngtcp2_conn* conn, stream_id id, void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
-    CHECK(session->impl_->application_);
     if (!session->application().ReceiveStreamOpen(id)) {
       return NGTCP2_ERR_CALLBACK_FAILURE;
     }
@@ -1640,9 +1668,6 @@ struct Session::Impl final : public MemoryRetainer {
     Debug(session, "Early data was rejected");
     if (session->impl_->application_) {
       session->application().EarlyDataRejected();
-    }
-    if (!session->is_destroyed()) {
-      session->EmitEarlyDataRejected();
     }
     return NGTCP2_SUCCESS;
   }
@@ -2272,7 +2297,12 @@ Session::Session(Endpoint* endpoint,
   DCHECK(impl_);
   STAT_RECORD_TIMESTAMP(Stats, created_at);
 
-  impl_->state()->is_server = config.side == Side::SERVER ? 1 : 0;
+  // For clients, select the Application immediately - the ALPN is
+  // known upfront from the options. For servers, application_ stays
+  // null until the ClientHello names a protocol.
+  if (config.side == Side::CLIENT && config.options.auto_start) {
+    InstallApplicationForAlpn(DecodeAlpn(config.options.tls_options.alpn));
+  }
 
   // For client sessions with a session ticket and early data enabled,
   // defer the handshake until the first stream or datagram is sent.
@@ -2444,10 +2474,8 @@ void Session::Close(CloseMethod method) {
       // Signal application-level graceful shutdown (e.g., HTTP/3 GOAWAY).
       // BeginShutdown can trigger callbacks that re-enter JS and destroy
       // this session, so check is_destroyed() after it returns.
-      if (impl_->application_) {
-        application().BeginShutdown();
-        if (is_destroyed()) return;
-      }
+      application().BeginShutdown();
+      if (is_destroyed()) return;
 
       // If there are no open streams, then we can close immediately and
       // not worry about waiting around.
@@ -2466,7 +2494,7 @@ void Session::Close(CloseMethod method) {
       // writable stream with a closed read side is the normal request/
       // response pattern (server received full request, still sending
       // response). The application protocol handles stream completion.
-      if (!stream_fin_managed_by_application()) {
+      if (!application().stream_fin_managed_by_application()) {
         Session::SendPendingDataScope send_scope(this);
         for (auto& [id, stream] : impl_->streams_) {
           if (stream->is_writable() && !stream->is_readable()) {
@@ -2598,20 +2626,38 @@ bool Session::has_application() const {
   return !is_destroyed() && impl_->application_ != nullptr;
 }
 
-Session::ApplicationType Session::application_type() const {
-  if (is_destroyed()) return Application::Type::NONE;
-  return static_cast<Application::Type>(impl_->state()->application_type);
-}
-
 Session::Application& Session::application() const {
   DCHECK(!is_destroyed());
   DCHECK(impl_->application_);
   return *impl_->application_;
 }
 
-bool Session::stream_fin_managed_by_application() const {
-  return impl_->application_ != nullptr &&
-         impl_->application_->stream_fin_managed_by_application();
+std::string_view Session::DecodeAlpn(std::string_view wire) {
+  // ALPN wire format is length-prefixed: [len][name]. Extract the first entry.
+  if (wire.size() >= 2) {
+    uint8_t len = static_cast<uint8_t>(wire[0]);
+    if (len > 0 && static_cast<size_t>(len + 1) <= wire.size()) {
+      return wire.substr(1, len);
+    }
+  }
+  return {};
+}
+
+std::unique_ptr<Session::Application> Session::SelectApplicationFromAlpn(
+    std::string_view alpn) {
+  // h3 and h3-XX variants use Http3ApplicationImpl.
+  // Everything else uses DefaultApplication.
+  if (alpn == "h3" || (alpn.size() > 3 && alpn.substr(0, 3) == "h3-")) {
+    return CreateHttp3Application(this, config().options.application_options);
+  }
+  return CreateDefaultApplication(this, config().options.application_options);
+}
+
+void Session::InstallApplicationForAlpn(std::string_view alpn) {
+  // Acting on the ClientHello twice would install a second Application over
+  // a live one; TLSSession::EarlySelection is what prevents that.
+  CHECK(!has_application());
+  SetApplication(SelectApplicationFromAlpn(alpn));
 }
 
 void Session::SetEarlyRemoteTransportParams(std::span<const uint8_t> params) {
@@ -2621,41 +2667,21 @@ void Session::SetEarlyRemoteTransportParams(std::span<const uint8_t> params) {
       *this, params.data(), params.size()));
 }
 
-// This method is called at any point where we need an application to be
-// attached. It checks whether JS has requested a specific implementation,
-// and either installs that, or the default (raw QUIC) application.
-bool Session::EnsureApplication() {
-  if (is_destroyed()) [[unlikely]]
-    return false;
-  if (impl_->application_) [[likely]]
-    return !flags_.application_start_failed;
-
-  if (application_type() == Application::Type::HTTP3) {
-    SetApplication(CreateHttp3Application(this));
-  } else {
-    SetApplication(
-        CreateDefaultApplication(this, Application_Options::kDefault));
+bool Session::RequireApplication() {
+  if (is_destroyed()) return false;
+  if (has_application()) return !flags_.application_start_failed;
+  // Nothing can use a connection that no session was started on. Inside an
+  // ngtcp2 callback, returning false fails the handshake instead.
+  Debug(this, "No application started");
+  if (!flags_.in_ngtcp2_callback_scope) {
+    SetLastError(QuicError::ForTransport(NGTCP2_CONNECTION_REFUSED));
+    Close();
   }
-
-  // If the keys are already ready, that means we should start immediately.
-  // If application start fails then we can't continue. Inside an ngtcp2
-  // callback the session can't be closed directly, but the failure sticks,
-  // and HandshakeCompleted() then fails the callback, which closes it.
-  if (keys_ready_ && !application().Start()) {
-    Debug(this, "Application start failed");
-    flags_.application_start_failed = 1;
-    if (!flags_.in_ngtcp2_callback_scope) {
-      SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
-      Close();
-    }
-    return false;
-  }
-  return true;
+  return false;
 }
 
 void Session::SetApplication(std::unique_ptr<Application> app) {
   DCHECK(!impl_->application_);
-  DCHECK(app);
   impl_->state()->application_type = static_cast<uint8_t>(app->type());
   impl_->state()->headers_supported = static_cast<uint8_t>(
       app->SupportsHeaders() ? HeadersSupportState::SUPPORTED
@@ -2672,7 +2698,15 @@ void Session::SetApplication(std::unique_ptr<Application> app) {
   impl_->state()->internal_error_code = app->GetInternalErrorCode();
   impl_->state()->request_rejected_code = app->GetRequestRejectedCode();
   impl_->application_ = std::move(app);
-  impl_->state()->application_installed = 1;
+
+  // A client can start its session after its keys were installed (from JS
+  // run when the handshake completes), in which case the key callbacks that
+  // would start the Application have already run, so we have to retrigger
+  // app.start() here:
+  if (keys_ready_ && !application().Start()) {
+    Debug(this, "Application start failed");
+    flags_.application_start_failed = 1;
+  }
 }
 
 const SocketAddress& Session::remote_address() const {
@@ -2863,11 +2897,12 @@ bool Session::AfterNgtcp2Read(int err) {
         if (is_destroyed()) return true;
 
         // The ClientHello has been processed: SNI and ALPN are selected and
-        // the Application is installed, but the handshake is stopped short
-        // of ticket decryption, so no early data exists yet. Surface the
-        // session, then let the handshake run on. The guard makes this fire
-        // exactly once, on whichever packet completed the ClientHello, so a
-        // ClientHello split across datagrams is handled correctly.
+        // the Application is installed (unless JS is to start one), but the
+        // handshake is stopped short of ticket decryption, so no early data
+        // exists yet. Surface the session, then let the handshake run on. The
+        // guard makes this fire exactly once, on whichever packet completed
+        // the ClientHello, so a ClientHello split across datagrams is handled
+        // correctly.
         if (is_server() && tls_session().early_selection() ==
                                TLSSession::EarlySelection::kSelected) {
           endpoint().EmitNewSession(BaseObjectPtr<Session>(this));
@@ -3107,9 +3142,6 @@ datagram_id Session::SendDatagram(Store&& data) {
     return 0;
   }
 
-  if (!EnsureApplication()) [[unlikely]]
-    return 0;
-
   const ngtcp2_transport_params* tp = remote_transport_params();
   uint64_t max_datagram_size = MaxDatagramPayload(tp->max_datagram_frame_size);
 
@@ -3214,9 +3246,6 @@ MaybeLocal<Object> Session::OpenStream(Direction direction,
   // at all now, even in a pending state. The implication is that that session
   // is destroyed or closing.
   if (!can_create_streams()) [[unlikely]]
-    return {};
-
-  if (!EnsureApplication()) [[unlikely]]
     return {};
 
   // If can_open_streams() returns false, we are able to create streams but
@@ -3414,13 +3443,14 @@ void Session::StreamDataBlocked(stream_id id) {
 
 void Session::CollectSessionTicketAppData(
     SessionTicket::AppData* app_data) const {
-  if (!has_application()) [[unlikely]]
-    return;
+  DCHECK(!is_destroyed());
   application().CollectSessionTicketAppData(app_data);
 }
 
 SessionTicket::AppData::Status Session::ExtractSessionTicketAppData(
     const SessionTicket::AppData& app_data, Flag flag) {
+  DCHECK(!is_destroyed());
+  // Renew, so the client stops offering a ticket that is never accepted.
   if (!has_application()) [[unlikely]] {
     return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
   }
@@ -3895,11 +3925,9 @@ bool Session::HandshakeCompleted() {
 
   EmitHandshakeComplete();
 
-  if (is_destroyed()) return false;
-
-  // Handshake is completed, session.opened has been emitted finished & any
-  // following microtasks - time up, we now need an Application to continue.
-  if (!EnsureApplication()) return false;
+  // The handshake is complete and session.opened has resolved, with its
+  // microtasks run, so the session needs its Application now.
+  if (!RequireApplication()) return false;
 
   return true;
 }
@@ -4256,8 +4284,9 @@ void Session::EmitApplication() {
   if (!env()->can_call_into_js()) return;
 
   if (!has_application()) {
-    // The application has not yet been installed, or the session has been
-    // destroyed. In either case, the application options are not available.
+    // The application has not yet been selected (ALPN negotiation is not
+    // yet complete on the server) or the session has been destroyed. In
+    // either case, the application options are not available.
     // Should not happen, but we bail out
     return;
   }
@@ -4462,12 +4491,15 @@ void Session::InitPerContext(Realm* realm, Local<Object> target) {
       static_cast<uint8_t>(Direction::UNIDIRECTIONAL);
   static constexpr auto QUIC_APPLICATION_DEFAULT =
       static_cast<uint8_t>(Application::Type::DEFAULT);
+  static constexpr auto QUIC_APPLICATION_HTTP3 =
+      static_cast<uint8_t>(Application::Type::HTTP3);
   static constexpr auto QUIC_PROTO_MAX = NGTCP2_PROTO_VER_MAX;
   static constexpr auto QUIC_PROTO_MIN = NGTCP2_PROTO_VER_MIN;
 
   NODE_DEFINE_CONSTANT(target, STREAM_DIRECTION_BIDIRECTIONAL);
   NODE_DEFINE_CONSTANT(target, STREAM_DIRECTION_UNIDIRECTIONAL);
   NODE_DEFINE_CONSTANT(target, QUIC_APPLICATION_DEFAULT);
+  NODE_DEFINE_CONSTANT(target, QUIC_APPLICATION_HTTP3);
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_HEADER_LIST_PAIRS);
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_HEADER_LENGTH);
   NODE_DEFINE_CONSTANT(target, QUIC_PROTO_MAX);

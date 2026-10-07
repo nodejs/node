@@ -36,7 +36,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // Initiate key update before sending data.
-clientSession.updateKey();
+clientSession.connection.updateKey();
 
 // Open a stream and send data — should work with new keys.
 const stream = await clientSession.createBidirectionalStream();

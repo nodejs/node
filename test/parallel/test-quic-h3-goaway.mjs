@@ -67,13 +67,13 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
     }, 2),
   });
 
-  const quicSession = await connect(serverEndpoint.address, {
+  const connection = await connect(serverEndpoint.address, {
     alpn: 'h3',
-    autoWrap: false,
+    autoStart: false,
     servername: 'localhost',
     verifyPeer: 'manual',
   });
-  const clientSession = Http3Session.from(quicSession, {
+  const clientSession = Http3Session.start(connection, {
     // Ongoaway fires when the peer sends GOAWAY.
     ongoaway: mustCall(function(lastStreamId) {
       assert.strictEqual(lastStreamId, -1n);

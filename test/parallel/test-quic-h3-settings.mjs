@@ -14,7 +14,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect, Http3Session } = await import('node:quic');
+const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -29,11 +29,7 @@ const decoder = new TextDecoder();
 {
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (quicSession) => {
-    // Allow 5 header pairs: 4 pseudo-headers + 1 custom.
-    const ss = Http3Session.from(quicSession, {
-      settings: { maxHeaderPairs: 5 },
-    });
+  const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
       await stream.closed;
       ss.close();
@@ -41,8 +37,9 @@ const decoder = new TextDecoder();
     });
   }), {
     alpn: ['h3'],
-    autoWrap: false,
     sni: { '*': { keys: [key], certs: [cert] } },
+    // Allow 5 header pairs: 4 pseudo-headers + 1 custom.
+    application: { maxHeaderPairs: 5 },
     onheaders: mustCall(function(headers) {
       assert.strictEqual(headers[':method'], 'GET');
       assert.strictEqual(headers[':path'], '/limited');
@@ -96,12 +93,7 @@ const decoder = new TextDecoder();
   const serverDone = Promise.withResolvers();
   const longValue = 'x'.repeat(200);
 
-  const serverEndpoint = await listen(mustCall(async (quicSession) => {
-    // Limit total header bytes. The 4 pseudo-headers fit within 100
-    // bytes, but adding x-long (6 + 200 = 206 bytes) exceeds it.
-    const ss = Http3Session.from(quicSession, {
-      settings: { maxHeaderLength: 100 },
-    });
+  const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
       await stream.closed;
       ss.close();
@@ -109,8 +101,10 @@ const decoder = new TextDecoder();
     });
   }), {
     alpn: ['h3'],
-    autoWrap: false,
     sni: { '*': { keys: [key], certs: [cert] } },
+    // Limit total header bytes. The 4 pseudo-headers fit within 100
+    // bytes, but adding x-long (6 + 200 = 206 bytes) exceeds it.
+    application: { maxHeaderLength: 100 },
     onheaders: mustCall(function(headers) {
       assert.strictEqual(headers[':method'], 'GET');
       assert.strictEqual(headers[':path'], '/length-limited');
@@ -155,14 +149,11 @@ const decoder = new TextDecoder();
 {
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (quicSession) => {
-    const ss = Http3Session.from(quicSession, {
-      settings: { enableConnectProtocol: true, enableDatagrams: true },
-      onsettings: mustCall((appopt) => {
-        assert.strictEqual(appopt.enableDatagrams, true);
-        assert.strictEqual(appopt.enableConnectProtocol, false);
-        // Must be false, as this is only sent from server side
-      }),
+  const serverEndpoint = await listen(mustCall(async (ss) => {
+    ss.onsettings = mustCall((appopt) => {
+      assert.strictEqual(appopt.enableDatagrams, true);
+      assert.strictEqual(appopt.enableConnectProtocol, false);
+      // Must be false, as this is only sent from server side
     });
     ss.onstream = mustCall(async (stream) => {
       await stream.closed;
@@ -171,8 +162,8 @@ const decoder = new TextDecoder();
     });
   }), {
     alpn: ['h3'],
-    autoWrap: false,
     sni: { '*': { keys: [key], certs: [cert] } },
+    application: { enableConnectProtocol: true, enableDatagrams: true },
     onheaders: mustCall(function(headers) {
       this.sendHeaders({ ':status': '200' });
       this.writer.writeSync(encoder.encode('settings-ok'));
@@ -180,14 +171,11 @@ const decoder = new TextDecoder();
     }),
   });
 
-  const quicSession = await connect(serverEndpoint.address, {
+  const clientSession = await connect(serverEndpoint.address, {
     alpn: 'h3',
-    autoWrap: false,
     servername: 'localhost',
     verifyPeer: 'manual',
-  });
-  const clientSession = Http3Session.from(quicSession, {
-    settings: { enableConnectProtocol: true, enableDatagrams: true },
+    application: { enableConnectProtocol: true, enableDatagrams: true },
   });
   clientSession.onsettings = mustCall((appopt) => {
     assert.strictEqual(appopt.enableConnectProtocol, true);

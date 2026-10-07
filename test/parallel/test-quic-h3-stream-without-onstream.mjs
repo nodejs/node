@@ -151,11 +151,7 @@ const kNonConsumerCallbacks = ['oninfo', 'ontrailers', 'onwanttrailers'];
   // session actually attaches to a received stream.
   const bootstrap = await listen(mustCall((session) => {
     session.onerror = () => {};
-    session.onstream = () => {};
-  }), {
-    alpn: ['h3'],
-    sni: { '*': { keys: [key], certs: [cert] } },
-  });
+  }), { alpn: ['h3'], sni: { '*': { keys: [key], certs: [cert] } }, onstream: () => {} });
   const bootSession = await connect(bootstrap.address, {
     alpn: 'h3',
     servername: 'localhost',
@@ -175,14 +171,14 @@ const kNonConsumerCallbacks = ['oninfo', 'ontrailers', 'onwanttrailers'];
   const applied = Promise.withResolvers();
   const serverEndpoint = await listen(mustCall((session) => {
     session.onerror = () => {};
-    session.onstream = mustCall((stream) => {
-      applied.resolve(candidates.filter((n) => typeof stream[n] === 'function'));
-    });
   }), {
     __proto__: null,
     ...probes,
     alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
+    onstream: mustCall((stream) => {
+      applied.resolve(candidates.filter((n) => typeof stream[n] === 'function'));
+    }),
   });
 
   const clientSession = await connect(serverEndpoint.address, {

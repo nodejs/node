@@ -367,9 +367,9 @@ class TLSContext final : public MemoryRetainer,
   // connection cannot be served at all.
   TLSContext* SelectSNIContext(std::string_view servername);
 
-  // Performs the server's early selection: SNI, then ALPN, then the
-  // Application, and then suspends the handshake. See the comment on
-  // TLSSession::EarlySelection.
+  // Performs the server's early selection: SNI, then ALPN, then (with
+  // autoStart) the Application, and then suspends the handshake. See the
+  // comment on TLSSession::EarlySelection.
   static crypto::ClientHelloResult OnClientHello(
       const crypto::ClientHelloContext& hello);
 

@@ -21,7 +21,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   await serverSession.opened;
 
   // Server initiates key update.
-  serverSession.updateKey();
+  serverSession.connection.updateKey();
 
   serverSession.onstream = mustCall(async (stream) => {
     const data = await bytes(stream);
