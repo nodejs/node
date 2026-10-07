@@ -67,7 +67,6 @@ env:
   PYTHON_VERSION: '3.14'
   FLAKY_TESTS: keep_retrying
   CLANG_VERSION: '19'
-  NODE_VERSION: lts/*
 
 permissions:
   contents: read
@@ -85,10 +84,6 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
-      - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
       - name: Make tarball
         run: |
           export DISTTYPE=nightly
