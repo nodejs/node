@@ -240,6 +240,7 @@ if (isGitPresent) {
         code: 'EINVAL',
         errno: -22,
         syscall: 'rm',
+        message: /^EINVAL: invalid argument, rm/,
       });
     } finally {
       fs.rmSync(dotDir, common.mustNotMutateObjectDeep({
