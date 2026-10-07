@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#26.11.1">26.11.1</a><br/>
 <a href="#26.11.0">26.11.0</a><br/>
 <a href="#26.10.0">26.10.0</a><br/>
 <a href="#26.9.0">26.9.0</a><br/>
@@ -55,6 +56,16 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="26.11.1"></a>
+
+## 2026-10-07, Version 26.11.1 (Current), @aduh95
+
+### Commits
+
+* \[[`2dc4638e85`](https://github.com/nodejs/node/commit/2dc4638e85)] - _**Revert**_ "**build**: toggle doc-kit verbosity based on V" (Antoine du Hamel)
+* \[[`3febbc54ec`](https://github.com/nodejs/node/commit/3febbc54ec)] - _**Revert**_ "**build, doc**: move to redesign" (Antoine du Hamel)
+* \[[`173250e2e7`](https://github.com/nodejs/node/commit/173250e2e7)] - _**Revert**_ "**tools**: bump the doc group in /tools/doc with 4 updates" (Antoine du Hamel)
 
 <a id="26.11.0"></a>
 
