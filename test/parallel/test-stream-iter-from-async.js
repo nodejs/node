@@ -724,6 +724,78 @@ async function testFromSyncSourceBatching() {
   ]);
 }
 
+async function testFromSyncSourceLargeAndEmptyBatches() {
+  // Batches of more than 128 chunks are split, after the chunks collected
+  // before them; empty batches only flush collected chunks. Returning while
+  // a batch is split closes the source, returning after its last batch
+  // does not.
+  const large = Array.from({ length: 300 }, () => new Uint8Array(1));
+  let log = [];
+  let iterator = from(createLoggedSyncSource(log, [
+    Uint8Array.of(1), [], [], large, Uint8Array.of(2),
+  ]))[Symbol.asyncIterator]();
+  for (let i = 0; i < 6; i++) await settle(log, `result ${i}`, iterator.next());
+  assert.deepStrictEqual(log, [
+    'iterator', 'next 0', 'next 1', 'result 0: 1', 'next 2', 'next 3',
+    'result 1: 128', 'result 2: 128', 'result 3: 44', 'next 4', 'next 5',
+    'result 4: 1', 'result 5: done',
+  ]);
+
+  log = [];
+  iterator = from(createLoggedSyncSource(log, [large]))[
+    Symbol.asyncIterator]();
+  await settle(log, 'result', iterator.next());
+  await settle(log, 'return', iterator.return());
+  assert.deepStrictEqual(log, [
+    'iterator', 'next 0', 'result: 128', 'return', 'return: done',
+  ]);
+
+  // A result whose value getter throws ends the iteration without closing
+  // the source.
+  log = [];
+  const source = {
+    [Symbol.iterator]() {
+      return {
+        next() {
+          log.push('next');
+          return { done: false, get value() { throw new Error('getter'); } };
+        },
+        return() {
+          log.push('return');
+          return { done: true };
+        },
+      };
+    },
+  };
+  iterator = from(source)[Symbol.asyncIterator]();
+  await settle(log, 'result 0', iterator.next());
+  await settle(log, 'result 1', iterator.next());
+  assert.deepStrictEqual(log, ['next', 'result 0: getter', 'result 1: done']);
+
+  // The next() method of the source's iterator is read once, as for...of
+  // reads it.
+  let reads = 0;
+  let count = 0;
+  const accessorSource = {
+    [Symbol.iterator]() {
+      return {
+        get next() {
+          reads++;
+          return () => (count < 3 ?
+            { done: false, value: [Uint8Array.of(count++)] } :
+            { done: true, value: undefined });
+        },
+      };
+    },
+  };
+  const chunks = [];
+  for await (const batch of from(accessorSource)) chunks.push(...batch);
+  assert.deepStrictEqual(chunks, [
+    Uint8Array.of(0), Uint8Array.of(1), Uint8Array.of(2),
+  ]);
+  assert.strictEqual(reads, 1);
+}
+
 async function testFromSyncSourceErrors() {
   // An error from the source does not close it.
   let log = [];
@@ -900,6 +972,7 @@ Promise.all([
   testFromReturnAndThrowBeforeStart(),
   testFromReturnAndThrowCloseSource(),
   testFromSyncSourceBatching(),
+  testFromSyncSourceLargeAndEmptyBatches(),
   testFromSyncSourceErrors(),
   testFromSyncSourceReturnAndThrow(),
   testFromSyncSourceQueuesBehindReturn(),
