@@ -2,6 +2,20 @@ header: netdb.h
 standards:
   - posix
 macros:
+  - macro_name: AI_PASSIVE
+    macro_header: netdb-macros.h
+  - macro_name: AI_CANONNAME
+    macro_header: netdb-macros.h
+  - macro_name: AI_NUMERICHOST
+    macro_header: netdb-macros.h
+  - macro_name: AI_NUMERICSERV
+    macro_header: netdb-macros.h
+  - macro_name: AI_V4MAPPED
+    macro_header: netdb-macros.h
+  - macro_name: AI_ALL
+    macro_header: netdb-macros.h
+  - macro_name: AI_ADDRCONFIG
+    macro_header: netdb-macros.h
   - macro_name: EAI_AGAIN
     macro_header: netdb-macros.h
   - macro_name: EAI_BADFLAGS
@@ -33,6 +47,12 @@ functions:
     return_type: void
     arguments:
       - type: struct addrinfo *
+  - name: gai_strerror
+    standards:
+      - posix
+    return_type: const char *
+    arguments:
+      - type: int
   - name: getaddrinfo
     standards:
       - posix

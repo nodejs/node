@@ -70,8 +70,12 @@ class RecomputeKnownNodeAspectsProcessor {
 
   NodeBase* current_node() const { return current_node_; }
 
+  bool CanEagerDeopt() const {
+    return current_node()->properties().has_eager_deopt_info();
+  }
+
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
-    CHECK(current_node()->properties().has_eager_deopt_info());
+    CHECK(CanEagerDeopt());
     return &current_node()->eager_deopt_info()->top_frame();
   }
 
@@ -168,7 +172,33 @@ class RecomputeKnownNodeAspectsProcessor {
       if (mark_handler_reachable) {
         tracker_.MarkReachable(exception_handler);
       }
+      // Temporarily clear the cached constant value before merging into the
+      // exception handler so that the catch block does not cache this load. On
+      // the exception path, the value is guaranteed to be the_hole, and the
+      // catch block may resume a generator that initializes the variable.
+      // Restore the cached value afterward for the non-throwing fallthrough
+      // path where the value is known not to be the_hole.
+      // TODO(verwaest): Look into making loaded_context_constants_ monotonic,
+      // e.g. by folding the hole check into the context load rather than
+      // temporarily clearing the cached constant here.
+      ValueNode** cached_slot = nullptr;
+      ValueNode* value = nullptr;
+      if (auto* throw_if_hole = node->TryCast<ThrowReferenceErrorIfTdzHole>()) {
+        value = throw_if_hole->ValueInput().node();
+        if (auto* load = value->TryCast<LoadContextSlotNoCells>();
+            load && load->maybe_assigned() == kNotAssigned) {
+          ValueNode*& slot = known_node_aspects().GetContextCachedValue(
+              load->input(0).node(), load->offset(), kNotAssigned);
+          if (slot == value) {
+            cached_slot = &slot;
+            *cached_slot = nullptr;
+          }
+        }
+      }
       Merge(exception_handler);
+      if (cached_slot) {
+        *cached_slot = value;
+      }
     }
   }
 

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --maglev
-// Flags: --typed-array-length-loading
+// Flags: --typed-array-length-loading --mock-arraybuffer-allocator
 
 // Use a top-level HOLEY_SMI_ELEMENTS array so that the test function doesn't
 // get confused about unexpected ElementsKinds in configs which don't have
@@ -26,9 +26,9 @@ if (%Is64Bit()) {
   %OptimizeMaglevOnNextCall(foo);
   const a1 = foo(100);
   assertEquals(1, a1[100]);
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 
   const a2 = foo(largeLength);
   assertEquals(1, a2[largeLength]);
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 }

@@ -937,7 +937,7 @@ ABSL_RETIRED_FLAG(std::string, old_str_flag, "", absl::StrCat("old ", "descr"));
 
 namespace {
 
-bool initialization_order_fiasco_test ABSL_ATTRIBUTE_UNUSED = [] {
+bool initialization_order_fiasco_test [[maybe_unused]] = [] {
   // Iterate over all the flags during static initialization.
   // This should not trigger ASan's initialization-order-fiasco.
   auto* handle1 = absl::FindCommandLineFlag("flag_on_separate_file");

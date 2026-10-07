@@ -238,7 +238,10 @@ def scan_cpp(v8_root: str,
   (-I../../v8/src, --sysroot=../../build/..., ...) resolve the same way
   clang itself would resolve them in the build.
   """
-  driver_path = os.path.abspath(driver_path)
+  # Prefix the source with '.' so neither clang nor clang-cl can parse a
+  # leading '-' or '/' as an option.
+  driver_path = os.path.join(
+      ".", os.path.relpath(os.path.abspath(driver_path), parse_cwd))
   options = (
       cindex.TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD
       | cindex.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES)

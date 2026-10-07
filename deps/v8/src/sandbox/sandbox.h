@@ -128,10 +128,10 @@ class V8_EXPORT_PRIVATE Sandbox {
   /**
    * Returns true if the first four GB of the address space are inaccessible.
    *
-   * During initialization, the sandbox will also attempt to create an
-   * inaccessible mapping in the first four GB of the address space. This is
-   * useful to mitigate Smi<->HeapObject confusion issues, in which a (32-bit)
-   * Smi is treated as a pointer and dereferenced.
+   * During initialization, the sandbox checks whether the platform/allocator
+   * has reserved an inaccessible zero segment covering the first four GB of the
+   * address space. This is useful to mitigate Smi<->HeapObject confusion
+   * issues, in which a (32-bit) Smi is treated as a pointer and dereferenced.
    */
   bool smi_address_range_is_inaccessible() const {
     return smi_address_range_reserved_;
@@ -313,7 +313,7 @@ class V8_EXPORT_PRIVATE Sandbox {
 
   // Performs final initialization steps after the sandbox address space has
   // been initialized. Called from the two Initialize variants above.
-  void FinishInitialization();
+  void FinishInitialization(v8::Platform* platform);
 
   // Initialize the constant objects for this sandbox.
   void InitializeConstants();
@@ -353,11 +353,12 @@ class V8_EXPORT_PRIVATE Sandbox {
   // Constant objects inside this sandbox.
   SandboxedPointerConstants constants_;
 
-  // Besides the address space reservation for the sandbox, we also try to
-  // reserve the first four gigabytes of the virtual address space (with an
-  // inaccessible mapping). This for example mitigates Smi<->HeapObject
-  // confusion bugs in which we treat a Smi value as a pointer and access it.
-  static bool smi_address_range_reserved_;
+  // Besides the address space reservation for the sandbox, the first four
+  // gigabytes of the virtual address space may be reserved by the
+  // platform/allocator as an inaccessible zero segment. This for example
+  // mitigates Smi<->HeapObject confusion bugs in which we treat a Smi value as
+  // a pointer and access it.
+  bool smi_address_range_reserved_ = false;
 
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   thread_local static Sandbox* current_;

@@ -300,7 +300,7 @@ ABSL_NAMESPACE_END
 // retired flags are cleaned up.
 #define ABSL_RETIRED_FLAG(type, name, default_value, explanation)      \
   static absl::flags_internal::RetiredFlag<type> RETIRED_FLAGS_##name; \
-  ABSL_ATTRIBUTE_UNUSED static const auto RETIRED_FLAGS_REG_##name =   \
+  [[maybe_unused]] static const auto RETIRED_FLAGS_REG_##name =        \
       (RETIRED_FLAGS_##name.Retire(#name),                             \
        ::absl::flags_internal::FlagRegistrarEmpty{})
 

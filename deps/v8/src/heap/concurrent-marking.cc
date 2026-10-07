@@ -377,9 +377,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
   TaskState* task_state = task_state_[task_id].get();
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
   MarkingWorklists::Local local_marking_worklists(
-      marking_worklists_, cpp_heap
-                              ? cpp_heap->CreateCppMarkingState()
-                              : MarkingWorklists::Local::kNoCppMarkingState);
+      marking_worklists_, cpp_heap->CreateCppMarkingState());
   WeakObjects::Local local_weak_objects(weak_objects_);
   ConcurrentMarkingVisitor visitor(
       &local_marking_worklists, &local_weak_objects, heap_, mark_compact_epoch,

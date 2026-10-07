@@ -185,17 +185,17 @@ class MaglevGraphBuilder {
   Graph* graph() const { return graph_; }
   Zone* zone() const { return compilation_unit_->zone(); }
 
-  compiler::ScopeInfoRef GetScopeInfo(interpreter::Register reg) const {
+  ContextScopeInfo GetScopeInfo(interpreter::Register reg) const {
     auto opt_scope_info = register_scope_infos_[reg];
     DCHECK(opt_scope_info.has_value());
-    return opt_scope_info.value();
+    return opt_scope_info;
   }
 
-  compiler::ScopeInfoRef GetCurrentScopeInfo() const {
+  ContextScopeInfo GetCurrentScopeInfo() const {
     return GetScopeInfo(interpreter::Register::current_context());
   }
 
-  void SetCurrentScopeInfo(compiler::OptionalScopeInfoRef scope_info);
+  void SetCurrentScopeInfo(ContextScopeInfo scope_info);
 
   MaglevCompilationUnit* compilation_unit() const { return compilation_unit_; }
   const InterpreterFrameState& current_interpreter_frame() const {
@@ -219,6 +219,8 @@ class MaglevGraphBuilder {
   int inlining_depth() const { return compilation_unit_->inlining_depth(); }
 
   DeoptFrame* GetLatestCheckpointedFrame();
+  // A checkpointed frame can always be built while the graph is being built.
+  bool CanEagerDeopt() const { return true; }
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
     return GetLatestCheckpointedFrame();
   }
@@ -408,7 +410,7 @@ class MaglevGraphBuilder {
   }
 
   ValueNode* GetContextAtDepth(ValueNode* context, size_t depth,
-                               compiler::ScopeInfoRef* out_scope_info);
+                               ContextScopeInfo* out_scope_info);
   bool CheckContextExtensions(size_t depth);
 
   void KillPeeledLoopTargets(int peelings);
@@ -478,15 +480,15 @@ class MaglevGraphBuilder {
                                         compiler::ScopeInfoRef scope_info);
   ValueNode* TryGetParentContext(ValueNode* node);
   void MinimizeContextChainDepth(ValueNode** context, size_t* depth,
-                                 compiler::ScopeInfoRef* scope_info);
+                                 ContextScopeInfo* scope_info);
   void EscapeContext();
   ReduceResult BuildLoadContextSlot(ValueNode* context, size_t depth,
                                     int slot_index, ContextMode context_mode,
-                                    compiler::ScopeInfoRef scope_info);
+                                    ContextScopeInfo scope_info);
   ReduceResult BuildStoreContextSlot(ValueNode* context, size_t depth,
                                      int slot_index, ValueNode* value,
                                      ContextMode context_mode,
-                                     compiler::ScopeInfoRef scope_info);
+                                     ContextScopeInfo scope_info);
   ReduceResult BuildExtendPropertiesBackingStore(compiler::MapRef map,
                                                  ValueNode* receiver,
                                                  ValueNode* property_array);
@@ -589,7 +591,7 @@ class MaglevGraphBuilder {
 
     current_interpreter_frame_.set(dst, current_interpreter_frame_.get(src));
 
-    compiler::OptionalScopeInfoRef src_scope_info;
+    ContextScopeInfo src_scope_info;
     if (src == interpreter::Register::virtual_accumulator()) {
       src_scope_info = accumulator_scope_info_;
     } else {
@@ -1005,7 +1007,7 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryReduceAsyncFunctionResolve(
       ValueNode* async_function_object, ValueNode* value);
   bool TargetIsCurrentCompilingUnit(compiler::JSFunctionRef target);
-  bool IsTheHoleConstant(ValueNode* node);
+  bool IsTdzHoleConstant(ValueNode* node);
   ReduceResult BuildCallKnownJSFunction(
       ValueNode* context, ValueNode* function, ValueNode* new_target,
       JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
@@ -1931,8 +1933,8 @@ class MaglevGraphBuilder {
   BasicBlockRef* jump_targets_;
   MergePointInterpreterFrameState** merge_states_;
 
-  RegisterFrameArray<compiler::OptionalScopeInfoRef> register_scope_infos_;
-  compiler::OptionalScopeInfoRef accumulator_scope_info_;
+  RegisterFrameArray<ContextScopeInfo> register_scope_infos_;
+  ContextScopeInfo accumulator_scope_info_;
 
   InterpreterFrameState current_interpreter_frame_;
 
@@ -1980,7 +1982,7 @@ class MaglevGraphBuilder {
   ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>
       unobserved_context_slot_stores_;
 
-  ZoneMap<int, compiler::OptionalScopeInfoRef> dead_scope_infos_;
+  ZoneMap<int, ContextScopeInfo> dead_scope_infos_;
 
   bool is_resumable_function_ = false;
 

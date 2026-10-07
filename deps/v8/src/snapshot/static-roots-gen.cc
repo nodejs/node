@@ -122,26 +122,42 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
 
       static const char* kPreString = "  static constexpr Tagged_t k";
       const std::string& name = gen.camel_name(root);
-      out << kPreString << name << " =";
-
-      // Emit absolute values for constants we need to copy to other files.
-      if (prev_ptr == 0 || ptr > 0xff00 || root == RootIndex::kUndefinedValue ||
-          root == RootIndex::kNullValue || root == RootIndex::kTrueValue ||
-          root == RootIndex::kFalseValue || root == RootIndex::kempty_string) {
-        size_t ptr_len = ptr == 0 ? 1 : ceil(log2(ptr) / 4.0);
-        // Full line is: "kPreString|name = 0x.....;"
-        size_t len = strlen(kPreString) + name.length() + 5 + ptr_len + 1;
-        if (len > 80) out << "\n     ";
-        out << " 0x" << std::hex << ptr << std::dec << ";\n";
+      // TODO(leszeks): Remove DisabledTdzHole special-casing when
+      // v8_enable_tdz_hole is removed.
+      if (name == "TdzHoleValue" || name == "DisabledTdzHoleValue") {
+        out << "  // TODO(leszeks): Remove DisabledTdzHole when "
+               "v8_enable_tdz_hole is removed.\n"
+            << "#ifdef V8_ENABLE_TDZ_HOLE\n"
+            << kPreString << "TdzHoleValue = 0x" << std::hex << ptr << std::dec
+            << ";\n"
+            << "#else\n"
+            << kPreString << "DisabledTdzHoleValue = 0x" << std::hex << ptr
+            << std::dec << ";\n"
+            << "#endif\n";
       } else {
-        // Otherwise emit relative definitions to reduce churn.
-        std::string rel_str =
-            " k" + prev_name + " + " + std::to_string(ptr - prev_ptr);
-        // Full line is: "kPreString|name = k|prev_name + .....;"
-        size_t len =
-            strlen(kPreString) + name.length() + 2 + rel_str.length() + 1;
-        if (len > 80) out << "\n     ";
-        out << rel_str << ";\n";
+        out << kPreString << name << " =";
+
+        // Emit absolute values for constants we need to copy to other files.
+        if (prev_ptr == 0 || ptr > 0xff00 ||
+            root == RootIndex::kUndefinedValue ||
+            root == RootIndex::kNullValue || root == RootIndex::kTrueValue ||
+            root == RootIndex::kFalseValue ||
+            root == RootIndex::kempty_string) {
+          size_t ptr_len = ptr == 0 ? 1 : ceil(log2(ptr) / 4.0);
+          // Full line is: "kPreString|name = 0x.....;"
+          size_t len = strlen(kPreString) + name.length() + 5 + ptr_len + 1;
+          if (len > 80) out << "\n     ";
+          out << " 0x" << std::hex << ptr << std::dec << ";\n";
+        } else {
+          // Otherwise emit relative definitions to reduce churn.
+          std::string rel_str =
+              " k" + prev_name + " + " + std::to_string(ptr - prev_ptr);
+          // Full line is: "kPreString|name = k|prev_name + .....;"
+          size_t len =
+              strlen(kPreString) + name.length() + 2 + rel_str.length() + 1;
+          if (len > 80) out << "\n     ";
+          out << rel_str << ";\n";
+        }
       }
 
       prev_name = name;
@@ -161,8 +177,21 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
       << "> StaticReadOnlyRootsPointerTable = {\n";
 
   {
-#define ENTRY(_1, _2, CamelName) \
-  out << "    StaticReadOnlyRoot::k" << #CamelName << ",\n";
+    // TODO(leszeks): Remove DisabledTdzHole special-casing when
+    // v8_enable_tdz_hole is removed.
+#define ENTRY(_1, _2, CamelName)                                \
+  if (std::string_view(#CamelName) == "TdzHoleValue" ||         \
+      std::string_view(#CamelName) == "DisabledTdzHoleValue") { \
+    out << "    // TODO(leszeks): Remove DisabledTdzHole when " \
+           "v8_enable_tdz_hole is removed.\n"                   \
+        << "#ifdef V8_ENABLE_TDZ_HOLE\n"                        \
+        << "    StaticReadOnlyRoot::kTdzHoleValue,\n"           \
+        << "#else\n"                                            \
+        << "    StaticReadOnlyRoot::kDisabledTdzHoleValue,\n"   \
+        << "#endif\n";                                          \
+  } else {                                                      \
+    out << "    StaticReadOnlyRoot::k" << #CamelName << ",\n";  \
+  }
     READ_ONLY_ROOT_LIST(ENTRY)
 #undef ENTRY
     out << "};\n";

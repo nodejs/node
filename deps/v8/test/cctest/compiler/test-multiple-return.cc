@@ -166,18 +166,12 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       OptimizedCompilationInfo info(base::ArrayVector("testing"),
                                     handles.main_zone(),
                                     CodeKind::WASM_FUNCTION);
-      DirectHandle<Code> code =
-          Pipeline::GenerateCodeForTesting(
+      wasm::WasmCompilationResult wasm_result =
+          Pipeline::GenerateWasmCodeForTesting(
               &info, handles.main_isolate(), desc, m.graph(),
               AssemblerOptions::Default(handles.main_isolate()),
-              m.ExportForTest())
-              .ToHandleChecked();
-#ifdef ENABLE_DISASSEMBLER
-      if (v8_flags.print_code) {
-        StdoutStream os;
-        code->Disassemble("multi_value", os, handles.main_isolate());
-      }
-#endif
+              m.ExportForTest());
+      CHECK(wasm_result.succeeded());
 
       const int a = 47, b = 12;
       int expect = 0;
@@ -189,10 +183,16 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       }
 
       std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
-          handles.main_isolate(), code->instruction_size());
+          handles.main_isolate(), wasm_result.code_desc.instr_size);
       wasm::WasmCodeRefScope wasm_code_ref_scope;
       wasm::WasmCode* wasm_code =
-          module->AddCodeForTesting(code, desc->signature_hash());
+          module->AddCodeForTesting(wasm_result, desc->signature_hash());
+#ifdef ENABLE_DISASSEMBLER
+      if (v8_flags.print_code) {
+        StdoutStream os;
+        wasm_code->Disassemble("multi_value", os);
+      }
+#endif
       WasmCodePointer code_pointer =
           wasm::GetProcessWideWasmCodePointerTable()
               ->AllocateAndInitializeEntry(wasm_code->instruction_start(),
@@ -287,18 +287,18 @@ void ReturnLastValue(MachineType type) {
 
     OptimizedCompilationInfo info(base::ArrayVector("testing"),
                                   handles.main_zone(), CodeKind::WASM_FUNCTION);
-    DirectHandle<Code> code =
-        Pipeline::GenerateCodeForTesting(
+    wasm::WasmCompilationResult wasm_result =
+        Pipeline::GenerateWasmCodeForTesting(
             &info, handles.main_isolate(), desc, m.graph(),
             AssemblerOptions::Default(handles.main_isolate()),
-            m.ExportForTest())
-            .ToHandleChecked();
+            m.ExportForTest());
+    CHECK(wasm_result.succeeded());
 
-    std::shared_ptr<wasm::NativeModule> module =
-        AllocateNativeModule(handles.main_isolate(), code->instruction_size());
+    std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
+        handles.main_isolate(), wasm_result.code_desc.instr_size);
     wasm::WasmCodeRefScope wasm_code_ref_scope;
     wasm::WasmCode* wasm_code =
-        module->AddCodeForTesting(code, desc->signature_hash());
+        module->AddCodeForTesting(wasm_result, desc->signature_hash());
     WasmCodePointer code_pointer =
         wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
             wasm_code->instruction_start(), wasm_code->signature_hash());
@@ -358,18 +358,18 @@ void ReturnSumOfReturns(MachineType type) {
 
     OptimizedCompilationInfo info(base::ArrayVector("testing"),
                                   handles.main_zone(), CodeKind::WASM_FUNCTION);
-    DirectHandle<Code> code =
-        Pipeline::GenerateCodeForTesting(
+    wasm::WasmCompilationResult wasm_result =
+        Pipeline::GenerateWasmCodeForTesting(
             &info, handles.main_isolate(), desc, m.graph(),
             AssemblerOptions::Default(handles.main_isolate()),
-            m.ExportForTest())
-            .ToHandleChecked();
+            m.ExportForTest());
+    CHECK(wasm_result.succeeded());
 
-    std::shared_ptr<wasm::NativeModule> module =
-        AllocateNativeModule(handles.main_isolate(), code->instruction_size());
+    std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
+        handles.main_isolate(), wasm_result.code_desc.instr_size);
     wasm::WasmCodeRefScope wasm_code_ref_scope;
     wasm::WasmCode* wasm_code =
-        module->AddCodeForTesting(code, desc->signature_hash());
+        module->AddCodeForTesting(wasm_result, desc->signature_hash());
     WasmCodePointer code_pointer =
         wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
             wasm_code->instruction_start(), wasm_code->signature_hash());

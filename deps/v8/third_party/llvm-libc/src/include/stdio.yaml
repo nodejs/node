@@ -139,6 +139,14 @@ functions:
     return_type: void
     arguments:
       - type: FILE *
+  - name: fmemopen
+    standards:
+      - posix
+    return_type: FILE *
+    arguments:
+      - type: void *__restrict
+      - type: size_t
+      - type: const char *__restrict
   - name: fopen
     standards:
       - stdc

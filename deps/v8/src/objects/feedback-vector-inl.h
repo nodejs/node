@@ -357,6 +357,11 @@ Tagged<FeedbackCell> FeedbackVector::closure_feedback_cell(int index) const {
 Tagged<MaybeObject> FeedbackVector::SynchronizedGet(FeedbackSlot slot) const {
   const int i = slot.ToInt();
   DCHECK_LT(static_cast<unsigned>(i), static_cast<unsigned>(this->length()));
+
+  // See comment in SynchronizedSet.
+  DCHECK_NE(FeedbackSlotKind::kInvalid, GetKind(slot, kAcquireLoad));
+  DCHECK_EQ(1, FeedbackMetadata::GetSlotSize(GetKind(slot, kAcquireLoad)));
+
   Tagged<MaybeObject> value = raw_feedback_slots()[i].Acquire_Load();
   DCHECK(!IsOfLegacyType(value));
   return value;
@@ -368,6 +373,20 @@ void FeedbackVector::SynchronizedSet(FeedbackSlot slot,
   DCHECK(!IsOfLegacyType(value));
   const int i = slot.ToInt();
   DCHECK_LT(static_cast<unsigned>(i), static_cast<unsigned>(this->length()));
+
+  // Release-acquire semantics are only used for C++ accesses to slots of size
+  // 1. Longer slots are read as a group under the feedback_vector_access mutex
+  // (NexusConfig::GetFeedbackPair), so C++ writes must hold that mutex.
+  //
+  // Generated code is an exception and accesses slots without the mutex or
+  // release-acquire; its safety has to be checked case-by-case.
+  //
+  // Note that only the first slot of a group has a kind; accessing any of the
+  // following ones returns FeedbackSlotKind::kInvalid and fails the DCHECK_NE
+  // below.
+  DCHECK_NE(FeedbackSlotKind::kInvalid, GetKind(slot));
+  DCHECK_EQ(1, FeedbackMetadata::GetSlotSize(GetKind(slot)));
+
   raw_feedback_slots()[i].Release_Store(this, value, mode);
 }
 
@@ -595,6 +614,12 @@ void FeedbackNexus::SetFeedback(Tagged<FeedbackType> feedback,
                                 WriteBarrierMode mode_extra) {
   config()->SetFeedbackPair(vector(), slot(), feedback, mode, feedback_extra,
                             mode_extra);
+}
+
+template <typename FeedbackExtraType>
+void FeedbackNexus::SetFeedbackExtra(Tagged<FeedbackExtraType> feedback_extra,
+                                     WriteBarrierMode mode_extra) {
+  config()->SetFeedbackExtra(vector(), slot(), feedback_extra, mode_extra);
 }
 
 template <typename F>

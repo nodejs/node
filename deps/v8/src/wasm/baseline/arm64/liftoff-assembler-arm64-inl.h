@@ -314,22 +314,10 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
 }
 
 void LiftoffAssembler::AlignFrameSize() {
-  // The frame_size includes the frame marker. The frame marker has already been
-  // pushed on the stack though, so we don't need to allocate memory for it
-  // anymore.
-  int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
-
-  static_assert(kStackSlotSize == kXRegSize,
-                "kStackSlotSize must equal kXRegSize");
-
   // The stack pointer is required to be quadword aligned.
   // Misalignment will cause a stack alignment fault.
-  int misalignment = frame_size % kQuadWordSizeInBytes;
-  if (misalignment) {
-    int padding = kQuadWordSizeInBytes - misalignment;
-    frame_size += padding;
-    max_used_spill_offset_ += padding;
-  }
+  max_used_spill_offset_ =
+      RoundUp(max_used_spill_offset_, kQuadWordSizeInBytes);
 }
 
 void LiftoffAssembler::PatchPrepareStackFrame(

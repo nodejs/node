@@ -301,8 +301,7 @@ void Cord::InlineRep::UnrefTree() {
 // --------------------------------------------------------------------
 // Constructors and destructors
 
-Cord::Cord(absl::string_view src, MethodIdentifier method)
-    : contents_(InlineData::kDefaultInit) {
+Cord::Cord(absl::string_view src, MethodIdentifier method) {
   const size_t n = src.size();
   if (n <= InlineRep::kMaxInline) {
     contents_.set_data(src.data(), n);
@@ -313,7 +312,7 @@ Cord::Cord(absl::string_view src, MethodIdentifier method)
 }
 
 template <typename T, Cord::EnableIfString<T>>
-Cord::Cord(T&& src) : contents_(InlineData::kDefaultInit) {
+Cord::Cord(T&& src) {
   if (src.size() <= InlineRep::kMaxInline) {
     contents_.set_data(src.data(), src.size());
   } else {
@@ -594,7 +593,7 @@ void Cord::PrependArray(absl::string_view src, MethodIdentifier method) {
     size_t cur_size = contents_.inline_size();
     if (cur_size + src.size() <= InlineRep::kMaxInline) {
       // Use embedded storage.
-      InlineData data;
+      InlineData data{};
       data.set_inline_size(cur_size + src.size());
       memcpy(data.as_chars(), src.data(), src.size());
       memcpy(data.as_chars() + src.size(), contents_.data(), cur_size);
@@ -623,7 +622,7 @@ void Cord::PrependPrecise(absl::string_view src, MethodIdentifier method) {
   assert(src.size() <= cord_internal::kMaxFlatLength);
   if (contents_.remaining_inline_capacity() >= src.size()) {
     const size_t cur_size = contents_.inline_size();
-    InlineData data;
+    InlineData data{};
     data.set_inline_size(cur_size + src.size());
     memcpy(data.as_chars(), src.data(), src.size());
     memcpy(data.as_chars() + src.size(), contents_.data(), cur_size);

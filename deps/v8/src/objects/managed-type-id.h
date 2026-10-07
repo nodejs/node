@@ -27,26 +27,8 @@ constexpr const char* ToString(ManagedTypeId type_id) {
       return "WasmManagedData";
     case ManagedTypeId::kWasmNativeModule:
       return "WasmNativeModule";
-    case ManagedTypeId::kIcuBreakIterator:
-      return "IcuBreakIterator";
     case ManagedTypeId::kIcuBreakIteratorWithText:
       return "IcuBreakIteratorWithText";
-    case ManagedTypeId::kIcuLocale:
-      return "IcuLocale";
-    case ManagedTypeId::kIcuSimpleDateFormat:
-      return "IcuSimpleDateFormat";
-    case ManagedTypeId::kIcuDateIntervalFormat:
-      return "IcuDateIntervalFormat";
-    case ManagedTypeId::kIcuRelativeDateTimeFormatter:
-      return "IcuRelativeDateTimeFormatter";
-    case ManagedTypeId::kIcuListFormatter:
-      return "IcuListFormatter";
-    case ManagedTypeId::kIcuCollator:
-      return "IcuCollator";
-    case ManagedTypeId::kIcuPluralRules:
-      return "IcuPluralRules";
-    case ManagedTypeId::kIcuLocalizedNumberFormatter:
-      return "IcuLocalizedNumberFormatter";
     case ManagedTypeId::kTemporalDuration:
       return "TemporalDuration";
     case ManagedTypeId::kTemporalInstant:

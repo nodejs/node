@@ -32,11 +32,20 @@ if agents_dest.is_symlink():
 # 2. Ensure .agents is a real directory
 agents_dest.mkdir(parents=True, exist_ok=True)
 
-# Cleanup top-level dead symlinks in .agents/ (e.g. legacy extensions)
+# Cleanup top-level dead symlinks and legacy subdirectories in .agents/
 for item in agents_dest.iterdir():
   if item.is_symlink() and not item.exists():
     print(f"Removing dead top-level symlink {item}")
     item.unlink()
+  elif (item.is_dir() and not item.is_symlink() and
+        not (agents_src / item.name).exists()):
+    for sub_item in item.iterdir():
+      if sub_item.is_symlink() and not sub_item.exists():
+        print(f"Removing dead symlink {sub_item}")
+        sub_item.unlink()
+    if not any(item.iterdir()):
+      print(f"Removing empty legacy directory {item}")
+      item.rmdir()
 
 # 3. Process top-level items in agents/
 for item in agents_src.iterdir():
@@ -46,7 +55,7 @@ for item in agents_src.iterdir():
 
   dest_item = agents_dest / item.name
 
-  if item.name not in ["agents", "skills", "rules", "plugins"]:
+  if item.name not in ["skills", "rules", "plugins"]:
     # For other items, symlink directly
     if not dest_item.exists():
       create_symlink(item, dest_item)
@@ -77,10 +86,31 @@ for item in agents_src.iterdir():
       if not dest_sub.exists():
         create_symlink(shared_git_cl_helper, dest_sub)
 
+modular_rule = "@[Modular Rules](agents/prompts/templates/modular.md)"
 gemini_md_path = repo_root / "GEMINI.md"
 if not gemini_md_path.exists():
   with gemini_md_path.open("w") as f:
-    f.write("@[Modular Rules](agents/prompts/templates/modular.md)\n")
+    f.write(f"{modular_rule}\n")
   print(f"Created {gemini_md_path}")
 else:
-  print(f"Skipping {gemini_md_path} creation since it already exists.")
+  content = gemini_md_path.read_text()
+  updated = False
+  if "@agents/prompts/templates/modular.md" in content:
+    content = content.replace("@agents/prompts/templates/modular.md",
+                              modular_rule)
+    updated = True
+  if "@agents/prompts/common.md" in content:
+    if modular_rule in content:
+      content = content.replace("@agents/prompts/common.md\n", "")
+      content = content.replace("@agents/prompts/common.md", "")
+    else:
+      content = content.replace("@agents/prompts/common.md", modular_rule)
+      if not content.endswith("\n"):
+        content += "\n"
+    updated = True
+
+  if updated:
+    gemini_md_path.write_text(content)
+    print(f"Upgraded legacy rules in {gemini_md_path}")
+  else:
+    print(f"Skipping {gemini_md_path} creation since it already exists.")

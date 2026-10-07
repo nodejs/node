@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/base/hashing.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/frames.h"
@@ -1012,6 +1013,8 @@ Handle<Map> Map::GetDerivedMap(Isolate* isolate, DirectHandle<Map> from,
     return map;
   }
 
+  if (from->prototype() == *prototype) return handle(*from, isolate);
+
   // The TransitionToPrototype map will not have new_target_is_base reset. But
   // we don't need it to for proxies.
   return Map::TransitionRootMapToPrototypeForNewObject(isolate, from,
@@ -1378,8 +1381,10 @@ Handle<Map> Map::Normalize(Isolate* isolate, DirectHandle<Map> fast_map,
   }
   DirectHandle<NormalizedMapCache> cache;
   if (use_cache) {
+    Tagged<Object> maybe_native_context = meta_map->native_context_or_null();
+    DCHECK(!IsNull(maybe_native_context));
     Tagged<Object> normalized_map_cache =
-        meta_map->native_context()->normalized_map_cache();
+        Cast<NativeContext>(maybe_native_context)->normalized_map_cache();
     use_cache = !IsUndefined(normalized_map_cache);
     if (use_cache) {
       cache = Cast<NormalizedMapCache>(
@@ -2375,8 +2380,8 @@ Handle<Map> Map::CopyReplaceDescriptor(
 }
 
 int Map::Hash(Isolate* isolate, Tagged<HeapObject> prototype) {
-  // For performance reasons we only hash the 2 most variable fields of a map:
-  // prototype and bit_field2.
+  // Hash the prototype, instance type and bit_field2, mixing their bits before
+  // NormalizedMapCache reduces the hash to a cache index.
 
   int prototype_hash;
   if (IsNull(prototype)) {
@@ -2387,7 +2392,10 @@ int Map::Hash(Isolate* isolate, Tagged<HeapObject> prototype) {
     prototype_hash = receiver->GetOrCreateIdentityHash(isolate).value();
   }
 
-  return prototype_hash ^ bit_field2();
+  size_t hash =
+      base::Hasher::Combine(prototype_hash, static_cast<int>(bit_field2()),
+                            static_cast<int>(instance_type()));
+  return static_cast<int>(hash & 0x7FFFFFFF);
 }
 
 namespace {
@@ -2694,6 +2702,7 @@ Handle<Map> Map::TransitionRootMapToPrototypeForNewObject(
     Isolate* isolate, DirectHandle<Map> map,
     DirectHandle<JSPrototype> prototype) {
   DCHECK(IsUndefined(map->GetBackPointer()));
+  DCHECK_NE(map->prototype(), *prototype);
   Handle<Map> new_map = TransitionToUpdatePrototype(isolate, map, prototype);
   if (new_map->GetBackPointer() != *map &&
       map->IsInobjectSlackTrackingInProgress()) {
@@ -2709,6 +2718,7 @@ Handle<Map> Map::TransitionToUpdatePrototype(
     DirectHandle<JSPrototype> prototype) {
   Handle<Map> new_map;
   DCHECK(IsUndefined(map->GetBackPointer()));
+  DCHECK_NE(map->prototype(), *prototype);
   if (auto maybe_map = TransitionsAccessor::GetPrototypeTransition(
           isolate, *map, *prototype)) {
     new_map = handle(*maybe_map, isolate);

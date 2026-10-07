@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <iostream>
 
+#include "absl/base/config.h"
 #include "absl/base/optimization.h"
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cord_rep_btree.h"

@@ -121,6 +121,7 @@ absl_source_set("salted_seed_seq") {
   ]
   deps = [
     ":seed_material",
+    "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/container:inlined_vector",
     "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/types:optional",
@@ -150,6 +151,7 @@ absl_source_set("generate_real") {
   deps = [
     ":fastmath",
     ":traits",
+    "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/numeric:bits",
   ]
@@ -161,7 +163,10 @@ absl_source_set("fastmath") {
     ":*",
     "//third_party/abseil-cpp/absl/random:*",
   ]
-  deps = [ "//third_party/abseil-cpp/absl/numeric:bits" ]
+  deps = [
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/numeric:bits",
+  ]
 }
 
 absl_source_set("wide_multiply") {
@@ -219,6 +224,7 @@ absl_source_set("randen_engine") {
   deps = [
     ":iostream_state_saver",
     ":randen",
+    "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:endian",
     "//third_party/abseil-cpp/absl/meta:type_traits",
   ]

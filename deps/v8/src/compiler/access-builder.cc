@@ -413,10 +413,10 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectFunction() {
 // static
 FieldAccess AccessBuilder::ForJSGeneratorObjectReceiver() {
   FieldAccess access = {
-      kTaggedBase,          offsetof(JSGeneratorObject, receiver_),
-      Handle<Name>(),       OptionalMapRef(),
-      Type::Internal(),     MachineType::AnyTagged(),
-      kPointerWriteBarrier, "JSGeneratorObjectReceiver"};
+      kTaggedBase,       offsetof(JSGeneratorObject, receiver_),
+      Handle<Name>(),    OptionalMapRef(),
+      Type::Any(),       MachineType::AnyTagged(),
+      kFullWriteBarrier, "JSGeneratorObjectReceiver"};
   return access;
 }
 

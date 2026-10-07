@@ -98,7 +98,7 @@ bytecodes: [
                 B(Ldar), R(2),
                 B(Return),
   /*   32 S> */ B(LdaModuleVariable), I8(-1), U8(0),
-                B(ThrowReferenceErrorIfHole), U8(3:"goo"),
+                B(ThrowReferenceErrorIfTdzHole), U8(3:"goo"),
                 B(Star2),
                 B(LdaSmi), I8(42),
                 B(Star3),

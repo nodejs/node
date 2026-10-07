@@ -49,7 +49,7 @@ assert_test_function_fast_path(test_function_fast_path());
 %OptimizeMaglevOnNextCall(test_function_fast_path);
 assert_test_function_fast_path(test_function_fast_path());
 assertOptimized(test_function_fast_path);
-assertTrue(isMaglevved(test_function_fast_path));
+assertMaglevved(test_function_fast_path);
 assert_test_function_fast_path(test_function_fast_path());
 %OptimizeFunctionOnNextCall(test_function_fast_path);
 assert_test_function_fast_path(test_function_fast_path());

@@ -646,6 +646,7 @@ extern macro SizeStringConstant(): String;
 extern macro StringStringConstant(): String;
 extern macro SuppressedStringConstant(): String;
 extern macro TheHoleConstant(): TheHole;
+extern macro TdzHoleConstant(): TdzHole;
 extern macro PromiseHoleConstant(): PromiseHole;
 extern macro ToPrimitiveSymbolConstant(): PublicSymbol;
 extern macro ToStringStringConstant(): String;
@@ -657,6 +658,7 @@ extern macro ValueOfStringConstant(): String;
 extern macro InvalidDispatchHandleConstant(): DispatchHandle;
 
 const TheHole: TheHole = TheHoleConstant();
+const TdzHole: TdzHole = TdzHoleConstant();
 const PromiseHole: PromiseHole = PromiseHoleConstant();
 const Null: Null = NullConstant();
 const Undefined: Undefined = UndefinedConstant();

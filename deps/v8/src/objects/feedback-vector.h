@@ -30,6 +30,7 @@ namespace v8::internal {
 
 class IsCompiledScope;
 class FeedbackVectorSpec;
+class SimpleNameDictionary;
 
 enum class UpdateFeedbackMode {
   kOptionalFeedback,
@@ -427,6 +428,7 @@ V8_OBJECT class FeedbackVector : public HeapObject {
   // Conversion from an integer index to the underlying array to a slot.
   static inline FeedbackSlot ToSlot(intptr_t index);
 
+  // Use only for 1-sized slots. For longer slots, use FeedbackNexus helpers.
   inline Tagged<MaybeObject> SynchronizedGet(FeedbackSlot slot) const;
   inline void SynchronizedSet(FeedbackSlot slot, Tagged<MaybeObject> value,
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -954,6 +956,12 @@ class V8_EXPORT_PRIVATE NexusConfig {
                        Tagged<MaybeObject> feedback, WriteBarrierMode mode,
                        Tagged<MaybeObject> feedback_extra,
                        WriteBarrierMode mode_extra) const;
+  // Writes only the extra slot, leaving the main slot as it is. Like
+  // SetFeedbackPair, this takes the feedback_vector_access mutex, which is what
+  // readers of the slot group rely on.
+  void SetFeedbackExtra(Tagged<FeedbackVector> vector, FeedbackSlot start_slot,
+                        Tagged<MaybeObject> feedback_extra,
+                        WriteBarrierMode mode_extra) const;
 
  private:
   explicit NexusConfig(Isolate* isolate)
@@ -1115,6 +1123,9 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   void ConfigureCloneObject(DirectHandle<Map> source_map,
                             const MaybeObjectHandle& handler);
 
+  // For StringAddAndInternalize ICs.
+  void ConfigureStringAddInternalizeCache(Tagged<SimpleNameDictionary> cache);
+
 // Bit positions in a smi that encodes lexical environment variable access.
 #define LEXICAL_MODE_BIT_FIELDS(V, _)  \
   V(ContextIndexBits, unsigned, 12, _) \
@@ -1135,6 +1146,10 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   inline void SetFeedback(Tagged<FeedbackType> feedback, WriteBarrierMode mode,
                           Tagged<FeedbackExtraType> feedback_extra,
                           WriteBarrierMode mode_extra = UPDATE_WRITE_BARRIER);
+  template <typename FeedbackExtraType>
+  inline void SetFeedbackExtra(
+      Tagged<FeedbackExtraType> feedback_extra,
+      WriteBarrierMode mode_extra = UPDATE_WRITE_BARRIER);
 
   inline Tagged<MaybeObject> UninitializedSentinel() const;
   inline Tagged<MaybeObject> MegamorphicSentinel() const;

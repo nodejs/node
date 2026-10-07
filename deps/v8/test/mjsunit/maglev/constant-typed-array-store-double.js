@@ -36,7 +36,7 @@ function test() {
 %NeverOptimizeFunction(test);
 test();
 
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 const source = new ArrayBuffer(8);
 new BigUint64Array(source)[0] = 0xfff2800000000000n;
@@ -56,5 +56,5 @@ const expectedBits = targetBits[0];
 %OptimizeMaglevOnNextCall(storeSignalingNaN);
 storeSignalingNaN(signalingNaN);
 
-assertTrue(isMaglevved(storeSignalingNaN));
+assertMaglevved(storeSignalingNaN);
 assertEquals(expectedBits, targetBits[0]);

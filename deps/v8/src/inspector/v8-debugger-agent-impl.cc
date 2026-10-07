@@ -371,6 +371,9 @@ Response buildScopes(v8::Isolate* isolate, v8::debug::ScopeIterator* iterator,
                                 .setColumnNumber(end.GetColumnNumber())
                                 .build());
     }
+    if (!iterator->DeclaresLocals()) {
+      scope->setEmpty(true);
+    }
     (*scopes)->emplace_back(std::move(scope));
   }
   return Response::Success();
@@ -538,6 +541,7 @@ Response V8DebuggerAgentImpl::disable() {
   m_debugger->setAsyncCallStackDepth(this, 0);
   clearBreakDetails();
   m_skipAllPauses = false;
+  m_skipAllPausesFromEmbedder = false;
   m_state->setBoolean(DebuggerAgentState::skipAllPauses, false);
   m_state->remove(DebuggerAgentState::blackboxPattern);
   m_enableState = kDisabled;
@@ -567,8 +571,7 @@ void V8DebuggerAgentImpl::restore() {
   m_state->getInteger(DebuggerAgentState::pauseOnExceptionsState, &pauseState);
   setPauseOnExceptionsImpl(pauseState);
 
-  m_skipAllPauses =
-      m_state->booleanProperty(DebuggerAgentState::skipAllPauses, false);
+  updateSkipAllPauses();
 
   int asyncCallStackDepth = 0;
   m_state->getInteger(DebuggerAgentState::asyncCallStackDepth,
@@ -599,8 +602,19 @@ Response V8DebuggerAgentImpl::setBreakpointsActive(bool active) {
 
 Response V8DebuggerAgentImpl::setSkipAllPauses(bool skip) {
   m_state->setBoolean(DebuggerAgentState::skipAllPauses, skip);
-  m_skipAllPauses = skip;
+  updateSkipAllPauses();
   return Response::Success();
+}
+
+void V8DebuggerAgentImpl::setSkipAllPausesForInternalUse(bool skip) {
+  m_skipAllPausesFromEmbedder = skip;
+  updateSkipAllPauses();
+}
+
+void V8DebuggerAgentImpl::updateSkipAllPauses() {
+  m_skipAllPauses =
+      m_skipAllPausesFromEmbedder ||
+      m_state->booleanProperty(DebuggerAgentState::skipAllPauses, false);
 }
 
 namespace {

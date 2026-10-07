@@ -42,7 +42,7 @@ assert_test_assign_key_multiple_times(test_assign_key_multiple_times());
 %OptimizeMaglevOnNextCall(test_assign_key_multiple_times);
 assert_test_assign_key_multiple_times(test_assign_key_multiple_times());
 assertOptimized(test_assign_key_multiple_times);
-assertTrue(isMaglevved(test_assign_key_multiple_times));
+assertMaglevved(test_assign_key_multiple_times);
 assert_test_assign_key_multiple_times(test_assign_key_multiple_times());
 %OptimizeFunctionOnNextCall(test_assign_key_multiple_times);
 assert_test_assign_key_multiple_times(test_assign_key_multiple_times());

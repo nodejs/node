@@ -1087,8 +1087,7 @@ std::optional<int> Intl::StringLocaleCompare(Isolate* isolate,
   MaybeDirectHandle<JSCollator> maybe_collator =
       New<JSCollator>(isolate, constructor, locales, options, method_name);
   if (!maybe_collator.ToHandle(&collator)) return {};
-  CppGCManaged<icu::Collator>::Ptr icu_collator =
-      collator->icu_collator()->ptr();
+  Managed<icu::Collator>::Ptr icu_collator = collator->icu_collator()->ptr();
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultCollator, locales,
@@ -1607,7 +1606,7 @@ MaybeDirectHandle<String> Intl::NumberToLocaleString(
       isolate, number_format,
       New<JSNumberFormat>(isolate, constructor, locales, options, method_name));
 
-  CppGCManaged<icu::number::LocalizedNumberFormatter>::Ptr lfmt =
+  Managed<icu::number::LocalizedNumberFormatter>::Ptr lfmt =
       number_format->icu_number_formatter()->ptr();
 
   if (can_cache) {

@@ -1570,6 +1570,11 @@ void BytecodeGraphBuilder::VisitLdaTheHole() {
   environment()->BindAccumulator(node);
 }
 
+void BytecodeGraphBuilder::VisitLdaTdzHole() {
+  Node* node = jsgraph()->TdzHoleConstant();
+  environment()->BindAccumulator(node);
+}
+
 void BytecodeGraphBuilder::VisitLdaTrue() {
   Node* node = jsgraph()->TrueConstant();
   environment()->BindAccumulator(node);
@@ -3071,27 +3076,27 @@ void BytecodeGraphBuilder::BuildHoleCheckAndThrow(
   environment()->BindAccumulator(accumulator);
 }
 
-void BytecodeGraphBuilder::VisitThrowReferenceErrorIfHole() {
+void BytecodeGraphBuilder::VisitThrowReferenceErrorIfTdzHole() {
   Node* accumulator = environment()->LookupAccumulator();
   Node* check_for_hole = NewNode(simplified()->ReferenceEqual(), accumulator,
-                                 jsgraph()->TheHoleConstant());
+                                 jsgraph()->TdzHoleConstant());
   Node* name =
       jsgraph()->ConstantNoHole(MakeRefForConstantPoolOperand(0), broker());
   BuildHoleCheckAndThrow(check_for_hole,
                          Runtime::kThrowAccessedUninitializedVariable, name);
 }
 
-void BytecodeGraphBuilder::VisitThrowSuperNotCalledIfHole() {
+void BytecodeGraphBuilder::VisitThrowSuperNotCalledIfTdzHole() {
   Node* accumulator = environment()->LookupAccumulator();
   Node* check_for_hole = NewNode(simplified()->ReferenceEqual(), accumulator,
-                                 jsgraph()->TheHoleConstant());
+                                 jsgraph()->TdzHoleConstant());
   BuildHoleCheckAndThrow(check_for_hole, Runtime::kThrowSuperNotCalled);
 }
 
-void BytecodeGraphBuilder::VisitThrowSuperAlreadyCalledIfNotHole() {
+void BytecodeGraphBuilder::VisitThrowSuperAlreadyCalledIfNotTdzHole() {
   Node* accumulator = environment()->LookupAccumulator();
   Node* check_for_hole = NewNode(simplified()->ReferenceEqual(), accumulator,
-                                 jsgraph()->TheHoleConstant());
+                                 jsgraph()->TdzHoleConstant());
   Node* check_for_not_hole =
       NewNode(simplified()->BooleanNot(), check_for_hole);
   BuildHoleCheckAndThrow(check_for_not_hole,

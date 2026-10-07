@@ -17,6 +17,7 @@ include_rules = [
   "+src/tracing",
   "+src/debug/debug-interface.h",
   "+src/debug/interface-types.h",
+  "+src/sandbox/cppheap-pointer-tag.h",
   "+src/base/vector.h",
   "+src/base/enum-set.h",
   "+src/utils/sha-256.h",

@@ -28,9 +28,9 @@ assertEquals(20, constTypedArray[10]);
 
 foo(13, 14);
 
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 assertEquals(14, constTypedArray[13]);
 
 // Going out of bounds deopts.
 foo(1000, 0);
-assertFalse(isMaglevved(foo));
+assertNotMaglevved(foo);

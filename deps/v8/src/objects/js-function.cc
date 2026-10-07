@@ -1415,7 +1415,7 @@ DirectHandle<String> JSFunction::GetDebugName(
     // that exact behavior and go with SharedFunctionInfo::DebugName()
     // in case of the fast-path.
     DirectHandle<Object> name = JSReceiver::GetDataProperty(
-        isolate, function, isolate->factory()->name_string());
+        isolate, function, isolate->factory()->name_string(), allow_allocation);
     if (IsString(*name)) return Cast<String>(name);
   }
   return SharedFunctionInfo::DebugName(

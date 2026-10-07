@@ -425,9 +425,7 @@ base::EnumSet<CodeFlushMode> GetCodeFlushMode(Isolate* isolate) {
     code_flush_mode.Add(CodeFlushMode::kForceFlush);
   }
 
-  if (isolate->heap()->IsLastResortGC() &&
-      (v8_flags.flush_code_based_on_time ||
-       v8_flags.flush_code_based_on_tab_visibility)) {
+  if (isolate->heap()->IsLastResortGC()) {
     code_flush_mode.Add(CodeFlushMode::kForceFlush);
   }
 
@@ -464,9 +462,10 @@ void MarkCompactCollector::StartMarking(
 
   // CppHeap's marker must be initialized before the V8 marker to allow
   // exchanging of worklists.
-  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
+  {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
-    cpp_heap->InitializeMarking(CppHeap::CollectionType::kMajor, schedule);
+    CppHeap::From(heap_->cpp_heap())
+        ->InitializeMarking(CppHeap::CollectionType::kMajor, schedule);
   }
 
   std::vector<Address> contexts =
@@ -481,11 +480,9 @@ void MarkCompactCollector::StartMarking(
   heap_->tracer()->NotifyMarkingStart();
   code_flush_mode_ = GetCodeFlushMode(heap_->isolate());
   marking_worklists_.CreateContextWorklists(contexts);
-  auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
   local_marking_worklists_ = std::make_unique<MarkingWorklists::Local>(
       &marking_worklists_,
-      cpp_heap ? cpp_heap->CreateCppMarkingStateForMutatorThread()
-               : MarkingWorklists::Local::kNoCppMarkingState);
+      CppHeap::From(heap_->cpp_heap_)->CreateCppMarkingStateForMutatorThread());
   local_weak_objects_ = std::make_unique<WeakObjects::Local>(weak_objects());
   marking_visitor_ = std::make_unique<MainMarkingVisitor>(
       local_marking_worklists_.get(), local_weak_objects_.get(), heap_, epoch(),
@@ -521,9 +518,7 @@ void MarkCompactCollector::MaybeEnableBackgroundThreadsInCycle(
       heap_->concurrent_marking()->RescheduleJobIfNeeded(
           GarbageCollector::MARK_COMPACTOR);
 
-      if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
-        cpp_heap->ReEnableConcurrentMarking();
-      }
+      CppHeap::From(heap_->cpp_heap_)->ReEnableConcurrentMarking();
     }
   }
 }
@@ -537,9 +532,7 @@ void MarkCompactCollector::CollectGarbage() {
 
   MarkLiveObjects();
 
-  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
-    cpp_heap->ProcessCrossThreadWeakness();
-  }
+  CppHeap::From(heap_->cpp_heap_)->ProcessCrossThreadWeakness();
 
   // This will walk dead object graphs and so requires that all references are
   // still intact.
@@ -547,9 +540,7 @@ void MarkCompactCollector::CollectGarbage() {
   ClearNonLiveReferences();
   VerifyMarking();
 
-  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
-    cpp_heap->FinishMarkingAndProcessWeakness();
-  }
+  CppHeap::From(heap_->cpp_heap_)->FinishMarkingAndProcessWeakness();
 
   heap_->memory_measurement()->FinishProcessing(native_context_stats_);
 
@@ -819,7 +810,7 @@ void MarkCompactCollector::Prepare() {
   if (!heap_->incremental_marking()->IsMarking()) {
     StartCompaction(StartCompactionMode::kAtomic);
     StartMarking();
-    if (heap_->cpp_heap_) {
+    {
       TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
       // `StartMarking()` immediately starts marking which requires V8 worklists
       // to be set up.
@@ -841,9 +832,7 @@ void MarkCompactCollector::FinishConcurrentMarking() {
     heap_->concurrent_marking()->FlushMemoryChunkData();
     heap_->concurrent_marking()->FlushNativeContexts(&native_context_stats_);
   }
-  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
-    cpp_heap->FinishConcurrentMarkingIfNeeded();
-  }
+  CppHeap::From(heap_->cpp_heap_)->FinishConcurrentMarkingIfNeeded();
 }
 
 void MarkCompactCollector::VerifyMarking() {
@@ -2295,12 +2284,10 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
 }
 
 void MarkCompactCollector::ProcessCppHeapWorklist() {
-  auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
-  if (!cpp_heap) return;
-
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_TRACING);
-  cpp_heap->AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX,
-                           StackState::kMayContainHeapPointers);
+  CppHeap::From(heap_->cpp_heap_)
+      ->AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX,
+                       StackState::kMayContainHeapPointers);
 }
 
 namespace {
@@ -2600,10 +2587,8 @@ void MarkCompactCollector::MarkLiveObjects() {
   state_ = MARK_LIVE_OBJECTS;
 #endif
 
-  if (heap_->cpp_heap_) {
-    CppHeap::From(heap_->cpp_heap_)
-        ->EnterFinalPause(heap_->embedder_stack_state_);
-  }
+  CppHeap::From(heap_->cpp_heap_)
+      ->EnterFinalPause(heap_->embedder_stack_state_);
 
   RootMarkingVisitor root_visitor(this);
 
@@ -2639,11 +2624,9 @@ void MarkCompactCollector::MarkLiveObjects() {
     // Complete the transitive closure single-threaded to avoid races with
     // multiple threads when processing weak maps and embedder heaps.
     CHECK(heap_->concurrent_marking()->IsStopped());
-    if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
-      // Lock the process-global mutex here and mark cross-thread roots again.
-      // This is done as late as possible to keep locking durations short.
-      cpp_heap->EnterProcessGlobalAtomicPause();
-    }
+    // Lock the process-global mutex here and mark cross-thread roots again.
+    // This is done as late as possible to keep locking durations short.
+    CppHeap::From(heap_->cpp_heap())->EnterProcessGlobalAtomicPause();
     if (!MarkTransitiveClosureFixpoint()) {
       MarkTransitiveClosureLinear();
     }

@@ -34,7 +34,7 @@ parameter count: 1
 bytecode array length: 5
 bytecodes: [
   /*   55 S> */ B(LdaImmutableCurrentContextSlot), C8(2),
-                B(ThrowReferenceErrorIfHole), U8(0:"x"),
+                B(ThrowReferenceErrorIfTdzHole), U8(0:"x"),
   /*   64 S> */ B(Return),
 ]
 constant pool: [
@@ -71,7 +71,7 @@ parameter count: 1
 bytecode array length: 5
 bytecodes: [
   /*   57 S> */ B(LdaImmutableCurrentContextSlot), C8(2),
-                B(ThrowReferenceErrorIfHole), U8(0:"y"),
+                B(ThrowReferenceErrorIfTdzHole), U8(0:"y"),
   /*   66 S> */ B(Return),
 ]
 constant pool: [
@@ -176,7 +176,7 @@ parameter count: 1
 bytecode array length: 5
 bytecodes: [
   /*   91 S> */ B(LdaImmutableCurrentContextSlot), C8(2),
-                B(ThrowReferenceErrorIfHole), U8(0:"x"),
+                B(ThrowReferenceErrorIfTdzHole), U8(0:"x"),
   /*  100 S> */ B(Return),
 ]
 constant pool: [
@@ -200,7 +200,7 @@ parameter count: 1
 bytecode array length: 7
 bytecodes: [
   /*  127 S> */ B(LdaImmutableContextSlot), R(context), C8(2), U8(1),
-                B(ThrowReferenceErrorIfHole), U8(0:"x"),
+                B(ThrowReferenceErrorIfTdzHole), U8(0:"x"),
   /*  136 S> */ B(Return),
 ]
 constant pool: [
@@ -242,7 +242,7 @@ parameter count: 1
 bytecode array length: 7
 bytecodes: [
   /*   52 S> */ B(LdaImmutableContextSlot), R(context), C8(2), U8(1),
-                B(ThrowReferenceErrorIfHole), U8(0:"x"),
+                B(ThrowReferenceErrorIfTdzHole), U8(0:"x"),
   /*   61 S> */ B(Return),
 ]
 constant pool: [

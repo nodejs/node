@@ -44,8 +44,12 @@ extern runtime WasmI32AtomicWait(
     Context, WasmTrustedInstanceData, Smi, Number, Number, BigInt): Smi;
 extern runtime WasmI64AtomicWait(
     Context, WasmTrustedInstanceData, Smi, Number, BigInt, BigInt): Smi;
-extern runtime WasmManagedObjectWait(
+extern runtime WasmManagedObjectWait32(
     Context, HeapObject, Smi, Number, HeapObject, BigInt): Smi;
+extern runtime WasmManagedObjectWait64(
+    Context, HeapObject, Smi, BigInt, HeapObject, BigInt): Smi;
+extern runtime WasmManagedObjectWaitRef(
+    Context, HeapObject, Smi, Object, HeapObject, BigInt): Smi;
 extern runtime WasmWaitqueueNew(Context): HeapObject;
 extern runtime WasmArrayCopy(Context, WasmArray, Smi, WasmArray, Smi, Smi):
     JSAny;
@@ -96,6 +100,7 @@ extern runtime AllocateInSharedHeap(Context, Smi, Smi): HeapObject;
 extern runtime WasmConfigureAllPrototypesOpt(
     Context, Object, JSAny, WasmTrustedInstanceData): Object;
 extern runtime WasmTypeAssertionFailed(NoContext): never;
+extern runtime TsanAcquireForInitializationFence(NoContext, Object): Undefined;
 }
 
 extern operator '.wasm_exported_function_data' macro
@@ -704,12 +709,30 @@ builtin WasmI64AtomicWait(
   return Unsigned(SmiToInt32(result));
 }
 
-builtin WasmManagedObjectWait(
+builtin WasmManagedObjectWait32(
     object: HeapObject, fieldOffset: int32, expectedValue: int32,
     waitqueue: HeapObject, timeout: BigInt): uint32 {
-  const result: Smi = runtime::WasmManagedObjectWait(
+  const result: Smi = runtime::WasmManagedObjectWait32(
       LoadContextFromFrame(), object, SmiFromInt32(fieldOffset),
       ChangeInt32ToTagged(expectedValue), waitqueue, timeout);
+  return Unsigned(SmiToInt32(result));
+}
+
+builtin WasmManagedObjectWait64(
+    object: HeapObject, fieldOffset: int32, expectedValue: BigInt,
+    waitqueue: HeapObject, timeout: BigInt): uint32 {
+  const result: Smi = runtime::WasmManagedObjectWait64(
+      LoadContextFromFrame(), object, SmiFromInt32(fieldOffset), expectedValue,
+      waitqueue, timeout);
+  return Unsigned(SmiToInt32(result));
+}
+
+builtin WasmManagedObjectWaitRef(
+    object: HeapObject, fieldOffset: int32, expectedValue: Object,
+    waitqueue: HeapObject, timeout: BigInt): uint32 {
+  const result: Smi = runtime::WasmManagedObjectWaitRef(
+      LoadContextFromFrame(), object, SmiFromInt32(fieldOffset), expectedValue,
+      waitqueue, timeout);
   return Unsigned(SmiToInt32(result));
 }
 
@@ -1058,6 +1081,9 @@ macro StringFromTwoByteSlice(length: uint32, slice: ConstSlice<char16>):
 
 builtin WasmStringNewWtf16Array(
     array: WasmArray, start: uint32, end: uint32, config: Smi): String {
+  @if(V8_IS_TSAN) {
+    runtime::TsanAcquireForInitializationFence(kNoContext, array);
+  }
   try {
     if (array.length < end) goto OffsetOutOfRange;
     if (end < start) goto OffsetOutOfRange;
@@ -1130,6 +1156,9 @@ builtin WasmStringFromDataSegment(
 // Contract: input is any string, output is a string that the TF operator
 // "StringPrepareForGetCodeunit" can handle.
 builtin WasmStringAsWtf16(str: String): String {
+  @if(V8_IS_TSAN) {
+    runtime::TsanAcquireForInitializationFence(kNoContext, str);
+  }
   const cons = Cast<ConsString>(str) otherwise return str;
   return Flatten(cons);
 }
@@ -1181,6 +1210,7 @@ builtin WasmStringEncodeWtf16(string: String, offset: uintptr, memory: uint32):
 }
 builtin WasmStringEncodeWtf16Array(
     string: String, array: WasmArray, start: uint32): uint32 {
+  // TODO(manoskouk): Can we disable TSAN for this builtin?
   try {
     if (start > array.length) goto OffsetOutOfRange;
     if (array.length - start < Unsigned(string.length)) goto OffsetOutOfRange;
@@ -1260,6 +1290,10 @@ builtin WasmStringAdd_NoMapCheck_Shared(a: String, b: String): String {
 extern builtin StringEqual(NoContext, String, String, intptr): Boolean;
 
 builtin WasmStringEqual(a: String, b: String): int32 {
+  @if(V8_IS_TSAN) {
+    runtime::TsanAcquireForInitializationFence(kNoContext, a);
+    runtime::TsanAcquireForInitializationFence(kNoContext, b);
+  }
   if (TaggedEqual(a, b)) return 1;
   if (a.length != b.length) return 0;
   if (StringEqual(kNoContext, a, b, a.length_intptr) == True) {
@@ -1431,6 +1465,9 @@ transitioning builtin WasmStringViewWtf16Slice(
 }
 builtin WasmStringSliceShared(string: String, start: uint32, end: uint32):
     String {
+  @if(V8_IS_TSAN) {
+    runtime::TsanAcquireForInitializationFence(kNoContext, string);
+  }
   const length = Unsigned(string.length);
   if (start >= length) return kEmptyString;
   if (end <= start) return kEmptyString;
@@ -1476,6 +1513,9 @@ macro CombineSurrogatePair(lead: char16, trail: char16): int32 {
 }
 
 builtin WasmStringCodePointAt(string: String, offset: uint32): uint32 {
+  @if(V8_IS_TSAN) {
+    runtime::TsanAcquireForInitializationFence(kNoContext, string);
+  }
   try {
     if (Unsigned(string.length) <= offset) goto OffsetOutOfRange;
     const lead: char16 = StringCharCodeAt(string, Convert<uintptr>(offset));
@@ -1654,6 +1694,10 @@ builtin WasmFastApiCallTypeCheckAndUpdateIC(
 }
 
 builtin WasmStringIndexOf(s: String, searchString: String, start: Smi): Smi {
+  @if(V8_IS_TSAN) {
+    runtime::TsanAcquireForInitializationFence(kNoContext, s);
+    runtime::TsanAcquireForInitializationFence(kNoContext, searchString);
+  }
   return AbstractStringIndexOf(s, searchString, SmiMax(start, 0));
 }
 

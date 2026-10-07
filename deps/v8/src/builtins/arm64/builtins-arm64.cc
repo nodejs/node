@@ -101,7 +101,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     __ Claim(slot_count);
 
     // Preserve the incoming parameters on the stack.
-    __ LoadRoot(x4, RootIndex::kTheHoleValue);
+    __ LoadRoot(x4, RootIndex::kTdzHoleValue);
 
     // Compute a pointer to the slot immediately above the location on the
     // stack to which arguments will be later copied.
@@ -234,9 +234,9 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
   __ B(&post_instantiation_deopt_entry);
 
-  // Else: use TheHoleValue as receiver for constructor call
+  // Else: use TdzHoleValue as receiver for constructor call
   __ Bind(&not_create_implicit_receiver);
-  __ LoadRoot(x0, RootIndex::kTheHoleValue);
+  __ LoadRoot(x0, RootIndex::kTdzHoleValue);
 
   // ----------- S t a t e -------------
   //  --                                x0: receiver
@@ -334,7 +334,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // on-stack receiver as the result.
   __ Bind(&use_receiver);
   __ Peek(x0, 0 * kSystemPointerSize);
-  __ CompareRoot(x0, RootIndex::kTheHoleValue);
+  __ CompareRoot(x0, RootIndex::kTdzHoleValue);
   __ B(eq, &do_throw);
 
   __ Bind(&leave_and_return);
@@ -1245,17 +1245,13 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
     FrameScope frame_scope(masm, StackFrame::INTERNAL);
     // Save incoming new target or generator
-    Register maybe_dispatch_handle = V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL
-                                         ? kJavaScriptCallDispatchHandleRegister
-                                         : padreg;
-    // No need to SmiTag as dispatch handles always look like Smis.
-    static_assert(kJSDispatchHandleShift > 0);
-    __ AssertSmi(maybe_dispatch_handle);
-    __ Push(maybe_dispatch_handle, new_target);
+    __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, new_target,
+                          feedback_cell, feedback_vector);
     __ SmiTag(frame_size);
     __ PushArgument(frame_size);
     __ CallRuntime(Runtime::kStackGuardWithGap);
-    __ Pop(new_target, maybe_dispatch_handle);
+    __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, new_target,
+                         feedback_cell, feedback_vector);
   }
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
@@ -1849,7 +1845,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   }
 
   // Implicit receiver stored in the construct frame.
-  __ LoadRoot(x2, RootIndex::kTheHoleValue);
+  __ LoadRoot(x2, RootIndex::kTdzHoleValue);
   __ Push(x2, padreg);
 
   // Push arguments + implicit receiver.
@@ -1907,7 +1903,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ Bind(&use_receiver);
   __ Ldr(x0,
          MemOperand(fp, FastConstructFrameConstants::kImplicitReceiverOffset));
-  __ CompareRoot(x0, RootIndex::kTheHoleValue);
+  __ CompareRoot(x0, RootIndex::kTdzHoleValue);
   __ B(eq, &do_throw);
 
   __ Bind(&leave_and_return);

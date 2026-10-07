@@ -34,13 +34,12 @@ void JSRelativeTimeFormat::set_numberingSystem(Tagged<String> value,
   numberingSystem_.store(this, value, mode);
 }
 
-Tagged<CppGCManaged<icu::RelativeDateTimeFormatter>>
+Tagged<Managed<icu::RelativeDateTimeFormatter>>
 JSRelativeTimeFormat::icu_formatter() const {
-  return Cast<CppGCManaged<icu::RelativeDateTimeFormatter>>(
-      icu_formatter_.load());
+  return Cast<Managed<icu::RelativeDateTimeFormatter>>(icu_formatter_.load());
 }
 void JSRelativeTimeFormat::set_icu_formatter(
-    Tagged<CppGCManaged<icu::RelativeDateTimeFormatter>> value,
+    Tagged<Managed<icu::RelativeDateTimeFormatter>> value,
     WriteBarrierMode mode) {
   icu_formatter_.store(this, value, mode);
 }

@@ -21,6 +21,7 @@
 #include <atomic>
 #include <cstdint>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/internal/thread_identity.h"

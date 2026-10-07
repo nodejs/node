@@ -31,9 +31,9 @@ if (%Is64Bit()) {
   %OptimizeMaglevOnNextCall(foo);
   const a1 = foo(100);
   assertEquals(100, a1.length);
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 
   const a2 = foo(largeLength);
   assertEquals(largeLength, a2.length);
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 }

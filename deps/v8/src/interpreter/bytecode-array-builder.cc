@@ -732,6 +732,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadTheHole() {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadTdzHole() {
+  OutputLdaTdzHole();
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadTrue() {
   OutputLdaTrue();
   return *this;
@@ -829,14 +834,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(Register context,
       OutputLdaImmutableContextSlot(context, slot_index, depth);
     }
   } else {
-    DCHECK_NE(VariableMode::kConst, variable->mode());
     if (variable->scope()->has_context_cells()) {
+      DCHECK_NE(VariableMode::kConst, variable->mode());
       if (context.is_current_context() && depth == 0) {
         OutputLdaCurrentContextSlot(slot_index);
       } else {
         OutputLdaContextSlot(context, slot_index, depth);
       }
     } else {
+      DCHECK(variable->mode() != VariableMode::kConst ||
+             (variable->scope()->is_class_scope() &&
+              variable->scope()->AsClassScope()->class_variable() == variable));
       if (context.is_current_context() && depth == 0) {
         OutputLdaCurrentContextSlotNoCell(slot_index);
       } else {
@@ -1489,20 +1497,21 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowReferenceErrorIfHole(
+BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowReferenceErrorIfTdzHole(
     const AstRawString* name) {
   size_t entry = GetConstantPoolEntry(name);
-  OutputThrowReferenceErrorIfHole(entry);
+  OutputThrowReferenceErrorIfTdzHole(entry);
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowSuperNotCalledIfHole() {
-  OutputThrowSuperNotCalledIfHole();
+BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowSuperNotCalledIfTdzHole() {
+  OutputThrowSuperNotCalledIfTdzHole();
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowSuperAlreadyCalledIfNotHole() {
-  OutputThrowSuperAlreadyCalledIfNotHole();
+BytecodeArrayBuilder&
+BytecodeArrayBuilder::ThrowSuperAlreadyCalledIfNotTdzHole() {
+  OutputThrowSuperAlreadyCalledIfNotTdzHole();
   return *this;
 }
 

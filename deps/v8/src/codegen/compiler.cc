@@ -2154,7 +2154,7 @@ class ConstantPoolPointerForwarder {
     if (!sfi->HasOuterScopeInfo()) return;
 
     Tagged<ScopeInfo> parent =
-        sfi->scope_info()->IsEmpty() ? Tagged<ScopeInfo>() : sfi->scope_info();
+        sfi->HasScopeInfo() ? sfi->scope_info() : Tagged<ScopeInfo>();
     Tagged<ScopeInfo> outer_info = sfi->GetOuterScopeInfo();
 
     auto it = scope_infos_to_update_.find(outer_info->UniqueIdInScript());
@@ -2379,7 +2379,7 @@ void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
         }
       }
 
-      if (!sfi->scope_info()->IsEmpty()) {
+      if (sfi->HasScopeInfo()) {
         scope_info = sfi->scope_info();
       } else if (sfi->HasOuterScopeInfo()) {
         scope_info = sfi->GetOuterScopeInfo();
@@ -2493,9 +2493,8 @@ void BackgroundMergeTask::BeginMergeInBackground(
           // Also push the old_sfi to make sure it stays alive / isn't replaced.
           new_compiled_data_for_cached_sfis_.push_back(
               {old_sfi_handle, local_heap->NewPersistentHandle(new_sfi)});
-          Tagged<ScopeInfo> info = old_sfi->scope_info();
-          if (!info->IsEmpty()) {
-            new_sfi->SetScopeInfo(info);
+          if (old_sfi->HasScopeInfo()) {
+            new_sfi->SetScopeInfo(old_sfi->scope_info());
           } else {
             Tagged<ScopeInfo> outer_info = old_sfi->TryGetOuterScopeInfo();
             if (!outer_info->IsEmpty()) {
@@ -2525,7 +2524,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
       Tagged<SharedFunctionInfo> sfi;
       if (TryCast<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak(),
                                       &sfi)) {
-        if (sfi->scope_info()->IsEmpty()) {
+        if (!sfi->HasScopeInfo()) {
           sfis_without_scope_info_.insert(i);
         }
       }

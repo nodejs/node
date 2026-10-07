@@ -21,4 +21,4 @@ assertEquals(5.2, foo(normalArray));
 assertTrue(isNaN(foo(holeyArray)));
 
 // No deopts.
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);

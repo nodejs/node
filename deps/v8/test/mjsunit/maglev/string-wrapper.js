@@ -17,7 +17,7 @@ assertTrue(s1 instanceof String);
 assertEquals('object', typeof s1);
 assertEquals('', s1.valueOf());
 
-assertTrue(isMaglevved(create1));
+assertMaglevved(create1);
 
 function create2(v) {
   return new String(v);
@@ -52,7 +52,7 @@ let s5 = create2(obj2);
 assertEquals('object', typeof s5);
 assertEquals('[object Object]', s5.valueOf());
 
-assertTrue(isMaglevved(create2));
+assertMaglevved(create2);
 
 function create3() {
   return new String('constant');

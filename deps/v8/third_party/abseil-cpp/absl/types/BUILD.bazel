@@ -157,6 +157,7 @@ cc_test(
         "//absl/hash:hash_testing",
         "//absl/meta:type_traits",
         "//absl/strings",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -241,6 +242,7 @@ cc_test(
     deps = [
         ":compare",
         "//absl/base",
+        "//absl/base:config",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

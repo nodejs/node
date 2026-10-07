@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <iosfwd>
 #include <memory>
 #include <random>

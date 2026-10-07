@@ -667,7 +667,7 @@ bytecodes: [
                 B(JumpIfToBooleanFalse), U8(41),
                 B(CreateBlockContext), U8(0:SCOPE_INFO_TYPE),
                 B(PushContext), R(3),
-                B(LdaTheHole),
+                B(LdaTdzHole),
                 B(StaCurrentContextSlotNoCell), C8(2),
                 B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
                 B(Star2),

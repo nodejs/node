@@ -37,7 +37,7 @@ function TestAll() {
 // Interesting case-folding equivalence classes (as determined by
 // ICU's UnicodeSet::closeOver). A class is interesting if it contains
 // more than two characters, or if it contains any characters in
-// IgnoreSet or SpecialAddSet as defined in src/regexp/special-case.h.
+// IgnoreSet as defined in src/regexp/special-case.h.
 var equivalence_classes = [
   '\u0041\u0061',              // Aa (sanity check)
   '\u004b\u006b\u212a',        // KkK

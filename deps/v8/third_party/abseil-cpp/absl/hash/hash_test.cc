@@ -34,6 +34,7 @@
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -46,8 +47,6 @@
 #include "absl/hash/hash_testing.h"
 #include "absl/hash/internal/hash_test.h"
 #include "absl/hash/internal/spy_hash_state.h"
-#include "absl/memory/memory.h"
-#include "absl/meta/type_traits.h"
 #include "absl/numeric/bits.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/cord_test_helpers.h"
@@ -1306,6 +1305,10 @@ TEST(SwisstableCollisions, DoubleRange) {
 TEST(SwisstableCollisions, LowEntropyStrings) {
   constexpr char kMinChar = 0;
   constexpr char kMaxChar = 64;
+  // Scale the probe limit inversely with Group::kWidth so the test asserts a
+  // consistent bound on the number of probed slots across architectures.
+  constexpr size_t kMaxProbes =
+      64 * 16 / absl::container_internal::Group::kWidth;
   // These sizes cover the different hashing cases.
   for (size_t size : {8u, 16u, 32u, 64u, 128u}) {
     for (size_t b = 0; b < size - 1; ++b) {
@@ -1321,7 +1324,7 @@ TEST(SwisstableCollisions, LowEntropyStrings) {
           s[b + 1] = c2;
           set.insert(s);
           ASSERT_LT(HashtableDebugAccess<decltype(set)>::GetNumProbes(set, s),
-                    64)
+                    kMaxProbes)
               << "size: " << size << "; bit: " << b;
         }
       }
@@ -1346,6 +1349,155 @@ TEST(SwisstableCollisions, LowEntropyInts) {
           << bit << " " << i;
     }
   }
+}
+
+struct NameView {
+  absl::string_view name;
+  absl::string_view lang;
+
+  friend bool operator==(const NameView& lhs, const NameView& rhs) {
+    return lhs.name == rhs.name && lhs.lang == rhs.lang;
+  }
+
+  template <typename H>
+  friend H AbslHashValue(H h, const NameView& name) {
+    return H::combine(std::move(h), name.name, name.lang);
+  }
+};
+
+struct Name {
+  std::string name;
+  std::string lang;
+
+  friend bool operator==(const Name& lhs, const Name& rhs) {
+    return lhs.name == rhs.name && lhs.lang == rhs.lang;
+  }
+  friend bool operator==(const NameView& lhs, const Name& rhs) {
+    return lhs.name == rhs.name && lhs.lang == rhs.lang;
+  }
+  friend bool operator==(const Name& lhs, const NameView& rhs) {
+    return lhs.name == rhs.name && lhs.lang == rhs.lang;
+  }
+
+  template <typename H>
+  friend H AbslHashValue(H h, const Name& name) {
+    return H::combine(std::move(h), name.name, name.lang);
+  }
+
+  using absl_container_hash = absl::TransparentHash<NameView, Name>;
+};
+
+template <typename NameHash>
+class TransparentHashTest : public testing::Test {};
+
+using NameHashTypes =
+    testing::Types<absl::TransparentHash<Name, NameView>,
+                   absl::TransparentHash<Name, Name, NameView>,
+                   absl::TransparentHash<Name, NameView, Name>,
+                   absl::TransparentHash<Name, NameView, Name, NameView>,
+                   absl::TransparentHash<Name, NameView, Name, NameView, Name,
+                                         NameView, Name>>;
+TYPED_TEST_SUITE(TransparentHashTest, NameHashTypes);
+
+TYPED_TEST(TransparentHashTest, BasicUsage) {
+  using NameHash = TypeParam;
+  static_assert(std::is_same_v<typename NameHash::is_transparent, void>);
+
+  EXPECT_FALSE((std::is_convertible_v<NameHash, absl::Hash<Name>>));
+  EXPECT_FALSE((std::is_convertible_v<NameHash, absl::Hash<NameView>>));
+
+  EXPECT_EQ(NameHash{}(Name{"foo", "en"}), NameHash{}(NameView{"foo", "en"}));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      std::make_tuple(Name{"foo", "en"}, NameView{"foo", "en"},
+                      Name{"bar", "en"}, NameView{"bar", "en"},
+                      Name{"foo", "de"}, NameView{"foo", "de"},
+                      Name{"bar", "de"}, NameView{"bar", "de"})));
+
+  absl::flat_hash_set<Name, NameHash, std::equal_to<>> set;
+  set.insert(Name{"foo", "en"});
+  EXPECT_TRUE(set.contains(NameView{"foo", "en"}));
+  EXPECT_TRUE(set.contains(Name{"foo", "en"}));
+
+  std::unordered_set<Name, NameHash, std::equal_to<>> std_set;
+  std_set.insert(Name{"foo", "en"});
+  EXPECT_TRUE(std_set.find(Name{"foo", "en"}) != std_set.end());
+}
+
+TEST(HashTest, TransparentHashDefaultLookUp) {
+  absl::flat_hash_set<Name> set;
+  set.insert(Name{"foo", "en"});
+  EXPECT_TRUE(set.contains(NameView{"foo", "en"}));
+  EXPECT_TRUE(set.contains(Name{"foo", "en"}));
+}
+
+struct MyString {
+  std::string s;
+
+  MyString() = default;
+  explicit MyString(absl::string_view s) : s(s) {}
+  explicit MyString(const char* s) : s(s) {}
+
+  template <typename H>
+  friend H AbslHashValue(H h, const MyString& s) {
+    return H::combine(std::move(h), s.s);
+  }
+
+  friend bool operator==(const MyString& lhs, const MyString& rhs) {
+    return lhs.s == rhs.s;
+  }
+  friend bool operator==(const MyString& lhs, absl::string_view rhs) {
+    return lhs.s == rhs;
+  }
+  friend bool operator==(absl::string_view lhs, const MyString& rhs) {
+    return lhs == rhs.s;
+  }
+};
+
+TEST(HashTest, TransparentHashDefaultLookUpAllowsImplicitCasting) {
+  EXPECT_EQ(
+      absl::Hash<absl::string_view>()("a"),
+      absl::TransparentHash<absl::string_view>()("a")
+  );
+  absl::flat_hash_set<std::string, absl::TransparentHash<absl::string_view>>
+      set;
+  set.insert("a");
+  EXPECT_TRUE(set.contains("a"));
+}
+
+TEST(HashTest, TransparentHashDefaultLookUpAllowsImplicitCastingMultiArg) {
+  using TestHash =
+      absl::TransparentHash<absl::string_view, MyString>;
+  EXPECT_EQ(absl::Hash<absl::string_view>()("a"), TestHash()("a"));
+  absl::flat_hash_set<MyString, TestHash, std::equal_to<>> set;
+  set.emplace("a");
+  EXPECT_TRUE(set.contains("a"));
+}
+
+struct Unhashable {};
+
+template <typename Hasher>
+class TransparentPoisonedHashTest : public testing::Test {};
+
+using TransparentPoisonedHashTypes =
+    testing::Types<absl::TransparentHash<Unhashable>,
+                   absl::TransparentHash<Unhashable, Unhashable>,
+                   absl::TransparentHash<int, Unhashable>,
+                   absl::TransparentHash<int, Unhashable, int>,
+                   absl::TransparentHash<int, Unhashable, int, Unhashable>>;
+TYPED_TEST_SUITE(TransparentPoisonedHashTest, TransparentPoisonedHashTypes);
+
+TYPED_TEST(TransparentPoisonedHashTest, PoisonHash) {
+  using Hasher = TypeParam;
+  EXPECT_FALSE(std::is_default_constructible_v<Hasher>);
+  EXPECT_FALSE(std::is_copy_constructible_v<Hasher>);
+  EXPECT_FALSE(std::is_move_constructible_v<Hasher>);
+  EXPECT_FALSE(std::is_copy_assignable_v<Hasher>);
+  EXPECT_FALSE(std::is_move_assignable_v<Hasher>);
+#if !defined(__GNUC__) || defined(__clang__)
+  // TODO(b/144368551): As of GCC 8.4 this does not compile.
+  EXPECT_FALSE(IsAggregateInitializable<Hasher>::value);
+#endif
 }
 
 }  // namespace

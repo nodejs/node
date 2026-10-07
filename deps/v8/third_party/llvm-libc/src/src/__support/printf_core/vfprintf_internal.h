@@ -86,16 +86,17 @@ LIBC_INLINE ErrorOr<size_t> vfprintf_internal(::FILE *__restrict stream,
                                               internal::ArgList &args) {
   constexpr size_t BUFF_SIZE = 1024;
   char buffer[BUFF_SIZE];
-  printf_core::FlushingBuffer wb(buffer, BUFF_SIZE, &file_write_hook,
-                                 reinterpret_cast<void *>(stream));
-  Writer writer(wb);
+  Writer writer =
+      make_writer(buffer, BUFF_SIZE,
+                  &overflow_write_flush_to_sink<char, file_write_hook>, stream);
   internal::flockfile(stream);
   auto retval = printf_main(&writer, format, args);
   if (!retval.has_value()) {
     internal::funlockfile(stream);
     return retval;
   }
-  int flushval = wb.flush_to_stream();
+  int flushval =
+      writer.get_write_buffer().flush_to_sink<file_write_hook>(stream);
   if (flushval != WRITE_OK)
     retval = Error(-flushval);
   internal::funlockfile(stream);

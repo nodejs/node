@@ -287,6 +287,68 @@ listener_delegate = function(exec_state) {
 (test_outer_shadow())();
 EndTest();
 
+BeginTest("Check evaluating on outer closure scopes when inner scope also has a context");
+function test_outer_shadow_with_inner_context() {
+  let x = 'outer_stack';
+  let closure_y = 'closure_y';
+  () => closure_y; // force context allocation for test_outer_shadow_with_inner_context
+  return function inner() {
+    let inner_ctx = 'inner_ctx';
+    () => inner_ctx; // force context allocation for inner as well
+    debugger;
+  };
+}
+listener_delegate = function(exec_state) {
+  assertThrows(() => exec_state.frame(0).scope(1).evaluate("x").value(), ReferenceError);
+  assertEquals('closure_y', exec_state.frame(0).scope(1).evaluate("closure_y").value());
+};
+(test_outer_shadow_with_inner_context())();
+EndTest();
+
+BeginTest("Check that inner block locals do not leak into outer function block list");
+var a_block_test = 'global_a';
+var c_block_test = 'global_c';
+function test_inner_block_isolation() {
+  let a_block_test = 42;  // stack-allocated in f
+  let b_block_test = 21;
+  () => b_block_test;     // force context-allocation so f has a context
+  {
+    const c_block_test = 'foo';  // stack-allocated in inner block
+    (function g() {
+      if (break_position === 1) debugger;
+    })();
+  }
+  return function h() {
+    if (break_position === 2) debugger;
+  };
+}
+
+listener_delegate = function(exec_state) {
+  // In `g` (inside the inner block), both `a_block_test` and `c_block_test` are shadowed.
+  assertThrows(() => exec_state.frame(0).scope(0).evaluate("a_block_test").value(), ReferenceError);
+  assertThrows(() => exec_state.frame(0).scope(0).evaluate("c_block_test").value(), ReferenceError);
+  assertEquals(21, exec_state.frame(0).scope(0).evaluate("b_block_test").value());
+
+  // In `f` (`scope(1)`), `a_block_test` is shadowed, but `c_block_test` (from the inner block) is not.
+  assertThrows(() => exec_state.frame(0).scope(1).evaluate("a_block_test").value(), ReferenceError);
+  assertEquals('global_c', exec_state.frame(0).scope(1).evaluate("c_block_test").value());
+  assertEquals(21, exec_state.frame(0).scope(1).evaluate("b_block_test").value());
+};
+break_position = 1;
+(test_inner_block_isolation())();
+EndTest();
+
+BeginTest("Check that inner block locals do not leak into sibling closure after reuse");
+listener_delegate = function(exec_state) {
+  // In `h` (outside the inner block), `a_block_test` is shadowed, but `c_block_test` is not.
+  assertThrows(() => exec_state.frame(0).scope(0).evaluate("a_block_test").value(), ReferenceError);
+  assertEquals('global_c', exec_state.frame(0).scope(0).evaluate("c_block_test").value());
+  assertEquals(21, exec_state.frame(0).scope(0).evaluate("b_block_test").value());
+};
+break_position = 2;
+(test_inner_block_isolation())();
+EndTest();
+
 assertEquals(begin_test_count, break_count,
   'one or more tests did not enter the debugger');
 assertEquals(begin_test_count, end_test_count,

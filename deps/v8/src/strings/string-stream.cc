@@ -421,7 +421,10 @@ void StringStream::PrintPrototype(Isolate* isolate, Tagged<JSFunction> fun,
                                   Tagged<Object> receiver) {
   Tagged<Object> name = fun->shared()->Name();
   bool print_name = false;
-  if (IsNullOrUndefined(receiver) || IsTheHole(receiver) ||
+#ifdef V8_ENABLE_TDZ_HOLE
+  DCHECK(!IsTheHole(receiver));
+#endif
+  if (IsNullOrUndefined(receiver) || IsTdzHole(receiver) ||
       IsJSProxy(receiver) || IsWasmObject(receiver)) {
     print_name = true;
   } else if (!isolate->context().is_null()) {

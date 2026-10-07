@@ -108,7 +108,7 @@ _ADD_CONTENT = {
     'container:hashtablez_sampler_test':
     'if (is_win) { sources = [] }',
     'container:test_allocator':
-    'deps = [ "//third_party/abseil-cpp/absl/base:config", "//third_party/googletest:gtest" ]',
+    'deps += [ "//third_party/googletest:gtest" ]',
     'flags:config':
     'public_configs = [ ":absl_flags_config" ]',
     'flags:parse_test':

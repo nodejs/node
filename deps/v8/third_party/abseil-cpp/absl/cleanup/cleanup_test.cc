@@ -20,6 +20,7 @@
 
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
+#include "absl/cleanup/internal/cleanup.h"
 #include "absl/utility/utility.h"
 
 namespace {

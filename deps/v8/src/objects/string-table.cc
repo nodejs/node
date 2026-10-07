@@ -5,6 +5,7 @@
 #include "src/objects/string-table.h"
 
 #include <atomic>
+#include <span>
 
 #include "src/base/atomicops.h"
 #include "src/base/macros.h"
@@ -417,6 +418,8 @@ DirectHandle<InternalizedString> StringTable::LookupString(
       bool one_byte_content = false;
       if (!Name::IsHashFieldComputed(raw_hash_field)) {
         raw_hash_field = flat_string->EnsureRawHash(&one_byte_content);
+      } else if (Name::IsIntegerIndex(raw_hash_field)) {
+        one_byte_content = true;
       }
       InternalizedStringKey key(flat_string, raw_hash_field, one_byte_content);
       result = LookupKey(isolate, &key);
@@ -606,18 +609,12 @@ namespace {
 template <typename Char>
 class CharBuffer {
  public:
-  void Reset(size_t length) {
+  std::span<Char> Reset(size_t length) V8_LIFETIME_BOUND {
     if (length >= kInlinedBufferSize) {
       outofline_ = std::make_unique<Char[]>(length);
+      return {outofline_.get(), length};
     }
-  }
-
-  Char* Data() {
-    if (outofline_) {
-      return outofline_.get();
-    } else {
-      return inlined_;
-    }
+    return {inlined_, length};
   }
 
  private:
@@ -625,6 +622,50 @@ class CharBuffer {
   Char inlined_[kInlinedBufferSize];
   std::unique_ptr<Char[]> outofline_;
 };
+
+// Copies `sink.size()` characters of the direct string `str`, whose shape is
+// `shape`, into `sink`.
+template <typename Char>
+V8_INLINE void CopyDirectStringChars(
+    std::span<Char> sink, Tagged<String> str, StringShape shape,
+    const DisallowGarbageCollection& no_gc,
+    const SharedStringAccessGuardIfNeeded& access_guard) {
+  // Even if `sizeof(Char) == 1`, we must check `shape.IsOneByte()` here
+  // because in-sandbox corruption can attach a two-byte child to a one-byte
+  // ConsString, and calling `GetDirectStringChars<uint8_t>` on a two-byte
+  // ExternalString would cause type confusion on the ExternalStringResource.
+  if (shape.IsOneByte()) {
+    CopyChars(sink.data(),
+              str->GetDirectStringChars<uint8_t>(shape, no_gc, access_guard),
+              sink.size());
+  } else {
+    CopyChars(sink.data(),
+              str->GetDirectStringChars<uint16_t>(shape, no_gc, access_guard),
+              sink.size());
+  }
+}
+
+template <typename Char>
+V8_INLINE bool TryCopyConsStringDirect(
+    Tagged<ConsString> cons, std::span<Char> sink,
+    const DisallowGarbageCollection& no_gc,
+    const SharedStringAccessGuardIfNeeded& access_guard) {
+  Tagged<String> first = cons->first();
+  Tagged<String> second = cons->second();
+  const StringShape first_shape(first);
+  const StringShape second_shape(second);
+  if (!first_shape.IsDirect() || !second_shape.IsDirect()) {
+    return false;
+  }
+  const uint32_t first_length = first->length();
+  DCHECK_EQ(sink.size(), first_length + second->length());
+  CopyDirectStringChars(sink.first(first_length), first, first_shape, no_gc,
+                        access_guard);
+  CopyDirectStringChars(sink.subspan(first_length), second, second_shape, no_gc,
+                        access_guard);
+  return true;
+}
+
 }  // namespace
 
 // static
@@ -662,9 +703,14 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
   SharedStringAccessGuardIfNeeded access_guard(isolate);
   if (IsConsString(source)) {
     DCHECK(!source->IsFlat());
-    buffer.Reset(length);
-    String::WriteToFlat(source, buffer.Data(), 0, length, access_guard);
-    chars = buffer.Data();
+    DCHECK_EQ(start, 0u);
+    DCHECK_EQ(length, source->length());
+    std::span<Char> dest = buffer.Reset(length);
+    if (!TryCopyConsStringDirect<Char>(Cast<ConsString>(source), dest, no_gc,
+                                       access_guard)) {
+      String::WriteToFlat(source, dest.data(), 0, length, access_guard);
+    }
+    chars = dest.data();
   } else {
     chars = source->GetDirectStringChars<Char>(no_gc, access_guard) + start;
   }

@@ -50,7 +50,7 @@ assert_test_class_fast_path(test_class_fast_path());
 %OptimizeMaglevOnNextCall(test_class_fast_path);
 assert_test_class_fast_path(test_class_fast_path());
 assertOptimized(test_class_fast_path);
-assertTrue(isMaglevved(test_class_fast_path));
+assertMaglevved(test_class_fast_path);
 assert_test_class_fast_path(test_class_fast_path());
 %OptimizeFunctionOnNextCall(test_class_fast_path);
 assert_test_class_fast_path(test_class_fast_path());

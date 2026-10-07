@@ -93,6 +93,9 @@ class Variable final : public ZoneObject {
   void clear_maybe_assigned() {
     bit_field_ = MaybeAssignedFlagField::update(bit_field_, kNotAssigned);
   }
+  void set_maybe_assigned() {
+    bit_field_ = MaybeAssignedFlagField::update(bit_field_, kMaybeAssigned);
+  }
   void SetMaybeAssigned() {
     if (IsImmutableLexicalVariableMode(mode())) {
       return;
@@ -304,11 +307,13 @@ class Variable final : public ZoneObject {
   }
   // LINT.ThenChange(/src/debug/debug-scope-info.cc:VariableIsReceiver)
 
+  // LINT.IfChange(VariableIsExport)
   bool IsExport() const {
     DCHECK_EQ(location(), VariableLocation::MODULE);
     DCHECK_NE(index(), 0);
     return index() > 0;
   }
+  // LINT.ThenChange(/src/debug/debug-scope-info.h:VariableIsExport)
 
   void AllocateTo(VariableLocation location, int index) {
     DCHECK(IsUnallocated() ||
@@ -354,10 +359,6 @@ class Variable final : public ZoneObject {
   int initializer_position_;
   uint16_t bit_field_;
   uint16_t hole_check_analysis_bit_field_;
-
-  void set_maybe_assigned() {
-    bit_field_ = MaybeAssignedFlagField::update(bit_field_, kMaybeAssigned);
-  }
 
   uint8_t HoleCheckBitmapIndex() const {
     return HoleCheckBitmapIndexField::decode(hole_check_analysis_bit_field_);

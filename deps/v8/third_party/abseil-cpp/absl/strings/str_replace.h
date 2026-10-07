@@ -45,6 +45,7 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 

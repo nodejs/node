@@ -30,7 +30,7 @@ testForOf([1, 2, 3], null);
 %OptimizeMaglevOnNextCall(testForOf);
 testForOf([1, 2, 3], null);
 
-assertTrue(isMaglevved(testForOf));
+assertMaglevved(testForOf);
 
 // Run with an array that we will transition during iteration.
 let transitionMe = [1, 2, 3];
@@ -44,4 +44,4 @@ let results = testForOf(transitionMe, transitionMe);
 assertEquals(results, [1, 1.5, 3]);
 
 // It should have deoptimized because the map changed.
-assertFalse(isMaglevved(testForOf));
+assertNotMaglevved(testForOf);

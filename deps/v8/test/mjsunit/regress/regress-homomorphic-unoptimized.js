@@ -15,11 +15,10 @@ function load(o) {
 }
 
 %PrepareFunctionForOptimization(load);
-// Warm up with a mix of normal JS objects and API objects so that the LoadIC
-// enters HOMOMORPHIC state.
+// Warm up with normal JS objects which have the same shape but distinct maps
+// so that the LoadIC enters HOMOMORPHIC state.
 for (let i = 0; i < 11; i++) {
-  let o = (i % 2 === 0) ? createNormalObject()
-                        : d8.test.createSpecialObject({});
+  let o = createNormalObject();
   o.a = i;
   assertEquals(i, load(o));
 }

@@ -32,13 +32,13 @@ const nonzero = new Vector(0.6); // Map2
 magnitude(zero);
 
 // The first call immediately deopts
-assertFalse(isMaglevved(magnitude));
+assertNotMaglevved(magnitude);
 
 // But we learn and don't deopt any more.
 %OptimizeMaglevOnNextCall(magnitude);
 magnitude(zero);
-assertTrue(isMaglevved(magnitude));
+assertMaglevved(magnitude);
 
 // Also passing other old objects won't deopt.
 magnitude(anotherOldObject);
-assertTrue(isMaglevved(magnitude));
+assertMaglevved(magnitude);

@@ -6,6 +6,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/dictionary-inl.h"
+#include "src/objects/feedback-vector-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
@@ -213,15 +214,18 @@ Tagged<Object> StringAdd_StringConstant_Internalize(
 
   auto feedback_vector = Cast<FeedbackVector>(maybe_feedback_vector);
 
-  FeedbackSlot cache_slot(FeedbackVector::ToSlot(
-      slot_index + kAdd_StringConstant_Internalize_CacheSlotOffset));
-  DCHECK_LT(cache_slot.ToInt(), feedback_vector->length().value());
-  Handle<Object> cache_obj(Cast<Object>(feedback_vector->Get(cache_slot)),
-                           isolate);
+  // The cache is stored in the extra slot of the feedback slot group.
+  FeedbackSlot slot(FeedbackVector::ToSlot(slot_index));
+  DCHECK_LT(
+      slot.WithOffset(kAdd_StringConstant_Internalize_CacheSlotOffset).ToInt(),
+      feedback_vector->length().value());
+
+  FeedbackNexus nexus(isolate, feedback_vector, slot);
+  Handle<Object> cache_obj(Cast<Object>(nexus.GetFeedbackExtra()), isolate);
   Handle<SimpleNameDictionary> cache;
   if (*cache_obj == ReadOnlyRoots{isolate}.uninitialized_symbol()) {
     cache = SimpleNameDictionary::New(isolate, 1);
-    feedback_vector->SynchronizedSet(cache_slot, *cache);
+    nexus.ConfigureStringAddInternalizeCache(*cache);
   } else {
     cache = Cast<SimpleNameDictionary>(cache_obj);
   }
@@ -241,7 +245,7 @@ Tagged<Object> StringAdd_StringConstant_Internalize(
   auto new_cache = SimpleNameDictionary::Set(
       isolate, cache, other_operand_internalize, internalized);
   if (*new_cache != *cache) {
-    feedback_vector->SynchronizedSet(cache_slot, *new_cache);
+    nexus.ConfigureStringAddInternalizeCache(*new_cache);
   }
 
   return *internalized;

@@ -440,6 +440,10 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
                                   offsetof(SlicedString, offset_));
     LoadTaggedField(string, string, offsetof(SlicedString, parent_));
     Add32(index, index, Operand(offset));
+    // Add32 yields a sign-extended Word32. Normalize it to its unsigned form
+    // so that a (corrupted) negative offset cannot be interpreted as a
+    // negative index by the subsequent address computation.
+    ZeroExtendWord(index, index);
     MacroAssembler::Branch(&loop, Label::kNear);
   }
 
@@ -474,7 +478,12 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // {instance_type} is unused from this point, so we can use as scratch.
     Register scratch = instance_type;
 
-    CalcScaledAddress(result, string, index, 1);
+    // On 64-bit, Maglev Word32 values are kept sign-extended, but the bounds
+    // check compares them as unsigned (zero-extended). Normalize the index to
+    // its unsigned form before using it in address arithmetic, so that a
+    // sign-extended (negative) index cannot reach below the string.
+    ZeroExtendWord(scratch, index);
+    CalcScaledAddress(result, string, scratch, 1);
     Lhu(result, MemOperand(result, OFFSET_OF_DATA_START(SeqTwoByteString) -
                                        kHeapObjectTag));
 
@@ -491,7 +500,8 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
                              Label::kNear);
 
       Register second_code_point = scratch;
-      CalcScaledAddress(second_code_point, string, index, 1);
+      ZeroExtendWord(scratch, index);
+      CalcScaledAddress(second_code_point, string, scratch, 1);
       Lhu(second_code_point,
           MemOperand(second_code_point,
                      OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
@@ -551,7 +561,12 @@ void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
   }
   TemporaryRegisterScope scope(this);
   Register scratch = scope.AcquireScratch();
-  AddWord(scratch, index,
+  // On 64-bit, Maglev Word32 values are kept sign-extended, but the bounds
+  // check compares them as unsigned (zero-extended). Normalize the index to
+  // its unsigned form before using it in address arithmetic, so that a
+  // sign-extended (negative) index cannot reach below the string.
+  ZeroExtendWord(scratch, index);
+  AddWord(scratch, scratch,
           Operand(OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag));
   AddWord(scratch, string, Operand(scratch));
   Lbu(result, MemOperand(scratch, 0));

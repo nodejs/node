@@ -189,17 +189,6 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
   V8_EXPORT_PRIVATE ArrayBufferExtension* CreateExtension(
       Isolate* isolate, std::shared_ptr<BackingStore> backing_store);
 
-  //
-  // Serializer/deserializer support.
-  //
-
-  // Backing stores are serialized/deserialized separately. During serialization
-  // the backing store reference is stored in the backing store field and upon
-  // deserialization it is converted back to actual external (off-heap) pointer
-  // value.
-  inline uint32_t GetBackingStoreRefForDeserialization() const;
-  inline void SetBackingStoreRefForSerialization(uint32_t ref);
-
   // Dispatched behavior.
   DECL_PRINTER(JSArrayBuffer)
   DECL_VERIFIER(JSArrayBuffer)
@@ -564,20 +553,8 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
   // Serializer/deserializer support.
   //
 
-  // External backing stores are serialized/deserialized separately.
-  // During serialization the backing store reference is stored in the typed
-  // array object and upon deserialization it is converted back to actual
-  // external (off-heap) pointer value.
-  // The backing store reference is stored in the external_pointer field.
-  inline uint32_t GetExternalBackingStoreRefForDeserialization() const;
-  inline void SetExternalBackingStoreRefForSerialization(uint32_t ref);
-
-  // Subtracts external pointer compensation from the external pointer value.
-  inline void RemoveExternalPointerCompensationForSerialization(
-      Isolate* isolate);
-  // Adds external pointer compensation to the external pointer value.
-  inline void AddExternalPointerCompensationForDeserialization(
-      Isolate* isolate);
+  // Initializes the external pointer value for on-heap typed arrays.
+  inline void InitOnHeapDataPtrAfterDeserialization(Isolate* isolate);
 
   static inline MaybeDirectHandle<JSTypedArray> Validate(
       Isolate* isolate, DirectHandle<Object> receiver, const char* method_name,
@@ -604,8 +581,6 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
       v8::ArrayBufferView::kEmbedderFieldCount > 0;
 
  private:
-  template <typename IsolateT>
-  friend class Deserializer;
   friend class Factory;
 
   inline void set_length(size_t value);

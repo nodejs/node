@@ -387,17 +387,19 @@ void NativeContextStats::IncrementExternalSize(Address context, Tagged<Map> map,
   size_t external_size = 0;
   if (instance_type == JS_ARRAY_BUFFER_TYPE) {
     auto js_array_buffer = Cast<JSArrayBuffer>(object);
-    if (js_array_buffer->is_resizable_by_js() &&
-        !js_array_buffer->is_shared()) {
-      // Reading the JS-visible byte length of a RAB during concurrent marking
-      // could cause a data race, because the main thread can update it
-      // concurrently. Instead, we use the atomically updated accounting length
-      // from the extension, which is the correct metric for GC memory
-      // measurement.
+    if (!js_array_buffer->is_shared()) {
+      // Reading the JS-visible byte length of a non-shared ArrayBuffer during
+      // concurrent marking can cause a data race because the main thread may
+      // update it concurrently (e.g. when materializing an on-heap TypedArray's
+      // buffer, detaching, or resizing a RAB). Instead, we use the atomically
+      // updated accounting length from the extension.
       if (auto ext = js_array_buffer->extension()) {
+        ext->InitializationBarrier();
         external_size = ext->accounting_length();
       }
     } else {
+      // For SharedArrayBuffers, accounting_length() is always 0 (see
+      // BackingStore::PerIsolateAccountingLength()), so use GetByteLength().
       external_size = js_array_buffer->GetByteLength();
     }
   } else {

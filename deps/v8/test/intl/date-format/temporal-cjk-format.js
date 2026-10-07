@@ -24,7 +24,33 @@ assertTemporalMatchesDate("zh-CN", kOptions);
 assertTemporalMatchesDate("zh-TW", kOptions);
 assertTemporalMatchesDate("ko-KR", kOptions);
 assertTemporalMatchesDate("en-US", kOptions);
+assertTemporalMatchesDate("ja-JP-u-ca-japanese", kOptions);
+assertTemporalMatchesDate("zh-CN-u-ca-chinese", kOptions);
+assertTemporalMatchesDate("zh-TW-u-ca-roc", kOptions);
+assertTemporalMatchesDate("ko-KR-u-ca-dangi", kOptions);
 
 assertTemporalMatchesDate("ja-JP", {dateStyle: "long", timeZone: "UTC"});
 assertTemporalMatchesDate("zh-CN", {dateStyle: "long", timeZone: "UTC"});
 assertTemporalMatchesDate("ja-JP", {dateStyle: "full", timeZone: "UTC"});
+assertTemporalMatchesDate("ja-JP-u-ca-japanese", {dateStyle: "long", timeZone: "UTC"});
+assertTemporalMatchesDate("ja-JP-u-ca-japanese", {
+  era: "long",
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+  timeZone: "UTC"
+});
+
+const formatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+  hour: "numeric",
+  timeZone: "UTC",
+});
+
+assertFalse(
+  formatter.formatToParts(kPlainDate).some(
+    ({type}) => type === "hour" || type === "dayPeriod"
+  )
+);

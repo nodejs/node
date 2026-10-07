@@ -247,6 +247,16 @@ Cast<TheHole>(o: HeapObject): TheHole labels CastError {
   return Cast<TheHole>(o) otherwise CastError;
 }
 
+Cast<TdzHole>(o: Object): TdzHole labels CastError {
+  if (o == TdzHole) return %RawDownCast<TdzHole>(o);
+  goto CastError;
+}
+
+Cast<TdzHole>(o: HeapObject): TdzHole labels CastError {
+  const o: Object = o;
+  return Cast<TdzHole>(o) otherwise CastError;
+}
+
 Cast<True>(o: Object): True labels CastError {
   if (o == True) return %RawDownCast<True>(o);
   goto CastError;

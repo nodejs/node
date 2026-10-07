@@ -374,8 +374,8 @@ DigitsOutput decimal_digits(DigitsInput input, int precision, bool e_mode) {
   return output;
 }
 
-template <WriteMode write_mode>
-LIBC_INLINE int convert_float_inner(Writer<write_mode> *writer,
+template <OverflowMode mode>
+LIBC_INLINE int convert_float_inner(Writer<mode> *writer,
                                     const FormatSection &to_conv,
                                     int32_t fraction_len, int exponent,
                                     AnyFloatStorageType mantissa, Sign sign,
@@ -618,10 +618,10 @@ LIBC_INLINE int convert_float_inner(Writer<write_mode> *writer,
   return WRITE_OK;
 }
 
-template <typename T, WriteMode write_mode,
+template <typename T, OverflowMode mode,
           cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
 LIBC_INLINE int
-convert_float_typed(Writer<write_mode> *writer, const FormatSection &to_conv,
+convert_float_typed(Writer<mode> *writer, const FormatSection &to_conv,
                     fputil::FPBits<T> float_bits, ConversionType ctype) {
   return convert_float_inner(writer, to_conv, float_bits.FRACTION_LEN,
                              float_bits.get_explicit_exponent(),
@@ -629,8 +629,8 @@ convert_float_typed(Writer<write_mode> *writer, const FormatSection &to_conv,
                              float_bits.sign(), ctype);
 }
 
-template <WriteMode write_mode>
-LIBC_INLINE int convert_float_outer(Writer<write_mode> *writer,
+template <OverflowMode mode>
+LIBC_INLINE int convert_float_outer(Writer<mode> *writer,
                                     const FormatSection &to_conv,
                                     ConversionType ctype) {
 #if defined(LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128)
@@ -666,44 +666,44 @@ LIBC_INLINE int convert_float_outer(Writer<write_mode> *writer,
   return convert_inf_nan(writer, to_conv);
 }
 
-template <typename T, WriteMode write_mode,
+template <typename T, OverflowMode mode,
           cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
-LIBC_INLINE int convert_float_decimal_typed(Writer<write_mode> *writer,
+LIBC_INLINE int convert_float_decimal_typed(Writer<mode> *writer,
                                             const FormatSection &to_conv,
                                             fputil::FPBits<T> float_bits) {
   return convert_float_typed<T>(writer, to_conv, float_bits, ConversionType::F);
 }
 
-template <typename T, WriteMode write_mode,
+template <typename T, OverflowMode mode,
           cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
-LIBC_INLINE int convert_float_dec_exp_typed(Writer<write_mode> *writer,
+LIBC_INLINE int convert_float_dec_exp_typed(Writer<mode> *writer,
                                             const FormatSection &to_conv,
                                             fputil::FPBits<T> float_bits) {
   return convert_float_typed<T>(writer, to_conv, float_bits, ConversionType::E);
 }
 
-template <typename T, WriteMode write_mode,
+template <typename T, OverflowMode mode,
           cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
-LIBC_INLINE int convert_float_dec_auto_typed(Writer<write_mode> *writer,
+LIBC_INLINE int convert_float_dec_auto_typed(Writer<mode> *writer,
                                              const FormatSection &to_conv,
                                              fputil::FPBits<T> float_bits) {
   return convert_float_typed<T>(writer, to_conv, float_bits, ConversionType::G);
 }
 
-template <WriteMode write_mode>
-LIBC_INLINE int convert_float_decimal(Writer<write_mode> *writer,
+template <OverflowMode mode>
+LIBC_INLINE int convert_float_decimal(Writer<mode> *writer,
                                       const FormatSection &to_conv) {
   return convert_float_outer(writer, to_conv, ConversionType::F);
 }
 
-template <WriteMode write_mode>
-LIBC_INLINE int convert_float_dec_exp(Writer<write_mode> *writer,
+template <OverflowMode mode>
+LIBC_INLINE int convert_float_dec_exp(Writer<mode> *writer,
                                       const FormatSection &to_conv) {
   return convert_float_outer(writer, to_conv, ConversionType::E);
 }
 
-template <WriteMode write_mode>
-LIBC_INLINE int convert_float_dec_auto(Writer<write_mode> *writer,
+template <OverflowMode mode>
+LIBC_INLINE int convert_float_dec_auto(Writer<mode> *writer,
                                        const FormatSection &to_conv) {
   return convert_float_outer(writer, to_conv, ConversionType::G);
 }

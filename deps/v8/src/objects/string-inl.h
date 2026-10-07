@@ -832,8 +832,16 @@ template <typename Char>
 const Char* String::GetDirectStringChars(
     const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
     const SharedStringAccessGuardIfNeeded& access_guard) const {
-  DCHECK(StringShape(this).IsDirect());
-  return StringShape(this).IsExternal()
+  return GetDirectStringChars<Char>(StringShape(this), no_gc, access_guard);
+}
+
+template <typename Char>
+const Char* String::GetDirectStringChars(
+    StringShape shape, const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
+    const SharedStringAccessGuardIfNeeded& access_guard) const {
+  DCHECK(shape.IsValidFor(this));
+  DCHECK(shape.IsDirect());
+  return shape.IsExternal()
              ? Cast<typename CharTraits<Char>::ExternalString>(this)->GetChars()
              : Cast<typename CharTraits<Char>::String>(this)->GetChars(
                    no_gc, access_guard);
@@ -1484,8 +1492,12 @@ Address ExternalString::resource_as_address() const {
   return resource_as_address(isolate);
 }
 
-void ExternalString::set_address_as_resource(Isolate* isolate, Address value) {
-  resource_.store(isolate, value);
+void ExternalString::InitResourceDataAfterDeserialization(Isolate* isolate) {
+  if (!is_uncached()) {
+    DCHECK_EQ(resource_data_.load_encoded(), kNullExternalPointer);
+    resource_data_.Init(address(), isolate, kNullAddress);
+  }
+  Address value = resource_as_address(isolate);
   if (Is<ExternalOneByteString>(this)) {
     Cast<ExternalOneByteString>(this)->update_data_cache(
         isolate, reinterpret_cast<ExternalOneByteString::Resource*>(value));
@@ -1493,33 +1505,6 @@ void ExternalString::set_address_as_resource(Isolate* isolate, Address value) {
     Cast<ExternalTwoByteString>(this)->update_data_cache(
         isolate, reinterpret_cast<ExternalTwoByteString::Resource*>(value));
   }
-}
-
-uint32_t ExternalString::GetResourceRefForDeserialization() {
-  return static_cast<uint32_t>(resource_.load_encoded());
-}
-
-ExternalString::ResourceRefs ExternalString::SetResourceRefForSerialization(
-    uint32_t ref) {
-  ResourceRefs refs{resource_.load_encoded(), kNullExternalPointer};
-  resource_.store_encoded(static_cast<ExternalPointer_t>(ref));
-  if (is_uncached()) return refs;
-  refs.resource_data = resource_data_.load_encoded();
-  resource_data_.store_encoded(kNullExternalPointer);
-  return refs;
-}
-
-void ExternalString::RestoreResourceRefs(Isolate* isolate, ResourceRefs refs) {
-#ifdef V8_ENABLE_SANDBOX
-  // The external pointer table entries are not freed while the string is
-  // serialized, only the in-object handle fields are overwritten, so re-storing
-  // the saved handles re-links the string with its existing entries.
-  resource_.store_encoded(refs.resource);
-  if (is_uncached()) return;
-  resource_data_.store_encoded(refs.resource_data);
-#else
-  set_address_as_resource(isolate, static_cast<Address>(refs.resource));
-#endif
 }
 
 void ExternalString::DisposeResource(Isolate* isolate) {
@@ -1569,6 +1554,12 @@ void ExternalOneByteString::set_resource(
     update_data_cache(isolate,
                       const_cast<ExternalOneByteString::Resource*>(resource));
   }
+}
+
+const ExternalOneByteString::Resource* ExternalOneByteString::ExchangeResource(
+    Isolate* isolate, const ExternalOneByteString::Resource* resource) {
+  return reinterpret_cast<const Resource*>(
+      resource_.exchange(isolate, reinterpret_cast<Address>(resource)));
 }
 
 const uint8_t* ExternalOneByteString::GetChars() const {
@@ -1631,6 +1622,12 @@ void ExternalTwoByteString::set_resource(
     update_data_cache(isolate,
                       const_cast<ExternalTwoByteString::Resource*>(resource));
   }
+}
+
+const ExternalTwoByteString::Resource* ExternalTwoByteString::ExchangeResource(
+    Isolate* isolate, const ExternalTwoByteString::Resource* resource) {
+  return reinterpret_cast<const Resource*>(
+      resource_.exchange(isolate, reinterpret_cast<Address>(resource)));
 }
 
 const uint16_t* ExternalTwoByteString::GetChars() const {

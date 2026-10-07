@@ -20,6 +20,7 @@
 
 using ::v8::Boolean;
 using ::v8::Context;
+using ::v8::Data;
 using ::v8::Function;
 using ::v8::FunctionTemplate;
 using ::v8::Local;
@@ -103,17 +104,17 @@ void SimpleSetterImpl(Local<String> name_str,
 }
 
 void SimpleGetterCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Local<String> name_str = args.Data().As<String>();
+  Local<String> name_str = args.DataV2().As<Value>().As<String>();
   SimpleGetterImpl(name_str, args);
 }
 
 void SimpleSetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  Local<String> name_str = info.Data().As<String>();
+  Local<String> name_str = info.DataV2().As<Value>().As<String>();
   SimpleSetterImpl(name_str, info);
 }
 
 void SymbolGetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  Local<Name> name = info.Data().As<Name>();
+  Local<Name> name = info.DataV2().As<Value>().As<Name>();
   CHECK(name->IsSymbol());
   v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
@@ -122,7 +123,7 @@ void SymbolGetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void SymbolSetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  Local<Name> name = info.Data().As<Name>();
+  Local<Name> name = info.DataV2().As<Value>().As<Name>();
   CHECK(name->IsSymbol());
   v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
@@ -382,7 +383,8 @@ v8::Intercepted EchoNamedProperty(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
   CHECK(v8_str("data")
-            ->Equals(info.GetIsolate()->GetCurrentContext(), info.Data())
+            ->Equals(info.GetIsolate()->GetCurrentContext(),
+                     info.DataV2().As<v8::Value>())
             .FromJust());
   echo_named_call_count++;
   info.GetReturnValue().Set(name);
@@ -1153,7 +1155,9 @@ v8::Intercepted InterceptorLoadICGetter(
   v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(isolate, info.GetIsolate());
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  CHECK(v8_str("data")->Equals(context, info.Data()).FromJust());
+  CHECK(v8_str("data")
+            ->Equals(context, info.DataV2().As<v8::Value>())
+            .FromJust());
   CHECK(v8_str("x")->Equals(context, name).FromJust());
   info.GetReturnValue().Set(v8::Integer::New(isolate, 42));
   return v8::Intercepted::kYes;
@@ -3117,7 +3121,8 @@ v8::Intercepted EchoIndexedProperty(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
   CHECK(v8_num(637)
-            ->Equals(info.GetIsolate()->GetCurrentContext(), info.Data())
+            ->Equals(info.GetIsolate()->GetCurrentContext(),
+                     info.DataV2().As<v8::Value>())
             .FromJust());
   echo_indexed_call_count++;
   info.GetReturnValue().Set(v8_num(index));
@@ -3718,7 +3723,7 @@ namespace {
 v8::Intercepted XPropertyGetter(
     Local<Name> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  CHECK(info.Data()->IsUndefined());
+  CHECK(info.DataV2().As<v8::Value>()->IsUndefined());
   info.GetReturnValue().Set(property);
   return v8::Intercepted::kYes;
 }
@@ -6381,9 +6386,9 @@ Local<Object> BuildWrappedObject(v8::Isolate* isolate, T* data) {
 }
 
 template <typename T>
-T* GetWrappedObject(Local<Value> data) {
+T* GetWrappedObject(Local<Data> data) {
   return reinterpret_cast<T*>(
-      Object::Cast(*data)->GetAlignedPointerFromInternalField(
+      data.As<Value>().As<Object>()->GetAlignedPointerFromInternalField(
           0, kApiInterceptorTag));
 }
 
@@ -6400,7 +6405,7 @@ struct ShouldInterceptData {
 v8::Intercepted ShouldNamedGetterInterceptor(
     Local<Name> name, const v8::PropertyCallbackInfo<Value>& info) {
   CheckReturnValue(info, FUNCTION_ADDR(ShouldNamedGetterInterceptor));
-  auto data = GetWrappedObject<ShouldInterceptData>(info.Data());
+  auto data = GetWrappedObject<ShouldInterceptData>(info.DataV2());
   if (!data->should_intercept) return v8::Intercepted::kNo;
   // Side effects are allowed only when the property is present or throws.
   ApiTestFuzzer::Fuzz();
@@ -6411,7 +6416,7 @@ v8::Intercepted ShouldNamedGetterInterceptor(
 v8::Intercepted ShouldIndexedGetterInterceptor(
     uint32_t index, const v8::PropertyCallbackInfo<Value>& info) {
   CheckReturnValue(info, FUNCTION_ADDR(ShouldIndexedGetterInterceptor));
-  auto data = GetWrappedObject<ShouldInterceptData>(info.Data());
+  auto data = GetWrappedObject<ShouldInterceptData>(info.DataV2());
   if (!data->should_intercept) return v8::Intercepted::kNo;
   // Side effects are allowed only when the property is present or throws.
   ApiTestFuzzer::Fuzz();
@@ -6423,7 +6428,7 @@ v8::Intercepted ShouldNamedSetterInterceptor(
     Local<Name> name, Local<Value> value,
     const v8::PropertyCallbackInfo<Boolean>& info) {
   CheckReturnValue(info, FUNCTION_ADDR(ShouldNamedSetterInterceptor));
-  auto data = GetWrappedObject<ShouldInterceptData>(info.Data());
+  auto data = GetWrappedObject<ShouldInterceptData>(info.DataV2());
   if (!data->should_intercept) return v8::Intercepted::kNo;
   // Side effects are allowed only when the property is present or throws.
   ApiTestFuzzer::Fuzz();
@@ -7187,7 +7192,7 @@ constexpr v8::ExternalPointerTypeTag kCallsTag = 15;
 v8::Intercepted Regress42204611_Getter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   std::vector<std::string>* calls = reinterpret_cast<std::vector<std::string>*>(
-      info.Data().As<v8::External>()->Value(kCallsTag));
+      info.DataV2().As<v8::External>()->Value(kCallsTag));
 
   calls->push_back("getter");
   return v8::Intercepted::kNo;
@@ -7196,7 +7201,7 @@ v8::Intercepted Regress42204611_Setter(
     Local<Name> name, Local<Value> value,
     const v8::PropertyCallbackInfo<Boolean>& info) {
   std::vector<std::string>* calls = reinterpret_cast<std::vector<std::string>*>(
-      info.Data().As<v8::External>()->Value(kCallsTag));
+      info.DataV2().As<v8::External>()->Value(kCallsTag));
 
   calls->push_back("setter");
   return v8::Intercepted::kNo;
@@ -7205,7 +7210,7 @@ v8::Intercepted Regress42204611_Definer(
     Local<Name> name, const v8::PropertyDescriptor& descriptor,
     const v8::PropertyCallbackInfo<Boolean>& info) {
   std::vector<std::string>* calls = reinterpret_cast<std::vector<std::string>*>(
-      info.Data().As<v8::External>()->Value(kCallsTag));
+      info.DataV2().As<v8::External>()->Value(kCallsTag));
 
   calls->push_back("definer");
   return v8::Intercepted::kNo;

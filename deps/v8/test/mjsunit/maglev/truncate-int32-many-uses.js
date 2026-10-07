@@ -22,4 +22,4 @@ foo(0, 1);
 assertEquals(4294967296, foo(1073741823, 1073741823));
 
 // Deopt because the addition overflows.
-assertFalse(isMaglevved(foo));
+assertNotMaglevved(foo);

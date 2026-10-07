@@ -106,6 +106,18 @@ class V8_EXPORT MicrotaskQueue : public cppgc::GarbageCollected<MicrotaskQueue>,
    */
   virtual int GetMicrotasksScopeDepth() const = 0;
 
+  /**
+   * Controls how microtasks in this queue are invoked. This is the per-queue
+   * counterpart of Isolate::SetMicrotasksPolicy(), which only affects the
+   * isolate's default queue; the initial value is the policy passed to New().
+   */
+  virtual void SetMicrotasksPolicy(MicrotasksPolicy policy) = 0;
+
+  /**
+   * Returns the policy controlling how microtasks in this queue are invoked.
+   */
+  virtual MicrotasksPolicy GetMicrotasksPolicy() const = 0;
+
   MicrotaskQueue(const MicrotaskQueue&) = delete;
   MicrotaskQueue& operator=(const MicrotaskQueue&) = delete;
 

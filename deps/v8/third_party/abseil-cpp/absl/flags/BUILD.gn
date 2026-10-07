@@ -11,7 +11,6 @@ absl_source_set("path_util") {
   visibility = [ ":*" ]
   deps = [
     "//third_party/abseil-cpp/absl/base:config",
-    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
@@ -28,7 +27,6 @@ absl_source_set("program_name") {
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:no_destructor",
-    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/synchronization",
   ]
@@ -93,7 +91,6 @@ absl_source_set("commandlineflag") {
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:fast_type_id",
     "//third_party/abseil-cpp/absl/base:nullability",
-    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/types:optional",
   ]
@@ -110,7 +107,6 @@ absl_source_set("private_handle_accessor") {
     ":commandlineflag",
     ":commandlineflag_internal",
     "//third_party/abseil-cpp/absl/base:config",
-    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
@@ -181,7 +177,6 @@ absl_source_set("flag") {
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:nullability",
-    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
@@ -216,7 +211,6 @@ absl_source_set("usage") {
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:raw_logging_internal",
-    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/synchronization",
   ]
@@ -281,7 +275,10 @@ absl_test("flag_test") {
 
 absl_test("marshalling_test") {
   sources = [ "marshalling_test.cc" ]
-  deps = [ ":marshalling" ]
+  deps = [
+    ":marshalling",
+    "//third_party/abseil-cpp/absl/numeric:int128",
+  ]
 }
 
 absl_test("parse_test") {

@@ -112,6 +112,20 @@ class FunctionContextSpecialization final : public AllStatic {
     if (HeapConstant* n = context->TryCast<HeapConstant>()) {
       return n->ref().AsContext().previous(unit->broker(), depth);
     }
+    if (v8_flags.always_specialize_for_script_context) {
+      if (InitialValue* n = context->TryCast<InitialValue>()) {
+        if (!unit->info()->toplevel_is_osr() &&
+            n->source() == interpreter::Register::current_context()) {
+          if (compiler::OptionalContextRef outer =
+                  unit->info()->specialization_context()) {
+            if (*depth >= unit->info()->specialization_context_distance()) {
+              *depth -= unit->info()->specialization_context_distance();
+              return outer->previous(unit->broker(), depth);
+            }
+          }
+        }
+      }
+    }
     return {};
   }
 };
@@ -185,7 +199,7 @@ ValueNode* MaglevGraphBuilder::TryGetParentContext(ValueNode* node) {
 // Attempts to walk up the context chain through the graph in order to reduce
 // depth and thus the number of runtime loads.
 void MaglevGraphBuilder::MinimizeContextChainDepth(
-    ValueNode** context, size_t* depth, compiler::ScopeInfoRef* scope_info) {
+    ValueNode** context, size_t* depth, ContextScopeInfo* scope_info) {
   while (*depth > 0) {
     ValueNode* parent_context = TryGetParentContext(*context);
     if (parent_context == nullptr) return;
@@ -765,13 +779,22 @@ ValueNode* MaglevGraphBuilder::GetInlinedArgument(int i) {
 
 void MaglevGraphBuilder::BuildRegisterFrameInitialization(
     ValueNode* context, ValueNode* closure, ValueNode* new_target) {
-  if (closure == nullptr &&
-      compilation_unit_->info()->specialize_to_function_context()) {
-    compiler::JSFunctionRef function = compiler::MakeRefAssumeMemoryFence(
-        broker(), broker()->CanonicalPersistentHandle(
-                      compilation_unit_->info()->toplevel_function()));
-    closure = GetConstant(function);
-    context = GetConstant(function.context(broker()));
+  if (closure == nullptr) {
+    if (compilation_unit_->info()->specialize_to_function_context()) {
+      compiler::JSFunctionRef function = compiler::MakeRefAssumeMemoryFence(
+          broker(), broker()->CanonicalPersistentHandle(
+                        compilation_unit_->info()->toplevel_function()));
+      closure = GetConstant(function);
+      context = GetConstant(function.context(broker()));
+    } else if (v8_flags.always_specialize_for_script_context &&
+               !compilation_unit_->info()->toplevel_is_osr() &&
+               compilation_unit_->info()->specialization_context_distance() ==
+                   0) {
+      if (compiler::OptionalContextRef outer =
+              compilation_unit_->info()->specialization_context()) {
+        context = GetConstant(*outer);
+      }
+    }
   }
 
   auto InitializeRegister = [&](interpreter::Register reg,
@@ -2596,6 +2619,10 @@ ReduceResult MaglevGraphBuilder::VisitLdaTheHole() {
   SetAccumulator(GetRootConstant(RootIndex::kTheHoleValue));
   return ReduceResult::Done();
 }
+ReduceResult MaglevGraphBuilder::VisitLdaTdzHole() {
+  SetAccumulator(GetRootConstant(RootIndex::kTdzHoleValue));
+  return ReduceResult::Done();
+}
 ReduceResult MaglevGraphBuilder::VisitLdaTrue() {
   SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
   return ReduceResult::Done();
@@ -2630,7 +2657,7 @@ MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
     // won't change anymore.
     //
     // See also: JSContextSpecialization::ReduceJSLoadContext.
-    if (slot_value.IsTheHole()) return {};
+    if (slot_value.IsTdzHole()) return {};
     if (mode == VariableMode::kVar && slot_value.IsUndefined()) return {};
     if (IsPrivateMethodOrAccessorVariableMode(mode) &&
         slot_value.IsUndefined()) {
@@ -2649,7 +2676,7 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextCell(
   compiler::ContextRef context =
       context_node->Cast<HeapConstant>()->ref().AsContext();
   auto maybe_value = context.get(broker(), index);
-  if (!maybe_value || maybe_value->IsTheHole() ||
+  if (!maybe_value || maybe_value->IsTdzHole() ||
       maybe_value->IsUndefinedContextCell()) {
     return {};
   }
@@ -2760,7 +2787,7 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextCell(
   compiler::ContextRef context_ref =
       context->Cast<HeapConstant>()->ref().AsContext();
   auto maybe_value = context_ref.get(broker(), index);
-  if (!maybe_value || maybe_value->IsTheHole() ||
+  if (!maybe_value || maybe_value->IsTdzHole() ||
       maybe_value->IsUndefinedContextCell()) {
     DCHECK_EQ(assigned, kMaybeAssigned);
     return AddNewNode<StoreContextSlotWithWriteBarrier>({context, value},
@@ -2893,14 +2920,14 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
 
 ReduceResult MaglevGraphBuilder::BuildLoadContextSlot(
     ValueNode* context, size_t depth, int slot_index, ContextMode context_mode,
-    compiler::ScopeInfoRef scope_info) {
+    ContextScopeInfo scope_info) {
   context = GetContextAtDepth(context, depth, &scope_info);
   return LoadAndCacheContextSlot(context, slot_index, context_mode, scope_info);
 }
 
 ReduceResult MaglevGraphBuilder::BuildStoreContextSlot(
     ValueNode* context, size_t depth, int slot_index, ValueNode* value,
-    ContextMode context_mode, compiler::ScopeInfoRef scope_info) {
+    ContextMode context_mode, ContextScopeInfo scope_info) {
   context = GetContextAtDepth(context, depth, &scope_info);
   return StoreAndCacheContextSlot(context, slot_index, value, context_mode,
                                   scope_info);
@@ -2911,11 +2938,9 @@ ReduceResult MaglevGraphBuilder::VisitLdaContextSlotNoCell() {
   int slot_index = iterator_.GetContextSlotOperand(1);
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
   ValueNode* value;
-  GET_VALUE(
-      value,
-      BuildLoadContextSlot(
-          context, depth, slot_index, ContextMode::kNoContextCells,
-          register_scope_infos_[iterator_.GetRegisterOperand(0)].value()));
+  GET_VALUE(value, BuildLoadContextSlot(
+                       context, depth, slot_index, ContextMode::kNoContextCells,
+                       register_scope_infos_[iterator_.GetRegisterOperand(0)]));
   SetAccumulator(value);
   return ReduceResult::Done();
 }
@@ -2924,11 +2949,10 @@ ReduceResult MaglevGraphBuilder::VisitLdaContextSlot() {
   int slot_index = iterator_.GetContextSlotOperand(1);
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
   ValueNode* value;
-  GET_VALUE(
-      value,
-      BuildLoadContextSlot(
-          context, depth, slot_index, ContextMode::kHasContextCells,
-          register_scope_infos_[iterator_.GetRegisterOperand(0)].value()));
+  GET_VALUE(value,
+            BuildLoadContextSlot(
+                context, depth, slot_index, ContextMode::kHasContextCells,
+                register_scope_infos_[iterator_.GetRegisterOperand(0)]));
   SetAccumulator(value);
   return ReduceResult::Done();
 }
@@ -2937,11 +2961,9 @@ ReduceResult MaglevGraphBuilder::VisitLdaImmutableContextSlot() {
   int slot_index = iterator_.GetContextSlotOperand(1);
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
   ValueNode* value;
-  GET_VALUE(
-      value,
-      BuildLoadContextSlot(
-          context, depth, slot_index, ContextMode::kNoContextCells,
-          register_scope_infos_[iterator_.GetRegisterOperand(0)].value()));
+  GET_VALUE(value, BuildLoadContextSlot(
+                       context, depth, slot_index, ContextMode::kNoContextCells,
+                       register_scope_infos_[iterator_.GetRegisterOperand(0)]));
   SetAccumulator(value);
   return ReduceResult::Done();
 }
@@ -2986,7 +3008,7 @@ ReduceResult MaglevGraphBuilder::VisitStaContextSlotNoCell() {
   return BuildStoreContextSlot(
       context, depth, slot_index, GetAccumulator(),
       ContextMode::kNoContextCells,
-      register_scope_infos_[iterator_.GetRegisterOperand(0)].value());
+      register_scope_infos_[iterator_.GetRegisterOperand(0)]);
 }
 ReduceResult MaglevGraphBuilder::VisitStaCurrentContextSlotNoCell() {
   ValueNode* context = GetContext();
@@ -3003,7 +3025,7 @@ ReduceResult MaglevGraphBuilder::VisitStaContextSlot() {
   return BuildStoreContextSlot(
       context, depth, slot_index, GetAccumulator(),
       ContextMode::kHasContextCells,
-      register_scope_infos_[iterator_.GetRegisterOperand(0)].value());
+      register_scope_infos_[iterator_.GetRegisterOperand(0)]);
 }
 
 ReduceResult MaglevGraphBuilder::VisitStaCurrentContextSlot() {
@@ -3447,7 +3469,7 @@ ReduceResult MaglevGraphBuilder::VisitLdaLookupContextSlot() {
 }
 
 bool MaglevGraphBuilder::CheckContextExtensions(size_t depth) {
-  compiler::ScopeInfoRef scope_info = GetCurrentScopeInfo();
+  ContextScopeInfo scope_info = GetCurrentScopeInfo();
   ValueNode* context = GetContext();
   for (uint32_t d = 0; d < depth; d++) {
     CHECK_NE(scope_info.scope_type(), ScopeType::SCRIPT_SCOPE);
@@ -4709,7 +4731,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
   bool has_deprecated_map_without_migration_target = false;
   if (compiler::OptionalHeapObjectRef c =
           TryGetConstant<HeapObject>(lookup_start_object)) {
-    if (c.value().IsTheHole()) return {};
+    if (c.value().IsAnyHole()) return {};
     if (c.value().IsJSFunctionWithPrototype() &&
         feedback.name().equals(broker()->prototype_string())) {
       compiler::JSFunctionRef function = c.value().AsJSFunction();
@@ -6677,7 +6699,7 @@ ReduceResult MaglevGraphBuilder::VisitLdaModuleVariable() {
   // LdaModuleVariable <cell_index> <depth>
   int cell_index = iterator_.GetImmediateOperand(0);
   size_t depth = iterator_.GetUnsignedImmediateOperand(1);
-  compiler::ScopeInfoRef scope_info = GetCurrentScopeInfo();
+  ContextScopeInfo scope_info = GetCurrentScopeInfo();
 
   ValueNode* context = GetContextAtDepth(GetContext(), depth, &scope_info);
 
@@ -6709,8 +6731,9 @@ ReduceResult MaglevGraphBuilder::VisitLdaModuleVariable() {
   return ReduceResult::Done();
 }
 
-ValueNode* MaglevGraphBuilder::GetContextAtDepth(
-    ValueNode* context, size_t depth, compiler::ScopeInfoRef* scope_info) {
+ValueNode* MaglevGraphBuilder::GetContextAtDepth(ValueNode* context,
+                                                 size_t depth,
+                                                 ContextScopeInfo* scope_info) {
   MinimizeContextChainDepth(&context, &depth, scope_info);
 
   compiler::OptionalContextRef maybe_ref =
@@ -6718,7 +6741,7 @@ ValueNode* MaglevGraphBuilder::GetContextAtDepth(
                                               &depth);
   if (maybe_ref.has_value()) {
     context = GetConstant(maybe_ref.value());
-    *scope_info = maybe_ref.value().scope_info(broker());
+    *scope_info = ContextScopeInfo(maybe_ref.value().scope_info(broker()));
   }
 
   for (size_t i = 0; i < depth; i++) {
@@ -6748,7 +6771,7 @@ ReduceResult MaglevGraphBuilder::VisitStaModuleVariable() {
   }
 
   size_t depth = iterator_.GetUnsignedImmediateOperand(1);
-  compiler::ScopeInfoRef scope_info = GetCurrentScopeInfo();
+  ContextScopeInfo scope_info = GetCurrentScopeInfo();
 
   ValueNode* context = GetContextAtDepth(GetContext(), depth, &scope_info);
 
@@ -6831,8 +6854,8 @@ ReduceResult MaglevGraphBuilder::VisitGetPrivateField() {
   int slot_index = iterator_.GetContextSlotOperand(1);
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
 
-  compiler::ScopeInfoRef scope_info =
-      register_scope_infos_[iterator_.GetRegisterOperand(0)].value();
+  ContextScopeInfo scope_info =
+      register_scope_infos_[iterator_.GetRegisterOperand(0)];
   ValueNode* context = GetContextAtDepth(current_context, depth, &scope_info);
   VariableMode mode;
   MaybeAssignedFlag assigned =
@@ -6891,8 +6914,8 @@ ReduceResult MaglevGraphBuilder::VisitSetPrivateField() {
   int slot_index = iterator_.GetContextSlotOperand(1);
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
 
-  compiler::ScopeInfoRef scope_info =
-      register_scope_infos_[iterator_.GetRegisterOperand(0)].value();
+  ContextScopeInfo scope_info =
+      register_scope_infos_[iterator_.GetRegisterOperand(0)];
   ValueNode* context = GetContextAtDepth(current_context, depth, &scope_info);
   VariableMode mode;
   MaybeAssignedFlag assigned =
@@ -8375,10 +8398,18 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
   ABORT_IF_EMPTY_TYPE(executing_constant);
   ABORT_IF_EMPTY_TYPE(next_constant);
 
+  // The fast path below asks the generator to store the yielded value into
+  // yielded_value_ rather than allocate a result object, and rebuilds the
+  // object here as a VirtualObject that escape analysis can then elide. A
+  // current try-catch block, either in this function or in a caller we were
+  // inlined into, defeats that as would pay for the protocol and allocate
+  // anyway.
+  const bool can_skip_allocation = GetCurrentTryCatchBlock().ref == nullptr;
+
   MaglevSubGraphBuilder::Label generator_already_closed(&subgraph, 1);
   MaglevSubGraphBuilder::Label generator_finished(&subgraph, 1);
-  MaglevSubGraphBuilder::Label allocation_not_skipped(&subgraph, 1);
-  MaglevSubGraphBuilder::Label done(&subgraph, 4, {&ret_value});
+  MaglevSubGraphBuilder::Label done(&subgraph, can_skip_allocation ? 4 : 3,
+                                    {&ret_value});
 
   RETURN_IF_ABORT(subgraph.GotoIfTrue<BranchIfReferenceEqual>(
       &generator_already_closed, {continuation, closed_constant}));
@@ -8398,13 +8429,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
             StoreTaggedMode::kDefault)
             .IsDoneWithoutAbort());
 
-  // Tell the generator to skip allocating the result object (if
-  // possible).
-  CHECK(BuildStoreTaggedFieldNoWriteBarrier(
-            receiver, GetRootConstant(RootIndex::kTheHoleValue),
-            offsetof(JSGeneratorObject, yielded_value_),
-            StoreTaggedMode::kDefault)
-            .IsDoneWithoutAbort());
+  // Tell the generator to skip allocating the result object if possible.
+  if (can_skip_allocation) {
+    CHECK(BuildStoreTaggedFieldNoWriteBarrier(
+              receiver, GetRootConstant(RootIndex::kTheHoleValue),
+              offsetof(JSGeneratorObject, yielded_value_),
+              StoreTaggedMode::kDefault)
+              .IsDoneWithoutAbort());
+  }
 
   ValueNode* result;
   {
@@ -8429,36 +8461,36 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
             BuildLoadTaggedField(receiver,
                                  offsetof(JSGeneratorObject, continuation_)));
 
-  ValueNode* yielded_value;
-  GET_VALUE(yielded_value,
-            BuildLoadTaggedField(receiver,
-                                 offsetof(JSGeneratorObject, yielded_value_)));
-  // We unconditionally clear yielded_value_ here. If the generator did
-  // not hit the GeneratorYieldResult intrinsic (if it suspended via
-  // yield*), yielded_value_ would still hold TheHole. If it leaked to JS
-  // space (e.g., on a subsequent unoptimized next() call), it could cause
-  // a crash when JS attempts to access its properties.
-  CHECK(BuildStoreTaggedFieldNoWriteBarrier(
-            receiver, GetRootConstant(RootIndex::kUndefinedValue),
-            offsetof(JSGeneratorObject, yielded_value_),
-            StoreTaggedMode::kDefault)
-            .IsDoneWithoutAbort());
-
   CHECK(subgraph
             .GotoIfTrue<BranchIfReferenceEqual>(
                 &generator_finished, {result_continuation, executing_constant})
             .IsDoneWithoutAbort());
 
-  // The generator is not yet finished.
-  // Check whether skipping allocating the result object was successful.
-  CHECK(subgraph
-            .GotoIfFalse<BranchIfRootConstant>(
-                &allocation_not_skipped, {result}, RootIndex::kTheHoleValue)
-            .IsDoneWithoutAbort());
+  if (can_skip_allocation) {
+    MaglevSubGraphBuilder::Label allocation_not_skipped(&subgraph, 1);
+    ValueNode* yielded_value;
+    GET_VALUE(yielded_value,
+              BuildLoadTaggedField(
+                  receiver, offsetof(JSGeneratorObject, yielded_value_)));
+    // We unconditionally clear yielded_value_ here. If the generator did
+    // not hit the GeneratorYieldResult intrinsic (if it suspended via
+    // yield*), yielded_value_ would still hold TheHole. If it leaked to JS
+    // space (e.g., on a subsequent unoptimized next() call), it could cause
+    // a crash when JS attempts to access its properties.
+    CHECK(BuildStoreTaggedFieldNoWriteBarrier(
+              receiver, GetRootConstant(RootIndex::kUndefinedValue),
+              offsetof(JSGeneratorObject, yielded_value_),
+              StoreTaggedMode::kDefault)
+              .IsDoneWithoutAbort());
 
-  // Was able to avoid allocating the result object. Use
-  // yielded_value from the generator object.
-  {
+    // Check whether skipping allocating the result object was successful.
+    CHECK(subgraph
+              .GotoIfFalse<BranchIfRootConstant>(
+                  &allocation_not_skipped, {result}, RootIndex::kTheHoleValue)
+              .IsDoneWithoutAbort());
+
+    // Was able to avoid allocating the result object. Use
+    // yielded_value from the generator object.
     compiler::MapRef map =
         broker()->target_native_context().iterator_result_map(broker());
     VirtualObject* iter_result = reducer_.CreateJSIteratorResult(
@@ -8467,6 +8499,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
     GET_VALUE(alloc_result, reducer_.BuildInlinedAllocation(
                                 iter_result, AllocationType::kYoung));
     subgraph.set(ret_value, alloc_result);
+    subgraph.Goto(&done);
+
+    subgraph.Bind(&allocation_not_skipped);
+
+    subgraph.set(ret_value, result);
+    subgraph.Goto(&done);
+  } else {
+    // The builtin allocated the result object for us.
+    subgraph.set(ret_value, result);
     subgraph.Goto(&done);
   }
 
@@ -8505,14 +8546,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
     GET_VALUE(alloc_result, reducer_.BuildInlinedAllocation(
                                 iter_result, AllocationType::kYoung));
     subgraph.set(ret_value, alloc_result);
-    subgraph.Goto(&done);
-  }
-
-  subgraph.Bind(&allocation_not_skipped);
-  {
-    // Was not able to avoid allocating the result object; use
-    // the result object as is.
-    subgraph.set(ret_value, result);
     subgraph.Goto(&done);
   }
 
@@ -10790,7 +10823,7 @@ MaglevGraphBuilder::GetArgumentsAsArrayOfValueNodes(
   // TODO(victorgomes): Investigate if we can avoid this copy.
   int arg_count = static_cast<int>(args.count());
   auto arguments = zone()->AllocateVector<ValueNode*>(arg_count + 1);
-  if (IsTheHoleConstant(args.receiver())) {
+  if (IsTdzHoleConstant(args.receiver())) {
     arguments[0] = args.receiver();
   } else {
     ReduceResult result = GetConvertReceiver(shared, args);
@@ -10856,7 +10889,9 @@ ReduceResult MaglevGraphBuilder::BuildGenericCall(
 MaybeReduceResult MaglevGraphBuilder::BuildCallSelf(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
     compiler::SharedFunctionInfoRef shared, CallArguments& args) {
-  if (IsTheHoleConstant(args.receiver())) return {};
+  if (IsTdzHoleConstant(args.receiver())) {
+    return {};
+  }
   ValueNode* receiver;
   GET_VALUE_OR_ABORT(receiver, GetConvertReceiver(shared, args));
   size_t input_count = args.count() + CallSelf::kFixedInputCount;
@@ -10899,9 +10934,9 @@ bool MaglevGraphBuilder::TargetIsCurrentCompilingUnit(
 MaybeReduceResult MaglevGraphBuilder::TryReduceCallForApiFunction(
     compiler::FunctionTemplateInfoRef api_callback,
     compiler::OptionalSharedFunctionInfoRef maybe_shared, CallArguments& args) {
-  if (IsTheHoleConstant(args.receiver())) {
-    // The receiver may be the_hole when inlining derived constructors and
-    // construct_as_builtin constructors.
+  if (IsTdzHoleConstant(args.receiver())) {
+    // The receiver may be tdz_hole when inlining construct_as_builtin or
+    // derived constructors.
     // TODO(jgruber): Support this case.
     return {};
   }
@@ -10961,7 +10996,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
     return {};
   }
 
-  if (IsTheHoleConstant(args.receiver())) {
+  if (IsTdzHoleConstant(args.receiver())) {
     // Not supported by CallFunctionTemplate.
     return {};
   }
@@ -11059,8 +11094,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
       builtin_name, tagged_context);
 }
 
-bool MaglevGraphBuilder::IsTheHoleConstant(ValueNode* node) {
-  return reducer().IsTheHoleConstant(node);
+bool MaglevGraphBuilder::IsTdzHoleConstant(ValueNode* node) {
+  return reducer().IsTdzHoleConstant(node);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
@@ -11093,8 +11128,8 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
     compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   ValueNode* receiver = args.receiver();
-  if (!IsTheHoleConstant(receiver)) {
-    // The receiver may be the_hole when inlining derived constructors and
+  if (!IsTdzHoleConstant(receiver)) {
+    // The receiver may be tdz_hole when inlining derived constructors and
     // construct_as_builtin constructors. Only insert conversions when that is
     // not the case.
     GET_VALUE_OR_ABORT(receiver, GetConvertReceiver(shared, args));
@@ -12143,10 +12178,6 @@ ReduceResult MaglevGraphBuilder::VisitCallRuntime() {
           {current_interpreter_frame_.get(args[0])}));
       SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
       return ReduceResult::Done();
-    case Runtime::kNewFunctionContext:
-      accumulator_scope_info_ =
-          compilation_unit_->shared_function_info().scope_info(broker());
-      break;
     default:
       break;
   }
@@ -12168,6 +12199,10 @@ ReduceResult MaglevGraphBuilder::VisitCallRuntime() {
                          },
                          function_id, context));
   SetAccumulator(call_runtime);
+  if (function_id == Runtime::kNewFunctionContext) {
+    accumulator_scope_info_ = GetCurrentScopeInfo().Push(
+        compilation_unit_->shared_function_info().scope_info(broker()));
+  }
 
   if (RuntimeFunctionWillThrow(function_id)) {
     return reducer_.BuildAbort(AbortReason::kUnexpectedReturnFromThrow);
@@ -13108,7 +13143,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
             &reducer_, GetContext(),
             Builtin::kStringCreateLazyDeoptContinuation, target_function,
             base::VectorOf<ValueNode*>(
-                {GetRootConstant(RootIndex::kTheHoleValue)}));
+                {GetRootConstant(RootIndex::kTdzHoleValue)}));
         GET_VALUE_OR_ABORT(value,
                            BuildToString(args[0], ToString::kThrowOnSymbol));
       }
@@ -13120,7 +13155,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
       break;
     case Builtin::kTypedArrayConstructor: {
       LazyDeoptFrameScope construct(
-          &reducer_, GetContext(), GetRootConstant(RootIndex::kTheHoleValue),
+          &reducer_, GetContext(), GetRootConstant(RootIndex::kTdzHoleValue),
           *compilation_unit(), GetCurrentSourcePosition());
       RETURN_IF_DONE(reducer_.TryReduceTypedArrayConstructor(
           GetContext(), target_function, new_target, args));
@@ -13147,7 +13182,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceJSConstructStub(
   const bool construct_as_builtin = shared_function_info.construct_as_builtin();
 
   if (IsDerivedConstructor(shared_function_info.kind())) {
-    ValueNode* implicit_receiver = GetRootConstant(RootIndex::kTheHoleValue);
+    ValueNode* implicit_receiver = GetRootConstant(RootIndex::kTdzHoleValue);
     args.set_receiver(implicit_receiver);
     ValueNode* call_result;
     {
@@ -13180,7 +13215,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceJSConstructStub(
 
   ValueNode* implicit_receiver = nullptr;
   if (construct_as_builtin) {
-    implicit_receiver = GetRootConstant(RootIndex::kTheHoleValue);
+    implicit_receiver = GetRootConstant(RootIndex::kTdzHoleValue);
   } else {
     // We do not create a construct stub lazy deopt frame, since
     // FastNewObject cannot fail if target is a JSFunction.
@@ -14351,7 +14386,7 @@ ReduceResult MaglevGraphBuilder::VisitCreateBlockContext() {
 
   auto done = [&](ValueNode* res) {
     SetAccumulator(res);
-    accumulator_scope_info_ = scope_info;
+    accumulator_scope_info_ = GetCurrentScopeInfo().Push(scope_info);
   };
 
   PROCESS_AND_RETURN_IF_DONE(TryBuildInlinedAllocatedContext(
@@ -14376,7 +14411,7 @@ ReduceResult MaglevGraphBuilder::VisitCreateCatchContext() {
           Context::MIN_CONTEXT_EXTENDED_SLOTS, scope_info, exception));
 
   SetAccumulator(allocation);
-  accumulator_scope_info_ = scope_info;
+  accumulator_scope_info_ = GetCurrentScopeInfo().Push(scope_info);
   return ReduceResult::Done();
 }
 
@@ -14388,7 +14423,7 @@ ReduceResult MaglevGraphBuilder::VisitCreateFunctionContext() {
 
   auto done = [&](ValueNode* res) {
     SetAccumulator(res);
-    accumulator_scope_info_ = info;
+    accumulator_scope_info_ = GetCurrentScopeInfo().Push(info);
   };
 
   PROCESS_AND_RETURN_IF_DONE(
@@ -14413,7 +14448,7 @@ ReduceResult MaglevGraphBuilder::VisitCreateEvalContext() {
 
   auto done = [&](ValueNode* res) {
     SetAccumulator(res);
-    accumulator_scope_info_ = info;
+    accumulator_scope_info_ = GetCurrentScopeInfo().Push(info);
   };
 
   PROCESS_AND_RETURN_IF_DONE(
@@ -14444,7 +14479,7 @@ ReduceResult MaglevGraphBuilder::VisitCreateWithContext() {
           Context::MIN_CONTEXT_EXTENDED_SLOTS, scope_info, object));
 
   SetAccumulator(allocation);
-  accumulator_scope_info_ = scope_info;
+  accumulator_scope_info_ = GetCurrentScopeInfo().Push(scope_info);
   return ReduceResult::Done();
 }
 
@@ -14798,8 +14833,7 @@ void MaglevGraphBuilder::MergeIntoFrameState(BasicBlock* predecessor,
   }
 }
 
-void MaglevGraphBuilder::SetCurrentScopeInfo(
-    compiler::OptionalScopeInfoRef scope_info) {
+void MaglevGraphBuilder::SetCurrentScopeInfo(ContextScopeInfo scope_info) {
   if (v8_flags.trace_maglev_scope_info) {
     int offset = iterator_.done() ? -1 : iterator_.current_offset();
     if (scope_info.has_value()) {
@@ -15587,48 +15621,74 @@ ReduceResult MaglevGraphBuilder::VisitReturn() {
              : ReduceResult::DoneWithAbort();
 }
 
-ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
-  // ThrowReferenceErrorIfHole <variable_name>
+ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfTdzHole() {
+  // ThrowReferenceErrorIfTdzHole <variable_name>
   compiler::NameRef name = GetRefOperand<Name>(0);
   ValueNode* value = GetAccumulator();
-  switch (value->IsTheHole()) {
+  switch (value->IsTdzHole()) {
     case Tribool::kTrue:
       return reducer_.EmitThrow(Throw::kThrowAccessedUninitializedVariable,
                                 GetConstant(name));
     case Tribool::kFalse:
       return ReduceResult::Done();
-    case Tribool::kMaybe:
+    case Tribool::kMaybe: {
       DCHECK(value->is_tagged());
-      return AddNewNode<ThrowReferenceErrorIfHole>({value}, name);
+      // Temporarily clear the cached constant value before emitting
+      // ThrowReferenceErrorIfTdzHole so that known_node_aspects() merged into
+      // the exception handler (the catch block) does not cache this load. On
+      // the exception path, the value is guaranteed to be tdz_hole, and the
+      // catch block may resume a generator that initializes the const variable.
+      // Restore the cached value afterward for the non-throwing fallthrough
+      // path where the value is known not to be tdz_hole.
+      // TODO(verwaest): Look into making loaded_context_constants_ monotonic,
+      // e.g. by folding the hole check into the context load rather than
+      // temporarily clearing the cached constant here.
+      ValueNode** cached_slot = nullptr;
+      if (auto* load = value->TryCast<LoadContextSlotNoCells>();
+          load && load->maybe_assigned() == kNotAssigned) {
+        ValueNode*& slot = known_node_aspects().GetContextCachedValue(
+            load->input(0).node(), load->offset(), kNotAssigned);
+        if (slot == value) {
+          cached_slot = &slot;
+          *cached_slot = nullptr;
+        }
+      }
+      ReduceResult res =
+          AddNewNode<ThrowReferenceErrorIfTdzHole>({value}, name);
+      if (cached_slot) {
+        *cached_slot = value;
+      }
+      return res;
+    }
   }
   UNREACHABLE();
 }
-ReduceResult MaglevGraphBuilder::VisitThrowSuperNotCalledIfHole() {
-  // ThrowSuperNotCalledIfHole
+ReduceResult MaglevGraphBuilder::VisitThrowSuperNotCalledIfTdzHole() {
+  // ThrowSuperNotCalledIfTdzHole
   ValueNode* value = GetAccumulator();
   if (CheckType(value, NodeType::kJSReceiver)) return ReduceResult::Done();
-  switch (value->IsTheHole()) {
+  switch (value->IsTdzHole()) {
     case Tribool::kTrue:
       return reducer_.EmitThrow(Throw::kThrowSuperNotCalled);
     case Tribool::kFalse:
       return ReduceResult::Done();
     case Tribool::kMaybe:
       DCHECK(value->is_tagged());
-      return AddNewNode<ThrowSuperNotCalledIfHole>({value});
+      return AddNewNode<ThrowSuperNotCalledIfTdzHole>({value});
   }
   UNREACHABLE();
 }
-ReduceResult MaglevGraphBuilder::VisitThrowSuperAlreadyCalledIfNotHole() {
-  // ThrowSuperAlreadyCalledIfNotHole
+ReduceResult MaglevGraphBuilder::VisitThrowSuperAlreadyCalledIfNotTdzHole() {
+  // ThrowSuperAlreadyCalledIfNotTdzHole
   ValueNode* value = GetAccumulator();
-  switch (value->IsTheHole()) {
+  switch (value->IsTdzHole()) {
     case Tribool::kTrue:
       return ReduceResult::Done();
     case Tribool::kFalse:
       return reducer_.EmitThrow(Throw::kThrowSuperAlreadyCalledError);
     case Tribool::kMaybe:
       DCHECK(value->is_tagged());
-      return AddNewNode<ThrowSuperAlreadyCalledIfNotHole>({value});
+      return AddNewNode<ThrowSuperAlreadyCalledIfNotTdzHole>({value});
   }
   UNREACHABLE();
 }
@@ -16345,18 +16405,28 @@ ReduceResult MaglevGraphBuilder::VisitIllegal() { UNREACHABLE(); }
 void MaglevGraphBuilder::InitializeScopeInfo() {
   compiler::ScopeInfoRef scope_info =
       compilation_unit_->shared_function_info().scope_info(broker());
+  bool has_incoming_context_scope = false;
   if (scope_info.HasOuterScopeInfo()) {
     scope_info = scope_info.OuterScopeInfo(broker());
     CHECK(scope_info.HasContext());
-  } else if (compilation_unit_->shared_function_info().is_toplevel()) {
-    scope_info = compilation_unit_->shared_function_info().scope_info(broker());
+    has_incoming_context_scope = true;
+  } else if (compilation_unit_->shared_function_info().is_toplevel() &&
+             scope_info.HasContext()) {
+    has_incoming_context_scope = true;
   }
-  SetCurrentScopeInfo(scope_info);
+  std::optional<size_t> distance;
+  if (!is_inline() && has_incoming_context_scope &&
+      compilation_unit_->info()->specialization_context().has_value()) {
+    distance = compilation_unit_->info()->specialization_context_distance();
+  }
+  SetCurrentScopeInfo(ContextScopeInfo(scope_info, distance));
 }
 
 bool MaglevGraphBuilder::Build() {
   DCHECK(!is_inline());
   if (should_abort_compilation_) return false;
+
+  compilation_unit_->info()->InitializeSpecializationContext();
 
   DCHECK_EQ(inlining_id_, SourcePosition::kNotInlined);
   reducer_.SetBytecodeOffset(entrypoint_);
@@ -16423,19 +16493,21 @@ void MaglevGraphBuilder::PrewalkBytecode() {
     case interpreter::Bytecode::kCreateEvalContext:
     case interpreter::Bytecode::kCreateFunctionContextWithCells:
     case interpreter::Bytecode::kCreateFunctionContext: {
-      accumulator_scope_info_ = GetRefOperand<ScopeInfo>(0);
+      accumulator_scope_info_ =
+          GetCurrentScopeInfo().Push(GetRefOperand<ScopeInfo>(0));
       break;
     }
     case interpreter::Bytecode::kCreateCatchContext:
     case interpreter::Bytecode::kCreateWithContext: {
-      accumulator_scope_info_ = GetRefOperand<ScopeInfo>(1);
+      accumulator_scope_info_ =
+          GetCurrentScopeInfo().Push(GetRefOperand<ScopeInfo>(1));
       break;
     }
     case interpreter::Bytecode::kCallRuntime: {
       uint16_t function_id = iterator_.GetRuntimeIdOperand(0);
       if (function_id == Runtime::kNewFunctionContext) {
-        accumulator_scope_info_ =
-            compilation_unit_->shared_function_info().scope_info(broker());
+        accumulator_scope_info_ = GetCurrentScopeInfo().Push(
+            compilation_unit_->shared_function_info().scope_info(broker()));
       }
       break;
     }
@@ -16483,12 +16555,12 @@ void MaglevGraphBuilder::OsrPrewalk() {
   DCHECK_LT(context_index, registers_size);
 
   struct OsrScopeState {
-    base::Vector<compiler::OptionalScopeInfoRef> registers;
-    compiler::OptionalScopeInfoRef accumulator;
+    base::Vector<ContextScopeInfo> registers;
+    ContextScopeInfo accumulator;
   };
   auto snapshot = [&]() -> OsrScopeState {
-    base::Vector<compiler::OptionalScopeInfoRef> registers =
-        zone()->AllocateVector<compiler::OptionalScopeInfoRef>(registers_size);
+    base::Vector<ContextScopeInfo> registers =
+        zone()->AllocateVector<ContextScopeInfo>(registers_size);
     for (int i = first_register; i <= last_register; ++i) {
       registers[i - first_register] =
           register_scope_infos_[interpreter::Register(i)];
@@ -16521,7 +16593,7 @@ void MaglevGraphBuilder::OsrPrewalk() {
     if (it == saved_states.end()) {
       saved_states.emplace(target, state);
     } else {
-      DCHECK(context_scope_of(it->second).equals(context_scope_of(state)));
+      DCHECK_EQ(context_scope_of(it->second), context_scope_of(state));
     }
   };
 
@@ -16544,9 +16616,9 @@ void MaglevGraphBuilder::OsrPrewalk() {
     auto it = saved_states.find(offset);
     if (it != saved_states.end()) {
       if (previous_fallsthrough) {
-        DCHECK(context_scope_of(it->second)
-                   .equals(register_scope_infos_
-                               [interpreter::Register::current_context()]));
+        DCHECK_EQ(
+            context_scope_of(it->second),
+            register_scope_infos_[interpreter::Register::current_context()]);
       } else {
         restore(it->second);
       }
@@ -16614,7 +16686,7 @@ void MaglevGraphBuilder::OsrPrewalk() {
   for (auto& [offset, state] : saved_states) {
     if (offset <= entrypoint_) continue;
     if (offset >= bytecode_length) continue;
-    compiler::OptionalScopeInfoRef scope = context_scope_of(state);
+    ContextScopeInfo scope = context_scope_of(state);
     if (!scope.has_value()) continue;
     if (merge_states_[offset] != nullptr) {
       merge_states_[offset]->set_context_scope_info(scope);

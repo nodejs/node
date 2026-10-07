@@ -32,11 +32,13 @@
 #ifndef ABSL_CONTAINER_INTERNAL_COMPRESSED_TUPLE_H_
 #define ABSL_CONTAINER_INTERNAL_COMPRESSED_TUPLE_H_
 
+#include <cstddef>
 #include <initializer_list>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/config.h"
 #include "absl/utility/utility.h"
 
 #if defined(_MSC_VER) && !defined(__NVCC__)

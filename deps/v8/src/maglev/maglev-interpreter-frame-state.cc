@@ -62,7 +62,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::New(
     const MaglevCompilationUnit& info, const InterpreterFrameState& state,
     int merge_offset, int predecessor_count, BasicBlock* predecessor,
     const compiler::BytecodeLivenessState* liveness,
-    compiler::OptionalScopeInfoRef context_scope_info) {
+    ContextScopeInfo context_scope_info) {
   MergePointInterpreterFrameState* merge_state =
       info.zone()->New<MergePointInterpreterFrameState>(
           info, merge_offset, predecessor_count, 1,
@@ -91,7 +91,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::New(
 }
 
 void MergePointInterpreterFrameState::set_context_scope_info(
-    compiler::OptionalScopeInfoRef scope_info) {
+    ContextScopeInfo scope_info) {
   if (v8_flags.trace_maglev_scope_info) {
     if (scope_info.has_value()) {
       std::cout << "  [ScopeInfo] set_context_scope_info: "
@@ -213,7 +213,7 @@ MergePointInterpreterFrameState::NewForCatchBlock(
     const MaglevCompilationUnit& unit,
     const compiler::BytecodeLivenessState* liveness, int handler_offset,
     bool was_used, interpreter::Register context_register, Graph* graph,
-    compiler::OptionalScopeInfoRef context_scope_info) {
+    ContextScopeInfo context_scope_info) {
   Zone* const zone = unit.zone();
   MergePointInterpreterFrameState* state =
       zone->New<MergePointInterpreterFrameState>(
@@ -242,7 +242,7 @@ MergePointInterpreterFrameState::MergePointInterpreterFrameState(
     const MaglevCompilationUnit& info, int merge_offset, int predecessor_count,
     int predecessors_so_far, BasicBlock** predecessors, BasicBlockType type,
     const compiler::BytecodeLivenessState* liveness,
-    compiler::OptionalScopeInfoRef context_scope_info)
+    ContextScopeInfo context_scope_info)
     : unit_(&info),
       predecessor_count_(predecessor_count),
       predecessors_so_far_(predecessors_so_far),
@@ -431,8 +431,8 @@ void MergePointInterpreterFrameState::MergeVirtualObjects(
 void MergePointInterpreterFrameState::InitializeLoop(
     Graph* graph, bool is_tracing, MaglevCompilationUnit& compilation_unit,
     InterpreterFrameState& unmerged, BasicBlock* predecessor,
-    compiler::OptionalScopeInfoRef context_scope_info,
-    bool optimistic_initial_state, LoopEffects* loop_effects) {
+    ContextScopeInfo context_scope_info, bool optimistic_initial_state,
+    LoopEffects* loop_effects) {
   DCHECK(is_unmerged_loop());
   context_scope_info_ = context_scope_info;
   DCHECK_IMPLIES(optimistic_initial_state,
@@ -467,7 +467,7 @@ void MergePointInterpreterFrameState::InitializeWithBasicBlock(
 void MergePointInterpreterFrameState::Merge(
     Graph* graph, bool is_tracing, MaglevCompilationUnit& compilation_unit,
     InterpreterFrameState& unmerged, BasicBlock* predecessor,
-    compiler::OptionalScopeInfoRef context_scope_info) {
+    ContextScopeInfo context_scope_info) {
   DCHECK_GT(predecessor_count_, 1);
   DCHECK_LT(predecessors_so_far_, predecessor_count_);
 

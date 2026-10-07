@@ -926,11 +926,15 @@ Local<Data> Object::GetInternalField(int index) {
   if (I::CanHaveInternalField(instance_type)) {
     int offset = I::kJSAPIObjectWithEmbedderSlotsHeaderSize +
                  (I::kEmbedderDataSlotSize * index);
-    A value = I::ReadRawField<A>(obj, offset);
 #ifdef V8_COMPRESS_POINTERS
-    // We read the full pointer value and then decompress it in order to avoid
-    // dealing with potential endianness issues.
-    value = I::DecompressTaggedField(obj, static_cast<uint32_t>(value));
+    // The tagged payload lives in the low kTaggedSize half of the slot (at
+    // kTaggedPayloadOffset == 0). Read it as a 32-bit field so the correct half
+    // is picked on both little and big endian targets. A full width read plus
+    // truncation would return the CppHeap pointer half on big endian.
+    uint32_t compressed = I::ReadRawField<uint32_t>(obj, offset);
+    A value = I::DecompressTaggedField(obj, compressed);
+#else
+    A value = I::ReadRawField<A>(obj, offset);
 #endif
 
     auto* isolate = I::GetCurrentIsolate();

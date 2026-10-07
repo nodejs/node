@@ -50,6 +50,7 @@ absl_source_set("distributions") {
     "//third_party/abseil-cpp/absl/random/internal:uniform_helper",
     "//third_party/abseil-cpp/absl/random/internal:wide_multiply",
     "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
 

@@ -100,10 +100,15 @@ class V8_EXPORT_PRIVATE DateCache {
     return *name;
   }
 
-  // ECMA 262 - 15.9.5.26
+  // The offset of UTC from local time. Not always a whole number of minutes:
+  // local mean time offsets have second precision.
+  int TimezoneOffsetMs(int64_t time_ms) {
+    return static_cast<int>(time_ms - ToLocal(time_ms));
+  }
+
+  // ECMA 262 - https://tc39.es/ecma262/#sec-timezoneestring
   int TimezoneOffset(int64_t time_ms) {
-    int64_t local_ms = ToLocal(time_ms);
-    return static_cast<int>((time_ms - local_ms) / kMsPerMin);
+    return TimezoneOffsetMs(time_ms) / kMsPerMin;
   }
 
   // ECMA 262 - https://tc39.es/ecma262/#sec-localtime-t

@@ -482,7 +482,7 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
       isolate_->factory()->NewByteArray(kMaxGlobalsSize);
   std::fill(globals_buffer->begin(), globals_buffer->end(), 0);
   DirectHandle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate_, native_module, script);
+      WasmModuleObject::New(isolate_, script);
   native_module_ = native_module.get();
 
   DirectHandle<WasmTrustedInstanceData> trusted_data =

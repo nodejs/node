@@ -132,7 +132,7 @@ LIBC_INLINE float acosf(float x) {
   //
   // When -1 < x <= -0.5, we use the identity:
   //   acos(x) = pi - acos(-x)
-  // which is reduced to the postive case.
+  // which is reduced to the positive case.
 
   xbits.set_sign(Sign::POS);
   double xd = static_cast<double>(xbits.get_val());

@@ -64,6 +64,7 @@ const kWasmF64Type:
 const kIsFpAlwaysDouble: constexpr bool generates 'wasm::kIsFpAlwaysDouble';
 const kIsBigEndian: constexpr bool generates 'wasm::kIsBigEndian';
 const kIsBigEndianOnSim: constexpr bool generates 'wasm::kIsBigEndianOnSim';
+const kFP32NeedNanBox: constexpr bool generates 'wasm::kFP32NeedNanBox';
 
 extern enum Promise extends int32 constexpr 'wasm::Promise' {
   kPromise,
@@ -692,7 +693,15 @@ macro JSToWasmWrapperHelper(
       if constexpr (kIsFpAlwaysDouble || kIsBigEndian || kIsBigEndianOnSim) {
         HandleF32Params(context, locationAllocator, toRef, param);
       } else {
-        *toRef = Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(param)));
+        const raw =
+            Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(param)));
+        if constexpr (kFP32NeedNanBox) {
+          // The assembly wrapper reloads f32 parameters with a 64-bit FP load
+          // (fld), so the slot must already contain a NaN-boxed f32.
+          *toRef = raw | (Convert<intptr>(0xffffffff) << 32);
+        } else {
+          *toRef = raw;
+        }
         // TODO(nicohartmann,385155404): When passing a NaN to Wasm, every
         // single bit can be observable when the float64 is reinterpret casted
         // to an integral type. Hence, differences in NaN bit patterns are

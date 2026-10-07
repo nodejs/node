@@ -26,8 +26,8 @@
 namespace LIBC_NAMESPACE_DECL {
 namespace printf_core {
 
-template <WriteMode write_mode>
-LIBC_INLINE int convert_char(Writer<write_mode> *writer,
+template <OverflowMode mode>
+LIBC_INLINE int convert_char(Writer<mode> *writer,
                              const FormatSection &to_conv) {
 
   char buffer[MB_LEN_MAX];

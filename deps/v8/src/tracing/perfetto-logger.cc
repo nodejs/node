@@ -499,8 +499,7 @@ void PerfettoLogger::CodeDeoptEvent(DirectHandle<Code> code,
                                     DeoptimizeKind kind, Address pc,
                                     int fp_to_sp_delta) {}
 void PerfettoLogger::CodeDependencyChangeEvent(
-    DirectHandle<Code> code, DirectHandle<SharedFunctionInfo> shared,
-    const char* reason) {}
+    Tagged<Code> code, Tagged<SharedFunctionInfo> shared, const char* reason) {}
 void PerfettoLogger::WeakCodeClearEvent() {}
 
 bool PerfettoLogger::is_listening_to_code_events() { return true; }

@@ -266,8 +266,8 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
   // We only need a `caller_frame_state` if there actually are arguments to
   // convert.
   const int wasm_param_count = static_cast<int>(sig_->parameter_count());
-  DCHECK_EQ(is_inlining_into_js_ && wasm_param_count > 0,
-            caller_frame_state.valid());
+  CHECK_EQ(is_inlining_into_js_ && wasm_param_count > 0,
+           caller_frame_state.valid());
 
   __ Bind(__ NewBlock());
 
@@ -311,29 +311,10 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
     return OpIndex::Invalid();
   }
 
-  V<SharedFunctionInfo> sfi =
-      __ Load(js_closure, LoadOp::Kind::TaggedBase().Immutable(),
-              MemoryRepresentation::TaggedPointer(),
-              offsetof(JSFunction, shared_function_info_));
-  V<WasmFunctionData> function_data =
-      V<WasmFunctionData>::Cast(__ LoadTrustedPointer(
-          sfi, LoadOp::Kind::TaggedBase().Immutable(),
-          kWasmExportedFunctionDataIndirectPointerTag,
-          offsetof(SharedFunctionInfo, trusted_function_data_)));
-
-  // If we are not inlining the Wasm body, we don't need the Wasm instance.
-  V<WasmTrustedInstanceData> instance_data =
-      inlined_function_data_.has_value()
-          ? V<WasmTrustedInstanceData>::Cast(__ LoadProtectedPointerField(
-                function_data, LoadOp::Kind::TaggedBase().Immutable(),
-                offsetof(WasmExportedFunctionData, protected_instance_data_)))
-          : OpIndex::Invalid();
-
   // Convert JS parameters to wasm numbers using the default transformation
   // and build the call.
   const int args_count = wasm_param_count + /* instance_data */ 1;
   base::SmallVector<OpIndex, 16> args(args_count);
-  args[0] = instance_data;
   for (int i = 0; i < wasm_param_count; ++i) {
     OptionalOpIndex arg =
         FromJS(params[i], js_context, sig_->GetParam(i), caller_frame_state);
@@ -350,6 +331,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
   if constexpr (requires { &Assembler::TryInlineWasmBody; }) {
     if (inlined_function_data_.has_value()) {
       CHECK(v8_flags.wasm_in_js_inlining_body);
+      args[0] = __ WasmInstanceData();
       inlining_result = __ TryInlineWasmBody(
           inlined_function_data_.value(), VectorOf(args), lazy_deopt_on_throw);
       // If the body inlining traps unconditionally (e.g., due to an
@@ -367,6 +349,12 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
 
   // If the wasm function was not inlined, we need to call it.
   if (!inlining_result.success) {
+    V<SharedFunctionInfo> sfi = LoadSharedFunctionInfo(js_closure);
+    V<WasmFunctionData> function_data =
+        V<WasmFunctionData>::Cast(__ LoadTrustedPointer(
+            sfi, LoadOp::Kind::TaggedBase().Immutable(),
+            kWasmExportedFunctionDataIndirectPointerTag,
+            offsetof(SharedFunctionInfo, trusted_function_data_)));
     V<WasmInternalFunction> internal =
         V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
             function_data, LoadOp::Kind::TaggedBase().Immutable(),
@@ -506,9 +494,10 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
           call_descriptor, compiler::CanThrow{true},
           compiler::LazyDeoptOnThrow{false}, __ graph_zone());
 
+      V<Context> callee_context = LoadContextFromJSFunction(callable_node);
       // Determine receiver at runtime.
       args[0] =
-          BuildReceiverNode(callable_node, native_context, undefined_node);
+          BuildReceiverNode(callable_node, callee_context, undefined_node);
       DCHECK_EQ(pos, pushed_count + 1);
       args[pos++] = undefined_node;  // new target
       args[pos++] =
@@ -516,7 +505,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       args[pos++] = __ Word32Constant(kPlaceholderDispatchHandle.value());
 #endif
-      args[pos++] = LoadContextFromJSFunction(callable_node);
+      args[pos++] = callee_context;
       call = __ Call(callable_node, OpIndex::Invalid(), base::VectorOf(args),
                      ts_call_descriptor);
       break;

@@ -35,6 +35,7 @@ absl_test("exponential_biased_test") {
   sources = [ "internal/exponential_biased_test.cc" ]
   deps = [
     ":exponential_biased",
+    "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/strings",
   ]
@@ -46,6 +47,7 @@ absl_source_set("periodic_sampler") {
   visibility = [ "//third_party/abseil-cpp/absl/*" ]
   deps = [
     ":exponential_biased",
+    "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
   ]
 }
@@ -54,6 +56,7 @@ absl_test("periodic_sampler_test") {
   sources = [ "internal/periodic_sampler_test.cc" ]
   deps = [
     ":periodic_sampler",
+    "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
   ]
 }

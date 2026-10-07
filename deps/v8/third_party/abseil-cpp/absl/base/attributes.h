@@ -648,7 +648,10 @@
 #ifdef ABSL_FALLTHROUGH_INTENDED
 #error "ABSL_FALLTHROUGH_INTENDED should not be defined."
 #endif
-#define ABSL_FALLTHROUGH_INTENDED [[fallthrough]]
+#define ABSL_FALLTHROUGH_INTENDED                                         \
+  struct _absl_fallthrough_intended_macro;                                \
+  (void)sizeof(_absl_fallthrough_intended_macro*);                        \
+  [[fallthrough]]
 
 // ABSL_DEPRECATED()
 //

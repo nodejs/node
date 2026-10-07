@@ -53,20 +53,22 @@ void HeapObject::InitExternalPointerField(size_t offset,
                                           IsolateForSandbox isolate,
                                           Address value,
                                           WriteBarrierMode mode) {
-  i::InitExternalPointerField<tag>(address(), field_address(offset), isolate,
-                                   value);
+  ExternalPointerHandle handle = i::InitExternalPointerField<tag>(
+      address(), field_address(offset), isolate, value);
   CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(this, static_cast<int>(offset),
-                                             tag, mode);
+                                             tag, handle, mode);
+  USE(handle);
 }
 
 void HeapObject::InitExternalPointerField(size_t offset,
                                           IsolateForSandbox isolate,
                                           ExternalPointerTag tag, Address value,
                                           WriteBarrierMode mode) {
-  i::InitExternalPointerField(address(), field_address(offset), isolate, tag,
-                              value);
+  ExternalPointerHandle handle = i::InitExternalPointerField(
+      address(), field_address(offset), isolate, tag, value);
   CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(this, static_cast<int>(offset),
-                                             tag, mode);
+                                             tag, handle, mode);
+  USE(handle);
 }
 
 template <ExternalPointerTagRange tag_range>
@@ -153,7 +155,7 @@ void HeapObject::WriteLazilyInitializedExternalPointerField(
     base::AsAtomic32::Release_Store(location, handle);
     // In this case, we're adding a reference from an existing object to a new
     // table entry, so we always require a write barrier.
-    EXTERNAL_POINTER_WRITE_BARRIER(this, static_cast<int>(offset), tag);
+    EXTERNAL_POINTER_WRITE_BARRIER(this, static_cast<int>(offset), tag, handle);
   } else {
     table.Set(handle, value, tag);
   }

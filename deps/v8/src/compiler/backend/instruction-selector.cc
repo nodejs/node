@@ -1067,8 +1067,7 @@ bool InstructionSelector::IsTrappingLoad(turboshaft::OpIndex node) const {
 
   if (!IsLoadOrLoadImmutable(node)) return false;
 
-  bool traps_on_null;
-  return LoadView(schedule_, node).is_trapping(&traps_on_null);
+  return LoadView(schedule_, node).is_trapping();
 }
 
 void InstructionSelector::AppendDeoptimizeArguments(
@@ -1770,8 +1769,7 @@ void InstructionSelector::VisitLoadTrustedPointer(OpIndex node) {
 
   MemoryAccessMode access_mode = kMemoryAccessDirect;
   if (op.kind.with_trap_handler) {
-    DCHECK(op.kind.trap_on_null);
-    access_mode = kMemoryAccessTrappingNullDereference;
+    access_mode = kMemoryAccessTrapping;
   }
   InstructionCode code = ArchOpcodeField::encode(kArchLoadTrustedPointer) |
                          AccessModeField::encode(access_mode);

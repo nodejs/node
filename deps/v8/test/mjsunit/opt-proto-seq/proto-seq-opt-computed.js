@@ -32,7 +32,7 @@ assert_test_computed_property(test_computed_property());
 %OptimizeMaglevOnNextCall(test_computed_property);
 assert_test_computed_property(test_computed_property());
 assertOptimized(test_computed_property);
-assertTrue(isMaglevved(test_computed_property));
+assertMaglevved(test_computed_property);
 assert_test_computed_property(test_computed_property());
 %OptimizeFunctionOnNextCall(test_computed_property);
 assert_test_computed_property(test_computed_property());

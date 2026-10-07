@@ -95,12 +95,13 @@ void MigrateExternalStringResource(Isolate* isolate,
   if (to_resource_address == kNullAddress) {
     Tagged<StringClass> cast_from = Cast<StringClass>(from);
     // |to| is a just-created internalized copy of |from|. Migrate the resource.
-    to->SetResource(isolate, cast_from->resource());
+    const typename StringClass::Resource* resource =
+        cast_from->ExchangeResource(isolate, nullptr);
+    to->SetResource(isolate, resource);
     // Zap |from|'s resource pointer to reflect the fact that |from| has
     // relinquished ownership of its resource.
     isolate->heap()->UpdateExternalString(
         from, Cast<ExternalString>(from)->ExternalPayloadSize(), 0);
-    cast_from->SetResource(isolate, nullptr);
   } else if (to_resource_address != from->resource_as_address(isolate)) {
     // |to| already existed and has its own resource. Finalize |from|.
     isolate->heap()->FinalizeExternalString(from);

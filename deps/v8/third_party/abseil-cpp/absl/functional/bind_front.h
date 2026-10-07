@@ -30,6 +30,7 @@
 #ifndef ABSL_FUNCTIONAL_BIND_FRONT_H_
 #define ABSL_FUNCTIONAL_BIND_FRONT_H_
 
+#include "absl/base/config.h"
 #if __has_include(<version>)
 #include <version>
 #endif

@@ -85,6 +85,7 @@ cc_library(
         "//absl/debugging:leak_check",
         "//absl/strings",
         "//absl/strings:has_ostream_operator",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -144,6 +145,7 @@ cc_library(
         "//absl/base:log_severity",
         "//absl/strings",
         "//absl/strings:str_format",
+        "//absl/strings:string_view",
         "//absl/time",
         "//absl/types:span",
     ],
@@ -165,6 +167,7 @@ cc_library(
         "//absl/base:log_severity",
         "//absl/base:raw_logging_internal",
         "//absl/strings",
+        "//absl/strings:string_view",
         "//absl/time",
     ],
 )
@@ -216,6 +219,7 @@ cc_library(
         "//absl/log:log_sink_registry",
         "//absl/strings",
         "//absl/strings:internal",
+        "//absl/strings:string_view",
         "//absl/time",
         "//absl/types:source_location",
         "//absl/types:span",
@@ -229,8 +233,8 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/base:config",
-        "//absl/strings",
         "//absl/strings:internal",
+        "//absl/strings:string_view",
         "//absl/types:span",
     ],
 )
@@ -257,7 +261,7 @@ cc_library(
         "//absl/log:globals",
         "//absl/log:log_entry",
         "//absl/log:log_sink",
-        "//absl/strings",
+        "//absl/strings:string_view",
         "//absl/synchronization",
         "//absl/types:span",
     ],
@@ -284,7 +288,7 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:log_severity",
-        "//absl/strings",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -318,6 +322,7 @@ cc_library(
         "//absl/base:core_headers",
         "//absl/functional:any_invocable",
         "//absl/strings",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -333,7 +338,6 @@ cc_library(
     deps = [
         ":proto",
         "//absl/base:config",
-        "//absl/strings",
         "//absl/types:span",
         "//absl/types:variant",
     ],
@@ -365,6 +369,7 @@ cc_library(
         "//absl/base:log_severity",
         "//absl/log:log_entry",
         "//absl/strings",
+        "//absl/strings:string_view",
         "//absl/time",
     ] + select({
         "@rules_cc//cc/compiler:msvc-cl": [],
@@ -413,7 +418,7 @@ cc_library(
         "//absl/base:core_headers",
         "//absl/base:log_severity",
         "//absl/log:log_entry",
-        "//absl/strings",
+        "//absl/strings:string_view",
         "//absl/time",
         "@googletest//:gtest",
     ] + select({
@@ -444,7 +449,7 @@ cc_library(
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
-        "//absl/strings",
+        "//absl/strings:string_view",
         "//absl/types:span",
     ],
 )
@@ -457,7 +462,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/base:config",
-        "//absl/strings",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -481,6 +486,7 @@ cc_library(
         "//absl/base:no_destructor",
         "//absl/base:nullability",
         "//absl/strings",
+        "//absl/strings:string_view",
         "//absl/synchronization",
     ],
 )

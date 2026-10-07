@@ -5,6 +5,8 @@
 #ifndef V8_MAGLEV_HAMT_H_
 #define V8_MAGLEV_HAMT_H_
 
+#include <bit>
+
 #include "src/base/pointer-with-payload.h"
 #include "src/zone/zone.h"
 
@@ -43,11 +45,14 @@ class HAMTTest;
  * the operation is a no-op and the existing structure is returned.
  *
  * HAMT merge_into(const HAMT& other, Func&& f) const
- * - Time:  O(N) (worst case)
- * - Space: O(N) (if copying is needed)
+ * - Time:  O(N) (worst case; subtrees shared by pointer are skipped)
+ * - Space: O(C * log32 N), where C is the number of values changed by 'f'
  * - Description: Returns a new tree where values in 'this' are updated
  * using values from 'other' via the functor 'f'. This operation only
  * affects keys present in 'this' (intersection update).
+ * - Note on sharing: Like insert, merging is copy-on-write. Only nodes on
+ * the path to a changed value are copied. If 'f' changes no value, the
+ * operation is a no-op and the existing structure is returned.
  *
  * Data Structure Diagram:
  *
@@ -428,17 +433,20 @@ class HAMT {
     return nullptr;
   }
 
+  // Merges list2 into list1, i.e. keys that are only in list2 are dropped.
+  // A leaf is only reallocated if its value, or the value of a leaf behind it
+  // in the chain, actually changes.
   template <typename Func>
   Leaf* MergeCollisionLists(Zone* zone, Leaf* list1, Leaf* list2,
                             Func&& f) const {
-    Leaf* new_list = nullptr;
-    for (Leaf* cur = list1; cur; cur = cur->next) {
-      Value* value = FindInCollisionList(list2, cur->key);
-      new_list =
-          NewLeaf(zone, cur->key, value ? f(cur->value, *value) : cur->value,
-                  cur->hash, new_list);
+    if (list1 == nullptr) return nullptr;
+    Leaf* new_next = MergeCollisionLists(zone, list1->next, list2, f);
+    Value* value = FindInCollisionList(list2, list1->key);
+    Value merged = value ? f(list1->value, *value) : list1->value;
+    if (new_next == list1->next && merged == list1->value) {
+      return list1;
     }
-    return new_list;
+    return NewLeaf(zone, list1->key, merged, list1->hash, new_next);
   }
 
   template <typename Func>
@@ -458,17 +466,19 @@ class HAMT {
     return new_branch;
   }
 
+  // Merges the entries of branch into the collision chain list. Leaves are
+  // reused unless their value changes.
   template <typename Func>
   Leaf* MergeIntoLeaf(Zone* zone, Leaf* list, Branch* branch, int shift,
                       Func&& f) const {
-    Leaf* new_list = nullptr;
-    for (Leaf* cur = list; cur; cur = cur->next) {
-      const Value* value = FindHelper(Node(branch), cur->key, cur->hash, shift);
-      new_list =
-          NewLeaf(zone, cur->key, value ? f(cur->value, *value) : cur->value,
-                  cur->hash, new_list);
+    if (list == nullptr) return nullptr;
+    Leaf* new_next = MergeIntoLeaf(zone, list->next, branch, shift, f);
+    const Value* value = FindHelper(Node(branch), list->key, list->hash, shift);
+    Value merged = value ? f(list->value, *value) : list->value;
+    if (new_next == list->next && merged == list->value) {
+      return list;
     }
-    return new_list;
+    return NewLeaf(zone, list->key, merged, list->hash, new_next);
   }
 
   template <typename Func>
@@ -489,22 +499,24 @@ class HAMT {
     // Both are Branches.
     Branch* brA = a.AsBranch();
     Branch* brB = b.AsBranch();
-    uint32_t mapA = brA->bitmap;
-    uint32_t mapB = brB->bitmap;
-    Branch* res = CloneBranch(zone, brA);
-    Node* res_children = res->children;
-    int child_idx = 0;
-    for (int i = 0; i < 32; ++i) {
-      uint32_t bit = (1U << i);
-      if (!(mapA & bit)) continue;
-      child_idx++;
-      if (!(mapB & bit)) continue;
+    Branch* res = nullptr;
+    for (uint32_t shared_bits = brA->bitmap & brB->bitmap; shared_bits != 0;
+         shared_bits &= shared_bits - 1) {
+      int bit = std::countr_zero(shared_bits);
+      int idx = brA->get_index(bit);
+      Node old_child = brA->get_child(idx);
       Node child =
-          MergeIntoRec(zone, brA->get_child(brA->get_index(i)),
-                       brB->get_child(brB->get_index(i)), shift + kBits, f);
-      res_children[child_idx - 1] = child;
+          MergeIntoRec(zone, old_child, brB->get_child(brB->get_index(bit)),
+                       shift + kBits, f);
+      if (child == old_child) {
+        continue;
+      }
+      if (res == nullptr) {
+        res = CloneBranch(zone, brA);
+      }
+      res->set_child(idx, child);
     }
-    return Node(res);
+    return res == nullptr ? a : Node(res);
   }
 };
 

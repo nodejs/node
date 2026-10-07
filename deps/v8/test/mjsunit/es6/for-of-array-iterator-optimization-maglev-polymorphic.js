@@ -28,9 +28,9 @@ foo(doubleArray);
 %OptimizeMaglevOnNextCall(foo);
 assertEquals(6, foo(smiArray));
 
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 // Run double array. It should NOT deoptimize now because we
 // support polymorphic feedback!
 assertEquals(7.5, foo(doubleArray));
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);

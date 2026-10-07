@@ -282,12 +282,12 @@ macro StoreContextElement(c: Context, i: constexpr int32, o: Object): void {
 
 macro LoadContextElementNoCellImpl(c: Context, i: intptr): Object {
   const val = c.elements[i];
-  dcheck(Is<TheHole>(val) || !Is<ContextCell>(val));
+  dcheck(Is<TdzHole>(val) || !Is<ContextCell>(val));
   return val;
 }
 
 macro StoreContextElementNoCellImpl(c: Context, i: intptr, o: Object): void {
-  dcheck(Is<TheHole>(c.elements[i]) || !Is<ContextCell>(c.elements[i]));
+  dcheck(Is<TdzHole>(c.elements[i]) || !Is<ContextCell>(c.elements[i]));
   c.elements[i] = o;
 }
 
@@ -367,7 +367,7 @@ macro StoreScriptContextElementImpl(
     c: Context, index: intptr, newValue: Object): void {
   const oldValue = c.elements[index];
 
-  if (oldValue == TheHole && HasContextCells(c)) {
+  if (oldValue == TdzHole && HasContextCells(c)) {
     // Setting the initial value.
     c.elements[index] = AllocateContextCell(newValue);
     return;
@@ -380,7 +380,7 @@ macro StoreScriptContextElementImpl(
 
   if (IsUndefinedContextCell(oldValue)) {
     if (newValue == Undefined) return;
-    if (newValue == TheHole) {
+    if (newValue == TdzHole) {
       c.elements[index] = newValue;
       return;
     }

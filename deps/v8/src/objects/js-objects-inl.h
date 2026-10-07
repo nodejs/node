@@ -75,11 +75,12 @@ MaybeHandle<Object> JSReceiver::GetElement(Isolate* isolate,
 
 Handle<Object> JSReceiver::GetDataProperty(Isolate* isolate,
                                            DirectHandle<JSReceiver> object,
-                                           DirectHandle<Name> name) {
+                                           DirectHandle<Name> name,
+                                           AllowAllocation allow_allocation) {
   LookupIterator it(isolate, object, name, object,
                     LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   if (!it.IsFound()) return it.factory()->undefined_value();
-  return GetDataProperty(&it);
+  return GetDataProperty(&it, allow_allocation);
 }
 
 MaybeDirectHandle<JSPrototype> JSReceiver::GetPrototype(

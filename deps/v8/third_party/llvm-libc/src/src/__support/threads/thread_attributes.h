@@ -67,8 +67,6 @@ enum class DetachType : int {
   CLEANUP = 2
 };
 
-class ThreadAtExitCallbackMgr;
-
 // A data type to hold common thread attributes which have to be stored as
 // thread state. Note that this is different from public attribute types like
 // pthread_attr_t which might contain information which need not be saved as
@@ -105,15 +103,14 @@ struct alignas(STACK_ALIGNMENT) ThreadAttributes {
   int tid;
   ThreadStyle style;
   ThreadReturnValue retval;
-  ThreadAtExitCallbackMgr *atexit_callback_mgr;
   void *platform_data;
   cpp::Atomic<ThreadAttributes *> joiner;
 
   LIBC_INLINE constexpr ThreadAttributes()
       : detach_state(uint32_t(DetachState::DETACHED)), stack(nullptr),
         stacksize(0), guardsize(0), tls(0), tls_size(0), owned_stack(false),
-        tid(-1), style(ThreadStyle::POSIX), retval(),
-        atexit_callback_mgr(nullptr), platform_data(nullptr), joiner(nullptr) {}
+        tid(-1), style(ThreadStyle::POSIX), retval(), platform_data(nullptr),
+        joiner(nullptr) {}
 };
 
 } // namespace LIBC_NAMESPACE_DECL

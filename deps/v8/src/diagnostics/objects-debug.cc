@@ -2176,12 +2176,12 @@ void JSShadowRealm::JSShadowRealmVerify(Isolate* isolate) {
 #ifdef V8_INTL_SUPPORT
 void JSLocale::JSLocaleVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  CHECK(IsCppGCManagedBase(icu_locale()));
+  CHECK(IsForeign(icu_locale()));
 }
 
 void JSCollator::JSCollatorVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  CHECK(IsCppGCManagedBase(icu_collator()));
+  CHECK(IsForeign(icu_collator()));
   CHECK(IsUndefined(bound_compare()) || IsJSFunction(bound_compare()));
   CHECK(IsString(locale()));
 }
@@ -2200,9 +2200,9 @@ void JSV8BreakIterator::JSV8BreakIteratorVerify(Isolate* isolate) {
 void JSDateTimeFormat::JSDateTimeFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
-  CHECK(IsCppGCManagedBase(icu_locale_.load()));
-  CHECK(IsCppGCManagedBase(icu_simple_date_format_.load()));
-  CHECK(IsCppGCManagedBase(icu_date_interval_format_.load()));
+  CHECK(IsForeign(icu_locale_.load()));
+  CHECK(IsForeign(icu_simple_date_format_.load()));
+  CHECK(IsForeign(icu_date_interval_format_.load()));
   CHECK(IsUndefined(bound_format()) || IsJSFunction(bound_format()));
   CHECK(IsSmi(flags_.load()));
 }
@@ -2217,21 +2217,21 @@ void JSDurationFormat::JSDurationFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsSmi(style_flags_.load()));
   CHECK(IsSmi(display_flags_.load()));
-  CHECK(IsCppGCManagedBase(icu_locale_.load()));
-  CHECK(IsCppGCManagedBase(icu_number_formatter_.load()));
+  CHECK(IsForeign(icu_locale_.load()));
+  CHECK(IsForeign(icu_number_formatter_.load()));
 }
 
 void JSListFormat::JSListFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
-  CHECK(IsCppGCManagedBase(icu_formatter_.load()));
+  CHECK(IsForeign(icu_formatter_.load()));
   CHECK(IsSmi(flags_.load()));
 }
 
 void JSNumberFormat::JSNumberFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
-  CHECK(IsCppGCManagedBase(icu_number_formatter_.load()));
+  CHECK(IsForeign(icu_number_formatter_.load()));
   CHECK(IsUndefined(bound_format()) || IsJSFunction(bound_format()));
 }
 
@@ -2239,22 +2239,22 @@ void JSPluralRules::JSPluralRulesVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
   CHECK(IsSmi(flags_.load()));
-  CHECK(IsCppGCManagedBase(icu_plural_rules_.load()));
-  CHECK(IsCppGCManagedBase(icu_number_formatter_.load()));
+  CHECK(IsForeign(icu_plural_rules_.load()));
+  CHECK(IsForeign(icu_number_formatter_.load()));
 }
 
 void JSRelativeTimeFormat::JSRelativeTimeFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
   CHECK(IsString(numberingSystem()));
-  CHECK(IsCppGCManagedBase(icu_formatter_.load()));
+  CHECK(IsForeign(icu_formatter_.load()));
   CHECK(IsSmi(flags_.load()));
 }
 
 void JSSegmenter::JSSegmenterVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
-  CHECK(IsCppGCManagedBase(icu_break_iterator_.load()));
+  CHECK(IsForeign(icu_break_iterator_.load()));
   CHECK(IsSmi(flags_.load()));
 }
 
@@ -3431,17 +3431,22 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
   CHECK(IsCell(wrapper_budget_.load()));
   Object::VerifyPointer(isolate, packed_args_size_.load());
   CHECK(IsSmi(packed_args_size_.load()));
-  Tagged<Code> wrapper = wrapper_code(isolate);
-  CHECK(wrapper->kind() == CodeKind::JS_TO_WASM_FUNCTION ||
-        wrapper->kind() == CodeKind::C_WASM_ENTRY ||
-        (wrapper->is_builtin() &&
-         (wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
+  // The external JSFunction is attached after NewWasmExportedFunctionData
+  // finishes, so verify its wrapper code once attached.
+  Tagged<JSFunction> external;
+  if (internal()->try_get_external(&external)) {
+    Object::VerifyPointer(isolate, external);
+    Tagged<Code> wrapper = external->code(isolate);
+    CHECK(wrapper->kind() == CodeKind::JS_TO_WASM_FUNCTION ||
+          (wrapper->is_builtin() &&
+           (wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
 #if V8_ENABLE_DRUMBRAKE
-          wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapper ||
-          wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapperAsm ||
+            wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapper ||
+            wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapperAsm ||
 #endif  // V8_ENABLE_DRUMBRAKE
-          wrapper->builtin_id() == Builtin::kWasmPromising ||
-          wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
+            wrapper->builtin_id() == Builtin::kWasmPromising ||
+            wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
+  }
 }
 
 void WasmCapiFunctionData::WasmCapiFunctionDataVerify(Isolate* isolate) {

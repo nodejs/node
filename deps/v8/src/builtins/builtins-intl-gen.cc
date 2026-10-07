@@ -91,6 +91,10 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
 TF_BUILTIN(WasmStringToLowerCaseIntl, IntlBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto string = Parameter<String>(Descriptor::kString);
+#ifdef V8_IS_TSAN
+  CallRuntime<Undefined>(Runtime::kTsanAcquireForInitializationFence, context,
+                         string);
+#endif
   ToLowerCaseImpl(string, TNode<Object>() /*maybe_locales*/, context,
                   ToLowerCaseKind::kToLowerCase,
                   [this](TNode<Object> ret) { Return(ret); });

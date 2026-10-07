@@ -15,9 +15,9 @@ assertEquals("number", foo());
 %OptimizeMaglevOnNextCall(foo);
 assertEquals("number", foo());
 assertEquals("number", foo());
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 // We should deopt here.
 b = 2
-assertFalse(isMaglevved(foo))
+assertNotMaglevved(foo)
 assertEquals("number", foo());

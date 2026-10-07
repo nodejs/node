@@ -958,7 +958,7 @@ std::ostream& operator<<(std::ostream&, ForInParameters const&);
 const ForInParameters& ForInParametersOf(const Operator* op);
 
 #if V8_ENABLE_WEBASSEMBLY
-class JSWasmCallParameters {
+class JSWasmCallParameters final {
  public:
   explicit JSWasmCallParameters(wasm::NativeModule* native_module,
                                 int function_index,
