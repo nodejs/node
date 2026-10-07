@@ -5,5 +5,6 @@ prefix ffi
 [$system==solaris] # Also applies to SmartOS
 # Bundled libffi callbacks crash on SmartOS.
 test-ffi-callback*: SKIP
+test-ffi-jitless: SKIP
 test-ffi-shared-buffer: SKIP
 test-ffi-weakref-calls: SKIP
