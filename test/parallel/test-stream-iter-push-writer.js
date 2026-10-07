@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { dump, ondrain, push, text } = require('stream/iter');
+const { dump, push, ondrain, text, array } = require('stream/iter');
 const { setImmediate } = require('timers/promises');
 
 async function testOndrain() {
@@ -663,7 +663,36 @@ async function testFailRejectsPendingReadWithFalsyReason() {
   );
 }
 
+// Strings are encoded as UTF-8 (lone surrogates as U+FFFD), small ones into
+// a shared, untransferable pool, which must not mix up their bytes, also
+// when the pool fills up; large ones each into an ArrayBuffer of their own.
+async function testWriteStrings() {
+  const strings = [];
+  for (let i = 0; i < 3000; i++) {
+    strings.push(`row ${i} héllo 😀 \ud800 ${'x'.repeat(i % 97)}`);
+  }
+  strings.push('y'.repeat(10000), 'z');
+  const { writer, readable } = push();
+  const read = array(readable);
+  for (const string of strings) {
+    if (!writer.writeSync(string)) await writer.write(string);
+  }
+  await writer.end();
+  const chunks = await read;
+  const decoder = new TextDecoder();
+  assert.deepStrictEqual(chunks.map((chunk) => decoder.decode(chunk)),
+                         strings.map((s) => s.replace('\ud800', '\ufffd')));
+  for (const chunk of chunks) {
+    assert.strictEqual(Object.getPrototypeOf(chunk), Uint8Array.prototype);
+  }
+  const pooled = chunks[0];
+  assert.ok(pooled.buffer.byteLength > pooled.byteLength);
+  assert.throws(() => pooled.buffer.transfer(), TypeError);
+  assert.strictEqual(chunks[3000].buffer.byteLength, 10000);
+}
+
 Promise.all([
+  testWriteStrings(),
   testOndrain(),
   testDropPoliciesReportPhysicalCapacity(),
   testOndrainNonDrainable(),
