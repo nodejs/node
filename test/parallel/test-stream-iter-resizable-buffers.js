@@ -134,6 +134,29 @@ async function testBroadcastRejectsResizedBufferedView() {
   await assert.rejects(writer.end(), kResizeError);
 }
 
+// The same, for a view buffered in a batch of several chunks.
+async function testBufferedBatchViewResizeRejected() {
+  {
+    const buffer = new ArrayBuffer(1, { maxByteLength: 2 });
+    const { writer, broadcast: bc } = broadcast();
+    const iterator = bc.push()[Symbol.asyncIterator]();
+    assert.strictEqual(
+      writer.writevSync([Uint8Array.of(1), new Uint8Array(buffer)]), true);
+    buffer.resize(2);
+    await assert.rejects(iterator.next(), kResizeError);
+    await assert.rejects(writer.end(), kResizeError);
+  }
+  {
+    const buffer = new ArrayBuffer(1, { maxByteLength: 2 });
+    const shared = share([[Uint8Array.of(1), new Uint8Array(buffer)]]);
+    const first = shared.pull()[Symbol.asyncIterator]();
+    const second = shared.pull()[Symbol.asyncIterator]();
+    assert.strictEqual((await first.next()).value.length, 2);
+    buffer.resize(2);
+    await assert.rejects(second.next(), kResizeError);
+  }
+}
+
 async function testShareRejectsResizedBufferedView() {
   const asyncBuffer = new ArrayBuffer(1, { maxByteLength: 2 });
   const shared = share([[new Uint8Array(asyncBuffer)]]);
@@ -372,6 +395,7 @@ Promise.all([
   testPendingWritesRejectResizedViews(),
   testBroadcastRejectsResizedBufferedView(),
   testShareRejectsResizedBufferedView(),
+  testBufferedBatchViewResizeRejected(),
   testConsumersRejectResizedViews(),
   testConsumersRejectDetachedViews(),
   testPipeRejectsWriterResize(),
