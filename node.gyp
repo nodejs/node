@@ -653,6 +653,11 @@
             'deps/histogram/histogram.gyp:histogram',
           ],
         }],
+        [ 'OS=="zos" and node_shared=="true"', {
+          'sources+': [
+            'src/zos_setlibpath.cc',
+          ],
+        }],
         [ 'error_on_warn=="true"', {
           'cflags': ['-Werror'],
           'xcode_settings': {
@@ -980,6 +985,17 @@
             'Psapi',
             'Winmm',
             'Ws2_32',
+          ],
+        }],
+        [ 'OS=="zos"', {
+          'sources+': [
+            'src/node_zos.h',
+            'src/node_zos.cc',
+          ],
+          'conditions': [
+            [ 'node_shared=="true"', {
+              'ldflags+': [ '-Wl,-bedit=no' ],
+            }],
           ],
         }],
         [ 'node_use_openssl=="true"', {
@@ -1502,6 +1518,11 @@
       ],
 
       'conditions': [
+        [ 'OS=="zos"', {
+          'sources+': [
+            'src/zos_setlibpath.cc',
+          ],
+        }],
         ['OS=="solaris"', {
           'ldflags': [ '-I<(SHARED_INTERMEDIATE_DIR)' ]
         }],
@@ -1669,6 +1690,12 @@
         }],
         [ 'OS in "linux mac openharmony"', {
           'defines': ['NODE_JS2C_USE_STRING_LITERALS'],
+        }],
+        [ 'OS=="zos"', {
+          'dependencies+': [
+            '<(static_zoslib_gyp):zoslib',
+            '<(static_zoslib_gyp):zoslib_alnewdel',
+          ],
         }],
         [ 'debug_node=="true"', {
           'cflags!': [ '-O3' ],
