@@ -507,8 +507,9 @@ rules. That is OK. Append the reason for the revert and any `Refs` or `Fixes`
 metadata. Raise a pull request like any other change.
 
 Apply `dont-land-on-v?.x` labels to the revert pull request and to its
-corresponding original pull request,
+corresponding original pull request, remove `semver-*` and `notable-change` labels,
 unless the original pull request has already been backported.
+This avoids cluttering CHANGELOGs with information irrelevant for end users.
 
 ### Introducing new modules
 
