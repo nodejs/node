@@ -398,6 +398,9 @@ crypto::ClientHelloResult TLSContext::OnClientHello(
   Debug(&session, "ALPN negotiation succeeded: %s", *negotiated);
   tls_session.set_alpn(*negotiated);
 
+  if (session.options().auto_start) {
+    session.InstallApplicationForAlpn(*negotiated);
+  }
   session.set_hello_processed();
 
   // Stop here. Session::AfterNgtcp2Read surfaces the server session to

@@ -20,7 +20,7 @@ const serverDone = Promise.withResolvers();
 // Create a server endpoint
 const serverEndpoint = await quic.listen(mustCall(async (serverSession) => {
   await serverSession.opened;
-  assert.ok(serverSession.endpoint !== null);
+  assert.ok(serverSession.connection.endpoint !== null);
   assert.strictEqual(serverSession.destroyed, false);
 
   const stats = serverSession.stats;
@@ -55,7 +55,7 @@ const clientSession = await quic.connect(serverEndpoint.address, {
 });
 
 assert.strictEqual(clientSession.destroyed, false);
-assert.ok(clientSession.endpoint !== null);
+assert.ok(clientSession.connection.endpoint !== null);
 assert.strictEqual(clientSession.stats.isConnected, true);
 
 const clientInfo = await clientSession.opened;
@@ -86,7 +86,7 @@ assert.strictEqual(stream.stats.isConnected, true);
 // Destroying the session should destroy it and the stream, and clear its properties.
 clientSession.destroy();
 assert.strictEqual(clientSession.destroyed, true);
-assert.strictEqual(clientSession.endpoint, null);
+assert.strictEqual(clientSession.connection.endpoint, null);
 assert.strictEqual(clientSession.stats.isConnected, false);
 assert.strictEqual(typeof clientSession.stats.cwnd, 'bigint');
 assert.strictEqual(typeof clientSession.stats.streamsIdleTimedOut, 'bigint');

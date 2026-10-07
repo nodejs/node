@@ -93,8 +93,7 @@ for (let i = 0; i < kRequests; i++) {
 }
 
 // Exactly one locally-opened stream per request.
-assert.strictEqual(Number(clientSession.stats.bidiOutStreamCount),
-                   kRequests);
+assert.strictEqual(Number(clientSession.stats.bidiOutStreamCount), kRequests);
 
 await clientSession.close();
 await serverEndpoint.close();

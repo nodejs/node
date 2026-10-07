@@ -51,13 +51,13 @@ const decoder = new TextDecoder();
     }),
   });
 
-  const quicSession = await connect(serverEndpoint.address, {
+  const connection = await connect(serverEndpoint.address, {
     alpn: 'h3',
-    autoWrap: false,
+    autoStart: false,
     servername: 'example.com',
     verifyPeer: 'manual',
   });
-  const clientSession = Http3Session.from(quicSession, {
+  const clientSession = Http3Session.start(connection, {
     // Client receives ORIGIN frame via onorigin callback.
     onorigin: mustCall(function(origins) {
       assert.ok(Array.isArray(origins));
@@ -134,13 +134,13 @@ const decoder = new TextDecoder();
     }),
   });
 
-  const quicSession = await connect(serverEndpoint.address, {
+  const connection = await connect(serverEndpoint.address, {
     alpn: 'h3',
-    autoWrap: false,
+    autoStart: false,
     servername: 'custom-port.example.com',
     verifyPeer: 'manual',
   });
-  const clientSession = Http3Session.from(quicSession, {
+  const clientSession = Http3Session.start(connection, {
     onorigin: mustCall(function(origins) {
       assert.ok(Array.isArray(origins));
 

@@ -105,12 +105,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // of a QUIC Session.
   class Application;
 
-  enum class ApplicationType : uint8_t {
-    NONE = 0,     // None installed yet
-    DEFAULT = 1,  // DefaultApplication (raw QUIC streams)
-    HTTP3 = 2,    // Http3ApplicationImpl
-  };
-
   // A block of pending outbound stream data, passed between the application
   // layer (which fills it via GetStreamData) and the send pump (which hands
   // it to ngtcp2_conn_writev_stream and commits the accepted length).
@@ -163,6 +157,14 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // If the CID::Factory is a base object, we keep a reference to it
     // so that it cannot be garbage collected.
     BaseObjectPtr<BaseObject> cid_factory_ref;
+
+    // Application-specific options (used for HTTP/3 if the negotiated
+    // ALPN selects Http3ApplicationImpl).
+    Application_Options application_options = Application_Options::kDefault;
+
+    // When true, the Application is selected by the negotiated ALPN. When
+    // false, JavaScript starts one explicitly.
+    bool auto_start = true;
 
     // When true, QLog output will be enabled for the session.
     bool qlog = false;
@@ -349,11 +351,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   TLSSession& tls_session() const;
   bool has_application() const;
   Application& application() const;
-
   const Config& config() const;
   const Options& options() const;
-
-  ApplicationType application_type() const;
   const SocketAddress& remote_address() const;
   const SocketAddress& local_address() const;
 
@@ -428,17 +427,23 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // (ngtcp2_conn_read_pkt or ngtcp2_conn_continue_handshake).
   bool AfterNgtcp2Read(int err);
 
-  // Attach the Application to the session. Must be called before any
+  // Decode the first ALPN protocol name from wire format (length-prefixed).
+  static std::string_view DecodeAlpn(std::string_view wire);
+
+  // Select the Application implementation based on the negotiated ALPN.
+  // h3 (and h3-XX variants) map to Http3ApplicationImpl; all others map
+  // to DefaultApplication. Sets the application_type state field.
+  std::unique_ptr<Application> SelectApplicationFromAlpn(std::string_view alpn);
+
+  // Install the Application on the session. Must be called before any
   // application data is received.
   void SetApplication(std::unique_ptr<Application> app);
 
-  // Attach the Application that JavaScript requested in the session's shared
-  // state, or the DefaultApplication if it named none. Called at every point
-  // an Application is first needed - a stream created on the session, a
-  // datagram sent, or the session handed to JavaScript - so one is always in
-  // place before anything can arrive from the peer. False if the application
-  // could not be started, which is fatal to the session.
-  bool EnsureApplication();
+  void InstallApplicationForAlpn(std::string_view alpn);
+
+  // Called once an Application is required. False, closing the session, if
+  // none has been started or it could not be started.
+  bool RequireApplication();
 
   // ngtcp2 ignores the duplicate when the TLS stack reports these again.
   void SetEarlyRemoteTransportParams(std::span<const uint8_t> params);
@@ -525,8 +530,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void StreamDataBlocked(stream_id id);
   void ShutdownStream(stream_id id, QuicError error = QuicError());
   void ShutdownStreamWrite(stream_id id, QuicError code = QuicError());
-
-  bool stream_fin_managed_by_application() const;
 
   // Use the configured CID::Factory to generate a new CID.
   CID new_cid(size_t len = CID::kMaxLength) const;

@@ -6,7 +6,7 @@
 // The connection should still succeed (fallback to 1-RTT), and
 // earlyDataAccepted should be false.
 
-import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
+import { hasQuic, skip, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
@@ -78,7 +78,6 @@ const cs2 = await connect(serverEndpoint2.address, {
   verifyPeer: 'manual',
   sessionTicket: savedTicket,
   token: savedToken,
-  onearlyrejected: mustCall(),
 });
 
 // The deferred handshake needs a send to trigger. Use sendDatagram

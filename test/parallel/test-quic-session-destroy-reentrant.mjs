@@ -59,10 +59,10 @@ const transportParams = { maxIdleTimeout: 1 };
   // `onerror` handler), the `#destroying` guard makes the second call
   // a true no-op so each channel publishes exactly once.
   const errSub = mustCall((msg) => {
-    assert.strictEqual(msg.session, clientSession);
+    assert.strictEqual(msg.session, clientSession.connection);
   });
   const closedSub = mustCall((msg) => {
-    assert.strictEqual(msg.session, clientSession);
+    assert.strictEqual(msg.session, clientSession.connection);
   });
   diagnostics_channel.subscribe('quic.session.error', errSub);
   diagnostics_channel.subscribe('quic.session.closed', closedSub);

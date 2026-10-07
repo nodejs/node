@@ -35,7 +35,14 @@ class Session::Application : public MemoryRetainer {
   // options passed at construction time since some options can be negotiated.
   virtual const Options& options() const = 0;
 
-  using Type = ApplicationType;
+  // The type of Application, exposed via the session state so JS
+  // can observe which Application was selected after ALPN negotiation.
+  // This is used primarily for testing/debugging.
+  enum class Type : uint8_t {
+    NONE = 0,     // Not yet selected (server pre-negotiation)
+    DEFAULT = 1,  // DefaultApplication (non-h3 ALPN)
+    HTTP3 = 2,    // Http3ApplicationImpl (h3 / h3-XX ALPN)
+  };
   virtual Type type() const = 0;
 
   virtual bool Start();

@@ -24,7 +24,7 @@ const streamReceived = Promise.withResolvers();
 
 const endpoint = await listen(mustCall(async (session) => {
   const info = await session.opened;
-  assert.strictEqual(session.alpnProtocol, alpn);
+  assert.strictEqual(session.connection.alpnProtocol, alpn);
   assert.strictEqual(info.cipherVersion, 'TLSv1.3');
 
   session.onstream = mustCall(async (stream) => {
