@@ -602,9 +602,9 @@ Objects implementing `Symbol.for('Stream.toAsyncStreamable')` or
 precedence over the iteration protocols (`Symbol.asyncIterator`,
 `Symbol.iterator`).
 
-The readable of a [`push()`][] stream without transforms and the iterables
-returned by [`fromReadable()`][] already yield normalized batches, so `from()`
-returns them unchanged.
+The readable of a [`push()`][] stream without transforms, the iterables
+returned by [`fromReadable()`][], and the results of `from()` itself already
+yield normalized batches, so `from()` returns them unchanged.
 
 ```mjs
 import { Buffer } from 'node:buffer';

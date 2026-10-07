@@ -801,7 +801,35 @@ async function testFromSyncSourceQueuesBehindReturn() {
   ]);
 }
 
+// from() returns its own results unchanged: they already yield normalized
+// batches, and normalizing them again would add a layer to every read.
+async function testFromReturnsItsOwnResults() {
+  async function* asyncSource() {
+    yield 'a';
+    yield [new Uint8Array([98])];
+  }
+
+  function* syncSource() {
+    yield 'c';
+    yield new Uint8Array([100]);
+  }
+  const inputs = [
+    [asyncSource(), 'ab'],
+    [syncSource(), 'cd'],
+    ['ef', 'ef'],
+    [[new Uint8Array([103]), new Uint8Array([104])], 'gh'],
+    [[], ''],
+    [{ [Symbol.for('Stream.toAsyncStreamable')]() { return 'ij'; } }, 'ij'],
+  ];
+  for (const [input, expected] of inputs) {
+    const normalized = from(input);
+    assert.strictEqual(from(normalized), normalized);
+    assert.strictEqual(await text(from(from(normalized))), expected);
+  }
+}
+
 Promise.all([
+  testFromReturnsItsOwnResults(),
   testFromString(),
   testFromAsyncGenerator(),
   testFromAsyncIteratorResultShapes(),
