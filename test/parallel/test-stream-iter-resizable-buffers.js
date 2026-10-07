@@ -42,6 +42,37 @@ async function testBufferedViewMutationRejected() {
   }
 }
 
+// Several buffered writes, single chunks and batches, read as one batch:
+// they are delivered in order, and a view resized after it was written
+// among them rejects the read.
+async function testBufferedEntriesReadTogether() {
+  {
+    const { writer, readable } = push();
+    writer.writeSync(Uint8Array.of(1));
+    writer.writevSync([Uint8Array.of(2), Uint8Array.of(3)]);
+    writer.writeSync(Uint8Array.of(4));
+    writer.endSync();
+    const batches = await array(readable);
+    assert.deepStrictEqual(batches.map((c) => c[0]), [1, 2, 3, 4]);
+  }
+  for (const single of [true, false]) {
+    const buffer = new ArrayBuffer(1, { maxByteLength: 2 });
+    const { writer, readable } = push();
+    writer.writeSync(Uint8Array.of(1));
+    writer.writevSync([Uint8Array.of(2), Uint8Array.of(3)]);
+    if (single) {
+      writer.writeSync(new Uint8Array(buffer));
+    } else {
+      writer.writevSync([Uint8Array.of(4), new Uint8Array(buffer)]);
+    }
+    buffer.resize(2);
+    await assert.rejects(
+      readable[Symbol.asyncIterator]().next(),
+      kResizeError,
+    );
+  }
+}
+
 async function testDropOldestUsesAcceptedByteLength() {
   const buffer = new ArrayBuffer(16384, { maxByteLength: 16384 });
   const { writer, broadcast: bc } = broadcast({
@@ -336,6 +367,7 @@ Promise.all([
   testPipeRejectsDetachWithWriteOnly(),
   testFixedLengthViewOfResizedBuffer(),
   testBufferedViewMutationRejected(),
+  testBufferedEntriesReadTogether(),
   testDropOldestUsesAcceptedByteLength(),
   testPendingWritesRejectResizedViews(),
   testBroadcastRejectsResizedBufferedView(),
