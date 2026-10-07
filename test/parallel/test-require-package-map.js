@@ -132,6 +132,22 @@ describe('CJS: --experimental-package-map', { concurrency: !process.env.TEST_PAR
       assert.strictEqual(status, 0, stderr);
     });
 
+    it('resolves package imports without consulting the map', () => {
+      const { status, stdout, stderr } = spawnSync(process.execPath, [
+        '--no-warnings',
+        '--experimental-package-map', packageMapPath,
+        '-e',
+        `const root = require('#root'); console.log(root.default);`,
+      ], {
+        cwd: fixtures.path('package-map/root'),
+        encoding: 'utf8',
+      });
+
+      assert.strictEqual(stderr, '');
+      assert.match(stdout, /root-package/);
+      assert.strictEqual(status, 0, stderr);
+    });
+
     it('throws when parent not in map', () => {
       const { status, stderr } = spawnSync(process.execPath, [
         '--no-warnings',
