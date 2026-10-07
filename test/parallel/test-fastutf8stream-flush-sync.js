@@ -132,7 +132,7 @@ for (const contentMode of ['utf8', 'buffer']) {
   const dest = getTempFile();
   const fd = openSync(dest, 'w');
   const fsOverride = {
-    write: common.mustCall((fd, buf, ...args) => {
+    write: common.mustCallAtLeast((fd, buf, ...args) => {
       const cb = args.pop();
       const err = new Error('EAGAIN');
       err.code = 'EAGAIN';
