@@ -94,6 +94,10 @@ are automatically UTF-8 encoded when passed to `from()`, `push()`, or
 `pipeTo()`. This removes ambiguity around encodings and enables zero-copy
 transfers between streams and native code.
 
+Like [`Buffer.from()`][] for strings, small strings are encoded into a shared
+pool: the resulting {Uint8Array} is a view of a larger {ArrayBuffer}, which
+cannot be transferred.
+
 ### Batching
 
 Each iteration yields a **batch** -- an {Array} of {Uint8Array} chunks
@@ -2413,6 +2417,7 @@ console.log(textSync(stream)); // 'hello world'
 [Iterable Streams API]: https://iter-streams.proposal.wintertc.org/
 [`--experimental-stream-iter`]: cli.md#--experimental-stream-iter
 [`Broadcast.from()`]: #broadcastfrominput-options
+[`Buffer.from()`]: buffer.md#static-method-bufferfromstring-encoding
 [`Share.from()`]: #static-method-sharefrominput-options
 [`SyncShare.fromSync()`]: #static-method-syncsharefromsyncinput-options
 [`array()`]: #arraysource-options
