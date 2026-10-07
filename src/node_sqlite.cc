@@ -3550,6 +3550,7 @@ void Database::EnableDefensive(const FunctionCallbackInfo<Value>& args) {
                                               enable,
                                               &defensive_enabled);
   CHECK_ERROR_OR_THROW(isolate, db, defensive_ret, SQLITE_OK, void());
+  db->open_config_.set_enable_defensive(enable);
 }
 
 void Database::LoadExtension(const FunctionCallbackInfo<Value>& args) {
