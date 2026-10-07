@@ -8,7 +8,7 @@ const common = require('../common');
 const assert = require('assert');
 const { setTimeout } = require('timers/promises');
 const { getEventListeners } = require('events');
-const { bytes, pipeTo, from } = require('stream/iter');
+const { bytes, pipeTo, pull, from } = require('stream/iter');
 
 async function testPipeToPreAbortedSignalFailsWriter() {
   const reason = new Error('already aborted');
@@ -165,9 +165,13 @@ async function testSignalAbortedWhileReadingSource() {
   // The signal can abort while the source is producing a value; the read
   // must still reject with the abort reason, and the source be closed, even
   // if the value never comes.
+  const identity = (chunks) => chunks;
   for (const consume of [
     (source, signal) => pipeTo(source, { write() {} }, { signal }),
+    (source, signal) => pipeTo(source, identity, { write() {} }, { signal }),
     (source, signal) => bytes(source, { signal }),
+    (source, signal) => bytes(pull(source, { signal })),
+    (source, signal) => bytes(pull(source, identity, { signal })),
   ]) {
     const ac = new AbortController();
     const reason = new Error('aborted while reading');
