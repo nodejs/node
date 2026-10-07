@@ -674,7 +674,9 @@ added:
 * `writer` {Object} Destination with `write(chunk)` method.
 * `options` {Object}
   * `signal` {AbortSignal} Abort the pipeline. Aborting fails the destination
-    writer unless `preventFail` is `true`.
+    writer unless `preventFail` is `true`. The signal is passed to the
+    writer's `write()`, `writev()` and `end()` in an options object, the same
+    object for every call.
   * `preventClose` {boolean} If `true`, do not call `writer.end()` when
     the source ends. **Default:** `false`.
   * `preventFail` {boolean} If `true`, do not call `writer.fail()` on
