@@ -3222,6 +3222,22 @@ added: v22.8.0
 Require a minimum percent of covered lines. If code coverage does not reach
 the threshold specified, the process will exit with code `1`.
 
+### `--test-forbid-only`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Fails the test run if a test or suite is declared with `only: true`, including
+the `test.only()`, `it.only()`, `suite.only()`, and `describe.only()` shorthands,
+or if `testContext.runOnly(true)` is called. This is useful in CI to prevent
+accidentally committing exclusive tests that exclude the rest of a test suite.
+
+This option applies with either test isolation mode and takes precedence over
+`--test-only`. Name filtering, TODO markers, and expected failures do not suppress
+detected violations. Only declarations evaluated during the run are checked;
+code inside a skipped test callback is not evaluated.
+
 ### `--test-force-exit`
 
 <!-- YAML
@@ -4339,6 +4355,7 @@ one is included in the list below.
 * `--test-coverage-include-all`
 * `--test-coverage-include`
 * `--test-coverage-lines`
+* `--test-forbid-only`
 * `--test-global-setup`
 * `--test-isolation`
 * `--test-name-pattern`

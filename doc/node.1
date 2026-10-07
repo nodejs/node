@@ -1609,6 +1609,16 @@ filtering as the rest of the report.
 Require a minimum percent of covered lines. If code coverage does not reach
 the threshold specified, the process will exit with code \fB1\fR.
 .
+.It Fl -test-forbid-only
+Fails the test run if a test or suite is declared with \fBonly: true\fR, including
+the \fBtest.only()\fR, \fBit.only()\fR, \fBsuite.only()\fR, and \fBdescribe.only()\fR shorthands,
+or if \fBtestContext.runOnly(true)\fR is called. This is useful in CI to prevent
+accidentally committing exclusive tests that exclude the rest of a test suite.
+This option applies with either test isolation mode and takes precedence over
+\fB--test-only\fR. Name filtering, TODO markers, and expected failures do not suppress
+detected violations. Only declarations evaluated during the run are checked;
+code inside a skipped test callback is not evaluated.
+.
 .It Fl -test-force-exit
 Configures the test runner to exit the process once all known tests have
 finished executing even if the event loop would otherwise remain active.
@@ -2412,6 +2422,8 @@ one is included in the list below.
 \fB--test-coverage-include\fR
 .It
 \fB--test-coverage-lines\fR
+.It
+\fB--test-forbid-only\fR
 .It
 \fB--test-global-setup\fR
 .It

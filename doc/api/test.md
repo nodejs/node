@@ -353,6 +353,14 @@ it.todo('should do the thing', { expectFailure: true }, () => {
 
 ## `only` tests
 
+To prevent exclusive tests from accidentally excluding tests in CI, use
+[`--test-forbid-only`][] or the `forbidOnly` option of [`run()`][]. When enabled,
+declaring a test or suite with `only: true` or calling `testContext.runOnly(true)`
+fails the run. This includes the `.only()` shorthands and applies with either
+isolation mode, even when `--test-only` is also enabled. Name filtering, TODO
+markers, and expected failures cannot suppress detected violations. Declarations
+inside callbacks that are never executed are not checked.
+
 If Node.js is started with the [`--test-only`][] command-line option, or test
 isolation is disabled, it is possible to skip all tests except for a selected
 subset by passing the `only` option to the tests that should run. When a test
@@ -1760,6 +1768,9 @@ changes:
   * `forceExit` {boolean} Configures the test runner to exit the process once
     all known tests have finished executing even if the event loop would
     otherwise remain active. **Default:** `false`.
+  * `forbidOnly` {boolean} Fail the run when a test or suite is declared with
+    `only: true` or `testContext.runOnly(true)` is called. See [`only` tests](#only-tests).
+    **Default:** the value of [`--test-forbid-only`][].
   * `globPatterns` {Array} An array containing the list of glob patterns to
     match test files. This option cannot be used together with `files`.
     **Default:** Same as [running tests from the command line][].
@@ -5105,6 +5116,7 @@ test.describe('my suite', (suite) => {
 [`--test-concurrency`]: cli.md#--test-concurrency
 [`--test-coverage-exclude`]: cli.md#--test-coverage-exclude
 [`--test-coverage-include`]: cli.md#--test-coverage-include
+[`--test-forbid-only`]: cli.md#--test-forbid-only
 [`--test-name-pattern`]: cli.md#--test-name-pattern
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination
