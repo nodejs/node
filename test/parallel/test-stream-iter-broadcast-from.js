@@ -159,6 +159,67 @@ async function testBroadcastFromCancelWhileBlocked() {
   assert.strictEqual(sourceReturned, true);
 }
 
+// A sync source is written as the broadcast has room, including values
+// normalized asynchronously, and its error reaches the consumers after the
+// data before it. Cancelling the broadcast while the pump waits for room
+// closes the source.
+async function testBroadcastFromSyncSource() {
+  const reason = new Error('sync source boom');
+  function* source() {
+    yield [Uint8Array.of(1)];
+    yield Promise.resolve(Uint8Array.of(2));
+    yield 'c';
+    yield [Uint8Array.of(4)];
+    throw reason;
+  }
+  const { broadcast: bc } = Broadcast.from(source());
+  const read = async (consumer) => {
+    const values = [];
+    try {
+      for await (const batch of consumer) values.push(...batch.map((c) => c[0]));
+    } catch (error) {
+      values.push(error);
+    }
+    return values;
+  };
+  const results = await Promise.all([read(bc.push()), read(bc.push())]);
+  for (const values of results) {
+    assert.deepStrictEqual(values, [1, 2, 99, 4, reason]);
+  }
+
+  let closed = false;
+  function* endless() {
+    try {
+      for (;;) yield [new Uint8Array(1024)];
+    } finally {
+      closed = true;
+    }
+  }
+  const { broadcast: blocked } = Broadcast.from(endless(), { budget: 4096 });
+  const consumer = blocked.push()[Symbol.asyncIterator]();
+  await consumer.next();
+  await setImmediate();
+  assert.strictEqual(closed, false);
+  blocked.cancel();
+  await setImmediate();
+  assert.strictEqual(closed, true);
+  assert.strictEqual((await consumer.next()).done, true);
+}
+
+// With a 'drop-newest' policy, a sync source is still read one batch at a
+// time while consumers read.
+async function testBroadcastFromSyncSourceDropNewest() {
+  function* source() {
+    for (let i = 0; i < 8; i++) yield [Uint8Array.of(i)];
+  }
+  const { broadcast: bc } = Broadcast.from(source(), {
+    budget: 2, backpressure: 'drop-newest',
+  });
+  const values = [];
+  for await (const batch of bc.push()) values.push(...batch.map((c) => c[0]));
+  assert.deepStrictEqual(values, [0, 1, 2, 3, 4, 5, 6, 7]);
+}
+
 // =============================================================================
 // Source error propagation via Broadcast.from()
 // =============================================================================
@@ -229,6 +290,8 @@ Promise.all([
   testAbortSignal(),
   testAlreadyAbortedSignal(),
   testBroadcastFromCancelWhileBlocked(),
+  testBroadcastFromSyncSource(),
+  testBroadcastFromSyncSourceDropNewest(),
   testBroadcastFromSourceError(),
   testBroadcastProtocolReturnsBroadcast(),
   testBroadcastProtocolReturnsNull(),
