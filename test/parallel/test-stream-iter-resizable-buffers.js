@@ -286,7 +286,28 @@ async function testConsumersRejectDetachedViews() {
   assert.strictEqual(result, chunk);
 }
 
+// Only what was accounted for a view is checked: its byteLength. A
+// fixed-length view of a resizable buffer that stays in bounds is unchanged.
+async function testFixedLengthViewOfResizedBuffer() {
+  const buffer = new ArrayBuffer(4, { maxByteLength: 8 });
+  const view = new Uint8Array(buffer, 0, 2);
+  const { writer, readable } = push();
+  assert.strictEqual(writer.writeSync(view), true);
+  buffer.resize(8);
+  writer.endSync();
+  const [chunk] = await array(readable);
+  assert.strictEqual(chunk, view);
+
+  // Shrinking the buffer so that the view is out of bounds makes its
+  // byteLength 0: rejected.
+  const { writer: writer2, readable: readable2 } = push();
+  assert.strictEqual(writer2.writeSync(view), true);
+  buffer.resize(1);
+  await assert.rejects(readable2[Symbol.asyncIterator]().next(), kResizeError);
+}
+
 Promise.all([
+  testFixedLengthViewOfResizedBuffer(),
   testBufferedViewMutationRejected(),
   testDropOldestUsesAcceptedByteLength(),
   testPendingWritesRejectResizedViews(),
