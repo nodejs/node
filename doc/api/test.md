@@ -1712,6 +1712,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66578
+    description: Added the `forbidOnly` option.
   - version:
      - v26.2.0
      - v24.19.0
