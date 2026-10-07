@@ -4,6 +4,7 @@
 const common = require('../common');
 const assert = require('assert');
 const {
+  array,
   broadcast,
   dump,
   from,
@@ -426,6 +427,63 @@ async function testPullSignalListenerRemoved() {
   ac.abort();
   assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
   await assert.rejects(iter.next(), { name: 'AbortError' });
+}
+
+// Stateful transforms: called on the first pull, with a source that ends
+// with one null flush signal; their output is normalized; stopping early
+// closes the output and the source.
+async function testStatefulTransformProtocol() {
+  const log = [];
+  const stateful = {
+    async *transform(source) {
+      log.push('called');
+      try {
+        for await (const batch of source) {
+          log.push(batch === null ? 'flush' : `batch ${batch[0][0]}`);
+          if (batch === null) {
+            yield 'end';
+          } else {
+            yield batch;
+            yield batch[0];
+            yield null;
+            yield [];
+          }
+        }
+      } finally {
+        log.push('output closed');
+      }
+    },
+  };
+  const iterable = pull(createLoggedSource(log, [1, 2]), stateful);
+  assert.deepStrictEqual(log, []);
+  const chunks = await array(iterable);
+  assert.deepStrictEqual(chunks.map((chunk) => chunk[0]), [1, 1, 2, 2, 101]);
+  assert.deepStrictEqual(log, [
+    'called', 'next 0', 'batch 1', 'next 1', 'batch 2', 'next 2', 'flush',
+    'output closed',
+  ]);
+
+  log.length = 0;
+  const iterator = pull(createLoggedSource(log, [1, 2, 3]),
+                        stateful)[Symbol.asyncIterator]();
+  assert.strictEqual((await iterator.next()).value[0][0], 1);
+  assert.strictEqual((await iterator.return()).done, true);
+  assert.deepStrictEqual(log, [
+    'called', 'next 0', 'batch 1', 'return', 'output closed',
+  ]);
+  assert.strictEqual((await iterator.next()).done, true);
+
+  // Outputs that are sync iterables are read as for await reads them.
+  const syncOutput = { transform: () => [[Uint8Array.of(7)], 'x'] };
+  assert.deepStrictEqual((await array(pull(from('a'), syncOutput))).map(
+    (chunk) => chunk[0]), [7, 120]);
+
+  // Errors from the transform reject the pull.
+  const failing = {
+    // eslint-disable-next-line require-yield
+    async *transform() { throw new Error('stateful failed'); },
+  };
+  await assert.rejects(array(pull(from('a'), failing)), /stateful failed/);
 }
 
 // Pull consumer break (return()) cleans up transform signal
@@ -884,6 +942,7 @@ async function testTransformReturnClosesOutputAndSource() {
     testPullSignalAbortWhileTransformPending(),
     testPullSignalAbortWhileIdleClosesSource(),
     testPullSignalListenerRemoved(),
+    testStatefulTransformProtocol(),
     testTransformOptionsSignalAssignable(),
     testTransformErrorClosesSource(),
     testTransformSourceErrorDoesNotCloseSource(),
