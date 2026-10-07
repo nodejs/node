@@ -828,7 +828,37 @@ async function testFromReturnsItsOwnResults() {
   }
 }
 
+// from() of a value needing no normalization reads like an async generator
+// yielding its batches: each iteration starts over, return() and throw()
+// end it, and arrays are yielded in bounded batches.
+async function testFromValueIteration() {
+  const chunk = new Uint8Array([1]);
+  const source = from(chunk);
+  for (let i = 0; i < 2; i++) {
+    const batches = await Array.fromAsync(source);
+    assert.deepStrictEqual(batches, [[chunk]]);
+  }
+
+  let iterator = source[Symbol.asyncIterator]();
+  assert.deepStrictEqual({ ...await iterator.return(5) },
+                         { done: true, value: 5 });
+  assert.strictEqual((await iterator.next()).done, true);
+
+  iterator = source[Symbol.asyncIterator]();
+  assert.deepStrictEqual((await iterator.next()).value, [chunk]);
+  const error = new Error('thrown');
+  await assert.rejects(iterator.throw(error), error);
+  assert.strictEqual((await iterator.next()).done, true);
+
+  const chunks = Array.from({ length: 300 }, () => chunk);
+  const lengths = (await Array.fromAsync(from(chunks)))
+    .map((batch) => batch.length);
+  assert.deepStrictEqual(lengths, [128, 128, 44]);
+  assert.deepStrictEqual(await Array.fromAsync(from([])), []);
+}
+
 Promise.all([
+  testFromValueIteration(),
   testFromReturnsItsOwnResults(),
   testFromString(),
   testFromAsyncGenerator(),
