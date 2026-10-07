@@ -144,10 +144,13 @@ Both forms receive an `options` parameter with the following property:
   can check `signal.aborted` or listen for the `'abort'` event to perform
   early cleanup.
 
-In `pull()`, stateless transforms receive a new `options` object for every
-call, and stateful transforms one for the pipeline, so a transform can modify
-its `options` without affecting other transforms. The object does not inherit
-from `Object.prototype`. Transforms passed to [`pullSync()`][] receive no
+Each transform of a pipeline receives its own `options` object, the same one
+for every call of a stateless transform, so a transform can modify its
+`options` without affecting other transforms. The object does not inherit
+from `Object.prototype`. The signal is created when `options.signal` is
+first read, so a pipeline whose transforms never read it does not create one;
+until then, `signal` is an accessor property. It is the same signal for every
+transform of the pipeline. Transforms passed to [`pullSync()`][] receive no
 `options`.
 
 The flush signal (`null`) is sent after the source ends, giving transforms
