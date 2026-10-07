@@ -139,7 +139,7 @@ static void RegisterProduct() {
   if (rc && !credentials::SafeGetenv("NODE_SMF89_SUPPRESS_WARNING", &val)) {
     fprintf(stderr,
             "WARNING: Could not register product with IFAUSAGE, "
-            "rc = %llu\n",
+            "rc = %lu\n",
             rc);
     if (const char* errorString = getIFAUsageErrorString(rc))
       fprintf(stderr, "%s\n", errorString);
@@ -164,7 +164,7 @@ ExitCode zosStart() {
 
   // Create an alternate stack for signal processing
   const unsigned int STACK_SIZE = SIGSTKSZ + 1024 * 1024;
-  galtStack = (char*)malloc(STACK_SIZE);
+  galtStack = reinterpret_cast<char*>(malloc(STACK_SIZE));
   if (galtStack == nullptr) {
     return ExitCode::kGenericUserError;
   }

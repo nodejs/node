@@ -52,7 +52,7 @@ class __setlibpath {
         if (p == nullptr) {
           fprintf(stderr,
                   "Error: dirname(%s) failed, errno=%d (argv=%s).\n"
-                   "Please report this error to IBM customer support.\n",
+                  "Please report this error to IBM customer support.\n",
                   parent,
                   errno,
                   argv);
