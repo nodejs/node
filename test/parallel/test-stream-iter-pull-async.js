@@ -18,6 +18,7 @@ const {
 
 const { setImmediate } = require('timers/promises');
 const { inspect } = require('util');
+const { getEventListeners } = require('events');
 
 async function testPullIdentity() {
   const data = await text(pull(from('hello-async')));
@@ -363,6 +364,68 @@ async function testPullSignalAbortWithTransformWhileSourceNextPending() {
   const next = iter.next();
   ac.abort();
   await assert.rejects(next, { name: 'AbortError' });
+}
+
+// An abort rejects a pending pull at once, wherever the pipeline is waiting:
+// here, on a transform that never settles.
+async function testPullSignalAbortWhileTransformPending() {
+  const ac = new AbortController();
+  let transformSignal;
+  const iter = pull(from('a'), (chunks, options) => {
+    transformSignal = options.signal;
+    return new Promise(() => {});
+  }, { signal: ac.signal })[Symbol.asyncIterator]();
+  const next = iter.next();
+  await setImmediate();
+  const reason = new Error('stop');
+  ac.abort(reason);
+  await assert.rejects(next, reason);
+  assert.strictEqual(transformSignal.reason, reason);
+  await assert.rejects(iter.next(), reason);
+}
+
+// When the signal aborts while no pull is pending, the source is closed once,
+// and the next pull rejects.
+async function testPullSignalAbortWhileIdleClosesSource() {
+  const log = [];
+  const ac = new AbortController();
+  const iter = pull(createLoggedSource(log, [1, 2, 3]), (chunks) => chunks,
+                    { signal: ac.signal })[Symbol.asyncIterator]();
+  assert.strictEqual((await iter.next()).done, false);
+  const reason = new Error('stop');
+  ac.abort(reason);
+  await setImmediate();
+  assert.deepStrictEqual(log, ['next 0', 'return']);
+  await assert.rejects(iter.next(), reason);
+  assert.strictEqual((await iter.return()).done, true);
+  assert.deepStrictEqual(log, ['next 0', 'return']);
+}
+
+// The pipeline's listener on the signal is removed once the pipeline is
+// done, however it ends.
+async function testPullSignalListenerRemoved() {
+  const identity = (chunks) => chunks;
+  const ac = new AbortController();
+  const { signal } = ac;
+  await text(pull(from(['a', 'b']), identity, { signal }));
+  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+
+  let iter = pull(from(['a', 'b']), identity, { signal })[Symbol.asyncIterator]();
+  await iter.next();
+  assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+  await iter.return();
+  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+
+  iter = pull(from(['a', 'b']), () => { throw new Error('failed'); },
+              { signal })[Symbol.asyncIterator]();
+  await assert.rejects(iter.next(), /failed/);
+  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+
+  iter = pull(from(['a', 'b']), identity, { signal })[Symbol.asyncIterator]();
+  await iter.next();
+  ac.abort();
+  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+  await assert.rejects(iter.next(), { name: 'AbortError' });
 }
 
 // Pull consumer break (return()) cleans up transform signal
@@ -744,8 +807,9 @@ async function testTransformSourceErrorDoesNotCloseSource() {
 }
 
 async function testPipeToTransformsStoppedEarly() {
-  // When the writer fails, the transforms are closed, closing the source, and
-  // their signal is aborted.
+  // When the writer fails, the transforms' signal is aborted, and the
+  // transforms are closed, closing the source, as when the consumer of pull()
+  // stops early.
   const log = [];
   let writes = 0;
   await assert.rejects(pipeTo(
@@ -755,8 +819,8 @@ async function testPipeToTransformsStoppedEarly() {
       },
     }), /write failed/);
   assert.deepStrictEqual(log, [
-    'next 0', 'transform 1', 'next 1', 'transform 2', 'return',
-    'abort: Aborted',
+    'next 0', 'transform 1', 'next 1', 'transform 2', 'abort: Aborted',
+    'return',
   ]);
 }
 
@@ -817,6 +881,9 @@ async function testTransformReturnClosesOutputAndSource() {
     testTransformOptionsNotShared(),
     testTransformOptionsShape(),
     testTransformSignalReadAfterAbort(),
+    testPullSignalAbortWhileTransformPending(),
+    testPullSignalAbortWhileIdleClosesSource(),
+    testPullSignalListenerRemoved(),
     testTransformOptionsSignalAssignable(),
     testTransformErrorClosesSource(),
     testTransformSourceErrorDoesNotCloseSource(),
