@@ -856,20 +856,52 @@ async function testFromSyncSourceReturnAndThrow() {
   }
 }
 
-async function testFromSyncSourceQueuesBehindReturn() {
-  // A next() made synchronously after another waits for it, and so sees a
-  // return() made synchronously after it as well.
-  const log = [];
-  const iterator = from(createLoggedSyncSource(log, [
+async function testFromSyncSourceCallOrder() {
+  // A next() made synchronously after another that finished synchronously
+  // runs at once, before a return() made after it.
+  let log = [];
+  let iterator = from(createLoggedSyncSource(log, [
     [Uint8Array.of(1)], 'a', [Uint8Array.of(2)],
   ]))[Symbol.asyncIterator]();
-  const results = [iterator.next(), iterator.next(), iterator.return()];
+  let results = [iterator.next(), iterator.next(), iterator.return()];
   for (let i = 0; i < results.length; i++) {
     await settle(log, `result ${i}`, results[i]);
   }
   assert.deepStrictEqual(log, [
-    'iterator', 'next 0', 'next 1', 'return', 'result 0: 1',
-    'result 1: AbortError', 'result 2: done',
+    'iterator', 'next 0', 'next 1', 'result 0: 1', 'result 1: 1', 'return',
+    'result 2: done',
+  ]);
+
+  // A call made while a value is normalized asynchronously is queued
+  // behind it, and so a return() made then cancels it.
+  log = [];
+  iterator = from(createLoggedSyncSource(log, [
+    [Uint8Array.of(1)], Promise.resolve(Uint8Array.of(2)), [Uint8Array.of(3)],
+  ]))[Symbol.asyncIterator]();
+  results = [iterator.next(), iterator.next(), iterator.next(),
+             iterator.return()];
+  for (let i = 0; i < results.length; i++) {
+    await settle(log, `result ${i}`, results[i]);
+  }
+  assert.deepStrictEqual(log, [
+    'iterator', 'next 0', 'next 1', 'result 0: 1', 'return',
+    'result 1: AbortError', 'result 2: done', 'result 3: done',
+  ]);
+
+  // A next() made synchronously after another reads the source at once.
+  log = [];
+  iterator = from(createLoggedSyncSource(log, [
+    [Uint8Array.of(1)], [Uint8Array.of(2)],
+  ]))[Symbol.asyncIterator]();
+  const first = iterator.next();
+  log.push('first called');
+  const second = iterator.next();
+  log.push('second called');
+  await settle(log, 'first', first);
+  await settle(log, 'second', second);
+  assert.deepStrictEqual(log, [
+    'iterator', 'next 0', 'first called', 'next 1', 'second called',
+    'first: 1', 'second: 1',
   ]);
 }
 
@@ -975,5 +1007,5 @@ Promise.all([
   testFromSyncSourceLargeAndEmptyBatches(),
   testFromSyncSourceErrors(),
   testFromSyncSourceReturnAndThrow(),
-  testFromSyncSourceQueuesBehindReturn(),
+  testFromSyncSourceCallOrder(),
 ]).then(common.mustCall());
