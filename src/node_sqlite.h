@@ -397,6 +397,7 @@ class Statement : public BaseObject {
   static void SetReturnArrays(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetTraceInfo(const v8::FunctionCallbackInfo<v8::Value>& args);
   v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
   v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
   // Call after sqlite3_step(), which may re-prepare, and before RowToObject.
