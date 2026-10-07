@@ -286,6 +286,32 @@ async function testConsumersRejectDetachedViews() {
   assert.strictEqual(result, chunk);
 }
 
+// A writer with only write() is checked the same way, before and after each
+// write(), and after the promise it returns, if any.
+async function testPipeRejectsDetachWithWriteOnly() {
+  for (const detachIndex of [1, 0]) {
+    const buffers = [new ArrayBuffer(2), new ArrayBuffer(2)];
+    const written = [];
+    await assert.rejects(pipeTo([buffers.map((b) => new Uint8Array(b))], {
+      write(chunk) {
+        written.push(chunk.byteLength);
+        if (written.length === 1) buffers[detachIndex].transfer();
+      },
+      fail: common.mustCall(),
+    }), kResizeError);
+    assert.deepStrictEqual(written, [2]);
+  }
+
+  const buffer = new ArrayBuffer(2);
+  await assert.rejects(pipeTo([new Uint8Array(buffer)], {
+    async write() {
+      await null;
+      buffer.transfer();
+    },
+    fail: common.mustCall(),
+  }), kResizeError);
+}
+
 // Only what was accounted for a view is checked: its byteLength. A
 // fixed-length view of a resizable buffer that stays in bounds is unchanged.
 async function testFixedLengthViewOfResizedBuffer() {
@@ -307,6 +333,7 @@ async function testFixedLengthViewOfResizedBuffer() {
 }
 
 Promise.all([
+  testPipeRejectsDetachWithWriteOnly(),
   testFixedLengthViewOfResizedBuffer(),
   testBufferedViewMutationRejected(),
   testDropOldestUsesAcceptedByteLength(),
