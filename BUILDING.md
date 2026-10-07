@@ -179,6 +179,7 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | linux-ppc64le           | RHEL 9 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
 | linux-s390x             | RHEL 9 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
 | linux-x64               | RHEL 9 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-x64-musl          | Alpine 3.23 with Clang 21                                     |
 | win-arm64               | Windows Server 2022 (x64) with Visual Studio 2022             |
 | win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022             |
 
