@@ -70,7 +70,7 @@ if [ "$ARCH" = "s390x" ] || [ "$ARCH" = "ppc64le" ]; then
       ;;
     *) GN_COMPILER_OPTS="treat_warnings_as_errors=false use_custom_libcxx=false" ;;
   esac
-  gn gen -v "out.gn/$BUILD_ARCH_TYPE" --args="$GN_COMPILER_OPTS is_component_build=false is_debug=false v8_target_cpu=\"$TARGET_ARCH\" target_cpu=\"$TARGET_ARCH\" v8_enable_backtrace=true v8_use_metagen_instance_types=false ${GN_RUST_ARGS} $CC_WRAPPER"
+  gn gen -v "out.gn/$BUILD_ARCH_TYPE" --args="$GN_COMPILER_OPTS is_component_build=false is_debug=false v8_target_cpu=\"$TARGET_ARCH\" target_cpu=\"$TARGET_ARCH\" v8_enable_backtrace=true v8_use_metagen=false ${GN_RUST_ARGS} $CC_WRAPPER"
   ninja -v -C "out.gn/$BUILD_ARCH_TYPE" "${JOBS_ARG}" d8 cctest inspector-test
 else
   DEPOT_TOOLS_DIR="$(cd depot_tools && pwd)"
