@@ -284,7 +284,9 @@ MaybeLocal<Object> CreateSQLiteErrorImpl(Isolate* isolate,
   Local<Context> context = isolate->GetCurrentContext();
   Local<String> js_msg;
   Local<Object> e;
-  if (!String::NewFromUtf8(isolate, message).ToLocal(&js_msg) ||
+  // SQLite error messages embed the offending identifier or token, so they
+  // can exceed String::kMaxLength.
+  if (!Utf8StringMaybeOneByte(isolate, message).ToLocal(&js_msg) ||
       !Exception::Error(js_msg)->ToObject(context).ToLocal(&e) ||
       e->Set(context, env->code_string(), env->err_sqlite_error_string())
           .IsNothing()) {
@@ -399,7 +401,15 @@ inline MaybeLocal<Value> NullableSQLiteStringToValue(Isolate* isolate,
     return Null(isolate);
   }
 
-  return String::NewFromUtf8(isolate, str, NewStringType::kInternalized)
+  // With the default length of -1, V8 aborts on strings over kMaxLength.
+  const size_t len = strlen(str);
+  if (len > static_cast<size_t>(String::kMaxLength)) [[unlikely]] {
+    isolate->ThrowException(node::ERR_STRING_TOO_LONG(isolate));
+    return MaybeLocal<Value>();
+  }
+
+  return String::NewFromUtf8(
+             isolate, str, NewStringType::kInternalized, static_cast<int>(len))
       .As<Value>();
 }
 
@@ -3631,15 +3641,15 @@ int Database::AuthorizerCallback(void* user_data,
 
   Local<Function> callback = cb.As<Function>();
 
-  LocalVector<Value> js_argv(
-      isolate,
-      {
-          Integer::New(isolate, action_code),
-          NullableSQLiteStringToValue(isolate, param1).ToLocalChecked(),
-          NullableSQLiteStringToValue(isolate, param2).ToLocalChecked(),
-          NullableSQLiteStringToValue(isolate, param3).ToLocalChecked(),
-          NullableSQLiteStringToValue(isolate, param4).ToLocalChecked(),
-      });
+  LocalVector<Value> js_argv(isolate, {Integer::New(isolate, action_code)});
+  for (const char* param : {param1, param2, param3, param4}) {
+    Local<Value> arg;
+    if (!NullableSQLiteStringToValue(isolate, param).ToLocal(&arg)) {
+      db->SetIgnoreNextSQLiteError(true);
+      return SQLITE_DENY;
+    }
+    js_argv.push_back(arg);
+  }
 
   MaybeLocal<Value> retval = callback->Call(
       context, Undefined(isolate), js_argv.size(), js_argv.data());
