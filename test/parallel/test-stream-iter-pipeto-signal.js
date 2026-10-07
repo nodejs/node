@@ -195,6 +195,84 @@ async function testSignalAbortedWhileReadingSource() {
   }
 }
 
+// write(), writev() and end() are all passed the same options object.
+async function testWriteOptionsShared() {
+  const ac = new AbortController();
+  const seen = [];
+  const writer = {
+    async write(chunk, options) { seen.push(options); },
+    async writev(chunks, options) { seen.push(options); },
+    async end(options) { seen.push(options); },
+  };
+  async function* source() {
+    yield [new Uint8Array([1])];
+    yield [new Uint8Array([2]), new Uint8Array([3])];
+    yield [new Uint8Array([4])];
+  }
+  await pipeTo(source(), writer, { signal: ac.signal });
+  assert.strictEqual(seen.length, 4);
+  assert.strictEqual(new Set(seen).size, 1);
+  assert.strictEqual(seen[0].signal, ac.signal);
+}
+
+// The signal aborting while a chunk is written synchronously stops the pipe:
+// no other chunk is written, the source is closed, and the pipe rejects with
+// the abort reason.
+async function testAbortDuringWriteSync() {
+  for (const sync of [true, false]) {
+    const ac = new AbortController();
+    const reason = new Error('abort in writeSync');
+    const written = [];
+    let closed = false;
+    function* syncSource() {
+      try {
+        for (let i = 0; i < 5; i++) yield [new Uint8Array([i])];
+      } finally {
+        closed = true;
+      }
+    }
+
+    async function* asyncSource() {
+      try {
+        for (let i = 0; i < 5; i++) yield [new Uint8Array([i])];
+      } finally {
+        closed = true;
+      }
+    }
+    const writer = {
+      write: common.mustNotCall(),
+      writeSync(chunk) {
+        written.push(chunk[0]);
+        if (chunk[0] === 1) ac.abort(reason);
+        return true;
+      },
+      fail: common.mustCall((error) => assert.strictEqual(error, reason)),
+    };
+    await assert.rejects(
+      pipeTo(sync ? syncSource() : asyncSource(), writer,
+             { signal: ac.signal }),
+      reason);
+    assert.deepStrictEqual(written, [0, 1]);
+    await setTimeout(1);
+    assert.strictEqual(closed, true);
+  }
+}
+
+// The signal aborting while a write is pending rejects the pipe at once,
+// even if the write never completes.
+async function testAbortWhileWritePending() {
+  const ac = new AbortController();
+  const reason = new Error('abort while writing');
+  const writer = {
+    write() {
+      ac.abort(reason);
+      return new Promise(() => {});
+    },
+  };
+  await assert.rejects(pipeTo(from('a'), writer, { signal: ac.signal }),
+                       reason);
+}
+
 async function testSignalListenersRemoved() {
   // No abort listener is left on the signal once reading completes, fails
   // or is aborted.
@@ -226,4 +304,7 @@ Promise.all([
   testPipeToLiveSignalWithTransformsCompletes(),
   testSignalAbortedWhileReadingSource(),
   testSignalListenersRemoved(),
+  testWriteOptionsShared(),
+  testAbortDuringWriteSync(),
+  testAbortWhileWritePending(),
 ]).then(common.mustCall());
