@@ -553,7 +553,7 @@ async function testPipeToStringSource() {
   assert.strictEqual(data, 'hello-pipe');
 }
 
-// INVARIANT: Each transform invocation receives its own options object.
+// Each transform receives its own options object.
 // A transform that mutates options must not affect subsequent transforms.
 async function testTransformOptionsNotShared() {
   const seen = [];
@@ -575,39 +575,95 @@ async function testTransformOptionsNotShared() {
   assert.strictEqual(seen[1].mutated, undefined);
 }
 
-// Stateless transforms get a new options object for every call, and stateful
-// transforms one for the pipeline. The options object has only `signal`, does
+// Each transform of a pipeline gets its own options object, passed to every
+// call of a stateless transform. The options object has only `signal`, does
 // not inherit from Object.prototype, and its prototype is frozen, so that a
-// transform cannot pass state to others through it.
+// transform cannot pass state to others through it. The signal is the same
+// for every transform and every call.
 async function testTransformOptionsShape() {
   const seen = [];
+  const statelessSeen = [];
+  let statefulOptions;
   const stateless = (chunks, options) => {
     seen.push(options);
+    statelessSeen.push(options);
     return chunks;
   };
   const stateful = {
     async* transform(source, options) {
       seen.push(options);
+      statefulOptions = options;
       for await (const chunks of source) yield chunks;
     },
   };
   const ac = new AbortController();
   await text(pull(from(['a', 'b']), stateless, stateful,
                   { signal: ac.signal }));
-  // Stateless: one call per batch plus the flush call.
+  // Stateless: one call per batch plus the flush call; stateful: one call.
+  assert.strictEqual(statelessSeen.length, 3);
+  assert.strictEqual(new Set(statelessSeen).size, 1);
   assert.strictEqual(seen.length, 4);
-  assert.strictEqual(new Set(seen).size, seen.length);
+  assert.notStrictEqual(statefulOptions, statelessSeen[0]);
   for (const options of seen) {
     assert.strictEqual(options instanceof Object, false);
     assert.deepStrictEqual(Object.keys(options), ['signal']);
     assert.ok(options.signal instanceof AbortSignal);
+    assert.strictEqual(options.signal, seen[0].signal);
     assert.strictEqual(Object.isFrozen(Object.getPrototypeOf(options)), true);
     assert.match(inspect(options), /^TransformOptions \{ signal: /);
   }
-  assert.strictEqual(Object.getPrototypeOf(seen[0]),
-                     Object.getPrototypeOf(seen[3]));
+  assert.strictEqual(Object.getPrototypeOf(statefulOptions),
+                     Object.getPrototypeOf(statelessSeen[0]));
   assert.throws(() => { Object.getPrototypeOf(seen[0]).leak = true; },
                 TypeError);
+}
+
+// `options.signal` can be assigned, as a data property could, whether or
+// not it has been read.
+async function testTransformOptionsSignalAssignable() {
+  const seen = [];
+  let calls = 0;
+  const transform = (chunks, options) => {
+    seen.push(options.signal);
+    options.signal = ++calls;
+    return chunks;
+  };
+  const unread = (chunks, options) => {
+    options.signal = 'unread';
+    seen.push(options.signal);
+    return chunks;
+  };
+  await text(pull(from(['a', 'b']), transform, unread));
+  assert.ok(seen[0] instanceof AbortSignal);
+  assert.deepStrictEqual(seen.slice(1), ['unread', 1, 'unread', 2, 'unread']);
+}
+
+// The transforms' signal is the pipeline's: first read after the pipeline
+// has been aborted, it is already aborted with the same reason, and read
+// before, it is aborted when the pipeline is.
+async function testTransformSignalReadAfterAbort() {
+  const reason = new Error('stop');
+  let options;
+  const transform = (chunks, opts) => {
+    options = opts;
+    throw reason;
+  };
+  await assert.rejects(text(pull(from('a'), transform)), reason);
+  assert.strictEqual(options.signal.aborted, true);
+  assert.strictEqual(options.signal.reason, reason);
+  assert.strictEqual(options.signal, options.signal);
+
+  const ac = new AbortController();
+  let signal;
+  const iterator = pull(from(['a', 'b']), (chunks, opts) => {
+    signal ??= opts.signal;
+    return chunks;
+  }, { signal: ac.signal })[Symbol.asyncIterator]();
+  await iterator.next();
+  assert.strictEqual(signal.aborted, false);
+  ac.abort(reason);
+  assert.strictEqual(signal.aborted, true);
+  assert.strictEqual(signal.reason, reason);
 }
 
 // Run the uncaughtException test sequentially (it installs a global handler
@@ -760,6 +816,8 @@ async function testTransformReturnClosesOutputAndSource() {
     testPipeToStringSource(),
     testTransformOptionsNotShared(),
     testTransformOptionsShape(),
+    testTransformSignalReadAfterAbort(),
+    testTransformOptionsSignalAssignable(),
     testTransformErrorClosesSource(),
     testTransformSourceErrorDoesNotCloseSource(),
     testPipeToTransformsStoppedEarly(),
