@@ -4421,6 +4421,28 @@ void Statement::SourceSQLGetter(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(sql);
 }
 
+// Returns [database, sourceSQL] for the 'sqlite.query' tracing channel context.
+// It never throws, so building the context cannot preempt the traced call's own
+// error: sourceSQL is undefined once the statement is finalized, and the result
+// is undefined for anything that is not a Statement.
+void Statement::GetTraceInfo(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!GetConstructorTemplate(env)->HasInstance(args[0])) {
+    return;
+  }
+  Statement* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args[0]);
+  Isolate* isolate = env->isolate();
+  Local<Value> sql = Undefined(isolate);
+  if (!stmt->IsFinalized() &&
+      !String::NewFromUtf8(isolate, sqlite3_sql(stmt->statement_.get()))
+           .ToLocal(&sql)) {
+    return;
+  }
+  Local<Value> values[] = {stmt->db_->object(), sql};
+  args.GetReturnValue().Set(Array::New(isolate, values, arraysize(values)));
+}
+
 void Statement::ExpandedSQLGetter(const FunctionCallbackInfo<Value>& args) {
   Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
@@ -4598,16 +4620,17 @@ static inline void SetSideEffectFreeGetter(
 SQLTagStore::~SQLTagStore() {}
 
 Local<FunctionTemplate> SQLTagStore::GetConstructorTemplate(Environment* env) {
-  Isolate* isolate = env->isolate();
   Local<FunctionTemplate> tmpl =
-      NewFunctionTemplate(isolate, IllegalConstructor);
+      env->sqlite_sql_tag_store_constructor_template();
+  if (!tmpl.IsEmpty()) {
+    return tmpl;
+  }
+  Isolate* isolate = env->isolate();
+  tmpl = NewFunctionTemplate(isolate, IllegalConstructor);
   tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "SQLTagStore"));
   tmpl->InstanceTemplate()->SetInternalFieldCount(
       SQLTagStore::kInternalFieldCount);
-  SetProtoMethod(isolate, tmpl, "get", Get);
-  SetProtoMethod(isolate, tmpl, "all", All);
   SetProtoMethod(isolate, tmpl, "iterate", Iterate);
-  SetProtoMethod(isolate, tmpl, "run", Run);
   SetProtoMethod(isolate, tmpl, "clear", Clear);
   SetSideEffectFreeGetter(isolate,
                           tmpl,
@@ -4616,6 +4639,7 @@ Local<FunctionTemplate> SQLTagStore::GetConstructorTemplate(Environment* env) {
   SetSideEffectFreeGetter(
       isolate, tmpl, FIXED_ONE_BYTE_STRING(isolate, "db"), DatabaseGetter);
   SetSideEffectFreeGetter(isolate, tmpl, env->size_string(), SizeGetter);
+  env->set_sqlite_sql_tag_store_constructor_template(tmpl);
   return tmpl;
 }
 
@@ -4914,9 +4938,6 @@ Local<FunctionTemplate> Statement::GetConstructorTemplate(Environment* env) {
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         Statement::kInternalFieldCount);
     SetProtoMethod(isolate, tmpl, "iterate", Statement::Iterate);
-    SetProtoMethod(isolate, tmpl, "all", Statement::All);
-    SetProtoMethod(isolate, tmpl, "get", Statement::Get);
-    SetProtoMethod(isolate, tmpl, "run", Statement::Run);
     SetProtoMethodNoSideEffect(isolate, tmpl, "columns", Statement::Columns);
     SetSideEffectFreeGetter(isolate,
                             tmpl,
@@ -5342,7 +5363,6 @@ static void Initialize(Local<Object> target,
   SetProtoMethod(isolate, db_tmpl, "close", Database::Close);
   SetProtoDispose(isolate, db_tmpl, Database::Dispose);
   SetProtoMethod(isolate, db_tmpl, "prepare", Database::Prepare);
-  SetProtoMethod(isolate, db_tmpl, "exec", Database::Exec);
   SetProtoMethod(isolate, db_tmpl, "function", Database::CustomFunction);
   SetProtoMethod(isolate, db_tmpl, "createTagStore", Database::CreateTagStore);
   SetProtoMethodNoSideEffect(isolate, db_tmpl, "location", Database::Location);
@@ -5388,6 +5408,56 @@ static void Initialize(Local<Object> target,
                          SetConstructorFunctionFlag::NONE);
 
   target->Set(context, env->constants_string(), constants).Check();
+
+  // The query methods are defined in lib/sqlite.js, which publishes to the
+  // 'sqlite.query' tracing channel around these native implementations.
+  auto set_query_methods =
+      [&](const char* name, Local<FunctionTemplate> receiver, auto methods) {
+        Local<Object> obj = Object::New(isolate);
+        for (const auto& [method_name, callback] : methods) {
+          Local<Function> fn;
+          if (!FunctionTemplate::New(isolate,
+                                     callback,
+                                     Local<Value>(),
+                                     v8::Signature::New(isolate, receiver),
+                                     0,
+                                     ConstructorBehavior::kThrow)
+                   ->GetFunction(context)
+                   .ToLocal(&fn)) {
+            return false;
+          }
+          fn->SetName(OneByteString(isolate, method_name));
+          if (obj->Set(context, OneByteString(isolate, method_name), fn)
+                  .IsNothing()) {
+            return false;
+          }
+        }
+        return target->Set(context, OneByteString(isolate, name), obj).IsJust();
+      };
+  using QueryMethods =
+      std::initializer_list<std::pair<const char*, FunctionCallback>>;
+  if (!set_query_methods("statementQueryMethods",
+                         Statement::GetConstructorTemplate(env),
+                         QueryMethods{{"run", Statement::Run},
+                                      {"get", Statement::Get},
+                                      {"all", Statement::All}}) ||
+      !set_query_methods("tagStoreQueryMethods",
+                         SQLTagStore::GetConstructorTemplate(env),
+                         QueryMethods{{"run", SQLTagStore::Run},
+                                      {"get", SQLTagStore::Get},
+                                      {"all", SQLTagStore::All}}) ||
+      !set_query_methods("databaseQueryMethods",
+                         db_tmpl,
+                         QueryMethods{{"exec", Database::Exec}})) {
+    return;
+  }
+  SetConstructorFunction(context,
+                         target,
+                         "SQLTagStore",
+                         SQLTagStore::GetConstructorTemplate(env),
+                         SetConstructorFunctionFlag::NONE);
+  SetMethodNoSideEffect(
+      context, target, "getStatementTraceInfo", Statement::GetTraceInfo);
 
   Local<Function> backup_function;
 
