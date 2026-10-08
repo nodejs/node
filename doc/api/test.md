@@ -160,6 +160,8 @@ in this example, there are two run attempts, with two tests defined in `test.js`
 the first test succeeded on the first attempt, and the second test succeeded on the second attempt.
 
 When the `--test-rerun-failures` option is used, the test runner will only run tests that have not yet passed.
+A `todo` test that fails counts as not yet passed and is rerun, even though its failure does not
+cause the test run to fail.
 
 ```bash
 node --test-rerun-failures /path/to/state/file
