@@ -20,3 +20,25 @@ binding.callViaFunction(resource);
 binding.callViaString(resource);
 binding.callViaUtf8Name(resource);
 binding.destroyAsyncResource(resource);
+
+// A getter of the method runs in that frame too, and what it enters stays
+// there.
+{
+  let getterStore;
+  const object = Object.defineProperty({}, 'methöd', {
+    get: common.mustCall(() => {
+      getterStore = als.getStore();
+      als.enterWith('getter');
+      return common.mustCall();
+    }),
+  });
+  const resource =
+    als.run('resource', () => binding.createAsyncResource(object));
+  let callerStore;
+  als.run('caller', () => {
+    binding.callViaString(resource);
+    callerStore = als.getStore();
+  });
+  binding.destroyAsyncResource(resource);
+  assert.deepStrictEqual([getterStore, callerStore], ['resource', 'caller']);
+}

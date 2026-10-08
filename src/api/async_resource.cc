@@ -68,10 +68,15 @@ MaybeLocal<Value> AsyncResource::MakeCallback(Local<String> symbol,
   // Check can_call_into_js() first because calling Get() might do so.
   if (!env_->can_call_into_js()) return {};
   Local<Value> callback;
-  if (!get_resource()
-           ->Get(isolate->GetCurrentContext(), symbol)
-           .ToLocal(&callback)) {
-    return {};
+  {
+    // A getter runs in the saved frame too, so what it enters stays there.
+    async_context_frame::Scope async_context_frame_scope(
+        isolate, context_frame_.Get(isolate));
+    if (!get_resource()
+             ->Get(isolate->GetCurrentContext(), symbol)
+             .ToLocal(&callback)) {
+      return {};
+    }
   }
   if (!callback->IsFunction()) return Undefined(isolate);
   return MakeCallback(callback.As<Function>(), argc, argv);
