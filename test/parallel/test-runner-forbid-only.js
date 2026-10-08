@@ -14,6 +14,7 @@ writeFileSync(fixture, `
 `);
 const env = { ...process.env, NODE_OPTIONS: '', FORCE_COLOR: '0' };
 delete env.NODE_TEST_CONTEXT;
+const onlyIfNodeOptionsSupport = { skip: process.config.variables.node_without_node_options };
 
 function createFixture(name, source) {
   const file = tmpdir.resolve(`${name}.js`);
@@ -80,7 +81,7 @@ for (const isolation of ['process', 'none']) {
     });
   }
 
-  test(`NODE_OPTIONS enables forbidOnly with isolation=${isolation}`, async () => {
+  test(`NODE_OPTIONS enables forbidOnly with isolation=${isolation}`, onlyIfNodeOptionsSupport, async () => {
     assertForbidden(await common.spawnPromisified(process.execPath, [
       '--test', `--test-isolation=${isolation}`, '--test-reporter=tap', fixture,
     ], { env: { ...env, NODE_OPTIONS: '--test-forbid-only' } }));
@@ -97,20 +98,23 @@ for (const isolation of ['process', 'none']) {
     ], { env }));
   });
 
-  test(`run() can override the CLI with forbidOnly=false and isolation=${isolation}`, async () => {
-    const runner = createFixture(`override-${isolation}`, `
-      const { run } = require('node:test');
-      const { tap } = require('node:test/reporters');
-      run({ files: [${JSON.stringify(fixture)}], isolation: ${JSON.stringify(isolation)}, forbidOnly: false })
-        .on('test:fail', () => { process.exitCode = 1; }).compose(tap).pipe(process.stdout);
-    `);
-    const { code, signal, stdout, stderr } = await common.spawnPromisified(process.execPath, [
-      runner,
-    ], { env: { ...env, NODE_OPTIONS: '--test-forbid-only' } });
-    assert.strictEqual(signal, null);
-    assert.strictEqual(code, 0, stdout + stderr);
-    assert.match(stdout, /ok 1 - focused test/);
-  });
+  for (const source of ['CLI', 'NODE_OPTIONS']) {
+    const options = source === 'NODE_OPTIONS' ? onlyIfNodeOptionsSupport : {};
+    test(`run() can override ${source} with forbidOnly=false and isolation=${isolation}`, options, async () => {
+      const runner = createFixture(`override-${source}-${isolation}`, `
+        const { run } = require('node:test');
+        const { tap } = require('node:test/reporters');
+        run({ files: [${JSON.stringify(fixture)}], isolation: ${JSON.stringify(isolation)}, forbidOnly: false })
+          .on('test:fail', () => { process.exitCode = 1; }).compose(tap).pipe(process.stdout);
+      `);
+      const args = source === 'CLI' ? ['--test-forbid-only', runner] : [runner];
+      const childEnv = source === 'NODE_OPTIONS' ? { ...env, NODE_OPTIONS: '--test-forbid-only' } : env;
+      const { code, signal, stdout, stderr } = await common.spawnPromisified(process.execPath, args, { env: childEnv });
+      assert.strictEqual(signal, null);
+      assert.strictEqual(code, 0, stdout + stderr);
+      assert.match(stdout, /ok 1 - focused test/);
+    });
+  }
 
   test(`ordinary tests still run with isolation=${isolation}`, async () => {
     const file = createFixture(`ordinary-${isolation}`, `
