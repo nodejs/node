@@ -250,6 +250,10 @@ bool SeaResource::use_code_cache() const {
   return static_cast<bool>(flags & SeaFlags::kUseCodeCache);
 }
 
+bool SeaResource::use_vfs_archive() const {
+  return static_cast<bool>(flags & SeaFlags::kVfsArchive);
+}
+
 const SeaResource& FindSingleExecutableResource() {
   static const SeaResource sea_resource = []() -> SeaResource {
     std::string_view blob = FindSingleExecutableBlob();
@@ -277,12 +281,8 @@ void IsVfsEnabled(const FunctionCallbackInfo<Value>& args) {
 }
 
 void IsVfsArchiveEnabled(const FunctionCallbackInfo<Value>& args) {
-  bool enabled = false;
-  if (IsSingleExecutable()) {
-    const SeaResource& sea_resource = FindSingleExecutableResource();
-    enabled = static_cast<bool>(sea_resource.flags & SeaFlags::kVfsArchive);
-  }
-  args.GetReturnValue().Set(enabled);
+  args.GetReturnValue().Set(IsSingleExecutable() &&
+                            FindSingleExecutableResource().use_vfs_archive());
 }
 
 void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
@@ -636,6 +636,15 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
               config_path);
       return std::nullopt;
     }
+    // The archive takes the mount point reserved for the --vfs-load source.
+    for (const std::string& arg : result.exec_argv) {
+      if (arg == "--vfs-load" || arg.starts_with("--vfs-load=")) {
+        FPrintF(stderr,
+                "\"vfsArchive\" cannot be used together with --vfs-load in "
+                "\"execArgv\"\n");
+        return std::nullopt;
+      }
+    }
     // The archive is embedded as a single reserved asset.
     result.flags |= SeaFlags::kIncludeAssets;
   }
@@ -966,6 +975,20 @@ void GetAssetKeys(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+// A worker has no main script handed to it, but places the SEA main script in
+// its virtual file system just as the main thread does.
+void GetMainCode(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 0);
+  const SeaResource& sea_resource = FindSingleExecutableResource();
+  CHECK(!sea_resource.use_snapshot());
+  Local<Value> code;
+  if (ToV8Value(args.GetIsolate()->GetCurrentContext(),
+                sea_resource.main_code_or_snapshot)
+          .ToLocal(&code)) {
+    args.GetReturnValue().Set(code);
+  }
+}
+
 MaybeLocal<Value> LoadSingleExecutableApplication(
     const StartExecutionCallbackInfoWithModule& info) {
   // Here we are currently relying on the fact that in NodeMainInstance::Run(),
@@ -1048,6 +1071,7 @@ void Initialize(Local<Object> target,
             IsExperimentalSeaWarningNeeded);
   SetMethod(context, target, "getAsset", GetAsset);
   SetMethod(context, target, "getAssetKeys", GetAssetKeys);
+  SetMethod(context, target, "getMainCode", GetMainCode);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -1057,6 +1081,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsExperimentalSeaWarningNeeded);
   registry->Register(GetAsset);
   registry->Register(GetAssetKeys);
+  registry->Register(GetMainCode);
 }
 
 }  // namespace sea

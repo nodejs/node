@@ -316,6 +316,16 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     errors->push_back("either --check or --eval can be used, not both");
   }
 
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  // The archive takes the mount point reserved for the --vfs-load source.
+  if (!vfs_load_source.empty() && sea::IsSingleExecutable() &&
+      sea::FindSingleExecutableResource().use_vfs_archive()) {
+    errors->push_back(
+        "--vfs-load cannot be used in a single executable application "
+        "built with \"vfsArchive\"");
+  }
+#endif  // DISABLE_SINGLE_EXECUTABLE_APPLICATION
+
   for (const std::string& pattern : permission::ParseEnvAllowList(allow_env)) {
     if (!permission::IsValidEnvAllowPattern(pattern)) {
       errors->push_back("--allow-env must be '*', a variable name, or a "

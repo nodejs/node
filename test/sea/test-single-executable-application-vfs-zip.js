@@ -57,4 +57,25 @@ main().then(common.mustCall(() => {
       },
     },
   );
+
+  // The archive is mounted where --vfs-load would mount its source, so the
+  // executable rejects --vfs-load at startup. --build-sea already refuses it
+  // in "execArgv", so pass it through --node-options instead.
+  const rejectedFile = buildSEA(fixtures.path('sea', 'vfs-zip'), {
+    configPath: 'sea-config-vfs-load-rejected.json',
+  });
+  spawnSyncAndAssert(
+    rejectedFile,
+    ['--node-options=--experimental-vfs --vfs-load=assets.zip'],
+    {
+      env: {
+        ...process.env,
+        NODE_DEBUG_NATIVE: undefined,
+      },
+    },
+    {
+      status: 9,
+      stderr: /--vfs-load cannot be used in a single executable application built with "vfsArchive"/,
+    },
+  );
 }));

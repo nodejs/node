@@ -2004,6 +2004,9 @@ from anywhere else, such as the real file system, needs nothing added.
 \fB--vfs-load\fR is not permitted in \fBNODE_OPTIONS\fR: which entry point runs is
 the command line's decision, and the environment must not be able to redirect
 it.
+A single executable application built with \fB"vfsArchive"\fR mounts that
+archive at the mount point reserved for \fB--vfs-load\fR, so \fB--vfs-load\fR cannot be
+used in it.
 .Bd -literal
 $ node --experimental-vfs --vfs-load=app.zip
 .Ed
