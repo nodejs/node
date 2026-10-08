@@ -1111,11 +1111,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("[has_env_file_string]", "", BOOL_FIELD(has_env_file_string));
   AddOption("--env-file",
             "set environment variables from supplied file",
-            &EnvironmentOptions::env_file);
+            &EnvironmentOptions::env_file,
+            kAllowedInEnvvar);
   Implies("--env-file", "[has_env_file_string]");
   AddOption("--env-file-if-exists",
             "set environment variables from supplied file",
-            &EnvironmentOptions::optional_env_file);
+            &EnvironmentOptions::optional_env_file,
+            kAllowedInEnvvar);
   Implies("--env-file-if-exists", "[has_env_file_string]");
   AddOption("--config-file",
             "set config file path",
