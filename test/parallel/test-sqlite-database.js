@@ -57,6 +57,15 @@ suite('Database() constructor', () => {
     }, { code: 'ERR_INVALID_URL' });
   });
 
+  test('propagates an exception thrown by the href getter', (t) => {
+    t.assert.throws(() => {
+      new Database({ get href() { throw new RangeError('boom'); } });
+    }, {
+      name: 'RangeError',
+      message: 'boom',
+    });
+  });
+
   test('throws if options is provided but is not an object', (t) => {
     t.assert.throws(() => {
       new Database('foo', null);
