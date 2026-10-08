@@ -39,11 +39,19 @@ server.listen(0, common.mustCall(() => {
       rejectUnauthorized: false
     },
     common.mustCall(() => {
+      let response = '';
       request(socket);
       request(socket);
       socket.on('error', common.mustNotCall());
-      socket.on('data', common.mustCallAtLeast());
-      socket.on('close', common.mustCall());
+      socket.on('data', common.mustCallAtLeast((chunk) => {
+        response += chunk;
+        if (response.includes('HTTP/1.1 503 Service Unavailable'))
+          socket.end();
+      }));
+      socket.on('close', common.mustCall(() => {
+        assert.match(response, /HTTP\/1\.1 200 OK/);
+        assert.match(response, /HTTP\/1\.1 503 Service Unavailable/);
+      }));
     })
   );
 }));

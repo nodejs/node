@@ -28,6 +28,7 @@ assert(expected.includes(path.join('a', 'b', '2')));
 
 const { status, stderr } = spawnSync(process.execPath, [
   '--permission',
+  '--allow-env=ALLOWED,BLOCKED,EXPECTED',
   `--allow-fs-read=${allowed}`,
   '-e',
   `

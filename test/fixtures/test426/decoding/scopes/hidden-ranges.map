@@ -9,5 +9,6 @@
     "global",
     "block"
   ],
-  "scopes": "BCAAA,BCBAC,CEA,CFA,ECAA,EPBAC,FEA,FFA"
+  "scopes": ["BCAAA,BCBAC,CEA,CFA"],
+  "ranges": ["ECAAA,EPBAAC,FEA,FFA"]
 }

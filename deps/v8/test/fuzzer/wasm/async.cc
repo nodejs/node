@@ -59,7 +59,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::Isolate* isolate = support->GetIsolate();
 
   // Set some more flags.
-  v8_flags.wasm_async_compilation = true;
   v8_flags.wasm_max_mem_pages = 32;
   v8_flags.wasm_max_table_size = 100;
 

@@ -12,6 +12,7 @@
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/string-format.h"
+#include "src/base/strong-alias.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/machine-type.h"
@@ -24,6 +25,7 @@
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/opmasks.h"
+#include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/objects/code-inl.h"
@@ -172,6 +174,7 @@ std::ostream& operator<<(std::ostream& os, GenericBinopOp::Kind kind) {
     GENERIC_BINOP_LIST(PRINT_KIND)
 #undef PRINT_KIND
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, GenericUnopOp::Kind kind) {
@@ -182,19 +185,7 @@ std::ostream& operator<<(std::ostream& os, GenericUnopOp::Kind kind) {
     GENERIC_UNOP_LIST(PRINT_KIND)
 #undef PRINT_KIND
   }
-}
-
-std::ostream& operator<<(std::ostream& os, TypeHintOp::Type type) {
-  switch (type) {
-    case TypeHintOp::Type::kInt32:
-      return os << "Int32";
-    case TypeHintOp::Type::kUint32:
-      return os << "Uint32";
-    case TypeHintOp::Type::kFloat64:
-      return os << "Float64";
-    case TypeHintOp::Type::kHoleyFloat64:
-      return os << "HoleyFloat64";
-  }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, WordUnaryOp::Kind kind) {
@@ -212,6 +203,7 @@ std::ostream& operator<<(std::ostream& os, WordUnaryOp::Kind kind) {
     case WordUnaryOp::Kind::kSignExtend16:
       return os << "SignExtend16";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, OverflowCheckedUnaryOp::Kind kind) {
@@ -219,6 +211,7 @@ std::ostream& operator<<(std::ostream& os, OverflowCheckedUnaryOp::Kind kind) {
     case OverflowCheckedUnaryOp::Kind::kAbs:
       return os << "kAbs";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, FloatUnaryOp::Kind kind) {
@@ -278,6 +271,7 @@ std::ostream& operator<<(std::ostream& os, FloatUnaryOp::Kind kind) {
     case FloatUnaryOp::Kind::kAtanh:
       return os << "Atanh";
   }
+  UNREACHABLE();
 }
 
 // static
@@ -310,6 +304,7 @@ bool FloatUnaryOp::IsSupported(Kind kind, FloatRepresentation rep) {
           return true;
       }
   }
+  UNREACHABLE();
 }
 
 // static
@@ -329,6 +324,7 @@ bool WordUnaryOp::IsSupported(Kind kind, WordRepresentation rep) {
                  ? SupportedOperations::word32_popcnt()
                  : SupportedOperations::word64_popcnt();
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, ShiftOp::Kind kind) {
@@ -346,6 +342,7 @@ std::ostream& operator<<(std::ostream& os, ShiftOp::Kind kind) {
     case ShiftOp::Kind::kRotateLeft:
       return os << "RotateLeft";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, ComparisonOp::Kind kind) {
@@ -361,6 +358,7 @@ std::ostream& operator<<(std::ostream& os, ComparisonOp::Kind kind) {
     case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
       return os << "UnsignedLessThanOrEqual";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind) {
@@ -394,6 +392,7 @@ std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind) {
     case ChangeOp::Kind::kBitcast:
       return os << "Bitcast";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, ChangeOrDeoptOp::Kind kind) {
@@ -418,7 +417,14 @@ std::ostream& operator<<(std::ostream& os, ChangeOrDeoptOp::Kind kind) {
       return os << "Float64ToInt64";
     case ChangeOrDeoptOp::Kind::kFloat64NotHole:
       return os << "Float64NotHole";
+    case ChangeOrDeoptOp::Kind::kInt32ToUint64:
+      return os << "Int32ToUint64";
+    case ChangeOrDeoptOp::Kind::kInt64ToUint64:
+      return os << "Int64ToUint64";
+    case ChangeOrDeoptOp::Kind::kFloat64ToUint64:
+      return os << "Float64ToUint64";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, TryChangeOp::Kind kind) {
@@ -428,6 +434,7 @@ std::ostream& operator<<(std::ostream& os, TryChangeOp::Kind kind) {
     case TryChangeOp::Kind::kUnsignedFloatTruncateOverflowUndefined:
       return os << "UnsignedFloatTruncateOverflowUndefined";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, TaggedBitcastOp::Kind kind) {
@@ -441,6 +448,7 @@ std::ostream& operator<<(std::ostream& os, TaggedBitcastOp::Kind kind) {
     case TaggedBitcastOp::Kind::kAny:
       return os << "Any";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, ChangeOp::Assumption assumption) {
@@ -452,6 +460,7 @@ std::ostream& operator<<(std::ostream& os, ChangeOp::Assumption assumption) {
     case ChangeOp::Assumption::kReversible:
       return os << "Reversible";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, SelectOp::Implementation kind) {
@@ -463,6 +472,7 @@ std::ostream& operator<<(std::ostream& os, SelectOp::Implementation kind) {
     case SelectOp::Implementation::kAny:
       return os << "Any";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, AtomicRMWOp::BinOp bin_op) {
@@ -482,6 +492,7 @@ std::ostream& operator<<(std::ostream& os, AtomicRMWOp::BinOp bin_op) {
     case AtomicRMWOp::BinOp::kCompareExchange:
       return os << "compare-exchange";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, AtomicWord32PairOp::Kind bin_op) {
@@ -505,6 +516,7 @@ std::ostream& operator<<(std::ostream& os, AtomicWord32PairOp::Kind bin_op) {
     case AtomicWord32PairOp::Kind::kStore:
       return os << "store";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, FrameConstantOp::Kind kind) {
@@ -516,6 +528,7 @@ std::ostream& operator<<(std::ostream& os, FrameConstantOp::Kind kind) {
     case FrameConstantOp::Kind::kParentFramePointer:
       return os << "parent frame pointer";
   }
+  UNREACHABLE();
 }
 
 void Operation::PrintInputs(std::ostream& os,
@@ -606,6 +619,9 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       os << "relocatable wasm indirect call target: "
          << static_cast<uint32_t>(storage.integral);
       break;
+    case Kind::kRelocatableWasmCodePointer:
+      os << "relocatable self wasm code pointer";
+      break;
   }
   os << ']';
 }
@@ -645,12 +661,13 @@ void LoadOp::PrintOptions(std::ostream& os) const {
   os << '[';
   os << (kind.tagged_base ? "tagged base" : "raw");
   if (kind.maybe_unaligned) os << ", unaligned";
-  if (kind.with_trap_handler) os << ", protected";
+  if (kind.with_trap_handler) os << ", trapping";
   if (kind.is_immutable) os << ", immutable";
   os << ", " << loaded_rep;
   os << ", " << result_rep;
-  if (element_size_log2 != 0)
+  if (element_size_log2 != 0) {
     os << ", element size: 2^" << int{element_size_log2};
+  }
   if (offset != 0) os << ", offset: " << offset;
   os << ']';
 }
@@ -733,11 +750,13 @@ void StoreOp::PrintOptions(std::ostream& os) const {
   os << '[';
   os << (kind.tagged_base ? "tagged base" : "raw");
   if (kind.maybe_unaligned) os << ", unaligned";
-  if (kind.with_trap_handler) os << ", protected";
+  if (kind.with_trap_handler) os << ", trapping";
   os << ", " << stored_rep;
   os << ", " << write_barrier;
-  if (element_size_log2 != 0)
+  if (kind.is_atomic) os << ", atomic with memory order " << memory_order_;
+  if (element_size_log2 != 0) {
     os << ", element size: 2^" << int{element_size_log2};
+  }
   if (offset != 0) os << ", offset: " << offset;
   if (maybe_initializing_or_transitioning) os << ", initializing";
   os << ']';
@@ -800,8 +819,10 @@ void LoadExternalPointerOp::PrintOptions(std::ostream& os) const {
 #if V8_ENABLE_SANDBOX
 void LoadTrustedPointerOp::PrintOptions(std::ostream& os) const {
   os << '[';
-  os << "is_immutable: " << is_immutable << ", ";
-  os << "tag_range: [" << tag_range.first << ", " << tag_range.last << "]";
+  if (kind.with_trap_handler) os << "trapping, ";
+  if (kind.is_immutable) os << "immutable, ";
+  os << "tag_range: [" << tag_range.first << ", " << tag_range.last << "], ";
+  os << "offset: " << offset;
   os << ']';
 }
 #endif
@@ -1118,6 +1139,14 @@ void Word32PairBinopOp::PrintOptions(std::ostream& os) const {
   os << ']';
 }
 
+void Word64MulWideOp::PrintOptions(std::ostream& os) const {
+  os << (kind == Kind::kSigned ? "signed" : "unsigned");
+}
+
+void Word64AddSub128BinopOp::PrintOptions(std::ostream& os) const {
+  os << (kind == Kind::kAdd ? "add" : "sub");
+}
+
 void WordBinopDeoptOnOverflowOp::PrintOptions(std::ostream& os) const {
   os << '[';
   switch (kind) {
@@ -1194,7 +1223,11 @@ std::ostream& operator<<(std::ostream& os, EffectHandler h) {
 std::ostream& operator<<(std::ostream& os, base::Vector<EffectHandler> hs) {
   os << "effect handlers: ";
   for (auto& h : hs) {
-    os << h.tag_index << ":" << h.block << (&h == &hs.last() ? "" : " ");
+    if (h.is_switch()) {
+      os << h.tag_index() << "[switch]" << (&h == &hs.last() ? "" : " ");
+    } else {
+      os << h.tag_index() << ":" << h.block << (&h == &hs.last() ? "" : " ");
+    }
   }
   return os;
 }
@@ -1295,6 +1328,7 @@ std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind) {
     case ObjectIsOp::Kind::kUndetectable:
       return os << "Undetectable";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os,
@@ -1307,6 +1341,7 @@ std::ostream& operator<<(std::ostream& os,
     case ObjectIsOp::InputAssumptions::kBigInt:
       return os << "BigInt";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, NumericKind kind) {
@@ -1334,6 +1369,7 @@ std::ostream& operator<<(std::ostream& os, NumericKind kind) {
     case NumericKind::kNaN:
       return os << "NaN";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, ConvertOp::Kind kind) {
@@ -1353,6 +1389,7 @@ std::ostream& operator<<(std::ostream& os, ConvertOp::Kind kind) {
     case ConvertOp::Kind::kSmi:
       return os << "Smi";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os,
@@ -1374,6 +1411,7 @@ std::ostream& operator<<(std::ostream& os,
     case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kString:
       return os << "String";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(
@@ -1399,6 +1437,7 @@ std::ostream& operator<<(
     case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kCodePoint:
       return os << "CodePoint";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(
@@ -1410,6 +1449,7 @@ std::ostream& operator<<(
     case ConvertWordToSmiOrDeoptOp::InputInterpretation::kUnsigned:
       return os << "Unsigned";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os,
@@ -1428,6 +1468,7 @@ std::ostream& operator<<(std::ostream& os,
     case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kHoleyFloat64:
       return os << "HoleyFloat64";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(
@@ -1438,6 +1479,8 @@ std::ostream& operator<<(
       return os << "Boolean";
     case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kSmi:
       return os << "Smi";
+    case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kSmiOrHole:
+      return os << "SmiOrHole";
     case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrHole:
       return os << "NumberOrHole";
     case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball:
@@ -1445,6 +1488,7 @@ std::ostream& operator<<(
     case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kPlainPrimitive:
       return os << "PlainPrimitive";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(
@@ -1466,7 +1510,10 @@ std::ostream& operator<<(
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kArrayIndex:
       return os << "ArrayIndex";
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kUint64:
+      return os << "Uint64";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(
@@ -1493,6 +1540,7 @@ std::ostream& operator<<(
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kSmi:
       return os << "Smi";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os,
@@ -1505,6 +1553,7 @@ std::ostream& operator<<(std::ostream& os,
     case TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kBit:
       return os << "Bit";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(
@@ -1513,6 +1562,8 @@ std::ostream& operator<<(
   switch (input_assumptions) {
     case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kBigInt:
       return os << "BigInt";
+    case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kSmiOrHole:
+      return os << "SmiOrHole";
     case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball:
       return os << "NumberOrOddball";
     case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::
@@ -1523,15 +1574,7 @@ std::ostream& operator<<(
     case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject:
       return os << "Object";
   }
-}
-
-std::ostream& operator<<(
-    std::ostream& os,
-    TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind) {
-  switch (kind) {
-    case TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt32:
-      return os << "Int32";
-  }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, NewArrayOp::Kind kind) {
@@ -1541,6 +1584,7 @@ std::ostream& operator<<(std::ostream& os, NewArrayOp::Kind kind) {
     case NewArrayOp::Kind::kObject:
       return os << "Object";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, DoubleArrayMinMaxOp::Kind kind) {
@@ -1550,6 +1594,7 @@ std::ostream& operator<<(std::ostream& os, DoubleArrayMinMaxOp::Kind kind) {
     case DoubleArrayMinMaxOp::Kind::kMax:
       return os << "Max";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, BigIntBinopOp::Kind kind) {
@@ -1575,6 +1620,7 @@ std::ostream& operator<<(std::ostream& os, BigIntBinopOp::Kind kind) {
     case BigIntBinopOp::Kind::kShiftRightArithmetic:
       return os << "ShiftRightArithmetic";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, BigIntComparisonOp::Kind kind) {
@@ -1586,6 +1632,7 @@ std::ostream& operator<<(std::ostream& os, BigIntComparisonOp::Kind kind) {
     case BigIntComparisonOp::Kind::kLessThanOrEqual:
       return os << "LessThanOrEqual";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, BigIntUnaryOp::Kind kind) {
@@ -1593,6 +1640,7 @@ std::ostream& operator<<(std::ostream& os, BigIntUnaryOp::Kind kind) {
     case BigIntUnaryOp::Kind::kNegate:
       return os << "Negate";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, StringAtOp::Kind kind) {
@@ -1602,6 +1650,7 @@ std::ostream& operator<<(std::ostream& os, StringAtOp::Kind kind) {
     case StringAtOp::Kind::kCodePoint:
       return os << "CodePoint";
   }
+  UNREACHABLE();
 }
 
 #ifdef V8_INTL_SUPPORT
@@ -1612,6 +1661,7 @@ std::ostream& operator<<(std::ostream& os, StringToCaseIntlOp::Kind kind) {
     case StringToCaseIntlOp::Kind::kUpper:
       return os << "Upper";
   }
+  UNREACHABLE();
 }
 #endif  // V8_INTL_SUPPORT
 
@@ -1624,6 +1674,7 @@ std::ostream& operator<<(std::ostream& os, StringComparisonOp::Kind kind) {
     case StringComparisonOp::Kind::kLessThanOrEqual:
       return os << "LessThanOrEqual";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, ArgumentsLengthOp::Kind kind) {
@@ -1633,6 +1684,7 @@ std::ostream& operator<<(std::ostream& os, ArgumentsLengthOp::Kind kind) {
     case ArgumentsLengthOp::Kind::kRest:
       return os << "Rest";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os,
@@ -1649,6 +1701,7 @@ std::ostream& operator<<(std::ostream& os,
     case TransitionAndStoreArrayElementOp::Kind::kSignedSmallElement:
       return os << "SignedSmallElement";
   }
+  UNREACHABLE();
 }
 
 void PrintMapSet(std::ostream& os, const ZoneRefSet<Map>& maps) {
@@ -1685,6 +1738,7 @@ std::ostream& operator<<(std::ostream& os, SameValueOp::Mode mode) {
     case SameValueOp::Mode::kSameValueNumbersOnly:
       return os << "SameValueNumbersOnly";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, FindOrderedHashEntryOp::Kind kind) {
@@ -1696,6 +1750,7 @@ std::ostream& operator<<(std::ostream& os, FindOrderedHashEntryOp::Kind kind) {
     case FindOrderedHashEntryOp::Kind::kFindOrderedHashSetEntry:
       return os << "FindOrderedHashSetEntry";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, JSStackCheckOp::Kind kind) {
@@ -1707,6 +1762,7 @@ std::ostream& operator<<(std::ostream& os, JSStackCheckOp::Kind kind) {
     case JSStackCheckOp::Kind::kLoop:
       return os << "loop";
   }
+  UNREACHABLE();
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1747,8 +1803,12 @@ const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
     case wasm::kBottom:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+#if V8_ENABLE_SIMD128
 namespace {
 template <size_t size>
 void PrintSimdValue(std::ostream& os, const uint8_t (&value)[size]) {
@@ -1775,6 +1835,7 @@ std::ostream& operator<<(std::ostream& os, Simd128BinopOp::Kind kind) {
     return os << #kind;
     FOREACH_SIMD_128_BINARY_OPCODE(PRINT_KIND)
   }
+  UNREACHABLE();
 #undef PRINT_KIND
 }
 
@@ -1785,6 +1846,7 @@ std::ostream& operator<<(std::ostream& os, Simd128UnaryOp::Kind kind) {
     return os << #kind;
     FOREACH_SIMD_128_UNARY_OPCODE(PRINT_KIND)
   }
+  UNREACHABLE();
 #undef PRINT_KIND
 }
 
@@ -1795,6 +1857,7 @@ std::ostream& operator<<(std::ostream& os, Simd128ReduceOp::Kind kind) {
     return os << #kind;
     FOREACH_SIMD_128_REDUCE_OPTIONAL_OPCODE(PRINT_KIND)
   }
+  UNREACHABLE();
 #undef PRINT_KIND
 }
 
@@ -1805,6 +1868,7 @@ std::ostream& operator<<(std::ostream& os, Simd128ShiftOp::Kind kind) {
     return os << #kind;
     FOREACH_SIMD_128_SHIFT_OPCODE(PRINT_KIND)
   }
+  UNREACHABLE();
 #undef PRINT_KIND
 }
 
@@ -1815,6 +1879,7 @@ std::ostream& operator<<(std::ostream& os, Simd128TestOp::Kind kind) {
     return os << #kind;
     FOREACH_SIMD_128_TEST_OPCODE(PRINT_KIND)
   }
+  UNREACHABLE();
 #undef PRINT_KIND
 }
 
@@ -1825,6 +1890,7 @@ std::ostream& operator<<(std::ostream& os, Simd128SplatOp::Kind kind) {
     return os << #kind;
     FOREACH_SIMD_128_SPLAT_OPCODE(PRINT_KIND)
   }
+  UNREACHABLE();
 #undef PRINT_KIND
 }
 
@@ -1835,6 +1901,7 @@ std::ostream& operator<<(std::ostream& os, Simd128TernaryOp::Kind kind) {
     return os << #kind;
     FOREACH_SIMD_128_TERNARY_OPCODE(PRINT_KIND)
   }
+  UNREACHABLE();
 #undef PRINT_KIND
 }
 
@@ -1916,7 +1983,7 @@ void Simd128ReplaceLaneOp::PrintOptions(std::ostream& os) const {
 void Simd128LaneMemoryOp::PrintOptions(std::ostream& os) const {
   os << '[' << (mode == Mode::kLoad ? "Load" : "Store") << ", ";
   if (kind.maybe_unaligned) os << "unaligned, ";
-  if (kind.with_trap_handler) os << "protected, ";
+  if (kind.with_trap_handler) os << "trapping, ";
   switch (lane_kind) {
     case LaneKind::k8:
       os << '8';
@@ -1939,7 +2006,7 @@ void Simd128LaneMemoryOp::PrintOptions(std::ostream& os) const {
 void Simd128LoadTransformOp::PrintOptions(std::ostream& os) const {
   os << '[';
   if (load_kind.maybe_unaligned) os << "unaligned, ";
-  if (load_kind.with_trap_handler) os << "protected, ";
+  if (load_kind.with_trap_handler) os << "trapping, ";
 
   switch (transform_kind) {
 #define PRINT_KIND(kind)       \
@@ -1979,7 +2046,7 @@ void Simd128ShuffleOp::PrintOptions(std::ostream& os) const {
 void Simd128LoadPairDeinterleaveOp::PrintOptions(std::ostream& os) const {
   os << '[';
   if (load_kind.maybe_unaligned) os << "unaligned, ";
-  if (load_kind.with_trap_handler) os << "protected, ";
+  if (load_kind.with_trap_handler) os << "trapping, ";
 
   switch (kind) {
     case Kind::k8x32:
@@ -1997,8 +2064,9 @@ void Simd128LoadPairDeinterleaveOp::PrintOptions(std::ostream& os) const {
   }
   os << ']';
 }
+#endif  // V8_ENABLE_SIMD128
 
-#if V8_ENABLE_WASM_SIMD256_REVEC
+#if V8_ENABLE_SIMD256
 void Simd256ConstantOp::PrintOptions(std::ostream& os) const {
   PrintSimdValue(os, value);
 }
@@ -2010,7 +2078,7 @@ void Simd256Extract128LaneOp::PrintOptions(std::ostream& os) const {
 void Simd256LoadTransformOp::PrintOptions(std::ostream& os) const {
   os << '[';
   if (load_kind.maybe_unaligned) os << "unaligned, ";
-  if (load_kind.with_trap_handler) os << "protected, ";
+  if (load_kind.with_trap_handler) os << "trapping, ";
 
   switch (transform_kind) {
 #define PRINT_KIND(kind)       \
@@ -2031,6 +2099,7 @@ std::ostream& operator<<(std::ostream& os, Simd256UnaryOp::Kind kind) {
     return os << #kind;
     FOREACH_SIMD_256_UNARY_OPCODE(PRINT_KIND)
   }
+  UNREACHABLE();
 #undef PRINT_KIND
 }
 
@@ -2041,6 +2110,7 @@ std::ostream& operator<<(std::ostream& os, Simd256TernaryOp::Kind kind) {
     return os << #kind;
     FOREACH_SIMD_256_TERNARY_OPCODE(PRINT_KIND)
   }
+  UNREACHABLE();
 #undef PRINT_KIND
 }
 
@@ -2051,6 +2121,7 @@ std::ostream& operator<<(std::ostream& os, Simd256BinopOp::Kind kind) {
     return os << #kind;
     FOREACH_SIMD_256_BINARY_OPCODE(PRINT_KIND)
   }
+  UNREACHABLE();
 #undef PRINT_KIND
 }
 
@@ -2061,6 +2132,7 @@ std::ostream& operator<<(std::ostream& os, Simd256ShiftOp::Kind kind) {
     return os << #kind;
     FOREACH_SIMD_256_SHIFT_OPCODE(PRINT_KIND)
   }
+  UNREACHABLE();
 #undef PRINT_KIND
 }
 
@@ -2071,6 +2143,7 @@ std::ostream& operator<<(std::ostream& os, Simd256SplatOp::Kind kind) {
     return os << #kind;
     FOREACH_SIMD_256_SPLAT_OPCODE(PRINT_KIND)
   }
+  UNREACHABLE();
 #undef PRINT_KIND
 }
 
@@ -2090,14 +2163,20 @@ std::ostream& operator<<(std::ostream& os, Simd256UnpackOp::Kind kind) {
     return os << #kind;
     FOREACH_SIMD_256_UNPACK_OPCODE(PRINT_KIND)
   }
+  UNREACHABLE();
 #undef PRINT_KIND
 }
 #endif  // V8_TARGET_ARCH_X64
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif  // V8_ENABLE_SIMD256
+
+#if V8_ENABLE_WEBASSEMBLY
 
 void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {
-  os << '[' << array_type->element_type()
-     << ", is_shared: " << (is_shared ? "true" : "false") << "]";
+  os << '[' << array_type->element_type() << ", " << is_shared << ']';
+}
+
+void WasmAllocateStructOp::PrintOptions(std::ostream& os) const {
+  os << '[' << type_index << ']';
 }
 
 void StructGetOp::PrintOptions(std::ostream& os) const {
@@ -2124,7 +2203,8 @@ void StructSetOp::PrintOptions(std::ostream& os) const {
   } else {
     os << "non-atomic";
   }
-  os << ']';
+  os << ", " << write_barrier << ", "
+     << (kind == Kind::kInitialize ? "initialize" : "assign") << ']';
 }
 
 void ArrayGetOp::PrintOptions(std::ostream& os) const {
@@ -2146,7 +2226,8 @@ void ArraySetOp::PrintOptions(std::ostream& os) const {
   } else {
     os << "non-atomic";
   }
-  os << ']';
+  os << ", " << write_barrier << ", "
+     << (kind == Kind::kInitialize ? "initialize" : "assign") << ']';
 }
 
 #endif  // V8_ENABLE_WEBASSEBMLY
@@ -2169,7 +2250,8 @@ void SupportedOperations::Initialize() {
   MachineOperatorBuilder::Flags supported =
       InstructionSelector::SupportedMachineOperatorFlags();
 #define SET_SUPPORTED(name, machine_name) \
-  instance_.name##_ = supported & MachineOperatorBuilder::Flag::k##machine_name;
+  instance_.name##_ =                     \
+      supported.contains(MachineOperatorBuilder::Flag::k##machine_name);
 
   SUPPORTED_OPERATIONS_LIST(SET_SUPPORTED)
 #undef SET_SUPPORTED
@@ -2344,6 +2426,9 @@ bool IsUnlikelySuccessor(const Block* block, const Block* successor,
     case Opcode::kTailCall:
     case Opcode::kUnreachable:
     case Opcode::kReturn:
+#if V8_ENABLE_WEBASSEMBLY
+    case Opcode::kWasmTrap:
+#endif
       UNREACHABLE();
 
 #define NON_TERMINATOR_CASE(op) case Opcode::k##op:
@@ -2351,21 +2436,26 @@ bool IsUnlikelySuccessor(const Block* block, const Block* successor,
       UNREACHABLE();
 #undef NON_TERMINATOR_CASE
   }
+  UNREACHABLE();
 }
 
 bool Operation::IsOnlyUserOf(const Operation& value, const Graph& graph) const {
   DCHECK_GE(std::count(inputs().begin(), inputs().end(), graph.Index(value)),
             1);
-  if (value.saturated_use_count.IsOne()) return true;
-  if (value.saturated_use_count.IsSaturated()) return false;
-  return std::count(inputs().begin(), inputs().end(), graph.Index(value)) ==
-         value.saturated_use_count.Get();
+  if (value.saturated_use_count.Is(1)) return true;
+  size_t use_count_in_this =
+      std::count(inputs().begin(), inputs().end(), graph.Index(value));
+  return value.saturated_use_count.Is(static_cast<int>(use_count_in_this));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-bool Operation::IsProtectedLoad() const {
+bool Operation::IsTrappingLoad() const {
   if (const auto* load = TryCast<LoadOp>()) {
     return load->kind.with_trap_handler;
+#if V8_ENABLE_SANDBOX
+  } else if (const auto* load_trusted = TryCast<LoadTrustedPointerOp>()) {
+    return load_trusted->kind.with_trap_handler;
+#endif
   } else if (const auto* load_t = TryCast<Simd128LoadTransformOp>()) {
     return load_t->load_kind.with_trap_handler;
   } else if (const auto* load_pd = TryCast<Simd128LoadPairDeinterleaveOp>()) {
@@ -2412,6 +2502,18 @@ IsSmiDecision DecideObjectIsSmi(const Graph& graph, V<Object> idx, int depth) {
         case Kind::kSmi:
           return IsSmiDecision::kTrue;
         case Kind::kNumber:
+          return IsSmiDecision::kUnknown;
+      }
+      UNREACHABLE();
+    }
+    case Opcode::kTaggedBitcast: {
+      switch (op.Cast<TaggedBitcastOp>().kind) {
+        case TaggedBitcastOp::Kind::kSmi:
+          return IsSmiDecision::kTrue;
+        case TaggedBitcastOp::Kind::kHeapObject:
+          return IsSmiDecision::kFalse;
+        case TaggedBitcastOp::Kind::kTagAndSmiBits:
+        case TaggedBitcastOp::Kind::kAny:
           return IsSmiDecision::kUnknown;
       }
       UNREACHABLE();

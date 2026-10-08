@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,9 @@
 #include <cstddef>
 
 #if defined(_MSC_VER)
-#define ALIGNED_(x) __declspec(align(x))
+  #define ALIGNED_(x) __declspec(align(x))
 #elif defined(__GNUC__)
-#define ALIGNED_(x) __attribute__ ((__aligned__(x), __packed__))
+  #define ALIGNED_(x) __attribute__((__aligned__(x), __packed__))
 #endif
 
 

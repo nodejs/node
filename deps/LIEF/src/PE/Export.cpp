@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,8 +11,8 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * limitations under the License.
+ */
 #include "LIEF/Visitor.hpp"
 #include "LIEF/config.h"
 
@@ -24,8 +24,8 @@
 
 #include <spdlog/fmt/fmt.h>
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 Export::Export(const details::pe_export_directory_table& header) :
   export_flags_{header.ExportFlags},
@@ -38,8 +38,7 @@ Export::Export(const details::pe_export_directory_table& header) :
   exp_addr_table_cnt_{header.AddressTableEntries},
   names_addr_table_rva_{header.NamePointerRVA},
   names_addr_table_cnt_{header.NumberOfNamePointers},
-  ord_addr_table_rva_{header.OrdinalTableRVA}
-{}
+  ord_addr_table_rva_{header.OrdinalTableRVA} {}
 
 
 Export::Export(const Export& other) :
@@ -56,8 +55,7 @@ Export::Export(const Export& other) :
   names_addr_table_cnt_(other.names_addr_table_cnt_),
   ord_addr_table_rva_(other.ord_addr_table_rva_),
   max_ordinal_(other.max_ordinal_),
-  name_(other.name_)
-{
+  name_(other.name_) {
   if (!other.entries_.empty()) {
     entries_.reserve(other.entries_.size());
     for (const ExportEntry& entry : other.entries()) {
@@ -100,15 +98,15 @@ void Export::accept(Visitor& visitor) const {
 
 
 const ExportEntry* Export::find_entry(const std::string& name) const {
-  auto it = std::find_if(entries_.begin(), entries_.end(),
-    [&name] (const std::unique_ptr<ExportEntry>& E) {
-      if constexpr (lief_extended) {
-        return E->name() == name || E->demangled_name() == name;
-      } else {
-        return E->name() == name;
-      }
-    }
-  );
+  auto it =
+      std::find_if(entries_.begin(), entries_.end(),
+                   [&name](const std::unique_ptr<ExportEntry>& E) {
+                     if constexpr (lief_extended) {
+                       return E->name() == name || E->demangled_name() == name;
+                     } else {
+                       return E->name() == name;
+                     }
+                   });
 
   if (it == entries_.end()) {
     return nullptr;
@@ -119,10 +117,9 @@ const ExportEntry* Export::find_entry(const std::string& name) const {
 
 const ExportEntry* Export::find_entry(uint32_t ordinal) const {
   auto it = std::find_if(entries_.begin(), entries_.end(),
-    [ordinal] (const std::unique_ptr<ExportEntry>& E) {
-      return E->ordinal() == ordinal;
-    }
-  );
+                         [ordinal](const std::unique_ptr<ExportEntry>& E) {
+                           return E->ordinal() == ordinal;
+                         });
 
   if (it == entries_.end()) {
     return nullptr;
@@ -133,10 +130,9 @@ const ExportEntry* Export::find_entry(uint32_t ordinal) const {
 
 const ExportEntry* Export::find_entry_at(uint32_t rva) const {
   auto it = std::find_if(entries_.begin(), entries_.end(),
-    [rva] (const std::unique_ptr<ExportEntry>& E) {
-      return E->address() == rva;
-    }
-  );
+                         [rva](const std::unique_ptr<ExportEntry>& E) {
+                           return E->address() == rva;
+                         });
 
   if (it == entries_.end()) {
     return nullptr;
@@ -156,8 +152,9 @@ ExportEntry& Export::add_entry(const ExportEntry& exp) {
 
 bool Export::remove_entry(const ExportEntry& exp) {
   auto it = std::find_if(entries_.begin(), entries_.end(),
-    [&exp] (const std::unique_ptr<ExportEntry>& E) { return &exp == E.get(); }
-  );
+                         [&exp](const std::unique_ptr<ExportEntry>& E) {
+                           return &exp == E.get();
+                         });
 
   if (it == entries_.end()) {
     return false;
@@ -169,22 +166,23 @@ bool Export::remove_entry(const ExportEntry& exp) {
 
 
 std::ostream& operator<<(std::ostream& os, const Export& exp) {
-  using namespace fmt;
   static constexpr auto WIDTH = 20;
-  os << format("DLL Name: {}\n", exp.name())
-     << format("  {:{}} 0x{:08x}\n", "Characteristics", WIDTH, exp.export_flags())
-     << format("  {:{}} {} ({})\n", "Timestamp", WIDTH,
-               exp.timestamp(), ts_to_str(exp.timestamp()))
-     << format("  {:{}} {}.{}\n", "Version", WIDTH, exp.major_version(),
-               exp.minor_version())
-     << format("  {:{}} {}\n", "Ordinal Base", WIDTH, exp.ordinal_base())
-     << format("  {:{}} {}\n", "Number of functions", WIDTH, exp.export_addr_table_cnt())
-     << format("  {:{}} {}\n", "Number of names", WIDTH, exp.names_addr_table_cnt());
+  os << fmt::format("DLL Name: {}\n", exp.name())
+     << fmt::format("  {:{}} {:#010x}\n", "Characteristics", WIDTH,
+                    exp.export_flags())
+     << fmt::format("  {:{}} {} ({})\n", "Timestamp", WIDTH, exp.timestamp(),
+                    ts_to_str(exp.timestamp()))
+     << fmt::format("  {:{}} {}.{}\n", "Version", WIDTH, exp.major_version(),
+                    exp.minor_version())
+     << fmt::format("  {:{}} {}\n", "Ordinal Base", WIDTH, exp.ordinal_base())
+     << fmt::format("  {:{}} {}\n", "Number of functions", WIDTH,
+                    exp.export_addr_table_cnt())
+     << fmt::format("  {:{}} {}\n", "Number of names", WIDTH,
+                    exp.names_addr_table_cnt());
   for (const ExportEntry& E : exp.entries()) {
     os << "    " << E << '\n';
   }
   return os;
 }
 
-}
 }

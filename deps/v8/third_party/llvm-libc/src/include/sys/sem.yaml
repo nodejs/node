@@ -1,0 +1,84 @@
+header: sys/sem.h
+standards:
+  - posix
+  - linux
+macros:
+  - macro_name: SEM_UNDO
+    macro_header: sys-sem-macros.h
+    standards:
+      - posix
+  - macro_name: GETNCNT
+    macro_header: sys-sem-macros.h
+    standards:
+      - posix
+  - macro_name: GETPID
+    macro_header: sys-sem-macros.h
+    standards:
+      - posix
+  - macro_name: GETVAL
+    macro_header: sys-sem-macros.h
+    standards:
+      - posix
+  - macro_name: GETALL
+    macro_header: sys-sem-macros.h
+    standards:
+      - posix
+  - macro_name: GETZCNT
+    macro_header: sys-sem-macros.h
+    standards:
+      - posix
+  - macro_name: SETVAL
+    macro_header: sys-sem-macros.h
+    standards:
+      - posix
+  - macro_name: SETALL
+    macro_header: sys-sem-macros.h
+    standards:
+      - posix
+  - macro_name: SEM_STAT
+    macro_header: sys-sem-macros.h
+    standards:
+      - linux
+  - macro_name: SEM_INFO
+    macro_header: sys-sem-macros.h
+    standards:
+      - linux
+  - macro_name: SEM_STAT_ANY
+    macro_header: sys-sem-macros.h
+    standards:
+      - linux
+types:
+  - type_name: key_t
+  - type_name: size_t
+  - type_name: struct_ipc_perm
+  - type_name: struct_semid_ds
+  - type_name: struct_sembuf
+  - type_name: struct_seminfo
+    standards:
+      - linux
+functions:
+  - name: semctl
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+      - type: int
+      - type: '...'
+  - name: semget
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: key_t
+      - type: int
+      - type: int
+  - name: semop
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct sembuf *
+      - type: size_t

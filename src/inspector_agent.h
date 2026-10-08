@@ -8,6 +8,7 @@
 #endif
 
 #include "node_options.h"
+#include "uv.h"
 #include "v8.h"
 
 #include <cstddef>
@@ -27,12 +28,6 @@ class InspectorIo;
 class ParentInspectorHandle;
 class NodeInspectorClient;
 class WorkerManager;
-
-struct JavaScriptHookState {
-  bool wanted = false;
-  bool enabled = false;
-  bool syncing = false;
-};
 
 class InspectorSession {
  public:
@@ -123,7 +118,8 @@ class Agent {
   // Can only be called from the main thread.
   bool StartIoThread();
 
-  // Calls StartIoThread() from off the main thread.
+  // Calls StartIoThread() from off the main thread. Only valid while the
+  // Environment owns the inspector and has not started cleanup.
   void RequestIoThreadStart();
 
   const DebugOptions& options() { return debug_options_; }
@@ -138,7 +134,7 @@ class Agent {
 
  private:
   void SyncAsyncHookState();
-  void SyncNetworkTrackingState();
+  void ToggleNetworkTracking(v8::Isolate* isolate, v8::Local<v8::Function> fn);
 
   node::Environment* parent_env_;
   // Encapsulates majority of the Inspector functionality
@@ -158,11 +154,19 @@ class Agent {
   // The state of the async hook used for async stack traces that the protocol
   // last requested, and the state JS currently has. SyncAsyncHookState()
   // reconciles the two when it is possible and safe to call into JS.
-  JavaScriptHookState async_hook_state_;
+  bool async_hook_wanted_ = false;
+  bool async_hook_enabled_ = false;
+  bool syncing_async_hook_state_ = false;
 
-  // Network tracking uses JS hooks. Reconcile the protocol requested and
-  // applied states after leaving a V8 interrupt.
-  JavaScriptHookState network_tracking_state_;
+  // Woken by the SIGUSR1 watchdog; closed by the cleanup hook or ~Agent(),
+  // whichever runs first, and freed by its close callback.
+  uv_async_t* start_io_thread_async_ = nullptr;
+  void StopAcceptingIoThreadStarts();
+  static void StopAcceptingIoThreadStartsHook(void* agent);
+
+  bool network_tracking_enabled_ = false;
+  bool pending_enable_network_tracking = false;
+  bool pending_disable_network_tracking = false;
   std::shared_ptr<NetworkResourceManager> network_resource_manager_;
 };
 

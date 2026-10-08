@@ -104,31 +104,31 @@ Node.js does not support a platform version if a vendor has expired support
 for it. In other words, Node.js does not support running on End-of-Life (EoL)
 platforms. This is true regardless of entries in the table below.
 
-| Operating System | Architectures    | Versions                          | Support Type | Notes                                                      |
-| ---------------- | ---------------- | --------------------------------- | ------------ | ---------------------------------------------------------- |
-| GNU/Linux        | x64              | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8                       |
-| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19    | Experimental | e.g. Alpine 3.8                                            |
-| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental | Downgraded as of Node.js 10                                |
-| GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8                       |
-| GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Experimental | Downgraded as of Node.js 24                                |
-| GNU/Linux        | ppc64le >=power9 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8                                  |
-| GNU/Linux        | s390x >=z14      | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. RHEL 8                                                |
-| GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                                            |
-| GNU/Linux        | riscv64          | kernel >= 5.19, glibc >= 2.36     | Experimental | GCC >= 14 or Clang >= 19 for native builds[^5]             |
-| Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                                                  |
-| Windows          | arm64            | >= Windows 10                     | Tier 2       |                                                            |
-| macOS            | x64              | >= 13.5                           | Tier 2       | Until early 2028[^8]. For notes about compilation see [^4] |
-| macOS            | arm64            | >= 13.5                           | Tier 1       |                                                            |
-| SmartOS          | x64              | >= 18                             | Tier 2       |                                                            |
-| AIX              | ppc64be >=power9 | >= 7.2 TL04                       | Tier 2       |                                                            |
-| FreeBSD          | x64              | >= 13.2                           | Experimental |                                                            |
-| OpenHarmony      | arm64            | >= 5.0                            | Experimental |                                                            |
+| Operating System | Architectures    | Versions                          | Support Type | Notes                                          |
+| ---------------- | ---------------- | --------------------------------- | ------------ | ---------------------------------------------- |
+| GNU/Linux        | x64              | kernel >= 5.14[^1], glibc >= 2.34 | Tier 1       | e.g. Ubuntu 22.04, Debian 12, RHEL 9           |
+| GNU/Linux        | x64              | kernel >= 6.12, musl >= 1.2.5     | Tier 2       | e.g. Alpine 3.22                               |
+| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental | Downgraded as of Node.js 10                    |
+| GNU/Linux        | arm64            | kernel >= 5.14[^1], glibc >= 2.34 | Tier 1       | e.g. Ubuntu 22.04, Debian 12, RHEL 9           |
+| GNU/Linux        | armv7            | kernel >= 4.18, glibc >= 2.28     | Experimental | Downgraded as of Node.js 24                    |
+| GNU/Linux        | ppc64le >=power9 | kernel >= 5.14[^1], glibc >= 2.34 | Tier 2       | e.g. Ubuntu 22.04, RHEL 9                      |
+| GNU/Linux        | s390x >=z14      | kernel >= 5.14[^1], glibc >= 2.34 | Tier 2       | e.g. RHEL 9                                    |
+| GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                                |
+| GNU/Linux        | riscv64          | kernel >= 5.19, glibc >= 2.36     | Experimental | GCC >= 14 or Clang >= 19 for native builds[^5] |
+| Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                                      |
+| Windows          | arm64            | >= Windows 10                     | Tier 2       |                                                |
+| macOS            | x64              | >= 13.5                           | Experimental | For notes about compilation see [^4]           |
+| macOS            | arm64            | >= 13.5                           | Tier 1       |                                                |
+| SmartOS          | x64              | >= 18                             | Tier 2       |                                                |
+| AIX              | ppc64be >=power9 | >= 7.2 TL04                       | Tier 2       |                                                |
+| FreeBSD          | x64              | >= 13.2                           | Experimental |                                                |
+| OpenHarmony      | arm64            | >= 5.0                            | Experimental |                                                |
 
 <!--lint disable final-definition-->
 
 [^1]: Older kernel versions may work. However, official Node.js release
-    binaries are [built on RHEL 8 systems](#official-binary-platforms-and-toolchains)
-    with kernel 4.18.
+    binaries are [built on RHEL 9 systems](#official-binary-platforms-and-toolchains)
+    with kernel 5.14.
 
 [^2]: On Windows, running Node.js in Windows terminal emulators
     like `mintty` requires the usage of [winpty](https://github.com/rprichard/winpty)
@@ -154,14 +154,6 @@ platforms. This is true regardless of entries in the table below.
     Cross-compilation from x64 is unaffected (the code is behind
     `V8_HOST_ARCH_RISCV64`).
 
-[^8]: Our macOS testing infrastructure provider has announced end of support for
-    Intel-based architecture for early 2028 at which time that platform will move to
-    experimental status as the Node.js project will no longer be able to test changes on any
-    Intel-based macOS version. When this change occurs the project intends to continue
-    creating universal binaries for versions of Node.js which are still in support which will
-    be compatible with both Apple Silicon-based and Intel-based macOS versions but
-    they will be untested.
-
 <!--lint enable final-definition-->
 
 ### Supported toolchains
@@ -183,10 +175,11 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | aix-ppc64               | AIX 7.2 TL04 on PPC64BE with Clang 20.1                       |
 | darwin-x64              | macOS 15, Xcode 16 with -mmacosx-version-min=13.5             |
 | darwin-arm64 (and .pkg) | macOS 15 (arm64), Xcode 16 with -mmacosx-version-min=13.5     |
-| linux-arm64             | RHEL 8 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
-| linux-ppc64le           | RHEL 8 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
-| linux-s390x             | RHEL 8 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
-| linux-x64               | RHEL 8 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-arm64             | RHEL 9 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-ppc64le           | RHEL 9 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-s390x             | RHEL 9 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-x64               | RHEL 9 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-x64-musl          | Alpine 3.23 with Clang 21                                     |
 | win-arm64               | Windows Server 2022 (x64) with Visual Studio 2022             |
 | win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022             |
 
@@ -197,10 +190,10 @@ on your Linux distribution.
 
 <!--lint disable final-definition-->
 
-[^6]: Binaries produced on these systems are compatible with glibc >= 2.28
-    and libstdc++ >= 6.0.25 (`GLIBCXX_3.4.25`). These are available on
-    distributions natively supporting GCC 8.1 or higher, such as Debian 10,
-    RHEL 8 and Ubuntu 20.04.
+[^6]: Binaries produced on these systems are compatible with glibc >= 2.34
+    and libstdc++ >= 6.0.29 (`GLIBCXX_3.4.29`). These are available on
+    distributions natively supporting GCC 11 or higher, such as Debian 12,
+    RHEL 9 and Ubuntu 22.04.
 
 <!--lint enable final-definition-->
 
@@ -241,7 +234,7 @@ tarball and/or browse the git repository checked out at the relevant tag.
 
 ### Prerequisites
 
-* [A supported version of Python][Python versions] for building and testing.
+* [A supported version of Python][Python versions] (excludes pre-release versions) for building and testing.
 * A Rust toolchain if [building Node.js with Temporal support](#building-nodejs-with-temporal-support).
 * Memory: at least 8GB of RAM is typically required when compiling with 4 parallel jobs (e.g: `make -j4`).
 
@@ -874,16 +867,7 @@ Follow <https://github.com/ccache/ccache/wiki/MS-Visual-Studio>, and you
 should notice that obj file will be bigger than the normal one.
 
 First, install ccache. Assuming the installation of ccache is in `c:\ccache`
-(where you can find `ccache.exe`), copy `c:\ccache\ccache.exe` to `c:\ccache\cl.exe`
-with this command.
-
-```powershell
-cp c:\ccache\ccache.exe c:\ccache\cl.exe
-```
-
-With newer version of Visual Studio, it may need the copy to be `clang-cl.exe`
-instead. If the output of `vcbuild.bat` suggests missing `clang-cl.exe`, copy
-it differently:
+(where you can find `ccache.exe`), setup aliases as the following commands:
 
 ```powershell
 cp c:\ccache\ccache.exe c:\ccache\clang-cl.exe
@@ -897,12 +881,6 @@ When building Node.js, provide a path to your ccache via the option:
 
 This will allow for near-instantaneous rebuilds when switching branches back
 and forth that were built with cache.
-
-To use it with ClangCL, run this instead:
-
-```powershell
-.\vcbuild.bat clang-cl ccache c:\ccache\
-```
 
 ### Android
 
@@ -1059,7 +1037,7 @@ Node.js supports the [Temporal](https://github.com/tc39/proposal-temporal) APIs,
 linking statically or dynamically with a version of [temporal\_rs](https://github.com/boa-dev/temporal).
 Building it requires a Rust toolchain:
 
-* rustc >= 1.86 (with LLVM >= 19)
+* rustc >= 1.88 (with LLVM >= 19)
 * cargo >= 1.86
 
 Refer to [Install Rust](https://rust-lang.org/tools/install/) for instructions.

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --wasm-code-coverage --wasm-staging
+// Flags: --allow-natives-syntax --wasm-code-coverage
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -436,7 +436,7 @@ TestCoverage(
 function testCoverageWithRefBranch() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
 
   builder.addFunction("main", kSig_i_v)
     .addBody([

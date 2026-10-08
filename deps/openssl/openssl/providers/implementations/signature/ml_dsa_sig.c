@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,6 +22,7 @@
 #include "crypto/ml_dsa.h"
 #include "internal/packet.h"
 #include "internal/sizes.h"
+#include "fips/fipsindicator.h"
 
 #define ML_DSA_MESSAGE_ENCODE_RAW 0
 #define ML_DSA_MESSAGE_ENCODE_PURE 1
@@ -301,7 +302,8 @@ static const OSSL_PARAM *ml_dsa_settable_ctx_params(void *vctx,
 
 static const OSSL_PARAM known_gettable_ctx_params[] = {
     OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_ALGORITHM_ID, NULL, 0),
-    OSSL_PARAM_END
+    OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
+        OSSL_PARAM_END
 };
 
 static const OSSL_PARAM *ml_dsa_gettable_ctx_params(ossl_unused void *vctx,
@@ -325,7 +327,13 @@ static int ml_dsa_get_ctx_params(void *vctx, OSSL_PARAM *params)
             ctx->aid_len))
         return 0;
 
+#ifdef FIPS_MODULE
+    return ossl_FIPS_IND_get_ctx_param_conditional(NULL, params,
+        ctx->test_entropy_len == 0
+            && ctx->msg_encode == ML_DSA_MESSAGE_ENCODE_PURE);
+#else
     return 1;
+#endif
 }
 
 #define MAKE_SIGNATURE_FUNCTIONS(alg)                                          \

@@ -65,16 +65,19 @@ bool IsNoFrameRegion(i::Address address) {
       int offset = *offset_ptr;
       if (!offset || IsSamePage(address, address - offset)) {
         MSAN_MEMORY_IS_INITIALIZED(pc - offset, pattern->bytes_count);
-        if (!memcmp(pc - offset, pattern->bytes, pattern->bytes_count))
+        if (!memcmp(pc - offset, pattern->bytes, pattern->bytes_count)) {
           return true;
+        }
       } else {
         // It is not safe to examine bytes on another page as it might not be
         // allocated thus causing a SEGFAULT.
         // Check the pattern part that's on the same page and
         // pessimistically assume it could be the entire pattern match.
         MSAN_MEMORY_IS_INITIALIZED(pc, pattern->bytes_count - offset);
-        if (!memcmp(pc, pattern->bytes + offset, pattern->bytes_count - offset))
+        if (!memcmp(pc, pattern->bytes + offset,
+                    pattern->bytes_count - offset)) {
           return true;
+        }
       }
     }
   }

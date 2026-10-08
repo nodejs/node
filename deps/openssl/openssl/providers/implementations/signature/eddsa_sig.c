@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,6 +22,7 @@
 #include "prov/provider_ctx.h"
 #include "prov/der_ecx.h"
 #include "crypto/ecx.h"
+#include "fips/fipsindicator.h"
 
 #ifdef S390X_EC_ASM
 #include "s390x_arch.h"
@@ -806,14 +807,15 @@ static int eddsa_get_ctx_params(void *vpeddsactx, OSSL_PARAM *params)
             peddsactx->aid_len))
         return 0;
 
-    return 1;
+    return OSSL_FIPS_IND_GET_CTX_PARAM_APPROVED(peddsactx, params);
 }
 
 static const OSSL_PARAM known_gettable_ctx_params[] = {
     OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_ALGORITHM_ID, NULL, 0),
     OSSL_PARAM_utf8_string(OSSL_SIGNATURE_PARAM_INSTANCE, NULL, 0),
     OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_CONTEXT_STRING, NULL, 0),
-    OSSL_PARAM_END
+    OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
+        OSSL_PARAM_END
 };
 
 static const OSSL_PARAM *eddsa_gettable_ctx_params(ossl_unused void *vpeddsactx,

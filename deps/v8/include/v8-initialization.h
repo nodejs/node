@@ -22,6 +22,7 @@
  */
 namespace v8 {
 
+class Allocator;
 class PageAllocator;
 class Platform;
 template <class K, class V, class T>
@@ -207,6 +208,47 @@ class V8_EXPORT V8 {
 
 #if defined(V8_ENABLE_SANDBOX)
   /**
+   * The mode the V8 sandbox operates in.
+   *
+   * These values are persisted to logs. Entries should not be renumbered and
+   * numeric values should never be reused. If you add new items here, update
+   * V8SandboxMode in tools/metrics/histograms/metadata/v8/enums.xml in
+   * Chromium.
+   */
+  enum class SandboxMode : uint8_t {
+    /**
+     * The sandbox is configured securely with a full reservation and an
+     * inaccessible Smi address range.
+     */
+    kSecure = 0,
+    /**
+     * The sandbox is configured insecurely without a known reason.
+     */
+    kInsecure = 1,
+    /**
+     * The sandbox is partially reserved, but the Smi address range is
+     * inaccessible.
+     */
+    kInsecurePartialReservationSmiInaccessible = 2,
+    /**
+     * The sandbox is fully reserved, but the Smi address range is accessible.
+     */
+    kInsecureFullReservationSmiAccessible = 3,
+    /**
+     * The sandbox is partially reserved and the Smi address range is
+     * accessible.
+     */
+    kInsecurePartialReservationSmiAccessible = 4,
+
+    kMaxValue = kInsecurePartialReservationSmiAccessible,
+  };
+
+  /**
+   * Returns the current state of the sandbox.
+   */
+  static SandboxMode GetSandboxMode();
+
+  /**
    * Returns true if the sandbox is configured securely.
    *
    * If V8 cannot create a regular sandbox during initialization, for example
@@ -251,6 +293,19 @@ class V8_EXPORT V8 {
    * address space than what has actually been reserved.
    */
   static size_t GetSandboxReservationSizeInBytes();
+
+  /**
+   * Sets an allocator that is used for allocating memory inside the sandbox.
+   *
+   * This is useful to provide a fast memory allocator based on sandbox
+   * reservation memory. The idea is that an embedder can use
+   * `GetSandboxAddressSpace()` to get ahold of the sandbox address space and
+   * then implement an allocator on top.
+   *
+   * This must be invoked after V8 is initialized but before the first Isolate
+   * is created.
+   */
+  static void SetInSandboxAllocator(std::shared_ptr<Allocator> allocator);
 #endif  // V8_ENABLE_SANDBOX
 
   enum class WasmMemoryType {

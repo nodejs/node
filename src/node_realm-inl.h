@@ -133,11 +133,13 @@ void Realm::TrackBaseObject(BaseObject* bo) {
   ++base_object_count_;
 }
 
-CppgcWrapperListNode::CppgcWrapperListNode(CppgcMixin* ptr) : persistent(ptr) {}
+CppgcWrapperListNode::CppgcWrapperListNode(Realm* realm, CppgcMixin* wrapper)
+    : realm(realm), persistent(wrapper) {}
 
-void Realm::TrackCppgcWrapper(CppgcMixin* handle) {
-  DCHECK_EQ(handle->realm(), this);
-  cppgc_wrapper_list_.PushFront(new CppgcWrapperListNode(handle));
+CppgcWrapperListNode* Realm::TrackCppgcWrapper(CppgcMixin* handle) {
+  CppgcWrapperListNode* node = new CppgcWrapperListNode(this, handle);
+  cppgc_wrapper_list_.PushFront(node);
+  return node;
 }
 
 void Realm::UntrackBaseObject(BaseObject* bo) {
@@ -146,7 +148,7 @@ void Realm::UntrackBaseObject(BaseObject* bo) {
 }
 
 bool Realm::PendingCleanup() const {
-  return !base_object_list_.IsEmpty();
+  return !base_object_list_.IsEmpty() || !cppgc_wrapper_list_.IsEmpty();
 }
 
 }  // namespace node

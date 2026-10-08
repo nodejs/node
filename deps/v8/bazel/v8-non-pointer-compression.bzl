@@ -26,6 +26,7 @@ def _v8_binary_non_pointer_compression(ctx):
     cc_binary_outfile = binary[DefaultInfo].files.to_list()[0]
 
     ctx.actions.run_shell(
+        mnemonic = "V8BinaryNonPointerCompression",
         inputs = [cc_binary_outfile],
         outputs = [outfile],
         command = "cp %s %s" % (cc_binary_outfile.path, outfile.path),

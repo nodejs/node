@@ -113,7 +113,7 @@ transitioning macro FastArrayFindIndex(
   return -1;
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.findIndex
+// https://tc39.es/ecma262/#sec-array.prototype.findIndex
 transitioning javascript builtin ArrayPrototypeFindIndex(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   try {

@@ -111,6 +111,11 @@ std::vector<T> BlobDeserializer<Impl>::ReadVector() {
   if (count == 0) {
     return std::vector<T>();
   }
+  // Every element takes at least one byte, so this bounds the allocation.
+  if (count > sink.size() - read_total) {
+    ok = false;
+    return std::vector<T>();
+  }
   if (is_debug) {
     Debug("Reading %d vector elements...\n", count);
   }
@@ -143,6 +148,10 @@ std::string_view BlobDeserializer<Impl>::ReadStringView(StringLogMode mode) {
     Debug("ReadStringView() read an empty view\n");
     return std::string_view();
   }
+  if (length > sink.size() - read_total) {
+    ok = false;
+    return std::string_view();
+  }
 
   std::string_view result(sink.data() + read_total, length);
   Debug("%p, read %zu bytes", result.data(), result.size());
@@ -167,6 +176,11 @@ void BlobDeserializer<Impl>::ReadArithmetic(T* out, size_t count) {
   }
 
   size_t size = sizeof(T) * count;
+  if (!ok || count > (sink.size() - read_total) / sizeof(T)) {
+    ok = false;
+    memset(out, 0, size);
+    return;
+  }
   memcpy(out, sink.data() + read_total, size);
 
   if (is_debug) {

@@ -1,4 +1,5 @@
-#if HAVE_OPENSSL && HAVE_QUIC
+#include "quic/guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include <gtest/gtest.h>
 #include <quic/arena.h>
 #include <cstdint>
@@ -229,4 +230,4 @@ TEST(QuicArenaPool, MultipleAcquireReleaseChurn) {
 }  // namespace
 }  // namespace node::quic
 
-#endif  // HAVE_OPENSSL && HAVE_QUIC
+#endif  // OPENSSL_NO_QUIC

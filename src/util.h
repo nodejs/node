@@ -323,6 +323,10 @@ class KVStore {
   virtual int32_t Query(const char* key) const = 0;
   virtual void Delete(v8::Isolate* isolate, v8::Local<v8::String> key) = 0;
   virtual v8::MaybeLocal<v8::Array> Enumerate(v8::Isolate* isolate) const = 0;
+  // All entries as an array of "KEY=value" strings, in enumeration order —
+  // the form uv_spawn() consumes. The default implementation is
+  // Enumerate() + Get(); stores that can produce it in one pass override it.
+  virtual v8::MaybeLocal<v8::Array> Pairs(v8::Isolate* isolate) const;
 
   virtual std::shared_ptr<KVStore> Clone(v8::Isolate* isolate) const;
   virtual v8::Maybe<void> AssignFromObject(v8::Local<v8::Context> context,
@@ -640,6 +644,18 @@ class ArrayBufferViewContents {
   size_t length_ = 0;
   bool was_detached_ = false;
 };
+
+// Creates a BackingStore with the contents of |data|. |deleter| runs once V8
+// no longer needs |data|: on release of the store when it can reference
+// |data| directly, or before this returns when V8 requires backing stores
+// inside its sandbox and |data| was copied. Returns nullptr if that copy
+// could not be allocated; |deleter| has run in that case too.
+std::unique_ptr<v8::BackingStore> AdoptIntoBackingStore(
+    v8::Isolate* isolate,
+    void* data,
+    size_t byte_length,
+    v8::BackingStore::DeleterCallback deleter,
+    void* deleter_data);
 
 class Utf8Value : public MaybeStackBuffer<char> {
  public:

@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_STRING_VIEW_H_
 #define V8_COMPILER_TURBOSHAFT_STRING_VIEW_H_
 
+#include "include/v8config.h"
 #include "src/compiler/turboshaft/operations.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -16,7 +17,8 @@ class StringView {
   using value_type = V<Word32>;
   using iterator_type = V<WordPtr>;
 
-  StringView(const DisallowGarbageCollection& can_rely_on_no_gc,
+  StringView(const DisallowGarbageCollection& can_rely_on_no_gc
+                 V8_LIFETIME_BOUND,
              V<String> string, String::Encoding encoding,
              ConstOrV<WordPtr> start_index = 0,
              ConstOrV<WordPtr> character_count = V<WordPtr>::Invalid())

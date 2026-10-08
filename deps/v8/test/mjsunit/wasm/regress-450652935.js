@@ -5,7 +5,8 @@
 // Note that --no-liftoff is needed here to reproduce the issue! Without it it
 // doesn't reproduce with `--variants=stress` in our test runs as that disables
 // lazy compilation.
-// Flags: --expose-fast-api --wasm-fast-api --no-liftoff
+
+// Flags: --expose-fast-api --wasm-fast-api
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 

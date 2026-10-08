@@ -45,7 +45,7 @@ DRV=$(
       ++ builtins.attrValues (
         {
           # Additional packages we are using across the codebase
-          inherit (pkgs) nixfmt-tree sccache;
+          inherit (pkgs) sccache;
         }
         // import ./tools/nix/openssl-matrix.nix { }
         // sharedLibDepsFn (

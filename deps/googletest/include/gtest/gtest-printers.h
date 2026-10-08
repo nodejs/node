@@ -104,6 +104,8 @@
 #ifndef GOOGLETEST_INCLUDE_GTEST_GTEST_PRINTERS_H_
 #define GOOGLETEST_INCLUDE_GTEST_GTEST_PRINTERS_H_
 
+#include <stdint.h>
+
 #include <any>
 #include <functional>
 #include <memory>
@@ -279,15 +281,13 @@ struct ProtobufPrinter {
 
 struct ConvertibleToIntegerPrinter {
   // Since T has no << operator or PrintTo() but can be implicitly
-  // converted to BiggestInt, we print it as a BiggestInt.
+  // converted to intmax_t, we print it as an intmax_t.
   //
   // Most likely T is an enum type (either named or unnamed), in which
   // case printing it as an integer is the desired behavior.  In case
   // T is not an enum, printing it as an integer is the best we can do
   // given that it has no user-defined printer.
-  static void PrintValue(internal::BiggestInt value, ::std::ostream* os) {
-    *os << value;
-  }
+  static void PrintValue(intmax_t value, ::std::ostream* os) { *os << value; }
 };
 
 struct ConvertibleToStringViewPrinter {
@@ -347,7 +347,7 @@ struct FindFirstPrinter<
 //  - Print object pointers.
 //  - Print protocol buffers.
 //  - Use the stream operator, if available.
-//  - Print types convertible to BiggestInt.
+//  - Print types convertible to intmax_t.
 //  - Print types convertible to StringView, if available.
 //  - Fallback to printing the raw bytes of the object.
 template <typename T>

@@ -10,8 +10,9 @@
 
 #include "src/flags/flags.h"
 #include "src/objects/instruction-stream.h"
-#include "src/objects/slots-inl.h"
 #include "src/objects/tagged.h"
+#include "src/utils/memcopy.h"
+
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
 #include "src/base/platform/memory-protection-key.h"
 #endif
@@ -151,7 +152,7 @@ void WritableJitAllocation::WriteHeaderSlot(T value) {
   // non-implemented functionality.
   static_assert(!is_taggable_v<T>);
 
-  if constexpr (offset == HeapObject::kMapOffset) {
+  if constexpr (offset == offsetof(HeapObject, map_)) {
     TaggedField<T, offset>::Relaxed_Store_Map_Word(
         HeapObject::FromAddress(address_), value);
   } else {
@@ -165,7 +166,7 @@ void WritableJitAllocation::WriteHeaderSlot(Tagged<T> value, ReleaseStoreTag) {
       WriteScopeForApiEnforcement();
   // These asserts are no strict requirements, they just guard against
   // non-implemented functionality.
-  static_assert(offset != HeapObject::kMapOffset);
+  static_assert(offset != offsetof(HeapObject, map_));
 
   TaggedField<T, offset>::Release_Store(HeapObject::FromAddress(address_),
                                         value);
@@ -175,7 +176,7 @@ template <typename T, size_t offset>
 void WritableJitAllocation::WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag) {
   std::optional<RwxMemoryWriteScope> write_scope =
       WriteScopeForApiEnforcement();
-  if constexpr (offset == HeapObject::kMapOffset) {
+  if constexpr (offset == offsetof(HeapObject, map_)) {
     TaggedField<T, offset>::Relaxed_Store_Map_Word(
         HeapObject::FromAddress(address_), value);
   } else {
@@ -187,7 +188,7 @@ void WritableJitAllocation::WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag) {
 template <typename T, size_t offset>
 void WritableJitAllocation::WriteProtectedPointerHeaderSlot(Tagged<T> value,
                                                             RelaxedStoreTag) {
-  static_assert(offset != HeapObject::kMapOffset);
+  static_assert(offset != offsetof(HeapObject, map_));
   std::optional<RwxMemoryWriteScope> write_scope =
       WriteScopeForApiEnforcement();
   TaggedField<T, offset, TrustedSpaceCompressionScheme>::Relaxed_Store(
@@ -197,7 +198,7 @@ void WritableJitAllocation::WriteProtectedPointerHeaderSlot(Tagged<T> value,
 template <typename T, size_t offset>
 void WritableJitAllocation::WriteProtectedPointerHeaderSlot(Tagged<T> value,
                                                             ReleaseStoreTag) {
-  static_assert(offset != HeapObject::kMapOffset);
+  static_assert(offset != offsetof(HeapObject, map_));
   std::optional<RwxMemoryWriteScope> write_scope =
       WriteScopeForApiEnforcement();
   TaggedField<T, offset, TrustedSpaceCompressionScheme>::Release_Store(
@@ -205,21 +206,21 @@ void WritableJitAllocation::WriteProtectedPointerHeaderSlot(Tagged<T> value,
 }
 
 template <typename T>
-V8_INLINE void WritableJitAllocation::WriteHeaderSlot(Address address, T value,
+V8_INLINE void WritableJitAllocation::WriteHeaderSlot(Address address,
+                                                      Tagged<T> value,
                                                       RelaxedStoreTag tag) {
   CHECK_EQ(allocation_.Type(),
            ThreadIsolation::JitAllocationType::kInstructionStream);
   size_t offset = address - address_;
-  Tagged<T> tagged(value);
   switch (offset) {
     case InstructionStream::kCodeOffset:
-      WriteProtectedPointerHeaderSlot<T, InstructionStream::kCodeOffset>(tagged,
+      WriteProtectedPointerHeaderSlot<T, InstructionStream::kCodeOffset>(value,
                                                                          tag);
       break;
     case InstructionStream::kRelocationInfoOffset:
       WriteProtectedPointerHeaderSlot<T,
                                       InstructionStream::kRelocationInfoOffset>(
-          tagged, tag);
+          value, tag);
       break;
     default:
       UNREACHABLE();
@@ -312,7 +313,7 @@ void WritableFreeSpace::WriteHeaderSlot(Tagged<T> value,
                                         RelaxedStoreTag) const {
   Tagged<HeapObject> object = HeapObject::FromAddress(address_);
   // TODO(v8:13355): add validation before the write.
-  if constexpr (offset == HeapObject::kMapOffset) {
+  if constexpr (offset == offsetof(HeapObject, map_)) {
     TaggedField<T, offset>::Relaxed_Store_Map_Word(object, value);
   } else {
     TaggedField<T, offset>::Relaxed_Store(object, value);

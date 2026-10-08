@@ -61,6 +61,7 @@
 #include <atomic>
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
@@ -80,6 +81,18 @@ ABSL_NAMESPACE_BEGIN
 
 class Condition;
 struct SynchWaitParams;
+
+namespace synchronization_internal {
+
+template <typename T, typename = void>
+struct HasConstMemberCallOperator : std::false_type {};
+
+template <typename T>
+struct HasConstMemberCallOperator<
+    T, std::void_t<decltype(static_cast<bool (T::*)() const>(&T::operator()))>>
+    : std::true_type {};
+
+}  // namespace synchronization_internal
 
 // -----------------------------------------------------------------------------
 // Mutex
@@ -178,6 +191,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
   // then acquires it exclusively. (This lock is also known as a "write lock.")
   void lock() ABSL_EXCLUSIVE_LOCK_FUNCTION();
 
+  ABSL_DEPRECATE_AND_INLINE()
   inline void Lock() ABSL_EXCLUSIVE_LOCK_FUNCTION() { lock(); }
 
   // Mutex::unlock()
@@ -186,6 +200,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
   // free state. Calling thread must hold the `Mutex` exclusively.
   void unlock() ABSL_UNLOCK_FUNCTION();
 
+  ABSL_DEPRECATE_AND_INLINE()
   inline void Unlock() ABSL_UNLOCK_FUNCTION() { unlock(); }
 
   // Mutex::try_lock()
@@ -195,6 +210,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
   // probability if the `Mutex` was free.
   [[nodiscard]] bool try_lock() ABSL_EXCLUSIVE_TRYLOCK_FUNCTION(true);
 
+  ABSL_DEPRECATE_AND_INLINE()
   [[nodiscard]] bool TryLock() ABSL_EXCLUSIVE_TRYLOCK_FUNCTION(true) {
     return try_lock();
   }
@@ -249,6 +265,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
   // lock on the mutex.
   void lock_shared() ABSL_SHARED_LOCK_FUNCTION();
 
+  ABSL_DEPRECATE_AND_INLINE()
   void ReaderLock() ABSL_SHARED_LOCK_FUNCTION() { lock_shared(); }
 
   // Mutex::unlock_shared()
@@ -258,6 +275,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
   // Note that you cannot call `unlock_shared()` on a mutex held in write mode.
   void unlock_shared() ABSL_UNLOCK_FUNCTION();
 
+  ABSL_DEPRECATE_AND_INLINE()
   void ReaderUnlock() ABSL_UNLOCK_FUNCTION() { unlock_shared(); }
 
   // Mutex::try_lock_shared()
@@ -267,6 +285,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
   // `true` with high probability if the `Mutex` was free or shared.
   [[nodiscard]] bool try_lock_shared() ABSL_SHARED_TRYLOCK_FUNCTION(true);
 
+  ABSL_DEPRECATE_AND_INLINE()
   [[nodiscard]] bool ReaderTryLock() ABSL_SHARED_TRYLOCK_FUNCTION(true) {
     return try_lock_shared();
   }
@@ -291,10 +310,13 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
   // These methods may be used (along with the complementary `Reader*()`
   // methods) to distinguish simple exclusive `Mutex` usage (`Lock()`,
   // etc.) from reader/writer lock usage.
+  ABSL_DEPRECATE_AND_INLINE()
   void WriterLock() ABSL_EXCLUSIVE_LOCK_FUNCTION() { lock(); }
 
+  ABSL_DEPRECATE_AND_INLINE()
   void WriterUnlock() ABSL_UNLOCK_FUNCTION() { unlock(); }
 
+  ABSL_DEPRECATE_AND_INLINE()
   [[nodiscard]] bool WriterTryLock() ABSL_EXCLUSIVE_TRYLOCK_FUNCTION(true) {
     return try_lock();
   }
@@ -599,7 +621,7 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
 
   // Calls `mu.lock()` and returns when that call returns. That is, `mu` is
   // guaranteed to be locked when this object is constructed.
-  explicit MutexLock(Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+  explicit MutexLock(Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(mu) {
     this->mu_.lock();
@@ -615,12 +637,13 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
   // Like above, but calls `mu.LockWhen(cond)` instead. That is, in addition to
   // the above, the condition given by `cond` is also guaranteed to hold when
   // this object is constructed.
-  explicit MutexLock(Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this),
+  explicit MutexLock(Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS,
                      const Condition& cond) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(mu) {
     this->mu_.LockWhen(cond);
   }
 
+  [[deprecated("Use the constructor that takes a reference instead")]]
   ABSL_REFACTOR_INLINE
   explicit MutexLock(Mutex* absl_nonnull mu, const Condition& cond)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
@@ -643,7 +666,7 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
 // releases a shared lock on a `Mutex` via RAII.
 class ABSL_SCOPED_LOCKABLE ReaderMutexLock {
  public:
-  explicit ReaderMutexLock(Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+  explicit ReaderMutexLock(Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_SHARED_LOCK_FUNCTION(mu)
       : mu_(mu) {
     mu.lock_shared();
@@ -653,12 +676,13 @@ class ABSL_SCOPED_LOCKABLE ReaderMutexLock {
   explicit ReaderMutexLock(Mutex* absl_nonnull mu) ABSL_SHARED_LOCK_FUNCTION(mu)
       : ReaderMutexLock(*mu) {}
 
-  explicit ReaderMutexLock(Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this),
+  explicit ReaderMutexLock(Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS,
                            const Condition& cond) ABSL_SHARED_LOCK_FUNCTION(mu)
       : mu_(mu) {
     mu.ReaderLockWhen(cond);
   }
 
+  [[deprecated("Use the constructor that takes a reference instead")]]
   ABSL_REFACTOR_INLINE
   explicit ReaderMutexLock(Mutex* absl_nonnull mu, const Condition& cond)
       ABSL_SHARED_LOCK_FUNCTION(mu)
@@ -681,7 +705,7 @@ class ABSL_SCOPED_LOCKABLE ReaderMutexLock {
 // releases a write (exclusive) lock on a `Mutex` via RAII.
 class ABSL_SCOPED_LOCKABLE WriterMutexLock {
  public:
-  explicit WriterMutexLock(Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+  explicit WriterMutexLock(Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(mu) {
     mu.lock();
@@ -692,13 +716,14 @@ class ABSL_SCOPED_LOCKABLE WriterMutexLock {
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : WriterMutexLock(*mu) {}
 
-  explicit WriterMutexLock(Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this),
+  explicit WriterMutexLock(Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS,
                            const Condition& cond)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(mu) {
     mu.WriterLockWhen(cond);
   }
 
+  [[deprecated("Use the constructor that takes a reference instead")]]
   ABSL_REFACTOR_INLINE
   explicit WriterMutexLock(Mutex* absl_nonnull mu, const Condition& cond)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
@@ -851,10 +876,22 @@ class Condition {
   // Implementation note: The second template parameter ensures that this
   // constructor doesn't participate in overload resolution if T doesn't have
   // `bool operator() const`.
-  template <typename T, typename E = decltype(static_cast<bool (T::*)() const>(
-                            &T::operator()))>
+  template <typename T,
+            std::enable_if_t<
+                synchronization_internal::HasConstMemberCallOperator<T>::value,
+                int> = 0>
   explicit Condition(const T* absl_nonnull obj)
       : Condition(obj, static_cast<bool (T::*)() const>(&T::operator())) {}
+
+  // Constructor for functors that do not match the `bool operator()() const`
+  // signature, such as those using C++23 "deducing this" or static operator().
+  template <
+      typename T,
+      typename = std::enable_if_t<
+          !synchronization_internal::HasConstMemberCallOperator<T>::value &&
+          sizeof(static_cast<bool (*)(const T&)>(&T::operator())) != 0>>
+  explicit Condition(const T* absl_nonnull obj)
+      : Condition(&CallByRef<T>, obj) {}
 
   // A Condition that always returns `true`.
   // kTrue is only useful in a narrow set of circumstances, mostly when
@@ -917,9 +954,14 @@ class Condition {
   template <typename T, typename ConditionMethodPtr>
   static bool CastAndCallMethod(const Condition* absl_nonnull c);
 
+  template <typename T>
+  static bool CallByRef(const T* absl_nonnull self) {
+    return (*self)();
+  }
+
   // Helper methods for storing, validating, and reading callback arguments.
   template <typename T>
-  inline void StoreCallback(T callback) {
+  void StoreCallback(T callback) {
     static_assert(
         sizeof(callback) <= sizeof(callback_),
         "An overlarge pointer was passed as a callback to Condition.");
@@ -927,7 +969,7 @@ class Condition {
   }
 
   template <typename T>
-  inline void ReadCallback(T* absl_nonnull callback) const {
+  void ReadCallback(T* absl_nonnull callback) const {
     std::memcpy(callback, callback_, sizeof(*callback));
   }
 
@@ -1097,8 +1139,9 @@ class ABSL_SCOPED_LOCKABLE MutexLockMaybe {
 // mutex before destruction. `Release()` may be called at most once.
 class ABSL_SCOPED_LOCKABLE ReleasableMutexLock {
  public:
-  explicit ReleasableMutexLock(Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(
-      this)) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+  explicit ReleasableMutexLock(
+      Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
+      ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(&mu) {
     this->mu_->lock();
   }
@@ -1109,12 +1152,13 @@ class ABSL_SCOPED_LOCKABLE ReleasableMutexLock {
       : ReleasableMutexLock(*mu) {}
 
   explicit ReleasableMutexLock(
-      Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this),
+      Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS,
       const Condition& cond) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(&mu) {
     this->mu_->LockWhen(cond);
   }
 
+  [[deprecated("Use the constructor that takes a reference instead")]]
   ABSL_REFACTOR_INLINE
   explicit ReleasableMutexLock(Mutex* absl_nonnull mu, const Condition& cond)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
@@ -1140,7 +1184,7 @@ inline Mutex::Mutex() : mu_(0) {
   ABSL_TSAN_MUTEX_CREATE(this, __tsan_mutex_not_static);
 }
 
-inline constexpr Mutex::Mutex(absl::ConstInitType) : mu_(0) {}
+constexpr Mutex::Mutex(absl::ConstInitType) : mu_(0) {}
 
 #if !defined(__APPLE__) && !defined(ABSL_BUILD_DLL)
 ABSL_ATTRIBUTE_ALWAYS_INLINE

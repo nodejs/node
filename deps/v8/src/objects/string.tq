@@ -301,7 +301,12 @@ macro StringToSlice(string: String): never labels OneByte(ConstSlice<char8>),
         string = Flatten(s);
       }
       case (s: SlicedString): {
-        offset += Convert<intptr>(s.offset);
+        // Clamp accumulated offsets using 32-bit wrapping arithmetic to prevent
+        // out-of-sandbox reads under memory corruption (see b/519768343).
+        const slicedOffset: int32 =
+            TruncateIntPtrToInt32(Convert<intptr>(s.offset));
+        const newOffset: int32 = TruncateIntPtrToInt32(offset) + slicedOffset;
+        offset = Convert<intptr>(Unsigned(newOffset));
         string = s.parent;
       }
       case (s: ExternalOneByteString): {
@@ -325,6 +330,11 @@ macro StringToSlice(string: String): never labels OneByte(ConstSlice<char8>),
 // Dispatch on the slice type of two different strings.
 macro TwoStringsToSlices<Result: type, Functor: type>(
     s1: String, s2: String, f: Functor): Result {
+  // Flatten both strings before taking either slice. A slice into an external
+  // string is a raw pointer that doesn't keep the string alive, so flattening
+  // s2 while holding s1's slice could collect s1 and free its resource.
+  const s1 = Flatten(s1);
+  const s2 = Flatten(s2);
   try {
     StringToSlice(s1) otherwise FirstOneByte, FirstTwoByte;
   } label FirstOneByte(s1Slice: ConstSlice<char8>) {

@@ -1,11 +1,14 @@
 /*
- * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#ifndef OSSL_PROVIDERS_FIPSINDICATOR_H
+#define OSSL_PROVIDERS_FIPSINDICATOR_H
 
 #ifdef FIPS_MODULE
 
@@ -73,6 +76,10 @@ int ossl_FIPS_IND_set_ctx_param(OSSL_FIPS_IND *ind, int id,
     const OSSL_PARAM params[], const char *name);
 int ossl_FIPS_IND_get_ctx_param(const OSSL_FIPS_IND *ind,
     OSSL_PARAM params[]);
+int ossl_FIPS_IND_get_ctx_param_conditional(const OSSL_FIPS_IND *ind,
+    OSSL_PARAM params[], int condition);
+const OSSL_PARAM *ossl_FIPS_IND_gettable_ctx_params(void *ctx, void *provctx);
+int ossl_FIPS_IND_get_ctx_param_approved(void *ctx, OSSL_PARAM params[]);
 void ossl_FIPS_IND_copy(OSSL_FIPS_IND *dst, const OSSL_FIPS_IND *src);
 
 /* Place this in the algorithm ctx structure */
@@ -115,6 +122,20 @@ void ossl_FIPS_IND_copy(OSSL_FIPS_IND *dst, const OSSL_FIPS_IND *src);
 #define OSSL_FIPS_IND_GET_CTX_PARAM(ctx, prms) \
     ossl_FIPS_IND_get_ctx_param(&((ctx)->indicator), prms)
 
+#define OSSL_FIPS_IND_GET_CTX_PARAM_CONDITIONAL(ctx, prms, condition) \
+    ossl_FIPS_IND_get_ctx_param_conditional(&((ctx)->indicator), prms, condition)
+
+#define OSSL_FIPS_IND_GET_CTX_PARAM_APPROVED(ctx, prms) \
+    ossl_FIPS_IND_get_ctx_param_approved(ctx, prms)
+
+#define OSSL_FIPS_IND_DISPATCH(get_id, gettable_id, get_fn) \
+    { get_id, (void (*)(void))get_fn },                     \
+        { gettable_id, (void (*)(void))ossl_FIPS_IND_gettable_ctx_params },
+
+#define OSSL_FIPS_IND_APPROVED_DISPATCH(get_id, gettable_id) \
+    OSSL_FIPS_IND_DISPATCH(get_id, gettable_id,              \
+        ossl_FIPS_IND_get_ctx_param_approved)
+
 #define OSSL_FIPS_IND_GET(ctx) (&((ctx)->indicator))
 
 #define OSSL_FIPS_IND_GET_PARAM(ctx, p, settable, id, name)          \
@@ -147,6 +168,12 @@ int ossl_fips_ind_digest_sign_check(OSSL_FIPS_IND *ind, int id,
 #define OSSL_FIPS_IND_SET_CTX_PARAM(ctx, id, params, name) 1
 #define OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
 #define OSSL_FIPS_IND_GET_CTX_PARAM(ctx, params) 1
+#define OSSL_FIPS_IND_GET_CTX_PARAM_CONDITIONAL(ctx, params, condition) 1
+#define OSSL_FIPS_IND_GET_CTX_PARAM_APPROVED(ctx, params) 1
+#define OSSL_FIPS_IND_DISPATCH(get_id, gettable_id, get_fn)
+#define OSSL_FIPS_IND_APPROVED_DISPATCH(get_id, gettable_id)
 #define OSSL_FIPS_IND_COPY(dst, src)
 
 #endif
+
+#endif /* OSSL_PROVIDERS_FIPSINDICATOR_H */

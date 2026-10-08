@@ -13,6 +13,7 @@
 #include "include/v8-exception.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/objects/string.h"
@@ -94,7 +95,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
                                                               *script);
   v8::internal::ParseInfo info(i_isolate, flags, &state, &reusable_state);
   if (!v8::internal::parsing::ParseProgram(
-          &info, script, i_isolate, i::parsing::ReportStatisticsMode::kYes)) {
+          &info, script, i_isolate, i::parsing::ReportStatisticsMode{true})) {
     info.pending_error_handler()->PrepareErrors(i_isolate,
                                                 info.ast_value_factory());
     info.pending_error_handler()->ReportErrors(i_isolate, script);

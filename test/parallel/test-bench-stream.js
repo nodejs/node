@@ -1,10 +1,11 @@
-// Flags: --no-warnings
+// Flags: --experimental-bench --no-warnings
 'use strict';
 
 const common = require('../common');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const assert = require('assert');
 const { createRunner } = require('node:bench');
-const { setImmediate, setTimeout } = require('timers/promises');
+const { setImmediate } = require('timers/promises');
 
 function recordSample(b) {
   b.record({
@@ -24,7 +25,7 @@ async function testReadableBackpressure() {
     calls++;
     recordSample(b);
   });
-  const stream = runner.run();
+  const stream = runner.run({ warmup: 0 });
   const iterator = stream[Symbol.asyncIterator]();
   const first = await iterator.next();
 
@@ -58,7 +59,7 @@ async function testPlanBackpressure() {
       recordSample(b);
     }));
   }
-  const stream = runner.run();
+  const stream = runner.run({ warmup: 0 });
   const iterator = stream[Symbol.asyncIterator]();
   const first = await iterator.next();
 
@@ -89,7 +90,7 @@ async function testDestroyWhileBlocked() {
       samples: 1,
     }, recordSample));
   }
-  const stream = runner.run();
+  const stream = runner.run({ warmup: 0 });
   const unblocked = stream.waitForDrain();
   const iterator = stream[Symbol.asyncIterator]();
   await iterator.next();
@@ -119,7 +120,7 @@ async function testNamedEventsWithoutReading() {
     calls++;
     recordSample(b);
   });
-  const stream = runner.run();
+  const stream = runner.run({ warmup: 0 });
   const summary = await new Promise((resolve) => {
     stream.once('bench:summary', resolve);
   });
@@ -139,7 +140,7 @@ async function testCancellationCompletesBenchmarks() {
   const second = runner.bench('continues headlessly', {
     samples: 1,
   }, recordSample);
-  const stream = runner.run();
+  const stream = runner.run({ warmup: 0 });
   const iterator = stream[Symbol.asyncIterator]();
 
   await iterator.next();
@@ -151,15 +152,21 @@ async function testCancellationCompletesBenchmarks() {
 
 async function testDeliveryDoesNotConsumeTimeout() {
   const runner = createRunner({ yieldBetweenSamples: false });
+  // The timeout only has to cover the benchmark's own work, which is 32 samples
+  // that do nothing but record a fixed value. Keep it generous so that a loaded
+  // machine cannot exhaust it on its own, and keep the consumer stalled for
+  // longer than the timeout so that the benchmark can only complete when the
+  // time spent delivering records is excluded from the timeout.
+  const timeout = common.platformTimeout(500);
   const completion = runner.bench('slow consumer', {
     samples: 32,
-    timeout: common.platformTimeout(20),
+    timeout,
   }, recordSample);
-  const stream = runner.run();
+  const stream = runner.run({ warmup: 0 });
   const iterator = stream[Symbol.asyncIterator]();
 
   await iterator.next();
-  await setTimeout(common.platformTimeout(50));
+  await setImmediate();
   for (;;) {
     const next = await iterator.next();
     if (next.done) break;
@@ -175,7 +182,7 @@ async function testReportingFailureSettlesBenchmarks() {
   const failure = new Error('record listener failed');
   const first = runner.bench('reported', { samples: 1 }, recordSample);
   const second = runner.bench('settled', { samples: 1 }, recordSample);
-  const stream = runner.run();
+  const stream = runner.run({ warmup: 0 });
   stream.once('bench:complete', common.mustCall(() => {
     throw failure;
   }));
@@ -193,7 +200,7 @@ async function testSummaryListenerFailure() {
   const completion = runner.bench('summary failure', {
     samples: 1,
   }, recordSample);
-  const stream = runner.run();
+  const stream = runner.run({ warmup: 0 });
   const diagnostics = [];
   stream.on('bench:diagnostic', (diagnostic) => {
     diagnostics.push(diagnostic);
@@ -278,7 +285,7 @@ async function testRecordOwnership() {
   const afterTrap = runner.bench('after trapping error', {
     samples: 1,
   }, recordSample);
-  const stream = runner.run();
+  const stream = runner.run({ warmup: 0 });
   let eventSample;
   let eventComplete;
   let eventError;
@@ -369,6 +376,32 @@ async function testRecordOwnership() {
   assert.strictEqual(streamSummary.counts.total, 7);
 }
 
+function testOperatorsWithoutStreamModule() {
+  // Readable operators such as map() and toArray() are attached when
+  // node:stream is loaded. node:assert and ../common load node:stream, so
+  // check the operators in a child process that loads only node:bench.
+  const script = `
+    const { createRunner } = require('node:bench');
+    const runner = createRunner({ yieldBetweenSamples: false });
+    runner.bench('operators', { samples: 1 }, (b) => {
+      b.record({ operations: 1, duration_ns: 1n });
+    });
+    runner.run({ warmup: 0 })
+      .map((record) => record.type)
+      .toArray()
+      .then((types) => console.log(types.includes('bench:complete')));
+  `;
+  spawnSyncAndAssert(process.execPath, [
+    '--experimental-bench',
+    '--no-warnings',
+    '-e',
+    script,
+  ], {
+    stdout: 'true',
+    trim: true,
+  });
+}
+
 (async () => {
   await testReadableBackpressure();
   await testPlanBackpressure();
@@ -379,4 +412,5 @@ async function testRecordOwnership() {
   await testReportingFailureSettlesBenchmarks();
   await testSummaryListenerFailure();
   await testRecordOwnership();
+  testOperatorsWithoutStreamModule();
 })().then(common.mustCall());

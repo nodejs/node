@@ -211,3 +211,117 @@ function runTests(sync) {
     }));
   }));
 }
+
+{
+  const dest = getTempFile();
+  const fd = openSync(dest, 'w');
+
+  const err = new Error('EAGAIN');
+  err.code = 'EAGAIN';
+  let attempts = 0;
+
+  const stream = new Utf8Stream({
+    fd,
+    sync: false,
+    minLength: 0,
+    maxWriteRetries: 3,
+    // retryEAGAIN always returns true ("keep going"), so maxWriteRetries must
+    // itself cap the number of attempts instead of retrying forever.
+    retryEAGAIN: () => true,
+    fs: {
+      write: common.mustCall((...args) => {
+        attempts++;
+        const callback = args[args.length - 1];
+        process.nextTick(callback, err);
+      }, 4),
+    }
+  });
+
+  stream.on('ready', common.mustCall(() => {
+    assert.ok(stream.write('hello world\n'));
+  }));
+
+  stream.once('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'EAGAIN');
+    // 1 initial attempt + 3 retries = 4 total fs.write calls, then give up.
+    assert.strictEqual(attempts, 4);
+    assert.strictEqual(stream.writing, false);
+    stream.destroy();
+  }));
+}
+
+{
+  const dest = getTempFile();
+  const fd = openSync(dest, 'w');
+
+  const err = new Error('EAGAIN');
+  err.code = 'EAGAIN';
+
+  const stream = new Utf8Stream({
+    fd,
+    sync: true,
+    minLength: 0,
+    maxWriteRetries: 3,
+    retryEAGAIN: () => true,
+    fs: {
+      writeSync: common.mustCall((...args) => {
+        throw err;
+      }, 4),
+    }
+  });
+
+  stream.on('ready', common.mustCall(() => {
+    // Once retries are exhausted, write() must surface the error instead of
+    // spinning forever on EAGAIN.
+    assert.throws(() => {
+      stream.write('hello world\n');
+    }, (e) => e.code === 'EAGAIN');
+    stream.destroy();
+  }));
+}
+
+{
+  const dest = getTempFile();
+  const fd = openSync(dest, 'w');
+
+  const err = new Error('EAGAIN');
+  err.code = 'EAGAIN';
+  let call = 0;
+
+  const stream = new Utf8Stream({
+    fd,
+    sync: false,
+    minLength: 0,
+    maxWriteRetries: 3,
+    retryEAGAIN: () => true,
+    fs: {
+      write: common.mustCallAtLeast((...args) => {
+        call++;
+        const callback = args[args.length - 1];
+        if (call % 3 === 0) {
+          return write(...args);
+        }
+        process.nextTick(callback, err);
+      }, 5),
+    }
+  });
+
+  stream.on('error', common.mustNotCall());
+
+  stream.on('ready', common.mustCall(() => {
+    // First burst: calls 1-2 fail with EAGAIN, call 3 succeeds.
+    assert.ok(stream.write('hello world\n'));
+    stream.once('drain', common.mustCall(() => {
+      // Second burst: calls 4-5 fail again. The counter must have been reset
+      // by the successful write at call 3, so this burst succeeds too.
+      stream.write('sonic boom\n');
+      stream.end();
+    }));
+  }));
+
+  stream.on('finish', common.mustCall(() => {
+    readFile(dest, 'utf8', common.mustSucceed((data) => {
+      assert.strictEqual(data, 'hello world\nsonic boom\n');
+    }));
+  }));
+}

@@ -5,15 +5,17 @@
 [package]
 name = "potential_utf"
 description = "Unvalidated string and character types"
-version = "0.1.4"
-rust-version = "1.82"
+version = "0.1.6"
+keywords = ["text-processing", "encoding"]
+
 authors.workspace = true
-edition.workspace = true
-repository.workspace = true
-homepage.workspace = true
-license.workspace = true
 categories.workspace = true
+edition = "2021"
+homepage.workspace = true
 include.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version = "1.82"
 
 [dependencies]
 databake = { workspace = true, optional = true }
@@ -32,3 +34,6 @@ databake = ["dep:databake"]
 serde = ["dep:serde_core"]
 writeable = ["dep:writeable"]
 zerovec = ["dep:zerovec"]
+
+[lints]
+workspace = true

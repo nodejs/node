@@ -122,6 +122,14 @@ assertSuccessfulProbe([
 Promise.all([
   assert.rejects(
     launchChildProcess([
+      '--config-file',
+      '--no-inspect-brk',
+      'probe.js',
+    ], '127.0.0.1', 0, () => {}),
+    incompatibleInspectBrk,
+  ),
+  assert.rejects(
+    launchChildProcess([
       '--experimental-config-file',
       '--no-inspect-brk',
       'probe.js',

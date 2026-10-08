@@ -564,3 +564,47 @@ if (this.Worker) {
   assertEquals('OK', w.getMessage());
   w.terminate();
 }
+
+(function testTypedArraySetOrder() {
+  const ab = new ArrayBuffer(8);
+  const imm = ab.transferToImmutable();
+  const immTA = new Uint8Array(imm);
+
+  let offsetEvaluated = false;
+  const offset = {
+    valueOf() {
+      offsetEvaluated = true;
+      return 0;
+    }
+  };
+
+  let sourceRead = false;
+  const source = {
+    get length() {
+      sourceRead = true;
+      return 1;
+    },
+    get 0() {
+      sourceRead = true;
+      return 42;
+    }
+  };
+
+  // 1. Immutable target throws before offset conversion or source reading
+  assertThrows(() => immTA.set(source, offset), TypeError);
+  assertFalse(offsetEvaluated, "offset should not be evaluated for immutable target");
+  assertFalse(sourceRead, "source should not be read for immutable target");
+
+  // 2. Mutable target can read from immutable TypedArray source
+  const mutableTA = new Uint8Array(8);
+  assertDoesNotThrow(() => mutableTA.set(immTA));
+
+  // 3. Detached target evaluates offset before throwing TypeError
+  const detachedAb = new ArrayBuffer(8);
+  const detachedTA = new Uint8Array(detachedAb);
+  %ArrayBufferDetach(detachedAb);
+
+  offsetEvaluated = false;
+  assertThrows(() => detachedTA.set([1], offset), TypeError);
+  assertTrue(offsetEvaluated, "offset should be evaluated for detached target");
+})();

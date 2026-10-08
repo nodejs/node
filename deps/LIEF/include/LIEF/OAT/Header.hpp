@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,18 +39,19 @@ class LIEF_API Header : public Object {
   public:
   struct element_t {
     element_t(HEADER_KEYS key, const std::string& value) :
-      key(key), value(const_cast<std::string*>(&value)) {}
+      key(key),
+      value(const_cast<std::string*>(&value)) {}
 
     HEADER_KEYS key;
     std::string* value = nullptr;
   };
-  using magic_t               = std::array<uint8_t, 4>; // oat\n
-  using key_values_t          = std::map<HEADER_KEYS, std::string>;
-  using it_key_values_t       = ref_iterator<std::vector<element_t>>;
+  using magic_t = std::array<uint8_t, 4>; // oat\n
+  using key_values_t = std::map<HEADER_KEYS, std::string>;
+  using it_key_values_t = ref_iterator<std::vector<element_t>>;
   using it_const_key_values_t = const_ref_iterator<std::vector<element_t>>;
 
   /// Iterator type over
-  using keys_t   = std::vector<HEADER_KEYS>;
+  using keys_t = std::vector<HEADER_KEYS>;
   using values_t = std::vector<std::string>;
 
   public:
@@ -99,16 +100,16 @@ class LIEF_API Header : public Object {
 
   uint32_t key_value_size() const;
 
-  it_key_values_t       key_values();
-  it_const_key_values_t key_values() const;
+  it_key_values_t key_values() LIEF_LIFETIMEBOUND;
+  it_const_key_values_t key_values() const LIEF_LIFETIMEBOUND;
 
   keys_t keys() const;
   values_t values() const;
 
-  const std::string* get(HEADER_KEYS key) const;
-  std::string* get(HEADER_KEYS key);
+  const std::string* get(HEADER_KEYS key) const LIEF_LIFETIMEBOUND;
+  std::string* get(HEADER_KEYS key) LIEF_LIFETIMEBOUND;
 
-  Header& set(HEADER_KEYS key, const std::string& value);
+  Header& set(HEADER_KEYS key, const std::string& value) LIEF_LIFETIMEBOUND;
 
   const std::string* operator[](HEADER_KEYS key) const;
   std::string* operator[](HEADER_KEYS key);
@@ -146,8 +147,6 @@ class LIEF_API Header : public Object {
   uint32_t key_value_store_size_ = 0;
 
   key_values_t dex2oat_context_;
-
-
 };
 
 }

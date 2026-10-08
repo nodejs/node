@@ -23,11 +23,14 @@ async function main() {
   parent.on('stderr', (line) => stderr.push(line));
 
   const session = await parent.connectInspectorSession();
+  await session.send({ method: 'NodeRuntime.enable' });
+  await session.waitForNotification('NodeRuntime.waitingForDebugger');
   await session.send([
     { method: 'Runtime.enable' },
     { method: 'Debugger.enable' },
     { method: 'Runtime.runIfWaitingForDebugger' },
   ]);
+  await session.send({ method: 'NodeRuntime.disable' });
   await session.waitForNotification('Debugger.paused');
   await session.send({ method: 'Debugger.resume' });
   await session.disconnect();

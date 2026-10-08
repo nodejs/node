@@ -764,8 +764,12 @@ async function testEndSyncReturnsFalseDuringAsync() {
   const p = w.write(Buffer.from('data'));
   assert.strictEqual(w.endSync(), -1);
 
+  const ending = w.end();
+  assert.strictEqual(w.writeSync(Buffer.from('more')), false);
+  assert.strictEqual(w.endSync(), -1);
+  await assert.rejects(w.write('more'), { code: 'ERR_INVALID_STATE' });
   await p;
-  const totalBytes = await w.end();
+  const totalBytes = await ending;
   await fh.close();
 
   assert.strictEqual(totalBytes, 4);
@@ -850,6 +854,50 @@ async function testEndRejectsOnErrored() {
   await fh.close();
 }
 
+async function testFailPreservesReason() {
+  for (const reason of [undefined, null, false, 0, '', 'failure']) {
+    const suffix = String(reason).replaceAll(' ', '-');
+    const filePath = path.join(tmpDir, `writer-fail-${suffix}.txt`);
+    const fh = await open(filePath, 'w');
+    const w = fh.writer();
+
+    w.fail(reason);
+
+    await assert.rejects(w.write('data'), (error) => error === reason);
+    await assert.rejects(w.end(), (error) => error === reason);
+    await fh.close();
+  }
+}
+
+async function testFailRejectsPendingWriteWithReason() {
+  const filePath = path.join(tmpDir, 'writer-fail-pending.txt');
+  const fh = await open(filePath, 'w');
+  const w = fh.writer();
+  const reason = null;
+  const pending = w.write(Buffer.alloc(1024 * 1024));
+
+  w.fail(reason);
+
+  await assert.rejects(pending, (error) => error === reason);
+  await fh.close();
+}
+
+async function testFailWhileClosingPreservesReason() {
+  const filePath = path.join(tmpDir, 'writer-fail-closing.txt');
+  const fh = await open(filePath, 'w');
+  const w = fh.writer();
+  const reason = false;
+  const pendingWrite = w.write(Buffer.alloc(1024 * 1024));
+  const pendingEnd = w.end();
+
+  w.fail(reason);
+
+  for (const promise of [pendingWrite, pendingEnd]) {
+    await assert.rejects(promise, (error) => error === reason);
+  }
+  await fh.close();
+}
+
 // =============================================================================
 // end() is idempotent when closing/closed
 // =============================================================================
@@ -914,7 +962,7 @@ async function testAsyncDisposeCallsFail() {
   // Writer should be in errored state - write should reject
   await assert.rejects(
     w.write(Buffer.from('more')),
-    (err) => err instanceof Error,
+    (reason) => reason === undefined,
   );
 
   // Handle should be unlocked and reusable
@@ -1125,6 +1173,9 @@ Promise.all([
   testEndSyncAutoClose(),
   testFullSyncPipeline(),
   testEndRejectsOnErrored(),
+  testFailPreservesReason(),
+  testFailRejectsPendingWriteWithReason(),
+  testFailWhileClosingPreservesReason(),
   testEndIdempotent(),
   testAsyncDisposeWhileClosing(),
   testAsyncDisposeCallsFail(),

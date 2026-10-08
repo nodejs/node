@@ -25,28 +25,28 @@
         (p) != NULL;                          \
         (p) = ossl_list_##name##_next(p))
 #define OSSL_LIST_FOREACH(p, name, l) \
-    OSSL_LIST_FOREACH_FROM(p, name, ossl_list_##name##_head(l))
+    OSSL_LIST_FOREACH_FROM (p, name, ossl_list_##name##_head(l))
 
 #define OSSL_LIST_FOREACH_REV_FROM(p, name, init) \
     for ((p) = (init);                            \
         (p) != NULL;                              \
         (p) = ossl_list_##name##_prev(p))
 #define OSSL_LIST_FOREACH_REV(p, name, l) \
-    OSSL_LIST_FOREACH_FROM(p, name, ossl_list_##name##_tail(l))
+    OSSL_LIST_FOREACH_FROM (p, name, ossl_list_##name##_tail(l))
 
 #define OSSL_LIST_FOREACH_DELSAFE_FROM(p, pn, name, init)        \
     for ((p) = (init);                                           \
         (p) != NULL && (((pn) = ossl_list_##name##_next(p)), 1); \
         (p) = (pn))
 #define OSSL_LIST_FOREACH_DELSAFE(p, pn, name, l) \
-    OSSL_LIST_FOREACH_DELSAFE_FROM(p, pn, name, ossl_list_##name##_head(l))
+    OSSL_LIST_FOREACH_DELSAFE_FROM (p, pn, name, ossl_list_##name##_head(l))
 
 #define OSSL_LIST_FOREACH_REV_DELSAFE_FROM(p, pn, name, init)    \
     for ((p) = (init);                                           \
         (p) != NULL && (((pn) = ossl_list_##name##_prev(p)), 1); \
         (p) = (pn))
 #define OSSL_LIST_FOREACH_REV_DELSAFE(p, pn, name, l) \
-    OSSL_LIST_FOREACH_REV_DELSAFE_FROM(p, pn, name, ossl_list_##name##_tail(l))
+    OSSL_LIST_FOREACH_REV_DELSAFE_FROM (p, pn, name, ossl_list_##name##_tail(l))
 
 /* Define a list structure */
 #define OSSL_LIST(name) OSSL_LIST_##name
@@ -67,7 +67,7 @@
 
 #define DEFINE_LIST_OF_IMPL(name, type)                                                       \
     static ossl_unused ossl_inline void                                                       \
-    ossl_list_##name##_init(OSSL_LIST(name) * list)                                           \
+    ossl_list_##name##_init(OSSL_LIST(name) *list)                                            \
     {                                                                                         \
         memset(list, 0, sizeof(*list));                                                       \
     }                                                                                         \
@@ -78,24 +78,24 @@
             sizeof(elem->ossl_list_##name));                                                  \
     }                                                                                         \
     static ossl_unused ossl_inline int                                                        \
-    ossl_list_##name##_is_empty(const OSSL_LIST(name) * list)                                 \
+    ossl_list_##name##_is_empty(const OSSL_LIST(name) *list)                                  \
     {                                                                                         \
         return list->num_elems == 0;                                                          \
     }                                                                                         \
     static ossl_unused ossl_inline size_t                                                     \
-    ossl_list_##name##_num(const OSSL_LIST(name) * list)                                      \
+    ossl_list_##name##_num(const OSSL_LIST(name) *list)                                       \
     {                                                                                         \
         return list->num_elems;                                                               \
     }                                                                                         \
     static ossl_unused ossl_inline type *                                                     \
-    ossl_list_##name##_head(const OSSL_LIST(name) * list)                                     \
+    ossl_list_##name##_head(const OSSL_LIST(name) *list)                                      \
     {                                                                                         \
         assert(list->alpha == NULL                                                            \
             || list->alpha->ossl_list_##name.list == list);                                   \
         return list->alpha;                                                                   \
     }                                                                                         \
     static ossl_unused ossl_inline type *                                                     \
-    ossl_list_##name##_tail(const OSSL_LIST(name) * list)                                     \
+    ossl_list_##name##_tail(const OSSL_LIST(name) *list)                                      \
     {                                                                                         \
         assert(list->omega == NULL                                                            \
             || list->omega->ossl_list_##name.list == list);                                   \
@@ -120,7 +120,7 @@
         return elem->ossl_list_##name.prev;                                                   \
     }                                                                                         \
     static ossl_unused ossl_inline void                                                       \
-    ossl_list_##name##_remove(OSSL_LIST(name) * list, type * elem)                            \
+    ossl_list_##name##_remove(OSSL_LIST(name) *list, type *elem)                              \
     {                                                                                         \
         assert(elem->ossl_list_##name.list == list);                                          \
         OSSL_LIST_DBG(elem->ossl_list_##name.list = NULL)                                     \
@@ -137,7 +137,7 @@
             sizeof(elem->ossl_list_##name));                                                  \
     }                                                                                         \
     static ossl_unused ossl_inline void                                                       \
-    ossl_list_##name##_insert_head(OSSL_LIST(name) * list, type * elem)                       \
+    ossl_list_##name##_insert_head(OSSL_LIST(name) *list, type *elem)                         \
     {                                                                                         \
         assert(elem->ossl_list_##name.list == NULL);                                          \
         OSSL_LIST_DBG(elem->ossl_list_##name.list = list)                                     \
@@ -151,7 +151,7 @@
         list->num_elems++;                                                                    \
     }                                                                                         \
     static ossl_unused ossl_inline void                                                       \
-    ossl_list_##name##_insert_tail(OSSL_LIST(name) * list, type * elem)                       \
+    ossl_list_##name##_insert_tail(OSSL_LIST(name) *list, type *elem)                         \
     {                                                                                         \
         assert(elem->ossl_list_##name.list == NULL);                                          \
         OSSL_LIST_DBG(elem->ossl_list_##name.list = list)                                     \
@@ -165,8 +165,8 @@
         list->num_elems++;                                                                    \
     }                                                                                         \
     static ossl_unused ossl_inline void                                                       \
-    ossl_list_##name##_insert_before(OSSL_LIST(name) * list, type * e,                        \
-        type * elem)                                                                          \
+    ossl_list_##name##_insert_before(OSSL_LIST(name) *list, type *e,                          \
+        type *elem)                                                                           \
     {                                                                                         \
         assert(elem->ossl_list_##name.list == NULL);                                          \
         OSSL_LIST_DBG(elem->ossl_list_##name.list = list)                                     \
@@ -180,8 +180,8 @@
         list->num_elems++;                                                                    \
     }                                                                                         \
     static ossl_unused ossl_inline void                                                       \
-    ossl_list_##name##_insert_after(OSSL_LIST(name) * list, type * e,                         \
-        type * elem)                                                                          \
+    ossl_list_##name##_insert_after(OSSL_LIST(name) *list, type *e,                           \
+        type *elem)                                                                           \
     {                                                                                         \
         assert(elem->ossl_list_##name.list == NULL);                                          \
         OSSL_LIST_DBG(elem->ossl_list_##name.list = list)                                     \
@@ -195,7 +195,7 @@
         list->num_elems++;                                                                    \
     }                                                                                         \
     static ossl_unused ossl_inline void                                                       \
-    ossl_list_##name##_join(OSSL_LIST(name) * lh, OSSL_LIST(name) * lt)                       \
+    ossl_list_##name##_join(OSSL_LIST(name) *lh, OSSL_LIST(name) *lt)                         \
     {                                                                                         \
         OSSL_LIST_DBG(type * _p); /* local variable '_p' when debug */                        \
         if (lt == NULL || lh == NULL || lt->num_elems == 0 || lh == lt)                       \

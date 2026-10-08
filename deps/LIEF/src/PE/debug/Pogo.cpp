@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,20 +22,19 @@
 
 #include <spdlog/fmt/fmt.h>
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 void Pogo::accept(Visitor& visitor) const {
   visitor.visit(*this);
 }
 
 std::string Pogo::to_string() const {
-  using namespace fmt;
   std::ostringstream os;
   os << Debug::to_string() << '\n'
      << "Pogo:\n"
-     << format("  Signature: {} (0x{:06x})\n",
-                    PE::to_string(signature()), (uint32_t)signature());
+     << fmt::format("  Signature: {} ({:#08x})\n", PE::to_string(signature()),
+                    (uint32_t)signature());
 
   for (const PogoEntry& pentry : entries()) {
     os << "    " << pentry << '\n';
@@ -45,19 +44,23 @@ std::string Pogo::to_string() const {
 }
 
 const char* to_string(Pogo::SIGNATURES e) {
-  #define ENTRY(X) std::pair(Pogo::SIGNATURES::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(UNKNOWN),
-    ENTRY(ZERO),
-    ENTRY(LCTG),
-    ENTRY(PGI),
+  // clang-format off
+#define ENTRY(X) std::pair(Pogo::SIGNATURES::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(UNKNOWN),
+      ENTRY(ZERO),
+      ENTRY(LCTG),
+      ENTRY(PGI),
+      ENTRY(PGO),
+      ENTRY(PGU),
+      ENTRY(SPGO),
   };
-  #undef ENTRY
+#undef ENTRY
+  // clang-format on
   if (const auto it = enums2str.find(e); it != enums2str.end()) {
     return it->second;
   }
   return "UNKNOWN";
 }
 
-} // namespace PE
-} // namespace LIEF
+} // namespace LIEF::PE

@@ -39,7 +39,7 @@ class null_state_saver {
   using flags_type = std::ios_base::fmtflags;
 
   null_state_saver(T&, flags_type) {}
-  ~null_state_saver() {}
+  ~null_state_saver() = default;
 };
 
 // ostream_state_saver is a RAII object to save and restore the common
@@ -95,8 +95,8 @@ ostream_state_saver<std::basic_ostream<CharT, Traits>> make_ostream_state_saver(
 }
 
 template <typename T>
-typename absl::enable_if_t<!std::is_base_of<std::ios_base, T>::value,
-                           null_state_saver<T>>
+typename std::enable_if_t<!std::is_base_of_v<std::ios_base, T>,
+                          null_state_saver<T>>
 make_ostream_state_saver(T& is,  // NOLINT(runtime/references)
                          std::ios_base::fmtflags flags = std::ios_base::dec) {
   using result_type = null_state_saver<T>;
@@ -159,8 +159,8 @@ istream_state_saver<std::basic_istream<CharT, Traits>> make_istream_state_saver(
 }
 
 template <typename T>
-typename absl::enable_if_t<!std::is_base_of<std::ios_base, T>::value,
-                           null_state_saver<T>>
+typename std::enable_if_t<!std::is_base_of_v<std::ios_base, T>,
+                          null_state_saver<T>>
 make_istream_state_saver(T& is,  // NOLINT(runtime/references)
                          std::ios_base::fmtflags flags = std::ios_base::dec) {
   using result_type = null_state_saver<T>;
@@ -186,7 +186,7 @@ struct stream_u128_helper;
 template <>
 struct stream_u128_helper<absl::uint128> {
   template <typename IStream>
-  inline absl::uint128 read(IStream& in) {
+  absl::uint128 read(IStream& in) {
     uint64_t h = 0;
     uint64_t l = 0;
     in >> h >> l;
@@ -194,7 +194,7 @@ struct stream_u128_helper<absl::uint128> {
   }
 
   template <typename OStream>
-  inline void write(absl::uint128 val, OStream& out) {
+  void write(absl::uint128 val, OStream& out) {
     uint64_t h = absl::Uint128High64(val);
     uint64_t l = absl::Uint128Low64(val);
     out << h << out.fill() << l;
@@ -205,7 +205,7 @@ struct stream_u128_helper<absl::uint128> {
 template <>
 struct stream_u128_helper<__uint128_t> {
   template <typename IStream>
-  inline __uint128_t read(IStream& in) {
+  __uint128_t read(IStream& in) {
     uint64_t h = 0;
     uint64_t l = 0;
     in >> h >> l;
@@ -213,7 +213,7 @@ struct stream_u128_helper<__uint128_t> {
   }
 
   template <typename OStream>
-  inline void write(__uint128_t val, OStream& out) {
+  void write(__uint128_t val, OStream& out) {
     uint64_t h = static_cast<uint64_t>(val >> 64u);
     uint64_t l = static_cast<uint64_t>(val);
     out << h << out.fill() << l;
@@ -223,7 +223,7 @@ struct stream_u128_helper<__uint128_t> {
 
 template <typename FloatType, typename IStream>
 inline FloatType read_floating_point(IStream& is) {
-  static_assert(std::is_floating_point<FloatType>::value, "");
+  static_assert(std::is_floating_point_v<FloatType>);
   FloatType dest;
   is >> dest;
   // Parsing a double value may report a subnormal value as an error

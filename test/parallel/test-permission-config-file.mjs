@@ -13,7 +13,7 @@ describe('Permission model config file support', () => {
     {
       const result = await spawnPromisified(process.execPath, [
         '--permission',
-        `--experimental-config-file=${readOnlyConfigPath}`,
+        `--config-file=${readOnlyConfigPath}`,
         readTestPath,
       ]);
       assert.strictEqual(result.code, 0);
@@ -22,7 +22,7 @@ describe('Permission model config file support', () => {
     {
       const result = await spawnPromisified(process.execPath, [
         '--permission',
-        `--experimental-config-file=${readWriteConfigPath}`,
+        `--config-file=${readWriteConfigPath}`,
         writeTestPath,
       ]);
       assert.strictEqual(result.code, 0);
@@ -31,7 +31,7 @@ describe('Permission model config file support', () => {
     {
       const result = await spawnPromisified(process.execPath, [
         '--permission',
-        `--experimental-config-file=${readOnlyConfigPath}`,
+        `--config-file=${readOnlyConfigPath}`,
         writeTestPath,
       ]);
       assert.strictEqual(result.code, 1);
@@ -47,7 +47,7 @@ describe('Permission model config file support', () => {
     {
       const result = await spawnPromisified(process.execPath, [
         '--permission',
-        `--experimental-config-file=${configPath}`,
+        `--config-file=${configPath}`,
         childTestPath,
       ]);
       assert.strictEqual(result.code, 0);
@@ -56,7 +56,7 @@ describe('Permission model config file support', () => {
     {
       const result = await spawnPromisified(process.execPath, [
         '--permission',
-        `--experimental-config-file=${readOnlyConfigPath}`,
+        `--config-file=${readOnlyConfigPath}`,
         childTestPath,
       ]);
       assert.strictEqual(result.code, 1, result.stderr);
@@ -71,7 +71,7 @@ describe('Permission model config file support', () => {
     {
       const result = await spawnPromisified(process.execPath, [
         '--permission',
-        `--experimental-config-file=${configPath}`,
+        `--config-file=${configPath}`,
         '-p',
         'process.permission.has("net") && process.permission.has("inspector")',
       ]);
@@ -82,7 +82,7 @@ describe('Permission model config file support', () => {
     {
       const result = await spawnPromisified(process.execPath, [
         '--permission',
-        `--experimental-config-file=${readOnlyConfigPath}`,
+        `--config-file=${readOnlyConfigPath}`,
         '-p',
         'process.permission.has("net") + process.permission.has("inspector")',
       ]);
@@ -96,7 +96,7 @@ describe('Permission model config file support', () => {
 
     const result = await spawnPromisified(process.execPath, [
       '--permission',
-      `--experimental-config-file=${configPath}`,
+      `--config-file=${configPath}`,
       '--allow-fs-read=*',
       '-p',
       'process.permission.has("addon") && process.permission.has("wasi")',
@@ -110,7 +110,7 @@ describe('Permission model config file support', () => {
 
     const result = await spawnPromisified(process.execPath, [
       '--permission',
-      `--experimental-config-file=${configPath}`,
+      `--config-file=${configPath}`,
       '--allow-child-process',
       '--allow-fs-write=*',
       '-p',

@@ -1,0 +1,6 @@
+{
+  "main": "sea.js",
+  "output": "sea",
+  "useCodeCache": true,
+  "disableExperimentalSEAWarning": true
+}

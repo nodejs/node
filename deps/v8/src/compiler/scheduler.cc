@@ -356,6 +356,10 @@ class CFGBuilder : public ZoneObject {
 #undef BUILD_BLOCK_JS_CASE
       case IrOpcode::kCall:
       case IrOpcode::kFastApiCall:
+      case IrOpcode::kStringToLowerCaseIntl:
+      case IrOpcode::kStringToUpperCaseIntl:
+      case IrOpcode::kStringLocaleCompareIntl:
+      case IrOpcode::kLoadDictionaryField:
         if (NodeProperties::IsExceptionalCall(node)) {
           BuildBlocksForSuccessors(node);
         }
@@ -401,6 +405,10 @@ class CFGBuilder : public ZoneObject {
 #undef CONNECT_BLOCK_JS_CASE
       case IrOpcode::kCall:
       case IrOpcode::kFastApiCall:
+      case IrOpcode::kStringToLowerCaseIntl:
+      case IrOpcode::kStringToUpperCaseIntl:
+      case IrOpcode::kStringLocaleCompareIntl:
+      case IrOpcode::kLoadDictionaryField:
         if (NodeProperties::IsExceptionalCall(node)) {
           scheduler_->UpdatePlacement(node, Scheduler::kFixed);
           ConnectCall(node);

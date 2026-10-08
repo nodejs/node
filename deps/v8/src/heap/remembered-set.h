@@ -59,8 +59,8 @@ class RememberedSetOperations {
       uintptr_t start_offset = chunk->Offset(start);
       uintptr_t end_offset = chunk->OffsetMaybeOutOfRange(end);
       DCHECK_LE(start_offset, end_offset);
-      slot_set->RemoveRange(static_cast<int>(start_offset),
-                            static_cast<int>(end_offset),
+      slot_set->RemoveRange(static_cast<size_t>(start_offset),
+                            static_cast<size_t>(end_offset),
                             page->BucketsInSlotSet(), mode);
     }
   }
@@ -353,7 +353,7 @@ class UpdateTypedSlotHelper {
                                                   WritableRelocInfo* rinfo,
                                                   Callback callback) {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
-    Tagged<HeapObject> old_target = rinfo->target_object(heap->isolate());
+    Tagged<HeapObject> old_target = rinfo->target_object();
     Tagged<HeapObject> new_target = old_target;
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
     DCHECK(!HasWeakHeapObjectTag(new_target));

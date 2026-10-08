@@ -3,7 +3,8 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { duplex, text, bytes } = require('stream/iter');
+const { bytes, dump, duplex, text } = require('stream/iter');
+const { setImmediate } = require('timers/promises');
 
 // =============================================================================
 // Basic duplex
@@ -185,7 +186,7 @@ async function testCloseWaitsForDrain() {
   const closing = channelA.close().then(common.mustCall(() => {
     closed = true;
   }));
-  await new Promise(setImmediate);
+  await setImmediate();
   assert.strictEqual(closed, false);
 
   assert.strictEqual(await text(channelB.readable), 'buffered');
@@ -204,8 +205,7 @@ async function testChannelFail() {
   const [a, b] = duplex();
   a.writer.fail(new Error('channel failed'));
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of b.readable) { /* consume */ }
+    await dump(b.readable);
   }, { message: 'channel failed' });
   await b.close();
 }

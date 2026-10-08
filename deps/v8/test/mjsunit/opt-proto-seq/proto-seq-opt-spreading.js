@@ -11,8 +11,8 @@
 
 function test_spreading(){
   function foo(){};
-  foo.prototype.key_1 = function () {return "OK"};
-  foo.prototype.key_2 = function () {return "OK"};
+  foo.prototype.key_1 = function () {return 42};
+  foo.prototype.key_2 = function () {return 42};
   const obj = {...foo.prototype};
   let res = [];
   for (const key in obj) {
@@ -23,8 +23,8 @@ function test_spreading(){
 
 function assert_test_spreading(result) {
   assertEquals(result.length, 2);
-  assertEquals(result[0], "OK");
-  assertEquals(result[1], "OK");
+  assertEquals(result[0], 42);
+  assertEquals(result[1], 42);
 }
 
 // prettier-ignore

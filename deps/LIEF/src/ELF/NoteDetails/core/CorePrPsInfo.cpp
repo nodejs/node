@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,12 +23,12 @@
 
 #include "spdlog/fmt/fmt.h"
 
-namespace LIEF {
-namespace ELF {
+
+namespace LIEF::ELF {
 
 template<class ELF_T>
 inline result<CorePrPsInfo::info_t>
-get_info_impl(const Note::description_t& description) {
+    get_info_impl(const Note::description_t& description) {
   using Elf_Prpsinfo = typename ELF_T::Elf_Prpsinfo;
   CorePrPsInfo::info_t info;
   auto stream = SpanStream::from_vector(description);
@@ -40,27 +40,26 @@ get_info_impl(const Note::description_t& description) {
     return make_error_code(get_error(raw));
   }
 
-  info.state    = raw->pr_state;
-  info.sname    = raw->pr_sname;
-  info.zombie   = static_cast<bool>(raw->pr_zomb);
-  info.nice     = raw->pr_nice;
-  info.flag     = raw->pr_flag;
-  info.uid      = raw->pr_uid;
-  info.gid      = raw->pr_gid;
-  info.pid      = raw->pr_pid;
-  info.ppid     = raw->pr_ppid;
-  info.pgrp     = raw->pr_pgrp;
-  info.sid      = raw->pr_sid;
+  info.state = raw->pr_state;
+  info.sname = raw->pr_sname;
+  info.zombie = static_cast<bool>(raw->pr_zomb);
+  info.nice = raw->pr_nice;
+  info.flag = raw->pr_flag;
+  info.uid = raw->pr_uid;
+  info.gid = raw->pr_gid;
+  info.pid = raw->pr_pid;
+  info.ppid = raw->pr_ppid;
+  info.pgrp = raw->pr_pgrp;
+  info.sid = raw->pr_sid;
   info.filename = std::string(raw->pr_fname, sizeof(Elf_Prpsinfo::pr_fname));
-  info.args     = std::string(raw->pr_psargs, sizeof(Elf_Prpsinfo::pr_psargs));
+  info.args = std::string(raw->pr_psargs, sizeof(Elf_Prpsinfo::pr_psargs));
 
   return info;
 }
 
-template<class ELF_T> inline ok_error_t
-write_info_impl(Note::description_t& description,
-                const CorePrPsInfo::info_t& info)
-{
+template<class ELF_T>
+inline ok_error_t write_info_impl(Note::description_t& description,
+                                  const CorePrPsInfo::info_t& info) {
   using Elf_Prpsinfo = typename ELF_T::Elf_Prpsinfo;
   Elf_Prpsinfo raw;
   std::memset(reinterpret_cast<void*>(&raw), 0, sizeof(Elf_Prpsinfo));
@@ -96,15 +95,15 @@ write_info_impl(Note::description_t& description,
 
 result<CorePrPsInfo::info_t> CorePrPsInfo::info() const {
   return class_ == Header::CLASS::ELF32 ?
-                   get_info_impl<details::ELF32>(description_) :
-                   get_info_impl<details::ELF64>(description_);
+             get_info_impl<details::ELF32>(description_) :
+             get_info_impl<details::ELF64>(description_);
 }
 
 
 void CorePrPsInfo::info(const info_t& info) {
   class_ == Header::CLASS::ELF32 ?
-            write_info_impl<details::ELF32>(description_, info) :
-            write_info_impl<details::ELF64>(description_, info);
+      write_info_impl<details::ELF32>(description_, info) :
+      write_info_impl<details::ELF64>(description_, info);
 }
 
 void CorePrPsInfo::accept(Visitor& visitor) const {
@@ -118,17 +117,16 @@ void CorePrPsInfo::dump(std::ostream& os) const {
     return;
   }
   os << '\n';
-  os << fmt::format("  Path: {} (args: {})\n",
-                    info_res->filename_stripped(), info_res->args_stripped())
-     << fmt::format("  UID: {:04d} GID: {:04d} PID: {:04d}\n",
-                    info_res->uid, info_res->gid, info_res->pid)
-     << fmt::format("  PPID: {:04d} PGRP: {:04d} SID: {:04d}\n",
-                    info_res->ppid, info_res->pgrp, info_res->sid)
-     << fmt::format("  Flag: 0x{:04x} Nice: {} Zombie: {}\n",
-                    info_res->flag, info_res->nice, info_res->zombie)
-     << fmt::format("  State: 0x{:x} State Name: {}\n",
-                    info_res->state, info_res->sname);
+  os << fmt::format("  Path: {} (args: {})\n", info_res->filename_stripped(),
+                    info_res->args_stripped())
+     << fmt::format("  UID: {:04d} GID: {:04d} PID: {:04d}\n", info_res->uid,
+                    info_res->gid, info_res->pid)
+     << fmt::format("  PPID: {:04d} PGRP: {:04d} SID: {:04d}\n", info_res->ppid,
+                    info_res->pgrp, info_res->sid)
+     << fmt::format("  Flag: {:#06x} Nice: {} Zombie: {}\n", info_res->flag,
+                    info_res->nice, info_res->zombie)
+     << fmt::format("  State: {:#x} State Name: {}\n", info_res->state,
+                    info_res->sname);
 }
 
-} // namespace ELF
-} // namespace LIEF
+} // namespace LIEF::ELF

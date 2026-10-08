@@ -36,6 +36,14 @@ function genMemoryGrowBuilder() {
       .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32StoreMem8, 0, 0,
                 kExprLocalGet, 1])
       .exportFunc();
+  builder.addFunction("load_with_page_offset", kSig_i_i)
+      .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0,
+                ...wasmUnsignedLeb(kPageSize)])
+      .exportFunc();
+  builder.addFunction("store_with_page_offset", kSig_i_ii)
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32StoreMem, 0,
+                ...wasmUnsignedLeb(kPageSize), kExprLocalGet, 1])
+      .exportFunc();
   return builder;
 }
 
@@ -54,6 +62,8 @@ function testMemoryGrowReadWriteBase(size, load_fn, store_fn) {
   function peek() { return load(offset); }
   function poke(value) { return store(offset, value); }
   function growMem(pages) { return module.exports.grow_memory(pages); }
+  var load_with_page_offset = module.exports["load_with_page_offset"];
+  var store_with_page_offset = module.exports["store_with_page_offset"];
 
   // Instead of checking every n-th offset, check the first 5.
   for(offset = 0; offset <= (4*size); offset+=size) {
@@ -65,7 +75,18 @@ function testMemoryGrowReadWriteBase(size, load_fn, store_fn) {
     assertTraps(kTrapMemOutOfBounds, peek);
   }
 
+  assertTraps(kTrapMemOutOfBounds, () => load_with_page_offset(0));
+  assertTraps(kTrapMemOutOfBounds, () => store_with_page_offset(0, 42));
   assertEquals(1, growMem(3));
+  // After the previous check we know that the size of the memory is 4 Wasm
+  // pages, so given the offset, the following accesses operate around the end
+  // of the memory.
+  assertTraps(kTrapMemOutOfBounds, () =>
+    load_with_page_offset(3 * kPageSize - 3));
+  assertTraps(kTrapMemOutOfBounds, () =>
+    store_with_page_offset(3 * kPageSize - 3, 42));
+  store_with_page_offset(3 * kPageSize - 4, 42);
+  assertEquals(42, load_with_page_offset(3 * kPageSize - 4));
 
   for (let n = 1; n <= 3; n++) {
     for (offset = n * kPageSize - 5 * size; offset <= n * kPageSize + 4 * size;

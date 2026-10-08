@@ -17,12 +17,16 @@
 #include <stddef.h>
 
 #include <cassert>
+#include <cstdint>
 #include <iomanip>
+#include <ios>
+#include <limits>
 #include <ostream>  // NOLINT(readability/streams)
 #include <sstream>
 #include <string>
 #include <type_traits>
 
+#include "absl/base/attributes.h"
 #include "absl/base/optimization.h"
 #include "absl/numeric/bits.h"
 
@@ -90,7 +94,7 @@ inline void DivModImpl(uint128 dividend, uint128 divisor, uint128* quotient_ret,
 
 template <typename T>
 uint128 MakeUint128FromFloat(T v) {
-  static_assert(std::is_floating_point<T>::value, "");
+  static_assert(std::is_floating_point_v<T>);
 
   // Rounding behavior is towards zero, same as for built-in types.
 
@@ -114,8 +118,8 @@ uint128 MakeUint128FromFloat(T v) {
 // It is more work, so only use when we need the workaround.
 uint128 MakeUint128FromFloat(long double v) {
   // Go 50 bits at a time, that fits in a double
-  static_assert(std::numeric_limits<double>::digits >= 50, "");
-  static_assert(std::numeric_limits<long double>::digits <= 150, "");
+  static_assert(std::numeric_limits<double>::digits >= 50);
+  static_assert(std::numeric_limits<long double>::digits <= 150);
   // Undefined behavior if v is not finite or cannot fit into uint128.
   assert(std::isfinite(v) && v > -1 && v < std::ldexp(1.0L, 128));
 

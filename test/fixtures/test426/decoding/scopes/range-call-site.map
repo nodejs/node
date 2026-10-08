@@ -10,5 +10,6 @@
     "inlineMe",
     "function"
   ],
-  "scopes": "BCAAA,BHBACE,CEA,CFA,ECAA,EDBAC,IAGC,FK,FJA"
+  "scopes": ["BCAAA,BHBACE,CEA,CFA"],
+  "ranges": ["ECAAA,EDBAAC,IAGC,FK,FJA"]
 }

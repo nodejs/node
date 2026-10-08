@@ -199,7 +199,7 @@ void DateCache::BreakDownTime(int64_t time_ms, int* year, int* month, int* day,
 }
 
 // Implements LocalTimeZonedjustment(t, isUTC)
-// ECMA 262 - ES#sec-local-time-zone-adjustment
+// ECMA 262 - https://tc39.es/ecma262/#sec-local-time-zone-adjustment
 int DateCache::GetLocalOffsetFromOS(int64_t time_ms, bool is_utc) {
   double offset;
 #ifdef V8_INTL_SUPPORT

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,16 +21,15 @@
 #include "LIEF/MachO/BindingInfo.hpp"
 #include "LIEF/MachO/DylibCommand.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 BindingInfo::BindingInfo(const BindingInfo& other) :
   Object{other},
   library_ordinal_{other.library_ordinal_},
   addend_{other.addend_},
   is_weak_import_{other.is_weak_import_},
-  address_{other.address_}
-{}
+  address_{other.address_} {}
 
 
 BindingInfo& BindingInfo::operator=(const BindingInfo& other) {
@@ -46,13 +45,13 @@ BindingInfo& BindingInfo::operator=(const BindingInfo& other) {
 }
 
 void BindingInfo::swap(BindingInfo& other) noexcept {
-  std::swap(segment_,         other.segment_);
-  std::swap(symbol_,          other.symbol_);
+  std::swap(segment_, other.segment_);
+  std::swap(symbol_, other.symbol_);
   std::swap(library_ordinal_, other.library_ordinal_);
-  std::swap(addend_,          other.addend_);
-  std::swap(is_weak_import_,  other.is_weak_import_);
-  std::swap(library_,         other.library_);
-  std::swap(address_,         other.address_);
+  std::swap(addend_, other.addend_);
+  std::swap(is_weak_import_, other.is_weak_import_);
+  std::swap(library_, other.library_);
+  std::swap(address_, other.address_);
 }
 
 void BindingInfo::accept(Visitor& visitor) const {
@@ -60,8 +59,8 @@ void BindingInfo::accept(Visitor& visitor) const {
 }
 
 std::ostream& operator<<(std::ostream& os, const BindingInfo& info) {
-  os << fmt::format("address=0x{:08x}, addend=0x{:x}",
-                    info.address(), info.addend());
+  os << fmt::format("address={:#010x}, addend={:#x}", info.address(),
+                    info.addend());
   if (const Symbol* sym = info.symbol()) {
     os << fmt::format("  symbol={}", sym->name());
   }
@@ -74,5 +73,4 @@ std::ostream& operator<<(std::ostream& os, const BindingInfo& info) {
   return os;
 }
 
-}
 }

@@ -1,6 +1,8 @@
 # Copyright 2018 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+#
+# Generated file. DO NOT EDIT.
 
 import("//third_party/abseil-cpp/absl.gni")
 
@@ -17,6 +19,10 @@ absl_source_set("random") {
 }
 
 absl_source_set("distributions") {
+  sources = [
+    "discrete_distribution.cc",
+    "gaussian_distribution.cc",
+  ]
   public = [
     "bernoulli_distribution.h",
     "beta_distribution.h",
@@ -29,10 +35,6 @@ absl_source_set("distributions") {
     "uniform_int_distribution.h",
     "uniform_real_distribution.h",
     "zipf_distribution.h",
-  ]
-  sources = [
-    "discrete_distribution.cc",
-    "gaussian_distribution.cc",
   ]
   deps = [
     "//third_party/abseil-cpp/absl/base:base_internal",
@@ -52,8 +54,8 @@ absl_source_set("distributions") {
 }
 
 absl_source_set("seed_gen_exception") {
-  public = [ "seed_gen_exception.h" ]
   sources = [ "seed_gen_exception.cc" ]
+  public = [ "seed_gen_exception.h" ]
   deps = [
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:raw_logging_internal",
@@ -61,8 +63,8 @@ absl_source_set("seed_gen_exception") {
 }
 
 absl_source_set("seed_sequences") {
-  public = [ "seed_sequences.h" ]
   sources = [ "seed_sequences.cc" ]
+  public = [ "seed_sequences.h" ]
   deps = [
     ":seed_gen_exception",
     "//third_party/abseil-cpp/absl/base:config",
@@ -78,13 +80,14 @@ absl_source_set("seed_sequences") {
 absl_source_set("bit_gen_ref") {
   public = [ "bit_gen_ref.h" ]
   deps = [
+    ":mocking_access",
     ":random",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:fast_type_id",
     "//third_party/abseil-cpp/absl/meta:type_traits",
-    "//third_party/abseil-cpp/absl/random/internal:distribution_caller",
     "//third_party/abseil-cpp/absl/random/internal:fast_uniform_bits",
+    "//third_party/abseil-cpp/absl/random/internal:traits",
   ]
 }
 
@@ -104,6 +107,7 @@ absl_source_set("mocking_bit_gen") {
   testonly = true
   public = [ "mocking_bit_gen.h" ]
   deps = [
+    ":mocking_access",
     ":random",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:fast_type_id",
@@ -111,7 +115,42 @@ absl_source_set("mocking_bit_gen") {
     "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/random/internal:mock_helpers",
     "//third_party/abseil-cpp/absl/utility",
+    "//third_party/googletest:gmock",
     "//third_party/googletest:gtest",
+  ]
+}
+
+absl_source_set("mocking_access") {
+  public = [ "mocking_access.h" ]
+  deps = [
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:fast_type_id",
+    "//third_party/abseil-cpp/absl/meta:type_traits",
+  ]
+}
+
+absl_test("bernoulli_distribution_test") {
+  sources = [ "bernoulli_distribution_test.cc" ]
+  deps = [
+    ":distributions",
+    ":random",
+    "//third_party/abseil-cpp/absl/random/internal:pcg_engine",
+    "//third_party/abseil-cpp/absl/random/internal:sequence_urbg",
+  ]
+}
+
+absl_test("beta_distribution_test") {
+  sources = [ "beta_distribution_test.cc" ]
+  deps = [
+    ":distributions",
+    ":random",
+    "//third_party/abseil-cpp/absl/log",
+    "//third_party/abseil-cpp/absl/numeric:representation",
+    "//third_party/abseil-cpp/absl/random/internal:distribution_test_util",
+    "//third_party/abseil-cpp/absl/random/internal:pcg_engine",
+    "//third_party/abseil-cpp/absl/random/internal:sequence_urbg",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:str_format",
   ]
 }
 
@@ -126,6 +165,154 @@ absl_test("distributions_test") {
   ]
 }
 
+absl_test("generators_test") {
+  sources = [ "generators_test.cc" ]
+  deps = [
+    ":distributions",
+    ":random",
+    "//third_party/abseil-cpp/absl/numeric:int128",
+  ]
+}
+
+absl_test("log_uniform_int_distribution_test") {
+  sources = [ "log_uniform_int_distribution_test.cc" ]
+  deps = [
+    ":distributions",
+    ":random",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/log",
+    "//third_party/abseil-cpp/absl/random/internal:distribution_test_util",
+    "//third_party/abseil-cpp/absl/random/internal:pcg_engine",
+    "//third_party/abseil-cpp/absl/random/internal:sequence_urbg",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:str_format",
+  ]
+}
+
+absl_test("discrete_distribution_test") {
+  sources = [ "discrete_distribution_test.cc" ]
+  deps = [
+    ":distributions",
+    ":random",
+    "//third_party/abseil-cpp/absl/log",
+    "//third_party/abseil-cpp/absl/random/internal:distribution_test_util",
+    "//third_party/abseil-cpp/absl/random/internal:pcg_engine",
+    "//third_party/abseil-cpp/absl/random/internal:sequence_urbg",
+    "//third_party/abseil-cpp/absl/strings",
+  ]
+}
+
+absl_test("poisson_distribution_test") {
+  sources = [ "poisson_distribution_test.cc" ]
+  deps = [
+    ":distributions",
+    ":random",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/container:flat_hash_map",
+    "//third_party/abseil-cpp/absl/log",
+    "//third_party/abseil-cpp/absl/random/internal:distribution_test_util",
+    "//third_party/abseil-cpp/absl/random/internal:pcg_engine",
+    "//third_party/abseil-cpp/absl/random/internal:sequence_urbg",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:str_format",
+  ]
+}
+
+absl_test("exponential_distribution_test") {
+  sources = [ "exponential_distribution_test.cc" ]
+  deps = [
+    ":distributions",
+    ":random",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/log",
+    "//third_party/abseil-cpp/absl/numeric:representation",
+    "//third_party/abseil-cpp/absl/random/internal:distribution_test_util",
+    "//third_party/abseil-cpp/absl/random/internal:pcg_engine",
+    "//third_party/abseil-cpp/absl/random/internal:sequence_urbg",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:str_format",
+  ]
+}
+
+absl_test("gaussian_distribution_test") {
+  sources = [ "gaussian_distribution_test.cc" ]
+  deps = [
+    ":distributions",
+    ":random",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/log",
+    "//third_party/abseil-cpp/absl/numeric:representation",
+    "//third_party/abseil-cpp/absl/random/internal:distribution_test_util",
+    "//third_party/abseil-cpp/absl/random/internal:sequence_urbg",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:str_format",
+  ]
+}
+
+absl_test("uniform_int_distribution_test") {
+  sources = [ "uniform_int_distribution_test.cc" ]
+  deps = [
+    ":distributions",
+    ":random",
+    "//third_party/abseil-cpp/absl/log",
+    "//third_party/abseil-cpp/absl/random/internal:distribution_test_util",
+    "//third_party/abseil-cpp/absl/random/internal:pcg_engine",
+    "//third_party/abseil-cpp/absl/random/internal:sequence_urbg",
+    "//third_party/abseil-cpp/absl/strings",
+  ]
+}
+
+absl_test("uniform_real_distribution_test") {
+  sources = [ "uniform_real_distribution_test.cc" ]
+  deps = [
+    ":distributions",
+    ":random",
+    "//third_party/abseil-cpp/absl/log",
+    "//third_party/abseil-cpp/absl/numeric:representation",
+    "//third_party/abseil-cpp/absl/random/internal:distribution_test_util",
+    "//third_party/abseil-cpp/absl/random/internal:pcg_engine",
+    "//third_party/abseil-cpp/absl/random/internal:sequence_urbg",
+    "//third_party/abseil-cpp/absl/strings",
+  ]
+  if (is_ios) {
+    sources = []
+  }
+}
+
+absl_test("zipf_distribution_test") {
+  sources = [ "zipf_distribution_test.cc" ]
+  deps = [
+    ":distributions",
+    ":random",
+    "//third_party/abseil-cpp/absl/log",
+    "//third_party/abseil-cpp/absl/random/internal:distribution_test_util",
+    "//third_party/abseil-cpp/absl/random/internal:pcg_engine",
+    "//third_party/abseil-cpp/absl/random/internal:sequence_urbg",
+    "//third_party/abseil-cpp/absl/strings",
+  ]
+}
+
+absl_test("bit_gen_ref_test") {
+  sources = [ "bit_gen_ref_test.cc" ]
+  deps = [
+    ":bit_gen_ref",
+    ":random",
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:fast_type_id",
+    "//third_party/abseil-cpp/absl/random/internal:sequence_urbg",
+  ]
+}
+
+absl_test("mocking_bit_gen_test") {
+  sources = [ "mocking_bit_gen_test.cc" ]
+  deps = [
+    ":bit_gen_ref",
+    ":mock_distributions",
+    ":mocking_bit_gen",
+    ":random",
+  ]
+}
+
 absl_test("mock_distributions_test") {
   sources = [ "mock_distributions_test.cc" ]
   deps = [
@@ -134,5 +321,19 @@ absl_test("mock_distributions_test") {
     ":mocking_bit_gen",
     ":random",
     "//third_party/abseil-cpp/absl/numeric:int128",
+  ]
+}
+
+absl_test("examples_test") {
+  sources = [ "examples_test.cc" ]
+  deps = [ ":random" ]
+}
+
+absl_test("seed_sequences_test") {
+  sources = [ "seed_sequences_test.cc" ]
+  deps = [
+    ":random",
+    ":seed_sequences",
+    "//third_party/abseil-cpp/absl/random/internal:nonsecure_base",
   ]
 }

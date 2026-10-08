@@ -217,10 +217,10 @@ assert.doesNotMatch(
   assert.strictEqual(
     util.inspect(dv),
     'DataView {\n' +
-    '      [byteLength]: 0,\n' +
-    '      [byteOffset]: undefined,\n' +
-    '      [buffer]: ArrayBuffer { (detached), [byteLength]: 0 }\n' +
-    '    }',
+    '  [byteLength]: 0,\n' +
+    '  [byteOffset]: undefined,\n' +
+    '  [buffer]: ArrayBuffer { (detached), [byteLength]: 0 }\n' +
+    '}',
   );
 }
 
@@ -730,6 +730,53 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
   assert.strictEqual(
     util.inspect(custom2),
     '[TypeError: No own cause property]'
+  );
+
+  Error.stackTraceLimit = stackTraceLimit;
+}
+
+{
+  // The `error` and `suppressed` properties of a SuppressedError should be
+  // shown during inspection, same as `cause` and AggregateError's `errors`.
+  const { stackTraceLimit } = Error;
+  Error.stackTraceLimit = 0;
+
+  const disposeError = new Error('dispose error');
+  const bodyError = new Error('body error');
+  const suppressedError = new SuppressedError(
+    disposeError,
+    bodyError,
+    'An error was suppressed during disposal',
+  );
+
+  assert.strictEqual(
+    util.inspect(suppressedError),
+    '[SuppressedError: An error was suppressed during disposal] ' +
+    '{\n  [error]: [Error: dispose error],\n  [suppressed]: [Error: body error]\n}',
+  );
+
+  // Nested SuppressedErrors (multiple failed disposals) must recurse.
+  const outer = new SuppressedError(
+    new Error('second dispose error'),
+    suppressedError,
+    'outer',
+  );
+  assert.strictEqual(
+    util.inspect(outer),
+    '[SuppressedError: outer] {\n' +
+    '  [error]: [Error: second dispose error],\n' +
+    '  [suppressed]: [SuppressedError: An error was suppressed during disposal] {\n' +
+    '    [error]: [Error: dispose error],\n' +
+    '    [suppressed]: [Error: body error]\n' +
+    '  }\n' +
+    '}',
+  );
+
+  const custom = new Error('No own error/suppressed property');
+  Object.setPrototypeOf(custom, suppressedError);
+  assert.strictEqual(
+    util.inspect(custom),
+    '[SuppressedError: No own error/suppressed property]',
   );
 
   Error.stackTraceLimit = stackTraceLimit;
@@ -2658,7 +2705,7 @@ assert.strictEqual(
   );
 }
 
-// Property getter throwing an error with getters that throws recursivly.
+// Property getter throwing an error with getters that throws recursively.
 {
   const recursivelyThrowingErrorDesc = {
     __proto__: null,

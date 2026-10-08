@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -58,7 +58,14 @@ static X509_EXTENSION *X509V3_EXT_nconf_int(CONF *conf, X509V3_CTX *ctx,
 X509_EXTENSION *X509V3_EXT_nconf(CONF *conf, X509V3_CTX *ctx, const char *name,
     const char *value)
 {
-    return X509V3_EXT_nconf_int(conf, ctx, NULL, name, value);
+    X509V3_CTX tmpctx;
+
+    if (ctx == NULL) {
+        X509V3_set_ctx(&tmpctx, NULL, NULL, NULL, NULL, 0);
+        X509V3_set_nconf(&tmpctx, conf);
+    }
+
+    return X509V3_EXT_nconf_int(conf, ctx ? ctx : &tmpctx, NULL, name, value);
 }
 
 X509_EXTENSION *X509V3_EXT_nconf_nid(CONF *conf, X509V3_CTX *ctx, int ext_nid,
@@ -66,12 +73,18 @@ X509_EXTENSION *X509V3_EXT_nconf_nid(CONF *conf, X509V3_CTX *ctx, int ext_nid,
 {
     int crit;
     int ext_type;
+    X509V3_CTX tmpctx;
+
+    if (ctx == NULL) {
+        X509V3_set_ctx(&tmpctx, NULL, NULL, NULL, NULL, 0);
+        X509V3_set_nconf(&tmpctx, conf);
+    }
 
     crit = v3_check_critical(&value);
     if ((ext_type = v3_check_generic(&value)))
         return v3_generic_extension(OBJ_nid2sn(ext_nid),
-            value, crit, ext_type, ctx);
-    return do_ext_nconf(conf, ctx, ext_nid, crit, value);
+            value, crit, ext_type, ctx ? ctx : &tmpctx);
+    return do_ext_nconf(conf, ctx ? ctx : &tmpctx, ext_nid, crit, value);
 }
 
 /* CONF *conf:  Config file    */
@@ -313,6 +326,13 @@ int X509V3_EXT_add_nconf_sk(CONF *conf, X509V3_CTX *ctx, const char *section,
     STACK_OF(CONF_VALUE) *nval;
     const CONF_VALUE *val;
     int i, akid = -1, skid = -1;
+    X509V3_CTX tmpctx;
+
+    if (ctx == NULL) {
+        X509V3_set_ctx(&tmpctx, NULL, NULL, NULL, NULL, 0);
+        X509V3_set_nconf(&tmpctx, conf);
+        ctx = &tmpctx;
+    }
 
     if ((nval = NCONF_get_section(conf, section)) == NULL)
         return 0;

@@ -11,7 +11,7 @@
 //!  * [`Unicode Extensions`] - marked as `u`.
 //!  * [`Transform Extensions`] - marked as `t`.
 //!  * [`Private Use Extensions`] - marked as `x`.
-//!  * [`Other Extensions`] - marked as any `a-z` except of `u`, `t` and `x`.
+//!  * [`Other Extensions`] - marked as any `a-z` or `0-9` except `u`, `t`, and `x`.
 //!
 //! One can think of extensions as a bag of extra information on top of basic 4 [`subtags`].
 //!
@@ -20,8 +20,8 @@
 //! # Examples
 //!
 //! ```
-//! use icu::locale::extensions::unicode::{Key, Value};
 //! use icu::locale::Locale;
+//! use icu::locale::extensions::unicode::{Key, Value};
 //!
 //! let loc: Locale = "en-US-u-ca-buddhist-t-en-us-h0-hybrid-x-foo"
 //!     .parse()
@@ -60,9 +60,9 @@ pub mod unicode;
 use core::cmp::Ordering;
 
 use other::Other;
-use private::{Private, PRIVATE_EXT_CHAR};
-use transform::{Transform, TRANSFORM_EXT_CHAR};
-use unicode::{Unicode, UNICODE_EXT_CHAR};
+use private::{PRIVATE_EXT_CHAR, Private};
+use transform::{TRANSFORM_EXT_CHAR, Transform};
+use unicode::{UNICODE_EXT_CHAR, Unicode};
 
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
@@ -102,7 +102,7 @@ impl ExtensionType {
             UNICODE_EXT_CHAR => Ok(Self::Unicode),
             TRANSFORM_EXT_CHAR => Ok(Self::Transform),
             PRIVATE_EXT_CHAR => Ok(Self::Private),
-            'a'..='z' => Ok(Self::Other(key)),
+            'a'..='z' | '0'..='9' => Ok(Self::Other(key)),
             _ => Err(ParseError::InvalidExtension),
         }
     }
@@ -237,8 +237,8 @@ impl Extensions {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::extensions::ExtensionType;
     /// use icu::locale::Locale;
+    /// use icu::locale::extensions::ExtensionType;
     ///
     /// let loc: Locale =
     ///     "und-a-hello-t-mul-u-world-z-zzz-x-extra".parse().unwrap();
@@ -396,5 +396,13 @@ fn test_writeable() {
             .unwrap()
             .extensions,
         "a-foo-t-foo-u-foo-w-foo-z-foo-x-foo",
+    );
+    assert_writeable_eq!(
+        "en-1-ext-value".parse::<Locale>().unwrap().extensions,
+        "1-ext-value",
+    );
+    assert_writeable_eq!(
+        "und-a-foo-1-bar".parse::<Locale>().unwrap().extensions,
+        "1-bar-a-foo",
     );
 }

@@ -82,5 +82,19 @@ declare_args() {
   node_use_amaro = true
 }
 
+# Link against shared copies of the bundled dependencies instead of building
+# them, like configure's --shared-* options. The libraries are looked up with
+# pkg-config, so these are meant for Linux distribution builds.
+declare_args() {
+  node_shared_brotli = false
+  node_shared_cares = false
+  node_shared_hdr_histogram = false
+  node_shared_http_parser = false
+  node_shared_libuv = false
+  node_shared_nghttp2 = false
+  node_shared_sqlite = false
+  node_shared_zstd = false
+}
+
 assert(!node_enable_inspector || node_use_openssl,
        "node_enable_inspector requires node_use_openssl")

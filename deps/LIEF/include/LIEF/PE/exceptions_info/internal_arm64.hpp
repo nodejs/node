@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,8 +78,7 @@ struct arm64_unpacked_t {
   }
 
   uint16_t epilog_count() const {
-    return is_extended() ? (data[1] & 0x0000ffff) :
-                           (data[0] & 0x07C00000) >> 22;
+    return is_extended() ? (data[1] & 0x0000ffff) : (data[0] & 0x07C00000) >> 22;
   }
 
   uint8_t code_words() const {

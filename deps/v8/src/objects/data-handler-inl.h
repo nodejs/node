@@ -8,7 +8,7 @@
 #include "src/objects/data-handler.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/objects/map.h"
+#include "src/objects/map-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/tagged-field-inl.h"
 
@@ -17,8 +17,6 @@
 
 namespace v8 {
 namespace internal {
-
-#include "torque-generated/src/objects/data-handler-tq-inl.inc"
 
 // static
 constexpr int DataHandler::OffsetOf(int index) {
@@ -55,9 +53,11 @@ inline int DataHandler::data_field_count() const {
          sizeof(data()[0]);
 }
 
+// Relaxed loads are used since background compilers may read these fields
+// concurrently.
 inline Tagged<MaybeObject> DataHandler::data1() const {
   DCHECK_GT(data_field_count(), 0);
-  return data()[0].load();
+  return data()[0].Relaxed_Load();
 }
 inline void DataHandler::set_data1(Tagged<MaybeObject> value,
                                    WriteBarrierMode mode) {
@@ -67,7 +67,7 @@ inline void DataHandler::set_data1(Tagged<MaybeObject> value,
 
 inline Tagged<MaybeObject> DataHandler::data2() const {
   DCHECK_GT(data_field_count(), 1);
-  return data()[1].load();
+  return data()[1].Relaxed_Load();
 }
 inline void DataHandler::set_data2(Tagged<MaybeObject> value,
                                    WriteBarrierMode mode) {
@@ -77,12 +77,32 @@ inline void DataHandler::set_data2(Tagged<MaybeObject> value,
 
 inline Tagged<MaybeObject> DataHandler::data3() const {
   DCHECK_GT(data_field_count(), 2);
-  return data()[2].load();
+  return data()[2].Relaxed_Load();
 }
 inline void DataHandler::set_data3(Tagged<MaybeObject> value,
                                    WriteBarrierMode mode) {
   DCHECK_GT(data_field_count(), 2);
   data()[2].store(this, value, mode);
+}
+
+inline Tagged<MaybeObject> DataHandler::data4() const {
+  DCHECK_GT(data_field_count(), 3);
+  return data()[3].Relaxed_Load();
+}
+inline void DataHandler::set_data4(Tagged<MaybeObject> value,
+                                   WriteBarrierMode mode) {
+  DCHECK_GT(data_field_count(), 3);
+  data()[3].store(this, value, mode);
+}
+
+inline Tagged<MaybeObject> DataHandler::data5() const {
+  DCHECK_GT(data_field_count(), 4);
+  return data()[4].Relaxed_Load();
+}
+inline void DataHandler::set_data5(Tagged<MaybeObject> value,
+                                   WriteBarrierMode mode) {
+  DCHECK_GT(data_field_count(), 4);
+  data()[4].store(this, value, mode);
 }
 
 }  // namespace internal

@@ -54,21 +54,25 @@ if (!hasOpenSSL(3, 5) && !isBoringSSL) {
   skip(
     'encap_decap/encap_decap_bits.tentative.https.any.js',
     'encap_decap/encap_decap_keys.tentative.https.any.js',
+    'generateKey/failures_Hybrid-KEM.tentative.https.any.js',
     'generateKey/failures_ML-DSA.tentative.https.any.js',
     'generateKey/failures_ML-KEM.tentative.https.any.js',
+    'generateKey/successes_Hybrid-KEM.tentative.https.any.js',
     'generateKey/successes_ML-DSA.tentative.https.any.js',
     'generateKey/successes_ML-KEM.tentative.https.any.js',
+    'import_export/Hybrid-KEM_importKey.tentative.https.any.js',
     'import_export/ML-DSA_importKey.tentative.https.any.js',
     'import_export/ML-KEM_importKey.tentative.https.any.js',
+    'serialization/hybridkem.tentative.https.window.js',
     'serialization/mldsa.tentative.https.any.js',
     'serialization/mlkem.tentative.https.any.js',
     'sign_verify/mldsa.tentative.https.any.js');
 
   skipSubtests(
-    ['getPublicKey.tentative.https.any.js', /ml-(?:kem|dsa)/i],
+    ['getPublicKey.tentative.https.any.js', /ml-?(?:kem|dsa)/i],
     [
       'supports-modern.tentative.https.any.js',
-      /(?:ml-(?:kem|dsa)|(?:en|de)capsulateKey)/i,
+      /(?:ml-?(?:kem|dsa)|(?:en|de)capsulateKey)/i,
     ]);
 }
 
@@ -79,35 +83,43 @@ if (isBoringSSL) {
     'digest/cshake.tentative.https.any.js',
     'digest/sha3.tentative.https.any.js',
     'generateKey/failures_Ed448.tentative.https.any.js',
+    'generateKey/failures_Hybrid-KEM.tentative.https.any.js',
     'generateKey/failures_X448.tentative.https.any.js',
     'generateKey/successes_Ed448.tentative.https.any.js',
+    'generateKey/successes_Hybrid-KEM.tentative.https.any.js',
     'generateKey/successes_X448.tentative.https.any.js',
+    'import_export/Hybrid-KEM_importKey.tentative.https.any.js',
     'import_export/okp_importKey_Ed448.tentative.https.any.js',
     'import_export/okp_importKey_failures_Ed448.tentative.https.any.js',
     'import_export/okp_importKey_failures_X448.tentative.https.any.js',
     'import_export/okp_importKey_X448.tentative.https.any.js',
     'serialization/ed448.tentative.https.any.js',
+    'serialization/hybridkem.tentative.https.window.js',
     'serialization/x448.tentative.https.any.js',
     'sign_verify/eddsa_curve448.tentative.https.any.js');
 
   skipSubtests(
-    ['encap_decap/encap_decap_bits.tentative.https.any.js', /ml-kem-512/i],
-    ['encap_decap/encap_decap_keys.tentative.https.any.js', /ml-kem-512/i],
+    ['encap_decap/encap_decap_bits.tentative.https.any.js', /(?:ml-kem-512|mlkem)/i],
+    ['encap_decap/encap_decap_keys.tentative.https.any.js', /(?:ml-kem-512|mlkem)/i],
     ['generateKey/failures_ML-KEM.tentative.https.any.js', /ml-kem-512/i],
     ['generateKey/successes_ML-KEM.tentative.https.any.js', /ml-kem-512/i],
-    ['getPublicKey.tentative.https.any.js', /(?:ed448|x448|ml-kem-512)/i],
+    ['getPublicKey.tentative.https.any.js', /(?:ed448|x448|ml-kem-512|mlkem)/i],
     ['import_export/ML-KEM_importKey.tentative.https.any.js', /ml-kem-512/i],
     ['serialization/mlkem.tentative.https.any.js', /ml-kem-512/i],
-    ['supports-modern.tentative.https.any.js', /ml-kem-512/i]);
+    ['supports-modern.tentative.https.any.js', /(?:ml-kem-512|mlkem)/i]);
 }
 
 if (hasFIPS(3)) {
   skip(
     'encrypt_decrypt/aes_ocb.tentative.https.any.js',
     'encrypt_decrypt/chacha20_poly1305.tentative.https.any.js',
+    'generateKey/failures_AES-OCB.tentative.https.any.js',
     'generateKey/failures_chacha20_poly1305.tentative.https.any.js',
+    'generateKey/successes_AES-OCB.tentative.https.any.js',
     'generateKey/successes_chacha20_poly1305.tentative.https.any.js',
+    'import_export/AES-OCB_importKey.tentative.https.any.js',
     'import_export/ChaCha20-Poly1305_importKey.tentative.https.any.js',
+    'serialization/aes-ocb.tentative.https.any.js',
     'serialization/chacha20-poly1305.tentative.https.any.js');
 
   skipSubtests(
@@ -144,12 +156,18 @@ if (hasFIPS(3, 5)) {
     'derive_bits_keys/cfrg_curves_bits_curve448.tentative.https.any.js',
     'derive_bits_keys/cfrg_curves_keys_curve25519.https.any.js',
     'derive_bits_keys/cfrg_curves_keys_curve448.tentative.https.any.js',
+    'generateKey/failures_Hybrid-KEM.tentative.https.any.js',
+    'generateKey/failures_X25519.https.any.js',
+    'generateKey/failures_X448.tentative.https.any.js',
+    'generateKey/successes_Hybrid-KEM.tentative.https.any.js',
     'generateKey/successes_X25519.https.any.js',
     'generateKey/successes_X448.tentative.https.any.js',
+    'import_export/Hybrid-KEM_importKey.tentative.https.any.js',
     'import_export/okp_importKey_X25519.https.any.js',
     'import_export/okp_importKey_X448.tentative.https.any.js',
     'import_export/okp_importKey_failures_X25519.https.any.js',
     'import_export/okp_importKey_failures_X448.tentative.https.any.js',
+    'serialization/hybridkem.tentative.https.window.js',
     'serialization/x25519.https.any.js',
     'serialization/x448.tentative.https.any.js');
 
@@ -158,11 +176,14 @@ if (hasFIPS(3, 5)) {
       'derive_bits_keys/derived_bits_length.https.any.js',
       /^X25519 derivation/,
     ],
-    ['getPublicKey.tentative.https.any.js', /(?:X25519|X448)/],
+    ['encap_decap/encap_decap_bits.tentative.https.any.js', /mlkem/i],
+    ['encap_decap/encap_decap_keys.tentative.https.any.js', /mlkem/i],
+    ['getPublicKey.tentative.https.any.js', /(?:X25519|X448|MLKEM)/],
     [
       'import_export/raw_format_aliases.tentative.https.any.js',
       /(?:X25519|X448)/,
     ],
+    ['supports-modern.tentative.https.any.js', /mlkem/i],
     [
       'supports.tentative.https.any.js',
       /(?:X25519|^deriveKey promise tests|^supports validates the ECDH public key$)/,
@@ -171,6 +192,47 @@ if (hasFIPS(3, 5)) {
       'wrapKey_unwrapKey/wrapKey_unwrapKey.https.any.js',
       /(?=.*(?:X25519|X448))(?=.*(?:jwk|as non-extractable using pkcs8))/,
     ]);
+}
+
+if (process.env.WPT_REPORT === undefined) {
+  // Keep the full matrix in both globals when producing a WPT report. Regular
+  // CI runs these expensive suites in the window global only.
+  conditionalFileSkips['derive_bits_keys/pbkdf2.https.any.worker.html'] = {
+    'skip': 'Expensive worker matrix runs with WPT_REPORT',
+  };
+
+  // Retain one 100000-iteration deriveKey per PBKDF2 vector; deriveBits still
+  // checks every password, salt, and hash, and cheaper vectors cover all
+  // derived key types.
+  skipSubtests([
+    'derive_bits_keys/pbkdf2.https.any.html',
+    /^Derived key of type (?!name: AES-CBC length: 256\s+using\b).* using .*, SHA-(?:1|256|384|512), with 100000 iterations$/,
+  ]);
+
+  // RSA name variants are grouped in the order uppercase, lowercase, mixed.
+  // Keep the uppercase group and skip variants containing only the other two.
+  for (const [name, firstSkipped, last] of [
+    ['RSA-PSS', 21, 31],
+    ['RSASSA-PKCS1-v1_5', 21, 31],
+    ['RSA-OAEP', 61, 151],
+  ]) {
+    conditionalFileSkips[`generateKey/successes_${name}.https.any.worker.html`] = {
+      'skip': 'Expensive worker matrix runs with WPT_REPORT',
+    };
+    const prefix = `generateKey/successes_${name}.https.any.html?`;
+    skipSubtests([
+      `${prefix}${firstSkipped - 10}-${firstSkipped - 1}`,
+      /name: rsa/,
+    ]);
+    for (let start = firstSkipped; start < last; start += 10) {
+      conditionalFileSkips[`${prefix}${start}-${start + 9}`] = {
+        'skip': 'Redundant RSA key generation in regular CI',
+      };
+    }
+    conditionalFileSkips[`${prefix}${last}-last`] = {
+      'skip': 'Redundant RSA key generation in regular CI',
+    };
+  }
 }
 
 if (hasFIPS(4)) {

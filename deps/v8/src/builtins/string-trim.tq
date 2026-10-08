@@ -148,7 +148,7 @@ transitioning macro StringTrim(
   }
 }
 
-// ES6 #sec-string.prototype.trim
+// https://tc39.es/ecma262/#sec-string.prototype.trim
 transitioning javascript builtin StringPrototypeTrim(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {

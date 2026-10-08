@@ -23,7 +23,9 @@
 #ifndef ABSL_STRINGS_ESCAPING_H_
 #define ABSL_STRINGS_ESCAPING_H_
 
+#include <cassert>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -82,7 +84,7 @@ inline bool CUnescape(absl::string_view source,
 
 // CEscape()
 //
-// Escapes a 'src' string using C-style escapes sequences
+// Escapes a `src` string using C-style escapes sequences
 // (https://en.cppreference.com/w/cpp/language/escape), escaping other
 // non-printable/non-whitespace bytes as octal sequences (e.g. "\377").
 //
@@ -95,7 +97,7 @@ std::string CEscape(absl::string_view src);
 
 // CHexEscape()
 //
-// Escapes a 'src' string using C-style escape sequences, escaping
+// Escapes a `src` string using C-style escape sequences, escaping
 // other non-printable/non-whitespace bytes as hexadecimal sequences (e.g.
 // "\xFF").
 //
@@ -108,7 +110,7 @@ std::string CHexEscape(absl::string_view src);
 
 // Utf8SafeCEscape()
 //
-// Escapes a 'src' string using C-style escape sequences, escaping bytes as
+// Escapes a `src` string using C-style escape sequences, escaping bytes as
 // octal sequences, and passing through UTF-8 characters without conversion.
 // I.e., when encountering any bytes with their high bit set, this function
 // will not escape those values, whether or not they are valid UTF-8.
@@ -116,26 +118,32 @@ std::string Utf8SafeCEscape(absl::string_view src);
 
 // Utf8SafeCHexEscape()
 //
-// Escapes a 'src' string using C-style escape sequences, escaping bytes as
+// Escapes a `src` string using C-style escape sequences, escaping bytes as
 // hexadecimal sequences, and passing through UTF-8 characters without
 // conversion.
 std::string Utf8SafeCHexEscape(absl::string_view src);
 
 // Base64Escape()
 //
-// Encodes a `src` string into a base64-encoded 'dest' string with padding
+// Encodes a `src` string into a base64-encoded `dest` string with padding
 // characters. This function conforms with RFC 4648 section 4 (base64) and RFC
 // 2045.
-void Base64Escape(absl::string_view src, std::string* absl_nonnull dest);
 std::string Base64Escape(absl::string_view src);
+ABSL_REFACTOR_INLINE inline void
+Base64Escape(absl::string_view src, std::string* absl_nonnull dest) {
+  *dest = Base64Escape(src);
+}
 
 // WebSafeBase64Escape()
 //
 // Encodes a `src` string into a base64 string, like Base64Escape() does, but
-// outputs '-' instead of '+' and '_' instead of '/', and does not pad 'dest'.
+// outputs '-' instead of '+' and '_' instead of '/', and does not pad `dest`.
 // This function conforms with RFC 4648 section 5 (base64url).
-void WebSafeBase64Escape(absl::string_view src, std::string* absl_nonnull dest);
 std::string WebSafeBase64Escape(absl::string_view src);
+ABSL_REFACTOR_INLINE inline void
+WebSafeBase64Escape(absl::string_view src, std::string* absl_nonnull dest) {
+  *dest = WebSafeBase64Escape(src);
+}
 
 // Base64Unescape()
 //
@@ -149,10 +157,11 @@ bool Base64Unescape(absl::string_view src, std::string* absl_nonnull dest);
 // WebSafeBase64Unescape()
 //
 // Converts a `src` string encoded in "web safe" Base64 (RFC 4648 section 5) to
-// its binary equivalent, writing it to a `dest` buffer. If `src` contains
-// invalid characters, `dest` is cleared and returns `false`. If padding is
-// included (note that `WebSafeBase64Escape()` does not produce it), it must be
-// correct. In the padding, '=' and '.' are treated identically.
+// its binary equivalent, writing it to a `dest` buffer, returning `true` on
+// success. If `src` contains invalid characters, `dest` is cleared and returns
+// `false`. If padding is included (note that `WebSafeBase64Escape()` does not
+// produce it), it must be correct. In the padding, '=' and '.' are treated
+// identically.
 bool WebSafeBase64Unescape(absl::string_view src,
                            std::string* absl_nonnull dest);
 
@@ -178,6 +187,74 @@ std::string HexStringToBytes(absl::string_view from);
 // Converts binary data into an ASCII text string, returning a string of size
 // `2*from.size()`.
 std::string BytesToHexString(absl::string_view from);
+
+// UrlEscape()
+//
+// Escapes a string so it can be safely used as a value in a URL component by
+// replacing all characters that are not "unreserved characters" with
+// percent-escapes. See https://tools.ietf.org/html/rfc3986
+//
+// Usage note: URLs use "reserved characters" (like ?, &, =, /) as structural
+// syntax. This function escapes these syntax characters. The correct use of
+// this function is to clean individual URL components *before* assembling them
+// into the final URL structure. Do not run it on a fully constructed URL, as
+// this will turn structural delimiters into URL component data.
+//
+// Example (encoding "gift for mom & dad" as a URL query parameter):
+//
+//   std::string url = absl::StrFormat("https://www.google.com/search?q=%s",
+//                                     absl::UrlEscape("gift for mom & dad"));
+//   assert(url ==
+//     "https://www.google.com/search?q=gift%20for%20mom%20%26%20dad");
+[[nodiscard]] std::string UrlEscape(absl::string_view input);
+
+// UrlUnescape()
+//
+// Performs the inverse transformation of UrlEscape(), converting each
+// percent-encoded sequence of the form "%AB" into the character with the
+// hexadecimal value 0xAB. It returns `std::nullopt` if any % is not followed by
+// two hexadecimal digits.
+//
+// UrlUnescape() is identical to UrlUnescapePlus() except that it does not
+// unescape '+' to ' '.
+[[nodiscard]] std::optional<std::string> UrlUnescape(absl::string_view input);
+
+// UrlEscapePlus()
+//
+// Escapes a string so it can be safely used as a value for
+// application/x-www-form-urlencoded (HTML form submissions).
+//
+// Historically web browsers have also used this form of escaping for query
+// parameters.
+//
+// UrlEscapePlus() differs from UrlEscape() in that space (' ') is encoded to
+// plus ("+") instead of "%20". According to the URI specification (RFC 3986),
+// the correct way to escape a space anywhere in a URL (including the query
+// string) is "%20". Using "%20" in a query parameter will work universally.
+//
+// Some strict URL parsers (especially outside of web browsers/web servers)
+// follow RFC 3986 strictly and will treat a literal '+' in the query string as
+// a literal plus sign, rather than decoding it to a space.
+//
+// Recommendation: Use UrlEscapePlus() only if you are specifically implementing
+// or interacting with a system that strictly expects
+// "application/x-www-form-urlencoded" formatting. For general URL construction,
+// UrlEscape() is the correct and safest choice.
+//
+// Example (encoding "gift for mom & dad" as a URL query parameter):
+//
+//   std::string url = absl::StrFormat("https://www.google.com/search?q=%s",
+//                                     absl::UrlEscapePlus(
+//                                         "gift for mom & dad"));
+//   assert(url == "https://www.google.com/search?q=gift+for+mom+%26+dad");
+[[nodiscard]] std::string UrlEscapePlus(absl::string_view input);
+
+// UrlUnescapePlus()
+//
+// Performs the inverse transformation of UrlEscapePlus(). It returns
+// `std::nullopt` if any % is not followed by two hexadecimal digits.
+[[nodiscard]] std::optional<std::string> UrlUnescapePlus(
+    absl::string_view input);
 
 ABSL_NAMESPACE_END
 }  // namespace absl

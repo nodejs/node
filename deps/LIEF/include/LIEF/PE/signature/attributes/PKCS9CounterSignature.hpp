@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,10 +24,12 @@ namespace LIEF {
 class VectorStream;
 namespace PE {
 
-/// Interface over the structure described by the OID ``1.2.840.113549.1.9.6`` (PKCS #9)
+/// Interface over the structure described by the OID ``1.2.840.113549.1.9.6``
+/// (PKCS #9)
 ///
 /// The internal structure is described in the
-/// [RFC #2985: PKCS #9 - Selected Object Classes and Attribute Types Version 2.0](https://tools.ietf.org/html/rfc2985)
+/// [RFC #2985: PKCS #9 - Selected Object Classes and Attribute Types
+/// Version 2.0](https://tools.ietf.org/html/rfc2985)
 ///
 /// ```text
 /// counterSignature ATTRIBUTE ::= {
@@ -44,8 +46,7 @@ class LIEF_API PKCS9CounterSignature : public Attribute {
   PKCS9CounterSignature() = delete;
   PKCS9CounterSignature(SignerInfo signer) :
     Attribute(Attribute::TYPE::PKCS9_COUNTER_SIGNATURE),
-    signer_{std::move(signer)}
-  {}
+    signer_{std::move(signer)} {}
 
   PKCS9CounterSignature(const PKCS9CounterSignature&) = default;
   PKCS9CounterSignature& operator=(const PKCS9CounterSignature&) = default;
@@ -55,8 +56,8 @@ class LIEF_API PKCS9CounterSignature : public Attribute {
   }
 
   /// SignerInfo as described in the RFC #2985
-  const SignerInfo& signer() const {
-    return this->signer_;
+  const SignerInfo& signer() const LIEF_LIFETIMEBOUND {
+    return signer_;
   }
 
   /// Print information about the attribute

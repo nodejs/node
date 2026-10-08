@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "include/v8-platform.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
@@ -15,6 +16,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope.h"
+#include "src/init/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -95,13 +97,19 @@ bool CollectionBarrier::TryRequestGC(RequestedGCKind kind) {
   if (shutdown_requested_) return false;
   auto already_requested = collection_request_.Set(kind);
 
+  // Each kind has its own timer, so start it even when a higher priority GC is
+  // already pending (in which case `already_requested` is true). Without
+  // starting it here, a thread requesting kMajor while kLastResort is already
+  // pending would leave major_timer_ unstarted and trip the timer CHECKs in
+  // AwaitCollectionBackground() / StopTimeToCollectionTimer().
+  auto& timer = GetTimerForCollectionRequest(kind);
+  if (!timer.IsStarted()) {
+    timer.Start();
+  }
+
   // The first thread that requests this kind of GC needs to activate the stack
   // guard and post the task.
   if (!already_requested) {
-    auto& timer = GetTimerForCollectionRequest(kind);
-    DCHECK(!timer.IsStarted());
-    timer.Start();
-
     Isolate* isolate = heap_->isolate();
     ExecutionAccess access(isolate);
     isolate->stack_guard()->RequestGC();
@@ -156,6 +164,12 @@ bool CollectionBarrier::AwaitCollectionBackground(LocalHeap* local_heap,
 
   bool collection_performed = false;
   local_heap->ExecuteWhileParked([this, &collection_performed, kind]() {
+    // Notify Chromium that this thread is about to block. This allows the
+    // ThreadPool to spawn a new thread to prevent starvation.
+    std::unique_ptr<v8::ScopedBlockingCall> scoped_blocking_call =
+        V8::GetCurrentPlatform()->CreateBlockingScope(
+            v8::BlockingType::kWillBlock);
+
     base::MutexGuard guard(&mutex_);
 
     while (collection_request_.Has(kind)) {
@@ -182,10 +196,9 @@ void CollectionBarrier::StopTimeToCollectionTimer(RequestedGCKind kind) {
     // initialized here already.
     CHECK(timer.IsStarted());
     base::TimeDelta delta = timer.Elapsed();
-    TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                         "V8.GC.TimeToCollectionOnBackground",
-                         TRACE_EVENT_SCOPE_THREAD, "duration",
-                         delta.InMillisecondsF(), "kind", kind);
+    TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                        "V8.GC.TimeToCollectionOnBackground", "duration",
+                        delta.InMillisecondsF(), "kind", kind);
     heap_->isolate()
         ->counters()
         ->gc_time_to_collection_on_background()

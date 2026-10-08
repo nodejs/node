@@ -188,6 +188,7 @@ jobs:
           # to be set here because `checkout` configures GitHub authentication
           # for push as well.
           token: ${{ secrets.GH_USER_TOKEN }}
+          persist-credentials: true
 
       - name: Start the Commit Queue
         if: steps.get_mergeable_prs.outputs.numbers != ''
@@ -195,6 +196,8 @@ jobs:
           git config --local user.email "github-bot@iojs.org"
           git config --local user.name "Node.js GitHub Bot"
           ncu-config set token "$GH_TOKEN"
-          ./tools/actions/commit-queue.sh ${{ steps.get_mergeable_prs.outputs.numbers }}
+          read -r -a numbers <<< "$PULL_REQUESTS"
+          ./tools/actions/commit-queue.sh "${numbers[@]}"
         env:
           GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          PULL_REQUESTS: ${{ steps.get_mergeable_prs.outputs.numbers }}

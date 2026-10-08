@@ -4,6 +4,8 @@ const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
 
+// V8's trace() builtin only accepts the begin, end and instant phases on a
+// perfetto build, so the nestable async phase used here throws a TypeError.
 common.skipIfPerfettoEnabled();
 
 const CODE = `

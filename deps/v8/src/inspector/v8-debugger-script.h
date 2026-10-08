@@ -30,7 +30,10 @@
 #ifndef V8_INSPECTOR_V8_DEBUGGER_SCRIPT_H_
 #define V8_INSPECTOR_V8_DEBUGGER_SCRIPT_H_
 
+#include <stdint.h>
+
 #include <memory>
+#include <vector>
 
 #include "include/v8-local-handle.h"
 #include "include/v8-maybe.h"
@@ -53,7 +56,7 @@ class V8DebuggerScript {
   enum class Language { JavaScript, WebAssembly };
 
   V8DebuggerScript(v8::Isolate* isolate, v8::Local<v8::debug::Script> script,
-                   bool isLiveEdit, V8DebuggerAgentImpl* agent,
+                   bool hadCompileError, V8DebuggerAgentImpl* agent,
                    V8InspectorClient* client);
   ~V8DebuggerScript() = default;
   V8DebuggerScript(const V8DebuggerScript&) = delete;
@@ -76,16 +79,13 @@ class V8DebuggerScript {
   int endColumn() const { return m_endColumn; }
   int codeOffset() const;
   int executionContextId() const { return m_executionContextId; }
-  bool isLiveEdit() const { return m_isLiveEdit; }
+  bool hadCompileError() const { return m_hadCompileError; }
   bool isModule() const { return m_isModule; }
   int length() const;
 
   void setSourceURL(const String16&);
   void setSourceMappingURL(const String16&);
   void setBuildId(const String16&);
-  void setSource(const String16& source, bool preview,
-                 bool allowTopFrameLiveEditing,
-                 v8::debug::LiveEditResult* result);
 
   bool getPossibleBreakpoints(const v8::debug::Location& start,
                               const v8::debug::Location& end,
@@ -103,7 +103,7 @@ class V8DebuggerScript {
   bool setInstrumentationBreakpoint(int* id) const;
 
 #if V8_ENABLE_WEBASSEMBLY
-  v8::Maybe<v8::MemorySpan<const uint8_t>> wasmBytecode() const;
+  v8::Maybe<std::vector<uint8_t>> getWasmBytecode(size_t max_size) const;
   std::vector<v8::debug::WasmScript::DebugSymbols> getDebugSymbols() const;
   void removeWasmBreakpoint(int id);
   void Disassemble(v8::debug::DisassemblyCollector* collector,
@@ -132,7 +132,7 @@ class V8DebuggerScript {
   String16 m_sourceMappingURL;
   mutable String16 m_buildId;
   Language m_language;
-  bool m_isLiveEdit = false;
+  bool m_hadCompileError = false;
   bool m_isModule = false;
   mutable String16 m_hash;
   int m_startLine = 0;

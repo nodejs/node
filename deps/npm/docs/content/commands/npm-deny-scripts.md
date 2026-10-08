@@ -20,10 +20,10 @@ Writes `false` entries into the `allowScripts` field of your project's
 `package.json`, recording that a dependency must not run install scripts
 even if a future version would otherwise be eligible.
 
-In the current release, install scripts still run by default, so `deny-scripts`
-only affects how installs of denied packages are reported. A future release
-will block unreviewed install scripts and respect deny entries at install
-time.
+Dependency install scripts are blocked by default. Adding a `false`
+entry with `deny-scripts` makes the denial explicit (so it survives
+`npm approve-scripts --all`) and excludes the package from any future
+`--allow-scripts-pending` review prompts.
 
 ```bash
 npm deny-scripts <pkg> [<pkg> ...]

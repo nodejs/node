@@ -13,11 +13,12 @@ on:
       - android-patches/**
       - benchmarks/**
       - codecov.yml
+      - deps/LIEF/**
       - deps/ada/**
       - deps/brotli/**
       - deps/cares/**
-      - deps/crates/**
       - deps/corepack/**
+      - deps/crates/**
       - deps/googletest/**
       - deps/histogram/**
       - deps/icu-small/**
@@ -29,12 +30,14 @@ on:
       - deps/nghttp2/**
       - deps/ngtcp2/**
       - deps/openssl/*/**
+      - deps/perfetto/**
       - deps/simdjson/**
       - deps/sqlite/**
       - deps/uv/**
       - deps/uvwasi/**
       - deps/v8/third_party/abseil-cpp/**
       - deps/v8/third_party/highway/**
+      - deps/v8/third_party/simdutf/**
       - deps/zlib/**
       - deps/zstd/**
       - doc/**
@@ -68,11 +71,12 @@ on:
       - android-patches/**
       - benchmarks/**
       - codecov.yml
+      - deps/LIEF/**
       - deps/ada/**
       - deps/brotli/**
       - deps/cares/**
-      - deps/crates/**
       - deps/corepack/**
+      - deps/crates/**
       - deps/googletest/**
       - deps/histogram/**
       - deps/icu-small/**
@@ -84,12 +88,14 @@ on:
       - deps/nghttp2/**
       - deps/ngtcp2/**
       - deps/openssl/*/**
+      - deps/perfetto/**
       - deps/simdjson/**
       - deps/sqlite/**
       - deps/uv/**
       - deps/uvwasi/**
       - deps/v8/third_party/abseil-cpp/**
       - deps/v8/third_party/highway/**
+      - deps/v8/third_party/simdutf/**
       - deps/zlib/**
       - deps/zstd/**
       - doc/**
@@ -129,7 +135,7 @@ jobs:
         run: |
           export DATESTRING=$(date "+%Y-%m-%d")
           export COMMIT=$(git rev-parse --short=10 "$GITHUB_SHA")
-          ./configure && make tar -j4 SKIP_XZ=1 SKIP_SHARED_DEPS=1
+          ./configure && make tar -j4 SKIP_XZ=1 SKIP_SHARED_DEPS=1 GZIP_COMPRESSION=6
         env:
           DISTTYPE: nightly
 
@@ -157,14 +163,11 @@ jobs:
           - runner: macos-latest
             system: aarch64-darwin
     name: '${{ matrix.system }}: with shared libraries${{ matrix.perfetto && '' and perfetto'' || '''' }}'
-    uses: ./.github/workflows/build-shared.yml
+    uses: $/.github/workflows/build-shared.yml
     with:
       runner: ${{ matrix.runner }}
       with-sccache: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
-      extra-nix-flags: |
-        --arg useSeparateDerivationForV8 true \
-        ${{ matrix.perfetto && '--arg withPerfetto true \' || '\' }}
-        ${{ endsWith(matrix.system, '-darwin') && '--arg withAmaro false --arg withLief false --arg withSQLite false --arg withFFI false --arg extraConfigFlags ''["--without-inspector" "--without-node-options"]'' \' || '\' }}
+      extra-nix-flags: ${{ matrix.perfetto && '--arg withPerfetto true' || '' }}
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
@@ -196,7 +199,7 @@ jobs:
         id: v8-drv
         run: |
           V8_DRV=$(
-            nix-instantiate -E "builtins.filter (p: p.pname == ''v8'') (import $TAR_DIR/shell.nix { useSeparateDerivationForV8=true; }).buildInputs"
+            nix-instantiate -E "builtins.filter (p: p.pname == ''v8'') (import $TAR_DIR/tools/nix/ci-shell.nix {}).buildInputs"
           )
           V8_STORE_PATH=$(nix-store -q --outputs "$V8_DRV")
           echo "V8_DRV=$V8_DRV" >> "$GITHUB_OUTPUT"
@@ -204,7 +207,7 @@ jobs:
           [ "$(curl -ISsw "%{http_code}" -o /dev/null "https://nodejs.cachix.org/$(basename ${V8_STORE_PATH%-v8-*}).narinfo")" != "200" ] ||
             echo "ALREADY_CACHED=true" >> "$GITHUB_OUTPUT"
 
-      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71  # v17
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866  # v17
         if: ${{ steps.v8-drv.outputs.ALREADY_CACHED != 'true' }}
         with:
           name: nodejs
@@ -248,7 +251,7 @@ jobs:
       matrix:
         openssl: ${{ fromJSON(needs.build-aarch64-linux-v8.outputs.matrix) }}
     name: 'aarch64-linux: with shared ${{ matrix.openssl.name }}'
-    uses: ./.github/workflows/build-shared.yml
+    uses: $/.github/workflows/build-shared.yml
     with:
       runner: ubuntu-24.04-arm
       v8-nar: ${{ needs.build-aarch64-linux-v8.outputs.local-cache && 'libv8-aarch64-linux.nar' }}

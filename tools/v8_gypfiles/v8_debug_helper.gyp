@@ -1,0 +1,177 @@
+{
+  'variables': {
+    'V8_ROOT': '../../deps/v8',
+    'v8_code': 1,
+    # v8windbg links the helper statically. When the helper is the requested
+    # artifact it is built as a shared library instead, so a debugger
+    # extension can load it on its own.
+    'v8_debug_helper_type%': 'static_library',
+    'conditions': [
+      [ 'node_enable_v8debughelper=="true"', {
+        'v8_debug_helper_type': 'shared_library',
+      }],
+    ],
+  },
+  'includes': ['toolchain.gypi', 'features.gypi'],
+  'targets': [
+    {
+      # Intermediate target to build the debug helper. dependencies_traverse
+      # stops gyp from propagating the library up to node.gypi as a link
+      # input. The library is only supposed to be loaded by a debugger.
+      'target_name': 'build_v8_debug_helper',
+      'type': 'none',
+      'dependencies_traverse': 0,
+      'hard_dependency': 1,
+      'dependencies': [
+        'v8_debug_helper',
+      ],
+    },  # build_v8_debug_helper
+    {
+      'target_name': 'v8_debug_helper',
+      'type': '<(v8_debug_helper_type)',
+      'include_dirs': [
+        '<(V8_ROOT)',
+        '<(V8_ROOT)/include',
+      ],
+      'dependencies': [
+        'gen_heap_constants',
+
+        'v8.gyp:generate_bytecode_builtins_list',
+        'v8.gyp:run_torque',
+        'v8.gyp:v8_maybe_icu',
+        'v8.gyp:fp16',
+        'v8.gyp:v8_libbase',
+        'v8.gyp:v8_snapshot',
+      ],
+      'sources': [
+        '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/tools/debug_helper/BUILD.gn"  "\"v8_debug_helper_internal\".*?sources = ")',
+        "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-debug-readers.cc",
+        "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-debug-readers.h",
+        "<(SHARED_INTERMEDIATE_DIR)/torque-generated/debug-macros.cc",
+        "<(SHARED_INTERMEDIATE_DIR)/torque-generated/debug-macros.h",
+        "<(SHARED_INTERMEDIATE_DIR)/torque-generated/instance-types.h",
+      ],
+      # Enable RTTI //build/config/compiler:rtti
+      'cflags_cc': [ '-frtti' ],
+      'cflags_cc!': [ '-fno-rtti' ],
+      'xcode_settings': {
+        'GCC_ENABLE_CPP_RTTI': 'YES',  # -frtti
+      },
+      'msvs_settings': {
+        'VCCLCompilerTool': {
+          'RuntimeTypeInfo': 'true',
+        },
+      },
+      'configurations': {
+        'Release': { # Override target_defaults.Release in common.gypi
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeTypeInfo': 'true',
+            },
+          },
+        },
+      },
+      'conditions': [
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
+        }],
+        [ 'v8_enable_temporal_support==1 and node_shared_temporal_capi=="false"', {
+          'dependencies': [
+            '../../deps/crates/crates.gyp:temporal_capi',
+          ],
+        }],
+        [ 'v8_debug_helper_type=="shared_library"', {
+          # The entry points in debug-helper.h are only given default
+          # visibility, or dllexport on Windows, when this is defined. Node
+          # builds with hidden visibility, so without it the library exports
+          # nothing.
+          'defines': [ 'BUILDING_V8_DEBUG_HELPER' ],
+          'direct_dependent_settings': {
+            'defines': [ 'USING_V8_DEBUG_HELPER' ],
+          },
+        }],
+      ],
+    },  # v8_debug_helper
+    {
+      'target_name': 'gen_heap_constants',
+      'type': 'none',
+      'hard_dependency': 1,
+      'dependencies': [
+        'run_mkgrokdump',
+      ],
+      'direct_dependent_settings': {
+        'sources': [
+          '<(SHARED_INTERMEDIATE_DIR)/heap-constants-gen.cc',
+        ],
+      },
+      'actions': [
+        {
+          'action_name': 'run_gen_heap_constants',
+          'inputs': [
+            '<(V8_ROOT)/tools/debug_helper/gen-heap-constants.py',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/heap-constants-gen.cc',
+          ],
+          'action': [
+            '<(python)',
+            '<(V8_ROOT)/tools/debug_helper/gen-heap-constants.py',
+            '<(SHARED_INTERMEDIATE_DIR)',
+            '<@(_outputs)',
+          ]
+        }
+      ]
+    },  # gen_heap_constants
+    {
+      'target_name': 'run_mkgrokdump',
+      'type': 'none',
+      'hard_dependency': 1,
+      'dependencies': [
+        'mkgrokdump',
+      ],
+      'actions': [
+        {
+          'action_name': 'run_gen_heap_constants',
+          'inputs': [
+            '<(V8_ROOT)/tools/run.py',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/v8heapconst.py',
+          ],
+          'action': [
+            '<(python)',
+            '<(V8_ROOT)/tools/run.py',
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mkgrokdump<(EXECUTABLE_SUFFIX)',
+            '--outfile',
+            '<@(_outputs)',
+          ]
+        }
+      ]
+    },  # run_mkgrokdump
+    {
+      'target_name': 'mkgrokdump',
+      'type': 'executable',
+      'include_dirs': [
+        '<(V8_ROOT)',
+        '<(V8_ROOT)/include',
+      ],
+      'dependencies': [
+        'v8.gyp:v8_snapshot',
+        'v8.gyp:v8_libbase',
+        'v8.gyp:v8_libplatform',
+        'v8.gyp:v8_maybe_icu',
+        'v8.gyp:fp16',
+        'v8.gyp:generate_bytecode_builtins_list',
+        'v8.gyp:run_torque',
+      ],
+      'conditions': [
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
+        }],
+      ],
+      'sources': [
+        '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/test/mkgrokdump/BUILD.gn"  "mkgrokdump.*?sources = ")',
+      ]
+    },  # mkgrokdump
+  ],
+}

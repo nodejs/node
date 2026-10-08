@@ -10,8 +10,12 @@ const bench = common.createBenchmark(main, {
     'src/foo/bar/biz/baz/index.test.ts',
   ],
   pattern: [
+    'src/index.ts',
+    '**/*.ts',
+    '**/*.{ts,js}',
     'src/**/baz/*.test.ts',
     'src/**/baz/*.ts',
+    'src/**/index.@(test|spec).ts',
     'test/**/*.ts',
   ],
   n: [1e5],
@@ -24,5 +28,5 @@ function main({ path, pattern, n }) {
     a = posix.matchesGlob(path, pattern);
   }
   bench.end(n);
-  assert(a + 'a');
+  assert.strictEqual(typeof a, 'boolean');
 }

@@ -166,7 +166,7 @@ use core::mem::ManuallyDrop;
 /// ```
 /// # use smallvec::{smallvec, SmallVec};
 /// # fn main() {
-/// let v: SmallVec<[_; 0x8000]> = smallvec![1; 3];
+/// let v: SmallVec<[_; 10]> = smallvec![1; 3];
 /// assert_eq!(v, SmallVec::from_buf([1, 1, 1]));
 /// # }
 /// ```
@@ -602,7 +602,7 @@ where
 
         unsafe {
             // ZSTs have no identity, so we don't need to move them around.
-            let needs_move = mem::size_of::<T>() != 0;
+            let needs_move = mem::size_of::<T::Item>() != 0;
 
             if needs_move && this.idx < this.old_len && this.del > 0 {
                 let ptr = this.vec.as_mut_ptr();
@@ -650,6 +650,19 @@ impl<A: Array> SmallVecData<A> {
         SmallVecData {
             inline: core::mem::ManuallyDrop::new(inline),
         }
+    }
+    // Workaround for https://github.com/rust-lang/rust/issues/157743: when from_inline is
+    // called with MaybeUninit::uninit(), rustc 1.93+ GVN propagates const <uninit> into the
+    // ManuallyDrop::new() aggregate, causing LLVM to materialize a global constant that
+    // MemCpyOpt then collapses into a memset over the whole struct. Using assume_init() of a
+    // doubly-wrapped MaybeUninit produces Immediate::Uninit instead of const <uninit>, which
+    // codegen handles as undef without emitting any global. This function also avoids
+    // introducing an intermediate local that would inflate stack frames in debug builds.
+    #[inline]
+    fn empty() -> SmallVecData<A> {
+        // SAFETY: ManuallyDrop<MaybeUninit<A>> is valid for any bit pattern including
+        // uninitialized bytes, so assume_init() on a MaybeUninit of that type is sound.
+        SmallVecData { inline: unsafe { MaybeUninit::uninit().assume_init() } }
     }
     #[inline]
     unsafe fn into_inline(self) -> MaybeUninit<A> {
@@ -712,6 +725,13 @@ impl<A: Array> SmallVecData<A> {
     #[inline]
     fn from_inline(inline: MaybeUninit<A>) -> SmallVecData<A> {
         SmallVecData::Inline(inline)
+    }
+    // See the comment on the union variant's empty() for why this exists.
+    #[inline]
+    fn empty() -> SmallVecData<A> {
+        // SAFETY: MaybeUninit<A> is valid for any bit pattern including uninitialized bytes,
+        // so assume_init() on a MaybeUninit of that type is sound.
+        SmallVecData::Inline(unsafe { MaybeUninit::uninit().assume_init() })
     }
     #[inline]
     unsafe fn into_inline(self) -> MaybeUninit<A> {
@@ -789,7 +809,7 @@ impl<A: Array> SmallVec<A> {
         );
         SmallVec {
             capacity: 0,
-            data: SmallVecData::from_inline(MaybeUninit::uninit()),
+            data: SmallVecData::empty(),
         }
     }
 
@@ -831,7 +851,7 @@ impl<A: Array> SmallVec<A> {
             // Cannot use Vec with smaller capacity
             // because we use value of `Self::capacity` field as indicator.
             unsafe {
-                let mut data = SmallVecData::<A>::from_inline(MaybeUninit::uninit());
+                let mut data = SmallVecData::<A>::empty();
                 let len = vec.len();
                 vec.set_len(0);
                 ptr::copy_nonoverlapping(vec.as_ptr(), data.inline_mut().as_ptr(), len);
@@ -1183,7 +1203,7 @@ impl<A: Array> SmallVec<A> {
                 if unspilled {
                     return Ok(());
                 }
-                self.data = SmallVecData::from_inline(MaybeUninit::uninit());
+                self.data = SmallVecData::empty();
                 ptr::copy_nonoverlapping(ptr.as_ptr(), self.data.inline_mut().as_ptr(), len);
                 self.capacity = len;
                 deallocate(ptr, cap);
@@ -1283,7 +1303,7 @@ impl<A: Array> SmallVec<A> {
         if self.inline_size() >= len {
             unsafe {
                 let (ptr, len) = self.data.heap();
-                self.data = SmallVecData::from_inline(MaybeUninit::uninit());
+                self.data = SmallVecData::empty();
                 ptr::copy_nonoverlapping(ptr.as_ptr(), self.data.inline_mut().as_ptr(), len);
                 deallocate(ptr.0, self.capacity);
                 self.capacity = len;

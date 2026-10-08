@@ -11,6 +11,7 @@
 
 #include <memory>
 
+#include "include/v8-wasm.h"
 #include "src/common/globals.h"
 #include "src/wasm/wasm-features.h"
 
@@ -18,7 +19,6 @@ namespace v8 {
 class Value;
 template <typename T>
 class FunctionCallbackInfo;
-class WasmStreaming;
 }  // namespace v8
 
 namespace v8::internal {
@@ -29,6 +29,11 @@ class StreamingDecoder;
 
 V8_EXPORT_PRIVATE std::unique_ptr<WasmStreaming> StartStreamingForTesting(
     Isolate*, std::shared_ptr<wasm::CompilationResultResolver>);
+
+// Convert compile options from the public API into compile-time imports,
+// including the host-FPU denormal handling applied to all compilations.
+V8_EXPORT_PRIVATE CompileTimeImports
+CompileTimeImportsFromOptions(const v8::WasmModuleObject::CompileOptions&);
 
 #define WASM_JS_EXTERNAL_REFERENCE_LIST(V) \
   V(WebAssemblyCompile)                    \
@@ -99,15 +104,7 @@ class WasmJs {
       Isolate* isolate, DirectHandle<NativeContext> context,
       DirectHandle<JSObject> webassembly);
 
-  V8_EXPORT_PRIVATE static bool InstallTypeReflection(
-      Isolate* isolate, DirectHandle<NativeContext> context,
-      DirectHandle<JSObject> webassembly);
-
   V8_EXPORT_PRIVATE static bool InstallJSPromiseIntegration(
-      Isolate* isolate, DirectHandle<NativeContext> context,
-      DirectHandle<JSObject> webassembly);
-
-  V8_EXPORT_PRIVATE static void InstallResizableBufferIntegration(
       Isolate* isolate, DirectHandle<NativeContext> context,
       DirectHandle<JSObject> webassembly);
 };

@@ -32,6 +32,24 @@
 
 namespace v8 {
 
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kTestConfigTag = 14;
+static_assert(kTestConfigTag < V8_EXTERNAL_POINTER_TAG_COUNT);
+
+// Used for wrapping passing raw pointers to Api callbacks.
+static v8::Local<v8::External> MakeData(v8::Isolate* isolate, void* pointer) {
+  return v8::External::New(isolate, pointer, kTestConfigTag);
+}
+
+// Unwraps raw pointer passed to Api callbacks.
+template <typename T, typename TCallbackInfo>
+static T* GetData(const TCallbackInfo& info) {
+  USE(MakeData);
+  return reinterpret_cast<T*>(
+      v8::External::Cast(*info.Data())->Value(kTestConfigTag));
+}
+
 class ArrayBufferAllocator;
 
 template <typename TMixin>
@@ -360,7 +378,8 @@ using TestShadowRealmWithContext =                     //
 
 class PrintExtension : public v8::Extension {
  public:
-  PrintExtension() : v8::Extension("v8/print", "native function print();") {}
+  static constexpr const char* kName = "v8/print";
+  PrintExtension() : v8::Extension(kName, "native function print();") {}
   v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) override {
     return v8::FunctionTemplate::New(isolate, PrintExtension::Print);
@@ -376,24 +395,6 @@ class PrintExtension : public v8::Extension {
     }
     printf("\n");
   }
-};
-
-template <typename TMixin>
-class WithPrintExtensionMixin : public TMixin {
- public:
-  WithPrintExtensionMixin() = default;
-  ~WithPrintExtensionMixin() override = default;
-  WithPrintExtensionMixin(const WithPrintExtensionMixin&) = delete;
-  WithPrintExtensionMixin& operator=(const WithPrintExtensionMixin&) = delete;
-
-  static void SetUpTestSuite() {
-    v8::RegisterExtension(std::make_unique<PrintExtension>());
-    TMixin::SetUpTestSuite();
-  }
-
-  static void TearDownTestSuite() { TMixin::TearDownTestSuite(); }
-
-  static constexpr const char* kPrintExtensionName = "v8/print";
 };
 
 // Run a ScriptStreamingTask in a separate thread.
@@ -439,8 +440,18 @@ class WithInternalIsolateMixin : public TMixin {
     return Cast<T>(RunJSInternal(source));
   }
 
+  template <typename T = Object>
+  Handle<T> RunJS(v8::Local<v8::Context> context, const char* source) {
+    return Cast<T>(RunJSInternal(context, source));
+  }
+
   Handle<Object> RunJSInternal(const char* source) {
     return Utils::OpenHandle(*TMixin::RunJS(source));
+  }
+
+  Handle<Object> RunJSInternal(v8::Local<v8::Context> context,
+                               const char* source) {
+    return Utils::OpenHandle(*TMixin::RunJS(context, source));
   }
 
   template <typename T = Object>
@@ -587,7 +598,7 @@ class FeedbackVectorHelper {
  public:
   explicit FeedbackVectorHelper(Handle<FeedbackVector> vector)
       : vector_(vector) {
-    int slot_count = vector->length();
+    uint32_t slot_count = vector->length().value();
     slots_.reserve(slot_count);
     DisallowGarbageCollection no_gc;
     FeedbackMetadataIterator iter(vector->metadata(), no_gc);

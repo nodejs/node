@@ -7,6 +7,7 @@
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-random-iterator.h"
 #include "src/numbers/hash-seed-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
@@ -53,10 +54,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidBeforeStart) {
       .LoadLiteral(smi_1)
       .StoreAccumulatorInRegister(reg_1)
       .LoadAccumulatorWithRegister(reg_0)
-      .BinaryOperation(Token::kAdd, reg_0, 2)
+      .BinaryOperation(Token::kAdd, reg_0, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(reg_1)
       .LoadNamedProperty(reg_1, name, feedback_slot)
-      .BinaryOperation(Token::kAdd, reg_0, 3)
+      .BinaryOperation(Token::kAdd, reg_0, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(param)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, pair)
       .ForInPrepare(triple, feedback_slot)
@@ -105,10 +106,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidAfterEnd) {
       .LoadLiteral(smi_1)
       .StoreAccumulatorInRegister(reg_1)
       .LoadAccumulatorWithRegister(reg_0)
-      .BinaryOperation(Token::kAdd, reg_0, 2)
+      .BinaryOperation(Token::kAdd, reg_0, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(reg_1)
       .LoadNamedProperty(reg_1, name, feedback_slot)
-      .BinaryOperation(Token::kAdd, reg_0, 3)
+      .BinaryOperation(Token::kAdd, reg_0, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(param)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, pair)
       .ForInPrepare(triple, feedback_slot)
@@ -157,10 +158,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
       .LoadLiteral(smi_1)
       .StoreAccumulatorInRegister(reg_1)
       .LoadAccumulatorWithRegister(reg_0)
-      .BinaryOperation(Token::kAdd, reg_0, 2)
+      .BinaryOperation(Token::kAdd, reg_0, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(reg_1)
       .LoadNamedProperty(reg_1, name, feedback_slot)
-      .BinaryOperation(Token::kAdd, reg_0, 3)
+      .BinaryOperation(Token::kAdd, reg_0, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(param)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, pair)
       .ForInPrepare(triple, feedback_slot)
@@ -214,10 +215,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesLast) {
       .LoadLiteral(smi_1)
       .StoreAccumulatorInRegister(reg_1)
       .LoadAccumulatorWithRegister(reg_0)
-      .BinaryOperation(Token::kAdd, reg_0, 2)
+      .BinaryOperation(Token::kAdd, reg_0, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(reg_1)
       .LoadNamedProperty(reg_1, name, feedback_slot)
-      .BinaryOperation(Token::kAdd, reg_0, 3)
+      .BinaryOperation(Token::kAdd, reg_0, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(param)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, pair)
       .ForInPrepare(triple, feedback_slot)
@@ -272,10 +273,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
       .LoadLiteral(smi_1)
       .StoreAccumulatorInRegister(reg_16)
       .LoadAccumulatorWithRegister(reg_0)
-      .BinaryOperation(Token::kAdd, reg_0, 2)
+      .BinaryOperation(Token::kAdd, reg_0, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(reg_16)
       .LoadNamedProperty(reg_16, name, feedback_slot)
-      .BinaryOperation(Token::kAdd, reg_0, 3)
+      .BinaryOperation(Token::kAdd, reg_0, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(param)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, pair)
       .ForInPrepare(triple, feedback_slot)
@@ -309,7 +310,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_0.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1u);
   ASSERT_TRUE(iterator.IsValid());
 
   iterator.GoToIndex(2);
@@ -349,10 +350,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRuntimeIdOperand(0), Runtime::kLoadLookupSlotForCall);
   EXPECT_EQ(iterator.GetRegisterOperand(1).index(), param.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(1), 1);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(1), 1u);
   EXPECT_EQ(iterator.GetRegisterCountOperand(2), 1u);
   EXPECT_EQ(iterator.GetRegisterOperand(3).index(), reg_0.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(3), 2);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(3), 2u);
   ASSERT_TRUE(iterator.IsValid());
 
   iterator -= 3;
@@ -378,7 +379,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), param.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1u);
   ASSERT_TRUE(iterator.IsValid());
 
   iterator.GoToIndex(20);
@@ -450,10 +451,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
       .LoadLiteral(smi_1)
       .StoreAccumulatorInRegister(reg_16)
       .LoadAccumulatorWithRegister(reg_0)
-      .BinaryOperation(Token::kAdd, reg_0, 2)
+      .BinaryOperation(Token::kAdd, reg_0, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(reg_16)
       .LoadNamedProperty(reg_16, name, feedback_slot)
-      .BinaryOperation(Token::kAdd, reg_0, 3)
+      .BinaryOperation(Token::kAdd, reg_0, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(param)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, pair)
       .ForInPrepare(triple, feedback_slot)
@@ -552,7 +553,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_16.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1u);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kStar, OperandScale::kSingle);
   ++iterator;
@@ -571,7 +572,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_0.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1u);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kAdd, OperandScale::kSingle);
   ++iterator;
@@ -581,7 +582,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_16.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1u);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kStar, OperandScale::kSingle);
   ++iterator;
@@ -602,7 +603,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_0.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1u);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kAdd, OperandScale::kSingle);
   ++iterator;
@@ -612,7 +613,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), param.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1u);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kStar, OperandScale::kSingle);
   ++iterator;
@@ -623,10 +624,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRuntimeIdOperand(0), Runtime::kLoadLookupSlotForCall);
   EXPECT_EQ(iterator.GetRegisterOperand(1).index(), param.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(1), 1);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(1), 1u);
   EXPECT_EQ(iterator.GetRegisterCountOperand(2), 1u);
   EXPECT_EQ(iterator.GetRegisterOperand(3).index(), reg_0.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(3), 2);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(3), 2u);
   ASSERT_TRUE(iterator.IsValid());
   offset +=
       Bytecodes::Size(Bytecode::kCallRuntimeForPair, OperandScale::kSingle);
@@ -637,7 +638,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_0.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 3);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 3u);
   EXPECT_EQ(iterator.GetFeedbackSlotOperand(1), feedback_slot);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kForInPrepare, OperandScale::kSingle);
@@ -703,10 +704,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
       .LoadLiteral(smi_1)
       .StoreAccumulatorInRegister(reg_16)
       .LoadAccumulatorWithRegister(reg_0)
-      .BinaryOperation(Token::kAdd, reg_0, 2)
+      .BinaryOperation(Token::kAdd, reg_0, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(reg_16)
       .LoadNamedProperty(reg_16, name, feedback_slot)
-      .BinaryOperation(Token::kAdd, reg_0, 3)
+      .BinaryOperation(Token::kAdd, reg_0, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(param)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, pair)
       .ForInPrepare(triple, feedback_slot)
@@ -756,7 +757,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_0.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 3);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 3u);
   EXPECT_EQ(iterator.GetFeedbackSlotOperand(1), feedback_slot);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
@@ -769,10 +770,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRuntimeIdOperand(0), Runtime::kLoadLookupSlotForCall);
   EXPECT_EQ(iterator.GetRegisterOperand(1).index(), param.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(1), 1);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(1), 1u);
   EXPECT_EQ(iterator.GetRegisterCountOperand(2), 1u);
   EXPECT_EQ(iterator.GetRegisterOperand(3).index(), reg_0.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(3), 2);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(3), 2u);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
 
@@ -782,7 +783,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), param.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1u);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
 
@@ -792,7 +793,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_0.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1u);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
 
@@ -813,7 +814,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_16.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1u);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
 
@@ -823,7 +824,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_0.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1u);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
 
@@ -842,7 +843,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_16.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1u);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
 

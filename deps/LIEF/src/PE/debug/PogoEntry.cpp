@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,19 +18,17 @@
 
 #include "spdlog/fmt/fmt.h"
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 void PogoEntry::accept(Visitor& visitor) const {
   visitor.visit(*this);
 }
 
 std::ostream& operator<<(std::ostream& os, const PogoEntry& entry) {
-  os << fmt::format("[0x{:06x}, 0x{:06x}] {:20} ({} bytes)",
-                    entry.start_rva(), entry.start_rva() + entry.size(),
-                    entry.name(), entry.size());
+  os << fmt::format("[{:#08x}, {:#08x}] {:20} ({} bytes)", entry.start_rva(),
+                    entry.start_rva() + entry.size(), entry.name(), entry.size());
   return os;
 }
 
-} // namespace PE
-} // namespace LIEF
+} // namespace LIEF::PE

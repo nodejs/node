@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,9 +41,13 @@ class LIEF_API SymbolVersionRequirement : public Object {
   friend class Parser;
 
   public:
-  using aux_requirement_t        = std::vector<std::unique_ptr<SymbolVersionAuxRequirement>>;
-  using it_aux_requirement       = ref_iterator<aux_requirement_t&, SymbolVersionAuxRequirement*>;
-  using it_const_aux_requirement = const_ref_iterator<const aux_requirement_t&, const SymbolVersionAuxRequirement*>;
+  using aux_requirement_t =
+      std::vector<std::unique_ptr<SymbolVersionAuxRequirement>>;
+  using it_aux_requirement =
+      ref_iterator<aux_requirement_t&, SymbolVersionAuxRequirement*>;
+  using it_const_aux_requirement =
+      const_ref_iterator<const aux_requirement_t&,
+                         const SymbolVersionAuxRequirement*>;
 
   SymbolVersionRequirement() = default;
   SymbolVersionRequirement(const details::Elf64_Verneed& header);
@@ -68,16 +72,16 @@ class LIEF_API SymbolVersionRequirement : public Object {
   }
 
   /// Auxiliary entries as an iterator over SymbolVersionAuxRequirement
-  it_aux_requirement auxiliary_symbols() {
+  it_aux_requirement auxiliary_symbols() LIEF_LIFETIMEBOUND {
     return aux_requirements_;
   }
 
-  it_const_aux_requirement auxiliary_symbols() const {
+  it_const_aux_requirement auxiliary_symbols() const LIEF_LIFETIMEBOUND {
     return aux_requirements_;
   }
 
   /// Return the library name associated with this requirement (e.g. ``libc.so.6``)
-  const std::string& name() const {
+  const std::string& name() const LIEF_LIFETIMEBOUND {
     return name_;
   }
 
@@ -90,19 +94,26 @@ class LIEF_API SymbolVersionRequirement : public Object {
   }
 
   /// Add a version auxiliary requirement to the existing list
-  SymbolVersionAuxRequirement& add_aux_requirement(const SymbolVersionAuxRequirement& aux_requirement);
+  SymbolVersionAuxRequirement& add_aux_requirement(
+      const SymbolVersionAuxRequirement& aux_requirement
+  ) LIEF_LIFETIMEBOUND;
 
-  /// Try to find the SymbolVersionAuxRequirement with the given name (e.g. `GLIBC_2.27`)
-  const SymbolVersionAuxRequirement* find_aux(const std::string& name) const;
+  /// Try to find the SymbolVersionAuxRequirement with the given name (e.g.
+  /// `GLIBC_2.27`)
+  const SymbolVersionAuxRequirement*
+      find_aux(const std::string& name) const LIEF_LIFETIMEBOUND;
 
-  SymbolVersionAuxRequirement* find_aux(const std::string& name) {
-    return const_cast<SymbolVersionAuxRequirement*>(static_cast<const SymbolVersionRequirement*>(this)->find_aux(name));
+  SymbolVersionAuxRequirement*
+      find_aux(const std::string& name) LIEF_LIFETIMEBOUND {
+    return const_cast<SymbolVersionAuxRequirement*>(
+        static_cast<const SymbolVersionRequirement*>(this)->find_aux(name)
+    );
   }
 
   /// Try to remove the auxiliary requirement symbol with the given name.
   /// The function returns true if the operation succeed, false otherwise.
   ///
-  /// \warning this function invalidates all the references (pointers) of
+  /// @warning this function invalidates all the references (pointers) of
   ///          SymbolVersionAuxRequirement. Therefore, the user is responsible
   ///          to ensure that the auxiliary requirement is no longer used in the
   ///          ELF binary (e.g. in SymbolVersion)
@@ -116,7 +127,7 @@ class LIEF_API SymbolVersionRequirement : public Object {
   /// Try to remove the given auxiliary requirement symbol.
   /// The function returns true if the operation succeed, false otherwise.
   ///
-  /// \warning this function invalidates all the references (pointers) of
+  /// @warning this function invalidates all the references (pointers) of
   ///          SymbolVersionAuxRequirement. Therefore, the user is responsible
   ///          to ensure that the auxiliary requirement is no longer used in the
   ///          ELF binary (e.g. in SymbolVersion)
@@ -124,19 +135,18 @@ class LIEF_API SymbolVersionRequirement : public Object {
 
   void accept(Visitor& visitor) const override;
 
-  LIEF_API friend
-  std::ostream& operator<<(std::ostream& os, const SymbolVersionRequirement& symr) {
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const SymbolVersionRequirement& symr) {
     os << symr.version() << " " << symr.name();
     return os;
   }
 
   private:
   aux_requirement_t aux_requirements_;
-  uint16_t    version_ = 0;
+  uint16_t version_ = 0;
   std::string name_;
 };
 
 }
 }
 #endif
-

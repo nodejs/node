@@ -117,6 +117,7 @@ The configuration currently reads the following top-level fields:
   "useSnapshot": false,  // Default: false
   "useCodeCache": true, // Default: false
   "useVfs": true, // Default: false
+  "vfsArchive": "/path/to/assets.zip", // Optional
   "execArgv": ["--no-warnings", "--max-old-space-size=4096"], // Optional
   "execArgvExtension": "env", // Default: "env", options: "none", "env", "cli"
   "assets": {  // Optional
@@ -179,7 +180,7 @@ See documentation of the [`sea.getAsset()`][], [`sea.getAssetAsBlob()`][],
 ### Virtual file system (VFS) for assets
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 > Stability: 1.0 - Early development
@@ -260,6 +261,41 @@ Module format detection works the same way as on the real file
 system: name bundled ES modules with the `.mjs` extension (or provide the
 relevant `package.json` files as assets) so they are interpreted as ESM.
 
+#### Serving the assets from a ZIP archive with `"vfsArchive"`
+
+Instead of listing individual `"assets"`, the configuration can point
+`"vfsArchive"` at a prebuilt ZIP archive. The archive is embedded into the
+executable as-is, and the virtual file system serves the files inside it,
+inflating each one when it is read. When the assets are compressible (such
+as JavaScript, JSON, or other text), a deflate-compressed archive can
+substantially reduce the size of the generated executable.
+
+The archive can be built with any ZIP tool, or with the ZIP support in
+[`node:zlib`][]:
+
+```mjs
+import { zipFiles } from 'node:zlib';
+import { createWriteStream } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
+
+await pipeline(
+  zipFiles([
+    ['./dist/config.json', 'config.json'],
+    ['./dist/data.txt', 'data/data.txt'],
+  ]),
+  createWriteStream('assets.zip'),
+);
+```
+
+The mounted file tree looks the same as with `"assets"`: the entries appear
+under the mount point using their archive names, the main script is placed
+at the mount point root, and access through `__dirname`-relative paths,
+`require()`, and `import` is unchanged. However, `sea.getAsset()` and
+`sea.getAssetAsBlob()` do not serve the individual files, because the
+executable only embeds the archive; read the files through the file system
+APIs instead. `"vfsArchive"` requires `"useVfs": true` and cannot be
+combined with `"assets"`.
+
 #### Snapshot and code caching limitations
 
 `"useVfs": true` cannot be used together with `"useSnapshot": true` or
@@ -315,8 +351,6 @@ the preparation blob and get injected into the final executable. When the single
 executable application is launched, instead of compiling the `main` script from
 scratch, Node.js would use the code cache to speed up the compilation, then
 execute the script, which would improve the startup performance.
-
-**Note:** `import()` does not work when `useCodeCache` is `true`.
 
 ### Execution arguments
 
@@ -551,8 +585,9 @@ injected main script with the following properties:
 
 <!-- TODO(joyeecheung): support and document module.registerHooks -->
 
-When using `"mainFormat": "module"`, `import()` can be used to dynamically
-load built-in modules. Attempting to use `import()` to load modules from
+`import()` can be used to dynamically load built-in modules in both
+CommonJS and ESM (`"mainFormat": "module"`) single executable applications.
+Attempting to use `import()` to load modules from
 the file system will throw an error.
 
 ### Using native addons in the injected main script
@@ -751,6 +786,7 @@ to help us document them.
 [Using native addons in the injected main script]: #using-native-addons-in-the-injected-main-script
 [VFS documentation]: vfs.md
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
+[`node:zlib`]: zlib.md
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
 [`require.main`]: modules.md#accessing-the-main-module

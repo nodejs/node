@@ -56,19 +56,19 @@ const moveFile = async (source, destination, options = {}, root = true, symlinks
       }
       // try to determine what the actual file is so we can create the correct
       // type of symlink in windows
-      let targetStat = 'file'
+      let targetType = 'file'
       try {
-        targetStat = await fs.stat(resolve(dirname(symSource), target))
+        const targetStat = await fs.stat(resolve(dirname(symSource), target))
         if (targetStat.isDirectory()) {
-          targetStat = 'junction'
+          targetType = 'junction'
         }
       } catch {
-        // targetStat remains 'file'
+        // targetType remains 'file'
       }
       await fs.symlink(
         target,
         symDestination,
-        targetStat
+        targetType
       )
     }))
     await fs.rm(source, { recursive: true, force: true })

@@ -4648,7 +4648,7 @@ std::string JsonUnitTestResultPrinter::EscapeJson(const std::string& str) {
         m << "\\r";
         break;
       default:
-        if (ch < ' ') {
+        if (static_cast<unsigned char>(ch) < ' ' || ch == '\x7F') {
           m << "\\u00" << String::FormatByte(static_cast<unsigned char>(ch));
         } else {
           m << ch;
@@ -5289,17 +5289,8 @@ void TestEventListeners::SuppressEventForwarding(bool suppress) {
 // call this before main() starts, from which point on the return
 // value will never change.
 UnitTest* UnitTest::GetInstance() {
-  // CodeGear C++Builder insists on a public destructor for the
-  // default implementation.  Use this implementation to keep good OO
-  // design with private destructor.
-
-#if defined(__BORLANDC__)
-  static UnitTest* const instance = new UnitTest;
-  return instance;
-#else
   static UnitTest instance;
   return &instance;
-#endif  // defined(__BORLANDC__)
 }
 
 // Gets the number of successful test suites.

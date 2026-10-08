@@ -80,9 +80,6 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
   {
   }
 
-  V8_INLINE size_t VisitDescriptorArrayStrongly(Tagged<Map> map,
-                                                Tagged<DescriptorArray> object,
-                                                MaybeObjectSize);
   V8_INLINE size_t VisitDescriptorArray(Tagged<Map> map,
                                         Tagged<DescriptorArray> object,
                                         MaybeObjectSize);
@@ -93,6 +90,9 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
                                    MaybeObjectSize);
   V8_INLINE size_t VisitJSFunction(Tagged<Map> map, Tagged<JSFunction> object,
                                    MaybeObjectSize);
+  V8_INLINE size_t VisitJSGlobalProxy(Tagged<Map> map,
+                                      Tagged<JSGlobalProxy> object,
+                                      MaybeObjectSize);
   V8_INLINE size_t VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object,
                                   MaybeObjectSize);
   V8_INLINE size_t VisitMap(Tagged<Map> map, Tagged<Map> object,
@@ -108,7 +108,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
 
   // ObjectVisitor overrides.
   void VisitMapPointer(Tagged<HeapObject> host) final {
-    Tagged<Map> map = host->map(ObjectVisitorWithCageBases::cage_base());
+    Tagged<Map> map = host->map();
     ProcessStrongHeapObject(host, host->map_slot(), map);
   }
   V8_INLINE void VisitPointer(Tagged<HeapObject> host, ObjectSlot p) final {
@@ -152,6 +152,8 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
                                      IndirectPointerSlot slot) final;
 
   void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
+                                 JSDispatchHandle handle) override;
+  void VisitJSDispatchTableEntry(Tagged<InstructionStream> host,
                                  JSDispatchHandle handle) override;
 
   V8_INLINE void VisitProtectedPointer(Tagged<TrustedObject> host,
@@ -210,8 +212,6 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
 
   template <typename TSlot>
   V8_INLINE void VisitStrongPointerImpl(Tagged<HeapObject> host, TSlot slot);
-
-  V8_INLINE void VisitDescriptorsForMap(Tagged<Map> map);
 
   V8_INLINE size_t
   VisitFixedArrayWithProgressTracker(Tagged<Map> map, Tagged<FixedArray> object,

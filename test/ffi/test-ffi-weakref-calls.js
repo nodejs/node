@@ -31,6 +31,28 @@ test('ffi unrefCallback releases callback function', async (t) => {
   lib.unregisterCallback(pointer);
 });
 
+test('ffi unrefCallback zero-fills narrow callback return', async (t) => {
+  const { lib, functions: symbols } = ffi.dlopen(libraryPath, fixtureSymbols);
+  t.after(() => lib.close());
+
+  let callback = () => 1;
+  const ref = new WeakRef(callback);
+  const pointer = lib.registerCallback(
+    { arguments: ['i8'], return: 'i8' },
+    callback,
+  );
+
+  lib.unrefCallback(pointer);
+  callback = null;
+
+  await gcUntil('ffi unrefCallback zero-fills narrow callback return', () => {
+    return ref.deref() === undefined;
+  });
+
+  t.assert.strictEqual(symbols.call_int8_callback(pointer, 21), 0);
+  lib.unregisterCallback(pointer);
+});
+
 test('ffi refCallback retains callback function', async (t) => {
   const { lib } = ffi.dlopen(libraryPath, fixtureSymbols);
   t.after(() => lib.close());

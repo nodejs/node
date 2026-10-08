@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -311,6 +311,10 @@ int ERR_unload_strings(int lib, ERR_STRING_DATA *str)
 #ifndef OPENSSL_NO_ERR
     if (!RUN_ONCE(&err_string_init, do_err_strings_init))
         return 0;
+
+    /* The error string table may already have been cleaned up. */
+    if (err_string_lock == NULL)
+        return 1;
 
     if (!CRYPTO_THREAD_write_lock(err_string_lock))
         return 0;

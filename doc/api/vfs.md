@@ -93,6 +93,88 @@ const memoryVfs = vfs.create();
 const realVfs = vfs.create(new vfs.RealFSProvider('/tmp/vfs-root'));
 ```
 
+## `vfs.registerProvider(entry)`
+
+<!-- YAML
+added: v26.10.0
+-->
+
+* `entry` {Object}
+  * `name` {string} A short identifier, used in diagnostics.
+  * `canHandle` {Function} Called with the resolved path and its
+    [`fs.Stats`][]. Returns `true` if this provider should back the source.
+  * `create` {Function} Called with the resolved path and its [`fs.Stats`][].
+    Returns the {VirtualProvider} backing the source.
+
+Registers a provider that [`--vfs-load`][] can select for a source it
+recognizes, so a file format Node.js has no built-in provider for can still be
+mounted.
+
+A source is claimed by the first provider whose `canHandle()` returns `true`.
+Registered providers are consulted before the built-in ones, newest
+registration first, and are offered directories as well as files, so a
+registered provider can back, wrap, or vet any source. If none claims the
+source, the built-in providers handle it: a directory with
+[`RealFSProvider`][], and a file whose bytes are a ZIP archive with
+[`ZipProvider`][].
+
+Providers must be registered before the source is mounted. Register from a
+module preloaded with [`--require`][] or [`--import`][]:
+
+```cjs
+// provider.js, preloaded with --require
+const fs = require('node:fs');
+const vfs = require('node:vfs');
+
+const MAGIC = Buffer.from('CUSTOMFMT');
+
+vfs.registerProvider({
+  name: 'customfmt',
+  canHandle(path, stats) {
+    if (!stats.isFile()) return false;
+    const head = Buffer.alloc(MAGIC.length);
+    const fd = fs.openSync(path, 'r');
+    try {
+      fs.readSync(fd, head, 0, MAGIC.length, 0);
+    } finally {
+      fs.closeSync(fd);
+    }
+    return head.equals(MAGIC);
+  },
+  create(path) {
+    return new MyCustomProvider(path);
+  },
+});
+```
+
+```console
+$ node --experimental-vfs --require ./provider.js \
+       --vfs-load archive.customfmt
+```
+
+## `vfs.vfsBase()`
+
+<!-- YAML
+added: v26.11.0
+-->
+
+* Returns: {string} The absolute path of the [reserved root directory][].
+
+Returns the directory that holds the mount points of every mounted virtual file
+system, which is `path.join(os.devNull, 'vfs')`. Reading it lists what is
+mounted; see [The reserved root directory][reserved root directory].
+
+```cjs
+const vfs = require('node:vfs');
+const fs = require('node:fs');
+
+const myVfs = vfs.create();
+const mountPoint = myVfs.mount();
+
+fs.readdirSync(vfs.vfsBase()); // The name of every mount point in it
+mountPoint.startsWith(vfs.vfsBase()); // true
+```
+
 ## Class: `VirtualFileSystem`
 
 <!-- YAML
@@ -117,7 +199,7 @@ added: v26.4.0
 ### `vfs.mount()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Returns: {string} The absolute mount point.
@@ -128,9 +210,11 @@ After mounting, files in the VFS can be accessed through the
 using paths under the returned mount point.
 
 Mount points always live inside a reserved namespace that cannot have child file system entries,
-so virtual paths never conflate with (or shadow) real paths. The virtual path scheme is subject to
-change and users should not manually construct them based on assumptions. Instead, obtain
-them from what `vfs.mount()` returns or `vfs.mountPoint`.
+so virtual paths never conflate with (or shadow) real paths. A mount point is obtained from what
+`vfs.mount()` returns or from [`vfs.mountPoint`][], and the mount points of all mounted file
+systems can be listed by reading the [reserved root directory][], whose path [`vfs.vfsBase()`][]
+returns. The name of a mount point within that directory is assigned at runtime, so it is not
+something to construct or hard-code.
 
 ```cjs
 const vfs = require('node:vfs');
@@ -143,6 +227,11 @@ const mountPoint = myVfs.mount();
 
 fs.readFileSync(`${mountPoint}/data.txt`, 'utf8'); // 'Hello'
 ```
+
+Like any mount point, the mount point cannot be removed or renamed, nor
+replaced by renaming something else onto it: [`fs.rmdir()`][] and
+[`fs.rename()`][] fail with `EBUSY`. A recursive [`fs.rm()`][] of the mount
+point empties the file system before failing the same way.
 
 Each `VirtualFileSystem` instance may be mounted at most once at a
 time. Attempting to mount an already-mounted instance throws
@@ -172,7 +261,7 @@ fs.existsSync(`${mountPoint}/data.txt`); // false
 ### `vfs.unmount()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 Unmounts the virtual file system. After unmounting, virtual files
@@ -185,7 +274,7 @@ currently mounted has no effect.
 ### `vfs.mounted`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * {boolean}
@@ -195,7 +284,7 @@ added: REPLACEME
 ### `vfs.mountPoint`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * {string | null}
@@ -207,7 +296,7 @@ mounted.
 ### `vfs.mountPointURL`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * {string | null}
@@ -321,6 +410,32 @@ The promise namespace mirrors `fs.promises` and includes `readFile`,
 `access`, `rm`, `truncate`, `link`, `mkdtemp`, `chmod`, `chown`, `lchown`,
 `utimes`, `lutimes`, `open`, `lchmod`, and `watch`.
 
+## The reserved root directory
+
+While any virtual file system is mounted, the directory that holds the mount
+points can be read through [`node:fs`][]. [`vfs.vfsBase()`][] returns its path,
+`path.join(os.devNull, 'vfs')`. It contains a directory for every mounted file
+system, named like the last segment of its [`vfs.mountPoint`][].
+
+```cjs
+const vfs = require('node:vfs');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const root = vfs.vfsBase();
+const assets = vfs.create();
+assets.writeFileSync('/logo.svg', '<svg/>');
+const mountPoint = assets.mount();
+
+const name = path.basename(mountPoint);
+fs.readdirSync(root); // [ name ]
+fs.readdirSync(root, { recursive: true }); // [ name, `${name}/logo.svg` ]
+```
+
+The root directory itself is read-only. Creating, removing, or changing its
+entries fails with `EROFS`, while the file systems its entries lead to can be
+written to as usual. When nothing is mounted, the root directory does not exist.
+
 ## Module loader integration
 
 Once a `VirtualFileSystem` is mounted, paths under the mount point
@@ -425,6 +540,12 @@ addon's bytes are read from the VFS and loaded from a private, self-cleaning
 temporary image instead. Addons on the real file system are unaffected and
 load directly.
 
+Shared libraries opened through [`ffi.dlopen()`][] (or
+[`new ffi.DynamicLibrary()`][]) work the same way: a library path inside a
+mounted VFS is detected, its bytes are read from the VFS, and the library is
+loaded from a private, self-cleaning image while `library.path` keeps
+reporting the virtual path. Libraries on the real file system load directly.
+
 ## Use with Single Executable Applications
 
 When running as a [Single Executable Application][] built with
@@ -452,6 +573,11 @@ is loaded from inside the mount through the ESM loader, and
 
 `"useVfs"` cannot be used together with `"useSnapshot"` or `"useCodeCache"`.
 The SEA configuration parser will error if either combination is detected.
+
+Instead of listing individual `"assets"`, the SEA configuration can point
+`"vfsArchive"` at a prebuilt ZIP archive; the mount is then backed by a
+[`ZipProvider`][] over the embedded archive, and each file is inflated when
+it is read. See [Serving the assets from a ZIP archive][] for details.
 
 See the [Single Executable Application][] documentation for more information
 on creating SEA builds with assets.
@@ -524,6 +650,56 @@ provider.setReadOnly();
 myVfs.writeFileSync('/x.txt', 'fail'); // throws EROFS
 ```
 
+## Class: `ComposableProvider`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+[`ComposableProvider`][] combines one or more providers in priority order. The first
+provider is the writable layer; reads search from first to last. Directories
+are merged, with entries in higher-priority layers shadowing entries with the
+same name in lower layers. Writes to a lower file copy it to the first provider
+before changing it. Removing a file hides lower copies without deleting them.
+The first provider must be writable to change the composed file system.
+
+### `new ComposableProvider(providers)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `providers` {VirtualProvider\[]} Non-empty array of providers, ordered from
+  highest to lowest priority.
+
+```cjs
+const vfs = require('node:vfs');
+
+const memory = new vfs.MemoryProvider();
+const disk = new vfs.RealFSProvider('/tmp/vfs-root');
+const combined = vfs.create(new vfs.ComposableProvider([memory, disk]));
+combined.writeFileSync('/config.json', '{"debug":true}');
+// The file in memory shadows /tmp/vfs-root/config.json.
+```
+
+### `composableProvider.providers`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {VirtualProvider\[]}
+
+A copy of the ordered provider list. Changes to this array do not affect the
+composition. File handles opened before a write continue to refer to the layer
+on which they were opened. Watching a path watches only its currently selected
+provider, not changes across the entire composition. Symbolic links are
+resolved by the provider containing them, not across providers. Traversal
+through a symbolic-link directory is not supported by the composition. Renaming
+a directory over a directory that exists only in a lower layer is not supported.
+Layer selection and copy-up use synchronous provider operations, including
+when invoked through the asynchronous VFS API.
+
 ## Class: `RealFSProvider`
 
 <!-- YAML
@@ -565,7 +741,7 @@ The resolved absolute path used as the root.
 ## Class: `ZipProvider`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 A provider that exposes the entries of a ZIP archive - either a
@@ -575,11 +751,11 @@ the VFS API. `provider.readonly` reflects the archive's own
 `ZipFile` is writable only when opened with `{ writable: true }`.
 
 Directories are recognized both explicitly (an entry whose name ends in `/`)
-and implicitly (any entry name starting with `"<dir>/"`). `readdir()` does
-not support `{ recursive: true }`. Because a ZIP member cannot be edited or
-read in place - only fully written or fully decompressed - a file opened for
-writing only commits its content (as a new archive entry) when the handle is
-closed.
+and implicitly (any entry name starting with `"<dir>/"`), and are listed by
+`readdir()`, including with `{ recursive: true }`, either way. Because a ZIP
+member cannot be edited or read in place - only fully written or fully
+decompressed - a file opened for writing only commits its content (as a new
+archive entry) when the handle is closed.
 
 Every method has a synchronous counterpart (`openSync()`, `statSync()`,
 `readdirSync()`, and so on), backed by the equally complete synchronous
@@ -606,7 +782,7 @@ main();
 ### `new ZipProvider(source)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `source` {zlib.ZipBuffer|zlib.ZipFile} An already-open archive.
@@ -628,15 +804,25 @@ fields use synthetic but stable values:
 [CommonJS resolution algorithm]: modules.md#all-together
 [ES modules resolution algorithm]: esm.md#resolution-algorithm
 [Explicit Resource Management]: https://github.com/tc39/proposal-explicit-resource-management
+[Serving the assets from a ZIP archive]: single-executable-applications.md#serving-the-assets-from-a-zip-archive-with-vfsarchive
 [Single Executable Application]: single-executable-applications.md
+[`--import`]: cli.md#--importmodule
+[`--require`]: cli.md#-r---require-module
+[`--vfs-load`]: cli.md#--vfs-loadsource
+[`ComposableProvider`]: #class-composableprovider
 [`MemoryProvider`]: #class-memoryprovider
 [`RealFSProvider`]: #class-realfsprovider
 [`VirtualFileSystem`]: #class-virtualfilesystem
 [`VirtualProvider`]: #class-virtualprovider
 [`ZipProvider`]: #class-zipprovider
+[`ffi.dlopen()`]: ffi.md#ffidlopenpath-definitions
 [`fs.BigIntStats`]: fs.md#class-fsstats
 [`fs.Stats`]: fs.md#class-fsstats
+[`fs.rename()`]: fs.md#fsrenameoldpath-newpath-callback
+[`fs.rm()`]: fs.md#fsrmpath-options-callback
+[`fs.rmdir()`]: fs.md#fsrmdirpath-options-callback
 [`import.meta.resolve()`]: esm.md#importmetaresolvespecifier
+[`new ffi.DynamicLibrary()`]: ffi.md#new-dynamiclibrarypath
 [`node:fs`]: fs.md
 [`require()`]: modules.md#requireid
 [`require.resolve()`]: modules.md#requireresolverequest-options
@@ -645,8 +831,10 @@ fields use synthetic but stable values:
 [`vfs.mountPointURL`]: #vfsmountpointurl
 [`vfs.mountPoint`]: #vfsmountpoint
 [`vfs.unmount()`]: #vfsunmount
+[`vfs.vfsBase()`]: #vfsvfsbase
 [`zipFile.writable`]: zlib.md#zipfilewritable
 [`zlib.ZipBuffer`]: zlib.md#class-zlibzipbuffer
 [`zlib.ZipFile`]: zlib.md#class-zlibzipfile
 [loading from `node_modules` folders]: modules.md#loading-from-node_modules-folders
+[reserved root directory]: #the-reserved-root-directory
 [the global folders]: modules.md#loading-from-the-global-folders

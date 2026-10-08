@@ -1015,6 +1015,59 @@ console.log(`${str}: ${str.length} characters, ` +
 When `string` is a {Buffer|DataView|TypedArray|ArrayBuffer|SharedArrayBuffer},
 the byte length as reported by `.byteLength` is returned.
 
+### Static method: `Buffer.stringLength(input[, encoding])`
+
+<!-- YAML
+added: v26.11.0
+-->
+
+* `input` {Buffer | ArrayBuffer | TypedArray} The bytes that would be decoded.
+* `encoding` {string} The character encoding `input` would be decoded with.
+  **Default:** `'utf8'`.
+* Returns: {integer}
+
+Returns the length, in UTF-16 code units, of the string that
+`buf.toString(encoding)` would produce for the same bytes, without decoding
+them. This is the counterpart of [`Buffer.byteLength()`][], which returns the
+number of bytes a string would encode to.
+
+For `'utf8'`, invalid byte sequences are counted as they would be decoded:
+each maximal invalid subsequence becomes one `U+FFFD` replacement character.
+For every other encoding the result is computed from `input.byteLength` alone.
+
+A detached `ArrayBuffer`, or a `TypedArray` backed by one, is treated as empty.
+
+The result is not capped: compare it with
+[`buffer.constants.MAX_STRING_LENGTH`][] before decoding to know whether the
+decode can succeed at all. A string of `n` code units occupies between `n` and
+`2 * n` bytes of memory.
+
+```mjs
+import { Buffer, constants } from 'node:buffer';
+
+const buf = Buffer.from('€ 100', 'utf8');
+
+console.log(Buffer.stringLength(buf));
+// Prints: 5
+console.log(Buffer.stringLength(buf, 'hex'));
+// Prints: 14
+console.log(Buffer.stringLength(buf) <= constants.MAX_STRING_LENGTH);
+// Prints: true
+```
+
+```cjs
+const { Buffer, constants } = require('node:buffer');
+
+const buf = Buffer.from('€ 100', 'utf8');
+
+console.log(Buffer.stringLength(buf));
+// Prints: 5
+console.log(Buffer.stringLength(buf, 'hex'));
+// Prints: 14
+console.log(Buffer.stringLength(buf) <= constants.MAX_STRING_LENGTH);
+// Prints: true
+```
+
 ### Static method: `Buffer.compare(buf1, buf2)`
 
 <!-- YAML
@@ -5345,7 +5398,9 @@ added:
   - v19.6.0
   - v18.15.0
 changes:
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/64504
     description: Detached `ArrayBuffer`s and views backed by them are treated
                  as empty.
@@ -5359,6 +5414,53 @@ including the case in which `input` is empty.
 
 A detached `ArrayBuffer`, or a `TypedArray` backed by one, is treated as empty.
 
+### `buffer.isLatin1(input)`
+
+<!-- YAML
+added: v26.11.0
+-->
+
+* `input` {string} The string to validate.
+* Returns: {boolean}
+
+This function returns `true` if `input` can be losslessly encoded using the
+Node.js [`'latin1'`][character encodings] encoding, including the case in
+which `input` is empty. That is, it returns `true` if every UTF-16 code unit
+of `input` is in the range `U+0000` to `U+00FF`. Such a string is also a valid
+[WebIDL `ByteString`][].
+
+This check uses the Node.js definition of `'latin1'`, in which each code unit
+from `U+0000` to `U+00FF` maps directly to the byte of the same value. It does
+not use the [WHATWG Encoding Standard][] definition, in which the `'latin1'`
+label is an alias for `windows-1252`. For example, `'\u0080'` is considered
+latin1 by this function, while `'€'` (`U+20AC`, which `windows-1252` encodes as
+`0x80`) is not.
+
+Unlike [`buffer.isAscii()`][] and [`buffer.isUtf8()`][], this function
+validates a string rather than a `Buffer`, `TypedArray`, or `ArrayBuffer`.
+Every byte sequence would trivially be valid `'latin1'`, since every byte maps
+to a code unit less than or equal to `0xFF`.
+
+```mjs
+import { isLatin1 } from 'node:buffer';
+
+isLatin1('hello');   // true
+isLatin1('café');    // true
+isLatin1('\u00ff');  // true
+isLatin1('\u0100');  // false
+isLatin1('€');       // false
+```
+
+```cjs
+const { isLatin1 } = require('node:buffer');
+
+isLatin1('hello');   // true
+isLatin1('café');    // true
+isLatin1('\u00ff');  // true
+isLatin1('\u0100');  // false
+isLatin1('€');       // false
+```
+
 ### `buffer.isUtf8(input)`
 
 <!-- YAML
@@ -5366,7 +5468,9 @@ added:
   - v19.4.0
   - v18.14.0
 changes:
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/64504
     description: Detached `ArrayBuffer`s and views backed by them are treated
                  as empty.
@@ -5718,10 +5822,12 @@ or after startup, if the alignment has to hold at run time.
 [UTF-16]: https://en.wikipedia.org/wiki/UTF-16
 [UTF-8]: https://en.wikipedia.org/wiki/UTF-8
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
+[WebIDL `ByteString`]: https://webidl.spec.whatwg.org/#idl-ByteString
 [`--build-snapshot`]: cli.md#--build-snapshot
 [`Buffer.alloc()`]: #static-method-bufferallocsize-fill-encoding
 [`Buffer.allocUnsafe()`]: #static-method-bufferallocunsafesize-alignment
 [`Buffer.allocUnsafeSlow()`]: #static-method-bufferallocunsafeslowsize-alignment
+[`Buffer.byteLength()`]: #static-method-bufferbytelengthstring-encoding
 [`Buffer.concat()`]: #static-method-bufferconcatlist-totallength
 [`Buffer.copyBytesFrom()`]: #static-method-buffercopybytesfromview-offset-length
 [`Buffer.from(array)`]: #static-method-bufferfromarray
@@ -5756,10 +5862,13 @@ or after startup, if the alignment has to hold at run time.
 [`buf.values()`]: #bufvalues
 [`buffer.constants.MAX_LENGTH`]: #bufferconstantsmax_length
 [`buffer.constants.MAX_STRING_LENGTH`]: #bufferconstantsmax_string_length
+[`buffer.isAscii()`]: #bufferisasciiinput
+[`buffer.isUtf8()`]: #bufferisutf8input
 [`buffer.kMaxLength`]: #bufferkmaxlength
 [`util.inspect()`]: util.md#utilinspectobject-options
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8::Uint8Array::kMaxLength`]: https://v8.github.io/api/head/classv8_1_1Uint8Array.html#a7677e3d0c9c92e4d40bef7212f5980c6
 [base64url]: https://tools.ietf.org/html/rfc4648#section-5
+[character encodings]: #buffers-and-character-encodings
 [endianness]: https://en.wikipedia.org/wiki/Endianness
 [iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols

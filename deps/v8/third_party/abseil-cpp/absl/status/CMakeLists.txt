@@ -35,12 +35,14 @@ absl_cc_library(
     absl::core_headers
     absl::function_ref
     absl::inlined_vector
+    absl::internal_optional_ref
     absl::leak_check
     absl::memory
     absl::no_destructor
     absl::nullability
     absl::optional
     absl::raw_logging_internal
+    absl::source_location
     absl::span
     absl::stacktrace
     absl::str_format
@@ -59,6 +61,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::status
+    absl::source_location
     absl::str_format
     absl::strings
     GTest::gmock_main
@@ -82,6 +85,7 @@ absl_cc_library(
     absl::nullability
     absl::raw_logging_internal
     absl::status
+    absl::source_location
     absl::str_format
     absl::strings
     absl::type_traits
@@ -101,7 +105,93 @@ absl_cc_test(
     absl::status
     absl::status_matchers
     absl::statusor
+    absl::source_location
     absl::strings
+    GTest::gmock_main
+)
+
+absl_cc_library(
+  NAME
+    status_builder
+  HDRS
+    "status_builder.h"
+  SRCS
+    "status_builder.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+    absl::cord
+    absl::core_headers
+    absl::nullability
+    absl::optional
+    absl::source_location
+    absl::span
+    absl::status
+    absl::strings
+    absl::time
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME
+    status_builder_test
+  SRCS
+   "status_builder_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::core_headers
+    absl::flags
+    GTest::gmock_main
+    absl::log
+    absl::log_entry
+    absl::log_flags
+    absl::log_internal_flags
+    absl::log_severity
+    absl::log_sink
+    absl::scoped_mock_log
+    absl::source_location
+    absl::span
+    absl::status
+    absl::statusor
+    absl::status_builder
+    absl::status_matchers
+    absl::strings
+    absl::time
+)
+
+absl_cc_library(
+  NAME
+    status_macros
+  HDRS
+    "status_macros.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::core_headers
+    absl::source_location
+    absl::status
+    absl::status_builder
+    absl::statusor
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME
+    status_macros_test
+  SRCS
+   "status_macros_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::core_headers
+    absl::source_location
+    absl::status
+    absl::status_builder
+    absl::status_macros
+    absl::statusor
+    absl::string_view
     GTest::gmock_main
 )
 
@@ -119,6 +209,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::base
+    absl::core_headers
     absl::status
     absl::statusor
     absl::strings

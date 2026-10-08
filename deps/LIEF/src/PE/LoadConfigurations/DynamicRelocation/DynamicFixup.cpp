@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,8 @@ namespace LIEF::PE {
 
 using IMAGE_DYNAMIC_RELOCATION = DynamicRelocation::IMAGE_DYNAMIC_RELOCATION;
 
-ok_error_t DynamicFixup::parse(Parser& ctx, SpanStream& stream, DynamicRelocation& R) {
+ok_error_t DynamicFixup::parse(Parser& ctx, SpanStream& stream,
+                               DynamicRelocation& R) {
   auto default_ret = std::make_unique<DynamicFixupUnknown>(stream.content());
   if (R.symbol() == IMAGE_DYNAMIC_RELOCATION::RELOCATION_FUNCTION_OVERRIDE) {
     LIEF_DEBUG("IMAGE_DYNAMIC_RELOCATION_FUNCTION_OVERRIDE");
@@ -55,7 +56,9 @@ ok_error_t DynamicFixup::parse(Parser& ctx, SpanStream& stream, DynamicRelocatio
     return make_error_code(lief_errors::parsing_error);
   }
 
-  if (R.symbol() == IMAGE_DYNAMIC_RELOCATION::RELOCATION_ARM64_KERNEL_IMPORT_CALL_TRANSFER) {
+  if (R.symbol() ==
+      IMAGE_DYNAMIC_RELOCATION::RELOCATION_ARM64_KERNEL_IMPORT_CALL_TRANSFER)
+  {
     // Note(romain): According to link.exe there is a special processing for
     // this symbol (c.f. 0x140164140 in link.exe from 14.42.34433)
     //
@@ -70,7 +73,9 @@ ok_error_t DynamicFixup::parse(Parser& ctx, SpanStream& stream, DynamicRelocatio
     return make_error_code(lief_errors::parsing_error);
   }
 
-  if (R.symbol() == IMAGE_DYNAMIC_RELOCATION::RELOCATION_GUARD_IMPORT_CONTROL_TRANSFER) {
+  if (R.symbol() ==
+      IMAGE_DYNAMIC_RELOCATION::RELOCATION_GUARD_IMPORT_CONTROL_TRANSFER)
+  {
     LIEF_DEBUG("IMAGE_DYNAMIC_RELOCATION_GUARD_IMPORT_CONTROL_TRANSFER");
     auto fixups = DynamicFixupControlTransfer::parse(ctx, stream);
     if (fixups != nullptr) {

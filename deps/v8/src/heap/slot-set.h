@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "src/base/bit-field.h"
+#include "src/base/logging.h"
 #include "src/heap/base/basic-slot-set.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/slots.h"
@@ -142,6 +143,7 @@ class SlotSet final : public ::heap::base::BasicSlotSet<kTaggedSize> {
       case v8::internal::AccessMode::NON_ATOMIC:
         return BasicSlotSet::AccessMode::NON_ATOMIC;
     }
+    UNREACHABLE();
   }
 
   // Similar to BasicSlotSet::Iterate() but Callback takes the parameter of type

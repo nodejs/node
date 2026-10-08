@@ -9,9 +9,6 @@ Use this script to fetch all dependencies for V8 to run build_gn.py.
 Usage: fetch_deps.py <v8-path>
 """
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
 import os
 import subprocess
 import sys
@@ -24,8 +21,6 @@ GCLIENT_SOLUTION = [
     "deps_file"   : "DEPS",
     "managed"     : False,
     "custom_deps" : {
-      # Update depot_tools for compatibility with Python 3.12.
-      "v8/third_party/depot_tools"            : "https://chromium.googlesource.com/chromium/tools/depot_tools.git@284c5ccb591c3de4e9f71be4a4beb5d1916d5383",
       # These deps are already part of Node.js.
       "v8/base/trace_event/common"            : None,
       "v8/third_party/abseil-cpp"             : None,

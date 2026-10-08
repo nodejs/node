@@ -75,6 +75,27 @@ V8_INLINE void WriteLazilyInitializedCppHeapPointerField(
 #endif  // !V8_COMPRESS_POINTERS
 }
 
+void CppHeapPointerMember::SetupLazilyInitialized() {
+  CppHeapPointerSlot(storage_address()).init();
+}
+
+void CppHeapPointerMember::StoreLazy(IsolateForPointerCompression isolate,
+                                     Address value, CppHeapPointerTag tag) {
+  WriteLazilyInitializedCppHeapPointerField(storage_address(), isolate, value,
+                                            tag);
+}
+
+template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
+Address CppHeapPointerMember::load(IsolateForPointerCompression isolate) const {
+  return ReadCppHeapPointerField<lower_bound, upper_bound>(storage_address(),
+                                                           isolate);
+}
+
+Address CppHeapPointerMember::load(IsolateForPointerCompression isolate,
+                                   CppHeapPointerTagRange tag_range) const {
+  return ReadCppHeapPointerField(storage_address(), isolate, tag_range);
+}
+
 }  // namespace v8::internal
 
 #endif  // V8_SANDBOX_CPPHEAP_POINTER_INL_H_

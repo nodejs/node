@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 #ifndef LIEF_DSC_MAPPING_INFO_H
 #define LIEF_DSC_MAPPING_INFO_H
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/iterators.hpp"
 
@@ -31,18 +32,19 @@ class MappingInfoIt;
 
 /// This class represents a `dyld_cache_mapping_info` entry.
 ///
-/// It provides information about the relationshiop between on-disk shared cache
+/// It provides information about the relationship between on-disk shared cache
 /// and in-memory shared cache.
 class LIEF_API MappingInfo {
   public:
   /// MappingInfo Iterator
-  class LIEF_API Iterator :
-    public iterator_facade_base<Iterator, std::random_access_iterator_tag,
-                                std::unique_ptr<MappingInfo>, std::ptrdiff_t, MappingInfo*,
-                                std::unique_ptr<MappingInfo>>
-  {
+  class LIEF_API Iterator
+    : public iterator_facade_base<Iterator, std::random_access_iterator_tag,
+                                  MappingInfo, std::ptrdiff_t, const MappingInfo*,
+                                  const MappingInfo&> {
     public:
     using implementation = details::MappingInfoIt;
+
+    Iterator();
 
     Iterator(std::unique_ptr<details::MappingInfoIt> impl);
     Iterator(const Iterator&);
@@ -65,10 +67,20 @@ class LIEF_API MappingInfo {
       return !(LHS == RHS);
     }
 
-    std::unique_ptr<MappingInfo> operator*() const;
+    const MappingInfo& operator*() const LIEF_LIFETIMEBOUND;
+
+    // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
+    const MappingInfo* operator->() const LIEF_LIFETIMEBOUND;
+
+    /// Transfer ownership of the mapping info at the current position to
+    /// the caller. Returns `nullptr` if the iterator is past-the-end.
+    std::unique_ptr<MappingInfo> yield();
 
     private:
+    void load() const;
+
     std::unique_ptr<details::MappingInfoIt> impl_;
+    mutable std::unique_ptr<MappingInfo> cached_;
   };
 
   MappingInfo(std::unique_ptr<details::MappingInfo> impl);

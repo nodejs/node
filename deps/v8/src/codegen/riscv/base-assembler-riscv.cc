@@ -34,7 +34,7 @@
 
 #include "src/codegen/riscv/base-assembler-riscv.h"
 
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 
 namespace v8 {
 namespace internal {
@@ -217,8 +217,8 @@ void AssemblerRiscvBase::GenInstrS(uint8_t funct3, BaseOpcode opcode,
 
 void AssemblerRiscvBase::GenInstrB(uint8_t funct3, BaseOpcode opcode,
                                    Register rs1, Register rs2, int16_t imm13) {
-  DCHECK(is_uint3(funct3) && rs1.is_valid() && rs2.is_valid() &&
-         is_int13(imm13) && ((imm13 & 1) == 0));
+  CHECK(is_uint3(funct3) && rs1.is_valid() && rs2.is_valid() &&
+        is_int13(imm13) && ((imm13 & 1) == 0));
   Instr instr = opcode | ((imm13 & 0x800) >> 4) |  // bit  11
                 ((imm13 & 0x1e) << 7) |            // bits 4-1
                 (funct3 << kFunct3Shift) | (rs1.code() << kRs1Shift) |
@@ -237,7 +237,8 @@ void AssemblerRiscvBase::GenInstrU(BaseOpcode opcode, Register rd,
 
 void AssemblerRiscvBase::GenInstrJ(BaseOpcode opcode, Register rd,
                                    int32_t imm21) {
-  DCHECK(rd.is_valid() && is_int21(imm21) && ((imm21 & 1) == 0));
+  CHECK(is_int21(imm21));
+  DCHECK(rd.is_valid() && ((imm21 & 1) == 0));
   Instr instr = opcode | (rd.code() << kRdShift) |
                 (imm21 & 0xff000) |          // bits 19-12
                 ((imm21 & 0x800) << 9) |     // bit  11
@@ -384,6 +385,20 @@ void AssemblerRiscvBase::GenInstrCBA(uint8_t funct3, uint8_t funct2,
   ShortInstr instr = opcode | ((imm6 & 0x1f) << 2) | ((imm6 & 0x20) << 7) |
                      ((rs1.code() & 0x7) << kRvcRs1sShift) |
                      (funct3 << kRvcFunct3Shift) | (funct2 << 10);
+  emit(instr);
+}
+
+// CU (Compressed Unary) format, used by the Zcb extension:
+// | funct3 | nzuimm[5:3] | rd'/rs1' | funct2 | nzuimm[2:0] | opcode |
+//   15:13     12:10        9:7        6:5       4:2          1:0
+void AssemblerRiscvBase::GenInstrCU(uint8_t funct3, uint8_t funct2,
+                                    BaseOpcode opcode, Register rd,
+                                    uint8_t nzuimm) {
+  DCHECK(is_uint3(funct3) && is_uint2(funct2) && is_uint6(nzuimm));
+  ShortInstr instr = opcode | ((nzuimm & 0x7) << kRvcRs2sShift) |
+                     ((rd.code() & 0x7) << kRvcRs1sShift) |
+                     ((nzuimm & 0x38) << 7) | (funct2 << kRvcFunct2Shift) |
+                     (funct3 << kRvcFunct3Shift);
   emit(instr);
 }
 // ----- Instruction class templates match those in the compiler

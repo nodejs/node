@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,23 +21,31 @@
 
 FMT_FORMATTER(LIEF::ELF::AArch64Feature::FEATURE, LIEF::ELF::to_string);
 
-namespace LIEF {
-namespace ELF {
+
+namespace LIEF::ELF {
 
 std::unique_ptr<AArch64Feature> AArch64Feature::create(BinaryStream& stream) {
   static constexpr auto GNU_PROPERTY_AARCH64_FEATURE_1_BTI = 1U << 0;
   static constexpr auto GNU_PROPERTY_AARCH64_FEATURE_1_PAC = 1U << 1;
+  static constexpr auto GNU_PROPERTY_AARCH64_FEATURE_1_GCS = 1U << 2;
 
   uint32_t bitmask = stream.read<uint32_t>().value_or(0);
 
   std::vector<FEATURE> features;
   while (bitmask) {
-    uint32_t bit = bitmask & (- bitmask);
+    uint32_t bit = bitmask & (-bitmask);
     bitmask &= ~bit;
 
     switch (bit) {
-      case GNU_PROPERTY_AARCH64_FEATURE_1_BTI: features.push_back(FEATURE::BTI); break;
-      case GNU_PROPERTY_AARCH64_FEATURE_1_PAC: features.push_back(FEATURE::PAC); break;
+      case GNU_PROPERTY_AARCH64_FEATURE_1_BTI:
+        features.push_back(FEATURE::BTI);
+        break;
+      case GNU_PROPERTY_AARCH64_FEATURE_1_PAC:
+        features.push_back(FEATURE::PAC);
+        break;
+      case GNU_PROPERTY_AARCH64_FEATURE_1_GCS:
+        features.push_back(FEATURE::GCS);
+        break;
       default: features.push_back(FEATURE::UNKNOWN); break;
     }
   }
@@ -46,13 +54,14 @@ std::unique_ptr<AArch64Feature> AArch64Feature::create(BinaryStream& stream) {
 }
 
 const char* to_string(AArch64Feature::FEATURE type) {
-  #define ENTRY(X) std::pair(AArch64Feature::FEATURE::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(UNKNOWN),
-    ENTRY(BTI),
-    ENTRY(PAC),
+#define ENTRY(X) std::pair(AArch64Feature::FEATURE::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(UNKNOWN),
+      ENTRY(BTI),
+      ENTRY(PAC),
+      ENTRY(GCS),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(type); it != enums2str.end()) {
     return it->second;
@@ -61,8 +70,7 @@ const char* to_string(AArch64Feature::FEATURE type) {
   return "UNKNOWN";
 }
 
-void AArch64Feature::dump(std::ostream &os) const {
+void AArch64Feature::dump(std::ostream& os) const {
   os << "AArch64 feature(s): " << fmt::to_string(features());
-}
 }
 }

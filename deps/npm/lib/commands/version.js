@@ -23,6 +23,7 @@ class Version extends BaseCommand {
 
   static workspaces = true
   static ignoreImplicitWorkspace = false
+  static skipConfigValidation = true
 
   static usage = ['[<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]']
 

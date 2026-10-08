@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,25 +49,25 @@ struct brooks_read_barrier_t {
 template<class T>
 struct jobject_t {
   heap_reference_t klass;
-  uint32_t         monitor;
-  T                brooks_read_barrier;
+  uint32_t monitor;
+  T brooks_read_barrier;
 };
 
 template<>
 struct jobject_t<no_brooks_read_barrier_t> {
   heap_reference_t klass;
-  uint32_t         monitor;
+  uint32_t monitor;
 };
 template<class T = no_brooks_read_barrier_t>
 struct ALIGNED_(4) jarray_t {
   jobject_t<T> object;
-  int32_t   length;
+  int32_t length;
   uint32_t* elements;
 };
 
 template<class T = no_brooks_read_barrier_t>
 struct ALIGNED_(4) jclass_t {
-  jobject_t<T>     object;
+  jobject_t<T> object;
 
   heap_reference_t class_loader;
   heap_reference_t component_type;
@@ -86,8 +86,8 @@ struct ALIGNED_(4) jclass_t {
   uint64_t virtual_methods;
   uint32_t class_size;
   uint32_t clinit_thread_id;
-  int32_t  dex_class_def_idx;
-  int32_t  dex_type_idx;
+  int32_t dex_class_def_idx;
+  int32_t dex_type_idx;
   uint32_t num_direct_methods;
   uint32_t num_instance_fields;
   uint32_t num_reference_instance_fields;
@@ -97,15 +97,15 @@ struct ALIGNED_(4) jclass_t {
   uint32_t object_size;
   uint32_t primitive_type;
   uint32_t reference_instance_offsets;
-  int32_t  status;
+  int32_t status;
 };
 
 template<class T = no_brooks_read_barrier_t>
 struct ALIGNED_(4) jstring_t {
   jobject_t<T> object;
-  int32_t      count;
-  uint32_t     hash_code;
-  uint16_t*    value;
+  int32_t count;
+  uint32_t hash_code;
+  uint16_t* value;
 };
 
 template<class T = no_brooks_read_barrier_t>
@@ -118,7 +118,7 @@ struct ALIGNED_(4) jdex_cache_t {
   heap_reference_t resolved_methods;
   heap_reference_t resolved_types;
   heap_reference_t strings;
-  uint64_t         dex_file;
+  uint64_t dex_file;
 };
 
 
@@ -132,7 +132,7 @@ namespace ART_29 {
 
 /// Namespace related to the Java part of ART 29
 namespace Java {
-using heap_reference_t      = ART_17::Java::heap_reference_t;
+using heap_reference_t = ART_17::Java::heap_reference_t;
 using brooks_read_barrier_t = ART_17::Java::brooks_read_barrier_t;
 
 template<class T = no_brooks_read_barrier_t>
@@ -143,9 +143,9 @@ using jarray_t = ART_17::Java::jarray_t<T>;
 
 template<class T = no_brooks_read_barrier_t>
 struct ALIGNED_(4) jclass_t {
-  jobject_t<T>     object;
+  jobject_t<T> object;
 
-  heap_reference_t annotation_type;           // ADDED in ART 29
+  heap_reference_t annotation_type; // ADDED in ART 29
   heap_reference_t class_loader;
   heap_reference_t component_type;
   heap_reference_t dex_cache;
@@ -153,19 +153,19 @@ struct ALIGNED_(4) jclass_t {
   heap_reference_t iftable;
   heap_reference_t name;
   heap_reference_t super_class;
-  heap_reference_t verify_error;              // Type CHANGED from Class to Object
+  heap_reference_t verify_error; // Type CHANGED from Class to Object
   heap_reference_t vtable;
 
   uint32_t access_flags;
-  uint64_t dex_cache_strings;                 // direct_methods REPLACED with dex_cache_string
+  uint64_t dex_cache_strings; // direct_methods REPLACED with dex_cache_string
   uint64_t ifields;
-  uint64_t methods;                           // ADDED in ART 29
+  uint64_t methods; // ADDED in ART 29
   uint64_t sfields;
-  uint32_t class_flags;                       // virtual_methods REPLACED with class_flags
+  uint32_t class_flags; // virtual_methods REPLACED with class_flags
   uint32_t class_size;
   uint32_t clinit_thread_id;
-  int32_t  dex_class_def_idx;
-  int32_t  dex_type_idx;
+  int32_t dex_class_def_idx;
+  int32_t dex_type_idx;
   // uint32_t num_direct_methods;             // REMOVED in ART 29
   // uint32_t num_instance_fields;            // REMOVED in ART 29
   uint32_t num_reference_instance_fields;
@@ -175,10 +175,10 @@ struct ALIGNED_(4) jclass_t {
   uint32_t object_size;
   uint32_t primitive_type;
   uint32_t reference_instance_offsets;
-  int32_t  status;
+  int32_t status;
 
-  uint16_t copied_methods_offset;              // ADDED in ART 29
-  uint16_t virtual_methods_offset;             // ADDED in ART 29
+  uint16_t copied_methods_offset;  // ADDED in ART 29
+  uint16_t virtual_methods_offset; // ADDED in ART 29
 };
 
 
@@ -192,18 +192,16 @@ struct ALIGNED_(4) jdex_cache_t {
 
   heap_reference_t dex;
   heap_reference_t location;
-  uint64_t         dex_file;               // LOCATION CHANGED
-  uint64_t         resolved_fields;        // TYPE CHANGED from heap_reference_t to uint64_t
-  uint64_t         resolved_methods;       // TYPE CHANGED from heap_reference_t to uint64_t
-  uint64_t         resolved_types;         // TYPE CHANGED from heap_reference_t to uint64_t
-  uint64_t         strings;                // TYPE CHANGED from heap_reference_t to uint64_t
-  uint32_t         num_resolved_fields;    // ADDED in ART 29
-  uint32_t         num_resolved_methods;   // ADDED in ART 29
-  uint32_t         num_resolved_types;     // ADDED in ART 29
-  uint32_t         num_strings;            // ADDED in ART 29
+  uint64_t dex_file;             // LOCATION CHANGED
+  uint64_t resolved_fields;      // TYPE CHANGED from heap_reference_t to uint64_t
+  uint64_t resolved_methods;     // TYPE CHANGED from heap_reference_t to uint64_t
+  uint64_t resolved_types;       // TYPE CHANGED from heap_reference_t to uint64_t
+  uint64_t strings;              // TYPE CHANGED from heap_reference_t to uint64_t
+  uint32_t num_resolved_fields;  // ADDED in ART 29
+  uint32_t num_resolved_methods; // ADDED in ART 29
+  uint32_t num_resolved_types;   // ADDED in ART 29
+  uint32_t num_strings;          // ADDED in ART 29
 };
-
-
 
 
 } // Namespace Java
@@ -218,7 +216,7 @@ namespace ART_30 {
 /// Namespace related to the Java part of ART 30
 namespace Java {
 
-using heap_reference_t      = ART_29::Java::heap_reference_t;
+using heap_reference_t = ART_29::Java::heap_reference_t;
 using brooks_read_barrier_t = ART_29::Java::brooks_read_barrier_t;
 
 template<class T = no_brooks_read_barrier_t>
@@ -250,7 +248,7 @@ namespace ART_44 {
 namespace Java {
 
 
-using heap_reference_t      = ART_30::Java::heap_reference_t;
+using heap_reference_t = ART_30::Java::heap_reference_t;
 using brooks_read_barrier_t = ART_30::Java::brooks_read_barrier_t;
 
 template<class T = no_brooks_read_barrier_t>
@@ -261,13 +259,13 @@ using jarray_t = ART_30::Java::jarray_t<T>;
 
 template<class T = no_brooks_read_barrier_t>
 struct ALIGNED_(4) jclass_t {
-  jobject_t<T>     object;
+  jobject_t<T> object;
 
   // heap_reference_t annotation_type;        // REMOVED in ART 44
   heap_reference_t class_loader;
   heap_reference_t component_type;
   heap_reference_t dex_cache;
-  heap_reference_t ext_data;                  // ADDED in ART 44
+  heap_reference_t ext_data; // ADDED in ART 44
   heap_reference_t iftable;
   heap_reference_t name;
   heap_reference_t super_class;
@@ -279,19 +277,19 @@ struct ALIGNED_(4) jclass_t {
   uint64_t ifields;
   uint64_t methods;
   uint64_t sfields;
-  uint32_t access_flags;                      // ADDED in ART 44
+  uint32_t access_flags; // ADDED in ART 44
   uint32_t class_flags;
   uint32_t class_size;
   uint32_t clinit_thread_id;
-  int32_t  dex_class_def_idx;
-  int32_t  dex_type_idx;
+  int32_t dex_class_def_idx;
+  int32_t dex_type_idx;
   uint32_t num_reference_instance_fields;
   uint32_t num_reference_static_fields;
   uint32_t object_size;
-  uint32_t object_size_alloc_fast_path;       // ADDED in ART 44
+  uint32_t object_size_alloc_fast_path; // ADDED in ART 44
   uint32_t primitive_type;
   uint32_t reference_instance_offsets;
-  int32_t  status;
+  int32_t status;
   uint16_t copied_methods_offset;
   uint16_t virtual_methods_offset;
 };
@@ -310,19 +308,19 @@ struct ALIGNED_(4) jdex_cache_t {
 
   // heap_reference_t dex;                     // REMOVED in ART 44
   heap_reference_t location;
-  uint32_t         num_resolved_call_sites;    // ADDED in ART 44 (related to DEX38 format)
-  uint64_t         dex_file;
-  uint64_t         resolved_call_sites;        // ADDED in ART 44 (related to DEX38 format)
-  uint64_t         resolved_fields;
-  uint64_t         resolved_method_types;      // ADDED in ART 44
-  uint64_t         resolved_methods;
-  uint64_t         resolved_types;
-  uint64_t         strings;
-  uint32_t         num_resolved_fields;
-  uint32_t         num_resolved_methods_types; // ADDED in ART 44
-  uint32_t         num_resolved_methods;
-  uint32_t         num_resolved_types;
-  uint32_t         num_strings;
+  uint32_t num_resolved_call_sites; // ADDED in ART 44 (related to DEX38 format)
+  uint64_t dex_file;
+  uint64_t resolved_call_sites; // ADDED in ART 44 (related to DEX38 format)
+  uint64_t resolved_fields;
+  uint64_t resolved_method_types; // ADDED in ART 44
+  uint64_t resolved_methods;
+  uint64_t resolved_types;
+  uint64_t strings;
+  uint32_t num_resolved_fields;
+  uint32_t num_resolved_methods_types; // ADDED in ART 44
+  uint32_t num_resolved_methods;
+  uint32_t num_resolved_types;
+  uint32_t num_strings;
 };
 
 
@@ -338,7 +336,7 @@ namespace ART_46 {
 /// Namespace related to the Java part of ART 46
 namespace Java {
 
-using heap_reference_t      = ART_44::Java::heap_reference_t;
+using heap_reference_t = ART_44::Java::heap_reference_t;
 using brooks_read_barrier_t = ART_44::Java::brooks_read_barrier_t;
 
 template<class T = no_brooks_read_barrier_t>
@@ -367,7 +365,7 @@ namespace ART_56 {
 /// Namespace related to the Java part of ART 46
 namespace Java {
 
-using heap_reference_t      = ART_46::Java::heap_reference_t;
+using heap_reference_t = ART_46::Java::heap_reference_t;
 using brooks_read_barrier_t = ART_46::Java::brooks_read_barrier_t;
 
 template<class T = no_brooks_read_barrier_t>
@@ -391,7 +389,6 @@ using jdex_cache_t = ART_46::Java::jdex_cache_t<T>;
 } // namespace details
 } // Namespace ART
 } // Namespace LIEF
-
 
 
 #endif

@@ -184,6 +184,8 @@ class Float64 {
     return is_nan() && (bit_pattern_ & (uint64_t{1} << 51));
   }
 
+  bool is_signalling_nan() const { return is_nan() && !is_quiet_nan(); }
+
   V8_WARN_UNUSED_RESULT Float64 to_quiet_nan() const {
     DCHECK(is_nan());
     Float64 quiet_nan{bit_pattern_ | (uint64_t{1} << 51)};
@@ -192,6 +194,14 @@ class Float64 {
   }
 
   static constexpr Float64 FromBits(uint64_t bits) { return Float64(bits); }
+
+  // Explicit static constructor that allows NaN values, when we don't care
+  // about the NaN bitpattern.
+  static constexpr Float64 FromMaybeNaN(double value) {
+    Float64 ret(base::double_to_uint64(value));
+    DCHECK_EQ(std::isnan(value), ret.is_nan());
+    return ret;
+  }
 
   constexpr bool operator==(const Float64&) const = default;
 

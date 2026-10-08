@@ -31,14 +31,14 @@ namespace container_internal {
 
 // Defines how slots are initialized/destroyed/moved.
 template <class Policy, class = void>
-struct hash_policy_traits : common_policy_traits<Policy> {
+  struct hash_policy_traits : common_policy_traits<Policy> {
   // The type of the keys stored in the hashtable.
   using key_type = typename Policy::key_type;
 
  private:
   struct ReturnKey {
     template <class Key,
-              absl::enable_if_t<std::is_lvalue_reference<Key>::value, int> = 0>
+              std::enable_if_t<std::is_lvalue_reference_v<Key>, int> = 0>
     static key_type& Impl(Key&& k, int) {
       return *std::launder(
           const_cast<key_type*>(std::addressof(std::forward<Key>(k))));
@@ -63,7 +63,7 @@ struct hash_policy_traits : common_policy_traits<Policy> {
   struct ConstantIteratorsImpl : std::false_type {};
 
   template <class P>
-  struct ConstantIteratorsImpl<P, absl::void_t<typename P::constant_iterators>>
+  struct ConstantIteratorsImpl<P, std::void_t<typename P::constant_iterators>>
       : P::constant_iterators {};
 
  public:
@@ -76,8 +76,8 @@ struct hash_policy_traits : common_policy_traits<Policy> {
   using init_type = typename Policy::init_type;
 
   using reference = decltype(Policy::element(std::declval<slot_type*>()));
-  using pointer = typename std::remove_reference<reference>::type*;
-  using value_type = typename std::remove_reference<reference>::type;
+  using pointer = std::remove_reference_t<reference>*;
+  using value_type = std::remove_reference_t<reference>;
 
   // Policies can set this variable to tell raw_hash_set that all iterators
   // should be constant, even `iterator`. This is useful for set-like
@@ -146,7 +146,7 @@ struct hash_policy_traits : common_policy_traits<Policy> {
     return P::value(elem);
   }
 
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
 // get_hash_slot_fn may return nullptr to signal that non type erased function
 // should be used. GCC warns against comparing function address with nullptr.
@@ -155,9 +155,11 @@ struct hash_policy_traits : common_policy_traits<Policy> {
 // silent error: the address of * will never be NULL [-Werror=address]
 #pragma GCC diagnostic ignored "-Waddress"
 #endif
-    return Policy::template get_hash_slot_fn<Hash, kIsDefault>() == nullptr
-               ? &hash_slot_fn_non_type_erased<Hash, kIsDefault>
-               : Policy::template get_hash_slot_fn<Hash, kIsDefault>();
+    return Policy::template get_hash_slot_fn<Hash, kIsDefault, kSeedShift>() ==
+                   nullptr
+               ? &hash_slot_fn_non_type_erased<Hash, kIsDefault, kSeedShift>
+               : Policy::template get_hash_slot_fn<Hash, kIsDefault,
+                                                   kSeedShift>();
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
@@ -167,11 +169,12 @@ struct hash_policy_traits : common_policy_traits<Policy> {
   static constexpr bool soo_enabled() { return soo_enabled_impl(Rank1{}); }
 
  private:
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static size_t hash_slot_fn_non_type_erased(const void* hash_fn, void* slot,
                                              size_t seed) {
     return Policy::apply(
-        HashElement<Hash, kIsDefault>{*static_cast<const Hash*>(hash_fn), seed},
+        HashElement<Hash, kIsDefault, kSeedShift>{
+            *static_cast<const Hash*>(hash_fn), seed},
         Policy::element(static_cast<slot_type*>(slot)));
   }
 

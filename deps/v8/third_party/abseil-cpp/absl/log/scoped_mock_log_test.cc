@@ -27,6 +27,7 @@
 #include "absl/log/internal/test_helpers.h"
 #include "absl/log/internal/test_matchers.h"
 #include "absl/log/log.h"
+#include "absl/log/log_entry.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
@@ -261,7 +262,7 @@ TEST(ScopedMockLogTest, NoSequenceWithMultipleThreads) {
 
 TEST(ScopedMockLogTsanTest,
      ScopedMockLogCanBeDeletedWhenAnotherThreadIsLogging) {
-  auto log = absl::make_unique<absl::ScopedMockLog>();
+  auto log = std::make_unique<absl::ScopedMockLog>();
   EXPECT_CALL(*log, Log(absl::LogSeverity::kInfo, __FILE__, "Thread log"))
       .Times(AnyNumber());
 

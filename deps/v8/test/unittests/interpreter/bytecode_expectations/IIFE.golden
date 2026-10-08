@@ -67,7 +67,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 59
+bytecode array length: 58
 bytecodes: [
   /*   16 E> */ B(CreateMappedArguments),
                 B(Star0),

@@ -9,8 +9,8 @@
 #include <type_traits>
 
 #ifdef SPDLOG_USE_STD_FORMAT
-    #include <charconv>
-    #include <limits>
+#include <charconv>
+#include <limits>
 #endif
 
 // Some fmt helpers to efficiently format and pad ints and strings
@@ -70,13 +70,13 @@ inline unsigned int count_digits(T n) {
     return count_digits_fallback(static_cast<count_type>(n));
 #else
     return static_cast<unsigned int>(fmt::
-    // fmt 7.0.0 renamed the internal namespace to detail.
-    // See: https://github.com/fmtlib/fmt/issues/1538
-    #if FMT_VERSION < 70000
+// fmt 7.0.0 renamed the internal namespace to detail.
+// See: https://github.com/fmtlib/fmt/issues/1538
+#if FMT_VERSION < 70000
                                          internal
-    #else
+#else
                                          detail
-    #endif
+#endif
                                      ::count_digits(static_cast<count_type>(n)));
 #endif
 }

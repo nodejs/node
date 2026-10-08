@@ -114,6 +114,9 @@ class FSContinuationData : public MemoryRetainer {
   inline std::string PopPath();
   // Used by mkdirp to track the first path created:
   inline void MaybeSetFirstPath(const std::string& path);
+  // Used by mkdirp to retry a path that failed with ENOENT only once: its
+  // parent has been created or checked by then, so retrying again cannot help.
+  inline bool ShouldRetryENOENT(const std::string& path);
   inline void Done(int result);
 
   int mode() const { return mode_; }
@@ -129,6 +132,7 @@ class FSContinuationData : public MemoryRetainer {
   uv_fs_t* req_;
   int mode_;
   std::vector<std::string> paths_;
+  std::vector<std::string> enoent_paths_;
   std::string first_path_;
 };
 

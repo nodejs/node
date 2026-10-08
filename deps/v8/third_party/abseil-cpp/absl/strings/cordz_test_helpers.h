@@ -15,6 +15,8 @@
 #ifndef ABSL_STRINGS_CORDZ_TEST_HELPERS_H_
 #define ABSL_STRINGS_CORDZ_TEST_HELPERS_H_
 
+#include <cstdint>
+#include <cstring>
 #include <utility>
 
 #include "gmock/gmock.h"
@@ -24,6 +26,7 @@
 #include "absl/base/nullability.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/internal/cord_internal.h"
+#include "absl/strings/internal/cordz_functions.h"
 #include "absl/strings/internal/cordz_info.h"
 #include "absl/strings/internal/cordz_sample_token.h"
 #include "absl/strings/internal/cordz_statistics.h"

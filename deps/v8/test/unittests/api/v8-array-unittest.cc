@@ -5,7 +5,11 @@
 #include "include/v8-container.h"
 #include "include/v8-primitive.h"
 #include "include/v8-value.h"
+#include "src/api/api-inl.h"
 #include "src/execution/protectors-inl.h"
+#include "src/heap/heap-inl.h"
+#include "src/objects/js-array-inl.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/interpreter/interpreter-tester.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -239,6 +243,168 @@ TEST_F(ArrayTest, IteratorValueChangeShouldInvalidateArrayIteratorProtectCell) {
 
   CHECK(!internal::Protectors::IsArrayIteratorLookupChainIntact(
       internal::Isolate::Current()));
+}
+
+TEST_F(ArrayTest, IterateWithGC) {
+  i::v8_flags.expose_gc = true;
+  HandleScope scope(isolate());
+
+  struct ArrayTestCase {
+    const char* js_source;
+    internal::ElementsKind expected_kind;
+    std::vector<std::string> expected_values;
+  };
+
+  const ArrayTestCase test_cases[] = {
+      // PACKED_SMI_ELEMENTS
+      {"[10, 20, 30]", internal::PACKED_SMI_ELEMENTS, {"10", "20", "30"}},
+      // HOLEY_SMI_ELEMENTS
+      {"(() => { const a = [10, 20, 30]; delete a[1]; return a; })()",
+       internal::HOLEY_SMI_ELEMENTS,
+       {"10", "undefined", "30"}},
+      // PACKED_ELEMENTS
+      {"['foo', 'bar', 'baz']",
+       internal::PACKED_ELEMENTS,
+       {"foo", "bar", "baz"}},
+      // HOLEY_ELEMENTS
+      {"(() => { const a = ['foo', 'bar', 'baz']; delete a[1]; return a; })()",
+       internal::HOLEY_ELEMENTS,
+       {"foo", "undefined", "baz"}},
+      // PACKED_DOUBLE_ELEMENTS
+      {"[1.5, 2.5, 3.5]",
+       internal::PACKED_DOUBLE_ELEMENTS,
+       {"1.5", "2.5", "3.5"}},
+      // HOLEY_DOUBLE_ELEMENTS
+      {"(() => { const a = [1.5, 2.5, 3.5]; delete a[1]; return a; })()",
+       internal::HOLEY_DOUBLE_ELEMENTS,
+       {"1.5", "undefined", "3.5"}},
+      // PACKED_NONEXTENSIBLE_ELEMENTS (Object and Smi)
+      {"Object.preventExtensions(['a', 'b', 'c'])",
+       internal::PACKED_NONEXTENSIBLE_ELEMENTS,
+       {"a", "b", "c"}},
+      {"Object.preventExtensions([10, 20, 30])",
+       internal::PACKED_NONEXTENSIBLE_ELEMENTS,
+       {"10", "20", "30"}},
+      // HOLEY_NONEXTENSIBLE_ELEMENTS (Object and Smi)
+      {"(() => { const a = ['a', 'b', 'c']; delete a[1]; return "
+       "Object.preventExtensions(a); })()",
+       internal::HOLEY_NONEXTENSIBLE_ELEMENTS,
+       {"a", "undefined", "c"}},
+      {"(() => { const a = [10, 20, 30]; delete a[1]; return "
+       "Object.preventExtensions(a); })()",
+       internal::HOLEY_NONEXTENSIBLE_ELEMENTS,
+       {"10", "undefined", "30"}},
+      // PACKED_SEALED_ELEMENTS (Object and Smi)
+      {"Object.seal(['a', 'b', 'c'])",
+       internal::PACKED_SEALED_ELEMENTS,
+       {"a", "b", "c"}},
+      {"Object.seal([10, 20, 30])",
+       internal::PACKED_SEALED_ELEMENTS,
+       {"10", "20", "30"}},
+      // HOLEY_SEALED_ELEMENTS (Object and Smi)
+      {"(() => { const a = ['a', 'b', 'c']; delete a[1]; return "
+       "Object.seal(a); })()",
+       internal::HOLEY_SEALED_ELEMENTS,
+       {"a", "undefined", "c"}},
+      {"(() => { const a = [10, 20, 30]; delete a[1]; return "
+       "Object.seal(a); })()",
+       internal::HOLEY_SEALED_ELEMENTS,
+       {"10", "undefined", "30"}},
+      // PACKED_FROZEN_ELEMENTS (Object and Smi)
+      {"Object.freeze(['a', 'b', 'c'])",
+       internal::PACKED_FROZEN_ELEMENTS,
+       {"a", "b", "c"}},
+      {"Object.freeze([10, 20, 30])",
+       internal::PACKED_FROZEN_ELEMENTS,
+       {"10", "20", "30"}},
+      // HOLEY_FROZEN_ELEMENTS (Object and Smi)
+      {"(() => { const a = ['a', 'b', 'c']; delete a[1]; return "
+       "Object.freeze(a); })()",
+       internal::HOLEY_FROZEN_ELEMENTS,
+       {"a", "undefined", "c"}},
+      {"(() => { const a = [10, 20, 30]; delete a[1]; return "
+       "Object.freeze(a); })()",
+       internal::HOLEY_FROZEN_ELEMENTS,
+       {"10", "undefined", "30"}},
+      // DICTIONARY_ELEMENTS (Sparse array)
+      {"(() => { const a = []; a[0] = 'a'; a[10000] = 'b'; return a; })()",
+       internal::DICTIONARY_ELEMENTS,
+       {"a", "b"}},
+      // DICTIONARY_ELEMENTS (Dense array with reconfigured property)
+      {"(() => { const a = [10, 20, 30]; Object.defineProperty(a, '0', "
+       "{value: 10, configurable: false, writable: false}); return a; })()",
+       internal::DICTIONARY_ELEMENTS,
+       {"10", "20", "30"}},
+      // Empty array (PACKED_SMI_ELEMENTS, length 0)
+      {"[]", internal::PACKED_SMI_ELEMENTS, {}},
+  };
+
+  struct IterationData {
+    Isolate* isolate;
+    Local<Context> context;
+    std::vector<std::pair<uint32_t, std::string>> visited;
+  };
+
+  for (const auto& tc : test_cases) {
+    Local<Array> array = RunJS(tc.js_source).As<Array>();
+    CHECK(array->IsArray());
+    auto i_array = Utils::OpenDirectHandle(*array);
+    CHECK_EQ(i_array->GetElementsKind(), tc.expected_kind);
+
+    IterationData data{isolate(), context(), {}};
+    Array::IterationCallback callback = [](uint32_t index, Local<Value> element,
+                                           void* data_ptr) -> CbResult {
+      IterationData* d = static_cast<IterationData*>(data_ptr);
+      // Perform GC within the iteration callback.
+      d->isolate->RequestGarbageCollectionForTesting(
+          v8::Isolate::kFullGarbageCollection);
+
+      // Also allocate some new objects in the heap.
+      Local<String> allocated_str =
+          String::NewFromUtf8Literal(d->isolate, "test_alloc");
+      CHECK(!allocated_str.IsEmpty());
+
+      std::string val_str;
+      if (element->IsUndefined()) {
+        val_str = "undefined";
+      } else if (element->IsNumber()) {
+        double val = element.As<Number>()->Value();
+        if (val == static_cast<int64_t>(val)) {
+          val_str = std::to_string(static_cast<int64_t>(val));
+        } else {
+          val_str = std::to_string(val);
+          // Strip trailing zeroes for clean comparison with "1.5", "2.5", "3.5"
+          val_str.erase(val_str.find_last_not_of('0') + 1, std::string::npos);
+          if (val_str.back() == '.') val_str.pop_back();
+        }
+      } else if (element->IsString()) {
+        String::Utf8Value utf8(d->isolate, element.As<String>());
+        val_str = *utf8;
+      } else {
+        val_str = "unknown";
+      }
+      d->visited.emplace_back(index, val_str);
+      return CbResult::kContinue;
+    };
+
+    CHECK(array->Iterate(context(), callback, &data).IsJust());
+
+    if (tc.expected_kind == internal::DICTIONARY_ELEMENTS &&
+        tc.expected_values.size() == 2 && tc.expected_values[0] == "a" &&
+        tc.expected_values[1] == "b") {
+      CHECK_EQ(data.visited.size(), 2);
+      CHECK_EQ(data.visited[0].first, 0);
+      CHECK_EQ(data.visited[0].second, "a");
+      CHECK_EQ(data.visited[1].first, 10000);
+      CHECK_EQ(data.visited[1].second, "b");
+    } else {
+      CHECK_EQ(data.visited.size(), tc.expected_values.size());
+      for (size_t i = 0; i < tc.expected_values.size(); ++i) {
+        CHECK_EQ(data.visited[i].first, static_cast<uint32_t>(i));
+        CHECK_EQ(data.visited[i].second, tc.expected_values[i]);
+      }
+    }
+  }
 }
 
 }  // namespace

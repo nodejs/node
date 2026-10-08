@@ -46,6 +46,13 @@ class ChunkSource : public v8::ScriptCompiler::ExternalSourceStream {
     }
     chunks_.push_back({nullptr, 0});
   }
+  explicit ChunkSource(const std::vector<std::vector<uint8_t>>& chunks)
+      : current_(0) {
+    for (const auto& c : chunks) {
+      chunks_.push_back({c.data(), c.size()});
+    }
+    chunks_.push_back({nullptr, 0});
+  }
   ~ChunkSource() override = default;
   size_t GetMoreData(const uint8_t** src) override {
     DCHECK_LT(current_, chunks_.size());
@@ -63,6 +70,32 @@ class ChunkSource : public v8::ScriptCompiler::ExternalSourceStream {
     const uint8_t* ptr;
     size_t len;
   };
+  std::vector<Chunk> chunks_;
+  size_t current_;
+};
+
+class FlexibleChunkSource
+    : public v8::ScriptCompiler::FlexibleExternalSourceStream {
+ public:
+  using Chunk = v8::ScriptCompiler::FlexibleExternalSourceStream::Chunk;
+
+  explicit FlexibleChunkSource(std::vector<Chunk> chunks)
+      : chunks_(std::move(chunks)), current_(0) {
+    if (chunks_.empty() || chunks_.back().length_in_characters > 0) {
+      chunks_.push_back({nullptr,
+                         chunks_.empty() ? 0 : chunks_.back().end_position(), 0,
+                         ChunkEncoding::kOneByte});
+    }
+  }
+
+  ~FlexibleChunkSource() override = default;
+
+  Chunk GetNextChunk() override {
+    DCHECK_LT(current_, chunks_.size());
+    return chunks_[current_++];
+  }
+
+ private:
   std::vector<Chunk> chunks_;
   size_t current_;
 };
@@ -516,9 +549,10 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
     TestCharacterStream(one_byte_source, uc16_stream.get(), length, start, end);
 
     // This avoids the GC from trying to free a stack allocated resource.
-    if (IsExternalString(*uc16_string))
+    if (IsExternalString(*uc16_string)) {
       i::Cast<i::ExternalTwoByteString>(uc16_string)
           ->SetResource(isolate, nullptr);
+    }
   }
 
   // 1-byte external string
@@ -536,9 +570,10 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
     TestCharacterStream(one_byte_source, one_byte_stream.get(), length, start,
                         end);
     // This avoids the GC from trying to free a stack allocated resource.
-    if (IsExternalString(*ext_one_byte_string))
+    if (IsExternalString(*ext_one_byte_string)) {
       i::Cast<i::ExternalOneByteString>(ext_one_byte_string)
           ->SetResource(isolate, nullptr);
+    }
   }
 
   // 1-byte generic i::String
@@ -618,6 +653,75 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
         &many_chunks, v8::ScriptCompiler::StreamedSource::TWO_BYTE));
     TestCharacterStream(one_byte_source, two_byte_streaming_stream.get(),
                         length, start, end);
+  }
+
+  // Flexible UTF-16 streaming stream: pure 1-byte chunks
+  {
+    const uint8_t* data = one_byte_vector.begin();
+    const uint8_t* data_end = one_byte_vector.end();
+
+    std::vector<v8::ScriptCompiler::FlexibleExternalSourceStream::Chunk> chunks;
+    chunks.push_back({data, 0, static_cast<size_t>(data_end - data),
+                      v8::ScriptCompiler::FlexibleExternalSourceStream::
+                          ChunkEncoding::kOneByte});
+    FlexibleChunkSource single_chunk(chunks);
+    std::unique_ptr<i::Utf16CharacterStream> stream(i::ScannerStream::For(
+        &single_chunk, v8::ScriptCompiler::StreamedSource::FLEXIBLE_UTF16));
+    TestCharacterStream(one_byte_source, stream.get(), length, start, end);
+
+    std::vector<v8::ScriptCompiler::FlexibleExternalSourceStream::Chunk>
+        many_chunks_vec;
+    size_t chunk_size = 1;
+    for (size_t i = 0; i < length; i += chunk_size, chunk_size++) {
+      size_t len = std::min(chunk_size, length - i);
+      many_chunks_vec.push_back(
+          {data + i, i, len,
+           v8::ScriptCompiler::FlexibleExternalSourceStream::ChunkEncoding::
+               kOneByte});
+    }
+    FlexibleChunkSource many_chunks(many_chunks_vec);
+    stream.reset(i::ScannerStream::For(
+        &many_chunks, v8::ScriptCompiler::StreamedSource::FLEXIBLE_UTF16));
+    TestCharacterStream(one_byte_source, stream.get(), length, start, end);
+  }
+
+  // Flexible UTF-16 streaming stream: pure 2-byte chunks
+  {
+    std::vector<v8::ScriptCompiler::FlexibleExternalSourceStream::Chunk> chunks;
+    chunks.push_back({reinterpret_cast<const uint8_t*>(two_byte_vector.begin()),
+                      0, length,
+                      v8::ScriptCompiler::FlexibleExternalSourceStream::
+                          ChunkEncoding::kTwoByte});
+    FlexibleChunkSource single_chunk(chunks);
+    std::unique_ptr<i::Utf16CharacterStream> stream(i::ScannerStream::For(
+        &single_chunk, v8::ScriptCompiler::StreamedSource::FLEXIBLE_UTF16));
+    TestCharacterStream(one_byte_source, stream.get(), length, start, end);
+  }
+
+  // Flexible UTF-16 streaming stream: alternating mixed chunks
+  {
+    std::vector<v8::ScriptCompiler::FlexibleExternalSourceStream::Chunk> chunks;
+    for (size_t i = 0; i < length;) {
+      size_t chunk_len = std::min(size_t{2}, length - i);
+      auto encoding = (i % 4 == 0)
+                          ? v8::ScriptCompiler::FlexibleExternalSourceStream::
+                                ChunkEncoding::kOneByte
+                          : v8::ScriptCompiler::FlexibleExternalSourceStream::
+                                ChunkEncoding::kTwoByte;
+
+      const uint8_t* chunk_data =
+          (encoding == v8::ScriptCompiler::FlexibleExternalSourceStream::
+                           ChunkEncoding::kOneByte)
+              ? one_byte_vector.begin() + i
+              : reinterpret_cast<const uint8_t*>(two_byte_vector.begin() + i);
+
+      chunks.push_back({chunk_data, i, chunk_len, encoding});
+      i += chunk_len;
+    }
+    FlexibleChunkSource mixed_chunks(chunks);
+    std::unique_ptr<i::Utf16CharacterStream> stream(i::ScannerStream::For(
+        &mixed_chunks, v8::ScriptCompiler::StreamedSource::FLEXIBLE_UTF16));
+    TestCharacterStream(one_byte_source, stream.get(), length, start, end);
   }
 }
 
@@ -921,9 +1025,10 @@ TEST_F(ScannerStreamsTest, CloneCharacterStreams) {
     TestCloneCharacterStream(one_byte_source, uc16_stream.get(), length);
 
     // This avoids the GC from trying to free a stack allocated resource.
-    if (IsExternalString(*uc16_string))
+    if (IsExternalString(*uc16_string)) {
       i::Cast<i::ExternalTwoByteString>(uc16_string)
           ->SetResource(i_isolate(), nullptr);
+    }
   }
 
   // 1-byte external string
@@ -940,9 +1045,10 @@ TEST_F(ScannerStreamsTest, CloneCharacterStreams) {
         i::ScannerStream::For(i_isolate(), ext_one_byte_string, 0, length));
     TestCloneCharacterStream(one_byte_source, one_byte_stream.get(), length);
     // This avoids the GC from trying to free a stack allocated resource.
-    if (IsExternalString(*ext_one_byte_string))
+    if (IsExternalString(*ext_one_byte_string)) {
       i::Cast<i::ExternalOneByteString>(ext_one_byte_string)
           ->SetResource(i_isolate(), nullptr);
+    }
   }
 
   // Relocatable streams are't clonable.
@@ -985,4 +1091,235 @@ TEST_F(ScannerStreamsTest, CloneCharacterStreams) {
     CHECK(two_byte_streaming_stream->can_be_cloned());
     TestCloneCharacterStream("12345678", two_byte_streaming_stream.get(), 8);
   }
+}
+
+class OverlongMockSource : public v8::ScriptCompiler::ExternalSourceStream {
+ public:
+  OverlongMockSource() : returned_(false) {}
+  size_t GetMoreData(const uint8_t** src) override {
+    if (returned_) return 0;
+    size_t size = static_cast<size_t>(v8::String::kMaxLength) + 100;
+    uint8_t* buffer = new uint8_t[size];
+    memset(buffer, 'a', size);
+    buffer[size - 2] = 0xC4;
+    buffer[size - 1] = 0x80;
+    *src = buffer;
+    returned_ = true;
+    return size;
+  }
+
+ private:
+  bool returned_;
+};
+
+TEST_F(ScannerStreamsTest, StreamSizeExceedsMaxBounds) {
+  OverlongMockSource source;
+  ASSERT_DEATH_IF_SUPPORTED(
+      {
+        std::unique_ptr<v8::internal::Utf16CharacterStream> stream(
+            v8::internal::ScannerStream::For(
+                &source, v8::ScriptCompiler::StreamedSource::UTF8));
+        stream->Advance();
+      },
+      "");
+}
+
+TEST_F(ScannerStreamsTest, Regress523440299) {
+  const size_t kChunkSize = 4096;
+
+  std::vector<uint8_t> c0;
+  c0.reserve(kChunkSize);
+  c0.push_back('/');
+  c0.push_back('*');
+  for (size_t i = 0; i < kChunkSize - 3; ++i) c0.push_back('a');
+  c0.push_back(0xE0);
+  CHECK_EQ(c0.size(), kChunkSize);
+
+  std::vector<uint8_t> c1;
+  c1.reserve(kChunkSize);
+  std::string head = "*/\nfunction f(arguments){\"use strict\";";
+  for (char c : head) c1.push_back(c);
+
+  size_t M = 50;
+  while (c1.size() < M) c1.push_back(' ');
+  c1.push_back(0xC2);
+  c1.push_back(0xA0);
+  while (c1.size() < kChunkSize) c1.push_back(' ');
+  CHECK_EQ(c1.size(), kChunkSize);
+
+  std::vector<uint8_t> c2;
+  for (size_t i = 0; i < 200; ++i) c2.push_back(' ');
+  c2.push_back('}');
+  c2.push_back('\n');
+
+  std::vector<std::vector<uint8_t>> chunks = {c0, c1, c2};
+  ChunkSource chunk_source(chunks);
+  std::unique_ptr<v8::internal::Utf16CharacterStream> stream(
+      v8::internal::ScannerStream::For(
+          &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8));
+
+  // Advance into chunk 2 to force chunk 1 and chunk 2 to be fetched and
+  // processed. We advance 8200 times (which is into chunk 2, since chunk 0
+  // and chunk 1 together only have 4095 + 4095 = 8190 chars).
+  for (size_t i = 0; i < 8200; ++i) {
+    stream->Advance();
+  }
+
+  // Now seek backwards to position 4109 (the '(' character in head).
+  // Because chunk 1 is already in the chunks_ list, SearchPosition will try to
+  // optimize the seek.
+  // Without the fix, SearchPosition treats chunk 1 as ASCII-only and
+  // incorrectly sets the decoder state to kAccept mid-character, leading to a
+  // parser desync. With the fix, it correctly realizes chunk 1 did not start in
+  // kAccept, and falls back to the exact SkipToPosition logic.
+  stream->Seek(4109);
+
+  // Character 4109 should be '(' (0x28).
+  // Without the fix, the seek desyncs and skips '(' so it reads 'a' (0x61)
+  // instead.
+  CHECK_EQ(stream->Advance(), '(');
+}
+
+TEST_F(ScannerStreamsTest, FlexibleStreamLocalBufferOverflow) {
+  constexpr size_t kLargeSize = 1025;
+  std::unique_ptr<uint8_t[]> large_data(new uint8_t[kLargeSize]);
+  for (size_t i = 0; i < kLargeSize; ++i) {
+    large_data[i] = static_cast<uint8_t>((i % 26) + 'a');
+  }
+
+  std::vector<v8::ScriptCompiler::FlexibleExternalSourceStream::Chunk> chunks;
+  chunks.push_back({large_data.get(), 0, kLargeSize,
+                    v8::ScriptCompiler::FlexibleExternalSourceStream::
+                        ChunkEncoding::kOneByte});
+
+  FlexibleChunkSource source(chunks);
+  std::unique_ptr<i::Utf16CharacterStream> stream(i::ScannerStream::For(
+      &source, v8::ScriptCompiler::StreamedSource::FLEXIBLE_UTF16));
+
+  for (size_t i = 0; i < kLargeSize; ++i) {
+    CHECK_EQ(stream->pos(), i);
+    CHECK_EQ(stream->Advance(), static_cast<uint16_t>((i % 26) + 'a'));
+  }
+  CHECK_EQ(stream->Advance(), i::Utf16CharacterStream::kEndOfInput);
+}
+
+TEST_F(ScannerStreamsTest, FlexibleStreamCloneAndSeek) {
+  const uint8_t c1[] = {'a', 'b', 'c'};
+  const uint16_t c2[] = {'d', 'e', 'f'};
+  const uint8_t c3[] = {'g', 'h', 'i'};
+
+  std::vector<v8::ScriptCompiler::FlexibleExternalSourceStream::Chunk> chunks;
+  chunks.push_back({c1, 0, 3,
+                    v8::ScriptCompiler::FlexibleExternalSourceStream::
+                        ChunkEncoding::kOneByte});
+  chunks.push_back({reinterpret_cast<const uint8_t*>(c2), 3, 3,
+                    v8::ScriptCompiler::FlexibleExternalSourceStream::
+                        ChunkEncoding::kTwoByte});
+  chunks.push_back({c3, 6, 3,
+                    v8::ScriptCompiler::FlexibleExternalSourceStream::
+                        ChunkEncoding::kOneByte});
+
+  FlexibleChunkSource source(chunks);
+  std::unique_ptr<i::Utf16CharacterStream> stream(i::ScannerStream::For(
+      &source, v8::ScriptCompiler::StreamedSource::FLEXIBLE_UTF16));
+
+  CHECK_EQ(stream->Advance(), 'a');
+  CHECK_EQ(stream->Advance(), 'b');
+
+  std::unique_ptr<i::Utf16CharacterStream> clone = stream->Clone();
+
+  CHECK_EQ(clone->pos(), 2);
+  CHECK_EQ(clone->Advance(), 'c');
+
+  CHECK_EQ(stream->Advance(), 'c');
+  CHECK_EQ(stream->Advance(), 'd');
+  CHECK_EQ(stream->Advance(), 'e');
+  CHECK_EQ(stream->Advance(), 'f');
+  CHECK_EQ(stream->Advance(), 'g');
+  CHECK_EQ(stream->Advance(), 'h');
+  CHECK_EQ(stream->Advance(), 'i');
+  CHECK_EQ(stream->Advance(), i::Utf16CharacterStream::kEndOfInput);
+
+  std::unique_ptr<i::Utf16CharacterStream> clone2 = stream->Clone();
+
+  clone2->Seek(0);
+  CHECK_EQ(clone2->pos(), 0);
+  CHECK_EQ(clone2->Advance(), 'a');
+
+  clone2->Seek(4);
+  CHECK_EQ(clone2->pos(), 4);
+  CHECK_EQ(clone2->Advance(), 'e');
+
+  clone2->Seek(1);
+  CHECK_EQ(clone2->pos(), 1);
+  CHECK_EQ(clone2->Advance(), 'b');
+
+  clone2->Seek(3);
+  CHECK_EQ(clone2->Advance(), 'd');
+  clone2->Back();
+  CHECK_EQ(clone2->pos(), 3);
+  CHECK_EQ(clone2->Advance(), 'd');
+  clone2->Back();
+  clone2->Back();
+  CHECK_EQ(clone2->pos(), 2);
+  CHECK_EQ(clone2->Advance(), 'c');
+
+  clone2->Seek(9);
+  CHECK_EQ(clone2->Advance(), i::Utf16CharacterStream::kEndOfInput);
+
+  CHECK_EQ(stream->pos(), 10);
+}
+
+TEST_F(ScannerStreamsTest, FlexibleStreamEmptyChunkTerminates) {
+  const uint8_t c1[] = {'a', 'b', 'c'};
+  const uint16_t c3[] = {'d', 'e', 'f'};
+
+  std::vector<v8::ScriptCompiler::FlexibleExternalSourceStream::Chunk> chunks;
+  chunks.push_back({c1, 0, 3,
+                    v8::ScriptCompiler::FlexibleExternalSourceStream::
+                        ChunkEncoding::kOneByte});
+  chunks.push_back({nullptr, 3, 0,
+                    v8::ScriptCompiler::FlexibleExternalSourceStream::
+                        ChunkEncoding::kTwoByte});
+  chunks.push_back({reinterpret_cast<const uint8_t*>(c3), 3, 3,
+                    v8::ScriptCompiler::FlexibleExternalSourceStream::
+                        ChunkEncoding::kTwoByte});
+
+  FlexibleChunkSource source(chunks);
+  std::unique_ptr<i::Utf16CharacterStream> stream(i::ScannerStream::For(
+      &source, v8::ScriptCompiler::StreamedSource::FLEXIBLE_UTF16));
+
+  CHECK_EQ(stream->Advance(), 'a');
+  CHECK_EQ(stream->Advance(), 'b');
+  CHECK_EQ(stream->Advance(), 'c');
+  CHECK_EQ(stream->Advance(), i::Utf16CharacterStream::kEndOfInput);
+}
+
+TEST_F(ScannerStreamsTest, FlexibleStreamPastEnd) {
+  const uint8_t c1[] = {'a', 'b', 'c'};
+
+  std::vector<v8::ScriptCompiler::FlexibleExternalSourceStream::Chunk> chunks;
+  chunks.push_back({c1, 0, 3,
+                    v8::ScriptCompiler::FlexibleExternalSourceStream::
+                        ChunkEncoding::kOneByte});
+
+  FlexibleChunkSource source(chunks);
+  std::unique_ptr<i::Utf16CharacterStream> stream(i::ScannerStream::For(
+      &source, v8::ScriptCompiler::StreamedSource::FLEXIBLE_UTF16));
+
+  CHECK_EQ(stream->Advance(), 'a');
+  CHECK_EQ(stream->Advance(), 'b');
+  CHECK_EQ(stream->Advance(), 'c');
+  CHECK_EQ(stream->Advance(), i::Utf16CharacterStream::kEndOfInput);
+
+  // Advancing again past the end should return kEndOfInput and not
+  // crash/assert.
+  CHECK_EQ(stream->Advance(), i::Utf16CharacterStream::kEndOfInput);
+  CHECK_EQ(stream->pos(), 5u);
+
+  // Seeking past the end should not crash/assert.
+  stream->Seek(10);
+  CHECK_EQ(stream->pos(), 10u);
+  CHECK_EQ(stream->Advance(), i::Utf16CharacterStream::kEndOfInput);
+  CHECK_EQ(stream->pos(), 11u);
 }

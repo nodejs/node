@@ -20,6 +20,7 @@
 #include "prov/providercommon.h"
 #include "prov/provider_ctx.h"
 #include "prov/ml_dsa.h"
+#include "fips/fipsindicator.h"
 
 static OSSL_FUNC_keymgmt_free_fn ml_dsa_free_key;
 static OSSL_FUNC_keymgmt_has_fn ml_dsa_has;
@@ -581,7 +582,9 @@ static void ml_dsa_gen_cleanup(void *genctx)
         { OSSL_FUNC_KEYMGMT_GEN_SETTABLE_PARAMS,                                              \
             (void (*)(void))ml_dsa_gen_settable_params },                                     \
         { OSSL_FUNC_KEYMGMT_DUP, (void (*)(void))ml_dsa_dup_key },                            \
-        OSSL_DISPATCH_END                                                                     \
+        OSSL_FIPS_IND_APPROVED_DISPATCH(OSSL_FUNC_KEYMGMT_GEN_GET_PARAMS,                     \
+            OSSL_FUNC_KEYMGMT_GEN_GETTABLE_PARAMS)                                            \
+            OSSL_DISPATCH_END                                                                 \
     }
 
 MAKE_KEYMGMT_FUNCTIONS(44);

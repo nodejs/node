@@ -7,7 +7,7 @@ use zerovec::ule::EncodeAsVarULE;
 use zerovec::ule::VarULE;
 
 #[cfg(feature = "alloc")]
-use zerovec::{maps::ZeroMapKV, ZeroMap, ZeroMap2d};
+use zerovec::{ZeroMap, ZeroMap2d, maps::ZeroMapKV};
 
 /// A trait that associates a [`VarULE`] type with a data struct.
 ///

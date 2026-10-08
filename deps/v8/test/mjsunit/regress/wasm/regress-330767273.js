@@ -6,19 +6,18 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.startRecGroup();
-let $array0 = builder.addArray(kWasmI8, true, kNoSuperType, true);
+let $array0 = builder.addArray(kWasmI8, {final: true});
 builder.endRecGroup();
-let $struct2 = builder.addStruct([
-  makeField(kWasmStructRef, true)], kNoSuperType, false);
-let $struct3 = builder.addStruct([
-  makeField(kWasmStructRef, true)], $struct2, false);
-let $struct4 = builder.addStruct([
-    makeField(kWasmStructRef, true),
-    makeField(kWasmI64, false),
-    makeField(kWasmI8, false)],
-  $struct3, false);
-let $array6 = builder.addArray(
-  wasmRefNullType($struct3), true, kNoSuperType, false);
+let $struct2 = builder.addStruct(
+  {fields: [makeField(kWasmStructRef, true)]});
+let $struct3 = builder.addStruct(
+  {fields: [makeField(kWasmStructRef, true)], supertype: $struct2});
+let $struct4 = builder.addStruct(
+  {fields: [makeField(kWasmStructRef, true),
+            makeField(kWasmI64, false),
+            makeField(kWasmI8, false)],
+   supertype: $struct3});
+let $array6 = builder.addArray(wasmRefNullType($struct3));
 
 let $func19 = builder.addFunction("main", kSig_v_v)
   .addBody([

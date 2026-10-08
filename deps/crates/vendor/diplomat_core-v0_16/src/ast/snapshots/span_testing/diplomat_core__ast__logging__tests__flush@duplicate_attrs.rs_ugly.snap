@@ -1,0 +1,10 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Multiple conflicting Diplomat struct attributes, there can be at most one.
+In src/ast/snapshots/span_testing/duplicate_attrs.rs:5:16:
+...ruct SomeStruct;
+}...
+        ^^^^^^^^^^
+[Out, TypeAttr(Opaque)]

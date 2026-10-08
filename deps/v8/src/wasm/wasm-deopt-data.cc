@@ -29,6 +29,8 @@ base::OwnedVector<uint8_t> WasmDeoptDataProcessor::Serialize(
     base::Vector<const uint8_t> translation_array,
     base::Vector<wasm::WasmDeoptEntry> deopt_entries,
     const ZoneDeque<DeoptimizationLiteral>& deopt_literals) {
+  CHECK_GE(eager_deopt_count, 0);
+  CHECK_EQ(deopt_entries.size(), static_cast<size_t>(eager_deopt_count));
   wasm::WasmDeoptData data;
   data.entry_count = eager_deopt_count;
   data.deopt_exit_start_offset = deopt_exit_start_offset;

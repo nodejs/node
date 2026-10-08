@@ -5,7 +5,8 @@
   withSQLite ? true,
   withSSL ? true,
   withFFI ? true,
-  withTemporal ? false,
+  withPerfetto ? false,
+  withTemporal ? true,
 }:
 {
   inherit (pkgs)
@@ -46,6 +47,9 @@
 // (pkgs.lib.optionalAttrs withSSL ({
   inherit (import ./openssl-matrix.nix { inherit pkgs; }) openssl;
 }))
+// (pkgs.lib.optionalAttrs withPerfetto {
+  perfetto = pkgs.perfetto.sdk;
+})
 // (pkgs.lib.optionalAttrs withTemporal {
   inherit (pkgs) temporal_capi;
 })

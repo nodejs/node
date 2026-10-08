@@ -1,0 +1,10 @@
+header: netinet/tcp.h
+standards:
+  - posix
+macros:
+  - macro_name: TCP_NODELAY
+    macro_value: 1
+types: []
+enums: []
+objects: []
+functions: []

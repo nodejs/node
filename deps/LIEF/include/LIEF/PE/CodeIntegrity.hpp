@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 #include <ostream>
 #include <cstdint>
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/errors.hpp"
 #include "LIEF/Object.hpp"
 #include "LIEF/visibility.h"
@@ -60,29 +61,30 @@ class LIEF_API CodeIntegrity : public Object {
     return reserved_;
   }
 
-  CodeIntegrity& flags(uint16_t flags) {
+  CodeIntegrity& flags(uint16_t flags) LIEF_LIFETIMEBOUND {
     flags_ = flags;
     return *this;
   }
 
-  CodeIntegrity& catalog(uint16_t catalog) {
+  CodeIntegrity& catalog(uint16_t catalog) LIEF_LIFETIMEBOUND {
     catalog_ = catalog;
     return *this;
   }
 
-  CodeIntegrity& catalog_offset(uint32_t catalog_offset) {
+  CodeIntegrity& catalog_offset(uint32_t catalog_offset) LIEF_LIFETIMEBOUND {
     catalog_offset_ = catalog_offset;
     return *this;
   }
 
-  CodeIntegrity& reserved(uint32_t reserved) {
+  CodeIntegrity& reserved(uint32_t reserved) LIEF_LIFETIMEBOUND {
     reserved_ = reserved;
     return *this;
   }
 
   void accept(Visitor& visitor) const override;
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const CodeIntegrity& entry);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const CodeIntegrity& entry);
 
   private:
   uint16_t flags_ = 0;

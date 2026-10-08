@@ -6,7 +6,7 @@
 #ifndef MBEDTLS_SSL_TLS13_INVASIVE_H
 #define MBEDTLS_SSL_TLS13_INVASIVE_H
 
-#include "common.h"
+#include "ssl_misc.h"
 
 #if defined(MBEDTLS_SSL_PROTO_TLS1_3)
 

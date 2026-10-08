@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Non-opaque tuple structs are disallowed
+In src/ast/snapshots/span_testing/non_opaque_tuple.rs:3:22:
+...uple(i32, i32...
+        ^^^
+If struct is not opaque, fields must have idents

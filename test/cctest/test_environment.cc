@@ -2,14 +2,16 @@
 #include "node_buffer.h"
 #include "node_internals.h"
 #include "node_realm-inl.h"
+#include "node_snapshot_builder.h"
 #include "node_url.h"
 #include "util.h"
 
-#include <string>
-#include "gtest/gtest.h"
-#include "node_test_fixture.h"
 #include <stdio.h>
 #include <cstdio>
+#include <string>
+#include <thread>  // NOLINT(build/c++11)
+#include "gtest/gtest.h"
+#include "node_test_fixture.h"
 
 using node::AtExit;
 using node::RunAtExit;
@@ -65,6 +67,39 @@ TEST_F(EnvironmentTest, ManagedBufferCache) {
   buffer = (*env)->allocate_managed_buffer(kCacheSize);
   EXPECT_EQ(buffer.base, cached_data);
   (*env)->release_managed_buffer(buffer);
+}
+
+static int embedder_wasm_streaming_calls = 0;
+static void EmbedderWasmStreaming(const v8::FunctionCallbackInfo<v8::Value>&) {
+  embedder_wasm_streaming_calls++;
+}
+
+TEST_F(EnvironmentTest, KeepsEmbedderWasmStreamingCallbackWhenAsked) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  auto compile_streaming = [&]() {
+    v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+    v8::Script::Compile(context,
+                        v8::String::NewFromUtf8Literal(
+                            isolate_, "WebAssembly.compileStreaming(0); 0"))
+        .ToLocalChecked()
+        ->Run(context)
+        .ToLocalChecked();
+    isolate_->PerformMicrotaskCheckpoint();
+  };
+
+  node::IsolateSettings settings;
+  settings.flags |= node::SHOULD_NOT_SET_WASM_STREAMING_CALLBACK;
+  isolate_->SetWasmStreamingCallback(EmbedderWasmStreaming);
+  node::SetIsolateUpForNode(isolate_, settings);
+  compile_streaming();
+  EXPECT_EQ(embedder_wasm_streaming_calls, 1);
+
+  node::SetIsolateUpForNode(isolate_);
+  compile_streaming();
+  EXPECT_EQ(embedder_wasm_streaming_calls, 1);
 }
 
 TEST_F(EnvironmentTest, EnvironmentWithoutBrowserGlobals) {
@@ -341,9 +376,8 @@ TEST_F(EnvironmentTest, RemoveEnvironmentCleanupHookDuringCleanup) {
 TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  // Only one of the Environments can have default flags and own the inspector.
   Env env1 {handle_scope, argv};
-  Env env2 {handle_scope, argv, node::EnvironmentFlags::kNoFlags};
+  Env env2{handle_scope, argv};
 
   AtExit(*env1, at_exit_callback1, nullptr);
   AtExit(*env2, at_exit_callback2, nullptr);
@@ -353,6 +387,191 @@ TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
 
   RunAtExit(*env2);
   EXPECT_TRUE(called_cb_2);
+}
+
+TEST_F(EnvironmentTest, WorkerInEnvironmentWithoutSnapshot) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+  // When using certain experimental compile options, snapshot data may
+  // not exist. Skip in that case.
+  if (isolate_data_->snapshot_data()) {
+    node::LoadEnvironment(*env,
+                          "const { Worker } = require('worker_threads');"
+                          "new Worker('process.exit(0)', { eval: true });")
+        .ToLocalChecked();
+    EXPECT_EQ(node::SpinEventLoop(*env).FromJust(), 0);
+  }
+}
+
+TEST_F(EnvironmentTest, StopFromExitHandlerDoesNotLeakIntoNextEnvironment) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  {
+    Env env{handle_scope, argv};
+    node::SetProcessExitHandler(
+        *env, [](node::Environment* env_, int) { node::Stop(env_); });
+    // The uncaught exception runs the exit handler from C++ and does not
+    // re-enter JS afterwards, so nothing consumes the termination request.
+    EXPECT_TRUE(
+        node::LoadEnvironment(*env, "throw new Error('uncaught')").IsEmpty());
+    EXPECT_TRUE(node::SpinEventLoop(*env).IsNothing());
+  }
+  {
+    Env env{handle_scope, argv, node::EnvironmentFlags::kNoCreateInspector};
+    v8::Local<v8::Value> result =
+        node::LoadEnvironment(*env, "return 42;").ToLocalChecked();
+    EXPECT_EQ(result->Int32Value(env.context()).FromJust(), 42);
+  }
+}
+
+TEST_F(EnvironmentTest, CollectExternalReferencesFromSeveralThreads) {
+  constexpr int kThreads = 8;
+  const intptr_t* data[kThreads];
+  size_t sizes[kThreads];
+  std::vector<std::thread> threads;
+  for (int i = 0; i < kThreads; i++) {
+    threads.emplace_back([&, i]() {
+      const std::vector<intptr_t>& references =
+          node::SnapshotBuilder::CollectExternalReferences();
+      data[i] = references.data();
+      sizes[i] = references.size();
+    });
+  }
+  for (std::thread& thread : threads) thread.join();
+  for (int i = 1; i < kThreads; i++) {
+    EXPECT_EQ(data[i], data[0]);
+    EXPECT_EQ(sizes[i], sizes[0]);
+  }
+  EXPECT_EQ(node::SnapshotBuilder::CollectExternalReferences().back(), 0);
+}
+
+TEST_F(EnvironmentTest, SharedIsolateDataLoadsBindingsTwice) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  const char* script =
+      "for (const m of require('module').builtinModules) {"
+      "  try { require(m); } catch {}"
+      "}"
+      "new (require('net').Socket)();"
+#if HAVE_OPENSSL
+      "require('tls').createSecureContext();"
+      "require('crypto').createSecretKey(Buffer.alloc(8));"
+#endif
+      "new (require('worker_threads').MessageChannel)().port1.close();";
+  Env env1{handle_scope, argv};
+  node::LoadEnvironment(*env1, script).ToLocalChecked();
+  EXPECT_EQ(node::SpinEventLoop(*env1).FromJust(), 0);
+  Env env2{handle_scope, argv, node::EnvironmentFlags::kNoCreateInspector};
+  node::LoadEnvironment(*env2, script).ToLocalChecked();
+  EXPECT_EQ(node::SpinEventLoop(*env2).FromJust(), 0);
+}
+
+#if HAVE_INSPECTOR
+TEST_F(EnvironmentTest, WorkerConnectToMainThreadWithoutInspector) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv, node::EnvironmentFlags::kNoCreateInspector};
+  node::LoadEnvironment(
+      *env,
+      "const { Worker } = require('worker_threads');"
+      "const w = new Worker(`"
+      "  const { Session } = require('inspector');"
+      "  try { new Session().connectToMainThread(); }"
+      "  catch (e) { process.exit(e.code === 'ERR_INSPECTOR_NOT_AVAILABLE' ?"
+      "    0 : 2); }"
+      "  process.exit(3);"
+      "`, { eval: true });"
+      "w.on('exit', (code) => { process.exitCode = code; });")
+      .ToLocalChecked();
+  EXPECT_EQ(node::SpinEventLoop(*env).FromJust(), 0);
+}
+#endif  // HAVE_INSPECTOR
+
+static int cleanup_hook_runs = 0;
+static void CountingCleanupHook(void* arg) {
+  cleanup_hook_runs++;
+}
+
+TEST_F(EnvironmentTest, SameCleanupHookInTwoEnvironmentsOnOneIsolate) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  cleanup_hook_runs = 0;
+  {
+    Env env1{handle_scope, argv};
+    {
+      Env env2{handle_scope, argv, node::EnvironmentFlags::kNoCreateInspector};
+      {
+        v8::Context::Scope context_scope(env1.context());
+        node::AddEnvironmentCleanupHook(isolate_, CountingCleanupHook, nullptr);
+      }
+      node::AddEnvironmentCleanupHook(isolate_, CountingCleanupHook, nullptr);
+    }
+    EXPECT_EQ(cleanup_hook_runs, 1);
+  }
+  EXPECT_EQ(cleanup_hook_runs, 2);
+}
+
+TEST_F(EnvironmentTest, RemoveCleanupHookOfOtherEnvironmentOnSameIsolate) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  cleanup_hook_runs = 0;
+  int arg;
+  {
+    Env env1{handle_scope, argv};
+    node::AddEnvironmentCleanupHook(isolate_, CountingCleanupHook, &arg);
+    Env env2{handle_scope, argv, node::EnvironmentFlags::kNoCreateInspector};
+    // env2's context is current; the hook belongs to env1.
+    node::RemoveEnvironmentCleanupHook(isolate_, CountingCleanupHook, &arg);
+  }
+  EXPECT_EQ(cleanup_hook_runs, 0);
+}
+
+struct SelfRemovingHook {
+  v8::Isolate* isolate;
+  bool ran = false;
+  static void Run(void* arg) {
+    SelfRemovingHook* self = static_cast<SelfRemovingHook*>(arg);
+    self->ran = true;
+    node::RemoveEnvironmentCleanupHook(self->isolate, Run, arg);
+  }
+};
+
+TEST_F(EnvironmentTest, CleanupHookRemovesItselfWhileRunning) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  SelfRemovingHook hook{isolate_};
+  {
+    Env env{handle_scope, argv};
+    node::AddEnvironmentCleanupHook(isolate_, SelfRemovingHook::Run, &hook);
+  }
+  EXPECT_TRUE(hook.ran);
+}
+
+TEST_F(EnvironmentTest, FreeEnvironmentWhileSiblingHasActiveHandles) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env1{handle_scope, argv};
+  node::LoadEnvironment(*env1,
+                        "globalThis.ticks = 0;"
+                        "const t = setInterval(() => {"
+                        "  if (++globalThis.ticks == 20) clearInterval(t);"
+                        "}, 1);")
+      .ToLocalChecked();
+  {
+    Env env2{handle_scope, argv, node::EnvironmentFlags::kNoCreateInspector};
+    node::LoadEnvironment(*env2, "setInterval(() => {}, 1);").ToLocalChecked();
+    uv_sleep(5);
+  }
+  v8::Context::Scope context_scope(env1.context());
+  EXPECT_EQ(node::SpinEventLoop(*env1).FromJust(), 0);
+  v8::Local<v8::Value> ticks =
+      env1.context()
+          ->Global()
+          ->Get(env1.context(),
+                v8::String::NewFromUtf8Literal(isolate_, "ticks"))
+          .ToLocalChecked();
+  EXPECT_EQ(ticks->Int32Value(env1.context()).FromJust(), 20);
 }
 
 TEST_F(EnvironmentTest, NoEnvironmentSanity) {
@@ -554,7 +773,11 @@ TEST_F(EnvironmentTest, BufferWithFreeCallbackIsDetached) {
   }
 
   CHECK_EQ(callback_calls, 1);
+#ifdef V8_ENABLE_SANDBOX
+  CHECK_EQ(ab->ByteLength(), sizeof(hello));
+#else
   CHECK_EQ(ab->ByteLength(), 0);
+#endif
 }
 
 #if HAVE_INSPECTOR
@@ -698,6 +921,34 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
   CHECK_EQ(data.extracted_value, 42);
   CHECK_EQ(from_inspector->IntegerValue(context).FromJust(), 42);
 }
+
+TEST_F(EnvironmentTest, InspectorWithoutPlatform) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  node::IsolateData* isolate_data = node::CreateIsolateData(
+      isolate_, &NodeTestFixture::current_loop, nullptr);
+  v8::Local<v8::Context> context = node::NewContext(isolate_);
+  v8::Context::Scope context_scope(context);
+  std::vector<std::string> args(*argv, *argv + 1);
+  node::Environment* env =
+      node::CreateEnvironment(isolate_data, context, args, args);
+  CHECK_NOT_NULL(env);
+
+  v8::Local<v8::Value> result =
+      node::LoadEnvironment(env,
+                            "const { Session } = require('inspector');\n"
+                            "const session = new Session();\n"
+                            "session.connect();\n"
+                            "console.time('t'); console.timeEnd('t');\n"
+                            "session.disconnect();\n"
+                            "return 42;")
+          .ToLocalChecked();
+  EXPECT_EQ(result->Int32Value(context).FromJust(), 42);
+
+  node::FreeEnvironment(env);
+  node::FreeIsolateData(isolate_data);
+}
+
 #endif  // HAVE_INSPECTOR
 
 TEST_F(EnvironmentTest, ExitHandlerTest) {
@@ -811,15 +1062,16 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
 
-  std::unique_ptr<v8::MicrotaskQueue> queue = v8::MicrotaskQueue::New(
-      isolate_, v8::MicrotasksPolicy::kExplicit);
+  v8::MicrotaskQueue* queue =
+      v8::MicrotaskQueue::New(isolate_, v8::MicrotasksPolicy::kExplicit);
+
   v8::Local<v8::Context> context =
       v8::Context::New(isolate_,
                        nullptr,
                        {},
                        {},
                        v8::DeserializeInternalFieldsCallback(),
-                       queue.get());
+                       queue);
   node::InitializeContext(context);
   v8::Context::Scope context_scope(context);
 

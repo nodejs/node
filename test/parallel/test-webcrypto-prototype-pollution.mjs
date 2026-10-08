@@ -13,16 +13,15 @@ if (!common.hasCrypto) common.skip('missing crypto');
 
 const require = createRequire(import.meta.url);
 const { kSupportedAlgorithms } = require('internal/crypto/util');
-const { getFips } = require('node:crypto');
-const { hasOpenSSL } = require('../common/crypto');
+const { getFips, getHashes } = require('node:crypto');
 const { subtle } = globalThis.crypto;
 
 const TypedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype);
 const data = new TextEncoder().encode('prototype pollution');
 const modulusLength = getFips() === 1 ? 2048 : 1024;
 
-// Avoids SubtleCrypto.supports(), which warns and invokes the registry's
-// experimental-algorithm getters.
+// Avoids SubtleCrypto.supports(), which can invoke the registry's
+// experimental-algorithm warning getters.
 function supports(operation, name) {
   return Object.hasOwn(kSupportedAlgorithms[operation] ?? {}, name);
 }
@@ -134,15 +133,15 @@ if (supports('digest', 'cSHAKE128')) {
         message: /Unsupported CShakeParams functionName/,
       })));
 
-  // asyncDigest() picks the cSHAKE job over plain SHAKE on a non-empty
+  // asyncDigest() picks cSHAKE over plain SHAKE on a non-empty
   // customization.
-  if (hasOpenSSL(3)) {
+  {
     const algorithm = {
       name: 'cSHAKE128',
       outputLength: 256,
       customization: new Uint8Array([1, 2, 3]),
     };
-    if (getFips() === 1) {
+    if (!getHashes().includes('cshake128')) {
       await withPoisoned(poisonTypedArrayByteLength(0), common.mustCall(() =>
         assert.rejects(subtle.digest(algorithm, data), {
           name: 'NotSupportedError',

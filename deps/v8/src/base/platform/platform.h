@@ -157,6 +157,9 @@ class V8_BASE_EXPORT OS {
   // part of V8::Initialize, at which point this function can probably be
   // merged into OS::Initialize.
   static void EnsureWin32MemoryAPILoaded();
+
+  // Convert utf-8 encoded string to utf-16 encoded.
+  static std::wstring ConvertUtf8StringToUtf16(const char* str);
 #endif
 
   // Check whether CET shadow stack is enabled.
@@ -682,6 +685,15 @@ class V8_BASE_EXPORT Stack {
 
   // Gets the start of the stack of the current thread.
   static StackSlot GetStackStart();
+  // Gets the lowest address that the stack can grow to.
+  static StackSlot GetReservedStackLimit();
+
+  // On Windows, the TEB's StackLimit changes during execution as the stack
+  // grows. Expose a function to get it.
+  static StackSlot GetCommittedStackLimit();
+
+  // Sets the TEB's StackLimit and StackBase on Windows.
+  static void SetCurrentThreadStackBounds(uintptr_t limit, uintptr_t base);
 
   // Returns the current stack top. Works correctly with ASAN and SafeStack.
   //
@@ -728,7 +740,9 @@ class V8_BASE_EXPORT Stack {
  private:
   // Return the current thread stack start pointer.
   static StackSlot GetStackStartUnchecked();
-  static Stack::StackSlot ObtainCurrentThreadStackStart();
+  static StackSlot ObtainCurrentThreadStackStart();
+  // Lowest address that the stack can grow to.
+  static StackSlot ObtainCurrentThreadStackReservedLimit();
 
   friend class heap::base::Stack;
 };

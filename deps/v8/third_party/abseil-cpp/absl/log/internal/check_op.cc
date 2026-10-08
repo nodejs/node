@@ -14,6 +14,7 @@
 
 #include "absl/log/internal/check_op.h"
 
+#include <cstdint>
 #include <cstring>
 #include <ostream>
 #include <string>

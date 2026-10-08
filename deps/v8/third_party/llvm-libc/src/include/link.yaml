@@ -1,0 +1,33 @@
+header: link.h
+public_includes:
+  - elf.h
+standards:
+  - svid
+macros:
+  - macro_name: ElfW
+    standards:
+      - gnu
+    macro_header: link-macros.h
+types:
+  - type_name: struct_dl_phdr_info
+    standards:
+      - gnu
+  - type_name: struct_link_map
+    standards:
+      - svid
+  - type_name: struct_r_debug
+    standards:
+      - svid
+objects:
+  - object_name: _r_debug
+    standards:
+      - svid
+    object_type: struct r_debug
+functions:
+  - name: dl_iterate_phdr
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: __dl_iterate_phdr_callback_t
+      - type: void *

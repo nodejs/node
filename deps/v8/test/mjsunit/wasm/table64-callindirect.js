@@ -78,11 +78,11 @@ function testOOB(is_tail_call, is_table_growable) {
   // Null entry.
   let table_index = 2n;
   assertTraps(
-      kTrapFuncSigMismatch,
+      kTrapNullFunc,
       () => instance.exports.table64_callindirect(1, table_index));
   table_index = BigInt(table_size - 1);
   assertTraps(
-      kTrapFuncSigMismatch,
+      kTrapNullFunc,
       () => instance.exports.table64_callindirect(1, table_index));
   // Table index is OOB.
   table_index = BigInt(table_size);

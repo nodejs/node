@@ -50,8 +50,6 @@
   V(ffi_sb_invoke_slow_symbol, "ffi_sb_invoke_slow_symbol")                    \
   V(ffi_sb_arguments_symbol, "ffi_sb_arguments_symbol")                        \
   V(ffi_sb_return_symbol, "ffi_sb_return_symbol")                              \
-  V(ffi_fast_arguments_symbol, "ffi_fast_arguments_symbol")                    \
-  V(ffi_fast_buffer_invoke_symbol, "ffi_fast_buffer_invoke_symbol")            \
   V(constructor_key_symbol, "constructor_key_symbol")                          \
   V(handle_onclose_symbol, "handle_onclose")                                   \
   V(no_message_symbol, "no_message_symbol")                                    \
@@ -114,33 +112,6 @@
   V(code_string, "code")                                                       \
   V(config_string, "config")                                                   \
   V(constants_string, "constants")                                             \
-  V(crypto_dh_string, "dh")                                                    \
-  V(crypto_dsa_string, "dsa")                                                  \
-  V(crypto_ec_string, "ec")                                                    \
-  V(crypto_ed25519_string, "ed25519")                                          \
-  V(crypto_ed448_string, "ed448")                                              \
-  V(crypto_ml_dsa_44_string, "ml-dsa-44")                                      \
-  V(crypto_ml_dsa_65_string, "ml-dsa-65")                                      \
-  V(crypto_ml_dsa_87_string, "ml-dsa-87")                                      \
-  V(crypto_ml_kem_512_string, "ml-kem-512")                                    \
-  V(crypto_ml_kem_768_string, "ml-kem-768")                                    \
-  V(crypto_ml_kem_1024_string, "ml-kem-1024")                                  \
-  V(crypto_slh_dsa_sha2_128f_string, "slh-dsa-sha2-128f")                      \
-  V(crypto_slh_dsa_sha2_128s_string, "slh-dsa-sha2-128s")                      \
-  V(crypto_slh_dsa_sha2_192f_string, "slh-dsa-sha2-192f")                      \
-  V(crypto_slh_dsa_sha2_192s_string, "slh-dsa-sha2-192s")                      \
-  V(crypto_slh_dsa_sha2_256f_string, "slh-dsa-sha2-256f")                      \
-  V(crypto_slh_dsa_sha2_256s_string, "slh-dsa-sha2-256s")                      \
-  V(crypto_slh_dsa_shake_128f_string, "slh-dsa-shake-128f")                    \
-  V(crypto_slh_dsa_shake_128s_string, "slh-dsa-shake-128s")                    \
-  V(crypto_slh_dsa_shake_192f_string, "slh-dsa-shake-192f")                    \
-  V(crypto_slh_dsa_shake_192s_string, "slh-dsa-shake-192s")                    \
-  V(crypto_slh_dsa_shake_256f_string, "slh-dsa-shake-256f")                    \
-  V(crypto_slh_dsa_shake_256s_string, "slh-dsa-shake-256s")                    \
-  V(crypto_x25519_string, "x25519")                                            \
-  V(crypto_x448_string, "x448")                                                \
-  V(crypto_rsa_string, "rsa")                                                  \
-  V(crypto_rsa_pss_string, "rsa-pss")                                          \
   V(cwd_string, "cwd")                                                         \
   V(data_string, "data")                                                       \
   V(database_string, "database")                                               \
@@ -407,6 +378,7 @@
   V(writable_string, "writable")                                               \
   V(write_host_object_string, "_writeHostObject")                              \
   V(write_queue_size_string, "writeQueueSize")                                 \
+  V(write_status_string, "writeStatus")                                        \
   V(zlib_string, "zlib")                                                       \
   V(zstd_string, "zstd")
 
@@ -439,6 +411,7 @@
   V(dtls_context_constructor_template, v8::FunctionTemplate)                   \
   V(dtls_endpoint_constructor_template, v8::FunctionTemplate)                  \
   V(dtls_session_constructor_template, v8::FunctionTemplate)                   \
+  V(glob_request_template, v8::FunctionTemplate)                               \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
   V(fdclose_constructor_template, v8::ObjectTemplate)                          \
   V(ffi_dynamic_library_constructor_template, v8::FunctionTemplate)            \
@@ -452,7 +425,7 @@
   V(v8_heap_statistics_template, v8::DictionaryTemplate)                       \
   V(histogram_ctor_template, v8::FunctionTemplate)                             \
   V(http2settings_constructor_template, v8::ObjectTemplate)                    \
-  V(http2stream_constructor_template, v8::ObjectTemplate)                      \
+  V(http2stream_constructor_template, v8::FunctionTemplate)                    \
   V(http2ping_constructor_template, v8::ObjectTemplate)                        \
   V(i18n_converter_template, v8::ObjectTemplate)                               \
   V(intervalhistogram_constructor_template, v8::FunctionTemplate)              \
@@ -473,7 +446,7 @@
   V(pipe_constructor_template, v8::FunctionTemplate)                           \
   V(script_context_constructor_template, v8::FunctionTemplate)                 \
   V(secure_context_constructor_template, v8::FunctionTemplate)                 \
-  V(shutdown_wrap_template, v8::ObjectTemplate)                                \
+  V(shutdown_wrap_template, v8::FunctionTemplate)                              \
   V(soa_record_template, v8::DictionaryTemplate)                               \
   V(socketaddress_constructor_template, v8::FunctionTemplate)                  \
   V(space_stats_template, v8::DictionaryTemplate)                              \
@@ -492,7 +465,7 @@
   V(urlpatterncomponentresult_template, v8::DictionaryTemplate)                \
   V(urlpatterninit_template, v8::DictionaryTemplate)                           \
   V(urlpatternresult_template, v8::DictionaryTemplate)                         \
-  V(write_wrap_template, v8::ObjectTemplate)                                   \
+  V(write_wrap_template, v8::FunctionTemplate)                                 \
   V(worker_cpu_profile_taker_template, v8::ObjectTemplate)                     \
   V(worker_cpu_usage_taker_template, v8::ObjectTemplate)                       \
   V(worker_heap_profile_taker_template, v8::ObjectTemplate)                    \

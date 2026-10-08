@@ -23,7 +23,7 @@ namespace node {
 enum ParseResult { Valid, FileError, InvalidContent };
 
 // ConfigReader is the class that parses the configuration JSON file.
-// It reads the file provided by --experimental-config-file and
+// It reads the file provided by --config-file and
 // extracts the flags.
 class ConfigReader {
  public:

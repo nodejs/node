@@ -24,6 +24,7 @@ class Endpoint;
 class Packet;
 class Session;
 class SessionManager;
+struct QuicAllocState;
 
 // ============================================================================
 
@@ -55,6 +56,7 @@ class SessionManager;
   V(session_path_validation, SessionPathValidation)                            \
   V(session_ticket, SessionTicket)                                             \
   V(session_version_negotiation, SessionVersionNegotiation)                    \
+  V(stream_available, StreamAvailable)                                         \
   V(stream_blocked, StreamBlocked)                                             \
   V(stream_close, StreamClose)                                                 \
   V(stream_created, StreamCreated)                                             \
@@ -260,6 +262,7 @@ class CheckWrapHandle : public MemoryRetainer {
 // TODO(@jasnell): Make this snapshotable?
 class BindingData final
     : public BaseObject,
+      public Cleanable,
       public mem::NgLibMemoryManager<BindingData, ngtcp2_mem> {
  public:
   SET_BINDING_ID(quic_binding_data)
@@ -279,21 +282,20 @@ class BindingData final
 
   // NgLibMemoryManager — the base class provides CheckAllocatedSize,
   // IncreaseAllocatedSize, DecreaseAllocatedSize, and StopTrackingMemory.
-  // Actual allocations go through the thread-local allocators below.
+  // Actual allocations go through the allocators below.
   void CheckAllocatedSize(size_t previous_size) const;
   void IncreaseAllocatedSize(size_t size);
   void DecreaseAllocatedSize(size_t size);
 
-  // Thread-local allocators that outlive BindingData destruction.
-  // Both ngtcp2 and nghttp3 store the allocator pointer inside every
-  // object they allocate; some of those objects (e.g., nghttp3 rcbufs
-  // backing V8 external strings) can be freed after BindingData is gone.
+  // The allocators can outlive the BindingData; see QuicAllocState.
   ngtcp2_mem* ngtcp2_allocator();
   nghttp3_mem* nghttp3_allocator();
 
   // Installs the set of JavaScript callback functions that are used to
   // bridge out to the JS API.
   JS_METHOD(SetCallbacks);
+  JS_METHOD(SendHeaders);
+  JS_METHOD(SetHeadersInterest);
 
   // Lazily-created per-Realm SessionManager. Centralizes CID -> Session
   // routing so that any endpoint can route packets to any session.
@@ -380,6 +382,8 @@ class BindingData final
   ArenaPtr endpoint_state_arena_{nullptr, +[](void*) {}};
   ArenaPtr endpoint_stats_arena_{nullptr, +[](void*) {}};
 
+  QuicAllocState* alloc_state_;
+
   // Deferred send flush state. The CheckWrapHandle fires immediately after
   // the I/O poll phase in the same event loop tick, allowing batched
   // receive processing: all packets are read during poll, then
@@ -389,6 +393,9 @@ class BindingData final
   bool flush_check_started_ = false;
 
   void OnFlushCheck();
+
+ private:
+  void Clean() override;
 };
 
 JS_METHOD_IMPL(IllegalConstructor);

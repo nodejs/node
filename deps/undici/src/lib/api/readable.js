@@ -5,7 +5,6 @@ const { addAbortListener } = require('node:events')
 const { Readable } = require('node:stream')
 const { RequestAbortedError, NotSupportedError, InvalidArgumentError, AbortError } = require('../core/errors')
 const util = require('../core/util')
-const { ReadableStreamFrom } = require('../core/util')
 
 const kConsume = Symbol('kConsume')
 const kReading = Symbol('kReading')
@@ -246,7 +245,7 @@ class BodyReadable extends Readable {
    */
   get body () {
     if (!this[kBody]) {
-      this[kBody] = ReadableStreamFrom(this)
+      this[kBody] = ReadableStream.from(this)
       if (this[kConsume]) {
         // TODO: Is this the best way to force a lock?
         this[kBody].getReader() // Ensure stream is locked.

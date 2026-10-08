@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,22 +32,22 @@ class LIEF_API CoreFile : public Note {
   public:
   /// Core file entry
   struct entry_t {
-    uint64_t start = 0;    /// Start address of mapped file
+    uint64_t start = 0;    ///< Start address of mapped file
     uint64_t end = 0;      ///< End address of mapped file
     uint64_t file_ofs = 0; ///< Offset (in core) of mapped file
     std::string path;      ///< Path of mapped file
 
-    LIEF_API friend
-    std::ostream& operator<<(std::ostream& os, const entry_t& entry);
+    LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                             const entry_t& entry);
   };
 
-  using files_t        = std::vector<entry_t>;
-  using iterator       = files_t::iterator;
+  using files_t = std::vector<entry_t>;
+  using iterator = files_t::iterator;
   using const_iterator = files_t::const_iterator;
 
   public:
-  CoreFile(ARCH arch, Header::CLASS cls, std::string name,
-           uint32_t type, Note::description_t description);
+  CoreFile(ARCH arch, Header::CLASS cls, std::string name, uint32_t type,
+           Note::description_t description);
 
   std::unique_ptr<Note> clone() const override {
     return std::unique_ptr<Note>(new CoreFile(*this));
@@ -59,7 +59,7 @@ class LIEF_API CoreFile : public Note {
   }
 
   /// Coredump file entries
-  const files_t& files() const {
+  const files_t& files() const LIEF_LIFETIMEBOUND {
     return files_;
   }
 
@@ -90,8 +90,8 @@ class LIEF_API CoreFile : public Note {
 
   ~CoreFile() override = default;
 
-  LIEF_API friend
-  std::ostream& operator<<(std::ostream& os, const CoreFile& note) {
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const CoreFile& note) {
     note.dump(os);
     return os;
   }
@@ -103,13 +103,13 @@ class LIEF_API CoreFile : public Note {
   template<class T>
   LIEF_LOCAL void write_files();
 
-  files_t  files_;
+  files_t files_;
   uint64_t page_size_ = 0;
   ARCH arch_ = ARCH::NONE;
   Header::CLASS class_ = Header::CLASS::NONE;
 };
 
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

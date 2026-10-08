@@ -161,6 +161,30 @@ exports[`test/lib/utils/explain-dep.js TAP basic manyDeps > print nocolor 1`] = 
 manydep@1.0.0
 `
 
+exports[`test/lib/utils/explain-dep.js TAP basic npmExtension > explain color deep 1`] = `
+bar@1.2.3[2m[22m
+[2mnode_modules/bar[22m
+  bar@"^1.0.0" from foo@1.0.0[2m[22m
+  [2mnode_modules/foo[22m[2m (changed by .npm-extension transformManifest dependencies.bar)[22m
+`
+
+exports[`test/lib/utils/explain-dep.js TAP basic npmExtension > explain nocolor shallow 1`] = `
+bar@1.2.3
+node_modules/bar
+  bar@"^1.0.0" from foo@1.0.0
+  node_modules/foo (changed by .npm-extension transformManifest dependencies.bar)
+`
+
+exports[`test/lib/utils/explain-dep.js TAP basic npmExtension > print color 1`] = `
+bar@1.2.3[2m[22m
+[2mnode_modules/bar[22m
+`
+
+exports[`test/lib/utils/explain-dep.js TAP basic npmExtension > print nocolor 1`] = `
+bar@1.2.3
+node_modules/bar
+`
+
 exports[`test/lib/utils/explain-dep.js TAP basic optional > explain color deep 1`] = `
 optdep@1.0.0 [35moptional[39m[2m[22m
 [2mnode_modules/optdep[22m
@@ -203,6 +227,30 @@ overridden-root@1.0.0 [2moverridden[22m[2m[22m
 exports[`test/lib/utils/explain-dep.js TAP basic overridden > print nocolor 1`] = `
 overridden-root@1.0.0 overridden
 node_modules/overridden-root
+`
+
+exports[`test/lib/utils/explain-dep.js TAP basic packageExtensions > explain color deep 1`] = `
+bar@1.2.3[2m[22m
+[2mnode_modules/bar[22m
+  bar@"^1.0.0" from foo@1.0.0[2m[22m
+  [2mnode_modules/foo[22m[2m (added by packageExtensions["foo@1"].dependencies.bar)[22m
+`
+
+exports[`test/lib/utils/explain-dep.js TAP basic packageExtensions > explain nocolor shallow 1`] = `
+bar@1.2.3
+node_modules/bar
+  bar@"^1.0.0" from foo@1.0.0
+  node_modules/foo (added by packageExtensions["foo@1"].dependencies.bar)
+`
+
+exports[`test/lib/utils/explain-dep.js TAP basic packageExtensions > print color 1`] = `
+bar@1.2.3[2m[22m
+[2mnode_modules/bar[22m
+`
+
+exports[`test/lib/utils/explain-dep.js TAP basic packageExtensions > print nocolor 1`] = `
+bar@1.2.3
+node_modules/bar
 `
 
 exports[`test/lib/utils/explain-dep.js TAP basic peer > explain color deep 1`] = `

@@ -56,16 +56,16 @@ changes:
     `Infinity`, no limit is enforced. Must be a number greater than `0`.
     **Default:** `Infinity`.
 
-`Agent` inherits all {PoolOptions} (and therefore all {ClientOptions}). The
-per-origin {Pool} it creates uses the default unlimited `connections`, so
-concurrent requests to the same origin are spread across separate {Client}
-instances on separate sockets.
+`Agent` inherits all {PoolOptions} (and therefore all {ClientOptions}). Each
+origin gets a separate {Pool}, with `connections` acting as the maximum number
+of clients that pool may create.
 
 > [!NOTE]
-> Because each concurrent request to an origin may use a different {Client},
-> HTTP/2 multiplexing on a shared session does not apply unless `connections` is
-> set to a small value (for example `connections: 1`). See {PoolOptions} and
-> {ClientOptions} for the full set of inherited options such as `allowH2`
+> For an h2-capable HTTPS origin, the per-origin pool waits for the first TLS
+> connection to finish ALPN negotiation. If the server selects h2, concurrent
+> requests share that session up to `maxConcurrentStreams`. If it selects
+> HTTP/1.1, normal connection fan-out resumes up to `connections`. See
+> {PoolOptions} and {ClientOptions} for inherited options such as `allowH2`
 > (default `true`) and `maxConcurrentStreams` (default `100`).
 
 ### `agent.closed`

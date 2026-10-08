@@ -9,10 +9,11 @@
 // Include the non-inl header before the rest of the headers.
 
 #include <atomic>
+#include <utility>
 
 #include "src/common/assert-scope.h"
 #include "src/handles/persistent-handles.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/main-allocator-inl.h"
 #include "src/heap/parked-scope.h"
@@ -75,24 +76,27 @@ V8_INLINE void LocalHeap::ParkAndExecuteCallback(Callback callback) {
 template <typename Callback>
 V8_INLINE void LocalHeap::ExecuteWithStackMarker(Callback callback) {
   if (is_main_thread()) {
-    heap()->stack().SetMarkerAndCallback(callback);
+    heap()->stack().SetMarkerAndCallback(std::move(callback));
   } else {
     heap()->stack().SetMarkerForBackgroundThreadAndCallback(
-        ThreadId::Current().ToInteger(), callback);
+        ThreadId::Current().ToInteger(), std::move(callback));
   }
 }
 
 template <typename Callback>
 V8_INLINE void LocalHeap::ExecuteWhileParked(Callback callback) {
-  ExecuteWithStackMarker(
-      [this, callback]() { ParkAndExecuteCallback(callback); });
+  ExecuteWithStackMarker([this, callback = std::move(callback)]() mutable {
+    ParkAndExecuteCallback(std::move(callback));
+  });
 }
 
 template <typename Callback>
 V8_INLINE void LocalHeap::ExecuteMainThreadWhileParked(Callback callback) {
   DCHECK(is_main_thread());
   heap()->stack().SetMarkerAndCallback(
-      [this, callback]() { ParkAndExecuteCallback(callback); });
+      [this, callback = std::move(callback)]() mutable {
+        ParkAndExecuteCallback(std::move(callback));
+      });
 }
 
 template <typename Callback>
@@ -101,7 +105,9 @@ V8_INLINE void LocalHeap::ExecuteBackgroundThreadWhileParked(
   DCHECK(!is_main_thread());
   heap()->stack().SetMarkerForBackgroundThreadAndCallback(
       ThreadId::Current().ToInteger(),
-      [this, callback]() { ParkAndExecuteCallback(callback); });
+      [this, callback = std::move(callback)]() mutable {
+        ParkAndExecuteCallback(std::move(callback));
+      });
 }
 
 V8_INLINE bool LocalHeap::is_in_trampoline() const {

@@ -6,6 +6,7 @@
 # For the schema of this file, see Metadata message:
 #   https://source.chromium.org/chromium/infra/infra/+/master:go/src/infra/tools/dirmd/proto/dir_metadata.proto
 
-monorail {
-  component: "Platform>DevTools>JavaScript"
+team_email: "devtools-dev@chromium.org"
+buganizer_public: {
+  component_id: 1457310
 }

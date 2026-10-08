@@ -117,7 +117,6 @@ KEMEncapsulateJob::KEMEncapsulateJob(Environment* env,
 void KEMEncapsulateJob::DoThreadPoolWork() {
   ncrypto::ClearErrorOnReturn clear_error_on_return;
   AdditionalParams* params = CryptoJob<KEMEncapsulateTraits>::params();
-  Mutex::ScopedLock lock(params->key.mutex());
   auto result = ncrypto::KEM::Encapsulate(params->key.GetAsymmetricKey());
   if (result) {
     out_.emplace();
@@ -223,7 +222,6 @@ bool KEMDecapsulateTraits::DeriveBits(Environment* env,
                                       ByteSource* out,
                                       CryptoJobMode mode,
                                       CryptoErrorStore* errors) {
-  Mutex::ScopedLock lock(params.key.mutex());
   const auto& private_key = params.key.GetAsymmetricKey();
 
   return DoKEMDecapsulate(

@@ -54,9 +54,10 @@ template("absl_source_set") {
       public_configs += [ "//third_party/abseil-cpp:absl_include_config" ]
 
       if (!defined(visibility)) {
-        # Within Chromium builds, restrict direct visibility of Abseil sources, so
-        # users must depend on //third_party/abseil-cpp:absl. This prevents use of
-        # banned targets like absl/types:any. A few targets require exceptions.
+        # Within Chromium builds, restrict direct visibility of Abseil sources,
+        # so users must depend on //third_party/abseil-cpp:absl. This prevents
+        # use of banned targets like absl/types:any. A few targets require
+        # exceptions.
         if (build_with_chromium) {
           visibility = [
             # Abseil itself.

@@ -67,6 +67,7 @@ env:
   PYTHON_VERSION: '3.14'
   FLAKY_TESTS: keep_retrying
   CLANG_VERSION: '19'
+  NODE_VERSION: lts/*
 
 permissions:
   contents: read
@@ -84,12 +85,16 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
       - name: Make tarball
         run: |
           export DISTTYPE=nightly
           export DATESTRING=$(date "+%Y-%m-%d")
           export COMMIT=$(git rev-parse --short=10 "$GITHUB_SHA")
-          ./configure && make tar -j4 SKIP_XZ=1
+          ./configure && make tar -j4 SKIP_XZ=1 GZIP_COMPRESSION=6
       - name: Upload tarball artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
@@ -104,13 +109,8 @@ jobs:
       SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
       SCCACHE_IDLE_TIMEOUT: '0'
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          persist-credentials: false
-          sparse-checkout: .github/actions/install-clang
-          sparse-checkout-cone-mode: false
       - name: Install Clang ${{ env.CLANG_VERSION }}
-        uses: ./.github/actions/install-clang
+        uses: $/.github/actions/install-clang
         with:
           clang-version: ${{ env.CLANG_VERSION }}
       - name: Set up Python ${{ env.PYTHON_VERSION }}

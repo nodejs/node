@@ -629,6 +629,38 @@ TEST_F(JSCallReducerTest, NumberParseInt) {
   EXPECT_THAT(r.replacement(), IsJSParseInt(p0, p1));
 }
 
+// -----------------------------------------------------------------------------
+// JSConstructForwardAllArgs
+
+TEST_F(JSCallReducerTest, ConstructForwardAllArgsWithDeadParameters) {
+  Node* target = UndefinedConstant();
+  Node* new_target = UndefinedConstant();
+  Node* feedback = UndefinedConstant();
+  Node* context = UndefinedConstant();
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+
+  // A frame state whose parameters input has been replaced by a DeadValue
+  // node, nested inside an outer frame state so that the reducer takes the
+  // inlined path.
+  Node* dead_value =
+      graph()->NewNode(common()->DeadValue(MachineRepresentation::kTagged),
+                       graph()->NewNode(common()->Dead()));
+  Node* outer_frame_state = DummyFrameState();
+  Node* frame_state = graph()->NewNode(
+      common()->FrameState(BytecodeOffset::None(),
+                           OutputFrameStateCombine::Ignore(), nullptr),
+      dead_value, graph()->start(), graph()->start(), graph()->start(),
+      graph()->start(), outer_frame_state);
+
+  Node* construct = graph()->NewNode(
+      javascript()->ConstructForwardAllArgs(CallFrequency(), FeedbackSource()),
+      target, new_target, feedback, context, frame_state, effect, control);
+
+  Reduction r = Reduce(construct);
+  ASSERT_FALSE(r.Changed());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

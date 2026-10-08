@@ -76,21 +76,19 @@ module.exports = async (newversion, opts) => {
   delete pkg._id
   await writeJson(`${path}/package.json`, pkg)
 
-  // try to update shrinkwrap, but ok if this fails
-  const locks = [`${path}/package-lock.json`, `${path}/npm-shrinkwrap.json`]
-  const haveLocks = []
-  for (const lock of locks) {
-    try {
-      const sw = await readJson(lock)
-      sw.version = newV
-      if (sw.packages && sw.packages['']) {
-        sw.packages[''].version = newV
-      }
-      await writeJson(lock, sw)
-      haveLocks.push(lock)
-    } catch {
-      // ignore errors
+  // try to update the lockfile, but ok if this fails
+  const lock = `${path}/package-lock.json`
+  let lockUpdated = false
+  try {
+    const sw = await readJson(lock)
+    sw.version = newV
+    if (sw.packages && sw.packages['']) {
+      sw.packages[''].version = newV
     }
+    await writeJson(lock, sw)
+    lockUpdated = true
+  } catch {
+    // ignore errors
   }
 
   if (!ignoreScripts) {
@@ -110,7 +108,7 @@ module.exports = async (newversion, opts) => {
     // - git add, git commit, git tag
     await git.spawn(['add', `${path}/package.json`], opts)
     // sometimes people .gitignore their lockfiles
-    for (const lock of haveLocks) {
+    if (lockUpdated) {
       await git.spawn(['add', lock], opts).catch(() => {})
     }
     await commit(newV, opts)

@@ -44,9 +44,10 @@ absl_cc_library(
   DEPS
     absl::config
     absl::core_headers
-    absl::random_internal_distribution_caller
     absl::random_internal_fast_uniform_bits
     absl::type_traits
+    absl::random_mocking_access
+    absl::random_internal_traits
 )
 
 absl_cc_test(
@@ -68,6 +69,21 @@ absl_cc_test(
     GTest::gtest_main
 )
 
+absl_cc_library(
+  NAME
+    random_mocking_access
+  HDRS
+    "mocking_access.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::config
+    absl::fast_type_id
+    absl::type_traits
+)
+
 # Internal-only target, do not depend on directly.
 absl_cc_library(
   NAME
@@ -82,6 +98,7 @@ absl_cc_library(
     absl::config
     absl::fast_type_id
     absl::optional
+    absl::random_mocking_access
 )
 
 # Internal-only target, do not depend on directly.
@@ -118,6 +135,7 @@ absl_cc_library(
     absl::flat_hash_map
     absl::raw_logging_internal
     absl::random_internal_mock_helpers
+    absl::random_mocking_access
     absl::random_random
     absl::type_traits
     absl::utility
@@ -536,6 +554,9 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
+    absl::type_traits
+    absl::bits
+    absl::int128
 )
 
 # Internal-only target, do not depend on directly.
@@ -553,6 +574,7 @@ absl_cc_library(
     absl::utility
     absl::fast_type_id
     absl::type_traits
+    absl::random_mocking_access
 )
 
 # Internal-only target, do not depend on directly.
@@ -852,7 +874,6 @@ absl_cc_library(
     absl::random_internal_platform
     absl::random_internal_randen_hwaes_impl
     absl::config
-    absl::optional
 )
 
 # Internal-only target, do not depend on directly.

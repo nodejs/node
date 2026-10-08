@@ -1,0 +1,6 @@
+*%(basename)s:{NUMBER}: TypeError: e is not a function
+    e();      // throw: e is not a function
+    ^
+TypeError: e is not a function
+    at a (*%(basename)s:{NUMBER}:{NUMBER})
+    at *%(basename)s:{NUMBER}:{NUMBER}

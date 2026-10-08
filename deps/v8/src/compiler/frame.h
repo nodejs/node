@@ -250,6 +250,7 @@ class FrameAccessState : public ZoneObject {
   int sp_delta() const { return sp_delta_; }
   void ClearSPDelta() { sp_delta_ = 0; }
   void IncreaseSPDelta(int amount) { sp_delta_ += amount; }
+  V8_EXPORT_PRIVATE int GetSPSlotCount() const;
 
   bool access_frame_with_fp() const { return access_frame_with_fp_; }
 

@@ -23,7 +23,9 @@ class Scope {
 
 v8::Local<v8::Value> current(v8::Isolate* isolate);
 void set(v8::Isolate* isolate, v8::Local<v8::Value> value);
+void set(Environment* env, v8::Local<v8::Value> value);
 v8::Local<v8::Value> exchange(v8::Isolate* isolate, v8::Local<v8::Value> value);
+v8::Local<v8::Value> exchange(Environment* env, v8::Local<v8::Value> value);
 
 }  // namespace async_context_frame
 }  // namespace node

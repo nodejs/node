@@ -570,7 +570,8 @@ static int file_load_file(struct file_ctx_st *ctx,
 
     data.object_cb = object_cb;
     data.object_cbarg = object_cbarg;
-    OSSL_DECODER_CTX_set_construct_data(ctx->_.file.decoderctx, &data);
+    if (!OSSL_DECODER_CTX_set_construct_data(ctx->_.file.decoderctx, &data))
+        return 0;
     OSSL_DECODER_CTX_set_passphrase_cb(ctx->_.file.decoderctx, pw_cb, pw_cbarg);
 
     /* Launch */

@@ -10,7 +10,7 @@
 
 namespace v8::internal::wasm {
 
-#define EXPERIMENTAL_FLAG_SCOPE(flag) FLAG_SCOPE(experimental_wasm_##flag)
+#define EXPERIMENTAL_FLAG_SCOPE(flag) FLAG_SCOPE(wasm_##flag)
 
 class V8_NODISCARD WasmFeatureScope {
  public:

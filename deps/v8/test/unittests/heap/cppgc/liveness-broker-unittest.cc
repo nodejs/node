@@ -6,8 +6,8 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
-#include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/liveness-broker.h"
+#include "src/heap/cppgc-internal/heap-object-header.h"
+#include "src/heap/cppgc-internal/liveness-broker.h"
 #include "test/unittests/heap/cppgc/tests.h"
 
 namespace cppgc {

@@ -44,6 +44,16 @@
   # Those smoke tests fail nondeterministically to test fuzzer infrastructure.
   # We cannot run them in unittest mode as they would produce flakes.
   'SmokeTest.*': [SKIP],
+
+  ##############################################################################
+  # Behavioural differences between Maglev and Turbofan when the former is used
+  # for OptimizeFunctionOnNextCall.
+  #
+  # Maglev doesn't support compiler::NodeObserver machinery.
+  'SloppyEqualityTest.SloppyEqualityTest': [SKIP],
+   # RunDeoptTest checks frame->is_turbofan().
+  'RunDeoptTest.DeoptSimple': [SKIP],
+  'RunDeoptTest.DeoptSimpleInExpr': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -265,6 +275,7 @@
   'SyncPrimitivesArmTest*': [SKIP],
   'CodePagesTest.*': [SKIP],
   'MacroAssemblerX64Test.EmbeddedObj': [SKIP],
+  'RegExpTest.AssertionMergingToNode': [SKIP],
   'RegExpTest.MacroAssemblernativeAtStart': [SKIP],
   'RegExpTest.MacroAssemblerNativeBackReferenceLATIN1': [SKIP],
   'RegExpTest.MacroAssemblerNativeBackReferenceUC16': [SKIP],
@@ -325,6 +336,7 @@
 
 ['tsan and mode == debug', {
   'LazyCompileDispatcherTest.CompileLazy2FinishesDispatcherJob': [SKIP],
+  'LogAllTest.LogAll': [SKIP],
 }],
 
 # With the official_build flag exceptions are disabled. Therefore torque
@@ -339,17 +351,11 @@
 }],  # 'official_build'
 
 ##############################################################################
-# Behavioural differences between Maglev and Turbofan when the former is used
-# for OptimizeFunctionOnNextCall.
-['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
-  # Maglev doesn't support compiler::NodeObserver machinery.
-  'SloppyEqualityTest.SloppyEqualityTest': [FAIL],
-}],  # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
-
-##############################################################################
 ['system == windows', {
   # Bug: crbug.com/v8/14320
   'TimeTicks.NowResolution': [PASS,FAIL],
+  # Bug: crbug.com/517077061
+  'InspectorTest.NoUAFWhenResettingContextGroupDuringArgumentWrapping': [PASS, FAIL],
 }],  # system == windows
 
 ##############################################################################
@@ -403,9 +409,9 @@
 }],  # 'full_debug'
 
 ##############################################################################
-['ubsan', {
-  # https://crbug.com/456051623
-  'SimdShuffleTest.TryMatch32x4OneLaneSwizzle': [SKIP],
-}],  # 'ubsan'
+['dumpling', {
+  # Unexpected output.
+  'IsolateTest.DebugTraceMinimal': [FAIL],
+}],
 
 ]

@@ -16,8 +16,26 @@ use crate::{
 };
 #[cfg(feature = "alloc")]
 use alloc::string::String;
+use core::fmt;
 pub use zerotrie::ZeroTrieSimpleAscii;
-use zerovec::{vecs::Index32, VarZeroSlice};
+use zerotrie::cursor::ZeroTrieSimpleAsciiCursor;
+use zerovec::{VarZeroSlice, vecs::Index32};
+
+/// Optimization to stop writing to a `ZeroTrie` cursor when the `ZeroTrie`
+/// is empty. See #8375
+struct EarlyExitCursor<'a, 'b>(&'b mut ZeroTrieSimpleAsciiCursor<'a>);
+
+impl fmt::Write for EarlyExitCursor<'_, '_> {
+    #[inline]
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.0.write_str(s)?;
+        if self.0.is_empty() {
+            Err(fmt::Error)
+        } else {
+            Ok(())
+        }
+    }
+}
 
 fn get_index(
     trie: ZeroTrieSimpleAscii<&'static [u8]>,
@@ -26,10 +44,12 @@ fn get_index(
 ) -> Option<usize> {
     use writeable::Writeable;
     let mut cursor = trie.cursor();
-    let _is_ascii = id.locale.write_to(&mut cursor);
+    let _is_ascii = id.locale.write_to(&mut EarlyExitCursor(&mut cursor));
     if !id.marker_attributes.is_empty() {
         cursor.step(ID_SEPARATOR);
-        id.marker_attributes.write_to(&mut cursor).ok()?;
+        id.marker_attributes
+            .write_to(&mut EarlyExitCursor(&mut cursor))
+            .ok()?;
         loop {
             if let Some(v) = cursor.take_value() {
                 break Some(v);

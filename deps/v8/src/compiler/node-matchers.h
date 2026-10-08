@@ -794,7 +794,7 @@ struct BaseWithIndexAndDisplacementMatcher {
       switch (from->opcode()) {
         case IrOpcode::kLoad:
         case IrOpcode::kLoadImmutable:
-        case IrOpcode::kProtectedLoad:
+        case IrOpcode::kTrappingLoad:
         case IrOpcode::kLoadTrapOnNull:
         case IrOpcode::kInt32Add:
         case IrOpcode::kInt64Add:
@@ -802,16 +802,18 @@ struct BaseWithIndexAndDisplacementMatcher {
           break;
         case IrOpcode::kInt32Sub:
           // If the subtrahend is not a constant, it is not an addressing use.
-          if (from->InputAt(1)->opcode() != IrOpcode::kInt32Constant)
+          if (from->InputAt(1)->opcode() != IrOpcode::kInt32Constant) {
             return false;
+          }
           break;
         case IrOpcode::kInt64Sub:
           // If the subtrahend is not a constant, it is not an addressing use.
-          if (from->InputAt(1)->opcode() != IrOpcode::kInt64Constant)
+          if (from->InputAt(1)->opcode() != IrOpcode::kInt64Constant) {
             return false;
+          }
           break;
         case IrOpcode::kStore:
-        case IrOpcode::kProtectedStore:
+        case IrOpcode::kTrappingStore:
         case IrOpcode::kStoreTrapOnNull:
           // If the stored value is this node, it is not an addressing use.
           if (from->InputAt(2) == node) return false;

@@ -47,6 +47,32 @@ impl<T> DiplomatOption<T> {
     pub fn into_converted_option<U: From<T>>(self) -> Option<U> {
         self.into_option().map(Into::into)
     }
+
+    pub fn map<U, F>(mut self, f: F) -> DiplomatOption<U>
+    where
+        F: FnOnce(T) -> U,
+    {
+        if self.is_ok {
+            unsafe {
+                let res = f(ManuallyDrop::take(&mut self.value.ok));
+                DiplomatResult {
+                    value: DiplomatResultValue {
+                        ok: ManuallyDrop::new(res),
+                    },
+                    is_ok: true,
+                }
+            }
+        } else {
+            unsafe {
+                DiplomatResult {
+                    value: DiplomatResultValue {
+                        err: self.value.err,
+                    },
+                    is_ok: false,
+                }
+            }
+        }
+    }
 }
 
 impl<T: Clone, E: Clone> Clone for DiplomatResult<T, E> {

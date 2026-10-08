@@ -182,17 +182,6 @@ declare namespace InternalCryptoBinding {
     ): CryptoJobWebCrypto<ArrayBuffer>;
   }
 
-  interface CShakeJobConstructor {
-    new(
-      mode: CryptoJobWebCryptoMode,
-      algorithm: string,
-      data: ByteSource,
-      functionName: OptionalByteSource,
-      customization: OptionalByteSource,
-      outputLength: number,
-    ): CryptoJobWebCrypto<ArrayBuffer>;
-  }
-
   interface ChaCha20Poly1305CipherJobConstructor {
     new(
       mode: CryptoJobWebCryptoMode,
@@ -375,26 +364,25 @@ declare namespace InternalCryptoBinding {
       key: KeyObjectHandle,
       algorithm: string,
       customization: OptionalByteSource,
-      keyLength: number,
       outputLength: number,
       data: ByteSource,
       ...signature: MacJobSignatureArgs<S>
     ): CryptoJobWebCrypto<SignJobResult<S>>;
   }
 
-  interface NidKeyPairGenJobConstructor {
+  interface NamedKeyPairGenJobConstructor {
     new<
       M extends CryptoJobRegularMode,
       PublicFormat extends PublicKeyFormat = undefined,
       PrivateFormat extends PrivateKeyFormat = undefined,
     >(
       mode: M,
-      nid: number,
+      name: string,
       ...encoding: KeyPairEncodingArgs<PublicFormat, PrivateFormat>
     ): CryptoJobForMode<M, GeneratedKeyPair<PublicFormat, PrivateFormat>>;
     new(
       mode: CryptoJobWebCryptoMode,
-      nid: number,
+      name: string,
       algorithm: object,
       publicUsagesMask: number,
       privateUsagesMask: number,
@@ -583,6 +571,7 @@ declare namespace InternalCryptoBinding {
     getAsymmetricKeyType(): string | undefined;
     getSymmetricKeySize(): number;
     checkEcKeyData(): boolean;
+    exportECPrivatePkcs8(): Buffer;
   }
 
   interface NativeKeyObject {
@@ -787,6 +776,12 @@ declare namespace InternalCryptoBinding {
       InternalX509Certificate: InternalX509CertificateConstructor,
     ];
 
+  type PKCS12ParseResult = [
+    privateKey: KeyObjectHandle | null,
+    certificate: X509CertificateHandle | null,
+    additionalCertificates: X509CertificateHandle[],
+  ];
+
   interface CipherInfo {
     name: string;
     nid: number;
@@ -811,7 +806,6 @@ declare namespace InternalCryptoBinding {
 export interface CryptoBinding {
   AESCipherJob: InternalCryptoBinding.AESCipherJobConstructor;
   Argon2Job: InternalCryptoBinding.Argon2JobConstructor;
-  CShakeJob?: InternalCryptoBinding.CShakeJobConstructor;
   ChaCha20Poly1305CipherJob: InternalCryptoBinding.ChaCha20Poly1305CipherJobConstructor;
   CheckPrimeJob: InternalCryptoBinding.CheckPrimeJobConstructor;
   DHBitsJob: InternalCryptoBinding.DHBitsJobConstructor;
@@ -825,7 +819,7 @@ export interface CryptoBinding {
   KEMEncapsulateJob?: InternalCryptoBinding.KEMEncapsulateJobConstructor;
   KangarooTwelveJob: InternalCryptoBinding.KangarooTwelveJobConstructor;
   KmacJob: InternalCryptoBinding.KmacJobConstructor;
-  NidKeyPairGenJob: InternalCryptoBinding.NidKeyPairGenJobConstructor;
+  NamedKeyPairGenJob: InternalCryptoBinding.NamedKeyPairGenJobConstructor;
   PBKDF2Job: InternalCryptoBinding.PBKDF2JobConstructor;
   RandomBytesJob: InternalCryptoBinding.RandomBytesJobConstructor;
   RandomPrimeJob: InternalCryptoBinding.RandomPrimeJobConstructor;
@@ -877,28 +871,6 @@ export interface CryptoBinding {
   Sign: new () => InternalCryptoBinding.SignHandle;
   Verify: new () => InternalCryptoBinding.VerifyHandle;
 
-  EVP_PKEY_ED25519: number;
-  EVP_PKEY_ED448: number;
-  EVP_PKEY_ML_DSA_44: number;
-  EVP_PKEY_ML_DSA_65: number;
-  EVP_PKEY_ML_DSA_87: number;
-  EVP_PKEY_ML_KEM_512: number;
-  EVP_PKEY_ML_KEM_768: number;
-  EVP_PKEY_ML_KEM_1024: number;
-  EVP_PKEY_SLH_DSA_SHA2_128F: number;
-  EVP_PKEY_SLH_DSA_SHA2_128S: number;
-  EVP_PKEY_SLH_DSA_SHA2_192F: number;
-  EVP_PKEY_SLH_DSA_SHA2_192S: number;
-  EVP_PKEY_SLH_DSA_SHA2_256F: number;
-  EVP_PKEY_SLH_DSA_SHA2_256S: number;
-  EVP_PKEY_SLH_DSA_SHAKE_128F: number;
-  EVP_PKEY_SLH_DSA_SHAKE_128S: number;
-  EVP_PKEY_SLH_DSA_SHAKE_192F: number;
-  EVP_PKEY_SLH_DSA_SHAKE_192S: number;
-  EVP_PKEY_SLH_DSA_SHAKE_256F: number;
-  EVP_PKEY_SLH_DSA_SHAKE_256S: number;
-  EVP_PKEY_X25519: number;
-  EVP_PKEY_X448: number;
   OPENSSL_EC_EXPLICIT_CURVE: number;
   OPENSSL_EC_NAMED_CURVE: number;
   RSA_PKCS1_PSS_PADDING: number;
@@ -1002,6 +974,7 @@ export interface CryptoBinding {
   getHashes(): string[];
   getMacs(): string[];
   isCryptoKey(key: unknown): boolean;
+  isKeyAlgorithmAvailable(name: string): boolean;
   isKeyObject(key: unknown): boolean;
   isX509Certificate(value: unknown): boolean;
   getKeyObjectSlots(key: object): InternalCryptoBinding.KeyObjectSlots;
@@ -1020,11 +993,16 @@ export interface CryptoBinding {
     functionName?: InternalCryptoBinding.OptionalBufferSource,
     customization?: InternalCryptoBinding.OptionalBufferSource,
   ): string | InternalCryptoBinding.Buffer;
+  parsePKCS12(
+    bundle: InternalCryptoBinding.ByteSource,
+    passphrase?: InternalCryptoBinding.ByteSource,
+  ): InternalCryptoBinding.PKCS12ParseResult;
   parseX509(data: InternalCryptoBinding.ByteSource): InternalCryptoBinding.X509CertificateHandle;
   privateDecrypt: InternalCryptoBinding.PublicKeyCipher;
   privateEncrypt: InternalCryptoBinding.PublicKeyCipher;
   publicDecrypt: InternalCryptoBinding.PublicKeyCipher;
   publicEncrypt: InternalCryptoBinding.PublicKeyCipher;
+  randomFillSync(buf: ArrayBufferLike | ArrayBufferView, offset: number, size: number): void;
   resetRootCertStore(): void;
   secureBuffer(length: number): Uint8Array | undefined;
   secureHeapUsed(): bigint | undefined;

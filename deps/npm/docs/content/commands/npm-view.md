@@ -243,6 +243,9 @@ If only a single string field for a single version is output, then it will not b
 If the field is an object, it will be output as a JavaScript object literal.
 
 If the `--json` flag is given, the outputted fields will be JSON.
+Scalar and object results are returned in an array, even if only a single version matches.
+When the output contains one array-valued result, that array is returned directly without an additional result wrapper.
+Multiple array-valued results remain separate items in the outer results array.
 
 If the version range matches multiple versions then each printed value will be prefixed with the version it applies to.
 

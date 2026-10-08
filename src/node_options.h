@@ -150,8 +150,9 @@ class EnvironmentOptions : public Options {
   std::string watch_mode_kill_signal = "SIGTERM";
   std::string eval_string;
   std::string tls_keylog;
-  std::string experimental_config_file_path;
+  std::string config_file_path;
   std::string experimental_package_map_path;
+  std::string vfs_load_source;
 #if HAVE_INSPECTOR
   std::string cpu_prof_dir;
   std::string cpu_prof_name;
@@ -160,6 +161,7 @@ class EnvironmentOptions : public Options {
 #endif  // HAVE_INSPECTOR
 
   std::vector<std::string> conditions;
+  std::vector<std::string> allow_env;
   std::vector<std::string> allow_fs_read;
   std::vector<std::string> allow_fs_write;
   std::vector<std::string> disable_warnings;
@@ -206,6 +208,7 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(require_module) = true;
   DEFINE_BOOL_FIELD(enable_source_maps) = false;
   DEFINE_BOOL_FIELD(experimental_addon_modules) = true;
+  DEFINE_BOOL_FIELD(experimental_bench) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_eventsource) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_ffi) = HAVE_FFI;
   DEFINE_BOOL_FIELD(experimental_web_worker) = EXPERIMENTALS_DEFAULT_VALUE;
@@ -213,6 +216,7 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(experimental_sqlite) = HAVE_SQLITE;
   DEFINE_BOOL_FIELD(experimental_stream_iter) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_vfs) = EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(vfs_load) = false;
   DEFINE_BOOL_FIELD(webstorage) = HAVE_SQLITE;
   DEFINE_BOOL_FIELD(experimental_dtls) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_quic) = EXPERIMENTALS_DEFAULT_VALUE;
@@ -234,7 +238,6 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(allow_openssl_store) = false;
   DEFINE_BOOL_FIELD(allow_worker_threads) = false;
   DEFINE_BOOL_FIELD(experimental_vm_modules) = EXPERIMENTALS_DEFAULT_VALUE;
-  DEFINE_BOOL_FIELD(async_context_frame) = true;
   DEFINE_BOOL_FIELD(expose_internals) = false;
   DEFINE_BOOL_FIELD(force_node_api_uncaught_exceptions_policy) = false;
   DEFINE_BOOL_FIELD(frozen_intrinsics) = false;
@@ -251,6 +254,7 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(prof_process) = false;
   DEFINE_BOOL_FIELD(has_env_file_string) = false;
   DEFINE_BOOL_FIELD(bench_runner) = false;
+  DEFINE_BOOL_FIELD(has_bench_options) = false;
   DEFINE_BOOL_FIELD(has_bench_samples) = false;
   DEFINE_BOOL_FIELD(has_bench_warmup) = false;
   DEFINE_BOOL_FIELD(test_runner) = false;
@@ -313,6 +317,15 @@ class EnvironmentOptions : public Options {
 
   void CheckOptions(std::vector<std::string>* errors,
                     std::vector<std::string>* argv) override;
+
+  // `--bench` and the other benchmark runner options are gated behind
+  // `--experimental-bench`, but the gate and the options it guards can come
+  // from different option sources, each of which is parsed in its own
+  // options_parser::Parse() pass. CheckOptions() runs at the end of every
+  // pass, so this constraint cannot be validated there: the gate may still
+  // arrive in a later pass. Callers must invoke this once all of their option
+  // sources have been parsed.
+  void CheckBenchOptions(std::vector<std::string>* errors) const;
 
  private:
   DebugOptions debug_options_;
@@ -388,6 +401,10 @@ class PerProcessOptions : public Options {
   std::string report_filename;
   // TODO(addaleax): Some of these could probably be per-Environment.
   std::string use_largepages = "off";
+  // --process-timeout, as passed on the command line (e.g. "30s").
+  std::string process_timeout;
+  // The parsed value of --process-timeout, or 0 if it was not passed.
+  uint64_t process_timeout_ms = 0;
 
   std::vector<std::string> security_reverts;
   std::vector<std::string> cmdline;
@@ -431,6 +448,7 @@ class PerProcessOptions : public Options {
 
   DEFINE_BOOL_FIELD(disable_wasm_trap_handler) = false;
   DEFINE_BOOL_FIELD(report_on_fatalerror) = false;
+  DEFINE_BOOL_FIELD(report_on_process_timeout) = false;
   DEFINE_BOOL_FIELD(report_compact) = false;
   DEFINE_BOOL_FIELD(trace_sigint) = false;
   // Tracks whether `--run` was passed, since an empty `run` is ambiguous
@@ -440,6 +458,14 @@ class PerProcessOptions : public Options {
   inline PerIsolateOptions* get_per_isolate_options();
   void CheckOptions(std::vector<std::string>* errors,
                     std::vector<std::string>* argv) override;
+
+  // `--process-timeout` conflicts with options that can come from different
+  // option sources (e.g. `--inspect` from NODE_OPTIONS), each of which is
+  // parsed in its own options_parser::Parse() pass. Callers must invoke this
+  // once all of their option sources have been parsed. `argv` holds the
+  // remaining non-option arguments, starting with the program name.
+  void CheckProcessTimeoutOptions(std::vector<std::string>* errors,
+                                  const std::vector<std::string>& argv) const;
 };
 
 // The actual options parser, as opposed to the structs containing them:

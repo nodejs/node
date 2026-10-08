@@ -16,25 +16,25 @@ namespace internal {
 base::LazyInstance<ICStats>::type ICStats::instance_ =
     LAZY_INSTANCE_INITIALIZER;
 
-ICStats::ICStats() : ic_infos_(MAX_IC_INFO), pos_(0) {
-  base::Relaxed_Store(&enabled_, 0);
-}
+ICStats::ICStats() : ic_infos_(MAX_IC_INFO), pos_(0) {}
 
-void ICStats::Begin() {
-  if (V8_LIKELY(!TracingFlags::is_ic_stats_enabled())) return;
-  base::Relaxed_Store(&enabled_, 1);
+bool ICStats::Begin() {
+  if (V8_LIKELY(!TracingFlags::is_ic_stats_enabled())) return false;
+  mutex_.Lock();
+  return true;
 }
 
 void ICStats::End() {
-  if (base::Relaxed_Load(&enabled_) != 1) return;
+  mutex_.AssertHeld();
   ++pos_;
   if (pos_ == MAX_IC_INFO) {
     Dump();
   }
-  base::Relaxed_Store(&enabled_, 0);
+  mutex_.Unlock();
 }
 
 void ICStats::Reset() {
+  mutex_.AssertHeld();
   for (auto& ic_info : ic_infos_) {
     ic_info.Reset();
   }
@@ -42,6 +42,7 @@ void ICStats::Reset() {
 }
 
 void ICStats::Dump() {
+  mutex_.AssertHeld();
   auto value = v8::tracing::TracedValue::Create();
   value->BeginArray("data");
   for (int i = 0; i < pos_; ++i) {
@@ -55,6 +56,7 @@ void ICStats::Dump() {
 }
 
 const char* ICStats::GetOrCacheScriptName(Tagged<Script> script) {
+  mutex_.AssertHeld();
   Address script_ptr = script.ptr();
   if (script_name_map_.find(script_ptr) != script_name_map_.end()) {
     return script_name_map_[script_ptr].get();
@@ -74,6 +76,7 @@ const char* ICStats::GetOrCacheScriptName(Tagged<Script> script) {
 
 const char* ICStats::GetOrCacheFunctionName(IsolateForSandbox isolate,
                                             Tagged<JSFunction> function) {
+  mutex_.AssertHeld();
   Address function_ptr = function.ptr();
   // Lookup the function name or add a null unique_ptr if no entry exists.
   std::unique_ptr<char[]>& function_name = function_name_map_[function_ptr];

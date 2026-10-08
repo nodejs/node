@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,14 +19,13 @@
 #include "LIEF/MachO/FilesetCommand.hpp"
 #include "MachO/Structures.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 FilesetCommand::FilesetCommand(const details::fileset_entry_command& cmd) :
   LoadCommand{LoadCommand::TYPE::FILESET_ENTRY, cmd.cmdsize},
   virtual_address_{cmd.vmaddr},
-  file_offset_{cmd.fileoff}
-{}
+  file_offset_{cmd.fileoff} {}
 
 FilesetCommand& FilesetCommand::operator=(FilesetCommand other) {
   swap(other);
@@ -37,23 +36,21 @@ FilesetCommand::FilesetCommand(const FilesetCommand& other) :
   LoadCommand{other},
   name_{other.name_},
   virtual_address_{other.virtual_address_},
-  file_offset_{other.file_offset_}
-{}
+  file_offset_{other.file_offset_} {}
 
 void FilesetCommand::swap(FilesetCommand& other) noexcept {
   LoadCommand::swap(other);
 
   std::swap(virtual_address_, other.virtual_address_);
-  std::swap(file_offset_,     other.file_offset_);
+  std::swap(file_offset_, other.file_offset_);
 }
 
 std::ostream& FilesetCommand::print(std::ostream& os) const {
   LoadCommand::print(os) << '\n';
-  os << fmt::format("name={}, va=0x{:06x}, offset=0x{:x}",
-                    name(), virtual_address(), file_offset());
+  os << fmt::format("name={}, va={:#08x}, offset={:#x}", name(), virtual_address(),
+                    file_offset());
   return os;
 }
 
 
-}
 }

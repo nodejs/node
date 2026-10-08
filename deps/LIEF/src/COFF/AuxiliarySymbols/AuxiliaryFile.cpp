@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,12 +21,11 @@
 namespace LIEF::COFF {
 
 std::unique_ptr<AuxiliaryFile>
-  AuxiliaryFile::parse(const std::vector<uint8_t>& payload)
-{
+    AuxiliaryFile::parse(const std::vector<uint8_t>& payload) {
   SpanStream stream(payload);
   auto file = stream.read_string();
   if (!file) {
-    LIEF_WARN("Can't parse AuxiliaryFile.file");
+    LIEF_WARN("Failed to parse AuxiliaryFile.file");
     return std::make_unique<AuxiliaryFile>();
   }
   return std::make_unique<AuxiliaryFile>(std::move(*file));

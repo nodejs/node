@@ -279,25 +279,27 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
       // Otherwise we'll fall into the slow path after scanning the identifier.
       DCHECK(!IdentifierNeedsSlowPath(scan_flags));
       AddLiteralChar(static_cast<char>(c0_));
-      AdvanceUntil([this, &scan_flags](base::uc32 c0) {
-        if (V8_UNLIKELY(static_cast<uint32_t>(c0) > kMaxAscii)) {
-          // A non-ascii character means we need to drop through to the slow
-          // path.
-          // TODO(leszeks): This would be most efficient as a goto to the slow
-          // path, check codegen and maybe use a bool instead.
-          scan_flags |=
-              static_cast<uint8_t>(ScanFlags::kIdentifierNeedsSlowPath);
-          return true;
-        }
-        uint8_t char_flags = character_scan_flags[c0];
-        scan_flags |= char_flags;
-        if (TerminatesLiteral(char_flags)) {
-          return true;
-        } else {
-          AddLiteralChar(static_cast<char>(c0));
-          return false;
-        }
-      });
+      // Characters consumed by the scan are bulk-appended to the literal
+      // buffer via the range callback, which is considerably faster than
+      // adding them one by one inside the per-character check.
+      AdvanceUntilRange(
+          [&scan_flags](base::uc32 c0) {
+            if (V8_UNLIKELY(static_cast<uint32_t>(c0) > kMaxAscii)) {
+              // A non-ascii character means we need to drop through to the
+              // slow path.
+              // TODO(leszeks): This would be most efficient as a goto to the
+              // slow path, check codegen and maybe use a bool instead.
+              scan_flags |=
+                  static_cast<uint8_t>(ScanFlags::kIdentifierNeedsSlowPath);
+              return true;
+            }
+            uint8_t char_flags = character_scan_flags[c0];
+            scan_flags |= char_flags;
+            return TerminatesLiteral(char_flags);
+          },
+          [this](const uint16_t* start, const uint16_t* end) {
+            next().literal_chars.AddRangeFromUtf16(start, end);
+          });
 
       if (V8_LIKELY(!IdentifierNeedsSlowPath(scan_flags))) {
         if (!CanBeKeyword(scan_flags)) return Token::kIdentifier;
@@ -424,8 +426,9 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
         case Token::kNot:
           // ! != !==
           Advance();
-          if (c0_ == '=')
+          if (c0_ == '=') {
             return Select('=', Token::kNotEqStrict, Token::kNotEq);
+          }
           return Token::kNot;
 
         case Token::kAdd:

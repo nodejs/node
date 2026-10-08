@@ -21,9 +21,10 @@ records which of your dependencies are permitted to run install scripts
 (`preinstall`, `install`, `postinstall`, and `prepare` for non-registry
 sources). This command is the recommended way to maintain that field.
 
-In the current release, this field is advisory: install scripts still run
-by default, but installs print a list of packages whose scripts have not
-been reviewed. A future release will block unreviewed install scripts.
+Dependency install scripts are blocked by default. Install commands
+silently skip lifecycle scripts for any dependency that does not have a
+matching entry in `allowScripts`, and end with a list of the packages
+whose scripts were skipped so you can review them with this command.
 
 This command only works inside a project that has a `package.json`. Running
 it with `--global` (`-g`) fails with an `EGLOBAL` error, since global

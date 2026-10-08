@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8-data.h"
+#include "include/v8-external.h"
 #include "include/v8-function.h"
 #include "src/flags/flags.h"
 #include "test/common/flag-utils.h"
@@ -869,9 +871,10 @@ struct DynamicImportData {
   bool should_resolve;
 };
 
-void DoHostImportModuleDynamically(void* import_data) {
+void DoHostImportModuleDynamically(v8::Local<v8::Data> data) {
   std::unique_ptr<DynamicImportData> import_data_(
-      static_cast<DynamicImportData*>(import_data));
+      static_cast<DynamicImportData*>(
+          data.As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault)));
   Isolate* isolate(import_data_->isolate);
   HandleScope handle_scope(isolate);
 
@@ -897,7 +900,9 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
       v8::Promise::Resolver::New(context).ToLocalChecked();
   DynamicImportData* data =
       new DynamicImportData(isolate, resolver, context, true);
-  isolate->EnqueueMicrotask(DoHostImportModuleDynamically, data);
+  context->GetMicrotaskQueue()->EnqueueMicrotask(
+      isolate, DoHostImportModuleDynamically,
+      v8::External::New(isolate, data, v8::kExternalPointerTypeTagDefault));
   return resolver->GetPromise();
 }
 
@@ -910,7 +915,9 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackReject(
       v8::Promise::Resolver::New(context).ToLocalChecked();
   DynamicImportData* data =
       new DynamicImportData(isolate, resolver, context, false);
-  isolate->EnqueueMicrotask(DoHostImportModuleDynamically, data);
+  context->GetMicrotaskQueue()->EnqueueMicrotask(
+      isolate, DoHostImportModuleDynamically,
+      v8::External::New(isolate, data, v8::kExternalPointerTypeTagDefault));
   return resolver->GetPromise();
 }
 
@@ -1266,6 +1273,53 @@ TEST_F(ModuleTest, IsGraphAsyncImportSource) {
   CHECK_EQ(module->IsGraphAsync(), false);
 }
 
+// Regression test: ResetGraph must handle source phase imports that store a
+// JSReceiver (not a Module) in requested_modules. Previously a DCHECK assumed
+// entries were either Undefined or WasmModuleObject, which is too narrow.
+TEST_F(ModuleTest, ResetGraphWithSourcePhaseImport) {
+  i::FlagScope<bool> f(&i::v8_flags.js_source_phase_imports, true);
+
+  HandleScope scope(isolate());
+
+  // A module with both a source phase import and an evaluation phase import.
+  // The evaluation phase import will fail to resolve, triggering ResetGraph
+  // which must safely skip the source phase entry.
+  Local<String> url = NewString("www.google.com");
+  Local<String> source_text = NewString(
+      "import source modSource from 'source-mod';"
+      "import val from 'eval-mod';");
+
+  ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false, false,
+                      true);
+  ScriptCompiler::Source source(source_text, origin);
+
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+
+  // InstantiateModule should fail because the evaluation callback fails.
+  // The source callback succeeds and returns a plain Object (not a Module).
+  // ResetGraph then walks requested_modules which contains that plain Object.
+  CHECK(module
+            ->InstantiateModule(
+                context(),
+                [](Local<Context> context, Local<String> specifier,
+                   Local<FixedArray> import_attributes,
+                   Local<Module> referrer) -> MaybeLocal<Module> {
+                  // Fail to resolve the evaluation phase import.
+                  return {};
+                },
+                [](Local<Context> context, Local<String> specifier,
+                   Local<FixedArray> import_attributes,
+                   Local<Module> referrer) -> MaybeLocal<Object> {
+                  // Return a plain Object for the source phase import.
+                  return Object::New(Isolate::GetCurrent());
+                })
+            .IsNothing());
+
+  // Module should be back to unlinked after the failed instantiation.
+  CHECK_EQ(module->GetStatus(), Module::kUninstantiated);
+}
+
 TEST_F(ModuleTest, HasTopLevelAwait) {
   HandleScope scope(isolate());
   {
@@ -1570,9 +1624,7 @@ TEST_F(ModuleTest, ModuleInstantiationByIndexWithSource) {
 
   {
     Local<v8::WasmModuleObject> wasm_module =
-        v8::WasmModuleObject::Compile(
-            isolate(),
-            {kMinimalWasmModuleBytes, arraysize(kMinimalWasmModuleBytes)})
+        v8::WasmModuleObject::Compile(isolate(), kMinimalWasmModuleBytes)
             .ToLocalChecked();
     wasm_module_global.Reset(isolate(), wasm_module);
   }
@@ -1686,7 +1738,7 @@ TEST_F(ModuleTest, SyntheticModuleGetResourceName) {
   Local<String> resource_name = NewString("synthetic-module");
   Local<Module> module = Module::CreateSyntheticModule(
       isolate(), resource_name, {},
-      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Value> {
+      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Promise> {
         // Do nothing.
         Local<v8::Promise::Resolver> resolver =
             v8::Promise::Resolver::New(context).ToLocalChecked();
@@ -1716,12 +1768,12 @@ TEST_F(ModuleTest, SyntheticModuleGetResourceNameInError) {
   Local<String> resource_name = NewString("synthetic-module");
   Local<Module> module = Module::CreateSyntheticModule(
       isolate(), resource_name, {},
-      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Value> {
+      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Promise> {
         // Throw an error.
         Isolate* isolate = Isolate::GetCurrent();
         isolate->ThrowException(
             v8::String::NewFromUtf8Literal(isolate, "synthetic module error"));
-        return MaybeLocal<Value>();
+        return MaybeLocal<Promise>();
       });
 
   CHECK_EQ(Module::kUninstantiated, module->GetStatus());
@@ -1738,6 +1790,243 @@ TEST_F(ModuleTest, SyntheticModuleGetResourceNameInError) {
   CHECK(module->Evaluate(context()).IsEmpty());
   CHECK_EQ(Module::kErrored, module->GetStatus());
   CHECK(module->GetResourceName()->StrictEquals(resource_name));
+}
+
+int* global_use_counts = nullptr;
+
+void MockUseCounterCallback(Isolate* isolate,
+                            Isolate::UseCounterFeature feature) {
+  ++global_use_counts[feature];
+}
+
+TEST_F(ModuleTest, ExportStarMissingDefaultUseCounter) {
+  HandleScope scope(isolate());
+  int use_counts[Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  isolate()->SetUseCounterCallback(MockUseCounterCallback);
+
+  const int kCounter = Isolate::kModuleNamespaceMissingDefaultWithStarExport;
+
+  auto Namespace = [&](const char* source_text) {
+    ScriptOrigin origin = ModuleOrigin(NewString("file.js"), isolate());
+    ScriptCompiler::Source source(NewString(source_text), origin);
+    Local<Module> module =
+        ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    CHECK(module
+              ->InstantiateModule(context(),
+                                  CompileSpecifierAsModuleResolveCallback)
+              .FromJust());
+    module->Evaluate(context()).ToLocalChecked();
+    return module->GetModuleNamespace()->ToObject(context()).ToLocalChecked();
+  };
+  auto Get = [&](Local<Object> ns, const char* name) {
+    return ns->Get(context(), NewString(name)).ToLocalChecked();
+  };
+
+  Local<Object> star =
+      Namespace("export * from 'export default 1; export const a = 2;';");
+  CHECK(Get(star, "default")->IsUndefined());
+  CHECK_EQ(1, use_counts[kCounter]);
+
+  // Non-default export
+  use_counts[kCounter] = 0;
+  CHECK(Get(star, "missing")->IsUndefined());
+  CHECK_EQ(0, use_counts[kCounter]);
+
+  // Explicit default export
+  use_counts[kCounter] = 0;
+  Local<Object> own_default =
+      Namespace("export * from 'export default 1;'; export default 2;");
+  CHECK(!Get(own_default, "default")->IsUndefined());
+  CHECK_EQ(0, use_counts[kCounter]);
+
+  // No `export * from`
+  use_counts[kCounter] = 0;
+  Local<Object> no_star = Namespace("export const a = 1;");
+  CHECK(Get(no_star, "default")->IsUndefined());
+  CHECK_EQ(0, use_counts[kCounter]);
+
+  // `export * as ns from` is not `export * from`
+  use_counts[kCounter] = 0;
+  Local<Object> star_as = Namespace("export * as ns from 'export default 1;';");
+  CHECK(Get(star_as, "default")->IsUndefined());
+  CHECK_EQ(0, use_counts[kCounter]);
+
+  // `export {a} from` is not `export * from`
+  use_counts[kCounter] = 0;
+  Local<Object> indirect = Namespace("export {a} from 'export const a = 1;';");
+  CHECK(Get(indirect, "default")->IsUndefined());
+  CHECK_EQ(0, use_counts[kCounter]);
+
+  // A synthetic module (e.g. a JSON module) has no `export * from`.
+  use_counts[kCounter] = 0;
+  Local<Module> synthetic = Module::CreateSyntheticModule(
+      isolate(), NewString("synthetic"), {},
+      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Promise> {
+        Local<v8::Promise::Resolver> resolver =
+            v8::Promise::Resolver::New(context).ToLocalChecked();
+        resolver->Resolve(context, v8::Undefined(Isolate::GetCurrent()))
+            .ToChecked();
+        return resolver->GetPromise();
+      });
+  CHECK(synthetic
+            ->InstantiateModule(context(),
+                                ResolveModuleByIndexUnreachableCallback)
+            .FromJust());
+  synthetic->Evaluate(context()).ToLocalChecked();
+  Local<Object> synthetic_ns =
+      synthetic->GetModuleNamespace()->ToObject(context()).ToLocalChecked();
+  CHECK(Get(synthetic_ns, "default")->IsUndefined());
+  CHECK_EQ(0, use_counts[kCounter]);
+
+  // `ns.default` access in the module code itself
+  use_counts[kCounter] = 0;
+  Local<Object> direct = Namespace(
+      "import * as ns from 'export * from \"export default 1;\";';"
+      "export const result = ns.default;");
+  CHECK(Get(direct, "result")->IsUndefined());
+  CHECK_EQ(1, use_counts[kCounter]);
+
+  // Computed property access
+  use_counts[kCounter] = 0;
+  Local<Object> computed = Namespace(
+      "import * as ns from 'export * from \"export default 1;\";';"
+      "export const result = ns['defa' + 'ult'];");
+  CHECK(Get(computed, "result")->IsUndefined());
+  CHECK_LE(1, use_counts[kCounter]);
+
+  // `"default" in`
+  use_counts[kCounter] = 0;
+  Local<Object> has = Namespace(
+      "import * as ns from 'export * from \"export default 1;\";';"
+      "export const result = 'default' in ns;");
+  CHECK(Get(has, "result")->IsFalse());
+  CHECK_LE(1, use_counts[kCounter]);
+
+  // `"other" in`
+  use_counts[kCounter] = 0;
+  Local<Object> has_other = Namespace(
+      "import * as ns from 'export * from \"export default 1;\";';"
+      "export const result = 'missing' in ns;");
+  CHECK(Get(has_other, "result")->IsFalse());
+  CHECK_EQ(0, use_counts[kCounter]);
+
+  // `"default" in` but with no `export * from`
+  use_counts[kCounter] = 0;
+  Local<Object> has_no_star = Namespace(
+      "import * as ns from 'export const a = 1;';"
+      "export const result = 'default' in ns;");
+  CHECK(Get(has_no_star, "result")->IsFalse());
+  CHECK_EQ(0, use_counts[kCounter]);
+
+  // On the prototype chain
+  use_counts[kCounter] = 0;
+  Local<Object> proto = Namespace(
+      "import * as ns from 'export * from \"export default 1;\";';"
+      "export const result = Object.create(ns).default;");
+  CHECK(Get(proto, "result")->IsUndefined());
+  CHECK_LE(1, use_counts[kCounter]);
+
+  global_use_counts = nullptr;
+}
+
+// Evaluating a deferred module from inside an embedder API callback must not
+// leave the module's exception pending on the isolate while the top-level
+// capability is rejected. V8 calls HostPromiseRejectionTracker from that
+// rejection, and the host is entitled to call back into V8 -- including into
+// paths that assert no exception is pending. See crbug.com/550083806.
+namespace {
+
+v8::Global<Module> deferred_throwing_dependency;
+
+MaybeLocal<Module> ResolveDeferredThrowingDependency(
+    Local<Context> context, Local<String> specifier,
+    Local<FixedArray> import_attributes, Local<Module> referrer) {
+  return deferred_throwing_dependency.Get(Isolate::GetCurrent());
+}
+
+int deferred_rejections_reported = 0;
+
+// Models what an embedder does from its rejection hook: build an Error, which
+// enters a no-exception API scope and captures a stack trace over the frames
+// that are still live -- here, including the API callback below.
+void RecordRejectionAndBuildError(v8::PromiseRejectMessage message) {
+  if (message.GetEvent() != v8::kPromiseRejectWithNoHandler) return;
+  ++deferred_rejections_reported;
+  Isolate* isolate = Isolate::GetCurrent();
+  isolate->SetCaptureStackTraceForUncaughtExceptions(true);
+  v8::Exception::Error(String::NewFromUtf8Literal(isolate, "rejected"));
+}
+
+// An API callback that stringifies its argument. Calling it leaves an
+// API callback exit frame on the stack for the stack walk above to summarize.
+void StringifyCallback(const v8::FunctionCallbackInfo<Value>& info) {
+  Local<v8::String> unused;
+  // Deliberately ignore failure: the point is that ToString evaluates the
+  // deferred module, which throws.
+  (void)info[0]
+      ->ToString(Isolate::GetCurrent()->GetCurrentContext())
+      .ToLocal(&unused);
+}
+
+}  // namespace
+
+TEST_F(ModuleTest, DeferredModuleRejectionInsideApiCallback) {
+  i::FlagScope<bool> defer_imports(&i::v8_flags.js_defer_import_eval, true);
+  HandleScope scope(isolate());
+
+  deferred_rejections_reported = 0;
+  isolate()->SetPromiseRejectCallback(RecordRejectionAndBuildError);
+
+  // Install the API callback as a global function.
+  Local<v8::FunctionTemplate> tmpl =
+      v8::FunctionTemplate::New(isolate(), StringifyCallback);
+  CHECK(context()
+            ->Global()
+            ->Set(context(), NewString("stringify"),
+                  tmpl->GetFunction(context()).ToLocalChecked())
+            .FromJust());
+
+  // The dependency throws a primitive, so the rejection value is not already a
+  // native Error and the host hook has to fabricate one.
+  ScriptOrigin dependency_origin =
+      ModuleOrigin(NewString("dependency.js"), isolate());
+  ScriptCompiler::Source dependency_source(NewString("throw 123;"),
+                                           dependency_origin);
+  Local<Module> dependency =
+      ScriptCompiler::CompileModule(isolate(), &dependency_source)
+          .ToLocalChecked();
+  deferred_throwing_dependency.Reset(isolate(), dependency);
+
+  ScriptOrigin origin = ModuleOrigin(NewString("test.js"), isolate());
+  ScriptCompiler::Source source(
+      NewString("import defer * as ns from 'dependency.js';\n"
+                "globalThis.threw = false;\n"
+                "try { stringify(ns); } catch (e) { globalThis.threw = e; }\n"),
+      origin);
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+  CHECK(module->InstantiateModule(context(), ResolveDeferredThrowingDependency)
+            .FromJust());
+
+  {
+    v8::TryCatch try_catch(isolate());
+    CHECK(!module->Evaluate(context()).IsEmpty());
+    CHECK(!try_catch.HasCaught());
+  }
+
+  // The rejection reached the host hook...
+  CHECK_EQ(1, deferred_rejections_reported);
+  // ...the deferred module ran and is errored...
+  CHECK_EQ(Module::kErrored, dependency->GetStatus());
+  // ...and the exception surfaced to JS through the API callback unchanged.
+  Local<Value> threw =
+      context()->Global()->Get(context(), NewString("threw")).ToLocalChecked();
+  CHECK(threw->IsNumber());
+  CHECK_EQ(123, threw.As<v8::Number>()->Value());
+
+  deferred_throwing_dependency.Reset();
+  isolate()->SetPromiseRejectCallback(nullptr);
 }
 
 }  // anonymous namespace

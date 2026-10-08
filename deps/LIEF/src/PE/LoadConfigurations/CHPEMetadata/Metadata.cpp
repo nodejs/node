@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,8 @@
 #include "logging.hpp"
 
 namespace LIEF::PE {
-std::unique_ptr<CHPEMetadata> CHPEMetadata::parse(Parser& ctx, BinaryStream& stream) {
+std::unique_ptr<CHPEMetadata> CHPEMetadata::parse(Parser& ctx,
+                                                  BinaryStream& stream) {
   LIEF_DEBUG("Parsing CHPEMetadata");
   auto version = stream.read<uint32_t>();
   if (!version) {

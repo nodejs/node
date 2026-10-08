@@ -10,6 +10,7 @@
 
 #include <algorithm>
 
+#include "src/base/logging.h"
 #include "src/logging/counters.h"
 #include "src/sandbox/external-entity-table-inl.h"
 #include "src/sandbox/external-pointer.h"
@@ -117,6 +118,109 @@ void CompactibleExternalEntityTable<Entry, size>::MaybeCreateEvacuationEntry(
 }
 
 template <typename Entry, size_t size>
+void CompactibleExternalEntityTable<Entry, size>::
+    ResolveEvacuationEntryDuringSweeping(
+        uint32_t new_index,
+        typename ExternalEntityTableCompactionTraits<Entry>::Handle*
+            handle_location,
+        uint32_t start_of_evacuation_area) {
+  using Traits = ExternalEntityTableCompactionTraits<Entry>;
+  using Handle = typename Traits::Handle;
+
+  Handle old_handle = *handle_location;
+  CHECK(Traits::IsValidHandle(old_handle));
+
+  uint32_t old_index = Traits::HandleToIndex(old_handle);
+  Handle new_handle = Traits::IndexToHandle(new_index);
+
+  DCHECK_GE(old_index, start_of_evacuation_area);
+  DCHECK_LT(new_index, start_of_evacuation_area);
+  auto& new_entry = Base::at(new_index);
+  Base::at(old_index).Evacuate(new_entry, EvacuateMarkMode::kLeaveUnmarked);
+  *handle_location = new_handle;
+
+  Traits::RelocateAuxiliaryEntryData(this, old_index, new_index);
+}
+
+template <typename Entry, size_t size>
+bool CompactibleExternalEntityTable<Entry, size>::SweepAndCompactSegment(
+    Space* space, Segment segment, uint32_t start_of_evacuation_area,
+    bool segment_will_be_evacuated, uint32_t* current_freelist_head,
+    uint32_t* current_freelist_length) {
+  using Traits = ExternalEntityTableCompactionTraits<Entry>;
+  using Handle = typename Traits::Handle;
+
+  uint32_t previous_freelist_head = *current_freelist_head;
+  uint32_t previous_freelist_length = *current_freelist_length;
+
+  const auto AddToFreelist = [&](uint32_t entry_index) {
+    Base::at(entry_index).MakeFreelistEntry(*current_freelist_head);
+    *current_freelist_head = entry_index;
+    (*current_freelist_length)++;
+  };
+
+  for (uint32_t i = segment.last_entry(); i >= segment.first_entry(); i--) {
+    const auto payload = Base::at(i).GetRawPayload();
+    if (payload.ContainsEvacuationEntry()) {
+      DCHECK(!segment_will_be_evacuated);
+      Handle* handle_location = reinterpret_cast<Handle*>(
+          payload.ExtractEvacuationEntryHandleLocation());
+      DCHECK_NOT_NULL(handle_location);
+
+      // 1. Bail out if field was invalidated. This can happen when objects
+      // change their underlying layout.
+      if (space->FieldWasInvalidated(
+              reinterpret_cast<Address>(handle_location))) {
+        AddToFreelist(i);
+        continue;
+      }
+
+      // 2. Bail out if handle was overwritten with null after compaction start.
+      // This happens when resetting handles.
+      Handle old_handle = *handle_location;
+      if (old_handle == Traits::kNullHandle) {
+        AddToFreelist(i);
+        continue;
+      }
+
+      // Every non-null handle must be a valid handle; if not, memory corruption
+      // occurred.
+      CHECK(Traits::IsValidHandle(old_handle));
+
+      // 3. Bail out if handle was overwritten with a valid handle below
+      // compaction frontier. This can happen when setting a new handle after
+      // compaction has started.
+      if (Traits::HandleToIndex(old_handle) < start_of_evacuation_area) {
+        AddToFreelist(i);
+        continue;
+      }
+
+      ResolveEvacuationEntryDuringSweeping(i, handle_location,
+                                           start_of_evacuation_area);
+      DCHECK(Base::at(i).GetRawPayload().ContainsPointer());
+      DCHECK(!Base::at(i).GetRawPayload().HasMarkBitSet());
+    } else if (!payload.HasMarkBitSet()) {
+      Traits::FreeEntry(this, i);
+      AddToFreelist(i);
+    } else {
+      auto new_payload = payload;
+      new_payload.ClearMarkBit();
+      Base::at(i).SetRawPayload(new_payload);
+    }
+    DCHECK(!Base::at(i).HasEvacuationEntry());
+  }
+
+  uint32_t free_entries = *current_freelist_length - previous_freelist_length;
+  bool segment_is_empty = free_entries == Base::kEntriesPerSegment;
+  if (segment_is_empty || segment_will_be_evacuated) {
+    *current_freelist_head = previous_freelist_head;
+    *current_freelist_length = previous_freelist_length;
+    return true;
+  }
+  return false;
+}
+
+template <typename Entry, size_t size>
 void CompactibleExternalEntityTable<Entry, size>::Space::StartCompacting(
     uint32_t start_of_evacuation_area) {
   DCHECK_EQ(invalidated_fields_.size(), 0);
@@ -141,14 +245,14 @@ void CompactibleExternalEntityTable<Entry, size>::Space::AbortCompacting(
 }
 
 template <typename Entry, size_t size>
-bool CompactibleExternalEntityTable<Entry, size>::Space::IsCompacting() {
+bool CompactibleExternalEntityTable<Entry, size>::Space::IsCompacting() const {
   return start_of_evacuation_area_.load(std::memory_order_relaxed) !=
          kNotCompactingMarker;
 }
 
 template <typename Entry, size_t size>
-bool CompactibleExternalEntityTable<Entry,
-                                    size>::Space::CompactingWasAborted() {
+bool CompactibleExternalEntityTable<Entry, size>::Space::CompactingWasAborted()
+    const {
   auto value = start_of_evacuation_area_.load(std::memory_order_relaxed);
   return (value & kCompactionAbortedMarker) == kCompactionAbortedMarker;
 }

@@ -22,8 +22,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #if defined(HWY_HEADER_ONLY)
-#include <cstdarg>
-#include <cstdio>
+#include <stdarg.h>
+#include <stdio.h>
 #endif
 
 #if !defined(HWY_NO_LIBCXX)
@@ -33,9 +33,10 @@
 #include "hwy/detect_compiler_arch.h"
 #include "hwy/highway_export.h"
 
-// API version (https://semver.org/); keep in sync with CMakeLists.txt.
+// API version (https://semver.org/); keep in sync with CMakeLists.txt and
+// meson.build.
 #define HWY_MAJOR 1
-#define HWY_MINOR 3
+#define HWY_MINOR 4
 #define HWY_PATCH 0
 
 // True if the Highway version >= major.minor.0. Added in 1.2.0.
@@ -148,6 +149,21 @@
 
 #endif  // !HWY_COMPILER_MSVC
 
+#if (HWY_COMPILER_GCC_ACTUAL && HWY_COMPILER_GCC_ACTUAL < 1200) || \
+    (HWY_COMPILER_ICC && !HWY_COMPILER_ICX)
+// The use of __attribute__((unused)) in private class member variables triggers
+// a compiler warning with GCC 11 and earlier and ICC
+
+// GCC 11 and earlier and ICC also do not emit -Wunused-private-field warnings
+// for unused private class member variables
+#define HWY_MEMBER_VAR_MAYBE_UNUSED
+#else
+// Clang and ICX need __attribute__((unused)) in unused private class member
+// variables to suppress -Wunused-private-field warnings unless this warning is
+// ignored by using HWY_DIAGNOSTICS_OFF
+#define HWY_MEMBER_VAR_MAYBE_UNUSED HWY_MAYBE_UNUSED
+#endif
+
 //------------------------------------------------------------------------------
 // Builtin/attributes (no more #include after this point due to namespace!)
 
@@ -202,7 +218,9 @@ namespace hwy {
 //------------------------------------------------------------------------------
 // Macros
 
-#define HWY_API static HWY_INLINE HWY_FLATTEN HWY_MAYBE_UNUSED
+// Note: it is safe to remove `static` for users who want to use modules, but
+// that might be a breaking change for some users, hence we do not by default.
+#define HWY_API static HWY_INLINE HWY_FLATTEN
 
 #define HWY_CONCAT_IMPL(a, b) a##b
 #define HWY_CONCAT(a, b) HWY_CONCAT_IMPL(a, b)
@@ -349,55 +367,6 @@ HWY_DLLEXPORT HWY_NORETURN void HWY_FORMAT(3, 4)
   } while (0)
 #define HWY_ASSERT(condition) HWY_ASSERT_M(condition, "")
 
-#if HWY_HAS_FEATURE(memory_sanitizer) || defined(MEMORY_SANITIZER) || \
-    defined(__SANITIZE_MEMORY__)
-#define HWY_IS_MSAN 1
-#else
-#define HWY_IS_MSAN 0
-#endif
-
-#if HWY_HAS_FEATURE(address_sanitizer) || defined(ADDRESS_SANITIZER) || \
-    defined(__SANITIZE_ADDRESS__)
-#define HWY_IS_ASAN 1
-#else
-#define HWY_IS_ASAN 0
-#endif
-
-#if HWY_HAS_FEATURE(hwaddress_sanitizer) || defined(HWADDRESS_SANITIZER) || \
-    defined(__SANITIZE_HWADDRESS__)
-#define HWY_IS_HWASAN 1
-#else
-#define HWY_IS_HWASAN 0
-#endif
-
-#if HWY_HAS_FEATURE(thread_sanitizer) || defined(THREAD_SANITIZER) || \
-    defined(__SANITIZE_THREAD__)
-#define HWY_IS_TSAN 1
-#else
-#define HWY_IS_TSAN 0
-#endif
-
-#if HWY_HAS_FEATURE(undefined_behavior_sanitizer) || \
-    defined(UNDEFINED_BEHAVIOR_SANITIZER)
-#define HWY_IS_UBSAN 1
-#else
-#define HWY_IS_UBSAN 0
-#endif
-
-// MSAN may cause lengthy build times or false positives e.g. in AVX3 DemoteTo.
-// You can disable MSAN by adding this attribute to the function that fails.
-#if HWY_IS_MSAN
-#define HWY_ATTR_NO_MSAN __attribute__((no_sanitize_memory))
-#else
-#define HWY_ATTR_NO_MSAN
-#endif
-
-#if HWY_IS_ASAN || HWY_IS_HWASAN || HWY_IS_MSAN || HWY_IS_TSAN || HWY_IS_UBSAN
-#define HWY_IS_SANITIZER 1
-#else
-#define HWY_IS_SANITIZER 0
-#endif
-
 // For enabling HWY_DASSERT and shortening tests in slower debug builds
 //
 // Note: `HWY_IS_UBSAN` is specifically excluded from engaging debug
@@ -410,8 +379,9 @@ HWY_DLLEXPORT HWY_NORETURN void HWY_FORMAT(3, 4)
 #if !defined(HWY_IS_DEBUG_BUILD)
 // Clang does not define NDEBUG, but it and GCC define __OPTIMIZE__, and recent
 // MSVC defines NDEBUG (if not, could instead check _DEBUG).
-#if (!defined(__OPTIMIZE__) && !defined(NDEBUG)) || \
-    (HWY_IS_SANITIZER && !HWY_IS_UBSAN) || defined(__clang_analyzer__)
+#if (!defined(__OPTIMIZE__) && !defined(NDEBUG)) ||         \
+    (HWY_IS_ASAN || (HWY_IS_SANITIZER && !HWY_IS_UBSAN)) || \
+    defined(__clang_analyzer__)
 #define HWY_IS_DEBUG_BUILD 1
 #else
 #define HWY_IS_DEBUG_BUILD 0
@@ -463,21 +433,22 @@ HWY_API void CopySameSize(const From* HWY_RESTRICT from, To* HWY_RESTRICT to) {
   CopyBytes<sizeof(From)>(from, to);
 }
 
-template <size_t kBytes, typename To>
-HWY_API void ZeroBytes(To* to) {
+// Sets each byte to `byte_value`, which must be between 0 and 255.
+HWY_API void FillBytes(void* to, int byte_value, size_t num_bytes) {
 #if HWY_COMPILER_MSVC
-  memset(to, 0, kBytes);
+  memset(to, byte_value, num_bytes);
 #else
-  __builtin_memset(to, 0, kBytes);
+  __builtin_memset(to, byte_value, num_bytes);
 #endif
 }
 
 HWY_API void ZeroBytes(void* to, size_t num_bytes) {
-#if HWY_COMPILER_MSVC
-  memset(to, 0, num_bytes);
-#else
-  __builtin_memset(to, 0, num_bytes);
-#endif
+  FillBytes(to, 0, num_bytes);
+}
+
+template <size_t kBytes, typename To>
+HWY_API void ZeroBytes(To* to) {
+  ZeroBytes(to, kBytes);
 }
 
 //------------------------------------------------------------------------------
@@ -1707,28 +1678,14 @@ HWY_F16_CONSTEXPR inline std::partial_ordering operator<=>(
 //------------------------------------------------------------------------------
 // BF16 lane type
 
-// Compiler supports ACLE __bf16, not necessarily with operators.
-
-// Disable the __bf16 type on AArch64 with GCC 13 or earlier as there is a bug
-// in GCC 13 and earlier that sometimes causes BF16 constant values to be
-// incorrectly loaded on AArch64, and this GCC bug on AArch64 is
-// described at https://gcc.gnu.org/bugzilla/show_bug.cgi?id=111867.
-
-#if HWY_ARCH_ARM_A64 && \
-    (HWY_COMPILER_CLANG >= 1700 || HWY_COMPILER_GCC_ACTUAL >= 1400)
-#define HWY_ARM_HAVE_SCALAR_BF16_TYPE 1
-#else
-#define HWY_ARM_HAVE_SCALAR_BF16_TYPE 0
-#endif
-
 // x86 compiler supports __bf16, not necessarily with operators.
 // Disable in debug builds due to clang miscompiles as of 2025-07-22: casting
 // bf16 <-> f32 in convert_test results in 0x2525 for 1.0 instead of 0x3f80.
 // Reported at https://github.com/llvm/llvm-project/issues/151692.
 #ifndef HWY_SSE2_HAVE_SCALAR_BF16_TYPE
-#if HWY_ARCH_X86 && defined(__SSE2__) &&                     \
-    ((HWY_COMPILER_CLANG >= 1700 && !HWY_COMPILER_CLANGCL && \
-      !HWY_IS_DEBUG_BUILD) ||                                \
+#if HWY_ARCH_X86 && defined(__SSE2__) &&                         \
+    ((HWY_COMPILER_CLANG >= 1700 && !HWY_COMPILER_CLANGCL &&     \
+      (!HWY_IS_DEBUG_BUILD || HWY_COMPILER3_CLANG >= 220101)) || \
      HWY_COMPILER_GCC_ACTUAL >= 1300)
 #define HWY_SSE2_HAVE_SCALAR_BF16_TYPE 1
 #else
@@ -1746,7 +1703,11 @@ HWY_F16_CONSTEXPR inline std::partial_ordering operator<=>(
 #ifndef HWY_HAVE_SCALAR_BF16_OPERATORS
 // Recent enough compiler also has operators. aarch64 clang 18 hits internal
 // compiler errors on bf16 ToString, hence only enable on GCC for now.
-#if HWY_HAVE_SCALAR_BF16_TYPE && (HWY_COMPILER_GCC_ACTUAL >= 1300)
+// GCC >= 13 will insert a function call to the __extendbfsf2 helper function
+// for scalar conversions from __bf16 to float. This is prohibitively expensive,
+// so refrain from using scalar BF16 operators on these compiler versions.
+// See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=121853
+#if HWY_HAVE_SCALAR_BF16_TYPE && (HWY_COMPILER_GCC_ACTUAL >= 1700)
 #define HWY_HAVE_SCALAR_BF16_OPERATORS 1
 #else
 #define HWY_HAVE_SCALAR_BF16_OPERATORS 0
@@ -2742,7 +2703,7 @@ HWY_API constexpr TTo ConvertScalarTo(TFrom in) {
 template <typename T1, typename T2>
 constexpr inline T1 DivCeil(T1 a, T2 b) {
 #if HWY_CXX_LANG >= 201703L
-  HWY_DASSERT(b != 0);
+  HWY_DASSERT(b != T2{0});
 #endif
   return (a + b - 1) / b;
 }
@@ -2965,9 +2926,10 @@ HWY_INLINE constexpr T AddWithWraparound(T t, T2 n) {
 // 64 x 64 = 128 bit multiplication
 HWY_API uint64_t Mul128(uint64_t a, uint64_t b, uint64_t* HWY_RESTRICT upper) {
 #if defined(__SIZEOF_INT128__)
-  __uint128_t product = (__uint128_t)a * (__uint128_t)b;
-  *upper = (uint64_t)(product >> 64);
-  return (uint64_t)(product & 0xFFFFFFFFFFFFFFFFULL);
+  __uint128_t product =
+      static_cast<__uint128_t>(a) * static_cast<__uint128_t>(b);
+  *upper = static_cast<uint64_t>(product >> 64);
+  return static_cast<uint64_t>(product & 0xFFFFFFFFFFFFFFFFULL);
 #elif HWY_COMPILER_MSVC && HWY_ARCH_X86_64
   return _umul128(a, b, upper);
 #else
@@ -2984,9 +2946,9 @@ HWY_API uint64_t Mul128(uint64_t a, uint64_t b, uint64_t* HWY_RESTRICT upper) {
 
 HWY_API int64_t Mul128(int64_t a, int64_t b, int64_t* HWY_RESTRICT upper) {
 #if defined(__SIZEOF_INT128__)
-  __int128_t product = (__int128_t)a * (__int128_t)b;
-  *upper = (int64_t)(product >> 64);
-  return (int64_t)(product & 0xFFFFFFFFFFFFFFFFULL);
+  __int128_t product = static_cast<__int128_t>(a) * static_cast<__int128_t>(b);
+  *upper = static_cast<int64_t>(product >> 64);
+  return static_cast<int64_t>(product & 0xFFFFFFFFFFFFFFFFULL);
 #elif HWY_COMPILER_MSVC && HWY_ARCH_X86_64
   return _mul128(a, b, upper);
 #else

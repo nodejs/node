@@ -12,8 +12,9 @@
 #include <type_traits>
 
 #include "src/common/globals.h"
+#include "src/numbers/hash-seed-inl.h"
 #include "src/objects/name-inl.h"
-#include "src/objects/string-inl.h"
+#include "src/objects/string.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/utils-inl.h"
 #include "src/utils/utils.h"
@@ -51,15 +52,22 @@ V8_INLINE bool IsOnly8Bit(const uint16_t* chars, unsigned len) {
 }
 
 V8_INLINE uint64_t GetRapidHash(const uint8_t* chars, uint32_t length,
-                                uint64_t seed, const uint64_t secret[3]) {
+                                uint64_t seed, const uint64_t secret[3],
+                                bool* out_one_byte_content = nullptr) {
+  if (out_one_byte_content) *out_one_byte_content = true;
   return rapidhash(chars, length, seed, secret);
 }
 
 V8_INLINE uint64_t GetRapidHash(const uint16_t* chars, uint32_t length,
-                                uint64_t seed, const uint64_t secret[3]) {
+                                uint64_t seed, const uint64_t secret[3],
+                                bool* out_one_byte_content = nullptr) {
   // For 2-byte strings we need to preserve the same hash for strings in just
-  // the latin-1 range.
-  if (V8_UNLIKELY(IsOnly8Bit(chars, length))) {
+  // the latin-1 range. Reuse the IsOnly8Bit pass to report whether the
+  // content fits in one byte; callers (e.g. internalization) use this to
+  // canonicalize without a second scan.
+  const bool one_byte = IsOnly8Bit(chars, length);
+  if (out_one_byte_content) *out_one_byte_content = one_byte;
+  if (V8_UNLIKELY(one_byte)) {
     return detail::HashConvertingTo8Bit(chars, length, seed, secret);
   }
   return rapidhash(reinterpret_cast<const uint8_t*>(chars), 2 * length, seed,
@@ -68,8 +76,10 @@ V8_INLINE uint64_t GetRapidHash(const uint16_t* chars, uint32_t length,
 
 template <typename uchar>
 V8_INLINE uint32_t GetUsableRapidHash(const uchar* chars, uint32_t length,
-                                      uint64_t seed, const uint64_t secret[3]) {
-  return ConvertRawHashToUsableHash(GetRapidHash(chars, length, seed, secret));
+                                      uint64_t seed, const uint64_t secret[3],
+                                      bool* out_one_byte_content = nullptr) {
+  return ConvertRawHashToUsableHash(
+      GetRapidHash(chars, length, seed, secret, out_one_byte_content));
 }
 
 }  // namespace detail
@@ -286,7 +296,8 @@ static_assert(String::kMaxArrayIndexSize == String::kMaxIntegerIndexSize);
 template <typename char_t>
 uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
                                             uint32_t length,
-                                            const HashSeed seed) {
+                                            const HashSeed seed,
+                                            bool* out_one_byte_content) {
   static_assert(std::is_integral_v<char_t>);
   static_assert(sizeof(char_t) <= 2);
   using uchar = std::make_unsigned_t<char_t>;
@@ -319,7 +330,8 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
             case detail::kSuccess: {
               uint32_t hash = String::CreateHashFieldValue(
                   detail::GetUsableRapidHash(chars, length, seed.seed(),
-                                             seed.secret()),
+                                             seed.secret(),
+                                             out_one_byte_content),
                   String::HashFieldType::kIntegerIndex);
               if (Name::ContainsCachedArrayIndex(hash)) {
                 // The hash accidentally looks like a cached index. Fix that by
@@ -354,7 +366,8 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
 
   // Non-index hash.
   return String::CreateHashFieldValue(
-      detail::GetUsableRapidHash(chars, length, seed.seed(), seed.secret()),
+      detail::GetUsableRapidHash(chars, length, seed.seed(), seed.secret(),
+                                 out_one_byte_content),
       String::HashFieldType::kHash);
 }
 

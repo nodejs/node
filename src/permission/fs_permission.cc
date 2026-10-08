@@ -120,6 +120,7 @@ namespace permission {
 void FSPermission::Apply(Environment* env,
                          std::span<const std::string> allow,
                          PermissionScope scope) {
+  RwLock::ScopedWriteLock lock(lock_);
   for (const std::string& res : allow) {
     if (res == "*") {
       if (scope == PermissionScope::kFileSystemRead) {
@@ -138,6 +139,7 @@ void FSPermission::Apply(Environment* env,
 void FSPermission::Drop(Environment* env,
                         PermissionScope scope,
                         std::string_view param) {
+  RwLock::ScopedWriteLock lock(lock_);
   if (param.empty()) {
     // Drop all access for this scope
     if (scope == PermissionScope::kFileSystemRead ||
@@ -232,6 +234,7 @@ void FSPermission::GrantAccess(PermissionScope perm, const std::string& res) {
 bool FSPermission::is_granted(Environment* env,
                               PermissionScope perm,
                               std::string_view param = "") const {
+  RwLock::ScopedReadLock lock(lock_);
   switch (perm) {
     case PermissionScope::kFileSystem:
       return allow_all_in_ && allow_all_out_;

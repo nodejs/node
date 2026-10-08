@@ -36,6 +36,7 @@ const OutgoingMessage = http.OutgoingMessage;
 
   server.on('listening', common.mustCall(function() {
     const clientRequest = http.request({
+      agent: false,
       port: server.address().port,
       method: 'GET',
       path: '/'
@@ -62,6 +63,7 @@ const OutgoingMessage = http.OutgoingMessage;
 
   server.on('listening', common.mustCall(() => {
     const req = http.request({
+      agent: false,
       port: server.address().port,
       method: 'GET',
       path: '/'

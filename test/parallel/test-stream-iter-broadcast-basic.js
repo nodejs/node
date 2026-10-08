@@ -3,8 +3,8 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { setTimeout } = require('timers/promises');
-const { broadcast, text } = require('stream/iter');
+const { setTimeout, setImmediate } = require('timers/promises');
+const { broadcast, dump, text } = require('stream/iter');
 
 // =============================================================================
 // Basic broadcast
@@ -223,7 +223,7 @@ async function testCancelWithReason() {
   const resultPromise = text(consumer).catch((err) => err);
 
   // Give the consumer time to enter the waiting state
-  await new Promise((resolve) => setImmediate(resolve));
+  await setImmediate();
 
   bc.cancel(new Error('cancelled'));
 
@@ -320,8 +320,7 @@ async function testWriterFailIdempotent() {
   // Second call is a no-op (already errored)
   writer.fail(new Error('fail2'));
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of consumer) { /* consume */ }
+    await dump(consumer);
   }, { message: 'fail!' });
 }
 
@@ -348,6 +347,18 @@ async function testLateJoinerSeesBufferedData() {
   const consumer = bc.push();
   const result = await text(consumer);
   assert.strictEqual(result, 'before-join');
+}
+
+async function testLateJoinerAfterDetachSeesBufferedData() {
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
+  const first = bc.push()[Symbol.asyncIterator]();
+
+  writer.writeSync('before-detach');
+  await first.return();
+
+  const second = bc.push();
+  writer.endSync();
+  assert.strictEqual(await text(second), 'before-detach');
 }
 
 async function testOverlappingNextKeepsEarlierRead() {
@@ -403,5 +414,6 @@ Promise.all([
   testFailDetachesConsumers(),
   testWriterFailIdempotent(),
   testLateJoinerSeesBufferedData(),
+  testLateJoinerAfterDetachSeesBufferedData(),
   testOverlappingNextKeepsEarlierRead(),
 ]).then(common.mustCall());

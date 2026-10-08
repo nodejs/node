@@ -16,7 +16,7 @@ Tagged<WeakCell> JSFinalizationRegistry::PopClearedCell(
   Tagged<Undefined> undefined = ReadOnlyRoots(isolate).undefined_value();
 
   Tagged<WeakCell> head = Cast<WeakCell>(cleared_cells());
-  DCHECK(IsUndefined(head->prev(), isolate));
+  DCHECK(IsUndefined(head->prev()));
   Tagged<Union<Undefined, WeakCell>> tail = head->next();
   head->set_next(undefined);
   if (IsWeakCell(tail)) Cast<WeakCell>(tail)->set_prev(undefined);
@@ -25,7 +25,7 @@ Tagged<WeakCell> JSFinalizationRegistry::PopClearedCell(
   // If the WeakCell has an unregister token, remove the cell from the
   // unregister token linked lists and and the unregister token from key_map.
   // This doesn't shrink key_map, which is done manually after the cleanup loop.
-  if (!IsUndefined(head->unregister_token(), isolate)) {
+  if (!IsUndefined(head->unregister_token())) {
     RemoveCellFromUnregisterTokenMap(isolate, head);
     *key_map_may_need_shrink = true;
   }
@@ -36,7 +36,7 @@ Tagged<WeakCell> JSFinalizationRegistry::PopClearedCell(
 void JSFinalizationRegistry::ShrinkKeyMap(
     Isolate* isolate,
     DirectHandle<JSFinalizationRegistry> finalization_registry) {
-  if (!IsUndefined(finalization_registry->key_map(), isolate)) {
+  if (!IsUndefined(finalization_registry->key_map())) {
     Handle<SimpleNumberDictionary> key_map =
         handle(Cast<SimpleNumberDictionary>(finalization_registry->key_map()),
                isolate);
@@ -45,7 +45,7 @@ void JSFinalizationRegistry::ShrinkKeyMap(
   }
 }
 
-// ES#sec-cleanup-finalization-registry
+// https://tc39.es/ecma262/#sec-cleanup-finalization-registry
 // static
 Maybe<bool> JSFinalizationRegistry::Cleanup(
     Isolate* isolate,
@@ -90,14 +90,14 @@ Maybe<bool> JSFinalizationRegistry::Cleanup(
 void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
     Isolate* isolate, Tagged<WeakCell> weak_cell) {
   DisallowGarbageCollection no_gc;
-  DCHECK(!IsUndefined(weak_cell->unregister_token(), isolate));
+  DCHECK(!IsUndefined(weak_cell->unregister_token()));
   Tagged<Undefined> undefined = ReadOnlyRoots(isolate).undefined_value();
 
   // Remove weak_cell from the linked list of other WeakCells with the same
   // unregister token and remove its unregister token from key_map if necessary
   // without shrinking it. Since shrinking may allocate, it is performed by the
   // caller after looping, or on exception.
-  if (IsUndefined(weak_cell->key_list_prev(), isolate)) {
+  if (IsUndefined(weak_cell->key_list_prev())) {
     Tagged<SimpleNumberDictionary> key_map =
         Cast<SimpleNumberDictionary>(this->key_map());
     Tagged<HeapObject> unregister_token = weak_cell->unregister_token();
@@ -105,7 +105,7 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
     InternalIndex entry = key_map->FindEntry(isolate, key);
     CHECK(entry.is_found());
 
-    if (IsUndefined(weak_cell->key_list_next(), isolate)) {
+    if (IsUndefined(weak_cell->key_list_next())) {
       // weak_cell is the only one associated with its key; remove the key
       // from the hash table.
       key_map->ClearEntry(entry);

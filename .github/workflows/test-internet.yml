@@ -59,7 +59,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install Clang ${{ env.CLANG_VERSION }}
-        uses: ./.github/actions/install-clang
+        uses: $/.github/actions/install-clang
         with:
           clang-version: ${{ env.CLANG_VERSION }}
       - name: Set up Python ${{ env.PYTHON_VERSION }}

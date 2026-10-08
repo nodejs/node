@@ -6,7 +6,7 @@ interface SourceMapRecord {
 }
 
 interface SourceRecord {
-  scope: OriginalScopeRecord|null;
+  rootScopes: OriginalScopeRecord[];
 }
 
 /**
@@ -28,15 +28,22 @@ interface OriginalScopeRecord {
 interface GeneratedRangeRecord {
   start: PositionRecord;
   end: PositionRecord;
-  /**
-   * An index into a flattened list of {@link OriginalScopeRecord}. The flattened list is obtained by iterating
-   * {@link SourceMapRecord.sources} from `0` to `SourceMapRecord.sources.length` and traverse each {@link SourceRecord.scope} in [pre-order](https://en.wikipedia.org/wiki/Tree_traversal#Pre-order,_NLR).
-   */
-  definitionIndex: number|null;
+  definition: DefinitionRecord|null;
   stackFrameType: 'none'|'original'|'hidden';
   bindings: BindingRecord[][];
   callSite: OriginalPositionRecord|null;
   children: GeneratedRangeRecord[];
+}
+
+interface DefinitionRecord {
+  /** An index into {@link SourceMapRecord.sources}. */
+  source: number;
+  /**
+   * An index into a flattened list of {@link OriginalScopeRecord} in the {@link SourceRecord} at `source`.
+   * The flattened list is obtained by iterating {@link SourceRecord.rootScopes} from `0` to `SourceRecord.rootScopes.length`
+   * and traversing each {@link OriginalScopeRecord} in [pre-order](https://en.wikipedia.org/wiki/Tree_traversal#Pre-order,_NLR).
+   */
+  scope: number;
 }
 
 /**

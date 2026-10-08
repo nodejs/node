@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,18 +29,19 @@
 #include "Header.tcc"
 #include "Parser.tcc"
 
-namespace LIEF {
-namespace VDEX {
+
+namespace LIEF::VDEX {
 
 Parser::~Parser() = default;
-Parser::Parser()  = default;
+Parser::Parser() = default;
 
 std::unique_ptr<File> Parser::parse(const std::string& filename) {
   Parser parser{filename};
   return std::unique_ptr<File>{parser.file_};
 }
 
-std::unique_ptr<File> Parser::parse(const std::vector<uint8_t>& data, const std::string& name) {
+std::unique_ptr<File> Parser::parse(const std::vector<uint8_t>& data,
+                                    const std::string& name) {
   Parser parser{data, name};
   return std::unique_ptr<File>{parser.file_};
 }
@@ -48,10 +49,9 @@ std::unique_ptr<File> Parser::parse(const std::vector<uint8_t>& data, const std:
 
 Parser::Parser(const std::vector<uint8_t>& data, const std::string& name) :
   file_{new File{}},
-  stream_{std::make_unique<VectorStream>(data)}
-{
+  stream_{std::make_unique<VectorStream>(data)} {
   if (!is_vdex(data)) {
-    LIEF_ERR("{} is not a VDEX file!", name);
+    LIEF_ERR("'{}' is not a VDEX file", name);
     delete file_;
     file_ = nullptr;
     return;
@@ -62,10 +62,9 @@ Parser::Parser(const std::vector<uint8_t>& data, const std::string& name) :
 }
 
 Parser::Parser(const std::string& file) :
-  file_{new File{}}
-{
+  file_{new File{}} {
   if (!is_vdex(file)) {
-    LIEF_ERR("{} is not a VDEX file!", file);
+    LIEF_ERR("'{}' is not a VDEX file", file);
     delete file_;
     file_ = nullptr;
     return;
@@ -96,5 +95,4 @@ void Parser::init(const std::string& /*name*/, vdex_version_t version) {
   }
 }
 
-} // namespace VDEX
-} // namespace LIEF
+} // namespace LIEF::VDEX

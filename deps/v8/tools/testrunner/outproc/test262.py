@@ -38,7 +38,7 @@ class ExceptionOutProc(base.OutProc):
     # somefile:somelinenumber: someerror[: sometext]
     # somefile might include an optional drive letter on windows e.g. "e:".
     match = re.search(
-        '^(?:\w:)?[^:]*:[0-9]+: ([^: ]+?)($|: )', string, re.MULTILINE)
+        r'^(?:\w:)?[^:]*:[0-9]+: ([^: ]+?)($|: )', string, re.MULTILINE)
     if match:
       return match.group(1).strip()
     else:

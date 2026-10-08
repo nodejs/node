@@ -1,0 +1,6 @@
+Embedder-installed command-line-API names bypass UnsafeCommandLineAPIFns
+[debug] -> THROWS: EvalError: Possible side-effect in debug-evaluate
+[$0] -> OK: type=undefined
+[monitorEvents] -> THROWS: EvalError: Possible side-effect in debug-evaluate
+[unmonitorEvents] -> THROWS: EvalError: Possible side-effect in debug-evaluate
+[typeof monitorEvents] -> THROWS: EvalError: Possible side-effect in debug-evaluate

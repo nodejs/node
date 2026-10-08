@@ -1,7 +1,7 @@
 [package]
 name = "displaydoc"
-version = "0.2.5"
-rust-version = "1.56.0"
+version = "0.2.7"
+rust-version = "1.71.0"
 authors = ["Jane Lusby <jlusby@yaah.dev>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
@@ -13,6 +13,7 @@ keywords = ["display", "derive"]
 description = """
 A derive macro for implementing the display Trait via a doc comment and string interpolation
 """
+include = ["Cargo.toml", "README.md", "LICENSE-MIT", "LICENSE-APACHE", "CHANGELOG.md", "src/**/*.rs", "tests/**/*.rs"]
 
 [lib]
 proc-macro = true
@@ -23,7 +24,7 @@ default = ["std"]
 std = []
 
 [dependencies]
-syn = "2.0"
+syn = "3.0"
 quote = "1.0"
 proc-macro2 = "1.0"
 
@@ -32,7 +33,7 @@ trybuild = "1.0"
 static_assertions = "1.1"
 libc = { version = "0.2", default-features = false }
 rustversion = "1.0.0"
-pretty_assertions = "0.6.1"
+pretty_assertions = "1.4.0"
 thiserror = "1.0.24"
 
 [package.metadata.docs.rs]

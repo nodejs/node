@@ -21,34 +21,90 @@ namespace internal {
 
 class InnerPointerToCodeCache final {
  public:
-  struct InnerPointerToCodeCacheEntry {
-    Address inner_pointer;
+  struct Entry {
+    enum Kind { kSafepoint, kMaglevSafepoint };
+    Address inner_pointer{kNullAddress};
+    // TODO(jkummerow): The std::optional needs 8 bytes to store presence of
+    // the value; we could just use Smi::zero() as sentinel instead.
     std::optional<Tagged<GcSafeCode>> code;
+    Kind safepoint_kind{kSafepoint};
     union {
-      SafepointEntry safepoint_entry;
+      SafepointEntry safepoint_entry = {};
       MaglevSafepointEntry maglev_safepoint_entry;
     };
-    InnerPointerToCodeCacheEntry() : safepoint_entry() {}
+
+    Entry() = default;
+    ~Entry() {
+      if (safepoint_kind == kSafepoint) {
+        safepoint_entry.~SafepointEntry();
+      } else {
+        DCHECK_EQ(safepoint_kind, kMaglevSafepoint);
+        maglev_safepoint_entry.~MaglevSafepointEntry();
+      }
+    }
+
+    bool safepoint_is_initialized() const {
+      if (safepoint_kind == kSafepoint) {
+        return safepoint_entry.is_initialized();
+      } else {
+        DCHECK_EQ(safepoint_kind, kMaglevSafepoint);
+        return maglev_safepoint_entry.is_initialized();
+      }
+    }
+
+    void ToSafepoint() {
+      if (safepoint_kind == kSafepoint) return;
+      DCHECK_EQ(safepoint_kind, kMaglevSafepoint);
+      maglev_safepoint_entry.~MaglevSafepointEntry();
+      new (&safepoint_entry) SafepointEntry();
+      safepoint_kind = kSafepoint;
+    }
+
+    void ToMaglevSafepoint() {
+      if (safepoint_kind == kMaglevSafepoint) return;
+      DCHECK_EQ(safepoint_kind, kSafepoint);
+      safepoint_entry.~SafepointEntry();
+      new (&maglev_safepoint_entry) MaglevSafepointEntry();
+      safepoint_kind = kMaglevSafepoint;
+    }
+
+    void ResetSafepoint() {
+      if (safepoint_kind == kSafepoint) {
+        safepoint_entry.Reset();
+      } else {
+        DCHECK_EQ(safepoint_kind, kMaglevSafepoint);
+        maglev_safepoint_entry.Reset();
+      }
+    }
   };
 
-  explicit InnerPointerToCodeCache(Isolate* isolate) : isolate_(isolate) {
-    Flush();
-  }
+  explicit InnerPointerToCodeCache(Isolate* isolate) : isolate_(isolate) {}
 
   InnerPointerToCodeCache(const InnerPointerToCodeCache&) = delete;
   InnerPointerToCodeCache& operator=(const InnerPointerToCodeCache&) = delete;
 
-  void Flush() { memset(static_cast<void*>(&cache_[0]), 0, sizeof(cache_)); }
+  void Flush() {
+    for (Entry& slot : cache_) {
+      if (slot.safepoint_kind == Entry::kSafepoint) {
+        slot.safepoint_entry.ReleaseData();
+        slot.safepoint_entry.Reset();
+      } else {
+        DCHECK_EQ(slot.safepoint_kind, Entry::kMaglevSafepoint);
+        slot.maglev_safepoint_entry.Reset();
+      }
+      slot.inner_pointer = kNullAddress;
+    }
+  }
 
-  InnerPointerToCodeCacheEntry* GetCacheEntry(Address inner_pointer);
+  Entry* GetCacheEntry(Address inner_pointer);
 
  private:
-  InnerPointerToCodeCacheEntry* cache(int index) { return &cache_[index]; }
+  Entry* cache(int index) { return &cache_[index]; }
 
   Isolate* const isolate_;
 
   static const int kInnerPointerToCodeCacheSize = 1024;
-  InnerPointerToCodeCacheEntry cache_[kInnerPointerToCodeCacheSize];
+  Entry cache_[kInnerPointerToCodeCacheSize];
 };
 
 inline Address StackHandler::address() const {
@@ -189,15 +245,15 @@ void ApiCallbackExitFrame::set_target(Tagged<HeapObject> function) const {
   target_slot().store(function);
 }
 
-int ApiCallbackExitFrame::ComputeParametersCount() const {
+uint32_t ApiCallbackExitFrame::ComputeParametersCount() const {
   int argc = static_cast<int>(base::Memory<Address>(
       fp() + ApiCallbackExitFrameConstants::kFCIArgcOffset));
   DCHECK_GE(argc, 0);
-  return argc;
+  return static_cast<uint32_t>(argc);
 }
 
 Tagged<Object> ApiCallbackExitFrame::GetParameter(int i) const {
-  DCHECK(i >= 0 && i < ComputeParametersCount());
+  DCHECK(i >= 0 && static_cast<uint32_t>(i) < ComputeParametersCount());
   int offset = ApiCallbackExitFrameConstants::kFirstJSArgumentOffset +
                i * kSystemPointerSize;
   return Tagged<Object>(base::Memory<Address>(fp() + offset));
@@ -271,13 +327,14 @@ inline JavaScriptFrame::JavaScriptFrame(StackFrameIteratorBase* iterator)
 
 Address CommonFrameWithJSLinkage::GetParameterSlot(int index) const {
   DCHECK_LE(-1, index);
-  DCHECK_LT(index,
-            std::max(GetActualArgumentCount(), ComputeParametersCount()));
+  DCHECK(index == -1 ||
+         static_cast<uint32_t>(index) <
+             std::max(GetActualArgumentCount(), ComputeParametersCount()));
   int parameter_offset = (index + 1) * kSystemPointerSize;
   return caller_sp() + parameter_offset;
 }
 
-inline int CommonFrameWithJSLinkage::GetActualArgumentCount() const {
+inline uint32_t CommonFrameWithJSLinkage::GetActualArgumentCount() const {
   return 0;
 }
 

@@ -167,16 +167,28 @@ class ABSL_ATTRIBUTE_OWNER node_hash_map
   //   // Move is guaranteed efficient
   //   absl::node_hash_map<int, std::string> map5(std::move(map4));
   //
+  //   // After the move, map4 is in a valid but unspecified state. The only
+  //   // operations guaranteed to be safe on a moved-from map are destruction,
+  //   // assignment, and clear(). Any other operation (e.g. size(), empty(),
+  //   // iteration) results in undefined behavior.
+  //
   // * Move assignment operator
   //
   //   // May be efficient if allocators are compatible
   //   absl::node_hash_map<int, std::string> map6;
   //   map6 = std::move(map5);
   //
+  //   // Same moved-from guarantees apply to map5 after this operation.
+  //
   // * Range constructor
   //
   //   std::vector<std::pair<int, std::string>> v = {{1, "a"}, {2, "b"}};
   //   absl::node_hash_map<int, std::string> map7(v.begin(), v.end());
+  //
+  // * from_range constructor (C++23)
+  //
+  //   std::vector<std::pair<int, std::string>> v = {{1, "a"}, {2, "b"}};
+  //   absl::node_hash_map<int, std::string> map8(std::from_range, v);
   node_hash_map() {}
   using Base::Base;
 
@@ -416,10 +428,6 @@ class ABSL_ATTRIBUTE_OWNER node_hash_map
   //   `node_hash_map` does not contain an element with a matching key, this
   //   function returns an empty node handle.
   //
-  // NOTE: when compiled in an earlier version of C++ than C++17,
-  // `node_type::key()` returns a const reference to the key instead of a
-  // mutable reference. We cannot safely return a mutable reference without
-  // std::launder (which is not available before C++17).
   using Base::extract;
 
   // node_hash_map::merge()
@@ -599,22 +607,22 @@ namespace container_internal {
 // Erasure and/or insertion of elements in the function is not allowed.
 template <typename K, typename V, typename H, typename E, typename A,
           typename Function>
-decay_t<Function> c_for_each_fast(const node_hash_map<K, V, H, E, A>& c,
-                                  Function&& f) {
+std::decay_t<Function> c_for_each_fast(const node_hash_map<K, V, H, E, A>& c,
+                                       Function&& f) {
   container_internal::ForEach(f, &c);
   return f;
 }
 template <typename K, typename V, typename H, typename E, typename A,
           typename Function>
-decay_t<Function> c_for_each_fast(node_hash_map<K, V, H, E, A>& c,
-                                  Function&& f) {
+std::decay_t<Function> c_for_each_fast(node_hash_map<K, V, H, E, A>& c,
+                                       Function&& f) {
   container_internal::ForEach(f, &c);
   return f;
 }
 template <typename K, typename V, typename H, typename E, typename A,
           typename Function>
-decay_t<Function> c_for_each_fast(node_hash_map<K, V, H, E, A>&& c,
-                                  Function&& f) {
+std::decay_t<Function> c_for_each_fast(node_hash_map<K, V, H, E, A>&& c,
+                                       Function&& f) {
   container_internal::ForEach(f, &c);
   return f;
 }
@@ -640,23 +648,22 @@ class NodeHashMapPolicy
 
   template <class Allocator, class... Args>
   static value_type* new_element(Allocator* alloc, Args&&... args) {
-    using PairAlloc = typename absl::allocator_traits<
+    using PairAlloc = typename std::allocator_traits<
         Allocator>::template rebind_alloc<value_type>;
     PairAlloc pair_alloc(*alloc);
-    value_type* res =
-        absl::allocator_traits<PairAlloc>::allocate(pair_alloc, 1);
-    absl::allocator_traits<PairAlloc>::construct(pair_alloc, res,
-                                                 std::forward<Args>(args)...);
+    value_type* res = std::allocator_traits<PairAlloc>::allocate(pair_alloc, 1);
+    std::allocator_traits<PairAlloc>::construct(pair_alloc, res,
+                                                std::forward<Args>(args)...);
     return res;
   }
 
   template <class Allocator>
   static void delete_element(Allocator* alloc, value_type* pair) {
-    using PairAlloc = typename absl::allocator_traits<
+    using PairAlloc = typename std::allocator_traits<
         Allocator>::template rebind_alloc<value_type>;
     PairAlloc pair_alloc(*alloc);
-    absl::allocator_traits<PairAlloc>::destroy(pair_alloc, pair);
-    absl::allocator_traits<PairAlloc>::deallocate(pair_alloc, pair, 1);
+    std::allocator_traits<PairAlloc>::destroy(pair_alloc, pair);
+    std::allocator_traits<PairAlloc>::deallocate(pair_alloc, pair, 1);
   }
 
   template <class F, class... Args>
@@ -674,10 +681,11 @@ class NodeHashMapPolicy
   static Value& value(value_type* elem) { return elem->second; }
   static const Value& value(const value_type* elem) { return elem->second; }
 
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return memory_internal::IsLayoutCompatible<Key, Value>::value
-               ? &TypeErasedDerefAndApplyToSlotFn<Hash, Key, kIsDefault>
+               ? &TypeErasedDerefAndApplyToSlotFirstFn<Hash, value_type,
+                                                       kIsDefault, kSeedShift>
                : nullptr;
   }
 };

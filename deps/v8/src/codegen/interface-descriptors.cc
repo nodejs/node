@@ -59,7 +59,7 @@ void CallInterfaceDescriptorData::InitializeRegisters(
   param_count_ = parameter_count;
   register_param_count_ = register_parameter_count;
 
-  // The caller owns the the registers array, so we just set the pointer.
+  // The caller owns the registers array, so we just set the pointer.
   register_params_ = registers;
   double_register_params_ = double_registers;
   register_returns_ = return_registers;

@@ -117,8 +117,6 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
   Isolate::CreateParams params;
   params.array_buffer_allocator = impl_->allocator.get();
   params.external_references = external_references.data();
-  params.cpp_heap =
-      v8::CppHeap::Create(platform, v8::CppHeapCreateParams{{}}).release();
 
   Isolate* isolate;
 
@@ -130,6 +128,8 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
     // isolate, so that the memory reducer can be initialized.
     isolate = impl_->isolate = Isolate::Allocate(GetOrCreateIsolateGroup());
     platform->RegisterIsolate(isolate, loop);
+    params.cpp_heap =
+        v8::CppHeap::Create(platform, v8::CppHeapCreateParams{{}}).release();
 
     if (snapshot_config != nullptr && snapshot_config->base_blob != nullptr) {
       params.snapshot_blob = snapshot_config->base_blob;

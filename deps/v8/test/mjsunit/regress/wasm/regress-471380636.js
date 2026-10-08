@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-js-interop
+// Flags: --wasm-js-interop
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let builder = new WasmModuleBuilder();
 
-let $struct = builder.addStruct({ fields: [] });
-let $array_externref =
-  builder.addArray(kWasmExternRef, true, kNoSuperType, true);
-let $array_funcref = builder.addArray(kWasmFuncRef, true, kNoSuperType, true);
-let $array_i8 = builder.addArray(kWasmI8, true, kNoSuperType, true);
+let $struct = builder.addStruct([]);
+let $array_externref = builder.addArray(kWasmExternRef, {final: true});
+let $array_funcref = builder.addArray(kWasmFuncRef, {final: true});
+let $array_i8 = builder.addArray(kWasmI8, {final: true});
 let $configureAll = builder.addImport(
   "wasm:js-prototypes", "configureAll",
   makeSig([wasmRefNullType($array_externref),

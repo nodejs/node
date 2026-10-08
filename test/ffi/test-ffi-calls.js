@@ -1,10 +1,8 @@
-// Flags: --expose-gc --allow-natives-syntax
+// Flags: --allow-natives-syntax
 'use strict';
 const common = require('../common');
 common.skipIfFFIMissing();
-const { gcUntil } = require('../common/gc');
 const assert = require('node:assert');
-const { spawnSync } = require('node:child_process');
 const { test } = require('node:test');
 const ffi = require('node:ffi');
 const { cString, fixtureSymbols, libraryPath } = require('./ffi-test-common');
@@ -24,6 +22,10 @@ test('ffi calls support integer arithmetic and char semantics', () => {
     assert.strictEqual(symbols.add_u32(0xFFFFFFFF, 1), 0);
     assert.strictEqual(symbols.add_i64(20n, 22n), 42n);
     assert.strictEqual(symbols.add_u64(20n, 22n), 42n);
+    assert.strictEqual(symbols.add_i64(20, 22), symbols.add_i64(20n, 22n));
+    assert.strictEqual(symbols.add_u64(20, 22), symbols.add_u64(20n, 22n));
+    assert.strictEqual(symbols.add_i64(-20, 22n), 2n);
+    assert.strictEqual(symbols.add_u64(20n, 22), 42n);
 
     if (symbols.char_is_signed()) {
       assert.strictEqual(symbols.identity_char(-1), -1);
@@ -106,15 +108,18 @@ test('ffi strings and buffers cross the boundary correctly', () => {
     symbols.free_string(duplicated);
 
     const buffer = Buffer.from([1, 2, 3, 4]);
-    assert.strictEqual(symbols.sum_buffer(buffer, BigInt(buffer.length)), 10n);
-    symbols.reverse_buffer(buffer, BigInt(buffer.length));
+    assert.strictEqual(
+      symbols.sum_buffer(buffer, buffer.length),
+      symbols.sum_buffer(buffer, BigInt(buffer.length)),
+    );
+    symbols.reverse_buffer(buffer, buffer.length);
     assert.deepStrictEqual([...buffer], [4, 3, 2, 1]);
 
     const typed = new Uint8Array([5, 6, 7, 8]);
-    assert.strictEqual(symbols.sum_buffer(typed, BigInt(typed.byteLength)), 26n);
+    assert.strictEqual(symbols.sum_buffer(typed, typed.byteLength), 26n);
 
     const arrayBuffer = new Uint8Array([9, 10, 11, 12]).buffer;
-    assert.strictEqual(symbols.sum_buffer(arrayBuffer, BigInt(arrayBuffer.byteLength)), 42n);
+    assert.strictEqual(symbols.sum_buffer(arrayBuffer, arrayBuffer.byteLength), 42n);
   } finally {
     lib.close();
   }
@@ -193,79 +198,6 @@ test('ffi global state helpers work', () => {
   }
 });
 
-test('ffi callbacks can be registered and invoked', () => {
-  const { lib, functions: symbols } = getLibrary();
-  const seen = [];
-  const intCallback = lib.registerCallback(
-    { arguments: ['i32'], return: 'i32' },
-    (value) => value * 2,
-  );
-  const stringCallback = lib.registerCallback(
-    { arguments: ['pointer'], return: 'void' },
-    (ptr) => seen.push(ffi.toString(ptr)),
-  );
-  const binaryCallback = lib.registerCallback(
-    { arguments: ['i32', 'i32'], return: 'i32' },
-    (a, b) => a + b,
-  );
-
-  try {
-    assert.strictEqual(symbols.call_int_callback(intCallback, 21), 42);
-    symbols.call_string_callback(stringCallback, cString('hello callback'));
-    assert.deepStrictEqual(seen, ['hello callback']);
-    assert.strictEqual(symbols.call_binary_int_callback(binaryCallback, 19, 23), 42);
-
-    const nullPointerCallback = lib.registerCallback({ return: 'pointer' }, () => null);
-    const undefinedPointerCallback = lib.registerCallback({ return: 'pointer' }, () => undefined);
-    try {
-      assert.strictEqual(symbols.call_pointer_callback_is_null(nullPointerCallback), 1);
-      assert.strictEqual(symbols.call_pointer_callback_is_null(undefinedPointerCallback), 1);
-    } finally {
-      lib.unregisterCallback(nullPointerCallback);
-      lib.unregisterCallback(undefinedPointerCallback);
-    }
-  } finally {
-    lib.unregisterCallback(intCallback);
-    lib.unregisterCallback(stringCallback);
-    lib.unregisterCallback(binaryCallback);
-    lib.close();
-  }
-});
-
-test('ffi callback ref and unref APIs work', () => {
-  const { lib, functions: symbols } = getLibrary();
-  let called = false;
-  const values = [];
-  const voidCallback = lib.registerCallback(() => {
-    called = true;
-  });
-  const countingCallback = lib.registerCallback(
-    { arguments: ['i32'], return: 'i32' },
-    (value) => {
-      values.push(value);
-      return 0;
-    },
-  );
-
-  try {
-    lib.unrefCallback(voidCallback);
-    lib.refCallback(voidCallback);
-    symbols.call_void_callback(voidCallback);
-    symbols.call_callback_multiple_times(countingCallback, 5);
-
-    assert.strictEqual(called, true);
-    assert.deepStrictEqual(values, [0, 1, 2, 3, 4]);
-
-    lib.unregisterCallback(voidCallback);
-    lib.unregisterCallback(countingCallback);
-
-    assert.throws(() => lib.refCallback(voidCallback), /Callback not found/);
-    assert.throws(() => lib.unregisterCallback(-1n), /The first argument must be a non-negative bigint/);
-  } finally {
-    lib.close();
-  }
-});
-
 test('ffi validates invalid arguments', () => {
   const { lib, functions: symbols } = getLibrary();
   try {
@@ -279,13 +211,20 @@ test('ffi validates invalid arguments', () => {
     assert.throws(() => symbols.add_i16(40_000, 1), /Argument 0 must be an int16/);
     assert.throws(() => symbols.add_u16(Number.NaN, 1), /Argument 0 must be a uint16/);
     assert.throws(() => symbols.add_u16(70_000, 1), /Argument 0 must be a uint16/);
-    assert.throws(() => symbols.add_i64(1, 2n), /Argument 0 must be an int64/);
-    assert.throws(() => symbols.add_i64(1.5, 2n), /Argument 0 must be an int64/);
+    assert.throws(() => symbols.add_i64(1.5, 2), /Argument 0 must be an int64/);
+    assert.throws(() => symbols.add_i64(Number.NaN, 2), /Argument 0 must be an int64/);
+    assert.throws(() => symbols.add_i64(Number.POSITIVE_INFINITY, 2), /Argument 0 must be an int64/);
+    assert.throws(() => symbols.add_i64(Number.NEGATIVE_INFINITY, 2), /Argument 0 must be an int64/);
+    assert.throws(() => symbols.add_i64(Number.MAX_SAFE_INTEGER + 1, 2), /Argument 0 must be an int64/);
+    assert.throws(() => symbols.add_i64(Number.MIN_SAFE_INTEGER - 1, 2), /Argument 0 must be an int64/);
     assert.throws(() => symbols.add_i64(2n ** 63n, 2n), /Argument 0 must be an int64/);
     assert.throws(() => symbols.add_i64(-(2n ** 63n) - 1n, 2n), /Argument 0 must be an int64/);
     assert.throws(() => symbols.add_u64('1', 2n), /Argument 0 must be a uint64/);
-    assert.throws(() => symbols.add_u64(1, 2n), /Argument 0 must be a uint64/);
-    assert.throws(() => symbols.add_u64(Number.NaN, 2n), /Argument 0 must be a uint64/);
+    assert.throws(() => symbols.add_u64(-1, 2), /Argument 0 must be a uint64/);
+    assert.throws(() => symbols.add_u64(1.5, 2), /Argument 0 must be a uint64/);
+    assert.throws(() => symbols.add_u64(Number.NaN, 2), /Argument 0 must be a uint64/);
+    assert.throws(() => symbols.add_u64(Number.POSITIVE_INFINITY, 2), /Argument 0 must be a uint64/);
+    assert.throws(() => symbols.add_u64(Number.MAX_SAFE_INTEGER + 1, 2), /Argument 0 must be a uint64/);
     assert.throws(() => symbols.add_u64(-1n, 2n), /Argument 0 must be a uint64/);
     assert.throws(() => symbols.add_u64(2n ** 64n, 2n), /Argument 0 must be a uint64/);
     assert.throws(() => symbols.identity_pointer(-1n), /Argument 0 must be a non-negative pointer bigint/);
@@ -309,173 +248,4 @@ test('ffi division helpers behave as expected', () => {
   } finally {
     lib.close();
   }
-});
-
-function assertInvalidCallbackReturnAborts(returnExpression) {
-  const { stderr, status, signal } = spawnSync(process.execPath, [
-    '-e',
-    `'use strict';
-const ffi = require('node:ffi');
-const { fixtureSymbols, libraryPath } = require(${JSON.stringify(require.resolve('./ffi-test-common'))});
-const { lib, functions } = ffi.dlopen(libraryPath, fixtureSymbols);
-const callback = lib.registerCallback(
-  { arguments: ['i32'], return: 'i32' },
-  () => (${returnExpression}),
-);
-functions.call_int_callback(callback, 21);`,
-  ], {
-    encoding: 'utf8',
-  });
-
-  assert.ok(common.nodeProcessAborted(status, signal),
-            `status: ${status}, signal: ${signal}
-stderr: ${stderr}`);
-  assert.match(stderr, /Callback returned invalid value for declared FFI type/);
-}
-
-function assertInvalidCallbackBehaviorAborts(callbackBody, message) {
-  const { stderr, status, signal } = spawnSync(process.execPath, [
-    '-e',
-    `'use strict';
-const ffi = require('node:ffi');
-const { fixtureSymbols, libraryPath } = require(${JSON.stringify(require.resolve('./ffi-test-common'))});
-const { lib, functions } = ffi.dlopen(libraryPath, fixtureSymbols);
-const callback = lib.registerCallback(
-  { arguments: ['i32'], return: 'i32' },
-  () => { ${callbackBody} },
-);
-functions.call_int_callback(callback, 21);`,
-  ], {
-    encoding: 'utf8',
-  });
-
-  assert.ok(common.nodeProcessAborted(status, signal),
-            `status: ${status}, signal: ${signal}
-stderr: ${stderr}`);
-  assert.ok(message.test(stderr), stderr);
-}
-
-function assertCrossThreadCallbackAbort() {
-  const workerSource = `
-const { workerData } = require('node:worker_threads');
-const ffi = require('node:ffi');
-const { fixtureSymbols, libraryPath } = require(${JSON.stringify(require.resolve('./ffi-test-common'))});
-const { functions } = ffi.dlopen(libraryPath, fixtureSymbols);
-functions.call_int_callback(workerData, 21);
-`;
-  const { stderr, status, signal } = spawnSync(process.execPath, [
-    '-e',
-    `'use strict';
-const { Worker } = require('node:worker_threads');
-const ffi = require('node:ffi');
-const { fixtureSymbols, libraryPath } = require(${JSON.stringify(require.resolve('./ffi-test-common'))});
-const { lib } = ffi.dlopen(libraryPath, fixtureSymbols);
-const callback = lib.registerCallback(
-  { arguments: ['i32'], return: 'i32' },
-  (value) => value * 2,
-);
-new Worker(${JSON.stringify(workerSource)}, { eval: true, workerData: callback });`,
-  ], {
-    encoding: 'utf8',
-  });
-
-  assert.ok(common.nodeProcessAborted(status, signal),
-            `status: ${status}, signal: ${signal}
-stderr: ${stderr}`);
-  assert.match(stderr, /Callbacks can only be invoked on the system thread they were created on/);
-}
-
-test('ffi aborts on invalid callback return values', () => {
-  assertInvalidCallbackReturnAborts('1.5');
-  assertInvalidCallbackReturnAborts('2 ** 40');
-});
-
-test('ffi aborts on invalid callback behavior', () => {
-  assertInvalidCallbackBehaviorAborts('throw new Error("boom");', /Callbacks cannot throw an exception/);
-  assertInvalidCallbackBehaviorAborts('return Promise.resolve(1);', /Callbacks cannot return promises/);
-});
-
-test('ffi aborts on cross-thread callback invocation', () => {
-  assertCrossThreadCallbackAbort();
-});
-
-test('ffi unrefCallback releases callback function', async () => {
-  const { lib, functions: symbols } = getLibrary();
-  try {
-    let callback = () => 1;
-    const ref = new WeakRef(callback);
-    const pointer = lib.registerCallback(
-      { arguments: ['i32'], return: 'i32' },
-      callback,
-    );
-
-    lib.unrefCallback(pointer);
-    callback = null;
-
-    await gcUntil('ffi unrefCallback releases callback function', () => {
-      return ref.deref() === undefined;
-    });
-
-    assert.strictEqual(symbols.call_int_callback(pointer, 21), 0);
-    lib.unregisterCallback(pointer);
-  } finally {
-    lib.close();
-  }
-});
-
-test('ffi unrefCallback zero-fills narrow callback return', async () => {
-  const { lib, functions: symbols } = getLibrary();
-  try {
-    let callback = () => 1;
-    const ref = new WeakRef(callback);
-    const pointer = lib.registerCallback(
-      { arguments: ['i8'], return: 'i8' },
-      callback,
-    );
-
-    lib.unrefCallback(pointer);
-    callback = null;
-
-    await gcUntil('ffi unrefCallback zero-fills narrow callback return', () => {
-      return ref.deref() === undefined;
-    });
-
-    assert.strictEqual(symbols.call_int8_callback(pointer, 21), 0);
-    lib.unregisterCallback(pointer);
-  } finally {
-    lib.close();
-  }
-});
-
-test('ffi refCallback retains callback function', async () => {
-  const { lib } = getLibrary();
-  try {
-    let callback = () => 1;
-    const ref = new WeakRef(callback);
-    const pointer = lib.registerCallback({ return: 'i32' }, callback);
-
-    lib.unrefCallback(pointer);
-    lib.refCallback(pointer);
-    callback = null;
-
-    for (let i = 0; i < 5; i++) {
-      await gcUntil('ffi refCallback retains callback function', () => true, 1);
-      assert.strictEqual(typeof ref.deref(), 'function');
-    }
-
-    lib.unregisterCallback(pointer);
-  } finally {
-    lib.close();
-  }
-});
-
-test('closing a library invalidates callbacks', () => {
-  const { lib } = getLibrary();
-  const callback = lib.registerCallback(() => {});
-
-  lib.close();
-
-  assert.throws(() => lib.unregisterCallback(callback), /Library is closed/);
-  assert.throws(() => lib.refCallback(callback), /Library is closed/);
-  assert.throws(() => lib.unrefCallback(callback), /Library is closed/);
 });

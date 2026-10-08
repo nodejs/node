@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,24 +50,21 @@ class LIEF_API Function : public Symbol {
     /// returns its virtual address in the binary
     EXPORTED = 1 << 3,
 
-    /// The function is **imported** by the binary and the address() should return 0
+    /// The function is **imported** by the binary and the address() should return
+    /// 0
     IMPORTED = 1 << 4,
   };
 
   public:
   Function() = default;
   Function(const std::string& name) :
-    Symbol(name)
-  {}
+    Symbol(name) {}
   Function(uint64_t address) :
-    Function("", address)
-  {}
+    Function("", address) {}
   Function(const std::string& name, uint64_t address) :
-    Symbol(name, address)
-  {}
+    Symbol(name, address) {}
   Function(const std::string& name, uint64_t address, FLAGS flags) :
-    Function(name, address)
-  {
+    Function(name, address) {
     flags_ = flags;
   }
 
@@ -94,8 +91,8 @@ class LIEF_API Function : public Symbol {
     return ((uint32_t)flags_ & (uint32_t)f) != 0;
   }
 
-  /// Address of the current function. For functions that are set with the FLAGS::IMPORTED flag,
-  /// this value is likely 0.
+  /// Address of the current function. For functions that are set with the
+  /// FLAGS::IMPORTED flag, this value is likely 0.
   uint64_t address() const {
     return value_;
   }
@@ -106,7 +103,8 @@ class LIEF_API Function : public Symbol {
 
   void accept(Visitor& visitor) const override;
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const Function& entry);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const Function& entry);
 
   protected:
   FLAGS flags_ = FLAGS::NONE;
@@ -118,4 +116,3 @@ LIEF_API const char* to_string(Function::FLAGS e);
 ENABLE_BITMASK_OPERATORS(LIEF::Function::FLAGS);
 
 #endif
-

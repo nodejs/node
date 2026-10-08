@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@
 #include "LIEF/DEX/Class.hpp"
 #include "logging.hpp"
 
-namespace LIEF {
-namespace DEX {
+
+namespace LIEF::DEX {
 
 Type::Type() = default;
 
@@ -31,33 +31,31 @@ Type::Type(const std::string& mangled) {
 
 Type::Type(const Type& other) :
   Object{other},
-  type_{other.type_}
-{
+  type_{other.type_} {
   switch (type()) {
     case TYPES::ARRAY:
-      {
-        array_ = new array_t{};
-        std::copy(
-            std::begin(other.array()),
-            std::end(other.array()),
-            std::back_inserter(*array_));
-        break;
-      }
+    {
+      array_ = new array_t{};
+      std::copy(other.array().begin(), other.array().end(),
+                std::back_inserter(*array_));
+      break;
+    }
 
     case TYPES::CLASS:
-      {
-        cls_ = other.cls_;
-        break;
-      }
+    {
+      cls_ = other.cls_;
+      break;
+    }
 
     case TYPES::PRIMITIVE:
-      {
-        basic_ = new PRIMITIVES{other.primitive()};
-        break;
-      }
+    {
+      basic_ = new PRIMITIVES{other.primitive()};
+      break;
+    }
 
     default:
-      {}
+    {
+    }
   }
 }
 
@@ -87,7 +85,9 @@ Type::array_t& Type::array() {
 }
 
 Type::PRIMITIVES& Type::primitive() {
-  return const_cast<Type::PRIMITIVES&>(static_cast<const Type*>(this)->primitive());
+  return const_cast<Type::PRIMITIVES&>(
+      static_cast<const Type*>(this)->primitive()
+  );
 }
 
 const Type& Type::underlying_array_type() const {
@@ -100,96 +100,103 @@ const Type& Type::underlying_array_type() const {
 
 
 Type& Type::underlying_array_type() {
-  return const_cast<Type&>((static_cast<const Type*>(this)->underlying_array_type()));
+  return const_cast<Type&>(
+      (static_cast<const Type*>(this)->underlying_array_type())
+  );
 }
 
 
 void Type::parse(const std::string& type) {
+  if (type.empty()) {
+    type_ = Type::TYPES::UNKNOWN;
+    return;
+  }
+
   const char t = type[0];
-  switch(t) {
+  switch (t) {
     case 'V':
-      {
-        type_ = Type::TYPES::PRIMITIVE;
-        basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::VOID_T};
-        break;
-      }
+    {
+      type_ = Type::TYPES::PRIMITIVE;
+      basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::VOID_T};
+      break;
+    }
 
     case 'Z':
-      {
-        type_ = Type::TYPES::PRIMITIVE;
-        basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::BOOLEAN};
-        break;
-      }
+    {
+      type_ = Type::TYPES::PRIMITIVE;
+      basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::BOOLEAN};
+      break;
+    }
 
     case 'B':
-      {
-        type_ = Type::TYPES::PRIMITIVE;
-        basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::BYTE};
-        break;
-      }
+    {
+      type_ = Type::TYPES::PRIMITIVE;
+      basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::BYTE};
+      break;
+    }
 
     case 'S':
-      {
-        type_ = Type::TYPES::PRIMITIVE;
-        basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::SHORT};
-        break;
-      }
+    {
+      type_ = Type::TYPES::PRIMITIVE;
+      basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::SHORT};
+      break;
+    }
 
     case 'C':
-      {
-        type_ = Type::TYPES::PRIMITIVE;
-        basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::CHAR};
-        break;
-      }
+    {
+      type_ = Type::TYPES::PRIMITIVE;
+      basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::CHAR};
+      break;
+    }
 
     case 'I':
-      {
-        type_ = Type::TYPES::PRIMITIVE;
-        basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::INT};
-        break;
-      }
+    {
+      type_ = Type::TYPES::PRIMITIVE;
+      basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::INT};
+      break;
+    }
 
     case 'J':
-      {
-        type_ = Type::TYPES::PRIMITIVE;
-        basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::LONG};
-        break;
-      }
+    {
+      type_ = Type::TYPES::PRIMITIVE;
+      basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::LONG};
+      break;
+    }
 
     case 'F':
-      {
-        type_ = Type::TYPES::PRIMITIVE;
-        basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::FLOAT};
-        break;
-      }
+    {
+      type_ = Type::TYPES::PRIMITIVE;
+      basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::FLOAT};
+      break;
+    }
 
     case 'D':
-      {
-        type_ = Type::TYPES::PRIMITIVE;
-        basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::DOUBLE};
-        break;
-      }
+    {
+      type_ = Type::TYPES::PRIMITIVE;
+      basic_ = new Type::PRIMITIVES{Type::PRIMITIVES::DOUBLE};
+      break;
+    }
 
-    case 'L': //CLASS
-      {
-        type_ = Type::TYPES::CLASS;
-        break;
-      }
+    case 'L': // CLASS
+    {
+      type_ = Type::TYPES::CLASS;
+      break;
+    }
 
-    case '[': //ARRAY
-      {
-        if (array_ == nullptr) {
-          array_ = new array_t{};
-        }
-        type_ = Type::TYPES::ARRAY;
-        array_->emplace_back(type.substr(1));
-        break;
+    case '[': // ARRAY
+    {
+      if (array_ == nullptr) {
+        array_ = new array_t{};
       }
+      type_ = Type::TYPES::ARRAY;
+      array_->emplace_back(type.substr(1));
+      break;
+    }
 
     default:
-      {
-        LIEF_WARN("Unknown type: '{}'", t);
-      }
+    {
+      LIEF_WARN("Unknown type: '{}'", t);
+    }
   }
 }
 
@@ -212,34 +219,33 @@ void Type::accept(Visitor& visitor) const {
 }
 
 
-
 std::ostream& operator<<(std::ostream& os, const Type& type) {
   switch (type.type()) {
     case Type::TYPES::ARRAY:
-      {
-        os << type.underlying_array_type();
-        for (size_t i = 0; i < type.dim(); ++i) {
-          os << "[]";
-        }
-        return os;
+    {
+      os << type.underlying_array_type();
+      for (size_t i = 0; i < type.dim(); ++i) {
+        os << "[]";
       }
+      return os;
+    }
 
     case Type::TYPES::CLASS:
-      {
-        os << type.cls().fullname();
-        return os;
-      }
+    {
+      os << type.cls().fullname();
+      return os;
+    }
 
     case Type::TYPES::PRIMITIVE:
-      {
-        os << Type::pretty_name(type.primitive());
-        return os;
-      }
+    {
+      os << Type::pretty_name(type.primitive());
+      return os;
+    }
 
     default:
-      {
-        return os;
-      }
+    {
+      return os;
+    }
   }
   return os;
 }
@@ -248,78 +254,77 @@ std::ostream& operator<<(std::ostream& os, const Type& type) {
 std::string Type::pretty_name(PRIMITIVES p) {
   switch (p) {
     case PRIMITIVES::BOOLEAN:
-      {
-        return "bool";
-      }
+    {
+      return "bool";
+    }
 
     case PRIMITIVES::BYTE:
-      {
-        return "byte";
-      }
+    {
+      return "byte";
+    }
 
     case PRIMITIVES::CHAR:
-      {
-        return "char";
-      }
+    {
+      return "char";
+    }
 
     case PRIMITIVES::DOUBLE:
-      {
-        return "double";
-      }
+    {
+      return "double";
+    }
 
     case PRIMITIVES::FLOAT:
-      {
-        return "float";
-      }
+    {
+      return "float";
+    }
 
     case PRIMITIVES::INT:
-      {
-        return "int";
-      }
+    {
+      return "int";
+    }
 
     case PRIMITIVES::LONG:
-      {
-        return "long";
-      }
+    {
+      return "long";
+    }
 
     case PRIMITIVES::SHORT:
-      {
-        return "short";
-      }
+    {
+      return "short";
+    }
 
     case PRIMITIVES::VOID_T:
-      {
-        return "void";
-      }
+    {
+      return "void";
+    }
 
     default:
-      {
-        return "";
-      }
+    {
+      return "";
+    }
   }
 }
 
 Type::~Type() {
   switch (type()) {
     case Type::TYPES::ARRAY:
-      {
-        delete array_;
-        break;
-      }
+    {
+      delete array_;
+      break;
+    }
 
     case Type::TYPES::PRIMITIVE:
-      {
-        delete basic_;
-        break;
-      }
+    {
+      delete basic_;
+      break;
+    }
 
     case Type::TYPES::CLASS:
     case Type::TYPES::UNKNOWN:
     default:
-      {
-      }
+    {
+    }
   }
 }
 
-}
 }

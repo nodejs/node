@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,26 +52,26 @@ class LIEF_API CoreAuxv : public Note {
     FPUCW,         /**< Used FPU control word.  */
     DCACHEBSIZE,   /**< Data cache block size.  */
     ICACHEBSIZE,   /**< Instruction cache block size.  */
-    UCACHEBSIZE,   /**< Instruction cache block size.  */
+    UCACHEBSIZE,   /**< Unified cache block size.  */
     IGNOREPPC,     /**< Entry should be ignored.  */
     SECURE,        /**< Boolean, was exec setuid-like?.  */
     BASE_PLATFORM, /**< String identifying real platform  */
     RANDOM,        /**< Address of 16 random bytes  */
     HWCAP2,        /**< Extension of AT_HWCAP  */
-    //ENTRY27,
-    //ENTRY28,
-    //ENTRY29,
-    //ENTRY30,
-    EXECFN = 31,   /**< Filename of executable  */
-    SYSINFO,       /**< Filename of executable  */
-    SYSINFO_EHDR,  /**<  Pointer to ELF header of system-supplied DSO. */
+    // ENTRY27,
+    // ENTRY28,
+    // ENTRY29,
+    // ENTRY30,
+    EXECFN = 31,  /**< Filename of executable  */
+    SYSINFO,      /**< Filename of executable  */
+    SYSINFO_EHDR, /**<  Pointer to ELF header of system-supplied DSO. */
   };
 
-  CoreAuxv(ARCH arch, Header::CLASS cls, std::string name,
-           uint32_t type, description_t description) :
+  CoreAuxv(ARCH arch, Header::CLASS cls, std::string name, uint32_t type,
+           description_t description) :
     Note(std::move(name), Note::TYPE::CORE_AUXV, type, std::move(description), ""),
-    arch_(arch), class_(cls)
-  {}
+    arch_(arch),
+    class_(cls) {}
 
   std::unique_ptr<Note> clone() const override {
     return std::unique_ptr<Note>(new CoreAuxv(*this));
@@ -101,8 +101,8 @@ class LIEF_API CoreAuxv : public Note {
 
   ~CoreAuxv() override = default;
 
-  LIEF_API friend
-  std::ostream& operator<<(std::ostream& os, const CoreAuxv& note) {
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const CoreAuxv& note) {
     note.dump(os);
     return os;
   }
@@ -114,7 +114,7 @@ class LIEF_API CoreAuxv : public Note {
 
 LIEF_API const char* to_string(CoreAuxv::TYPE type);
 
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

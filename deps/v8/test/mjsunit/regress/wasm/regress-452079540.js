@@ -5,7 +5,7 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let builder = new WasmModuleBuilder();
-let array_index = builder.addArray(kWasmI8);
+let array_index = builder.addArray(kWasmI8, {mutable: false});
 builder.addFunction("allocate", makeSig([kWasmI32], [kWasmAnyRef]))
   .addBody([
     kExprLocalGet, 0,

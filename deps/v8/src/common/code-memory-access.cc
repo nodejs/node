@@ -431,6 +431,14 @@ ThreadIsolation::JitPageReference::AllocationContaining(
   return {it->first, it->second};
 }
 
+base::Address ThreadIsolation::JitPageReference::EndOfLastAllocation() {
+  if (jit_page_->allocations_.empty()) {
+    return address_;
+  }
+  auto last = jit_page_->allocations_.rbegin();
+  return last->first + last->second.Size();
+}
+
 // static
 void ThreadIsolation::RegisterJitPage(Address address, size_t size) {
   CFIMetadataWriteScope write_scope("Adding new executable memory.");
@@ -586,6 +594,8 @@ ThreadIsolation::JitPageReference ThreadIsolation::SplitJitPageLocked(
     JitPage* mid;
     ConstructNew(&mid, size);
     jit_page.Shrink(mid);
+    // Defense in depth: the cut should not be in the middle of a code object.
+    CHECK(jit_page.EndOfLastAllocation() <= jit_page.End());
     trusted_data_.jit_pages_->emplace(addr, mid);
     return JitPageReference(mid, addr);
   }

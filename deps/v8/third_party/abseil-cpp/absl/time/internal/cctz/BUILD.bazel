@@ -140,7 +140,10 @@ cc_test(
     name = "time_zone_lookup_test",
     size = "small",
     timeout = "moderate",
-    srcs = ["src/time_zone_lookup_test.cc"],
+    srcs = [
+        "src/time_zone_lookup_test.cc",
+        "src/tzfile.h",
+    ],
     copts = ABSL_TEST_COPTS,
     data = [":zoneinfo"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -153,6 +156,41 @@ cc_test(
     deps = [
         ":civil_time",
         ":test_time_zone_names",
+        ":time_zone",
+        "//absl/base:config",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "time_zone_name_win_test",
+    size = "small",
+    srcs = select({
+        "@platforms//os:windows": ["src/time_zone_name_win_test.cc"],
+        "//conditions:default": [],
+    }),
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":time_zone",
+        "//absl/base:config",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "time_zone_posix_test",
+    size = "small",
+    srcs = [
+        "src/time_zone_posix.h",
+        "src/time_zone_posix_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":civil_time",
         ":time_zone",
         "//absl/base:config",
         "@googletest//:gtest",

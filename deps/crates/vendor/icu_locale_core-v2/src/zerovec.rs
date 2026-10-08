@@ -57,8 +57,8 @@
 //! tuple, and then construct the [`LanguageIdentifier`] externally.
 //!
 //! ```
-//! use icu::locale::subtags::{Language, Region, Script};
 //! use icu::locale::LanguageIdentifier;
+//! use icu::locale::subtags::{Language, Region, Script};
 //! use icu::locale::{
 //!     langid,
 //!     subtags::{language, region, script},
@@ -99,8 +99,8 @@
 //! As above, to produce more human-readable serialized output, you can use `PotentialUtf8`.
 //!
 //! ```
-//! use icu::locale::langid;
 //! use icu::locale::Locale;
+//! use icu::locale::locale;
 //! use potential_utf::PotentialUtf8;
 //! use zerovec::ZeroMap;
 //!
@@ -118,7 +118,7 @@
 //! // Construct a Locale by parsing the string.
 //! let value = zm.get(&25).expect("element is present");
 //! let loc = Locale::try_from_utf8(value);
-//! assert_eq!(loc, Ok(langid!("zh-TW").into()));
+//! assert_eq!(loc, Ok(locale!("zh-TW")));
 //!
 //! // Invalid entries are fallible
 //! let err_value = zm.get(&30).expect("element is present");

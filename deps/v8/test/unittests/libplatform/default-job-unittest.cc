@@ -180,8 +180,9 @@ TEST(DefaultJobTest, JobNotifyConcurrencyIncrease) {
 
   {
     base::MutexGuard guard(&job_raw->mutex);
-    while (job_raw->worker_count < kMaxTask / 2)
+    while (job_raw->worker_count < kMaxTask / 2) {
       job_raw->threads_running.Wait(&job_raw->mutex);
+    }
     EXPECT_EQ(kMaxTask / 2, job_raw->worker_count);
 
     job_raw->max_concurrency = kMaxTask;
@@ -231,8 +232,9 @@ TEST(DefaultJobTest, FinishBeforeJoin) {
 
   {
     base::MutexGuard guard(&job_raw->mutex);
-    while (job_raw->worker_count < kMaxTask * 5)
+    while (job_raw->worker_count < kMaxTask * 5) {
       job_raw->worker_ran.Wait(&job_raw->mutex);
+    }
     EXPECT_EQ(kMaxTask * 5, job_raw->worker_count);
   }
 

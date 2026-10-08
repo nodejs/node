@@ -9,8 +9,10 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 const builder = new WasmModuleBuilder();
 
 let sig0 = builder.addType(makeSig([], [kWasmI32]));
-let type1 = builder.addArray(kWasmI16, true, kNoSuperType, true);
-let type2 = builder.addStruct([makeField(kWasmF32, false), makeField(wasmRefType(kWasmI31Ref), false), makeField(kWasmF32, false)], kNoSuperType, false);
+let type1 = builder.addArray(kWasmI16, {final: true});
+let type2 = builder.addStruct([makeField(kWasmF32, false),
+                               makeField(wasmRefType(kWasmI31Ref), false),
+                               makeField(kWasmF32, false)]);
 
 builder.addMemory(16, 32);
 builder.addPassiveDataSegment([111, 128, 250, 156]);

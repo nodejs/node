@@ -4,6 +4,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { pipeTo, pipeToSync, from, fromSync } = require('stream/iter');
+const { setTimeout } = require('timers/promises');
 
 async function testPipeToSync() {
   const written = [];
@@ -94,7 +95,7 @@ async function testPipeToWithSignal() {
   };
   async function* slowSource() {
     yield [new TextEncoder().encode('a')];
-    await new Promise((r) => setTimeout(r, 50));
+    await setTimeout(50);
     yield [new TextEncoder().encode('b')];
   }
   ac.abort();

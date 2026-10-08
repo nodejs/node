@@ -210,7 +210,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     SimulateFullSpace(heap()->old_space());
 
     // Calling Lookup() should not cause GC ever.
-    CHECK(IsTheHole(table->Lookup(key), isolate()));
+    CHECK(IsTheHole(table->Lookup(key)));
 
     // Calling Put() should request GC by returning a failure.
     GCEpoch gc_count = heap()->gc_count();
@@ -249,7 +249,7 @@ class ObjectHashTableTest {
 
   int capacity() { return table_->Capacity(); }
 
-  void Rehash(Isolate* isolate) { table_->Rehash(isolate); }
+  void Rehash() { table_->Rehash(); }
 
  private:
   Tagged<ObjectHashTable> table_;
@@ -264,7 +264,7 @@ TEST_F(DictionaryTest, HashTableRehash) {
     for (int i = 0; i < capacity - 1; i++) {
       t->insert(InternalIndex(i), i * i, i);
     }
-    t->Rehash(isolate());
+    t->Rehash();
     for (int i = 0; i < capacity - 1; i++) {
       CHECK_EQ(i, t->lookup(i * i, isolate()));
     }
@@ -277,7 +277,7 @@ TEST_F(DictionaryTest, HashTableRehash) {
     for (int i = 0; i < capacity / 2; i++) {
       t->insert(InternalIndex(i), i * i, i);
     }
-    t->Rehash(isolate());
+    t->Rehash();
     for (int i = 0; i < capacity / 2; i++) {
       CHECK_EQ(i, t->lookup(i * i, isolate()));
     }

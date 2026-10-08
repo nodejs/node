@@ -40,19 +40,19 @@ use core::str::FromStr;
 
 pub use fields::Fields;
 #[doc(inline)]
-pub use key::{key, Key};
+pub use key::{Key, key};
 pub use value::Value;
 
 #[cfg(feature = "alloc")]
 use super::ExtensionType;
+use crate::LanguageIdentifier;
 #[cfg(feature = "alloc")]
 use crate::parser::SubtagIterator;
 #[cfg(feature = "alloc")]
-use crate::parser::{parse_language_identifier_from_iter, ParseError, ParserMode};
+use crate::parser::{ParseError, ParserMode, parse_language_identifier_from_iter};
 #[cfg(feature = "alloc")]
 use crate::shortvec::ShortBoxSlice;
 use crate::subtags;
-use crate::LanguageIdentifier;
 #[cfg(feature = "alloc")]
 use litemap::LiteMap;
 
@@ -199,13 +199,13 @@ impl Transform {
         let mut tlang = None;
         let mut tfields = LiteMap::new();
 
-        if let Some(subtag) = iter.peek() {
-            if subtags::Language::try_from_utf8(subtag).is_ok() {
-                tlang = Some(parse_language_identifier_from_iter(
-                    iter,
-                    ParserMode::Partial,
-                )?);
-            }
+        if let Some(subtag) = iter.peek()
+            && subtags::Language::try_from_utf8(subtag).is_ok()
+        {
+            tlang = Some(parse_language_identifier_from_iter(
+                iter,
+                ParserMode::Partial,
+            )?);
         }
 
         let mut current_tkey = None;

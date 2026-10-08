@@ -39,6 +39,10 @@ constexpr size_t kDefaultMaxSettings = 10;
 // Default maximum total memory cap for Http2Session.
 constexpr uint64_t kDefaultMaxSessionMemory = 10000000;
 
+// Default connection-level flow control window (32MB) to improve throughput
+// on high-latency connections. See https://github.com/nodejs/node/issues/38426
+constexpr int32_t kDefaultConnectionWindowSize = 33554432;
+
 // These are the standard HTTP/2 defaults as specified by the RFC
 constexpr uint32_t DEFAULT_SETTINGS_HEADER_TABLE_SIZE = 4096;
 constexpr uint32_t DEFAULT_SETTINGS_ENABLE_PUSH = 1;
@@ -50,10 +54,6 @@ constexpr uint32_t DEFAULT_SETTINGS_ENABLE_CONNECT_PROTOCOL = 0;
 constexpr uint32_t MAX_MAX_FRAME_SIZE = 16777215;
 constexpr uint32_t MIN_MAX_FRAME_SIZE = DEFAULT_SETTINGS_MAX_FRAME_SIZE;
 constexpr uint32_t MAX_INITIAL_WINDOW_SIZE = 2147483647;
-
-// Default local connection window size (32MB) to improve throughput
-// on high-latency connections. See https://github.com/nodejs/node/issues/38426
-constexpr uint32_t DEFAULT_SETTINGS_LOCAL_CONNECTION_WINDOW_SIZE = 33554432;
 
 // Stream is not going to have any DATA frames
 constexpr int STREAM_OPTION_EMPTY_PAYLOAD = 0x1;
@@ -245,9 +245,16 @@ class Http2Options {
     return max_session_memory_;
   }
 
+  void set_connection_window_size(int32_t size) {
+    connection_window_size_ = size;
+  }
+
+  int32_t connection_window_size() const { return connection_window_size_; }
+
  private:
   Nghttp2OptionPointer options_;
   uint64_t max_session_memory_ = kDefaultMaxSessionMemory;
+  int32_t connection_window_size_ = kDefaultConnectionWindowSize;
   uint32_t max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
   PaddingStrategy padding_strategy_ = PADDING_STRATEGY_NONE;
   size_t max_outstanding_pings_ = kDefaultMaxPings;

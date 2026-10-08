@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,23 +20,18 @@
 #include "LIEF/MachO/VersionMin.hpp"
 #include "MachO/Structures.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 VersionMin::VersionMin(const details::version_min_command& version_cmd) :
-  LoadCommand::LoadCommand{LoadCommand::TYPE(version_cmd.cmd), version_cmd.cmdsize},
-  version_{{
-    static_cast<uint32_t>((version_cmd.version >> 16) & 0xFFFF),
-    static_cast<uint32_t>((version_cmd.version >>  8) & 0xFF),
-    static_cast<uint32_t>((version_cmd.version >>  0) & 0xFF)
-  }},
-  sdk_{{
-    static_cast<uint32_t>((version_cmd.sdk >> 16) & 0xFFFF),
-    static_cast<uint32_t>((version_cmd.sdk >>  8) & 0xFF),
-    static_cast<uint32_t>((version_cmd.sdk >>  0) & 0xFF)
-  }}
-{
-}
+  LoadCommand::LoadCommand{LoadCommand::TYPE(version_cmd.cmd),
+                           version_cmd.cmdsize},
+  version_{{static_cast<uint32_t>((version_cmd.version >> 16) & 0xFFFF),
+            static_cast<uint32_t>((version_cmd.version >> 8) & 0xFF),
+            static_cast<uint32_t>((version_cmd.version >> 0) & 0xFF)}},
+  sdk_{{static_cast<uint32_t>((version_cmd.sdk >> 16) & 0xFFFF),
+        static_cast<uint32_t>((version_cmd.sdk >> 8) & 0xFF),
+        static_cast<uint32_t>((version_cmd.sdk >> 0) & 0xFF)}} {}
 
 void VersionMin::accept(Visitor& visitor) const {
   visitor.visit(*this);
@@ -50,5 +45,4 @@ std::ostream& VersionMin::print(std::ostream& os) const {
 }
 
 
-}
 }

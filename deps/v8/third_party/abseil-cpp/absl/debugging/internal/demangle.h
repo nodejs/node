@@ -15,7 +15,9 @@
 #ifndef ABSL_DEBUGGING_INTERNAL_DEMANGLE_H_
 #define ABSL_DEBUGGING_INTERNAL_DEMANGLE_H_
 
+#include <cstddef>
 #include <string>
+
 #include "absl/base/config.h"
 
 namespace absl {

@@ -44,6 +44,10 @@ const TEST_CASES = require(fixtures.path('aead-vectors.js'));
 
 const errMessages = {
   auth: / auth/,
+  // OpenSSL 4.1 adds a provider error for AEAD tag mismatches.
+  // https://github.com/openssl/openssl/pull/32587
+  badDecrypt: hasOpenSSL(4, 1) ?
+    { code: 'ERR_OSSL_BAD_DECRYPT' } : /Unsupported state or unable to authenticate data/,
   state: / state/,
   FIPS: /not supported in FIPS mode/,
   length: /Invalid initialization vector/,
@@ -128,7 +132,8 @@ for (const test of TEST_CASES) {
         assert.strictEqual(msg, test.plain);
       } else {
         // Assert that final throws if input data could not be verified!
-        assert.throws(function() { decrypt.final('hex'); }, errMessages.auth);
+        assert.throws(function() { decrypt.final('hex'); },
+                      isCCM || isSIV ? errMessages.auth : errMessages.badDecrypt);
       }
     }
   }
@@ -358,7 +363,8 @@ for (const test of TEST_CASES) {
       decipher.update(ciphertext);
       assert.throws(() => {
         decipher.final();
-      }, /Unsupported state or unable to authenticate data/);
+      }, algo === 'aes-128-siv' ?
+        /Unsupported state or unable to authenticate data/ : errMessages.badDecrypt);
     }
   }
 }
@@ -969,7 +975,7 @@ if (!fips3 && !isBoringSSL) {
 
   assert.throws(() => {
     decipher.final();
-  }, /Unsupported state or unable to authenticate data/);
+  }, errMessages.badDecrypt);
 } else {
   common.printSkipMessage('Skipping unsupported chacha20-poly1305 test');
 }

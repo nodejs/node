@@ -233,7 +233,7 @@ inline T RoundingAverageUnsigned(T a, T b) {
 //   V(kField4Offset, kSystemPointerSize)
 //   V(kSize, 0)
 //
-// DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, MAP_FIELDS)
+// DEFINE_FIELD_OFFSET_CONSTANTS(sizeof(HeapObject), MAP_FIELDS)
 //
 #define DEFINE_ONE_FIELD_OFFSET(Name, Size, ...) \
   Name, Name##End = Name + (Size)-1,
@@ -269,45 +269,39 @@ inline T RoundingAverageUnsigned(T a, T b) {
 // ----------------------------------------------------------------------------
 // Hash function.
 
-// Thomas Wang, Integer Hash Functions.
-// http://www.concentric.net/~Ttwang/tech/inthash.htm`
-inline uint32_t ComputeUnseededHash(uint32_t key) {
-  uint32_t hash = key;
-  hash = ~hash + (hash << 15);  // hash = (hash << 15) - hash - 1;
-  hash = hash ^ (hash >> 12);
-  hash = hash + (hash << 2);
-  hash = hash ^ (hash >> 4);
-  hash = hash * 2057;  // hash = (hash + (hash << 3)) + (hash << 11);
-  hash = hash ^ (hash >> 16);
-  return hash & 0x3fffffff;
+// Smi-payload-sized integer hashes. Mask the canonical hash from
+// base::hash32 / base::hash64 with kSmiHashMask so the result is a
+// non-negative Smi payload, safe to pass to Smi::FromInt. Use only when the
+// result will actually be stored as a Smi field; for bucket-modulo or
+// comparison use base::hash32 / base::hash64 directly to preserve entropy.
+inline uint32_t SmiHash32(uint32_t key) {
+  return base::hash32(key) & kSmiHashMask;
 }
 
-inline uint32_t ComputeLongHash(uint64_t key) {
-  uint64_t hash = key;
-  hash = ~hash + (hash << 18);  // hash = (hash << 18) - hash - 1;
-  hash = hash ^ (hash >> 31);
-  hash = hash * 21;  // hash = (hash + (hash << 2)) + (hash << 4);
-  hash = hash ^ (hash >> 11);
-  hash = hash + (hash << 6);
-  hash = hash ^ (hash >> 22);
-  return static_cast<uint32_t>(hash & 0x3fffffff);
+// Block implicit narrowing into SmiHash32; 64-bit keys must use SmiHash64.
+uint32_t SmiHash32(uint64_t) = delete;
+
+inline uint32_t SmiHash64(uint64_t key) {
+  return static_cast<uint32_t>(base::hash64(key)) & kSmiHashMask;
 }
 
+// TODO(jgruber): Rename to reveal Smi-masking (e.g. SmiHashWithSeed).
 inline uint32_t ComputeSeededHash(uint32_t key, uint64_t seed) {
 #ifdef V8_USE_SIPHASH
   return halfsiphash(key, seed);
 #else
-  return ComputeLongHash(static_cast<uint64_t>(key) ^ seed);
+  return SmiHash64(key ^ seed);
 #endif  // V8_USE_SIPHASH
 }
 
+// TODO(jgruber): Rename to reveal Smi-masking (e.g. SmiHashPointer).
 inline uint32_t ComputePointerHash(void* ptr) {
-  return ComputeUnseededHash(
-      static_cast<uint32_t>(reinterpret_cast<intptr_t>(ptr)));
+  return SmiHash32(static_cast<uint32_t>(reinterpret_cast<intptr_t>(ptr)));
 }
 
+// TODO(jgruber): Rename to reveal Smi-masking (e.g. SmiHashAddress).
 inline uint32_t ComputeAddressHash(Address address) {
-  return ComputeUnseededHash(static_cast<uint32_t>(address & 0xFFFFFFFFul));
+  return SmiHash32(static_cast<uint32_t>(address & 0xFFFFFFFFul));
 }
 
 // ----------------------------------------------------------------------------

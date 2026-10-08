@@ -125,7 +125,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
 
     // The delayed task scheuler is on is own thread with its own loop that
     // runs the timers for the scheduled tasks to pop the original task back
-    // into the the worker task queue. This first pushes the tasks that
+    // into the worker task queue. This first pushes the tasks that
     // schedules the timers into the local task queue that will be flushed
     // by the local event loop.
     locked.Push(std::move(delayed));
@@ -159,7 +159,9 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
 
     // ScheduleTasks (start a timer that pops the task into the worker queue)
     // in posting order, then, once Stop() was called, the StopTask.
-    for (std::unique_ptr<Task>& task : scheduler->tasks_.Lock().PopAll()) {
+    std::vector<std::unique_ptr<Task>> tasks =
+        scheduler->tasks_.Lock().PopAll();
+    for (std::unique_ptr<Task>& task : tasks) {
       task->Run();
     }
   }
@@ -231,7 +233,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
   // to it when the timer expires.
   TaskQueue<TaskQueueEntry>* pending_worker_tasks_;
 
-  // Locally scheduled tasks to be poped into the worker task runner queue.
+  // Locally scheduled tasks to be popped into the worker task runner queue.
   // It is flushed whenever the next closest timer expires.
   TaskQueue<Task> tasks_;
   uv_loop_t loop_;
@@ -605,8 +607,9 @@ void NodePlatform::DrainTasks(Isolate* isolate) {
 bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
   bool did_work = false;
 
-  for (std::unique_ptr<DelayedTask>& delayed :
-       foreground_delayed_tasks_.Lock().PopAll()) {
+  std::vector<std::unique_ptr<DelayedTask>> delayed_tasks =
+      foreground_delayed_tasks_.Lock().PopAll();
+  for (std::unique_ptr<DelayedTask>& delayed : delayed_tasks) {
     did_work = true;
     uint64_t delay_millis = llround(delayed->timeout * 1000);
 
@@ -629,8 +632,9 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
         });
   }
 
-  for (std::unique_ptr<TaskQueueEntry>& entry :
-       foreground_tasks_.Lock().PopAll()) {
+  std::vector<std::unique_ptr<TaskQueueEntry>> tasks =
+      foreground_tasks_.Lock().PopAll();
+  for (std::unique_ptr<TaskQueueEntry>& entry : tasks) {
     did_work = true;
     RunForegroundTask(std::move(entry->task));
   }

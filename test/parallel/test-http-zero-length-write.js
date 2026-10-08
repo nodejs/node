@@ -75,7 +75,7 @@ const server = http.createServer(common.mustCall((req, res) => {
 }));
 
 server.listen(0, common.mustCall(function() {
-  const req = http.request({ port: this.address().port, method: 'POST' });
+  const req = http.request({ port: this.address().port, method: 'POST', agent: false });
   let actual = '';
   req.on('response', common.mustCall((res) => {
     res.setEncoding('utf8');

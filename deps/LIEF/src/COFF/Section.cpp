@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 #include <sstream>
 #include <spdlog/fmt/fmt.h>
 #include "LIEF/COFF/Section.hpp"
+#include "LIEF/COFF/String.hpp"
 #include "LIEF/COFF/Symbol.hpp"
 #include "LIEF/COFF/AuxiliarySymbol.hpp"
 #include "LIEF/COFF/AuxiliarySymbols/AuxiliarySectionDefinition.hpp"
@@ -53,7 +54,7 @@ std::unique_ptr<Section> Section::parse(BinaryStream& stream) {
 
 void Section::name(std::string name) {
   if (name.size() > LIEF::PE::Section::MAX_SECTION_NAME) {
-    LIEF_ERR("The max size of a section's name is {} vs {}",
+    LIEF_ERR("Section name exceeds max size: {} vs {}",
              LIEF::PE::Section::MAX_SECTION_NAME, name.size());
     return;
   }
@@ -105,7 +106,6 @@ optional<Section::ComdatInfo> Section::comdat_info() const {
 }
 
 std::string Section::to_string() const {
-  using namespace fmt;
   static constexpr auto WIDTH = 24;
   std::ostringstream os;
 
@@ -113,31 +113,41 @@ std::string Section::to_string() const {
   std::vector<std::string> list_str;
   list_str.reserve(list.size());
   std::transform(list.begin(), list.end(), std::back_inserter(list_str),
-                 [] (const auto c) { return COFF::to_string(c); });
+                 [](const auto c) { return COFF::to_string(c); });
 
   std::vector<std::string> fullname_hex;
   fullname_hex.reserve(name().size());
   std::transform(fullname().begin(), fullname().end(),
                  std::back_inserter(fullname_hex),
-                 [] (const char c) { return format("{:02x}", c); });
+                 [](const char c) { return fmt::format("{:02x}", c); });
 
-  os << format("{:{}} {} ({})\n", "Name:", WIDTH, name(),
-               join(fullname_hex, " "));
+  if (const String* coff_str = coff_string()) {
+    os << fmt::format("{:{}} {} ({}, {})\n", "Name:", WIDTH, name(),
+                      fmt::join(fullname_hex, " "), coff_str->str());
+  } else {
+    os << fmt::format("{:{}} {} ({})\n", "Name:", WIDTH, name(),
+                      fmt::join(fullname_hex, " "));
+  }
 
-  os << format("{:{}} 0x{:x}\n", "Virtual Size", WIDTH, virtual_size())
-     << format("{:{}} 0x{:x}\n", "Virtual Address", WIDTH, virtual_address())
-     << format("{:{}} 0x{:x}\n", "Size of raw data", WIDTH, sizeof_raw_data())
-     << format("{:{}} 0x{:x}\n", "Pointer to raw data", WIDTH, pointerto_raw_data())
-     << format("{:{}} [0x{:08x}, 0x{:08x}]\n", "Range", WIDTH,
-               pointerto_raw_data(), pointerto_raw_data() + sizeof_raw_data())
-     << format("{:{}} 0x{:x}\n", "Pointer to relocations", WIDTH, pointerto_relocation())
-     << format("{:{}} 0x{:x}\n", "Pointer to line numbers", WIDTH, pointerto_line_numbers())
-     << format("{:{}} 0x{:x}\n", "Number of relocations", WIDTH, numberof_relocations())
-     << format("{:{}} 0x{:x}\n", "Number of lines", WIDTH, numberof_line_numbers())
-     << format("{:{}} {}", "Characteristics", WIDTH, join(list_str, ", "));
+  os << fmt::format("{:{}} {:#x}\n", "Virtual Size", WIDTH, virtual_size())
+     << fmt::format("{:{}} {:#x}\n", "Virtual Address", WIDTH, virtual_address())
+     << fmt::format("{:{}} {:#x}\n", "Size of raw data", WIDTH, sizeof_raw_data())
+     << fmt::format("{:{}} {:#x}\n", "Pointer to raw data", WIDTH,
+                    pointerto_raw_data())
+     << fmt::format("{:{}} [{:#010x}, {:#010x}]\n", "Range", WIDTH,
+                    pointerto_raw_data(), pointerto_raw_data() + sizeof_raw_data())
+     << fmt::format("{:{}} {:#x}\n", "Pointer to relocations", WIDTH,
+                    pointerto_relocation())
+     << fmt::format("{:{}} {:#x}\n", "Pointer to line numbers", WIDTH,
+                    pointerto_line_numbers())
+     << fmt::format("{:{}} {:#x}\n", "Number of relocations", WIDTH,
+                    numberof_relocations())
+     << fmt::format("{:{}} {:#x}\n", "Number of lines", WIDTH,
+                    numberof_line_numbers())
+     << fmt::format("{:{}} {}", "Characteristics", WIDTH,
+                    fmt::join(list_str, ", "));
 
   return os.str();
-
 }
 
 }

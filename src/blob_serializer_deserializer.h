@@ -45,6 +45,9 @@ class BlobDeserializer : public BlobSerializerDeserializer {
 
   size_t read_total = 0;
   std::string_view sink;
+  // Cleared when a read would go past the end of `sink`; that read and all
+  // later ones yield zeroes and empty views, so callers can check at the end.
+  bool ok = true;
 
   Impl* impl() { return static_cast<Impl*>(this); }
   const Impl* impl() const { return static_cast<const Impl*>(this); }

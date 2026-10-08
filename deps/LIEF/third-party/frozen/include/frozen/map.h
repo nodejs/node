@@ -25,54 +25,55 @@
 
 #include "frozen/bits/algorithms.h"
 #include "frozen/bits/basic_types.h"
-#include "frozen/bits/constexpr_assert.h"
 #include "frozen/bits/exceptions.h"
+#include "frozen/bits/mpl.h"
 #include "frozen/bits/version.h"
 
+#include <iterator>
 #include <utility>
 
 namespace frozen {
 
 namespace impl {
 
-template <class Comparator> class CompareKey {
-
-  Comparator const comparator_;
-
+template <class Comparator> class CompareKey : private Comparator {
 public:
+  constexpr Comparator const& key_comp() const noexcept {
+    return static_cast<Comparator const&>(*this);
+  }
+
   constexpr CompareKey(Comparator const &comparator)
-      : comparator_(comparator) {}
+      : Comparator(comparator) {}
 
   template <class Key1, class Key2, class Value>
-  constexpr int operator()(std::pair<Key1, Value> const &self,
-                           std::pair<Key2, Value> const &other) const {
-    return comparator_(std::get<0>(self), std::get<0>(other));
+  constexpr auto operator()(std::pair<Key1, Value> const &self,
+                           std::pair<Key2, Value> const &other) const -> decltype(key_comp()(std::get<0>(self), std::get<0>(other))) {
+    return key_comp()(std::get<0>(self), std::get<0>(other));
   }
 
   template <class Key1, class Key2, class Value>
-  constexpr int operator()(Key1 const &self_key,
-                           std::pair<Key2, Value> const &other) const {
-    return comparator_(self_key, std::get<0>(other));
+  constexpr auto operator()(Key1 const &self_key,
+                           std::pair<Key2, Value> const &other) const -> decltype(key_comp()(self_key, std::get<0>(other))) {
+    return key_comp()(self_key, std::get<0>(other));
   }
 
   template <class Key1, class Key2, class Value>
-  constexpr int operator()(std::pair<Key1, Value> const &self,
-                           Key2 const &other_key) const {
-    return comparator_(std::get<0>(self), other_key);
+  constexpr auto operator()(std::pair<Key1, Value> const &self,
+                           Key2 const &other_key) const -> decltype(key_comp()(std::get<0>(self), other_key)) {
+    return key_comp()(std::get<0>(self), other_key);
   }
 
   template <class Key1, class Key2>
-  constexpr int operator()(Key1 const &self_key, Key2 const &other_key) const {
-    return comparator_(self_key, other_key);
+  constexpr auto operator()(Key1 const &self_key, Key2 const &other_key) const -> decltype(key_comp()(self_key, other_key)) {
+    return key_comp()(self_key, other_key);
   }
 };
 
 } // namespace impl
 
 template <class Key, class Value, std::size_t N, class Compare = std::less<Key>>
-class map {
-  using container_type = bits::carray<std::pair<Key, Value>, N>;
-  impl::CompareKey<Compare> less_than_;
+class map : private impl::CompareKey<Compare> {
+  using container_type = bits::carray<std::pair<const Key, Value>, N>;
   container_type items_;
 
 public:
@@ -81,29 +82,28 @@ public:
   using value_type = typename container_type::value_type;
   using size_type = typename container_type::size_type;
   using difference_type = typename container_type::difference_type;
-  using key_compare = decltype(less_than_);
+  using key_compare = Compare;
+  using value_compare = impl::CompareKey<Compare>;
   using reference = typename container_type::reference;
   using const_reference = typename container_type::const_reference;
   using pointer = typename container_type::pointer;
   using const_pointer = typename container_type::const_pointer;
   using iterator = typename container_type::iterator;
   using const_iterator = typename container_type::const_iterator;
-  using reverse_iterator = typename container_type::reverse_iterator;
-  using const_reverse_iterator =
-      typename container_type::const_reverse_iterator;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
 public:
   /* constructors */
   constexpr map(container_type items, Compare const &compare)
-      : less_than_{compare}
-      , items_{bits::quicksort(items, less_than_)} {}
+      : impl::CompareKey<Compare>{compare}
+      , items_{bits::quicksort(bits::remove_cv_t<container_type>(items), value_comp())} {}
 
   explicit constexpr map(container_type items)
       : map{items, Compare{}} {}
 
   constexpr map(std::initializer_list<value_type> items, Compare const &compare)
       : map{container_type {items}, compare} {
-        constexpr_assert(items.size() == N, "Inconsistent initializer_list size and type size argument");
       }
 
   constexpr map(std::initializer_list<value_type> items)
@@ -120,17 +120,17 @@ public:
   /* iterators */
   constexpr iterator begin() { return items_.begin(); }
   constexpr const_iterator begin() const { return items_.begin(); }
-  constexpr const_iterator cbegin() const { return items_.cbegin(); }
+  constexpr const_iterator cbegin() const { return items_.begin(); }
   constexpr iterator end() { return items_.end(); }
   constexpr const_iterator end() const { return items_.end(); }
-  constexpr const_iterator cend() const { return items_.cend(); }
+  constexpr const_iterator cend() const { return items_.end(); }
 
-  constexpr reverse_iterator rbegin() { return items_.rbegin(); }
-  constexpr const_reverse_iterator rbegin() const { return items_.rbegin(); }
-  constexpr const_reverse_iterator crbegin() const { return items_.crbegin(); }
-  constexpr reverse_iterator rend() { return items_.rend(); }
-  constexpr const_reverse_iterator rend() const { return items_.rend(); }
-  constexpr const_reverse_iterator crend() const { return items_.crend(); }
+  constexpr reverse_iterator rbegin() { return reverse_iterator{items_.end()}; }
+  constexpr const_reverse_iterator rbegin() const { return const_reverse_iterator{items_.end()}; }
+  constexpr const_reverse_iterator crbegin() const { return const_reverse_iterator{items_.end()}; }
+  constexpr reverse_iterator rend() { return reverse_iterator{items_.begin()}; }
+  constexpr const_reverse_iterator rend() const { return const_reverse_iterator{items_.begin()}; }
+  constexpr const_reverse_iterator crend() const { return const_reverse_iterator{items_.begin()}; }
 
   /* capacity */
   constexpr bool empty() const { return !N; }
@@ -141,7 +141,7 @@ public:
   
   template <class KeyType>
   constexpr std::size_t count(KeyType const &key) const {
-    return bits::binary_search<N>(items_.begin(), key, less_than_);
+    return bits::binary_search<N>(items_.begin(), key, value_comp());
   }
   
   template <class KeyType>
@@ -187,8 +187,8 @@ public:
   }
 
   /* observers */
-  constexpr const key_compare& key_comp() const { return less_than_; }
-  constexpr const key_compare& value_comp() const { return less_than_; }
+  constexpr const key_compare& key_comp() const { return value_comp().key_comp(); }
+  constexpr const value_compare& value_comp() const { return static_cast<impl::CompareKey<Compare> const&>(*this); }
 
  private:
   template <class This, class KeyType>
@@ -203,7 +203,7 @@ public:
   template <class This, class KeyType>
   static inline constexpr auto find_impl(This&& self, KeyType const &key) {
     auto where = self.lower_bound(key);
-    if (where != self.end() && !self.less_than_(key, *where))
+    if (where != self.end() && !self.value_comp()(key, *where))
       return where;
     else
       return self.end();
@@ -213,7 +213,7 @@ public:
   static inline constexpr auto equal_range_impl(This&& self, KeyType const &key) {
     auto lower = self.lower_bound(key);
     using lower_t = decltype(lower);
-    if (lower != self.end() && !self.less_than_(key, *lower))
+    if (lower != self.end() && !self.value_comp()(key, *lower))
       return std::pair<lower_t, lower_t>{lower, lower + 1};
     else
       return std::pair<lower_t, lower_t>{lower, lower};
@@ -221,13 +221,13 @@ public:
 
   template <class This, class KeyType>
   static inline constexpr auto lower_bound_impl(This&& self, KeyType const &key) -> decltype(self.end()) {
-    return bits::lower_bound<N>(self.items_.begin(), key, self.less_than_);
+    return bits::lower_bound<N>(self.items_.begin(), key, self.value_comp());
   }
 
   template <class This, class KeyType>
   static inline constexpr auto upper_bound_impl(This&& self, KeyType const &key) {
     auto lower = self.lower_bound(key);
-    if (lower != self.end() && !self.less_than_(key, *lower))
+    if (lower != self.end() && !self.value_comp()(key, *lower))
       return lower + 1;
     else
       return lower;
@@ -235,9 +235,8 @@ public:
 };
 
 template <class Key, class Value, class Compare>
-class map<Key, Value, 0, Compare> {
+class map<Key, Value, 0, Compare> : private impl::CompareKey<Compare> {
   using container_type = bits::carray<std::pair<Key, Value>, 0>;
-  impl::CompareKey<Compare> less_than_;
 
 public:
   using key_type = Key;
@@ -245,7 +244,8 @@ public:
   using value_type = typename container_type::value_type;
   using size_type = typename container_type::size_type;
   using difference_type = typename container_type::difference_type;
-  using key_compare = decltype(less_than_);
+  using key_compare = Compare;
+  using value_compare = impl::CompareKey<Compare>;
   using reference = typename container_type::reference;
   using const_reference = typename container_type::const_reference;
   using pointer = typename container_type::pointer;
@@ -259,7 +259,7 @@ public:
   /* constructors */
   constexpr map(const map &other) = default;
   constexpr map(std::initializer_list<value_type>, Compare const &compare)
-      : less_than_{compare} {}
+      : impl::CompareKey<Compare>{compare} {}
   constexpr map(std::initializer_list<value_type> items)
       : map{items, Compare{}} {}
 
@@ -321,8 +321,8 @@ public:
   constexpr iterator upper_bound(KeyType const &) { return end(); }
 
 /* observers */
-  constexpr key_compare const& key_comp() const { return less_than_; }
-  constexpr key_compare const& value_comp() const { return less_than_; }
+  constexpr key_compare const& key_comp() const { return value_comp().key_comp(); }
+  constexpr value_compare const& value_comp() const { return static_cast<impl::CompareKey<Compare> const&>(*this); }
 };
 
 template <typename T, typename U, typename Compare = std::less<T>>

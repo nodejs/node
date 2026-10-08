@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-turbo-inline-js-wasm-calls --no-turbolev-inline-js-wasm-wrappers
+// Flags: --no-turbo-inline-js-wasm-calls --no-wasm-in-js-inlining-wrapper --no-wasm-in-js-inlining-body
 
 let {session, contextGroup, Protocol} = InspectorTest.start(
     'Test that console profiles contain wasm function names.');

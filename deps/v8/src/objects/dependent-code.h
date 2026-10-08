@@ -6,10 +6,10 @@
 #define V8_OBJECTS_DEPENDENT_CODE_H_
 
 #include "src/objects/fixed-array.h"
+#include "src/roots/roots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
-#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {
@@ -31,6 +31,8 @@ using DependableObject =
 // contents may shrink).
 // TODO(jgruber): Consider adding physical shrinking.
 class DependentCode : public WeakArrayList {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   enum DependencyGroup {
     // Group of code objects that embed a transition to this map, and depend on
@@ -137,8 +139,6 @@ class DependentCode : public WeakArrayList {
   static constexpr int LengthFor(int number_of_entries) {
     return number_of_entries * kSlotsPerEntry;
   }
-
-  OBJECT_CONSTRUCTORS(DependentCode, WeakArrayList);
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(DependentCode::DependencyGroups)

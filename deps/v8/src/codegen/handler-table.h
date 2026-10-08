@@ -62,23 +62,23 @@ class V8_EXPORT_PRIVATE HandlerTable {
   explicit HandlerTable(const wasm::WasmCode* code);
 #endif  // V8_ENABLE_WEBASSEMBLY
   explicit HandlerTable(Tagged<BytecodeArray> bytecode_array);
-  HandlerTable(Address handler_table, int handler_table_size,
+  HandlerTable(Address handler_table, uint32_t handler_table_size,
                EncodingMode encoding_mode);
 
   // Getters for handler table based on ranges.
-  int GetRangeStart(int index) const;
-  int GetRangeEnd(int index) const;
-  int GetRangeHandler(int index) const;
-  int GetRangeData(int index) const;
+  int GetRangeStart(uint32_t index) const;
+  int GetRangeEnd(uint32_t index) const;
+  int GetRangeHandler(uint32_t index) const;
+  int GetRangeData(uint32_t index) const;
 
   // Setters for handler table based on ranges.
-  void SetRangeStart(int index, int value);
-  void SetRangeEnd(int index, int value);
-  void SetRangeHandler(int index, int offset, CatchPrediction pred);
-  void SetRangeData(int index, int value);
+  void SetRangeStart(uint32_t index, int value);
+  void SetRangeEnd(uint32_t index, int value);
+  void SetRangeHandler(uint32_t index, int offset, CatchPrediction pred);
+  void SetRangeData(uint32_t index, int value);
 
   // Returns the required length of the underlying byte array.
-  static int LengthForRange(int entries);
+  static uint32_t LengthForRange(uint32_t entries);
 
   // Emitters for handler table based on return addresses.
   static int EmitReturnTableStart(Assembler* masm);
@@ -93,32 +93,32 @@ class V8_EXPORT_PRIVATE HandlerTable {
   int LookupReturn(int pc_offset);
 
   // Returns the number of entries in the table.
-  int NumberOfRangeEntries() const;
-  int NumberOfReturnEntries() const;
+  uint32_t NumberOfRangeEntries() const;
+  uint32_t NumberOfReturnEntries() const;
 
 #ifdef ENABLE_DISASSEMBLER
   void HandlerTableRangePrint(std::ostream& os);
   void HandlerTableReturnPrint(std::ostream& os);
 #endif
 
-  bool HandlerWasUsed(int index) const;
-  void MarkHandlerUsed(int index);
+  bool HandlerWasUsed(uint32_t index) const;
+  void MarkHandlerUsed(uint32_t index);
   // Getters for handler table based on ranges.
-  CatchPrediction GetRangePrediction(int index) const;
+  CatchPrediction GetRangePrediction(uint32_t index) const;
 
   static const int kNoHandlerFound = -1;
 
  private:
   // Gets entry size based on mode.
   static int EntrySizeFromMode(EncodingMode mode);
-  int GetRangeHandlerBitfield(int index) const;
+  int GetRangeHandlerBitfield(uint32_t index) const;
 
   // Getters for handler table based on return addresses.
-  int GetReturnOffset(int index) const;
-  int GetReturnHandler(int index) const;
+  int GetReturnOffset(uint32_t index) const;
+  int GetReturnHandler(uint32_t index) const;
 
   // Number of entries in the loaded handler table.
-  const int number_of_entries_;
+  const uint32_t number_of_entries_;
 
 #ifdef DEBUG
   // The encoding mode of the table. Mostly useful for debugging to check that

@@ -73,12 +73,11 @@ connector shared by every pooled client.
 
 > [!NOTE]
 > `Pool` inherits all {ClientOptions}, including `allowH2` and
-> `maxConcurrentStreams`. With the default unlimited `connections`, the pool
-> opens a new client - and therefore a new TCP/TLS socket - per concurrent
-> dispatch, which defeats HTTP/2 multiplexing over a shared session. To benefit
-> from h2 multiplexing on a single session, cap `connections` (for example
-> `connections: 1`) so that concurrent requests share a session up to
-> `maxConcurrentStreams`.
+> `maxConcurrentStreams`. For an h2-capable HTTPS origin, the pool waits for
+> the first TLS connection to finish ALPN negotiation before opening more
+> clients. If the server selects h2, concurrent requests share that session up
+> to `maxConcurrentStreams`. If it selects HTTP/1.1, the pool resumes normal
+> connection fan-out up to `connections`.
 
 ```mjs
 import { Pool } from 'undici'

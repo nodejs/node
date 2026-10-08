@@ -116,7 +116,7 @@ class gaussian_distribution : random_internal::gaussian_distribution_base {
     result_type stddev_;
 
     static_assert(
-        std::is_floating_point<RealType>::value,
+        std::is_floating_point_v<RealType>,
         "Class-template absl::gaussian_distribution<> must be parameterized "
         "using a floating-point type.");
   };

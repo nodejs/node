@@ -2,7 +2,7 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-//! Test utilities, primarily targeted to custom LiteMap stores.
+//! Test utilities, primarily targeted to custom [`LiteMap`] stores.
 
 use crate::store::*;
 use crate::LiteMap;
@@ -115,7 +115,7 @@ where
 /// Tests that a litemap that uses the given store as backend has behavior consistent with the
 /// reference impl.
 ///
-/// Call this function in a test with the store impl to test as a valid backend for LiteMap.
+/// Call this function in a test with the store impl to test as a valid backend for [`LiteMap`].
 // Test code
 #[expect(clippy::expect_used)]
 pub fn check_store<'a, S>()

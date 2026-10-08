@@ -14,11 +14,6 @@
 
 #include "absl/base/internal/sysinfo.h"
 
-#ifndef _WIN32
-#include <sys/types.h>
-#include <unistd.h>
-#endif
-
 #include <thread>  // NOLINT(build/c++11)
 #include <unordered_set>
 #include <vector>
@@ -26,6 +21,11 @@
 #include "gtest/gtest.h"
 #include "absl/synchronization/barrier.h"
 #include "absl/synchronization/mutex.h"
+
+#ifndef _WIN32
+#include <sys/types.h>
+#include <unistd.h>
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

@@ -1,4 +1,9 @@
 all: \
+  name-constraints-ca-cert.pem \
+  name-constraints-permitted-cert.pem \
+  name-constraints-excluded-cert.pem \
+  name-constraints-dns-san-cert.pem \
+  name-constraints-email-san-cert.pem \
   ca1-cert.pem \
   ca2-cert.pem \
   ca2-crl.pem \
@@ -7,6 +12,7 @@ all: \
   ca4-cert.pem \
   ca5-cert.pem \
   ca6-cert.pem \
+  cert-without-key-fips.pfx \
   agent1-cert.pem \
   agent1-fips.pfx \
   agent1.pfx \
@@ -816,6 +822,18 @@ ec-fips.pfx: ec-cert.pem ec-key.pem
 		-out ec-fips.pfx \
 		-password pass:password
 
+# A bundle of certificates with no private key. See agent1-fips.pfx for why the
+# FIPS fixture uses PBMAC1.
+cert-without-key-fips.pfx: ca1-cert.pem
+	openssl pkcs12 -export \
+		-nokeys \
+		-certpbe AES-256-CBC \
+		-iter 2048 \
+		-pbmac1_pbkdf2 \
+		-in ca1-cert.pem \
+		-out cert-without-key-fips.pfx \
+		-password pass:password
+
 dh512.pem:
 	openssl dhparam -out dh512.pem 512
 
@@ -844,7 +862,8 @@ dsa_private.pem: dsa_params.pem
 	openssl gendsa -out dsa_private.pem dsa_params.pem
 
 dsa_private_encrypted.pem: dsa_private.pem
-	openssl dsa -aes256 -in dsa_private.pem -passout 'pass:password' -out dsa_private_encrypted.pem
+	openssl pkcs8 -topk8 -v2 aes-256-cbc -v2prf hmacWithSHA256 -iter 2048 -saltlen 16 \
+	  -in $< -passout 'pass:password' -out $@
 
 dsa_private_pkcs8.pem: dsa_private.pem
 	openssl pkcs8 -topk8 -inform PEM -outform PEM -in dsa_private.pem -out dsa_private_pkcs8.pem -nocrypt
@@ -868,7 +887,8 @@ rsa_private.pem:
 	openssl genrsa -out rsa_private.pem 2048
 
 rsa_private_encrypted.pem: rsa_private.pem
-	openssl rsa -aes256 -in rsa_private.pem -passout 'pass:password' -out rsa_private_encrypted.pem
+	openssl pkcs8 -topk8 -v2 aes-256-cbc -v2prf hmacWithSHA256 -iter 2048 -saltlen 16 \
+	  -in $< -passout 'pass:password' -out $@
 
 rsa_private_pkcs8.pem: rsa_private.pem
 	openssl pkcs8 -topk8 -inform PEM -outform PEM -in rsa_private.pem -out rsa_private_pkcs8.pem -nocrypt
@@ -1242,6 +1262,30 @@ irrelevant_san_correct_subject-cert.pem: irrelevant_san_correct_subject-key.pem
 
 irrelevant_san_correct_subject-key.pem:
 	openssl ecparam -name prime256v1 -genkey -noout -out irrelevant_san_correct_subject-key.pem
+
+# Certificates for DNS name constraints with CN fallback.
+# Reuse the existing ca1 and agent1 private keys.
+name-constraints-ca-cert.pem: name-constraints.cnf ca1-key.pem
+	openssl req -new -x509 -sha256 -days 99999 -set_serial 1 \
+		-config name-constraints.cnf -key ca1-key.pem \
+		-passin "pass:password" -out $@
+
+name-constraints-permitted-cert.pem: CN = www.example.com
+name-constraints-permitted-cert.pem: SERIAL = 2
+name-constraints-excluded-cert.pem: SERIAL = 3
+name-constraints-dns-san-cert.pem: SERIAL = 4
+name-constraints-email-san-cert.pem: SERIAL = 5
+name-constraints-%-cert.pem: CN = outside.invalid
+name-constraints-%-cert.pem: name-constraints.cnf name-constraints-ca-cert.pem ca1-key.pem agent1-key.pem
+	openssl req -new -config name-constraints.cnf -key agent1-key.pem \
+		-subj "/CN=$(CN)/emailAddress=subject@example.com" \
+		-out name-constraints-$*-csr.pem
+	openssl x509 -req -sha256 -days 99999 -set_serial $(SERIAL) \
+		-in name-constraints-$*-csr.pem \
+		-CA name-constraints-ca-cert.pem -CAkey ca1-key.pem \
+		-passin "pass:password" -extfile name-constraints.cnf \
+		-extensions $* -out $@
+	rm name-constraints-$*-csr.pem
 
 clean:
 	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-crl-agent3-database.txt* ca2-crl-agent3.cnf ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem

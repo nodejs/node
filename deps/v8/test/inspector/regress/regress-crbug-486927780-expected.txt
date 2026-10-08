@@ -1,0 +1,1 @@
+Tests that destroying context from inside of console.log does not crash

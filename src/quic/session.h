@@ -518,6 +518,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void AddStream(BaseObjectPtr<Stream> stream,
                  CreateStreamOption option = CreateStreamOption::NOTIFY);
   void RemoveStream(stream_id id);
+
+  void ExtendMaxStreams(stream_id id);
   void ResumeStream(stream_id id);
   void StreamDataBlocked(stream_id id);
   void ShutdownStream(stream_id id, QuicError error = QuicError());
@@ -534,7 +536,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void set_priority_supported(bool on = true);
 
   // Open a new locally-initialized stream with the specified directionality.
-  // If the session is not yet in a state where the stream can be openen --
+  // If the session is not yet in a state where the stream can be opened --
   // such as when the handshake is not yet sufficiently far along and ORTT
   // session resumption is not being used -- then the stream will be created
   // in a pending state where actually opening the stream will be deferred.
@@ -551,8 +553,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
   // Open a unidirectional stream, setting *id on success, or returning false
   bool OpenUnidirectionalStream(stream_id* id);
-
-  void ExtendMaxStreams(Direction direction, uint64_t max);
 
   // Signal that we've consumed `len` bytes on stream `id` to update flow
   // control

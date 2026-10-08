@@ -25,6 +25,10 @@
 let
   useSharedAbseil = builtins.elem "--shared-abseil" configureFlags;
   useSharedHighway = builtins.elem "--shared-highway" configureFlags;
+  useSharedPerfetto = builtins.elem "--shared-perfetto" configureFlags;
+  useSharedSimdutf = builtins.elem "--shared-simdutf" configureFlags;
+  useSharedTemporal = builtins.elem "--shared-temporal_capi" configureFlags;
+
   src =
     let
       inherit (lib) fileset;
@@ -47,9 +51,16 @@ let
       ]
       ++ lib.optional (!useSharedAbseil) ../../tools/v8_gypfiles/abseil.gyp
       ++ lib.optional (!useSharedHighway) ../../tools/v8_gypfiles/highway.gyp
-      ++ lib.optionals (builtins.elem "--with-perfetto" configureFlags) [
-        ../../deps/perfetto
-      ]
+      ++ lib.optional (!useSharedSimdutf) ../../tools/v8_gypfiles/simdutf.gyp
+      ++ lib.optional (
+        if useSharedTemporal then
+          icu == null
+        else
+          !(builtins.elem "--v8-disable-temporal-support" configureFlags)
+      ) ../../deps/crates
+      ++ lib.optional (
+        builtins.elem "--with-perfetto" configureFlags && !useSharedPerfetto
+      ) ../../deps/perfetto
       ++ lib.optionals (icu != null) [
         ../../tools/icu/icu_versions.json
         ../../tools/icu/icu-system.gyp
@@ -75,6 +86,7 @@ let
           ]
           ++ lib.optional useSharedAbseil ../../deps/v8/third_party/abseil-cpp
           ++ lib.optional useSharedHighway ../../deps/v8/third_party/highway
+          ++ lib.optional useSharedSimdutf ../../deps/v8/third_party/simdutf
         ));
       trackedFiles =
         ({
@@ -107,14 +119,9 @@ stdenv.mkDerivation (finalAttrs: {
     else
       "${builtins.elemAt v8Version 0}.${builtins.elemAt v8Version 1}.${builtins.elemAt v8Version 2}.${builtins.elemAt v8Version 3}-${builtins.elemAt v8_embedder_string 0}";
 
-  patches = lib.optional (
-    # V8 accesses internal ICU headers and methods in the Temporal files.
-    !(builtins.isString icu) && builtins.elem "--v8-enable-temporal-support" configureFlags
-  ) ./temporal-no-vendored-icu.patch;
-
   # We need to patch tools/gyp/ to work from within Nix sandbox
   prePatch = ''
-    ${lib.optionalString (builtins.length finalAttrs.patches == 0) "patches=()"}
+    ${lib.optionalString (builtins.length (finalAttrs.patches or [ ]) == 0) "patches=()"}
     for patch in ${lib.concatStringsSep " " patches}; do
       filtered=$(mktemp)
       filterdiff -p1 -i 'tools/gyp/pylib/*' "$patch" > "$filtered"
@@ -200,7 +207,9 @@ stdenv.mkDerivation (finalAttrs: {
         ''
     }
 
-    install -Dm644 deps/v8/third_party/simdutf/simdutf.h -t $out/include
+    ${lib.optionalString (
+      !useSharedSimdutf
+    ) "install -Dm644 deps/v8/third_party/simdutf/simdutf.h -t $out/include"}
     find deps/v8/include -name '*.h' -print0 | while read -r -d "" file; do
       install -Dm644 "$file" -T "$out/include/''${file#deps/v8/include/}"
     done

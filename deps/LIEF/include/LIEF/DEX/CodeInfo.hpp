@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,13 +46,13 @@ class LIEF_API CodeInfo : public Object {
 
   ~CodeInfo() override;
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const CodeInfo& cinfo);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const CodeInfo& cinfo);
 
   private:
   uint16_t nb_registers_ = 0;
   uint16_t args_input_sizes_ = 0;
   uint16_t output_sizes_ = 0;
-
 };
 
 } // Namespace DEX

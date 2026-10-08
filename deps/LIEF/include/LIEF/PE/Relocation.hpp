@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,8 +46,8 @@ class LIEF_API Relocation : public Object {
   friend class Binary;
 
   public:
-  using entries_t        = std::vector<std::unique_ptr<RelocationEntry>>;
-  using it_entries       = ref_iterator<entries_t&, RelocationEntry*>;
+  using entries_t = std::vector<std::unique_ptr<RelocationEntry>>;
+  using it_entries = ref_iterator<entries_t&, RelocationEntry*>;
   using it_const_entries = const_ref_iterator<const entries_t&, RelocationEntry*>;
 
   Relocation();
@@ -65,7 +65,8 @@ class LIEF_API Relocation : public Object {
 
   void swap(Relocation& other);
 
-  /// The RVA for which the offset of the relocation entries (RelocationEntry) is added
+  /// The RVA for which the offset of the relocation entries (RelocationEntry) is
+  /// added
   uint32_t virtual_address() const {
     return virtual_address_;
   }
@@ -81,11 +82,11 @@ class LIEF_API Relocation : public Object {
   }
 
   /// Iterator over the RelocationEntry
-  it_const_entries entries() const {
+  it_const_entries entries() const LIEF_LIFETIMEBOUND {
     return entries_;
   }
 
-  it_entries entries() {
+  it_entries entries() LIEF_LIFETIMEBOUND {
     return entries_;
   }
 
@@ -97,11 +98,12 @@ class LIEF_API Relocation : public Object {
     block_size_ = block_size;
   }
 
-  RelocationEntry& add_entry(const RelocationEntry& entry);
+  RelocationEntry& add_entry(const RelocationEntry& entry) LIEF_LIFETIMEBOUND;
 
   void accept(Visitor& visitor) const override;
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const Relocation& relocation);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const Relocation& relocation);
 
   using relocations_t = std::vector<std::unique_ptr<Relocation>>;
 
@@ -115,4 +117,4 @@ class LIEF_API Relocation : public Object {
 
 }
 }
-#endif /* RELOCATION_H */
+#endif

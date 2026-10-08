@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,13 +21,13 @@
 #include "ELF/Structures.hpp"
 #include "LIEF/iostream.hpp"
 
-namespace LIEF {
-namespace ELF {
+
+namespace LIEF::ELF {
 
 template<class ELF_T>
 void CoreFile::read_files() {
   static constexpr auto MAX_ENTRIES = 6000;
-  using Elf_Addr      = typename ELF_T::Elf_Addr;
+  using Elf_Addr = typename ELF_T::Elf_Addr;
   using Elf_FileEntry = typename ELF_T::Elf_FileEntry;
 
   auto stream = SpanStream::from_vector(description_);
@@ -41,7 +41,7 @@ void CoreFile::read_files() {
   }
 
   if (*count > MAX_ENTRIES) {
-    LIEF_ERR("Too many entries ({} while limited at {})", *count, MAX_ENTRIES);
+    LIEF_ERR("Too many entries ({}, limit {})", *count, MAX_ENTRIES);
     return;
   }
 
@@ -52,26 +52,26 @@ void CoreFile::read_files() {
 
   page_size_ = *page_size;
   files_.resize(*count);
-  for (size_t i = 0; i < files_.size(); ++i) {
+  for (entry_t& file : files_) {
     auto entry = stream->read<Elf_FileEntry>();
     if (!entry) {
       break;
     }
-    files_[i] = {entry->start, entry->end, entry->file_ofs, ""};
+    file = {entry->start, entry->end, entry->file_ofs, ""};
   }
 
-  for (size_t i = 0; i < files_.size(); ++i) {
+  for (entry_t& file : files_) {
     auto path = stream->read_string();
     if (!path) {
       break;
     }
-    files_[i].path = std::move(*path);
+    file.path = std::move(*path);
   }
 }
 
 template<class ELF_T>
 void CoreFile::write_files() {
-  using Elf_Addr      = typename ELF_T::Elf_Addr;
+  using Elf_Addr = typename ELF_T::Elf_Addr;
   using Elf_FileEntry = typename ELF_T::Elf_FileEntry;
 
   vector_iostream ios;
@@ -81,8 +81,8 @@ void CoreFile::write_files() {
     Elf_FileEntry raw_entry;
     std::memset(&raw_entry, 0, sizeof(Elf_FileEntry));
 
-    raw_entry.start    = static_cast<Elf_Addr>(entry.start);
-    raw_entry.end      = static_cast<Elf_Addr>(entry.end);
+    raw_entry.start = static_cast<Elf_Addr>(entry.start);
+    raw_entry.end = static_cast<Elf_Addr>(entry.end);
     raw_entry.file_ofs = static_cast<Elf_Addr>(entry.file_ofs);
     ios.write(raw_entry);
   }
@@ -93,11 +93,11 @@ void CoreFile::write_files() {
   ios.move(description_);
 }
 
-CoreFile::CoreFile(ARCH arch, Header::CLASS cls, std::string name,
-                   uint32_t type, Note::description_t description) :
+CoreFile::CoreFile(ARCH arch, Header::CLASS cls, std::string name, uint32_t type,
+                   Note::description_t description) :
   Note(std::move(name), Note::TYPE::CORE_FILE, type, std::move(description), ""),
-  arch_(arch), class_(cls)
-{
+  arch_(arch),
+  class_(cls) {
 
   class_ == Header::CLASS::ELF32 ? read_files<details::ELF32>() :
                                    read_files<details::ELF64>();
@@ -108,7 +108,6 @@ void CoreFile::files(const CoreFile::files_t& files) {
   files_ = files;
   class_ == Header::CLASS::ELF32 ? write_files<details::ELF32>() :
                                    write_files<details::ELF64>();
-
 }
 
 void CoreFile::accept(Visitor& visitor) const {
@@ -128,10 +127,9 @@ void CoreFile::dump(std::ostream& os) const {
 }
 
 std::ostream& operator<<(std::ostream& os, const CoreFile::entry_t& entry) {
-  os << fmt::format("{}: [0x{:04x}, 0x{:04x}]@0x{:x}",
-                    entry.path, entry.start, entry.end, entry.file_ofs);
+  os << fmt::format("{}: [{:#06x}, {:#06x}]@{:#x}", entry.path, entry.start,
+                    entry.end, entry.file_ofs);
   return os;
 }
 
-} // namespace ELF
-} // namespace LIEF
+} // namespace LIEF::ELF

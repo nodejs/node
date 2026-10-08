@@ -11,6 +11,17 @@
 
 namespace node::quic {
 
+enum class HeadersKind : uint8_t {
+  HINTS,
+  INITIAL,
+  TRAILING,
+};
+
+enum class HeadersFlags : uint8_t {
+  NONE,
+  TERMINAL,
+};
+
 // An Application implements the ALPN-protocol specific semantics on behalf
 // of a QUIC Session.
 class Session::Application : public MemoryRetainer {
@@ -95,13 +106,10 @@ class Session::Application : public MemoryRetainer {
   // Application.
   virtual bool AcknowledgeStreamData(stream_id id, size_t datalen);
 
-  // Called to determine if a Header can be added to this application.
-  // Applications that do not support headers will always return false.
-  virtual bool CanAddHeader(size_t current_count,
-                            size_t current_headers_length,
-                            size_t this_header_length) {
-    return false;
-  }
+  // Called when a pending transport stream receives its stream ID. Protocols
+  // can use this to flush operations that require an opened stream. Returns
+  // false if deferred application data could not be submitted.
+  virtual bool StreamOpened(Stream& stream) { return true; }
 
   // Called when ngtcp2 reports NGTCP2_ERR_STREAM_SHUT_WR for a stream.
   // Applications that manage their own framing (e.g., HTTP/3) must inform
@@ -117,14 +125,6 @@ class Session::Application : public MemoryRetainer {
   // Called when the session determines that there is outbound data available
   // to send for the given stream.
   virtual void ResumeStream(stream_id id) {}
-
-  // Called when the Session determines that the maximum number of
-  // remotely-initiated unidirectional streams has been extended. Not all
-  // Application types will require this notification so the default is to do
-  // nothing.
-  virtual void ExtendMaxStreams(EndpointLabel label,
-                                Direction direction,
-                                uint64_t max_streams) {}
 
   // Returns true if the application manages stream FIN internally (e.g.,
   // HTTP/3 uses nghttp3 which sends FIN via the fin flag in writev_stream).
@@ -158,8 +158,14 @@ class Session::Application : public MemoryRetainer {
       SessionTicket::AppData::Source::Flag flag);
 
   // Notifies the Application that the identified stream has been closed.
-  virtual void ReceiveStreamClose(Stream* stream,
+  virtual void ReceiveStreamClose(stream_id id,
+                                  Stream* stream,
                                   QuicError&& error = QuicError());
+
+  // Notifies the Application that the Stream for the identified stream has
+  // been removed from the session and may be freed immediately afterwards.
+  // Applications caching the Stream pointer must drop it here.
+  virtual void StreamRemoved(stream_id id) {}
 
   // Notifies the Application that the identified stream has been reset.
   virtual void ReceiveStreamReset(Stream* stream,
@@ -173,12 +179,18 @@ class Session::Application : public MemoryRetainer {
   // Submits an outbound block of headers for the given stream. Not all
   // Application types will support headers, in which case this function
   // should return false.
-  virtual bool SendHeaders(const Stream& stream,
+  virtual bool SendHeaders(Stream& stream,
                            HeadersKind kind,
                            const v8::Local<v8::Array>& headers,
                            HeadersFlags flags = HeadersFlags::NONE) {
     return false;
   }
+
+  // Updates JavaScript callback interest for an application's stream header
+  // events. Applications without header semantics ignore this.
+  virtual void SetHeadersInterest(Stream& stream,
+                                  bool wants_headers,
+                                  bool wants_trailers) {}
 
   // Returns true if the application protocol supports sending and
   // receiving headers on streams (e.g. HTTP/3). Applications that

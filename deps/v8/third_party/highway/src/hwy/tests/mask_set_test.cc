@@ -115,7 +115,7 @@ struct TestSetBeforeFirst {
     const size_t N = Lanes(di);
     auto bool_lanes = AllocateAligned<TI>(N);
     HWY_ASSERT(bool_lanes);
-    memset(bool_lanes.get(), 0, N * sizeof(TI));
+    ZeroBytes(bool_lanes.get(), N * sizeof(TI));
 
     // For all combinations of zero/nonzero state of subset of lanes:
     const size_t max_lanes = AdjustedLog2Reps(HWY_MIN(N, size_t(6)));
@@ -149,7 +149,7 @@ struct TestSetAtOrBeforeFirst {
     const size_t N = Lanes(di);
     auto bool_lanes = AllocateAligned<TI>(N);
     HWY_ASSERT(bool_lanes);
-    memset(bool_lanes.get(), 0, N * sizeof(TI));
+    ZeroBytes(bool_lanes.get(), N * sizeof(TI));
 
     // For all combinations of zero/nonzero state of subset of lanes:
     const size_t max_lanes = AdjustedLog2Reps(HWY_MIN(N, size_t(6)));
@@ -183,7 +183,7 @@ struct TestSetOnlyFirst {
     const size_t N = Lanes(di);
     auto bool_lanes = AllocateAligned<TI>(N);
     HWY_ASSERT(bool_lanes);
-    memset(bool_lanes.get(), 0, N * sizeof(TI));
+    ZeroBytes(bool_lanes.get(), N * sizeof(TI));
     auto expected_lanes = AllocateAligned<TI>(N);
     HWY_ASSERT(expected_lanes);
 
@@ -194,7 +194,7 @@ struct TestSetOnlyFirst {
         bool_lanes[i] = (code & (1ull << i)) ? TI(1) : TI(0);
       }
 
-      memset(expected_lanes.get(), 0, N * sizeof(TI));
+      ZeroBytes(expected_lanes.get(), N * sizeof(TI));
       if (code != 0) {
         const size_t idx_of_first_lane =
             Num0BitsBelowLS1Bit_Nonzero64(static_cast<uint64_t>(code));
@@ -222,7 +222,7 @@ struct TestSetAtOrAfterFirst {
     const size_t N = Lanes(di);
     auto bool_lanes = AllocateAligned<TI>(N);
     HWY_ASSERT(bool_lanes);
-    memset(bool_lanes.get(), 0, N * sizeof(TI));
+    ZeroBytes(bool_lanes.get(), N * sizeof(TI));
 
     // For all combinations of zero/nonzero state of subset of lanes:
     const size_t max_lanes = AdjustedLog2Reps(HWY_MIN(N, size_t(6)));

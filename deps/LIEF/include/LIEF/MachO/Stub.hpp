@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,9 @@
  */
 #ifndef LIEF_MACHO_STUB_H
 #define LIEF_MACHO_STUB_H
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
+
 #include "LIEF/span.hpp"
 #include "LIEF/iterators.hpp"
 #include "LIEF/errors.hpp"
@@ -53,14 +55,13 @@ class LIEF_API Stub {
     Header::CPU_TYPE arch;
     uint32_t subtype = 0;
     friend bool operator==(const Stub::target_info_t& lhs,
-                           const Stub::target_info_t& rhs)
-    {
+                           const Stub::target_info_t& rhs) {
       return lhs.arch == rhs.arch && lhs.subtype == rhs.subtype;
     }
   };
-  class LIEF_API Iterator :
-    public iterator_facade_base<Iterator, std::random_access_iterator_tag, const Stub>
-  {
+  class LIEF_API Iterator
+    : public iterator_facade_base<Iterator, std::random_access_iterator_tag,
+                                  const Stub> {
     public:
     Iterator() = default;
 
@@ -68,9 +69,7 @@ class LIEF_API Stub {
              size_t pos) :
       target_info_(target_info),
       stubs_(std::move(sections)),
-      pos_(pos)
-    {
-    }
+      pos_(pos) {}
 
     Iterator(const Iterator&) = default;
     Iterator& operator=(const Iterator&) = default;
@@ -114,6 +113,7 @@ class LIEF_API Stub {
     std::vector<const Section*> stubs_;
     size_t pos_ = 0;
   };
+
   public:
   Stub() = delete;
   Stub(const Stub&) = default;
@@ -126,11 +126,10 @@ class LIEF_API Stub {
   Stub(target_info_t target_info, uint64_t addr, std::vector<uint8_t> raw) :
     target_info_(target_info),
     address_(addr),
-    raw_(std::move(raw))
-  {}
+    raw_(std::move(raw)) {}
 
   /// The (raw) instructions of this entry as a slice of bytes
-  span<const uint8_t> raw() const {
+  span<const uint8_t> raw() const LIEF_LIFETIMEBOUND {
     return raw_;
   }
 
@@ -159,7 +158,7 @@ class LIEF_API Stub {
   private:
   target_info_t target_info_;
   uint64_t address_ = 0;
-  [[maybe_unused]] mutable uint64_t target_addr_ = 0;
+  LIEF_MAYBE_UNUSED mutable uint64_t target_addr_ = 0;
   std::vector<uint8_t> raw_;
 };
 

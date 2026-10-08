@@ -30,6 +30,11 @@
 #include "absl/base/internal/thread_identity.h"
 #include "absl/synchronization/internal/create_thread_identity.h"
 #include "absl/synchronization/internal/kernel_timeout.h"
+#include "absl/time/time.h"
+
+namespace gloop_do_not_use {
+struct SynchronizationBenchmarkPeer;
+}  // namespace gloop_do_not_use
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -74,9 +79,14 @@ class PerThreadSem {
   // !t.has_timeout() => Wait(t) will return true.
   static inline bool Wait(KernelTimeout t);
 
+  // Waits until either our count > 0 or the absolute time t has passed.
+  // If count > 0, decrements count and returns true.  Otherwise returns false.
+  static inline bool WaitAbsolute(absl::Time t);
+
   // Permitted callers.
   friend class PerThreadSemTest;
   friend class absl::Mutex;
+  friend struct ::gloop_do_not_use::SynchronizationBenchmarkPeer;
   friend void OneTimeInitThreadIdentity(absl::base_internal::ThreadIdentity*);
 };
 
@@ -114,6 +124,10 @@ void absl::synchronization_internal::PerThreadSem::Post(
 bool absl::synchronization_internal::PerThreadSem::Wait(
     absl::synchronization_internal::KernelTimeout t) {
   return ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemWait)(t);
+}
+
+bool absl::synchronization_internal::PerThreadSem::WaitAbsolute(absl::Time t) {
+  return Wait(KernelTimeout(t));
 }
 
 #endif  // ABSL_SYNCHRONIZATION_INTERNAL_PER_THREAD_SEM_H_

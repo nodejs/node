@@ -1,6 +1,7 @@
 'use strict';
 
 const { spawn, fork } = require('node:child_process');
+const { closeSync, openSync, writeSync } = require('node:fs');
 const { inspect } = require('util');
 const path = require('path');
 const CLI = require('./_cli.js');
@@ -27,7 +28,9 @@ const cli = new CLI(`usage: ./node compare.js [options] [--] <category> ...
   --no-progress                 don't show benchmark progress indicator
   --analyze                     perform statistical analysis after benchmarks
                                 complete (Welch's t-test, effect size) instead
-                                of printing csv output
+                                of printing csv output to stdout
+  --csv      filename           write csv output to filename (can be combined
+                                with --analyze). Use - to write to stdout.
   --scale    1000               rate-to-integer multiplier for histogram
                                  precision when using --analyze (default: 1000)
   --max-regression  N           exit with code 1 if any statistically
@@ -60,6 +63,16 @@ if (benchmarks.length === 0) {
   return;
 }
 
+const cvsToStdout = cli.optional.csv === '-';
+const csvFd = cli.optional.csv === undefined || cvsToStdout ?
+  null :
+  openSync(cli.optional.csv, 'w');
+const outputCsv = !analyze || csvFd !== null || cvsToStdout;
+
+function writeCsv(line) {
+  writeSync(csvFd || process.stdout.fd, `${line}\n`);
+}
+
 // When --analyze is set, collect results for statistical analysis.
 const results = analyze ? new Map() : null;
 
@@ -78,17 +91,19 @@ for (const filename of benchmarks) {
 }
 // queue.length = binary.length * runs * benchmarks.length
 
-// Print csv header (unless analyzing inline).
-if (!analyze) {
-  console.log('"binary","filename","configuration","rate","time"');
+// Print csv header unless only analyzing inline.
+if (outputCsv) {
+  writeCsv('"binary","filename","configuration","rate","time"');
 }
 
 const kStartOfQueue = 0;
 
-const showProgress = !cli.optional['no-progress'];
+const showProgress = !cli.optional['no-progress'] && !cvsToStdout;
 let progress;
 if (showProgress) {
-  progress = new BenchmarkProgress(queue, benchmarks, { analyze });
+  progress = new BenchmarkProgress(queue, benchmarks, {
+    analyze: analyze || csvFd !== null,
+  });
   progress.startQueue(kStartOfQueue);
 }
 
@@ -126,11 +141,13 @@ if (showProgress) {
           results.set(name, { old: [], new: [] });
         }
         results.get(name)[job.binary].push(data.rate);
-      } else {
+      }
+
+      if (outputCsv) {
         // Escape quotes (") for correct csv formatting
-        conf = conf.replace(/"/g, '""');
-        console.log(`"${job.binary}","${job.filename}","${conf}",` +
-                    `${data.rate},${data.time}`);
+        const csvConf = conf.replace(/"/g, '""');
+        writeCsv(`"${job.binary}","${job.filename}","${csvConf}",` +
+                 `${data.rate},${data.time}`);
       }
       if (showProgress) {
         // One item in the subqueue has been completed.
@@ -153,8 +170,9 @@ if (showProgress) {
     // If there are more benchmarks execute the next
     if (i + 1 < queue.length) {
       recursive(i + 1);
-    } else if (analyze) {
-      printAnalysis(results, scale, maxRegression);
+    } else {
+      if (csvFd !== null) closeSync(csvFd);
+      if (analyze) printAnalysis(results, scale, maxRegression);
     }
   });
 })(kStartOfQueue);
@@ -261,41 +279,41 @@ function printAnalysis(results, scale, maxRegression) {
   const pad = (s, n) => s + ' '.repeat(Math.max(0, n - s.length));
   const rpad = (s, n) => ' '.repeat(Math.max(0, n - s.length)) + s;
 
-  console.log(`${pad('', maxNameLen)}  confidence` +
-              `   improvement   accuracy (*)    (**)   (***)`);
+  writeSync(process.stdout.fd, `${pad('', maxNameLen)}  confidence` +
+              `   improvement   accuracy (*)    (**)   (***)\n`);
 
   for (const row of rows) {
     const imp = `${row.improvement >= 0 ? '+' : ''}${row.improvement.toFixed(2)} %`;
-    console.log(
-      `${pad(row.name, maxNameLen)}  ${pad(row.stars, 10)}` +
+    writeSync(process.stdout.fd,
+              `${pad(row.name, maxNameLen)}  ${pad(row.stars, 10)}` +
       `  ${rpad(imp, 11)}` +
       `   ±${row.ci95.toFixed(2)}%` +
       `  ±${row.ci99.toFixed(2)}%` +
       `  ±${row.ci999.toFixed(2)}%` +
-      `${row.inconclusive ? '  (inconclusive)' : ''}`,
+      `${row.inconclusive ? '  (inconclusive)' : ''}\n`,
     );
   }
 
   if (skipped > 0) {
-    console.log('');
-    console.log(
-      `Note: ${skipped} configuration${skipped === 1 ? ' was' : 's were'}` +
+    writeSync(process.stdout.fd, '\n');
+    writeSync(process.stdout.fd,
+              `Note: ${skipped} configuration${skipped === 1 ? ' was' : 's were'}` +
       ` skipped because Welch's t-test requires at least 2 samples per` +
-      ` binary. Use --runs 2 or higher.`,
+      ` binary. Use --runs 2 or higher.\n`,
     );
   }
 
   // --- Bar chart visualization ---
   printChart(rows, maxNameLen);
 
-  console.log('');
-  console.log(
-    `Rates were scaled by ${scale}x into HdrHistogram (3 significant figures).\n` +
-    `Use --scale to adjust precision if needed.\n`,
+  writeSync(process.stdout.fd, '\n');
+  writeSync(process.stdout.fd,
+            `Rates were scaled by ${scale}x into HdrHistogram (3 significant figures).\n` +
+    `Use --scale to adjust precision if needed.\n\n`,
   );
   const anyFamilyWise = rows.filter((r) => r.pAdjusted < 0.05).length;
-  console.log(
-    `Be aware that when doing many comparisons the risk of a false-positive\n` +
+  writeSync(process.stdout.fd,
+            `Be aware that when doing many comparisons the risk of a false-positive\n` +
     `result increases. In this case, there are ${rows.length} comparisons, ` +
     `you can thus\nexpect the following amount of false-positive results:\n` +
     `  ${(rows.length * 0.05).toFixed(2)} false positives, when considering ` +
@@ -307,19 +325,19 @@ function printAnalysis(results, scale, maxRegression) {
     `\nThe stars above are per-benchmark and uncorrected. Adjusting for the ` +
     `size of\nthis comparison set (Holm-Bonferroni), ${anyFamilyWise} ` +
     `comparison${anyFamilyWise === 1 ? '' : 's'} remain${anyFamilyWise === 1 ? 's' : ''} ` +
-    `significant at 5%.\n--max-regression uses the corrected values.`,
+    `significant at 5%.\n--max-regression uses the corrected values.\n`,
   );
 
   // Gate: exit with error if any regression is shown to exceed the limit.
   if (maxRegression > 0) {
     if (underpowered > 0) {
-      console.log('');
-      console.log(
-        `Note: ${underpowered} of ${rows.length} comparison` +
+      writeSync(process.stdout.fd, '\n');
+      writeSync(process.stdout.fd,
+                `Note: ${underpowered} of ${rows.length} comparison` +
         `${rows.length === 1 ? '' : 's'} could not resolve an effect as ` +
         `small as ${maxRegression}%, and are marked (inconclusive). They are ` +
         `not\nevidence of no regression -- the samples are too noisy to tell. ` +
-        `Raise --runs,\nor pin cores with --set CPUSET, to narrow them.`,
+        `Raise --runs,\nor pin cores with --set CPUSET, to narrow them.\n`,
       );
     }
 
@@ -340,18 +358,18 @@ function printAnalysis(results, scale, maxRegression) {
     );
 
     if (failures.length > 0) {
-      console.log('');
-      console.log(
-        `FAIL: ${failures.length} benchmark${failures.length === 1 ? '' : 's'}` +
+      writeSync(process.stdout.fd, '\n');
+      writeSync(process.stdout.fd,
+                `FAIL: ${failures.length} benchmark${failures.length === 1 ? '' : 's'}` +
         ` regressed by more than ${maxRegression}%` +
         ` (interval excludes the threshold,\n` +
-        `family-wise corrected across ${rows.length} comparisons):`,
+        `family-wise corrected across ${rows.length} comparisons):\n`,
       );
       for (const f of failures) {
-        console.log(
-          `  ${f.name}  ${f.improvement.toFixed(2)}% ` +
+        writeSync(process.stdout.fd,
+                  `  ${f.name}  ${f.improvement.toFixed(2)}% ` +
           `(95% CI up to ${(f.improvement + f.ci95).toFixed(2)}%, ` +
-          `adjusted p=${f.pAdjusted.toExponential(2)})`,
+          `adjusted p=${f.pAdjusted.toExponential(2)})\n`,
         );
       }
       process.exitCode = 1;
@@ -388,8 +406,8 @@ function printChart(rows, maxNameLen) {
     axisCenter +
     ' '.repeat(Math.max(0, halfWidth - Math.ceil(axisCenter.length / 2) - axisRight.length)) +
     axisRight;
-  console.log('');
-  console.log(leftLabel);
+  writeSync(process.stdout.fd, '\n');
+  writeSync(process.stdout.fd, `${leftLabel}\n`);
 
   for (const row of rows) {
     const imp = row.improvement;
@@ -421,6 +439,6 @@ function printChart(rows, maxNameLen) {
 
     const label = `${row.improvement >= 0 ? '+' : ''}${row.improvement.toFixed(2)}%`;
     const sig = row.stars.trim();
-    console.log(`${pad(row.name, maxNameLen)}  ${chars.join('')}  ${label} ${sig}`);
+    writeSync(process.stdout.fd, `${pad(row.name, maxNameLen)}  ${chars.join('')}  ${label} ${sig}\n`);
   }
 }

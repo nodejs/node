@@ -189,14 +189,37 @@ const packument = (nv, opts) => {
     },
     purple: {
       name: 'purple',
+      'dist-tags': {
+        latest: '1.0.0',
+      },
       versions: {
         '1.0.0': {
+          version: '1.0.0',
           foo: 1,
+          metadata: {
+            channels: ['latest', 'next'],
+            empty: [],
+            release: {
+              stable: true,
+            },
+          },
+          items: [
+            { tags: ['one', 'two'] },
+          ],
           maintainers: [
             { name: 'claudia' },
           ],
         },
-        '1.0.1': {},
+        '1.0.1': {
+          version: '1.0.1',
+          metadata: {
+            channels: ['next'],
+            empty: [],
+            release: {
+              stable: false,
+            },
+          },
+        },
       },
     },
     green: {
@@ -394,7 +417,9 @@ const loadMockNpm = async function (t, opts = {}) {
 }
 
 t.test('package from git', async t => {
-  const { view, joinedOutput } = await loadMockNpm(t, { config: { unicode: false } })
+  const { view, joinedOutput } = await loadMockNpm(t, {
+    config: { unicode: false, 'allow-git': 'all' },
+  })
   await view.exec(['https://github.com/npm/green'])
   t.matchSnapshot(joinedOutput())
 })
@@ -465,6 +490,29 @@ t.test('package with --json and semver range', async t => {
   t.matchSnapshot(joinedOutput())
 })
 
+t.test('package with --json and single-match semver range preserves array output', async t => {
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
+  await view.exec(['single-version@^1'])
+  const parsed = JSON.parse(joinedOutput())
+  t.ok(Array.isArray(parsed), 'preserves the top-level array for semver ranges')
+  t.equal(parsed.length, 1, 'returns the single matching version in an array')
+  t.match(parsed[0], {
+    name: 'single-version',
+    version: '1.0.0',
+    dist: {
+      shasum: '123',
+      tarball: 'http://hm.single-version.com/1.0.0.tgz',
+      fileCount: 1,
+    },
+  }, 'returns the expected package data')
+})
+
+t.test('package field with --json and single-match semver range preserves array output', async t => {
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
+  await view.exec(['single-version@^1', 'version'])
+  t.strictSame(JSON.parse(joinedOutput()), ['1.0.0'], 'does not unwrap single field matches for semver ranges')
+})
+
 t.test('package with _npmUser.trustedPublisher shows cleaned up property with --json', async t => {
   const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
   await view.exec(['cyan-oidc@^1.0.0'])
@@ -480,7 +528,119 @@ t.test('package with --json and no versions', async t => {
 t.test('package with --json and single string arg', async t => {
   const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
   await view.exec(['blue', 'dist-tags.latest'])
-  t.equal(JSON.parse(joinedOutput()), '1.0.0', 'no info to display')
+  t.strictSame(JSON.parse(joinedOutput()), ['1.0.0'], 'returns single string value as array')
+})
+
+t.test('package with --json and array-valued field', async t => {
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
+  await view.exec(['blue', 'versions'])
+  t.strictSame(
+    JSON.parse(joinedOutput()),
+    ['1.0.0', '1.0.1'],
+    'returns the field value without an additional result wrapper'
+  )
+})
+
+t.test('package with --json and array-valued field from multiple matches', async t => {
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
+  await view.exec(['blue@^1', 'versions'])
+  t.strictSame(
+    JSON.parse(joinedOutput()),
+    [
+      ['1.0.0', '1.0.1'],
+      ['1.0.0', '1.0.1'],
+    ],
+    'preserves the result boundary for each matching version'
+  )
+})
+
+t.test('package field access with --json preserves value shapes', async t => {
+  const cases = [
+    {
+      name: 'nested scalar field',
+      args: ['purple@1.0.0', 'metadata.release.stable'],
+      expected: [true],
+    },
+    {
+      name: 'nested object field',
+      args: ['purple@1.0.0', 'metadata.release'],
+      expected: [{ stable: true }],
+    },
+    {
+      name: 'nested empty array field',
+      args: ['purple@1.0.0', 'metadata.empty'],
+      expected: [],
+    },
+    {
+      name: 'nested single-item array field',
+      args: ['purple@1.0.1', 'metadata.channels'],
+      expected: ['next'],
+    },
+    {
+      name: 'nested multi-item array field',
+      args: ['purple@1.0.0', 'metadata.channels'],
+      expected: ['latest', 'next'],
+    },
+    {
+      name: 'array field with bracket notation',
+      args: ['purple@1.0.0', 'metadata[channels]'],
+      expected: ['latest', 'next'],
+    },
+    {
+      name: 'indexed array element',
+      args: ['purple@1.0.0', 'metadata.channels[0]'],
+      expected: ['latest'],
+    },
+    {
+      name: 'expanded array subfield',
+      args: ['pink@1.0.0', 'maintainers.url'],
+      expected: [{
+        'maintainers[0].url': 'http://c.pink.com',
+        'maintainers[1].url': 'http://i.pink.com',
+      }],
+    },
+    {
+      name: 'expanded array-valued subfield',
+      args: ['purple@1.0.0', 'items.tags'],
+      expected: ['one', 'two'],
+    },
+    {
+      name: 'multiple requested fields',
+      args: ['purple@1.0.0', 'metadata.channels', 'metadata.release'],
+      expected: [{
+        'metadata.channels': ['latest', 'next'],
+        'metadata.release': { stable: true },
+      }],
+    },
+    {
+      name: 'multiple requested fields with one missing',
+      args: ['purple@1.0.0', 'metadata.channels', 'missing'],
+      expected: ['latest', 'next'],
+    },
+    {
+      name: 'array field from multiple matching versions',
+      args: ['purple@^1', 'metadata.channels'],
+      expected: [
+        ['latest', 'next'],
+        ['next'],
+      ],
+    },
+    {
+      name: 'array field present in one of multiple matching versions',
+      args: ['purple@^1', 'items'],
+      expected: [
+        { tags: ['one', 'two'] },
+      ],
+    },
+  ]
+
+  for (const { name, args, expected } of cases) {
+    await t.test(name, async t => {
+      const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
+      await view.exec(args)
+      t.strictSame(JSON.parse(joinedOutput()), expected)
+    })
+  }
 })
 
 t.test('package with single version', async t => {
@@ -494,7 +654,7 @@ t.test('package with single version', async t => {
     const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
     await view.exec(['single-version', 'versions'])
     const parsed = JSON.parse(joinedOutput())
-    t.strictSame(parsed, ['1.0.0'], 'does not unwrap single item arrays in json')
+    t.strictSame(parsed, ['1.0.0'], 'preserves the array-valued field')
   })
 
   t.test('no json and versions arg', async t => {
@@ -739,6 +899,18 @@ t.test('workspaces', async t => {
     })
     await view.exec(['.', 'name'])
     t.matchSnapshot(joinedOutput())
+  })
+
+  t.test('all workspaces array field --json', async t => {
+    const { view, joinedOutput } = await loadMockNpm(t, {
+      prefixDir,
+      config: { unicode: false, workspaces: true, json: true },
+    })
+    await view.exec(['.', 'versions'])
+    t.strictSame(JSON.parse(joinedOutput()), {
+      green: ['1.0.0', '1.0.1'],
+      orange: ['1.0.0', '1.0.1'],
+    })
   })
 
   t.test('single workspace --json', async t => {

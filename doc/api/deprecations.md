@@ -4709,7 +4709,7 @@ successfully before the response closed.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v26.8.2
     pr-url: https://github.com/nodejs/node/pull/64794
     description: Runtime deprecation.
 -->
@@ -4726,7 +4726,7 @@ calling or overriding `_listen2`.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v26.8.2
     pr-url: https://github.com/nodejs/node/pull/64342
     description: Documentation-only deprecation.
 -->
@@ -4800,6 +4800,34 @@ async function example() {
   await doWork();
 }
 ```
+
+### DEP0210: `sqlite.DatabaseSync`
+
+<!-- YAML
+changes:
+  - version: v26.11.0
+    pr-url: https://github.com/nodejs/node/pull/65988
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+`node:sqlite`'s `DatabaseSync` class was renamed to `Database`. `DatabaseSync`
+is kept as a deprecated alias. Use `Database` instead.
+
+### DEP0211: `sqlite.StatementSync`
+
+<!-- YAML
+changes:
+  - version: v26.11.0
+    pr-url: https://github.com/nodejs/node/pull/65988
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+`node:sqlite`'s `StatementSync` class was renamed to `Statement`.
+`StatementSync` is kept as a deprecated alias. Use `Statement` instead.
 
 [DEP0142]: #dep0142-repl_builtinlibs
 [DEP0156]: #dep0156-aborted-property-and-abort-aborted-event-in-http

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,20 +18,19 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/fmt/ranges.h>
 
-#define FMT_FORMATTER(T, F)                                          \
-template <typename Char> struct fmt::formatter<T, Char> {            \
-  template <typename ParseContext>                                   \
-  constexpr auto parse(ParseContext& ctx) -> decltype(ctx.begin()) { \
-    return ctx.begin();                                              \
-  }                                                                  \
-  template <typename FormatContext>                                  \
-  auto format(const T& p, FormatContext& ctx) const                  \
-      -> decltype(ctx.out()) {                                       \
-    auto out = ctx.out();                                            \
-    out = detail::write<Char>(out, F(p));                            \
-    return out;                                                      \
-  }                                                                  \
-}
+#define FMT_FORMATTER(T, F)                                                       \
+  template<typename Char>                                                         \
+  struct fmt::formatter<T, Char> {                                                \
+    template<typename ParseContext>                                               \
+    constexpr auto parse(ParseContext& ctx) -> decltype(ctx.begin()) {            \
+      return ctx.begin();                                                         \
+    }                                                                             \
+    template<typename FormatContext>                                              \
+    auto format(const T& p, FormatContext& ctx) const -> decltype(ctx.out()) {    \
+      auto out = ctx.out();                                                       \
+      out = detail::write<Char>(out, F(p));                                       \
+      return out;                                                                 \
+    }                                                                             \
+  }
 
 #endif
-

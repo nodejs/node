@@ -204,13 +204,13 @@ class WorkerThreadData {
       isolate->SetStackLimit(w->stack_base_);
 
       HandleScope handle_scope(isolate);
-      isolate_data_.reset(IsolateData::CreateIsolateData(
-          isolate,
-          &loop_,
-          w_->platform_,
-          allocator.get(),
-          w->snapshot_data()->AsEmbedderWrapper().get(),
-          std::move(w_->per_isolate_opts_)));
+      isolate_data_.reset(
+          IsolateData::CreateIsolateData(isolate,
+                                         &loop_,
+                                         w_->platform_,
+                                         allocator.get(),
+                                         w->snapshot_data(),
+                                         std::move(w_->per_isolate_opts_)));
       CHECK(isolate_data_);
       CHECK(!isolate_data_->is_building_snapshot());
       isolate_data_->set_worker_context(w_);
@@ -326,11 +326,6 @@ void Worker::Run() {
 
     DeleteFnPtr<Environment, FreeEnvironment> env_;
     auto cleanup_env = OnScopeLeave([&]() {
-      // TODO(addaleax): This call is harmless but should not be necessary.
-      // Figure out why V8 is raising a DCHECK() here without it
-      // (in test/parallel/test-async-hooks-worker-asyncfn-terminate-4.js).
-      isolate_->CancelTerminateExecution();
-
       if (!env_) return;
       env_->set_can_call_into_js(false);
 
@@ -681,6 +676,11 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
                           kDisallowedInEnvvar,
                           &errors);
 
+    // All of the worker's option sources (the env options, NODE_OPTIONS and
+    // execArgv) have now been parsed, so the benchmark options can be
+    // validated against --experimental-bench.
+    per_isolate_opts->per_env->CheckBenchOptions(&errors);
+
     // The first argument is program name.
     invalid_args.erase(invalid_args.begin());
     // Only fail for explicitly provided execArgv, this protects from failures
@@ -703,6 +703,11 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     exec_argv_out = env->exec_argv();
     per_isolate_opts = env->isolate_data()->options()->Clone();
   }
+
+  // --vfs-load selects the main thread's entry point; a worker always starts
+  // from its own entry (which may itself live inside the mount), so the mount
+  // is inherited but the load behavior must not be.
+  per_isolate_opts->per_env->vfs_load = false;
 
   // Internal workers should not wait for inspector frontend to connect or
   // break on the first line of internal scripts. Module loader threads are
@@ -743,6 +748,10 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     worker->environment_flags_ |= EnvironmentFlags::kNoGlobalSearchPaths;
   if (env->no_browser_globals())
     worker->environment_flags_ |= EnvironmentFlags::kNoBrowserGlobals;
+  if (env->no_addon_permission_for_linked_bindings()) {
+    worker->environment_flags_ |=
+        EnvironmentFlags::kNoAddonPermissionForLinkedBindings;
+  }
 }
 
 void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {

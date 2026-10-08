@@ -18,6 +18,7 @@
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
 #include "prov/provider_ctx.h"
+#include "fips/fipsindicator.h"
 
 #ifdef FIPS_MODULE
 static int slh_dsa_fips140_pairwise_test(const SLH_DSA_KEY *key,
@@ -469,7 +470,9 @@ static void slh_dsa_gen_cleanup(void *genctx)
             (void (*)(void))slh_dsa_gen_set_params },                                   \
         { OSSL_FUNC_KEYMGMT_GEN_SETTABLE_PARAMS,                                        \
             (void (*)(void))slh_dsa_gen_settable_params },                              \
-        OSSL_DISPATCH_END                                                               \
+        OSSL_FIPS_IND_APPROVED_DISPATCH(OSSL_FUNC_KEYMGMT_GEN_GET_PARAMS,               \
+            OSSL_FUNC_KEYMGMT_GEN_GETTABLE_PARAMS)                                      \
+            OSSL_DISPATCH_END                                                           \
     }
 
 MAKE_KEYMGMT_FUNCTIONS("SLH-DSA-SHA2-128s", sha2_128s);

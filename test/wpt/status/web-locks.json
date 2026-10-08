@@ -1,12 +1,4 @@
 {
-  "held.https.any.js": {
-    "fail": {
-      "note": "Flaky on ppc, linux x64 and s390x #59142",
-      "flaky": [
-        "Error: this uncaught rejection is expected"
-      ]
-    }
-  },
   "idlharness.https.any.js": {
     "fail": {
       "expected": [

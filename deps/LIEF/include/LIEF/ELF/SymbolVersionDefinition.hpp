@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,10 +37,12 @@ struct Elf32_Verdef;
 /// Class which represents an entry defined in `DT_VERDEF` or `.gnu.version_d`
 class LIEF_API SymbolVersionDefinition : public Object {
   friend class Parser;
+
   public:
-  using version_aux_t        = std::vector<std::unique_ptr<SymbolVersionAux>>;
-  using it_version_aux       = ref_iterator<version_aux_t&, SymbolVersionAux*>;
-  using it_const_version_aux = const_ref_iterator<const version_aux_t&, const SymbolVersionAux*>;
+  using version_aux_t = std::vector<std::unique_ptr<SymbolVersionAux>>;
+  using it_version_aux = ref_iterator<version_aux_t&, SymbolVersionAux*>;
+  using it_const_version_aux =
+      const_ref_iterator<const version_aux_t&, const SymbolVersionAux*>;
 
   SymbolVersionDefinition() = default;
   SymbolVersionDefinition(const details::Elf64_Verdef& header);
@@ -77,11 +79,11 @@ class LIEF_API SymbolVersionDefinition : public Object {
   }
 
   /// SymbolVersionAux entries
-  it_version_aux symbols_aux() {
+  it_version_aux symbols_aux() LIEF_LIFETIMEBOUND {
     return symbol_version_aux_;
   }
 
-  it_const_version_aux symbols_aux() const {
+  it_const_version_aux symbols_aux() const LIEF_LIFETIMEBOUND {
     return symbol_version_aux_;
   }
 
@@ -99,16 +101,16 @@ class LIEF_API SymbolVersionDefinition : public Object {
 
   void accept(Visitor& visitor) const override;
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const SymbolVersionDefinition& sym);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const SymbolVersionDefinition& sym);
 
   private:
   uint16_t version_ = 1;
   uint16_t flags_ = 0;
-  uint16_t ndx_  = 0;
+  uint16_t ndx_ = 0;
   uint32_t hash_ = 0;
   version_aux_t symbol_version_aux_;
 };
 }
 }
 #endif
-

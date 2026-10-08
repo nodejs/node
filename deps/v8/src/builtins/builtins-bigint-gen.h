@@ -66,46 +66,49 @@ class BigIntBuiltinsAssembler : public CodeStubAssembler {
   TNode<Int32T> CppAbsoluteMulAndCanonicalize(TNode<BigInt> result,
                                               TNode<BigInt> x,
                                               TNode<BigInt> y) {
-    TNode<ExternalReference> mutable_big_int_absolute_mul_and_canonicalize =
-        ExternalConstant(
-            ExternalReference::
-                mutable_big_int_absolute_mul_and_canonicalize_function());
-    TNode<Int32T> return_code = UncheckedCast<Int32T>(CallCFunction(
-        mutable_big_int_absolute_mul_and_canonicalize, MachineType::Int32(),
+    TNode<ExternalReference> fn = ExternalConstant(
+        ExternalReference::
+            mutable_big_int_absolute_mul_and_canonicalize_function());
+    TNode<ExternalReference> isolate_ptr =
+        ExternalConstant(ExternalReference::isolate_address());
+    return UncheckedCast<Int32T>(CallCFunction(
+        fn, MachineType::Int32(),
         std::make_pair(MachineType::AnyTagged(), result),
         std::make_pair(MachineType::AnyTagged(), x),
-        std::make_pair(MachineType::AnyTagged(), y)));
-    return return_code;
+        std::make_pair(MachineType::AnyTagged(), y),
+        std::make_pair(MachineType::Pointer(), isolate_ptr)));
   }
 
   TNode<Int32T> CppAbsoluteDivAndCanonicalize(TNode<BigInt> result,
                                               TNode<BigInt> x,
                                               TNode<BigInt> y) {
-    TNode<ExternalReference> mutable_big_int_absolute_div_and_canonicalize =
-        ExternalConstant(
-            ExternalReference::
-                mutable_big_int_absolute_div_and_canonicalize_function());
-    TNode<Int32T> return_code = UncheckedCast<Int32T>(CallCFunction(
-        mutable_big_int_absolute_div_and_canonicalize, MachineType::Int32(),
+    TNode<ExternalReference> fn = ExternalConstant(
+        ExternalReference::
+            mutable_big_int_absolute_div_and_canonicalize_function());
+    TNode<ExternalReference> isolate_ptr =
+        ExternalConstant(ExternalReference::isolate_address());
+    return UncheckedCast<Int32T>(CallCFunction(
+        fn, MachineType::Int32(),
         std::make_pair(MachineType::AnyTagged(), result),
         std::make_pair(MachineType::AnyTagged(), x),
-        std::make_pair(MachineType::AnyTagged(), y)));
-    return return_code;
+        std::make_pair(MachineType::AnyTagged(), y),
+        std::make_pair(MachineType::Pointer(), isolate_ptr)));
   }
 
   TNode<Int32T> CppAbsoluteModAndCanonicalize(TNode<BigInt> result,
                                               TNode<BigInt> x,
                                               TNode<BigInt> y) {
-    TNode<ExternalReference> mutable_big_int_absolute_mod_and_canonicalize =
-        ExternalConstant(
-            ExternalReference::
-                mutable_big_int_absolute_mod_and_canonicalize_function());
-    TNode<Int32T> return_code = UncheckedCast<Int32T>(CallCFunction(
-        mutable_big_int_absolute_mod_and_canonicalize, MachineType::Int32(),
+    TNode<ExternalReference> fn = ExternalConstant(
+        ExternalReference::
+            mutable_big_int_absolute_mod_and_canonicalize_function());
+    TNode<ExternalReference> isolate_ptr =
+        ExternalConstant(ExternalReference::isolate_address());
+    return UncheckedCast<Int32T>(CallCFunction(
+        fn, MachineType::Int32(),
         std::make_pair(MachineType::AnyTagged(), result),
         std::make_pair(MachineType::AnyTagged(), x),
-        std::make_pair(MachineType::AnyTagged(), y)));
-    return return_code;
+        std::make_pair(MachineType::AnyTagged(), y),
+        std::make_pair(MachineType::Pointer(), isolate_ptr)));
   }
 
   void CppBitwiseAndPosPosAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,
@@ -264,17 +267,6 @@ class BigIntBuiltinsAssembler : public CodeStubAssembler {
                   std::make_pair(MachineType::AnyTagged(), x),
                   std::make_pair(MachineType::IntPtr(), shift),
                   std::make_pair(MachineType::Uint32(), must_round_down));
-  }
-
-  TNode<Int32T> CppAbsoluteCompare(TNode<BigInt> x, TNode<BigInt> y) {
-    TNode<ExternalReference> mutable_big_int_absolute_compare =
-        ExternalConstant(
-            ExternalReference::mutable_big_int_absolute_compare_function());
-    TNode<Int32T> result = UncheckedCast<Int32T>(
-        CallCFunction(mutable_big_int_absolute_compare, MachineType::Int32(),
-                      std::make_pair(MachineType::AnyTagged(), x),
-                      std::make_pair(MachineType::AnyTagged(), y)));
-    return result;
   }
 };
 

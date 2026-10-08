@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 #ifndef LIEF_PE_RESOURCE_ICON_H
 #define LIEF_PE_RESOURCE_ICON_H
 #include <ostream>
-#include <climits>
 #include <vector>
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/errors.hpp"
 
@@ -38,10 +38,11 @@ class LIEF_API ResourceIcon : public Object {
   friend class ResourcesManager;
 
   public:
-  static result<ResourceIcon>
-    from_serialization(const uint8_t* buffer, size_t size);
+  static result<ResourceIcon> from_serialization(const uint8_t* buffer,
+                                                 size_t size);
 
-  static result<ResourceIcon> from_serialization(const std::vector<uint8_t>& bytes) {
+  static result<ResourceIcon>
+      from_serialization(const std::vector<uint8_t>& bytes) {
     return from_serialization(bytes.data(), bytes.size());
   }
 
@@ -112,7 +113,7 @@ class LIEF_API ResourceIcon : public Object {
   }
 
   /// Pixels of the image (as bytes)
-  span<const uint8_t> pixels() const {
+  span<const uint8_t> pixels() const LIEF_LIFETIMEBOUND {
     return pixels_;
   }
 
@@ -165,7 +166,8 @@ class LIEF_API ResourceIcon : public Object {
 
   void accept(Visitor& visitor) const override;
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const ResourceIcon& entry);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const ResourceIcon& entry);
 
   private:
   uint8_t width_ = 0;
@@ -175,7 +177,7 @@ class LIEF_API ResourceIcon : public Object {
   uint16_t planes_ = 0;
   uint16_t bit_count_ = 0;
   uint32_t id_ = uint32_t(-1);
-  uint32_t lang_ = /* LANG_NEUTRAL */0;
+  uint32_t lang_ = /* LANG_NEUTRAL */ 0;
   uint32_t sublang_ = 0 /* SUBLANG_NEUTRAL */;
   std::vector<uint8_t> pixels_;
 };

@@ -1,4 +1,4 @@
-// Flags: --no-warnings
+// Flags: --experimental-bench --no-warnings
 'use strict';
 
 const common = require('../common');
@@ -15,7 +15,7 @@ async function observe(factoryOptions, runOptions) {
     turnOccurred = true;
   });
 
-  runner.bench('yielding', { samples: 2 }, (b) => {
+  runner.bench('yielding', { samples: 2, warmup: 0 }, (b) => {
     observed.push(turnOccurred);
     completeSample(b);
   });

@@ -7,6 +7,7 @@
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
+#include "src/ast/scopes.h"
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
@@ -47,14 +48,11 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
 
   UnoptimizedCompileFlags flags(isolate, script->id());
 
-  flags.SetFlagsForFunctionFromScript(script);
   flags.SetFlagsFromFunction(shared);
+  flags.SetFlagsForFunctionFromScript(script);
   flags.set_allow_lazy_parsing(true);
   flags.set_is_lazy_compile(true);
 
-#if V8_ENABLE_WEBASSEMBLY
-  flags.set_is_asm_wasm_broken(shared->is_asm_wasm_broken());
-#endif  // V8_ENABLE_WEBASSEMBLY
   flags.set_is_repl_mode(script->is_repl_mode());
 
   // Do not support re-parsing top-level function of a wrapped script.
@@ -68,15 +66,21 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForScriptCompile(
     Isolate* isolate, Tagged<Script> script) {
   UnoptimizedCompileFlags flags(isolate, script->id());
 
-  flags.SetFlagsForFunctionFromScript(script);
   flags.SetFlagsForToplevelCompile(
-      script->IsUserJavaScript(), flags.outer_language_mode(),
+      script->IsUserJavaScript(), script->outer_language_mode(),
       construct_repl_mode(script->is_repl_mode()),
       script->origin_options().IsModule() ? ScriptType::kModule
                                           : ScriptType::kClassic,
       v8_flags.lazy);
+  flags.set_outer_language_mode(script->outer_language_mode());
+  if (script->compilation_kind() ==
+      Script::CompilationKind::kFunctionConstructor) {
+    flags.set_parse_restriction(ONLY_SINGLE_FUNCTION_LITERAL);
+  }
+  flags.SetFlagsForFunctionFromScript(script);
   if (script->is_wrapped()) {
     flags.set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
+    flags.set_is_eval(true);
   }
 
   return flags;
@@ -125,6 +129,7 @@ void UnoptimizedCompileFlags::SetFlagsFromFunction(T function) {
   set_private_name_lookup_skips_outer_class(
       function->private_name_lookup_skips_outer_class());
   set_is_toplevel(function->is_toplevel());
+  set_is_hoisted_in_context(function->is_hoisted_in_context());
 }
 
 void UnoptimizedCompileFlags::SetFlagsForToplevelCompile(
@@ -146,7 +151,7 @@ void UnoptimizedCompileFlags::SetFlagsForFunctionFromScript(
     Tagged<Script> script) {
   DCHECK_EQ(script_id(), script->id());
 
-  set_is_eval(script->compilation_type() == Script::CompilationType::kEval);
+  set_is_eval(is_toplevel() && script->has_eval_origin());
   set_is_module(script->origin_options().IsModule());
   DCHECK_IMPLIES(is_eval(), !is_module());
 
@@ -203,13 +208,11 @@ ParseInfo::ParseInfo(const UnoptimizedCompileFlags flags,
       source_range_map_(nullptr),
       literal_(nullptr),
       allow_eval_cache_(false),
-#if V8_ENABLE_WEBASSEMBLY
-      contains_asm_module_(false),
-#endif  // V8_ENABLE_WEBASSEMBLY
       language_mode_(flags.outer_language_mode()),
       is_background_compilation_(false),
       is_streaming_compilation_(false),
-      has_module_in_scope_chain_(flags.is_module()) {
+      has_module_in_scope_chain_(flags.is_module()),
+      has_generator_in_scope_chain_(false) {
   if (flags.block_coverage_enabled()) {
     AllocateSourceRangeMap();
   }
@@ -265,13 +268,15 @@ Handle<Script> ParseInfo::CreateScript(
   }
   raw_script->set_origin_options(origin_options);
   raw_script->set_is_repl_mode(flags().is_repl_mode());
+  raw_script->set_outer_language_mode(flags().outer_language_mode());
 
   DCHECK_EQ(is_wrapped_as_function(), !maybe_wrapped_arguments.is_null());
   if (is_wrapped_as_function()) {
+    raw_script->set_compilation_kind(Script::CompilationKind::kWrapped);
     raw_script->set_wrapped_arguments(
         *maybe_wrapped_arguments.ToHandleChecked());
   } else if (flags().is_eval()) {
-    raw_script->set_compilation_type(Script::CompilationType::kEval);
+    raw_script->set_compilation_kind(Script::CompilationKind::kDirectEval);
   }
   CheckFlagsForToplevelCompileFromScript(raw_script);
 
@@ -318,7 +323,7 @@ void ParseInfo::CheckFlagsForFunctionFromScript(Tagged<Script> script) {
   // We set "is_eval" for wrapped scripts to get an outer declaration scope.
   // This is a bit hacky, but ok since we can't be both eval and wrapped.
   DCHECK_EQ(flags().is_eval() && !script->is_wrapped(),
-            script->compilation_type() == Script::CompilationType::kEval);
+            flags().is_toplevel() && script->has_eval_origin());
   DCHECK_EQ(flags().is_module(), script->origin_options().IsModule());
   DCHECK_IMPLIES(flags().block_coverage_enabled() && script->IsUserJavaScript(),
                  source_range_map() != nullptr);

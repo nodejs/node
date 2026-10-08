@@ -10,7 +10,7 @@
 
 #include "src/base/export-template.h"
 #include "src/common/globals.h"
-#include "src/objects/fixed-array.h"
+#include "src/objects/fixed-primitive-array.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/swiss-hash-table-helpers.h"
@@ -68,7 +68,7 @@ namespace v8::internal {
 //       contains the number of the bucket representing the i-th entry of the
 //       table in enumeration order. Entries may contain unitialized data if the
 //       corresponding bucket  hasn't been used before.
-class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
+V8_OBJECT class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
  public:
   using Group = swiss_table::Group;
 
@@ -275,7 +275,6 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
 #endif
   DECL_VERIFIER(SwissNameDictionary)
   DECL_PRINTER(SwissNameDictionary)
-  OBJECT_CONSTRUCTORS(SwissNameDictionary, HeapObject);
 
  private:
   using ctrl_t = swiss_table::ctrl_t;
@@ -328,8 +327,6 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   inline ctrl_t GetCtrl(int entry);
 
   inline Tagged<Object> LoadFromDataTable(int entry, int data_offset);
-  inline Tagged<Object> LoadFromDataTable(PtrComprCageBase cage_base, int entry,
-                                          int data_offset);
   inline void StoreToDataTable(int entry, int data_offset, Tagged<Object> data);
   inline void StoreToDataTableNoBarrier(int entry, int data_offset,
                                         Tagged<Object> data);
@@ -355,7 +352,17 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   template <typename T>
   inline static int GetMetaTableField(Tagged<ByteArray> meta_table,
                                       int field_index);
-};
+
+ public:
+  uint32_t hash_;
+  int32_t capacity_;
+  TaggedMember<ByteArray> meta_table_;
+  // The data_table is followed by ctrl_table and property_details_table.
+  // Their start offsets are computed by CtrlTableStartOffset(capacity) /
+  // PropertyDetailsTableStartOffset(capacity) since FLEXIBLE_ARRAY_MEMBER
+  // can only model a single trailing variable-length section.
+  FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data_table);
+} V8_OBJECT_END;
 
 }  // namespace v8::internal
 

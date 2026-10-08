@@ -4,6 +4,8 @@
 #include "node_external_reference.h"
 #include "node_i18n.h"
 #include "node_process-inl.h"
+#include "permission/env_permission.h"
+#include "permission/permission.h"
 #include "util.h"
 
 #include <time.h>  // tzset(), _tzset()
@@ -15,6 +17,7 @@ using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
 using v8::DontEnum;
+using v8::EscapableHandleScope;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::IndexedPropertyHandlerConfiguration;
@@ -47,6 +50,7 @@ class RealEnvStore final : public KVStore {
   int32_t Query(const char* key) const override;
   void Delete(Isolate* isolate, Local<String> key) override;
   MaybeLocal<Array> Enumerate(Isolate* isolate) const override;
+  MaybeLocal<Array> Pairs(Isolate* isolate) const override;
 };
 
 class MapKVStore final : public KVStore {
@@ -220,6 +224,64 @@ MaybeLocal<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
   CHECK_LE(env_v_index, count);
   env_v.SetLength(env_v_index);
   return env_v.ToArray();
+}
+
+MaybeLocal<Array> RealEnvStore::Pairs(Isolate* isolate) const {
+  Mutex::ScopedLock lock(per_process::env_var_mutex);
+  uv_env_item_t* items;
+  int count;
+
+  auto cleanup = OnScopeLeave([&]() { uv_os_free_environ(items, count); });
+  CHECK_EQ(uv_os_environ(&items, &count), 0);
+
+  MaybeStackBuffer<Local<Value>, 256> pairs_v(count);
+  int pairs_v_index = 0;
+  std::string pair;
+  for (int i = 0; i < count; i++) {
+#ifdef _WIN32
+    // If the key starts with '=' it is a hidden environment variable.
+    // Enumerate() skips these, so a copy of process.env never had them.
+    if (items[i].name[0] == '=') continue;
+#endif
+    pair.assign(items[i].name);
+    pair += '=';
+    pair += items[i].value;
+    Local<Value> str;
+    if (!ToV8Value(isolate->GetCurrentContext(), pair, isolate).ToLocal(&str)) {
+      return {};
+    }
+    pairs_v[pairs_v_index++] = str;
+  }
+
+  return Array::New(isolate, pairs_v.out(), pairs_v_index);
+}
+
+MaybeLocal<Array> KVStore::Pairs(Isolate* isolate) const {
+  EscapableHandleScope scope(isolate);
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<Array> keys;
+  if (!Enumerate(isolate).ToLocal(&keys)) return {};
+  uint32_t keys_length = keys->Length();
+  MaybeStackBuffer<Local<Value>, 256> pairs(keys_length);
+  uint32_t pairs_index = 0;
+  std::string pair;
+  for (uint32_t i = 0; i < keys_length; i++) {
+    Local<Value> key;
+    if (!keys->Get(context, i).ToLocal(&key)) return {};
+    if (!key->IsString()) continue;
+    Utf8Value key_utf8(isolate, key);
+    // A key that disappeared between Enumerate() and Get() is skipped, like an
+    // undefined value is when copying process.env in JS.
+    std::optional<std::string> value = Get(*key_utf8);
+    if (!value.has_value()) continue;
+    pair.assign(*key_utf8, key_utf8.length());
+    pair += '=';
+    pair += *value;
+    Local<Value> str;
+    if (!ToV8Value(context, pair, isolate).ToLocal(&str)) return {};
+    pairs[pairs_index++] = str;
+  }
+  return scope.Escape(Array::New(isolate, pairs.out(), pairs_index));
 }
 
 std::shared_ptr<KVStore> KVStore::Clone(Isolate* isolate) const {
@@ -429,6 +491,40 @@ void TraceEnvVar(Environment* env,
   }
 }
 
+// Called when process.env does not have `property`. If the permission model
+// removed the variable at startup, publishes the denial and warns once, so
+// that the variable does not just silently read as undefined.
+static Maybe<void> ReportRemovedEnvVar(Environment* env,
+                                       Local<String> property) {
+  if (!permission::IsProcessEnvironmentScrubbed()) return JustVoid();
+  Utf8Value key(env->isolate(), property);
+  if (!permission::WasRemovedByEnvironmentScrub(key.ToStringView())) {
+    return JustVoid();
+  }
+  env->permission()->PublishDenied(
+      env, permission::PermissionScope::kEnv, key.ToStringView());
+  if (permission::ShouldWarnAboutRemovedEnvVar(key.ToStringView()) &&
+      ProcessEmitWarning(env,
+                         "The permission model removed the environment "
+                         "variable \"%s\" at startup. Use --allow-env to "
+                         "manage permissions.",
+                         *key)
+          .IsNothing()) {
+    return Nothing<void>();
+  }
+  return JustVoid();
+}
+
+// In audit mode nothing is removed at startup. Publishes accesses to the
+// variables that enforcing the permission model would have removed instead.
+static void AuditEnvVar(Environment* env, Local<String> property) {
+  Utf8Value key(env->isolate(), property);
+  if (!permission::WasDeniedAtStartup(key.ToStringView())) return;
+  // is_granted() publishes the denial.
+  env->permission()->is_granted(
+      env, permission::PermissionScope::kEnv, key.ToStringView());
+}
+
 static Intercepted EnvGetter(Local<Name> property,
                              const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
@@ -445,7 +541,14 @@ static Intercepted EnvGetter(Local<Name> property,
 
   Local<Value> ret;
   if (!value_string.ToLocal(&ret)) {
+    if (env->permission()->enabled() &&
+        ReportRemovedEnvVar(env, property.As<String>()).IsNothing()) {
+      return Intercepted::kYes;
+    }
     return Intercepted::kNo;
+  }
+  if (env->permission()->warning_only()) {
+    AuditEnvVar(env, property.As<String>());
   }
   info.GetReturnValue().Set(ret);
   return Intercepted::kYes;
@@ -453,7 +556,7 @@ static Intercepted EnvGetter(Local<Name> property,
 
 static Intercepted EnvSetter(Local<Name> property,
                              Local<Value> value,
-                             const PropertyCallbackInfo<void>& info) {
+                             const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
   CHECK(env->has_run_bootstrapping_code());
   // calling env->EmitProcessEnvWarning() sets a variable indicating that
@@ -496,8 +599,15 @@ static Intercepted EnvQuery(Local<Name> property,
     bool has_env = (rc != -1);
     TraceEnvVar(env, "query", property.As<String>());
     if (has_env) {
+      if (env->permission()->warning_only()) {
+        AuditEnvVar(env, property.As<String>());
+      }
       // Return attributes for the property.
       info.GetReturnValue().Set(v8::None);
+      return Intercepted::kYes;
+    }
+    if (env->permission()->enabled() &&
+        ReportRemovedEnvVar(env, property.As<String>()).IsNothing()) {
       return Intercepted::kYes;
     }
   }
@@ -534,7 +644,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
 
 static Intercepted EnvDefiner(Local<Name> property,
                               const PropertyDescriptor& desc,
-                              const PropertyCallbackInfo<void>& info) {
+                              const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
   if (desc.has_value()) {
     if (!desc.has_writable() ||
@@ -584,7 +694,7 @@ static Intercepted EnvGetterIndexed(uint32_t index,
 
 static Intercepted EnvSetterIndexed(uint32_t index,
                                     Local<Value> value,
-                                    const PropertyCallbackInfo<void>& info) {
+                                    const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
   Local<Name> name = Uint32ToString(env->context(), index);
   return EnvSetter(name, value, info);
@@ -604,9 +714,10 @@ static Intercepted EnvDeleterIndexed(
   return EnvDeleter(name, info);
 }
 
-static Intercepted EnvDefinerIndexed(uint32_t index,
-                                     const PropertyDescriptor& desc,
-                                     const PropertyCallbackInfo<void>& info) {
+static Intercepted EnvDefinerIndexed(
+    uint32_t index,
+    const PropertyDescriptor& desc,
+    const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
   Local<Name> name = Uint32ToString(env->context(), index);
   return EnvDefiner(name, desc, info);

@@ -3,6 +3,7 @@
 const Dispatcher = require('./dispatcher')
 const { InvalidArgumentError } = require('../core/errors')
 const { toRawHeaders } = require('../core/util')
+const { kOriginless, kUrl } = require('../core/symbols')
 
 class LegacyHandlerWrapper {
   #handler
@@ -71,6 +72,8 @@ class Dispatcher1Wrapper extends Dispatcher {
     }
 
     this.#dispatcher = dispatcher
+    this[kUrl] = dispatcher[kUrl]
+    this[kOriginless] = dispatcher[kOriginless]
   }
 
   static wrapHandler (handler) {

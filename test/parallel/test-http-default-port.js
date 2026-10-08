@@ -44,7 +44,6 @@ for (const { mod, createServer } of [
     assert.strictEqual(req.headers['x-port'], `${server.address().port}`);
     res.writeHead(200);
     res.end('ok');
-    server.close();
   })).listen(0, common.mustCall(() => {
     mod.globalAgent.defaultPort = server.address().port;
     mod.get({
@@ -54,6 +53,7 @@ for (const { mod, createServer } of [
         'x-port': server.address().port
       }
     }, common.mustCall((res) => {
+      res.on('end', common.mustCall(() => server.close()));
       res.resume();
     }));
   }));

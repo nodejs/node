@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 #define LIEF_ASM_INST_H
 #include "LIEF/visibility.h"
 #include "LIEF/iterators.hpp"
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/errors.hpp"
 
 #include <ostream>
@@ -37,13 +38,14 @@ class InstructionIt;
 /// This class represents an assembly instruction
 class LIEF_API Instruction {
   public:
-  /// **Lazy-forward** iterator that outputs Instruction
-  class Iterator final :
-    public iterator_facade_base<Iterator, std::forward_iterator_tag, std::unique_ptr<Instruction>,
-                                std::ptrdiff_t, Instruction*, std::unique_ptr<Instruction>>
-  {
+  /// **Lazy-forward** iterator that disassembles instructions on demand.
+  class Iterator final
+    : public iterator_facade_base<Iterator, std::forward_iterator_tag, Instruction,
+                                  std::ptrdiff_t, const Instruction*,
+                                  const Instruction&> {
     public:
     using implementation = details::InstructionIt;
+    using iterator_facade_base::operator++;
 
     LIEF_API Iterator();
 
@@ -56,6 +58,7 @@ class LIEF_API Instruction {
 
     LIEF_API ~Iterator();
 
+    // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
     LIEF_API Iterator& operator++();
 
     friend LIEF_API bool operator==(const Iterator& LHS, const Iterator& RHS);
@@ -64,18 +67,27 @@ class LIEF_API Instruction {
       return !(LHS == RHS);
     }
 
-    /// Disassemble and output an Instruction at the current iterator's
-    /// position.
-    LIEF_API std::unique_ptr<Instruction> operator*() const;
+    LIEF_API const Instruction& operator*() const LIEF_LIFETIMEBOUND;
+
+    // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
+    LIEF_API const Instruction* operator->() const LIEF_LIFETIMEBOUND;
+
+    /// Transfer ownership of the instruction at the current position to the
+    /// caller. Returns `nullptr` if the iterator is past-the-end.
+    LIEF_API std::unique_ptr<Instruction> yield();
 
     private:
+    void load() const;
+
     std::unique_ptr<details::InstructionIt> impl_;
+    mutable std::unique_ptr<Instruction> cached_;
   };
+
   public:
   /// Memory operation flags
   enum class MemoryAccess : uint8_t {
-    NONE  = 0,
-    READ  = 1 << 0,
+    NONE = 0,
+    READ = 1 << 0,
     WRITE = 1 << 1,
     READ_WRITE = READ | WRITE,
   };
@@ -87,7 +99,7 @@ class LIEF_API Instruction {
   size_t size() const;
 
   /// Raw bytes of the current instruction
-  const std::vector<uint8_t>& raw() const;
+  const std::vector<uint8_t>& raw() const LIEF_LIFETIMEBOUND;
 
   /// Instruction mnemonic (e.g. `br`)
   std::string mnemonic() const;
@@ -123,14 +135,14 @@ class LIEF_API Instruction {
   bool is_trap() const;
 
   /// True if the instruction prevents executing the instruction
-  /// that immediatly follows the current. This includes return
+  /// that immediately follows the current. This includes return
   /// or unconditional branch instructions
   bool is_barrier() const;
 
   /// True if the instruction is a return
   bool is_return() const;
 
-  /// True if the instruction is and indirect branch.
+  /// True if the instruction is an indirect branch.
   ///
   /// This includes instructions that branch through a register (e.g. `jmp rax`,
   /// `br x1`).
@@ -162,9 +174,9 @@ class LIEF_API Instruction {
 
   /// Return the underlying llvm::MCInst implementation.
   ///
-  /// \warning Because of ABI compatibility, this MCInst can **only be used**
+  /// @warning Because of ABI compatibility, this MCInst can **only be used**
   ///          with the **same** version of LLVM used by LIEF (see documentation)
-  const llvm::MCInst& mcinst() const;
+  const llvm::MCInst& mcinst() const LIEF_LIFETIMEBOUND;
 
   /// This function can be used to **down cast** an Instruction instance:
   ///
@@ -175,7 +187,7 @@ class LIEF_API Instruction {
   /// }
   /// ```
   template<class T>
-  const T* as() const {
+  const T* as() const LIEF_LIFETIMEBOUND {
     static_assert(std::is_base_of<Instruction, T>::value,
                   "Require Instruction inheritance");
     if (T::classof(this)) {
@@ -184,25 +196,26 @@ class LIEF_API Instruction {
     return nullptr;
   }
 
-  friend LIEF_API std::ostream& operator<<(std::ostream& os, const Instruction& inst) {
+  friend LIEF_API std::ostream& operator<<(std::ostream& os,
+                                           const Instruction& inst) {
     os << inst.to_string();
     return os;
   }
 
   virtual ~Instruction();
 
-  /// \private
+  /// @private
   static LIEF_LOCAL std::unique_ptr<Instruction>
-    create(std::unique_ptr<details::Instruction> impl);
+      create(std::unique_ptr<details::Instruction> impl);
 
-  /// \private
-  LIEF_LOCAL const details::Instruction& impl() const {
+  /// @private
+  LIEF_LOCAL const details::Instruction& impl() const LIEF_LIFETIMEBOUND {
     assert(impl_ != nullptr);
     return *impl_;
   }
 
-  /// \private
-  LIEF_LOCAL details::Instruction& impl() {
+  /// @private
+  LIEF_LOCAL details::Instruction& impl() LIEF_LIFETIMEBOUND {
     assert(impl_ != nullptr);
     return *impl_;
   }

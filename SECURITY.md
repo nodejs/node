@@ -264,7 +264,12 @@ then untrusted input must not lead to arbitrary JavaScript code execution.
 
 * The developers and infrastructure that run it.
 * The operating system that Node.js is running under and its configuration,
-  along with anything under the control of the operating system.
+  along with anything under the control of the operating system. An attacker
+  who can already run commands on the host and uses an official, signed
+  Node.js binary to execute malicious JavaScript does not exploit a
+  vulnerability in Node.js. A code signature identifies the publisher of the
+  Node.js binary; it is not a statement about the trustworthiness of the
+  scripts that binary executes.
 * The deployment network environment for the privacy of traffic and routing
   decisions, including internal networks through which Node.js traffic passes
   and configured HTTP(S) proxy servers. Built-in proxy support is intended to
@@ -430,14 +435,14 @@ the community they pose.
 
 * Examples of scenarios that are **not** Node.js vulnerabilities:
   * Allowing untrusted users to register SQLite user-defined functions via
-    `node:sqlite` (`DatabaseSync`) that can perform arbitrary operations
+    `node:sqlite` (`Database`) that can perform arbitrary operations
     (e.g., closing database connections during query execution, causing crashes
     or use-after-free conditions).
   * Loading SQLite extensions using the `allowExtension` option in
-    `DatabaseSync` — this option must be explicitly set to `true` by the
+    `Database` — this option must be explicitly set to `true` by the
     application, and enabling it is the application operator's responsibility.
   * Using `node:sqlite` built-in SQL functions or pragmas (e.g.,
-    `ATTACH DATABASE`) to read or write files — `DatabaseSync` operates with
+    `ATTACH DATABASE`) to read or write files — `Database` operates with
     the same file-system access as the process itself, and it is the
     application's responsibility to restrict what SQL is executed.
   * Exposing `child_process.exec()` or similar APIs to untrusted users without
@@ -522,9 +527,17 @@ The following are **not** vulnerabilities in Node.js:
 * **Operator-controlled flags**: Behavior unlocked by flags the operator
   explicitly passes (e.g., `--localstorage-file`) is the operator's
   responsibility. The permission model does not restrict how Node.js behaves
-  when the operator intentionally configures it.
+  when the operator intentionally configures it. This includes any file or
+  resource that Node.js itself creates, writes, or reads at a location the
+  operator selected through a flag, including every path derived from a
+  template or pattern in that flag. For example, trace files rotated by
+  `--trace-event-file-pattern` (`${rotation}`) being written without a
+  matching `--allow-fs-write` entry is not a permission model bypass. Such
+  paths are part of the operator's configuration, not application file-system
+  access. Inconsistent checks on these paths are treated as regular bugs and
+  should be reported through the public issue tracker.
 
-* **`node:sqlite` and the permission model**: `DatabaseSync` operates with the
+* **`node:sqlite` and the permission model**: `Database` operates with the
   same file-system privileges as the process. Using SQL pragmas or built-in
   SQLite mechanisms (e.g., `ATTACH DATABASE`) to access files does not bypass
   the permission model — the permission model does not intercept SQL-level

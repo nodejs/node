@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --expose-gc --allow-natives-syntax
-// Flags: --gc-interval=207 --stress-compaction --validate-asm
+// Flags: --gc-interval=207 --stress-compaction
 // Flags: --turbofan
 //
 // /v8/test/mjsunit/wasm/grow-memory.js

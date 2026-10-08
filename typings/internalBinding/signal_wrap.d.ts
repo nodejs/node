@@ -1,14 +1,14 @@
+import type { HandleWrap } from './handle_wrap';
+
 declare namespace InternalSignalWrapBinding {
   class Signal {
     constructor();
     onsignal?: (signum: number) => void;
     start(signum: number): number | undefined;
     stop(): number;
-    close(callback?: () => void): void;
-    hasRef(): boolean;
-    ref(): void;
-    unref(): void;
   }
+
+  interface Signal extends HandleWrap {}
 }
 
 export interface SignalWrapBinding {

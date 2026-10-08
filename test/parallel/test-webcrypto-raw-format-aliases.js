@@ -72,8 +72,7 @@ const tests = [
 if (rejectsXCurves) {
   tests.push(assert.rejects(
     subtle.generateKey('X25519', true, ['deriveBits']),
-    (err) => err.name === 'OperationError' &&
-             err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED'));
+    { name: 'NotSupportedError', message: 'Unrecognized algorithm name' }));
 } else {
   tests.push(assertPublicKeyDoesNotAcceptRawSecret(
     'X25519',

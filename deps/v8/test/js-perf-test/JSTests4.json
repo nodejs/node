@@ -223,6 +223,24 @@
         {"name": "Medium-Eratosthenes"},
         {"name": "Large-Copy"}
       ]
+    },
+    {
+      "name": "Accessors",
+      "path": ["Accessors"],
+      "main": "run.js",
+      "variants": [
+        {"name": "default", "flags": []},
+        {"name": "jitless", "flags": ["--jitless"]},
+        {"name": "maglev", "flags": ["--maglev", "--no-turbofan"]},
+        {"name": "turbofan", "flags": ["--no-maglev"]}
+      ],
+      "resources": ["accessors.js"],
+      "results_regexp": "^%s\\-Accessors\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Monomorphic"},
+        {"name": "Polymorphic"},
+        {"name": "PrototypeConst"}
+      ]
     }
   ]
 }

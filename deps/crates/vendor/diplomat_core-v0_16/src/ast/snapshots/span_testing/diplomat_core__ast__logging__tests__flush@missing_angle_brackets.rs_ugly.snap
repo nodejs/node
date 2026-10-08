@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Expected angle brackets for Box type
+In src/ast/snapshots/span_testing/missing_angle_brackets.rs:3:28:
+...ox : Box) {}...
+        ^^^
+Suggestion: add angle brackets

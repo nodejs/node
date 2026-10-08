@@ -31,7 +31,7 @@ namespace capi {
 } // namespace capi
 } // namespace
 
-inline temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::Provider>, std::monostate> temporal_rs::Provider::new_zoneinfo64(temporal_rs::diplomat::span<const uint32_t> data) {
+inline temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::Provider>, std::monostate> temporal_rs::Provider::new_zoneinfo64(temporal_rs::diplomat::span<const uint32_t> data DIPLOMAT_LIFETIME_BOUND) {
     auto result = temporal_rs::capi::temporal_rs_Provider_new_zoneinfo64({data.data(), data.size()});
     return result.is_ok ? temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::Provider>, std::monostate>(temporal_rs::diplomat::Ok<std::unique_ptr<temporal_rs::Provider>>(std::unique_ptr<temporal_rs::Provider>(temporal_rs::Provider::FromFFI(result.ok)))) : temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::Provider>, std::monostate>(temporal_rs::diplomat::Err<std::monostate>());
 }

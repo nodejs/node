@@ -192,7 +192,6 @@ test(function fastTimeout(cb) {
 
   const server = http.createServer(common.mustCall((req, res) => {
     req.on('timeout', common.mustNotCall());
-    res.end();
     connectionHandlerInvoked = true;
     invokeCallbackIfDone();
   }));

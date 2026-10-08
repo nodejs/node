@@ -1,4 +1,3 @@
-#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <aliased_struct-inl.h>
@@ -1579,13 +1578,19 @@ struct Session::Impl final : public MemoryRetainer {
                              void* user_data,
                              void* stream_user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
+    // If the peer closes a stream, we return the credit to allow a new one:
+    session->ExtendMaxStreams(stream_id);
+    if (!session->has_application()) return NGTCP2_SUCCESS;
+
+    // Stream here may be null (e.g. if already destroyed locally) so we also
+    // pass stream_id to the calls below as well.
     auto* stream = Stream::From(stream_user_data);
-    if (stream == nullptr) return NGTCP2_SUCCESS;
+
     if (flags & NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET) {
       session->application().ReceiveStreamClose(
-          stream, QuicError::ForApplication(app_error_code));
+          stream_id, stream, QuicError::ForApplication(app_error_code));
     } else {
-      session->application().ReceiveStreamClose(stream);
+      session->application().ReceiveStreamClose(stream_id, stream);
     }
     return NGTCP2_SUCCESS;
   }
@@ -1653,7 +1658,7 @@ struct Session::Impl final : public MemoryRetainer {
 
   static constexpr ngtcp2_callbacks CLIENT = {
       ngtcp2_crypto_client_initial_cb,
-      nullptr,  // stream_stop_sending
+      nullptr,  // recv_client_initial
       ngtcp2_crypto_recv_crypto_data_cb,
       on_handshake_completed,
       on_receive_version_negotiation,
@@ -1687,7 +1692,7 @@ struct Session::Impl final : public MemoryRetainer {
       on_acknowledge_datagram,
       on_lost_datagram,
       nullptr,  // get_path_challenge_data (deprecated, use v2 below)
-      nullptr,  // stream_stop_sending
+      nullptr,  // stream_stop_sending (deprecated, use v2 below)
       ngtcp2_crypto_version_negotiation_cb,
       on_receive_rx_key,
       on_receive_tx_key,
@@ -1697,20 +1702,18 @@ struct Session::Impl final : public MemoryRetainer {
       on_get_new_cid,
       on_cid_status,
       ngtcp2_crypto_get_path_challenge_data2_cb,
-#ifdef NGTCP2_CALLBACKS_V4
       on_receive_stream_stop_sending,
 #ifdef NGTCP2_CALLBACKS_V5
-      nullptr,
-#endif  // NGTCP2_CALLBACKS_V5
-#endif  // NGTCP2_CALLBACKS_V4
+      nullptr,  // stream_close2
+#endif
   };
 
   static constexpr ngtcp2_callbacks SERVER = {
-      nullptr,  // stream_stop_sending
+      nullptr,  // client_initial
       ngtcp2_crypto_recv_client_initial_cb,
       ngtcp2_crypto_recv_crypto_data_cb,
       on_handshake_completed,
-      nullptr,
+      nullptr,  // recv_version_negotiation
       ngtcp2_crypto_encrypt_cb,
       ngtcp2_crypto_decrypt_cb,
       ngtcp2_crypto_hp_mask_cb,
@@ -1719,7 +1722,7 @@ struct Session::Impl final : public MemoryRetainer {
       on_stream_open,
       on_stream_close,
       nullptr,  // recv_stateless_reset (deprecated, use v2 below)
-      nullptr,
+      nullptr,  // recv_retry
       on_extend_max_streams_bidi,
       on_extend_max_streams_uni,
       on_rand,
@@ -1727,23 +1730,23 @@ struct Session::Impl final : public MemoryRetainer {
       on_remove_connection_id,
       ngtcp2_crypto_update_key_cb,
       on_path_validation,
-      nullptr,
+      nullptr,  // select_preferred_addr
       on_stream_reset,
       on_extend_max_remote_streams_bidi,
       on_extend_max_remote_streams_uni,
       on_extend_max_stream_data,
       nullptr,  // dcid_status (deprecated, use v2 below)
-      nullptr,
-      nullptr,
+      nullptr,  // handshake_confirmed
+      nullptr,  // recv_new_token
       ngtcp2_crypto_delete_crypto_aead_ctx_cb,
       ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
       on_receive_datagram,
       on_acknowledge_datagram,
       on_lost_datagram,
       nullptr,  // get_path_challenge_data (deprecated, use v2 below)
-      nullptr,  // stream_stop_sending
+      nullptr,  // stream_stop_sending (deprecated, use v2 below)
       ngtcp2_crypto_version_negotiation_cb,
-      nullptr,
+      nullptr,  // recv_rx_key
       on_receive_tx_key,
       on_early_data_rejected,
       on_begin_path_validation,
@@ -1751,12 +1754,10 @@ struct Session::Impl final : public MemoryRetainer {
       on_get_new_cid,
       on_cid_status,
       ngtcp2_crypto_get_path_challenge_data2_cb,
-#ifdef NGTCP2_CALLBACKS_V4
       on_receive_stream_stop_sending,
 #ifdef NGTCP2_CALLBACKS_V5
-      nullptr,
-#endif  // NGTCP2_CALLBACKS_V5
-#endif  // NGTCP2_CALLBACKS_V4
+      nullptr,  // stream_close2
+#endif
   };
 };
 
@@ -2019,6 +2020,12 @@ void Session::SendPendingData() {
     }
 
     // The stream_data is the next block of data from the application stream.
+    // It is reused across iterations, so we reset before it's populated:
+    stream_data.count = 0;
+    stream_data.id = -1;
+    stream_data.fin = false;
+    stream_data.stream.reset();
+
     if (application().GetStreamData(&stream_data) < 0) {
       Debug(this, "Application failed to get stream data");
       SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
@@ -3324,16 +3331,10 @@ void Session::AddStream(BaseObjectPtr<Stream> stream,
 void Session::RemoveStream(stream_id id) {
   DCHECK(!is_destroyed());
   Debug(this, "Removing stream %" PRIi64 " from session", id);
-  if (!is_in_draining_period() && !is_in_closing_period() &&
-      !ngtcp2_conn_is_local_stream(*this, id)) {
-    if (ngtcp2_is_bidi_stream(id)) {
-      ngtcp2_conn_extend_max_streams_bidi(*this, 1);
-    } else {
-      ngtcp2_conn_extend_max_streams_uni(*this, 1);
-    }
-  }
 
   ngtcp2_conn_set_stream_user_data(*this, id, nullptr);
+
+  if (has_application()) application().StreamRemoved(id);
 
   // Note that removing the stream from the streams map likely releases
   // the last BaseObjectPtr holding onto the Stream instance, at which
@@ -3483,14 +3484,15 @@ bool Session::OpenUnidirectionalStream(stream_id* id) {
   return ngtcp2_conn_open_uni_stream(*this, id, nullptr) == 0;
 }
 
-void Session::ExtendMaxStreams(Direction direction, uint64_t max) {
-  switch (direction) {
-    case Direction::BIDIRECTIONAL:
-      ngtcp2_conn_extend_max_streams_bidi(*this, static_cast<size_t>(max));
-      break;
-    case Direction::UNIDIRECTIONAL:
-      ngtcp2_conn_extend_max_streams_uni(*this, static_cast<size_t>(max));
-      break;
+void Session::ExtendMaxStreams(stream_id id) {
+  // MAX_STREAMS only limits what the peer opens, and there is nothing to
+  // grant once the connection is going away.
+  if (is_in_draining_period() || is_in_closing_period()) return;
+  if (ngtcp2_conn_is_local_stream(*this, id)) return;
+  if (ngtcp2_is_bidi_stream(id)) {
+    ngtcp2_conn_extend_max_streams_bidi(*this, 1);
+  } else {
+    ngtcp2_conn_extend_max_streams_uni(*this, 1);
   }
 }
 
@@ -4489,4 +4491,3 @@ void Session::InitPerContext(Realm* realm, Local<Object> target) {
 }  // namespace node
 
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL && HAVE_QUIC

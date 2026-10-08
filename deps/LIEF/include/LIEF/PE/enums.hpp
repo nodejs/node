@@ -1,4 +1,4 @@
-/* Copyright 2021 - 2025 R. Thomas
+/* Copyright 2021 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ namespace LIEF {
 namespace PE {
 
 enum class PE_TYPE : uint16_t {
-  PE32      = 0x10b, ///< 32bits
-  PE32_PLUS = 0x20b  ///< 64 bits
+  PE32 = 0x10b,      ///< 32bits
+  PE32_PLUS = 0x20b, ///< 64 bits
 };
 
 /// Cryptography algorithms

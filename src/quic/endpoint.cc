@@ -1,4 +1,3 @@
-#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <aliased_struct-inl.h>
@@ -246,6 +245,17 @@ Maybe<Endpoint::Options> Endpoint::Options::From(Environment* env,
       !SET(udp_receive_buffer_size) || !SET(udp_send_buffer_size) ||
       !SET(udp_ttl) || !SET(idle_timeout) || !SET(reset_token_secret) ||
       !SET(token_secret)) {
+    return Nothing<Options>();
+  }
+
+  // SocketAddressLRU::Upsert requires a positive capacity. With max_size_ ==
+  // 0, the newly inserted entry is immediately evicted, and the final
+  // map_[address] creates a default list iterator that is then
+  // dereferenced, causing UB (observed as a SIGSEGV in Endpoint::Receive on
+  // the first accepted connection).
+  if (options.address_lru_size == 0) {
+    THROW_ERR_INVALID_ARG_VALUE(
+        env, "The addressLRUSize option must be greater than 0");
     return Nothing<Options>();
   }
 
@@ -2189,4 +2199,3 @@ JS_METHOD_IMPL(Endpoint::DoSetSNIContexts) {
 }  // namespace quic
 }  // namespace node
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL && HAVE_QUIC

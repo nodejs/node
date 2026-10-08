@@ -27,6 +27,7 @@
 #include "node_options-inl.h"
 #include "node_process-inl.h"
 #include "node_url.h"
+#include "node_watchdog.h"
 #include "permission/permission.h"
 #include "timer_wrap-inl.h"
 #include "util-inl.h"
@@ -72,64 +73,17 @@ using v8_inspector::V8InspectorClient;
 #ifdef __POSIX__
 static uv_sem_t start_io_thread_semaphore;
 #endif  // __POSIX__
-static uv_async_t start_io_thread_async;
-// This is just an additional check to make sure start_io_thread_async
-// is not accidentally re-used or used when uninitialized.
-static std::atomic_bool start_io_thread_async_initialized { false };
-// Protects the Agent* stored in start_io_thread_async.data.
-static Mutex start_io_thread_async_mutex;
+// Agents that asked for the debug signal handler; SIGUSR1 (or the Windows
+// remote thread) starts the io thread of each. The mutex also guards the
+// once-per-process watchdog setup.
+static Mutex start_io_thread_agents_mutex;
+static std::vector<Agent*> start_io_thread_agents;
+static bool debug_signal_handler_started = false;
 
-template <typename Defer, typename OnFailure>
-void SyncJavaScriptHookState(Environment* env,
-                             JavaScriptHookState* state,
-                             Local<Function> enable_function,
-                             Local<Function> disable_function,
-                             bool require_bootstrapping,
-                             Defer defer,
-                             OnFailure on_failure) {
-  // The debugger can request an interrupt from within a hook's JS toggle
-  // function. A nested sync only records the new requested state; the
-  // outermost sync sees it when re-checking the loop after each toggle.
-  if (state->syncing) return;
-  state->syncing = true;
-  auto on_exit = OnScopeLeave([state]() { state->syncing = false; });
-
-  Isolate* isolate = env->isolate();
-  while (state->wanted != state->enabled) {
-    // No hook events will be emitted during cleanup, and calling into JS is no
-    // longer possible.
-    // Refs: https://github.com/nodejs/node/pull/34362#discussion_r456006039
-    if (!env->can_call_into_js()) return;
-
-    bool enable = state->wanted;
-    Local<Function> function = enable ? enable_function : disable_function;
-    if (function.IsEmpty()) return;
-
-    if (env->is_processing_v8_interrupt()) {
-      defer();
-      return;
-    }
-
-    if (require_bootstrapping) CHECK(env->has_run_bootstrapping_code());
-    Local<Context> context = env->context();
-    v8::TryCatch try_catch(isolate);
-    USE(function->Call(context, Undefined(isolate), 0, nullptr));
-    if (try_catch.HasCaught()) {
-      // Termination may abort the toggle invocation. Do not record a state that
-      // may not have taken effect, so a later sync can retry it.
-      if (try_catch.HasTerminated()) return;
-      PrintCaughtException(isolate, context, try_catch);
-      on_failure();
-    }
-    state->enabled = enable;
-  }
+static void RequestIoThreadStartOnAgents() {
+  Mutex::ScopedLock lock(start_io_thread_agents_mutex);
+  for (Agent* agent : start_io_thread_agents) agent->RequestIoThreadStart();
 }
-
-// Called on the main thread.
-void StartIoThreadAsyncCallback(uv_async_t* handle) {
-  static_cast<Agent*>(handle->data)->StartIoThread();
-}
-
 
 #ifdef __POSIX__
 static void StartIoThreadWakeup(int signo, siginfo_t* info, void* ucontext) {
@@ -140,16 +94,11 @@ inline void* StartIoThreadMain(void* unused) {
   uv_thread_setname("SignalInspector");
   for (;;) {
     uv_sem_wait(&start_io_thread_semaphore);
-    Mutex::ScopedLock lock(start_io_thread_async_mutex);
-
-    CHECK(start_io_thread_async_initialized);
-    Agent* agent = static_cast<Agent*>(start_io_thread_async.data);
-    if (agent != nullptr)
-      agent->RequestIoThreadStart();
+    RequestIoThreadStartOnAgents();
   }
 }
 
-static int StartDebugSignalHandler() {
+static int StartWatchdogThread() {
   // Start a watchdog thread for calling v8::Debug::DebugBreak() because
   // it's not safe to call directly from the signal handler, it can
   // deadlock with the thread it interrupts.
@@ -184,14 +133,28 @@ static int StartDebugSignalHandler() {
     fprintf(stderr, "node[%u]: pthread_create: %s\n",
             uv_os_getpid(), strerror(err));
     fflush(stderr);
-    // Leave SIGUSR1 blocked.  We don't install a signal handler,
-    // receiving the signal would terminate the process.
+    uv_sem_destroy(&start_io_thread_semaphore);
     return -err;
   }
   RegisterSignalHandler(SIGUSR1, StartIoThreadWakeup);
   // Restore original mask
   CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
-  // Unblock SIGUSR1.  A pending SIGUSR1 signal will now be delivered.
+  return 0;
+}
+
+static int StartDebugSignalHandler() {
+  {
+    Mutex::ScopedLock lock(start_io_thread_agents_mutex);
+    if (!debug_signal_handler_started) {
+      // Leave SIGUSR1 blocked on failure. We don't install a signal handler,
+      // receiving the signal would terminate the process.
+      if (int err = StartWatchdogThread()) return err;
+      debug_signal_handler_started = true;
+    }
+  }
+  // Unblock SIGUSR1 on this thread; PlatformInit() left it blocked. A pending
+  // SIGUSR1 signal will now be delivered.
+  sigset_t sigmask;
   sigemptyset(&sigmask);
   sigaddset(&sigmask, SIGUSR1);
   CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sigmask, nullptr));
@@ -202,11 +165,7 @@ static int StartDebugSignalHandler() {
 
 #ifdef _WIN32
 DWORD WINAPI StartIoThreadProc(void* arg) {
-  Mutex::ScopedLock lock(start_io_thread_async_mutex);
-  CHECK(start_io_thread_async_initialized);
-  Agent* agent = static_cast<Agent*>(start_io_thread_async.data);
-  if (agent != nullptr)
-    agent->RequestIoThreadStart();
+  RequestIoThreadStartOnAgents();
   return 0;
 }
 
@@ -216,6 +175,9 @@ static int GetDebugSignalHandlerMappingName(DWORD pid, wchar_t* buf,
 }
 
 static int StartDebugSignalHandler() {
+  Mutex::ScopedLock lock(start_io_thread_agents_mutex);
+  if (debug_signal_handler_started) return 0;
+  debug_signal_handler_started = true;
   wchar_t mapping_name[32];
   HANDLE mapping_handle;
   DWORD pid;
@@ -521,16 +483,6 @@ class SameThreadInspectorSession : public InspectorSession {
 
 void NotifyClusterWorkersDebugEnabled(Environment* env) {
   Isolate* isolate = env->isolate();
-
-  // Starting the inspector from an interrupt is safe, but emitting the cluster
-  // notification calls into JS.
-  if (env->is_processing_v8_interrupt()) {
-    env->SetImmediate(
-        [](Environment* env) { NotifyClusterWorkersDebugEnabled(env); },
-        CallbackFlags::kUnrefed);
-    return;
-  }
-
   HandleScope handle_scope(isolate);
 
   // Send message to enable debug in cluster workers
@@ -560,15 +512,8 @@ bool IsFilePath(const std::string& path) {
 #endif  // __POSIX__
 
 void ThrowUninitializedInspectorError(Environment* env) {
-  HandleScope scope(env->isolate());
-
-  std::string_view msg =
-      "This Environment was initialized without a V8::Inspector";
-  Local<Value> exception;
-  if (ToV8Value(env->context(), msg, env->isolate()).ToLocal(&exception)) {
-    env->isolate()->ThrowException(exception);
-  }
-  // V8 will have scheduled a superseding error here.
+  THROW_ERR_INSPECTOR_NOT_AVAILABLE(
+      env, "This Environment was initialized without a V8::Inspector");
 }
 
 }  // namespace
@@ -864,7 +809,9 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   double currentTimeMS() override {
-    return env_->isolate_data()->platform()->CurrentClockTimeMillis();
+    MultiIsolatePlatform* platform = env_->isolate_data()->platform();
+    if (platform == nullptr) return GetCurrentTimeInMicroseconds() / 1000;
+    return platform->CurrentClockTimeMillis();
   }
 
   std::unique_ptr<StringBuffer> resourceNameToUrl(
@@ -899,7 +846,21 @@ Agent::Agent(Environment* env)
       debug_options_(env->options()->debug_options()),
       host_port_(env->inspector_host_port()) {}
 
-Agent::~Agent() = default;
+Agent::~Agent() {
+  StopAcceptingIoThreadStarts();
+}
+
+void Agent::StopAcceptingIoThreadStarts() {
+  if (start_io_thread_async_ == nullptr) return;
+  {
+    Mutex::ScopedLock lock(start_io_thread_agents_mutex);
+    std::erase(start_io_thread_agents, this);
+  }
+  parent_env_->RemoveCleanupHook(StopAcceptingIoThreadStartsHook, this);
+  parent_env_->CloseHandle(start_io_thread_async_,
+                           [](uv_async_t* handle) { delete handle; });
+  start_io_thread_async_ = nullptr;
+}
 
 bool Agent::Start(const std::string& path,
                   const DebugOptions& options,
@@ -911,33 +872,25 @@ bool Agent::Start(const std::string& path,
   host_port_ = host_port;
 
   client_ = std::make_shared<NodeInspectorClient>(parent_env_, is_main);
-  if (parent_env_->owns_inspector()) {
-    Mutex::ScopedLock lock(start_io_thread_async_mutex);
-    CHECK_EQ(start_io_thread_async_initialized.exchange(true), false);
-    CHECK_EQ(0, uv_async_init(parent_env_->event_loop(),
-                              &start_io_thread_async,
-                              StartIoThreadAsyncCallback));
-    uv_unref(reinterpret_cast<uv_handle_t*>(&start_io_thread_async));
-    start_io_thread_async.data = this;
-    if (parent_env_->should_start_debug_signal_handler()) {
-      // Ignore failure, SIGUSR1 won't work, but that should not block node
-      // start.
-      StartDebugSignalHandler();
+  if (parent_env_->owns_inspector() &&
+      parent_env_->should_start_debug_signal_handler()) {
+    start_io_thread_async_ = new uv_async_t;
+    start_io_thread_async_->data = this;
+    CHECK_EQ(0,
+             uv_async_init(parent_env_->event_loop(),
+                           start_io_thread_async_,
+                           [](uv_async_t* handle) {
+                             static_cast<Agent*>(handle->data)->StartIoThread();
+                           }));
+    uv_unref(reinterpret_cast<uv_handle_t*>(start_io_thread_async_));
+    {
+      Mutex::ScopedLock lock(start_io_thread_agents_mutex);
+      start_io_thread_agents.push_back(this);
     }
-
-    parent_env_->AddCleanupHook([](void* data) {
-      Environment* env = static_cast<Environment*>(data);
-
-      {
-        Mutex::ScopedLock lock(start_io_thread_async_mutex);
-        start_io_thread_async.data = nullptr;
-      }
-
-      // This is global, will never get freed
-      env->CloseHandle(&start_io_thread_async, [](uv_async_t*) {
-        CHECK(start_io_thread_async_initialized.exchange(false));
-      });
-    }, parent_env_);
+    parent_env_->AddCleanupHook(StopAcceptingIoThreadStartsHook, this);
+    // Ignore failure, SIGUSR1 won't work, but that should not block node
+    // start.
+    StartDebugSignalHandler();
   }
 
   AtExit(parent_env_, [](void* env) {
@@ -1016,8 +969,20 @@ std::unique_ptr<InspectorSession> Agent::ConnectToMainThread(
     ThrowUninitializedInspectorError(parent_env_);
     return std::unique_ptr<InspectorSession>{};
   }
+  if (!parent_handle_) {
+    THROW_ERR_INSPECTOR_NOT_AVAILABLE(
+        parent_env_, "The parent thread's inspector is not available");
+    return std::unique_ptr<InspectorSession>{};
+  }
+  // A session connected to the main thread can pause it indefinitely.
+  if (ProcessTimeoutWatchdog::IsEnabled()) {
+    THROW_ERR_INSPECTOR_NOT_AVAILABLE(
+        parent_env_,
+        "Sessions cannot be connected to the main thread when "
+        "--process-timeout is used");
+    return std::unique_ptr<InspectorSession>{};
+  }
 
-  CHECK_NOT_NULL(parent_handle_);
   CHECK_NOT_NULL(client_);
   auto thread_safe_delegate =
       client_->getThreadHandle()->MakeDelegateThreadSafe(std::move(delegate));
@@ -1035,40 +1000,54 @@ void Agent::SetupNetworkTracking(Local<Function> enable_function,
                                  Local<Function> disable_function) {
   parent_env_->set_inspector_enable_network_tracking(enable_function);
   parent_env_->set_inspector_disable_network_tracking(disable_function);
-  SyncNetworkTrackingState();
+  if (pending_enable_network_tracking) {
+    pending_enable_network_tracking = false;
+    EnableNetworkTracking();
+  } else if (pending_disable_network_tracking) {
+    pending_disable_network_tracking = false;
+    DisableNetworkTracking();
+  }
 }
 
 void Agent::EnableNetworkTracking() {
-  network_tracking_state_.wanted = true;
-  SyncNetworkTrackingState();
+  if (network_tracking_enabled_) {
+    return;
+  }
+  HandleScope scope(parent_env_->isolate());
+  Local<Function> enable = parent_env_->inspector_enable_network_tracking();
+  if (enable.IsEmpty()) {
+    pending_enable_network_tracking = true;
+  } else {
+    ToggleNetworkTracking(parent_env_->isolate(), enable);
+    network_tracking_enabled_ = true;
+  }
 }
 
 void Agent::DisableNetworkTracking() {
-  if (client_->hasConnectedSessions()) return;
-  network_tracking_state_.wanted = false;
-  SyncNetworkTrackingState();
+  if (!network_tracking_enabled_) {
+    return;
+  }
+  HandleScope scope(parent_env_->isolate());
+  Local<Function> disable = parent_env_->inspector_disable_network_tracking();
+  if (disable.IsEmpty()) {
+    pending_disable_network_tracking = true;
+  } else if (!client_->hasConnectedSessions()) {
+    ToggleNetworkTracking(parent_env_->isolate(), disable);
+    network_tracking_enabled_ = false;
+  }
 }
 
-void Agent::SyncNetworkTrackingState() {
-  Isolate* isolate = parent_env_->isolate();
+void Agent::ToggleNetworkTracking(Isolate* isolate, Local<Function> fn) {
+  if (!parent_env_->can_call_into_js()) return;
+  auto context = parent_env_->context();
   HandleScope scope(isolate);
-  SyncJavaScriptHookState(
-      parent_env_,
-      &network_tracking_state_,
-      parent_env_->inspector_enable_network_tracking(),
-      parent_env_->inspector_disable_network_tracking(),
-      false,
-      [this]() {
-        parent_env_->SetImmediate(
-            [](Environment* env) {
-              Agent* agent = env->inspector_agent();
-              if (agent != nullptr) agent->SyncNetworkTrackingState();
-            },
-            CallbackFlags::kUnrefed);
-      },
-      []() {
-        UNREACHABLE("Cannot toggle network tracking, please report this.");
-      });
+  CHECK(!fn.IsEmpty());
+  v8::TryCatch try_catch(isolate);
+  USE(fn->Call(context, Undefined(isolate), 0, nullptr));
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    PrintCaughtException(isolate, context, try_catch);
+    UNREACHABLE("Cannot toggle network tracking, please report this.");
+  }
 }
 
 void Agent::WaitForDisconnect() {
@@ -1119,7 +1098,7 @@ void Agent::RegisterAsyncHook(Isolate* isolate,
 }
 
 void Agent::SetAsyncHookTrackingEnabled(bool enabled) {
-  async_hook_state_.wanted = enabled;
+  async_hook_wanted_ = enabled;
   SyncAsyncHookState();
 }
 
@@ -1133,25 +1112,52 @@ void Agent::SetAsyncHookTrackingEnabled(bool enabled) {
 // When it's not safe to call into JS, this is a no-op and we'll try again in
 // RegisterAsyncHook() (for 1) or from a scheduled immediate (for 2).
 void Agent::SyncAsyncHookState() {
+  // The debugger can request an interrupt within the toggle JS function itself,
+  // A nested call only records the new requested state, the outermost call sees
+  // it when re-checking the loop condition after each toggle.
+  if (syncing_async_hook_state_) return;
+  syncing_async_hook_state_ = true;
+  auto on_exit = OnScopeLeave([this]() { syncing_async_hook_state_ = false; });
+
   Isolate* isolate = parent_env_->isolate();
   HandleScope scope(isolate);
-  SyncJavaScriptHookState(
-      parent_env_,
-      &async_hook_state_,
-      parent_env_->inspector_enable_async_hooks(),
-      parent_env_->inspector_disable_async_hooks(),
-      true,
-      [this]() {
-        parent_env_->SetImmediate(
-            [](Environment* env) {
-              Agent* agent = env->inspector_agent();
-              if (agent != nullptr) agent->SyncAsyncHookState();
-            },
-            CallbackFlags::kUnrefed);
-      },
-      []() {
-        UNREACHABLE("Cannot toggle Inspector's AsyncHook, please report this.");
-      });
+  while (async_hook_wanted_ != async_hook_enabled_) {
+    // Guard against running this during cleanup -- no async events will be
+    // emitted anyway at that point anymore, and calling into JS is not
+    // possible. This should probably not be something we're attempting in the
+    // first place,
+    // Refs: https://github.com/nodejs/node/pull/34362#discussion_r456006039
+    if (!parent_env_->can_call_into_js()) return;
+
+    bool enable = async_hook_wanted_;
+    Local<Function> fn = enable ? parent_env_->inspector_enable_async_hooks()
+                                : parent_env_->inspector_disable_async_hooks();
+    if (fn.IsEmpty()) return;
+
+    if (parent_env_->is_processing_v8_interrupt()) {
+      parent_env_->SetImmediate(
+          [](Environment* env) {
+            Agent* agent = env->inspector_agent();
+            if (agent != nullptr) agent->SyncAsyncHookState();
+          },
+          CallbackFlags::kUnrefed);
+      return;
+    }
+
+    CHECK(parent_env_->has_run_bootstrapping_code());
+    Local<Context> context = parent_env_->context();
+    v8::TryCatch try_catch(isolate);
+    USE(fn->Call(context, Undefined(isolate), 0, nullptr));
+    if (try_catch.HasCaught()) {
+      // Termination may abort the toggle invocation, retrying now would just
+      // be terminated again. Instead of recording the toggle that may not have
+      // taken effect, leave the states as-is so that a later sync retries.
+      if (try_catch.HasTerminated()) return;
+      PrintCaughtException(isolate, context, try_catch);
+      UNREACHABLE("Cannot toggle Inspector's AsyncHook, please report this.");
+    }
+    async_hook_enabled_ = enable;
+  }
 }
 
 void Agent::AsyncTaskScheduled(const StringView& task_name, void* task,
@@ -1175,6 +1181,10 @@ void Agent::AllAsyncTasksCanceled() {
   client_->AllAsyncTasksCanceled();
 }
 
+void Agent::StopAcceptingIoThreadStartsHook(void* agent) {
+  static_cast<Agent*>(agent)->StopAcceptingIoThreadStarts();
+}
+
 void Agent::RequestIoThreadStart() {
   // We need to attempt to interrupt V8 flow (in case Node is running
   // continuous JS code) and to wake up libuv thread (in case Node is waiting
@@ -1182,14 +1192,19 @@ void Agent::RequestIoThreadStart() {
   if (!options().allow_attaching_debugger) {
     return;
   }
-  CHECK(start_io_thread_async_initialized);
-  uv_async_send(&start_io_thread_async);
+  // Activation via SIGUSR1 or process._debugProcess() has no caller to throw
+  // to, so print a warning instead.
+  if (ProcessTimeoutWatchdog::IsEnabled()) {
+    FPrintF(stderr,
+            "(node:%d) Warning: Ignoring the request to activate the "
+            "inspector because --process-timeout is used.\n",
+            uv_os_getpid());
+    return;
+  }
   parent_env_->RequestInterrupt([this](Environment*) {
     StartIoThread();
   });
-
-  CHECK(start_io_thread_async_initialized);
-  uv_async_send(&start_io_thread_async);
+  uv_async_send(start_io_thread_async_);
 }
 
 void Agent::ContextCreated(Local<Context> context, const ContextInfo& info) {

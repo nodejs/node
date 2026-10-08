@@ -369,6 +369,8 @@ class ByteParser extends Writable {
   consumeFragments () {
     const fragments = this.#fragments
 
+    this.#info.compressed = false
+
     if (fragments.length === 1) {
       // single fragment
       this.#fragmentsBytes = 0

@@ -214,13 +214,11 @@ async function testFipsSignRejected({
     { name: 'OperationError' });
 }
 
-async function testSaltLength(keyLength, hash, hLen) {
-  const { publicKey, privateKey } = await subtle.generateKey({
-    name: 'RSA-PSS',
-    modulusLength: keyLength,
-    publicExponent: new Uint8Array([1, 0, 1]),
-    hash,
-  }, false, ['sign', 'verify']);
+async function testSaltLength(keyLength, hash, hLen, spki, pkcs8) {
+  const [publicKey, privateKey] = await Promise.all([
+    subtle.importKey('spki', spki, { name: 'RSA-PSS', hash }, false, ['verify']),
+    subtle.importKey('pkcs8', pkcs8, { name: 'RSA-PSS', hash }, false, ['sign']),
+  ]);
 
   const data = Buffer.from('Hello, world!');
   const max = keyLength / 8 - hLen - 2;
@@ -249,6 +247,39 @@ async function testSaltLength(keyLength, hash, hLen) {
   }
 }
 
+async function testSaltLengths(keyLength) {
+  // Reuse the same RSA key material across hashes. The salt boundary depends
+  // on the modulus length and digest size, not on a newly generated modulus.
+  const { publicKey, privateKey } = await subtle.generateKey({
+    name: 'RSA-PSS',
+    modulusLength: keyLength,
+    publicExponent: new Uint8Array([1, 0, 1]),
+    hash: 'SHA-256',
+  }, true, ['sign', 'verify']);
+  const [spki, pkcs8] = await Promise.all([
+    subtle.exportKey('spki', publicKey),
+    subtle.exportKey('pkcs8', privateKey),
+  ]);
+
+  const variations = [];
+  for (const [hash, hLen] of [
+    ['SHA-1', 20],
+    ['SHA-256', 32],
+    ['SHA-384', 48],
+    ['SHA-512', 64],
+    ...(!isBoringSSL ? [
+      ['SHA3-256', 32],
+      ['SHA3-384', 48],
+      ['SHA3-512', 64],
+    ] : []),
+  ]) {
+    if (rejectsSha1Signing && hash === 'SHA-1')
+      continue;
+    variations.push(testSaltLength(keyLength, hash, hLen, spki, pkcs8));
+  }
+  await Promise.all(variations);
+}
+
 (async function() {
   const variations = [];
 
@@ -263,23 +294,8 @@ async function testSaltLength(keyLength, hash, hLen) {
       testFipsSignRejected(vector) : testSign(vector));
   });
 
-  for (const keyLength of fips3 ? [2048] : [1024, 2048]) {
-    for (const [hash, hLen] of [
-      ['SHA-1', 20],
-      ['SHA-256', 32],
-      ['SHA-384', 48],
-      ['SHA-512', 64],
-      ...(!isBoringSSL ? [
-        ['SHA3-256', 32],
-        ['SHA3-384', 48],
-        ['SHA3-512', 64],
-      ] : []),
-    ]) {
-      if (rejectsSha1Signing && hash === 'SHA-1')
-        continue;
-      variations.push(testSaltLength(keyLength, hash, hLen));
-    }
-  }
+  for (const keyLength of fips3 ? [2048] : [1024, 2048])
+    variations.push(testSaltLengths(keyLength));
 
   await Promise.all(variations);
 })().then(common.mustCall());

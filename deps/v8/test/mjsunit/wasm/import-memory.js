@@ -11,7 +11,7 @@ var kV8MaxPages = 65536;
   print("TestOne");
   let memory = new WebAssembly.Memory({initial: 1});
   assertEquals(kPageSize, memory.buffer.byteLength);
-  let i32 = new Int32Array(memory.buffer);
+  let view = new DataView(memory.buffer);
   let builder = new WasmModuleBuilder();
   builder.addImportedMemory("mod", "mine");
   builder.addFunction("main", kSig_i_v)
@@ -23,7 +23,7 @@ var kV8MaxPages = 65536;
   let main = builder.instantiate({mod: {mine: memory}}).exports.main;
   assertEquals(0, main());
 
-  i32[0] = 993377;
+  view.setInt32(0, 993377, true);
 
   assertEquals(993377, main());
 })();
@@ -67,12 +67,12 @@ var kV8MaxPages = 65536;
     i2 = builder.instantiate({fil: {imported_mem: i1.exports.exported_mem}});
   }
 
-  let i32 = new Int32Array(i1.exports.exported_mem.buffer);
+  let view = new DataView(i1.exports.exported_mem.buffer);
 
   for (var i = 0; i < 1e11; i = i * 3 + 5) {
     for (var j = 0; j < 10; j++) {
       var val = i + 99077 + j;
-      i32[j] = val;
+      view.setInt32(j * 4, val, true);
       assertEquals(val | 0, i1.exports.foo(j * 4));
       assertEquals(val | 0, i2.exports.bar(j * 4));
     }

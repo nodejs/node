@@ -77,5 +77,8 @@
       # Other architectures don't use assembly
       'includes': ['config/archs/linux-x86_64/asm/openssl.gypi'],
     }],
+    [ 'clang==1 and OS!="win"', {
+      'cflags': [ '-Wno-unused-command-line-argument' ],
+    }],
   ],
 }

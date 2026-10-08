@@ -15,10 +15,70 @@
 #include "cppgc/trace-trait.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
-namespace cppgc {
-namespace internal {
+namespace cppgc::internal {
 
 using GCInfoIndex = uint16_t;
+static constexpr GCInfoIndex kMaxGCInfoIndex = 1 << 14;
+static constexpr GCInfoIndex kMinGCInfoIndex = 1;
+
+struct GCInfo final {
+  constexpr GCInfo(FinalizationCallback finalize, TraceCallback trace,
+                   NameCallback name)
+      : finalize(finalize), trace(trace), name(name) {}
+
+  FinalizationCallback finalize;
+  TraceCallback trace;
+  NameCallback name;
+  size_t padding = 0;
+};
+
+inline HeapObjectName GetHiddenName(
+    const void*, HeapObjectNameForUnnamedObject name_retrieval_mode) {
+  return {
+      NameProvider::kHiddenName,
+      name_retrieval_mode == HeapObjectNameForUnnamedObject::kUseHiddenName};
+}
+
+#if defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
+
+#if defined(__APPLE__)
+// Use __attribute__((visibility("hidden"))) explicitly here, since otherwise
+// the compiler will generate GOT-indirected loads. Although the linker emits
+// these symbols with `protected` visibility (same as `default`, i.e. exported,
+// but without GOT/PLT indirection), the compiler is not aware of that and
+// assumes any extern "C" has the `default` visibility.
+extern "C" __attribute__((visibility("hidden"))) const GCInfo
+    __start_gc_info_section[] __asm("section$start$__DATA$gc_info_section");
+extern "C" __attribute__((visibility("hidden"))) const GCInfo
+    __stop_gc_info_section[] __asm("section$end$__DATA$gc_info_section");
+#define CPPGC_GC_INFO_SECTION \
+  __attribute__((section("__DATA,gc_info_section"), used))
+#else  // defined(__APPLE__)
+extern "C" __attribute__((visibility("hidden")))
+const GCInfo __start_gc_info_section[];
+extern "C" __attribute__((visibility("hidden")))
+const GCInfo __stop_gc_info_section[];
+#define CPPGC_GC_INFO_SECTION __attribute__((section("gc_info_section"), used))
+#endif  // defined(__APPLE__)
+
+class V8_EXPORT GCInfoTableSection final {
+ public:
+  GCInfoTableSection() = delete;
+
+  V8_INLINE static GCInfoIndex Index(const GCInfo& info) {
+    return &info - __start_gc_info_section + 1;
+  }
+
+  V8_INLINE static const GCInfo& GCInfoFromIndex(GCInfoIndex index) {
+    CPPGC_DCHECK(index >= 1);
+    CPPGC_DCHECK(
+        static_cast<size_t>(index - 1) <
+        static_cast<size_t>(__stop_gc_info_section - __start_gc_info_section));
+    return __start_gc_info_section[index - 1];
+  }
+};
+
+#else  // defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
 
 struct V8_EXPORT EnsureGCInfoIndexTrait final {
   // Acquires a new GC info object and updates `registered_index` with the index
@@ -77,10 +137,19 @@ DISPATCH(false, false,                                     //
 
 #undef DISPATCH
 
+#endif  // defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
+
 // Trait determines how the garbage collector treats objects wrt. to traversing,
 // finalization, and naming.
 template <typename T>
 struct GCInfoTrait final {
+#if defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
+  static const GCInfo gc_info;
+  V8_INLINE static GCInfoIndex Index() {
+    static_assert(sizeof(T), "T must be fully defined");
+    return GCInfoTableSection::Index(gc_info);
+  }
+#else   // defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
   V8_INLINE static GCInfoIndex Index() {
     static_assert(sizeof(T), "T must be fully defined");
     static std::atomic<GCInfoIndex>
@@ -93,6 +162,7 @@ struct GCInfoTrait final {
     }
     return index;
   }
+#endif  // defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
 
   static constexpr void CheckCallbacksAreDefined() {
     // No USE() macro available.
@@ -144,7 +214,13 @@ struct GCInfoFolding final {
       std::conditional_t<WantToFold(), ParentMostGarbageCollectedType, T>;
 };
 
-}  // namespace internal
-}  // namespace cppgc
+#if defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
+template <typename T>
+const GCInfo GCInfoTrait<T>::gc_info CPPGC_GC_INFO_SECTION = GCInfo(
+    FinalizerTrait<T>::kCallback, TraceTrait<T>::Trace,
+    NameTrait<T>::HasNonHiddenName() ? NameTrait<T>::GetName : GetHiddenName);
+#endif  // defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
+
+}  // namespace cppgc::internal
 
 #endif  // INCLUDE_CPPGC_INTERNAL_GC_INFO_H_

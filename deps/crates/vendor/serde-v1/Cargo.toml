@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.56"
 name = "serde"
-version = "1.0.228"
+version = "1.0.229"
 authors = [
     "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
     "David Tolnay <dtolnay@gmail.com>",
@@ -75,7 +75,7 @@ name = "serde"
 path = "src/lib.rs"
 
 [dependencies.serde_core]
-version = "=1.0.228"
+version = "=1.0.229"
 features = ["result"]
 default-features = false
 

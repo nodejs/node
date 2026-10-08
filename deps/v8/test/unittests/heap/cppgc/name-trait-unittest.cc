@@ -47,7 +47,11 @@ TEST_F(NameTraitTest, InternalNamesHiddenInOfficialBuild) {
   // (b) avoid exposing internal types until it has been clarified whether
   //     exposing internals in DevTools is fine.
 #if defined(OFFICIAL_BUILD)
+#if defined(V8_OS_ANDROID) || defined(V8_OS_FUCHSIA)
   EXPECT_FALSE(NameProvider::SupportsCppClassNamesAsObjectNames());
+#else
+  EXPECT_TRUE(NameProvider::SupportsCppClassNamesAsObjectNames());
+#endif
 #endif
 }
 
@@ -110,7 +114,7 @@ TEST_F(NameTraitTest, NoTypeAvailable) {
 
 TEST_F(NameTraitTest, ParsingPrettyFunction) {
   // Test assumes that __PRETTY_FUNCTION__ and friends return a string
-  // containing the the type as [T = <type>].
+  // containing the type as [T = <type>].
   HeapObjectName name = TraitTester::GetNameFromTypeSignature(
       "Some signature of a method [T = ClassNameInSignature]");
   EXPECT_STREQ("ClassNameInSignature", name.value);

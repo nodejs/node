@@ -12,10 +12,10 @@ if (!hasFIPS(3))
   common.skip('requires OpenSSL >= 3 in FIPS mode');
 
 const require = createRequire(import.meta.url);
+const { getHashes } = require('node:crypto');
 const { internalBinding } = require('internal/test/binding');
 const { getCryptoKeyHandle } = require('internal/crypto/keys');
 const {
-  CShakeJob,
   KangarooTwelveJob,
   KmacJob,
   TurboShakeJob,
@@ -52,13 +52,6 @@ for (const createJob of [
     kCryptoJobWebCrypto, 'TurboSHAKE128', 0x1f, 16, data),
   () => new KangarooTwelveJob(
     kCryptoJobWebCrypto, 'KT128', undefined, 16, data),
-  () => new CShakeJob(
-    kCryptoJobWebCrypto,
-    'cSHAKE128',
-    data,
-    Buffer.from('KMAC'),
-    undefined,
-    128),
 ]) {
   assert.throws(createJob, {
     code: 'ERR_CRYPTO_UNSUPPORTED_OPERATION',
@@ -66,47 +59,33 @@ for (const createJob of [
   });
 }
 
-const emptyCShake = {
-  name: 'cSHAKE128',
-  outputLength: 256,
-  customization: data,
-  functionName: data,
-};
-assert.strictEqual(SubtleCrypto.supports('digest', emptyCShake), true);
-
-for (const length of [1, 513]) {
-  const algorithm = {
-    name: 'cSHAKE128',
+for (const name of ['cSHAKE128', 'cSHAKE256']) {
+  const emptyCShake = {
+    name,
     outputLength: 256,
-    customization: new Uint8Array(length),
+    customization: data,
+    functionName: data,
   };
-  await assertFipsException(
-    'digest',
-    algorithm,
-    () => subtle.digest(algorithm, data),
-    'Unsupported CShakeParams customization');
+  assert.strictEqual(SubtleCrypto.supports('digest', emptyCShake), true);
+  assert.strictEqual((await subtle.digest(emptyCShake, data)).byteLength, 32);
+
+  for (const params of [
+    { customization: Buffer.from('Node.js') },
+    { functionName: Buffer.from('KMAC') },
+    { functionName: Buffer.from('KMAC'), customization: Buffer.from('Node.js') },
+  ]) {
+    const algorithm = { name, outputLength: 256, ...params };
+    const supported = getHashes().includes(name.toLowerCase());
+    assert.strictEqual(SubtleCrypto.supports('digest', algorithm), supported);
+    if (supported) {
+      assert.strictEqual((await subtle.digest(algorithm, data)).byteLength, 32);
+    } else {
+      await assert.rejects(subtle.digest(algorithm, data), {
+        name: 'NotSupportedError',
+      });
+    }
+  }
 }
-
-const functionName = {
-  name: 'cSHAKE256',
-  outputLength: 256,
-  functionName: Buffer.from('KMAC'),
-};
-await assertFipsException(
-  'digest',
-  functionName,
-  () => subtle.digest(functionName, data),
-  'Unsupported CShakeParams functionName');
-
-const bothCShakeParams = {
-  ...functionName,
-  customization: new Uint8Array(1),
-};
-await assertFipsException(
-  'digest',
-  bothCShakeParams,
-  () => subtle.digest(bothCShakeParams, data),
-  'Unsupported CShakeParams customization');
 
 for (const length of [0, 24, 33]) {
   const algorithm = { name: 'KMAC128', length };
@@ -170,7 +149,6 @@ await assert.rejects(
     getCryptoKeyHandle(key),
     'KMAC128',
     undefined,
-    32,
     9,
     data,
     undefined).run(),

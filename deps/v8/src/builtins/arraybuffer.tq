@@ -6,7 +6,7 @@ extern macro ArrayBufferWasmMemorySymbol(): PrivateSymbol;
 
 namespace arraybuffer {
 
-// #sec-get-arraybuffer.prototype.bytelength
+// https://tc39.es/ecma262/#sec-get-arraybuffer.prototype.bytelength
 transitioning javascript builtin ArrayBufferPrototypeGetByteLength(
     js-implicit context: NativeContext, receiver: JSAny)(): Number {
   // 1. Let O be the this value.
@@ -26,7 +26,7 @@ transitioning javascript builtin ArrayBufferPrototypeGetByteLength(
   return Convert<Number>(length);
 }
 
-// #sec-get-arraybuffer.prototype.maxbytelength
+// https://tc39.es/ecma262/#sec-get-arraybuffer.prototype.maxbytelength
 transitioning javascript builtin ArrayBufferPrototypeGetMaxByteLength(
     js-implicit context: NativeContext, receiver: JSAny)(): Number {
   // 1. Let O be the this value.
@@ -70,7 +70,7 @@ transitioning javascript builtin ArrayBufferPrototypeGetMaxByteLength(
   return Convert<Number>(o.byte_length);
 }
 
-// #sec-get-arraybuffer.prototype.resizable
+// https://tc39.es/ecma262/#sec-get-arraybuffer.prototype.resizable
 transitioning javascript builtin ArrayBufferPrototypeGetResizable(
     js-implicit context: NativeContext, receiver: JSAny)(): Boolean {
   // 1. Let O be the this value.
@@ -91,7 +91,7 @@ transitioning javascript builtin ArrayBufferPrototypeGetResizable(
   return False;
 }
 
-// #sec-get-arraybuffer.prototype.detached
+// https://tc39.es/ecma262/#sec-get-arraybuffer.prototype.detached
 transitioning javascript builtin ArrayBufferPrototypeGetDetached(
     js-implicit context: NativeContext, receiver: JSAny)(): Boolean {
   // 1. Let O be the this value.
@@ -112,7 +112,7 @@ transitioning javascript builtin ArrayBufferPrototypeGetDetached(
   return False;
 }
 
-// #sec-get-arraybuffer.prototype.immutable
+// https://tc39.es/ecma262/#sec-get-arraybuffer.prototype.immutable
 transitioning javascript builtin ArrayBufferPrototypeGetImmutable(
     js-implicit context: NativeContext, receiver: JSAny)(): Boolean {
   // 1. Let O be the this value.
@@ -133,7 +133,7 @@ transitioning javascript builtin ArrayBufferPrototypeGetImmutable(
   return False;
 }
 
-// #sec-get-growablesharedarraybuffer.prototype.maxbytelength
+// https://tc39.es/ecma262/#sec-get-growablesharedarraybuffer.prototype.maxbytelength
 transitioning javascript builtin SharedArrayBufferPrototypeGetMaxByteLength(
     js-implicit context: NativeContext, receiver: JSAny)(): Number {
   // 1. Let O be the this value.
@@ -171,7 +171,7 @@ transitioning javascript builtin SharedArrayBufferPrototypeGetMaxByteLength(
   return Convert<Number>(o.max_byte_length);
 }
 
-// #sec-get-sharedarraybuffer.prototype.growable
+// https://tc39.es/ecma262/#sec-get-sharedarraybuffer.prototype.growable
 transitioning javascript builtin SharedArrayBufferPrototypeGetGrowable(
     js-implicit context: NativeContext, receiver: JSAny)(): Boolean {
   // 1. Let O be the this value.
@@ -192,7 +192,7 @@ transitioning javascript builtin SharedArrayBufferPrototypeGetGrowable(
   return False;
 }
 
-// #sec-arraybuffer.isview
+// https://tc39.es/ecma262/#sec-arraybuffer.isview
 transitioning javascript builtin ArrayBufferIsView(arg: JSAny): Boolean {
   // 1. If Type(arg) is not Object, return false.
   // 2. If arg has a [[ViewedArrayBuffer]] internal slot, return true.

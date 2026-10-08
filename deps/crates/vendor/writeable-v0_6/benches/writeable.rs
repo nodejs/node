@@ -204,21 +204,21 @@ fn writeable_dyn_benches(c: &mut Criterion) {
 fn display_benches(c: &mut Criterion) {
     c.bench_function("display/to_string/short", |b| {
         b.iter(|| {
-            std::string::ToString::to_string(&DisplayMessage {
+            ToString::to_string(&DisplayMessage {
                 message: black_box(SHORT_STR),
             })
         });
     });
     c.bench_function("display/to_string/medium", |b| {
         b.iter(|| {
-            std::string::ToString::to_string(&DisplayMessage {
+            ToString::to_string(&DisplayMessage {
                 message: black_box(MEDIUM_STR),
             })
         });
     });
     c.bench_function("display/to_string/long", |b| {
         b.iter(|| {
-            std::string::ToString::to_string(&DisplayMessage {
+            ToString::to_string(&DisplayMessage {
                 message: black_box(LONG_STR),
             })
         });
@@ -280,7 +280,7 @@ fn complex_benches(c: &mut Criterion) {
         });
     });
     c.bench_function("complex/display_to_string/medium", |b| {
-        b.iter(|| std::string::ToString::to_string(&black_box(COMPLEX_WRITEABLE_MEDIUM)));
+        b.iter(|| ToString::to_string(&black_box(COMPLEX_WRITEABLE_MEDIUM)));
     });
     const REFERENCE_STRS: [&str; 6] = [
         "There are 55 apples and 8124 oranges",

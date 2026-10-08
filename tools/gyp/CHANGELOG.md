@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.22.3](https://github.com/nodejs/gyp-next/compare/v0.22.2...v0.22.3) (2026-09-29)
+
+
+### Bug Fixes
+
+* add Python 3.15 beta to the testing ([#344](https://github.com/nodejs/gyp-next/issues/344)) ([bb6522f](https://github.com/nodejs/gyp-next/commit/bb6522fbacc620da2cc382484d75c75ee35d780c))
+* **ci:** add zizmor security linter for github actions ([#358](https://github.com/nodejs/gyp-next/issues/358)) ([3d4c42b](https://github.com/nodejs/gyp-next/commit/3d4c42b386582df54368c29fcd7c3121737451a2))
+* **ci:** enable Python 3.15 release candidate on Windows ([#357](https://github.com/nodejs/gyp-next/issues/357)) ([e2080d2](https://github.com/nodejs/gyp-next/commit/e2080d25c31a0c1f08178a52802be7fd56848376))
+* **ci:** test on npm@12 ([#359](https://github.com/nodejs/gyp-next/issues/359)) ([1729f6e](https://github.com/nodejs/gyp-next/commit/1729f6e3bf8071d95cda85129cdf4ebab0a877ef))
+* **ci:** update ruff github aactio to v4.0.0 ([#348](https://github.com/nodejs/gyp-next/issues/348)) ([8d213cd](https://github.com/nodejs/gyp-next/commit/8d213cd35cec96e91dc98359ccd247404f71f27b))
+* **cmake:** add a dummy source to libraries without sources ([#362](https://github.com/nodejs/gyp-next/issues/362)) ([391165e](https://github.com/nodejs/gyp-next/commit/391165e76f682a318216b8b5c6ca1de0ef5f8f24))
+* **cmake:** require CMake 3.10 and quote custom command comments ([#361](https://github.com/nodejs/gyp-next/issues/361)) ([b418211](https://github.com/nodejs/gyp-next/commit/b418211c49705c0fb42177b666c140cf96d0149f))
+* write pch cflags as a list instead of a map object ([#355](https://github.com/nodejs/gyp-next/issues/355)) ([fe8188c](https://github.com/nodejs/gyp-next/commit/fe8188c6af0cf53488960b0ec655b1dcc01a7c94))
+
 ## [0.22.2](https://github.com/nodejs/gyp-next/compare/v0.22.1...v0.22.2) (2026-04-22)
 
 

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,6 +50,7 @@ class ExportInfo;
 class FunctionStarts;
 class FunctionVariants;
 class FunctionVariantFixups;
+class LazyLoadDylibInfo;
 class LinkerOptHint;
 class Parser;
 class Section;
@@ -72,7 +73,7 @@ union dyld_chained_ptr_arm64e_segmented;
 
 /// Class used to parse a **single** binary (i.e. non-FAT)
 ///
-/// @warning This class should not be directly used.
+/// @warning This class should not be used directly.
 ///
 /// @see MachO::Parser
 class LIEF_API BinaryParser : public LIEF::Parser {
@@ -87,14 +88,18 @@ class LIEF_API BinaryParser : public LIEF::Parser {
 
   public:
   static std::unique_ptr<Binary> parse(const std::string& file);
-  static std::unique_ptr<Binary> parse(const std::string& file, const ParserConfig& conf);
-  static std::unique_ptr<Binary> parse(const std::vector<uint8_t>& data,
-                                       const ParserConfig& conf = ParserConfig::deep());
+  static std::unique_ptr<Binary> parse(const std::string& file,
+                                       const ParserConfig& conf);
+  static std::unique_ptr<Binary>
+      parse(const std::vector<uint8_t>& data,
+            const ParserConfig& conf = ParserConfig::deep());
 
-  static std::unique_ptr<Binary> parse(const std::vector<uint8_t>& data, uint64_t fat_offset,
-                                       const ParserConfig& conf = ParserConfig::deep());
+  static std::unique_ptr<Binary>
+      parse(const std::vector<uint8_t>& data, uint64_t fat_offset,
+            const ParserConfig& conf = ParserConfig::deep());
 
-  static std::unique_ptr<Binary> parse(std::unique_ptr<BinaryStream> stream, uint64_t fat_offset,
+  static std::unique_ptr<Binary> parse(std::unique_ptr<BinaryStream> stream,
+                                       uint64_t fat_offset,
                                        const ParserConfig& conf);
 
   BinaryParser& operator=(const BinaryParser& copy) = delete;
@@ -149,27 +154,31 @@ class LIEF_API BinaryParser : public LIEF::Parser {
   LIEF_LOCAL ok_error_t parse_symtab(SymbolCommand& cmd, SpanStream& nlist_s,
                                      SpanStream& string_s);
 
-  LIEF_LOCAL ok_error_t parse_indirect_symbols(
-    DynamicSymbolCommand& cmd, std::vector<Symbol*>& symtab,
-    BinaryStream& indirect_stream);
+  LIEF_LOCAL ok_error_t parse_indirect_symbols(DynamicSymbolCommand& cmd,
+                                               std::vector<Symbol*>& symtab,
+                                               BinaryStream& indirect_stream);
 
 
   template<class MACHO_T>
   LIEF_LOCAL ok_error_t parse_data_in_code(DataInCode& cmd, BinaryStream& stream);
 
-  using it_opaque_segments = void*; // To avoid including Binary.hpp. It must contains it_opaque_segments
+  using it_opaque_segments =
+      void*; // To avoid including Binary.hpp. It must contains it_opaque_segments
 
   template<class MACHO_T>
-  LIEF_LOCAL ok_error_t do_bind(DyldBindingInfo::CLASS cls, uint8_t type, uint8_t segment_idx,
-                     uint64_t segment_offset, const std::string& symbol_name,
-                     int32_t ord, int64_t addend, bool is_weak,
-                     bool is_non_weak_definition, it_opaque_segments segments_ptr, uint64_t offset = 0);
+  LIEF_LOCAL ok_error_t do_bind(DyldBindingInfo::CLASS cls, uint8_t type,
+                                uint8_t segment_idx, uint64_t segment_offset,
+                                const std::string& symbol_name, int32_t ord,
+                                int64_t addend, bool is_weak,
+                                bool is_non_weak_definition,
+                                it_opaque_segments segments_ptr,
+                                uint64_t offset = 0);
 
 
   template<class MACHO_T>
-  LIEF_LOCAL ok_error_t do_rebase(
-    uint8_t type, uint8_t segment_idx, uint64_t segment_offset,
-    it_opaque_segments segments);
+  LIEF_LOCAL ok_error_t do_rebase(uint8_t type, uint8_t segment_idx,
+                                  uint64_t segment_offset,
+                                  it_opaque_segments segments);
 
   /*
    * This set of functions are related to the parsing of LC_DYLD_CHAINED_FIXUPS
@@ -178,58 +187,65 @@ class LIEF_API BinaryParser : public LIEF::Parser {
   LIEF_LOCAL ok_error_t parse_chained_payload(SpanStream& stream);
 
   template<class MACHO_T>
-  LIEF_LOCAL ok_error_t parse_chained_import(
-    const details::dyld_chained_fixups_header& header, SpanStream& stream,
-    SpanStream& symbol_pool);
+  LIEF_LOCAL ok_error_t
+      parse_chained_import(const details::dyld_chained_fixups_header& header,
+                           SpanStream& stream, SpanStream& symbol_pool);
 
   template<class MACHO_T>
-  LIEF_LOCAL ok_error_t parse_chained_fixup(
-    const details::dyld_chained_fixups_header& header, SpanStream& stream);
+  LIEF_LOCAL ok_error_t
+      parse_chained_fixup(const details::dyld_chained_fixups_header& header,
+                          SpanStream& stream);
 
   template<class MACHO_T>
-  LIEF_LOCAL ok_error_t parse_fixup_seg(
-    SpanStream& stream, uint32_t seg_info_offset, uint64_t offset,
-    uint32_t seg_idx);
+  LIEF_LOCAL ok_error_t parse_fixup_seg(SpanStream& stream,
+                                        uint32_t seg_info_offset, uint64_t offset,
+                                        uint32_t seg_idx);
 
   template<class MACHO_T>
-  LIEF_LOCAL ok_error_t do_fixup(
-    DYLD_CHAINED_FORMAT fmt, int32_t ord, const std::string& symbol_name,
-    int64_t addend, bool is_weak);
+  LIEF_LOCAL ok_error_t do_fixup(DYLD_CHAINED_FORMAT fmt, int32_t ord,
+                                 const std::string& symbol_name, int64_t addend,
+                                 bool is_weak);
 
   template<class MACHO_T>
-  LIEF_LOCAL ok_error_t process_fixup(
-    SegmentCommand& segment, uint64_t chain_address, uint64_t chain_offset,
-    const details::dyld_chained_starts_in_segment& seg_info);
+  LIEF_LOCAL ok_error_t
+      process_fixup(SegmentCommand& segment, uint64_t chain_address,
+                    uint64_t chain_offset,
+                    const details::dyld_chained_starts_in_segment& seg_info);
 
   template<class MACHO_T>
-  LIEF_LOCAL result<uint64_t> next_chain(
-    uint64_t& chain_address, uint64_t chain_offset,
-    const details::dyld_chained_starts_in_segment& seg_info);
+  LIEF_LOCAL result<uint64_t>
+      next_chain(uint64_t& chain_address, uint64_t chain_offset,
+                 const details::dyld_chained_starts_in_segment& seg_info);
 
   template<class MACHO_T>
-  LIEF_LOCAL ok_error_t walk_chain(
-    SegmentCommand& segment, uint64_t chain_address, uint64_t chain_offset,
-    const details::dyld_chained_starts_in_segment& seg_info);
+  LIEF_LOCAL ok_error_t
+      walk_chain(SegmentCommand& segment, uint64_t chain_address,
+                 uint64_t chain_offset,
+                 const details::dyld_chained_starts_in_segment& seg_info);
 
-  LIEF_LOCAL ok_error_t do_chained_fixup(
-    SegmentCommand& segment, uint64_t chain_address, uint32_t chain_offset,
-    const details::dyld_chained_starts_in_segment& seg_info,
-    const details::dyld_chained_ptr_arm64e& fixup);
+  LIEF_LOCAL ok_error_t
+      do_chained_fixup(SegmentCommand& segment, uint64_t chain_address,
+                       uint32_t chain_offset,
+                       const details::dyld_chained_starts_in_segment& seg_info,
+                       const details::dyld_chained_ptr_arm64e& fixup);
 
-  LIEF_LOCAL ok_error_t do_chained_fixup(
-    SegmentCommand& segment, uint64_t chain_address, uint32_t chain_offset,
-    const details::dyld_chained_starts_in_segment& seg_info,
-    const details::dyld_chained_ptr_generic64& fixup);
+  LIEF_LOCAL ok_error_t
+      do_chained_fixup(SegmentCommand& segment, uint64_t chain_address,
+                       uint32_t chain_offset,
+                       const details::dyld_chained_starts_in_segment& seg_info,
+                       const details::dyld_chained_ptr_generic64& fixup);
 
-  LIEF_LOCAL ok_error_t do_chained_fixup(
-    SegmentCommand& segment, uint64_t chain_address, uint32_t chain_offset,
-    const details::dyld_chained_starts_in_segment& seg_info,
-    const details::dyld_chained_ptr_generic32 & fixup);
+  LIEF_LOCAL ok_error_t
+      do_chained_fixup(SegmentCommand& segment, uint64_t chain_address,
+                       uint32_t chain_offset,
+                       const details::dyld_chained_starts_in_segment& seg_info,
+                       const details::dyld_chained_ptr_generic32& fixup);
 
-  LIEF_LOCAL ok_error_t do_chained_fixup(
-    SegmentCommand& segment, uint64_t chain_address, uint32_t chain_offset,
-    const details::dyld_chained_starts_in_segment& seg_info,
-    const details::dyld_chained_ptr_arm64e_segmented& fixup);
+  LIEF_LOCAL ok_error_t
+      do_chained_fixup(SegmentCommand& segment, uint64_t chain_address,
+                       uint32_t chain_offset,
+                       const details::dyld_chained_starts_in_segment& seg_info,
+                       const details::dyld_chained_ptr_arm64e_segmented& fixup);
 
   template<class MACHO_T>
   LIEF_LOCAL ok_error_t post_process(SymbolCommand& cmd);
@@ -267,6 +283,9 @@ class LIEF_API BinaryParser : public LIEF::Parser {
   template<class MACHO_T>
   LIEF_LOCAL ok_error_t post_process(FunctionVariantFixups& cmd);
 
+  template<class MACHO_T>
+  LIEF_LOCAL ok_error_t post_process(LazyLoadDylibInfo& cmd);
+
   LIEF_LOCAL ok_error_t parse_overlay();
 
   // Exports
@@ -274,20 +293,22 @@ class LIEF_API BinaryParser : public LIEF::Parser {
   LIEF_LOCAL ok_error_t parse_dyldinfo_export();
   LIEF_LOCAL ok_error_t parse_dyld_exports();
 
-  LIEF_LOCAL ok_error_t parse_export_trie(
-    exports_list_t& exports, BinaryStream& stream,
-    uint64_t start, const std::string& prefix, bool* invalid_names);
+  LIEF_LOCAL result<exports_list_t> parse_export_trie(BinaryStream& stream,
+                                                      uint64_t start,
+                                                      const std::string& prefix,
+                                                      uint32_t depth,
+                                                      bool* invalid_names);
 
   LIEF_LOCAL void copy_from(ChainedBindingInfo& to, ChainedBindingInfo& from);
 
-  std::unique_ptr<BinaryStream>  stream_;
-  std::unique_ptr<Binary>        binary_;
-  MACHO_TYPES                    type_ = MACHO_TYPES::MAGIC_64;
-  bool                           is64_ = true;
-  ParserConfig                   config_;
-  std::set<uint64_t>             visited_;
+  std::unique_ptr<BinaryStream> stream_;
+  std::unique_ptr<Binary> binary_;
+  MACHO_TYPES type_ = MACHO_TYPES::MAGIC_64;
+  bool is64_ = true;
+  ParserConfig config_;
+  std::set<uint64_t> visited_;
   std::unordered_map<std::string, Symbol*> memoized_symbols_;
-  std::map<uint64_t, Symbol*>    memoized_symbols_by_address_;
+  std::map<uint64_t, Symbol*> memoized_symbols_by_address_;
 
   std::vector<DylibCommand*> binding_libs_;
   std::set<uint64_t> dyld_reloc_addrs_;

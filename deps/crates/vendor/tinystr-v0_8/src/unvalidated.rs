@@ -53,6 +53,18 @@ impl<const N: usize> UnvalidatedTinyAsciiStr<N> {
     pub const fn from_utf8_unchecked(bytes: [u8; N]) -> Self {
         Self(bytes)
     }
+
+    #[inline]
+    /// Returns the empty string.
+    pub const fn default() -> Self {
+        TinyAsciiStr::EMPTY.to_unvalidated()
+    }
+}
+
+impl<const N: usize> Default for UnvalidatedTinyAsciiStr<N> {
+    fn default() -> Self {
+        Self::default()
+    }
 }
 
 impl<const N: usize> TinyAsciiStr<N> {

@@ -38,6 +38,8 @@
 #ifndef ABSL_STRINGS_STR_REPLACE_H_
 #define ABSL_STRINGS_STR_REPLACE_H_
 
+#include <cstddef>
+#include <initializer_list>
 #include <string>
 #include <utility>
 #include <vector>
@@ -160,7 +162,7 @@ template <typename StrToStrMapping>
 std::vector<ViableSubstitution> FindSubstitutions(
     absl::string_view s, const StrToStrMapping& replacements) {
   std::vector<ViableSubstitution> subs;
-  subs.reserve(replacements.size());
+  subs.reserve(std::size(replacements));
 
   for (const auto& rep : replacements) {
     using std::get;

@@ -59,7 +59,7 @@ int WriteFileSync(const char* path, uv_buf_t* bufs, size_t buf_count) {
                 nullptr);
     if (req.result <= 0) {  // Error during write.
       // UV_EIO should not happen unless the file system is full.
-      int err = req.result < 0 ? req.result : UV_EIO;
+      int err = req.result < 0 ? static_cast<int>(req.result) : UV_EIO;
       uv_fs_req_cleanup(&req);
       uv_fs_close(nullptr, &req, fd, nullptr);
       uv_fs_req_cleanup(&req);
@@ -240,6 +240,7 @@ std::vector<char> ReadFileSync(FILE* fp) {
   CHECK_EQ(err, 0);
 
   std::vector<char> contents(size);
+  if (size == 0) return contents;
   size_t num_read = fread(contents.data(), size, 1, fp);
   CHECK_EQ(num_read, 1);
   return contents;

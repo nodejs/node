@@ -47,7 +47,9 @@ jobs:
     steps:
       - name: Mark token input as sensitive
         if: inputs.token != ''
-        run: echo "::add-mask::${{ inputs.token }}"
+        run: printf '::add-mask::%s\n' "$COMMENT_TOKEN"
+        env:
+          COMMENT_TOKEN: ${{ inputs.token }}
       - name: Add link to the current run
         id: comment
         run: |
@@ -69,13 +71,14 @@ jobs:
         include:
           - runner: ubuntu-24.04
             system: x86_64-linux
+            perfetto: true
           - runner: ubuntu-24.04-arm
             system: aarch64-linux
           - runner: macos-15-intel
             system: x86_64-darwin
           - runner: macos-latest
             system: aarch64-darwin
-    name: '${{ matrix.system }}: with shared libraries'
+    name: '${{ matrix.system }}: with shared libraries${{ matrix.perfetto && '' and perfetto'' || '''' }}'
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -96,7 +99,7 @@ jobs:
         with:
           extra_nix_config: sandbox = true
 
-      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71  # v17
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866  # v17
         with:
           # We do not pass any `authToken` to avoid polluting the cache with potentially untrusted code.
           name: nodejs
@@ -105,7 +108,8 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
         with:
           script: |
-            core.exportVariable('SCCACHE_GHA_VERSION', 'on');
+            core.exportVariable('SCCACHE_GHA_ENABLED', 'on');
+            core.exportVariable('SCCACHE_GHA_RW_MODE', 'READ_ONLY');
             core.exportVariable('ACTIONS_CACHE_SERVICE_V2', 'on');
             core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
@@ -115,40 +119,37 @@ jobs:
           nix-shell \
             -I nixpkgs=./tools/nix/pkgs.nix \
             --pure --keep TAR_DIR --keep FLAKY_TESTS \
-            --keep SCCACHE_GHA_ENABLED --keep ACTIONS_CACHE_SERVICE_V2 --keep ACTIONS_RESULTS_URL --keep ACTIONS_RUNTIME_TOKEN \
-            --arg useSeparateDerivationForV8 true \
-            --arg loadJSBuiltinsDynamically false \
-            --arg ccache "${NIX_SCCACHE:-null}" \
-            --arg devTools '[]' \
-            --arg benchmarkTools '[]' \
+            --keep SCCACHE_GHA_ENABLED --keep SCCACHE_GHA_RW_MODE \
+            --keep ACTIONS_CACHE_SERVICE_V2 --keep ACTIONS_RESULTS_URL --keep ACTIONS_RUNTIME_TOKEN \
+            --arg withPerfetto ${{ matrix.perfetto || false }} \
+            --arg ccache '(import <nixpkgs> {}).sccache' \
             --run '
-                make build-ci -j4 V=1
-            '
+              make build-ci -j4 V=1 && sccache --stop-server
+            ' tools/nix/ci-shell.nix
           mv out/Release/node base_node
 
       - name: Checkout the merge commit
         run: git reset FETCH_HEAD --hard
 
       - name: Re-build Node.js on the merge commit
-        # ccache is disabled here to avoid polluting the cache. Local build outputs should make this build relatively quick anyway.
+        # Keep the compiler command unchanged for incremental builds, but never cache PR build outputs.
         run: |
           nix-shell \
             -I nixpkgs=./tools/nix/pkgs.nix \
-            --pure \
-            --arg useSeparateDerivationForV8 true \
-            --arg loadJSBuiltinsDynamically false \
-            --arg ccache 'null' \
-            --arg devTools '[]' \
-            --arg benchmarkTools '[]' \
+            --pure --keep SCCACHE_LOCAL_RW_MODE \
+            --arg withPerfetto ${{ matrix.perfetto || false }} \
+            --arg ccache '(import <nixpkgs> {}).sccache' \
             --run '
                 make build-ci -j4 V=1
-            '
+            ' tools/nix/ci-shell.nix
+        env:
+          SCCACHE_LOCAL_RW_MODE: READ_ONLY
 
       - name: Run benchmark
         run: |
           nix-shell \
             -I nixpkgs=./tools/nix/pkgs.nix \
-            --pure --keep FILTER --keep LC_ALL --keep LANG \
+            --pure --keep CATEGORIES --keep FILTER --keep RUNS --keep LC_ALL --keep LANG \
             --arg loadJSBuiltinsDynamically false \
             --arg ccache 'null' \
             --arg icu 'null' \
@@ -156,11 +157,12 @@ jobs:
             --arg devTools '[]' \
             --run '
                 set -o pipefail
+                read -r -a categories <<< "$CATEGORIES"
                 ./base_node benchmark/compare.js \
                   --filter "$FILTER" \
-                  --runs ${{ inputs.runs }} \
+                  --runs "$RUNS" \
                   --old ./base_node --new ./node \
-                  -- ${{ inputs.category }} \
+                  -- "${categories[@]}" \
                 | tee /dev/stderr \
                 > ${{ matrix.system }}.csv
                 echo "> [!WARNING] "
@@ -178,7 +180,9 @@ jobs:
                 echo "> using a dedicated machine, e.g. Jenkins CI."
             ' | tee /dev/stderr >> "$GITHUB_STEP_SUMMARY"
         env:
+          CATEGORIES: ${{ inputs.category }}
           FILTER: ${{ inputs.filter }}
+          RUNS: ${{ inputs.runs }}
 
       - name: Upload raw benchmark results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
@@ -220,7 +224,7 @@ jobs:
           nix-shell \
             -I nixpkgs=./tools/nix/pkgs.nix \
             --pure \
-            -E '(import <nixpkgs> {}).mkShell { buildInputs = import ./tools/nix/benchmarkTools.nix { withHttpBenchmarkDeps = false; }; }' \
+            -E '(import <nixpkgs> {}).mkShellNoCC { buildInputs = import ./tools/nix/benchmarkTools.nix { withHttpBenchmarkDeps = false; }; }' \
             --run '
                 export LC_ALL=C.UTF-8
                 echo "> [!WARNING] "
@@ -239,7 +243,9 @@ jobs:
             ' | tee /dev/stderr ${{ inputs.post-comment && 'body.txt' || '' }} >> "$GITHUB_STEP_SUMMARY"
       - name: Mark token input as sensitive
         if: inputs.token != ''
-        run: echo "::add-mask::${{ inputs.token }}"
+        run: printf '::add-mask::%s\n' "$COMMENT_TOKEN"
+        env:
+          COMMENT_TOKEN: ${{ inputs.token }}
       - name: Edit comment
         if: inputs.post-comment
         run: |

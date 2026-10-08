@@ -232,11 +232,12 @@ void EventHandler(const JitCodeEvent* event) {
       Tagged<Object> script_name = script->GetNameOrSourceURL();
       if (IsString(script_name)) {
         Tagged<String> v8str_name = Cast<String>(script_name);
-        wstr_name.resize(v8str_name->length());
+        uint32_t name_length = v8str_name->length();
+        wstr_name.resize(name_length);
         // On Windows wchar_t == uint16_t. const_Cast needed for C++14.
         uint16_t* wstr_data = const_cast<uint16_t*>(
             reinterpret_cast<const uint16_t*>(wstr_name.data()));
-        String::WriteToFlat(v8str_name, wstr_data, 0, v8str_name->length());
+        String::WriteToFlat(v8str_name, wstr_data, 0, name_length);
       }
 
       if (isolate->ETWIsInRundown()) {

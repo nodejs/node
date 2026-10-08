@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,33 +20,33 @@
 #include "LIEF/MachO/Section.hpp"
 #include "MachO/Structures.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 RelocationObject::RelocationObject(const details::relocation_info& relocinfo) :
-  is_pcrel_{static_cast<bool>(relocinfo.r_pcrel)}
-{
+  is_pcrel_{static_cast<bool>(relocinfo.r_pcrel)} {
   address_ = static_cast<uint32_t>(relocinfo.r_address);
-  size_    = static_cast<uint8_t>(relocinfo.r_length);
-  type_    = static_cast<uint8_t>(relocinfo.r_type);
+  size_ = static_cast<uint8_t>(relocinfo.r_length);
+  type_ = static_cast<uint8_t>(relocinfo.r_type);
 }
 
-RelocationObject::RelocationObject(const details::scattered_relocation_info& scattered_relocinfo) :
+RelocationObject::RelocationObject(
+    const details::scattered_relocation_info& scattered_relocinfo
+) :
   is_pcrel_{static_cast<bool>(scattered_relocinfo.r_pcrel)},
   is_scattered_{true},
-  value_{scattered_relocinfo.r_value}
-{
+  value_{scattered_relocinfo.r_value} {
   address_ = scattered_relocinfo.r_address;
-  size_    = static_cast<uint8_t>(scattered_relocinfo.r_length);
-  type_    = static_cast<uint8_t>(scattered_relocinfo.r_type);
+  size_ = static_cast<uint8_t>(scattered_relocinfo.r_length);
+  type_ = static_cast<uint8_t>(scattered_relocinfo.r_type);
 }
 
 void RelocationObject::swap(RelocationObject& other) noexcept {
   Relocation::swap(other);
 
-  std::swap(is_pcrel_,     other.is_pcrel_);
+  std::swap(is_pcrel_, other.is_pcrel_);
   std::swap(is_scattered_, other.is_scattered_);
-  std::swap(value_,        other.value_);
+  std::swap(value_, other.value_);
 }
 
 size_t RelocationObject::size() const {
@@ -68,24 +68,24 @@ uint64_t RelocationObject::address() const {
 
 int32_t RelocationObject::value() const {
   if (!is_scattered()) {
-    LIEF_ERR("This relocation is not a 'scattered' one");
+    LIEF_ERR("Relocation is not scattered");
     return -1;
   }
   return value_;
 }
 
 void RelocationObject::size(size_t size) {
-  switch(size) {
-    case 8:  size_ = 0; break;
+  switch (size) {
+    case 8: size_ = 0; break;
     case 16: size_ = 1; break;
     case 32: size_ = 2; break;
-    default: LIEF_ERR("Size must not be bigger than 32 bits");
+    default: LIEF_ERR("Size exceeds 32 bits");
   }
 }
 
 void RelocationObject::value(int32_t value) {
   if (!is_scattered()) {
-    LIEF_ERR("This relocation is not a 'scattered' one");
+    LIEF_ERR("Relocation is not scattered");
     return;
   }
   value_ = value;
@@ -95,5 +95,4 @@ void RelocationObject::accept(Visitor& visitor) const {
   visitor.visit(*this);
 }
 
-}
 }

@@ -65,13 +65,53 @@ RUNTIME_FUNCTION(Runtime_RunMicrotaskCallback) {
   DCHECK_EQ(2, args.length());
   Tagged<Object> microtask_callback = args[0];
   Tagged<Object> microtask_data = args[1];
-  MicrotaskCallback callback =
-      ToCData<MicrotaskCallback, kMicrotaskCallbackTag>(isolate,
-                                                        microtask_callback);
-  void* data =
-      ToCData<void*, kMicrotaskCallbackDataTag>(isolate, microtask_data);
-  callback(data);
-  RETURN_FAILURE_IF_EXCEPTION(isolate);
+  void* raw_callback = nullptr;
+  void* raw_data = nullptr;
+
+  if (IsForeign(microtask_data)) {
+    MicrotaskCallback callback =
+        ToCData<MicrotaskCallback, kMicrotaskCallbackTag>(isolate,
+                                                          microtask_callback);
+    void* data =
+        ToCData<void*, kMicrotaskCallbackDataTag>(isolate, microtask_data);
+    raw_callback = reinterpret_cast<void*>(callback);
+    raw_data = data;
+    callback(data);
+  } else {
+    MicrotaskCallbackWithData callback =
+        ToCData<MicrotaskCallbackWithData, kMicrotaskCallbackTag>(
+            isolate, microtask_callback);
+    v8::Local<v8::Data> local_data_cast = v8::Utils::Convert<Object, v8::Data>(
+        DirectHandle<Object>(microtask_data, isolate));
+    raw_callback = reinterpret_cast<void*>(callback);
+    raw_data = nullptr;
+    callback(local_data_cast);
+  }
+
+  if (isolate->has_exception()) {
+    if (isolate->is_execution_terminating()) {
+      return ReadOnlyRoots(isolate).exception();
+    }
+    if (isolate->exception() ==
+        ReadOnlyRoots(isolate).illegal_access_string()) {
+      // This might be thrown by Isolate::ThrowIllegalOperation() when V8
+      // tries to execute JS code while it's not allowed and embedder asked
+      // to throw an exception in such a case. See
+      // v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE.
+      // Suppress this exception for C++ microtask while recording a dump
+      // at the caller of ThrowIllegalOperation().
+      isolate->clear_exception();
+      return ReadOnlyRoots(isolate).undefined_value();
+    }
+    // C++ callbacks must catch exceptions thrown during execution, otherwise
+    // it's not possible to figure out the context in which the uncaught
+    // exception should be reported.
+    // In case this happens, report a soft crash and swallow the exception.
+    isolate->PushParamsAndContinue(
+        raw_callback, raw_data,
+        reinterpret_cast<void*>(isolate->exception().ptr()));
+    isolate->clear_exception();
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

@@ -100,6 +100,28 @@ NODE_MAIN(int argc, node::argv_type raw_argv[]) {
     args.erase(it);
     flags |= node::ProcessInitializationFlags::kNoHarvestBuiltinCodeCache;
   }
+  // --embedder-scrub-env=<names>: remove the environment variables other than
+  // the comma-separated <names> before initializing Node.js.
+  static constexpr std::string_view kScrubEnvFlag = "--embedder-scrub-env=";
+  it = std::find_if(args.begin(), args.end(), [](const std::string& arg) {
+    return arg.starts_with(kScrubEnvFlag);
+  });
+  if (it != args.end()) {
+    node::ProcessEnvironmentScrubOptions scrub_options;
+    const std::string names = it->substr(kScrubEnvFlag.size());
+    for (size_t begin = 0; begin < names.size();) {
+      size_t end = names.find(',', begin);
+      if (end == std::string::npos) end = names.size();
+      scrub_options.allow.push_back(names.substr(begin, end - begin));
+      begin = end + 1;
+    }
+    args.erase(it);
+    if (node::ScrubProcessEnvironment(scrub_options).IsNothing()) {
+      fprintf(
+          stderr, "%s: ScrubProcessEnvironment() failed\n", args[0].c_str());
+      return 1;
+    }
+  }
   std::shared_ptr<node::InitializationResult> result =
       node::InitializeOncePerProcess(
           args, static_cast<node::ProcessInitializationFlags::Flags>(flags));
@@ -116,8 +138,20 @@ NODE_MAIN(int argc, node::argv_type raw_argv[]) {
   cppgc::InitializeProcess(platform->GetPageAllocator());
   V8::Initialize();
 
-  int ret =
-      RunNodeInstance(platform.get(), result->args(), result->exec_args());
+  // --embedder-run-twice: two sequential instances in one process, each
+  // loading (and freeing) its own copy of the snapshot.
+  std::vector<std::string> instance_args = result->args();
+  auto twice = std::find(
+      instance_args.begin(), instance_args.end(), "--embedder-run-twice");
+  int runs = 1;
+  if (twice != instance_args.end()) {
+    instance_args.erase(twice);
+    runs = 2;
+  }
+  int ret = 0;
+  for (int i = 0; i < runs && ret == 0; i++) {
+    ret = RunNodeInstance(platform.get(), instance_args, result->exec_args());
+  }
 
   V8::Dispose();
   V8::DisposePlatform();

@@ -31,8 +31,9 @@ String16 findMagicComment(const String16& content, const String16& name,
     pos -= 4;
     if (content[pos] != '/') continue;
     if ((content[pos + 1] != '/' || multiline) &&
-        (content[pos + 1] != '*' || !multiline))
+        (content[pos + 1] != '*' || !multiline)) {
       continue;
+    }
     if (content[pos + 2] != '#' && content[pos + 2] != '@') continue;
     if (content[pos + 3] != ' ' && content[pos + 3] != '\t') continue;
     equalSignPos = pos + 4 + nameLength;
@@ -110,12 +111,14 @@ std::vector<std::pair<int, String16>> scriptRegexpMatchesByLines(
   for (size_t lineNumber = 0; lineNumber < size; ++lineNumber) {
     size_t lineEnd = endings->at(lineNumber);
     String16 line = text.substring(start, lineEnd - start);
-    if (line.length() && line[line.length() - 1] == '\r')
+    if (line.length() && line[line.length() - 1] == '\r') {
       line = line.substring(0, line.length() - 1);
+    }
 
     int matchLength;
-    if (regex.match(line, 0, &matchLength) != -1)
+    if (regex.match(line, 0, &matchLength) != -1) {
       result.push_back(std::pair<int, String16>(lineNumber, line));
+    }
 
     start = lineEnd + 1;
   }
@@ -151,8 +154,9 @@ searchInTextByLinesImpl(V8InspectorImpl* inspector, const String16& text,
 
   std::vector<std::unique_ptr<protocol::Debugger::SearchMatch>> result;
   result.reserve(matches.size());
-  for (const auto& match : matches)
+  for (const auto& match : matches) {
     result.push_back(buildObjectForSearchMatch(match.first, match.second));
+  }
   return result;
 }
 

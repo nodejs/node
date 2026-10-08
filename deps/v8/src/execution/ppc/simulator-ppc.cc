@@ -1798,6 +1798,16 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       set_pc(get_pc() + (2 * kInstrSize));
       break;
     }
+    case ADDPCIS: {
+      int rt = instr->RTValue();
+      int d0 = instr->Bits(15, 6);
+      int d1 = instr->Bits(20, 16);
+      int d2 = instr->Bit(0);
+      int32_t imm_val = static_cast<int16_t>(((d0 << 6) | (d1 << 1) | d2));
+      imm_val <<= 16;
+      set_register(rt, get_pc() + kInstrSize + static_cast<int64_t>(imm_val));
+      break;
+    }
     case SUBFIC: {
       int rt = instr->RTValue();
       int ra = instr->RAValue();
@@ -3031,12 +3041,16 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int rb = instr->RBValue();
       int64_t ra_val = get_register(ra);
       int64_t rb_val = get_register(rb);
-      int64_t alu_out = ra_val * rb_val;
+      int64_t alu_out;
+      bool is_overflow = __builtin_mul_overflow(ra_val, rb_val, &alu_out);
       set_register(rt, alu_out);
-      if (instr->Bit(0)) {  // RC bit set
-        SetCR0(alu_out);
+      if (instr->Bit(10)) {  // OE bit set
+        SetOV(is_overflow);
+        SetOV32(is_overflow);
       }
-      // todo - handle OE bit
+      if (instr->Bit(0)) {  // RC bit set
+        SetCR0(alu_out, special_reg_xer_.fields.SO);
+      }
       break;
     }
     case DIVW: {
@@ -3886,6 +3900,9 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         invalid_convert = true;
       } else {
         switch (mode) {
+          case kRoundToNearest:
+            frb_val = std::nearbyint(frb_val);
+            break;
           case kRoundToZero:
             frb_val = std::trunc(frb_val);
             break;

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-custom-descriptors --experimental-wasm-shared
+// Flags: --wasm-custom-descriptors --wasm-shared
 
 // At the time of writing, these tests cover the same cases as:
 // https://github.com/WebAssembly/binaryen/pull/7392/files
@@ -112,6 +112,28 @@ CheckInvalid(/Type 0 and its descriptor 1 must have same sharedness/,
 });
 
 CheckValid((builder) => {
+  builder.addStruct({descriptor: 1, final: true});
+  builder.addStruct({describes: 0, final: true});
+});
+
+CheckValid((builder) => {
+  builder.addStruct({descriptor: 1, final: false});
+  builder.addStruct({describes: 0, final: false});
+});
+
+CheckInvalid(
+    /Type 0 and its descriptor 1 must have same finality/, (builder) => {
+      builder.addStruct({descriptor: 1, final: true});
+      builder.addStruct({describes: 0, final: false});
+    });
+
+CheckInvalid(
+    /Type 0 and its descriptor 1 must have same finality/, (builder) => {
+      builder.addStruct({descriptor: 1, final: false});
+      builder.addStruct({describes: 0, final: true});
+    });
+
+CheckValid((builder) => {
   builder.addStruct({descriptor: 1, final: false});  // 0
   builder.addStruct({describes: 0, final: false});   // 1
 }, (builder) => {
@@ -119,7 +141,7 @@ CheckValid((builder) => {
   builder.addStruct({describes: 2, supertype: 1});   // 3
 });
 
-CheckInvalid(/type 4 has invalid explicit supertype 2/, (builder) => {
+CheckInvalid(/type 3 has invalid explicit supertype 0/, (builder) => {
   builder.addStruct({final: false});  // 0
 }, (builder) => {
   builder.addStruct({descriptor: 2});  // 1
@@ -129,7 +151,7 @@ CheckInvalid(/type 4 has invalid explicit supertype 2/, (builder) => {
   builder.addStruct({describes: 3, supertype: 2});   // 4
 });
 
-CheckInvalid(/type 3 has invalid explicit supertype 1/, (builder) => {
+CheckInvalid(/type 2 has invalid explicit supertype 0/, (builder) => {
   builder.addStruct({final: false});  // 0
   builder.addStruct({final: false});  // 1
 }, (builder) => {
@@ -149,14 +171,23 @@ CheckInvalid(/type 4 has invalid explicit supertype 2/, (builder) => {
 
 CheckInvalid(/type 2 has invalid explicit supertype 0/, (builder) => {
   builder.addStruct({descriptor: 1, final: false});  // 0
-  builder.addStruct({describes: 0});                 // 1
+  builder.addStruct({describes: 0, final: false});   // 1
 }, (builder) => {
   builder.addStruct({supertype: 0});  // 2
 });
 
-CheckInvalid(/type 2 has invalid explicit supertype 1/, (builder) => {
-  builder.addStruct({descriptor: 1});               // 0
-  builder.addStruct({describes: 0, final: false});  // 1
-}, (builder) => {
-  builder.addStruct({supertype: 1});  // 2
+CheckInvalid(
+    /type 2 has invalid explicit supertype 1/,
+    (builder) => {
+      builder.addStruct({descriptor: 1, final: false});  // 0
+      builder.addStruct({describes: 0, final: false});   // 1
+    },
+    (builder) => {
+      builder.addStruct({supertype: 1});  // 2
+    });
+
+CheckInvalid(/type 1 has invalid explicit supertype 0/, (builder) => {
+  builder.addStruct({final: false});                 // 0
+  builder.addStruct({supertype: 0, descriptor: 2});  // 1
+  builder.addStruct({describes: 1});                 // 2
 });

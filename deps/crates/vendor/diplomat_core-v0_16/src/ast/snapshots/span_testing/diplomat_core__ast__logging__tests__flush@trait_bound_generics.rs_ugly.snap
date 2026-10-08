@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Generic type arguments are unsupported
+In src/ast/snapshots/span_testing/trait_bound_generics.rs:3:26:
+...impl TraitWithGenerics<T>) {}...
+        ^^^^^^^^^^^^^^^^^^^^
+Trait bounds with generic arguments are unsupported

@@ -14,53 +14,47 @@ const benchmarkDirectory = path.resolve(__dirname, '..', '..');
 const configs = {
   n: [1e3],
   dir: ['lib'],
-  pattern: ['**/*', '*.js', '**/**.js'],
+  pattern: ['**/*', '*.js', '**/*.js', '**/*.{js,json}'],
   mode: ['sync', 'promise', 'callback'],
   maxDepth: ['default', '2'],
-  recursive: ['true', 'false'],
 };
 
 const bench = common.createBenchmark(main, configs);
 
 async function main(config) {
-  const fullPath = path.resolve(benchmarkDirectory, config.dir);
-  const { pattern, recursive, mode, maxDepth } = config;
-  const options = { cwd: fullPath, recursive };
+  const { pattern, mode, n, maxDepth } = config;
+  const options = { cwd: path.resolve(benchmarkDirectory, config.dir) };
   if (maxDepth !== 'default') {
     options.maxDepth = Number(maxDepth);
   }
-  const callback = (resolve, reject) => {
-    glob(pattern, options, (err, matches) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(matches);
-      }
-    });
-  };
 
   let noDead;
   bench.start();
 
-  for (let i = 0; i < config.n; i++) {
+  for (let i = 0; i < n; i++) {
     switch (mode) {
       case 'sync':
         noDead = globSync(pattern, options);
         break;
       case 'promise':
-        noDead = [];
-        for await (const match of globAsync(pattern, options)) {
-          noDead.push(match);
-        }
+        noDead = await Array.fromAsync(globAsync(pattern, options));
         break;
       case 'callback':
-        noDead = await new Promise(callback);
+        noDead = await new Promise((resolve, reject) => {
+          glob(pattern, options, (err, matches) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(matches);
+            }
+          });
+        });
         break;
       default:
         throw new Error(`Unknown mode: ${mode}`);
     }
   }
 
-  bench.end(config.n);
-  assert.ok(noDead);
+  bench.end(n);
+  assert.ok(noDead.length > 0);
 }

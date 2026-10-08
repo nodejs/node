@@ -24,8 +24,7 @@ class GrowableStacksReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE(GrowableStacks)
 
   GrowableStacksReducer() {
-    if (!__ data()->wasm_module_sig() ||
-        !v8_flags.experimental_wasm_growable_stacks) {
+    if (!__ data()->wasm_module_sig() || !v8_flags.wasm_growable_stacks) {
       // We are not compiling a wasm function if there is no signature.
       skip_reducer_ = true;
       return;
@@ -38,10 +37,12 @@ class GrowableStacksReducer : public Next {
 #endif
   }
 
-  V<None> REDUCE(WasmStackCheck)(WasmStackCheckOp::Kind kind) {
+  V<None> REDUCE(WasmStackCheck)(
+      OptionalV<WasmTrustedInstanceData> trusted_instance_data,
+      WasmStackCheckOp::Kind kind) {
     CHECK_EQ(kind, WasmStackCheckOp::Kind::kFunctionEntry);
     if (skip_reducer_) {
-      return Next::ReduceWasmStackCheck(kind);
+      return Next::ReduceWasmStackCheck(trusted_instance_data, kind);
     }
     // Loads of the stack limit should not be load-eliminated as it can be
     // modified by another thread.
@@ -58,15 +59,15 @@ class GrowableStacksReducer : public Next {
               Operator::kNoProperties, StubCallMode::kCallWasmRuntimeStub);
       const TSCallDescriptor* ts_stub_call_descriptor =
           TSCallDescriptor::Create(stub_call_descriptor,
-                                   compiler::CanThrow::kNo,
-                                   LazyDeoptOnThrow::kNo, __ graph_zone());
+                                   compiler::CanThrow{true},
+                                   LazyDeoptOnThrow{false}, __ graph_zone());
       V<WordPtr> builtin =
           __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmGrowableStackGuard);
       auto param_slots_size = __ IntPtrConstant(
           call_descriptor_->ParameterSlotCount() * kSystemPointerSize);
-      __ Call(
-          builtin, {param_slots_size}, ts_stub_call_descriptor,
-          OpEffects().CanReadMemory().RequiredWhenUnused().CanThrowOrTrap());
+      V<WordPtr> gap =
+          __ ChangeInt32ToIntPtr(__ UntagSmi(__ StackCheckOffset()));
+      __ Call(builtin, {param_slots_size, gap}, ts_stub_call_descriptor);
     }
 
     return V<None>::Invalid();
@@ -94,8 +95,8 @@ class GrowableStacksReducer : public Next {
       const CallDescriptor* ccall_descriptor =
           compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(), &sig);
       const TSCallDescriptor* ts_ccall_descriptor = TSCallDescriptor::Create(
-          ccall_descriptor, compiler::CanThrow::kNo,
-          compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+          ccall_descriptor, compiler::CanThrow{false},
+          compiler::LazyDeoptOnThrow{false}, __ graph_zone());
       GOTO(done, __ template Call<WordPtr>(
                      __ ExternalConstant(ExternalReference::wasm_load_old_fp()),
                      OpIndex::Invalid(),

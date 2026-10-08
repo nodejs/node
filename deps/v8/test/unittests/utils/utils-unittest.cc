@@ -110,7 +110,7 @@ TYPED_TEST(UtilsTest, SaturateAdd) {
   }
 }
 
-TYPED_TEST(UtilsTest, PassesFilterTest) {
+TEST(UtilsTest, PassesFilterTest) {
   EXPECT_TRUE(
       PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("abcdefg")));
   EXPECT_TRUE(
@@ -142,6 +142,15 @@ TYPED_TEST(UtilsTest, PassesFilterTest) {
   EXPECT_FALSE(PassesFilter(base::CStrVector(""), base::CStrVector("-")));
   EXPECT_FALSE(PassesFilter(base::CStrVector(""), base::CStrVector("-*")));
   EXPECT_FALSE(PassesFilter(base::CStrVector(""), base::CStrVector("a")));
+
+  // Copy the vectors to give ASan a chance to catch off-by-one OOB reads,
+  // which are hidden when the string literal is embedded into the binary
+  // and hence always null-terminated.
+  base::OwnedVector<const char> name =
+      base::OwnedCopyOf(base::CStrVector("abcdefgh"));
+  base::OwnedVector<const char> filter =
+      base::OwnedCopyOf(base::CStrVector("abcdefgh*"));
+  EXPECT_TRUE(PassesFilter(name.as_vector(), filter.as_vector()));
 }
 
 TEST(UtilsTest, IsInBounds) {

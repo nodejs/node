@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,9 +55,8 @@ class LIEF_API DynamicFixupARM64Kernel : public DynamicFixup {
 
     std::string to_string() const;
 
-    friend LIEF_API
-      std::ostream& operator<<(std::ostream& os, const reloc_entry_t& entry)
-    {
+    friend LIEF_API std::ostream& operator<<(std::ostream& os,
+                                             const reloc_entry_t& entry) {
       os << entry.to_string();
       return os;
     }
@@ -68,8 +67,7 @@ class LIEF_API DynamicFixupARM64Kernel : public DynamicFixup {
   using it_const_relocations = const_ref_iterator<const reloc_entries_t&>;
 
   DynamicFixupARM64Kernel() :
-    DynamicFixup(KIND::ARM64_KERNEL_IMPORT_CALL_TRANSFER)
-  {}
+    DynamicFixup(KIND::ARM64_KERNEL_IMPORT_CALL_TRANSFER) {}
 
   DynamicFixupARM64Kernel(const DynamicFixupARM64Kernel&) = default;
   DynamicFixupARM64Kernel& operator=(const DynamicFixupARM64Kernel&) = default;
@@ -78,17 +76,19 @@ class LIEF_API DynamicFixupARM64Kernel : public DynamicFixup {
   DynamicFixupARM64Kernel& operator=(DynamicFixupARM64Kernel&&) = default;
 
   std::unique_ptr<DynamicFixup> clone() const override {
-    return std::unique_ptr<DynamicFixupARM64Kernel>(new DynamicFixupARM64Kernel(*this));
+    return std::unique_ptr<DynamicFixupARM64Kernel>(
+        new DynamicFixupARM64Kernel(*this)
+    );
   }
 
   std::string to_string() const override;
 
   /// Iterator over the relocations
-  it_relocations relocations() {
+  it_relocations relocations() LIEF_LIFETIMEBOUND {
     return entries_;
   }
 
-  it_const_relocations relocations() const {
+  it_const_relocations relocations() const LIEF_LIFETIMEBOUND {
     return entries_;
   }
 
@@ -98,9 +98,9 @@ class LIEF_API DynamicFixupARM64Kernel : public DynamicFixup {
 
   ~DynamicFixupARM64Kernel() override = default;
 
-  /// \private
-  LIEF_LOCAL static
-    std::unique_ptr<DynamicFixupARM64Kernel> parse(Parser& ctx, SpanStream& strm);
+  /// @private
+  LIEF_LOCAL static std::unique_ptr<DynamicFixupARM64Kernel>
+      parse(Parser& ctx, SpanStream& strm);
 
   private:
   reloc_entries_t entries_;

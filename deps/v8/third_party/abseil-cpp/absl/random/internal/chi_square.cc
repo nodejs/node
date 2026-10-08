@@ -16,6 +16,7 @@
 
 #include <cmath>
 
+#include "absl/base/config.h"
 #include "absl/random/internal/distribution_test_util.h"
 
 namespace absl {

@@ -29,6 +29,7 @@ group("v8_mjsunit") {
     "../../tools/splaytree.mjs",
     "../../tools/system-analyzer/log/",
     "../../tools/system-analyzer/processor.mjs",
+    "../../tools/system-analyzer/cli.mjs",
     "../../tools/system-analyzer/timeline.mjs",
     "../../tools/system-analyzer/helper.mjs",
     "../../tools/tickprocessor.mjs",

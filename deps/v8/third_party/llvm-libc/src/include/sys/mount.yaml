@@ -1,0 +1,15 @@
+# NOTE: Semantics of sys/mount.h is different on Linux and BSD systems.
+header: sys/mount.h
+standards:
+  - linux
+macros:
+  # MS_ macro are defined only on Linux systems. Instead of listing
+  # them all here, do a shortcut (for now), and only reference a single
+  # one to ensure the inclusion of sys-mount-macros.h that would dispatch
+  # to system-specific ones.
+  - macro_name: MS_RDONLY
+    macro_header: sys-mount-macros.h
+types: []
+enums: []
+objects: []
+functions: []

@@ -22,7 +22,7 @@ class MacroAssemblerTest : public TestWithIsolate {};
 
 TEST_F(MacroAssemblerTest, TestHardAbort) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -41,7 +41,7 @@ TEST_F(MacroAssemblerTest, TestHardAbort) {
 
 TEST_F(MacroAssemblerTest, TestCheck) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -81,13 +81,11 @@ TEST_F(MacroAssemblerTest, ReverseBitsU64) {
       {0xe060a020c04080ff, 0xff01020304050607},
   };
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
-  __ Push(r4, r5);
-  __ ReverseBitsU64(r3, r3, r4, r5);
-  __ Pop(r4, r5);
+  __ ReverseBitsU64(r3, r3);
   __ Ret();
   CodeDesc desc;
   masm.GetCode(isolate(), &desc);
@@ -109,13 +107,11 @@ TEST_F(MacroAssemblerTest, ReverseBitsU32) {
       {0x22334455, 0xaa22cc44}, {0xaa22cc44, 0x22334455},
   };
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
-  __ Push(r4, r5);
-  __ ReverseBitsU32(r3, r3, r4, r5);
-  __ Pop(r4, r5);
+  __ ReverseBitsU32(r3, r3);
   __ Ret();
   CodeDesc desc;
   masm.GetCode(isolate(), &desc);

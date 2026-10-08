@@ -22,7 +22,7 @@
 #include <immintrin.h>
 
 #if defined(__GNUC__) || defined(__clang__)
-__attribute__((__target__("avx512f,avx512vl,vpclmulqdq")))
+__attribute__((__target__("avx512f,pclmul,vpclmulqdq")))
 #endif
 uint32_t ZLIB_INTERNAL crc32_avx512_simd_(  /* AVX512+PCLMUL */
     const unsigned char *buf,

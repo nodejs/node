@@ -1,0 +1,44 @@
+{
+  "name": "read-cmd-shim",
+  "version": "7.0.0",
+  "description": "Figure out what a cmd-shim is pointing at. This acts as the equivalent of fs.readlink.",
+  "main": "lib/index.js",
+  "devDependencies": {
+    "@npmcli/eslint-config": "^6.0.0",
+    "@npmcli/template-oss": "5.0.0",
+    "cmd-shim": "^8.0.0"
+  },
+  "scripts": {
+    "test": "node --test './test/**/*.js'",
+    "lint": "npm run eslint",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run eslint -- --fix",
+    "snap": "node --test --test-update-snapshots './test/**/*.js'",
+    "posttest": "npm run lint",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\"",
+    "test:cover": "node --test --experimental-test-coverage --test-timeout=3000 --test-coverage-lines=100 --test-coverage-functions=100 --test-coverage-branches=100 './test/**/*.js'",
+    "test:node20": "node --test test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/read-cmd-shim.git"
+  },
+  "license": "ISC",
+  "homepage": "https://github.com/npm/read-cmd-shim#readme",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "author": "GitHub Inc.",
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "5.0.0",
+    "publish": true,
+    "testRunner": "node:test",
+    "latestCiVersion": 24
+  }
+}

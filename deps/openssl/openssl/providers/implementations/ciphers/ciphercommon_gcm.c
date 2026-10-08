@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,6 +16,7 @@
 #include "prov/providercommon.h"
 #include "prov/provider_ctx.h"
 #include "internal/param_names.h"
+#include "fips/fipsindicator.h"
 
 static int gcm_tls_init(PROV_GCM_CTX *dat, unsigned char *aad, size_t aad_len);
 static int gcm_tls_iv_set_fixed(PROV_GCM_CTX *ctx, unsigned char *iv,
@@ -25,6 +26,14 @@ static int gcm_tls_cipher(PROV_GCM_CTX *ctx, unsigned char *out, size_t *padlen,
 static int gcm_cipher_internal(PROV_GCM_CTX *ctx, unsigned char *out,
     size_t *padlen, const unsigned char *in,
     size_t len);
+
+#ifdef FIPS_MODULE
+static int gcm_fips_taglen_approved(size_t taglen)
+{
+    return taglen == UNINITIALISED_SIZET || taglen == 4 || taglen == 8
+        || (taglen >= 12 && taglen <= GCM_TAG_MAX_SIZE);
+}
+#endif
 
 /*
  * Called from EVP_CipherInit when there is currently no context via
@@ -238,7 +247,14 @@ int ossl_gcm_get_ctx_params(void *vctx, OSSL_PARAM params[])
                 return 0;
         }
     }
+#ifdef FIPS_MODULE
+    /* Externally supplied IVs are permitted but not approved for encryption. */
+    return ossl_FIPS_IND_get_ctx_param_conditional(NULL, params,
+        (!ctx->enc || ctx->iv_gen_rand)
+            && gcm_fips_taglen_approved(ctx->taglen));
+#else
     return 1;
+#endif
 }
 
 int ossl_gcm_set_ctx_params(void *vctx, const OSSL_PARAM params[])
@@ -503,6 +519,7 @@ static int gcm_tls_iv_set_fixed(PROV_GCM_CTX *ctx, unsigned char *iv,
     /* Special case: -1 length restores whole IV */
     if (len == (size_t)-1) {
         memcpy(ctx->iv, iv, ctx->ivlen);
+        ctx->iv_gen_rand = 0;
         ctx->iv_gen = 1;
         ctx->iv_state = IV_STATE_BUFFERED;
         return 1;

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@
 #include "logging.hpp"
 
 namespace LIEF::PE::unwind_aarch64 {
-using namespace fmt;
 
 template<>
 bool Decoder::decode<OPCODES::ALLOC_S>(bool is_prologue) {
@@ -69,8 +68,7 @@ bool Decoder::decode<OPCODES::SAVE_REGP>(bool is_prologue) {
   uint32_t reg = ((((chunk_1 & 0x03) << 8) | (chunk_2 & 0xC0)) >> 6) + 19;
   uint32_t off = (chunk_2 & 0x3F) << 3;
 
-  log("{} x{}, x{}, [sp, #{}]", is_prologue ? "stp" : "ldp",
-      reg, reg + 1, off);
+  log("{} x{}, x{}, [sp, #{}]", is_prologue ? "stp" : "ldp", reg, reg + 1, off);
 
   return false;
 }
@@ -207,8 +205,7 @@ bool Decoder::decode<OPCODES::ALLOC_L>(bool is_prologue) {
 template<>
 bool Decoder::decode<OPCODES::SETFP>(bool is_prologue) {
   [[maybe_unused]] auto _ = read_u8();
-  log("mov {}, {}", is_prologue ? "fp" : "sp",
-                    is_prologue ? "sp" : "fp");
+  log("mov {}, {}", is_prologue ? "fp" : "sp", is_prologue ? "sp" : "fp");
   return false;
 }
 
@@ -218,21 +215,20 @@ bool Decoder::decode<OPCODES::ADDFP>(bool is_prologue) {
   auto CH1 = read_u8();
   uint32_t nb_bytes = CH1 << 3;
 
-  log("{} {}, {}, #{}", is_prologue ? "add" : "sub",
-                        is_prologue ? "fp" : "sp",
-                        is_prologue ? "sp" : "fp", nb_bytes);
+  log("{} {}, {}, #{}", is_prologue ? "add" : "sub", is_prologue ? "fp" : "sp",
+      is_prologue ? "sp" : "fp", nb_bytes);
   return false;
 }
 
 template<>
-bool Decoder::decode<OPCODES::NOP>(bool/*is_prologue*/) {
+bool Decoder::decode<OPCODES::NOP>(bool /*is_prologue*/) {
   [[maybe_unused]] auto _ = read_u8();
   log("nop");
   return false;
 }
 
 template<>
-bool Decoder::decode<OPCODES::END>(bool/*is_prologue*/) {
+bool Decoder::decode<OPCODES::END>(bool /*is_prologue*/) {
   [[maybe_unused]] auto _ = read_u8();
   log("end");
   return true;
@@ -307,14 +303,13 @@ bool Decoder::decode<OPCODES::SAVE_ANY_REG>(bool is_prologue) {
 
   if (is_paired) {
     lognf("{} ", is_paired ? (is_prologue ? "stp" : "ldp") :
-                            (is_prologue ? "str" : "ldr"));
+                             (is_prologue ? "str" : "ldr"));
   }
 
   char reg_prefix = 'x';
   if (reg_kind == 1) {
     reg_prefix = 'd';
-  }
-  else if (reg_kind == 2) {
+  } else if (reg_kind == 2) {
     reg_prefix = 'q';
   }
 
@@ -325,8 +320,7 @@ bool Decoder::decode<OPCODES::SAVE_ANY_REG>(bool is_prologue) {
   }
 
   if (write_back) {
-    is_prologue ? log("[sp, #-{}]!", stack_off) :
-                  log("[sp], #{}", stack_off);
+    is_prologue ? log("[sp, #-{}]!", stack_off) : log("[sp], #{}", stack_off);
   } else {
     log("[sp, #{}]", stack_off);
   }
@@ -442,35 +436,36 @@ bool Decoder::decode<OPCODES::PAC_SIGN_LR>(bool is_prologue) {
 }
 
 static constexpr auto HANDLERS = {
-  std::make_tuple(0xe0, 0x00, 1, &Decoder::decode<OPCODES::ALLOC_S>),
-  std::make_tuple(0xe0, 0x20, 1, &Decoder::decode<OPCODES::SAVE_R19R20_X>),
-  std::make_tuple(0xc0, 0x40, 1, &Decoder::decode<OPCODES::SAVE_FPLR>),
-  std::make_tuple(0xc0, 0x80, 1, &Decoder::decode<OPCODES::SAVE_FPLR_X>),
-  std::make_tuple(0xf8, 0xc0, 2, &Decoder::decode<OPCODES::ALLOC_M>),
-  std::make_tuple(0xfc, 0xc8, 2, &Decoder::decode<OPCODES::SAVE_REGP>),
-  std::make_tuple(0xfc, 0xcc, 2, &Decoder::decode<OPCODES::SAVE_REGP_X>),
-  std::make_tuple(0xfc, 0xd0, 2, &Decoder::decode<OPCODES::SAVE_REG>),
-  std::make_tuple(0xfe, 0xd4, 2, &Decoder::decode<OPCODES::SAVE_REG_X>),
-  std::make_tuple(0xfe, 0xd6, 2, &Decoder::decode<OPCODES::SAVE_LRPAIR>),
-  std::make_tuple(0xfe, 0xd8, 2, &Decoder::decode<OPCODES::SAVE_FREGP>),
-  std::make_tuple(0xfe, 0xda, 2, &Decoder::decode<OPCODES::SAVE_FREGP_X>),
-  std::make_tuple(0xfe, 0xdc, 2, &Decoder::decode<OPCODES::SAVE_FREG>),
-  std::make_tuple(0xff, 0xde, 2, &Decoder::decode<OPCODES::SAVE_FREG_X>),
-  std::make_tuple(0xff, 0xdf, 2, &Decoder::decode<OPCODES::ALLOC_Z>),
-  std::make_tuple(0xff, 0xe0, 4, &Decoder::decode<OPCODES::ALLOC_L>),
-  std::make_tuple(0xff, 0xe1, 1, &Decoder::decode<OPCODES::SETFP>),
-  std::make_tuple(0xff, 0xe2, 2, &Decoder::decode<OPCODES::ADDFP>),
-  std::make_tuple(0xff, 0xe3, 1, &Decoder::decode<OPCODES::NOP>),
-  std::make_tuple(0xff, 0xe4, 1, &Decoder::decode<OPCODES::END>),
-  std::make_tuple(0xff, 0xe5, 1, &Decoder::decode<OPCODES::END_C>),
-  std::make_tuple(0xff, 0xe6, 1, &Decoder::decode<OPCODES::SAVE_NEXT>),
-  std::make_tuple(0xff, 0xe7, 3, &Decoder::decode<OPCODES::E7>),
-  std::make_tuple(0xff, 0xe8, 1, &Decoder::decode<OPCODES::TRAP_FRAME>),
-  std::make_tuple(0xff, 0xe9, 1, &Decoder::decode<OPCODES::MACHINE_FRAME>),
-  std::make_tuple(0xff, 0xea, 1, &Decoder::decode<OPCODES::CONTEXT>),
-  std::make_tuple(0xff, 0xeb, 1, &Decoder::decode<OPCODES::EC_CONTEXT>),
-  std::make_tuple(0xff, 0xec, 1, &Decoder::decode<OPCODES::CLEAR_UNWOUND_TO_CALL>),
-  std::make_tuple(0xff, 0xfc, 1, &Decoder::decode<OPCODES::PAC_SIGN_LR>),
+    std::make_tuple(0xe0, 0x00, 1, &Decoder::decode<OPCODES::ALLOC_S>),
+    std::make_tuple(0xe0, 0x20, 1, &Decoder::decode<OPCODES::SAVE_R19R20_X>),
+    std::make_tuple(0xc0, 0x40, 1, &Decoder::decode<OPCODES::SAVE_FPLR>),
+    std::make_tuple(0xc0, 0x80, 1, &Decoder::decode<OPCODES::SAVE_FPLR_X>),
+    std::make_tuple(0xf8, 0xc0, 2, &Decoder::decode<OPCODES::ALLOC_M>),
+    std::make_tuple(0xfc, 0xc8, 2, &Decoder::decode<OPCODES::SAVE_REGP>),
+    std::make_tuple(0xfc, 0xcc, 2, &Decoder::decode<OPCODES::SAVE_REGP_X>),
+    std::make_tuple(0xfc, 0xd0, 2, &Decoder::decode<OPCODES::SAVE_REG>),
+    std::make_tuple(0xfe, 0xd4, 2, &Decoder::decode<OPCODES::SAVE_REG_X>),
+    std::make_tuple(0xfe, 0xd6, 2, &Decoder::decode<OPCODES::SAVE_LRPAIR>),
+    std::make_tuple(0xfe, 0xd8, 2, &Decoder::decode<OPCODES::SAVE_FREGP>),
+    std::make_tuple(0xfe, 0xda, 2, &Decoder::decode<OPCODES::SAVE_FREGP_X>),
+    std::make_tuple(0xfe, 0xdc, 2, &Decoder::decode<OPCODES::SAVE_FREG>),
+    std::make_tuple(0xff, 0xde, 2, &Decoder::decode<OPCODES::SAVE_FREG_X>),
+    std::make_tuple(0xff, 0xdf, 2, &Decoder::decode<OPCODES::ALLOC_Z>),
+    std::make_tuple(0xff, 0xe0, 4, &Decoder::decode<OPCODES::ALLOC_L>),
+    std::make_tuple(0xff, 0xe1, 1, &Decoder::decode<OPCODES::SETFP>),
+    std::make_tuple(0xff, 0xe2, 2, &Decoder::decode<OPCODES::ADDFP>),
+    std::make_tuple(0xff, 0xe3, 1, &Decoder::decode<OPCODES::NOP>),
+    std::make_tuple(0xff, 0xe4, 1, &Decoder::decode<OPCODES::END>),
+    std::make_tuple(0xff, 0xe5, 1, &Decoder::decode<OPCODES::END_C>),
+    std::make_tuple(0xff, 0xe6, 1, &Decoder::decode<OPCODES::SAVE_NEXT>),
+    std::make_tuple(0xff, 0xe7, 3, &Decoder::decode<OPCODES::E7>),
+    std::make_tuple(0xff, 0xe8, 1, &Decoder::decode<OPCODES::TRAP_FRAME>),
+    std::make_tuple(0xff, 0xe9, 1, &Decoder::decode<OPCODES::MACHINE_FRAME>),
+    std::make_tuple(0xff, 0xea, 1, &Decoder::decode<OPCODES::CONTEXT>),
+    std::make_tuple(0xff, 0xeb, 1, &Decoder::decode<OPCODES::EC_CONTEXT>),
+    std::make_tuple(0xff, 0xec, 1,
+                    &Decoder::decode<OPCODES::CLEAR_UNWOUND_TO_CALL>),
+    std::make_tuple(0xff, 0xfc, 1, &Decoder::decode<OPCODES::PAC_SIGN_LR>),
 };
 
 ok_error_t Decoder::run(bool prologue) {
@@ -491,7 +486,7 @@ ok_error_t Decoder::run(bool prologue) {
 
       found = true;
 
-      lognf("0x{:04x} ", start_pos);
+      lognf("{:#06x} ", start_pos);
       {
         ScopedStream scoped(*stream_);
         std::vector<uint8_t> bytes;
@@ -528,7 +523,6 @@ ok_error_t Decoder::run(bool prologue) {
       LIEF_DEBUG("{}:{}", __FUNCTION__, __LINE__);
       return make_error_code(lief_errors::read_error);
     }
-
   }
   return ok();
 }

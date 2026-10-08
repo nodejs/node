@@ -1,4 +1,4 @@
-// Flags: --experimental-dtls --no-warnings
+// Flags: --experimental-dtls --no-warnings --expose-internals
 
 // Test: DTLSEndpoint/DTLSSession state fields and callback accessors reflect
 // what is set and the connection lifecycle.
@@ -19,6 +19,13 @@ if (!process.features.dtls) {
 
 const { listen, connect } = await import('node:dtls');
 
+// The state view is not public API; reached the way node:quic's tests do.
+const {
+  getDTLSEndpointState,
+  getDTLSSessionState,
+} = (await import('internal/dtls/dtls')).default;
+const { kOwnsEndpoint } = (await import('internal/dtls/symbols')).default;
+
 const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
 const ca = fixtures.readKey('ca1-cert.pem').toString();
@@ -30,7 +37,7 @@ const server = listen(mustCall((session) => {
 }), { cert, key, port: 0, host: '127.0.0.1' });
 
 // --- Endpoint state after listen(): bound and listening. ---
-const es = server.state;
+const es = getDTLSEndpointState(server);
 assert.strictEqual(es.bound, true);
 assert.strictEqual(es.listening, true);
 assert.strictEqual(es.closing, false);
@@ -58,7 +65,7 @@ const client = connect('127.0.0.1', server.address.port, {
 });
 
 // --- Session state during the handshake. ---
-const cs = client.state;
+const cs = getDTLSSessionState(client);
 assert.strictEqual(cs.handshaking, true);
 assert.strictEqual(cs.open, false);
 assert.strictEqual(cs.closing, false);
@@ -70,8 +77,12 @@ assert.strictEqual(client.onmessage, undefined);
 assert.strictEqual(client.onerror, undefined);
 assert.strictEqual(client.onhandshake, undefined);
 assert.strictEqual(client.onkeylog, undefined);
-// A connect() session owns its internal endpoint.
-assert.strictEqual(client.ownsEndpoint, true);
+// A connect() session owns its internal endpoint, which is recorded on a
+// symbol rather than a property: it decides whether closing the session takes
+// the endpoint with it, and a server session told the same thing would take
+// down the listener.
+assert.strictEqual(client[kOwnsEndpoint], true);
+assert.strictEqual(client.ownsEndpoint, undefined);
 
 client.onmessage = mustNotCall();
 assert.strictEqual(typeof client.onmessage, 'function');
@@ -99,3 +110,45 @@ assert.strictEqual(es.sessionCount, 1);
 
 await client.close();
 await server.close();
+
+// ownsEndpoint is not public. It says whether closing a session should take
+// its endpoint with it, which is true only for the single-session endpoint
+// connect() creates. Exposed as a settable property, it let a server session
+// be told it owned the listener: closing that one session then tore down the
+// endpoint and every other session on it.
+{
+  const arrived = Promise.withResolvers();
+  let serverSession;
+
+  const server = listen((session) => {
+    serverSession ??= session;
+    arrived.resolve();
+  }, { cert, key, host: '127.0.0.1', port: 0 });
+  const port = server.address.port;
+
+  const first = connect('127.0.0.1', port, { rejectUnauthorized: false });
+  await first.opened;
+  await arrived.promise;
+
+  assert.strictEqual(serverSession.ownsEndpoint, undefined);
+  assert.strictEqual(
+    Object.getOwnPropertyDescriptor(
+      Object.getPrototypeOf(serverSession), 'ownsEndpoint'),
+    undefined);
+
+  // Assigning the name creates an ordinary own property and nothing more.
+  serverSession.ownsEndpoint = true;
+  await serverSession.close();
+
+  // The endpoint is still listening and still serving.
+  assert.notStrictEqual(server.address, undefined);
+  const second = connect('127.0.0.1', port, {
+    rejectUnauthorized: false,
+    handshakeTimeout: 5000,
+  });
+  await second.opened;
+
+  await second.close();
+  await first.close();
+  await server.close();
+}

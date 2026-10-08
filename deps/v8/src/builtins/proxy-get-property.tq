@@ -9,8 +9,8 @@ namespace proxy {
 extern transitioning builtin GetPropertyWithReceiver(
     implicit context: Context)(JSAny, Name, JSAny, Smi): JSAny;
 
-// ES #sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
-// https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
+// https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
+// https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
 transitioning builtin ProxyGetProperty(
     implicit context: Context)(proxy: JSProxy, name: PropertyKey,
     receiverValue: JSAny, onNonExistent: Smi): JSAny {

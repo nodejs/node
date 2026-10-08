@@ -10,7 +10,7 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/heap.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/init/v8.h"
 #include "src/tasks/cancelable-task.h"
 
@@ -179,8 +179,8 @@ void MinorGCJob::Task::RunInternal() {
     return;
   }
 
-  heap->CollectGarbageWithRetry(
-      NEW_SPACE, GCFlags(), GarbageCollectionReason::kTask, kNoGCCallbackFlags);
+  heap->CollectGarbageWithRetry(heap->main_thread_local_heap(), NEW_SPACE,
+                                GarbageCollectionReason::kAllocationFailure);
 }
 
 }  // namespace v8::internal

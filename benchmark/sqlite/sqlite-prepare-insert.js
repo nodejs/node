@@ -17,7 +17,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  const db = new sqlite.DatabaseSync(':memory:');
+  const db = new sqlite.Database(':memory:');
 
   db.exec('CREATE TABLE text_column_type (text_column TEXT)');
   db.exec('CREATE TABLE integer_column_type (integer_column INTEGER)');

@@ -15,8 +15,6 @@
 #include "src/compiler/wasm-graph-assembler.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/string.h"
-#include "src/wasm/object-access.h"
-#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-subtyping.h"
@@ -28,7 +26,7 @@ namespace compiler {
 namespace {
 int TaggedOffset(FieldAccess access) {
   DCHECK(access.base_is_tagged);
-  return wasm::ObjectAccess::ToTagged(access.offset);
+  return access.offset - kHeapObjectTag;
 }
 }  // namespace
 
@@ -122,7 +120,6 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   Node* control_input = NodeProperties::GetControlInput(node);
   auto config = OpParameter<WasmTypeCheckConfig>(node->op());
   int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
-  bool object_can_be_null = config.from.is_nullable();
   bool object_can_be_i31 =
       wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_);
 
@@ -131,10 +128,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   auto end_label = gasm_.MakeLabel(MachineRepresentation::kWord32);
   bool is_cast_from_any = config.from.is_reference_to(wasm::GenericKind::kAny);
 
-  // If we are casting from any and null results in check failure, then the
-  // {IsDataRefMap} check below subsumes the null check. Otherwise, perform
-  // an explicit null check now.
-  if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
+  if (config.from.is_nullable()) {
     const int kResult = config.to.is_nullable() ? 1 : 0;
     gasm_.GotoIf(IsNull(object, wasm::kWasmAnyRef), &end_label,
                  BranchHint::kFalse, gasm_.Int32Constant(kResult));
@@ -173,8 +167,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
       Node* supertypes_length =
           gasm_.BuildChangeSmiToIntPtr(gasm_.LoadImmutableFromObject(
               MachineType::TaggedSigned(), type_info,
-              wasm::ObjectAccess::ToTagged(
-                  WasmTypeInfo::kSupertypesLengthOffset)));
+              offsetof(WasmTypeInfo, supertypes_length_) - kHeapObjectTag));
       gasm_.GotoIfNot(gasm_.UintLessThan(gasm_.IntPtrConstant(rtt_depth),
                                          supertypes_length),
                       &end_label, BranchHint::kTrue, gasm_.Int32Constant(0));
@@ -182,8 +175,8 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
 
     Node* maybe_match = gasm_.LoadImmutableFromObject(
         MachineType::TaggedPointer(), type_info,
-        wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
-                                     kTaggedSize * rtt_depth));
+        (WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth) -
+            kHeapObjectTag);
 
     gasm_.Goto(&end_label, gasm_.TaggedEqual(maybe_match, rtt));
   }
@@ -202,8 +195,6 @@ Reduction WasmGCLowering::ReduceWasmTypeCheckAbstract(Node* node) {
   Node* effect_input = NodeProperties::GetEffectInput(node);
   Node* control_input = NodeProperties::GetControlInput(node);
   WasmTypeCheckConfig config = OpParameter<WasmTypeCheckConfig>(node->op());
-  const bool object_can_be_null = config.from.is_nullable();
-  const bool null_succeeds = config.to.is_nullable();
   const bool object_can_be_i31 =
       wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_) ||
       config.from.is_reference_to(wasm::GenericKind::kExtern);
@@ -222,10 +213,9 @@ Reduction WasmGCLowering::ReduceWasmTypeCheckAbstract(Node* node) {
       break;
     }
     // Null checks performed by any other type check need control flow. We can
-    // skip the null check if null fails, because it's covered by the Smi check
-    // or instance type check we'll do later.
-    if (object_can_be_null && null_succeeds) {
-      const int kResult = null_succeeds ? 1 : 0;
+    // skip the null check if success is determined by a Smi check.
+    if (config.from.is_nullable() && config.to != wasm::kWasmRefI31) {
+      const int kResult = config.to.is_nullable() ? 1 : 0;
       gasm_.GotoIf(IsNull(object, wasm::kWasmAnyRef), &end_label,
                    BranchHint::kFalse, gasm_.Int32Constant(kResult));
     }
@@ -288,7 +278,6 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   Node* control_input = NodeProperties::GetControlInput(node);
   auto config = OpParameter<WasmTypeCheckConfig>(node->op());
   int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
-  bool object_can_be_null = config.from.is_nullable();
   bool object_can_be_i31 =
       wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_);
 
@@ -297,14 +286,11 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   auto end_label = gasm_.MakeLabel();
   bool is_cast_from_any = config.from.is_reference_to(wasm::GenericKind::kAny);
 
-  // If we are casting from any and null results in check failure, then the
-  // {IsDataRefMap} check below subsumes the null check. Otherwise, perform
-  // an explicit null check now.
-  if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
+  if (config.from.is_nullable()) {
     Node* is_null = IsNull(object, wasm::kWasmAnyRef);
     if (config.to.is_nullable()) {
       gasm_.GotoIf(is_null, &end_label, BranchHint::kFalse);
-    } else if (!v8_flags.experimental_wasm_skip_null_checks) {
+    } else if (!v8_flags.wasm_skip_null_checks) {
       gasm_.TrapIf(is_null, TrapId::kTrapIllegalCast);
       UpdateSourcePosition(gasm_.effect(), node);
     }
@@ -345,8 +331,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
       Node* supertypes_length =
           gasm_.BuildChangeSmiToIntPtr(gasm_.LoadImmutableFromObject(
               MachineType::TaggedSigned(), type_info,
-              wasm::ObjectAccess::ToTagged(
-                  WasmTypeInfo::kSupertypesLengthOffset)));
+              offsetof(WasmTypeInfo, supertypes_length_) - kHeapObjectTag));
       gasm_.TrapUnless(gasm_.UintLessThan(gasm_.IntPtrConstant(rtt_depth),
                                           supertypes_length),
                        TrapId::kTrapIllegalCast);
@@ -355,8 +340,8 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
 
     Node* maybe_match = gasm_.LoadImmutableFromObject(
         MachineType::TaggedPointer(), type_info,
-        wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
-                                     kTaggedSize * rtt_depth));
+        (WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth) -
+            kHeapObjectTag);
 
     gasm_.TrapUnless(gasm_.TaggedEqual(maybe_match, rtt),
                      TrapId::kTrapIllegalCast);
@@ -378,8 +363,6 @@ Reduction WasmGCLowering::ReduceWasmTypeCastAbstract(Node* node) {
   Node* effect_input = NodeProperties::GetEffectInput(node);
   Node* control_input = NodeProperties::GetControlInput(node);
   WasmTypeCheckConfig config = OpParameter<WasmTypeCheckConfig>(node->op());
-  const bool object_can_be_null = config.from.is_nullable();
-  const bool null_succeeds = config.to.is_nullable();
   const bool object_can_be_i31 =
       wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_) ||
       config.from.is_reference_to(wasm::GenericKind::kExtern);
@@ -397,12 +380,17 @@ Reduction WasmGCLowering::ReduceWasmTypeCastAbstract(Node* node) {
       UpdateSourcePosition(gasm_.effect(), node);
       break;
     }
-    // Null checks performed by any other type cast can be skipped if null
-    // fails, because it's covered by the Smi check
-    // or instance type check we'll do later.
-    if (object_can_be_null && null_succeeds &&
-        !v8_flags.experimental_wasm_skip_null_checks) {
-      gasm_.GotoIf(IsNull(object, config.from), &end_label, BranchHint::kFalse);
+    // Null checks performed by any other type cast can only be skipped if
+    // a Smi check is the only operation we'll need (i.e. the target type
+    // is non-nullable (ref i31).
+    if (config.from.is_nullable() && config.to != wasm::kWasmRefI31) {
+      Node* is_null = IsNull(object, config.from);
+      if (config.to.is_nullable()) {
+        gasm_.GotoIf(is_null, &end_label, BranchHint::kFalse);
+      } else if (!v8_flags.wasm_skip_null_checks) {
+        gasm_.TrapIf(is_null, TrapId::kTrapIllegalCast);
+        UpdateSourcePosition(gasm_.effect(), node);
+      }
     }
     if (to_kind == wasm::GenericKind::kI31) {
       // If earlier optimization passes reached the limit of possible graph
@@ -473,14 +461,15 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
   // after the map word. This will trap for null and be handled by the trap
   // handler.
   if (op_parameter.trap_id == TrapId::kTrapNullDereference) {
-    if (!v8_flags.experimental_wasm_skip_null_checks) {
+    if (!v8_flags.wasm_skip_null_checks) {
       // For supertypes of i31ref, we would need to check for i31ref anyway
       // before loading from the object, so we might as well just check directly
       // for null.
-      // For subtypes of externref, we use JS null, so we have to check
-      // explicitly.
+      // Exnrefs can hold any JS value, so do not use the trapping null check.
       if (null_check_strategy_ == NullCheckStrategy::kExplicit ||
           wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), op_parameter.type,
+                            module_) ||
+          wasm::IsSubtypeOf(wasm::kWasmExnRef.AsNonNull(), op_parameter.type,
                             module_) ||
           !op_parameter.type.use_wasm_null()) {
         gasm_.TrapIf(IsNull(object, op_parameter.type), op_parameter.trap_id);
@@ -491,7 +480,7 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
         static_assert(WasmInternalFunction::kHeaderSize > kTaggedSize);
         Node* trap_null = gasm_.LoadTrapOnNull(
             MachineType::Int32(), object,
-            gasm_.IntPtrConstant(wasm::ObjectAccess::ToTagged(kTaggedSize)));
+            gasm_.IntPtrConstant(kTaggedSize - kHeapObjectTag));
         UpdateSourcePosition(trap_null, node);
       }
     }
@@ -535,13 +524,8 @@ Reduction WasmGCLowering::ReduceRttCanon(Node* node) {
       WasmTrustedInstanceData::kManagedObjectMapsOffset - kHeapObjectTag);
   return Replace(gasm_.LoadImmutable(
       MachineType::TaggedPointer(), maps_list,
-      wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(type_index)));
+      FixedArray::OffsetOfElementAt(type_index) - kHeapObjectTag));
 }
-
-namespace {
-constexpr int32_t kInt31MaxValue = 0x3fffffff;
-constexpr int32_t kInt31MinValue = -kInt31MaxValue - 1;
-}  // namespace
 
 Reduction WasmGCLowering::ReduceWasmAnyConvertExtern(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmAnyConvertExtern);
@@ -575,12 +559,12 @@ Reduction WasmGCLowering::ReduceWasmAnyConvertExtern(Node* node) {
     Node* int_value = gasm_.BuildChangeSmiToInt32(input);
 
     // Convert to heap number if the int32 does not fit into an i31ref.
-    gasm_.GotoIf(
-        gasm_.Int32LessThan(gasm_.Int32Constant(kInt31MaxValue), int_value),
-        &to_heap_number_label);
-    gasm_.GotoIf(
-        gasm_.Int32LessThan(int_value, gasm_.Int32Constant(kInt31MinValue)),
-        &to_heap_number_label);
+    gasm_.GotoIf(gasm_.Int32LessThan(gasm_.Int32Constant(wasm::kInt31MaxValue),
+                                     int_value),
+                 &to_heap_number_label);
+    gasm_.GotoIf(gasm_.Int32LessThan(int_value,
+                                     gasm_.Int32Constant(wasm::kInt31MinValue)),
+                 &to_heap_number_label);
     gasm_.Goto(&end_label, input);
 
     gasm_.Bind(&to_heap_number_label);
@@ -593,14 +577,14 @@ Reduction WasmGCLowering::ReduceWasmAnyConvertExtern(Node* node) {
   gasm_.Bind(&heap_number_label);
   Node* float_value = gasm_.LoadFromObject(
       MachineType::Float64(), input,
-      wasm::ObjectAccess::ToTagged(AccessBuilder::ForHeapNumberValue().offset));
+      AccessBuilder::ForHeapNumberValue().offset - kHeapObjectTag);
   // Check range of float value.
-  gasm_.GotoIf(
-      gasm_.Float64LessThan(float_value, gasm_.Float64Constant(kInt31MinValue)),
-      &end_label, input);
-  gasm_.GotoIf(
-      gasm_.Float64LessThan(gasm_.Float64Constant(kInt31MaxValue), float_value),
-      &end_label, input);
+  gasm_.GotoIf(gasm_.Float64LessThan(
+                   float_value, gasm_.Float64Constant(wasm::kInt31MinValue)),
+               &end_label, input);
+  gasm_.GotoIf(gasm_.Float64LessThan(
+                   gasm_.Float64Constant(wasm::kInt31MaxValue), float_value),
+               &end_label, input);
   // Check if value is -0.
   Node* is_minus_zero = nullptr;
   if (mcgraph_->machine()->Is64()) {
@@ -804,15 +788,14 @@ Reduction WasmGCLowering::ReduceWasmArrayLength(Node* node) {
   bool use_null_trap =
       null_check_strategy_ == NullCheckStrategy::kTrapHandler &&
       null_check == kWithNullCheck;
-  Node* length =
-      use_null_trap
-          ? gasm_.LoadTrapOnNull(
-                MachineType::Uint32(), object,
-                gasm_.IntPtrConstant(
-                    wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset)))
-          : gasm_.LoadImmutableFromObject(
-                MachineType::Uint32(), object,
-                wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset));
+  Node* length = use_null_trap
+                     ? gasm_.LoadTrapOnNull(
+                           MachineType::Uint32(), object,
+                           gasm_.IntPtrConstant(offsetof(WasmArray, length_) -
+                                                kHeapObjectTag))
+                     : gasm_.LoadImmutableFromObject(
+                           MachineType::Uint32(), object,
+                           offsetof(WasmArray, length_) - kHeapObjectTag);
   if (use_null_trap) {
     UpdateSourcePosition(length, node);
   }
@@ -832,7 +815,7 @@ Reduction WasmGCLowering::ReduceWasmArrayInitializeLength(Node* node) {
 
   Node* set_length = gasm_.InitializeImmutableInObject(
       ObjectAccess{MachineType::Uint32(), kNoWriteBarrier}, object,
-      wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset), length);
+      offsetof(WasmArray, length_) - kHeapObjectTag, length);
 
   return Replace(set_length);
 }
@@ -983,9 +966,9 @@ Reduction WasmGCLowering::ReduceStringPrepareForGetCodeunit(Node* node) {
               AccessBuilder::ForSeqTwoByteStringCharacter().header_size);
     const int chars_start_offset =
         AccessBuilder::ForSeqOneByteStringCharacter().header_size;
-    Node* final_offset = gasm_.Int32Add(
-        gasm_.Int32Constant(wasm::ObjectAccess::ToTagged(chars_start_offset)),
-        gasm_.Word32Shl(offset, charwidth_shift));
+    Node* final_offset =
+        gasm_.Int32Add(gasm_.Int32Constant(chars_start_offset - kHeapObjectTag),
+                       gasm_.Word32Shl(offset, charwidth_shift));
     gasm_.Goto(&done, string, gasm_.BuildChangeInt32ToIntPtr(final_offset),
                charwidth_shift);
 

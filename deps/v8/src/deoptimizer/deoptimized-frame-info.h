@@ -28,13 +28,13 @@ class DeoptimizedFrameInfo : public Malloced {
 
   // Get an incoming argument.
   Handle<Object> GetParameter(int index) {
-    DCHECK(0 <= index && index < parameters_count());
+    CHECK(0 <= index && index < parameters_count());
     return parameters_[index];
   }
 
   // Get an expression from the expression stack.
   Handle<Object> GetExpression(int index) {
-    DCHECK(0 <= index && index < expression_count());
+    CHECK(0 <= index && index < expression_count());
     return expression_stack_[index];
   }
 

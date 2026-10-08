@@ -87,6 +87,7 @@ A pull request is _author ready_ when:
 * There is a CI run in progress or completed.
 * There is at least one collaborator approval.
 * There are no outstanding review comments.
+* There are no conflicts with the base branch.
 
 Please always add the `author ready` label to the pull request in that case.
 Please always remove it again as soon as the conditions are not met anymore.
@@ -390,6 +391,21 @@ Once this label is added, `github-actions bot` will start
 the `node-test-pull-request` automatically. If the `github-actions bot`
 is unable to start the job, it will update the label with `request-ci-failed`.
 
+To resume an existing CI run, add the `resume-ci` label to the pull request.
+As with `request-ci`, the pull request must have an approving review. The bot
+removes `resume-ci` when processing the request. If it cannot resume the job, it
+adds `resume-ci-failed` and posts the command output with a link to the workflow
+run.
+
+Do not combine `request-ci` and `resume-ci`. If both labels are present, the bot
+removes both, adds `request-ci-failed` and `resume-ci-failed`, and reports the
+conflict once without starting or resuming CI.
+
+The job must be failed or aborted and resumable, and its CI-approved commit must
+still match the pull request's HEAD. Resuming is refused when available failure
+diagnostics reference files changed by the pull request. Use `request-ci` when a
+fresh CI run is needed instead.
+
 ### Internal vs. public API
 
 All functionality in the official Node.js documentation is part of the public
@@ -489,6 +505,11 @@ Revert commits with `git revert <HASH>` or `git revert <FROM>..<TO>`. The
 generated commit message will not have a subsystem and might violate line length
 rules. That is OK. Append the reason for the revert and any `Refs` or `Fixes`
 metadata. Raise a pull request like any other change.
+
+Apply `dont-land-on-v?.x` labels to the revert pull request and to its
+corresponding original pull request, remove `semver-*` and `notable-change` labels,
+unless the original pull request has already been backported.
+This avoids cluttering CHANGELOGs with information irrelevant for end users.
 
 ### Introducing new modules
 
@@ -1006,6 +1027,8 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 * `never-stale`: Issues and pull requests exempt from automatic stale handling
 * `request-ci`: When this label is added to a PR, CI will be started
   automatically. See [Starting a Jenkins CI job](#starting-a-jenkins-ci-job)
+* `resume-ci`: When this label is added to a PR, the latest linked CI run will be
+  resumed if eligible. See [Starting a Jenkins CI job](#starting-a-jenkins-ci-job)
 * `stale`: Issues and pull requests with no activity for 90 days. See
   [Stale issues and pull requests](#stale-issues-and-pull-requests)
 * `tsc-agenda`: Open issues and pull requests with this label will be added to

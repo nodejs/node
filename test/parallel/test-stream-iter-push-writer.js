@@ -3,7 +3,8 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { push, ondrain, text } = require('stream/iter');
+const { dump, ondrain, push, text } = require('stream/iter');
+const { setImmediate } = require('timers/promises');
 
 async function testOndrain() {
   const { writer } = push({ budget: 16384 });
@@ -39,7 +40,7 @@ async function testDropPoliciesReportPhysicalCapacity() {
     // Drop policies still accept writes despite having no physical capacity.
     assert.strictEqual(writer.writeSync(chunk), true);
     assert.strictEqual(writer.canWrite, false);
-    await new Promise(setImmediate);
+    await setImmediate();
     assert.strictEqual(drained, false);
 
     assert.strictEqual((await iterator.next()).done, false);
@@ -224,7 +225,7 @@ async function testWritevSyncInvalidChunkDoesNotQueue() {
   const next = iter.next();
   const result = await Promise.race([
     next.then(() => 'resolved'),
-    new Promise((resolve) => setImmediate(resolve, 'pending')),
+    setImmediate('pending'),
   ]);
   assert.strictEqual(result, 'pending');
 
@@ -274,8 +275,7 @@ async function testFail() {
   // Second fail is a no-op (already errored)
   writer.fail(new Error('boom2'));
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of readable) { /* consume */ }
+    await dump(readable);
   }, { message: 'boom' });
 }
 
@@ -284,8 +284,7 @@ async function testEndAsyncReturnValue() {
   writer.writeSync('hello');
   // Start consuming concurrently (end() waits for drain)
   const consume = (async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of readable) { /* drain */ }
+    await dump(readable);
   })();
   const total = await writer.end();
   assert.strictEqual(total, 5);
@@ -355,8 +354,7 @@ async function testEndAfterEndSyncWaitsForDrain() {
   await Promise.resolve();
   assert.strictEqual(ended, false);
 
-  // eslint-disable-next-line no-unused-vars
-  for await (const _ of readable) { /* drain */ }
+  await dump(readable);
   assert.strictEqual(await end, 5);
 }
 
@@ -376,7 +374,7 @@ async function testOndrainWaitsForDrain() {
   let drainState = 'pending';
   const drainPromise = ondrain(writer).then((v) => { drainState = v; });
 
-  await new Promise(setImmediate);
+  await setImmediate();
   assert.strictEqual(drainState, 'pending'); // Still waiting
 
   // Read to drain
@@ -429,7 +427,7 @@ async function testEndResolvesPendingRead() {
   const readPromise = iter.next();
 
   // Give the read a tick to enter the pending state
-  await new Promise(setImmediate);
+  await setImmediate();
 
   // End the writer — should resolve the pending read with done:true
   writer.endSync();
@@ -444,7 +442,7 @@ async function testFailRejectsPendingRead() {
   const iter = readable[Symbol.asyncIterator]();
   const readPromise = iter.next();
 
-  await new Promise(setImmediate);
+  await setImmediate();
 
   writer.fail(new Error('fail during read'));
   await assert.rejects(
@@ -460,7 +458,7 @@ async function testConsumerReturnResolvesPendingRead() {
   const iter = readable[Symbol.asyncIterator]();
   const readPromise = iter.next();
 
-  await new Promise(setImmediate);
+  await setImmediate();
 
   const returnResult = await iter.return();
   assert.strictEqual(returnResult.value, undefined);
@@ -492,7 +490,7 @@ async function testConsumerThrowRejectsPendingRead() {
   const iter = readable[Symbol.asyncIterator]();
   const readPromise = iter.next();
 
-  await new Promise(setImmediate);
+  await setImmediate();
 
   const err = new Error('consumer read boom');
   const readRejects = assert.rejects(
@@ -556,8 +554,7 @@ async function testEndIdempotentWhenClosed() {
   await writer.write('hello');
   // Start consuming concurrently (end() waits for drain)
   const consume = (async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of readable) { /* drain */ }
+    await dump(readable);
   })();
   const first = await writer.end();
   assert.strictEqual(first, 5);
@@ -576,8 +573,7 @@ async function testAsyncDispose() {
   assert.strictEqual(writer.writeSync('fail'), false);
   // Drain readable
   try {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of readable) { /* consume */ }
+    await dump(readable);
   } catch {
     // Expected - reader sees the error
   }
@@ -609,8 +605,7 @@ async function testSyncDispose() {
   assert.strictEqual(writer.writeSync('fail'), false);
   // Drain readable
   try {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of readable) { /* consume */ }
+    await dump(readable);
   } catch {
     // Expected
   }
@@ -657,7 +652,7 @@ async function testFailRejectsPendingReadWithFalsyReason() {
   const iter = readable[Symbol.asyncIterator]();
   const readPromise = iter.next();
 
-  await new Promise(setImmediate);
+  await setImmediate();
 
   writer.fail(false);
   await readPromise.then(

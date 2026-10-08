@@ -1,17 +1,17 @@
-typedef uint32_t Elf32_Addr;
-typedef uint32_t Elf32_Off;
-typedef uint16_t Elf32_Half;
-typedef uint32_t Elf32_Word;
-typedef int32_t  Elf32_Sword;
+using Elf32_Addr = uint32_t;
+using Elf32_Off = uint32_t;
+using Elf32_Half = uint16_t;
+using Elf32_Word = uint32_t;
+using Elf32_Sword = int32_t;
 
-typedef uint64_t Elf64_Addr;
-typedef uint64_t Elf64_Off;
-typedef uint16_t Elf64_Half;
-typedef uint32_t Elf64_Word;
-typedef int32_t  Elf64_Sword;
+using Elf64_Addr = uint64_t;
+using Elf64_Off = uint64_t;
+using Elf64_Half = uint16_t;
+using Elf64_Word = uint32_t;
+using Elf64_Sword = int32_t;
 
-typedef uint64_t Elf64_Xword;
-typedef int64_t  Elf64_Sxword;
+using Elf64_Xword = uint64_t;
+using Elf64_Sxword = int64_t;
 
 
 /** Object file magic string. */

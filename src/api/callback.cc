@@ -96,6 +96,7 @@ InternalCallbackScope::InternalCallbackScope(
   }
 
   Isolate* isolate = env->isolate();
+  if (handle_cleanup_depth > 0) allow_js_.emplace(isolate);
 
   HandleScope handle_scope(isolate);
   Local<Context> current_context = isolate->GetCurrentContext();
@@ -110,8 +111,12 @@ InternalCallbackScope::InternalCallbackScope(
 
   isolate->SetIdle(false);
 
-  prior_context_frame_.Reset(
-      isolate, async_context_frame::exchange(isolate, context_frame));
+  // The prior frame is usually undefined: no global handle then.
+  Local<Value> prior_context_frame =
+      async_context_frame::exchange(env, context_frame);
+  if (!prior_context_frame->IsUndefined()) {
+    prior_context_frame_.Reset(isolate, prior_context_frame);
+  }
 
   env->async_hooks()->push_async_context(
       async_context_.async_id, async_context_.trigger_async_id, object);
@@ -157,7 +162,7 @@ void InternalCallbackScope::Close() {
   if (pushed_ids_) {
     env_->async_hooks()->pop_async_context(async_context_.async_id);
 
-    async_context_frame::exchange(isolate, prior_context_frame_.Get(isolate));
+    async_context_frame::set(env_, prior_context_frame_.Get(isolate));
   }
 
   if (failed_) return;

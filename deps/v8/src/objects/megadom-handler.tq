@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@generateBodyDescriptor
+#include "src/objects/megadom-handler.h"
+
+@cppObjectLayoutDefinition
 extern class MegaDomHandler extends HeapObject {
   accessor: MaybeObject;
   context: MaybeObject;

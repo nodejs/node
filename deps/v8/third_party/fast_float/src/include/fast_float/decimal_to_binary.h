@@ -20,7 +20,7 @@ namespace fast_float {
 template <int bit_precision>
 fastfloat_really_inline FASTFLOAT_CONSTEXPR20 value128
 compute_product_approximation(int64_t q, uint64_t w) {
-  const int index = 2 * int(q - powers::smallest_power_of_five);
+  int const index = 2 * int(q - powers::smallest_power_of_five);
   // For small values of q, e.g., q in [0,27], the answer is always exact
   // because The line value128 firstproduct = full_multiplication(w,
   // power_of_five_128[index]); gives the exact answer.
@@ -93,8 +93,8 @@ compute_error(int64_t q, uint64_t w) noexcept {
   return compute_error_scaled<binary>(q, product.high, lz);
 }
 
-// w * 10 ** q
-// The returned value should be a valid ieee64 number that simply need to be
+// Computers w * 10 ** q.
+// The returned value should be a valid number that simply needs to be
 // packed. However, in some very rare cases, the computation will fail. In such
 // cases, we return an adjusted_mantissa with a negative power of 2: the caller
 // should recompute in such cases.
@@ -158,7 +158,8 @@ compute_float(int64_t q, uint64_t w) noexcept {
     // next line is safe because -answer.power2 + 1 < 64
     answer.mantissa >>= -answer.power2 + 1;
     // Thankfully, we can't have both "round-to-even" and subnormals because
-    // "round-to-even" only occurs for powers close to 0.
+    // "round-to-even" only occurs for powers close to 0 in the 32-bit and
+    // and 64-bit case (with no more than 19 digits).
     answer.mantissa += (answer.mantissa & 1); // round up
     answer.mantissa >>= 1;
     // There is a weird scenario where we don't have a subnormal but just.

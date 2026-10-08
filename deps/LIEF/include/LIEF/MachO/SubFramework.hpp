@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ struct sub_framework_command;
 }
 
 /// Class that represents the SubFramework command.
-/// Accodring to the Mach-O ``loader.h`` documentation:
+/// According to the Mach-O ``loader.h`` documentation:
 ///
 ///
 /// > A dynamically linked shared library may be a subframework of an umbrella
@@ -45,6 +45,7 @@ struct sub_framework_command;
 /// > following structure.
 class LIEF_API SubFramework : public LoadCommand {
   friend class BinaryParser;
+
   public:
   SubFramework() = default;
   SubFramework(const details::sub_framework_command& cmd);

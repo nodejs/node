@@ -114,6 +114,12 @@ module.exports = http.createServer((req, res) => {
       else
         res.writeHead(status, { 'Content-Length': len.toString() });
       break;
+    case 'setHeaderImplicit':
+      // Let end() derive the message framing: no Content-Length or
+      // Transfer-Encoding header and no writeHead() call.
+      res.statusCode = status;
+      res.setHeader('Content-Type', 'text/plain');
+      break;
     default:
       if (chunkedEnc) {
         res.writeHead(status, {

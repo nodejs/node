@@ -17,6 +17,26 @@ namespace internal {
 class Isolate;
 class Histogram;
 
+// Specifies how the marking bit of an entry should be handled during
+// evacuation.
+enum class EvacuateMarkMode {
+  // Preserve the marking bit: if the source entry was marked, the destination
+  // entry will be marked as well. Used during young-generation space-to-space
+  // promotion when live entries are transferred to old space.
+  kTransferMark,
+  // Assume the entry is unmarked and leave it unmarked. Used during table
+  // compaction when entries in the evacuation area have already been swept and
+  // unmarked.
+  kLeaveUnmarked,
+  // Explicitly clear the marking bit on the destination entry. Used during GC
+  // promotion when marked young entries are promoted and should start unmarked
+  // in old space.
+  kClearMark
+};
+
+template <typename Entry>
+struct ExternalEntityTableCompactionTraits;
+
 // Outcome of external pointer table compaction to use for the
 // ExternalPointerTableCompactionOutcome histogram.
 enum class ExternalEntityTableCompactionOutcome {
@@ -86,6 +106,8 @@ class V8_EXPORT_PRIVATE CompactibleExternalEntityTable
   using Base = ExternalEntityTable<Entry, size>;
 
  public:
+  using Segment = typename Base::Segment;
+  using EvacuateMarkMode = v8::internal::EvacuateMarkMode;
   static constexpr bool kSupportsCompaction = true;
 
   struct CompactionResult {
@@ -109,19 +131,20 @@ class V8_EXPORT_PRIVATE CompactibleExternalEntityTable
     // This is expected to be called at the start of the GC marking phase.
     void StartCompactingIfNeeded();
 
+    inline bool IsCompacting() const;
+    inline bool CompactingWasAborted() const;
+    inline bool FieldWasInvalidated(Address field_address) const;
+
    private:
     friend class CompactibleExternalEntityTable<Entry, size>;
     friend class ExternalPointerTable;
     friend class CppHeapPointerTable;
 
     // Routines for compaction. See the comment about table compaction above.
-    inline bool IsCompacting();
     inline void StartCompacting(uint32_t start_of_evacuation_area);
     inline void StopCompacting();
     inline void AbortCompacting(uint32_t start_of_evacuation_area);
-    inline bool CompactingWasAborted();
 
-    inline bool FieldWasInvalidated(Address field_address) const;
     inline void ClearInvalidatedFields();
     inline void AddInvalidatedField(Address field_address);
 
@@ -172,6 +195,18 @@ class V8_EXPORT_PRIVATE CompactibleExternalEntityTable
 
   inline void MaybeCreateEvacuationEntry(Space* space, uint32_t index,
                                          Address handle_location);
+
+  void ResolveEvacuationEntryDuringSweeping(
+      uint32_t new_index,
+      typename ExternalEntityTableCompactionTraits<Entry>::Handle*
+          handle_location,
+      uint32_t start_of_evacuation_area);
+
+  bool SweepAndCompactSegment(Space* space, Segment segment,
+                              uint32_t start_of_evacuation_area,
+                              bool segment_will_be_evacuated,
+                              uint32_t* current_freelist_head,
+                              uint32_t* current_freelist_length);
 };
 
 }  // namespace internal

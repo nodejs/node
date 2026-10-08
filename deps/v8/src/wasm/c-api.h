@@ -15,6 +15,8 @@
 
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
+#include "include/v8config.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "third_party/wasm-api/wasm.hh"
@@ -42,14 +44,11 @@ class StoreImpl {
 
   v8::Local<v8::Context> context() const { return context_.Get(isolate_); }
 
-  static StoreImpl* get(i::Isolate* isolate) {
-    return static_cast<StoreImpl*>(
-        reinterpret_cast<v8::Isolate*>(isolate)->GetData(0));
-  }
-
   void SetHostInfo(i::DirectHandle<i::Object> object, void* info,
                    void (*finalizer)(void*));
-  void* GetHostInfo(i::DirectHandle<i::Object> key);
+  void* GetHostInfo(i::DirectHandle<i::Object> key,
+                    const i::DisallowGarbageCollection& no_gc
+                        V8_LIFETIME_BOUND);
 
  private:
   friend own<Store> Store::make(Engine*);

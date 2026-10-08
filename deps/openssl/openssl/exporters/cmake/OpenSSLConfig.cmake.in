@@ -224,7 +224,7 @@ else()
   set(OPENSSL_CRYPTO_LIBRARIES ${OPENSSL_CRYPTO_LIBRARY})
   set(OPENSSL_SSL_LIBRARY ${OPENSSL_LIBSSL_SHARED})
   set(OPENSSL_SSL_LIBRARIES ${OPENSSL_SSL_LIBRARY})
-  set(OPENSSL_LIBRARIES ${OPENSSL_SSL_LIBRARIES})
+  set(OPENSSL_LIBRARIES ${OPENSSL_SSL_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARIES})
 {- output_on() if $lib_info{libcrypto}->{shared_import}; "" -}
 {- output_on() if $no_shared; "" -}
 endif()

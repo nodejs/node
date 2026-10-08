@@ -561,6 +561,8 @@ changes:
     is used, it must contain exactly one item with value `'ipc'` or an error
     will be thrown. For instance `[0, 1, 2, 'ipc']`.
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
+  * `windowsHide` {boolean} Hide the subprocess console window that would
+    normally be created on Windows systems. **Default:** `false`.
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. **Default:** `false`.
   * `timeout` {number} In milliseconds the maximum amount of time the process
@@ -1581,7 +1583,7 @@ added: v0.5.9
 
 * `message` {Object} A parsed JSON object or primitive value.
 * `sendHandle` {Handle|undefined} `undefined` or a [`net.Socket`][],
-  [`net.Server`][], or [`dgram.Socket`][] object.
+  [`net.Server`][], [`net.BoundSocket`][], or [`dgram.Socket`][] object.
 
 The `'message'` event is triggered when a child process uses
 [`process.send()`][] to send messages.
@@ -1891,6 +1893,9 @@ subprocess.ref();
 <!-- YAML
 added: v0.5.9
 changes:
+  - version: v26.10.0
+    pr-url: https://github.com/nodejs/node/pull/64725
+    description: '`net.BoundSocket` instances can now be sent.'
   - version: v5.8.0
     pr-url: https://github.com/nodejs/node/pull/5283
     description: The `options` parameter, and the `keepOpen` option
@@ -1905,7 +1910,7 @@ changes:
 
 * `message` {Object}
 * `sendHandle` {Handle|undefined} `undefined`, or a [`net.Socket`][],
-  [`net.Server`][], or [`dgram.Socket`][] object.
+  [`net.Server`][], [`net.BoundSocket`][], or [`dgram.Socket`][] object.
 * `options` {Object} The `options` argument, if present, is an object used to
   parameterize the sending of certain types of handles. `options` supports
   the following properties:
@@ -1972,11 +1977,17 @@ Applications should avoid using such messages or listening for
 `'internalMessage'` events as it is subject to change without notice.
 
 The optional `sendHandle` argument that may be passed to `subprocess.send()` is
-for passing a TCP server or socket object to the child process. The child process will
+for passing a TCP server, socket or [`net.BoundSocket`][] object to the child
+process. The child process will
 receive the object as the second argument passed to the callback function
 registered on the [`'message'`][] event. Any data that is received
 and buffered in the socket will not be sent to the child. Sending IPC sockets is
 not supported on Windows.
+
+Sending a `net.BoundSocket` moves its underlying TCP handle to the child
+process, leaving the source instance in the adopted state as if it had been
+adopted by a server or socket. The bound socket must not have been adopted or
+closed, and pipe (`path`) binds cannot be sent.
 
 The optional `callback` is a function that is invoked after the message is
 sent but before the child process may have received it. The function is called with a
@@ -2405,6 +2416,7 @@ or [`child_process.fork()`][].
 [`child_process.spawnSync()`]: #child_processspawnsynccommand-args-options
 [`dgram.Socket`]: dgram.md#class-dgramsocket
 [`maxBuffer` and Unicode]: #maxbuffer-and-unicode
+[`net.BoundSocket`]: net.md#class-netboundsocket
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket
 [`options.detached`]: #optionsdetached

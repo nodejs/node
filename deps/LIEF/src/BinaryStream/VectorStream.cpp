@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <memory>
 #include <vector>
 #include <string>
 #include <fstream>
@@ -26,7 +27,7 @@ namespace LIEF {
 result<VectorStream> VectorStream::from_file(const std::string& file) {
   std::ifstream ifs(file, std::ios::in | std::ios::binary);
   if (!ifs) {
-    LIEF_ERR("Can't open '{}'", file);
+    LIEF_ERR("Failed to open '{}'", file);
     return make_error_code(lief_errors::read_error);
   }
 
@@ -40,12 +41,13 @@ result<VectorStream> VectorStream::from_file(const std::string& file) {
   return VectorStream{std::move(data)};
 }
 
-std::unique_ptr<SpanStream> VectorStream::slice(uint32_t offset, size_t size) const {
+std::unique_ptr<SpanStream> VectorStream::slice(uint32_t offset,
+                                                size_t size) const {
   if (offset > binary_.size() || (offset + size) > binary_.size()) {
     return nullptr;
   }
   const uint8_t* start = binary_.data() + offset;
-  return std::unique_ptr<SpanStream>(new SpanStream(start, size));
+  return std::make_unique<SpanStream>(start, size);
 }
 
 
@@ -54,4 +56,3 @@ std::unique_ptr<SpanStream> VectorStream::slice(uint32_t offset) const {
 }
 
 }
-

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 
 #include <string>
 #include <memory>
+#include <cstdint>
 #include <vector>
 
 #include "LIEF/visibility.h"
@@ -50,7 +51,7 @@ class LIEF_API Parser {
 
   protected:
   Parser(const std::string& file);
-  uint64_t binary_size_  = 0;
+  uint64_t binary_size_ = 0;
 
   virtual ~Parser();
   Parser();

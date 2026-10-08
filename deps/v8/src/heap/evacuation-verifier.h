@@ -36,8 +36,8 @@ class EvacuationVerifier final : public ObjectVisitorWithCageBases,
                             RelocInfo* rinfo) final;
 
  private:
-  V8_INLINE void VerifyHeapObjectImpl(Tagged<HeapObject> heap_object);
-  V8_INLINE bool ShouldVerifyObject(Tagged<HeapObject> heap_object);
+  void VerifyHeapObjectImpl(Tagged<HeapObject> heap_object);
+  bool ShouldVerifyObject(Tagged<HeapObject> heap_object);
 
   template <typename TSlot>
   void VerifyPointersImpl(TSlot start, TSlot end);

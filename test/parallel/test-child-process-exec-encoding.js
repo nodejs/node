@@ -41,7 +41,7 @@ if (process.argv[2] === 'child') {
   [undefined, null, 'buffer', 'invalid'].forEach((encoding) => {
     run({ encoding }, common.mustCall((stdout, stderr) => {
       assert(stdout instanceof Buffer);
-      assert(stdout instanceof Buffer);
+      assert(stderr instanceof Buffer);
       assert.strictEqual(stdout.toString(), expectedStdout);
       assert.strictEqual(stderr.toString(), expectedStderr);
     }));

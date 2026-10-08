@@ -1,0 +1,26 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "include/cppgc/internal/logging.h"
+
+#include "include/cppgc/source-location.h"
+#include "src/base/logging.h"
+
+namespace cppgc {
+namespace internal {
+
+void DCheckImpl(const char* message, SourceLocation loc) {
+  V8_Dcheck(V8_LOG_ARGS_LOC(loc, message));
+}
+
+void FatalImpl(const char* message, SourceLocation loc) {
+#if V8_LOGGING_LEVEL == 0
+  FATAL("ignored");
+#else
+  FATAL_WITH_LOC(loc, "Check failed: %s.", message);
+#endif
+}
+
+}  // namespace internal
+}  // namespace cppgc

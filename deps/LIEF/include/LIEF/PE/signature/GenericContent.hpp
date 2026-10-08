@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 #ifndef LIEF_PE_GENERIC_CONTENT_H
 #define LIEF_PE_GENERIC_CONTENT_H
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/span.hpp"
 
@@ -40,11 +41,11 @@ class LIEF_API GenericContent : public ContentInfo::Content {
     return oid_;
   }
 
-  span<const uint8_t> raw() const {
+  span<const uint8_t> raw() const LIEF_LIFETIMEBOUND {
     return raw_;
   }
 
-  span<uint8_t> raw() {
+  span<uint8_t> raw() LIEF_LIFETIMEBOUND {
     return raw_;
   }
 
@@ -53,7 +54,8 @@ class LIEF_API GenericContent : public ContentInfo::Content {
   void print(std::ostream& os) const override;
   void accept(Visitor& visitor) const override;
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const GenericContent& content) {
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const GenericContent& content) {
     content.print(os);
     return os;
   }

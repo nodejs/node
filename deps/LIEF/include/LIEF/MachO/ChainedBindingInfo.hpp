@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ struct dyld_chained_ptr_32_bind;
 /// This class does not represent a structure that exists in the Mach-O format
 /// specifications but it provides a *view* on an entry.
 ///
-/// @see: BindingInfo
+/// @see BindingInfo
 class LIEF_API ChainedBindingInfo : public BindingInfo {
 
   friend class BinaryParser;
@@ -56,13 +56,11 @@ class LIEF_API ChainedBindingInfo : public BindingInfo {
   ChainedBindingInfo() = delete;
   explicit ChainedBindingInfo(DYLD_CHAINED_FORMAT fmt, bool is_weak);
 
-  ChainedBindingInfo& operator=(ChainedBindingInfo other);
+  ChainedBindingInfo& operator=(const ChainedBindingInfo& other);
   ChainedBindingInfo(const ChainedBindingInfo& other);
 
   ChainedBindingInfo(ChainedBindingInfo&&) noexcept;
   ChainedBindingInfo& operator=(ChainedBindingInfo&&) noexcept;
-
-  void swap(ChainedBindingInfo& other) noexcept;
 
   /// Format of the imports
   DYLD_CHAINED_FORMAT format() const {
@@ -105,8 +103,8 @@ class LIEF_API ChainedBindingInfo : public BindingInfo {
 
   void accept(Visitor& visitor) const override;
 
-  LIEF_API friend
-  std::ostream& operator<<(std::ostream& os, const ChainedBindingInfo& info) {
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const ChainedBindingInfo& info) {
     os << static_cast<const BindingInfo&>(info);
     return os;
   }
@@ -140,12 +138,12 @@ class LIEF_API ChainedBindingInfo : public BindingInfo {
   BIND_TYPES btypes_ = BIND_TYPES::UNKNOWN;
 
   union {
-    details::dyld_chained_ptr_arm64e_bind*        arm64_bind_ = nullptr;
-    details::dyld_chained_ptr_arm64e_auth_bind*   arm64_auth_bind_;
-    details::dyld_chained_ptr_arm64e_bind24*      arm64_bind24_;
+    details::dyld_chained_ptr_arm64e_bind* arm64_bind_ = nullptr;
+    details::dyld_chained_ptr_arm64e_auth_bind* arm64_auth_bind_;
+    details::dyld_chained_ptr_arm64e_bind24* arm64_bind24_;
     details::dyld_chained_ptr_arm64e_auth_bind24* arm64_auth_bind24_;
-    details::dyld_chained_ptr_64_bind*            p64_bind_;
-    details::dyld_chained_ptr_32_bind*            p32_bind_;
+    details::dyld_chained_ptr_64_bind* p64_bind_;
+    details::dyld_chained_ptr_32_bind* p32_bind_;
   };
 };
 

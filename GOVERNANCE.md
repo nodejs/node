@@ -12,6 +12,7 @@
   * [Ideal Nominees](#ideal-nominees)
   * [Nominating a new Collaborator](#nominating-a-new-collaborator)
   * [Onboarding](#onboarding)
+  * [Restoring emeritus Collaborators](#restoring-emeritus-collaborators)
 * [Consensus seeking process](#consensus-seeking-process)
 
 <!-- /TOC -->
@@ -68,7 +69,8 @@ See:
 * Merging pull requests
 
 The TSC can remove inactive collaborators or provide them with _emeritus_
-status. Emeriti may request that the TSC restore them to active status.
+status. Emeriti may request that the TSC restore them to active status. See
+[Restoring emeritus Collaborators](#restoring-emeritus-collaborators).
 
 A collaborator is automatically made emeritus (and removed from active
 collaborator status) if it has been more than 12 months since the collaborator
@@ -335,6 +337,29 @@ After the nomination passes, a TSC member onboards the new collaborator. See
 [the onboarding guide](./onboarding.md) for details of the onboarding
 process.
 
+### Restoring emeritus Collaborators
+
+An emeritus collaborator who has resumed contributing may request restoration to
+active status by opening an issue in [the TSC issue tracker][]. The request
+describes their recent contributions and their intent to take on collaborator
+responsibilities again. There is no new nomination and no vote. The request
+stays open for one week, matching the window for a collaborator nomination. If
+no TSC member objects, the request passes.
+
+Before restoring access, a TSC member confirms that the account making the
+request is still under the control of the same person. See
+[The Authenticity of Contributors](#the-authenticity-of-contributors).
+
+After the request passes, a TSC member re-onboards the returning collaborator,
+reversing the applicable
+[offboarding tasks](./doc/contributing/offboarding.md). As in
+[the onboarding guide][], the returning collaborator authors the pull request
+moving themselves from the emeriti list back to the active list in the README.
+That restarts the activity clock the [inactive collaborator workflow][] measures.
+
+An emeritus TSC member returning as a collaborator rejoins the TSC through a TSC
+motion under [Section 3 of the TSC Charter][TSC Charter].
+
 ## Consensus seeking process
 
 The TSC follows a [Consensus Seeking][] decision-making model per the
@@ -343,5 +368,8 @@ The TSC follows a [Consensus Seeking][] decision-making model per the
 [Consensus Seeking]: https://en.wikipedia.org/wiki/Consensus-seeking_decision-making
 [TSC Charter]: https://github.com/nodejs/TSC/blob/HEAD/TSC-Charter.md
 [discussion in the nodejs/collaborators]: https://github.com/nodejs/collaborators/discussions/categories/collaborator-nominations
+[inactive collaborator workflow]: https://github.com/nodejs/node/blob/HEAD/.github/workflows/find-inactive-collaborators.yml
 [nodejs/help]: https://github.com/nodejs/help
 [nodejs/node]: https://github.com/nodejs/node
+[the TSC issue tracker]: https://github.com/nodejs/TSC/issues
+[the onboarding guide]: ./onboarding.md#exercise-make-a-pull-request-adding-yourself-to-the-readme

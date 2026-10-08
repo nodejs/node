@@ -155,7 +155,7 @@ ContextifyContext* ContextifyContext::New(Environment* env,
 
   MicrotaskQueue* queue =
       options->own_microtask_queue
-          ? options->own_microtask_queue.get()
+          ? options->own_microtask_queue
           : env->isolate()->GetCurrentContext()->GetMicrotaskQueue();
 
   Local<Context> v8_context;
@@ -176,9 +176,7 @@ ContextifyContext::ContextifyContext(Environment* env,
                                      Local<Object> wrapper,
                                      Local<Context> v8_context,
                                      ContextOptions* options)
-    : microtask_queue_(options->own_microtask_queue
-                           ? options->own_microtask_queue.release()
-                           : nullptr) {
+    : microtask_queue_(options->own_microtask_queue) {
   CppgcMixin::Wrap(this, env, wrapper);
 
   context_.Reset(env->isolate(), v8_context);
@@ -486,7 +484,7 @@ ContextifyContext* ContextifyContext::Get(const PropertyCallbackInfo<T>& args) {
   // args.GetIsolate()->GetCurrentContext() and take the pointer at
   // ContextEmbedderIndex::kContextifyContext, as V8 is supposed to
   // push the creation context before invoking these callbacks.
-  return Get(args.HolderV2());
+  return Get(args.Holder());
 }
 
 ContextifyContext* ContextifyContext::Get(Local<Object> object) {
@@ -598,7 +596,7 @@ Intercepted ContextifyContext::PropertyGetterCallback(
 Intercepted ContextifyContext::PropertySetterCallback(
     Local<Name> property,
     Local<Value> value,
-    const PropertyCallbackInfo<void>& args) {
+    const PropertyCallbackInfo<Boolean>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
@@ -691,7 +689,7 @@ Intercepted ContextifyContext::PropertyDescriptorCallback(
 Intercepted ContextifyContext::PropertyDefinerCallback(
     Local<Name> property,
     const PropertyDescriptor& desc,
-    const PropertyCallbackInfo<void>& args) {
+    const PropertyCallbackInfo<Boolean>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
@@ -871,7 +869,7 @@ Intercepted ContextifyContext::IndexedPropertyGetterCallback(
 Intercepted ContextifyContext::IndexedPropertySetterCallback(
     uint32_t index,
     Local<Value> value,
-    const PropertyCallbackInfo<void>& args) {
+    const PropertyCallbackInfo<Boolean>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
@@ -900,7 +898,7 @@ Intercepted ContextifyContext::IndexedPropertyDescriptorCallback(
 Intercepted ContextifyContext::IndexedPropertyDefinerCallback(
     uint32_t index,
     const PropertyDescriptor& desc,
-    const PropertyCallbackInfo<void>& args) {
+    const PropertyCallbackInfo<Boolean>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
@@ -1768,7 +1766,7 @@ static void CompileFunctionForCJSLoader(
   ScriptCompiler::CachedData* cached_data = nullptr;
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
   if (is_sea_main) {
-    sea::SeaResource sea = sea::FindSingleExecutableResource();
+    const sea::SeaResource& sea = sea::FindSingleExecutableResource();
     // Use the "main" field in SEA config for the filename.
     Local<Value> filename_from_sea;
     if (!ToV8Value(context, sea.code_path).ToLocal(&filename_from_sea)) {

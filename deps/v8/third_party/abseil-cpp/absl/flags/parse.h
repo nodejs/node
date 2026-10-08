@@ -124,6 +124,21 @@ void ReportUnrecognizedFlags(
 // `ParseAbseilFlagsOnly`.
 std::vector<char*> ParseCommandLine(int argc, char* argv[]);
 
+// DisableFlagfileAndEnvParsing()
+//
+// Disables the processing of flags that load values from secondary sources,
+// specifically `--flagfile`, `--fromenv`, and `--tryfromenv`. When disabled,
+// occurrences of these flags on the command line are skipped without opening
+// files or inspecting environment variables, and a warning is printed to
+// stderr. Direct command-line flags passed via argv are still parsed normally.
+//
+// This is primarily intended as a security precaution for privileged or setuid
+// processes parsing untrusted command lines prior to dropping privileges.
+//
+// Should only be called in `main()` before calling `absl::ParseCommandLine()`
+// or `absl::ParseAbseilFlagsOnly()`.
+void DisableFlagfileAndEnvParsing();
+
 ABSL_NAMESPACE_END
 }  // namespace absl
 

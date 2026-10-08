@@ -25,8 +25,9 @@ it is used only for HTTPS requests.
 proxied. Each entry may include a leading dot or `*.` wildcard (for example
 `.example.com`) to match subdomains, and an optional `:port` suffix to restrict
 the match to a specific port. A request bypasses the proxy when its host equals
-an entry or is a subdomain of one. Setting `no_proxy` to `*` bypasses the proxy
-for every request.
+an entry or is a subdomain of one. A trailing dot is ignored on both sides, so
+`example.com.` and `example.com` match each other. Setting `no_proxy` to `*`
+bypasses the proxy for every request.
 
 The uppercase variants `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` are also
 honored. When both the lowercase and uppercase forms of a variable are set, the

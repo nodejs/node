@@ -27,7 +27,7 @@ tinystr = { workspace = true }
 writeable = { workspace = true }
 
 databake = { workspace = true, features = ["derive"], optional = true }
-serde = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"], optional = true }
 zerovec = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -71,6 +71,7 @@ harness = false
 
 [package.metadata.cargo-semver-checks.lints]
 workspace = true
+repr_transparent_added = "allow"
 
 
 [lints]

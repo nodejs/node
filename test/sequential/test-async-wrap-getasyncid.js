@@ -47,7 +47,6 @@ const { getSystemErrorName } = require('util');
     delete providers.WORKER;
     // TODO(danbev): Test for these
     delete providers.ARGON2REQUEST;
-    delete providers.JSUDPWRAP;
     delete providers.KEYPAIRGENREQUEST;
     delete providers.KEYGENREQUEST;
     delete providers.KEYEXPORTREQUEST;
@@ -78,6 +77,9 @@ const { getSystemErrorName } = require('util');
     delete providers.LOCKS;
     delete providers.DTLS_ENDPOINT;
     delete providers.DTLS_SESSION;
+
+    // TODO(avivkeller): Test for these
+    delete providers.GLOBREQUEST;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)

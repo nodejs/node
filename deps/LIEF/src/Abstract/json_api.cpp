@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 #include "LIEF/config.h"
+#include "LIEF/Object.hpp"
 #include "logging.hpp"
 #include "LIEF/Abstract/json.hpp"
 
 #ifdef LIEF_JSON_SUPPORT
-#include "Abstract/json_internal.hpp"
+  #include "Abstract/json_internal.hpp"
 #endif
 
 namespace LIEF {
@@ -29,7 +30,7 @@ std::string to_json_from_abstract([[maybe_unused]] const Object& v) {
   v.accept(visitor);
   return visitor.get().dump();
 #else
-  LIEF_WARN("JSON support is not enabled");
+  LIEF_WARN("JSON support not enabled");
   return "";
 #endif
 }

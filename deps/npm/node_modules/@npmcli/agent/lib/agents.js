@@ -161,6 +161,16 @@ module.exports = class Agent extends AgentBase {
     return socket
   }
 
+  keepSocketAlive (socket) {
+    const keepAlive = super.keepSocketAlive(socket)
+
+    if (keepAlive && this.#timeouts.idle) {
+      socket.setTimeout(this.#timeouts.idle)
+    }
+
+    return keepAlive
+  }
+
   addRequest (request, options) {
     const proxy = this.#getProxy(options)
     // it would be better to call proxy.addRequest here but this causes the

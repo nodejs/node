@@ -14,6 +14,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/utils/bit-vector.h"
 
 #define TRACE_RANGE(...)                                      \
@@ -56,6 +57,7 @@ class NodeRanges {
             graph->max_block_id())) {}
 
   Range Get(BasicBlock* block, ValueNode* node) {
+    if (!IsBlockTracked(block)) return node->GetStaticRange();
     DCHECK(ranges_initialized_.Contains(block->id()));
     RangeMap& map = ranges_[block->id()];
     const Range* range = map.find(node);
@@ -166,6 +168,7 @@ class NodeRanges {
 
   bool IsLessEqualConstraint(BasicBlock* block, ValueNode* lhs,
                              ValueNode* rhs) {
+    if (!IsBlockTracked(block)) return false;
     for (LessEqualConstraint* constraint : less_equals_[block->id()]) {
       if (constraint->is(lhs, rhs)) return true;
     }
@@ -173,6 +176,17 @@ class NodeRanges {
   }
 
  private:
+  // The graph optimizer that consumes these ranges can splice in new basic
+  // blocks (e.g. when expanding a node into a subgraph). Since range analysis
+  // does not run again over those blocks, they fall outside the analyzed id
+  // range and have no recorded ranges. Such untracked blocks are handled
+  // conservatively by returning the widest possible (static) range for their
+  // nodes.
+  bool IsBlockTracked(BasicBlock* block) const {
+    return block->id() <
+           static_cast<BasicBlock::Id>(ranges_initialized_.length());
+  }
+
   Graph* graph_;
   // A bitmask indicating whether a RangeMap has already been initialized
   // for a given block ID.
@@ -198,7 +212,7 @@ class RangeProcessor {
     ranges_.EnsureMapExistsFor(block);
     return BlockProcessResult::kContinue;
   }
-  void PostProcessBasicBlock(BasicBlock* block) {
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
     if (JumpLoop* control = block->control_node()->TryCast<JumpLoop>()) {
       if (!ProcessLoopPhisBackedge(control->target(), block)) {
         // We didn't reach a fixpoint for this loop, try this loop header
@@ -220,6 +234,7 @@ class RangeProcessor {
         ProcessNodeBase(block->control_node(), succ);
       });
     }
+    return BlockProcessResult::kContinue;
   }
 
   void PostPhiProcessing() {}
@@ -281,6 +296,26 @@ class RangeProcessor {
         node, Range::Sub(Get(node->input_node(0)), Get(node->input_node(1))));
     return ProcessResult::kContinue;
   }
+  ProcessResult Process(Float64Add* node, const ProcessingState&) {
+    UnionUpdate(node,
+                Range::Add(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Float64SpeculateSafeAdd* node, const ProcessingState&) {
+    UnionUpdate(node,
+                Range::Add(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Float64Subtract* node, const ProcessingState&) {
+    UnionUpdate(node,
+                Range::Sub(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Float64Multiply* node, const ProcessingState&) {
+    UnionUpdate(node,
+                Range::Mul(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
   ProcessResult Process(Int32Multiply* node, const ProcessingState&) {
     UnionUpdateTruncatingInt32(
         node, Range::Mul(Get(node->input_node(0)), Get(node->input_node(1))));
@@ -290,6 +325,12 @@ class RangeProcessor {
                         const ProcessingState&) {
     UnionUpdateInt32(
         node, Range::Mul(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Int32ModulusWithOverflow* node,
+                        const ProcessingState&) {
+    UnionUpdateInt32(
+        node, Range::Mod(Get(node->input_node(0)), Get(node->input_node(1))));
     return ProcessResult::kContinue;
   }
   ProcessResult Process(Int32BitwiseAnd* node, const ProcessingState&) {
@@ -322,7 +363,36 @@ class RangeProcessor {
                                                      Get(node->input_node(1))));
     return ProcessResult::kContinue;
   }
+  ProcessResult Process(BuiltinStringPrototypeCharCodeOrCodePointAt* node,
+                        const ProcessingState&) {
+    UnionUpdateInt32(
+        node,
+        node->mode() == BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt
+            ? Range(0, String::kMaxUtf16CodeUnit)
+            : Range(0, String::kMaxCodePoint));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(LoadUnsignedIntTypedArrayElement* node,
+                        const ProcessingState&) {
+    UnionUpdateUint32(node,
+                      UnsignedTypedArrayElementRange(node->elements_kind()));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(LoadUnsignedIntConstantTypedArrayElement* node,
+                        const ProcessingState&) {
+    UnionUpdateUint32(node,
+                      UnsignedTypedArrayElementRange(node->elements_kind()));
+    return ProcessResult::kContinue;
+  }
   ProcessResult Process(LoadTaggedField* node, const ProcessingState&) {
+    if (node->type() == NodeType::kSmi) {
+      UnionUpdate(node, node->is_array_length() == IsArrayLength::kYes
+                            ? Range::NonNegativeSmi()
+                            : Range::Smi());
+    }
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(LoadFixedArrayElement* node, const ProcessingState&) {
     if (node->load_type() == LoadType::kSmi) {
       UnionUpdate(node, Range::Smi());
     }
@@ -439,6 +509,18 @@ class RangeProcessor {
                         range.IsInt32() ? range : Range::Int32());
   }
 
+  static Range UnsignedTypedArrayElementRange(ElementsKind kind) {
+    switch (kind) {
+      case UINT8_ELEMENTS:
+      case UINT8_CLAMPED_ELEMENTS:
+        return Range(0, kMaxUInt8);
+      case UINT16_ELEMENTS:
+        return Range(0, kMaxUInt16);
+      default:
+        return Range::Uint32();
+    }
+  }
+
   void UnionUpdateUint32(ValueNode* node, Range range) {
     // WARNING: This entails that the current range analysis cannot be used to
     // identify truncation, since we always intersect Int32 operations range.
@@ -448,13 +530,7 @@ class RangeProcessor {
   }
 
   void ProcessPhis(BasicBlock* block, BasicBlock* pred) {
-    int predecessor_id = -1;
-    for (int i = 0; i < block->predecessor_count(); ++i) {
-      if (block->predecessor_at(i) == pred) {
-        predecessor_id = i;
-        break;
-      }
-    }
+    int predecessor_id = block->get_predecessor_index(pred);
     DCHECK_NE(predecessor_id, -1);
     for (Phi* phi : *block->phis()) {
       Range phi_range = ranges_.Get(pred, phi->input_node(predecessor_id));
@@ -473,11 +549,10 @@ class RangeProcessor {
     DCHECK_EQ(backedge_pred, block->backedge_predecessor());
     ranges_.EnsureMapExistsFor(block);  // TODO(victorgomes): not sure if needed
     TRACE_RANGE(">>>> Processing backedges for Block b" << block->id());
-    int backedge_id = block->state()->predecessor_count() - 1;
     bool is_done = true;
     for (Phi* phi : *block->phis()) {
       Range range = ranges_.Get(block, phi);
-      Range backedge = ranges_.Get(backedge_pred, phi->input_node(backedge_id));
+      Range backedge = ranges_.Get(backedge_pred, phi->backedge());
       Range widened = Range::Widen(range, backedge);
       if (phi->is_int32()) {
         // Since phi representation selector promoted this phi to Int32,

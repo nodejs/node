@@ -150,28 +150,30 @@ The Application is selected as soon as the ALPN protocol is known:
 immediately for clients, and for servers from the `OnClientHello` TLS
 callback (see [Server handshake ordering](#server-handshake-ordering)).
 
-### Thread-Local Allocator
+### Allocator
 
 Both ngtcp2 and nghttp3 require custom allocators (`ngtcp2_mem`,
 `nghttp3_mem`). These allocator structs must outlive every object they
 create. Some nghttp3 objects (notably `rcbuf`s backing V8 external strings)
 can survive past `BindingData` destruction during isolate teardown.
 
-The solution uses `thread_local` storage:
+Each `BindingData` owns a heap-allocated `QuicAllocState` that holds both
+allocator structs and counts live allocations:
 
 ```cpp
 struct QuicAllocState {
-    BindingData* binding = nullptr;  // Nulled in ~BindingData
+    BindingData* binding;  // Nulled in ~BindingData
+    size_t live_allocations = 0;
     ngtcp2_mem ngtcp2;
     nghttp3_mem nghttp3;
 };
-thread_local QuicAllocState quic_alloc_state;
 ```
 
 Each allocation prepends its size before the returned pointer. This allows
 `free` and `realloc` to report correct sizes for memory tracking. When
 `binding` is null (after `BindingData` destruction), allocations still
-succeed but memory tracking is silently skipped.
+succeed but memory tracking is silently skipped. The state is deleted once
+`binding` is null and the last allocation has been freed.
 
 ## Session Lifecycle
 

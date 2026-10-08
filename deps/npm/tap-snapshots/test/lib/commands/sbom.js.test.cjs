@@ -255,7 +255,7 @@ exports[`test/lib/commands/sbom.js TAP sbom basic sbom - cyclonedx > must match 
     "component": {
       "bom-ref": "test-npm-sbom@1.0.0",
       "type": "application",
-      "name": "prefix",
+      "name": "test-npm-sbom",
       "version": "1.0.0",
       "scope": "required",
       "purl": "pkg:npm/test-npm-sbom@1.0.0",
@@ -457,7 +457,7 @@ exports[`test/lib/commands/sbom.js TAP sbom duplicate deps - cyclonedx > must ma
     "component": {
       "bom-ref": "test-npm-sbom@1.0.0",
       "type": "library",
-      "name": "prefix",
+      "name": "test-npm-sbom",
       "version": "1.0.0",
       "scope": "required",
       "purl": "pkg:npm/test-npm-sbom@1.0.0",

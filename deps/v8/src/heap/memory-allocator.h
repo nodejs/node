@@ -12,6 +12,7 @@
 #include <unordered_set>
 
 #include "include/v8-platform.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
@@ -147,6 +148,7 @@ class MemoryAllocator final {
         return address < lowest_executable_ever_allocated_ ||
                address >= highest_executable_ever_allocated_;
     }
+    UNREACHABLE();
   }
 
   // Partially release |bytes_to_free| bytes starting at |start_free|. Note that
@@ -199,6 +201,7 @@ class MemoryAllocator final {
       case SHARED_LO_SPACE:
         return data_page_allocator_;
     }
+    UNREACHABLE();
   }
 
   // Return the normal or large page that contains this address, if it is owned

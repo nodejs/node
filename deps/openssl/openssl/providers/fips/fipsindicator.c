@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -96,6 +96,35 @@ int ossl_FIPS_IND_get_ctx_param(const OSSL_FIPS_IND *ind, OSSL_PARAM params[])
     OSSL_PARAM *p = OSSL_PARAM_locate(params, OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR);
 
     return p == NULL || OSSL_PARAM_set_int(p, ind->approved);
+}
+
+int ossl_FIPS_IND_get_ctx_param_conditional(const OSSL_FIPS_IND *ind,
+    OSSL_PARAM params[], int condition)
+{
+    OSSL_PARAM *p = OSSL_PARAM_locate(params,
+        OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR);
+
+    return p == NULL || OSSL_PARAM_set_int(p, condition && (ind == NULL || ind->approved));
+}
+
+const OSSL_PARAM *ossl_FIPS_IND_gettable_ctx_params(ossl_unused void *ctx,
+    ossl_unused void *provctx)
+{
+    static const OSSL_PARAM gettable_ctx_params[] = {
+        OSSL_PARAM_int(OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR, NULL),
+        OSSL_PARAM_END
+    };
+
+    return gettable_ctx_params;
+}
+
+int ossl_FIPS_IND_get_ctx_param_approved(ossl_unused void *ctx,
+    OSSL_PARAM params[])
+{
+    OSSL_PARAM *p = OSSL_PARAM_locate(params,
+        OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR);
+
+    return p == NULL || OSSL_PARAM_set_int(p, 1);
 }
 
 /*

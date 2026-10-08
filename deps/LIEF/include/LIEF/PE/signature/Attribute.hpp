@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,8 +70,8 @@ class LIEF_API Attribute : public Object {
 
   ~Attribute() override = default;
 
-  LIEF_API friend
-  std::ostream& operator<<(std::ostream& os, const Attribute& attribute) {
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const Attribute& attribute) {
     os << attribute.print();
     return os;
   }
@@ -93,8 +93,7 @@ class LIEF_API Attribute : public Object {
 
   protected:
   Attribute(TYPE type) :
-    type_(type)
-  {}
+    type_(type) {}
   TYPE type_ = TYPE::UNKNOWN;
 };
 

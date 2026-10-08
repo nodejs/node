@@ -41,12 +41,6 @@ const {
 
 const hashes = getHashes();
 const lowercaseHashes = hashes.map((name) => name.toLowerCase());
-const modifiedHashes = getHashes();
-modifiedHashes.length = 0;
-
-assert.deepStrictEqual(hashes, [...hashes].sort());
-assert.deepStrictEqual(getHashes(), hashes);
-assert.strictEqual(new Set(lowercaseHashes).size, hashes.length);
 if (lowercaseHashes.includes('sha1')) {
   assert(hashes.includes('RSA-SHA1'));
 }

@@ -208,14 +208,15 @@ parser.add_argument("--enable-pgo-generate",
     dest="enable_pgo_generate",
     default=None,
     help="Enable profiling with pgo of a binary. This feature is only available "
-         "on linux with gcc and g++ 5.4.1 or newer and on windows.")
+         "on linux with GCC or Clang, on macOS with Clang, and on windows.")
 
 parser.add_argument("--enable-pgo-use",
     action="store_true",
     dest="enable_pgo_use",
     default=None,
     help="Enable use of the profile generated with --enable-pgo-generate. This "
-         "feature is only available on linux with gcc and g++ 5.4.1 or newer and on windows.")
+         "feature is only available on linux with GCC or Clang, on macOS "
+         "with Clang, and on windows.")
 
 parser.add_argument("--enable-lto",
     action="store_true",
@@ -546,6 +547,29 @@ shared_optgroup.add_argument('--shared-openssl-libpath',
     dest='shared_openssl_libpath',
     help='a directory to search for the shared OpenSSL DLLs')
 
+shared_optgroup.add_argument('--shared-perfetto',
+    action='store_true',
+    dest='shared_perfetto',
+    default=None,
+    help='link to a shared perfetto SDK instead of the one in deps/perfetto '
+         '(requires --with-perfetto)')
+
+shared_optgroup.add_argument('--shared-perfetto-includes',
+    action='store',
+    dest='shared_perfetto_includes',
+    help='directory containing perfetto header files')
+
+shared_optgroup.add_argument('--shared-perfetto-libname',
+    action='store',
+    dest='shared_perfetto_libname',
+    default='perfetto',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-perfetto-libpath',
+    action='store',
+    dest='shared_perfetto_libpath',
+    help='a directory to search for the shared perfetto DLL')
+
 shared_optgroup.add_argument('--shared-uvwasi',
     action='store_true',
     dest='shared_uvwasi',
@@ -824,7 +848,7 @@ for builtin in shareable_builtins:
 static_optgroup.add_argument('--static-zoslib-gyp',
     action='store',
     dest='static_zoslib_gyp',
-    help='path to zoslib.gyp file for includes and to link to static zoslib library')
+    help='path to zoslib.gyp file for includes and to link to static zoslib libraries')
 
 parser.add_argument('--tag',
     action='store',
@@ -850,6 +874,13 @@ parser.add_argument('--enable-v8windbg',
     default=None,
     help=argparse.SUPPRESS)  # Undocumented.
 
+parser.add_argument('--enable-v8debughelper',
+    action='store_true',
+    dest='enable_v8debughelper',
+    default=None,
+    help='Build V8\'s debug helper as a shared library, loadable by a debugger '
+         'extension.')
+
 parser.add_argument('--enable-trace-maps',
     action='store_true',
     dest='trace_maps',
@@ -872,7 +903,7 @@ parser.add_argument('--experimental-pointer-compression-shared-cage',
     action='store_true',
     dest='pointer_compression_shared_cage',
     default=None,
-    help='[Experimental] Use V8 pointer compression with shared cage (requires --experimental-enable-pointer-compression)')
+    help='[Experimental] Use V8 pointer compression with a shared cage and enable the V8 sandbox (requires --experimental-enable-pointer-compression)')
 
 parser.add_argument('--v8-options',
     action='store',
@@ -1639,8 +1670,8 @@ def check_compiler(o):
   # cargo and rustc are needed for Temporal.
   if not options.v8_disable_temporal_support and not options.shared_temporal_capi:
     # Minimum cargo and rustc versions should match values in BUILDING.md.
-    min_cargo_ver_tuple = (1, 82)
-    min_rustc_ver_tuple = (1, 82)
+    min_cargo_ver_tuple = (1, 86)
+    min_rustc_ver_tuple = (1, 86)
     cargo = os.environ.get('CARGO', 'cargo')
     cargo_ver = get_cargo_version(cargo)
     print_verbose(f'Detected cargo (CARGO={cargo}): {cargo_ver}')
@@ -1834,12 +1865,13 @@ def configure_mips(o, target_arch):
   o['variables']['v8_host_byteorder'] = host_byteorder
 
 def configure_zos(o):
-  o['variables']['node_static_zoslib'] = b(True)
-  if options.static_zoslib_gyp:
-    # Apply to all Node.js components for now
-    o['variables']['zoslib_include_dir'] = Path(options.static_zoslib_gyp).parent / 'include'
+  if os.environ.get('ZOSLIB_INCLUDES'):
+    o['variables']['zoslib_include_dir'] = os.environ.get('ZOSLIB_INCLUDES')
     o['include_dirs'] += [o['variables']['zoslib_include_dir']]
   else:
+    raise Exception('Environment variable ZOSLIB_INCLUDES=<path to zoslib/include dir> is required.')
+
+  if not options.static_zoslib_gyp:
     raise Exception('--static-zoslib-gyp=<path to zoslib.gyp file> is required.')
 
 def clang_version_ge(version_checked):
@@ -1974,18 +2006,9 @@ def configure_node(o):
   else:
     o['variables']['node_enable_v8_vtunejit'] = 'false'
 
-  if (flavor != 'linux' and flavor != 'win') and (options.enable_pgo_generate or options.enable_pgo_use):
+  if flavor not in ('linux', 'mac', 'win') and (options.enable_pgo_generate or options.enable_pgo_use):
     raise Exception(
-      'The pgo option is supported only on linux and windows.')
-
-  if flavor == 'linux':
-    if options.enable_pgo_generate or options.enable_pgo_use:
-      version_checked = (5, 4, 1)
-      if not gcc_version_ge(version_checked):
-        version_checked_str = ".".join(map(str, version_checked))
-        raise Exception(
-          'The options --enable-pgo-generate and --enable-pgo-use '
-          f'are supported for gcc and gxx {version_checked_str} or newer only.')
+      'The pgo option is supported only on linux, macOS, and windows.')
 
   if options.enable_pgo_generate and options.enable_pgo_use:
     raise Exception(
@@ -1993,6 +2016,24 @@ def configure_node(o):
       'can be specified at a time. You would like to use '
       '--enable-pgo-generate first, profile node, and then recompile '
       'with --enable-pgo-use')
+
+  if flavor in ('linux', 'mac'):
+    if options.enable_pgo_generate or options.enable_pgo_use:
+      clang_compilers = [try_check_compiler(compiler, language)[1]
+                         for compiler, language in ((CC, 'c'), (CXX, 'c++'))]
+      if all(clang_compilers):
+        profile = os.path.abspath('node.profdata')
+        if options.enable_pgo_use and not os.path.isfile(profile):
+          raise Exception(
+            f'PGO profile not found: {profile}. Run llvm-profdata merge first.')
+        o['variables']['pgo_profile'] = profile
+      elif flavor == 'mac' or any(clang_compilers):
+        raise Exception('PGO requires both CC and CXX to use Clang on macOS '
+                        'or the same compiler family on linux.')
+      elif not gcc_version_ge((5, 4, 1)):
+        raise Exception(
+          'The options --enable-pgo-generate and --enable-pgo-use '
+          'require gcc and gxx 5.4.1 or newer.')
 
   o['variables']['enable_pgo_generate'] = b(options.enable_pgo_generate)
   o['variables']['enable_pgo_use']      = b(options.enable_pgo_use)
@@ -2214,16 +2255,10 @@ def configure_v8(o, configs):
                                          flavor not in ('aix', 'os400', 'zos') and
                                          o['variables']['target_arch'] in maglev_enabled_architectures)
   o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
-  # Using the sandbox requires always allocating array buffer backing stores in the sandbox.
-  # We currently have many backing stores tied to pointers from C++ land that are not
-  # even necessarily dynamic (e.g. in static storage) for fast communication between JS and C++.
-  # Until we manage to get rid of all those, v8_enable_sandbox cannot be used.
-  # Note that enabling pointer compression without enabling sandbox is unsupported by V8,
-  # so this can be broken at any time.
-  o['variables']['v8_enable_sandbox'] = 0
-  # We set v8_enable_pointer_compression_shared_cage to 0 always, even when
-  # pointer compression is enabled so that we don't accidentally enable shared
-  # cage mode when pointer compression is on.
+  # Like V8's own default, the sandbox goes with the shared pointer compression
+  # cage. Multi-cage builds give every IsolateGroup its own sandbox, which the
+  # array buffer allocator does not know about yet.
+  o['variables']['v8_enable_sandbox'] = 1 if options.pointer_compression_shared_cage else 0
   o['variables']['v8_enable_pointer_compression_shared_cage'] = 1 if options.pointer_compression_shared_cage else 0
   o['variables']['v8_enable_external_code_space'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
@@ -2237,9 +2272,6 @@ def configure_v8(o, configs):
       case 'none':
         warn('Temporal support disabled when compiling without ICU')
         options.v8_disable_temporal_support = True
-      case 'system-icu':
-        warn('Temporal support disabled when compiling with a shared ICU library')
-        options.v8_disable_temporal_support = True
   o['variables']['v8_enable_temporal_support'] = 0 if options.v8_disable_temporal_support else 1
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
   o['variables']['v8_use_perfetto'] = 1 if options.with_perfetto else 0
@@ -2248,6 +2280,7 @@ def configure_v8(o, configs):
   o['variables']['force_dynamic_crt'] = 1 if options.shared else 0
   o['variables']['node_enable_d8'] = b(options.enable_d8)
   o['variables']['node_enable_v8windbg'] = b(options.enable_v8windbg)
+  o['variables']['node_enable_v8debughelper'] = b(options.enable_v8debughelper)
   if options.enable_d8:
     o['variables']['test_isolation_mode'] = 'noop'  # Needed by d8.gyp.
   if options.without_bundled_v8:
@@ -2255,6 +2288,8 @@ def configure_v8(o, configs):
       raise Exception('--enable-d8 is incompatible with --without-bundled-v8.')
     if options.enable_v8windbg:
       raise Exception('--enable-v8windbg is incompatible with --without-bundled-v8.')
+    if options.enable_v8debughelper:
+      raise Exception('--enable-v8debughelper is incompatible with --without-bundled-v8.')
     (pkg_libs, pkg_cflags, pkg_libpath, _) = pkg_config("v8")
     if pkg_libs and pkg_libpath:
       output['libraries'] += [pkg_libpath] + pkg_libs.split()
@@ -2361,6 +2396,15 @@ def configure_lief(o):
     return
 
   configure_library('lief', o, pkgname='LIEF')
+
+def configure_perfetto(o):
+  if not options.with_perfetto:
+    if options.shared_perfetto:
+      error('--shared-perfetto requires --with-perfetto')
+    o['variables']['node_shared_perfetto'] = b(False)
+    return
+
+  configure_library('perfetto', o)
 
 def configure_sqlite(o):
   o['variables']['node_use_sqlite'] = b(not options.without_sqlite)
@@ -2508,6 +2552,8 @@ def configure_intl(o):
   # always set icu_small, node.gyp depends on it being defined.
   o['variables']['icu_small'] = b(False)
   o['variables']['icu_system'] = b(False)
+  # always set this
+  o['variables']['v8_enable_temporal_systemicu'] = 1
 
   # prevent data override
   o['defines'] += ['ICU_NO_USER_DATA_OVERRIDE']
@@ -2750,8 +2796,8 @@ def configure_intl(o):
     icu_config['variables']['icu_asm_ext'] = 'S'
     icu_config['variables']['icu_asm_opts'] = [ '-a', 'xlc' ]
   elif sys.platform == 'zos':
-    icu_config['variables']['icu_asm_ext'] = 'S'
-    icu_config['variables']['icu_asm_opts'] = [ '-a', 'zos' ]
+    icu_config['variables']['icu_asm_ext'] = 'c'
+    icu_config['variables']['icu_asm_opts'] = []
   else:
     # assume GCC-compatible asm is OK
     icu_config['variables']['icu_asm_ext'] = 'S'
@@ -2937,6 +2983,7 @@ configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
 configure_lief(output);
+configure_perfetto(output);
 configure_sqlite(output);
 configure_ffi(output);
 configure_library('temporal_capi', output)

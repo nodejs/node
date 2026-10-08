@@ -475,6 +475,10 @@ meaning of `SIGUSR2` for the said purposes.
   diagnostic data elements such as heap, stack, event loop state, resource
   consumption etc. to reason about the fatal error.
 
+* `--report-on-process-timeout` Enables the report to be triggered when the
+  duration set with `--process-timeout` elapses before the process exits.
+  Useful to reason about why the process did not exit.
+
 * `--report-compact` Write reports in a compact format, single-line JSON, more
   easily consumable by log processing systems than the default multi-line format
   designed for human consumption.

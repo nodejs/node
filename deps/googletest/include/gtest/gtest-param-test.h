@@ -510,9 +510,9 @@ auto ConvertGenerator(Gen&& gen, Func&& f) {
         private ::testing::internal::GTestNonCopyable {                        \
    public:                                                                     \
     GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)() {}                    \
-    void TestBody() override;                                                  \
                                                                                \
    private:                                                                    \
+    void TestBody() override;                                                  \
     static int AddToRegistry() {                                               \
       ::testing::UnitTest::GetInstance()                                       \
           ->parameterized_test_registry()                                      \

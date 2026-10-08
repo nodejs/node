@@ -4,12 +4,13 @@
 const common = require('../common');
 const assert = require('assert');
 const {
+  dump,
   from,
   share,
   text,
 } = require('stream/iter');
 
-const { setTimeout } = require('timers/promises');
+const { setTimeout, setImmediate } = require('timers/promises');
 
 // =============================================================================
 // Async share()
@@ -111,7 +112,7 @@ async function testShareCancelMidIteration() {
   assert.strictEqual(items.length, 1);
   assert.strictEqual(items[0], 'a');
 
-  await new Promise(setImmediate);
+  await setImmediate();
   assert.strictEqual(sourceReturnCalled, true);
 }
 
@@ -185,7 +186,7 @@ async function testShareCancelWhileSourcePullPending() {
     const timedOut = { __proto__: null };
     const outcome = await Promise.race([
       read,
-      new Promise((resolve) => setImmediate(resolve, timedOut)),
+      setImmediate(timedOut),
     ]);
     assert.notStrictEqual(outcome, timedOut);
     if (reason === noReason) {
@@ -202,7 +203,7 @@ async function testShareCancelWhileSourcePullPending() {
       done: false,
       value: [Uint8Array.of(1)],
     });
-    await new Promise(setImmediate);
+    await setImmediate();
     assert.strictEqual(returnCalls, 1);
   }
 }
@@ -327,12 +328,10 @@ async function testShareSourceError() {
   const c2 = shared.pull();
 
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of c1) { /* consume */ }
+    await dump(c1);
   }, { message: 'share source boom' });
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of c2) { /* consume */ }
+    await dump(c2);
   }, { message: 'share source boom' });
 }
 

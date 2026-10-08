@@ -26,18 +26,38 @@ inline bool Binding<TSAValue>::CheckWritten() const {
   return false;
 }
 
+struct TSALabel {
+  const TypeVector parameter_types;
+};
+
+template <>
+inline std::string Binding<TSALabel>::BindingTypeString() const {
+  return "TSALabel";
+}
+template <>
+inline bool Binding<TSALabel>::CheckWritten() const {
+  return false;
+}
+
 class TSAGenerator : public AstVisitor<TSAGenerator> {
   static constexpr size_t kSpacesPerIndentationLevel = 2;
 
   DECLARE_CONTEXTUAL_VARIABLE(ValueBindingsManager, BindingsManager<TSAValue>);
+  DECLARE_CONTEXTUAL_VARIABLE(LabelBindingsManager, BindingsManager<TSALabel>);
+
   struct TargetBase {
     const Type* return_type = nullptr;
     std::string return_label_name;
   };
 
-  struct MacroTarget : TargetBase {};
+  struct MacroTarget : public TargetBase {
+    // We consider a macro tail-returnining if it has a single, unconditional
+    // return statement at the very end of the body, such that we don't need
+    // to GOTO to a return label, but can just simply return the ssa value.
+    bool tail_returning;
+  };
 
-  struct BuiltinTarget : TargetBase {};
+  struct BuiltinTarget : public TargetBase {};
 
   struct PerSourceData {
     std::stringstream h_stream;
@@ -138,6 +158,9 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
         out() << "#include "
                  "\"src/compiler/turboshaft/define-assembler-macros.inc\"\n\n";
 
+        out() << "// TODO(tq2tsa): Remove this exception once the file is "
+                 "manually reviewed.\nNO_SHADOW\n\n";
+
         // Start this file's assembler.
         if (emit_reducer) {
 #ifdef DEBUG
@@ -191,6 +214,12 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
         // namespace. Reconsider this.
         out() << "using namespace compiler::turboshaft;\n\n";
 
+        out() << "#include "
+                 "\"src/compiler/turboshaft/define-assembler-macros.inc\"\n\n";
+
+        out() << "// TODO(tq2tsa): Remove this exception once the file is "
+                 "manually reviewed.\nNO_SHADOW\n\n";
+
         EndOutputToFile();
       }
     }
@@ -231,6 +260,9 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
           out() << "};\n\n";
         }
 
+        out() << "// TODO(tq2tsa): Remove this exception once the file is "
+                 "manually reviewed.\nRE_SHADOW\n\n";
+
         out() << "#include "
                  "\"src/compiler/turboshaft/undef-assembler-macros.inc\"\n\n";
 
@@ -246,6 +278,12 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
       // Source file.
       {
         BeginOutputToCCFile(source, 0);
+
+        out() << "// TODO(tq2tsa): Remove this exception once the file is "
+                 "manually reviewed.\nRE_SHADOW\n\n";
+
+        out() << "#include "
+                 "\"src/compiler/turboshaft/undef-assembler-macros.inc\"\n\n";
 
         // Close namespace.
         out() << "}  // namespace v8::internal\n";
@@ -269,6 +307,22 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
   friend class AstVisitor<TSAGenerator>;
   enum class OutputFile { kNone, kH, kCC };
 
+  bool IsTailReturning(TorqueMacro* macro) {
+    auto body = BlockStatement::DynamicCast(macro->body().value());
+    DCHECK_NOT_NULL(body);
+    if (body->statements.empty()) {
+      DCHECK(macro->signature().return_type->IsVoidOrNever());
+      return true;
+    }
+    if (body->statements.size() > 1) return false;
+    if (ReturnStatement::DynamicCast(body->statements[0])) {
+      // We might have to restrict this more, e.g. return b ? x : y; could
+      // require a return label.
+      return true;
+    }
+    return false;
+  }
+
   void GenerateMacro(TorqueMacro* macro, SourceId source) {
     if (!macro->SupportsTSA()) return;
 
@@ -278,11 +332,15 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
     const Type* return_type = signature.return_type;
 
     BeginOutputToHFile(source, 1);
-    target_ = MacroTarget{
-        {.return_type = return_type, .return_label_name = "_return"}};
+    const bool tail_returning = IsTailReturning(macro);
+    const char* return_label_name = tail_returning ? "" : "_return";
+    target_ = MacroTarget{TargetBase{.return_type = return_type,
+                                     .return_label_name = return_label_name},
+                          tail_returning};
 
     CurrentSourcePosition::Scope scource_position(macro->Position());
-    ValueBindingsManager::Scope binding_scope;
+    ValueBindingsManager::Scope value_binding_scope;
+    LabelBindingsManager::Scope label_binding_scope;
 
     if (return_type->IsVoidOrNever()) {
       out_i() << "void ";
@@ -291,7 +349,10 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
     }
     out() << macro->ReadableName() << "(";
 
-    BlockBindings<TSAValue> macro_bindings(this, &ValueBindingsManager::Get());
+    BlockBindings<TSAValue> value_bindings(this, &ValueBindingsManager::Get());
+    BlockBindings<TSALabel> label_bindings(this, &LabelBindingsManager::Get());
+    constexpr bool kMarkAsUsed = true;
+
     size_t param_index = 0;
     // TODO(nicohartmann): Handle methods and `this` argument.
     for (; param_index < signature.parameter_types.types.size();
@@ -300,8 +361,30 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
       // TODO(nicohartmann): Could make some ConstOrV<> maybe.
       const Identifier* name = signature.parameter_names[param_index];
       const Type* type = signature.parameter_types.types[param_index];
-      out() << "V<" << type->GetGeneratedTNodeTypeName() << "> " << name->value;
-      macro_bindings.Add(name, TSAValue{.type = type});
+      if (type->IsConstexpr()) {
+        out() << type->TagglifiedCppTypeName() << " " << name->value;
+      } else {
+        out() << "V<" << type->GetGeneratedTNodeTypeName() << "> "
+              << name->value;
+      }
+      value_bindings.Add(name, TSAValue{.type = type}, kMarkAsUsed);
+    }
+
+    // Now handle labels.
+    for (const LabelDeclaration& label_info : signature.labels) {
+      if (param_index != 0) out() << ", ";
+      const std::string label_name = label_info.name->value;
+      out() << "Label<";
+      for (size_t type_index = 0; type_index < label_info.types.size();
+           ++type_index) {
+        if (type_index != 0) out() << ", ";
+        out() << GetTypeName(label_info.types[type_index]);
+      }
+      out() << ">& " << label_name;
+      label_bindings.Add(label_name,
+                         TSALabel{.parameter_types = label_info.types},
+                         kMarkAsUsed);
+      ++param_index;
     }
 
     out() << ") {\n";
@@ -310,24 +393,28 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
     {
       IndentationScope indent(this);
 
-      // If we have a return value, we need to set up the return label.
-      out_i() << "Label<";
-      if (!return_type->IsVoidOrNever()) {
-        out() << return_type->GetGeneratedTNodeTypeName();
+      if (!tail_returning) {
+        // If we have a return value, we need to set up the return label.
+        out_i() << "Label<";
+        if (!return_type->IsVoidOrNever()) {
+          out() << return_type->GetGeneratedTNodeTypeName();
+        }
+        out() << "> " << return_label_name << "(this);\n\n";
       }
-      out() << "> _return(this);\n\n";
 
       auto macro_body = BlockStatement::DynamicCast(macro->body().value());
       DCHECK_NOT_NULL(macro_body);
       VisitBlockStatement(macro_body, false);
 
-      // Bind the return label and return the value (if any).
-      out() << "\n";
-      if (return_type->IsVoidOrNever()) {
-        out_i() << "BIND(_return);\n";
-      } else {
-        out_i() << "BIND(_return, return_value);\n";
-        out_i() << "return return_value;\n";
+      if (!tail_returning) {
+        out() << "\n";
+        // Bind the return label and return the value (if any).
+        if (return_type->IsVoidOrNever()) {
+          out_i() << "BIND(" << return_label_name << ");\n";
+        } else {
+          out_i() << "BIND(" << return_label_name << ", return_value);\n";
+          out_i() << "return return_value;\n";
+        }
       }
     }
 
@@ -355,15 +442,18 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
                        .return_label_name = ""}};
 
     CurrentSourcePosition::Scope scource_position(builtin->Position());
-    ValueBindingsManager::Scope binding_scope;
+    ValueBindingsManager::Scope value_binding_scope;
+    LabelBindingsManager::Scope label_binding_scope;
 
     out_i() << "TS_BUILTIN(" << builtin->ExternalName() << ", " << reducer_name
             << "AssemblerTS) {\n";
 
     {
       IndentationScope indent(this);
-      BlockBindings<TSAValue> builtin_bindings(this,
-                                               &ValueBindingsManager::Get());
+      BlockBindings<TSAValue> value_bindings(this,
+                                             &ValueBindingsManager::Get());
+      BlockBindings<TSALabel> label_bindings(this,
+                                             &LabelBindingsManager::Get());
 
       size_t param_index = 0;
       for (; param_index < signature.parameter_types.types.size();
@@ -373,7 +463,8 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
         out_i() << "auto " << name->value << " = Parameter<"
                 << type->GetGeneratedTNodeTypeName() << ">(Descriptor::k"
                 << CamelifyString(name->value) << ");\n";
-        builtin_bindings.Add(name, TSAValue{.type = type});
+        constexpr bool kMarkAsUsed = true;
+        value_bindings.Add(name, TSAValue{.type = type}, kMarkAsUsed);
       }
 
       auto builtin_body = BlockStatement::DynamicCast(builtin->body().value());
@@ -410,7 +501,7 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
   void FailCallableLookup(
       const std::string& reason, const QualifiedName& name,
       const TypeVector& parameter_types,
-      const std::vector<Binding<LocalLabel>*>& labels,
+      const std::vector<Binding<TSALabel>*>& labels,
       const std::vector<Signature>& candidates,
       const std::vector<std::pair<GenericCallable*, std::string>>
           inapplicable_generics) {
@@ -466,11 +557,29 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
                                              all_arguments);
   }
 
+  Callable* GetOrCreateSpecialization(
+      const SpecializationKey<GenericCallable>& key) {
+    if (std::optional<Callable*> specialization =
+            key.generic->GetSpecialization(key.specialized_types)) {
+      return *specialization;
+    }
+    return DeclarationVisitor::SpecializeImplicit(key);
+  }
+
+  // Try to lookup a callable with the provided argument types. Do not report
+  // an error if no matching callable was found, but return false instead.
+  // This is used to test the presence of overloaded field accessors.
+  Callable* TryLookupCallable(const QualifiedName& name,
+                              const TypeVector& parameter_types) {
+    return LookupCallable(name, Declarations::TryLookup(name), parameter_types,
+                          {}, {}, true);
+  }
+
   template <class Container>
   Callable* LookupCallable(const QualifiedName& name,
                            const Container& declaration_container,
                            const TypeVector& parameter_types,
-                           const std::vector<Binding<LocalLabel>*>& labels,
+                           const std::vector<Binding<TSALabel>*>& labels,
                            const TypeVector& specialization_types,
                            bool silence_errors = false) {
     Callable* result = nullptr;
@@ -543,14 +652,10 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
 
     if (GenericCallable* generic =
             GenericCallable::DynamicCast(overloads[best])) {
-      UNIMPLEMENTED();
-      USE(generic);
-#if 0
       TypeArgumentInference inference = InferSpecializationTypes(
           generic, specialization_types, parameter_types);
       result = GetOrCreateSpecialization(
           SpecializationKey<GenericCallable>{generic, inference.GetResult()});
-#endif
     } else {
       result = Callable::cast(overloads[best]);
     }
@@ -703,20 +808,55 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
   }
 
   AstNode* VisitExpressionStatement(ExpressionStatement* node) {
-    out_i();
-    VisitExpression(node->expression);
-    out() << ";\n";
+    // For some we skip the trailing semicolon.
+    switch (node->expression->kind) {
+      case AstNode::Kind::kTryLabelExpression:
+        VisitExpression(node->expression);
+        out() << "\n";
+        break;
+      default:
+        out_i();
+        VisitExpression(node->expression);
+        out() << ";\n";
+        break;
+    }
     return node;
   }
 
   AstNode* VisitIfStatement(IfStatement* node) {
-    // TODO(nicohartmann): Implement.
+    if (node->is_constexpr) {
+      UNIMPLEMENTED();
+    }
+    out_i() << "IF (";
+    VisitExpression(node->condition);
+    out() << ") {\n";
+
+    // Then branch.
+    {
+      IndentationScope indent(this);
+      if (BlockStatement* block = BlockStatement::DynamicCast(node->if_true)) {
+        VisitBlockStatement(block, false);
+      } else {
+        Visit(node->if_true);
+      }
+    }
+    out_i() << "}";
+
+    // Else branch (if any).
+    if (node->if_false.has_value()) {
+      // TODO(nicohartmann): Handle proper bracing if not a BlockStatement.
+      out() << " ELSE ";
+      Visit(node->if_false.value());
+    } else {
+      out() << "\n";
+    }
+
     return node;
   }
 
   AstNode* VisitWhileStatement(WhileStatement* node) {
     out_i() << "WHILE(";
-    Visit(node->condition);
+    VisitExpression(node->condition);
     out() << ") ";
     Visit(node->body);
     return node;
@@ -724,7 +864,7 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
 
   AstNode* VisitTypeswitchStatement(TypeswitchStatement* node) {
     out_i() << "TYPESWITCH(";
-    Visit(node->expr);
+    VisitExpression(node->expr);
     out() << ") {\n";
 
     // Emit cases.
@@ -767,14 +907,24 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
 
   AstNode* VisitReturnStatement(ReturnStatement* node) {
     if (MacroTarget* macro = target<MacroTarget>()) {
-      // In a macro we cannot use return. We need to jump to the exit label.
-      // TODO(nicohartmann): Handle simple cases where this can be avoided.
-      out_i() << "GOTO(" << macro->return_label_name;
-      if (!macro->return_type->IsVoidOrNever()) {
-        out() << ", ";
-        VisitExpression(node->value.value());
+      if (macro->tail_returning) {
+        // Handle simple cases where return label can be avoided.
+        if (macro->return_type->IsVoidOrNever()) {
+          // We just fall to the end.
+        } else {
+          out_i() << "return ";
+          VisitExpression(node->value.value());
+          out() << ";\n";
+        }
+      } else {
+        // Otherwise, we need to jump to the exit label.
+        out_i() << "GOTO(" << macro->return_label_name;
+        if (!macro->return_type->IsVoidOrNever()) {
+          out() << ", ";
+          VisitExpression(node->value.value());
+        }
+        out() << ");\n";
       }
-      out() << ");\n";
     } else if (target<BuiltinTarget>()) {
       out_i() << "Return(";
       if (node->value.has_value()) {
@@ -799,7 +949,20 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
     return node;
   }
   AstNode* VisitAssertStatement(AssertStatement* node) {
-    // TODO(nicohartmann): Implement.
+    switch (node->kind) {
+      case AssertStatement::AssertKind::kStaticAssert:
+        UNIMPLEMENTED();
+      case AssertStatement::AssertKind::kCheck:
+        UNIMPLEMENTED();
+      case AssertStatement::AssertKind::kDcheck: {
+        out_i() << "TSA_DCHECK(this, ";
+        VisitExpression(node->expression);
+        out() << ");\n";
+        break;
+      }
+      case AssertStatement::AssertKind::kSbxCheck:
+        UNIMPLEMENTED();
+    }
     return node;
   }
   AstNode* VisitTailCallStatement(TailCallStatement* node) {
@@ -807,37 +970,64 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
     return node;
   }
 
+  std::string GetTypeName(const Type* type) {
+    std::string name = type->GetGeneratedTNodeTypeName();
+    // We need to patch a few names for TSA.
+    if (name == "UintPtrT") return "WordPtr";
+    if (name == "Uint16T") return "Word32";
+    if (name == "intptr") return "WordPtr";
+    return name;
+  }
+
   AstNode* VisitVarDeclarationStatement(VarDeclarationStatement* node) {
     if (node->const_qualified) {
-      // TODO(nicohartmann): Support const qualified declarations.
-      UNIMPLEMENTED();
+      // For const we avoid actual variables and just define the ssa value.
+      const Type* type = nullptr;
+      if (node->type.has_value()) {
+        type = TypeVisitor::ComputeType(node->type.value());
+      }
+      DCHECK_NOT_NULL(type);
+
+      out_i() << "V<" << GetTypeName(type) << "> " << node->name->value;
+      if (node->initializer.has_value()) {
+        out() << " = ";
+        VisitExpression(node->initializer.value());
+        out() << ";\n";
+        current_block_bindings_values()->Add(node->name, {.type = type});
+      }
     } else {
       const Type* type = nullptr;
       if (node->type.has_value()) {
-        out_i() << "ScopedVar<";
-        // TODO(nicohartmann): Not sure if visiting the type is the best thing
-        // to do here.
-        Visit(node->type.value());
         type = TypeVisitor::ComputeType(node->type.value());
-        out() << "> ";
       } else {
         // Should use computed type of initializer.
         UNIMPLEMENTED();
       }
+      DCHECK_NOT_NULL(type);
 
-      out() << node->name->value << "(this";
+      out_i() << "ScopedVar<" << GetTypeName(type) << "> " << node->name->value
+              << "(this";
       if (node->initializer.has_value()) {
         out() << ", ";
         VisitExpression(node->initializer.value());
       }
       out() << ");\n";
-      current_block_bindings()->Add(node->name, {.type = type});
+      current_block_bindings_values()->Add(node->name, {.type = type});
     }
     return node;
   }
 
   AstNode* VisitGotoStatement(GotoStatement* node) {
-    // TODO(nicohartmann): Implement.
+    Binding<TSALabel>* label = LookupLabel(node->label->value);
+    USE(label);
+    DCHECK_EQ(node->arguments.size(), label->parameter_types.size());
+
+    out_i() << "GOTO(" << node->label->value;
+    for (Expression* e : node->arguments) {
+      out() << ", ";
+      VisitExpression(e);
+    }
+    out() << ");\n";
     return node;
   }
   AstNode* VisitAbstractTypeDeclaration(AbstractTypeDeclaration* node) {
@@ -946,45 +1136,25 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
     }
   }
 
-  ExpressionResult VisitExpression_CallExpression(CallExpression* expr) {
-    if (expr->callee->name->value == "&" && expr->arguments.size() == 1) {
-      UNIMPLEMENTED();
-#if 0
-      if (auto* loc_expr
-            = LocationExpression::DynamicCast(expr->arguments[0])) {
-        LocationReference ref = GetLocationReference(loc_expr);
-        if (ref.IsHeapReference()) return scope.Yield(ref.heap_reference());
-        if (ref.IsHeapSlice()) return scope.Yield(ref.heap_slice());
+  ExpressionResult GenerateCall(const Callable* callable,
+                                const TypeVector& argument_types,
+                                std::vector<std::string> argument_strings,
+                                const std::vector<std::string>& label_names,
+                                const TypeVector& specialization_types) {
+    DCHECK_EQ(argument_types.size(), argument_strings.size());
+
+    if (callable->IsExternMacro()) {
+      // Handle a few special cases that we want to bypass.
+      if (callable->ExternalName() == "Unsigned") {
+        DCHECK_EQ(argument_strings.size(), 1);
+        out() << argument_strings[0];
+        return ExpressionResult{argument_types[0]};
       }
-      ReportError("Unable to create a heap reference.");
-#endif
     }
 
-    QualifiedName name = QualifiedName(expr->callee->namespace_qualification,
-                                       expr->callee->name->value);
-    TypeVector specialization_types =
-        TypeVisitor::ComputeTypeVector(expr->callee->generic_arguments);
-    bool has_template_arguments = !specialization_types.empty();
-    // TODO(nicohartmann): Support template arguments.
-    CHECK(!has_template_arguments);
-
-    TypeVector argument_types;
-    std::vector<std::string> argument_strings;
-    for (Expression* arg : expr->arguments) {
-      OutputBufferScope output_buffer(this);
-      ExpressionResult arg_result = VisitExpression(arg);
-      DCHECK_NOT_NULL(arg_result.type);
-      argument_types.push_back(arg_result.type);
-      argument_strings.push_back(output_buffer.ToString());
-    }
-
-    Callable* callable =
-        LookupCallable(name, Declarations::Lookup(name), argument_types,
-                       /*labels: */ {}, specialization_types);
-
-    if (RuntimeFunction* runtime_function =
+    if (const RuntimeFunction* runtime_function =
             RuntimeFunction::DynamicCast(callable)) {
-      runtime_function->ExternalName();
+      DCHECK(label_names.empty());
       out() << __(kTemplate)
             << "CallRuntime<runtime::" << runtime_function->ExternalName()
             << ">(";
@@ -1003,7 +1173,10 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
       }
       out() << "})";
     } else {
-      out() << __() << expr->callee->name << "(";
+      const auto prefix = specialization_types.empty()
+                              ? SpecialAssemblerFunctionPrefix::kNoPrefix
+                              : SpecialAssemblerFunctionPrefix::kTemplatePrefix;
+      out() << __(prefix) << callable->ReadableName() << "(";
       bool first = true;
       for (size_t i = 0; i < callable->signature().implicit_count; ++i) {
         std::string implicit_name =
@@ -1012,41 +1185,75 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
         out() << implicit_name;
         first = false;
       }
-      DCHECK_EQ(expr->arguments.size(), argument_strings.size());
       for (size_t i = 0; i < argument_strings.size(); ++i) {
         if (!first) out() << ", ";
         out() << argument_strings[i];
         first = false;
       }
-      // TODO(nicohartmann): Support labels.
-      DCHECK(expr->labels.empty());
+      for (size_t i = 0; i < label_names.size(); ++i) {
+        if (!first) out() << ", ";
+        out() << label_names[i];
+        first = false;
+      }
       out() << ")";
     }
     return ExpressionResult(callable->signature().return_type);
+  }
 
-#if 0
-    arguments.labels = LabelsFromIdentifiers(expr->labels);
-    if (!has_template_arguments && name.namespace_qualification.empty() &&
-        TryLookupLocalValue(name.name)) {
-      return scope.Yield(
-          GeneratePointerCall(expr->callee, arguments, is_tailcall));
-    } else {
-      if (expr->callee->name->value == "!"
-          && arguments.parameters.size() == 1) {
-        PropagateBitfieldMark(expr->arguments[0], expr);
-      }
-      if (expr->callee->name->value == "=="
-          && arguments.parameters.size() == 2) {
-        if (arguments.parameters[0].type()->IsConstexpr()) {
-          PropagateBitfieldMark(expr->arguments[1], expr);
-        } else if (arguments.parameters[1].type()->IsConstexpr()) {
-          PropagateBitfieldMark(expr->arguments[0], expr);
-        }
-      }
-      return scope.Yield(
-          GenerateCall(name, arguments, specialization_types, is_tailcall));
+  std::vector<Binding<TSALabel>*> LabelsFromIdentifiers(
+      const std::vector<Identifier*>& names) {
+    std::vector<Binding<TSALabel>*> result;
+    result.reserve(names.size());
+    for (const auto& name : names) {
+      Binding<TSALabel>* label = LookupLabel(name->value);
+      result.push_back(label);
     }
+    return result;
+  }
+
+  ExpressionResult VisitExpression_CallExpression(CallExpression* expr) {
+    if (expr->callee->name->value == "&" && expr->arguments.size() == 1) {
+      UNIMPLEMENTED();
+#if 0
+      if (auto* loc_expr
+            = LocationExpression::DynamicCast(expr->arguments[0])) {
+        LocationReference ref = GetLocationReference(loc_expr);
+        if (ref.IsHeapReference()) return scope.Yield(ref.heap_reference());
+        if (ref.IsHeapSlice()) return scope.Yield(ref.heap_slice());
+      }
+      ReportError("Unable to create a heap reference.");
 #endif
+    }
+
+    QualifiedName name = QualifiedName(expr->callee->namespace_qualification,
+                                       expr->callee->name->value);
+    TypeVector specialization_types =
+        TypeVisitor::ComputeTypeVector(expr->callee->generic_arguments);
+
+    TypeVector argument_types;
+    std::vector<std::string> argument_strings;
+    for (Expression* arg : expr->arguments) {
+      OutputBufferScope output_buffer(this);
+      ExpressionResult arg_result = VisitExpression(arg);
+      DCHECK_NOT_NULL(arg_result.type);
+      argument_types.push_back(arg_result.type);
+      argument_strings.push_back(output_buffer.ToString());
+    }
+
+    std::vector<Binding<TSALabel>*> labels =
+        LabelsFromIdentifiers(expr->labels);
+    std::vector<std::string> label_names;
+    for (const Identifier* ident : expr->labels) {
+      label_names.push_back(ident->value);
+    }
+    DCHECK_EQ(labels.size(), label_names.size());
+
+    Callable* callable =
+        LookupCallable(name, Declarations::Lookup(name), argument_types, labels,
+                       specialization_types);
+
+    return GenerateCall(callable, argument_types, argument_strings, label_names,
+                        specialization_types);
   }
 
   ExpressionResult VisitExpression_CallMethodExpression(
@@ -1079,6 +1286,16 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
   std::optional<Binding<TSAValue>*> TryLookupLocalValue(
       const std::string& name) {
     return ValueBindingsManager::Get().TryLookup(name);
+  }
+
+  std::optional<Binding<TSALabel>*> TryLookupLabel(const std::string& name) {
+    return LabelBindingsManager::Get().TryLookup(name);
+  }
+
+  Binding<TSALabel>* LookupLabel(const std::string& name) {
+    std::optional<Binding<TSALabel>*> label = TryLookupLabel(name);
+    if (!label) ReportError("cannot find label ", name);
+    return *label;
   }
 
   ExpressionResult VisitExpression_IdentifierExpression(
@@ -1145,7 +1362,10 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
             "namespace constant " + expr->name->value);
 #endif
       }
-      UNIMPLEMENTED();
+      // TODO(nicohartmann): Maybe find a better way to use namespace constants.
+      // For now, we just emit the definition with which this was defined.
+      VisitExpression(constant->body());
+      return ExpressionResult(constant->type());
 #if 0
       assembler().Emit(NamespaceConstantInstruction{constant});
       StackRange stack_range =
@@ -1161,7 +1381,12 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
   }
   ExpressionResult VisitExpression_StringLiteralExpression(
       StringLiteralExpression* expr) {
-    UNIMPLEMENTED();
+    std::string value = expr->literal;
+    DCHECK_GE(value.length(), 2);
+    DCHECK(value.starts_with("'"));
+    DCHECK(value.ends_with("'"));
+    out() << "\"" << value.substr(1, value.length() - 2) << "\"";
+    return ExpressionResult(TypeOracle::GetConstexprStringType());
   }
   ExpressionResult VisitExpression_IntegerLiteralExpression(
       IntegerLiteralExpression* expr) {
@@ -1174,10 +1399,26 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
 
   ExpressionResult VisitExpression_FieldAccessExpression(
       FieldAccessExpression* expr) {
-    // This is a load. Store will be handled in VisitLocation.
-    out() << __() << "LoadField(";
+    std::optional<OutputBufferScope> output_buffer(this);
     ExpressionResult object = VisitExpression(expr->object);
-    out() << ", FIELD(" << object.type->GetGeneratedTNodeTypeName() << ", "
+    std::string object_string = output_buffer->ToString();
+    output_buffer.reset();
+
+    if (std::optional<const ClassType*> class_type =
+            object.type->ClassSupertype()) {
+      // This is a hack to distinguish the situation where we want to use
+      // overloaded field accessors from when we want to create a reference.
+      const Callable* explicit_overload = TryLookupCallable(
+          QualifiedName{"." + expr->field->value}, {object.type});
+      if (explicit_overload) {
+        return GenerateCall(explicit_overload, {object.type}, {object_string},
+                            {}, {});
+      }
+    }
+
+    // This is a load. Store will be handled in VisitLocation.
+    out() << __() << "LoadField(" << object_string << ", FIELD("
+          << object.type->GetGeneratedTNodeTypeName() << ", "
           << expr->field->value << "_))";
     if (auto class_type = object.type->ClassSupertype()) {
       const Field& field = (*class_type)->LookupField(expr->field->value);
@@ -1225,11 +1466,90 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
   }
   ExpressionResult VisitExpression_StatementExpression(
       StatementExpression* expr) {
-    UNIMPLEMENTED();
+    Visit(expr->statement);
+    return ExpressionResult(TypeOracle::GetVoidType());
   }
   ExpressionResult VisitExpression_TryLabelExpression(
       TryLabelExpression* expr) {
-    UNIMPLEMENTED();
+    const std::string label_name = expr->label_block->label->value;
+    TypeVector parameter_types;
+
+    out() << "\n";
+    out_i() << "// TODO(tq2tsa): This most likely needs some manual cleanup.\n";
+    out_i() << "{\n";
+    {
+      IndentationScope indent(this);
+      {
+        BlockBindings<TSALabel> label_scope(this, &LabelBindingsManager::Get());
+        // We first define all labels and add them to a new scope.
+        out_i() << "Label<> done(this);\n";
+        out_i() << "Label<";
+        for (size_t i = 0; i < expr->label_block->parameters.names.size();
+             ++i) {
+          if (i != 0) out() << ", ";
+          const Type* type =
+              TypeVisitor::ComputeType(expr->label_block->parameters.types[i]);
+          parameter_types.push_back(type);
+          out() << GetTypeName(type);
+        }
+        out() << "> " << label_name << "(this";
+        if (IsDeferred(expr->label_block->body)) {
+          out() << "LabelBase::Likelyness::kUnlikely";
+        }
+        out() << ");\n";
+        label_scope.Add(label_name,
+                        TSALabel{.parameter_types = parameter_types});
+
+        // Emit the try expression.
+        const Type* result_type = TypeOracle::GetVoidType();
+        if (StatementExpression* stmt =
+                StatementExpression::DynamicCast(expr->try_expression)) {
+          if (BlockStatement* block =
+                  BlockStatement::DynamicCast(stmt->statement)) {
+            VisitBlockStatement(block, false);
+          } else {
+            Visit(stmt->statement);
+          }
+        } else {
+          ExpressionResult try_result = VisitExpression(expr->try_expression);
+          result_type = try_result.type;
+        }
+
+        if (!result_type->IsNever()) {
+          // We might return here, so we need to jump to a continuation after
+          // the labels.
+          out_i() << "GOTO(done);\n";
+        }
+      }
+
+      out_i() << "BIND(" << label_name;
+      for (size_t i = 0; i < parameter_types.size(); ++i) {
+        const std::string name = expr->label_block->parameters.names[i]->value;
+        out() << ", " << name;
+        // TODO(nicohartmann): We just throw them into the current bindings, but
+        // maybe we should introduce a separate block here.
+        current_block_bindings_values()->Add(
+            name, TSAValue{.type = parameter_types[i]});
+      }
+      out() << ");\n";
+      // Emit body.
+      if (BlockStatement* block =
+              BlockStatement::DynamicCast(expr->label_block->body)) {
+        VisitBlockStatement(block, false);
+      } else {
+        out_i();
+        Visit(expr->label_block->body);
+      }
+
+      // Unconditional jump to the end.
+      out_i() << "GOTO(done);\n";
+      out_i() << "BIND(done);\n";
+    }
+
+    out_i() << "}\n";
+
+    // TODO(nicohartmann): Handle actual return values.
+    return ExpressionResult(TypeOracle::GetVoidType());
   }
 
   struct LocationResult {
@@ -1423,18 +1743,28 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
   }
 
   void EnterBlockBindingsScope(BlockBindings<TSAValue>* bindings) {
-    block_bindings_.push_back(bindings);
+    block_bindings_values_.push_back(bindings);
+  }
+
+  void EnterBlockBindingsScope(BlockBindings<TSALabel>* bindings) {
+    block_bindings_labels_.push_back(bindings);
   }
 
   void LeaveBlockBindingsScope(BlockBindings<TSAValue>* bindings) {
-    DCHECK(!block_bindings_.empty());
-    DCHECK_EQ(block_bindings_.back(), bindings);
-    block_bindings_.pop_back();
+    DCHECK(!block_bindings_values_.empty());
+    DCHECK_EQ(block_bindings_values_.back(), bindings);
+    block_bindings_values_.pop_back();
   }
 
-  BlockBindings<TSAValue>* current_block_bindings() {
-    DCHECK(!block_bindings_.empty());
-    return block_bindings_.back();
+  void LeaveBlockBindingsScope(BlockBindings<TSALabel>* bindings) {
+    DCHECK(!block_bindings_labels_.empty());
+    DCHECK_EQ(block_bindings_labels_.back(), bindings);
+    block_bindings_labels_.pop_back();
+  }
+
+  BlockBindings<TSAValue>* current_block_bindings_values() {
+    DCHECK(!block_bindings_values_.empty());
+    return block_bindings_values_.back();
   }
 
   enum class SpecialAssemblerFunctionPrefix {
@@ -1466,7 +1796,8 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
   OutputFile current_output_file_ = OutputFile::kNone;
   std::variant<std::nullptr_t, MacroTarget, BuiltinTarget> target_;
   int indentation_levels_ = 0;
-  std::vector<BlockBindings<TSAValue>*> block_bindings_;
+  std::vector<BlockBindings<TSAValue>*> block_bindings_values_;
+  std::vector<BlockBindings<TSALabel>*> block_bindings_labels_;
 };
 
 void GenerateTSA(Ast& ast, const std::string& output_directory) {

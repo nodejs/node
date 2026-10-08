@@ -27,11 +27,12 @@
 #include "src/compiler/schedule.h"
 #include "src/compiler/turbofan-graph.h"
 #include "src/objects/script-inl.h"
-#include "src/objects/shared-function-info.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/utils/ostreams.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-disassembler.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif
 
 namespace v8 {
@@ -81,7 +82,7 @@ void JsonPrintBytecodeSource(std::ostream& os, int source_id,
   os << ", \"feedbackVector\": \"";
   if (!feedback_vector.is_null()) {
     std::stringstream stream;
-    FeedbackVector::Print(feedback_vector, stream);
+    Print(feedback_vector, stream);
     std::regex newlines_re("\n+");
     os << std::regex_replace(stream.str(), newlines_re, "\\n");
   }
@@ -101,8 +102,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
 
   int start = 0;
   int end = 0;
-  if (!script.is_null() && !IsUndefined(*script, isolate) &&
-      !shared.is_null()) {
+  if (!script.is_null() && !IsUndefined(*script) && !shared.is_null()) {
     Tagged<Object> source_name = script->name();
     os << ", \"sourceName\": \"";
     if (IsString(source_name)) {
@@ -334,22 +334,17 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
       if (str->length() > 0) {
         SNPrintF(source_file, "%s", str->ToCString().get());
         std::replace(source_file.begin(),
-                     source_file.begin() + source_file.length(), '/', '_');
+                     source_file.begin() + source_file.size(), '/', '_');
         source_available = true;
       }
     }
   }
-  std::replace(filename.begin(), filename.begin() + filename.length(), '/',
-               '_');
-  std::replace(filename.begin(), filename.begin() + filename.length(), ' ',
-               '_');
-  std::replace(filename.begin(), filename.begin() + filename.length(), ':',
-               '-');
+  std::replace(filename.begin(), filename.begin() + filename.size(), '/', '_');
+  std::replace(filename.begin(), filename.begin() + filename.size(), ' ', '_');
+  std::replace(filename.begin(), filename.begin() + filename.size(), ':', '-');
 #if V8_OS_WIN
-  std::replace(filename.begin(), filename.begin() + filename.length(), '<',
-               '{');
-  std::replace(filename.begin(), filename.begin() + filename.length(), '>',
-               '}');
+  std::replace(filename.begin(), filename.begin() + filename.size(), '<', '{');
+  std::replace(filename.begin(), filename.begin() + filename.size(), '>', '}');
 #endif  // V8_OS_WIN
 
   base::EmbeddedVector<char, 256> base_dir;
@@ -375,9 +370,9 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
              source_file.begin(), phase, suffix);
   }
 
-  char* buffer = new char[full_filename.length() + 1];
-  memcpy(buffer, full_filename.begin(), full_filename.length());
-  buffer[full_filename.length()] = '\0';
+  char* buffer = new char[full_filename.size() + 1];
+  memcpy(buffer, full_filename.begin(), full_filename.size());
+  buffer[full_filename.size()] = '\0';
   return std::unique_ptr<char[]>(buffer);
 }
 
@@ -1125,10 +1120,12 @@ std::ostream& operator<<(
       // Record the minimum and maximum positions observed within this
       // TopLevelLiveRange
       for (const UseInterval& interval : child->intervals()) {
-        if (interval.start().value() < instruction_range[0])
+        if (interval.start().value() < instruction_range[0]) {
           instruction_range[0] = interval.start().value();
-        if (interval.end().value() > instruction_range[1])
+        }
+        if (interval.end().value() > instruction_range[1]) {
           instruction_range[1] = interval.end().value();
+        }
       }
     }
   }

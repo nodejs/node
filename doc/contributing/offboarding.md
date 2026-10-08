@@ -22,4 +22,8 @@ emeritus or leaves the project.
   the collaborator be removed from the Node.js coverity project if they had
   access.
 
+An emeritus collaborator may later ask the TSC to restore them to active status.
+See [Restoring emeritus Collaborators][].
+
+[Restoring emeritus Collaborators]: https://github.com/nodejs/node/blob/HEAD/GOVERNANCE.md#restoring-emeritus-collaborators
 [`@nodejs/collaborators`]: https://github.com/orgs/nodejs/teams/collaborators/members

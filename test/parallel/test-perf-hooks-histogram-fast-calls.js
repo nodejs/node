@@ -33,3 +33,15 @@ if (common.isDebug) {
   assert.strictEqual(getV8FastApiCallCount('histogram.percentile'), 1);
   assert.strictEqual(getV8FastApiCallCount('histogram.reset'), 1);
 }
+
+{
+  // Zero is accepted by the fast API call.
+  histogram.record(0);
+  assert.strictEqual(histogram.count, 1);
+  assert.strictEqual(histogram.min, 0);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('histogram.record'), 2);
+  }
+}

@@ -101,6 +101,11 @@ static void ch_record_state_transition(QUIC_CHANNEL *ch, uint32_t new_state);
 
 DEFINE_LHASH_OF_EX(QUIC_SRT_ELEM);
 
+typedef struct cfq_data_retire_cid {
+    uint64_t rtcid_seq;
+    QUIC_CHANNEL *rtcid_ch;
+} CFQ_DATA_RETIRE_CID_T;
+
 QUIC_NEEDS_LOCK
 static QLOG *ch_get_qlog(QUIC_CHANNEL *ch)
 {
@@ -332,8 +337,12 @@ static int ch_init(QUIC_CHANNEL *ch)
             goto err;
     }
 
+    ch->rsqp = ossl_quic_rstream_qparm_new(ch);
+    if (ch->rsqp == NULL)
+        goto err;
+
     for (pn_space = QUIC_PN_SPACE_INITIAL; pn_space < QUIC_PN_SPACE_NUM; ++pn_space) {
-        ch->crypto_recv[pn_space] = ossl_quic_rstream_new(NULL, NULL, 0);
+        ch->crypto_recv[pn_space] = ossl_quic_rstream_new(NULL, NULL, ch->rsqp);
         if (ch->crypto_recv[pn_space] == NULL)
             goto err;
     }
@@ -395,8 +404,12 @@ static void ch_cleanup(QUIC_CHANNEL *ch)
             ++pn_space)
             ossl_ackm_on_pkt_space_discarded(ch->ackm, pn_space);
 
-    ossl_quic_lcidm_cull(ch->lcidm, ch);
-    ossl_quic_srtm_cull(ch->srtm, ch);
+    if (ch->lcidm != NULL)
+        ossl_quic_lcidm_cull(ch->lcidm, ch);
+
+    if (ch->srtm != NULL)
+        ossl_quic_srtm_cull(ch->srtm, ch);
+
     ossl_quic_tx_packetiser_free(ch->txp);
     ossl_quic_txpim_free(ch->txpim);
     ossl_quic_cfq_free(ch->cfq);
@@ -414,6 +427,9 @@ static void ch_cleanup(QUIC_CHANNEL *ch)
         ossl_quic_sstream_free(ch->crypto_send[pn_space]);
         ossl_quic_rstream_free(ch->crypto_recv[pn_space]);
     }
+
+    ossl_quic_rstream_qparm_destroy(ch->rsqp);
+    ch->rsqp = NULL;
 
     ossl_qrx_pkt_release(ch->qrx_pkt);
     ch->qrx_pkt = NULL;
@@ -3230,18 +3246,32 @@ void ossl_quic_channel_on_remote_conn_close(QUIC_CHANNEL *ch,
     ch_start_terminating(ch, &tcause, 0);
 }
 
-static void free_frame_data(unsigned char *buf, size_t buf_len, void *arg)
+static void free_frame_rtcid(unsigned char *buf, size_t buf_len, void *arg)
 {
+    CFQ_DATA_RETIRE_CID_T *cfq_data_rtcid = (CFQ_DATA_RETIRE_CID_T *)arg;
+    QUIC_CHANNEL *ch = cfq_data_rtcid->rtcid_ch;
+
+    if (ch->cur_retire_prior_to < cfq_data_rtcid->rtcid_seq)
+        ch->cur_retire_prior_to = cfq_data_rtcid->rtcid_seq;
+
     OPENSSL_free(buf);
+    OPENSSL_free(cfq_data_rtcid);
 }
 
 static int ch_enqueue_retire_conn_id(QUIC_CHANNEL *ch, uint64_t seq_num)
 {
+    CFQ_DATA_RETIRE_CID_T *cfq_data_rtcid = NULL;
     BUF_MEM *buf_mem = NULL;
     WPACKET wpkt;
     size_t l;
 
     ossl_quic_srtm_remove(ch->srtm, ch, seq_num);
+
+    cfq_data_rtcid = OPENSSL_malloc(sizeof(CFQ_DATA_RETIRE_CID_T));
+    if (cfq_data_rtcid == NULL)
+        goto err;
+    cfq_data_rtcid->rtcid_seq = seq_num;
+    cfq_data_rtcid->rtcid_ch = ch;
 
     if ((buf_mem = BUF_MEM_new()) == NULL)
         goto err;
@@ -3261,7 +3291,7 @@ static int ch_enqueue_retire_conn_id(QUIC_CHANNEL *ch, uint64_t seq_num)
     if (ossl_quic_cfq_add_frame(ch->cfq, 1, QUIC_PN_SPACE_APP,
             OSSL_QUIC_FRAME_TYPE_RETIRE_CONN_ID, 0,
             (unsigned char *)buf_mem->data, l,
-            free_frame_data, NULL)
+            free_frame_rtcid, cfq_data_rtcid)
         == NULL)
         goto err;
 
@@ -3275,6 +3305,7 @@ err:
         OSSL_QUIC_FRAME_TYPE_NEW_CONN_ID,
         "internal error enqueueing retire conn id");
     BUF_MEM_free(buf_mem);
+    OPENSSL_free(cfq_data_rtcid);
     return 0;
 }
 
@@ -3283,6 +3314,7 @@ void ossl_quic_channel_on_new_conn_id(QUIC_CHANNEL *ch,
 {
     uint64_t new_remote_seq_num = ch->cur_remote_seq_num;
     uint64_t new_retire_prior_to = ch->cur_retire_prior_to;
+    uint64_t retire_prior_to;
 
     if (!ossl_quic_channel_is_active(ch))
         return;
@@ -3381,10 +3413,10 @@ void ossl_quic_channel_on_new_conn_id(QUIC_CHANNEL *ch,
      * that NEW_CONNECTION_ID frame, by definition this will always be met.
      * This may change in future when we change our CID handling.
      */
-    while (new_retire_prior_to > ch->cur_retire_prior_to) {
-        if (!ch_enqueue_retire_conn_id(ch, ch->cur_retire_prior_to))
-            break;
-        ++ch->cur_retire_prior_to;
+    retire_prior_to = ch->cur_retire_prior_to;
+    while (new_retire_prior_to > retire_prior_to) {
+        ch_enqueue_retire_conn_id(ch, retire_prior_to);
+        retire_prior_to++;
     }
 }
 
@@ -3753,7 +3785,7 @@ static int ch_init_new_stream(QUIC_CHANNEL *ch, QUIC_STREAM *qs,
             goto err;
 
     if (can_recv)
-        if ((qs->rstream = ossl_quic_rstream_new(NULL, NULL, 0)) == NULL)
+        if ((qs->rstream = ossl_quic_rstream_new(NULL, NULL, ch->rsqp)) == NULL)
             goto err;
 
     /* TXFC */
@@ -3938,12 +3970,23 @@ void ossl_quic_channel_set_incoming_stream_auto_reject(QUIC_CHANNEL *ch,
 
 void ossl_quic_channel_reject_stream(QUIC_CHANNEL *ch, QUIC_STREAM *qs)
 {
+    OSSL_RTT_INFO rtt_info;
+
     ossl_quic_stream_map_stop_sending_recv_part(&ch->qsm, qs,
         ch->incoming_stream_auto_reject_aec);
 
     ossl_quic_stream_map_reset_stream_send_part(&ch->qsm, qs,
         ch->incoming_stream_auto_reject_aec);
     qs->deleted = 1;
+
+    /*
+     * A rejected stream is never placed on the accept queue, so it would
+     * otherwise never be retired and would consume the peer's stream credit
+     * for the lifetime of the connection.
+     */
+    ossl_statm_get_rtt_info(ossl_quic_channel_get_statm(ch), &rtt_info);
+    ossl_quic_stream_map_retire_stream_credit(&ch->qsm, qs,
+        rtt_info.smoothed_rtt);
 
     ossl_quic_stream_map_update_state(&ch->qsm, qs);
 }

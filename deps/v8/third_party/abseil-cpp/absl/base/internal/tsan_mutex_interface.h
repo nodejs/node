@@ -16,6 +16,8 @@
 // It provides ThreadSanitizer annotations for custom mutexes.
 // See <sanitizer/tsan_interface.h> for meaning of these annotations.
 
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
+
 #ifndef ABSL_BASE_INTERNAL_TSAN_MUTEX_INTERFACE_H_
 #define ABSL_BASE_INTERNAL_TSAN_MUTEX_INTERFACE_H_
 
@@ -30,10 +32,9 @@
 #error "ABSL_INTERNAL_HAVE_TSAN_INTERFACE cannot be directly set."
 #endif
 
-#if defined(ABSL_HAVE_THREAD_SANITIZER) && defined(__has_include)
-#if __has_include(<sanitizer/tsan_interface.h>)
+#if defined(ABSL_HAVE_THREAD_SANITIZER) && \
+    __has_include(<sanitizer/tsan_interface.h>)
 #define ABSL_INTERNAL_HAVE_TSAN_INTERFACE 1
-#endif
 #endif
 
 #ifdef ABSL_INTERNAL_HAVE_TSAN_INTERFACE

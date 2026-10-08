@@ -59,8 +59,8 @@ class InspectedContext {
   v8::Isolate* isolate() const;
   V8InspectorImpl* inspector() const { return m_inspector; }
 
-  InjectedScript* getInjectedScript(int sessionId);
-  InjectedScript* createInjectedScript(int sessionId);
+  std::shared_ptr<InjectedScript> getInjectedScript(int sessionId);
+  std::shared_ptr<InjectedScript> createInjectedScript(int sessionId);
   void discardInjectedScript(int sessionId);
 
   bool addInternalObject(v8::Local<v8::Object> object,
@@ -83,7 +83,7 @@ class InspectedContext {
   const String16 m_auxData;
   const internal::V8DebuggerId m_uniqueId;
   std::unordered_set<int> m_reportedSessionIds;
-  std::unordered_map<int, std::unique_ptr<InjectedScript>> m_injectedScripts;
+  std::unordered_map<int, std::shared_ptr<InjectedScript>> m_injectedScripts;
   WeakCallbackData* m_weakCallbackData;
   v8::Global<v8::debug::EphemeronTable> m_internalObjects;
 };

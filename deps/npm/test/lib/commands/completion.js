@@ -152,10 +152,10 @@ t.test('completion', async t => {
   })
 
   t.test('commands with no completion', async t => {
-    const { outputs, completion } = await loadMockCompletionComp(t, 2, 'npm adduser ')
+    const { outputs, completion } = await loadMockCompletionComp(t, 2, 'npm whoami ')
 
-    // quotes around adduser are to ensure coverage when unescaping commands
-    await completion.exec(['npm', "'adduser'", ''])
+    // quotes around whoami are to ensure coverage when unescaping commands
+    await completion.exec(['npm', "'whoami'", ''])
     t.matchSnapshot(outputs, 'no results')
   })
 

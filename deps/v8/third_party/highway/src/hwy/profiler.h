@@ -17,21 +17,29 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>  // strcmp, strlen
 
+#include <atomic>
+#include <functional>
+
+#include "hwy/base.h"
 #include "hwy/highway_export.h"
 
 // High precision, low overhead time measurements. Returns exact call counts and
 // total elapsed time for user-defined 'zones' (code regions, i.e. C++ scopes).
 //
 // Uses RAII to capture begin/end timestamps, with user-specified zone names:
-//   { PROFILER_ZONE("name"); /*code*/ } or
-// the name of the current function:
-//   void FuncToMeasure() { PROFILER_FUNC; /*code*/ }.
-// You can reduce the overhead by passing a thread ID:
-//   `PROFILER_ZONE2(thread, name)`. The new and preferred API also allows
-// passing flags, such as requesting inclusive time:
+// `{ PROFILER_ZONE("name"); /*code*/ }` or the name of the current function:
+// `void FuncToMeasure() { PROFILER_FUNC; /*code*/ }`.
+//
+// You can reduce the overhead by passing `global_idx`, which can be taken from
+// the argument to the `ThreadPool::Run` lambda (if the pool was constructed
+// with non-default `PoolWorkerMapping`), or from a saved copy of the
+// thread-local `Profiler::Thread`: `PROFILER_ZONE2(global_idx, name)`.
+//
+// The preferred API allows passing flags, such as requesting inclusive time:
 // `static const auto zone = profiler.AddZone("name", flags);` and then
-// `PROFILER_ZONE3(profiler, thread, zone)`.
+// `PROFILER_ZONE3(profiler, global_idx, zone)`.
 //
 // After all threads exit all zones, call `Profiler::Get().PrintResults()` to
 // print call counts and average durations [CPU cycles] to stdout, sorted in
@@ -44,14 +52,12 @@
 
 #if PROFILER_ENABLED
 #include <stdio.h>
-#include <string.h>  // strcmp, strlen
 
 #include <algorithm>  // std::sort
-#include <atomic>
+#include <utility>
 #include <vector>
 
 #include "hwy/aligned_allocator.h"
-#include "hwy/base.h"
 #include "hwy/bit_set.h"
 #include "hwy/timer.h"
 #endif  // PROFILER_ENABLED
@@ -69,6 +75,78 @@ enum class ProfilerFlags : uint32_t {
   kInclusive = 1
 };
 
+// Called during `PrintResults` to print results from other modules.
+using ProfilerFunc = std::function<void(void)>;
+
+template <size_t kMaxStrings>
+class StringTable {
+  static constexpr std::memory_order kRelaxed = std::memory_order_relaxed;
+  static constexpr std::memory_order kAcq = std::memory_order_acquire;
+  static constexpr std::memory_order kRel = std::memory_order_release;
+
+ public:
+  // Returns a copy of the `name` passed to `Add` that returned the
+  // given `idx`.
+  const char* Name(size_t idx) const {
+    // `kAcq` so that the string contents are also visible after the pointer is
+    // published via `kRelease` store.
+    return ptrs_[idx].load(kAcq);
+  }
+
+  // Returns `idx < kMaxStrings`. Can be called concurrently. Calls with the
+  // same `name` return the same `idx`.
+  size_t Add(const char* name) {
+    // Linear search if it already exists. `kAcq` ensures we see prior stores.
+    const size_t num_strings = next_ptr_.load(kAcq);
+    HWY_ASSERT(num_strings < kMaxStrings);
+    for (size_t idx = 1; idx < num_strings; ++idx) {
+      const char* existing = ptrs_[idx].load(kAcq);
+      // `next_ptr_` was published after writing `ptr_`, hence it is non-null.
+      HWY_ASSERT(existing != nullptr);
+      if (HWY_UNLIKELY(!strcmp(existing, name))) {
+        return idx;
+      }
+    }
+
+    // Copy `name` into `chars_` before publishing the pointer.
+    const size_t len = strlen(name) + 1;
+    const size_t pos = next_char_.fetch_add(len, kRelaxed);
+    HWY_ASSERT(pos + len <= sizeof(chars_));
+    strcpy(chars_ + pos, name);  // NOLINT
+
+    for (;;) {
+      size_t idx = next_ptr_.load(kRelaxed);
+      HWY_ASSERT(idx < kMaxStrings);
+
+      // Attempt to claim the next `idx` via CAS.
+      const char* expected = nullptr;
+      if (HWY_LIKELY(ptrs_[idx].compare_exchange_weak(expected, chars_ + pos,
+                                                      kRel, kRelaxed))) {
+        // Publish the new count and make the `ptrs_` write visible.
+        next_ptr_.store(idx + 1, kRel);
+        HWY_DASSERT(!strcmp(Name(idx), name));
+        return idx;
+      }
+
+      // We lost the race. `expected` has been updated.
+      if (HWY_UNLIKELY(!strcmp(expected, name))) {
+        // Done, another thread added the same name. Note that we waste the
+        // extra space in `chars_`, which is fine because it is rare.
+        HWY_DASSERT(!strcmp(Name(idx), name));
+        return idx;
+      }
+
+      // Other thread added a different name. Retry with the next slot.
+    }
+  }
+
+ private:
+  std::atomic<const char*> ptrs_[kMaxStrings];
+  std::atomic<size_t> next_ptr_{1};  // next idx
+  std::atomic<size_t> next_char_{0};
+  char chars_[kMaxStrings * 55];
+};
+
 #if PROFILER_ENABLED
 
 // Implementation details.
@@ -78,13 +156,13 @@ HWY_INLINE_VAR constexpr size_t kNumFlags = 1;
 
 // Upper bounds for fixed-size data structures, guarded via HWY_DASSERT:
 
-// Maximum nesting of zones, chosen such that PerThread is 256 bytes.
+// Maximum nesting of zones, chosen such that `PerWorker` is 256 bytes.
 HWY_INLINE_VAR constexpr size_t kMaxDepth = 13;
 // Reports with more than ~50 are anyway difficult to read.
 HWY_INLINE_VAR constexpr size_t kMaxZones = 128;
-// Upper bound on threads that call `InitThread`, and `thread` arguments. Note
-// that fiber libraries can spawn hundreds of threads. Enough for Turin cores.
-HWY_INLINE_VAR constexpr size_t kMaxThreads = 256;
+// Upper bound on global worker_idx across all pools. Note that fiber libraries
+// can spawn hundreds of threads. Turin has 128-192 cores.
+HWY_INLINE_VAR constexpr size_t kMaxWorkers = 256;
 
 // Type-safe wrapper for zone index plus flags, returned by `AddZone`.
 class ZoneHandle {
@@ -132,47 +210,95 @@ class ZoneHandle {
 
 // Storage for zone names.
 class Zones {
-  static constexpr std::memory_order kRel = std::memory_order_relaxed;
-
  public:
   // Returns a copy of the `name` passed to `AddZone` that returned the
   // given `zone`.
-  const char* Name(ZoneHandle zone) const { return ptrs_[zone.ZoneIdx()]; }
+  const char* Name(ZoneHandle zone) const {
+    return strings_.Name(zone.ZoneIdx());
+  }
 
+  // Can be called concurrently. Calls with the same `name` return the same
+  // `ZoneHandle.ZoneIdx()`.
   ZoneHandle AddZone(const char* name, ProfilerFlags flags) {
-    // Linear search whether it already exists.
-    const size_t num_zones = next_ptr_.load(kRel);
-    HWY_ASSERT(num_zones < kMaxZones);
-    for (size_t zone_idx = 1; zone_idx < num_zones; ++zone_idx) {
-      if (!strcmp(ptrs_[zone_idx], name)) {
-        return ZoneHandle(zone_idx, flags);
-      }
-    }
-
-    // Reserve the next `zone_idx` (index in `ptrs_`).
-    const size_t zone_idx = next_ptr_.fetch_add(1, kRel);
-
-    // Copy into `name` into `chars_`.
-    const size_t len = strlen(name) + 1;
-    const size_t pos = next_char_.fetch_add(len, kRel);
-    HWY_ASSERT(pos + len <= sizeof(chars_));
-    strcpy(chars_ + pos, name);  // NOLINT
-
-    ptrs_[zone_idx] = chars_ + pos;
-    const ZoneHandle zone(zone_idx, flags);
-    HWY_DASSERT(!strcmp(Name(zone), name));
-    return zone;
+    return ZoneHandle(strings_.Add(name), flags);
   }
 
  private:
-  const char* ptrs_[kMaxZones];
-  std::atomic<size_t> next_ptr_{1};  // next zone_idx
-  char chars_[kMaxZones * 70];
-  std::atomic<size_t> next_char_{0};
+  StringTable<kMaxZones> strings_;
 };
 
-// Holds total duration and number of calls. Thread is implicit in the index of
-// this class within the `Accumulators` array.
+// Allows other classes such as `ThreadPool` to register/unregister a function
+// to call during `PrintResults`. This allows us to gather data from the worker
+// threads without having to wait until they exit, and decouples the profiler
+// from other modules. Thread-safe.
+class Funcs {
+  static constexpr auto kAcq = std::memory_order_acquire;
+  static constexpr auto kRel = std::memory_order_release;
+
+ public:
+  // Can be called concurrently with distinct keys.
+  void Add(intptr_t key, ProfilerFunc func) {
+    HWY_ASSERT(key != 0 && key != kPending);  // reserved values
+    HWY_ASSERT(func);                         // not empty
+
+    for (size_t i = 0; i < kMaxFuncs; ++i) {
+      intptr_t expected = 0;
+      // Lost a race with a concurrent `Add`, try the next slot.
+      if (!keys_[i].compare_exchange_strong(expected, kPending, kRel)) {
+        continue;
+      }
+      // We own the slot: move func there.
+      funcs_[i] = std::move(func);
+      keys_[i].store(key, kRel);  // publishes the `func` write.
+      return;
+    }
+
+    HWY_ABORT("Funcs::Add: no free slot, increase kMaxFuncs.");
+  }
+
+  // Can be called concurrently with distinct keys. It is an error to call this
+  // without a prior `Add` of the same key.
+  void Remove(intptr_t key) {
+    HWY_ASSERT(key != 0 && key != kPending);  // reserved values
+
+    for (size_t i = 0; i < kMaxFuncs; ++i) {
+      intptr_t actual = keys_[i].load(kAcq);
+      if (actual == key) {
+        // In general, concurrent removal is fine, but in this specific context,
+        // owners are expected to remove their key exactly once, from the same
+        // thread that added it. In that case, CAS should not fail.
+        if (!keys_[i].compare_exchange_strong(actual, kPending, kRel)) {
+          HWY_WARN("Funcs: CAS failed, why is there a concurrent Remove?");
+        }
+        funcs_[i] = ProfilerFunc();
+        keys_[i].store(0, kRel);  // publishes the `func` write.
+        return;
+      }
+    }
+    HWY_ABORT("Funcs::Remove: failed to find key %p.",
+              reinterpret_cast<void*>(key));
+  }
+
+  void CallAll() const {
+    for (size_t i = 0; i < kMaxFuncs; ++i) {
+      intptr_t key = keys_[i].load(kAcq);  // ensures `funcs_` is visible.
+      // Safely handles concurrent Add/Remove.
+      if (key != 0 && key != kPending) {
+        funcs_[i]();
+      }
+    }
+  }
+
+ private:
+  static constexpr size_t kMaxFuncs = 64;
+  static constexpr intptr_t kPending = -1;
+
+  ProfilerFunc funcs_[kMaxFuncs];  // non-atomic
+  std::atomic<intptr_t> keys_[kMaxFuncs] = {};
+};
+
+// Holds total duration and number of calls. Worker index is implicit in the
+// index of this class within the `Accumulators` array.
 struct Accumulator {
   void Add(ZoneHandle new_zone, uint64_t self_duration) {
     duration += self_duration;
@@ -186,7 +312,7 @@ struct Accumulator {
     num_calls += 1;
   }
 
-  void Assimilate(Accumulator& other) {
+  void Take(Accumulator& other) {
     duration += other.duration;
     other.duration = 0;
 
@@ -206,102 +332,32 @@ struct Accumulator {
 };
 static_assert(sizeof(Accumulator) == 16, "Wrong Accumulator size");
 
-// Modified from `hwy::BitSet4096`. Avoids the second-level `BitSet64`, because
-// we only need `kMaxZones` = 128.
-class ZoneSet {
- public:
-  // No harm if `i` is already set.
-  void Set(size_t i) {
-    HWY_DASSERT(i < kMaxZones);
-    const size_t idx = i / 64;
-    const size_t mod = i % 64;
-    bits_[idx].Set(mod);
-    HWY_DASSERT(Get(i));
-  }
-
-  void Clear(size_t i) {
-    HWY_DASSERT(i < kMaxZones);
-    const size_t idx = i / 64;
-    const size_t mod = i % 64;
-    bits_[idx].Clear(mod);
-    HWY_DASSERT(!Get(i));
-  }
-
-  bool Get(size_t i) const {
-    HWY_DASSERT(i < kMaxZones);
-    const size_t idx = i / 64;
-    const size_t mod = i % 64;
-    return bits_[idx].Get(mod);
-  }
-
-  // Returns lowest i such that Get(i). Caller must ensure Any() beforehand!
-  size_t First() const {
-    HWY_DASSERT(bits_[0].Any() || bits_[1].Any());
-    const size_t idx = bits_[0].Any() ? 0 : 1;
-    return idx * 64 + bits_[idx].First();
-  }
-
-  // Calls `func(i)` for each `i` in the set. It is safe for `func` to modify
-  // the set, but the current Foreach call is only affected if changing one of
-  // the not yet visited BitSet64 for which Any() is true.
-  template <class Func>
-  void Foreach(const Func& func) const {
-    bits_[0].Foreach([&func](size_t mod) { func(mod); });
-    bits_[1].Foreach([&func](size_t mod) { func(64 + mod); });
-  }
-
-  size_t Count() const { return bits_[0].Count() + bits_[1].Count(); }
-
- private:
-  static_assert(kMaxZones == 128, "Update ZoneSet");
-  BitSet64 bits_[2];
-};
-
-// Modified from `ZoneSet`.
-class ThreadSet {
- public:
-  // No harm if `i` is already set.
-  void Set(size_t i) {
-    HWY_DASSERT(i < kMaxThreads);
-    const size_t idx = i / 64;
-    const size_t mod = i % 64;
-    bits_[idx].Set(mod);
-  }
-
-  size_t Count() const {
-    size_t total = 0;
-    for (const BitSet64& bits : bits_) {
-      total += bits.Count();
-    }
-    return total;
-  }
-
- private:
-  BitSet64 bits_[DivCeil(kMaxThreads, size_t{64})];
-};
+using ZoneSet = hwy::BitSet<kMaxZones>;
+using WorkerSet = hwy::BitSet<kMaxWorkers>;
+using AtomicWorkerSet = hwy::AtomicBitSet<kMaxWorkers>;
 
 // Durations are per-CPU, but end to end performance is defined by wall time.
 // Assuming fork-join parallelism, zones are entered by multiple threads
 // concurrently, which means the total number of unique threads is also the
 // degree of concurrency, so we can estimate wall time as CPU time divided by
-// the number of unique threads seen. This is facilitated by unique thread IDs
-// passed in by callers, or taken from thread-local storage.
+// the number of unique threads seen. This is facilitated by unique `global_idx`
+// passed in by callers, or taken from thread-local `GlobalIdx()`.
 //
 // We also want to support varying thread counts per call site, because the same
 // function/zone may be called from multiple pools. `EndRootRun` calls
-// `CountThreadsAndReset` after each top-level `ThreadPool::Run`, which
+// `CountWorkersAndReset` after each top-level `ThreadPool::Run`, which
 // generates one data point summarized via descriptive statistics. Here we
-// implement a simpler version of `hwy::Stats` because we do not require
+// implement a simpler version of `Stats` because we do not require
 // geomean/variance/kurtosis/skewness. Because concurrency is a small integer,
 // we can simply compute sums rather than online moments. There is also only one
-// instance across all threads, hence we do not require `Assimilate`.
+// instance across all threads, hence we do not require a `Take`.
 //
 // Note that subsequently discovered prior work estimates the number of active
 // and idle processors by updating atomic counters whenever they start/finish a
 // task: https://homes.cs.washington.edu/~tom/pubs/quartz.pdf and "Effective
 // performance measurement and analysis of multithreaded applications". We
 // instead accumulate zone durations into per-thread storage.
-// `CountThreadsAndReset` then checks how many were nonzero, which avoids
+// `CountWorkersAndReset` then checks how many were nonzero, which avoids
 // expensive atomic updates and ensures accurate counts per-zone, rather than
 // estimates of current activity at each sample.
 // D. Vyukov's https://github.com/dvyukov/perf-load, also integrated into Linux
@@ -341,42 +397,42 @@ class ConcurrencyStats {
 };
 static_assert(sizeof(ConcurrencyStats) == (8 + 3 * sizeof(size_t)), "");
 
-// Holds the final results across all threads, including `ConcurrencyStats`.
-// There is only one instance because this is updated by the main thread.
+// Holds the final results across all threads, including `ConcurrencyStats`
+// and `PoolStats`, updated/printed by the main thread.
 class Results {
  public:
-  void Assimilate(const size_t thread, const size_t zone_idx,
-                  Accumulator& other) {
-    HWY_DASSERT(thread < kMaxThreads);
+  void TakeAccumulator(const size_t global_idx, const size_t zone_idx,
+                       Accumulator& other) {
+    HWY_DASSERT(global_idx < kMaxWorkers);
     HWY_DASSERT(zone_idx < kMaxZones);
     HWY_DASSERT(other.zone.ZoneIdx() == zone_idx);
 
     visited_zones_.Set(zone_idx);
-    totals_[zone_idx].Assimilate(other);
-    threads_[zone_idx].Set(thread);
+    totals_[zone_idx].Take(other);
+    workers_[zone_idx].Set(global_idx);
   }
 
   // Moves the total number of threads seen during the preceding root-level
   // `ThreadPool::Run` into one data point for `ConcurrencyStats`.
-  void CountThreadsAndReset(const size_t zone_idx) {
+  void CountWorkersAndReset(const size_t zone_idx) {
     HWY_DASSERT(zone_idx < kMaxZones);
-    const size_t num_threads = threads_[zone_idx].Count();
-    // Although threads_[zone_idx] at one point was non-empty, it is reset
+    const size_t num_workers = workers_[zone_idx].Count();
+    // Although workers_[zone_idx] at one point was non-empty, it is reset
     // below, and so can be empty on the second call to this via `PrintResults`,
     // after one from `EndRootRun`. Do not add a data point if empty.
-    if (num_threads != 0) {
-      concurrency_[zone_idx].Notify(num_threads);
+    if (num_workers != 0) {
+      concurrency_[zone_idx].Notify(num_workers);
     }
-    threads_[zone_idx] = ThreadSet();
+    workers_[zone_idx] = WorkerSet();
   }
 
-  void CountThreadsAndReset() {
+  void CountWorkersAndReset() {
     visited_zones_.Foreach(
-        [&](size_t zone_idx) { CountThreadsAndReset(zone_idx); });
+        [&](size_t zone_idx) { CountWorkersAndReset(zone_idx); });
   }
 
-  void Print(const Zones& zones) {
-    const double inv_freq = 1.0 / platform::InvariantTicksPerSecond();
+  void PrintAndReset(const Zones& zones) {
+    const double inv_freq = 1.0 / hwy::platform::InvariantTicksPerSecond();
 
     // Sort by decreasing total (self) cost. `totals_` are sparse, so sort an
     // index vector instead.
@@ -385,11 +441,13 @@ class Results {
     visited_zones_.Foreach([&](size_t zone_idx) {
       indices.push_back(static_cast<uint32_t>(zone_idx));
       // In case the zone exited after `EndRootRun` and was not yet added.
-      CountThreadsAndReset(zone_idx);
+      CountWorkersAndReset(zone_idx);
     });
     std::sort(indices.begin(), indices.end(), [&](uint32_t a, uint32_t b) {
       return totals_[a].duration > totals_[b].duration;
     });
+    printf("   %-40s: %10s x %15s / %5s (%5s %3s-%3s) = %9s\n", "Zone", "Calls",
+           "Cycles/Call", "Avg Count", "Count", "Min", "Max", "Wall Time(s)");
 
     for (uint32_t zone_idx : indices) {
       Accumulator& total = totals_[zone_idx];  // cleared after printing
@@ -412,7 +470,7 @@ class Results {
 
       total = Accumulator();
       concurrency.Reset();
-      // `threads_` was already reset by `CountThreadsAndReset`.
+      // `workers_` was already reset by `CountWorkersAndReset`.
     }
     visited_zones_ = ZoneSet();
   }
@@ -421,7 +479,7 @@ class Results {
   // Indicates which of the array entries are in use.
   ZoneSet visited_zones_;
   Accumulator totals_[kMaxZones];
-  ThreadSet threads_[kMaxZones];
+  WorkerSet workers_[kMaxZones];
   ConcurrencyStats concurrency_[kMaxZones];
 };
 
@@ -437,25 +495,25 @@ static_assert(sizeof(Overheads) == 16, "Wrong Overheads size");
 class Accumulators {
   // We generally want to group threads together because they are often
   // accessed together during a zone, but also want to avoid threads sharing a
-  // cache line. Hence interleave 8 zones per thread.
+  // cache line. Hence interleave 8 zones per worker.
   static constexpr size_t kPerLine = HWY_ALIGNMENT / sizeof(Accumulator);
 
  public:
-  Accumulator& Get(const size_t thread, const size_t zone_idx) {
-    HWY_DASSERT(thread < kMaxThreads);
+  Accumulator& Get(const size_t global_idx, const size_t zone_idx) {
+    HWY_DASSERT(global_idx < kMaxWorkers);
     HWY_DASSERT(zone_idx < kMaxZones);
     const size_t line = zone_idx / kPerLine;
     const size_t offset = zone_idx % kPerLine;
-    return zones_[(line * kMaxThreads + thread) * kPerLine + offset];
+    return zones_[(line * kMaxWorkers + global_idx) * kPerLine + offset];
   }
 
  private:
-  Accumulator zones_[kMaxZones * kMaxThreads];
+  Accumulator zones_[kMaxZones * kMaxWorkers];
 };
 
 // Reacts to zone enter/exit events. Builds a stack of active zones and
 // accumulates self/child duration for each.
-class PerThread {
+class PerWorker {
  public:
   template <typename T>
   static T ClampedSubtract(const T minuend, const T subtrahend) {
@@ -478,8 +536,8 @@ class PerThread {
   }
 
   // Exiting the most recently entered zone (top of stack).
-  void Exit(const uint64_t t_exit, const size_t thread, const ZoneHandle zone,
-            Accumulators& accumulators) {
+  void Exit(const uint64_t t_exit, const size_t global_idx,
+            const ZoneHandle zone, Accumulators& accumulators) {
     HWY_DASSERT(depth_ > 0);
     const size_t depth = depth_ - 1;
     const size_t zone_idx = zone.ZoneIdx();
@@ -491,8 +549,8 @@ class PerThread {
 
     const uint64_t self_duration = ClampedSubtract(
         duration, overheads_.self + overheads_.child + child_total);
-    accumulators.Get(thread, zone_idx).Add(zone, self_duration);
-    // For faster Assimilate() - not all zones are encountered.
+    accumulators.Get(global_idx, zone_idx).Add(zone, self_duration);
+    // For faster TakeAccumulator() - not all zones are encountered.
     visited_zones_.Set(zone_idx);
 
     // Adding this nested time to the parent's `child_total` will
@@ -504,7 +562,8 @@ class PerThread {
 
   // Returns the duration of one enter/exit pair and resets all state. Called
   // via `DetectSelfOverhead`.
-  uint64_t GetFirstDurationAndReset(size_t thread, Accumulators& accumulators) {
+  uint64_t GetFirstDurationAndReset(size_t global_idx,
+                                    Accumulators& accumulators) {
     HWY_DASSERT(depth_ == 0);
 
     HWY_DASSERT(visited_zones_.Count() == 1);
@@ -513,17 +572,18 @@ class PerThread {
     HWY_DASSERT(visited_zones_.Get(zone_idx));
     visited_zones_.Clear(zone_idx);
 
-    Accumulator& zone = accumulators.Get(thread, zone_idx);
+    Accumulator& zone = accumulators.Get(global_idx, zone_idx);
     const uint64_t duration = zone.duration;
     zone = Accumulator();
     return duration;
   }
 
   // Adds all data to `results` and resets it here. Called from the main thread.
-  void MoveTo(const size_t thread, Accumulators& accumulators,
+  void MoveTo(const size_t global_idx, Accumulators& accumulators,
               Results& results) {
     visited_zones_.Foreach([&](size_t zone_idx) {
-      results.Assimilate(thread, zone_idx, accumulators.Get(thread, zone_idx));
+      results.TakeAccumulator(global_idx, zone_idx,
+                              accumulators.Get(global_idx, zone_idx));
     });
     // OK to reset even if we have active zones, because we set `visited_zones_`
     // when exiting the zone.
@@ -532,7 +592,7 @@ class PerThread {
 
  private:
   // 40 bytes:
-  ZoneSet visited_zones_;  // Which `zones_` have been active on this thread.
+  ZoneSet visited_zones_;  // Which `zones_` have been active on this worker.
   uint64_t depth_ = 0;     // Current nesting level for active zones.
   Overheads overheads_;
 
@@ -542,7 +602,7 @@ class PerThread {
   uint64_t child_total_[1 + kMaxDepth] = {0};
 };
 // Enables shift rather than multiplication.
-static_assert(sizeof(PerThread) == 256, "Wrong size");
+static_assert(sizeof(PerWorker) == 256, "Wrong size");
 
 }  // namespace profiler
 
@@ -550,29 +610,41 @@ class Profiler {
  public:
   static HWY_DLLEXPORT Profiler& Get();
 
-  // Assigns the next counter value to the `thread_local` that `Thread` reads.
-  // Must be called exactly once on each thread before any `PROFILER_ZONE`
-  // (without a thread argument) are re-entered by multiple threads.
-  // `Profiler()` takes care of calling this for the main thread. It is fine not
-  // to call it for other threads as long as they only use `PROFILER_ZONE2` or
-  // `PROFILER_ZONE3`, which take a thread argument and do not call `Thread`.
-  static void InitThread() { s_thread = s_num_threads.fetch_add(1); }
+  // Returns `global_idx` from thread-local storage (0 for the main thread).
+  // Used by `PROFILER_ZONE/PROFILER_FUNC`. It is faster to instead pass the
+  // global_idx from `ThreadPool::Run` (if constructed with non-default
+  // `PoolWorkerMapping`) to `PROFILER_ZONE2/PROFILER_ZONE3`.
+  // DEPRECATED: use `GlobalIdx` instead.
+  static size_t Thread() { return s_global_idx; }
+  static size_t GlobalIdx() { return s_global_idx; }
+  // Must be called from all worker threads, and once also on the main thread,
+  // before any use of `PROFILER_ZONE/PROFILER_FUNC`.
+  static void SetGlobalIdx(size_t global_idx) { s_global_idx = global_idx; }
 
-  // Used by `PROFILER_ZONE/PROFILER_FUNC` to read the `thread` argument from
-  // thread_local storage. It is faster to instead pass the ThreadPool `thread`
-  // argument to `PROFILER_ZONE2/PROFILER_ZONE3`. Note that the main thread
-  // calls `InitThread` first, hence its `Thread` returns zero, which matches
-  // the main-first worker numbering used by `ThreadPool`.
-  static size_t Thread() { return s_thread; }
-
-  // Speeds up `UpdateResults` by providing an upper bound on the number of
-  // threads tighter than `profiler::kMaxThreads`. It is not required to be
-  // tight, and threads less than this can still be unused.
-  void SetMaxThreads(size_t max_threads) {
-    HWY_ASSERT(max_threads <= profiler::kMaxThreads);
-    max_threads_ = max_threads;
+  void ReserveWorker(size_t global_idx) {
+    HWY_ASSERT(!workers_reserved_.Get(global_idx));
+    workers_reserved_.Set(global_idx);
   }
-  size_t MaxThreads() const { return max_threads_; }
+
+  void FreeWorker(size_t global_idx) {
+    HWY_ASSERT(workers_reserved_.Get(global_idx));
+    workers_reserved_.Clear(global_idx);
+  }
+
+  // Called by `Zone` from any thread.
+  void Enter(uint64_t t_enter, size_t global_idx) {
+    GetWorker(global_idx).Enter(t_enter);
+  }
+
+  // Called by `~Zone` from any thread.
+  void Exit(uint64_t t_exit, size_t global_idx, profiler::ZoneHandle zone) {
+    GetWorker(global_idx).Exit(t_exit, global_idx, zone, accumulators_);
+  }
+
+  uint64_t GetFirstDurationAndReset(size_t global_idx) {
+    return GetWorker(global_idx)
+        .GetFirstDurationAndReset(global_idx, accumulators_);
+  }
 
   const char* Name(profiler::ZoneHandle zone) const {
     return zones_.Name(zone);
@@ -584,6 +656,13 @@ class Profiler {
   profiler::ZoneHandle AddZone(const char* name,
                                ProfilerFlags flags = ProfilerFlags::kDefault) {
     return zones_.AddZone(name, flags);
+  }
+
+  void AddFunc(void* owner, ProfilerFunc func) {
+    funcs_.Add(reinterpret_cast<intptr_t>(owner), func);
+  }
+  void RemoveFunc(void* owner) {
+    funcs_.Remove(reinterpret_cast<intptr_t>(owner));
   }
 
   // For reporting average concurrency. Called by `ThreadPool::Run` on the main
@@ -604,9 +683,9 @@ class Profiler {
   // broadcasts to "all cores", but there is no universal guarantee.
   //
   // Under the assumption that all concurrency is via our `ThreadPool`, we can
-  // record all `thread` for each outermost (root) `ThreadPool::Run`. This
+  // record all `global_idx` for each outermost (root) `ThreadPool::Run`. This
   // collapses all nested pools into one 'invocation'. We then compute per-zone
-  // concurrency as the number of unique `thread` seen per invocation.
+  // concurrency as the number of unique `global_idx` seen per invocation.
   bool IsRootRun() {
     // We are not the root if a Run was already active.
     return !run_active_.test_and_set(std::memory_order_acquire);
@@ -618,7 +697,7 @@ class Profiler {
   // when `PrintResults` is called.
   void EndRootRun() {
     UpdateResults();
-    results_.CountThreadsAndReset();
+    results_.CountWorkersAndReset();
 
     run_active_.clear(std::memory_order_release);
   }
@@ -627,47 +706,55 @@ class Profiler {
   // zones. Resets all state, can be called again after more zones.
   void PrintResults() {
     UpdateResults();
-    // `CountThreadsAndReset` is fused into `Print`, so do not call it here.
+    // `CountWorkersAndReset` is fused into `Print`, so do not call it here.
 
-    results_.Print(zones_);
+    results_.PrintAndReset(zones_);
+
+    funcs_.CallAll();
   }
 
-  // Only for use by Zone; called from any thread.
-  profiler::PerThread& GetThread(size_t thread) {
-    HWY_DASSERT(thread < max_threads_);
-    return threads_[thread];
-  }
-
-  profiler::Accumulators& Accumulators() { return accumulators_; }
+  // TODO: remove when no longer called.
+  void SetMaxThreads(size_t) {}
 
  private:
   // Sets main thread index, computes self-overhead, and checks timer support.
   Profiler();
 
-  // Moves accumulators into Results. Called from the main thread.
-  void UpdateResults() {
-    for (size_t thread = 0; thread < max_threads_; ++thread) {
-      threads_[thread].MoveTo(thread, accumulators_, results_);
-    }
+  profiler::PerWorker& GetWorker(size_t global_idx) {
+    HWY_DASSERT(workers_reserved_.Get(global_idx));
+    return workers_[global_idx];
   }
 
-  static thread_local size_t s_thread;
-  static std::atomic<size_t> s_num_threads;
-  size_t max_threads_ = profiler::kMaxThreads;
+  // Moves accumulators into Results. Called from the main thread.
+  void UpdateResults() {
+    // Ensure we see all writes from before the workers' release fence.
+    std::atomic_thread_fence(std::memory_order_acquire);
+
+    workers_reserved_.Foreach([&](size_t global_idx) {
+      workers_[global_idx].MoveTo(global_idx, accumulators_, results_);
+    });
+  }
+
+  static thread_local size_t s_global_idx;
+
+  // These are atomic because `ThreadFunc` reserves its slot(s) and even
+  // `ThreadPool::ThreadPool` may be called concurrently. Both have bit `i` set
+  // between calls to `Reserve*(i)` and `Free*(i)`. They are consulted in
+  // `UpdateResults` and to validate arguments in debug builds, and only updated
+  // in the pool/thread init/shutdown.
+  profiler::AtomicWorkerSet workers_reserved_;
 
   std::atomic_flag run_active_ = ATOMIC_FLAG_INIT;
 
-  // To avoid locking, each thread has its own working set. We could access this
+  profiler::Funcs funcs_;
+
+  // To avoid locking, each worker has its own working set. We could access this
   // through `thread_local` pointers, but that is slow to read on x86. Because
-  // our `ThreadPool` anyway passes a `thread` argument, we can instead pass
+  // our `ThreadPool` anyway passes a `global_idx` argument, we can instead pass
   // that through the `PROFILER_ZONE2/PROFILER_ZONE3` macros.
-  profiler::PerThread threads_[profiler::kMaxThreads];
+  profiler::PerWorker workers_[profiler::kMaxWorkers];
 
   profiler::Accumulators accumulators_;
-
-  // Updated by the main thread after the root `ThreadPool::Run` and during
-  // `PrintResults`.
-  profiler::ConcurrencyStats concurrency_[profiler::kMaxZones];
 
   profiler::Results results_;
 
@@ -679,35 +766,33 @@ namespace profiler {
 // RAII for zone entry/exit.
 class Zone {
  public:
-  // Thread-compatible; must not be called concurrently with the same `thread`.
-  // `thread` must be < `HWY_MIN(kMaxThreads, max_threads_)`, and is typically:
-  // - passed from `ThreadPool` via `PROFILER_ZONE2/PROFILER_ZONE3`. NOTE:
-  //   this value must be unique across all pools, which requires an offset to
-  //   a nested pool's `thread` argument.
-  // - obtained from `Profiler::Thread()`, or
-  // - 0 if only a single thread is active.
-  Zone(Profiler& profiler, size_t thread, ZoneHandle zone)
+  // Thread-compatible; must not call concurrently with the same `global_idx`,
+  // which is either:
+  // - passed from `ThreadPool::Run` (if it was constructed with non-default
+  //  `PoolWorkerMapping`) to `PROFILER_ZONE2/PROFILER_ZONE3`;
+  // - obtained from `Profiler::GlobalIdx()`; or
+  // - 0 if running on the main thread.
+  Zone(Profiler& profiler, size_t global_idx, ZoneHandle zone)
       : profiler_(profiler) {
     HWY_FENCE;
     const uint64_t t_enter = timer::Start();
     HWY_FENCE;
-    thread_ = static_cast<uint32_t>(thread);
+    global_idx_ = static_cast<uint32_t>(global_idx);
     zone_ = zone;
-    profiler.GetThread(thread).Enter(t_enter);
+    profiler.Enter(t_enter, global_idx);
     HWY_FENCE;
   }
 
   ~Zone() {
     HWY_FENCE;
     const uint64_t t_exit = timer::Stop();
-    profiler_.GetThread(thread_).Exit(t_exit, thread_, zone_,
-                                      profiler_.Accumulators());
+    profiler_.Exit(t_exit, static_cast<size_t>(global_idx_), zone_);
     HWY_FENCE;
   }
 
  private:
   Profiler& profiler_;
-  uint32_t thread_;
+  uint32_t global_idx_;
   ZoneHandle zone_;
 };
 
@@ -721,9 +806,15 @@ struct ZoneHandle {};
 struct Profiler {
   static HWY_DLLEXPORT Profiler& Get();
 
-  static void InitThread() {}
+  // DEPRECATED: use `GlobalIdx` instead.
   static size_t Thread() { return 0; }
-  void SetMaxThreads(size_t) {}
+  static size_t GlobalIdx() { return 0; }
+  static void SetGlobalIdx(size_t) {}
+  void ReserveWorker(size_t) {}
+  void FreeWorker(size_t) {}
+  void Enter(uint64_t, size_t) {}
+  void Exit(uint64_t, size_t, profiler::ZoneHandle) {}
+  uint64_t GetFirstDurationAndReset(size_t) { return 0; }
 
   const char* Name(profiler::ZoneHandle) const { return nullptr; }
   profiler::ZoneHandle AddZone(const char*,
@@ -731,10 +822,15 @@ struct Profiler {
     return profiler::ZoneHandle();
   }
 
+  void AddFunc(void*, ProfilerFunc) {}
+  void RemoveFunc(void*) {}
+
   bool IsRootRun() { return false; }
   void EndRootRun() {}
-
   void PrintResults() {}
+
+  // TODO: remove when no longer called.
+  void SetMaxThreads(size_t) {}
 };
 
 namespace profiler {
@@ -749,26 +845,26 @@ struct Zone {
 
 // Creates a `Zone` lvalue with a line-dependent name, which records the elapsed
 // time from here until the end of the current scope. `p` is from
-// `Profiler::Get()` or a cached reference. `thread` is < `kMaxThreads`. `zone`
+// `Profiler::Get()` or a cached reference. `global_idx < kMaxWorkers`. `zone`
 // is the return value of `AddZone`. Separating its static init from the `Zone`
 // may be more efficient than `PROFILER_ZONE2`.
-#define PROFILER_ZONE3(p, thread, zone)                               \
-  HWY_FENCE;                                                          \
-  const hwy::profiler::Zone HWY_CONCAT(Z, __LINE__)(p, thread, zone); \
+#define PROFILER_ZONE3(p, global_idx, zone)                               \
+  HWY_FENCE;                                                              \
+  const hwy::profiler::Zone HWY_CONCAT(Z, __LINE__)(p, global_idx, zone); \
   HWY_FENCE
 
 // For compatibility with old callers that do not pass `p` nor `flags`.
-// Also calls AddZone. Usage: `PROFILER_ZONE2(thread, "MyZone");`
-#define PROFILER_ZONE2(thread, name)                                  \
+// Also calls AddZone. Usage: `PROFILER_ZONE2(global_idx, "MyZone");`
+#define PROFILER_ZONE2(global_idx, name)                              \
   static const hwy::profiler::ZoneHandle HWY_CONCAT(zone, __LINE__) = \
       hwy::Profiler::Get().AddZone(name);                             \
-  PROFILER_ZONE3(hwy::Profiler::Get(), thread, HWY_CONCAT(zone, __LINE__))
-#define PROFILER_FUNC2(thread) PROFILER_ZONE2(thread, __func__)
+  PROFILER_ZONE3(hwy::Profiler::Get(), global_idx, HWY_CONCAT(zone, __LINE__))
+#define PROFILER_FUNC2(global_idx) PROFILER_ZONE2(global_idx, __func__)
 
-// OBSOLETE: it is more efficient to pass `thread` from `ThreadPool` to
+// OBSOLETE: it is more efficient to pass `global_idx` from `ThreadPool` to
 // `PROFILER_ZONE2/PROFILER_ZONE3`. Here we get it from thread_local storage.
-#define PROFILER_ZONE(name) PROFILER_ZONE2(hwy::Profiler::Thread(), name)
-#define PROFILER_FUNC PROFILER_FUNC2(hwy::Profiler::Thread())
+#define PROFILER_ZONE(name) PROFILER_ZONE2(hwy::Profiler::GlobalIdx(), name)
+#define PROFILER_FUNC PROFILER_FUNC2(hwy::Profiler::GlobalIdx())
 
 // DEPRECATED: Use `hwy::Profiler::Get()` directly instead.
 #define PROFILER_ADD_ZONE(name) hwy::Profiler::Get().AddZone(name)

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --experimental-wasm-custom-descriptors
-// Flags: --experimental-wasm-js-interop
+// Flags: --allow-natives-syntax --wasm-custom-descriptors
+// Flags: --wasm-js-interop
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 d8.file.execute("test/mjsunit/wasm/prototype-setup-builder.js");

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ class LIEF_API Factory {
   Factory(Factory&&);
   Factory& operator=(Factory&&);
 
-  /// Initiate the factory to construct a PE which the given type
+  /// Initiate the factory to construct a PE with the given type
   static std::unique_ptr<Factory> create(PE_TYPE type);
 
   Factory& add_section(const Section& section) {
@@ -76,8 +76,7 @@ class LIEF_API Factory {
 
   protected:
   Factory() :
-    pe_(std::unique_ptr<Binary>(new Binary{}))
-  {}
+    pe_(std::unique_ptr<Binary>(new Binary{})) {}
   std::unique_ptr<Binary> process();
 
   ok_error_t check_overlapping() const;
@@ -93,4 +92,3 @@ class LIEF_API Factory {
 }
 }
 #endif
-

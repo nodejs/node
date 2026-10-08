@@ -12,7 +12,6 @@
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/fuzzing/random-module-generation.h"
 #include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-feature-flags.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-subtyping.h"
@@ -272,7 +271,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
       compiled_module.ToHandleChecked();
   DirectHandle<WasmInstanceObject> instance =
       GetWasmEngine()
-          ->SyncInstantiate(i_isolate, &thrower, module_object, {}, {})
+          ->SyncInstantiate(i_isolate, &thrower, module_object, {})
           .ToHandleChecked();
   CHECK_EQ(expression_count,
            module_object->native_module()->module()->num_declared_functions);
@@ -367,7 +366,8 @@ void FuzzIt(base::Vector<const uint8_t> data) {
             DisallowGarbageCollection no_gc;
             WasmValue global_value =
                 instance->trusted_data(i_isolate)->GetGlobalValue(
-                    i_isolate, instance->module()->globals[i]);
+                    i_isolate,
+                    instance->trusted_data(i_isolate)->module()->globals[i]);
             WasmValue func_value(function_result, global_value.type());
             CheckEquivalent(global_value, func_value,
                             *module_object->native_module()->module());

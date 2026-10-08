@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,12 +39,10 @@ class LIEF_API PogoEntry : public Object {
   PogoEntry(uint32_t start_rva, uint32_t size, std::string name) :
     start_rva_{start_rva},
     size_{size},
-    name_{std::move(name)}
-  {}
+    name_{std::move(name)} {}
 
   PogoEntry(uint32_t start_rva, uint32_t size) :
-    PogoEntry{start_rva, size, ""}
-  {}
+    PogoEntry{start_rva, size, ""} {}
 
   PogoEntry& operator=(const PogoEntry&) = default;
   ~PogoEntry() override = default;
@@ -75,7 +73,8 @@ class LIEF_API PogoEntry : public Object {
 
   void accept(Visitor& visitor) const override;
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const PogoEntry& entry);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const PogoEntry& entry);
 
   protected:
   uint32_t start_rva_ = 0;

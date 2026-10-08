@@ -1,5 +1,5 @@
-/* Copyright 2021 - 2025 R. Thomas
- * Copyright 2021 - 2025 Quarkslab
+/* Copyright 2021 - 2026 R. Thomas
+ * Copyright 2021 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@
 
 #include "LIEF/Visitor.hpp"
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 void ContentType::accept(Visitor& visitor) const {
   visitor.visit(*this);
@@ -29,5 +29,4 @@ std::string ContentType::print() const {
   return oid() + " (" + oid_to_string(oid()) + ")";
 }
 
-}
 }

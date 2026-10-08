@@ -79,6 +79,14 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   // Returns whether the current scope declares any variables.
   bool DeclaresLocals(Mode mode) const;
 
+  // Returns whether the current scope should be ignored by debugger scope
+  // numbers.
+  bool ShouldIgnore() const;
+
+  // Advances the iterator by the given scope number, skipping ignored scopes.
+  // Returns true if the scope was found, false otherwise.
+  bool AdvanceToScopeNumber(int scope_number = 0);
+
   // Set variable value and return true on success.
   bool SetVariableValue(Handle<String> variable_name,
                         DirectHandle<Object> new_value);

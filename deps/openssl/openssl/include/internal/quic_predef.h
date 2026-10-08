@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -44,6 +44,7 @@ typedef struct quic_conn_st QUIC_CONNECTION;
 typedef struct quic_xso_st QUIC_XSO;
 typedef struct quic_listener_st QUIC_LISTENER;
 typedef struct quic_domain_st QUIC_DOMAIN;
+typedef struct quic_rstream_qparm_st QUIC_RSTREAM_QPARM;
 
 #endif
 

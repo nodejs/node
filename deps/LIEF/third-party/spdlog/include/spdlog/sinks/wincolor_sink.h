@@ -31,10 +31,10 @@ public:
 
     // change the color for the given level
     void set_color(level::level_enum level, std::uint16_t color);
-    void log(const details::log_msg &msg) final override;
-    void flush() final override;
-    void set_pattern(const std::string &pattern) override final;
-    void set_formatter(std::unique_ptr<spdlog::formatter> sink_formatter) override final;
+    void log(const details::log_msg &msg) override;
+    void flush() override;
+    void set_pattern(const std::string &pattern) override;
+    void set_formatter(std::unique_ptr<spdlog::formatter> sink_formatter) override;
     void set_color_mode(color_mode mode);
 
 protected:
@@ -78,5 +78,5 @@ using wincolor_stderr_sink_st = wincolor_stderr_sink<details::console_nullmutex>
 }  // namespace spdlog
 
 #ifdef SPDLOG_HEADER_ONLY
-    #include "wincolor_sink-inl.h"
+#include "wincolor_sink-inl.h"
 #endif

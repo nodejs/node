@@ -29,8 +29,31 @@ struct WasmTag;
 class WasmInterpreterRuntime {
  public:
   WasmInterpreterRuntime(const WasmModule* module, Isolate* isolate,
-                         IndirectHandle<WasmInstanceObject> instance_object,
+                         DirectHandle<WasmTrustedInstanceData> trusted_data,
                          WasmInterpreter::CodeMap* codemap);
+
+  // RAII scope that publishes the currently-executing WasmTrustedInstanceData
+  // to the runtime for the duration of one C++ entry. The handle is rooted in
+  // the caller's HandleScope, so the GC keeps it alive while this scope is on
+  // the C++ stack. Nested scopes save/restore the previous trusted data, which
+  // is required for cross-instance call_indirect / re-entry.
+  //
+  // Every public method of WasmInterpreterRuntime that ultimately calls
+  // wasm_trusted_instance_data() must be invoked while an InstanceScope is
+  // active on this runtime (debug DCHECKs enforce this).
+  class V8_NODISCARD InstanceScope final {
+   public:
+    InstanceScope(WasmInterpreterRuntime* runtime,
+                  DirectHandle<WasmTrustedInstanceData> trusted_data);
+    ~InstanceScope();
+
+    InstanceScope(const InstanceScope&) = delete;
+    InstanceScope& operator=(const InstanceScope&) = delete;
+
+   private:
+    WasmInterpreterRuntime* const runtime_;
+    IndirectHandle<WasmTrustedInstanceData> const previous_trusted_data_;
+  };
 
   inline WasmBytecode* GetFunctionBytecode(uint32_t func_index);
 
@@ -43,27 +66,34 @@ class WasmInterpreterRuntime {
 
   inline Isolate* GetIsolate() const { return isolate_; }
 
-  inline uint8_t* GetGlobalAddress(uint32_t index);
+  inline Address GetGlobalAddress(uint32_t index);
   inline DirectHandle<Object> GetGlobalRef(uint32_t index) const;
   inline void SetGlobalRef(uint32_t index, DirectHandle<Object> ref) const;
 
-  int32_t MemoryGrow(uint32_t delta_pages);
-  inline uint64_t MemorySize() const;
-  inline bool IsMemory64() const;
-  inline uint8_t* GetMemoryStart() const { return memory_start_; }
+  int32_t MemoryGrow(uint32_t memory_index, uint32_t delta_pages);
+  inline uint64_t MemorySize(uint32_t memory_index) const;
+  inline bool IsMemory64(uint32_t memory_index) const;
+  inline uint8_t* GetMemoryStart(uint32_t memory_index) const;
+  inline uint8_t* GetMemoryStart() const;
+  inline size_t GetMemorySize(uint32_t memory_index) const;
   inline size_t GetMemorySize() const;
 
   bool MemoryInit(const uint8_t*& current_code, uint32_t data_segment_index,
-                  uint64_t dst, uint64_t src, uint64_t size);
-  bool MemoryCopy(const uint8_t*& current_code, uint64_t dst, uint64_t src,
+                  uint32_t memory_index, uint64_t dst, uint64_t src,
                   uint64_t size);
-  bool MemoryFill(const uint8_t*& current_code, uint64_t dst, uint32_t value,
+  bool MemoryCopy(const uint8_t*& current_code, uint32_t dst_memory_index,
+                  uint32_t src_memory_index, uint64_t dst, uint64_t src,
                   uint64_t size);
+  bool MemoryFill(const uint8_t*& current_code, uint32_t memory_index,
+                  uint64_t dst, uint32_t value, uint64_t size);
 
   bool AllowsAtomicsWait() const;
-  int32_t AtomicNotify(uint64_t effective_index, int32_t val);
-  int32_t I32AtomicWait(uint64_t effective_index, int32_t val, int64_t timeout);
-  int32_t I64AtomicWait(uint64_t effective_index, int64_t val, int64_t timeout);
+  int32_t AtomicNotify(uint64_t effective_index, uint32_t memory_index,
+                       int32_t val);
+  int32_t I32AtomicWait(uint64_t effective_index, uint32_t memory_index,
+                        int32_t val, int64_t timeout);
+  int32_t I64AtomicWait(uint64_t effective_index, uint32_t memory_index,
+                        int64_t val, int64_t timeout);
 
   inline bool WasmStackCheck(const uint8_t* current_bytecode,
                              const uint8_t*& code);
@@ -84,14 +114,16 @@ class WasmInterpreterRuntime {
   void TableFill(const uint8_t*& current_code, uint32_t table_index,
                  uint32_t count, DirectHandle<Object> value, uint32_t start);
 
-  static void UpdateIndirectCallTable(Isolate* isolate,
-                                      DirectHandle<WasmInstanceObject> instance,
-                                      uint32_t table_index);
+  static void UpdateIndirectCallTable(
+      Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
+      uint32_t table_index);
   static void ClearIndirectCallCacheEntry(
-      Isolate* isolate, DirectHandle<WasmInstanceObject> instance,
+      Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
       uint32_t table_index, uint32_t entry_index);
 
-  static void UpdateMemoryAddress(DirectHandle<WasmInstanceObject> instance);
+  static void UpdateMemoryAddress(
+      Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
+      uint32_t memory_index);
 
   inline void DataDrop(uint32_t index);
   inline void ElemDrop(uint32_t index);
@@ -164,10 +196,27 @@ class WasmInterpreterRuntime {
 
   // GC helpers.
   DirectHandle<Map> RttCanon(uint32_t type_index) const;
-  std::pair<DirectHandle<WasmStruct>, const StructType*> StructNewUninitialized(
-      uint32_t index) const;
-  std::pair<DirectHandle<WasmArray>, const ArrayType*> ArrayNewUninitialized(
-      uint32_t length, uint32_t array_index) const;
+  struct StructNewResult {
+    DirectHandle<WasmStruct> struct_object;
+    const StructType* type;
+    // See the matching comment on ArrayNewResult::needs_write_barrier.
+    bool needs_write_barrier;
+  };
+  StructNewResult StructNewUninitialized(uint32_t index) const;
+
+  struct ArrayNewResult {
+    DirectHandle<WasmArray> array;
+    const ArrayType* type;
+    SharedFlag is_shared;
+    // True when the array was allocated in a space that requires a
+    // generational/shared write barrier for ref-typed element stores
+    // (i.e. any old-space allocation). For young-space allocations the
+    // barrier can be skipped during initialization.
+    bool needs_write_barrier;
+  };
+  ArrayNewResult ArrayNewUninitialized(uint32_t length,
+                                       uint32_t array_index) const;
+
   WasmRef WasmArrayNewSegment(uint32_t array_index, uint32_t segment_index,
                               uint32_t offset, uint32_t length);
   bool WasmArrayInitSegment(uint32_t segment_index, WasmRef wasm_array,
@@ -240,12 +289,22 @@ class WasmInterpreterRuntime {
                                           uint32_t current_slot_offset);
   void PurgeIndirectCallCache(uint32_t table_index);
 
-  ExternalCallResult CallExternalJSFunction(const uint8_t*& current_code,
-                                            const WasmModule* module,
-                                            DirectHandle<Object> object_ref,
-                                            const FunctionSig* sig,
-                                            uint32_t* sp,
-                                            uint32_t return_slot_offset);
+  // {callsite_sig} drives stack/ref-slot layout and argument marshalling;
+  // {callee_canonical_sig}, when non-null, is the callee's declared (canonical)
+  // signature used to typecheck JS return values (see the definition for
+  // details).
+  ExternalCallResult CallExternalJSFunction(
+      const uint8_t*& current_code, const WasmModule* module,
+      DirectHandle<Object> object_ref, const FunctionSig* callsite_sig,
+      uint32_t* sp, uint32_t return_slot_offset,
+      const CanonicalSig* callee_canonical_sig = nullptr);
+
+  // Overload that typechecks against a callee's canonical return type. Used
+  // by CallExternalJSFunction for indirect/cross-instance calls to JS imports,
+  // where the callee's declared signature is only available as a canonical
+  // type (not as a module-relative {ValueType}).
+  WasmRef JSToWasmObject(WasmRef extern_ref,
+                         CanonicalValueType value_type) const;
 
   ExternalCallResult CallExternalWasmFunction(uint32_t function_index,
                                               DirectHandle<Object> object_ref,
@@ -254,22 +313,24 @@ class WasmInterpreterRuntime {
                                               uint32_t return_slot_offset,
                                               uint32_t ref_stack_fp_offset);
 
-  inline Address EffectiveAddress(uint64_t index) const;
+  inline Address EffectiveAddress(uint32_t memory_index, uint64_t index) const;
 
   // Checks if [index, index+size) is in range [0, WasmMemSize), where
-  // WasmMemSize is the size of the Memory object associated to
-  // {instance_object_}. (Notice that only a single memory is supported).
+  // WasmMemSize is the size of the Wasm memory identified by {memory_index}
+  // in the currently-executing instance.
   // If not in range, {size} is clamped to its valid range.
-  // It in range, out_address contains the (virtual memory) address of the
+  // If in range, out_address contains the (virtual memory) address of the
   // {index}th memory location in the Wasm memory.
-  inline bool BoundsCheckMemRange(uint64_t index, uint64_t* size,
-                                  Address* out_address) const;
+  inline bool BoundsCheckMemRange(uint32_t memory_index, uint64_t index,
+                                  uint64_t* size, Address* out_address) const;
 
-  void InitGlobalAddressCache();
   inline void InitMemoryAddresses();
   void InitIndirectFunctionTables();
-  bool CheckIndirectCallSignature(uint32_t table_index, uint32_t entry_index,
-                                  uint32_t sig_index) const;
+
+  enum class IndirectCallCheck { kValid, kInvalid, kNull };
+  IndirectCallCheck CheckIndirectCallSignature(uint32_t table_index,
+                                               uint32_t entry_index,
+                                               uint32_t sig_index) const;
 
   void StoreRefArgsIntoStackSlots(uint8_t* sp, uint32_t ref_stack_fp_offset,
                                   const FunctionSig* sig);
@@ -304,7 +365,19 @@ class WasmInterpreterRuntime {
 
   Isolate* isolate_;
   const WasmModule* module_;
-  IndirectHandle<WasmInstanceObject> instance_object_;
+
+  // Stack-published handle to the currently-executing WasmTrustedInstanceData.
+  // Set by an InstanceScope on every C++ entry into the runtime and restored on
+  // scope exit; the handle is rooted in the calling C++ frame's HandleScope
+  // (which the GC scans), so the runtime never keeps a global handle to it.
+  // All trusted-data accesses (see wasm_trusted_instance_data()) read this
+  // off-cage, validated value instead of re-loading the in-cage
+  // WasmInstanceObject::trusted_data_ IndirectPointerHandle on every call,
+  // which would let a sandbox attacker same-tag swap it mid-execution. The
+  // WasmInstanceObject (needed only for stack traces) is reached on demand via
+  // the trusted `instance_object()` back-link.
+  IndirectHandle<WasmTrustedInstanceData> current_trusted_data_;
+
   WasmInterpreter::CodeMap* codemap_;
 
   uint32_t start_function_index_;
@@ -319,6 +392,8 @@ class WasmInterpreterRuntime {
   base::TimeTicks fuzzer_start_time_;
 
   uint8_t* memory_start_;
+  std::vector<uint8_t*> memory_starts_;
+  std::vector<bool> is_memory64_;
 
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -329,37 +404,42 @@ class WasmInterpreterRuntime {
 #pragma clang diagnostic pop
 #endif  // __clang__
 
-  std::vector<uint8_t*> global_addresses_;
-
   struct IndirectCallValue {
-    enum class Mode { kInvalid, kInternalCall, kExternalCall };
+    // Describes where an indirect-call dispatch table entry leads, decided
+    // when the entry is first populated (see ExecuteIndirectCall):
+    enum class Mode {
+      kInvalid,
+      // Target is a Wasm function in the current instance; dispatched directly
+      // by this interpreter via ExecuteFunction(). {func_index} is valid.
+      kInternalCall,
+      // Target is reached across an instance/JS boundary: either a Wasm
+      // function in a different instance, or an imported JS function.
+      // {func_index} is unused (kInvalidFunctionIndex); the callee is
+      // re-resolved from the table entry at call time.
+      kExternalCall,
+    };
 
-    static const uint32_t kInlineSignatureSentinel = UINT_MAX;
     static const uint32_t kInvalidFunctionIndex = UINT_MAX;
 
     IndirectCallValue()
         : mode(Mode::kInvalid),
           func_index(kInvalidFunctionIndex),
-          sig_index({kInlineSignatureSentinel}),
-          signature(nullptr) {}
-    IndirectCallValue(uint32_t func_index_, wasm::CanonicalTypeIndex sig_index)
-        : mode(Mode::kInternalCall),
-          func_index(func_index_),
-          sig_index(sig_index),
-          signature(nullptr) {}
-    IndirectCallValue(const FunctionSig* signature_,
-                      wasm::CanonicalTypeIndex sig_index)
-        : mode(Mode::kExternalCall),
-          func_index(kInvalidFunctionIndex),
-          sig_index(sig_index),
-          signature(signature_) {}
+          sig_index({CanonicalTypeIndex::Invalid()}) {}
+    IndirectCallValue(Mode mode, uint32_t func_index_,
+                      CanonicalTypeIndex sig_index)
+        : mode(mode), func_index(func_index_), sig_index(sig_index) {
+      DCHECK_NE(mode, Mode::kInvalid);
+      // Exactly the external calls carry no function index; internal calls
+      // always carry a valid one.
+      DCHECK_EQ(mode == Mode::kExternalCall,
+                func_index_ == kInvalidFunctionIndex);
+    }
 
     operator bool() const { return mode != Mode::kInvalid; }
 
     Mode mode;
     uint32_t func_index;
     wasm::CanonicalTypeIndex sig_index;
-    const FunctionSig* signature;
   };
   typedef std::vector<IndirectCallValue> IndirectCallTable;
   std::vector<IndirectCallTable> indirect_call_tables_;
@@ -467,9 +547,8 @@ class WasmInterpreterRuntime {
 
 class V8_EXPORT_PRIVATE InterpreterHandle {
  public:
-  static constexpr ExternalPointerTag kManagedTag = kGenericManagedTag;
-
-  InterpreterHandle(Isolate* isolate, DirectHandle<Tuple2> interpreter_object);
+  InterpreterHandle(Isolate* isolate,
+                    DirectHandle<WasmTrustedInstanceData> trusted_data);
 
   WasmInterpreter* interpreter() { return &interpreter_; }
   const WasmModule* module() const { return module_; }
@@ -500,7 +579,7 @@ class V8_EXPORT_PRIVATE InterpreterHandle {
   InterpreterHandle(const InterpreterHandle&) = delete;
   InterpreterHandle& operator=(const InterpreterHandle&) = delete;
 
-  static ModuleWireBytes GetBytes(Tagged<Tuple2> interpreter_object);
+  static ModuleWireBytes GetBytes(Tagged<WasmTrustedInstanceData> trusted_data);
 
   inline WasmInterpreterThread::State RunExecutionLoop(
       WasmInterpreterThread* thread, bool called_from_js);

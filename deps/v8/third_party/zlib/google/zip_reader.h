@@ -130,6 +130,11 @@ class ZipReader {
     // ./a      -> DOT/a
     base::FilePath path;
 
+    // Physical path from the ZIP Central Directory, before applying the
+    // Info-ZIP Unicode Path Extra Field. This is converted and normalized in
+    // the same way as `path`.
+    base::FilePath physical_path;
+
     // Size of the original uncompressed file, or 0 if the entry is a directory.
     // This value should not be trusted, because it is stored as metadata in the
     // ZIP archive and can be different from the real uncompressed size.

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,14 +43,14 @@ class LIEF_API Import : public Object {
   friend class Builder;
 
   public:
-  using entries_t        = std::vector<std::unique_ptr<ImportEntry>>;
-  using it_entries       = ref_iterator<entries_t&, ImportEntry*>;
-  using it_const_entries = const_ref_iterator<const entries_t&, const ImportEntry*>;
+  using entries_t = std::vector<std::unique_ptr<ImportEntry>>;
+  using it_entries = ref_iterator<entries_t&, ImportEntry*>;
+  using it_const_entries =
+      const_ref_iterator<const entries_t&, const ImportEntry*>;
 
   Import(const details::pe_import& import);
   Import(std::string name) :
-    name_(std::move(name))
-  {}
+    name_(std::move(name)) {}
   Import() = default;
   ~Import() override = default;
 
@@ -72,11 +72,11 @@ class LIEF_API Import : public Object {
   }
 
   /// Iterator over the PE::ImportEntry
-  it_const_entries entries() const {
+  it_const_entries entries() const LIEF_LIFETIMEBOUND {
     return entries_;
   }
 
-  it_entries entries() {
+  it_entries entries() LIEF_LIFETIMEBOUND {
     return entries_;
   }
 
@@ -84,31 +84,33 @@ class LIEF_API Import : public Object {
   /// **identical** to the content of the Import Lookup Table (`ILT`) until the
   /// image is bound.
   ///
-  /// \warning This address could change when re-building the binary
+  /// @warning This address could change when re-building the binary
   uint32_t import_address_table_rva() const {
     return iat_rva_;
   }
 
   /// Return the relative virtual address of the import lookup table.
   ///
-  /// \warning This address could change when re-building the binary
+  /// @warning This address could change when re-building the binary
   uint32_t import_lookup_table_rva() const {
     return ilt_rva_;
   }
 
   /// Return the Function's RVA from the import address table (`IAT`)
   ///
-  /// \warning This address could change when re-building the binary
+  /// @warning This address could change when re-building the binary
   result<uint32_t> get_function_rva_from_iat(const std::string& function) const;
 
   /// Return the imported function with the given name
-  ImportEntry* get_entry(const std::string& name) {
-    return const_cast<ImportEntry*>(static_cast<const Import*>(this)->get_entry(name));
+  ImportEntry* get_entry(const std::string& name) LIEF_LIFETIMEBOUND {
+    return const_cast<ImportEntry*>(
+        static_cast<const Import*>(this)->get_entry(name)
+    );
   }
-  const ImportEntry* get_entry(const std::string& name) const;
+  const ImportEntry* get_entry(const std::string& name) const LIEF_LIFETIMEBOUND;
 
   /// Return the library's name (e.g. `kernel32.dll`)
-  const std::string& name() const {
+  const std::string& name() const LIEF_LIFETIMEBOUND {
     return name_;
   }
 
@@ -126,46 +128,46 @@ class LIEF_API Import : public Object {
   /// It should be the one at index PE::DataDirectory::TYPES::IMPORT_TABLE
   ///
   /// If the data directory can't be found, return a nullptr
-  DataDirectory* directory() {
+  DataDirectory* directory() LIEF_LIFETIMEBOUND {
     return directory_;
   }
 
-  const DataDirectory* directory() const {
+  const DataDirectory* directory() const LIEF_LIFETIMEBOUND {
     return directory_;
   }
 
-  /// Return the PE::DataDirectory associated associated with the IAT.
+  /// Return the PE::DataDirectory associated with the IAT.
   /// It should be the one at index PE::DataDirectory::TYPES::IAT
   ///
   /// If the data directory can't be found, return a nullptr
-  DataDirectory* iat_directory() {
+  DataDirectory* iat_directory() LIEF_LIFETIMEBOUND {
     return iat_directory_;
   }
 
-  const DataDirectory* iat_directory() const {
+  const DataDirectory* iat_directory() const LIEF_LIFETIMEBOUND {
     return iat_directory_;
   }
 
   /// Add a new import entry (i.e. an imported function)
-  ImportEntry& add_entry(ImportEntry entry) {
-    entries_.emplace_back(new ImportEntry(std::move(entry)));
+  ImportEntry& add_entry(const ImportEntry& entry) LIEF_LIFETIMEBOUND {
+    entries_.emplace_back(new ImportEntry(entry));
     return *entries_.back();
   }
 
   /// Add a new import entry with the given name (i.e. an imported function)
-  ImportEntry& add_entry(const std::string& name) {
+  ImportEntry& add_entry(const std::string& name) LIEF_LIFETIMEBOUND {
     entries_.emplace_back(new ImportEntry(name));
-  return *entries_.back();
+    return *entries_.back();
   }
 
   /// Remove the import entry with the given name.
   ///
-  /// Return true if the deletion succeed, false otherwise
+  /// Return true if the deletion succeeded, false otherwise
   bool remove_entry(const std::string& name);
 
   /// Remove the import entry with the given ordinal number
   ///
-  /// Return true if the deletion succeed, false otherwise
+  /// Return true if the deletion succeeded, false otherwise
   bool remove_entry(uint32_t ordinal);
 
   void import_lookup_table_rva(uint32_t rva) {
@@ -176,7 +178,7 @@ class LIEF_API Import : public Object {
     iat_rva_ = rva;
   }
 
-  /// \private
+  /// @private
   LIEF_LOCAL size_t nb_original_func() const {
     return nb_original_func_;
   }

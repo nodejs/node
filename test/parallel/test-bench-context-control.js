@@ -1,4 +1,4 @@
-// Flags: --no-warnings
+// Flags: --experimental-bench --no-warnings
 'use strict';
 
 const common = require('../common');
@@ -36,7 +36,7 @@ const { createRunner } = require('node:bench');
   }, 4));
 
   const recordedCompletion = runner.bench(
-    'recorded', { samples: 3 }, common.mustCall((b) => {
+    'recorded', { samples: 3, warmup: 0 }, common.mustCall((b) => {
       const detail = { source: 'worker', value: 1n };
       const sample = b.record({
         __proto__: null,
@@ -64,6 +64,7 @@ const { createRunner } = require('node:bench');
   ];
   const variableCompletion = runner.bench('variable batch', {
     samples: variableSamples.length,
+    warmup: 0,
   }, common.mustCall((b) => {
     b.record(variableSamples[b.index]);
   }, variableSamples.length));
@@ -103,4 +104,30 @@ const { createRunner } = require('node:bench');
     operations: 1,
   }), { code: 'ERR_INVALID_STATE' });
   assert.throws(() => closedContext.done(), { code: 'ERR_INVALID_STATE' });
+
+  // A rate of 2e-7 operations per second is below the resolution of the
+  // histogram used to summarize these samples, so it is recorded as zero. It
+  // must not raise the median confidence interval above the median.
+  const slowRunner = createRunner({ yieldBetweenSamples: false });
+  const slowSample =
+    { __proto__: null, duration_ns: 5_000_000_000_000_000n, operations: 1 };
+  const fastSample =
+    { __proto__: null, duration_ns: 1_000_000_000n, operations: 1 };
+  const slowSamples =
+    [slowSample, slowSample, slowSample, fastSample, fastSample];
+  const slowCompletion = slowRunner.bench('sub-resolution rates', {
+    samples: slowSamples.length,
+    warmup: 0,
+  }, common.mustCall((b) => {
+    b.record(slowSamples[b.index]);
+  }, slowSamples.length));
+
+  await slowRunner.run().toArray();
+  const slow = await slowCompletion;
+  assert.deepStrictEqual(
+    slow.samples.map(({ rate }) => rate), [2e-7, 2e-7, 2e-7, 1, 1]);
+  const { median, medianConfidenceInterval } = slow.summary;
+  assert.strictEqual(median, 2e-7);
+  assert.strictEqual(medianConfidenceInterval.lower <= median, true);
+  assert.strictEqual(median <= medianConfidenceInterval.upper, true);
 })().then(common.mustCall());

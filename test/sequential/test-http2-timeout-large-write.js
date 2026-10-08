@@ -2,6 +2,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const http2 = require('http2');
 
@@ -17,15 +18,18 @@ const http2 = require('http2');
 //    that the backing stream is still active and writing
 // 4) Our timer fires, we resume the socket and start at 1)
 
-const writeSize = 33554432;
+const writeSize = 3000000;
 const minReadSize = 500000;
 const serverTimeout = common.platformTimeout(500);
 let offsetTimeout = common.platformTimeout(100);
+let didReceiveData = false;
 const server = http2.createSecureServer({
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem'),
 });
-const onTimeout = common.mustCallAtLeast(0);
+const onTimeout = common.mustCallAtLeast(() => {
+  assert.ok(!didReceiveData, 'Should not timeout');
+}, 0);
 server.on('stream', common.mustCall((stream) => {
   const content = Buffer.alloc(writeSize, 0x44);
 
@@ -44,8 +48,10 @@ server.setTimeout(serverTimeout);
 server.on('timeout', onTimeout);
 
 server.listen(0, common.mustCall(() => {
-  const client = http2.connect(`https://localhost:${server.address().port}`,
-                               { rejectUnauthorized: false });
+  const client = http2.connect(`https://localhost:${server.address().port}`, {
+    rejectUnauthorized: false,
+    settings: { initialWindowSize: 65535 },
+  });
 
   const req = client.request({ ':path': '/' });
   req.end();
@@ -55,11 +61,13 @@ server.listen(0, common.mustCall(() => {
   let firstReceivedAt;
   req.on('data', common.mustCallAtLeast((buf) => {
     if (receivedBufferLength === 0) {
+      didReceiveData = false;
       firstReceivedAt = Date.now();
     }
     receivedBufferLength += buf.length;
     if (receivedBufferLength >= minReadSize &&
         receivedBufferLength < writeSize) {
+      didReceiveData = true;
       receivedBufferLength = 0;
       req.pause();
       setTimeout(

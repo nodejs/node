@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,27 +44,24 @@ struct strong_symbol_t {
 
 class StrongSymbolHash {
   public:
-  size_t operator()(const strong_symbol_t& sym) const noexcept{
+  size_t operator()(const strong_symbol_t& sym) const noexcept {
     return std::hash<std::string>{}(sym.symbol + std::to_string(sym.libord));
   }
 };
 
-class strong_map_t : public std::unordered_map<
-  strong_symbol_t, ChainedBindingInfoList*, StrongSymbolHash
->
-{};
+class strong_map_t
+  : public std::unordered_map<strong_symbol_t, ChainedBindingInfoList*,
+                              StrongSymbolHash> {};
 
 uint64_t DyldChainedFixupsCreator::binding_rebase_t::addr() const {
-  return type == binding_rebase_t::BINDING ?
-         binding->address() : fixup->address();
+  return type == binding_rebase_t::BINDING ? binding->address() : fixup->address();
 }
 
 
 DYLD_CHAINED_PTR_FORMAT
-  DyldChainedFixupsCreator::pointer_format(const Binary& bin, size_t imp_count)
-{
+DyldChainedFixupsCreator::pointer_format(const Binary& bin, size_t imp_count) {
   if (imp_count > MAX_IMPORTS) {
-    LIEF_ERR("Too many imports (0x{:06x})", imp_count);
+    LIEF_ERR("Too many imports ({:#08x})", imp_count);
     return DYLD_CHAINED_PTR_FORMAT::NONE;
   }
   // Logic taken from ld64 -- OutputFile::chainedPointerFormat()
@@ -80,9 +77,9 @@ DYLD_CHAINED_PTR_FORMAT
   return DYLD_CHAINED_PTR_FORMAT::PTR_64;
 }
 
-result<size_t> DyldChainedFixupsCreator::lib2ord(
-    const Binary& bin, const Symbol& sym, const std::string& lib)
-{
+result<size_t> DyldChainedFixupsCreator::lib2ord(const Binary& bin,
+                                                 const Symbol& sym,
+                                                 const std::string& lib) {
   {
     int ord = sym.library_ordinal();
     if (Symbol::is_valid_index_ordinal(ord)) {
@@ -99,20 +96,19 @@ result<size_t> DyldChainedFixupsCreator::lib2ord(
   }
 
   if (lib.empty()) {
-    LIEF_ERR("No library for the symbol: '{}'", sym.name());
+    LIEF_ERR("No library found for symbol '{}'", sym.name());
     return make_error_code(lief_errors::not_found);
   }
 
   auto libs = bin.libraries();
 
-  auto it = std::find_if(libs.begin(), libs.end(),
-    [&lib] (const DylibCommand& dylib) {
-      return dylib.name() == lib;
-    }
-  );
+  auto it =
+      std::find_if(libs.begin(), libs.end(), [&lib](const DylibCommand& dylib) {
+        return dylib.name() == lib;
+      });
 
   if (it == libs.end()) {
-    LIEF_ERR("Library '{}' not found!", lib);
+    LIEF_ERR("Library '{}' not found", lib);
     return make_error_code(lief_errors::not_found);
   }
 
@@ -122,9 +118,8 @@ result<size_t> DyldChainedFixupsCreator::lib2ord(
 }
 
 
-const Symbol* DyldChainedFixupsCreator::find_symbol(
-  const Binary& bin, const std::string& name)
-{
+const Symbol* DyldChainedFixupsCreator::find_symbol(const Binary& bin,
+                                                    const std::string& name) {
   for (const Symbol& sym : bin.symbols()) {
     if (sym.name() == name) {
       return &sym;
@@ -133,53 +128,51 @@ const Symbol* DyldChainedFixupsCreator::find_symbol(
   return nullptr;
 }
 
-DyldChainedFixupsCreator& DyldChainedFixupsCreator::add_binding(
-    uint64_t address, std::string symbol, std::string library,
-    uint64_t addend, bool weak)
-{
-  bindings_.push_back({
-    address, std::move(library), std::move(symbol), weak, addend
-  });
+DyldChainedFixupsCreator&
+    DyldChainedFixupsCreator::add_binding(uint64_t address, std::string symbol,
+                                          std::string library, uint64_t addend,
+                                          bool weak) {
+  bindings_.push_back({address, std::move(library), std::move(symbol), weak,
+                       addend});
   return *this;
 }
 
 
 ok_error_t DyldChainedFixupsCreator::process_relocations(
-  Binary& target, DYLD_CHAINED_PTR_FORMAT ptr_fmt)
-{
+    Binary& target, DYLD_CHAINED_PTR_FORMAT ptr_fmt
+) {
   const uint64_t imagebase = target.imagebase();
   for (const reloc_info_t& info : relocations_) {
     auto fixup = std::make_unique<RelocationFixup>(ptr_fmt, target.imagebase());
     fixup->address_ = info.addr;
-    SegmentCommand* segment = target.segment_from_virtual_address(fixup->address());
+    SegmentCommand* segment =
+        target.segment_from_virtual_address(fixup->address());
     if (segment == nullptr) {
-      LIEF_WARN("Can't find segment for the relocation: 0x{:016x}", fixup->address());
+      LIEF_WARN("Segment not found for relocation at {:#018x}", fixup->address());
       continue;
     }
 
     switch (ptr_fmt) {
       case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E:
       case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND24:
-        {
-          details::dyld_chained_ptr_arm64e_rebase raw;
-          std::memset(&raw, 0, sizeof(raw));
-          details::pack_target(raw, info.target - imagebase);
-          fixup->set(raw);
-          break;
-        }
+      {
+        details::dyld_chained_ptr_arm64e_rebase raw{};
+        details::pack_target(raw, info.target - imagebase);
+        fixup->set(raw);
+        break;
+      }
       case DYLD_CHAINED_PTR_FORMAT::PTR_64:
-        {
-          details::dyld_chained_ptr_64_rebase raw;
-          std::memset(&raw, 0, sizeof(raw));
-          details::pack_target(raw, info.target - imagebase);
-          fixup->set(raw);
-          break;
-        }
+      {
+        details::dyld_chained_ptr_64_rebase raw{};
+        details::pack_target(raw, info.target - imagebase);
+        fixup->set(raw);
+        break;
+      }
       default:
-        {
-          LIEF_WARN("Chained ptr format: {} is not supported", to_string(ptr_fmt));
-          break;
-        }
+      {
+        LIEF_WARN("Unsupported chained pointer format: {}", to_string(ptr_fmt));
+        break;
+      }
     }
     segment_chains_[segment].emplace_back(*fixup);
     segment->relocations_.push_back(std::move(fixup));
@@ -187,18 +180,18 @@ ok_error_t DyldChainedFixupsCreator::process_relocations(
   return ok();
 }
 
-ok_error_t DyldChainedFixupsCreator::process_bindings(
-  Binary& target, strong_map_t& strong_map,
-  std::unordered_map<std::string, size_t>& symbols_idx,
-  DyldChainedFixups* cmd,
-  DyldChainedFixups::binding_info_t& all_bindings
-)
-{
+DyldChainedFixups::binding_info_t DyldChainedFixupsCreator::process_bindings(
+    Binary& target, strong_map_t& strong_map,
+    std::unordered_map<std::string, size_t>& symbols_idx, DyldChainedFixups* cmd
+) {
+  DyldChainedFixups::binding_info_t bindings;
+  bindings.reserve(bindings_.size());
+
   for (const binding_info_t& info : bindings_) {
     const Symbol* sym = find_symbol(target, info.symbol);
 
     if (sym == nullptr) {
-      LIEF_ERR("Can't resolve symbol: '{}", info.symbol);
+      LIEF_ERR("Failed to resolve symbol: '{}'", info.symbol);
       continue;
     }
 
@@ -209,13 +202,14 @@ ok_error_t DyldChainedFixupsCreator::process_bindings(
 
     SegmentCommand* segment = target.segment_from_virtual_address(info.address);
     if (segment == nullptr) {
-      LIEF_ERR("Can't find segment associated with address: 0x{:016x}", info.address);
+      LIEF_ERR("Segment not found for address {:#018x}", info.address);
       continue;
     }
 
     const size_t ord = *libord;
 
-    auto binding = std::make_unique<ChainedBindingInfo>(imports_format_, info.weak);
+    auto binding =
+        std::make_unique<ChainedBindingInfo>(imports_format_, info.weak);
     binding->symbol_ = const_cast<Symbol*>(sym);
     binding->library_ordinal_ = ord;
     binding->addend_ = info.addend;
@@ -241,9 +235,9 @@ ok_error_t DyldChainedFixupsCreator::process_bindings(
       cmd->internal_bindings_.push_back(std::move(binding_list));
     }
 
-    all_bindings.push_back(std::move(binding));
+    bindings.push_back(std::move(binding));
   }
-  return ok();
+  return bindings;
 }
 
 DyldChainedFixups* DyldChainedFixupsCreator::create(Binary& target) {
@@ -253,20 +247,18 @@ DyldChainedFixups* DyldChainedFixupsCreator::create(Binary& target) {
   cmd->size_ = sizeof(details::linkedit_data_command);
 
   cmd->fixups_version_ = fixups_version_;
-  cmd->symbols_format_ = /* uncompressed */0;
+  cmd->symbols_format_ = /* uncompressed */ 0;
   cmd->imports_format_ = DYLD_CHAINED_FORMAT::IMPORT;
-
-  DyldChainedFixups::binding_info_t all_bindings;
-  all_bindings.reserve(bindings_.size());
 
   std::unordered_map<std::string, size_t> symbols_idx;
   strong_map_t strong_map;
-  if (!process_bindings(target, strong_map, symbols_idx, cmd.get(), all_bindings)) {
-    return nullptr;
-  }
+
+  cmd->all_bindings_ =
+      process_bindings(target, strong_map, symbols_idx, cmd.get());
 
   const size_t import_count = cmd->internal_bindings_.size();
-  const DYLD_CHAINED_PTR_FORMAT import_ptr_fmt = pointer_format(target, import_count);
+  const DYLD_CHAINED_PTR_FORMAT import_ptr_fmt =
+      pointer_format(target, import_count);
 
   if (!process_relocations(target, import_ptr_fmt)) {
     return nullptr;
@@ -295,36 +287,38 @@ DyldChainedFixups* DyldChainedFixupsCreator::create(Binary& target) {
       for (size_t i = 0; i < chains.size(); ++i) {
         uint32_t next = 0;
         binding_rebase_t& element = chains[i];
-        //LIEF_DEBUG("    0x{:016x}: {}", binding->address(), binding->symbol()->name());
+        // LIEF_DEBUG("    {:#018x}: {}", binding->address(),
+        // binding->symbol()->name());
         uint64_t address = element.addr();
         uint64_t target_offset = address - imagebase;
-        LIEF_DEBUG("      address:        0x{:016x}", address);
-        LIEF_DEBUG("      target  offset: 0x{:016x}", target_offset);
-        LIEF_DEBUG("      segment offset: 0x{:016x}", segment_offset);
-        assert (target_offset >= segment_offset);
+        LIEF_DEBUG("      address:        {:#018x}", address);
+        LIEF_DEBUG("      target_offset:  {:#018x}", target_offset);
+        LIEF_DEBUG("      segment_offset: {:#018x}", segment_offset);
+        assert(target_offset >= segment_offset);
         uint64_t offset = target_offset - segment_offset;
 
         uint32_t page_idx = offset / page_size;
         uint32_t delta = offset % page_size;
         LIEF_DEBUG("      page_idx: {}", page_idx);
-        LIEF_DEBUG("      delta: 0x{:016x}", delta);
-        LIEF_DEBUG("      offset: 0x{:016x}" , offset);
+        LIEF_DEBUG("      delta: {:#018x}", delta);
+        LIEF_DEBUG("      offset: {:#018x}", offset);
 
         if (i < chains.size() - 1) {
           binding_rebase_t& next_element = chains[i + 1];
           uint64_t next_address = next_element.addr();
           uint64_t next_target_offset = next_address - imagebase;
           uint64_t next_offset = next_target_offset - segment_offset;
-          assert (next_target_offset >= segment_offset);
+          assert(next_target_offset >= segment_offset);
 
           uint32_t next_page_idx = next_offset / page_size;
           uint32_t next_delta = next_offset % page_size;
-          LIEF_DEBUG("        [next]address:        0x{:016x}", address);
-          LIEF_DEBUG("        [next]target  offset: 0x{:016x}", next_target_offset);
+          LIEF_DEBUG("        [next] address:        {:#018x}", address);
+          LIEF_DEBUG("        [next] target_offset:  {:#018x}",
+                     next_target_offset);
 
-          LIEF_DEBUG("        [next]page_idx: {}", next_page_idx);
-          LIEF_DEBUG("        [next]delta: 0x{:016x}", next_delta);
-          LIEF_DEBUG("        [next]offset: 0x{:016x}" , next_offset);
+          LIEF_DEBUG("        [next] page_idx: {}", next_page_idx);
+          LIEF_DEBUG("        [next] delta: {:#018x}", next_delta);
+          LIEF_DEBUG("        [next] offset: {:#018x}", next_offset);
 
           if (next_page_idx == page_idx) {
             assert((next_delta - delta) % stride == 0);
@@ -334,71 +328,68 @@ DyldChainedFixups* DyldChainedFixupsCreator::create(Binary& target) {
         LIEF_DEBUG("      next: {} (stride: {})", next, stride);
 
         if (page_idx >= info.page_start.size()) {
-          info.page_start.resize(page_idx + 1, /* DYLD_CHAINED_PTR_START_NONE */0xFFFF);
+          info.page_start.resize(page_idx + 1,
+                                 /* DYLD_CHAINED_PTR_START_NONE */ 0xFFFF);
           info.page_start[page_idx] = delta;
         }
         if (element.is_binding()) {
-          const uint16_t ordinal = symbols_idx.at(element.binding->symbol()->name());
+          const uint16_t ordinal =
+              symbols_idx.at(element.binding->symbol()->name());
           switch (import_ptr_fmt) {
             case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E_USERLAND24:
-              {
-                details::dyld_chained_ptr_arm64e_bind24 raw;
-                std::memset(&raw, 0, sizeof(raw));
-                raw.bind = 1;
-                raw.next = next;
-                raw.ordinal = ordinal;
-                element.binding->set(raw);
-                break;
-              }
+            {
+              details::dyld_chained_ptr_arm64e_bind24 raw{};
+              raw.bind = 1;
+              raw.next = next;
+              raw.ordinal = ordinal;
+              element.binding->set(raw);
+              break;
+            }
 
             case DYLD_CHAINED_PTR_FORMAT::PTR_ARM64E:
-              {
-                details::dyld_chained_ptr_arm64e_bind raw;
-                std::memset(&raw, 0, sizeof(raw));
-                raw.bind = 1;
-                raw.next = next;
-                raw.ordinal = ordinal;
-                element.binding->set(raw);
-                break;
-              }
+            {
+              details::dyld_chained_ptr_arm64e_bind raw{};
+              raw.bind = 1;
+              raw.next = next;
+              raw.ordinal = ordinal;
+              element.binding->set(raw);
+              break;
+            }
 
             case DYLD_CHAINED_PTR_FORMAT::PTR_64:
-              {
-                details::dyld_chained_ptr_64_bind raw;
-                std::memset(&raw, 0, sizeof(raw));
-                raw.bind = 1;
-                raw.next = next;
-                raw.ordinal = ordinal;
-                element.binding->set(raw);
-                break;
-              }
+            {
+              details::dyld_chained_ptr_64_bind raw{};
+              raw.bind = 1;
+              raw.next = next;
+              raw.ordinal = ordinal;
+              element.binding->set(raw);
+              break;
+            }
             default:
-              {
-                LIEF_WARN("Chained ptr format: {} is not supported", to_string(import_ptr_fmt));
-                break;
-              }
+            {
+              LIEF_WARN("Unsupported chained pointer format: {}",
+                        to_string(import_ptr_fmt));
+              break;
+            }
           }
 
-          element.binding->offset(
-              (element.binding->address() - segment.virtual_address()) +
-              segment.file_offset()
-          );
+          element.binding->offset((element.binding->address() -
+                                   segment.virtual_address()) +
+                                  segment.file_offset());
         } else {
           assert(element.is_fixup());
           element.fixup->next(next);
-          element.fixup->offset(
-              (element.binding->address() - segment.virtual_address()) +
-              segment.file_offset()
-          );
+          element.fixup->offset((element.binding->address() -
+                                 segment.virtual_address()) +
+                                segment.file_offset());
         }
       }
     }
     LIEF_DEBUG("Adding chained_starts_in_segment[{}] ({} pages)",
-        info.segment.name(), info.page_count());
+               info.segment.name(), info.page_count());
     cmd->chained_starts_in_segment_.push_back(info);
   }
 
-  cmd->all_bindings_ = std::move(all_bindings);
   LoadCommand* added = target.add(std::move(cmd));
   if (added == nullptr) {
     return nullptr;
@@ -408,8 +399,7 @@ DyldChainedFixups* DyldChainedFixupsCreator::create(Binary& target) {
 
 
 DyldChainedFixupsCreator&
-  DyldChainedFixupsCreator::add_relocation(uint64_t address, uint64_t target)
-{
+    DyldChainedFixupsCreator::add_relocation(uint64_t address, uint64_t target) {
   relocations_.push_back({address, target});
   return *this;
 }

@@ -273,6 +273,13 @@ Indicates if [internationalization][] is supported.
 
 Indicates whether `IPv6` is supported on this platform.
 
+### `hasV8Sandbox`
+
+* [\<boolean>][<boolean>]
+
+Indicates whether V8 was built with its sandbox enabled, in which case
+`ArrayBuffer`s cannot reference memory outside of it.
+
 ### `hasSQLite`
 
 * [\<boolean>][<boolean>]

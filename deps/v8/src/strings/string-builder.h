@@ -7,6 +7,7 @@
 
 #include "src/common/assert-scope.h"
 #include "src/handles/handles.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/string.h"
 
 namespace v8 {
@@ -14,37 +15,39 @@ namespace internal {
 
 class FixedArrayBuilder {
  public:
-  explicit FixedArrayBuilder(Isolate* isolate, int initial_capacity);
+  explicit FixedArrayBuilder(Isolate* isolate, uint32_t initial_capacity);
   explicit FixedArrayBuilder(DirectHandle<FixedArray> backing_store);
 
   // Creates a FixedArrayBuilder which allocates its backing store lazily when
   // EnsureCapacity is called.
   static FixedArrayBuilder Lazy(Isolate* isolate);
 
-  bool HasCapacity(int elements);
-  void EnsureCapacity(Isolate* isolate, int elements);
+  bool HasCapacity(uint32_t elements);
+  void EnsureCapacity(Isolate* isolate, uint32_t elements);
 
   void Add(Tagged<Object> value);
   void Add(Tagged<Smi> value);
 
   DirectHandle<FixedArray> array() { return array_; }
 
-  int length() { return length_; }
+  // The functions return an alias instead of uint32_t to force appropriate
+  // conversions at the callsites.
+  SafeHeapObjectSize length() { return SafeHeapObjectSize(length_); }
 
-  int capacity();
+  SafeHeapObjectSize capacity();
 
  private:
   explicit FixedArrayBuilder(Isolate* isolate);
 
   DirectHandle<FixedArray> array_;
-  int length_;
+  uint32_t length_;
   bool has_non_smi_elements_;
 };
 
 class ReplacementStringBuilder {
  public:
   ReplacementStringBuilder(Heap* heap, DirectHandle<String> subject,
-                           int estimated_part_count);
+                           uint32_t estimated_part_count);
 
   // Caution: Callers must ensure the builder has enough capacity.
   static inline void AddSubjectSlice(FixedArrayBuilder* builder, int from,
@@ -67,7 +70,7 @@ class ReplacementStringBuilder {
 
  private:
   void AddElement(DirectHandle<Object> element);
-  void EnsureCapacity(int elements);
+  void EnsureCapacity(uint32_t elements);
 
   Heap* heap_;
   FixedArrayBuilder array_builder_;
@@ -105,6 +108,10 @@ class IncrementalStringBuilder {
   V8_INLINE int EscapedLengthIfCurrentPartFits(int length);
 
   void AppendString(DirectHandle<String> string);
+
+  // Appends {string} if its length is less than {max_length}, otherwise
+  // appends that prefix plus "<...>". Useful for error messages.
+  void AppendStringCapped(DirectHandle<String> string, uint32_t max_length);
 
   MaybeDirectHandle<String> Finish();
 

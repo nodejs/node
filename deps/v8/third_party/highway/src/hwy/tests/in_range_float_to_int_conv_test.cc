@@ -28,14 +28,9 @@ namespace HWY_NAMESPACE {
 namespace {
 
 // HWY_IN_RANGE_F2I_CONV_TEST_CONST_ASSERT(condition, msg) checks that condition
-// is true using static_assert if constexpr BitCastScalar is available and
-// Highway is being compiled in C++11 mode.
-//
-// Otherwise, if constexpr BitCastScalar is not available or Highway is being
-// compiled in C++11 mode, HWY_IN_RANGE_F2I_CONV_TEST_CONST_ASSERT(condition,
-// msg) checks that condition is true using a run-time assertion.
-#if (HWY_HAS_BUILTIN(__builtin_bit_cast) || HWY_COMPILER_MSVC >= 1926) && \
-    __cpp_constexpr >= 201304L
+// is true using static_assert if constexpr BitCastScalar is available, and
+// otherwise uses a run-time assertion.
+#if (HWY_HAS_BUILTIN(__builtin_bit_cast) || HWY_COMPILER_MSVC >= 1926)
 #define HWY_IN_RANGE_F2I_CONV_TEST_CONST_ASSERT(condition, msg) \
   static_assert((condition), msg)
 #else

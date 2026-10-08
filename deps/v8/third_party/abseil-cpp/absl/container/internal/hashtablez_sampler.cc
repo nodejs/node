@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <utility>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
@@ -81,7 +82,6 @@ void HashtablezInfo::PrepareForSampling(int64_t stride,
   capacity.store(0, std::memory_order_relaxed);
   size.store(0, std::memory_order_relaxed);
   num_erases.store(0, std::memory_order_relaxed);
-  num_insert_hits.store(0, std::memory_order_relaxed);
   num_rehashes.store(0, std::memory_order_relaxed);
   max_probe_length.store(0, std::memory_order_relaxed);
   total_probe_length.store(0, std::memory_order_relaxed);
@@ -148,7 +148,7 @@ HashtablezInfo* SampleSlow(SamplingState& next_sample,
                            size_t value_size, uint16_t soo_capacity) {
   if (ABSL_PREDICT_FALSE(ShouldForceSampling())) {
     next_sample.next_sample = 1;
-    const int64_t old_stride = exchange(next_sample.sample_stride, 1);
+    const int64_t old_stride = std::exchange(next_sample.sample_stride, 1);
     HashtablezInfo* result = GlobalHashtablezSampler().Register(
         old_stride, inline_element_size, key_size, value_size, soo_capacity);
     return result;
@@ -167,7 +167,8 @@ HashtablezInfo* SampleSlow(SamplingState& next_sample,
       g_hashtablez_sample_parameter.load(std::memory_order_relaxed));
 
   next_sample.next_sample = next_stride;
-  const int64_t old_stride = exchange(next_sample.sample_stride, next_stride);
+  const int64_t old_stride =
+      std::exchange(next_sample.sample_stride, next_stride);
   // Small values of interval are equivalent to just sampling next time.
   ABSL_ASSERT(next_stride >= 1);
 

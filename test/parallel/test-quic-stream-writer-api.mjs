@@ -6,6 +6,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -44,7 +45,7 @@ await clientSession.opened;
   await w.write(encoder.encode('async write'));
   const n = w.endSync();
   assert.strictEqual(n, 11);
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 
@@ -59,7 +60,7 @@ await clientSession.opened;
   assert.strictEqual(result, true);
   const n = w.endSync();
   assert.strictEqual(n, 12);
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 
@@ -73,7 +74,7 @@ await clientSession.opened;
   ]);
   const n = w.endSync();
   assert.strictEqual(n, 12);
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 
@@ -84,7 +85,7 @@ await clientSession.opened;
   w.writeSync(encoder.encode('end async'));
   const n = await w.end();
   assert.strictEqual(n, 9);
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 
@@ -122,7 +123,7 @@ await clientSession.opened;
   assert.ok(drain === null || drain instanceof Promise);
   w.writeSync(encoder.encode('capacity'));
   w.endSync();
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 
@@ -130,8 +131,8 @@ await clientSession.opened;
 {
   const stream = await clientSession.createBidirectionalStream();
   const w = stream.writer;
-  const testError = new Error('writer fail test');
-  w.fail(testError);
+  const reason = null;
+  w.fail(reason);
   // After fail, canWrite is null.
   assert.strictEqual(w.canWrite, null);
   // drainableProtocol returns null when errored.
@@ -141,8 +142,12 @@ await clientSession.opened;
   assert.strictEqual(w.endSync(), -1);
   // WriteSync after fail returns false.
   assert.strictEqual(w.writeSync(encoder.encode('x')), false);
-  // Write after fail throws with the original error.
-  await assert.rejects(w.write(encoder.encode('x')), testError);
+  // Stored failure takes precedence over per-operation cancellation.
+  const signal = AbortSignal.abort('operation cancelled');
+  await assert.rejects(
+    w.write(encoder.encode('x'), { signal }),
+    (error) => error === reason);
+  await assert.rejects(w.end({ signal }), (error) => error === reason);
   // Don't await stream.closed here — the reset stream may not trigger
   // server onstream (no data was sent before fail), so the server
   // won't count it. The stream is cleaned up when the session closes.

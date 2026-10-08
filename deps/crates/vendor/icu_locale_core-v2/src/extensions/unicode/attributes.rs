@@ -5,10 +5,10 @@
 use super::Attribute;
 
 #[cfg(feature = "alloc")]
+use crate::ParseError;
+#[cfg(feature = "alloc")]
 use crate::parser::SubtagIterator;
 use crate::shortvec::ShortBoxSlice;
-#[cfg(feature = "alloc")]
-use crate::ParseError;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 use core::ops::Deref;
@@ -107,7 +107,7 @@ impl Attributes {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::extensions::unicode::{attribute, Attributes};
+    /// use icu::locale::extensions::unicode::{Attributes, attribute};
     /// use writeable::assert_writeable_eq;
     ///
     /// let mut attributes = Attributes::from_vec_unchecked(vec![

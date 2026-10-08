@@ -101,10 +101,11 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
 
   bool arm64_addsubimm_max_seen = false;
   int prev_page = 0;
+  std::string prev_name;
+  Tagged_t prev_ptr = 0;
 
   for (auto& entry : gen.sorted_roots()) {
     Tagged_t ptr = entry.first;
-    // CHECK_LT(ptr, kRegularPageSize);
     const std::list<RootIndex>& roots = entry.second;
 
     for (RootIndex root : roots) {
@@ -121,12 +122,30 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
 
       static const char* kPreString = "  static constexpr Tagged_t k";
       const std::string& name = gen.camel_name(root);
-      size_t ptr_len = ceil(log2(ptr) / 4.0);
-      // Full line is: "kPreString|name = 0x.....;"
-      size_t len = strlen(kPreString) + name.length() + 5 + ptr_len + 1;
       out << kPreString << name << " =";
-      if (len > 80) out << "\n     ";
-      out << " 0x" << std::hex << ptr << std::dec << ";\n";
+
+      // Emit absolute values for constants we need to copy to other files.
+      if (prev_ptr == 0 || ptr > 0xff00 || root == RootIndex::kUndefinedValue ||
+          root == RootIndex::kNullValue || root == RootIndex::kTrueValue ||
+          root == RootIndex::kFalseValue || root == RootIndex::kempty_string) {
+        size_t ptr_len = ptr == 0 ? 1 : ceil(log2(ptr) / 4.0);
+        // Full line is: "kPreString|name = 0x.....;"
+        size_t len = strlen(kPreString) + name.length() + 5 + ptr_len + 1;
+        if (len > 80) out << "\n     ";
+        out << " 0x" << std::hex << ptr << std::dec << ";\n";
+      } else {
+        // Otherwise emit relative definitions to reduce churn.
+        std::string rel_str =
+            " k" + prev_name + " + " + std::to_string(ptr - prev_ptr);
+        // Full line is: "kPreString|name = k|prev_name + .....;"
+        size_t len =
+            strlen(kPreString) + name.length() + 2 + rel_str.length() + 1;
+        if (len > 80) out << "\n     ";
+        out << rel_str << ";\n";
+      }
+
+      prev_name = name;
+      prev_ptr = ptr;
     }
   }
 
@@ -155,5 +174,22 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
       << "#endif  // V8_ROOTS_" << defname << "_\n";
 }
 
+void StaticRootsTableGen::write_text(Isolate* isolate, const char* file) {
+#if V8_STATIC_ROOTS_BOOL
+  CHECK(file);
+  std::ofstream out(file, std::ios::binary);
+
+  StaticRootsTableGenImpl gen(isolate);
+
+  for (auto& entry : gen.sorted_roots()) {
+    Tagged_t ptr = entry.first;
+    const std::list<RootIndex>& roots = entry.second;
+
+    for (RootIndex root : roots) {
+      out << "0x" << std::hex << ptr << " = k" << gen.camel_name(root) << "\n";
+    }
+  }
+#endif
+}
 }  // namespace internal
 }  // namespace v8

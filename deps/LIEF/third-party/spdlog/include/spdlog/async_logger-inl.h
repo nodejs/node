@@ -4,7 +4,7 @@
 #pragma once
 
 #ifndef SPDLOG_HEADER_ONLY
-    #include <spdlog/async_logger.h>
+#include <spdlog/async_logger.h>
 #endif
 
 #include <spdlog/details/thread_pool.h>

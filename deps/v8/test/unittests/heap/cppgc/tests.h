@@ -9,8 +9,8 @@
 #include "include/cppgc/heap.h"
 #include "include/cppgc/macros.h"
 #include "include/cppgc/platform.h"
-#include "src/heap/cppgc/heap.h"
-#include "src/heap/cppgc/trace-event.h"
+#include "src/heap/cppgc-internal/heap.h"
+#include "src/heap/cppgc-internal/trace-event.h"
 #include "test/unittests/heap/cppgc/test-platform.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

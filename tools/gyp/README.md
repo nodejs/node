@@ -11,7 +11,7 @@ When used as a command line utility, __gyp-next__ can also be installed with [pi
 * `uv tool install gyp-next`
 ```
 Installing to a new venv 'gyp-next'
-  installed package gyp-next 0.13.0, installed using Python 3.10.6
+  installed package gyp-next 0.13.0, installed using Python 3.14.7
   These apps are now globally available
     - gyp
 done! ✨ 🌟 ✨

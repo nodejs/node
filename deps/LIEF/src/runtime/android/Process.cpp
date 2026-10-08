@@ -1,0 +1,100 @@
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+#include "LIEF/runtime/Process.hpp"
+#include "LIEF/runtime/android/Process.hpp"
+#include "LIEF/runtime/android/Property.hpp"
+
+#include "linux_android_shared/Process.hpp"
+#include "logging.hpp"
+
+#include <array>
+#include <cstdlib>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/system_properties.h>
+
+extern char** environ; // NOLINT
+
+namespace LIEF::runtime {
+int32_t Process::pid() {
+  return getpid();
+}
+
+uint32_t Process::tid() {
+  return static_cast<uint32_t>(::gettid());
+}
+
+uint32_t Process::page_size() {
+  static uint32_t PAGESZ = ::getpagesize();
+  return PAGESZ;
+}
+
+optional<std::string> Process::get_env(const std::string& key) {
+  if (const char* value = ::getenv(key.c_str())) {
+    return std::string(value);
+  }
+  return nullopt();
+}
+
+Process::EnvVars Process::get_envs() {
+  EnvVars out;
+  for (char** env = environ; *env != nullptr; ++env) {
+    std::string env_str = *env;
+    size_t pos = env_str.find('=');
+    if (pos == std::string::npos) {
+      LIEF_DEBUG("Error: can't find '=' delimiter in {}", env_str);
+      continue;
+    }
+    std::string key = env_str.substr(0, pos);
+    std::string value = env_str.substr(pos + 1);
+    out.vars.insert({key, value});
+  }
+  return out;
+}
+
+namespace android {
+optional<Property> Process::get_system_property(const std::string& name) {
+  const prop_info* pi = __system_property_find(name.c_str());
+  if (pi == nullptr) {
+    return nullopt();
+  }
+  return Property::create_from(*pi);
+}
+
+Process::properties_t Process::properties() {
+  properties_t properties;
+  int ret = __system_property_foreach(
+      [](const prop_info* pi, void* data) {
+        auto& props = *reinterpret_cast<properties_t*>(data);
+        if (pi == nullptr) {
+          return;
+        }
+        props.push_back(Property::create_from(*pi));
+      },
+      &properties
+  );
+  if (ret) {
+    LIEF_WARN("Error while iterating over the system properties");
+  }
+  return properties;
+}
+
+std::string Process::cmdline() {
+  return LIEF::runtime::linux_android::cmdline().value_or("");
+}
+
+}
+}

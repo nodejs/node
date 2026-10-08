@@ -8,6 +8,7 @@ const common = require('../common');
 const assert = require('assert');
 const { Writable } = require('stream');
 const {
+  dump,
   from,
   fromSync,
   pull,
@@ -16,13 +17,15 @@ const {
   toReadableSync,
 } = require('stream/iter');
 
+const kNeverResolves = new Promise(() => { });
+
 function collect(readable) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    readable.on('data', (chunk) => chunks.push(chunk));
-    readable.on('end', () => resolve(Buffer.concat(chunks)));
-    readable.on('error', reject);
-  });
+  const { promise, resolve, reject } = Promise.withResolvers();
+  const chunks = [];
+  readable.on('data', (chunk) => chunks.push(chunk));
+  readable.on('end', () => resolve(Buffer.concat(chunks)));
+  readable.on('error', reject);
+  return promise;
 }
 
 // =============================================================================
@@ -98,11 +101,111 @@ async function testErrorAsync() {
   const readable = toReadable(gen());
 
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const chunk of readable) {
-      // Consume until error
-    }
+    // Consume until error
+    await dump(readable);
   }, { message: 'source failed' });
+}
+
+async function testFalsyErrorAsync() {
+  for (const [reason, code] of [
+    [null, 'ERR_FALSY_VALUE_REJECTION'],
+    [{ __proto__: null }, 'ERR_OPERATION_FAILED'],
+  ]) {
+    const source = {
+      __proto__: null,
+      [Symbol.asyncIterator]() {
+        return {
+          __proto__: null,
+          next() { return Promise.reject(reason); },
+          return() { return Promise.resolve({ done: true }); },
+        };
+      },
+    };
+
+    await assert.rejects(collect(toReadable(source)), (error) => {
+      return error.code === code && error.reason === reason;
+    });
+  }
+}
+
+async function testFalsyThenableCleanupError() {
+  const reason = null;
+  const source = {
+    __proto__: null,
+    [Symbol.asyncIterator]() {
+      return {
+        __proto__: null,
+        next() { return kNeverResolves; },
+        return() {
+          return {
+            __proto__: null,
+            then(resolve, reject) { reject(reason); },
+          };
+        },
+      };
+    },
+  };
+  const readable = toReadable(source);
+  const { promise, resolve } = Promise.withResolvers();
+  readable.once('error', resolve);
+
+  readable.destroy();
+
+  const result = await promise;
+  assert.strictEqual(result.code, 'ERR_FALSY_VALUE_REJECTION');
+  assert.strictEqual(result.reason, reason);
+}
+
+async function testSynchronousIteratorReturn() {
+  let returnCalled = false;
+  const source = {
+    __proto__: null,
+    [Symbol.asyncIterator]() {
+      return {
+        __proto__: null,
+        next() { return kNeverResolves; },
+        return() {
+          returnCalled = true;
+          return { __proto__: null, done: true };
+        },
+      };
+    },
+  };
+  const readable = toReadable(source);
+  const { promise, resolve } = Promise.withResolvers();
+  readable.once('close', resolve);
+
+  readable.destroy();
+  await promise;
+  assert.strictEqual(returnCalled, true);
+}
+
+async function testFalsyCleanupGetterErrors() {
+  for (const [symbol, create] of [
+    [Symbol.asyncIterator, toReadable],
+    [Symbol.iterator, toReadableSync],
+  ]) {
+    const reason = false;
+    const source = {
+      __proto__: null,
+      [symbol]() {
+        return {
+          __proto__: null,
+          next() { return kNeverResolves; },
+          get return() { throw reason; },
+        };
+      },
+    };
+    const readable = create(source);
+    const { promise, resolve } = Promise.withResolvers();
+    readable.once('error', resolve);
+
+    readable.destroy();
+
+    const result = await promise;
+    assert.strictEqual(result.code, 'ERR_FALSY_VALUE_REJECTION');
+    assert.strictEqual(result.reason, reason);
+  }
 }
 
 // =============================================================================
@@ -155,16 +258,16 @@ async function testDestroyAsync() {
 
   // Read a couple chunks then destroy
   const chunks = [];
-  await new Promise((resolve, reject) => {
-    readable.on('data', (chunk) => {
-      chunks.push(chunk);
-      if (chunks.length >= 3) {
-        readable.destroy();
-      }
-    });
-    readable.on('close', resolve);
-    readable.on('error', reject);
+  const { promise, resolve, reject } = Promise.withResolvers();
+  readable.on('data', (chunk) => {
+    chunks.push(chunk);
+    if (chunks.length >= 3) {
+      readable.destroy();
+    }
   });
+  readable.on('close', resolve);
+  readable.on('error', reject);
+  await promise;
 
   assert.ok(chunks.length >= 3);
   assert.ok(returnCalled, 'iterator.return() should have been called');
@@ -190,15 +293,20 @@ async function testDestroyDuringBackpressure() {
   const readable = toReadable(gen(), { highWaterMark: 1 });
 
   // Read one chunk to start the pump, then destroy while it's waiting
-  const chunk = await new Promise((resolve) => {
+  {
+    const { promise, resolve } = Promise.withResolvers();
     readable.once('readable', () => resolve(readable.read()));
-  });
-  assert.ok(chunk);
+    assert.ok(await promise);
+  }
 
   // The pump should be waiting on backpressure now. Destroy the stream.
   readable.destroy();
 
-  await new Promise((resolve) => readable.on('close', resolve));
+  {
+    const { promise, resolve } = Promise.withResolvers();
+    readable.on('close', resolve);
+    await promise;
+  }
   assert.ok(readable.destroyed);
   assert.ok(returnCalled, 'iterator.return() should have been called');
 }
@@ -243,11 +351,11 @@ async function testPipeAsync() {
     },
   });
 
-  await new Promise((resolve, reject) => {
-    readable.pipe(writable);
-    writable.on('finish', resolve);
-    writable.on('error', reject);
-  });
+  const { promise, resolve, reject } = Promise.withResolvers();
+  readable.pipe(writable);
+  writable.on('finish', resolve);
+  writable.on('error', reject);
+  await promise;
 
   assert.strictEqual(Buffer.concat(chunks).toString(), 'pipe test data');
 }
@@ -314,10 +422,8 @@ async function testSignalAlreadyAborted() {
   const readable = toReadable(gen(), { signal: AbortSignal.abort() });
 
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const chunk of readable) {
-      // Should not receive any data
-    }
+    // Should not receive any data
+    await dump(readable);
   }, { name: 'AbortError' });
   assert.ok(readable.destroyed);
 }
@@ -465,11 +571,27 @@ async function testErrorSync() {
   const readable = toReadableSync(gen());
 
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const chunk of readable) {
-      // Consume until error
-    }
+    // Consume until error
+    await dump(readable);
   }, { message: 'sync source failed' });
+}
+
+async function testFalsyErrorSync() {
+  const reason = false;
+  const source = {
+    __proto__: null,
+    [Symbol.iterator]() {
+      return {
+        __proto__: null,
+        next() { throw reason; },
+      };
+    },
+  };
+
+  await assert.rejects(collect(toReadableSync(source)), (error) => {
+    return error.code === 'ERR_FALSY_VALUE_REJECTION' &&
+           error.reason === reason;
+  });
 }
 
 // =============================================================================
@@ -506,7 +628,9 @@ async function testDestroySync() {
   readable.read();  // Start iteration
   readable.destroy();
 
-  await new Promise((resolve) => readable.on('close', resolve));
+  const { promise, resolve } = Promise.withResolvers();
+  readable.on('close', resolve);
+  await promise;
   assert.ok(returnCalled, 'iterator.return() should have been called');
 }
 
@@ -615,6 +739,10 @@ Promise.all([
   testMultiBatchAsync(),
   testBackpressureAsync(),
   testErrorAsync(),
+  testFalsyErrorAsync(),
+  testFalsyThenableCleanupError(),
+  testSynchronousIteratorReturn(),
+  testFalsyCleanupGetterErrors(),
   testEmptyAsync(),
   testEmptyBatchAsync(),
   testDestroyAsync(),
@@ -628,6 +756,7 @@ Promise.all([
   testBackpressureSync(),
   testBackpressureSyncMultiChunkBatch(),
   testErrorSync(),
+  testFalsyErrorSync(),
   testDestroySync(),
   testRoundTrip(),
   testRoundTripWithCompression(),

@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Unexpected param type
+In src/ast/snapshots/span_testing/param_invalid_type.rs:3:20:
+...e_fn(0 : I)...
+        ^
+Expected ident

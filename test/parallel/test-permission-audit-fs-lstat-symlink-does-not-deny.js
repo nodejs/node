@@ -48,7 +48,7 @@ function run(flag, { op, name }) {
   };
   const { status, stdout, stderr } = spawnSync(
     process.execPath,
-    [flag, '-e', childScript],
+    [flag, '--allow-env=BLOCKED_FILE,LINK_PATH', '-e', childScript],
     { encoding: 'utf8', env },
   );
   assert.strictEqual(status, 0, stderr);

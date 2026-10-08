@@ -11,6 +11,11 @@ const server = http.createServer(common.mustCallAtLeast((req, res) => {
   req.pipe(res);
 }));
 
+// The malformed request intentionally has no valid Connection header.
+// So we have to set an explicitly shorter-than-default timeout.
+server.keepAliveTimeout = common.platformTimeout(100);
+server.keepAliveTimeoutBuffer = 0;
+
 server.listen(0, common.mustCall(function() {
   const bufs = [];
   const client = net.connect(

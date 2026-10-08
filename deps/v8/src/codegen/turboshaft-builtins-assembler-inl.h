@@ -7,6 +7,7 @@
 
 #include <iterator>
 
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/access-builder.h"
@@ -25,8 +26,8 @@
 #define DEFINE_TURBOSHAFT_ALIASES()                                            \
   template <typename T>                                                        \
   using V = compiler::turboshaft::V<T>;                                        \
-  template <typename T>                                                        \
-  using ConstOrV = compiler::turboshaft::ConstOrV<T>;                          \
+  template <typename... Args>                                                  \
+  using ConstOrV = compiler::turboshaft::ConstOrV<Args...>;                    \
   template <typename T>                                                        \
   using OptionalV = compiler::turboshaft::OptionalV<T>;                        \
   template <typename... Ts>                                                    \
@@ -63,7 +64,10 @@
   template <typename C, typename F>                                            \
   using HeapObjectField = compiler::turboshaft::HeapObjectField<C, F>;         \
   using builtin = compiler::turboshaft::builtin;                               \
-  using runtime = compiler::turboshaft::runtime;
+  using runtime = compiler::turboshaft::runtime;                               \
+  /* Define a few additional type aliases to handle Torque types. Consider     \
+     renamining uses. */                                                       \
+  using intptr = intptr_t;
 
 #define BUILTIN_REDUCER(name)          \
   TURBOSHAFT_REDUCER_BOILERPLATE(name) \
@@ -73,7 +77,8 @@ namespace v8::internal {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
-enum IsKnownTaggedPointer { kNo, kYes };
+using IsKnownTaggedPointer =
+    base::StrongAlias<struct IsKnownTaggedPointerTag, bool>;
 
 namespace detail {
 
@@ -224,6 +229,8 @@ class FeedbackCollectorReducer : public Next {
   using FeedbackVectorOrUndefined = Union<FeedbackVector, Undefined>;
   static constexpr bool HasFeedbackCollector() { return true; }
 
+  enum class FeedbackMode { kVectorSlot, kEmbedded };
+
   void CombineFeedback(int additional_feedback) {
     __ CodeComment("CombineFeedback");
     feedback_ = __ SmiBitwiseOr(
@@ -320,6 +327,16 @@ class FeedbackCollectorReducer : public Next {
     maybe_feedback_vector_ = feedback_vector;
     feedback_ = __ SmiConstant(Smi::FromInt(0));
     feedback_on_exception_ = feedback_.Get();
+    feedback_mode_ = FeedbackMode::kVectorSlot;
+  }
+
+  void SetEmbeddedFeedback(V<BytecodeArray> bytecode_array,
+                           V<WordPtr> feedback_offset) {
+    bytecode_array_ = bytecode_array;
+    embedded_feedback_offset_ = feedback_offset;
+    feedback_ = __ SmiConstant(Smi::FromInt(0));
+    feedback_on_exception_ = feedback_.Get();
+    feedback_mode_ = FeedbackMode::kEmbedded;
   }
 
   void LoadFeedbackVectorOrUndefinedIfJitless() {
@@ -341,6 +358,11 @@ class FeedbackCollectorReducer : public Next {
   }
 
   void UpdateFeedback() {
+    if (feedback_mode_ == FeedbackMode::kEmbedded) {
+      UpdateEmbeddedFeedback();
+      return;
+    }
+
     __ CodeComment("UpdateFeedback");
     if (mode_ == UpdateFeedbackMode::kNoFeedback) {
 #ifdef V8_JITLESS
@@ -421,8 +443,61 @@ class FeedbackCollectorReducer : public Next {
   }
 
  private:
+  void UpdateEmbeddedFeedback() {
+    __ CodeComment("UpdateEmbeddedFeedback");
+    Label<> done(this);
+
+    // Load old encoded feedback byte from BytecodeArray.
+    V<Word32> old_feedback =
+        __ Load(bytecode_array_, embedded_feedback_offset_,
+                compiler::turboshaft::LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::Uint8());
+
+    // Encode current feedback (Smi bits → type index via encode table).
+    V<WordPtr> encode_table = __ ExternalConstant(
+        ExternalReference::binary_operation_feedback_encode_table());
+    V<WordPtr> feedback_word = __ ChangeUint32ToUintPtr(__ UntagSmi(feedback_));
+    V<Word32> current_index =
+        __ Load(encode_table, feedback_word,
+                compiler::turboshaft::LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::Uint8(), 0, 0);
+
+    // Combine via transition table: table[old << kShift | current].
+    constexpr int kShift = base::bits::WhichPowerOfTwo(
+        BinaryOperationFeedback::kTransitionMapStride);
+    V<WordPtr> transition_table = __ ExternalConstant(
+        ExternalReference::binary_operation_feedback_transition_table());
+    V<Word32> table_index = __ Word32BitwiseOr(
+        __ Word32ShiftLeft(old_feedback, kShift), current_index);
+    V<Word32> new_feedback =
+        __ Load(transition_table, __ ChangeUint32ToUintPtr(table_index),
+                compiler::turboshaft::LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::Uint8(), 0, 0);
+
+    GOTO_IF(__ Word32Equal(old_feedback, new_feedback), done);
+    {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+      __ SwitchSandboxMode(CodeSandboxingMode::kUnsandboxed);
+#endif
+      // Store updated feedback byte back to BytecodeArray.
+      __ Store(bytecode_array_, embedded_feedback_offset_, new_feedback,
+               compiler::turboshaft::StoreOp::Kind::TaggedBase(),
+               MemoryRepresentation::Uint8(),
+               compiler::WriteBarrierKind::kNoWriteBarrier);
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+      __ SwitchSandboxMode(CodeSandboxingMode::kSandboxed);
+#endif
+    }
+    GOTO(done);
+
+    BIND(done);
+  }
+
   V<FeedbackVectorOrUndefined> maybe_feedback_vector_;
   V<WordPtr> slot_id_;
+  V<BytecodeArray> bytecode_array_;
+  V<WordPtr> embedded_feedback_offset_;
+  FeedbackMode feedback_mode_ = FeedbackMode::kVectorSlot;
   compiler::turboshaft::Var<Smi, assembler_t> feedback_{this};
   compiler::turboshaft::Var<Smi, assembler_t> feedback_on_exception_{this};
   UpdateFeedbackMode mode_ = DefaultUpdateFeedbackMode();
@@ -495,7 +570,7 @@ class BuiltinsReducer : public Next {
 
   void PerformStackCheck(V<Context> context) {
     __ JSStackCheck(context,
-                    OptionalV<compiler::turboshaft::FrameState>::Nullopt(),
+                    OptionalV<compiler::turboshaft::LazyFrameState>::Nullopt(),
                     compiler::turboshaft::JSStackCheckOp::Kind::kBuiltinEntry);
   }
 
@@ -525,7 +600,7 @@ class BuiltinsReducer : public Next {
   V<Word32> TruncateTaggedToWord32(V<Context> context, V<Object> value) {
     Label<Word32> is_number(this);
     TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumber>(
-        context, value, IsKnownTaggedPointer::kNo, is_number);
+        context, value, IsKnownTaggedPointer{false}, is_number);
 
     BIND(is_number, number);
     return number;
@@ -579,7 +654,7 @@ class BuiltinsReducer : public Next {
     DCHECK_EQ(Conversion == Object::Conversion::kToNumeric,
               if_bigint != nullptr);
 
-    if (is_known_tagged_pointer == IsKnownTaggedPointer::kNo) {
+    if (!is_known_tagged_pointer) {
       IF (__ IsSmi(value)) {
         __ CombineFeedback(BinaryOperationFeedback::kSignedSmall);
         GOTO(if_number, __ UntagSmi(V<Smi>::Cast(value)));
@@ -720,6 +795,183 @@ class BuiltinsReducer : public Next {
     return ClearedValue();
   }
 
+  V<Word32> IsStringInstanceType(ConstOrV<Word32> instance_type) {
+    static_assert(INTERNALIZED_TWO_BYTE_STRING_TYPE == FIRST_TYPE);
+    return __ Int32LessThan(instance_type, FIRST_NONSTRING_TYPE);
+  }
+
+  // TODO(nicohartmann): Check if we can support ConstOrV<String>.
+  V<String> ToThisString(V<Context> context, V<Object> value,
+                         const char* method_name) {
+    Label<String> done(this);
+
+    // Check if the {value} is a Smi or a HeapObject.
+    IF (__ IsSmi(value)) {
+      // The {value} is a Smi, convert it to a String.
+      GOTO(done, __ template CallBuiltin<builtin::NumberToString>(
+                     {.input = V<Number>::Cast(value)}));
+    } ELSE {
+      // Load the instance type of the {value}.
+      V<Word32> value_instance_type =
+          __ LoadInstanceTypeField(__ LoadMapField(value));
+      // Check if the {value} is already String.
+      GOTO_IF(LIKELY(__ IsStringInstanceType(value_instance_type)), done,
+              V<String>::Cast(value));
+
+      // Check if the {value} is null.
+      IF (UNLIKELY(__ IsNullOrUndefined(value))) {
+        // The {value} is either null or undefined.
+        __ ThrowTypeError(context, MessageTemplate::kCalledOnNullOrUndefined,
+                          method_name);
+      }
+
+      // Convert the {value} to a String.
+      GOTO(done,
+           __ template CallBuiltin<builtin::ToString>(context, {.o = value}));
+    }
+
+    BIND(done, result);
+    return result;
+  }
+
+  // TODO(nicohartmann): Have this generated by torque (in base.tq).
+  V<Number> ToInteger_Inline(V<Context> context, V<JSAny> input) {
+    Label<Number> done(this);
+    TYPESWITCH(input) {
+      CASE_(V<Smi>, s): {
+        GOTO(done, s);
+      }
+      CASE_(V<JSAny>, i): {
+        GOTO(done, __ template CallBuiltin<builtin::ToInteger>(context,
+                                                               {.input = i}));
+      }
+    }
+
+    BIND(done, result);
+    return result;
+  }
+
+  V<JSAny> ToThisValue(V<Context> context, V<JSAny> input_value,
+                       PrimitiveType primitive_type, const char* method_name) {
+    Label<> done(this);
+    Label<> do_throw(this, Label<>::Likelyness::kUnlikely);
+
+    // We might need to loop once due to JSPrimitiveWrapper unboxing.
+    ScopedVar<JSAny> value(this, input_value);
+    WHILE(1) {
+      // Check if the {value} is a Smi or a HeapObject.
+      if (primitive_type == PrimitiveType::kNumber) {
+        GOTO_IF(__ IsSmi(value), done);
+      } else {
+        GOTO_IF(__ IsSmi(value), do_throw);
+      }
+
+      V<HeapObject> heap_value = V<HeapObject>::Cast(value);
+      V<Map> value_map = __ LoadMapField(heap_value);
+      V<Word32> value_instance_type = __ LoadInstanceTypeField(value_map);
+
+      IF (UNLIKELY(__ InstanceTypeEqual(value_instance_type,
+                                        JS_PRIMITIVE_WRAPPER_TYPE))) {
+        value = V<JSAny>::Cast(
+            __ LoadField(value, AccessBuilderTS::ForJSPrimitiveWrapperValue()));
+      } ELSE {
+        switch (primitive_type) {
+          case PrimitiveType::kBoolean:
+            GOTO_IF(__ TaggedEqual(value_map, __ BooleanMapConstant()), done);
+            break;
+          case PrimitiveType::kNumber:
+            GOTO_IF(__ TaggedEqual(value_map, __ HeapNumberMapConstant()),
+                    done);
+            break;
+          case PrimitiveType::kString:
+            GOTO_IF(__ IsStringInstanceType(value_instance_type), done);
+            break;
+          case PrimitiveType::kSymbol:
+            GOTO_IF(__ TaggedEqual(value_map, __ SymbolMapConstant()), done);
+            break;
+        }
+        GOTO(do_throw);
+      }
+    }
+
+    __ Unreachable();
+
+    BIND(do_throw);
+    {
+      const char* primitive_name = nullptr;
+      switch (primitive_type) {
+        case PrimitiveType::kBoolean:
+          primitive_name = "Boolean";
+          break;
+        case PrimitiveType::kNumber:
+          primitive_name = "Number";
+          break;
+        case PrimitiveType::kString:
+          primitive_name = "String";
+          break;
+        case PrimitiveType::kSymbol:
+          primitive_name = "Symbol";
+          break;
+      }
+      CHECK_NOT_NULL(primitive_name);
+
+      // The {value} is not a compatible receiver for this method.
+      __ ThrowTypeError(context, MessageTemplate::kNotGeneric, method_name,
+                        primitive_name);
+    }
+
+    BIND(done);
+    return value;
+  }
+
+  V<Word32> UintPtrGreaterThanOrEqual(V<WordPtr> lhs, V<WordPtr> rhs) {
+    return __ UintPtrLessThanOrEqual(rhs, lhs);
+  }
+
+  // TODO(nicohartmann): Remove this.
+  V<WordPtr> LoadStringLengthAsUintPtr(V<String> string) {
+    return __ ChangeUint32ToUintPtr(
+        __ LoadField(string, AccessBuilderTS::ForStringLength()));
+  }
+
+  // TODO(nicohartmann): Find an automated solution for convert.
+  template <typename To, typename From>
+  V<To> Convert(V<From> input) {
+#define CONVERT_CASE(T, F) \
+  if constexpr (std::is_same_v<To, T> && std::is_same_v<From, F>)
+    CONVERT_CASE(WordPtr, Smi) {
+      return __ ChangeInt32ToIntPtr(__ UntagSmi(input));
+    }
+#undef CONVERT_CASE
+    UNREACHABLE();
+  }
+
+  template <typename To, typename From>
+    requires(std::is_same_v<To, intptr_t>)
+  V<WordPtr> Convert(V<From> input) {
+    return Convert<WordPtr, From>(input);
+  }
+
+  constexpr void StaticAssertStringLengthFitsSmi() const {
+    static_assert(String::kMaxLength < kSmiMaxValue);
+  }
+
+  V<Word32> IsNumberNormalized(V<Number> number) {
+    Label<Word32> done(this);
+
+    GOTO_IF(__ IsSmi(number), done, 1);
+
+    V<Float64> value = __ LoadHeapNumberValue(V<HeapNumber>::Cast(number));
+    GOTO_IF(__ Float64LessThan(value, static_cast<double>(Smi::kMinValue)),
+            done, 1);
+    GOTO_IF(__ Float64LessThan(static_cast<double>(Smi::kMaxValue), value),
+            done, 1);
+    GOTO(done, __ Float64IsNaN(value));
+
+    BIND(done, result);
+    return result;
+  }
+
   template <typename T, typename U>
   V<T> Cast(V<U> value, Label<>* otherwise) {
     // TODO(nicohartmann): Implement debug checks.
@@ -730,12 +982,13 @@ class BuiltinsReducer : public Next {
       CASE_(V<T>, v): {
         GOTO(done, v);
       }
-    }
-
-    if (otherwise) {
-      GOTO(*otherwise);
-    } else {
-      __ Unreachable();
+      DEFAULT: {
+        if (otherwise) {
+          GOTO(*otherwise);
+        } else {
+          __ Unreachable();
+        }
+      }
     }
 
     BIND(done, result);
@@ -755,8 +1008,8 @@ class BuiltinsReducer : public Next {
                    const Desc::Arguments& args) {
     return Next::template CallRuntime<Desc>(
         compiler::turboshaft::OptionalV<
-            compiler::turboshaft::FrameState>::Nullopt(),
-        context, args, compiler::LazyDeoptOnThrow::kNo);
+            compiler::turboshaft::LazyFrameState>::Nullopt(),
+        context, args, compiler::LazyDeoptOnThrow{false});
   }
 
   template <typename Desc>
@@ -778,8 +1031,8 @@ class BuiltinsReducer : public Next {
                    const Desc::Arguments& args) {
     return Next::template CallBuiltin<Desc>(
         compiler::turboshaft::OptionalV<
-            compiler::turboshaft::FrameState>::Nullopt(),
-        context, args, compiler::LazyDeoptOnThrow::kNo);
+            compiler::turboshaft::LazyFrameState>::Nullopt(),
+        context, args, compiler::LazyDeoptOnThrow{false});
   }
 
   template <typename Desc>
@@ -787,8 +1040,8 @@ class BuiltinsReducer : public Next {
   auto CallBuiltin(const Desc::Arguments& args) {
     return Next::template CallBuiltin<Desc>(
         compiler::turboshaft::OptionalV<
-            compiler::turboshaft::FrameState>::Nullopt(),
-        args, compiler::LazyDeoptOnThrow::kNo);
+            compiler::turboshaft::LazyFrameState>::Nullopt(),
+        args, compiler::LazyDeoptOnThrow{false});
   }
 
   V<String> StringConstant(const char* str) {
@@ -809,6 +1062,10 @@ class BuiltinsReducer : public Next {
     // to generate constant lookups for embedded builtins.
     return V<Number>::Cast(__ HeapConstantNoHole(
         isolate()->factory()->NewHeapNumberForCodeAssembler(value)));
+  }
+
+  V<Word32> IsNullOrUndefined(V<Object> value) {
+    return __ Word32BitwiseOr(__ IsNull(value), __ IsUndefined(value));
   }
 
   void DCheckReceiver(ConvertReceiverMode mode, V<JSAny> receiver) {
@@ -926,11 +1183,11 @@ class BuiltinsReducer : public Next {
         call_mode);
 
     return __ AssemblerOpInterface::Call(
-        target, OptionalV<compiler::turboshaft::FrameState>::Nullopt(),
+        target, OptionalV<compiler::turboshaft::LazyFrameState>::Nullopt(),
         base::VectorOf(inputs),
         compiler::turboshaft::TSCallDescriptor::Create(
-            call_descriptor, compiler::CanThrow::kYes,
-            compiler::LazyDeoptOnThrow::kNo, __ graph_zone()));
+            call_descriptor, compiler::CanThrow{true},
+            compiler::LazyDeoptOnThrow{false}, __ graph_zone()));
   }
 
   void ThrowTypeError(V<Context> context, MessageTemplate message,

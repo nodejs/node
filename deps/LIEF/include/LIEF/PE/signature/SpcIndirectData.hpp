@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include <vector>
 #include <cstdint>
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/span.hpp"
 
@@ -34,8 +35,7 @@ class LIEF_API SpcIndirectData : public ContentInfo::Content {
   static constexpr auto SPC_INDIRECT_DATA_OBJID = "1.3.6.1.4.1.311.2.1.4";
 
   SpcIndirectData() :
-    ContentInfo::Content(SPC_INDIRECT_DATA_OBJID)
-  {}
+    ContentInfo::Content(SPC_INDIRECT_DATA_OBJID) {}
   SpcIndirectData(const SpcIndirectData&) = default;
   SpcIndirectData& operator=(const SpcIndirectData&) = default;
 
@@ -53,7 +53,7 @@ class LIEF_API SpcIndirectData : public ContentInfo::Content {
   /// PE's authentihash
   ///
   /// @see LIEF::PE::Binary::authentihash
-  span<const uint8_t> digest() const {
+  span<const uint8_t> digest() const LIEF_LIFETIMEBOUND {
     return digest_;
   }
 
@@ -69,7 +69,8 @@ class LIEF_API SpcIndirectData : public ContentInfo::Content {
 
   void accept(Visitor& visitor) const override;
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const SpcIndirectData& content) {
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const SpcIndirectData& content) {
     content.print(os);
     return os;
   }

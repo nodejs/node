@@ -1,0 +1,15 @@
+#[diplomat::bridge]
+mod ffi {
+    #[diplomat::opaque]
+      pub   struct   Whitespacingtest(String);
+    
+    pub fn 
+    newlines_test
+    (
+        a : i32, 
+          b: usize,
+        c : Whitespacingtest
+    ) {
+
+    }
+}

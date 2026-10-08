@@ -107,7 +107,7 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
     }
 
     if (!return_type_val->IsString()) {
-      THROW_ERR_INVALID_ARG_VALUE(
+      THROW_ERR_INVALID_ARG_TYPE(
           env, "Return value type of function %s must be a string", name);
       return {};
     }
@@ -132,7 +132,7 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
     }
 
     if (!arguments_val->IsArray()) {
-      THROW_ERR_INVALID_ARG_VALUE(
+      THROW_ERR_INVALID_ARG_TYPE(
           env, "Arguments list of function %s must be an array", name);
       return {};
     }
@@ -148,7 +148,7 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
       }
 
       if (!arg->IsString()) {
-        THROW_ERR_INVALID_ARG_VALUE(
+        THROW_ERR_INVALID_ARG_TYPE(
             env, "Argument %u of function %s must be a string", i, name);
         return {};
       }
@@ -648,28 +648,43 @@ Maybe<FFIArgumentCategory> ToFFIArgument(Environment* env,
 
     *static_cast<uint32_t*>(ret) = arg->Uint32Value(context).FromJust();
   } else if (type == &ffi_type_sint64) {
-    if (!arg->IsBigInt()) {
-      THROW_ERR_INVALID_ARG_VALUE(env, "Argument %u must be an int64", index);
-      return {};
-    }
+    if (arg->IsBigInt()) {
+      bool lossless;
+      int64_t value = arg.As<BigInt>()->Int64Value(&lossless);
+      if (!lossless) {
+        THROW_ERR_INVALID_ARG_VALUE(env, "Argument %u must be an int64", index);
+        return {};
+      }
 
-    bool lossless;
-    *static_cast<int64_t*>(ret) = arg.As<BigInt>()->Int64Value(&lossless);
-    if (!lossless) {
-      THROW_ERR_INVALID_ARG_VALUE(env, "Argument %u must be an int64", index);
-      return {};
+      *static_cast<int64_t*>(ret) = value;
+    } else {
+      int64_t value;
+      if (!GetStrictSignedInteger(
+              arg, -kMaxSafeJsInteger, kMaxSafeJsInteger, &value)) {
+        THROW_ERR_INVALID_ARG_VALUE(env, "Argument %u must be an int64", index);
+        return {};
+      }
+
+      *static_cast<int64_t*>(ret) = value;
     }
   } else if (type == &ffi_type_uint64) {
-    if (!arg->IsBigInt()) {
-      THROW_ERR_INVALID_ARG_VALUE(env, "Argument %u must be a uint64", index);
-      return {};
-    }
+    if (arg->IsBigInt()) {
+      bool lossless;
+      uint64_t value = arg.As<BigInt>()->Uint64Value(&lossless);
+      if (!lossless) {
+        THROW_ERR_INVALID_ARG_VALUE(env, "Argument %u must be a uint64", index);
+        return {};
+      }
 
-    bool lossless;
-    *static_cast<uint64_t*>(ret) = arg.As<BigInt>()->Uint64Value(&lossless);
-    if (!lossless) {
-      THROW_ERR_INVALID_ARG_VALUE(env, "Argument %u must be a uint64", index);
-      return {};
+      *static_cast<uint64_t*>(ret) = value;
+    } else {
+      uint64_t value;
+      if (!GetStrictUnsignedInteger(arg, kMaxSafeJsInteger, &value)) {
+        THROW_ERR_INVALID_ARG_VALUE(env, "Argument %u must be a uint64", index);
+        return {};
+      }
+
+      *static_cast<uint64_t*>(ret) = value;
     }
   } else if (type == &ffi_type_float) {
     if (!arg->IsNumber()) {

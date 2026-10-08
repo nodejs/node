@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,19 +19,17 @@
 
 #include "LIEF/PE/RichEntry.hpp"
 
-namespace LIEF {
-namespace PE {
+
+namespace LIEF::PE {
 
 void RichEntry::accept(LIEF::Visitor& visitor) const {
   visitor.visit(*this);
 }
 
 std::ostream& operator<<(std::ostream& os, const RichEntry& entry) {
-  using namespace fmt;
-  os << format("ID: 0x{:04x}, Build ID: 0x{:04x}, Count: {}",
-               entry.id(), entry.build_id(), entry.count());
+  os << fmt::format("ID: {:#06x}, Build ID: {:#06x}, Count: {}", entry.id(),
+                    entry.build_id(), entry.count());
   return os;
 }
 
-}
 }

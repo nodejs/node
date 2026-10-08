@@ -58,6 +58,10 @@ namespace internal {
 
 class SafepointTableBuilder;
 
+namespace regexp {
+class RegExpMacroAssemblerPPC;
+}
+
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
 
@@ -204,6 +208,13 @@ class Assembler : public AssemblerBase {
 
   // Unused on this architecture.
   void ClearInternalState() {}
+
+  // On PPC64, we sometimes need to emit branch trampolines between emitting
+  // a call instruction (bctrl) and recording a safepoint. This means that
+  // we have to be careful to make sure the safepoint is recorded at the right
+  // position. So we record the pc right after emitting the call instruction
+  // and use this for the safepoint.
+  int pc_offset_for_safepoint() const { return pc_offset_for_safepoint_; }
 
   inline void CheckTrampolinePoolQuick(int extra_space = 0) {
     if (pc_offset() >= next_trampoline_check_ - extra_space) {
@@ -755,6 +766,12 @@ class Assembler : public AssemblerBase {
       case nooverflow32:
         bc(b_offset, BF, encode_crbit(cr, CR_OV32), lk);
         break;
+      case overflow64:
+        bc(b_offset, BT, encode_crbit(cr, CR_OV), lk);
+        break;
+      case nooverflow64:
+        bc(b_offset, BF, encode_crbit(cr, CR_OV), lk);
+        break;
       default:
         UNIMPLEMENTED();
     }
@@ -802,6 +819,12 @@ class Assembler : public AssemblerBase {
         break;
       case nooverflow32:
         bclr(BF, encode_crbit(cr, CR_OV32), lk);
+        break;
+      case overflow64:
+        bclr(BT, encode_crbit(cr, CR_OV), lk);
+        break;
+      case nooverflow64:
+        bclr(BF, encode_crbit(cr, CR_OV), lk);
         break;
       default:
         UNIMPLEMENTED();
@@ -852,6 +875,12 @@ class Assembler : public AssemblerBase {
         break;
       case nooverflow32:
         isel(rt, rb, ra, encode_crbit(cr, CR_OV32));
+        break;
+      case overflow64:
+        isel(rt, ra, rb, encode_crbit(cr, CR_OV));
+        break;
+      case nooverflow64:
+        isel(rt, rb, ra, encode_crbit(cr, CR_OV));
         break;
       default:
         UNIMPLEMENTED();
@@ -1021,13 +1050,12 @@ class Assembler : public AssemblerBase {
 
   void subi(Register dst, Register src1, const Operand& src2);
 
+  void addpcis(Register dst, const Operand& val);
+
   void mov(Register dst, const Operand& src);
   void bitwise_mov(Register dst, intptr_t value);
   void bitwise_mov32(Register dst, int32_t value);
   void bitwise_add32(Register dst, Register src, int32_t value);
-
-  // Patch the offset to the return address after Call.
-  void patch_pc_address(Register dst, int pc_offset, int return_address_offset);
 
   // Load the position of the label relative to the generated code object
   // pointer in a register.
@@ -1036,10 +1064,6 @@ class Assembler : public AssemblerBase {
   // dst = base + label position + delta
   void add_label_offset(Register dst, Register base, Label* label,
                         int delta = 0);
-
-  // Load the address of the label in a register and associate with an
-  // internal reference relocation.
-  void mov_label_addr(Register dst, Label* label);
 
   // Emit the address of the label (i.e. a jump table entry) and associate with
   // an internal reference relocation.
@@ -1364,6 +1388,8 @@ class Assembler : public AssemblerBase {
 
   // Record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
+
+  void RecordPcForSafepoint() { pc_offset_for_safepoint_ = pc_offset(); }
   ConstantPoolEntry::Access ConstantPoolAddEntry(RelocInfo::Mode rmode,
                                                  intptr_t value) {
     bool sharing_ok =
@@ -1419,9 +1445,6 @@ class Assembler : public AssemblerBase {
   RelocInfoWriter reloc_info_writer;
 
  private:
-  // Avoid overflows for displacements etc.
-  static const int kMaximalBufferSize = 512 * MB;
-
   // Repeated checking whether the trampoline pool should be emitted is rather
   // expensive. By default we only check again once a number of instructions
   // has been generated.
@@ -1445,6 +1468,11 @@ class Assembler : public AssemblerBase {
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
+
+  // Keep track of the last call instruction (bctrl/bl) position to ensure that
+  // we can generate a correct safepoint even in the presence of a branch
+  // trampoline between emitting the call and recording the safepoint.
+  int pc_offset_for_safepoint_ = -1;
   // Optimizable cmpi information.
   int optimizable_cmpi_pos_;
   CRegister cmpi_cr_ = CRegister::no_reg();
@@ -1563,7 +1591,7 @@ class Assembler : public AssemblerBase {
 
   int WriteCodeComments();
 
-  friend class RegExpMacroAssemblerPPC;
+  friend class regexp::RegExpMacroAssemblerPPC;
   friend class RelocInfo;
   friend class BlockTrampolinePoolScope;
   friend class EnsureSpace;

@@ -160,20 +160,24 @@ protected:
             payload = QString::fromUtf8(str.data(), static_cast<int>(str.size()));
             // convert color ranges from byte index to character index.
             if (msg.color_range_start < msg.color_range_end) {
-                color_range_start = QString::fromUtf8(str.data(), msg.color_range_start).size();
-                color_range_end = QString::fromUtf8(str.data(), msg.color_range_end).size();
+                color_range_start =
+                    QString::fromUtf8(str.data(), static_cast<qsizetype>(msg.color_range_start))
+                        .size();
+                color_range_end =
+                    QString::fromUtf8(str.data(), static_cast<qsizetype>(msg.color_range_end))
+                        .size();
             }
         } else {
             payload = QString::fromLatin1(str.data(), static_cast<int>(str.size()));
         }
 
-        invoke_params params{max_lines_,             // max lines
-                             qt_text_edit_,          // text edit to append to
-                             std::move(payload),     // text to append
-                             default_color_,         // default color
-                             colors_.at(msg.level),  // color to apply
-                             color_range_start,      // color range start
-                             color_range_end};       // color range end
+        invoke_params params{max_lines_,                                  // max lines
+                             qt_text_edit_,                               // text edit to append to
+                             std::move(payload),                          // text to append
+                             default_color_,                              // default color
+                             colors_.at(static_cast<size_t>(msg.level)),  // color to apply
+                             color_range_start,                           // color range start
+                             color_range_end};                            // color range end
 
         QMetaObject::invokeMethod(
             qt_text_edit_, [params]() { invoke_method_(params); }, Qt::AutoConnection);

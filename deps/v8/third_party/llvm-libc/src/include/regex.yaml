@@ -1,0 +1,82 @@
+header: regex.h
+standards:
+  - posix
+macros:
+  - macro_name: REG_EXTENDED
+    macro_header: regex-macros.h
+  - macro_name: REG_ICASE
+    macro_header: regex-macros.h
+  - macro_name: REG_NOSUB
+    macro_header: regex-macros.h
+  - macro_name: REG_NEWLINE
+    macro_header: regex-macros.h
+  - macro_name: REG_NOTBOL
+    macro_header: regex-macros.h
+  - macro_name: REG_NOTEOL
+    macro_header: regex-macros.h
+  - macro_name: REG_NOMATCH
+    macro_header: regex-macros.h
+  - macro_name: REG_BADPAT
+    macro_header: regex-macros.h
+  - macro_name: REG_ECOLLATE
+    macro_header: regex-macros.h
+  - macro_name: REG_ECTYPE
+    macro_header: regex-macros.h
+  - macro_name: REG_EESCAPE
+    macro_header: regex-macros.h
+  - macro_name: REG_ESUBREG
+    macro_header: regex-macros.h
+  - macro_name: REG_EBRACK
+    macro_header: regex-macros.h
+  - macro_name: REG_EPAREN
+    macro_header: regex-macros.h
+  - macro_name: REG_EBRACE
+    macro_header: regex-macros.h
+  - macro_name: REG_BADBR
+    macro_header: regex-macros.h
+  - macro_name: REG_ERANGE
+    macro_header: regex-macros.h
+  - macro_name: REG_ESPACE
+    macro_header: regex-macros.h
+  - macro_name: REG_BADRPT
+    macro_header: regex-macros.h
+types:
+  - type_name: regex_t
+  - type_name: regmatch_t
+  - type_name: regoff_t
+enums: []
+objects: []
+functions:
+  - name: regcomp
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: regex_t *__restrict
+      - type: const char *__restrict
+      - type: int
+  - name: regexec
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const regex_t *__restrict
+      - type: const char *__restrict
+      - type: size_t
+      - type: regmatch_t *__restrict
+      - type: int
+  - name: regerror
+    standards:
+      - posix
+    return_type: size_t
+    arguments:
+      - type: int
+      - type: const regex_t *__restrict
+      - type: char *__restrict
+      - type: size_t
+  - name: regfree
+    standards:
+      - posix
+    return_type: void
+    arguments:
+      - type: regex_t *

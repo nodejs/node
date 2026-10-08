@@ -8,6 +8,7 @@
 #include "src/objects/embedder-data-array.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/maybe-object-inl.h"
@@ -19,16 +20,18 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/embedder-data-array-tq-inl.inc"
+int EmbedderDataArray::length() const { return length_.load().value(); }
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(EmbedderDataArray)
+void EmbedderDataArray::set_length(int value) {
+  length_.store(this, Smi::FromInt(value));
+}
 
 Address EmbedderDataArray::slots_start() {
-  return field_address(OffsetOfElementAt(0));
+  return reinterpret_cast<Address>(this) + SizeFor(0);
 }
 
 Address EmbedderDataArray::slots_end() {
-  return field_address(OffsetOfElementAt(length()));
+  return reinterpret_cast<Address>(this) + SizeFor(length());
 }
 
 }  // namespace internal

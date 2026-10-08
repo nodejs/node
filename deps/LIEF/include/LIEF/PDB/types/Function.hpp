@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 #ifndef LIEF_PDB_TYPE_FUNCTION_H
 #define LIEF_PDB_TYPE_FUNCTION_H
 
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/PDB/Type.hpp"
 
@@ -25,7 +26,18 @@ namespace types {
 /// This class represents a `LF_PROCEDURE` PDB type
 class LIEF_API Function : public Type {
   public:
-  using Type::Type;
+  template<typename... Args,
+           typename = typename std::
+               enable_if<std::is_constructible<Type, Args&&...>::value>::type>
+  Function(Args&&... args) :
+    Type(std::forward<Args>(args)...) {}
+  using parameters_t = std::vector<std::unique_ptr<Type>>;
+
+  /// Type returned by the function
+  std::unique_ptr<Type> return_type() const LIEF_LIFETIMEBOUND;
+
+  /// Types of the function's parameters
+  parameters_t parameters() const LIEF_LIFETIMEBOUND;
 
   static bool classof(const Type* type) {
     return type->kind() == Type::KIND::FUNCTION;
@@ -38,5 +50,3 @@ class LIEF_API Function : public Type {
 }
 }
 #endif
-
-

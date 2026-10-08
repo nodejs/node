@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 #ifndef LIEF_ASM_X86_INST_H
 #define LIEF_ASM_X86_INST_H
 #include "LIEF/visibility.h"
+#include "LIEF/compiler_attributes.hpp"
 
 #include "LIEF/asm/Instruction.hpp"
 #include "LIEF/asm/x86/opcodes.hpp"
@@ -37,7 +38,7 @@ class LIEF_API Instruction : public assembly::Instruction {
   OPCODE opcode() const;
 
   /// Iterator over the operands of the current instruction
-  operands_it operands() const;
+  operands_it operands() const LIEF_LIFETIMEBOUND;
 
   /// True if `inst` is an **effective** instance of x86::Instruction
   static bool classof(const assembly::Instruction* inst);

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 #include <memory>
 #include "LIEF/span.hpp"
 #include "LIEF/iterators.hpp"
+#include "LIEF/compiler_attributes.hpp"
 #include "LIEF/visibility.h"
 #include "LIEF/MachO/LoadCommand.hpp"
 #include "LIEF/MachO/DyldChainedFormat.hpp"
@@ -58,29 +59,51 @@ class LIEF_API DyldChainedFixups : public LoadCommand {
   /// Structure that mirrors the raw dyld_chained_starts_in_segment
   /// which aims at providing information about the chained rebase/bind fixups
   ///
-  /// The relocations provided by this structure can be accessed through SegmentCommand::relocations
+  /// The relocations provided by this structure can be accessed through
+  /// SegmentCommand::relocations
   struct chained_starts_in_segment {
-    uint32_t offset            = 0; ///< Original offset of the structure, relative to DyldChainedFixups::starts_offset
-    uint32_t size              = 0; ///< sizeof(size) + sizeof(page_size) + ... + sizeof(pointer_format)
-    uint16_t page_size         = 0; ///< Likely 0x1000 for x86/x86_64 architectures and 0x4000 for ARM64 architecture
-    uint64_t segment_offset    = 0; ///< Offset of the segment's data from the beginning of the file (it should match SegmentCommand::file_offset)
-    uint32_t max_valid_pointer = 0; ///< for 32-bit OS, any value beyond this is not a pointer
-    DYLD_CHAINED_PTR_FORMAT pointer_format = DYLD_CHAINED_PTR_FORMAT::NONE; ///< How pointers are encoded
+    /// Original offset of the structure, relative to
+    /// DyldChainedFixups::starts_offset
+    uint32_t offset = 0;
+
+    /// sizeof(size) + sizeof(page_size) + ... + sizeof(pointer_format)
+    uint32_t size = 0;
+
+    /// Likely 0x1000 for x86/x86_64 architectures and 0x4000 for ARM64
+    /// architecture
+    uint16_t page_size = 0;
+
+    /// Offset of the segment's data from the beginning of the file (it
+    /// should match SegmentCommand::file_offset)
+    uint64_t segment_offset = 0;
+
+    /// for 32-bit OS, any value beyond this is not a pointer
+    uint32_t max_valid_pointer = 0;
+
+    /// How pointers are encoded
+    DYLD_CHAINED_PTR_FORMAT pointer_format = DYLD_CHAINED_PTR_FORMAT::NONE;
 
     /// How many pages are in the page_start array
     size_t page_count() const {
       return page_start.size();
     }
 
-    std::vector<uint16_t> page_start;   ///< Offset in the SegmentCommand of the first element of the chain
-    std::vector<uint16_t> chain_starts; ///< Currently not supported
+    /// Offset in the SegmentCommand of the
+    /// first element of the chain
+    std::vector<uint16_t> page_start;
 
-    SegmentCommand& segment; ///< Segment in which the rebase/bind fixups take place
+    /// Currently not supported
+    std::vector<uint16_t> chain_starts;
 
-    LIEF_API friend std::ostream& operator<<(std::ostream& os, const chained_starts_in_segment& info);
+    /// Segment in which the rebase/bind fixups take place
+    SegmentCommand& segment;
 
-    static chained_starts_in_segment create_empty_chained(SegmentCommand& segment) {
-      return chained_starts_in_segment(0, segment);
+    LIEF_API friend std::ostream&
+        operator<<(std::ostream& os, const chained_starts_in_segment& info);
+
+    static chained_starts_in_segment
+        create_empty_chained(SegmentCommand& segment) {
+      return {0, segment};
     }
 
     private:
@@ -88,9 +111,9 @@ class LIEF_API DyldChainedFixups : public LoadCommand {
     friend class DyldChainedFixupsCreator;
     chained_starts_in_segment(uint32_t offset, SegmentCommand& segment) :
       offset(offset),
-      segment(segment)
-    {}
-    chained_starts_in_segment(uint32_t offset, const details::dyld_chained_starts_in_segment& info,
+      segment(segment) {}
+    chained_starts_in_segment(uint32_t offset,
+                              const details::dyld_chained_starts_in_segment& info,
                               SegmentCommand& segment);
   };
 
@@ -98,10 +121,12 @@ class LIEF_API DyldChainedFixups : public LoadCommand {
   using chained_starts_in_segments_t = std::vector<chained_starts_in_segment>;
 
   /// Iterator that outputs chained_starts_in_segment&
-  using it_chained_starts_in_segments_t = ref_iterator<chained_starts_in_segments_t&>;
+  using it_chained_starts_in_segments_t =
+      ref_iterator<chained_starts_in_segments_t&>;
 
   /// Iterator that outputs const chained_starts_in_segment&
-  using it_const_chained_starts_in_segments_t = const_ref_iterator<const chained_starts_in_segments_t&>;
+  using it_const_chained_starts_in_segments_t =
+      const_ref_iterator<const chained_starts_in_segments_t&>;
 
   /// Internal container for storing DyldBindingInfo
   using binding_info_t = std::vector<std::unique_ptr<ChainedBindingInfo>>;
@@ -110,7 +135,8 @@ class LIEF_API DyldChainedFixups : public LoadCommand {
   using it_binding_info = ref_iterator<binding_info_t&, ChainedBindingInfo*>;
 
   /// Iterator which outputs const DyldBindingInfo&
-  using it_const_binding_info = const_ref_iterator<const binding_info_t&, ChainedBindingInfo*>;
+  using it_const_binding_info =
+      const_ref_iterator<const binding_info_t&, ChainedBindingInfo*>;
 
 
   DyldChainedFixups();
@@ -140,61 +166,90 @@ class LIEF_API DyldChainedFixups : public LoadCommand {
   }
 
   /// Return the raw content of the command
-  span<const uint8_t> payload() const {
+  span<const uint8_t> payload() const LIEF_LIFETIMEBOUND {
     return content_;
   }
 
   /// Iterator over the bindings (ChainedBindingInfo) associated with this command
-  it_binding_info bindings() {
+  it_binding_info bindings() LIEF_LIFETIMEBOUND {
     return all_bindings_;
   }
 
   /// Iterator over the bindings (ChainedBindingInfo) associated with this command
-  it_const_binding_info bindings() const {
+  it_const_binding_info bindings() const LIEF_LIFETIMEBOUND {
     return all_bindings_;
   }
 
   /// Iterator over the chained fixup metadata
-  it_chained_starts_in_segments_t chained_starts_in_segments() {
+  it_chained_starts_in_segments_t chained_starts_in_segments() LIEF_LIFETIMEBOUND {
     return chained_starts_in_segment_;
   }
 
-  it_const_chained_starts_in_segments_t chained_starts_in_segments() const {
+  it_const_chained_starts_in_segments_t
+      chained_starts_in_segments() const LIEF_LIFETIMEBOUND {
     return chained_starts_in_segment_;
   }
 
   /// Chained fixups version. The loader (dyld v852.2) checks
   /// that this value is set to 0
-  uint32_t fixups_version() const { return fixups_version_; }
-  void fixups_version(uint32_t version) { fixups_version_ = version; }
+  uint32_t fixups_version() const {
+    return fixups_version_;
+  }
+  void fixups_version(uint32_t version) {
+    fixups_version_ = version;
+  }
 
   /// offset of dyld_chained_starts_in_image in chain_data
-  uint32_t starts_offset() const { return starts_offset_; }
-  void starts_offset(uint32_t offset) { starts_offset_ = offset; }
+  uint32_t starts_offset() const {
+    return starts_offset_;
+  }
+  void starts_offset(uint32_t offset) {
+    starts_offset_ = offset;
+  }
 
   /// Offset of imports table in chain data
-  uint32_t imports_offset() const { return imports_offset_; }
-  void imports_offset(uint32_t offset) { imports_offset_ = offset; }
+  uint32_t imports_offset() const {
+    return imports_offset_;
+  }
+  void imports_offset(uint32_t offset) {
+    imports_offset_ = offset;
+  }
 
   /// Offset of symbol strings in chain data
-  uint32_t symbols_offset() const { return symbols_offset_; }
-  void symbols_offset(uint32_t offset) { symbols_offset_ = offset; }
+  uint32_t symbols_offset() const {
+    return symbols_offset_;
+  }
+  void symbols_offset(uint32_t offset) {
+    symbols_offset_ = offset;
+  }
 
   /// Number of imported symbol names
-  uint32_t imports_count() const { return imports_count_; }
-  void imports_count(uint32_t cnt) { imports_count_ = cnt; }
+  uint32_t imports_count() const {
+    return imports_count_;
+  }
+  void imports_count(uint32_t cnt) {
+    imports_count_ = cnt;
+  }
 
   /// The compression algorithm (if any) used to store the symbols
   /// 0 means uncompressed while 1 means zlib compressed.
   ///
   /// As far of the version v852.2 of dyld loader, it only supports
   /// **uncompressed** format
-  uint32_t symbols_format() const { return symbols_format_; }
-  void symbols_format(uint32_t fmt) { symbols_format_ = fmt; }
+  uint32_t symbols_format() const {
+    return symbols_format_;
+  }
+  void symbols_format(uint32_t fmt) {
+    symbols_format_ = fmt;
+  }
 
   /// The format of the imports (ChainedBindingInfo)
-  DYLD_CHAINED_FORMAT imports_format() const { return imports_format_; }
-  void imports_format(DYLD_CHAINED_FORMAT fmt) { imports_format_ = fmt; }
+  DYLD_CHAINED_FORMAT imports_format() const {
+    return imports_format_;
+  }
+  void imports_format(DYLD_CHAINED_FORMAT fmt) {
+    imports_format_ = fmt;
+  }
 
   chained_starts_in_segment& add(chained_starts_in_segment start_info) {
     chained_starts_in_segment_.push_back(std::move(start_info));
@@ -215,17 +270,17 @@ class LIEF_API DyldChainedFixups : public LoadCommand {
   LIEF_LOCAL DyldChainedFixups(const DyldChainedFixups& other);
 
   uint32_t data_offset_ = 0;
-  uint32_t data_size_   = 0;
+  uint32_t data_size_ = 0;
 
   // Raw payload of the DyldChainedFixups.
   // This payload is located in the __LINKEDIT segment
   span<uint8_t> content_;
 
   uint32_t fixups_version_ = 0;
-  uint32_t starts_offset_  = 0;
+  uint32_t starts_offset_ = 0;
   uint32_t imports_offset_ = 0;
   uint32_t symbols_offset_ = 0;
-  uint32_t imports_count_  = 0;
+  uint32_t imports_count_ = 0;
   uint32_t symbols_format_ = 0;
   DYLD_CHAINED_FORMAT imports_format_ = DYLD_CHAINED_FORMAT::IMPORT;
 

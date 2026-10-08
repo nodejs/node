@@ -49,7 +49,6 @@ t.test('legacy', t => {
       homeDir: {
         '.npmrc': [
           '//registry.npmjs.org/:_authToken=user',
-          '//registry.npmjs.org/:always-auth=user',
           '//registry.npmjs.org/:email=test-email-old@npmjs.org',
         ].join('\n'),
       },
@@ -63,8 +62,8 @@ t.test('legacy', t => {
     t.same(npm.config.get('//registry.npmjs.org/:_authToken'), 'npm_test-token')
     t.same(rc(), {
       '//registry.npmjs.org/:_authToken': 'npm_test-token',
-      email: 'test-email-old@npmjs.org',
-    }, 'should only have token and un-nerfed old email')
+      '//registry.npmjs.org/:email': 'test-email-old@npmjs.org',
+    }, 'should only have token and nerfed email')
   })
 
   t.test('scoped login default registry', async t => {

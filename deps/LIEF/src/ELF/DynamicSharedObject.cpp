@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@
 
 #include <spdlog/fmt/fmt.h>
 
-namespace LIEF {
-namespace ELF {
+
+namespace LIEF::ELF {
 
 void DynamicSharedObject::accept(Visitor& visitor) const {
   visitor.visit(*this);
@@ -32,7 +32,3 @@ std::ostream& DynamicSharedObject::print(std::ostream& os) const {
 }
 
 }
-}
-
-
-

@@ -98,7 +98,7 @@ function buildArchiveSync(entries, comment) {
   const handle = provider.openSync('/b.txt', 'r+');
 
   const buf = Buffer.alloc(4);
-  const { bytesRead } = handle.readSync(buf, 0, 4, 2);
+  const bytesRead = handle.readSync(buf, 0, 4, 2);
   assert.strictEqual(bytesRead, 4);
   assert.strictEqual(buf.toString(), '2345');
 
@@ -124,7 +124,8 @@ function buildArchiveSync(entries, comment) {
   const provider = new vfs.ZipProvider(zip);
 
   const handle = await provider.open('/c.txt', 'a');
-  assert.strictEqual(handle.position, 2); // Positioned at EOF on open
+  // O_APPEND only forces writes to the end; the read offset starts at 0.
+  assert.strictEqual(handle.position, 0);
 
   // Even with an explicit (wrong) position, append mode writes at the end.
   await handle.write(Buffer.from('z'), 0, 1, 0);
@@ -259,7 +260,7 @@ function buildArchiveSync(entries, comment) {
   assert.throws(() => provider.rmdirSync('/file.txt'), { code: 'ENOTDIR' });
 })().then(common.mustCall());
 
-// --- open(): EEXIST/ENOENT/EISDIR-on-wrong-direction, called directly on
+// --- open(): EEXIST/ENOENT/EBADF-on-wrong-direction, called directly on
 // the provider so the router can't short-circuit before delegating ---------
 (async () => {
   const archive = await buildArchive([await zlib.ZipEntry.create('a.txt', Buffer.from('x'))]);
@@ -271,12 +272,13 @@ function buildArchiveSync(entries, comment) {
   await assert.rejects(provider.open('/missing.txt', 'r'), { code: 'ENOENT' });
   assert.throws(() => provider.openSync('/missing.txt', 'r'), { code: 'ENOENT' });
 
-  // A handle opened write-only can't be read from, and vice versa.
+  // A handle opened write-only can't be read from, and vice versa: EBADF,
+  // as for any descriptor without the needed access.
   const writeOnly = await provider.open('/w.txt', 'w');
-  await assert.rejects(writeOnly.read(Buffer.alloc(1), 0, 1, 0), { code: 'EISDIR' });
+  await assert.rejects(writeOnly.read(Buffer.alloc(1), 0, 1, 0), { code: 'EBADF' });
   await writeOnly.close();
   const readOnly = await provider.open('/a.txt', 'r');
-  await assert.rejects(readOnly.write(Buffer.alloc(1), 0, 1, 0), { code: 'EISDIR' });
+  await assert.rejects(readOnly.write(Buffer.alloc(1), 0, 1, 0), { code: 'EBADF' });
   await readOnly.close();
 })().then(common.mustCall());
 

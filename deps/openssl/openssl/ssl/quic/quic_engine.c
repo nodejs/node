@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -136,8 +136,8 @@ void ossl_quic_engine_update_poll_descriptors(QUIC_ENGINE *qeng, int force)
      * the engine level in future when we can have multiple ports. This is not
      * important currently as the port list has a single entry.
      */
-    OSSL_LIST_FOREACH(port, port, &qeng->port_list)
-    ossl_quic_port_update_poll_descriptors(port, force);
+    OSSL_LIST_FOREACH (port, port, &qeng->port_list)
+        ossl_quic_port_update_poll_descriptors(port, force);
 }
 
 /*
@@ -185,8 +185,7 @@ static void qeng_tick(QUIC_TICK_RESULT *res, void *arg, uint32_t flags)
         return;
 
     /* Iterate through all ports and service them. */
-    OSSL_LIST_FOREACH(port, port, &qeng->port_list)
-    {
+    OSSL_LIST_FOREACH (port, port, &qeng->port_list) {
         QUIC_TICK_RESULT subr = { 0 };
 
         ossl_quic_port_subtick(port, &subr, flags);

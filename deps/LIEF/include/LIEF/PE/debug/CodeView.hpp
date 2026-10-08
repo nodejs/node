@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,22 +35,19 @@ class LIEF_API CodeView : public Debug {
 
     PDB_70 = 0x53445352, // RSDS
     PDB_20 = 0x3031424e, // NB10
-    CV_50  = 0x3131424e, // NB11
-    CV_41  = 0x3930424e, // NB09
+    CV_50 = 0x3131424e,  // NB11
+    CV_41 = 0x3930424e,  // NB09
   };
 
   CodeView() :
-    Debug(Debug::TYPES::CODEVIEW)
-  {}
+    Debug(Debug::TYPES::CODEVIEW) {}
   CodeView(SIGNATURES sig) :
     Debug{Debug::TYPES::CODEVIEW},
-    sig_{sig}
-  {}
+    sig_{sig} {}
 
   CodeView(const details::pe_debug& debug, SIGNATURES sig, Section* sec) :
     Debug(debug, sec),
-    sig_(sig)
-  {}
+    sig_(sig) {}
 
   CodeView(const CodeView& other) = default;
   CodeView& operator=(const CodeView& other) = default;

@@ -8,6 +8,7 @@
 #include "src/base/flags.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/keys.h"
+#include "src/objects/module-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/property-details.h"
 
@@ -50,6 +51,11 @@ void DebugPropertyIterator::AdvanceToPrototype() {
   is_own_ = false;
   if (!prototype_iterator_.HasAccess()) is_done_ = true;
   prototype_iterator_.AdvanceIgnoringProxies();
+  while (!prototype_iterator_.IsAtEnd() &&
+         IsJSProxy(
+             *PrototypeIterator::GetCurrent<JSReceiver>(prototype_iterator_))) {
+    prototype_iterator_.AdvanceIgnoringProxies();
+  }
   if (prototype_iterator_.IsAtEnd()) is_done_ = true;
 }
 
@@ -127,10 +133,11 @@ v8::Maybe<v8::PropertyAttribute> DebugPropertyIterator::attributes() {
   // V8 will crash.
 
 #if DEBUG
-  base::ScopedVector<char> property_message(128);
-  base::ScopedVector<char> name_buffer(100);
-  raw_name()->NameShortPrint(name_buffer);
-  v8::base::SNPrintF(property_message, "Invalid result for property \"%s\"\n",
+  auto property_message = base::OwnedVector<char>::NewForOverwrite(128);
+  auto name_buffer = base::OwnedVector<char>::NewForOverwrite(100);
+  raw_name()->NameShortPrint(name_buffer.as_vector());
+  v8::base::SNPrintF(property_message.as_vector(),
+                     "Invalid result for property \"%s\"\n",
                      name_buffer.begin());
   DCHECK_WITH_MSG(result.FromJust() != ABSENT, property_message.begin());
 #endif
@@ -193,13 +200,18 @@ bool DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
         typed_array->WasDetached() ? 0 : typed_array->GetLength();
     return true;
   }
+  if (IsJSDeferredModuleNamespace(*receiver) &&
+      Cast<JSDeferredModuleNamespace>(receiver)->module()->status() !=
+          Module::kEvaluated) [[unlikely]] {
+    return true;
+  }
   PropertyFilter filter =
       stage_ == kEnumerableStrings ? ENUMERABLE_STRINGS : ALL_PROPERTIES;
   if (KeyAccumulator::GetKeys(isolate_, receiver, KeyCollectionMode::kOwnOnly,
                               filter, GetKeysConversion::kConvertToString,
                               false, skip_indices_ || IsJSTypedArray(*receiver))
           .ToHandle(&current_keys_)) {
-    current_keys_length_ = current_keys_->length();
+    current_keys_length_ = current_keys_->ulength().value();
     return true;
   }
   return false;

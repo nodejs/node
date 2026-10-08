@@ -4,6 +4,11 @@
 // On Linux and other platforms without a native recursive watcher this is
 // implemented in JavaScript on top of per-directory watchers.
 
+if (process.platform === 'os400') {
+  console.log('Skipping: IBMi does not support `fs.watch()`');
+  process.exit(0);
+}
+
 const common = require('../common');
 const fs = require('fs');
 const path = require('path');

@@ -20,6 +20,15 @@ Run a WPT module through the Python test runner:
 tools/test.py wpt/test-url
 ```
 
+Select a generated path from the Python runner's output:
+
+```bash
+tools/test.py 'wpt/test-webcrypto/derive_bits_keys/hkdf.https.any.worker.html?1-1000'
+```
+
+Omit the query string to select all its variants. Variants sharing strict
+expected-failure rules run together.
+
 Pass a source file to its module runner to run all globals and variants
 generated from that file:
 

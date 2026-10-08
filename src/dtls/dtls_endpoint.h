@@ -64,11 +64,13 @@ class DTLSEndpoint final : public HandleWrap {
   // verification on the client SSL before the handshake begins; see
   // DTLSSession::Create.
   // Returns the created DTLSSession.
-  BaseObjectPtr<DTLSSession> Connect(DTLSContext* context,
-                                     const SocketAddress& remote,
-                                     const char* servername = nullptr,
-                                     const char* verify_host = nullptr,
-                                     bool verify_is_ip = false);
+  BaseObjectPtr<DTLSSession> Connect(
+      DTLSContext* context,
+      const SocketAddress& remote,
+      const char* servername = nullptr,
+      const char* verify_host = nullptr,
+      bool verify_is_ip = false,
+      const ncrypto::Buffer<const unsigned char>& resume = {});
 
   // Send a raw UDP datagram to the given address.
   // Called by DTLSSession to send encrypted packets.
@@ -91,6 +93,7 @@ class DTLSEndpoint final : public HandleWrap {
 
   bool is_listening() const { return listening_; }
   uint32_t mtu() const { return mtu_; }
+  uint64_t handshake_timeout() const { return handshake_timeout_; }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(DTLSEndpoint)
@@ -108,6 +111,10 @@ class DTLSEndpoint final : public HandleWrap {
   static void GetStats(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMTU(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetSocketOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetHandshakeTimeout(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetSessionLimits(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DoSetCallbacks(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // libuv callbacks
@@ -129,6 +136,14 @@ class DTLSEndpoint final : public HandleWrap {
                        size_t len,
                        const SocketAddress& remote);
 
+  // True if another server session can be accepted from this address without
+  // exceeding either cap.
+  bool HasCapacityFor(const SocketAddress& remote) const;
+
+  // True if the datagram could plausibly be a ClientHello. Used to reject
+  // obvious junk before allocating an SSL for it.
+  static bool CouldBeClientHello(const uint8_t* data, size_t len);
+
   // Handle a new client connection (server mode).
   void AcceptConnection(const uint8_t* data,
                         size_t len,
@@ -141,11 +156,16 @@ class DTLSEndpoint final : public HandleWrap {
   // single buffer per endpoint avoids a heap allocation on every packet.
   std::vector<char> recv_buf_;
 
-  // Session table: maps remote address -> session.
-  std::unordered_map<SocketAddress,
-                     BaseObjectPtr<DTLSSession>,
-                     SocketAddress::Hash>
-      sessions_;
+  // Session table: remote address -> session. PeerMap and not Map: two
+  // datagrams from one peer must find one session, and operator== would treat
+  // them as different peers over a sin6_flowinfo the sender is free to vary.
+  SocketAddress::PeerMap<BaseObjectPtr<DTLSSession>> sessions_;
+
+  // Concurrent sessions per source IP, ignoring port, so one host cannot fill
+  // the whole table. Entries are erased when their count reaches zero, so this
+  // stays proportional to the number of distinct peers, not to peers ever
+  // seen.
+  SocketAddress::IpMap<uint32_t> sessions_per_host_;
 
   // Server context (set when listening).
   BaseObjectPtr<DTLSContext> server_context_;
@@ -162,7 +182,34 @@ class DTLSEndpoint final : public HandleWrap {
   BaseObjectPtr<DTLSEndpoint> self_ref_;
 
   bool listening_ = false;
-  uint32_t mtu_ = 1200;  // Conservative default MTU for data payload
+  // Maximum size of a DTLS datagram, i.e. the UDP payload, not the
+  // application payload -- a record carries less than this once its header
+  // and MAC are counted. Read by DTLSSession when it creates its SSL, so a
+  // change only affects sessions created afterwards.
+  uint32_t mtu_ = 1200;
+
+  // Applied by Bind(). Dual stack unless asked otherwise, as in node:quic and
+  // node:dgram; this used to be forced on for every IPv6 address, so an
+  // endpoint on :: could not be reached over IPv4 at all.
+  bool ipv6_only_ = false;
+
+  // SO_REUSEPORT: several processes bind the same port and the kernel spreads
+  // datagrams between them. Not SO_REUSEADDR, which on Linux lets the last
+  // binder take the port from a running server.
+  bool reuse_port_ = false;
+
+  // Applied after the bind succeeds. Zero leaves the operating system's
+  // default alone, which is what not naming the option means.
+  uint32_t udp_receive_buffer_size_ = 0;
+  uint32_t udp_send_buffer_size_ = 0;
+  uint32_t udp_ttl_ = 0;
+
+  // Milliseconds a handshake may take before it is abandoned; 0 disables it.
+  uint64_t handshake_timeout_ = 60000;
+
+  // Caps on accepted server sessions. Zero means unlimited.
+  uint32_t max_sessions_ = 0;
+  uint32_t max_sessions_per_host_ = 0;
 };
 
 }  // namespace node::dtls

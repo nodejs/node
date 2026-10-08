@@ -16,7 +16,20 @@
 
 #include "absl/debugging/failure_signal_handler.h"
 
+#include <algorithm>
+#include <atomic>
+#include <cerrno>
+#include <csignal>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
+
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/base/internal/raw_logging.h"
+#include "absl/base/internal/sysinfo.h"
+#include "absl/debugging/internal/examine_stack.h"
+#include "absl/debugging/stacktrace.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -41,20 +54,6 @@
 #include <sys/prctl.h>
 #endif
 
-#include <algorithm>
-#include <atomic>
-#include <cerrno>
-#include <csignal>
-#include <cstdio>
-#include <cstring>
-#include <ctime>
-
-#include "absl/base/attributes.h"
-#include "absl/base/internal/raw_logging.h"
-#include "absl/base/internal/sysinfo.h"
-#include "absl/debugging/internal/examine_stack.h"
-#include "absl/debugging/stacktrace.h"
-
 #if !defined(_WIN32) && !defined(__wasi__)
 #define ABSL_HAVE_SIGACTION
 // Apple WatchOS and TVOS don't allow sigaltstack
@@ -71,7 +70,7 @@
 // Checks whether pthread_cpu_number_np is available.
 #ifdef ABSL_HAVE_PTHREAD_CPU_NUMBER_NP
 #error ABSL_HAVE_PTHREAD_CPU_NUMBER_NP cannot be directly set
-#elif defined(__APPLE__) && defined(__has_include) &&              \
+#elif defined(__APPLE__) &&                                        \
     ((defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) &&    \
       __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 110000) ||  \
      (defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__) &&   \
@@ -383,10 +382,16 @@ static void AbslFailureSignalHandler(int signo, siginfo_t*, void* ucontext) {
       // a bit for it to finish. If the other thread doesn't kill us,
       // we do so after sleeping.
       PortableSleepForSeconds(3);
-      RaiseToDefaultHandler(signo);
-      // The recursively raised signal may be blocked until we return.
-      return;
+    } else {
+      // Same thread re-entered: the handler itself faulted. Do NOT fall through
+      // and re-run the body (which would recurse under SA_NODEFER, resetting
+      // the alarm each time and consuming the unguarded altstack). Instead,
+      // terminate now.
     }
+
+    RaiseToDefaultHandler(signo);
+    // The recursively raised signal may be blocked until we return.
+    return;
   }
 
   // Increase the chance that the CPU we report was the same CPU on which the

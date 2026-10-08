@@ -452,9 +452,10 @@ writer closes immediately.
 * Returns: {number} Total bytes written, or `-1` if ending cannot complete
   synchronously.
 
-Synchronous variant of `writer.end()`. A return value of `-1` means closing has
-started but requires asynchronous draining. Use the try-fallback pattern to
-await completion:
+Synchronous variant of `writer.end()`. A return value of `-1` only indicates
+that the operation could not complete synchronously; no assumption can be made
+about whether closing has started or why it could not complete. Use the
+try-fallback pattern to await completion:
 
 ```cjs
 const result = writer.endSync();
@@ -463,14 +464,15 @@ if (result < 0) {
 }
 ```
 
-#### `writer.fail(reason)`
+#### `writer.fail([reason])`
 
 * `reason` {any}
 
 Put the writer into a terminal error state. If the writer is already closed
 or errored, this is a no-op. Unlike `write()` and `end()`, `fail()` is
 unconditionally synchronous because failing a writer is a pure state
-transition with no async work to perform.
+transition with no async work to perform. The reason is stored and propagated
+without modification. If omitted, the reason is `undefined`.
 
 #### `writer[Symbol.asyncDispose]()`
 
@@ -516,8 +518,11 @@ Synchronous batch write.
 
 ## The `stream/iter` module
 
-All functions are available both as named exports and as properties of the
-`Stream` namespace object:
+Most functions are available both as named exports and as properties of the
+`Stream` namespace object. The classic stream adapters (`fromReadable()`,
+`fromWritable()`, `toReadable()`, `toReadableSync()`, and `toWritable()`) and
+the static helper objects (`Broadcast`, `Share`, and `SyncShare`) are named
+exports only.
 
 ```mjs
 // Named exports
@@ -907,12 +912,13 @@ const serving = (async () => {
   for await (const chunks of server.readable) {
     await server.writer.writev(chunks);
   }
+  await server.writer.end();
 })();
 
 await client.writer.write('hello');
 await client.writer.end();
 
-console.log(await text(server.readable)); // handled by echo
+console.log(await text(client.readable)); // 'hello'
 await serving;
 ```
 
@@ -927,12 +933,13 @@ async function run() {
     for await (const chunks of server.readable) {
       await server.writer.writev(chunks);
     }
+    await server.writer.end();
   })();
 
   await client.writer.write('hello');
   await client.writer.end();
 
-  console.log(await text(server.readable)); // handled by echo
+  console.log(await text(client.readable)); // 'hello'
   await serving;
 }
 
@@ -1057,6 +1064,81 @@ added:
 * Returns: {Uint8Array}
 
 Synchronous version of [`bytes()`][].
+
+### `dump(source[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {AsyncIterable|Iterable} whose chunks must be {Uint8Array\[]}
+* `options` {Object}
+  * `signal` {AbortSignal}
+  * `limit` {number} Maximum number of bytes to consume. If the total bytes
+    read exceeds limit, an `ERR_OUT_OF_RANGE` error is thrown
+* Returns: {Promise} Fulfills with `undefined`.
+
+Read a source to completion, discarding every chunk. Unlike the other
+consumers, `dump()` retains nothing. Memory tops-out at a single batch no
+matter how much data the source produces.
+
+Use this to consume a stream when the content doesn't matter. For example, A
+QUIC stream only returns flow-control credit to the peer as its data is
+consumed, so a receiver that does not want the payload must still read it to
+completion.
+
+If the source errors part-way through, the returned promise rejects with that
+error.
+
+There is no default `limit`. `dump()` reads until the source is exhausted
+unless a limit is specified. When a limit is configured and the source exceeds
+it, the promise rejects and the source is cancelled. A partial dump is never
+reported as success.
+
+```mjs
+import { dump, from, pull, tap } from 'node:stream/iter';
+
+// Count the bytes flowing through a stream without retaining any of them.
+let bytesSeen = 0;
+const counter = tap((chunks) => {
+  for (const chunk of chunks) bytesSeen += chunk.byteLength;
+});
+
+await dump(pull(from('hello world'), counter));
+console.log(bytesSeen); // 11
+```
+
+```cjs
+const { dump, from, pull, tap } = require('node:stream/iter');
+
+async function run() {
+  // Count the bytes flowing through a stream without retaining any of them.
+  let bytesSeen = 0;
+  const counter = tap((chunks) => {
+    for (const chunk of chunks) bytesSeen += chunk.byteLength;
+  });
+
+  await dump(pull(from('hello world'), counter));
+  console.log(bytesSeen); // 11
+}
+
+run().catch(console.error);
+```
+
+### `dumpSync(source[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {Iterable} whose chunks must be {Uint8Array\[]}
+* `options` {Object}
+  * `limit` {number} Maximum number of bytes to consume. If the total bytes
+    read exceeds limit, an `ERR_OUT_OF_RANGE` error is thrown
+* Returns: {undefined}
+
+Synchronous version of [`dump()`][]. Throws `ERR_INVALID_ARG_TYPE` if `source`
+is not synchronously iterable.
 
 ### `text(source[, options])`
 
@@ -1217,7 +1299,8 @@ added:
  - v24.20.0
 -->
 
-* `callback` {Function} `(chunks) => void` Called with each batch.
+* `callback` {Function} `(chunks) => void` Called with each batch and with
+  `null` when the source ends.
 * Returns: {Function} A stateless transform.
 
 Create a pass-through transform that observes batches without modifying them.
@@ -1228,7 +1311,9 @@ import { from, pull, text, tap } from 'node:stream/iter';
 
 const result = pull(
   from('hello'),
-  tap((chunks) => console.log('Batch size:', chunks.length)),
+  tap((chunks) => {
+    if (chunks !== null) console.log('Batch size:', chunks.length);
+  }),
 );
 console.log(await text(result));
 ```
@@ -1239,7 +1324,9 @@ const { from, pull, text, tap } = require('node:stream/iter');
 async function run() {
   const result = pull(
     from('hello'),
-    tap((chunks) => console.log('Batch size:', chunks.length)),
+    tap((chunks) => {
+      if (chunks !== null) console.log('Batch size:', chunks.length);
+    }),
   );
   console.log(await text(result));
 }
@@ -1337,9 +1424,10 @@ run().catch(console.error);
 
 #### `broadcast.cancel([reason])`
 
-* `reason` {Error}
+* `reason` {any}
 
-Cancel the broadcast. All consumers receive an error.
+Cancel the broadcast. If `reason` is provided, all consumers reject with that
+exact reason. If it is omitted, consumers complete normally.
 
 #### `broadcast.consumerCount`
 
@@ -1354,9 +1442,8 @@ The number of active consumers.
   * `signal` {AbortSignal}
 * Returns: {AsyncIterable} whose chunks fulfill with {Uint8Array\[]}
 
-Create a new consumer. Each consumer receives all data written to the
-broadcast from the point of subscription onward. Optional transforms are
-applied to this consumer's view of the data.
+Create a new consumer. Optional transforms are applied to this consumer's view
+of the data.
 
 #### `broadcast[Symbol.dispose]()`
 
@@ -1372,7 +1459,8 @@ added:
 
 * `input` {AsyncIterable|Iterable|BroadcastChannel}
 * `options` {Object} Same as `broadcast()`.
-* Returns: {Object} `{ writer, broadcast }`
+* Returns: {BroadcastChannel|Object} A `broadcastProtocol` input returns its
+  {BroadcastChannel} directly. Other inputs return `{ writer, broadcast }`.
 
 Create a {BroadcastChannel} from an existing source. The source is consumed
 automatically and pushed to all subscribers.
@@ -1447,9 +1535,10 @@ Create a {Share} from an existing source.
 
 #### `share.cancel([reason])`
 
-* `reason` {Error}
+* `reason` {any}
 
-Cancel the share. All consumers receive an error.
+Cancel the share. If `reason` is provided, all consumers reject with that exact
+reason. If it is omitted, consumers complete normally.
 
 #### `share.consumerCount`
 
@@ -1494,10 +1583,18 @@ added:
 * `options` {Object}
   * `budget` {number} Must be >= 16384.
     **Default:** `65536`.
-  * `backpressure` {string} **Default:** `'strict'`.
+  * `backpressure` {string} `'strict'`, `'drop-oldest'`, or `'drop-newest'`.
+    **Default:** `'strict'`.
 * Returns: {SyncShare}
 
 Synchronous version of [`share()`][].
+
+Because there is no way to wait in a synchronous context, `'unbounded'` is not
+supported and throws `ERR_INVALID_ARG_VALUE`. With `'drop-newest'`, a consumer
+that reaches the end of the buffer while the budget is exhausted discards a
+single entry from the source and then returns `{ done: true }` without a
+value; the consumer is not detached, so it can resume once the slowest
+consumer advances and releases budget.
 
 ### Class: `SyncShare`
 
@@ -1513,17 +1610,12 @@ added:
 * `options` {Object}
 * Returns: {SyncShare}
 
-#### `share.bufferSize`
-
-* {number}
-
-The number of chunks currently buffered.
-
 #### `share.cancel([reason])`
 
-* `reason` {Error}
+* `reason` {any}
 
-Cancel the share. All consumers receive an error.
+Cancel the share. If `reason` is provided, all consumers throw that exact
+reason. If it is omitted, consumers complete normally.
 
 #### `share.consumerCount`
 
@@ -1531,11 +1623,9 @@ Cancel the share. All consumers receive an error.
 
 The number of active consumers.
 
-#### `share.pull([...transforms][, options])`
+#### `share.pull([...transforms])`
 
 * `...transforms` {Function|Object}
-* `options` {Object}
-  * `signal` {AbortSignal}
 * Returns: {Iterable} whose chunks return {Uint8Array\[]}
 
 Create a new consumer of the shared source.
@@ -1570,8 +1660,9 @@ added:
 
 > Stability: 1 - Experimental
 
-* `readable` {stream.Readable|Object} A classic Readable stream or any object
-  with `read()`, `on()`, and `off()` methods.
+* `readable` {stream.Readable|Object} A classic Readable stream or a compatible
+  object with `read()`, `pipe()`, `destroy()`, `on()`, and `removeListener()`
+  methods.
 * Returns: {AsyncIterable} whose chunks fulfill with {Uint8Array\[]}
 
 Converts a classic Readable stream (or duck-typed equivalent) into a
@@ -1580,8 +1671,8 @@ stream/iter async iterable source that can be passed to [`from()`][],
 
 If the object implements the [`toAsyncStreamable`][] protocol (as
 `stream.Readable` does), that protocol is used. Otherwise, the function
-duck-types on `read()`, `on()`, and `off()` (EventEmitter) and wraps the
-stream with a batched async iterator.
+duck-types on `read()`, `pipe()`, `destroy()`, `on()`, and `removeListener()`
+(EventEmitter) and wraps the stream with a batched async iterator.
 
 The result is cached per instance -- calling `fromReadable()` twice with the
 same stream returns the same iterable.
@@ -1626,13 +1717,14 @@ added:
 
 > Stability: 1 - Experimental
 
-* `writable` {stream.Writable|Object} A classic Writable stream or any object
-  with `write()` and `on()` methods.
+* `writable` {stream.Writable|Object} A classic Writable stream or a compatible
+  object with `write()`, `end()`, `destroy()`, `on()`, and `removeListener()`
+  methods.
 * `options` {Object}
   * `backpressure` {string} Backpressure policy. **Default:** `'strict'`.
-    * `'strict'` -- writes are rejected when the buffer is full. Catches
-      callers that ignore backpressure.
-    * `'unbounded'` -- writes wait for drain when the buffer is full. Recommended
+    * `'strict'` -- one write may wait while the buffer is full. Further writes
+      are rejected until it is accepted or canceled.
+    * `'unbounded'` -- writes are queued while the buffer is full. Recommended
       for use with [`pipeTo()`][].
     * `'drop-newest'` -- writes are silently discarded when the buffer is full.
     * `'drop-oldest'` -- **not supported**. Throws `ERR_INVALID_ARG_VALUE`.
@@ -1644,8 +1736,14 @@ destination.
 
 Since all writes on a classic Writable are fundamentally asynchronous,
 the synchronous Writer methods (`writeSync`, `writevSync`, `endSync`) always
-return `false` or `-1`, deferring to the async path. The per-write
-`options.signal` parameter from the Writer interface is also ignored.
+return `false` or `-1`, deferring to the async path. A queued `write()` or
+`writev()` can be canceled with its `options.signal` before it reaches the
+classic Writable.
+
+If `writer.fail(reason)` receives a non-Error reason, the classic Writable is
+destroyed with an `ERR_FALSY_VALUE_REJECTION` or `ERR_OPERATION_FAILED` error.
+Its `reason` property contains the original value, which remains the Writer's
+stored failure reason.
 
 The result is cached per instance and backpressure policy -- calling
 `fromWritable()` twice with the same stream and `backpressure` option returns
@@ -1704,6 +1802,11 @@ added:
 Creates a byte-mode [`stream.Readable`][] from the `source`
 (the native batch format used by the stream/iter API). Each `Uint8Array` in a
 yielded batch is pushed as a separate chunk into the Readable.
+
+Classic streams cannot represent arbitrary values as emitted errors. A
+non-Error reason is wrapped in an `ERR_FALSY_VALUE_REJECTION` or
+`ERR_OPERATION_FAILED` error whose `reason` property contains the original
+value.
 
 ```mjs
 import { createWriteStream } from 'node:fs';
@@ -1789,9 +1892,18 @@ sync path returns `false`. Similarly, `_final()` tries `endSync()`
 before `end()`. When the sync path succeeds, the callback is deferred via
 `queueMicrotask` to preserve the async resolution contract.
 
-The Writable's `highWaterMark` is set to `Number.MAX_SAFE_INTEGER` to
-effectively disable its internal buffering, allowing the underlying Writer
-to manage backpressure directly.
+Classic stream callbacks cannot represent arbitrary values as errors. A
+non-Error reason is wrapped in an `ERR_FALSY_VALUE_REJECTION` or
+`ERR_OPERATION_FAILED` error before it is passed to the callback. The error's
+`reason` property contains the original value.
+
+Destroying the Writable before successful completion calls `writer.fail()`.
+If `fail()` is unavailable, `Symbol.dispose` or `Symbol.asyncDispose` is used
+when implemented by the Writer.
+
+The Writable uses the default classic stream `highWaterMark`. Classic stream
+backpressure bounds writes waiting to reach the underlying Writer, while the
+Writer controls completion of the active `_write()` or `_writev()` operation.
 
 ```mjs
 import { push, toWritable } from 'node:stream/iter';
@@ -1828,7 +1940,11 @@ to the {BroadcastChannel} interface. The implementation is fully custom -- it ca
 manage consumers, buffering, and backpressure however it wants.
 
 ```mjs
-import { Broadcast, text } from 'node:stream/iter';
+import {
+  broadcast as createBroadcast,
+  Broadcast,
+  text,
+} from 'node:stream/iter';
 
 // This example defers to the built-in Broadcast, but a custom
 // implementation could use any mechanism.
@@ -1837,7 +1953,7 @@ class MessageBus {
   #writer;
 
   constructor() {
-    const { writer, broadcast } = Broadcast();
+    const { writer, broadcast } = createBroadcast();
     this.#writer = writer;
     this.#broadcast = broadcast;
   }
@@ -1856,7 +1972,7 @@ class MessageBus {
 }
 
 const bus = new MessageBus();
-const { broadcast } = Broadcast.from(bus);
+const broadcast = Broadcast.from(bus);
 const consumer = broadcast.push();
 bus.send('hello');
 bus.close();
@@ -1864,7 +1980,11 @@ console.log(await text(consumer)); // 'hello'
 ```
 
 ```cjs
-const { Broadcast, text } = require('node:stream/iter');
+const {
+  broadcast: createBroadcast,
+  Broadcast,
+  text,
+} = require('node:stream/iter');
 
 // This example defers to the built-in Broadcast, but a custom
 // implementation could use any mechanism.
@@ -1873,7 +1993,7 @@ class MessageBus {
   #writer;
 
   constructor() {
-    const { writer, broadcast } = Broadcast();
+    const { writer, broadcast } = createBroadcast();
     this.#writer = writer;
     this.#broadcast = broadcast;
   }
@@ -1892,7 +2012,7 @@ class MessageBus {
 }
 
 const bus = new MessageBus();
-const { broadcast } = Broadcast.from(bus);
+const broadcast = Broadcast.from(bus);
 const consumer = broadcast.push();
 bus.send('hello');
 bus.close();
@@ -2109,11 +2229,9 @@ console.log(textSync(consumer)); // 'hello'
 * Value: `Symbol.for('Stream.toAsyncStreamable')`
 
 The value must be a function that converts the object into a streamable value.
-When the object is encountered anywhere in the streaming pipeline (as a source
-passed to `from()`, or as a value returned from a transform), this method is
-called to produce the actual data. It may return any value that resolves to:
-a string, `Uint8Array`, `AsyncIterable`, `Iterable`, or another streamable
-object.
+When the object is passed to `from()`, this method is called to produce the
+actual data. It may return any value that resolves to a string, `Uint8Array`,
+`AsyncIterable`, `Iterable`, or another streamable object.
 
 ```mjs
 import { from, text } from 'node:stream/iter';
@@ -2158,10 +2276,9 @@ text(stream).then(console.log); // 'hello world'
 * Value: `Symbol.for('Stream.toStreamable')`
 
 The value must be a function that synchronously converts the object into a
-streamable value. When the object is encountered anywhere in the streaming
-pipeline (as a source passed to `fromSync()`, or as a value returned from a
-sync transform), this method is called to produce the actual data. It must
-synchronously return a streamable value: a string, `Uint8Array`, or `Iterable`.
+streamable value. When the object is passed to `fromSync()`, this method is
+called to produce the actual data. It must synchronously return a streamable
+value: a string, `Uint8Array`, or `Iterable`.
 
 ```mjs
 import { fromSync, textSync } from 'node:stream/iter';
@@ -2205,6 +2322,7 @@ console.log(textSync(stream)); // 'hello world'
 [`array()`]: #arraysource-options
 [`arrayBuffer()`]: #arraybuffersource-options
 [`bytes()`]: #bytessource-options
+[`dump()`]: #drainsource-options
 [`from()`]: #frominput
 [`fromSync()`]: #fromsyncinput
 [`node:zlib/iter`]: zlib.md#iterable-compression

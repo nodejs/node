@@ -10,6 +10,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/smi-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -18,9 +19,14 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-shadow-realm-tq-inl.inc"
+inline Tagged<NativeContext> JSShadowRealm::native_context() const {
+  return native_context_.load();
+}
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSShadowRealm)
+inline void JSShadowRealm::set_native_context(Tagged<NativeContext> value,
+                                              WriteBarrierMode mode) {
+  native_context_.store(this, value, mode);
+}
 
 }  // namespace internal
 }  // namespace v8

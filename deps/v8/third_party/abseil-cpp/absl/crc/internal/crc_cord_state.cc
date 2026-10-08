@@ -14,10 +14,14 @@
 
 #include "absl/crc/internal/crc_cord_state.h"
 
+#include <atomic>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 
 #include "absl/base/config.h"
 #include "absl/base/no_destructor.h"
+#include "absl/crc/crc32c.h"
 #include "absl/numeric/bits.h"
 
 namespace absl {

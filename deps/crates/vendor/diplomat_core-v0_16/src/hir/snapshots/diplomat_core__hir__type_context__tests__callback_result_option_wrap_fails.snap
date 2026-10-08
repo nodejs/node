@@ -1,0 +1,6 @@
+---
+source: core/src/hir/type_context.rs
+expression: output
+---
+Lowering error in MyStruct::takes_callback: Result<Option<MyStruct>, Option<MyStruct>> wraps Option<MyStruct>; MyStruct is not an opaque. Please use DiplomatOption<MyStruct> instead.
+Lowering error in SomeTrait::xyz: Result<Option<MyStruct>, Option<MyStruct>> wraps Option<MyStruct>; MyStruct is not an opaque. Please use DiplomatOption<MyStruct> instead.

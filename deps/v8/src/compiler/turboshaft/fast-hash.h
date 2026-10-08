@@ -39,7 +39,7 @@ struct fast_hash {
 template <typename T>
 struct fast_hash<std::optional<T>> {
   size_t operator()(const std::optional<T>& v) const {
-    return v.has_value() ? (fast_hash()(*v) << 1) + 1 : 0;
+    return v.has_value() ? (fast_hash<T>()(*v) << 1) + 1 : 0;
   }
 };
 

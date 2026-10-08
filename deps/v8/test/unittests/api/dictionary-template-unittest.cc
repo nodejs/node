@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "include/v8-template.h"
+#include "src/base/macros.h"
+#include "src/common/globals.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -126,11 +128,48 @@ TEST_F(DictionaryTemplateTest, PrototypeContext) {
     object2 = v8::Object::New(isolate());
   }
 
-  EXPECT_TRUE(instance1->GetPrototypeV2() == object1->GetPrototypeV2());
-  EXPECT_TRUE(instance2->GetPrototypeV2() == object2->GetPrototypeV2());
+  EXPECT_TRUE(instance1->GetPrototype() == object1->GetPrototype());
+  EXPECT_TRUE(instance2->GetPrototype() == object2->GetPrototype());
 
-  EXPECT_FALSE(instance1->GetPrototypeV2() == instance2->GetPrototypeV2());
-  EXPECT_TRUE(instance2->GetPrototypeV2() == instance3->GetPrototypeV2());
+  EXPECT_FALSE(instance1->GetPrototype() == instance2->GetPrototype());
+  EXPECT_TRUE(instance2->GetPrototype() == instance3->GetPrototype());
+}
+
+TEST_F(DictionaryTemplateTest, HoleNanCanonicalization) {
+  HandleScope handle_scope(isolate());
+
+  constexpr std::string_view property_names[] = {"a"};
+  Local<DictionaryTemplate> tpl =
+      DictionaryTemplate::New(isolate(), property_names);
+
+  // 1. Create first instance with a normal double to seed the map cache with
+  // double representation and const property details.
+  MaybeLocal<Value> values1[1] = {v8::Number::New(isolate(), 1.25)};
+  Local<Object> instance1 = tpl->NewInstance(context(), values1);
+  EXPECT_FALSE(instance1.IsEmpty());
+
+  // 2. Create second instance reusing cached map with the hole-NaN bit pattern.
+  const double hole_nan = base::bit_cast<double>(i::kHoleNanInt64);
+  MaybeLocal<Value> values2[1] = {v8::Number::New(isolate(), hole_nan)};
+  Local<Object> instance2 = tpl->NewInstance(context(), values2);
+  EXPECT_FALSE(instance2.IsEmpty());
+
+  // The stored HeapNumber value must not have the hole-NaN bit pattern.
+  auto value2 =
+      instance2->Get(context(), v8_str(isolate(), "a")).ToLocalChecked();
+  EXPECT_TRUE(value2->IsNumber());
+  double val2 = value2.As<v8::Number>()->Value();
+  EXPECT_TRUE(std::isnan(val2));
+  EXPECT_NE(base::bit_cast<uint64_t>(val2), i::kHoleNanInt64);
+
+  // The property must be mutable and not in Read-Only space.
+  EXPECT_TRUE(instance2
+                  ->Set(context(), v8_str(isolate(), "a"),
+                        v8::Number::New(isolate(), 42.5))
+                  .ToChecked());
+  auto value2_mutated =
+      instance2->Get(context(), v8_str(isolate(), "a")).ToLocalChecked();
+  EXPECT_EQ(value2_mutated.As<v8::Number>()->Value(), 42.5);
 }
 
 }  // namespace v8

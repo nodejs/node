@@ -1238,7 +1238,7 @@ port2.postMessage(circularData);
 ```
 
 `transferList` may be a list of {ArrayBuffer}, [`MessagePort`][],
-[`FileHandle`][], {net.Server}, and {net.Socket} objects.
+[`FileHandle`][], {net.Server}, {net.Socket}, and {net.BoundSocket} objects.
 After transferring, they are not usable on the sending side of the channel
 anymore (even if they are not contained in `value`).
 
@@ -1249,6 +1249,8 @@ freshly accepted or created TCP connection that has not yet started reading and
 has no buffered data, otherwise `postMessage()` throws
 `ERR_WORKER_HANDLE_NOT_TRANSFERABLE`. This makes it possible to accept
 connections on one thread and distribute them across a pool of worker threads.
+Transferring a {net.BoundSocket} moves an un-adopted pre-bound socket, so a
+port can be reserved synchronously on one thread and adopted on another.
 Only TCP handles are supported.
 
 If `value` contains {SharedArrayBuffer} instances, those are accessible
@@ -1631,6 +1633,12 @@ changes:
     process (such as `--title`) are not supported. If set, this is provided
     as [`process.execArgv`][] inside the worker. By default, options are
     inherited from the parent thread.
+    Passing an explicit `execArgv` (including an empty array) replaces that
+    inheritance: the worker receives only the listed flags. Under the
+    [Permission Model](permissions.md#permission-model), that means an explicit
+    `execArgv` can drop the parent's `--permission` / `--allow-*` grants.
+    Omit `execArgv` to keep the parent's CLI flags. This is intended. See
+    [Permission Model limitations](permissions.md#limitations-and-known-issues).
   * `stdin` {boolean} If this is set to `true`, then `worker.stdin`
     provides a writable stream whose contents appear as `process.stdin`
     inside the Worker. By default, no data is provided.

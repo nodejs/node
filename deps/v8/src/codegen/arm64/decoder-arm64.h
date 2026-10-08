@@ -87,6 +87,7 @@ namespace internal {
   V(NEONSHA3)                           \
   V(Cpy)                                \
   V(Set)                                \
+  V(SVEBitPerm)                         \
   V(Unallocated)                        \
   V(Unimplemented)
 

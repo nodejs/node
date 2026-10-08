@@ -167,6 +167,7 @@ class TypeInferenceAnalysis {
         case Opcode::kGlobalSet:
         case Opcode::kWasmIncCoverageCounter:
         case Opcode::kTrapIf:
+        case Opcode::kWasmTrap:
 #endif
         case Opcode::kCheckException:
           // These operations do not produce any output that needs to be typed.

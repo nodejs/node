@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Tuples unsupported
+In src/ast/snapshots/span_testing/tuples.rs:3:28:
+...(t : (i32, i32)) {}...
+        ^^^^^^^^^^
+https://github.com/rust-diplomat/diplomat/issues/1142

@@ -210,8 +210,10 @@ enum Flags : uint32_t {
   kNoICU = 1 << 3,
   // Do not modify stdio file descriptor or TTY state.
   kNoStdioInitialization = 1 << 4,
-  // Do not register Node.js-specific signal handlers
-  // and reset other signal handlers to default state.
+  // Do not register Node.js-specific signal handlers, reset other signal
+  // handlers to default state, or replace the calling thread's signal mask
+  // (without this flag, POSIX builds with the inspector set it to block
+  // SIGUSR1 and nothing else).
   kNoDefaultSignalHandling = 1 << 5,
   // Do not perform V8 initialization.
   kNoInitializeV8 = 1 << 6,
@@ -322,6 +324,42 @@ inline std::shared_ptr<InitializationResult> InitializeOncePerProcess(
       args, static_cast<ProcessInitializationFlags::Flags>(flags_accum));
 }
 
+struct ProcessEnvironmentScrubOptions {
+  // The environment variables to keep. Each entry is `*`, a variable name, or
+  // a variable name prefix followed by `*`. Names are case-insensitive on
+  // Windows.
+  std::vector<std::string> allow;
+  // Whether to also keep the variables that Node.js and its bundled
+  // dependencies read after startup, see GetRuntimeEnvironmentDefaults().
+  bool keep_runtime_defaults = true;
+  // Whether to overwrite the removed variables in the environment block the
+  // process was started with, which /proc/<pid>/environ exposes. Only
+  // implemented on Linux.
+  bool wipe_initial_block = true;
+};
+
+// Removes every variable that `options` does not keep from the process
+// environment, and returns the names of the removed variables.
+//
+// node::Start() does this automatically when the permission model restricts
+// access to environment variables. When `args` passed to
+// InitializeOncePerProcess() enable the permission model without
+// `--allow-env=*`, the embedder must remove the variables that `--allow-env`
+// does not grant access to first: InitializeOncePerProcess() fails if the
+// process environment contains any of them.
+//
+// This modifies the process environment without any locking that native code
+// calling getenv() participates in. It must be called before starting any
+// thread that may read the environment, and before
+// InitializeOncePerProcess(). Returns Nothing() if `options.allow` contains an
+// invalid entry, or if InitializeOncePerProcess() has already completed.
+NODE_EXTERN v8::Maybe<std::vector<std::string>> ScrubProcessEnvironment(
+    const ProcessEnvironmentScrubOptions& options);
+
+// Returns the names, and name prefixes followed by `*`, of the environment
+// variables that Node.js and its bundled dependencies read after startup.
+NODE_EXTERN std::vector<std::string> GetRuntimeEnvironmentDefaults();
+
 enum OptionEnvvarSettings {
   // Allow the options to be set via the environment variable, like
   // `NODE_OPTIONS`.
@@ -425,6 +463,7 @@ enum IsolateSettingsFlags {
   DETAILED_SOURCE_POSITIONS_FOR_PROFILING = 1 << 1,
   SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK = 1 << 2,
   SHOULD_NOT_SET_PREPARE_STACK_TRACE_CALLBACK = 1 << 3,
+  SHOULD_NOT_SET_WASM_STREAMING_CALLBACK = 1 << 4,
   ALLOW_MODIFY_CODE_GENERATION_FROM_STRINGS_CALLBACK = 0, /* legacy no-op */
 };
 
@@ -649,7 +688,12 @@ enum Flags : uint64_t {
   // Controls whether the InspectorAgent created for this Environment waits for
   // Inspector frontend events during the Environment creation. It's used to
   // call node::Stop(env) on a Worker thread that is waiting for the events.
-  kNoWaitForInspectorFrontend = 1 << 11
+  kNoWaitForInspectorFrontend = 1 << 11,
+  // Set this flag to exempt process._linkedBinding() from the permission
+  // model's addon scope (--allow-addons): linked bindings are compiled into
+  // the executable by the embedder, unlike addons loaded from the file system
+  // through process.dlopen(), which stays gated. Inherited by worker threads.
+  kNoAddonPermissionForLinkedBindings = 1 << 12
 };
 }  // namespace EnvironmentFlags
 
@@ -880,6 +924,9 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     const ModuleData* entry_point,
     EmbedderPreloadCallback preload = nullptr);
 
+// Runs `env`'s event loop until its handles have closed, with JavaScript
+// execution disallowed for `env`; see doc/api/embedding.md if that loop is
+// shared with other Environments.
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
 // Set a callback that is called when process.exit() is called from JS,
@@ -1004,6 +1051,9 @@ class NODE_EXTERN CommonEnvironmentSetup {
   // will be empty.
   // env_args will be passed through as arguments to CreateEnvironment(), after
   // `isolate_data` and `context`.
+  // `snapshot_data` has to stay alive as long as the setup created from it,
+  // and every setup in a process has to use the same snapshot: all isolates
+  // are created from the blob the first one used.
   template <typename... EnvironmentArgs>
   static std::unique_ptr<CommonEnvironmentSetup> Create(
       MultiIsolatePlatform* platform,

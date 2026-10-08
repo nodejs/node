@@ -57,7 +57,7 @@ namespace detail {
 #undef HWY_AVX3_HAVE_F32_TO_BF16C
 #if HWY_TARGET <= HWY_AVX3_ZEN4 && !HWY_COMPILER_CLANGCL &&           \
     (HWY_COMPILER_GCC_ACTUAL >= 1000 || HWY_COMPILER_CLANG >= 900) && \
-    !defined(HWY_AVX3_DISABLE_AVX512BF16)
+    HWY_AVX3_ENABLE_AVX512BF16
 #define HWY_AVX3_HAVE_F32_TO_BF16C 1
 #else
 #define HWY_AVX3_HAVE_F32_TO_BF16C 0
@@ -716,83 +716,120 @@ HWY_API Vec128<double, N> Xor(Vec128<double, N> a, Vec128<double, N> b) {
   return Vec128<double, N>{_mm_xor_pd(a.raw, b.raw)};
 }
 
-// ------------------------------ Not
-template <typename T, size_t N>
-HWY_API Vec128<T, N> Not(const Vec128<T, N> v) {
-  const DFromV<decltype(v)> d;
-  const RebindToUnsigned<decltype(d)> du;
-  using VU = VFromD<decltype(du)>;
+// ------------------------------ TernaryLogic
+
+#undef HWY_X86_HAVE_TERNARY_LOGIC
 #if HWY_TARGET <= HWY_AVX3 && !HWY_IS_MSAN
-  const __m128i vu = BitCast(du, v).raw;
-  return BitCast(d, VU{_mm_ternarylogic_epi32(vu, vu, vu, 0x55)});
+#define HWY_X86_HAVE_TERNARY_LOGIC 1
 #else
-  return Xor(v, BitCast(d, VU{_mm_set1_epi32(-1)}));
+#define HWY_X86_HAVE_TERNARY_LOGIC 0
+#endif
+
+#if HWY_X86_HAVE_TERNARY_LOGIC
+namespace detail {
+
+// Forward-declare the per-target implementations.
+template <uint8_t kTernLogOp, size_t kVectorBytes>
+struct TernaryLogicImpl;
+
+// Interface called from all targets. Without this, the compiler would only
+// examine one of the overloads, because each is templated on kTernLogOp.
+template <uint8_t kTernLogOp, class V>
+HWY_INLINE V TernaryLogic(V a, V b, V c) {
+  return TernaryLogicImpl<kTernLogOp, sizeof(V)>()(a, b, c);
+}
+
+// Per-target partial specialization.
+template <uint8_t kTernLogOp>
+struct TernaryLogicImpl<kTernLogOp, 16> {
+  template <class V>
+  HWY_INLINE V operator()(V a, V b, V c) const {
+    const DFromV<decltype(a)> d;
+    const RebindToUnsigned<decltype(d)> du;
+    using VU = VFromD<decltype(du)>;
+    const __m128i ret = _mm_ternarylogic_epi64(
+        BitCast(du, a).raw, BitCast(du, b).raw, BitCast(du, c).raw, kTernLogOp);
+    return BitCast(d, VU{ret});
+  }
+};
+
+}  // namespace detail
+#endif  // HWY_X86_HAVE_TERNARY_LOGIC
+
+// ------------------------------ Not
+template <class V>  // generic for all vector lengths
+HWY_API V Not(const V v) {
+#if HWY_X86_HAVE_TERNARY_LOGIC
+  return detail::TernaryLogic<0x55>(v, v, v);
+#else
+  const DFromV<decltype(v)> d;
+  const RebindToSigned<decltype(d)> di;
+  return Xor(v, BitCast(d, Set(di, -1)));
 #endif
 }
+
+#if HWY_X86_HAVE_TERNARY_LOGIC
 
 // ------------------------------ Xor3
-template <typename T, size_t N>
-HWY_API Vec128<T, N> Xor3(Vec128<T, N> x1, Vec128<T, N> x2, Vec128<T, N> x3) {
-#if HWY_TARGET <= HWY_AVX3 && !HWY_IS_MSAN
-  const DFromV<decltype(x1)> d;
-  const RebindToUnsigned<decltype(d)> du;
-  using VU = VFromD<decltype(du)>;
-  const __m128i ret = _mm_ternarylogic_epi64(
-      BitCast(du, x1).raw, BitCast(du, x2).raw, BitCast(du, x3).raw, 0x96);
-  return BitCast(d, VU{ret});
+
+#ifdef HWY_NATIVE_XOR3
+#undef HWY_NATIVE_XOR3
 #else
-  return Xor(x1, Xor(x2, x3));
+#define HWY_NATIVE_XOR3
 #endif
+
+template <class V>  // generic for all vector lengths
+HWY_API V Xor3(V x1, V x2, V x3) {
+  return detail::TernaryLogic<0x96>(x1, x2, x3);
 }
 
+// ------------------------------ XorAndNot
+
+#ifdef HWY_NATIVE_BCAX
+#undef HWY_NATIVE_BCAX
+#else
+#define HWY_NATIVE_BCAX
+#endif
+
+template <class V>  // generic for all vector lengths
+HWY_API V XorAndNot(V x, V a1, V a2) {
+  return detail::TernaryLogic<0xD2>(x, a1, a2);
+}
+
+#endif  // HWY_X86_HAVE_TERNARY_LOGIC
+
 // ------------------------------ Or3
-template <typename T, size_t N>
-HWY_API Vec128<T, N> Or3(Vec128<T, N> o1, Vec128<T, N> o2, Vec128<T, N> o3) {
-#if HWY_TARGET <= HWY_AVX3 && !HWY_IS_MSAN
-  const DFromV<decltype(o1)> d;
-  const RebindToUnsigned<decltype(d)> du;
-  using VU = VFromD<decltype(du)>;
-  const __m128i ret = _mm_ternarylogic_epi64(
-      BitCast(du, o1).raw, BitCast(du, o2).raw, BitCast(du, o3).raw, 0xFE);
-  return BitCast(d, VU{ret});
+template <class V>  // generic for all vector lengths
+HWY_API V Or3(V o1, V o2, V o3) {
+#if HWY_X86_HAVE_TERNARY_LOGIC
+  return detail::TernaryLogic<0xFE>(o1, o2, o3);
 #else
   return Or(o1, Or(o2, o3));
 #endif
 }
 
 // ------------------------------ OrAnd
-template <typename T, size_t N>
-HWY_API Vec128<T, N> OrAnd(Vec128<T, N> o, Vec128<T, N> a1, Vec128<T, N> a2) {
-#if HWY_TARGET <= HWY_AVX3 && !HWY_IS_MSAN
-  const DFromV<decltype(o)> d;
-  const RebindToUnsigned<decltype(d)> du;
-  using VU = VFromD<decltype(du)>;
-  const __m128i ret = _mm_ternarylogic_epi64(
-      BitCast(du, o).raw, BitCast(du, a1).raw, BitCast(du, a2).raw, 0xF8);
-  return BitCast(d, VU{ret});
+template <class V>  // generic for all vector lengths
+HWY_API V OrAnd(V o, V a1, V a2) {
+#if HWY_X86_HAVE_TERNARY_LOGIC
+  return detail::TernaryLogic<0xF8>(o, a1, a2);
 #else
   return Or(o, And(a1, a2));
 #endif
 }
 
 // ------------------------------ IfVecThenElse
-template <typename T, size_t N>
-HWY_API Vec128<T, N> IfVecThenElse(Vec128<T, N> mask, Vec128<T, N> yes,
-                                   Vec128<T, N> no) {
-#if HWY_TARGET <= HWY_AVX3 && !HWY_IS_MSAN
-  const DFromV<decltype(no)> d;
-  const RebindToUnsigned<decltype(d)> du;
-  using VU = VFromD<decltype(du)>;
-  return BitCast(
-      d, VU{_mm_ternarylogic_epi64(BitCast(du, mask).raw, BitCast(du, yes).raw,
-                                   BitCast(du, no).raw, 0xCA)});
+template <class V>  // generic for all vector lengths
+HWY_API V IfVecThenElse(V mask, V yes, V no) {
+#if HWY_X86_HAVE_TERNARY_LOGIC
+  return detail::TernaryLogic<0xCA>(mask, yes, no);
 #else
   return IfThenElse(MaskFromVec(mask), yes, no);
 #endif
 }
 
 // ------------------------------ BitwiseIfThenElse
-#if HWY_TARGET <= HWY_AVX3 && !HWY_IS_MSAN
+#if HWY_X86_HAVE_TERNARY_LOGIC
 
 #ifdef HWY_NATIVE_BITWISE_IF_THEN_ELSE
 #undef HWY_NATIVE_BITWISE_IF_THEN_ELSE
@@ -800,12 +837,12 @@ HWY_API Vec128<T, N> IfVecThenElse(Vec128<T, N> mask, Vec128<T, N> yes,
 #define HWY_NATIVE_BITWISE_IF_THEN_ELSE
 #endif
 
-template <class V>
+template <class V>  // generic for all vector lengths
 HWY_API V BitwiseIfThenElse(V mask, V yes, V no) {
   return IfVecThenElse(mask, yes, no);
 }
 
-#endif
+#endif  // HWY_X86_HAVE_TERNARY_LOGIC
 
 // ------------------------------ Operator overloads (internal-only if float)
 
@@ -1956,6 +1993,45 @@ HWY_API Mask128<T, N> ExclusiveNeither(const Mask128<T, N> a, Mask128<T, N> b) {
 }
 
 #endif  // HWY_TARGET <= HWY_AVX3
+
+// MaskedTernaryLogic depends on MFromD.
+#if HWY_X86_HAVE_TERNARY_LOGIC
+namespace detail {
+
+// Forward-declare implementation.
+template <uint8_t kTernLogOp, size_t kVectorBytes>
+struct MaskedTernaryLogicImpl;
+
+// Same as TernaryLogic, but with writemask. If !mask, returns a.
+template <uint8_t kTernLogOp, class V>
+HWY_INLINE V MaskedTernaryLogic(MFromD<DFromV<V>> mask, V a, V b, V c) {
+  return MaskedTernaryLogicImpl<kTernLogOp, sizeof(V)>()(mask, a, b, c);
+}
+
+template <uint8_t kTernLogOp>
+struct MaskedTernaryLogicImpl<kTernLogOp, 16> {
+  template <class V, class D = DFromV<V>, HWY_IF_T_SIZE_D(D, 4)>
+  HWY_INLINE V operator()(MFromD<D> mask, V a, V b, V c) const {
+    const D d;
+    const RebindToUnsigned<decltype(d)> du;
+    using VU = VFromD<decltype(du)>;
+    const __m128i ret =
+        _mm_mask_ternarylogic_epi32(a.raw, mask.raw, b.raw, c.raw, kTernLogOp);
+    return BitCast(d, VU{ret});
+  }
+  template <class V, class D = DFromV<V>, HWY_IF_T_SIZE_D(D, 8)>
+  HWY_INLINE V operator()(MFromD<D> mask, V a, V b, V c) const {
+    const D d;
+    const RebindToUnsigned<decltype(d)> du;
+    using VU = VFromD<decltype(du)>;
+    const __m128i ret =
+        _mm_mask_ternarylogic_epi64(a.raw, mask.raw, b.raw, c.raw, kTernLogOp);
+    return BitCast(d, VU{ret});
+  }
+};
+
+}  // namespace detail
+#endif  // HWY_X86_HAVE_TERNARY_LOGIC
 
 // ------------------------------ ShiftLeft
 
@@ -4186,7 +4262,7 @@ HWY_API Vec128<int16_t, N> SaturatedAdd(const Vec128<int16_t, N> a,
   return Vec128<int16_t, N>{_mm_adds_epi16(a.raw, b.raw)};
 }
 
-#if HWY_TARGET <= HWY_AVX3 && !HWY_IS_MSAN
+#if HWY_X86_HAVE_TERNARY_LOGIC
 #ifdef HWY_NATIVE_I32_SATURATED_ADDSUB
 #undef HWY_NATIVE_I32_SATURATED_ADDSUB
 #else
@@ -4199,32 +4275,21 @@ HWY_API Vec128<int16_t, N> SaturatedAdd(const Vec128<int16_t, N> a,
 #define HWY_NATIVE_I64_SATURATED_ADDSUB
 #endif
 
-template <size_t N>
-HWY_API Vec128<int32_t, N> SaturatedAdd(Vec128<int32_t, N> a,
-                                        Vec128<int32_t, N> b) {
-  const DFromV<decltype(a)> d;
-  const auto sum = a + b;
-  const auto overflow_mask = MaskFromVec(
-      Vec128<int32_t, N>{_mm_ternarylogic_epi32(a.raw, b.raw, sum.raw, 0x42)});
-  const auto i32_max = Set(d, LimitsMax<int32_t>());
-  const Vec128<int32_t, N> overflow_result{_mm_mask_ternarylogic_epi32(
-      i32_max.raw, MaskFromVec(a).raw, i32_max.raw, i32_max.raw, 0x55)};
+// Generic for all vector lengths.
+template <class V, class D = DFromV<V>, HWY_IF_SIGNED_D(D),
+          HWY_IF_T_SIZE_ONE_OF_D(D, (1 << 4) | (1 << 8))>
+HWY_API V SaturatedAdd(V a, V b) {
+  const D d;
+  const V sum = a + b;
+  const MFromD<D> overflow_mask =
+      MaskFromVec(detail::TernaryLogic<0x42>(a, b, sum));
+  const V max = Set(d, LimitsMax<TFromD<D>>());
+  const V overflow_result =
+      detail::MaskedTernaryLogic<0x55>(MaskFromVec(a), max, max, max);
   return IfThenElse(overflow_mask, overflow_result, sum);
 }
 
-template <size_t N>
-HWY_API Vec128<int64_t, N> SaturatedAdd(Vec128<int64_t, N> a,
-                                        Vec128<int64_t, N> b) {
-  const DFromV<decltype(a)> d;
-  const auto sum = a + b;
-  const auto overflow_mask = MaskFromVec(
-      Vec128<int64_t, N>{_mm_ternarylogic_epi64(a.raw, b.raw, sum.raw, 0x42)});
-  const auto i64_max = Set(d, LimitsMax<int64_t>());
-  const Vec128<int64_t, N> overflow_result{_mm_mask_ternarylogic_epi64(
-      i64_max.raw, MaskFromVec(a).raw, i64_max.raw, i64_max.raw, 0x55)};
-  return IfThenElse(overflow_mask, overflow_result, sum);
-}
-#endif  // HWY_TARGET <= HWY_AVX3 && !HWY_IS_MSAN
+#endif  // HWY_X86_HAVE_TERNARY_LOGIC
 
 // ------------------------------ SaturatedSub
 
@@ -4254,33 +4319,22 @@ HWY_API Vec128<int16_t, N> SaturatedSub(const Vec128<int16_t, N> a,
   return Vec128<int16_t, N>{_mm_subs_epi16(a.raw, b.raw)};
 }
 
-#if HWY_TARGET <= HWY_AVX3 && !HWY_IS_MSAN
-template <size_t N>
-HWY_API Vec128<int32_t, N> SaturatedSub(Vec128<int32_t, N> a,
-                                        Vec128<int32_t, N> b) {
-  const DFromV<decltype(a)> d;
-  const auto diff = a - b;
-  const auto overflow_mask = MaskFromVec(
-      Vec128<int32_t, N>{_mm_ternarylogic_epi32(a.raw, b.raw, diff.raw, 0x18)});
-  const auto i32_max = Set(d, LimitsMax<int32_t>());
-  const Vec128<int32_t, N> overflow_result{_mm_mask_ternarylogic_epi32(
-      i32_max.raw, MaskFromVec(a).raw, i32_max.raw, i32_max.raw, 0x55)};
+#if HWY_X86_HAVE_TERNARY_LOGIC
+// Generic for all vector lengths.
+template <class V, class D = DFromV<V>, HWY_IF_SIGNED_D(D),
+          HWY_IF_T_SIZE_ONE_OF_D(D, (1 << 4) | (1 << 8))>
+HWY_API V SaturatedSub(V a, V b) {
+  const D d;
+  const V diff = a - b;
+  const MFromD<D> overflow_mask =
+      MaskFromVec(detail::TernaryLogic<0x18>(a, b, diff));
+  const V max = Set(d, LimitsMax<TFromD<D>>());
+  const V overflow_result =
+      detail::MaskedTernaryLogic<0x55>(MaskFromVec(a), max, max, max);
   return IfThenElse(overflow_mask, overflow_result, diff);
 }
 
-template <size_t N>
-HWY_API Vec128<int64_t, N> SaturatedSub(Vec128<int64_t, N> a,
-                                        Vec128<int64_t, N> b) {
-  const DFromV<decltype(a)> d;
-  const auto diff = a - b;
-  const auto overflow_mask = MaskFromVec(
-      Vec128<int64_t, N>{_mm_ternarylogic_epi64(a.raw, b.raw, diff.raw, 0x18)});
-  const auto i64_max = Set(d, LimitsMax<int64_t>());
-  const Vec128<int64_t, N> overflow_result{_mm_mask_ternarylogic_epi64(
-      i64_max.raw, MaskFromVec(a).raw, i64_max.raw, i64_max.raw, 0x55)};
-  return IfThenElse(overflow_mask, overflow_result, diff);
-}
-#endif  // HWY_TARGET <= HWY_AVX3 && !HWY_IS_MSAN
+#endif  // HWY_X86_HAVE_TERNARY_LOGIC
 
 // ------------------------------ AverageRound
 
@@ -4502,7 +4556,7 @@ HWY_API Vec128<int64_t, N> operator*(Vec128<int64_t, N> a,
 
 // ------------------------------ RotateRight (ShiftRight, Or)
 
-// U8 RotateRight implementation on AVX3_DL is now in x86_512-inl.h as U8
+// U8 RotateRight implementation on AVX3_DL is now in x86_avx3-inl.h as U8
 // RotateRight uses detail::GaloisAffine on AVX3_DL
 
 #if HWY_TARGET > HWY_AVX3_DL
@@ -6980,9 +7034,11 @@ HWY_API Vec128<T, N> Broadcast(const Vec128<T, N> v) {
 template <int kLane, typename T, size_t N, HWY_IF_UI32(T)>
 HWY_API Vec128<T, N> Broadcast(const Vec128<T, N> v) {
   static_assert(0 <= kLane && kLane < N, "Invalid lane");
-  HWY_IF_CONSTEXPR(N == 1){
-    return Vec128<T, N>{v};  // Workaround for MSVC compiler bug on single lane integer broadcast
-  }else{
+  HWY_IF_CONSTEXPR(N == 1) {
+    // Workaround for MSVC compiler bug on single lane integer broadcast
+    return Vec128<T, N>{v};
+  }
+  HWY_IF_CONSTEXPR(N != 1) {
     return Vec128<T, N>{_mm_shuffle_epi32(v.raw, 0x55 * kLane)};
   }
 }
@@ -9137,6 +9193,17 @@ HWY_API V InterleaveOddBlocks(D, V a, V /*b*/) {
   return a;
 }
 
+// ------------------------------ InterleaveLowerBlocks
+template <class D, class V = VFromD<D>, HWY_IF_V_SIZE_LE_D(D, 16)>
+HWY_API V InterleaveLowerBlocks(D, V a, V /*b*/) {
+  return a;
+}
+// ------------------------------ InterleaveUpperBlocks
+template <class D, class V = VFromD<D>, HWY_IF_V_SIZE_LE_D(D, 16)>
+HWY_API V InterleaveUpperBlocks(D, V a, V /*b*/) {
+  return a;
+}
+
 // ------------------------------ Shl (ZipLower, Mul)
 
 // Use AVX2/3 variable shifts where available, otherwise multiply by powers of
@@ -9961,6 +10028,12 @@ HWY_API VFromD<DF> ReorderWidenMulAccumulate(DF /*df*/, VBF a, VBF b,
                                   reinterpret_cast<__m128bh>(b.raw))};
 }
 
+template <class VW, HWY_IF_FLOAT_V(VW)>
+HWY_API VW RearrangeToOddPlusEven(const VW sum0, const VW) {
+  // Sum1 is unused and the invariant already holds.
+  return sum0;
+}
+
 #endif  // HWY_NATIVE_DOT_BF16
 
 // Even if N=1, the input is always at least 2 lanes, hence madd_epi16 is safe.
@@ -9987,21 +10060,10 @@ HWY_API VFromD<DU32> ReorderWidenMulAccumulate(DU32 d, VU16 a, VU16 b,
 }
 
 // ------------------------------ RearrangeToOddPlusEven
-template <size_t N>
-HWY_API Vec128<int32_t, N> RearrangeToOddPlusEven(const Vec128<int32_t, N> sum0,
-                                                  Vec128<int32_t, N> /*sum1*/) {
-  return sum0;  // invariant already holds
-}
-
-template <size_t N>
-HWY_API Vec128<uint32_t, N> RearrangeToOddPlusEven(
-    const Vec128<uint32_t, N> sum0, Vec128<uint32_t, N> /*sum1*/) {
-  return sum0;  // invariant already holds
-}
-
-template <class VW>
-HWY_API VW RearrangeToOddPlusEven(const VW sum0, const VW sum1) {
-  return Add(sum0, sum1);
+template <class VW, HWY_IF_NOT_FLOAT_V(VW)>
+HWY_API VW RearrangeToOddPlusEven(const VW sum0, const VW) {
+  // For integer types, sum1 is unused and the invariant already holds.
+  return sum0;
 }
 
 // ------------------------------ SumOfMulQuadAccumulate
@@ -10025,12 +10087,21 @@ HWY_API VFromD<DI32> SumOfMulQuadAccumulate(
 #else
 #define HWY_NATIVE_I8_I8_SUMOFMULQUADACCUMULATE
 #endif
+
+#if HWY_X86_HAVE_AVX10_2_OPS
+template <class DI32, HWY_IF_I32_D(DI32), HWY_IF_V_SIZE_LE_D(DI32, 16)>
+HWY_API VFromD<DI32> SumOfMulQuadAccumulate(DI32 /*di32*/,
+                                            VFromD<Repartition<int8_t, DI32>> a,
+                                            VFromD<Repartition<int8_t, DI32>> b,
+                                            VFromD<DI32> sum) {
+  return VFromD<DI32>{_mm_dpbssd_epi32(sum.raw, a.raw, b.raw)};
+}
+#else   // !HWY_X86_HAVE_AVX10_2_OPS
 template <class DI32, HWY_IF_I32_D(DI32)>
 HWY_API VFromD<DI32> SumOfMulQuadAccumulate(DI32 di32,
                                             VFromD<Repartition<int8_t, DI32>> a,
                                             VFromD<Repartition<int8_t, DI32>> b,
                                             VFromD<DI32> sum) {
-  // TODO(janwas): AVX-VNNI-INT8 has dpbssd.
   const Repartition<uint8_t, decltype(di32)> du8;
 
   const auto a_u = BitCast(du8, a);
@@ -10039,17 +10110,26 @@ HWY_API VFromD<DI32> SumOfMulQuadAccumulate(DI32 di32,
       SumOfMulQuadAccumulate(di32, ShiftRight<7>(a_u), b, Zero(di32)));
   return result_sum_0 - result_sum_1;
 }
+#endif  // HWY_X86_HAVE_AVX10_2_OPS
 
 #ifdef HWY_NATIVE_U8_U8_SUMOFMULQUADACCUMULATE
 #undef HWY_NATIVE_U8_U8_SUMOFMULQUADACCUMULATE
 #else
 #define HWY_NATIVE_U8_U8_SUMOFMULQUADACCUMULATE
 #endif
+
+#if HWY_X86_HAVE_AVX10_2_OPS
+template <class DU32, HWY_IF_U32_D(DU32), HWY_IF_V_SIZE_LE_D(DU32, 16)>
+HWY_API VFromD<DU32> SumOfMulQuadAccumulate(
+    DU32 /*du32*/, VFromD<Repartition<uint8_t, DU32>> a,
+    VFromD<Repartition<uint8_t, DU32>> b, VFromD<DU32> sum) {
+  return VFromD<DU32>{_mm_dpbuud_epi32(sum.raw, a.raw, b.raw)};
+}
+#else   // !HWY_X86_HAVE_AVX10_2_OPS
 template <class DU32, HWY_IF_U32_D(DU32)>
 HWY_API VFromD<DU32> SumOfMulQuadAccumulate(
     DU32 du32, VFromD<Repartition<uint8_t, DU32>> a,
     VFromD<Repartition<uint8_t, DU32>> b, VFromD<DU32> sum) {
-  // TODO(janwas): AVX-VNNI-INT8 has dpbuud.
   const Repartition<uint8_t, decltype(du32)> du8;
   const RebindToSigned<decltype(du8)> di8;
   const RebindToSigned<decltype(du32)> di32;
@@ -10062,6 +10142,7 @@ HWY_API VFromD<DU32> SumOfMulQuadAccumulate(
 
   return BitCast(du32, result_sum_0 - result_sum_1);
 }
+#endif  // HWY_X86_HAVE_AVX10_2_OPS
 
 #endif  // HWY_TARGET <= HWY_AVX3_DL
 

@@ -74,6 +74,26 @@ class MaglevSafepointTable {
 
   uint32_t stack_slots() { return stack_slots_; }
 
+  // Read only the PC offset from entry |index|, without decoding the rest.
+  int GetEntryPc(int index) const {
+    DCHECK_GT(length_, index);
+    Address entry_ptr =
+        safepoint_table_address_ + kHeaderSize + index * entry_size();
+    return read_bytes(&entry_ptr, pc_size());
+  }
+
+  // Read only the trampoline PC from entry |index|.  Requires has_deopt_data().
+  int GetEntryTrampolinePc(int index) const {
+    DCHECK(has_deopt_data());
+    DCHECK_GT(length_, index);
+    Address entry_ptr = safepoint_table_address_ + kHeaderSize +
+                        index * entry_size() + pc_size() + deopt_index_size();
+    int trampoline_pc = read_bytes(&entry_ptr, pc_size()) - 1;
+    DCHECK(trampoline_pc >= 0 ||
+           trampoline_pc == MaglevSafepointEntry::kNoTrampolinePC);
+    return trampoline_pc;
+  }
+
   MaglevSafepointEntry GetEntry(int index) const {
     DCHECK_GT(length_, index);
     Address entry_ptr =
@@ -166,6 +186,24 @@ class MaglevSafepointTable {
     uint8_t result = *reinterpret_cast<uint8_t*>(*ptr);
     ++*ptr;
     return result;
+  }
+
+  // Binary search for an exact pc offset match.  Returns the index of the
+  // matching entry, or -1 if not found.
+  V8_INLINE int BinarySearchPc(int pc_offset) const {
+    int lo = 0, hi = length_;
+    while (lo < hi) {
+      int mid = lo + (hi - lo) / 2;
+      int mid_pc = GetEntryPc(mid);
+      if (mid_pc < pc_offset) {
+        lo = mid + 1;
+      } else if (mid_pc > pc_offset) {
+        hi = mid;
+      } else {
+        return mid;
+      }
+    }
+    return -1;
   }
 
   DISALLOW_GARBAGE_COLLECTION(no_gc_)

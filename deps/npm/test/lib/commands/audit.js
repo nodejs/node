@@ -7,6 +7,13 @@ const { default: tufmock } = require('@tufjs/repo-mock')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 const MockRegistry = require('@npmcli/mock-registry')
 
+// pacote bundles its own copy of sigstore, which may be nested rather than
+// hoisted. Resolve sigstore relative to pacote so test mocks replace the copy
+// pacote actually requires.
+const pacoteSigstore = require.resolve('sigstore', {
+  paths: [path.dirname(require.resolve('pacote'))],
+})
+
 const gunzip = zlib.gunzipSync
 const gzip = zlib.gzipSync
 
@@ -1933,7 +1940,7 @@ t.test('audit signatures', async t => {
       prefixDir: installWithValidAttestations,
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: { verify: async () => true },
+          [pacoteSigstore]: { verify: async () => true },
         }),
       },
     })
@@ -1962,7 +1969,7 @@ t.test('audit signatures', async t => {
       },
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: { verify: async () => true },
+          [pacoteSigstore]: { verify: async () => true },
         }),
       },
     })
@@ -1991,7 +1998,7 @@ t.test('audit signatures', async t => {
       },
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: { verify: async () => true },
+          [pacoteSigstore]: { verify: async () => true },
         }),
       },
     })
@@ -2023,7 +2030,7 @@ t.test('audit signatures', async t => {
       },
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: { verify: async () => true },
+          [pacoteSigstore]: { verify: async () => true },
         }),
       },
     })
@@ -2048,7 +2055,7 @@ t.test('audit signatures', async t => {
       prefixDir: installWithValidAttestations,
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: { verify: async () => true },
+          [pacoteSigstore]: { verify: async () => true },
         }),
       },
     })
@@ -2089,7 +2096,7 @@ t.test('audit signatures', async t => {
       prefixDir: installWithMultipleValidAttestations,
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: { verify: async () => true },
+          [pacoteSigstore]: { verify: async () => true },
         }),
       },
     })
@@ -2119,7 +2126,7 @@ t.test('audit signatures', async t => {
       prefixDir: installWithValidAttestations,
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: {
+          [pacoteSigstore]: {
             verify: async () => {
               throw new Error(`artifact signature verification failed`)
             },
@@ -2154,7 +2161,7 @@ t.test('audit signatures', async t => {
       },
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: {
+          [pacoteSigstore]: {
             verify: async () => {
               throw new Error(`artifact signature verification failed`)
             },
@@ -2183,7 +2190,7 @@ t.test('audit signatures', async t => {
       prefixDir: installWithMultipleValidAttestations,
       mocks: {
         pacote: t.mock('pacote', {
-          sigstore: {
+          [pacoteSigstore]: {
             verify: async () => {
               throw new Error(`artifact signature verification failed`)
             },

@@ -158,15 +158,17 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 #if !HAVE_FFI
         "internal/ffi-shared-buffer", "internal/ffi/fast-api",
 #endif                  // !HAVE_FFI
-        "dtls",         // Experimental.
-        "ffi",          // Experimental.
-        "quic",         // Experimental.
-        "sqlite",       // Experimental.
-        "stream/iter",  // Experimental.
-        "sys",          // Deprecated.
-        "vfs",          // Experimental.
-        "wasi",         // Experimental.
-        "zlib/iter",    // Experimental.
+        "bench",        // Experimental.
+        "bench/reporters",  // Experimental.
+        "dtls",             // Experimental.
+        "ffi",              // Experimental.
+        "quic",             // Experimental.
+        "sqlite",           // Experimental.
+        "stream/iter",      // Experimental.
+        "sys",              // Deprecated.
+        "vfs",              // Experimental.
+        "wasi",             // Experimental.
+        "zlib/iter",        // Experimental.
 #if !HAVE_SQLITE
         "internal/webstorage",  // Experimental.
         "internal/inspector/webstorage",

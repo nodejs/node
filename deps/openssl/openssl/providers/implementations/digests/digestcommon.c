@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,7 @@
 #include <openssl/err.h>
 #include <openssl/proverr.h>
 #include "prov/digestcommon.h"
+#include "fips/fipsindicator.h"
 
 int ossl_digest_default_get_params(OSSL_PARAM params[], size_t blksz,
     size_t paramsz, unsigned long flags)
@@ -51,4 +52,19 @@ static const OSSL_PARAM digest_default_known_gettable_params[] = {
 const OSSL_PARAM *ossl_digest_default_gettable_params(void *provctx)
 {
     return digest_default_known_gettable_params;
+}
+
+const OSSL_PARAM *ossl_digest_default_gettable_ctx_params(ossl_unused void *ctx,
+    ossl_unused void *provctx)
+{
+#ifdef FIPS_MODULE
+    return ossl_FIPS_IND_gettable_ctx_params(ctx, provctx);
+#else
+    return NULL;
+#endif
+}
+
+int ossl_digest_default_get_ctx_params(void *ctx, OSSL_PARAM params[])
+{
+    return OSSL_FIPS_IND_GET_CTX_PARAM_APPROVED(ctx, params);
 }

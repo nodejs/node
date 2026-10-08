@@ -315,7 +315,9 @@ function stringify (cookie) {
     out.push(`Path=${cookie.path}`)
   }
 
-  if (cookie.expires && cookie.expires.toString() !== 'Invalid Date') {
+  // A numeric 0 is the Unix epoch, not an absent value -- the same reason the
+  // Max-Age check above tests the type rather than truthiness.
+  if (cookie.expires != null && cookie.expires.toString() !== 'Invalid Date') {
     out.push(`Expires=${toIMFDate(cookie.expires)}`)
   }
 

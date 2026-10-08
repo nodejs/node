@@ -1,0 +1,7 @@
+Checks that Map/Set entry preview does not trigger Proxy traps on prototype chain.
+
+Running test: testMapSetEntryPreviewSideEffects
+{
+    gOPDCalled : 0
+    ownKeysCalled : 0
+}

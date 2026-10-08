@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,20 +19,19 @@
 #include "LIEF/visibility.h"
 #include "visitors/json.hpp"
 
-namespace LIEF {
-namespace VDEX {
+
+namespace LIEF::VDEX {
 
 class JsonVisitor : public LIEF::JsonVisitor {
   public:
   using LIEF::JsonVisitor::JsonVisitor;
 
   public:
-  void visit(const File& file)      override;
-  void visit(const Header& header)  override;
+  void visit(const File& file) override;
+  void visit(const Header& header) override;
 };
 
 }
-}
 
-#endif // LIEF_JSON_SUPPORT
 
+#endif

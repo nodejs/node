@@ -53,8 +53,10 @@
 
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <ostream>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 #include "absl/base/attributes.h"
@@ -67,9 +69,15 @@
 #include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "absl/types/source_location.h"
+#include "absl/types/span.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
+
+#ifndef SWIG  // SWIG chokes on enum class
+// The following canonical error codes should always be in sync with
+// https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto.
 
 // absl::StatusCode
 //
@@ -305,6 +313,8 @@ enum class StatusToStringMode : int {
   kWithNoExtraData = 0,
   // ToString will contain the payloads.
   kWithPayload = 1 << 0,
+  // ToString will contain the source locations.
+  kWithSourceLocation = 1 << 1,
   // ToString will include all the extra data this Status has.
   kWithEverything = ~kWithNoExtraData,
   // Default mode used by ToString. Its exact value might change in the future.
@@ -313,22 +323,22 @@ enum class StatusToStringMode : int {
 
 // absl::StatusToStringMode is specified as a bitmask type, which means the
 // following operations must be provided:
-inline constexpr StatusToStringMode operator&(StatusToStringMode lhs,
-                                              StatusToStringMode rhs) {
+constexpr StatusToStringMode operator&(StatusToStringMode lhs,
+                                       StatusToStringMode rhs) {
   return static_cast<StatusToStringMode>(static_cast<int>(lhs) &
                                          static_cast<int>(rhs));
 }
-inline constexpr StatusToStringMode operator|(StatusToStringMode lhs,
-                                              StatusToStringMode rhs) {
+constexpr StatusToStringMode operator|(StatusToStringMode lhs,
+                                       StatusToStringMode rhs) {
   return static_cast<StatusToStringMode>(static_cast<int>(lhs) |
                                          static_cast<int>(rhs));
 }
-inline constexpr StatusToStringMode operator^(StatusToStringMode lhs,
-                                              StatusToStringMode rhs) {
+constexpr StatusToStringMode operator^(StatusToStringMode lhs,
+                                       StatusToStringMode rhs) {
   return static_cast<StatusToStringMode>(static_cast<int>(lhs) ^
                                          static_cast<int>(rhs));
 }
-inline constexpr StatusToStringMode operator~(StatusToStringMode arg) {
+constexpr StatusToStringMode operator~(StatusToStringMode arg) {
   return static_cast<StatusToStringMode>(~static_cast<int>(arg));
 }
 inline StatusToStringMode& operator&=(StatusToStringMode& lhs,
@@ -346,6 +356,7 @@ inline StatusToStringMode& operator^=(StatusToStringMode& lhs,
   lhs = lhs ^ rhs;
   return lhs;
 }
+#endif  // SWIG
 
 // absl::Status
 //
@@ -443,21 +454,50 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Status final {
   Status();
 
   // Creates a status in the canonical error space with the specified
-  // `absl::StatusCode` and error message.  If `code == absl::StatusCode::kOk`,  // NOLINT
+  // `absl::StatusCode` and error message.  If `code == absl::StatusCode::kOk`,
   // `msg` is ignored and an object identical to an OK status is constructed.
   //
-  // The `msg` string must be in UTF-8. The implementation may complain (e.g.,  // NOLINT
+  // The `msg` string must be in UTF-8. The implementation may complain (e.g.,
   // by printing a warning) if it is not.
-  Status(absl::StatusCode code, absl::string_view msg);
+  //
+  // The `loc` is the SourceLocation of the callsite. It will be stored in the
+  // Status iff `code != absl::StatusCode::kOk` and `!msg.empty()`.
+  Status(absl::StatusCode code, absl::string_view msg,
+         absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+  // Same as above but for rvalue string.
+  // Note: using a template to disambiguate the case of matching string_view and
+  // string&& (e.g. char*) as a template lowers the priority of the overload.
+  template <typename String, typename = status_internal::EnableIfString<String>>
+  Status(absl::StatusCode code, String&& msg,
+         absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
+
+  // Create a status from a `base_status` and a `loc`. The `loc` will be
+  // appended to the location chain of the new status, iff the `base_status` is
+  // not ok and has non-empty msg.
+  Status(const Status& base_status, absl::SourceLocation loc)
+      : Status(base_status) {
+    AddSourceLocation(loc);
+  }
+#ifndef SWIG
+  Status(Status&& base_status, absl::SourceLocation loc)
+      : Status(std::move(base_status)) {
+    AddSourceLocation(loc);
+  }
+#endif  // SWIG
 
   Status(const Status&);
   Status& operator=(const Status& x);
 
+#ifndef SWIG
   // Move operators
 
   // The moved-from state is valid but unspecified.
   Status(Status&&) noexcept;
   Status& operator=(Status&&) noexcept;
+#endif  // SWIG
 
   ~Status();
 
@@ -477,7 +517,9 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Status final {
   //   overall_status.Update(new_status);
   //
   void Update(const Status& new_status);
+#ifndef SWIG
   void Update(Status&& new_status);
+#endif  // SWIG
 
   // Status::ok()
   //
@@ -503,6 +545,8 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Status final {
   // wire format. Use `Status::code()` for error handling.
   int raw_code() const;
 
+#ifndef SWIG
+
   // Status::message()
   //
   // Returns the error message associated with this error code, if available.
@@ -510,9 +554,14 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Status final {
   // for the error message to be the empty string. As a result, prefer
   // `operator<<` or `Status::ToString()` for debug logging.
   absl::string_view message() const;
+#endif  // SWIG
 
   friend bool operator==(const Status&, const Status&);
   friend bool operator!=(const Status&, const Status&);
+
+#ifndef SWIG
+  // `ToString` has stubs in SWIG to remain backward compatible with the old
+  // format by calling `util::StatusToString`, to save migration cost.
 
   // Status::ToString()
   //
@@ -533,6 +582,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Status final {
   friend void AbslStringify(Sink& sink, const Status& status) {
     sink.Append(status.ToString(StatusToStringMode::kWithEverything));
   }
+#endif  // SWIG
 
   // Status::IgnoreError()
   //
@@ -544,7 +594,11 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Status final {
   // swap()
   //
   // Swap the contents of one status with another.
+#ifndef SWIG
   friend void swap(Status& a, Status& b) noexcept;
+#else
+  friend void swap(Status& a, Status& b);
+#endif  // SWIG
 
   //----------------------------------------------------------------------------
   // Payload Management APIs
@@ -583,7 +637,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Status final {
   // Status::GetPayload()
   //
   // Gets the payload of a status given its unique `type_url` key, if present.
-  absl::optional<absl::Cord> GetPayload(absl::string_view type_url) const;
+  std::optional<absl::Cord> GetPayload(absl::string_view type_url) const;
 
   // Status::SetPayload()
   //
@@ -609,19 +663,115 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Status final {
   //
   // NOTE: Any mutation on the same 'absl::Status' object during visitation is
   // forbidden and could result in undefined behavior.
+  // FunctionRef doesn't work nicely with Swig.
+  // TODO(b/189736749): Consider making this available once FunctionRef is
+  // supported.
+#ifndef SWIG
   void ForEachPayload(
       absl::FunctionRef<void(absl::string_view, const absl::Cord&)> visitor)
       const;
+#endif  // SWIG
+
+  absl::Span<const absl::SourceLocation> GetSourceLocations() const {
+    if (IsInlined(rep_)) return {};
+    return RepToPointer(rep_)->GetSourceLocations();
+  }
+  // Appends the `loc` to the current location chain inside the status, iff the
+  // status is non-ok and contains a non-empty message.
+  void AddSourceLocation(
+      absl::SourceLocation loc = absl::SourceLocation::current()) {
+    if (ok()) return;
+    rep_ = AddSourceLocationImpl(rep_, loc);
+    [[maybe_unused]] bool okay = ok();
+    // This hint tells the optimizer that the status is still not ok after the
+    // AddSourceLocation() call. This is useful when passing a known !ok status
+    // to StatusOr. StatusOr checks for ok() on its constructor and this assume
+    // helps the optimizer remove that check.
+    ABSL_ASSUME(!okay);
+  }
+
+#ifndef SWIG
+
+  // Status::WithSourceLocation()
+  //
+  // Returns a copy of the current status, with `loc` appended to its location
+  // chain iff the status is non-ok and contains a non-empty message.
+  //
+  // Example:
+  //
+  //   if (Status status = Foo(); !status.ok()) {
+  //     return status.WithSourceLocation();
+  //   }
+  Status WithSourceLocation(
+      absl::SourceLocation loc = absl::SourceLocation::current()) const& {
+    return Status(*this, loc);
+  }
+
+  // Status::WithSourceLocation()
+  //
+  // Appends the `loc` to the current location chain inside the status iff the
+  // status is non-ok and contains a non-empty message, and returns an rvalue
+  // reference to `*this`.
+  //
+  // Example:
+  //
+  //   Status Finalize(...);
+  //
+  //   Status DoSomething(...) {
+  //     ...
+  //     return Finalize().WithSourceLocation();
+  //   }
+  ABSL_MUST_USE_RESULT Status&& WithSourceLocation(
+      absl::SourceLocation loc = absl::SourceLocation::current()) && {
+    AddSourceLocation(loc);
+    return std::move(*this);
+  }
+#endif  // SWIG
 
  private:
   friend Status CancelledError();
+
+#ifndef SWIG
+  // Returns a `Status` object which is not `ok()` but
+  // `code() == absl::StatusCode::kOk`. This is necessary to be compatible with
+  // `Status` objects created with an error code in a custom `ErrorSpace` that
+  // is mapped to the canonical code `absl::StatusCode::kOk`.
+  static Status MakeNonOkStatusWithOkCode(absl::string_view message);
+
+  friend class absl::status_internal::StatusPrivateAccessor;
+  friend class absl::status_internal::StatusPrivateAccessorForStatusBuilder;
+  template <typename T>
+  friend class absl::StatusOr;
+#endif  // !SWIG
 
   // Creates a status in the canonical error space with the specified
   // code, and an empty error message.
   explicit Status(absl::StatusCode code);
 
+  // Delegate factory in header that ensures CodeToInlinedRep is inlined
+  // where possible.
+  static uintptr_t MakeRepFromStringView(uintptr_t inlined_rep,
+                                         absl::string_view msg,
+                                         absl::SourceLocation loc);
+
+#ifndef SWIG
+  // Same as above but for rvalue string.
+  static uintptr_t MakeRepFromStringRvalue(uintptr_t inlined_rep,
+                                           std::string&& msg,
+                                           absl::SourceLocation loc);
+#endif  // SWIG
+
+  template <typename StringOrView>
+  friend uintptr_t MakeStatusRepImpl(uintptr_t inlined_rep, StringOrView msg,
+                                     absl::SourceLocation loc);
+
   // Underlying constructor for status from a rep_.
   explicit Status(uintptr_t rep) : rep_(rep) {}
+
+  // An out-of-line AddSourceLocation that mutates rep directly.
+  static uintptr_t AddSourceLocationImpl(uintptr_t rep,
+                                         absl::SourceLocation loc);
+  static uintptr_t WithContextImpl(uintptr_t rep, absl::string_view context);
 
   static void Ref(uintptr_t rep);
   static void Unref(uintptr_t rep);
@@ -654,9 +804,9 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Status final {
 
   // Converts between StatusRep* and the external uintptr_t representation used
   // by rep_. See rep_ for details.
-  static uintptr_t PointerToRep(status_internal::StatusRep* absl_nonnull r);
+  static uintptr_t PointerToRep(status_internal::StatusRep* absl_nonnull rep);
   static const status_internal::StatusRep* absl_nonnull RepToPointer(
-      uintptr_t r);
+      uintptr_t rep);
 
   static std::string ToStringSlow(uintptr_t rep, StatusToStringMode mode);
 
@@ -740,22 +890,175 @@ ABSL_MUST_USE_RESULT bool IsUnknown(const Status& status);
 // These convenience functions create an `absl::Status` object with an error
 // code as indicated by the associated function name, using the error message
 // passed in `message`.
-Status AbortedError(absl::string_view message);
-Status AlreadyExistsError(absl::string_view message);
-Status CancelledError(absl::string_view message);
-Status DataLossError(absl::string_view message);
-Status DeadlineExceededError(absl::string_view message);
-Status FailedPreconditionError(absl::string_view message);
-Status InternalError(absl::string_view message);
-Status InvalidArgumentError(absl::string_view message);
-Status NotFoundError(absl::string_view message);
-Status OutOfRangeError(absl::string_view message);
-Status PermissionDeniedError(absl::string_view message);
-Status ResourceExhaustedError(absl::string_view message);
-Status UnauthenticatedError(absl::string_view message);
-Status UnavailableError(absl::string_view message);
-Status UnimplementedError(absl::string_view message);
-Status UnknownError(absl::string_view message);
+// Note: using a template for the rvalue message overload to disambiguate the
+// case of matching string_view and string&& (e.g. char*) as a template lowers
+// the priority of the overload.
+
+// AbortedError
+Status AbortedError(absl::string_view message,
+                    absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+template <typename String, typename = status_internal::EnableIfString<String>>
+Status AbortedError(String&& message,
+                    absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
+
+// AlreadyExistsError
+Status AlreadyExistsError(absl::string_view message,
+                          absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+template <typename String, typename = status_internal::EnableIfString<String>>
+Status AlreadyExistsError(String&& message,
+                          absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
+
+// CancelledError
+Status CancelledError(absl::string_view message,
+                      absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+template <typename String, typename = status_internal::EnableIfString<String>>
+Status CancelledError(String&& message,
+                      absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
+
+// DataLossError
+Status DataLossError(absl::string_view message,
+                     absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+template <typename String, typename = status_internal::EnableIfString<String>>
+Status DataLossError(String&& message,
+                     absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
+
+// DeadlineExceededError
+Status DeadlineExceededError(
+    absl::string_view message,
+    absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+template <typename String, typename = status_internal::EnableIfString<String>>
+Status DeadlineExceededError(
+    String&& message, absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
+
+// FailedPreconditionError
+Status FailedPreconditionError(
+    absl::string_view message,
+    absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+template <typename String, typename = status_internal::EnableIfString<String>>
+Status FailedPreconditionError(
+    String&& message, absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
+
+// InternalError
+Status InternalError(absl::string_view message,
+                     absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+template <typename String, typename = status_internal::EnableIfString<String>>
+Status InternalError(String&& message,
+                     absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
+
+// InvalidArgumentError
+Status InvalidArgumentError(
+    absl::string_view message,
+    absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+template <typename String, typename = status_internal::EnableIfString<String>>
+Status InvalidArgumentError(
+    String&& message, absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
+
+// NotFoundError
+Status NotFoundError(absl::string_view message,
+                     absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+template <typename String, typename = status_internal::EnableIfString<String>>
+Status NotFoundError(String&& message,
+                     absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
+
+// OutOfRangeError
+Status OutOfRangeError(absl::string_view message,
+                       absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+template <typename String, typename = status_internal::EnableIfString<String>>
+Status OutOfRangeError(String&& message,
+                       absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
+
+// PermissionDeniedError
+Status PermissionDeniedError(
+    absl::string_view message,
+    absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+template <typename String, typename = status_internal::EnableIfString<String>>
+Status PermissionDeniedError(
+    String&& message, absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
+
+// ResourceExhaustedError
+Status ResourceExhaustedError(
+    absl::string_view message,
+    absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+template <typename String, typename = status_internal::EnableIfString<String>>
+Status ResourceExhaustedError(
+    String&& message, absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
+
+// UnauthenticatedError
+Status UnauthenticatedError(
+    absl::string_view message,
+    absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+template <typename String, typename = status_internal::EnableIfString<String>>
+Status UnauthenticatedError(
+    String&& message, absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
+
+// UnavailableError
+Status UnavailableError(absl::string_view message,
+                        absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+template <typename String, typename = status_internal::EnableIfString<String>>
+Status UnavailableError(String&& message,
+                        absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
+
+// UnimplementedError
+Status UnimplementedError(absl::string_view message,
+                          absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+template <typename String, typename = status_internal::EnableIfString<String>>
+Status UnimplementedError(String&& message,
+                          absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
+
+// UnknownError
+Status UnknownError(absl::string_view message,
+                    absl::SourceLocation loc = SourceLocation::current());
+
+#ifndef SWIG
+template <typename String, typename = status_internal::EnableIfString<String>>
+Status UnknownError(String&& message,
+                    absl::SourceLocation loc = SourceLocation::current());
+#endif  // SWIG
 
 // ErrnoToStatusCode()
 //
@@ -768,7 +1071,8 @@ absl::StatusCode ErrnoToStatusCode(int error_number);
 //
 // Convenience function that creates a `absl::Status` using an `error_number`,
 // which should be an `errno` value.
-Status ErrnoToStatus(int error_number, absl::string_view message);
+Status ErrnoToStatus(int error_number, absl::string_view message,
+                     absl::SourceLocation loc = SourceLocation::current());
 
 //------------------------------------------------------------------------------
 // Implementation details follow
@@ -777,6 +1081,18 @@ Status ErrnoToStatus(int error_number, absl::string_view message);
 inline Status::Status() : Status(absl::StatusCode::kOk) {}
 
 inline Status::Status(absl::StatusCode code) : Status(CodeToInlinedRep(code)) {}
+
+inline Status::Status(absl::StatusCode code, absl::string_view msg,
+                      absl::SourceLocation loc)
+    : Status(MakeRepFromStringView(CodeToInlinedRep(code), msg, loc)) {}
+
+#ifndef SWIG
+template <typename String, typename>
+inline Status::Status(absl::StatusCode code, String&& msg,
+                      absl::SourceLocation loc)
+    : Status(MakeRepFromStringRvalue(CodeToInlinedRep(code),
+                                     std::forward<String>(msg), loc)) {}
+#endif  // SWIG
 
 inline Status::Status(const Status& x) : Status(x.rep_) { Ref(rep_); }
 
@@ -790,6 +1106,7 @@ inline Status& Status::operator=(const Status& x) {
   return *this;
 }
 
+#ifndef SWIG
 inline Status::Status(Status&& x) noexcept : Status(x.rep_) {
   x.rep_ = MovedFromRep();
 }
@@ -803,6 +1120,7 @@ inline Status& Status::operator=(Status&& x) noexcept {
   }
   return *this;
 }
+#endif  // SWIG
 
 inline void Status::Update(const Status& new_status) {
   if (ok()) {
@@ -810,11 +1128,13 @@ inline void Status::Update(const Status& new_status) {
   }
 }
 
+#ifndef SWIG
 inline void Status::Update(Status&& new_status) {
   if (ok()) {
     *this = std::move(new_status);
   }
 }
+#endif  // SWIG
 
 inline Status::~Status() { Unref(rep_); }
 
@@ -857,14 +1177,21 @@ inline void Status::IgnoreError() const {
   // no-op
 }
 
+#ifndef SWIG
 inline void swap(absl::Status& a, absl::Status& b) noexcept {
   using std::swap;
   swap(a.rep_, b.rep_);
 }
+#else
+inline void swap(absl::Status& a, absl::Status& b) {
+  using std::swap;
+  swap(a.rep_, b.rep_);
+}
+#endif  // SWIG
 
-inline absl::optional<absl::Cord> Status::GetPayload(
+inline std::optional<absl::Cord> Status::GetPayload(
     absl::string_view type_url) const {
-  if (IsInlined(rep_)) return absl::nullopt;
+  if (IsInlined(rep_)) return std::nullopt;
   return RepToPointer(rep_)->GetPayload(type_url);
 }
 
@@ -926,7 +1253,9 @@ inline void Status::Unref(uintptr_t rep) {
   if (!IsInlined(rep)) RepToPointer(rep)->Unref();
 }
 
+#ifndef SWIG
 inline Status OkStatus() { return Status(); }
+#endif  // SWIG
 
 // Creates a `Status` object with the `absl::StatusCode::kCancelled` error code
 // and an empty message. It is provided only for efficiency, given that
@@ -941,6 +1270,341 @@ inline Status CancelledError() { return Status(absl::StatusCode::kCancelled); }
 // StatusMessageAsCStr exists for C support. Use `status.message()` in C++.
 const char* absl_nonnull StatusMessageAsCStr(
     const Status& status ABSL_ATTRIBUTE_LIFETIME_BOUND);
+
+namespace status_internal {
+// We use an int in the template parameter to shorten mangled names.
+template <int error_code>
+Status MakeErrorStringViewImpl(string_view message, SourceLocation loc);
+// Make the instantiations extern to reduce bloat on callers.
+#ifndef SWIG
+extern template Status MakeErrorStringViewImpl<1>(string_view, SourceLocation);
+extern template Status MakeErrorStringViewImpl<2>(string_view, SourceLocation);
+extern template Status MakeErrorStringViewImpl<3>(string_view, SourceLocation);
+extern template Status MakeErrorStringViewImpl<4>(string_view, SourceLocation);
+extern template Status MakeErrorStringViewImpl<5>(string_view, SourceLocation);
+extern template Status MakeErrorStringViewImpl<6>(string_view, SourceLocation);
+extern template Status MakeErrorStringViewImpl<7>(string_view, SourceLocation);
+extern template Status MakeErrorStringViewImpl<8>(string_view, SourceLocation);
+extern template Status MakeErrorStringViewImpl<9>(string_view, SourceLocation);
+extern template Status MakeErrorStringViewImpl<10>(string_view, SourceLocation);
+extern template Status MakeErrorStringViewImpl<11>(string_view, SourceLocation);
+extern template Status MakeErrorStringViewImpl<12>(string_view, SourceLocation);
+extern template Status MakeErrorStringViewImpl<13>(string_view, SourceLocation);
+extern template Status MakeErrorStringViewImpl<14>(string_view, SourceLocation);
+extern template Status MakeErrorStringViewImpl<15>(string_view, SourceLocation);
+extern template Status MakeErrorStringViewImpl<16>(string_view, SourceLocation);
+#endif  // SWIG
+
+template <StatusCode error_code>
+Status MakeErrorFromStringView(string_view message, SourceLocation loc) {
+  static_assert(error_code != StatusCode::kOk, "expecting non-OK code");
+  Status out =
+      MakeErrorStringViewImpl<static_cast<int>(error_code)>(message, loc);
+  // -Wassume warning complains about potential side effects of `ok()`, so use a
+  // local to avoid that.
+  [[maybe_unused]] bool ok = out.ok();
+  ABSL_ASSUME(!ok);
+  return out;
+}
+
+// Same as above, but for rvalue std::string.
+#ifndef SWIG
+// We use an int in the template parameter to shorten mangled names.
+template <int error_code>
+Status MakeErrorStringRvalueImpl(std::string&& message, SourceLocation loc);
+// Make the instantiations extern to reduce bloat on callers.
+extern template Status MakeErrorStringRvalueImpl<1>(std::string&&,
+                                                    SourceLocation);
+extern template Status MakeErrorStringRvalueImpl<2>(std::string&&,
+                                                    SourceLocation);
+extern template Status MakeErrorStringRvalueImpl<3>(std::string&&,
+                                                    SourceLocation);
+extern template Status MakeErrorStringRvalueImpl<4>(std::string&&,
+                                                    SourceLocation);
+extern template Status MakeErrorStringRvalueImpl<5>(std::string&&,
+                                                    SourceLocation);
+extern template Status MakeErrorStringRvalueImpl<6>(std::string&&,
+                                                    SourceLocation);
+extern template Status MakeErrorStringRvalueImpl<7>(std::string&&,
+                                                    SourceLocation);
+extern template Status MakeErrorStringRvalueImpl<8>(std::string&&,
+                                                    SourceLocation);
+extern template Status MakeErrorStringRvalueImpl<9>(std::string&&,
+                                                    SourceLocation);
+extern template Status MakeErrorStringRvalueImpl<10>(std::string&&,
+                                                     SourceLocation);
+extern template Status MakeErrorStringRvalueImpl<11>(std::string&&,
+                                                     SourceLocation);
+extern template Status MakeErrorStringRvalueImpl<12>(std::string&&,
+                                                     SourceLocation);
+extern template Status MakeErrorStringRvalueImpl<13>(std::string&&,
+                                                     SourceLocation);
+extern template Status MakeErrorStringRvalueImpl<14>(std::string&&,
+                                                     SourceLocation);
+extern template Status MakeErrorStringRvalueImpl<15>(std::string&&,
+                                                     SourceLocation);
+extern template Status MakeErrorStringRvalueImpl<16>(std::string&&,
+                                                     SourceLocation);
+
+template <StatusCode error_code, typename String>
+Status MakeErrorFromStringRvalue(String&& message, SourceLocation loc) {
+  static_assert(error_code != StatusCode::kOk, "expecting non-OK code");
+  static_assert(std::is_same_v<String&&, std::string&&>,
+                "`message` should be std::string&&");
+  Status out = MakeErrorStringRvalueImpl<static_cast<int>(error_code)>(
+      std::forward<String>(message), loc);
+  // -Wassume warning complains about potential side effects of `ok()`, so use a
+  // local to avoid that.
+  [[maybe_unused]] bool ok = out.ok();
+  ABSL_ASSUME(!ok);
+  return out;
+}
+#endif  // SWIG
+
+}  // namespace status_internal
+
+// Inline implementations to give the compiler static knowledge about the
+// objects.
+
+// AbortedError
+inline Status AbortedError(absl::string_view message,
+                           absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringView<StatusCode::kAborted>(message,
+                                                                        loc);
+}
+
+#ifndef SWIG
+template <typename String, typename>
+Status AbortedError(String&& message, absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringRvalue<StatusCode::kAborted>(
+      std::forward<String>(message), loc);
+}
+#endif  // SWIG
+
+// AlreadyExistsError
+inline Status AlreadyExistsError(absl::string_view message,
+                                 absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringView<StatusCode::kAlreadyExists>(
+      message, loc);
+}
+
+#ifndef SWIG
+template <typename String, typename>
+Status AlreadyExistsError(String&& message, absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringRvalue<StatusCode::kAlreadyExists>(
+      std::forward<String>(message), loc);
+}
+#endif  // SWIG
+
+// CancelledError
+inline Status CancelledError(absl::string_view message,
+                             absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringView<StatusCode::kCancelled>(
+      message, loc);
+}
+
+#ifndef SWIG
+template <typename String, typename>
+Status CancelledError(String&& message, absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringRvalue<StatusCode::kCancelled>(
+      std::forward<String>(message), loc);
+}
+#endif  // SWIG
+
+// DataLossError
+inline Status DataLossError(absl::string_view message,
+                            absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringView<StatusCode::kDataLoss>(
+      message, loc);
+}
+
+#ifndef SWIG
+template <typename String, typename>
+Status DataLossError(String&& message, absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringRvalue<StatusCode::kDataLoss>(
+      std::forward<String>(message), loc);
+}
+#endif  // SWIG
+
+// DeadlineExceededError
+inline Status DeadlineExceededError(absl::string_view message,
+                                    absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringView<
+      StatusCode::kDeadlineExceeded>(message, loc);
+}
+
+#ifndef SWIG
+template <typename String, typename>
+Status DeadlineExceededError(String&& message, absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringRvalue<
+      StatusCode::kDeadlineExceeded>(std::forward<String>(message), loc);
+}
+#endif  // SWIG
+
+// FailedPreconditionError
+inline Status FailedPreconditionError(absl::string_view message,
+                                      absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringView<
+      StatusCode::kFailedPrecondition>(message, loc);
+}
+
+#ifndef SWIG
+template <typename String, typename>
+Status FailedPreconditionError(String&& message, absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringRvalue<
+      StatusCode::kFailedPrecondition>(std::forward<String>(message), loc);
+}
+#endif  // SWIG
+
+// InternalError
+inline Status InternalError(absl::string_view message,
+                            absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringView<StatusCode::kInternal>(
+      message, loc);
+}
+
+#ifndef SWIG
+template <typename String, typename>
+Status InternalError(String&& message, absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringRvalue<StatusCode::kInternal>(
+      std::forward<String>(message), loc);
+}
+#endif  // SWIG
+
+// InvalidArgumentError
+inline Status InvalidArgumentError(absl::string_view message,
+                                   absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringView<StatusCode::kInvalidArgument>(
+      message, loc);
+}
+
+#ifndef SWIG
+template <typename String, typename>
+Status InvalidArgumentError(String&& message, absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringRvalue<
+      StatusCode::kInvalidArgument>(std::forward<String>(message), loc);
+}
+#endif  // SWIG
+
+// NotFoundError
+inline Status NotFoundError(absl::string_view message,
+                            absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringView<StatusCode::kNotFound>(
+      message, loc);
+}
+
+#ifndef SWIG
+template <typename String, typename>
+Status NotFoundError(String&& message, absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringRvalue<StatusCode::kNotFound>(
+      std::forward<String>(message), loc);
+}
+#endif  // SWIG
+
+// OutOfRangeError
+inline Status OutOfRangeError(absl::string_view message,
+                              absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringView<StatusCode::kOutOfRange>(
+      message, loc);
+}
+
+#ifndef SWIG
+template <typename String, typename>
+Status OutOfRangeError(String&& message, absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringRvalue<StatusCode::kOutOfRange>(
+      std::forward<String>(message), loc);
+}
+#endif  // SWIG
+
+// PermissionDeniedError
+inline Status PermissionDeniedError(absl::string_view message,
+                                    absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringView<
+      StatusCode::kPermissionDenied>(message, loc);
+}
+
+#ifndef SWIG
+template <typename String, typename>
+Status PermissionDeniedError(String&& message, absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringRvalue<
+      StatusCode::kPermissionDenied>(std::forward<String>(message), loc);
+}
+#endif  // SWIG
+
+// ResourceExhaustedError
+inline Status ResourceExhaustedError(absl::string_view message,
+                                     absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringView<
+      StatusCode::kResourceExhausted>(message, loc);
+}
+
+#ifndef SWIG
+template <typename String, typename>
+Status ResourceExhaustedError(String&& message, absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringRvalue<
+      StatusCode::kResourceExhausted>(std::forward<String>(message), loc);
+}
+#endif  // SWIG
+
+// UnauthenticatedError
+inline Status UnauthenticatedError(absl::string_view message,
+                                   absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringView<StatusCode::kUnauthenticated>(
+      message, loc);
+}
+
+#ifndef SWIG
+template <typename String, typename>
+Status UnauthenticatedError(String&& message, absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringRvalue<
+      StatusCode::kUnauthenticated>(std::forward<String>(message), loc);
+}
+#endif  // SWIG
+
+// UnavailableError
+inline Status UnavailableError(absl::string_view message,
+                               absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringView<StatusCode::kUnavailable>(
+      message, loc);
+}
+
+#ifndef SWIG
+template <typename String, typename>
+Status UnavailableError(String&& message, absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringRvalue<StatusCode::kUnavailable>(
+      std::forward<String>(message), loc);
+}
+#endif  // SWIG
+
+// UnimplementedError
+inline Status UnimplementedError(absl::string_view message,
+                                 absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringView<StatusCode::kUnimplemented>(
+      message, loc);
+}
+
+#ifndef SWIG
+template <typename String, typename>
+Status UnimplementedError(String&& message, absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringRvalue<StatusCode::kUnimplemented>(
+      std::forward<String>(message), loc);
+}
+#endif  // SWIG
+
+// UnknownError
+inline Status UnknownError(absl::string_view message,
+                           absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringView<StatusCode::kUnknown>(message,
+                                                                        loc);
+}
+
+#ifndef SWIG
+template <typename String, typename>
+Status UnknownError(String&& message, absl::SourceLocation loc) {
+  return status_internal::MakeErrorFromStringRvalue<StatusCode::kUnknown>(
+      std::forward<String>(message), loc);
+}
+#endif  // SWIG
 
 ABSL_NAMESPACE_END
 }  // namespace absl

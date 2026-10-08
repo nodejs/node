@@ -251,8 +251,11 @@ class DeduplicationHandler {
       return
     }
 
-    this.#completed = true
+    // Remove the entry before callbacks can synchronously dispatch a retry.
+    this.#cleanup()
     this.#primaryHandler.onResponseEnd?.(controller, trailers)
+    // A throwing end callback must still be handled by onResponseError.
+    this.#completed = true
 
     for (const waitingHandler of this.#waitingHandlers) {
       if (waitingHandler.done || waitingHandler.controller.aborted) {
@@ -267,22 +270,21 @@ class DeduplicationHandler {
         continue
       }
 
-      if (waitingHandler.controller.paused && waitingHandler.bufferedChunks.length > 0) {
+      if (waitingHandler.controller.paused) {
         waitingHandler.pendingTrailers = trailers
         continue
       }
 
       try {
         waitingHandler.handler.onResponseEnd?.(waitingHandler.controller, trailers)
-      } catch {
-        // Ignore errors from waiting handlers
+      } catch (err) {
+        this.#errorWaitingHandler(waitingHandler, err)
       }
 
       waitingHandler.done = true
     }
 
     this.#pruneDoneWaitingHandlers()
-    this.#onComplete?.()
   }
 
   /**
@@ -296,6 +298,7 @@ class DeduplicationHandler {
 
     this.#aborted = true
     this.#completed = true
+    this.#cleanup()
 
     this.#primaryHandler.onResponseError?.(controller, err)
 
@@ -304,7 +307,12 @@ class DeduplicationHandler {
     }
 
     this.#waitingHandlers = []
-    this.#onComplete?.()
+  }
+
+  #cleanup () {
+    const onComplete = this.#onComplete
+    this.#onComplete = null
+    onComplete?.()
   }
 
   /**
@@ -346,8 +354,8 @@ class DeduplicationHandler {
         ) {
           try {
             waitingHandler.handler.onResponseEnd?.(waitingHandler.controller, waitingHandler.pendingTrailers)
-          } catch {
-            // Ignore errors from waiting handlers
+          } catch (err) {
+            this.#errorWaitingHandler(waitingHandler, err)
           }
 
           waitingHandler.pendingTrailers = null
@@ -365,12 +373,22 @@ class DeduplicationHandler {
       get aborted () { return state.aborted },
       get reason () { return state.reason },
       abort: (reason) => {
+        if (state.aborted) {
+          return
+        }
+
         state.aborted = true
         state.reason = reason ?? null
         waitingHandler.done = true
         waitingHandler.pendingTrailers = null
         waitingHandler.bufferedChunks = []
         waitingHandler.bufferedBytes = 0
+
+        try {
+          handler.onResponseError?.(waitingHandler.controller, state.reason ?? new RequestAbortedError())
+        } catch {
+          // Ignore errors from waiting handlers
+        }
       }
     }
 
@@ -395,7 +413,7 @@ class DeduplicationHandler {
 
     if (waitingHandler.bufferedBytes > this.#maxBufferSize) {
       const err = new RequestAbortedError(`Deduplicated waiting handler exceeded maxBufferSize (${this.#maxBufferSize} bytes) while paused`)
-      this.#errorWaitingHandler(waitingHandler, err)
+      waitingHandler.controller.abort(err)
     }
   }
 
@@ -444,8 +462,9 @@ class DeduplicationHandler {
     waitingHandler.bufferedChunks = []
     waitingHandler.bufferedBytes = 0
 
+    // A response failure is not a consumer abort: retry handlers must be able
+    // to retry it just as they would a failure of the primary request.
     try {
-      waitingHandler.controller.abort(err)
       waitingHandler.handler.onResponseError?.(waitingHandler.controller, err)
     } catch {
       // Ignore errors from waiting handlers

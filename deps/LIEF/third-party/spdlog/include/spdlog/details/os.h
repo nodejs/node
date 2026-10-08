@@ -22,22 +22,22 @@ SPDLOG_API std::tm gmtime() SPDLOG_NOEXCEPT;
 
 // eol definition
 #if !defined(SPDLOG_EOL)
-    #ifdef _WIN32
-        #define SPDLOG_EOL "\r\n"
-    #else
-        #define SPDLOG_EOL "\n"
-    #endif
+#ifdef _WIN32
+#define SPDLOG_EOL "\r\n"
+#else
+#define SPDLOG_EOL "\n"
+#endif
 #endif
 
 SPDLOG_CONSTEXPR static const char *default_eol = SPDLOG_EOL;
 
 // folder separator
 #if !defined(SPDLOG_FOLDER_SEPS)
-    #ifdef _WIN32
-        #define SPDLOG_FOLDER_SEPS "\\/"
-    #else
-        #define SPDLOG_FOLDER_SEPS "/"
-    #endif
+#ifdef _WIN32
+#define SPDLOG_FOLDER_SEPS "\\/"
+#else
+#define SPDLOG_FOLDER_SEPS "/"
+#endif
 #endif
 
 SPDLOG_CONSTEXPR static const char folder_seps[] = SPDLOG_FOLDER_SEPS;
@@ -123,5 +123,5 @@ SPDLOG_API bool fwrite_bytes(const void *ptr, const size_t n_bytes, FILE *fp);
 }  // namespace spdlog
 
 #ifdef SPDLOG_HEADER_ONLY
-    #include "os-inl.h"
+#include "os-inl.h"
 #endif

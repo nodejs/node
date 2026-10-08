@@ -14,7 +14,56 @@ macro ConvertAndClampRelativeIndex(index: Number, length: Number): Number {
   }
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.copyWithin
+// copyWithin moves a range onto another range in the same backing store, which
+// MoveElements (a memmove) does directly, so the generic per-element loop and
+// its overlap/direction handling are unneeded for a fast JSArray.
+macro TryFastArrayCopyWithin(
+    implicit context: Context)(receiver: JSAny, toNumber: Number,
+    fromNumber: Number, countNumber: Number): void labels Slow {
+  // Nothing to copy.
+  if (countNumber <= 0) return;
+
+  const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+
+  // The ToInteger coercions in the caller may have run user code that shrank
+  // the array, so re-validate the clamped indices against the current length.
+  const to: Smi = Cast<Smi>(toNumber) otherwise Slow;
+  const from: Smi = Cast<Smi>(fromNumber) otherwise Slow;
+  const count: Smi = Cast<Smi>(countNumber) otherwise Slow;
+  const length: Smi = array.length;
+  if (SmiAbove(to + count, length)) goto Slow;
+  if (SmiAbove(from + count, length)) goto Slow;
+
+  const kind: ElementsKind = array.map.elements_kind;
+  if (kind == ElementsKind::PACKED_SMI_ELEMENTS ||
+      kind == ElementsKind::PACKED_ELEMENTS) {
+    array::EnsureWriteableFastElements(array);
+    DoMoveElements(UnsafeCast<FixedArray>(array.elements), to, from, count);
+  } else if (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+    DoMoveElements(
+        UnsafeCast<FixedDoubleArray>(array.elements), to, from, count);
+  } else if (IsFastElementsKind(kind)) {
+    // For holey kinds a hole must mean "absent" (spec deletes on absent), which
+    // only holds with the initial prototype and an intact NoElementsProtector.
+    if (!IsPrototypeInitialArrayPrototype(array.map)) goto Slow;
+    if (IsNoElementsProtectorCellInvalid()) goto Slow;
+
+    if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
+      DoMoveElements(
+          UnsafeCast<FixedDoubleArray>(array.elements), to, from, count);
+    } else {
+      dcheck(
+          kind == ElementsKind::HOLEY_SMI_ELEMENTS ||
+          kind == ElementsKind::HOLEY_ELEMENTS);
+      array::EnsureWriteableFastElements(array);
+      DoMoveElements(UnsafeCast<FixedArray>(array.elements), to, from, count);
+    }
+  } else {
+    goto Slow;
+  }
+}
+
+// https://tc39.es/ecma262/#sec-array.prototype.copywithin
 transitioning javascript builtin ArrayPrototypeCopyWithin(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let O be ? ToObject(this value).
@@ -50,6 +99,12 @@ transitioning javascript builtin ArrayPrototypeCopyWithin(
 
   // 9. Let count be min(final-from, len-to).
   let count: Number = Min(final - from, length - to);
+
+  // Fast JSArrays: one in-place memmove. Bail to the generic loop below.
+  try {
+    TryFastArrayCopyWithin(receiver, to, from, count) otherwise Slow;
+    return object;
+  } label Slow {}
 
   // 10. If from<to and to<from+count, then.
   let direction: Number = 1;

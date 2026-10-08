@@ -128,7 +128,7 @@ class WasmModuleBuilder {
     this.types.push(type_copy);
     return this.types.length - 1;
   }
-  addStruct(fields = kNoSuperType = false, is_shared = false) {
+  addStruct(fields) {
     this.types.push(new WasmStruct(fields));
   }
   addFunction(name, type, arg_names) {

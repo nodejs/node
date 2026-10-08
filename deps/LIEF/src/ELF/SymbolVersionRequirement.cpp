@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,49 +20,64 @@
 
 #include "ELF/Structures.hpp"
 
-namespace LIEF {
-namespace ELF {
 
-SymbolVersionRequirement::SymbolVersionRequirement(const details::Elf64_Verneed& header) :
-  version_{header.vn_version}
-{}
+namespace LIEF::ELF {
 
-SymbolVersionRequirement::SymbolVersionRequirement(const details::Elf32_Verneed& header)  :
-  version_{header.vn_version}
-{}
+SymbolVersionRequirement::SymbolVersionRequirement(
+    const details::Elf64_Verneed& header
+) :
+  version_{header.vn_version} {}
 
-SymbolVersionRequirement::SymbolVersionRequirement(const SymbolVersionRequirement& other) :
+SymbolVersionRequirement::SymbolVersionRequirement(
+    const details::Elf32_Verneed& header
+) :
+  version_{header.vn_version} {}
+
+SymbolVersionRequirement::SymbolVersionRequirement(
+    const SymbolVersionRequirement& other
+) :
   Object{other},
   version_{other.version_},
-  name_{other.name_}
-{
+  name_{other.name_} {
   aux_requirements_.reserve(other.aux_requirements_.size());
-  for (const std::unique_ptr<SymbolVersionAuxRequirement>& aux : other.aux_requirements_) {
-    aux_requirements_.push_back(std::make_unique<SymbolVersionAuxRequirement>(*aux));
+  for (const std::unique_ptr<SymbolVersionAuxRequirement>& aux :
+       other.aux_requirements_)
+  {
+    aux_requirements_.push_back(
+        std::make_unique<SymbolVersionAuxRequirement>(*aux)
+    );
   }
 }
 
-SymbolVersionRequirement& SymbolVersionRequirement::operator=(SymbolVersionRequirement other) {
+SymbolVersionRequirement&
+    SymbolVersionRequirement::operator=(SymbolVersionRequirement other) {
   swap(other);
   return *this;
 }
 
 void SymbolVersionRequirement::swap(SymbolVersionRequirement& other) {
   std::swap(aux_requirements_, other.aux_requirements_);
-  std::swap(version_,          other.version_);
-  std::swap(name_,             other.name_);
+  std::swap(version_, other.version_);
+  std::swap(name_, other.name_);
 }
 
 
-SymbolVersionAuxRequirement& SymbolVersionRequirement::add_aux_requirement(const SymbolVersionAuxRequirement& aux_requirement) {
-  aux_requirements_.push_back(std::make_unique<SymbolVersionAuxRequirement>(aux_requirement));
+SymbolVersionAuxRequirement& SymbolVersionRequirement::add_aux_requirement(
+    const SymbolVersionAuxRequirement& aux_requirement
+) {
+  aux_requirements_.push_back(
+      std::make_unique<SymbolVersionAuxRequirement>(aux_requirement)
+  );
   return *aux_requirements_.back();
 }
 
 
-bool SymbolVersionRequirement::remove_aux_requirement(SymbolVersionAuxRequirement& aux) {
-  auto it = std::find_if(aux_requirements_.begin(), aux_requirements_.end(),
-      [&aux] (const std::unique_ptr<SymbolVersionAuxRequirement>& element) {
+bool SymbolVersionRequirement::remove_aux_requirement(
+    SymbolVersionAuxRequirement& aux
+) {
+  auto it = std::find_if(
+      aux_requirements_.begin(), aux_requirements_.end(),
+      [&aux](const std::unique_ptr<SymbolVersionAuxRequirement>& element) {
         return &aux == element.get();
       }
   );
@@ -76,10 +91,10 @@ bool SymbolVersionRequirement::remove_aux_requirement(SymbolVersionAuxRequiremen
 }
 
 const SymbolVersionAuxRequirement*
-  SymbolVersionRequirement::find_aux(const std::string& name) const
-{
-  auto it = std::find_if(aux_requirements_.begin(), aux_requirements_.end(),
-      [&name] (const std::unique_ptr<SymbolVersionAuxRequirement>& aux) {
+    SymbolVersionRequirement::find_aux(const std::string& name) const {
+  auto it = std::find_if(
+      aux_requirements_.begin(), aux_requirements_.end(),
+      [&name](const std::unique_ptr<SymbolVersionAuxRequirement>& aux) {
         return aux->name() == name;
       }
   );
@@ -95,5 +110,4 @@ void SymbolVersionRequirement::accept(Visitor& visitor) const {
   visitor.visit(*this);
 }
 
-}
 }

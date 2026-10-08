@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if defined(_MSC_VER)
-#include <winsock2.h>  // for timeval
-#endif
-
 #include "absl/base/config.h"
 
 // For feature testing and determining which headers can be included.
@@ -43,6 +39,10 @@
 #include "absl/random/random.h"
 #include "absl/strings/str_format.h"
 #include "absl/time/time.h"
+
+#if defined(_MSC_VER)
+#include <winsock2.h>  // for timeval
+#endif
 
 namespace {
 
@@ -74,7 +74,7 @@ MATCHER_P(TimevalMatcher, tv, "") {
 }
 
 TEST(Duration, ConstExpr) {
-  static_assert(std::is_trivially_destructible<absl::Duration>::value,
+  static_assert(std::is_trivially_destructible_v<absl::Duration>,
                 "Duration is documented as being trivially destructible");
   constexpr absl::Duration d0 = absl::ZeroDuration();
   static_assert(d0 == absl::ZeroDuration(), "ZeroDuration()");
@@ -228,12 +228,12 @@ void TestFromChronoBasicEquality() {
   using std::chrono::nanoseconds;
   using std::chrono::seconds;
 
-  static_assert(absl::Nanoseconds(N) == absl::FromChrono(nanoseconds(N)), "");
-  static_assert(absl::Microseconds(N) == absl::FromChrono(microseconds(N)), "");
-  static_assert(absl::Milliseconds(N) == absl::FromChrono(milliseconds(N)), "");
-  static_assert(absl::Seconds(N) == absl::FromChrono(seconds(N)), "");
-  static_assert(absl::Minutes(N) == absl::FromChrono(minutes(N)), "");
-  static_assert(absl::Hours(N) == absl::FromChrono(hours(N)), "");
+  static_assert(absl::Nanoseconds(N) == absl::FromChrono(nanoseconds(N)));
+  static_assert(absl::Microseconds(N) == absl::FromChrono(microseconds(N)));
+  static_assert(absl::Milliseconds(N) == absl::FromChrono(milliseconds(N)));
+  static_assert(absl::Seconds(N) == absl::FromChrono(seconds(N)));
+  static_assert(absl::Minutes(N) == absl::FromChrono(minutes(N)));
+  static_assert(absl::Hours(N) == absl::FromChrono(hours(N)));
 }
 
 TEST(Duration, FromChrono) {
@@ -907,15 +907,15 @@ TEST(Duration, Range) {
 }
 
 TEST(Duration, RelationalOperators) {
-#define TEST_REL_OPS(UNIT)               \
-  static_assert(UNIT(2) == UNIT(2), ""); \
-  static_assert(UNIT(1) != UNIT(2), ""); \
-  static_assert(UNIT(1) < UNIT(2), "");  \
-  static_assert(UNIT(3) > UNIT(2), "");  \
-  static_assert(UNIT(1) <= UNIT(2), ""); \
-  static_assert(UNIT(2) <= UNIT(2), ""); \
-  static_assert(UNIT(3) >= UNIT(2), ""); \
-  static_assert(UNIT(2) >= UNIT(2), "");
+#define TEST_REL_OPS(UNIT)           \
+  static_assert(UNIT(2) == UNIT(2)); \
+  static_assert(UNIT(1) != UNIT(2)); \
+  static_assert(UNIT(1) < UNIT(2));  \
+  static_assert(UNIT(3) > UNIT(2));  \
+  static_assert(UNIT(1) <= UNIT(2)); \
+  static_assert(UNIT(2) <= UNIT(2)); \
+  static_assert(UNIT(3) >= UNIT(2)); \
+  static_assert(UNIT(2) >= UNIT(2));
 
   TEST_REL_OPS(absl::Nanoseconds);
   TEST_REL_OPS(absl::Microseconds);
@@ -930,10 +930,10 @@ TEST(Duration, RelationalOperators) {
 #ifdef ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON
 
 TEST(Duration, SpaceshipOperators) {
-#define TEST_REL_OPS(UNIT)                                               \
-  static_assert(UNIT(2) <=> UNIT(2) == std::strong_ordering::equal, ""); \
-  static_assert(UNIT(1) <=> UNIT(2) == std::strong_ordering::less, "");  \
-  static_assert(UNIT(3) <=> UNIT(2) == std::strong_ordering::greater, "");
+#define TEST_REL_OPS(UNIT)                                           \
+  static_assert(UNIT(2) <=> UNIT(2) == std::strong_ordering::equal); \
+  static_assert(UNIT(1) <=> UNIT(2) == std::strong_ordering::less);  \
+  static_assert(UNIT(3) <=> UNIT(2) == std::strong_ordering::greater);
 
   TEST_REL_OPS(absl::Nanoseconds);
   TEST_REL_OPS(absl::Microseconds);

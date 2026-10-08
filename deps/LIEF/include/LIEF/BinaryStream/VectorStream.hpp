@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,8 +36,7 @@ class LIEF_API VectorStream : public BinaryStream {
   VectorStream(std::vector<uint8_t> data) :
     BinaryStream(BinaryStream::STREAM_TYPE::VECTOR),
     binary_(std::move(data)),
-    size_(binary_.size())
-  {}
+    size_(binary_.size()) {}
 
   VectorStream() = delete;
 
@@ -82,9 +81,10 @@ class LIEF_API VectorStream : public BinaryStream {
   }
 
   protected:
-  result<const void*> read_at(uint64_t offset, uint64_t size, uint64_t /*va*/) const override {
+  result<const void*> read_at(uint64_t offset, uint64_t size,
+                              uint64_t /*va*/) const override {
     const uint64_t stream_size = this->size();
-    if (offset > stream_size || (offset + size) > stream_size) {
+    if (offset > stream_size || size > stream_size - offset) {
       return make_error_code(lief_errors::read_error);
     }
     return binary_.data() + offset;

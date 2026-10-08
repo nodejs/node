@@ -1,0 +1,24 @@
+Test that Runtime.evaluate with includeCommandLineAPI does not crash when global object is frozen.
+Running test: testStrictFrame
+Paused in strict mode.
+Evaluating with includeCommandLineAPI while paused in strict...
+{
+    error : {
+        code : -32000
+        message : Failed to install command line API
+    }
+    id : <messageId>
+}
+Running test: testSloppyFrame
+Paused in sloppy mode.
+Evaluating with includeCommandLineAPI while paused in sloppy...
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 4
+            type : number
+            value : 4
+        }
+    }
+}

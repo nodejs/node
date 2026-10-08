@@ -8,7 +8,7 @@ use core::num::NonZeroU8;
 
 use crate::{
     assert_syntax,
-    core::EncodingType,
+    encoding::EncodingType,
     parsers::{
         datetime::{parse_month_day, parse_year_month},
         grammar::{

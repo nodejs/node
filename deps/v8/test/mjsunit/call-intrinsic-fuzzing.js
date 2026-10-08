@@ -24,3 +24,14 @@ assertEquals(undefined, %DeoptimizeFunction());
 // Superfluous arguments are ignored.
 %DeoptimizeFunction(function() {}, undefined);
 assertNotEquals(undefined, %IsBeingInterpreted(1, 2, 3));
+
+// Test that the %AllocateHeapNumberWithValue builtin works as expected in the
+// --fuzzing context.
+(function testAllocateHeapNumberWithValue() {
+  assertEquals(undefined, %AllocateHeapNumberWithValue());
+  assertEquals(1, %AllocateHeapNumberWithValue(1));
+  assertFalse(%IsSmi(%AllocateHeapNumberWithValue(1)));
+  assertEquals(123, %AllocateHeapNumberWithValue("123"));
+  assertEquals(NaN, %AllocateHeapNumberWithValue("Hello World!"));
+  assertThrows(() => %AllocateHeapNumberWithValue(Symbol.iterator));
+})();

@@ -1,4 +1,4 @@
-/* Copyright 2017 - 2025 R. Thomas
+/* Copyright 2017 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,11 @@
 #include "LIEF/MachO/SubClient.hpp"
 #include "MachO/Structures.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 SubClient::SubClient(const details::sub_client_command& cmd) :
-  LoadCommand::LoadCommand{LoadCommand::TYPE(cmd.cmd), cmd.cmdsize}
-{}
+  LoadCommand::LoadCommand{LoadCommand::TYPE(cmd.cmd), cmd.cmdsize} {}
 
 void SubClient::accept(Visitor& visitor) const {
   visitor.visit(*this);
@@ -36,5 +35,4 @@ std::ostream& SubClient::print(std::ostream& os) const {
 }
 
 
-}
 }

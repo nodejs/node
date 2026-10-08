@@ -1,11 +1,24 @@
 import { skipIfSQLiteMissing } from '../common/index.mjs';
 import { describe, test } from 'node:test';
 skipIfSQLiteMissing();
-const { DatabaseSync } = await import('node:sqlite');
+const { Database } = await import('node:sqlite');
 
-describe('DatabaseSync.prototype.aggregate()', () => {
+describe('Database.prototype.aggregate()', () => {
   describe('input validation', () => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
+
+    // The length property is configurable, so any type can reach the
+    // conversion that derives the aggregate's arity from it.
+    const lengths = ['abc', {}, [], null, undefined, NaN, 1.5,
+                     Symbol.iterator, 10n, true, 2 ** 40];
+
+    function withLength(fn, length) {
+      Object.defineProperty(fn, 'length', {
+        configurable: true,
+        value: length,
+      });
+      return fn;
+    }
 
     test('throws if options.start is not provided', (t) => {
       t.assert.throws(() => {
@@ -81,12 +94,43 @@ describe('DatabaseSync.prototype.aggregate()', () => {
         message: /The "options\.inverse" argument must be a function/,
       });
     });
+
+    test('throws if options.step.length is not an integer', (t) => {
+      for (const length of lengths) {
+        t.assert.throws(() => {
+          db.aggregate('sum', {
+            start: 0,
+            step: withLength((acc, value) => acc + value, length),
+            result: (total) => total
+          });
+        }, {
+          code: 'ERR_INVALID_ARG_TYPE',
+          message: /The "options\.step\.length" property must be an integer/,
+        }, `length=${String(length)}`);
+      }
+    });
+
+    test('throws if options.inverse.length is not an integer', (t) => {
+      for (const length of lengths) {
+        t.assert.throws(() => {
+          db.aggregate('sum', {
+            start: 0,
+            step: (acc, value) => acc + value,
+            inverse: withLength((acc, value) => acc - value, length),
+            result: (total) => total
+          });
+        }, {
+          code: 'ERR_INVALID_ARG_TYPE',
+          message: /The "options\.inverse\.length" property must be an integer/,
+        }, `length=${String(length)}`);
+      }
+    });
   });
 });
 
 describe('varargs', () => {
   test('supports variable number of arguments when true', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => db.close());
     db.exec('CREATE TABLE data (value INTEGER)');
     db.exec('INSERT INTO data VALUES (1), (2), (3)');
@@ -104,7 +148,7 @@ describe('varargs', () => {
   });
 
   test('uses the max between step.length and inverse.length when false', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => db.close());
     db.exec(`
       CREATE TABLE t3(x, y);
@@ -151,7 +195,7 @@ describe('varargs', () => {
   });
 
   test('throws if an incorrect number of arguments is provided when false', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => db.close());
     db.aggregate('sum_int', {
       start: 0,
@@ -172,7 +216,7 @@ describe('varargs', () => {
 
 describe('directOnly', () => {
   test('is false by default', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => db.close());
     db.aggregate('func', {
       start: 0,
@@ -199,7 +243,7 @@ describe('directOnly', () => {
   });
 
   test('set SQLITE_DIRECT_ONLY flag when true', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => db.close());
     db.aggregate('func', {
       start: 0,
@@ -233,7 +277,7 @@ describe('directOnly', () => {
 
 describe('start', () => {
   test('start option as a value', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => db.close());
     db.exec('CREATE TABLE data (value INTEGER)');
     db.exec('INSERT INTO data VALUES (1), (2), (3)');
@@ -248,7 +292,7 @@ describe('start', () => {
   });
 
   test('start option as a function', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => db.close());
     db.exec('CREATE TABLE data (value INTEGER)');
     db.exec('INSERT INTO data VALUES (1), (2), (3)');
@@ -263,7 +307,7 @@ describe('start', () => {
   });
 
   test('start option can hold any js value', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => db.close());
     db.exec('CREATE TABLE data (value INTEGER)');
     db.exec('INSERT INTO data VALUES (1), (2), (3)');
@@ -281,7 +325,7 @@ describe('start', () => {
   });
 
   test('throws if start throws an error', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => db.close());
     db.exec('CREATE TABLE data (value INTEGER)');
     db.exec('INSERT INTO data VALUES (1), (2), (3)');
@@ -302,7 +346,7 @@ describe('start', () => {
 
 describe('step', () => {
   test('throws if step throws an error', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => db.close());
     db.exec('CREATE TABLE data (value INTEGER)');
     db.exec('INSERT INTO data VALUES (1), (2), (3)');
@@ -323,7 +367,7 @@ describe('step', () => {
 
 describe('result', () => {
   test('throws if result throws an error', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => db.close());
     db.exec('CREATE TABLE data (value INTEGER)');
     db.exec('INSERT INTO data VALUES (1), (2), (3)');
@@ -344,7 +388,7 @@ describe('result', () => {
   });
 
   test('executes once when options.inverse is not present', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => db.close());
     const mockFn = t.mock.fn(() => 'overridden');
     db.exec('CREATE TABLE data (value INTEGER)');
@@ -365,7 +409,7 @@ describe('result', () => {
   });
 
   test('executes once per row when options.inverse is present', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => db.close());
     const mockFn = t.mock.fn((acc) => acc);
     db.exec(`
@@ -400,7 +444,7 @@ describe('result', () => {
 });
 
 test('throws an error when trying to use as windown function but didn\'t provide options.inverse', (t) => {
-  const db = new DatabaseSync(':memory:');
+  const db = new Database(':memory:');
   t.after(() => db.close());
   db.exec(`
     CREATE TABLE t3(x, y);
