@@ -796,7 +796,8 @@ variables which configure Node.js, such as \fBNODE_OPTIONS\fR,
 are parsed and applied. If the same variable is defined in the environment and
 in the file, the value from the environment takes precedence.
 You can pass multiple \fB--env-file\fR arguments. Subsequent files override
-pre-existing variables defined in previous files.
+pre-existing variables defined in previous files. Files specified in
+\fBNODE_OPTIONS\fR are loaded before files specified on the command line.
 An error is thrown if the file does not exist.
 .Bd -literal
 node --env-file=.env --env-file=.development.env index.js
@@ -2218,6 +2219,10 @@ one is included in the list below.
 \fB--enable-source-maps\fR
 .It
 \fB--entry-url\fR
+.It
+\fB--env-file-if-exists\fR
+.It
+\fB--env-file\fR
 .It
 \fB--experimental-abortcontroller\fR
 .It
