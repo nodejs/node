@@ -3140,10 +3140,14 @@ for the current process. Additional documentation is available in the
 
 <!-- YAML
 added: v20.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65492
+    description: The `reference` argument can be a `URL` or a `Uint8Array`.
 -->
 
 * `scope` {string}
-* `reference` {string}
+* `reference` {string|URL|Uint8Array}
 * Returns: {boolean}
 
 Verifies that the process is able to access the given scope and reference.
@@ -3157,6 +3161,10 @@ permission status, but denied operations will not throw `ERR_ACCESS_DENIED`.
 The reference has a meaning based on the provided scope. For example,
 the reference when the scope is File System means files and folders.
 
+For File System scopes, a `URL` reference must use the `file:` protocol and is
+converted to a path, while a `Uint8Array` reference is treated as the raw bytes
+of a path. Other scopes ignore the reference.
+
 The available scopes are:
 
 * `fs` - All File System
@@ -3166,6 +3174,10 @@ The available scopes are:
 * `env` - Environment variables
 * `openssl.store` - Loading keys through OpenSSL STORE loaders
 * `worker` - Worker thread spawning operation
+* `net` - Network operations
+* `inspector` - Inspector operations
+* `wasi` - WASI operations
+* `addon` - Native addon operations
 * `ffi` - Foreign function interface operations
 
 ```js
@@ -3181,12 +3193,16 @@ process.permission.has('fs.read');
 added:
  - v26.3.0
  - v24.20.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65492
+    description: The `reference` argument can be a `URL` or a `Uint8Array`.
 -->
 
 > Stability: 1.1 - Active Development
 
 * `scope` {string}
-* `reference` {string}
+* `reference` {string|URL|Uint8Array}
 
 Drops the specified permission from the current process. This operation is
 **irreversible** — once a permission is dropped, it cannot be restored through
@@ -3229,6 +3245,7 @@ The available scopes are the same as [`process.permission.has()`][]:
 * `inspector` - Inspector operations
 * `wasi` - WASI operations
 * `addon` - Native addon operations
+* `ffi` - Foreign function interface operations
 
 ```js
 const fs = require('node:fs');
