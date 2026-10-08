@@ -39,6 +39,7 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE(
     perfetto::Category("node.console"),
     perfetto::Category("node.http"),
     perfetto::Category("node.module_timer"),
+    perfetto::Category("node.test_runner"),
   );  // NOLINT(whitespace/parens)
 // clang-format on
 
