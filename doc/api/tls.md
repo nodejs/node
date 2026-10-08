@@ -1668,6 +1668,27 @@ and their processing can be delayed due to packet loss or reordering. However,
 smaller fragments add extra TLS framing bytes and CPU overhead, which may
 decrease overall server throughput.
 
+### `tlsSocket.socket`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {net.Socket|stream.Duplex|null}
+
+The underlying socket or stream that this socket reads and writes TLS data
+through. This is the `socket` passed to [`new tls.TLSSocket()`][] or
+[`tls.connect()`][], or the connection given to a [`tls.Server`][] by its
+`'connection'` event.
+
+This is only `null` for client sockets that manage their own connection,
+created by [`tls.connect()`][] with a `port` or `path` rather than a `socket`.
+Connection details such as `remoteAddress` are then available directly on this
+socket. Server sockets always have an underlying socket.
+
+This remains available after the socket has been destroyed, for example to
+identify the underlying connection from a [`'tlsClientError'`][] listener.
+
 ## `tls.checkServerIdentity(hostname, cert)`
 
 <!-- YAML
@@ -2594,6 +2615,7 @@ added: v0.11.3
 [`'secureConnect'`]: #event-secureconnect
 [`'secureConnection'`]: #event-secureconnection
 [`'session'`]: #event-session
+[`'tlsClientError'`]: #event-tlsclienterror
 [`--tls-cipher-list`]: cli.md#--tls-cipher-listlist
 [`--use-bundled-ca`]: cli.md#--use-bundled-ca---use-openssl-ca
 [`--use-openssl-ca`]: cli.md#--use-bundled-ca---use-openssl-ca
@@ -2609,6 +2631,7 @@ added: v0.11.3
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket
 [`net.createServer()`]: net.md#netcreateserveroptions-connectionlistener
+[`new tls.TLSSocket()`]: #new-tlstlssocketsocket-options
 [`server.addContext()`]: #serveraddcontexthostname-context
 [`server.getTicketKeys()`]: #servergetticketkeys
 [`server.listen()`]: net.md#serverlisten
