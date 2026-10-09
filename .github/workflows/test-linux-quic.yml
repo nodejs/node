@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/test-linux-quic.yml
+      - benchmark/quic/**
       - configure.py
       - node.gyp
       - node.gypi
@@ -18,6 +19,7 @@ on:
       - lib/internal/quic/**
       - lib/stream/iter.js
       - lib/internal/streams/iter/**
+      - test/benchmark/test-benchmark-quic.js
       - test/cctest/test_quic_*
       - test/common/quic*
       - test/common/quic/**
