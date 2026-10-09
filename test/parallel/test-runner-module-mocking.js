@@ -10,7 +10,7 @@ if (!isMainThread) {
 const fixtures = require('../common/fixtures');
 const assert = require('node:assert');
 const { relative } = require('node:path');
-const { test } = require('node:test');
+const { beforeEach, describe, mock, test } = require('node:test');
 const { pathToFileURL } = require('node:url');
 
 test('input validation', async (t) => {
@@ -551,6 +551,125 @@ test('mocks can be restored independently', async (t) => {
 
   assert.strictEqual(cjsImpl.fn, undefined);
   assert.strictEqual(esmImpl.fn, undefined);
+});
+
+// Refs https://github.com/nodejs/node/issues/59163
+test('re-mocking a dependency resets consumers imported in earlier tests', async (t) => {
+  const dependency = fixtures.fileURL('module-mocking', 'reset-dependency.mjs');
+  const consumer = fixtures.fileURL('module-mocking', 'reset-consumer.mjs');
+  const nestedConsumer = fixtures.fileURL('module-mocking', 'reset-nested-consumer.mjs');
+
+  await t.test('direct consumer uses the first mock', async (t) => {
+    const mockDependency = t.mock.fn(() => 'first mock');
+    t.mock.module(dependency, { defaultExport: mockDependency });
+
+    const { default: consume } = await import(consumer);
+
+    assert.strictEqual(consume(), 'first mock');
+    assert.strictEqual(mockDependency.mock.callCount(), 1);
+  });
+
+  await t.test('direct consumer uses the second mock', async (t) => {
+    const mockDependency = t.mock.fn(() => 'second mock');
+    t.mock.module(dependency, { defaultExport: mockDependency });
+
+    const { default: consume } = await import(consumer);
+
+    assert.strictEqual(consume(), 'second mock');
+    assert.strictEqual(mockDependency.mock.callCount(), 1);
+  });
+
+  await t.test('transitive consumer uses a fresh mock', async (t) => {
+    const mockDependency = t.mock.fn(() => 'third mock');
+    t.mock.module(dependency, { defaultExport: mockDependency });
+
+    const { default: consume } = await import(nestedConsumer);
+
+    assert.strictEqual(consume(), 'third mock');
+    assert.strictEqual(mockDependency.mock.callCount(), 1);
+  });
+
+  // After all mocks are restored, the consumers see the original dependency.
+  assert.strictEqual((await import(consumer)).default(), 'original dependency');
+  assert.strictEqual((await import(nestedConsumer)).default(), 'original dependency');
+});
+
+test('re-mocking a dependency refreshes every importer', async (t) => {
+  const dependency = fixtures.fileURL('module-mocking', 'reset-dependency.mjs');
+  const consumerA = fixtures.fileURL('module-mocking', 'reset-consumer.mjs');
+  const consumerB = fixtures.fileURL('module-mocking', 'reset-consumer-b.mjs');
+
+  await t.test('first mock reaches both importers', async (t) => {
+    t.mock.module(dependency, { exports: { default: () => 'first' } });
+
+    assert.strictEqual((await import(consumerA)).default(), 'first');
+    assert.strictEqual((await import(consumerB)).default(), 'first');
+  });
+
+  await t.test('second mock reaches both importers', async (t) => {
+    t.mock.module(dependency, { exports: { default: () => 'second' } });
+
+    assert.strictEqual((await import(consumerA)).default(), 'second');
+    assert.strictEqual((await import(consumerB)).default(), 'second');
+  });
+});
+
+test('restoring a mock re-exposes the original module', async (t) => {
+  const dependency = fixtures.fileURL('module-mocking', 'reset-dependency.mjs');
+  const consumer = fixtures.fileURL('module-mocking', 'reset-consumer.mjs');
+
+  const mocked = t.mock.module(dependency, { exports: { default: () => 'mocked' } });
+  assert.strictEqual((await import(consumer)).default(), 'mocked');
+
+  mocked.restore();
+  assert.strictEqual((await import(consumer)).default(), 'original dependency');
+});
+
+// Refs https://github.com/nodejs/node/issues/59163
+test('mocking a dependency refreshes consumers imported without a mock', async (t) => {
+  const dependency = fixtures.fileURL('module-mocking', 'reset-dependency.mjs');
+  const consumer = fixtures.fileURL('module-mocking', 'reset-consumer.mjs');
+
+  t.mock.module(dependency, { exports: { default: () => 'warm up' } });
+  t.mock.reset();
+
+  await t.test('reads the original when unmocked', async (t) => {
+    assert.strictEqual((await import(consumer)).default(), 'original dependency');
+  });
+
+  await t.test('reads the mock installed afterwards', async (t) => {
+    t.mock.module(dependency, { exports: { default: () => 'installed later' } });
+    assert.strictEqual((await import(consumer)).default(), 'installed later');
+  });
+});
+
+describe('re-mocking named exports between tests', () => {
+  const dependency = fixtures.fileURL('module-mocking', 'reset-named-dependency.mjs');
+  const consumer = fixtures.fileURL('module-mocking', 'reset-named-consumer.mjs');
+
+  beforeEach(() => {
+    mock.restoreAll();
+  });
+
+  test('first test observes its own mock', async (t) => {
+    const readValue = t.mock.fn(() => 'first');
+    t.mock.module(dependency, { exports: { readValue } });
+
+    const { run } = await import(consumer);
+
+    assert.strictEqual(run(), 'first');
+    assert.strictEqual(readValue.mock.callCount(), 1);
+  });
+
+  test('second test observes its own mock', async (t) => {
+    const readValue = t.mock.fn(() => 'second');
+    t.mock.module(dependency, { exports: { readValue } });
+
+    const { run } = await import(consumer);
+
+    assert.strictEqual(run(), 'second');
+    assert.strictEqual(readValue.mock.callCount(), 1);
+  });
 });
 
 async function assertCoreModuleMockWorksInBothModuleSystems(t, specifier, options) {
