@@ -23,7 +23,7 @@ function main({ n, mode, operation }) {
     writeFile: 'fs.writefile',
   }[operation];
   assert(type);
-  const channel = `threadpool.work.${type}`;
+  const channel = `uv.threadpool.work.${type}`;
   if (mode === 'subscribed') {
     dc.subscribe(channel, subscriber);
   } else if (mode === 'unsubscribed') {

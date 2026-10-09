@@ -14,10 +14,10 @@ const workDone = common.mustCall((status) => {
   if (++x < iterations) {
     setImmediate(() => test_async.DoRepeatedWork(workDone));
   } else {
-    dc.unsubscribe('threadpool.work.node_api', onThreadPoolWork);
+    dc.unsubscribe('uv.threadpool.work.node_api', onThreadPoolWork);
     assert.strictEqual(events.length, iterations - 1);
   }
 }, iterations);
 // Subscribe after submission to verify subscription latching.
 test_async.DoRepeatedWork(workDone);
-dc.subscribe('threadpool.work.node_api', onThreadPoolWork);
+dc.subscribe('uv.threadpool.work.node_api', onThreadPoolWork);
