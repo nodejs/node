@@ -39,6 +39,8 @@
 #endif
 
 #include "base.h"
+#include <cstdlib>	// Needed for malloc support
+              			// when using clang compiler
 
 // libc++ supports string_view in pre-c++17.
 #if FMT_HAS_INCLUDE(<string_view>) && \
