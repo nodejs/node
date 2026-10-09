@@ -2015,8 +2015,8 @@ instance. This is a **profiling** event: it fires once per statement upon
 completion and reports an estimated duration from SQLite's internal profiler.
 It is not a distributed-tracing span. There is no corresponding start event,
 no async context propagation, and no parent-span linkage. If you need
-OpenTelemetry-compatible spans or async context propagation, wrap your SQLite
-calls with a [`TracingChannel`][] at the JavaScript layer instead.
+OpenTelemetry-compatible spans or async context propagation, use the
+[`'tracing:sqlite.query:start'`][] events instead.
 
 Publishing is zero-overhead when there are no subscribers.
 
@@ -2026,13 +2026,66 @@ statement is garbage collected. Subscribers must not close the database or the
 statement, since both are still in use while the event is being delivered; see
 [`database.close()`][] and [`statement.close()`][].
 
+##### Event: `'tracing:sqlite.query:start'`
+
+* `context` {Object}
+  * `sql` {string|undefined} The SQL as written, with parameter placeholders.
+    For a tag store query, the template strings joined with `?`. `undefined` if
+    the statement has already been finalized.
+  * `parameters` {Array} The bound parameters as passed by the caller. Empty
+    for `exec()`.
+  * `method` {string} One of `'run'`, `'get'`, `'all'`, or `'exec'`.
+  * `database` {Database} The [`Database`][] instance running the query.
+  * `statement` {Statement|undefined} The [`Statement`][] being run, or
+    `undefined` for `exec()` and tag store queries.
+
+Emitted when [`statement.run()`][], [`statement.get()`][],
+[`statement.all()`][], [`database.exec()`][], or the matching [`SQLTagStore`][]
+method is called. See [`start` event][]. `iterate()` is not traced.
+
+##### Event: `'tracing:sqlite.query:end'`
+
+* `context` {Object}
+  * `sql` {string|undefined} The SQL as written, with parameter placeholders.
+    For a tag store query, the template strings joined with `?`. `undefined` if
+    the statement has already been finalized.
+  * `parameters` {Array} The bound parameters as passed by the caller. Empty
+    for `exec()`.
+  * `method` {string} One of `'run'`, `'get'`, `'all'`, or `'exec'`.
+  * `database` {Database} The [`Database`][] instance running the query.
+  * `statement` {Statement|undefined} The [`Statement`][] being run, or
+    `undefined` for `exec()` and tag store queries.
+  * `result` {any} The value returned by the call.
+
+Emitted when the call returns or throws. See [`end` event][].
+
+##### Event: `'tracing:sqlite.query:error'`
+
+* `context` {Object}
+  * `sql` {string|undefined} The SQL as written, with parameter placeholders.
+    For a tag store query, the template strings joined with `?`. `undefined` if
+    the statement has already been finalized.
+  * `parameters` {Array} The bound parameters as passed by the caller. Empty
+    for `exec()`.
+  * `method` {string} One of `'run'`, `'get'`, `'all'`, or `'exec'`.
+  * `database` {Database} The [`Database`][] instance running the query.
+  * `statement` {Statement|undefined} The [`Statement`][] being run, or
+    `undefined` for `exec()` and tag store queries.
+  * `error` {Error} The thrown error.
+
+Emitted when the call throws, including when the SQL fails to prepare. See
+[`error` event][].
+
 [BoundedChannel Channels]: #boundedchannel-channels
 [TracingChannel Channels]: #tracingchannel-channels
+[`'tracing:sqlite.query:start'`]: #event-tracingsqlitequerystart
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`--enable-fips-indicator-events`]: cli.md#--enable-fips-indicator-events
 [`--force-fips=strict`]: cli.md#--force-fips
 [`BoundedChannel`]: #class-boundedchannel
 [`Database`]: sqlite.md#class-database
+[`SQLTagStore`]: sqlite.md#class-sqltagstore
+[`Statement`]: sqlite.md#class-statement
 [`TracingChannel`]: #class-tracingchannel
 [`asyncEnd` event]: #asyncendevent
 [`asyncStart` event]: #asyncstartevent
@@ -2044,6 +2097,7 @@ statement, since both are still in use while the event is being delivered; see
 [`channel.withStoreScope(data)`]: #channelwithstorescopedata
 [`child_process.spawn()`]: child_process.md#child_processspawncommand-args-options
 [`database.close()`]: sqlite.md#databaseclose
+[`database.exec()`]: sqlite.md#databaseexecsql
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
 [`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelsubscribename-onmessage
 [`diagnostics_channel.tracingChannel()`]: #diagnostics_channeltracingchannelnameorchannels
@@ -2053,7 +2107,10 @@ statement, since both are still in use while the event is being delivered; see
 [`net.Server.listen()`]: net.md#serverlisten
 [`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
+[`statement.all()`]: sqlite.md#statementallnamedparameters-anonymousparameters
 [`statement.close()`]: sqlite.md#statementclose
+[`statement.get()`]: sqlite.md#statementgetnamedparameters-anonymousparameters
+[`statement.run()`]: sqlite.md#statementrunnamedparameters-anonymousparameters
 [`worker_threads.locks`]: worker_threads.md#worker_threadslocks
 [context loss]: async_context.md#troubleshooting-context-loss
 [thenable object]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables
