@@ -227,9 +227,10 @@ The "Current" and "LTS" releases follow schedules that are tracked in the
 If the change is labeled `dont-land-*`, it will be held back from releases in the specified branch until
 the label is removed.
 
-If the change is labeled `semver-major`, it will not be included in the next "Current" release.
-Instead, it will need to wait until the next major release cut from the `main` branch to be included in a
-release. This may take up to months, depending on when the pull request is merged.
+If the change is labeled `semver-major`, it will not be included until the next Alpha release.
+Alpha releases happen between October and April, so in the worst case, a `semver-major` change may wait
+about 6 months before being included in a release (or up to 12 months if it's
+cumulated with a `dont-land-*` label).
 
 Commits on `main` are backported to the release staging branches using `git cherry-pick` before they can be released.
 See [the backporting guide](./backporting-to-release-lines.md). This process is typically performed by
