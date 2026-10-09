@@ -1322,7 +1322,7 @@ void Environment::InitializeThreadPoolWorkChannels() {
     ThreadPoolWorkChannel* entry = &threadpool_work_channels_[i];
     if (entry->channel.get() != nullptr) continue;
 
-    std::string name = "threadpool.work.";
+    std::string name = "uv.threadpool.work.";
     name += kThreadPoolWorkNames[i];
     BaseObjectPtr<diagnostics_channel::Channel> channel =
         diagnostics_channel::Channel::Get(this, name);

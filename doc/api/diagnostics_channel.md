@@ -2026,7 +2026,7 @@ statement is garbage collected. Subscribers must not close the database or the
 statement, since both are still in use while the event is being delivered; see
 [`database.close()`][] and [`statement.close()`][].
 
-#### Thread Pool
+#### libuv Thread Pool
 
 <!-- YAML
 added: REPLACEME
@@ -2034,10 +2034,10 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-##### Event: `'threadpool.work.<type>'`
+##### Event: `'uv.threadpool.work.<type>'`
 
-Each kind of thread pool work has a separate channel named by appending its
-`type` to `'threadpool.work.'`.
+Each kind of work submitted to the [libuv thread pool][] has a separate channel
+named by appending its `type` to `'uv.threadpool.work.'`.
 
 Supported values for `<type>` are:
 
@@ -2104,4 +2104,5 @@ use the [`performance.now()`][] timeline. `started - enqueued` is queue time;
 [`statement.close()`]: sqlite.md#statementclose
 [`worker_threads.locks`]: worker_threads.md#worker_threadslocks
 [context loss]: async_context.md#troubleshooting-context-loss
+[libuv thread pool]: https://docs.libuv.org/en/v1.x/threadpool.html
 [thenable object]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables

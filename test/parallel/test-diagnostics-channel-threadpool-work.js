@@ -26,7 +26,7 @@ fs.mkdirSync(`${sourceDir}/nested`, { recursive: true });
 fs.writeFileSync(sourceFile, 'data');
 
 async function assertPublishes(t, type, trigger) {
-  const channel = `threadpool.work.${type}`;
+  const channel = `uv.threadpool.work.${type}`;
   let published = false;
   const handler = () => { published = true; };
   dc.subscribe(channel, handler);
