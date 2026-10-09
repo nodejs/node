@@ -267,7 +267,7 @@ When the permission model is enabled these operations are disabled and throw
 `ERR_ACCESS_DENIED`, regardless of how the descriptor was obtained. This applies
 both to the top-level `node:fs` functions and to the equivalent
 `FileHandle` methods, and currently includes `fsync`/`fdatasync`,
-`fchmod`, and `fchown` (and their synchronous variants).
+`fchmod`, `fchown`, and `futimes` (and their synchronous variants).
 
 #### Environment variable permissions
 
