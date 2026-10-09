@@ -1293,13 +1293,12 @@ pub(crate) mod parsing {
     #[cfg(feature = "full")]
     use crate::generics::{self, BoundLifetimes};
     use crate::ident::Ident;
-    #[cfg(feature = "full")]
     use crate::lifetime::Lifetime;
     use crate::lit::{Lit, LitFloat, LitInt};
     use crate::mac::{self, Macro};
     use crate::op::BinOp;
     use crate::parse::discouraged::Speculative as _;
-    use crate::parse::{Parse, ParseStream};
+    use crate::parse::{End, Parse, ParseStream};
     #[cfg(feature = "full")]
     use crate::pat::{Pat, PatType};
     use crate::path::{self, AngleBracketedGenericArguments, Path, QSelf};
@@ -1342,7 +1341,10 @@ pub(crate) mod parsing {
     #[cfg(feature = "full")]
     pub(super) fn parse_with_earlier_boundary_rule(input: ParseStream) -> Result<Expr> {
         let mut attrs = input.call(expr_attrs)?;
-        let mut expr = if input.peek(token::Group) {
+        let mut expr = if input.peek(token::Group) && {
+            let group = crate::group::parse_group(&input.fork())?;
+            !(group.content.peek(Lifetime) && group.content.peek2(End))
+        } {
             let allow_struct = AllowStruct(true);
             let atom = expr_group(input, allow_struct)?;
             if continue_parsing_early(&atom) {
@@ -1894,7 +1896,10 @@ pub(crate) mod parsing {
     // interactions, as they are fully contained.
     #[cfg(feature = "full")]
     fn atom_expr(input: ParseStream, allow_struct: AllowStruct) -> Result<Expr> {
-        if input.peek(token::Group) {
+        if input.peek(token::Group) && {
+            let group = crate::group::parse_group(&input.fork())?;
+            !(group.content.peek(Lifetime) && group.content.peek2(End))
+        } {
             expr_group(input, allow_struct)
         } else if input.peek(Lit) {
             input.parse().map(Expr::Lit)
@@ -1994,7 +1999,10 @@ pub(crate) mod parsing {
 
     #[cfg(not(feature = "full"))]
     fn atom_expr(input: ParseStream) -> Result<Expr> {
-        if input.peek(token::Group) {
+        if input.peek(token::Group) && {
+            let group = crate::group::parse_group(&input.fork())?;
+            !(group.content.peek(Lifetime) && group.content.peek2(End))
+        } {
             expr_group(input)
         } else if input.peek(Lit) {
             input.parse().map(Expr::Lit)

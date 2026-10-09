@@ -1,11 +1,8 @@
-use crate::{smallvec, SmallVec};
-
-use std::iter::FromIterator;
-
-use alloc::borrow::ToOwned;
-use alloc::boxed::Box;
-use alloc::rc::Rc;
-use alloc::{vec, vec::Vec};
+use {
+    crate::{smallvec, SmallVec},
+    alloc::{borrow::ToOwned, boxed::Box, rc::Rc, vec, vec::Vec},
+    std::iter::FromIterator,
+};
 
 #[test]
 pub fn test_zero() {
@@ -16,7 +13,22 @@ pub fn test_zero() {
     assert_eq!(&*v, &[0]);
 }
 
-// We heap allocate all these strings so that double frees will show up under valgrind.
+#[cfg(feature = "may_dangle")]
+#[test]
+fn may_dangle_without_element_drop() {
+    let mut inline = SmallVec::<[&str; 1]>::new();
+    let mut spilled = SmallVec::<[&str; 0]>::new();
+    let text = "borrowed".to_owned();
+    inline.push(&text);
+    spilled.push(&text);
+    assert!(!inline.spilled());
+    assert!(spilled.spilled());
+    // `text` is dropped first, but dropping the vectors never reads these
+    // references.
+}
+
+// We heap allocate all these strings so that double frees will show up under
+// valgrind.
 
 #[test]
 pub fn test_inline() {
@@ -329,8 +341,10 @@ fn test_insert_many_long_hint() {
 
 // https://github.com/servo/rust-smallvec/issues/96
 mod insert_many_panic {
-    use crate::{smallvec, SmallVec};
-    use alloc::boxed::Box;
+    use {
+        crate::{smallvec, SmallVec},
+        alloc::boxed::Box,
+    };
 
     struct PanicOnDoubleDrop {
         dropped: Box<bool>,
@@ -434,6 +448,7 @@ fn test_invalid_grow() {
 #[should_panic]
 fn drain_overflow() {
     let mut v: SmallVec<[u8; 8]> = smallvec![0];
+    #[allow(deprecated)]
     v.drain(..=std::usize::MAX);
 }
 
@@ -523,8 +538,7 @@ fn test_ord() {
 
 #[test]
 fn test_hash() {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::Hash;
+    use std::{collections::hash_map::DefaultHasher, hash::Hash};
 
     {
         let mut a: SmallVec<[u32; 2]> = SmallVec::new();
@@ -658,8 +672,8 @@ fn test_into_iter_as_slice() {
 
 #[test]
 fn test_into_iter_clone() {
-    // Test that the cloned iterator yields identical elements and that it owns its own copy
-    // (i.e. no use after move errors).
+    // Test that the cloned iterator yields identical elements and that it owns
+    // its own copy (i.e. no use after move errors).
     let mut iter = SmallVec::<[u8; 2]>::from_iter(0..3).into_iter();
     let mut clone_iter = iter.clone();
     while let Some(x) = iter.next() {
@@ -670,7 +684,8 @@ fn test_into_iter_clone() {
 
 #[test]
 fn test_into_iter_clone_partially_consumed_iterator() {
-    // Test that the cloned iterator only contains the remaining elements of the original iterator.
+    // Test that the cloned iterator only contains the remaining elements of the
+    // original iterator.
     let mut iter = SmallVec::<[u8; 2]>::from_iter(0..3).into_iter().skip(1);
     let mut clone_iter = iter.clone();
     while let Some(x) = iter.next() {
@@ -786,6 +801,104 @@ fn test_retain() {
 }
 
 #[test]
+fn test_retain_panic_preserves_unprocessed_tail() {
+    use std::{
+        cell::Cell,
+        panic::{catch_unwind, AssertUnwindSafe},
+    };
+
+    struct Tracked {
+        id: usize,
+        drops: Rc<Vec<Cell<usize>>>,
+        panic_at: Option<usize>,
+    }
+    impl Drop for Tracked {
+        fn drop(&mut self) {
+            self.drops[self.id].set(self.drops[self.id].get() + 1);
+            assert_ne!(self.panic_at, Some(self.id), "drop panic");
+        }
+    }
+    fn tracked(len: usize, panic_at: Option<usize>) -> (Vec<Tracked>, Rc<Vec<Cell<usize>>>) {
+        let drops = Rc::new((0..len).map(|_| Cell::new(0)).collect::<Vec<_>>());
+        let values = (0..len)
+            .map(|id| Tracked {
+                id,
+                drops: drops.clone(),
+                panic_at,
+            })
+            .collect();
+        (values, drops)
+    }
+    fn ids(values: &[Tracked]) -> Vec<usize> {
+        values.iter().map(|v| v.id).collect()
+    }
+
+    for len in [8, 32].iter().copied() {
+        for panic_at in 0..len {
+            for drop_panics in [false, true].iter().copied() {
+                if drop_panics && panic_at % 2 == 0 {
+                    continue;
+                }
+                let destructor = if drop_panics { Some(panic_at) } else { None };
+                let (input, drops) = tracked(len, destructor);
+                let mut actual: SmallVec<[_; 16]> = input.into_iter().collect();
+                assert!(catch_unwind(AssertUnwindSafe(|| actual.retain(|x| {
+                    if !drop_panics {
+                        assert_ne!(x.id, panic_at);
+                    }
+                    x.id % 2 == 0
+                })))
+                .is_err());
+                let read = panic_at + if drop_panics { 1 } else { 0 };
+                let expected: Vec<_> = (0..panic_at).step_by(2).chain(read..len).collect();
+                assert_eq!(ids(&actual), expected);
+                drop(actual);
+                assert!(drops.iter().all(|x| x.get() == 1));
+            }
+        }
+    }
+}
+
+#[test]
+fn test_retain_patterns_and_zst() {
+    use std::{cell::Cell, thread_local};
+
+    thread_local! { static ZST_DROPS: Cell<usize> = Cell::new(0); }
+    struct Zst;
+    impl Drop for Zst {
+        fn drop(&mut self) {
+            ZST_DROPS.with(|x| x.set(x.get() + 1));
+        }
+    }
+
+    for len in [0, 1, 15, 16, 17, 64].iter().copied() {
+        for keep in 0..3 {
+            let mut actual: SmallVec<[_; 16]> = (0..len).collect();
+            let mut expected: Vec<_> = (0..len).collect();
+            actual.retain(|x| {
+                *x += 1;
+                *x % 2 < keep
+            });
+            for x in &mut expected {
+                *x += 1;
+            }
+            expected.retain(|x| *x % 2 < keep);
+            assert_eq!(actual.as_slice(), expected.as_slice());
+        }
+    }
+    ZST_DROPS.with(|x| x.set(0));
+    let mut values: SmallVec<[_; 16]> = (0..32).map(|_| Zst).collect();
+    let mut seen = 0;
+    values.retain(|_| {
+        seen += 1;
+        seen % 2 == 0
+    });
+    assert_eq!(values.len(), 16);
+    drop(values);
+    ZST_DROPS.with(|x| assert_eq!(x.get(), 32));
+}
+
+#[test]
 fn test_dedup() {
     let mut dupes: SmallVec<[i32; 5]> = SmallVec::from_slice(&[1, 1, 2, 3, 3]);
     dupes.dedup();
@@ -835,9 +948,11 @@ fn test_write() {
 #[cfg(feature = "serde")]
 #[test]
 fn test_serde() {
+    #[allow(deprecated)]
     use bincode1::{config, deserialize};
     let mut small_vec: SmallVec<[i32; 2]> = SmallVec::new();
     small_vec.push(1);
+    #[allow(deprecated)]
     let encoded = config().limit(100).serialize(&small_vec).unwrap();
     let decoded: SmallVec<[i32; 2]> = deserialize(&encoded).unwrap();
     assert_eq!(small_vec, decoded);
@@ -846,6 +961,7 @@ fn test_serde() {
     small_vec.push(3);
     small_vec.push(4);
     // Check again after spilling.
+    #[allow(deprecated)]
     let encoded = config().limit(100).serialize(&small_vec).unwrap();
     let decoded: SmallVec<[i32; 2]> = deserialize(&encoded).unwrap();
     assert_eq!(small_vec, decoded);
@@ -943,9 +1059,7 @@ const fn const_new_inline_args() -> SmallVec<[i32; 2]> {
 }
 #[cfg(feature = "const_new")]
 const fn const_new_with_len() -> SmallVec<[i32; 4]> {
-    unsafe {
-        SmallVec::<[i32; 4]>::from_const_with_len_unchecked([2, 5, 7, 0], 3)
-    }
+    unsafe { SmallVec::<[i32; 4]>::from_const_with_len_unchecked([2, 5, 7, 0], 3) }
 }
 
 #[test]
@@ -1063,11 +1177,13 @@ fn drain_keep_rest_zero_inline_capacity() {
     assert_eq!(values, vec![1, 3, 5, 6, 7, 8]);
 }
 
-/// This assortment of tests, in combination with miri, verifies we handle UB on fishy arguments
-/// given to SmallVec. Draining and extending the allocation are fairly well-tested earlier, but
-/// `smallvec.insert(usize::MAX, val)` once slipped by!
+/// This assortment of tests, in combination with miri, verifies we handle UB on
+/// fishy arguments given to SmallVec. Draining and extending the allocation are
+/// fairly well-tested earlier, but `smallvec.insert(usize::MAX, val)` once
+/// slipped by!
 ///
-/// All code that indexes into SmallVecs should be tested with such "trivially wrong" args.
+/// All code that indexes into SmallVecs should be tested with such "trivially
+/// wrong" args.
 #[test]
 fn max_dont_panic() {
     let mut sv: SmallVec<[i32; 2]> = smallvec![0];

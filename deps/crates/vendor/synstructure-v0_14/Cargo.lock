@@ -34,26 +34,21 @@ dependencies = [
 [[package]]
 name = "synstructure"
 version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "901704edd0dfe137f1987838ee4f259e4e063c31371bdb423f7ae38ec6f77f02"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+ "synstructure_test_traits",
 ]
+
+[[package]]
+name = "synstructure_test_traits"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6e0c1828b7994d45bbef3cbbe56a6157c42db92b82b1a5bf22fb09996d06eac"
 
 [[package]]
 name = "unicode-ident"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
-
-[[package]]
-name = "zerofrom-derive"
-version = "0.1.8"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
- "synstructure",
-]
