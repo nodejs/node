@@ -2464,6 +2464,69 @@ test('changes a mock behavior once', (t) => {
 });
 ```
 
+### `ctx.mockRejectedValue(reason)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `reason` {any} The value the returned promise rejects with.
+
+Changes the mock's implementation to a function that returns a promise rejected
+with `reason`. This is shorthand for
+`ctx.mockImplementation(() => Promise.reject(reason))`.
+
+```js
+test('mocks a rejected value', async (t) => {
+  const fn = t.mock.fn();
+
+  fn.mock.mockRejectedValue(new Error('boom'));
+  await assert.rejects(fn(), { message: 'boom' });
+});
+```
+
+### `ctx.mockResolvedValue(value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {any} The value the returned promise resolves with.
+
+Changes the mock's implementation to a function that returns a promise resolved
+with `value`. This is shorthand for
+`ctx.mockImplementation(() => Promise.resolve(value))`.
+
+```js
+test('mocks a resolved value', async (t) => {
+  const fn = t.mock.fn();
+
+  fn.mock.mockResolvedValue(42);
+  assert.strictEqual(await fn(), 42);
+});
+```
+
+### `ctx.mockReturnValue(value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {any} The value returned by the mock.
+
+Changes the mock's implementation to a function that returns `value`. This is
+shorthand for `ctx.mockImplementation(() => value)`.
+
+```js
+test('mocks a return value', (t) => {
+  const fn = t.mock.fn();
+
+  fn.mock.mockReturnValue(42);
+  assert.strictEqual(fn(), 42);
+  assert.strictEqual(fn(), 42);
+});
+```
+
 ### `ctx.resetCalls()`
 
 <!-- YAML
