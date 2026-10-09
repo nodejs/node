@@ -1358,6 +1358,14 @@ struct Session::Impl final : public MemoryRetainer {
     return NGTCP2_SUCCESS;
   }
 
+  static int on_extend_max_data(ngtcp2_conn* conn,
+                                uint64_t max_data,
+                                void* user_data) {
+    NGTCP2_CALLBACK_SCOPE(session)
+    session->application().ExtendMaxData(max_data);
+    return NGTCP2_SUCCESS;
+  }
+
   static int on_get_new_cid(ngtcp2_conn* conn,
                             ngtcp2_cid* cid,
                             ngtcp2_stateless_reset_token* token,
@@ -1705,7 +1713,10 @@ struct Session::Impl final : public MemoryRetainer {
       on_receive_stream_stop_sending,
 #ifdef NGTCP2_CALLBACKS_V5
       nullptr,  // stream_close2
+#ifdef NGTCP2_CALLBACKS_V6
+      on_extend_max_data,
 #endif
+#endif  // NGTCP2_CALLBACKS_V5
   };
 
   static constexpr ngtcp2_callbacks SERVER = {
@@ -1757,7 +1768,10 @@ struct Session::Impl final : public MemoryRetainer {
       on_receive_stream_stop_sending,
 #ifdef NGTCP2_CALLBACKS_V5
       nullptr,  // stream_close2
+#ifdef NGTCP2_CALLBACKS_V6
+      on_extend_max_data,
 #endif
+#endif  // NGTCP2_CALLBACKS_V5
   };
 };
 
