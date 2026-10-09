@@ -46,3 +46,22 @@ const unmapped = {
   });
   assert.deepStrictEqual(sm.findOrigin(2, 4), {});
 }
+
+// A segment without a name field must not pick up a name from the names array.
+{
+  const sm = new SourceMap({
+    version: 3,
+    sources: ['a.js'],
+    names: ['should-not-be-used'],
+    mappings: 'AAAA',
+  });
+
+  assert.deepStrictEqual(sm.findEntry(0, 0), {
+    generatedLine: 0,
+    generatedColumn: 0,
+    originalSource: 'a.js',
+    originalLine: 0,
+    originalColumn: 0,
+    name: undefined,
+  });
+}
