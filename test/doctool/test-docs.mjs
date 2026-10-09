@@ -29,6 +29,11 @@ try {
 const outdir = new URL('../../out/doc/api', import.meta.url);
 const files = await fs.readdir(outdir);
 
+// Explicitly check for `all.html` and `all.json` as there is no corresponding `all.md` file in `doc/api`.
+assert(files.includes('all.html'), `all.html was not generated (checked ${files})`);
+assert(files.includes('all.json'), `all.json was not generated (checked ${files})`);
+
+// Check that every markdown file in `doc/api` was processed.
 for await (const file of await fs.opendir(new URL('../../doc/api/', import.meta.url))) {
   // Only expect markdown files in doc/api.
   assert(path.extname(file.name), 'md');
