@@ -85,13 +85,24 @@ add_header_library(
     libc.include.inttypes
     libc.src.__support.CPP.string_view
     libc.src.__support.FPUtil.fp_bits
+    libc.src.__support.macros.properties.types
     libc.hdr.errno_macros
 )
+
+set(parser_compile_options "")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  # Suppress GCC's warning about passing unions with 80-bit long double,
+  # which is triggered when Parser::get_arg_value returns
+  # cpp::optional<long double> by value on x86-64.
+  list(APPEND parser_compile_options "-Wno-psabi")
+endif()
 
 add_header_library(
   parser
   HDRS
     parser.h
+  COMPILE_OPTIONS
+    ${parser_compile_options}
   DEPENDS
     .core_structs
     libc.src.__support.arg_list

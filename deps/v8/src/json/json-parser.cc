@@ -885,11 +885,11 @@ Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
         PropertyDetails details = descriptors->GetDetails(InternalIndex(i));
         if (details.representation().IsDouble()) {
           if (IsSmi(value)) {
-            value = hn_allocator.AllocateNext(
-                roots, Float64::FromMaybeNaN(Smi::ToInt(value)));
+            value =
+                hn_allocator.Allocate(Float64::FromMaybeNaN(Smi::ToInt(value)));
           } else if constexpr (should_track_json_source) {
-            value = hn_allocator.AllocateNext(
-                roots, Float64::FromMaybeNaN(Object::NumberValue(value)));
+            value = hn_allocator.Allocate(
+                Float64::FromMaybeNaN(Object::NumberValue(value)));
           }
         }
         FieldIndex index = FieldIndex::ForInObjectOffset(
@@ -1460,11 +1460,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
 template <typename Char>
 template <bool should_track_json_source>
 MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
-  std::vector<JsonContinuation> cont_stack;
-
-  cont_stack.reserve(16);
-
-  JsonContinuation cont(isolate_, JsonContinuation::kReturn, 0);
+  JsonContinuations cont(isolate_);
 
   Handle<Object> value;
 
@@ -1553,9 +1549,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           }
 
           // Start parsing an object with properties.
-          cont_stack.emplace_back(std::move(cont));
-          cont = JsonContinuation(isolate_, JsonContinuation::kObjectProperty,
-                                  property_stack_.size());
+          cont.New(JsonContinuation::kObjectProperty, property_stack_.size());
 
           // Parse the property key.
           // GetNextNonWhitespaceToken was already performed by
@@ -1563,7 +1557,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           EXPECT_RETURN_ON_ERROR(
               JsonToken::STRING,
               MessageTemplate::kJsonParseExpectedPropNameOrRBrace, {});
-          property_stack_.emplace_back(ScanJsonPropertyKey(&cont));
+          property_stack_.emplace_back(ScanJsonPropertyKey(&cont.current()));
           if constexpr (should_track_json_source) {
             property_val_node_stack.emplace_back(Handle<Object>());
           }
@@ -1587,9 +1581,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           }
 
           // Start parsing an array with elements.
-          cont_stack.emplace_back(std::move(cont));
-          cont = JsonContinuation(isolate_, JsonContinuation::kArrayElement,
-                                  element_stack_.size());
+          cont.New(JsonContinuation::kArrayElement, element_stack_.size());
 
           // Continue to start producing the first array element.
           continue;
@@ -1625,11 +1617,6 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
         case JsonToken::RBRACK:
         case JsonToken::EOS:
           ReportUnexpectedCharacter(CurrentCharacter());
-          // Pop the continuation stack to correctly tear down handle scopes.
-          while (!cont_stack.empty()) {
-            cont = std::move(cont_stack.back());
-            cont_stack.pop_back();
-          }
           return MaybeHandle<Object>();
 
         case JsonToken::WHITESPACE:
@@ -1646,15 +1633,15 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
     while (true) {
       // The switch is immediately followed by 'break' so we can use 'break' to
       // break out of the loop, and 'continue' to continue the loop.
-      switch (cont.type()) {
+      switch (cont.current().type()) {
         case JsonContinuation::kReturn:
           if constexpr (should_track_json_source) {
             DCHECK(!val_node.is_null());
-            Tagged<Object> raw_value = *value;
-            parsed_val_node_ = cont.scope.CloseAndEscape(val_node);
-            return cont.scope.CloseAndEscape(handle(raw_value, isolate_));
+            std::tie(value, parsed_val_node_) =
+                cont.CloseAndEscape(value, val_node);
+            return value;
           } else {
-            return cont.scope.CloseAndEscape(value);
+            return cont.CloseAndEscape(value);
           }
 
         case JsonContinuation::kObjectProperty: {
@@ -1671,7 +1658,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
                 MessageTemplate::kJsonParseExpectedDoubleQuotedPropertyName,
                 {});
 
-            property_stack_.emplace_back(ScanJsonPropertyKey(&cont));
+            property_stack_.emplace_back(ScanJsonPropertyKey(&cont.current()));
             if constexpr (should_track_json_source) {
               property_val_node_stack.emplace_back(Handle<Object>());
             }
@@ -1684,9 +1671,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           }
 
           Handle<Map> feedback;
-          if (cont_stack.size() > 0 &&
-              cont_stack.back().type() == JsonContinuation::kArrayElement &&
-              cont_stack.back().index() < element_stack_.size() &&
+          if (cont.HasArrayFeedback(element_stack_.size()) &&
               IsJSObject(*element_stack_.back())) {
             Tagged<Map> maybe_feedback =
                 Cast<JSObject>(*element_stack_.back())->map();
@@ -1696,13 +1681,14 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
               feedback = handle(maybe_feedback, isolate_);
             }
           }
-          value = BuildJsonObject<should_track_json_source>(cont, feedback);
+          value = BuildJsonObject<should_track_json_source>(cont.current(),
+                                                            feedback);
           EXPECT_RETURN_ON_ERROR(
               JsonToken::RBRACE,
               MessageTemplate::kJsonParseExpectedCommaOrRBrace, {});
           // Return the object.
+          size_t start = cont.current().index();
           if constexpr (should_track_json_source) {
-            size_t start = cont.index();
             int num_properties =
                 static_cast<int>(property_stack_.size() - start);
             Handle<ObjectTwoHashTable> table =
@@ -1722,20 +1708,13 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
                   isolate(), table, key,
                   {property_val_node, property_snapshot});
             }
-            property_val_node_stack.resize(cont.index());
-            DisallowGarbageCollection no_gc;
-            Tagged<ObjectTwoHashTable> raw_table = *table;
-            value = cont.scope.CloseAndEscape(value);
-            val_node = cont.scope.CloseAndEscape(handle(raw_table, isolate_));
+            property_val_node_stack.resize(start);
+            std::tie(value, val_node) = cont.PopAndEscape(value, table);
           } else {
-            value = cont.scope.CloseAndEscape(value);
+            value = cont.PopAndEscape(value);
           }
-          property_stack_.resize(cont.index());
-
-          // Pop the continuation.
-          cont = std::move(cont_stack.back());
-          cont_stack.pop_back();
-          // Consume to produced object.
+          property_stack_.resize(start);
+          // Consume the produced object.
           continue;
         }
 
@@ -1748,13 +1727,13 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           // Break to start producing the subsequent element value.
           if (V8_LIKELY(Check<JsonToken::COMMA>())) break;
 
-          value = BuildJsonArray(cont.index());
+          size_t start = cont.current().index();
+          value = BuildJsonArray(start);
           EXPECT_RETURN_ON_ERROR(
               JsonToken::RBRACK,
               MessageTemplate::kJsonParseExpectedCommaOrRBrack, {});
           // Return the array.
           if constexpr (should_track_json_source) {
-            size_t start = cont.index();
             int num_elements = static_cast<int>(element_stack_.size() - start);
             DirectHandle<FixedArray> val_node_and_snapshot_array =
                 factory()->NewFixedArray(num_elements * 2);
@@ -1767,17 +1746,13 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
               raw_val_node_and_snapshot_array->set(i * 2 + 1,
                                                    *element_stack_[start + i]);
             }
-            element_val_node_stack.resize(cont.index());
-            value = cont.scope.CloseAndEscape(value);
-            val_node = cont.scope.CloseAndEscape(
-                handle(raw_val_node_and_snapshot_array, isolate_));
+            element_val_node_stack.resize(start);
+            std::tie(value, val_node) =
+                cont.PopAndEscape(value, val_node_and_snapshot_array);
           } else {
-            value = cont.scope.CloseAndEscape(value);
+            value = cont.PopAndEscape(value);
           }
-          element_stack_.resize(cont.index());
-          // Pop the continuation.
-          cont = std::move(cont_stack.back());
-          cont_stack.pop_back();
+          element_stack_.resize(start);
           // Consume the produced array.
           continue;
         }
@@ -2101,21 +2076,44 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
   bool has_escape = false;
   base::uc32 bits = 0;
 
-  // SIMD constants for one-byte string scanning, hoisted out of the loop.
-  // Only used in the sizeof(Char)==1 path; dead-store-eliminated for two-byte.
-  [[maybe_unused]] hw::FixedTag<uint8_t, 16> tag;
-  [[maybe_unused]] const size_t stride = hw::Lanes(tag);
-  [[maybe_unused]] const auto mask_0x20 = hw::Set(tag, 0x20);
-  [[maybe_unused]] const auto mask_quote = hw::Set(tag, '"');
-  [[maybe_unused]] const auto mask_backslash = hw::Set(tag, '\\');
+  // SIMD constants for string scanning, hoisted out of the loop.
+  hw::FixedTag<Char, 16 / sizeof(Char)> tag;
+  const size_t stride = hw::Lanes(tag);
+  const auto mask_0x20 = hw::Set(tag, 0x20);
+  const auto mask_quote = hw::Set(tag, '"');
+  const auto mask_backslash = hw::Set(tag, '\\');
+  [[maybe_unused]] const auto mask_0xff =
+      hw::Set(tag, unibrow::Latin1::kMaxChar);
 
   while (true) {
-    if constexpr (sizeof(Char) == 1) {
-      // SIMD fast path: scan 16 bytes at a time looking for characters that
-      // may terminate a JSON string: '"', '\', or control characters (< 0x20).
+    if constexpr (sizeof(Char) == 2) {
+      // While all characters seen so far are Latin1 (<= 0xff), also check for
+      // characters > 0xff so `bits` tracks whether the string can be one-byte
+      // converted.
+      if (V8_LIKELY(bits <= unibrow::Latin1::kMaxChar)) {
+        for (; cursor_ + (stride - 1) < end_; cursor_ += stride) {
+          const auto input = hw::LoadU(tag, cursor_);
+          // TODO(floitsch): use operators for the comparisons when they are
+          // available on RISC-V.
+          const auto result = hw::Or(
+              hw::Or(hw::Lt(input, mask_0x20), hw::Eq(input, mask_quote)),
+              hw::Or(hw::Eq(input, mask_backslash), hw::Gt(input, mask_0xff)));
+          if (V8_LIKELY(hw::AllFalse(tag, result))) continue;
+          cursor_ += hw::FindKnownFirstTrue(tag, result);
+          break;
+        }
+        if (cursor_ < end_ &&
+            V8_UNLIKELY(*cursor_ > unibrow::Latin1::kMaxChar)) {
+          bits |= *cursor_;
+          ++cursor_;
+        }
+      }
+    }
+    // For one-byte strings, or two-byte strings already known to contain a
+    // non-Latin1 character (bits > 0xff), scan for '"', '\', or control chars.
+    if (sizeof(Char) == 1 || V8_UNLIKELY(bits > unibrow::Latin1::kMaxChar)) {
       for (; cursor_ + (stride - 1) < end_; cursor_ += stride) {
-        const auto input =
-            hw::LoadU(tag, reinterpret_cast<const uint8_t*>(cursor_));
+        const auto input = hw::LoadU(tag, cursor_);
         // TODO(floitsch): use operators for the comparisons when they are
         // available on RISC-V.
         const auto result =
@@ -2125,20 +2123,19 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
         cursor_ += hw::FindKnownFirstTrue(tag, result);
         break;
       }
-      // Scalar fallback for remaining tail bytes after the last full SIMD
-      // block. When the SIMD loop found a match, *cursor_ is already a
-      // special character and this immediately breaks.
-      for (; cursor_ < end_; ++cursor_) {
-        if (MayTerminateJsonString(character_json_scan_flags[*cursor_])) break;
-      }
-    } else {
-      cursor_ = std::find_if(cursor_, end_, [&bits](Char c) {
+    }
+    // Scalar fallback for remaining tail characters after the last full SIMD
+    // block. When the SIMD loop found a match, *cursor_ is already a special
+    // character and this immediately breaks.
+    for (; cursor_ < end_; ++cursor_) {
+      Char c = *cursor_;
+      if constexpr (sizeof(Char) == 2) {
         if (V8_UNLIKELY(c > unibrow::Latin1::kMaxChar)) {
           bits |= c;
-          return false;
+          continue;
         }
-        return MayTerminateJsonString(character_json_scan_flags[c]);
-      });
+      }
+      if (MayTerminateJsonString(character_json_scan_flags[c])) break;
     }
 
     if (V8_UNLIKELY(is_at_end())) {

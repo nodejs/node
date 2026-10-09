@@ -376,12 +376,16 @@ class BranchEliminationReducer : public Next {
       goto no_change;
     }
 
-    // Do not clone blocks containing deoptimization points. These may have a
-    // significant metadata overhead.
-    for (const Operation& op :
-         __ input_graph().operations(*destination_origin)) {
-      if (op.Is<DeoptimizeIfOp>()) {
-        goto no_change;
+    if (__ data()->is_wasm()) {
+      // Wasm cannot handle it if too many deoptimization exits are created
+      // (kTooManyDeoptimizationBailouts in the CodeGenerator). In Wasm,
+      // DeoptimizeIfOps are rare and cloning them is probably not worth the
+      // metadata overhead.
+      for (const Operation& op :
+           __ input_graph().operations(*destination_origin)) {
+        if (op.Is<DeoptimizeIfOp>()) {
+          goto no_change;
+        }
       }
     }
 

@@ -13,6 +13,7 @@
 
 #include "src/base/doubly-threaded-list.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/snapshot-table-opindex.h"
@@ -528,12 +529,102 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
     Next::Analyze();
   }
 
-#define EMIT_OP(Name)                                                          \
+#if DEBUG
+  void EmitReportLoadEliminationError() {
+    CHECK(v8_flags.turboshaft_verify_load_elimination);
+    if (__ data()->pipeline_kind() == TurboshaftPipelineKind::kWasm) {
+      __ WasmCallRuntime(__ phase_zone(), Runtime::kAbort,
+                         {__ TagSmi(static_cast<int>(
+                             AbortReason::kTurboshaftLoadEliminationError))},
+                         __ NoContextConstant());
+    } else {
+      __ template CallRuntime<runtime::Abort>(
+          __ NoContextConstant(),
+          {.messageOrMessageId = __ SmiConstant(
+               Smi::FromEnum(AbortReason::kTurboshaftLoadEliminationError))});
+    }
+    __ Unreachable();
+  }
+
+  void VerifySingleReplacement(OpIndex actual_idx, OpIndex replacement) {
+    RegisterRepresentation actual_rep =
+        __ output_graph().Get(actual_idx).outputs_rep()[0];
+    RegisterRepresentation replacement_rep =
+        __ output_graph().Get(replacement).outputs_rep()[0];
+
+    if (actual_rep == RegisterRepresentation::Simd128()) {
+      // TODO(dmercadier): Implement along with support in LLE.
+      return;
+    }
+
+    // No WLE support is implemented for mismatched (e.g. truncated)
+    // representations.
+    DCHECK_EQ(actual_rep, replacement_rep);
+    IF_NOT (__ Equal(actual_idx, replacement, actual_rep)) {
+      if (actual_rep == any_of(RegisterRepresentation::Float32(),
+                               RegisterRepresentation::Float64())) {
+        // Equality might have returned false because both values are NaN.
+        IF (__ Word32BitwiseOr(
+                __ Equal(actual_idx, actual_idx, actual_rep),
+                __ Equal(replacement, replacement, replacement_rep))) {
+          // At least one of {actual_idx} and {replacement} is not NaN.
+          EmitReportLoadEliminationError();
+        }
+      } else {
+        EmitReportLoadEliminationError();
+      }
+    }
+  }
+
+  void VerifyReplacement(OpIndex actual_idx, OpIndex replacement) {
+    if (const MakeTupleOp* actual_tuple =
+            __ output_graph().Get(actual_idx).template TryCast<MakeTupleOp>()) {
+      const MakeTupleOp& replacement_tuple =
+          __ output_graph().Get(replacement).template Cast<MakeTupleOp>();
+      DCHECK_EQ(actual_tuple->input_count, replacement_tuple.input_count);
+      for (int i = 0; i < actual_tuple->input_count; ++i) {
+        VerifySingleReplacement(actual_tuple->input(i),
+                                replacement_tuple.input(i));
+      }
+      return;
+    }
+    VerifySingleReplacement(actual_idx, replacement);
+  }
+
+  void VerifyStringAsWtf16(OpIndex actual_idx, OpIndex replacement) {
+    IF_NOT (__ Equal(actual_idx, replacement,
+                     RegisterRepresentation::Tagged())) {
+      V<Word32> is_equal = __ template WasmCallBuiltinThroughJumptable<
+          deprecated::BuiltinCallDescriptor::WasmStringEqual>(
+          {actual_idx, replacement});
+      IF_NOT (is_equal) {
+        EmitReportLoadEliminationError();
+      }
+    }
+  }
+
+#define VERIFY(Name, ig_index, op, replacement, condition)            \
+  if (v8_flags.turboshaft_verify_load_elimination && condition) {     \
+    OpIndex actual_idx = Next::ReduceInputGraph##Name(ig_index, op);  \
+    if (!actual_idx.valid()) {                                        \
+      DCHECK(__ generating_unreachable_operations());                 \
+    } else if constexpr (std::is_same_v<Name##Op, StringAsWtf16Op>) { \
+      VerifyStringAsWtf16(actual_idx, replacement);                   \
+    } else {                                                          \
+      VerifyReplacement(actual_idx, replacement);                     \
+    }                                                                 \
+  }
+#else
+#define VERIFY(Name, ig_index, op, replacement, condition)
+#endif  // DEBUG
+
+#define EMIT_OP(Name) /*                                       force 80 cols*/ \
   OpIndex REDUCE_INPUT_GRAPH(Name)(OpIndex ig_index, const Name##Op& op) {     \
     if (v8_flags.turboshaft_wasm_load_elimination) {                           \
       OpIndex ig_replacement_index = analyzer_.Replacement(ig_index);          \
       if (ig_replacement_index.valid()) {                                      \
         OpIndex replacement = Asm().MapToNewGraph(ig_replacement_index);       \
+        VERIFY(Name, ig_index, op, replacement, true)                          \
         return replacement;                                                    \
       }                                                                        \
     }                                                                          \
@@ -552,6 +643,9 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
       OpIndex ig_replacement_index = analyzer_.Replacement(ig_index);
       if (ig_replacement_index.valid()) {
         OpIndex replacement = Asm().MapToNewGraph(ig_replacement_index);
+        // We do not verify an eliminated struct.get on a shared base as another
+        // thread might have modified the struct field in the meantime.
+        VERIFY(StructGet, ig_index, op, replacement, !op.type->is_shared());
         return replacement;
       }
     }

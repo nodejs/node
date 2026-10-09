@@ -194,7 +194,6 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
   if (!generate_value()) return;
 
   const TypeDefinition& type = module_->type(imm.index);
-  SharedObjectConditionalSafePublishGuard publish_guard(type.is_shared);
   const StructType* struct_type = type.struct_type;
   DCHECK_EQ(struct_type, imm.struct_type);
 
@@ -217,18 +216,18 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
         struct_type, rtt,
         type.is_shared ? AllocationType::kSharedOld : AllocationType::kOld);
   }
-  {
-    DisallowGarbageCollection no_gc;  // Must initialize fields first.
 
-    for (uint32_t i = 0; i < struct_type->field_count(); i++) {
-      int offset = struct_type->field_offset(i);
-      if (struct_type->field(i).is_numeric()) {
-        uint8_t* address =
-            reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
-        args[i].runtime_value.Packed(struct_type->field(i)).CopyTo(address);
-      } else {
-        obj->SetTaggedFieldValue(offset, *args[i].runtime_value.to_ref());
-      }
+  DisallowGarbageCollection no_gc;  // Must initialize fields first.
+  SharedObjectConditionalSafePublishGuard publish_guard(*obj, type.is_shared);
+
+  for (uint32_t i = 0; i < struct_type->field_count(); i++) {
+    int offset = struct_type->field_offset(i);
+    if (struct_type->field(i).is_numeric()) {
+      uint8_t* address =
+          reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
+      args[i].runtime_value.Packed(struct_type->field(i)).CopyTo(address);
+    } else {
+      obj->SetTaggedFieldValue(offset, *args[i].runtime_value.to_ref());
     }
   }
 
@@ -303,7 +302,6 @@ void ConstantExpressionInterface::StructNewDefault(
   if (!generate_value()) return;
 
   const TypeDefinition& type = module_->type(imm.index);
-  SharedObjectConditionalSafePublishGuard publish_guard(type.is_shared);
   const StructType* struct_type = type.struct_type;
   DCHECK_EQ(struct_type, imm.struct_type);
 
@@ -324,24 +322,23 @@ void ConstantExpressionInterface::StructNewDefault(
         type.is_shared ? AllocationType::kSharedOld : AllocationType::kOld);
   }
 
-  {
-    DisallowGarbageCollection no_gc;  // Must initialize fields first.
+  DisallowGarbageCollection no_gc;  // Must initialize fields first.
+  SharedObjectConditionalSafePublishGuard publish_guard(*obj, type.is_shared);
 
-    for (uint32_t i = 0; i < struct_type->field_count(); i++) {
-      int offset = struct_type->field_offset(i);
-      ValueType ftype = struct_type->field(i);
-      if (ftype.is_numeric()) {
-        uint8_t* address =
-            reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
-        DefaultValueForType(ftype, isolate_, module_)
-            .Packed(ftype)
-            .CopyTo(address);
-      } else {
-        // No write barrier needed, as read-only-space objects never move.
-        TaggedField<Object, WasmStruct::kHeaderSize>::store(
-            *obj, offset,
-            *DefaultValueForType(ftype, isolate_, module_).to_ref());
-      }
+  for (uint32_t i = 0; i < struct_type->field_count(); i++) {
+    int offset = struct_type->field_offset(i);
+    ValueType ftype = struct_type->field(i);
+    if (ftype.is_numeric()) {
+      uint8_t* address =
+          reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
+      DefaultValueForType(ftype, isolate_, module_)
+          .Packed(ftype)
+          .CopyTo(address);
+    } else {
+      // No write barrier needed, as read-only-space objects never move.
+      TaggedField<Object, WasmStruct::kHeaderSize>::store(
+          *obj, offset,
+          *DefaultValueForType(ftype, isolate_, module_).to_ref());
     }
   }
 
@@ -376,7 +373,6 @@ void ConstantExpressionInterface::ArrayNewDefault(
 void ConstantExpressionInterface::ArrayNewImpl(
     FullDecoder* decoder, const ArrayIndexImmediate& imm, const Value& length,
     const Value& initial_value, Value* result, WriteBarrierMode write_barrier) {
-  SharedObjectConditionalSafePublishGuard publish_guard(imm.shared);
   DirectHandle<Map> rtt{
       Cast<Map>(
           trusted_instance_data_->managed_object_maps()->get(imm.index.index)),
@@ -388,10 +384,13 @@ void ConstantExpressionInterface::ArrayNewImpl(
   }
   AllocationType allocation =
       imm.shared ? AllocationType::kSharedOld : AllocationType::kOld;
+
+  DirectHandle<WasmArray> obj = isolate_->factory()->NewWasmArray(
+      imm.array_type->element_type(), length.runtime_value.to_u32(),
+      initial_value.runtime_value, rtt, allocation, write_barrier);
+
   result->runtime_value = WasmValue(
-      isolate_->factory()->NewWasmArray(
-          imm.array_type->element_type(), length.runtime_value.to_u32(),
-          initial_value.runtime_value, rtt, allocation, write_barrier),
+      obj,
       decoder->module_->canonical_type(
           ValueType::Ref(imm.heap_type()).AsExactIfEnabled(decoder->enabled_)));
 }
@@ -400,7 +399,6 @@ void ConstantExpressionInterface::ArrayNewFixed(
     FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
     const IndexImmediate& length_imm, const Value elements[], Value* result) {
   if (!generate_value()) return;
-  SharedObjectConditionalSafePublishGuard publish_guard(array_imm.shared);
   DirectHandle<Map> rtt{
       Cast<Map>(trusted_instance_data_->managed_object_maps()->get(
           array_imm.index.index)),
@@ -412,12 +410,14 @@ void ConstantExpressionInterface::ArrayNewFixed(
   }
   AllocationType allocation =
       array_imm.shared ? AllocationType::kSharedOld : AllocationType::kOld;
+
+  DirectHandle<WasmArray> obj = isolate_->factory()->NewWasmArrayFromElements(
+      array_imm.array_type, element_values, rtt, allocation);
+  SharedObjectConditionalSafePublishGuard publish_guard(*obj, array_imm.shared);
   result->runtime_value =
-      WasmValue(isolate_->factory()->NewWasmArrayFromElements(
-                    array_imm.array_type, element_values, rtt, allocation),
-                decoder->module_->canonical_type(
-                    ValueType::Ref(array_imm.heap_type())
-                        .AsExactIfEnabled(decoder->enabled_)));
+      WasmValue(obj, decoder->module_->canonical_type(
+                         ValueType::Ref(array_imm.heap_type())
+                             .AsExactIfEnabled(decoder->enabled_)));
 }
 
 // TODO(14034): These expressions are non-constant for now. There are plans to
@@ -429,7 +429,6 @@ void ConstantExpressionInterface::ArrayNewSegment(
     const Value& length_value, Value* result) {
   if (!generate_value()) return;
 
-  SharedObjectConditionalSafePublishGuard publish_guard(array_imm.shared);
   DirectHandle<Map> rtt{
       Cast<Map>(trusted_instance_data_->managed_object_maps()->get(
           array_imm.index.index)),
@@ -465,6 +464,8 @@ void ConstantExpressionInterface::ArrayNewSegment(
     DirectHandle<WasmArray> array_value =
         isolate_->factory()->NewWasmArrayFromMemory(length, rtt, allocation,
                                                     element_type, source);
+    SharedObjectConditionalSafePublishGuard publish_guard(*array_value,
+                                                          array_imm.shared);
     result->runtime_value = WasmValue(array_value, result_type);
   } else {
     const wasm::WasmElemSegment* elem_segment =
@@ -489,6 +490,8 @@ void ConstantExpressionInterface::ArrayNewSegment(
       // A smi result stands for an error code.
       error_ = static_cast<MessageTemplate>(Cast<Smi>(*array_object).value());
     } else {
+      SharedObjectConditionalSafePublishGuard publish_guard(
+          Cast<WasmArray>(*array_object), array_imm.shared);
       result->runtime_value = WasmValue(array_object, result_type);
     }
   }

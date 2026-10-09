@@ -414,6 +414,7 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
                                                  DirectHandle<Object> prototype,
                                                  DirectHandle<Map> target_map) {
   DCHECK(IsUndefined(map->GetBackPointer()));
+  DCHECK_NE(map->prototype(), *prototype);
   DCHECK(IsMap(Cast<HeapObject>(*prototype)->map()));
 
   // Only the main thread should write to transition arrays.

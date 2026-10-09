@@ -21,6 +21,7 @@
 #include "src/base/bit-field.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/safepoint-table.h"
@@ -46,6 +47,7 @@ namespace internal {
 class CodeDesc;
 class InstructionStream;
 class Isolate;
+class WritableJitAllocation;
 
 namespace wasm {
 
@@ -706,8 +708,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
       base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
       ExecutionTier tier, base::Vector<const uint8_t> effect_handlers);
 
-  // Adds anonymous code for testing purposes.
-  WasmCode* AddCodeForTesting(DirectHandle<Code> code,
+  // Adds anonymous code for testing purposes. Requires an active
+  // {WasmCodeRefScope} and a successful {result} without assumptions.
+  WasmCode* AddCodeForTesting(const WasmCompilationResult& result,
                               uint64_t signature_hash) V8_LIFETIME_BOUND;
 
   // Allocates and initializes the {lazy_compile_table_} and initializes the
@@ -808,7 +811,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     auto wire_bytes = std::atomic_load(&wire_bytes_);
     return wire_bytes && !wire_bytes->empty();
   }
-  void SetWireBytes(base::OwnedVector<const uint8_t> wire_bytes);
+  void SetWireBytes(base::UniqueArray<const uint8_t> wire_bytes);
 
   void AddLiftoffBailout() {
     liftoff_bailout_count_.fetch_add(1, std::memory_order_relaxed);
@@ -1014,6 +1017,16 @@ class V8_EXPORT_PRIVATE NativeModule final {
                             const CodeSpaceData&, uint32_t slot_index,
                             Address target);
 
+  // Apply relocations to newly copied code in {dst_code_bytes}.
+  // {reserved_code} is the pre-allocated memory for the {WasmCode} object,
+  // needed for self-referential WASM_CODE_POINTER relocations. Does not require
+  // {allocation_mutex_}.
+  void ApplyRelocations(WritableJitAllocation& jit_allocation,
+                        base::Vector<uint8_t> dst_code_bytes,
+                        base::Vector<const uint8_t> reloc_info,
+                        const CodeDesc& desc, const JumpTablesRef& jump_tables,
+                        WasmCode* reserved_code) const;
+
   // Called by the {WasmCodeAllocator} to register a new code space.
   void AddCodeSpaceLocked(base::AddressRegion);
 
@@ -1052,7 +1065,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // Wire bytes, held in a shared_ptr so they can be kept alive by the
   // {WireBytesStorage}, held by background compile tasks.
-  std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes_;
+  std::shared_ptr<base::UniqueArray<const uint8_t>> wire_bytes_;
 
   // The first allocated jump table. Always used by external calls (from JS).
   // Wasm calls might use one of the other jump tables stored in

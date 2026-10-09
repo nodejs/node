@@ -4,6 +4,7 @@
 
 #include "src/debug/debug-wasm-objects.h"
 
+#include <array>
 #include <optional>
 
 #include "src/api/api-inl.h"
@@ -57,6 +58,7 @@ enum DebugProxyId {
   kLocalsProxy,
   kStackProxy,
   kStructProxy,
+  kCustomMapProxy,
   kArrayProxy,
   kLastProxyId = kArrayProxy,
 
@@ -697,6 +699,8 @@ class DebugWasmScopeIterator final : public debug::ScopeIterator {
 
   ScopeType GetType() override { return type_; }
 
+  VariableInfo GetVariableInfo() override { return VariableInfo::kAvailable; }
+
   v8::Local<v8::Object> GetObject() override {
     Isolate* isolate = frame_->isolate();
     switch (type_) {
@@ -796,6 +800,8 @@ class DebugWasmInterpreterScopeIterator final : public debug::ScopeIterator {
 
   ScopeType GetType() override { return type_; }
 
+  VariableInfo GetVariableInfo() override { return VariableInfo::kAvailable; }
+
   v8::Local<v8::Object> GetObject() override {
     Isolate* isolate = frame_->isolate();
     switch (type_) {
@@ -865,10 +871,10 @@ class DebugWasmInterpreterScopeIterator final : public debug::ScopeIterator {
 DirectHandle<String> WasmSimd128ToString(Isolate* isolate, Simd128 s128) {
   // We use the canonical format as described in:
   // https://github.com/WebAssembly/simd/blob/master/proposals/simd/TextSIMD.md
-  base::EmbeddedVector<char, 50> buffer;
+  std::array<char, 50> buffer;
   auto i32x4 = s128.to_i32x4();
-  SNPrintF(buffer, "i32x4 0x%08X 0x%08X 0x%08X 0x%08X", i32x4[0], i32x4[1],
-           i32x4[2], i32x4[3]);
+  base::SNPrintF(buffer, "i32x4 0x%08X 0x%08X 0x%08X 0x%08X", i32x4[0],
+                 i32x4[1], i32x4[2], i32x4[3]);
   return isolate->factory()->NewStringFromAsciiChecked(buffer.data());
 }
 
@@ -922,15 +928,16 @@ DirectHandle<WasmValueObject> WasmValueObject::New(Isolate* isolate,
 }
 
 // This class implements a proxy for a single inspectable Wasm struct.
-struct StructProxy : NamedDebugProxy<StructProxy, kStructProxy, WasmStruct> {
+template <typename Subclass, DebugProxyId id, typename Struct>
+struct StructProxyImpl : NamedDebugProxy<Subclass, id, Struct> {
   static constexpr char const* kClassName = "Struct";
 
   static DirectHandle<JSObject> Create(Isolate* isolate,
-                                       DirectHandle<WasmStruct> value) {
-    return NamedDebugProxy::Create(isolate, value);
+                                       DirectHandle<Struct> value) {
+    return NamedDebugProxy<Subclass, id, Struct>::Create(isolate, value);
   }
 
-  static uint32_t Count(Isolate* isolate, DirectHandle<WasmStruct> obj) {
+  static uint32_t Count(Isolate* isolate, DirectHandle<Struct> obj) {
     wasm::CanonicalTypeIndex type_index =
         obj->map()->wasm_type_info()->type().ref_index();
     return wasm::GetTypeCanonicalizer()
@@ -938,14 +945,13 @@ struct StructProxy : NamedDebugProxy<StructProxy, kStructProxy, WasmStruct> {
         ->field_count();
   }
 
-  static DirectHandle<Object> Get(Isolate* isolate,
-                                  DirectHandle<WasmStruct> obj,
+  static DirectHandle<Object> Get(Isolate* isolate, DirectHandle<Struct> obj,
                                   uint32_t index) {
     return WasmValueObject::New(isolate, obj->GetFieldValue(index));
   }
 
   static DirectHandle<String> GetName(Isolate* isolate,
-                                      DirectHandle<WasmStruct> obj,
+                                      DirectHandle<Struct> obj,
                                       uint32_t index) {
     wasm::CanonicalTypeIndex struct_index =
         obj->map()->wasm_type_info()->type().ref_index();
@@ -955,6 +961,9 @@ struct StructProxy : NamedDebugProxy<StructProxy, kStructProxy, WasmStruct> {
     return ToInternalString(sb, isolate);
   }
 };
+struct StructProxy : StructProxyImpl<StructProxy, kStructProxy, WasmStruct> {};
+struct CustomMapProxy
+    : StructProxyImpl<CustomMapProxy, kCustomMapProxy, WasmCustomMap> {};
 
 // This class implements a proxy for a single inspectable Wasm array.
 struct ArrayProxy : IndexedDebugProxy<ArrayProxy, kArrayProxy, WasmArray> {
@@ -1048,6 +1057,12 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
     case wasm::kRefNull:
     case wasm::kRef: {
       DirectHandle<Object> ref = value.to_ref();
+#ifdef V8_IS_TSAN
+      if (IsHeapObject(*ref) &&
+          HeapLayout::InWritableSharedSpace(Cast<HeapObject>(*ref))) {
+        TSAN_ACQUIRE(Cast<HeapObject>(*ref).address());
+      }
+#endif
       if (value.type().is_reference_to(wasm::GenericKind::kExn)) {
         t = isolate->factory()->InternalizeString(
             base::StaticCharVector("exnref"));
@@ -1060,6 +1075,11 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
             Cast<HeapObject>(*ref)->map()->wasm_type_info();
         t = GetRefTypeName(isolate, type_info->type());
         v = StructProxy::Create(isolate, Cast<WasmStruct>(ref));
+      } else if (IsWasmCustomMap(*ref)) {
+        Tagged<WasmTypeInfo> type_info =
+            Cast<HeapObject>(*ref)->map()->wasm_type_info();
+        t = GetRefTypeName(isolate, type_info->type());
+        v = CustomMapProxy::Create(isolate, Cast<WasmCustomMap>(ref));
       } else if (IsWasmArray(*ref)) {
         Tagged<WasmTypeInfo> type_info =
             Cast<HeapObject>(*ref)->map()->wasm_type_info();
@@ -1078,11 +1098,13 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
         v = ref;
       } else {
         // Fail gracefully.
-        base::EmbeddedVector<char, 64> error;
-        int len = SNPrintF(error, "unimplemented object type: %d",
+        std::array<char, 64> error;
+        int len =
+            base::SNPrintF(error, "unimplemented object type: %d",
                            Cast<HeapObject>(*ref)->map()->instance_type());
         t = GetRefTypeName(isolate, value.type());
-        v = isolate->factory()->InternalizeString(error.SubVector(0, len));
+        v = isolate->factory()->InternalizeString(
+            base::VectorOf(error).SubVector(0, len));
       }
       break;
     }

@@ -32,7 +32,7 @@ assert_test_eval_return_last_set_property(test_eval_return_last_set_property());
 %OptimizeMaglevOnNextCall(test_eval_return_last_set_property);
 assert_test_eval_return_last_set_property(test_eval_return_last_set_property());
 assertOptimized(test_eval_return_last_set_property);
-assertTrue(isMaglevved(test_eval_return_last_set_property));
+assertMaglevved(test_eval_return_last_set_property);
 assert_test_eval_return_last_set_property(test_eval_return_last_set_property());
 %OptimizeFunctionOnNextCall(test_eval_return_last_set_property);
 assert_test_eval_return_last_set_property(test_eval_return_last_set_property());

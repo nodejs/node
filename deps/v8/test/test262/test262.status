@@ -70,94 +70,6 @@
   'language/statements/variable/binding-resolution': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4628
-  'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
-  'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/async-gen-func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
-  'language/eval-code/direct/async-gen-func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
-  'language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/async-gen-func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
-  'language/eval-code/direct/async-gen-func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
-  'language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/async-gen-meth-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
-  'language/eval-code/direct/async-gen-meth-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
-  'language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/async-gen-named-func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
-  'language/eval-code/direct/async-gen-named-func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/func-decl-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
-  'language/eval-code/direct/func-decl-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/func-decl-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/func-decl-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
-  'language/eval-code/direct/func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/func-expr-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
-  'language/eval-code/direct/func-expr-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/func-expr-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/func-expr-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
-  'language/eval-code/direct/func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
-  'language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/gen-func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
-  'language/eval-code/direct/gen-func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
-  'language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/gen-func-expr-named-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
-  'language/eval-code/direct/gen-func-expr-named-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
-  'language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/gen-func-expr-nameless-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
-  'language/eval-code/direct/gen-func-expr-nameless-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/gen-meth-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
-  'language/eval-code/direct/gen-meth-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/gen-meth-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/gen-meth-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/gen-meth-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/gen-meth-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/gen-meth-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
-  'language/eval-code/direct/gen-meth-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/meth-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
-  'language/eval-code/direct/meth-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/meth-fn-body-cntns-arguments-lex-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/meth-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/meth-fn-body-cntns-arguments-var-bind-declare-arguments': [FAIL],
-  'language/eval-code/direct/meth-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign': [FAIL],
-  'language/eval-code/direct/meth-no-pre-existing-arguments-bindings-are-present-declare-arguments': [FAIL],
-  'language/eval-code/direct/meth-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign': [FAIL],
   'language/eval-code/direct/non-definable-function-with-function': [FAIL],
   'language/eval-code/direct/non-definable-function-with-variable': [FAIL],
   'language/eval-code/indirect/non-definable-function-with-function': [FAIL],
@@ -255,43 +167,12 @@
   # there are only 16 tests. Skip for now.
   'staging/sm/Temporal/*': [SKIP],
 
-  # toLocaleString with just an era setting should format as default
-  # b/463427743
-  'intl402/Temporal/Instant/prototype/toLocaleString/era': [FAIL],
-  'intl402/Temporal/PlainDate/prototype/toLocaleString/era': [FAIL],
-  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/era': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/era': [FAIL],
-  'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/era': [FAIL],
-  'intl402/DateTimeFormat/prototype/format/temporal-objects-format-with-era': [FAIL],
-  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-format-with-era': [FAIL],
-
   # DateTimeFormat doesn't respect hourCycle for Temporal
   # b/468559222
   'intl402/Temporal/Instant/prototype/toLocaleString/hourcycle': [SKIP],
   'intl402/Temporal/PlainDateTime/prototype/toLocaleString/hourcycle': [SKIP],
-  'intl402/Temporal/PlainTime/prototype/toLocaleString/datestyle-and-timestyle': [SKIP],
   'intl402/Temporal/PlainTime/prototype/toLocaleString/hourcycle': [SKIP],
   'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/hourcycle': [SKIP],
-
-  # DateTimeFormat should ignore timezone setting when formatting plain dates
-  # b/494308555
-  'intl402/DateTimeFormat/prototype/format/temporal-objects-ignore-timezone': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-ignore-timezone': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-ignore-timezone': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-ignore-timezone': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/toLocaleString/ignore-timezone': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/ignore-timezone': [SKIP],
-
-  # Formatting a Plain* object should not break the formatter for Instant
-  # b/494309393
-  'intl402/Temporal/Instant/prototype/toLocaleString/respect-timezone-after-formatting-plaindatetime': [SKIP],
-
-  # Adjusting of dateStyle
-  # b/494309457
-  'intl402/Temporal/Instant/prototype/toLocaleString/datestyle-not-adjusted-when-no-conflicting-options': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/toLocaleString/datestyle-not-adjusted-when-no-conflicting-options': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/datestyle-not-adjusted-when-no-conflicting-options': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/datestyle-not-adjusted-when-no-conflicting-options': [SKIP],
 
   # ICU4X and ICU4C do not implement the same algorithm for Chinese
   # b/434224293
@@ -362,17 +243,12 @@
   'intl402/DateTimeFormat/prototype/format/timedatestyle-en': [FAIL],
 
   # In alignment with Firefox and Safari, Function.prototype.arguments and
-  # .caller are ordinary accessors instead of the "poison pill thrower" when V8 is
-  # compiled without V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS.
-  #
-  # These expectations should be negated if the build time flag is true.
+  # .caller are ordinary accessors instead of the "poison pill thrower".
   #
   # See also https://bugs.chromium.org/p/v8/issues/detail?id=6049
   'built-ins/Function/prototype/arguments/prop-desc': [FAIL],
   'built-ins/Function/prototype/caller-arguments/accessor-properties': [FAIL],
   'built-ins/Function/prototype/caller/prop-desc': [FAIL],
-  'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [PASS],
-  'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [PASS],
   'built-ins/ThrowTypeError/unique-per-realm-function-proto': [FAIL],
 
   ############################ INVALID TESTS #############################
@@ -768,7 +644,6 @@
 # Roll-watcher patch
 [ALWAYS, {
   'language/destructuring/binding/keyed-destructuring-property-reference-target-evaluation-order-with-bindings': [SKIP],
-  'language/expressions/delete/super-property-uninitialized-this': [SKIP],
 }],
 # End roll-watcher patch
 ####
@@ -787,7 +662,6 @@
 [ALWAYS, {
   'staging/sm/class/superCallOrder': [FAIL],
   'staging/sm/class/superPropOrdering': [FAIL],
-  'staging/sm/eval/redeclared-arguments-in-param-expression-eval': [FAIL],
   'staging/sm/expressions/short-circuit-compound-assignment-property-key-evaluation': [FAIL],
   'staging/sm/extensions/recursion': [FAIL],
   'staging/sm/extensions/regress-650753': [FAIL],
@@ -1240,6 +1114,20 @@
   'built-ins/Iterator/prototype/windows/windows-size-3': [SKIP],
   'built-ins/Iterator/prototype/windows/yields-distinct-arrays': [SKIP],
   'staging/source-phase-imports/module-source-prototype-chain': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/Locale/constructor-options-firstDayOfWeek-valid': [SKIP],
+  'intl402/Locale/constructor-unicode-extension-uvalue-yes': [SKIP],
+  'intl402/Locale/prototype/calendar/canonicalize-case': [SKIP],
+  'intl402/Locale/prototype/collation/canonicalize-case': [SKIP],
+  'intl402/Locale/prototype/firstDayOfWeek/valid-id': [SKIP],
+  'intl402/Locale/prototype/firstDayOfWeek/valid-options': [SKIP],
+  'intl402/Locale/prototype/numberingSystem/canonicalize-case': [SKIP],
 }],
 # End roll-watcher patch
 ####

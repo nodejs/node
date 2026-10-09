@@ -124,6 +124,12 @@ add_macro_header(
 )
 
 add_macro_header(
+  glob_macros
+  HDR
+    glob-macros.h
+)
+
+add_macro_header(
   file_seek_macros
   HDR
     file-seek-macros.h
@@ -148,9 +154,25 @@ add_macro_header(
 )
 
 add_macro_header(
+  common_threads_macros
+  HDR
+    common-threads-macros.h
+)
+
+add_macro_header(
+  threads_macros
+  HDR
+    threads-macros.h
+  DEPENDS
+    .common_threads_macros
+)
+
+add_macro_header(
   limits_macros
   HDR
     limits-macros.h
+  DEPENDS
+    .common_threads_macros
 )
 
 add_macro_header(
@@ -256,6 +278,12 @@ add_macro_header(
     sys-epoll-macros.h
   DEPENDS
     .fcntl_macros
+)
+
+add_macro_header(
+  sys_file_macros
+  HDR
+    sys-file-macros.h
 )
 
 add_macro_header(
@@ -369,6 +397,12 @@ add_macro_header(
   sys_wait_macros
   HDR
     sys-wait-macros.h
+)
+
+add_macro_header(
+  sys_xattr_macros
+  HDR
+    sys-xattr-macros.h
 )
 
 add_macro_header(

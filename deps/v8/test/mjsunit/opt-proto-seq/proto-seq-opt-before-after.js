@@ -44,7 +44,7 @@ assert_test_before_after(test_before_after());
 %OptimizeMaglevOnNextCall(test_before_after);
 assert_test_before_after(test_before_after());
 assertOptimized(test_before_after);
-assertTrue(isMaglevved(test_before_after));
+assertMaglevved(test_before_after);
 assert_test_before_after(test_before_after());
 %OptimizeFunctionOnNextCall(test_before_after);
 assert_test_before_after(test_before_after());

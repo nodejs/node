@@ -139,3 +139,70 @@ assertEquals(1, wasm.br_on_cast_fail_exact_s2(s0));
 assertEquals(1, wasm.br_on_cast_fail_exact_s2(s1));
 assertEquals(0, wasm.br_on_cast_fail_exact_s2(s2));
 assertEquals(1, wasm.br_on_cast_fail_exact_s2(null));
+
+(function TestExactArray() {
+  let builder = new WasmModuleBuilder();
+  builder.startRecGroup();
+  let $super = builder.addArray(kWasmI32, {is_mut: false});
+  let $sub = builder.addArray(kWasmI32, {supertype: $super, is_mut: false});
+  builder.endRecGroup();
+
+  builder.addFunction("test_cast", kSig_v_v).exportFunc()
+    .addLocals(wasmRefType($super), 1)
+    .addBody([
+      kExprI32Const, 0,
+      kGCPrefix, kExprArrayNewDefault, $super,
+      kExprLocalSet, 0,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefCast, kWasmExact, $super,
+      kExprDrop,
+    ]);
+
+  builder.addFunction("test_type_check", kSig_i_v).exportFunc()
+    .addLocals(wasmRefType($super), 1)
+    .addBody([
+      kExprI32Const, 0,
+      kGCPrefix, kExprArrayNewDefault, $super,
+      kExprLocalSet, 0,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefTest, kWasmExact, $sub,
+    ]);
+
+  let instance = builder.instantiate();
+  instance.exports.test_cast();
+  assertEquals(0, instance.exports.test_type_check());
+})();
+
+(function TestExactRefFunc() {
+  let builder = new WasmModuleBuilder();
+  builder.startRecGroup();
+  let $super = builder.addType(kSig_v_v, kNoSuperType, false);
+  let $sub = builder.addType(kSig_v_v, $super, false);
+  builder.endRecGroup();
+
+  let f = builder.addFunction("f", $super).addBody([]);
+  builder.addDeclarativeElementSegment([f.index]);
+
+  builder.addFunction("test_cast", kSig_v_v).exportFunc()
+    .addLocals(wasmRefType($super), 1)
+    .addBody([
+      kExprRefFunc, f.index,
+      kExprLocalSet, 0,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefCast, kWasmExact, $super,
+      kExprDrop,
+    ]);
+
+  builder.addFunction("test_type_check", kSig_i_v).exportFunc()
+    .addLocals(wasmRefType($super), 1)
+    .addBody([
+      kExprRefFunc, f.index,
+      kExprLocalSet, 0,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefTest, kWasmExact, $sub,
+    ]);
+
+  let instance = builder.instantiate();
+  instance.exports.test_cast();
+  assertEquals(0, instance.exports.test_type_check());
+})();

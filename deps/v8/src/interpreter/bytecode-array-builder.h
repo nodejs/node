@@ -103,6 +103,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& LoadUndefined();
   BytecodeArrayBuilder& LoadNull();
   BytecodeArrayBuilder& LoadTheHole();
+  BytecodeArrayBuilder& LoadTdzHole();
   BytecodeArrayBuilder& LoadTrue();
   BytecodeArrayBuilder& LoadFalse();
   BytecodeArrayBuilder& LoadBoolean(bool value);
@@ -207,6 +208,13 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& DefineNamedOwnProperty(Register object,
                                                const AstRawString* name,
                                                int feedback_slot);
+
+  // Like DefineNamedOwnProperty, but may only be used for the initializing
+  // store of a property of an object literal created from a boilerplate: the
+  // property exists in the object's map and still holds the uninitialized
+  // value.
+  BytecodeArrayBuilder& DefineNamedOwnPropertyInLiteral(
+      Register object, const AstRawString* name, int feedback_slot);
 
   // Set a property keyed by a value in a register, trigger the setters and
   // set traps if necessary. The value to be set should be in the
@@ -492,9 +500,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& ReThrow();
   BytecodeArrayBuilder& Abort(AbortReason reason);
   BytecodeArrayBuilder& Return();
-  BytecodeArrayBuilder& ThrowReferenceErrorIfHole(const AstRawString* name);
-  BytecodeArrayBuilder& ThrowSuperNotCalledIfHole();
-  BytecodeArrayBuilder& ThrowSuperAlreadyCalledIfNotHole();
+  BytecodeArrayBuilder& ThrowReferenceErrorIfTdzHole(const AstRawString* name);
+  BytecodeArrayBuilder& ThrowSuperNotCalledIfTdzHole();
+  BytecodeArrayBuilder& ThrowSuperAlreadyCalledIfNotTdzHole();
   BytecodeArrayBuilder& ThrowIfNotSuperConstructor(Register constructor);
 
   // Debugger.

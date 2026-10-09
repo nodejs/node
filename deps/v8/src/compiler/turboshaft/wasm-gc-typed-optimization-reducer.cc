@@ -146,16 +146,15 @@ void WasmGCTypeAnalyzer::StartNewSnapshotFor(const Block& block) {
     const Block& predecessor = *block.LastPredecessor();
     types_table_.StartNewSnapshot(
         block_to_snapshot_[predecessor.index()].value());
-    if (IsReachable(predecessor)) {
-      const BranchOp* branch =
-          block.Predecessors()[0]->LastOperation(graph_).TryCast<BranchOp>();
-      if (branch != nullptr) {
-        ProcessBranchOnTarget(*branch, block);
-      }
-    } else {
+    if (!IsReachable(predecessor)) {
       TRACE("[b%uu] Block unreachable as sole predecessor b%u is unreachable\n",
             block.index().id(), predecessor.index().id());
       block_is_unreachable_.Add(block.index().id());
+    }
+    const BranchOp* branch =
+        block.Predecessors()[0]->LastOperation(graph_).TryCast<BranchOp>();
+    if (branch != nullptr) {
+      ProcessBranchOnTarget(*branch, block);
     }
   } else {
     DCHECK_EQ(block.kind(), Block::Kind::kMerge);
@@ -197,11 +196,17 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
       case Opcode::kStructSet:
         ProcessStructSet(op.Cast<StructSetOp>());
         break;
+      case Opcode::kStructAtomicRMW:
+        ProcessStructAtomicRMW(op.Cast<StructAtomicRMWOp>());
+        break;
       case Opcode::kArrayGet:
         ProcessArrayGet(op.Cast<ArrayGetOp>());
         break;
       case Opcode::kArrayLength:
         ProcessArrayLength(op.Cast<ArrayLengthOp>());
+        break;
+      case Opcode::kArrayAtomicRMW:
+        ProcessArrayAtomicRMW(op.Cast<ArrayAtomicRMWOp>());
         break;
       case Opcode::kGlobalGet:
         ProcessGlobalGet(op.Cast<GlobalGetOp>());
@@ -312,11 +317,23 @@ void WasmGCTypeAnalyzer::ProcessStructGet(const StructGetOp& struct_get) {
       RefineTypeKnowledgeNotNull(struct_get.object(), struct_get);
   input_type_map_[graph_.Index(struct_get)] = type;
   wasm::ValueType new_type;
-  if (struct_get.is_get_desc()) {
+  if (type.is_uninhabited()) {
+    new_type = wasm::kWasmBottom;
+  } else if (struct_get.is_get_desc()) {
     // Descriptor load.
     const wasm::TypeDefinition& type_def = module_->type(struct_get.type_index);
     DCHECK(type_def.has_descriptor());
-    new_type = wasm::ValueType::Ref(module_->heap_type(type_def.descriptor));
+    // Exactness is only propagated if the actual type of the struct
+    // exactly matches the type immediate.
+    wasm::Exactness exactness = type.exactness();
+    if (type.is_none_or_bottom()) {
+      // Subsumption dictates that get_desc(none) <: get_desc(exact $s).
+      exactness = wasm::kExact;
+    } else if (type.has_index() && type.ref_index() != struct_get.type_index) {
+      exactness = wasm::kAnySubtype;
+    }
+    new_type = wasm::ValueType::Ref(module_->heap_type(type_def.descriptor))
+                   .AsExact(exactness);
   } else {
     // Regular field load.
     new_type = struct_get.type->field(struct_get.field_index).Unpacked();
@@ -329,6 +346,23 @@ void WasmGCTypeAnalyzer::ProcessStructSet(const StructSetOp& struct_set) {
   wasm::ValueType type =
       RefineTypeKnowledgeNotNull(struct_set.object(), struct_set);
   input_type_map_[graph_.Index(struct_set)] = type;
+}
+
+void WasmGCTypeAnalyzer::ProcessStructAtomicRMW(
+    const StructAtomicRMWOp& struct_atomic_rmw) {
+  // Struct atomic-rmw operations perform a null check.
+  wasm::ValueType type =
+      RefineTypeKnowledgeNotNull(struct_atomic_rmw.object(), struct_atomic_rmw);
+  input_type_map_[graph_.Index(struct_atomic_rmw)] = type;
+  wasm::ValueType new_type;
+  if (type.is_uninhabited()) {
+    new_type = wasm::kWasmBottom;
+  } else {
+    new_type =
+        struct_atomic_rmw.type->field(struct_atomic_rmw.field_index).Unpacked();
+  }
+  RefineTypeKnowledge(graph_.Index(struct_atomic_rmw), new_type,
+                      struct_atomic_rmw);
 }
 
 void WasmGCTypeAnalyzer::ProcessArrayGet(const ArrayGetOp& array_get) {
@@ -348,6 +382,17 @@ void WasmGCTypeAnalyzer::ProcessArrayLength(const ArrayLengthOp& array_length) {
   input_type_map_[graph_.Index(array_length)] = type;
 }
 
+void WasmGCTypeAnalyzer::ProcessArrayAtomicRMW(
+    const ArrayAtomicRMWOp& array_atomic_rmw) {
+  // Array atomic-rmw operations trap on null. (Typically already on the array
+  // length access needed for the bounds check.)
+  RefineTypeKnowledgeNotNull(array_atomic_rmw.array(), array_atomic_rmw);
+  // The result type is at least the static array element type.
+  RefineTypeKnowledge(graph_.Index(array_atomic_rmw),
+                      array_atomic_rmw.element_type.Unpacked(),
+                      array_atomic_rmw);
+}
+
 void WasmGCTypeAnalyzer::ProcessGlobalGet(const GlobalGetOp& global_get) {
   RefineTypeKnowledge(graph_.Index(global_get), global_get.global->type,
                       global_get);
@@ -356,18 +401,22 @@ void WasmGCTypeAnalyzer::ProcessGlobalGet(const GlobalGetOp& global_get) {
 void WasmGCTypeAnalyzer::ProcessRefFunc(const WasmRefFuncOp& ref_func) {
   wasm::ModuleTypeIndex sig_index =
       module_->functions[ref_func.function_index].sig_index;
-  RefineTypeKnowledge(graph_.Index(ref_func),
-                      wasm::ValueType::Ref(module_->heap_type(sig_index)),
-                      ref_func);
+  wasm::ValueType type = wasm::ValueType::Ref(module_->heap_type(sig_index));
+  if (ref_func.function_index >= module_->num_imported_functions ||
+      module_->functions[ref_func.function_index].exact) {
+    type = type.AsExact();
+  }
+  RefineTypeKnowledge(graph_.Index(ref_func), type, ref_func);
 }
 
 void WasmGCTypeAnalyzer::ProcessAllocateArray(
     const WasmAllocateArrayOp& allocate_array) {
   wasm::ModuleTypeIndex type_index =
       graph_.Get(allocate_array.rtt()).Cast<RttCanonOp>().type_index;
-  RefineTypeKnowledge(graph_.Index(allocate_array),
-                      wasm::ValueType::Ref(module_->heap_type(type_index)),
-                      allocate_array);
+  RefineTypeKnowledge(
+      graph_.Index(allocate_array),
+      wasm::ValueType::Ref(module_->heap_type(type_index)).AsExact(),
+      allocate_array);
 }
 void WasmGCTypeAnalyzer::ProcessAllocateStruct(
     const WasmAllocateStructOp& allocate_struct) {
@@ -473,6 +522,9 @@ void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
               target.index().id(), branch.condition().id(),
               OpcodeName(condition.opcode), graph_.Index(branch).id(),
               OpcodeName(branch.opcode));
+          RefineTypeKnowledge(check.object(), wasm::kWasmBottom, branch);
+        } else if (check.config.to.is_nullable()) {
+          RefineTypeKnowledgeNotNull(check.object(), branch);
         }
       }
     } break;
@@ -489,6 +541,7 @@ void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
               target.index().id(), branch.condition().id(),
               OpcodeName(condition.opcode), graph_.Index(branch).id(),
               OpcodeName(branch.opcode));
+          RefineTypeKnowledge(is_null.object(), wasm::kWasmBottom, branch);
           return;
         }
         RefineTypeKnowledge(is_null.object(),

@@ -9,6 +9,7 @@
 
 #include "src/base/fpu.h"
 #include "src/base/logging.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
 #include "src/baseline/baseline-batch-compiler.h"
@@ -24,6 +25,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
+#include "src/objects/string-inl.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot-utils.h"
@@ -45,9 +47,10 @@ AlignedCachedData::AlignedCachedData(const uint8_t* data, int length)
   }
 }
 
-CodeSerializer::CodeSerializer(Isolate* isolate, uint32_t source_hash)
+CodeSerializer::CodeSerializer(Isolate* isolate, SourceHash source_hash)
     : Serializer(isolate, Snapshot::kDefaultSerializerFlags),
-      source_hash_(source_hash) {}
+      source_hash_(source_hash),
+      trusted_serializer_(isolate) {}
 
 // static
 ScriptCompiler::CachedData* CodeSerializer::Serialize(
@@ -76,9 +79,9 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   }
 
   HandleScope scope(isolate);
-  CodeSerializer cs(isolate,
-                    SerializedCodeData::SourceHash(source, wrapped_arguments,
-                                                   script->origin_options()));
+  CodeSerializer cs(isolate, SerializedCodeData::SourceHash(
+                                 source, wrapped_arguments,
+                                 script->origin_options(), isolate));
   DisallowGarbageCollection no_gc;
 
 #ifndef DEBUG
@@ -108,9 +111,10 @@ AlignedCachedData* CodeSerializer::SerializeSharedFunctionInfo(
   VisitRootPointer(Root::kHandleScope, nullptr,
                    FullObjectSlot(info.location()));
   SerializeDeferredObjects();
-  Pad();
+  trusted_serializer_.FinishSection();
+  FinishSection();
 
-  SerializedCodeData data(sink_.data(), this);
+  SerializedCodeData data(Payload(), trusted_serializer_.Payload(), this);
 
   return data.GetScriptData();
 }
@@ -345,8 +349,8 @@ class StressOffThreadDeserializeThread final : public base::Thread {
     LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(&local_isolate);
     LocalHandleScope handle_scope(&local_isolate);
-    off_thread_data_ =
-        CodeSerializer::StartDeserializeOffThread(&local_isolate, cached_data_);
+    CodeSerializer::StartDeserializeOffThread(&local_isolate, cached_data_,
+                                              &off_thread_data_);
   }
 
   MaybeDirectHandle<SharedFunctionInfo> Finalize(
@@ -360,7 +364,7 @@ class StressOffThreadDeserializeThread final : public base::Thread {
  private:
   Isolate* isolate_;
   AlignedCachedData* cached_data_;
-  CodeSerializer::OffThreadDeserializeData off_thread_data_;
+  OffThreadDeserializeData off_thread_data_;
 };
 
 void FinalizeDeserialization(Isolate* isolate,
@@ -502,7 +506,7 @@ MaybeDirectHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   const SerializedCodeData scd = SerializedCodeData::FromCachedData(
       isolate, cached_data,
       SerializedCodeData::SourceHash(source, wrapped_arguments,
-                                     script_details.origin_options),
+                                     script_details.origin_options, isolate),
       &sanity_check_result);
   if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
     if (v8_flags.profile_deserialization) {
@@ -554,8 +558,7 @@ MaybeDirectHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   return scope.CloseAndEscape(result);
 }
 
-DirectHandle<Script> CodeSerializer::OffThreadDeserializeData::GetOnlyScript(
-    LocalHeap* heap) {
+DirectHandle<Script> OffThreadDeserializeData::GetOnlyScript(LocalHeap* heap) {
   std::unique_ptr<PersistentHandles> previous_persistent_handles =
       heap->DetachPersistentHandles();
   heap->AttachPersistentHandles(std::move(persistent_handles));
@@ -573,32 +576,47 @@ DirectHandle<Script> CodeSerializer::OffThreadDeserializeData::GetOnlyScript(
   return script;
 }
 
-CodeSerializer::OffThreadDeserializeData
-CodeSerializer::StartDeserializeOffThread(LocalIsolate* local_isolate,
-                                          AlignedCachedData* cached_data) {
-  OffThreadDeserializeData result;
-
+void CodeSerializer::StartDeserializeOffThread(LocalIsolate* local_isolate,
+                                               AlignedCachedData* cached_data,
+                                               OffThreadDeserializeData* data) {
   DCHECK(!local_isolate->heap()->HasPersistentHandles());
 
   const SerializedCodeData scd =
       SerializedCodeData::FromCachedDataWithoutSource(
-          local_isolate, cached_data, &result.sanity_check_result);
-  if (result.sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
+          local_isolate, cached_data, &data->sanity_check_result);
+  if (data->sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
     // Exit early but don't report yet, we'll re-check this when finishing on
     // the main thread
     DCHECK(cached_data->rejected());
-    return result;
+    return;
   }
 
   MaybeDirectHandle<SharedFunctionInfo> local_maybe_result =
       OffThreadObjectDeserializer::DeserializeSharedFunctionInfo(
-          local_isolate, &scd, &result.scripts);
+          local_isolate, &scd, &data->scripts);
 
-  result.maybe_result =
+  data->maybe_result =
       local_isolate->heap()->NewPersistentMaybeHandle(local_maybe_result);
-  result.persistent_handles = local_isolate->heap()->DetachPersistentHandles();
+  data->persistent_handles = local_isolate->heap()->DetachPersistentHandles();
+}
 
-  return result;
+bool CodeSerializer::NotifySourceTextAvailable(
+    Isolate* isolate, OffThreadDeserializeData* data,
+    const AlignedCachedData* cached_data, DirectHandle<String> source,
+    const ScriptDetails& script_details) {
+  HandleScope scope(isolate);
+
+  // Only check the source hash against the immutable cached_data header and
+  // write the main-thread-only data->source_sanity_check_result field here. Do
+  // not read/write data->sanity_check_result or mutate cached_data->Reject(),
+  // as StartDeserializeOffThread may still be running concurrently on a
+  // background thread. Full rejection and histogram reporting happen in
+  // FinishOffThreadDeserialize.
+  SerializedCodeData scd(cached_data);
+  SerializedCodeSanityCheckResult sanity_check_result =
+      scd.SanityCheckJustSource(isolate, source, script_details);
+  data->source_sanity_check_result = sanity_check_result;
+  return sanity_check_result == SerializedCodeSanityCheckResult::kSuccess;
 }
 
 MaybeDirectHandle<SharedFunctionInfo>
@@ -614,11 +632,6 @@ CodeSerializer::FinishOffThreadDeserialize(
 
   HandleScope scope(isolate);
 
-  DirectHandle<FixedArray> wrapped_arguments;
-  if (!script_details.wrapped_arguments.is_null()) {
-    wrapped_arguments = script_details.wrapped_arguments.ToHandleChecked();
-  }
-
   // Do a source sanity check now that we have the source. It's important for
   // FromPartiallySanityCheckedCachedData call that the sanity_check_result
   // holds the result of the off-thread sanity check.
@@ -626,10 +639,9 @@ CodeSerializer::FinishOffThreadDeserialize(
       data.sanity_check_result;
   const SerializedCodeData scd =
       SerializedCodeData::FromPartiallySanityCheckedCachedData(
-          cached_data,
-          SerializedCodeData::SourceHash(source, wrapped_arguments,
-                                         script_details.origin_options),
+          isolate, cached_data, data, source, script_details,
           &sanity_check_result);
+  USE(scd);
   if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
     // The only case where the deserialization result could exist despite a
     // check failure is on a source mismatch, since we can't test for this
@@ -723,13 +735,19 @@ CodeSerializer::FinishOffThreadDeserialize(
   return scope.CloseAndEscape(result);
 }
 
-SerializedCodeData::SerializedCodeData(const std::vector<uint8_t>* payload,
-                                       const CodeSerializer* cs) {
+SerializedCodeData::SerializedCodeData(
+    const std::vector<uint8_t>* untrusted_payload,
+    const std::vector<uint8_t>* trusted_payload, const CodeSerializer* cs) {
   DisallowGarbageCollection no_gc;
 
+  size_t trusted_length = trusted_payload->size();
+  size_t payload_length = trusted_length + untrusted_payload->size();
+
   // Calculate sizes.
-  uint32_t size = kHeaderSize + static_cast<uint32_t>(payload->size());
+  uint32_t size = base::checked_cast<uint32_t>(kHeaderSize + payload_length);
+  CHECK_LE(size, kMaxInt);
   DCHECK(IsAligned(size, kPointerAlignment));
+  DCHECK(IsAligned(trusted_length, kPointerAlignment));
 
   // Allocate backing store and create result data.
   AllocateData(size);
@@ -740,20 +758,25 @@ SerializedCodeData::SerializedCodeData(const std::vector<uint8_t>* payload,
   // Set header values.
   SetMagicNumber();
   SetHeaderValue(kVersionHashOffset, Version::Hash());
-  SetHeaderValue(kSourceHashOffset, cs->source_hash());
+  SetHeaderSourceHash(cs->source_hash());
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
   SetHeaderValue(kReadOnlySnapshotChecksumOffset,
                  Snapshot::ExtractReadOnlySnapshotChecksum(
                      cs->isolate()->snapshot_blob()));
-  SetHeaderValue(kPayloadLengthOffset, static_cast<uint32_t>(payload->size()));
+  SetHeaderValue(kPayloadLengthOffset,
+                 base::checked_cast<uint32_t>(payload_length));
+  SetHeaderValue(kTrustedPayloadLengthOffset,
+                 base::checked_cast<uint32_t>(trusted_length));
 
   // Zero out any padding in the header.
+  static_assert(kUnalignedHeaderSize <= kHeaderSize);
   std::fill_n(data_ + kUnalignedHeaderSize, kHeaderSize - kUnalignedHeaderSize,
               0);
 
   // Copy serialized data.
-  CopyBytes(data_ + kHeaderSize, payload->data(),
-            static_cast<size_t>(payload->size()));
+  CopyBytes(data_ + kHeaderSize, trusted_payload->data(), trusted_length);
+  CopyBytes(data_ + kHeaderSize + trusted_length, untrusted_payload->data(),
+            untrusted_payload->size());
   uint32_t checksum =
       v8_flags.verify_snapshot_checksum ? Checksum(ChecksummedContent()) : 0;
   SetHeaderValue(kChecksumOffset, checksum);
@@ -761,7 +784,7 @@ SerializedCodeData::SerializedCodeData(const std::vector<uint8_t>* payload,
 
 SerializedCodeSanityCheckResult SerializedCodeData::SanityCheck(
     uint32_t expected_ro_snapshot_checksum,
-    uint32_t expected_source_hash) const {
+    SourceHash expected_source_hash) const {
   SerializedCodeSanityCheckResult result =
       SanityCheckWithoutSource(expected_ro_snapshot_checksum);
   if (result != SerializedCodeSanityCheckResult::kSuccess) return result;
@@ -769,8 +792,22 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheck(
 }
 
 SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckJustSource(
-    uint32_t expected_source_hash) const {
-  uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
+    Isolate* isolate, DirectHandle<String> source,
+    const ScriptDetails& script_details) const {
+  DirectHandle<FixedArray> wrapped_arguments;
+  if (!script_details.wrapped_arguments.is_null()) {
+    wrapped_arguments = script_details.wrapped_arguments.ToHandleChecked();
+  }
+  return SanityCheckJustSource(SourceHash(
+      source, wrapped_arguments, script_details.origin_options, isolate));
+}
+
+SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckJustSource(
+    SourceHash expected_source_hash) const {
+  if (size_ < kHeaderSize) {
+    return SerializedCodeSanityCheckResult::kInvalidHeader;
+  }
+  SourceHash source_hash = GetHeaderSourceHash();
   if (source_hash != expected_source_hash) {
     return SerializedCodeSanityCheckResult::kSourceMismatch;
   }
@@ -804,6 +841,9 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource(
   if (payload_length > max_payload_length) {
     return SerializedCodeSanityCheckResult::kLengthMismatch;
   }
+  if (GetHeaderValue(kTrustedPayloadLengthOffset) > payload_length) {
+    return SerializedCodeSanityCheckResult::kLengthMismatch;
+  }
   if (v8_flags.verify_snapshot_checksum) {
     uint32_t checksum = GetHeaderValue(kChecksumOffset);
     if (Checksum(ChecksummedContent()) != checksum) {
@@ -813,20 +853,84 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource(
   return SerializedCodeSanityCheckResult::kSuccess;
 }
 
-uint32_t SerializedCodeData::SourceHash(
-    DirectHandle<String> source, DirectHandle<FixedArray> wrapped_arguments,
-    ScriptOriginOptions origin_options) {
-  using LengthField = base::BitField<uint32_t, 0, 29>;
-  static_assert(String::kMaxLength <= LengthField::kMax,
-                "String length must fit into a LengthField");
-  using HasWrappedArgumentsField = LengthField::Next<bool, 1>;
-  using IsModuleField = HasWrappedArgumentsField::Next<bool, 1>;
+void SerializedCodeData::SetHeaderSourceHash(const SourceHash& hash) {
+  memcpy(data_ + kSourceHashOffset, hash.data(), SourceHash::kSize);
+}
 
-  uint32_t hash = 0;
-  hash = LengthField::update(hash, source->length());
-  hash = HasWrappedArgumentsField::update(hash, !wrapped_arguments.is_null());
-  hash = IsModuleField::update(hash, origin_options.IsModule());
-  return hash;
+SerializedCodeData::SourceHash SerializedCodeData::GetHeaderSourceHash() const {
+  return SourceHash(data_ + kSourceHashOffset);
+}
+
+namespace {
+
+void HashString(LITE_SHA256_CTX* ctx, Isolate* isolate,
+                DirectHandle<String> string) {
+  string = String::Flatten(isolate, string);
+  DisallowGarbageCollection no_gc;
+  uint32_t length = string->length();
+  SHA256_update(ctx, &length, sizeof(length));
+  SharedStringAccessGuardIfNeeded access_guard(isolate);
+  String::FlatContent flat = string->GetFlatContent(no_gc, access_guard);
+  if (flat.IsOneByte()) {
+    base::Vector<const uint8_t> chars = flat.ToOneByteVector();
+    SHA256_update(ctx, chars.begin(), chars.length());
+  } else {
+    DCHECK(flat.IsTwoByte());
+    base::Vector<const base::uc16> chars = flat.ToUC16Vector();
+    SHA256_update(ctx, chars.begin(), chars.length() * sizeof(base::uc16));
+  }
+}
+
+}  // namespace
+
+SerializedCodeData::SourceHash::SourceHash(
+    DirectHandle<String> source, DirectHandle<FixedArray> wrapped_arguments,
+    ScriptOriginOptions origin_options, Isolate* isolate) {
+  if (v8_flags.code_cache_source_hash_sha256) {
+    LITE_SHA256_CTX ctx;
+    SHA256_init(&ctx);
+
+    // Hash compilation-affecting metadata bits into the SHA-256 context.
+    // Only IsModule() in ScriptOriginOptions affects how JS source text is
+    // parsed and compiled into bytecode.
+    uint8_t flags = 0;
+    if (!wrapped_arguments.is_null()) flags |= 1;
+    if (origin_options.IsModule()) flags |= 2;
+    SHA256_update(&ctx, &flags, sizeof(flags));
+
+    // For CompileFunction, wrapped_arguments holds the parameter names (while
+    // source only holds the function body). Hash the argument count and each
+    // length-prefixed parameter string so parameter changes invalidate the
+    // cache.
+    if (!wrapped_arguments.is_null()) {
+      uint32_t argc = wrapped_arguments->ulength().value();
+      SHA256_update(&ctx, &argc, sizeof(argc));
+      for (uint32_t i = 0; i < argc; ++i) {
+        DirectHandle<String> arg(Cast<String>(wrapped_arguments->get(i)),
+                                 isolate);
+        HashString(&ctx, isolate, arg);
+      }
+    }
+
+    HashString(&ctx, isolate, source);
+
+    const uint8_t* digest = SHA256_final(&ctx);
+    std::copy_n(digest, kSizeOfSha256Digest, data_.data());
+  } else {
+    data_.fill(0);
+    using LengthField = base::BitField<uint32_t, 0, 29>;
+    static_assert(String::kMaxLength <= LengthField::kMax,
+                  "String length must fit into a LengthField");
+    using HasWrappedArgumentsField = LengthField::Next<bool, 1>;
+    using IsModuleField = HasWrappedArgumentsField::Next<bool, 1>;
+
+    uint32_t hash = 0;
+    hash = LengthField::update(hash, source->length());
+    hash = HasWrappedArgumentsField::update(hash, !wrapped_arguments.is_null());
+    hash = IsModuleField::update(hash, origin_options.IsModule());
+    base::WriteLittleEndianValue<uint32_t>(
+        reinterpret_cast<Address>(data_.data()), hash);
+  }
 }
 
 // Return ScriptData object and relinquish ownership over it to the caller.
@@ -839,20 +943,28 @@ AlignedCachedData* SerializedCodeData::GetScriptData() {
   return result;
 }
 
-base::Vector<const uint8_t> SerializedCodeData::Payload() const {
-  const uint8_t* payload = data_ + kHeaderSize;
+base::Vector<const uint8_t> SerializedCodeData::UntrustedPayload() const {
+  uint32_t trusted_length = GetHeaderValue(kTrustedPayloadLengthOffset);
+  const uint8_t* payload = data_ + kHeaderSize + trusted_length;
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload), kPointerAlignment));
-  int length = GetHeaderValue(kPayloadLengthOffset);
+  uint32_t length = GetHeaderValue(kPayloadLengthOffset) - trusted_length;
   DCHECK_EQ(data_ + size_, payload + length);
   return base::Vector<const uint8_t>(payload, length);
 }
 
-SerializedCodeData::SerializedCodeData(AlignedCachedData* data)
+base::Vector<const uint8_t> SerializedCodeData::TrustedPayload() const {
+  const uint8_t* payload = data_ + kHeaderSize;
+  DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload), kPointerAlignment));
+  uint32_t length = GetHeaderValue(kTrustedPayloadLengthOffset);
+  return base::Vector<const uint8_t>(payload, length);
+}
+
+SerializedCodeData::SerializedCodeData(const AlignedCachedData* data)
     : SerializedData(const_cast<uint8_t*>(data->data()), data->length()) {}
 
 SerializedCodeData SerializedCodeData::FromCachedData(
     Isolate* isolate, AlignedCachedData* cached_data,
-    uint32_t expected_source_hash,
+    SourceHash expected_source_hash,
     SerializedCodeSanityCheckResult* rejection_result) {
   DisallowGarbageCollection no_gc;
   SerializedCodeData scd(cached_data);
@@ -882,12 +994,14 @@ SerializedCodeData SerializedCodeData::FromCachedDataWithoutSource(
 }
 
 SerializedCodeData SerializedCodeData::FromPartiallySanityCheckedCachedData(
-    AlignedCachedData* cached_data, uint32_t expected_source_hash,
+    Isolate* isolate, AlignedCachedData* cached_data,
+    const OffThreadDeserializeData& data, DirectHandle<String> source,
+    const ScriptDetails& script_details,
     SerializedCodeSanityCheckResult* rejection_result) {
-  DisallowGarbageCollection no_gc;
   // The previous call to FromCachedDataWithoutSource may have already rejected
   // the cached data, so reuse the previous rejection result if it's not a
   // success.
+  *rejection_result = data.sanity_check_result;
   if (*rejection_result != SerializedCodeSanityCheckResult::kSuccess) {
     // FromCachedDataWithoutSource doesn't check the source, so there can't be
     // a source mismatch.
@@ -897,7 +1011,14 @@ SerializedCodeData SerializedCodeData::FromPartiallySanityCheckedCachedData(
     return SerializedCodeData(nullptr, 0);
   }
   SerializedCodeData scd(cached_data);
-  *rejection_result = scd.SanityCheckJustSource(expected_source_hash);
+  if (data.source_sanity_check_result.has_value()) {
+    DCHECK_EQ(*data.source_sanity_check_result,
+              scd.SanityCheckJustSource(isolate, source, script_details));
+    *rejection_result = *data.source_sanity_check_result;
+  } else {
+    *rejection_result =
+        scd.SanityCheckJustSource(isolate, source, script_details);
+  }
   if (*rejection_result != SerializedCodeSanityCheckResult::kSuccess) {
     // This check only checks the source, so the only possible failure is a
     // source mismatch.

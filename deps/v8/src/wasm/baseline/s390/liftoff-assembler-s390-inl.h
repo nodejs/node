@@ -150,7 +150,8 @@ void LiftoffAssembler::AlignFrameSize() {}
 
 void LiftoffAssembler::PatchPrepareStackFrame(
     int offset, SafepointTableBuilder* safepoint_table_builder,
-    bool feedback_vector_slot, size_t stack_param_slots) {
+    bool feedback_vector_slot, size_t stack_param_slots,
+    size_t stack_return_slots) {
   int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
   // The frame setup builtin also pushes the feedback vector.
   if (feedback_vector_slot) {
@@ -210,14 +211,19 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     LiftoffRegList regs_to_save;
     regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
     regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+    regs_to_save.set(
+        WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister());
     for (auto reg : kGpParamRegisters) regs_to_save.set(reg);
     for (auto reg : kFpParamRegisters) regs_to_save.set(reg);
     PushRegisters(regs_to_save);
     mov(WasmHandleStackOverflowDescriptor::GapRegister(),
         Operand(max_stack_space));
-    AddS64(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
-           Operand(stack_param_slots * kSystemPointerSize +
-                   CommonFrameConstants::kFixedFrameSizeAboveFp));
+    AddS64(
+        WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
+        Operand((stack_param_slots + stack_return_slots) * kSystemPointerSize +
+                CommonFrameConstants::kFixedFrameSizeAboveFp));
+    mov(WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister(),
+        Operand(stack_param_slots * kSystemPointerSize));
     CallBuiltin(Builtin::kWasmHandleStackOverflow);
     safepoint_table_builder->DefineSafepoint(this);
     PopRegisters(regs_to_save);
@@ -286,59 +292,6 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
   SubS32(budget, Operand(budget_used));
   StoreU32(budget, budget_addr);
   blt(ool_label);
-}
-
-Register LiftoffAssembler::LoadOldFramePointer() {
-  if (!v8_flags.wasm_growable_stacks) {
-    return fp;
-  }
-  LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
-  FreezeCacheState frozen(*this);
-  Label done, call_runtime;
-  LoadU64(old_fp.gp(), MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
-  CmpU64(old_fp.gp(),
-         Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-  beq(&call_runtime);
-  mov(old_fp.gp(), fp);
-  jmp(&done);
-
-  bind(&call_runtime);
-  LiftoffRegList regs_to_save = cache_state()->used_registers;
-  PushRegisters(regs_to_save);
-  MacroAssembler::Move(kCArgRegs[0], ExternalReference::isolate_address());
-  PrepareCallCFunction(1, r0);
-  CallCFunction(ExternalReference::wasm_load_old_fp(), 1);
-  if (old_fp.gp() != kReturnRegister0) {
-    mov(old_fp.gp(), kReturnRegister0);
-  }
-  PopRegisters(regs_to_save);
-
-  bind(&done);
-  return old_fp.gp();
-}
-
-void LiftoffAssembler::CheckStackShrink() {
-  {
-    UseScratchRegisterScope temps{this};
-    Register scratch = temps.Acquire();
-    LoadU64(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
-    CmpU64(scratch,
-           Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-  }
-  Label done;
-  bne(&done);
-  LiftoffRegList regs_to_save;
-  for (auto reg : kGpReturnRegisters) regs_to_save.set(reg);
-  for (auto reg : kFpReturnRegisters) regs_to_save.set(reg);
-  PushRegisters(regs_to_save);
-  MacroAssembler::Move(kCArgRegs[0], ExternalReference::isolate_address());
-  PrepareCallCFunction(1, r0);
-  CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
-  // Restore old FP. We don't need to restore old SP explicitly, because
-  // it will be restored from FP in LeaveFrame before return.
-  mov(fp, kReturnRegister0);
-  PopRegisters(regs_to_save);
-  bind(&done);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
@@ -1570,37 +1523,36 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 
 void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
-                                            ValueKind kind,
-                                            Register frame_pointer) {
+                                            ValueKind kind) {
   int32_t offset = (caller_slot_idx + 1) * 8;
   switch (kind) {
     case kI32: {
 #if defined(V8_TARGET_BIG_ENDIAN)
-      StoreU32(src.gp(), MemOperand(frame_pointer, offset + 4));
+      StoreU32(src.gp(), MemOperand(fp, offset + 4));
       break;
 #else
-      StoreU32(src.gp(), MemOperand(frame_pointer, offset));
+      StoreU32(src.gp(), MemOperand(fp, offset));
       break;
 #endif
     }
     case kRef:
     case kRefNull:
     case kI64: {
-      StoreU64(src.gp(), MemOperand(frame_pointer, offset));
+      StoreU64(src.gp(), MemOperand(fp, offset));
       break;
     }
     case kF32: {
-      StoreF32(src.fp(), MemOperand(frame_pointer, offset));
+      StoreF32(src.fp(), MemOperand(fp, offset));
       break;
     }
     case kF64: {
-      StoreF64(src.fp(), MemOperand(frame_pointer, offset));
+      StoreF64(src.fp(), MemOperand(fp, offset));
       break;
     }
     case kS128: {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      StoreV128(src.fp(), MemOperand(frame_pointer, offset), scratch);
+      StoreV128(src.fp(), MemOperand(fp, offset), scratch);
       break;
     }
     default:

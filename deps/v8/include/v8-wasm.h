@@ -130,9 +130,8 @@ class V8_EXPORT WasmModuleObject : public Object {
     // remain valid for the duration of the compile call.
     const char* imported_string_constants_module = nullptr;
     // If non-empty, associated with the module's script as its source URL, for
-    // use in stack traces and developer tooling. If a script already exists in
-    // the isolate for the same module, its existing URL is retained. The
-    // string must remain valid for the duration of the compile call.
+    // use in stack traces and developer tooling. The string must remain valid
+    // for the duration of the compile call.
     std::string_view source_url = {};
   };
 
@@ -247,7 +246,7 @@ class V8_EXPORT WasmStreaming final {
    * unpack the {CppGCManaged} itself.
    */
   static std::shared_ptr<WasmStreaming> Unpack(Isolate* isolate,
-                                               Local<Value> value);
+                                               Local<Data> data);
 
  private:
   std::unique_ptr<WasmStreamingImpl> impl_;

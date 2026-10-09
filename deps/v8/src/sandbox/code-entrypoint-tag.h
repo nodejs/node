@@ -32,7 +32,11 @@ namespace internal {
 // match, the resulting pointer will be invalid and cause a safe crash.
 // TODO(saelo): on Arm64, we could probably use PAC instead of XORing the tag
 // into the pointer. This may be more efficient.
+#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+constexpr int kCodeEntrypointTagShift = 57;
+#else   // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
 constexpr int kCodeEntrypointTagShift = 48;
+#endif  // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
 enum CodeEntrypointTag : uint64_t {
   kJSEntrypointTag = 0,
   kWasmEntrypointTag = uint64_t{1} << kCodeEntrypointTagShift,
@@ -53,14 +57,19 @@ enum CodeEntrypointTag : uint64_t {
   // TODO(saelo): create more of these tags.
 
   // Tag to use for Code objects with stub linkage created by unittests.
-  kCodeEntrypointTagForTesting = uint64_t{0xfc} << kCodeEntrypointTagShift,
+  kCodeEntrypointTagForTesting = uint64_t{0x7c} << kCodeEntrypointTagShift,
 
   // Tag to use for Code objects corresponding to currently disabled builtins.
-  kDisabledBuiltinEntrypointTag = uint64_t{0xfd} << kCodeEntrypointTagShift,
+  kDisabledBuiltinEntrypointTag = uint64_t{0x7d} << kCodeEntrypointTagShift,
 
   // Sentinel tag to use for code that should never be called.
-  kInvalidEntrypointTag = uint64_t{0xff} << kCodeEntrypointTagShift,
+  kInvalidEntrypointTag = uint64_t{0x7f} << kCodeEntrypointTagShift,
 };
+
+#ifdef V8_ENABLE_SANDBOX
+// All tags must fit into the 7 tag bits of an x64 entry on LA57.
+static_assert(kCodeEntrypointTagShift + 7 <= kBitsPerSystemPointer);
+#endif  // V8_ENABLE_SANDBOX
 
 }  // namespace internal
 }  // namespace v8

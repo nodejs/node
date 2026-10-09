@@ -12,6 +12,7 @@
 #endif  // V8_OS_POSIX && !V8_OS_FUCHSIA
 
 #include "src/base/macros.h"
+#include "src/base/unique-array.h"
 #include "src/flags/flags.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/module-compiler.h"
@@ -81,7 +82,7 @@ class MemoryProtectionTest : public TestWithNativeContext {
         SECTION(Function, ENTRY_COUNT(1), SIG_INDEX(0)),
         SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0 /* locals */, kExprEnd))};
 
-    base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(module_bytes);
+    base::UniqueArray<const uint8_t> bytes = base::UniqueCopyOf(module_bytes);
 
     WasmDetectedFeatures detected_features;
     ModuleResult result =

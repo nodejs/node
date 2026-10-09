@@ -444,7 +444,7 @@ TEST(CordzInfoStatisticsTest, ThreadSafety) {
         // Track 0 - 2 cordz infos at a time, providing permutations of 0, 1
         // and 2 CordzHandle and CordzInfo queues being active, with plenty of
         // 'empty to non empty' transitions.
-        InlineData cords[2];
+        InlineData cords[2] = {};
         std::minstd_rand gen;
         std::uniform_int_distribution<int> coin_toss(0, 1);
         std::uniform_int_distribution<int> dice_roll(1, 6);

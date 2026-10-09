@@ -5,6 +5,7 @@
 #ifndef V8_UNITTESTS_TEST_UTILS_H_
 #define V8_UNITTESTS_TEST_UTILS_H_
 
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -46,8 +47,13 @@ static v8::Local<v8::External> MakeData(v8::Isolate* isolate, void* pointer) {
 template <typename T, typename TCallbackInfo>
 static T* GetData(const TCallbackInfo& info) {
   USE(MakeData);
-  return reinterpret_cast<T*>(
-      v8::External::Cast(*info.Data())->Value(kTestConfigTag));
+  v8::Local<v8::Data> data;
+  if constexpr (requires { info.DataV2(); }) {
+    data = info.DataV2();
+  } else {
+    data = info.Data();
+  }
+  return reinterpret_cast<T*>(v8::External::Cast(*data)->Value(kTestConfigTag));
 }
 
 class ArrayBufferAllocator;
@@ -199,9 +205,9 @@ class WithIsolateScopeMixin : public TMixin {
   }
 
   i::DirectHandle<i::String> MakeName(const char* str, int suffix) {
-    v8::base::EmbeddedVector<char, 128> buffer;
+    std::array<char, 128> buffer;
     v8::base::SNPrintF(buffer, "%s%d", str, suffix);
-    return MakeString(buffer.begin());
+    return MakeString(buffer.data());
   }
 
   i::Handle<i::String> MakeString(const char* str) {

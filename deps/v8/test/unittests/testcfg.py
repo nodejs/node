@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import base64
+import os
 
 from testrunner.local import testsuite
 from testrunner.objects import testcase
@@ -111,6 +112,18 @@ class TestCase(testcase.TestCase):
 
   def get_shell(self):
     return SHELL
+
+  @property
+  def use_fork_server(self):
+    # Exclude TSan (no thread creation after a multi-threaded fork), Clang
+    # coverage (default LLVM_PROFILE_FILE without %p is overwritten by forked
+    # children), per-subtest random seeds (e.g. seed stress) and num_fuzzer
+    # (per-subtest random flags would only churn the server cache).
+    v = self.suite.statusfile.variables
+    env_disabled = os.environ.get('V8_NO_FORK_SERVER', '') not in ('', '0')
+    return not (self.suite.test_config.no_fork_server or env_disabled or
+                self._random_seed is not None or v.get('tsan', False) or
+                v.get('clang_coverage', False) or v.get('num_fuzzer', False))
 
   def _get_cmd_env(self):
     # FuzzTest uses this seed when running fuzz tests as normal gtests.

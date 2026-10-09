@@ -94,6 +94,7 @@ def read_file(file):
     return f.read()
 
 class TestCase(object):
+  use_fork_server = False
 
   def __init__(self, suite, path, name):
     self.suite = suite

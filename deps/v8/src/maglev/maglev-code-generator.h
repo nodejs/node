@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_CODE_GENERATOR_H_
 #define V8_MAGLEV_MAGLEV_CODE_GENERATOR_H_
 
+#include "src/base/small-vector.h"
 #include "src/codegen/maglev-safepoint-table.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
@@ -32,7 +33,9 @@ class MaglevCodeGenerator final {
 
   MaybeHandle<Code> Generate(Isolate* isolate);
 
-  GlobalHandleVector<Map> RetainedMaps(Isolate* isolate);
+  base::Vector<const IndirectHandle<Map>> retained_maps() const {
+    return base::VectorOf(retained_maps_);
+  }
 
   Graph* graph() const { return graph_; }
 
@@ -41,10 +44,10 @@ class MaglevCodeGenerator final {
   void EmitDeferredCode();
   V8_NODISCARD bool EmitDeopts();
   void EmitExceptionHandlerTrampolines();
+  void EmitRetainedObjects();
   void EmitMetadata();
   void RecordInlinedFunctions();
 
-  GlobalHandleVector<Map> CollectRetainedMaps(DirectHandle<Code> code);
   Handle<DeoptimizationData> GenerateDeoptimizationData(
       LocalIsolate* local_isolate);
   MaybeHandle<Code> BuildCodeObject(LocalIsolate* local_isolate);
@@ -77,7 +80,7 @@ class MaglevCodeGenerator final {
 
   IndirectHandle<DeoptimizationData> deopt_data_;
   MaybeIndirectHandle<Code> code_;
-  GlobalHandleVector<Map> retained_maps_;
+  base::SmallVector<IndirectHandle<Map>, 8> retained_maps_;
   bool is_context_specialized_;
   Zone* zone_;
 };

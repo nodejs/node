@@ -20,11 +20,9 @@ bitfield struct JSDateTimeFormatFlags extends uint31 {
 @cppObjectLayoutDefinition
 extern class JSDateTimeFormat extends JSObject {
   locale: String;
-  icu_locale: CppGCManagedBase;  // CppGCManaged<icu::Locale>
-  icu_simple_date_format:
-      CppGCManagedBase;  // CppGCManaged<icu::SimpleDateFormat>
-  icu_date_interval_format:
-      CppGCManagedBase;  // CppGCManaged<icu::DateIntervalFormat>
+  icu_locale: Foreign;                // Managed<icu::Locale>
+  icu_simple_date_format: Foreign;    // Managed<icu::SimpleDateFormat>
+  icu_date_interval_format: Foreign;  // Managed<icu::DateIntervalFormat>
   bound_format: JSFunction|Undefined;
   flags: SmiTagged<JSDateTimeFormatFlags>;
 }

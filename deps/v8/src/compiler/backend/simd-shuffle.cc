@@ -485,15 +485,6 @@ uint8_t SimdShuffle::PackBlend4(const uint8_t* shuffle32x4) {
   return result;
 }
 
-int32_t SimdShuffle::Pack2Lanes(const std::array<uint8_t, 2>& shuffle) {
-  int32_t result = 0;
-  for (int i = 1; i >= 0; --i) {
-    result <<= 8;
-    result |= shuffle[i];
-  }
-  return result;
-}
-
 int32_t SimdShuffle::Pack4Lanes(const uint8_t* shuffle) {
   int32_t result = 0;
   for (int i = 3; i >= 0; --i) {

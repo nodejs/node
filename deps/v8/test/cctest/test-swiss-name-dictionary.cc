@@ -16,7 +16,7 @@ namespace test_swiss_hash_table {
 // Executes tests by executing C++ versions of dictionary operations.
 class RuntimeTestRunner {
  public:
-  RuntimeTestRunner(Isolate* isolate, int initial_capacity, KeyCache& keys)
+  RuntimeTestRunner(Isolate* isolate, uint32_t initial_capacity, KeyCache& keys)
       : isolate_{isolate}, keys_{keys} {
     table = isolate->factory()->NewSwissNameDictionaryWithCapacity(
         initial_capacity, AllocationType::kYoung);
@@ -43,8 +43,9 @@ class RuntimeTestRunner {
 
   // Tests that the current table has the given capacity, and number of
   // (deleted) elements, based on which optional values are present.
-  void CheckCounts(std::optional<int> capacity, std::optional<int> elements,
-                   std::optional<int> deleted);
+  void CheckCounts(std::optional<uint32_t> capacity,
+                   std::optional<uint32_t> elements,
+                   std::optional<uint32_t> deleted);
   // Checks that |expected_keys| contains exactly the keys in the current table,
   // in the given order.
   void CheckEnumerationOrder(const std::vector<std::string>& expected_keys);
@@ -97,9 +98,9 @@ void RuntimeTestRunner::Delete(InternalIndex entry) {
   table = table->DeleteEntry(isolate_, table, entry);
 }
 
-void RuntimeTestRunner::CheckCounts(std::optional<int> capacity,
-                                    std::optional<int> elements,
-                                    std::optional<int> deleted) {
+void RuntimeTestRunner::CheckCounts(std::optional<uint32_t> capacity,
+                                    std::optional<uint32_t> elements,
+                                    std::optional<uint32_t> deleted) {
   if (capacity.has_value()) {
     CHECK_EQ(capacity.value(), table->Capacity());
   }
@@ -114,7 +115,7 @@ void RuntimeTestRunner::CheckCounts(std::optional<int> capacity,
 void RuntimeTestRunner::CheckEnumerationOrder(
     const std::vector<std::string>& expected_keys) {
   ReadOnlyRoots roots(isolate_);
-  int i = 0;
+  size_t i = 0;
   for (InternalIndex index : table->IterateEntriesOrdered()) {
     Tagged<Object> key;
     if (table->ToKey(roots, index, &key)) {
@@ -155,66 +156,66 @@ void RuntimeTestRunner::PrintTable() {
 }
 
 TEST(CapacityFor) {
-  for (int elements = 0; elements <= 32; elements++) {
-    int capacity = SwissNameDictionary::CapacityFor(elements);
+  for (uint32_t elements = 0; elements <= 32; elements++) {
+    uint32_t capacity = SwissNameDictionary::CapacityFor(elements);
     if (elements == 0) {
-      CHECK_EQ(0, capacity);
+      CHECK_EQ(0u, capacity);
     } else if (elements <= 3) {
-      CHECK_EQ(4, capacity);
+      CHECK_EQ(4u, capacity);
     } else if (elements == 4) {
       CHECK_IMPLIES(SwissNameDictionary::kGroupWidth == 8, capacity == 8);
       CHECK_IMPLIES(SwissNameDictionary::kGroupWidth == 16, capacity == 4);
     } else if (elements <= 7) {
-      CHECK_EQ(8, capacity);
+      CHECK_EQ(8u, capacity);
     } else if (elements <= 14) {
-      CHECK_EQ(16, capacity);
+      CHECK_EQ(16u, capacity);
     } else if (elements <= 28) {
-      CHECK_EQ(32, capacity);
+      CHECK_EQ(32u, capacity);
     } else if (elements <= 32) {
-      CHECK_EQ(64, capacity);
+      CHECK_EQ(64u, capacity);
     }
   }
 }
 
 TEST(MaxUsableCapacity) {
-  CHECK_EQ(0, SwissNameDictionary::MaxUsableCapacity(0));
+  CHECK_EQ(0u, SwissNameDictionary::MaxUsableCapacity(0));
   CHECK_IMPLIES(SwissNameDictionary::kGroupWidth == 8,
                 SwissNameDictionary::MaxUsableCapacity(4) == 3);
   CHECK_IMPLIES(SwissNameDictionary::kGroupWidth == 16,
                 SwissNameDictionary::MaxUsableCapacity(4) == 4);
-  CHECK_EQ(7, SwissNameDictionary::MaxUsableCapacity(8));
-  CHECK_EQ(14, SwissNameDictionary::MaxUsableCapacity(16));
-  CHECK_EQ(28, SwissNameDictionary::MaxUsableCapacity(32));
+  CHECK_EQ(7u, SwissNameDictionary::MaxUsableCapacity(8));
+  CHECK_EQ(14u, SwissNameDictionary::MaxUsableCapacity(16));
+  CHECK_EQ(28u, SwissNameDictionary::MaxUsableCapacity(32));
 }
 
 TEST(SizeFor) {
-  int baseline = sizeof(HeapObject) +
-                 // prefix:
-                 4 +
-                 // capacity:
-                 4 +
-                 // meta table:
-                 kTaggedSize;
+  uint32_t baseline = sizeof(HeapObject) +
+                      // prefix:
+                      4 +
+                      // capacity:
+                      4 +
+                      // meta table:
+                      kTaggedSize;
 
-  int size_0 = baseline +
-               // ctrl table:
-               SwissNameDictionary::kGroupWidth;
+  uint32_t size_0 = baseline +
+                    // ctrl table:
+                    SwissNameDictionary::kGroupWidth;
 
-  int size_4 = baseline +
-               // data table:
-               4 * 2 * kTaggedSize +
-               // ctrl table:
-               4 + SwissNameDictionary::kGroupWidth +
-               // property details table:
-               4;
+  uint32_t size_4 = baseline +
+                    // data table:
+                    4 * 2 * kTaggedSize +
+                    // ctrl table:
+                    4 + SwissNameDictionary::kGroupWidth +
+                    // property details table:
+                    4;
 
-  int size_8 = baseline +
-               // data table:
-               8 * 2 * kTaggedSize +
-               // ctrl table:
-               8 + SwissNameDictionary::kGroupWidth +
-               // property details table:
-               8;
+  uint32_t size_8 = baseline +
+                    // data table:
+                    8 * 2 * kTaggedSize +
+                    // ctrl table:
+                    8 + SwissNameDictionary::kGroupWidth +
+                    // property details table:
+                    8;
 
   CHECK_EQ(SwissNameDictionary::SizeFor(0), size_0);
   CHECK_EQ(SwissNameDictionary::SizeFor(4), size_4);

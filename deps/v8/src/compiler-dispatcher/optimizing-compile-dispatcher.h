@@ -10,7 +10,7 @@
 
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/vector.h"
+#include "src/base/unique-array.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles.h"
@@ -147,7 +147,7 @@ class V8_EXPORT OptimizingCompileTaskExecutor {
 
   std::unique_ptr<JobHandle> job_handle_;
 
-  base::OwnedVector<OptimizingCompileTaskState> task_states_;
+  base::UniqueArray<OptimizingCompileTaskState> task_states_;
 
   // Used to avoid creating the JobHandle twice.
   bool is_initialized_ = false;

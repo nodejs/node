@@ -298,10 +298,20 @@ ABSL_NAMESPACE_END
 // `default_value` and `explanation` are unused.
 // TODO(rogeeff): replace RETIRED_FLAGS with FLAGS once forward declarations of
 // retired flags are cleaned up.
+#if ABSL_FLAGS_STRIP_NAMES
+// When flag names are stripped, retired flags are not registered. Define an
+// unused type alias instead of an object so that no runtime constructor or
+// storage is emitted, the trailing semicolon is consumed, and `type` (along
+// with this header) remains referenced to avoid unused-type/include warnings.
+#define ABSL_RETIRED_FLAG(type, name, default_value, explanation) \
+  using RETIRED_FLAGS_##name [[maybe_unused]] =                   \
+      ::absl::flags_internal::RetiredFlag<type>
+#else
 #define ABSL_RETIRED_FLAG(type, name, default_value, explanation)      \
   static absl::flags_internal::RetiredFlag<type> RETIRED_FLAGS_##name; \
-  ABSL_ATTRIBUTE_UNUSED static const auto RETIRED_FLAGS_REG_##name =   \
+  [[maybe_unused]] static const auto RETIRED_FLAGS_REG_##name =        \
       (RETIRED_FLAGS_##name.Retire(#name),                             \
        ::absl::flags_internal::FlagRegistrarEmpty{})
+#endif
 
 #endif  // ABSL_FLAGS_FLAG_H_

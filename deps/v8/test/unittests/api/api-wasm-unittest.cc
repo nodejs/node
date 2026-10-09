@@ -88,7 +88,7 @@ void WasmStreamingCallbackTestCallbackIsCalled(
   i::Handle<i::Object> global_handle =
       reinterpret_cast<i::Isolate*>(info.GetIsolate())
           ->global_handles()
-          ->Create(*Utils::OpenDirectHandle(*info.Data()));
+          ->Create(*Utils::OpenDirectHandle(*info.DataV2()));
   i::GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
                              WasmStreamingTestFinalizer,
                              WeakCallbackType::kParameter);
@@ -98,7 +98,7 @@ void WasmStreamingCallbackTestFinishWithSuccess(
     const FunctionCallbackInfo<Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
   streaming->OnBytesReceived(kMinimalWasmModuleBytes,
                              arraysize(kMinimalWasmModuleBytes));
   streaming->Finish(WasmStreaming::ModuleCachingCallback{});
@@ -108,7 +108,7 @@ void WasmStreamingCallbackTestFinishWithFailure(
     const FunctionCallbackInfo<Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
   streaming->Finish(WasmStreaming::ModuleCachingCallback{});
 }
 
@@ -116,7 +116,7 @@ void WasmStreamingCallbackTestAbortWithReject(
     const FunctionCallbackInfo<Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
   streaming->Abort(Object::New(info.GetIsolate()));
 }
 
@@ -124,7 +124,7 @@ void WasmStreamingCallbackTestAbortNoReject(
     const FunctionCallbackInfo<Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
   streaming->Abort({});
 }
 
@@ -132,7 +132,7 @@ void WasmStreamingCallbackTestOnBytesReceived(
     const FunctionCallbackInfo<Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
 
   // The first bytes of the WebAssembly magic word.
   const uint8_t bytes[]{0x00, 0x61, 0x73};
@@ -143,7 +143,7 @@ void WasmStreamingMoreFunctionsCanBeSerializedCallback(
     const FunctionCallbackInfo<Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
   streaming->SetMoreFunctionsCanBeSerializedCallback([](CompiledWasmModule) {});
 }
 
@@ -293,20 +293,81 @@ TEST_F(ApiWasmTest, WasmCompileWithSourceUrl) {
   Local<Context> context = Context::New(isolate());
   Context::Scope context_scope(context);
 
-  constexpr std::string_view kUrl = "file:///test/module.wasm";
-  Local<WasmModuleObject> with_url =
+  constexpr std::string_view kUrl1 = "file:///test/module1.wasm";
+  Local<WasmModuleObject> with_url1 =
       WasmModuleObject::Compile(isolate(), kMinimalWasmModuleBytes,
-                                {.source_url = kUrl})
+                                {.source_url = kUrl1})
           .ToLocalChecked();
-  CHECK_EQ(kUrl, with_url->GetCompiledModule().source_url());
+  CHECK_EQ(kUrl1, with_url1->GetCompiledModule().source_url());
 
-  // A distinct module, since scripts (and their URLs) are cached per module
-  // per isolate. Without a source URL a wasm:// URL is synthesized.
-  const uint8_t distinct_module[] = {0x00, 0x61, 0x73, 0x6d, 0x01, 0x00,
-                                     0x00, 0x00, 0x00, 0x02, 0x01, 'x'};
+  // Compiling the same module bytes with a different source URL creates a
+  // separate script with its own URL rather than reusing the previous URL.
+  constexpr std::string_view kUrl2 = "file:///test/module2.wasm";
+  Local<WasmModuleObject> with_url2 =
+      WasmModuleObject::Compile(isolate(), kMinimalWasmModuleBytes,
+                                {.source_url = kUrl2})
+          .ToLocalChecked();
+  CHECK_EQ(kUrl2, with_url2->GetCompiledModule().source_url());
+
+  // Without a source URL, a wasm:// URL is synthesized even when a script with
+  // an explicit URL already exists for the same module bytes.
   Local<WasmModuleObject> plain =
-      WasmModuleObject::Compile(isolate(), distinct_module).ToLocalChecked();
+      WasmModuleObject::Compile(isolate(), kMinimalWasmModuleBytes)
+          .ToLocalChecked();
   CHECK_EQ(0u, plain->GetCompiledModule().source_url().find("wasm://wasm/"));
+}
+
+// Regression test for https://crbug.com/564190098.
+TEST_F(ApiWasmTest, WasmCompileSourceUrlNotLeakedAcrossTrapStacks) {
+  Isolate::Scope iscope(isolate());
+  HandleScope scope(isolate());
+
+  // Minimal Wasm module exporting `boom()` which traps with `unreachable`.
+  const uint8_t kTrappingModuleBytes[] = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+      0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07, 0x08, 0x01, 0x04, 0x62, 0x6f,
+      0x6f, 0x6d, 0x00, 0x00, 0x0a, 0x05, 0x01, 0x03, 0x00, 0x00, 0x0b};
+
+  constexpr std::string_view kVictimUrl =
+      "https://victim.example/module.wasm?secret=VICTIM_SECRET";
+  constexpr std::string_view kAttackerUrl =
+      "https://attacker.example/module.wasm";
+
+  Local<Context> victim_context = Context::New(isolate());
+  Local<WasmModuleObject> victim_module;
+  {
+    Context::Scope victim_scope(victim_context);
+    victim_module = WasmModuleObject::Compile(isolate(), kTrappingModuleBytes,
+                                              {.source_url = kVictimUrl})
+                        .ToLocalChecked();
+    CHECK_EQ(kVictimUrl, victim_module->GetCompiledModule().source_url());
+  }
+
+  Local<Context> attacker_context = Context::New(isolate());
+  {
+    Context::Scope attacker_scope(attacker_context);
+    Local<WasmModuleObject> attacker_module =
+        WasmModuleObject::Compile(isolate(), kTrappingModuleBytes,
+                                  {.source_url = kAttackerUrl})
+            .ToLocalChecked();
+    CHECK_EQ(kAttackerUrl, attacker_module->GetCompiledModule().source_url());
+
+    CHECK(attacker_context->Global()
+              ->Set(attacker_context,
+                    String::NewFromUtf8Literal(isolate(), "mod"),
+                    attacker_module)
+              .FromJust());
+    Local<Value> stack_val = RunJS(
+        "try {\n"
+        "  new WebAssembly.Instance(mod).exports.boom();\n"
+        "} catch (e) {\n"
+        "  e.stack;\n"
+        "}");
+    String::Utf8Value stack_utf8(isolate(), stack_val);
+    std::string_view stack(*stack_utf8, stack_utf8.length());
+    CHECK_NE(std::string_view::npos, stack.find(kAttackerUrl));
+    CHECK_EQ(std::string_view::npos, stack.find("VICTIM_SECRET"));
+  }
 }
 
 TEST_F(ApiWasmTest, WasmStreamingSetCallback) {
@@ -495,14 +556,11 @@ TEST_F(ApiWasmTest, WasmModuleCompilation_SourceUrl) {
     CHECK_EQ(kSetUrl, module->GetCompiledModule().source_url());
   }
 
-  // Without a URL, a wasm:// URL is synthesized. A distinct module, since
-  // scripts (and their URLs) are cached per module per isolate.
+  // Without a URL, a wasm:// URL is synthesized even for the same module bytes.
   {
-    const uint8_t distinct_module[] = {0x00, 0x61, 0x73, 0x6d, 0x01, 0x00,
-                                       0x00, 0x00, 0x00, 0x02, 0x01, 'y'};
     WasmModuleCompilation compilation;
     Local<WasmModuleObject> module =
-        FinishModuleCompilation(compilation, distinct_module);
+        FinishModuleCompilation(compilation, kMinimalWasmModuleBytes);
     CHECK_EQ(0u, module->GetCompiledModule().source_url().find("wasm://wasm/"));
   }
   CHECK(!try_catch.HasCaught());

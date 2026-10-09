@@ -152,8 +152,7 @@ class StackHandler {
   IF_WASM(V, WASM_STACK_ENTRY, WasmStackEntryFrame)                       \
   IF_WASM(V, WASM_STACK_EXIT, WasmStackExitFrame)                         \
   IF_WASM(V, WASM_EXIT, WasmExitFrame)                                    \
-  IF_WASM(V, WASM_LIFTOFF_SETUP, WasmLiftoffSetupFrame)                   \
-  IF_WASM(V, WASM_SEGMENT_START, WasmSegmentStartFrame)
+  IF_WASM(V, WASM_LIFTOFF_SETUP, WasmLiftoffSetupFrame)
 
 // Abstract base class for all stack frames.
 class StackFrame {
@@ -255,7 +254,7 @@ class StackFrame {
   bool is_turbofan_js() const { return type() == TURBOFAN_JS; }
 #if V8_ENABLE_WEBASSEMBLY
   bool is_wasm() const {
-    return this->type() == WASM || this->type() == WASM_SEGMENT_START
+    return this->type() == WASM
 #ifdef V8_ENABLE_DRUMBRAKE
            || this->type() == WASM_INTERPRETER_ENTRY
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -722,6 +721,9 @@ class TypedFrame : public CommonFrame {
 
  protected:
   inline explicit TypedFrame(StackFrameIteratorBase* iterator);
+#if V8_ENABLE_WEBASSEMBLY
+  void UnwindWasmReturnFromSegment(State* state) const;
+#endif
 };
 
 class CommonFrameWithJSLinkage : public CommonFrame {
@@ -1425,28 +1427,13 @@ class WasmFrame : public TypedFrame {
  protected:
   inline explicit WasmFrame(StackFrameIteratorBase* iterator);
 
+  void ComputeCallerState(State* state) const override;
+
  private:
   friend class StackFrameIteratorBase;
   Tagged<WasmModuleObject> module_object() const;
   std::tuple<SourcePosition, int> GetInnermostSourcePositionAndFunctionIndex()
       const;
-};
-
-// WasmSegmentStartFrame is a regular Wasm frame moved to the
-// beginning of a new stack segment allocated for growable stack.
-// It requires special handling on return. To indicate that, the WASM frame type
-// is replaced by WASM_SEGMENT_START.
-class WasmSegmentStartFrame : public WasmFrame {
- public:
-  // type() intentionally returns WASM frame type because WasmSegmentStartFrame
-  // behaves exactly like regular WasmFrame in all scenarios.
-  Type type() const override { return WASM; }
-
- protected:
-  inline explicit WasmSegmentStartFrame(StackFrameIteratorBase* iterator);
-
- private:
-  friend class StackFrameIteratorBase;
 };
 
 // Wasm to C-API exit frame.
@@ -1824,7 +1811,7 @@ class StackFrameIteratorBase {
 #if V8_ENABLE_WEBASSEMBLY
   // Stop at the end of the topmost (wasm) stack.
   bool first_stack_only_ = false;
-  // // Current wasm stack being iterated.
+  // Current wasm stack being iterated.
   wasm::StackMemory* wasm_stack_ = nullptr;
 #endif
 
@@ -1999,9 +1986,6 @@ class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
   StackFrame::Type top_frame_type_;
   ExternalCallbackScope* external_callback_scope_;
   Address top_link_register_;
-#if V8_ENABLE_WEBASSEMBLY
-  std::vector<std::unique_ptr<wasm::StackMemory>>& wasm_stacks_;
-#endif
 };
 
 // We cannot export 'StackFrameIteratorForProfiler' for cctests since the

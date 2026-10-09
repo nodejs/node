@@ -608,32 +608,6 @@ class MemoryContentTable
     }
   }
 
-  void InvalidateAtOffset(int32_t offset, OpIndex base) {
-    MapMaskAndOr base_maps = object_maps_.Get(base);
-    auto offset_keys = offset_keys_.find(offset);
-    if (offset_keys == offset_keys_.end()) return;
-    for (auto it = offset_keys->second.begin();
-         it != offset_keys->second.end();) {
-      Key key = *it;
-      DCHECK_EQ(offset, key.data().mem.offset);
-      // It can overwrite previous stores to any base (except non-aliasing
-      // ones).
-      if (non_aliasing_objects_.Get(key.data().mem.base)) {
-        ++it;
-        continue;
-      }
-      if (!BasesCouldAlias(base, base_maps, key)) {
-        TRACE(">>>> InvalidateAtOffset: not invalidating thanks for maps: "
-              << key.data().mem);
-        ++it;
-        continue;
-      }
-      it = offset_keys->second.RemoveAt(it);
-      TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
-      Set(key, OpIndex::Invalid());
-    }
-  }
-
  private:
   // To avoid pathological execution times, we cap the maximum number of
   // keys we track. This is safe, because *not* tracking objects (even
@@ -702,6 +676,32 @@ class MemoryContentTable
     all_keys_.insert({mem, key});
     // Call `SetNoNotify` to avoid calls to `OnNewKey` and `OnValueChanged`.
     SetNoNotify(key, value);
+  }
+
+  void InvalidateAtOffset(int32_t offset, OpIndex base) {
+    MapMaskAndOr base_maps = object_maps_.Get(base);
+    auto offset_keys = offset_keys_.find(offset);
+    if (offset_keys == offset_keys_.end()) return;
+    for (auto it = offset_keys->second.begin();
+         it != offset_keys->second.end();) {
+      Key key = *it;
+      DCHECK_EQ(offset, key.data().mem.offset);
+      // It can overwrite previous stores to any base (except non-aliasing
+      // ones).
+      if (non_aliasing_objects_.Get(key.data().mem.base)) {
+        ++it;
+        continue;
+      }
+      if (!BasesCouldAlias(base, base_maps, key)) {
+        TRACE(">>>> InvalidateAtOffset: not invalidating thanks for maps: "
+              << key.data().mem);
+        ++it;
+        continue;
+      }
+      it = offset_keys->second.RemoveAt(it);
+      TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
+      Set(key, OpIndex::Invalid());
+    }
   }
 
   bool BasesCouldAlias(OpIndex base, MapMaskAndOr base_maps, Key other) {
@@ -840,9 +840,6 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   void ProcessCall(OpIndex op_idx, const CallOp& op);
   void ProcessAssumeMap(OpIndex op_idx, const AssumeMapOp& op);
   void ProcessChange(OpIndex op_idx, const ChangeOp& change);
-#ifdef V8_ENABLE_WEBASSEMBLY
-  void ProcessWasmStackCheck(OpIndex op_idx, const WasmStackCheckOp& op);
-#endif
 
   void DcheckWordBinop(OpIndex op_idx, const WordBinopOp& binop);
 
@@ -961,14 +958,12 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                          Asm().output_graph().IsCreatedFromTurbofan(),
                          Asm().output_graph().IsTurbolev()));
         }
-#if DEBUG_BOOL && V8_STATIC_ROOTS_BOOL
-        // Note that this verification is only enabled on builds with static
-        // roots enabled, because this simplifies the comparison of string maps:
-        // with static roots we can know easily if a tagged value is a string
-        // map, while without static roots, we'd have to load the instance type,
-        // which requires to first check if it's actually a map or not.
-
-        if (v8_flags.turboshaft_verify_load_elimination) {
+#if DEBUG
+        // We cannot verify loads with a shared base: Although it is valid to
+        // eliminate them if there is no intervening atomic operation, another
+        // thread could still modify the loaded value between two loads.
+        if (v8_flags.turboshaft_verify_load_elimination &&
+            !load.kind.shared_base) {
           // When the debug flag {turboshaft_verify_load_elimination} is used,
           // we perform the original load and assert that it's indeed equal to
           // the replacement that we are using.
@@ -1015,7 +1010,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                       __ Equal(actual_idx, actual_idx, actual_rep),
                       __ Equal(replacement_idx, replacement_idx,
                                replacement_rep))) {
-                // At least one of {actual_idx} and {reaplcement_idx} is not
+                // At least one of {actual_idx} and {replacement_idx} is not
                 // NaN.
                 EmitReportLoadEliminationError();
               }
@@ -1024,7 +1019,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
             }
           }
         }
-#endif  // DEBUG_BOOL && V8_STATIC_ROOTS_BOOL
+#endif  // DEBUG
         return replacement_idx;
       } else if (replacement.IsTaggedLoadToInt32Load()) {
         auto loaded_rep = load.loaded_rep;

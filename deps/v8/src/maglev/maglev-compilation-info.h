@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 
+#include "src/compiler/heap-refs.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
@@ -175,7 +176,8 @@ class MaglevCompilationInfo final {
   bool trace_json_enabled() const { return trace_json_enabled_; }
 
   bool has_graph_labeller() const { return !!graph_labeller_; }
-  void set_graph_labeller(MaglevGraphLabeller* graph_labeller);
+  V8_EXPORT_PRIVATE void set_graph_labeller(
+      MaglevGraphLabeller* graph_labeller);
   MaglevGraphLabeller* graph_labeller() const {
     DCHECK(has_graph_labeller());
     return graph_labeller_.get();

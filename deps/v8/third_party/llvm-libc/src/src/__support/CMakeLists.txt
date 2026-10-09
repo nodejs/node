@@ -17,6 +17,7 @@ add_header_library(
   DEPENDS
     libc.hdr.stdint_proxy
     libc.src.__support.CPP.algorithm
+    libc.src.__support.CPP.bit
     libc.src.__support.CPP.limits
     libc.src.__support.CPP.new
     libc.src.__support.CPP.optional
@@ -236,13 +237,16 @@ add_header_library(
     integer_to_string.h
   DEPENDS
     .big_int
+    .common
+    .ctype_utils
+    .wctype_utils
     libc.hdr.stdint_proxy
-    libc.src.__support.common
     libc.src.__support.CPP.algorithm
     libc.src.__support.CPP.limits
     libc.src.__support.CPP.span
     libc.src.__support.CPP.string_view
     libc.src.__support.CPP.type_traits
+    libc.src.__support.macros.config
 )
 
 add_header_library(
@@ -392,6 +396,17 @@ add_header_library(
     frac128.h
   DEPENDS
     .big_int
+    .frac64
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  frac256
+  HDRS
+    frac256.h
+  DEPENDS
+    .big_int
+    .frac128
     libc.src.__support.macros.config
 )
 
@@ -493,6 +508,7 @@ add_subdirectory(net)
 add_subdirectory(threads)
 
 add_subdirectory(File)
+add_subdirectory(pwd)
 
 add_subdirectory(printf_core)
 

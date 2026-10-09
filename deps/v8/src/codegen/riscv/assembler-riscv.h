@@ -607,10 +607,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
     void set(int32_t avl, VSew sew, Vlmul lmul, TailAgnosticType tail = ta) {
       DCHECK(is_uint5(avl));
-      if (avl != avl_ || sew != sew_ || lmul != lmul_) {
+      if (avl != avl_ || sew != sew_ || lmul != lmul_ || tail != tail_) {
         avl_ = avl;
         sew_ = sew;
         lmul_ = lmul;
+        tail_ = tail;
         assm_->vsetivli(zero_reg, static_cast<uint8_t>(avl), sew_, lmul_, tail);
       }
     }
@@ -621,6 +622,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       avl_ = -1;
       sew_ = sew;
       lmul_ = lmul;
+      tail_ = tail;
     }
 
     bool IsConfiguredForSimd128() const {
@@ -731,12 +733,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       avl_ = -1;
       sew_ = kVsInvalid;
       lmul_ = kVlInvalid;
+      tail_ = ta;
     }
 
    private:
     int32_t avl_ = -1;
     VSew sew_ = kVsInvalid;
     Vlmul lmul_ = kVlInvalid;
+    TailAgnosticType tail_ = ta;
     Assembler* assm_;
     FPURoundingMode mode_ = RNE;
   };

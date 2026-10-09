@@ -9,6 +9,8 @@
 #include "src/base/logging.h"
 #include "src/base/memory.h"
 #include "src/base/numerics/safe_conversions.h"
+#include "src/base/unique-array.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/reloc-info.h"
@@ -593,6 +595,10 @@ Address Deoptimizer::EnsureValidReturnAddress(Isolate* isolate,
   }
 
 #if V8_ENABLE_WEBASSEMBLY
+  if (v8_flags.wasm_growable_stacks &&
+      Builtins::EntryOf(Builtin::kWasmReturnFromSegment, isolate) == address) {
+    return address;
+  }
   if (v8_flags.wasm_deopt &&
       wasm::GetWasmCodeManager()->LookupCode(isolate, address) != nullptr) {
     // TODO(42204618): This does not check for the PC being a valid "deopt
@@ -731,6 +737,13 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   DCHECK_WITH_SANDBOX_ACCESS(IsJSFunction(function));
   CHECK(CodeKindCanDeoptimize(compiled_code_->kind()));
   {
+    // Logging the deopt event prints the name and source position of the
+    // deoptimizing function, which are read from the in-sandbox
+    // SharedFunctionInfo and Script. This only affects the log output and
+    // cannot influence the deoptimization itself.
+    AllowSandboxAccess sandbox_access(
+        "Logging the deopt event reads the script name and source position of "
+        "the deoptimizing function.");
     HandleScope scope(isolate_);
     PROFILE(isolate_, CodeDeoptEvent(direct_handle(compiled_code_, isolate_),
                                      kind, from_, fp_to_sp_delta_));
@@ -936,15 +949,9 @@ void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate,
            DeoptimizeReasonToString(reason));
   }
   if (!v8_flags.log_deopt) return;
-  no_gc.Release();
-  {
-    HandleScope handle_scope(isolate);
-    PROFILE(isolate,
-            CodeDependencyChangeEvent(
-                direct_handle(code, isolate),
-                direct_handle(deopt_data->GetSharedFunctionInfo(), isolate),
-                DeoptimizeReasonToString(reason)));
-  }
+  PROFILE(isolate,
+          CodeDependencyChangeEvent(code, deopt_data->GetSharedFunctionInfo(),
+                                    DeoptimizeReasonToString(reason)));
 }
 
 // static
@@ -1339,25 +1346,10 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   }
 
   // Store frame kind.
-  // For growable stacks, the frame at the entry point of a new stack segment
-  // is marked as WASM_SEGMENT_START. Preserving this marker on the bottommost
-  // frame during deoptimization ensures that the return sequence will shrink
-  // the stack segment when returning to the caller.
   uint32_t frame_type_offset =
       base_offset + WasmLiftoffFrameConstants::kFrameTypeOffset;
-  StackFrame::Type frame_type = StackFrame::WASM;
-  if (is_bottommost) {
-    intptr_t input_frame_marker =
-        base::Memory<intptr_t>(input_->GetFramePointerAddress() +
-                               TypedFrameConstants::kFrameTypeOffset);
-    if (StackFrame::MarkerToType(input_frame_marker) ==
-        StackFrame::WASM_SEGMENT_START) {
-      DCHECK(v8_flags.wasm_growable_stacks);
-      frame_type = StackFrame::WASM_SEGMENT_START;
-    }
-  }
   output_frame->SetFrameSlot(frame_type_offset,
-                             StackFrame::TypeToMarker(frame_type));
+                             StackFrame::TypeToMarker(StackFrame::WASM));
   // Fill feedback vector stack slot.
   // Instead of storing the actual feedback vector, we simply store the declared
   // function index of the wasm function. This is done because the feedback
@@ -2073,16 +2065,18 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
 
   {
     AllowSandboxAccess sandbox_access(
-        "Fetching DebugBytecodeArray via SFI. This is probably unsafe but we "
-        "only do it when debugging is enabled. Just in case the defence in "
-        "depth checks below should protect against swaps.");
+        "Fetching DebugBytecodeArray via SFI. This is safe because we verify "
+        "below that the DebugInfo's OriginalBytecodeArray matches the frame's "
+        "trusted BytecodeArray.");
     std::optional<Tagged<DebugInfo>> debug_info =
         translated_frame->raw_shared_info()->TryGetDebugInfo(isolate());
     if (debug_info.has_value() && debug_info.value()->HasBreakInfo()) {
+      // Ensure the DebugInfo belongs to this frame's trusted BytecodeArray in
+      // case the untrusted SFI reference in the DeoptimizationLiteralArray was
+      // swapped.
+      SBXCHECK_EQ(debug_info.value()->OriginalBytecodeArray(isolate()),
+                  bytecode_array);
       bytecode_array = debug_info.value()->DebugBytecodeArray(isolate());
-      // Defence-in-depth in case bytecode is swapped.
-      SBXCHECK_EQ(bytecode_array->parameter_count(), parameters_count);
-      SBXCHECK_EQ(bytecode_array->register_count(), locals_count);
     }
   }
 
@@ -3085,7 +3079,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
       config->num_allocatable_general_registers();
   for (int i = 0; i < allocatable_register_count; ++i) {
     int code = config->GetAllocatableGeneralCode(i);
-    auto str = base::OwnedVector<char>::NewForOverwrite(128);
+    auto str = base::UniqueArray<char>::NewForOverwrite(128);
     if (verbose_tracing_enabled()) {
       if (BuiltinContinuationModeIsJavaScript(mode) &&
           code == kJavaScriptCallArgCountRegister.code()) {

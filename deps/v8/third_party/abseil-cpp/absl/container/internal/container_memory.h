@@ -195,17 +195,18 @@ decltype(std::declval<F>()(std::declval<T>())) WithConstructed(Tuple&& t,
 inline std::pair<std::tuple<>, std::tuple<>> PairArgs() { return {}; }
 template <class F, class S>
 std::pair<std::tuple<F&&>, std::tuple<S&&>> PairArgs(F&& f, S&& s) {
-  return {std::piecewise_construct, std::forward_as_tuple(std::forward<F>(f)),
+  return {std::forward_as_tuple(std::forward<F>(f)),
           std::forward_as_tuple(std::forward<S>(s))};
 }
 template <class F, class S>
 std::pair<std::tuple<const F&>, std::tuple<const S&>> PairArgs(
     const std::pair<F, S>& p) {
-  return PairArgs(p.first, p.second);
+  return container_internal::PairArgs(p.first, p.second);
 }
 template <class F, class S>
 std::pair<std::tuple<F&&>, std::tuple<S&&>> PairArgs(std::pair<F, S>&& p) {
-  return PairArgs(std::forward<F>(p.first), std::forward<S>(p.second));
+  return container_internal::PairArgs(std::forward<F>(p.first),
+                                      std::forward<S>(p.second));
 }
 template <class F, class S>
 auto PairArgs(std::piecewise_construct_t, F&& f, S&& s)
@@ -215,13 +216,61 @@ auto PairArgs(std::piecewise_construct_t, F&& f, S&& s)
                         memory_internal::TupleRef(std::forward<S>(s)));
 }
 
+// Ensures the argument is a std::pair, and returns std::pair::first as const&.
+// Necessary for proper handling of public subclasses of std::pair.
+template <class T1, class T2>
+const T1& PairConstFirst(const std::pair<T1, T2>* p) {
+  return p->first;
+}
+
+template <class Ref, class Else>
+using IfReference = std::conditional_t<std::is_reference_v<Ref>, Ref, Else>;
+
 // A helper function for implementing apply() in map policies.
-template <class F, class... Args>
-auto DecomposePair(F&& f, Args&&... args)
-    -> decltype(memory_internal::DecomposePairImpl(
-        std::forward<F>(f), PairArgs(std::forward<Args>(args)...))) {
-  return memory_internal::DecomposePairImpl(
-      std::forward<F>(f), PairArgs(std::forward<Args>(args)...));
+template <class F, class Pair>
+auto DecomposePair(F&& f, Pair&& p) -> decltype(std::forward<F>(f)(
+    container_internal::PairConstFirst(std::addressof(p)),
+    static_cast<IfReference<typename std::remove_reference_t<Pair>::first_type,
+                            decltype((std::forward<Pair>(p).first))>>(p.first),
+    static_cast<IfReference<typename std::remove_reference_t<Pair>::second_type,
+                            decltype((std::forward<Pair>(p).second))>>(
+        p.second))) {
+  // The code here is tricky because a naive std::forward<Pair>(p).second would
+  // incorrectly turn into an lvalue when second_type is an rvalue reference.
+  return std::forward<F>(f)(
+      container_internal::PairConstFirst(std::addressof(p)),
+      static_cast<
+          IfReference<typename std::remove_reference_t<Pair>::first_type,
+                      decltype((std::forward<Pair>(p).first))>>(p.first),
+      static_cast<
+          IfReference<typename std::remove_reference_t<Pair>::second_type,
+                      decltype((std::forward<Pair>(p).second))>>(p.second));
+}
+
+template <class F, class K, class V>
+auto DecomposePair(F&& f, K&& k, V&& v)
+    -> decltype(std::forward<F>(f)(std::declval<const K&>(), std::forward<K>(k),
+                                   std::forward<V>(v))) {
+  const auto& key = k;
+  return std::forward<F>(f)(key, std::forward<K>(k), std::forward<V>(v));
+}
+
+template <class F, class TK, class TV>
+auto DecomposePair(
+    F&& f,
+    std::enable_if_t<(std::tuple_size_v<remove_cvref_t<TK>> == 1 &&
+                      std::tuple_size_v<remove_cvref_t<TV>> >= 0),
+                     std::piecewise_construct_t>,
+    TK&& tk, TV&& tv)
+    -> decltype(std::forward<F>(f)(
+        std::declval<const std::tuple_element_t<0, remove_cvref_t<TK>>&>(),
+        std::piecewise_construct,
+        memory_internal::TupleRef(std::forward<TK>(tk)),
+        memory_internal::TupleRef(std::forward<TV>(tv)))) {
+  const auto& key = std::get<0>(tk);
+  return std::forward<F>(f)(key, std::piecewise_construct,
+                            memory_internal::TupleRef(std::forward<TK>(tk)),
+                            memory_internal::TupleRef(std::forward<TV>(tv)));
 }
 
 // A helper function for implementing apply() in set policies.
@@ -486,13 +535,13 @@ struct map_slot_policy {
 
 // Variadic arguments hash function that ignore the rest of the arguments.
 // Useful for usage with policy traits.
-template <class Hash, bool kIsDefault, size_t kSeedShift>
+template <class Hash, bool kIsAbsl, size_t kSeedShift>
 struct HashElement {
   HashElement(const Hash& h, size_t s) : hash(h), seed(s >> kSeedShift) {}
 
   template <class K, class... Args>
   size_t operator()(const K& key, Args&&...) const {
-    if constexpr (kIsDefault) {
+    if constexpr (kIsAbsl) {
       // TODO(b/384509507): resolve `no header providing
       // "absl::hash_internal::SupportsHashWithSeed" is directly included`.
       // Maybe we should make "internal/hash.h" be a separate library.
@@ -506,12 +555,12 @@ struct HashElement {
 };
 
 // No arguments function hash function for a specific key.
-template <class Hash, class Key, bool kIsDefault, size_t kSeedShift>
+template <class Hash, class Key, bool kIsAbsl, size_t kSeedShift>
 struct HashKey {
   HashKey(const Hash& h, const Key& k) : hash(h), key(k) {}
 
   size_t operator()(size_t seed) const {
-    return HashElement<Hash, kIsDefault, kSeedShift>{hash, seed}(key);
+    return HashElement<Hash, kIsAbsl, kSeedShift>{hash, seed}(key);
   }
   const Hash& hash;
   const Key& key;
@@ -534,31 +583,31 @@ using HashSlotFn = size_t (*)(const void* hash_fn, void* slot, size_t seed);
 
 // Type erased function to apply `Fn` to data inside of the `slot`.
 // The data is expected to have type `T`.
-template <class Fn, class T, bool kIsDefault, size_t kSeedShift>
+template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
 size_t TypeErasedApplyToSlotFn(const void* fn, void* slot, size_t seed) {
   const auto* f = static_cast<const Fn*>(fn);
-  return HashElement<Fn, kIsDefault, kSeedShift>{
+  return HashElement<Fn, kIsAbsl, kSeedShift>{
       *f, seed}(*static_cast<const T*>(slot));
 }
 
 // Type erased function to apply `Fn` to data inside of the `*slot_ptr`.
 // The data is expected to have type `T`.
-template <class Fn, class T, bool kIsDefault, size_t kSeedShift>
+template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
 size_t TypeErasedDerefAndApplyToSlotFn(const void* fn, void* slot_ptr,
                                        size_t seed) {
   const auto* f = static_cast<const Fn*>(fn);
   const T* slot = *static_cast<T**>(slot_ptr);
-  return HashElement<Fn, kIsDefault, kSeedShift>{*f, seed}(*slot);
+  return HashElement<Fn, kIsAbsl, kSeedShift>{*f, seed}(*slot);
 }
 
 // Type erased function to apply `Fn` to data inside of the `slot_ptr->first`.
 // The data is expected to have type `T`.
-template <class Fn, class T, bool kIsDefault, size_t kSeedShift>
+template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
 size_t TypeErasedDerefAndApplyToSlotFirstFn(const void* fn, void* slot_ptr,
                                             size_t seed) {
   const auto* f = static_cast<const Fn*>(fn);
   const T* slot = *static_cast<T**>(slot_ptr);
-  return HashElement<Fn, kIsDefault, kSeedShift>{*f, seed}(slot->first);
+  return HashElement<Fn, kIsAbsl, kSeedShift>{*f, seed}(slot->first);
 }
 
 }  // namespace container_internal

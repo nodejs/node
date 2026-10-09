@@ -67,7 +67,8 @@ constexpr auto TSANStoreDescriptor::registers() {
 
 // static
 constexpr auto TSANLoadDescriptor::registers() {
-  return RegisterArray(kCArgRegs[0], kReturnRegister0);
+  return RegisterArray(kCArgRegs[0], kCArgRegs[1], kCArgRegs[2],
+                       kReturnRegister0);
 }
 #endif  // V8_IS_TSAN
 

@@ -36,6 +36,12 @@ class SnapshotByteSource final {
   SnapshotByteSource(const SnapshotByteSource&) = delete;
   SnapshotByteSource& operator=(const SnapshotByteSource&) = delete;
 
+  void Reset(base::Vector<const uint8_t> payload) {
+    data_ = payload.begin();
+    length_ = payload.length();
+    position_ = 0;
+  }
+
   bool HasMore() { return position_ < length_; }
 
   uint8_t Get() {
@@ -56,7 +62,7 @@ class SnapshotByteSource final {
     position_ += number_of_bytes;
   }
 
-  void CopySlots(Address* dest, int number_of_slots) {
+  void CopySlots(Address* dest, uint32_t number_of_slots) {
     base::AtomicWord* start = reinterpret_cast<base::AtomicWord*>(dest);
     base::AtomicWord* end = start + number_of_slots;
     for (base::AtomicWord* p = start; p < end;
@@ -68,7 +74,7 @@ class SnapshotByteSource final {
   }
 
 #ifdef V8_COMPRESS_POINTERS
-  void CopySlots(Tagged_t* dest, int number_of_slots) {
+  void CopySlots(Tagged_t* dest, uint32_t number_of_slots) {
     AtomicTagged_t* start = reinterpret_cast<AtomicTagged_t*>(dest);
     AtomicTagged_t* end = start + number_of_slots;
     for (AtomicTagged_t* p = start; p < end;

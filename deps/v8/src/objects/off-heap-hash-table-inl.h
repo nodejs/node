@@ -8,6 +8,8 @@
 #include "src/objects/off-heap-hash-table.h"
 // Include the non-inl header before the rest of the headers.
 
+#include <bit>
+
 #include "src/objects/compressed-slots-inl.h"
 
 namespace v8 {
@@ -90,7 +92,7 @@ int OffHeapHashTableBase<Derived>::ComputeCapacity(int at_least_space_for) {
   // Add 50% slack to make slot collisions sufficiently unlikely.
   // See matching computation in HasSufficientCapacityToAdd().
   int raw_capacity = at_least_space_for + (at_least_space_for >> 1);
-  int capacity = base::bits::RoundUpToPowerOfTwo32(raw_capacity);
+  int capacity = std::bit_ceil<uint32_t>(raw_capacity);
   return std::max(capacity, Derived::kMinCapacity);
 }
 

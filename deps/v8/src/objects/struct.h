@@ -23,6 +23,8 @@ V8_OBJECT class Struct : public HeapObject {
   V8_IT_ABSTRACT;
 
  public:
+  inline explicit Struct(Tagged<ReadOnly<Map>> map);
+
   void BriefPrintDetails(std::ostream& os);
 
   using BodyDescriptor = StructBodyDescriptor;
@@ -139,6 +141,51 @@ V8_OBJECT class ClassPositions : public Struct {
   TaggedMember<Smi> start_;
   TaggedMember<Smi> end_;
 } V8_OBJECT_END;
+
+V8_OBJECT class ForInEnumeratorHolder : public Struct {
+ public:
+  inline Tagged<Map> enum_cache_map() const;
+  inline void set_enum_cache_map(Tagged<Map> value,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> named_keys() const;
+  inline void set_named_keys(Tagged<FixedArray> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Smi> elements_length() const;
+  inline void set_elements_length(Tagged<Smi> value,
+                                  WriteBarrierMode mode = SKIP_WRITE_BARRIER);
+
+  inline Tagged<Smi> cache_length() const;
+  inline void set_cache_length(Tagged<Smi> value,
+                               WriteBarrierMode mode = SKIP_WRITE_BARRIER);
+
+  DECL_PRINTER(ForInEnumeratorHolder)
+  DECL_VERIFIER(ForInEnumeratorHolder)
+
+  using BodyDescriptor = StructBodyDescriptor;
+
+ private:
+  friend class TorqueGeneratedForInEnumeratorHolderAsserts;
+  friend struct ObjectTraits<ForInEnumeratorHolder>;
+
+  TaggedMember<Map> enum_cache_map_;
+  TaggedMember<FixedArray> named_keys_;
+  TaggedMember<Smi> elements_length_;
+  TaggedMember<Smi> cache_length_;
+} V8_OBJECT_END;
+
+template <>
+struct ObjectTraits<ForInEnumeratorHolder> {
+  static constexpr int kEnumCacheMapOffset =
+      offsetof(ForInEnumeratorHolder, enum_cache_map_);
+  static constexpr int kNamedKeysOffset =
+      offsetof(ForInEnumeratorHolder, named_keys_);
+  static constexpr int kElementsLengthOffset =
+      offsetof(ForInEnumeratorHolder, elements_length_);
+  static constexpr int kCacheLengthOffset =
+      offsetof(ForInEnumeratorHolder, cache_length_);
+};
 
 }  // namespace internal
 }  // namespace v8

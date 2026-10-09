@@ -84,20 +84,17 @@ V8_INLINE IndirectHandle<T> handle(Tagged<T> object, LocalHeap* local_heap) {
 }
 
 template <typename T>
-V8_INLINE IndirectHandle<T> handle(T object, Isolate* isolate) {
-  static_assert(kTaggedCanConvertToRawObjects);
+V8_INLINE IndirectHandle<T> handle(const T* object, Isolate* isolate) {
   return handle(Tagged<T>(object), isolate);
 }
 
 template <typename T>
-V8_INLINE IndirectHandle<T> handle(T object, LocalIsolate* isolate) {
-  static_assert(kTaggedCanConvertToRawObjects);
+V8_INLINE IndirectHandle<T> handle(const T* object, LocalIsolate* isolate) {
   return handle(Tagged<T>(object), isolate);
 }
 
 template <typename T>
-V8_INLINE IndirectHandle<T> handle(T object, LocalHeap* local_heap) {
-  static_assert(kTaggedCanConvertToRawObjects);
+V8_INLINE IndirectHandle<T> handle(const T* object, LocalHeap* local_heap) {
   return handle(Tagged<T>(object), local_heap);
 }
 

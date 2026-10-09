@@ -400,6 +400,70 @@ function testBigIntAddLoops() {
   }
 }
 
+function testAdd3DroppedCarry() {
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("add3_dropped_carry", makeSig([kWasmI64, kWasmI64, kWasmI64], [kWasmI64]))
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0, // a
+      kExprI64Const, 0,
+      kExprLocalGet, 1, // b
+      kExprI64Const, 0,
+      kNumericPrefix, kExprI64Add128,
+      kExprLocalGet, 2, // c
+      kExprI64Const, 0,
+      kNumericPrefix, kExprI64Add128,
+      kExprDrop, // drop carry-out, return low sum
+    ]);
+
+  let instance = builder.instantiate();
+  let f = instance.exports.add3_dropped_carry;
+
+  const max = 0xffffffffffffffffn;
+  assertEquals(6n, f(1n, 2n, 3n));
+  assertEquals(4n, f(max, 2n, 3n));
+  assertEquals(1n, f(max - 1n, 1n, 2n));
+  assertEquals(0n, f(max, 2n, max));
+}
+
+function testAdd3MultiUseIntermediate() {
+  let builder = new WasmModuleBuilder();
+  // Computes (a + b) and ((a + b) + c), returning (final_sum, final_carry, intermediate_extra).
+  // Projection(0) of (a + b) is consumed by an i64.add before the second add128,
+  // making its saturated_use_count in the output graph > 0.
+  // Therefore, TryMatchAdd3 must reject the fusion, leaving two separate additions.
+  builder.addFunction("add3_multi_use", makeSig([kWasmI64, kWasmI64, kWasmI64], [kWasmI64, kWasmI64, kWasmI64]))
+    .exportFunc()
+    .addLocals(kWasmI64, 3) // local 3: al, local 4: ah, local 5: al_extra
+    .addBody([
+      kExprLocalGet, 0, // a
+      kExprI64Const, 0,
+      kExprLocalGet, 1, // b
+      kExprI64Const, 0,
+      kNumericPrefix, kExprI64Add128,
+      kExprLocalSet, 4, // ah = Projection(1)
+      kExprLocalTee, 3, // al = Projection(0)
+      kExprI64Const, 1,
+      kExprI64Add,
+      kExprLocalSet, 5, // local 5 = al + 1
+      kExprLocalGet, 3, // al
+      kExprLocalGet, 4, // ah
+      kExprLocalGet, 2, // c
+      kExprI64Const, 0,
+      kNumericPrefix, kExprI64Add128,
+      kExprLocalGet, 5, // return [final_sum, final_carry, al + 1]
+    ]);
+
+  let instance = builder.instantiate();
+  let f = instance.exports.add3_multi_use;
+
+  const max = 0xffffffffffffffffn;
+  assertEquals([60n, 0n, 31n], f(10n, 20n, 30n));
+  assertEquals([5n, 1n, 2n], f(max, 2n, 4n));
+}
+
 testAdd3Pattern();
 testAdd3Constants();
+testAdd3DroppedCarry();
+testAdd3MultiUseIntermediate();
 testBigIntAddLoops();

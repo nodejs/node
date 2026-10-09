@@ -1236,7 +1236,10 @@ class CallSiteBuilder {
                    DirectHandle<UnionOf<Smi, JSFunction>> function,
                    DirectHandle<Union<Code, BytecodeArray, Undefined>> code_obj,
                    int offset, int flags) {
-    if (IsTheHole(*receiver_or_instance)) {
+#ifdef V8_ENABLE_TDZ_HOLE
+    DCHECK(!IsTheHole(*receiver_or_instance));
+#endif
+    if (IsTdzHole(*receiver_or_instance)) {
       // TODO(jgruber): Fix all cases in which frames give us a hole value
       // (e.g. the receiver in RegExp constructor frames).
       receiver_or_instance = isolate_->factory()->undefined_value();
@@ -1406,7 +1409,9 @@ void CaptureAsyncStackTrace(Isolate* isolate, DirectHandle<JSPromise> promise,
     } else if (DirectHandle<WasmSuspenderObject> suspender;
                TryGetWasmSuspender(isolate, reaction->fulfill_handler())
                    .ToHandle(&suspender)) {
-      DCHECK_NOT_NULL(suspender->stack());
+      SBXCHECK_NE(suspender->stack(), nullptr);
+      SBXCHECK_EQ(suspender->stack()->jmpbuf()->state,
+                  wasm::JumpBuffer::Suspended);
       for (StackFrameIterator it(isolate, suspender->stack()); !it.done();
            it.Advance()) {
         StackFrame* frame = it.frame();
@@ -1586,7 +1591,6 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
 #if V8_ENABLE_WEBASSEMBLY
       case StackFrame::STUB:
       case StackFrame::WASM:
-      case StackFrame::WASM_SEGMENT_START:
 #if V8_ENABLE_DRUMBRAKE
       case StackFrame::WASM_INTERPRETER_ENTRY:
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -1646,7 +1650,6 @@ void VisitStack_ForCallSiteBuilder(Isolate* isolate, CallSiteBuilder* visitor) {
 #if V8_ENABLE_WEBASSEMBLY
       case StackFrame::STUB:
       case StackFrame::WASM:
-      case StackFrame::WASM_SEGMENT_START:
 #if V8_ENABLE_DRUMBRAKE
       case StackFrame::WASM_INTERPRETER_ENTRY:
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -2075,7 +2078,9 @@ class CurrentScriptIdsAndContextsStackVisitor {
       Tagged<Object> maybe_script =
           Cast<SharedFunctionInfo>(maybe_sfi)->script();
       if (!IsScript(maybe_script)) break;
-      cur = Cast<Script>(maybe_script);
+      Tagged<Script> eval_from_script = Cast<Script>(maybe_script);
+      if (!eval_from_script->IsUserJavaScript()) break;
+      cur = eval_from_script;
     }
     return cur->id();
   }
@@ -2125,7 +2130,9 @@ class CurrentScriptDataStackVisitor {
       Tagged<Object> maybe_script =
           Cast<SharedFunctionInfo>(maybe_sfi)->script();
       if (!IsScript(maybe_script)) break;
-      cur = Cast<Script>(maybe_script);
+      Tagged<Script> eval_from_script = Cast<Script>(maybe_script);
+      if (!eval_from_script->IsUserJavaScript()) break;
+      cur = eval_from_script;
     }
     return cur->id();
   }
@@ -2924,9 +2931,9 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
             active_stack, parent, kNullAddress, kNullAddress, kNullAddress);
         if (suspender->has_parent() && parent == suspender->parent()->stack()) {
           // Exception escapes the current suspender, unwind to the parent.
-          // Clear the external stack pointer to avoid a UAF.
-          suspender->set_stack(this, nullptr);
+          DCHECK_NULL(suspender->stack());
           suspender = suspender->parent();
+          suspender->set_stack(nullptr);
         }
         RetireWasmStack(active_stack);
         active_stack = parent;
@@ -3121,8 +3128,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       } break;
 #endif  // V8_ENABLE_DRUMBRAKE
 
-      case StackFrame::WASM:
-      case StackFrame::WASM_SEGMENT_START: {
+      case StackFrame::WASM: {
         if (!is_catchable_by_wasm(exception)) break;
 
         WasmFrame* wasm_frame = static_cast<WasmFrame*>(frame);
@@ -4529,17 +4535,21 @@ void Isolate::IterateRegistersAndStackOfSimulator(
 #if V8_ENABLE_WEBASSEMBLY
 bool Isolate::IsOnCentralStack(Address addr) {
   auto stack = SimulatorStack::GetCentralStackView(this);
+  Address stack_base = reinterpret_cast<Address>(stack.end());
+  if (addr > stack_base) return false;
   Address stack_top = reinterpret_cast<Address>(stack.begin());
+  if (stack_top < addr) return true;
 #if !USE_SIMULATOR
-  // Try to use the stack limit reported by the system instead of V8's own
-  // conservative limit to avoid false positives.
+  // V8's stack limit is a conservative estimate.
+  // Try to use the real stack limit now to avoid false negatives.
+  // This is a slow operation on some configurations, so only use this as a
+  // fallback.
   Address real_stack_top = base::Stack::GetReservedStackLimit();
-  if (real_stack_top) {
-    stack_top = real_stack_top;
+  if (real_stack_top != kNullAddress && real_stack_top < addr) {
+    return true;
   }
 #endif
-  Address stack_base = reinterpret_cast<Address>(stack.end());
-  return stack_top < addr && addr <= stack_base;
+  return false;
 }
 
 bool Isolate::IsOnCentralStack() {
@@ -5663,7 +5673,6 @@ void Isolate::NotifyExceptionPropagationCallback() {
       return;
 #if V8_ENABLE_WEBASSEMBLY
     case StackFrame::WASM:
-    case StackFrame::WASM_SEGMENT_START:
       // No more info.
       return;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -6633,29 +6642,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     }
   }
 
-#ifdef V8_ENABLE_WEBASSEMBLY
-#if V8_STATIC_ROOTS_BOOL
-  // Protect the payload of wasm null.
-  if (!page_allocator()->DecommitPages(
-          reinterpret_cast<void*>(factory()->wasm_null()->address()),
-          WasmNull::kSize)) {
-    V8::FatalProcessOutOfMemory(this, "decommitting WasmNull payload");
-  }
-#endif  // V8_STATIC_ROOTS_BOOL
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  if (v8_flags.unmap_holes) {
-// Protect the payload of each hole.
-#define UNMAP_HOLE(CamelName, snake_name, _)                                  \
-  if (!page_allocator()->DecommitPages(                                       \
-          reinterpret_cast<void*>(&factory()->snake_name()->payload_),        \
-          Hole::kPayloadSize)) {                                              \
-    V8::FatalProcessOutOfMemory(this, "decommitting " #CamelName " payload"); \
-  }
-
-    HOLE_LIST(UNMAP_HOLE)
-#undef UNMAP_HOLE
-  }
+  // A read-only heap deserialized from a snapshot was already protected when
+  // it was set up. One created from scratch only has its holes now.
+  if (create_heap_objects) read_only_heap()->DecommitGuardRegions(this);
 
   // Isolate initialization allocates long living objects that should be
   // pretenured to old space.
@@ -6884,6 +6873,17 @@ void Isolate::AbortConcurrentOptimization(BlockingBehavior behavior) {
     maglev_concurrent_dispatcher()->Flush(behavior);
   }
 #endif
+}
+
+void Isolate::WaitForConcurrentOptimizationJobs() {
+  if (concurrent_recompilation_enabled()) {
+    optimizing_compile_dispatcher()->WaitUntilCompilationJobsDone();
+  }
+#ifdef V8_ENABLE_MAGLEV
+  if (maglev_concurrent_dispatcher()->is_enabled()) {
+    maglev_concurrent_dispatcher()->AwaitCompileJobs();
+  }
+#endif  // V8_ENABLE_MAGLEV
 }
 
 std::shared_ptr<CompilationStatistics> Isolate::GetTurboStatistics() {
@@ -7252,7 +7252,6 @@ void Isolate::WasmInitJSPIFeature() {
     HandleScope scope(this);
     DirectHandle<WasmSuspenderObject> suspender =
         factory()->NewWasmSuspenderObject();
-    suspender->set_stack(this, wasm_stacks()[0].get());
     isolate_data_.set_active_suspender(*suspender);
   }
 }
@@ -7679,8 +7678,7 @@ bool Isolate::HasCrashKeyStringCallbacks() {
   return static_cast<bool>(allocate_crash_key_string_callback_);
 }
 
-CrashKey Isolate::AddCrashKeyString(const char key[], CrashKeySize size,
-                                    std::string_view value) {
+CrashKey Isolate::AllocateCrashKeyString(const char key[], CrashKeySize size) {
   CHECK(HasCrashKeyStringCallbacks());
 #if DEBUG
   // Keys are limited in their length, see
@@ -7689,8 +7687,13 @@ CrashKey Isolate::AddCrashKeyString(const char key[], CrashKeySize size,
   static constexpr size_t kCrashKeyStorageKeySize = 40;
   DCHECK_LT(strlen(key), kCrashKeyStorageKeySize);
 #endif  // DEBUG
-  CrashKey crash_key = allocate_crash_key_string_callback_(key, size);
-  set_crash_key_string_callback_(crash_key, value);
+  return allocate_crash_key_string_callback_(key, size);
+}
+
+CrashKey Isolate::AddCrashKeyString(const char key[], CrashKeySize size,
+                                    std::string_view value) {
+  CrashKey crash_key = AllocateCrashKeyString(key, size);
+  SetCrashKeyString(crash_key, value);
   return crash_key;
 }
 
@@ -8166,8 +8169,16 @@ const std::string& Isolate::DefaultLocale() {
   return default_locale_;
 }
 
+void Isolate::set_default_locale(const std::string& locale) {
+  DCHECK_EQ(default_locale_.length(), 0);
+  default_locale_ = locale;
+  isolate_data_.default_locale_may_require_special_case_mapping_ =
+      Intl::LocaleRequiresSpecialCaseMapping(default_locale_);
+}
+
 void Isolate::ResetDefaultLocale() {
   default_locale_.clear();
+  isolate_data_.default_locale_may_require_special_case_mapping_ = true;
   clear_cached_icu_objects();
   // We inline fast paths assuming certain locales. Since this path is rarely
   // taken, we deoptimize everything to keep things simple.

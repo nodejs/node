@@ -304,9 +304,13 @@ concept ReducerBaseWithKNASetter = requires(BaseT* b, KnownNodeAspects* kna) {
   b->set_known_node_aspects(kna);
 };
 
+// Bases that can emit eager deopting nodes provide both an eager deopt frame
+// and a predicate telling whether one is available at the current position.
 template <typename BaseT>
-concept ReducerBaseWithEagerDeopt =
-    requires(BaseT* b) { b->GetDeoptFrameForEagerDeopt(); };
+concept ReducerBaseWithEagerDeopt = requires(BaseT* b) {
+  b->GetDeoptFrameForEagerDeopt();
+  b->CanEagerDeopt();
+};
 
 template <typename BaseT>
 concept ReducerBaseWithAbruptBlockEnd =
@@ -746,6 +750,20 @@ class MaglevReducer {
     return current_eager_deopt_scope_;
   }
 
+  // Whether an eager deopt frame is available at the current position, ie,
+  // whether a reduction is allowed to emit nodes that can eager deopt. This is
+  // always the case while building the graph, but not while optimizing it: a
+  // node that only has lazy deopt info has no eager deopt frame to clone, and
+  // its lazy deopt frame cannot be used instead, since that one describes the
+  // state *after* the bytecode rather than the state needed to re-execute it.
+  bool CanEagerDeopt() const {
+    if constexpr (ReducerBaseWithEagerDeopt<BaseT>) {
+      return base_->CanEagerDeopt();
+    } else {
+      return false;
+    }
+  }
+
   MaglevReducer(BaseT* base, Graph* graph,
                 MaglevCompilationUnit* compilation_unit = nullptr)
       : base_(base),
@@ -788,6 +806,11 @@ class MaglevReducer {
 
   MaybeReduceResult TryBuildLoadFixedArrayElementConstantIndex(
       ValueNode* elements, int32_t index, LoadType type);
+
+  template <typename FixedArrayT>
+  MaybeReduceResult AbortIfInvalidFixedArrayIndex(int32_t index);
+  template <typename FixedArrayT>
+  MaybeReduceResult AbortIfInvalidFixedArrayIndex(ValueNode* index);
 
   // Add a new node with a dynamic set of inputs which are initialized by the
   // `post_create_input_initializer` function before the node is added to the
@@ -965,8 +988,7 @@ class MaglevReducer {
       compiler::FeedbackSource const& feedback_source);
 
 #if V8_ENABLE_WEBASSEMBLY
-  bool ShouldWrapArgsForWasmInlining(compiler::SharedFunctionInfoRef shared,
-                                     JSDispatchHandle dispatch_handle);
+  bool ShouldWrapArgsForWasmInlining(JSDispatchHandle dispatch_handle);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   compiler::OptionalStringRef GetStringFromInt32(int32_t value);
@@ -986,6 +1008,7 @@ class MaglevReducer {
   uint32_t NewObjectId() { return graph()->NewObjectId(); }
 
   VirtualObject* CreateHeapNumber(ValueNode* value);
+  VirtualObject* CreateUninitializedHeapNumber();
   VirtualObject* CreateJSObject(compiler::MapRef map);
   VirtualObject* CreateConsString(ValueNode* map, ValueNode* length,
                                   ValueNode* first, ValueNode* second);
@@ -1063,6 +1086,9 @@ class MaglevReducer {
   ReduceResult BuildAndAllocateJSArrayIterator(ValueNode* array,
                                                IterationKind iteration_kind);
   void ClearCurrentAllocationBlock();
+  void SetCurrentAllocationBlock(AllocationBlock* block) {
+    current_allocation_block_ = block;
+  }
   void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
   AllocationBlock* current_allocation_block() const {
     return current_allocation_block_;
@@ -1070,6 +1096,10 @@ class MaglevReducer {
 
   MaybeAssignedFlag GetContextMaybeAssigned(compiler::ScopeInfoRef scope_info,
                                             int index, VariableMode* mode);
+  ValueNode* TryGetParentContext(ValueNode* node);
+  MaybeReduceResult TryGetConstantContextValue(
+      ValueNode* context, int offset, MaybeAssignedFlag assigned,
+      VariableMode mode = VariableMode::kVar);
 
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
 
@@ -1368,6 +1398,12 @@ class MaglevReducer {
     return maybe_value;
   }
 
+  // Optional integer positions treat an omitted or known undefined value as 0.
+  ValueNode* GetValueOrZeroIfUndefined(ValueNode* maybe_value) {
+    ValueNode* value = GetValueOrUndefined(maybe_value);
+    return value->IsUndefinedValue() ? GetInt32Constant(0) : value;
+  }
+
   ReduceResult BuildInt32Max(ValueNode* a, ValueNode* b);
   ReduceResult BuildInt32Min(ValueNode* a, ValueNode* b);
   ReduceResult BuildInt32Sign(ValueNode* value);
@@ -1545,7 +1581,7 @@ class MaglevReducer {
 
   ValueNode* GetNumberConstant(double constant);
 
-  bool IsTheHoleConstant(ValueNode* node);
+  bool IsTdzHoleConstant(ValueNode* node);
   ReduceResult GetConvertReceiver(compiler::SharedFunctionInfoRef shared,
                                   ValueNode* receiver,
                                   ConvertReceiverMode mode);

@@ -5,8 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_GRAPH_LABELLER_H_
 #define V8_MAGLEV_MAGLEV_GRAPH_LABELLER_H_
 
-#include <map>
-
+#include "absl/container/flat_hash_map.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/utils/utils.h"
 
@@ -95,14 +94,16 @@ class MaglevGraphLabeller {
       os << ":" << input.operand();
     }
   }
-  const std::map<const NodeBase*, NodeInfo>& nodes() const { return nodes_; }
+  const absl::flat_hash_map<const NodeBase*, NodeInfo>& nodes() const {
+    return nodes_;
+  }
 
  private:
-  std::map<const NodeBase*, NodeInfo> nodes_;
+  absl::flat_hash_map<const NodeBase*, NodeInfo> nodes_;
   int next_node_label_ = 1;
 };
 
-class MaglevGraphLabellerScope {
+class V8_EXPORT_PRIVATE MaglevGraphLabellerScope {
  public:
   explicit MaglevGraphLabellerScope(MaglevGraphLabeller* graph_labeller);
   ~MaglevGraphLabellerScope();

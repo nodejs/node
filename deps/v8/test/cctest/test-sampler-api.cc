@@ -4,6 +4,7 @@
 //
 // Tests the sampling API in include/v8.h
 
+#include <array>
 #include <map>
 #include <string>
 
@@ -20,16 +21,18 @@ namespace {
 class Sample {
  public:
   enum { kFramesLimit = 255 };
-  using DataVector = v8::base::EmbeddedVector<void*, kFramesLimit>;
+  using DataVector = std::array<void*, kFramesLimit>;
 
   Sample() = default;
 
   const void* operator[](size_t index) const { return data_[index]; }
-  size_t size() const { return data_.size(); }
+  size_t size() const { return size_; }
+  void set_size(size_t size) { size_ = size; }
   DataVector& data() { return data_; }
 
  private:
   DataVector data_;
+  size_t size_ = kFramesLimit;
 };
 
 
@@ -95,11 +98,11 @@ class SamplingTestHelper {
     state.sp = &state;
 #endif
     v8::SampleInfo info;
-    isolate_->GetStackSample(state, sample_.data().begin(), sample_.size(),
+    isolate_->GetStackSample(state, sample_.data().data(), sample_.size(),
                              &info);
     size_t frames_count = info.frames_count;
     CHECK_LE(frames_count, sample_.size());
-    sample_.data().Truncate(static_cast<int>(frames_count));
+    sample_.set_size(frames_count);
     sample_is_taken_ = true;
   }
 

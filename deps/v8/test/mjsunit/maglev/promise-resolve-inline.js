@@ -20,7 +20,7 @@
     %OptimizeMaglevOnNextCall(foo);
     assertEquals(42, await foo(42));
     assertEquals(undefined, await Promise.resolve());
-    assertTrue(isMaglevved(foo));
+    assertMaglevved(foo);
     const p = foo(42);
     assertInstanceof(p, Promise);
     assertEquals(42, await p);
@@ -38,7 +38,7 @@
     assertEquals(obj, await foo(obj));
     %OptimizeMaglevOnNextCall(foo);
     assertEquals(obj, await foo(obj));
-    assertTrue(isMaglevved(foo));
+    assertMaglevved(foo);
   }
 
   // A thenable must not be reduced: chaining runs, so we observe 42.
@@ -53,7 +53,7 @@
     assertEquals(42, await foo(thenable));
     %OptimizeMaglevOnNextCall(foo);
     assertEquals(42, await foo(thenable));
-    assertTrue(isMaglevved(foo));
+    assertMaglevved(foo);
   }
 
   // A promise value keeps its identity (promise maps have "then", so the
@@ -68,7 +68,7 @@
     assertSame(p, foo(p));
     %OptimizeMaglevOnNextCall(foo);
     assertSame(p, foo(p));
-    assertTrue(isMaglevved(foo));
+    assertMaglevved(foo);
   }
 
   // A promise whose prototype chain was mutated to lack "then" but keep
@@ -86,7 +86,7 @@
     assertSame(weird, foo(weird));
     %OptimizeMaglevOnNextCall(foo);
     assertSame(weird, foo(weird));
-    assertTrue(isMaglevved(foo));
+    assertMaglevved(foo);
   }
 
   // Subclass receivers are not reduced: the species-less fast path only
@@ -102,6 +102,6 @@
     %OptimizeMaglevOnNextCall(foo);
     assertInstanceof(foo(3), MyPromise);
     assertEquals(3, await foo(3));
-    assertTrue(isMaglevved(foo));
+    assertMaglevved(foo);
   }
 })();

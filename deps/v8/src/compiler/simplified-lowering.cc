@@ -4020,10 +4020,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kStringLength:
       case IrOpcode::kStringWrapperLength: {
-        // TODO(bmeurer): The input representation should be TaggedPointer.
-        // Fix this once we have a dedicated StringConcat/JSStringAdd
-        // operator, which marks it's output as TaggedPointer properly.
-        VisitUnop<T>(node, UseInfo::AnyTagged(),
+        VisitUnop<T>(node, UseInfo::TaggedPointer(),
                      MachineRepresentation::kWord32);
         return;
       }

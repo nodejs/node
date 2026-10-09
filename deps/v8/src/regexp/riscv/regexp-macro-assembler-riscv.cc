@@ -26,6 +26,8 @@ namespace regexp {
  *        LoadCurrentCharacter before using any of the dispatch methods.
  * - s6 : Points to tip of backtrack stack
  * - s8 : End of input (points to byte after last character in input).
+ * - s10: Address of the regexp stack's thread-local block, which holds the
+ *        stack limit, memory top and saved stack pointer.
  * - fp : Frame pointer. Used to access arguments, local variables and
  *        RegExp registers.
  * - sp : Points to tip of C stack.
@@ -755,26 +757,16 @@ void RegExpMacroAssemblerRISCV::Fail() {
 }
 
 void RegExpMacroAssemblerRISCV::LoadRegExpStackPointerFromMemory(Register dst) {
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_stack_pointer(isolate());
-  __ li(dst, Operand(ref));
-  __ LoadWord(dst, MemOperand(dst));
+  __ LoadWord(dst, MemOperand(regexp_stack(), Stack::kStackPointerOffset));
 }
 
-void RegExpMacroAssemblerRISCV::StoreRegExpStackPointerToMemory(
-    Register src, Register scratch) {
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_stack_pointer(isolate());
-  __ li(scratch, Operand(ref));
-  __ StoreWord(src, MemOperand(scratch));
+void RegExpMacroAssemblerRISCV::StoreRegExpStackPointerToMemory(Register src) {
+  __ StoreWord(src, MemOperand(regexp_stack(), Stack::kStackPointerOffset));
 }
 
 void RegExpMacroAssemblerRISCV::PushRegExpBasePointer(Register stack_pointer,
                                                       Register scratch) {
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ li(scratch, Operand(ref));
-  __ LoadWord(scratch, MemOperand(scratch));
+  __ LoadWord(scratch, MemOperand(regexp_stack(), Stack::kMemoryTopOffset));
   __ SubWord(scratch, stack_pointer, scratch);
   __ StoreWord(scratch,
                MemOperand(frame_pointer(), kRegExpStackBasePointerOffset));
@@ -782,14 +774,11 @@ void RegExpMacroAssemblerRISCV::PushRegExpBasePointer(Register stack_pointer,
 
 void RegExpMacroAssemblerRISCV::PopRegExpBasePointer(Register stack_pointer_out,
                                                      Register scratch) {
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
   __ LoadWord(stack_pointer_out,
               MemOperand(frame_pointer(), kRegExpStackBasePointerOffset));
-  __ li(scratch, Operand(ref));
-  __ LoadWord(scratch, MemOperand(scratch));
+  __ LoadWord(scratch, MemOperand(regexp_stack(), Stack::kMemoryTopOffset));
   __ AddWord(stack_pointer_out, stack_pointer_out, scratch);
-  StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
+  StoreRegExpStackPointerToMemory(stack_pointer_out);
 }
 
 DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
@@ -862,6 +851,10 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
   // pointer. Patterns that never do skip the backtrack stack setup, the fail
   // label, and the teardown below.
   if (backtrack_stack_used()) {
+    __ li(regexp_stack(),
+          Operand(ExternalReference::address_of_regexp_stack_thread_local(
+              isolate())));
+
     // Initialize backtrack stack pointer. It must not be clobbered from here
     // on. Note the backtrack_stackpointer is callee-saved.
     static_assert(backtrack_stackpointer() == s8);
@@ -910,7 +903,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
     // initialized above; storing it would corrupt the saved stack pointer
     // (regexp::StackScope verifies it is unchanged across the exec call).
     if (backtrack_stack_used()) {
-      StoreRegExpStackPointerToMemory(backtrack_stackpointer(), a1);
+      StoreRegExpStackPointerToMemory(backtrack_stackpointer());
     }
     CallCheckStackGuardState(a0, extra_space_for_variables);
     // If returned value is non-zero, we exit with the returned value as
@@ -1134,7 +1127,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
     // pointer is initialized for the store/reload below.
     DCHECK(backtrack_stack_used());
 
-    StoreRegExpStackPointerToMemory(backtrack_stackpointer(), a1);
+    StoreRegExpStackPointerToMemory(backtrack_stackpointer());
     // Put regexp engine registers on stack.
     CallCheckStackGuardState(a0);
     // If returning non-zero, we should end execution with the given
@@ -1151,7 +1144,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
   if (stack_overflow_label_.is_linked()) {
     SafeCallTarget(&stack_overflow_label_);
     // Call GrowStack(isolate).
-    StoreRegExpStackPointerToMemory(backtrack_stackpointer(), a1);
+    StoreRegExpStackPointerToMemory(backtrack_stackpointer());
 
     static constexpr int kNumArguments = 1;
     __ PrepareCallCFunction(kNumArguments, 0, a0);
@@ -1270,20 +1263,14 @@ void RegExpMacroAssemblerRISCV::ReadCurrentPositionFromRegister(int reg) {
 
 void RegExpMacroAssemblerRISCV::WriteStackPointerToRegister(int reg) {
   set_backtrack_stack_used();
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ li(a0, ref);
-  __ LoadWord(a0, MemOperand(a0));
+  __ LoadWord(a0, MemOperand(regexp_stack(), Stack::kMemoryTopOffset));
   __ SubWord(a0, backtrack_stackpointer(), a0);
   __ Sw(a0, register_location(reg));
 }
 
 void RegExpMacroAssemblerRISCV::ReadStackPointerFromRegister(int reg) {
   set_backtrack_stack_used();
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ li(a1, ref);
-  __ LoadWord(a1, MemOperand(a1));
+  __ LoadWord(a1, MemOperand(regexp_stack(), Stack::kMemoryTopOffset));
   __ Lw(backtrack_stackpointer(), register_location(reg));
   __ AddWord(backtrack_stackpointer(), backtrack_stackpointer(), a1);
 }
@@ -1504,30 +1491,18 @@ void RegExpMacroAssemblerRISCV::CheckPreemption() {
 }
 
 void RegExpMacroAssemblerRISCV::CheckStackLimit() {
-  ExternalReference stack_limit =
-      ExternalReference::address_of_regexp_stack_limit_address(
-          masm_->isolate());
-
-  __ li(a0, Operand(stack_limit));
-  __ LoadWord(a0, MemOperand(a0));
+  DCHECK(backtrack_stack_used());
+  __ LoadWord(a0, MemOperand(regexp_stack(), Stack::kLimitOffset));
   SafeCall(&stack_overflow_label_, Uless_equal, backtrack_stackpointer(),
            Operand(a0));
 }
 
 void RegExpMacroAssemblerRISCV::AssertAboveStackLimitMinusSlack() {
-  // ExternalReference stack_limit =
-  //     ExternalReference::address_of_regexp_stack_limit_address(
-  //         masm_->isolate());
-  // __ li(a0, Operand(stack_limit));
-  // __ LoadWord(a0, MemOperand(a0, 0));
-  // SafeCall(&stack_overflow_label_, ls, backtrack_stackpointer(),
-  // Operand(a0));
+  DCHECK(backtrack_stack_used());
   DCHECK(v8_flags.slow_debug_code);
   Label no_stack_overflow;
   ASM_CODE_COMMENT_STRING(masm_.get(), "AssertAboveStackLimitMinusSlack");
-  auto l = ExternalReference::address_of_regexp_stack_limit_address(isolate());
-  __ li(a0, l);
-  __ LoadWord(a0, MemOperand(a0, 0));
+  __ LoadWord(a0, MemOperand(regexp_stack(), Stack::kLimitOffset));
   __ SubWord(a0, a0, Operand(Stack::kStackLimitSlackSize));
   __ Branch(&no_stack_overflow, Ugreater, backtrack_stackpointer(),
             Operand(a0));

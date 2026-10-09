@@ -221,7 +221,8 @@ bool ShouldUseMegamorphicAccessBuiltin(FeedbackSource const& source,
     return feedback.AsElementAccess().transition_groups().empty();
   } else if (feedback.kind() == ProcessedFeedback::kNamedAccess) {
     return feedback.AsNamedAccess().maps().empty();
-  } else if (feedback.kind() == ProcessedFeedback::kInsufficient) {
+  } else if (feedback.kind() == ProcessedFeedback::kInsufficient ||
+             feedback.kind() == ProcessedFeedback::kProxy) {
     return false;
   }
   UNREACHABLE();
@@ -710,7 +711,6 @@ void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
 }
 
 void JSGenericLowering::LowerJSCreateGeneratorObject(Node* node) {
-  node->RemoveInput(4);  // control
   ReplaceWithBuiltinCall(node, Builtin::kCreateGeneratorObject);
 }
 

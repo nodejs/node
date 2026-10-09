@@ -45,7 +45,7 @@ assert_test_preserve_descriptor(test_preserve_descriptor());
 %OptimizeMaglevOnNextCall(test_preserve_descriptor);
 assert_test_preserve_descriptor(test_preserve_descriptor());
 assertOptimized(test_preserve_descriptor);
-assertTrue(isMaglevved(test_preserve_descriptor));
+assertMaglevved(test_preserve_descriptor);
 assert_test_preserve_descriptor(test_preserve_descriptor());
 %OptimizeFunctionOnNextCall(test_preserve_descriptor);
 assert_test_preserve_descriptor(test_preserve_descriptor());

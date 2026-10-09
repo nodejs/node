@@ -554,7 +554,7 @@ OpIndex WasmLoadEliminationAnalyzer::MaybeReplacePhi(const PhiOp& phi) {
   DCHECK_GT(inputs.size(), 0);
 
   bool same_inputs = true;
-  OpIndex first = memory_.ResolveBase(inputs.first());
+  OpIndex first = memory_.ResolveBase(inputs.front());
   for (const OpIndex& input : inputs.SubVectorFrom(1)) {
     if (memory_.ResolveBase(input) != first) {
       same_inputs = false;

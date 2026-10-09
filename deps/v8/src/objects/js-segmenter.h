@@ -49,9 +49,9 @@ V8_OBJECT class JSSegmenter : public JSObject {
   inline void set_locale(Tagged<String> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<CppGCManaged<icu::BreakIterator>> icu_break_iterator() const;
+  inline Tagged<Managed<icu::BreakIterator>> icu_break_iterator() const;
   inline void set_icu_break_iterator(
-      Tagged<CppGCManaged<icu::BreakIterator>> value,
+      Tagged<Managed<icu::BreakIterator>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline int flags() const;
@@ -86,8 +86,8 @@ V8_OBJECT class JSSegmenter : public JSObject {
 
  public:
   TaggedMember<String> locale_;
-  TaggedMember<CppGCManaged<icu::BreakIterator>> icu_break_iterator_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Foreign> icu_break_iterator_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSSegmenterFlags>);
 } V8_OBJECT_END;
 
 inline constexpr int JSSegmenter::kHeaderSize = sizeof(JSSegmenter);

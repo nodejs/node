@@ -16,6 +16,7 @@
 #include "src/api/api-natives.h"
 #include "src/base/fpu.h"
 #include "src/base/logging.h"
+#include "src/base/unique-array.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/execution/messages.h"
@@ -165,11 +166,11 @@ void WasmStreaming::SetUrl(const char* url, size_t length) {
 
 // static
 std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
-                                                     Local<Value> value) {
+                                                     Local<Data> data) {
   TRACE_EVENT("v8.wasm", "wasm.WasmStreaming.Unpack");
   i::HandleScope scope(reinterpret_cast<i::Isolate*>(isolate));
   auto managed =
-      i::Cast<i::CppGCManaged<WasmStreaming>>(Utils::OpenDirectHandle(*value));
+      i::Cast<i::CppGCManaged<WasmStreaming>>(Utils::OpenDirectHandle(*data));
   return managed->ptr().as_shared_ptr();
 }
 
@@ -312,7 +313,7 @@ GET_FIRST_ARGUMENT_AS(Tag)
 
 #undef GET_FIRST_ARGUMENT_AS
 
-base::OwnedVector<const uint8_t> GetAndCopyFirstArgumentAsBytes(
+base::UniqueArray<const uint8_t> GetAndCopyFirstArgumentAsBytes(
     const v8::FunctionCallbackInfo<v8::Value>& info, size_t max_length,
     ErrorThrower* thrower) {
   const uint8_t* start = nullptr;
@@ -354,7 +355,7 @@ base::OwnedVector<const uint8_t> GetAndCopyFirstArgumentAsBytes(
 
   // Use relaxed reads (and writes, which is unnecessary here) to avoid TSan
   // reports in case the buffer is shared and is being modified concurrently.
-  auto result = base::OwnedVector<uint8_t>::NewForOverwrite(length);
+  auto result = base::UniqueArray<uint8_t>::NewForOverwrite(length);
   base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(result.begin()),
                        reinterpret_cast<const base::Atomic8*>(start), length);
   return result;
@@ -756,7 +757,7 @@ void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  base::OwnedVector<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
+  base::UniqueArray<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
       info, i::wasm::max_module_size(), &thrower);
   if (bytes.empty()) {
     resolver->OnCompilationFailed(thrower.Reify());
@@ -785,12 +786,12 @@ void WasmStreamingCallbackForTesting(
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
 
   std::shared_ptr<v8::WasmStreaming> streaming =
-      v8::WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+      v8::WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
 
   // We don't check the buffer length up front, to allow d8 to test that the
   // streaming decoder implementation handles overly large inputs correctly.
   size_t unlimited = std::numeric_limits<size_t>::max();
-  base::OwnedVector<const uint8_t> bytes =
+  base::UniqueArray<const uint8_t> bytes =
       GetAndCopyFirstArgumentAsBytes(info, unlimited, &thrower);
   if (bytes.empty()) {
     streaming->Abort(Utils::ToLocal(thrower.Reify()));
@@ -805,7 +806,7 @@ void WasmStreamingPromiseFailedCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<v8::WasmStreaming> streaming =
-      v8::WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+      v8::WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
   streaming->Abort(info[0]);
 }
 
@@ -918,7 +919,7 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   // Always copy. Even if the buffer isn't shared,
   // {WasmJs::CompileTimeImportsFromArgument} could detach it.
-  base::OwnedVector<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
+  base::UniqueArray<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
       info, i::wasm::max_module_size(), &thrower);
   if (bytes.empty()) {
     js_api_scope.AssertException();
@@ -988,7 +989,7 @@ void WebAssemblyModuleImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  base::OwnedVector<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
+  base::UniqueArray<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
       info, i::wasm::max_module_size(), &thrower);
 
   if (bytes.empty()) return js_api_scope.AssertException();
@@ -1242,7 +1243,7 @@ void WebAssemblyInstantiateImpl(
     return;
   }
 
-  base::OwnedVector<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
+  base::UniqueArray<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
       info, i::wasm::max_module_size(), &thrower);
   if (bytes.empty()) {
     InstantiateModuleResultResolver::FailInstantiation(
@@ -1265,7 +1266,7 @@ void WebAssemblyInstantiateImpl(
         DCHECK_EQ(info.Length(), 1);
         Isolate* isolate2 = info.GetIsolate();
         HandleScope scope(isolate2);
-        Local<FixedArray> data = info.Data().As<FixedArray>();
+        Local<FixedArray> data = info.DataV2().As<FixedArray>();
         DCHECK_EQ(3, data->Length());
         Local<Context> context = data->Get(0).As<Context>();
         Local<Promise::Resolver> promise_resolver =
@@ -1306,7 +1307,7 @@ void WebAssemblyInstantiateImpl(
         DCHECK_EQ(1, info.Length());
         HandleScope scope(info.GetIsolate());
         Local<Promise::Resolver> instantiation_promise_resolver =
-            info.Data().As<Promise::Resolver>();
+            info.DataV2().As<Value>().As<Promise::Resolver>();
 
         instantiation_promise_resolver
             ->Reject(info.GetIsolate()->GetCurrentContext(), info[0])
@@ -2272,9 +2273,8 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
   i::DirectHandle<i::Code> wrapper;
   if (!i::wasm::IsJSCompatibleSignature(sig)) {
     // If the signature is incompatible with JS, the original export will have
-    // compiled an incompatible signature wrapper, so just reuse that.
-    wrapper =
-        i::DirectHandle<i::Code>(data->wrapper_code(i_isolate), i_isolate);
+    // compiled an incompatible signature wrapper, so fetch it from the cache.
+    wrapper = i::WasmExportedFunction::GetWrapper(i_isolate, sig);
   } else {
     wrapper = BUILTIN_CODE(i_isolate, WasmPromising);
   }
@@ -2290,11 +2290,11 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
   if (func_index >= num_imported_functions) {
     implicit_arg = trusted_instance_data;
   } else {
-    implicit_arg = i_isolate->factory()->NewWasmImportData(direct_handle(
+    implicit_arg = direct_handle(
         i::TrustedCast<i::WasmImportData>(
             trusted_instance_data->dispatch_table_for_imports()->implicit_arg(
                 func_index)),
-        i_isolate));
+        i_isolate);
   }
 
   i::DirectHandle<i::WasmInternalFunction> internal =
@@ -2303,9 +2303,6 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
           trusted_instance_data->GetCallTarget(func_index), sig);
   i::DirectHandle<i::WasmFuncRef> func_ref =
       i_isolate->factory()->NewWasmFuncRef(internal, rtt);
-  if (func_index < num_imported_functions) {
-    i::TrustedCast<i::WasmImportData>(implicit_arg)->set_call_origin(*internal);
-  }
 
   i::DirectHandle<i::JSFunction> result = i::WasmExportedFunction::New(
       i_isolate, trusted_instance_data, func_ref, internal,
@@ -2646,7 +2643,8 @@ void WebAssemblyMemoryGrowImpl(
   }
 #endif  // DEBUG
 
-  uint64_t old_pages = backing_store->byte_length() / i::wasm::kWasmPageSize;
+  uint64_t old_pages = backing_store->byte_length(std::memory_order_seq_cst) /
+                       i::wasm::kWasmPageSize;
   uint64_t max_pages = receiver->maximum_pages();
 
   if (delta_pages > max_pages - old_pages) {

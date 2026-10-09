@@ -23,26 +23,43 @@ namespace internal {
 //
 // A trusted pointer table entry has the following layout:
 //
-// +------------+----------+-----------------+
-// | 15-bit tag | mark bit | 48-bit payload  |
-// +------------+----------+-----------------+
+// On x64, the payload must be able to hold 57-bit addresses (LA57):
+//
+// +-----------+----------+----------------+
+// | 7-bit tag | mark bit | 56-bit payload |
+// +-----------+----------+----------------+
+//
+// On the other 64-bit architectures (e.g. Arm64), addresses are at most 48
+// bits wide. The tag field is 15 bits wide there, but as tags are limited to
+// 7 bits, its top 8 bits are currently unused and left for TBI/MTE:
+//
+// +---------------+-----------+----------+----------------+
+// | 8 unused bits | 7-bit tag | mark bit | 48-bit payload |
+// +---------------+-----------+----------+----------------+
 //
 // This format ensures that both the tag and the payload can be extracted
 // efficiently, and thereby helps keep the performance overhead low.
+#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+constexpr uint64_t kTrustedPointerTableTagMask = 0xfe00'0000'0000'0000;
+constexpr uint64_t kTrustedPointerTableMarkBit = 0x0100'0000'0000'0000;
+constexpr uint64_t kTrustedPointerTablePayloadMask = 0x00ff'ffff'ffff'ffff;
+constexpr uint64_t kTrustedPointerTableTagShift = 57;
+#else   // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
 constexpr uint64_t kTrustedPointerTableTagMask = 0xfffe'0000'0000'0000;
 constexpr uint64_t kTrustedPointerTableMarkBit = 0x0001'0000'0000'0000;
 constexpr uint64_t kTrustedPointerTablePayloadMask = 0x0000'ffff'ffff'ffff;
 constexpr uint64_t kTrustedPointerTableTagShift = 49;
+#endif  // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
 constexpr uint64_t kTrustedPointerTablePayloadShift = 0;
 
-// The tag is currently in practice limited to maximum 15 bits since it needs
-// to fit together with a marking bit into the unused parts of a pointer.
+// The tag is limited to 7 bits since it needs to fit together with a marking
+// bit into the unused parts of a pointer on x64 (see the layout above).
 enum IndirectPointerTag : uint16_t {
   kIndirectPointerNullTag = 0,
 
   // Shared trusted pointers are owned by the shared Isolate and stored in the
   // shared trusted pointer table associated with that Isolate.
-  kFirstSharedTrustedPointerTag = 1,
+  kFirstSharedTrustedPointerTag,
   kSharedWasmTrustedInstanceDataIndirectPointerTag =
       kFirstSharedTrustedPointerTag,
   kSharedWasmDispatchTableIndirectPointerTag,
@@ -50,23 +67,27 @@ enum IndirectPointerTag : uint16_t {
 
   // Trusted pointers using these tags are kept in a per-Isolate trusted
   // pointer table and can only be accessed when this Isolate is active.
-  kFirstPerIsolateTrustedPointerTag = kLastSharedTrustedPointerTag + 1,
+  kFirstPerIsolateTrustedPointerTag,
   kWasmInternalFunctionIndirectPointerTag = kFirstPerIsolateTrustedPointerTag,
   // Untagging performance matters for this tag, so it should be "fast".
-  kWasmTrustedInstanceDataIndirectPointerTag = 4,
+  kWasmTrustedInstanceDataIndirectPointerTag,  // 4
   kWasmDispatchTableIndirectPointerTag,
   kWasmSuspenderIndirectPointerTag,
-  kWasmExportedFunctionDataIndirectPointerTag,
-  kWasmCapiFunctionDataIndirectPointerTag,
   kRegExpDataIndirectPointerTag,
+
+  kFirstSFITrustedDataTag,
+  // Untagging performance matters for this tag, so it should be "fast".
+  kWasmExportedFunctionDataIndirectPointerTag = kFirstSFITrustedDataTag,  // 8
+  kWasmCapiFunctionDataIndirectPointerTag,
   kInterpreterDataIndirectPointerTag,
   kUncompiledDataIndirectPointerTag,
-  kDebugInfoIndirectPointerTag,
   kBytecodeArrayIndirectPointerTag,
   // All code pointers share the same tag (pointing to Code objects). Their
   // instruction stream start is guarded by another tag (CodeEntrypointTag).
   kCodeIndirectPointerTag,
-  kLastPerIsolateTrustedPointerTag = kCodeIndirectPointerTag,
+  kLastSFITrustedDataTag = kCodeIndirectPointerTag,
+  kDebugInfoIndirectPointerTag,
+  kLastPerIsolateTrustedPointerTag = kDebugInfoIndirectPointerTag,
 
   // The maximum tag in kAllIndirectPointerTags. Padded to a (pow2-1) to enable
   // fast, single-instruction bitwise untagging (see
@@ -75,9 +96,9 @@ enum IndirectPointerTag : uint16_t {
 
   // Special tags.
   //
-  // Currently we only use 8 bits (plus one marking bit) so we have spare bits
-  // in the pointers if we ever need them (e.g. for something like MTE).
-  // If we ever need more tags, we could go up to 15 bits though.
+  // Currently we only use 7 bits (plus one marking bit), which is all that is
+  // available on x64. On the other architectures we have spare bits in the
+  // pointers if we ever need them (e.g. for something like MTE).
   //
 
   // A special tag for objects that should not (yet) be exposed to the sandbox.
@@ -92,15 +113,18 @@ enum IndirectPointerTag : uint16_t {
   //    accessible from within the sandbox (for example, bytecode arrays), then
   //    these objects can first be created in an unpublished state and then
   //    only be published after successful validation.
-  kUnpublishedIndirectPointerTag = 0xfc,
+  kUnpublishedIndirectPointerTag = 0x7c,
   // Tag for zapped entries in the trusted pointer table.
-  kIndirectPointerZappedEntryTag = 0xfd,
+  kIndirectPointerZappedEntryTag = 0x7d,
   // Not currently used for the trusted pointer table.
-  kIndirectPointerEvacuationEntryTag = 0xfe,
+  kIndirectPointerEvacuationEntryTag = 0x7e,
   // Tag for free entries in the trusted pointer table.
-  kIndirectPointerFreeEntryTag = 0xff,
-  kLastIndirectPointerTag = 0xff,
+  kIndirectPointerFreeEntryTag = 0x7f,
+  kLastIndirectPointerTag = 0x7f,
 };
+
+// All tags must fit into the 7 tag bits of an x64 trusted pointer table entry.
+static_assert(kLastIndirectPointerTag <= 0x7f);
 
 using IndirectPointerTagRange = TagRange<IndirectPointerTag>;
 
@@ -174,6 +198,9 @@ constexpr IndirectPointerTagRange kWasmFunctionDataIndirectPointerTagRange(
     kWasmExportedFunctionDataIndirectPointerTag,
     kWasmCapiFunctionDataIndirectPointerTag);
 
+constexpr IndirectPointerTagRange kSFITrustedDataIndirectPointerRange(
+    kFirstSFITrustedDataTag, kLastSFITrustedDataTag);
+
 // The kAllIndirectPointerTags contains all regular tags including the code tag.
 static_assert(kAllIndirectPointerTags.Contains(kAllSharedIndirectPointerTags));
 static_assert(
@@ -194,9 +221,12 @@ static_assert(kAllIndirectPointerTagsIncludingUnpublished.Contains(
     kAllIndirectPointerTags));
 
 // We expect certain tags to be "fast" as their untagging performance matters.
-// See crbug.com/476810009 for why this tag should be fast.
+// See crbug.com/476810009 and crbug.com/562056770 for why these tags should be
+// fast.
 static_assert(
     IsFastIndirectPointerTag(kWasmTrustedInstanceDataIndirectPointerTag));
+static_assert(
+    IsFastIndirectPointerTag(kWasmExportedFunctionDataIndirectPointerTag));
 
 V8_INLINE static constexpr bool IsSharedTrustedPointerType(
     IndirectPointerTag tag) {

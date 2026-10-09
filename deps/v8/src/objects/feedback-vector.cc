@@ -17,6 +17,7 @@
 #include "src/ic/ic-inl.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/data-handler-inl.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/hash-table-inl.h"
@@ -394,14 +395,6 @@ void FeedbackVector::set_tiering_in_progress(bool in_progress) {
   set_flags(TieringInProgressBit::update(flags(), in_progress));
 }
 
-void FeedbackVector::reset_flags() {
-  set_flags(
-      TieringInProgressBit::encode(false) |
-      OsrTieringInProgressBit::encode(false) |
-      MaybeHasMaglevOsrCodeBit::encode(false) |
-      MaybeHasTurbofanOsrCodeBit::encode(false));
-}
-
 void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
                                          Tagged<Code> code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
@@ -495,14 +488,42 @@ void NexusConfig::SetFeedbackPair(Tagged<FeedbackVector> vector,
                                   WriteBarrierMode mode_extra) const {
   CHECK(can_write());
   CHECK_GT(vector->length().value(), start_slot.WithOffset(1).ToInt());
+
+  // This function (and locking the feedback_vector_access mutex) only makes
+  // sense for slots longer than 1.
+  DCHECK_NE(FeedbackSlotKind::kInvalid, vector->GetKind(start_slot));
+  DCHECK_GE(FeedbackMetadata::GetSlotSize(vector->GetKind(start_slot)), 2);
+
   base::MutexGuard mutex_guard(isolate()->feedback_vector_access());
   vector->Set(start_slot, feedback, mode);
+  vector->Set(start_slot.WithOffset(1), feedback_extra, mode_extra);
+}
+
+void NexusConfig::SetFeedbackExtra(Tagged<FeedbackVector> vector,
+                                   FeedbackSlot start_slot,
+                                   Tagged<MaybeObject> feedback_extra,
+                                   WriteBarrierMode mode_extra) const {
+  CHECK(can_write());
+  CHECK_GT(vector->length().value(), start_slot.WithOffset(1).ToInt());
+
+  // This function (and locking the feedback_vector_access mutex) only makes
+  // sense for slots longer than 1.
+  DCHECK_NE(FeedbackSlotKind::kInvalid, vector->GetKind(start_slot));
+  DCHECK_GE(FeedbackMetadata::GetSlotSize(vector->GetKind(start_slot)), 2);
+
+  base::MutexGuard mutex_guard(isolate()->feedback_vector_access());
   vector->Set(start_slot.WithOffset(1), feedback_extra, mode_extra);
 }
 
 std::pair<Tagged<MaybeObject>, Tagged<MaybeObject>>
 NexusConfig::GetFeedbackPair(Tagged<FeedbackVector> vector,
                              FeedbackSlot slot) const {
+  // This function (and locking the feedback_vector_access mutex) only makes
+  // sense for slots longer than 1.
+  DCHECK_NE(FeedbackSlotKind::kInvalid, vector->GetKind(slot, kAcquireLoad));
+  DCHECK_GE(FeedbackMetadata::GetSlotSize(vector->GetKind(slot, kAcquireLoad)),
+            2);
+
   base::MutexGuardIf guard(isolate()->feedback_vector_access(),
                            mode() == BackgroundThread);
   Tagged<MaybeObject> feedback = vector->Get(slot);
@@ -1050,7 +1071,7 @@ void FeedbackNexus::ConfigureCloneObject(
         for (uint32_t j = 0; j < array_len; ++j) {
           new_array->set(j, array->get(j));
         }
-        SetFeedback(*new_array);
+        SetFeedback(*new_array, UPDATE_WRITE_BARRIER, kClearedWeakValue);
         array = new_array;
       }
 
@@ -1062,6 +1083,15 @@ void FeedbackNexus::ConfigureCloneObject(
     default:
       UNREACHABLE();
   }
+}
+
+void FeedbackNexus::ConfigureStringAddInternalizeCache(
+    Tagged<SimpleNameDictionary> cache) {
+  DisallowGarbageCollection no_gc;
+  DCHECK_EQ(kind(), FeedbackSlotKind::kStringAddAndInternalize);
+  // The cache is stored in the extra slot; the binary operation hint in the
+  // main slot is left as it is.
+  SetFeedbackExtra(cache);
 }
 
 int FeedbackNexus::GetCallCount() {
@@ -1080,11 +1110,7 @@ void FeedbackNexus::SetSpeculationMode(SpeculationMode mode) {
   CHECK(IsSmi(call_count));
   uint32_t count = static_cast<uint32_t>(Smi::ToInt(call_count));
   count = SpeculationModeField::update(count, mode);
-  Tagged<MaybeObject> feedback = GetFeedback();
-  // We could've skipped WB here (since we set the slot to the same value again)
-  // but we don't to make WB verification happy.
-  SetFeedback(feedback, UPDATE_WRITE_BARRIER, Smi::FromInt(count),
-              SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(Smi::FromInt(count), SKIP_WRITE_BARRIER);
 }
 
 void FeedbackNexus::NextSpeculationMode(SpeculationMode mode) {
@@ -1408,14 +1434,14 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
 
 bool FeedbackNexus::IsOneMapManyNames() const {
   // "1 map, many names" mode is currently only used for Wasm maps, and
-  // {IsWasmObjectMap} is currently only defined for Wasm-enabled builds.
+  // {IsAnyWasmObjectMap} is currently only defined for Wasm-enabled builds.
 #if V8_ENABLE_WEBASSEMBLY
   if (!IsKeyedLoadICKind(kind()) && !IsKeyedStoreICKind(kind())) return false;
   auto pair = GetFeedbackPair();
   Tagged<HeapObject> heap_object;
   if (!pair.first.GetHeapObjectIfWeak(&heap_object)) return false;
   if (!IsMap(heap_object)) return false;
-  if (!IsWasmObjectMap(Cast<Map>(heap_object))) return false;
+  if (!IsAnyWasmObjectMap(Cast<Map>(heap_object))) return false;
   if (!IsSmi(pair.second)) return false;
   Tagged<Smi> handler = pair.second.ToSmi();
   return handler == LoadHandler::LoadGeneric() ||

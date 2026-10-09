@@ -5,7 +5,7 @@
 #include "src/api/api-inl.h"
 #include "src/ast/ast.h"
 #include "src/base/strings.h"
-#include "src/base/vector.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/compiler.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
@@ -706,7 +706,7 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       int source_len = Utf8LengthHelper(inner.source);
       int len = code_len + params_len + source_len;
 
-      auto program = v8::base::OwnedVector<char>::NewForOverwrite(len + 1);
+      auto program = v8::base::UniqueArray<char>::NewForOverwrite(len + 1);
       v8::base::SNPrintF(program.as_vector(), code, inner.params, inner.source);
 
       i::HandleScope scope(isolate);

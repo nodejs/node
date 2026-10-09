@@ -746,11 +746,12 @@ let kExprI64AtomicCompareExchange32U = 0x4e;
 
 // Atomic GC opcodes (shared-everything-threads).
 const kExprPause = 0x04;
-// TODO(manoskouk): These are just placeholders, adjust them when the spec
+// TODO(manoskouk): These four are just placeholders, adjust them when the spec
 // defines them.
 const kExprStructWait = 0x05;
 const kExprWaitqueueNotify = 0x06;
 const kExprWaitqueueNew = 0x07;
+const kExprArrayWait = 0x08;
 const kExprPublish = 0x0f;
 const kExprStructAtomicGet = 0x5c;
 const kExprStructAtomicGetS = 0x5d;

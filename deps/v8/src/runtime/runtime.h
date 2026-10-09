@@ -453,7 +453,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ConstructInternalAggregateErrorHelper, -1 /* <= 5*/, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F, I) \
-  F(CheckProxyGetSetTrapResult, 2, 1)  \
+  F(CheckProxyGetSetTrapResult, 4, 1)  \
   F(CheckProxyHasTrapResult, 2, 1)     \
   F(CheckProxyDeleteTrapResult, 2, 1)  \
   F(GetPropertyWithReceiver, 3, 1)     \
@@ -678,6 +678,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ScheduleGCInStackCheck, 0, 1)                                        \
   F(SerializeDeserializeNow, 0, 1)                                       \
   F(SetAllocationTimeout, -1 /* 2 || 3 */, 1)                            \
+  F(SetDispatchTableGCInterval, 1, 1)                                    \
   F(SetBatterySaverMode, 1, 1)                                           \
   F(SetForceSlowPath, 1, 1)                                              \
   F(SetIteratorProtector, 0, 1)                                          \
@@ -685,6 +686,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ShareObject, 1, 1)                                                   \
   F(SimulateNewspaceFull, 0, 1)                                          \
   F(StringIsFlat, 1, 1)                                                  \
+  F(StringIsOneByteRepresentation, 1, 1)                                 \
   F(StringIteratorProtector, 0, 1)                                       \
   F(StringWrapperToPrimitiveProtector, 0, 1)                             \
   F(SystemBreak, 0, 1)                                                   \
@@ -723,11 +725,12 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ThrowWasmJSPISuspendError, 0, 1)                             \
   F(ThrowWasmFXSuspendError, 0, 1)                               \
   F(ThrowWasmError, 1, 1)                                        \
-  F(TrapHandlerThrowWasmError, 0, 1)                             \
   F(ThrowWasmStackOverflow, 0, 1)                                \
   F(WasmI32AtomicWait, 4, 1)                                     \
   F(WasmI64AtomicWait, 5, 1)                                     \
-  F(WasmManagedObjectWait, 5, 1)                                 \
+  F(WasmManagedObjectWait32, 5, 1)                               \
+  F(WasmManagedObjectWait64, 5, 1)                               \
+  F(WasmManagedObjectWaitRef, 5, 1)                              \
   F(WasmWaitqueueNew, 0, 1)                                      \
   F(WasmMemoryGrow, 2, 1)                                        \
   F(WasmStackGuard, 1, 1)                                        \
@@ -789,6 +792,8 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmConfigureAllPrototypes, 4, 1)                            \
   F(WasmConfigureAllPrototypesOpt, 3, 1)                         \
   F(DebugCollectWasmCoverage, 0, 1)                              \
+  IF_TSAN(F, TsanAcquireForInitializationFence, 1, 1,            \
+          RuntimeCallProperty::kCannotTriggerGC)                 \
   F(WasmTypeAssertionFailed, 0, 1, RuntimeCallProperty::kCannotTriggerGC)
 
 #define FOR_EACH_INTRINSIC_WASM_TEST(F, I)                      \

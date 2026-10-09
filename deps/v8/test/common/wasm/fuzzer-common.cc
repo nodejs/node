@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <unordered_map>
@@ -23,6 +24,7 @@
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-metrics.h"
+#include "src/base/unique-array.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/objects/managed.h"
@@ -52,6 +54,13 @@
 #if V8_ENABLE_DRUMBRAKE
 #include "src/wasm/interpreter/wasm-interpreter.h"
 #endif  // V8_ENABLE_DRUMBRAKE
+
+#if V8_OS_WIN
+#include <windows.h>
+
+// This has to come after windows.h.
+#include <psapi.h>  // For `QueryWorkingSetEx`.
+#endif              // V8_OS_WIN
 
 namespace v8::internal::wasm::fuzzing {
 
@@ -128,8 +137,11 @@ bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
     return true;
   };
 
-  auto CheckStruct = [&cmp, &lhs_map](Tagged<WasmStruct> lhs,
-                                      Tagged<WasmStruct> rhs) -> bool {
+  auto CheckStruct = [&cmp, &lhs_map]<typename Struct>(
+                         Tagged<Struct> lhs, Tagged<Struct> rhs) -> bool
+    requires(std::is_same_v<Struct, WasmStruct> ||
+             std::is_same_v<Struct, WasmCustomMap>)
+  {
     auto [iter, inserted] = lhs_map.insert({lhs.ptr(), rhs.ptr()});
     if (!inserted) {
       return iter->second == rhs.ptr();
@@ -175,6 +187,12 @@ bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
     } else if (IsWasmStruct(lhs_ref)) {
       if (!IsWasmStruct(rhs_ref)) return false;
       if (!CheckStruct(Cast<WasmStruct>(lhs_ref), Cast<WasmStruct>(rhs_ref))) {
+        return false;
+      }
+    } else if (IsWasmCustomMap(lhs_ref)) {
+      if (!IsWasmCustomMap(rhs_ref)) return false;
+      if (!CheckStruct(Cast<WasmCustomMap>(lhs_ref),
+                       Cast<WasmCustomMap>(rhs_ref))) {
         return false;
       }
     } else if (IsWasmArray(lhs_ref)) {
@@ -249,20 +267,25 @@ void PrintValue(std::ostream& os, const WasmValue& value) {
         }
         seen_objects.insert(ref.ptr());
 
-        if (IsWasmStruct(ref)) {
-          Tagged<WasmStruct> struct_ref = Cast<WasmStruct>(ref);
+        auto PrintStruct = [&]<typename Struct>(Tagged<Struct> ref) -> void {
           const auto* type = GetTypeCanonicalizer()->LookupStruct(
-              struct_ref->map()->wasm_type_info()->type_index());
+              ref->map()->wasm_type_info()->type_index());
           uint32_t count = type->field_count();
 
           print_stack.push_back(PrintSymbol::kStructClose);
           for (uint32_t i = count; i-- > 0;) {
-            print_stack.push_back(struct_ref->GetFieldValue(i));
+            print_stack.push_back(ref->GetFieldValue(i));
             if (i > 0) {
               print_stack.push_back(PrintSymbol::kComma);
             }
           }
           os << '{';
+        };
+
+        if (IsWasmStruct(ref)) {
+          PrintStruct(Cast<WasmStruct>(ref));
+        } else if (IsWasmCustomMap(ref)) {
+          PrintStruct(Cast<WasmCustomMap>(ref));
         } else if (IsWasmArray(ref)) {
           Tagged<WasmArray> array_ref = Cast<WasmArray>(ref);
           uint32_t len = array_ref->length();
@@ -453,7 +476,7 @@ MaybeDirectHandle<WasmModuleObject> CompileReferenceModule(
   native_module = GetWasmEngine()->NewNativeModule(
       isolate, enabled_features, detected_features,
       CompileTimeImportsForFuzzing(), module, code_size_estimate);
-  native_module->SetWireBytes(base::OwnedCopyOf(wire_bytes));
+  native_module->SetWireBytes(base::UniqueCopyOf(wire_bytes));
 
   // The value is -3 so that it is different than the compilation ID of actual
   // compilations, different than the sentinel value of the CompilationState
@@ -477,7 +500,7 @@ MaybeDirectHandle<WasmModuleObject> CompileReferenceModule(
   TypeCanonicalizer::PrepareForCanonicalTypeId(
       isolate, module->MaxCanonicalTypeIndex(),
       SharedFlag{module->has_shared_part});
-  return WasmModuleObject::New(isolate, std::move(native_module), script);
+  return WasmModuleObject::New(isolate, script);
 }
 
 #if V8_ENABLE_DRUMBRAKE
@@ -702,38 +725,59 @@ bool GlobalsMatch(Isolate* isolate, const WasmModule* module,
   return global_mismatches == 0;
 }
 
-#if V8_OS_LINUX || V8_OS_DARWIN
+#if V8_OS_LINUX || V8_OS_DARWIN || V8_OS_WIN
 // Compares two memory regions efficiently by skipping non-resident pages.
 // Processes memory in batches to minimize metadata overhead.
 bool sparse_memory_equal(uint8_t* addr1, uint8_t* addr2, size_t total_length) {
+  if (total_length == 0) return true;
+
   const size_t page_size = i::CommitPageSize();
   // TODO(clemensb): Add batching if necessary. 16GB is 4M pages of 4kB, hence
-  // the two vectors below are <= 4MB, which is OK.
+  // the two vectors below are <= 4MB (or <= 64MB each on Windows), which is OK.
   static_assert(kMaxMemory64Size <= uint64_t{16} * GB);
   DCHECK_GE(kMaxMemory64Size, total_length);
   const size_t num_pages = total_length / page_size;
   DCHECK_EQ(total_length, num_pages * page_size);
 
-#ifdef V8_OS_DARWIN
-  using mincore_dst_type = char;
+#if V8_OS_WIN
+  using residency_type = PSAPI_WORKING_SET_EX_INFORMATION;
+#elif V8_OS_DARWIN
+  using residency_type = char;
 #else
-  using mincore_dst_type = unsigned char;
-#endif  // V8_OS_DARWIN
+  using residency_type = unsigned char;
+#endif
   // Allocate storage for the two residency vectors.
   auto storage =
-      base::OwnedVector<mincore_dst_type>::NewForOverwrite(2 * num_pages);
-  mincore_dst_type* vec1 = storage.data();
-  mincore_dst_type* vec2 = vec1 + num_pages;
+      base::UniqueArray<residency_type>::NewForOverwrite(2 * num_pages);
+  residency_type* vec1 = storage.data();
+  residency_type* vec2 = vec1 + num_pages;
 
   // Fetch residency status for both address ranges.
+#if V8_OS_WIN
+  for (size_t i = 0; i < num_pages; ++i) {
+    vec1[i].VirtualAddress = addr1 + (i * page_size);
+    vec2[i].VirtualAddress = addr2 + (i * page_size);
+  }
+  const size_t byte_size = storage.size() * sizeof(residency_type);
+  DCHECK_GE(std::numeric_limits<DWORD>::max(), byte_size);
+  if (!QueryWorkingSetEx(GetCurrentProcess(), storage.data(),
+                         static_cast<DWORD>(byte_size))) {
+    FATAL("QueryWorkingSetEx failed: %lu", GetLastError());
+  }
+  auto is_resident = [](const residency_type& info) -> bool {
+    return info.VirtualAttributes.Valid;
+  };
+#else
   if (mincore(addr1, total_length, vec1) != 0 ||
       mincore(addr2, total_length, vec2) != 0) {
     FATAL("mincore failed: %s", strerror(errno));
   }
+  auto is_resident = [](residency_type val) -> bool { return val & 1; };
+#endif
 
   for (size_t i = 0; i < num_pages; ++i) {
-    bool p1_res = vec1[i] & 1;
-    bool p2_res = vec2[i] & 1;
+    bool p1_res = is_resident(vec1[i]);
+    bool p2_res = is_resident(vec2[i]);
 
     // Compare pages if at least one is resident.
     if (!p1_res && !p2_res) continue;
@@ -745,7 +789,7 @@ bool sparse_memory_equal(uint8_t* addr1, uint8_t* addr2, size_t total_length) {
 
   return true;
 }
-#endif  // V8_OS_LINUX || V8_OS_DARWIN
+#endif  // V8_OS_LINUX || V8_OS_DARWIN || V8_OS_WIN
 
 bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
                    Tagged<WasmTrustedInstanceData> instance_data,
@@ -782,11 +826,11 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
     uint8_t* data = static_cast<uint8_t*>(store->buffer_start());
     uint8_t* ref_data = static_cast<uint8_t*>(ref_store->buffer_start());
 
-#if V8_OS_LINUX || V8_OS_DARWIN
+#if V8_OS_LINUX || V8_OS_DARWIN || V8_OS_WIN
     const bool memory_equal = sparse_memory_equal(ref_data, data, memory_size);
 #else
     const bool memory_equal = std::memcmp(ref_data, data, memory_size) == 0;
-#endif  // V8_OS_LINUX || V8_OS_DARWIN
+#endif  // V8_OS_LINUX || V8_OS_DARWIN || V8_OS_WIN
 
     if (memory_equal) continue;
 
@@ -1072,7 +1116,7 @@ int ExecuteAgainstReference(Isolate* isolate,
     MaybeDirectHandle<WasmModuleObject> maybe_module =
         GetWasmEngine()->SyncCompile(isolate, enabled_features,
                                      CompileTimeImportsForFuzzing(), &thrower,
-                                     base::OwnedCopyOf(wire_bytes));
+                                     base::UniqueCopyOf(wire_bytes));
     module_object_traced = maybe_module.ToHandleChecked();
     CHECK(!thrower.error());
   }
@@ -1400,7 +1444,7 @@ int SyncCompileAndExecuteAgainstReference(
   MaybeDirectHandle<WasmModuleObject> compiled_module =
       GetWasmEngine()->SyncCompile(i_isolate, enabled_features,
                                    CompileTimeImportsForFuzzing(), &thrower,
-                                   base::OwnedCopyOf(wire_bytes));
+                                   base::UniqueCopyOf(wire_bytes));
   CHECK_EQ(valid, !compiled_module.is_null());
   CHECK_EQ(!valid, thrower.error());
   if (require_valid && !valid) {

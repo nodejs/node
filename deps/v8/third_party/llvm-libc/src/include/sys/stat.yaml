@@ -42,6 +42,13 @@ functions:
     arguments:
       - type: int
       - type: struct stat *
+  - name: fstatat
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *__restrict
+      - type: struct stat *__restrict
+      - type: int
   - name: lstat
     return_type: int
     arguments:
@@ -58,11 +65,39 @@ functions:
       - type: int
       - type: const char *
       - type: mode_t
+  - name: mkfifo
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: mode_t
+  - name: mkfifoat
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *
+      - type: mode_t
+  - name: mknod
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: mode_t
+      - type: dev_t
+  - name: mknodat
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *
+      - type: mode_t
+      - type: dev_t
   - name: stat
     return_type: int
     arguments:
       - type: const char *__restrict
       - type: struct stat *__restrict
+  - name: umask
+    return_type: mode_t
+    arguments:
+      - type: mode_t
   - name: utimensat
     return_type: int
     arguments:
@@ -70,3 +105,8 @@ functions:
       - type: const char *
       - type: const struct timespec *
       - type: int
+  - name: futimens
+    return_type: int
+    arguments:
+      - type: int
+      - type: const struct timespec *

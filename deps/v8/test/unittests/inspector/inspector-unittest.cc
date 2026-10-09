@@ -401,14 +401,6 @@ class UAFTriggerChannel : public V8Inspector::Channel {
       m_triggerCount++;
       m_inspector->resetContextGroup(m_contextGroupId);
 
-      // Allocate a few small dummy blocks of varying sizes
-      // and prevent the allocator from recycling the same memory address,
-      // otherwise our test NoUAFWhenResettingContextGroupDuringArgumentWrapping
-      // will actually report the message to the front-end.
-      for (size_t size : {32, 48, 64, 80, 96, 128, 256}) {
-        m_dummies.push_back(std::make_unique<std::vector<uint8_t>>(size, 0));
-      }
-
       // Recreate storage using public exceptionThrown API.
       // This avoids depending on internal non-exported V8InspectorImpl methods.
       v8::HandleScope handle_scope(m_isolate);
@@ -447,7 +439,6 @@ class UAFTriggerChannel : public V8Inspector::Channel {
   std::string m_targetNotification;
   int m_triggerCount = 0;
   bool m_consoleAPICalled = false;
-  std::vector<std::unique_ptr<std::vector<uint8_t>>> m_dummies;
 };
 
 TEST_F(InspectorTest, NoUAFWhenResettingContextGroupDuringMessageReporting) {

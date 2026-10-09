@@ -6,6 +6,7 @@
 #include "include/v8-exception.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/execution/isolate.h"
 #include "src/objects/property-descriptor.h"
@@ -261,7 +262,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   MaybeDirectHandle<WasmModuleObject> compiled_module =
       GetWasmEngine()->SyncCompile(i_isolate, enabled_features,
                                    CompileTimeImportsForFuzzing(), &thrower,
-                                   base::OwnedCopyOf(bytes));
+                                   base::UniqueCopyOf(bytes));
   CHECK(!compiled_module.is_null());
   CHECK(!thrower.error());
   thrower.Reset();

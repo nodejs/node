@@ -329,7 +329,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                       JumpMode jump_mode = JumpMode::kJump);
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
-  void CallJSFunction(Register function_object, uint16_t argument_count);
+  void CallJSFunction(Register function_object,
+                      uint16_t expected_parameter_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
   void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
@@ -1195,6 +1196,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Load an object from the root table.
   void LoadRoot(Register destination, RootIndex index) final;
   void LoadTaggedRoot(Register destination, RootIndex index);
+  void StoreTaggedRoot(const MemOperand& destination, RootIndex index);
   void LoadCompressedTaggedRoot(Register destination, RootIndex index);
 
   void LoadMap(Register destination, Register object);
@@ -1956,6 +1958,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadEntrypointAndParameterCountFromJSDispatchTable(
       Register entrypoint, Register parameter_count, Register dispatch_handle,
       Register scratch);
+  void PushDispatchHandle(Register dispatch_handle, Register scratch1,
+                          Register scratch2);
+  void PopDispatchHandle(Register dispatch_handle, Register scratch1,
+                         Register scratch2);
 #endif  // V8_TARGET_ARCH_RISCV64
   // Load a protected pointer field.
   void LoadProtectedPointerField(Register destination,

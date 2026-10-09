@@ -22,7 +22,7 @@
     %OptimizeMaglevOnNextCall(catchTest);
     assertEquals(42, await catchTest(Promise.resolve(42)));
     assertEquals(-5, await catchTest(Promise.reject(5)));
-    assertTrue(isMaglevved(catchTest));
+    assertMaglevved(catchTest);
   }
 
   // 2. Non-callable reaction behaves like identity.
@@ -35,7 +35,7 @@
     assertEquals(10, await nonCallableCatch(Promise.resolve(10)));
     %OptimizeMaglevOnNextCall(nonCallableCatch);
     assertEquals(10, await nonCallableCatch(Promise.resolve(10)));
-    assertTrue(isMaglevved(nonCallableCatch));
+    assertMaglevved(nonCallableCatch);
   }
 
   // 3. Subclassed promise receiver.
@@ -53,7 +53,7 @@
     const p2 = subCatch(MyPromise.reject(3));
     assertInstanceof(p2, MyPromise);
     assertEquals(-3, await p2);
-    assertTrue(isMaglevved(subCatch));
+    assertMaglevved(subCatch);
   }
 
   // 4. Chained catch handler.
@@ -67,7 +67,7 @@
     %OptimizeMaglevOnNextCall(chainedCatch);
     assertEquals(10, await chainedCatch(Promise.resolve(10)));
     assertEquals(6, await chainedCatch(Promise.reject(5)));
-    assertTrue(isMaglevved(chainedCatch));
+    assertMaglevved(chainedCatch);
   }
 
   // 5. Catch with zero arguments (on_rejected defaults to undefined).
@@ -96,7 +96,7 @@
       assertEquals(5, e);
     }
     assertTrue(caught);
-    assertTrue(isMaglevved(zeroArgsCatch));
+    assertMaglevved(zeroArgsCatch);
   }
 
   // 6. Catch with extra arguments (extra arguments are ignored).
@@ -110,7 +110,7 @@
     %OptimizeMaglevOnNextCall(extraArgsCatch);
     assertEquals(42, await extraArgsCatch(Promise.resolve(42)));
     assertEquals(-5, await extraArgsCatch(Promise.reject(5)));
-    assertTrue(isMaglevved(extraArgsCatch));
+    assertMaglevved(extraArgsCatch);
   }
 
   // 7. Spread call p.catch(...args) (skips reduction and falls back to generic call).
@@ -126,7 +126,7 @@
     assertEquals(42, await spreadCatch(Promise.resolve(42), [e => -e]));
     assertEquals(-5, await spreadCatch(Promise.reject(5), [e => -e]));
     assertEquals(42, await spreadCatch(Promise.resolve(42), []));
-    assertTrue(isMaglevved(spreadCatch));
+    assertMaglevved(spreadCatch);
   }
 
   // 8. Reduction registers a dependency on PromiseThenProtector.
@@ -142,7 +142,7 @@
     testThenProtector(p);
     %OptimizeMaglevOnNextCall(testThenProtector);
     testThenProtector(p);
-    assertTrue(isMaglevved(testThenProtector));
+    assertMaglevved(testThenProtector);
 
     // Invalidate PromiseThenProtector.
     Promise.prototype.then = function() {
@@ -157,6 +157,6 @@
     testThenProtector(p);
     %OptimizeMaglevOnNextCall(testThenProtector);
     assertEquals('patched', testThenProtector(p));
-    assertTrue(isMaglevved(testThenProtector));
+    assertMaglevved(testThenProtector);
   }
 })();

@@ -182,9 +182,7 @@ size_t MemoryPool::PoolImpl<PoolEntry>::Size() const {
   for (const auto& entry : local_pools_) {
     count += entry.second.size();
   }
-  for (const auto& entry : shared_pool_) {
-    count += entry.size();
-  }
+  count += shared_pool_.size();
   return count;
 }
 
@@ -205,12 +203,10 @@ template <typename PoolEntry>
 MemoryPool::PoolReleaseStats MemoryPool::PoolImpl<PoolEntry>::ReleaseUpTo(
     Epoch release_epoch) {
   std::vector<PoolEntry> entries_to_free;
-  size_t freed = 0;
   bool pool_emptied = false;
-  const auto collect_entries = [&entries_to_free, &freed,
+  const auto collect_entries = [&entries_to_free,
                                 release_epoch](PoolEntry& entry) {
     if (entry.epoch() <= release_epoch) {
-      freed += entry.size();
       entries_to_free.push_back(std::move(entry));
       return true;
     }
@@ -234,7 +230,7 @@ MemoryPool::PoolReleaseStats MemoryPool::PoolImpl<PoolEntry>::ReleaseUpTo(
     }
   }
   // Entries will be freed automatically here.
-  return {freed, pool_emptied};
+  return {entries_to_free.size(), pool_emptied};
 }
 
 bool MemoryPool::LargePagePoolImpl::Add(std::vector<LargePage*>& pages,
@@ -301,7 +297,6 @@ MemoryPool::PoolReleaseStats MemoryPool::LargePagePoolImpl::ReleaseUpTo(
     Epoch release_epoch) {
   std::vector<PooledPage> entries_to_free;
   bool pool_emptied = false;
-  size_t freed = 0;
   {
     base::MutexGuard guard(&mutex_);
     std::erase_if(pages_, [this, &entries_to_free, release_epoch](auto& entry) {
@@ -319,7 +314,7 @@ MemoryPool::PoolReleaseStats MemoryPool::LargePagePoolImpl::ReleaseUpTo(
     DCHECK_EQ(total_size_, ComputeTotalSize());
   }
   // Entries will be freed automatically here.
-  return {freed, pool_emptied};
+  return {entries_to_free.size(), pool_emptied};
 }
 
 size_t MemoryPool::LargePagePoolImpl::ComputeTotalSize() const {
@@ -474,9 +469,8 @@ class MemoryPool::ReleasePooledChunksTask final : public CancelableTask {
       IsolateGroup::current()->FindAnotherIsolateLocked(
           nullptr, [&stats](Isolate* isolate) {
             isolate->PrintWithTimestamp(
-                "Memory pool: Removed pages: %zu, removed large pages: %zu\n, "
-                "removed "
-                "zone reservations: %zu\n",
+                "Memory pool: Removed pages: %zu, removed large pages: %zu, "
+                "removed zone reservations: %zu\n",
                 stats.pages_removed, stats.large_pages_removed,
                 stats.zone_reservations_removed);
           });

@@ -33,6 +33,7 @@
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/string.h"
+#include "src/sandbox/check.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
@@ -330,6 +331,21 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
       Tagged<Object> literal_value = literal_array->get(literal_index);
       os << "{literal_id=" << literal_index << " (" << Brief(literal_value)
          << ")}";
+      break;
+    }
+
+    case TranslationOpcode::DOUBLE_LITERAL:
+    case TranslationOpcode::HOLEY_DOUBLE_LITERAL: {
+      DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);
+      uint32_t low = iterator.NextOperandUnsigned();
+      uint32_t high = iterator.NextOperandUnsigned();
+      Float64 value =
+          Float64::FromBits((static_cast<uint64_t>(high) << 32) | low);
+      os << "{double_literal=" << value.get_scalar() << " (0x" << std::hex
+         << value.get_bits() << std::dec << ")"
+         << (opcode == TranslationOpcode::HOLEY_DOUBLE_LITERAL ? " (holey)"
+                                                               : "")
+         << "}";
       break;
     }
 
@@ -738,7 +754,11 @@ Handle<Object> TranslatedValue::GetValue() {
     // We shouldn't have hole values by now, so treat holey double as normal
     // doubles.
     case TranslatedValue::kHoleyDouble:
-      number = double_value().get_scalar();
+      if (double_value().is_nan()) {
+        number = std::numeric_limits<double>::quiet_NaN();
+      } else {
+        number = double_value().get_scalar();
+      }
       heap_object = isolate()->factory()->NewHeapNumber(number);
       break;
     default:
@@ -748,6 +768,35 @@ Handle<Object> TranslatedValue::GetValue() {
          kind() == TranslatedValue::kUint64ToBigInt);
   set_initialized_storage(heap_object);
   return storage_;
+}
+
+Float64 TranslatedValue::GetDoubleValue() {
+  switch (kind()) {
+    case TranslatedValue::kDouble:
+    case TranslatedValue::kHoleyDouble:
+      return double_value();
+    case TranslatedValue::kFloat:
+      return Float64::FromMaybeNaN(float_value().get_scalar());
+    case TranslatedValue::kInt32:
+      return Float64(static_cast<double>(int32_value()));
+    case TranslatedValue::kUint32:
+      return Float64(static_cast<double>(uint32_value()));
+    default: {
+      DCHECK(!v8_flags.turbolev);
+      DirectHandle<Object> value = GetValue();
+      if (IsNumber(*value)) {
+        return Float64::FromMaybeNaN(Object::NumberValue(*value));
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+      } else if (value.is_identical_to(
+                     isolate()->factory()->undefined_value())) {
+        return Float64::undefined_nan();
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+      } else {
+        CHECK(value.is_identical_to(isolate()->factory()->the_hole_value()));
+        return Float64::hole_nan();
+      }
+    }
+  }
 }
 
 bool TranslatedValue::IsMaterializedObject() const {
@@ -1211,6 +1260,8 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case TranslationOpcode::SIMD128_STACK_SLOT:
     case TranslationOpcode::HOLEY_DOUBLE_STACK_SLOT:
     case TranslationOpcode::LITERAL:
+    case TranslationOpcode::DOUBLE_LITERAL:
+    case TranslationOpcode::HOLEY_DOUBLE_LITERAL:
     case TranslationOpcode::OPTIMIZED_OUT:
     case TranslationOpcode::MATCH_PREVIOUS_TRANSLATION:
       break;
@@ -1775,6 +1826,50 @@ int TranslatedState::CreateNextTranslatedValue(
       return translated_value.GetChildrenCount();
     }
 
+    case TranslationOpcode::DOUBLE_LITERAL: {
+      uint32_t low = iterator->NextOperandUnsigned();
+      uint32_t high = iterator->NextOperandUnsigned();
+      Float64 value =
+          Float64::FromBits((static_cast<uint64_t>(high) << 32) | low);
+      if constexpr (IsTracing) {
+        if (value.is_nan()) {
+          PrintF(trace_file, "(double literal %e 0x%" PRIx64 ")",
+                 value.get_scalar(), value.get_bits());
+        } else {
+          PrintF(trace_file, "(double literal %e)", value.get_scalar());
+        }
+      }
+      TranslatedValue translated_value =
+          TranslatedValue::NewDouble(this, value);
+      frame.Add(translated_value);
+      return translated_value.GetChildrenCount();
+    }
+
+    case TranslationOpcode::HOLEY_DOUBLE_LITERAL: {
+      uint32_t low = iterator->NextOperandUnsigned();
+      uint32_t high = iterator->NextOperandUnsigned();
+      Float64 value =
+          Float64::FromBits((static_cast<uint64_t>(high) << 32) | low);
+      if constexpr (IsTracing) {
+        if (value.is_hole_nan()) {
+          PrintF(trace_file, "(holey double literal hole nan)");
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+        } else if (value.is_undefined_nan()) {
+          PrintF(trace_file, "(holey double literal undefined nan)");
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+        } else if (value.is_nan()) {
+          PrintF(trace_file, "(holey double literal %e 0x%" PRIx64 ")",
+                 value.get_scalar(), value.get_bits());
+        } else {
+          PrintF(trace_file, "(holey double literal %e)", value.get_scalar());
+        }
+      }
+      TranslatedValue translated_value =
+          TranslatedValue::NewHoleyDouble(this, value);
+      frame.Add(translated_value);
+      return translated_value.GetChildrenCount();
+    }
+
     case TranslationOpcode::LITERAL: {
       int literal_index = iterator->NextOperand();
       TranslatedValue translated_value = literal_array.Get(this, literal_index);
@@ -2109,6 +2204,7 @@ void TranslatedState::InitializeCapturedObjectAt(
   // Handle the special cases.
   switch (map->instance_type()) {
     case HEAP_NUMBER_TYPE:
+    case UNINITIALIZED_HEAP_NUMBER_TYPE:
     case FIXED_DOUBLE_ARRAY_TYPE:
       return;
 
@@ -2192,8 +2288,10 @@ void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
                                                   int* value_index,
                                                   TranslatedValue* slot,
                                                   DirectHandle<Map> map) {
+  CHECK_GE(slot->GetChildrenCount(), 2);
   uint32_t length =
       base::checked_cast<uint32_t>(frame->values_[*value_index].GetSmiValue());
+  SBXCHECK_EQ(length, slot->GetChildrenCount() - 2);
   (*value_index)++;
   Handle<FixedDoubleArray> array =
       Cast<FixedDoubleArray>(isolate()->factory()->NewFixedDoubleArray(length));
@@ -2201,17 +2299,8 @@ void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
   for (uint32_t i = 0; i < length; i++) {
     CHECK_NE(TranslatedValue::kCapturedObject,
              frame->values_[*value_index].kind());
-    DirectHandle<Object> value = frame->values_[*value_index].GetValue();
-    if (IsNumber(*value)) {
-      array->set(i, Object::NumberValue(*value));
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-    } else if (value.is_identical_to(isolate()->factory()->undefined_value())) {
-      array->set_undefined(i);
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
-    } else {
-      CHECK(value.is_identical_to(isolate()->factory()->the_hole_value()));
-      array->set_the_hole(isolate(), i);
-    }
+    Float64 value = frame->values_[*value_index].GetDoubleValue();
+    array->set_raw(i, value);
     (*value_index)++;
   }
   slot->set_storage(array);
@@ -2222,19 +2311,25 @@ void TranslatedState::MaterializeHeapNumber(TranslatedFrame* frame,
                                             TranslatedValue* slot) {
   CHECK_NE(TranslatedValue::kCapturedObject,
            frame->values_[*value_index].kind());
-  DirectHandle<Object> value = frame->values_[*value_index].GetValue();
-  Handle<HeapNumber> box;
-  if (value.is_identical_to(isolate()->factory()->the_hole_value())) {
-    // See is_hole_nan conversions in maglev-code-generator.cc and
-    // turbolev-graph-builder.cc.
-    box = isolate()->factory()->NewHeapNumber(
-        std::numeric_limits<double>::quiet_NaN());
-  } else {
-    CHECK(IsNumber(*value));
-    box = isolate()->factory()->NewHeapNumber(Object::NumberValue(*value));
+  Float64 value = frame->values_[*value_index].GetDoubleValue();
+  if (value.is_nan()) {
+    value = Float64::quiet_nan();
   }
+  Handle<HeapNumber> box =
+      isolate()->factory()->NewHeapNumber(value.get_scalar());
   (*value_index)++;
   slot->set_storage(box);
+}
+
+void TranslatedState::MaterializeUninitializedHeapNumber(
+    TranslatedFrame* frame, int* value_index, TranslatedValue* slot) {
+  CHECK_NE(TranslatedValue::kCapturedObject,
+           frame->values_[*value_index].kind());
+  DirectHandle<Object> value = frame->values_[*value_index].GetValue();
+  Handle<HeapObject> box = isolate()->factory()->NewUninitializedHeapNumber();
+  (*value_index)++;
+  slot->set_storage(box);
+  USE(value);
 }
 
 namespace {
@@ -2289,6 +2384,12 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
       // Materialize (i.e. allocate&initialize) the heap number and return.
       // There is no need to process the children.
       return MaterializeHeapNumber(frame, &value_index, slot);
+
+    case UNINITIALIZED_HEAP_NUMBER_TYPE:
+      // Materialize (i.e. allocate&initialize) the uninitialized heap number
+      // and return.
+      // There is no need to process the children.
+      return MaterializeUninitializedHeapNumber(frame, &value_index, slot);
 
     case FIXED_ARRAY_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:

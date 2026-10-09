@@ -7,6 +7,7 @@
 #include "src/snapshot/snapshot.h"
 
 #include "src/api/api-inl.h"  // For OpenHandle.
+#include "src/base/numerics/safe_conversions.h"
 #include "src/baseline/baseline-batch-compiler.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/local-isolate-inl.h"
@@ -409,6 +410,7 @@ v8::StartupData Snapshot::Create(
   DCHECK_GT(contexts->size(), 0);
   HandleScope scope(isolate);
 
+  flags |= Snapshot::kAllowSerializingAllTrustedObjects;
   ReadOnlySerializer read_only_serializer(isolate, flags);
   read_only_serializer.Serialize();
 
@@ -525,16 +527,16 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
   uint32_t num_contexts = static_cast<uint32_t>(context_snapshots->size());
   uint32_t read_only_offset =
       SnapshotImpl::ReadOnlySnapshotOffset(num_contexts);
-  uint32_t total_length = read_only_offset;
-  total_length += static_cast<uint32_t>(read_only_snapshot->RawData().length());
-  total_length += static_cast<uint32_t>(startup_snapshot->RawData().length());
-  total_length +=
-      static_cast<uint32_t>(shared_heap_snapshot->RawData().length());
+  size_t total_length = read_only_offset;
+  total_length += read_only_snapshot->RawData().length();
+  total_length += startup_snapshot->RawData().length();
+  total_length += shared_heap_snapshot->RawData().length();
   for (const auto context_snapshot : *context_snapshots) {
-    total_length += static_cast<uint32_t>(context_snapshot->RawData().length());
+    total_length += context_snapshot->RawData().length();
   }
 
-  char* data = new char[total_length];
+  int total_length_int = base::checked_cast<int>(total_length);
+  char* data = new char[total_length_int];
   // Zero out pre-payload data. Part of that is only used for padding.
   memset(data, 0, read_only_offset);
 
@@ -618,7 +620,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
   if (v8_flags.serialization_statistics) PrintF("\n");
 
   DCHECK_EQ(total_length, payload_offset);
-  v8::StartupData result = {data, static_cast<int>(total_length)};
+  v8::StartupData result = {data, total_length_int};
 
   SnapshotImpl::SetHeaderValue(
       data, SnapshotImpl::kChecksumOffset,

@@ -595,7 +595,6 @@ FUNCTION_REFERENCE(wasm_switch_from_the_central_stack_for_js,
                    wasm::switch_from_the_central_stack_for_js)
 FUNCTION_REFERENCE(wasm_grow_stack, wasm::grow_stack)
 FUNCTION_REFERENCE(wasm_shrink_stack, wasm::shrink_stack)
-FUNCTION_REFERENCE(wasm_load_old_fp, wasm::load_old_fp)
 FUNCTION_REFERENCE(wasm_f32_trunc, wasm::f32_trunc_wrapper)
 FUNCTION_REFERENCE(wasm_f32_floor, wasm::f32_floor_wrapper)
 FUNCTION_REFERENCE(wasm_f32_ceil, wasm::f32_ceil_wrapper)
@@ -1153,20 +1152,9 @@ ExternalReference::address_of_regexp_static_result_offsets_vector(
       isolate->address_of_regexp_static_result_offsets_vector());
 }
 
-ExternalReference ExternalReference::address_of_regexp_stack_limit_address(
+ExternalReference ExternalReference::address_of_regexp_stack_thread_local(
     Isolate* isolate) {
-  return ExternalReference(isolate->regexp_stack()->limit_address_address());
-}
-
-ExternalReference ExternalReference::address_of_regexp_stack_memory_top_address(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->regexp_stack()->memory_top_address_address());
-}
-
-ExternalReference ExternalReference::address_of_regexp_stack_stack_pointer(
-    Isolate* isolate) {
-  return ExternalReference(isolate->regexp_stack()->stack_pointer_address());
+  return ExternalReference(isolate->regexp_stack()->thread_local_address());
 }
 
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_acos_function, base::ieee754::acos,
@@ -1893,17 +1881,39 @@ void tsan_release_store_64_bits(Address addr, int64_t value) {
 #endif  // V8_TARGET_ARCH_X64
 }
 
-// Same as above, for relaxed loads.
-base::Atomic32 tsan_relaxed_load_32_bits(Address addr, int64_t value) {
+// Similarly like above, for relaxed loads.
+// If `invoke_tsan_acquire`, the `shared_base` parameter is a wasm shared object
+// and is the base object of `addr`. In that case we must invoke TSAN_ACQUIRE
+// to define the dependence between the initialization release fence and this
+// load.
+base::Atomic32 tsan_relaxed_load_32_bits(Address addr, Address shared_base,
+                                         int32_t invoke_tsan_acquire) {
 #if V8_TARGET_ARCH_X64
+  if (invoke_tsan_acquire) {
+    // We might reach this point with a non-shared object, because wasm anyref
+    // may hold a shared reference.
+    Tagged<HeapObject> object(
+        reinterpret_cast<HeapObject*>(shared_base - kHeapObjectTag));
+    if (HeapLayout::InWritableSharedSpace(object)) {
+      TSAN_ACQUIRE(object.address());
+    }
+  }
   return base::Relaxed_Load(reinterpret_cast<base::Atomic32*>(addr));
 #else
   UNREACHABLE();
 #endif  // V8_TARGET_ARCH_X64
 }
 
-base::Atomic64 tsan_relaxed_load_64_bits(Address addr, int64_t value) {
+base::Atomic64 tsan_relaxed_load_64_bits(Address addr, Address shared_base,
+                                         int32_t invoke_tsan_acquire) {
 #if V8_TARGET_ARCH_X64
+  if (invoke_tsan_acquire) {
+    Tagged<HeapObject> object(
+        reinterpret_cast<HeapObject*>(shared_base - kHeapObjectTag));
+    if (HeapLayout::InWritableSharedSpace(object)) {
+      TSAN_ACQUIRE(object.address());
+    }
+  }
   return base::Relaxed_Load(reinterpret_cast<base::Atomic64*>(addr));
 #else
   UNREACHABLE();

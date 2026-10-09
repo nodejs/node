@@ -53,3 +53,11 @@ functions:
       - type: const void *__restrict
       - type: char *__restrict
       - type: socklen_t
+  - name: inet_pton
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *__restrict
+      - type: void *__restrict

@@ -7,6 +7,7 @@
 #include <optional>
 #include <span>
 
+#include "src/base/unique-array.h"
 #include "src/logging/counters.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/leb-helper.h"
@@ -35,11 +36,11 @@ class StreamingDecoder::SectionBuffer : public WireBytesStorage {
                 base::Vector<const uint8_t> length_bytes)
       :  // ID + length + payload
         module_offset_(module_offset),
-        bytes_(base::OwnedVector<uint8_t>::NewForOverwrite(
+        bytes_(base::UniqueArray<uint8_t>::NewForOverwrite(
             1 + length_bytes.size() + payload_length)),
         payload_offset_(1 + length_bytes.size()) {
     bytes_.begin()[0] = id;
-    memcpy(bytes_.begin() + 1, &length_bytes.first(), length_bytes.size());
+    memcpy(bytes_.begin() + 1, &length_bytes.front(), length_bytes.size());
   }
 
   SectionCode section_code() const {
@@ -63,7 +64,7 @@ class StreamingDecoder::SectionBuffer : public WireBytesStorage {
 
  private:
   const uint32_t module_offset_;
-  const base::OwnedVector<uint8_t> bytes_;
+  const base::UniqueArray<uint8_t> bytes_;
   const size_t payload_offset_;
 };
 
@@ -345,7 +346,7 @@ size_t StreamingDecoder::DecodingState::ReadBytes(
   base::Vector<uint8_t> remaining_buf = buffer() + offset();
   size_t num_bytes = std::min(bytes.size(), remaining_buf.size());
   TRACE_STREAMING("ReadBytes(%zu bytes)\n", num_bytes);
-  memcpy(remaining_buf.begin(), &bytes.first(), num_bytes);
+  memcpy(remaining_buf.begin(), &bytes.front(), num_bytes);
   set_offset(offset() + num_bytes);
   return num_bytes;
 }
@@ -379,7 +380,7 @@ void StreamingDecoder::Finish(
 
   // Create a final copy of the overall wire bytes; this will finally be
   // transferred and stored in the NativeModule.
-  base::OwnedVector<const uint8_t> bytes_copy;
+  base::UniqueArray<const uint8_t> bytes_copy;
   DCHECK_IMPLIES(full_wire_bytes_.back().empty(), full_wire_bytes_.size() == 1);
   size_t total_length = 0;
   if (!full_wire_bytes_.back().empty()) {
@@ -388,7 +389,7 @@ void StreamingDecoder::Finish(
       // {DecodeSectionLength} enforces this with graceful error reporting.
       CHECK_LE(total_length, max_module_size());
     }
-    auto all_bytes = base::OwnedVector<uint8_t>::NewForOverwrite(total_length);
+    auto all_bytes = base::UniqueArray<uint8_t>::NewForOverwrite(total_length);
     uint8_t* ptr = all_bytes.begin();
     for (auto& bytes : full_wire_bytes_) {
       memcpy(ptr, bytes.data(), bytes.size());
@@ -411,12 +412,12 @@ void StreamingDecoder::Finish(
 
     struct CachingInterface : public WasmStreaming::ModuleCachingInterface {
       StreamingProcessor* const processor;
-      base::OwnedVector<const uint8_t>& wire_bytes;
+      base::UniqueArray<const uint8_t>& wire_bytes;
       bool did_try_deserialization = false;
       bool did_deserialize = false;
 
       CachingInterface(StreamingProcessor* proc,
-                       base::OwnedVector<const uint8_t>& wire_bytes)
+                       base::UniqueArray<const uint8_t>& wire_bytes)
           : processor(proc), wire_bytes(wire_bytes) {}
 
       // Public API:
@@ -540,7 +541,7 @@ size_t StreamingDecoder::DecodeVarInt32::ReadBytes(
   base::Vector<uint8_t> remaining_buf = buf + offset();
   size_t new_bytes = std::min(bytes.size(), remaining_buf.size());
   TRACE_STREAMING("ReadBytes of a VarInt\n");
-  memcpy(remaining_buf.begin(), &bytes.first(), new_bytes);
+  memcpy(remaining_buf.begin(), &bytes.front(), new_bytes);
   buf.Truncate(offset() + new_bytes);
   Decoder decoder(buf,
                   streaming->module_offset() - static_cast<uint32_t>(offset()));

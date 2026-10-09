@@ -42,7 +42,7 @@ function run(){
   %OptimizeMaglevOnNextCall(test_ignore_chain_descriptors);
   assert_test_ignore_chain_descriptors(test_ignore_chain_descriptors());
   assertOptimized(test_ignore_chain_descriptors);
-  assertTrue(isMaglevved(test_ignore_chain_descriptors));
+  assertMaglevved(test_ignore_chain_descriptors);
   assert_test_ignore_chain_descriptors(test_ignore_chain_descriptors());
   %OptimizeFunctionOnNextCall(test_ignore_chain_descriptors);
   assert_test_ignore_chain_descriptors(test_ignore_chain_descriptors());

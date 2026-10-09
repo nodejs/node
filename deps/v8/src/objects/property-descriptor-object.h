@@ -56,17 +56,19 @@ V8_OBJECT class PropertyDescriptorObject : public Struct {
   inline int flags() const;
   inline void set_flags(int value);
 
-  inline Tagged<Object> value() const;
-  inline void set_value(Tagged<Object> value,
+  inline Tagged<UnionOf<JSAny, TheHole>> value() const;
+  inline void set_value(Tagged<UnionOf<JSAny, TheHole>> value,
                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Object> get() const;
-  inline void set_get(Tagged<Object> value,
-                      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<UnionOf<FunctionTemplateInfo, JSAny, TheHole>> get() const;
+  inline void set_get(
+      Tagged<UnionOf<FunctionTemplateInfo, JSAny, TheHole>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Object> set() const;
-  inline void set_set(Tagged<Object> value,
-                      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<UnionOf<FunctionTemplateInfo, JSAny, TheHole>> set() const;
+  inline void set_set(
+      Tagged<UnionOf<FunctionTemplateInfo, JSAny, TheHole>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   using BodyDescriptor = StructBodyDescriptor;
 
@@ -80,10 +82,10 @@ V8_OBJECT class PropertyDescriptorObject : public Struct {
   friend class ObjectBuiltinsAssembler;
   friend class MacroAssembler;
 
-  TaggedMember<Smi> flags_;
-  TaggedMember<Object> value_;
-  TaggedMember<Object> get_;
-  TaggedMember<Object> set_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<PropertyDescriptorObjectFlags>);
+  TaggedMember<UnionOf<JSAny, TheHole>> value_;
+  TaggedMember<UnionOf<FunctionTemplateInfo, JSAny, TheHole>> get_;
+  TaggedMember<UnionOf<FunctionTemplateInfo, JSAny, TheHole>> set_;
 } V8_OBJECT_END;
 
 }  // namespace internal

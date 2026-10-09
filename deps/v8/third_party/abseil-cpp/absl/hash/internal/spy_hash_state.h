@@ -26,6 +26,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/config.h"
 #include "absl/hash/hash.h"
 #include "absl/hash/internal/weakly_mixed_integer.h"
 #include "absl/strings/match.h"

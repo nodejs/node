@@ -6,6 +6,9 @@
 // Flags: --allow-natives-syntax
 // Flags: --trace-turbo-filter=jsFunc --trace-turbo-graph --no-stress-maglev
 // Flags: --no-turbolev-non-eager-loop-peeling
+// Disable LoadElimination verification since it re-emits eliminated loads in
+// the loop body to assert equality with their replacement.
+// Flags: --no-verify-turboshaft
 
 d8.file.execute("test/mjsunit/mjsunit.js");
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
@@ -41,13 +44,15 @@ m.val.value = 1000;
 jsFunc();
 assertEquals(0, m.val.value);
 
-// Expectation: In the TurboshaftMemoryOptimization phase there is a call to a
-// wasm function whose output directly goes into the branch instruction needed
-// for the loop. There is no other usage of the DidntThrow output of the wasm
-// call.
+// Expectation: In the TurboshaftMemoryOptimization phase all wrapper loads are
+// hoisted/eliminated by GVN across loop peeling, so inside the loop there is
+// directly a call to the wasm function whose output goes into the branch
+// instruction needed for the loop. There is no other usage of the DidntThrow
+// output of the wasm call.
 
 // CHECK-LABEL: ----- V8.TFTurboshaftMemoryOptimization -----
 // CHECK: LOOP B{{[0-9]+}}
+// CHECK-NOT: Load
 // CHECK: [[Call:[0-9]+]]: Call{{.*}}WasmFunctionIndirect
 // CHECK: [[DidntThrow:[0-9]+]]: DidntThrow(#[[Call]])
 // CHECK-NEXT: Branch(#[[DidntThrow]])

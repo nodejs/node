@@ -194,6 +194,8 @@ class V8_EXPORT V8InspectorSession {
   virtual void breakProgram(StringView breakReason,
                             StringView breakDetails) = 0;
   virtual void setSkipAllPauses(bool) = 0;
+  // Temporarily overrides the protocol setting without changing session state.
+  virtual void setSkipAllPausesForInternalUse(bool) = 0;
   virtual void resume(bool setTerminateOnResume = false) = 0;
   virtual void stepOver() = 0;
   virtual std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>>

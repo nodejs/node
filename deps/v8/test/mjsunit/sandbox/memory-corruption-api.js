@@ -8,6 +8,7 @@ const kHeapObjectTag = 0x1;
 
 assertSame(typeof Sandbox.base, 'number');
 assertSame(typeof Sandbox.byteLength, 'number');
+assertSame(typeof Sandbox.getMetadata().trustedPointerHandleShift, 'number');
 
 function getBuiltinId(name) {
   return Sandbox.getBuiltinNames().indexOf(name);

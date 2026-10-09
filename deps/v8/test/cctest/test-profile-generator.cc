@@ -27,10 +27,13 @@
 //
 // Tests of profiles generator and utilities.
 
+#include <array>
+
 #include "include/v8-function.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/init/v8.h"
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/objects-inl.h"
@@ -801,20 +804,19 @@ TEST(Issue51919) {
   CpuProfilesCollection collection(CcTest::i_isolate());
   CpuProfiler profiler(CcTest::i_isolate());
   collection.set_cpu_profiler(&profiler);
-  base::EmbeddedVector<char*, CpuProfilesCollection::kMaxSimultaneousProfiles>
+  std::array<base::UniqueArray<char>,
+             CpuProfilesCollection::kMaxSimultaneousProfiles>
       titles;
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
-    base::Vector<char> title = v8::base::Vector<char>::New(16);
-    base::SNPrintF(title, "%d", i);
+    base::UniqueArray<char> title =
+        v8::base::UniqueArray<char>::NewForOverwrite(16);
+    base::SNPrintF(title.as_vector(), "%d", i);
     CHECK_EQ(CpuProfilingStatus::kStarted,
              collection.StartProfiling(title.begin()).status);
-    titles[i] = title.begin();
+    titles[i] = std::move(title);
   }
   CHECK_EQ(CpuProfilingStatus::kErrorTooManyProfilers,
            collection.StartProfiling("maximum").status);
-  for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
-    i::DeleteArray(titles[i]);
-  }
 }
 
 static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,

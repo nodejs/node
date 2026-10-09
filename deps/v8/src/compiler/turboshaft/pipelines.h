@@ -470,6 +470,18 @@ class V8_EXPORT_PRIVATE Pipeline {
 
     data()->ClearInstructionComponent();
     EndPhaseKind();
+
+    if (data()->broker() != nullptr) {
+      data()->broker()->DetachCanonicalHandles(info());
+      if (!data()->code_generator()->has_background_code()) {
+        if (info()->bailout_reason() == BailoutReason::kNoReason) {
+          info()->AbortOptimization(
+              BailoutReason::kTurbofanCodeGenerationFailed);
+        }
+        return false;
+      }
+    }
+
     return !info()->was_cancelled();
   }
 

@@ -17,6 +17,7 @@
 #include "hdr/stdint_proxy.h"
 #include "hdr/types/size_t.h"
 #include "src/__support/CPP/algorithm.h"
+#include "src/__support/CPP/bit.h"
 #include "src/__support/CPP/cstddef.h"
 #include "src/__support/CPP/limits.h"
 #include "src/__support/CPP/new.h"
@@ -99,9 +100,22 @@ using cpp::optional;
 /// The next offset of a block matches the previous offset of its next block.
 /// The first block in a list is denoted by having a previous offset of `0`.
 class BlockRef {
-  // Masks for the contents of the next field.
-  static constexpr size_t PREV_FREE_MASK = 1 << 0;
-  static constexpr size_t LAST_MASK = 1 << 1;
+public:
+  /// The number of free stores that free blocks are distributed over.
+  ///
+  /// Every free block records which store owns it, which lets an allocator
+  /// hold several stores and rotate between them; see FreeListHeap. Each
+  /// additional store widens the free field below, and hence MIN_ALIGN.
+#ifdef LIBC_COPT_BAREMETAL_HEAP_ENABLE_FREESTORE_ROTATION
+  static constexpr size_t NUM_FREE_STORES = 2;
+#else
+  static constexpr size_t NUM_FREE_STORES = 1;
+#endif
+
+private:
+  static constexpr size_t PREV_FREE_BITS = cpp::bit_width(NUM_FREE_STORES);
+  static constexpr size_t PREV_FREE_MASK = (size_t{1} << PREV_FREE_BITS) - 1;
+  static constexpr size_t LAST_MASK = size_t{1} << PREV_FREE_BITS;
   static constexpr size_t SIZE_MASK = ~(PREV_FREE_MASK | LAST_MASK);
 
   // Header field offsets. The value at PREV_OFFSET is only meaningful when the
@@ -112,10 +126,10 @@ class BlockRef {
 public:
   static constexpr size_t HEADER_SIZE = NEXT_OFFSET + sizeof(size_t);
 
-  // To ensure block sizes have two lower unused bits, ensure usable space is
-  // always aligned to at least 4 bytes. (The distances between usable spaces,
-  // the outer size, is then always also 4-aligned.)
-  static constexpr size_t MIN_ALIGN = cpp::max(size_t{4}, alignof(max_align_t));
+  // The flag bits above live in the lower bits of a block's size, so the
+  // usable space must be aligned to the first bit they leave unused.
+  static constexpr size_t MIN_ALIGN =
+      cpp::max(LAST_MASK << 1, alignof(max_align_t));
 
   LIBC_INLINE constexpr BlockRef() = default;
   LIBC_INLINE explicit constexpr BlockRef(cpp::byte *header_ptr)
@@ -237,6 +251,12 @@ public:
     return BlockRef(nonnull_header_ptr() - load_prev());
   }
 
+  /// @returns The index of the free store owning the block immediately before
+  /// this one, or a negative value if that block is not free.
+  LIBC_INLINE int prev_free_store_index() const {
+    return static_cast<int>(load_next() & PREV_FREE_MASK) - 1;
+  }
+
   /// @returns Whether the block is unavailable for allocation.
   LIBC_INLINE bool used() const { return !next() || !next().prev_free(); }
 
@@ -247,11 +267,14 @@ public:
     next_block.store_next(next_block.load_next() & ~PREV_FREE_MASK);
   }
 
-  /// Marks this block as free.
-  LIBC_INLINE void mark_free() const {
+  /// Marks this block as free and owned by the given free store.
+  LIBC_INLINE void mark_free(size_t store_index = 0) const {
     LIBC_ASSERT(next() && "last block is always considered used");
+    LIBC_ASSERT(store_index < NUM_FREE_STORES && "invalid free store index");
     BlockRef next_block = next();
-    next_block.store_next(next_block.load_next() | PREV_FREE_MASK);
+    // Replace the free field with `store_index + 1`, as 0 encodes "in use".
+    next_block.store_next((next_block.load_next() & ~PREV_FREE_MASK) |
+                          (store_index + 1));
     next_block.store_prev(outer_size());
   }
 
@@ -460,9 +483,13 @@ BlockRef::BlockInfo BlockRef::allocate(BlockRef block, size_t alignment,
     LIBC_ASSERT(maybe_aligned_block.has_value() &&
                 "it should always be possible to split for alignment");
 
-    if (BlockRef prev = original.prev_free()) {
-      // If there is a free block before this, we can merge the current one with
-      // the newly created one.
+    // If the block before the padding is free and owned by the same free store,
+    // the two can be merged; blocks owned by different stores must be kept
+    // apart. Otherwise the padding is handed back to the caller, which decides
+    // which store it belongs to.
+    BlockRef prev = original.prev_free();
+    if (prev && original.prev_free_store_index() ==
+                    original.next().prev_free_store_index()) {
       prev.merge_next();
     } else {
       info.prev = original;
@@ -505,14 +532,20 @@ optional<BlockRef> BlockRef::split(size_t new_inner_size,
     return {};
 
   bool was_free = !used();
+  // The block split off below is always free. If this block is free too, both
+  // halves must stay in the same store to remain mergeable; if it is in use,
+  // the caller owns the new block and will move it to whichever store it
+  // wants, so any valid index will do.
+  size_t store_index =
+      was_free ? static_cast<size_t>(next().prev_free_store_index()) : 0;
 
   ByteSpan new_region = region().subspan(new_outer_size);
   store_next((load_next() & ~SIZE_MASK) | new_outer_size);
 
   BlockRef new_block = as_block(new_region);
-  new_block.mark_free();
+  new_block.mark_free(store_index);
   if (was_free)
-    mark_free();
+    mark_free(store_index);
 
   LIBC_ASSERT(new_block.is_usable_space_aligned(usable_space_alignment) &&
               "usable space must have requested alignment");

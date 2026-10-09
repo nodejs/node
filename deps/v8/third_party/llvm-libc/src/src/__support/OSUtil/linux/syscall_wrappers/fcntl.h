@@ -20,7 +20,7 @@
 #include "hdr/types/struct_f_owner_ex.h"
 #include "hdr/types/struct_flock.h"
 #include "hdr/types/struct_flock64.h"
-#include "src/__support/OSUtil/linux/syscall.h" // syscall_impl
+#include "src/__support/OSUtil/linux/syscall.h" // syscall_checked
 #include "src/__support/common.h"
 #include "src/__support/error_or.h"
 #include "src/__support/macros/config.h"
@@ -49,10 +49,7 @@ LIBC_INLINE ErrorOr<int> fcntl(int fd, int cmd, void *arg = nullptr) {
     flk64.l_len = flk->l_len;
     flk64.l_pid = flk->l_pid;
     // create a syscall
-    int ret = syscall_impl<int>(FCNTL_SYSCALL_ID, fd, cmd, &flk64);
-    if (ret < 0)
-      return Error(-ret);
-    return ret;
+    return syscall_checked<int>(FCNTL_SYSCALL_ID, fd, cmd, &flk64);
   }
   case F_OFD_GETLK:
   case F_OFD_SETLK: {
@@ -65,10 +62,10 @@ LIBC_INLINE ErrorOr<int> fcntl(int fd, int cmd, void *arg = nullptr) {
     flk64.l_len = flk->l_len;
     flk64.l_pid = flk->l_pid;
     // create a syscall
-    int ret = syscall_impl<int>(FCNTL_SYSCALL_ID, fd, cmd, &flk64);
+    auto ret = syscall_checked<int>(FCNTL_SYSCALL_ID, fd, cmd, &flk64);
     // On failure, return
-    if (ret < 0)
-      return Error(-ret);
+    if (!ret)
+      return ret;
     // Check for overflow, i.e. the offsets are not the same when cast
     // to off_t from off64_t.
     if (static_cast<off_t>(flk64.l_len) != flk64.l_len ||
@@ -85,9 +82,9 @@ LIBC_INLINE ErrorOr<int> fcntl(int fd, int cmd, void *arg = nullptr) {
   }
   case F_GETOWN: {
     struct f_owner_ex fex;
-    int ret = syscall_impl<int>(FCNTL_SYSCALL_ID, fd, F_GETOWN_EX, &fex);
-    if (ret < 0)
-      return Error(-ret);
+    auto ret = syscall_checked<int>(FCNTL_SYSCALL_ID, fd, F_GETOWN_EX, &fex);
+    if (!ret)
+      return ret;
     return fex.type == F_OWNER_PGRP ? -fex.pid : fex.pid;
   }
 #ifdef SYS_fcntl64
@@ -112,10 +109,7 @@ LIBC_INLINE ErrorOr<int> fcntl(int fd, int cmd, void *arg = nullptr) {
   // Plain passthrough for all other commands. When only SYS_fcntl64 is
   // available, F_GETLK/F_SETLK/F_SETLKW have been rewritten to their 64-bit
   // variants by the cases above.
-  int ret = syscall_impl<int>(FCNTL_SYSCALL_ID, fd, cmd, arg);
-  if (ret < 0)
-    return Error(-ret);
-  return ret;
+  return syscall_checked<int>(FCNTL_SYSCALL_ID, fd, cmd, arg);
 }
 
 } // namespace linux_syscalls

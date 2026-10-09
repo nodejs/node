@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --turbo-fast-api-calls --expose-fast-api --no-liftoff --wasm-fast-api
-// Flags: --wasm-lazy-compilation
+// Flags: --wasm-lazy-compilation --turbofan
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 

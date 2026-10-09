@@ -83,7 +83,7 @@ class NormalPage final : public MutablePage {
   }
 
   FreeListCategory* free_list_category(FreeListCategoryType type) {
-    return categories_[type];
+    return &categories_[type];
   }
 
   V8_EXPORT_PRIVATE void CreateBlackArea(Address start, Address end);

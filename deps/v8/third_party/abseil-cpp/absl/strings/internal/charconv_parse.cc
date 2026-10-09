@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <limits>
 
+#include "absl/base/config.h"
 #include "absl/strings/charconv.h"
 #include "absl/strings/internal/memutil.h"
 

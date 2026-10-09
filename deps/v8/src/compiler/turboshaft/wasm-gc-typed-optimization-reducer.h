@@ -87,8 +87,10 @@ class WasmGCTypeAnalyzer {
   void ProcessParameter(const ParameterOp& parameter);
   void ProcessStructGet(const StructGetOp& struct_get);
   void ProcessStructSet(const StructSetOp& struct_set);
+  void ProcessStructAtomicRMW(const StructAtomicRMWOp& struct_atomic_rmw);
   void ProcessArrayGet(const ArrayGetOp& array_get);
   void ProcessArrayLength(const ArrayLengthOp& array_length);
+  void ProcessArrayAtomicRMW(const ArrayAtomicRMWOp& array_atomic_rmw);
   void ProcessGlobalGet(const GlobalGetOp& global_get);
   void ProcessRefFunc(const WasmRefFuncOp& ref_func);
   void ProcessAllocateArray(const WasmAllocateArrayOp& allocate_array);
@@ -253,6 +255,11 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    // The static information should also be known to the analyzer. If this is
+    // not the case, it indicates that the input operation was not properly
+    // typed.
+    DCHECK(wasm::IsSubtypeOf(type, cast_op.config.from, module_));
+
     AssertType(cast_op.object(), type);
     if (type.is_uninhabited()) {
       // We are either already in unreachable code (then this instruction isn't
@@ -330,6 +337,11 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    // The static information should also be known to the analyzer. If this is
+    // not the case, it indicates that the input operation was not properly
+    // typed.
+    DCHECK(wasm::IsSubtypeOf(type, type_check.config.from, module_));
+
     AssertType(type_check.object(), type);
     if (type.is_uninhabited()) {
       __ Unreachable();
@@ -524,7 +536,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (array_length.null_check == kWithNullCheck && type.is_non_nullable()) {
       return __ ArrayLength(__ MapToNewGraph(array_length.array()),
                             __ MapToNewGraph(array_length.frame_state()),
-                            kWithoutNullCheck);
+                            kWithoutNullCheck, array_length.shared_base);
     }
     goto no_change;
   }

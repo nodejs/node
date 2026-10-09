@@ -73,6 +73,44 @@ public:
       list.integrity_check();
   }
 
+  /// Removes and returns any block from the store.
+  /// @returns The block removed, or BlockRef() if empty.
+  LIBC_INLINE BlockRef remove_any() {
+    for (size_t i = 0; i < TOTAL_BITS - 1; ++i) {
+      if (!free_lists[i].empty()) {
+        BlockRef block = free_lists[i].front();
+        free_lists[i].pop();
+        if (free_lists[i].empty())
+          free_sizes.mark_vacant(i);
+        return block;
+      }
+    }
+    if constexpr (USE_TRIE) {
+      if (BlockRef block = trie.pop_any()) {
+        if (trie.empty())
+          free_sizes.mark_vacant(TOTAL_BITS - 1);
+        return block;
+      }
+    } else {
+      if (!overflow_list.empty()) {
+        BlockRef block = overflow_list.front();
+        overflow_list.pop();
+        if (overflow_list.empty())
+          free_sizes.mark_vacant(TOTAL_BITS - 1);
+        return block;
+      }
+    }
+    return BlockRef();
+  }
+
+  /// Whether `block` is too small to hold a free list node. insert() and
+  /// remove() ignore such blocks, so they are owned by no store.
+  LIBC_INLINE static bool too_small(BlockRef block) {
+    return block.outer_size() < MIN_OUTER_SIZE;
+  }
+
+  LIBC_INLINE bool empty() const { return free_sizes.empty(); }
+
 private:
   LIBC_INLINE constexpr TLSFFreeStoreImpl(cpp::bool_constant<true>) : trie() {}
   LIBC_INLINE constexpr TLSFFreeStoreImpl(cpp::bool_constant<false>)
@@ -100,10 +138,6 @@ public:
   }
 
 protected:
-  LIBC_INLINE static bool too_small(BlockRef block) {
-    return block.outer_size() < MIN_OUTER_SIZE;
-  }
-
   Table free_sizes;
   cpp::array<FreeList, TOTAL_BITS - 1> free_lists;
   union {

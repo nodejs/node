@@ -443,8 +443,7 @@ class GeneratorAlternativesPerOption {
         wasmgc_(ConcatArrays(mvp, wasmgc)),
         all_(ConcatArrays(mvp, ConcatArrays(simd, wasmgc))) {}
 
-  constexpr base::Vector<const GenerateFn> GetAlternatives(
-      WasmModuleGenerationOptions options) const {
+  constexpr auto GetAlternatives(WasmModuleGenerationOptions options) const {
     switch (options.ToIntegral()) {
       case 0:  // 0
         return base::VectorOf(mvp_);
@@ -738,7 +737,7 @@ class BodyGen {
       std::copy_n(type->parameters().begin(), type->parameter_count(),
                   block_returns.begin());
     }
-    if (has_ref) block_returns.last() = kWasmExnRef;
+    if (has_ref) block_returns.back() = kWasmExnRef;
     {
       BlockScope block(this, kExprBlock, param_types, block_returns,
                        block_returns);
@@ -2535,7 +2534,7 @@ class BodyGen {
     if (break_types.empty()) {
       return false;
     }
-    ValueType break_type = break_types.last();
+    ValueType break_type = break_types.back();
     if (!break_type.is_ref()) {
       return false;
     }
@@ -4629,7 +4628,8 @@ class ModuleGen {
         // element type.
         type = builder_->GetArrayType(supertype)->element_type();
       }
-      ArrayType* array_fuz = zone_->New<ArrayType>(type, true);
+      ArrayType* array_fuz =
+          zone_->New<ArrayType>(type, true, SharedFlag{false});
       // TODO(14034): Generate some final types too.
       ModuleTypeIndex index =
           builder_->AddArrayType(array_fuz, false, supertype);
@@ -5240,10 +5240,10 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
     static constexpr ModuleTypeIndex kArrayI8{0};
     static constexpr ModuleTypeIndex kArrayI16{1};
     {
-      ArrayType* a8 = zone->New<ArrayType>(kWasmI8, 1);
+      ArrayType* a8 = zone->New<ArrayType>(kWasmI8, 1, SharedFlag{false});
       CHECK_EQ(kArrayI8, builder.AddArrayType(a8, true, kNoSuperType));
       array_types.push_back(kArrayI8);
-      ArrayType* a16 = zone->New<ArrayType>(kWasmI16, 1);
+      ArrayType* a16 = zone->New<ArrayType>(kWasmI16, 1, SharedFlag{false});
       CHECK_EQ(kArrayI16, builder.AddArrayType(a16, true, kNoSuperType));
       array_types.push_back(kArrayI16);
     }
@@ -5441,7 +5441,7 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
                           (module_range.get<uint8_t>() % existing_array_types)};
       type = builder.GetArrayType(supertype)->element_type();
     }
-    ArrayType* array_fuz = zone->New<ArrayType>(type, true);
+    ArrayType* array_fuz = zone->New<ArrayType>(type, true, SharedFlag{false});
     ModuleTypeIndex index = builder.AddArrayType(array_fuz, false, supertype);
     array_types.push_back(index);
   }
@@ -5687,10 +5687,10 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
   static constexpr ModuleTypeIndex kArrayI8{0};
   static constexpr ModuleTypeIndex kArrayI16{1};
   {
-    ArrayType* a8 = zone->New<ArrayType>(kWasmI8, true);
+    ArrayType* a8 = zone->New<ArrayType>(kWasmI8, true, SharedFlag{false});
     CHECK_EQ(kArrayI8, builder.AddArrayType(a8, true, kNoSuperType));
     array_types.push_back(kArrayI8);
-    ArrayType* a16 = zone->New<ArrayType>(kWasmI16, true);
+    ArrayType* a16 = zone->New<ArrayType>(kWasmI16, true, SharedFlag{false});
     CHECK_EQ(kArrayI16, builder.AddArrayType(a16, true, kNoSuperType));
     array_types.push_back(kArrayI16);
   }

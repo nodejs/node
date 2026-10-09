@@ -300,7 +300,7 @@ let instance = MakeInstance();
   let dataview = new DataView(buffer);
 
   instance.exports.setInt32(dataview, 0, 100, 1);
-  assertEquals(100, array[0]);
+  assertEquals(100, dataview.getInt32(0, true));
   assertEquals(100, instance.exports.getInt32(dataview, 0, 1));
 
   CheckDataViewErrorMessages('setInt32', array, false, 42);
@@ -309,9 +309,9 @@ let instance = MakeInstance();
 (function TestGetBigInt64() {
   print(arguments.callee.name);
   let array = new BigInt64Array(2);
-  array[0] = 0x7FFFFFFFFFFFFFFFn;
-  array[1] = 0x12345678n;
   let dataview = new DataView(array.buffer);
+  dataview.setBigInt64(0, 0x7FFFFFFFFFFFFFFFn, true);
+  dataview.setBigInt64(8, 0x12345678n, true);
 
   assertEquals(
       0x7FFFFFFFFFFFFFFFn, instance.exports.getBigInt64(dataview, 0, 1));
@@ -325,9 +325,9 @@ let instance = MakeInstance();
 (function TestGetBigUint64() {
   print(arguments.callee.name);
   let array = new BigUint64Array(2);
-  array[0] = 0x7FFFFFFFFFFFFFFFn;
-  array[1] = 0x12345678n;
   let dataview = new DataView(array.buffer);
+  dataview.setBigUint64(0, 0x7FFFFFFFFFFFFFFFn, true);
+  dataview.setBigUint64(8, 0x12345678n, true);
 
   assertEquals(
       0x7FFFFFFFFFFFFFFFn, instance.exports.getBigUint64(dataview, 0, 1));
@@ -340,9 +340,9 @@ let instance = MakeInstance();
 (function TestGetFloat32() {
   print(arguments.callee.name);
   let array = new Float32Array(2);
-  array[0] = 140.125;
-  array[1] = -2048.015625;
   let dataview = new DataView(array.buffer);
+  dataview.setFloat32(0, 140.125, true);
+  dataview.setFloat32(4, -2048.015625, true);
 
   assertEquals(140.125, instance.exports.getFloat32(dataview, 0, 1));
   assertEquals(
@@ -354,9 +354,9 @@ let instance = MakeInstance();
 (function TestGetFloat64() {
   print(arguments.callee.name);
   let array = new Float64Array(2);
-  array[0] = 140.125;
-  array[1] = -20480000.001953125;
   let dataview = new DataView(array.buffer);
+  dataview.setFloat64(0, 140.125, true);
+  dataview.setFloat64(8, -20480000.001953125, true);
 
   assertEquals(140.125, instance.exports.getFloat64(dataview, 0, 1));
   assertEquals(
@@ -381,9 +381,9 @@ let instance = MakeInstance();
 (function TestGetInt16() {
   print(arguments.callee.name);
   let array = new Int16Array(2);
-  array[0] = 32767;
-  array[1] = 0x1234;
   let dataview = new DataView(array.buffer);
+  dataview.setInt16(0, 32767, true);
+  dataview.setInt16(2, 0x1234, true);
 
   assertEquals(32767, instance.exports.getInt16(dataview, 0, 1));
   assertEquals(0x3412, instance.exports.getInt16(dataview, 2, 0));
@@ -394,9 +394,9 @@ let instance = MakeInstance();
 (function TestGetInt32() {
   print(arguments.callee.name);
   let array = new Int32Array(2);
-  array[0] = 42;
-  array[1] = 0x12345678;
   let dataview = new DataView(array.buffer);
+  dataview.setInt32(0, 42, true);
+  dataview.setInt32(4, 0x12345678, true);
 
   assertEquals(42, instance.exports.getInt32(dataview, 0, 1));
   assertEquals(0x12345678, instance.exports.getInt32(dataview, 4, 1));
@@ -419,9 +419,9 @@ let instance = MakeInstance();
 (function TestGetUint16() {
   print(arguments.callee.name);
   let array = new Uint16Array(2);
-  array[0] = 0xFFFF;
-  array[1] = 0x1234;
   let dataview = new DataView(array.buffer);
+  dataview.setUint16(0, 0xFFFF, true);
+  dataview.setUint16(2, 0x1234, true);
 
   assertEquals(0xFFFF, instance.exports.getUint16(dataview, 0, 1));
   assertEquals(0x3412, instance.exports.getUint16(dataview, 2, 0));
@@ -432,9 +432,9 @@ let instance = MakeInstance();
 (function TestGetUint32() {
   print(arguments.callee.name);
   let array = new Uint32Array(2);
-  array[0] = 0x7FFFFFFF;
-  array[1] = 0x12345678;
   let dataview = new DataView(array.buffer);
+  dataview.setUint32(0, 0x7FFFFFFF, true);
+  dataview.setUint32(4, 0x12345678, true);
 
   assertEquals(0x7FFFFFFF, instance.exports.getUint32(dataview, 0, 1));
   assertEquals(0x78563412, instance.exports.getUint32(dataview, 4, 0));
@@ -448,11 +448,11 @@ let instance = MakeInstance();
   let dataview = new DataView(array.buffer);
 
   instance.exports.setBigInt64(dataview, 0, 0x7FFFFFFFFFFFFFFFn, 1);
-  assertEquals(0x7FFFFFFFFFFFFFFFn, array[0]);
+  assertEquals(0x7FFFFFFFFFFFFFFFn, dataview.getBigInt64(0, true));
   instance.exports.setBigInt64(dataview, 0, -0x7FFFFFFFFFFFFFFFn, 1);
-  assertEquals(-0x7FFFFFFFFFFFFFFFn, array[0]);
+  assertEquals(-0x7FFFFFFFFFFFFFFFn, dataview.getBigInt64(0, true));
   instance.exports.setBigInt64(dataview, 8, 0x12345678n, 0);
-  assertEquals(0x7856341200000000n, array[1]);
+  assertEquals(0x7856341200000000n, dataview.getBigInt64(8, true));
 
   CheckDataViewErrorMessages('setBigInt64', array, true, 50n);
 })();
@@ -463,9 +463,9 @@ let instance = MakeInstance();
   let dataview = new DataView(array.buffer);
 
   instance.exports.setBigUint64(dataview, 0, 0xFFFFFFFFFFFFFFFFn, 1);
-  assertEquals(0xFFFFFFFFFFFFFFFFn, array[0]);
+  assertEquals(0xFFFFFFFFFFFFFFFFn, dataview.getBigUint64(0, true));
   instance.exports.setBigUint64(dataview, 0, 0x12345678n, 0);
-  assertEquals(0x7856341200000000n, array[0]);
+  assertEquals(0x7856341200000000n, dataview.getBigUint64(0, true));
 
   CheckDataViewErrorMessages('setBigUint64', array, true, 50n);
 })();
@@ -476,10 +476,10 @@ let instance = MakeInstance();
   let dataview = new DataView(array.buffer);
 
   instance.exports.setFloat32(dataview, 0, 50.5, 1);
-  assertEquals(50.5, array[0]);
+  assertEquals(50.5, dataview.getFloat32(0, true));
   instance.exports.setFloat32(dataview, 0, 0x1234, 0);
   dataview.setFloat32(4, 0x1234, 0);
-  assertEquals(array[1], array[0]);
+  assertEquals(dataview.getFloat32(4, true), dataview.getFloat32(0, true));
 
   CheckDataViewErrorMessages('setFloat32', array, true, 50.5);
 })();
@@ -490,10 +490,10 @@ let instance = MakeInstance();
   let dataview = new DataView(array.buffer);
 
   instance.exports.setFloat64(dataview, 0, 42.5, 1);
-  assertEquals(42.5, array[0]);
+  assertEquals(42.5, dataview.getFloat64(0, true));
   instance.exports.setFloat64(dataview, 0, 0x1234, 0);
   dataview.setFloat64(8, 0x1234, 0);
-  assertEquals(array[1], array[0]);
+  assertEquals(dataview.getFloat64(8, true), dataview.getFloat64(0, true));
 
   CheckDataViewErrorMessages('setFloat64', array, true, 50.5);
 })();
@@ -515,9 +515,9 @@ let instance = MakeInstance();
   let dataview = new DataView(array.buffer);
 
   instance.exports.setInt16(dataview, 0, 0x1234, 1);
-  assertEquals(0x1234, array[0]);
+  assertEquals(0x1234, dataview.getInt16(0, true));
   instance.exports.setInt16(dataview, 2, 0x1234, 0);
-  assertEquals(0x3412, array[1]);
+  assertEquals(0x3412, dataview.getInt16(2, true));
 
   CheckDataViewErrorMessages('setInt16', array, true, 120);
 })();
@@ -528,11 +528,11 @@ let instance = MakeInstance();
   let dataview = new DataView(array.buffer);
 
   instance.exports.setInt32(dataview, 0, 50, 1);
-  assertEquals(50, array[0]);
+  assertEquals(50, dataview.getInt32(0, true));
   instance.exports.setInt32(dataview, 4, 100, 1);
-  assertEquals(100, array[1]);
+  assertEquals(100, dataview.getInt32(4, true));
   instance.exports.setInt32(dataview, 0, 0x12345678, 0);
-  assertEquals(0x78563412, array[0]);
+  assertEquals(0x78563412, dataview.getInt32(0, true));
 
   CheckDataViewErrorMessages('setInt32', array, true, 100);
 })();
@@ -554,9 +554,9 @@ let instance = MakeInstance();
   let dataview = new DataView(array.buffer);
 
   instance.exports.setUint16(dataview, 0, 0x1234, 1);
-  assertEquals(0x1234, array[0]);
+  assertEquals(0x1234, dataview.getUint16(0, true));
   instance.exports.setUint16(dataview, 2, 0x1234, 0);
-  assertEquals(0x3412, array[1]);
+  assertEquals(0x3412, dataview.getUint16(2, true));
 
   CheckDataViewErrorMessages('setUint16', array, true, 100);
 })();
@@ -567,9 +567,9 @@ let instance = MakeInstance();
   let dataview = new DataView(array.buffer);
 
   instance.exports.setUint32(dataview, 0, 50, 1);
-  assertEquals(50, array[0]);
+  assertEquals(50, dataview.getUint32(0, true));
   instance.exports.setUint32(dataview, 4, 0x12345678, 0);
-  assertEquals(0x78563412, array[1]);
+  assertEquals(0x78563412, dataview.getUint32(4, true));
 
   CheckDataViewErrorMessages('setUint32', array, true, 100);
 })();
@@ -613,10 +613,10 @@ let instance = MakeInstance();
   let array = new Int32Array(buffer);
   let dataview = new DataView(buffer);
 
-  array[0] = 123;
+  dataview.setInt32(0, 123, true);
   assertEquals(123, instance.exports.getInt32(dataview, 0, 1));
   instance.exports.setInt32(dataview, 4, 100, 1);
-  assertEquals(100, array[1]);
+  assertEquals(100, dataview.getInt32(4, true));
   assertEquals(8, instance.exports.byteLength(dataview));
 
   buffer.resize(24);
@@ -634,10 +634,10 @@ let instance = MakeInstance();
   let array = new Uint32Array(buffer);
   let dataview = new DataView(buffer, 8);
 
-  array[2] = 123;
+  dataview.setUint32(0, 123, true);
   assertEquals(123, instance.exports.getUint32(dataview, 0, 1));
   instance.exports.setUint32(dataview, 0, 100, 1);
-  assertEquals(100, array[2]);
+  assertEquals(100, dataview.getUint32(0, true));
   assertEquals(4, instance.exports.byteLength(dataview));
 
   buffer.resize(24);
@@ -671,10 +671,10 @@ let instance = MakeInstance();
   let array = new BigInt64Array(buffer);
   let dataview = new DataView(buffer, 24, 16);
 
-  array[3] = 123n;
+  dataview.setBigInt64(0, 123n, true);
   assertEquals(123n, instance.exports.getBigInt64(dataview, 0, 1));
   instance.exports.setBigInt64(dataview, 8, 100n, 1);
-  assertEquals(100n, array[4]);
+  assertEquals(100n, dataview.getBigInt64(8, true));
   assertEquals(16, instance.exports.byteLength(dataview));
 
   buffer.resize(40);
@@ -727,10 +727,10 @@ let instance = MakeInstance();
   let array = new Float32Array(buffer);
   let dataview = new DataView(buffer);
 
-  array[0] = 23.5;
+  dataview.setFloat32(0, 23.5, true);
   assertEquals(23.5, instance.exports.getFloat32(dataview, 0, 1));
   instance.exports.setFloat32(dataview, 4, 12.25, 1);
-  assertEquals(12.25, array[1]);
+  assertEquals(12.25, dataview.getFloat32(4, true));
   assertEquals(24, instance.exports.byteLength(dataview));
 
   buffer.grow(25);
@@ -748,10 +748,10 @@ let instance = MakeInstance();
   assertEquals(0, instance.exports.byteLength(dataview));
 
   buffer.grow(36);
-  array[12] = 123;
+  dataview.setInt16(0, 123, true);
   assertEquals(123, instance.exports.getInt16(dataview, 0, 1));
   instance.exports.setInt16(dataview, 2, 100, 1);
-  assertEquals(100, array[13]);
+  assertEquals(100, dataview.getInt16(2, true));
   assertEquals(12, instance.exports.byteLength(dataview));
 
   CheckDataViewErrorMessages('setInt16', array, false, 57);

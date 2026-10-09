@@ -12,6 +12,7 @@
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
+#include "src/objects/map.h"
 #include "src/objects/oddball.h"
 #include "src/objects/slots.h"
 #include "src/objects/string.h"
@@ -54,11 +55,22 @@ bool RootsTable::IsRootHandle(IndirectHandle<T> handle,
 }
 
 #define ROOT_ACCESSOR(Type, name, CamelName)            \
+  IndirectHandle<ReadOnly<Type>> RootsTable::name() {   \
+    return IndirectHandle<ReadOnly<Type>>(              \
+        handle_at(RootIndex::k##CamelName).location()); \
+  }
+READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
+#ifndef V8_ENABLE_TDZ_HOLE
+ROOT_ACCESSOR(TdzHole, tdz_hole_value, TdzHoleValue)
+#endif
+#undef ROOT_ACCESSOR
+
+#define ROOT_ACCESSOR(Type, name, CamelName)            \
   IndirectHandle<Type> RootsTable::name() {             \
     return IndirectHandle<Type>(                        \
         handle_at(RootIndex::k##CamelName).location()); \
   }
-ROOT_LIST(ROOT_ACCESSOR)
+MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
 IndirectHandle<Object> RootsTable::handle_at(RootIndex index) {
@@ -88,23 +100,28 @@ ReadOnlyRoots::ReadOnlyRoots(LocalIsolate* isolate)
 // have the right type, and to avoid the heavy #includes that would be
 // required for checked casts.
 
-#define ROOT_ACCESSOR(Type, name, CamelName)                         \
-  V8_RO_CONST Tagged<Type> ReadOnlyRoots::name() const {             \
-    return unchecked_##name();                                       \
-  }                                                                  \
-  V8_RO_CONST Tagged<Type> ReadOnlyRoots::unchecked_##name() const { \
-    return UncheckedCast<Type>(object_at(RootIndex::k##CamelName));  \
+#define ROOT_ACCESSOR(Type, name, CamelName)                                   \
+  V8_RO_CONST Tagged<ReadOnly<Type>> ReadOnlyRoots::name() const {             \
+    return unchecked_##name();                                                 \
+  }                                                                            \
+  V8_RO_CONST Tagged<ReadOnly<Type>> ReadOnlyRoots::unchecked_##name() const { \
+    return UncheckedCast<ReadOnly<Type>>(object_at(RootIndex::k##CamelName));  \
   }
 READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
+#ifndef V8_ENABLE_TDZ_HOLE
+ROOT_ACCESSOR(TdzHole, tdz_hole_value, TdzHoleValue)
+#endif
 #undef ROOT_ACCESSOR
 
-V8_RO_CONST Tagged<Boolean> ReadOnlyRoots::boolean_value(bool value) const {
-  return value ? Tagged<Boolean>(true_value()) : Tagged<Boolean>(false_value());
+V8_RO_CONST Tagged<ReadOnly<Boolean>> ReadOnlyRoots::boolean_value(
+    bool value) const {
+  return value ? Tagged<ReadOnly<Boolean>>(true_value())
+               : Tagged<ReadOnly<Boolean>>(false_value());
 }
 
-V8_RO_CONST Tagged<String> ReadOnlyRoots::single_character_string(
+V8_RO_CONST Tagged<ReadOnly<String>> ReadOnlyRoots::single_character_string(
     int code) const {
-  return UncheckedCast<String>(
+  return UncheckedCast<ReadOnly<String>>(
       object_at(RootsTable::SingleCharacterStringIndex(code)));
 }
 

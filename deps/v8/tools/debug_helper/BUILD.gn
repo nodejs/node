@@ -98,9 +98,9 @@ _debug_helper_deps = [
   "../..:v8_shared_internal_headers",
   "../..:v8_tracing",
 ]
-if (v8_use_metagen_instance_types) {
+if (v8_use_metagen) {
   _debug_helper_sources += [ "$target_gen_dir/../../metagen/instance-types.h" ]
-  _debug_helper_deps += [ "../..:metagen_instance_types_h" ]
+  _debug_helper_deps += [ "../..:run_metagen" ]
 }
 if (v8_enable_temporal_support) {
   _debug_helper_deps += [ "//third_party/rust/temporal_capi" ]
@@ -167,6 +167,7 @@ v8_executable("corruption_harness") {
 
   deps = [
     "../..:v8",
+    "../..:v8_internal_headers",
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "../..:v8_tracing",

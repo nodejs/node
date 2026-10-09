@@ -354,7 +354,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                       JumpMode jump_mode = JumpMode::kJump);
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
-  void CallJSFunction(Register function_object, uint16_t argument_count);
+  void CallJSFunction(Register function_object,
+                      uint16_t expected_parameter_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
   void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
@@ -583,6 +584,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Load an object from the root table.
   void LoadTaggedRoot(Register destination, RootIndex index) {
     LoadRoot(destination, index);
+  }
+  void StoreTaggedRoot(const MemOperand& destination, RootIndex index) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    LoadRoot(scratch, index);
+    StoreTaggedField(scratch, destination);
   }
   void LoadRoot(Register destination, RootIndex index) final {
     LoadRoot(destination, index, al);

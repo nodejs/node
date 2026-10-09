@@ -165,6 +165,8 @@ namespace internal {
     debug_script_scope_info)                                                  \
   V(_, ENUM_CACHE_TYPE, EnumCache, enum_cache)                                \
   V(_, ERROR_STACK_DATA_TYPE, ErrorStackData, error_stack_data)               \
+  V(_, FOR_IN_ENUMERATOR_HOLDER_TYPE, ForInEnumeratorHolder,                  \
+    for_in_enumerator_holder)                                                 \
   V(_, FUNCTION_TEMPLATE_RARE_DATA_TYPE, FunctionTemplateRareData,            \
     function_template_rare_data)                                              \
   V(_, MODULE_REQUEST_TYPE, ModuleRequest, module_request)                    \
@@ -215,7 +217,8 @@ namespace internal {
 #define ALLOCATION_SITE_MAPS_LIST_ADAPTER(V, TYPE, Name, Size, name_size) \
   V(Map, name_size##_map, Name##Size##Map)
 
-// Produces (Map, allocation_site_name_map, AllocationSiteNameMap) entries
+// Produces (Map, allocation_site_name_map, AllocationSiteNameMap)
+// entries
 #define ALLOCATION_SITE_MAPS_LIST(V) \
   ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAPS_LIST_ADAPTER, V)
 

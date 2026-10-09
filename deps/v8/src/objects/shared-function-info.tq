@@ -76,7 +76,7 @@ extern class SharedFunctionInfo extends HeapObject {
   // trusted_function_data in the future (see TODO above), then maybe consider
   // renaming this field as untrusted_function_data may be a bit awkward.
   untrusted_function_data: Object;
-  name_or_scope_info: String|NoSharedNameSentinel|ScopeInfo;
+  name_or_scope_info: Smi|String|ScopeInfo;
   outer_scope_info_or_feedback_metadata: ScopeInfo|FeedbackMetadata|TheHole;
   script: Script|Undefined;
   // [length]: The function length - usually the number of declared parameters

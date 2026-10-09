@@ -439,6 +439,17 @@ TEST_F(NoPropagateOnMove, MoveAssignmentWithDifferentAlloc) {
   EXPECT_EQ(0, it->num_copies());
 }
 
+TEST_F(NoPropagateOnMove, MoveAssignmentWithDifferentAllocToNonEmptyTable) {
+  t1.insert(0);
+  Table u(0, a2);
+  for (int32_t i = 1; i <= 16; ++i) u.insert(i);
+  u = std::move(t1);
+  EXPECT_EQ(a2, u.get_allocator());
+  EXPECT_EQ(1, u.size());
+  EXPECT_NE(u.find(0), u.end());
+  EXPECT_EQ(u.find(1), u.end());
+}
+
 TEST_F(PropagateOnAll, Swap) {
   t1.insert(0);
   Table u(0, a2);

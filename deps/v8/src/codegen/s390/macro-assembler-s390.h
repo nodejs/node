@@ -280,6 +280,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
   void LoadRoot(Register destination, RootIndex index, Condition cond);
   void LoadTaggedRoot(Register destination, RootIndex index);
+  void StoreTaggedRoot(const MemOperand& destination, RootIndex index);
   //--------------------------------------------------------------------------
   // S390 Macro Assemblers for Instructions
   //--------------------------------------------------------------------------
@@ -1160,8 +1161,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void BindExceptionHandler(Label* label) { bind(label); }
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
-  void CallJSFunction(Register function_object, uint16_t argument_count,
-                      Register scratch = r0);
+  void CallJSFunction(Register function_object,
+                      uint16_t expected_parameter_count, Register scratch = r0);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
   void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,

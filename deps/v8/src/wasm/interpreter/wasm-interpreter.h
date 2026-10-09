@@ -9,6 +9,7 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include <array>
 #include <atomic>
 #include <memory>
 #include <utility>
@@ -2288,10 +2289,10 @@ class InterpreterTracer final : public Malloced {
       base::SNPrintF(filename_, "trace-%d-%d.dbt",
                      base::OS::GetCurrentProcessId(), current_chunk_index_);
     }
-    WriteChars(filename_.begin(), "", 0, false);
+    WriteChars(filename_.data(), "", 0, false);
 
     if (file_ == nullptr) {
-      file_ = base::OS::FOpen(filename_.begin(), "w");
+      file_ = base::OS::FOpen(filename_.data(), "w");
       CHECK_WITH_MSG(file_ != nullptr, "could not open file.");
     }
   }
@@ -2336,7 +2337,7 @@ class InterpreterTracer final : public Malloced {
   static bool ShouldRedirect() { return v8_flags.redirect_drumbrake_traces; }
 
   int isolate_id_;
-  base::EmbeddedVector<char, 128> filename_;
+  std::array<char, 128> filename_;
   FILE* file_;
   absl::flat_hash_set<int> traced_functions_;
   int current_chunk_index_;

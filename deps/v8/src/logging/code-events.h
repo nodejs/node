@@ -105,10 +105,12 @@ class LogEventListener {
   virtual void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind,
                               Address pc, int fp_to_sp_delta) = 0;
   // These events can happen when 1. an assumption made by optimized code fails
-  // or 2. a weakly embedded object dies.
-  virtual void CodeDependencyChangeEvent(
-      DirectHandle<Code> code, DirectHandle<SharedFunctionInfo> shared,
-      const char* reason) = 0;
+  // or 2. a weakly embedded object dies. The latter happens during GC, possibly
+  // on a background thread without a LocalHeap. Therefore this event is not
+  // handlified and no allocation is allowed.
+  virtual void CodeDependencyChangeEvent(Tagged<Code> code,
+                                         Tagged<SharedFunctionInfo> shared,
+                                         const char* reason) = 0;
   // Called during GC shortly after any weak references to code objects are
   // cleared.
   virtual void WeakCodeClearEvent() = 0;
@@ -288,8 +290,8 @@ class Logger {
     }
   }
 
-  void CodeDependencyChangeEvent(DirectHandle<Code> code,
-                                 DirectHandle<SharedFunctionInfo> sfi,
+  void CodeDependencyChangeEvent(Tagged<Code> code,
+                                 Tagged<SharedFunctionInfo> sfi,
                                  const char* reason) {
     base::RecursiveMutexGuard guard(&mutex_);
     for (auto listener : listeners_) {

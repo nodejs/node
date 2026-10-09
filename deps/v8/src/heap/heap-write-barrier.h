@@ -101,6 +101,7 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
                                              ArrayBufferExtension* extension);
   static inline void ForExternalPointer(
       Tagged<HeapObject> host, ExternalPointerSlot slot,
+      ExternalPointerHandle handle,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   static inline void ForIndirectPointer(
       Tagged<HeapObject> host, IndirectPointerSlot slot,
@@ -165,6 +166,8 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static constexpr bool kUninterestingPagesCanBeSkipped = true;
 
  private:
+  friend class AllocationWitness;
+
   static inline bool IsSkipWriteBarrierMode(WriteBarrierMode mode) {
     static_assert(SKIP_WRITE_BARRIER == 0 && SKIP_WRITE_BARRIER_SCOPE == 1 &&
                   SKIP_WRITE_BARRIER_FOR_GC == 2 &&
@@ -198,7 +201,8 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
                              Tagged<MaybeObject> value);
   static inline void MarkingForRelocInfo(Tagged<InstructionStream> host,
                                          RelocInfo*, Tagged<HeapObject> value);
-  static inline void Marking(Tagged<HeapObject> host, ExternalPointerSlot slot);
+  static inline void Marking(Tagged<HeapObject> host, ExternalPointerSlot slot,
+                             ExternalPointerHandle handle);
   static inline void Marking(Tagged<HeapObject> host, IndirectPointerSlot slot);
   static inline void Marking(Tagged<TrustedObject> host,
                              ProtectedPointerSlot slot,
@@ -213,7 +217,8 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   V8_NOINLINE V8_PRESERVE_MOST static void MarkingSlow(
       Tagged<JSArrayBuffer> host, ArrayBufferExtension*);
   V8_NOINLINE V8_PRESERVE_MOST static void MarkingSlow(
-      Tagged<HeapObject> host, ExternalPointerSlot slot);
+      Tagged<HeapObject> host, ExternalPointerSlot slot,
+      ExternalPointerHandle handle);
   V8_NOINLINE V8_PRESERVE_MOST static void MarkingSlow(
       Tagged<HeapObject> host, IndirectPointerSlot slot);
   V8_NOINLINE V8_PRESERVE_MOST static void MarkingSlow(
@@ -230,7 +235,7 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   V8_NOINLINE V8_PRESERVE_MOST static void GenerationalBarrierSlow(
       Tagged<HeapObject> object, Address slot, Tagged<HeapObject> value);
   static inline void GenerationalBarrierForCppHeapPointer(
-      Tagged<CppHeapPointerWrapperObjectT> host, void* value);
+      Heap* heap, Tagged<CppHeapPointerWrapperObjectT> host, void* value);
 
   V8_NOINLINE V8_PRESERVE_MOST static void SharedSlow(
       Tagged<TrustedObject> host, ProtectedPointerSlot slot,

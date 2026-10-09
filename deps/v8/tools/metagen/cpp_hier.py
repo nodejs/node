@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 """Harvest the class hierarchy from C++ V8_OBJECT headers via libclang.
 
-Produces `ClassInfo` records (see instance_types.py) for every class
+Produces `ClassInfo` objects (see instance_types.py) for every class
 that transitively inherits HeapObject in the input headers, sourced from the
 `[[clang::annotate("V8_IT_*")]]` markers carried by aliases in each class
 body. Feed the list into `instance_types.assign_instance_types` to drive IT
@@ -25,6 +25,13 @@ Inheritance is resolved through templates by the shared harness in
 This module references `clang.cindex` at import time, so
 `clang_bootstrap.bootstrap()` must have run first -- metagen.py does
 that before importing us.
+
+TODO(jgruber): Rename to parse.py and scan_cpp to parse_driver; the
+module's job is the libclang parse and the ParsedTU built from it.
+Rename _harvest_classes to _index_classes and move its ClassInfo
+derivation out into it_extract.py, the twin of layout_extract.py, so
+that the pipeline reads as one parse, one index, two extractions.
+Drop the harvest vocabulary here and in metagen.py at the same time.
 """
 
 from __future__ import annotations
@@ -51,18 +58,54 @@ _V8_IT_ORDER_RE = re.compile(r"^V8_IT_ORDER\((FIRST|LAST)\)$")
 # Anchored, because the V8_OBJECTS_<NAME>_H_ include guards share a
 # prefix with V8_OBJECT and would otherwise match.
 _MARKER_MACRO_RE = re.compile(
-    r"^(V8_IT_[A-Z_]+|V8_ABSTRACT_OBJECT"
+    r"^(V8_IT_[A-Z_]+|V8_TQ_[A-Z_]+|V8_ABSTRACT_OBJECT"
     r"|V8_OBJECT(_END|_PUSH|_POP|_INNER_CLASS(_END)?)?)$")
+
+
+@dataclasses.dataclass
+class ParsedTU:
+  """The parsed translation unit and its indexes.
+
+  Instance-type and layout extraction share these indexes. `tu` keeps
+  every cursor alive. Each consumer adds the declarations it reads to
+  `visited`; visited_files() collects their paths for the depfile.
+  """
+  tu: cindex.TranslationUnit
+  templates_idx: dict[str, list[cindex.Cursor]]
+  # Every v8::internal class-like definition that reaches HeapObject,
+  # keyed by unqualified name (ambiguity is fatal during the scan).
+  heap_classes: dict[str, cindex.Cursor]
+  # Namespace-scope type aliases keyed by unqualified name, first one
+  # wins. Class-scope aliases are left out so that a member such as
+  # Internals::Tagged_t cannot shadow the namespace alias.
+  aliases: dict[str, cindex.Cursor]
+  visited: set[cindex.Cursor]
 
 
 @dataclasses.dataclass
 class ScanResult:
   classes: list[ClassInfo]
-  # Absolute paths of the files the harvest read a fact out of -- class
-  # declarations, the bases and templates it resolved through, and the
-  # marker definitions. Derived from the walk, not filtered from the
-  # include list, so it stays correct when a declaration moves.
-  provenance: list[str] = dataclasses.field(default_factory=list)
+  parsed: ParsedTU
+
+
+def visited_files(visited: set[cindex.Cursor], v8_root: str) -> list[str]:
+  """Absolute paths of the checkout files holding a visited declaration:
+  the classes, the bases and templates resolved through, field types,
+  and the marker definitions. Derived from the walk, not filtered from
+  the include list, so it stays correct when a declaration moves."""
+  files: set[str] = set()
+  # Prefix test rather than os.path.commonpath, which raises across
+  # drives on Windows -- and `visited` reaches the toolchain and sysroot
+  # declarations, which need not share the checkout's drive.
+  root = os.path.abspath(v8_root) + os.sep
+  for cursor in visited:
+    loc = cursor.location
+    if loc is None or loc.file is None:
+      continue
+    path = os.path.abspath(loc.file.name)
+    if path.startswith(root):
+      files.add(path)
+  return sorted(files)
 
 
 def _annotations(cursor: cindex.Cursor) -> list[str]:
@@ -226,10 +269,10 @@ def scan_cpp(v8_root: str,
              driver_path: str,
              flags: list[str],
              parse_cwd: str | None = None) -> ScanResult:
-  """Parse `driver_path` via libclang and return ClassInfo records.
+  """Parse `driver_path` via libclang and return ClassInfo objects.
 
   The driver's active direct includes are the headers to harvest. The order of
-  returned records mirrors AST preorder, which equals (header inclusion order,
+  returned classes mirrors AST preorder, which equals (header inclusion order,
   source-position order within each header). That order is stable for a given
   driver + V8 tree.
 
@@ -238,7 +281,10 @@ def scan_cpp(v8_root: str,
   (-I../../v8/src, --sysroot=../../build/..., ...) resolve the same way
   clang itself would resolve them in the build.
   """
-  driver_path = os.path.abspath(driver_path)
+  # Prefix the source with '.' so neither clang nor clang-cl can parse a
+  # leading '-' or '/' as an option.
+  driver_path = os.path.join(
+      ".", os.path.relpath(os.path.abspath(driver_path), parse_cwd))
   options = (
       cindex.TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD
       | cindex.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES)
@@ -275,33 +321,7 @@ def scan_cpp(v8_root: str,
 
 
 def _position(cursor: cindex.Cursor, v8_root: str) -> str:
-  """`file.h:line:col`, relative to v8_root so the harvest's output and
-  its diagnostics are reproducible across checkouts."""
-  loc = cursor.location
-  fname = os.path.relpath(loc.file.name, v8_root) if loc.file else "<unknown>"
-  return f"{fname}:{loc.line}:{loc.column}"
-
-
-_SCOPE_KINDS = (cindex.CursorKind.NAMESPACE, cindex.CursorKind.CLASS_DECL,
-                cindex.CursorKind.STRUCT_DECL, cindex.CursorKind.CLASS_TEMPLATE,
-                cindex.CursorKind.CLASS_TEMPLATE_PARTIAL_SPECIALIZATION)
-
-
-def _qualified_name(cursor: cindex.Cursor) -> str:
-  """Return `cursor`'s name with its namespaces and enclosing classes,
-  e.g. "v8::internal::FixedArray::Iterator".
-
-  The enclosing classes are what separates the four v8::internal classes
-  named Iterator; the namespaces are what separates v8::Context from the
-  object.
-  """
-  parts = [cursor.spelling]
-  parent = cursor.semantic_parent
-  while parent is not None and parent.kind != cindex.CursorKind.TRANSLATION_UNIT:
-    if parent.kind in _SCOPE_KINDS:
-      parts.append(parent.spelling)
-    parent = parent.semantic_parent
-  return "::".join(reversed(parts))
+  return extract.position(cursor, v8_root) or "<unknown>"
 
 
 def _reject_recovery_ast(tu,
@@ -360,36 +380,33 @@ def _harvest_classes(tu, v8_root: str) -> ScanResult:
                      cindex.CursorKind.CLASS_TEMPLATE_PARTIAL_SPECIALIZATION)
   _HARVEST_KINDS = (cindex.CursorKind.CLASS_DECL,
                     cindex.CursorKind.CLASS_TEMPLATE)
+  _ALIAS_KINDS = (cindex.CursorKind.TYPEDEF_DECL,
+                  cindex.CursorKind.TYPE_ALIAS_DECL)
+  _NAMESPACE_KINDS = (cindex.CursorKind.TRANSLATION_UNIT,
+                      cindex.CursorKind.NAMESPACE)
   templates_idx: dict[str, list[cindex.Cursor]] = {}
   raw_candidates: dict[str, cindex.Cursor] = {}
+  aliases: dict[str, cindex.Cursor] = {}
   # Cursors that lost an unqualified-name collision, for the check below.
   shadowed: dict[str, list[cindex.Cursor]] = {}
 
-  def _walk(cur):
+  def _walk(cur, parent_kind):
     k = cur.kind
+    if k in _ALIAS_KINDS and parent_kind in _NAMESPACE_KINDS:
+      aliases.setdefault(cur.spelling, cur)
     if k in _TEMPLATE_KINDS and cur.is_definition():
       templates_idx.setdefault(cur.spelling, []).append(cur)
     if k in _HARVEST_KINDS and cur.is_definition():
-      # V8_IT_NO_AUTO_CHECKER normally excludes the class from the harvest.
-      # Combined with V8_IT_OWN_TYPE, it instead keeps the class in the IT
-      # tree while suppressing only its generated checker buckets.
-      no_auto_checker = _has_annotation(cur, _V8_IT_NO_AUTO_CHECKER)
-      own_type = _has_annotation(cur, _V8_IT_OWN_TYPE)
-      if not no_auto_checker or own_type:
-        loc = cur.location
-        # The driver reaches far more than the objects -- the public API
-        # headers among it -- and `raw_candidates` is keyed by unqualified
-        # name, so v8::Context would claim the key of the object it shares
-        # a name with and never be reconsidered. Select on the namespace:
-        # the harvest wants v8::internal and nothing else.
-        if _qualified_name(cur).startswith("v8::internal::"):
-          if raw_candidates.setdefault(cur.spelling, cur) != cur:
-            shadowed.setdefault(cur.spelling, []).append(cur)
+      # The driver reaches include/ API headers, and `raw_candidates` is keyed
+      # by unqualified name. Avoid cross-namespace collisions.
+      if extract.qualified_name(cur).startswith("v8::internal::"):
+        if raw_candidates.setdefault(cur.spelling, cur) != cur:
+          shadowed.setdefault(cur.spelling, []).append(cur)
     if k in _DESCEND_KINDS or k in _TEMPLATE_KINDS:
       for child in cur.get_children():
-        _walk(child)
+        _walk(child, k)
 
-  _walk(tu.cursor)
+  _walk(tu.cursor, None)
 
   def _reaches_heap_object(cur: cindex.Cursor) -> bool:
     return cur.spelling == extract.HEAP_OBJECT_ROOT or (
@@ -412,10 +429,10 @@ def _harvest_classes(tu, v8_root: str) -> ScanResult:
     claimants = {}
     for cur in [winner] + losers:
       if _reaches_heap_object(cur):
-        claimants.setdefault(_qualified_name(cur), cur)
+        claimants.setdefault(extract.qualified_name(cur), cur)
     if not claimants:
       continue
-    if len(claimants) > 1 or _qualified_name(winner) not in claimants:
+    if len(claimants) > 1 or extract.qualified_name(winner) not in claimants:
       print(
           f"[metagen] `{name}` is claimed by more than one v8::internal "
           f"class that reaches {extract.HEAP_OBJECT_ROOT}:",
@@ -439,12 +456,21 @@ def _harvest_classes(tu, v8_root: str) -> ScanResult:
   # ruled a candidate out: a header that keeps a class out of the
   # harvest decides the output too.
   visited: set[cindex.Cursor] = set()
-  candidates: dict[str, cindex.Cursor] = {
+  heap_classes: dict[str, cindex.Cursor] = {
       name: cur
       for name, cur in raw_candidates.items()
       if name == extract.HEAP_OBJECT_ROOT or extract.resolve_logical_base(
           cur, frozenset(), templates=templates_idx, visited=visited)
       is not None
+  }
+
+  # Layout extraction includes classes excluded from generated checkers because
+  # they still define layouts and base classes.
+  candidates: dict[str, cindex.Cursor] = {
+      name: cur
+      for name, cur in heap_classes.items()
+      if not _has_annotation(cur, _V8_IT_NO_AUTO_CHECKER) or
+      _has_annotation(cur, _V8_IT_OWN_TYPE)
   }
 
   # Compute the leaf set. A candidate is a leaf if no other candidate
@@ -497,17 +523,11 @@ def _harvest_classes(tu, v8_root: str) -> ScanResult:
         _MARKER_MACRO_RE.match(cursor.spelling)):
       visited.add(cursor)
 
-  provenance: set[str] = set()
-  # Prefix test rather than os.path.commonpath, which raises across
-  # drives on Windows -- and `visited` reaches the toolchain and sysroot
-  # declarations, which need not share the checkout's drive.
-  root = os.path.abspath(v8_root) + os.sep
-  for cursor in visited:
-    loc = cursor.location
-    if loc is None or loc.file is None:
-      continue
-    path = os.path.abspath(loc.file.name)
-    if path.startswith(root):
-      provenance.add(path)
-
-  return ScanResult(classes=classes, provenance=sorted(provenance))
+  return ScanResult(
+      classes=classes,
+      parsed=ParsedTU(
+          tu=tu,
+          templates_idx=templates_idx,
+          heap_classes=heap_classes,
+          aliases=aliases,
+          visited=visited))

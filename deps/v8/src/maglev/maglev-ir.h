@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_IR_H_
 #define V8_MAGLEV_MAGLEV_IR_H_
 
+#include <bit>
 #include <optional>
 #include <type_traits>
 
@@ -491,9 +492,9 @@ class ExceptionHandlerInfo;
   V(HandleNoHeapWritesInterrupt)              \
   V(ReduceInterruptBudgetForLoop)             \
   V(ReduceInterruptBudgetForReturn)           \
-  V(ThrowReferenceErrorIfHole)                \
-  V(ThrowSuperNotCalledIfHole)                \
-  V(ThrowSuperAlreadyCalledIfNotHole)         \
+  V(ThrowReferenceErrorIfTdzHole)             \
+  V(ThrowSuperNotCalledIfTdzHole)             \
+  V(ThrowSuperAlreadyCalledIfNotTdzHole)      \
   V(ThrowIfNotCallable)                       \
   V(ThrowIfNotSuperConstructor)               \
   V(TransitionElementsKindOrCheckMap)         \
@@ -787,22 +788,26 @@ constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
   }
 }
 
-constexpr bool CanBeTheHoleValue(Opcode opcode) {
+constexpr bool CanBeHoleValue(RootIndex hole_index, Opcode opcode) {
+  DCHECK(hole_index == RootIndex::kTheHoleValue ||
+         hole_index == RootIndex::kTdzHoleValue);
   switch (opcode) {
     // TODO(victorgomes): Should we have a list of builtins that could
     // return the hole?
     case Opcode::kCallBuiltin:
-    case Opcode::kCallRuntime:
-    case Opcode::kGeneratorRestoreRegister:
     case Opcode::kIdentity:
-    case Opcode::kInitialValue:
-    case Opcode::kLoadContextSlot:
-    case Opcode::kLoadContextSlotNoCells:
-    case Opcode::kLoadFixedArrayElement:
     case Opcode::kLoadTaggedField:
     case Opcode::kPhi:
     case Opcode::kRootConstant:
       return true;
+    case Opcode::kCallRuntime:
+    case Opcode::kLoadFixedArrayElement:
+      return hole_index == RootIndex::kTheHoleValue;
+    case Opcode::kGeneratorRestoreRegister:
+    case Opcode::kInitialValue:
+    case Opcode::kLoadContextSlot:
+    case Opcode::kLoadContextSlotNoCells:
+      return hole_index == RootIndex::kTdzHoleValue;
     default:
       return false;
   }
@@ -1673,6 +1678,9 @@ class BuiltinContinuationDeoptFrame : public DeoptFrame {
     return data().maybe_js_target.value();
   }
 
+  // Number of parameters in the deopt translation.
+  int translation_height() const;
+
  private:
   BuiltinContinuationFrameData& data() {
     return data_.get<BuiltinContinuationFrameData>();
@@ -1767,8 +1775,8 @@ inline compiler::BytecodeArrayRef DeoptFrame::GetBytecodeArray() const {
 
 class DeoptInfo {
  protected:
-  DeoptInfo(Zone* zone, DeoptFrame* top_frame,
-            compiler::FeedbackSource feedback_to_update);
+  V8_EXPORT_PRIVATE DeoptInfo(Zone* zone, DeoptFrame* top_frame,
+                              compiler::FeedbackSource feedback_to_update);
 
  public:
   DeoptFrame& top_frame() { return *top_frame_; }
@@ -1841,7 +1849,9 @@ class LazyDeoptInfo : public DeoptInfo {
         result_location_(result_location),
         bitfield_(
             DeoptingCallReturnPcField::encode(kUninitializedCallReturnPc) |
-            ResultSizeField::encode(result_size)) {}
+            ResultSizeField::encode(result_size)) {
+    DCHECK(IsConsideredForResultLocation());
+  }
 
   interpreter::Register result_location() const {
     DCHECK(IsConsideredForResultLocation());
@@ -1891,31 +1901,12 @@ class LazyDeoptInfo : public DeoptInfo {
  private:
 #ifdef DEBUG
   bool IsConsideredForResultLocation() const {
-    switch (top_frame().type()) {
-      case DeoptFrame::FrameType::kInterpretedFrame:
-        // Interpreted frames obviously need a result location.
-        return true;
-      case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-      case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-        return false;
-      case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-        // Normally if the function is going to be deoptimized then the top
-        // frame should be an interpreted one, except for LazyDeoptContinuation
-        // builtin.
-        switch (top_frame().as_builtin_continuation().builtin_id()) {
-          case Builtin::kGenericLazyDeoptContinuation:
-          case Builtin::kGetIteratorWithFeedbackLazyDeoptContinuation:
-          case Builtin::kCallIteratorWithFeedbackLazyDeoptContinuation:
-          case Builtin::kForOfNextLoadDoneLazyDeoptContinuation:
-          case Builtin::kForOfNextLoadValueLazyDeoptContinuation:
-          case Builtin::kArrayDestructureLazyDeoptContinuation:
-          case Builtin::kGeneratorPrototypeNextLazyDeoptContinuation:
-            return true;
-          default:
-            return false;
-        }
-    }
-    UNREACHABLE();
+    // Deopt continuation builtins don't consider the result location or size
+    // encoded in the deopt data; they behave like function calls and return
+    // into the accumulator.
+    return top_frame().type() == DeoptFrame::FrameType::kInterpretedFrame ||
+           (result_location_ == interpreter::Register::virtual_accumulator() &&
+            ResultSizeField::decode(bitfield_) == 1);
   }
 #endif  // DEBUG
 
@@ -2022,16 +2013,16 @@ constexpr const T* ObjectPtrBeforeAddress(const void* address) {
 
 }  // namespace detail
 
-#define DEOPTIMIZE_REASON_FIELD                                             \
- private:                                                                   \
-  using ReasonField =                                                       \
-      NextBitField<DeoptimizeReason, base::bits::WhichPowerOfTwo<size_t>(   \
-                                         base::bits::RoundUpToPowerOfTwo32( \
-                                             kDeoptimizeReasonCount))>;     \
-                                                                            \
- public:                                                                    \
-  DeoptimizeReason deoptimize_reason() const {                              \
-    return ReasonField::decode(bitfield());                                 \
+#define DEOPTIMIZE_REASON_FIELD                                           \
+ private:                                                                 \
+  using ReasonField =                                                     \
+      NextBitField<DeoptimizeReason,                                      \
+                   base::bits::WhichPowerOfTwo<size_t>(                   \
+                       std::bit_ceil<uint32_t>(kDeoptimizeReasonCount))>; \
+                                                                          \
+ public:                                                                  \
+  DeoptimizeReason deoptimize_reason() const {                            \
+    return ReasonField::decode(bitfield());                               \
   }
 
 class KnownNodeAspects;
@@ -2678,6 +2669,10 @@ class ValueNode : public Node {
   // For constants only.
   void LoadToRegister(MaglevAssembler*, Register) const;
   void LoadToRegister(MaglevAssembler*, DoubleRegister) const;
+  // Whether loading this constant produces an all-zero bit pattern, so that
+  // an architecture with a zero register (MaglevAssembler::HasZeroRegister())
+  // can store that register instead.
+  bool MaterializesToZero() const;
   DirectHandle<Object> Reify(LocalIsolate* isolate) const;
 
   bool has_valid_live_range() const {
@@ -2720,7 +2715,7 @@ class ValueNode : public Node {
   // HoleyFloat64 gives a meaning to. Only false if that is provably not the
   // case, so that whoever writes those bits somewhere they would regain that
   // meaning (a double array, mainly) can skip canonicalizing them.
-  bool MayBeHoleOrUndefinedNan() const;
+  V8_EXPORT_PRIVATE bool MayBeHoleOrUndefinedNan() const;
 
 #ifdef V8_COMPRESS_POINTERS
   constexpr bool decompresses_tagged_result() const {
@@ -2783,14 +2778,16 @@ class ValueNode : public Node {
   compiler::OptionalHeapObjectRef TryGetConstant(
       compiler::JSHeapBroker* broker);
 
-  NodeType GetStaticType(compiler::JSHeapBroker* broker);
-  Range GetStaticRange() const;
+  V8_EXPORT_PRIVATE NodeType GetStaticType(compiler::JSHeapBroker* broker);
+  V8_EXPORT_PRIVATE Range GetStaticRange() const;
 
   bool StaticTypeIs(compiler::JSHeapBroker* broker, NodeType type) {
     return NodeTypeIs(GetStaticType(broker), type);
   }
 
-  Tribool IsTheHole() const;
+  Tribool IsHole(RootIndex hole_index) const;
+  Tribool IsTheHole() const { return IsHole(RootIndex::kTheHoleValue); }
+  Tribool IsTdzHole() const { return IsHole(RootIndex::kTdzHoleValue); }
 
   inline void MaybeRecordUseReprHint(UseRepresentationSet repr);
   inline void MaybeRecordUseReprHint(UseRepresentation repr);
@@ -4845,7 +4842,15 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
       : Base(bitfield), feedback_(feedback) {}
 
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties = OpProperties::JSCall();
+  // Eager deopt frame is attached, since MaglevGraphOptimizer can reduce this
+  // node, and the reduction emits map checks, which can eager deopt.
+  // Unlike generic call nodes like CallBuiltin where attaching eager deopt
+  // frames would be too heavyweight (and are instead handled via
+  // MaglevReducer::CanEagerDeopt), TestInstanceOf is a dedicated opcode where
+  // attaching the frame is cheap and preserves speculative reductions in the
+  // optimizer.
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::JSCall();
   DECLARE_INPUTS(Context, Object, Callable)
   DECLARE_INPUT_TYPES(Tagged, Tagged, Tagged)
 
@@ -5287,7 +5292,9 @@ class HeapConstant : public FixedInputValueNodeT<0, HeapConstant> {
     return Object::BooleanValue(*object_.object(), local_isolate);
   }
 
+  bool IsAnyHole() const { return object_.IsAnyHole(); }
   bool IsTheHole() const { return object_.IsTheHole(); }
+  bool IsTdzHole() const { return object_.IsTdzHole(); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -6720,8 +6727,14 @@ class ArgumentsElements : public FixedInputValueNodeT<1, ArgumentsElements> {
   int formal_parameter_count() const { return formal_parameter_count_; }
 
  private:
+  friend class MaglevGraphBuilder;
+
+  bool maybe_mutated() const { return maybe_mutated_; }
+  void set_maybe_mutated() { maybe_mutated_ = true; }
+
   CreateArgumentsType type_;
   int formal_parameter_count_;
+  bool maybe_mutated_ = false;
 };
 
 // TODO(victorgomes): This node is currently not eliminated by the escape
@@ -6793,15 +6806,23 @@ class FastCreateClosure : public FixedInputValueNodeT<1, FastCreateClosure> {
  public:
   explicit FastCreateClosure(
       uint64_t bitfield, compiler::SharedFunctionInfoRef shared_function_info,
-      compiler::FeedbackCellRef feedback_cell)
+      compiler::FeedbackCellRef feedback_cell,
+      compiler::OptionalContextRef specialization_context,
+      ContextScopeInfo context_scope_info)
       : Base(bitfield),
         shared_function_info_(shared_function_info),
-        feedback_cell_(feedback_cell) {}
+        feedback_cell_(feedback_cell),
+        specialization_context_(specialization_context),
+        context_scope_info_(context_scope_info) {}
 
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_;
   }
   compiler::FeedbackCellRef feedback_cell() const { return feedback_cell_; }
+  compiler::OptionalContextRef specialization_context() const {
+    return specialization_context_;
+  }
+  ContextScopeInfo context_scope_info() const { return context_scope_info_; }
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties =
@@ -6820,6 +6841,8 @@ class FastCreateClosure : public FixedInputValueNodeT<1, FastCreateClosure> {
  private:
   const compiler::SharedFunctionInfoRef shared_function_info_;
   const compiler::FeedbackCellRef feedback_cell_;
+  const compiler::OptionalContextRef specialization_context_;
+  const ContextScopeInfo context_scope_info_;
 };
 
 class CreateRegExpLiteral
@@ -6854,17 +6877,25 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
   explicit CreateClosure(uint64_t bitfield,
                          compiler::SharedFunctionInfoRef shared_function_info,
                          compiler::FeedbackCellRef feedback_cell,
-                         bool pretenured)
+                         bool pretenured,
+                         compiler::OptionalContextRef specialization_context,
+                         ContextScopeInfo context_scope_info)
       : Base(bitfield),
         shared_function_info_(shared_function_info),
         feedback_cell_(feedback_cell),
-        pretenured_(pretenured) {}
+        pretenured_(pretenured),
+        specialization_context_(specialization_context),
+        context_scope_info_(context_scope_info) {}
 
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_;
   }
   compiler::FeedbackCellRef feedback_cell() const { return feedback_cell_; }
   bool pretenured() const { return pretenured_; }
+  compiler::OptionalContextRef specialization_context() const {
+    return specialization_context_;
+  }
+  ContextScopeInfo context_scope_info() const { return context_scope_info_; }
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties = OpProperties::Call() |
@@ -6884,6 +6915,8 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
   const compiler::SharedFunctionInfoRef shared_function_info_;
   const compiler::FeedbackCellRef feedback_cell_;
   const bool pretenured_;
+  const compiler::OptionalContextRef specialization_context_;
+  const ContextScopeInfo context_scope_info_;
 };
 
 #define ASSERT_CONDITION(V) \
@@ -7645,9 +7678,9 @@ class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
 
  private:
   using ConditionField =
-      ReasonField::Next<AssertCondition, base::bits::WhichPowerOfTwo<size_t>(
-                                             base::bits::RoundUpToPowerOfTwo32(
-                                                 kNumAssertConditions))>;
+      ReasonField::Next<AssertCondition,
+                        base::bits::WhichPowerOfTwo<size_t>(
+                            std::bit_ceil<uint32_t>(kNumAssertConditions))>;
 };
 
 // AssumeMap is a hint for Turboshaft's LateLoadElimination: it tells it that
@@ -9343,8 +9376,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
     kInlinedAllocation,
     kTransitioning,
   };
-  explicit StoreMap(uint64_t bitfield, compiler::MapRef map, Kind kind)
-      : Base(bitfield | KindField::encode(kind)), map_(map) {}
+  explicit StoreMap(uint64_t bitfield, compiler::MapRef map, Kind kind);
 
   static constexpr OpProperties kProperties =
       OpProperties::CanWrite() | OpProperties::DeferredCall();
@@ -9352,6 +9384,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
 
   compiler::MapRef map() const { return map_; }
   Kind kind() const { return KindField::decode(bitfield()); }
+  bool NoWriteBarrier() const;
 
   bool is_transitioning() const {
     switch (kind()) {
@@ -9371,6 +9404,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
 
  private:
   using KindField = NextBitField<Kind, 3>;
+  using MapInReadOnlySpaceField = KindField::Next<bool, 1>;
   const compiler::MapRef map_;
 };
 std::ostream& operator<<(std::ostream& os, StoreMap::Kind);
@@ -10174,8 +10208,8 @@ class Phi : public ValueNodeT<Phi> {
   // Records a use hint for this Phi. If {force_same_loop} is true, the hint
   // is recorded as a same-loop use, which is important for loop-related
   // optimizations like Phi untagging.
-  void RecordUseReprHint(UseRepresentationSet repr_mask,
-                         bool force_same_loop = false);
+  V8_EXPORT_PRIVATE void RecordUseReprHint(UseRepresentationSet repr_mask,
+                                           bool force_same_loop = false);
 
   UseRepresentationSet use_repr_hints() { return use_repr_hints_; }
   UseRepresentationSet same_loop_use_repr_hints() {
@@ -10759,6 +10793,7 @@ class CallKnownJSFunction : public VarargsValueNodeT<4, CallKnownJSFunction> {
       OpProperties::JSCall() | OpProperties::DeferredCall();
   DECLARE_INPUTS(Target, Context, Receiver, NewTarget)
 
+  JSDispatchHandle dispatch_handle() const { return dispatch_handle_; }
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_;
   }
@@ -11177,11 +11212,11 @@ class ReduceInterruptBudgetForReturn
   const int amount_;
 };
 
-class ThrowReferenceErrorIfHole
-    : public FixedInputNodeT<1, ThrowReferenceErrorIfHole> {
+class ThrowReferenceErrorIfTdzHole
+    : public FixedInputNodeT<1, ThrowReferenceErrorIfTdzHole> {
  public:
-  explicit ThrowReferenceErrorIfHole(uint64_t bitfield,
-                                     const compiler::NameRef name)
+  explicit ThrowReferenceErrorIfTdzHole(uint64_t bitfield,
+                                        const compiler::NameRef name)
       : Base(bitfield), name_(name) {}
 
   static constexpr OpProperties kProperties =
@@ -11200,10 +11235,10 @@ class ThrowReferenceErrorIfHole
   const compiler::NameRef name_;
 };
 
-class ThrowSuperNotCalledIfHole
-    : public FixedInputNodeT<1, ThrowSuperNotCalledIfHole> {
+class ThrowSuperNotCalledIfTdzHole
+    : public FixedInputNodeT<1, ThrowSuperNotCalledIfTdzHole> {
  public:
-  explicit ThrowSuperNotCalledIfHole(uint64_t bitfield) : Base(bitfield) {}
+  explicit ThrowSuperNotCalledIfTdzHole(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanThrow() | OpProperties::DeferredCall();
@@ -11214,10 +11249,10 @@ class ThrowSuperNotCalledIfHole
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
-class ThrowSuperAlreadyCalledIfNotHole
-    : public FixedInputNodeT<1, ThrowSuperAlreadyCalledIfNotHole> {
+class ThrowSuperAlreadyCalledIfNotTdzHole
+    : public FixedInputNodeT<1, ThrowSuperAlreadyCalledIfNotTdzHole> {
  public:
-  explicit ThrowSuperAlreadyCalledIfNotHole(uint64_t bitfield)
+  explicit ThrowSuperAlreadyCalledIfNotTdzHole(uint64_t bitfield)
       : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =

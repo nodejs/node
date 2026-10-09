@@ -111,9 +111,12 @@ class JSCallReducerTest : public TypedGraphTest {
   }
 
   Node* DummyFrameState() {
+    FrameStateFunctionInfo const* function_info =
+        common()->CreateFrameStateFunctionInfo(
+            FrameStateType::kUnoptimizedFunction, 0, 0, 0, {}, {});
     return graph()->NewNode(
         common()->FrameState(BytecodeOffset{42},
-                             OutputFrameStateCombine::Ignore(), nullptr),
+                             OutputFrameStateCombine::Ignore(), function_info),
         graph()->start(), graph()->start(), graph()->start(), graph()->start(),
         graph()->start(), graph()->start());
   }
@@ -647,9 +650,12 @@ TEST_F(JSCallReducerTest, ConstructForwardAllArgsWithDeadParameters) {
       graph()->NewNode(common()->DeadValue(MachineRepresentation::kTagged),
                        graph()->NewNode(common()->Dead()));
   Node* outer_frame_state = DummyFrameState();
+  FrameStateFunctionInfo const* function_info =
+      common()->CreateFrameStateFunctionInfo(
+          FrameStateType::kUnoptimizedFunction, 0, 0, 0, {}, {});
   Node* frame_state = graph()->NewNode(
       common()->FrameState(BytecodeOffset::None(),
-                           OutputFrameStateCombine::Ignore(), nullptr),
+                           OutputFrameStateCombine::Ignore(), function_info),
       dead_value, graph()->start(), graph()->start(), graph()->start(),
       graph()->start(), outer_frame_state);
 

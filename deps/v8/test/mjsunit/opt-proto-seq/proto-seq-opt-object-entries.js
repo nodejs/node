@@ -37,7 +37,7 @@ assert_test_object_entries(test_object_entries());
 %OptimizeMaglevOnNextCall(test_object_entries);
 assert_test_object_entries(test_object_entries());
 assertOptimized(test_object_entries);
-assertTrue(isMaglevved(test_object_entries));
+assertMaglevved(test_object_entries);
 assert_test_object_entries(test_object_entries());
 }
 

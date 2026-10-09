@@ -159,6 +159,35 @@ TEST_F(MaglevGraphProcessorTest, GraphBackwardMultiProcessorOrder) {
   persistent_scope.Detach();
 }
 
+TEST_F(MaglevGraphProcessorTest, LoopHeaderAvailableExpressions) {
+  RunSubgraphTest([&](MaglevReducer<MaglevGraphOptimizer>& reducer,
+                      BasicBlock* block) {
+    ValueNode* object = reducer.GetRootConstant(RootIndex::kUndefinedValue);
+    auto* load =
+        reducer.AddNewNodeNoInputConversion<LoadDataViewByteLength>({object});
+    ValueNode* value = reducer.GetFloat64Constant(1.0);
+    auto* pure =
+        reducer.AddNewNodeNoInputConversion<Float64Add>({value, value});
+    std::array<ValueNode*, 1> load_inputs{object};
+    std::array<ValueNode*, 2> pure_inputs{value, value};
+    KnownNodeAspects backedge(zone());
+    for (bool loop_has_effects : {false, true}) {
+      for (bool stale : {false, true}) {
+        KnownNodeAspects forward(zone());
+        forward.AddExpression(1, load);
+        forward.AddExpression(2, pure);
+        if (stale) forward.increment_effect_epoch();
+        forward.MergeForLoop(backedge, zone(), nullptr, loop_has_effects);
+        EXPECT_EQ(
+            !loop_has_effects && !stale ? load : nullptr,
+            forward.FindExpression<LoadDataViewByteLength>(1, load_inputs));
+        EXPECT_EQ(pure, forward.FindExpression<Float64Add>(2, pure_inputs));
+      }
+    }
+    reducer.FlushNodesToBlock();
+  });
+}
+
 TEST_F(MaglevGraphProcessorTest, SubgraphBufferStashingNodesFromBefore) {
   RunSubgraphTest(
       [](MaglevReducer<MaglevGraphOptimizer>& reducer, BasicBlock* block) {

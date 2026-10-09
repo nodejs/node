@@ -1,0 +1,25 @@
+Checks that reading an export of a deferred module namespace in a side-effect-free evaluation (as DevTools does for eager evaluation and autocomplete) fails without starting the module evaluation, and that a later regular evaluation still evaluates the module.
+
+Running test: testRuntimeEvaluate
+[[ModuleStatus]] of console: linked
+globalThis.consoleEvaluated: undefined
+
+Side-effect-free Runtime.evaluate of consoleNs.foo:
+Threw: EvalError: Possible side-effect in debug-evaluate
+[[ModuleStatus]] of console: linked
+globalThis.consoleEvaluated: undefined
+
+Regular Runtime.evaluate of consoleNs.foo:
+Result: 1
+[[ModuleStatus]] of console: evaluated
+globalThis.consoleEvaluated: true
+
+Running test: testEvaluateOnCallFrame
+Side-effect-free Debugger.evaluateOnCallFrame of pausedNs.foo:
+Threw: EvalError: Possible side-effect in debug-evaluate
+    at <anonymous>:1:1
+
+Regular Debugger.evaluateOnCallFrame of pausedNs.foo:
+Result: 2
+[[ModuleStatus]] of paused: evaluated
+globalThis.pausedEvaluated: true

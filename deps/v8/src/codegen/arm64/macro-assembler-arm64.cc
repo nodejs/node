@@ -1499,24 +1499,20 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     FrameScope scope(this, StackFrame::INTERNAL);
     // Push a copy of the target function, the new target, the actual
     // argument count, and the dispatch handle.
-    Register maybe_dispatch_handle = V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL
-                                         ? kJavaScriptCallDispatchHandleRegister
-                                         : padreg;
     SmiTag(kJavaScriptCallArgCountRegister);
-    // No need to SmiTag the dispatch handle as it always looks like a Smi.
-    static_assert(kJSDispatchHandleShift > 0);
-    AssertSmi(maybe_dispatch_handle);
-    Push(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
-         kJavaScriptCallArgCountRegister, maybe_dispatch_handle);
+    Push(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister);
+    PushDispatchHandle(kJavaScriptCallDispatchHandleRegister,
+                       kJavaScriptCallArgCountRegister, x5, x6);
     // Push another copy as a parameter to the runtime call.
     PushArgument(kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
 
-    // Restore target function, new target, actual argument count, and dispatch
+    // Restore target function, new target, actual argument count and dispatch
     // handle.
-    Pop(maybe_dispatch_handle, kJavaScriptCallArgCountRegister,
-        kJavaScriptCallNewTargetRegister, kJavaScriptCallTargetRegister);
+    PopDispatchHandle(kJavaScriptCallDispatchHandleRegister,
+                      kJavaScriptCallArgCountRegister, x5, x6);
+    Pop(kJavaScriptCallNewTargetRegister, kJavaScriptCallTargetRegister);
     SmiUntag(kJavaScriptCallArgCountRegister);
   }
 
@@ -1909,6 +1905,15 @@ void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
     return;
   }
   LoadRoot(destination, index);
+}
+
+void MacroAssembler::StoreTaggedRoot(const MemOperand& destination,
+                                     RootIndex index) {
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  LoadTaggedRoot(scratch, index);
+  StoreTaggedField(scratch, destination);
 }
 
 void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
@@ -2484,7 +2489,7 @@ void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
 }
 
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    uint16_t argument_count) {
+                                    uint16_t expected_parameter_count) {
   Register code = kJavaScriptCallCodeStartRegister;
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   Register parameter_count = x20;
@@ -2494,12 +2499,26 @@ void MacroAssembler::CallJSFunction(Register function_object,
       FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
                                                      dispatch_handle, scratch);
-  // Force a safe crash if the parameter count doesn't match.
+  // Force a safe crash if the parameter count doesn't match the expected count
+  // assumed at the call site, which would corrupt the stack on underapplication
+  // (caller pushes max(actual_argc, expected) slots; callee pops
+  // max(actual_argc, parameter_count) slots).
   // TODO(412398354): to avoid this runtime check, we should switch all
   // remaining users to call the function via its dispatch handle instead. See
   // CallJSDispatchEntry below and crbug.com/412398354 for more details.
-  Cmp(parameter_count, Immediate(argument_count));
-  SbxCheck(le, AbortReason::kJSSignatureMismatch);
+  if (expected_parameter_count <= 1) {
+    // Both kDontAdaptArgumentsSentinel (0) and JSParameterCount(0) (1) are
+    // valid here: since actual_argc >= 1 (includes receiver), neither pads
+    // arguments and both pop actual_argc slots upon return. We cannot use an
+    // exact equality check because WasmToJS wrappers compute expected_arity
+    // via SFI::internal_formal_parameter_count_without_receiver(), which maps
+    // both cases to JSParameterCount(0) (1).
+    Cmp(parameter_count, Immediate(1));
+    SbxCheck(le, AbortReason::kJSSignatureMismatch);
+  } else {
+    Cmp(parameter_count, Immediate(expected_parameter_count));
+    SbxCheck(eq, AbortReason::kJSSignatureMismatch);
+  }
   Call(code);
 }
 
@@ -4089,6 +4108,40 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
   static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
   Ldrh(parameter_count,
        MemOperand(scratch, JSDispatchEntry::kCodeObjectOffset));
+}
+
+void MacroAssembler::PushDispatchHandle(Register dispatch_handle,
+                                        Register other, Register scratch1,
+                                        Register scratch2) {
+  Register maybe_dispatch_handle =
+      V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? dispatch_handle : padreg;
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK(!AreAliased(dispatch_handle, other, scratch1, scratch2));
+  AssertZeroExtended(dispatch_handle);
+  LoadParameterCountFromJSDispatchTable(scratch1, dispatch_handle, scratch2);
+  Bfi(dispatch_handle, scratch1, 32, 32);
+#endif
+  Push(maybe_dispatch_handle, other);
+  // No need to SmiTag as dispatch handles always look like Smis.
+  static_assert(kJSDispatchHandleShift > 0);
+  AssertSmi(maybe_dispatch_handle);
+}
+
+void MacroAssembler::PopDispatchHandle(Register dispatch_handle, Register other,
+                                       Register scratch1, Register scratch2) {
+  Register maybe_dispatch_handle =
+      V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? dispatch_handle : padreg;
+  Pop(other, maybe_dispatch_handle);
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK(!AreAliased(dispatch_handle, other, scratch1, scratch2));
+  UseScratchRegisterScope temps(this);
+  Lsr(scratch1, dispatch_handle, 32);
+  Uxtw(dispatch_handle, dispatch_handle);
+  LoadParameterCountFromJSDispatchTable(scratch2, dispatch_handle,
+                                        temps.AcquireX());
+  Cmp(scratch1, scratch2);
+  SbxCheck(eq, AbortReason::kJSSignatureMismatch);
+#endif
 }
 
 void MacroAssembler::LoadProtectedPointerField(Register destination,

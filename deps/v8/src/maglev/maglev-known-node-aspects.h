@@ -407,6 +407,8 @@ class KnownNodeAspects {
 
   void ClearUnstableNodeAspectsForStoreMap(StoreMap* node,
                                            bool is_tracing_enabled);
+  void ClearUnstableNodeAspectsForMigration(Node* node,
+                                            bool is_tracing_enabled);
   void ClearUnstableNodeAspectsForElementsTransition(
       const ZoneVector<compiler::MapRef>& transition_sources,
       bool is_tracing_enabled);
@@ -563,8 +565,10 @@ class KnownNodeAspects {
   }
 
   void Merge(const KnownNodeAspects& other, Zone* zone);
-  void MergeForLoop(const KnownNodeAspects& backedge, Zone* zone,
-                    const LoopEffects* loop_effects);
+  V8_EXPORT_PRIVATE void MergeForLoop(const KnownNodeAspects& backedge,
+                                      Zone* zone,
+                                      const LoopEffects* loop_effects,
+                                      bool loop_has_effects);
 
   // If IsCompatibleWithLoopHeader(other) returns true, it means that
   // Merge(other) would not remove any information from `this`.
@@ -822,8 +826,7 @@ class KnownNodeAspects {
                          std::is_same_v<NodeT,
                                         CheckMapsWithMigrationAndDeopt> ||
                          std::is_same_v<NodeT, MigrateMapIfNeeded>) {
-      // These instructions only migrate representations of values, not the
-      // values themselves, so cached values are still valid.
+      ClearUnstableNodeAspectsForMigration(node, is_tracing_enabled);
     } else if constexpr (std::is_same_v<NodeT, StoreMap>) {
       ClearUnstableNodeAspectsForStoreMap(node, is_tracing_enabled);
     } else if constexpr (std::is_same_v<NodeT, TransitionElementsKind> ||
@@ -907,6 +910,8 @@ class KnownNodeAspects {
 
   SmallZoneVector<LoadedContextSlotsKey, 8> ClearAliasedContextSlotsFor(
       Graph* graph, ValueNode* context, int offset, ValueNode* value);
+
+  bool MarkSingleMapAsStale(ValueNode* node, bool is_tracing_enabled);
 
   static constexpr uint32_t kEffectEpochForPureInstructions =
       std::numeric_limits<uint32_t>::max();

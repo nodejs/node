@@ -116,6 +116,26 @@ TYPED_TEST(LogUniformIntDistributionTypeTest, SerializeTest) {
   }
 }
 
+// operator>> must reject input that violates the param_type preconditions
+// (max >= min and base > 1) by setting failbit and leaving the distribution
+// unchanged, rather than constructing an out-of-contract param_type.
+TYPED_TEST(LogUniformIntDistributionTypeTest, DeserializeRejectsInvalidParams) {
+  for (const char* input : {
+           "0 100 1",  // base == 1
+           "0 100 0",  // base == 0
+           "100 0 2",  // max < min
+       }) {
+    absl::log_uniform_int_distribution<TypeParam> dist(3, 6, 17);
+    const auto before = dist.param();
+
+    std::istringstream is(input);
+    is >> dist;
+
+    EXPECT_TRUE(is.fail()) << input;
+    EXPECT_EQ(dist.param(), before) << input;
+  }
+}
+
 using log_uniform_i32 = absl::log_uniform_int_distribution<int32_t>;
 
 class LogUniformIntChiSquaredTest

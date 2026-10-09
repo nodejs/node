@@ -781,29 +781,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       DCHECK_NOT_NULL(load_);
       return load_->result_rep;
     }
-    bool is_trapping(bool* traps_on_null) const {
-      if (kind().with_trap_handler) {
-        if (load_) {
-          *traps_on_null = load_->kind.trap_on_null;
-#if V8_ENABLE_SIMD128
-        } else {
-#if V8_ENABLE_SIMD256
-          DCHECK(
-              (load_transform_ && !load_transform_->load_kind.trap_on_null) ||
-              (load_transform256_ &&
-               !load_transform256_->load_kind.trap_on_null));
-#else
-          DCHECK(load_transform_);
-          DCHECK(!load_transform_->load_kind.trap_on_null);
-#endif  // V8_ENABLE_SIMD256
-          *traps_on_null = false;
-#endif  // V8_ENABLE_SIMD128
-        }
-        return true;
-      }
-      return false;
-    }
+    bool is_trapping() const { return kind().with_trap_handler; }
     bool is_atomic() const { return kind().is_atomic; }
+    bool has_shared_base() const { return kind().shared_base; }
 
     turboshaft::OpIndex base() const {
       if (load_) return load_->base();
@@ -940,9 +920,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       return op_->element_size_log2;
     }
 
-    bool is_store_trap_on_null() const {
-      return op_->kind.with_trap_handler && op_->kind.trap_on_null;
-    }
 
     operator turboshaft::OpIndex() const { return node_; }
 
@@ -974,7 +951,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       return true;
     }
 
-    const uint8_t* data() const { return op128_->shuffle; }
+    const uint8_t* data() const { return op128_->shuffle.data(); }
 
     turboshaft::OpIndex input(int index) const {
       DCHECK_LT(index, op128_->input_count);

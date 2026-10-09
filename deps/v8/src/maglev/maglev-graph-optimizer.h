@@ -60,6 +60,11 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
     kna_processor_.set_known_node_aspects(known_node_aspects);
   }
 
+  // GetDeoptFrameForEagerDeopt can only clone an existing eager deopt frame, so
+  // reductions of nodes that don't have one must not emit eager deopting nodes.
+  bool CanEagerDeopt() const {
+    return current_node_->properties().has_eager_deopt_info();
+  }
   DeoptFrame* GetDeoptFrameForEagerDeopt();
 
   std::tuple<DeoptFrame*, interpreter::Register, int> GetDeoptFrameForLazyDeopt(
@@ -145,6 +150,12 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
       ValueNode* node, UseRepresentation repr,
       std::optional<NodeType> assumed_input_type);
 
+  // Returns true if reusing the cached conversion 'alt' safely preserves all
+  // required type checks for 'node'.
+  bool CanReuseAlternative(ValueNode* node, ValueNode* alt,
+                           UseRepresentation repr,
+                           std::optional<NodeType> assumed_input_type);
+
   // Records the untagged input of a tagging conversion as the matching
   // untagged alternative of `tagged`, so a later untagging use can reuse it.
   template <ValueRepresentation kRepresentation>
@@ -164,9 +175,6 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
 
   Jump* FoldBranch(BasicBlock* current, BranchControlNode* branch_node,
                    bool if_true);
-
-  template <typename FixedArrayT, typename NodeT>
-  MaybeReduceResult AbortIfInvalidFixedArrayIndex(NodeT* node);
 
   ProcessResult ReplaceWith(ValueNode* node);
 

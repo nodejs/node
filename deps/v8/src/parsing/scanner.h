@@ -322,6 +322,11 @@ class V8_EXPORT_PRIVATE Scanner {
   Token::Value Next();
   // Returns the token following peek()
   Token::Value PeekAhead();
+  // Checks the character after peek(); declines if lookahead is buffered.
+  bool HasImmediateCommaOrRightBracket() const {
+    return next_next().token == Token::kUninitialized &&
+           (c0_ == ',' || c0_ == ']');
+  }
   // Returns the token following PeekAhead()
   Token::Value PeekAheadAhead();
   // Returns the current token again.

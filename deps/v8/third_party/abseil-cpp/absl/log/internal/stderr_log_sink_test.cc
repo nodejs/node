@@ -29,7 +29,7 @@ namespace {
 using ::testing::AllOf;
 using ::testing::HasSubstr;
 
-auto* test_env ABSL_ATTRIBUTE_UNUSED = ::testing::AddGlobalTestEnvironment(
+auto* test_env [[maybe_unused]] = ::testing::AddGlobalTestEnvironment(
     new absl::log_internal::LogTestEnvironment);
 
 MATCHER_P2(HasSubstrTimes, substr, expected_count, "") {

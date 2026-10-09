@@ -29,6 +29,9 @@ namespace internal {
     return isolate()->roots_table().name();     \
   }
 READ_ONLY_ROOT_LIST(RO_ROOT_ACCESSOR)
+#ifndef V8_ENABLE_TDZ_HOLE
+RO_ROOT_ACCESSOR(TdzHole, tdz_hole_value, TdzHoleValue)
+#endif
 #undef ROOT_ACCESSOR
 
 #define MUTABLE_ROOT_ACCESSOR(Type, name, CamelName)     \
@@ -43,6 +46,20 @@ template <typename Impl>
 Handle<Boolean> FactoryBase<Impl>::ToBoolean(bool value) {
   return value ? Cast<Boolean>(impl()->true_value())
                : Cast<Boolean>(impl()->false_value());
+}
+
+template <typename Impl>
+template <AllocationType allocation>
+Handle<UninitializedHeapNumber>
+FactoryBase<Impl>::NewUninitializedHeapNumber() {
+  static_assert(sizeof(HeapNumber) == sizeof(UninitializedHeapNumber));
+  static_assert(sizeof(HeapNumber) <= kMaxRegularHeapObjectSize);
+  AllocationWitness witness = AllocateWithWitness(
+      sizeof(UninitializedHeapNumber), allocation,
+      USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ? kDoubleUnaligned
+                                                : kTaggedAligned);
+  return handle(new (witness) UninitializedHeapNumber(read_only_roots()),
+                isolate());
 }
 
 template <typename Impl>
@@ -100,32 +117,37 @@ DirectHandle<Number> FactoryBase<Impl>::NewNumberFromInt64(int64_t value) {
 template <typename Impl>
 template <AllocationType allocation>
 Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumber(double value) {
-  Handle<HeapNumber> heap_number = NewHeapNumber<allocation>();
-  heap_number->set_value(value);
-  return heap_number;
+  static_assert(sizeof(HeapNumber) <= kMaxRegularHeapObjectSize);
+  AllocationWitness witness = AllocateWithWitness(
+      sizeof(HeapNumber), allocation,
+      USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ? kDoubleUnaligned
+                                                : kTaggedAligned);
+  std::optional<SharedObjectConditionalSafePublishGuard> publish_guard;
+  if constexpr (IsSharedAllocationType(allocation)) {
+    publish_guard.emplace(witness.object(), allocation);
+  }
+  return handle(new (witness) HeapNumber(read_only_roots(), value), isolate());
 }
 
 template <typename Impl>
 template <AllocationType allocation>
 Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumberFromBits(uint64_t bits) {
-  Handle<HeapNumber> heap_number = NewHeapNumber<allocation>();
-  heap_number->set_value_as_bits(bits);
-  return heap_number;
-}
-
-template <typename Impl>
-template <AllocationType allocation>
-Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumberWithHoleNaN() {
-  return NewHeapNumberFromBits<allocation>(kHoleNanInt64);
+  static_assert(sizeof(HeapNumber) <= kMaxRegularHeapObjectSize);
+  AllocationWitness witness = AllocateWithWitness(
+      sizeof(HeapNumber), allocation,
+      USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ? kDoubleUnaligned
+                                                : kTaggedAligned);
+  return handle(new (witness)
+                    HeapNumber(read_only_roots(), Float64::FromBits(bits)),
+                isolate());
 }
 
 template <typename Impl>
 template <AllocationType allocation>
 Handle<HeapNumber> FactoryBase<Impl>::NewHeapInt32(int32_t value) {
-  Handle<HeapNumber> heap_number = NewHeapNumber<allocation>();
-  heap_number->set_value_as_bits(
-      (static_cast<uint64_t>(kHoleNanUpper32) << 32) | value);
-  return heap_number;
+  return NewHeapNumberFromBits<allocation>(
+      (static_cast<uint64_t>(kHoleNanUpper32) << 32) |
+      static_cast<uint32_t>(value));
 }
 
 template <typename Impl>

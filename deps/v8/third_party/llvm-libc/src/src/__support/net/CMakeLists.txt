@@ -9,11 +9,15 @@ add_object_library(
     libc.hdr.types.struct_in_addr
     libc.hdr.types.struct_in6_addr
     libc.hdr.inet_address_macros
+    libc.hdr.stdint_proxy
     libc.src.__support.common
     libc.src.__support.ctype_utils
     libc.src.__support.CPP.optional
     libc.src.__support.CPP.span
+    libc.src.__support.CPP.string_view
+    libc.src.__support.fixedvector
     libc.src.__support.libc_assert
     libc.src.__support.str_to_integer
+    libc.src.string.memory_utils.inline_bzero
     libc.src.string.memory_utils.inline_memcpy
 )

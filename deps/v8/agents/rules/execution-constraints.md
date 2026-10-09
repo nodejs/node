@@ -19,10 +19,25 @@ To ensure efficient operation and prevent resource waste:
     content or guidance if a resource is inaccessible through available tools
     (like Buganizer MCP).
 
-04. **Mandatory Orchestration**: For any complex task or project in V8, the
-    agent MUST act as an Orchestrator and use the multi-layered skill framework
-    defined in `agents/skills/`. Break down tasks and delegate to subagents to
-    maximize parallelism. Avoid sequential execution of independent tasks.
+04. **Pragmatic Parallelism & Subagent Isolation**:
+
+    - **Never wait idle on builds/tests**: Start slow operations (`gm.py` builds
+      or test suites) asynchronously in the background while reading code or
+      analyzing reproducers. Once parallel code analysis is complete, stop
+      calling tools to wait for the automatic completion wakeup rather than
+      polling `manage_task` or `manage_subagents`.
+    - **Keep tightly-coupled work in the main agent**: Read C++ files, trace
+      compiler/GC invariants, and author fixes directly when context needs to be
+      shared tightly.
+    - **Delegate independent or context-heavy work**: Prefer `research-google`
+      (`Workspace: "inherit"`) for read-only codebase, `docs/`, or git history
+      archeology, and `self` when exploring orthogonal hypotheses or executing
+      repeatable batch changes that require running commands or editing files.
+    - **Isolate parallel workspace modifications**: When a `self` subagent or
+      background assistant needs to build or edit files in parallel, create an
+      isolated V8 worktree via `agents/scripts/create_worktree.sh <task_id>`
+      (which runs `tools/dev/setup_worktree_build.py` to symlink `gclient` DEPS)
+      rather than raw `Workspace: "share"`.
 
 05. **Avoid Interactive Pagers**: Always use `--no-pager` or ensure `PAGER=cat`
     is set when running commands that might produce long output (e.g.,

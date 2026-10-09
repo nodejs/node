@@ -9,6 +9,7 @@
 #include "include/v8-platform.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/time.h"
+#include "src/base/unique-array.h"
 #include "src/objects/managed.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
@@ -289,7 +290,7 @@ COMPILE_TEST(TestEventMetrics) {
   test::CompilationStatus status = test::CompilationStatus::kPending;
   std::string error_message;
   CppGCManaged<NativeModule>::Ptr native_module;
-  base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(buffer);
+  base::UniqueArray<const uint8_t> bytes = base::UniqueCopyOf(buffer);
   GetWasmEngine()->AsyncCompile(
       isolate, enabled_features, CompileTimeImports{},
       std::make_shared<test::CompileResolver>(&status, &error_message, isolate,

@@ -7,14 +7,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "src/__support/threads/thread.h"
-#include "src/__support/macros/config.h"
-#include "src/__support/threads/mutex.h"
-
+#include "hdr/limits_macros.h"
+#include "hdr/types/struct___pthread_cleanup_frame.h"
 #include "src/__support/CPP/array.h"
 #include "src/__support/CPP/mutex.h" // lock_guard
 #include "src/__support/CPP/optional.h"
 #include "src/__support/fixedvector.h"
 #include "src/__support/macros/attributes.h"
+#include "src/__support/macros/config.h"
+#include "src/__support/threads/cleanup_stack.h"
+#include "src/__support/threads/mutex.h"
 
 namespace LIBC_NAMESPACE_DECL {
 namespace {
@@ -150,17 +152,30 @@ extern "C" int __cxa_thread_atexit_impl(AtExitCallback *callback, void *obj,
 
 namespace internal {
 
-ThreadAtExitCallbackMgr *get_thread_atexit_callback_mgr() {
-  return &atexit_callback_mgr;
-}
+void call_atexit_callbacks() {
+  // Cancellation cleanup handlers (pthread_cleanup_push).
+  __pthread_cleanup_frame *frame;
+  while ((frame = current_thread().attrib->cleanup_stack.pop()) != nullptr)
+    frame->__routine(frame->__arg);
 
-void call_atexit_callbacks(ThreadAttributes *attrib) {
-  attrib->atexit_callback_mgr->call();
-  for (size_t i = 0; i < TSS_KEY_COUNT; ++i) {
-    TSSValueUnit &unit = tss_values[i];
-    // Both dtor and value need to nonnull to call dtor
-    if (unit.dtor != nullptr && unit.payload != nullptr)
-      unit.dtor(unit.payload);
+  // thread exit callbacks (__cxa_thread_atexit).
+  atexit_callback_mgr.call();
+
+  // Thread-specific keys (pthread_key_create).
+  for (size_t iter = 0; iter < PTHREAD_DESTRUCTOR_ITERATIONS; ++iter) {
+    bool called_dtor = false;
+    for (TSSValueUnit &unit : tss_values) {
+      // Both dtor and value need to be nonnull to call dtor
+      if (unit.dtor == nullptr || unit.payload == nullptr)
+        continue;
+
+      void *val = unit.payload;
+      unit.payload = nullptr;
+      unit.dtor(val);
+      called_dtor = true;
+    }
+    if (!called_dtor)
+      break;
   }
 }
 

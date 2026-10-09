@@ -322,14 +322,13 @@ int GetNumApiReferences(LocalIsolate* isolate) { return 0; }
 }  // namespace
 
 template <typename IsolateT>
-Deserializer<IsolateT>::Deserializer(IsolateT* isolate,
-                                     base::Vector<const uint8_t> payload,
-                                     uint32_t magic_number,
-                                     bool deserializing_user_code,
-                                     bool can_rehash)
+Deserializer<IsolateT>::Deserializer(
+    IsolateT* isolate, base::Vector<const uint8_t> untrusted_payload,
+    base::Vector<const uint8_t> trusted_payload, uint32_t magic_number,
+    bool deserializing_user_code, bool can_rehash)
     : isolate_(isolate),
       attached_objects_(isolate),
-      source_(payload),
+      source_(untrusted_payload),
       magic_number_(magic_number),
       new_maps_(isolate),
       new_allocation_sites_(isolate),
@@ -339,6 +338,7 @@ Deserializer<IsolateT>::Deserializer(IsolateT* isolate,
       function_template_infos_(isolate),
       new_scripts_(isolate),
       new_exposed_trusted_objects_(isolate),
+      trusted_payload_(trusted_payload),
       deserializing_user_code_(deserializing_user_code),
       should_rehash_((v8_flags.rehash_snapshot && can_rehash) ||
                      deserializing_user_code),
@@ -419,10 +419,40 @@ void Deserializer<IsolateT>::DeserializeDeferredObjects() {
   if (v8_flags.trace_deserialization) {
     PrintF("-- Deferred objects\n");
   }
-  for (int code = source_.Get(); code != kSynchronize; code = source_.Get()) {
+  for (uint8_t code = source_.Get(); code != kSynchronize;
+       code = source_.Get()) {
     SnapshotSpace space = NewObject::Decode(code);
     ReadObject(space);
   }
+}
+
+template <typename IsolateT>
+DirectHandle<HeapObject> Deserializer<IsolateT>::DeserializeUntrustedSection() {
+  DirectHandle<HeapObject> result = ReadObject();
+  DeserializeDeferredObjects();
+  while (source_.Peek() != kSynchronize) {
+    ReadObject();
+    DeserializeDeferredObjects();
+  }
+#ifdef DEBUG
+  DCHECK_EQ(kSynchronize, source_.Get());
+  while (source_.HasMore()) DCHECK_EQ(kNop, source_.Get());
+  DCHECK_EQ(num_unresolved_forward_refs_, 0);
+  DCHECK(unresolved_forward_refs_.empty());
+#endif
+  return result;
+}
+
+template <typename IsolateT>
+void Deserializer<IsolateT>::DeserializeTrustedSection() {
+  if (v8_flags.trace_deserialization) {
+    PrintF("-- Trusted section\n");
+  }
+  source_.Reset(trusted_payload_);
+  untrusted_back_refs_ = std::exchange(back_refs_, {});
+  hot_objects_.Reset();
+  while (source_.Peek() != kSynchronize) ReadObject();
+  DCHECK_EQ(kSynchronize, source_.Get());
 }
 
 template <typename IsolateT>
@@ -512,21 +542,7 @@ void NoExternalReferencesCallback() {
 void PostProcessExternalString(Tagged<ExternalString> string,
                                Isolate* isolate) {
   DisallowGarbageCollection no_gc;
-  uint32_t index = string->GetResourceRefForDeserialization();
-  // Our (sandbox) fuzzers can sometimes get here by mutating an in-sandbox
-  // object after deserialization but before post-processing, and making it
-  // look like an ExternalString. In that case, the Isolate may not have any
-  // external references and this CHECK then avoids false-positive crashes.
-  // Technically we should probably also check that the index is in-bounds if
-  // we do have external references on the Isolate, but in our current fuzzer
-  // setup, this doesn't seem to be the case.
-  CHECK_NE(isolate->api_external_references(), nullptr);
-  Address address =
-      static_cast<Address>(isolate->api_external_references()[index]);
-  string->InitExternalPointerFields(isolate);
-  string->set_address_as_resource(isolate, address);
-  isolate->heap()->UpdateExternalString(string, 0,
-                                        string->ExternalPayloadSize());
+  string->InitResourceDataAfterDeserialization(isolate);
   isolate->heap()->RegisterExternalString(string);
 }
 
@@ -557,20 +573,17 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(
     }
   } else if (InstanceTypeChecker::IsJSTypedArray(instance_type)) {
     auto typed_array = Cast<JSTypedArray>(*obj);
+    uint32_t store_index = source_.GetUint30();
     // Note: ByteArray objects must not be deferred s.t. they are
     // available here for is_on_heap(). See also: CanBeDeferred.
     // Fixup typed array pointers.
     if (typed_array->is_on_heap()) {
-      typed_array->AddExternalPointerCompensationForDeserialization(
-          main_thread_isolate());
+      typed_array->InitOnHeapDataPtrAfterDeserialization(main_thread_isolate());
     } else {
-      // Serializer writes backing store ref as a DataPtr() value.
-      uint32_t store_index =
-          typed_array->GetExternalBackingStoreRefForDeserialization();
-      auto backing_store = backing_stores_[store_index];
-      if (backing_store && backing_store->buffer_start()) {
+      auto bs = backing_store(store_index);
+      if (bs && bs->buffer_start()) {
         typed_array->SetOffHeapDataPtr(main_thread_isolate(),
-                                       backing_store->buffer_start(),
+                                       bs->buffer_start(),
                                        typed_array->byte_offset());
       } else {
         // Directly set the data pointer to point to the
@@ -583,7 +596,7 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(
     }
   } else if (InstanceTypeChecker::IsJSArrayBuffer(instance_type)) {
     auto buffer = Cast<JSArrayBuffer>(*obj);
-    uint32_t store_index = buffer->GetBackingStoreRefForDeserialization();
+    uint32_t store_index = source_.GetUint30();
     buffer->init_extension();
     if (store_index == kEmptyBackingStoreRefSentinel) {
       buffer->set_backing_store(main_thread_isolate(),
@@ -789,8 +802,8 @@ AllocationType SpaceToAllocation(SnapshotSpace space) {
 
 template <typename IsolateT>
 Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
-  const int size_in_tagged = source_.GetUint30();
-  const int size_in_bytes = size_in_tagged * kTaggedSize;
+  const uint32_t size_in_tagged = source_.GetUint30();
+  const uint32_t size_in_bytes = size_in_tagged * kTaggedSize;
 
   // The map can't be a forward ref. If you want the map to be a forward ref,
   // then you're probably serializing the meta-map, in which case you want to
@@ -910,8 +923,8 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 
 template <typename IsolateT>
 Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
-  const int size_in_tagged = source_.GetUint30();
-  const int size_in_bytes = size_in_tagged * kTaggedSize;
+  const uint32_t size_in_tagged = source_.GetUint30();
+  const uint32_t size_in_bytes = size_in_tagged * kTaggedSize;
   const InstanceType instance_type =
       static_cast<InstanceType>(source_.GetUint30());
 
@@ -1200,7 +1213,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRootArray(uint8_t data,
                                           SlotAccessor slot_accessor) {
-  int id = source_.GetUint30();
+  uint32_t id = source_.GetUint30();
   RootIndex root_index = static_cast<RootIndex>(id);
   DirectHandle<HeapObject> heap_object =
       Cast<HeapObject>(isolate()->root_handle(root_index));
@@ -1222,7 +1235,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadStartupObjectCache(uint8_t data,
                                                    SlotAccessor slot_accessor) {
-  int cache_index = source_.GetUint30();
+  uint32_t cache_index = source_.GetUint30();
   // TODO(leszeks): Could we use the address of the startup_object_cache
   // entry as a Handle backing?
   Tagged<HeapObject> heap_object = Cast<HeapObject>(
@@ -1242,7 +1255,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadSharedHeapObjectCache(
     uint8_t data, SlotAccessor slot_accessor) {
-  int cache_index = source_.GetUint30();
+  uint32_t cache_index = source_.GetUint30();
   // TODO(leszeks): Could we use the address of the
   // shared_heap_object_cache entry as a Handle backing?
   Tagged<HeapObject> heap_object = Cast<HeapObject>(
@@ -1316,7 +1329,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadAttachedReference(uint8_t data,
                                                   SlotAccessor slot_accessor) {
-  int index = source_.GetUint30();
+  uint32_t index = source_.GetUint30();
   DirectHandle<HeapObject> heap_object = attached_objects_[index];
   if (v8_flags.trace_deserialization) {
     PrintF("%*sAttachedReference [%u] : ", depth_, "", index);
@@ -1348,7 +1361,7 @@ int Deserializer<IsolateT>::ReadResolvePendingForwardRef(
   DCHECK(slot_accessor.offset() == sizeof(HeapObject) ||
          slot_accessor.offset() == ExposedTrustedObject::kHeaderSize);
   DirectHandle<HeapObject> obj = slot_accessor.object();
-  int index = source_.GetUint30();
+  uint32_t index = source_.GetUint30();
   auto& forward_ref = unresolved_forward_refs_[index];
   auto slot = SlotAccessorForHeapObject::ForSlotOffset(forward_ref.object,
                                                        forward_ref.offset);
@@ -1373,10 +1386,10 @@ int Deserializer<IsolateT>::ReadVariableRawData(uint8_t data,
   // This operation is only supported for tagged-size slots, else we might
   // become misaligned.
   DCHECK_EQ(decltype(slot_accessor.slot())::kSlotDataSize, kTaggedSize);
-  int size_in_tagged = source_.GetUint30();
+  uint32_t size_in_tagged = source_.GetUint30();
   if (v8_flags.trace_deserialization) {
     PrintF("%*sVariableRawData [%u] :", depth_, "", size_in_tagged);
-    for (int i = 0; i < size_in_tagged; ++i) {
+    for (uint32_t i = 0; i < size_in_tagged; ++i) {
       PrintF(" %0*" PRIxTAGGED, kTaggedSize / 2,
              reinterpret_cast<const Tagged_t*>(source_.data())[i]);
     }
@@ -1614,7 +1627,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadHotObject(uint8_t data,
                                           SlotAccessor slot_accessor) {
-  int index = HotObject::Decode(data);
+  uint32_t index = HotObject::Decode(data);
   DirectHandle<HeapObject> hot_object = hot_objects_.Get(index);
   if (v8_flags.trace_deserialization) {
     PrintF("%*sHotObject [%u] : ", depth_, "", index);
@@ -1632,17 +1645,18 @@ int Deserializer<IsolateT>::ReadFixedRawData(uint8_t data,
   using TSlot = decltype(slot_accessor.slot());
 
   // Deserialize raw data of fixed length from 1 to 32 times kTaggedSize.
-  int size_in_tagged = FixedRawDataWithSize::Decode(data);
+  uint32_t size_in_tagged = FixedRawDataWithSize::Decode(data);
   static_assert(TSlot::kSlotDataSize == kTaggedSize ||
                 TSlot::kSlotDataSize == 2 * kTaggedSize);
-  int size_in_slots = size_in_tagged / (TSlot::kSlotDataSize / kTaggedSize);
+  uint32_t size_in_slots =
+      size_in_tagged / (TSlot::kSlotDataSize / kTaggedSize);
   // kFixedRawData can have kTaggedSize != TSlot::kSlotDataSize when
   // serializing Smi roots in pointer-compressed builds. In this case, the
   // size in bytes is unconditionally the (full) slot size.
   DCHECK_IMPLIES(kTaggedSize != TSlot::kSlotDataSize, size_in_slots == 1);
   if (v8_flags.trace_deserialization) {
     PrintF("%*sFixedRawData [%u] :", depth_, "", size_in_tagged);
-    for (int i = 0; i < size_in_tagged; ++i) {
+    for (uint32_t i = 0; i < size_in_tagged; ++i) {
       PrintF(" %0*" PRIxTAGGED, kTaggedSize / 2,
              reinterpret_cast<const Tagged_t*>(source_.data())[i]);
     }
@@ -1709,12 +1723,12 @@ ExternalPointerTag Deserializer<IsolateT>::ReadExternalPointerTag() {
 
 template <typename IsolateT>
 Tagged<HeapObject> Deserializer<IsolateT>::Allocate(
-    AllocationType allocation, int size, AllocationAlignment alignment) {
+    AllocationType allocation, uint32_t size, AllocationAlignment alignment) {
 #ifdef DEBUG
   if (!previous_allocation_obj_.is_null()) {
     // Make sure that the previous object is initialized sufficiently to
     // be iterated over by the GC.
-    int object_size = previous_allocation_obj_->Size();
+    uint32_t object_size = previous_allocation_obj_->SafeSize().value();
     DCHECK_LE(object_size, previous_allocation_size_);
   }
 #endif

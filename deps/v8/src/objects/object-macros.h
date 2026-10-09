@@ -145,6 +145,38 @@
 #define V8_IT_NO_AUTO_DISPATCH \
   V8_IT_MARK(NoAutoDispatch, "V8_IT_NO_AUTO_DISPATCH")
 
+// Metagen exports the layouts defined in C++ to Torque. These annotations
+// describe properties not encoded in C++ types, such as Torque accessor
+// semantics, custom weak marking, semantic types, and field names.
+// The tail annotations describe whether Torque omits the flexible tail,
+// represents it as one indexed field, or splits it into indexed sections. They
+// annotate the class; field annotations apply to the flexible array member.
+//
+// Metagen passes each optional annotation argument to Torque without parsing
+// it.
+//
+// Ordinary compilation removes these annotations.
+#ifdef V8_METAGEN_GENERATION_PASS
+#define V8_TQ_FIELD_MARK(PAYLOAD) [[clang::annotate(PAYLOAD)]]
+#else
+#define V8_TQ_FIELD_MARK(PAYLOAD)
+#endif
+#define V8_TQ_TAIL_NAME(...) \
+  V8_IT_MARK(TqTailName, "V8_TQ_TAIL_NAME(" #__VA_ARGS__ ")")
+#define V8_TQ_TAIL_LENGTH(...) \
+  V8_IT_MARK(TqTailLength, "V8_TQ_TAIL_LENGTH(" #__VA_ARGS__ ")")
+#define V8_TQ_NO_TAIL V8_IT_MARK(TqNoTail, "V8_TQ_NO_TAIL")
+#define V8_TQ_TAIL_SECTIONS(...) \
+  V8_IT_MARK(TqTailSections, "V8_TQ_TAIL_SECTIONS(" #__VA_ARGS__ ")")
+#define V8_TQ_CONST V8_TQ_FIELD_MARK("V8_TQ_CONST")
+#define V8_TQ_RELAXED V8_TQ_FIELD_MARK("V8_TQ_RELAXED")
+#define V8_TQ_ACQ_REL V8_TQ_FIELD_MARK("V8_TQ_ACQ_REL")
+#define V8_TQ_CUSTOM_WEAK V8_TQ_FIELD_MARK("V8_TQ_CUSTOM_WEAK")
+#define V8_TQ_TYPE(...) V8_TQ_FIELD_MARK("V8_TQ_TYPE(" #__VA_ARGS__ ")")
+#define V8_TQ_NAME(...) V8_TQ_FIELD_MARK("V8_TQ_NAME(" #__VA_ARGS__ ")")
+#define V8_TQ_EXTENT_NAME(...) \
+  V8_TQ_FIELD_MARK("V8_TQ_EXTENT_NAME(" #__VA_ARGS__ ")")
+
 #define DECL_PRIMITIVE_GETTER(name, type) inline type name() const;
 
 #define DECL_PRIMITIVE_SETTER(name, type) inline void set_##name(type value);
@@ -839,6 +871,10 @@
     return ClearProtectedPointerField(offset, tag);                         \
   }
 
+// Defines a getter for one bit field of a BitFieldGroup.
+#define BIT_FIELD_GETTER(name, Bit) \
+  constexpr typename Bit::FieldType name() const { return get<Bit>(); }
+
 #define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \
   typename BitField::FieldType holder::name() const {                      \
     return BitField::decode(get_field());                                  \
@@ -908,14 +944,14 @@
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
-#define EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag)
+#define EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, handle)
 #else
-#define EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag)           \
-  do {                                                                \
-    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));              \
-    WriteBarrier::ForExternalPointer(                                 \
-        object, Tagged(object)->RawExternalPointerField(offset, tag), \
-        UPDATE_WRITE_BARRIER);                                        \
+#define EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, handle)           \
+  do {                                                                        \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                      \
+    WriteBarrier::ForExternalPointer(                                         \
+        object, Tagged(object)->RawExternalPointerField(offset, tag), handle, \
+        UPDATE_WRITE_BARRIER);                                                \
   } while (false)
 #endif
 
@@ -958,13 +994,16 @@
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
-#define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, mode)
+#define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, \
+                                                   handle, mode)
 #else
-#define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, mode) \
+#define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag,       \
+                                                   handle, mode)              \
   do {                                                                        \
     DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                      \
     WriteBarrier::ForExternalPointer(                                         \
-        object, Tagged(object)->RawExternalPointerField(offset, tag), mode);  \
+        object, Tagged(object)->RawExternalPointerField(offset, tag), handle, \
+        mode);                                                                \
   } while (false)
 #endif
 #ifdef V8_DISABLE_WRITE_BARRIERS

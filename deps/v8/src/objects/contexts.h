@@ -502,7 +502,7 @@ V8_OBJECT class Context : public HeapObject {
   inline int length(RelaxedLoadTag) const;
   inline void set_length(int value, RelaxedStoreTag);
 
-  V8_INLINE bool IsElementTheHole(int index);
+  V8_INLINE bool IsElementTdzHole(int index);
 
   template <typename MemoryTag>
   V8_INLINE Tagged<Object> GetNoCell(int index, MemoryTag tag);
@@ -687,8 +687,9 @@ V8_OBJECT class Context : public HeapObject {
                                VariableMode* variable_mode,
                                bool* is_sloppy_function_name = nullptr);
 
-  static inline int FunctionMapIndex(LanguageMode language_mode,
-                                     FunctionKind kind, bool has_shared_name);
+  V8_EXPORT_PRIVATE static int FunctionMapIndex(LanguageMode language_mode,
+                                                FunctionKind kind,
+                                                bool has_shared_name);
 
   static int ArrayMapIndex(ElementsKind elements_kind) {
     DCHECK(IsFastElementsKind(elements_kind));
@@ -732,8 +733,8 @@ V8_OBJECT class Context : public HeapObject {
  private:
 #ifdef DEBUG
   // Bootstrapping-aware type checks.
-  static bool IsBootstrappingOrValidParentContext(Tagged<Object> object,
-                                                  Tagged<Context> kid);
+  V8_EXPORT_PRIVATE static bool IsBootstrappingOrValidParentContext(
+      Tagged<Object> object, Tagged<Context> kid);
 #endif
 
   friend class Factory;
@@ -741,7 +742,9 @@ V8_OBJECT class Context : public HeapObject {
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
  public:
-  TaggedMember<Smi> length_;
+  V8_TQ_CONST TaggedMember<Smi> length_;
+  V8_TQ_TAIL_NAME(elements);
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, elements);
 } V8_OBJECT_END;
 
@@ -939,9 +942,11 @@ V8_OBJECT class ScriptContextTable
       (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size);
 
  public:
-  uint32_t capacity_;
+  V8_TQ_CONST uint32_t capacity_;
   uint32_t length_;
   TaggedMember<NameToIndexHashTable> names_to_context_index_;
+  V8_TQ_TAIL_NAME(objects);
+  V8_TQ_TAIL_LENGTH(capacity);
   FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 
@@ -995,7 +1000,7 @@ V8_OBJECT class ContextCell : public HeapObject {
 
   TaggedMember<JSAny> tagged_value_;
   TaggedMember<DependentCode> dependent_code_;
-  std::atomic<State> state_;
+  std::atomic<State> state_ V8_TQ_TYPE(int32);
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif  // TAGGED_SIZE_8_BYTES

@@ -148,6 +148,13 @@ class ParallelMoveResolver {
       StartEmitMoveChain(moves_from_stack_slot_.begin()->first);
     }
     for (auto [stack_slot, node] : materializing_stack_slot_moves_) {
+      if constexpr (std::is_same_v<RegisterT, Register> &&
+                    MaglevAssembler::HasZeroRegister()) {
+        if (node->MaterializesToZero()) {
+          __ Move(StackSlot{stack_slot}, MaglevAssembler::ZeroRegister());
+          continue;
+        }
+      }
       node->LoadToRegister(masm_, scratch_);
       __ Move(StackSlot{stack_slot}, scratch_);
     }
@@ -276,9 +283,14 @@ class ParallelMoveResolver {
     } else {
       DCHECK(source.IsConstant());
       DCHECK(IsConstantNode(node->opcode()));
+#ifdef V8_COMPRESS_POINTERS
+      if constexpr (DecompressIfNeeded) {
+        if (needs_decompression == kNeedsDecompression) {
+          node->SetTaggedResultNeedsDecompress();
+        }
+      }
+#endif
       materializing_register_moves_[target_reg.code()] = node;
-      // No need to update `targets.needs_decompression`, materialization is
-      // always decompressed.
       return;
     }
 
@@ -321,9 +333,14 @@ class ParallelMoveResolver {
     } else {
       DCHECK(source.IsConstant());
       DCHECK(IsConstantNode(node->opcode()));
+#ifdef V8_COMPRESS_POINTERS
+      if constexpr (DecompressIfNeeded) {
+        if (needs_decompression == kNeedsDecompression) {
+          node->SetTaggedResultNeedsDecompress();
+        }
+      }
+#endif
       materializing_stack_slot_moves_.emplace_back(target_slot, node);
-      // No need to update `targets.needs_decompression`, materialization is
-      // always decompressed.
       return;
     }
 
@@ -1186,29 +1203,6 @@ class MaglevCodeGeneratingNodeProcessor {
   bool collect_source_positions_;
 };
 
-class SafepointingNodeProcessor {
- public:
-  explicit SafepointingNodeProcessor(LocalIsolate* local_isolate)
-      : local_isolate_(local_isolate) {}
-
-  void PreProcessGraph(Graph* graph) {}
-  void PostProcessGraph(Graph* graph) {}
-  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
-    return BlockProcessResult::kContinue;
-  }
-  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
-    return BlockProcessResult::kContinue;
-  }
-  void PostPhiProcessing() {}
-  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
-    local_isolate_->heap()->Safepoint();
-    return ProcessResult::kContinue;
-  }
-
- private:
-  LocalIsolate* local_isolate_;
-};
-
 namespace {
 DeoptimizationFrameTranslation::FrameCount GetFrameCount(
     const DeoptFrame* deopt_frame) {
@@ -1416,16 +1410,13 @@ class MaglevFrameTranslationBuilder {
         Builtins::GetContinuationBytecodeOffset(frame.builtin_id());
     int literal_id = GetDeoptLiteral(frame.GetSharedFunctionInfo());
 
-    constexpr int kFixedJSFrameRegisterParameters =
-        JSTrampolineDescriptor::GetRegisterParameterCount();
 
     if (frame.is_javascript()) {
       translation_array_builder_->BeginJavaScriptBuiltinContinuationFrame(
-          bailout_id, literal_id,
-          frame.parameters().length() + kFixedJSFrameRegisterParameters);
+          bailout_id, literal_id, frame.translation_height());
     } else {
       translation_array_builder_->BeginBuiltinContinuationFrame(
-          bailout_id, literal_id, frame.parameters().length());
+          bailout_id, literal_id, frame.translation_height());
     }
 
     // Closure
@@ -1449,6 +1440,9 @@ class MaglevFrameTranslationBuilder {
     }
 
     if (frame.is_javascript()) {
+      constexpr int kFixedJSFrameRegisterParameters =
+          JSTrampolineDescriptor::GetRegisterParameterCount();
+
       // Fixed register parameters for JS frames.
       DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(frame.builtin_id())
                     .GetRegisterParameterCount(),
@@ -1554,7 +1548,7 @@ class MaglevFrameTranslationBuilder {
     return kNotDuplicated;
   }
 
-  void BuildNestedValue(const VirtualObject* object, const ValueNode* value,
+  void BuildNestedValue(const ValueNode* value,
                         const InputLocation*& input_location,
                         const VirtualObjectList& virtual_objects) {
     const Opcode opcode = value->opcode();
@@ -1563,22 +1557,14 @@ class MaglevFrameTranslationBuilder {
     DCHECK_NE(opcode, Opcode::kIdentity);
     if (IsConstantNode(opcode)) {
       if (opcode == Opcode::kFloat64Constant) {
-        DCHECK(object->has_static_map());
-        if (object->map()->IsFixedDoubleArrayMap()) {
-          Float64 value_as_float = value->Cast<Float64Constant>()->value();
-          if (value_as_float.is_hole_nan()) {
-            translation_array_builder_->StoreLiteral(GetDeoptLiteral(
-                ReadOnlyRoots{local_isolate_}.the_hole_value()));
-            return;
-          }
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-          if (value_as_float.is_undefined_nan()) {
-            translation_array_builder_->StoreLiteral(GetDeoptLiteral(
-                ReadOnlyRoots{local_isolate_}.undefined_value()));
-            return;
-          }
-#endif  //  V8_ENABLE_UNDEFINED_DOUBLE
-        }
+        translation_array_builder_->StoreDoubleLiteral(
+            value->Cast<Float64Constant>()->value());
+        return;
+      }
+      if (opcode == Opcode::kHoleyFloat64Constant) {
+        translation_array_builder_->StoreHoleyDoubleLiteral(
+            value->Cast<HoleyFloat64Constant>()->value());
+        return;
       }
       translation_array_builder_->StoreLiteral(
           GetDeoptLiteral(*value->Reify(local_isolate_)));
@@ -1644,7 +1630,7 @@ class MaglevFrameTranslationBuilder {
       translation_array_builder_->BeginCapturedObject(fields);
     }
     auto callback = [&](ValueNode* node, const vobj::Field& desc) -> bool {
-      BuildNestedValue(object, node, input_location, virtual_objects);
+      BuildNestedValue(node, input_location, virtual_objects);
       return true;
     };
     object->ForEachSlot(callback,
@@ -1665,8 +1651,16 @@ class MaglevFrameTranslationBuilder {
       }
     }
     if (input_location->operand().IsConstant()) {
-      translation_array_builder_->StoreLiteral(
-          GetDeoptLiteral(*value->Reify(local_isolate_)));
+      if (value->opcode() == Opcode::kFloat64Constant) {
+        translation_array_builder_->StoreDoubleLiteral(
+            value->Cast<Float64Constant>()->value());
+      } else if (value->opcode() == Opcode::kHoleyFloat64Constant) {
+        translation_array_builder_->StoreHoleyDoubleLiteral(
+            value->Cast<HoleyFloat64Constant>()->value());
+      } else {
+        translation_array_builder_->StoreLiteral(
+            GetDeoptLiteral(*value->Reify(local_isolate_)));
+      }
     } else {
       const compiler::AllocatedOperand& operand =
           compiler::AllocatedOperand::cast(input_location->operand());
@@ -1812,7 +1806,6 @@ MaglevCodeGenerator::MaglevCodeGenerator(
       deopt_literals_(isolate->heap()->heap()),
       protected_deopt_literals_vector_(compilation_info->zone()),
       deopt_literals_vector_(compilation_info->zone()),
-      retained_maps_(isolate->heap()),
       is_context_specialized_(
           compilation_info->specialize_to_function_context()),
       zone_(compilation_info->zone()) {
@@ -1834,7 +1827,8 @@ bool MaglevCodeGenerator::Assemble() {
         BuildCodeObject(local_isolate_));
     Handle<Code> code;
     if (code_.ToHandle(&code)) {
-      retained_maps_ = CollectRetainedMaps(code);
+      retained_maps_ = OptimizedCompilationJob::CollectRetainedMaps(
+          code, code_gen_state_.compilation_info()->DetachCanonicalHandles());
     }
   } else if (v8_flags.maglev_deopt_data_on_background) {
     // Only do this if not --maglev-build-code-on-background, since that will do
@@ -1857,19 +1851,8 @@ MaybeHandle<Code> MaglevCodeGenerator::Generate(Isolate* isolate) {
   return BuildCodeObject(isolate->main_thread_local_isolate());
 }
 
-GlobalHandleVector<Map> MaglevCodeGenerator::RetainedMaps(Isolate* isolate) {
-  DisallowGarbageCollection no_gc;
-  GlobalHandleVector<Map> maps(isolate->heap());
-  maps.Reserve(retained_maps_.size());
-  for (DirectHandle<Map> map : retained_maps_) maps.Push(*map);
-  return maps;
-}
-
 bool MaglevCodeGenerator::EmitCode() {
-  GraphProcessor<NodeMultiProcessor<SafepointingNodeProcessor,
-                                    MaglevCodeGeneratingNodeProcessor>>
-      processor(SafepointingNodeProcessor{local_isolate_},
-                MaglevCodeGeneratingNodeProcessor{masm(), zone_});
+  GraphProcessor<MaglevCodeGeneratingNodeProcessor> processor(masm(), zone_);
   RecordInlinedFunctions();
 
   if (graph_->is_osr()) {
@@ -1880,8 +1863,12 @@ bool MaglevCodeGenerator::EmitCode() {
 
   processor.ProcessGraph(graph_);
   EmitDeferredCode();
-  if (!EmitDeopts()) return false;
+  bool deopts_emitted = EmitDeopts();
+  protected_deopt_literals_.Clear();
+  deopt_literals_.Clear();
+  if (!deopts_emitted) return false;
   EmitExceptionHandlerTrampolines();
+  EmitRetainedObjects();
   __ FinishCode();
 
   code_gen_succeeded_ = true;
@@ -2031,6 +2018,21 @@ void MaglevCodeGenerator::EmitExceptionHandlerTrampolines() {
 #endif
 }
 
+void MaglevCodeGenerator::EmitRetainedObjects() {
+  if (code_gen_state_.retained_objects().empty()) return;
+
+  // This code is never executed; it's just for inserting weak embedded objects
+  // into the code.
+  __ RecordComment("-- Retained objects");
+  __ Trap();
+
+  MaglevAssembler::TemporaryRegisterScope temps(masm());
+  Register scratch = temps.AcquireScratch();
+  for (Handle<HeapObject> heap_object : code_gen_state_.retained_objects()) {
+    __ Move(scratch, heap_object);
+  }
+}
+
 void MaglevCodeGenerator::EmitMetadata() {
   // Final alignment before starting on the metadata section.
   masm()->Align(InstructionStream::kMetadataAlignment);
@@ -2098,25 +2100,6 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
                                 JitCodeEvent::JIT_CODE));
   }
   return maybe_code;
-}
-
-GlobalHandleVector<Map> MaglevCodeGenerator::CollectRetainedMaps(
-    DirectHandle<Code> code) {
-  DCHECK(code->is_optimized_code());
-
-  DisallowGarbageCollection no_gc;
-  GlobalHandleVector<Map> maps(local_isolate_->heap());
-  int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
-  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
-    DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-    Tagged<HeapObject> target_object = it.rinfo()->target_object();
-    if (code->IsWeakObjectInOptimizedCode(target_object)) {
-      if (IsMap(target_object)) {
-        maps.Push(Cast<Map>(target_object));
-      }
-    }
-  }
-  return maps;
 }
 
 Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(

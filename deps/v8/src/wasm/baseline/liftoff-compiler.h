@@ -40,8 +40,8 @@ struct LiftoffOptions {
   DelayedCounterUpdates* counter_updates = nullptr;
   WasmDetectedFeatures* detected_features = nullptr;
   base::Vector<const int> breakpoints = {};
+  base::Vector<const int> dead_breakpoints = {};
   std::unique_ptr<DebugSideTable>* debug_sidetable = nullptr;
-  int dead_breakpoint = 0;
   int32_t* max_steps = nullptr;
   uint32_t deopt_info_bytecode_offset = std::numeric_limits<uint32_t>::max();
   LocationKindForDeopt deopt_location_kind = LocationKindForDeopt::kNone;

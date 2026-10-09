@@ -40,12 +40,22 @@ int WrappedMain(int argc, const char** argv) {
 #else
       options.force_32bit_output = true;
 #endif
+    } else if (argument == "-layout-json") {
+      options.layout_json_path = argv[++i];
+    } else if (argument == "-layout-positions") {
+      options.layout_positions_path = argv[++i];
+    } else if (argument == "-use-cpp-layouts") {
+      options.use_cpp_layouts = true;
     } else if (argument == "-annotate-ir") {
       options.annotate_ir = true;
     } else if (argument == "-torque-dwarf") {
       options.torque_dwarf = true;
     } else if (argument == "-strip-v8-root") {
       options.strip_v8_root = true;
+    } else if (argument == "-kythe-inline-metadata") {
+      options.kythe_inline_metadata = true;
+    } else if (argument == "-kythe-default-corpus" && i + 1 < argc) {
+      options.kythe_default_corpus = std::string(argv[++i]);
 #ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
     } else if (argument == "-output-tsa") {
       options.output_tsa = true;

@@ -255,6 +255,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // Register holding pointer to the current code object.
   static constexpr Register code_pointer() { return x20; }
 
+  // Register holding the address of the regexp stack's thread-local block,
+  // from which the stack limit, memory top and saved stack pointer are
+  // loaded at Stack::k*Offset.
+  static constexpr Register regexp_stack() { return x19; }
+
   // Register holding the value used for clearing capture registers.
   static constexpr Register string_start_minus_one() { return w24; }
   // The top 32 bit of this register is used to store this value
@@ -277,6 +282,14 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
                                    int immediate,
                                    Condition condition,
                                    Label* to);
+
+  // Tests a single bit of reg and branches to the label, or backtracks if the
+  // label is nullptr. It makes use of the Tbz and Tbnz instructions.
+  void TestBitAndBranchOrBacktrack(Register reg, int bit, bool jump_if_set,
+                                   Label* to);
+
+  // Sets dst to the index of the lowest set bit in src (64 for zero).
+  void CountTrailingZeros(Register dst, Register src);
 
   inline void CallIf(Label* to, Condition condition);
 
@@ -332,7 +345,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   inline Register GetCachedRegister(int register_index);
 
   void LoadRegExpStackPointerFromMemory(Register dst);
-  void StoreRegExpStackPointerToMemory(Register src, Register scratch);
+  void StoreRegExpStackPointerToMemory(Register src);
   void PushRegExpBasePointer(Register stack_pointer, Register scratch);
   void PopRegExpBasePointer(Register stack_pointer_out, Register scratch);
 

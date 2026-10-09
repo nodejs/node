@@ -1404,9 +1404,9 @@ code-creation,BytecodeHandler,0,18956,0x5574264245c0,36,SetPendingMessage
 code-creation,BytecodeHandler,0,18965,0x557426424600,100,Throw
 code-creation,BytecodeHandler,0,18974,0x557426424680,100,ReThrow
 code-creation,BytecodeHandler,0,18983,0x557426424700,108,Return
-code-creation,BytecodeHandler,0,18991,0x557426424780,188,ThrowReferenceErrorIfHole
-code-creation,BytecodeHandler,0,19001,0x557426424840,120,ThrowSuperNotCalledIfHole
-code-creation,BytecodeHandler,0,19011,0x5574264248c0,120,ThrowSuperAlreadyCalledIfNotHole
+code-creation,BytecodeHandler,0,18991,0x557426424780,188,ThrowReferenceErrorIfTdzHole
+code-creation,BytecodeHandler,0,19001,0x557426424840,120,ThrowSuperNotCalledIfTdzHole
+code-creation,BytecodeHandler,0,19011,0x5574264248c0,120,ThrowSuperAlreadyCalledIfNotTdzHole
 code-creation,BytecodeHandler,0,19020,0x557426424940,148,ThrowIfNotSuperConstructor
 code-creation,BytecodeHandler,0,19030,0x5574264249e0,128,SwitchOnGeneratorState
 code-creation,BytecodeHandler,0,19039,0x557426424a80,580,SuspendGenerator
@@ -1561,7 +1561,7 @@ code-creation,BytecodeHandler,0,20460,0x557426438900,296,ForInPrepare.Wide
 code-creation,BytecodeHandler,0,20469,0x557426438a40,64,ForInContinue.Wide
 code-creation,BytecodeHandler,0,20478,0x557426438aa0,260,ForInNext.Wide
 code-creation,BytecodeHandler,0,20487,0x557426438bc0,36,ForInStep.Wide
-code-creation,BytecodeHandler,0,20496,0x557426438c00,148,ThrowReferenceErrorIfHole.Wide
+code-creation,BytecodeHandler,0,20496,0x557426438c00,148,ThrowReferenceErrorIfTdzHole.Wide
 code-creation,BytecodeHandler,0,20506,0x557426438ca0,148,ThrowIfNotSuperConstructor.Wide
 code-creation,BytecodeHandler,0,20516,0x557426438d40,128,SwitchOnGeneratorState.Wide
 code-creation,BytecodeHandler,0,20525,0x557426438de0,592,SuspendGenerator.Wide
@@ -1713,7 +1713,7 @@ code-creation,BytecodeHandler,0,21956,0x55742644ca40,296,ForInPrepare.ExtraWide
 code-creation,BytecodeHandler,0,21965,0x55742644cb80,60,ForInContinue.ExtraWide
 code-creation,BytecodeHandler,0,21975,0x55742644cbc0,256,ForInNext.ExtraWide
 code-creation,BytecodeHandler,0,21984,0x55742644cce0,36,ForInStep.ExtraWide
-code-creation,BytecodeHandler,0,21994,0x55742644cd20,148,ThrowReferenceErrorIfHole.ExtraWide
+code-creation,BytecodeHandler,0,21994,0x55742644cd20,148,ThrowReferenceErrorIfTdzHole.ExtraWide
 code-creation,BytecodeHandler,0,22004,0x55742644cdc0,144,ThrowIfNotSuperConstructor.ExtraWide
 code-creation,BytecodeHandler,0,22014,0x55742644ce60,128,SwitchOnGeneratorState.ExtraWide
 code-creation,BytecodeHandler,0,22024,0x55742644cf00,588,SuspendGenerator.ExtraWide

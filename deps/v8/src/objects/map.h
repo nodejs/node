@@ -11,6 +11,7 @@
 
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/fixed-array-base.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
@@ -37,6 +38,7 @@ enum InstanceType : uint16_t;
   V(Filler)                          \
   V(HeapNumber)                      \
   V(HashSeedWrapper)                 \
+  V(UninitializedHeapNumber)         \
   V(Hole)                            \
   V(SeqOneByteString)                \
   V(SeqTwoByteString)                \
@@ -202,10 +204,10 @@ using MapHandlesSpan = std::span<DirectHandle<Map>>;
 //      +----------+-------------------------------------------------+
 //      | Byte     | [bit_field]                                     |
 //      |          |   - is_callable (bit 0)                         |
-//      |          |   - has_named_interceptor (bit 1)               |
-//      |          |   - has_indexed_interceptor (bit 2)             |
-//      |          |   - is_undetectable (bit 3)                     |
-//      |          |   - is_access_check_needed (bit 4)              |
+//      |          |   - is_undetectable (bit 1)                     |
+//      |          |   - has_named_interceptor (bit 2)               |
+//      |          |   - is_access_check_needed (bit 3)              |
+//      |          |   - has_indexed_interceptor (bit 4)             |
 //      |          |   - is_constructor (bit 5)                      |
 //      |          |   - is_extended_map (bit 6)                     |
 //      +----------+-------------------------------------------------+
@@ -326,57 +328,69 @@ V8_OBJECT class Map : public HeapObject {
       int unused_in_property_array);
 
   //
+  // Bit positions for |bit_field|. The order must match MapBits1 in
+  // map.tq.
+  //
+  // The compilers test is_callable | is_undetectable (typeof checks) and
+  // has_named_interceptor | is_access_check_needed (special receiver checks)
+  // as one mask each. Keeping the bits of each pair adjacent makes those masks
+  // contiguous, so they encode as arm64 logical immediates.
+  struct Bits1 : BitFieldGroup<Bits1, uint8_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using IsCallableBit = base::BitField<bool, 0, 1, uint8_t>;
+    using IsUndetectableBit = IsCallableBit::Next<bool, 1>;
+    using HasNamedInterceptorBit = IsUndetectableBit::Next<bool, 1>;
+    using IsAccessCheckNeededBit = HasNamedInterceptorBit::Next<bool, 1>;
+    using HasIndexedInterceptorBit = IsAccessCheckNeededBit::Next<bool, 1>;
+    using IsConstructorBit = HasIndexedInterceptorBit::Next<bool, 1>;
+    using IsExtendedMapBit = IsConstructorBit::Next<bool, 1>;
+
+    BIT_FIELD_GETTER(is_callable, IsCallableBit)
+    BIT_FIELD_GETTER(is_undetectable, IsUndetectableBit)
+    BIT_FIELD_GETTER(has_named_interceptor, HasNamedInterceptorBit)
+    BIT_FIELD_GETTER(is_access_check_needed, IsAccessCheckNeededBit)
+    BIT_FIELD_GETTER(has_indexed_interceptor, HasIndexedInterceptorBit)
+    BIT_FIELD_GETTER(is_constructor, IsConstructorBit)
+    BIT_FIELD_GETTER(is_extended_map, IsExtendedMapBit)
+  };
+
   // Bit field.
   //
   // The setter in this pair calls the relaxed setter if concurrent marking is
   // on, or performs the write non-atomically if it's off. The read is always
   // non-atomically. This is done to have wider TSAN coverage on the cases where
   // it's possible.
-  DECL_PRIMITIVE_ACCESSORS(bit_field, uint8_t)
+  DECL_PRIMITIVE_ACCESSORS(bit_field, Bits1)
 
   // Atomic accessors, used for allowlisting legitimate concurrent accesses.
-  DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field, uint8_t)
-
-  // Bit positions for |bit_field|.
-  struct Bits1 {
-    using IsCallableBit = base::BitField<bool, 0, 1, uint8_t>;
-    using HasNamedInterceptorBit = IsCallableBit::Next<bool, 1>;
-    using HasIndexedInterceptorBit = HasNamedInterceptorBit::Next<bool, 1>;
-    using IsUndetectableBit = HasIndexedInterceptorBit::Next<bool, 1>;
-    using IsAccessCheckNeededBit = IsUndetectableBit::Next<bool, 1>;
-    using IsConstructorBit = IsAccessCheckNeededBit::Next<bool, 1>;
-    using IsExtendedMapBit = IsConstructorBit::Next<bool, 1>;
-  };
+  DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field, Bits1)
 
   //
   // Bit field 2.
   //
-  DECL_PRIMITIVE_ACCESSORS(bit_field2, uint8_t)
-
   // Bit positions for |bit_field2|.
-  struct Bits2 {
+  struct Bits2 : BitFieldGroup<Bits2, uint8_t> {
+    using BitFieldGroup::BitFieldGroup;
+
     using NewTargetIsBaseBit = base::BitField<bool, 0, 1, uint8_t>;
     using IsImmutablePrototypeBit = NewTargetIsBaseBit::Next<bool, 1>;
     using ElementsKindBits = IsImmutablePrototypeBit::Next<ElementsKind, 6>;
+
+    BIT_FIELD_GETTER(new_target_is_base, NewTargetIsBaseBit)
+    BIT_FIELD_GETTER(is_immutable_prototype, IsImmutablePrototypeBit)
+    BIT_FIELD_GETTER(elements_kind, ElementsKindBits)
   };
+
+  DECL_PRIMITIVE_ACCESSORS(bit_field2, Bits2)
 
   //
   // Bit field 3.
   //
-  // {bit_field3} calls the relaxed accessors if concurrent marking is on, or
-  // performs the read/write non-atomically if it's off. This is done to have
-  // wider TSAN coverage on the cases where it's possible.
-  DECL_PRIMITIVE_ACCESSORS(bit_field3, uint32_t)
-
-  DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field3, uint32_t)
-  DECL_PRIMITIVE_ACCESSORS(release_acquire_bit_field3, uint32_t)
-
-  // Clear uninitialized padding space. This ensures that the snapshot content
-  // is deterministic. Depending on the V8 build mode there could be no padding.
-  V8_INLINE void clear_padding();
-
   // Bit positions for |bit_field3|.
-  struct Bits3 {
+  struct Bits3 : BitFieldGroup<Bits3, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
     using EnumLengthBits = base::BitField<int32_t, 0, 10, uint32_t>;
     using NumberOfOwnDescriptorsBits = EnumLengthBits::Next<int32_t, 10>;
     using IsPrototypeMapBit = NumberOfOwnDescriptorsBits::Next<bool, 1>;
@@ -390,6 +404,20 @@ V8_OBJECT class Map : public HeapObject {
     using MayHaveInterestingPropertiesBit = IsExtensibleBit::Next<bool, 1>;
     using ConstructionCounterBits =
         MayHaveInterestingPropertiesBit::Next<int32_t, 3>;
+
+    BIT_FIELD_GETTER(enum_length, EnumLengthBits)
+    BIT_FIELD_GETTER(number_of_own_descriptors, NumberOfOwnDescriptorsBits)
+    BIT_FIELD_GETTER(is_prototype_map, IsPrototypeMapBit)
+    BIT_FIELD_GETTER(is_dictionary_map, IsDictionaryMapBit)
+    BIT_FIELD_GETTER(owns_descriptors, OwnsDescriptorsBit)
+    BIT_FIELD_GETTER(is_in_retained_map_list, IsInRetainedMapListBit)
+    BIT_FIELD_GETTER(is_deprecated, IsDeprecatedBit)
+    BIT_FIELD_GETTER(is_unstable, IsUnstableBit)
+    BIT_FIELD_GETTER(is_migration_target, IsMigrationTargetBit)
+    BIT_FIELD_GETTER(is_extensible, IsExtensibleBit)
+    BIT_FIELD_GETTER(may_have_interesting_properties,
+                     MayHaveInterestingPropertiesBit)
+    BIT_FIELD_GETTER(construction_counter, ConstructionCounterBits)
   };
 
   // Ensure that Torque-defined bit widths for |bit_field3| are as expected.
@@ -399,6 +427,18 @@ V8_OBJECT class Map : public HeapObject {
 
   static_assert(Bits3::NumberOfOwnDescriptorsBits::kMax >=
                 kMaxNumberOfDescriptors);
+
+  // {bit_field3} calls the relaxed accessors if concurrent marking is on, or
+  // performs the read/write non-atomically if it's off. This is done to have
+  // wider TSAN coverage on the cases where it's possible.
+  DECL_PRIMITIVE_ACCESSORS(bit_field3, Bits3)
+
+  DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field3, Bits3)
+  DECL_PRIMITIVE_ACCESSORS(release_acquire_bit_field3, Bits3)
+
+  // Clear uninitialized padding space. This ensures that the snapshot content
+  // is deterministic. Depending on the V8 build mode there could be no padding.
+  V8_INLINE void clear_padding();
 
   static const int kSlackTrackingCounterStart = 7;
   static const int kSlackTrackingCounterEnd = 1;
@@ -1185,10 +1225,10 @@ V8_OBJECT class Map : public HeapObject {
   std::atomic<uint8_t> inobject_properties_start_or_constructor_function_index_;
   std::atomic<uint8_t> used_or_unused_instance_size_in_words_;
   std::atomic<uint8_t> visitor_id_;
-  std::atomic<uint16_t> instance_type_;
-  std::atomic<uint8_t> bit_field_;
-  uint8_t bit_field2_;
-  std::atomic<uint32_t> bit_field3_;
+  std::atomic<uint16_t> instance_type_ V8_TQ_TYPE(InstanceType);
+  std::atomic<Bits1> bit_field_;
+  Bits2 bit_field2_;
+  std::atomic<Bits3> bit_field3_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
@@ -1201,8 +1241,8 @@ V8_OBJECT class Map : public HeapObject {
   TaggedMember<DescriptorArray> instance_descriptors_;
   TaggedMember<DependentCode> dependent_code_;
 #endif
-  TaggedMember<UnionOf<Smi, Cell>> prototype_validity_cell_;
-  TaggedMember<UnionOf<Smi, MaybeWeak<Map>, TransitionArray, PrototypeInfo,
+  TaggedMember<UnionOf<Zero, Cell>> prototype_validity_cell_;
+  TaggedMember<UnionOf<Zero, MaybeWeak<Map>, TransitionArray, PrototypeInfo,
                        PrototypeSharedClosureInfo>>
       transitions_or_prototype_info_;
 } V8_OBJECT_END;
@@ -1227,16 +1267,21 @@ V8_ABSTRACT_OBJECT class ExtendedMap : public Map {
 
  public:
   // Bit positions for |bit_field_ex|.
-  struct BitsEx {
+  struct BitsEx : BitFieldGroup<BitsEx, uint8_t> {
+    using BitFieldGroup::BitFieldGroup;
+
     using MapKindBits = base::BitField<ExtendedMapKind, 0, 3, uint8_t>;
     using MapSizeInWordsBits = MapKindBits::Next<uint8_t, 5>;
+
+    BIT_FIELD_GETTER(map_kind, MapKindBits)
+    BIT_FIELD_GETTER(map_size_in_words, MapSizeInWordsBits)
   };
 
-  inline uint8_t bit_field_ex() const;
-  inline void set_bit_field_ex(uint8_t value);
+  inline BitsEx bit_field_ex() const;
+  inline void set_bit_field_ex(BitsEx value);
 
-  inline uint8_t relaxed_bit_field_ex() const;
-  inline void set_relaxed_bit_field_ex(uint8_t value);
+  inline BitsEx relaxed_bit_field_ex() const;
+  inline void set_relaxed_bit_field_ex(BitsEx value);
 
   inline ExtendedMapKind map_kind() const;
   inline uint8_t map_size_in_words() const;
@@ -1248,7 +1293,7 @@ V8_ABSTRACT_OBJECT class ExtendedMap : public Map {
   static const int kMinimumSize;
   static const int kStartOfStrongExtendedFieldsOffset;
 
-  std::atomic<uint8_t> bit_field_ex_;
+  std::atomic<BitsEx> bit_field_ex_;
   // Leaves kTaggedSize-1 unused bytes, they will be used by subclasses.
 } V8_OBJECT_END;
 

@@ -4,7 +4,7 @@ URL: https://github.com/google/googletest.git
 Version: 1.8.0.git-9518a57428ae0a7ed450c1361768e84a2a38af5a
 Update Mechanism: Autoroll
 License: BSD-3-Clause
-License File: src/LICENSE
+License File: //third_party/googletest/src/LICENSE
 Shipped: no
 Security critical: no
 

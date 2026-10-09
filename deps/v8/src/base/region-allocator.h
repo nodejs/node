@@ -106,13 +106,18 @@ class V8_BASE_EXPORT RegionAllocator final {
   // Frees region at given |address|, returns the size of the region.
   // There must be a used region starting at given address otherwise nothing
   // will be freed and 0 will be returned.
-  size_t FreeRegion(Address address) { return TrimRegion(address, 0); }
+  // If |free_region| is given, it receives the free region that the freed
+  // region became part of, after merging with any free neighbours.
+  size_t FreeRegion(Address address, AddressRegion* free_region = nullptr) {
+    return TrimRegion(address, 0, free_region);
+  }
 
   // Decreases size of the previously allocated region at |address|, returns
   // freed size. |new_size| must be |page_size|-aligned and
   // less than or equal to current region's size. Setting new size to zero
-  // frees the region.
-  size_t TrimRegion(Address address, size_t new_size);
+  // frees the region. |free_region| is as for FreeRegion().
+  size_t TrimRegion(Address address, size_t new_size,
+                    AddressRegion* free_region = nullptr);
 
   // Tries to grow the region at |address| to the size |new_size|. Returns true
   // on success.

@@ -508,9 +508,7 @@ void VerifyJSObjectElements(Isolate* isolate, const JSObject* object) {
 void VerifyJSObjectElements(Isolate* isolate, Tagged<JSObject> object) {
   // Only TypedArrays can have these specialized elements.
   if (IsJSTypedArray(object)) {
-    // TODO(bmeurer,v8:4153): Fix CreateTypedArray to either not instantiate
-    // the object or properly initialize it on errors during construction.
-    /* CHECK(object->HasTypedArrayOrRabGsabTypedArrayElements()); */
+    CHECK(object->HasTypedArrayOrRabGsabTypedArrayElements());
     return;
   }
   CHECK(!IsByteArray(object->elements()));
@@ -628,7 +626,8 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
           continue;
         }
         Tagged<Object> value = RawFastPropertyAt(index);
-        CHECK_IMPLIES(r.IsDouble(), IsHeapNumber(value));
+        CHECK_IMPLIES(r.IsDouble(),
+                      IsHeapNumber(value) || IsUninitializedHeapNumber(value));
         if (IsUninitializedHole(value)) continue;
         CHECK_IMPLIES(r.IsSmi(), IsSmi(value));
         CHECK_IMPLIES(r.IsHeapObject(), IsHeapObject(value));
@@ -797,7 +796,8 @@ void Map::MapVerify(Isolate* isolate) {
 
 #if V8_ENABLE_WEBASSEMBLY
   if (instance_type() == WASM_STRUCT_TYPE ||
-      instance_type() == WASM_ARRAY_TYPE) {
+      instance_type() == WASM_ARRAY_TYPE ||
+      instance_type() == WASM_CUSTOM_MAP_TYPE) {
     // Wasm structs are sometimes shared. In this case, the meta map of this map
     // has to be the context-free RO meta map.
     if (HeapLayout::InAnySharedSpace(this)) {
@@ -815,7 +815,8 @@ void Map::MapVerify(Isolate* isolate) {
     // Note: for each static type that has a descriptor, there is also a
     // canonical RTT that does not have one (and is not used by any actual
     // objects).
-    if (types->has_descriptor(index) && IsWasmStruct(custom_descriptor())) {
+    if (types->has_descriptor(index) && (IsWasmStruct(custom_descriptor()) ||
+                                         v8_flags.wasm_merged_descriptors)) {
       CHECK_GT(wasm_type_info()->supertypes_length(), subtyping_depth);
       CHECK_EQ(immediate_supertype_map(),
                wasm_type_info()->supertypes(subtyping_depth));
@@ -1125,8 +1126,8 @@ void ScopeInfo::ScopeInfoVerify(Isolate* isolate) {
   CHECK(Is<ScopeInfo>(this));
   CHECK(parameter_count_.load().IsSmi());
   CHECK(context_local_count_.load().IsSmi());
-  CHECK(position_info_start_.load().IsSmi());
-  CHECK(position_info_end_.load().IsSmi());
+  CHECK(position_info_.start_.load().IsSmi());
+  CHECK(position_info_.end_.load().IsSmi());
 
   const uint32_t flags = Flags();
   const bool is_module =
@@ -1871,6 +1872,10 @@ void HashSeedWrapper::HashSeedWrapperVerify(Isolate* isolate) {
   CHECK(Is<HashSeedWrapper>(this));
 }
 
+void UninitializedHeapNumber::UninitializedHeapNumberVerify(Isolate* isolate) {
+  CHECK(Is<UninitializedHeapNumber>(this));
+}
+
 void Oddball::OddballVerify(Isolate* isolate) {
   PrimitiveHeapObjectVerify(isolate);
   CHECK(Is<Oddball>(this));
@@ -2176,12 +2181,12 @@ void JSShadowRealm::JSShadowRealmVerify(Isolate* isolate) {
 #ifdef V8_INTL_SUPPORT
 void JSLocale::JSLocaleVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  CHECK(IsCppGCManagedBase(icu_locale()));
+  CHECK(IsForeign(icu_locale()));
 }
 
 void JSCollator::JSCollatorVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  CHECK(IsCppGCManagedBase(icu_collator()));
+  CHECK(IsForeign(icu_collator()));
   CHECK(IsUndefined(bound_compare()) || IsJSFunction(bound_compare()));
   CHECK(IsString(locale()));
 }
@@ -2200,9 +2205,9 @@ void JSV8BreakIterator::JSV8BreakIteratorVerify(Isolate* isolate) {
 void JSDateTimeFormat::JSDateTimeFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
-  CHECK(IsCppGCManagedBase(icu_locale_.load()));
-  CHECK(IsCppGCManagedBase(icu_simple_date_format_.load()));
-  CHECK(IsCppGCManagedBase(icu_date_interval_format_.load()));
+  CHECK(IsForeign(icu_locale_.load()));
+  CHECK(IsForeign(icu_simple_date_format_.load()));
+  CHECK(IsForeign(icu_date_interval_format_.load()));
   CHECK(IsUndefined(bound_format()) || IsJSFunction(bound_format()));
   CHECK(IsSmi(flags_.load()));
 }
@@ -2217,21 +2222,21 @@ void JSDurationFormat::JSDurationFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsSmi(style_flags_.load()));
   CHECK(IsSmi(display_flags_.load()));
-  CHECK(IsCppGCManagedBase(icu_locale_.load()));
-  CHECK(IsCppGCManagedBase(icu_number_formatter_.load()));
+  CHECK(IsForeign(icu_locale_.load()));
+  CHECK(IsForeign(icu_number_formatter_.load()));
 }
 
 void JSListFormat::JSListFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
-  CHECK(IsCppGCManagedBase(icu_formatter_.load()));
+  CHECK(IsForeign(icu_formatter_.load()));
   CHECK(IsSmi(flags_.load()));
 }
 
 void JSNumberFormat::JSNumberFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
-  CHECK(IsCppGCManagedBase(icu_number_formatter_.load()));
+  CHECK(IsForeign(icu_number_formatter_.load()));
   CHECK(IsUndefined(bound_format()) || IsJSFunction(bound_format()));
 }
 
@@ -2239,22 +2244,22 @@ void JSPluralRules::JSPluralRulesVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
   CHECK(IsSmi(flags_.load()));
-  CHECK(IsCppGCManagedBase(icu_plural_rules_.load()));
-  CHECK(IsCppGCManagedBase(icu_number_formatter_.load()));
+  CHECK(IsForeign(icu_plural_rules_.load()));
+  CHECK(IsForeign(icu_number_formatter_.load()));
 }
 
 void JSRelativeTimeFormat::JSRelativeTimeFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
   CHECK(IsString(numberingSystem()));
-  CHECK(IsCppGCManagedBase(icu_formatter_.load()));
+  CHECK(IsForeign(icu_formatter_.load()));
   CHECK(IsSmi(flags_.load()));
 }
 
 void JSSegmenter::JSSegmenterVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
-  CHECK(IsCppGCManagedBase(icu_break_iterator_.load()));
+  CHECK(IsForeign(icu_break_iterator_.load()));
   CHECK(IsSmi(flags_.load()));
 }
 
@@ -2709,10 +2714,10 @@ void SwissNameDictionary::SwissNameDictionaryVerify(Isolate* isolate,
 
   meta_table()->ByteArrayVerify(isolate);
 
-  int seen_deleted = 0;
-  int seen_present = 0;
+  uint32_t seen_deleted = 0;
+  uint32_t seen_present = 0;
 
-  for (int i = 0; i < Capacity(); i++) {
+  for (uint32_t i = 0; i < Capacity(); i++) {
     ctrl_t ctrl = GetCtrl(i);
 
     if (IsFull(ctrl) || slow_checks) {
@@ -2751,18 +2756,18 @@ void SwissNameDictionary::SwissNameDictionaryVerify(Isolate* isolate,
 
     // Verify copy of first group at end (= after Capacity() slots) of control
     // table.
-    for (int i = 0; i < std::min(static_cast<int>(Group::kWidth), Capacity());
-         ++i) {
+    for (uint32_t i = 0;
+         i < std::min(static_cast<uint32_t>(Group::kWidth), Capacity()); ++i) {
       CHECK_EQ(CtrlTable()[i], CtrlTable()[Capacity() + i]);
     }
     // If 2 * capacity is smaller than the capacity plus group width, the slots
     // after that must be empty.
-    for (int i = 2 * Capacity(); i < Capacity() + kGroupWidth; ++i) {
+    for (uint32_t i = 2 * Capacity(); i < Capacity() + kGroupWidth; ++i) {
       CHECK_EQ(Ctrl::kEmpty, CtrlTable()[i]);
     }
 
-    for (int enum_index = 0; enum_index < UsedCapacity(); ++enum_index) {
-      int entry = EntryForEnumerationIndex(enum_index);
+    for (uint32_t enum_index = 0; enum_index < UsedCapacity(); ++enum_index) {
+      uint32_t entry = EntryForEnumerationIndex(enum_index);
       CHECK_LT(entry, Capacity());
       ctrl_t ctrl = GetCtrl(entry);
 
@@ -3302,6 +3307,35 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataVerify(Isolate* isolate) {
     if (i == 0) CHECK_EQ(table, dispatch_table0());
   }
   if (num_dispatch_tables == 0) CHECK_EQ(0, dispatch_table0()->length());
+
+  // Verify that shared memory atomic byte length addresses point into a
+  // BackingStore kept alive in shared_memory_backing_stores.
+  const wasm::WasmModule* mod = module();
+  uint32_t num_memories = static_cast<uint32_t>(mod->memories.size());
+  CHECK_EQ(num_memories, memory_objects()->ulength().value());
+  CHECK_EQ(2 * num_memories, memory_bases_and_sizes()->length().value());
+  bool has_shared_memory = std::any_of(
+      mod->memories.begin(), mod->memories.end(),
+      [](const wasm::WasmMemory& mem) { return mem.is_shared.value(); });
+  CHECK_EQ(has_shared_memory ? num_memories : 0,
+           shared_memory_backing_stores()->ulength().value());
+  for (uint32_t i = 0; i < num_memories; ++i) {
+    Address size_or_address = memory_bases_and_sizes()->get(2 * i + 1);
+    // For non-shared memories, or shared memories that have not been attached
+    // via `WasmMemoryObject::UseInInstance` yet, the backing store slot is 0.
+    if (!mod->memories[i].is_shared || size_or_address == 0) {
+      if (has_shared_memory) {
+        CHECK_EQ(Smi::zero(), shared_memory_backing_stores()->get(i));
+      }
+      continue;
+    }
+    Tagged<Object> backing_store_obj = shared_memory_backing_stores()->get(i);
+    CHECK_EQ(size_or_address,
+             reinterpret_cast<Address>(
+                 TrustedCast<TrustedManaged<BackingStore>>(backing_store_obj)
+                     ->raw()
+                     ->byte_length_address()));
+  }
 }
 
 void WasmDispatchTable::WasmDispatchTableVerify(Isolate* isolate) {
@@ -3431,17 +3465,22 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
   CHECK(IsCell(wrapper_budget_.load()));
   Object::VerifyPointer(isolate, packed_args_size_.load());
   CHECK(IsSmi(packed_args_size_.load()));
-  Tagged<Code> wrapper = wrapper_code(isolate);
-  CHECK(wrapper->kind() == CodeKind::JS_TO_WASM_FUNCTION ||
-        wrapper->kind() == CodeKind::C_WASM_ENTRY ||
-        (wrapper->is_builtin() &&
-         (wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
+  // The external JSFunction is attached after NewWasmExportedFunctionData
+  // finishes, so verify its wrapper code once attached.
+  Tagged<JSFunction> external;
+  if (internal()->try_get_external(&external)) {
+    Object::VerifyPointer(isolate, external);
+    Tagged<Code> wrapper = external->code(isolate);
+    CHECK(wrapper->kind() == CodeKind::JS_TO_WASM_FUNCTION ||
+          (wrapper->is_builtin() &&
+           (wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
 #if V8_ENABLE_DRUMBRAKE
-          wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapper ||
-          wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapperAsm ||
+            wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapper ||
+            wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapperAsm ||
 #endif  // V8_ENABLE_DRUMBRAKE
-          wrapper->builtin_id() == Builtin::kWasmPromising ||
-          wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
+            wrapper->builtin_id() == Builtin::kWasmPromising ||
+            wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
+  }
 }
 
 void WasmCapiFunctionData::WasmCapiFunctionDataVerify(Isolate* isolate) {
@@ -3678,6 +3717,23 @@ void Tuple2::Tuple2Verify(Isolate* isolate) {
   CHECK(Is<Tuple2>(this));
   Object::VerifyPointer(isolate, value1_.load());
   Object::VerifyPointer(isolate, value2_.load());
+}
+
+void ForInEnumeratorHolder::ForInEnumeratorHolderVerify(Isolate* isolate) {
+  CHECK(Is<Struct>(this));
+  CHECK(Is<ForInEnumeratorHolder>(this));
+  Object::VerifyPointer(isolate, enum_cache_map_.load());
+  CHECK(IsMap(enum_cache_map_.load()));
+  Object::VerifyPointer(isolate, named_keys_.load());
+  CHECK(IsFixedArray(named_keys_.load()));
+  Object::VerifyPointer(isolate, elements_length_.load());
+  CHECK(IsSmi(elements_length_.load()));
+  Object::VerifyPointer(isolate, cache_length_.load());
+  CHECK(IsSmi(cache_length_.load()));
+  CHECK_GE(Smi::ToInt(elements_length()), 0);
+  CHECK_GE(Smi::ToInt(cache_length()), Smi::ToInt(elements_length()));
+  CHECK_LE(Smi::ToInt(cache_length()) - Smi::ToInt(elements_length()),
+           static_cast<int>(named_keys()->ulength().value()));
 }
 
 void AliasedArgumentsEntry::AliasedArgumentsEntryVerify(Isolate* isolate) {

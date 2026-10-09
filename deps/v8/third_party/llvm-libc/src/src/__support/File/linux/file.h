@@ -8,6 +8,7 @@
 
 #include "hdr/types/off_t.h"
 #include "src/__support/File/file.h"
+#include "src/__support/File/file_mode.h"
 #include "src/__support/macros/config.h"
 
 namespace LIBC_NAMESPACE_DECL {
@@ -22,10 +23,9 @@ class LinuxFile : public File {
 
 public:
   constexpr LinuxFile(int file_descriptor, uint8_t *buffer, size_t buffer_size,
-                      int buffer_mode, bool owned, File::ModeFlags modeflags)
+                      int buffer_mode, bool owned, FileMode mode)
       : File(&linux_file_write, &linux_file_read, &linux_file_seek,
-             &linux_file_close, buffer, buffer_size, buffer_mode, owned,
-             modeflags),
+             &linux_file_close, buffer, buffer_size, buffer_mode, owned, mode),
         fd(file_descriptor) {}
 
   int get_fd() const { return fd; }

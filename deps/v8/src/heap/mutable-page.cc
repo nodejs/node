@@ -261,9 +261,7 @@ int MutablePage::ComputeFreeListsLength() {
   int length = 0;
   for (int cat = kFirstCategory; cat <= owner()->free_list()->last_category();
        cat++) {
-    if (categories_[cat] != nullptr) {
-      length += categories_[cat]->FreeListLength();
-    }
+    length += categories_[cat].FreeListLength();
   }
   return length;
 }

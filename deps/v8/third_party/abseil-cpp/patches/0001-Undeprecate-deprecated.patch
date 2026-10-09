@@ -181,3 +181,57 @@ index 60b40c3bd4f3f..9d582702ebd5f 100644
  
  // Historical note: Abseil once provided implementations of these type traits
  // for platforms that lacked full support. New code should prefer to use the
+diff --git a/third_party/abseil-cpp/absl/base/attributes.h b/third_party/abseil-cpp/absl/base/attributes.h
+index 72614172586f3..6c788ac1b5d79 100644
+--- a/third_party/abseil-cpp/absl/base/attributes.h
++++ b/third_party/abseil-cpp/absl/base/attributes.h
+@@ -649,8 +649,7 @@
+ #error "ABSL_FALLTHROUGH_INTENDED should not be defined."
+ #endif
+ #define ABSL_FALLTHROUGH_INTENDED                                         \
+-  struct [[deprecated(                                                    \
+-      "Use [[fallthrough]] instead.")]] _absl_fallthrough_intended_macro; \
++  struct _absl_fallthrough_intended_macro;                                \
+   (void)sizeof(_absl_fallthrough_intended_macro*);                        \
+   [[fallthrough]]
+
+diff --git a/third_party/abseil-cpp/absl/base/attributes.h b/third_party/abseil-cpp/absl/base/attributes.h
+index 8385bf9bef1ab..5bccfc51db78f 100644
+--- a/third_party/abseil-cpp/absl/base/attributes.h
++++ b/third_party/abseil-cpp/absl/base/attributes.h
+@@ -202,10 +202,13 @@
+ //
+ // Deprecated: Prefer the `[[noreturn]]` attribute standardized by C++11 over
+ // this macro.
+-#ifdef ABSL_ATTRIBUTE_NORETURN
+-#error "ABSL_ATTRIBUTE_NORETURN should not be defined."
++#if ABSL_HAVE_ATTRIBUTE(noreturn) || (defined(__GNUC__) && !defined(__clang__))
++#define ABSL_ATTRIBUTE_NORETURN __attribute__((noreturn))
++#elif defined(_MSC_VER)
++#define ABSL_ATTRIBUTE_NORETURN __declspec(noreturn)
++#else
++#define ABSL_ATTRIBUTE_NORETURN
+ #endif
+-#define ABSL_ATTRIBUTE_NORETURN [[noreturn]]
+ 
+ // ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
+ //
+diff --git a/third_party/abseil-cpp/absl/base/attributes.h b/third_party/abseil-cpp/absl/base/attributes.h
+index 5bccfc51db78f..00a3eb033aba4 100644
+--- a/third_party/abseil-cpp/absl/base/attributes.h
++++ b/third_party/abseil-cpp/absl/base/attributes.h
+@@ -441,10 +441,11 @@
+ //
+ //   Sprocket* SprocketPointer();
+ //   SprocketPointer();  // Does *not* trigger a warning.
+-#ifdef ABSL_MUST_USE_RESULT
+-#error "ABSL_MUST_USE_RESULT should not be defined."
++#if defined(__clang__) && ABSL_HAVE_ATTRIBUTE(warn_unused_result)
++#define ABSL_MUST_USE_RESULT __attribute__((warn_unused_result))
++#else
++#define ABSL_MUST_USE_RESULT
+ #endif
+-#define ABSL_MUST_USE_RESULT [[nodiscard]]
+ 
+ // ABSL_ATTRIBUTE_HOT, ABSL_ATTRIBUTE_COLD
+ //

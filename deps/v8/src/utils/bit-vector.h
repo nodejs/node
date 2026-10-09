@@ -6,6 +6,7 @@
 #define V8_UTILS_BIT_VECTOR_H_
 
 #include <algorithm>
+#include <bit>
 
 #include "src/base/bits.h"
 #include "src/zone/zone.h"
@@ -427,11 +428,10 @@ class GrowableBitVector {
 
   V8_NOINLINE void Grow(int needed_value, Zone* zone) {
     DCHECK(!InBitsRange(needed_value));
-    // Ensure that {RoundUpToPowerOfTwo32} does not overflow {int} range.
+    // Ensure that {std::bit_ceil} does not overflow {int} range.
     CHECK_GE(kMaxSupportedValue, needed_value);
-    int new_length = std::max(
-        kInitialLength, static_cast<int>(base::bits::RoundUpToPowerOfTwo32(
-                            static_cast<uint32_t>(needed_value + 1))));
+    int new_length = std::max<int>(kInitialLength,
+                                   std::bit_ceil<uint32_t>(needed_value + 1));
     bits_.Resize(new_length, zone);
   }
 

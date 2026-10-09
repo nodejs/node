@@ -4,6 +4,9 @@
 
 #include "src/wasm/pgo.h"
 
+#include <array>
+
+#include "src/base/unique-array.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-module-builder.h"  // For {ZoneBuffer}.
 
@@ -20,13 +23,13 @@ class ProfileGenerator {
         type_feedback_mutex_guard_(&module->type_feedback.mutex),
         tiering_budget_array_(tiering_budget_array) {}
 
-  base::OwnedVector<uint8_t> GetProfileData() {
+  base::UniqueArray<uint8_t> GetProfileData() {
     ZoneBuffer buffer{&zone_};
 
     SerializeTypeFeedback(buffer);
     SerializeTieringInfo(buffer);
 
-    return base::OwnedCopyOf(buffer);
+    return base::UniqueCopyOf(buffer);
   }
 
  private:
@@ -116,7 +119,7 @@ void DeserializeTypeFeedback(Decoder& decoder, const WasmModule* module) {
     uint32_t feedback_vector_size =
         decoder.consume_u32v("feedback vector size");
     function_feedback.feedback_vector =
-        base::OwnedVector<CallSiteFeedback>::NewForOverwrite(
+        base::UniqueArray<CallSiteFeedback>::NewForOverwrite(
             feedback_vector_size);
     for (CallSiteFeedback& feedback : function_feedback.feedback_vector) {
       int num_cases = decoder.consume_i32v("num cases");
@@ -139,7 +142,7 @@ void DeserializeTypeFeedback(Decoder& decoder, const WasmModule* module) {
     // Deserialize {call_targets}.
     uint32_t num_call_targets = decoder.consume_u32v("num call targets");
     function_feedback.call_targets =
-        base::OwnedVector<uint32_t>::NewForOverwrite(num_call_targets);
+        base::UniqueArray<uint32_t>::NewForOverwrite(num_call_targets);
     for (uint32_t& call_target : function_feedback.call_targets) {
       call_target = decoder.consume_u32v("call target");
     }
@@ -201,18 +204,18 @@ void DumpProfileToFile(const WasmModule* module,
   // We use the same hash as for reported scripts, to make it easier to
   // correlate files to wasm modules (see {CreateWasmScript}).
   uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(wire_bytes));
-  base::EmbeddedVector<char, 32> filename;
-  SNPrintF(filename, "profile-wasm-%08x", hash);
+  std::array<char, 32> filename;
+  base::SNPrintF(filename, "profile-wasm-%08x", hash);
 
   ProfileGenerator profile_generator{module, tiering_budget_array};
-  base::OwnedVector<uint8_t> profile_data = profile_generator.GetProfileData();
+  base::UniqueArray<uint8_t> profile_data = profile_generator.GetProfileData();
 
   PrintF(
       "Dumping Wasm PGO data to file '%s' (module size %zu, %u declared "
       "functions, %zu bytes PGO data)\n",
-      filename.begin(), wire_bytes.size(), module->num_declared_functions,
+      filename.data(), wire_bytes.size(), module->num_declared_functions,
       profile_data.size());
-  if (FILE* file = base::OS::FOpen(filename.begin(), "wb")) {
+  if (FILE* file = base::OS::FOpen(filename.data(), "wb")) {
     size_t written = fwrite(profile_data.begin(), 1, profile_data.size(), file);
     CHECK_EQ(profile_data.size(), written);
     base::Fclose(file);
@@ -226,12 +229,12 @@ std::unique_ptr<ProfileInformation> LoadProfileFromFile(
   // We use the same hash as for reported scripts, to make it easier to
   // correlate files to wasm modules (see {CreateWasmScript}).
   uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(wire_bytes));
-  base::EmbeddedVector<char, 32> filename;
-  SNPrintF(filename, "profile-wasm-%08x", hash);
+  std::array<char, 32> filename;
+  base::SNPrintF(filename, "profile-wasm-%08x", hash);
 
-  FILE* file = base::OS::FOpen(filename.begin(), "rb");
+  FILE* file = base::OS::FOpen(filename.data(), "rb");
   if (!file) {
-    PrintF("No Wasm PGO data found: Cannot open file '%s'\n", filename.begin());
+    PrintF("No Wasm PGO data found: Cannot open file '%s'\n", filename.data());
     return {};
   }
 
@@ -239,10 +242,10 @@ std::unique_ptr<ProfileInformation> LoadProfileFromFile(
   size_t size = ftell(file);
   rewind(file);
 
-  PrintF("Loading Wasm PGO data from file '%s' (%zu bytes)\n", filename.begin(),
+  PrintF("Loading Wasm PGO data from file '%s' (%zu bytes)\n", filename.data(),
          size);
-  base::OwnedVector<uint8_t> profile_data =
-      base::OwnedVector<uint8_t>::NewForOverwrite(size);
+  base::UniqueArray<uint8_t> profile_data =
+      base::UniqueArray<uint8_t>::NewForOverwrite(size);
   for (size_t read = 0; read < size;) {
     read += fread(profile_data.begin() + read, 1, size - read, file);
     CHECK(!ferror(file));

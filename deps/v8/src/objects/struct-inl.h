@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/roots/roots-inl.h"
@@ -18,6 +19,8 @@
 
 namespace v8 {
 namespace internal {
+
+Struct::Struct(Tagged<ReadOnly<Map>> map) : HeapObject(map) {}
 
 Tagged<Object> Tuple2::value1() const { return value1_.load(); }
 void Tuple2::set_value1(Tagged<Object> value, WriteBarrierMode mode) {
@@ -115,6 +118,38 @@ void ClassPositions::set_start(int value) {
 int ClassPositions::end() const { return end_.load().value(); }
 void ClassPositions::set_end(int value) {
   end_.store(this, Smi::FromInt(value));
+}
+
+Tagged<Map> ForInEnumeratorHolder::enum_cache_map() const {
+  return enum_cache_map_.load();
+}
+void ForInEnumeratorHolder::set_enum_cache_map(Tagged<Map> value,
+                                               WriteBarrierMode mode) {
+  enum_cache_map_.store(this, value, mode);
+}
+
+Tagged<FixedArray> ForInEnumeratorHolder::named_keys() const {
+  return named_keys_.load();
+}
+void ForInEnumeratorHolder::set_named_keys(Tagged<FixedArray> value,
+                                           WriteBarrierMode mode) {
+  named_keys_.store(this, value, mode);
+}
+
+Tagged<Smi> ForInEnumeratorHolder::elements_length() const {
+  return elements_length_.load();
+}
+void ForInEnumeratorHolder::set_elements_length(Tagged<Smi> value,
+                                                WriteBarrierMode mode) {
+  elements_length_.store(this, value, mode);
+}
+
+Tagged<Smi> ForInEnumeratorHolder::cache_length() const {
+  return cache_length_.load();
+}
+void ForInEnumeratorHolder::set_cache_length(Tagged<Smi> value,
+                                             WriteBarrierMode mode) {
+  cache_length_.store(this, value, mode);
 }
 
 }  // namespace internal

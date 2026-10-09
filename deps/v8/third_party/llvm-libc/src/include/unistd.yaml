@@ -20,11 +20,33 @@ macros:
     macro_header: unistd-macros.h
   - macro_name: _SC_OPEN_MAX
     macro_header: unistd-macros.h
+  - macro_name: _SC_VERSION
+    macro_header: unistd-macros.h
   - macro_name: _SC_PAGESIZE
     macro_header: unistd-macros.h
   - macro_name: _SC_PAGE_SIZE
     macro_header: unistd-macros.h
   - macro_name: _SC_THREADS
+    macro_header: unistd-macros.h
+  - macro_name: _SC_THREAD_SAFE_FUNCTIONS
+    macro_header: unistd-macros.h
+  - macro_name: _SC_GETGR_R_SIZE_MAX
+    macro_header: unistd-macros.h
+  - macro_name: _SC_GETPW_R_SIZE_MAX
+    macro_header: unistd-macros.h
+  - macro_name: _SC_THREAD_DESTRUCTOR_ITERATIONS
+    macro_header: unistd-macros.h
+  - macro_name: _SC_THREAD_ATTR_STACKADDR
+    macro_header: unistd-macros.h
+  - macro_name: _SC_THREAD_ATTR_STACKSIZE
+    macro_header: unistd-macros.h
+  - macro_name: _SC_THREAD_PRIORITY_SCHEDULING
+    macro_header: unistd-macros.h
+  - macro_name: _SC_THREAD_PRIO_INHERIT
+    macro_header: unistd-macros.h
+  - macro_name: _SC_THREAD_PRIO_PROTECT
+    macro_header: unistd-macros.h
+  - macro_name: _SC_THREAD_PROCESS_SHARED
     macro_header: unistd-macros.h
   - macro_name: _SC_NPROCESSORS_CONF
     macro_header: unistd-macros.h
@@ -32,7 +54,39 @@ macros:
     macro_header: unistd-macros.h
   - macro_name: _SC_PHYS_PAGES
     macro_header: unistd-macros.h
+  - macro_name: _SC_THREAD_CPUTIME
+    macro_header: unistd-macros.h
+  - macro_name: _SC_THREAD_SPORADIC_SERVER
+    macro_header: unistd-macros.h
+  - macro_name: _SC_THREAD_ROBUST_PRIO_INHERIT
+    macro_header: unistd-macros.h
+  - macro_name: _SC_THREAD_ROBUST_PRIO_PROTECT
+    macro_header: unistd-macros.h
+  - macro_name: _POSIX_VERSION
+    macro_header: unistd-macros.h
   - macro_name: _POSIX_THREADS
+    macro_header: unistd-macros.h
+  - macro_name: _POSIX_THREAD_SAFE_FUNCTIONS
+    macro_header: unistd-macros.h
+  - macro_name: _POSIX_THREAD_ATTR_STACKADDR
+    macro_header: unistd-macros.h
+  - macro_name: _POSIX_THREAD_ATTR_STACKSIZE
+    macro_header: unistd-macros.h
+  - macro_name: _POSIX_THREAD_PROCESS_SHARED
+    macro_header: unistd-macros.h
+  - macro_name: _POSIX_THREAD_PRIORITY_SCHEDULING
+    macro_header: unistd-macros.h
+  - macro_name: _POSIX_THREAD_CPUTIME
+    macro_header: unistd-macros.h
+  - macro_name: _POSIX_THREAD_PRIO_INHERIT
+    macro_header: unistd-macros.h
+  - macro_name: _POSIX_THREAD_PRIO_PROTECT
+    macro_header: unistd-macros.h
+  - macro_name: _POSIX_THREAD_ROBUST_PRIO_INHERIT
+    macro_header: unistd-macros.h
+  - macro_name: _POSIX_THREAD_ROBUST_PRIO_PROTECT
+    macro_header: unistd-macros.h
+  - macro_name: _POSIX_THREAD_SPORADIC_SERVER
     macro_header: unistd-macros.h
 types:
   - type_name: uid_t
@@ -103,6 +157,12 @@ functions:
       - type: const char *
       - type: uid_t
       - type: gid_t
+  - name: chroot
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: const char *
   - name: confstr
     standards:
       - posix
@@ -138,6 +198,14 @@ functions:
       - type: int
       - type: int
       - type: int
+  - name: execl
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: '...'
   - name: execle
     standards:
       - posix
@@ -184,6 +252,22 @@ functions:
       - type: int
       - type: uid_t
       - type: gid_t
+  - name: fchownat
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *
+      - type: uid_t
+      - type: gid_t
+      - type: int
+  - name: fdatasync
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
   - name: fpathconf
     standards:
       - posix
@@ -217,6 +301,12 @@ functions:
     arguments:
       - type: char *
       - type: size_t
+  - name: getegid
+    standards:
+      - posix
+    return_type: gid_t
+    arguments:
+      - type: void
   - name: getentropy
     standards:
       - gnu
@@ -251,6 +341,18 @@ functions:
       - type: int
       - type: __getoptargv_t
       - type: const char *
+  - name: getpgid
+    standards:
+      - posix
+    return_type: pid_t
+    arguments:
+      - type: pid_t
+  - name: getpgrp
+    standards:
+      - posix
+    return_type: pid_t
+    arguments:
+      - type: void
   - name: getpid
     standards:
       - posix
@@ -320,6 +422,12 @@ functions:
       - type: int
       - type: off_t
       - type: int
+  - name: nice
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
   - name: pathconf
     standards:
       - posix
@@ -327,6 +435,12 @@ functions:
     arguments:
       - type: const char *
       - type: int
+  - name: pause
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: void
   - name: pipe
     standards:
       - posix
@@ -397,12 +511,45 @@ functions:
       - type: const void *__restrict
       - type: void *
       - type: ssize_t
+  - name: setgid
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: gid_t
+  - name: setpgid
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: pid_t
+      - type: pid_t
+  - name: setregid
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: gid_t
+      - type: gid_t
+  - name: setreuid
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: uid_t
+      - type: uid_t
   - name: setsid
     standards:
       - posix
     return_type: pid_t
     arguments:
       - type: void
+  - name: setuid
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: uid_t
   - name: sleep
     standards:
       - posix
@@ -430,6 +577,19 @@ functions:
     return_type: long
     arguments:
       - type: int
+  - name: tcgetpgrp
+    standards:
+      - posix
+    return_type: pid_t
+    arguments:
+      - type: int
+  - name: tcsetpgrp
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: pid_t
   - name: truncate
     standards:
       - posix

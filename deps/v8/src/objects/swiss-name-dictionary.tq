@@ -7,7 +7,7 @@
 @cppObjectLayoutDefinition
 extern class SwissNameDictionary extends HeapObject {
   hash: uint32;
-  const capacity: int32;
+  const capacity: uint32;
   meta_table: ByteArray;
   data_table[Convert<intptr>(capacity) * 2]: JSAny|TheHole;
   ctrl_table[Convert<intptr>(capacity) + swiss_table::kGroupWidth]: uint8;
@@ -153,9 +153,10 @@ macro FindEntry<GroupLoader: type>(table: SwissNameDictionary, key: Name):
     never labels
 Found(intptr), NotFound {
   const hash: uint32 = LoadNameHashAssumeComputed(key);
-  const capacity: int32 = table.capacity;
-  const nonZeroCapacity: int32 = capacity | Convert<int32>(capacity == 0);
-  const mask: uint32 = Unsigned(nonZeroCapacity - 1);
+  const capacity: uint32 = table.capacity;
+  const nonZeroCapacity: uint32 =
+      capacity | Unsigned(Convert<int32>(capacity == 0));
+  const mask: uint32 = nonZeroCapacity - 1;
 
   const ctrlTableStart: intptr =
       SwissNameDictionaryCtrlTableStartOffsetMT(Convert<intptr>(capacity)) +

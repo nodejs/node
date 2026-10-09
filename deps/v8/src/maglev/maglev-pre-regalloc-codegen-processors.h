@@ -163,12 +163,12 @@ class MaxCallDepthProcessor {
       }
       case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
         // PC + FP + Closure + Params + Context
-        const RegisterConfiguration* config = RegisterConfiguration::Default();
+        const BuiltinContinuationDeoptFrame& frame =
+            deopt_frame->as_builtin_continuation();
         auto info = BuiltinContinuationFrameInfo::Conservative(
-            deopt_frame->as_builtin_continuation().parameters().length(),
-            Builtins::CallInterfaceDescriptorFor(
-                deopt_frame->as_builtin_continuation().builtin_id()),
-            config);
+            frame.translation_height(),
+            Builtins::CallInterfaceDescriptorFor(frame.builtin_id()),
+            RegisterConfiguration::Default());
         return info.frame_size_in_bytes();
       }
     }

@@ -15,6 +15,7 @@
 
 #include <errno.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <ostream>
@@ -30,6 +31,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
+#include "absl/types/span.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -422,7 +424,9 @@ StatusCode ErrnoToStatusCode(int error_number) {
     case ENETRESET:     // Connection aborted by network
     case ENETUNREACH:   // Network unreachable
     case ENOLCK:        // No locks available
+#ifdef ENOLINK
     case ENOLINK:       // Link has been severed
+#endif
 #ifdef ENONET
     case ENONET:  // Machine is not on the network
 #endif

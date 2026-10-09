@@ -6,6 +6,7 @@
 
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
+#include "src/compiler/turboshaft/use-map.h"
 #include "test/unittests/compiler/turboshaft/reducer-test.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -322,5 +323,112 @@ TEST_F(MachineOptimizationReducerTest, KeepNarrowingShiftAmountMask) {
                   .Get(shift->right())
                   .template Is<Opmask::kWord32BitwiseAnd>());
 }
+
+TEST_F(MachineOptimizationReducerTest,
+       MakeTupleOpExcludedFromUseCountAndUseMap) {
+  OpIndex tuple;
+  OpIndex proj0;
+  OpIndex proj1;
+  OpIndex consumer;
+
+  const RegisterRepresentation rep32 = RegisterRepresentation::Word32();
+  base::SmallVector<RegisterRepresentation, 2> reps = {rep32, rep32};
+  auto test = CreateFromGraph(base::VectorOf(reps), [&](auto& t) {
+    auto a = t.template GetParameter<Word32>(0);
+    auto b = t.template GetParameter<Word32>(1);
+
+    auto binop = t.Asm().OverflowCheckedBinop(
+        a, b, OverflowCheckedBinopOp::Kind::kSignedAdd,
+        WordRepresentation::Word32());
+    tuple = binop;
+    auto p0 = t.Asm().template Projection<0>(binop, rep32);
+    auto p1 = t.Asm().template Projection<1>(binop, rep32);
+    proj0 = p0;
+    proj1 = p1;
+
+    // MakeTupleOp itself must have 0 uses.
+    EXPECT_TRUE(t.graph().Get(tuple).saturated_use_count.Is(0));
+    // Both projections should initially have 0 uses despite being bundled in
+    // MakeTupleOp.
+    EXPECT_TRUE(t.graph().Get(proj0).saturated_use_count.Is(0));
+    EXPECT_TRUE(t.graph().Get(proj1).saturated_use_count.Is(0));
+
+    // Adding a temporary consumer increments proj0's saturated_use_count to 1.
+    t.Asm().Word32Add(V<Word32>::Cast(proj0), a);
+    EXPECT_TRUE(t.graph().Get(proj0).saturated_use_count.Is(1));
+
+    // Removing the consumer decrements proj0's saturated_use_count back to 0.
+    t.graph().RemoveLast();
+    EXPECT_TRUE(t.graph().Get(proj0).saturated_use_count.Is(0));
+
+    // Adding the actual consumer leaves saturated_use_count at 1.
+    consumer = t.Asm().Word32Add(V<Word32>::Cast(proj0), a);
+    EXPECT_TRUE(t.graph().Get(proj0).saturated_use_count.Is(1));
+    EXPECT_TRUE(
+        t.graph().Get(consumer).IsOnlyUserOf(t.graph().Get(proj0), t.graph()));
+
+    // Adding and removing a MakeTupleOp leaves proj0's saturated_use_count
+    // unchanged at 1.
+    t.Asm().MakeTuple(proj0, proj1);
+    t.graph().RemoveLast();
+    EXPECT_TRUE(t.graph().Get(proj0).saturated_use_count.Is(1));
+
+    t.Asm().Return(consumer);
+  });
+
+  const Graph& graph = test.graph();
+  const Operation& tuple_op = graph.Get(tuple);
+  EXPECT_TRUE(tuple_op.Is<MakeTupleOp>());
+  EXPECT_TRUE(tuple_op.saturated_use_count.Is(0));
+
+  const Operation& proj0_op = graph.Get(proj0);
+  const Operation& proj1_op = graph.Get(proj1);
+  EXPECT_TRUE(proj0_op.Is<ProjectionOp>());
+  EXPECT_TRUE(proj1_op.Is<ProjectionOp>());
+  EXPECT_TRUE(proj0_op.saturated_use_count.Is(1));
+  EXPECT_TRUE(proj1_op.saturated_use_count.Is(0));
+  EXPECT_TRUE(graph.Get(consumer).IsOnlyUserOf(proj0_op, graph));
+
+  // Verify UseMap ignores MakeTupleOp: unused projection has no uses, and used
+  // projection has only consumer (not MakeTupleOp).
+  UseMap use_map(graph, test.zone());
+  EXPECT_TRUE(use_map.uses(proj1).empty());
+  auto proj0_uses = use_map.uses(proj0);
+  ASSERT_EQ(proj0_uses.size(), 1u);
+  EXPECT_EQ(proj0_uses[0], consumer);
+}
+
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
+    defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_MIPS64)
+TEST_F(MachineOptimizationReducerTest, ReduceNestedWord64Add128ToWord64Add3) {
+  const RegisterRepresentation rep64 = RegisterRepresentation::Word64();
+  base::SmallVector<RegisterRepresentation, 3> reps = {rep64, rep64, rep64};
+  auto test = CreateFromGraph(base::VectorOf(reps), [](auto& t) {
+    auto a = t.template GetParameter<Word64>(0);
+    auto b = t.template GetParameter<Word64>(1);
+    auto c = t.template GetParameter<Word64>(2);
+    auto zero = t.Asm().Word64Constant(uint64_t{0});
+
+    auto add1 = t.Asm().Add128(a, zero, b, zero);
+    auto add1_low = t.Asm().template Projection<0>(add1);
+    auto add1_high = t.Asm().template Projection<1>(add1);
+
+    auto add2 = t.Asm().Add128(add1_low, add1_high, c, zero);
+    auto sum = t.Asm().template Projection<0>(add2);
+    t.Asm().Return(sum);
+  });
+
+  test.Run<MachineOptimizationReducer>();
+
+  bool found_add3 = false;
+  for (OpIndex index : test.graph().AllOperationIndices()) {
+    if (test.graph().Get(index).Is<Word64Add3Op>()) {
+      found_add3 = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(found_add3);
+}
+#endif
 
 }  // namespace v8::internal::compiler::turboshaft

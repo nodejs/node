@@ -26,12 +26,14 @@ namespace internal {
 // JSArrayBuffer.
 //
 
-Tagged<MaybeObject> JSArrayBuffer::views_or_detach_key() const {
+Tagged<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>>
+JSArrayBuffer::views_or_detach_key() const {
   return views_or_detach_key_.load();
 }
 
-void JSArrayBuffer::set_views_or_detach_key(Tagged<MaybeObject> value,
-                                            WriteBarrierMode mode) {
+void JSArrayBuffer::set_views_or_detach_key(
+    Tagged<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>> value,
+    WriteBarrierMode mode) {
   views_or_detach_key_.store(this, value, mode);
 }
 
@@ -94,41 +96,30 @@ size_t JSArrayBuffer::GetByteLength() const {
     if (ext == nullptr) {
       return 0;
     }
+    ext->InitializationBarrier();
     SBXCHECK(ext->is_shared() && ext->is_resizable_by_js());
     return ext->backing_store()->byte_length(std::memory_order_seq_cst);
   }
 
-  // We should not be reading the JS-visible byte length of a RAB from a
-  // background thread, unless the mutator is guaranteed to be paused. This
-  // happens during a GC pause, during teardown, or when the main thread is
-  // parked.
-  DCHECK_IMPLIES(
-      is_resizable && !is_shared_ && LocalHeap::Current() != nullptr &&
-          !LocalHeap::Current()->is_main_thread(),
-      LocalHeap::Current()->heap()->IsInGC() ||
-          LocalHeap::Current()->heap()->IsTearingDown() ||
-          LocalHeap::Current()->heap()->main_thread_local_heap()->IsParked());
+  // Non-shared ArrayBuffers must only have their byte length read from the main
+  // thread to avoid data races (as the main thread may update it when
+  // materializing an on-heap TypedArray's buffer, detaching, or resizing).
+  //
+  // For non-resizable SharedArrayBuffers, byte_length is immutable after
+  // construction, so it can safely be read from a background thread (e.g.
+  // during concurrent memory measurement).
+  DCHECK(is_shared_ || LocalHeap::Current()->is_main_thread());
 
   return byte_length();
-}
-
-uint32_t JSArrayBuffer::GetBackingStoreRefForDeserialization() const {
-  return static_cast<uint32_t>(
-      ReadField<Address>(offsetof(JSArrayBuffer, backing_store_)));
-}
-
-void JSArrayBuffer::SetBackingStoreRefForSerialization(uint32_t ref) {
-  WriteField<Address>(offsetof(JSArrayBuffer, backing_store_),
-                      static_cast<Address>(ref));
 }
 
 void JSArrayBuffer::init_extension() {
 #if V8_COMPRESS_POINTERS
   // The extension field is lazily-initialized, so set it to null initially.
-  base::AsAtomic32::Release_Store(extension_handle_location(),
+  base::AsAtomic32::Relaxed_Store(extension_handle_location(),
                                   kNullExternalPointerHandle);
 #else
-  base::AsAtomicPointer::Release_Store(extension_location(), nullptr);
+  base::AsAtomicPointer::Relaxed_Store(extension_location(), nullptr);
 #endif  // V8_COMPRESS_POINTERS
 }
 
@@ -158,8 +149,9 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
   if (current_handle == kNullExternalPointerHandle) {
     ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
         isolate.GetExternalPointerTableSpaceFor(tag, address()), value, tag);
-    base::AsAtomic32::Relaxed_Store(extension_handle_location(), handle);
-    WriteBarrier::ForExternalPointer(this, ExternalPointerSlot(&extension_));
+    base::AsAtomic32::Release_Store(extension_handle_location(), handle);
+    WriteBarrier::ForExternalPointer(this, ExternalPointerSlot(&extension_),
+                                     handle);
   } else {
     table.Set(current_handle, value, tag);
   }
@@ -214,7 +206,8 @@ void JSArrayBuffer::set_views(Tagged<MaybeObject> value,
                               WriteBarrierMode mode) {
   DCHECK(!has_detach_key());
   DCHECK(value.IsWeak() || value == kNoView || value == kManyViews);
-  set_views_or_detach_key(value, mode);
+  set_views_or_detach_key(
+      Cast<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>>(value), mode);
 }
 
 Tagged<Cell> JSArrayBuffer::detach_key() const {
@@ -407,21 +400,22 @@ void JSTypedArray::set_length(size_t value) {
   WriteBoundedSizeField(offsetof(JSTypedArray, raw_length_), value);
 }
 
-Tagged<Object> JSTypedArray::base_pointer() const {
+Tagged<UnionOf<ByteArray, Smi>> JSTypedArray::base_pointer() const {
   return base_pointer_.load();
 }
 
-Tagged<Object> JSTypedArray::base_pointer(AcquireLoadTag) const {
+Tagged<UnionOf<ByteArray, Smi>> JSTypedArray::base_pointer(
+    AcquireLoadTag) const {
   return base_pointer_.Acquire_Load();
 }
 
-void JSTypedArray::set_base_pointer(Tagged<Object> value,
+void JSTypedArray::set_base_pointer(Tagged<UnionOf<ByteArray, Smi>> value,
                                     WriteBarrierMode mode) {
   base_pointer_.store(this, value, mode);
 }
 
-void JSTypedArray::set_base_pointer(Tagged<Object> value, ReleaseStoreTag,
-                                    WriteBarrierMode mode) {
+void JSTypedArray::set_base_pointer(Tagged<UnionOf<ByteArray, Smi>> value,
+                                    ReleaseStoreTag, WriteBarrierMode mode) {
   base_pointer_.Release_Store(this, value, mode);
 }
 
@@ -494,33 +488,13 @@ Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
 #endif
 }
 
-uint32_t JSTypedArray::GetExternalBackingStoreRefForDeserialization() const {
-  DCHECK(!is_on_heap());
-  return static_cast<uint32_t>(
-      ReadField<Address>(offsetof(JSTypedArray, external_pointer_)));
-}
-
-void JSTypedArray::SetExternalBackingStoreRefForSerialization(uint32_t ref) {
-  DCHECK(!is_on_heap());
-  WriteField<Address>(offsetof(JSTypedArray, external_pointer_),
-                      static_cast<Address>(ref));
-}
-
-void JSTypedArray::RemoveExternalPointerCompensationForSerialization(
-    Isolate* isolate) {
+void JSTypedArray::InitOnHeapDataPtrAfterDeserialization(Isolate* isolate) {
   DCHECK(is_on_heap());
+  DCHECK_EQ(external_pointer_.value(), kNullAddress);
   Address offset =
-      external_pointer() - ExternalPointerCompensationForOnHeapArray(isolate);
-  WriteField<Address>(offsetof(JSTypedArray, external_pointer_), offset);
-}
-
-void JSTypedArray::AddExternalPointerCompensationForDeserialization(
-    Isolate* isolate) {
-  DCHECK(is_on_heap());
-  Address pointer =
-      ReadField<Address>(offsetof(JSTypedArray, external_pointer_)) +
-      ExternalPointerCompensationForOnHeapArray(isolate);
-  set_external_pointer(isolate, pointer);
+      OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag + byte_offset();
+  set_external_pointer(
+      isolate, offset + ExternalPointerCompensationForOnHeapArray(isolate));
 }
 
 void* JSTypedArray::DataPtr() {

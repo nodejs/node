@@ -223,7 +223,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
                              ArgumentsElementType::kRaw);
     }
     // The receiver for the builtin/api call.
-    __ PushRoot(RootIndex::kTheHoleValue);
+    __ PushRoot(RootIndex::kTdzHoleValue);
 
     // Call the function.
     // a0: number of arguments (untagged)
@@ -292,9 +292,9 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     __ CallBuiltin(Builtin::kFastNewObject);
     __ BranchShort(&post_instantiation_deopt_entry);
 
-    // Else: use TheHoleValue as receiver for constructor call
+    // Else: use TdzHoleValue as receiver for constructor call
     __ bind(&not_create_implicit_receiver);
-    __ LoadRoot(a0, RootIndex::kTheHoleValue);
+    __ LoadRoot(a0, RootIndex::kTdzHoleValue);
   }
   // ----------- S t a t e -------------
   //  --                          a0: receiver
@@ -382,7 +382,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // on-stack receiver as the result.
   __ bind(&use_receiver);
   __ LoadWord(a0, MemOperand(sp, 0 * kSystemPointerSize));
-  __ JumpIfRoot(a0, RootIndex::kTheHoleValue, &do_throw);
+  __ JumpIfRoot(a0, RootIndex::kTdzHoleValue, &do_throw);
 
   __ bind(&leave_and_return);
   // Restore  arguments count from the frame.
@@ -517,8 +517,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   Register code = kJavaScriptCallCodeStartRegister;  // a2
   Register scratch = t2;
-  __ Lw(dispatch_handle,
-        FieldMemOperand(a5, offsetof(JSFunction, dispatch_handle_)));
+  __ Lwu(dispatch_handle,
+         FieldMemOperand(a5, offsetof(JSFunction, dispatch_handle_)));
   __ LoadEntrypointAndParameterCountFromJSDispatchTable(
       code, argc, dispatch_handle, scratch);
   // In case the formal parameter count is kDontAdaptArgumentsSentinel the
@@ -1225,17 +1225,16 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ Push(kJavaScriptCallNewTargetRegister);
 #if defined(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE) && \
     defined(V8_TARGET_ARCH_RISCV64)
-    // No need to SmiTag as dispatch handles always look like Smis.
-    static_assert(kJSDispatchHandleShift > 0);
-    __ AssertSmi(kJavaScriptCallDispatchHandleRegister);
-    __ Push(kJavaScriptCallDispatchHandleRegister);
+    __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
+                          feedback_vector);
 #endif
     __ SmiTag(frame_size);
     __ Push(frame_size);
     __ CallRuntime(Runtime::kStackGuardWithGap);
 #if defined(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE) && \
     defined(V8_TARGET_ARCH_RISCV64)
-    __ Pop(kJavaScriptCallDispatchHandleRegister);
+    __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
+                         feedback_vector);
 #endif
     __ Pop(kJavaScriptCallNewTargetRegister);
   }
@@ -1786,7 +1785,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ EnterFrame(StackFrame::FAST_CONSTRUCT);
 
   // Implicit receiver stored in the construct frame.
-  __ LoadRoot(a2, RootIndex::kTheHoleValue);
+  __ LoadRoot(a2, RootIndex::kTdzHoleValue);
   __ Push(cp, a2);
 
   // Push arguments + implicit receiver.
@@ -1842,7 +1841,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ bind(&use_receiver);
   __ LoadWord(
       a0, MemOperand(fp, FastConstructFrameConstants::kImplicitReceiverOffset));
-  __ JumpIfRoot(a0, RootIndex::kTheHoleValue, &do_throw);
+  __ JumpIfRoot(a0, RootIndex::kTdzHoleValue, &do_throw);
 
   __ bind(&leave_and_return);
   // Leave construct frame.
@@ -3301,7 +3300,10 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
 }
 
 namespace {
-enum class DebugBreakKind { kBreak, kTrap };
+enum class DebugBreakKind {
+  kBreak,  // Breakpoint or stepping (WasmDebugBreak).
+  kTrap,   // Trap in debug code or trap handler (WasmTrapHandlerThrowTrap).
+};
 
 void Generate_WasmDebugBreakOrTrap(MacroAssembler* masm, DebugBreakKind kind) {
   HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
@@ -3309,7 +3311,12 @@ void Generate_WasmDebugBreakOrTrap(MacroAssembler* masm, DebugBreakKind kind) {
     FrameScope scope(masm, StackFrame::WASM_DEBUG_BREAK);
 
     // Save all parameter registers. They might hold live values, we restore
-    // them after the runtime call.
+    // them after the runtime call (for kBreak), or allow DevTools to inspect
+    // them at trap sites (for kTrap).
+    // Note: For non-debug execution, saving registers and creating a
+    // WASM_DEBUG_BREAK frame for trap handler traps might be redundant, but
+    // traps are cold exceptional paths so this negligible overhead is fine to
+    // keep the landing pad and trap handling unified.
     __ MultiPush(WasmDebugBreakFrameConstants::kPushedGpRegs);
     __ MultiPushFPU(WasmDebugBreakFrameConstants::kPushedFpRegs);
 
@@ -3352,7 +3359,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
   Generate_WasmDebugBreakOrTrap(masm, DebugBreakKind::kBreak);
 }
 
-void Builtins::Generate_WasmDebugTrap(MacroAssembler* masm) {
+void Builtins::Generate_WasmTrapHandlerThrowTrap(MacroAssembler* masm) {
   Generate_WasmDebugBreakOrTrap(masm, DebugBreakKind::kTrap);
 }
 
@@ -3599,9 +3606,12 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
   using ER = ExternalReference;
   Register frame_base = WasmHandleStackOverflowDescriptor::FrameBaseRegister();
   Register gap = WasmHandleStackOverflowDescriptor::GapRegister();
+  Register parameter_slots_size =
+      WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister();
   {
     DCHECK_NE(kCArgRegs[1], frame_base);
     DCHECK_NE(kCArgRegs[3], frame_base);
+    __ mv(kCArgRegs[5], parameter_slots_size);
     __ mv(kCArgRegs[3], gap);
     __ mv(kCArgRegs[1], sp);
     __ SubWord(kCArgRegs[2], frame_base, kCArgRegs[1]);
@@ -3609,8 +3619,8 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(kCArgRegs[3]);
     __ li(kCArgRegs[0], ER::isolate_address());
-    __ PrepareCallCFunction(5, kScratchReg);
-    __ CallCFunction(ER::wasm_grow_stack(), 5);
+    __ PrepareCallCFunction(6, kScratchReg);
+    __ CallCFunction(ER::wasm_grow_stack(), 6);
     __ Pop(gap);
     DCHECK_NE(kReturnRegister0, gap);
   }
@@ -3627,13 +3637,6 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
   }
   SwitchSimulatorStackLimit(masm);
   __ mv(sp, kReturnRegister0);
-  {
-    UseScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ li(scratch, StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START));
-    __ StoreWord(scratch,
-                 MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
-  }
   __ Ret();
 
   __ bind(&call_runtime);
@@ -3653,6 +3656,44 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     __ LeaveFrame(StackFrame::INTERNAL);
     __ Ret();
   }
+}
+
+void Builtins::Generate_WasmReturnFromSegment(MacroAssembler* masm) {
+  RegList gp_saves;
+  for (Register r : wasm::kGpReturnRegisters) gp_saves.set(r);
+  DoubleRegList fp_saves;
+  for (DoubleRegister r : wasm::kFpReturnRegisters) fp_saves.set(r);
+  Simd128RegList simd_saves;
+  for (Simd128Register r : wasm::kSimd128ReturnRegisters) {
+    simd_saves.set(VRegister::from_code(r.code()));
+  }
+
+  __ PushAll(gp_saves);
+  __ SaveVectorRegisters(simd_saves);
+  __ PushAll(fp_saves);
+
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    int saved_size = gp_saves.Count() * kSystemPointerSize +
+                     simd_saves.Count() * kSimd128Size +
+                     fp_saves.Count() * kDoubleSize;
+    __ li(kCArgRegs[0], ExternalReference::isolate_address());
+    __ AddWord(kCArgRegs[1], sp, Operand(saved_size));
+    __ PrepareCallCFunction(2, kScratchReg);
+    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 2);
+  }
+  __ mv(fp, kReturnRegister0);
+
+  __ PopAll(fp_saves);
+  __ RestoreVectorRegisters(simd_saves);
+  __ PopAll(gp_saves);
+
+  __ Move(sp, fp);
+  __ LoadWord(ra, MemOperand(fp, CommonFrameConstants::kCallerPCOffset));
+  __ LoadWord(fp, MemOperand(fp, CommonFrameConstants::kCallerFPOffset));
+  __ AddWord(sp, sp, Operand(CommonFrameConstants::kFixedFrameSizeAboveFp));
+  SwitchSimulatorStackLimit(masm);
+  __ Ret();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -3820,6 +3861,12 @@ void Builtins::Generate_WasmTrapHandlerLandingPad(MacroAssembler* masm) {
   // position of the faulty memory access, however, is recorded at the fault
   // address. Therefore the stack trace code would not find the source position
   // if we used the fault address as the return address.
+  // Push MessageTemplate::kNone as trap reason for WasmTrapHandlerThrowTrap;
+  // the runtime will determine the actual trap reason from the trapping
+  // instruction.
+  static_assert(Smi::FromInt(static_cast<int>(MessageTemplate::kNone)).ptr() ==
+                0);
+  __ Push(zero_reg);
   __ AddWord(ra, kWasmTrapHandlerFaultAddressRegister, 1);
   __ TailCallBuiltin(Builtin::kWasmTrapHandlerThrowTrap);
 }
@@ -3977,10 +4024,8 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
       parent,
       FieldMemOperand(suspender, offsetof(WasmSuspenderObject, parent_)));
   DEFINE_REG(target_stack);
-  __ LoadExternalPointerField(
-      target_stack,
-      FieldMemOperand(parent, offsetof(WasmSuspenderObject, stack_)),
-      kWasmStackMemoryTag);
+  __ LoadWord(target_stack,
+              FieldMemOperand(parent, offsetof(WasmSuspenderObject, stack_)));
 
   SwitchStacks(masm, ExternalReference::wasm_suspend_stack(), target_stack,
                &resume, no_reg, scratch, {target_stack, suspender, parent});
@@ -4054,10 +4099,9 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // Call the C function.
   // -------------------------------------------
   DEFINE_REG(target_stack);
-  __ LoadExternalPointerField(
+  __ LoadWord(
       target_stack,
-      FieldMemOperand(suspender, offsetof(WasmSuspenderObject, stack_)),
-      kWasmStackMemoryTag);
+      FieldMemOperand(suspender, offsetof(WasmSuspenderObject, stack_)));
 
   SwitchStacks(masm, ExternalReference::wasm_resume_jspi_stack(), target_stack,
                &suspend, suspender, scratch, {target_stack});
@@ -4362,9 +4406,8 @@ void SwitchToAllocatedStack(MacroAssembler* masm, RegisterAllocator& regs,
   DEFINE_SCOPED(scratch)
   DEFINE_REG(stack)
   __ LoadRootRelative(stack, IsolateData::active_suspender_offset());
-  __ LoadExternalPointerField(
-      stack, FieldMemOperand(stack, offsetof(WasmSuspenderObject, stack_)),
-      kWasmStackMemoryTag);
+  __ LoadWord(stack,
+              FieldMemOperand(stack, offsetof(WasmSuspenderObject, stack_)));
   SwitchStacks(masm, ExternalReference::wasm_start_stack(), stack, suspend,
                no_reg, scratch, {wasm_instance, wrapper_buffer});
   FREE_REG(stack);
@@ -4529,7 +4572,14 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
 
 void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   bool stack_switch = mode == wasm::kPromise || mode == wasm::kStressSwitch;
+  Label stack_overflow;
   auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
+
+  // The first GP parameter holds the trusted instance data or the import data.
+  // This is handled specially.
+  constexpr int stack_params_offset =
+      (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
+      arraysize(wasm::kFpParamRegisters) * kDoubleSize;
 
   __ EnterFrame(stack_switch ? StackFrame::WASM_JSPI : StackFrame::JS_TO_WASM);
 
@@ -4575,16 +4625,61 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
                      JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
       __ StoreWord(scratch,
                    MemOperand(fp, WasmJspiFrameConstants::kResultArrayOffset));
+      __ StoreWord(
+          zero_reg,
+          MemOperand(fp, WasmJspiFrameConstants::kGCScanSlotCountOffset));
     }
   }
   {
-    DEFINE_SCOPED(result_size);
+    DEFINE_SCOPED(return_space);
+    // Calculate the stack space required for return values (in bytes).
     __ LoadWord(
-        result_size,
+        return_space,
         MemOperand(wrapper_buffer, JSToWasmWrapperFrameConstants::
                                        kWrapperBufferStackReturnBufferSize));
-    __ SllWord(result_size, result_size, kSystemPointerSizeLog2);
-    __ SubWord(sp, sp, Operand(result_size));
+    __ SllWord(return_space, return_space, kSystemPointerSizeLog2);
+
+    // Preemptive Stack Overflow Check:
+    // Before allocating stack space for return values or pushing stack
+    // parameters (which could blindly overflow past the real stack limit,
+    // triggering DCHECK failures or crashes due to stack overflow), we
+    // calculate the total upcoming stack footprint and check if it fits.
+    {
+      // LocationAllocatorForParams reserves a fixed-size region of
+      // `stack_params_offset` bytes at `[params_start, params_start +
+      // stack_params_offset)` for all GP and FP register parameters (even if
+      // unused), and places stack parameters starting at `params_start +
+      // stack_params_offset`. Thus `params_end - params_start -
+      // stack_params_offset` is the exact stack parameter size (>= 0).
+      DEFINE_SCOPED(total_space);
+      __ LoadWord(
+          total_space,
+          MemOperand(wrapper_buffer,
+                     JSToWasmWrapperFrameConstants::kWrapperBufferParamEnd));
+      DEFINE_SCOPED(params_start);
+      __ LoadWord(
+          params_start,
+          MemOperand(wrapper_buffer,
+                     JSToWasmWrapperFrameConstants::kWrapperBufferParamStart));
+      __ SubWord(total_space, total_space, params_start);
+      __ SubWord(total_space, total_space, stack_params_offset);
+      __ AddWord(total_space, total_space, return_space);
+
+      // Compare sp - total_space with the real stack limit.
+      // Note: sp - total_space will not underflow because sp is a valid stack
+      // pointer (far above 0) and total_space is bounded by Wasm limits (~tens
+      // of KiB). Thus, the unsigned comparison against the real stack limit is
+      // safe.
+      Register hypothetical_sp = total_space;
+      __ SubWord(hypothetical_sp, sp, total_space);
+
+      DEFINE_SCOPED(stack_limit);
+      __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
+      __ Branch(&stack_overflow, ult, hypothetical_sp, Operand(stack_limit));
+    }
+
+    // Allocate stack space for return values.
+    __ SubWord(sp, sp, Operand(return_space));
   }
 
   __ StoreWord(
@@ -4599,12 +4694,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   for (auto reg : wasm::kGpParamRegisters) {
     regs.Reserve(reg);
   }
-
-  // The first GP parameter holds the trusted instance data or the import data.
-  // This is handled specially.
-  int stack_params_offset =
-      (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
-      arraysize(wasm::kFpParamRegisters) * kDoubleSize;
 
   {
     DEFINE_SCOPED(params_start);
@@ -4659,8 +4748,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
     DCHECK_EQ(next_offset, stack_params_offset);
   }
 
-  __ StoreWord(zero_reg,
-               MemOperand(fp, WasmJspiFrameConstants::kGCScanSlotCountOffset));
   {
     DEFINE_SCOPED(call_target);
     __ LoadWasmCodePointer(
@@ -4746,6 +4833,23 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   if (mode == wasm::kPromise) {
     GenerateExceptionHandlingLandingPad(masm, regs, &return_promise);
   }
+
+  // OOL code for handling stack overflow.
+  __ bind(&stack_overflow);
+  if (stack_switch) {
+    __ LoadWord(kContextRegister,
+                MemOperand(fp, WasmJspiFrameConstants::kImplicitArgOffset));
+  } else {
+    __ LoadWord(
+        kContextRegister,
+        MemOperand(fp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
+  }
+  {
+    UseScratchRegisterScope temps(masm);
+    GetContextFromImplicitArg(masm, kContextRegister, temps.Acquire());
+  }
+  __ CallRuntime(Runtime::kThrowStackOverflow);
+  __ Trap();
 }
 }  // namespace
 

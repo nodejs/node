@@ -294,9 +294,9 @@ Heap* Heap::FromWritableHeapObject(Tagged<HeapObject> obj) {
   return heap;
 }
 
-void Heap::CopyBlock(Address dst, Address src, size_t byte_size) {
-  DCHECK(IsAligned(byte_size, kTaggedSize));
-  CopyTagged(dst, src, byte_size / kTaggedSize);
+void Heap::CopyBlock(Address dst, Address src, SafeHeapObjectSize byte_size) {
+  DCHECK(IsAligned(byte_size.value(), kTaggedSize));
+  CopyTagged(dst, src, byte_size.value() / kTaggedSize);
 }
 
 bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {

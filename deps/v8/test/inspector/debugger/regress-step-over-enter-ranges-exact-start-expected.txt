@@ -1,0 +1,2 @@
+Tests Debugger.stepOver with enterRanges starting exactly at the function start position.
+Paused in outlinedPart

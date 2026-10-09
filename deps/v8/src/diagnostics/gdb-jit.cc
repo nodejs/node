@@ -28,7 +28,7 @@
 #include "src/objects/code-inl.h"
 #include "src/objects/objects.h"
 #include "src/utils/ostreams.h"
-#include "src/zone/zone-chunk-list.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -579,7 +579,7 @@ class MachO {
     cmd->filesize = w->position() - (uintptr_t)cmd->fileoff;
   }
 
-  ZoneChunkList<MachOSection*> sections_;
+  ZoneVector<MachOSection*> sections_;
 };
 #endif  // defined(__MACH_O)
 
@@ -597,7 +597,7 @@ class ELF {
     WriteSections(w);
   }
 
-  ELFSection* SectionAt(uint32_t index) { return *sections_.Find(index); }
+  ELFSection* SectionAt(uint32_t index) { return sections_[index]; }
 
   size_t AddSection(ELFSection* section) {
     sections_.push_back(section);
@@ -715,7 +715,7 @@ class ELF {
     }
   }
 
-  ZoneChunkList<ELFSection*> sections_;
+  ZoneVector<ELFSection*> sections_;
 };
 
 class ELFSymbol {
@@ -855,7 +855,7 @@ class ELFSymbolTable : public ELFSection {
   }
 
  private:
-  void WriteSymbolsList(const ZoneChunkList<ELFSymbol>* src,
+  void WriteSymbolsList(const ZoneVector<ELFSymbol>* src,
                         Writer::Slot<ELFSymbol::SerializedLayout> dst,
                         ELFStringTable* strtab) {
     int i = 0;
@@ -864,8 +864,8 @@ class ELFSymbolTable : public ELFSection {
     }
   }
 
-  ZoneChunkList<ELFSymbol> locals_;
-  ZoneChunkList<ELFSymbol> globals_;
+  ZoneVector<ELFSymbol> locals_;
+  ZoneVector<ELFSymbol> globals_;
 };
 #endif  // defined(__ELF)
 

@@ -126,9 +126,11 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
   // An ArrayBuffer with a size greater than zero is never empty.
   inline bool IsEmpty() const;
 
-  inline Tagged<MaybeObject> views_or_detach_key() const;
+  inline Tagged<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>>
+  views_or_detach_key() const;
   inline void set_views_or_detach_key(
-      Tagged<MaybeObject> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+      Tagged<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<MaybeObject> views() const;
   inline void set_views(Tagged<MaybeObject> value,
@@ -189,17 +191,6 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
   V8_EXPORT_PRIVATE ArrayBufferExtension* CreateExtension(
       Isolate* isolate, std::shared_ptr<BackingStore> backing_store);
 
-  //
-  // Serializer/deserializer support.
-  //
-
-  // Backing stores are serialized/deserialized separately. During serialization
-  // the backing store reference is stored in the backing store field and upon
-  // deserialization it is converted back to actual external (off-heap) pointer
-  // value.
-  inline uint32_t GetBackingStoreRefForDeserialization() const;
-  inline void SetBackingStoreRefForSerialization(uint32_t ref);
-
   // Dispatched behavior.
   DECL_PRINTER(JSArrayBuffer)
   DECL_VERIFIER(JSArrayBuffer)
@@ -249,12 +240,13 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
 #endif  // V8_COMPRESS_POINTERS
 
  public:
-  TaggedMember<MaybeObject> views_or_detach_key_;
+  TaggedMember<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>>
+      views_or_detach_key_;
   UnalignedValueMember<uintptr_t> raw_byte_length_;
   UnalignedValueMember<uintptr_t> raw_max_byte_length_;
   UnalignedValueMember<Address> backing_store_;
   ExternalPointerMember<kArrayBufferExtensionTag> extension_;
-  uint32_t bit_field_;
+  uint32_t bit_field_ V8_TQ_TYPE(JSArrayBufferFlags);
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
@@ -476,7 +468,7 @@ V8_OBJECT class JSArrayBufferView : public JSAPIObjectWithEmbedderSlots {
 
  public:
   TaggedMember<JSArrayBuffer> buffer_;
-  uint32_t bit_field_;
+  uint32_t bit_field_ V8_TQ_TYPE(JSArrayBufferViewFlags);
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
@@ -506,8 +498,8 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
 
   // [base_pointer]: the ByteArray containing the backing store, if it is
   // on-heap, or Smi::zero() if it is off-heap.
-  inline Tagged<Object> base_pointer() const;
-  inline Tagged<Object> base_pointer(AcquireLoadTag) const;
+  inline Tagged<UnionOf<ByteArray, Smi>> base_pointer() const;
+  inline Tagged<UnionOf<ByteArray, Smi>> base_pointer(AcquireLoadTag) const;
 
   // ES6 9.4.5.3
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
@@ -564,20 +556,8 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
   // Serializer/deserializer support.
   //
 
-  // External backing stores are serialized/deserialized separately.
-  // During serialization the backing store reference is stored in the typed
-  // array object and upon deserialization it is converted back to actual
-  // external (off-heap) pointer value.
-  // The backing store reference is stored in the external_pointer field.
-  inline uint32_t GetExternalBackingStoreRefForDeserialization() const;
-  inline void SetExternalBackingStoreRefForSerialization(uint32_t ref);
-
-  // Subtracts external pointer compensation from the external pointer value.
-  inline void RemoveExternalPointerCompensationForSerialization(
-      Isolate* isolate);
-  // Adds external pointer compensation to the external pointer value.
-  inline void AddExternalPointerCompensationForDeserialization(
-      Isolate* isolate);
+  // Initializes the external pointer value for on-heap typed arrays.
+  inline void InitOnHeapDataPtrAfterDeserialization(Isolate* isolate);
 
   static inline MaybeDirectHandle<JSTypedArray> Validate(
       Isolate* isolate, DirectHandle<Object> receiver, const char* method_name,
@@ -604,17 +584,16 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
       v8::ArrayBufferView::kEmbedderFieldCount > 0;
 
  private:
-  template <typename IsolateT>
-  friend class Deserializer;
   friend class Factory;
 
   inline void set_length(size_t value);
   inline Address external_pointer() const;
   inline Address external_pointer(PtrComprCageBase cage_base) const;
 
-  inline void set_base_pointer(Tagged<Object> value,
+  inline void set_base_pointer(Tagged<UnionOf<ByteArray, Smi>> value,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set_base_pointer(Tagged<Object> value, ReleaseStoreTag,
+  inline void set_base_pointer(Tagged<UnionOf<ByteArray, Smi>> value,
+                               ReleaseStoreTag,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline void set_external_pointer(Isolate* isolate, Address value);
@@ -622,7 +601,7 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
  public:
   UnalignedValueMember<uintptr_t> raw_length_;
   UnalignedValueMember<Address> external_pointer_;
-  TaggedMember<Object> base_pointer_;
+  TaggedMember<UnionOf<ByteArray, Smi>> base_pointer_;
 } V8_OBJECT_END;
 
 inline constexpr int JSTypedArray::kHeaderSize = sizeof(JSTypedArray);

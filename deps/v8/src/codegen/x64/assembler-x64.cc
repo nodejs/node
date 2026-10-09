@@ -4417,6 +4417,7 @@ void Assembler::rorxl(Register dst, Operand src, uint8_t imm8) {
 }
 
 void Assembler::pause() {
+  EnsureSpace ensure_space(this);
   emit(0xF3);
   emit(0x90);
 }

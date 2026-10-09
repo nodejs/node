@@ -301,7 +301,7 @@ class MergePointInterpreterFrameState {
       const MaglevCompilationUnit& info, const InterpreterFrameState& state,
       int merge_offset, int predecessor_count, BasicBlock* predecessor,
       const compiler::BytecodeLivenessState* liveness,
-      compiler::OptionalScopeInfoRef context_scope_info);
+      ContextScopeInfo context_scope_info);
 
   static LoopMergePointInterpreterFrameState* NewForLoop(
       const MaglevCompilationUnit& info, bool is_inline, Graph* graph,
@@ -313,31 +313,29 @@ class MergePointInterpreterFrameState {
       const MaglevCompilationUnit& unit,
       const compiler::BytecodeLivenessState* liveness, int handler_offset,
       bool was_used, interpreter::Register context_register, Graph* graph,
-      compiler::OptionalScopeInfoRef context_scope_info);
+      ContextScopeInfo context_scope_info);
 
   static MergePointInterpreterFrameState* NewForPeel(
       const MaglevCompilationUnit& info,
       const MergePointInterpreterFrameState& template_state,
       BasicBlock** predecessors, int predecessor_count);
 
-  compiler::OptionalScopeInfoRef context_scope_info() const {
-    return context_scope_info_;
-  }
+  ContextScopeInfo context_scope_info() const { return context_scope_info_; }
   bool has_context_scope_info() const {
     return context_scope_info_.has_value();
   }
-  void set_context_scope_info(compiler::OptionalScopeInfoRef scope_info);
+  void set_context_scope_info(ContextScopeInfo scope_info);
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
   void Merge(Graph* graph, bool is_tracing,
              MaglevCompilationUnit& compilation_unit,
              InterpreterFrameState& unmerged, BasicBlock* predecessor,
-             compiler::OptionalScopeInfoRef context_scope_info);
+             ContextScopeInfo context_scope_info);
   void InitializeLoop(Graph* graph, bool is_tracing,
                       MaglevCompilationUnit& compilation_unit,
                       InterpreterFrameState& unmerged, BasicBlock* predecessor,
-                      compiler::OptionalScopeInfoRef context_scope_info,
+                      ContextScopeInfo context_scope_info,
                       bool optimistic_initial_state = false,
                       LoopEffects* loop_effects = nullptr);
   void InitializeWithBasicBlock(BasicBlock* current_block);
@@ -389,7 +387,7 @@ class MergePointInterpreterFrameState {
     clear_is_loop();
   }
 
-  void RemovePredecessorAt(int predecessor_id);
+  V8_EXPORT_PRIVATE void RemovePredecessorAt(int predecessor_id);
 
   // Returns and clears the known node aspects on this state. Expects to only
   // ever be called once, when starting a basic block with this state.
@@ -410,6 +408,19 @@ class MergePointInterpreterFrameState {
       known_node_aspects_ = known_node_aspects.Clone(zone);
     } else {
       known_node_aspects_->Merge(known_node_aspects, zone);
+    }
+  }
+
+  // Adopts or merges `known_node_aspects`, and nulls it out to guarantee
+  // it is not reused by the caller.
+  void MergeNodeAspects(Zone* zone, KnownNodeAspects** known_node_aspects) {
+    DCHECK_NOT_NULL(known_node_aspects);
+    KnownNodeAspects* source = std::exchange(*known_node_aspects, nullptr);
+    DCHECK_NOT_NULL(source);
+    if (!known_node_aspects_) {
+      known_node_aspects_ = source;
+    } else {
+      known_node_aspects_->Merge(*source, zone);
     }
   }
 
@@ -550,7 +561,7 @@ class MergePointInterpreterFrameState {
       const MaglevCompilationUnit& info, int merge_offset,
       int predecessor_count, int predecessors_so_far, BasicBlock** predecessors,
       BasicBlockType type, const compiler::BytecodeLivenessState* liveness,
-      compiler::OptionalScopeInfoRef context_scope_info);
+      ContextScopeInfo context_scope_info);
 
   void MergeLoopValue(Graph* graph, bool is_tracing,
                       interpreter::Register owner,
@@ -569,7 +580,7 @@ class MergePointInterpreterFrameState {
                         Alternatives::List* per_predecessor_alternatives,
                         bool optimistic_loop_phis = false);
 
-  void ReducePhiPredecessorCount(unsigned num);
+  V8_EXPORT_PRIVATE void ReducePhiPredecessorCount(unsigned num);
 
   void MergeVirtualObjects(Graph* graph, bool is_tracing,
                            const MaglevCompilationUnit& compilation_unit,
@@ -609,7 +620,7 @@ class MergePointInterpreterFrameState {
   CompactInterpreterFrameState frame_state_;
 
   KnownNodeAspects* known_node_aspects_ = nullptr;
-  compiler::OptionalScopeInfoRef context_scope_info_;
+  ContextScopeInfo context_scope_info_;
 
   union {
     // {pre_predecessor_alternatives_} is used to keep track of the alternatives
@@ -651,6 +662,16 @@ class LoopMergePointInterpreterFrameState final
   }
   const LoopEffects* loop_effects() const { return loop_effects_; }
 
+  void InitializeLoopEffectEpoch(const KnownNodeAspects& aspects) {
+    loop_header_effect_epoch_ = aspects.effect_epoch_;
+  }
+  bool loop_has_effects() const {
+    return loop_header_effect_epoch_ ==
+               KnownNodeAspects::kEffectEpochOverflow ||
+           loop_header_effect_epoch_ !=
+               backedge_known_node_aspects()->effect_epoch_;
+  }
+
   DeoptFrame* backedge_deopt_frame() const { return backedge_deopt_frame_; }
 
   KnownNodeAspects* backedge_known_node_aspects() const {
@@ -674,6 +695,7 @@ class LoopMergePointInterpreterFrameState final
   const LoopEffects* loop_effects_ = nullptr;
   // The KNA from the backedge (end of the loop).
   KnownNodeAspects* backedge_known_node_aspects_ = nullptr;
+  uint32_t loop_header_effect_epoch_ = KnownNodeAspects::kEffectEpochOverflow;
   // The deopt frame for the backedge, in case we want to insert a deopting
   // conversion during phi untagging. It is set when visiting the JumpLoop.
   DeoptFrame* backedge_deopt_frame_ = nullptr;
@@ -694,8 +716,8 @@ MergePointInterpreterFrameState::AsLoopHeader() const {
 #if V8_HOST_ARCH_64_BIT
 // These asserts only exist to avoid accidentally bloating the merge states;
 // the sizes can be increased if more fields are actually needed.
-static_assert(sizeof(MergePointInterpreterFrameState) == 96);
-static_assert(sizeof(LoopMergePointInterpreterFrameState) == 120);
+static_assert(sizeof(MergePointInterpreterFrameState) == 104);
+static_assert(sizeof(LoopMergePointInterpreterFrameState) == 136);
 #endif
 
 struct LoopEffects {

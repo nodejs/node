@@ -7,7 +7,7 @@
 #include "json_platform.h"
 
 #include <cmath>
-#include "../../../src/base/vector.h"
+#include "../../../src/base/unique-array.h"
 #include "../../../src/numbers/conversions.h"
 
 namespace v8_crdtp {
@@ -22,7 +22,7 @@ bool StrToD(const char* str, double* result) {
 
 // Prints |value| in a format suitable for JSON.
 std::string DToStr(double value) {
-  auto buffer = v8::base::OwnedVector<char>::NewForOverwrite(
+  auto buffer = v8::base::UniqueArray<char>::NewForOverwrite(
       v8::internal::kDoubleToStringMinBufferSize);
   return std::string(
       v8::internal::DoubleToStringView(value, buffer.as_vector()));

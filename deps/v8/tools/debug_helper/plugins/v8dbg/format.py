@@ -21,11 +21,23 @@ def format_frame_location(annotation):
   return location
 
 
-def format_frame_trailer(receiver, argc):
-  """Format the " (this=0x..., argc=N)" frame trailer, or "" without one."""
+def format_frame_trailer(receiver, argc, arg_previews=None):
+  """Format the frame trailer as " (this=0x..., ...)" or an empty string.
+
+  If `arg_previews` is given, the trailer lists them and adds a
+  "... (argc=N)" tail when the frame has more arguments. Without previews,
+  it prints " (this=0x..., argc=N)".
+  """
   if receiver is None:
     return ""
-  return f" (this=0x{receiver:x}, argc={argc})"
+  parts = [f"this=0x{receiver:x}"]
+  if arg_previews is None:
+    parts.append(f"argc={argc if argc is not None else '?'}")
+  else:
+    parts.extend(f"[{i}]={preview}" for i, preview in enumerate(arg_previews))
+    if argc is not None and argc > len(arg_previews):
+      parts.append(f"... (argc={argc})")
+  return " (" + ", ".join(parts) + ")"
 
 
 def render_function_span(info, label, max_lines):

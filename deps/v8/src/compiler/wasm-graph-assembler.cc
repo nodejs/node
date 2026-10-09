@@ -495,12 +495,13 @@ Node* WasmGraphAssembler::FieldOffset(const wasm::StructType* type,
 }
 
 Node* WasmGraphAssembler::WasmArrayElementOffset(Node* index,
-                                                 wasm::ValueType element_type) {
+                                                 const wasm::ArrayType* type) {
   Node* index_intptr =
       mcgraph()->machine()->Is64() ? ChangeInt32ToInt64(index) : index;
   return IntAdd(
-      IntPtrConstant(WasmArray::kHeaderSize - kHeapObjectTag),
-      IntMul(index_intptr, IntPtrConstant(element_type.value_kind_size())));
+      IntPtrConstant(WasmArray::HeaderSize(type->is_shared()) - kHeapObjectTag),
+      IntMul(index_intptr,
+             IntPtrConstant(type->element_type().value_kind_size())));
 }
 
 Node* WasmGraphAssembler::IsDataRefMap(Node* map) {

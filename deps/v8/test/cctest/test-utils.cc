@@ -31,6 +31,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/bit-field.h"
+#include "src/base/unique-array.h"
 #include "src/numbers/conversions.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/collector.h"
@@ -102,9 +103,8 @@ TEST(BitSetComputer) {
   const int words = 750;
   CHECK_EQ(words, TwoBits::word_count(3000));
   const int offset = 10;
-  base::Vector<unsigned char> buffer =
-      base::Vector<unsigned char>::New(offset + words);
-  memset(buffer.begin(), 0, sizeof(unsigned char) * buffer.length());
+  base::UniqueArray<unsigned char> buffer =
+      base::UniqueArray<unsigned char>::New(offset + words);
   for (int i = 0; i < words; i++) {
     const int index = TwoBits::index(offset, i);
     unsigned char data = buffer[index];
@@ -117,7 +117,6 @@ TEST(BitSetComputer) {
     unsigned char data = buffer[index];
     CHECK_EQ(i % 4, TwoBits::decode(data, i));
   }
-  buffer.Dispose();
 }
 
 
@@ -128,7 +127,8 @@ TEST(SNPrintF) {
   int length = static_cast<int>(strlen(s));
   for (int i = 1; i < length * 2; i++) {
     static const char kMarker = static_cast<char>(42);
-    base::Vector<char> buffer = base::Vector<char>::New(i + 1);
+    base::UniqueArray<char> buffer =
+        base::UniqueArray<char>::NewForOverwrite(i + 1);
     buffer[i] = kMarker;
     int n = SNPrintF(base::Vector<char>(buffer.begin(), i), "%s", s);
     CHECK(n <= i);
@@ -140,7 +140,6 @@ TEST(SNPrintF) {
     } else {
       CHECK_EQ(length, strlen(buffer.begin()));
     }
-    buffer.Dispose();
   }
 }
 
@@ -201,8 +200,8 @@ TEST(Collector) {
       block[i] = i * 7;
     }
   }
-  base::Vector<int> result = collector.ToVector();
-  CHECK_EQ(kLoops * (kBlockSize + kSequentialSize), result.length());
+  base::UniqueArray<int> result = collector.ToVector();
+  CHECK_EQ(kLoops * (kBlockSize + kSequentialSize), result.size());
   for (int i = 0; i < kLoops; i++) {
     int offset = i * (kSequentialSize + kBlockSize);
     for (int j = 0; j < kBlockSize - 1; j++) {
@@ -213,7 +212,6 @@ TEST(Collector) {
       CHECK_EQ(j, result[offset + kBlockSize + j]);
     }
   }
-  result.Dispose();
 }
 
 
@@ -221,7 +219,7 @@ TEST(SequenceCollector) {
   SequenceCollector<int> collector(8);
   const int kLoops = 5000;
   const int kMaxSequenceSize = 13;
-  int total_length = 0;
+  size_t total_length = 0;
   for (int loop = 0; loop < kLoops; loop++) {
     int seq_length = loop % kMaxSequenceSize;
     collector.StartSequence();
@@ -234,8 +232,8 @@ TEST(SequenceCollector) {
     }
     total_length += seq_length;
   }
-  base::Vector<int> result = collector.ToVector();
-  CHECK_EQ(total_length, result.length());
+  base::UniqueArray<int> result = collector.ToVector();
+  CHECK_EQ(total_length, result.size());
   int offset = 0;
   for (int loop = 0; loop < kLoops; loop++) {
     int seq_length = loop % kMaxSequenceSize;
@@ -244,7 +242,6 @@ TEST(SequenceCollector) {
       offset++;
     }
   }
-  result.Dispose();
 }
 
 

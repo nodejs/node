@@ -16,6 +16,7 @@
 
 #include <cstddef>
 #include <iomanip>
+#include <ios>
 #include <iterator>
 #include <limits>
 #include <sstream>

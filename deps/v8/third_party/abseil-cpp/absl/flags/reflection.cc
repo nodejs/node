@@ -17,12 +17,18 @@
 
 #include <assert.h>
 
+#include <algorithm>
 #include <atomic>
+#include <cstdlib>
+#include <functional>
+#include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/base/config.h"
 #include "absl/base/no_destructor.h"
+#include "absl/base/nullability.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/flags/commandlineflag.h"
@@ -334,7 +340,8 @@ class FlagSaverImpl {
 
 }  // namespace flags_internal
 
-FlagSaver::FlagSaver() : impl_(new flags_internal::FlagSaverImpl) {
+FlagSaver::FlagSaver()
+    : impl_(std::make_unique<flags_internal::FlagSaverImpl>()) {
   impl_->SaveFromRegistry();
 }
 
@@ -342,12 +349,11 @@ FlagSaver::~FlagSaver() {
   if (!impl_) return;
 
   std::move(*impl_).RestoreToRegistry();
-  delete impl_;
 }
 
 // --------------------------------------------------------------------
 
-CommandLineFlag* FindCommandLineFlag(absl::string_view name) {
+CommandLineFlag* absl_nullable FindCommandLineFlag(absl::string_view name) {
   if (name.empty()) return nullptr;
   flags_internal::FlagRegistry& registry =
       flags_internal::FlagRegistry::GlobalRegistry();
@@ -356,7 +362,8 @@ CommandLineFlag* FindCommandLineFlag(absl::string_view name) {
 
 // --------------------------------------------------------------------
 
-absl::flat_hash_map<absl::string_view, absl::CommandLineFlag*> GetAllFlags() {
+absl::flat_hash_map<absl::string_view, absl::CommandLineFlag* absl_nonnull>
+GetAllFlags() {
   absl::flat_hash_map<absl::string_view, absl::CommandLineFlag*> res;
   flags_internal::ForEachFlag([&](CommandLineFlag& flag) {
     if (!flag.IsRetired()) res.insert({flag.Name(), &flag});

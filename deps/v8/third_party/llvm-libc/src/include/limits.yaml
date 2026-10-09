@@ -90,6 +90,8 @@ macros:
     macro_header: limits-macros.h
   - macro_name: SSIZE_MAX
     macro_header: limits-macros.h
+  - macro_name: NZERO
+    macro_header: limits-macros.h
 types: []
 enums: []
 objects: []

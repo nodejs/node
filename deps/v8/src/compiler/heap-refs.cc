@@ -9,6 +9,7 @@
 #include "src/base/logging.h"
 #include "src/base/sanitizer/tsan.h"
 #include "src/common/globals.h"
+#include "src/common/scoped-modification.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/heap-object.h"
@@ -507,7 +508,7 @@ class JSFunctionData : public JSObjectData {
                  InstanceType instance_type, IndirectHandle<JSFunction> object,
                  ObjectDataKind kind)
       : JSObjectData(broker, storage, instance_type, object, kind) {
-    Cache(broker);
+    broker->AddToJSFunctionCacheWorklist(this);
   }
 
   bool IsConsistentWithHeapState(JSHeapBroker* broker) const;
@@ -572,7 +573,13 @@ class JSFunctionData : public JSObjectData {
   void set_used_field(UsedField used_field) { used_fields_ |= used_field; }
 
  private:
+  friend class JSHeapBroker;
+
   void Cache(JSHeapBroker* broker);
+
+  // Only used while this data is queued for caching, see
+  // JSHeapBroker::DrainJSFunctionCacheWorklist.
+  JSFunctionData* next_in_cache_worklist_ = nullptr;
 
 #ifdef DEBUG
   bool serialized_ = false;
@@ -711,6 +718,11 @@ int InstanceSizeWithMinSlack(JSHeapBroker* broker, MapRef map) {
 }  // namespace
 
 // IMPORTANT: Keep this sync'd with JSFunctionData::IsConsistentWithHeapState.
+// IMPORTANT: This runs deferred (see
+// JSHeapBroker::DrainJSFunctionCacheWorklist) and must therefore not read
+// cached fields of another JSFunctionData, which may not be cached yet; the
+// DCHECKs in the accessors guard against that. Reading ObjectData kinds and
+// MapData is fine, both are complete once their constructor has run.
 void JSFunctionData::Cache(JSHeapBroker* broker) {
   DCHECK(!serialized_);
 
@@ -1235,7 +1247,32 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(IndirectHandle<Object> object,
   // At this point the entry pointer is not guaranteed to be valid as
   // the refs_ hash hable could be resized by one of the constructors above.
   DCHECK_EQ(object_data, refs_->Lookup(object.address())->value);
+
+  DrainJSFunctionCacheWorklist();
+
   return object_data;
+}
+
+void JSHeapBroker::AddToJSFunctionCacheWorklist(JSFunctionData* data) {
+  DCHECK_NULL(data->next_in_cache_worklist_);
+  data->next_in_cache_worklist_ = js_function_cache_worklist_;
+  js_function_cache_worklist_ = data;
+}
+
+void JSHeapBroker::DrainJSFunctionCacheWorklist() {
+  // Caching creates data for the function's prototype and thus reenters
+  // TryGetOrCreateData. Such nested calls just add to the worklist; the
+  // outermost call below drains it.
+  if (is_draining_js_function_cache_worklist_) return;
+  ScopedModification<bool> is_draining(&is_draining_js_function_cache_worklist_,
+                                       true);
+
+  while (js_function_cache_worklist_ != nullptr) {
+    JSFunctionData* data = js_function_cache_worklist_;
+    js_function_cache_worklist_ = data->next_in_cache_worklist_;
+    data->next_in_cache_worklist_ = nullptr;
+    data->Cache(this);
+  }
 }
 
 #define DEFINE_IS_AND_AS(Name)                                    \
@@ -2154,7 +2191,11 @@ bool ObjectRef::IsNull() const { return i::IsNull(*object()); }
 
 bool ObjectRef::IsUndefined() const { return i::IsUndefined(*object()); }
 
+bool ObjectRef::IsAnyHole() const { return i::IsAnyHole(*object()); }
+
 bool ObjectRef::IsTheHole() const { return i::IsTheHole(*object()); }
+
+bool ObjectRef::IsTdzHole() const { return i::IsTdzHole(*object()); }
 
 bool ObjectRef::IsPropertyCellHole() const {
   return i::IsPropertyCellHole(*object());
@@ -2764,7 +2805,7 @@ bool DataHandlerRef::IsFastProxyHandler() const {
       LoadHandler::Kind::kProxy) {
     return false;
   }
-  return data_field_count() >= LoadHandler::kProxyTrapMethodDataIndex;
+  return data_field_count() == LoadHandler::kProxyDataFieldCount;
 }
 
 #undef BIMODAL_ACCESSOR

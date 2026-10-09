@@ -40,7 +40,7 @@ assert_test_shadow_properties(test_shadow_properties());
 %OptimizeMaglevOnNextCall(test_shadow_properties);
 assert_test_shadow_properties(test_shadow_properties());
 assertOptimized(test_shadow_properties);
-assertTrue(isMaglevved(test_shadow_properties));
+assertMaglevved(test_shadow_properties);
 assert_test_shadow_properties(test_shadow_properties());
 %OptimizeFunctionOnNextCall(test_shadow_properties);
 assert_test_shadow_properties(test_shadow_properties());

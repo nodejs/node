@@ -455,6 +455,9 @@ class IsolateData final {
   // Boolean value indicating that DateCache is used (i.e. JSDate instances
   // were created in this Isolate).
   uint8_t is_date_cache_used_ = false;
+#ifdef V8_INTL_SUPPORT
+  uint8_t default_locale_may_require_special_case_mapping_ = true;
+#endif
 
   // Padding for aligning raw_arguments_.
   V8_NO_UNIQUE_ADDRESS uint8_t raw_arguments_padding_[kRawArgumentsPaddingSize];

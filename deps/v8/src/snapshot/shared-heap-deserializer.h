@@ -19,7 +19,9 @@ class SharedHeapDeserializer final : public Deserializer<Isolate> {
                                   const SnapshotData* shared_heap_data,
                                   bool can_rehash)
       : Deserializer(isolate, shared_heap_data->Payload(),
-                     shared_heap_data->GetMagicNumber(), false, can_rehash) {}
+                     /* trusted_payload */ {},
+                     shared_heap_data->GetMagicNumber(),
+                     /* deserializing_user_code */ false, can_rehash) {}
 
   // Depending on runtime flags, deserialize shared heap objects into the
   // Isolate.

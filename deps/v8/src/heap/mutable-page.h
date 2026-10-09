@@ -311,7 +311,7 @@ class MutablePage : public BasePage {
 
   heap::ListNode<MutablePage> list_node_;
 
-  FreeListCategory** categories_ = nullptr;
+  FreeListCategory* categories_ = nullptr;
 
   PossiblyEmptyBuckets possibly_empty_buckets_;
 

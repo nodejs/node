@@ -89,8 +89,11 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   auto dispatch_handle =
       UncheckedParameter<JSDispatchHandleT>(Descriptor::kJSDispatchHandle);
+  TNode<Uint16T> expected_parameter_count =
+      LoadParameterCountFromJSDispatchTable(dispatch_handle);
 #else
   auto dispatch_handle = InvalidDispatchHandleConstant();
+  TNode<Uint16T> expected_parameter_count = Uint16Constant(0);
 #endif
   auto function = Parameter<JSFunction>(Descriptor::kJSTarget);
 
@@ -116,7 +119,8 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
   TailCallJSCode(
       TrustedCast<Code>(
           code, "used in a call which will be checked via dispatch table"),
-      context, function, new_target, arg_count, dispatch_handle);
+      context, function, new_target, arg_count, dispatch_handle,
+      expected_parameter_count);
 }
 
 class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
@@ -861,9 +865,15 @@ class TSANRelaxedLoadCodeStubAssembler : public CodeStubAssembler {
   void GenerateTSANRelaxedLoad(SaveFPRegsMode fp_mode, int size) {
     TNode<ExternalReference> function = GetExternalReference(size);
     auto address = UncheckedParameter<IntPtrT>(TSANLoadDescriptor::kAddress);
+    auto shared_base =
+        UncheckedParameter<Object>(TSANLoadDescriptor::kSharedBase);
+    auto invoke_tsan_acquire =
+        UncheckedParameter<Int32T>(TSANLoadDescriptor::kInvokeTsanAcquire);
     CallCFunctionWithCallerSavedRegisters(
         function, MachineType::Int32(), fp_mode,
-        std::make_pair(MachineType::IntPtr(), address));
+        std::make_pair(MachineType::IntPtr(), address),
+        std::make_pair(MachineType::AnyTagged(), shared_base),
+        std::make_pair(MachineType::Int32(), invoke_tsan_acquire));
     Return(UndefinedConstant());
   }
 };
@@ -1257,13 +1267,13 @@ TF_BUILTIN(ForInEnumerate, CodeStubAssembler) {
 }
 
 TF_BUILTIN(ForInPrepare, CodeStubAssembler) {
-  // The {enumerator} is either a Map or a FixedArray.
+  // The {enumerator} is either a Map, a FixedArray, or a ForInEnumeratorHolder.
   auto enumerator = Parameter<HeapObject>(Descriptor::kEnumerator);
   auto index = Parameter<TaggedIndex>(Descriptor::kVectorIndex);
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
   TNode<UintPtrT> vector_index = Unsigned(TaggedIndexToIntPtr(index));
 
-  TNode<FixedArray> cache_array;
+  TNode<Union<FixedArray, ForInEnumeratorHolder>> cache_array;
   TNode<Smi> cache_length;
   ForInPrepare(enumerator, vector_index, feedback_vector, &cache_array,
                &cache_length, UpdateFeedbackMode::kGuaranteedFeedback);

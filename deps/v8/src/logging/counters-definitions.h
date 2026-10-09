@@ -80,6 +80,8 @@ namespace internal {
   /* Support for PKEYs/PKU by testing result of pkey_alloc(). */               \
   HR(wasm_memory_protection_keys_support, V8.WasmMemoryProtectionKeysSupport,  \
      0, 1, 2)                                                                  \
+  /* Support for AVX and AVX2 on x64 hardware. */                              \
+  HR(wasm_avx2_support, V8.WasmAvx2Support, 0, 1, 2)                           \
   /* Ticks observed in a single Turbofan compilation, in 1K. */                \
   HR(turbofan_ticks, V8.TurboFan1KTicks, 0, 100000, 200)                       \
   /* Backtracks observed in a single regexp interpreter execution. */          \
@@ -138,6 +140,18 @@ namespace internal {
   HT(compile_serialize, V8.CompileSerializeMicroSeconds, 100000, MICROSECOND) \
   HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,         \
      MICROSECOND)                                                             \
+  HT(compile_deserialize_module, V8.CompileDeserializeMicroSeconds.Module,    \
+     1000000, MICROSECOND)                                                    \
+  HT(compile_deserialize_classic, V8.CompileDeserializeMicroSeconds.Classic,  \
+     1000000, MICROSECOND)                                                    \
+  HT(compile_deserialize_main_thread,                                         \
+     V8.CompileDeserializeMicroSeconds.MainThread, 1000000, MICROSECOND)      \
+  HT(compile_deserialize_main_thread_module,                                  \
+     V8.CompileDeserializeMicroSeconds.MainThread.Module, 1000000,            \
+     MICROSECOND)                                                             \
+  HT(compile_deserialize_main_thread_classic,                                 \
+     V8.CompileDeserializeMicroSeconds.MainThread.Classic, 1000000,           \
+     MICROSECOND)                                                             \
   /* Snapshot. */                                                             \
   HT(snapshot_decompress, V8.SnapshotDecompressMicroSeconds, 1000000,         \
      MICROSECOND)                                                             \
@@ -149,7 +163,17 @@ namespace internal {
      1000000, MICROSECOND)                                                    \
   /* ... and also see compile_deserialize above. */                           \
   /* Total compilation time incl. caching/parsing. */                         \
-  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)
+  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)      \
+  HT(compile_script_module, V8.CompileScriptMicroSeconds.Module, 1000000,     \
+     MICROSECOND)                                                             \
+  HT(compile_script_classic, V8.CompileScriptMicroSeconds.Classic, 1000000,   \
+     MICROSECOND)                                                             \
+  HT(compile_script_main_thread, V8.CompileScriptMicroSeconds.MainThread,     \
+     1000000, MICROSECOND)                                                    \
+  HT(compile_script_main_thread_module,                                       \
+     V8.CompileScriptMicroSeconds.MainThread.Module, 1000000, MICROSECOND)    \
+  HT(compile_script_main_thread_classic,                                      \
+     V8.CompileScriptMicroSeconds.MainThread.Classic, 1000000, MICROSECOND)
 
 #define NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)                                \
   /* Total V8 time (including JS and runtime calls, exluding callbacks). */ \
@@ -305,11 +329,23 @@ namespace internal {
      V8.CompileScriptMicroSeconds.StreamingFinalization, 1000000, MICROSECOND) \
   HT(compile_script_on_background,                                             \
      V8.CompileScriptMicroSeconds.BackgroundThread, 1000000, MICROSECOND)      \
+  HT(compile_script_on_background_module,                                      \
+     V8.CompileScriptMicroSeconds.BackgroundThread.Module, 1000000,            \
+     MICROSECOND)                                                              \
+  HT(compile_script_on_background_classic,                                     \
+     V8.CompileScriptMicroSeconds.BackgroundThread.Classic, 1000000,           \
+     MICROSECOND)                                                              \
   HT(compile_function_on_background,                                           \
      V8.CompileFunctionMicroSeconds.BackgroundThread, 1000000, MICROSECOND)    \
   HT(deserialize_script_on_background,                                         \
      V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread, 1000000,      \
-     MICROSECOND)
+     MICROSECOND)                                                              \
+  HT(deserialize_script_on_background_module,                                  \
+     V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread.Module,        \
+     1000000, MICROSECOND)                                                     \
+  HT(deserialize_script_on_background_classic,                                 \
+     V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread.Classic,       \
+     1000000, MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)

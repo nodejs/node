@@ -24,6 +24,7 @@
 #include "include/v8-container.h"
 #include "include/v8-template.h"
 #include "src/api/api.h"
+#include "src/base/unique-array.h"
 
 namespace v8 {
 
@@ -608,7 +609,7 @@ void Shell::UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& info) {
   unsetenv(*var);
 }
 
-base::OwnedVector<char> Shell::ReadCharsFromTcpPort(const char* name) {
+base::UniqueArray<char> Shell::ReadCharsFromTcpPort(const char* name) {
   DCHECK_GE(Shell::options.read_from_tcp_port, 0);
 
   int sockfd = socket(PF_INET, SOCK_STREAM, 0);
@@ -688,25 +689,24 @@ base::OwnedVector<char> Shell::ReadCharsFromTcpPort(const char* name) {
   }
 
   // Allocate the output array.
-  char* chars = new char[file_length];
+  auto chars = base::UniqueArray<char>::NewForOverwrite(file_length);
 
   // Now keep receiving and copying until the whole file is received.
   ssize_t total_received = 0;
   while (total_received < file_length) {
-    received =
-        recv(sockfd, chars + total_received, file_length - total_received, 0);
+    received = recv(sockfd, chars.data() + total_received,
+                    file_length - total_received, 0);
     if (received < 0) {
       fprintf(stderr, "Failed to receive %s from localhost:%d\n", name,
               Shell::options.read_from_tcp_port.get());
       close(sockfd);
-      delete[] chars;
       return {};
     }
     total_received += received;
   }
 
   close(sockfd);
-  return base::OwnedVector<char>(std::unique_ptr<char[]>(chars), file_length);
+  return chars;
 }
 
 void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {

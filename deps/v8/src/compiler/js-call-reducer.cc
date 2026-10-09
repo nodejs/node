@@ -60,6 +60,18 @@ namespace compiler {
 // Shorter lambda declarations with less visual clutter.
 #define _ [&]()
 
+namespace {
+
+// Optional integer positions treat an omitted or known undefined value as 0.
+Node* GetArgumentOrZeroIfUndefined(const JSCallNode& call, int index,
+                                   JSGraph* jsgraph) {
+  Node* argument = call.ArgumentOr(index, jsgraph->ZeroConstant());
+  return argument == jsgraph->UndefinedConstant() ? jsgraph->ZeroConstant()
+                                                  : argument;
+}
+
+}  // namespace
+
 class JSCallReducerAssembler : public JSGraphAssembler {
   static constexpr bool kMarkLoopExits = true;
 
@@ -420,9 +432,9 @@ class JSCallReducerAssembler : public JSGraphAssembler {
         ArgumentCount() > index ? Argument(index) : UndefinedConstant());
   }
 
-  TNode<Number> ArgumentOrZero(int index) {
-    return TNode<Number>::UncheckedCast(
-        ArgumentCount() > index ? Argument(index) : ZeroConstant());
+  TNode<Object> ArgumentOrZeroIfUndefined(int index) {
+    return TNode<Object>::UncheckedCast(
+        GetArgumentOrZeroIfUndefined(JSCallNode{node_ptr()}, index, jsgraph()));
   }
 
   TNode<Context> ContextInput() const {
@@ -450,10 +462,10 @@ enum class ArrayIndexOfIncludesVariant { kIncludes, kIndexOf };
 // builtins.
 class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
  public:
+  // Not all users consult turbo_inline_array_builtins; ReduceArrayPrototypePush
+  // inlines unconditionally.
   IteratingArrayBuiltinReducerAssembler(JSCallReducer* reducer, Node* node)
-      : JSCallReducerAssembler(reducer, node) {
-    DCHECK(v8_flags.turbo_inline_array_builtins);
-  }
+      : JSCallReducerAssembler(reducer, node) {}
 
   TNode<Object> ReduceArrayPrototypeForEach(MapInference* inference,
                                             const bool has_stability_dependency,
@@ -1014,7 +1026,7 @@ TNode<Boolean> JSCallReducerAssembler::ReduceStringPrototypeStartsWith(
     StringRef search_element_string) {
   DCHECK(search_element_string.IsContentAccessible());
   TNode<Object> receiver = ReceiverInput();
-  TNode<Object> start = ArgumentOrZero(1);
+  TNode<Object> start = ArgumentOrZeroIfUndefined(1);
 
   TNode<String> receiver_string = CheckString(receiver);
   TNode<Smi> start_smi = CheckSmi(start);
@@ -1058,7 +1070,7 @@ TNode<Boolean> JSCallReducerAssembler::ReduceStringPrototypeStartsWith(
 TNode<Boolean> JSCallReducerAssembler::ReduceStringPrototypeStartsWith() {
   TNode<Object> receiver = ReceiverInput();
   TNode<Object> search_element = ArgumentOrUndefined(0);
-  TNode<Object> start = ArgumentOrZero(1);
+  TNode<Object> start = ArgumentOrZeroIfUndefined(1);
 
   TNode<String> receiver_string = CheckString(receiver);
   TNode<String> search_string = CheckString(search_element);
@@ -1232,7 +1244,7 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt(
 TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt(
     SpeculationMode speculation_mode) {
   TNode<Object> receiver = ReceiverInput();
-  TNode<Object> index = ArgumentOrZero(0);
+  TNode<Object> index = ArgumentOrZeroIfUndefined(0);
 
   TNode<String> receiver_string = CheckString(receiver);
   TNode<Number> length = StringLength(receiver_string);
@@ -1266,7 +1278,7 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt(
 TNode<Number> JSCallReducerAssembler::ReduceStringPrototypeCharCodeAt(
     SpeculationMode speculation_mode) {
   TNode<Object> receiver = ReceiverInput();
-  TNode<Object> index = ArgumentOrZero(0);
+  TNode<Object> index = ArgumentOrZeroIfUndefined(0);
 
   TNode<String> receiver_string = CheckString(receiver);
   TNode<Number> length = StringLength(receiver_string);
@@ -1417,8 +1429,7 @@ TNode<Object> JSCallReducerAssembler::ReduceJSCallMathMinMaxWithArrayLike(
 TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeAt(
     ZoneVector<MapRef> maps, bool needs_fallback_builtin_call) {
   TNode<JSArray> receiver = ReceiverInputAs<JSArray>();
-  TNode<Object> index = ArgumentOrZero(0);
-
+  TNode<Object> index = ArgumentOrZeroIfUndefined(0);
   TNode<Number> index_num = CheckSmi(index);
   TNode<FixedArrayBase> elements = LoadElements(receiver);
 
@@ -2726,7 +2737,7 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeIndexOfIncludes(
   TNode<Context> context = ContextInput();
   TNode<JSArray> receiver = ReceiverInputAs<JSArray>();
   TNode<Object> search_element = ArgumentOrUndefined(0);
-  TNode<Object> from_index = ArgumentOrZero(1);
+  TNode<Object> from_index = ArgumentOrZeroIfUndefined(1);
 
   // TODO(jgruber): This currently only reduces to a stub call. Create a full
   // reduction (similar to other higher-order array builtins) instead of
@@ -6215,11 +6226,10 @@ Reduction JSCallReducer::ReduceStringPrototypeIndexOfIncludes(
         graph()->NewNode(simplified()->CheckString(p.feedback()), search_string,
                          effect, control);
 
-    Node* new_position = jsgraph()->ZeroConstant();
+    Node* new_position = GetArgumentOrZeroIfUndefined(n, 1, jsgraph());
     if (n.ArgumentCount() > 1) {
-      Node* position = n.Argument(1);
       new_position = effect = graph()->NewNode(
-          simplified()->CheckSmi(p.feedback()), position, effect, control);
+          simplified()->CheckSmi(p.feedback()), new_position, effect, control);
 
       Node* receiver_length =
           graph()->NewNode(simplified()->StringLength(), new_receiver);
@@ -6570,6 +6580,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeAt(Node* node) {
 }
 
 // ES6 section 22.1.3.18 Array.prototype.push ( )
+// Inlined even with --no-turbo-inline-array-builtins, which gates the iterating
+// array builtins; push is hot enough to always be worth inlining.
 Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -6944,7 +6956,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
         static_assert(BuiltinArguments::kNewTargetIndex == 0);
         static_assert(BuiltinArguments::kTargetIndex == 1);
         static_assert(BuiltinArguments::kArgcIndex == 2);
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
         // Make sure we insert required stack-alignment padding between extra
         // arguments and JS arguments.
         static_assert(BuiltinArguments::kNumExtraArgs == 4);
@@ -6955,7 +6967,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
 #else
         // No padding required.
         static_assert(BuiltinArguments::kNumExtraArgs == 3);
-#endif  // V8_TARGET_ARCH_ARM64
+#endif
 
         if_false1 = efalse1 = vfalse1 = graph()->NewNode(
             common()->Call(call_descriptor), stub_code,
@@ -6963,7 +6975,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
             jsgraph()->UndefinedConstant(),  // new.target
             target,                          // target
             argc,                            // argc
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
             padding_value,
 #endif
             // JS arguments.
@@ -7712,7 +7724,7 @@ Reduction JSCallReducer::ReduceStringPrototypeStringCodePointAt(Node* node) {
   }
 
   Node* receiver = n.receiver();
-  Node* index = n.ArgumentOr(0, jsgraph()->ZeroConstant());
+  Node* index = GetArgumentOrZeroIfUndefined(n, 0, jsgraph());
   Effect effect = n.effect();
   Control control = n.control();
 
@@ -8145,7 +8157,7 @@ namespace {
 FrameState CreateStringCreateLazyDeoptContinuationFrameState(
     JSGraph* graph, SharedFunctionInfoRef shared, Node* target, Node* context,
     Node* outer_frame_state) {
-  Node* const receiver = graph->TheHoleConstant();
+  Node* const receiver = graph->TdzHoleConstant();
   Node* stack_parameters[]{receiver};
   const int stack_parameter_count = arraysize(stack_parameters);
   return CreateJavaScriptBuiltinContinuationFrameState(
@@ -8535,9 +8547,9 @@ Reduction JSCallReducer::ReduceTypedArrayConstructor(
                                                     context, common(), graph());
 
   // This continuation just returns the newly created JSTypedArray. We
-  // pass the_hole as the receiver, just like the builtin construct stub
+  // pass tdz_hole as the receiver, just like the builtin construct stub
   // does in this case.
-  Node* const receiver = jsgraph()->TheHoleConstant();
+  Node* const receiver = jsgraph()->TdzHoleConstant();
   Node* continuation_frame_state = CreateGenericLazyDeoptContinuationFrameState(
       jsgraph(), shared, target, context, receiver, frame_state);
 

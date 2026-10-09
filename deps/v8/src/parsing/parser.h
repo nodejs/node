@@ -22,7 +22,6 @@
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"
-#include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
 
@@ -275,7 +274,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     const AstRawString* local_name;
     Scanner::Location location;
   };
-  ZoneChunkList<ExportClauseData>* ParseExportClause(
+  SmallZoneVector<ExportClauseData, 8> ParseExportClause(
       Scanner::Location* reserved_loc,
       Scanner::Location* string_literal_local_name_loc);
   struct NamedImport : public ZoneObject {
@@ -913,7 +912,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Returns true iff we're parsing the first function literal during
   // CreateDynamicFunction().
   V8_INLINE bool ParsingDynamicFunctionDeclaration() const {
-    return parameters_end_pos_ != kNoSourcePosition;
+    return parsing_dynamic_function_declaration_;
   }
 
   V8_INLINE void ConvertBinaryToNaryOperationSourceRange(
@@ -1134,6 +1133,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // indicates the correct position of the ')' that closes the parameter list.
   // After that ')' is encountered, this field is reset to kNoSourcePosition.
   int parameters_end_pos_;
+  bool parsing_dynamic_function_declaration_;
 };
 
 }  // namespace internal

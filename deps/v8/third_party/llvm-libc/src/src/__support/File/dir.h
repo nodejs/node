@@ -78,8 +78,15 @@ class Dir {
 public:
   static ErrorOr<Dir *> open(const char *path);
   static ErrorOr<Dir *> fdopen(int fd);
-
   ErrorOr<struct dirent *> read();
+  static ErrorOr<int> scan(const char *name, struct dirent ***namelist,
+                           int (*filter)(const struct dirent *),
+                           int (*compare)(const struct dirent **,
+                                          const struct dirent **));
+
+  LIBC_INLINE static size_t reclen(struct dirent *d) {
+    return platform_dir_reclen(d);
+  }
 
   // Returns 0 on success or the error number on failure. If an error number
   // was returned, then the resources associated with the directory are not

@@ -552,8 +552,7 @@ class WasmOutOfLineTrap : public OutOfLineCode {
   void GenerateCallToTrap(TrapId trap_id) {
     gen_->AssembleSourcePosition(instr_);
     __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
-    ReferenceMap* reference_map = gen_->zone()->New<ReferenceMap>(gen_->zone());
-    gen_->RecordSafepoint(reference_map);
+    gen_->RecordSafepointWithoutTaggedSlots();
     __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
   }
 
@@ -564,8 +563,7 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
                             InstructionCode opcode, Instruction* instr,
                             int pc) {
   const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
-  if (access_mode == kMemoryAccessTrappingMemOutOfBounds ||
-      access_mode == kMemoryAccessTrappingNullDereference) {
+  if (access_mode == kMemoryAccessTrapping) {
     codegen->RecordTrappingInstruction(pc);
   }
 }
@@ -893,71 +891,6 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
 
 void CodeGenerator::AssertNotDeoptimized() { __ AssertNotDeoptimized(); }
 
-int32_t GetLaneMask(int32_t lane_count) { return lane_count * 2 - 1; }
-
-void Shuffle4Helper(MacroAssembler* masm, Arm64OperandConverter i,
-                    VectorFormat f) {
-  VRegister dst = VRegister::Create(i.OutputSimd128Register().code(), f);
-  VRegister src0 = VRegister::Create(i.InputSimd128Register(0).code(), f);
-  VRegister src1 = VRegister::Create(i.InputSimd128Register(1).code(), f);
-  // Check for in-place shuffles, as we may need to use a temporary register
-  // to avoid overwriting an input.
-  if (dst == src0 || dst == src1) {
-    UseScratchRegisterScope scope(masm);
-    VRegister temp = scope.AcquireV(f);
-    if (dst == src0) {
-      masm->Mov(temp, src0);
-      src0 = temp;
-    } else if (dst == src1) {
-      masm->Mov(temp, src1);
-      src1 = temp;
-    }
-  }
-  int32_t shuffle = i.InputInt32(2);
-  int32_t lane_count = LaneCountFromFormat(f);
-  int32_t max_src0_lane = lane_count - 1;
-  int32_t lane_mask = GetLaneMask(lane_count);
-
-  DCHECK_EQ(f, kFormat4S);
-  // Check whether we can reduce the number of vmovs by performing a dup
-  // first. So, for [1, 1, 2, 1] we can dup lane zero and then perform
-  // a single lane move for lane two.
-  const std::array<int, 4> input_lanes{
-      shuffle & lane_mask, shuffle >> 8 & lane_mask, shuffle >> 16 & lane_mask,
-      shuffle >> 24 & lane_mask};
-  std::array<int, 8> lane_counts = {0};
-  for (int lane : input_lanes) {
-    ++lane_counts[lane];
-  }
-
-  // Find first duplicate lane, if any, and insert dup.
-  int duplicate_lane = -1;
-  for (size_t lane = 0; lane < lane_counts.size(); ++lane) {
-    if (lane_counts[lane] > 1) {
-      duplicate_lane = static_cast<int>(lane);
-      if (duplicate_lane > max_src0_lane) {
-        masm->Dup(dst, src1, duplicate_lane & max_src0_lane);
-      } else {
-        masm->Dup(dst, src0, duplicate_lane);
-      }
-      break;
-    }
-  }
-
-  // Perform shuffle as a vmov per lane.
-  for (int i = 0; i < 4; i++) {
-    int lane = shuffle & lane_mask;
-    shuffle >>= 8;
-    if (lane == duplicate_lane) continue;
-    VRegister src = src0;
-    if (lane > max_src0_lane) {
-      src = src1;
-      lane &= max_src0_lane;
-    }
-    masm->Mov(dst, i, src, lane);
-  }
-}
-
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {
@@ -1041,6 +974,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->SetFrameAccessToDefault();
       break;
     }
+
 #endif  // V8_ENABLE_WEBASSEMBLY
     case kArchTailCallCodeObject: {
       CodeEntrypointTag tag =
@@ -1079,8 +1013,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallJSFunction: {
-      uint32_t num_arguments =
-          i.InputUint32(instr->JSCallArgumentCountInputIndex());
+      uint32_t expected_parameter_count =
+          i.InputUint32(instr->JSCallExpectedParameterCountInputIndex());
       if (HasImmediateInput(instr, 0)) {
         Handle<HeapObject> constant =
             i.ToConstant(instr->InputAt(0)).ToHeapObject();
@@ -1090,7 +1024,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             Builtin builtin = function->shared()->builtin_id();
             // Defer signature mismatch abort to run-time as optimized
             // unreachable calls can have mismatched signatures.
-            if (Builtins::IsCompatibleJSBuiltin(builtin, num_arguments)) {
+            if (Builtins::IsCompatibleJSBuiltin(builtin,
+                                                expected_parameter_count)) {
               __ CallBuiltin(builtin);
             } else {
               __ Abort(AbortReason::kJSSignatureMismatch);
@@ -1101,7 +1036,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 dispatch_handle);
             // Defer signature mismatch abort to run-time as optimized
             // unreachable calls can have mismatched signatures.
-            if (num_arguments >= expected) {
+            if (expected_parameter_count == expected) {
               __ RecordJSDispatchHandle(dispatch_handle, expected);
               __ CallJSDispatchEntry(dispatch_handle, expected);
             } else {
@@ -1109,7 +1044,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             }
           }
         } else {
-          __ CallJSFunction(kJavaScriptCallTargetRegister, num_arguments);
+          __ CallJSFunction(kJavaScriptCallTargetRegister,
+                            expected_parameter_count);
         }
       } else {
         Register func = i.InputRegister(0);
@@ -1122,7 +1058,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ cmp(cp, temp);
           __ Assert(eq, AbortReason::kWrongFunctionContext);
         }
-        __ CallJSFunction(func, num_arguments);
+        __ CallJSFunction(func, expected_parameter_count);
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -1394,8 +1330,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchAtomicStoreWithWriteBarrier: {
       DCHECK_EQ(AddressingModeField::decode(instr->opcode()), kMode_MRR);
-      RecordWriteMode mode =
-          AtomicStoreRecordWriteModeField::decode(instr->opcode());
+      RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
       Register object = i.InputRegister(0);
@@ -1642,6 +1577,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputOperand2_32(1));
       }
       break;
+    case kArm64Add64_3: {
+      Register low_out = i.OutputRegister(0);
+      bool use_out_high = instr->OutputCount() > 1;
+      if (use_out_high) {
+        Register high_out = i.OutputRegister(1);
+        __ Adds(low_out, i.InputRegister(0), i.InputOperand2_64(1));
+        __ Cset(high_out, hs);
+        __ Adds(low_out, low_out, i.InputOperand64(2));
+        __ Cinc(high_out, high_out, hs);
+      } else {
+        __ Add(low_out, i.InputRegister(0), i.InputOperand2_64(1));
+        __ Add(low_out, low_out, i.InputOperand64(2));
+      }
+      break;
+    }
     case kArm64Add128: {
       Register low_out = i.OutputRegister(0);
       Register high_out = i.OutputRegister(1);
@@ -2113,7 +2063,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ PokePair(i.InputFloat64Register(1), i.InputFloat64Register(0),
                     slot * kSystemPointerSize);
       } else {
-        __ PokePair(i.InputRegister(1), i.InputRegister(0),
+        __ PokePair(i.InputOrZeroRegister64(1), i.InputOrZeroRegister64(0),
                     slot * kSystemPointerSize);
       }
       break;
@@ -2652,17 +2602,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register tag = handle;  // Reuse handle for tag
         __ Lsr(tag, destination, kTrustedPointerTableTagShift);
 
-        UseScratchRegisterScope scope(masm());
-        Register scratch = scope.AcquireX();
-        __ Mov(scratch, 0);
         if (tag_range.Size() == 1) {
           __ Cmp(tag.W(), static_cast<int32_t>(tag_range.first));
-          __ CmovX(destination, scratch, ne);
+          __ CzeroX(destination, ne);
         } else {
           __ Sub(tag.W(), tag.W(), static_cast<int32_t>(tag_range.first));
           __ Cmp(tag.W(),
                  static_cast<int32_t>(tag_range.last - tag_range.first));
-          __ CmovX(destination, scratch, hi);
+          __ CzeroX(destination, hi);
         }
 
         __ And(destination, destination, kTrustedPointerTablePayloadMask);
@@ -2995,6 +2942,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef ASSEMBLE_IEEE754_UNOP
 
 #if V8_ENABLE_WEBASSEMBLY
+#define SIMD_SHIFT_IMM_CASE(Op, Instr)                                 \
+  case Op: {                                                           \
+    const int lane_size = LaneSizeBits(LaneSizeField::decode(opcode)); \
+    VectorFormat f = VectorFormatFillQ(lane_size);                     \
+    DCHECK(instr->InputAt(1)->IsImmediate());                          \
+    __ Instr(i.OutputSimd128Register().Format(f),                      \
+             i.InputSimd128Register(0).Format(f),                      \
+             i.InputIntFromLaneSize(1, lane_size));                    \
+    break;                                                             \
+  }
+
 #define SIMD_UNOP_CASE(Op, Instr, FORMAT)            \
   case Op:                                           \
     __ Instr(i.OutputSimd128Register().V##FORMAT(),  \
@@ -3006,6 +2964,56 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         VectorFormatFillQ(LaneSizeBits(LaneSizeField::decode(opcode))); \
     __ Instr(i.OutputSimd128Register().Format(f),                       \
              i.InputSimd128Register(0).Format(f));                      \
+    break;                                                              \
+  }
+#define SIMD_LOW_NARROWING_CASE(Op, Instr)                              \
+  case Op: {                                                            \
+    const VectorFormat wide =                                           \
+        VectorFormatFillQ(LaneSizeBits(LaneSizeField::decode(opcode))); \
+    const VectorFormat narrow = VectorFormatHalfWidth(wide);            \
+    __ Instr(i.OutputSimd128Register().Format(narrow),                  \
+             i.InputSimd128Register(0).Format(wide));                   \
+    break;                                                              \
+  }
+#define SIMD_HIGH_NARROWING_CASE(Op, Instr)                             \
+  case Op: {                                                            \
+    const VectorFormat wide =                                           \
+        VectorFormatFillQ(LaneSizeBits(LaneSizeField::decode(opcode))); \
+    const VectorFormat narrow = VectorFormatHalfWidthDoubleLanes(wide); \
+    const VRegister dst = i.OutputSimd128Register().Format(narrow);     \
+    DCHECK_EQ(dst, i.InputSimd128Register(0).Format(narrow));           \
+    DCHECK_NE(dst.code(), i.InputSimd128Register(1).code());            \
+    __ Instr(dst, i.InputSimd128Register(1).Format(wide));              \
+    break;                                                              \
+  }
+#define SIMD_LOW_NARROWING_BINOP_CASE(Op, Instr)                        \
+  case Op: {                                                            \
+    const VectorFormat wide =                                           \
+        VectorFormatFillQ(LaneSizeBits(LaneSizeField::decode(opcode))); \
+    const VectorFormat narrow = VectorFormatHalfWidth(wide);            \
+    __ Instr(i.OutputSimd128Register().Format(narrow),                  \
+             i.InputSimd128Register(0).Format(wide),                    \
+             i.InputSimd128Register(1).Format(wide));                   \
+    break;                                                              \
+  }
+#define SIMD_HIGH_NARROWING_BINOP_CASE(Op, Instr)                       \
+  case Op: {                                                            \
+    const VectorFormat wide =                                           \
+        VectorFormatFillQ(LaneSizeBits(LaneSizeField::decode(opcode))); \
+    const VectorFormat narrow = VectorFormatHalfWidthDoubleLanes(wide); \
+    const VRegister dst = i.OutputSimd128Register().Format(narrow);     \
+    DCHECK_EQ(dst, i.InputSimd128Register(0).Format(narrow));           \
+    __ Instr(dst, i.InputSimd128Register(1).Format(wide),               \
+             i.InputSimd128Register(2).Format(wide));                   \
+    break;                                                              \
+  }
+#define SIMD_SHIFT_LEFT_LONG_CASE(Op, Instr, SrcFormat, Shift)          \
+  case Op: {                                                            \
+    const VectorFormat dst_f =                                          \
+        VectorFormatFillQ(LaneSizeBits(LaneSizeField::decode(opcode))); \
+    const VectorFormat src_f = SrcFormat(dst_f);                        \
+    __ Instr(i.OutputSimd128Register().Format(dst_f),                   \
+             i.InputSimd128Register(0).Format(src_f), Shift);           \
     break;                                                              \
   }
 #define SIMD_BINOP_CASE(Op, Instr, FORMAT)           \
@@ -3097,6 +3105,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              i.InputSimd128Register(2).Format(f));                      \
     break;                                                              \
   }
+      SIMD_SHIFT_IMM_CASE(kArm64IShl, Shl);
+      SIMD_SHIFT_IMM_CASE(kArm64IShrS, Sshr);
+      SIMD_SHIFT_IMM_CASE(kArm64IShrU, Ushr);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64FMin, Fmin);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64FMax, Fmax);
       SIMD_UNOP_LANE_SIZE_CASE(kArm64FAbs, Fabs);
@@ -3115,6 +3126,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IMaxU, Umax);
       SIMD_DESTRUCTIVE_BINOP_LANE_SIZE_CASE(kArm64Mla, Mla);
       SIMD_DESTRUCTIVE_BINOP_LANE_SIZE_CASE(kArm64Mls, Mls);
+      SIMD_LOW_NARROWING_CASE(kArm64Sqxtn, Sqxtn);
+      SIMD_HIGH_NARROWING_CASE(kArm64Sqxtn2, Sqxtn2);
+      SIMD_LOW_NARROWING_CASE(kArm64Sqxtun, Sqxtun);
+      SIMD_HIGH_NARROWING_CASE(kArm64Sqxtun2, Sqxtun2);
+      SIMD_LOW_NARROWING_BINOP_CASE(kArm64Addhn, Addhn);
+      SIMD_HIGH_NARROWING_BINOP_CASE(kArm64Addhn2, Addhn2);
+      SIMD_LOW_NARROWING_BINOP_CASE(kArm64Subhn, Subhn);
+      SIMD_HIGH_NARROWING_BINOP_CASE(kArm64Subhn2, Subhn2);
     case kArm64Sxtl: {
       VectorFormat wide =
           VectorFormatFillQ(LaneSizeBits(LaneSizeField::decode(opcode)));
@@ -3147,6 +3166,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(0).Format(narrow));
       break;
     }
+      SIMD_SHIFT_LEFT_LONG_CASE(kArm64Sshll, Sshll, VectorFormatHalfWidth,
+                                i.InputInt8(1));
+      SIMD_SHIFT_LEFT_LONG_CASE(kArm64Sshll2, Sshll2,
+                                VectorFormatHalfWidthDoubleLanes,
+                                i.InputInt8(1));
+      SIMD_SHIFT_LEFT_LONG_CASE(kArm64Ushll, Ushll, VectorFormatHalfWidth,
+                                i.InputInt8(1));
+      SIMD_SHIFT_LEFT_LONG_CASE(kArm64Ushll2, Ushll2,
+                                VectorFormatHalfWidthDoubleLanes,
+                                i.InputInt8(1));
+      SIMD_SHIFT_LEFT_LONG_CASE(kArm64IShll, Shll, VectorFormatHalfWidth,
+                                LaneSizeInBitsFromFormat(src_f));
+      SIMD_SHIFT_LEFT_LONG_CASE(kArm64IShll2, Shll2,
+                                VectorFormatHalfWidthDoubleLanes,
+                                LaneSizeInBitsFromFormat(src_f));
     case kArm64F64x2ConvertLowI32x4S: {
       VRegister dst = i.OutputSimd128Register().V2D();
       __ Sxtl(dst, i.InputSimd128Register(0).V2S());
@@ -3304,6 +3338,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VectorFormat s_f =
           ScalarFormatFromLaneSize(LaneSizeBits(LaneSizeField::decode(opcode)));
       VectorFormat v_f = VectorFormatFillQ(s_f);
+      DCHECK(v_f == kFormat4S || v_f == kFormat2D);
       __ Fmul(i.OutputSimd128Register().Format(v_f),
               i.InputSimd128Register(0).Format(v_f),
               i.InputSimd128Register(1).Format(s_f), i.InputInt8(2));
@@ -3330,93 +3365,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mov(dst, i.InputInt8(1), src2);
       break;
     }
-    case kArm64IShll: {
-      int lane_size = LaneSizeBits(LaneSizeField::decode(opcode));
-      VectorFormat dst_f = VectorFormatFillQ(lane_size);
-      VectorFormat src_f = VectorFormatHalfWidth(dst_f);
-      int shift_value = lane_size / 2;
-      __ Shll(i.OutputSimd128Register().Format(dst_f),
-              i.InputSimd128Register(0).Format(src_f), shift_value);
-      break;
-    }
-    case kArm64IShl: {
-      // If shift value is an immediate, we can call Shl, taking the shift
-      // value modulo 2^width. Otherwise, emit code to perform the modulus
-      // operation, and call Sshl.
-      const int lane_size = LaneSizeBits(LaneSizeField::decode(opcode));
-      VectorFormat format = VectorFormatFillQ(lane_size);
-      if (instr->InputAt(1)->IsImmediate()) {
-        __ Shl(i.OutputSimd128Register().Format(format),
-               i.InputSimd128Register(0).Format(format),
-               i.InputIntFromLaneSize(1, lane_size));
-      } else {
-        UseScratchRegisterScope temps(masm());
-        VRegister tmp = temps.AcquireQ();
-        Register shift =
-            (lane_size == 64) ? temps.AcquireX() : temps.AcquireW();
-        int mask = lane_size - 1;
-        __ And(shift, i.InputRegister32(1), mask);
-        __ Dup(tmp.Format(format), shift);
-        __ Sshl(i.OutputSimd128Register().Format(format),
-                i.InputSimd128Register(0).Format(format), tmp.Format(format));
-      }
-      break;
-    }
-    case kArm64IShrS: {
-      // If shift value is an immediate, we can call Sshr, taking the shift
-      // value modulo 2^width. Otherwise, emit code to perform the modulus
-      // operation, and call Sshl, passing in the negative shift value (treated
-      // as right shift).
-      const int lane_size = LaneSizeBits(LaneSizeField::decode(opcode));
-      VectorFormat format = VectorFormatFillQ(lane_size);
-      if (instr->InputAt(1)->IsImmediate()) {
-        int shift = i.InputIntFromLaneSize(1, lane_size);
-        if (shift == lane_size - 1) {
-          __ Cmlt(i.OutputSimd128Register().Format(format),
-                  i.InputSimd128Register(0).Format(format), 0);
-        } else {
-          __ Sshr(i.OutputSimd128Register().Format(format),
-                  i.InputSimd128Register(0).Format(format), shift);
-        }
-      } else {
-        UseScratchRegisterScope temps(masm());
-        VRegister tmp = temps.AcquireQ();
-        Register shift =
-            (lane_size == 64) ? temps.AcquireX() : temps.AcquireW();
-        int mask = lane_size - 1;
-        __ And(shift, i.InputRegister32(1), mask);
-        __ Dup(tmp.Format(format), shift);
-        __ Neg(tmp.Format(format), tmp.Format(format));
-        __ Sshl(i.OutputSimd128Register().Format(format),
-                i.InputSimd128Register(0).Format(format), tmp.Format(format));
-      }
-      break;
-    }
-    case kArm64IShrU: {
-      // If shift value is an immediate, we can call Ushr, taking the shift
-      // value modulo 2^width. Otherwise, emit code to perform the modulus
-      // operation, and call Ushl, passing in the negative shift value (treated
-      // as right shift).
-      const int lane_size = LaneSizeBits(LaneSizeField::decode(opcode));
-      VectorFormat format = VectorFormatFillQ(lane_size);
-      if (instr->InputAt(1)->IsImmediate()) {
-        __ Ushr(i.OutputSimd128Register().Format(format),
-                i.InputSimd128Register(0).Format(format),
-                i.InputIntFromLaneSize(1, lane_size));
-      } else {
-        UseScratchRegisterScope temps(masm());
-        VRegister tmp = temps.AcquireQ();
-        Register shift =
-            (lane_size == 64) ? temps.AcquireX() : temps.AcquireW();
-        int mask = lane_size - 1;
-        __ And(shift, i.InputRegister32(1), mask);
-        __ Dup(tmp.Format(format), shift);
-        __ Neg(tmp.Format(format), tmp.Format(format));
-        __ Ushl(i.OutputSimd128Register().Format(format),
-                i.InputSimd128Register(0).Format(format), tmp.Format(format));
-      }
-      break;
-    }
+      SIMD_BINOP_LANE_SIZE_CASE(kArm64SShl, Sshl);
+      SIMD_BINOP_LANE_SIZE_CASE(kArm64UShl, Ushl);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IAdd, Add);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64ISub, Sub);
       SIMD_CM_G_CASE(kArm64IEq, eq);
@@ -3523,69 +3473,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputInt8(1));
       break;
     }
-    case kArm64I16x8SConvertI32x4: {
-      VRegister dst = i.OutputSimd128Register(),
-                src0 = i.InputSimd128Register(0),
-                src1 = i.InputSimd128Register(1);
-      UseScratchRegisterScope scope(masm());
-      VRegister temp = scope.AcquireV(kFormat4S);
-      if (dst == src1) {
-        __ Mov(temp, src1.V4S());
-        src1 = temp;
-      }
-      __ Sqxtn(dst.V4H(), src0.V4S());
-      __ Sqxtn2(dst.V8H(), src1.V4S());
-      break;
-    }
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IAddSatS, Sqadd);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64ISubSatS, Sqsub);
-    case kArm64I16x8UConvertI32x4: {
-      VRegister dst = i.OutputSimd128Register(),
-                src0 = i.InputSimd128Register(0),
-                src1 = i.InputSimd128Register(1);
-      UseScratchRegisterScope scope(masm());
-      VRegister temp = scope.AcquireV(kFormat4S);
-      if (dst == src1) {
-        __ Mov(temp, src1.V4S());
-        src1 = temp;
-      }
-      __ Sqxtun(dst.V4H(), src0.V4S());
-      __ Sqxtun2(dst.V8H(), src1.V4S());
-      break;
-    }
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IAddSatU, Uqadd);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64ISubSatU, Uqsub);
       SIMD_BINOP_CASE(kArm64I16x8Q15MulRSatS, Sqrdmulh, 8H);
     case kArm64I16x8BitMask: {
       __ I16x8BitMask(i.OutputRegister32(), i.InputSimd128Register(0));
-      break;
-    }
-    case kArm64I8x16SConvertI16x8: {
-      VRegister dst = i.OutputSimd128Register(),
-                src0 = i.InputSimd128Register(0),
-                src1 = i.InputSimd128Register(1);
-      UseScratchRegisterScope scope(masm());
-      VRegister temp = scope.AcquireV(kFormat8H);
-      if (dst == src1) {
-        __ Mov(temp, src1.V8H());
-        src1 = temp;
-      }
-      __ Sqxtn(dst.V8B(), src0.V8H());
-      __ Sqxtn2(dst.V16B(), src1.V8H());
-      break;
-    }
-    case kArm64I8x16UConvertI16x8: {
-      VRegister dst = i.OutputSimd128Register(),
-                src0 = i.InputSimd128Register(0),
-                src1 = i.InputSimd128Register(1);
-      UseScratchRegisterScope scope(masm());
-      VRegister temp = scope.AcquireV(kFormat8H);
-      if (dst == src1) {
-        __ Mov(temp, src1.V8H());
-        src1 = temp;
-      }
-      __ Sqxtun(dst.V8B(), src0.V8H());
-      __ Sqxtun2(dst.V16B(), src1.V8H());
       break;
     }
     case kArm64I8x16BitMask: {
@@ -3781,6 +3675,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputSimd128Register(1).Format(tb));
       break;
     }
+      SIMD_BINOP_LANE_SIZE_CASE(kArm64Shadd, Shadd);
+      SIMD_BINOP_LANE_SIZE_CASE(kArm64Uhadd, Uhadd);
     case kArm64Ssra: {
       int8_t laneSize = LaneSizeBits(LaneSizeField::decode(opcode));
       VectorFormat f = VectorFormatFillQ(laneSize);
@@ -3799,10 +3695,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Usra(dst, i.InputSimd128Register(1).Format(f), i.InputUint8(2) & mask);
       break;
     }
-    case kArm64S32x4Shuffle: {
-      Shuffle4Helper(masm(), i, kFormat4S);
-      break;
-    }
       SIMD_BINOP_LANE_SIZE_CASE(kArm64S128UnzipLeft, Uzp1);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64S128UnzipRight, Uzp2);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64S128ZipLeft, Zip1);
@@ -3812,7 +3704,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_LOW_BINOP_LANE_SIZE_CASE(kArm64S128LowZipRight, Zip2);
       SIMD_LOW_BINOP_LANE_SIZE_CASE(kArm64S128LowUnzipLeft, Uzp1);
       SIMD_LOW_BINOP_LANE_SIZE_CASE(kArm64S128LowUnzipRight, Uzp2);
-    case kArm64I8x16Swizzle: {
+    case kArm64S128Tbl1: {
       __ Tbl(i.OutputSimd128Register().V16B(), i.InputSimd128Register(0).V16B(),
              i.InputSimd128Register(1).V16B());
       break;
@@ -3965,8 +3857,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   return kSuccess;
 }
 
+#undef SIMD_SHIFT_IMM_CASE
 #undef SIMD_UNOP_CASE
 #undef SIMD_UNOP_LANE_SIZE_CASE
+#undef SIMD_LOW_NARROWING_CASE
+#undef SIMD_HIGH_NARROWING_CASE
+#undef SIMD_LOW_NARROWING_BINOP_CASE
+#undef SIMD_HIGH_NARROWING_BINOP_CASE
+#undef SIMD_SHIFT_LEFT_LONG_CASE
 #undef SIMD_BINOP_CASE
 #undef SIMD_BINOP_LANE_SIZE_CASE
 #undef SIMD_LOW_BINOP_LANE_SIZE_CASE
@@ -4347,6 +4245,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 }
 
 void CodeGenerator::AssembleConstructFrame() {
+  DCHECK(frame_access_state()->has_frame());
   auto call_descriptor = linkage()->GetIncomingDescriptor();
   __ AssertSpAligned();
 
@@ -4365,166 +4264,180 @@ void CodeGenerator::AssembleConstructFrame() {
   const int returns = frame()->GetReturnSlotCount();
   DCHECK_EQ(returns % 2, 0);
 
-  if (frame_access_state()->has_frame()) {
-    // Link the frame
-    if (call_descriptor->IsJSFunctionCall()) {
-      static_assert(StandardFrameConstants::kFixedFrameSize % 16 == 8);
-      DCHECK_EQ(required_slots % 2, 1);
-      __ Prologue();
-      // Update required_slots count since we have just claimed one extra slot.
-      static_assert(MacroAssembler::kExtraSlotClaimedByPrologue == 1);
-      required_slots -= MacroAssembler::kExtraSlotClaimedByPrologue;
+  // Link the frame
+  if (call_descriptor->IsJSFunctionCall()) {
+    static_assert(StandardFrameConstants::kFixedFrameSize % 16 == 8);
+    DCHECK_EQ(required_slots % 2, 1);
+    __ Prologue();
+    // Update required_slots count since we have just claimed one extra slot.
+    static_assert(MacroAssembler::kExtraSlotClaimedByPrologue == 1);
+    required_slots -= MacroAssembler::kExtraSlotClaimedByPrologue;
 #if V8_ENABLE_WEBASSEMBLY
-    } else if (call_descriptor->IsAnyWasmFunctionCall() ||
-               call_descriptor->IsWasmCapiFunction() ||
-               call_descriptor->IsWasmImportWrapper() ||
-               call_descriptor->IsResumeWasmContinuation() ||
-               (call_descriptor->IsCFunctionCall() &&
-                info()->GetOutputStackFrameType() ==
-                    StackFrame::C_WASM_ENTRY)) {
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.AcquireX();
-      __ Mov(scratch,
-             StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
-      __ Push<MacroAssembler::kSignLR>(lr, fp, scratch,
-                                       kWasmImplicitArgRegister);
-      static constexpr int kSPToFPDelta = 2 * kSystemPointerSize;
-      __ Add(fp, sp, kSPToFPDelta);
-      if (call_descriptor->IsWasmCapiFunction()) {
-        // The C-API function has one extra slot for the PC.
-        required_slots++;
-      }
-      if (call_descriptor->IsResumeWasmContinuation()) {
-        // The stack entry wrapper does not have an instance slot, but we
-        // still push it for stack alignment.
-        required_slots--;
-      }
-#endif  // V8_ENABLE_WEBASSEMBLY
-    } else if (call_descriptor->kind() == CallDescriptor::kCallCodeObject) {
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.AcquireX();
-      __ Mov(scratch,
-             StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
-      __ Push<MacroAssembler::kSignLR>(lr, fp, scratch, padreg);
-      static constexpr int kSPToFPDelta = 2 * kSystemPointerSize;
-      __ Add(fp, sp, kSPToFPDelta);
-      // One of the extra slots has just been claimed when pushing the padreg.
-      // We also know that we have at least one slot to claim here, as the typed
-      // frame has an odd number of fixed slots, and all other parts of the
-      // total frame slots are even, leaving {required_slots} to be odd.
-      DCHECK_GE(required_slots, 1);
-      required_slots--;
-    } else {
-      __ Push<MacroAssembler::kSignLR>(lr, fp);
-      __ Mov(fp, sp);
+  } else if (call_descriptor->IsAnyWasmFunctionCall() ||
+             call_descriptor->IsWasmCapiFunction() ||
+             call_descriptor->IsWasmImportWrapper() ||
+             call_descriptor->IsResumeWasmContinuation() ||
+             (call_descriptor->IsCFunctionCall() &&
+              info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY)) {
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.AcquireX();
+    __ Mov(scratch,
+           StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
+    __ Push<MacroAssembler::kSignLR>(lr, fp, scratch, kWasmImplicitArgRegister);
+    static constexpr int kSPToFPDelta = 2 * kSystemPointerSize;
+    __ Add(fp, sp, kSPToFPDelta);
+    if (call_descriptor->IsWasmCapiFunction()) {
+      // The C-API function has one extra slot for the PC.
+      required_slots++;
     }
-    unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
+    if (call_descriptor->IsResumeWasmContinuation()) {
+      // The stack entry wrapper does not have an instance slot, but we
+      // still push it for stack alignment.
+      required_slots--;
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  } else if (call_descriptor->kind() == CallDescriptor::kCallCodeObject) {
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.AcquireX();
+    __ Mov(scratch,
+           StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
+    __ Push<MacroAssembler::kSignLR>(lr, fp, scratch, padreg);
+    static constexpr int kSPToFPDelta = 2 * kSystemPointerSize;
+    __ Add(fp, sp, kSPToFPDelta);
+    // One of the extra slots has just been claimed when pushing the padreg.
+    // We also know that we have at least one slot to claim here, as the typed
+    // frame has an odd number of fixed slots, and all other parts of the
+    // total frame slots are even, leaving {required_slots} to be odd.
+    DCHECK_GE(required_slots, 1);
+    required_slots--;
+  } else {
+    __ Push<MacroAssembler::kSignLR>(lr, fp);
+    __ Mov(fp, sp);
+  }
+  unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
 
-    // Create OSR entry if applicable
-    if (info()->is_osr()) {
-      // TurboFan OSR-compiled functions cannot be entered directly.
-      __ Abort(AbortReason::kShouldNotDirectlyEnterOsrFunction);
+  // Create OSR entry if applicable
+  if (info()->is_osr()) {
+    // TurboFan OSR-compiled functions cannot be entered directly.
+    __ Abort(AbortReason::kShouldNotDirectlyEnterOsrFunction);
 
-      // Unoptimized code jumps directly to this entrypoint while the
-      // unoptimized frame is still on the stack. Optimized code uses OSR values
-      // directly from the unoptimized frame. Thus, all that needs to be done is
-      // to allocate the remaining stack slots.
-      __ RecordComment("-- OSR entrypoint --");
-      osr_pc_offset_ = __ pc_offset();
-      __ CodeEntry();
-      size_t unoptimized_frame_slots = osr_helper()->UnoptimizedFrameSlots();
+    // Unoptimized code jumps directly to this entrypoint while the
+    // unoptimized frame is still on the stack. Optimized code uses OSR values
+    // directly from the unoptimized frame. Thus, all that needs to be done is
+    // to allocate the remaining stack slots.
+    __ RecordComment("-- OSR entrypoint --");
+    osr_pc_offset_ = __ pc_offset();
+    __ CodeEntry();
+    size_t unoptimized_frame_slots = osr_helper()->UnoptimizedFrameSlots();
 
 #ifdef V8_ENABLE_SANDBOX_BOOL
-      UseScratchRegisterScope temps(masm());
-      uint32_t expected_frame_size =
-          static_cast<uint32_t>(osr_helper()->UnoptimizedFrameSlots()) *
-              kSystemPointerSize +
-          StandardFrameConstants::kFixedFrameSizeFromFp;
-      Register scratch = temps.AcquireX();
-      __ Add(scratch, sp, expected_frame_size);
-      __ Cmp(scratch, fp);
-      __ SbxCheck(eq, AbortReason::kOsrUnexpectedStackSize);
+    UseScratchRegisterScope temps(masm());
+    uint32_t expected_frame_size =
+        static_cast<uint32_t>(osr_helper()->UnoptimizedFrameSlots()) *
+            kSystemPointerSize +
+        StandardFrameConstants::kFixedFrameSizeFromFp;
+    Register scratch = temps.AcquireX();
+    __ Add(scratch, sp, expected_frame_size);
+    __ Cmp(scratch, fp);
+    __ SbxCheck(eq, AbortReason::kOsrUnexpectedStackSize);
 #endif  // V8_ENABLE_SANDBOX_BOOL
 
-      DCHECK(call_descriptor->IsJSFunctionCall());
-      DCHECK_EQ(unoptimized_frame_slots % 2, 1);
-      // One unoptimized frame slot has already been claimed when the actual
-      // arguments count was pushed.
-      required_slots -=
-          unoptimized_frame_slots - MacroAssembler::kExtraSlotClaimedByPrologue;
-    }
+    DCHECK(call_descriptor->IsJSFunctionCall());
+    DCHECK_EQ(unoptimized_frame_slots % 2, 1);
+    // One unoptimized frame slot has already been claimed when the actual
+    // arguments count was pushed.
+    required_slots -=
+        unoptimized_frame_slots - MacroAssembler::kExtraSlotClaimedByPrologue;
+  }
 
 #if V8_ENABLE_WEBASSEMBLY
-    int32_t stack_space =
-        required_slots * kSystemPointerSize + GetStackCheckOffset();
-    if (info()->IsWasm() && stack_space > 4 * KB) {
-      // For WebAssembly functions with big frames we have to do the stack
-      // overflow check before we construct the frame. Otherwise we may not
-      // have enough space on the stack to call the runtime for the stack
-      // overflow.
-      Label done;
-      // If the frame is bigger than the stack, we throw the stack overflow
-      // exception unconditionally. Thereby we can avoid the integer overflow
-      // check in the condition code.
-      if (stack_space < v8_flags.stack_size * KB) {
-        UseScratchRegisterScope temps(masm());
-        Register stack_limit = temps.AcquireX();
-        __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
+  const bool is_js_to_wasm = code_kind() == CodeKind::JS_TO_WASM_FUNCTION;
+  DCHECK_GE(required_slots, 0);
+  size_t stack_space =
+      static_cast<size_t>(required_slots) * kSystemPointerSize +
+      GetStackCheckOffset();
+  if (is_js_to_wasm || (info()->IsWasm() && stack_space > 4 * KB)) {
+    // For WebAssembly functions with big frames we have to do the stack
+    // overflow check before we allocate the frame slots. Otherwise we may not
+    // have enough space on the stack to call the runtime for the stack
+    // overflow.
+    // For compiled JS-to-Wasm wrappers, we unconditionally emit a stack check
+    // here because they are entered directly from JavaScript without an
+    // Ignition bytecode stack check, and may be invoked near stack
+    // exhaustion.
+    Label done;
+    // If the frame is bigger than the stack, we throw the stack overflow
+    // exception unconditionally. Thereby we can avoid the integer overflow
+    // check in the condition code.
+    if (stack_space < static_cast<size_t>(v8_flags.stack_size) * KB) {
+      UseScratchRegisterScope temps(masm());
+      Register stack_limit = temps.AcquireX();
+      __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
+      if (stack_space > 0) {
         __ Add(stack_limit, stack_limit, stack_space);
-        __ Cmp(sp, stack_limit);
-        __ B(hs, &done);
       }
-
-      if (v8_flags.wasm_growable_stacks) {
-        CPURegList regs_to_save(kXRegSizeInBits, RegList{});
-        regs_to_save.Combine(WasmHandleStackOverflowDescriptor::GapRegister());
-        regs_to_save.Combine(
-            WasmHandleStackOverflowDescriptor::FrameBaseRegister());
-        for (auto reg : wasm::kGpParamRegisters) regs_to_save.Combine(reg);
-        __ PushCPURegList(regs_to_save);
-        CPURegList fp_regs_to_save(kQRegSizeInBits, DoubleRegList{});
-        for (auto reg : wasm::kFpParamRegisters) {
-          fp_regs_to_save.Combine(reg.Q());
-        }
-        __ PushCPURegList(fp_regs_to_save);
-        __ Mov(WasmHandleStackOverflowDescriptor::GapRegister(), stack_space);
-        __ Add(
-            WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
-            Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
-                    CommonFrameConstants::kFixedFrameSizeAboveFp));
-        __ Call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
-                RelocInfo::WASM_STUB_CALL);
-        // If the call successfully grew the stack, we don't expect it to have
-        // allocated any heap objects or otherwise triggered any GC.
-        // If it was not able to grow the stack, it may have triggered a GC when
-        // allocating the stack overflow exception object, but the call did not
-        // return in this case.
-        // So either way, we can just ignore any references and record an empty
-        // safepoint here.
-        ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
-        RecordSafepoint(reference_map);
-        __ PopCPURegList(fp_regs_to_save);
-        __ PopCPURegList(regs_to_save);
-      } else {
-        __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
-                RelocInfo::WASM_STUB_CALL);
-        // The call does not return, hence we can ignore any references and just
-        // define an empty safepoint.
-        ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
-        RecordSafepoint(reference_map);
-        if (v8_flags.debug_code) __ Brk(0);
-      }
-      __ Bind(&done);
+      __ Cmp(sp, stack_limit);
+      __ B(hs, &done);
     }
+
+    if (is_js_to_wasm) {
+      __ CallRuntime(Runtime::kThrowStackOverflow);
+      // RecordSafepointWithoutTaggedSlots is safe here because no tagged
+      // spill slots or parameters have been allocated on the stack frame yet.
+      RecordSafepointWithoutTaggedSlots();
+      __ AssertUnreachable(AbortReason::kUnexpectedReturnFromThrow);
+    } else if (v8_flags.wasm_growable_stacks) {
+      CPURegList regs_to_save(kXRegSizeInBits, RegList{});
+      regs_to_save.Combine(WasmHandleStackOverflowDescriptor::GapRegister());
+      regs_to_save.Combine(
+          WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+      regs_to_save.Combine(
+          WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister());
+      for (auto reg : wasm::kGpParamRegisters) regs_to_save.Combine(reg);
+      __ PushCPURegList(regs_to_save);
+      CPURegList fp_regs_to_save(kQRegSizeInBits, DoubleRegList{});
+      for (auto reg : wasm::kFpParamRegisters) {
+        fp_regs_to_save.Combine(reg.Q());
+      }
+      __ PushCPURegList(fp_regs_to_save);
+      __ Mov(WasmHandleStackOverflowDescriptor::GapRegister(), stack_space);
+      __ Add(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
+             Operand((call_descriptor->ParameterSlotCount() +
+                      call_descriptor->ReturnSlotCount()) *
+                         kSystemPointerSize +
+                     CommonFrameConstants::kFixedFrameSizeAboveFp));
+      __ Mov(WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister(),
+             call_descriptor->ParameterSlotCount() * kSystemPointerSize);
+      __ Call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
+              RelocInfo::WASM_STUB_CALL);
+      // If the call successfully grew the stack, we don't expect it to have
+      // allocated any heap objects or otherwise triggered any GC.
+      // If it was not able to grow the stack, it may have triggered a GC when
+      // allocating the stack overflow exception object, but the call did not
+      // return in this case.
+      // So either way, we can just ignore any references and record an empty
+      // safepoint here.
+      RecordSafepointWithoutTaggedSlots();
+      __ PopCPURegList(fp_regs_to_save);
+      __ PopCPURegList(regs_to_save);
+    } else {
+      __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
+              RelocInfo::WASM_STUB_CALL);
+      // The call does not return, hence we can ignore any references and just
+      // define an empty safepoint.
+      RecordSafepointWithoutTaggedSlots();
+      if (v8_flags.debug_code) __ Brk(0);
+    }
+    __ Bind(&done);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-    // Skip callee-saved slots, which are pushed below.
-    required_slots -= saves.Count();
-    required_slots -= saves_fp.Count();
-    required_slots -= returns;
+  // Skip callee-saved slots, which are pushed below.
+  required_slots -= saves.Count();
+  required_slots -= saves_fp.Count();
+  required_slots -= returns;
 
-    __ Claim(required_slots);
-  }
+  __ Claim(required_slots);
 
   // Save FP registers.
   DCHECK_IMPLIES(saves_fp.Count() != 0,
@@ -4582,42 +4495,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
   }
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (call_descriptor->IsAnyWasmFunctionCall() &&
-      v8_flags.wasm_growable_stacks) {
-    {
-      UseScratchRegisterScope temps{masm()};
-      Register scratch = temps.AcquireX();
-      __ Ldr(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
-      __ Cmp(scratch,
-             Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-    }
-    Label done;
-    __ B(ne, &done);
-    CPURegList regs_to_save(kXRegSizeInBits, RegList{});
-    for (auto reg : wasm::kGpReturnRegisters) regs_to_save.Combine(reg);
-    __ PushCPURegList(regs_to_save);
-    CPURegList fp_regs_to_save(kQRegSizeInBits, DoubleRegList{});
-    for (auto reg : wasm::kFpReturnRegisters) {
-      fp_regs_to_save.Combine(reg.Q());
-    }
-    __ PushCPURegList(fp_regs_to_save);
-    __ Mov(kCArgRegs[0], ExternalReference::isolate_address());
-    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
-    __ Mov(fp, kReturnRegister0);
-    __ PopCPURegList(fp_regs_to_save);
-    __ PopCPURegList(regs_to_save);
-    if (masm()->options().enable_simulator_code) {
-      // The next instruction after shrinking stack is leaving the frame.
-      // So SP will be set to old FP there. Switch simulator stack limit here.
-      UseScratchRegisterScope temps{masm()};
-      temps.Exclude(x16);
-      __ LoadStackLimit(x16, StackLimitKind::kRealStackLimit);
-      __ hlt(kImmExceptionIsSwitchStackLimit);
-    }
-    __ bind(&done);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   Register argc_reg = x3;
   // Functions with JS linkage have at least one parameter (the receiver).
@@ -4996,10 +4873,19 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       Constant src = g.ToConstant(source);
       MemOperand dst = g.ToMemOperand(destination, masm());
       if (destination->IsStackSlot()) {
-        UseScratchRegisterScope scope(masm());
-        Register temp = scope.AcquireX();
-        MoveConstantToRegister(temp, src);
-        __ Str(temp, dst);
+        // A relocatable constant (e.g. a Wasm canonical signature id) is a
+        // placeholder that is patched later, so it must be materialized
+        // through the literal pool even when its value is zero.
+        if (RelocInfo::IsNoInfo(src.rmode()) &&
+            ((src.type() == Constant::kInt32 && src.ToInt32() == 0) ||
+             (src.type() == Constant::kInt64 && src.ToInt64() == 0))) {
+          __ Str(xzr, dst);
+        } else {
+          UseScratchRegisterScope scope(masm());
+          Register temp = scope.AcquireX();
+          MoveConstantToRegister(temp, src);
+          __ Str(temp, dst);
+        }
       } else if (destination->IsFloatStackSlot()) {
         if (base::bit_cast<int32_t>(src.ToFloat32()) == 0) {
           __ Str(wzr, dst);

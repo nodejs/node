@@ -97,7 +97,7 @@ void Map::set_instance_descriptors(Tagged<DescriptorArray> value,
 // consumers dispatch on the runtime type (see
 // TransitionsAccessor::GetEncoding). The `prototype_info` accessors are
 // a separate narrower view restricted by is_prototype_map() /
-// IsWasmObjectMap() DCHECKs at the call site.
+// IsAnyWasmObjectMap() DCHECKs at the call site.
 Tagged<Map::RawTransitionsT> Map::raw_transitions() const {
   return transitions_or_prototype_info_.load();
 }
@@ -124,7 +124,7 @@ void Map::set_prototype(Tagged<JSPrototype> value, WriteBarrierMode mode) {
 Tagged<UnionOf<Smi, PrototypeInfo, PrototypeSharedClosureInfo>>
 Map::prototype_info() const {
 #if V8_ENABLE_WEBASSEMBLY
-  DCHECK(this->is_prototype_map() || IsWasmObjectMap(this));
+  DCHECK(this->is_prototype_map() || IsAnyWasmObjectMap(this));
 #else
   DCHECK(this->is_prototype_map());
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -506,7 +506,7 @@ int Map::AllocatedSize() const {
 
 int Map::UnusedPropertyFields() const {
 #if V8_ENABLE_WEBASSEMBLY
-  DCHECK(!IsWasmObjectMap(this));
+  DCHECK(!IsAnyWasmObjectMap(this));
 #endif  // V8_ENABLE_WEBASSEMBLY
   int value = used_or_unused_instance_size_in_words();
   DCHECK_IMPLIES(!IsJSObjectMap(this), value == 0);
@@ -525,7 +525,7 @@ int Map::UnusedInObjectProperties() const {
   // Like Map::UnusedPropertyFields(), but returns 0 for out of object
   // properties.
 #if V8_ENABLE_WEBASSEMBLY
-  DCHECK(!IsWasmObjectMap(this));
+  DCHECK(!IsAnyWasmObjectMap(this));
 #endif  // V8_ENABLE_WEBASSEMBLY
   int value = used_or_unused_instance_size_in_words();
   DCHECK_IMPLIES(!IsJSObjectMap(this), value == 0);
@@ -547,7 +547,7 @@ void Map::set_used_or_unused_instance_size_in_words(int value) {
 
 int Map::UsedInstanceSize() const {
 #if V8_ENABLE_WEBASSEMBLY
-  DCHECK(!IsWasmObjectMap(this));
+  DCHECK(!IsAnyWasmObjectMap(this));
 #endif  // V8_ENABLE_WEBASSEMBLY
   int words = used_or_unused_instance_size_in_words();
   if (words < JSObject::kFieldsAdded) {
@@ -633,75 +633,75 @@ void Map::AccountAddedOutOfObjectPropertyField(int unused_in_property_array) {
 
 #if V8_ENABLE_WEBASSEMBLY
 uint8_t Map::WasmByte1() const {
-  DCHECK(IsWasmObjectMap(this));
+  DCHECK(IsAnyWasmObjectMap(this));
   return inobject_properties_start_or_constructor_function_index();
 }
 
 uint8_t Map::WasmByte2() const {
-  DCHECK(IsWasmObjectMap(this));
+  DCHECK(IsAnyWasmObjectMap(this));
   return used_or_unused_instance_size_in_words();
 }
 
 void Map::SetWasmByte1(uint8_t value) {
-  CHECK(IsWasmObjectMap(this));
+  CHECK(IsAnyWasmObjectMap(this));
   set_inobject_properties_start_or_constructor_function_index(value);
 }
 
 void Map::SetWasmByte2(uint8_t value) {
-  CHECK(IsWasmObjectMap(this));
+  CHECK(IsAnyWasmObjectMap(this));
   set_used_or_unused_instance_size_in_words(value);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-uint8_t Map::bit_field() const {
+Map::Bits1 Map::bit_field() const {
   // TODO(solanes, v8:7790, v8:11353): Make this non-atomic when TSAN sees the
   // map's store synchronization.
   return relaxed_bit_field();
 }
 
-void Map::set_bit_field(uint8_t value) {
+void Map::set_bit_field(Bits1 value) {
   // TODO(solanes, v8:7790, v8:11353): Make this non-atomic when TSAN sees the
   // map's store synchronization.
   set_relaxed_bit_field(value);
 }
 
-uint8_t Map::relaxed_bit_field() const {
+Map::Bits1 Map::relaxed_bit_field() const {
   return bit_field_.load(std::memory_order_relaxed);
 }
 
-void Map::set_relaxed_bit_field(uint8_t value) {
+void Map::set_relaxed_bit_field(Bits1 value) {
   bit_field_.store(value, std::memory_order_relaxed);
 }
 
-uint8_t Map::bit_field2() const { return bit_field2_; }
+Map::Bits2 Map::bit_field2() const { return bit_field2_; }
 
-void Map::set_bit_field2(uint8_t value) { bit_field2_ = value; }
+void Map::set_bit_field2(Bits2 value) { bit_field2_ = value; }
 
-uint32_t Map::bit_field3() const {
+Map::Bits3 Map::bit_field3() const {
   // TODO(solanes, v8:7790, v8:11353): Make this and the setter non-atomic
   // when TSAN sees the map's store synchronization.
   return relaxed_bit_field3();
 }
 
-void Map::set_bit_field3(uint32_t value) {
+void Map::set_bit_field3(Bits3 value) {
   // TODO(solanes, v8:7790, v8:11353): Make this non-atomic when TSAN sees the
   // map's store synchronization.
   set_relaxed_bit_field3(value);
 }
 
-uint32_t Map::relaxed_bit_field3() const {
+Map::Bits3 Map::relaxed_bit_field3() const {
   return bit_field3_.load(std::memory_order_relaxed);
 }
 
-void Map::set_relaxed_bit_field3(uint32_t value) {
+void Map::set_relaxed_bit_field3(Bits3 value) {
   bit_field3_.store(value, std::memory_order_relaxed);
 }
 
-uint32_t Map::release_acquire_bit_field3() const {
+Map::Bits3 Map::release_acquire_bit_field3() const {
   return bit_field3_.load(std::memory_order_acquire);
 }
 
-void Map::set_release_acquire_bit_field3(uint32_t value) {
+void Map::set_release_acquire_bit_field3(Bits3 value) {
   bit_field3_.store(value, std::memory_order_release);
 }
 
@@ -722,7 +722,7 @@ bool Map::has_prototype_info() const {
 
 bool Map::TryGetPrototypeInfo(Tagged<PrototypeInfo>* result) const {
 #if V8_ENABLE_WEBASSEMBLY
-  DCHECK(is_prototype_map() || IsWasmObjectMap(this));
+  DCHECK(is_prototype_map() || IsAnyWasmObjectMap(this));
 #else
   DCHECK(is_prototype_map());
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1051,7 +1051,7 @@ Tagged<Map> Map::ElementsTransitionMap(Isolate* isolate,
 Tagged<DependentCode> Map::dependent_code() const {
   Tagged<Object> value = dependent_code_.load();
   if (!IsDependentCode(value)) {
-    DCHECK(IsWasmStructMap(this));
+    DCHECK(IsWasmStructMap(this) || IsWasmCustomMap(Tagged<Map>(this)));
     return DependentCode::empty_dependent_code(GetReadOnlyRoots());
   }
   return Cast<DependentCode>(value);
@@ -1060,21 +1060,21 @@ void Map::set_dependent_code(Tagged<DependentCode> value,
                              WriteBarrierMode mode) {
   // Only the Factory may call this for Wasm object maps, when default-
   // initializing them. Use the WB mode as a sentinel for that situation.
-  DCHECK(mode == SKIP_WRITE_BARRIER || !IsWasmObjectMap(this));
+  DCHECK(mode == SKIP_WRITE_BARRIER || !IsAnyWasmObjectMap(this));
   dependent_code_.store(this, value, mode);
 }
 Tagged<Map> Map::immediate_supertype_map() const {
-  DCHECK(IsWasmObjectMap(this));
+  DCHECK(IsAnyWasmObjectMap(this));
   // dependent_code_ slot is reused for the supertype map on Wasm maps.
   return Cast<Map>(dependent_code_.load());
 }
 bool Map::has_immediate_supertype_map() const {
-  DCHECK(IsWasmObjectMap(this));
+  DCHECK(IsAnyWasmObjectMap(this));
   return Is<Map>(dependent_code_.load());
 }
 void Map::set_immediate_supertype_map(Tagged<Map> value,
                                       WriteBarrierMode mode) {
-  DCHECK(IsWasmObjectMap(this));
+  DCHECK(IsAnyWasmObjectMap(this));
   dependent_code_.store(this, value, mode);
 }
 #else   // V8_ENABLE_WEBASSEMBLY
@@ -1155,14 +1155,16 @@ Tagged<Object> Map::raw_native_context_or_null() const {
 #if V8_ENABLE_WEBASSEMBLY
 Tagged<WasmTypeInfo> Map::wasm_type_info() const {
   DCHECK(IsWasmStructMap(this) || IsWasmArrayMap(this) ||
-         IsWasmFuncRefMap(this) || IsWasmContinuationObjectMap(this));
+         IsWasmFuncRefMap(this) || IsWasmContinuationObjectMap(this) ||
+         IsWasmCustomMapMap(this));
   return Cast<WasmTypeInfo>(
       constructor_or_back_pointer_or_native_context_.load());
 }
 void Map::set_wasm_type_info(Tagged<WasmTypeInfo> value,
                              WriteBarrierMode mode) {
   DCHECK(IsWasmStructMap(this) || IsWasmArrayMap(this) ||
-         IsWasmFuncRefMap(this) || IsWasmContinuationObjectMap(this));
+         IsWasmFuncRefMap(this) || IsWasmContinuationObjectMap(this) ||
+         IsWasmCustomMapMap(this));
   constructor_or_back_pointer_or_native_context_.store(this, value, mode);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1286,21 +1288,21 @@ constexpr int ExtendedMapSizeForKind(ExtendedMapKind kind) {
   UNREACHABLE();
 }
 
-uint8_t ExtendedMap::relaxed_bit_field_ex() const {
+ExtendedMap::BitsEx ExtendedMap::relaxed_bit_field_ex() const {
   return bit_field_ex_.load(std::memory_order_relaxed);
 }
 
-void ExtendedMap::set_relaxed_bit_field_ex(uint8_t value) {
+void ExtendedMap::set_relaxed_bit_field_ex(BitsEx value) {
   bit_field_ex_.store(value, std::memory_order_relaxed);
 }
 
-uint8_t ExtendedMap::bit_field_ex() const {
+ExtendedMap::BitsEx ExtendedMap::bit_field_ex() const {
   // TODO(solanes, v8:7790, v8:11353): Make this non-atomic when TSAN sees the
   // map's store synchronization.
   return relaxed_bit_field_ex();
 }
 
-void ExtendedMap::set_bit_field_ex(uint8_t value) {
+void ExtendedMap::set_bit_field_ex(BitsEx value) {
   // TODO(solanes, v8:7790, v8:11353): Make this non-atomic when TSAN sees the
   // map's store synchronization.
   set_relaxed_bit_field_ex(value);

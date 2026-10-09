@@ -12,6 +12,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/bytecode-array-inl.h"
 #include "src/objects/code-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
@@ -261,45 +262,34 @@ void ErrorStackData::set_stack_trace(Tagged<StackTraceInfo> value,
   stack_trace_.store(this, value, mode);
 }
 
+DebugScriptScopeInfo::DebugScriptScopeInfo(const AllocationWitness& witness,
+                                           ReadOnlyRoots roots,
+                                           Tagged<ByteArray> numeric_data,
+                                           Tagged<FixedArray> string_table)
+    : Struct(roots.debug_script_scope_info_map()),
+      numeric_data_(witness, numeric_data),
+      string_table_(witness, string_table) {}
+
 Tagged<ByteArray> DebugScriptScopeInfo::numeric_data() const {
   return numeric_data_.load();
-}
-void DebugScriptScopeInfo::set_numeric_data(Tagged<ByteArray> value,
-                                            WriteBarrierMode mode) {
-  numeric_data_.store(this, value, mode);
 }
 
 Tagged<FixedArray> DebugScriptScopeInfo::string_table() const {
   return string_table_.load();
 }
-void DebugScriptScopeInfo::set_string_table(Tagged<FixedArray> value,
-                                            WriteBarrierMode mode) {
-  string_table_.store(this, value, mode);
-}
 
 // CoverageInfo.
 int32_t CoverageInfo::slot_count() const { return slot_count_; }
-void CoverageInfo::set_slot_count(int32_t value) { slot_count_ = value; }
 
 int32_t CoverageInfo::slots_start_source_position(int i) const {
   DCHECK_GE(i, 0);
   DCHECK_LT(i, slot_count());
   return slots()[i].start_source_position;
 }
-void CoverageInfo::set_slots_start_source_position(int i, int32_t value) {
-  DCHECK_GE(i, 0);
-  DCHECK_LT(i, slot_count());
-  slots()[i].start_source_position = value;
-}
 int32_t CoverageInfo::slots_end_source_position(int i) const {
   DCHECK_GE(i, 0);
   DCHECK_LT(i, slot_count());
   return slots()[i].end_source_position;
-}
-void CoverageInfo::set_slots_end_source_position(int i, int32_t value) {
-  DCHECK_GE(i, 0);
-  DCHECK_LT(i, slot_count());
-  slots()[i].end_source_position = value;
 }
 int32_t CoverageInfo::slots_block_count(int i) const {
   DCHECK_GE(i, 0);
@@ -315,11 +305,6 @@ int32_t CoverageInfo::slots_padding(int i) const {
   DCHECK_GE(i, 0);
   DCHECK_LT(i, slot_count());
   return slots()[i].padding;
-}
-void CoverageInfo::set_slots_padding(int i, int32_t value) {
-  DCHECK_GE(i, 0);
-  DCHECK_LT(i, slot_count());
-  slots()[i].padding = value;
 }
 int CoverageInfo::AllocatedSize() const { return SizeFor(slot_count()); }
 

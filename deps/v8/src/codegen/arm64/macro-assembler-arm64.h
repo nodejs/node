@@ -1131,7 +1131,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // validate the parameter count at runtime. Instead, we should replace them
   // with CallJSDispatchEntry that generates a call to a given (compile-time
   // constant) JSDispatchHandle.
-  void CallJSFunction(Register function_object, uint16_t argument_count);
+  void CallJSFunction(Register function_object,
+                      uint16_t expected_parameter_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
   void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
@@ -1514,6 +1515,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Load an object from the root table.
   void LoadRoot(Register destination, RootIndex index) final;
   void LoadTaggedRoot(Register destination, RootIndex index);
+  void StoreTaggedRoot(const MemOperand& destination, RootIndex index);
   void PushRoot(RootIndex index);
 
   inline void Ret(const Register& xn = lr);
@@ -1729,6 +1731,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadEntrypointAndParameterCountFromJSDispatchTable(
       Register entrypoint, Register parameter_count, Register dispatch_handle,
       Register scratch);
+  void PushDispatchHandle(Register dispatch_handle, Register other,
+                          Register scratch1, Register scratch2);
+  void PopDispatchHandle(Register dispatch_handle, Register other,
+                         Register scratch1, Register scratch2);
 
   // Load a protected pointer field.
   void LoadProtectedPointerField(Register destination,
@@ -1987,19 +1993,29 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   inline void PushAll(DoubleRegList registers,
                       int stack_slot_size = kDoubleSize) {
-    if (registers.Count() % 2 != 0) {
-      DCHECK(!registers.has(fp_zero));
-      registers.set(fp_zero);
+    if (stack_slot_size == kSimd128Size) {
+      PushQRegList(registers);
+    } else {
+      DCHECK_EQ(stack_slot_size, kDoubleSize);
+      if (registers.Count() % 2 != 0) {
+        DCHECK(!registers.has(fp_zero));
+        registers.set(fp_zero);
+      }
+      PushDRegList(registers);
     }
-    PushDRegList(registers);
   }
   inline void PopAll(DoubleRegList registers,
                      int stack_slot_size = kDoubleSize) {
-    if (registers.Count() % 2 != 0) {
-      DCHECK(!registers.has(fp_zero));
-      registers.set(fp_zero);
+    if (stack_slot_size == kSimd128Size) {
+      PopQRegList(registers);
+    } else {
+      DCHECK_EQ(stack_slot_size, kDoubleSize);
+      if (registers.Count() % 2 != 0) {
+        DCHECK(!registers.has(fp_zero));
+        registers.set(fp_zero);
+      }
+      PopDRegList(registers);
     }
-    PopDRegList(registers);
   }
 
   // Push the specified register 'count' times.

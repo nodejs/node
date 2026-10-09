@@ -211,6 +211,16 @@ void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   movq(destination, RootAsOperand(index));
 }
 
+void MacroAssembler::StoreTaggedRoot(Operand destination, RootIndex index) {
+  if (CanBeImmediate(index)) {
+    StoreTaggedField(destination,
+                     Immediate(static_cast<uint32_t>(ReadOnlyRootPtr(index))));
+    return;
+  }
+  LoadTaggedRoot(kScratchRegister, index);
+  StoreTaggedField(destination, kScratchRegister);
+}
+
 void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
   if (CanBeImmediate(index)) {
     DecompressTagged(destination,
@@ -895,8 +905,10 @@ void MacroAssembler::ResolveIndirectPointerHandle(
     xorq(destination, destination);
     bind(&done);
 
-    shlq(destination, Immediate(16));
-    shrq(destination, Immediate(16));
+    constexpr int kUntagShift =
+        kBitsPerSystemPointer - (kTrustedPointerTableTagShift - 1);
+    shlq(destination, Immediate(kUntagShift));
+    shrq(destination, Immediate(kUntagShift));
   }
 }
 
@@ -926,7 +938,7 @@ void MacroAssembler::LoadParameterCountFromJSDispatchTable(
   shll(destination, Immediate(kJSDispatchTableEntrySizeLog2));
   static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
   movzxwq(destination, Operand(kScratchRegister, destination, times_1,
-                               JSDispatchEntry::kCodeObjectOffset));
+                               JSDispatchEntry::kParameterCountOffset));
 }
 
 void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
@@ -944,7 +956,36 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
                            JSDispatchEntry::kEntrypointOffset));
   static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
   movzxwq(parameter_count, Operand(kScratchRegister, offset, times_1,
-                                   JSDispatchEntry::kCodeObjectOffset));
+                                   JSDispatchEntry::kParameterCountOffset));
+}
+
+void MacroAssembler::PushDispatchHandle(Register dispatch_handle,
+                                        Register scratch) {
+  DCHECK(!AreAliased(dispatch_handle, scratch, kScratchRegister));
+#ifdef V8_ENABLE_SANDBOX
+  AssertZeroExtended(dispatch_handle);
+  LoadParameterCountFromJSDispatchTable(scratch, dispatch_handle);
+  shlq(scratch, Immediate(32));
+  orq(dispatch_handle, scratch);
+#endif
+  Push(dispatch_handle);
+  // No need to SmiTag since dispatch handles always look like Smis.
+  static_assert(kJSDispatchHandleShift > 0);
+  AssertSmi(dispatch_handle);
+}
+
+void MacroAssembler::PopDispatchHandle(Register dispatch_handle,
+                                       Register scratch) {
+  DCHECK(!AreAliased(dispatch_handle, scratch, kScratchRegister));
+  Pop(dispatch_handle);
+#ifdef V8_ENABLE_SANDBOX
+  LoadParameterCountFromJSDispatchTable(scratch, dispatch_handle);
+  movq(kScratchRegister, dispatch_handle);
+  shrq(kScratchRegister, Immediate(32));
+  movl(dispatch_handle, dispatch_handle);
+  cmpq(scratch, kScratchRegister);
+  SbxCheck(equal, AbortReason::kJSSignatureMismatch);
+#endif
 }
 
 void MacroAssembler::LoadProtectedPointerField(Register destination,
@@ -1118,9 +1159,9 @@ void MacroAssembler::CallTSANStoreStub(Register address, Register value,
   PopAll(registers);
 }
 
-void MacroAssembler::CallTSANRelaxedLoadStub(Register address,
-                                             SaveFPRegsMode fp_mode, int size,
-                                             StubCallMode mode) {
+void MacroAssembler::CallTSANRelaxedLoadStub(
+    Register address, std::optional<SharedBaseTsanArgument> opt_shared_base,
+    SaveFPRegsMode fp_mode, int size, StubCallMode mode) {
   TSANLoadDescriptor descriptor;
   RegList registers = descriptor.allocatable_registers();
 
@@ -1128,9 +1169,25 @@ void MacroAssembler::CallTSANRelaxedLoadStub(Register address,
 
   Register address_parameter(
       descriptor.GetRegisterParameter(TSANLoadDescriptor::kAddress));
+  Register base_parameter(
+      descriptor.GetRegisterParameter(TSANLoadDescriptor::kSharedBase));
+  Register invoke_tsan_acquire_parameter(
+      descriptor.GetRegisterParameter(TSANLoadDescriptor::kInvokeTsanAcquire));
 
   // Prepare argument registers for calling TSANRelaxedLoad.
-  Move(address_parameter, address);
+  if (opt_shared_base.has_value()) {
+    SharedBaseTsanArgument shared_base = opt_shared_base.value();
+    DCHECK(!AreAliased(address, shared_base.reg));
+    MovePair(address_parameter, address, base_parameter, shared_base.reg);
+    if (shared_base.must_decompress_reg) {
+      addq(base_parameter, kPtrComprCageBaseRegister);
+    }
+  } else {
+    Move(address_parameter, address);
+    Move(base_parameter, Immediate(0));  // Pass Smi(0) when unused.
+  }
+  Move(invoke_tsan_acquire_parameter,
+       Immediate(opt_shared_base.has_value() ? 1 : 0));
 
 #if V8_ENABLE_WEBASSEMBLY
   if (mode != StubCallMode::kCallWasmRuntimeStub) {
@@ -1428,20 +1485,17 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     SmiTag(kJavaScriptCallArgCountRegister);
     Push(kJavaScriptCallArgCountRegister);
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-    // No need to SmiTag since dispatch handles always look like Smis.
-    static_assert(kJSDispatchHandleShift > 0);
-    AssertSmi(kJavaScriptCallDispatchHandleRegister);
-    Push(kJavaScriptCallDispatchHandleRegister);
+    PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
 #endif
     // Function is also the parameter to the runtime call.
     Push(kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
 
-    // Restore target function, new target, actual argument count, and dispatch
+    // Restore target function, new target, actual argument count and dispatch
     // handle.
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-    Pop(kJavaScriptCallDispatchHandleRegister);
+    PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
 #endif
     Pop(kJavaScriptCallArgCountRegister);
     SmiUntagUnsigned(kJavaScriptCallArgCountRegister);
@@ -2275,6 +2329,20 @@ void MacroAssembler::F32x8Splat(YMMRegister dst, XMMRegister src) {
   vbroadcastss(dst, src);
 }
 
+void MacroAssembler::F16x8Splat(XMMRegister dst, XMMRegister src) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope f16c_scope(this, F16C);
+  vcvtps2ph(dst, src, 0);
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vpbroadcastw(dst, dst);
+  } else {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpshuflw(dst, dst, uint8_t{0});
+    vpunpcklqdq(dst, dst, dst);
+  }
+}
+
 void MacroAssembler::F64x4Min(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
                               YMMRegister scratch) {
   ASM_CODE_COMMENT(this);
@@ -2342,7 +2410,6 @@ void MacroAssembler::F16x8Min(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
   ASM_CODE_COMMENT(this);
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
-  CpuFeatureScope avx2_scope(this, AVX2);
   vcvtph2ps(scratch, lhs);
   vcvtph2ps(scratch2, rhs);
   // The minps instruction doesn't propagate NaNs and +0's in its first
@@ -2354,7 +2421,17 @@ void MacroAssembler::F16x8Min(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
   // Canonicalize NaNs by quieting and clearing the payload.
   vcmpunordps(dst, dst, scratch);
   vorps(scratch, scratch, dst);
-  vpsrld(dst, dst, uint8_t{10});
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vpsrld(dst, dst, uint8_t{10});
+  } else {
+    XMMRegister xdst = dst;
+    XMMRegister xscratch2 = scratch2;
+    vextractf128(xscratch2, dst, 1);
+    vpsrld(xdst, xdst, uint8_t{10});
+    vpsrld(xscratch2, xscratch2, uint8_t{10});
+    vperm2f128(dst, dst, scratch2, 0x20);
+  }
   vandnps(dst, dst, scratch);
   vcvtps2ph(dst, dst, 0);
 }
@@ -2364,7 +2441,6 @@ void MacroAssembler::F16x8Max(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
   ASM_CODE_COMMENT(this);
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
-  CpuFeatureScope avx2_scope(this, AVX2);
   vcvtph2ps(scratch, lhs);
   vcvtph2ps(scratch2, rhs);
   // The maxps instruction doesn't propagate NaNs and +0's in its first
@@ -2379,7 +2455,17 @@ void MacroAssembler::F16x8Max(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
   vsubps(scratch, scratch, dst);
   // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
   vcmpunordps(dst, dst, scratch);
-  vpsrld(dst, dst, uint8_t{10});
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vpsrld(dst, dst, uint8_t{10});
+  } else {
+    XMMRegister xdst = dst;
+    XMMRegister xscratch2 = scratch2;
+    vextractf128(xscratch2, dst, 1);
+    vpsrld(xdst, xdst, uint8_t{10});
+    vpsrld(xscratch2, xscratch2, uint8_t{10});
+    vperm2f128(dst, dst, scratch2, 0x20);
+  }
   vandnps(dst, dst, scratch);
   vcvtps2ph(dst, dst, 0);
 }
@@ -2514,12 +2600,8 @@ void MacroAssembler::I32x8SConvertF32x8(YMMRegister dst, YMMRegister src,
 void MacroAssembler::I16x8SConvertF16x8(YMMRegister dst, XMMRegister src,
                                         YMMRegister tmp, Register scratch) {
   ASM_CODE_COMMENT(this);
-  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2) &&
-         CpuFeatures::IsSupported(F16C));
-
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
-  CpuFeatureScope avx2_scope(this, AVX2);
 
   Operand op = ExternalReferenceAsOperand(
       ExternalReference::address_of_wasm_i32x8_int32_overflow_as_float(),
@@ -2540,42 +2622,28 @@ void MacroAssembler::I16x8SConvertF16x8(YMMRegister dst, XMMRegister src,
   // Convert all infinities to MAX_INT32 and let vpackssdw
   // clamp it to MAX_INT16 later.
   // 0x8000'0000 xor 0xffff'ffff(from 2 steps before) = 0x7fff'ffff (MAX_INT32)
-  vpxor(dst, dst, tmp);
-  // We now have 8 i32 values. Using one character per 16 bits:
-  // dst: [AABBCCDDEEFFGGHH]
-  // Create a copy of the upper four values in the lower half of {tmp}
-  // (so the upper half of the immediate doesn't matter):
-  vpermq(tmp, dst, 0x4E);  // 0b01001110
-  // tmp: [EEFFGGHHAABBCCDD]
-  // Now pack them together as i16s. Note that {vpackssdw} interleaves
-  // 128-bit chunks from each input, and takes care of saturating each
-  // value to kMinInt16 and kMaxInt16. We will then ignore the upper half
-  // of {dst}.
-  vpackssdw(dst, dst, tmp);
-  // dst: [EFGHABCDABCDEFGH]
-  //       <--><--><--><-->
-  //         ↑   ↑   ↑   └── from lower half of {dst}
-  //         │   │   └────── from lower half of {tmp}
-  //         │   └────────── from upper half of {dst} (ignored)
-  //         └────────────── from upper half of {tmp} (ignored)
+  vxorps(dst, dst, tmp);
+  // We now have 8 i32 values in {dst}: 4 in the lower 128 bits and 4 in the
+  // upper 128 bits. Extract the upper 128 bits into {xtmp} and pack all 8
+  // values into {xdst} as saturated i16s.
+  XMMRegister xdst = dst;
+  XMMRegister xtmp = tmp;
+  vextractf128(xtmp, dst, 1);
+  vpackssdw(xdst, xdst, xtmp);
 }
 
 void MacroAssembler::I16x8TruncF16x8U(YMMRegister dst, XMMRegister src,
                                       YMMRegister tmp) {
   ASM_CODE_COMMENT(this);
-  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2) &&
-         CpuFeatures::IsSupported(F16C));
-
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
-  CpuFeatureScope avx2_scope(this, AVX2);
 
   Operand op = ExternalReferenceAsOperand(
       ExternalReference::address_of_wasm_i32x8_int32_overflow_as_float(),
       kScratchRegister);
   vcvtph2ps(dst, src);
   // NAN->0, negative->0.
-  vpxor(tmp, tmp, tmp);
+  vxorps(tmp, tmp, tmp);
   vmaxps(dst, dst, tmp);
   // Detect positive Infinity as an overflow above MAX_INT32.
   vcmpgeps(tmp, dst, op);
@@ -2587,34 +2655,70 @@ void MacroAssembler::I16x8TruncF16x8U(YMMRegister dst, XMMRegister src,
   // Convert all infinities to MAX_INT32 and let vpackusdw
   // clamp it to MAX_INT16 later.
   // 0x8000'0000 xor 0xffff'ffff(from 2 steps before) = 0x7fff'ffff (MAX_INT32)
-  vpxor(dst, dst, tmp);
-  // Move high part to a spare register.
-  // See detailed comment in {I16x8SConvertF16x8} for how this works.
-  vpermq(tmp, dst, 0x4E);  // 0b01001110
-  vpackusdw(dst, dst, tmp);
+  vxorps(dst, dst, tmp);
+  XMMRegister xdst = dst;
+  XMMRegister xtmp = tmp;
+  vextractf128(xtmp, dst, 1);
+  vpackusdw(xdst, xdst, xtmp);
+}
+
+void MacroAssembler::F16x8SConvertI16x8(XMMRegister dst, XMMRegister src,
+                                        YMMRegister tmp) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope f16c_scope(this, F16C);
+  CpuFeatureScope avx_scope(this, AVX);
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vpmovsxwd(tmp, src);
+  } else {
+    XMMRegister xtmp = tmp;
+    vpshufd(xtmp, src, uint8_t{0x4E});
+    vpmovsxwd(dst, src);
+    vpmovsxwd(xtmp, xtmp);
+    vperm2f128(tmp, YMMRegister::from_code(dst.code()), tmp, 0x20);
+  }
+  vcvtdq2ps(tmp, tmp);
+  vcvtps2ph(dst, tmp, 0);
+}
+
+void MacroAssembler::F16x8UConvertI16x8(XMMRegister dst, XMMRegister src,
+                                        YMMRegister tmp) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope f16c_scope(this, F16C);
+  CpuFeatureScope avx_scope(this, AVX);
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vpmovzxwd(tmp, src);
+  } else {
+    XMMRegister xtmp = tmp;
+    vpshufd(xtmp, src, uint8_t{0x4E});
+    vpmovzxwd(dst, src);
+    vpmovzxwd(xtmp, xtmp);
+    vperm2f128(tmp, YMMRegister::from_code(dst.code()), tmp, 0x20);
+  }
+  vcvtdq2ps(tmp, tmp);
+  vcvtps2ph(dst, tmp, 0);
 }
 
 void MacroAssembler::F16x8Qfma(YMMRegister dst, XMMRegister src1,
                                XMMRegister src2, XMMRegister src3,
                                YMMRegister tmp, YMMRegister tmp2) {
-  CpuFeatureScope fma3_scope(this, FMA3);
+  DCHECK(!AreAliased(tmp, tmp2, dst));
+  DCHECK(!AreAliased(XMMRegister{tmp}, XMMRegister{tmp2}, src1));
+  DCHECK(!AreAliased(XMMRegister{tmp}, XMMRegister{tmp2}, src2));
+  DCHECK(!AreAliased(XMMRegister{tmp}, XMMRegister{tmp2}, src3));
   CpuFeatureScope f16c_scope(this, F16C);
 
-  if (dst.code() == src2.code()) {
-    vcvtph2ps(dst, dst);
-    vcvtph2ps(tmp, src1);
-    vcvtph2ps(tmp2, src3);
-    vfmadd213ps(dst, tmp, tmp2);
-  } else if (dst.code() == src3.code()) {
-    vcvtph2ps(dst, dst);
-    vcvtph2ps(tmp, src2);
-    vcvtph2ps(tmp2, src1);
+  vcvtph2ps(tmp, src1);
+  vcvtph2ps(tmp2, src2);
+  vcvtph2ps(dst, src3);
+  if (CpuFeatures::IsSupported(FMA3)) {
+    CpuFeatureScope fma3_scope(this, FMA3);
     vfmadd231ps(dst, tmp, tmp2);
   } else {
-    vcvtph2ps(dst, src1);
-    vcvtph2ps(tmp, src2);
-    vcvtph2ps(tmp2, src3);
-    vfmadd213ps(dst, tmp, tmp2);
+    CpuFeatureScope avx_scope(this, AVX);
+    vmulps(tmp, tmp, tmp2);
+    vaddps(dst, tmp, dst);
   }
   vcvtps2ph(dst, dst, 0);
 }
@@ -2622,24 +2726,22 @@ void MacroAssembler::F16x8Qfma(YMMRegister dst, XMMRegister src1,
 void MacroAssembler::F16x8Qfms(YMMRegister dst, XMMRegister src1,
                                XMMRegister src2, XMMRegister src3,
                                YMMRegister tmp, YMMRegister tmp2) {
-  CpuFeatureScope fma3_scope(this, FMA3);
+  DCHECK(!AreAliased(tmp, tmp2, dst));
+  DCHECK(!AreAliased(XMMRegister{tmp}, XMMRegister{tmp2}, src1));
+  DCHECK(!AreAliased(XMMRegister{tmp}, XMMRegister{tmp2}, src2));
+  DCHECK(!AreAliased(XMMRegister{tmp}, XMMRegister{tmp2}, src3));
   CpuFeatureScope f16c_scope(this, F16C);
 
-  if (dst.code() == src2.code()) {
-    vcvtph2ps(dst, dst);
-    vcvtph2ps(tmp, src1);
-    vcvtph2ps(tmp2, src3);
-    vfnmadd213ps(dst, tmp, tmp2);
-  } else if (dst.code() == src3.code()) {
-    vcvtph2ps(dst, dst);
-    vcvtph2ps(tmp, src2);
-    vcvtph2ps(tmp2, src1);
+  vcvtph2ps(tmp, src1);
+  vcvtph2ps(tmp2, src2);
+  vcvtph2ps(dst, src3);
+  if (CpuFeatures::IsSupported(FMA3)) {
+    CpuFeatureScope fma3_scope(this, FMA3);
     vfnmadd231ps(dst, tmp, tmp2);
   } else {
-    vcvtph2ps(dst, src1);
-    vcvtph2ps(tmp, src2);
-    vcvtph2ps(tmp2, src3);
-    vfnmadd213ps(dst, tmp, tmp2);
+    CpuFeatureScope avx_scope(this, AVX);
+    vmulps(tmp, tmp, tmp2);
+    vsubps(dst, dst, tmp);
   }
   vcvtps2ph(dst, dst, 0);
 }
@@ -3465,21 +3567,25 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
 void MacroAssembler::Call(ExternalReference ext) {
   // TODO(350324877): can we DCHECK that the sandboxing mode is correct here?
   LoadAddress(kScratchRegister, ext);
+  AssertSpAlignedForCall();
   call(kScratchRegister);
 }
 
 void MacroAssembler::Call(Operand op) {
   // TODO(350324877): can we DCHECK that the sandboxing mode is correct here?
   if (!CpuFeatures::IsSupported(INTEL_ATOM)) {
+    AssertSpAlignedForCall();
     call(op);
   } else {
     movq(kScratchRegister, op);
+    AssertSpAlignedForCall();
     call(kScratchRegister);
   }
 }
 
 void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
   Move(kScratchRegister, destination, rmode);
+  AssertSpAlignedForCall();
   call(kScratchRegister);
 }
 
@@ -3493,6 +3599,7 @@ void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   }
   DCHECK_EQ(sandboxing_mode(), code_object->sandboxing_mode());
   DCHECK(RelocInfo::IsCodeTarget(rmode));
+  AssertSpAlignedForCall();
   call(code_object, rmode);
 }
 
@@ -3615,6 +3722,7 @@ void MacroAssembler::LoadCodeInstructionStart(Register destination,
 void MacroAssembler::CallCodeObject(Register code_object,
                                     CodeEntrypointTag tag) {
   LoadCodeInstructionStart(code_object, code_object, tag);
+  AssertSpAlignedForCall();
   call(code_object);
 }
 
@@ -3636,18 +3744,33 @@ void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
 }
 
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    uint16_t argument_count) {
+                                    uint16_t expected_parameter_count) {
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
   static_assert(kJavaScriptCallDispatchHandleRegister == r15, "ABI mismatch");
   movl(r15,
        FieldOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
   LoadEntrypointAndParameterCountFromJSDispatchTable(rcx, rbx, r15);
-  // Force a safe crash if the parameter count doesn't match.
+  // Force a safe crash if the parameter count doesn't match the expected count
+  // assumed at the call site, which would corrupt the stack on underapplication
+  // (caller pushes max(actual_argc, expected) slots; callee pops
+  // max(actual_argc, parameter_count) slots).
   // TODO(412398354): to avoid this runtime check, we should switch all
   // remaining users to call the function via its dispatch handle instead. See
   // CallJSDispatchEntry below and crbug.com/412398354 for more details.
-  cmpl(rbx, Immediate(argument_count));
-  SbxCheck(less_equal, AbortReason::kJSSignatureMismatch);
+  if (expected_parameter_count <= 1) {
+    // Both kDontAdaptArgumentsSentinel (0) and JSParameterCount(0) (1) are
+    // valid here: since actual_argc >= 1 (includes receiver), neither pads
+    // arguments and both pop actual_argc slots upon return. We cannot use an
+    // exact equality check because WasmToJS wrappers compute expected_arity
+    // via SFI::internal_formal_parameter_count_without_receiver(), which maps
+    // both cases to JSParameterCount(0) (1).
+    cmpl(rbx, Immediate(1));
+    SbxCheck(below_equal, AbortReason::kJSSignatureMismatch);
+  } else {
+    cmpl(rbx, Immediate(expected_parameter_count));
+    SbxCheck(equal, AbortReason::kJSSignatureMismatch);
+  }
+  AssertSpAlignedForCall();
   call(rcx);
 }
 
@@ -3660,6 +3783,7 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
   LoadEntrypointFromJSDispatchTable(rcx, kJavaScriptCallDispatchHandleRegister);
   CHECK_EQ(argument_count,
            isolate()->js_dispatch_table().GetParameterCount(dispatch_handle));
+  AssertSpAlignedForCall();
   call(rcx);
 }
 
@@ -3720,6 +3844,7 @@ void MacroAssembler::CallWasmCodePointer(Register target,
   if (call_jump_mode == CallJumpMode::kTailCall) {
     jmp(target_op);
   } else {
+    AssertSpAlignedForCall();
     call(target_op);
   }
 }
@@ -3740,9 +3865,11 @@ void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
   shll(target, Immediate(kNumClearedHighBits));
   shrl(target, Immediate(kNumClearedHighBits - kLeftShift));
 
+  AssertSpAlignedForCall();
   call(Operand(kScratchRegister, target, ScaleFactor::times_1, 0));
 #else
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 8);
+  AssertSpAlignedForCall();
   call(Operand(kScratchRegister, target, ScaleFactor::times_8, 0));
 #endif
 }
@@ -4122,6 +4249,13 @@ Immediate MacroAssembler::ClearedValue() const {
 }
 
 #ifdef V8_ENABLE_DEBUG_CODE
+
+void MacroAssembler::AssertSpAlignedForCall() {
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL && v8_flags.debug_code) {
+    CheckStackAlignment();
+  }
+}
+
 void MacroAssembler::AssertNotSmi(Register object) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
@@ -4640,13 +4774,6 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
     cmpq(Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset),
          Immediate(StackFrame::TypeToMarker(type)));
     j(equal, &ok, Label::kNear);
-#if V8_ENABLE_WEBASSEMBLY
-    if (type == StackFrame::WASM && v8_flags.wasm_growable_stacks) {
-      cmpq(Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset),
-           Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-      j(equal, &ok, Label::kNear);
-    }
-#endif
     Abort(AbortReason::kStackFrameTypesMustMatch);
     bind(&ok);
   }

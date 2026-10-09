@@ -1,0 +1,15 @@
+Tests Debugger.Scope.emptyReason.
+
+Running test: testEmptyReason
+Paused in empty:
+  local: no-variables
+Paused in allUnavailable:
+  local: all-unavailable
+Paused in blockAllUnavailable:
+  block: all-unavailable
+  local: <absent>
+Paused in someAvailable:
+  local: <absent>
+Paused in inner:
+  local: no-variables
+  closure: <absent>

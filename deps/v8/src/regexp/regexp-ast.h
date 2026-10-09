@@ -656,8 +656,8 @@ class Capture final : public Tree {
 
   DECL_BOILERPLATE(Capture);
 
-  static Node* ToNode(Tree* body, int index, Compiler* compiler,
-                      Node* on_success);
+  static Node* ToNode(Tree* body, Compiler* compiler, Node* on_success,
+                      const Capture* capture);
   bool IsCertainlyAnchoredAtStart(int budget) override;
   bool IsCertainlyAnchoredAtEnd(int budget) override;
   Interval CaptureRegisters(StackLimiter limiter) override;
@@ -670,6 +670,8 @@ class Capture final : public Tree {
     max_match_ = body->max_match();
   }
   int index() const { return index_; }
+  bool is_backreferenced() const { return is_backreferenced_; }
+  void set_is_backreferenced() { is_backreferenced_ = true; }
   const ZoneVector<base::uc16>* name() const { return name_; }
   void set_name(const ZoneVector<base::uc16>* name) { name_ = name; }
   static int StartRegister(int index) { return index * 2; }
@@ -681,6 +683,8 @@ class Capture final : public Tree {
   int min_match_ = 0;
   int max_match_ = 0;
   const ZoneVector<base::uc16>* name_ = nullptr;
+  // Set during backreference lowering; queried after lowering is complete.
+  bool is_backreferenced_ = false;
 };
 
 class Group final : public Tree {

@@ -74,7 +74,7 @@ const char* JSRegExp::FlagsToString(Flags flags, FlagsBuffer* out_buffer) {
   REGEXP_FLAG_LIST(V)
 #undef V
   buffer[cursor++] = '\0';
-  return buffer.begin();
+  return buffer.data();
 }
 
 RegExpData::Type RegExpData::type_tag() const {

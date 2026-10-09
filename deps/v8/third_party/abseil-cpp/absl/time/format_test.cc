@@ -18,6 +18,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/time/civil_time.h"
 #include "absl/time/internal/test_util.h"
 #include "absl/time/time.h"
 

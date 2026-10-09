@@ -30,12 +30,12 @@ enum class RiscvRegisterConstraint {
 };
 
 using RiscvRegisterConstraintField =
-    VectorLengthField::Next<RiscvRegisterConstraint, 3>;
+    AccessModeField::Next<RiscvRegisterConstraint, 3>;
 
 static_assert(MiscField::kSize == 9);
 static_assert(LaneSizeField::kSize == 2);
 static_assert(VectorLengthField::kSize == 2);
-static_assert(AccessModeField::kSize == 2);
+static_assert(AccessModeField::kSize == 1);
 
 }  // namespace compiler
 }  // namespace internal

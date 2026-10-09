@@ -95,6 +95,11 @@ macro IsJSPrototype(o: HeapObject): bool {
 }
 
 @export
+macro IsUninitializedHeapNumber(o: HeapObject): bool {
+  return Is<UninitializedHeapNumber>(o);
+}
+
+@export
 macro IsNativeContext(o: HeapObject): bool {
   return Is<NativeContext>(o);
 }
@@ -245,6 +250,16 @@ Cast<TheHole>(o: Object): TheHole labels CastError {
 Cast<TheHole>(o: HeapObject): TheHole labels CastError {
   const o: Object = o;
   return Cast<TheHole>(o) otherwise CastError;
+}
+
+Cast<TdzHole>(o: Object): TdzHole labels CastError {
+  if (o == TdzHole) return %RawDownCast<TdzHole>(o);
+  goto CastError;
+}
+
+Cast<TdzHole>(o: HeapObject): TdzHole labels CastError {
+  const o: Object = o;
+  return Cast<TdzHole>(o) otherwise CastError;
 }
 
 Cast<True>(o: Object): True labels CastError {

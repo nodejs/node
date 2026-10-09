@@ -1,0 +1,17 @@
+Regression test for crbug.com/570558711
+
+Running test: testInvalidSamplingInterval
+{
+    error : {
+        code : -32000
+        message : Invalid sampling interval
+    }
+    id : <messageId>
+}
+{
+    error : {
+        code : -32000
+        message : Invalid sampling interval
+    }
+    id : <messageId>
+}

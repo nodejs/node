@@ -5,6 +5,8 @@
 #ifndef V8_DIAGNOSTICS_DISASM_H_
 #define V8_DIAGNOSTICS_DISASM_H_
 
+#include <array>
+
 #include "src/base/vector.h"
 
 namespace disasm {
@@ -29,7 +31,7 @@ class V8_EXPORT_PRIVATE NameConverter {
   virtual const char* RootRelativeName(int offset) const { return nullptr; }
 
  protected:
-  mutable v8::base::EmbeddedVector<char, 128> tmp_buffer_;
+  mutable std::array<char, 128> tmp_buffer_;
 };
 
 // A generic Disassembler interface

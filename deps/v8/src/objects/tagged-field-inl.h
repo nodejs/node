@@ -52,6 +52,55 @@ Tagged_t TaggedMember<T, CompressionScheme>::full_to_tagged(Address value) {
 }
 
 template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(Tagged<Smi> value) {
+  static_assert(is_subtype_v<Smi, T>);
+  store_no_write_barrier(value);
+}
+
+template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(Tagged<Smi> value,
+                                                 RelaxedStoreTag) {
+  static_assert(is_subtype_v<Smi, T>);
+  Relaxed_Store_no_write_barrier(value);
+}
+
+template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(
+    Tagged<ClearedWeakValue> value) {
+  static_assert(is_subtype_v<ClearedWeakValue, T>);
+  store_no_write_barrier(value);
+}
+
+template <typename T, typename CompressionScheme>
+template <typename U>
+TaggedMember<T, CompressionScheme>::TaggedMember(Tagged<ReadOnly<U>> value)
+  requires(is_subtype_v<ReadOnly<U>, T>)
+{
+  store_no_write_barrier(value);
+}
+
+template <typename T, typename CompressionScheme>
+template <typename U>
+TaggedMember<T, CompressionScheme>::TaggedMember(Tagged<ReadOnly<U>> value,
+                                                 RelaxedStoreTag)
+  requires(is_subtype_v<ReadOnly<U>, T>)
+{
+  Relaxed_Store_no_write_barrier(value);
+}
+
+template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(
+    const AllocationWitness& witness, Tagged<T> value) {
+  store(witness.object(), value, witness.write_barrier_mode());
+}
+
+template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(
+    const AllocationWitness& witness, Tagged<T> value, RelaxedStoreTag) {
+  Relaxed_Store(witness.object(), value, witness.write_barrier_mode());
+}
+
+template <typename T, typename CompressionScheme>
 Tagged<T> TaggedMember<T, CompressionScheme>::load() const {
   return Tagged<T>(tagged_to_full(ptr()));
 }

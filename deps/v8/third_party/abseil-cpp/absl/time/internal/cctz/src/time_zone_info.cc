@@ -415,6 +415,9 @@ inline FilePtr FOpen(const char* path) {
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 0
 #endif
+#ifndef O_NONBLOCK
+#define O_NONBLOCK 0
+#endif
   const int fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
   if (fd >= 0) {
 #if defined(__APPLE__)

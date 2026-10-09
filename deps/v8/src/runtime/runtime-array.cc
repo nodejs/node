@@ -43,11 +43,10 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   JavaScriptArguments argv(argc, args.address_of_arg_at(0));
   DirectHandle<JSFunction> constructor = args.at<JSFunction>(argc);
   DirectHandle<JSReceiver> new_target = args.at<JSReceiver>(argc + 1);
-  Handle<HeapObject> type_info = args.at<HeapObject>(argc + 2);
-  // TODO(bmeurer): Use MaybeHandle to pass around the AllocationSite.
-  DirectHandle<AllocationSite> site = IsAllocationSite(*type_info)
-                                          ? Cast<AllocationSite>(type_info)
-                                          : Handle<AllocationSite>::null();
+  DirectHandle<HeapObject> type_info = args.at<HeapObject>(argc + 2);
+  MaybeDirectHandle<AllocationSite> site =
+      IsAllocationSite(*type_info) ? Cast<AllocationSite>(type_info)
+                                   : MaybeDirectHandle<AllocationSite>();
 
   Factory* factory = isolate->factory();
 
@@ -99,7 +98,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
       JSFunction::GetDerivedMap(isolate, constructor, new_target));
 
   ElementsKind initial_kind = can_use_type_feedback
-                                  ? site->GetElementsKind()
+                                  ? site.ToHandleChecked()->GetElementsKind()
                                   : initial_map->elements_kind();
   ElementsKind to_kind =
       holey ? GetHoleyElementsKind(initial_kind) : initial_kind;
@@ -112,7 +111,8 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
 
   if (to_kind != initial_kind) {
     // Update the allocation site info to reflect the advice alteration.
-    if (!site.is_null()) site->SetElementsKind(to_kind);
+    DirectHandle<AllocationSite> site_handle;
+    if (site.ToHandle(&site_handle)) site_handle->SetElementsKind(to_kind);
   }
 
   // We should allocate with an initial map that reflects the allocation site
@@ -122,7 +122,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
 
   // If we don't care to track arrays of to_kind ElementsKind, then
   // don't emit a memento for them.
-  DirectHandle<AllocationSite> allocation_site;
+  MaybeDirectHandle<AllocationSite> allocation_site;
   if (AllocationSite::ShouldTrack(to_kind)) {
     allocation_site = site;
   }
@@ -137,7 +137,8 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, ArrayConstructInitializeElements(isolate, array, &argv));
 
-  if (!site.is_null() &&
+  DirectHandle<AllocationSite> site_handle;
+  if (site.ToHandle(&site_handle) &&
       (old_kind != array->GetElementsKind() || !can_use_type_feedback ||
        !can_inline_array_constructor)) {
     // Protect against deopt loops by disabling speculating optimizations in
@@ -145,7 +146,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
     // eventually optimistically try to inline and worst case will deopt and
     // set the allocation site itself, or set the CallIC disable speculation
     // bit.
-    site->SetSpeculationDisabled();
+    site_handle->SetSpeculationDisabled();
   }
 
   return *array;

@@ -116,6 +116,14 @@ IGNITION_HANDLER(LdaTheHole, InterpreterAssembler) {
   Dispatch();
 }
 
+// LdaTdzHole
+//
+// Load TdzHole into the accumulator.
+IGNITION_HANDLER(LdaTdzHole, InterpreterAssembler) {
+  SetAccumulator(TdzHoleConstant());
+  Dispatch();
+}
+
 // LdaTrue
 //
 // Load True into the accumulator.
@@ -737,6 +745,17 @@ IGNITION_HANDLER(SetNamedProperty, InterpreterSetNamedPropertyAssembler) {
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
 IGNITION_HANDLER(DefineNamedOwnProperty, InterpreterSetNamedPropertyAssembler) {
+  SetNamedProperty(Builtin::kDefineNamedOwnIC, NamedPropertyType::kOwn);
+}
+
+// DefineNamedOwnPropertyInLiteral <object> <name_index> <slot>
+//
+// Same as DefineNamedOwnProperty, but only used for the initializing store of
+// a property of an object literal created from a boilerplate, where the
+// property still holds the uninitialized value. Optimizing compilers rely on
+// this.
+IGNITION_HANDLER(DefineNamedOwnPropertyInLiteral,
+                 InterpreterSetNamedPropertyAssembler) {
   SetNamedProperty(Builtin::kDefineNamedOwnIC, NamedPropertyType::kOwn);
 }
 
@@ -3113,14 +3132,17 @@ IGNITION_HANDLER(Return, InterpreterAssembler) {
   Return(accumulator);
 }
 
-// ThrowReferenceErrorIfHole <variable_name>
+// ThrowReferenceErrorIfTdzHole <variable_name>
 //
-// Throws an exception if the value in the accumulator is TheHole.
-IGNITION_HANDLER(ThrowReferenceErrorIfHole, InterpreterAssembler) {
+// Throws an exception if the value in the accumulator is TdzHole.
+IGNITION_HANDLER(ThrowReferenceErrorIfTdzHole, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
+#ifdef V8_ENABLE_TDZ_HOLE
+  CSA_DCHECK(this, TaggedNotEqual(value, TheHoleConstant()));
+#endif
 
   Label throw_error(this, Label::kDeferred);
-  GotoIf(TaggedEqual(value, TheHoleConstant()), &throw_error);
+  GotoIf(TaggedEqual(value, TdzHoleConstant()), &throw_error);
   Dispatch();
 
   BIND(&throw_error);
@@ -3134,14 +3156,17 @@ IGNITION_HANDLER(ThrowReferenceErrorIfHole, InterpreterAssembler) {
   }
 }
 
-// ThrowSuperNotCalledIfHole
+// ThrowSuperNotCalledIfTdzHole
 //
-// Throws an exception if the value in the accumulator is TheHole.
-IGNITION_HANDLER(ThrowSuperNotCalledIfHole, InterpreterAssembler) {
+// Throws an exception if the value in the accumulator is TdzHole.
+IGNITION_HANDLER(ThrowSuperNotCalledIfTdzHole, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
+#ifdef V8_ENABLE_TDZ_HOLE
+  CSA_DCHECK(this, TaggedNotEqual(value, TheHoleConstant()));
+#endif
 
   Label throw_error(this, Label::kDeferred);
-  GotoIf(TaggedEqual(value, TheHoleConstant()), &throw_error);
+  GotoIf(TaggedEqual(value, TdzHoleConstant()), &throw_error);
   Dispatch();
 
   BIND(&throw_error);
@@ -3153,15 +3178,18 @@ IGNITION_HANDLER(ThrowSuperNotCalledIfHole, InterpreterAssembler) {
   }
 }
 
-// ThrowSuperAlreadyCalledIfNotHole
+// ThrowSuperAlreadyCalledIfNotTdzHole
 //
 // Throws SuperAlreadyCalled exception if the value in the accumulator is not
-// TheHole.
-IGNITION_HANDLER(ThrowSuperAlreadyCalledIfNotHole, InterpreterAssembler) {
+// TdzHole.
+IGNITION_HANDLER(ThrowSuperAlreadyCalledIfNotTdzHole, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
+#ifdef V8_ENABLE_TDZ_HOLE
+  CSA_DCHECK(this, TaggedNotEqual(value, TheHoleConstant()));
+#endif
 
   Label throw_error(this, Label::kDeferred);
-  GotoIf(TaggedNotEqual(value, TheHoleConstant()), &throw_error);
+  GotoIf(TaggedNotEqual(value, TdzHoleConstant()), &throw_error);
   Dispatch();
 
   BIND(&throw_error);
@@ -3315,14 +3343,14 @@ IGNITION_HANDLER(ForInEnumerate, InterpreterAssembler) {
 // |cache_info_triple + 2|, with the registers holding cache_type, cache_array,
 // and cache_length respectively.
 IGNITION_HANDLER(ForInPrepare, InterpreterAssembler) {
-  // The {enumerator} is either a Map or a FixedArray.
+  // The {enumerator} is either a Map, a FixedArray, or a ForInEnumeratorHolder.
   TNode<HeapObject> enumerator = CAST(GetAccumulator());
   TNode<UintPtrT> vector_index = BytecodeOperandFeedbackSlot(1);
   TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
       LoadFeedbackVector();
 
   TNode<HeapObject> cache_type = enumerator;  // Just to clarify the rename.
-  TNode<FixedArray> cache_array;
+  TNode<Union<FixedArray, ForInEnumeratorHolder>> cache_array;
   TNode<Smi> cache_length;
   ForInPrepare(enumerator, vector_index, maybe_feedback_vector, &cache_array,
                &cache_length, UpdateFeedbackMode::kOptionalFeedback);
@@ -3346,26 +3374,90 @@ IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
   TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
       LoadFeedbackVector();
 
-  // Load the next key from the enumeration array.
-  TNode<JSAny> key = CAST(LoadFixedArrayElement(CAST(cache_array), index, 0));
-
-  // Check if we can use the for-in fast path potentially using the enum cache.
-  Label if_fast(this), if_slow(this, Label::kDeferred);
+  // Check if the expected map still matches that of the {receiver}. If so,
+  // {cache_array} is the enum cache keys FixedArray.
+  Label if_fast_enum_cache(this), if_not_fast_enum_cache(this);
   TNode<Map> receiver_map = LoadMap(receiver);
-  Branch(TaggedEqual(receiver_map, cache_type), &if_fast, &if_slow);
-  BIND(&if_fast);
+  Branch(TaggedEqual(receiver_map, cache_type), &if_fast_enum_cache,
+         &if_not_fast_enum_cache);
+
+  BIND(&if_fast_enum_cache);
   {
-    // Enum cache in use for {receiver}, the {key} is definitely valid.
-    SetAccumulator(key);
+    SetAccumulator(LoadFixedArrayElement(CAST(cache_array), index));
     Dispatch();
   }
-  BIND(&if_slow);
+
+  BIND(&if_not_fast_enum_cache);
   {
-    TNode<Object> result = ForInNextSlow(GetContext(), vector_index, receiver,
-                                         key, cache_type, maybe_feedback_vector,
-                                         UpdateFeedbackMode::kOptionalFeedback);
-    SetAccumulator(result);
-    Dispatch();
+    TVARIABLE(JSAny, var_key);
+    Label if_holder(this), if_fixed_array(this),
+        if_slow(this, Label::kDeferred);
+
+    TNode<Uint16T> instance_type = LoadInstanceType(CAST(cache_array));
+    Branch(InstanceTypeEqual(instance_type, FOR_IN_ENUMERATOR_HOLDER_TYPE),
+           &if_holder, &if_fixed_array);
+
+    BIND(&if_holder);
+    {
+      TNode<ForInEnumeratorHolder> holder = CAST(cache_array);
+      TNode<Smi> elements_length = LoadObjectField<Smi>(
+          holder, ObjectTraits<ForInEnumeratorHolder>::kElementsLengthOffset);
+
+      Label if_elements(this), if_named(this), check_validity(this);
+      Branch(SmiLessThan(index, elements_length), &if_elements, &if_named);
+
+      BIND(&if_elements);
+      {
+        var_key = NumberToString(index);
+        Goto(&check_validity);
+      }
+
+      BIND(&if_named);
+      {
+        TNode<FixedArray> named_keys = LoadObjectField<FixedArray>(
+            holder, ObjectTraits<ForInEnumeratorHolder>::kNamedKeysOffset);
+        TNode<Smi> named_index = SmiSub(index, elements_length);
+        var_key = CAST(LoadFixedArrayElement(named_keys, named_index));
+        Goto(&check_validity);
+      }
+
+      BIND(&check_validity);
+      {
+        Label if_holder_valid(this);
+        Branch(CheckHolderValidity(receiver, holder), &if_holder_valid,
+               &if_slow);
+
+        BIND(&if_holder_valid);
+        {
+          // Record feedback in case the FeedbackVector was lazily allocated
+          // inside the loop (after ForInPrepare). This avoids a deopt on OSR
+          // or subsequent optimization, because Maglev assumes
+          // kEnumCacheKeys/kEnumCacheKeysAndIndices when feedback is missing
+          // (kNone). UpdateFeedback only writes to the slot if the feedback
+          // value actually changes.
+          UpdateFeedback(SmiConstant(ForInFeedback::kEnumeratorHolder),
+                         maybe_feedback_vector, vector_index,
+                         UpdateFeedbackMode::kOptionalFeedback);
+          SetAccumulator(var_key.value());
+          Dispatch();
+        }
+      }
+    }
+
+    BIND(&if_fixed_array);
+    {
+      var_key = CAST(LoadFixedArrayElement(CAST(cache_array), index));
+      Goto(&if_slow);
+    }
+
+    BIND(&if_slow);
+    {
+      TNode<Object> result = ForInNextSlow(
+          GetContext(), vector_index, receiver, var_key.value(), cache_type,
+          maybe_feedback_vector, UpdateFeedbackMode::kOptionalFeedback);
+      SetAccumulator(result);
+      Dispatch();
+    }
   }
 }
 

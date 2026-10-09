@@ -11,6 +11,8 @@ Debug break
 Debug break
   Scope type: local
   Scope type: block
+    blockLet : <value_unavailable>
+    blockConst : <value_unavailable>
     contextBlockLet : <value_unavailable>
     contextBlockConst : <value_unavailable>
   Scope type: script
@@ -28,6 +30,8 @@ Debug break
 Debug break
   Scope type: local
   Scope type: block
+    blockLet : <value_unavailable>
+    blockConst : <value_unavailable>
     contextBlockLet : 3
     contextBlockConst : 4
   Scope type: script

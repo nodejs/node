@@ -25,7 +25,7 @@ V8_OBJECT class Hole : public HeapObject {
 
  private:
   friend class Heap;
-  friend class Isolate;
+  friend class ReadOnlyHeap;
 
   // TODO(leszeks): Make it smaller if able and needed.
   static constexpr int kPayloadSize = 64 * KB;
@@ -42,6 +42,9 @@ V8_OBJECT class Hole : public HeapObject {
 
 HOLE_LIST(DEFINE_HOLE_TYPE)
 #undef DEFINE_HOLE_TYPE
+#ifndef V8_ENABLE_TDZ_HOLE
+using TdzHole = TheHole;
+#endif
 
 }  // namespace internal
 }  // namespace v8

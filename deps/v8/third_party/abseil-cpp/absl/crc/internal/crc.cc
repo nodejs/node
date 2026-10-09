@@ -43,8 +43,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <iterator>
 
+#include "absl/base/attributes.h"
 #include "absl/base/internal/endian.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/prefetch.h"
@@ -290,8 +292,7 @@ void CRC32::Extend(uint32_t* crc, const void* bytes, size_t length) const {
     // starting at `ptr` and twelve zero bytes, so that four CRCs can be
     // built incrementally and combined at the end.
     const auto step_swath = [this](uint32_t crc_in, const std::uint8_t* ptr) {
-      return absl::little_endian::Load32(ptr) ^
-             this->table_[3][crc_in & 0xff] ^
+      return absl::little_endian::Load32(ptr) ^ this->table_[3][crc_in & 0xff] ^
              this->table_[2][(crc_in >> 8) & 0xff] ^
              this->table_[1][(crc_in >> 16) & 0xff] ^
              this->table_[0][crc_in >> 24];
@@ -425,11 +426,28 @@ void CRC32::Unscramble(uint32_t* crc) const {
 CRC::~CRC() {}
 CRC::CRC() {}
 
+void CRC::ExtendAndCopy(uint32_t* crc, void* __restrict dst,
+                        const void* __restrict src, size_t length,
+                        bool /*non_temporal*/) const {
+  std::memcpy(dst, src, length);
+  Extend(crc, dst, length);
+}
+
 // The "constructor" for a CRC32C with a standard polynomial.
 CRC* CRC::Crc32c() {
   static CRC* singleton = CRCImpl::NewInternal();
   return singleton;
 }
+
+#ifndef NDEBUG
+ABSL_ATTRIBUTE_WEAK
+#endif
+void DebugReportNonTemporalStore() {}
+
+#ifndef NDEBUG
+ABSL_ATTRIBUTE_WEAK
+#endif
+void DebugReportStoreFence() {}
 
 }  // namespace crc_internal
 ABSL_NAMESPACE_END

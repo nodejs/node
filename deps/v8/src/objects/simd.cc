@@ -922,6 +922,49 @@ void Uint8ArrayToHexFastWithNeon(const char* bytes, uint8_t* output,
   HandleRemainingNibbles(bytes, output, length, i);
 }
 #endif
+
+#ifdef V8_ENABLE_SIMD_SVE
+
+// VLA implementation
+TARGET_SVE void Uint8ArrayToHexFastWithSVE(const uint8_t* bytes,
+                                           uint8_t* output, size_t length) {
+  const auto all_true_predicate = __builtin_sve_svptrue_pat_b8(sv_all);
+  const uint64_t step = __builtin_sve_svcntb_pat(sv_all);
+  const auto table =
+      __builtin_sve_svdupq_n_u8('0', '1', '2', '3', '4', '5', '6', '7', '8',
+                                '9', 'a', 'b', 'c', 'd', 'e', 'f');
+
+  for (uint64_t i = 0;; i += step) {
+    const auto governing_predicate =
+        __builtin_sve_svwhilelt_b8_u64(i, static_cast<uint64_t>(length));
+
+    if (!__builtin_sve_svptest_first(all_true_predicate, governing_predicate)) {
+      break;
+    }
+
+    const auto input = __builtin_sve_svld1_u8(governing_predicate, bytes + i);
+    // We prefer an all true predicate and we tell the compiler that we don't
+    // care about the predication type (e.g. merging) that is used with the "_x"
+    // variants of the intrinsics, so that it is more likely that the
+    // unpredicated forms of the instructions get generated. The latter do not
+    // depend on the previous values of the outputs.
+    auto high_nibbles =
+        __builtin_sve_svlsr_n_u8_x(all_true_predicate, input, 4);
+    auto low_nibbles =
+        __builtin_sve_svand_n_u8_x(all_true_predicate, input, 0x0F);
+
+    // Map each nibble to a hex digit.
+    high_nibbles = __builtin_sve_svtbl_u8(table, high_nibbles);
+    low_nibbles = __builtin_sve_svtbl_u8(table, low_nibbles);
+    // Interleave both nibble vectors and store.
+    __builtin_sve_svst2_u8(
+        governing_predicate, output + i * 2,
+        __builtin_sve_svcreate2_u8(high_nibbles, low_nibbles));
+  }
+}
+
+#endif  // V8_ENABLE_SIMD_SVE
+
 }  // namespace
 
 Tagged<Object> Uint8ArrayToHex(const char* bytes, size_t length,
@@ -943,14 +986,18 @@ Tagged<Object> Uint8ArrayToHex(const char* bytes, size_t length,
 
 #ifdef NEON64
   if (!is_shared) {
-    {
-      DCHECK(get_vectorization_kind() == SimdKinds::kNeon ||
-             get_vectorization_kind() == SimdKinds::kSVE);
+    DisallowGarbageCollection no_gc;
+    uint8_t* const output = string_output->GetChars(no_gc);
 
-      DisallowGarbageCollection no_gc;
-      Uint8ArrayToHexFastWithNeon(bytes, string_output->GetChars(no_gc),
-                                  length);
+#ifdef V8_ENABLE_SIMD_SVE
+    if (get_vectorization_kind() == SimdKinds::kSVE) {
+      Uint8ArrayToHexFastWithSVE(reinterpret_cast<const uint8_t*>(bytes),
+                                 output, length);
+      return *string_output;
     }
+#endif  // V8_ENABLE_SIMD_SVE
+
+    Uint8ArrayToHexFastWithNeon(bytes, output, length);
     return *string_output;
   }
 #endif
@@ -1138,7 +1185,7 @@ bool Uint8ArrayFromHexWithSSE(const base::Vector<T>& input_vector,
 
     // Check if it is {} (includes invalid hex values)
     if (!maybe_uint8_low_nibbles.has_value()) {
-      return false;
+      break;
     }
     __m128i uint8_low_nibbles = maybe_uint8_low_nibbles.value();
 
@@ -1150,7 +1197,7 @@ bool Uint8ArrayFromHexWithSSE(const base::Vector<T>& input_vector,
 
     // Check if it is {} (includes invalid hex values)
     if (!maybe_uint8_high_nibbles.has_value()) {
-      return false;
+      break;
     }
     __m128i uint8_high_nibbles = maybe_uint8_high_nibbles.value();
 
@@ -1262,8 +1309,9 @@ bool Uint8ArrayFromHexWithNeon(const base::Vector<T>& input_vector,
     if constexpr (std::is_same_v<T, const base::uc16>) {
       uint8x16_t second_part_first_batch =
           vld1q_u8(reinterpret_cast<const uint8_t*>(&input_vector[i + 8]));
+      // Saturate non-Latin-1 code units so hex validation rejects them.
       first_batch =
-          vmovn_high_u16(vmovn_u16(first_batch), second_part_first_batch);
+          vqmovn_high_u16(vqmovn_u16(first_batch), second_part_first_batch);
     }
 
     // Load second batch of 16 hex characters into a Neon register
@@ -1275,8 +1323,9 @@ bool Uint8ArrayFromHexWithNeon(const base::Vector<T>& input_vector,
     if constexpr (std::is_same_v<T, const base::uc16>) {
       uint8x16_t second_part_second_batch =
           vld1q_u8(reinterpret_cast<const uint8_t*>(&input_vector[i + 24]));
+      // Saturate non-Latin-1 code units so hex validation rejects them.
       second_batch =
-          vmovn_high_u16(vmovn_u16(second_batch), second_part_second_batch);
+          vqmovn_high_u16(vqmovn_u16(second_batch), second_part_second_batch);
     }
 
     // low nibbles are values with even indexes in fist_batch.
@@ -1312,7 +1361,7 @@ bool Uint8ArrayFromHexWithNeon(const base::Vector<T>& input_vector,
 
     // Check if it is {} (includes invalid hex values)
     if (!maybe_uint8_low_nibbles.has_value()) {
-      return false;
+      break;
     }
     uint8x16_t uint8_low_nibbles = maybe_uint8_low_nibbles.value();
 
@@ -1324,7 +1373,7 @@ bool Uint8ArrayFromHexWithNeon(const base::Vector<T>& input_vector,
 
     // Check if it is {} (includes invalid hex values)
     if (!maybe_uint8_high_nibbles.has_value()) {
-      return false;
+      break;
     }
     uint8x16_t uint8_high_nibbles = maybe_uint8_high_nibbles.value();
 

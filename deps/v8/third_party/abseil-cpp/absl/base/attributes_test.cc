@@ -14,6 +14,8 @@
 
 #include "absl/base/attributes.h"
 
+#include <type_traits>
+
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
 
@@ -24,20 +26,32 @@ TEST(Attributes, RequireExplicitInit) {
     int f1;
     int f2 ABSL_REQUIRE_EXPLICIT_INIT;
   };
-  Agg good1 ABSL_ATTRIBUTE_UNUSED = {1, 2};
+  Agg good1 [[maybe_unused]] = {1, 2};
 #if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
-  Agg good2 ABSL_ATTRIBUTE_UNUSED(1, 2);
+  Agg good2 [[maybe_unused]] (1, 2);
 #endif
-  Agg good3 ABSL_ATTRIBUTE_UNUSED{1, 2};
-  Agg good4 ABSL_ATTRIBUTE_UNUSED = {1, 2};
-  Agg good5 ABSL_ATTRIBUTE_UNUSED = Agg{1, 2};
-  Agg good6[1] ABSL_ATTRIBUTE_UNUSED = {{1, 2}};
-  Agg good7[1] ABSL_ATTRIBUTE_UNUSED = {Agg{1, 2}};
+  Agg good3 [[maybe_unused]]{1, 2};
+  Agg good4 [[maybe_unused]] = {1, 2};
+  Agg good5 [[maybe_unused]] = Agg{1, 2};
+  Agg good6 [[maybe_unused]][1] = {{1, 2}};
+  Agg good7 [[maybe_unused]][1] = {Agg{1, 2}};
   union {
     Agg agg;
-  } good8 ABSL_ATTRIBUTE_UNUSED = {{1, 2}};
-  constexpr Agg good9 ABSL_ATTRIBUTE_UNUSED = {1, 2};
-  constexpr Agg good10 ABSL_ATTRIBUTE_UNUSED{1, 2};
+  } good8 [[maybe_unused]] = {{1, 2}};
+  constexpr Agg good9 [[maybe_unused]] = {1, 2};
+  constexpr Agg good10 [[maybe_unused]]{1, 2};
+}
+
+TEST(Attributes, MSVCBug) {
+  struct ImplicitlyConstructible {
+    // NOLINTNEXTLINE(google-explicit-constructor)
+    ImplicitlyConstructible(const char*) {}
+  };
+  struct Agg {
+    ImplicitlyConstructible f1 ABSL_REQUIRE_EXPLICIT_INIT;
+  };
+  static_assert(std::is_convertible_v<const char*, ImplicitlyConstructible>);
+  Agg good1 [[maybe_unused]] = {ImplicitlyConstructible("hello")};
 }
 
 }  // namespace

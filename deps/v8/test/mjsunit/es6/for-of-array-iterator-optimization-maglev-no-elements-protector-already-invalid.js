@@ -31,4 +31,4 @@ assertEquals([1, 'element', 3], testForOf([1, , 3]));
 
 %OptimizeMaglevOnNextCall(testForOf);
 assertEquals([1, 'element', 3], testForOf([1, , 3]));
-assertTrue(isMaglevved(testForOf));
+assertMaglevved(testForOf);

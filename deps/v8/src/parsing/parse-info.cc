@@ -39,6 +39,7 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
       v8_flags.parallel_compile_tasks_for_eager_toplevel);
   set_post_parallel_compile_tasks_for_lazy(
       v8_flags.parallel_compile_tasks_for_lazy);
+  set_allow_heap_allocation(true);
 }
 
 // static
@@ -73,10 +74,6 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForScriptCompile(
                                           : ScriptType::kClassic,
       v8_flags.lazy);
   flags.set_outer_language_mode(script->outer_language_mode());
-  if (script->compilation_kind() ==
-      Script::CompilationKind::kFunctionConstructor) {
-    flags.set_parse_restriction(ONLY_SINGLE_FUNCTION_LITERAL);
-  }
   flags.SetFlagsForFunctionFromScript(script);
   if (script->is_wrapped()) {
     flags.set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
@@ -157,6 +154,10 @@ void UnoptimizedCompileFlags::SetFlagsForFunctionFromScript(
 
   set_block_coverage_enabled(block_coverage_enabled() &&
                              script->IsUserJavaScript());
+  if (is_toplevel() && script->compilation_kind() ==
+                           Script::CompilationKind::kFunctionConstructor) {
+    set_parse_restriction(ONLY_SINGLE_FUNCTION_LITERAL);
+  }
 }
 
 ReusableUnoptimizedCompileState::ReusableUnoptimizedCompileState(
@@ -211,8 +212,7 @@ ParseInfo::ParseInfo(const UnoptimizedCompileFlags flags,
       language_mode_(flags.outer_language_mode()),
       is_background_compilation_(false),
       is_streaming_compilation_(false),
-      has_module_in_scope_chain_(flags.is_module()),
-      has_generator_in_scope_chain_(false) {
+      has_module_in_scope_chain_(flags.is_module()) {
   if (flags.block_coverage_enabled()) {
     AllocateSourceRangeMap();
   }

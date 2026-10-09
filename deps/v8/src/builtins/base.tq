@@ -312,8 +312,6 @@ extern class TransitionArray extends WeakFixedArray;
 
 type InstanceType extends uint16 constexpr 'InstanceType';
 
-type NoSharedNameSentinel extends Smi;
-
 // Specialized types. The following three type definitions don't correspond to
 // actual C++ classes, but have Is... methods that check additional constraints.
 
@@ -606,9 +604,6 @@ const kNameDictionaryInitialCapacity:
 const kSwissNameDictionaryInitialCapacity:
     constexpr int32 generates 'SwissNameDictionary::kInitialCapacity';
 
-const kWasmArrayHeaderSize:
-    constexpr int32 generates 'WasmArray::kHeaderSize';
-
 const kHeapObjectHeaderSize: constexpr int32 generates 'sizeof(HeapObject)';
 
 type Exception extends Oddball;
@@ -646,6 +641,7 @@ extern macro SizeStringConstant(): String;
 extern macro StringStringConstant(): String;
 extern macro SuppressedStringConstant(): String;
 extern macro TheHoleConstant(): TheHole;
+extern macro TdzHoleConstant(): TdzHole;
 extern macro PromiseHoleConstant(): PromiseHole;
 extern macro ToPrimitiveSymbolConstant(): PublicSymbol;
 extern macro ToStringStringConstant(): String;
@@ -657,6 +653,7 @@ extern macro ValueOfStringConstant(): String;
 extern macro InvalidDispatchHandleConstant(): DispatchHandle;
 
 const TheHole: TheHole = TheHoleConstant();
+const TdzHole: TdzHole = TdzHoleConstant();
 const PromiseHole: PromiseHole = PromiseHoleConstant();
 const Null: Null = NullConstant();
 const Undefined: Undefined = UndefinedConstant();

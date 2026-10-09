@@ -79,4 +79,12 @@ void FreeTrie::integrity_check() const {
   integrity_check_trie_node(integrity_check_trie_node, root());
 }
 
+BlockRef FreeTrie::pop_any() {
+  if (!root_)
+    return BlockRef();
+  Node *node = root_;
+  remove(node);
+  return node->block();
+}
+
 } // namespace LIBC_NAMESPACE_DECL

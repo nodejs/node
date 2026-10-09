@@ -29,6 +29,9 @@ class JSContextSpecialization;
 // represented in a Smi (small integer).
 V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
  public:
+  inline HeapNumber(ReadOnlyRoots roots, double value);
+  inline HeapNumber(ReadOnlyRoots roots, Float64 value);
+
   inline double value() const;
   inline void set_value(double value);
 
@@ -76,6 +79,37 @@ V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
   UnalignedDoubleMember value_;
 } V8_OBJECT_END;
 
+// Represents mutable HeapNumber in uninitialized state.
+V8_OBJECT class UninitializedHeapNumber : public HeapObject {
+ public:
+  static constexpr int kSize = sizeof(HeapNumber);
+
+  inline explicit UninitializedHeapNumber(ReadOnlyRoots roots);
+
+  inline double value() const { return value_.value(); }
+  inline void set_value(double value) { value_.set_value(value); }
+
+  inline uint64_t value_as_bits() const {
+    return base::bit_cast<uint64_t>(value_.value());
+  }
+  inline void set_value_as_bits(uint64_t bits) {
+    value_.set_value(base::bit_cast<double>(bits));
+  }
+
+  DECL_PRINTER(UninitializedHeapNumber)
+  DECL_VERIFIER(UninitializedHeapNumber)
+
+  class BodyDescriptor;
+
+ private:
+  friend struct OffsetsForDebug;
+  friend class TorqueGeneratedHeapNumberAsserts;
+  friend AllocationAlignment HeapObject::RequiredAlignment(
+      InSharedSpace in_shared_space, Tagged<Map> map);
+
+ public:
+  UnalignedDoubleMember value_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

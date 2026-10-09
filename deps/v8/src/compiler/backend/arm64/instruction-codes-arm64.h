@@ -70,8 +70,6 @@ namespace compiler {
   V(Arm64I32x4SConvertF32x4)            \
   V(Arm64I16x8Q15MulRSatS)              \
   V(Arm64I16x8BitMask)                  \
-  V(Arm64I8x16SConvertI16x8)            \
-  V(Arm64I8x16UConvertI16x8)            \
   V(Arm64I8x16BitMask)                  \
   V(Arm64S128Const)                     \
   V(Arm64S128Dup)                       \
@@ -96,8 +94,7 @@ namespace compiler {
   V(Arm64S128LowUnzipRight)             \
   V(Arm64Ssra)                          \
   V(Arm64Usra)                          \
-  V(Arm64S32x4Shuffle)                  \
-  V(Arm64I8x16Swizzle)                  \
+  V(Arm64S128Tbl1)                      \
   V(Arm64I8x16Shuffle)                  \
   V(Arm64S128Extract)                   \
   V(Arm64S128ExtractNarrow)             \
@@ -105,10 +102,22 @@ namespace compiler {
   V(Arm64S128MoveReg)                   \
   V(Arm64V128AnyTrue)                   \
   V(Arm64AllTrue)                       \
+  V(Arm64Sqxtn)                         \
+  V(Arm64Sqxtn2)                        \
+  V(Arm64Sqxtun)                        \
+  V(Arm64Sqxtun2)                       \
+  V(Arm64Addhn)                         \
+  V(Arm64Addhn2)                        \
+  V(Arm64Subhn)                         \
+  V(Arm64Subhn2)                        \
   V(Arm64Sxtl)                          \
   V(Arm64Sxtl2)                         \
   V(Arm64Uxtl)                          \
   V(Arm64Uxtl2)                         \
+  V(Arm64Sshll)                         \
+  V(Arm64Sshll2)                        \
+  V(Arm64Ushll)                         \
+  V(Arm64Ushll2)                        \
   V(Arm64FSplat)                        \
   V(Arm64FAbs)                          \
   V(Arm64FSqrt)                         \
@@ -121,9 +130,12 @@ namespace compiler {
   V(Arm64IExtractLane)                  \
   V(Arm64IReplaceLane)                  \
   V(Arm64IShll)                         \
+  V(Arm64IShll2)                        \
   V(Arm64IShl)                          \
   V(Arm64IShrS)                         \
   V(Arm64IShrU)                         \
+  V(Arm64SShl)                          \
+  V(Arm64UShl)                          \
   V(Arm64IMul)                          \
   V(Arm64I32x4UConvertF32x4)            \
   V(Arm64I32x4BitMask)                  \
@@ -137,8 +149,6 @@ namespace compiler {
   V(Arm64I32x4TruncSatF64x2UZero)       \
   V(Arm64IExtractLaneU)                 \
   V(Arm64IExtractLaneS)                 \
-  V(Arm64I16x8SConvertI32x4)            \
-  V(Arm64I16x8UConvertI32x4)            \
   V(Arm64Mla)                           \
   V(Arm64Mls)                           \
   V(Arm64FAdd)                          \
@@ -199,12 +209,15 @@ namespace compiler {
   V(Arm64Ssubl)                         \
   V(Arm64Ssubl2)                        \
   V(Arm64Usubl)                         \
-  V(Arm64Usubl2)
+  V(Arm64Usubl2)                        \
+  V(Arm64Shadd)                         \
+  V(Arm64Uhadd)
 
 #define TARGET_ARCH_OPCODE_LIST(V)                   \
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
   V(Arm64Add)                                        \
   V(Arm64Add32)                                      \
+  V(Arm64Add64_3)                                    \
   V(Arm64Add128)                                     \
   V(Arm64Sub128)                                     \
   V(Arm64And)                                        \

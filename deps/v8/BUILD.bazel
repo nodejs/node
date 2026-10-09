@@ -9,7 +9,7 @@ load("@rules_python//python:defs.bzl", "py_binary", "py_test")
 load("@v8_python_deps//:requirements.bzl", "requirement")
 load(
     "@v8//:bazel/defs.bzl",
-    "metagen_instance_types",
+    "run_metagen",
     "v8_binary",
     "v8_build_config",
     "v8_config",
@@ -19,9 +19,8 @@ load(
     "v8_library",
     "v8_mksnapshot",
     "v8_string",
-    "v8_torque_files",
 )
-load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression")
+load(":bazel/v8-generators.bzl", "v8_torque_files")
 
 # =================================================
 # Flags
@@ -178,13 +177,16 @@ v8_flag(
 
 v8_flag(name = "v8_enable_experimental_tq_to_tsa")
 
-# Mirrors the GN arg of the same name: selects which instance-type
-# generator's output V8 compiles in, metagen or Torque's emission. When
-# off, the metagen action is not part of the build graph.
+# Mirrors the GN arg of the same name: selects metagen's instance types and
+# object layouts. When off, the metagen action is not part of the build graph.
 v8_flag(
-    name = "v8_use_metagen_instance_types",
-    default = False,
+    name = "v8_use_metagen",
+    default = True,
 )
+
+# Empty selects the default for the target OS. Set to "gcc" or "cl" when
+# the C++ toolchain uses a different driver mode.
+v8_string(name = "v8_metagen_driver_mode")
 
 v8_flag(
     name = "v8_use_host_cpu_arm_features",
@@ -264,6 +266,16 @@ v8_flag(
 v8_flag(
     name = "v8_enable_seeded_array_index_hash",
     default = False,
+)
+
+v8_flag(
+    name = "v8_x64_16byte_stack_alignment",
+    default = False,
+)
+
+v8_flag(
+    name = "v8_support_la57",
+    default = True,
 )
 
 selects.config_setting_group(
@@ -410,12 +422,12 @@ v8_flag(
     default = True,
 )
 
-# Enable support for external code range if enable_pointer_compression_shared_cage and
+# Enable support for external code range if v8_enable_pointer_compression and
 # v8_enable_external_code_space.
 selects.config_setting_group(
     name = "enable_external_code_space",
     match_all = [
-        ":enable_pointer_compression_shared_cage",
+        ":is_v8_enable_pointer_compression",
         ":is_v8_enable_external_code_space",
     ],
 )
@@ -545,6 +557,8 @@ v8_config(
         "v8_enable_vtunejit": "ENABLE_VTUNE_JIT_INTERFACE",
         "v8_enable_undefined_double": "V8_ENABLE_UNDEFINED_DOUBLE",
         "v8_use_host_cpu_arm_features": "V8_USE_HOST_CPU_ARM_FEATURES",
+        "v8_x64_16byte_stack_alignment": "V8_X64_16BYTE_STACK_ALIGNMENT",
+        "v8_support_la57": "V8_SUPPORT_LA57",
     },
     defines = [
         "GOOGLE3",
@@ -555,8 +569,8 @@ v8_config(
         "V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA",
         "V8_TLS_USED_IN_LIBRARY",
     ] + select({
-        ":is_not_v8_use_metagen_instance_types": [
-            "V8_USE_METAGEN_INSTANCE_TYPES=0",
+        ":is_not_v8_use_metagen": [
+            "V8_USE_METAGEN=0",
         ],
         "//conditions:default": [],
     }) + select({
@@ -797,6 +811,7 @@ filegroup(
         "include/v8-maybe.h",
         "include/v8-memory-span.h",
         "include/v8-message.h",
+        "include/v8-metrics.h",
         "include/v8-microtask.h",
         "include/v8-microtask-queue.h",
         "include/v8-object.h",
@@ -815,6 +830,7 @@ filegroup(
         "include/v8-traced-handle.h",
         "include/v8-typed-array.h",
         "include/v8-unwinder.h",
+        "include/v8-unwinder-state.h",
         "include/v8-util.h",
         "include/v8-value.h",
         "include/v8-value-serializer.h",
@@ -984,6 +1000,7 @@ filegroup(
         "src/base/threaded-list.h",
         "src/base/timezone-cache.h",
         "src/base/types/is-instantiation.h",
+        "src/base/unique-array.h",
         "src/base/utils/random-number-generator.cc",
         "src/base/utils/random-number-generator.h",
         "src/base/vector.h",
@@ -1400,6 +1417,12 @@ filegroup(
         "src/torque/instructions.h",
         "src/torque/kythe-data.cc",
         "src/torque/kythe-data.h",
+        "src/torque/layout-loader.cc",
+        "src/torque/layout-loader.h",
+        "src/torque/ls/json.cc",
+        "src/torque/ls/json.h",
+        "src/torque/ls/json-parser.cc",
+        "src/torque/ls/json-parser.h",
         "src/torque/parameter-difference.h",
         "src/torque/server-data.cc",
         "src/torque/server-data.h",
@@ -1652,6 +1675,8 @@ filegroup(
         "src/date/dateparser-inl.h",
         "src/debug/debug.cc",
         "src/debug/debug.h",
+        "src/debug/debug-block-list.cc",
+        "src/debug/debug-block-list.h",
         "src/debug/debug-coverage.cc",
         "src/debug/debug-coverage.h",
         "src/debug/debug-evaluate.cc",
@@ -2120,6 +2145,7 @@ filegroup(
         "src/objects/backing-store.h",
         "src/objects/bigint.cc",
         "src/objects/bigint.h",
+        "src/objects/bit-field-group.h",
         "src/objects/bytecode-array.cc",
         "src/objects/bytecode-array.h",
         "src/objects/bytecode-array-inl.h",
@@ -2608,6 +2634,7 @@ filegroup(
         "src/sandbox/external-pointer-table-inl.h",
         "src/sandbox/cppheap-pointer.h",
         "src/sandbox/cppheap-pointer-inl.h",
+        "src/sandbox/cppheap-pointer-tag.h",
         "src/sandbox/cppheap-pointer-table.cc",
         "src/sandbox/cppheap-pointer-table.h",
         "src/sandbox/cppheap-pointer-table-inl.h",
@@ -2771,7 +2798,6 @@ filegroup(
         "src/zone/zone.cc",
         "src/zone/zone.h",
         "src/zone/zone-allocator.h",
-        "src/zone/zone-chunk-list.h",
         "src/zone/zone-compact-set.h",
         "src/zone/zone-containers.h",
         "src/zone/zone-hashmap.h",
@@ -3911,6 +3937,7 @@ filegroup(
             "src/maglev/maglev-ir-inl.h",
             "src/maglev/maglev-kna-processor.h",
             "src/maglev/maglev-kna-processor.cc",
+            "src/maglev/maglev-map-inference.h",
             "src/maglev/maglev-node-type.cc",
             "src/maglev/maglev-node-type.h",
             "src/maglev/maglev-range.h",
@@ -3919,6 +3946,7 @@ filegroup(
             "src/maglev/maglev-range-verification.h",
             "src/maglev/maglev-reducer-inl.h",
             "src/maglev/maglev-reducer.h",
+            "src/maglev/maglev-regalloc-node-info.h",
             "src/maglev/maglev-register-frame-array.h",
             "src/maglev/maglev-phase.h",
             "src/maglev/maglev-phi-representation-selector.cc",
@@ -4439,6 +4467,18 @@ filegroup(
     output_group = "initializers",
 )
 
+filegroup(
+    name = "icu/metagen_layouts_json",
+    srcs = [":icu/run_metagen"],
+    output_group = "layouts",
+)
+
+filegroup(
+    name = "noicu/metagen_layouts_json",
+    srcs = [":noicu/run_metagen"],
+    output_group = "layouts",
+)
+
 # TODO(victorgomes): Add support to tools/debug_helper,
 # which needs class-debug-readers and debug-macros.
 v8_torque_files(
@@ -4470,13 +4510,20 @@ v8_torque_files(
         "interface-descriptors.inc",
     ],
     icu_srcs = [":icu/torque_files"],
+    icu_layout_json = select({
+        ":is_v8_use_metagen": ":icu/metagen_layouts_json",
+        "//conditions:default": None,
+    }),
     noicu_srcs = [":noicu/torque_files"],
+    noicu_layout_json = select({
+        ":is_v8_use_metagen": ":noicu/metagen_layouts_json",
+        "//conditions:default": None,
+    }),
 )
 
-# Metagen: libclang-driven IT generator. Produces gen/metagen/instance-types.h
-# which `src/objects/instance-types-gen.h` includes when
-# V8_USE_METAGEN_INSTANCE_TYPES is on. :v8_libshared reaches the targets
-# below only under that flag.
+# Metagen: libclang-driven metadata generator. Produces
+# gen/metagen/instance-types.h for src/objects/instance-types-gen.h and
+# gen/metagen/layouts.json for Torque.
 filegroup(
     name = "metagen_python_sources",
     srcs = [
@@ -4486,6 +4533,8 @@ filegroup(
         "tools/metagen/cpp_hier.py",
         "tools/metagen/extract.py",
         "tools/metagen/instance_types.py",
+        "tools/metagen/layout_extract.py",
+        "tools/metagen/layout_ir.py",
         "tools/metagen/metagen.py",
     ],
 )
@@ -4538,11 +4587,10 @@ filegroup(
 
 # Clang's builtin headers (stddef.h, stdarg.h, the arch intrinsics).
 # Kept separate from the libclang files above because they are a
-# different input to the rule: metagen takes their directory explicitly
-# and passes it as -isystem. The llvm-libclang package ships the library
-# and the C API headers but no builtin headers, so these come from the
-# clang toolchain, which rolls from the same LLVM revision and therefore
-# matches the parsing library.
+# different input to the rule: metagen passes their directory as
+# -resource-dir=. The llvm-libclang package ships the library and C API
+# headers but no builtin headers, so these come from the matching clang
+# toolchain.
 filegroup(
     name = "metagen_clang_builtin_headers",
     srcs = glob([
@@ -4550,7 +4598,7 @@ filegroup(
     ]),
 )
 
-# The harvest's checked-in C++ driver, shared with GN and metagen.py. It
+# Metagen's checked-in C++ driver, shared with GN and metagen.py. It
 # includes src/objects/all-objects.h, whose feature-conditional groups
 # are selected by the normal V8 feature defines. Bazel always defines
 # V8_ENABLE_WEBASSEMBLY via :define_flags; V8_INTL_SUPPORT is added only by
@@ -4573,6 +4621,8 @@ py_binary(
         "tools/metagen/cpp_hier.py",
         "tools/metagen/extract.py",
         "tools/metagen/instance_types.py",
+        "tools/metagen/layout_extract.py",
+        "tools/metagen/layout_ir.py",
         "tools/metagen/metagen.py",
     ],
     # tools/metagen/ is a Python package, so the scripts import each
@@ -4584,9 +4634,14 @@ py_binary(
     main = "tools/metagen/metagen.py",
 )
 
-metagen_instance_types(
-    name = "metagen_instance_types_h",
+run_metagen(
+    name = "run_metagen",
     driver = ":metagen_driver",
+    default_driver_mode = select({
+        "@v8//bazel/config:is_windows": "cl",
+        "//conditions:default": "gcc",
+    }),
+    driver_mode_flag = ":v8_metagen_driver_mode",
     clang_builtin_headers = [":metagen_clang_builtin_headers"],
     libclang_files = [":metagen_libclang_files"],
     python_srcs = [":metagen_python_sources"],
@@ -4625,7 +4680,7 @@ metagen_instance_types(
     # The icu variant of v8_library compiles with V8_INTL_SUPPORT (via
     # ENABLE_I18N_SUPPORT_DEFINES copts, invisible to CcInfo) and the
     # intl object sources, so its IT enum must include the intl types:
-    # the icu-prefixed harvest additionally parses the intl headers,
+    # the icu-prefixed run additionally parses the intl headers,
     # with the same defines and with ICU's headers + include paths.
     icu_cc_compilation_context_from = ["//external:icu"],
     icu_extra_defines = [
@@ -4639,15 +4694,15 @@ metagen_instance_types(
 # rewrites the include path so `#include "metagen/instance-types.h"`
 # resolves against the gen dir.
 cc_library(
-    name = "icu/metagen_instance_types_headers",
-    hdrs = [":icu/metagen_instance_types_h"],
+    name = "icu/run_metagen_headers",
+    hdrs = [":icu/run_metagen"],
     copts = ["-Wno-implicit-fallthrough"],
     strip_include_prefix = "icu",
 )
 
 cc_library(
-    name = "noicu/metagen_instance_types_headers",
-    hdrs = [":noicu/metagen_instance_types_h"],
+    name = "noicu/run_metagen_headers",
+    hdrs = [":noicu/run_metagen"],
     copts = ["-Wno-implicit-fallthrough"],
     strip_include_prefix = "noicu",
 )
@@ -4853,6 +4908,7 @@ cc_library(
     }),
     features = ["-use_header_modules"],
     deps = [
+        ":simdutf",
         ":torque_base_headers",
         ":v8_libbase",
         "@abseil-cpp//absl/container:node_hash_map",
@@ -4889,8 +4945,8 @@ v8_library(
         ":icu/generated_torque_definitions_headers",
         "//external:icu",
     ] + select({
-        ":is_v8_use_metagen_instance_types": [
-            ":icu/metagen_instance_types_headers",
+        ":is_v8_use_metagen": [
+            ":icu/run_metagen_headers",
         ],
         "//conditions:default": [],
     }),
@@ -4899,21 +4955,21 @@ v8_library(
         ":icu/generated_torque_definitions",
         ":icu/v8_base_without_compiler_files",
     ] + select({
-        ":is_v8_use_metagen_instance_types": [":icu/metagen_instance_types_h"],
+        ":is_v8_use_metagen": [":icu/run_metagen"],
         "//conditions:default": [],
     }),
     noicu_deps = [
         ":noicu/generated_torque_definitions_headers",
     ] + select({
-        ":is_v8_use_metagen_instance_types": [
-            ":noicu/metagen_instance_types_headers",
+        ":is_v8_use_metagen": [
+            ":noicu/run_metagen_headers",
         ],
         "//conditions:default": [],
     }),
     noicu_srcs = [
         ":noicu/generated_torque_definitions",
     ] + select({
-        ":is_v8_use_metagen_instance_types": [":noicu/metagen_instance_types_h"],
+        ":is_v8_use_metagen": [":noicu/run_metagen"],
         "//conditions:default": [],
     }),
     deps = [
@@ -5046,6 +5102,7 @@ v8_binary(
         "//conditions:default": [],
     }),
     deps = [
+        ":simdutf",
         "v8_libbase",
         "@abseil-cpp//absl/container:node_hash_map",
         "@abseil-cpp//absl/container:node_hash_set",
@@ -5086,17 +5143,6 @@ v8_binary(
     copts = ["-Wno-implicit-fallthrough"],
     icu_deps = [":icu/v8"],
     noicu_deps = [":noicu/v8"],
-)
-
-# This target forces torque to be compiled without pointer compression.
-v8_binary_non_pointer_compression(
-    name = "noicu/torque_non_pointer_compression",
-    binary = "noicu/torque",
-)
-
-v8_binary_non_pointer_compression(
-    name = "icu/torque_non_pointer_compression",
-    binary = "icu/torque",
 )
 
 alias(

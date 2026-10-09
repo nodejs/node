@@ -241,6 +241,8 @@ class BytecodeGraphBuilder {
     kSet,
     // Define value to the receiver without checking the prototype chain.
     kDefineOwn,
+    // Like kDefineOwn, but inside an object literal
+    kDefineOwnInLiteral
   };
   void BuildNamedStore(NamedStoreMode store_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
@@ -1570,6 +1572,11 @@ void BytecodeGraphBuilder::VisitLdaTheHole() {
   environment()->BindAccumulator(node);
 }
 
+void BytecodeGraphBuilder::VisitLdaTdzHole() {
+  Node* node = jsgraph()->TdzHoleConstant();
+  environment()->BindAccumulator(node);
+}
+
 void BytecodeGraphBuilder::VisitLdaTrue() {
   Node* node = jsgraph()->TrueConstant();
   environment()->BindAccumulator(node);
@@ -2189,7 +2196,12 @@ void BytecodeGraphBuilder::BuildNamedStore(NamedStoreMode store_mode) {
     DCHECK_EQ(FeedbackSlotKind::kDefineNamedOwn,
               broker()->GetFeedbackSlotKind(feedback));
 
-    op = javascript()->DefineNamedOwnProperty(name, feedback);
+    op = javascript()->DefineNamedOwnProperty(false, name, feedback);
+  } else if (store_mode == NamedStoreMode::kDefineOwnInLiteral) {
+    DCHECK_EQ(FeedbackSlotKind::kDefineNamedOwn,
+              broker()->GetFeedbackSlotKind(feedback));
+
+    op = javascript()->DefineNamedOwnProperty(true, name, feedback);
   } else {
     DCHECK_EQ(NamedStoreMode::kSet, store_mode);
     LanguageMode language_mode =
@@ -2309,6 +2321,10 @@ void BytecodeGraphBuilder::VisitSetNamedProperty() {
 
 void BytecodeGraphBuilder::VisitDefineNamedOwnProperty() {
   BuildNamedStore(NamedStoreMode::kDefineOwn);
+}
+
+void BytecodeGraphBuilder::VisitDefineNamedOwnPropertyInLiteral() {
+  BuildNamedStore(NamedStoreMode::kDefineOwnInLiteral);
 }
 
 void BytecodeGraphBuilder::VisitSetKeyedProperty() {
@@ -3071,27 +3087,27 @@ void BytecodeGraphBuilder::BuildHoleCheckAndThrow(
   environment()->BindAccumulator(accumulator);
 }
 
-void BytecodeGraphBuilder::VisitThrowReferenceErrorIfHole() {
+void BytecodeGraphBuilder::VisitThrowReferenceErrorIfTdzHole() {
   Node* accumulator = environment()->LookupAccumulator();
   Node* check_for_hole = NewNode(simplified()->ReferenceEqual(), accumulator,
-                                 jsgraph()->TheHoleConstant());
+                                 jsgraph()->TdzHoleConstant());
   Node* name =
       jsgraph()->ConstantNoHole(MakeRefForConstantPoolOperand(0), broker());
   BuildHoleCheckAndThrow(check_for_hole,
                          Runtime::kThrowAccessedUninitializedVariable, name);
 }
 
-void BytecodeGraphBuilder::VisitThrowSuperNotCalledIfHole() {
+void BytecodeGraphBuilder::VisitThrowSuperNotCalledIfTdzHole() {
   Node* accumulator = environment()->LookupAccumulator();
   Node* check_for_hole = NewNode(simplified()->ReferenceEqual(), accumulator,
-                                 jsgraph()->TheHoleConstant());
+                                 jsgraph()->TdzHoleConstant());
   BuildHoleCheckAndThrow(check_for_hole, Runtime::kThrowSuperNotCalled);
 }
 
-void BytecodeGraphBuilder::VisitThrowSuperAlreadyCalledIfNotHole() {
+void BytecodeGraphBuilder::VisitThrowSuperAlreadyCalledIfNotTdzHole() {
   Node* accumulator = environment()->LookupAccumulator();
   Node* check_for_hole = NewNode(simplified()->ReferenceEqual(), accumulator,
-                                 jsgraph()->TheHoleConstant());
+                                 jsgraph()->TdzHoleConstant());
   Node* check_for_not_hole =
       NewNode(simplified()->BooleanNot(), check_for_hole);
   BuildHoleCheckAndThrow(check_for_not_hole,

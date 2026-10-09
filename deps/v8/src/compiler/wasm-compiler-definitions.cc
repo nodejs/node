@@ -4,6 +4,7 @@
 
 #include "src/compiler/wasm-compiler-definitions.h"
 
+#include <array>
 #include <optional>
 
 #include "src/base/strings.h"
@@ -63,12 +64,12 @@ base::Vector<const char> GetDebugName(Zone* zone,
 
   constexpr int kBufferLength = 24;
 
-  base::EmbeddedVector<char, kBufferLength> name_vector;
-  int name_len = SNPrintF(name_vector, "wasm-function#%d", index);
+  std::array<char, kBufferLength> name_vector;
+  int name_len = base::SNPrintF(name_vector, "wasm-function#%d", index);
   DCHECK(name_len > 0 && static_cast<size_t>(name_len) < name_vector.size());
 
   char* index_name = zone->AllocateArray<char>(name_len);
-  memcpy(index_name, name_vector.begin(), name_len);
+  memcpy(index_name, name_vector.data(), name_len);
   return base::Vector<const char>(index_name, name_len);
 }
 

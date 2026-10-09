@@ -53,7 +53,7 @@ parameter count: 1
 bytecode array length: 9
 bytecodes: [
                 B(LdaImmutableCurrentContextSlot), C8(2),
-  /*  109 E> */ B(ThrowReferenceErrorIfHole), U8(1:"MyClass"),
+  /*  109 E> */ B(ThrowReferenceErrorIfTdzHole), U8(1:"MyClass"),
                 B(SetPrototypeProperties), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0),
                 B(LdaUndefined),
   /*  245 S> */ B(Return),

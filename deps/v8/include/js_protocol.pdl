@@ -143,12 +143,17 @@ domain Debugger
       optional Location startLocation
       # Location in the source code where scope ends
       optional Location endLocation
-      # True if the scope does not declare any variables or have a runtime context.
-      # Only present if true.
+      # Present if the scope has no variable values to show. Absent means that
+      # the scope declares at least one variable with an available value.
       # Empty scopes are retained in the scope chain because
       # they can be targeted via `evaluateOnCallFrame` (using `scopeNumber`) or
       # matched against scopes in source maps.
-      experimental optional boolean empty
+      experimental optional enum emptyReason
+        # The scope does not declare any variables.
+        no-variables
+        # The scope declares variables, but none of their values are available
+        # (e.g. because they were optimized out or are in their TDZ).
+        all-unavailable
 
   # Search match for resource.
   type SearchMatch extends object
@@ -564,6 +569,10 @@ domain Debugger
     parameters
       # The skipList specifies location ranges that should be skipped on step over.
       experimental optional array of LocationRange skipList
+      # Functions whose source range lies within one of the enterRanges are
+      # entered as if by stepInto, even when they are called (directly or
+      # indirectly) from a call that is stepped over.
+      experimental optional array of LocationRange enterRanges
 
   # Fired when breakpoint is resolved to an actual script and location.
   # Deprecated in favor of `resolvedBreakpoints` in the `scriptParsed` event.

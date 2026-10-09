@@ -165,7 +165,7 @@ class InjectedScript::ProtocolPromiseHandler {
   static void thenCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     PromiseHandlerTracker::Id handlerId =
         static_cast<PromiseHandlerTracker::Id>(
-            info.Data().As<v8::Number>()->Value());
+            info.DataV2().As<v8::Value>().As<v8::Number>()->Value());
     PromiseHandlerTracker& handlerTracker =
         static_cast<V8InspectorImpl*>(
             v8::debug::GetInspector(info.GetIsolate()))
@@ -186,7 +186,7 @@ class InjectedScript::ProtocolPromiseHandler {
   static void catchCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     PromiseHandlerTracker::Id handlerId =
         static_cast<PromiseHandlerTracker::Id>(
-            info.Data().As<v8::Number>()->Value());
+            info.DataV2().As<v8::Value>().As<v8::Number>()->Value());
     PromiseHandlerTracker& handlerTracker =
         static_cast<V8InspectorImpl*>(
             v8::debug::GetInspector(info.GetIsolate()))
@@ -275,20 +275,19 @@ class InjectedScript::ProtocolPromiseHandler {
       }
     }
 
-    if (m_objectGroup == "console") {
-      scope.injectedScript()->setLastEvaluationResult(result);
-    }
-
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
-    response = scope.injectedScript()->wrapObject(
-        result, m_objectGroup, *m_wrapOptions, &wrappedValue);
+    std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails;
+    response = scope.injectedScript()->wrapEvaluateResult(
+        result, scope.tryCatch(), m_objectGroup, *m_wrapOptions,
+        m_throwOnSideEffect, &wrappedValue, &exceptionDetails);
     if (!response.IsSuccess()) {
       EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
                                     response);
       return;
     }
     EvaluateCallback::sendSuccess(m_callback, scope.injectedScript(),
-                                  std::move(wrappedValue), nullptr);
+                                  std::move(wrappedValue),
+                                  std::move(exceptionDetails));
   }
 
   void catchCallback(v8::Local<v8::Value> result) {
@@ -304,9 +303,29 @@ class InjectedScript::ProtocolPromiseHandler {
     Response response = scope.initialize();
     if (!response.IsSuccess()) return;
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
-    response = scope.injectedScript()->wrapObject(
-        result, m_objectGroup, *m_wrapOptions, &wrappedValue);
+    {
+      std::optional<v8::debug::SideEffectCheckScope> sideEffectCheckScope;
+      if (m_throwOnSideEffect && (m_wrapOptions->mode == WrapMode::kJson ||
+                                  m_wrapOptions->mode == WrapMode::kDeep)) {
+        sideEffectCheckScope.emplace(m_inspector->isolate());
+      }
+      response = scope.injectedScript()->wrapObject(
+          result, m_objectGroup, *m_wrapOptions, &wrappedValue);
+    }
     if (!response.IsSuccess()) {
+      if (m_throwOnSideEffect && scope.tryCatch().HasCaught()) {
+        std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails;
+        response = scope.injectedScript()->wrapEvaluateResult(
+            v8::MaybeLocal<v8::Value>(), scope.tryCatch(), m_objectGroup,
+            *m_wrapOptions, m_throwOnSideEffect, &wrappedValue,
+            &exceptionDetails);
+        if (response.IsSuccess()) {
+          EvaluateCallback::sendSuccess(m_callback, scope.injectedScript(),
+                                        std::move(wrappedValue),
+                                        std::move(exceptionDetails));
+          return;
+        }
+      }
       EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
                                     response);
       return;
@@ -842,11 +861,6 @@ v8::Local<v8::Value> InjectedScript::lastEvaluationResult() const {
   return m_lastEvaluationResult.Get(m_context->isolate());
 }
 
-void InjectedScript::setLastEvaluationResult(v8::Local<v8::Value> result) {
-  m_lastEvaluationResult.Reset(m_context->isolate(), result);
-  m_lastEvaluationResult.AnnotateStrongRetainer(kGlobalHandleLabel);
-}
-
 Response InjectedScript::resolveCallArgument(
     protocol::Runtime::CallArgument* callArgument,
     v8::Local<v8::Value>* result) {
@@ -977,33 +991,42 @@ Response InjectedScript::wrapEvaluateResult(
       }
       return Response::InternalError();
     }
-    Response response =
-        wrapObject(resultValue, objectGroup, wrapOptions, result);
-    if (!response.IsSuccess()) return response;
-    if (objectGroup == "console") {
-      m_lastEvaluationResult.Reset(m_context->isolate(), resultValue);
-      m_lastEvaluationResult.AnnotateStrongRetainer(kGlobalHandleLabel);
+    Response response = Response::Success();
+    {
+      std::optional<v8::debug::SideEffectCheckScope> sideEffectCheckScope;
+      if (throwOnSideEffect && (wrapOptions.mode == WrapMode::kJson ||
+                                wrapOptions.mode == WrapMode::kDeep)) {
+        sideEffectCheckScope.emplace(m_context->isolate());
+      }
+      response = wrapObject(resultValue, objectGroup, wrapOptions, result);
     }
-  } else {
-    if (tryCatch.HasTerminated() || !tryCatch.CanContinue()) {
-      return Response::ServerError("Execution was terminated");
+    if (response.IsSuccess()) {
+      if (objectGroup == "console") {
+        m_lastEvaluationResult.Reset(m_context->isolate(), resultValue);
+        m_lastEvaluationResult.AnnotateStrongRetainer(kGlobalHandleLabel);
+      }
+      return Response::Success();
     }
-    v8::Local<v8::Value> exception = tryCatch.Exception();
-    if (!throwOnSideEffect) {
-      m_context->inspector()->client()->dispatchError(
-          m_context->context(), tryCatch.Message(), exception);
-    }
-    Response response = wrapObject(exception, objectGroup,
-                                   exception->IsNativeError()
-                                       ? WrapOptions({WrapMode::kIdOnly})
-                                       : WrapOptions({WrapMode::kPreview}),
-                                   result);
-    if (!response.IsSuccess()) return response;
-    // We send exception in result for compatibility reasons, even though it's
-    // accessible through exceptionDetails.exception.
-    response = createExceptionDetails(tryCatch, objectGroup, exceptionDetails);
-    if (!response.IsSuccess()) return response;
+    if (!throwOnSideEffect || !tryCatch.HasCaught()) return response;
   }
+  if (tryCatch.HasTerminated() || !tryCatch.CanContinue()) {
+    return Response::ServerError("Execution was terminated");
+  }
+  v8::Local<v8::Value> exception = tryCatch.Exception();
+  if (!throwOnSideEffect) {
+    m_context->inspector()->client()->dispatchError(
+        m_context->context(), tryCatch.Message(), exception);
+  }
+  Response response =
+      wrapObject(exception, objectGroup,
+                 exception->IsNativeError() ? WrapOptions({WrapMode::kIdOnly})
+                                            : WrapOptions({WrapMode::kPreview}),
+                 result);
+  if (!response.IsSuccess()) return response;
+  // We send exception in result for compatibility reasons, even though it's
+  // accessible through exceptionDetails.exception.
+  response = createExceptionDetails(tryCatch, objectGroup, exceptionDetails);
+  if (!response.IsSuccess()) return response;
   return Response::Success();
 }
 

@@ -47,6 +47,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
+#include "absl/base/config.h"
 #include "absl/base/nullability.h"
 #include "absl/meta/type_traits.h"
 #include "absl/status/internal/statusor_internal.h"
@@ -723,7 +724,7 @@ template <typename T,
           std::enable_if_t<absl::HasOstreamOperator<T>::value, int> = 0>
 std::ostream& operator<<(std::ostream& os, const StatusOr<T>& status_or) {
   if (status_or.ok()) {
-    os << status_or.value();
+    os << *status_or;
   } else {
     os << internal_statusor::StringifyRandom::OpenBrackets()
        << status_or.status()
@@ -740,7 +741,7 @@ template <typename Sink, typename T,
           std::enable_if_t<absl::HasAbslStringify<T>::value, int> = 0>
 void AbslStringify(Sink& sink, const StatusOr<T>& status_or) {
   if (status_or.ok()) {
-    absl::Format(&sink, "%v", status_or.value());
+    absl::Format(&sink, "%v", *status_or);
   } else {
     absl::Format(&sink, "%s%v%s",
                  internal_statusor::StringifyRandom::OpenBrackets(),

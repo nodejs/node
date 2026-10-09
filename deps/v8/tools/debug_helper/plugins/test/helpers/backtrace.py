@@ -9,29 +9,52 @@ import re
 
 _BACKTRACE_ANNOTATION_LINE_RE = re.compile(
     r"(?P<annotation>\[(?:[^\]]+ @ .+?(?::\d+:\d+)?|<anonymous>)\])"
-    r"(?P<trailer>\s*\(this=[^\)]*\))?(?:\s*\([^\)]*\))?\s*$")
+    r"(?P<trailer>\s*\(this=[^\n]*)?\s*$")
 _SCRIPT_ANNOTATION_RE = re.compile(
     r"^\[(?P<function>[^\]]+?) @ (?P<script>.+?):(?P<line>\d+):(?P<column>\d+)\]$"
 )
 _SCRIPT_ONLY_ANNOTATION_RE = re.compile(
     r"^\[(?P<function>[^\]]+?) @ (?P<script>.+)\]$")
-# Receiver pointer in `(this=0xADDR, argc=N)`.
+# Pointers in `(this=0xADDR, [0]=0xADDR <Type>, ...)`.
 _ADDR_RE = re.compile(r"0x[0-9a-fA-F]+")
+# Known-object names in briefs, e.g. `<Oddball: TrueValue>` or
+# `<Oddball: maybe NoElementsProtector, maybe TrueValue>`. The names depend on
+# the build config (static roots) and the available heap hints, so mask them
+# but keep the type. Quoted string contents and Smi values do not match and
+# stay exact.
+_KNOWN_OBJECT_RE = re.compile(
+    r"<(\w+): (?:maybe )?[A-Z]\w*(?:, maybe [A-Z]\w*)*>")
 
 _DEFAULT_EXPECTED_ANNOTATIONS = (
-    "[test_func_3 @ <base>/throw.js:15:21] (this=<addr>, argc=4)",
-    "[<anonymous> @ <base>/throw.js:10:19] (this=<addr>, argc=4)",
-    "[test_func_2 @ <base>/throw.js:9:21] (this=<addr>, argc=4)",
-    "[test_func_1 @ <base>/throw.js:5:21] (this=<addr>, argc=4)",
-    "[<anonymous> @ <base>/throw.js:1:1] (this=<addr>, argc=1)",
+    "[test_func_3 @ <base>/throw.js:15:21] (this=<addr>, [0]=<Smi: 44>, "
+    "[1]=<addr> <Oddball>, [2]=<addr> <JSObject>, "
+    '[3]=<addr> <SeqOneByteString: "hello!">)',
+    "[<anonymous> @ <base>/throw.js:10:19] (this=<addr>, [0]=<Smi: 44>, "
+    "[1]=<addr> <Oddball>, [2]=<addr> <JSObject>, "
+    '[3]=<addr> <SeqOneByteString: "hello!">)',
+    "[test_func_2 @ <base>/throw.js:9:21] (this=<addr>, [0]=<Smi: 43>, "
+    "[1]=<addr> <Oddball>, [2]=<addr> <JSObject>, "
+    '[3]=<addr> <SeqOneByteString: "hello">)',
+    "[test_func_1 @ <base>/throw.js:5:21] (this=<addr>, [0]=<Smi: 42>, "
+    "[1]=<addr> <Oddball>, [2]=<addr> <JSObject>, "
+    '[3]=<addr> <SeqOneByteString: "hello">)',
+    "[<anonymous> @ <base>/throw.js:1:1] (this=<addr>, "
+    "[0]=<addr> <FixedArray>)",
 )
 
 
 def _normalize_annotation(annotation, trailer):
   """Reduce debugger-specific paths to a stable, basename-only annotation."""
   annotation = annotation.strip()
-  # Mask the receiver pointer so the trailer compares stably across runs.
-  suffix = "" if not trailer else " " + _ADDR_RE.sub("<addr>", trailer.strip())
+  trailer = (trailer or "").strip()
+  # gdb appends a native argument list after the decorated function name,
+  # e.g. "(this=...) ()". Drop it so only the v8 trailer remains.
+  if trailer.endswith("()"):
+    trailer = trailer[:-2].strip()
+  # Mask the pointers so the trailer compares stably across runs.
+  trailer = _ADDR_RE.sub("<addr>", trailer)
+  trailer = _KNOWN_OBJECT_RE.sub(r"<\1>", trailer)
+  suffix = "" if not trailer else " " + trailer
   match = _SCRIPT_ANNOTATION_RE.match(annotation)
   if match:
     return (f"[{match.group('function').strip()} @ <base>/"

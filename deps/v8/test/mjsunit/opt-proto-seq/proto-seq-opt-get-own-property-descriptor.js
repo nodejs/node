@@ -32,7 +32,7 @@ assert_test_getOwnPropertyDescriptor(test_getOwnPropertyDescriptor());
 %OptimizeMaglevOnNextCall(test_getOwnPropertyDescriptor);
 assert_test_getOwnPropertyDescriptor(test_getOwnPropertyDescriptor());
 assertOptimized(test_getOwnPropertyDescriptor);
-assertTrue(isMaglevved(test_getOwnPropertyDescriptor));
+assertMaglevved(test_getOwnPropertyDescriptor);
 assert_test_getOwnPropertyDescriptor(test_getOwnPropertyDescriptor());
 %OptimizeFunctionOnNextCall(test_getOwnPropertyDescriptor);
 assert_test_getOwnPropertyDescriptor(test_getOwnPropertyDescriptor());

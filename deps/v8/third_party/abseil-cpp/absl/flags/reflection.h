@@ -23,12 +23,15 @@
 #ifndef ABSL_FLAGS_REFLECTION_H_
 #define ABSL_FLAGS_REFLECTION_H_
 
+#include <memory>
 #include <string>
 
 #include "absl/base/config.h"
+#include "absl/base/nullability.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/flags/commandlineflag.h"
 #include "absl/flags/internal/commandlineflag.h"
+#include "absl/strings/string_view.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -41,11 +44,13 @@ class FlagSaverImpl;
 // Returns the reflection handle of an Abseil flag of the specified name, or
 // `nullptr` if not found. This function will emit a warning if the name of a
 // 'retired' flag is specified.
-absl::CommandLineFlag* FindCommandLineFlag(absl::string_view name);
+absl::CommandLineFlag* absl_nullable FindCommandLineFlag(
+    absl::string_view name);
 
 // Returns current state of the Flags registry in a form of mapping from flag
 // name to a flag reflection handle.
-absl::flat_hash_map<absl::string_view, absl::CommandLineFlag*> GetAllFlags();
+absl::flat_hash_map<absl::string_view, absl::CommandLineFlag* absl_nonnull>
+GetAllFlags();
 
 //------------------------------------------------------------------------------
 // FlagSaver
@@ -76,10 +81,11 @@ class FlagSaver {
   ~FlagSaver();
 
   FlagSaver(const FlagSaver&) = delete;
-  void operator=(const FlagSaver&) = delete;
+  FlagSaver& operator=(const FlagSaver&) = delete;
 
  private:
-  flags_internal::FlagSaverImpl* impl_;
+  // Null if no flags restoration is needed.
+  absl_nullable std::unique_ptr<flags_internal::FlagSaverImpl> impl_;
 };
 
 //-----------------------------------------------------------------------------

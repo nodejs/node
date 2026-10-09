@@ -1,0 +1,63 @@
+Tests that the skipList of a step does not outlive that step.
+
+Test: stepOut after stepInto with skipList
+Paused with reason: other
+function callee() {
+  #debugger;
+  let x = 1;
+
+stepInto({"skipList":[{"scriptId":"3","start":{"lineNumber":7,"columnNumber":0},"end":{"lineNumber":8,"columnNumber":0}}]})
+Paused with reason: step
+  debugger;
+  let x = #1;
+  return x;
+
+stepOut({})
+Paused with reason: step
+  callee();
+  let y = #2;
+  return y;
+
+
+Test: stepOut after resume after stepInto with skipList
+Paused with reason: other
+function callee() {
+  #debugger;
+  let x = 1;
+
+stepInto({"skipList":[{"scriptId":"3","start":{"lineNumber":7,"columnNumber":0},"end":{"lineNumber":8,"columnNumber":0}}]})
+Paused with reason: step
+  debugger;
+  let x = #1;
+  return x;
+
+Paused with reason: other
+function callee() {
+  #debugger;
+  let x = 1;
+
+stepOut({})
+Paused with reason: step
+  callee();
+  let y = #2;
+  return y;
+
+
+Test: stepInto with skipList after stepInto with skipList uses the new skipList
+Paused with reason: other
+function callee() {
+  #debugger;
+  let x = 1;
+
+stepInto({"skipList":[{"scriptId":"3","start":{"lineNumber":2,"columnNumber":0},"end":{"lineNumber":3,"columnNumber":0}}]})
+Paused with reason: step
+  let x = 1;
+  return x;#
+}
+
+stepInto({"skipList":[{"scriptId":"3","start":{"lineNumber":7,"columnNumber":0},"end":{"lineNumber":8,"columnNumber":0}}]})
+Paused with reason: step
+  let y = 2;
+  return y;#
+}
+

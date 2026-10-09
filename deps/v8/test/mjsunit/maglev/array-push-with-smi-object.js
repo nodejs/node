@@ -35,9 +35,9 @@ let smis = [1, 2, 3];
 foo(smis, 11);
 assertEquals(11, smis[3]);
 
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 // Trying to store an object into a SMI array deopts.
 foo(smis, {a: 2});
-assertFalse(isMaglevved(foo));
+assertNotMaglevved(foo);
 assertEquals(2, smis[4].a);

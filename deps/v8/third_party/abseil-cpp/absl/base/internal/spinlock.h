@@ -231,8 +231,8 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
   }
 
   uint32_t TryLockInternal(uint32_t lock_value, uint32_t wait_cycles);
-  void SlowLock() ABSL_ATTRIBUTE_COLD;
-  void SlowUnlock(uint32_t lock_value) ABSL_ATTRIBUTE_COLD;
+  ABSL_ATTRIBUTE_COLD void SlowLock();
+  ABSL_ATTRIBUTE_COLD void SlowUnlock(uint32_t lock_value);
   uint32_t SpinLoop();
 
   inline bool TryLockImpl() {

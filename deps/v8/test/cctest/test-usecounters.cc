@@ -281,6 +281,44 @@ TEST(RegExpSplitUseCounters) {
   global_use_counts = nullptr;
 }
 
+TEST(BigInt) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+
+  CompileRun("1 + 2; '123'; new Int32Array(1); new Float64Array(1);");
+  CHECK_EQ(0, use_counts[v8::Isolate::kBigInt]);
+
+  CompileRun("123n;");
+  CHECK_LT(0, use_counts[v8::Isolate::kBigInt]);
+  use_counts[v8::Isolate::kBigInt] = 0;
+
+  CompileRun("function f() { return 456n; } f();");
+  CHECK_LT(0, use_counts[v8::Isolate::kBigInt]);
+  use_counts[v8::Isolate::kBigInt] = 0;
+
+  CompileRun("BigInt(123);");
+  CHECK_EQ(1, use_counts[v8::Isolate::kBigInt]);
+  use_counts[v8::Isolate::kBigInt] = 0;
+
+  CompileRun("BigInt('456');");
+  CHECK_EQ(1, use_counts[v8::Isolate::kBigInt]);
+  use_counts[v8::Isolate::kBigInt] = 0;
+
+  CompileRun("new BigInt64Array(1);");
+  CHECK_EQ(1, use_counts[v8::Isolate::kBigInt]);
+  use_counts[v8::Isolate::kBigInt] = 0;
+
+  CompileRun("new BigUint64Array(1);");
+  CHECK_EQ(1, use_counts[v8::Isolate::kBigInt]);
+  use_counts[v8::Isolate::kBigInt] = 0;
+
+  global_use_counts = nullptr;
+}
+
 }  // namespace test_usecounters
 }  // namespace internal
 }  // namespace v8

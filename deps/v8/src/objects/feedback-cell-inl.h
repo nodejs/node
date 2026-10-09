@@ -13,6 +13,7 @@
 #include "src/execution/tiering-manager.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/feedback-vector-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/object-predicates-inl.h"
 #include "src/objects/struct-inl.h"
 
@@ -20,6 +21,14 @@
 #include "src/objects/object-macros.h"
 
 namespace v8::internal {
+
+FeedbackCell::FeedbackCell(ReadOnlyRoots roots, Tagged<ReadOnly<Map>> map)
+    : Struct(map), value_(roots.undefined_value()) {}
+
+FeedbackCell::FeedbackCell(const AllocationWitness& witness,
+                           Tagged<ReadOnly<Map>> map,
+                           Tagged<ClosureFeedbackCellArray> value)
+    : Struct(map), value_(witness, value) {}
 
 Tagged<FeedbackCell::Value> FeedbackCell::value() const {
   return value_.load();
@@ -54,8 +63,6 @@ void FeedbackCell::set_dispatch_handle(JSDispatchHandle new_handle) {
   dispatch_handle_.Relaxed_Store(this, new_handle);
 }
 
-void FeedbackCell::clear_padding() {}
-
 void FeedbackCell::reset_feedback_vector(
     std::optional<std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
                                      Tagged<HeapObject> target)>>
@@ -79,8 +86,6 @@ void FeedbackCell::clear_interrupt_budget() {
   // This value is always reset to a proper budget before it's used.
   set_interrupt_budget(0);
 }
-
-void FeedbackCell::clear_dispatch_handle() { dispatch_handle_.Relaxed_Clear(); }
 
 FeedbackCell::ClosureCountTransition FeedbackCell::IncrementClosureCount(
     Isolate* isolate) {

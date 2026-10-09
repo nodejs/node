@@ -287,13 +287,13 @@ V8_OBJECT class SourceTextModule : public Module {
   TaggedMember<FixedArray> regular_exports_;
   TaggedMember<FixedArray> regular_imports_;
   TaggedMember<FixedArray> requested_modules_;
-  TaggedMember<UnionOf<TheHole, JSObject>> import_meta_;
+  V8_TQ_ACQ_REL TaggedMember<UnionOf<TheHole, JSObject>> import_meta_;
   TaggedMember<UnionOf<SourceTextModule, TheHole>> cycle_root_;
   TaggedMember<ArrayList> async_parent_modules_;
   TaggedMember<Smi> dfs_index_;
   TaggedMember<Smi> dfs_ancestor_index_;
   TaggedMember<Smi> pending_async_dependencies_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<SourceTextModuleFlags>);
 } V8_OBJECT_END;
 
 template <>
@@ -391,7 +391,7 @@ V8_OBJECT class ModuleRequest : public Struct {
  public:
   TaggedMember<String> specifier_;
   TaggedMember<FixedArray> import_attributes_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<ModuleRequestFlags>);
 } V8_OBJECT_END;
 
 V8_OBJECT class SourceTextModuleInfoEntry : public Struct {

@@ -10,10 +10,13 @@
 
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/heap-number.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/tagged-field-inl.h"
+#include "src/roots/roots-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -23,6 +26,34 @@ namespace internal {
 
 DEF_CAST_TRAITS(Oddball)
 ODDBALL_LIST(DEF_CAST_TRAITS)
+
+Oddball::Oddball(Tagged<ReadOnly<Map>> map, uint8_t kind)
+    : PrimitiveHeapObject(map), kind_(Smi::FromInt(kind)) {}
+
+void Oddball::FinishInitialization(Tagged<String> to_string,
+                                   Tagged<Number> to_number,
+                                   Tagged<String> type_of) {
+  if (IsHeapNumber(to_number)) {
+    set_to_number_raw_as_bits(Cast<HeapNumber>(to_number)->value_as_bits());
+  } else {
+    set_to_number_raw(Object::NumberValue(to_number));
+  }
+  set_to_number(to_number, SKIP_WRITE_BARRIER);
+  set_to_string(to_string, SKIP_WRITE_BARRIER);
+  set_type_of(type_of, SKIP_WRITE_BARRIER);
+}
+
+Null::Null(ReadOnlyRoots roots) : Oddball(roots.null_map(), Oddball::kNull) {}
+
+Undefined::Undefined(ReadOnlyRoots roots)
+    : Oddball(roots.undefined_map(), Oddball::kUndefined) {}
+
+Boolean::Boolean(ReadOnlyRoots roots, uint8_t kind)
+    : Oddball(roots.boolean_map(), kind) {}
+
+True::True(ReadOnlyRoots roots) : Boolean(roots, Oddball::kTrue) {}
+
+False::False(ReadOnlyRoots roots) : Boolean(roots, Oddball::kFalse) {}
 
 double Oddball::to_number_raw() const { return to_number_raw_.value(); }
 void Oddball::set_to_number_raw(double value) {
@@ -50,10 +81,6 @@ void Oddball::set_type_of(Tagged<String> value, WriteBarrierMode mode) {
 }
 
 uint8_t Oddball::kind() const { return kind_.load().value(); }
-
-void Oddball::set_kind(uint8_t value) {
-  kind_.store(this, Smi::FromInt(value));
-}
 
 // static
 Handle<Number> Oddball::ToNumber(Isolate* isolate,

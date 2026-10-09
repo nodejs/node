@@ -57,6 +57,15 @@ class StackArgumentsAccessor {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackArgumentsAccessor);
 };
 
+// When generating a TSAN-aware load, we sometimes pass the register of the base
+// object of the load, if the object is shared. If the register holds the
+// compressed object value, we must decompress it before passing it to the
+// runtime function.
+struct SharedBaseTsanArgument {
+  Register reg;
+  bool must_decompress_reg;
+};
+
 class V8_EXPORT_PRIVATE MacroAssembler
     : public SharedMacroAssembler<MacroAssembler> {
  public:
@@ -81,6 +90,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Operations on roots in the root-array.
   Operand RootAsOperand(RootIndex index);
   void LoadTaggedRoot(Register destination, RootIndex index);
+  void StoreTaggedRoot(Operand destination, RootIndex index);
   void LoadRoot(Register destination, RootIndex index) final;
   void LoadRoot(Operand destination, RootIndex index) {
     LoadRoot(kScratchRegister, index);
@@ -293,6 +303,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void I16x8SConvertF16x8(YMMRegister dst, XMMRegister src, YMMRegister tmp,
                           Register scratch);
   void I16x8TruncF16x8U(YMMRegister dst, XMMRegister src, YMMRegister tmp);
+  void F16x8SConvertI16x8(XMMRegister dst, XMMRegister src, YMMRegister tmp);
+  void F16x8UConvertI16x8(XMMRegister dst, XMMRegister src, YMMRegister tmp);
   void F16x8Qfma(YMMRegister dst, XMMRegister src1, XMMRegister src2,
                  XMMRegister src3, YMMRegister tmp, YMMRegister tmp2);
   void F16x8Qfms(YMMRegister dst, XMMRegister src1, XMMRegister src2,
@@ -320,6 +332,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void F64x4Splat(YMMRegister dst, XMMRegister src);
   void F32x8Splat(YMMRegister dst, XMMRegister src);
+  void F16x8Splat(XMMRegister dst, XMMRegister src);
 
   void F32x8Qfma(YMMRegister dst, YMMRegister src1, YMMRegister src2,
                  YMMRegister src3, YMMRegister tmp);
@@ -580,7 +593,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // validate the parameter count at runtime. Instead, we should replace them
   // with CallJSDispatchEntry that generates a call to a given (compile-time
   // constant) JSDispatchHandle.
-  void CallJSFunction(Register function_object, uint16_t argument_count);
+  void CallJSFunction(Register function_object,
+                      uint16_t expected_parameter_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
   void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
@@ -710,6 +724,13 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void CheckStackAlignment();
 
+  // Wrapper around CheckStackAlignment. This is used at call sites
+  // to enforce rsp is correctly aligned and thus rbp is aligned within
+  // the callee. This function can be removed and usages replaced with
+  // CheckStackAlignment when V8_X64_16BYTE_STACK_ALIGNMENT_BOOL is enabled
+  // by default.
+  void AssertSpAlignedForCall() NOOP_UNLESS_DEBUG_CODE;
+
   void AlignStackPointer();
 
   // Activation support.
@@ -774,8 +795,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void CallTSANStoreStub(Register address, Register value,
                          SaveFPRegsMode fp_mode, int size, StubCallMode mode,
                          std::memory_order order);
-  void CallTSANRelaxedLoadStub(Register address, SaveFPRegsMode fp_mode,
-                               int size, StubCallMode mode);
+  void CallTSANRelaxedLoadStub(
+      Register address, std::optional<SharedBaseTsanArgument> opt_shared_base,
+      SaveFPRegsMode fp_mode, int size, StubCallMode mode);
 #endif  // V8_IS_TSAN
 
   void MoveNumber(Register dst, double value);
@@ -977,6 +999,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
                                              Register dispatch_handle);
   void LoadEntrypointAndParameterCountFromJSDispatchTable(
       Register entrypoint, Register parameter_count, Register dispatch_handle);
+  void PushDispatchHandle(Register dispatch_handle, Register scratch);
+  void PopDispatchHandle(Register dispatch_handle, Register scratch);
 
   void LoadProtectedPointerField(Register destination, Operand field_operand);
 

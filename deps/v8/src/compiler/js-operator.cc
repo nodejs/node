@@ -222,7 +222,8 @@ CreateFunctionContextParameters const& CreateFunctionContextParametersOf(
 
 bool operator==(DefineNamedOwnPropertyParameters const& lhs,
                 DefineNamedOwnPropertyParameters const& rhs) {
-  return lhs.name_.object().location() == rhs.name_.object().location() &&
+  return lhs.in_literal() == rhs.in_literal() &&
+         lhs.name_.object().location() == rhs.name_.object().location() &&
          lhs.feedback() == rhs.feedback();
 }
 
@@ -232,7 +233,7 @@ bool operator!=(DefineNamedOwnPropertyParameters const& lhs,
 }
 
 size_t hash_value(DefineNamedOwnPropertyParameters const& p) {
-  return base::hash_combine(p.name_.object().location(),
+  return base::hash_combine(p.in_literal(), p.name_.object().location(),
                             FeedbackSource::Hash()(p.feedback()));
 }
 
@@ -833,11 +834,12 @@ JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op) {
 
 std::ostream& operator<<(std::ostream& os, JSWasmCallParameters const& p) {
   return os << p.native_module() << ", " << p.function_index() << ", "
-            << p.feedback();
+            << Brief(*p.shared_fct_info().object()) << ", " << p.feedback();
 }
 
 size_t hash_value(JSWasmCallParameters const& p) {
   return base::hash_combine(p.native_module(), p.function_index(),
+                            p.shared_fct_info().object().location(),
                             FeedbackSource::Hash()(p.feedback()));
 }
 
@@ -845,6 +847,8 @@ bool operator==(JSWasmCallParameters const& lhs,
                 JSWasmCallParameters const& rhs) {
   return lhs.native_module() == rhs.native_module() &&
          lhs.function_index() == rhs.function_index() &&
+         lhs.shared_fct_info().object().location() ==
+             rhs.shared_fct_info().object().location() &&
          lhs.feedback() == rhs.feedback();
 }
 
@@ -1336,12 +1340,12 @@ const Operator* JSOperatorBuilder::DefineKeyedOwnProperty(
 }
 
 const Operator* JSOperatorBuilder::DefineNamedOwnProperty(
-    NameRef name, FeedbackSource const& feedback) {
+    bool in_literal, NameRef name, FeedbackSource const& feedback) {
   static constexpr int kObject = 1;
   static constexpr int kValue = 1;
   static constexpr int kFeedbackVector = 1;
   static constexpr int kArity = kObject + kValue + kFeedbackVector;
-  DefineNamedOwnPropertyParameters parameters(name, feedback);
+  DefineNamedOwnPropertyParameters parameters(in_literal, name, feedback);
   return zone()->New<Operator1<DefineNamedOwnPropertyParameters>>(   // --
       IrOpcode::kJSDefineNamedOwnProperty, Operator::kNoProperties,  // opcode
       "JSDefineNamedOwnProperty",                                    // name
@@ -1359,11 +1363,11 @@ const Operator* JSOperatorBuilder::DeleteProperty() {
 const Operator* JSOperatorBuilder::CreateGeneratorObject(
     IndirectHandle<BytecodeArray> bytecode_array) {
   CreateGeneratorObjectParameters parameters(bytecode_array);
-  return zone()->New<Operator1<CreateGeneratorObjectParameters>>(   // --
-      IrOpcode::kJSCreateGeneratorObject, Operator::kEliminatable,  // opcode
-      "JSCreateGeneratorObject",                                    // name
-      2, 1, 1, 1, 1, 0,                                             // counts
-      parameters);  // parameters
+  return zone()->New<Operator1<CreateGeneratorObjectParameters>>(  // --
+      IrOpcode::kJSCreateGeneratorObject, Operator::kNoThrow,      // opcode
+      "JSCreateGeneratorObject",                                   // name
+      2, 1, 1, 1, 1, 0,                                            // counts
+      parameters);                                                 // parameters
 }
 
 const Operator* JSOperatorBuilder::LoadGlobal(NameRef name,

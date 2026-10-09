@@ -19,4 +19,4 @@ assertEquals(foo(), 1);
 assertEquals(foo(), 1)
 // Maglev will not compile this function now because it has handler table.
 // After exceptions are supported in Maglev, we could enable the assert below.
-// assertTrue(isMaglevved(foo));
+// assertMaglevved(foo);

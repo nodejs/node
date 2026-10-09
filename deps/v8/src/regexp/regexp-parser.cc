@@ -12,6 +12,7 @@
 #include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp.h"
+#include "src/regexp/special-case.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
@@ -62,20 +63,14 @@ class TextBuilder {
       : zone_(zone), flags_(flags), terms_(terms_storage), text_(zone) {}
   void AddCharacter(base::uc16 character);
   void AddUnicodeCharacter(base::uc32 character);
-  void AddEscapedUnicodeCharacter(base::uc32 character);
   void AddAtom(Tree* atom);
   void AddTerm(Tree* term);
   void AddClassRanges(ClassRanges* cc);
-  void FlushPendingSurrogate();
   void FlushText();
   Tree* PopLastAtom();
   Tree* ToRegExp();
 
  private:
-  static const base::uc16 kNoPendingSurrogate = 0;
-
-  void AddLeadSurrogate(base::uc16 lead_surrogate);
-  void AddTrailSurrogate(base::uc16 trail_surrogate);
   void FlushCharacters();
   bool NeedsDesugaringForUnicode(ClassRanges* cc);
   bool NeedsDesugaringForIgnoreCase(base::uc32 c);
@@ -91,7 +86,6 @@ class TextBuilder {
   Zone* const zone_;
   const Flags flags_;
   ZoneList<base::uc16>* characters_ = nullptr;
-  base::uc16 pending_surrogate_ = kNoPendingSurrogate;
   SmallTreeVector* terms_;
   SmallTreeVector text_;
 };
@@ -105,61 +99,16 @@ class TextBuilder<ParseMode::kVerifySyntax> {
   TextBuilder(Zone* zone, SmallTreeVector* terms_storage, Flags flags) {}
   void AddCharacter(base::uc16 character) {}
   void AddUnicodeCharacter(base::uc32 character) {}
-  void AddEscapedUnicodeCharacter(base::uc32 character) {}
   void AddAtom(Tree* atom) {}
   void AddTerm(Tree* term) {}
   void AddClassRanges(ClassRanges* cc) {}
-  void FlushPendingSurrogate() {}
   void FlushText() {}
   Tree* PopLastAtom() { return nullptr; }
   Tree* ToRegExp() { return nullptr; }
 };
 
 template <ParseMode mode>
-void TextBuilder<mode>::AddLeadSurrogate(base::uc16 lead_surrogate) {
-  DCHECK(unibrow::Utf16::IsLeadSurrogate(lead_surrogate));
-  FlushPendingSurrogate();
-  // Hold onto the lead surrogate, waiting for a trail surrogate to follow.
-  pending_surrogate_ = lead_surrogate;
-}
-
-template <ParseMode mode>
-void TextBuilder<mode>::AddTrailSurrogate(base::uc16 trail_surrogate) {
-  DCHECK(unibrow::Utf16::IsTrailSurrogate(trail_surrogate));
-  if (pending_surrogate_ != kNoPendingSurrogate) {
-    base::uc16 lead_surrogate = pending_surrogate_;
-    pending_surrogate_ = kNoPendingSurrogate;
-    DCHECK(unibrow::Utf16::IsLeadSurrogate(lead_surrogate));
-    base::uc32 combined =
-        unibrow::Utf16::CombineSurrogatePair(lead_surrogate, trail_surrogate);
-    if (NeedsDesugaringForIgnoreCase(combined)) {
-      AddClassRangesForDesugaring(combined);
-    } else {
-      ZoneList<base::uc16> surrogate_pair(2, zone());
-      surrogate_pair.Add(lead_surrogate, zone());
-      surrogate_pair.Add(trail_surrogate, zone());
-      Atom* atom = zone()->template New<Atom>(surrogate_pair.ToConstVector());
-      AddAtom(atom);
-    }
-  } else {
-    pending_surrogate_ = trail_surrogate;
-    FlushPendingSurrogate();
-  }
-}
-
-template <ParseMode mode>
-void TextBuilder<mode>::FlushPendingSurrogate() {
-  if (pending_surrogate_ != kNoPendingSurrogate) {
-    DCHECK(IsUnicodeMode());
-    base::uc32 c = pending_surrogate_;
-    pending_surrogate_ = kNoPendingSurrogate;
-    AddClassRangesForDesugaring(c);
-  }
-}
-
-template <ParseMode mode>
 void TextBuilder<mode>::FlushCharacters() {
-  FlushPendingSurrogate();
   if (characters_ != nullptr) {
     Tree* atom = zone()->template New<Atom>(characters_->ToConstVector());
     characters_ = nullptr;
@@ -187,7 +136,10 @@ void TextBuilder<mode>::FlushText() {
 
 template <ParseMode mode>
 void TextBuilder<mode>::AddCharacter(base::uc16 c) {
-  FlushPendingSurrogate();
+  if (NeedsDesugaringForIgnoreCase(c)) {
+    AddClassRangesForDesugaring(c);
+    return;
+  }
   if (characters_ == nullptr) {
     characters_ = zone()->template New<ZoneList<base::uc16>>(4, zone());
   }
@@ -198,24 +150,21 @@ template <ParseMode mode>
 void TextBuilder<mode>::AddUnicodeCharacter(base::uc32 c) {
   if (c > static_cast<base::uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
     DCHECK(IsUnicodeMode());
-    AddLeadSurrogate(unibrow::Utf16::LeadSurrogate(c));
-    AddTrailSurrogate(unibrow::Utf16::TrailSurrogate(c));
-  } else if (IsUnicodeMode() && unibrow::Utf16::IsLeadSurrogate(c)) {
-    AddLeadSurrogate(c);
-  } else if (IsUnicodeMode() && unibrow::Utf16::IsTrailSurrogate(c)) {
-    AddTrailSurrogate(c);
+    if (NeedsDesugaringForIgnoreCase(c)) {
+      AddClassRangesForDesugaring(c);
+    } else {
+      ZoneList<base::uc16> surrogate_pair(2, zone());
+      surrogate_pair.Add(unibrow::Utf16::LeadSurrogate(c), zone());
+      surrogate_pair.Add(unibrow::Utf16::TrailSurrogate(c), zone());
+      Atom* atom = zone()->template New<Atom>(surrogate_pair.ToConstVector());
+      AddAtom(atom);
+    }
+  } else if (IsUnicodeMode() && (unibrow::Utf16::IsLeadSurrogate(c) ||
+                                 unibrow::Utf16::IsTrailSurrogate(c))) {
+    AddClassRangesForDesugaring(c);
   } else {
     AddCharacter(static_cast<base::uc16>(c));
   }
-}
-
-template <ParseMode mode>
-void TextBuilder<mode>::AddEscapedUnicodeCharacter(base::uc32 character) {
-  // A lead or trail surrogate parsed via escape sequence will not
-  // pair up with any preceding lead or following trail surrogate.
-  FlushPendingSurrogate();
-  AddUnicodeCharacter(character);
-  FlushPendingSurrogate();
 }
 
 template <ParseMode mode>
@@ -278,16 +227,19 @@ bool TextBuilder<mode>::NeedsDesugaringForUnicode(ClassRanges* cc) {
   return false;
 }
 
-// We only use this for characters made of surrogate pairs.  All other
-// characters outside of character classes are made case independent in the
-// code generation.
+// Desugar supplementary characters with case equivalents and BMP characters
+// with supplementary equivalents. Other atoms are folded during code
+// generation.
 template <ParseMode mode>
 bool TextBuilder<mode>::NeedsDesugaringForIgnoreCase(base::uc32 c) {
 #ifdef V8_INTL_SUPPORT
   if (IsUnicodeMode() && ignore_case()) {
+    if (c <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+      return CaseFolding::HasSupplementaryEquivalents(
+          static_cast<base::uc16>(c));
+    }
     icu::UnicodeSet set(c, c);
-    set.closeOver(USET_CASE_INSENSITIVE);
-    set.removeAllStrings();
+    CaseFolding::CloseOver(set, CaseFolding::Mode::kUnicode);
     return set.size() > 1;
   }
   // In the case where ICU is not included, we act as if the unicode flag is
@@ -298,7 +250,6 @@ bool TextBuilder<mode>::NeedsDesugaringForIgnoreCase(base::uc32 c) {
 
 template <ParseMode mode>
 Tree* TextBuilder<mode>::PopLastAtom() {
-  FlushPendingSurrogate();
   Tree* atom;
   if (characters_ != nullptr) {
     base::Vector<const base::uc16> char_vector = characters_->ToConstVector();
@@ -398,7 +349,6 @@ class Builder {
         text_builder_(TextBuilder<mode>{zone, &terms_, flags}) {}
   void AddCharacter(base::uc16 character);
   void AddUnicodeCharacter(base::uc32 character);
-  void AddEscapedUnicodeCharacter(base::uc32 character);
   // "Adds" an empty expression. Does nothing except consume a
   // following quantifier
   void AddEmpty();
@@ -449,9 +399,6 @@ class Builder<ParseMode::kVerifySyntax> {
 
   void AddCharacter(base::uc16 character) { last_term_is_lookaround_ = false; }
   void AddUnicodeCharacter(base::uc32 character) {
-    last_term_is_lookaround_ = false;
-  }
-  void AddEscapedUnicodeCharacter(base::uc32 character) {
     last_term_is_lookaround_ = false;
   }
   void AddEmpty() { last_term_is_lookaround_ = false; }
@@ -678,8 +625,7 @@ class ParserImpl final {
                                             base::uc32* character);
   base::uc32 ParseClassSetCharacter();
   // Parses and returns a single escaped character.
-  base::uc32 ParseCharacterEscape(InClassEscapeState in_class_escape_state,
-                                  bool* is_escaped_unicode_character);
+  base::uc32 ParseCharacterEscape(InClassEscapeState in_class_escape_state);
 
   void AddMaybeSimpleCaseFoldedRange(ZoneList<CharacterRange>* ranges,
                                      CharacterRange new_range);
@@ -1480,15 +1426,9 @@ Tree* ParserImpl<CharT, mode>::ParseDisjunction() {
           // AtomEscape ::
           //   CharacterEscape
           default: {
-            bool is_escaped_unicode_character = false;
             base::uc32 c = ParseCharacterEscape(
-                InClassEscapeState::kNotInClass,
-                &is_escaped_unicode_character CHECK_FAILED);
-            if (is_escaped_unicode_character) {
-              builder->AddEscapedUnicodeCharacter(c);
-            } else {
-              builder->AddCharacter(c);
-            }
+                InClassEscapeState::kNotInClass CHECK_FAILED);
+            builder->AddUnicodeCharacter(c);
             break;
           }
         }
@@ -2610,8 +2550,7 @@ bool ParserImpl<CharT, mode>::ParseUnlimitedLengthHexNumber(int max_value,
 // https://tc39.es/ecma262/#prod-CharacterEscape
 template <class CharT, ParseMode mode>
 base::uc32 ParserImpl<CharT, mode>::ParseCharacterEscape(
-    InClassEscapeState in_class_escape_state,
-    bool* is_escaped_unicode_character) {
+    InClassEscapeState in_class_escape_state) {
   DCHECK_EQ('\\', current());
   DCHECK(has_next());
 
@@ -2715,10 +2654,7 @@ base::uc32 ParserImpl<CharT, mode>::ParseCharacterEscape(
     case 'u': {
       Advance();
       base::uc32 value;
-      if (ParseUnicodeEscape(&value)) {
-        *is_escaped_unicode_character = true;
-        return value;
-      }
+      if (ParseUnicodeEscape(&value)) return value;
       if (IsUnicodeMode()) {
         // With /u or /v, invalid escapes are not treated as identity escapes.
         ReportError(Error::kInvalidUnicodeEscape);
@@ -2876,8 +2812,7 @@ void ParserImpl<CharT, mode>::ParseClassEscape(
   if (failed()) return;
   if (*is_class_escape) return;
 
-  bool dummy = false;  // Unused.
-  *char_out = ParseCharacterEscape(kInClassEscape, &dummy);
+  *char_out = ParseCharacterEscape(kInClassEscape);
 }
 
 // https://tc39.es/ecma262/#prod-CharacterClassEscape
@@ -3112,8 +3047,7 @@ base::uc32 ParserImpl<CharT, mode>::ParseClassSetCharacter() {
     static constexpr InClassEscapeState kInClassEscape =
         InClassEscapeState::kInClass;
 
-    bool dummy = false;  // Unused.
-    return ParseCharacterEscape(kInClassEscape, &dummy);
+    return ParseCharacterEscape(kInClassEscape);
   }
   if (IsClassSetSyntaxCharacter(c)) {
     ReportError(Error::kInvalidCharacterInClass);
@@ -3541,14 +3475,7 @@ void Builder<mode>::AddUnicodeCharacter(base::uc32 c) {
 }
 
 template <ParseMode mode>
-void Builder<mode>::AddEscapedUnicodeCharacter(base::uc32 character) {
-  pending_empty_ = false;
-  text_builder().AddEscapedUnicodeCharacter(character);
-}
-
-template <ParseMode mode>
 void Builder<mode>::AddEmpty() {
-  text_builder().FlushPendingSurrogate();
   pending_empty_ = true;
 }
 

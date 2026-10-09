@@ -15,6 +15,10 @@ namespace internal {
 
 V8_OBJECT class Cell : public HeapObject {
  public:
+  inline explicit Cell(ReadOnlyRoots roots);
+  inline Cell(ReadOnlyRoots roots, Tagged<Smi> value);
+  inline Cell(ReadOnlyRoots roots, Tagged<ClearedWeakValue> value);
+
   // [maybe_value]: field containing a possibly weak reference to an object.
   inline Tagged<MaybeObject> maybe_value() const;
   inline Tagged<MaybeObject> maybe_value(RelaxedLoadTag) const;

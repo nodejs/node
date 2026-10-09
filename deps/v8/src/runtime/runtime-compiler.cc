@@ -154,11 +154,20 @@ Builtin GetTypedBuiltinForUnary(int hint, Builtin current_builtin) noexcept {
 #undef TYPED_UNOP_DISPATCH_CASE
 }
 
-V8_INLINE void UpdateEmbeddedFeedback(Tagged<BytecodeArray> bytecode_array,
-                                      int feedback_offset,
-                                      int current_feedback) {
+// Merges {new_feedback} into the embedded feedback byte and returns the
+// result. Typed stubs report Combine(stub type, observed type), which can be
+// narrower than the byte if the interpreter widened it since the stub was
+// patched in, so the byte must never simply be overwritten.
+template <typename Feedback>
+V8_INLINE int UpdateEmbeddedFeedback(Tagged<BytecodeArray> bytecode_array,
+                                     int feedback_offset, int new_feedback) {
+  using TypeIndex = typename Feedback::TypeIndex;
   feedback_offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;
-  bytecode_array->set(feedback_offset, static_cast<uint8_t>(current_feedback));
+  TypeIndex merged = Feedback::CombineTypeIndex(
+      static_cast<TypeIndex>(bytecode_array->get(feedback_offset)),
+      static_cast<TypeIndex>(new_feedback));
+  bytecode_array->set(feedback_offset, static_cast<uint8_t>(merged));
+  return static_cast<int>(merged);
 }
 
 using GetTypedBuiltinFn = Builtin (*)(int, Builtin);
@@ -203,14 +212,14 @@ V8_INLINE void TryPatchUnaryOpBaselineCode(Isolate* isolate,
   TryPatchBaselineCodeImpl(isolate, current_feedback, GetTypedBuiltinForUnary);
 }
 
+template <typename Feedback>
 V8_INLINE int UpdateEmbeddedFeedbackAndGetCurrent(RuntimeArguments args) {
-  int current_feedback = args.smi_value_at(0);
-  DCHECK_LE(current_feedback, std::numeric_limits<uint8_t>::max());
-  DCHECK_GE(current_feedback, 0);
-  UpdateEmbeddedFeedback(TrustedCast<BytecodeArray>(args[2]),
-                         static_cast<int>(args.number_value_at(3)),
-                         current_feedback);
-  return current_feedback;
+  int new_feedback = args.smi_value_at(0);
+  DCHECK_LT(new_feedback, static_cast<int>(Feedback::kNumTypeIndices));
+  DCHECK_GE(new_feedback, 0);
+  return UpdateEmbeddedFeedback<Feedback>(
+      TrustedCast<BytecodeArray>(args[2]),
+      static_cast<int>(args.number_value_at(3)), new_feedback);
 }
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 }  // namespace
@@ -898,8 +907,9 @@ RUNTIME_FUNCTION(Runtime_PatchCompareOpBaselineCode) {
   DCHECK_EQ(4, args.length());
 
   DirectHandle<Boolean> compare_result = args.at<Boolean>(1);
-  TryPatchCompareOpBaselineCode(isolate,
-                                UpdateEmbeddedFeedbackAndGetCurrent(args));
+  TryPatchCompareOpBaselineCode(
+      isolate,
+      UpdateEmbeddedFeedbackAndGetCurrent<CompareOperationFeedback>(args));
   return *compare_result;
 }
 
@@ -909,8 +919,9 @@ RUNTIME_FUNCTION(Runtime_PatchCompareOpBaselineCodeAndThrow) {
   DCHECK_EQ(4, args.length());
 
   DirectHandle<Object> exception = args.at<Object>(1);
-  TryPatchCompareOpBaselineCode(isolate,
-                                UpdateEmbeddedFeedbackAndGetCurrent(args));
+  TryPatchCompareOpBaselineCode(
+      isolate,
+      UpdateEmbeddedFeedbackAndGetCurrent<CompareOperationFeedback>(args));
   return isolate->ReThrow(*exception);
 }
 
@@ -920,8 +931,9 @@ RUNTIME_FUNCTION(Runtime_PatchBinopBaselineCode) {
   DCHECK_EQ(4, args.length());
 
   DirectHandle<Object> result = args.at<Object>(1);
-  TryPatchBinaryOpBaselineCode(isolate,
-                               UpdateEmbeddedFeedbackAndGetCurrent(args));
+  TryPatchBinaryOpBaselineCode(
+      isolate,
+      UpdateEmbeddedFeedbackAndGetCurrent<BinaryOperationFeedback>(args));
   return *result;
 }
 
@@ -931,8 +943,9 @@ RUNTIME_FUNCTION(Runtime_PatchBinopBaselineCodeAndThrow) {
   DCHECK_EQ(4, args.length());
 
   DirectHandle<Object> exception = args.at<Object>(1);
-  TryPatchBinaryOpBaselineCode(isolate,
-                               UpdateEmbeddedFeedbackAndGetCurrent(args));
+  TryPatchBinaryOpBaselineCode(
+      isolate,
+      UpdateEmbeddedFeedbackAndGetCurrent<BinaryOperationFeedback>(args));
   return isolate->ReThrow(*exception);
 }
 
@@ -942,8 +955,9 @@ RUNTIME_FUNCTION(Runtime_PatchUnaryOpBaselineCode) {
   DCHECK_EQ(4, args.length());
 
   DirectHandle<Object> result = args.at<Object>(1);
-  TryPatchUnaryOpBaselineCode(isolate,
-                              UpdateEmbeddedFeedbackAndGetCurrent(args));
+  TryPatchUnaryOpBaselineCode(
+      isolate,
+      UpdateEmbeddedFeedbackAndGetCurrent<BinaryOperationFeedback>(args));
   return *result;
 }
 
@@ -953,8 +967,9 @@ RUNTIME_FUNCTION(Runtime_PatchUnaryOpBaselineCodeAndThrow) {
   DCHECK_EQ(4, args.length());
 
   DirectHandle<Object> exception = args.at<Object>(1);
-  TryPatchUnaryOpBaselineCode(isolate,
-                              UpdateEmbeddedFeedbackAndGetCurrent(args));
+  TryPatchUnaryOpBaselineCode(
+      isolate,
+      UpdateEmbeddedFeedbackAndGetCurrent<BinaryOperationFeedback>(args));
   return isolate->ReThrow(*exception);
 }
 #endif  // V8_ENABLE_SPARKPLUG_PLUS

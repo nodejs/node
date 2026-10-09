@@ -1,0 +1,106 @@
+Tests Debugger.stepOver with enterRanges.
+
+Test: without enterRanges, no function is entered
+Step over through main() with no arguments:
+  main: #debugger;
+  main: #outlinedPart();
+  main: #notEntered();
+  main: #callCallback(outlinedPart);
+  main: #[1, 2].forEach(outlinedPart);
+  main: #outlinedPartInOtherScript();
+  main: #return 0;
+  main: return 0;#
+  (top-level)
+
+Test: functions in enterRanges are entered, also from another script and when called by a non-entered function or a builtin
+Note: when an entered function returns into a non-entered function (callCallback), the step pauses there, like a regular step out.
+Step over through main() with enterRanges: [outlinedPart, outlinedPartInOtherScript]:
+  main: #debugger;
+  main: #outlinedPart();
+  outlinedPart: let x = #1;
+  outlinedPart: #return notEntered();
+  outlinedPart: return notEntered();#
+  main: #notEntered();
+  main: #callCallback(outlinedPart);
+  outlinedPart: let x = #1;
+  outlinedPart: #return notEntered();
+  outlinedPart: return notEntered();#
+  callCallback: return cb();#
+  main: #[1, 2].forEach(outlinedPart);
+  outlinedPart: let x = #1;
+  outlinedPart: #return notEntered();
+  outlinedPart: return notEntered();#
+  outlinedPart: let x = #1;
+  outlinedPart: #return notEntered();
+  outlinedPart: return notEntered();#
+  main: #outlinedPartInOtherScript();
+  outlinedPartInOtherScript: #return 3;
+  outlinedPartInOtherScript: return 3;#
+  main: #return 0;
+  main: return 0;#
+  (top-level)
+
+Test: functions in enterRanges are entered through a blackboxed function, which itself is not paused in
+Step over through main() with enterRanges: [outlinedPart]:
+  main: #debugger;
+  main: #outlinedPart();
+  outlinedPart: let x = #1;
+  outlinedPart: #return notEntered();
+  outlinedPart: return notEntered();#
+  main: #notEntered();
+  main: #callCallback(outlinedPart);
+  outlinedPart: let x = #1;
+  outlinedPart: #return notEntered();
+  outlinedPart: return notEntered();#
+  main: #[1, 2].forEach(outlinedPart);
+  outlinedPart: let x = #1;
+  outlinedPart: #return notEntered();
+  outlinedPart: return notEntered();#
+  outlinedPart: let x = #1;
+  outlinedPart: #return notEntered();
+  outlinedPart: return notEntered();#
+  main: #outlinedPartInOtherScript();
+  main: #return 0;
+  main: return 0;#
+  (top-level)
+
+Test: skipList also applies inside entered functions
+Step over through main() with enterRanges: [outlinedPart], skipList: ['let x = 1;']:
+  main: #debugger;
+  main: #outlinedPart();
+  outlinedPart: #return notEntered();
+  outlinedPart: return notEntered();#
+  main: #notEntered();
+  main: #callCallback(outlinedPart);
+  outlinedPart: #return notEntered();
+  outlinedPart: return notEntered();#
+  callCallback: return cb();#
+  main: #[1, 2].forEach(outlinedPart);
+  outlinedPart: #return notEntered();
+  outlinedPart: return notEntered();#
+  outlinedPart: #return notEntered();
+  outlinedPart: return notEntered();#
+  main: #outlinedPartInOtherScript();
+  main: #return 0;
+  main: return 0;#
+  (top-level)
+
+Test: recursive calls of the stepped over function are not entered
+Step over through recursive(1) with enterRanges: [outlinedPart]:
+  recursive: #debugger;
+  recursive: #callRecursive(n);
+  recursive: #return n;
+  recursive: return n;#
+  (top-level)
+
+Test: enterRanges only apply to the step they are passed to
+  main: #debugger;
+Step over with enterRanges: [outlinedPart]:
+  main: #outlinedPart();
+Step over with no arguments steps over outlinedPart:
+  main: #notEntered();
+
+Test: enterRanges with an unknown script are rejected
+Step over through main() with enterRanges: [unknown script]:
+  main: #debugger;
+  Error: No script with passed id.

@@ -14,47 +14,181 @@
 
 #include "src/__support/net/address.h"
 #include "hdr/inet-address-macros.h"
+#include "hdr/stdint_proxy.h"
 #include "hdr/types/in_addr_t.h"
 #include "hdr/types/struct_in6_addr.h"
 #include "hdr/types/struct_in_addr.h"
+#include "src/__support/CPP/string_view.h"
 #include "src/__support/common.h"
 #include "src/__support/ctype_utils.h"
 #include "src/__support/endian_internal.h"
+#include "src/__support/fixedvector.h"
 #include "src/__support/libc_assert.h"
 #include "src/__support/str_to_integer.h"
+#include "src/string/memory_utils/inline_bzero.h"
 #include "src/string/memory_utils/inline_memcpy.h"
 
 namespace LIBC_NAMESPACE_DECL {
+
 namespace net {
 
-cpp::optional<in_addr_t> inet_addr(const char *cp) {
+[[nodiscard]] bool str_to_ipv4(cpp::string_view src, struct in_addr &dst) {
+  uint8_t bytes[4];
+  size_t idx = 0;
+  uint32_t current_val = 0;
+  size_t digits_in_octet = 0;
+
+  for (char c : src) {
+    if (internal::isdigit(c)) {
+      // Reject octals and leading zeros
+      if (digits_in_octet > 0 && current_val == 0)
+        return false;
+
+      current_val = current_val * 10 + internal::b36_char_to_int(c);
+      if (current_val > 255)
+        return false;
+
+      ++digits_in_octet;
+    } else if (c == '.') {
+      if (digits_in_octet == 0 || idx == 3)
+        return false; // Empty part or too many dots
+
+      bytes[idx++] = static_cast<uint8_t>(current_val);
+      current_val = 0;
+      digits_in_octet = 0;
+    } else {
+      return false;
+    }
+  }
+
+  if (idx != 3 || digits_in_octet == 0)
+    return 0;
+
+  bytes[3] = static_cast<uint8_t>(current_val);
+  inline_memcpy(&dst.s_addr, bytes, 4);
+  return true;
+}
+
+[[nodiscard]] bool str_to_ipv6(cpp::string_view src, struct in6_addr &dst) {
+  constexpr size_t NUM_COMPONENTS = 8;
+  // `parts[0]` collects 16-bit groups preceding "::", while `parts[1]` collects
+  // groups following "::". When "::" is encountered, `part_idx` switches to 1.
+  // After parsing, any omitted zero groups are filled between the two parts.
+  FixedVector<uint16_t, NUM_COMPONENTS> parts[2];
+  size_t part_idx = 0;
+
+  while (!src.empty()) {
+    size_t non_colon = src.find_first_not_of(':');
+    if (non_colon == cpp::string_view::npos) {
+      if (src.size() == 2 && part_idx == 0) {
+        part_idx = 1;
+        break;
+      }
+      return false;
+    }
+
+    switch (non_colon) {
+    case 0:
+      if (part_idx > 0 || !parts[0].empty())
+        return false;
+      break;
+    case 1:
+      if (part_idx == 0 && parts[0].empty())
+        return false;
+      src.remove_prefix(1);
+      break;
+    case 2:
+      if (part_idx > 0)
+        return false;
+      part_idx = 1;
+      src.remove_prefix(2);
+      break;
+    default:
+      return false;
+    }
+
+    size_t colon_pos = src.find_first_of(':');
+    if (colon_pos == cpp::string_view::npos && src.contains('.')) {
+      struct in_addr in4;
+      if (!str_to_ipv4(src, in4))
+        return false;
+
+      uint16_t v4_words[2];
+      inline_memcpy(v4_words, &in4.s_addr, sizeof(v4_words));
+      if (!parts[part_idx].push_back(v4_words[0]) ||
+          !parts[part_idx].push_back(v4_words[1]))
+        return false;
+
+      break;
+    }
+
+    if (internal::isspace(src[0]) || src[0] == '+' || src[0] == '-' ||
+        src.starts_with("0x") || src.starts_with("0X"))
+      return false;
+
+    auto result = internal::strtointeger<uint16_t>(src.data(), 16, src.size());
+    if (result.has_error() || result.parsed_len == 0 || result.parsed_len > 4)
+      return false;
+
+    if (!parts[part_idx].push_back(Endian::to_big_endian(result.value)))
+      return false;
+
+    src.remove_prefix(static_cast<size_t>(result.parsed_len));
+  }
+
+  if (part_idx > 0) {
+    if (parts[0].size() + parts[1].size() >= NUM_COMPONENTS)
+      return false;
+
+    size_t num_zeroes = NUM_COMPONENTS - parts[0].size() - parts[1].size();
+    uint16_t *ptr = dst.s6_addr16;
+    if (!parts[0].empty()) {
+      inline_memcpy(ptr, parts[0].begin(), parts[0].size() * sizeof(uint16_t));
+      ptr += parts[0].size();
+    }
+    inline_bzero(ptr, num_zeroes * sizeof(uint16_t));
+    ptr += num_zeroes;
+    if (!parts[1].empty())
+      inline_memcpy(ptr, parts[1].begin(), parts[1].size() * sizeof(uint16_t));
+  } else {
+    if (parts[0].size() != NUM_COMPONENTS)
+      return false;
+    inline_memcpy(dst.s6_addr16, parts[0].begin(), sizeof(dst));
+  }
+
+  return true;
+}
+
+cpp::optional<in_addr_t> inet_addr(cpp::string_view src) {
   constexpr int IPV4_MAX_DOT_NUM = 3;
   in_addr_t parts[IPV4_MAX_DOT_NUM + 1] = {0};
   int dot_num = 0;
 
   for (; dot_num <= IPV4_MAX_DOT_NUM; ++dot_num) {
-    // strtointeger skips leading whitespace signs (1.+2.-3. 4), but we don't
-    // want that, so we explicitly check that the first character is a digit.
-    if (!internal::isdigit(*cp))
+    // strtointeger skips leading whitespace and signs, and accepts C23 binary
+    // string prefix (0b1.+2.-3. 4), but we don't want any of that, so we
+    // explicitly check reject these constructs.
+    if (src.empty() || !internal::isdigit(src[0]) || src.starts_with("0b") ||
+        src.starts_with("0B"))
       return cpp::nullopt;
 
-    auto result = internal::strtointeger<in_addr_t>(cp, 0);
+    auto result = internal::strtointeger<in_addr_t>(src.data(), 0, src.size());
     parts[dot_num] = result;
 
     if (result.has_error() || result.parsed_len == 0)
       return cpp::nullopt;
-    cp += result.parsed_len;
-    if (*cp == '\0' || internal::isspace(*cp))
+    src.remove_prefix(result.parsed_len);
+    if (src.empty() || internal::isspace(src[0]))
       break;
-    if (*cp != '.')
+    if (src[0] != '.')
       return cpp::nullopt;
-    ++cp;
+    src.remove_prefix(1);
   }
 
   if (dot_num > IPV4_MAX_DOT_NUM)
     return cpp::nullopt;
 
-  // converts the Internet host address cp from the IPv4 numbers-and-dots
+  // converts the Internet host address src from the IPv4 numbers-and-dots
   // notation (a[.b[.c[.d]]]) into binary form (in network byte order)
   in_addr_t result = 0;
   for (int i = 0; i <= dot_num; ++i) {

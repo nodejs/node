@@ -88,6 +88,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreAccumulatorInRegister(reg)
       .LoadTheHole()
       .StoreAccumulatorInRegister(reg)
+      .LoadTdzHole()
+      .StoreAccumulatorInRegister(reg)
       .LoadTrue()
       .StoreAccumulatorInRegister(reg)
       .LoadFalse()
@@ -245,6 +247,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .SetKeyedProperty(reg, reg, strict_keyed_store_slot.ToInt(),
                         LanguageMode::kStrict)
       .DefineNamedOwnProperty(reg, name, define_named_own_slot.ToInt())
+      .DefineNamedOwnPropertyInLiteral(reg, name, define_named_own_slot.ToInt())
       .DefineKeyedOwnProperty(reg, reg, DefineKeyedOwnPropertyFlag::kNoFlags,
                               define_named_own_slot.ToInt())
       .StoreInArrayLiteral(reg, reg, store_array_element_slot.ToInt())
@@ -408,9 +411,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.ThrowIfNotSuperConstructor(reg);
 
   // Hole checks.
-  builder.ThrowReferenceErrorIfHole(name)
-      .ThrowSuperAlreadyCalledIfNotHole()
-      .ThrowSuperNotCalledIfHole();
+  builder.ThrowReferenceErrorIfTdzHole(name)
+      .ThrowSuperAlreadyCalledIfNotTdzHole()
+      .ThrowSuperNotCalledIfTdzHole();
 
   // Short jumps with Imm8 operands
   {

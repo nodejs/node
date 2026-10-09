@@ -202,7 +202,6 @@ bool MaglevCompilationInfo::is_detached() {
 
 std::unique_ptr<CanonicalHandlesMap>
 MaglevCompilationInfo::DetachCanonicalHandles() {
-  DCHECK_NOT_NULL(canonical_handles_);
   return std::move(canonical_handles_);
 }
 

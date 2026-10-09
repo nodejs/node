@@ -82,7 +82,7 @@ V8_OBJECT class JSIteratorHelper : public JSObject {
 
  public:
   // SmiTagged<JSIteratorHelperState>.
-  TaggedMember<Smi> state_;
+  TaggedMember<Smi> state_ V8_TQ_TYPE(SmiTagged<JSIteratorHelperState>);
 } V8_OBJECT_END;
 
 // The superclass of iterator helpers that have a single underlying iterator.
@@ -90,6 +90,13 @@ V8_OBJECT class JSIteratorHelperSimple : public JSIteratorHelper {
   V8_IT_ABSTRACT;
 
  public:
+  // Match iterator::IteratorRecord as one struct-typed field. Keep it nested
+  // because the CSA record already uses v8::internal::IteratorRecord.
+  struct IteratorRecord {
+    TaggedMember<JSReceiver> object_;
+    TaggedMember<JSAny> next_;
+  };
+
   inline Tagged<JSReceiver> underlying_iterator_object() const;
   inline void set_underlying_iterator_object(
       Tagged<JSReceiver> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -104,15 +111,14 @@ V8_OBJECT class JSIteratorHelperSimple : public JSIteratorHelper {
   DECL_VERIFIER(JSIteratorHelperSimple)
 
  public:
-  TaggedMember<JSReceiver> underlying_iterator_object_;
-  TaggedMember<JSAny> underlying_iterator_next_;
+  IteratorRecord underlying_iterator_;
 } V8_OBJECT_END;
 
 // The iterator helper returned by Iterator.prototype.map.
 V8_OBJECT class JSIteratorMapHelper final : public JSIteratorHelperSimple {
  public:
-  inline Tagged<JSReceiver> mapper() const;
-  inline void set_mapper(Tagged<JSReceiver> value,
+  inline Tagged<JSCallable> mapper() const;
+  inline void set_mapper(Tagged<JSCallable> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<Number> counter() const;
@@ -123,15 +129,15 @@ V8_OBJECT class JSIteratorMapHelper final : public JSIteratorHelperSimple {
   DECL_VERIFIER(JSIteratorMapHelper)
 
  public:
-  TaggedMember<JSReceiver> mapper_;
+  TaggedMember<JSCallable> mapper_;
   TaggedMember<Number> counter_;
 } V8_OBJECT_END;
 
 // The iterator helper returned by Iterator.prototype.filter.
 V8_OBJECT class JSIteratorFilterHelper final : public JSIteratorHelperSimple {
  public:
-  inline Tagged<JSReceiver> predicate() const;
-  inline void set_predicate(Tagged<JSReceiver> value,
+  inline Tagged<JSCallable> predicate() const;
+  inline void set_predicate(Tagged<JSCallable> value,
                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<Number> counter() const;
@@ -142,7 +148,7 @@ V8_OBJECT class JSIteratorFilterHelper final : public JSIteratorHelperSimple {
   DECL_VERIFIER(JSIteratorFilterHelper)
 
  public:
-  TaggedMember<JSReceiver> predicate_;
+  TaggedMember<JSCallable> predicate_;
   TaggedMember<Number> counter_;
 } V8_OBJECT_END;
 
@@ -177,8 +183,8 @@ V8_OBJECT class JSIteratorDropHelper final : public JSIteratorHelperSimple {
 // The iterator helper returned by Iterator.prototype.flatMap.
 V8_OBJECT class JSIteratorFlatMapHelper final : public JSIteratorHelperSimple {
  public:
-  inline Tagged<JSReceiver> mapper() const;
-  inline void set_mapper(Tagged<JSReceiver> value,
+  inline Tagged<JSCallable> mapper() const;
+  inline void set_mapper(Tagged<JSCallable> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<Number> counter() const;
@@ -197,10 +203,9 @@ V8_OBJECT class JSIteratorFlatMapHelper final : public JSIteratorHelperSimple {
   DECL_VERIFIER(JSIteratorFlatMapHelper)
 
  public:
-  TaggedMember<JSReceiver> mapper_;
+  TaggedMember<JSCallable> mapper_;
   TaggedMember<Number> counter_;
-  TaggedMember<JSReceiver> inner_iterator_object_;
-  TaggedMember<JSAny> inner_iterator_next_;
+  IteratorRecord inner_iterator_;
 } V8_OBJECT_END;
 
 // The iterator helper returned by Iterator.concat.
@@ -249,7 +254,7 @@ V8_OBJECT class JSIteratorZipHelper : public JSIteratorHelper {
  public:
   TaggedMember<FixedArray> underlying_iterators_;
   // SmiTagged<JSIteratorZipHelperMode>.
-  TaggedMember<Smi> mode_;
+  TaggedMember<Smi> mode_ V8_TQ_TYPE(SmiTagged<JSIteratorZipHelperMode>);
   TaggedMember<Smi> active_count_;
   TaggedMember<FixedArray> padding_;
 } V8_OBJECT_END;

@@ -425,7 +425,7 @@ v8::Intercepted MethodGetter(Local<Name> property,
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
 
-  Local<External> data = info.Data().As<External>();
+  Local<External> data = info.DataV2().As<External>();
   Local<FunctionTemplate>& function_template =
       *reinterpret_cast<Local<FunctionTemplate>*>(
           data->Value(kFunctionTemplateTag));

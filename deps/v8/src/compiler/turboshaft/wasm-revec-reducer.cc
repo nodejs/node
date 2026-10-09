@@ -1394,8 +1394,8 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
       DCHECK(op0.Effects() == OpEffects());
       // We pack shuffles only if it can match specific patterns. We should
       // avoid packing general shuffles because it will cause regression.
-      const auto& shuffle0 = shuffle_op0.shuffle;
-      const auto& shuffle1 = shuffle_op1.shuffle;
+      const uint8_t* shuffle0 = shuffle_op0.shuffle.data();
+      const uint8_t* shuffle1 = shuffle_op1.shuffle.data();
 
       if (CompareCharsEqual(shuffle0, shuffle1, kSimd128Size)) {
         if (IsSplat(node_group)) {

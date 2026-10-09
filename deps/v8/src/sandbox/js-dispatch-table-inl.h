@@ -29,7 +29,10 @@ void JSDispatchEntry::MakeJSDispatchEntry(Address object, Address entrypoint,
                                           bool mark_as_alive) {
   DCHECK_NE(entrypoint, kNullAddress);
   DCHECK_EQ(object & kHeapObjectTag, 0);
-#if !defined(__illumos__) || !defined(V8_TARGET_ARCH_64_BIT)
+#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+  DCHECK_EQ(parameter_count & ~kParameterCountMask, 0);
+  Address payload = parameter_count;
+#else   // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
   DCHECK_EQ((((object - kObjectPointerOffset) << kObjectPointerShift) >>
              kObjectPointerShift) +
                 kObjectPointerOffset,
@@ -37,18 +40,23 @@ void JSDispatchEntry::MakeJSDispatchEntry(Address object, Address entrypoint,
   DCHECK_EQ((object - kObjectPointerOffset) + kObjectPointerOffset, object);
   DCHECK_LT((object - kObjectPointerOffset),
             1ULL << ((sizeof(encoded_word_) * 8) - kObjectPointerShift));
-#endif /* __illumos__ & 64-bit */
 
   Address payload = ((object - kObjectPointerOffset) << kObjectPointerShift) |
                     (parameter_count & kParameterCountMask);
-  DCHECK(!(payload & kMarkingBit));
-  if (mark_as_alive) payload |= kMarkingBit;
+#endif  // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
 #ifdef V8_TARGET_ARCH_32_BIT
   parameter_count_.store(parameter_count, std::memory_order_relaxed);
   next_free_entry_.store(0, std::memory_order_relaxed);
-#endif
+#endif  // V8_TARGET_ARCH_32_BIT
+  DCHECK(!(payload & kMarkingBit));
+  if (mark_as_alive) payload |= kMarkingBit;
   entrypoint_.store(entrypoint, std::memory_order_relaxed);
+#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+  encoded_word_.store(payload, std::memory_order_relaxed);
+  code_object_.store(object | kHeapObjectTag, std::memory_order_release);
+#else
   encoded_word_.store(payload, std::memory_order_release);
+#endif  // V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
   DCHECK(!IsFreelistEntry());
 }
 
@@ -59,20 +67,16 @@ Address JSDispatchEntry::GetEntrypoint() const {
 
 Address JSDispatchEntry::GetCodePointer() const {
   DCHECK(!IsFreelistEntry());
+#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+  return code_object_.load(std::memory_order_acquire);
+#else
   // The pointer tag bit (LSB) of the object pointer is used as marking bit,
   // and so may be 0 or 1 here. As the return value is a tagged pointer, the
   // bit must be 1 when returned, so we need to set it here.
   Address payload = encoded_word_.load(std::memory_order_acquire);
-#if defined(__illumos__) && defined(V8_TARGET_ARCH_64_BIT)
-  // Unsigned types won't sign-extend on shift-right, but we need to do
-  // this with illumos VA48 addressing.
-  DCHECK_EQ(kObjectPointerOffset, 0);
-  return (Address)((intptr_t)payload >> (int)kObjectPointerShift) |
-    kHeapObjectTag;
-#else
   return ((payload >> kObjectPointerShift) + kObjectPointerOffset) |
          kHeapObjectTag;
-#endif /* __illumos__ & 64-bit */
+#endif  // V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
 }
 
 Tagged<Code> JSDispatchEntry::GetCode() const {
@@ -232,6 +236,11 @@ void JSDispatchEntry::SetCodeAndEntrypointPointer(Address new_object,
                                                   Address new_entrypoint,
                                                   Isolate* isolate) {
   DCHECK_NE(new_entrypoint, kNullAddress);
+#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+  DCHECK(Internals::HasHeapObjectTag(new_object));
+  entrypoint_.store(new_entrypoint, std::memory_order_relaxed);
+  code_object_.store(new_object, std::memory_order_release);
+#else   // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
   Address old_payload = encoded_word_.load(std::memory_order_relaxed);
   Address marking_bit = old_payload & kMarkingBit;
   Address parameter_count = old_payload & kParameterCountMask;
@@ -256,6 +265,7 @@ void JSDispatchEntry::SetCodeAndEntrypointPointer(Address new_object,
       new_payload = object | marking_bit | parameter_count;
     }
   }
+#endif  // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
   DCHECK(!IsFreelistEntry());
 }
 
@@ -273,18 +283,16 @@ void JSDispatchEntry::MakeFreelistEntry(uint32_t next_entry_index) {
   next_free_entry_.store(next_entry_index + 1, std::memory_order_relaxed);
   entrypoint_.store(kNullAddress, std::memory_order_relaxed);
 #endif
+#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+  code_object_.store(kNullAddress, std::memory_order_relaxed);
+#endif  // V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
   encoded_word_.store(kNullAddress, std::memory_order_relaxed);
   DCHECK(IsFreelistEntry());
 }
 
 #ifdef V8_TARGET_ARCH_64_BIT
 bool JSDispatchEntry::IsFreelistEntry(Address entrypoint) const {
-#ifdef __illumos__
-  // See the illumos definition of kFreeEntryTag for why we have to do this.
-  return (entrypoint & 0xffff000000000000ull) == kFreeEntryTag;
-#else
   return (entrypoint & kFreeEntryTag) == kFreeEntryTag;
-#endif /* __illumos__ */
 }
 #endif
 

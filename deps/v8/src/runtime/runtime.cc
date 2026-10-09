@@ -230,6 +230,7 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       case Runtime::kPrepareFunctionForOptimization:
       case Runtime::kPretenureAllocationSite:
       case Runtime::kSetAllocationTimeout:
+      case Runtime::kSetDispatchTableGCInterval:
       case Runtime::kSetForceSlowPath:
       case Runtime::kSimulateNewspaceFull:
       case Runtime::kWaitForBackgroundOptimization:

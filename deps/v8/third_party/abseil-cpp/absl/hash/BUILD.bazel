@@ -57,7 +57,7 @@ cc_library(
         "//absl/meta:type_traits",
         "//absl/numeric:bits",
         "//absl/numeric:int128",
-        "//absl/strings",
+        "//absl/strings:string_view",
         "//absl/types:optional",
         "//absl/types:variant",
         "//absl/utility",
@@ -72,6 +72,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":spy_hash_state",
+        "//absl/base:config",
         "//absl/meta:type_traits",
         "//absl/strings",
         "//absl/types:variant",
@@ -95,9 +96,8 @@ cc_test(
         "//absl/base:config",
         "//absl/container:flat_hash_map",
         "//absl/container:flat_hash_set",
-        "//absl/memory",
-        "//absl/meta:type_traits",
         "//absl/numeric:bits",
+        "//absl/strings",
         "//absl/strings:cord",
         "//absl/strings:cord_test_helpers",
         "//absl/strings:string_view",
@@ -141,9 +141,9 @@ cc_binary(
         "//absl/base:core_headers",
         "//absl/container:flat_hash_set",
         "//absl/random",
-        "//absl/strings",
         "//absl/strings:cord",
         "//absl/strings:cord_test_helpers",
+        "//absl/strings:string_view",
         "@google_benchmark//:benchmark_main",
     ],
 )
@@ -158,6 +158,7 @@ cc_library(
     deps = [
         ":hash",
         ":weakly_mixed_integer",
+        "//absl/base:config",
         "//absl/strings",
         "//absl/strings:str_format",
     ],
@@ -189,6 +190,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":city",
+        "//absl/base:config",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -218,6 +220,7 @@ cc_test(
     deps = [
         ":hash",
         "//absl/strings",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

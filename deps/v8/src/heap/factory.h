@@ -251,6 +251,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                  RelaxedStoreTag tag,
                                  AllocationType allocation);
 
+  DirectHandle<ForInEnumeratorHolder> NewForInEnumeratorHolder(
+      DirectHandle<Map> enum_cache_map, DirectHandle<FixedArray> named_keys,
+      Tagged<Smi> elements_length, Tagged<Smi> cache_length,
+      AllocationType allocation = AllocationType::kYoung);
+
   // Create a new PropertyDescriptorObject struct.
   DirectHandle<PropertyDescriptorObject> NewPropertyDescriptorObject();
 
@@ -761,15 +766,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // runtime.
   Handle<JSObject> NewJSObjectFromMap(
       DirectHandle<Map> map, AllocationType allocation = AllocationType::kYoung,
-      DirectHandle<AllocationSite> allocation_site =
-          DirectHandle<AllocationSite>::null(),
+      MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   // Like NewJSObjectFromMap, but includes allocating a properties dictionary.);
   Handle<JSObject> NewSlowJSObjectFromMap(
       DirectHandle<Map> map, int number_of_slow_properties,
       AllocationType allocation = AllocationType::kYoung,
-      DirectHandle<AllocationSite> allocation_site =
-          DirectHandle<AllocationSite>::null(),
+      MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   Handle<JSObject> NewSlowJSObjectFromMap(DirectHandle<Map> map);
   // Calls NewJSObjectFromMap or NewSlowJSObjectFromMap depending on whether the
@@ -777,8 +780,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(
       DirectHandle<Map> map, int number_of_slow_properties,
       AllocationType allocation = AllocationType::kYoung,
-      DirectHandle<AllocationSite> allocation_site =
-          DirectHandle<AllocationSite>::null(),
+      MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(DirectHandle<Map> map);
   // Allocates and initializes a new JavaScript object with the given
@@ -869,10 +871,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<Map> rtt);
   DirectHandle<WasmCapiFunctionData> NewWasmCapiFunctionData(
       Address call_target, DirectHandle<CppGCManagedBase> embedder_data,
-      DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-      const wasm::CanonicalSig* sig);
+      DirectHandle<Map> rtt, const wasm::CanonicalSig* sig);
   DirectHandle<WasmExportedFunctionData> NewWasmExportedFunctionData(
-      DirectHandle<Code> export_wrapper,
       DirectHandle<WasmTrustedInstanceData> instance_data,
       DirectHandle<WasmFuncRef> func_ref,
       DirectHandle<WasmInternalFunction> internal_function, int wrapper_budget,
@@ -881,8 +881,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<HeapObject> callable, wasm::Suspend suspend,
       MaybeDirectHandle<WasmTrustedInstanceData> importing_instance_data,
       const wasm::CanonicalSig* sig);
-  DirectHandle<WasmImportData> NewWasmImportData(
-      DirectHandle<WasmImportData> ref);
 
   DirectHandle<WasmFastApiCallData> NewWasmFastApiCallData(
       DirectHandle<HeapObject> signature, DirectHandle<Object> callback_data);
@@ -1279,6 +1277,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       maybe_feedback_cell_ = v;
       return *this;
     }
+    // Explicitly sets the initial Code object installed into the
+    // JSDispatchTable instead of querying SharedFunctionInfo::GetCode.
+    JSFunctionBuilder& set_code(DirectHandle<Code> v) {
+      maybe_code_ = v;
+      return *this;
+    }
 
    private:
     V8_WARN_UNUSED_RESULT Handle<JSFunction> BuildRaw(DirectHandle<Code> code);
@@ -1288,6 +1292,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     DirectHandle<Context> context_;
     MaybeDirectHandle<Map> maybe_map_;
     MaybeDirectHandle<FeedbackCell> maybe_feedback_cell_;
+    MaybeDirectHandle<Code> maybe_code_;
     AllocationType allocation_type_ = AllocationType::kOld;
 
     friend class Factory;
@@ -1462,7 +1467,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Tagged<HeapObject> AllocateRawWithAllocationSite(
       DirectHandle<Map> map, AllocationType allocation,
-      DirectHandle<AllocationSite> allocation_site);
+      MaybeDirectHandle<AllocationSite> allocation_site);
 
   Handle<JSArrayBufferView> NewJSArrayBufferView(
       DirectHandle<Map> map, DirectHandle<FixedArrayBase> elements,
@@ -1495,7 +1500,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<T> CopyArrayAndGrow(DirectHandle<T> src, uint32_t grow_by,
                              AllocationType allocation);
 
-  MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string, int length,
+  MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string,
+                                           uint32_t length,
                                            AllocationType allocation);
 
   // Creates a new JSArray with the given backing storage. Performs no

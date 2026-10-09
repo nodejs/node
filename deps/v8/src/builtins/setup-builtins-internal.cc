@@ -108,6 +108,8 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate, Builtin builtin) {
   if (wasm::BuiltinLookup::IsWasmBuiltinId(builtin) ||
       builtin == Builtin::kJSToWasmWrapper ||
       builtin == Builtin::kJSToWasmHandleReturns ||
+      builtin == Builtin::kWasmReturnPromiseOnSuspendAsm ||
+      builtin == Builtin::kJSToWasmStressSwitchStacksAsm ||
 #ifdef V8_ENABLE_DRUMBRAKE
       builtin == Builtin::kJSToWasmInterpreterHandleReturns ||
       builtin == Builtin::kJSToWasmInterpreterWrapper ||

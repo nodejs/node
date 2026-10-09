@@ -37,8 +37,7 @@ namespace internal {
   V(Warn, warn, 1)                            \
   V(Trace, trace, 1)                          \
   V(Group, group, 1)                          \
-  V(GroupCollapsed, groupCollapsed, 1)        \
-  V(Assert, assert, 2)
+  V(GroupCollapsed, groupCollapsed, 1)
 
 namespace {
 
@@ -207,6 +206,7 @@ CONSOLE_METHOD_LIST(CONSOLE_BUILTIN_IMPLEMENTATION)
     return ReadOnlyRoots(isolate).undefined_value();           \
   }
 CONSOLE_METHOD_WITH_FORMATTER_LIST(CONSOLE_BUILTIN_IMPLEMENTATION)
+CONSOLE_BUILTIN_IMPLEMENTATION(Assert, assert, 2)
 #undef CONSOLE_BUILTIN_IMPLEMENTATION
 
 BUILTIN(ConsoleTime) {
@@ -311,6 +311,8 @@ BUILTIN(ConsoleContext) {
   CONSOLE_BUILTIN_SETUP(TimeEnd, timeEnd)
   CONSOLE_BUILTIN_SETUP(TimeStamp, timeStamp)
 #undef CONSOLE_BUILTIN_SETUP
+  InstallContextFunction(isolate, console_context, "assert",
+                         Builtin::kFastConsoleAssert, context);
 
   return *console_context;
 }

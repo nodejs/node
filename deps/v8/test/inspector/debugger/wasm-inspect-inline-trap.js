@@ -9,13 +9,26 @@ const {session, contextGroup, Protocol} =
 session.setupScriptMap();
 
 const builder = new WasmModuleBuilder();
+const struct_type = builder.addStruct([makeField(kWasmI32, false)]);
 builder.addMemory(1, 1);
-builder.addFunction('trigger_oob_trap', makeSig([], [kWasmI32]))
+builder
+    .addFunction('trigger_oob_trap', makeSig([kWasmI32, kWasmF64], [kWasmI32]))
     .addBody([
-      ...wasmI32Const(42),     // constant to keep on the expression stack
-      ...wasmI32Const(100000), // highly out of bounds index
+      ...wasmI32Const(42),                     // constant on the stack
+      kExprLocalGet, 0,                        // GP register local
+      ...wasmI32Const(1),
+      kExprI32Add,                             // GP register on the stack
+      kExprLocalGet, 1,                        // FP register local
+      ...wasmF64Const(1.0),
+      kExprF64Add,                             // FP register on the stack
+      ...wasmI32Const(99),
+      kGCPrefix, kExprStructNew, struct_type,  // tagged reference in register
+      ...wasmI32Const(100000),                 // highly out of bounds index
       kExprI32LoadMem, 0, 0,
-      kExprDrop                // drop the loaded value, leaving only 42
+      kExprDrop,
+      kExprDrop,
+      kExprDrop,
+      kExprDrop
     ])
     .exportFunc();
 
@@ -50,7 +63,7 @@ Protocol.Debugger.onPaused(async msg => {
           var properties = await Protocol.Runtime.getProperties(
               {'objectId': scope.object.objectId});
           for (let {name, value} of properties.result.result) {
-            let valStr = value.value !== undefined ? value.value : JSON.stringify(value);
+            let valStr = await WasmInspectorTest.getWasmValue(value);
             InspectorTest.log(`   ${name}: ${valStr}`);
           }
         }
@@ -63,7 +76,7 @@ Protocol.Debugger.onPaused(async msg => {
 
 function call_trap() {
   try {
-    instance.exports.trigger_oob_trap();
+    instance.exports.trigger_oob_trap(10, 2.5);
   } catch (e) {
     e.stack;
   }

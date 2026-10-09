@@ -189,6 +189,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   // It is an error to call this method if the bytecode is not for a jump or
   // conditional jump.
   int GetJumpTargetOffset() const;
+  // Returns {target_offset, fallthrough_offset} for the following jump in O(1)
+  // without changing the cursor position. It is an error to call this method
+  // if the following bytecode is not a jump.
+  std::pair<int, int> GetNextJumpOffsets();
   // Returns an iterator over the absolute offsets of the targets of the current
   // switch bytecode's jump table. It is an error to call this method if the
   // bytecode is not a switch.

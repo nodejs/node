@@ -8,6 +8,7 @@
 #include <atomic>
 #include <memory>
 #include <queue>
+#include <string_view>
 
 #include "src/api/api-inl.h"
 #include "src/base/enum-set.h"
@@ -15,6 +16,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 #include "src/base/platform/time.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/compiler.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug.h"
@@ -797,7 +799,7 @@ class CompilationStateImpl {
   // protected by the {callbacks_mutes_}, with exceptions during
   // initialization (see comment in
   // {CompilationStateImpl::InitializeCompilationUnitForSingleFunction}).
-  base::OwnedVector<uint8_t> compilation_progress_;
+  base::UniqueArray<uint8_t> compilation_progress_;
 
   // The timestamp of the last top-tier compilation.
   // This field is updated on every publishing of top-tier code, and is reset
@@ -1173,7 +1175,7 @@ class FeedbackMaker {
       : isolate_(isolate),
         instance_data_(trusted_instance_data),
         result_(
-            base::OwnedVector<CallSiteFeedback>::NewForOverwrite(num_calls)),
+            base::UniqueArray<CallSiteFeedback>::NewForOverwrite(num_calls)),
         num_imported_functions_(static_cast<int>(
             trusted_instance_data->module()->num_imported_functions)),
         func_index_(func_index) {}
@@ -1315,14 +1317,14 @@ class FeedbackMaker {
 
   // {GetResult} can only be called on a r-value reference to make it more
   // obvious at call sites that {this} should not be used after this operation.
-  base::OwnedVector<CallSiteFeedback> GetResult() && {
+  base::UniqueArray<CallSiteFeedback> GetResult() && {
     return std::move(result_);
   }
 
  private:
   Isolate* const isolate_;
   const Tagged<WasmTrustedInstanceData> instance_data_;
-  base::OwnedVector<CallSiteFeedback> result_;
+  base::UniqueArray<CallSiteFeedback> result_;
   int seen_calls_ = 0;
   const int num_imported_functions_;
   const int func_index_;
@@ -1468,7 +1470,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       // feedback to prevent deopt loops where two different instantiations
       // (which have their own on-heap feedback vector) to "flip-flop" between
       // their inlining decisions potentially causing deopt loops.
-      const base::OwnedVector<CallSiteFeedback>& existing =
+      const base::UniqueArray<CallSiteFeedback>& existing =
           feedback_for_function_[func_index].feedback_vector;
       size_t feedback_index = (i - FeedbackConstants::kHeaderSlots) /
                               FeedbackConstants::kSlotsPerInstruction;
@@ -1499,7 +1501,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
 
     fm.FinalizeCall();
   }
-  base::OwnedVector<CallSiteFeedback> result = std::move(fm).GetResult();
+  base::UniqueArray<CallSiteFeedback> result = std::move(fm).GetResult();
   EnqueueCallees(result.as_vector());
   DCHECK_EQ(result.size(),
             feedback_for_function_[func_index].call_targets.size());
@@ -1612,6 +1614,7 @@ void PublishDetectedFeatures(WasmDetectedFeatures detected_features,
       {WasmDetectedFeature::sign_extension_ops, Feature::kWasmSignExtensionOps},
       {WasmDetectedFeature::custom_descriptors,
        Feature::kWasmCustomDescriptors},
+      {WasmDetectedFeature::wide_arithmetic, Feature::kWasmWideArithmetic},
   };
 
   // Check that every staging or shipping feature has a use counter as that is
@@ -2071,7 +2074,7 @@ std::shared_ptr<NativeModule> GetOrCompileNewNativeModule(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     WasmDetectedFeatures detected_features, CompileTimeImports compile_imports,
     ErrorThrower* thrower, std::shared_ptr<const WasmModule> module,
-    base::OwnedVector<const uint8_t> wire_bytes, int compilation_id,
+    base::UniqueArray<const uint8_t> wire_bytes, int compilation_id,
     v8::metrics::Recorder::ContextId context_id, ProfileInformation* pgo_info) {
   base::TimeTicks start_time;
   if (base::TimeTicks::IsHighResolution()) start_time = base::TimeTicks::Now();
@@ -2153,7 +2156,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     WasmDetectedFeatures detected_features, CompileTimeImports compile_imports,
     ErrorThrower* thrower, std::shared_ptr<const WasmModule> module,
-    base::OwnedVector<const uint8_t> wire_bytes, int compilation_id,
+    base::UniqueArray<const uint8_t> wire_bytes, int compilation_id,
     v8::metrics::Recorder::ContextId context_id, ProfileInformation* pgo_info) {
   std::shared_ptr<NativeModule> native_module = GetOrCompileNewNativeModule(
       isolate, enabled_features, detected_features, std::move(compile_imports),
@@ -2237,7 +2240,7 @@ class AsyncCompileJob::CompileTask : public CancelableTask {
 
 AsyncCompileJob::AsyncCompileJob(
     WasmEnabledFeatures enabled_features, CompileTimeImports compile_imports,
-    base::OwnedVector<const uint8_t> bytes, const char* api_method_name,
+    base::UniqueArray<const uint8_t> bytes, const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id)
     : api_method_name_(api_method_name),
       enabled_features_(enabled_features),
@@ -2310,7 +2313,7 @@ struct ValidateFunctionsStreamingJobData {
 
   void Initialize(int num_declared_functions) {
     DCHECK_NULL(units);
-    units = base::OwnedVector<Unit>::NewForOverwrite(num_declared_functions);
+    units = base::UniqueArray<Unit>::NewForOverwrite(num_declared_functions);
     // Initially {next == end}.
     next_available_unit.store(units.begin(), std::memory_order_relaxed);
     end_of_available_units.store(units.begin(), std::memory_order_relaxed);
@@ -2378,7 +2381,7 @@ struct ValidateFunctionsStreamingJobData {
     }
   }
 
-  base::OwnedVector<Unit> units;
+  base::UniqueArray<Unit> units;
   std::atomic<Unit*> next_available_unit;
   std::atomic<Unit*> end_of_available_units;
   std::atomic<bool> found_error{false};
@@ -2454,16 +2457,20 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 
   void OnFinishedChunk() override;
 
-  void OnFinishedStream(base::OwnedVector<const uint8_t> bytes,
+  void OnFinishedStream(base::UniqueArray<const uint8_t> bytes,
                         bool after_error) override;
 
   void OnAbort() override;
 
   bool Deserialize(base::Vector<const uint8_t> module_bytes,
-                   base::OwnedVector<const uint8_t>& wire_bytes) override;
+                   base::UniqueArray<const uint8_t>& wire_bytes) override;
 
  private:
   void CommitCompilationUnits();
+  // Sets a crash key ("v8-wasm-streaming-error") with the first encountered
+  // failure to help diagnose unexpected streaming compilation errors (see
+  // issue 455046584). Must be called on the main thread.
+  void SetCrashKey(std::string_view message);
 
   ModuleDecoder decoder_;
   AsyncCompileJob* job_;
@@ -2471,6 +2478,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   int num_functions_ = 0;
   bool prefix_cache_hit_ = false;
   bool before_code_section_ = true;
+  bool has_error_ = false;
   ValidateFunctionsStreamingJobData validate_functions_job_data_;
   std::unique_ptr<JobHandle> validate_functions_job_handle_;
 
@@ -2567,7 +2575,7 @@ void AsyncCompileJob::FinishCompile(
         stream_ ? base::VectorOf(stream_->url()) : base::Vector<const char>();
     auto script =
         GetWasmEngine()->GetOrCreateScript(isolate, native_module, source_url);
-    module_object = WasmModuleObject::New(isolate, native_module, script);
+    module_object = WasmModuleObject::New(isolate, script);
   }
 
   // We should only get here if compilation succeeded.
@@ -2621,10 +2629,10 @@ void AsyncCompileJob::FinishCompile(
 
   // Finish the wasm script now and make it public to the debugger.
   DirectHandle<Script> script(module_object->script(), isolate);
+  DCHECK_EQ(script->type(), Script::Type::kWasm);
   auto sourcemap_symbol =
       module->debug_symbols[WasmDebugSymbols::Type::SourceMap];
-  if (script->type() == Script::Type::kWasm &&
-      sourcemap_symbol.type != WasmDebugSymbols::Type::None &&
+  if (sourcemap_symbol.type != WasmDebugSymbols::Type::None &&
       !sourcemap_symbol.external_url.is_empty()) {
     ModuleWireBytes wire_bytes(native_module->wire_bytes());
     MaybeDirectHandle<String> src_map_str =
@@ -3170,12 +3178,33 @@ void AsyncStreamingProcessor::OnFinishedChunk() {
   if (compilation_unit_builder_) CommitCompilationUnits();
 }
 
+void AsyncStreamingProcessor::SetCrashKey(std::string_view message) {
+  if (has_error_) return;
+  has_error_ = true;
+  Isolate* isolate = job_->isolate_specific_info_.isolate_;
+  if (isolate && isolate->HasCrashKeyStringCallbacks()) {
+    // Crash keys allocated via the embedder callback are process-wide and never
+    // freed, and in Chromium the callbacks are only installed on the main
+    // thread's Isolate, so caching the key in a process-wide static is safe.
+    static v8::CrashKey crash_key = isolate->AllocateCrashKeyString(
+        "v8-wasm-streaming-error", v8::CrashKeySize::Size1024);
+    isolate->SetCrashKeyString(crash_key, message);
+  }
+}
+
 // Finish the processing of the stream.
 void AsyncStreamingProcessor::OnFinishedStream(
-    base::OwnedVector<const uint8_t> bytes, bool after_error) {
+    base::UniqueArray<const uint8_t> bytes, bool after_error) {
   TRACE_STREAMING("Finish stream...\n");
   ModuleResult module_result = decoder_.FinishDecoding();
-  if (module_result.failed()) after_error = true;
+  if (module_result.failed()) {
+    SetCrashKey("ModuleDecoder: " + module_result.error().message());
+    after_error = true;
+  } else if (after_error) {
+    // `after_error` was passed in as true from StreamingDecoder, but
+    // ModuleDecoder did not fail (e.g. unexpected EOF or varint error).
+    SetCrashKey("StreamingDecoder failed");
+  }
 
   if (validate_functions_job_handle_) {
     // Wait for background validation to finish, then check if a validation
@@ -3184,7 +3213,10 @@ void AsyncStreamingProcessor::OnFinishedStream(
     // instead.
     validate_functions_job_handle_->Join();
     validate_functions_job_handle_.reset();
-    if (validate_functions_job_data_.found_error) after_error = true;
+    if (validate_functions_job_data_.found_error) {
+      SetCrashKey("FunctionValidation failed");
+      after_error = true;
+    }
     job_->detected_features_ |=
         validate_functions_job_data_.detected_features.load(
             std::memory_order_relaxed);
@@ -3200,6 +3232,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
     if (WasmError error = ValidateAndSetBuiltinImports(
             module_result.value().get(), job_->wire_bytes_.module_bytes(),
             job_->compile_imports_, &detected_imports_features)) {
+      SetCrashKey("ValidateBuiltinImports: " + error.message());
       after_error = true;
     } else {
       job_->detected_features_ |= detected_imports_features;
@@ -3320,6 +3353,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
     // We finally call {Failed} or {FinishCompile}, which will invalidate the
     // {AsyncCompileJob} and delete {this}.
     if (failed) {
+      SetCrashKey("CompilationState failed");
       std::move(*job_).Failed();
       return;
     }
@@ -3349,7 +3383,7 @@ void AsyncStreamingProcessor::OnAbort() {
 
 bool AsyncStreamingProcessor::Deserialize(
     base::Vector<const uint8_t> module_bytes,
-    base::OwnedVector<const uint8_t>& wire_bytes) {
+    base::UniqueArray<const uint8_t>& wire_bytes) {
   TRACE_EVENT("v8.wasm", "wasm.Deserialize");
   Isolate* isolate = job_->isolate_specific_info_.isolate_;
   std::optional<TimedHistogramScope> time_scope;
@@ -3439,7 +3473,8 @@ void CompilationStateImpl::ApplyEagerTierUpToInitialProgress(size_t hint_idx) {
   ExecutionTier old_baseline_tier = RequiredBaselineTierField::decode(progress);
 
   // Compute new information.
-  ExecutionTier new_baseline_tier = ExecutionTier::kTurbofan;
+  ExecutionTier new_baseline_tier =
+      v8_flags.liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
   ExecutionTier new_top_tier = ExecutionTier::kTurbofan;
 
   progress = RequiredBaselineTierField::update(progress, new_baseline_tier);
@@ -3597,7 +3632,7 @@ void CompilationStateImpl::InitializeCompilationProgress(
         RequiredTopTierField::encode(default_tiers.top_tier) |
         ReachedTierField::encode(ExecutionTier::kNone);
     DCHECK_NULL(compilation_progress_);
-    compilation_progress_ = base::OwnedVector<uint8_t>::New(
+    compilation_progress_ = base::UniqueArray<uint8_t>::New(
         module->num_declared_functions, default_progress);
     if (default_tiers.baseline_tier != ExecutionTier::kNone) {
       outstanding_baseline_units_ += module->num_declared_functions;
@@ -3622,6 +3657,7 @@ void CompilationStateImpl::InitializeCompilationProgress(
     // Apply --wasm-eager-tier-up-function, if given.
     if (V8_UNLIKELY(
             v8_flags.wasm_eager_tier_up_function >= 0 &&
+            !v8_flags.liftoff_only && !native_module_->IsInDebugState() &&
             static_cast<uint32_t>(v8_flags.wasm_eager_tier_up_function) >=
                 module->num_imported_functions &&
             static_cast<uint32_t>(v8_flags.wasm_eager_tier_up_function) <
@@ -3721,7 +3757,7 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
         RequiredBaselineTierField::encode(ExecutionTier::kLiftoff) |
         RequiredTopTierField::encode(ExecutionTier::kTurbofan) |
         ReachedTierField::encode(ExecutionTier::kTurbofan);
-    compilation_progress_ = base::OwnedVector<uint8_t>::New(
+    compilation_progress_ = base::UniqueArray<uint8_t>::New(
         module->num_declared_functions, kProgressAfterTurbofanDeserialization);
 
     // Update compilation state for lazy functions.

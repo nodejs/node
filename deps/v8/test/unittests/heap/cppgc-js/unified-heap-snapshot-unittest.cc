@@ -1254,9 +1254,8 @@ TEST_F(UnifiedHeapSnapshotTest, CppHeapExternal) {
   auto* cpp_object =
       cppgc::MakeGarbageCollected<ExternalData>(allocation_handle());
   v8::Global<v8::CppHeapExternal> cpp_heap_external(
-      v8_isolate(),
-      v8::CppHeapExternal::New<ExternalData>(
-          v8_isolate(), cpp_object, v8::CppHeapPointerTag::kTagForTesting));
+      v8_isolate(), v8::CppHeapExternal::New<ExternalData>(
+                        v8_isolate(), cpp_object, kTagForTesting));
   USE(cpp_heap_external);
   const v8::HeapSnapshot* snapshot =
       TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
@@ -1394,7 +1393,7 @@ TEST_F(UnifiedHeapSnapshotTest, CppHeapExternalTracedReference) {
       v8::CppHeapExternal::New<ExternalData>(
           v8_isolate(),
           cppgc::MakeGarbageCollected<ExternalData>(allocation_handle()),
-          v8::CppHeapPointerTag::kTagForTesting));
+          kTagForTesting));
   const v8::HeapSnapshot* snapshot =
       TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
   EXPECT_TRUE(IsValidSnapshot(snapshot));

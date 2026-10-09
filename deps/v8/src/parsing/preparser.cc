@@ -73,8 +73,7 @@ PreParser::PreParseResult PreParser::PreParseProgram() {
   // the global scope.
   if (flags().is_module()) scope = NewModuleScope(scope);
 
-  FunctionState top_scope(&function_state_, &scope_, scope,
-                          &has_generator_in_scope_chain_);
+  FunctionState top_scope(&function_state_, &scope_, scope);
   original_scope_ = scope_;
   int start_position = peek_position();
   PreParserScopedStatementList body(pointer_buffer());
@@ -116,8 +115,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   // PreParser.
   DCHECK_NULL(function_state_);
   DCHECK_NULL(scope_);
-  FunctionState function_state(&function_state_, &scope_, function_scope,
-                               &has_generator_in_scope_chain_);
+  FunctionState function_state(&function_state_, &scope_, function_scope);
 
   // Start collecting data for a new function which might contain skippable
   // functions.
@@ -163,20 +161,21 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   bool allow_duplicate_parameters = false;
   CheckConflictingVarDeclarations(inner_scope);
 
-  if (!has_error()) {
-    if (formals.is_simple) {
-      if (is_sloppy(function_scope->language_mode())) {
-        function_scope->HoistSloppyBlockFunctions(nullptr);
-      }
+  if (formals.is_simple) {
+    if (!has_error() && is_sloppy(function_scope->language_mode())) {
+      function_scope->HoistSloppyBlockFunctions(nullptr);
+    }
 
-      allow_duplicate_parameters =
-          is_sloppy(function_scope->language_mode()) && !IsConciseMethod(kind);
-    } else {
+    allow_duplicate_parameters =
+        is_sloppy(function_scope->language_mode()) && !IsConciseMethod(kind);
+  } else {
+    SetLanguageMode(function_scope, inner_scope->language_mode());
+
+    if (!has_error()) {
       if (is_sloppy(inner_scope->language_mode())) {
         inner_scope->HoistSloppyBlockFunctions(nullptr);
       }
 
-      SetLanguageMode(function_scope, inner_scope->language_mode());
       inner_scope->set_end_position(scanner()->peek_location().end_pos);
       if (inner_scope->FinalizeBlockScope() != nullptr) {
         const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
@@ -192,7 +191,14 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   if (stack_overflow()) {
     return kPreParseStackOverflow;
-  } else if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
+  }
+  if (!IsArrowFunction(kind)) {
+    // Validate parameter names. We can do this only after parsing the
+    // function, since the function can declare itself strict.
+    ValidateFormalParameters(language_mode(), formals,
+                             allow_duplicate_parameters);
+  }
+  if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
     return kPreParseNotIdentifiableError;
   } else if (has_error()) {
     DCHECK(pending_error_handler()->has_pending_error());
@@ -200,18 +206,6 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     DCHECK_EQ(Token::kRightBrace, scanner()->peek());
 
     if (!IsArrowFunction(kind)) {
-      // Validate parameter names. We can do this only after parsing the
-      // function, since the function can declare itself strict.
-      ValidateFormalParameters(language_mode(), formals,
-                               allow_duplicate_parameters);
-      if (has_error()) {
-        if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
-          return kPreParseNotIdentifiableError;
-        } else {
-          return kPreParseSuccess;
-        }
-      }
-
       // Declare arguments after parsing the function since lexical
       // 'arguments' masks the arguments object. Declare arguments before
       // declaring the function var since the arguments object masks 'function
@@ -291,8 +285,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       preparse_data_builder_scope.Start(function_scope);
     }
 
-    FunctionState function_state(&function_state_, &scope_, function_scope,
-                                 &has_generator_in_scope_chain_);
+    FunctionState function_state(&function_state_, &scope_, function_scope);
 
     Expect(Token::kLeftParen);
     int start_position = position();
@@ -315,7 +308,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     PreParserScopedStatementList body(pointer_buffer());
     int pos = function_token_pos == kNoSourcePosition ? peek_position()
                                                       : function_token_pos;
-    AcceptINScope scope(this, true);
     ParseFunctionBody(&body, function_name, pos, formals, kind,
                       function_syntax_kind, FunctionBodyType::kBlock);
 

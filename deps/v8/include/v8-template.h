@@ -114,7 +114,7 @@ class V8_EXPORT Template : public Data {
    */
   void SetLazyDataProperty(
       Local<Name> name, AccessorNameGetterCallback getter,
-      Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
+      Local<Data> data = Local<Data>(), PropertyAttribute attribute = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
 

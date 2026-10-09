@@ -4,6 +4,8 @@
 
 #include "src/maglev/hamt.h"
 
+#include <algorithm>
+
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -31,6 +33,10 @@ class HAMTTest : public TestWithZone {
 
   const int* FindWithHash(IntHAMT& hamt, int key, size_t hash) const {
     return hamt.FindHelper(hamt.root_, key, hash, 0);
+  }
+
+  bool SameRoot(const IntHAMT& a, const IntHAMT& b) const {
+    return a.root_ == b.root_;
   }
 };
 
@@ -229,6 +235,134 @@ TEST_F(HAMTTest, MergeIntoIsLeftJoin) {
   // 3 was in B only. Since implementation iterates mapA (LHS),
   // it should NOT be in the result.
   EXPECT_EQ(result.find(3), nullptr);
+}
+
+TEST_F(HAMTTest, MergeIntoWithoutChangesDoesNotAllocate) {
+  IntHAMT hA;
+  IntHAMT hB;
+  for (int i = 0; i < 200; i++) {
+    hA = hA.insert(zone(), i, i);
+    // {hB} holds smaller values, so a max-merge into {hA} changes nothing.
+    hB = hB.insert(zone(), i, i - 1);
+  }
+
+  size_t allocated_before = zone()->allocation_size();
+  auto max = [](int a, int b) { return std::max(a, b); };
+  IntHAMT result = hA.merge_into(zone(), hB, max);
+
+  EXPECT_EQ(zone()->allocation_size(), allocated_before);
+  EXPECT_TRUE(SameRoot(result, hA));
+  EXPECT_EQ(ToMap(result), ToMap(hA));
+}
+
+TEST_F(HAMTTest, MergeIntoWithoutChangesDoesNotAllocateWithCollisions) {
+  IntHAMT hA;
+  IntHAMT hB;
+  // Same hash for every key, so everything ends up in one collision chain.
+  for (int i = 0; i < 10; i++) {
+    hA = InsertWithHash(hA, i, i, 0x1234);
+    hB = InsertWithHash(hB, i, i - 1, 0x1234);
+  }
+
+  size_t allocated_before = zone()->allocation_size();
+  auto max = [](int a, int b) { return std::max(a, b); };
+  IntHAMT result = hA.merge_into(zone(), hB, max);
+
+  EXPECT_EQ(zone()->allocation_size(), allocated_before);
+  EXPECT_TRUE(SameRoot(result, hA));
+}
+
+TEST_F(HAMTTest, MergeIntoWithOneChangeIsAPathCopy) {
+  IntHAMT hA;
+  IntHAMT hB;
+  for (int i = 0; i < 200; i++) {
+    hA = hA.insert(zone(), i, i);
+    hB = hB.insert(zone(), i, i - 1);
+  }
+  // A single key now wins the merge.
+  hB = hB.insert(zone(), 42, 4242);
+
+  size_t allocated_before = zone()->allocation_size();
+  auto max = [](int a, int b) { return std::max(a, b); };
+  IntHAMT result = hA.merge_into(zone(), hB, max);
+  size_t allocated = zone()->allocation_size() - allocated_before;
+
+  EXPECT_FALSE(SameRoot(result, hA));
+  ASSERT_NE(result.find(42), nullptr);
+  EXPECT_EQ(*result.find(42), 4242);
+  for (int i = 0; i < 200; i++) {
+    if (i == 42) continue;
+    ASSERT_NE(result.find(i), nullptr);
+    EXPECT_EQ(*result.find(i), i);
+  }
+  // Only the path to the changed key is rebuilt, not the whole map. The bound
+  // is deliberately loose; the point is that it does not scale with the size
+  // of the map.
+  EXPECT_LT(allocated, 1024u);
+}
+
+class HAMTMismatchedShapesTest : public HAMTTest {
+ protected:
+  // Hashes are picked so that key 1 is a lone leaf in {small} but shares a
+  // level-1 branch with key 3 in {big}:
+  //   0x01: level 0 bit 1, level 1 bit 0
+  //   0x21: level 0 bit 1, level 1 bit 1
+  //   0x02: level 0 bit 2
+  //
+  //   small: root{1: Leaf(1), 2: Leaf(2)}
+  //   big:   root{1: Branch{0: Leaf(1), 1: Leaf(3)}, 2: Leaf(2)}
+  static constexpr size_t kHash1 = 0x01;
+  static constexpr size_t kHash2 = 0x02;
+  static constexpr size_t kHash3 = 0x21;
+
+  IntHAMT MakeSmall(int v1, int v2) {
+    IntHAMT h;
+    h = InsertWithHash(h, 1, v1, kHash1);
+    return InsertWithHash(h, 2, v2, kHash2);
+  }
+  IntHAMT MakeBig(int v1, int v2, int v3) {
+    IntHAMT h;
+    h = InsertWithHash(h, 1, v1, kHash1);
+    h = InsertWithHash(h, 3, v3, kHash3);
+    return InsertWithHash(h, 2, v2, kHash2);
+  }
+
+  static int Max(int a, int b) { return std::max(a, b); }
+  static int Min(int a, int b) { return std::min(a, b); }
+};
+
+TEST_F(HAMTMismatchedShapesTest, WithoutChangesDoesNotAllocate) {
+  IntHAMT small = MakeSmall(10, 20);
+  IntHAMT big = MakeBig(5, 5, 5);
+
+  // Leaf(1) x Branch{1, 3}: MergeIntoLeaf.
+  size_t allocated_before = zone()->allocation_size();
+  IntHAMT result = small.merge_into(zone(), big, Max);
+  EXPECT_EQ(zone()->allocation_size(), allocated_before);
+  EXPECT_TRUE(SameRoot(result, small));
+
+  // Branch{1, 3} x Leaf(1): MergeIntoBranch.
+  allocated_before = zone()->allocation_size();
+  result = big.merge_into(zone(), small, Min);
+  EXPECT_EQ(zone()->allocation_size(), allocated_before);
+  EXPECT_TRUE(SameRoot(result, big));
+}
+
+TEST_F(HAMTMismatchedShapesTest, WithChanges) {
+  IntHAMT small = MakeSmall(10, 20);
+  IntHAMT big = MakeBig(50, 5, 5);
+
+  // Leaf(1) x Branch{1, 3}: only key 1 changes; key 3 is not in {small}.
+  IntHAMT result = small.merge_into(zone(), big, Max);
+  EXPECT_FALSE(SameRoot(result, small));
+  EXPECT_EQ(ToMap(result), (std::map<int, int>{{1, 50}, {2, 20}}));
+  EXPECT_EQ(ToMap(small), (std::map<int, int>{{1, 10}, {2, 20}}));
+
+  // Branch{1, 3} x Leaf(1): only key 1 changes; key 3 keeps its value.
+  result = big.merge_into(zone(), small, Min);
+  EXPECT_FALSE(SameRoot(result, big));
+  EXPECT_EQ(ToMap(result), (std::map<int, int>{{1, 10}, {2, 5}, {3, 5}}));
+  EXPECT_EQ(ToMap(big), (std::map<int, int>{{1, 50}, {2, 5}, {3, 5}}));
 }
 
 TEST_F(HAMTTest, IteratorTraversal) {

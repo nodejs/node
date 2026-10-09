@@ -7,7 +7,7 @@
 var shadowRealm = new ShadowRealm();
 
 // re-throwing with SyntaxError
-assertThrows(() => shadowRealm.evaluate('...'), SyntaxError, 'Unexpected end of input')
+assertThrows(() => shadowRealm.evaluate('...'), SyntaxError, "Unexpected token '...'")
 
 // builtin
 var wrapped = shadowRealm.evaluate('String.prototype.substring');

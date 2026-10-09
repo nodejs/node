@@ -469,29 +469,43 @@ CompilationJob::Status OptimizedCompilationJob::FinalizeJob(Isolate* isolate) {
   return UpdateState(FinalizeJobImpl(isolate), State::kSucceeded);
 }
 
-GlobalHandleVector<Map> OptimizedCompilationJob::CollectRetainedMaps(
-    Isolate* isolate, DirectHandle<Code> code) {
+// static
+OptimizedCompilationJob::RetainedMaps
+OptimizedCompilationJob::CollectRetainedMaps(
+    DirectHandle<Code> code,
+    std::unique_ptr<CanonicalHandlesMap> canonical_handles) {
   DCHECK(code->is_optimized_code());
+  DCHECK_NOT_NULL(canonical_handles);
 
   DisallowGarbageCollection no_gc;
-  GlobalHandleVector<Map> maps(isolate->heap());
+  RetainedMaps maps;
   int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
     Tagged<HeapObject> target_object = it.rinfo()->target_object();
     if (code->IsWeakObjectInOptimizedCode(target_object)) {
-      if (IsMap(target_object)) {
-        maps.Push(Cast<Map>(target_object));
+      if (Tagged<Map> map; TryCast<Map>(target_object, &map)) {
+        // Every weak map embedded in optimized code was canonicalized into
+        // `canonical_handles` during compilation. Reuse its existing canonical
+        // PersistentHandle location and clear the map entry (`*entry =
+        // nullptr`) to deduplicate subsequent RelocInfo occurrences;
+        // `canonical_handles` is consumed and cleared at the end of this pass.
+        Address** entry = canonical_handles->Find(map);
+        DCHECK_NOT_NULL(entry);
+        if (Address* location = std::exchange(*entry, nullptr)) {
+          maps.push_back(IndirectHandle<Map>(location));
+        }
       }
     }
   }
+  canonical_handles->Clear();
   return maps;
 }
 
 void OptimizedCompilationJob::RegisterWeakObjectsInOptimizedCode(
     Isolate* isolate, DirectHandle<NativeContext> context,
-    DirectHandle<Code> code, GlobalHandleVector<Map> maps) {
-  isolate->heap()->AddRetainedMaps(context, std::move(maps));
+    DirectHandle<Code> code, base::Vector<const IndirectHandle<Map>> maps) {
+  isolate->heap()->AddRetainedMaps(context, maps);
   code->set_can_have_weak_objects(true);
 }
 
@@ -723,6 +737,8 @@ void EnsureInfosArrayOnScript(DirectHandle<Script> script,
 void UpdateSharedFunctionFlagsAfterCompilation(FunctionLiteral* literal) {
   Tagged<SharedFunctionInfo> shared_info = *literal->shared_function_info();
   DCHECK_EQ(shared_info->language_mode(), literal->language_mode());
+  DCHECK_EQ(shared_info->syntax_kind(), literal->syntax_kind());
+  DCHECK_EQ(shared_info->kind(), literal->kind());
 
   // These fields are all initialised in ParseInfo from the SharedFunctionInfo,
   // and then set back on the literal after parse. Hence, they should already
@@ -1371,7 +1387,8 @@ MaybeHandle<Code> GetOrCompileOptimized(
 void SpawnDuplicateConcurrentJobForStressTesting(
     Isolate* isolate, DirectHandle<JSFunction> function, ConcurrencyMode mode,
     CodeKind code_kind) {
-  // TODO(v8:7700): Support Maglev.
+  // TODO(v8:7700): Support Maglev (--maglev-as-top-tier currently explicitly
+  // disables --stress-concurrent-inlining).
   if (code_kind == CodeKind::MAGLEV) return;
 
   if (function->ActiveTierIsTurbofan(isolate)) return;
@@ -1947,6 +1964,14 @@ void BackgroundCompileTask::Run(
       compilation_details_
           ? &compilation_details_->background_time_in_microseconds
           : nullptr);
+  std::optional<TimedHistogramScope> script_type_timer;
+  if (flags_.is_toplevel()) {
+    script_type_timer.emplace(
+        flags_.is_module() ? isolate_for_local_isolate_->counters()
+                                 ->compile_script_on_background_module()
+                           : isolate_for_local_isolate_->counters()
+                                 ->compile_script_on_background_classic());
+  }
 
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
               "BackgroundCompileTask::Run");
@@ -2154,7 +2179,7 @@ class ConstantPoolPointerForwarder {
     if (!sfi->HasOuterScopeInfo()) return;
 
     Tagged<ScopeInfo> parent =
-        sfi->scope_info()->IsEmpty() ? Tagged<ScopeInfo>() : sfi->scope_info();
+        sfi->HasScopeInfo() ? sfi->scope_info() : Tagged<ScopeInfo>();
     Tagged<ScopeInfo> outer_info = sfi->GetOuterScopeInfo();
 
     auto it = scope_infos_to_update_.find(outer_info->UniqueIdInScript());
@@ -2379,7 +2404,7 @@ void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
         }
       }
 
-      if (!sfi->scope_info()->IsEmpty()) {
+      if (sfi->HasScopeInfo()) {
         scope_info = sfi->scope_info();
       } else if (sfi->HasOuterScopeInfo()) {
         scope_info = sfi->GetOuterScopeInfo();
@@ -2493,9 +2518,8 @@ void BackgroundMergeTask::BeginMergeInBackground(
           // Also push the old_sfi to make sure it stays alive / isn't replaced.
           new_compiled_data_for_cached_sfis_.push_back(
               {old_sfi_handle, local_heap->NewPersistentHandle(new_sfi)});
-          Tagged<ScopeInfo> info = old_sfi->scope_info();
-          if (!info->IsEmpty()) {
-            new_sfi->SetScopeInfo(info);
+          if (old_sfi->HasScopeInfo()) {
+            new_sfi->SetScopeInfo(old_sfi->scope_info());
           } else {
             Tagged<ScopeInfo> outer_info = old_sfi->TryGetOuterScopeInfo();
             if (!outer_info->IsEmpty()) {
@@ -2525,7 +2549,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
       Tagged<SharedFunctionInfo> sfi;
       if (TryCast<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak(),
                                       &sfi)) {
-        if (sfi->scope_info()->IsEmpty()) {
+        if (!sfi->HasScopeInfo()) {
           sfis_without_scope_info_.insert(i);
         }
       }
@@ -2846,18 +2870,28 @@ void BackgroundDeserializeTask::Run() {
       isolate_for_local_isolate_->flush_denormals());
 
   TimedHistogramScope timer(timer_, nullptr, &background_time_in_microseconds_);
+  LazyTimedHistogramScope script_type_timer;
   LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
   UnparkedScope unparked_scope(&isolate);
   LocalHandleScope handle_scope(&isolate);
 
   DirectHandle<SharedFunctionInfo> inner_result;
-  off_thread_data_ =
-      CodeSerializer::StartDeserializeOffThread(&isolate, &cached_data_);
-  if (v8_flags.enable_slow_asserts && off_thread_data_.HasResult()) {
+  CodeSerializer::StartDeserializeOffThread(&isolate, &cached_data_,
+                                            &off_thread_data_);
+  if (off_thread_data_.HasResult()) {
+    Tagged<Script> script = *off_thread_data_.GetOnlyScript(isolate.heap());
+    script_type_timer.set_histogram(
+        script->origin_options().IsModule()
+            ? isolate_for_local_isolate_->counters()
+                  ->deserialize_script_on_background_module()
+            : isolate_for_local_isolate_->counters()
+                  ->deserialize_script_on_background_classic());
+    if (v8_flags.enable_slow_asserts) {
 #ifdef ENABLE_SLOW_DCHECKS
-    MergeAssumptionChecker checker(&isolate, false);
-    checker.IterateObjects(*off_thread_data_.GetOnlyScript(isolate.heap()));
+      MergeAssumptionChecker checker(&isolate, false);
+      checker.IterateObjects(script);
 #endif
+    }
   }
 }
 
@@ -2865,6 +2899,11 @@ void BackgroundDeserializeTask::SourceTextAvailable(
     Isolate* isolate, Handle<String> source_text,
     const ScriptDetails& script_details) {
   DCHECK_EQ(isolate, isolate_for_local_isolate_);
+  if (!CodeSerializer::NotifySourceTextAvailable(isolate, &off_thread_data_,
+                                                 &cached_data_, source_text,
+                                                 script_details)) {
+    return;
+  }
   LanguageMode language_mode = construct_language_mode(v8_flags.use_strict);
   background_merge_task_.SetUpOnMainThread(isolate, source_text, script_details,
                                            language_mode);
@@ -3457,6 +3496,14 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
       compilation_cache->PutEval(source, outer_info, result,
                                  eval_cache_position);
     }
+    if (isolate->dynamic_script_callback() &&
+        !script->eval_from_shared()->IsUserJavaScript()) {
+      VMState<EXTERNAL> state(isolate);
+      DirectHandle<NativeContext> native_context(context->native_context(),
+                                                 isolate);
+      isolate->dynamic_script_callback()(v8::Utils::ToLocal(native_context),
+                                         script->id());
+    }
   }
   CHECK(is_compiled_scope.is_compiled());
 
@@ -3616,10 +3663,15 @@ struct ScriptCompileTimerScope {
 
   ScriptCompileTimerScope(
       Isolate* isolate, ScriptCompiler::NoCacheReason no_cache_reason,
+      ScriptType script_type,
       ScriptCompiler::CompilationDetails* compilation_details)
       : isolate_(isolate),
         histogram_scope_(&compilation_details->foreground_time_in_microseconds),
         all_scripts_histogram_scope_(isolate->counters()->compile_script()),
+        script_type_histogram_scope_(
+            script_type == ScriptType::kModule
+                ? isolate->counters()->compile_script_module()
+                : isolate->counters()->compile_script_classic()),
         no_cache_reason_(no_cache_reason),
         hit_isolate_cache_(false),
         consuming_code_cache_(false),
@@ -3656,6 +3708,7 @@ struct ScriptCompileTimerScope {
   // TODO(leszeks): This timer is the sum of the other times, consider removing
   // it to save space.
   NestedTimedHistogramScope all_scripts_histogram_scope_;
+  NestedTimedHistogramScope script_type_histogram_scope_;
   ScriptCompiler::NoCacheReason no_cache_reason_;
   bool hit_isolate_cache_;
   bool consuming_code_cache_;
@@ -3803,6 +3856,12 @@ MaybeDirectHandle<SharedFunctionInfo> CompileScriptOnMainThread(
     MaybeHandle<Script> maybe_script, IsCompiledScope* is_compiled_scope,
     CompileHintCallback compile_hint_callback = nullptr,
     void* compile_hint_callback_data = nullptr) {
+  NestedTimedHistogramScope main_thread_timer(
+      isolate->counters()->compile_script_main_thread());
+  NestedTimedHistogramScope main_thread_script_type_timer(
+      flags.is_module()
+          ? isolate->counters()->compile_script_main_thread_module()
+          : isolate->counters()->compile_script_main_thread_classic());
   UnoptimizedCompileState compile_state;
   ReusableUnoptimizedCompileState reusable_state(isolate);
   ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
@@ -3973,7 +4032,10 @@ MaybeDirectHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
     ScriptCompiler::CompileOptions compile_options,
     ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives,
     ScriptCompiler::CompilationDetails* compilation_details) {
-  ScriptCompileTimerScope compile_timer(isolate, no_cache_reason,
+  const ScriptType script_type = script_details.origin_options.IsModule()
+                                     ? ScriptType::kModule
+                                     : ScriptType::kClassic;
+  ScriptCompileTimerScope compile_timer(isolate, no_cache_reason, script_type,
                                         compilation_details);
 
   if (compile_options & ScriptCompiler::kConsumeCodeCache) {
@@ -4030,6 +4092,10 @@ MaybeDirectHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
       // Then check cached code provided by embedder.
       NestedTimedHistogramScope timer(
           isolate->counters()->compile_deserialize());
+      NestedTimedHistogramScope script_type_timer(
+          script_type == ScriptType::kModule
+              ? isolate->counters()->compile_deserialize_module()
+              : isolate->counters()->compile_deserialize_classic());
       RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileDeserialize);
       TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                   "V8.CompileDeserialize");
@@ -4056,6 +4122,13 @@ MaybeDirectHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
         // sufficiently unlikely, and ensuring a correct merge in the third case
         // would be non-trivial.
       } else {
+        NestedTimedHistogramScope main_thread_timer(
+            isolate->counters()->compile_deserialize_main_thread());
+        NestedTimedHistogramScope main_thread_script_type_timer(
+            script_type == ScriptType::kModule
+                ? isolate->counters()->compile_deserialize_main_thread_module()
+                : isolate->counters()
+                      ->compile_deserialize_main_thread_classic());
         maybe_result = CodeSerializer::Deserialize(
             isolate, cached_data, source, script_details, maybe_script);
       }
@@ -4090,10 +4163,7 @@ MaybeDirectHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
       UnoptimizedCompileFlags flags =
           UnoptimizedCompileFlags::ForToplevelCompile(
               isolate, natives == NOT_NATIVES_CODE, language_mode,
-              script_details.repl_mode,
-              script_details.origin_options.IsModule() ? ScriptType::kModule
-                                                       : ScriptType::kClassic,
-              v8_flags.lazy);
+              script_details.repl_mode, script_type, v8_flags.lazy);
 
       flags.set_is_eager(compile_options & ScriptCompiler::kEagerCompile);
       flags.set_compile_hints_magic_enabled(
@@ -4205,8 +4275,8 @@ MaybeDirectHandle<JSFunction> Compiler::GetWrappedFunction(
     v8::ScriptCompiler::CompileOptions compile_options,
     v8::ScriptCompiler::NoCacheReason no_cache_reason) {
   ScriptCompiler::CompilationDetails compilation_details;
-  ScriptCompileTimerScope compile_timer(isolate, no_cache_reason,
-                                        &compilation_details);
+  ScriptCompileTimerScope compile_timer(
+      isolate, no_cache_reason, ScriptType::kClassic, &compilation_details);
 
   if (compile_options & ScriptCompiler::kConsumeCodeCache) {
     DCHECK(cached_data);
@@ -4235,6 +4305,12 @@ MaybeDirectHandle<JSFunction> Compiler::GetWrappedFunction(
     compile_timer.set_consuming_code_cache();
     // Then check cached code provided by embedder.
     NestedTimedHistogramScope timer(isolate->counters()->compile_deserialize());
+    NestedTimedHistogramScope script_type_timer(
+        isolate->counters()->compile_deserialize_classic());
+    NestedTimedHistogramScope main_thread_timer(
+        isolate->counters()->compile_deserialize_main_thread());
+    NestedTimedHistogramScope main_thread_script_type_timer(
+        isolate->counters()->compile_deserialize_main_thread_classic());
     RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileDeserialize);
     TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                 "V8.CompileDeserialize");
@@ -4256,6 +4332,10 @@ MaybeDirectHandle<JSFunction> Compiler::GetWrappedFunction(
   }
 
   if (maybe_result.is_null()) {
+    NestedTimedHistogramScope main_thread_timer(
+        isolate->counters()->compile_script_main_thread());
+    NestedTimedHistogramScope main_thread_script_type_timer(
+        isolate->counters()->compile_script_main_thread_classic());
     UnoptimizedCompileFlags flags = UnoptimizedCompileFlags::ForToplevelCompile(
         isolate, true, language_mode, script_details.repl_mode,
         ScriptType::kClassic, v8_flags.lazy);
@@ -4321,6 +4401,8 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
 
   ScriptCompileTimerScope compile_timer(
       isolate, ScriptCompiler::kNoCacheBecauseStreamingSource,
+      script_details.origin_options.IsModule() ? ScriptType::kModule
+                                               : ScriptType::kClassic,
       compilation_details);
   PostponeInterruptsScope postpone(isolate);
 

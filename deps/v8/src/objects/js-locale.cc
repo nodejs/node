@@ -147,7 +147,7 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
 DirectHandle<Object> UnicodeKeywordValue(Isolate* isolate,
                                          DirectHandle<JSLocale> locale,
                                          const char* key) {
-  CppGCManaged<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
+  Managed<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
   UErrorCode status = U_ZERO_ERROR;
   std::string value =
       icu_locale->getUnicodeKeywordValue<std::string>(key, status);
@@ -287,8 +287,14 @@ bool JSLocale::StartsWithUnicodeLanguageId(std::string_view value) {
 }
 
 namespace {
-// Return false if variants contain duplicate elements or invalid delimiters.
+// Return false if variants contain duplicate elements, invalid delimiters, or
+// exceed ICU's maximum variants length (MAX_VARIANTS_LENGTH = 179 in uloc.cpp).
+// TODO(olivf, 557076207): Remove once mitigated upstream.
 bool IsValidVariants(std::string_view variants) {
+  constexpr size_t kMaxVariantsLength = 179;
+  if (variants.empty() || variants.length() > kMaxVariantsLength) {
+    return false;
+  }
   // The length of one unicode_variant_subtag is between 4-8. To have
   // duplicate or multiple subtags, the length of the variants need to be >=
   // 4+1+4 = 9.
@@ -407,25 +413,27 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
     // a. If variants is the empty String, throw a RangeError exception.
     // b. Let lowerVariants be the ASCII-lowercase of variants.
     std::string variants_stdstr = variants_str->ToStdString();
+    // e. If variantSubtags contains any duplicate elements, throw a
+    // RangeError exception.
+    // Check IsValidVariants before builder->setVariant() so overlong variants
+    // do not produce a bogus icu::Locale inside LocaleBuilder::build().
+    if (!IsValidVariants(variants_stdstr)) {
+      return Just(false);
+    }
     // c. Let variantSubtags be StringSplitToList(lowerVariants, "-").
     // d. For each element variant of variantSubtags, do
     // i. If variant cannot be matched by the unicode_variant_subtag Unicode
     // locale nonterminal, throw a RangeError exception.
     builder->setVariant(variants_stdstr);
-    builder->build(status);
-    if (U_FAILURE(status) || variants_stdstr.empty()) {
-      return Just(false);
-    }
-    // e. If variantSubtags contains any duplicate elements, throw a
-    // RangeError exception.
-    if (!IsValidVariants(variants_stdstr)) {
+    icu::Locale built = builder->build(status);
+    if (U_FAILURE(status) || built.isBogus()) {
       return Just(false);
     }
   }
 
   // 9. Set tag to CanonicalizeLanguageTag(tag).
   // 10.  If language is not undefined,
-  // a. Assert: tag matches the unicode_locale_id production.
+  // a. Assert: tag matches the unicode_language_id production.
   // b. Set tag to tag with the substring corresponding to the
   //    unicode_language_subtag production replaced by the string language.
   // 11. If script is not undefined, then
@@ -471,14 +479,14 @@ MaybeDirectHandle<JSLocale> JSLocale::New(Isolate* isolate,
 
   icu_locale.canonicalize(status);
 
-  if (!maybe_insert.FromJust() || U_FAILURE(status)) {
+  if (!maybe_insert.FromJust() || U_FAILURE(status) || icu_locale.isBogus()) {
     THROW_NEW_ERROR(isolate,
                     NewRangeError(MessageTemplate::kLocaleBadParameters));
   }
 
   // 31. Set locale.[[Locale]] to r.[[locale]].
-  DirectHandle<CppGCManaged<icu::Locale>> managed_locale =
-      CppGCManaged<icu::Locale>::Create(
+  DirectHandle<Managed<icu::Locale>> managed_locale =
+      Managed<icu::Locale>::From(
           isolate, 0, std::shared_ptr<icu::Locale>{icu_locale.clone()});
 
   // Now all properties are ready, so we can allocate the result object.
@@ -493,8 +501,8 @@ namespace {
 
 MaybeDirectHandle<JSLocale> Construct(Isolate* isolate,
                                       const icu::Locale& icu_locale) {
-  DirectHandle<CppGCManaged<icu::Locale>> managed_locale =
-      CppGCManaged<icu::Locale>::Create(
+  DirectHandle<Managed<icu::Locale>> managed_locale =
+      Managed<icu::Locale>::From(
           isolate, 0, std::shared_ptr<icu::Locale>{icu_locale.clone()});
 
   DirectHandle<JSFunction> constructor(
@@ -974,7 +982,7 @@ MaybeDirectHandle<JSObject> JSLocale::GetWeekInfo(
 DirectHandle<Object> JSLocale::Language(Isolate* isolate,
                                         DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  CppGCManaged<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
+  Managed<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
   const char* language = icu_locale->getLanguage();
   constexpr const char kUnd[] = "und";
   if (strlen(language) == 0) {
@@ -986,7 +994,7 @@ DirectHandle<Object> JSLocale::Language(Isolate* isolate,
 DirectHandle<Object> JSLocale::Script(Isolate* isolate,
                                       DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  CppGCManaged<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
+  Managed<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
   const char* script = icu_locale->getScript();
   if (strlen(script) == 0) return factory->undefined_value();
   return factory->NewStringFromAsciiChecked(script);
@@ -1011,7 +1019,7 @@ DirectHandle<Object> JSLocale::Variants(Isolate* isolate,
 DirectHandle<Object> JSLocale::Region(Isolate* isolate,
                                       DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  CppGCManaged<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
+  Managed<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
   const char* region = icu_locale->getCountry();
   if (strlen(region) == 0) return factory->undefined_value();
   return factory->NewStringFromAsciiChecked(region);
@@ -1052,7 +1060,7 @@ DirectHandle<Object> JSLocale::HourCycle(Isolate* isolate,
 DirectHandle<Object> JSLocale::Numeric(Isolate* isolate,
                                        DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  CppGCManaged<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
+  Managed<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
   UErrorCode status = U_ZERO_ERROR;
   std::string numeric =
       icu_locale->getUnicodeKeywordValue<std::string>("kn", status);
@@ -1065,7 +1073,7 @@ DirectHandle<Object> JSLocale::NumberingSystem(Isolate* isolate,
 }
 
 std::string JSLocale::ToString(DirectHandle<JSLocale> locale) {
-  CppGCManaged<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
+  Managed<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
   return Intl::ToLanguageTag(*icu_locale).FromJust();
 }
 

@@ -64,6 +64,7 @@ const kWasmF64Type:
 const kIsFpAlwaysDouble: constexpr bool generates 'wasm::kIsFpAlwaysDouble';
 const kIsBigEndian: constexpr bool generates 'wasm::kIsBigEndian';
 const kIsBigEndianOnSim: constexpr bool generates 'wasm::kIsBigEndianOnSim';
+const kFP32NeedNanBox: constexpr bool generates 'wasm::kFP32NeedNanBox';
 
 extern enum Promise extends int32 constexpr 'wasm::Promise' {
   kPromise,
@@ -692,7 +693,15 @@ macro JSToWasmWrapperHelper(
       if constexpr (kIsFpAlwaysDouble || kIsBigEndian || kIsBigEndianOnSim) {
         HandleF32Params(context, locationAllocator, toRef, param);
       } else {
-        *toRef = Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(param)));
+        const raw =
+            Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(param)));
+        if constexpr (kFP32NeedNanBox) {
+          // The assembly wrapper reloads f32 parameters with a 64-bit FP load
+          // (fld), so the slot must already contain a NaN-boxed f32.
+          *toRef = raw | (Convert<intptr>(0xffffffff) << 32);
+        } else {
+          *toRef = raw;
+        }
         // TODO(nicohartmann,385155404): When passing a NaN to Wasm, every
         // single bit can be observable when the float64 is reinterpret casted
         // to an integral type. Hence, differences in NaN bit patterns are
@@ -856,9 +865,20 @@ transitioning javascript builtin WasmStressSwitch(
       context, receiver, target, arguments, Promise::kStressSwitch);
 }
 
-// Precondition: {retType.is_ref()}.
 macro WasmToJSObject(context: NativeContext, value: Object): JSAny {
   if (value == kWasmNull) return Null;
+  @if(V8_IS_TSAN) {
+    if (!TaggedIsSmi(value)) {
+      runtime::TsanAcquireForInitializationFence(kNoContext, value);
+    }
+  }
+  // Descriptor structs are mapped to their wrapper, which is lazily allocated
+  // on first use.
+  if (Is<WasmCustomMap>(value)) {
+    const maybeWrapper = UnsafeCast<WasmCustomMap>(value).js_wrapper;
+    if (maybeWrapper != Null) return maybeWrapper;
+    return runtime::WasmWasmToJSObject(context, value);
+  }
   // Functions are mapped to their "external" representation, if it has
   // already been lazily created.
   if (Is<WasmFuncRef>(value)) {

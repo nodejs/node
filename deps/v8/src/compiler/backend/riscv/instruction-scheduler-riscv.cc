@@ -20,6 +20,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvSubOvfWord:
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvAdd32:
+    case kRiscvAddOvf32:
     case kRiscvBitcastDL:
     case kRiscvBitcastLD:
     case kRiscvByteSwap64:
@@ -51,11 +52,13 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvFloat64RoundTruncate:
     case kRiscvFloat64RoundUp:
     case kRiscvSub32:
+    case kRiscvSubOvf32:
     case kRiscvTruncLD:
     case kRiscvTruncLS:
     case kRiscvTruncUlD:
     case kRiscvTruncUlS:
     case kRiscvCmp32:
+    case kRiscvCmp32Eq:
     case kRiscvCmpZero32:
 #elif V8_TARGET_ARCH_RISCV32
     case kRiscvAdd32:
@@ -1104,9 +1107,11 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvAdd32:
     case kRiscvAdd64:
+    case kRiscvAddOvf32:
       return Add64Latency(instr->InputAt(1)->IsRegister());
     case kRiscvSub32:
     case kRiscvSub64:
+    case kRiscvSubOvf32:
       return Sub64Latency(instr->InputAt(1)->IsRegister());
     case kRiscvAdd128:
     case kRiscvSub128:
@@ -1794,9 +1799,12 @@ ArchInstResource InstructionScheduler::GetInstructionResource(
     case kRiscvCtzw:
     case kRiscvCpopw:
     case kRiscvCmp32:
+    case kRiscvCmp32Eq:
     case kRiscvCmpZero32:
     case kRiscvAdd32:
     case kRiscvSub32:
+    case kRiscvAddOvf32:
+    case kRiscvSubOvf32:
     case kRiscvAddOvfWord:
     case kRiscvSubOvfWord:
     case kRiscvEnableDebugTrace:

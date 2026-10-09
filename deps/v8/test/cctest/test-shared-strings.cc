@@ -6,6 +6,7 @@
 #include "src/api/api-inl.h"
 #include "src/api/api.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
@@ -649,8 +650,8 @@ class ExternalResourceFactory {
   TwoByteResource* CreateTwoByte(base::Vector<base::uc16> vector,
                                  bool copy = true) {
     if (copy) {
-      vector = base::VectorOf(base::OwnedCopyOf(vector).ReleaseData().release(),
-                              vector.size());
+      vector = base::VectorOf(
+          base::UniqueCopyOf(vector).ReleaseData().release(), vector.size());
     }
     return CreateTwoByte(vector.data(), vector.size());
   }

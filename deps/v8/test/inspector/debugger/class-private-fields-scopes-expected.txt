@@ -18,6 +18,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 5
                     lineNumber : 6
@@ -38,6 +39,46 @@ Running test: testScopesPaused
                 type : local
             }
             [1] : {
+                emptyReason : no-variables
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 7
+                    scriptId : <scriptId>
+                }
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                }
+                type : block
+            }
+            [2] : {
+                emptyReason : all-unavailable
+                endLocation : {
+                    columnNumber : 1
+                    lineNumber : 9
+                    scriptId : <scriptId>
+                }
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 12
+                    lineNumber : 1
+                    scriptId : <scriptId>
+                }
+                type : closure
+            }
+            [3] : {
                 object : {
                     className : global
                     description : global

@@ -848,19 +848,23 @@ def _CheckNoexceptAnnotations(input_api, output_api):
 
 
 def _CheckMetagenHeaders(input_api, output_api):
-  """Check that tools/metagen's driver still reaches every heap object.
+  """Check that src/objects/all-objects.h includes every heap object header.
 
   tools/metagen/metagen.py harvests the InstanceType enum from the class
-  declarations its driver's include closure reaches. A header that grows a
-  V8_OBJECT / V8_IT_ class but that nothing in the closure includes is
-  silently skipped -- the class simply gets no instance type -- so catch the
-  drift at upload time.
+  declarations included by all-objects.h. A header with a V8_OBJECT /
+  V8_IT_ class that all-objects.h does not include is skipped without
+  error and its class gets no instance type, so check at upload time.
 
-  Reachability is resolved textually rather than by preprocessing, and
-  conditional includes are followed regardless of their guard: a header
-  reachable only under V8_INTL_SUPPORT still counts as reached, because the
-  harvest runs per build configuration and sees it in the configs that
-  enable it.
+  The check requires direct inclusion because BUILD.gn declares only
+  all-objects.h as an input of the harvest. A header included through an
+  intermediate header is still harvested, but the intermediate is in
+  neither the action's inputs nor the depfile, so an incremental build
+  keeps a stale instance-types.h.
+
+  Includes are read textually, not by preprocessing, and conditional ones
+  count regardless of their guard: the harvest runs per build
+  configuration, so a header included only under V8_INTL_SUPPORT is
+  harvested in the configurations that enable it.
   """
   import subprocess
   v8_root = input_api.PresubmitLocalPath()
@@ -890,35 +894,28 @@ def _CheckMetagenHeaders(input_api, output_api):
     ]
   live = set(res.stdout.split())
 
-  include_re = re.compile(r'^\s*#\s*include\s+"([^"]+)"', re.MULTILINE)
-  driver = join("tools", "metagen", "harvest-driver.cc")
-  reached = set()
-  queue = [driver]
-  while queue:
-    rel = queue.pop()
-    if rel in reached:
-      continue
-    reached.add(rel)
-    try:
-      with open(join(v8_root, rel)) as f:
-        body = f.read()
-    except OSError:
-      # Not a V8 file (a system or third_party header); its includes
-      # cannot reach a V8_OBJECT declaration we care about.
-      continue
-    queue.extend(include_re.findall(body))
+  aggregate = join("src", "objects", "all-objects.h")
+  try:
+    with open(join(v8_root, aggregate)) as f:
+      body = f.read()
+  except OSError as e:
+    return [
+        output_api.PresubmitNotifyResult(
+            f"_CheckMetagenHeaders: skipping ({aggregate}: {e})")
+    ]
+  included = set(re.findall(r'^\s*#\s*include\s+"([^"]+)"', body, re.MULTILINE))
 
-  missing = sorted(live - reached)
+  missing = sorted(live - included)
   if not missing:
     return []
   return [
       output_api.PresubmitError("\n".join([
-          f"{driver} no longer reaches every heap object.",
-          "These headers carry a V8_OBJECT/V8_IT_ marker but nothing in the "
-          "driver's include closure includes them, so metagen assigns their "
-          "classes no instance type:",
+          f"{aggregate} no longer includes every heap object header.",
+          "These headers carry a V8_OBJECT/V8_IT_ marker but are not "
+          "included there, so metagen either misses their classes or "
+          "harvests them through a header the build does not depend on:",
       ] + [f"    {h}" for h in missing] + [
-          "Add them to src/objects/all-objects.h.",
+          f"Add them to {aggregate}.",
       ]))
   ]
 

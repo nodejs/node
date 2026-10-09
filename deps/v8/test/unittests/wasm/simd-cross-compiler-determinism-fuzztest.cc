@@ -37,12 +37,19 @@ struct FuzzExtMulPairwiseTree {
 
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 struct AVXSupport {
-  bool previous_;
-  explicit AVXSupport(bool allow) : previous_(CpuFeatures::IsSupported(AVX)) {
-    if (!allow) CpuFeatures::SetUnsupported(AVX);
+  bool previous_avx_;
+  bool previous_fma3_;
+  explicit AVXSupport(bool allow)
+      : previous_avx_(CpuFeatures::IsSupported(AVX)),
+        previous_fma3_(CpuFeatures::IsSupported(FMA3)) {
+    if (!allow) {
+      CpuFeatures::SetUnsupported(AVX);
+      CpuFeatures::SetUnsupported(FMA3);
+    }
   }
   ~AVXSupport() {
-    if (previous_) CpuFeatures::SetSupported(AVX);
+    if (previous_avx_) CpuFeatures::SetSupported(AVX);
+    if (previous_fma3_) CpuFeatures::SetSupported(FMA3);
   }
 };
 #endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
@@ -57,7 +64,7 @@ class SimdCrossCompilerDeterminismTest
   void TestTernOp(WasmOpcode opcode, std::array<Simd128, 3> inputs,
                   int preconsumed_liftoff_regs, bool allow_avx);
 
-  void TestShuffleTree(WasmOpcode binop, WasmOpcode unop,
+  void TestShuffleTree(WasmOpcode binop, WasmOpcode unop, WasmOpcode ternop,
                        std::array<Simd128, 4> inputs,
                        std::array<uint8_t, kSimd128Size> shuffle0,
                        std::array<uint8_t, kSimd128Size> shuffle1,
@@ -74,6 +81,13 @@ class SimdCrossCompilerDeterminismTest
   void TestExtMulPairwiseTree(std::array<Simd128, 4> inputs,
                               FuzzExtMulPairwiseTree tree,
                               int preconsumed_liftoff_regs, bool allow_avx);
+
+  void TestHalvingAdd(WasmOpcode add_opcode, WasmOpcode shift_opcode,
+                      WasmOpcode bitwise_opcode,
+                      WasmOpcode shifted_bitwise_opcode,
+                      std::array<Simd128, 2> inputs, int32_t shift,
+                      uint8_t operand_choices, int preconsumed_liftoff_regs,
+                      bool allow_avx);
 
   static constexpr int kMaxPreconsumedLiftoffRegs =
       kFpCacheRegList.GetNumRegsSet();
@@ -103,6 +117,72 @@ class SimdCrossCompilerDeterminismTest
       InputLocationsImpl<sizeof...(locations),
                          std::array<InputLocation, sizeof...(locations)>{
                              locations...}>;
+
+  template <typename Config>
+  Simd128 GetHalvingAddResult(TestExecutionTier tier, WasmOpcode add_opcode,
+                              WasmOpcode shift_opcode,
+                              WasmOpcode bitwise_opcode,
+                              WasmOpcode shifted_bitwise_opcode,
+                              std::array<Simd128, 2> inputs, int32_t shift,
+                              uint8_t operand_choices,
+                              int preconsumed_liftoff_regs = 0) {
+    CommonWasmRunner<void> runner(isolate(), tier);
+    Simd128* memory = runner.builder().AddMemoryElems<Simd128>(2);
+    uint8_t lhs = runner.AllocateLocal(kWasmS128);
+    uint8_t rhs = runner.AllocateLocal(kWasmS128);
+
+    constexpr size_t kMaxBytecodeSize = 80 + 19 * kMaxPreconsumedLiftoffRegs;
+    base::SmallVector<uint8_t, kMaxBytecodeSize> bytecode;
+
+    DCHECK_LE(preconsumed_liftoff_regs, kMaxPreconsumedLiftoffRegs);
+    DCHECK_IMPLIES(tier != TestExecutionTier::kLiftoff,
+                   preconsumed_liftoff_regs == 0);
+    for (int i = 0; i < preconsumed_liftoff_regs; ++i) {
+      bytecode.insert(bytecode.end(), {WASM_SIMD_CONSTANT(Simd128{}.bytes())});
+    }
+
+    bytecode.insert(bytecode.end(),
+                    Config::template GetInput<0>(memory, inputs[0]));
+    bytecode.insert(bytecode.end(), {kExprLocalSet, lhs});
+    bytecode.insert(bytecode.end(),
+                    Config::template GetInput<1>(memory, inputs[1]));
+    bytecode.insert(bytecode.end(), {kExprLocalSet, rhs});
+    bytecode.insert(bytecode.end(), {WASM_ZERO});
+
+    // Construct a variant of (a & b) + ((a ^ b) >> shift).
+    // Bits 0-1 select lhs (0) or rhs (1) for the bitwise and's operands.
+    // Bits 2-3 do the same for the shifted bitwise xor's operands.
+    // Bit 4 swaps the operands of the add/sub operation.
+    auto emit_bitwise = [&] {
+      bytecode.insert(bytecode.end(),
+                      {WASM_LOCAL_GET((operand_choices & 1) ? rhs : lhs),
+                       WASM_LOCAL_GET((operand_choices & 2) ? rhs : lhs),
+                       WASM_SIMD_OP(bitwise_opcode)});
+    };
+    auto emit_shift = [&] {
+      bytecode.insert(bytecode.end(),
+                      {WASM_LOCAL_GET((operand_choices & 4) ? rhs : lhs),
+                       WASM_LOCAL_GET((operand_choices & 8) ? rhs : lhs),
+                       WASM_SIMD_OP(shifted_bitwise_opcode), WASM_I32V(shift),
+                       WASM_SIMD_OP(shift_opcode)});
+    };
+    if (operand_choices & 16) {
+      emit_shift();
+      emit_bitwise();
+    } else {
+      emit_bitwise();
+      emit_shift();
+    }
+    bytecode.insert(bytecode.end(), {WASM_SIMD_OP(add_opcode)});
+    bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprS128StoreMem),
+                                     ZERO_ALIGNMENT, ZERO_OFFSET});
+    bytecode.push_back(kExprReturn);
+
+    DCHECK_GE(kMaxBytecodeSize, bytecode.size());
+    runner.Build(base::VectorOf(bytecode));
+    runner.Call();
+    return memory[0];
+  }
 
   template <typename Config>
   Simd128 GetTernOpResult(TestExecutionTier tier, WasmOpcode opcode,
@@ -159,7 +239,8 @@ class SimdCrossCompilerDeterminismTest
   // Test shuffle patterns.
   template <typename Config>
   Simd128 GetShuffleTreeResult(TestExecutionTier tier, WasmOpcode binop,
-                               WasmOpcode unop, std::array<Simd128, 4> inputs,
+                               WasmOpcode unop, WasmOpcode ternop,
+                               std::array<Simd128, 4> inputs,
                                std::array<uint8_t, kSimd128Size> shuffle0,
                                std::array<uint8_t, kSimd128Size> shuffle1,
                                std::array<uint8_t, kSimd128Size> shuffle2,
@@ -171,6 +252,11 @@ class SimdCrossCompilerDeterminismTest
     // result.
     CommonWasmRunner<void> runner(isolate(), tier);
     Simd128* memory = runner.builder().AddMemoryElems<Simd128>(8);
+
+    uint8_t locals_start = runner.AllocateLocals(6, kWasmS128);
+    auto locals_idx = [locals_start](uint8_t offset) -> uint8_t {
+      return static_cast<uint8_t>(locals_start + offset);
+    };
 
     // Build the bytecode.
     // Note: `kMaxBytecodeSize` is just big enough to hold all bytes we generate
@@ -187,9 +273,6 @@ class SimdCrossCompilerDeterminismTest
       bytecode.insert(bytecode.end(), {WASM_SIMD_CONSTANT(Simd128{}.bytes())});
     }
 
-    // Push the memory index for the final store.
-    bytecode.insert(bytecode.end(), {WASM_ZERO});
-
     // x0 = shuffle(a, b)
     bytecode.insert(bytecode.end(),
                     Config::template GetInput<0>(memory, inputs[0]));
@@ -197,6 +280,7 @@ class SimdCrossCompilerDeterminismTest
                     Config::template GetInput<1>(memory, inputs[1]));
     bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprI8x16Shuffle)});
     bytecode.insert(bytecode.end(), shuffle0.begin(), shuffle0.end());
+    bytecode.insert(bytecode.end(), {kExprLocalSet, locals_idx(0)});
 
     // y0 = shuffle(c, d)
     bytecode.insert(bytecode.end(),
@@ -205,10 +289,27 @@ class SimdCrossCompilerDeterminismTest
                     Config::template GetInput<3>(memory, inputs[3]));
     bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprI8x16Shuffle)});
     bytecode.insert(bytecode.end(), shuffle1.begin(), shuffle1.end());
+    bytecode.insert(bytecode.end(), {kExprLocalSet, locals_idx(1)});
+
+    auto emit_pass_thru = [&](uint8_t left, uint8_t right) {
+      // Add unary, binary, and ternary s128->s128 operations between shuffle
+      // levels. When these are pass-through operations, the shuffle reducer's
+      // demanded-byte analysis should be able to continue through them.
+      bytecode.insert(bytecode.end(), {kExprLocalGet, locals_idx(left)});
+      bytecode.insert(bytecode.end(), {WASM_SIMD_OP(unop)});
+      bytecode.insert(bytecode.end(), {kExprLocalGet, locals_idx(left)});
+      bytecode.insert(bytecode.end(), {kExprLocalGet, locals_idx(right)});
+      bytecode.insert(bytecode.end(), {WASM_SIMD_OP(binop)});
+      bytecode.insert(bytecode.end(), {kExprLocalGet, locals_idx(right)});
+      bytecode.insert(bytecode.end(), {WASM_SIMD_OP(ternop)});
+    };
 
     // z0 = shuffle(x0, y0)
+    emit_pass_thru(0, 1);
+    bytecode.insert(bytecode.end(), {kExprLocalGet, locals_idx(1)});
     bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprI8x16Shuffle)});
     bytecode.insert(bytecode.end(), shuffle2.begin(), shuffle2.end());
+    bytecode.insert(bytecode.end(), {kExprLocalSet, locals_idx(2)});
 
     // x1 = shuffle(b, c)
     bytecode.insert(bytecode.end(),
@@ -216,7 +317,8 @@ class SimdCrossCompilerDeterminismTest
     bytecode.insert(bytecode.end(),
                     Config::template GetInput<2>(memory, inputs[2]));
     bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprI8x16Shuffle)});
-    bytecode.insert(bytecode.end(), shuffle0.begin(), shuffle0.end());
+    bytecode.insert(bytecode.end(), shuffle3.begin(), shuffle3.end());
+    bytecode.insert(bytecode.end(), {kExprLocalSet, locals_idx(3)});
 
     // y1 = shuffle(d, a)
     bytecode.insert(bytecode.end(),
@@ -224,13 +326,22 @@ class SimdCrossCompilerDeterminismTest
     bytecode.insert(bytecode.end(),
                     Config::template GetInput<0>(memory, inputs[0]));
     bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprI8x16Shuffle)});
-    bytecode.insert(bytecode.end(), shuffle1.begin(), shuffle1.end());
+    bytecode.insert(bytecode.end(), shuffle4.begin(), shuffle4.end());
+    bytecode.insert(bytecode.end(), {kExprLocalSet, locals_idx(4)});
 
     // z1 = shuffle(x1, y1)
+    emit_pass_thru(3, 4);
+    bytecode.insert(bytecode.end(), {kExprLocalGet, locals_idx(4)});
     bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprI8x16Shuffle)});
     bytecode.insert(bytecode.end(), shuffle5.begin(), shuffle5.end());
+    bytecode.insert(bytecode.end(), {kExprLocalSet, locals_idx(5)});
+
+    // Push the memory index for the final store.
+    bytecode.insert(bytecode.end(), {WASM_ZERO});
 
     // unop(binop(z0, z1));
+    bytecode.insert(bytecode.end(), {kExprLocalGet, locals_idx(2)});
+    bytecode.insert(bytecode.end(), {kExprLocalGet, locals_idx(5)});
     bytecode.insert(bytecode.end(), {WASM_SIMD_OP(binop)});
     bytecode.insert(bytecode.end(), {WASM_SIMD_OP(unop)});
 
@@ -610,6 +721,152 @@ V8_FUZZ_TEST_F(SimdCrossCompilerDeterminismTest, TestTernOp)
         fuzztest::Arbitrary<bool>())
     .WithSeeds(kTernOpSeeds);
 
+void SimdCrossCompilerDeterminismTest::TestHalvingAdd(
+    WasmOpcode add_opcode, WasmOpcode shift_opcode, WasmOpcode bitwise_opcode,
+    WasmOpcode shifted_bitwise_opcode, std::array<Simd128, 2> inputs,
+    int32_t shift, uint8_t operand_choices, int preconsumed_liftoff_regs,
+    bool allow_avx) {
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+  AVXSupport avx_support(allow_avx);
+#endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+
+  Simd128 results[] = {
+      // Liftoff reference.
+      GetHalvingAddResult<InputLocations<kConstant, kConstant>>(
+          TestExecutionTier::kLiftoff, add_opcode, shift_opcode, bitwise_opcode,
+          shifted_bitwise_opcode, inputs, shift, operand_choices,
+          preconsumed_liftoff_regs),
+      // Use both constant folding and mixed input.
+      GetHalvingAddResult<InputLocations<kConstant, kConstant>>(
+          TestExecutionTier::kTurbofan, add_opcode, shift_opcode,
+          bitwise_opcode, shifted_bitwise_opcode, inputs, shift,
+          operand_choices),
+      GetHalvingAddResult<InputLocations<kConstant, kDynamic>>(
+          TestExecutionTier::kTurbofan, add_opcode, shift_opcode,
+          bitwise_opcode, shifted_bitwise_opcode, inputs, shift,
+          operand_choices),
+      GetHalvingAddResult<InputLocations<kDynamic, kConstant>>(
+          TestExecutionTier::kTurbofan, add_opcode, shift_opcode,
+          bitwise_opcode, shifted_bitwise_opcode, inputs, shift,
+          operand_choices),
+      // Dynamic inputs to stop the pattern being constant-folded.
+      GetHalvingAddResult<InputLocations<kDynamic, kDynamic>>(
+          TestExecutionTier::kTurbofan, add_opcode, shift_opcode,
+          bitwise_opcode, shifted_bitwise_opcode, inputs, shift,
+          operand_choices)};
+
+  ASSERT_TRUE(AllResultsEqual<Simd128>(base::VectorOf(results)))
+      << absl::StrFormat(
+             "HalvingAdd with arithmetic %s, shift %s, bitwise %s, shifted "
+             "bitwise %s, shift %d, operand_choices %d on inputs %v, %v\n",
+             WasmOpcodes::OpcodeName(add_opcode),
+             WasmOpcodes::OpcodeName(shift_opcode),
+             WasmOpcodes::OpcodeName(bitwise_opcode),
+             WasmOpcodes::OpcodeName(shifted_bitwise_opcode), shift,
+             operand_choices, inputs[0], inputs[1])
+      << "Different results for different configs: "
+      << PrintCollection(base::VectorOf(results));
+}
+
+constexpr std::array kHalvingAddArithmeticOps = {
+    kExprI8x16Add, kExprI8x16Sub, kExprI16x8Add, kExprI16x8Sub,
+    kExprI32x4Add, kExprI32x4Sub, kExprI64x2Add, kExprI64x2Sub};
+
+constexpr std::array kHalvingAddShiftOps = {
+    kExprI8x16Shl,  kExprI8x16ShrS, kExprI8x16ShrU, kExprI16x8Shl,
+    kExprI16x8ShrS, kExprI16x8ShrU, kExprI32x4Shl,  kExprI32x4ShrS,
+    kExprI32x4ShrU, kExprI64x2Shl,  kExprI64x2ShrS, kExprI64x2ShrU};
+
+constexpr std::array kHalvingAddBitwiseOps = {kExprS128And, kExprS128Or,
+                                              kExprS128Xor};
+
+// Use signed min/max values to check handling of unsigned sum overflows.
+constexpr std::array<Simd128, 2> kHalvingAddInputs8 = {
+    Simd128{Simd128::int8x16{-128, 127, -1, 0, 1, -128, 127, -3, -128, 127, -1,
+                             0, 1, -128, 127, -3}},
+    Simd128{Simd128::int8x16{-128, 127, -1, -1, 0, 127, -128, 0, -128, 127, -1,
+                             -1, 0, 127, -128, 0}}};
+constexpr std::array<Simd128, 2> kHalvingAddInputs16 = {
+    Simd128{Simd128::int16x8{-32768, 32767, -1, 0, 1, -32768, 32767, -3}},
+    Simd128{Simd128::int16x8{-32768, 32767, -1, -1, 0, 32767, -32768, 0}}};
+constexpr std::array<Simd128, 2> kHalvingAddInputs32 = {
+    Simd128{Simd128::int32x4{INT32_MIN, INT32_MAX, -1, -3}},
+    Simd128{Simd128::int32x4{INT32_MIN, INT32_MAX, -1, 0}}};
+
+constexpr std::tuple<WasmOpcode, WasmOpcode, WasmOpcode, WasmOpcode,
+                     std::array<Simd128, 2>, int32_t, uint8_t, int, bool>
+    kHalvingAddSeeds[] = {
+        // Addition.
+        {kExprI8x16Add, kExprI8x16ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs8, 1, 10, 0, true},
+        {kExprI8x16Add, kExprI8x16ShrU, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs8, 9, 9, 0, true},
+        {kExprI16x8Add, kExprI16x8ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs16, -15, 6, 0, true},
+        {kExprI16x8Add, kExprI16x8ShrU, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs16, 17, 5, 0, true},
+        {kExprI32x4Add, kExprI32x4ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 33, 26, 0, true},
+        {kExprI32x4Add, kExprI32x4ShrU, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, -31, 25, 0, true},
+        {kExprI64x2Add, kExprI64x2ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 1, 22, 0, true},
+        {kExprI64x2Add, kExprI64x2ShrU, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 65, 21, 0, true},
+        // Subtraction.
+        {kExprI16x8Sub, kExprI16x8ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs16, 1, 10, 0, true},
+        {kExprI32x4Sub, kExprI32x4ShrU, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 1, 26, 0, true},
+        // Left shifts.
+        {kExprI8x16Add, kExprI8x16Shl, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs8, 1, 10, 0, true},
+        {kExprI16x8Add, kExprI16x8Shl, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs16, 1, 10, 0, true},
+        {kExprI32x4Add, kExprI32x4Shl, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 1, 10, 0, true},
+        {kExprI64x2Add, kExprI64x2Shl, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 1, 10, 0, true},
+        // Alternate bitwise operations.
+        {kExprI16x8Add, kExprI16x8ShrS, kExprS128Or, kExprS128Xor,
+         kHalvingAddInputs16, 1, 10, 0, true},
+        {kExprI16x8Add, kExprI16x8ShrS, kExprS128And, kExprS128Or,
+         kHalvingAddInputs16, 1, 10, 0, true},
+        {kExprI16x8Add, kExprI16x8ShrS, kExprS128Xor, kExprS128And,
+         kHalvingAddInputs16, 1, 10, 0, true},
+        {kExprI16x8Add, kExprI8x16ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs16, 1, 10, 0, true},
+        // Mismatched input pairs between 'xor' and 'and' operations.
+        {kExprI32x4Add, kExprI32x4ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 1, 2, 0, true},
+        {kExprI32x4Add, kExprI32x4ShrU, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 1, 14, 0, true},
+        {kExprI32x4Add, kExprI32x4ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs32, 1, 8, 0, true},
+        // All operands are lhs or rhs.
+        {kExprI8x16Add, kExprI8x16ShrS, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs8, 1, 0, 0, true},
+        {kExprI16x8Add, kExprI16x8ShrU, kExprS128And, kExprS128Xor,
+         kHalvingAddInputs16, 1, 31, 0, true}};
+
+V8_FUZZ_TEST_F(SimdCrossCompilerDeterminismTest, TestHalvingAdd)
+    .WithDomains(
+        // 64-bit to test the fallback, S/UHADD supports 8, 16 and 32-bit lanes.
+        fuzztest::ElementOf<WasmOpcode>(kHalvingAddArithmeticOps),
+        fuzztest::ElementOf<WasmOpcode>(kHalvingAddShiftOps),
+        fuzztest::ElementOf<WasmOpcode>(kHalvingAddBitwiseOps),
+        fuzztest::ElementOf<WasmOpcode>(kHalvingAddBitwiseOps),
+        fuzztest::ArrayOf<2>(ArbitrarySimd()),
+        // Check the optimization only runs for shifts of 1.
+        fuzztest::OneOf(fuzztest::ElementOf<int32_t>({1, 9, 17, 33, 65, -7, -15,
+                                                      -31, -63}),
+                        fuzztest::Arbitrary<int32_t>()),
+        fuzztest::InRange<uint8_t>(0, 31),
+        fuzztest::InRange(
+            0, SimdCrossCompilerDeterminismTest::kMaxPreconsumedLiftoffRegs),
+        fuzztest::Arbitrary<bool>())
+    .WithSeeds(kHalvingAddSeeds);
+
 void SimdCrossCompilerDeterminismTest::TestExtMulPairwiseTree(
     std::array<Simd128, 4> inputs, FuzzExtMulPairwiseTree tree,
     int preconsumed_liftoff_regs, bool allow_avx) {
@@ -756,8 +1013,8 @@ V8_FUZZ_TEST_F(SimdCrossCompilerDeterminismTest, TestExtMulPairwiseTree)
         fuzztest::Arbitrary<bool>());
 
 void SimdCrossCompilerDeterminismTest::TestShuffleTree(
-    WasmOpcode binop, WasmOpcode unop, std::array<Simd128, 4> inputs,
-    std::array<uint8_t, kSimd128Size> shuffle0,
+    WasmOpcode binop, WasmOpcode unop, WasmOpcode ternop,
+    std::array<Simd128, 4> inputs, std::array<uint8_t, kSimd128Size> shuffle0,
     std::array<uint8_t, kSimd128Size> shuffle1,
     std::array<uint8_t, kSimd128Size> shuffle2,
     std::array<uint8_t, kSimd128Size> shuffle3,
@@ -774,30 +1031,35 @@ void SimdCrossCompilerDeterminismTest::TestShuffleTree(
       // one Liftoff mode (but with a dynamic amount of preconsumed registers).
       GetShuffleTreeResult<
           InputLocations<kConstant, kConstant, kConstant, kConstant>>(
-          TestExecutionTier::kLiftoff, binop, unop, inputs, shuffle0, shuffle1,
-          shuffle2, shuffle3, shuffle4, shuffle5, preconsumed_liftoff_regs),
+          TestExecutionTier::kLiftoff, binop, unop, ternop, inputs, shuffle0,
+          shuffle1, shuffle2, shuffle3, shuffle4, shuffle5,
+          preconsumed_liftoff_regs),
 
       // Different Turbofan configs, embedding inputs as constants or having
       // dynamic inputs.
       // - input constant
       GetShuffleTreeResult<
           InputLocations<kConstant, kConstant, kConstant, kConstant>>(
-          TestExecutionTier::kTurbofan, binop, unop, inputs, shuffle0, shuffle1,
-          shuffle2, shuffle3, shuffle4, shuffle5),
+          TestExecutionTier::kTurbofan, binop, unop, ternop, inputs, shuffle0,
+          shuffle1, shuffle2, shuffle3, shuffle4, shuffle5),
       // - input dynamic
       GetShuffleTreeResult<
           InputLocations<kDynamic, kDynamic, kDynamic, kDynamic, kDynamic>>(
-          TestExecutionTier::kTurbofan, binop, unop, inputs, shuffle0, shuffle1,
-          shuffle2, shuffle3, shuffle4, shuffle5)};
+          TestExecutionTier::kTurbofan, binop, unop, ternop, inputs, shuffle0,
+          shuffle1, shuffle2, shuffle3, shuffle4, shuffle5)};
 
   ASSERT_TRUE(AllResultsEqual<Simd128>(base::VectorOf(results)))
-      << absl::StrFormat("Shuffles: %v, %v, %v, %v, %vand %v\n",
-                         *reinterpret_cast<Simd128*>(shuffle0.data()),
-                         *reinterpret_cast<Simd128*>(shuffle1.data()),
-                         *reinterpret_cast<Simd128*>(shuffle2.data()),
-                         *reinterpret_cast<Simd128*>(shuffle3.data()),
-                         *reinterpret_cast<Simd128*>(shuffle4.data()),
-                         *reinterpret_cast<Simd128*>(shuffle5.data()))
+      << absl::StrFormat(
+             "Operations: %s, %s, %s\n"
+             "Shuffles: %v, %v, %v, %v, %v and %v\n",
+             WasmOpcodes::OpcodeName(binop), WasmOpcodes::OpcodeName(unop),
+             WasmOpcodes::OpcodeName(ternop),
+             *reinterpret_cast<Simd128*>(shuffle0.data()),
+             *reinterpret_cast<Simd128*>(shuffle1.data()),
+             *reinterpret_cast<Simd128*>(shuffle2.data()),
+             *reinterpret_cast<Simd128*>(shuffle3.data()),
+             *reinterpret_cast<Simd128*>(shuffle4.data()),
+             *reinterpret_cast<Simd128*>(shuffle5.data()))
       << "Different results for different configs: "
       << PrintCollection(base::VectorOf(results));
 }
@@ -981,6 +1243,8 @@ V8_FUZZ_TEST_F(SimdCrossCompilerDeterminismTest, TestShuffleTree)
         fuzztest::ElementOf<WasmOpcode>(kBinOps),
         // unop
         fuzztest::ElementOf<WasmOpcode>(kUnOps),
+        // ternop
+        fuzztest::ElementOf<WasmOpcode>(kTernOps),
         // inputs
         fuzztest::ArrayOf<4>(ArbitrarySimd()),
         // shuffle 0

@@ -17,6 +17,7 @@ namespace internal {
 
 BUILTIN(BigIntConstructor) {
   HandleScope scope(isolate);
+  isolate->CountUsage(v8::Isolate::kBigInt);
   if (!IsUndefined(*args.new_target())) {  // [[Construct]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotConstructor,

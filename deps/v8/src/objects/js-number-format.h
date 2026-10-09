@@ -116,10 +116,10 @@ V8_OBJECT class JSNumberFormat : public JSObject {
   inline void set_locale(Tagged<String> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<CppGCManaged<icu::number::LocalizedNumberFormatter>>
+  inline Tagged<Managed<icu::number::LocalizedNumberFormatter>>
   icu_number_formatter() const;
   inline void set_icu_number_formatter(
-      Tagged<CppGCManaged<icu::number::LocalizedNumberFormatter>> value,
+      Tagged<Managed<icu::number::LocalizedNumberFormatter>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<UnionOf<JSFunction, Undefined>> bound_format() const;
@@ -130,8 +130,7 @@ V8_OBJECT class JSNumberFormat : public JSObject {
 
  public:
   TaggedMember<String> locale_;
-  TaggedMember<CppGCManaged<icu::number::LocalizedNumberFormatter>>
-      icu_number_formatter_;
+  TaggedMember<Foreign> icu_number_formatter_;
   TaggedMember<UnionOf<JSFunction, Undefined>> bound_format_;
 } V8_OBJECT_END;
 

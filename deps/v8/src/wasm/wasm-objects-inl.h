@@ -275,8 +275,8 @@ Address WasmGlobalObject::storage() const {
 
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_start, uint8_t*,
                     kMemory0StartOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_size, size_t,
-                    kMemory0SizeOffset)
+PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_size_or_address, Address,
+                    kMemory0SizeOrAddressOffset)
 // ACCESSORS/OPTIONAL_ACCESSORS/PROTECTED_POINTER_ACCESSORS all use
 // CONDITIONAL_*_WRITE_BARRIER(this, ...) which expands to (object)->... —
 // arrow access that fails for HeapObject value types.  Spell out the
@@ -352,6 +352,9 @@ PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, tiering_budget_array,
 WTI_PROTECTED_POINTER_ACCESSORS(memory_bases_and_sizes,
                                 TrustedFixedAddressArray,
                                 kProtectedMemoryBasesAndSizesOffset)
+WTI_PROTECTED_POINTER_ACCESSORS(shared_memory_backing_stores,
+                                ProtectedFixedArray,
+                                kProtectedSharedMemoryBackingStoresOffset)
 WTI_PROTECTED_POINTER_ACCESSORS(data_segments,
                                 TrustedPodArray<wasm::WireBytesRef>,
                                 kProtectedDataSegmentsOffset)
@@ -424,8 +427,14 @@ size_t WasmTrustedInstanceData::memory_size(uint32_t memory_index) const {
       memory_bases_and_sizes()->length().value();
   SBXCHECK_EQ(bases_and_sizes_length % 2u, 0u);
   SBXCHECK_LT(memory_index, bases_and_sizes_length / 2u);
-  DCHECK_EQ(memory0_size(), memory_bases_and_sizes()->get(1));
-  return memory_bases_and_sizes()->get(2 * memory_index + 1);
+  DCHECK_EQ(memory0_size_or_address(), memory_bases_and_sizes()->get(1));
+  Address size_or_address = memory_bases_and_sizes()->get(2 * memory_index + 1);
+  if (module()->memories[memory_index].is_shared) {
+    if (size_or_address == kNullAddress) return 0;
+    return reinterpret_cast<const std::atomic<size_t>*>(size_or_address)
+        ->load(std::memory_order_seq_cst);
+  }
+  return static_cast<size_t>(size_or_address);
 }
 
 wasm::NativeModule* WasmTrustedInstanceData::native_module() const {
@@ -690,20 +699,6 @@ void WasmImportData::clear_importing_instance_data() {
   protected_importing_instance_data_.store(this, {}, SKIP_WRITE_BARRIER);
 }
 
-Tagged<TrustedObject> WasmImportData::call_origin() const {
-  DCHECK(has_call_origin());
-  return protected_call_origin_.load();
-}
-void WasmImportData::set_call_origin(Tagged<TrustedObject> value,
-                                     WriteBarrierMode mode) {
-  protected_call_origin_.store(this, value, mode);
-}
-bool WasmImportData::has_call_origin() const {
-  return !protected_call_origin_.load().is_null();
-}
-void WasmImportData::clear_call_origin() {
-  protected_call_origin_.store(this, {}, SKIP_WRITE_BARRIER);
-}
 
 Tagged<NativeContext> WasmImportData::native_context() const {
   return native_context_.load();
@@ -747,13 +742,6 @@ void WasmImportData::set_suspend(wasm::Suspend value) {
   set_bit_field(SuspendField::update(bit_field(), value));
 }
 
-uint32_t WasmImportData::table_slot() const {
-  return TableSlotField::decode(bit_field());
-}
-
-void WasmImportData::set_table_slot(uint32_t value) {
-  set_bit_field(TableSlotField::update(bit_field(), value));
-}
 
 void WasmImportData::clear_padding() {
 #if TAGGED_SIZE_8_BYTES
@@ -764,7 +752,7 @@ void WasmImportData::clear_padding() {
 // WasmInternalFunction
 
 // {implicit_arg} will be a WasmTrustedInstanceData or a WasmImportData.
-Tagged<TrustedObject> WasmInternalFunction::implicit_arg() const {
+Tagged<WasmImplicitArg> WasmInternalFunction::implicit_arg() const {
   DCHECK(has_implicit_arg());
   return protected_implicit_arg_.load();
 }
@@ -777,7 +765,7 @@ Tagged<WasmTrustedInstanceData> WasmInternalFunction::instance_data() const {
   return TrustedCast<WasmImportData>(arg)->importing_instance_data();
 }
 
-void WasmInternalFunction::set_implicit_arg(Tagged<TrustedObject> value,
+void WasmInternalFunction::set_implicit_arg(Tagged<WasmImplicitArg> value,
                                             WriteBarrierMode mode) {
   protected_implicit_arg_.store(this, value, mode);
 }
@@ -804,10 +792,10 @@ void WasmInternalFunction::set_function_index(int value) {
 }
 
 uint32_t WasmInternalFunction::raw_call_target() const {
-  return raw_call_target_;
+  return raw_call_target_.value();
 }
 void WasmInternalFunction::set_raw_call_target(uint32_t value) {
-  raw_call_target_ = value;
+  raw_call_target_ = WasmCodePointer{value};
 }
 
 const wasm::CanonicalSig* WasmInternalFunction::sig() const {
@@ -838,14 +826,6 @@ bool WasmFuncRef::has_internal() const { return !trusted_internal_.is_empty(); }
 void WasmFuncRef::clear_internal() { trusted_internal_.clear(this); }
 
 // WasmFunctionData
-Tagged<Code> WasmFunctionData::wrapper_code(IsolateForSandbox isolate) const {
-  return wrapper_code_.load(isolate);
-}
-void WasmFunctionData::set_wrapper_code(Tagged<Code> value,
-                                        WriteBarrierMode mode) {
-  wrapper_code_.store(this, value, mode);
-}
-
 Tagged<WasmInternalFunction> WasmFunctionData::internal() const {
   DCHECK(has_internal());
   return protected_internal_.load();
@@ -929,11 +909,9 @@ bool WasmExportedFunctionData::is_promising() const {
          wasm::kPromise;
 }
 
-WasmCodePointer WasmInternalFunction::call_target() {
-  return WasmCodePointer{raw_call_target()};
-}
+WasmCodePointer WasmInternalFunction::call_target() { return raw_call_target_; }
 void WasmInternalFunction::set_call_target(WasmCodePointer code_pointer) {
-  set_raw_call_target(code_pointer.value());
+  raw_call_target_ = code_pointer;
 }
 
 // WasmCapiFunctionData
@@ -1421,27 +1399,49 @@ const wasm::CanonicalValueType WasmArray::GcSafeElementType(Tagged<Map> map) {
   return type_info->element_type();
 }
 
-int WasmArray::SizeFor(Tagged<Map> map, int length) {
-  int element_size = DecodeElementSizeFromMap(map);
-  return SizeFor(element_size, length);
+int WasmArray::HeaderSize(Tagged<Map> map) {
+  if constexpr (HeaderSize(SharedFlag{true}) == HeaderSize(SharedFlag{false})) {
+    return sizeof(WasmArray);
+  }
+  DCHECK(!HeapLayout::InReadOnlySpace(map));
+  return HeaderSize(SharedFlag{HeapLayout::InWritableSharedSpace(map)});
 }
 
-constexpr int WasmArray::SizeFor(int element_size, int length) {
-  return kHeaderSize + RoundUp(element_size * length, kTaggedSize);
+int WasmArray::header_size() const {
+  if constexpr (HeaderSize(SharedFlag{true}) == HeaderSize(SharedFlag{false})) {
+    return sizeof(WasmArray);
+  }
+  DCHECK(!HeapLayout::InReadOnlySpace(this));
+  return HeaderSize(SharedFlag{HeapLayout::InWritableSharedSpace(this)});
+}
+
+int WasmArray::SizeFor(Tagged<Map> map, int length) {
+  int element_size = DecodeElementSizeFromMap(map);
+  return HeaderSize(map) + RoundUp(element_size * length, kTaggedSize);
+}
+
+constexpr int WasmArray::SizeFor(int element_size, int length,
+                                 SharedFlag is_shared) {
+  return HeaderSize(is_shared) + RoundUp(element_size * length, kTaggedSize);
 }
 
 // Allocating arrays currently requires passing the requested byte size to the
 // runtime function as a Smi.
-static_assert(Smi::IsValid(WasmArray::SizeFor(1, WasmArray::MaxLength(1))));
-static_assert(Smi::IsValid(WasmArray::SizeFor(2, WasmArray::MaxLength(2))));
-static_assert(Smi::IsValid(WasmArray::SizeFor(4, WasmArray::MaxLength(4))));
-static_assert(Smi::IsValid(WasmArray::SizeFor(8, WasmArray::MaxLength(8))));
-static_assert(Smi::IsValid(WasmArray::SizeFor(16, WasmArray::MaxLength(16))));
+static_assert(Smi::IsValid(WasmArray::SizeFor(1, WasmArray::MaxLength(1),
+                                              SharedFlag{true})));
+static_assert(Smi::IsValid(WasmArray::SizeFor(2, WasmArray::MaxLength(2),
+                                              SharedFlag{true})));
+static_assert(Smi::IsValid(WasmArray::SizeFor(4, WasmArray::MaxLength(4),
+                                              SharedFlag{true})));
+static_assert(Smi::IsValid(WasmArray::SizeFor(8, WasmArray::MaxLength(8),
+                                              SharedFlag{true})));
+static_assert(Smi::IsValid(WasmArray::SizeFor(16, WasmArray::MaxLength(16),
+                                              SharedFlag{true})));
 
 uint32_t WasmArray::element_offset(uint32_t index) {
   DCHECK_LE(index, length());
   int element_size = DecodeElementSizeFromMap(map());
-  return WasmArray::kHeaderSize + index * element_size;
+  return header_size() + index * element_size;
 }
 
 Address WasmArray::ElementAddress(uint32_t index) {
@@ -1451,7 +1451,7 @@ Address WasmArray::ElementAddress(uint32_t index) {
 ObjectSlot WasmArray::ElementSlot(uint32_t index) {
   DCHECK_LE(index, length());
   DCHECK(map()->wasm_type_info()->element_type().is_ref());
-  return RawField(kHeaderSize + kTaggedSize * index);
+  return RawField(header_size() + kTaggedSize * index);
 }
 
 // static
@@ -1477,21 +1477,11 @@ int WasmArray::DecodeElementSizeFromMap(Tagged<Map> map) {
   return map->WasmByte1();
 }
 
-wasm::StackMemory* WasmSuspenderObject::stack(IsolateForSandbox isolate) const {
-  Address result = stack_.load<kWasmStackMemoryTag>(isolate);
-  return reinterpret_cast<wasm::StackMemory*>(result);
-}
 wasm::StackMemory* WasmSuspenderObject::stack() const {
-  return stack(GetCurrentIsolateForSandbox());
+  return reinterpret_cast<wasm::StackMemory*>(stack_.value());
 }
-void WasmSuspenderObject::init_stack(IsolateForSandbox isolate,
-                                     const wasm::StackMemory* initial_value) {
-  stack_.Init<kWasmStackMemoryTag>(address(), isolate,
-                                   reinterpret_cast<Address>(initial_value));
-}
-void WasmSuspenderObject::set_stack(IsolateForSandbox isolate,
-                                    const wasm::StackMemory* value) {
-  stack_.store<kWasmStackMemoryTag>(isolate, reinterpret_cast<Address>(value));
+void WasmSuspenderObject::set_stack(wasm::StackMemory* value) {
+  stack_.set_value(reinterpret_cast<Address>(value));
 }
 
 EXTERNAL_POINTER_ACCESSORS(WasmStackObject, stack, wasm::StackMemory*,
@@ -1564,10 +1554,10 @@ void WasmFastApiCallData::set_callback_data(Tagged<Object> value,
                                             WriteBarrierMode mode) {
   callback_data_.store(this, value, mode);
 }
-Tagged<MaybeObject> WasmFastApiCallData::cached_map() const {
+Tagged<UnionOf<Null, Weak<Map>>> WasmFastApiCallData::cached_map() const {
   return cached_map_.load();
 }
-void WasmFastApiCallData::set_cached_map(Tagged<MaybeObject> value,
+void WasmFastApiCallData::set_cached_map(Tagged<UnionOf<Null, Weak<Map>>> value,
                                          WriteBarrierMode mode) {
   cached_map_.store(this, value, mode);
 }

@@ -463,6 +463,19 @@ class DynamicBitSet : public ZoneObject {
   ZoneList<unsigned>* remaining_ = nullptr;
 };
 
+void Trace::add_action(ActionNode* new_action) {
+  DCHECK(action_ == nullptr);  // Otherwise we lose an action.
+  action_ = new_action;
+  flags_ = HasAnyActionsField::update(flags_, true);
+  // A later search start can change this capture and let a backreference
+  // succeed even when the loop reaches the same greedy extent.
+  // For /(A+)9\1/ on "AA9A", start 0 captures "AA" and fails; start 1
+  // captures "A" and matches. Both loops stop at the same '9'.
+  if (new_action->stores_backreferenced_capture()) {
+    reset_parked_grant();
+  }
+}
+
 int Trace::FindAffectedRegisters(DynamicBitSet* affected_registers,
                                  Zone* zone) {
   int max_register = Compiler::kNoRegister;
@@ -929,9 +942,17 @@ ActionNode* ActionNode::IncrementRegister(int reg, Node* on_success,
                                              flags, reg);
 }
 
-ActionNode* ActionNode::StorePosition(int reg, Node* on_success, Flags flags) {
-  return on_success->zone()->New<ActionNode>(STORE_POSITION, on_success, flags,
-                                             reg);
+ActionNode* ActionNode::StorePosition(int reg, Node* on_success, Flags flags,
+                                      const Capture* capture) {
+  ActionNode* node = on_success->zone()->New<ActionNode>(
+      STORE_POSITION, on_success, flags, reg);
+  node->data_.u_simple.capture = capture;
+  return node;
+}
+
+bool ActionNode::stores_backreferenced_capture() const {
+  return action_type() == STORE_POSITION && data_.u_simple.capture != nullptr &&
+         data_.u_simple.capture->is_backreferenced();
 }
 
 ActionNode* ActionNode::RestorePosition(int reg, Node* on_success,
@@ -1554,27 +1575,10 @@ int TextNode::GetCaseIndependentLetters(Compiler* compiler,
   }
 #ifdef V8_INTL_SUPPORT
 
-  if (!unicode && CaseFolding::IgnoreSet().contains(character)) {
-    if (one_byte_subject && character > String::kMaxOneByteCharCode) {
-      // This function promises not to return a character that is impossible
-      // for the subject encoding.
-      return 0;
-    }
-    letters[0] = character;
-    DCHECK(ContainsOnlyUtf16CodeUnits(letters, 1));
-    return 1;
-  }
-  bool in_special_add_set = CaseFolding::SpecialAddSet().contains(character);
-
   icu::UnicodeSet set;
   set.add(character);
-  set = set.closeOver(unicode ? USET_SIMPLE_CASE_INSENSITIVE
-                              : USET_CASE_INSENSITIVE);
-
-  UChar32 canon = 0;
-  if (in_special_add_set && !unicode) {
-    canon = CaseFolding::Canonicalize(character);
-  }
+  CaseFolding::CloseOver(set, unicode ? CaseFolding::Mode::kUnicode
+                                      : CaseFolding::Mode::kNonUnicode);
 
   int32_t range_count = set.getRangeCount();
   int items = 0;
@@ -1584,10 +1588,6 @@ int TextNode::GetCaseIndependentLetters(Compiler* compiler,
     CHECK(end - start + items <= letter_length);
     for (UChar32 cu = start; cu <= end; cu++) {
       if (one_byte_subject && cu > String::kMaxOneByteCharCode) continue;
-      if (!unicode && in_special_add_set &&
-          CaseFolding::Canonicalize(cu) != canon) {
-        continue;
-      }
       letters[items++] = static_cast<unibrow::uchar>(cu);
     }
   }
@@ -3562,6 +3562,7 @@ AtomicLoopKind ClassifyAtomicLoop(LoopChoiceNode* loop) {
 }
 
 AtomicLoopKind LoopChoiceNode::atomic_loop_kind() {
+  if (!v8_flags.regexp_atomic_loop) return AtomicLoopKind::kNone;
   if (!atomic_loop_kind_valid_) {
     atomic_loop_kind_ = ClassifyAtomicLoop(this);
     atomic_loop_kind_valid_ = true;
@@ -3623,8 +3624,8 @@ DrainMode ChooseFixedLengthLoopDrainMode(ChoiceNode* choice, Trace* trace) {
       // enclosing quantifier would wrongly match at a park), so parking needs a
       // grant.  With a grant and a single-unit body every skipped restart
       // re-consumes the run and stops at the old extent, where the continuation
-      // re-fails (its outcome depends only on input position; the failed
-      // attempt's register writes are undone by the flush undo frames).
+      // re-fails. Stores to backreferenced captures revoke the grant in
+      // Trace::add_action.
       return (parkable && trace->backtrack() != nullptr &&
               trace->parked_grant() != ParkedGrant::kNone)
                  ? DrainMode::kOmit
@@ -3974,9 +3975,9 @@ bool BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   for (int i = min_lookahead; i <= max_lookahead; i++) {
     BoyerMoorePositionInfo* map = bitmaps_->at(i);
     if (map->map_count() == 0) {
-      // If we have a position where no characters can match then we just can't
-      // match.
-      masm->Fail();
+      // No character can match at this position, but another alternative or
+      // search position may still match.
+      masm->Backtrack();
       return true;
     }
 
@@ -4519,6 +4520,29 @@ bool AlternativeMatchesOnlyAtStart(Node* node) {
   }
   return false;
 }
+
+// A parked loop can skip positions when it fails. If another alternative
+// could match there, clear the grant: /:|\w*\s/ on "c:" must still match
+// ":" at index 1. Alternatives requiring input start cannot match at skipped
+// positions, so exclude them.
+struct FloatingAlternatives {
+  FloatingAlternatives(ZoneList<GuardedAlternative>* alternatives,
+                       bool has_parked_grant) {
+    if (!has_parked_grant) return;
+    for (int i = 0; i < alternatives->length(); i++) {
+      if (AlternativeMatchesOnlyAtStart(alternatives->at(i).node())) continue;
+      count++;
+      last = i;
+    }
+  }
+
+  bool HasSibling(int i) const {
+    return count > 1 || (count == 1 && last != i);
+  }
+
+  int count = 0;
+  int last = -1;
+};
 
 }  // namespace
 
@@ -5450,6 +5474,9 @@ std::optional<EmitResult> ChoiceNode::TryEmitMaskedValueDispatch(
 
   TRACE("* Emit masked-value dispatch");
 
+  FloatingAlternatives floating(alternatives_,
+                                trace->parked_grant() != ParkedGrant::kNone);
+
   // Preload the word if the trace has not already; the bounds check covers
   // the minimum any alternative eats (mirrors Node::EmitQuickCheck).
   if (trace->characters_preloaded() != preload_characters) {
@@ -5608,6 +5635,7 @@ std::optional<EmitResult> ChoiceNode::TryEmitMaskedValueDispatch(
     for (int i = 0; i < choice_count; i++) {
       if (group_of_alt[i] != g) continue;
       Trace new_trace(*trace);
+      if (floating.HasSibling(i)) new_trace.reset_parked_grant();
       new_trace.set_characters_preloaded(preload_characters);
       new_trace.set_bound_checked_up_to(preload_characters);
       // The dispatch compare already established this alternative's
@@ -5676,21 +5704,8 @@ EmitResult ChoiceNode::EmitChoices(Compiler* compiler,
   // emission; see its use below and the binding after the loop.
   NonAssertingLabel parked_reentry(compiler);
 
-  // An inherited parked-position grant may flow into an alternative only if no
-  // sibling can match at a position the park skips (/:|\w*\s/ on "c:" must
-  // still match ":" at index 1).  "Floating" = an alternative that can match
-  // away from the input start; a start-anchored sibling matches only at
-  // position 0, which a park never skips (see AlternativeMatchesOnlyAtStart),
-  // so the grant is safe exactly when at most the current alternative floats.
-  int floating_alternatives = 0;
-  int last_floating = -1;
-  if (trace->parked_grant() != ParkedGrant::kNone) {
-    for (int i = 0; i < choice_count; i++) {
-      if (AlternativeMatchesOnlyAtStart(alternatives_->at(i).node())) continue;
-      floating_alternatives++;
-      last_floating = i;
-    }
-  }
+  FloatingAlternatives floating(alternatives_,
+                                trace->parked_grant() != ParkedGrant::kNone);
 
   for (int i = first_choice; i < choice_count; i++) {
     bool is_last = i == choice_count - 1;
@@ -5701,10 +5716,7 @@ EmitResult ChoiceNode::EmitChoices(Compiler* compiler,
     const ZoneList<Guard*>* guards = alternative.guards();
     int guard_count = (guards == nullptr) ? 0 : guards->length();
     Trace new_trace(*trace);
-    const bool siblings_all_anchored =
-        floating_alternatives == 0 ||
-        (floating_alternatives == 1 && last_floating == i);
-    if (!siblings_all_anchored) new_trace.reset_parked_grant();
+    if (floating.HasSibling(i)) new_trace.reset_parked_grant();
     new_trace.set_characters_preloaded(
         preload->preload_is_current_ ? preload->preload_characters_ : 0);
     if (preload->preload_has_checked_bounds_) {
@@ -6469,7 +6481,7 @@ Node* Compiler::PreprocessRegExp(CompileData* data, bool is_one_byte) {
   TRACE_GRAPH_WITH_NODE("* Preprocess RegExp ", data->tree);
   REGISTER_NODE(accept());
   // Wrap the body of the regexp in capture #0.
-  Node* captured_body = Capture::ToNode(data->tree, 0, this, accept());
+  Node* captured_body = Capture::ToNode(data->tree, this, accept(), nullptr);
   Node* node = captured_body;
   if (!data->tree->IsCertainlyAnchoredAtStart(Node::kRecursionBudget) &&
       !IsSticky(flags())) {

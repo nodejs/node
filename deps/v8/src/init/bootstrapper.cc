@@ -221,9 +221,6 @@ class Genesis {
   void CreateAsyncFunctionMaps(DirectHandle<JSFunction> empty);
   void CreateJSProxyMaps();
 
-  // Make the "arguments" and "caller" properties throw a TypeError on access.
-  void AddRestrictedFunctionProperties(DirectHandle<JSFunction> empty);
-
   // Creates the global objects using the global proxy and the template passed
   // in through the API.  We call this regardless of whether we are building a
   // context from scratch or using a deserialized one from the context snapshot
@@ -904,12 +901,6 @@ void Genesis::CreateStrictModeFunctionMaps(DirectHandle<JSFunction> empty) {
   //
   map = factory->CreateClassFunctionMap(empty);
   native_context()->set_class_function_map(*map);
-
-#ifdef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
-  // Now that the strict mode function map is available, set up the
-  // restricted "arguments" and "caller" getters.
-  AddRestrictedFunctionProperties(empty);
-#endif  // V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
 }
 
 void Genesis::CreateObjectFunction(DirectHandle<JSFunction> empty_function) {
@@ -1278,15 +1269,6 @@ void Genesis::CreateJSProxyMaps() {
 }
 
 namespace {
-void ReplaceAccessors(Isolate* isolate, DirectHandle<Map> map,
-                      DirectHandle<String> name, PropertyAttributes attributes,
-                      DirectHandle<AccessorPair> accessor_pair) {
-  Tagged<DescriptorArray> descriptors = map->instance_descriptors();
-  InternalIndex entry = descriptors->SearchWithCache(isolate, *name, *map);
-  Descriptor d = Descriptor::AccessorConstant(name, accessor_pair, attributes);
-  descriptors->Replace(entry, &d);
-}
-
 void InitializeJSArrayMaps(Isolate* isolate,
                            DirectHandle<Context> native_context,
                            DirectHandle<Map> initial_map) {
@@ -1319,20 +1301,6 @@ void InitializeJSArrayMaps(Isolate* isolate,
   }
 }
 }  // namespace
-
-void Genesis::AddRestrictedFunctionProperties(DirectHandle<JSFunction> empty) {
-  PropertyAttributes rw_attribs = static_cast<PropertyAttributes>(DONT_ENUM);
-  DirectHandle<JSFunction> thrower = GetThrowTypeErrorIntrinsic();
-  DirectHandle<AccessorPair> accessors = factory()->NewAccessorPair();
-  accessors->set_getter(*thrower);
-  accessors->set_setter(*thrower);
-
-  DirectHandle<Map> map(empty->map(), isolate());
-  ReplaceAccessors(isolate(), map, factory()->arguments_string(), rw_attribs,
-                   accessors);
-  ReplaceAccessors(isolate(), map, factory()->caller_string(), rw_attribs,
-                   accessors);
-}
 
 void Genesis::CreateRoots() {
   // Allocate the native context FixedArray first and then patch the
@@ -2343,7 +2311,6 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY));
     native_context()->set_function_has_instance(*has_instance);
 
-#ifndef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
     // The .arguments and .caller getters are non-standard.
     SimpleInstallGetterSetter(isolate_, prototype, factory->arguments_string(),
                               Builtin::kFunctionPrototypeLegacyArgumentsGetter,
@@ -2351,7 +2318,6 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     SimpleInstallGetterSetter(isolate_, prototype, factory->caller_string(),
                               Builtin::kFunctionPrototypeLegacyCallerGetter,
                               Builtin::kFunctionPrototypeLegacyCallerSetter);
-#endif  // !V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
 
     // Complete setting up function maps.
     {

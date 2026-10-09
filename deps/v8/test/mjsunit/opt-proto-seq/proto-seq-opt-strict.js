@@ -32,7 +32,7 @@ assert_test_strict_mode(test_strict_mode());
 %OptimizeMaglevOnNextCall(test_strict_mode);
 assert_test_strict_mode(test_strict_mode());
 assertOptimized(test_strict_mode);
-assertTrue(isMaglevved(test_strict_mode));
+assertMaglevved(test_strict_mode);
 assert_test_strict_mode(test_strict_mode());
 %OptimizeFunctionOnNextCall(test_strict_mode);
 assert_test_strict_mode(test_strict_mode());

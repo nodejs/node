@@ -84,9 +84,8 @@ BUILTIN(StringFromCodePoint) {
   }
 
   if (index == length) {
-    RETURN_RESULT_OR_FAILURE(
-        isolate, isolate->factory()->NewStringFromOneByte(base::Vector<uint8_t>(
-                     one_byte_buffer.data(), one_byte_buffer.size())));
+    RETURN_RESULT_OR_FAILURE(isolate, isolate->factory()->NewStringFromOneByte(
+                                          base::VectorOf(one_byte_buffer)));
   }
 
   std::vector<base::uc16> two_byte_buffer;
@@ -113,8 +112,8 @@ BUILTIN(StringFromCodePoint) {
   DirectHandle<SeqTwoByteString> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      isolate->factory()->NewRawTwoByteString(
-          static_cast<int>(one_byte_buffer.size() + two_byte_buffer.size())));
+      isolate->factory()->NewRawTwoByteString(static_cast<uint32_t>(
+          one_byte_buffer.size() + two_byte_buffer.size())));
 
   DisallowGarbageCollection no_gc;
   CopyChars(result->GetChars(no_gc), one_byte_buffer.data(),

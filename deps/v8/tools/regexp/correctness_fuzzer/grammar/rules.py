@@ -19,7 +19,7 @@ you it never fired.
 
 from .menus import (ASCII_LETTER, CLASS_SET_SAFE, CONTROL_ESCAPE,
                     ESCAPE_LITERALS, LATIN1_ONLY, LITERAL, LITERAL_WIDE,
-                    RANGE_ALPHABET, UNICODE_PROPERTIES,
+                    RANGE_ALPHABET, SURROGATES, UNICODE_PROPERTIES,
                     UNICODE_PROPERTIES_OF_STRINGS)
 from .registry import (NOT_SETS, NOT_UNICODE, SETS, UNICODE, concat_terms,
                        expand, repeat, rule)
@@ -223,7 +223,7 @@ def pattern_character(ctx):
 def pattern_character_wide(ctx):
   # A non-Latin-1 literal forces the two-byte subject representation and, for
   # the supplementary one, the surrogate-pair path.
-  return ctx.note_literal(ctx.rng.choice(LITERAL_WIDE))
+  return ctx.note_literal(ctx.rng.choice(LITERAL_WIDE + SURROGATES))
 
 
 @rule("Atom", weight=1.5)
@@ -384,14 +384,14 @@ def hex_escape(ctx):
 
 @rule("CharacterEscape", weight=1.5)
 def unicode_escape(ctx):
-  c = ctx.rng.choice(LITERAL + ["é", "Ω"])
+  c = ctx.rng.choice(LITERAL + ["é", "Ω"] + SURROGATES)
   ctx.note_literal(c)
   return "u%04x" % ord(c)
 
 
 @rule("CharacterEscape", weight=0.8, guard=UNICODE)
 def unicode_escape_braced(ctx):
-  c = ctx.rng.choice(LITERAL + LITERAL_WIDE)
+  c = ctx.rng.choice(LITERAL + LITERAL_WIDE + SURROGATES)
   ctx.note_literal(c)
   return "u{%x}" % ord(c)
 
@@ -413,13 +413,13 @@ def unicode_escape_surrogate_pair(ctx):
 @rule("CharacterEscape", weight=1.0, guard=UNICODE)
 def identity_escape(ctx):
   # [+UnicodeMode] restricts IdentityEscape to SyntaxCharacter and `/`.
-  return ctx.rng.choice(list("^$\\.*+?()[]{}|/"))
+  return ctx.note_literal(ctx.rng.choice(list("^$\\.*+?()[]{}|/")))
 
 
 @rule("CharacterEscape", weight=1.0, guard=NOT_UNICODE)
 def identity_escape_extended(ctx):
   # Only [~UnicodeMode] admits arbitrary non-ID characters.
-  return ctx.rng.choice(list("^$\\.*+?()[]{}|/-@~"))
+  return ctx.note_literal(ctx.rng.choice(list("^$\\.*+?()[]{}|/-@~")))
 
 
 # CharacterClassEscape :: `d` `D` `s` `S` `w` `W`
@@ -513,7 +513,7 @@ def class_literal(ctx):
 
 @rule("ClassAtom", weight=0.8)
 def class_literal_wide(ctx):
-  return ctx.note_literal(ctx.rng.choice(LITERAL_WIDE))
+  return ctx.note_literal(ctx.rng.choice(LITERAL_WIDE + SURROGATES))
 
 
 @rule("ClassAtom", weight=2.0)
@@ -581,7 +581,7 @@ def set_operand(ctx):
 
 @rule("ClassSetOperand", weight=7.0)
 def set_character(ctx):
-  return ctx.note_literal(ctx.rng.choice(CLASS_SET_SAFE))
+  return expand(ctx, "ClassSetCharacter")
 
 
 @rule("ClassSetOperand", weight=2.0)
@@ -607,10 +607,25 @@ def nested_negated_class(ctx):
 def class_string_disjunction(ctx):
   # `\q{a|bc|}`: a disjunction of literal strings, the one construct that
   # lets a class match more than a single character.
-  words = []
-  for _ in range(ctx.rng.randint(1, 3)):
-    w = "".join(
-        ctx.rng.choice(CLASS_SET_SAFE) for _ in range(ctx.rng.randint(0, 3)))
-    ctx.note_literal(w)
-    words.append(w)
+  words = [
+      "".join(
+          expand(ctx, "ClassSetCharacter")
+          for _ in range(ctx.rng.randint(0, 3)))
+      for _ in range(ctx.rng.randint(1, 3))
+  ]
   return r"\q{%s}" % "|".join(words)
+
+
+# ClassSetCharacter :: SourceCharacter but not ClassSetSyntaxCharacter
+#                      `\` CharacterEscape
+
+
+@rule("ClassSetCharacter", weight=6.0)
+def literal(ctx):
+  return ctx.note_literal(
+      ctx.rng.choice(CLASS_SET_SAFE + LITERAL_WIDE + SURROGATES))
+
+
+@rule("ClassSetCharacter", weight=2.0)
+def escape(ctx):
+  return "\\" + expand(ctx, "CharacterEscape")

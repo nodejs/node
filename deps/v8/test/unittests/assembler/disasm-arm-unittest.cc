@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <array>
 #include <cinttypes>
 #include <cstdlib>
 
@@ -58,7 +59,7 @@ bool DisassembleAndCompare(uint8_t* begin, UseRegex use_regex,
                            S... expected_strings) {
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
-  base::EmbeddedVector<char, 128> buffer;
+  std::array<char, 128> buffer;
 
   std::vector<std::string> expected_disassembly = {expected_strings...};
   size_t n_expected = expected_disassembly.size();
@@ -67,7 +68,7 @@ bool DisassembleAndCompare(uint8_t* begin, UseRegex use_regex,
   std::vector<std::string> disassembly;
   for (uint8_t* pc = begin; pc < end;) {
     pc += disasm.InstructionDecode(buffer, pc);
-    disassembly.emplace_back(buffer.begin());
+    disassembly.emplace_back(buffer.data());
   }
 
   bool test_passed = true;

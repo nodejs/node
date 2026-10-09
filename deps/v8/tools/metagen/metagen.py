@@ -2,15 +2,11 @@
 # Copyright 2026 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-"""Entry point for metagen instance-type generation.
+"""Entry point for metagen metadata generation.
 
 Drives a libclang harvest of V8_OBJECT / V8_IT_-annotated C++ class
-declarations and emits `instance-types.h`. One invocation per build
-dir; ninja calls us from `tools/metagen/BUILD.gn`.
-
-Layout-mode generation (`extern class Foo extends ...` Torque emission
-from the same C++ headers) is a follow-up; the prototype lives on the
-stacked `metagen-layout` branch and is not part of this CL.
+declarations and emits `instance-types.h` and `layouts.json` for Torque.
+One invocation per build dir; ninja calls us from `BUILD.gn`.
 """
 
 from __future__ import annotations
@@ -28,11 +24,11 @@ if __name__ == "__main__":
   if _PARENT not in sys.path:
     sys.path.insert(0, _PARENT)
 
-# Don't import cpp_hier yet -- it pulls in clang.cindex at module-load
-# time, which requires the bindings to be resolvable. We bootstrap that
-# in main() once the flags say where they come from.
+# cpp_hier and layout_extract import clang.cindex. Import them in main()
+# after configuring the bindings path from the command-line flags.
 from metagen import compile_flags  # noqa: E402
 from metagen import instance_types as it  # noqa: E402
+from metagen import layout_ir  # noqa: E402
 
 
 def _write_depfile(depfile: str, output: str, deps: list[str]) -> None:
@@ -102,23 +98,11 @@ def main() -> int:
       "toolchain whose builtin headers metagen parses against.")
   p.add_argument(
       "--clang-resource-dir",
-      default=None,
+      required=True,
       help="Path to the clang toolchain's resource dir (lib/clang/<N>, "
       "the directory whose include/ holds stddef.h, stdarg.h and the arch "
       "intrinsics). Passed to the parse as -resource-dir=, which lets the "
-      "driver order the builtin headers itself. Preferred over "
-      "--clang-builtin-headers-dir wherever the canonical layout exists. "
-      "Mutually exclusive with it.")
-  p.add_argument(
-      "--clang-builtin-headers-dir",
-      default=None,
-      help="Directory holding the clang builtin headers, for build systems "
-      "that stage them flat, with no lib/clang/<N> hierarchy for "
-      "-resource-dir= to point at (Bazel). Appended as a system-include dir "
-      "instead, which takes the path directly. Never probed for: the build "
-      "system knows where it staged them, and in a sandbox any path we "
-      "guessed would be an undeclared input. Mutually exclusive with "
-      "--clang-resource-dir.")
+      "driver order the builtin headers itself.")
   p.add_argument(
       "--driver",
       required=True,
@@ -127,8 +111,14 @@ def main() -> int:
   p.add_argument(
       "--out",
       required=True,
-      help="Directory to write instance-types.h into. The only "
-      "directory metagen writes to.")
+      help="Directory to write instance-types.h and layouts.json into; "
+      "--enable-layout-positions also adds layout-positions.json.")
+  p.add_argument(
+      "--enable-layout-positions",
+      action="store_true",
+      help="Also write per-member C++ source positions to "
+      "layout-positions.json. This is separate so "
+      "position-only changes need not invalidate layout consumers.")
   p.add_argument(
       "--depfile",
       default=None,
@@ -137,7 +127,7 @@ def main() -> int:
       "of. Only the driver is a declared build input, so without this "
       "an edit to one of them leaves the output stale.")
   # TODO(jgruber): Remove --check once metagen is the sole IT source and the
-  # Torque reference path (v8_use_metagen_instance_types=false) is gone.
+  # Torque reference path (v8_use_metagen=false) is gone.
   p.add_argument(
       "--check",
       action="store_true",
@@ -152,6 +142,11 @@ def main() -> int:
       "runs `gn desc` against it (see --flags-from-target) to harvest the "
       "cflags clang uses for that target. Mutually exclusive with "
       "--compile-commands.")
+  p.add_argument(
+      "--driver-mode",
+      choices=("gcc", "cl"),
+      required=True,
+      help="Libclang driver mode selected by the build's C++ toolchain.")
   p.add_argument(
       "--source-root",
       default=None,
@@ -226,8 +221,7 @@ def main() -> int:
         file=sys.stderr)
     return 1
 
-  # Bootstrap libclang *before* importing cpp_hier -- it references
-  # clang.cindex at module-load time.
+  # Configure libclang before importing modules that use clang.cindex.
   from metagen import clang_bootstrap  # noqa: E402
   if args.libclang_from_python_env:
     clang_bootstrap.bootstrap_from_python_env()
@@ -243,6 +237,7 @@ def main() -> int:
     # `os.path.abspath` honors that.
     clang_bootstrap.bootstrap(libclang_dir=os.path.abspath(args.libclang_dir))
   from metagen import cpp_hier  # noqa: E402
+  from metagen import layout_extract  # noqa: E402
 
   if bool(args.build_dir) == bool(args.compile_commands):
     print(
@@ -268,14 +263,18 @@ def main() -> int:
     flags_target = args.flags_from_target
     if args.flags_toolchain:
       flags_target = f"{flags_target}({args.flags_toolchain})"
-    raw_flags, parse_cwd, cl_mode = compile_flags.get_compile_args_from_gn_desc(
-        build_dir, flags_target, os.path.abspath(args.source_root))
+    try:
+      raw_flags, parse_cwd = compile_flags.get_compile_args_from_gn_desc(
+          build_dir, flags_target, os.path.abspath(args.source_root))
+    except RuntimeError as e:
+      print(e, file=sys.stderr)
+      return 1
     flags_source = f"build_dir={build_dir} (gn desc {flags_target})"
   else:
     cc_json = os.path.abspath(args.compile_commands)
-    raw_flags, parse_cwd, cl_mode = compile_flags.get_compile_args_from_file(
-        cc_json)
+    raw_flags, parse_cwd = compile_flags.get_compile_args_from_file(cc_json)
     flags_source = f"compile_commands={cc_json}"
+  cl_mode = args.driver_mode == "cl"
 
   flags_dependency = None
   if args.flags_dependency:
@@ -299,34 +298,14 @@ def main() -> int:
   # bindings, so its own resource dir has no headers in it. We take them
   # from the clang toolchain package instead, which rolls from the same
   # LLVM revision and so always matches the parsing library.
-  if bool(args.clang_resource_dir) == bool(args.clang_builtin_headers_dir):
+  resource_dir = os.path.abspath(args.clang_resource_dir)
+  stddef = os.path.join(resource_dir, "include", "stddef.h")
+  if not os.path.isfile(stddef):
     print(
-        "error: exactly one of --clang-resource-dir or "
-        "--clang-builtin-headers-dir is required.",
+        f"[metagen] --clang-resource-dir does not hold clang's builtin "
+        f"headers:\n  {stddef} not found",
         file=sys.stderr)
     return 1
-  resource_dir = None
-  builtin_headers_dir = None
-  if args.clang_resource_dir:
-    resource_dir = os.path.abspath(args.clang_resource_dir)
-    flag = "--clang-resource-dir"
-    probe = os.path.join(resource_dir, "include", "stddef.h")
-  else:
-    builtin_headers_dir = os.path.abspath(args.clang_builtin_headers_dir)
-    flag = "--clang-builtin-headers-dir"
-    probe = os.path.join(builtin_headers_dir, "stddef.h")
-  if not os.path.isfile(probe):
-    print(
-        f"[metagen] {flag} does not hold clang's builtin headers:\n"
-        f"  {probe} not found",
-        file=sys.stderr)
-    return 1
-  # -fsyntax-only, -ferror-limit=, -resource-dir= and -D carry `CLOption`
-  # visibility in clang's Options.td, so one spelling works under both
-  # drivers. -isystem does NOT: the clang-cl driver drops it with an
-  # ignorable -Wunknown-argument warning, and the parse then fails on the
-  # first intrinsics header. Its cl-mode equivalent is -imsvc.
-  sysinclude = "-imsvc" if cl_mode else "-isystem"
 
   prefix = [
       "-fsyntax-only",
@@ -375,19 +354,9 @@ def main() -> int:
   # toolchain's command template puts them.
   flags = prefix + args.extra_flag + raw_flags + no_perfetto
 
-  # The builtin headers have to sit after libc++'s include dir and before
-  # the platform SDK's.
-  #
-  # -resource-dir= lets the driver place them, and it gets that right in
-  # both modes, so prefer it. That relies on libc++ arriving as -I, since
-  # the driver sorts -imsvc dirs after the resource dir. Only a flat
-  # staging dir needs the include-dir spelling, which we append: right for
-  # libc++, and right on Windows only while the SDK dirs arrive as
-  # /winsysroot.
-  if resource_dir:
-    flags.append(f"-resource-dir={resource_dir}")
-  else:
-    flags.append(f"{sysinclude}{builtin_headers_dir}")
+  # The driver places builtin headers after libc++ and before the SDK.
+  # In cl-mode, libc++ must arrive as -I to precede the resource dir.
+  flags.append(f"-resource-dir={resource_dir}")
 
   verbose_print(f"Harvesting class hierarchy from "
                 f"{os.path.relpath(driver_path, v8_root)} ({flags_source})...")
@@ -396,25 +365,29 @@ def main() -> int:
   path = os.path.join(out_dir, "instance-types.h")
 
   cpp_res = cpp_hier.scan_cpp(v8_root, driver_path, flags, parse_cwd=parse_cwd)
+
+  # Layout extraction adds the declarations it reads to the visited set.
+  # The depfile includes their source files.
+  try:
+    layout_config = layout_extract.extract_config(cpp_res.parsed)
+    layouts = layout_extract.extract_layouts(cpp_res.parsed, v8_root)
+    layout_json = layout_ir.serialize_document(layout_config, layouts)
+    if args.enable_layout_positions:
+      layout_positions_json = layout_ir.serialize_positions(layouts)
+  except layout_ir.LayoutError as e:
+    print(f"[metagen] layout extraction failed: {e}", file=sys.stderr)
+    return 1
+  verbose_print(f"  extracted {len(layouts)} layouts")
+
+  visited_files = cpp_hier.visited_files(cpp_res.parsed.visited, v8_root)
   verbose_print(f"  {len(cpp_res.classes)} classes, "
-                f"{len(cpp_res.provenance)} provenance files (from C++)")
+                f"{len(visited_files)} visited files (from C++)")
   classes = cpp_res.classes
 
-  # The files the harvest read a fact out of, not everything the parse
-  # opened. The closure is ~17x larger and mostly the inline layer and
-  # the sysroot, none of which can move a class head; depending on it
-  # would put the harvest on the critical path of edits that cannot
-  # change its output. Provenance is derived from the walk rather than
-  # filtered by hand, so it stays correct when a declaration moves --
-  # and once metagen emits object layout, field types become one more
-  # provenance source rather than a reason to widen the whole set.
-  #
-  # Written ahead of the write-if-changed check below: ninja requires
-  # the depfile to exist after the action runs, including on the run
-  # that leaves the output untouched. --check writes no output, so a
-  # depfile naming one would be meaningless.
+  # Write the depfile with the files containing visited declarations.
+  # --check writes no output, so no depfile needed there.
   if args.depfile and not args.check:
-    deps = cpp_res.provenance
+    deps = visited_files
     if flags_dependency:
       deps = deps + [flags_dependency]
     _write_depfile(args.depfile, path, deps)
@@ -438,7 +411,7 @@ def main() -> int:
       # Comment-insensitive comparison: /* ... */ position comments
       # legitimately differ (C++ header links here, .tq links in
       # Torque's emission), as do // prose comments and the include
-      # guard / V8_USE_METAGEN_INSTANCE_TYPES scaffolding around the macro
+      # guard / V8_USE_METAGEN scaffolding around the macro
       # blocks. The diagnostic-dispatch list is also skipped: it has no
       # literal counterpart in Torque's emission (the torque path
       # aliases it to the debug-reader lists, see
@@ -446,7 +419,7 @@ def main() -> int:
       # definitions must match.
       scaffold = re.compile(r"^#(ifndef V8_GEN_TORQUE_GENERATED_"
                             r"|define V8_GEN_TORQUE_GENERATED_"
-                            r"|endif|if !V8_USE_METAGEN_INSTANCE_TYPES)")
+                            r"|endif|if !V8_USE_METAGEN)")
       out: list[str] = []
       in_dispatch = False
       for ln in text.splitlines():
@@ -491,19 +464,26 @@ def main() -> int:
       sys.stdout.write(line)
     return 1
 
-  # Write-if-changed: the GN action rule carries restat=1, so leaving
-  # the mtime alone when the content is identical prunes the (near-
-  # global, via instance-type.h) set of dependents whenever an edit
-  # to one of the input headers doesn't change the IT assignment.
+  # Preserve unchanged outputs so their dependents do not rebuild.
+  _write_if_changed(path, generated, verbose_print)
+  _write_if_changed(
+      os.path.join(out_dir, "layouts.json"), layout_json, verbose_print)
+  if args.enable_layout_positions:
+    _write_if_changed(
+        os.path.join(out_dir, "layout-positions.json"), layout_positions_json,
+        verbose_print)
+  return 0
+
+
+def _write_if_changed(path: str, content: str, verbose_print) -> None:
   if os.path.exists(path):
     with open(path) as f:
-      if f.read() == generated:
+      if f.read() == content:
         verbose_print(f"Unchanged {path}")
-        return 0
+        return
   with open(path, "w") as f:
-    f.write(generated)
+    f.write(content)
   verbose_print(f"Wrote {path}")
-  return 0
 
 
 if __name__ == "__main__":

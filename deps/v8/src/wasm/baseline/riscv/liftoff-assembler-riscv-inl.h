@@ -94,59 +94,10 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
   Branch(ool_label, lt, budget, Operand{0});
 }
 
-Register LiftoffAssembler::LoadOldFramePointer() {
-  if (!v8_flags.wasm_growable_stacks) {
-    return fp;
-  }
-  LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
-  FreezeCacheState frozen(*this);
-  Label done, call_runtime;
-  LoadWord(old_fp.gp(), MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
-  BranchShort(
-      &call_runtime, eq, old_fp.gp(),
-      Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-  mv(old_fp.gp(), fp);
-  jmp(&done);
-  bind(&call_runtime);
-  LiftoffRegList regs_to_save = cache_state()->used_registers;
-  PushRegisters(regs_to_save);
-  li(kCArgRegs[0], ExternalReference::isolate_address());
-  PrepareCallCFunction(1, kScratchReg);
-  CallCFunction(ExternalReference::wasm_load_old_fp(), 1);
-  if (old_fp.gp() != kReturnRegister0) {
-    mv(old_fp.gp(), kReturnRegister0);
-  }
-  PopRegisters(regs_to_save);
-  bind(&done);
-  return old_fp.gp();
-}
-
-void LiftoffAssembler::CheckStackShrink() {
-  Label done;
-  {
-    UseScratchRegisterScope temps{this};
-    Register scratch = temps.Acquire();
-    LoadWord(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
-    BranchShort(
-        &done, ne, scratch,
-        Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-  }
-  LiftoffRegList regs_to_save;
-  for (auto reg : kGpReturnRegisters) regs_to_save.set(reg);
-  for (auto reg : kFpReturnRegisters) regs_to_save.set(reg);
-  for (auto reg : kSimd128ReturnRegisters) regs_to_save.set(reg);
-  PushRegisters(regs_to_save);
-  li(kCArgRegs[0], ExternalReference::isolate_address());
-  PrepareCallCFunction(1, kScratchReg);
-  CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
-  mv(fp, kReturnRegister0);
-  PopRegisters(regs_to_save);
-  bind(&done);
-}
-
 void LiftoffAssembler::PatchPrepareStackFrame(
     int offset, SafepointTableBuilder* safepoint_table_builder,
-    bool feedback_vector_slot, size_t stack_param_slots) {
+    bool feedback_vector_slot, size_t stack_param_slots,
+    size_t stack_return_slots) {
   // The frame_size includes the frame marker and the instance slot. Both are
   // pushed as part of frame construction, so we don't need to allocate memory
   // for them anymore.
@@ -214,14 +165,19 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     LiftoffRegList regs_to_save;
     regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
     regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+    regs_to_save.set(
+        WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister());
     for (auto reg : kGpParamRegisters) regs_to_save.set(reg);
     for (auto reg : kFpParamRegisters) regs_to_save.set(reg);
     for (auto reg : kSimd128ParamRegisters) regs_to_save.set(reg);
     PushRegisters(regs_to_save);
     li(WasmHandleStackOverflowDescriptor::GapRegister(), max_stack_space);
-    AddWord(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
-            Operand(stack_param_slots * kSystemPointerSize +
-                    CommonFrameConstants::kFixedFrameSizeAboveFp));
+    AddWord(
+        WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
+        Operand((stack_param_slots + stack_return_slots) * kSystemPointerSize +
+                CommonFrameConstants::kFixedFrameSizeAboveFp));
+    li(WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister(),
+       stack_param_slots * kSystemPointerSize);
     CallBuiltin(Builtin::kWasmHandleStackOverflow);
     safepoint_table_builder->DefineSafepoint(this);
     PopRegisters(regs_to_save);
@@ -2475,7 +2431,9 @@ void LiftoffAssembler::RecordSpillsInSafepoint(
     SafepointTableBuilder::Safepoint& safepoint, LiftoffRegList all_spills,
     LiftoffRegList ref_spills, int spill_offset) {
   LiftoffRegList fp_spills = all_spills & kFpCacheRegList;
-  int spill_space_size = fp_spills.GetNumRegsSet() * kSimd128Size;
+  int spill_space_size = fp_spills.GetNumRegsSet() * kStackSlotSize;
+  LiftoffRegList simd_spills = all_spills & kSimd128CacheRegList;
+  spill_space_size += simd_spills.GetNumRegsSet() * kSimd128Size;
   LiftoffRegList gp_spills = all_spills & kGpCacheRegList;
   while (!gp_spills.is_empty()) {
     LiftoffRegister reg = gp_spills.GetFirstRegSet();

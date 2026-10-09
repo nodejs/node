@@ -5,6 +5,7 @@
 #include "src/wasm/wasm-deopt-data.h"
 
 #include "src/base/sanitizer/msan.h"
+#include "src/base/unique-array.h"
 #include "src/objects/deoptimization-data.h"
 
 namespace v8::internal::wasm {
@@ -24,7 +25,7 @@ WasmDeoptView::BuildDeoptimizationLiteralArray() {
   return deopt_literals;
 }
 
-base::OwnedVector<uint8_t> WasmDeoptDataProcessor::Serialize(
+base::UniqueArray<uint8_t> WasmDeoptDataProcessor::Serialize(
     int deopt_exit_start_offset, int eager_deopt_count,
     base::Vector<const uint8_t> translation_array,
     base::Vector<wasm::WasmDeoptEntry> deopt_entries,
@@ -50,7 +51,7 @@ base::OwnedVector<uint8_t> WasmDeoptDataProcessor::Serialize(
                       });
   size_t byte_size = sizeof(data) + translation_array_byte_size +
                      deopt_entries_byte_size + deopt_literals_byte_size;
-  auto result = base::OwnedVector<uint8_t>::New(byte_size);
+  auto result = base::UniqueArray<uint8_t>::New(byte_size);
   base::Vector<uint8_t> remaining_buffer = result.as_vector();
   std::memcpy(remaining_buffer.begin(), &data, sizeof(data));
   remaining_buffer += sizeof(data);

@@ -145,7 +145,10 @@ enum class BreakReason : uint8_t {
 };
 typedef base::EnumSet<BreakReason> BreakReasons;
 
-void PrepareStep(Isolate* isolate, StepAction action);
+// If {enter_functions} is set, a StepOver also enters every function for
+// which DebugDelegate::ShouldEnterFunction returns true.
+V8_EXPORT_PRIVATE void PrepareStep(Isolate* isolate, StepAction action,
+                                   bool enter_functions = false);
 bool PrepareRestartFrame(Isolate* isolate, int callFrameOrdinal);
 void ClearStepping(Isolate* isolate);
 V8_EXPORT_PRIVATE void BreakRightNow(
@@ -312,6 +315,13 @@ class DebugDelegate {
   }
   virtual bool ShouldBeSkipped(v8::Local<v8::debug::Script> script, int line,
                                int column) {
+    return false;
+  }
+  // Only called during a StepOver prepared with {enter_functions}. Returns
+  // whether the step should enter the function spanning [start, end).
+  virtual bool ShouldEnterFunction(v8::Local<debug::Script> script,
+                                   const debug::Location& start,
+                                   const debug::Location& end) {
     return false;
   }
 
@@ -483,6 +493,15 @@ class V8_EXPORT_PRIVATE ScopeIterator {
     ScopeTypeWasmExpressionStack
   };
 
+  enum class VariableInfo {
+    // The scope does not declare any variables.
+    kEmpty,
+    // The scope declares variables, but none of their values are available.
+    kAllUnavailable,
+    // The scope declares at least one variable with an available value.
+    kAvailable,
+  };
+
   virtual bool Done() = 0;
   virtual void Advance() = 0;
   virtual ScopeType GetType() = 0;
@@ -492,6 +511,9 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   virtual bool HasLocationInfo() = 0;
   virtual debug::Location GetStartLocation() = 0;
   virtual debug::Location GetEndLocation() = 0;
+  // Whether the scope declares any variables and whether their values are
+  // available.
+  virtual VariableInfo GetVariableInfo() = 0;
 
   virtual bool SetVariableValue(v8::Local<v8::String> name,
                                 v8::Local<v8::Value> value) = 0;
@@ -593,6 +615,16 @@ class V8_NODISCARD DisableBreakScope {
 
  private:
   std::unique_ptr<i::DisableBreak> scope_;
+};
+
+class V8_NODISCARD SideEffectCheckScope {
+ public:
+  explicit SideEffectCheckScope(v8::Isolate* isolate);
+  ~SideEffectCheckScope();
+
+ private:
+  i::Isolate* isolate_;
+  std::unique_ptr<i::DisableBreak> disable_break_scope_;
 };
 
 class EphemeronTable : public v8::Object {

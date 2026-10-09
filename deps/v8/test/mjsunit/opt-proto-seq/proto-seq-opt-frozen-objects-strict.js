@@ -41,7 +41,7 @@ assert_test_frozen_objects(test_frozen_objects());
 %OptimizeMaglevOnNextCall(test_frozen_objects);
 assert_test_frozen_objects(test_frozen_objects());
 assertOptimized(test_frozen_objects);
-assertTrue(isMaglevved(test_frozen_objects));
+assertMaglevved(test_frozen_objects);
 assert_test_frozen_objects(test_frozen_objects());
 %OptimizeFunctionOnNextCall(test_frozen_objects);
 assert_test_frozen_objects(test_frozen_objects());

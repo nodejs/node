@@ -720,6 +720,15 @@ V8_INLINE bool IsCppHeapPointerWrapperObject(Tagged<Map> map_object) {
 INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)
 #undef TYPE_CHECKER
 
+#if V8_ENABLE_WEBASSEMBLY
+
+inline bool IsAnyWasmObjectMap(Tagged<Map> map) {
+  // Most Wasm object types form a contiguous range and can be covered by a
+  // single generated range-based check, but WASM_CUSTOM_MAP_TYPE is separate.
+  return IsWasmObjectMap(map) || IsWasmCustomMapMap(map);
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 }  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"

@@ -8,6 +8,7 @@
 #include <iostream>
 #include <vector>
 
+#include "src/base/unique-array.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/object-conversions-inl.h"
@@ -124,7 +125,7 @@ void JSObjectFuzzingPrintInternalIndexRange(Tagged<JSObject> obj,
     if (IsString(*key_name)) {
       FuzzingStringShortPrint(Cast<String>(*key_name), accumulator);
     } else {
-      auto name_buffer = base::OwnedVector<char>::NewForOverwrite(100);
+      auto name_buffer = base::UniqueArray<char>::NewForOverwrite(100);
       key_name->NameShortPrint(name_buffer.as_vector());
       PrintSanitizedCString(name_buffer.begin(), accumulator);
     }

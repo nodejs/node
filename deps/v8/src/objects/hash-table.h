@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_HASH_TABLE_H_
 #define V8_OBJECTS_HASH_TABLE_H_
 
+#include <bit>
+
 #include "src/base/compiler-specific.h"
 #include "src/base/export-template.h"
 #include "src/base/macros.h"
@@ -206,7 +208,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   // Maximal capacity of HashTable. Based on maximal length of underlying
   // FixedArray. Staying below kMaxCapacity also ensures that EntryToIndex
   // cannot overflow.
-  static const uint32_t kMaxCapacity = base::bits::RoundDownToPowerOfTwo32(
+  static const uint32_t kMaxCapacity = std::bit_floor(
       (FixedArray::kMaxLength - kElementsStartIndex) / kEntrySize);
 
   // Don't shrink a HashTable below this capacity.

@@ -50,6 +50,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+#include <array>
 //<cfenv> is banned in Google style due to inconsistent compiler
 // support and potential interference with floating-point optimizations.
 // However, RISC-V only uses fenv.h in simulator on x64.
@@ -57,6 +58,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/constants-arch.h"
@@ -1327,10 +1329,10 @@ struct type_sew_t<128> {
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
     int trace_offset = snprintf_vreg(rvv_vd_reg());                            \
-    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.size()),            \
-             "    (%" PRId64 ")    vlen:%" PRId64 " <-- [addr: %" REGIx_FORMAT \
-             "]",                                                              \
-             icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));          \
+    SNPrintF(                                                                  \
+        base::VectorOf(trace_buf_).SubVector(trace_offset, trace_buf_.size()), \
+        "    (%" PRId64 ")    vlen:%" PRId64 " <-- [addr: %" REGIx_FORMAT "]", \
+        icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));               \
   }
 
 #define RVV_VI_ST(stride, offset, elt_width, is_mask_ldst)                     \
@@ -1354,10 +1356,10 @@ struct type_sew_t<128> {
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
     int trace_offset = snprintf_vreg(rvv_vd_reg());                            \
-    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.size()),            \
-             "    (%" PRId64 ")    vlen:%" PRId64 " --> [addr: %" REGIx_FORMAT \
-             "]",                                                              \
-             icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));          \
+    SNPrintF(                                                                  \
+        base::VectorOf(trace_buf_).SubVector(trace_offset, trace_buf_.size()), \
+        "    (%" PRId64 ")    vlen:%" PRId64 " --> [addr: %" REGIx_FORMAT "]", \
+        icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));               \
   }
 
 #define VI_VFP_LOOP_SCALE_BASE                      \
@@ -1727,13 +1729,13 @@ class RiscvDebugger {
 };
 
 #define UNSUPPORTED()                                                  \
-  v8::base::EmbeddedVector<char, 256> buffer;                          \
+  std::array<char, 256> buffer;                                        \
   disasm::NameConverter converter;                                     \
   disasm::Disassembler dasm(converter);                                \
   dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_)); \
   printf("Sim: Unsupported inst. Func:%s Line:%d PC:0x%" REGIx_FORMAT, \
          __FUNCTION__, __LINE__, get_pc());                            \
-  PrintF(" %-44s\n", buffer.begin());                                  \
+  PrintF(" %-44s\n", buffer.data());                                   \
   base::OS::Abort();
 
 sreg_t RiscvDebugger::GetRegisterValue(int regnum) {
@@ -1805,21 +1807,21 @@ bool RiscvDebugger::GetValue(const char* desc, sreg_t* value) {
 
 void RiscvDebugger::PrintRegs(char name_prefix, int start_index,
                               int end_index) {
-  base::EmbeddedVector<char, 10> name1, name2;
+  std::array<char, 10> name1, name2;
   DCHECK(name_prefix == 'a' || name_prefix == 't' || name_prefix == 's');
   DCHECK(start_index >= 0 && end_index <= 99);
   int num_registers = (end_index - start_index) + 1;
   for (int i = 0; i < num_registers / 2; i++) {
-    SNPrintF(name1, "%c%d", name_prefix, start_index + 2 * i);
-    SNPrintF(name2, "%c%d", name_prefix, start_index + 2 * i + 1);
+    base::SNPrintF(name1, "%c%d", name_prefix, start_index + 2 * i);
+    base::SNPrintF(name2, "%c%d", name_prefix, start_index + 2 * i + 1);
     PrintF("%3s: 0x%016" REGIx_FORMAT "  %14" REGId_FORMAT
            " \t%3s: 0x%016" REGIx_FORMAT "  %14" REGId_FORMAT " \n",
-           REG_INFO(name1.begin()), REG_INFO(name2.begin()));
+           REG_INFO(name1.data()), REG_INFO(name2.data()));
   }
   if (num_registers % 2 == 1) {
-    SNPrintF(name1, "%c%d", name_prefix, end_index);
+    base::SNPrintF(name1, "%c%d", name_prefix, end_index);
     PrintF("%3s: 0x%016" REGIx_FORMAT "  %14" REGId_FORMAT " \n",
-           REG_INFO(name1.begin()));
+           REG_INFO(name1.data()));
   }
 }
 
@@ -1887,14 +1889,14 @@ void RiscvDebugger::Debug() {
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);
       // Use a reasonably large buffer.
-      v8::base::EmbeddedVector<char, 256> buffer;
+      std::array<char, 256> buffer;
       const char* name = sim_->builtins_.Lookup((Address)sim_->get_pc());
       if (name != nullptr) {
         PrintF("Call builtin:  %s\n", name);
       }
       dasm.InstructionDecode(buffer,
                              reinterpret_cast<uint8_t*>(sim_->get_pc()));
-      PrintF("  0x%016" REGIx_FORMAT "   %s\n", sim_->get_pc(), buffer.begin());
+      PrintF("  0x%016" REGIx_FORMAT "   %s\n", sim_->get_pc(), buffer.data());
       last_pc = sim_->get_pc();
     }
     char* line = ReadLine("sim> ");
@@ -2113,7 +2115,7 @@ void RiscvDebugger::Debug() {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         // Use a reasonably large buffer.
-        v8::base::EmbeddedVector<char, 256> buffer;
+        std::array<char, 256> buffer;
 
         uint8_t* cur = nullptr;
         uint8_t* end = nullptr;
@@ -2152,7 +2154,7 @@ void RiscvDebugger::Debug() {
         while (cur < end) {
           dasm.InstructionDecode(buffer, cur);
           PrintF("  0x%08" PRIxPTR "   %s\n", reinterpret_cast<intptr_t>(cur),
-                 buffer.begin());
+                 buffer.data());
           cur += kInstrSize;
         }
       } else if (strcmp(cmd, "gdb") == 0) {
@@ -2234,7 +2236,7 @@ void RiscvDebugger::Debug() {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         // Use a reasonably large buffer.
-        v8::base::EmbeddedVector<char, 256> buffer;
+        std::array<char, 256> buffer;
 
         uint8_t* cur = nullptr;
         uint8_t* end = nullptr;
@@ -2261,7 +2263,7 @@ void RiscvDebugger::Debug() {
         while (cur < end) {
           dasm.InstructionDecode(buffer, cur);
           PrintF("  0x%08" PRIxPTR "   %s\n", reinterpret_cast<intptr_t>(cur),
-                 buffer.begin());
+                 buffer.data());
           cur += kInstrSize;
         }
       } else if ((strcmp(cmd, "h") == 0) || (strcmp(cmd, "help") == 0)) {
@@ -2904,24 +2906,26 @@ void Simulator::TraceRegWr(int64_t value, TraceType t) {
 
     switch (t) {
       case WORD:
-        SNPrintF(trace_buf_,
-                 "%016" REGIx_FORMAT "    (%" PRId64 ")    int32:%" PRId32
-                 " uint32:%" PRIu32,
-                 v.fmt_int64, icount_, v.fmt_int32[0], v.fmt_int32[0]);
+        base::SNPrintF(trace_buf_,
+                       "%016" REGIx_FORMAT "    (%" PRId64 ")    int32:%" PRId32
+                       " uint32:%" PRIu32,
+                       v.fmt_int64, icount_, v.fmt_int32[0], v.fmt_int32[0]);
         break;
       case DWORD:
-        SNPrintF(trace_buf_,
-                 "%016" REGIx_FORMAT "    (%" PRId64 ")    int64:%" REGId_FORMAT
-                 " uint64:%" PRIu64,
-                 value, icount_, value, value);
+        base::SNPrintF(trace_buf_,
+                       "%016" REGIx_FORMAT "    (%" PRId64
+                       ")    int64:%" REGId_FORMAT " uint64:%" PRIu64,
+                       value, icount_, value, value);
         break;
       case FLOAT:
-        SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    flt:%e",
-                 v.fmt_int64, icount_, v.fmt_float[0]);
+        base::SNPrintF(trace_buf_,
+                       "%016" REGIx_FORMAT "    (%" PRId64 ")    flt:%e",
+                       v.fmt_int64, icount_, v.fmt_float[0]);
         break;
       case DOUBLE:
-        SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    dbl:%e",
-                 v.fmt_int64, icount_, v.fmt_double);
+        base::SNPrintF(trace_buf_,
+                       "%016" REGIx_FORMAT "    (%" PRId64 ")    dbl:%e",
+                       v.fmt_int64, icount_, v.fmt_double);
         break;
       default:
         UNREACHABLE();
@@ -2946,18 +2950,20 @@ void Simulator::TraceRegWr(T value, TraceType t) {
     }
     switch (t) {
       case WORD:
-        SNPrintF(trace_buf_,
-                 "%016" REGIx_FORMAT "    (%" PRId64 ")    int32:%" REGId_FORMAT
-                 " uint32:%" PRIu32,
-                 v.fmt_int32, icount_, v.fmt_int32, v.fmt_int32);
+        base::SNPrintF(trace_buf_,
+                       "%016" REGIx_FORMAT "    (%" PRId64
+                       ")    int32:%" REGId_FORMAT " uint32:%" PRIu32,
+                       v.fmt_int32, icount_, v.fmt_int32, v.fmt_int32);
         break;
       case FLOAT:
-        SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    flt:%e",
-                 v.fmt_int32, icount_, v.fmt_float);
+        base::SNPrintF(trace_buf_,
+                       "%016" REGIx_FORMAT "    (%" PRId64 ")    flt:%e",
+                       v.fmt_int32, icount_, v.fmt_float);
         break;
       case DOUBLE:
-        SNPrintF(trace_buf_, "%016" PRIx64 "    (%" PRId64 ")    dbl:%e",
-                 static_cast<int64_t>(v.fmt_double), icount_, v.fmt_double);
+        base::SNPrintF(trace_buf_, "%016" PRIx64 "    (%" PRId64 ")    dbl:%e",
+                       static_cast<int64_t>(v.fmt_double), icount_,
+                       v.fmt_double);
         break;
       default:
         UNREACHABLE();
@@ -2973,46 +2979,49 @@ void Simulator::TraceMemRd(sreg_t addr, T value, sreg_t reg_value) {
     if (std::is_integral_v<T>) {
       switch (sizeof(T)) {
         case 1:
-          SNPrintF(trace_buf_,
-                   "%016" REGIx_FORMAT "    (%" PRId64 ")    int8:%" PRId8
-                   " uint8:%" PRIu8 " <-- [addr: %" REGIx_FORMAT "]",
-                   reg_value, icount_, static_cast<int8_t>(value),
-                   static_cast<uint8_t>(value), addr);
+          base::SNPrintF(trace_buf_,
+                         "%016" REGIx_FORMAT "    (%" PRId64 ")    int8:%" PRId8
+                         " uint8:%" PRIu8 " <-- [addr: %" REGIx_FORMAT "]",
+                         reg_value, icount_, static_cast<int8_t>(value),
+                         static_cast<uint8_t>(value), addr);
           break;
         case 2:
-          SNPrintF(trace_buf_,
-                   "%016" REGIx_FORMAT "    (%" PRId64 ")    int16:%" PRId16
-                   " uint16:%" PRIu16 " <-- [addr: %" REGIx_FORMAT "]",
-                   reg_value, icount_, static_cast<int16_t>(value),
-                   static_cast<uint16_t>(value), addr);
+          base::SNPrintF(trace_buf_,
+                         "%016" REGIx_FORMAT "    (%" PRId64
+                         ")    int16:%" PRId16 " uint16:%" PRIu16
+                         " <-- [addr: %" REGIx_FORMAT "]",
+                         reg_value, icount_, static_cast<int16_t>(value),
+                         static_cast<uint16_t>(value), addr);
           break;
         case 4:
-          SNPrintF(trace_buf_,
-                   "%016" REGIx_FORMAT "    (%" PRId64 ")    int32:%" PRId32
-                   " uint32:%" PRIu32 " <-- [addr: %" REGIx_FORMAT "]",
-                   reg_value, icount_, static_cast<int32_t>(value),
-                   static_cast<uint32_t>(value), addr);
+          base::SNPrintF(trace_buf_,
+                         "%016" REGIx_FORMAT "    (%" PRId64
+                         ")    int32:%" PRId32 " uint32:%" PRIu32
+                         " <-- [addr: %" REGIx_FORMAT "]",
+                         reg_value, icount_, static_cast<int32_t>(value),
+                         static_cast<uint32_t>(value), addr);
           break;
         case 8:
-          SNPrintF(trace_buf_,
-                   "%016" REGIx_FORMAT "    (%" PRId64 ")    int64:%" PRId64
-                   " uint64:%" PRIu64 " <-- [addr: %" REGIx_FORMAT "]",
-                   reg_value, icount_, static_cast<int64_t>(value),
-                   static_cast<uint64_t>(value), addr);
+          base::SNPrintF(trace_buf_,
+                         "%016" REGIx_FORMAT "    (%" PRId64
+                         ")    int64:%" PRId64 " uint64:%" PRIu64
+                         " <-- [addr: %" REGIx_FORMAT "]",
+                         reg_value, icount_, static_cast<int64_t>(value),
+                         static_cast<uint64_t>(value), addr);
           break;
         default:
           UNREACHABLE();
       }
     } else if (std::is_same_v<float, T>) {
-      SNPrintF(trace_buf_,
-               "%016" REGIx_FORMAT "    (%" PRId64
-               ")    flt:%e <-- [addr: %" REGIx_FORMAT "]",
-               reg_value, icount_, static_cast<float>(value), addr);
+      base::SNPrintF(trace_buf_,
+                     "%016" REGIx_FORMAT "    (%" PRId64
+                     ")    flt:%e <-- [addr: %" REGIx_FORMAT "]",
+                     reg_value, icount_, static_cast<float>(value), addr);
     } else if (std::is_same_v<double, T>) {
-      SNPrintF(trace_buf_,
-               "%016" REGIx_FORMAT "    (%" PRId64
-               ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
-               reg_value, icount_, static_cast<double>(value), addr);
+      base::SNPrintF(trace_buf_,
+                     "%016" REGIx_FORMAT "    (%" PRId64
+                     ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
+                     reg_value, icount_, static_cast<double>(value), addr);
     } else {
       UNREACHABLE();
     }
@@ -3021,29 +3030,31 @@ void Simulator::TraceMemRd(sreg_t addr, T value, sreg_t reg_value) {
 
 void Simulator::TraceMemRdFloat(sreg_t addr, Float32 value, int64_t reg_value) {
   if (v8_flags.trace_sim) {
-    SNPrintF(trace_buf_,
-             "%016" PRIx64 "    (%" PRId64
-             ")    flt:%e <-- [addr: %" REGIx_FORMAT "]",
-             reg_value, icount_, static_cast<float>(value.get_scalar()), addr);
+    base::SNPrintF(trace_buf_,
+                   "%016" PRIx64 "    (%" PRId64
+                   ")    flt:%e <-- [addr: %" REGIx_FORMAT "]",
+                   reg_value, icount_, static_cast<float>(value.get_scalar()),
+                   addr);
   }
 }
 
 void Simulator::TraceMemRdDouble(sreg_t addr, double value, int64_t reg_value) {
   if (v8_flags.trace_sim) {
-    SNPrintF(trace_buf_,
-             "%016" PRIx64 "    (%" PRId64
-             ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
-             reg_value, icount_, static_cast<double>(value), addr);
+    base::SNPrintF(trace_buf_,
+                   "%016" PRIx64 "    (%" PRId64
+                   ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
+                   reg_value, icount_, static_cast<double>(value), addr);
   }
 }
 
 void Simulator::TraceMemRdDouble(sreg_t addr, Float64 value,
                                  int64_t reg_value) {
   if (v8_flags.trace_sim) {
-    SNPrintF(trace_buf_,
-             "%016" PRIx64 "    (%" PRId64
-             ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
-             reg_value, icount_, static_cast<double>(value.get_scalar()), addr);
+    base::SNPrintF(trace_buf_,
+                   "%016" PRIx64 "    (%" PRId64
+                   ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
+                   reg_value, icount_, static_cast<double>(value.get_scalar()),
+                   addr);
   }
 }
 
@@ -3052,47 +3063,48 @@ void Simulator::TraceMemWr(sreg_t addr, T value) {
   if (v8_flags.trace_sim) {
     switch (sizeof(T)) {
       case 1:
-        SNPrintF(trace_buf_,
-                 "                    (%" PRIu64 ")    int8:%" PRId8
-                 " uint8:%" PRIu8 " --> [addr: %" REGIx_FORMAT "]",
-                 icount_, static_cast<int8_t>(value),
-                 static_cast<uint8_t>(value), addr);
+        base::SNPrintF(trace_buf_,
+                       "                    (%" PRIu64 ")    int8:%" PRId8
+                       " uint8:%" PRIu8 " --> [addr: %" REGIx_FORMAT "]",
+                       icount_, static_cast<int8_t>(value),
+                       static_cast<uint8_t>(value), addr);
         break;
       case 2:
-        SNPrintF(trace_buf_,
-                 "                    (%" PRIu64 ")    int16:%" PRId16
-                 " uint16:%" PRIu16 " --> [addr: %" REGIx_FORMAT "]",
-                 icount_, static_cast<int16_t>(value),
-                 static_cast<uint16_t>(value), addr);
+        base::SNPrintF(trace_buf_,
+                       "                    (%" PRIu64 ")    int16:%" PRId16
+                       " uint16:%" PRIu16 " --> [addr: %" REGIx_FORMAT "]",
+                       icount_, static_cast<int16_t>(value),
+                       static_cast<uint16_t>(value), addr);
         break;
       case 4:
         if (std::is_integral_v<T>) {
-          SNPrintF(trace_buf_,
-                   "                    (%" PRIu64 ")    int32:%" PRId32
-                   " uint32:%" PRIu32 " --> [addr: %" REGIx_FORMAT "]",
-                   icount_, static_cast<int32_t>(value),
-                   static_cast<uint32_t>(value), addr);
+          base::SNPrintF(trace_buf_,
+                         "                    (%" PRIu64 ")    int32:%" PRId32
+                         " uint32:%" PRIu32 " --> [addr: %" REGIx_FORMAT "]",
+                         icount_, static_cast<int32_t>(value),
+                         static_cast<uint32_t>(value), addr);
         } else {
-          SNPrintF(trace_buf_,
-                   "                    (%" PRIu64
-                   ")    flt:%e bit:%x --> [addr: %" REGIx_FORMAT "]",
-                   icount_, static_cast<float>(value),
-                   base::bit_cast<int32_t, float>(value), addr);
+          base::SNPrintF(trace_buf_,
+                         "                    (%" PRIu64
+                         ")    flt:%e bit:%x --> [addr: %" REGIx_FORMAT "]",
+                         icount_, static_cast<float>(value),
+                         base::bit_cast<int32_t, float>(value), addr);
         }
         break;
       case 8:
         if (std::is_integral_v<T>) {
-          SNPrintF(trace_buf_,
-                   "                    (%" PRIu64 ")    int64:%" PRId64
-                   " uint64:%" PRIu64 " --> [addr: %" REGIx_FORMAT "]",
-                   icount_, static_cast<int64_t>(value),
-                   static_cast<uint64_t>(value), addr);
+          base::SNPrintF(trace_buf_,
+                         "                    (%" PRIu64 ")    int64:%" PRId64
+                         " uint64:%" PRIu64 " --> [addr: %" REGIx_FORMAT "]",
+                         icount_, static_cast<int64_t>(value),
+                         static_cast<uint64_t>(value), addr);
         } else {
-          SNPrintF(trace_buf_,
-                   "                    (%" PRIu64 ")    dbl:%e bit:%" PRIx64
-                   " --> [addr: %" REGIx_FORMAT "]",
-                   icount_, static_cast<double>(value),
-                   base::bit_cast<int64_t, double>(value), addr);
+          base::SNPrintF(trace_buf_,
+                         "                    (%" PRIu64
+                         ")    dbl:%e bit:%" PRIx64 " --> [addr: %" REGIx_FORMAT
+                         "]",
+                         icount_, static_cast<double>(value),
+                         base::bit_cast<int64_t, double>(value), addr);
         }
         break;
       default:
@@ -3103,10 +3115,11 @@ void Simulator::TraceMemWr(sreg_t addr, T value) {
 
 void Simulator::TraceMemWrDouble(sreg_t addr, double value) {
   if (v8_flags.trace_sim) {
-    SNPrintF(trace_buf_,
-             "                    (%" PRIu64 ")    dbl:%e bit:%" PRIx64
-             "--> [addr: %" REGIx_FORMAT "]",
-             icount_, value, base::bit_cast<int64_t, double>(value), addr);
+    base::SNPrintF(trace_buf_,
+                   "                    (%" PRIu64 ")    dbl:%e bit:%" PRIx64
+                   "--> [addr: %" REGIx_FORMAT "]",
+                   icount_, value, base::bit_cast<int64_t, double>(value),
+                   addr);
   }
 }
 // RISCV Memory Read/Write functions
@@ -7226,15 +7239,15 @@ void Simulator::DecodeRvvIVV() {
       break;
     }
     default:
-      // v8::base::EmbeddedVector<char, 256> buffer;
-      // SNPrintF(trace_buf_, " ");
+      // std::array<char, 256> buffer;
+      // base::SNPrintF(trace_buf_, " ");
       // disasm::NameConverter converter;
       // disasm::Disassembler dasm(converter);
       // // Use a reasonably large buffer.
       // dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_));
 
       // PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
-      //        reinterpret_cast<intptr_t>(&instr_), buffer.begin());
+      //        reinterpret_cast<intptr_t>(&instr_), buffer.data());
       UNIMPLEMENTED_RISCV();
       break;
   }
@@ -7813,12 +7826,12 @@ void Simulator::DecodeRvvMVV() {
         set_register(rd_reg(), index);
         rvv_trace_vd();
       } else {
-        v8::base::EmbeddedVector<char, 256> buffer;
+        std::array<char, 256> buffer;
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_));
         PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
-               reinterpret_cast<intptr_t>(&instr_), buffer.begin());
+               reinterpret_cast<intptr_t>(&instr_), buffer.data());
         UNIMPLEMENTED_RISCV();
       }
     } break;
@@ -7909,12 +7922,12 @@ void Simulator::DecodeRvvMVV() {
       rvv_trace_vd();
     } break;
     default:
-      v8::base::EmbeddedVector<char, 256> buffer;
+      std::array<char, 256> buffer;
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);
       dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_));
       PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
-             reinterpret_cast<intptr_t>(&instr_), buffer.begin());
+             reinterpret_cast<intptr_t>(&instr_), buffer.data());
       UNIMPLEMENTED_RISCV();
       break;
   }
@@ -8018,12 +8031,12 @@ void Simulator::DecodeRvvMVX() {
       rvv_trace_vd();
     } break;
     default:
-      v8::base::EmbeddedVector<char, 256> buffer;
+      std::array<char, 256> buffer;
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);
       dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_));
       PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
-             reinterpret_cast<intptr_t>(&instr_), buffer.begin());
+             reinterpret_cast<intptr_t>(&instr_), buffer.data());
       UNIMPLEMENTED_RISCV();
       break;
   }
@@ -9362,17 +9375,17 @@ void Simulator::InstructionDecode(Instruction* instr) {
   }
   pc_modified_ = false;
 
-  v8::base::EmbeddedVector<char, 256> buffer;
+  std::array<char, 256> buffer;
 
   if (v8_flags.trace_sim || v8_flags.debug_sim) {
-    SNPrintF(trace_buf_, " ");
+    base::SNPrintF(trace_buf_, " ");
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
     // Use a reasonably large buffer.
     dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(instr));
 
     // PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
-    //        reinterpret_cast<intptr_t>(instr), buffer.begin());
+    //        reinterpret_cast<intptr_t>(instr), buffer.data());
   }
 #ifdef CAN_USE_RVV_INSTRUCTIONS
   set_vill_ignore(false);
@@ -9443,8 +9456,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
 
   if (v8_flags.trace_sim) {
     PrintF("  0x%012" PRIxPTR "      %-44s\t%s\n",
-           reinterpret_cast<intptr_t>(instr), buffer.begin(),
-           trace_buf_.begin());
+           reinterpret_cast<intptr_t>(instr), buffer.data(), trace_buf_.data());
   }
 
   if (!pc_modified_) {
@@ -9581,10 +9593,10 @@ void Simulator::PushShadowStack(uintptr_t value) {
     size_t old_size = shadow_stack_.size();
     size_t new_size = old_size * 2;
     size_t new_ssp = new_size - old_size;
-    auto new_stack = base::Vector<uintptr_t>::New(new_size);
-    new_stack.SubVectorFrom(new_ssp).OverwriteWith(shadow_stack_);
-    shadow_stack_.Dispose();
-    shadow_stack_ = new_stack;
+    auto new_stack = base::UniqueArray<uintptr_t>::New(new_size);
+    new_stack.as_vector().SubVectorFrom(new_ssp).OverwriteWith(
+        shadow_stack_.as_vector());
+    shadow_stack_ = std::move(new_stack);
     csr_ssp_ = new_ssp;
   }
   csr_ssp_ = csr_ssp_ - 1;
@@ -9594,8 +9606,8 @@ void Simulator::PushShadowStack(uintptr_t value) {
            ")    ssp:%zu\n",
            value, icount_, csr_ssp_);
   }
-  SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    ssp:%zu",
-           value, icount_, csr_ssp_);
+  base::SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    ssp:%zu",
+                 value, icount_, csr_ssp_);
   return;
 }
 
@@ -9620,8 +9632,8 @@ uintptr_t Simulator::PopShadowStack(uintptr_t value) {
     PrintF("PopShadowStack  %016" REGIx_FORMAT "    (%" PRId64 ")    ssp:%zu\n",
            temp, icount_, csr_ssp_ - 1);
   }
-  SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    ssp:%zu", temp,
-           icount_, csr_ssp_ - 1);
+  base::SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    ssp:%zu",
+                 temp, icount_, csr_ssp_ - 1);
   return temp;
 }
 

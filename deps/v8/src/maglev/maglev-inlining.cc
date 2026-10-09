@@ -216,8 +216,10 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
       call_block->Split(call_node, zone());
 
   // Create a new compilation unit.
+  ValueNode* context = call_node->ContextInput().node()->Unwrap();
+  ValueNode* function = call_node->TargetInput().node()->Unwrap();
   MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
-      zone(), caller_unit, shared, call_site->feedback_cell);
+      zone(), caller_unit, shared, call_site->feedback_cell, context, function);
 
   const int start_node_count = graph_->total_nodes();
 
@@ -258,9 +260,7 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   // remove the uses from the call node_inputs when overwriting the returned
   // value.
   ReduceResult result = inner_graph_builder.BuildInlineFunction(
-      caller_deopt_frame->GetSourcePosition(),
-      call_node->ContextInput().node()->Unwrap(),
-      call_node->TargetInput().node()->Unwrap(),
+      caller_deopt_frame->GetSourcePosition(), context, function,
       call_node->NewTargetInput().node()->Unwrap());
 
   // Budget accounting. We distinguish between small and regular function

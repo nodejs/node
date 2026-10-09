@@ -212,6 +212,15 @@ void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   }
 }
 
+void MacroAssembler::StoreTaggedRoot(const MemOperand& destination,
+                                     RootIndex index) {
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadTaggedRoot(scratch, index);
+  StoreTaggedField(scratch, destination);
+}
+
 void MacroAssembler::LoadCompressedRoot(Register destination, RootIndex index) {
   if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
     li(destination, (int32_t)ReadOnlyRootPtr(index));
@@ -629,6 +638,32 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
   static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
   Ld_hu(parameter_count,
         MemOperand(scratch, JSDispatchEntry::kCodeObjectOffset));
+}
+
+void MacroAssembler::PushDispatchHandle(Register dispatch_handle,
+                                        Register scratch1, Register scratch2) {
+  DCHECK(!AreAliased(dispatch_handle, scratch1, scratch2));
+#ifdef V8_ENABLE_SANDBOX
+  AssertZeroExtended(dispatch_handle);
+  LoadParameterCountFromJSDispatchTable(scratch1, dispatch_handle, scratch2);
+  bstrins_d(dispatch_handle, scratch1, 63, 32);
+#endif
+  Push(dispatch_handle);
+  // No need to SmiTag since dispatch handles always look like Smis.
+  static_assert(kJSDispatchHandleShift > 0);
+  AssertSmi(dispatch_handle);
+}
+
+void MacroAssembler::PopDispatchHandle(Register dispatch_handle,
+                                       Register scratch1, Register scratch2) {
+  DCHECK(!AreAliased(dispatch_handle, scratch1, scratch2));
+  Pop(dispatch_handle);
+#ifdef V8_ENABLE_SANDBOX
+  LoadParameterCountFromJSDispatchTable(scratch1, dispatch_handle, scratch2);
+  bstrpick_d(scratch2, dispatch_handle, 63, 32);
+  bstrpick_d(dispatch_handle, dispatch_handle, 31, 0);
+  SbxCheck(eq, AbortReason::kJSSignatureMismatch, scratch1, Operand(scratch2));
+#endif
 }
 
 void MacroAssembler::LoadProtectedPointerField(Register destination,
@@ -1424,8 +1459,10 @@ void MacroAssembler::Rotr_d(Register rd, Register rj, const Operand& rk) {
 }
 
 void MacroAssembler::Alsl_w(Register rd, Register rj, Register rk, uint8_t sa) {
-  DCHECK(sa >= 1 && sa <= 31);
-  if (sa <= 4) {
+  DCHECK(sa >= 0 && sa <= 31);
+  if (sa == 0) {
+    add_w(rd, rj, rk);
+  } else if (sa <= 4) {
     alsl_w(rd, rj, rk, sa);
   } else {
     UseScratchRegisterScope temps(this);
@@ -1437,8 +1474,10 @@ void MacroAssembler::Alsl_w(Register rd, Register rj, Register rk, uint8_t sa) {
 }
 
 void MacroAssembler::Alsl_d(Register rd, Register rj, Register rk, uint8_t sa) {
-  DCHECK(sa >= 1 && sa <= 63);
-  if (sa <= 4) {
+  DCHECK(sa >= 0 && sa <= 63);
+  if (sa == 0) {
+    add_d(rd, rj, rk);
+  } else if (sa <= 4) {
     alsl_d(rd, rj, rk, sa);
   } else {
     UseScratchRegisterScope temps(this);
@@ -2800,19 +2839,35 @@ void MacroAssembler::RoundDouble(FPURegister dst, FPURegister src,
 }
 
 void MacroAssembler::Floor_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_floor);
+  if (IsEnabled(LSX)) {
+    vfrintrm_d(dst.toV(), src.toV());
+  } else {
+    RoundDouble(dst, src, mode_floor);
+  }
 }
 
 void MacroAssembler::Ceil_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_ceil);
+  if (IsEnabled(LSX)) {
+    vfrintrp_d(dst.toV(), src.toV());
+  } else {
+    RoundDouble(dst, src, mode_ceil);
+  }
 }
 
 void MacroAssembler::Trunc_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_trunc);
+  if (IsEnabled(LSX)) {
+    vfrintrz_d(dst.toV(), src.toV());
+  } else {
+    RoundDouble(dst, src, mode_trunc);
+  }
 }
 
 void MacroAssembler::Round_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_round);
+  if (IsEnabled(LSX)) {
+    vfrintrne_d(dst.toV(), src.toV());
+  } else {
+    RoundDouble(dst, src, mode_round);
+  }
 }
 
 void MacroAssembler::RoundFloat(FPURegister dst, FPURegister src,
@@ -2829,19 +2884,35 @@ void MacroAssembler::RoundFloat(FPURegister dst, FPURegister src,
 }
 
 void MacroAssembler::Floor_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_floor);
+  if (IsEnabled(LSX)) {
+    vfrintrm_s(dst.toV(), src.toV());
+  } else {
+    RoundFloat(dst, src, mode_floor);
+  }
 }
 
 void MacroAssembler::Ceil_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_ceil);
+  if (IsEnabled(LSX)) {
+    vfrintrp_s(dst.toV(), src.toV());
+  } else {
+    RoundFloat(dst, src, mode_ceil);
+  }
 }
 
 void MacroAssembler::Trunc_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_trunc);
+  if (IsEnabled(LSX)) {
+    vfrintrz_s(dst.toV(), src.toV());
+  } else {
+    RoundFloat(dst, src, mode_trunc);
+  }
 }
 
 void MacroAssembler::Round_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_round);
+  if (IsEnabled(LSX)) {
+    vfrintrne_s(dst.toV(), src.toV());
+  } else {
+    RoundFloat(dst, src, mode_round);
+  }
 }
 
 void MacroAssembler::CompareF(FPURegister cmp1, FPURegister cmp2,
@@ -3687,12 +3758,36 @@ void MacroAssembler::BranchShort(Label* L, Condition cond, Register rj,
 void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
                                             Register r1, const Operand& r2,
                                             bool need_link) {
-  DCHECK(cond == eq || cond == ne);
   if (COMPRESS_POINTERS_BOOL) {
     UseScratchRegisterScope temps(this);
     Register scratch0 = temps.Acquire();
-    Sub_w(scratch0, r1, r2);
-    Branch(label, cond, scratch0, Operand(zero_reg), need_link);
+    if (cond == eq || cond == ne) {
+      Sub_w(scratch0, r1, r2);
+      Branch(label, cond, scratch0, Operand(zero_reg), need_link);
+    } else {
+      slli_w(scratch0, r1, 0);
+      if (IsZero(r2)) {
+        Branch(label, cond, scratch0, Operand(zero_reg), need_link);
+      } else {
+        Register scratch1 = temps.Acquire();
+        if (r2.is_reg()) {
+          slli_w(scratch1, r2.rm(), 0);
+        } else {
+          if (RelocInfo::IsFullEmbeddedObject(r2.rmode())) {
+            li(scratch1,
+               Operand(r2.immediate(), RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
+          } else if (RelocInfo::IsCompressedEmbeddedObject(r2.rmode())) {
+            li(scratch1, r2);
+          } else if (RelocInfo::IsNoInfo(r2.rmode())) {
+            LiLower32BitHelper(scratch1, r2);
+          } else {
+            li(scratch1, r2);
+            slli_w(scratch1, scratch1, 0);
+          }
+        }
+        Branch(label, cond, scratch0, Operand(scratch1), need_link);
+      }
+    }
   } else {
     Branch(label, cond, r1, r2, need_link);
   }
@@ -5863,7 +5958,7 @@ void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
 }
 
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    uint16_t argument_count) {
+                                    uint16_t expected_parameter_count) {
   Register code = kJavaScriptCallCodeStartRegister;
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   Register parameter_count = s1;
@@ -5875,9 +5970,23 @@ void MacroAssembler::CallJSFunction(Register function_object,
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
                                                      dispatch_handle, scratch);
 
-  // Force a safe crash if the parameter count doesn't match.
-  SbxCheck(le, AbortReason::kJSSignatureMismatch, parameter_count,
-           Operand(argument_count));
+  // Force a safe crash if the parameter count doesn't match the expected count
+  // assumed at the call site, which would corrupt the stack on underapplication
+  // (caller pushes max(actual_argc, expected) slots; callee pops
+  // max(actual_argc, parameter_count) slots).
+  if (expected_parameter_count <= 1) {
+    // Both kDontAdaptArgumentsSentinel (0) and JSParameterCount(0) (1) are
+    // valid here: since actual_argc >= 1 (includes receiver), neither pads
+    // arguments and both pop actual_argc slots upon return. We cannot use an
+    // exact equality check because WasmToJS wrappers compute expected_arity
+    // via SFI::internal_formal_parameter_count_without_receiver(), which maps
+    // both cases to JSParameterCount(0) (1).
+    SbxCheck(le, AbortReason::kJSSignatureMismatch, parameter_count,
+             Operand(1));
+  } else {
+    SbxCheck(eq, AbortReason::kJSSignatureMismatch, parameter_count,
+             Operand(expected_parameter_count));
+  }
   Call(code);
 }
 
@@ -5887,6 +5996,8 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
   Register scratch = s1;
   li(kJavaScriptCallDispatchHandleRegister,
      Operand(dispatch_handle.value(), RelocInfo::JS_DISPATCH_HANDLE));
+  bstrpick_d(kJavaScriptCallDispatchHandleRegister,
+             kJavaScriptCallDispatchHandleRegister, 31, 0);
   LoadEntrypointFromJSDispatchTable(code, kJavaScriptCallDispatchHandleRegister,
                                     scratch);
   CHECK_EQ(argument_count,
@@ -6016,10 +6127,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     Push(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
          kJavaScriptCallArgCountRegister);
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-    // No need to SmiTag since dispatch handles always look like Smis.
-    static_assert(kJSDispatchHandleShift > 0);
-    AssertSmi(kJavaScriptCallDispatchHandleRegister);
-    Push(kJavaScriptCallDispatchHandleRegister);
+    PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, a5, a6);
 #endif
     // Function is also the parameter to the runtime call.
     Push(kJavaScriptCallTargetRegister);
@@ -6029,7 +6137,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     // Restore target function, new target, actual argument count and dispatch
     // handle.
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-    Pop(kJavaScriptCallDispatchHandleRegister);
+    PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, a5, a6);
 #endif
     Pop(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
         kJavaScriptCallArgCountRegister);

@@ -127,6 +127,7 @@ cc_library(
         "@rules_cc//cc/compiler:msvc-cl": [],
         "@rules_cc//cc/compiler:clang-cl": [],
         "@rules_cc//cc/compiler:emscripten": [],
+        "@platforms//os:wasi": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:public"],
@@ -146,6 +147,7 @@ cc_library(
         "//absl/debugging:stacktrace",
         "//absl/debugging:symbolize",
         "//absl/meta:type_traits",
+        "//absl/strings:string_view",
         "//absl/time",
     ] + select({
         "//conditions:default": [],
@@ -247,6 +249,7 @@ cc_library(
     ],
     deps = [
         ":synchronization",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/functional:any_invocable",
     ],
@@ -368,7 +371,6 @@ cc_test(
     deps = [
         ":per_thread_sem_test_common",
         ":synchronization",
-        "//absl/strings",
         "//absl/time",
         "@googletest//:gtest_main",
     ],

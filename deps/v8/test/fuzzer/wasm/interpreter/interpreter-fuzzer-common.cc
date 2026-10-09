@@ -13,6 +13,7 @@
 #include "include/v8-local-handle.h"
 #include "include/v8-metrics.h"
 #include "src/api/api-inl.h"
+#include "src/base/unique-array.h"
 #include "src/execution/isolate.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
@@ -604,7 +605,7 @@ int LLVMFuzzerTestOneInputCommon(const uint8_t* data, size_t size,
   bool compiles = wasm::GetWasmEngine()
                       ->SyncCompile(i_isolate, enabled_features,
                                     fuzzing::CompileTimeImportsForFuzzing(),
-                                    &thrower, v8::base::OwnedCopyOf(buffer))
+                                    &thrower, v8::base::UniqueCopyOf(buffer))
                       .ToHandle(&module_object);
   // TODO(338326645): add similar GenerateTestCase code for wasm fast
   // interpreter.
@@ -679,13 +680,13 @@ int LLVMFuzzerTestTwoModulesCommon(
   bool compiles = wasm::GetWasmEngine()
                       ->SyncCompile(i_isolate, enabled_features,
                                     fuzzing::CompileTimeImportsForFuzzing(),
-                                    &thrower, v8::base::OwnedCopyOf(buffer_2))
+                                    &thrower, v8::base::UniqueCopyOf(buffer_2))
                       .ToHandle(&module_object);
   DirectHandle<WasmModuleObject> other_module_object;
   bool compiles_2 = wasm::GetWasmEngine()
                         ->SyncCompile(i_isolate, enabled_features,
                                       fuzzing::CompileTimeImportsForFuzzing(),
-                                      &thrower, v8::base::OwnedCopyOf(buffer))
+                                      &thrower, v8::base::UniqueCopyOf(buffer))
                         .ToHandle(&other_module_object);
   int execute_module_result = -1;
   if (compiles && compiles_2) {

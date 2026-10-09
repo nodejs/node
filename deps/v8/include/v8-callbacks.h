@@ -22,6 +22,7 @@ struct _EXCEPTION_POINTERS;
 
 namespace v8 {
 
+class ArrayBuffer;
 template <typename T>
 class FunctionCallbackInfo;
 class Isolate;
@@ -471,6 +472,13 @@ using IsJSApiWrapperNativeErrorCallback = bool (*)(Isolate* isolate,
                                                    Local<Object> obj);
 
 /**
+ * ArrayBufferDetachCallback is called when an ArrayBuffer wrapping an embedder
+ * object is detached.
+ */
+using ArrayBufferDetachCallback = void (*)(Isolate* isolate,
+                                           Local<ArrayBuffer> buffer);
+
+/**
  * PrepareStackTraceCallback is called when the stack property of an error is
  * first accessed. The return value will be used as the stack value. If this
  * callback is registed, the |Error.prepareStackTrace| API will be disabled.
@@ -480,6 +488,14 @@ using IsJSApiWrapperNativeErrorCallback = bool (*)(Isolate* isolate,
 using PrepareStackTraceCallback = MaybeLocal<Value> (*)(Local<Context> context,
                                                         Local<Value> error,
                                                         Local<Array> sites);
+
+/**
+ * DynamicScriptCompiledFromEmbedderCallback is called when a dynamic script
+ * (such as from eval or the Function constructor) is compiled from the embedder
+ * without a calling user JavaScript frame on the stack.
+ */
+using DynamicScriptCompiledFromEmbedderCallback =
+    void (*)(Local<Context> context, int script_id);
 
 #if defined(V8_OS_WIN)
 /**

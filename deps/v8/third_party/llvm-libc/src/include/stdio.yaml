@@ -26,6 +26,14 @@ macros:
     macro_header: stdio-macros.h
   - macro_name: _IOFBF
     macro_header: stdio-macros.h
+  - macro_name: L_tmpnam
+    macro_header: stdio-macros.h
+  - macro_name: TMP_MAX
+    macro_header: stdio-macros.h
+  - macro_name: FILENAME_MAX
+    macro_header: stdio-macros.h
+  - macro_name: FOPEN_MAX
+    macro_header: stdio-macros.h
 types:
   - type_name: rsize_t
   - type_name: size_t
@@ -139,6 +147,14 @@ functions:
     return_type: void
     arguments:
       - type: FILE *
+  - name: fmemopen
+    standards:
+      - posix
+    return_type: FILE *
+    arguments:
+      - type: void *__restrict
+      - type: size_t
+      - type: const char *__restrict
   - name: fopen
     standards:
       - stdc
@@ -345,6 +361,15 @@ functions:
     arguments:
       - type: const char *
       - type: const char *
+  - name: renameat
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *
+      - type: int
+      - type: const char *
   - name: scanf
     standards:
       - stdc
@@ -410,6 +435,12 @@ functions:
     return_type: FILE *
     arguments:
       - type: void
+  - name: tmpnam
+    standards:
+      - stdc
+    return_type: char *
+    arguments:
+      - type: char *
   - name: ungetc
     standards:
       - stdc

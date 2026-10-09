@@ -62,12 +62,8 @@ enum class IsolateFieldId : uint8_t;
   V(debug_suspended_generator_address,                                         \
     "Debug::step_suspended_generator_address()")                               \
   V(context_address, "Isolate::context_address()")                             \
-  V(address_of_regexp_stack_limit_address,                                     \
-    "regexp::Stack::limit_address_address()")                                  \
-  V(address_of_regexp_stack_memory_top_address,                                \
-    "regexp::Stack::memory_top_address_address()")                             \
-  V(address_of_regexp_stack_stack_pointer,                                     \
-    "regexp::Stack::stack_pointer_address()")                                  \
+  V(address_of_regexp_stack_thread_local,                                      \
+    "regexp::Stack::thread_local_address()")                                   \
   V(address_of_regexp_static_result_offsets_vector,                            \
     "Isolate::address_of_regexp_static_result_offsets_vector")                 \
   EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)                              \
@@ -289,7 +285,6 @@ enum class IsolateFieldId : uint8_t;
   IF_WASM(V, wasm_code_pointer_table, "GetProcessWideWasmCodePointerTable()")  \
   IF_WASM(V, wasm_grow_stack, "wasm::grow_stack")                              \
   IF_WASM(V, wasm_shrink_stack, "wasm::shrink_stack")                          \
-  IF_WASM(V, wasm_load_old_fp, "wasm::load_old_fp")                            \
   IF_WASM(V, wasm_f32_ceil, "wasm::f32_ceil_wrapper")                          \
   IF_WASM(V, wasm_f32_floor, "wasm::f32_floor_wrapper")                        \
   IF_WASM(V, wasm_f32_nearest_int, "wasm::f32_nearest_int_wrapper")            \

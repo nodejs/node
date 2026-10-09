@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_REGEXP_H_
 #define V8_OBJECTS_JS_REGEXP_H_
 
+#include <array>
 #include <optional>
 #include <utility>
 
@@ -162,7 +163,7 @@ V8_OBJECT class JSRegExp : public JSObject {
   // Maximum number of captures allowed.
   static constexpr int kMaxCaptures = 1 << 16;
 
-  using FlagsBuffer = base::EmbeddedVector<char, kFlagCount + 1>;
+  using FlagsBuffer = std::array<char, kFlagCount + 1>;
   inline static const char* FlagsToString(Flags flags, FlagsBuffer* out_buffer);
 
   class BodyDescriptor;
@@ -175,7 +176,7 @@ V8_OBJECT class JSRegExp : public JSObject {
 
  public:
   TrustedPointerMember<RegExpData, kRegExpDataIndirectPointerTag> data_;
-  TaggedMember<Object> flags_;
+  TaggedMember<Object> flags_ V8_TQ_TYPE(SmiTagged<JSRegExpFlags> | Undefined);
 } V8_OBJECT_END;
 
 inline constexpr int JSRegExp::kHeaderSize = sizeof(JSRegExp);
@@ -379,7 +380,7 @@ V8_OBJECT class IrRegExpData : public RegExpData {
   TaggedMember<Smi> capture_count_;
   TaggedMember<Smi> ticks_until_tier_up_;
   TaggedMember<Smi> backtrack_limit_;
-  TaggedMember<Smi> bit_field_;
+  TaggedMember<Smi> bit_field_ V8_TQ_TYPE(SmiTagged<IrRegExpDataBitField>);
 } V8_OBJECT_END;
 
 // JSRegExpResult is just a JSArray with a specific initial map.

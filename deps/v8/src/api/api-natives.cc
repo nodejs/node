@@ -691,7 +691,18 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
       map->set_indexed_interceptor(info);
       if (v8_flags.fast_api_iterable_to_list &&
           info->has_indexed_iterable_to_list()) {
-        map->set_supports_fast_iterable_to_list(true);
+        bool is_valid =
+            !obj->needs_access_check() &&
+            IsObjectTemplateInfo(obj->GetPrototypeTemplate()) &&
+            IsArrayList(Cast<ObjectTemplateInfo>(obj->GetPrototypeTemplate())
+                            ->property_list());
+        DCHECK(!obj->needs_access_check());
+        DCHECK(IsObjectTemplateInfo(obj->GetPrototypeTemplate()));
+        DCHECK(IsArrayList(Cast<ObjectTemplateInfo>(obj->GetPrototypeTemplate())
+                               ->property_list()));
+        if (is_valid) {
+          map->set_supports_fast_iterable_to_list(true);
+        }
       }
     } else {
       map->set_indexed_interceptor(
@@ -733,12 +744,6 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   if (immutable_proto) map->set_is_immutable_proto(true);
 
   JSFunction::SetInitialMap(isolate, result, map, Cast<JSObject>(prototype));
-  if (map->supports_fast_iterable_to_list()) {
-    // %CheckFastIterableToListPrototype() relies on the constness tracking
-    // which requires the prototype to be in fast mode.
-    DirectHandle<Map> proto_map(Cast<JSObject>(prototype)->map(), isolate);
-    Map::SetShouldBeFastPrototypeMap(proto_map, true, isolate);
-  }
 
   return result;
 }

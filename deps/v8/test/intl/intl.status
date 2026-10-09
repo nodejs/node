@@ -115,4 +115,10 @@
   'date-format/temporal-cjk-format': [SKIP],
 }],  # variant == google3
 
+################################################################################
+['not temporal', {
+  # Needs temporal:
+  'date-format/temporal-cjk-format': [SKIP],
+}],  # 'not temporal'
+
 ]

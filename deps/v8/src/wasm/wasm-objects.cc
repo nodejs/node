@@ -13,9 +13,11 @@
 #undef MAP_TYPE
 #endif  // V8_TARGET_OS_LINUX
 
+#include <bit>
 #include <optional>
 
 #include "src/base/iterator.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/compiler/wasm-compiler.h"
@@ -115,25 +117,13 @@ using WasmModule = wasm::WasmModule;
 
 // static
 DirectHandle<WasmModuleObject> WasmModuleObject::New(
-    Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-    DirectHandle<Script> script) {
-  DirectHandle<CppGCManaged<wasm::NativeModule>> managed_native_module;
-  if (script->type() == Script::Type::kWasm) {
-    managed_native_module = direct_handle(
-        Cast<CppGCManaged<wasm::NativeModule>>(
-            script->wasm_managed_native_module()),
-        isolate);
-  } else {
-    const WasmModule* module = native_module->module();
-    size_t memory_estimate =
-        native_module->committed_code_space() +
-        wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
-    managed_native_module = CppGCManaged<wasm::NativeModule>::Create(
-        isolate, memory_estimate, std::move(native_module));
-  }
+    Isolate* isolate, DirectHandle<Script> script) {
+  DCHECK_EQ(script->type(), Script::Type::kWasm);
   DirectHandle<WasmModuleObject> module_object = Cast<WasmModuleObject>(
       isolate->factory()->NewJSObject(isolate->wasm_module_constructor()));
-  module_object->set_managed_native_module(*managed_native_module);
+  module_object->set_managed_native_module(
+      Cast<CppGCManaged<wasm::NativeModule>>(
+          script->wasm_managed_native_module()));
   module_object->set_script(*script);
   return module_object;
 }
@@ -642,14 +632,6 @@ void WasmTableObject::UpdateDispatchTable(
 
   SBXCHECK(FunctionSigMatchesTable(sig_id, dispatch_table->table_type()));
 
-  if (v8_flags.wasm_generic_wrapper && IsWasmImportData(*implicit_arg)) {
-    auto import_data = TrustedCast<WasmImportData>(implicit_arg);
-    DirectHandle<WasmImportData> new_import_data =
-        isolate->factory()->NewWasmImportData(import_data);
-    new_import_data->set_call_origin(*dispatch_table);
-    new_import_data->set_table_slot(entry_index);
-    implicit_arg = new_import_data;
-  }
 
   std::optional<std::shared_ptr<wasm::WasmWrapperHandle>> maybe_wrapper =
       target_instance_data->dispatch_table_for_imports()->MaybeGetWrapperHandle(
@@ -757,7 +739,6 @@ DirectHandle<WasmSuspendingObject> WasmSuspendingObject::New(
 namespace {
 
 void SetInstanceMemory(Tagged<WasmTrustedInstanceData> trusted_instance_data,
-                       Tagged<HeapObject> maybe_buffer,
                        std::shared_ptr<BackingStore> backing_store,
                        uint32_t memory_index) {
   DisallowHeapAllocation no_gc;
@@ -784,8 +765,17 @@ void SetInstanceMemory(Tagged<WasmTrustedInstanceData> trusted_instance_data,
   // We checked this before, but a malicious worker thread with an in-sandbox
   // corruption primitive could have modified it since then.
   SBXCHECK_GE(byte_length, memory.min_memory_size);
+  SBXCHECK_EQ(memory.is_shared, backing_store->is_shared());
 
-  trusted_instance_data->SetRawMemory(memory_index, base_address, byte_length);
+  // For shared memories, store the address of the atomic byte_length_ so that
+  // JIT bounds checks and memory.size can observe dynamic growth atomically.
+  Address size_or_address =
+      memory.is_shared
+          ? reinterpret_cast<Address>(backing_store->byte_length_address())
+          : byte_length;
+
+  trusted_instance_data->SetRawMemory(memory_index, base_address,
+                                      size_or_address);
 
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless &&
@@ -909,14 +899,32 @@ void WasmMemoryObject::UseInInstance(
     Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     uint32_t memory_index_in_instance) {
-  SetInstanceMemory(*trusted_instance_data, memory->array_buffer(),
-                    memory->backing_store().as_shared_ptr(),
+  std::shared_ptr<BackingStore> backing_store =
+      memory->backing_store().as_shared_ptr();
+  if (trusted_instance_data->module()
+          ->memories[memory_index_in_instance]
+          .is_shared) {
+    // Keep the shared BackingStore alive in trusted space so that
+    // WasmTrustedInstanceData's raw pointer to BackingStore::byte_length_
+    // cannot dangle if in-sandbox references are overwritten.
+    // Pass 0 as estimated_size because the WasmMemoryObject's
+    // CppGCManaged<BackingStore> already accounts for external memory.
+    DirectHandle<TrustedManaged<BackingStore>> managed_backing_store =
+        TrustedManaged<BackingStore>::From(isolate, 0, backing_store);
+    trusted_instance_data->shared_memory_backing_stores()->set(
+        memory_index_in_instance, *managed_backing_store);
+  } else {
+    // Shared memories always grow in place, so only non-shared memories need to
+    // track their using instances for updating on grow.
+    DirectHandle<WeakArrayList> instances{memory->instances(), isolate};
+    MaybeObjectDirectHandle weak_instance_object =
+        MaybeObjectDirectHandle::Weak(trusted_instance_data->instance_object(),
+                                      isolate);
+    instances = WeakArrayList::Append(isolate, instances, weak_instance_object);
+    memory->set_instances(*instances);
+  }
+  SetInstanceMemory(*trusted_instance_data, std::move(backing_store),
                     memory_index_in_instance);
-  DirectHandle<WeakArrayList> instances{memory->instances(), isolate};
-  auto weak_instance_object = MaybeObjectDirectHandle::Weak(
-      trusted_instance_data->instance_object(), isolate);
-  instances = WeakArrayList::Append(isolate, instances, weak_instance_object);
-  memory->set_instances(*instances);
 }
 
 // static
@@ -954,6 +962,8 @@ void WasmMemoryObject::SetNewBuffer(Isolate* isolate,
 
 void WasmMemoryObject::UpdateInstances(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
+  // SetInstanceMemory has an SBXCHECK for this later.
+  DCHECK(!backing_store()->is_shared());
   Tagged<WeakArrayList> instances = this->instances();
   const uint32_t instances_len = instances->length().value();
   for (uint32_t i = 0; i < instances_len; ++i) {
@@ -969,8 +979,8 @@ void WasmMemoryObject::UpdateInstances(Isolate* isolate) {
     uint32_t num_memories = memory_objects->ulength().value();
     for (uint32_t mem_idx = 0; mem_idx < num_memories; ++mem_idx) {
       if (memory_objects->get(mem_idx) == Tagged<WasmMemoryObject>(this)) {
-        SetInstanceMemory(trusted_data, array_buffer(),
-                          backing_store().as_shared_ptr(), mem_idx);
+        SetInstanceMemory(trusted_data, backing_store().as_shared_ptr(),
+                          mem_idx);
       }
     }
   }
@@ -1061,7 +1071,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   // {BackingStore::CopyWasmMemory}, and is irrelevant for
   // {GrowWasmMemoryInPlace} because memory is never allocated with more
   // capacity than that limit.
-  size_t old_size = backing_store->byte_length();
+  size_t old_size = backing_store->byte_length(std::memory_order_seq_cst);
   DCHECK_EQ(0, old_size % wasm::kWasmPageSize);
   size_t old_pages = old_size / wasm::kWasmPageSize;
   size_t max_pages = memory_object->is_memory64() ? wasm::max_mem64_pages()
@@ -1076,12 +1086,14 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   const bool must_grow_in_place =
       backing_store->is_shared() || backing_store->has_guard_regions() ||
       backing_store->is_resizable_by_js() || pages == 0;
-  // Disallow growing relocatable (movable) memories during API interrupts
-  // (such as inspector pauses or debugger stepping). Growing and relocating
-  // the memory backing store at this point would invalidate cached memory
-  // base pointers in compiled loop code, leading to a Use-after-Free (or
-  // requiring costly reloads if we would chose to allow growing).
-  if (isolate->is_executing_api_interrupt() && !must_grow_in_place) {
+  // Disallow growing unshared memories during API interrupts (such as
+  // inspector pauses or debugger stepping). Growing and relocating the memory
+  // backing store at this point would invalidate cached memory base pointers in
+  // compiled loop code, leading to a Use-after-Free, and even in-place growth
+  // of unshared memories would invalidate cached memory sizes in compiled loop
+  // code.
+  if (isolate->is_executing_api_interrupt() && !backing_store->is_shared() &&
+      pages != 0) {
     return -1;
   }
   const bool try_grow_in_place =
@@ -1104,21 +1116,23 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   if (backing_store->is_shared()) {
     DCHECK(result_inplace.has_value());
     backing_store->BroadcastSharedWasmMemoryGrow(isolate);
-    if (has_old_buffer && !maybe_old_buffer->is_resizable_by_js() &&
-        pages > 0) {
-      // Independent of potential concurrent grows in other threads: After we
-      // grew the shared memory, broadcasting should have reset the ArrayBuffer
-      // so we reallocate it on the next access to the `buffer` property of the
-      // Wasm memory.
-      CHECK(IsUndefined(memory_object->array_buffer()));
+    if (pages > 0) {
+      if (has_old_buffer && !maybe_old_buffer->is_resizable_by_js()) {
+        // Independent of potential concurrent grows in other threads: After we
+        // grew the shared memory, broadcasting should have reset the
+        // ArrayBuffer so we reallocate it on the next access to the `buffer`
+        // property of the Wasm memory.
+        CHECK(IsUndefined(memory_object->array_buffer()));
+      }
+      // Report the grown memory size rounded up to the next power of two to
+      // avoid triggering too many GCs when growing memory in a loop.
+      memory_object->managed_backing_store()->UpdateEstimatedSize(
+          std::bit_ceil(backing_store->byte_length()), isolate);
     }
     // As {old_pages} was read racefully, we return here the synchronized
     // value provided by {GrowWasmMemoryInPlace}, to provide the atomic
     // read-modify-write behavior required by the spec.
-    uint32_t result = static_cast<int32_t>(result_inplace.value());
-    memory_object->managed_backing_store()->UpdateEstimatedSize(
-        backing_store->byte_length(), isolate);
-    return result;  // success
+    return static_cast<int32_t>(result_inplace.value());  // success
   }
 
   size_t new_pages = old_pages + pages;
@@ -1135,8 +1149,12 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     }
     memory_object->UpdateInstances(isolate);
     DCHECK_EQ(result_inplace.value(), old_pages);
-    memory_object->managed_backing_store()->UpdateEstimatedSize(
-        backing_store->byte_length(), isolate);
+    if (pages > 0) {
+      // Report the grown memory size rounded up to the next power of two to
+      // avoid triggering too many GCs when growing memory in a loop.
+      memory_object->managed_backing_store()->UpdateEstimatedSize(
+          std::bit_ceil(backing_store->byte_length()), isolate);
+    }
     return static_cast<int32_t>(result_inplace.value());  // success
   }
   DCHECK(!has_old_buffer || !maybe_old_buffer->is_resizable_by_js());
@@ -1172,8 +1190,10 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
 
   DCHECK_EQ(backing_store.raw(), memory_object->backing_store().raw());
   size_t new_byte_length = new_backing_store->byte_length();
+  // Report the grown memory size rounded up to the next power of two to avoid
+  // triggering too many GCs when growing memory in a loop.
   memory_object->managed_backing_store()->SetManagedObject(
-      std::move(new_backing_store), isolate, new_byte_length);
+      std::move(new_backing_store), isolate, std::bit_ceil(new_byte_length));
 
   if (has_old_buffer) {
     JSArrayBuffer::Detach(maybe_old_buffer, true).Check();
@@ -1328,11 +1348,6 @@ void ImportedFunctionEntry::SetWasmToWrapper(
       isolate->factory()->NewWasmImportData(callable, suspend,
                                             importing_instance_data_, sig);
 
-  if (!wrapper_handle->has_code()) {
-    import_data->SetIndexInTableAsCallOrigin(
-        importing_instance_data_->dispatch_table_for_imports(), index_);
-  }
-
   DisallowGarbageCollection no_gc;
   Tagged<WasmDispatchTableForImports> dispatch_table =
       importing_instance_data_->dispatch_table_for_imports();
@@ -1418,20 +1433,35 @@ constexpr decltype(WasmTrustedInstanceData::kProtectedFieldNames)
 
 void WasmTrustedInstanceData::SetRawMemory(uint32_t memory_index,
                                            uint8_t* mem_start,
-                                           size_t mem_size) {
+                                           Address size_or_address) {
   CHECK_LT(memory_index, module()->memories.size());
 
-  CHECK_LE(mem_size, module()->memories[memory_index].is_memory64()
-                         ? wasm::max_mem64_bytes()
-                         : wasm::max_mem32_bytes());
-  // All memory bases and sizes are stored in a TrustedFixedAddressArray.
+  if (!module()->memories[memory_index].is_shared) {
+    CHECK_LE(size_or_address, module()->memories[memory_index].is_memory64()
+                                  ? wasm::max_mem64_bytes()
+                                  : wasm::max_mem32_bytes());
+  } else {
+    CHECK_NE(size_or_address, kNullAddress);
+    CHECK(IsAligned(size_or_address, alignof(size_t)));
+    // Verify that the shared BackingStore is kept alive in trusted space.
+    CHECK_LT(memory_index, shared_memory_backing_stores()->ulength().value());
+    Tagged<Object> backing_store_obj =
+        shared_memory_backing_stores()->get(memory_index);
+    CHECK_EQ(size_or_address,
+             reinterpret_cast<Address>(
+                 TrustedCast<TrustedManaged<BackingStore>>(backing_store_obj)
+                     ->raw()
+                     ->byte_length_address()));
+  }
+  // All memory bases and sizes (or addresses of atomic sizes for shared
+  // memories) are stored in a TrustedFixedAddressArray.
   Tagged<TrustedFixedAddressArray> bases_and_sizes = memory_bases_and_sizes();
   bases_and_sizes->set(memory_index * 2, reinterpret_cast<Address>(mem_start));
-  bases_and_sizes->set(memory_index * 2 + 1, mem_size);
+  bases_and_sizes->set(memory_index * 2 + 1, size_or_address);
   // Memory 0 has fast-access fields.
   if (memory_index == 0) {
     set_memory0_start(mem_start);
-    set_memory0_size(mem_size);
+    set_memory0_size_or_address(size_or_address);
   }
 }
 
@@ -1492,6 +1522,13 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
       isolate->factory()->NewWasmDispatchTable(0, wasm::kWasmFuncRef);
   DirectHandle<ProtectedFixedArray> empty_protected_fixed_array =
       isolate->factory()->empty_protected_fixed_array();
+  bool has_shared_memory = std::any_of(
+      module->memories.begin(), module->memories.end(),
+      [](const wasm::WasmMemory& mem) { return mem.is_shared.value(); });
+  DirectHandle<ProtectedFixedArray> shared_memory_backing_stores =
+      has_shared_memory
+          ? isolate->factory()->NewProtectedFixedArray(num_memories)
+          : empty_protected_fixed_array;
 
   // Use the same memory estimate as the (untrusted) Managed in
   // WasmModuleObject. This is not security critical, and we at least always
@@ -1549,9 +1586,11 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     trusted_data->set_break_on_entry(module_object->script()->break_on_entry());
     trusted_data->InitDataSegmentArrays(native_module.get());
     trusted_data->set_memory0_start(empty_backing_store_buffer);
-    trusted_data->set_memory0_size(0);
+    trusted_data->set_memory0_size_or_address(0);
     trusted_data->set_memory_objects(*memory_objects);
     trusted_data->set_memory_bases_and_sizes(*memory_bases_and_sizes);
+    trusted_data->set_shared_memory_backing_stores(
+        *shared_memory_backing_stores);
 
     for (uint32_t i = 0; i < num_memories; ++i) {
       memory_bases_and_sizes->set(
@@ -1573,17 +1612,16 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   instance_object->set_module_object(*module_object);
   trusted_data->set_instance_object(*instance_object);
 
-  // Insert the new instance into the scripts weak list of instances. This
+  // Insert the new instance into the script's weak list of instances. This
   // list is used for breakpoints affecting all instances belonging to the
   // script.
-  if (module_object->script()->type() == Script::Type::kWasm) {
-    DirectHandle<WeakArrayList> weak_instance_list(
-        module_object->script()->wasm_weak_instance_list(), isolate);
-    weak_instance_list =
-        WeakArrayList::Append(isolate, weak_instance_list,
-                              MaybeObjectDirectHandle::Weak(instance_object));
-    module_object->script()->set_wasm_weak_instance_list(*weak_instance_list);
-  }
+  DCHECK_EQ(module_object->script()->type(), Script::Type::kWasm);
+  DirectHandle<WeakArrayList> weak_instance_list(
+      module_object->script()->wasm_weak_instance_list(), isolate);
+  weak_instance_list =
+      WeakArrayList::Append(isolate, weak_instance_list,
+                            MaybeObjectDirectHandle::Weak(instance_object));
+  module_object->script()->set_wasm_weak_instance_list(*weak_instance_list);
 
   return trusted_data;
 }
@@ -1722,11 +1760,9 @@ V8_INLINE DirectHandle<WasmExportedFunction> CreateExportedFunction(
   DirectHandle<Code> wrapper_code =
       WasmExportedFunction::GetWrapper(isolate, sig);
   int arity = static_cast<int>(sig->parameter_count());
-  DirectHandle<WasmExportedFunction> external = WasmExportedFunction::New(
-      isolate, trusted_instance_data, func_ref, internal_function, arity,
-      wrapper_code, function_index, wasm::kNoPromise);
-  internal_function->set_external(*external);
-  return external;
+  return WasmExportedFunction::New(isolate, trusted_instance_data, func_ref,
+                                   internal_function, arity, wrapper_code,
+                                   function_index, wasm::kNoPromise);
 }
 
 }  // namespace
@@ -1854,21 +1890,6 @@ DirectHandle<Code> WasmExportedFunction::GetWrapper(
   DCHECK_EQ(compiled->wrapper(),
             wasm::WasmExportWrapperCache::Get(isolate, sig->index()));
   return compiled;
-}
-
-void WasmImportData::SetIndexInTableAsCallOrigin(
-    Tagged<WasmDispatchTable> table, int entry_index) {
-  set_call_origin(table);
-  set_table_slot(entry_index);
-}
-void WasmImportData::SetIndexInTableAsCallOrigin(
-    Tagged<WasmDispatchTableForImports> table, int entry_index) {
-  set_call_origin(table);
-  set_table_slot(entry_index);
-}
-
-void WasmImportData::SetFuncRefAsCallOrigin(Tagged<WasmInternalFunction> func) {
-  set_call_origin(func);
 }
 
 Address WasmTrustedInstanceData::GetGlobalStorage(
@@ -2039,8 +2060,7 @@ DirectHandle<WasmCustomMap> WasmCustomMap::AllocateUninitialized(
   DirectHandle<Map> rtt_parent{
       Cast<Map>(trusted_data->managed_object_maps()->get(type.describes.index)),
       isolate};
-  DirectHandle<NativeContext> context(
-      Cast<NativeContext>(trusted_data->native_context()), isolate);
+  DCHECK_EQ(trusted_data->native_context(), isolate->raw_native_context());
   // There's always at least one supertype for {rtt_parent}.
   const wasm::TypeDefinition& described_type = module->type(type.describes);
   int num_supertypes = described_type.subtyping_depth + 1;
@@ -2064,6 +2084,11 @@ DirectHandle<WasmCustomMap> WasmCustomMap::AllocateUninitialized(
           type.struct_type, described_index, described_size,
           described_instance_type, rtt_parent, num_supertypes, map);
   DisallowGarbageCollection no_gc;
+  DCHECK(!type.is_shared);
+  // TODO(manoskouk): If the above check is violated (i.e. we have shared custom
+  // descriptors), remove it and add a publish guard:
+  // SharedObjectConditionalSafePublishGuard publish_guard(*descriptor,
+  //                                                       type.is_shared);
   if (!prototype.is_null()) {
     Map::SetPrototype(isolate, descriptor, prototype);
   }
@@ -2152,8 +2177,7 @@ DirectHandle<WasmCustomMapWrapper> WasmCustomMap::CreateJSWrapper(
 wasm::WasmValue WasmArray::GetElement(uint32_t index) {
   wasm::CanonicalValueType element_type =
       map()->wasm_type_info()->element_type();
-  int element_offset =
-      WasmArray::kHeaderSize + index * element_type.value_kind_size();
+  int element_offset = this->element_offset(index);
   Address element_address = this->field_address(element_offset);
   switch (element_type.kind()) {
 #define CASE_TYPE(value_type, ctype) \
@@ -2588,24 +2612,7 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
   new_table->WriteField<int>(kLengthOffset, new_length);
   for (uint32_t i = 0; i < old_length; ++i) {
     WasmCodePointer call_target = old_table->target(i);
-    // Update any stored call origins, so that future compiled wrappers
-    // get installed into the new dispatch table.
     Tagged<Object> implicit_arg = old_table->implicit_arg(i);
-    if (Is<WasmImportData>(implicit_arg)) {
-      Tagged<WasmImportData> import_data =
-          TrustedCast<WasmImportData>(implicit_arg);
-      // After installing a compiled wrapper, we don't set or update
-      // call origins any more.
-      if (import_data->has_call_origin()) {
-        if (import_data->call_origin() == *old_table) {
-          import_data->set_call_origin(*new_table);
-        } else {
-          DCHECK(v8_flags.wasm_jitless ||
-                 wasm::GetWasmImportWrapperCache()->IsCompiledWrapper(
-                     call_target));
-        }
-      }
-    }
 
     if (implicit_arg == Smi::zero()) {
       DispatchTableClear(*new_table, i, kNewEntry);
@@ -2883,12 +2890,13 @@ DirectHandle<WasmCapiFunction> WasmCapiFunction::New(
 
   DirectHandle<Map> rtt = isolate->factory()->wasm_func_ref_map();
   DirectHandle<WasmCapiFunctionData> fun_data =
-      isolate->factory()->NewWasmCapiFunctionData(
-          call_target, embedder_data, BUILTIN_CODE(isolate, Illegal), rtt, sig);
+      isolate->factory()->NewWasmCapiFunctionData(call_target, embedder_data,
+                                                  rtt, sig);
   DirectHandle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForWasmCapiFunction(fun_data);
   DirectHandle<JSFunction> result =
       Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
+          .set_code(BUILTIN_CODE(isolate, Illegal))
           .Build();
   fun_data->internal()->set_external(*result);
   return Cast<WasmCapiFunction>(result);
@@ -2899,15 +2907,6 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
     DirectHandle<WasmFuncRef> func_ref,
     DirectHandle<WasmInternalFunction> internal_function, int arity,
     DirectHandle<Code> export_wrapper) {
-  DCHECK(
-      CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
-      (export_wrapper->is_builtin() &&
-       (export_wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
-#if V8_ENABLE_DRUMBRAKE
-        export_wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapper ||
-#endif  // V8_ENABLE_DRUMBRAKE
-        export_wrapper->builtin_id() == Builtin::kWasmPromising ||
-        export_wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
   int func_index = internal_function->function_index();
   wasm::Promise promise =
       export_wrapper->builtin_id() == Builtin::kWasmPromising
@@ -2922,10 +2921,19 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
     DirectHandle<WasmFuncRef> func_ref,
     DirectHandle<WasmInternalFunction> internal_function, int arity,
     DirectHandle<Code> export_wrapper, int func_index, wasm::Promise promise) {
+  DCHECK(
+      CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
+      (export_wrapper->is_builtin() &&
+       (export_wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
+#if V8_ENABLE_DRUMBRAKE
+        export_wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapper ||
+#endif  // V8_ENABLE_DRUMBRAKE
+        export_wrapper->builtin_id() == Builtin::kWasmPromising ||
+        export_wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
   Factory* factory = isolate->factory();
   DirectHandle<WasmExportedFunctionData> function_data =
       factory->NewWasmExportedFunctionData(
-          export_wrapper, instance_data, func_ref, internal_function,
+          instance_data, func_ref, internal_function,
           v8_flags.wasm_wrapper_tiering_budget, promise);
 
 #if V8_ENABLE_DRUMBRAKE
@@ -2954,6 +2962,7 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
   DirectHandle<JSFunction> js_function =
       Factory::JSFunctionBuilder{isolate, shared, context}
           .set_map(function_map)
+          .set_code(export_wrapper)
           .Build();
 
   // According to the spec, exported functions should not have a [[Construct]]
@@ -2964,7 +2973,7 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
   } else {
     shared->set_script(*isolate->factory()->undefined_value(), kReleaseStore);
   }
-  function_data->internal()->set_external(*js_function);
+  internal_function->set_external(*js_function);
   return Cast<WasmExportedFunction>(js_function);
 }
 
@@ -2974,7 +2983,7 @@ std::unique_ptr<char[]> WasmExportedFunction::GetDebugName(
   constexpr const char kPrefix[] = "js-to-wasm:";
   // prefix + parameters + delimiter + returns + zero byte
   size_t len = strlen(kPrefix) + sig->all().size() + 2;
-  auto buffer = base::OwnedVector<char>::New(len);
+  auto buffer = base::UniqueArray<char>::New(len);
   memcpy(buffer.begin(), kPrefix, strlen(kPrefix));
   PrintSignature(buffer.as_vector() + strlen(kPrefix), sig);
   return buffer.ReleaseData();
@@ -3024,6 +3033,7 @@ DirectHandle<Map> CreateStructMap(
         opt_native_context, instance_type, map_instance_size, elements_kind,
         inobject_properties);
   }
+  SharedObjectConditionalSafePublishGuard publish_guard(*map, shared);
   map->set_wasm_type_info(*type_info);
   map->set_is_extensible(false);
   WasmStruct::EncodeInstanceSizeInMap(real_instance_size, *map);
@@ -3056,6 +3066,7 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
              : isolate->factory()->NewContextlessMap(
                    instance_type, map_instance_size, elements_kind,
                    inobject_properties);
+  SharedObjectConditionalSafePublishGuard publish_guard(*map, shared);
   map->set_wasm_type_info(*type_info);
   map->SetInstanceDescriptors(*isolate->factory()->empty_descriptor_array(), 0,
                               SKIP_WRITE_BARRIER);
@@ -3467,6 +3478,12 @@ DirectHandle<Object> WasmToJSObject(Isolate* isolate,
   if (IsWasmNull(*value)) {
     return direct_handle(ReadOnlyRoots(isolate).null_value(), isolate);
   }
+#ifdef V8_IS_TSAN
+  if (IsHeapObject(*value) &&
+      HeapLayout::InWritableSharedSpace(Cast<HeapObject>(*value))) {
+    TSAN_ACQUIRE(Cast<HeapObject>(*value).address());
+  }
+#endif
   if (IsWasmFuncRef(*value)) {
     DirectHandle<WasmInternalFunction> internal(
         Cast<WasmFuncRef>(value)->internal(isolate), isolate);
@@ -3491,19 +3508,11 @@ DirectHandle<Object> WasmToJSObject(Isolate* isolate,
   return value;
 }
 
-// The WasmArray header is not a multiple of 8 bytes. For shared i64 arrays each
-// element needs to be 8 byte aligned for atomic accesses. Therefore shared
-// arrays use the kDoubleUnaligned alignment. If the header size changes to a
-// multiple of 8 bytes, shared arrays should be allocated using kDoubleAligned
-// instead.
-// Note that for 64 bit no-pointer-compression builds, kDoubleUnAligned performs
-// aligned(!) allocations instead, so we manually align the kHeaderSize there.
-// Needed changes in case the header size changes to a multiple of 8:
-// - objects-inl.h: HeapObject::RequiredAlignment
-// - wasm.tq: WasmAllocateSharedArray_Uninitialized
+// For shared i64 arrays each element needs to be 8-byte aligned for atomic
+// accesses, and shared arrays are allocated using kDoubleAligned. Therefore the
+// shared WasmArray header size must be a multiple of 8 bytes.
 // LINT.IfChange
-static_assert(WasmArray::kHeaderSize % kDoubleSize ==
-              (kTaggedSize != kDoubleSize ? 4 : 0));
+static_assert(WasmArray::HeaderSize(SharedFlag{true}) % kDoubleSize == 0);
 // LINT.ThenChange(/src/objects/objects-inl.h, /src/builtins/wasm.tq)
 
 }  // namespace wasm

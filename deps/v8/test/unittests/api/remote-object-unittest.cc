@@ -101,5 +101,29 @@ TEST_F(RemoteObjectTest, TypeOfRemoteObject) {
   EXPECT_STREQ("object", *result);
 }
 
+TEST_F(RemoteObjectTest, NormalizeRemoteObject) {
+  Local<FunctionTemplate> constructor_template =
+      FunctionTemplate::New(isolate(), Constructor);
+  constructor_template->InstanceTemplate()->SetAccessCheckCallbackAndHandler(
+      AccessCheck, NamedPropertyHandlerConfiguration(NamedGetter),
+      IndexedPropertyHandlerConfiguration());
+
+  Local<Object> remote_object =
+      constructor_template->NewRemoteInstance().ToLocalChecked();
+
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+
+  context->Global()
+      ->Set(context, String::NewFromUtf8Literal(isolate(), "remoteObj"),
+            remote_object)
+      .Check();
+
+  TryRunJS(
+      "const src = {};"
+      "for (let i = 0; i < 1200; i++) src['p' + i] = 1;"
+      "try { Object.assign(remoteObj, src); } catch (e) {}");
+}
+
 }  // namespace remote_object_unittest
 }  // namespace v8

@@ -94,24 +94,19 @@ struct JSDispatchEntry {
 #endif
 
 #if defined(V8_TARGET_ARCH_64_BIT)
+  static constexpr uint32_t kMaxParameterCountBits = 16;
+  static constexpr uint32_t kParameterCountMask =
+      (1 << kMaxParameterCountBits) - 1;
   // Freelist entries contain the index of the next free entry in their lower 32
   // bits and are tagged with this tag.
-#ifdef __illumos__
-  // In illumos 64-bit apps, pointers are allocated both the bottom 2^47 range
-  // AND the top 2^47 range in the 64-bit space. Instead of 47 bits of VA space
-  // we have 48 bits. This means, however, the top 16-bits may be 0xffff. We
-  // therefore pick a different value for the kFreeEntryTag.  If/when we go to
-  // VA57, aka 5-level paging, we'll need to revisit this again, as will node
-  // by default, since the fixed-bits on the high end will shrink from top
-  // 16-bits to top 8-bits.
-  //
-  // Unless illumos ships an Oracle-Solaris-like VA47 link-time options to
-  // restrict pointers from allocating from above the Virtual Address hole,
-  // we need to be mindful of this.
-  static constexpr Address kFreeEntryTag = 0xfeed000000000000ull;
-#else
+#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+  // On x64, only the top byte is set so that it does not overlap with 57-bit
+  // user-space addresses (LA57).
+  static constexpr Address kFreeEntryTag = 0xff00000000000000ull;
+  static constexpr uintptr_t kParameterCountOffset = 2 * kSystemPointerSize;
+  static constexpr uint32_t kObjectPointerShift = 0;
+#else  // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
   static constexpr Address kFreeEntryTag = 0xffff000000000000ull;
-#endif /* __illumos__ */
 #ifdef V8_TARGET_BIG_ENDIAN
   // 2-byte parameter count is on the least significant side of encoded_word_.
   static constexpr int kBigEndianParamCountOffset =
@@ -121,8 +116,8 @@ struct JSDispatchEntry {
 #else
   static constexpr uintptr_t kParameterCountOffset = kCodeObjectOffset;
 #endif  // V8_TARGET_BIG_ENDIAN
-  static constexpr uint32_t kObjectPointerShift = 16;
-  static constexpr uint32_t kParameterCountMask = 0xffff;
+  static constexpr uint32_t kObjectPointerShift = kMaxParameterCountBits;
+#endif  // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
 #elif defined(V8_TARGET_ARCH_32_BIT)
   static constexpr uintptr_t kParameterCountOffset =
       kCodeObjectOffset + kSystemPointerSize;
@@ -140,12 +135,28 @@ struct JSDispatchEntry {
   // The first word contains the pointer to the (executable) entrypoint.
   std::atomic<Address> entrypoint_;
 
-  // On 64 bit architectures the second word of the entry contains (1) the
-  // pointer to the code object associated with this entry, (2) the marking bit
-  // of the entry in the LSB of the object pointer (which must be unused as the
-  // address must be aligned), and (3) the 16-bit parameter count. The parameter
-  // count is stored in the lower 16 bits and therefore the pointer is shifted
-  // to the left. The final format therefore looks as follows:
+  // On x64, the entry is 32 bytes to support full 57-bit (LA57) pointers.
+  // Following the entrypoint word, the second word contains the tagged Code
+  // object pointer, the third word contains the marking bit and 16-bit
+  // parameter count, and the fourth word is unused padding:
+  //
+  // +----------------------------------------------------------+
+  // | Bits 63 ... 0                                            |
+  // |  HeapObject pointer                                      |
+  // +----------------------+---------------+-------------------+
+  // | Bits 63 ... 17       | Bit 16        | Bits 15 ... 0     |
+  // |  Unused              |  Marking bit  |  Parameter count  |
+  // +----------------------+---------------+-------------------+
+  // | Bits 63 ... 0                                            |
+  // |  Padding (unused)                                        |
+  // +----------------------------------------------------------+
+  //
+  // On the other 64 bit architectures the second word of the entry contains (1)
+  // the pointer to the code object associated with this entry, (2) the marking
+  // bit of the entry in the LSB of the object pointer (which must be unused as
+  // the address must be aligned), and (3) the 16-bit parameter count. The
+  // parameter count is stored in the lower 16 bits and therefore the pointer is
+  // shifted to the left. The final format therefore looks as follows:
   //
   // +----------------------+---------------+-------------------+
   // | Bits 63 ... 17       | Bit 16        | Bits 15 ... 0     |
@@ -163,16 +174,23 @@ struct JSDispatchEntry {
   // individual parts and unify with 32 bit. For instance we could try to store
   // the code pointer in some compressd format, such that it fits into 32 bits.
 
+#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+  std::atomic<Address> code_object_;
+  static constexpr Address kMarkingBit = 1 << kMaxParameterCountBits;
+#else
   static constexpr Address kMarkingBit = 1 << kObjectPointerShift;
+#endif  // V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
   std::atomic<Address> encoded_word_;
 
-#ifdef V8_TARGET_ARCH_32_BIT
+#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+  [[maybe_unused]] uint64_t padding_;
+#elif defined(V8_TARGET_ARCH_32_BIT)
   // TODO(olivf): Investigate if we could shrink the entry size on 32bit
   // platforms to 12 bytes.
   std::atomic<uint16_t> parameter_count_;
   // 16 bits of padding
   std::atomic<uint32_t> next_free_entry_;
-#endif  // V8_TARGET_ARCH_32_BIT
+#endif  // defined(V8_TARGET_ARCH_32_BIT)
 };
 
 static_assert(sizeof(JSDispatchEntry) == kJSDispatchTableEntrySize);

@@ -4,6 +4,7 @@
 
 #include "src/compiler/turboshaft/operations.h"
 
+#include <array>
 #include <atomic>
 #include <iomanip>
 #include <optional>
@@ -669,6 +670,7 @@ void LoadOp::PrintOptions(std::ostream& os) const {
     os << ", element size: 2^" << int{element_size_log2};
   }
   if (offset != 0) os << ", offset: " << offset;
+  if (kind.shared_base) os << ", shared_base";
   os << ']';
 }
 
@@ -759,6 +761,9 @@ void StoreOp::PrintOptions(std::ostream& os) const {
   }
   if (offset != 0) os << ", offset: " << offset;
   if (maybe_initializing_or_transitioning) os << ", initializing";
+  if (indirect_pointer_tag() != kIndirectPointerNullTag) {
+    os << ", indirect pointer tag: " << indirect_pointer_tag();
+  }
   os << ']';
 }
 
@@ -1224,9 +1229,9 @@ std::ostream& operator<<(std::ostream& os, base::Vector<EffectHandler> hs) {
   os << "effect handlers: ";
   for (auto& h : hs) {
     if (h.is_switch()) {
-      os << h.tag_index() << "[switch]" << (&h == &hs.last() ? "" : " ");
+      os << h.tag_index() << "[switch]" << (&h == &hs.back() ? "" : " ");
     } else {
-      os << h.tag_index() << ":" << h.block << (&h == &hs.last() ? "" : " ");
+      os << h.tag_index() << ":" << h.block << (&h == &hs.back() ? "" : " ");
     }
   }
   return os;
@@ -1811,7 +1816,7 @@ const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
 #if V8_ENABLE_SIMD128
 namespace {
 template <size_t size>
-void PrintSimdValue(std::ostream& os, const uint8_t (&value)[size]) {
+void PrintSimdValue(std::ostream& os, const std::array<uint8_t, size>& value) {
   os << "0x" << std::hex << std::setfill('0');
 #ifdef V8_TARGET_BIG_ENDIAN
   for (int i = 0; i < static_cast<int>(size); i++) {
@@ -2172,7 +2177,8 @@ std::ostream& operator<<(std::ostream& os, Simd256UnpackOp::Kind kind) {
 #if V8_ENABLE_WEBASSEMBLY
 
 void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {
-  os << '[' << array_type->element_type() << ", " << is_shared << ']';
+  os << '[' << array_type->element_type() << ", " << array_type->is_shared()
+     << ']';
 }
 
 void WasmAllocateStructOp::PrintOptions(std::ostream& os) const {
@@ -2216,6 +2222,7 @@ void ArrayGetOp::PrintOptions(std::ostream& os) const {
   } else {
     os << "non-atomic";
   }
+  if (shared_base) os << ", shared-base";
   os << ']';
 }
 

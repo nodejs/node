@@ -308,7 +308,7 @@ CheckScopeChain([debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
 CheckScopeContent({a: 1}, 0, g);
-CheckScopeContent({b: 2}, 1, g);
+CheckScopeContent({a: undefined, b: 2}, 1, g);
 
 // Set a variable in an empty scope.
 

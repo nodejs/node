@@ -393,8 +393,8 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
 // loop-invariant values the peeler cloned), invalidating only what the loop
 // body can change.
 void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
-                                    Zone* zone,
-                                    const LoopEffects* loop_effects) {
+                                    Zone* zone, const LoopEffects* loop_effects,
+                                    bool loop_has_effects) {
   if (side_effects_require_invalidation_ &&
       (loop_effects == nullptr || loop_effects->unstable_aspects_cleared ||
        loop_effects->elements_kind_transitioned)) {
@@ -407,45 +407,23 @@ void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
     side_effects_require_invalidation_ = false;
   }
 
-  if (effect_epoch_ != backedge.effect_epoch_) {
-    effect_epoch_ = std::max(effect_epoch_, backedge.effect_epoch_) + 1;
-  }
-  // Forward entries for pure (epoch-exempt) expressions are kept even without
-  // a backedge equivalent: the forward predecessor dominates the loop body and
-  // loop effects cannot invalidate a pure expression. Other entries need a
-  // structurally equal backedge entry with a still-valid epoch.
-  for (auto it = available_expressions_.begin();
-       it != available_expressions_.end();) {
-    const AvailableExpression& lhs = it->second;
-    DCHECK_NE(lhs.effect_epoch, kEffectEpochOverflow);
-    DCHECK_IMPLIES(!lhs.node->Is<Identity>(),
-                   Node::needs_epoch_check(lhs.node->opcode()) ==
-                       (lhs.effect_epoch != kEffectEpochForPureInstructions));
-    if (lhs.node->Is<Identity>()) {
-      it = available_expressions_.erase(it);
-      continue;
-    }
-    if (lhs.effect_epoch == kEffectEpochForPureInstructions) {
-      ++it;
-      continue;
-    }
-    bool keep = false;
-    auto rhs_it = backedge.available_expressions_.find(it->first);
-    if (rhs_it != backedge.available_expressions_.end()) {
-      const AvailableExpression& rhs = rhs_it->second;
-      DCHECK_IMPLIES(lhs.node == rhs.node,
-                     lhs.effect_epoch == rhs.effect_epoch);
-      ValueNode* rhs_value = rhs.node->TryCast<ValueNode>();
-      NodeBase* rhs_node = rhs_value ? rhs_value->UnwrapIdentities() : rhs.node;
-      keep = lhs.node->IsStructurallyEqualTo(rhs_node) &&
-             lhs.effect_epoch >= effect_epoch_;
-    }
-    if (keep) {
-      ++it;
-    } else {
-      it = available_expressions_.erase(it);
-    }
-  }
+  // TODO(jgruber): Recompute loop effects after lazy inlining, which can
+  // replace effectful calls with pure operations.
+  if (loop_has_effects) increment_effect_epoch();
+
+  std::erase_if(available_expressions_, [&](const auto& entry) {
+    const AvailableExpression& expr = entry.second;
+    DCHECK_NE(expr.effect_epoch, kEffectEpochOverflow);
+    DCHECK_IMPLIES(!expr.node->Is<Identity>(),
+                   Node::needs_epoch_check(expr.node->opcode()) ==
+                       (expr.effect_epoch != kEffectEpochForPureInstructions));
+    if (expr.node->Is<Identity>()) return true;
+    if (expr.effect_epoch == kEffectEpochForPureInstructions) return false;
+    // The graph builder's backedge epoch is not comparable with the recomputed
+    // forward epoch. loop_has_effects was determined during graph building.
+    if (loop_has_effects) return true;
+    return expr.effect_epoch < effect_epoch_;
+  });
 
   const bool keep_invariant_loads =
       loop_effects != nullptr && !loop_effects->unstable_aspects_cleared;
@@ -611,22 +589,36 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
     ValueNode* context) {
   if (may_have_aliasing_contexts_ == ContextSlotLoadsAlias::kAlways) return;
 
-  while (true) {
-    if (auto load_prev_ctxt = context->TryCast<LoadContextSlotNoCells>()) {
-      DCHECK_EQ(load_prev_ctxt->offset(),
-                Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
-      // Recurse until we find the root.
-      context = load_prev_ctxt->input(0).node();
-      continue;
-    }
-    break;
-  }
-
   switch (context->opcode()) {
+    case Opcode::kLoadContextSlotNoCells:
+      do {
+        LoadContextSlotNoCells* load_prev_ctxt =
+            context->Cast<LoadContextSlotNoCells>();
+        DCHECK_EQ(load_prev_ctxt->offset(),
+                  Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
+        context = load_prev_ctxt->input(0).node();
+      } while (context->Is<LoadContextSlotNoCells>());
+      // Walking PREVIOUS_INDEX loads is only non-aliasing if rooted at the
+      // incoming context InitialValue, since any other root (such as an
+      // allocated context or a HeapConstant) can have its parent context
+      // represented directly by a distinct ValueNode in the graph.
+      if (!context->Is<InitialValue>()) {
+        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kAlways;
+        break;
+      }
+      [[fallthrough]];
     case Opcode::kInitialValue:
-      may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
-          may_have_aliasing_contexts_,
-          ContextSlotLoadsAlias::kOnlyLoadsRelativeToCurrentContext);
+      // In OSR, local registers also start as InitialValues and may hold outer
+      // contexts saved by PushContext, which can alias PREVIOUS_INDEX loads
+      // from the incoming context.
+      if (context->Cast<InitialValue>()->source() ==
+          interpreter::Register::current_context()) {
+        may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
+            may_have_aliasing_contexts_,
+            ContextSlotLoadsAlias::kOnlyLoadsRelativeToCurrentContext);
+      } else {
+        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kAlways;
+      }
       break;
     case Opcode::kHeapConstant:
       may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
@@ -674,22 +666,22 @@ void KnownNodeAspects::ClearUnstableNodeAspectsForStoreMap(
     StoreMap* node, bool is_tracing_enabled) {
   if (!node->is_transitioning()) return;
 
-  if (NodeInfo* node_info = TryGetInfoFor(node->ValueInput().node())) {
-    if (node_info->possible_maps_are_known() && !node_info->maps_are_stale() &&
-        node_info->possible_maps().size() == 1) {
-      compiler::MapRef old_map = node_info->possible_maps().at(0);
-      auto MaybeAliases = [&](compiler::MapRef map) -> bool {
-        return map.equals(old_map);
-      };
-      // Mark aliasing maps as stale.
-      if (MarkMapsStaleIfAny(MaybeAliases)) {
-        if (V8_UNLIKELY(v8_flags.trace_maglev_kna && is_tracing_enabled)) {
-          std::cout << kRed << "[KNA] StoreMap: Invalidate alias "
-                    << Brief(*old_map.object()) << kReset << std::endl;
-        }
-      }
-      return;
-    }
+  if (MarkSingleMapAsStale(node->ValueInput().node(), is_tracing_enabled)) {
+    return;
+  }
+
+  // TODO(olivf): Only invalidate nodes with the same type.
+  OnSideEffect();
+  if (V8_UNLIKELY(v8_flags.trace_maglev_kna && is_tracing_enabled)) {
+    std::cout << kRed << "[KNA] StoreMap: Invalidate all unstable maps"
+              << kReset << std::endl;
+  }
+}
+
+void KnownNodeAspects::ClearUnstableNodeAspectsForMigration(
+    Node* node, bool is_tracing_enabled) {
+  if (MarkSingleMapAsStale(node->input_node(0), is_tracing_enabled)) {
+    return;
   }
 
   // TODO(olivf): Only invalidate nodes with the same type.
@@ -992,6 +984,17 @@ bool KnownNodeAspects::SetContextCachedValue(ValueNode* context, int offset,
                                              ValueNode* value,
                                              MaybeAssignedFlag assigned) {
   value = value->UnwrapIdentities();
+  if (assigned == kNotAssigned) {
+    if (auto* root_const = value->TryCast<RootConstant>()) {
+#ifdef V8_ENABLE_TDZ_HOLE
+      DCHECK_NE(root_const->index(), RootIndex::kTheHoleValue);
+#endif
+      if (root_const->index() == RootIndex::kTdzHoleValue) {
+        loaded_context_constants_.erase({context, offset});
+        return false;
+      }
+    }
+  }
   auto& target_map = (assigned == kMaybeAssigned) ? loaded_context_slots_
                                                   : loaded_context_constants_;
 
@@ -1018,6 +1021,28 @@ KnownNodeAspects::ContextStoreResult KnownNodeAspects::RecordContextSlotStore(
     return {ContextStoreResult::kNone, std::move(aliased_slots)};
   }
   return {ContextStoreResult::kSetNewValue, std::move(aliased_slots)};
+}
+
+bool KnownNodeAspects::MarkSingleMapAsStale(ValueNode* node,
+                                            bool is_tracing_enabled) {
+  if (NodeInfo* node_info = TryGetInfoFor(node)) {
+    if (node_info->possible_maps_are_known() && !node_info->maps_are_stale() &&
+        node_info->possible_maps().size() == 1) {
+      compiler::MapRef old_map = node_info->possible_maps().at(0);
+      auto MaybeAliases = [&](compiler::MapRef map) -> bool {
+        return map.equals(old_map);
+      };
+      // Mark aliasing maps as stale.
+      if (MarkMapsStaleIfAny(MaybeAliases)) {
+        if (V8_UNLIKELY(v8_flags.trace_maglev_kna && is_tracing_enabled)) {
+          std::cout << kRed << "[KNA]: MarkSingleMapAsStale: Invalidate alias "
+                    << Brief(*old_map.object()) << kReset << std::endl;
+        }
+      }
+      return true;
+    }
+  }
+  return false;
 }
 
 #ifdef DEBUG

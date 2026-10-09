@@ -294,7 +294,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // validate the parameter count at runtime. Instead, we should replace them
   // with CallJSDispatchEntry that generates a call to a given (compile-time
   // constant) JSDispatchHandle.
-  void CallJSFunction(Register function_object, uint16_t argument_count);
+  void CallJSFunction(Register function_object,
+                      uint16_t expected_parameter_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
 
@@ -881,6 +882,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadRoot(Register destination, RootIndex index, Condition cond,
                 Register src1, const Operand& src2);
   void LoadTaggedRoot(Register destination, RootIndex index);
+  void StoreTaggedRoot(const MemOperand& destination, RootIndex index);
   void LoadCompressedRoot(Register destination, RootIndex index);
 
   void LoadMap(Register destination, Register object);
@@ -1142,6 +1144,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadEntrypointAndParameterCountFromJSDispatchTable(
       Register entrypoint, Register parameter_count, Register dispatch_handle,
       Register scratch);
+  void PushDispatchHandle(Register dispatch_handle, Register scratch1,
+                          Register scratch2);
+  void PopDispatchHandle(Register dispatch_handle, Register scratch1,
+                         Register scratch2);
 
   // Load a protected pointer field.
   void LoadProtectedPointerField(Register destination,

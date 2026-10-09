@@ -55,8 +55,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   ScopedPtrList<Statement> body(pointer_buffer());
 
   {
-    FunctionState function_state(&function_state_, &scope_, function_scope,
-                                 &has_generator_in_scope_chain_);
+    FunctionState function_state(&function_state_, &scope_, function_scope);
 
     // https://tc39.es/ecma262/#sec-runtime-semantics-classdefinitionevaluation
     //
@@ -100,12 +99,12 @@ FunctionLiteral* Parser::MakeAutoAccessorGetter(VariableProxy* name_proxy,
   function_scope->set_start_position(pos);
   function_scope->set_end_position(pos);
   {
-    FunctionState function_state(&function_state_, &scope_, function_scope,
-                                 &has_generator_in_scope_chain_);
+    FunctionState function_state(&function_state_, &scope_, function_scope);
     body.Add(factory()->NewAutoAccessorGetterBody(name_proxy, pos));
   }
   // TODO(42202709): Enable lazy compilation by adding custom handling in
   //                 `Parser::DoParseFunction`.
+  function_scope->set_force_eager_compilation(true);
   FunctionLiteral* getter = factory()->NewFunctionLiteral(
       nullptr, function_scope, body, 0, 0, 0,
       FunctionLiteral::kNoDuplicateParameters,
@@ -131,12 +130,12 @@ FunctionLiteral* Parser::MakeAutoAccessorSetter(VariableProxy* name_proxy,
                                    VariableMode::kTemporary, false, false,
                                    ast_value_factory(), kNoSourcePosition);
   {
-    FunctionState function_state(&function_state_, &scope_, function_scope,
-                                 &has_generator_in_scope_chain_);
+    FunctionState function_state(&function_state_, &scope_, function_scope);
     body.Add(factory()->NewAutoAccessorSetterBody(name_proxy, pos));
   }
   // TODO(42202709): Enable lazy compilation by adding custom handling in
   //                 `Parser::DoParseFunction`.
+  function_scope->set_force_eager_compilation(true);
   FunctionLiteral* setter = factory()->NewFunctionLiteral(
       nullptr, function_scope, body, 0, 1, 0,
       FunctionLiteral::kNoDuplicateParameters,
@@ -521,6 +520,7 @@ Expression* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
       return factory()->NewNumberLiteral(value, pos);
     }
     case Token::kBigInt:
+      CountUsage(v8::Isolate::kBigInt);
       return factory()->NewBigIntLiteral(
           AstBigInt(scanner()->CurrentLiteralAsCString(zone())), pos);
     case Token::kString: {
@@ -617,7 +617,10 @@ Parser::Parser(LocalIsolate* local_isolate, ParseInfo* info)
       total_preparse_skipped_(0),
       consumed_preparse_data_(info->consumed_preparse_data()),
       preparse_data_buffer_(),
-      parameters_end_pos_(info->parameters_end_pos()) {
+      parameters_end_pos_(info->parameters_end_pos()),
+      parsing_dynamic_function_declaration_(
+          info->parameters_end_pos() != kNoSourcePosition ||
+          info->flags().parse_restriction() == ONLY_SINGLE_FUNCTION_LITERAL) {
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
   // ParseInfo during background parsing.
@@ -691,9 +694,6 @@ void Parser::DeserializeScopeChain(
     if (info->has_module_in_scope_chain()) {
       set_has_module_in_scope_chain();
     }
-    if (info->has_generator_in_scope_chain()) {
-      set_has_generator_in_scope_chain(true);
-    }
   }
 }
 
@@ -747,14 +747,18 @@ void Parser::ParseProgram(Isolate* isolate, DirectHandle<Script> script,
   scanner_.Initialize();
   FunctionLiteral* result =
       DoParseProgram(isolate, info, script->eval_from_position());
-  HandleDebugMagicComments(isolate, script);
+  if (flags().allow_heap_allocation()) {
+    HandleDebugMagicComments(isolate, script);
+  }
   if (result == nullptr) return;
   result->scope()->set_is_hoisted_in_context(
       info->flags().is_hoisted_in_context());
-  MaybeProcessSourceRanges(info, result, stack_limit_);
+  if (flags().allow_heap_allocation()) {
+    MaybeProcessSourceRanges(info, result, stack_limit_);
+  }
   PostProcessParseResult(isolate, info, result);
 
-  if (V8_UNLIKELY(v8_flags.log_function_events)) {
+  if (V8_UNLIKELY(v8_flags.log_function_events) && !flags().is_reparse()) {
     double ms = timer.Elapsed().InMillisecondsF();
     const char* event_name = "parse-eval";
     int start = -1;
@@ -798,8 +802,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info,
     DeclarationScope* scope = outer->AsDeclarationScope();
     scope->set_start_position(0);
 
-    FunctionState function_state(&function_state_, &scope_, scope,
-                                 &has_generator_in_scope_chain_);
+    FunctionState function_state(&function_state_, &scope_, scope);
     ScopedPtrList<Statement> body(pointer_buffer());
     int beg_pos = scanner()->location().beg_pos;
     if (flags().is_module()) {
@@ -850,12 +853,19 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info,
     }
     // Internalize the ast strings in the case of eval so we can check for
     // conflicting var declarations with outer scope-info-backed scopes.
-    if (flags().is_eval()) {
-      DCHECK(parsing_on_main_thread_);
-      DCHECK(!isolate->main_thread_local_heap()->IsParked());
-      info->ast_value_factory()->Internalize(isolate);
+    if (flags().allow_heap_allocation()) {
+      if (flags().is_eval()) {
+        DCHECK(parsing_on_main_thread_);
+        DCHECK(!isolate->main_thread_local_heap()->IsParked());
+        info->ast_value_factory()->Internalize(isolate);
+      }
+      CheckConflictingVarDeclarations(scope);
+      if (flags().is_eval() && !has_error() &&
+          scope->HasConflictingArgumentsVarDeclaration(ast_value_factory())) {
+        ReportVarRedeclarationIn(ast_value_factory()->arguments_string(),
+                                 scope);
+      }
     }
-    CheckConflictingVarDeclarations(scope);
 
     // For sloppy eval though, we clear dynamic variables created for toplevel
     // var to avoid resolving to a variable when the variable and proxy are in
@@ -900,7 +910,9 @@ void Parser::PostProcessParseResult(IsolateT* isolate, ParseInfo* info,
     info->set_allow_eval_cache(allow_eval_cache());
   }
 
-  info->ast_value_factory()->Internalize(isolate);
+  if (flags().allow_heap_allocation()) {
+    info->ast_value_factory()->Internalize(isolate);
+  }
 
   {
     RCS_SCOPE(info->runtime_call_stats(), RuntimeCallCounterId::kCompileAnalyse,
@@ -965,8 +977,7 @@ void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
 
   // Set function and block state for the outer eval scope.
   DCHECK(outer_scope->is_eval_scope());
-  FunctionState function_state(&function_state_, &scope_, outer_scope,
-                               &has_generator_in_scope_chain_);
+  FunctionState function_state(&function_state_, &scope_, outer_scope);
 
   const AstRawString* function_name = nullptr;
   Scanner::Location location(0, 0);
@@ -1160,8 +1171,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
     Scope* outer = original_scope_;
     DeclarationScope* outer_function = outer->GetClosureScope();
     DCHECK(outer);
-    FunctionState function_state(&function_state_, &scope_, outer_function,
-                                 &has_generator_in_scope_chain_);
+    FunctionState function_state(&function_state_, &scope_, outer_function);
     BlockState block_state(&scope_, outer);
     DCHECK(is_sloppy(outer->language_mode()) ||
            is_strict(info->language_mode()));
@@ -1273,8 +1283,7 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
   // Insert a FunctionState with the closest outer Declaration scope
   DeclarationScope* nearest_decl_scope = original_scope_->GetDeclarationScope();
   DCHECK_NOT_NULL(nearest_decl_scope);
-  FunctionState function_state(&function_state_, &scope_, nearest_decl_scope,
-                               &has_generator_in_scope_chain_);
+  FunctionState function_state(&function_state_, &scope_, nearest_decl_scope);
 
   // We preparse the class members that are not fields with initializers
   // in order to collect the function literal ids.
@@ -1431,7 +1440,7 @@ const AstRawString* Parser::ParseModuleSpecifier() {
   return GetSymbol();
 }
 
-ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
+SmallZoneVector<Parser::ExportClauseData, 8> Parser::ParseExportClause(
     Scanner::Location* reserved_loc,
     Scanner::Location* string_literal_local_name_loc) {
   // ExportClause :
@@ -1452,8 +1461,7 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
   //
   // ModuleExportName :
   //   StringLiteral
-  ZoneChunkList<ExportClauseData>* export_data =
-      zone()->New<ZoneChunkList<ExportClauseData>>(zone());
+  SmallZoneVector<ExportClauseData, 8> export_data(zone());
 
   Expect(Token::kLeftBrace);
 
@@ -1482,7 +1490,7 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
     } else {
       export_name = local_name;
     }
-    export_data->push_back({export_name, local_name, location});
+    export_data.push_back({export_name, local_name, location});
     if (peek() == Token::kRightBrace) break;
     if (V8_UNLIKELY(!Check(Token::kComma))) {
       ReportUnexpectedToken(Next());
@@ -1812,7 +1820,6 @@ Statement* Parser::ParseExportDefault() {
 
     default: {
       int pos = position();
-      AcceptINScope scope(this, true);
       Expression* value = ParseAssignmentExpression();
       SetFunctionName(value, ast_value_factory()->default_string());
 
@@ -1956,7 +1963,7 @@ Statement* Parser::ParseExportDeclaration() {
       Scanner::Location reserved_loc = Scanner::Location::invalid();
       Scanner::Location string_literal_local_name_loc =
           Scanner::Location::invalid();
-      ZoneChunkList<ExportClauseData>* export_data =
+      SmallZoneVector<ExportClauseData, 8> export_data =
           ParseExportClause(&reserved_loc, &string_literal_local_name_loc);
       if (CheckContextualKeyword(ast_value_factory()->from_string())) {
         Scanner::Location specifier_loc = scanner()->peek_location();
@@ -1965,11 +1972,11 @@ Statement* Parser::ParseExportDeclaration() {
             ParseImportWithOrAssertClause();
         ExpectSemicolon();
 
-        if (export_data->empty()) {
+        if (export_data.empty()) {
           module()->AddEmptyImport(module_specifier, import_attributes,
                                    specifier_loc, zone());
         } else {
-          for (const ExportClauseData& data : *export_data) {
+          for (const ExportClauseData& data : export_data) {
             module()->AddExport(data.local_name, data.export_name,
                                 module_specifier, import_attributes,
                                 data.location, specifier_loc, zone());
@@ -1988,7 +1995,7 @@ Statement* Parser::ParseExportDeclaration() {
 
         ExpectSemicolon();
 
-        for (const ExportClauseData& data : *export_data) {
+        for (const ExportClauseData& data : export_data) {
           module()->AddExport(data.local_name, data.export_name, data.location,
                               zone());
         }
@@ -2200,7 +2207,7 @@ Statement* Parser::RewriteSwitchStatement(SwitchStatement* switch_statement,
   // }
   DCHECK_NOT_NULL(scope);
   DCHECK(scope->is_block_scope());
-  DCHECK_GE(switch_statement->position(), scope->start_position());
+  DCHECK_LT(switch_statement->position(), scope->start_position());
   DCHECK_LT(switch_statement->position(), scope->end_position());
 
   Block* switch_block = factory()->NewBlock(2, false);
@@ -2833,13 +2840,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     function_name = ast_value_factory()->empty_string();
   }
 
-  // This is true if we get here through CreateDynamicFunction.
-  bool params_need_validation = parameters_end_pos_ != kNoSourcePosition;
   int compile_hint_position = peek_position();
 
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       function_state_->next_function_is_likely_called() || is_wrapped ||
-              params_need_validation ||
+              parsing_dynamic_function_declaration_ ||
               (info()->flags().compile_hints_magic_enabled() &&
                scanner()->SawMagicCommentCompileHintsAll()) ||
               (info()->flags().compile_hints_per_function_magic_enabled() &&
@@ -3042,8 +3047,7 @@ bool Parser::SkipFunction(int function_literal_id,
                           DeclarationScope* function_scope, int* num_parameters,
                           int* function_length,
                           ProducedPreparseData** produced_preparse_data) {
-  FunctionState function_state(&function_state_, &scope_, function_scope,
-                               &has_generator_in_scope_chain_);
+  FunctionState function_state(&function_state_, &scope_, function_scope);
   function_scope->set_zone(&preparser_zone_);
 
   DCHECK_NE(kNoSourcePosition, function_scope->start_position());
@@ -3096,8 +3100,6 @@ bool Parser::SkipFunction(int function_literal_id,
   // AST. This gathers the data needed to build a lazy function.
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
 
-  reusable_preparser()->set_has_generator_in_scope_chain(
-      has_generator_in_scope_chain());
   reusable_preparser()->set_max_drift(this->max_drift());
   PreParser::PreParseResult result = reusable_preparser()->PreParseFunction(
       function_literal_id, function_name, kind, function_syntax_kind,
@@ -3202,15 +3204,15 @@ void Parser::ParseFunction(
   ScopedModification<Mode> mode_scope(
       &mode_, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
 
-  FunctionState function_state(&function_state_, &scope_, function_scope,
-                               &has_generator_in_scope_chain_);
+  FunctionState function_state(&function_state_, &scope_, function_scope);
 
   bool is_wrapped = function_syntax_kind == FunctionSyntaxKind::kWrapped;
 
   int expected_parameters_end_pos = parameters_end_pos_;
-  if (expected_parameters_end_pos != kNoSourcePosition) {
+  if (parsing_dynamic_function_declaration_) {
     // This is the first function encountered in a CreateDynamicFunction eval.
     parameters_end_pos_ = kNoSourcePosition;
+    parsing_dynamic_function_declaration_ = false;
     // The function name should have been ignored, giving us the empty string
     // here.
     DCHECK_EQ(function_name, ast_value_factory()->empty_string());
@@ -3266,7 +3268,6 @@ void Parser::ParseFunction(
   *num_parameters = formals.num_parameters();
   *function_length = formals.function_length;
 
-  AcceptINScope scope(this, true);
   ParseFunctionBody(body, function_name, pos, formals, kind,
                     function_syntax_kind, FunctionBodyType::kBlock);
 

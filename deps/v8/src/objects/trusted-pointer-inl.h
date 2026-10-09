@@ -122,6 +122,16 @@ void TrustedPointerField::ClearTrustedPointerField(Tagged<HeapObject> host,
 // semantics as the under-the-hood indirect pointer loads/stores use
 // acquire/release loads/stores anyway.
 template <typename T, IndirectPointerTagRange kTagRange>
+TrustedPointerMember<T, kTagRange>::TrustedPointerMember(
+    const AllocationWitness& witness, Tagged<T> value)
+    : TrustedPointerMember(witness, value, witness.write_barrier_mode()) {}
+
+template <typename T, IndirectPointerTagRange kTagRange>
+TrustedPointerMember<T, kTagRange>::TrustedPointerMember(
+    const AllocationWitness& witness, Tagged<T> value, WriteBarrierMode mode) {
+  store(witness.object(), value, mode);
+}
+template <typename T, IndirectPointerTagRange kTagRange>
 Tagged<T> TrustedPointerMember<T, kTagRange>::load(
     IsolateForSandbox isolate) const {
   return Acquire_Load(isolate);

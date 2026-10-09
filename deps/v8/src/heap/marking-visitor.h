@@ -60,8 +60,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
         mark_compact_epoch_(mark_compact_epoch),
         code_flush_mode_(code_flush_mode),
         should_keep_ages_unchanged_(should_keep_ages_unchanged),
-        code_flushing_increase_(code_flushing_increase),
-        isolate_in_background_(heap->isolate()->is_backgrounded())
+        code_flushing_increase_(code_flushing_increase)
 #ifdef V8_COMPRESS_POINTERS
         ,
         external_pointer_table_(&heap->isolate()->external_pointer_table()),
@@ -233,7 +232,6 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
   const base::EnumSet<CodeFlushMode> code_flush_mode_;
   const bool should_keep_ages_unchanged_;
   const uint16_t code_flushing_increase_;
-  const bool isolate_in_background_;
 #ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable* const external_pointer_table_;
   ExternalPointerTable* const shared_external_pointer_table_;

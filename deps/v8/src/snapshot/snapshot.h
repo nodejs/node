@@ -52,6 +52,11 @@ class Snapshot : public AllStatic {
     // objects are serialized, and the shared heap object cache is populated as
     // shared heap objects are serialized.
     kReconstructReadOnlyAndSharedObjectCachesForTesting = 1 << 2,
+    // If set, allows serializing trusted objects whose maps are not in
+    // SERIALIZABLE_TRUSTED_OBJECT_MAP_ROOT_LIST. This is enabled for snapshot
+    // serialization, while code serialization disallows non-serializable
+    // trusted objects by default.
+    kAllowSerializingAllTrustedObjects = 1 << 3,
   };
   using SerializerFlags = base::Flags<SerializerFlag>;
   V8_EXPORT_PRIVATE static constexpr SerializerFlags kDefaultSerializerFlags =

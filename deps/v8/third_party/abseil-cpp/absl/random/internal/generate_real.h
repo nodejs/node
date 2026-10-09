@@ -23,6 +23,7 @@
 #include <limits>
 #include <type_traits>
 
+#include "absl/base/config.h"
 #include "absl/meta/type_traits.h"
 #include "absl/numeric/bits.h"
 #include "absl/random/internal/fastmath.h"

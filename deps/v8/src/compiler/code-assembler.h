@@ -649,6 +649,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<UintPtrT> UintPtrConstant(uintptr_t value) {
     return Unsigned(IntPtrConstant(base::bit_cast<intptr_t>(value)));
   }
+  TNode<UintPtrT> UniqueUintPtrConstant(uintptr_t value) {
+    return Unsigned(UniqueIntPtrConstant(base::bit_cast<intptr_t>(value)));
+  }
   TNode<TaggedIndex> TaggedIndexConstant(intptr_t value);
   TNode<RawPtrT> PointerConstant(void* value) {
     return ReinterpretCast<RawPtrT>(

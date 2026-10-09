@@ -11,7 +11,7 @@ function check(fn, expected) {
   let r1 = fn();
   %OptimizeMaglevOnNextCall(fn);
   let r2 = fn();
-  assertTrue(isMaglevved(fn));
+  assertMaglevved(fn);
   return Promise.all([r0, r1, r2]).then(([v0, v1, v2]) => {
     assertEquals(expected, v0);
     assertEquals(expected, v1);
@@ -48,7 +48,7 @@ function check(fn, expected) {
   let observed;
   await ret_smi_2().then(v => { observed = v; });
   assertEquals(99, observed);
-  assertTrue(isMaglevved(ret_smi_2));
+  assertMaglevved(ret_smi_2);
 
   // Non-primitive (Proxy) return: must NOT take the inlined path, because
   // JSResolvePromise's "then" check is required. The Proxy below has no
@@ -59,7 +59,7 @@ function check(fn, expected) {
   assertEquals(proxy, await ret_proxy(proxy));
   %OptimizeMaglevOnNextCall(ret_proxy);
   assertEquals(proxy, await ret_proxy(proxy));
-  assertTrue(isMaglevved(ret_proxy));
+  assertMaglevved(ret_proxy);
 
   // With an actual await, the async function object escapes through
   // AsyncFunctionAwait, so the inlining must not fire. Just check correctness.

@@ -108,7 +108,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // a0: Number of arguments.
     Generate_PushArguments(masm, t2, a0, t3, t0, ArgumentsElementType::kRaw);
     // The receiver for the builtin/api call.
-    __ PushRoot(RootIndex::kTheHoleValue);
+    __ PushRoot(RootIndex::kTdzHoleValue);
 
     // Call the function.
     // a0: number of arguments (untagged)
@@ -179,9 +179,9 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ CallBuiltin(Builtin::kFastNewObject);
   __ Branch(&post_instantiation_deopt_entry);
 
-  // Else: use TheHoleValue as receiver for constructor call
+  // Else: use TdzHoleValue as receiver for constructor call
   __ bind(&not_create_implicit_receiver);
-  __ LoadRoot(a0, RootIndex::kTheHoleValue);
+  __ LoadRoot(a0, RootIndex::kTdzHoleValue);
 
   // ----------- S t a t e -------------
   //  --                          a0: receiver
@@ -262,7 +262,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // on-stack receiver as the result.
   __ bind(&use_receiver);
   __ Ld_d(a0, MemOperand(sp, 0 * kSystemPointerSize));
-  __ JumpIfRoot(a0, RootIndex::kTheHoleValue, &do_throw);
+  __ JumpIfRoot(a0, RootIndex::kTdzHoleValue, &do_throw);
 
   __ bind(&leave_and_return);
   // Restore arguments count from the frame.
@@ -1065,16 +1065,15 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // Save incoming new target or generator
     __ Push(kJavaScriptCallNewTargetRegister);
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-    // No need to SmiTag as dispatch handles always look like Smis.
-    static_assert(kJSDispatchHandleShift > 0);
-    __ AssertSmi(kJavaScriptCallDispatchHandleRegister);
-    __ Push(kJavaScriptCallDispatchHandleRegister);
+    __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
+                          feedback_vector);
 #endif
     __ SmiTag(frame_size);
     __ Push(frame_size);
     __ CallRuntime(Runtime::kStackGuardWithGap);
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-    __ Pop(kJavaScriptCallDispatchHandleRegister);
+    __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
+                         feedback_vector);
 #endif
     __ Pop(kJavaScriptCallNewTargetRegister);
   }
@@ -1614,7 +1613,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ EnterFrame(StackFrame::FAST_CONSTRUCT);
 
   // Implicit receiver stored in the construct frame.
-  __ LoadRoot(a2, RootIndex::kTheHoleValue);
+  __ LoadRoot(a2, RootIndex::kTdzHoleValue);
   __ Push(cp, a2);
 
   // Push arguments + implicit receiver.
@@ -1671,7 +1670,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ bind(&use_receiver);
   __ Ld_d(a0,
           MemOperand(fp, FastConstructFrameConstants::kImplicitReceiverOffset));
-  __ JumpIfRoot(a0, RootIndex::kTheHoleValue, &do_throw);
+  __ JumpIfRoot(a0, RootIndex::kTdzHoleValue, &do_throw);
 
   __ bind(&leave_and_return);
   // Leave construct frame.
@@ -3066,17 +3065,25 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
 }
 
 namespace {
-enum class DebugBreakKind { kBreak, kTrap };
+enum class DebugBreakKind {
+  kBreak,  // Breakpoint or stepping (WasmDebugBreak).
+  kTrap,   // Trap in debug code or trap handler (WasmTrapHandlerThrowTrap).
+};
 
 void Generate_WasmDebugBreakOrTrap(MacroAssembler* masm, DebugBreakKind kind) {
   HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
   {
     FrameScope scope(masm, StackFrame::WASM_DEBUG_BREAK);
 
+    // Save all parameter registers. They might hold live values, we restore
+    // them after the runtime call (for kBreak), or allow DevTools to inspect
+    // them at trap sites (for kTrap).
+    // Note: For non-debug execution, saving registers and creating a
+    // WASM_DEBUG_BREAK frame for trap handler traps might be redundant, but
+    // traps are cold exceptional paths so this negligible overhead is fine to
+    // keep the landing pad and trap handling unified.
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
-    // Save all parameter registers. They might hold live values, we restore
-    // them after the runtime call.
     __ MultiPush(WasmDebugBreakFrameConstants::kPushedGpRegs);
     {
       // Check if machine has simd enabled, if so push vector registers. If not
@@ -3161,7 +3168,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
   Generate_WasmDebugBreakOrTrap(masm, DebugBreakKind::kBreak);
 }
 
-void Builtins::Generate_WasmDebugTrap(MacroAssembler* masm) {
+void Builtins::Generate_WasmTrapHandlerThrowTrap(MacroAssembler* masm) {
   Generate_WasmDebugBreakOrTrap(masm, DebugBreakKind::kTrap);
 }
 
@@ -3470,6 +3477,12 @@ void Builtins::Generate_WasmTrapHandlerLandingPad(MacroAssembler* masm) {
   // position of the faulty memory access, however, is recorded at the fault
   // address. Therefore the stack trace code would not find the source position
   // if we used the fault address as the return address.
+  // Push MessageTemplate::kNone as trap reason for WasmTrapHandlerThrowTrap;
+  // the runtime will determine the actual trap reason from the trapping
+  // instruction.
+  static_assert(Smi::FromInt(static_cast<int>(MessageTemplate::kNone)).ptr() ==
+                0);
+  __ Push(zero_reg);
   __ Add_d(ra, kWasmTrapHandlerFaultAddressRegister, 1);
   __ TailCallBuiltin(Builtin::kWasmTrapHandlerThrowTrap);
 }
@@ -3496,10 +3509,8 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
       parent,
       FieldMemOperand(suspender, offsetof(WasmSuspenderObject, parent_)));
   DEFINE_REG(target_stack);
-  __ LoadExternalPointerField(
-      target_stack,
-      FieldMemOperand(parent, offsetof(WasmSuspenderObject, stack_)),
-      kWasmStackMemoryTag);
+  __ Ld_d(target_stack,
+          FieldMemOperand(parent, offsetof(WasmSuspenderObject, stack_)));
 
   SwitchStacks(masm, ExternalReference::wasm_suspend_stack(), target_stack,
                &resume, no_reg, {target_stack, suspender, parent});
@@ -3572,10 +3583,8 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // Call the C function.
   // -------------------------------------------
   DEFINE_REG(target_stack);
-  __ LoadExternalPointerField(
-      target_stack,
-      FieldMemOperand(suspender, offsetof(WasmSuspenderObject, stack_)),
-      kWasmStackMemoryTag);
+  __ Ld_d(target_stack,
+          FieldMemOperand(suspender, offsetof(WasmSuspenderObject, stack_)));
   SwitchStacks(masm, ExternalReference::wasm_resume_jspi_stack(), target_stack,
                &suspend, suspender, {target_stack});
   regs.ResetExcept(target_stack);
@@ -3870,9 +3879,7 @@ void SwitchToAllocatedStack(MacroAssembler* masm, RegisterAllocator& regs,
   DEFINE_SCOPED(scratch)
   DEFINE_REG(stack)
   __ LoadRootRelative(stack, IsolateData::active_suspender_offset());
-  __ LoadExternalPointerField(
-      stack, FieldMemOperand(stack, offsetof(WasmSuspenderObject, stack_)),
-      kWasmStackMemoryTag);
+  __ Ld_d(stack, FieldMemOperand(stack, offsetof(WasmSuspenderObject, stack_)));
   SwitchStacks(masm, ExternalReference::wasm_start_stack(), stack, suspend,
                no_reg, {wasm_instance, wrapper_buffer});
 
@@ -4462,9 +4469,12 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
   using ER = ExternalReference;
   Register frame_base = WasmHandleStackOverflowDescriptor::FrameBaseRegister();
   Register gap = WasmHandleStackOverflowDescriptor::GapRegister();
+  Register parameter_slots_size =
+      WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister();
   {
     DCHECK_NE(kCArgRegs[1], frame_base);
     DCHECK_NE(kCArgRegs[3], frame_base);
+    __ mov(kCArgRegs[5], parameter_slots_size);
     __ mov(kCArgRegs[3], gap);
     __ mov(kCArgRegs[1], sp);
     __ sub_d(kCArgRegs[2], frame_base, kCArgRegs[1]);
@@ -4472,8 +4482,8 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(kCArgRegs[3]);
     __ li(kCArgRegs[0], ER::isolate_address());
-    __ PrepareCallCFunction(5, kScratchReg);
-    __ CallCFunction(ER::wasm_grow_stack(), 5);
+    __ PrepareCallCFunction(6, kScratchReg);
+    __ CallCFunction(ER::wasm_grow_stack(), 6);
     __ Pop(gap);
     DCHECK_NE(kReturnRegister0, gap);
   }
@@ -4489,12 +4499,6 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     __ mov(fp, new_fp);
   }
   __ mov(sp, kReturnRegister0);
-  {
-    UseScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ li(scratch, StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START));
-    __ St_d(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
-  }
   __ Ret();
 
   __ bind(&call_runtime);
@@ -4514,6 +4518,10 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     __ LeaveFrame(StackFrame::INTERNAL);
     __ Ret();
   }
+}
+
+void Builtins::Generate_WasmReturnFromSegment(MacroAssembler* masm) {
+  __ Trap();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

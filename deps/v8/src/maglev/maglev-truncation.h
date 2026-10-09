@@ -244,11 +244,7 @@ class PropagateTruncationProcessor {
   static int64_t GetMaxExactInputValue(Opcode user_opcode, ValueNode* node) {
     node = UnwrapForTruncation(node);
     if (auto constant = node->TryCast<Float64Constant>()) {
-      double value = std::abs(constant->value().get_scalar());
-      if (!(value <= static_cast<double>(kMaxExactlyRepresentableValue))) {
-        return kMaxSaturatedValue;
-      }
-      return static_cast<int64_t>(std::ceil(value));
+      return GetMaxExactValueOfRange(constant->GetStaticRange());
     }
     // A multiply this pass truncates keeps only the low 32 bits of a product
     // that its own safe integer check bounds by 2^53, so charge the product.
@@ -471,9 +467,12 @@ class TruncationProcessor {
     return ProcessResult::kContinue;
   }
 
+  bool CanEagerDeopt() const {
+    return current_node()->properties().has_eager_deopt_info();
+  }
+
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
-    DCHECK(current_node()->properties().can_eager_deopt() ||
-           current_node()->properties().is_deopt_checkpoint());
+    DCHECK(CanEagerDeopt());
     return &current_node()->eager_deopt_info()->top_frame();
   }
 
@@ -523,12 +522,12 @@ class TruncationProcessor {
   }
 
   void ProcessFloat64SpeculateSafeAdd(Float64SpeculateSafeAdd* node) {
-    if (!node->can_truncate_to_int32() || IsUnsafeIntConstant(node, 0) ||
-        IsUnsafeIntConstant(node, 1)) {
+    if (!node->can_truncate_to_int32()) {
       // Don't truncate this node.
       node->OverwriteWith<Float64Add>();
       return;
     }
+    DCHECK(!IsUnsafeIntConstant(node, 0) && !IsUnsafeIntConstant(node, 1));
     if (node->range().IsSafeInt()) {
       // Non-speculating truncation.
       ProcessFloat64BinaryOp<Int32Add>(node);

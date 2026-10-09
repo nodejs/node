@@ -782,7 +782,7 @@ void Mutex::EnableDebugLog(const char* name) {
   // Since it's not possible to take address of a destructor, we move the
   // actual destructor code into the separate Dtor function and force the
   // compiler to emit this function even if it's inline by taking its address.
-  ABSL_ATTRIBUTE_UNUSED volatile auto dtor = &Mutex::Dtor;
+  [[maybe_unused]] volatile auto dtor = &Mutex::Dtor;
   ABSL_ANNOTATE_IGNORE_WRITES_END();
 }
 
@@ -2788,7 +2788,9 @@ void ReleasableMutexLock::Release() {
 }
 
 #ifdef ABSL_HAVE_THREAD_SANITIZER
+#pragma GCC visibility push(default)
 extern "C" void __tsan_read1(void* addr);
+#pragma GCC visibility pop
 #else
 #define __tsan_read1(addr)  // do nothing if TSan not enabled
 #endif

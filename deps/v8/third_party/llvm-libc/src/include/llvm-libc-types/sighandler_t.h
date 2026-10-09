@@ -9,9 +9,6 @@
 #ifndef LLVM_LIBC_TYPES_SIGHANDLER_T_H
 #define LLVM_LIBC_TYPES_SIGHANDLER_T_H
 
-#ifdef __linux__
-// For compatibility with glibc.
 typedef void (*sighandler_t)(int);
-#endif
 
 #endif // LLVM_LIBC_TYPES_SIGHANDLER_T_H

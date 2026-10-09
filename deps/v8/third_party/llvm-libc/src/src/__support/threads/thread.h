@@ -1,9 +1,14 @@
-//===--- A platform independent indirection for a thread class --*- C++ -*-===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Platform-independent indirection for a thread class.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LIBC_SRC___SUPPORT_THREADS_THREAD_H
@@ -19,6 +24,7 @@
 #include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/properties/architectures.h"
+#include "src/__support/threads/tcb.h"
 #include "src/__support/threads/thread_attributes.h"
 
 // TODO: fix this unguarded linux dep
@@ -136,7 +142,9 @@ struct Thread {
   void wait();
 
   // Return true if this thread is equal to the other thread.
-  bool operator==(const Thread &other) const;
+  constexpr bool operator==(const Thread &other) const {
+    return attrib == other.attrib;
+  }
 
   // Set the name of the thread. Return the error number on error.
   int set_name(const cpp::string_view &name);
@@ -151,6 +159,9 @@ struct Thread {
   // Get the scheduling policy and parameters of the thread.
   // Return SchedParameters on success, or an error number on failure.
   ErrorOr<SchedParameters> getschedparam() const;
+
+  // Send a signal to the thread.
+  ErrorOr<void> kill(int sig);
 };
 
 // Platforms should implement this function.
@@ -160,21 +171,15 @@ namespace internal {
 // Internal namespace containing utilities which are to be used by platform
 // implementations of threads.
 
-// Return the current thread's atexit callback manager. After thread startup
-// but before running the thread function, platform implementations should
-// set the "atexit_callback_mgr" field of the thread's attributes to the value
-// returned by this function.
-ThreadAtExitCallbackMgr *get_thread_atexit_callback_mgr();
-
 // Call the currently registered thread specific atexit callbacks. Useful for
 // implementing the thread_exit function.
-void call_atexit_callbacks(ThreadAttributes *attrib);
-
-LIBC_INLINE_VAR LIBC_THREAD_LOCAL Thread self;
+void call_atexit_callbacks();
 
 } // namespace internal
 
-LIBC_INLINE Thread current_thread() { return internal::self; }
+LIBC_INLINE Thread current_thread() {
+  return Thread(get_current_thread_attrib());
+}
 
 } // namespace LIBC_NAMESPACE_DECL
 

@@ -31,6 +31,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/unique-array.h"
 #include "src/builtins/builtins.h"
 #include "src/common/assert-scope.h"
 #include "src/compiler/wasm-compiler.h"
@@ -1253,7 +1254,7 @@ WASM_EXPORT auto Module::make(Store* store_abs, const vec<byte_t>& binary)
   v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope scope(isolate);
   CheckAndHandleInterrupts(isolate);
-  v8::base::OwnedVector<const uint8_t> bytes = v8::base::OwnedCopyOf(
+  v8::base::UniqueArray<const uint8_t> bytes = v8::base::UniqueCopyOf(
       reinterpret_cast<const uint8_t*>(binary.get()), binary.size());
   i::wasm::WasmEnabledFeatures features =
       i::wasm::WasmEnabledFeatures::FromIsolate(isolate);
@@ -1364,8 +1365,8 @@ WASM_EXPORT auto Module::deserialize(Store* store_abs,
   size_t binary_size = static_cast<size_t>(ReadLebU64(&ptr));
   ptrdiff_t size_size = ptr - serialized.get();
   size_t serial_size = serialized.size() - size_size - binary_size;
-  v8::base::OwnedVector<const uint8_t> wire_bytes =
-      v8::base::OwnedCopyOf(reinterpret_cast<const uint8_t*>(ptr), binary_size);
+  v8::base::UniqueArray<const uint8_t> wire_bytes = v8::base::UniqueCopyOf(
+      reinterpret_cast<const uint8_t*>(ptr), binary_size);
   i::DirectHandle<i::WasmModuleObject> module_obj;
   if (serial_size > 0) {
     // The C-API does not allow passing compile imports.

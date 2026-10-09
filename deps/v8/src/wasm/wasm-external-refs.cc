@@ -16,6 +16,7 @@
 #include "src/base/ieee754.h"
 #include "src/base/numerics/safe_conversions.h"
 #include "src/base/sanitizer/tsan.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
@@ -870,20 +871,16 @@ int32_t memory_fill_wrapper(Address trusted_data_addr, uint32_t mem_index,
 }
 
 namespace {
-inline void* ArrayElementAddress(Address array, uint32_t index,
-                                 int element_size_bytes) {
-  return reinterpret_cast<void*>(array + WasmArray::kHeaderSize -
-                                 kHeapObjectTag + index * element_size_bytes);
-}
 inline void* ArrayElementAddress(Tagged<WasmArray> array, uint32_t index,
                                  int element_size_bytes) {
-  return ArrayElementAddress(array.ptr(), index, element_size_bytes);
+  return reinterpret_cast<void*>(array.ptr() + array->header_size() -
+                                 kHeapObjectTag + index * element_size_bytes);
 }
 }  // namespace
 
-void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
-                        Address raw_src_array, uint32_t src_index,
-                        uint32_t length) {
+DISABLE_TSAN void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
+                                     Address raw_src_array, uint32_t src_index,
+                                     uint32_t length) {
   DCHECK_GT(length, 0);
   DisallowGarbageCollection no_gc;
   Tagged<WasmArray> dst_array = Cast<WasmArray>(Tagged<Object>(raw_dst_array));
@@ -919,13 +916,16 @@ void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
   }
 }
 
-void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
-                        uint32_t emit_write_barrier, uint32_t raw_type,
-                        Address initial_value_addr) {
+DISABLE_TSAN void array_fill_wrapper(Address raw_array, uint32_t index,
+                                     uint32_t length,
+                                     uint32_t emit_write_barrier,
+                                     uint32_t raw_type,
+                                     Address initial_value_addr) {
   DisallowGarbageCollection no_gc;
+  Tagged<WasmArray> array = Cast<WasmArray>(Tagged<Object>(raw_array));
   ValueType type = ValueType::FromRawBitField(raw_type);
   int8_t* initial_element_address = reinterpret_cast<int8_t*>(
-      ArrayElementAddress(raw_array, index, type.value_kind_size()));
+      ArrayElementAddress(array, index, type.value_kind_size()));
   const int bytes_to_set = length * type.value_kind_size();
 
   // We implement the general case by setting the first 8 bytes manually, then
@@ -1025,7 +1025,6 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
 
   if (emit_write_barrier) {
     DCHECK(type.is_ref());
-    Tagged<WasmArray> array = Cast<WasmArray>(Tagged<Object>(raw_array));
     Isolate* isolate = Isolate::Current();
     ObjectSlot start(reinterpret_cast<Address>(initial_element_address));
     ObjectSlot end(
@@ -1092,6 +1091,7 @@ void start_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (start)\n", from->id(), to->id());
   }
+  isolate->isolate_data()->active_suspender()->set_stack(nullptr);
   ResumeStack(isolate, from, to, sp, fp, pc);
 }
 
@@ -1121,7 +1121,9 @@ void suspend_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                    Address fp, Address pc) {
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   auto suspender = isolate->isolate_data()->active_suspender();
-  suspender->set_stack(isolate, from);
+  DCHECK_NULL(suspender->stack());
+  suspender->set_stack(from);
+  suspender->parent()->set_stack(nullptr);
   suspender->clear_parent();
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (suspend)\n", from->id(), to->id());
@@ -1135,8 +1137,11 @@ void resume_jspi_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
   auto suspender = TrustedCast<WasmSuspenderObject>(suspender_obj);
   Tagged<WasmSuspenderObject> active_suspender =
       isolate->isolate_data()->active_suspender();
-  suspender->set_parent(active_suspender);
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
+  DCHECK_NULL(active_suspender->stack());
+  active_suspender->set_stack(from);
+  suspender->set_parent(active_suspender);
+  suspender->set_stack(nullptr);
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (resume)\n", from->id(), to->id());
   }
@@ -1184,9 +1189,7 @@ wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
       break;
     }
 
-    // The caller frame is the WASM frame that contains the handler table, or
-    // a WASM_SEGMENT_START frame if this happens to be the first frame of a new
-    // growable stack segment.
+    // The caller frame is the WASM frame that contains the handler table.
     target_pc = StackFrame::ReadPC(reinterpret_cast<Address*>(
         target_fp + CommonFrameConstants::kCallerPCOffset));
     target_sp = target_fp + CommonFrameConstants::kCallerSPOffset;
@@ -1194,7 +1197,7 @@ wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
                                       CommonFrameConstants::kCallerFPOffset);
     type = StackFrame::MarkerToType(base::Memory<intptr_t>(
         target_fp + CommonFrameConstants::kContextOrFrameTypeOffset));
-    CHECK(type == StackFrame::WASM || type == StackFrame::WASM_SEGMENT_START);
+    CHECK_EQ(type, StackFrame::WASM);
 
     // Get the handler table and search for a matching tag.
     WasmCode* wasm_code = to->wasm_code();
@@ -1338,8 +1341,8 @@ void return_stack(Isolate* isolate, wasm::StackMemory* to) {
 void return_jspi_stack(Isolate* isolate, wasm::StackMemory* to) {
   Tagged<WasmSuspenderObject> suspender =
       isolate->isolate_data()->active_suspender();
-  // Clear the external stack pointer to avoid a UAF.
-  suspender->set_stack(isolate, nullptr);
+  DCHECK_NULL(suspender->stack());
+  suspender->parent()->set_stack(nullptr);
   return_stack(isolate, to);
 }
 
@@ -1439,9 +1442,10 @@ void switch_from_the_central_stack_for_js(Isolate* isolate) {
 #endif
 }
 
-// frame_size includes param slots area and extra frame slots above FP.
+// frame_size includes param slots area, return values and frame size.
 Address grow_stack(Isolate* isolate, void* current_sp, size_t frame_size,
-                   size_t gap, Address current_fp) {
+                   size_t gap, Address current_fp,
+                   size_t parameter_slots_size) {
   if (isolate->IsOnCentralStack()) {
     // Should not grow the central stack.
     return 0;
@@ -1454,28 +1458,49 @@ Address grow_stack(Isolate* isolate, void* current_sp, size_t frame_size,
     // Grow by at least the new frame size plus the stack limit margin.
     size_t min =
         gap + frame_size + StackMemory::JSGrowableStackLimitMarginKB() * KB;
-    if (!active_stack->Grow(current_fp, min)) {
+    Address relocated_fp = current_fp + parameter_slots_size;
+    if (!active_stack->Grow(relocated_fp, min)) {
       return 0;
     }
 
     Address new_sp = active_stack->base() - frame_size;
+    size_t sp_to_fp = current_fp - reinterpret_cast<Address>(current_sp);
+    size_t copy_size = sp_to_fp + CommonFrameConstants::kFixedFrameSizeAboveFp +
+                       parameter_slots_size;
     // Here we assume stack values don't refer other moved stack slots.
     // A stack grow event happens right in the beginning of the function
     // call so moved slots contain only incoming params and frame header.
     // So, it is reasonable to assume no self references.
-    std::memcpy(reinterpret_cast<void*>(new_sp), current_sp, frame_size);
+    std::memcpy(reinterpret_cast<void*>(new_sp), current_sp, copy_size);
 
-#if V8_TARGET_ARCH_ARM64
-    Address new_fp =
-        new_sp + (current_fp - reinterpret_cast<Address>(current_sp));
-    Address old_pc_address = current_fp + CommonFrameConstants::kCallerPCOffset;
+    Address new_fp = new_sp + sp_to_fp;
     Address new_pc_address = new_fp + CommonFrameConstants::kCallerPCOffset;
-    Address old_signed_pc = base::Memory<Address>(old_pc_address);
-    Address new_signed_pc = PointerAuthentication::MoveSignedPC(
-        isolate, old_signed_pc, new_pc_address + kSystemPointerSize,
-        old_pc_address + kSystemPointerSize);
-    WriteUnalignedValue<Address>(new_pc_address, new_signed_pc);
-#endif
+    Address trampoline_entry =
+        Builtins::EntryOf(Builtin::kWasmReturnFromSegment, isolate);
+    Address signed_trampoline = PointerAuthentication::SignAndCheckPC(
+        isolate, trampoline_entry, new_pc_address + kSystemPointerSize);
+    WriteUnalignedValue<Address>(new_pc_address, signed_trampoline);
+
+    // Relocate the partial frame linkage on the parent stack to just below the
+    // return slots. This facilitates the return from the stack shrinking
+    // trampoline: it can assume that the only thing it has to manage is the
+    // region allocated for return slots. The original parameters were copied to
+    // the new stack segment during this stack growth.
+    if (parameter_slots_size > 0) {
+      Address old_pc_address =
+          current_fp + CommonFrameConstants::kCallerPCOffset;
+      Address new_parent_pc_address =
+          relocated_fp + CommonFrameConstants::kCallerPCOffset;
+      Address caller_pc = *reinterpret_cast<Address*>(old_pc_address);
+      Address caller_fp = *reinterpret_cast<Address*>(
+          current_fp + CommonFrameConstants::kCallerFPOffset);
+      Address signed_caller_pc = PointerAuthentication::MoveSignedPC(
+          isolate, caller_pc, new_parent_pc_address + kSystemPointerSize,
+          old_pc_address + kSystemPointerSize);
+      WriteUnalignedValue<Address>(new_parent_pc_address, signed_caller_pc);
+      WriteUnalignedValue<Address>(
+          relocated_fp + CommonFrameConstants::kCallerFPOffset, caller_fp);
+    }
 
     isolate->stack_guard()->SetStackLimitForStackSwitching(
         reinterpret_cast<uintptr_t>(active_stack->jslimit()));
@@ -1484,29 +1509,31 @@ Address grow_stack(Isolate* isolate, void* current_sp, size_t frame_size,
 
   return 0;
 }
-
-Address shrink_stack(Isolate* isolate) {
-  // If there is no parent, then the current stack is the main isolate stack.
+// Drop top-most segment in the stack.
+Address shrink_stack(Isolate* isolate, void* current_sp) {
+  CHECK(!isolate->IsOnCentralStack());
   wasm::StackMemory* active_stack = isolate->isolate_data()->active_stack();
-  if (active_stack->jmpbuf()->parent == nullptr) {
-    return 0;
-  }
+  CHECK_NE(active_stack->parent_frame_fp(), 0);
   DCHECK(active_stack->IsActive());
-  Address old_fp = active_stack->Shrink();
+  Address current_sp_addr = reinterpret_cast<Address>(current_sp);
+  Address active_segment_base = active_stack->base();
+  DCHECK_GE(active_segment_base, current_sp_addr);
+  size_t slots_size = active_segment_base - current_sp_addr;
+
+  // The parent_frame is the partially constructed frame in the parent segment
+  // that originated the stack growth, relocated to just below the return slots.
+  Address parent_frame_fp = active_stack->Shrink();
+
+  // Return slots on the parent stack are at a fixed offset above
+  // parent_frame_fp.
+  Address dest = parent_frame_fp + CommonFrameConstants::kFixedFrameSizeAboveFp;
+  if (slots_size > 0) {
+    std::memcpy(reinterpret_cast<void*>(dest), current_sp, slots_size);
+  }
 
   isolate->stack_guard()->SetStackLimitForStackSwitching(
       reinterpret_cast<uintptr_t>(active_stack->jslimit()));
-  return old_fp;
-}
-
-Address load_old_fp(Isolate* isolate) {
-  // If there is no parent, then the current stack is the main isolate stack.
-  wasm::StackMemory* active_stack = isolate->isolate_data()->active_stack();
-  if (active_stack->jmpbuf()->parent == nullptr) {
-    return 0;
-  }
-  DCHECK_EQ(active_stack->jmpbuf()->state, wasm::JumpBuffer::Active);
-  return active_stack->old_fp();
+  return parent_frame_fp;
 }
 
 }  // namespace v8::internal::wasm

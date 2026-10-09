@@ -143,7 +143,7 @@ inline size_t WasmInterpreterRuntime::GetMemorySize(
 }
 
 inline size_t WasmInterpreterRuntime::GetMemorySize() const {
-  return wasm_trusted_instance_data()->memory0_size();
+  return wasm_trusted_instance_data()->memory_size(0);
 }
 
 inline void WasmInterpreterRuntime::DataDrop(uint32_t index) {

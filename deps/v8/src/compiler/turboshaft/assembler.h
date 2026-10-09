@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_ASSEMBLER_H_
 #define V8_COMPILER_TURBOSHAFT_ASSEMBLER_H_
 
+#include <array>
 #include <cstring>
 #include <iomanip>
 #include <iterator>
@@ -3177,12 +3178,6 @@ class AssemblerOpInterface : public Next {
     return LoadFieldImpl<T>(object, field);
   }
 
-  template <typename Obj, typename Field>
-  V<typename Field::field_type> LoadField(V<Obj> object, const Field& field) {
-    LoadOp::Kind kind = LoadOp::Kind::Aligned(BaseTaggedness::kTaggedBase);
-    return Load(object, kind, field.rep, static_cast<int32_t>(field.offset));
-  }
-
   template <typename Rep>
   V<Rep> LoadFieldImpl(OpIndex object, const compiler::FieldAccess& access) {
     MachineType machine_type = access.machine_type;
@@ -3207,6 +3202,7 @@ class AssemblerOpInterface : public Next {
     if (access.is_immutable) {
       kind = kind.Immutable();
     }
+    if (access.shared_base) kind = kind.SharedBase();
     V<Rep> value = Load(object, kind, rep, access.offset);
 #ifdef V8_ENABLE_SANDBOX
     if (is_sandboxed_external) {
@@ -3225,8 +3221,10 @@ class AssemblerOpInterface : public Next {
 
   // Helpers to read the most common fields.
   // TODO(nicohartmann@): Strengthen this to `V<HeapObject>`.
-  V<Map> LoadMapField(V<Object> object) {
-    return LoadField<Map>(object, AccessBuilder::ForMap());
+  V<Map> LoadMapField(V<Object> object,
+                      SharedFlag shared_base = SharedFlag{false}) {
+    return LoadField<Map>(object,
+                          AccessBuilder::ForMap(kMapWriteBarrier, shared_base));
   }
 
   V<Word32> LoadInstanceTypeField(V<Map> map) {
@@ -3239,8 +3237,9 @@ class AssemblerOpInterface : public Next {
     return DecodeWord32<Map::Bits2::ElementsKindBits>(bit_field2);
   }
 
-  V<Word32> HasInstanceType(V<Object> object, InstanceType instance_type) {
-    return Word32Equal(LoadInstanceTypeField(LoadMapField(object)),
+  V<Word32> HasInstanceType(V<Object> object, InstanceType instance_type,
+                            SharedFlag shared_base) {
+    return Word32Equal(LoadInstanceTypeField(LoadMapField(object, shared_base)),
                        instance_type);
   }
 
@@ -3473,17 +3472,8 @@ class AssemblerOpInterface : public Next {
 #endif
 
 #if V8_ENABLE_WEBASSEMBLY
-  // {trusted_instance_data} must be provided when at least one of
-  // {memory_start} or {memory_size} are provided.
-  // Returns V<None> when no input values are provided.
-  // Returns a V<WordPtr> when *either* {memory_start} or {memory_size} is
-  // provided; the return value is the potentially-updated value.
-  // Returns a V<Tuple<WordPtr, WordPtr>> when *both* {memory_start} and
-  // {memory_size} are provided.
-  V<None> WasmStackCheck(
-      WasmStackCheckOp::Kind kind,
-      OptionalV<WasmTrustedInstanceData> trusted_instance_data = {}) {
-    return ReduceIfReachableWasmStackCheck(trusted_instance_data, kind);
+  void WasmStackCheck(WasmStackCheckOp::Kind kind) {
+    ReduceIfReachableWasmStackCheck(kind);
   }
 
   void MemoryCopy(V<WordPtr> dst_base, V<WordPtr> src_base,
@@ -3645,9 +3635,8 @@ class AssemblerOpInterface : public Next {
     return Parameter(index, V<T>::rep, debug_name);
   }
   V<Object> OsrValue(int index) { return ReduceIfReachableOsrValue(index); }
-  void Return(V<Word32> pop_count, base::Vector<const OpIndex> return_values,
-              bool spill_caller_frame_slots = false) {
-    ReduceIfReachableReturn(pop_count, return_values, spill_caller_frame_slots);
+  void Return(V<Word32> pop_count, base::Vector<const OpIndex> return_values) {
+    ReduceIfReachableReturn(pop_count, return_values);
   }
   void Return(OpIndex result) {
     Return(Word32Constant(0), base::VectorOf({result}));
@@ -4161,7 +4150,8 @@ class AssemblerOpInterface : public Next {
   // where appropriate.
   OpIndex WasmCallRuntime(Zone* zone, Runtime::FunctionId f,
                           std::initializer_list<const OpIndex> args,
-                          V<Context> context) {
+                          V<Context> context,
+                          CanThrow can_throw = CanThrow{true}) {
     const Runtime::Function* fun = Runtime::FunctionForId(f);
     OpIndex isolate_root = __ LoadRootRegister();
     DCHECK_EQ(1, fun->result_size);
@@ -4182,8 +4172,8 @@ class AssemblerOpInterface : public Next {
             __ graph_zone(), f, fun->nargs, Operator::kNoProperties,
             CallDescriptor::kNoFlags);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow{true},
-        compiler::LazyDeoptOnThrow{false}, __ graph_zone());
+        call_descriptor, can_throw, compiler::LazyDeoptOnThrow{false},
+        __ graph_zone());
     return __ Call(centry_stub, OpIndex::Invalid(), base::VectorOf(centry_args),
                    ts_call_descriptor);
   }
@@ -5306,36 +5296,40 @@ class AssemblerOpInterface : public Next {
   V<Any> ArrayAtomicRMW(V<WasmArrayNullable> array, V<Word32> index,
                         V<Any> value, OptionalV<Any> expected,
                         ArrayAtomicRMWOp::BinOp bin_op,
-                        wasm::ValueType element_type,
+                        wasm::ValueType element_type, SharedFlag is_shared,
                         AtomicMemoryOrder memory_order) {
     return ReduceIfReachableArrayAtomicRMW(array, index, value, expected,
-                                           bin_op, element_type, memory_order);
+                                           bin_op, element_type, is_shared,
+                                           memory_order);
   }
 
   V<Any> ArrayGet(V<WasmArrayNullable> array, V<Word32> index,
                   const wasm::ArrayType* array_type, bool is_signed,
-                  std::optional<AtomicMemoryOrder> memory_order) {
+                  std::optional<AtomicMemoryOrder> memory_order,
+                  SharedFlag shared_base) {
     return ReduceIfReachableArrayGet(array, index, array_type, is_signed,
-                                     memory_order);
+                                     memory_order, shared_base);
   }
 
   void ArraySet(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
-                wasm::ValueType element_type,
+                wasm::ValueType element_type, SharedFlag is_shared,
                 std::optional<AtomicMemoryOrder> memory_order,
                 WriteBarrierKind write_barrier, ArraySetOp::Kind kind) {
-    ReduceIfReachableArraySet(array, index, value, element_type, memory_order,
-                              write_barrier, kind);
+    ReduceIfReachableArraySet(array, index, value, element_type, is_shared,
+                              memory_order, write_barrier, kind);
   }
 
-  V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check) {
+  V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check,
+                        SharedFlag shared_base) {
     return ReduceIfReachableArrayLength(array, OptionalV<EagerFrameState>{},
-                                        null_check);
+                                        null_check, shared_base);
   }
 
   V<Word32> ArrayLength(V<WasmArrayNullable> array,
                         OptionalV<EagerFrameState> frame_state,
-                        CheckForNull null_check) {
-    return ReduceIfReachableArrayLength(array, frame_state, null_check);
+                        CheckForNull null_check, SharedFlag shared_base) {
+    return ReduceIfReachableArrayLength(array, frame_state, null_check,
+                                        shared_base);
   }
 
   // Shared between the Wasm pipeline and the Wasm-in-JS body inlining.
@@ -5348,10 +5342,11 @@ class AssemblerOpInterface : public Next {
                          TrapId::kTrapNullDereference);
       }
     } else {
-      V<Word32> length = __ ArrayLength(array, frame_state,
-                                        array_type.is_nullable()
-                                            ? compiler::kWithNullCheck
-                                            : compiler::kWithoutNullCheck);
+      V<Word32> length =
+          __ ArrayLength(array, frame_state,
+                         array_type.is_nullable() ? compiler::kWithNullCheck
+                                                  : compiler::kWithoutNullCheck,
+                         array_type.is_shared());
       __ TrapIfNot(__ Uint32LessThan(index, length), frame_state,
                    TrapId::kTrapArrayOutOfBounds);
     }
@@ -5387,10 +5382,8 @@ class AssemblerOpInterface : public Next {
   }
 
   V<WasmArray> WasmAllocateArray(V<Map> rtt, ConstOrV<Word32> length,
-                                 const wasm::ArrayType* array_type,
-                                 SharedFlag is_shared) {
-    return ReduceIfReachableWasmAllocateArray(rtt, resolve(length), array_type,
-                                              is_shared);
+                                 const wasm::ArrayType* array_type) {
+    return ReduceIfReachableWasmAllocateArray(rtt, resolve(length), array_type);
   }
 
   V<WasmStruct> WasmAllocateStruct(V<Map> rtt,
@@ -5422,6 +5415,9 @@ class AssemblerOpInterface : public Next {
 
 #ifdef V8_ENABLE_SIMD128
   V<Simd128> Simd128Constant(const uint8_t value[kSimd128Size]) {
+    return ReduceIfReachableSimd128Constant(value);
+  }
+  V<Simd128> Simd128Constant(const std::array<uint8_t, kSimd128Size>& value) {
     return ReduceIfReachableSimd128Constant(value);
   }
 
@@ -5499,6 +5495,11 @@ class AssemblerOpInterface : public Next {
                             const uint8_t shuffle[kSimd128Size]) {
     return ReduceIfReachableSimd128Shuffle(left, right, kind, shuffle);
   }
+  V<Simd128> Simd128Shuffle(V<Simd128> left, V<Simd128> right,
+                            Simd128ShuffleOp::Kind kind,
+                            const std::array<uint8_t, kSimd128Size>& shuffle) {
+    return ReduceIfReachableSimd128Shuffle(left, right, kind, shuffle);
+  }
 
   V<Simd256> Simd128LoadPairDeinterleave(
       V<WordPtr> base, V<WordPtr> index, LoadOp::Kind load_kind,
@@ -5510,6 +5511,9 @@ class AssemblerOpInterface : public Next {
   // SIMD256
 #if V8_ENABLE_SIMD256
   V<Simd256> Simd256Constant(const uint8_t value[kSimd256Size]) {
+    return ReduceIfReachableSimd256Constant(value);
+  }
+  V<Simd256> Simd256Constant(const std::array<uint8_t, kSimd256Size>& value) {
     return ReduceIfReachableSimd256Constant(value);
   }
 

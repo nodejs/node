@@ -434,7 +434,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     Generate_PushArguments(masm, r6, r2, r1, ArgumentsElementType::kRaw);
 
     // The receiver for the builtin/api call.
-    __ PushRoot(RootIndex::kTheHoleValue);
+    __ PushRoot(RootIndex::kTdzHoleValue);
 
     // Call the function.
     // r2: number of arguments
@@ -506,9 +506,9 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ CallBuiltin(Builtin::kFastNewObject);
   __ b(&post_instantiation_deopt_entry);
 
-  // Else: use TheHoleValue as receiver for constructor call
+  // Else: use TdzHoleValue as receiver for constructor call
   __ bind(&not_create_implicit_receiver);
-  __ LoadRoot(r2, RootIndex::kTheHoleValue);
+  __ LoadRoot(r2, RootIndex::kTdzHoleValue);
 
   // ----------- S t a t e -------------
   //  --                          r2: receiver
@@ -582,7 +582,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // on-stack receiver as the result.
   __ bind(&use_receiver);
   __ LoadU64(r2, MemOperand(sp));
-  __ JumpIfRoot(r2, RootIndex::kTheHoleValue, &do_throw);
+  __ JumpIfRoot(r2, RootIndex::kTdzHoleValue, &do_throw);
 
   __ bind(&leave_and_return);
   // Restore arguments count from the frame.
@@ -1887,7 +1887,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterFrame(StackFrame::FAST_CONSTRUCT);
   // Implicit receiver stored in the construct frame.
-  __ LoadRoot(r4, RootIndex::kTheHoleValue);
+  __ LoadRoot(r4, RootIndex::kTdzHoleValue);
   __ Push(cp, r4);
 
   // Push arguments + implicit receiver.
@@ -1949,7 +1949,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ bind(&use_receiver);
   __ LoadU64(
       r2, MemOperand(fp, FastConstructFrameConstants::kImplicitReceiverOffset));
-  __ JumpIfRoot(r2, RootIndex::kTheHoleValue, &do_throw);
+  __ JumpIfRoot(r2, RootIndex::kTdzHoleValue, &do_throw);
 
   __ bind(&leave_and_return);
   // Leave construct frame.
@@ -3162,7 +3162,12 @@ void Generate_WasmDebugBreakOrTrap(MacroAssembler* masm, DebugBreakKind kind) {
     FrameAndConstantPoolScope scope(masm, StackFrame::WASM_DEBUG_BREAK);
 
     // Save all parameter registers. They might hold live values, we restore
-    // them after the runtime call.
+    // them after the runtime call (for kBreak), or allow DevTools to inspect
+    // them at trap sites (for kTrap).
+    // Note: For non-debug execution, saving registers and creating a
+    // WASM_DEBUG_BREAK frame for trap handler traps might be redundant, but
+    // traps are cold exceptional paths so this negligible overhead is fine to
+    // keep the landing pad and trap handling unified.
     __ MultiPush(WasmDebugBreakFrameConstants::kPushedGpRegs);
     __ MultiPushF64OrV128(WasmDebugBreakFrameConstants::kPushedFpRegs, ip);
 
@@ -3199,7 +3204,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
   Generate_WasmDebugBreakOrTrap(masm, DebugBreakKind::kBreak);
 }
 
-void Builtins::Generate_WasmDebugTrap(MacroAssembler* masm) {
+void Builtins::Generate_WasmTrapHandlerThrowTrap(MacroAssembler* masm) {
   Generate_WasmDebugBreakOrTrap(masm, DebugBreakKind::kTrap);
 }
 
@@ -4036,6 +4041,7 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
 
 void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   bool stack_switch = mode == wasm::kPromise || mode == wasm::kStressSwitch;
+  Label stack_overflow;
   auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
   __ EnterFrame(stack_switch ? StackFrame::WASM_JSPI : StackFrame::JS_TO_WASM);
 
@@ -4053,6 +4059,12 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   Label suspend;
   Register original_fp = no_reg;
   Register new_wrapper_buffer = no_reg;
+
+  // The first GP parameter holds the trusted instance data or the import data.
+  // This is handled specially.
+  constexpr int stack_params_offset =
+      (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
+      arraysize(wasm::kFpParamRegisters) * kDoubleSize;
   if (stack_switch) {
     SwitchToAllocatedStack(masm, regs, implicit_arg, wrapper_buffer,
                            original_fp, new_wrapper_buffer, &suspend);
@@ -4078,16 +4090,62 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
                      JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
       __ StoreU64(scratch,
                   MemOperand(fp, WasmJspiFrameConstants::kResultArrayOffset));
+      __ Zero(MemOperand(fp, WasmJspiFrameConstants::kGCScanSlotCountOffset));
     }
   }
+
   {
-    DEFINE_SCOPED(result_size);
+    DEFINE_SCOPED(return_space);
+    // Calculate the stack space required for return values (in bytes).
     __ LoadU64(
-        result_size,
+        return_space,
         MemOperand(wrapper_buffer, JSToWasmWrapperFrameConstants::
                                        kWrapperBufferStackReturnBufferSize));
-    __ ShiftLeftU64(r0, result_size, Operand(kSystemPointerSizeLog2));
-    __ SubS64(sp, sp, r0);
+    __ ShiftLeftU64(return_space, return_space,
+                    Operand(kSystemPointerSizeLog2));
+
+    // Preemptive Stack Overflow Check:
+    // Before allocating stack space for return values or pushing stack
+    // parameters (which could blindly overflow past the real stack limit,
+    // triggering DCHECK failures or crashes due to stack overflow), we
+    // calculate the total upcoming stack footprint and check if it fits.
+    {
+      // LocationAllocatorForParams reserves a fixed-size region of
+      // `stack_params_offset` bytes at `[params_start, params_start +
+      // stack_params_offset)` for all GP and FP register parameters (even if
+      // unused), and places stack parameters starting at `params_start +
+      // stack_params_offset`. Thus `params_end - params_start -
+      // stack_params_offset` is the exact stack parameter size (>= 0).
+      DEFINE_SCOPED(total_space);
+      __ LoadU64(
+          total_space,
+          MemOperand(wrapper_buffer,
+                     JSToWasmWrapperFrameConstants::kWrapperBufferParamEnd));
+      DEFINE_SCOPED(params_start);
+      __ LoadU64(
+          params_start,
+          MemOperand(wrapper_buffer,
+                     JSToWasmWrapperFrameConstants::kWrapperBufferParamStart));
+      __ SubS64(total_space, total_space, params_start);
+      __ SubS64(total_space, total_space, Operand(stack_params_offset));
+      __ AddS64(total_space, total_space, return_space);
+
+      // Compare sp - total_space with the real stack limit.
+      // Note: sp - total_space will not underflow because sp is a valid stack
+      // pointer (far above 0) and total_space is bounded by Wasm limits (~tens
+      // of KiB). Thus, the unsigned comparison (lo) against the real stack
+      // limit is safe.
+      Register hypothetical_sp = total_space;
+      __ SubS64(hypothetical_sp, sp, total_space);
+
+      DEFINE_SCOPED(stack_limit);
+      __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
+      __ CmpU64(hypothetical_sp, stack_limit);
+      __ blt(&stack_overflow);
+    }
+
+    // Allocate stack space for return values.
+    __ SubS64(sp, sp, return_space);
   }
 
   __ StoreU64(
@@ -4103,12 +4161,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   for (auto reg : wasm::kGpParamRegisters) {
     regs.Reserve(reg);
   }
-
-  // The first GP parameter holds the trusted instance data or the import data.
-  // This is handled specially.
-  int stack_params_offset =
-      (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
-      arraysize(wasm::kFpParamRegisters) * kDoubleSize;
 
   {
     Register params_start = ip;
@@ -4163,7 +4215,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
     DCHECK_EQ(next_offset, stack_params_offset);
   }
 
-  __ Zero(MemOperand(fp, WasmJspiFrameConstants::kGCScanSlotCountOffset));
   {
     DEFINE_SCOPED(call_target);
     __ LoadWasmCodePointer(
@@ -4241,6 +4292,20 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   if (mode == wasm::kPromise) {
     GenerateExceptionHandlingLandingPad(masm, regs, &return_promise);
   }
+
+  // OOL code for handling stack overflow.
+  __ bind(&stack_overflow);
+  if (stack_switch) {
+    __ LoadU64(kContextRegister,
+               MemOperand(fp, WasmJspiFrameConstants::kImplicitArgOffset));
+  } else {
+    __ LoadU64(
+        kContextRegister,
+        MemOperand(fp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
+  }
+  GetContextFromImplicitArg(masm, kContextRegister, r3);
+  __ CallRuntime(Runtime::kThrowStackOverflow);
+  __ Trap();
 }
 }  // namespace
 
@@ -4563,18 +4628,23 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
   using ER = ExternalReference;
   Register frame_base = WasmHandleStackOverflowDescriptor::FrameBaseRegister();
   Register gap = WasmHandleStackOverflowDescriptor::GapRegister();
+  Register parameter_slots_size =
+      WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister();
   {
     DCHECK_NE(kCArgRegs[1], frame_base);
     DCHECK_NE(kCArgRegs[3], frame_base);
+    __ mov(kCArgRegs[4], fp);
     __ mov(kCArgRegs[3], gap);
+    __ mov(r1, parameter_slots_size);
     __ mov(kCArgRegs[1], sp);
     __ SubS64(kCArgRegs[2], frame_base, kCArgRegs[1]);
-    __ mov(kCArgRegs[4], fp);
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ push(kCArgRegs[3]);
-    __ PrepareCallCFunction(5, r0);
+    __ PrepareCallCFunction(6, r0);
+    __ StoreU64(r1,
+                MemOperand(sp, kStackFrameExtraParamSlot * kSystemPointerSize));
     __ Move(kCArgRegs[0], ER::isolate_address());
-    __ CallCFunction(ER::wasm_grow_stack(), 5);
+    __ CallCFunction(ER::wasm_grow_stack(), 6);
     __ pop(gap);
     DCHECK_NE(kReturnRegister0, gap);
   }
@@ -4587,13 +4657,6 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
   __ SubS64(fp, fp, sp);
   __ AddS64(fp, fp, kReturnRegister0);
   __ mov(sp, kReturnRegister0);
-  {
-    UseScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ mov(scratch,
-           Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-    __ StoreU64(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
-  }
   __ Ret();
 
   __ bind(&call_runtime);
@@ -4613,6 +4676,10 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     __ LeaveFrame(StackFrame::INTERNAL);
     __ Ret();
   }
+}
+
+void Builtins::Generate_WasmReturnFromSegment(MacroAssembler* masm) {
+  __ Trap();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

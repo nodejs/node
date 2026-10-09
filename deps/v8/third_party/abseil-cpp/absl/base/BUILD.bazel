@@ -70,6 +70,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/coding/elias_fano:__subpackages__",
         "@do_not_use_for_gloop_visibility_only//gloop/util/sysinfo/topology:__subpackages__",
     ],
     deps = [
@@ -187,6 +188,7 @@ cc_library(
     ],
     deps = [
         ":base_internal",
+        ":config",
         ":core_headers",
         ":errno_saver",
     ],
@@ -271,6 +273,7 @@ cc_library(
         "@rules_cc//cc/compiler:msvc-cl": [],
         "@rules_cc//cc/compiler:clang-cl": [],
         "@rules_cc//cc/compiler:emscripten": [],
+        "@platforms//os:wasi": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     visibility = [
@@ -339,6 +342,7 @@ cc_library(
             "-ladvapi32",
         ],
         "@rules_cc//cc/compiler:emscripten": [],
+        "@platforms//os:wasi": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:public"],
@@ -364,6 +368,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":atomic_hook",
+        ":config",
         ":core_headers",
     ],
 )
@@ -393,6 +398,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base",
+        ":config",
         ":core_headers",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -509,6 +515,7 @@ cc_library(
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/strings",
+        "//absl/strings:string_view",
         "//absl/utility",
         "@googletest//:gtest",
     ],
@@ -652,6 +659,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base",
+        ":config",
         ":core_headers",
         "//absl/synchronization",
         "@googletest//:gtest",
@@ -774,6 +782,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base",
+        ":config",
         "//absl/synchronization",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -805,6 +814,7 @@ cc_test(
         "no_test_wasm",
     ],
     deps = [
+        ":config",
         ":malloc_internal",
         "//absl/container:node_hash_map",
     ],
@@ -820,6 +830,7 @@ cc_test(
     ],
     deps = [
         ":base",
+        ":config",
         ":core_headers",
         "//absl/synchronization",
         "@googletest//:gtest",
@@ -882,6 +893,7 @@ cc_test(
         "//absl/flags:flag_internal",
         "//absl/flags:marshalling",
         "//absl/strings",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -1030,7 +1042,7 @@ cc_test(
     linkstatic = 1,
     deps = [
         ":core_headers",
-        "//absl/strings",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

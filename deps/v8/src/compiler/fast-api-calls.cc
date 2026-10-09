@@ -302,11 +302,12 @@ Node* FastApiCallBuilder::Build(FastApiCallFunction c_function,
 
     Node* data_argument_to_pass = __ AdaptLocalArgument(data_argument);
 
+    START_ALLOW_USE_DEPRECATED()
+    constexpr int data_offset = offsetof(v8::FastApiCallbackOptions, data);
+    END_ALLOW_USE_DEPRECATED()
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
-             stack_slot,
-             static_cast<int>(offsetof(v8::FastApiCallbackOptions, data)),
-             data_argument_to_pass);
+             stack_slot, data_offset, data_argument_to_pass);
 
     initialize_options_(stack_slot);
 

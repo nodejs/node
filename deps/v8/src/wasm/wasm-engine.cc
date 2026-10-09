@@ -4,11 +4,14 @@
 
 #include "src/wasm/wasm-engine.h"
 
+#include <array>
 #include <optional>
 
 #include "src/base/hashing.h"
 #include "src/base/platform/time.h"
 #include "src/base/small-vector.h"
+#include "src/base/unique-array.h"
+#include "src/codegen/cpu-features.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
@@ -233,10 +236,10 @@ class WeakScriptHandle {
  public:
   WeakScriptHandle(DirectHandle<Script> script, Isolate* isolate)
       : script_id_(script->id()), isolate_(isolate) {
-    DCHECK(IsString(script->name()) || IsUndefined(script->name()));
-    if (IsString(script->name())) {
-      source_url_ = Cast<String>(script->name())->ToCString();
-    }
+    DCHECK(IsString(script->name()));
+    source_url_ = Cast<String>(script->name())->ToCString();
+    is_default_url_ =
+        std::string_view(source_url_.get()).starts_with("wasm://wasm/");
     auto global_handle = isolate->global_handles()->Create(*script);
     location_ = std::make_unique<Address*>(global_handle.location());
     GlobalHandles::MakeWeak(location_.get());
@@ -258,6 +261,22 @@ class WeakScriptHandle {
 
   WeakScriptHandle(WeakScriptHandle&&) V8_NOEXCEPT = default;
 
+  // Move assignment is only used for compacting the `std::vector` in
+  // `GetOrCreateScript`, where `this` is either cleared or already moved-from,
+  // and `other` is still alive.
+  WeakScriptHandle& operator=(WeakScriptHandle&& other) V8_NOEXCEPT {
+    DCHECK_NE(this, &other);
+    DCHECK(location_ == nullptr || *location_ == nullptr);
+    DCHECK_NOT_NULL(other.location_);
+    DCHECK_NOT_NULL(*other.location_);
+    DCHECK_EQ(isolate_, other.isolate_);
+    location_ = std::move(other.location_);
+    script_id_ = other.script_id_;
+    source_url_ = std::move(other.source_url_);
+    is_default_url_ = other.is_default_url_;
+    return *this;
+  }
+
   DirectHandle<Script> handle() const {
     return DirectHandle<Script>::FromSlot(*location_);
   }
@@ -272,6 +291,11 @@ class WeakScriptHandle {
     return source_url_;
   }
 
+  bool MatchesSourceUrl(base::Vector<const char> source_url) const {
+    if (source_url.empty()) return is_default_url_;
+    return base::CStrVector(source_url_.get()) == source_url;
+  }
+
  private:
   // Store the location in a unique_ptr so that its address stays the same even
   // when this object is moved/copied.
@@ -281,15 +305,21 @@ class WeakScriptHandle {
   // available.
   int script_id_;
 
-  // Similar for the source URL. We cannot dereference the handle from
-  // arbitrary threads, but we need the URL available for code logging.
-  // The shared pointer is kept alive by unlogged code, even if this entry is
-  // collected in the meantime.
+  // True if {source_url_} is a synthesized "wasm://wasm/..." default URL.
+  // {source_url_} stores the name from {Script::name()} (needed for code
+  // logging), whereas {GetOrCreateScript} receives an empty {source_url} before
+  // {CreateWasmScript} synthesizes that default URL.
+  bool is_default_url_ = false;
+
+  // Similar to script ID, do also store the source URL. We cannot dereference
+  // the handle from arbitrary threads, but we need the URL available for code
+  // logging. The shared pointer is kept alive by unlogged code, even if this
+  // entry is collected in the meantime.
   // TODO(chromium:1132260): Revisit this for huge URLs.
   std::shared_ptr<const char[]> source_url_;
 
   // The Isolate that the handled script belongs to.
-  Isolate* isolate_;
+  Isolate* const isolate_;
 };
 
 // If PGO data is being collected, keep all native modules alive, so repeated
@@ -495,16 +525,19 @@ struct WasmEngine::IsolateInfo {
     // the task that would destroy the {WeakScriptHandle}'s {GlobalHandle};
     // whereas if only individual entries of {scripts} get deleted, then
     // we can and should post such tasks.
-    for (auto& [native_module, script_handle] : scripts) {
-      script_handle.Clear();
+    for (auto& [native_module, script_handles] : scripts) {
+      for (WeakScriptHandle& script_handle : script_handles) {
+        script_handle.Clear();
+      }
     }
   }
 
   // All native modules that are being used by this Isolate.
   std::unordered_set<NativeModule*> native_modules;
 
-  // Scripts created for each native module in this isolate.
-  std::unordered_map<NativeModule*, WeakScriptHandle> scripts;
+  // Scripts created for each native module in this isolate. Multiple scripts
+  // can exist if the same module is compiled with different source URLs.
+  std::unordered_map<NativeModule*, std::vector<WeakScriptHandle>> scripts;
 
   // Caches whether code needs to be logged on this isolate.
   bool log_codes;
@@ -616,7 +649,7 @@ bool WasmEngine::SyncValidate(Isolate* isolate, WasmEnabledFeatures enabled,
 MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     CompileTimeImports compile_imports, ErrorThrower* thrower,
-    base::OwnedVector<const uint8_t> bytes,
+    base::UniqueArray<const uint8_t> bytes,
     base::Vector<const char> source_url) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
@@ -678,7 +711,7 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
   DirectHandle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, std::move(native_module), script);
+      WasmModuleObject::New(isolate, script);
 
   // Finish the Wasm script now and make it public to the debugger.
   isolate->debug()->OnAfterCompile(script);
@@ -733,7 +766,7 @@ void WasmEngine::AsyncCompile(
     Isolate* isolate, WasmEnabledFeatures enabled,
     CompileTimeImports compile_imports,
     std::shared_ptr<CompilationResultResolver> resolver,
-    base::OwnedVector<const uint8_t> bytes,
+    base::UniqueArray<const uint8_t> bytes,
     const char* api_method_name_for_errors) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT("v8.wasm", "wasm.AsyncCompile", "id", compilation_id);
@@ -909,18 +942,19 @@ DirectHandle<Script> CreateWasmScript(
   } else {
     // Limit the printed hash to 8 characters.
     uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(wire_bytes));
-    base::EmbeddedVector<char, 32> buffer;
+    std::array<char, 32> buffer;
     if (module->name.is_empty()) {
       // Build the URL in the form "wasm://wasm/<hash>".
-      int url_len = SNPrintF(buffer, "wasm://wasm/%08x", hash);
+      int url_len = base::SNPrintF(buffer, "wasm://wasm/%08x", hash);
       DCHECK(url_len >= 0 && static_cast<size_t>(url_len) < buffer.size());
-      url_str = isolate->factory()
-                    ->NewStringFromUtf8(buffer.SubVector(0, url_len),
-                                        AllocationType::kOld)
-                    .ToHandleChecked();
+      url_str =
+          isolate->factory()
+              ->NewStringFromUtf8(base::VectorOf(buffer).SubVector(0, url_len),
+                                  AllocationType::kOld)
+              .ToHandleChecked();
     } else {
       // Build the URL in the form "wasm://wasm/<module name>-<hash>".
-      int hash_len = SNPrintF(buffer, "-%08x", hash);
+      int hash_len = base::SNPrintF(buffer, "-%08x", hash);
       DCHECK(hash_len >= 0 && static_cast<size_t>(hash_len) < buffer.size());
       DirectHandle<String> prefix =
           isolate->factory()->NewStringFromStaticChars("wasm://wasm/");
@@ -929,7 +963,7 @@ DirectHandle<Script> CreateWasmScript(
               isolate, wire_bytes, module->name, kNoInternalize);
       DirectHandle<String> hash_str =
           isolate->factory()
-              ->NewStringFromUtf8(buffer.SubVector(0, hash_len))
+              ->NewStringFromUtf8(base::VectorOf(buffer).SubVector(0, hash_len))
               .ToHandleChecked();
       // Concatenate the three parts.
       url_str = isolate->factory()
@@ -1018,14 +1052,14 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::ImportNativeModule(
     ErrorThrower thrower(isolate, "WasmEngine::ImportNativeModule");
     return SyncCompile(
         isolate, native_module->enabled_features(), target_imports, &thrower,
-        base::OwnedCopyOf(native_module->wire_bytes()), source_url);
+        base::UniqueCopyOf(native_module->wire_bytes()), source_url);
   }
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   DirectHandle<Script> script =
       GetOrCreateScript(isolate, shared_native_module, source_url);
   native_module->LogWasmCodes(isolate, *script);
   DirectHandle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, std::move(shared_native_module), script);
+      WasmModuleObject::New(isolate, script);
   {
     base::MutexGuard lock(&mutex_);
     DCHECK(isolates_.contains(isolate));
@@ -1096,7 +1130,7 @@ CodeTracer* WasmEngine::GetCodeTracer() {
 
 AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
     WasmEnabledFeatures enabled, CompileTimeImports compile_imports,
-    base::OwnedVector<const uint8_t> bytes, const char* api_method_name,
+    base::UniqueArray<const uint8_t> bytes, const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id) {
   AsyncCompileJob* job =
       new AsyncCompileJob(enabled, std::move(compile_imports), std::move(bytes),
@@ -1211,6 +1245,12 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
   bool has_mpk = WasmCodeManager::HasMemoryProtectionKeySupport();
   isolate->counters()->wasm_memory_protection_keys_support()->AddSample(
       has_mpk ? 1 : 0);
+
+#if V8_TARGET_ARCH_X64
+  bool has_avx2 =
+      CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2);
+  isolate->counters()->wasm_avx2_support()->AddSample(has_avx2 ? 1 : 0);
+#endif
 
   if (log_code) {
     // Log existing wrappers (which are shared across isolates).
@@ -1353,9 +1393,10 @@ void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
       if (info->log_codes == false) continue;
 
       auto script_it = info->scripts.find(native_module);
-      // If the script does not yet exist, logging will happen later. If the
-      // weak handle is cleared already, we also don't need to log any more.
+      // If the script does not yet exist, logging will happen later. If all
+      // weak handles are cleared already, we also don't need to log any more.
       if (script_it == info->scripts.end()) continue;
+      DCHECK(!script_it->second.empty());
 
       // If there is no code scheduled to be logged already in that isolate,
       // then schedule a new task and also set an interrupt to log the newly
@@ -1366,21 +1407,23 @@ void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
                                  std::make_unique<LogCodesTask>(isolate));
       }
 
-      WeakScriptHandle& weak_script_handle = script_it->second;
-      auto& log_entry = info->code_to_log[weak_script_handle.script_id()];
-      if (!log_entry.native_module) {
-        log_entry.native_module = shared_native_module;
-      }
-      if (!log_entry.source_url) {
-        log_entry.source_url = weak_script_handle.source_url();
-      }
-      log_entry.code.insert(log_entry.code.end(), code_vec.begin(),
-                            code_vec.end());
+      for (WeakScriptHandle& weak_script_handle : script_it->second) {
+        IsolateInfo::CodeToLogPerScript& log_entry =
+            info->code_to_log[weak_script_handle.script_id()];
+        if (!log_entry.native_module) {
+          log_entry.native_module = shared_native_module;
+        }
+        if (!log_entry.source_url) {
+          log_entry.source_url = weak_script_handle.source_url();
+        }
+        log_entry.code.insert(log_entry.code.end(), code_vec.begin(),
+                              code_vec.end());
 
-      // Increment the reference count for the added {log_entry.code} entries.
-      for (WasmCode* code : code_vec) {
-        DCHECK_EQ(native_module, code->native_module());
-        code->IncRef();
+        // Increment the reference count for the added {log_entry.code} entries.
+        for (WasmCode* code : code_vec) {
+          DCHECK_EQ(native_module, code->native_module());
+          code->IncRef();
+        }
       }
     }
   }
@@ -1886,22 +1929,41 @@ DirectHandle<Script> WasmEngine::GetOrCreateScript(
     auto& scripts = isolates_[isolate]->scripts;
     auto it = scripts.find(native_module.get());
     if (it != scripts.end()) {
-      DirectHandle<Script> weak_global_handle = it->second.handle();
-      if (weak_global_handle.is_null()) {
+      std::vector<WeakScriptHandle>& handles = it->second;
+      DCHECK(!handles.empty());
+      DirectHandle<Script> matching_script;
+      // Remove weak handles for scripts that have been garbage-collected in the
+      // meantime, and in the same pass find a live script with a matching
+      // source URL.
+      std::erase_if(handles, [&](const WeakScriptHandle& handle) {
+        DirectHandle<Script> weak_global_handle = handle.handle();
+        if (weak_global_handle.is_null()) return true;
+        if (matching_script.is_null() && handle.MatchesSourceUrl(source_url)) {
+          matching_script =
+              DirectHandle<Script>::New(*weak_global_handle, isolate);
+        }
+        return false;
+      });
+      if (!matching_script.is_null()) return matching_script;
+      if (handles.empty()) {
         scripts.erase(it);
-      } else {
-        return DirectHandle<Script>::New(*weak_global_handle, isolate);
       }
     }
   }
   // Temporarily release the mutex to let the GC collect native modules.
-  auto script = CreateWasmScript(isolate, native_module, source_url);
+  DirectHandle<Script> script =
+      CreateWasmScript(isolate, native_module, source_url);
   {
     base::MutexGuard guard(&mutex_);
     DCHECK(isolates_.contains(isolate));
-    auto& scripts = isolates_[isolate]->scripts;
-    DCHECK(!scripts.contains(native_module.get()));
-    scripts.emplace(native_module.get(), WeakScriptHandle(script, isolate));
+    std::vector<WeakScriptHandle>& handles =
+        isolates_[isolate]->scripts[native_module.get()];
+    DCHECK(std::none_of(handles.begin(), handles.end(),
+                        [source_url](const WeakScriptHandle& handle) {
+                          return !handle.handle().is_null() &&
+                                 handle.MatchesSourceUrl(source_url);
+                        }));
+    handles.emplace_back(script, isolate);
     return script;
   }
 }
@@ -2029,6 +2091,10 @@ size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
     for (const auto& [isolate, isolate_info] : isolates_) {
       result += ContentSize(isolate_info->native_modules);
       result += ContentSize(isolate_info->scripts);
+      for (const auto& [native_module, script_handles] :
+           isolate_info->scripts) {
+        result += ContentSize(script_handles);
+      }
       result += ContentSize(isolate_info->code_to_log);
     }
 

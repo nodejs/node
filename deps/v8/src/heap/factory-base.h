@@ -108,6 +108,9 @@ class FactoryBase {
 #define ROOT_ACCESSOR(Type, name, CamelName) inline Handle<Type> name();
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
   MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
+#ifndef V8_ENABLE_TDZ_HOLE
+  ROOT_ACCESSOR(TdzHole, tdz_hole_value, TdzHoleValue)
+#endif
 #undef ROOT_ACCESSOR
 
   // Numbers (e.g. literals) are pretenured by the parser.
@@ -126,14 +129,12 @@ class FactoryBase {
   inline Handle<HeapNumber> NewHeapNumber(double value);
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<HeapNumber> NewHeapNumberFromBits(uint64_t bits);
-  template <AllocationType allocation = AllocationType::kYoung>
-  inline Handle<HeapNumber> NewHeapNumberWithHoleNaN();
 
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<HeapNumber> NewHeapInt32(int32_t value);
 
-  template <AllocationType allocation>
-  Handle<HeapNumber> NewHeapNumber();
+  template <AllocationType allocation = AllocationType::kYoung>
+  inline Handle<UninitializedHeapNumber> NewUninitializedHeapNumber();
 
   Handle<Struct> NewStruct(InstanceType type,
                            AllocationType allocation = AllocationType::kYoung);
@@ -378,9 +379,9 @@ class FactoryBase {
       Tagged<Smi> number, NumberCacheMode mode = NumberCacheMode::kBoth);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqOneByteString> NewRawSharedOneByteString(
-      int length);
+      uint32_t length);
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqTwoByteString> NewRawSharedTwoByteString(
-      int length);
+      uint32_t length);
 
   // Allocates a new BigInt with {length} digits. Only to be used by
   // MutableBigInt::New*.
@@ -400,11 +401,11 @@ class FactoryBase {
   Handle<ClassPositions> NewClassPositions(int start, int end);
 
   Handle<SwissNameDictionary> NewSwissNameDictionary(
-      int at_least_space_for = kSwissNameDictionaryInitialCapacity,
+      uint32_t at_least_space_for = kSwissNameDictionaryInitialCapacity,
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<SwissNameDictionary> NewSwissNameDictionaryWithCapacity(
-      int capacity, AllocationType allocation);
+      uint32_t capacity, AllocationType allocation);
 
   DirectHandle<FunctionTemplateRareData> NewFunctionTemplateRareData();
 
@@ -440,6 +441,11 @@ class FactoryBase {
                                           int size, AllocationType allocation,
                                           bool initialize_fields);
 
+  AllocationWitness AllocateWithWitness(
+      int size, AllocationType allocation,
+      AllocationAlignment alignment = kTaggedAligned,
+      AllocationHint hint = AllocationHint());
+
   Tagged<HeapObject> AllocateRawWithImmortalMap(
       int size, AllocationType allocation, Tagged<Map> map,
       AllocationAlignment alignment = kTaggedAligned,
@@ -463,7 +469,7 @@ class FactoryBase {
 
   template <typename SeqStringT>
   MaybeHandle<SeqStringT> NewRawStringWithMap(
-      int length, Tagged<Map> map, AllocationType allocation,
+      uint32_t length, Tagged<Map> map, AllocationType allocation,
       AllocationHint hint = AllocationHint());
 
  private:

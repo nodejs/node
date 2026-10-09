@@ -149,7 +149,6 @@ class InjectedScript final {
       std::unique_ptr<protocol::Runtime::RemoteObject>* result,
       std::unique_ptr<protocol::Runtime::ExceptionDetails>*);
   v8::Local<v8::Value> lastEvaluationResult() const;
-  void setLastEvaluationResult(v8::Local<v8::Value> result);
 
   class Scope {
     CPPGC_STACK_ALLOCATED();

@@ -63,6 +63,11 @@ class V8_EXPORT BackingStore : public v8::internal::BackingStoreBase {
   size_t ByteLength() const;
 
   /**
+   * Returns the contents of this backing store as a span of bytes.
+   */
+  std::span<uint8_t> ByteSpan() const;
+
+  /**
    * The maximum length (in bytes) that this backing store may grow to.
    *
    * If this backing store was created for a resizable ArrayBuffer or a growable

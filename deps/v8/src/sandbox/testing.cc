@@ -4,6 +4,7 @@
 
 #include "src/sandbox/testing.h"
 
+#include <atomic>
 #include <cstring>
 #include <vector>
 
@@ -39,6 +40,8 @@
 #ifdef V8_OS_LINUX
 #include <signal.h>
 #include <sys/mman.h>
+// sys/mman.h defines MAP_TYPE, which conflicts with V8's MAP_TYPE InstanceType.
+#undef MAP_TYPE
 #include <sys/ucontext.h>
 #include <unistd.h>
 
@@ -877,6 +880,23 @@ void InstallFunction(Isolate* isolate, Handle<JSObject> holder,
   InstallFunc(isolate, holder, func, name, num_parameters, false);
 }
 
+// Sandbox.getMetadata() -> Object
+void SandboxGetMetadata(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Factory* factory = i_isolate->factory();
+
+  Handle<JSObject> metadata =
+      factory->NewJSObject(i_isolate->object_function());
+  JSObject::AddProperty(
+      i_isolate, metadata,
+      factory->NewStringFromAsciiChecked("trustedPointerHandleShift"),
+      factory->NewNumberFromUint(kTrustedPointerHandleShift), NONE);
+
+  info.GetReturnValue().Set(Utils::ToLocal(metadata));
+}
+
 void InstallConstructor(Isolate* isolate, Handle<JSObject> holder,
                         FunctionCallback func, const char* name,
                         int num_parameters) {
@@ -900,6 +920,7 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
   InstallGetter(isolate, sandbox, SandboxGetBase, "base");
   InstallGetter(isolate, sandbox, SandboxGetByteLength, "byteLength");
   InstallConstructor(isolate, sandbox, SandboxMemoryView, "MemoryView", 2);
+  InstallFunction(isolate, sandbox, SandboxGetMetadata, "getMetadata", 0);
   InstallFunction(isolate, sandbox, SandboxGetAddressOf, "getAddressOf", 1);
   InstallFunction(isolate, sandbox, SandboxGetObjectAt, "getObjectAt", 1);
   InstallFunction(isolate, sandbox, SandboxIsValidObjectAt, "isValidObjectAt",
@@ -1076,6 +1097,17 @@ void FilterCrash(const char* reason) {
 struct sigaction g_old_handlers[NSIG];
 constexpr int kSignalsToHandle[] = {SIGABRT, SIGTRAP, SIGBUS, SIGILL, SIGSEGV};
 
+std::atomic<bool> g_is_sandbox_violation{false};
+
+void ReportSandboxViolation() {
+  if (g_is_sandbox_violation.exchange(true)) return;
+  PrintToStderr("\n## V8 sandbox violation detected!\n\n");
+}
+
+#ifdef V8_USE_ADDRESS_SANITIZER
+bool g_is_asan_fault_harmless = false;
+#endif
+
 void UninstallCrashFilter() {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
@@ -1092,8 +1124,8 @@ void UninstallCrashFilter() {
   }
 
   // We should also uninstall the sanitizer death callback as our crash filter
-  // may hand a crash over to sanitizers, which should then not enter our crash
-  // filtering logic a second time.
+  // may hand a crash over to sanitizers, which should then not print the
+  // sandbox violation message a second time.
 #ifdef V8_USE_ANY_SANITIZER
   __sanitizer_set_death_callback(nullptr);
 #endif  // V8_USE_ANY_SANITIZER
@@ -1304,7 +1336,7 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
   }
 
   // If we get here, we've detected a sandbox violation.
-  PrintToStderr("\n## V8 sandbox violation detected!\n\n");
+  ReportSandboxViolation();
 
   if (access_type == MemoryAccessType::kRead) {
     PrintToStderr(
@@ -1332,6 +1364,8 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
 }
 
 #ifdef V8_USE_ADDRESS_SANITIZER
+namespace {
+
 bool IsHarmlessMemcpyParamOverlap() {
   const void* src_addr = nullptr;
   size_t src_size = 0;
@@ -1364,32 +1398,78 @@ bool IsHarmlessMemcpyParamOverlap() {
          sandbox->ReservationContains(dest_begin) &&
          sandbox->ReservationContains(dest_last);
 }
+
+bool IsHarmlessASanFault(const char* description, Address faultaddr,
+                         MemoryAccessType access_type) {
+  if (description && strcmp(description, "memcpy-param-overlap") == 0) {
+    if (IsHarmlessMemcpyParamOverlap()) {
+      PrintToStderr(
+          "Caught harmless ASan fault (overlapping memcpy safely contained "
+          "in the sandbox).\n");
+      return true;
+    }
+    // Otherwise, treat it as a sandbox violation.
+    return false;
+  }
+
+  if (faultaddr == kNullAddress) {
+    PrintToStderr(
+        "Caught ASan fault without a fault address. Ignoring it as we cannot "
+        "check if it is a sandbox violation.\n");
+    return true;
+  }
+
+  if (IsCrashInSafeMemoryRegion(faultaddr, access_type)) {
+    PrintToStderr("Caught harmless ASan fault (inside safe region).\n");
+    return true;
+  }
+
+  return false;
+}
+}  // namespace
+
+extern "C" V8_EXPORT_PRIVATE void __asan_on_error() {
+  if (SandboxTesting::mode() == SandboxTesting::Mode::kDisabled) return;
+
+  if (!__asan_report_present()) {
+    // Should not occur normally, but falling back to treating this as an error
+    // as defense-in-depth.
+    ReportSandboxViolation();
+    return;
+  }
+
+  // Prevent unnecessary/confusing reporting if we already know the crash
+  // classification.
+  if (g_is_sandbox_violation) return;
+
+  const char* const description = __asan_get_report_description();
+  const Address faultaddr =
+      reinterpret_cast<Address>(__asan_get_report_address());
+  const MemoryAccessType access_type = __asan_get_report_access_type() == 0
+                                           ? MemoryAccessType::kRead
+                                           : MemoryAccessType::kWrite;
+  if (IsHarmlessASanFault(description, faultaddr, access_type)) {
+    g_is_asan_fault_harmless = true;
+  } else {
+    ReportSandboxViolation();
+  }
+}
 #endif  // V8_USE_ADDRESS_SANITIZER
 
 #ifdef V8_USE_ANY_SANITIZER
 void SanitizerFaultHandler() {
 #ifdef V8_USE_ADDRESS_SANITIZER
-  if (__asan_report_present()) {
-    const char* const description = __asan_get_report_description();
-    const Address faultaddr =
-        reinterpret_cast<Address>(__asan_get_report_address());
-    const MemoryAccessType access_type = __asan_get_report_access_type() == 0
-                                             ? MemoryAccessType::kRead
-                                             : MemoryAccessType::kWrite;
-    if (description && strcmp(description, "memcpy-param-overlap") == 0) {
-      if (IsHarmlessMemcpyParamOverlap()) {
-        FilterCrash(
-            "Caught harmless ASan fault (overlapping memcpy safely contained "
-            "in the sandbox).");
-      }
-      // Otherwise, fall through to the sandbox report.
-    } else if (faultaddr == kNullAddress) {
-      FilterCrash(
-          "Caught ASan fault without a fault address. Ignoring it as we cannot "
-          "check if it is a sandbox violation.");
-    } else if (IsCrashInSafeMemoryRegion(faultaddr, access_type)) {
-      FilterCrash("Caught harmless ASan fault (inside safe region).");
-    }
+  if (!g_is_sandbox_violation && !g_is_asan_fault_harmless) {
+    PrintToStderr(
+        "Warning: ASan death callback triggered before the fault could be "
+        "classified. Falling back to treating it as a sandbox violation.\n");
+  }
+
+  if (g_is_asan_fault_harmless && !g_is_sandbox_violation) {
+    PrintToStderr("Exiting process after harmless fault...\n");
+    int status =
+        SandboxTesting::mode() == SandboxTesting::Mode::kForFuzzing ? -1 : 0;
+    _exit(status);
   }
 #endif  // V8_USE_ADDRESS_SANITIZER
 
@@ -1399,7 +1479,7 @@ void SanitizerFaultHandler() {
 
   // In case of a sanitizer issue we opt for conservatively reporting a sandbox
   // violation that needs to be investigated.
-  PrintToStderr("\n## V8 sandbox violation detected!\n\n");
+  ReportSandboxViolation();
 }
 #endif  // V8_USE_ANY_SANITIZER
 
@@ -1425,8 +1505,8 @@ void InstallCrashFilter() {
   CHECK(success);
 
 #ifdef V8_USE_ANY_SANITIZER
-  // We install sanitizer specific crash handlers. These can only check for
-  // in-sandbox crashes on certain configurations.
+  // We install a sanitizer death callback. For ASan, this will check the flag
+  // set by __asan_on_error to determine if the fault was harmless.
   //
   // The crash handler also resets the signal handler as sanitizer may use
   // `abort()` via `abort_on_error=1` option to signal problems.
@@ -1505,14 +1585,17 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE"] =
         WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE;
     types["NATIVE_CONTEXT_TYPE"] = NATIVE_CONTEXT_TYPE;
+    types["MAP_TYPE"] = MAP_TYPE;
 #ifdef V8_ENABLE_WEBASSEMBLY
-    types["WASM_MODULE_OBJECT_TYPE"] = WASM_MODULE_OBJECT_TYPE;
-    types["WASM_INSTANCE_OBJECT_TYPE"] = WASM_INSTANCE_OBJECT_TYPE;
     types["WASM_FUNC_REF_TYPE"] = WASM_FUNC_REF_TYPE;
-    types["WASM_TABLE_OBJECT_TYPE"] = WASM_TABLE_OBJECT_TYPE;
-    types["WASM_RESUME_DATA"] = WASM_RESUME_DATA_TYPE;
-    types["WASM_TAG_OBJECT_TYPE"] = WASM_TAG_OBJECT_TYPE;
     types["WASM_GLOBAL_OBJECT_TYPE"] = WASM_GLOBAL_OBJECT_TYPE;
+    types["WASM_INSTANCE_OBJECT_TYPE"] = WASM_INSTANCE_OBJECT_TYPE;
+    types["WASM_MEMORY_OBJECT_TYPE"] = WASM_MEMORY_OBJECT_TYPE;
+    types["WASM_MODULE_OBJECT_TYPE"] = WASM_MODULE_OBJECT_TYPE;
+    types["WASM_RESUME_DATA"] = WASM_RESUME_DATA_TYPE;
+    types["WASM_STACK_OBJECT_TYPE"] = WASM_STACK_OBJECT_TYPE;
+    types["WASM_TABLE_OBJECT_TYPE"] = WASM_TABLE_OBJECT_TYPE;
+    types["WASM_TAG_OBJECT_TYPE"] = WASM_TAG_OBJECT_TYPE;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return types;
@@ -1527,6 +1610,7 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
   auto& fields = *g_known_fields.get();
   bool is_initialized = fields.size() != 0;
   if (!is_initialized) {
+    fields[MAP_TYPE]["instance_type"] = offsetof(Map, instance_type_);
     fields[FIXED_DOUBLE_ARRAY_TYPE]["length"] =
         offsetof(FixedDoubleArray, length_);
     fields[FIXED_DOUBLE_ARRAY_TYPE]["data"] =
@@ -1582,6 +1666,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         offsetof(SharedFunctionInfo, untrusted_function_data_);
     fields[SHARED_FUNCTION_INFO_TYPE]["script"] =
         offsetof(SharedFunctionInfo, script_);
+    fields[SHARED_FUNCTION_INFO_TYPE]["unique_id"] =
+        offsetof(SharedFunctionInfo, unique_id_);
     fields[SCRIPT_TYPE]["wasm_managed_native_module"] =
         offsetof(Script, eval_from_position_);
     fields[JS_PROMISE_TYPE]["reactions_or_result"] =
@@ -1605,35 +1691,42 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         offsetof(JSSegments, icu_iterator_with_text_);
 #endif  // V8_INTL_SUPPORT
 #ifdef V8_ENABLE_WEBASSEMBLY
-    fields[WASM_MODULE_OBJECT_TYPE]["managed_native_module"] =
-        offsetof(WasmModuleObject, managed_native_module_);
-    fields[WASM_MODULE_OBJECT_TYPE]["script"] =
-        offsetof(WasmModuleObject, script_);
-    fields[WASM_INSTANCE_OBJECT_TYPE]["module_object"] =
-        offsetof(WasmInstanceObject, module_object_);
-    fields[WASM_INSTANCE_OBJECT_TYPE]["trusted_data"] =
-        offsetof(WasmInstanceObject, trusted_data_);
     fields[WASM_FUNC_REF_TYPE]["trusted_internal"] =
         offsetof(WasmFuncRef, trusted_internal_);
-    fields[WASM_TABLE_OBJECT_TYPE]["entries"] =
-        offsetof(WasmTableObject, entries_);
-    fields[WASM_TABLE_OBJECT_TYPE]["current_length"] =
-        offsetof(WasmTableObject, current_length_);
-    fields[WASM_TABLE_OBJECT_TYPE]["maximum_length"] =
-        offsetof(WasmTableObject, maximum_length_);
-    fields[WASM_TABLE_OBJECT_TYPE]["raw_type"] =
-        offsetof(WasmTableObject, raw_type_);
-    fields[WASM_TABLE_OBJECT_TYPE]["trusted_dispatch_table"] =
-        offsetof(WasmTableObject, trusted_dispatch_table_);
-    fields[WASM_TABLE_OBJECT_TYPE]["trusted_data"] =
-        offsetof(WasmTableObject, trusted_data_);
-    fields[WASM_TAG_OBJECT_TYPE]["tag"] = offsetof(WasmTagObject, tag_);
     fields[WASM_GLOBAL_OBJECT_TYPE]["buffer"] =
         offsetof(WasmGlobalObject, buffer_);
     fields[WASM_GLOBAL_OBJECT_TYPE]["raw_type"] =
         offsetof(WasmGlobalObject, raw_type_);
+    fields[WASM_INSTANCE_OBJECT_TYPE]["module_object"] =
+        offsetof(WasmInstanceObject, module_object_);
+    fields[WASM_INSTANCE_OBJECT_TYPE]["trusted_data"] =
+        offsetof(WasmInstanceObject, trusted_data_);
+    fields[WASM_MEMORY_OBJECT_TYPE]["array_buffer"] =
+        offsetof(WasmMemoryObject, array_buffer_);
+    fields[WASM_MEMORY_OBJECT_TYPE]["instances"] =
+        offsetof(WasmMemoryObject, instances_);
+    fields[WASM_MEMORY_OBJECT_TYPE]["managed_backing_store"] =
+        offsetof(WasmMemoryObject, managed_backing_store_);
+    fields[WASM_MODULE_OBJECT_TYPE]["managed_native_module"] =
+        offsetof(WasmModuleObject, managed_native_module_);
+    fields[WASM_MODULE_OBJECT_TYPE]["script"] =
+        offsetof(WasmModuleObject, script_);
     fields[WASM_RESUME_DATA_TYPE]["trusted_suspender"] =
         offsetof(WasmResumeData, trusted_suspender_);
+    fields[WASM_STACK_OBJECT_TYPE]["stack"] = offsetof(WasmStackObject, stack_);
+    fields[WASM_TABLE_OBJECT_TYPE]["current_length"] =
+        offsetof(WasmTableObject, current_length_);
+    fields[WASM_TABLE_OBJECT_TYPE]["entries"] =
+        offsetof(WasmTableObject, entries_);
+    fields[WASM_TABLE_OBJECT_TYPE]["maximum_length"] =
+        offsetof(WasmTableObject, maximum_length_);
+    fields[WASM_TABLE_OBJECT_TYPE]["raw_type"] =
+        offsetof(WasmTableObject, raw_type_);
+    fields[WASM_TABLE_OBJECT_TYPE]["trusted_data"] =
+        offsetof(WasmTableObject, trusted_data_);
+    fields[WASM_TABLE_OBJECT_TYPE]["trusted_dispatch_table"] =
+        offsetof(WasmTableObject, trusted_dispatch_table_);
+    fields[WASM_TAG_OBJECT_TYPE]["tag"] = offsetof(WasmTagObject, tag_);
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return fields;

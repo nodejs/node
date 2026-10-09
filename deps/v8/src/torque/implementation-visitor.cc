@@ -8,7 +8,9 @@
 #include <iomanip>
 #include <optional>
 #include <string>
+#include <string_view>
 
+#include "simdutf.h"
 #include "src/common/globals.h"
 #include "src/numbers/integer-literal-inl.h"
 #include "src/torque/cc-generator.h"
@@ -33,6 +35,87 @@ uint64_t next_unique_binding_index = 0;
 
 namespace {
 const char* BuiltinIncludesMarker = "// __BUILTIN_INCLUDES_MARKER__\n";
+
+std::string Base64Encode(std::string_view input) {
+  std::string output(simdutf::base64_length_from_binary(input.size()), '\0');
+  size_t written =
+      simdutf::binary_to_base64(input.data(), input.size(), output.data());
+  DCHECK_EQ(written, output.size());
+  USE(written);
+  return output;
+}
+
+// Returns the path of `file` as recorded in the Torque CLI invocation (with any
+// relative `../` or `./` prefixes stripped), preserving the repository root
+// prefix passed via `-v8-root` (e.g. `third_party/v8/HEAD/...`) so that
+// generated Kythe VNames match the paths indexed by Kythe extractors.
+std::string KytheSourceFilePath(SourceId file) {
+  std::string abs_path = SourceFileMap::AbsolutePath(file);
+  std::string_view path(abs_path);
+  while (true) {
+    if (path.starts_with("../")) {
+      path.remove_prefix(3);
+    } else if (path.starts_with("./")) {
+      path.remove_prefix(2);
+    } else if (path.starts_with("/")) {
+      path.remove_prefix(1);
+    } else {
+      break;
+    }
+  }
+  return std::string(path);
+}
+
+void EmitKytheInlineMetadata(
+    std::ostream& stream,
+    const std::vector<GlobalContext::KytheInlineMetadata>& rules) {
+  if (!GlobalContext::has_kythe_inline_metadata() || rules.empty()) return;
+  const std::string& corpus = GlobalContext::kythe_default_corpus();
+  std::stringstream json;
+  json << "{\n"
+       << "  \"type\": \"kythe0\",\n"
+       << "  \"meta\": [\n";
+  for (size_t i = 0; i < rules.size(); ++i) {
+    const std::string& rule_path = rules[i].vname_path;
+    if (i > 0) json << ",\n";
+    if (rules[i].is_call_anchor) {
+      json << "    {\n"
+           << "      \"type\": \"anchor_anchor\",\n"
+           << "      \"target_begin\": " << rules[i].begin << ",\n"
+           << "      \"target_end\": " << rules[i].end << ",\n"
+           << "      \"source_begin\": " << rules[i].source_begin << ",\n"
+           << "      \"source_end\": " << rules[i].source_end << ",\n"
+           << "      \"edge\": \"/kythe/edge/ref/call\",\n"
+           << "      \"source_vname\": {\n"
+           << "        \"signature\": \"\",\n"
+           << "        \"corpus\": \"" << corpus << "\",\n"
+           << "        \"path\": \"" << rule_path << "\",\n"
+           << "        \"language\": \"torque\",\n"
+           << "        \"root\": \"\"\n"
+           << "      }\n"
+           << "    }";
+    } else {
+      json << "    {\n"
+           << "      \"type\": \"anchor_defines\",\n"
+           << "      \"begin\": " << rules[i].begin << ",\n"
+           << "      \"end\": " << rules[i].end << ",\n"
+           << "      \"edge\": \"%/kythe/edge/generates\",\n"
+           << "      \"vname\": {\n"
+           << "        \"signature\": \"" << rules[i].vname_sig << "\",\n"
+           << "        \"corpus\": \"" << corpus << "\",\n"
+           << "        \"path\": \"" << rule_path << "\",\n"
+           << "        \"language\": \"torque\",\n"
+           << "        \"root\": \"\"\n"
+           << "      }\n"
+           << "    }";
+    }
+  }
+  json << "\n  ]\n}\n";
+  stream << "\n#ifdef KYTHE_IS_RUNNING\n"
+         << "#pragma kythe_inline_metadata \"v8_torque_metadata\"\n"
+         << "#endif\n"
+         << "// v8_torque_metadata " << Base64Encode(json.str()) << "\n";
+}
 }  // namespace
 
 VisitResult ImplementationVisitor::Visit(Expression* expr) {
@@ -148,6 +231,7 @@ void ImplementationVisitor::EndGeneratedFiles() {
 
       streams.csa_header.EndNamespace("v8", "internal");
       streams.csa_headerfile << "\n";
+      EmitKytheInlineMetadata(streams.csa_headerfile, streams.csa_header_rules);
       streams.csa_header.EndIncludeGuard(header_define);
     }
 
@@ -578,7 +662,23 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
 
   const std::string& name = builtin->ExternalName();
   const Signature& signature = builtin->signature();
-  csa_ccfile() << "TF_BUILTIN(" << name << ", CodeStubAssembler) {\n"
+  csa_ccfile() << "TF_BUILTIN(";
+  size_t begin = static_cast<size_t>(csa_ccfile().tellp());
+  csa_ccfile() << name;
+  size_t end = static_cast<size_t>(csa_ccfile().tellp());
+  if (GlobalContext::has_kythe_inline_metadata() &&
+      CurrentFileStreams::HasScope()) {
+    const SourcePosition ident_pos = builtin->IdentifierPosition();
+    if (auto* streams = CurrentFileStreams::Get();
+        streams && ident_pos.IsValid()) {
+      streams->csa_cc_rules.push_back(
+          GlobalContext::KytheInlineMetadata::CallAnchor(
+              begin, end, static_cast<size_t>(ident_pos.start.offset),
+              static_cast<size_t>(ident_pos.end.offset),
+              KytheSourceFilePath(ident_pos.source)));
+    }
+  }
+  csa_ccfile() << ", CodeStubAssembler) {\n"
                << "  compiler::CodeAssemblerState* state_ = state();"
                << "  compiler::CodeAssembler ca_(state());\n";
 
@@ -1827,13 +1927,32 @@ void ImplementationVisitor::GenerateImplementation(const std::string& dir) {
       CHECK_NE(pos, std::string::npos);
       std::string includes;
       for (const SourceId& include : streams.required_builtin_includes) {
+        // A field built from the layout JSON is positioned at the C++
+        // header that declares it, which has no generated counterpart to
+        // include.
+        if (!StringEndsWith(SourceFileMap::PathFromV8Root(include), ".tq")) {
+          continue;
+        }
         std::string include_file =
             SourceFileMap::PathFromV8RootWithoutExtension(include);
         includes += "#include \"torque-generated/";
         includes += include_file;
         includes += "-tq-csa.h\"\n";
       }
+      int64_t diff = static_cast<int64_t>(includes.size()) -
+                     static_cast<int64_t>(strlen(BuiltinIncludesMarker));
+      for (auto& rule : streams.csa_cc_rules) {
+        if (static_cast<int64_t>(rule.begin) >= static_cast<int64_t>(pos)) {
+          rule.begin += diff;
+          rule.end += diff;
+        }
+      }
       csa_cc.replace(pos, strlen(BuiltinIncludesMarker), std::move(includes));
+    }
+    if (GlobalContext::has_kythe_inline_metadata()) {
+      std::stringstream ss;
+      EmitKytheInlineMetadata(ss, streams.csa_cc_rules);
+      csa_cc += ss.str();
     }
 
     // TODO(torque-builder): Pass file directly.
@@ -1849,11 +1968,43 @@ void ImplementationVisitor::GenerateImplementation(const std::string& dir) {
 
 cpp::Function ImplementationVisitor::GenerateMacroFunctionDeclaration(
     Macro* macro) {
-  return GenerateFunction(nullptr,
-                          output_type_ == OutputType::kCCDebug
-                              ? macro->CCDebugName()
-                              : macro->ExternalName(),
-                          macro->signature(), macro->parameter_names());
+  cpp::Function f = GenerateFunction(
+      nullptr,
+      output_type_ == OutputType::kCCDebug ? macro->CCDebugName()
+                                           : macro->ExternalName(),
+      macro->signature(), macro->parameter_names(),
+      /*pass_code_assembler_state=*/true,
+      /*generated_parameter_names=*/nullptr);
+  // Emit `anchor_anchor` (`/kythe/edge/ref/call`) metadata on standalone
+  // `*-tq-csa.{h,cc}` macro declarations/definitions rather than
+  // `anchor_defines` (`%/kythe/edge/generates`) because Kythe's `generates`
+  // collapsing currently only merges `defines` and incoming calls, not outgoing
+  // `ref/call` edges where the generated C++ function is the caller
+  // (b/541055917).
+  const SourcePosition ident_pos = macro->IdentifierPosition();
+  if (GlobalContext::has_kythe_inline_metadata() &&
+      output_type_ == OutputType::kCSA && ident_pos.IsValid()) {
+    size_t src_begin = static_cast<size_t>(ident_pos.start.offset);
+    size_t src_end = static_cast<size_t>(ident_pos.end.offset);
+    std::string vname_path = KytheSourceFilePath(ident_pos.source);
+    f.SetKytheCallback([src_begin, src_end, vname_path = std::move(vname_path)](
+                           std::ostream& stream, size_t begin, size_t end) {
+      if (CurrentFileStreams::HasScope()) {
+        if (auto* streams = CurrentFileStreams::Get()) {
+          if (&stream == &streams->csa_headerfile) {
+            streams->csa_header_rules.push_back(
+                GlobalContext::KytheInlineMetadata::CallAnchor(
+                    begin, end, src_begin, src_end, vname_path));
+          } else if (&stream == &streams->csa_ccfile) {
+            streams->csa_cc_rules.push_back(
+                GlobalContext::KytheInlineMetadata::CallAnchor(
+                    begin, end, src_begin, src_end, vname_path));
+          }
+        }
+      }
+    });
+  }
+  return f;
 }
 
 cpp::Function ImplementationVisitor::GenerateFunction(
@@ -4216,6 +4367,8 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
   std::string file_name = "exported-macros-assembler";
   std::stringstream h_contents;
   std::stringstream cc_contents;
+  std::vector<GlobalContext::KytheInlineMetadata> h_rules;
+  std::vector<GlobalContext::KytheInlineMetadata> cc_rules;
   {
     IncludeGuardScope include_guard(h_contents, file_name + ".h");
 
@@ -4237,42 +4390,65 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
                          "-tq-csa.h\"\n";
     }
 
-    NamespaceScope h_namespaces(h_contents, {"v8", "internal"});
-    NamespaceScope cc_namespaces(cc_contents, {"v8", "internal"});
+    {
+      NamespaceScope h_namespaces(h_contents, {"v8", "internal"});
+      NamespaceScope cc_namespaces(cc_contents, {"v8", "internal"});
 
-    h_contents << "class V8_EXPORT_PRIVATE "
-                  "TorqueGeneratedExportedMacrosAssembler {\n"
-               << " public:\n"
-               << "  explicit TorqueGeneratedExportedMacrosAssembler"
-                  "(compiler::CodeAssemblerState* state) : state_(state) {\n"
-               << "    USE(state_);\n"
-               << "  }\n";
+      h_contents << "class V8_EXPORT_PRIVATE "
+                    "TorqueGeneratedExportedMacrosAssembler {\n"
+                 << " public:\n"
+                 << "  explicit TorqueGeneratedExportedMacrosAssembler"
+                    "(compiler::CodeAssemblerState* state) : state_(state) {\n"
+                 << "    USE(state_);\n"
+                 << "  }\n";
 
-    for (auto& declarable : GlobalContext::AllDeclarables()) {
-      TorqueMacro* macro = TorqueMacro::DynamicCast(declarable.get());
-      if (!(macro && macro->IsExportedToCSA())) continue;
-      CurrentSourcePosition::Scope position_activator(macro->Position());
+      for (auto& declarable : GlobalContext::AllDeclarables()) {
+        TorqueMacro* macro = TorqueMacro::DynamicCast(declarable.get());
+        if (!(macro && macro->IsExportedToCSA())) continue;
+        CurrentSourcePosition::Scope position_activator(macro->Position());
 
-      cpp::Class assembler("TorqueGeneratedExportedMacrosAssembler");
-      std::vector<std::string> generated_parameter_names;
-      cpp::Function f = GenerateFunction(
-          &assembler, macro->ReadableName(), macro->signature(),
-          macro->parameter_names(), false, &generated_parameter_names);
-
-      f.PrintDeclaration(h_contents);
-      f.PrintDefinition(cc_contents, [&](std::ostream& stream) {
-        stream << "return " << macro->ExternalName() << "(state_";
-        for (const auto& name : generated_parameter_names) {
-          stream << ", " << name;
+        cpp::Class assembler("TorqueGeneratedExportedMacrosAssembler");
+        std::vector<std::string> generated_parameter_names;
+        cpp::Function f = GenerateFunction(
+            &assembler, macro->ReadableName(), macro->signature(),
+            macro->parameter_names(), false, &generated_parameter_names);
+        const SourcePosition ident_pos = macro->IdentifierPosition();
+        if (GlobalContext::has_kythe_inline_metadata() &&
+            ident_pos.source.IsValid()) {
+          std::string vname_sig = macro->ExternalName();
+          std::string vname_path = KytheSourceFilePath(ident_pos.source);
+          f.SetKytheCallback([&h_contents, &cc_contents, &h_rules, &cc_rules,
+                              vname_sig = std::move(vname_sig),
+                              vname_path = std::move(vname_path)](
+                                 std::ostream& stream, size_t begin,
+                                 size_t end) {
+            if (&stream == &h_contents) {
+              h_rules.push_back(GlobalContext::KytheInlineMetadata::Generates(
+                  begin, end, vname_sig, vname_path));
+            } else if (&stream == &cc_contents) {
+              cc_rules.push_back(GlobalContext::KytheInlineMetadata::Generates(
+                  begin, end, vname_sig, vname_path));
+            }
+          });
         }
-        stream << ");";
-      });
-    }
 
-    h_contents << " private:\n"
-               << "  compiler::CodeAssemblerState* state_;\n"
-               << "};\n";
+        f.PrintDeclaration(h_contents);
+        f.PrintDefinition(cc_contents, [&](std::ostream& stream) {
+          stream << "return " << macro->ExternalName() << "(state_";
+          for (const auto& name : generated_parameter_names) {
+            stream << ", " << name;
+          }
+          stream << ");";
+        });
+      }
+
+      h_contents << " private:\n"
+                 << "  compiler::CodeAssemblerState* state_;\n"
+                 << "};\n";
+    }
+    EmitKytheInlineMetadata(h_contents, h_rules);
   }
+  EmitKytheInlineMetadata(cc_contents, cc_rules);
   WriteFile(output_directory + "/" + file_name + ".h", h_contents.str());
   WriteFile(output_directory + "/" + file_name + ".cc", cc_contents.str());
 }

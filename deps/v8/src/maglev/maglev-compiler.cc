@@ -299,6 +299,9 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
         std::make_unique<MaglevCodeGenerator>(local_isolate, compilation_info,
                                               graph);
     bool success = code_generator->Assemble();
+    if (v8_flags.maglev_build_code_on_background || !success) {
+      compilation_info->broker()->DetachCanonicalHandles(compilation_info);
+    }
     if (!success) {
       return false;
     }

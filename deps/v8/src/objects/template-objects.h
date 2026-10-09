@@ -23,18 +23,18 @@ class StructBodyDescriptor;
 // object creation within the {Runtime_GetTemplateObject} method.
 V8_OBJECT class TemplateObjectDescription final : public Struct {
  public:
+  inline TemplateObjectDescription(const AllocationWitness& witness,
+                                   ReadOnlyRoots roots,
+                                   Tagged<FixedArray> raw_strings,
+                                   Tagged<FixedArray> cooked_strings);
+
   static DirectHandle<JSArray> GetTemplateObject(
       Isolate* isolate, DirectHandle<NativeContext> native_context,
       DirectHandle<TemplateObjectDescription> description,
       DirectHandle<SharedFunctionInfo> shared_info, int slot_id);
 
   inline Tagged<FixedArray> raw_strings() const;
-  inline void set_raw_strings(Tagged<FixedArray> value,
-                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline Tagged<FixedArray> cooked_strings() const;
-  inline void set_cooked_strings(Tagged<FixedArray> value,
-                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   using BodyDescriptor = StructBodyDescriptor;
 
@@ -45,8 +45,8 @@ V8_OBJECT class TemplateObjectDescription final : public Struct {
   friend class Factory;
   friend class TorqueGeneratedTemplateObjectDescriptionAsserts;
 
-  TaggedMember<FixedArray> raw_strings_;
-  TaggedMember<FixedArray> cooked_strings_;
+  const TaggedMember<FixedArray> raw_strings_;
+  const TaggedMember<FixedArray> cooked_strings_;
 } V8_OBJECT_END;
 
 }  // namespace internal

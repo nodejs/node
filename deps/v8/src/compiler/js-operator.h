@@ -418,13 +418,16 @@ CreateFunctionContextParameters const& CreateFunctionContextParametersOf(
 // Defines parameters for JSDefineNamedOwnProperty operator.
 class DefineNamedOwnPropertyParameters final {
  public:
-  DefineNamedOwnPropertyParameters(NameRef name, FeedbackSource const& feedback)
-      : name_(name), feedback_(feedback) {}
+  DefineNamedOwnPropertyParameters(bool in_literal, NameRef name,
+                                   FeedbackSource const& feedback)
+      : in_literal_(in_literal), name_(name), feedback_(feedback) {}
 
   NameRef name() const { return name_; }
   FeedbackSource const& feedback() const { return feedback_; }
+  bool in_literal() const { return in_literal_; }
 
  private:
+  bool in_literal_;
   const NameRef name_;
   FeedbackSource const feedback_;
 
@@ -958,7 +961,7 @@ std::ostream& operator<<(std::ostream&, ForInParameters const&);
 const ForInParameters& ForInParametersOf(const Operator* op);
 
 #if V8_ENABLE_WEBASSEMBLY
-class JSWasmCallParameters {
+class JSWasmCallParameters final {
  public:
   explicit JSWasmCallParameters(wasm::NativeModule* native_module,
                                 int function_index,
@@ -1157,7 +1160,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* SetNamedProperty(LanguageMode language_mode, NameRef name,
                                    FeedbackSource const& feedback);
 
-  const Operator* DefineNamedOwnProperty(NameRef name,
+  const Operator* DefineNamedOwnProperty(bool in_literal, NameRef name,
                                          FeedbackSource const& feedback);
   const Operator* DefineKeyedOwnPropertyInLiteral(
       const FeedbackSource& feedback);

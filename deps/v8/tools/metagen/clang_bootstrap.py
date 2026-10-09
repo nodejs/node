@@ -43,7 +43,7 @@ subtly wrong AST rather than a clean failure, and this generator's
 output ships in the V8 build.
 
 The clang builtin headers (stddef.h etc.) are a separate input handled
-by metagen.py's --clang-resource-dir / --clang-builtin-headers-dir.
+by metagen.py's --clang-resource-dir.
 """
 
 from __future__ import annotations

@@ -47,7 +47,7 @@ assert_test_locked_proto(test_locked_proto());
 %OptimizeMaglevOnNextCall(test_locked_proto);
 assert_test_locked_proto(test_locked_proto());
 assertOptimized(test_locked_proto);
-assertTrue(isMaglevved(test_locked_proto));
+assertMaglevved(test_locked_proto);
 assert_test_locked_proto(test_locked_proto());
 %OptimizeFunctionOnNextCall(test_locked_proto);
 assert_test_locked_proto(test_locked_proto());

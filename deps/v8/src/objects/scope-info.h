@@ -122,7 +122,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   // Parameters allocated in the context count as context allocated locals. If
   // no contexts are allocated for this scope ContextLength returns 0.
   int ContextLength() const;
-  int ContextHeaderLength() const;
+  V8_EXPORT_PRIVATE int ContextHeaderLength() const;
 
   // Returns true if the respective contexts have a context extension slot.
   V8_EXPORT_PRIVATE bool HasContextExtensionSlot() const;
@@ -169,9 +169,6 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   V8_EXPORT_PRIVATE void SetFunctionName(Tagged<UnionOf<Smi, String>> name);
   V8_EXPORT_PRIVATE void SetInferredFunctionName(Tagged<String> name);
 
-  // Does this scope belong to a function?
-  bool HasPositionInfo() const;
-
   bool IsWrappedFunctionScope() const;
 
   // Return if contexts are allocated for this scope.
@@ -199,7 +196,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   int EndPosition() const;
   void SetPositionInfo(int start, int end);
 
-  int UniqueIdInScript() const;
+  V8_EXPORT_PRIVATE int UniqueIdInScript() const;
 
   Tagged<SourceTextModuleInfo> ModuleDescriptorInfo() const;
 
@@ -217,7 +214,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
 
   // Return the name of a given context local.
   // It should only be used if inlined local names.
-  Tagged<String> ContextInlinedLocalName(int var) const;
+  V8_EXPORT_PRIVATE Tagged<String> ContextInlinedLocalName(int var) const;
 
   // Return the mode of the given context local.
   VariableMode ContextLocalMode(int var) const;
@@ -292,7 +289,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   void SetIsDebugEvaluateScope();
 
   // Return the outer ScopeInfo if present.
-  Tagged<ScopeInfo> OuterScopeInfo() const;
+  V8_EXPORT_PRIVATE Tagged<ScopeInfo> OuterScopeInfo() const;
 
   bool is_script_scope() const;
 
@@ -309,8 +306,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
 
   template <typename IsolateT>
   static Handle<ScopeInfo> Create(IsolateT* isolate, Zone* zone, Scope* scope,
-                                  MaybeDirectHandle<ScopeInfo> outer_scope,
-                                  FunctionKind closure_function_kind);
+                                  MaybeDirectHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static DirectHandle<ScopeInfo> CreateForWithScope(
       Isolate* isolate, MaybeDirectHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static DirectHandle<ScopeInfo> CreateForEmptyFunction(
@@ -557,18 +553,83 @@ V8_OBJECT class ScopeInfo : public HeapObject {
 
  public:
   // Relaxed-atomic flags word (ScopeFlags bit layout).
-  std::atomic<uint32_t> flags_;
+  V8_TQ_CONST V8_TQ_RELAXED std::atomic<uint32_t> flags_ V8_TQ_TYPE(ScopeFlags);
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
   // TODO(jgruber): Consider plain uint32_t (or similar) for these.
   TaggedMember<Smi> parameter_count_;
-  TaggedMember<Smi> context_local_count_;
-  TaggedMember<Smi> position_info_start_;
-  TaggedMember<Smi> position_info_end_;
+  V8_TQ_CONST TaggedMember<Smi> context_local_count_;
+  // Match the Torque PositionInfo struct as one struct-typed field.
+  struct PositionInfo {
+    TaggedMember<Smi> start_;
+    TaggedMember<Smi> end_;
+  };
+  PositionInfo position_info_;
   // Variable-length tagged tail. The presence and position of each
   // sub-section is determined by flags and by header counts; see the
-  // Foo...Offset() accessors below.
+  // These Torque sections correspond to the Foo...Offset() accessors below.
+  // clang-format off
+  V8_TQ_TAIL_SECTIONS(
+      const module_variable_count?
+          [flags.scope_type == ScopeType::MODULE_SCOPE]: Smi;
+
+      // The names of inlined local variables and parameters allocated in
+      // the context, in increasing order of context slot index starting
+      // with Context::MIN_CONTEXT_SLOTS.
+      context_local_names
+          [Convert<intptr>(context_local_count) < kMaxInlinedLocalNamesSize
+               ? context_local_count
+               : 0]: String;
+
+      // A hash_map from local names to context slot index, used only when
+      // the local names are not inlined above.
+      context_local_names_hashtable?
+          [kMaxInlinedLocalNamesSize <= Convert<intptr>(context_local_count)]:
+          NameToIndexHashTable;
+
+      // The variable modes and initialization flags of the context locals.
+      context_local_infos[context_local_count]: SmiTagged<VariableProperties>;
+
+      // For a class scope with static private methods reachable directly
+      // or through eval: the name of the class variable, or its slot index
+      // when the locals are inlined.
+      saved_class_variable_info?[flags.has_saved_class_variable]: Smi|Name;
+
+      // For a named function expression: the name of the function variable
+      // and its context or stack slot index.
+      function_variable_info?
+          [flags.function_variable !=
+           FromConstexpr<VariableAllocationInfo>(VariableAllocationInfo::NONE)]:
+          FunctionVariableInfo;
+
+      inferred_function_name?
+          [flags.has_inferred_function_name]: String|Undefined;
+
+      outer_scope_info?[flags.has_outer_scope_info]: ScopeInfo;
+
+      // For a module scope: the SourceTextModuleInfo and the metadata of
+      // the module-allocated variables. Empty for other scopes.
+      module_info?[flags.scope_type == ScopeType::MODULE_SCOPE]:
+          SourceTextModuleInfo;
+      module_variables
+          [flags.scope_type == ScopeType::MODULE_SCOPE
+               ? module_variable_count
+               : 0]: ModuleVariable;
+
+      // Maps a module variable name to its index in module_variables, once
+      // there are enough of them that a linear scan is too slow.
+      module_variables_hashtable?
+          [flags.scope_type == ScopeType::MODULE_SCOPE
+               ? kMaxInlinedLocalNamesSize <=
+                     Convert<intptr>(module_variable_count)
+               : false]: NameToIndexHashTable;
+
+      dependent_code?[flags.sloppy_eval_can_extend_vars]: DependentCode;
+
+      const unused_parameter_bits?
+          [flags.scope_type == ScopeType::FUNCTION_SCOPE]: Smi;);
+  // clang-format on
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data);
 } V8_OBJECT_END;
 

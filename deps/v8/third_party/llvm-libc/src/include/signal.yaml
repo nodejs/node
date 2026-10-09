@@ -37,12 +37,16 @@ types:
   - type_name: sighandler_t
     standards:
       - gnu
+      - llvm_libc_ext
   - type_name: siginfo_t
   - type_name: sigset_t
   - type_name: stack_t
   - type_name: struct_sigaction
   - type_name: struct_sigevent
   - type_name: union_sigval
+  - type_name: pthread_t
+    standards:
+      - posix
 enums: []
 objects: []
 functions:
@@ -103,15 +107,10 @@ functions:
   - name: signal
     standards:
       - stdc
-    # May the Geneva Convention have mercy on my soul... Why this insanity?
-    # Well: signal returns a function pointer to a function with no return
-    # value and which accepts an int. The parameter list appears on the far
-    # right of the declaration. i.e.
-    # void (*signal(int, void (*)(int)))(int);
-    return_type: void (*
+    return_type: sighandler_t
     arguments:
       - type: int
-      - type: void (*)(int)))(int
+      - type: sighandler_t
   - name: sigprocmask
     standards:
       - posix
@@ -128,3 +127,10 @@ functions:
       - type: int
       - type: const sigset_t *__restrict
       - type: sigset_t *__restrict
+  - name: pthread_kill
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: pthread_t
+      - type: int

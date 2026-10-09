@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/fpu.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -206,6 +208,97 @@ BIN_OP_LIST(TEST_BIN_OP)
 
 #undef TEST_BIN_OP
 #undef BIN_OP_LIST
+
+WASM_COMPILED_EXEC_TEST(F16x8AddRaw) {
+  i::v8_flags.wasm_fp16 = true;
+  WasmRunner<int32_t> r(execution_tier);
+  constexpr int kLanes = 8;
+  // Two inputs and three outputs: a+b, a+a, and (a+b)+a.
+  uint16_t* memory = r.builder().AddMemoryElems<uint16_t>(5 * kLanes);
+  uint8_t lhs = r.AllocateLocal(kWasmS128);
+  uint8_t rhs = r.AllocateLocal(kWasmS128);
+  uint8_t sum = r.AllocateLocal(kWasmS128);
+  r.Build(
+      {WASM_LOCAL_SET(lhs, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+       WASM_LOCAL_SET(rhs, WASM_SIMD_LOAD_MEM(WASM_I32V(16))),
+       WASM_LOCAL_SET(sum, WASM_SIMD_BINOP(kExprF16x8Add, WASM_LOCAL_GET(lhs),
+                                           WASM_LOCAL_GET(rhs))),
+       WASM_SIMD_STORE_MEM(WASM_I32V(32), WASM_LOCAL_GET(sum)),
+       WASM_SIMD_STORE_MEM(WASM_I32V(48),
+                           WASM_SIMD_BINOP(kExprF16x8Add, WASM_LOCAL_GET(lhs),
+                                           WASM_LOCAL_GET(lhs))),
+       WASM_SIMD_STORE_MEM(WASM_I32V(64),
+                           WASM_SIMD_BINOP(kExprF16x8Add, WASM_LOCAL_GET(sum),
+                                           WASM_LOCAL_GET(lhs))),
+       WASM_ONE});
+
+  auto check_lane = [](uint16_t a, uint16_t b, uint16_t expected,
+                       uint16_t actual) {
+    if (!isnan(expected)) {
+      CHECK_EQ(expected, actual);  // Includes the sign of zero.
+      return;
+    }
+    // The reference FP32-to-FP16 conversion canonicalizes NaNs. Check raw
+    // operands instead: Wasm requires a canonical NaN if all NaN inputs are
+    // canonical, and otherwise permits any arithmetic (quiet) NaN.
+    CHECK_EQ(0x7e00, actual & 0x7e00);
+    if ((!isnan(a) || IsCanonical(a)) && (!isnan(b) || IsCanonical(b))) {
+      CHECK(IsCanonical(actual));
+    }
+  };
+  auto check = [&]() {
+    // Native FP16 arithmetic must preserve half subnormals in either mode.
+    for (bool flush_denormals : {false, true}) {
+      base::FlushDenormalsScope denormals_scope(flush_denormals);
+      CHECK_EQ(1, r.Call());
+      for (int lane = 0; lane < kLanes; ++lane) {
+        uint16_t a = r.builder().ReadMemory(&memory[lane]);
+        uint16_t b = r.builder().ReadMemory(&memory[kLanes + lane]);
+        uint16_t expected_sum = AddF16(a, b);
+        uint16_t actual_sum =
+            r.builder().ReadMemory(&memory[2 * kLanes + lane]);
+        check_lane(a, b, expected_sum, actual_sum);
+        check_lane(a, a, AddF16(a, a),
+                   r.builder().ReadMemory(&memory[3 * kLanes + lane]));
+        // Use the already-checked intermediate's actual NaN class.
+        check_lane(actual_sum, a, AddF16(expected_sum, a),
+                   r.builder().ReadMemory(&memory[4 * kLanes + lane]));
+      }
+    }
+  };
+
+  // Raw bits avoid splat conversions quieting NaNs or hiding subnormals.
+  constexpr uint16_t inputs[] = {
+      0x0000, 0x8000,                  // +/- zero
+      0x0001, 0x8001, 0x03ff, 0x83ff,  // Subnormal boundaries
+      0x0400, 0x8400, 0x0401, 0x8401,  // Normal/subnormal cancellation
+      0x1000, 0x9000,                  // Half an ULP at 1: ties to even
+      0x3bff, 0x3c00, 0xbc00, 0x3c01, 0xbc01, 0x4000, 0xc000,  // Around +/-1
+      0x7bff, 0xfbff,                  // Largest finite values / overflow
+      0x7c00, 0xfc00,                  // Infinities
+      0x7c01, 0xfc01, 0x7dff, 0xfdff,  // Signaling NaNs
+      0x7e00, 0xfe00, 0x7e55, 0xfe55, 0x7fff, 0xffff};  // Quiet NaNs
+  for (size_t i = 0; i < arraysize(inputs); ++i) {
+    for (size_t j = 0; j < arraysize(inputs); ++j) {
+      for (int lane = 0; lane < kLanes; ++lane) {
+        r.builder().WriteMemory(&memory[lane],
+                                inputs[(i + lane) % arraysize(inputs)]);
+        r.builder().WriteMemory(&memory[kLanes + lane],
+                                inputs[(j + 3 * lane) % arraysize(inputs)]);
+      }
+      check();
+    }
+  }
+
+  base::RandomNumberGenerator rng(0xadd16);
+  for (int trial = 0; trial < 512; ++trial) {
+    for (int lane = 0; lane < 2 * kLanes; ++lane) {
+      r.builder().WriteMemory(&memory[lane],
+                              static_cast<uint16_t>(rng.NextInt(65536)));
+    }
+    check();
+  }
+}
 
 WASM_EXEC_TEST(F16x8ConvertI16x8) {
   i::v8_flags.wasm_fp16 = true;

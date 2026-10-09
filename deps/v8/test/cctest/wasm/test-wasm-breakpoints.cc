@@ -8,6 +8,7 @@
 #include "src/objects/property-descriptor.h"
 #include "src/utils/utils.h"
 #include "src/wasm/wasm-debug.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/wasm/wasm-runner.h"
@@ -584,6 +585,62 @@ WASM_COMPILED_EXEC_TEST(Regress10889) {
   WasmRunner<int> runner(execution_tier);
   runner.Build({WASM_I32V_1(0)});
   SetBreakpoint(&runner, runner.function_index(), 1, 1);
+}
+
+WASM_COMPILED_EXEC_TEST(WasmBreakpointMultipleScripts) {
+  WasmRunner<int> runner(execution_tier);
+  Isolate* isolate = runner.isolate();
+
+  runner.Build({WASM_NOP, WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3))});
+  runner.SwitchToDebug();
+
+  DirectHandle<WasmInstanceObject> instance =
+      runner.builder().instance_object();
+  DirectHandle<WasmModuleObject> module_object(instance->module_object(),
+                                               isolate);
+  DirectHandle<Script> script1(module_object->script(), isolate);
+  std::shared_ptr<NativeModule> native_module =
+      module_object->managed_native_module()->get();
+  DirectHandle<Script> script2 = GetWasmEngine()->GetOrCreateScript(
+      isolate, native_module, base::CStrVector("custom://other-url.wasm"));
+  CHECK_NE(*script1, *script2);
+
+  int func_offset =
+      runner.builder().GetFunctionAt(runner.function_index())->code.offset();
+  int code_offset = func_offset + 1;
+
+  DirectHandle<BreakPoint> bp1 =
+      isolate->factory()->NewBreakPoint(1, isolate->factory()->empty_string());
+  DirectHandle<BreakPoint> bp2 =
+      isolate->factory()->NewBreakPoint(2, isolate->factory()->empty_string());
+  DirectHandle<BreakPoint> bp3 =
+      isolate->factory()->NewBreakPoint(3, isolate->factory()->empty_string());
+
+  // Set two breakpoints at the same offset on script1, and one on script2.
+  CHECK(WasmScript::SetBreakPoint(script1, &code_offset, bp1));
+  CHECK(WasmScript::SetBreakPoint(script1, &code_offset, bp2));
+  CHECK(WasmScript::SetBreakPoint(script2, &code_offset, bp3));
+
+  // Clearing bp1 (on script1) and bp3 (on script2) must leave bp2 active on
+  // script1.
+  CHECK(WasmScript::ClearBreakPoint(script1, code_offset, bp1));
+  CHECK(WasmScript::ClearBreakPoint(script2, code_offset, bp3));
+
+  BreakHandler count_breaks(isolate, {{1, BreakHandler::Continue}});
+
+  DirectHandle<JSFunction> main_fun_wrapper =
+      runner.builder().WrapCode(runner.function_index());
+  DirectHandle<Object> global(isolate->context()->global_object(), isolate);
+  MaybeDirectHandle<Object> retval =
+      Execution::Call(isolate, main_fun_wrapper, global, {});
+  CHECK_EQ(14, GetIntReturnValue(retval));
+
+  // Clearing the last remaining breakpoint (bp2 on script1) must remove it
+  // from DebugInfo, and clearing again must return false.
+  CHECK(WasmScript::ClearBreakPoint(script1, code_offset, bp2));
+  CHECK(!WasmScript::ClearBreakPoint(script1, code_offset, bp2));
+  retval = Execution::Call(isolate, main_fun_wrapper, global, {});
+  CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
 }  // namespace wasm

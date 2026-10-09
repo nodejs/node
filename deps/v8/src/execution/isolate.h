@@ -501,6 +501,8 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(LogEventCallback, event_logger, nullptr)                                \
   V(ModifyCodeGenerationFromStringsCallback2, modify_code_gen_callback,     \
     nullptr)                                                                \
+  V(DynamicScriptCompiledFromEmbedderCallback, dynamic_script_callback,     \
+    nullptr)                                                                \
   V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr) \
   V(ExtensionCallback, wasm_module_callback, &NoExtension)                  \
   V(ExtensionCallback, wasm_instance_callback, &NoExtension)                \
@@ -514,6 +516,7 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
     wasm_custom_descriptors_enabled_callback, nullptr)                      \
   V(IsJSApiWrapperNativeErrorCallback,                                      \
     is_js_api_wrapper_native_error_callback, nullptr)                       \
+  V(ArrayBufferDetachCallback, array_buffer_detach_callback, nullptr)       \
   /* State for Relocatable. */                                              \
   V(Relocatable*, relocatable_top, nullptr)                                 \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)           \
@@ -1699,12 +1702,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   const std::string& DefaultLocale();
 
+  bool DefaultLocaleMayRequireSpecialCaseMapping() const {
+    return isolate_data_.default_locale_may_require_special_case_mapping_;
+  }
+
   void ResetDefaultLocale();
 
-  void set_default_locale(const std::string& locale) {
-    DCHECK_EQ(default_locale_.length(), 0);
-    default_locale_ = locale;
-  }
+  void set_default_locale(const std::string& locale);
 
   enum class ICUObjectCacheType{
       kDefaultCollator, kDefaultNumberFormat, kDefaultSimpleDateFormat,
@@ -1796,6 +1800,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Flushes all pending concurrent optimization jobs from the optimizing
   // compile dispatcher's queue.
   void AbortConcurrentOptimization(BlockingBehavior blocking_behavior);
+
+  // Waits until all concurrent optimization jobs of this Isolate have
+  // finished. Finished jobs request an interrupt for installing their code, so
+  // they are finalized the next time interrupts are handled.
+  void WaitForConcurrentOptimizationJobs();
 
   int id() const { return id_; }
 
@@ -2121,6 +2130,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     }
   }
 
+  v8::CrashKey AllocateCrashKeyString(const char key[], CrashKeySize size);
   v8::CrashKey AddCrashKeyString(const char key[], CrashKeySize size,
                                  std::string_view value);
   void SetCrashKeyString(CrashKey crash_key, std::string_view value);
@@ -2532,6 +2542,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void Freeze(bool is_frozen) {
     is_frozen_ = is_frozen;
+    if (v8_flags.freeze_forces_marking_finalization && IsFrozen()) {
+      // We will either finalize an ongoing GC, or simply do a GC to reclaim
+      // any unreachable memory.
+      heap()->FinalizeIncrementalMarkingAtomically(
+          i::GarbageCollectionReason::kFrozen);
+    }
   }
 
   static void IterateRegistersAndStackOfSimulator(

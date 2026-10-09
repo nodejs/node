@@ -14,14 +14,20 @@
 
 #include "absl/container/internal/hash_function_defaults.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
+#include "absl/base/port.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/hash/hash.h"

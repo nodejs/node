@@ -26,6 +26,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/isolate-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
 #include "src/interpreter/bytecode-flags-and-tokens.h"
@@ -532,9 +533,6 @@ DeoptInfo::DeoptInfo(Zone* zone, DeoptFrame* top_frame,
     : top_frame_(top_frame), feedback_to_update_(feedback_to_update) {}
 
 bool LazyDeoptInfo::IsResultRegister(interpreter::Register reg) const {
-  if (top_frame().type() == DeoptFrame::FrameType::kConstructInvokeStubFrame) {
-    return reg == interpreter::Register::virtual_accumulator();
-  }
   if (V8_LIKELY(result_size() == 1)) {
     return reg == result_location_;
   }
@@ -554,6 +552,14 @@ bool LazyDeoptInfo::InReturnValues(interpreter::Register reg,
   }
   return base::IsInRange(reg.index(), result_location.index(),
                          result_location.index() + result_size - 1);
+}
+
+int BuiltinContinuationDeoptFrame::translation_height() const {
+  // parameters() in JS Continuation only holds the stack params as the JS
+  // trampoline's register ones are appended during translation.
+  return parameters().length() +
+         (is_javascript() ? JSTrampolineDescriptor::GetRegisterParameterCount()
+                          : 0);
 }
 
 int InterpretedDeoptFrame::ComputeReturnOffset(
@@ -836,10 +842,10 @@ Range ValueNode::GetStaticRange() const {
   }
 }
 
-Tribool ValueNode::IsTheHole() const {
-  if (!CanBeTheHoleValue(opcode())) return Tribool::kFalse;
+Tribool ValueNode::IsHole(RootIndex hole_index) const {
+  if (!CanBeHoleValue(hole_index, opcode())) return Tribool::kFalse;
   if (const RootConstant* cst = TryCast<RootConstant>()) {
-    return ToTribool(cst->index() == RootIndex::kTheHoleValue);
+    return ToTribool(cst->index() == hole_index);
   }
   if (const LoadTaggedField* load = TryCast<LoadTaggedField>()) {
     // There are a few ways that this can load a hole, for instance through a
@@ -854,19 +860,20 @@ Tribool ValueNode::IsTheHole() const {
     return Tribool::kMaybe;
   }
   if (const LoadFixedArrayElement* load = TryCast<LoadFixedArrayElement>()) {
+    DCHECK_EQ(hole_index, RootIndex::kTheHoleValue);
     if (load->load_type() != LoadType::kUnknown) {
       return Tribool::kFalse;
     }
     return Tribool::kMaybe;
   }
   if (Is<Identity>()) {
-    return UnwrapIdentities()->IsTheHole();
+    return UnwrapIdentities()->IsHole(hole_index);
   }
   if (const Phi* phi = TryCast<Phi>()) {
     if (!phi->is_loop_phi() && !phi->is_exception_phi()) {
       bool can_be_the_hole = false;
       for (ConstInput input : phi->inputs()) {
-        if (input.node()->IsTheHole() != Tribool::kFalse) {
+        if (input.node()->IsHole(hole_index) != Tribool::kFalse) {
           can_be_the_hole = true;
           break;
         }
@@ -1041,13 +1048,16 @@ void CallBuiltin::MarkTaggedInputsAsDecompressing() {
 
 void StoreTaggedFieldNoWriteBarrier::VerifyInputs() const {
   Base::VerifyInputs();
-  auto host_alloc = input(kObjectIndex).node()->TryCast<InlinedAllocation>();
-  auto value_alloc = input(kValueIndex).node()->TryCast<InlinedAllocation>();
-  if (host_alloc && value_alloc &&
-      host_alloc->allocation_block() == value_alloc->allocation_block()) {
-    CHECK_EQ(host_alloc->allocation_block()->allocation_type(),
-             AllocationType::kYoung);
-  }
+  // Here we'd like to verify that the write barrier can legitimately be
+  // skipped. However, we cannot, since this might be in dead code and our
+  // information might be inconsistent. This is because: 1) in Turbolev, we
+  // occasionally run the verifier before running GraphOptimizer which would
+  // delete dead branches and 2) we generally cannot detect upfront when we're
+  // in dead code.
+
+  // TODO(562805652): Could run the check for pure maglev (non-turbolev)
+  // compilations without eager inlining, if we were able to have that info
+  // here.
 }
 
 void InlinedAllocation::VerifyInputs() const {
@@ -1113,6 +1123,22 @@ void AllocationBlock::TryPretenure(ValueNode* value) {
   }
 }
 
+StoreMap::StoreMap(uint64_t bitfield, compiler::MapRef map, Kind kind)
+    : Base(bitfield | KindField::encode(kind) |
+           MapInReadOnlySpaceField::encode(
+               HeapLayout::InReadOnlySpace(*map.object()))),
+      map_(map) {}
+
+bool StoreMap::NoWriteBarrier() const {
+  if (MapInReadOnlySpaceField::decode(bitfield())) return true;
+  return kind() == Kind::kInlinedAllocation &&
+         ValueInput()
+                 .node()
+                 ->Cast<InlinedAllocation>()
+                 ->allocation_block()
+                 ->allocation_type() == AllocationType::kYoung;
+}
+
 // ---
 // Reify constants
 // ---
@@ -1150,17 +1176,12 @@ DirectHandle<Object> IntPtrConstant::DoReify(LocalIsolate* isolate) const {
 }
 
 DirectHandle<Object> Float64Constant::DoReify(LocalIsolate* isolate) const {
-  return isolate->factory()->NewNumber<AllocationType::kOld>(
-      value_.get_scalar());
+  UNREACHABLE();
 }
 
 DirectHandle<Object> HoleyFloat64Constant::DoReify(
     LocalIsolate* isolate) const {
-  if (value_.is_undefined_or_hole_nan()) {
-    return isolate->factory()->undefined_value();
-  }
-  return isolate->factory()->NewNumber<AllocationType::kOld>(
-      value_.get_scalar());
+  UNREACHABLE();
 }
 
 DirectHandle<Object> HeapConstant::DoReify(LocalIsolate* isolate) const {
@@ -1238,6 +1259,21 @@ void ValueNode::LoadToRegister(MaglevAssembler* masm,
   }
 }
 
+bool ValueNode::MaterializesToZero() const {
+  switch (opcode()) {
+    case Opcode::kSmiConstant:
+      return Cast<SmiConstant>()->value() == Smi::zero();
+    case Opcode::kInt32Constant:
+      return Cast<Int32Constant>()->value() == 0;
+    case Opcode::kUint32Constant:
+      return Cast<Uint32Constant>()->value() == 0;
+    case Opcode::kIntPtrConstant:
+      return Cast<IntPtrConstant>()->value() == 0;
+    default:
+      return false;
+  }
+}
+
 void SmiConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) const {
   __ Move(reg, value());
 }
@@ -1273,11 +1309,19 @@ void HoleyFloat64Constant::DoLoadToRegister(MaglevAssembler* masm,
 }
 
 void HeapConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) const {
-  __ Move(reg, object_.object());
+  if (decompresses_tagged_result()) {
+    __ Move(reg, object_.object());
+  } else {
+    __ MoveTagged(reg, object_.object());
+  }
 }
 
 void RootConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) const {
-  __ LoadRoot(reg, index());
+  if (decompresses_tagged_result()) {
+    __ LoadRoot(reg, index());
+  } else {
+    __ LoadTaggedRoot(reg, index());
+  }
 }
 
 void TrustedConstant::DoLoadToRegister(MaglevAssembler* masm,
@@ -3735,43 +3779,54 @@ void StoreFixedDoubleArrayHole::GenerateCode(MaglevAssembler* masm,
 }
 
 int StoreMap::MaxCallStackArgs() const {
-  return WriteBarrierDescriptor::GetStackParameterCount();
+  return NoWriteBarrier() ? 0
+                          : WriteBarrierDescriptor::GetStackParameterCount();
 }
 void StoreMap::SetValueLocationConstraints() {
-  UseFixed(ValueInput(), WriteBarrierDescriptor::ObjectRegister());
-  set_temporaries_needed(1);
+  if (NoWriteBarrier()) {
+    UseRegister(ValueInput());
+    if (!MaglevAssembler::kSupportsStoreTaggedConstant) {
+      set_temporaries_needed(1);
+    }
+  } else {
+    UseFixed(ValueInput(), WriteBarrierDescriptor::ObjectRegister());
+    set_temporaries_needed(1);
+  }
 }
 void StoreMap::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  // TODO(leszeks): Consider making this an arbitrary register and push/popping
-  // in the deferred path.
-  Register object = WriteBarrierDescriptor::ObjectRegister();
-  DCHECK_EQ(object, ToRegister(ValueInput()));
+  Register object = ToRegister(ValueInput());
+  if (NoWriteBarrier()) {
+    if (MaglevAssembler::kSupportsStoreTaggedConstant) {
+      if (kind() == Kind::kTransitioning) {
+        __ MemoryBarrier(AtomicMemoryOrder::kAcqRel);
+      }
+      __ StoreTaggedFieldNoWriteBarrier(object, offsetof(HeapObject, map_),
+                                        map_.object());
+      __ AssertElidedWriteBarrier(object, map_, register_snapshot());
+    } else {
+      Register value = temps.Acquire();
+      __ MoveTagged(value, map_.object());
+      if (kind() == Kind::kTransitioning) {
+        __ MemoryBarrier(AtomicMemoryOrder::kAcqRel);
+      }
+      __ StoreTaggedFieldNoWriteBarrier(object, offsetof(HeapObject, map_),
+                                        value);
+      __ AssertElidedWriteBarrier(object, value, register_snapshot());
+    }
+    return;
+  }
+
+  DCHECK_EQ(object, WriteBarrierDescriptor::ObjectRegister());
   Register value = temps.Acquire();
   __ MoveTagged(value, map_.object());
-
-  switch (kind()) {
-    case Kind::kInlinedAllocation: {
-      DCHECK(ValueInput().node()->Cast<InlinedAllocation>());
-      auto inlined = ValueInput().node()->Cast<InlinedAllocation>();
-      if (inlined->allocation_block()->allocation_type() ==
-          AllocationType::kYoung) {
-        __ StoreTaggedFieldNoWriteBarrier(object, offsetof(HeapObject, map_),
-                                          value);
-        __ AssertElidedWriteBarrier(object, value, register_snapshot());
-        break;
-      }
-      [[fallthrough]];
-    }
-    case Kind::kInitializing:
-    case Kind::kTransitioning:
-      __ StoreTaggedFieldWithWriteBarrier(object, offsetof(HeapObject, map_),
-                                          value, register_snapshot(),
-                                          MaglevAssembler::kValueIsCompressed,
-                                          MaglevAssembler::kValueCannotBeSmi);
-      break;
+  if (kind() == Kind::kTransitioning) {
+    __ MemoryBarrier(AtomicMemoryOrder::kAcqRel);
   }
+  __ StoreTaggedFieldWithWriteBarrier(
+      object, offsetof(HeapObject, map_), value, register_snapshot(),
+      MaglevAssembler::kValueIsCompressed, MaglevAssembler::kValueCannotBeSmi);
 }
 
 int StoreTaggedFieldWithWriteBarrier::MaxCallStackArgs() const {
@@ -6075,30 +6130,75 @@ void StoreFloat64::GenerateCode(MaglevAssembler* masm,
   __ StoreFloat64(FieldMemOperand(object, offset()), value);
 }
 
+namespace {
+
+// The 32 bits that {StoreInt32} writes for a constant value input, i.e. the
+// low 32 bits of what loading the constant into a register would produce.
+// Inlined allocations pass Smi constants unconverted for raw fields that hold
+// a Smi-encoded length.
+std::optional<int32_t> TryGetInt32ConstantForStoring(ValueNode* value) {
+  switch (value->opcode()) {
+    case Opcode::kInt32Constant:
+      return value->Cast<Int32Constant>()->value();
+    case Opcode::kUint32Constant:
+      return static_cast<int32_t>(value->Cast<Uint32Constant>()->value());
+    case Opcode::kSmiConstant:
+      return static_cast<int32_t>(
+          static_cast<intptr_t>(value->Cast<SmiConstant>()->value().ptr()));
+    default:
+      return {};
+  }
+}
+
+}  // namespace
+
 void StoreInt32::SetValueLocationConstraints() {
   UseRegister(ObjectInput());
-  UseRegister(ValueInput());
+  if (TryGetInt32ConstantForStoring(ValueInput().node())) {
+    // Stored as an immediate, so no register is needed for the value.
+    UseAny(ValueInput());
+  } else {
+    UseRegister(ValueInput());
+  }
 }
 void StoreInt32::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
   Register object = ToRegister(ObjectInput());
-  Register value = ToRegister(ValueInput());
 
   __ AssertNotSmi(object);
+  if (ValueInput().operand().IsConstant()) {
+    __ StoreInt32Field(object, offset(),
+                       *TryGetInt32ConstantForStoring(ValueInput().node()));
+    return;
+  }
+  Register value = ToRegister(ValueInput());
   __ StoreInt32(FieldMemOperand(object, offset()), value);
 }
 
 void StoreTaggedFieldNoWriteBarrier::SetValueLocationConstraints() {
   UseRegister(ObjectInput());
-  UseRegister(ValueInput());
+  if (MaglevAssembler::CanStoreTaggedConstant(ValueInput().node())) {
+    // The constant is stored as an immediate and needs no register.
+    UseAny(ValueInput());
+  } else {
+    UseRegister(ValueInput());
+  }
 }
 void StoreTaggedFieldNoWriteBarrier::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register object = ToRegister(ObjectInput());
-  Register value = ToRegister(ValueInput());
 
   __ AssertNotSmi(object);
 
+  if (ValueInput().operand().IsConstant()) {
+    ValueNode* constant = ValueInput().node();
+    DCHECK(MaglevAssembler::CanStoreTaggedConstant(constant));
+    __ StoreTaggedFieldNoWriteBarrier(object, offset(), constant);
+    __ AssertElidedWriteBarrier(object, constant, register_snapshot());
+    return;
+  }
+
+  Register value = ToRegister(ValueInput());
   __ StoreTaggedFieldNoWriteBarrier(object, offset(), value);
   __ AssertElidedWriteBarrier(object, value, register_snapshot());
 }
@@ -6747,8 +6847,8 @@ void Float64ToString::GenerateCode(MaglevAssembler* masm,
   masm->DefineLazyDeoptPoint(this->lazy_deopt_info());
 }
 
-int ThrowReferenceErrorIfHole::MaxCallStackArgs() const { return 1; }
-void ThrowReferenceErrorIfHole::SetValueLocationConstraints() {
+int ThrowReferenceErrorIfTdzHole::MaxCallStackArgs() const { return 1; }
+void ThrowReferenceErrorIfTdzHole::SetValueLocationConstraints() {
   // MaglevAssembler::IsRootConstant (used in GenerateCode below) does not
   // support constant inputs (which UseAny allows). Constants should have been
   // optimized already by MaglevGraphBuilder or MaglevGraphOptimizer.
@@ -6756,11 +6856,18 @@ void ThrowReferenceErrorIfHole::SetValueLocationConstraints() {
 
   UseAny(ValueInput());
 }
-void ThrowReferenceErrorIfHole::GenerateCode(MaglevAssembler* masm,
-                                             const ProcessingState& state) {
+void ThrowReferenceErrorIfTdzHole::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
+#ifdef V8_ENABLE_TDZ_HOLE
+  if (v8_flags.debug_code) {
+    __ Assert(NegateCondition(
+                  __ IsRootConstant(ValueInput(), RootIndex::kTheHoleValue)),
+              AbortReason::kUnexpectedValue);
+  }
+#endif
   __ JumpToDeferredIf(
-      __ IsRootConstant(ValueInput(), RootIndex::kTheHoleValue),
-      [](MaglevAssembler* masm, ThrowReferenceErrorIfHole* node) {
+      __ IsRootConstant(ValueInput(), RootIndex::kTdzHoleValue),
+      [](MaglevAssembler* masm, ThrowReferenceErrorIfTdzHole* node) {
         __ Push(node->name().object());
         __ Move(kContextRegister, masm->native_context().object());
         __ CallRuntime(Runtime::kThrowAccessedUninitializedVariable, 1);
@@ -6770,8 +6877,8 @@ void ThrowReferenceErrorIfHole::GenerateCode(MaglevAssembler* masm,
       this);
 }
 
-int ThrowSuperNotCalledIfHole::MaxCallStackArgs() const { return 0; }
-void ThrowSuperNotCalledIfHole::SetValueLocationConstraints() {
+int ThrowSuperNotCalledIfTdzHole::MaxCallStackArgs() const { return 0; }
+void ThrowSuperNotCalledIfTdzHole::SetValueLocationConstraints() {
   // MaglevAssembler::IsRootConstant (used in GenerateCode below) does not
   // support constant inputs (which UseAny allows). Constants should have been
   // optimized already by MaglevGraphBuilder or MaglevGraphOptimizer.
@@ -6779,11 +6886,18 @@ void ThrowSuperNotCalledIfHole::SetValueLocationConstraints() {
 
   UseAny(ValueInput());
 }
-void ThrowSuperNotCalledIfHole::GenerateCode(MaglevAssembler* masm,
-                                             const ProcessingState& state) {
+void ThrowSuperNotCalledIfTdzHole::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
+#ifdef V8_ENABLE_TDZ_HOLE
+  if (v8_flags.debug_code) {
+    __ Assert(NegateCondition(
+                  __ IsRootConstant(ValueInput(), RootIndex::kTheHoleValue)),
+              AbortReason::kUnexpectedValue);
+  }
+#endif
   __ JumpToDeferredIf(
-      __ IsRootConstant(ValueInput(), RootIndex::kTheHoleValue),
-      [](MaglevAssembler* masm, ThrowSuperNotCalledIfHole* node) {
+      __ IsRootConstant(ValueInput(), RootIndex::kTdzHoleValue),
+      [](MaglevAssembler* masm, ThrowSuperNotCalledIfTdzHole* node) {
         __ Move(kContextRegister, masm->native_context().object());
         __ CallRuntime(Runtime::kThrowSuperNotCalled, 0);
         masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
@@ -6792,8 +6906,8 @@ void ThrowSuperNotCalledIfHole::GenerateCode(MaglevAssembler* masm,
       this);
 }
 
-int ThrowSuperAlreadyCalledIfNotHole::MaxCallStackArgs() const { return 0; }
-void ThrowSuperAlreadyCalledIfNotHole::SetValueLocationConstraints() {
+int ThrowSuperAlreadyCalledIfNotTdzHole::MaxCallStackArgs() const { return 0; }
+void ThrowSuperAlreadyCalledIfNotTdzHole::SetValueLocationConstraints() {
   // MaglevAssembler::IsRootConstant (used in GenerateCode below) does not
   // support constant inputs (which UseAny allows). Constants should have been
   // optimized already by MaglevGraphBuilder or MaglevGraphOptimizer.
@@ -6801,12 +6915,19 @@ void ThrowSuperAlreadyCalledIfNotHole::SetValueLocationConstraints() {
 
   UseAny(ValueInput());
 }
-void ThrowSuperAlreadyCalledIfNotHole::GenerateCode(
+void ThrowSuperAlreadyCalledIfNotTdzHole::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
+#ifdef V8_ENABLE_TDZ_HOLE
+  if (v8_flags.debug_code) {
+    __ Assert(NegateCondition(
+                  __ IsRootConstant(ValueInput(), RootIndex::kTheHoleValue)),
+              AbortReason::kUnexpectedValue);
+  }
+#endif
   __ JumpToDeferredIf(
       NegateCondition(
-          __ IsRootConstant(ValueInput(), RootIndex::kTheHoleValue)),
-      [](MaglevAssembler* masm, ThrowSuperAlreadyCalledIfNotHole* node) {
+          __ IsRootConstant(ValueInput(), RootIndex::kTdzHoleValue)),
+      [](MaglevAssembler* masm, ThrowSuperAlreadyCalledIfNotTdzHole* node) {
         __ Move(kContextRegister, masm->native_context().object());
         __ CallRuntime(Runtime::kThrowSuperAlreadyCalledError, 0);
         masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
@@ -8162,6 +8283,18 @@ void GenerateTypedArrayLoadFromDataPointer(MaglevAssembler* masm,
   }
 }
 
+void RetainConstantTypedArrayBuffer(MaglevAssembler* masm,
+                                    compiler::JSTypedArrayRef typed_array) {
+  // The constant typed array comes from a constant-folded source (property
+  // cell, const field, ...) which holds it strongly, and the code depends on
+  // that source not changing. So the buffer behind the embedded data pointer
+  // cannot die while this code is valid. Embed the buffer anyway as defense in
+  // depth: with this weak reference, the code is deoptimized when the buffer
+  // dies.
+  masm->code_gen_state()->Retain(
+      typed_array.buffer(masm->compilation_info()->broker()).object());
+}
+
 template <typename ResultReg>
 void GenerateTypedArrayLoad(MaglevAssembler* masm, Register object,
                             Register index, ResultReg result_reg,
@@ -8189,6 +8322,8 @@ void GenerateConstantTypedArrayLoad(MaglevAssembler* masm,
                                     compiler::JSTypedArrayRef typed_array,
                                     Register index, ResultReg result_reg,
                                     ElementsKind kind) {
+  RetainConstantTypedArrayBuffer(masm, typed_array);
+
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register data_pointer = temps.Acquire();
   __ Move(data_pointer, reinterpret_cast<intptr_t>(typed_array.data_ptr()));
@@ -8250,6 +8385,8 @@ void GenerateConstantTypedArrayStore(MaglevAssembler* masm,
                                      compiler::JSTypedArrayRef typed_array,
                                      Register index, ValueReg value,
                                      ElementsKind elements_kind) {
+  RetainConstantTypedArrayBuffer(masm, typed_array);
+
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register data_pointer = temps.Acquire();
 

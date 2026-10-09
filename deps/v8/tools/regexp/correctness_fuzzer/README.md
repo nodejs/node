@@ -92,6 +92,15 @@ tools/regexp/correctness_fuzzer/correctness_fuzzer.py --ref A --test B \
     --pattern '(?=|)()x|' --flags '' --subject z
 ```
 
+Or replay a whole generated testcase file -- typically one ClusterFuzz attached
+to a bug (see below) -- classifying every case in it and minimizing each
+finding:
+
+```sh
+tools/regexp/correctness_fuzzer/correctness_fuzzer.py --ref A --test B \
+    --testcase fuzz-3.js
+```
+
 ## Options
 
 | Flag | Default | Meaning |
@@ -108,6 +117,7 @@ tools/regexp/correctness_fuzzer/correctness_fuzzer.py --ref A --test B \
 | `--max-depth` | `5` | Derivation depth budget. The default is the smallest that reaches every grammar rule. |
 | `--coverage` | off | Report per-rule expansion counts and unexercised rules. |
 | `--pattern` | | Reproduce a single case (with `--flags` / `--subject` / `--last-index`). |
+| `--testcase` | | Replay a generated testcase file (`run.py` output, e.g. a ClusterFuzz `fuzz-N.js`). |
 
 The exit status is non-zero when any divergence is found.
 
@@ -115,6 +125,74 @@ Output is flushed as it is produced, so a long run stopped with `Ctrl-C`
 keeps everything printed so far even when redirected to a file: the seed, every
 finding, and the progress trail. An interrupt during a finding's minimization
 still prints that finding unminimized before exiting.
+
+## ClusterFuzz
+
+The same generator runs on ClusterFuzz as a blackbox fuzzer, with foozzie
+(`tools/clusterfuzz/foozzie/`) as the application. `run.py` implements the
+blackbox contract -- `--input_dir`, `--output_dir`, `--no_of_files` -- and only
+generates: each `fuzz-N.js` is a self-contained script of ~500 cases plus the
+harness, which foozzie executes under two of its configurations and diffs.
+Everything downstream (crash detection, dedup, minimization, bisection, bug
+filing) is ClusterFuzz's. Foozzie already ships in the build archive, so no new
+application or build target is needed.
+
+Both entry points emit their batches through `harness.py`, so a ClusterFuzz
+testcase is byte-for-byte what the interactive tool runs; `--testcase` takes one
+back apart and hands each case to the real minimizer. Relative to the
+interactive tool, the ClusterFuzz side gains the cross-architecture comparisons
+(x64 against the arm/arm64 simulators). ClusterFuzz only removes complete case
+lines during minimization.
+
+Each case prints `v8-foozzie source: regexp-fuzzer:<tag>`. Foozzie hashes the
+last label before a difference into a `regexp-<hash>` key. `harness.py`
+derives the tag from pattern metacharacters to group similar patterns,
+independent of V8 output.
+
+Simulate a job locally before uploading; this is also how to judge how noisy a
+grammar change is under foozzie's rules, which unlike the interactive tool have
+no ground-truth side to skip a configuration-dependent exception:
+
+```sh
+tools/regexp/correctness_fuzzer/run_locally_against_foozzie.py \
+    --d8 out/x64.release/d8 --files 100
+```
+
+Which configurations foozzie compares is chosen by the fuzzer, as for
+js_fuzzer: next to each `fuzz-N.js`, `run.py` writes a `flags-N.js` with the
+`v8_foozzie.py` flags for it (`--first-config`, `--second-config`,
+`--second-d8`, `--second-config-extra-flags`, and a fixed `--random-seed`).
+It draws them from
+`tools/clusterfuzz/foozzie/v8_fuzz_experiments_regexp.json` and
+`v8_fuzz_flags_regexp.json`, read from the build directory the fuzzer runs
+against (`$APP_DIR` on ClusterFuzz, where the V8 build copies them next to d8;
+the foozzie source directory when run from a checkout).
+
+Each experiment row is `[probability, baseline, second, second_d8]`. Foozzie
+always runs the baseline, an implicit flagless `default` on `second_d8`, and
+`second` on `second_d8`, and diffs the latter two against the baseline. The
+regexp table uses `jitless` (implies `--regexp-interpret-all`, the bytecode
+interpreter) as the baseline, so every file compares the x64 interpreter
+against native code on x64 or the arm64/arm/ia32 simulators through the
+implicit `default` run. `second` is `slow_path` (`--force-slow-path`, the
+runtime `RegExpExec` path) throughout, since a `default` second config would
+duplicate the implicit run. x64 gets the largest share as the fastest and
+least flaky configuration. The flag table holds regexp codegen toggles that
+must be observationally invisible, plus `--regexp-tier-up-ticks=1` to exercise
+the interpreter-to-native tier-up mid-run; they are applied to the `default`
+and `second` runs.
+
+A generated case with exponential backtracking occasionally exceeds foozzie's
+per-run timeout; foozzie treats that as a pass and the file is lost, which at
+the observed rate (about 1 in 100 files) is noise. The dry run counts and
+keeps such files.
+
+Build the bundle with `package.sh` (default output `out/regexp_fuzzer.zip`):
+`run.py`, `harness.py`, `harness.js`, `grammar/` and a copy of js_fuzzer's
+`foozzie_launcher.py`, all at the top level. It is uploaded through the
+ClusterFuzz UI and attached to the existing foozzie correctness jobs and plain
+d8 sanitizer jobs; re-run and re-upload whenever the grammar or harness
+changes.
 
 ## Tests
 
@@ -124,8 +202,11 @@ tools/regexp/correctness_fuzzer/grammar_test.py --d8 out/x64.release/d8
 
 Pins the properties that decay silently: every grammar rule stays reachable
 under every profile, mode-specific syntax stays in its mode, generated patterns
-parse, and a meaningful share of cases match. Omit `--d8` to run only the
-checks that need no build.
+parse, a meaningful share of cases match, and the emitted testcase format
+stands alone, survives a line-based minimizer, and round-trips through
+`--testcase`. Omit `--d8` for the fast presubmit checks with bounded samples.
+Use `--exhaustive` for full Python samples and rule/profile coverage without
+a build. `--d8` also enables the exhaustive Python checks.
 
 ## Files
 
@@ -135,9 +216,13 @@ checks that need no build.
   - `rules.py` -- the grammar itself, one `@rule` per spec alternative.
   - `cases.py` -- flags, subjects, and whole cases.
   - `profiles.py` -- weight overlays and `--weight` parsing.
-- `grammar_test.py` -- tests for the above.
-- `correctness_fuzzer.py` -- execution, diff, and minimization.
+- `grammar_test.py` -- tests for the above, the harness, and the testcase format.
+- `correctness_fuzzer.py` -- interactive entry point: execution, diff, and minimization.
 - `harness.js` -- the `d8` harness that constructs and runs each regexp.
+- `harness.py` -- emits cases plus harness as one self-contained script, and parses it back.
+- `run.py` -- ClusterFuzz entry point: generates testcase files and their foozzie flags.
+- `run_locally_against_foozzie.py` -- local simulation of a ClusterFuzz foozzie job.
+- `package.sh` -- builds the zip uploaded to ClusterFuzz.
 
 A rule never makes a weighted choice of its own: anything that would be an
 `if rng.random() < p` inside a rule body is a separate `@rule` with its own

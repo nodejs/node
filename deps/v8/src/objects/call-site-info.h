@@ -184,7 +184,7 @@ V8_OBJECT class CallSiteInfo : public Struct {
   TaggedMember<JSAny> receiver_or_instance_;
   TaggedMember<Union<JSFunction, Smi>> function_;
   TaggedMember<Smi> code_offset_or_source_position_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<CallSiteInfoFlags>);
 } V8_OBJECT_END;
 
 template <>

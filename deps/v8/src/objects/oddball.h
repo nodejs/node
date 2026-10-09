@@ -39,7 +39,6 @@ V8_OBJECT class Oddball : public PrimitiveHeapObject {
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline uint8_t kind() const;
-  inline void set_kind(uint8_t kind);
 
   // ES6 section 7.1.3 ToNumber for Boolean, Null, Undefined.
   V8_WARN_UNUSED_RESULT static inline Handle<Number> ToNumber(
@@ -48,10 +47,13 @@ V8_OBJECT class Oddball : public PrimitiveHeapObject {
   // Dispatched behavior.
   DECL_VERIFIER(Oddball)
 
-  // Initialize the fields.
-  static void Initialize(Isolate* isolate, DirectHandle<Oddball> oddball,
-                         const char* to_string, DirectHandle<Number> to_number,
-                         const char* type_of, uint8_t kind);
+  inline Oddball(Tagged<ReadOnly<Map>> map, uint8_t kind);
+
+  // Finish initializing the oddball's string and number fields once the read-
+  // only string table and HeapNumbers have been created.
+  inline void FinishInitialization(Tagged<String> to_string,
+                                   Tagged<Number> to_number,
+                                   Tagged<String> type_of);
 
   static constexpr uint8_t kFalse = 0;
   static constexpr uint8_t kTrue = 1;
@@ -77,7 +79,7 @@ V8_OBJECT class Oddball : public PrimitiveHeapObject {
   TaggedMember<String> to_string_;
   TaggedMember<Number> to_number_;
   TaggedMember<String> type_of_;
-  TaggedMember<Smi> kind_;
+  const TaggedMember<Smi> kind_;
 } V8_OBJECT_END;
 
 template <>
@@ -93,10 +95,16 @@ struct ObjectTraits<Oddball> {
 
 V8_OBJECT class Null : public Oddball {
   V8_IT_REUSE_PARENT;
+
+ public:
+  inline explicit Null(ReadOnlyRoots roots);
 } V8_OBJECT_END;
 
 V8_OBJECT class Undefined : public Oddball {
   V8_IT_REUSE_PARENT;
+
+ public:
+  inline explicit Undefined(ReadOnlyRoots roots);
 } V8_OBJECT_END;
 
 V8_OBJECT class Boolean : public Oddball {
@@ -104,15 +112,23 @@ V8_OBJECT class Boolean : public Oddball {
   V8_IT_NO_AUTO_CHECKER;
 
  public:
+  inline Boolean(ReadOnlyRoots roots, uint8_t kind);
+
   V8_INLINE bool ToBool(Isolate* isolate) const;
 } V8_OBJECT_END;
 
 V8_OBJECT class True : public Boolean {
   V8_IT_REUSE_PARENT;
+
+ public:
+  inline explicit True(ReadOnlyRoots roots);
 } V8_OBJECT_END;
 
 V8_OBJECT class False : public Boolean {
   V8_IT_REUSE_PARENT;
+
+ public:
+  inline explicit False(ReadOnlyRoots roots);
 } V8_OBJECT_END;
 
 }  // namespace internal

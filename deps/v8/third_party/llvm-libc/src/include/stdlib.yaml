@@ -116,6 +116,13 @@ functions:
     return_type: char *
     arguments:
       - type: const char *
+  - name: getloadavg
+    standards:
+      - bsd
+    return_type: int
+    arguments:
+      - type: double[]
+      - type: int
   - name: labs
     standards:
       - stdc
@@ -171,6 +178,19 @@ functions:
     return_type: size_t
     arguments:
       - type: const void *
+  - name: mkdtemp
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: char *
+  - name: mkostemp
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: char *
+      - type: int
   - name: mkstemp
     standards:
       - posix
@@ -235,6 +255,12 @@ functions:
     return_type: void
     arguments:
       - type: unsigned int
+  - name: secure_getenv
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: const char *
   - name: setenv
     standards:
       - posix
@@ -261,6 +287,16 @@ functions:
       - type: size_t
       - type: const char *__restrict
       - type: float
+  - name: strfromf128
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: char *__restrict
+      - type: size_t
+      - type: const char *__restrict
+      - type: float128
+    guard: LIBC_TYPES_HAS_NATIVE_FLOAT128
   - name: strfroml
     standards:
       - stdc

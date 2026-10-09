@@ -178,6 +178,27 @@ bool positionComparator(const std::pair<int, int>& a,
   return a.second < b.second;
 }
 
+// {ranges} is a sorted list of [start, end) pairs, flattened into a single
+// vector: [ranges[0], ranges[1]), [ranges[2], ranges[3]), ... A trailing
+// start without an end extends to the end of the script.
+// Returns true, iff [start, end) lies within a single range of {ranges}.
+bool isWithinOneRange(const std::vector<std::pair<int, int>>& ranges,
+                      const v8::debug::Location& start,
+                      const v8::debug::Location& end) {
+  // The first boundary strictly after {start}. Its index is odd iff {start}
+  // lies within [ranges[2k], ranges[2k+1]).
+  auto itStartRange = std::upper_bound(
+      ranges.begin(), ranges.end(),
+      std::make_pair(start.GetLineNumber(), start.GetColumnNumber()),
+      positionComparator);
+  auto itEndRange = std::lower_bound(
+      itStartRange, ranges.end(),
+      std::make_pair(end.GetLineNumber(), end.GetColumnNumber()),
+      positionComparator);
+  return itStartRange == itEndRange &&
+         std::distance(ranges.begin(), itStartRange) % 2;
+}
+
 std::unique_ptr<protocol::DictionaryValue> breakpointHint(
     const V8DebuggerScript& script, int breakpointLineNumber,
     int breakpointColumnNumber, int actualLineNumber, int actualColumnNumber) {
@@ -338,8 +359,6 @@ Response buildScopes(v8::Isolate* isolate, v8::debug::ScopeIterator* iterator,
   if (!injectedScript) return Response::Success();
   if (iterator->Done()) return Response::Success();
 
-  String16 scriptId = String16::fromInteger(iterator->GetScriptId());
-
   for (; !iterator->Done(); iterator->Advance()) {
     std::unique_ptr<RemoteObject> object;
     Response result =
@@ -357,6 +376,7 @@ Response buildScopes(v8::Isolate* isolate, v8::debug::ScopeIterator* iterator,
     if (!name.isEmpty()) scope->setName(name);
 
     if (iterator->HasLocationInfo()) {
+      String16 scriptId = String16::fromInteger(iterator->GetScriptId());
       v8::debug::Location start = iterator->GetStartLocation();
       scope->setStartLocation(protocol::Debugger::Location::create()
                                   .setScriptId(scriptId)
@@ -370,6 +390,16 @@ Response buildScopes(v8::Isolate* isolate, v8::debug::ScopeIterator* iterator,
                                 .setLineNumber(end.GetLineNumber())
                                 .setColumnNumber(end.GetColumnNumber())
                                 .build());
+    }
+    switch (iterator->GetVariableInfo()) {
+      case v8::debug::ScopeIterator::VariableInfo::kEmpty:
+        scope->setEmptyReason(Scope::EmptyReasonEnum::NoVariables);
+        break;
+      case v8::debug::ScopeIterator::VariableInfo::kAllUnavailable:
+        scope->setEmptyReason(Scope::EmptyReasonEnum::AllUnavailable);
+        break;
+      case v8::debug::ScopeIterator::VariableInfo::kAvailable:
+        break;
     }
     (*scopes)->emplace_back(std::move(scope));
   }
@@ -524,6 +554,7 @@ Response V8DebuggerAgentImpl::disable() {
   m_blackboxPattern.reset();
   resetBlackboxedStateCache();
   m_skipList.clear();
+  m_enterRanges.clear();
   m_scripts.clear();
   m_cachedScripts.clear();
   m_cachedScriptSize = 0;
@@ -538,6 +569,7 @@ Response V8DebuggerAgentImpl::disable() {
   m_debugger->setAsyncCallStackDepth(this, 0);
   clearBreakDetails();
   m_skipAllPauses = false;
+  m_skipAllPausesFromEmbedder = false;
   m_state->setBoolean(DebuggerAgentState::skipAllPauses, false);
   m_state->remove(DebuggerAgentState::blackboxPattern);
   m_enableState = kDisabled;
@@ -567,8 +599,7 @@ void V8DebuggerAgentImpl::restore() {
   m_state->getInteger(DebuggerAgentState::pauseOnExceptionsState, &pauseState);
   setPauseOnExceptionsImpl(pauseState);
 
-  m_skipAllPauses =
-      m_state->booleanProperty(DebuggerAgentState::skipAllPauses, false);
+  updateSkipAllPauses();
 
   int asyncCallStackDepth = 0;
   m_state->getInteger(DebuggerAgentState::asyncCallStackDepth,
@@ -599,8 +630,19 @@ Response V8DebuggerAgentImpl::setBreakpointsActive(bool active) {
 
 Response V8DebuggerAgentImpl::setSkipAllPauses(bool skip) {
   m_state->setBoolean(DebuggerAgentState::skipAllPauses, skip);
-  m_skipAllPauses = skip;
+  updateSkipAllPauses();
   return Response::Success();
+}
+
+void V8DebuggerAgentImpl::setSkipAllPausesForInternalUse(bool skip) {
+  m_skipAllPausesFromEmbedder = skip;
+  updateSkipAllPauses();
+}
+
+void V8DebuggerAgentImpl::updateSkipAllPauses() {
+  m_skipAllPauses =
+      m_skipAllPausesFromEmbedder ||
+      m_state->booleanProperty(DebuggerAgentState::skipAllPauses, false);
 }
 
 namespace {
@@ -1017,6 +1059,7 @@ Response V8DebuggerAgentImpl::continueToLocation(
   if (!inspected) {
     return Response::ServerError("Cannot continue to specified location");
   }
+  m_skipList.clear();
   v8::HandleScope handleScope(m_isolate);
   v8::Context::Scope contextScope(inspected->context());
   return m_debugger->continueToLocation(
@@ -1091,21 +1134,7 @@ bool V8DebuggerAgentImpl::isFunctionBlackboxed(const String16& scriptId,
   auto itBlackboxedPositions = m_blackboxedPositions.find(scriptId);
   if (itBlackboxedPositions == m_blackboxedPositions.end()) return false;
 
-  const std::vector<std::pair<int, int>>& ranges =
-      itBlackboxedPositions->second;
-  auto itStartRange = std::lower_bound(
-      ranges.begin(), ranges.end(),
-      std::make_pair(start.GetLineNumber(), start.GetColumnNumber()),
-      positionComparator);
-  auto itEndRange = std::lower_bound(
-      itStartRange, ranges.end(),
-      std::make_pair(end.GetLineNumber(), end.GetColumnNumber()),
-      positionComparator);
-  // Ranges array contains positions in script where blackbox state is changed.
-  // [(0,0) ... ranges[0]) isn't blackboxed, [ranges[0] ... ranges[1]) is
-  // blackboxed...
-  return itStartRange == itEndRange &&
-         std::distance(ranges.begin(), itStartRange) % 2;
+  return isWithinOneRange(itBlackboxedPositions->second, start, end);
 }
 
 bool V8DebuggerAgentImpl::shouldBeSkipped(const String16& scriptId, int line,
@@ -1133,6 +1162,13 @@ bool V8DebuggerAgentImpl::shouldBeSkipped(const String16& scriptId, int line,
   }
 
   return shouldSkip;
+}
+
+bool V8DebuggerAgentImpl::shouldEnterFunction(const String16& scriptId,
+                                              const v8::debug::Location& start,
+                                              const v8::debug::Location& end) {
+  auto it = m_enterRanges.find(scriptId);
+  return it != m_enterRanges.end() && isWithinOneRange(it->second, start, end);
 }
 
 bool V8DebuggerAgentImpl::acceptsPause(bool isOOMBreak) const {
@@ -1257,6 +1293,7 @@ Response V8DebuggerAgentImpl::restartFrame(
                                 callFrameOrdinal)) {
     return Response::ServerError("Restarting frame failed");
   }
+  m_skipList.clear();
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
   *newCallFrames = std::make_unique<Array<CallFrame>>();
   return Response::Success();
@@ -1540,6 +1577,7 @@ Response V8DebuggerAgentImpl::pause() {
 
 Response V8DebuggerAgentImpl::resume(std::optional<bool> terminateOnResume) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
+  m_skipList.clear();
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
 
   m_instrumentationFinished = true;
@@ -1550,18 +1588,28 @@ Response V8DebuggerAgentImpl::resume(std::optional<bool> terminateOnResume) {
 
 Response V8DebuggerAgentImpl::stepOver(
     std::unique_ptr<protocol::Array<protocol::Debugger::LocationRange>>
-        inSkipList) {
+        inSkipList,
+    std::unique_ptr<protocol::Array<protocol::Debugger::LocationRange>>
+        inEnterRanges) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
 
+  // Only update the lists once both are valid.
+  decltype(m_skipList) skipList;
+  decltype(m_enterRanges) enterRanges;
   if (inSkipList) {
-    const Response res = processSkipList(*inSkipList);
+    const Response res = processLocationRanges(*inSkipList, &skipList);
     if (res.IsError()) return res;
-  } else {
-    m_skipList.clear();
   }
+  if (inEnterRanges) {
+    const Response res = processLocationRanges(*inEnterRanges, &enterRanges);
+    if (res.IsError()) return res;
+  }
+  m_skipList = std::move(skipList);
+  m_enterRanges = std::move(enterRanges);
 
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
-  m_debugger->stepOverStatement(m_session->contextGroupId());
+  m_debugger->stepOverStatement(m_session->contextGroupId(),
+                                !m_enterRanges.empty());
   return Response::Success();
 }
 
@@ -1572,7 +1620,7 @@ Response V8DebuggerAgentImpl::stepInto(
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
 
   if (inSkipList) {
-    const Response res = processSkipList(*inSkipList);
+    const Response res = processLocationRanges(*inSkipList, &m_skipList);
     if (res.IsError()) return res;
   } else {
     m_skipList.clear();
@@ -1586,6 +1634,7 @@ Response V8DebuggerAgentImpl::stepInto(
 
 Response V8DebuggerAgentImpl::stepOut() {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
+  m_skipList.clear();
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
   m_debugger->stepOutOfFunction(m_session->contextGroupId());
   return Response::Success();
@@ -2236,6 +2285,10 @@ void V8DebuggerAgentImpl::didPause(
     v8::debug::ExceptionType exceptionType, bool isUncaught,
     v8::debug::BreakReasons breakReasons) {
   v8::HandleScope handles(m_isolate);
+  // The step that owned the skip list and enter ranges is over. Every new step
+  // command supplies its own.
+  m_skipList.clear();
+  m_enterRanges.clear();
 
   std::vector<BreakReason> hitReasons;
 
@@ -2412,6 +2465,7 @@ void V8DebuggerAgentImpl::reset() {
   m_blackboxedPositions.clear();
   resetBlackboxedStateCache();
   m_skipList.clear();
+  m_enterRanges.clear();
   m_scripts.clear();
   m_cachedScripts.clear();
   m_cachedScriptSize = 0;
@@ -2450,10 +2504,11 @@ V8DebuggerScript* V8DebuggerAgentImpl::getScriptById(
   return it->second.get();
 }
 
-Response V8DebuggerAgentImpl::processSkipList(
-    protocol::Array<protocol::Debugger::LocationRange>& skipList) {
+Response V8DebuggerAgentImpl::processLocationRanges(
+    protocol::Array<protocol::Debugger::LocationRange>& ranges,
+    std::unordered_map<String16, std::vector<std::pair<int, int>>>* result) {
   std::unordered_map<String16, std::vector<std::pair<int, int>>> skipListInit;
-  for (std::unique_ptr<protocol::Debugger::LocationRange>& range : skipList) {
+  for (std::unique_ptr<protocol::Debugger::LocationRange>& range : ranges) {
     protocol::Debugger::ScriptPosition* start = range->getStart();
     protocol::Debugger::ScriptPosition* end = range->getEnd();
     String16 scriptId = range->getScriptId();
@@ -2482,7 +2537,7 @@ Response V8DebuggerAgentImpl::processSkipList(
     if (res.IsError()) return res;
   }
 
-  m_skipList = std::move(skipListInit);
+  *result = std::move(skipListInit);
   return Response::Success();
 }
 

@@ -10,6 +10,7 @@
 #include "include/v8-exception.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
+#include "src/base/unique-array.h"
 #include "src/execution/isolate-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
@@ -84,7 +85,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   bool done = false;
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   constexpr const char* kAPIMethodName = "WasmAsyncFuzzer.compile";
-  base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(data, size);
+  base::UniqueArray<const uint8_t> bytes = base::UniqueCopyOf(data, size);
   std::shared_ptr<AsyncFuzzerResolver> resolver =
       std::make_shared<AsyncFuzzerResolver>(i_isolate, &done);
   GetWasmEngine()->AsyncCompile(i_isolate, enabled_features,

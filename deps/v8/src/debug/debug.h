@@ -309,6 +309,9 @@ class V8_EXPORT_PRIVATE Debug {
   void RemoveBreakpointForWasmScript(DirectHandle<Script> script, int id);
 
   void RecordWasmScriptWithBreakpoints(DirectHandle<Script> script);
+  DirectHandle<WeakArrayList> wasm_scripts_with_break_points() const {
+    return wasm_scripts_with_break_points_;
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Find breakpoints from the debug info and the break location and check
@@ -345,6 +348,7 @@ class V8_EXPORT_PRIVATE Debug {
                             const int end);
   bool IsBlackboxed(DirectHandle<SharedFunctionInfo> shared);
   bool ShouldBeSkipped();
+  bool ShouldEnterFunction(DirectHandle<SharedFunctionInfo> shared);
 
   bool CanBreakAtEntry(DirectHandle<SharedFunctionInfo> shared);
 
@@ -417,6 +421,7 @@ class V8_EXPORT_PRIVATE Debug {
   bool PerformSideEffectCheckForCallback(Handle<FunctionTemplateInfo> function);
   bool PerformSideEffectCheckForInterceptor(
       DirectHandle<InterceptorInfo> interceptor_info);
+  void FailSideEffectCheckForDeferredModuleEvaluation();
 
   bool PerformSideEffectCheckAtBytecode(InterpretedFrame* frame);
   bool PerformSideEffectCheckForObject(DirectHandle<Object> object);
@@ -455,6 +460,15 @@ class V8_EXPORT_PRIVATE Debug {
   StepAction last_step_action() { return thread_local_.last_step_action_; }
   bool break_on_next_function_call() const {
     return thread_local_.break_on_next_function_call_;
+  }
+
+  void set_step_over_enters_functions(bool value) {
+    thread_local_.step_over_enters_functions_ = value;
+  }
+  // Whether the current StepOver enters functions selected by the delegate.
+  bool step_over_enters_functions() const {
+    return thread_local_.last_step_action_ == StepOver &&
+           thread_local_.step_over_enters_functions_;
   }
 
   bool scheduled_break_on_function_call() const {
@@ -644,6 +658,11 @@ class V8_EXPORT_PRIVATE Debug {
 
     // If set then we need to repeat StepOut action at return.
     bool fast_forward_to_return_;
+
+    // If set, StepOver also enters functions selected by the delegate. Set by
+    // every step command and not reset by ClearStepping, so that re-prepared
+    // steps keep it.
+    bool step_over_enters_functions_;
 
     // Source statement position from last step next action.
     int last_statement_position_;

@@ -280,7 +280,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   }
 
   std::unique_ptr<CanonicalHandlesMap> DetachCanonicalHandles() {
-    DCHECK_NOT_NULL(canonical_handles_);
     return std::move(canonical_handles_);
   }
 

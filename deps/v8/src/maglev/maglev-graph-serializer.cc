@@ -5,6 +5,7 @@
 #include "src/maglev/maglev-graph-serializer.h"
 
 #include <algorithm>
+#include <array>
 #include <iomanip>
 #include <ostream>
 #include <sstream>
@@ -60,7 +61,7 @@ const char* RepresentationSuperscript(ValueRepresentation repr) {
 std::unique_ptr<char[]> GetMaglevVisualizerLogFileName(
     MaglevCompilationInfo* info, const char* optional_base_dir,
     const char* phase, const char* suffix) {
-  base::EmbeddedVector<char, 256> filename(0);
+  std::array<char, 256> filename = {};
   std::string debug_name = info->function_name();
   const char* file_prefix = info->is_turbolev()
                                 ? v8_flags.trace_turbo_file_prefix.value()
@@ -68,10 +69,10 @@ std::unique_ptr<char[]> GetMaglevVisualizerLogFileName(
   int optimization_id = info->optimization_id();
 
   if (debug_name.length() > 0) {
-    SNPrintF(filename, "%s-%s-%i", file_prefix, debug_name.c_str(),
-             optimization_id);
+    base::SNPrintF(filename, "%s-%s-%i", file_prefix, debug_name.c_str(),
+                   optimization_id);
   } else {
-    SNPrintF(filename, "%s-none-%i", file_prefix, optimization_id);
+    base::SNPrintF(filename, "%s-none-%i", file_prefix, optimization_id);
   }
 
   std::replace(filename.begin(), filename.begin() + filename.size(), '/', '_');
@@ -82,25 +83,25 @@ std::unique_ptr<char[]> GetMaglevVisualizerLogFileName(
   std::replace(filename.begin(), filename.begin() + filename.size(), '>', '}');
 #endif
 
-  base::EmbeddedVector<char, 256> base_dir;
+  std::array<char, 256> base_dir;
   if (optional_base_dir != nullptr) {
-    SNPrintF(base_dir, "%s%c", optional_base_dir,
-             base::OS::DirectorySeparator());
+    base::SNPrintF(base_dir, "%s%c", optional_base_dir,
+                   base::OS::DirectorySeparator());
   } else {
     base_dir[0] = '\0';
   }
 
-  base::EmbeddedVector<char, 256> full_filename;
+  std::array<char, 256> full_filename;
   if (phase == nullptr) {
-    SNPrintF(full_filename, "%s%s.%s", base_dir.begin(), filename.begin(),
-             suffix);
+    base::SNPrintF(full_filename, "%s%s.%s", base_dir.data(), filename.data(),
+                   suffix);
   } else {
-    SNPrintF(full_filename, "%s%s-%s.%s", base_dir.begin(), filename.begin(),
-             phase, suffix);
+    base::SNPrintF(full_filename, "%s%s-%s.%s", base_dir.data(),
+                   filename.data(), phase, suffix);
   }
 
   char* buffer = new char[full_filename.size()];
-  memcpy(buffer, full_filename.begin(), full_filename.size());
+  memcpy(buffer, full_filename.data(), full_filename.size());
   return std::unique_ptr<char[]>(buffer);
 }
 

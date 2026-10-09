@@ -9,6 +9,7 @@
 #include "src/api/api.h"
 #include "src/base/memory.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/unique-array.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
@@ -778,7 +779,7 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
   }
   // Create and compile the wasm module.
   wasm::ErrorThrower thrower(isolate, "CreateWasmObject");
-  base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(module_bytes);
+  base::UniqueArray<const uint8_t> bytes = base::UniqueCopyOf(module_bytes);
   wasm::WasmEngine* engine = wasm::GetWasmEngine();
   MaybeDirectHandle<WasmModuleObject> maybe_module_object = engine->SyncCompile(
       isolate, wasm::WasmEnabledFeatures(), wasm::CompileTimeImports(),
@@ -1171,7 +1172,7 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
       wasm::GetWasmEngine()->SyncCompile(isolate,
                                          wasm::WasmEnabledFeatures::FromFlags(),
                                          wasm::CompileTimeImports{}, &thrower,
-                                         base::OwnedCopyOf(module_bytes));
+                                         base::UniqueCopyOf(module_bytes));
   if (thrower.error()) {
     FATAL(
         "wasm::GenerateRandomWasmModule produced a module which did not "

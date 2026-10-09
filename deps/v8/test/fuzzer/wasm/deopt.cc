@@ -6,6 +6,7 @@
 #include "include/v8-exception.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/execution/isolate.h"
 #include "src/objects/property-descriptor.h"
@@ -273,13 +274,17 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   // optimizing an inner wasm function, there can be a large amount of
   // parameters and returns with all kinds of types.
   const bool optimize_main_function =
-      inlinees.empty() || data.empty() || !(data.last() & 1);
+      inlinees.empty() || data.empty() || !(data.back() & 1);
 #if defined(DEBUG) && defined(V8_USE_ADDRESS_SANITIZER)
+  // Disable register allocator verification on slow builds (Debug + ASan) to
+  // avoid timeouts in TurboFan/Turboshaft compilation on pathological inputs
+  // (see crbug.com/527760872).
+  FlagScope<bool> no_verify_allocator(&v8_flags.turbo_verify_allocation, false);
   // Disable type assertions on slow builds (Debug + ASan) to avoid timeouts in
   // TurboFan compilation (see crbug.com/520317061).
   const bool assert_types = false;
 #else
-  const bool assert_types = !data.empty() && (data.last() & 2);
+  const bool assert_types = !data.empty() && (data.back() & 2);
 #endif
   FlagScope<bool> assert_types_scope(&v8_flags.wasm_assert_types, assert_types);
 
@@ -320,7 +325,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
   MaybeDirectHandle<WasmModuleObject> compiled = GetWasmEngine()->SyncCompile(
       i_isolate, enabled_features, CompileTimeImportsForFuzzing(), &thrower,
-      base::OwnedCopyOf(buffer));
+      base::UniqueCopyOf(buffer));
   if (!valid) {
     FATAL("Generated module should validate, but got: %s\n",
           thrower.error_msg());

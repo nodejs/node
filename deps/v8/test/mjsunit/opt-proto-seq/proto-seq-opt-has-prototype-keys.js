@@ -52,7 +52,7 @@ assert_test_has_prototype_keys(test_has_prototype_keys());
 %OptimizeMaglevOnNextCall(test_has_prototype_keys);
 assert_test_has_prototype_keys(test_has_prototype_keys());
 assertOptimized(test_has_prototype_keys);
-assertTrue(isMaglevved(test_has_prototype_keys));
+assertMaglevved(test_has_prototype_keys);
 assert_test_has_prototype_keys(test_has_prototype_keys());
 %OptimizeFunctionOnNextCall(test_has_prototype_keys);
 assert_test_has_prototype_keys(test_has_prototype_keys());

@@ -232,9 +232,8 @@ void switch_from_the_central_stack(Isolate* isolate);
 intptr_t switch_to_the_central_stack_for_js(Isolate* isolate, Address fp);
 void switch_from_the_central_stack_for_js(Isolate* isolate);
 Address grow_stack(Isolate* isolate, void* current_sp, size_t frame_size,
-                   size_t gap, Address current_fp);
-Address shrink_stack(Isolate* isolate);
-Address load_old_fp(Isolate* isolate);
+                   size_t gap, Address current_fp, size_t parameter_slots_size);
+Address shrink_stack(Isolate* isolate, void* current_sp);
 
 }  // namespace wasm
 }  // namespace internal

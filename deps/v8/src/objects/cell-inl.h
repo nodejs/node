@@ -10,12 +10,23 @@
 
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
+#include "src/roots/roots-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+Cell::Cell(ReadOnlyRoots roots)
+    : HeapObject(roots.cell_map()), maybe_value_(roots.undefined_value()) {}
+
+Cell::Cell(ReadOnlyRoots roots, Tagged<Smi> value)
+    : HeapObject(roots.cell_map()), maybe_value_(value) {}
+
+Cell::Cell(ReadOnlyRoots roots, Tagged<ClearedWeakValue> value)
+    : HeapObject(roots.cell_map()), maybe_value_(value) {}
 
 Tagged<MaybeObject> Cell::maybe_value() const { return maybe_value_.load(); }
 

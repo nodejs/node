@@ -9,6 +9,7 @@
 #include "include/v8config.h"
 #include "src/base/small-vector.h"
 #include "src/base/strong-alias.h"
+#include "src/base/unique-array.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/common/synchronization-point-support.h"
@@ -95,12 +96,11 @@ void MigrateExternalStringResource(Isolate* isolate,
   if (to_resource_address == kNullAddress) {
     Tagged<StringClass> cast_from = Cast<StringClass>(from);
     // |to| is a just-created internalized copy of |from|. Migrate the resource.
-    to->SetResource(isolate, cast_from->resource());
     // Zap |from|'s resource pointer to reflect the fact that |from| has
     // relinquished ownership of its resource.
-    isolate->heap()->UpdateExternalString(
-        from, Cast<ExternalString>(from)->ExternalPayloadSize(), 0);
-    cast_from->SetResource(isolate, nullptr);
+    const typename StringClass::Resource* resource =
+        cast_from->ExchangeResource(isolate, nullptr);
+    to->SetResource(isolate, resource);
   } else if (to_resource_address != from->resource_as_address(isolate)) {
     // |to| already existed and has its own resource. Finalize |from|.
     isolate->heap()->FinalizeExternalString(from);
@@ -367,7 +367,7 @@ bool String::MakeExternal(Isolate* isolate,
     uint32_t str_length = this->length();
     DCHECK(static_cast<size_t>(str_length) == resource->length());
     auto smart_chars =
-        base::OwnedVector<base::uc16>::NewForOverwrite(str_length);
+        base::UniqueArray<base::uc16>::NewForOverwrite(str_length);
     String::WriteToFlat(this, smart_chars.begin(), 0, str_length);
     DCHECK_EQ(0, memcmp(smart_chars.begin(), resource->data(),
                         resource->length() * sizeof(smart_chars[0])));
@@ -461,11 +461,11 @@ bool String::MakeExternal(Isolate* isolate,
     DCHECK(static_cast<size_t>(str_length) == resource->length());
     if (this->IsTwoByteRepresentation()) {
       auto smart_chars =
-          base::OwnedVector<uint16_t>::NewForOverwrite(str_length);
+          base::UniqueArray<uint16_t>::NewForOverwrite(str_length);
       String::WriteToFlat(this, smart_chars.begin(), 0, str_length);
       DCHECK(String::IsOneByte(smart_chars.begin(), str_length));
     }
-    auto smart_chars = base::OwnedVector<char>::NewForOverwrite(str_length);
+    auto smart_chars = base::UniqueArray<char>::NewForOverwrite(str_length);
     String::WriteToFlat(this, smart_chars.begin(), 0, str_length);
     DCHECK_EQ(0, memcmp(smart_chars.begin(), resource->data(),
                         resource->length() * sizeof(smart_chars[0])));
@@ -2425,8 +2425,8 @@ using RepresentationBits =
     base::BitField<StringRepresentationTag, 0, 3, uint16_t>;
 using IsOneByteBit = base::BitField<bool, 3, 1, uint16_t>;
 using IsUncachedBit = base::BitField<bool, 4, 1, uint16_t>;
-using IsNotInternalizedBit = base::BitField<bool, 5, 1, uint16_t>;
-using IsSharedBit = base::BitField<bool, 6, 1, uint16_t>;
+using IsSharedBit = base::BitField<bool, 5, 1, uint16_t>;
+using IsNotInternalizedBit = base::BitField<bool, 6, 1, uint16_t>;
 
 static_assert(kStringRepresentationMask == RepresentationBits::kMask);
 
@@ -2440,6 +2440,9 @@ static_assert(kUncachedExternalStringTag == IsUncachedBit::encode(true));
 static_assert(kIsNotInternalizedMask == IsNotInternalizedBit::kMask);
 static_assert(kNotInternalizedTag == IsNotInternalizedBit::encode(true));
 static_assert(kInternalizedTag == IsNotInternalizedBit::encode(false));
+
+static_assert(kSharedStringMask == IsSharedBit::kMask);
+static_assert(kSharedStringTag == IsSharedBit::encode(true));
 }  // namespace
 
 }  // namespace internal

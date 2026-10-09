@@ -120,6 +120,24 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   static constexpr Register GetFlagsRegister() { return kMaglevFlagsRegister; }
 #endif  // V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64
 
+  // Whether the architecture has a register that always reads as zero, which
+  // can be stored instead of materializing a zero constant.
+  static constexpr bool HasZeroRegister() {
+#if defined(V8_TARGET_ARCH_ARM64)
+    return true;
+#else
+    return false;
+#endif
+  }
+  // The register that always reads as zero; only valid if HasZeroRegister().
+  static Register ZeroRegister() {
+#if defined(V8_TARGET_ARCH_ARM64)
+    return xzr;
+#else
+    UNREACHABLE();
+#endif
+  }
+
   static constexpr DoubleRegList GetAllocatableDoubleRegisters() {
     return kAllocatableDoubleRegisters;
   }
@@ -263,6 +281,22 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                         ValueCanBeSmi value_can_be_smi);
   inline void StoreTaggedFieldNoWriteBarrier(Register object, int offset,
                                              Register value);
+
+  // Whether tagged constants (Smis, read-only roots and compressed heap
+  // objects) can be stored as immediates, i.e. whether the overloads below are
+  // implemented.
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+  static constexpr bool kSupportsStoreTaggedConstant = COMPRESS_POINTERS_BOOL;
+#else
+  static constexpr bool kSupportsStoreTaggedConstant = false;
+#endif
+  // Whether {value} is a constant that {StoreTaggedFieldNoWriteBarrier} can
+  // store as an immediate, without materializing it in a register.
+  static inline bool CanStoreTaggedConstant(ValueNode* value);
+  inline void StoreTaggedFieldNoWriteBarrier(Register object, int offset,
+                                             ValueNode* constant);
+  inline void StoreTaggedFieldNoWriteBarrier(Register object, int offset,
+                                             Handle<HeapObject> constant);
   inline void StoreTaggedSignedField(Register object, int offset,
                                      Register value);
   inline void StoreTaggedSignedField(Register object, int offset,
@@ -271,6 +305,14 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void StoreInt32Field(Register object, int offset, int32_t value);
 
   inline void AssertElidedWriteBarrier(Register object, Register value,
+                                       RegisterSnapshot snapshot);
+  // For a constant {value} stored as an immediate (see
+  // {CanStoreTaggedConstant}); the constant is only materialized on the
+  // deferred verification path, so no register is needed for it here.
+  inline void AssertElidedWriteBarrier(Register object, ValueNode* value,
+                                       RegisterSnapshot snapshot);
+  inline void AssertElidedWriteBarrier(Register object,
+                                       compiler::HeapObjectRef value,
                                        RegisterSnapshot snapshot);
 
 #ifdef V8_ENABLE_SANDBOX

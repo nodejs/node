@@ -25,6 +25,11 @@ V8_OBJECT class FeedbackCell : public Struct {
  public:
   using Value = UnionOf<Undefined, FeedbackVector, ClosureFeedbackCellArray>;
 
+  inline FeedbackCell(ReadOnlyRoots roots, Tagged<ReadOnly<Map>> map);
+  inline FeedbackCell(const AllocationWitness& witness,
+                      Tagged<ReadOnly<Map>> map,
+                      Tagged<ClosureFeedbackCellArray> value);
+
   // Accessors
   inline Tagged<Value> value() const;
   inline Tagged<Value> value(AcquireLoadTag) const;
@@ -40,9 +45,7 @@ V8_OBJECT class FeedbackCell : public Struct {
   inline void set_dispatch_handle(JSDispatchHandle new_handle);
 
   inline void clear_interrupt_budget();
-  inline void clear_dispatch_handle();
 
-  inline void clear_padding();
   inline void reset_feedback_vector(
       std::optional<
           std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
@@ -63,7 +66,7 @@ V8_OBJECT class FeedbackCell : public Struct {
  public:
   TaggedMember<Value> value_;
   JSDispatchHandleMember dispatch_handle_;
-  int32_t interrupt_budget_;
+  int32_t interrupt_budget_ = 0;
 } V8_OBJECT_END;
 
 static_assert(sizeof(FeedbackCell) ==

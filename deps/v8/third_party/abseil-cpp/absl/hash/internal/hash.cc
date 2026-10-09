@@ -235,21 +235,28 @@ LowLevelHashLenGt64(uint64_t seed, const void* data, size_t len) {
   // We combine state and data with _mm_add_epi64/_mm_sub_epi64 before applying
   // AES encryption to make hash function dependent on the order of the blocks.
   // See comments in LowLevelHash33To64 for more considerations.
-  auto mix_ab = [&state0,
-                 &state1](const uint8_t* p) ABSL_ATTRIBUTE_ALWAYS_INLINE {
-    Vector128 a = Load128(p);
-    Vector128 b = Load128(p + 16);
-    state0 = MixA(a, state0);
-    state1 = MixB(b, state1);
+  struct MixerAB {
+    Vector128& state0;
+    Vector128& state1;
+    ABSL_ATTRIBUTE_ALWAYS_INLINE auto operator()(const uint8_t* p) const {
+      Vector128 a = Load128(p);
+      Vector128 b = Load128(p + 16);
+      state0 = MixA(a, state0);
+      state1 = MixB(b, state1);
+    }
   };
-  auto mix_cd = [&state2,
-                 &state3](const uint8_t* p) ABSL_ATTRIBUTE_ALWAYS_INLINE {
-    Vector128 c = Load128(p);
-    Vector128 d = Load128(p + 16);
-    state2 = MixC(c, state2);
-    state3 = MixD(d, state3);
+  MixerAB mix_ab = {state0, state1};
+  struct MixerCD {
+    Vector128& state2;
+    Vector128& state3;
+    ABSL_ATTRIBUTE_ALWAYS_INLINE auto operator()(const uint8_t* p) const {
+      Vector128 c = Load128(p);
+      Vector128 d = Load128(p + 16);
+      state2 = MixC(c, state2);
+      state3 = MixD(d, state3);
+    }
   };
-
+  MixerCD mix_cd = {state2, state3};
   do {
     PrefetchFutureDataToLocalCache(ptr);
     mix_ab(ptr);

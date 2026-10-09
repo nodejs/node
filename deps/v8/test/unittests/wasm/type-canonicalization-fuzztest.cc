@@ -207,7 +207,7 @@ struct ArrayType {
     constexpr ModuleTypeIndex kNoSupertype = ModuleTypeIndex::Invalid();
     builder->AddArrayType(
         zone->New<wasm::ArrayType>(field_type.val_type.value_type(),
-                                   field_type.mutability),
+                                   field_type.mutability, SharedFlag{false}),
         kNotFinal, kNoSupertype);
   }
 

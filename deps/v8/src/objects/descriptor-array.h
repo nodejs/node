@@ -312,11 +312,13 @@ V8_OBJECT class DescriptorArray : public HeapObject {
 
   // Declared atomic so that concurrent readers (e.g. from the marker) see a
   // consistent value during trimming in mark-compact.
-  std::atomic<uint16_t> number_of_all_descriptors_;
+  V8_TQ_CONST std::atomic<uint16_t> number_of_all_descriptors_;
   std::atomic<uint16_t> number_of_descriptors_;
-  std::atomic<uint32_t> flags_;
+  std::atomic<uint32_t> flags_ V8_TQ_TYPE(DescriptorArrayFlags);
   TaggedMember<EnumCache> enum_cache_;
-  FLEXIBLE_ARRAY_MEMBER(Entry, entries);
+  V8_TQ_TAIL_NAME(descriptors);
+  V8_TQ_TAIL_LENGTH(number_of_all_descriptors);
+  FLEXIBLE_ARRAY_MEMBER(Entry, entries, V8_TQ_TYPE(DescriptorEntry));
 } V8_OBJECT_END;
 
 static_assert(sizeof(DescriptorArray::Entry) ==

@@ -45,7 +45,7 @@ testForOfFallbackToCSA(iterA);
 iterA.iterObj.count = 0;
 testForOfFallbackToCSA(iterA);
 
-assertTrue(isMaglevved(testForOfFallbackToCSA));
+assertMaglevved(testForOfFallbackToCSA);
 
 
 // Now trigger the deopt.

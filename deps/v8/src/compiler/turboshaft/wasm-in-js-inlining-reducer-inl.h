@@ -145,6 +145,7 @@ class WasmInJSInliningReducer : public Next {
       // guards that eagerly deopt if we fall off the conversion fastpath, e.g.,
       // not Smi or HeapNumber. In particular, we do not call builtins that
       // could transitively cause a lazy deopt via valueOf/Symbol.toPrimitive.
+      CHECK_IMPLIES(sig->parameter_count() > 0, caller_frame_state.has_value());
       V<Any> result = builder.BuildJSToWasmWrapper(
           js_closure, js_context, arguments, continuation_frame_state,
           descriptor->lazy_deopt_on_throw, caller_frame_state);
@@ -739,7 +740,7 @@ class WasmInJsInliningInterface {
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type,
                             frame_state_);
     result->op = __ ArrayGet(array_value, index.get<Word32>(), imm.array_type,
-                             is_signed, {});
+                             is_signed, {}, imm.heap_type().is_shared());
   }
 
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
@@ -749,7 +750,7 @@ class WasmInJsInliningInterface {
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type,
                             frame_state_);
     __ ArraySet(array_value, index.get<Word32>(), value.op,
-                imm.array_type->element_type(), {},
+                imm.array_type->element_type(), imm.array_type->is_shared(), {},
                 wasm::ArrayIndexImmediateToWriteBarrier(imm),
                 ArraySetOp::Kind::kAssign);
   }
@@ -757,7 +758,8 @@ class WasmInJsInliningInterface {
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
     result->op = __ ArrayLength(
         array_obj.get<WasmArrayNullable>(), frame_state_,
-        array_obj.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck);
+        array_obj.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck,
+        array_obj.type.is_shared());
   }
 
   V<FixedArray> managed_object_maps() {
@@ -872,6 +874,7 @@ class WasmInJsInliningInterface {
   BAILOUT_WASM_OP(StructAtomicRMW)
   BAILOUT_WASM_OP(StructAtomicCompareExchange)
   BAILOUT_WASM_OP(StructWait)
+  BAILOUT_WASM_OP(ArrayWait)
   BAILOUT_WASM_OP(WaitqueueNotify)
   BAILOUT_WASM_OP(WaitqueueNew)
 

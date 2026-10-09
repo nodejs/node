@@ -302,12 +302,12 @@ std::unique_ptr<InstanceTypeTree> AssignInstanceTypes() {
 // in the debug-reader lists -- Torque emits no TqClass for them.
 // The `it_list_*` streams below reproduce metagen's
 // INSTANCE_TYPE_LIST_{SINGLE,MULTIPLE,RANGE} buckets (instance_types.py)
-// so the torque path (V8_USE_METAGEN_INSTANCE_TYPES=0) can drive the same
+// so the torque path (V8_USE_METAGEN=0) can drive the same
 // instance-type-checker.h / instance-type-inl.h consumers as metagen.
 // Unlike the debug-reader lists, these include body-less declarations
 // (HasUndefinedLayout()), because the checkers map IT -> class for every
 // IT-bearing class, not just those Torque has a layout for.
-// TODO(jgruber): remove together with the V8_USE_METAGEN_INSTANCE_TYPES switch
+// TODO(jgruber): remove together with the V8_USE_METAGEN switch
 // once metagen is the sole instance-type generator.
 void PrintInstanceTypes(InstanceTypeTree* root, std::ostream& definitions,
                         std::ostream& values,
@@ -406,7 +406,7 @@ void ImplementationVisitor::GenerateInstanceTypes(
 
   // Emit `torque-generated/instance-types.h`: IT enum + IT-name list. Pure
   // IT concern; consumed via src/objects/instance-types-gen.h's forwarder
-  // when V8_USE_METAGEN_INSTANCE_TYPES is 0.
+  // when V8_USE_METAGEN is 0.
   std::stringstream header;
   const std::string file_name = "instance-types.h";
   {
@@ -468,7 +468,7 @@ void ImplementationVisitor::GenerateInstanceTypes(
   // Emit `torque-generated/instance-type-checker-lists.h`: the
   // INSTANCE_TYPE_LIST_{SINGLE,MULTIPLE,RANGE} buckets that metagen emits
   // into metagen/instance-types.h. Provided here so the torque path
-  // (V8_USE_METAGEN_INSTANCE_TYPES=0) can satisfy the same consumers. It is
+  // (V8_USE_METAGEN=0) can satisfy the same consumers. It is
   // included only from src/objects/instance-types-gen.h's #else (torque)
   // branch and is additionally guarded below, so the metagen path never
   // sees it. Remove this file (and the #else include) once metagen is the
@@ -477,7 +477,7 @@ void ImplementationVisitor::GenerateInstanceTypes(
   const std::string it_lists_file = "instance-type-checker-lists.h";
   {
     IncludeGuardScope it_lists_guard(it_lists_header, it_lists_file);
-    it_lists_header << "#if !V8_USE_METAGEN_INSTANCE_TYPES\n";
+    it_lists_header << "#if !V8_USE_METAGEN\n";
     it_lists_header
         << "// Pairs of (ClassName, INSTANCE_TYPE) for classes whose instance\n"
            "// type is unique to them (no subclasses share it).\n";
@@ -498,7 +498,7 @@ void ImplementationVisitor::GenerateInstanceTypes(
     it_lists_header << "#define INSTANCE_TYPE_LIST_RANGE(V) \\\n";
     it_lists_header << it_list_range.str();
     it_lists_header << "\n";
-    it_lists_header << "#endif  // !V8_USE_METAGEN_INSTANCE_TYPES\n";
+    it_lists_header << "#endif  // !V8_USE_METAGEN\n";
   }
   WriteFile(output_directory + "/" + it_lists_file, it_lists_header.str());
 

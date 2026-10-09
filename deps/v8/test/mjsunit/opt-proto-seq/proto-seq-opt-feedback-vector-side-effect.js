@@ -42,7 +42,7 @@ assert_test_feedback_vector_side_effect(test_feedback_vector_side_effect());
 %OptimizeMaglevOnNextCall(test_feedback_vector_side_effect);
 assert_test_feedback_vector_side_effect(test_feedback_vector_side_effect());
 assertOptimized(test_feedback_vector_side_effect);
-assertTrue(isMaglevved(test_feedback_vector_side_effect));
+assertMaglevved(test_feedback_vector_side_effect);
 assert_test_feedback_vector_side_effect(test_feedback_vector_side_effect());
 %OptimizeFunctionOnNextCall(test_feedback_vector_side_effect);
 assert_test_feedback_vector_side_effect(test_feedback_vector_side_effect());

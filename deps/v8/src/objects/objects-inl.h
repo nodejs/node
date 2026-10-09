@@ -316,6 +316,7 @@ DEF_CAST_TRAITS(ScriptWrapper)
 DEF_CAST_TRAITS(StringWrapper)
 DEF_CAST_TRAITS(SymbolWrapper)
 DEF_CAST_TRAITS(UniqueName)
+DEF_CAST_TRAITS(UninitializedHeapNumber)
 DEF_CAST_TRAITS(Undetectable)
 
 template <>
@@ -964,20 +965,19 @@ AllocationAlignment HeapObject::RequiredAlignment(InSharedSpace in_shared_space,
     static_assert(!USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ||
                   (offsetof(HeapNumber, value_) & kDoubleAlignmentMask) ==
                       kTaggedSize);
-    if (instance_type == HEAP_NUMBER_TYPE) return kDoubleUnaligned;
+    if (instance_type == HEAP_NUMBER_TYPE ||
+        instance_type == UNINITIALIZED_HEAP_NUMBER_TYPE) {
+      return kDoubleUnaligned;
+    }
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (in_shared_space && v8_flags.wasm_shared) [[unlikely]] {
+  if (in_shared_space) [[unlikely]] {
     int instance_type = map->instance_type();
-    if (instance_type == WASM_STRUCT_TYPE ||
+    if (instance_type == WASM_STRUCT_TYPE || instance_type == WASM_ARRAY_TYPE ||
         instance_type == WASM_CUSTOM_MAP_TYPE) {
-      // The map of a shared wasm struct needs to be in the shared space.
+      // The map of a shared wasm object needs to be in the shared space.
       DCHECK(HeapLayout::InWritableSharedSpace(map));
       return kDoubleAligned;
-    } else if (instance_type == WASM_ARRAY_TYPE) {
-      // The map of a shared wasm array needs to be in the shared space.
-      DCHECK(HeapLayout::InWritableSharedSpace(map));
-      return kDoubleUnaligned;
     }
   }
 #endif

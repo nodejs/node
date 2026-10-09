@@ -672,6 +672,9 @@ void LookupIterator::PrepareTransitionToDataProperty(
   DCHECK_IMPLIES(!receiver.is_identical_to(GetStoreTarget<JSReceiver>()),
                  name_for_transition()->IsAnyPrivateName());
   DCHECK(!IsAlwaysSharedSpaceJSObject(*receiver));
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(!IsWasmObject(*receiver));
+#endif
   if (state_ == TRANSITION) return;
 
   if (!IsElement() && name_for_transition()->IsAnyPrivate()) {
@@ -1054,13 +1057,12 @@ bool LookupIterator::CanStayConst(Tagged<Object> value) const {
       FieldIndex::ForDetails(holder->map(), property_details_);
   if (property_details_.representation().IsDouble()) {
     if (!IsNumber(value)) return false;
-    // Attempt to store HeapNumber with the hole NaN pattern should have
-    // already generalized field constness to kMutable.
-    DCHECK_IMPLIES(!IsSmi(value), !Cast<HeapNumber>(value)->is_the_hole());
     Tagged<Object> current_value = holder->RawFastPropertyAt(field_index);
+    // Only allow initializing stores to uninitialized heap numbers
+    // to stay constant.
+    if (IsUninitializedHeapNumber(current_value)) return true;
     DCHECK(IsHeapNumber(current_value));
-    // Only allow initializing stores to double to stay constant.
-    return Cast<HeapNumber>(current_value)->is_the_hole();
+    return false;
   }
 
   Tagged<Object> current_value = holder->RawFastPropertyAt(field_index);
@@ -1203,8 +1205,8 @@ void LookupIterator::WriteDataValue(DirectHandle<Object> value,
       DCHECK_IMPLIES(!initializing_store && property_details_.constness() ==
                                                  PropertyConstness::kConst,
                      CanStayConst(*value));
-      Cast<JSObject>(*holder)->WriteToField(descriptor_number(),
-                                            property_details_, *value);
+      Cast<JSObject>(*holder)->WriteToField(
+          descriptor_number(), property_details_, *value, initializing_store);
     } else {
       DCHECK_EQ(PropertyLocation::kDescriptor, property_details_.location());
       DCHECK_EQ(PropertyConstness::kConst, property_details_.constness());
@@ -1380,7 +1382,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
         if (is_element || !name_->IsAnyPrivate()) return MODULE_NAMESPACE;
       }
 #if V8_ENABLE_WEBASSEMBLY
-      if (IsWasmObjectMap(map)) return WASM_OBJECT;
+      if (IsAnyWasmObjectMap(map)) return WASM_OBJECT;
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (map->is_access_check_needed()) {
         if (is_element || !name_->IsPrivateInternal()) return ACCESS_CHECK;

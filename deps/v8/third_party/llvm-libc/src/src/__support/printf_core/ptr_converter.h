@@ -18,8 +18,8 @@
 namespace LIBC_NAMESPACE_DECL {
 namespace printf_core {
 
-template <WriteMode write_mode>
-LIBC_INLINE int convert_pointer(Writer<write_mode> *writer,
+template <OverflowMode mode>
+LIBC_INLINE int convert_pointer(Writer<mode> *writer,
                                 const FormatSection &to_conv) {
   FormatSection new_conv = to_conv;
 

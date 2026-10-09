@@ -5,6 +5,8 @@
 #ifndef V8_BASELINE_BASELINE_COMPILER_H_
 #define V8_BASELINE_BASELINE_COMPILER_H_
 
+#include <optional>
+
 #include "src/base/logging.h"
 #include "src/base/numerics/checked_math.h"
 #include "src/base/pointer-with-payload.h"
@@ -155,6 +157,13 @@ class BaselineCompiler {
   template <Operation kOperation, Builtin kSmiBuiltin, Builtin kGenericBuiltin>
   bool TryEmitInlineSmiUnary(BinaryOperationFeedback::Type feedback_type,
                              int feedback_index_offset);
+
+  struct CompareBranchCandidate {
+    int true_offset;
+    int false_offset;
+  };
+
+  std::optional<CompareBranchCandidate> GetCompareBranchCandidate();
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
   // Jumps based on calling ToBoolean on kInterpreterAccumulatorRegister.

@@ -9,6 +9,7 @@
 #include "include/v8-internal.h"
 #include "src/api/api-arguments.h"
 #include "src/base/logging.h"
+#include "src/base/unique-array.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/diagnostics/disasm.h"
@@ -1786,7 +1787,7 @@ void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
 
   std::ios_base::fmtflags sav_flags = os.flags();
   os << "\n - ctrl table (omitting buckets where key is hole value): {";
-  for (int i = 0; i < this->Capacity() + kGroupWidth; i++) {
+  for (uint32_t i = 0; i < this->Capacity() + kGroupWidth; i++) {
     ctrl_t ctrl = CtrlTable()[i];
 
     if (ctrl == Ctrl::kEmpty) continue;
@@ -1812,14 +1813,15 @@ void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
   os << "\n }";
 
   os << "\n - enumeration table: {";
-  for (int enum_index = 0; enum_index < this->UsedCapacity(); enum_index++) {
-    int entry = EntryForEnumerationIndex(enum_index);
+  for (uint32_t enum_index = 0; enum_index < this->UsedCapacity();
+       enum_index++) {
+    uint32_t entry = EntryForEnumerationIndex(enum_index);
     os << "\n   " << std::setw(12) << std::dec << enum_index << ": " << entry;
   }
   os << "\n }";
 
   os << "\n - data table (omitting slots where key is the hole): {";
-  for (int bucket = 0; bucket < this->Capacity(); ++bucket) {
+  for (uint32_t bucket = 0; bucket < this->Capacity(); ++bucket) {
     Tagged<Object> k;
     if (!this->ToKey(GetReadOnlyRoots(), bucket, &k)) continue;
 
@@ -2311,7 +2313,7 @@ void JSDate::JSDatePrint(std::ostream& os) {
     os << "\n - time = NaN\n";
   } else {
     // TODO(svenpanne) Add some basic formatting to our streams.
-    auto buf = base::OwnedVector<char>::NewForOverwrite(100);
+    auto buf = base::UniqueArray<char>::NewForOverwrite(100);
     SNPrintF(buf.as_vector(), "\n - time = %s %04d/%02d/%02d %02d:%02d:%02d\n",
              weekdays[IsSmi(weekday()) ? Smi::ToInt(weekday()) + 1 : 0],
              IsSmi(year()) ? Smi::ToInt(year()) : -1,
@@ -2814,7 +2816,13 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   os << "\n - untrusted_function_data: " << Brief(GetUntrustedData());
   os << "\n - code (from function_data): ";
   Isolate* isolate;
-  if (GetIsolateFromHeapObject(Tagged<SharedFunctionInfo>(this), &isolate)) {
+  if (GetIsolateFromHeapObject(Tagged<SharedFunctionInfo>(this), &isolate)
+#if V8_ENABLE_WEBASSEMBLY
+      // WasmFunctionData does not store a Code object; see
+      // SharedFunctionInfo::GetCode().
+      && !HasWasmFunctionData(isolate)
+#endif  // V8_ENABLE_WEBASSEMBLY
+  ) {
     os << Brief(GetCode(isolate));
   } else {
     os << kUnavailableString;
@@ -3316,7 +3324,7 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
   uint32_t len = length();
   os << "\n - element type: " << element_type.name();
   os << "\n - length: " << len;
-  Address data_ptr = ptr() + WasmArray::kHeaderSize - kHeapObjectTag;
+  Address data_ptr = ElementAddress(0);
   switch (element_type.kind()) {
     case wasm::kI32:
       PrintTypedArrayElements(os, reinterpret_cast<int32_t*>(data_ptr), len,
@@ -3464,7 +3472,7 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(feedback_vectors, Brief);
   PRINT_WASM_INSTANCE_FIELD(well_known_imports, Brief);
   PRINT_WASM_INSTANCE_FIELD(memory0_start, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(memory0_size, +);
+  PRINT_WASM_INSTANCE_FIELD(memory0_size_or_address, to_void_ptr);
 #if V8_ENABLE_DRUMBRAKE
   PRINT_WASM_INSTANCE_FIELD(imported_function_indices, Brief);
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -3474,6 +3482,7 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(hook_on_function_call_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(tiering_budget_array, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(memory_bases_and_sizes, Brief);
+  PRINT_WASM_INSTANCE_FIELD(shared_memory_backing_stores, Brief);
   PRINT_WASM_INSTANCE_FIELD(break_on_entry, static_cast<int>);
   os << "\n";
 
@@ -3518,10 +3527,8 @@ void WasmDispatchTableForImports::WasmDispatchTableForImportsPrint(
 
 // Never called directly, as WasmFunctionData is an "abstract" class.
 void WasmFunctionData::WasmFunctionDataPrint(std::ostream& os) {
-  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   os << "\n - func_ref: " << Brief(func_ref());
   os << "\n - internal: " << Brief(internal());
-  os << "\n - wrapper_code: " << Brief(wrapper_code(isolate));
   os << "\n - js_promise_flags: " << js_promise_flags();
   // No newline here; the caller prints it after printing additional fields.
 }
@@ -3558,9 +3565,6 @@ void WasmImportData::WasmImportDataPrint(std::ostream& os) {
   }
   os << "\n - suspend: " << static_cast<int>(suspend());
   os << "\n - wrapper_budget: " << wrapper_budget()->value();
-  if (has_call_origin()) {
-    os << "\n - call_origin: " << Brief(call_origin());
-  }
   os << "\n - sig: " << sig() << " (" << sig()->parameter_count() << " params, "
      << sig()->return_count() << " returns)";
   os << "\n";
@@ -3676,10 +3680,26 @@ void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoPrint(
   os << '\n';
 }
 
+void UninitializedHeapNumber::UninitializedHeapNumberPrint(std::ostream& os) {
+  PrintHeader(os, "UninitializedHeapNumber");
+  os << "\n - value: ";
+  PrintDouble(os, value());
+  os << '\n';
+}
+
 void Tuple2::Tuple2Print(std::ostream& os) {
   this->PrintHeader(os, "Tuple2");
   os << "\n - value1: " << Brief(this->value1());
   os << "\n - value2: " << Brief(this->value2());
+  os << '\n';
+}
+
+void ForInEnumeratorHolder::ForInEnumeratorHolderPrint(std::ostream& os) {
+  this->PrintHeader(os, "ForInEnumeratorHolder");
+  os << "\n - enum_cache_map: " << Brief(this->enum_cache_map());
+  os << "\n - named_keys: " << Brief(this->named_keys());
+  os << "\n - elements_length: " << this->elements_length();
+  os << "\n - cache_length: " << this->cache_length();
   os << '\n';
 }
 
@@ -4202,10 +4222,8 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
     os << "\n - has context extension slot";
   }
 
-  if (HasPositionInfo()) {
-    os << "\n - start position: " << StartPosition();
-    os << "\n - end position: " << EndPosition();
-  }
+  os << "\n - start position: " << StartPosition();
+  os << "\n - end position: " << EndPosition();
   os << "\n - length: " << length();
   if (length() > 0) {
     PrintScopeInfoList(this, os, "context slots", ContextLocalCount());
@@ -4555,6 +4573,10 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
 
+    case UNINITIALIZED_HEAP_NUMBER_TYPE:
+      os << "<UninitializedHeapNumber>";
+      break;
+
     case SHARED_FUNCTION_INFO_TYPE: {
       Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(this);
       std::unique_ptr<char[]> debug_name = shared->DebugNameCStr();
@@ -4703,6 +4725,11 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
 #if V8_ENABLE_WEBASSEMBLY
+    case WASM_CUSTOM_MAP_TYPE:
+      os << "<WasmCustomMap [canonical type "
+         << Cast<WasmCustomMap>(this)->wasm_type_info()->type_index().index
+         << "]>";
+      break;
     case WASM_DISPATCH_TABLE_TYPE:
       os << "<WasmDispatchTable["
          << TrustedCast<WasmDispatchTable>(this)->length() << "]>";
@@ -4775,7 +4802,7 @@ void Map::MapPrint(std::ostream& os) {
   bool is_meta_map = IsMetaMap(this);
   bool is_extended_map = Is<ExtendedMap>(this);
 #if V8_ENABLE_WEBASSEMBLY
-  bool is_wasm_map = IsWasmObjectMap(this);
+  bool is_wasm_map = IsAnyWasmObjectMap(this);
 #else
   constexpr bool is_wasm_map = false;
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -45,19 +45,13 @@ extern class WasmInstanceObject extends JSObject {
 
 // The WasmImportData is passed to non-wasm imports in place of the
 // WasmTrustedInstanceData. It is used in import wrappers (wasm-to-*) to load
-// needed information, and is used during wrapper tiering to know which
-// call site to patch (see the `call_origin` field).
+// needed information, and for tier-up of wasm-to-js wrappers.
 @cppObjectLayoutDefinition
 extern class WasmImportData extends TrustedObject {
   // The instance data of the importing instance. It is used to load memory
   // start/size for fast API calls, and for tier-up of wasm-to-js wrappers.
   // Use the '.importing_instance_data' macro to read this from torque code.
   protected_importing_instance_data: ProtectedPointer<WasmTrustedInstanceData>;
-  // `call_origin` records which place to patch on wrapper tier-up:
-  // - WasmInternalFunction: a func ref
-  // - WasmDispatchTable: a table; the slot is in the {bit_field}.
-  protected_call_origin:
-      ProtectedPointer<WasmInternalFunction|WasmDispatchTable>;
   native_context: NativeContext;
   callable: JSReceiver|Undefined;
   // Contains a Smi; boxed so that generated code can update the value.
@@ -125,8 +119,6 @@ extern operator '.internal' macro LoadWasmInternalFunctionFromFuncRef(
 // Exposed via SharedFunctionInfo::trusted_function_data.
 @cppObjectLayoutDefinition
 extern class WasmFunctionData extends ExposedTrustedObject {
-  // Used for calling this function from JavaScript.
-  wrapper_code: TrustedPointer<Code>;
   // The function reference for this function object. This is used when
   // converting a JS function back to the wasm-side func ref.
   func_ref: WasmFuncRef;
@@ -174,7 +166,7 @@ extern class WasmResumeData extends HeapObject {
 
 @cppObjectLayoutDefinition
 extern class WasmSuspenderObject extends ExposedTrustedObject {
-  stack: ExternalPointer;
+  stack: RawPtr;
   parent: ProtectedPointer<WasmSuspenderObject>;
   promise: JSPromise|Undefined;
   resume: JSObject|Undefined;

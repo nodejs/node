@@ -19,8 +19,8 @@
 namespace LIBC_NAMESPACE_DECL {
 namespace printf_core {
 
-template <WriteMode write_mode>
-LIBC_INLINE int convert_strerror(Writer<write_mode> *writer,
+template <OverflowMode mode>
+LIBC_INLINE int convert_strerror(Writer<mode> *writer,
                                  const FormatSection &to_conv) {
   FormatSection new_conv = to_conv;
   const int error_num = static_cast<int>(to_conv.conv_val_raw);

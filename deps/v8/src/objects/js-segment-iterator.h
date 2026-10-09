@@ -72,7 +72,7 @@ V8_OBJECT class JSSegmentIterator : public JSObject {
  public:
   TaggedMember<CppGCManaged<IcuBreakIteratorWithText>> icu_iterator_with_text_;
   TaggedMember<String> raw_string_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSSegmentIteratorFlags>);
 } V8_OBJECT_END;
 
 inline constexpr int JSSegmentIterator::kHeaderSize = sizeof(JSSegmentIterator);

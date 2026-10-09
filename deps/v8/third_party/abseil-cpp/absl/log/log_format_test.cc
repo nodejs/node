@@ -34,6 +34,7 @@
 #include "absl/log/internal/test_matchers.h"
 #include "absl/log/log.h"
 #include "absl/log/log_entry.h"
+#include "absl/log/log_sink.h"
 #include "absl/log/scoped_mock_log.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
@@ -1273,7 +1274,7 @@ struct PointWithAbslStringifiyAndOstream {
   int y = 20;
 };
 
-ABSL_ATTRIBUTE_UNUSED std::ostream& operator<<(
+[[maybe_unused]] std::ostream& operator<<(
     std::ostream& os, const PointWithAbslStringifiyAndOstream&) {
   return os << "Default to AbslStringify()";
 }

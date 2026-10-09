@@ -37,25 +37,22 @@ namespace internal {
 namespace {
 
 bool EnterIncrementalMarkingIfNeeded(MarkingConfig config, HeapBase& heap) {
-  if (config.marking_type == MarkingConfig::MarkingType::kIncremental ||
-      config.marking_type ==
-          MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
-    WriteBarrier::FlagUpdater::Enter();
-    heap.set_incremental_marking_in_progress(true);
-    return true;
-  }
-  return false;
+  // Independent of the marking type, we arm the incremental bits. This allows
+  // for other systems to push objects onto marking worklists for later
+  // processing.
+  WriteBarrier::FlagUpdater::Enter();
+  heap.set_incremental_marking_in_progress(true);
+  return config.marking_type == MarkingConfig::MarkingType::kIncremental ||
+         config.marking_type ==
+             MarkingConfig::MarkingType::kIncrementalAndConcurrent;
 }
 
 bool ExitIncrementalMarkingIfNeeded(MarkingConfig config, HeapBase& heap) {
-  if (config.marking_type == MarkingConfig::MarkingType::kIncremental ||
-      config.marking_type ==
-          MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
-    WriteBarrier::FlagUpdater::Exit();
-    heap.set_incremental_marking_in_progress(false);
-    return true;
-  }
-  return false;
+  WriteBarrier::FlagUpdater::Exit();
+  heap.set_incremental_marking_in_progress(false);
+  return config.marking_type == MarkingConfig::MarkingType::kIncremental ||
+         config.marking_type ==
+             MarkingConfig::MarkingType::kIncrementalAndConcurrent;
 }
 
 static constexpr size_t kDefaultDeadlineCheckInterval = 150u;

@@ -1,0 +1,3 @@
+Tests that a blackboxed range includes its exact start boundary
+Compiled script
+Test completed

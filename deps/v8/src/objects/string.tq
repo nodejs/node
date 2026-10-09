@@ -63,8 +63,8 @@ bitfield struct StringInstanceType extends uint16 {
   representation: StringRepresentationTag: 3 bit;
   is_one_byte: bool: 1 bit;
   is_uncached: bool: 1 bit;
-  is_not_internalized: bool: 1 bit;
   is_shared: bool: 1 bit;
+  is_not_internalized: bool: 1 bit;
 }
 
 @doNotGenerateCast
@@ -157,7 +157,7 @@ extern class SlicedString extends String {
 @doNotGenerateCast
 @cppObjectLayoutDefinition
 extern class ThinString extends String {
-  actual: String;
+  actual: InternalizedString;
 }
 
 // A direct string can be accessed directly through CSA without going into the

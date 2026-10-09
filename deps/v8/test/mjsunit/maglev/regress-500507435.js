@@ -27,4 +27,4 @@ assertEquals(255, store(arr, 255.0));
 assertEquals(0,   store(arr, -0.3));
 assertEquals(0,   store(arr, NaN));
 
-assertTrue(isMaglevved(store));
+assertMaglevved(store);

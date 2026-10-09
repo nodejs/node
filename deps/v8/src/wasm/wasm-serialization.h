@@ -9,6 +9,7 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include "src/base/unique-array.h"
 #include "src/wasm/wasm-code-manager.h"
 
 namespace v8::internal::wasm {
@@ -50,7 +51,7 @@ class V8_EXPORT_PRIVATE WasmSerializer {
 // vector); otherwise ownership stays with the caller.
 V8_EXPORT_PRIVATE MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate*, WasmEnabledFeatures, base::Vector<const uint8_t> data,
-    base::OwnedVector<const uint8_t>& wire_bytes,
+    base::UniqueArray<const uint8_t>& wire_bytes,
     const CompileTimeImports& compile_imports,
     base::Vector<const char> source_url);
 

@@ -146,7 +146,7 @@ V8_OBJECT class BytecodeArray : public ExposedTrustedObject {
   inline void MarkVerified(IsolateForSandbox isolate);
 
  public:
-  TaggedMember<Smi> length_;
+  V8_TQ_CONST TaggedMember<Smi> length_;
   TaggedMember<BytecodeWrapper> wrapper_;
   ProtectedTaggedMember<TrustedByteArray> source_position_table_;
   ProtectedTaggedMember<TrustedByteArray> handler_table_;
@@ -158,6 +158,8 @@ V8_OBJECT class BytecodeArray : public ExposedTrustedObject {
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
+  V8_TQ_TAIL_NAME(bytes);
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(uint8_t, bytes);
 } V8_OBJECT_END;
 

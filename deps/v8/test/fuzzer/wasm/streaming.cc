@@ -7,6 +7,7 @@
 
 #include "include/v8-isolate.h"
 #include "src/api/api-inl.h"
+#include "src/base/unique-array.h"
 #include "src/flags/flags.h"
 #include "src/objects/managed.h"
 #include "src/wasm/streaming-decoder.h"
@@ -137,7 +138,7 @@ CompilationResult CompileSync(Isolate* isolate,
   CompilationResult result;
   if (!GetWasmEngine()
            ->SyncCompile(isolate, enabled_features, CompileTimeImports{},
-                         &thrower, base::OwnedCopyOf(data))
+                         &thrower, base::UniqueCopyOf(data))
            .ToHandle(&module_object)) {
     DirectHandle<Object> error = thrower.Reify();
     DirectHandle<String> error_msg =

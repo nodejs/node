@@ -7,6 +7,27 @@ Running test: testSubjectPause
 
 [
     [0] : {
+        emptyReason : no-variables
+        endLocation : {
+            columnNumber : 32
+            lineNumber : 2
+            scriptId : <scriptId>
+        }
+        name : f
+        object : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+        startLocation : {
+            columnNumber : 17
+            lineNumber : 2
+            scriptId : <scriptId>
+        }
+        type : block
+    }
+    [1] : {
         endLocation : {
             columnNumber : 3
             lineNumber : 5
@@ -26,7 +47,7 @@ Running test: testSubjectPause
         }
         type : local
     }
-    [1] : {
+    [2] : {
         object : {
             className : global
             description : global
@@ -101,6 +122,27 @@ Running test: testAsyncSubjectPause
 
 [
     [0] : {
+        emptyReason : no-variables
+        endLocation : {
+            columnNumber : 72
+            lineNumber : 2
+            scriptId : <scriptId>
+        }
+        name : h
+        object : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+        startLocation : {
+            columnNumber : 23
+            lineNumber : 2
+            scriptId : <scriptId>
+        }
+        type : block
+    }
+    [1] : {
         endLocation : {
             columnNumber : 3
             lineNumber : 5
@@ -120,7 +162,7 @@ Running test: testAsyncSubjectPause
         }
         type : local
     }
-    [1] : {
+    [2] : {
         object : {
             className : global
             description : global

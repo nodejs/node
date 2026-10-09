@@ -12,7 +12,6 @@
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/utils/scoped-list.h"
-#include "src/zone/zone-chunk-list.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -89,8 +88,12 @@ struct PreparseByteDataConstants {
 
   static const size_t kSkippableFunctionMinDataSize =
       4 * kVarint32MinSize + 1 * kUint8Size;
+  // A skippable function writes up to 5 Varint32s (start_position,
+  // end_position, has_data_and_num_parameters, function_length when
+  // length != num_parameters, and num_inner_functions) plus 1 Quarter
+  // (language_and_super).
   static const size_t kSkippableFunctionMaxDataSize =
-      4 * kVarint32MaxSize + 1 * kUint8Size;
+      5 * kVarint32MaxSize + 1 * kUint8Size;
 };
 
 class V8_EXPORT_PRIVATE PreparseDataBuilder : public ZoneObject,

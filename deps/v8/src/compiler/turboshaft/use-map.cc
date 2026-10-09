@@ -24,6 +24,12 @@ UseMap::UseMap(const Graph& graph, Zone* zone, FunctionType filter)
     auto block_ops = graph.OperationIndices(block);
     for (OpIndex op_index : block_ops) {
       const Operation& op = graph.Get(op_index);
+      // MakeTupleOp is a synthetic meta-operation that cannot have uses and is
+      // excluded from saturated_use_count (see Graph::IncrementInputUses). Skip
+      // it completely so UseMap neither allocates table entries for it nor
+      // records its inputs as used.
+      if (op.Is<MakeTupleOp>()) continue;
+
       // When we see a definition, we allocate space in the {uses_}.
       DCHECK_EQ(table_[op_index].offset, 0);
       DCHECK_EQ(table_[op_index].count, 0);

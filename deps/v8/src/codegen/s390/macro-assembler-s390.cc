@@ -719,6 +719,15 @@ void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   LoadRoot(destination, index);
 }
 
+void MacroAssembler::StoreTaggedRoot(const MemOperand& destination,
+                                     RootIndex index) {
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadTaggedRoot(scratch, index);
+  StoreTaggedField(scratch, destination);
+}
+
 void MacroAssembler::LoadRoot(Register destination, RootIndex index,
                               Condition) {
   if (CanBeImmediate(index)) {
@@ -4731,7 +4740,8 @@ void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
 }
 
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    uint16_t argument_count, Register scratch) {
+                                    uint16_t expected_parameter_count,
+                                    Register scratch) {
   Register code = kJavaScriptCallCodeStartRegister;
   Register dispatch_handle = r0;
   scratch = ip;

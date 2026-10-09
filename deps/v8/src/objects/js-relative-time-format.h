@@ -64,10 +64,9 @@ V8_OBJECT class JSRelativeTimeFormat : public JSObject {
   inline void set_numberingSystem(Tagged<String> value,
                                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<CppGCManaged<icu::RelativeDateTimeFormatter>>
-  icu_formatter() const;
+  inline Tagged<Managed<icu::RelativeDateTimeFormatter>> icu_formatter() const;
   inline void set_icu_formatter(
-      Tagged<CppGCManaged<icu::RelativeDateTimeFormatter>> value,
+      Tagged<Managed<icu::RelativeDateTimeFormatter>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline int flags() const;
@@ -101,8 +100,8 @@ V8_OBJECT class JSRelativeTimeFormat : public JSObject {
  public:
   TaggedMember<String> locale_;
   TaggedMember<String> numberingSystem_;
-  TaggedMember<CppGCManaged<icu::RelativeDateTimeFormatter>> icu_formatter_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Foreign> icu_formatter_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSRelativeTimeFormatFlags>);
 } V8_OBJECT_END;
 
 inline constexpr int JSRelativeTimeFormat::kHeaderSize =

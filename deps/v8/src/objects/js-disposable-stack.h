@@ -108,7 +108,7 @@ V8_OBJECT class JSDisposableStackBase : public JSObject {
  public:
   TaggedMember<FixedArray> stack_;
   // SmiTagged<DisposableStackStatus>.
-  TaggedMember<Smi> status_;
+  TaggedMember<Smi> status_ V8_TQ_TYPE(SmiTagged<DisposableStackStatus>);
   TaggedMember<UnionOf<Object, Hole>> error_;
   TaggedMember<UnionOf<Object, Hole>> error_message_;
 } V8_OBJECT_END;

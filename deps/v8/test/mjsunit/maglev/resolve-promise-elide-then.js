@@ -21,7 +21,7 @@
     assertEquals(obj, await foo(obj));
     %OptimizeMaglevOnNextCall(foo);
     assertEquals(obj, await foo(obj));
-    assertTrue(isMaglevved(foo));
+    assertMaglevved(foo);
   }
 
   // Heap-constant path: a context constant, which map inference doesn't reach.
@@ -40,7 +40,7 @@
     assertEquals(a, await foo());
     %OptimizeMaglevOnNextCall(foo);
     assertEquals(a, await foo());
-    assertTrue(isMaglevved(foo));
+    assertMaglevved(foo);
 
     // Destabilize the resolution's map via a sibling sharing the initial map.
     const {a: sibling} = make();
@@ -63,7 +63,7 @@
     assertEquals(42, await foo(thenable));
     %OptimizeMaglevOnNextCall(foo);
     assertEquals(42, await foo(thenable));
-    assertTrue(isMaglevved(foo));
+    assertMaglevved(foo);
   }
 
   // Self-resolution: a promise has "then", so the reduction never fires and the
@@ -82,7 +82,7 @@
     await assertThrowsAsync(drive(), TypeError);
     %OptimizeMaglevOnNextCall(f);
     await assertThrowsAsync(drive(), TypeError);
-    assertTrue(isMaglevved(f));
+    assertMaglevved(f);
   }
 
   // Self-resolution with a mutated prototype chain: the resolution has no
@@ -119,6 +119,6 @@
     const r = await settled(drive());
     assertEquals("rejected", r.status);
     assertInstanceof(r.error, TypeError);
-    assertTrue(isMaglevved(f));
+    assertMaglevved(f);
   }
 })();

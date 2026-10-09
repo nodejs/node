@@ -8,6 +8,7 @@
 #include "src/objects/template-objects.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/js-array-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -16,20 +17,19 @@
 namespace v8 {
 namespace internal {
 
+TemplateObjectDescription::TemplateObjectDescription(
+    const AllocationWitness& witness, ReadOnlyRoots roots,
+    Tagged<FixedArray> raw_strings, Tagged<FixedArray> cooked_strings)
+    : Struct(roots.template_object_description_map()),
+      raw_strings_(witness, raw_strings),
+      cooked_strings_(witness, cooked_strings) {}
+
 Tagged<FixedArray> TemplateObjectDescription::raw_strings() const {
   return raw_strings_.load();
-}
-void TemplateObjectDescription::set_raw_strings(Tagged<FixedArray> value,
-                                                WriteBarrierMode mode) {
-  raw_strings_.store(this, value, mode);
 }
 
 Tagged<FixedArray> TemplateObjectDescription::cooked_strings() const {
   return cooked_strings_.load();
-}
-void TemplateObjectDescription::set_cooked_strings(Tagged<FixedArray> value,
-                                                   WriteBarrierMode mode) {
-  cooked_strings_.store(this, value, mode);
 }
 
 }  // namespace internal

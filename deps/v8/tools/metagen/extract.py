@@ -5,19 +5,55 @@
 
 Inheritance walking through templates plus V8_IT_* annotation
 discovery. Shared between IT-mode harvesting (`cpp_hier.py`) and
-layout-mode generation (the `metagen-layout` branch); keep
-IT-emission concerns out of here.
+layout extraction (`layout_extract.py`); keep IT-emission concerns
+out of here.
 
 This module references `clang.cindex` at import time, so
 `clang_bootstrap.bootstrap()` must have run first -- metagen.py does
 that before importing any consumer of this module.
+
+TODO(jgruber): Rename to cursors.py. Nothing here extracts; these are
+stateless cursor helpers, and "extract" belongs to layout_extract.py.
 """
 
 from __future__ import annotations
 
+import os
+
 import clang.cindex as cindex
 
 HEAP_OBJECT_ROOT = "HeapObject"
+
+
+def qualified_name(cursor: cindex.Cursor) -> str:
+  """The declaration name, including namespaces and enclosing classes."""
+  parts = [cursor.spelling]
+  parent = cursor.semantic_parent
+  while parent is not None and parent.kind != cindex.CursorKind.TRANSLATION_UNIT:
+    if parent.kind in (cindex.CursorKind.NAMESPACE,
+                       cindex.CursorKind.CLASS_DECL,
+                       cindex.CursorKind.STRUCT_DECL,
+                       cindex.CursorKind.CLASS_TEMPLATE,
+                       cindex.CursorKind.CLASS_TEMPLATE_PARTIAL_SPECIALIZATION):
+      parts.append(parent.spelling)
+    parent = parent.semantic_parent
+  return "::".join(reversed(parts))
+
+
+def position(cursor: cindex.Cursor, v8_root: str) -> str | None:
+  """`file.h:line:col` relative to v8_root, forward slashes, so output
+  and diagnostics are reproducible across checkouts. None when the
+  cursor has no file."""
+  loc = cursor.location
+  if loc.file is None:
+    return None
+  try:
+    rel = os.path.relpath(loc.file.name, v8_root)
+  except ValueError:
+    # Windows: the toolchain and sysroot need not share the checkout's
+    # drive.
+    rel = loc.file.name
+  return f"{rel.replace(os.sep, '/')}:{loc.line}:{loc.column}"
 
 
 def class_annotations(cursor: cindex.Cursor) -> list[str]:
@@ -121,11 +157,11 @@ def resolve_logical_base(
   if args_map is None:
     args_map = {}
 
-  def _visit(c: cindex.Cursor | None) -> None:
+  def mark_visited(c: cindex.Cursor | None) -> None:
     if visited is not None and c is not None:
       visited.add(c)
 
-  _visit(cursor)
+  mark_visited(cursor)
   name = cursor.spelling
   sig = (name, frozenset((k, v.spelling) for k, v in args_map.items() if v))
   if sig in seen:
@@ -137,7 +173,7 @@ def resolve_logical_base(
       continue
     bt = child.type
     base_decl = bt.get_declaration()
-    _visit(base_decl)
+    mark_visited(base_decl)
     base_decl_name = base_decl.spelling
     if not base_decl_name and bt.kind == cindex.TypeKind.UNEXPOSED:
       base_decl_name = bt.spelling
@@ -153,7 +189,7 @@ def resolve_logical_base(
       if sub_name in participating:
         return sub_name
       sub_def = sub.get_declaration().get_definition() or sub.get_declaration()
-      _visit(sub_def)
+      mark_visited(sub_def)
       if sub_def.kind in _CLASS_LIKE:
         result = resolve_logical_base(sub_def, participating, templates, {},
                                       seen, visited)
@@ -183,9 +219,9 @@ def resolve_logical_base(
     if nargs > 0:
       candidates.extend(templates.get(base_decl_name, []))
       for _t in candidates:
-        _visit(_t)
+        mark_visited(_t)
     base_def = base_decl.get_definition() or base_decl
-    _visit(base_def)
+    mark_visited(base_def)
     if base_def.kind in _CLASS_LIKE:
       candidates.append(base_def)
     for cand in candidates:

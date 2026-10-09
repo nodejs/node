@@ -15,6 +15,7 @@
 #include "src/ast/ast.h"
 #include "src/base/enum-set.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
@@ -422,7 +423,7 @@ class ParsingTest : public TestWithContextAndZone {
 
         // Plug the source code pieces together.
         auto program =
-            base::OwnedVector<char>::NewForOverwrite(kProgramSize + 1);
+            base::UniqueArray<char>::NewForOverwrite(kProgramSize + 1);
         int length =
             base::SNPrintF(program.as_vector(), "%s%s%s", context_data[i][0],
                            statement_data[j], context_data[i][1]);
@@ -1420,7 +1421,7 @@ TEST_F(ParsingTest, ScopeUsesArgumentsSuperThis) {
                                               strlen(surroundings[j].suffix) +
                                               strlen(source_data[i].body));
       auto program =
-          base::OwnedVector<char>::NewForOverwrite(kProgramByteSize + 1);
+          base::UniqueArray<char>::NewForOverwrite(kProgramByteSize + 1);
       base::SNPrintF(program.as_vector(), "%s%s%s", surroundings[j].prefix,
                      source_data[i].body, surroundings[j].suffix);
       i::DirectHandle<i::String> source =
@@ -1751,7 +1752,7 @@ TEST_F(ParsingTest, ScopePositions) {
     int kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
     int kProgramByteSize = kPrefixByteLen + kInnerByteLen + kSuffixByteLen;
     auto program =
-        base::OwnedVector<char>::NewForOverwrite(kProgramByteSize + 1);
+        base::UniqueArray<char>::NewForOverwrite(kProgramByteSize + 1);
     base::SNPrintF(program.as_vector(), "%s%s%s", source_data[i].outer_prefix,
                    source_data[i].inner_source, source_data[i].outer_suffix);
 
@@ -1919,7 +1920,7 @@ TEST_F(ParsingTest, ParserSync) {
 
         // Plug the source code pieces together.
         auto program =
-            base::OwnedVector<char>::NewForOverwrite(kProgramSize + 1);
+            base::UniqueArray<char>::NewForOverwrite(kProgramSize + 1);
         int length =
             base::SNPrintF(program.as_vector(), "label: for (;;) { %s%s%s%s }",
                            context_data[i][0], statement_data[j],
@@ -3270,7 +3271,7 @@ TEST_F(ParsingTest, SerializationOfMaybeAssignmentFlag) {
       "h();";
 
   auto program =
-      base::OwnedVector<char>::NewForOverwrite(Utf8LengthHelper(src) + 1);
+      base::UniqueArray<char>::NewForOverwrite(Utf8LengthHelper(src) + 1);
   base::SNPrintF(program.as_vector(), "%s", src);
   i::DirectHandle<i::String> source =
       factory->InternalizeUtf8String(program.begin());
@@ -3318,7 +3319,7 @@ TEST_F(ParsingTest, IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
       "f(0);";
 
   auto program =
-      base::OwnedVector<char>::NewForOverwrite(Utf8LengthHelper(src) + 1);
+      base::UniqueArray<char>::NewForOverwrite(Utf8LengthHelper(src) + 1);
   base::SNPrintF(program.as_vector(), "%s", src);
   i::DirectHandle<i::String> source =
       factory->InternalizeUtf8String(program.begin());
@@ -3471,7 +3472,7 @@ TEST_F(ParsingTest, InnerAssignment) {
         int inner_len = Utf8LengthHelper(inner);
 
         int len = prefix_len + outer_len + midfix_len + inner_len + suffix_len;
-        auto program = base::OwnedVector<char>::NewForOverwrite(len + 1);
+        auto program = base::UniqueArray<char>::NewForOverwrite(len + 1);
 
         base::SNPrintF(program.as_vector(), "%s%s%s%s%s", prefix, outer, midfix,
                        inner, suffix);
@@ -3594,7 +3595,7 @@ TEST_F(ParsingTest, MaybeAssignedParameters) {
     bool assigned = tests[i].arg_assigned;
     const char* source = tests[i].source;
     for (unsigned allow_lazy = 0; allow_lazy < 2; ++allow_lazy) {
-      auto program = base::OwnedVector<char>::NewForOverwrite(
+      auto program = base::UniqueArray<char>::NewForOverwrite(
           Utf8LengthHelper(source) + Utf8LengthHelper(suffix) + 1);
       base::SNPrintF(program.as_vector(), "%s%s", source, suffix);
       printf("%s\n", program.begin());
@@ -12350,7 +12351,7 @@ TEST_F(ParsingTest, NoPessimisticContextAllocation) {
       int len = prefix_len + inner_function_len + params_len + source_len +
                 suffix_len;
 
-      auto program = base::OwnedVector<char>::NewForOverwrite(len + 1);
+      auto program = base::UniqueArray<char>::NewForOverwrite(len + 1);
       base::SNPrintF(program.as_vector(), "%s", prefix);
       base::SNPrintF(program.as_vector() + prefix_len, inner_function,
                      inners[i].params, inners[i].source);

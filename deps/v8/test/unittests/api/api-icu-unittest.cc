@@ -31,6 +31,12 @@ class ApiIcuTest : public v8::TestWithContext {
     icu::Locale::setDefault(locale, error_code);
     CHECK(U_SUCCESS(error_code));
   }
+
+  void CheckLocaleCaseMapping(const char* locale_name, const char* expression) {
+    SetIcuLocale(locale_name);
+    isolate()->LocaleConfigurationChangeNotification();
+    CHECK(RunJS(expression)->IsTrue());
+  }
 };
 
 TEST_F(ApiIcuTest, LocaleConfigurationChangeNotification) {
@@ -47,6 +53,28 @@ TEST_F(ApiIcuTest, LocaleConfigurationChangeNotification) {
   SetIcuLocale("zh_CN");
   isolate()->LocaleConfigurationChangeNotification();
   CheckLocaleSpecificValues("zh-CN", "2020/2/14 13:45:00", "10,000.3");
+
+  UErrorCode error_code = U_ZERO_ERROR;
+  icu::Locale::setDefault(default_locale, error_code);
+  CHECK(U_SUCCESS(error_code));
+}
+
+TEST_F(ApiIcuTest, LocaleConfigurationChangeNotificationCaseMapping) {
+  icu::Locale default_locale = icu::Locale::getDefault();
+
+  CheckLocaleCaseMapping("en_US",
+                         "'i'.toLocaleUpperCase() === 'I' && "
+                         "'I'.toLocaleLowerCase() === 'i'");
+  CheckLocaleCaseMapping("tr_TR",
+                         "'I'.toLocaleLowerCase() === '\\u0131' && "
+                         "'i'.toLocaleUpperCase() === '\\u0130'");
+  CheckLocaleCaseMapping("az_AZ", "'i'.toLocaleUpperCase() === '\\u0130'");
+  CheckLocaleCaseMapping(
+      "el_GR",
+      "'\\u03ac\\u03cc\\u03cd\\u03ce'.toLocaleUpperCase() === "
+      "'\\u0391\\u039f\\u03ab\\u03a9'");
+  CheckLocaleCaseMapping("lt_LT", "'i\\u0307'.toLocaleUpperCase() === 'I'");
+  CheckLocaleCaseMapping("en_US", "'i'.toLocaleUpperCase() === 'I'");
 
   UErrorCode error_code = U_ZERO_ERROR;
   icu::Locale::setDefault(default_locale, error_code);

@@ -97,9 +97,9 @@ void TracedNodeBlock::FreeNode(TracedNode* node, Address zap_value) {
   used_--;
 }
 
-void SetSlotThreadSafe(Address** slot, Address* val) {
-  reinterpret_cast<std::atomic<Address*>*>(slot)->store(
-      val, std::memory_order_relaxed);
+void SetSlotThreadSafe(Address** slot, Address* val,
+                       std::memory_order order = std::memory_order_relaxed) {
+  reinterpret_cast<std::atomic<Address*>*>(slot)->store(val, order);
 }
 
 void TracedHandles::RefillUsableNodeBlocks() {
@@ -201,13 +201,25 @@ void TracedHandles::Destroy(TracedNodeBlock& node_block, TracedNode& node) {
   FreeNode(&node, kTracedHandleEagerResetZapValue);
 }
 
+namespace {
+
+bool IsTracedHandleZapValue(Address value) {
+  CHECK_NE(kGlobalHandleZapValue, value);
+  return value == kTracedHandleEagerResetZapValue ||
+         value == kTracedHandleMinorGCResetZapValue ||
+         value == kTracedHandleMinorGCWeakResetZapValue ||
+         value == kTracedHandleFullGCResetZapValue;
+}
+
+}  // namespace
+
 void TracedHandles::Copy(const TracedNode& from_node, Address** to) {
-  DCHECK_NE(kGlobalHandleZapValue, from_node.raw_object());
+  DCHECK(!IsTracedHandleZapValue(from_node.raw_object()));
   FullObjectSlot o =
       Create(from_node.raw_object(), reinterpret_cast<Address*>(to),
              TracedReferenceStoreMode::kAssigningStore,
              TracedReferenceHandling::kDefault);
-  SetSlotThreadSafe(to, o.location());
+  SetSlotThreadSafe(to, o.location(), std::memory_order_release);
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
     Object::ObjectVerify(Tagged<Object>(**to), isolate_);
@@ -221,8 +233,8 @@ void TracedHandles::Move(TracedNode& from_node, Address** from, Address** to) {
   // Deal with old "to".
   auto* to_node = TracedNode::FromLocation(*to);
   DCHECK_IMPLIES(*to, to_node->is_in_use());
-  DCHECK_IMPLIES(*to, kGlobalHandleZapValue != to_node->raw_object());
-  DCHECK_NE(kGlobalHandleZapValue, from_node.raw_object());
+  DCHECK_IMPLIES(*to, !IsTracedHandleZapValue(to_node->raw_object()));
+  DCHECK(!IsTracedHandleZapValue(from_node.raw_object()));
   if (*to) {
     auto& to_node_block = TracedNodeBlock::From(*to_node);
     Destroy(to_node_block, *to_node);
@@ -608,10 +620,9 @@ void TracedHandles::ProcessWeakYoungObjects(
 
   auto* heap = isolate_->heap();
   // ResetRoot() below should not trigger allocations in CppGC.
-  if (auto* cpp_heap = CppHeap::From(heap->cpp_heap())) {
-    cpp_heap->EnterDisallowGCScope();
-    cpp_heap->EnterNoGCScope();
-  }
+  auto* cpp_heap = CppHeap::From(heap->cpp_heap());
+  cpp_heap->EnterDisallowGCScope();
+  cpp_heap->EnterNoGCScope();
 
 #ifdef DEBUG
   size_t num_young_blocks = 0;
@@ -684,10 +695,8 @@ void TracedHandles::ProcessWeakYoungObjects(
     DCHECK_GT(locally_freed, 0);
   }
 
-  if (auto* cpp_heap = CppHeap::From(isolate_->heap()->cpp_heap())) {
-    cpp_heap->LeaveNoGCScope();
-    cpp_heap->LeaveDisallowGCScope();
-  }
+  cpp_heap->LeaveNoGCScope();
+  cpp_heap->LeaveDisallowGCScope();
 }
 
 void TracedHandles::Iterate(RootVisitor* visitor) {
@@ -842,9 +851,10 @@ bool TracedHandles::IsValidInUseNode(const Address* location) {
   const TracedNode* node = TracedNode::FromLocation(location);
   // This method is called after mark bits have been cleared.
   DCHECK(!node->markbit());
-  CHECK_IMPLIES(node->is_in_use(), node->raw_object() != kGlobalHandleZapValue);
-  CHECK_IMPLIES(!node->is_in_use(),
-                node->raw_object() == kGlobalHandleZapValue);
+  // Released nodes are zapped with one of the `kTracedHandle*ZapValue`s, see
+  // `TracedNodeBlock::FreeNode()`, and never with `kGlobalHandleZapValue`.
+  CHECK_IMPLIES(node->is_in_use(), !IsTracedHandleZapValue(node->raw_object()));
+  CHECK_IMPLIES(!node->is_in_use(), IsTracedHandleZapValue(node->raw_object()));
   return node->is_in_use();
 }
 

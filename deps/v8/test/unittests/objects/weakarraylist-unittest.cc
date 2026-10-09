@@ -3,12 +3,25 @@
 // found in the LICENSE file.
 
 #include "src/heap/factory.h"
+#include "src/objects/casting.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
 
 using WeakArrayListTest = TestWithIsolate;
+
+TEST_F(WeakArrayListTest, CastMaybeObjectToUnion) {
+  using Target = UnionOf<Smi, Weak<FixedArray>>;
+  Tagged<MaybeObject> weak =
+      MakeWeak(*isolate()->factory()->empty_fixed_array());
+  Tagged<MaybeObject> smi = Smi::FromInt(1);
+  Tagged<MaybeObject> cleared = kClearedWeakValue;
+
+  EXPECT_TRUE(Cast<Target>(weak).IsWeak());
+  EXPECT_TRUE(Cast<Target>(smi).IsSmi());
+  EXPECT_TRUE(Cast<Target>(cleared).IsCleared());
+}
 
 TEST_F(WeakArrayListTest, Compact) {
   DirectHandle<WeakArrayList> list = isolate()->factory()->NewWeakArrayList(10);

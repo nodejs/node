@@ -48,7 +48,7 @@ V8_OBJECT class JSRegExpStringIterator : public JSObject {
   TaggedMember<JSReceiver> iterating_reg_exp_;
   TaggedMember<String> iterated_string_;
   // SmiTagged<JSRegExpStringIteratorFlags>.
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSRegExpStringIteratorFlags>);
 } V8_OBJECT_END;
 
 }  // namespace internal

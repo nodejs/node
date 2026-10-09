@@ -197,7 +197,7 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
         auto accessors = it->GetAccessors();
         // Special handling for AccessorInfo, which behaves like a data
         // property.
-        if (IsAccessorInfo(*accessors)) {
+        if (allow_allocation && IsAccessorInfo(*accessors)) {
           auto info = Cast<AccessorInfo>(*accessors);
           if (info->getter_side_effect_type() ==
               SideEffectType::kHasNoSideEffect) {
@@ -478,6 +478,9 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
     InstanceType target_instance_type = target->map()->instance_type();
     if (InstanceTypeChecker::IsJSObject(target_instance_type) &&
         !InstanceTypeChecker::IsJSGlobalProxy(target_instance_type) &&
+        // Exclude remote objects (they don't have local properties anyway).
+        !(InstanceTypeChecker::IsJSSpecialApiObject(target_instance_type) &&
+          !target->GetCreationContext().has_value()) &&
         !InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
             target_instance_type)) {
       // Convert to slow properties if we're guaranteed to overflow the number
@@ -2521,8 +2524,6 @@ MaybeDirectHandle<JSObject> JSObject::ObjectCreate(
     Isolate* isolate, DirectHandle<JSPrototype> prototype) {
   // Generate the map with the specified {prototype} based on the Object
   // function's initial map from the current native context.
-  // TODO(bmeurer): Use a dedicated cache for Object.create; think about
-  // slack tracking for Object.create.
   DirectHandle<Map> map = Map::GetObjectCreateMap(isolate, prototype);
 
   // Actually allocate the object.
@@ -3250,7 +3251,7 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
             object->property_array()->length().value()) {
       // Allocate HeapNumbers for double fields.
       if (index.is_double()) {
-        auto value = isolate->factory()->NewHeapNumberWithHoleNaN();
+        auto value = isolate->factory()->NewUninitializedHeapNumber();
         object->FastPropertyAtPut(index, *value);
       }
       object->set_map(isolate, *new_map, kReleaseStore);
@@ -3269,7 +3270,7 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
     // Properly initialize newly added property.
     DirectHandle<Object> value;
     if (details.representation().IsDouble()) {
-      value = isolate->factory()->NewHeapNumberWithHoleNaN();
+      value = isolate->factory()->NewUninitializedHeapNumber();
     } else {
       value = isolate->factory()->uninitialized_value();
     }
@@ -3330,14 +3331,14 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
     PropertyDetails old_details = old_descriptors->GetDetails(i);
     Representation old_representation = old_details.representation();
     Representation representation = details.representation();
-    Handle<UnionOf<JSAny, Hole>> value;
+    Handle<UnionOf<JSAny, Hole, UninitializedHeapNumber>> value;
     if (old_details.location() == PropertyLocation::kDescriptor) {
       if (old_details.kind() == PropertyKind::kAccessor) {
         // In case of kAccessor -> kData property reconfiguration, the property
         // must already be prepared for data of certain type.
         DCHECK(!details.representation().IsNone());
         if (details.representation().IsDouble()) {
-          value = isolate->factory()->NewHeapNumberWithHoleNaN();
+          value = isolate->factory()->NewUninitializedHeapNumber();
         } else {
           value = isolate->factory()->uninitialized_value();
         }
@@ -3356,8 +3357,12 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
                        IsUninitializedHole(*value));
         value = Object::NewStorageFor(isolate, value, representation);
       } else if (old_representation.IsDouble() && !representation.IsDouble()) {
-        value = Object::WrapForRead(isolate, Cast<JSAny>(value),
-                                    old_representation);
+        if (IsUninitializedHeapNumber(*value)) {
+          value = isolate->factory()->uninitialized_value();
+        } else {
+          value = Object::WrapForRead(isolate, Cast<JSAny>(value),
+                                      old_representation);
+        }
       }
     }
     DCHECK(!(representation.IsDouble() && IsSmi(*value)));
@@ -3378,7 +3383,7 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
     DCHECK_EQ(PropertyKind::kData, details.kind());
     DirectHandle<Object> value;
     if (details.representation().IsDouble()) {
-      value = isolate->factory()->NewHeapNumberWithHoleNaN();
+      value = isolate->factory()->NewUninitializedHeapNumber();
     } else {
       value = isolate->factory()->uninitialized_value();
     }
@@ -3468,9 +3473,16 @@ void MigrateFastToSlow(Isolate* isolate, DirectHandle<JSObject> object,
       if (details.kind() == PropertyKind::kData) {
         value = direct_handle(object->RawFastPropertyAt(index), isolate);
         if (details.representation().IsDouble()) {
-          DCHECK(IsHeapNumber(*value));
-          double old_value = Cast<HeapNumber>(value)->value();
-          value = isolate->factory()->NewHeapNumber(old_value);
+          if (IsUninitializedHeapNumber(*value)) {
+            // This might happen when we are migrating a half-initialized
+            // object literal in order to replace this property with an
+            // accessor pair.
+            value = isolate->factory()->uninitialized_value();
+          } else {
+            DCHECK(IsHeapNumber(*value));
+            double old_value = Cast<HeapNumber>(value)->value();
+            value = isolate->factory()->NewHeapNumber(old_value);
+          }
         }
       } else {
         DCHECK_EQ(PropertyKind::kAccessor, details.kind());
@@ -3662,7 +3674,8 @@ void JSObject::AllocateStorageForMap(Isolate* isolate,
     Representation representation = details.representation();
     if (!representation.IsDouble()) continue;
     FieldIndex index = FieldIndex::ForDetails(*map, details);
-    auto box = isolate->factory()->NewHeapNumberWithHoleNaN();
+    auto box = isolate->factory()->NewUninitializedHeapNumber();
+
     if (index.is_inobject()) {
       storage->set(index.property_index(), *box);
     } else {
@@ -5202,7 +5215,7 @@ void JSObject::LazyRegisterPrototypeUser(DirectHandle<Map> user,
   // Contract: In line with InvalidatePrototypeChains()'s requirements,
   // leaf maps don't need to register as users, only prototypes do.
 #if V8_ENABLE_WEBASSEMBLY
-  DCHECK(user->is_prototype_map() || IsWasmObjectMap(*user));
+  DCHECK(user->is_prototype_map() || IsAnyWasmObjectMap(*user));
 #else
   DCHECK(user->is_prototype_map());
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -5278,7 +5291,7 @@ bool JSObject::UnregisterPrototypeUser(DirectHandle<Map> user,
   if (slot == PrototypeInfo::UNREGISTERED) return false;
 #if V8_ENABLE_WEBASSEMBLY
   DCHECK(prototype->map()->is_prototype_map() ||
-         IsWasmObjectMap(prototype->map()));
+         IsAnyWasmObjectMap(prototype->map()));
 #else
   DCHECK(prototype->map()->is_prototype_map());
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -5307,7 +5320,7 @@ namespace {
 // before jumping here.
 void InvalidateOnePrototypeValidityCellInternal(Tagged<Map> map) {
 #if V8_ENABLE_WEBASSEMBLY
-  DCHECK(map->is_prototype_map() || IsWasmObjectMap(map));
+  DCHECK(map->is_prototype_map() || IsAnyWasmObjectMap(map));
 #else
   DCHECK(map->is_prototype_map());
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -5974,7 +5987,7 @@ Tagged<Object> JSDate::GetUTCField(FieldIndex index, double value,
   int64_t time_ms = static_cast<int64_t>(value);
 
   if (index == kTimezoneOffset) {
-    return Smi::FromInt(date_cache->TimezoneOffset(time_ms));
+    return Smi::FromInt(date_cache->TimezoneOffsetMs(time_ms));
   }
 
   int days = DateCache::DaysFromTime(time_ms);

@@ -21,21 +21,31 @@ void PropertyDescriptorObject::set_flags(int value) {
   flags_.store(this, Smi::FromInt(value));
 }
 
-Tagged<Object> PropertyDescriptorObject::value() const { return value_.load(); }
-void PropertyDescriptorObject::set_value(Tagged<Object> value,
+Tagged<UnionOf<JSAny, TheHole>> PropertyDescriptorObject::value() const {
+  return value_.load();
+}
+void PropertyDescriptorObject::set_value(Tagged<UnionOf<JSAny, TheHole>> value,
                                          WriteBarrierMode mode) {
   value_.store(this, value, mode);
 }
 
-Tagged<Object> PropertyDescriptorObject::get() const { return get_.load(); }
-void PropertyDescriptorObject::set_get(Tagged<Object> value,
-                                       WriteBarrierMode mode) {
+Tagged<UnionOf<FunctionTemplateInfo, JSAny, TheHole>>
+PropertyDescriptorObject::get() const {
+  return get_.load();
+}
+void PropertyDescriptorObject::set_get(
+    Tagged<UnionOf<FunctionTemplateInfo, JSAny, TheHole>> value,
+    WriteBarrierMode mode) {
   get_.store(this, value, mode);
 }
 
-Tagged<Object> PropertyDescriptorObject::set() const { return set_.load(); }
-void PropertyDescriptorObject::set_set(Tagged<Object> value,
-                                       WriteBarrierMode mode) {
+Tagged<UnionOf<FunctionTemplateInfo, JSAny, TheHole>>
+PropertyDescriptorObject::set() const {
+  return set_.load();
+}
+void PropertyDescriptorObject::set_set(
+    Tagged<UnionOf<FunctionTemplateInfo, JSAny, TheHole>> value,
+    WriteBarrierMode mode) {
   set_.store(this, value, mode);
 }
 

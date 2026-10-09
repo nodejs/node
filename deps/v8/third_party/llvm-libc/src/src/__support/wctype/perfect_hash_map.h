@@ -1,9 +1,14 @@
-//===-- Perfect hash map for conversion functions ---------------*- C++ -*-===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Perfect hash map for conversion functions.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LIBC_SRC___SUPPORT_WCTYPE_PERFECT_HASH_MAP_H
@@ -18,6 +23,7 @@
 #include "src/__support/CPP/string.h"
 #include "src/__support/CPP/tuple.h"
 #include "src/__support/CPP/type_traits.h"
+#include "src/__support/CPP/utility/swap.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/math/ceil.h"
 #include "src/__support/math/log.h"
@@ -349,11 +355,8 @@ public:
   sort_parts(size_t shard, cpp::array<uint64_t, n_> hashes) const {
     for (size_t i = 0; i < hashes.size(); i++) {
       for (size_t j = i + 1; j < hashes.size(); j++) {
-        if (hashes[i] > hashes[j]) {
-          auto temp = hashes[i];
-          hashes[i] = hashes[j];
-          hashes[j] = temp;
-        }
+        if (hashes[i] > hashes[j])
+          cpp::swap(hashes[i], hashes[j]);
       }
     }
 

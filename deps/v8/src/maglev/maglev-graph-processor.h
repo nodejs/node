@@ -10,6 +10,9 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/compiler/bytecode-analysis.h"
+#include "src/compiler/js-heap-broker.h"
+#include "src/execution/local-isolate.h"
+#include "src/heap/local-heap.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph.h"
@@ -44,6 +47,13 @@ namespace maglev {
 //   // overloading as appropriate to group node processing.
 //   void Process(FooNode* node, const ProcessingState& state) {}
 //
+// Safepoints:
+// Long unparked compilation passes poll for safepoint requests before each
+// block and node to avoid blocking GC. Consequently, a GC can trigger between
+// Process() calls or synchronously inside the poll on the main thread.
+//
+//   // Invariant: NodeProcessors must never hold raw Tagged<> values across
+//   // node visits
 template <typename NodeProcessor>
 class GraphProcessor;
 template <typename NodeProcessor>
@@ -129,6 +139,12 @@ class ProcessingState {
   const int node_index_;  // Index inside the basic block.
 };
 
+// The LocalHeap that graph walks poll for safepoint requests. Falls back to the
+// main thread's LocalHeap for synchronous (main-thread) compilation.
+inline LocalHeap* GetLocalHeapForSafepointPolling(Graph* graph) {
+  return graph->broker()->local_isolate_or_isolate()->heap();
+}
+
 template <typename NodeProcessor>
 class GraphProcessor {
  public:
@@ -138,6 +154,7 @@ class GraphProcessor {
 
   void ProcessGraph(Graph* graph) {
     graph_ = graph;
+    LocalHeap* local_heap = GetLocalHeapForSafepointPolling(graph);
     // Initializing {current_block_index_} to `graph->num_blocks()` so that
     // the ProcessingState can return nullptr as the block of the constant
     // nodes.
@@ -185,6 +202,7 @@ class GraphProcessor {
       if (V8_UNLIKELY(block->is_dead())) continue;
       bool process_control_block = true;
 
+      local_heap->Safepoint();
       BlockProcessResult preprocess_result =
           node_processor_.PreProcessBasicBlock(block);
       switch (preprocess_result) {
@@ -231,6 +249,7 @@ class GraphProcessor {
           ++node_it_;
           continue;
         }
+        local_heap->Safepoint();
 #ifdef DEBUG
         const Node* const* debug_nodes_data = nullptr;
         size_t debug_nodes_size = 0;
@@ -480,10 +499,12 @@ class GraphBackwardProcessor {
       : node_processor_(std::forward<Args>(args)...) {}
 
   void ProcessGraph(Graph* graph) {
+    LocalHeap* local_heap = GetLocalHeapForSafepointPolling(graph);
     node_processor_.PreProcessGraph(graph);
 
     for (BasicBlock* block : base::Reversed(graph->blocks())) {
       if (V8_UNLIKELY(block->is_dead())) continue;
+      local_heap->Safepoint();
       BlockProcessResult preprocess_result =
           node_processor_.PreProcessBasicBlock(block);
       switch (preprocess_result) {
@@ -513,6 +534,7 @@ class GraphBackwardProcessor {
 
       for (Node* node : base::Reversed(block->nodes())) {
         if (node == nullptr) continue;
+        local_heap->Safepoint();
         ProcessResult result = ProcessNodeBase(node);
         switch (result) {
           [[likely]] case ProcessResult::kContinue:

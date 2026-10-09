@@ -132,6 +132,10 @@ public:
   /// Verify integrity of all nodes in the trie.
   void integrity_check() const;
 
+  /// Removes and returns any block from the trie.
+  /// @returns The block removed, or BlockRef() if empty.
+  BlockRef pop_any();
+
 private:
   /// @returns Whether a node is the head of its containing freelist.
   bool is_head(Node *node) const { return node->parent || node == root_; }

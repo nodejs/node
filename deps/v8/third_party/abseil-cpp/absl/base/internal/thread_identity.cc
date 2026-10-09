@@ -20,10 +20,11 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/spinlock.h"
 
-#if !defined(_WIN32) || defined(__MINGW32__)
+#if ABSL_THREAD_IDENTITY_MODE != ABSL_THREAD_IDENTITY_MODE_USE_CPP11
 #include <pthread.h>
 #ifndef __wasi__
 // WASI does not provide this header, either way we disable use
@@ -86,7 +87,7 @@ void SetCurrentThreadIdentity(ThreadIdentity* identity,
 
 #if defined(__wasi__) || defined(__EMSCRIPTEN__) || defined(__MINGW32__) || \
     defined(__hexagon__)
-  // Emscripten, WASI and MinGW pthread implementations does not support
+  // Emscripten, WASI and MinGW pthread implementations do not support
   // signals. See
   // https://kripken.github.io/emscripten-site/docs/porting/pthreads.html for
   // more information.

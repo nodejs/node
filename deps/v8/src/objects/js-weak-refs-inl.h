@@ -29,10 +29,10 @@ void JSFinalizationRegistry::set_native_context(Tagged<NativeContext> value,
   native_context_.store(this, value, mode);
 }
 
-Tagged<JSReceiver> JSFinalizationRegistry::cleanup() const {
+Tagged<JSCallable> JSFinalizationRegistry::cleanup() const {
   return cleanup_.load();
 }
-void JSFinalizationRegistry::set_cleanup(Tagged<JSReceiver> value,
+void JSFinalizationRegistry::set_cleanup(Tagged<JSCallable> value,
                                          WriteBarrierMode mode) {
   cleanup_.store(this, value, mode);
 }

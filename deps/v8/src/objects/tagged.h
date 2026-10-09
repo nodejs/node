@@ -113,6 +113,41 @@ struct is_maybe_weak<Union<T...>>
 template <typename T>
 static constexpr bool is_maybe_weak_v = is_maybe_weak<T>::value;
 
+template <typename T>
+class ReadOnly;
+
+template <typename T>
+struct is_read_only : public std::false_type {};
+template <typename T>
+struct is_read_only<ReadOnly<T>> : public std::true_type {};
+template <typename... T>
+struct is_read_only<Union<T...>> : public std::conjunction<is_read_only<T>...> {
+};
+template <typename T>
+static constexpr bool is_read_only_v = is_read_only<T>::value;
+
+// ReadOnly<T> represents a reference to T that is known to live in
+// ReadOnlySpace.
+//
+// Like Weak<T>, ReadOnly<T> is a sentinel type for templates on tagged
+// interfaces (like Tagged and Handle). Because every read-only T is also a
+// valid T, ReadOnly<T> is a subtype of T (as well as ReadOnly<U> for any U
+// that T is a subtype of).
+template <typename T>
+class ReadOnly {
+ public:
+  // Smis don't live in ReadOnlySpace.
+  static_assert(!std::is_same_v<T, Smi>);
+  // Generic Objects can't be ReadOnly; use a HeapObject subtype instead.
+  static_assert(!std::is_same_v<T, Object>);
+  // "ReadOnly" should be inside unions, not outside of them.
+  static_assert(!is_union_v<T>);
+  static_assert(!is_maybe_weak_v<T>);
+  static_assert(!is_read_only_v<T>);
+
+  using value_type = T;
+};
+
 namespace detail {
 template <typename T>
 struct weak_of_helper {
@@ -128,6 +163,10 @@ struct weak_of_helper<Object> {
 };
 template <typename T>
 struct weak_of_helper<Weak<T>> {
+  using type = Weak<T>;
+};
+template <typename T>
+struct weak_of_helper<ReadOnly<T>> {
   using type = Weak<T>;
 };
 template <typename... Ts>
@@ -290,6 +329,19 @@ consteval bool is_subtype_helper() {
     // Weak<T> cannot be a subtype of a non-weak Base (unless
     // matched exactly earlier by a union)
     return false;
+  } else if constexpr (is_read_only_v<Base>) {
+    // Base = ReadOnly<T>
+    if constexpr (is_read_only_v<Derived>) {
+      // ReadOnly<T> < ReadOnly<U> <=> T < U
+      return is_subtype_helper<typename Derived::value_type,
+                               typename Base::value_type>();
+    } else {
+      // non-readonly < ReadOnly<U> is always false.
+      return false;
+    }
+  } else if constexpr (is_read_only_v<Derived>) {
+    // ReadOnly<T> < U <=> T < U
+    return is_subtype_helper<typename Derived::value_type, Base>();
   } else {
     // Fallback to base_of.
     return is_base_of_v<Base, Derived>;
@@ -300,6 +352,10 @@ consteval bool is_subtype_helper() {
 static_assert(is_subtype_v<Smi, Object>);
 static_assert(is_subtype_v<HeapObject, Object>);
 static_assert(is_subtype_v<HeapObject, HeapObject>);
+static_assert(is_subtype_v<ReadOnly<HeapObject>, ReadOnly<HeapObject>>);
+static_assert(is_subtype_v<ReadOnly<HeapObject>, HeapObject>);
+static_assert(is_subtype_v<ReadOnly<HeapObject>, Object>);
+static_assert(!is_subtype_v<HeapObject, ReadOnly<HeapObject>>);
 static_assert(is_subtype_v<Smi, MaybeObject>);
 static_assert(
     is_subtype_v<Union<HeapObject, Weak<HeapObject>, Smi>, MaybeObject>);
@@ -716,6 +772,9 @@ class V8_GSL_POINTER Tagged : public detail::BaseForTagged<T>::type {
   V8_INLINE T& operator*() const { return *ToRawPtr(); }
   V8_INLINE T* operator->() const { return ToRawPtr(); }
 
+ protected:
+  V8_INLINE constexpr explicit Tagged(Address ptr) : Base(ptr) {}
+
  private:
   friend T;
   // Handles of the same type are allowed to access the Address constructor.
@@ -733,14 +792,61 @@ class V8_GSL_POINTER Tagged : public detail::BaseForTagged<T>::type {
   template <typename U>
   friend Tagged<StrongOf<U>> MakeStrong(Tagged<U> value);
 
-  V8_INLINE constexpr explicit Tagged(Address ptr) : Base(ptr) {}
-
   V8_INLINE T* ToRawPtr() const {
     // Check whether T is taggable on raw ptr access rather than top-level, to
     // allow forward declarations.
     static_assert(is_taggable_v<T>);
     return reinterpret_cast<T*>(this->ptr() - kHeapObjectTag);
   }
+};
+
+// Specialized Tagged<T> for read-only references to T, which are known to be
+// subclasses of HeapObject in ReadOnlySpace.
+template <typename T>
+class V8_GSL_POINTER Tagged<ReadOnly<T>> : public Tagged<T> {
+  using Base = Tagged<T>;
+
+ public:
+  V8_INLINE constexpr Tagged() = default;
+
+  // Implicit conversion for subclasses.
+  template <typename U>
+  V8_INLINE constexpr Tagged& operator=(Tagged<U> other)
+    requires(detail::is_tagged_convertible<U, ReadOnly<T>>)
+  {
+    *this = Tagged(other);
+    return *this;
+  }
+
+  // Implicit conversion for subclasses.
+  template <typename U>
+  // NOLINTNEXTLINE
+  V8_INLINE constexpr Tagged(Tagged<U> other)
+    requires(detail::is_tagged_convertible<U, ReadOnly<T>>)
+      : Base(other) {}
+
+ private:
+  friend T;
+  // Handles of the same type are allowed to access the Address constructor.
+  friend class Handle<ReadOnly<T>>;
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  friend class DirectHandle<ReadOnly<T>>;
+#endif
+  template <typename TFieldType, int kFieldOffset, typename CompressionScheme>
+  friend class TaggedField;
+  template <typename TFieldType, typename CompressionScheme>
+  friend class TaggedMember;
+  template <typename To, typename From>
+  friend inline Tagged<To> UncheckedCast(Tagged<From> value);
+
+  template <typename U>
+  friend Tagged<WeakOf<U>> MakeWeak(Tagged<U> value);
+  template <typename U>
+  friend Tagged<WeakOf<U>> MakeWeakOrSmi(Tagged<U> value);
+  template <typename U>
+  friend Tagged<StrongOf<U>> MakeStrong(Tagged<U> value);
+
+  V8_INLINE constexpr explicit Tagged(Address ptr) : Base(ptr) {}
 };
 
 // Specialized Tagged<T> for cleared weak values. This is only used, in
@@ -818,7 +924,9 @@ inline Tagged<WeakOf<T>> MakeWeakOrSmi(Tagged<T> value) {
 
 template <typename T>
 inline Tagged<StrongOf<T>> MakeStrong(Tagged<T> value) {
-  // This works with Smis.
+  // Clearing the weak tag bit would clobber Smi payload bit 1 under 31-bit Smi
+  // tagging.
+  static_assert(!is_subtype_v<Smi, T>, "Not allowed to make Smis strong.");
   return Tagged<StrongOf<T>>(value.ptr() &
                              (~kWeakHeapObjectTag | kHeapObjectTag));
 }

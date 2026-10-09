@@ -16,10 +16,11 @@ function createNormalObject() {
     return o.a;
   }
   %PrepareFunctionForOptimization(load);
+  let objects = [];
   for (let i = 0; i < 11; i++) {
-    let o = (i % 2 === 0) ? createNormalObject()
-                          : d8.test.createSpecialObject({});
+    let o = createNormalObject();
     o.a = i;
+    objects.push(o);
     load(o);
   }
   %OptimizeFunctionOnNextCall(load);
@@ -40,10 +41,11 @@ function createNormalObject() {
     return o.a;
   }
   %PrepareFunctionForOptimization(load);
+  let objects = [];
   for (let i = 0; i < 11; i++) {
-    let o = (i % 2 === 0) ? createNormalObject()
-                          : d8.test.createSpecialObject({});
+    let o = createNormalObject();
     o.a = i;
+    objects.push(o);
     load(o);
   }
   %OptimizeFunctionOnNextCall(load);

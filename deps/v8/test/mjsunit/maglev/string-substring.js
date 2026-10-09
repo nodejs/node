@@ -43,9 +43,9 @@ assertEquals(s.substring(-1), do_substring_1(s, -1)); // clamp to 0
 assertEquals(s.substring(100), do_substring_1(s, 100)); // clamp to length
 
 // We should still be in optimized code.
-assertTrue(isMaglevved(do_substring));
-assertTrue(isMaglevved(do_substring_1));
+assertMaglevved(do_substring);
+assertMaglevved(do_substring_1);
 
 // Passing something else than a string deopts.
 assertEquals("x", do_substring({substring: function() { return "x";}}, 0, 1));
-assertFalse(isMaglevved(do_substring));
+assertNotMaglevved(do_substring);

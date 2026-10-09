@@ -80,12 +80,14 @@ MaglevGraphOptimizer::GetDeoptFrameForLazyDeopt(bool can_throw) {
     frame = GetDeoptFrameForLazyDeoptHelper(graph()->zone(),
                                             reducer_.current_lazy_deopt_scope(),
                                             frame, frame->GetVirtualObjects());
+    result_location = interpreter::Register::virtual_accumulator();
+    result_size = 1;
   }
   return {frame, result_location, result_size};
 }
 
 DeoptFrame* MaglevGraphOptimizer::GetDeoptFrameForEagerDeopt() {
-  CHECK(current_node()->properties().has_eager_deopt_info());
+  CHECK(CanEagerDeopt());
   DeoptFrame* frame = &current_node()->eager_deopt_info()->top_frame();
 
   auto* eager_scope = reducer_.current_eager_deopt_scope();
@@ -524,9 +526,12 @@ void MaglevGraphOptimizer::PreProcessNode(Node* node,
 }
 
 void MaglevGraphOptimizer::PostProcessNode(Node* node) {
-  if (node->opcode() != Opcode::kAllocationBlock &&
-      (node->properties().can_allocate() || node->properties().can_deopt() ||
-       node->properties().can_throw())) {
+  if (auto* allocation_block = node->TryCast<AllocationBlock>()) {
+    // This allocation is now the most recent young allocation, so it is the
+    // only block that subsequent allocations may be folded into.
+    reducer_.SetCurrentAllocationBlock(allocation_block);
+  } else if (node->properties().can_allocate() ||
+             node->properties().can_deopt() || node->properties().can_throw()) {
     reducer_.ClearCurrentAllocationBlock();
   }
 #ifdef DEBUG
@@ -685,6 +690,48 @@ ValueNode* MaglevGraphOptimizer::GetConstantWithRepresentation(
   }
 }
 
+namespace {
+
+// Returns the type check that `alt` is guaranteed to have already performed
+// on its tagged input node.
+NodeType GuaranteedInputType(UseRepresentation repr, ValueNode* alt) {
+  switch (repr) {
+    case UseRepresentation::kInt32:
+    case UseRepresentation::kFloat64:
+      return NodeType::kNumber;
+    case UseRepresentation::kHoleyFloat64:
+      return NodeType::kNumberOrUndefined;
+    // Unlike Int32/Float64, a Truncate node doesn't have a single fixed check,
+    // it depends on its assumed_input_type.
+    case UseRepresentation::kTruncatedInt32:
+      if (auto* t = alt->TryCast<TruncateCheckedNumberOrOddballToInt32>()) {
+        return t->assumed_input_type();
+      }
+      if (auto* t = alt->TryCast<TruncateUnsafeNumberOrOddballToInt32>()) {
+        return t->assumed_input_type();
+      }
+      return NodeType::kNumberOrOddball;
+    case UseRepresentation::kTagged:
+    case UseRepresentation::kTaggedForNumberToString:
+    case UseRepresentation::kUint32:
+    case UseRepresentation::kNonTruncated:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+}
+
+}  // namespace
+
+bool MaglevGraphOptimizer::CanReuseAlternative(
+    ValueNode* node, ValueNode* alt, UseRepresentation repr,
+    std::optional<NodeType> assumed_input_type) {
+  if (!assumed_input_type.has_value()) return true;
+  // We cannot replace a stricter check with a weaker one, as subsequent
+  // operations might rely on this node to deopt invalid inputs.
+  return reducer_.CheckType(node, *assumed_input_type) ||
+         NodeTypeIs(GuaranteedInputType(repr, alt), *assumed_input_type);
+}
+
 MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
     ValueNode* node, UseRepresentation use_repr,
     std::optional<NodeType> assumed_input_type) {
@@ -707,8 +754,11 @@ MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
     // Check if we already have a canonical conversion.
     NodeInfo* node_info =
         known_node_aspects().GetOrCreateInfoFor(broker(), node);
-    auto& alternative = node_info->alternative();
-    if (ValueNode* alt = alternative.get(use_repr)) return alt;
+    if (ValueNode* alternative = node_info->alternative().get(use_repr);
+        alternative &&
+        CanReuseAlternative(node, alternative, use_repr, assumed_input_type)) {
+      return alternative;
+    }
     // If `node` is itself tagging an untagged value, convert that value
     // directly instead of untagging the tagged result.
     if (node->is_conversion()) {
@@ -720,7 +770,7 @@ MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
   // TODO(victorgomes): The GetXXX functions may emit a conversion node that
   // might eager deopt. We need to find a correct eager deopt frame for them if
   // current_node_ does not have a deopt info.
-  if (!current_node_->properties().has_eager_deopt_info()) {
+  if (!CanEagerDeopt()) {
     return {};
   }
   switch (use_repr) {
@@ -768,6 +818,9 @@ std::optional<ProcessResult> MaglevGraphOptimizer::TryFoldInt32Operation(
         node->input_node(0), node->input_node(1));
   }
   if (!result.IsDone()) return {};
+  if (result.IsDoneWithAbort()) {
+    return ProcessResult::kTruncateBlock;
+  }
   DCHECK(result.IsDoneWithValue());
   if constexpr (kOperation == Operation::kShiftRightLogical) {
     // ShiftRightLogical returns an Uint32 instead of an Int32. We don't have
@@ -870,6 +923,8 @@ void MaglevGraphOptimizer::AttachExceptionHandlerInfo(NodeBase* node) {
 
 template <typename NodeT>
 ProcessResult MaglevGraphOptimizer::ProcessLoadContextSlot(NodeT* node) {
+  REPLACE_AND_RETURN_IF_DONE(reducer_.TryGetConstantContextValue(
+      node->input_node(0), node->offset(), node->maybe_assigned()));
   REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryGetContextCachedValue(
       node->input_node(0), node->offset(), node->maybe_assigned()));
   return ProcessResult::kContinue;
@@ -1255,45 +1310,34 @@ ProcessResult MaglevGraphOptimizer::VisitStoreMap(
   return ProcessResult::kContinue;
 }
 
-template <typename FixedArrayT, typename NodeT>
-MaybeReduceResult MaglevGraphOptimizer::AbortIfInvalidFixedArrayIndex(
-    NodeT* node) {
-  if (std::optional<int32_t> index =
-          reducer_.TryGetInt32Constant(node->IndexInput().node())) {
-    if (*index < 0 ||
-        static_cast<uint32_t>(*index) >= FixedArrayT::kMaxLength) {
-      // This is an out-of-bound store, which means that we have to be in
-      // unreachable code.
-      return reducer_.BuildAbort(AbortReason::kUnreachable);
-    }
-  }
-  return {};
-}
-
 ProcessResult MaglevGraphOptimizer::VisitStoreFixedArrayElementWithWriteBarrier(
     StoreFixedArrayElementWithWriteBarrier* node,
     const ProcessingState& state) {
-  REMOVE_AND_RETURN_IF_DONE(AbortIfInvalidFixedArrayIndex<FixedArray>(node));
+  REMOVE_AND_RETURN_IF_DONE(reducer_.AbortIfInvalidFixedArrayIndex<FixedArray>(
+      node->IndexInput().node()));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitStoreFixedArrayElementNoWriteBarrier(
     StoreFixedArrayElementNoWriteBarrier* node, const ProcessingState& state) {
-  REMOVE_AND_RETURN_IF_DONE(AbortIfInvalidFixedArrayIndex<FixedArray>(node));
+  REMOVE_AND_RETURN_IF_DONE(reducer_.AbortIfInvalidFixedArrayIndex<FixedArray>(
+      node->IndexInput().node()));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitStoreFixedHoleyDoubleArrayElement(
     StoreFixedHoleyDoubleArrayElement* node, const ProcessingState& state) {
   REMOVE_AND_RETURN_IF_DONE(
-      AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(node));
+      reducer_.AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(
+          node->IndexInput().node()));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitStoreFixedDoubleArrayElement(
     StoreFixedDoubleArrayElement* node, const ProcessingState& state) {
   REMOVE_AND_RETURN_IF_DONE(
-      AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(node));
+      reducer_.AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(
+          node->IndexInput().node()));
   // A reduction can have replaced the value with one that carries the hole or
   // undefined NaN since the store chose not to canonicalize.
   ValueNode* value = node->ValueInput().node();
@@ -1309,7 +1353,8 @@ ProcessResult MaglevGraphOptimizer::VisitStoreFixedDoubleArrayElement(
 ProcessResult MaglevGraphOptimizer::VisitStoreFixedDoubleArrayHole(
     StoreFixedDoubleArrayHole* node, const ProcessingState& state) {
   REMOVE_AND_RETURN_IF_DONE(
-      AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(node));
+      reducer_.AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(
+          node->IndexInput().node()));
   return ProcessResult::kContinue;
 }
 
@@ -1423,9 +1468,9 @@ ProcessResult MaglevGraphOptimizer::VisitReduceInterruptBudgetForReturn(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole(
-    ThrowReferenceErrorIfHole* node, const ProcessingState& state) {
-  switch (node->ValueInput().node()->IsTheHole()) {
+ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfTdzHole(
+    ThrowReferenceErrorIfTdzHole* node, const ProcessingState& state) {
+  switch (node->ValueInput().node()->IsTdzHole()) {
     case Tribool::kTrue: {
       return ThrowAndTruncate(Throw::kThrowAccessedUninitializedVariable,
                               reducer_.GetConstant(node->name()));
@@ -1439,9 +1484,9 @@ ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole(
   UNREACHABLE();
 }
 
-ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole(
-    ThrowSuperNotCalledIfHole* node, const ProcessingState& state) {
-  switch (node->ValueInput().node()->IsTheHole()) {
+ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfTdzHole(
+    ThrowSuperNotCalledIfTdzHole* node, const ProcessingState& state) {
+  switch (node->ValueInput().node()->IsTdzHole()) {
     case Tribool::kTrue: {
       return ThrowAndTruncate(Throw::kThrowSuperNotCalled);
     }
@@ -1454,9 +1499,9 @@ ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotHole(
-    ThrowSuperAlreadyCalledIfNotHole* node, const ProcessingState& state) {
-  switch (node->ValueInput().node()->IsTheHole()) {
+ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotTdzHole(
+    ThrowSuperAlreadyCalledIfNotTdzHole* node, const ProcessingState& state) {
+  switch (node->ValueInput().node()->IsTdzHole()) {
     case Tribool::kTrue:
       // It is the hole; removing.
       return RemoveCurrentNode();
@@ -2077,14 +2122,16 @@ ProcessResult MaglevGraphOptimizer::VisitLoadFixedArrayElement(
 ProcessResult MaglevGraphOptimizer::VisitLoadFixedDoubleArrayElement(
     LoadFixedDoubleArrayElement* node, const ProcessingState& state) {
   REMOVE_AND_RETURN_IF_DONE(
-      AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(node));
+      reducer_.AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(
+          node->IndexInput().node()));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitLoadHoleyFixedDoubleArrayElement(
     LoadHoleyFixedDoubleArrayElement* node, const ProcessingState& state) {
   REMOVE_AND_RETURN_IF_DONE(
-      AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(node));
+      reducer_.AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(
+          node->IndexInput().node()));
   return ProcessResult::kContinue;
 }
 
@@ -2950,7 +2997,31 @@ ProcessResult MaglevGraphOptimizer::VisitNumberToString(
 
 ProcessResult MaglevGraphOptimizer::VisitUpdateJSArrayLength(
     UpdateJSArrayLength* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  ValueNode* length = node->LengthInput().node();
+  ValueNode* index = node->IndexInput().node();
+
+  if (auto result = reducer_.TryFoldInt32Condition(
+          AssertCondition::kUnsignedLessThan, index, length)) {
+    if (result.value()) {
+      return ReplaceWith(length);
+    }
+  }
+
+  const auto r_index = GetRange(index);
+  const auto r_length = GetRange(length);
+  if (r_index && r_length) {
+    if (const auto result = TryFoldCompareWithRanges(
+            AssertCondition::kUnsignedLessThan, *r_index, *r_length)) {
+      if (result.value()) {
+        return ReplaceWith(length);
+      }
+    }
+    if (r_index->IsUint32() && r_length->IsUint32() &&
+        IsRangeLessEqual(index, length)) {
+      return ReplaceWith(length);
+    }
+  }
+
   return ProcessResult::kContinue;
 }
 
@@ -3650,7 +3721,7 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfToBooleanTrue(
     // or a CheckNotHole before, which should have been constant-folded into
     // unconditional deopt/throw if their input is a hole.
     DCHECK_IMPLIES(node->input_node(0)->Is<HeapConstant>(),
-                   !node->input_node(0)->Cast<HeapConstant>()->IsTheHole());
+                   !node->input_node(0)->Cast<HeapConstant>()->IsAnyHole());
 
     bool condition =
         FromConstantToBool(reducer_.local_isolate(), node->input_node(0));

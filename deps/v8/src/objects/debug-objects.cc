@@ -4,11 +4,13 @@
 
 #include "src/objects/debug-objects.h"
 
+#include "src/ast/ast-source-ranges.h"
 #include "src/base/platform/mutex.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -383,11 +385,14 @@ uint32_t BreakPointInfo::GetBreakPointCount(Isolate* isolate) {
   return Cast<FixedArray>(break_points())->ulength().value();
 }
 
-void CoverageInfo::InitializeSlot(int slot_index, int from_pos, int to_pos) {
-  set_slots_start_source_position(slot_index, from_pos);
-  set_slots_end_source_position(slot_index, to_pos);
-  ResetBlockCount(slot_index);
-  set_slots_padding(slot_index, 0);
+CoverageInfo::CoverageInfo(ReadOnlyRoots roots,
+                           const ZoneVector<SourceRange>& slots)
+    : HeapObject(roots.coverage_info_map()),
+      slot_count_(static_cast<int32_t>(slots.size())) {
+  for (int32_t i = 0; i < slot_count_; i++) {
+    SourceRange range = slots[i];
+    new (&this->slots()[i]) CoverageInfoSlot{range.start, range.end};
+  }
 }
 
 void CoverageInfo::ResetBlockCount(int slot_index) {

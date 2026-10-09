@@ -10,6 +10,7 @@
 
 #include <optional>
 
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/trusted-object-inl.h"
 
@@ -149,26 +150,21 @@ void ClassBoilerplate::set_instance_computed_properties(
 // ArrayBoilerplateDescription
 //
 
+ArrayBoilerplateDescription::ArrayBoilerplateDescription(
+    const AllocationWitness& witness, ReadOnlyRoots roots,
+    ElementsKind elements_kind, Tagged<FixedArrayBase> constant_values)
+    : Struct(roots.array_boilerplate_description_map()),
+      flags_(Smi::FromInt(elements_kind)),
+      constant_elements_(witness, constant_values) {}
+
 Tagged<Smi> ArrayBoilerplateDescription::flags() const { return flags_.load(); }
-void ArrayBoilerplateDescription::set_flags(Tagged<Smi> value,
-                                            WriteBarrierMode mode) {
-  flags_.store(this, value, mode);
-}
 
 Tagged<FixedArrayBase> ArrayBoilerplateDescription::constant_elements() const {
   return constant_elements_.load();
 }
-void ArrayBoilerplateDescription::set_constant_elements(
-    Tagged<FixedArrayBase> value, WriteBarrierMode mode) {
-  constant_elements_.store(this, value, mode);
-}
 
 ElementsKind ArrayBoilerplateDescription::elements_kind() const {
   return static_cast<ElementsKind>(flags().value());
-}
-
-void ArrayBoilerplateDescription::set_elements_kind(ElementsKind kind) {
-  set_flags(Smi::FromInt(kind));
 }
 
 bool ArrayBoilerplateDescription::is_empty() const {
@@ -179,47 +175,44 @@ bool ArrayBoilerplateDescription::is_empty() const {
 // RegExpBoilerplateDescription
 //
 
+RegExpBoilerplateDescription::RegExpBoilerplateDescription(
+    const AllocationWitness& witness, ReadOnlyRoots roots,
+    Tagged<RegExpData> data, Tagged<Smi> flags)
+    : Struct(roots.regexp_boilerplate_description_map()),
+      data_(witness, data),
+      flags_(flags) {}
+
 Tagged<RegExpData> RegExpBoilerplateDescription::data(
     IsolateForSandbox isolate) const {
   return data_.load(isolate);
 }
 
-void RegExpBoilerplateDescription::set_data(Tagged<RegExpData> value,
-                                            WriteBarrierMode mode) {
-  data_.store(this, value, mode);
-}
-
 int RegExpBoilerplateDescription::flags() const {
   return flags_.load().value();
 }
-void RegExpBoilerplateDescription::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
-}
+
+PrototypeSharedClosureInfo::PrototypeSharedClosureInfo(
+    const AllocationWitness& witness, ReadOnlyRoots roots,
+    Tagged<ObjectBoilerplateDescription> boilerplate_description,
+    Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array,
+    Tagged<Context> context)
+    : Struct(roots.prototype_shared_closure_info_map()),
+      boilerplate_description_(witness, boilerplate_description),
+      closure_feedback_cell_array_(witness, closure_feedback_cell_array),
+      context_(witness, context) {}
 
 Tagged<ObjectBoilerplateDescription>
 PrototypeSharedClosureInfo::boilerplate_description() const {
   return boilerplate_description_.load();
-}
-void PrototypeSharedClosureInfo::set_boilerplate_description(
-    Tagged<ObjectBoilerplateDescription> value, WriteBarrierMode mode) {
-  boilerplate_description_.store(this, value, mode);
 }
 
 Tagged<ClosureFeedbackCellArray>
 PrototypeSharedClosureInfo::closure_feedback_cell_array() const {
   return closure_feedback_cell_array_.load();
 }
-void PrototypeSharedClosureInfo::set_closure_feedback_cell_array(
-    Tagged<ClosureFeedbackCellArray> value, WriteBarrierMode mode) {
-  closure_feedback_cell_array_.store(this, value, mode);
-}
 
 Tagged<Context> PrototypeSharedClosureInfo::context() const {
   return context_.load();
-}
-void PrototypeSharedClosureInfo::set_context(Tagged<Context> value,
-                                             WriteBarrierMode mode) {
-  context_.store(this, value, mode);
 }
 
 }  // namespace v8::internal

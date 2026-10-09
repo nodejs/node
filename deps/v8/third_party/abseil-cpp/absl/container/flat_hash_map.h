@@ -39,6 +39,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/container/hash_container_defaults.h"
 #include "absl/container/internal/container_memory.h"
@@ -649,8 +650,33 @@ std::decay_t<Function> c_for_each_fast(flat_hash_map<K, V, H, E, A>&& c,
 
 namespace container_internal {
 
+// These members are common to all template instantiations, so we factor them
+// out into this base class to avoid re-instantiating similar templates multiple
+// times, reducing compilation time.
+struct FlatHashMapPolicyBase {
+  template <class F, class... Args>
+  static decltype(absl::container_internal::DecomposePair(
+      std::declval<F>(), std::declval<Args>()...))
+  apply(F&& f, Args&&... args) {
+    return absl::container_internal::DecomposePair(std::forward<F>(f),
+                                                   std::forward<Args>(args)...);
+  }
+
+  static size_t space_used(const void*) { return 0; }
+
+  template <class K, class V>
+  static V& value(std::pair<const K, V>* kv) {
+    return kv->second;
+  }
+
+  template <class K, class V>
+  static const V& value(const std::pair<const K, V>* kv) {
+    return kv->second;
+  }
+};
+
 template <class K, class V>
-struct FlatHashMapPolicy {
+struct FlatHashMapPolicy : FlatHashMapPolicyBase {
   using slot_policy = container_internal::map_slot_policy<K, V>;
   using slot_type = typename slot_policy::slot_type;
   using key_type = K;
@@ -678,14 +704,6 @@ struct FlatHashMapPolicy {
     return slot_policy::transfer(alloc, new_slot, old_slot);
   }
 
-  template <class F, class... Args>
-  static decltype(absl::container_internal::DecomposePair(
-      std::declval<F>(), std::declval<Args>()...))
-  apply(F&& f, Args&&... args) {
-    return absl::container_internal::DecomposePair(std::forward<F>(f),
-                                                   std::forward<Args>(args)...);
-  }
-
   template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return memory_internal::IsLayoutCompatible<K, V>::value
@@ -693,12 +711,7 @@ struct FlatHashMapPolicy {
                : nullptr;
   }
 
-  static size_t space_used(const slot_type*) { return 0; }
-
   static std::pair<const K, V>& element(slot_type* slot) { return slot->value; }
-
-  static V& value(std::pair<const K, V>* kv) { return kv->second; }
-  static const V& value(const std::pair<const K, V>* kv) { return kv->second; }
 };
 
 }  // namespace container_internal

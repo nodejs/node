@@ -123,19 +123,17 @@ class FakeAtomicPauseScope {
     tracer_->StopAtomicPause();
     tracer_->StopObservablePause(GarbageCollector::MARK_COMPACTOR,
                                  base::TimeTicks::Now());
-    if (heap_->cpp_heap()) {
-      auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
-      cpp_heap->object_allocator().ResetLinearAllocationBuffers();
-      cppgc::internal::StatsCollector* stats_collector =
-          cpp_heap->stats_collector();
-      stats_collector->NotifyMarkingStarted(
-          cppgc::internal::CollectionType::kMajor,
-          cppgc::Heap::MarkingType::kAtomic,
-          cppgc::internal::MarkingConfig::IsForcedGC::kNotForced);
-      stats_collector->NotifyMarkingCompleted(0);
-      stats_collector->NotifySweepingCompleted(
-          cppgc::Heap::SweepingType::kAtomic);
-    }
+    auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
+    cpp_heap->object_allocator().ResetLinearAllocationBuffers();
+    cppgc::internal::StatsCollector* stats_collector =
+        cpp_heap->stats_collector();
+    stats_collector->NotifyMarkingStarted(
+        cppgc::internal::CollectionType::kMajor,
+        cppgc::Heap::MarkingType::kAtomic,
+        cppgc::internal::MarkingConfig::IsForcedGC::kNotForced);
+    stats_collector->NotifyMarkingCompleted(0);
+    stats_collector->NotifySweepingCompleted(
+        cppgc::Heap::SweepingType::kAtomic);
     tracer_->NotifyFullSweepingCompletedAndStopCycleIfFinished();
   }
 

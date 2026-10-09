@@ -12,6 +12,7 @@
 #include <map>
 #include <string>
 
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/utils/utils.h"
 #include "src/wasm/wasm-module.h"
@@ -122,7 +123,7 @@ class CanonicalTypeNamesProvider {
   void DecodeNameSections();
 
   // TODO(jkummerow): Use Zone allocation for the character payloads?
-  using StringT = base::OwnedVector<char>;
+  using StringT = base::UniqueArray<char>;
 
   std::vector<StringT> type_names_;
   std::map<uint32_t, std::vector<StringT>> field_names_;
