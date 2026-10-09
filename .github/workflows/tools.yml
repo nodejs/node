@@ -318,35 +318,54 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
+    env:
+      BRANCH_NAME: actions/${{ github.ref_name != 'main' && format('{0}/', github.ref_name) || '' }}tools-update-${{ matrix.id }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Check for non-bot commits on the existing pull request
+        id: check-pr
         if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
+        # Updating the Action's PR force-pushes its branch, so skip the update
+        # if someone pushed their own commits to it to avoid discarding them.
+        env:
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+        run: |
+          PR_URL=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH_NAME" --state open \
+            --json url,commits,isCrossRepository \
+            --jq '[.[] | select(.isCrossRepository | not) | select(any(.commits[].authors[]; .email != "github-bot@iojs.org")) | .url] | join(" ")')
+          if [ -n "$PR_URL" ]; then
+            echo "::notice::Skipping update, $PR_URL has commits not authored by the bot"
+            echo "update=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "update=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        if: steps.check-pr.outputs.update == 'true'
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        if: matrix.requires-python && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
+        if: matrix.requires-python && steps.check-pr.outputs.update == 'true'
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
       - name: Set up Nix
-        if: matrix.id == 'nixpkgs-unstable' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
+        if: matrix.id == 'nixpkgs-unstable' && steps.check-pr.outputs.update == 'true'
         uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24  # v31.11.1
       - run: ${{ matrix.run }}
-        if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
+        if: steps.check-pr.outputs.update == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
       - name: Generate commit message if not set
-        if: env.COMMIT_MSG == '' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
+        if: env.COMMIT_MSG == '' && steps.check-pr.outputs.update == 'true'
         run: |
           echo "COMMIT_MSG=${{ matrix.subsystem }}: update ${{ matrix.id }} to $NEW_VERSION" >> "$GITHUB_ENV"
       - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
-        if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
+        if: steps.check-pr.outputs.update == 'true'
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
         with:
           token: ${{ secrets.GH_USER_TOKEN }}
-          branch: actions/${{ github.ref_name != 'main' && format('{0}/', github.ref_name) || '' }}tools-update-${{ matrix.id }}  # Custom branch *just* for this Action.
+          branch: ${{ env.BRANCH_NAME }}  # Custom branch *just* for this Action.
           delete-branch: true
           commit-message: ${{ env.COMMIT_MSG }}
           labels: ${{ matrix.label }}
