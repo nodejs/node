@@ -20,6 +20,24 @@ describe('Database.prototype.aggregate()', () => {
       return fn;
     }
 
+    test('throws if name is not a string', (t) => {
+      t.assert.throws(() => {
+        db.aggregate(123, { start: 0, step: () => {} });
+      }, {
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: 'The "name" argument must be a string.'
+      });
+    });
+
+    test('throws if options is not an object', (t) => {
+      t.assert.throws(() => {
+        db.aggregate('sum');
+      }, {
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: 'The "options" argument must be an object.'
+      });
+    });
+
     test('throws if options.start is not provided', (t) => {
       t.assert.throws(() => {
         db.aggregate('sum', {
