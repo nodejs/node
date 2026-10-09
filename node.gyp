@@ -853,6 +853,36 @@
       ],
     }, # node_core_target_name
     {
+      'target_name': 'node_cxx_exceptions',
+      'type': 'static_library',
+
+      'sources': [
+        'src/ffi/cxx_exceptions.cc',
+        'src/ffi/cxx_exceptions.h',
+      ],
+
+      'include_dirs': [
+        'src',
+      ],
+
+      'defines': [
+        'NODE_WANT_INTERNALS=1',
+      ],
+      'defines!': [
+        '_HAS_EXCEPTIONS=0',
+      ],
+      'cflags_cc!': [ '-fno-exceptions' ],
+      'cflags_cc': [ '-fexceptions' ],
+      'xcode_settings': {
+        'GCC_ENABLE_CPP_EXCEPTIONS': 'YES',
+      },
+      'msvs_settings': {
+        'VCCLCompilerTool': {
+          'ExceptionHandling': 1,
+        },
+      },
+    },
+    {
       'target_name': 'node_base',
       'type': 'static_library',
       'includes': [
@@ -944,6 +974,16 @@
           'sources': [
             '<@(node_ffi_sources)',
           ],
+          'dependencies': [
+            'node_cxx_exceptions',
+          ],
+          # Needed for exceptions to be able to reach
+          # the FFI exception handling code. This does
+          # *not* need to be set for e.g. V8.
+          'cflags': [ '-funwind-tables' ],
+          'xcode_settings': {
+            'OTHER_CFLAGS': [ '-funwind-tables' ],
+          },
           'conditions': [
             [ 'node_shared_ffi=="false"', {
               'dependencies': [

@@ -15,6 +15,9 @@
 
 namespace node {
 
+using cxx_exceptions::CxxExceptionCatch;
+using cxx_exceptions::CxxExceptionInfo;
+using cxx_exceptions::CxxExceptionThrow;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BigInt;
@@ -43,15 +46,66 @@ using v8::Value;
 
 namespace ffi {
 
-void FFIFunction::Invoke(void* result, void** values) {
-#if defined(NODE_FFI_HAS_FAST_CALL_PLAN)
-  if (call_plan != nullptr) {
-    ffi_call_plan_invoke(call_plan.get(), FFI_FN(ptr), result, values);
+namespace {
+struct CxxExceptionThrowScope {
+  bool enabled;
+  std::optional<CxxExceptionInfo> scheduled_exception;
+
+  explicit CxxExceptionThrowScope(bool enabled) : enabled(enabled) {}
+  ~CxxExceptionThrowScope() {
+    if (scheduled_exception.has_value()) {
+      CHECK(enabled);
+      // Normally, throwing an exception from a destructor is not
+      // acceptable in C++, but here we know for sure that we're not
+      // already in the destructor because of another pending exception
+      // since Node.js is built without support for those.
+      CxxExceptionThrow(scheduled_exception.value());
+    }
+  }
+
+  bool ScheduleExceptionIfAvailable(std::string_view message,
+                                    v8::Global<v8::Value> exception = {}) {
+    CHECK(!scheduled_exception.has_value());
+    if (!enabled) return false;
+    std::shared_ptr<v8::Global<v8::Value>> shared_exception;
+    if (!exception.IsEmpty())
+      shared_exception =
+          std::make_shared<v8::Global<v8::Value>>(std::move(exception));
+    scheduled_exception =
+        CxxExceptionInfo{std::string{message}, shared_exception};
+    return true;
+  }
+  void ScheduleExceptionOrAbort(std::string_view message,
+                                v8::Global<v8::Value> exception = {}) {
+    if (!ScheduleExceptionIfAvailable(message, std::move(exception))) {
+      FPrintF(stderr, "%s\n", message);
+      ABORT();
+    }
+  }
+};
+
+void ThrowExceptionFromInvoke(Environment* env,
+                              const CxxExceptionInfo& exception) {
+  if (exception.js_exception && !exception.js_exception->IsEmpty()) {
+    env->isolate()->ThrowException(exception.js_exception->Get(env->isolate()));
     return;
   }
-#endif
+  THROW_ERR_FFI_CALL_FAILED(env, "FFI call failed: %s", exception.message);
+}
 
-  ffi_call(&cif, FFI_FN(ptr), result, values);
+}  // anonymous namespace
+
+std::optional<CxxExceptionInfo> FFIFunction::Invoke(void* result,
+                                                    void** values) {
+  return CxxExceptionCatch([&]() {
+#if defined(NODE_FFI_HAS_FAST_CALL_PLAN)
+    if (call_plan != nullptr) {
+      ffi_call_plan_invoke(call_plan.get(), FFI_FN(ptr), result, values);
+      return;
+    }
+#endif
+    ffi_call(&cif, FFI_FN(ptr), result, values);
+  });
 }
 
 void FFIFunctionInfo::MemoryInfo(MemoryTracker* tracker) const {
@@ -69,6 +123,10 @@ DynamicLibrary::~DynamicLibrary() {
 
 bool DynamicLibrary::is_closed() const {
   return static_cast<void*>(lib_.handle) == nullptr;
+}
+
+bool DynamicLibrary::supports_exceptions() const {
+  return supports_exceptions_;
 }
 
 void DynamicLibrary::MemoryInfo(MemoryTracker* tracker) const {
@@ -572,6 +630,7 @@ void DynamicLibrary::New(const FunctionCallbackInfo<Value>& args) {
     THROW_ERR_FFI_CALL_FAILED(env, "dlopen failed: %s", uv_dlerror(&lib->lib_));
     return;
   }
+  lib->supports_exceptions_ = args[2]->IsTrue();
 }
 
 void DynamicLibrary::Close(const FunctionCallbackInfo<Value>& args) {
@@ -646,10 +705,14 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
     result = Malloc(GetFFIReturnValueStorageSize(fn->return_type));
   }
 
-  fn->Invoke(result, ffi_args.data());
+  auto exception = fn->Invoke(result, ffi_args.data());
 
-  // Return result back to Javascript
-  ToJSReturnValue(env, args, fn->return_type, result);
+  if (exception.has_value()) {
+    ThrowExceptionFromInvoke(env, exception.value());
+  } else {
+    // Return result back to Javascript
+    ToJSReturnValue(env, args, fn->return_type, result);
+  }
   free(result);
 }
 
@@ -705,9 +768,11 @@ void DynamicLibrary::InvokeFunctionSB(const FunctionCallbackInfo<Value>& args) {
   alignas(8) uint8_t result_storage[kSBResultStorageSize] = {0};
   void* result = (fn->return_type != &ffi_type_void) ? result_storage : nullptr;
 
-  fn->Invoke(result, ffi_args.data());
+  auto exception = fn->Invoke(result, ffi_args.data());
 
-  if (result != nullptr) {
+  if (exception.has_value()) {
+    ThrowExceptionFromInvoke(env, exception.value());
+  } else if (result != nullptr) {
     WriteFFIReturnToBuffer(fn->return_type, result, buffer, 0);
   }
 }
@@ -725,11 +790,18 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
                                     void** args,
                                     void* user_data) {
   FFICallback* cb = static_cast<FFICallback*>(user_data);
+  // This needs to be at the top of the function so that we do not
+  // miss out on executing destructors, i.e. we need to make sure
+  // that the destructor of this scope is the last thing that executes
+  // before returning to FFI.
+  CxxExceptionThrowScope exception_scope(cb->owner->supports_exceptions());
 
   // It is unsupported and dangerous for a callback to unregister itself or
   // close its owning library while executing. The current invocation must
   // return before teardown APIs are used.
   if (cb->owner->is_closed() || cb->ptr == nullptr) {
+    exception_scope.ScheduleExceptionIfAvailable(
+        "Callback invoked on closed library or after being unregistered");
     if (ret != nullptr && cb->return_type->size > 0) {
       std::memset(ret, 0, GetFFIReturnValueStorageSize(cb->return_type));
     }
@@ -737,10 +809,10 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
   }
 
   if (std::this_thread::get_id() != cb->thread_id) {
-    FPrintF(stderr,
-            "Callbacks can only be invoked on the system thread they were "
-            "created on\n");
-    ABORT();
+    exception_scope.ScheduleExceptionOrAbort(
+        "Callbacks can only be invoked on the system thread they were "
+        "created on");
+    return;
   }
 
   Environment* env = cb->env;
@@ -775,6 +847,8 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
   // environment teardown) is not an exception thrown by the callback.
   // Return a zeroed result and let the caller unwind.
   if (try_catch.HasTerminated()) {
+    exception_scope.ScheduleExceptionIfAvailable(
+        "Callback execution terminated");
     if (ret != nullptr && cb->return_type->size > 0) {
       std::memset(ret, 0, GetFFIReturnValueStorageSize(cb->return_type));
     }
@@ -783,27 +857,32 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
 
   // Handle exceptions by crashing (can't propagate across FFI boundary)
   if (try_catch.HasCaught()) {
-    FPrintF(stderr, "Callbacks cannot throw an exception\n");
-    ABORT();
+    exception_scope.ScheduleExceptionOrAbort(
+        "Callbacks cannot throw an exception",
+        {isolate, try_catch.Exception()});
+    return;
   }
 
   Local<Value> result_val;
   if (!result.ToLocal(&result_val)) {
     if (try_catch.HasCaught()) {
-      FPrintF(stderr, "Callbacks cannot return an exception\n");
-      ABORT();
+      exception_scope.ScheduleExceptionOrAbort(
+          "Callbacks cannot return an exception",
+          {isolate, try_catch.Exception()});
     }
     return;
   }
 
   if (result_val->IsPromise()) {
-    FPrintF(stderr, "Callbacks cannot return promises\n");
-    ABORT();
+    exception_scope.ScheduleExceptionOrAbort(
+        "Callbacks cannot return promises");
+    return;
   }
 
   if (!ToFFIReturnValue(result_val, cb->return_type, ret)) {
-    FPrintF(stderr, "Callback returned invalid value for declared FFI type\n");
-    ABORT();
+    exception_scope.ScheduleExceptionOrAbort(
+        "Callback returned invalid value for declared FFI type");
+    return;
   }
 }
 
