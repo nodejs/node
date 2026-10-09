@@ -8,6 +8,11 @@
 
 namespace node {
 
+// Set by the embedded-builtin blob (node_javascript.cc) so external-string
+// resources can decompress their source the first time V8 reads it.
+using BuiltinSourceEnsure = void (*)();
+inline BuiltinSourceEnsure builtin_source_ensure = nullptr;
+
 // An external resource intended to be used with static lifetime.
 template <typename Char, typename IChar, typename Base>
 class StaticExternalByteResource : public Base {
@@ -21,9 +26,22 @@ class StaticExternalByteResource : public Base {
       : data_(data), length_(length), owning_ptr_(owning_ptr) {}
 
   const IChar* data() const override {
+    if (data_ == nullptr && builtin_source_ensure != nullptr) {
+      builtin_source_ensure();
+    }
     return reinterpret_cast<const IChar*>(data_);
   }
-  size_t length() const override { return length_; }
+  size_t length() const override {
+    if (data_ == nullptr && builtin_source_ensure != nullptr) {
+      builtin_source_ensure();
+    }
+    return length_;
+  }
+
+  void set_data(const Char* data, size_t length) {
+    data_ = data;
+    length_ = length;
+  }
 
   void Dispose() override {
     // We ignore Dispose calls from V8, even if we "own" a resource via
@@ -37,7 +55,7 @@ class StaticExternalByteResource : public Base {
 
  private:
   const Char* data_;
-  const size_t length_;
+  size_t length_;
   std::shared_ptr<void> owning_ptr_;
 };
 
