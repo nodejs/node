@@ -42,6 +42,7 @@ async function main({ mode, n }) {
     session.closed.catch(() => {});
     session.onstream = (stream) => { stream.closed.catch(() => {}); };
   }, {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders() {
       this.sendHeaders({ ':status': '200' });

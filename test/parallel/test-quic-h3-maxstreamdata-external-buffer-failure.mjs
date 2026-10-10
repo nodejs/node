@@ -38,6 +38,7 @@ const endpoint = await listen((session) => {
     await dump(stream);
   };
 }, {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
   transportParams: {
     initialMaxStreamDataBidiRemote: WINDOW,
@@ -47,6 +48,7 @@ const endpoint = await listen((session) => {
 });
 
 const session = await connect(endpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
 });

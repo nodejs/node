@@ -20,12 +20,14 @@ const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
 const cert = fixtures.readKey('agent1-cert.pem');
 
 const serverEndpoint = await listen(mustNotCall(), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
 });
 
 // Bogus ticket data (random bytes) is rejected at the format level.
 await assert.rejects(
   connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     sessionTicket: randomBytes(256),

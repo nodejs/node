@@ -24,7 +24,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   assert.strictEqual(typeof sessionStatsJson.bytesSent, 'string');
 
   const sessionStatsInspect = inspect(serverSession.stats);
-  assert.ok(sessionStatsInspect.includes('QuicSessionStats'));
+  assert.ok(sessionStatsInspect.includes('QuicConnectionStats'));
 
   serverSession.onstream = mustCall(async (stream) => {
     for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
@@ -52,7 +52,7 @@ assert.ok(clientStatsJson);
 assert.strictEqual(typeof clientStatsJson.createdAt, 'string');
 
 const clientStatsInspect = inspect(clientSession.stats);
-assert.ok(clientStatsInspect.includes('QuicSessionStats'));
+assert.ok(clientStatsInspect.includes('QuicConnectionStats'));
 
 const stream = await clientSession.createBidirectionalStream({
   body: new TextEncoder().encode('test'),

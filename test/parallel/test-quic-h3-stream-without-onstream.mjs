@@ -45,6 +45,7 @@ function failOnConsumerWarning(warning) {
   const serverEndpoint = await listen(mustCall((serverSession) => {
     serverSession.onerror = () => {};
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       assert.strictEqual(headers[':path'], '/test');
@@ -60,6 +61,7 @@ function failOnConsumerWarning(warning) {
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
   });
@@ -149,8 +151,9 @@ const kNonConsumerCallbacks = ['oninfo', 'ontrailers', 'onwanttrailers'];
   // session actually attaches to a received stream.
   const bootstrap = await listen(mustCall((session) => {
     session.onerror = () => {};
-  }), { sni: { '*': { keys: [key], certs: [cert] } }, onstream: () => {} });
+  }), { alpn: ['h3'], sni: { '*': { keys: [key], certs: [cert] } }, onstream: () => {} });
   const bootSession = await connect(bootstrap.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
   });
@@ -171,6 +174,7 @@ const kNonConsumerCallbacks = ['oninfo', 'ontrailers', 'onwanttrailers'];
   }), {
     __proto__: null,
     ...probes,
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onstream: mustCall((stream) => {
       applied.resolve(candidates.filter((n) => typeof stream[n] === 'function'));
@@ -178,6 +182,7 @@ const kNonConsumerCallbacks = ['oninfo', 'ontrailers', 'onwanttrailers'];
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
   });
@@ -218,11 +223,13 @@ for (const callbackName of kNonConsumerCallbacks) {
   const serverEndpoint = await listen(mustCall((serverSession) => {
     serverSession.onerror = () => {};
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     [callbackName]: mustNotCall(),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
   });

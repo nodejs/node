@@ -15,7 +15,7 @@ The stack is layered as:
 ├─────────────────────────────────────────────┤
 │  Endpoint      — UDP socket, packet I/O     │
 │  Session       — QUIC connection (ngtcp2)   │
-│  Application   — ALPN protocol logic        │
+│  Application   — Protocol logic (e.g. h3)   │
 │  Stream        — Bidirectional data flow    │
 ├─────────────────────────────────────────────┤
 │  ngtcp2 / nghttp3 / OpenSSL                 │
@@ -26,9 +26,9 @@ The stack is layered as:
 
 An **Endpoint** binds a UDP socket and dispatches incoming packets to
 **Sessions**. Each Session wraps an `ngtcp2_conn` and delegates
-protocol-specific behavior to an **Application** (selected by ALPN
-negotiation). Sessions contain **Streams** — bidirectional or unidirectional
-data channels that carry application data.
+protocol-specific behavior to an **Application**. Sessions contain
+**Streams** — bidirectional or unidirectional data channels that carry
+application data.
 
 ## File Map
 
@@ -135,7 +135,7 @@ re-reading from the source.
 ### Application Abstraction
 
 `Session::Application` is a virtual interface that the Session delegates
-ALPN-specific behavior to. Two implementations exist:
+protocol-specific behavior to. Two implementations exist:
 
 * **`DefaultApplication`** (`application.cc`): Used for non-HTTP/3 ALPN
   protocols. Maintains its own stream scheduling queue. Streams are scheduled
@@ -146,9 +146,16 @@ ALPN-specific behavior to. Two implementations exist:
   server push, and stream prioritization. Manages unidirectional control
   streams internally.
 
-The Application is selected as soon as the ALPN protocol is known:
-immediately for clients, and for servers from the `OnClientHello` TLS
-callback (see [Server handshake ordering](#server-handshake-ordering)).
+When the `autoStart` option is true (the default) the Application is
+selected as soon as the ALPN protocol is known: immediately for clients,
+and for servers from the `OnClientHello` TLS callback (see
+[Server handshake ordering](#server-handshake-ordering)).
+
+When `autoStart` is false, the Application is selected and started via
+the session start APIs ( (`QuicSession.start()` or `Http3Session.start()`)).
+A session must be started by the end of the tick when the connection is
+opened (the server session callback or the client `opened` promise) - if
+not, the connection is closed automatically.
 
 ### Allocator
 
@@ -181,12 +188,11 @@ succeed but memory tracking is silently skipped. The state is deleted once
 
 **Client**: `Endpoint::Connect()` builds a `Session::Config` with
 `Side::CLIENT`, creates a `TLSContext`, and calls `Session::Create()` →
-`ngtcp2_conn_client_new()`. The Application is selected immediately.
+`ngtcp2_conn_client_new()`.
 
 **Server**: `Endpoint::Receive()` processes an Initial packet through
 address validation (retry tokens, LRU cache), then calls `Session::Create()`
-→ `ngtcp2_conn_server_new()`. The Application is selected later, once the
-ClientHello names an ALPN protocol.
+→ `ngtcp2_conn_server_new()`.
 
 ### Server handshake ordering
 
