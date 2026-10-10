@@ -892,6 +892,42 @@ test('mock implementation can be changed dynamically', (t) => {
   assert.strictEqual(fn.mock.callCount(), 12);
 });
 
+test('mockReturnValue() sets a fixed return value', (t) => {
+  const fn = t.mock.fn(common.mustNotCall());
+
+  fn.mock.mockReturnValue(42);
+  assert.strictEqual(fn(), 42);
+  assert.strictEqual(fn(1, 2), 42);
+  assert.strictEqual(fn.mock.callCount(), 2);
+  assert.strictEqual(fn.mock.calls[1].result, 42);
+});
+
+test('mockResolvedValue() returns a resolved promise', async (t) => {
+  const fn = t.mock.fn(common.mustNotCall());
+
+  fn.mock.mockResolvedValue(42);
+  const result = fn();
+  assert(result instanceof Promise);
+  assert.strictEqual(await result, 42);
+});
+
+test('mockRejectedValue() returns a rejected promise', async (t) => {
+  const fn = t.mock.fn(common.mustNotCall());
+  const error = new Error('boom');
+
+  fn.mock.mockRejectedValue(error);
+  await assert.rejects(fn(), error);
+});
+
+test('mockImplementationOnce() takes precedence over mockReturnValue()', (t) => {
+  const fn = t.mock.fn();
+
+  fn.mock.mockReturnValue(1);
+  fn.mock.mockImplementationOnce(() => 2);
+  assert.strictEqual(fn(), 2);
+  assert.strictEqual(fn(), 1);
+});
+
 test('local mocks are auto restored after the test finishes', async (t) => {
   const obj = {
     foo() {},
