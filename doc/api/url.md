@@ -737,18 +737,16 @@ against a pattern.
 const myPattern = new URLPattern('https://nodejs.org/docs/latest/api/*.html');
 console.log(myPattern.exec('https://nodejs.org/docs/latest/api/dns.html'));
 // Prints:
-// {
-//  "hash": { "groups": {  "0": "" },  "input": "" },
-//  "hostname": { "groups": {}, "input": "nodejs.org" },
-//  "inputs": [
-//    "https://nodejs.org/docs/latest/api/dns.html"
-//  ],
-//  "password": { "groups": { "0": "" }, "input": "" },
-//  "pathname": { "groups": { "0": "dns" }, "input": "/docs/latest/api/dns.html" },
-//  "port": { "groups": {}, "input": "" },
-//  "protocol": { "groups": {}, "input": "https" },
-//  "search": { "groups": { "0": "" }, "input": "" },
-//  "username": { "groups": { "0": "" }, "input": "" }
+// [Object: null prototype] {
+//   inputs: [ 'https://nodejs.org/docs/latest/api/dns.html' ],
+//   protocol: { input: 'https', groups: {} },
+//   username: { input: '', groups: { '0': '' } },
+//   password: { input: '', groups: { '0': '' } },
+//   hostname: { input: 'nodejs.org', groups: {} },
+//   port: { input: '', groups: {} },
+//   pathname: { input: '/docs/latest/api/dns.html', groups: { '0': 'dns' } },
+//   search: { input: '', groups: { '0': '' } },
+//   hash: { input: '', groups: { '0': '' } }
 // }
 
 console.log(myPattern.test('https://nodejs.org/docs/latest/api/dns.html'));
@@ -811,18 +809,16 @@ matched input and matched groups.
 const myPattern = new URLPattern('https://nodejs.org/docs/latest/api/*.html');
 console.log(myPattern.exec('https://nodejs.org/docs/latest/api/dns.html'));
 // Prints:
-// {
-//  "hash": { "groups": {  "0": "" },  "input": "" },
-//  "hostname": { "groups": {}, "input": "nodejs.org" },
-//  "inputs": [
-//    "https://nodejs.org/docs/latest/api/dns.html"
-//  ],
-//  "password": { "groups": { "0": "" }, "input": "" },
-//  "pathname": { "groups": { "0": "dns" }, "input": "/docs/latest/api/dns.html" },
-//  "port": { "groups": {}, "input": "" },
-//  "protocol": { "groups": {}, "input": "https" },
-//  "search": { "groups": { "0": "" }, "input": "" },
-//  "username": { "groups": { "0": "" }, "input": "" }
+// [Object: null prototype] {
+//   inputs: [ 'https://nodejs.org/docs/latest/api/dns.html' ],
+//   protocol: { input: 'https', groups: {} },
+//   username: { input: '', groups: { '0': '' } },
+//   password: { input: '', groups: { '0': '' } },
+//   hostname: { input: 'nodejs.org', groups: {} },
+//   port: { input: '', groups: {} },
+//   pathname: { input: '/docs/latest/api/dns.html', groups: { '0': 'dns' } },
+//   search: { input: '', groups: { '0': '' } },
+//   hash: { input: '', groups: { '0': '' } }
 // }
 ```
 
