@@ -946,6 +946,41 @@ const callSites = getCallSites({ sourceMap: true });
 // Column Number: 26
 ```
 
+## `util.getStringWidth(str)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `str` {string}
+* Returns: {integer} An estimate of the number of columns needed to display
+  `str`.
+
+Returns an estimate of the width of `str` as displayed in a terminal, counted
+in columns. Full-width characters, such as CJK ideographs and most emoji, count
+as two columns. Zero-width characters, such as combining marks, control
+characters and zero-width joiners, count as zero. ANSI escape sequences, as
+produced by [`util.styleText()`][], are ignored.
+
+```js
+console.log(util.getStringWidth('hello'));
+// Prints: 5
+console.log(util.getStringWidth('你好'));
+// Prints: 4
+console.log(util.getStringWidth(util.styleText('red', 'hi')));
+// Prints: 2
+```
+
+The result is an estimate because terminals differ in how they render some
+characters. In particular, the emoji of a joined sequence are counted
+separately, so a sequence that a terminal renders as a single glyph can be
+overcounted, with or without ICU: `'\u{1F469}\u200D\u{1F469}\u200D\u{1F467}'`
+is counted as 6 columns. When Node.js is built without ICU, a simpler table of
+full-width and zero-width code points is used, which is less accurate for less
+common scripts.
+
 ## `util.getSystemErrorName(err)`
 
 <!-- YAML
@@ -4176,6 +4211,7 @@ npx codemod@latest @nodejs/util-is
 [`util.format()`]: #utilformatformat-args
 [`util.inspect()`]: #utilinspectobject-options
 [`util.promisify()`]: #utilpromisifyoriginal
+[`util.styleText()`]: #utilstyletextformat-text-options
 [`util.types.isAnyArrayBuffer()`]: #utiltypesisanyarraybuffervalue
 [`util.types.isArrayBuffer()`]: #utiltypesisarraybuffervalue
 [`util.types.isSharedArrayBuffer()`]: #utiltypesissharedarraybuffervalue
