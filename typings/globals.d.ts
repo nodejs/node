@@ -108,9 +108,10 @@ interface InternalBindingMap {
 
 type InternalBindingKeys = keyof InternalBindingMap;
 
-declare function internalBinding<T extends InternalBindingKeys>(binding: T): InternalBindingMap[T]
-
 declare global {
+  // Supplied to internal modules by the builtin function wrapper.
+  function internalBinding<T extends InternalBindingKeys>(binding: T): InternalBindingMap[T]
+
   type TypedArray =
     | Uint8Array
     | Uint8ClampedArray

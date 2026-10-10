@@ -1,3 +1,5 @@
+import { FastBuffer as Buffer } from 'internal/buffer';
+
 export interface ICUBinding {
   Converter: object;
   decode(
