@@ -248,22 +248,14 @@ static void AfterDirRead(uv_fs_t* req) {
 
   uv_dir_t* dir = static_cast<uv_dir_t*>(req->ptr);
 
-  TryCatch try_catch(isolate);
-  Local<Array> js_array;
-  if (!DirentListToArray(env,
-                         dir->dirents,
-                         static_cast<int>(req->result),
-                         req_wrap->encoding())
-           .ToLocal(&js_array)) {
+  ResolveOrReject(req_wrap.get(), [&]() {
+    MaybeLocal<Array> js_array = DirentListToArray(
+        env, dir->dirents, static_cast<int>(req->result), req_wrap->encoding());
     // Clear libuv resources *before* delivering results to JS land because
-    // that can schedule another operation on the same uv_dir_t. Ditto below.
+    // that can schedule another operation on the same uv_dir_t.
     after.Clear();
-    CHECK(try_catch.CanContinue());
-    return req_wrap->Reject(try_catch.Exception());
-  }
-
-  after.Clear();
-  req_wrap->Resolve(js_array);
+    return js_array;
+  });
 }
 
 
