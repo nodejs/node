@@ -683,7 +683,8 @@ void uv__pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
   }
 
   if (handle->flags & UV_HANDLE_PIPESERVER) {
-    assert(handle->pipe.serv.accept_reqs);
+    /* accept_reqs is NULL when uv_pipe_pending_instances() was called but
+     * the pipe was never successfully bound. */
     uv__free(handle->pipe.serv.accept_reqs);
     handle->pipe.serv.accept_reqs = NULL;
   }
@@ -1079,11 +1080,15 @@ void uv__pipe_close(uv_loop_t* loop, uv_pipe_t* handle) {
   }
 
   if (handle->flags & UV_HANDLE_PIPESERVER) {
-    for (i = 0; i < handle->pipe.serv.pending_instances; i++) {
-      pipeHandle = handle->pipe.serv.accept_reqs[i].pipeHandle;
-      if (pipeHandle != INVALID_HANDLE_VALUE) {
-        CloseHandle(pipeHandle);
-        handle->pipe.serv.accept_reqs[i].pipeHandle = INVALID_HANDLE_VALUE;
+    /* accept_reqs is NULL when uv_pipe_pending_instances() was called but
+     * the pipe was never successfully bound. */
+    if (handle->pipe.serv.accept_reqs != NULL) {
+      for (i = 0; i < handle->pipe.serv.pending_instances; i++) {
+        pipeHandle = handle->pipe.serv.accept_reqs[i].pipeHandle;
+        if (pipeHandle != INVALID_HANDLE_VALUE) {
+          CloseHandle(pipeHandle);
+          handle->pipe.serv.accept_reqs[i].pipeHandle = INVALID_HANDLE_VALUE;
+        }
       }
     }
     handle->handle = INVALID_HANDLE_VALUE;
