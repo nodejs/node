@@ -178,6 +178,14 @@ function mktmp() {
   });
 }
 
+function mkstemp() {
+  const fs = require('fs');
+  fs.mkstemp('fstemp2', (err, file) => {
+    fs.closeSync(file.fd);
+    fs.unlinkSync(file.path);
+  });
+}
+
 function open() {
   const fs = require('fs');
   fs.open('fs16.txt', 'w', (err, fd) => {
@@ -296,6 +304,7 @@ tests.link = wrapper(link);
 tests.lstat = wrapper(lstat);
 tests.mkdir = wrapper(mkdir);
 tests.mkdtemp = wrapper(mktmp);
+tests.mkstemp = wrapper(mkstemp);
 tests.open = wrapper(open);
 tests.read = wrapper(read);
 tests.scandir = wrapper(readdir);

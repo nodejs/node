@@ -50,6 +50,26 @@ process.on('warning', (warning) => parentPort.postMessage({ warning }));
     assert.throws(() => fs.fstatSync(fd), { code: 'EBADF' });
   }
 
+  // FDs created by mkstemp() are tracked as well.
+  {
+    const w = new Worker(`${preamble}
+    const tmpdir = require(${JSON.stringify(require.resolve('../common/tmpdir'))});
+    tmpdir.refresh();
+    const first = fs.mkstempSync(tmpdir.resolve('worker-'));
+    fs.closeSync(first.fd);
+    fs.mkstemp(tmpdir.resolve('worker-'), (err, second) => {
+      if (err) throw err;
+      fs.closeSync(second.fd);
+      const third = fs.mkstempSync(tmpdir.resolve('worker-'));
+      parentPort.postMessage({ fd: third.fd });
+    });
+    `, { eval: true, trackUnmanagedFds: true });
+    const [ [ message ] ] = await Promise.all([once(w, 'message'), once(w, 'exit')]);
+    assert.strictEqual(message.warning, undefined);
+    assert(message.fd > 2);
+    assert.throws(() => fs.fstatSync(message.fd), { code: 'EBADF' });
+  }
+
   // There is a warning when an fd is unexpectedly opened twice.
   {
     const w = new Worker(`${preamble}

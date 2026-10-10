@@ -800,12 +800,15 @@ void FSReqAfterScope::Clear() {
 // in JS for more flexibility.
 void FSReqAfterScope::Reject(uv_fs_t* req) {
   BaseObjectPtr<FSReqBase> wrap{wrap_};
+  // libuv clears req->path when mkstemp() fails, so the template that was
+  // saved in the request is reported instead.
+  const bool is_mkstemp = req->fs_type == UV_FS_MKSTEMP;
   Local<Value> exception = UVException(wrap_->env()->isolate(),
                                        static_cast<int>(req->result),
                                        wrap_->syscall(),
                                        nullptr,
-                                       req->path,
-                                       wrap_->data());
+                                       is_mkstemp ? wrap_->data() : req->path,
+                                       is_mkstemp ? nullptr : wrap_->data());
   Clear();
   wrap->Reject(exception);
 }
@@ -890,6 +893,41 @@ void AfterOpenFileHandle(uv_fs_t* req) {
     if (fd == nullptr) return;
     req_wrap->Resolve(fd->object());
   }
+}
+
+// Delivers the result of mkstemp(): [path, fd], or [path, FileHandle].
+static void AfterMkstempImpl(uv_fs_t* req, bool as_file_handle) {
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
+  FSReqAfterScope after(req_wrap, req);
+  FS_ASYNC_TRACE_END1(
+      req->fs_type, req_wrap, "result", static_cast<int>(req->result))
+  const int fd = static_cast<int>(req->result);
+  if (after.Proceed()) {
+    Environment* env = req_wrap->env();
+    return ResolveMkstemp(
+        req_wrap,
+        fd,
+        [&]() {
+          return StringBytes::Encode(
+              env->isolate(), req->path, req_wrap->encoding());
+        },
+        [&]() {
+          if (!as_file_handle) return MkstempFd(env, fd);
+          return MkstempFileHandle([&]() {
+            return FileHandle::New(req_wrap->binding_data(), fd, {}, req->path);
+          });
+        });
+  }
+  // The environment is shutting down: nothing will receive the descriptor.
+  if (fd >= 0) CloseMkstempFd(fd);
+}
+
+static void AfterMkstemp(uv_fs_t* req) {
+  AfterMkstempImpl(req, false);
+}
+
+static void AfterMkstempFileHandle(uv_fs_t* req) {
+  AfterMkstempImpl(req, true);
 }
 
 void AfterMkdirp(uv_fs_t* req) {
@@ -4410,6 +4448,15 @@ static void LUTimes(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+// Appends the placeholder that mkdtemp() and mkstemp() replace.
+static void AppendTemplateSuffix(BufferValue* tmpl) {
+  static constexpr std::string_view suffix = "XXXXXX";
+  const auto prefix_length = tmpl->length();
+  tmpl->AllocateSufficientStorage(prefix_length + suffix.size() + 1);
+  memcpy(tmpl->out() + prefix_length, suffix.data(), suffix.size());
+  tmpl->SetLengthAndZeroTerminate(prefix_length + suffix.size());
+}
+
 static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -4418,11 +4465,7 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue tmpl(isolate, args[0]);
-  const auto prefix_length = tmpl.length();
-  static constexpr std::string_view suffix = "XXXXXX";
-  tmpl.AllocateSufficientStorage(prefix_length + suffix.size() + 1);
-  memcpy(tmpl.out() + prefix_length, suffix.data(), suffix.size());
-  tmpl.SetLengthAndZeroTerminate(prefix_length + suffix.size());
+  AppendTemplateSuffix(&tmpl);
 
   CHECK_NOT_NULL(*tmpl);
 
@@ -4464,6 +4507,67 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
             .ToLocal(&ret)) {
       args.GetReturnValue().Set(ret);
     }
+  }
+}
+
+// mkstemp() creates the file and opens it for reading and writing, so it
+// needs the same permissions as the equivalent open().
+static constexpr int kMkstempFlags =
+    UV_FS_O_RDWR | UV_FS_O_CREAT | UV_FS_O_EXCL;
+
+static void Mkstemp(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
+
+  BufferValue tmpl(isolate, args[0]);
+  AppendTemplateSuffix(&tmpl);
+  CHECK_NOT_NULL(*tmpl);
+
+  const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
+
+  if (argc > 2) {  // mkstemp(tmpl, encoding, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2);
+    CHECK_NOT_NULL(req_wrap_async);
+    if (AsyncCheckOpenPermissions(env, req_wrap_async, tmpl, kMkstempFlags)
+            .IsNothing()) {
+      return;
+    }
+    // The callback API gets a file descriptor, the promise API a FileHandle.
+    uv_fs_cb after =
+        args[2]->IsObject() ? AfterMkstemp : AfterMkstempFileHandle;
+    FS_ASYNC_TRACE_BEGIN1(
+        UV_FS_MKSTEMP, req_wrap_async, "path", TRACE_STR_COPY(*tmpl))
+    // The template is saved in the request to report it if mkstemp() fails.
+    AsyncDestCall(env,
+                  req_wrap_async,
+                  args,
+                  "mkstemp",
+                  *tmpl,
+                  tmpl.length(),
+                  encoding,
+                  after,
+                  uv_fs_mkstemp,
+                  *tmpl);
+  } else {  // mkstemp(tmpl, encoding)
+    if (CheckOpenPermissions(env, tmpl, kMkstempFlags).IsNothing()) return;
+    FSReqWrapSync req_wrap_sync("mkstemp", *tmpl);
+    FS_SYNC_TRACE_BEGIN(mkstemp);
+    int fd = SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_mkstemp, *tmpl);
+    FS_SYNC_TRACE_END(mkstemp);
+    if (is_uv_error(fd)) {
+      return;
+    }
+    MaybeLocal<Value> result = MkstempResult(
+        isolate,
+        fd,
+        [&]() {
+          return StringBytes::Encode(isolate, req_wrap_sync.req.path, encoding);
+        },
+        [&]() { return MkstempFd(env, fd); });
+    args.GetReturnValue().Set(result.FromMaybe(Local<Value>()));
   }
 }
 
@@ -5676,6 +5780,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "lutimes", LUTimes);
 
   SetMethod(isolate, target, "mkdtemp", Mkdtemp);
+  SetMethod(isolate, target, "mkstemp", Mkstemp);
 
 #ifdef _WIN32
   SetMethod(isolate, target, "handleToFd", HandleToFd);
@@ -5837,6 +5942,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(LUTimes);
 
   registry->Register(Mkdtemp);
+  registry->Register(Mkstemp);
 #ifdef _WIN32
   registry->Register(HandleToFd);
 #endif
