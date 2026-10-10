@@ -27,7 +27,7 @@ function main({ n, type }) {
       path = tmpdir.resolve(`.non-existing-file-${process.pid}`);
       break;
     default:
-      new Error('Invalid type');
+      throw new Error('Invalid type');
   }
 
   bench.start();
