@@ -230,6 +230,53 @@ MaybeLocal<Value> ExternTwoByteString::NewSimpleFromCopy(Isolate* isolate,
   return str;
 }
 
+template <typename TypeName>
+size_t HexDecodeFast(char* buf,
+                     size_t len,
+                     const TypeName* src,
+                     size_t src_len) {
+  const size_t max_out = std::min(len, src_len / 2);
+  const int8_t* table = nbytes::unhex_table;
+  size_t i = 0;
+
+  // Valid hex is the common case. Four output bytes at a time keeps the
+  // invalid-nibble check cheap without changing the first-invalid stop
+  // semantics of nbytes::HexDecode.
+  for (; i + 4 <= max_out; i += 4, src += 8) {
+    const unsigned a0 =
+        static_cast<unsigned>(table[static_cast<uint8_t>(src[0])]);
+    const unsigned b0 =
+        static_cast<unsigned>(table[static_cast<uint8_t>(src[1])]);
+    const unsigned a1 =
+        static_cast<unsigned>(table[static_cast<uint8_t>(src[2])]);
+    const unsigned b1 =
+        static_cast<unsigned>(table[static_cast<uint8_t>(src[3])]);
+    const unsigned a2 =
+        static_cast<unsigned>(table[static_cast<uint8_t>(src[4])]);
+    const unsigned b2 =
+        static_cast<unsigned>(table[static_cast<uint8_t>(src[5])]);
+    const unsigned a3 =
+        static_cast<unsigned>(table[static_cast<uint8_t>(src[6])]);
+    const unsigned b3 =
+        static_cast<unsigned>(table[static_cast<uint8_t>(src[7])]);
+    if ((a0 | b0 | a1 | b1 | a2 | b2 | a3 | b3) > 15) break;
+    buf[i] = static_cast<char>((a0 << 4) | b0);
+    buf[i + 1] = static_cast<char>((a1 << 4) | b1);
+    buf[i + 2] = static_cast<char>((a2 << 4) | b2);
+    buf[i + 3] = static_cast<char>((a3 << 4) | b3);
+  }
+
+  for (; i < max_out; i++, src += 2) {
+    const unsigned a =
+        static_cast<unsigned>(table[static_cast<uint8_t>(src[0])]);
+    const unsigned b =
+        static_cast<unsigned>(table[static_cast<uint8_t>(src[1])]);
+    if ((a | b) > 15) return i;
+    buf[i] = static_cast<char>((a << 4) | b);
+  }
+  return i;
+}
+
 }  // anonymous namespace
 
 static size_t keep_buflen_in_range(size_t len) {
@@ -436,13 +483,13 @@ size_t StringBytes::Write(Isolate* isolate,
     case HEX:
       if (input_view.is_one_byte()) {
         nbytes =
-            nbytes::HexDecode(buf,
-                              buflen,
-                              reinterpret_cast<const char*>(input_view.data8()),
-                              input_view.length());
+            HexDecodeFast(buf,
+                          buflen,
+                          reinterpret_cast<const char*>(input_view.data8()),
+                          input_view.length());
       } else {
         TwoByteValue value(isolate, str);
-        nbytes = nbytes::HexDecode(buf, buflen, value.out(), value.length());
+        nbytes = HexDecodeFast(buf, buflen, value.out(), value.length());
       }
       break;
 
