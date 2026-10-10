@@ -17,8 +17,9 @@
 #include "v8-inspector.h"
 #include "zlib.h"
 
-#include <deque>
+#include <charconv>
 #include <cstring>
+#include <deque>
 #include <vector>
 
 namespace node {
@@ -378,12 +379,16 @@ void InspectorIoDelegate::MessageReceived(int session_id,
   if (target_session_id_str) {
     bool is_number = std::all_of(target_session_id_str->begin(),
                                  target_session_id_str->end(),
-                                 ::isdigit);
+                                 [](unsigned char c) { return ::isdigit(c); });
     if (is_number) {
-      int target_session_id = std::stoi(*target_session_id_str);
+      int target_session_id = 0;
+      const auto& s = *target_session_id_str;
+      auto [ptr, ec] =
+          std::from_chars(s.data(), s.data() + s.size(), target_session_id);
+      if (ec != std::errc{}) return;
       worker = TargetManager::WorkerForSession(target_session_id);
       if (worker) {
-        merged_session_id += target_session_id << 16;
+        merged_session_id += static_cast<unsigned int>(target_session_id) << 16;
       }
     }
   }
