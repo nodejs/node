@@ -4134,7 +4134,7 @@ Disable the [module compile cache][] for the Node.js instance. See the documenta
 added: v7.3.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/66638
     description: The variable is now honored when set in a file loaded with
                  `--env-file` or `--env-file-if-exists`.
 -->
