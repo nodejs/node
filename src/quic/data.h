@@ -187,7 +187,11 @@ class Store final : public MemoryRetainer {
   V(H3_VERSION_FALLBACK)                                                       \
   V(QPACK_DECOMPRESSION_FAILED)                                                \
   V(QPACK_ENCODER_STREAM_ERROR)                                                \
-  V(QPACK_DECODER_STREAM_ERROR)
+  V(QPACK_DECODER_STREAM_ERROR)                                                \
+  V(WT_BUFFERED_STREAM_REJECTED)                                               \
+  V(WT_SESSION_GONE)                                                           \
+  V(WT_ALPN_ERROR)                                                             \
+  V(WT_REQUIREMENTS_NOT_MET)
 
 class QuicError final : public MemoryRetainer {
  public:

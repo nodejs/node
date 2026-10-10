@@ -93,6 +93,13 @@
 #endif /* defined(WIN32) */
 
 /*
+ * nghttp3_get_uint32be reads 4 bytes from |p| as 32 bits unsigned
+ * integer encoded as network byte order, and stores it in the buffer
+ * pointed by |dest| in host byte order.  It returns |p| + 4.
+ */
+const uint8_t *nghttp3_get_uint32be(uint32_t *dest, const uint8_t *p);
+
+/*
  * nghttp3_put_uint64be writes |n| in host byte order in |p| in
  * network byte order.  It returns the one beyond of the last written
  * position.

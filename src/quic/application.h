@@ -20,6 +20,7 @@ enum class HeadersKind : uint8_t {
 enum class HeadersFlags : uint8_t {
   NONE,
   TERMINAL,
+  WEBTRANSPORT,
 };
 
 // An Application implements the ALPN-protocol specific semantics on behalf
@@ -141,6 +142,14 @@ class Session::Application : public MemoryRetainer {
     // By default do nothing.
   }
 
+  // Called when the Session determines that the flow control window for the
+  // session has been expanded. Not all Application types will require
+  // this notification so the default is to do nothing.
+  virtual void ExtendMaxData(uint64_t max_data) {
+    Debug(session_, "Application extending max data");
+    // By default do nothing.
+  }
+
   // Different Applications may wish to set some application data in the
   // session ticket (e.g. http/3 would set server settings in the application
   // data). The first byte written MUST be the Application::Type enum value.
@@ -191,6 +200,32 @@ class Session::Application : public MemoryRetainer {
   virtual void SetHeadersInterest(Stream& stream,
                                   bool wants_headers,
                                   bool wants_trailers) {}
+  // Updates JavaScript callback interest concerning new webtransport sessions
+  // Applications without Webtransport support ignore this
+  virtual void SetWebtransportInterest(Stream& stream,
+                                       bool wants_sessionid,
+                                       bool wants_wtsessionclose) {}
+
+  // connects the webtransport session stream to stream object,
+  // it also sends some initial bytes to the wire to signal
+  // the other side, that this is a webtransport stream
+  // it is a noop, if we can not send on this stream incoming
+  // unidirectional stream
+  virtual bool MakeWebtransportStream(Stream& stream,
+     int64_t sessionid)  {
+      return false;
+  }
+
+  // closes the webtransort session stream,
+  // and also closes connect webtransport data streams
+  virtual bool CloseWebtransportSessionStream(
+      const Stream& stream,
+      uint32_t wt_error_code,
+      const uint8_t* msg,
+      size_t msglen
+    ) {
+      return false;
+  }
 
   // Returns true if the application protocol supports sending and
   // receiving headers on streams (e.g. HTTP/3). Applications that
