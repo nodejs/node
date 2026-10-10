@@ -201,6 +201,11 @@
                 'USE_FILE32API'
               ],
             }],
+            ['OS=="android"', {
+              'sources': [
+                '<(ZLIB_ROOT)/android-cpu-features.c',
+              ],
+            }],
             # Incorporate optimizations where possible.
             ['(target_arch in "ia32 x64" and OS!="ios") or arm_fpu=="neon"', {
               'dependencies': [ 'zlib_data_chunk_simd' ],
