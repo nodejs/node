@@ -1636,6 +1636,90 @@ diagnosticsChannel.subscribe('crypto.fips.indicator', (message) => {
 });
 ```
 
+#### File system
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Each `node:fs` operation publishes to its own [`TracingChannel`][] named
+`fs.<operation>`, for example `tracing:fs.stat:start`. The synchronous,
+callback, and promise forms of an operation share the same channel.
+
+* `event` {Object} containing the following properties
+  * `api` {string} The form of the function: `'sync'`, `'callback'`, or
+    `'promise'`.
+  * `args` {Array} The arguments as passed by the caller.
+  * The leading arguments of the operation, by name, as listed in the table
+    below. For `FileHandle` methods, `fd` is the descriptor of the handle and
+    `args` holds the arguments of the method.
+
+| Channel         | Functions                                                        | Named properties         |
+| --------------- | ---------------------------------------------------------------- | ------------------------ |
+| `fs.access`     | `access`                                                         | `path`                   |
+| `fs.appendFile` | `appendFile`                                                     | `path`, `data`           |
+| `fs.chmod`      | `chmod`                                                          | `path`, `mode`           |
+| `fs.chown`      | `chown`                                                          | `path`, `uid`, `gid`     |
+| `fs.close`      | `close`, `filehandle.close()`                                    | `fd`                     |
+| `fs.closedir`   | `dir.close()`, `dir.closeSync()`                                 | `path`                   |
+| `fs.copyFile`   | `copyFile`                                                       | `path`, `dest`           |
+| `fs.cp`         | `cp`                                                             | `path`, `dest`           |
+| `fs.exists`     | `exists`                                                         | `path`                   |
+| `fs.fchmod`     | `fchmod`, `filehandle.chmod()`                                   | `fd`, `mode`             |
+| `fs.fchown`     | `fchown`, `filehandle.chown()`                                   | `fd`, `uid`, `gid`       |
+| `fs.fdatasync`  | `fdatasync`, `filehandle.datasync()`                             | `fd`                     |
+| `fs.fstat`      | `fstat`, `filehandle.stat()`                                     | `fd`                     |
+| `fs.fsync`      | `fsync`, `filehandle.sync()`                                     | `fd`                     |
+| `fs.ftruncate`  | `ftruncate`, `filehandle.truncate()`                             | `fd`                     |
+| `fs.futimes`    | `futimes`, `filehandle.utimes()`                                 | `fd`, `atime`, `mtime`   |
+| `fs.glob`       | `glob`                                                           | `pattern`                |
+| `fs.lchmod`     | `lchmod`                                                         | `path`, `mode`           |
+| `fs.lchown`     | `lchown`                                                         | `path`, `uid`, `gid`     |
+| `fs.link`       | `link`                                                           | `path`, `dest`           |
+| `fs.lstat`      | `lstat`                                                          | `path`                   |
+| `fs.lutimes`    | `lutimes`                                                        | `path`, `atime`, `mtime` |
+| `fs.mkdir`      | `mkdir`                                                          | `path`                   |
+| `fs.mkdtemp`    | `mkdtemp`, `mkdtempDisposable`                                   | `prefix`                 |
+| `fs.open`       | `open`                                                           | `path`                   |
+| `fs.openAsBlob` | `openAsBlob`                                                     | `path`                   |
+| `fs.opendir`    | `opendir`                                                        | `path`                   |
+| `fs.read`       | `read`, `filehandle.read()`                                      | `fd`                     |
+| `fs.readdir`    | `readdir`                                                        | `path`                   |
+| `fs.readFile`   | `readFile`, `filehandle.readFile()`                              | `path`                   |
+| `fs.readlink`   | `readlink`                                                       | `path`                   |
+| `fs.readv`      | `readv`, `filehandle.readv()`                                    | `fd`, `buffers`          |
+| `fs.realpath`   | `realpath`, `realpath.native`                                    | `path`                   |
+| `fs.rename`     | `rename`                                                         | `path`, `dest`           |
+| `fs.rm`         | `rm`                                                             | `path`                   |
+| `fs.rmdir`      | `rmdir`                                                          | `path`                   |
+| `fs.stat`       | `stat`                                                           | `path`                   |
+| `fs.statfs`     | `statfs`                                                         | `path`                   |
+| `fs.symlink`    | `symlink`                                                        | `target`, `path`         |
+| `fs.truncate`   | `truncate`                                                       | `path`                   |
+| `fs.unlink`     | `unlink`                                                         | `path`                   |
+| `fs.utimes`     | `utimes`                                                         | `path`, `atime`, `mtime` |
+| `fs.write`      | `write`, `filehandle.write()`                                    | `fd`, `buffer`           |
+| `fs.writeFile`  | `writeFile`, `filehandle.writeFile()`, `filehandle.appendFile()` | `path`, `data`           |
+| `fs.writev`     | `writev`, `filehandle.writev()`                                  | `fd`, `buffers`          |
+
+A function name such as `stat` means `fs.stat()`, `fs.statSync()`, and
+`fsPromises.stat()`, where these exist. For `fs.readFile`, `fs.writeFile`, and
+`fs.appendFile`, `path` is the value as passed, so it can also be a file
+descriptor or a {FileHandle}. For `fs.write` with a string, `buffer` is the
+string. For callback forms, `result` is the first callback argument after the
+error, so for `fs.read` and `fs.write` it is the number of bytes.
+
+An operation that uses other `fs` operations also publishes those, inside its
+own events. For example, `fs.readFileSync()` without an encoding publishes to
+`fs.open`, `fs.read`, and `fs.close`. Streams from `fs.createReadStream()` and
+`fs.createWriteStream()` publish the `fs.open`, `fs.read`, `fs.write`,
+`fs.writev`, and `fs.close` operations they use.
+
+`fsPromises.glob()`, `fs.watch()`, `fs.watchFile()`, and `dir.read()` do not
+publish events.
+
 #### HTTP
 
 > Stability: 1 - Experimental
