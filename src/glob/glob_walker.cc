@@ -1493,7 +1493,14 @@ class WalkerState {
       ctx.ResultAdd(path, DirentTypeOf(stat));
     }
 
-    if (!is_directory || !MayDescend(path, pattern)) return;
+    // Permission deny on the parent looks like a missing directory. A single
+    // live literal can still be probed without listing the parent (e.g.
+    // `somedir/*` with `--allow-fs-read=somedir/`).
+    const bool literal_only =
+        pattern.indexes.size() == 1 &&
+        IsLiteral(
+            pattern.At(static_cast<ptrdiff_t>(pattern.indexes.values()[0])));
+    if ((!is_directory && !literal_only) || !MayDescend(path, pattern)) return;
 
     [[maybe_unused]] std::shared_ptr<const std::vector<std::string>>
         next_realpaths;
