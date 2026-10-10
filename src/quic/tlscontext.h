@@ -21,7 +21,7 @@ namespace node::quic {
 class Session;
 class TLSContext;
 
-#if OPENSSL_IS_BORING
+#ifdef OPENSSL_IS_BORINGSSL
 static_assert(false,
               "This implementation of tlscontext relies on OpenSSL APIS "
               "that are not available in BoringSSL. An alternative impl "

@@ -10,7 +10,7 @@ const {
   getCiphers,
   getCipherInfo,
 } = require('crypto');
-const { hasFIPS, hasOpenSSL, isBoringSSL } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 
@@ -18,7 +18,7 @@ const ciphers = getCiphers();
 
 assert.strictEqual(getCipherInfo(-1), undefined);
 assert.strictEqual(getCipherInfo('cipher that does not exist'), undefined);
-if (hasOpenSSL(3)) {
+if (!isBoringSSL) {
   assert.deepStrictEqual(
     ciphers.filter((cipher) => cipher.includes('cbc-hmac')), []);
   for (const cipher of [

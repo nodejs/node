@@ -6,7 +6,7 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 const crypto = require('crypto');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 
 // 'ClassName' : ['args', 'for', 'constructor']
 const TEST_CASES = {
@@ -31,7 +31,7 @@ if (hasFIPS(3)) {
   TEST_CASES.DiffieHellman = [2048];
   TEST_CASES.DiffieHellmanGroup = ['modp14'];
 } else if (crypto.getFips() !== 1) {
-  TEST_CASES.DiffieHellman = [hasOpenSSL(3) ? 1024 : 256];
+  TEST_CASES.DiffieHellman = [isBoringSSL ? 256 : 1024];
 }
 
 for (const [clazz, args] of Object.entries(TEST_CASES)) {

@@ -4,8 +4,8 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasFIPS, hasOpenSSL, isBoringSSL } = require('../common/crypto');
-if (isBoringSSL || !hasOpenSSL(3))
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
+if (isBoringSSL)
   common.skip('OpenSSL providers are required');
 
 const assert = require('assert');

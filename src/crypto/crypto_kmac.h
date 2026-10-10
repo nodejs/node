@@ -64,7 +64,7 @@ void Initialize(Environment* env, v8::Local<v8::Object> target);
 void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Kmac
 
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
 // If there is no KMAC support, provide empty namespace functions.
 namespace Kmac {
 void Initialize(Environment* env, v8::Local<v8::Object> target) {}

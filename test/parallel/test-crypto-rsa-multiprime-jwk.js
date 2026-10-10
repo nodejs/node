@@ -6,13 +6,13 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
-const { hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 const {
   createPrivateKey,
 } = require('crypto');
 const { subtle } = globalThis.crypto;
 
-if (process.features.openssl_is_boringssl)
+if (isBoringSSL)
   common.skip('multi-prime RSA is not available with BoringSSL');
 if (hasFIPS())
   common.skip('multi-prime RSA is not available in FIPS mode');

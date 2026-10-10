@@ -7,10 +7,10 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-const { hasOpenSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 
-if (!hasOpenSSL(3)) {
-  common.skip('only openssl3'); // https://github.com/nodejs/node/pull/42793#issuecomment-1107491901
+if (isBoringSSL) {
+  common.skip('this test is not supported with BoringSSL'); // https://github.com/nodejs/node/pull/42793#issuecomment-1107491901
 }
 
 const assert = require('assert');
