@@ -417,6 +417,7 @@ class PerProcessOptions : public Options {
 
   DEFINE_BOOL_FIELD(zero_fill_all_buffers) = false;
   DEFINE_BOOL_FIELD(debug_arraybuffer_allocations) = false;
+  DEFINE_BOOL_FIELD(restore_terminal_state) = true;
 
   // We enable the shared read-only heap which currently requires that the
   // snapshot used in different isolates in the same process to be the same.
