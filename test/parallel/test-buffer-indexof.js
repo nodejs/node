@@ -758,3 +758,43 @@ assert.strictEqual(reallyLong.lastIndexOf(pattern), 0);
   assert.strictEqual(buf.lastIndexOf('', 5, 3), 3);
   assert.strictEqual(buf.lastIndexOf(Buffer.from(''), 5, 3), 3);
 }
+
+{
+  const buf = Buffer.from('abcabc');
+
+  // Non-number end values used to reach a native CHECK and abort the process.
+  assert.throws(() => buf.indexOf('a', 0, null), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "end" argument must be of type number. Received null',
+  });
+  for (const end of [null, true, {}, [], 1n, Symbol('end')]) {
+    for (const method of ['indexOf', 'lastIndexOf', 'includes']) {
+      for (const value of ['a', 0x61, Buffer.from('a')]) {
+        assert.throws(() => buf[method](value, 0, end), {
+          code: 'ERR_INVALID_ARG_TYPE',
+          name: 'TypeError',
+        });
+      }
+    }
+  }
+
+  // End values outside the int64 range are clamped to the buffer length.
+  assert.strictEqual(buf.indexOf('a', 0, Infinity), 0);
+  assert.strictEqual(buf.indexOf(0x61, 0, Infinity), 0);
+  assert.strictEqual(buf.indexOf(Buffer.from('a'), 0, Infinity), 0);
+  assert.strictEqual(buf.indexOf('a', 0, 1e20), 0);
+  assert.strictEqual(buf.indexOf(0x61, 0, 1e20), 0);
+  assert.strictEqual(buf.lastIndexOf('a', 5, Infinity), 3);
+  assert.strictEqual(buf.lastIndexOf(0x61, 5, Infinity), 3);
+  assert.strictEqual(buf.lastIndexOf(Buffer.from('a'), 5, Infinity), 3);
+  assert.strictEqual(buf.includes('c', 0, Infinity), true);
+
+  // -Infinity and NaN select an empty range.
+  assert.strictEqual(buf.indexOf('a', 0, -Infinity), -1);
+  assert.strictEqual(buf.indexOf('a', 0, NaN), -1);
+  assert.strictEqual(buf.indexOf(0x61, 0, NaN), -1);
+  assert.strictEqual(buf.indexOf(Buffer.from('a'), 0, NaN), -1);
+  assert.strictEqual(buf.lastIndexOf('a', 5, NaN), -1);
+  assert.strictEqual(buf.includes('a', 0, NaN), false);
+}
