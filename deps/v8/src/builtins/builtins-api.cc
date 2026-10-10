@@ -65,7 +65,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
 
   Handle<JSReceiver> js_receiver;
   if (is_construct) {
-    DCHECK(IsTheHole(*receiver));
+    DCHECK(IsTdzHole(*receiver));
     if (IsUndefined(fun_data->GetInstanceTemplate())) {
       v8::Local<ObjectTemplate> templ =
           ObjectTemplate::New(reinterpret_cast<v8::Isolate*>(isolate),

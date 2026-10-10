@@ -30,9 +30,7 @@ YoungGenerationMarkingVisitor<marking_mode>::YoungGenerationMarkingVisitor(
       isolate_(heap->isolate()),
       marking_worklists_local_(
           heap->minor_mark_sweep_collector()->marking_worklists(),
-          heap->cpp_heap()
-              ? CppHeap::From(heap->cpp_heap())->CreateCppMarkingState()
-              : MarkingWorklists::Local::kNoCppMarkingState),
+          CppHeap::From(heap->cpp_heap())->CreateCppMarkingState()),
       ephemeron_table_list_local_(
           *heap->minor_mark_sweep_collector()->ephemeron_table_list()),
       pretenuring_handler_(heap->pretenuring_handler()),

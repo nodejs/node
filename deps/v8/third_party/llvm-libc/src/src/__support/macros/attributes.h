@@ -29,6 +29,14 @@
 #define LIBC_INLINE_ASM __asm__ __volatile__
 #define LIBC_UNUSED __attribute__((unused))
 
+#if __has_attribute(always_inline)
+#define LIBC_ALWAYS_INLINE LIBC_INLINE __attribute__((always_inline))
+#elif defined(LIBC_COMPILER_IS_MSVC) || defined(_MSC_VER)
+#define LIBC_ALWAYS_INLINE __forceinline
+#else
+#define LIBC_ALWAYS_INLINE LIBC_INLINE
+#endif // __has_attribute(always_inline)
+
 #ifndef LIBC_HAS_BUILTIN_IS_CONSTANT_EVALUATED
 #if (defined(LIBC_COMPILER_IS_GCC) && (LIBC_COMPILER_GCC_VER >= 900)) ||       \
     (defined(LIBC_COMPILER_IS_CLANG) && LIBC_COMPILER_CLANG_VER >= 900)

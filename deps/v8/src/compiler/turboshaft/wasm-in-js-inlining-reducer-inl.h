@@ -145,6 +145,7 @@ class WasmInJSInliningReducer : public Next {
       // guards that eagerly deopt if we fall off the conversion fastpath, e.g.,
       // not Smi or HeapNumber. In particular, we do not call builtins that
       // could transitively cause a lazy deopt via valueOf/Symbol.toPrimitive.
+      CHECK_IMPLIES(sig->parameter_count() > 0, caller_frame_state.has_value());
       V<Any> result = builder.BuildJSToWasmWrapper(
           js_closure, js_context, arguments, continuation_frame_state,
           descriptor->lazy_deopt_on_throw, caller_frame_state);
@@ -872,6 +873,7 @@ class WasmInJsInliningInterface {
   BAILOUT_WASM_OP(StructAtomicRMW)
   BAILOUT_WASM_OP(StructAtomicCompareExchange)
   BAILOUT_WASM_OP(StructWait)
+  BAILOUT_WASM_OP(ArrayWait)
   BAILOUT_WASM_OP(WaitqueueNotify)
   BAILOUT_WASM_OP(WaitqueueNew)
 

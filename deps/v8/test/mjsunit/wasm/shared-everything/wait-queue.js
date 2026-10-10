@@ -97,16 +97,19 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   wasm.cast_null_to_null();
 })();
 
-(function TestWaitNotify() {
-  print(arguments.callee.name);
+function typeToName(type) {
+  if (type == kWasmI32) return "i32";
+  else if (type == kWasmI64) return "i64";
+  else return "eqref";
+}
 
-  let value0 = 42;
-  let value1 = 10;
+function TestWaitNotifyStruct(type, const_op, value0, value1) {
+  print(`${arguments.callee.name} ${typeToName(type)}`);
 
   let builder = new WasmModuleBuilder();
 
   let struct = builder.addStruct(
-      {fields: [makeField(kWasmI32, true),
+      {fields: [makeField(type, true),
                 makeField(wasmRefNullType(kWasmWaitqueueRef).shared(), true)],
        shared: true});
 
@@ -114,12 +117,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let global = builder.addGlobal(
       struct_type, true, false,
-      [kExprI32Const, value0, kAtomicPrefix, kExprWaitqueueNew,
+      [...const_op(value0), kAtomicPrefix, kExprWaitqueueNew,
        kGCPrefix, kExprStructNew, struct]);
 
   builder.addExportOfKind("global", kExternalGlobal, global.index);
 
-  builder.addFunction("make", makeSig([kWasmI32], [struct_type]))
+  builder.addFunction("make", makeSig([type], [struct_type]))
     .addBody([kExprLocalGet, 0, kAtomicPrefix, kExprWaitqueueNew,
               kGCPrefix, kExprStructNew, struct])
     .exportFunc();
@@ -137,7 +140,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportFunc();
 
   builder.addFunction(
-      "wait", makeSig([struct_type, kWasmI32, kWasmI64], [kWasmI32]))
+      "wait", makeSig([struct_type, type, kWasmI64], [kWasmI32]))
     .addBody([kExprLocalGet, 0,
               kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 1,
               kExprLocalGet, 1, kExprLocalGet, 2,
@@ -145,7 +148,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportFunc();
 
   builder.addFunction(
-      "wait_null_struct", makeSig([kWasmI32, kWasmI64], [kWasmI32]))
+      "wait_null_struct", makeSig([type, kWasmI64], [kWasmI32]))
     .addBody([kExprRefNull, struct, kAtomicPrefix, kExprWaitqueueNew,
               kExprLocalGet, 0, kExprLocalGet, 1,
               kAtomicPrefix, kExprStructWait, struct, 0])
@@ -153,7 +156,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction(
       "wait_null_waitqueue",
-      makeSig([struct_type, kWasmI32, kWasmI64], [kWasmI32]))
+      makeSig([struct_type, type, kWasmI64], [kWasmI32]))
     .addBody([kExprLocalGet, 0,
               kExprRefNull, kWasmSharedTypeForm, kWaitqueueRefCode,
               kExprLocalGet, 1, kExprLocalGet, 2,
@@ -286,4 +289,162 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   worker.terminate();
   worker2.terminate();
-})();
+}
+
+TestWaitNotifyStruct(kWasmI32, wasmI32Const, 42, 10);
+TestWaitNotifyStruct(kWasmI64, wasmI64Const, (1n << 40n) + 42n,
+                     (1n << 40n) + 10n);
+TestWaitNotifyStruct(
+    wasmRefNullType(kWasmEqRef).shared(),
+    v => [...wasmI32Const(v), kGCPrefix, kExprRefI31Shared], 42, 10);
+
+function TestWaitNotifyArray(type, const_op, value0, value1) {
+  print(`${arguments.callee.name} ${typeToName(type)}`);
+
+  let builder = new WasmModuleBuilder();
+
+  let array = builder.addArray(type, {shared: true});
+  let array_type = wasmRefNullType(array);
+
+  let struct = builder.addStruct(
+      {fields: [makeField(array_type, true),
+                makeField(wasmRefNullType(kWasmWaitqueueRef).shared(), true)],
+       shared: true});
+
+  let struct_type = wasmRefNullType(struct);
+
+  let global = builder.addGlobal(
+      struct_type, true, false,
+      [...const_op(value1), ...const_op(value0),
+       kGCPrefix, kExprArrayNewFixed, array, 2,
+       kAtomicPrefix, kExprWaitqueueNew,
+       kGCPrefix, kExprStructNew, struct]);
+
+  builder.addExportOfKind("global", kExternalGlobal, global.index);
+
+  builder.addFunction("make", makeSig([type], [struct_type]))
+    .addBody([...const_op(value1), kExprLocalGet, 0,
+              kGCPrefix, kExprArrayNewFixed, array, 2,
+              kAtomicPrefix, kExprWaitqueueNew,
+              kGCPrefix, kExprStructNew, struct])
+    .exportFunc();
+
+  builder.addFunction(
+      "notify", makeSig([struct_type, kWasmI32], [kWasmI32]))
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 1,
+              kExprLocalGet, 1,
+              kAtomicPrefix, kExprWaitqueueNotify])
+    .exportFunc();
+
+  builder.addFunction(
+      "wait", makeSig([struct_type, kWasmI32, type, kWasmI64], [kWasmI32]))
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 0,
+              kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 1,
+              kExprLocalGet, 1, kExprLocalGet, 2, kExprLocalGet, 3,
+              kAtomicPrefix, kExprArrayWait, array])
+    .exportFunc();
+
+  builder.addFunction(
+      "wait_null_array", makeSig([kWasmI32, type, kWasmI64], [kWasmI32]))
+    .addBody([kExprRefNull, array, kAtomicPrefix, kExprWaitqueueNew,
+              kExprLocalGet, 0, kExprLocalGet, 1, kExprLocalGet, 2,
+              kAtomicPrefix, kExprArrayWait, array])
+    .exportFunc();
+
+  builder.addFunction(
+      "wait_null_waitqueue",
+      makeSig([struct_type, kWasmI32, type, kWasmI64], [kWasmI32]))
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 0,
+              kExprRefNull, kWasmSharedTypeForm, kWaitqueueRefCode,
+              kExprLocalGet, 1, kExprLocalGet, 2, kExprLocalGet, 3,
+              kAtomicPrefix, kExprArrayWait, array])
+    .exportFunc();
+
+  let module = builder.toModule();
+
+  let instance = new WebAssembly.Instance(module, {});
+
+  let struct_from_function = instance.exports.make(value0);
+  let struct_global = instance.exports.global.value;
+
+  function workerCode() {
+    instance = undefined;
+    onmessage = function({data:msg}) {
+      if (!instance) {
+        instance = new WebAssembly.Instance(msg.module, {});
+        postMessage('instantiated');
+      } else {
+        try {
+          let result = msg.kind == "normal" ?
+                          instance.exports.wait(...msg.arguments)
+                     : msg.kind == "null_array" ?
+                          instance.exports.wait_null_array(...msg.arguments)
+                     : instance.exports.wait_null_waitqueue(...msg.arguments);
+          print(`[worker] ${result}`);
+          postMessage(result);
+        } catch (e) {
+          if (e instanceof WebAssembly.RuntimeError &&
+              e.message.includes("dereferencing a null pointer")) {
+            postMessage("dereferencing a null pointer");
+          } else if (e instanceof WebAssembly.RuntimeError &&
+                     e.message.includes("array element access out of bounds")) {
+            postMessage("array element access out of bounds");
+          } else {
+            postMessage("unknown exception");
+          }
+        }
+      }
+      return;
+    }
+  }
+
+  let worker = new Worker(workerCode, {type: 'function'});
+
+  worker.postMessage({module: module});
+  assertEquals('instantiated', worker.getMessage());
+
+  const k1ms = 1_000_000n;
+  const k10s = 10_000_000_000n;
+
+  worker.postMessage({kind: "null_array", arguments: [1, value1, k1ms]});
+  assertEquals("dereferencing a null pointer", worker.getMessage());
+  worker.postMessage({kind: "null_waitqueue",
+                      arguments: [struct_from_function, 1, value1, k1ms]});
+  assertEquals("dereferencing a null pointer", worker.getMessage());
+  worker.postMessage({kind: "normal",
+                      arguments: [struct_from_function, 2, value1, k1ms]});
+  assertEquals("array element access out of bounds", worker.getMessage());
+
+  for (struct_obj of [struct_from_function, struct_global]) {
+    worker.postMessage({kind: "normal",
+                        arguments: [struct_obj, 1, value1, k1ms]});
+    assertEquals(kAtomicWaitNotEqual, worker.getMessage());
+
+    worker.postMessage({kind: "normal",
+                        arguments: [struct_obj, 1, value0, k1ms]});
+    assertEquals(kAtomicWaitTimedOut, worker.getMessage());
+
+    worker.postMessage({kind: "normal",
+                        arguments: [struct_obj, 1, value0, k10s]});
+    const started = performance.now();
+    let notified;
+
+    while ((notified = instance.exports.notify(struct_obj, 1)) === 0) {
+      const now = performance.now();
+      if (now - started > k10s) {
+        throw new Error('Could not notify worker within 10s');
+      }
+    }
+    assertEquals(1, notified);
+    assertEquals(kAtomicWaitOk, worker.getMessage());
+  }
+
+  worker.terminate();
+}
+
+TestWaitNotifyArray(kWasmI32, wasmI32Const, 42, 10);
+TestWaitNotifyArray(
+    kWasmI64, wasmI64Const, (1n << 40n) + 42n, (1n << 40n) + 10n);
+TestWaitNotifyArray(
+    wasmRefNullType(kWasmEqRef).shared(),
+    v => [...wasmI32Const(v), kGCPrefix, kExprRefI31Shared], 42, 10);

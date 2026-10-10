@@ -173,6 +173,14 @@ TEST_F(FlagDefinitionsTest, AssignReadOnlyStringFlag) {
   CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
 }
 
+TEST_F(FlagDefinitionsTest, RejectNegativeUnsignedFlagAndKeepDefault) {
+  int argc = 2;
+  const char* argv[] = {"Test", "--cpu-profiler-sampling-interval=-100"};
+  CHECK_EQ(1, FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv),
+                                                true));
+  CHECK_EQ(1000u, v8_flags.cpu_profiler_sampling_interval.value());
+}
+
 TEST_F(FlagDefinitionsTest, FlagsRemoveIncomplete) {
   // Test that processed command line arguments are removed, even
   // if the list of arguments ends unexpectedly.

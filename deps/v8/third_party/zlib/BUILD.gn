@@ -375,8 +375,6 @@ component("zlib") {
     # Must be after no_chromium_code for warning flags to be ordered correctly.
     ":zlib_warnings",
   ]
-
-  allow_circular_includes_from = deps
 }
 
 config("minizip_warnings") {

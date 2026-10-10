@@ -27,11 +27,6 @@ FRONTMATTER_PATTERN = re.compile(
     r"\A(?P<block>---[ \t]*\r?\n(?P<yaml>.*?)\r?\n---[ \t]*)"
     r"(?:\r?\n|\Z)", re.DOTALL)
 COPILOT_INCOMPATIBLE_RULES = {
-    # Mandates orchestration-only operation through subagent and `gdb-mcp`
-    # APIs not mapped by this adapter.
-    "debugging.md",
-    # Hard-codes Jetski/Gemini CLI behavior and adapter paths.
-    "framework.md",
     # Mandates `TAG=agy` and a conversation ID that this adapter cannot
     # supply, which would land in uploaded CL descriptions.
     "git-commit.md",
@@ -42,10 +37,6 @@ COPILOT_INCOMPATIBLE_SKILLS = {
     "agent-evaluation-framework",
     # Mandates a subagent API and model tier not mapped by this adapter.
     "doc-invalidation-checker",
-    # Maps only Jetski and Gemini CLI tools.
-    "env-abstraction",
-    # Mandates scheduling and delegation APIs not mapped by this adapter.
-    "orchestrator",
     # Mandates internal Buganizer, session-context, and delegation APIs not
     # provisioned or mapped by this adapter.
     "v8-security-triaging",

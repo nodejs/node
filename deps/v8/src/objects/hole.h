@@ -42,6 +42,9 @@ V8_OBJECT class Hole : public HeapObject {
 
 HOLE_LIST(DEFINE_HOLE_TYPE)
 #undef DEFINE_HOLE_TYPE
+#ifndef V8_ENABLE_TDZ_HOLE
+using TdzHole = TheHole;
+#endif
 
 }  // namespace internal
 }  // namespace v8

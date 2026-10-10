@@ -12,6 +12,7 @@ add_header_library(
     libc.src.__support.CPP.string
     libc.src.__support.CPP.tuple
     libc.src.__support.CPP.type_traits
+    libc.src.__support.CPP.utility
     libc.src.__support.OSUtil.osutil
     libc.src.__support.macros.config
     libc.src.__support.math.ceil

@@ -11,3 +11,5 @@ extern class TheHole extends Hole;
 @hasSameInstanceTypeAsParent
 @doNotGenerateCast
 extern class PromiseHole extends Hole;
+
+type TdzHole extends Hole generates 'TdzHole';

@@ -42,9 +42,7 @@ namespace internal {
 
 DebugScopeIterator::DebugScopeIterator(Isolate* isolate,
                                        FrameInspector* frame_inspector)
-    : iterator_(
-          isolate, frame_inspector,
-          ::v8::internal::ScopeIterator::ReparseStrategy::kFunctionLiteral) {
+    : iterator_(isolate, frame_inspector) {
   iterator_.AdvanceToScopeNumber(0);
 }
 
@@ -67,8 +65,6 @@ void DebugScopeIterator::Advance() {
   iterator_.Next();
   iterator_.AdvanceToScopeNumber(0);
 }
-
-bool DebugScopeIterator::ShouldIgnore() { return iterator_.ShouldIgnore(); }
 
 v8::debug::ScopeIterator::ScopeType DebugScopeIterator::GetType() {
   DCHECK(!Done());
@@ -107,6 +103,11 @@ debug::Location DebugScopeIterator::GetEndLocation() {
   DCHECK(!Done());
   return ToApiHandle<v8::debug::Script>(iterator_.GetScript())
       ->GetSourceLocation(iterator_.end_position());
+}
+
+bool DebugScopeIterator::DeclaresLocals() {
+  DCHECK(!Done());
+  return iterator_.DeclaresLocals(i::ScopeIterator::Mode::ALL);
 }
 
 bool DebugScopeIterator::SetVariableValue(v8::Local<v8::String> name,

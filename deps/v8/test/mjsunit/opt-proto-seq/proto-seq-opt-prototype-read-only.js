@@ -56,7 +56,7 @@ assert_test_prototype_read_only(test_prototype_read_only());
 %OptimizeMaglevOnNextCall(test_prototype_read_only);
 assert_test_prototype_read_only(test_prototype_read_only());
 assertOptimized(test_prototype_read_only);
-assertTrue(isMaglevved(test_prototype_read_only));
+assertMaglevved(test_prototype_read_only);
 assert_test_prototype_read_only(test_prototype_read_only());
 %OptimizeFunctionOnNextCall(test_prototype_read_only);
 assert_test_prototype_read_only(test_prototype_read_only());

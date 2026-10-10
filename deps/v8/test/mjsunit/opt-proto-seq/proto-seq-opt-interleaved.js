@@ -35,7 +35,7 @@ assert_test_interleaved_statements(test_interleaved_statements());
 %OptimizeMaglevOnNextCall(test_interleaved_statements);
 assert_test_interleaved_statements(test_interleaved_statements());
 assertOptimized(test_interleaved_statements);
-assertTrue(isMaglevved(test_interleaved_statements));
+assertMaglevved(test_interleaved_statements);
 assert_test_interleaved_statements(test_interleaved_statements());
 %OptimizeFunctionOnNextCall(test_interleaved_statements);
 assert_test_interleaved_statements(test_interleaved_statements());

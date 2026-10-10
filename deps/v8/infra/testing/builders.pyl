@@ -332,7 +332,8 @@
       {'name': 'v8testing', 'shards': 7},
       {'name': 'benchmarks', 'shards': 5},
       {'name': 'mozilla', 'shards': 5},
-      {'name': 'test262', 'shards': 12},
+      {'name': 'test262', 'variant': 'default', 'shards': 6},
+      {'name': 'test262', 'variant': 'future', 'shards': 6},
     ],
   },
   'v8_linux64_dbg': {
@@ -445,8 +446,9 @@
     'swarming_dimensions' : {
       'os': 'Ubuntu-22.04',
     },
-    # TODO(almuthanna): Add a new test config for the fuzzilli suite.
-    'tests': [],
+    'tests': [
+      {'name': 'mjsunit', 'variant': 'default'},
+    ],
   },
   'v8_linux64_fyi_rel': {
     'swarming_dimensions' : {
@@ -1408,6 +1410,14 @@
       },
     ],
   },
+  'V8 Linux64 - Fuzzilli': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'mjsunit', 'variant': 'default'},
+    ],
+  },
   'V8 Linux64 - official': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
@@ -1831,7 +1841,8 @@
       {'name': 'v8testing', 'shards': 7},
       {'name': 'benchmarks', 'shards': 5},
       {'name': 'mozilla', 'shards': 5},
-      {'name': 'test262', 'shards': 16},
+      {'name': 'test262', 'variant': 'default', 'shards': 4},
+      {'name': 'test262', 'variant': 'future', 'shards': 4},
     ],
   },
   'V8 Linux64 GC Stress - custom snapshot': {
@@ -2245,7 +2256,7 @@
     },
     'tests': [
       {'name': 'mozilla', 'shards': 3},
-      {'name': 'test262', 'variant': 'default', 'shards': 3},
+      {'name': 'test262', 'variant': 'default', 'shards': 6},
       {'name': 'v8testing', 'shards': 10},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 9},
       {'name': 'v8testing', 'variant': 'turbolev', 'shards': 2},
@@ -2337,7 +2348,7 @@
     },
     'tests': [
       {'name': 'mozilla', 'shards': 2},
-      {'name': 'test262', 'variant': 'default', 'shards': 3},
+      {'name': 'test262', 'variant': 'default', 'shards': 6},
       {'name': 'v8testing', 'shards': 12},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 14},
       {

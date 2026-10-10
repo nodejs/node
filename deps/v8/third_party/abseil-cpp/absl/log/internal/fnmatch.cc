@@ -23,50 +23,40 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace log_internal {
 bool FNMatch(absl::string_view pattern, absl::string_view str) {
-  bool in_wildcard_match = false;
-  while (true) {
-    if (pattern.empty()) {
-      // `pattern` is exhausted; succeed if all of `str` was consumed matching
-      // it.
-      return in_wildcard_match || str.empty();
-    }
-    if (str.empty()) {
-      // `str` is exhausted; succeed if `pattern` is empty or all '*'s.
-      return pattern.find_first_not_of('*') == pattern.npos;
-    }
-    switch (pattern.front()) {
-      case '*':
-        pattern.remove_prefix(1);
-        in_wildcard_match = true;
-        break;
-      case '?':
-        pattern.remove_prefix(1);
-        str.remove_prefix(1);
-        break;
-      default:
-        if (in_wildcard_match) {
-          absl::string_view fixed_portion = pattern;
-          const size_t end = fixed_portion.find_first_of("*?");
-          if (end != fixed_portion.npos) {
-            fixed_portion = fixed_portion.substr(0, end);
-          }
-          const size_t match = str.find(fixed_portion);
-          if (match == str.npos) {
-            return false;
-          }
-          pattern.remove_prefix(fixed_portion.size());
-          str.remove_prefix(match + fixed_portion.size());
-          in_wildcard_match = false;
-        } else {
-          if (pattern.front() != str.front()) {
-            return false;
-          }
-          pattern.remove_prefix(1);
-          str.remove_prefix(1);
-        }
-        break;
+  // Two-pointer glob matcher: '?' matches exactly one character and '*' matches
+  // any run of characters (including the empty run). We remember the position
+  // just after the most recent '*' so that, on a later mismatch, that '*' can
+  // consume one more character of `str` and the match be retried.
+  size_t p = 0;  // Current position in `pattern`.
+  size_t s = 0;  // Current position in `str`.
+  // `pattern` position just after the most recent '*', and the `str` position
+  // when it was seen; `npos` until a '*' has been encountered.
+  size_t star_p = absl::string_view::npos;
+  size_t star_s = 0;
+  while (s < str.size()) {
+    if (p < pattern.size() && pattern[p] == '*') {
+      // Found '*'. Record checkpoint after '*' and advance pattern index only.
+      star_p = ++p;
+      star_s = s;
+    } else if (p < pattern.size() &&
+               (pattern[p] == '?' || pattern[p] == str[s])) {
+      // Literal character match or single-character wildcard '?'.  Advance both
+      // pattern and string pointers.
+      ++p;
+      ++s;
+    } else if (star_p != absl::string_view::npos) {
+      // Mismatch, but a preceding '*' exists. Backtrack: reset pattern to after
+      // the '*', and let that '*' consume one more character.
+      p = star_p;
+      s = ++star_s;
+    } else {
+      // Mismatch and no preceding '*' exists to absorb it.
+      return false;
     }
   }
+  // `str` is exhausted; the remainder of `pattern` must be all '*'s.
+  while (p < pattern.size() && pattern[p] == '*') ++p;
+  return p == pattern.size();
 }
 }  // namespace log_internal
 ABSL_NAMESPACE_END

@@ -11,13 +11,12 @@
 
 #include "unicode/uchar.h"
 #include "unicode/uniset.h"
-#include "unicode/unistr.h"
 
 namespace v8 {
 namespace internal {
 namespace regexp {
 
-// Sets of Unicode characters that need special handling under "i" mode
+// Case equivalence for ignoreCase matching.
 
 // For non-unicode ignoreCase matches (aka "i", not "iu"), ECMA 262
 // defines slightly different case-folding rules than Unicode. An
@@ -34,81 +33,66 @@ namespace regexp {
 // set of characters that should match a given input character. (See
 // GetCaseIndependentLetters and CharacterRange::AddCaseEquivalents.)
 // For almost all characters, this can be efficiently computed using
-// UnicodeSet::closeOver(USET_CASE_INSENSITIVE). These sets represent
-// the remaining special cases.
+// UnicodeSet::closeOver(USET_SIMPLE_CASE_INSENSITIVE). IgnoreSet represents
+// the remaining exceptions: characters that must match only themselves.
 //
-// For a character c, the rules are as follows:
+// If c is in IgnoreSet, it should match only itself. For example,
+// U+00DF LATIN SMALL LETTER SHARP S uppercases to "SS", so it
+// canonicalizes to itself and must not match U+1E9E LATIN CAPITAL
+// LETTER SHARP S, even though Unicode case closure connects them.
 //
-// 1. If c is in neither IgnoreSet nor SpecialAddSet, then calling
-//    UnicodeSet::closeOver(USET_CASE_INSENSITIVE) on a UnicodeSet
-//    containing c will produce the set of characters that should
-//    match /c/i (or /[c]/i), and only those characters.
+// Otherwise, closeOver produces the correct characters after removing
+// IgnoreSet. For example, closing over 'k' adds U+212A KELVIN SIGN,
+// which is in IgnoreSet and must not match 'k' in non-unicode mode.
 //
-// 2. If c is in IgnoreSet, then the only character it should match is
-//    itself. However, closeOver will add additional incorrect
-//    matches. For example, consider SHARP S: 'ß' (U+00DF) and 'ẞ'
-//    (U+1E9E). Although closeOver('ß') = "ßẞ", uppercase('ß') is
-//    "SS".  Step 3.e therefore requires that 'ß' canonicalizes to
-//    itself, and should not match 'ẞ'. In these cases, we can skip
-//    the closeOver entirely, because it will never add an equivalent
-//    character.
-//
-// 3. If c is in SpecialAddSet, then it should match at least one
-//    character other than itself. However, closeOver will add at
-//    least one additional incorrect match. For example, consider the
-//    letter 'k'. Closing over 'k' gives "kKK" (lowercase k, uppercase
-//    K, U+212A KELVIN SIGN). However, because of step 3.g, KELVIN
-//    SIGN should not match either of the other two characters. As a
-//    result, "k" and "K" are in SpecialAddSet (and KELVIN SIGN is in
-//    IgnoreSet). To find the correct matches for characters in
-//    SpecialAddSet, we closeOver the original character, but filter
-//    out the results that do not have the same canonical value.
-//
-// The contents of these sets are calculated at build time by
+// The contents of IgnoreSet are calculated at build time by
 // src/regexp/gen-regexp-special-case.cc, which generates
 // gen/src/regexp/special-case.cc. This is done by iterating over the
 // result of closeOver for each BMP character, and finding sets for
 // which at least one character has a different canonical value than
 // another character. Characters that match no other characters in
-// their equivalence class are added to IgnoreSet. Characters that
-// match at least one other character are added to SpecialAddSet.
+// their equivalence class are added to IgnoreSet. The generator verifies
+// that each Unicode class has at most one non-trivial JS class.
 
-class CaseFolding final : public AllStatic {
+class V8_EXPORT_PRIVATE CaseFolding final : public AllStatic {
  public:
-  static const icu::UnicodeSet& IgnoreSet();
-  static const icu::UnicodeSet& SpecialAddSet();
+  enum class Mode { kNonUnicode, kUnicode };
 
-  // This implements ECMAScript 2020 21.2.2.8.2 (Runtime Semantics:
-  // Canonicalize) step 3, which is used to determine whether
-  // characters match when ignoreCase is true and unicode is false.
-  static UChar32 Canonicalize(UChar32 ch) {
-    // a. Assert: ch is a UTF-16 code unit.
-    CHECK_LE(ch, 0xffff);
-
-    // b. Let s be the String value consisting of the single code unit ch.
-    icu::UnicodeString s(ch);
-
-    // c. Let u be the same result produced as if by performing the algorithm
-    // for String.prototype.toUpperCase using s as the this value.
-    // d. Assert: Type(u) is String.
-    icu::UnicodeString& u = s.toUpper();
-
-    // e. If u does not consist of a single code unit, return ch.
-    if (u.length() != 1) {
-      return ch;
-    }
-
-    // f. Let cu be u's single code unit element.
-    UChar32 cu = u.char32At(0);
-
-    // g. If the value of ch >= 128 and the value of cu < 128, return ch.
-    if (ch >= 128 && cu < 128) {
-      return ch;
-    }
-
-    // h. Return cu.
-    return cu;
+  // Equal keys denote matching characters, but can diverge from the
+  // specification's Canonicalize operation. Non-unicode inputs are UTF-16 code
+  // units; Unicode inputs are code points.
+  static UChar32 EquivalenceKey(UChar32 c, Mode mode) {
+    DCHECK_GE(c, 0);
+    DCHECK_LE(c, mode == Mode::kNonUnicode ? 0xffff : 0x10ffff);
+    if (mode == Mode::kNonUnicode && IgnoreSet().contains(c)) return c;
+    return u_foldCase(c, U_FOLD_CASE_DEFAULT);
   }
+
+  // Close a set of characters under case equivalence, preserving its
+  // original members. Non-unicode inputs must be UTF-16 code units.
+  static void CloseOver(icu::UnicodeSet& set, Mode mode) {
+    if (mode == Mode::kUnicode) {
+      set.closeOver(USET_SIMPLE_CASE_INSENSITIVE);
+      return;
+    }
+    if (IgnoreSet().containsNone(set)) {
+      set.closeOver(USET_SIMPLE_CASE_INSENSITIVE);
+      set.removeAll(IgnoreSet());
+      return;
+    }
+    if (IgnoreSet().containsAll(set)) return;
+    // Ignored characters neither contribute nor acquire equivalents, but
+    // must remain in the result if they were explicitly present.
+    icu::UnicodeSet ignored(set);
+    ignored.retainAll(IgnoreSet());
+    set.removeAll(IgnoreSet());
+    set.closeOver(USET_SIMPLE_CASE_INSENSITIVE);
+    set.removeAll(IgnoreSet());
+    set.addAll(ignored);
+  }
+
+ private:
+  static const icu::UnicodeSet& IgnoreSet();
 };
 
 }  // namespace regexp

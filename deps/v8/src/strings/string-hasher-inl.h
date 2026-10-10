@@ -313,6 +313,7 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
       switch (detail::TryParseArrayIndex(chars, length, i, index)) {
         case detail::kSuccess: {
           DCHECK_LE(index, String::kMaxArrayIndex);
+          if (out_one_byte_content) *out_one_byte_content = true;
           return StringHasher::MakeArrayIndexHash(static_cast<uint32_t>(index),
                                                   length, seed);
         }

@@ -123,6 +123,10 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // the current pc is used to define the safepoint. Otherwise the provided
   // pc_offset is used.
   void RecordSafepoint(ReferenceMap* references, int pc_offset = 0);
+  // In special cases (such as stack checks before initializing the frame),
+  // tagged slots are not yet initialized and hence not safe to visit, so any
+  // safepoints should not include them.
+  void RecordSafepointWithoutTaggedSlots();
 
   Zone* zone() const { return zone_; }
   MacroAssembler* masm() { return &masm_; }

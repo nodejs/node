@@ -409,6 +409,7 @@ v8::StartupData Snapshot::Create(
   DCHECK_GT(contexts->size(), 0);
   HandleScope scope(isolate);
 
+  flags |= Snapshot::kAllowSerializingAllTrustedObjects;
   ReadOnlySerializer read_only_serializer(isolate, flags);
   read_only_serializer.Serialize();
 

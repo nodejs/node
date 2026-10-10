@@ -854,7 +854,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     // call, we create an observable deoptimization point after the receiver
     // instantiation but before the invocation (i.e. inside {JSConstructStub}
     // where execution continues at {construct_stub_create_deopt_pc_offset}).
-    Node* receiver = jsgraph()->TheHoleConstant();  // Implicit receiver.
+    Node* receiver = jsgraph()->TdzHoleConstant();  // Implicit receiver.
     Node* caller_context = NodeProperties::GetContextInput(node);
     if (NeedsImplicitReceiver(*shared_info)) {
       Effect effect = n.effect();

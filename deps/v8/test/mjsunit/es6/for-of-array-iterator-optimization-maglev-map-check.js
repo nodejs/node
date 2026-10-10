@@ -28,7 +28,7 @@ testForOf([1, 2, 3]);
 %OptimizeMaglevOnNextCall(testForOf);
 testForOf([1, 2, 3]);
 
-assertTrue(isMaglevved(testForOf));
+assertMaglevved(testForOf);
 
 // Create a fake itertor. Its next method is JSArrayIterator::next, but it is
 // not a JSArrayIterator.
@@ -38,4 +38,4 @@ let fake = {
 };
 
 assertThrows(() => testForOf(fake), TypeError);
-assertFalse(isMaglevved(testForOf));
+assertNotMaglevved(testForOf);

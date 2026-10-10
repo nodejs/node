@@ -20,6 +20,7 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -1056,9 +1057,9 @@ TEST(MutableAnySpanTest, NonTruncatingSubspan) {
     EXPECT_DEATH(span.subspan(5, 1), "");
     EXPECT_DEATH(span.subspan(AnySpan<int>::npos, 0), "");
     EXPECT_DEATH(span.subspan(AnySpan<int>::npos, 1), "");
-      EXPECT_DEATH(span.subspan(0, 5), "");
-      EXPECT_DEATH(span.first(5), "");
-      EXPECT_DEATH(span.first(AnySpan<int>::npos), "");
+    EXPECT_DEATH(span.subspan(0, 5), "");
+    EXPECT_DEATH(span.first(5), "");
+    EXPECT_DEATH(span.first(AnySpan<int>::npos), "");
   }
 #endif
 }

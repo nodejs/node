@@ -88,6 +88,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreAccumulatorInRegister(reg)
       .LoadTheHole()
       .StoreAccumulatorInRegister(reg)
+      .LoadTdzHole()
+      .StoreAccumulatorInRegister(reg)
       .LoadTrue()
       .StoreAccumulatorInRegister(reg)
       .LoadFalse()
@@ -408,9 +410,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.ThrowIfNotSuperConstructor(reg);
 
   // Hole checks.
-  builder.ThrowReferenceErrorIfHole(name)
-      .ThrowSuperAlreadyCalledIfNotHole()
-      .ThrowSuperNotCalledIfHole();
+  builder.ThrowReferenceErrorIfTdzHole(name)
+      .ThrowSuperAlreadyCalledIfNotTdzHole()
+      .ThrowSuperNotCalledIfTdzHole();
 
   // Short jumps with Imm8 operands
   {

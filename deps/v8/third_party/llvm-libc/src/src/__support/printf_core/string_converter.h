@@ -27,8 +27,8 @@
 namespace LIBC_NAMESPACE_DECL {
 namespace printf_core {
 
-template <WriteMode write_mode>
-LIBC_INLINE int char_writer(Writer<write_mode> *writer,
+template <OverflowMode mode>
+LIBC_INLINE int char_writer(Writer<mode> *writer,
                             const FormatSection &to_conv) {
   const char *str_ptr = reinterpret_cast<const char *>(to_conv.conv_val_ptr);
   size_t string_len = 0;
@@ -66,8 +66,8 @@ LIBC_INLINE int char_writer(Writer<write_mode> *writer,
 }
 
 #ifndef LIBC_COPT_PRINTF_DISABLE_WIDE
-template <WriteMode write_mode>
-LIBC_INLINE int wchar_writer(Writer<write_mode> *writer,
+template <OverflowMode mode>
+LIBC_INLINE int wchar_writer(Writer<mode> *writer,
                              const FormatSection &to_conv) {
   size_t string_len = 0;
   const char32_t *wstr_ptr =
@@ -121,8 +121,8 @@ LIBC_INLINE int wchar_writer(Writer<write_mode> *writer,
 }
 #endif // LIBC_COPT_PRINTF_DISABLE_WIDE
 
-template <WriteMode write_mode>
-LIBC_INLINE int convert_string(Writer<write_mode> *writer,
+template <OverflowMode mode>
+LIBC_INLINE int convert_string(Writer<mode> *writer,
                                const FormatSection &to_conv) {
   int ret = 0;
   if (to_conv.length_modifier == LengthModifier::l) {

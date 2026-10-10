@@ -180,8 +180,8 @@ template <typename Callable, typename... Args>
   uint32_t old_control = kOnceInit;
   if (control->compare_exchange_strong(old_control, kOnceRunning,
                                        std::memory_order_relaxed) ||
-      base_internal::SpinLockWait(control, std::size(trans), trans,
-                                  scheduling_mode) == kOnceInit) {
+      base_internal::SpinLockWait(control, static_cast<int>(std::size(trans)),
+                                  trans, scheduling_mode) == kOnceInit) {
     std::invoke(std::forward<Callable>(fn), std::forward<Args>(args)...);
     old_control =
         control->exchange(base_internal::kOnceDone, std::memory_order_release);

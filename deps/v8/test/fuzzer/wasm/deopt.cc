@@ -275,6 +275,10 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   const bool optimize_main_function =
       inlinees.empty() || data.empty() || !(data.last() & 1);
 #if defined(DEBUG) && defined(V8_USE_ADDRESS_SANITIZER)
+  // Disable register allocator verification on slow builds (Debug + ASan) to
+  // avoid timeouts in TurboFan/Turboshaft compilation on pathological inputs
+  // (see crbug.com/527760872).
+  FlagScope<bool> no_verify_allocator(&v8_flags.turbo_verify_allocation, false);
   // Disable type assertions on slow builds (Debug + ASan) to avoid timeouts in
   // TurboFan compilation (see crbug.com/520317061).
   const bool assert_types = false;

@@ -105,12 +105,12 @@ bytecodes: [
   /*  118 E> */ B(Construct), R(4), R(5), RegCount8(1), FBV(0),
                 B(Star4),
                 B(Ldar), R(this),
-                B(ThrowSuperAlreadyCalledIfNotHole),
+                B(ThrowSuperAlreadyCalledIfNotTdzHole),
                 B(Mov), R(4), R(this),
   /*  128 S> */ B(LdaSmi), I8(2),
   /*  136 E> */ B(SetNamedProperty), R(this), U8(0:"y_"), FBV(2),
                 B(Ldar), R(this),
-                B(ThrowSuperNotCalledIfHole),
+                B(ThrowSuperNotCalledIfTdzHole),
   /*  141 S> */ B(Return),
 ]
 constant pool: [
@@ -148,12 +148,12 @@ bytecodes: [
   /*  117 E> */ B(Construct), R(4), R(0), RegCount8(0), FBV(0),
                 B(Star4),
                 B(Ldar), R(this),
-                B(ThrowSuperAlreadyCalledIfNotHole),
+                B(ThrowSuperAlreadyCalledIfNotTdzHole),
                 B(Mov), R(4), R(this),
   /*  126 S> */ B(LdaSmi), I8(2),
   /*  134 E> */ B(SetNamedProperty), R(this), U8(0:"y_"), FBV(2),
                 B(Ldar), R(this),
-                B(ThrowSuperNotCalledIfHole),
+                B(ThrowSuperNotCalledIfTdzHole),
   /*  139 S> */ B(Return),
 ]
 constant pool: [

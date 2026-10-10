@@ -136,8 +136,8 @@ bool operator!=(DeoptimizeParameters lhs, DeoptimizeParameters rhs) {
 }
 
 size_t hash_value(DeoptimizeParameters p) {
-  FeedbackSource::Hash feebdack_hash;
-  return base::hash_combine(p.reason(), feebdack_hash(p.feedback()));
+  FeedbackSource::Hash feedback_hash;
+  return base::hash_combine(p.reason(), feedback_hash(p.feedback()));
 }
 
 std::ostream& operator<<(std::ostream& os, DeoptimizeParameters p) {

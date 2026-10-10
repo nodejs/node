@@ -20,6 +20,7 @@
 
 #include "gtest/gtest.h"
 #include "absl/base/casts.h"
+#include "absl/base/config.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

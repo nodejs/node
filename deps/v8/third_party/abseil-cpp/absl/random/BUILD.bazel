@@ -89,6 +89,7 @@ cc_library(
         "//absl/random/internal:uniform_helper",
         "//absl/random/internal:wide_multiply",
         "//absl/strings",
+        "//absl/strings:string_view",
     ],
 )
 

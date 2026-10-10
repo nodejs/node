@@ -306,7 +306,7 @@ void IncrementalMarking::StartMarkingMajor() {
     isolate()->PrintWithTimestamp("[IncrementalMarking] Running\n");
   }
 
-  if (heap()->cpp_heap()) {
+  {
     // `StartMarking()` may call back into V8 in corner cases, requiring that
     // marking (including write barriers) is fully set up.
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
@@ -470,7 +470,7 @@ std::pair<v8::base::TimeDelta, size_t> IncrementalMarking::CppHeapStep(
     StepOrigin step_origin) {
   DCHECK(IsMarking());
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
-  if (!cpp_heap || !cpp_heap->incremental_marking_supported()) {
+  if (!cpp_heap->incremental_marking_supported()) {
     return {};
   }
 
@@ -686,9 +686,7 @@ size_t IncrementalMarking::GetScheduledBytes(StepOrigin step_origin) {
   // as the full marker marks both the young and old generations.
   size_t estimated_live_bytes = OldGenerationSizeOfObjects();
   if (v8_flags.incremental_marking_unified_schedule) {
-    if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
-      estimated_live_bytes += cpp_heap->used_size();
-    }
+    estimated_live_bytes += CppHeap::From(heap_->cpp_heap())->used_size();
   }
   const size_t marked_bytes_limit =
       schedule_->GetNextIncrementalStepDuration(estimated_live_bytes);
@@ -763,7 +761,7 @@ bool IncrementalMarking::ShouldFinalize() const {
              ->mark_compact_collector()
              ->local_marking_worklists()
              ->IsEmpty() &&
-         (!cpp_heap || cpp_heap->ShouldFinalizeIncrementalMarking());
+         cpp_heap->ShouldFinalizeIncrementalMarking();
 }
 
 void IncrementalMarking::FetchBytesMarkedConcurrently() {
@@ -885,24 +883,53 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
         GarbageCollector::MARK_COMPACTOR);
   }
 
-  if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
+  if (v8_flags.trace_incremental_marking ||
+      heap_->is_gc_extra_tracing_category_enabled()) [[unlikely]] {
     const auto v8_max_duration = max_duration - cpp_heap_duration;
     const auto v8_marked_bytes_limit =
         marked_bytes_limit > cpp_heap_marked_bytes
             ? marked_bytes_limit - cpp_heap_marked_bytes
             : 0;
-    isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Step: origin: %s overall: %.1fms "
-        "V8: %zuKB (%zuKB), %.1fms (%.1fms), %.1fMB/s "
-        "CppHeap: %zuKB (%zuKB), %.1fms (%.1fms)\n",
-        ToString(step_origin),
-        (v8::base::TimeTicks::Now() - start).InMillisecondsF(), v8_marked_bytes,
-        v8_marked_bytes_limit, v8_time.InMillisecondsF(),
-        v8_max_duration.InMillisecondsF(),
-        heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond() *
-            1000 / MB,
-        cpp_heap_marked_bytes, marked_bytes_limit,
-        cpp_heap_duration.InMillisecondsF(), max_duration.InMillisecondsF());
+    const auto overall_duration = v8::base::TimeTicks::Now() - start;
+    const double marking_speed_in_bytes_per_ms =
+        heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond();
+
+    if (v8_flags.trace_incremental_marking) [[unlikely]] {
+      isolate()->PrintWithTimestamp(
+          "[IncrementalMarking] Step: origin: %s overall: %.1fms "
+          "V8: %zuKB (%zuKB), %.1fms (%.1fms), %.1fMB/s "
+          "CppHeap: %zuKB (%zuKB), %.1fms (%.1fms)\n",
+          ToString(step_origin), overall_duration.InMillisecondsF(),
+          v8_marked_bytes / KB, v8_marked_bytes_limit / KB,
+          v8_time.InMillisecondsF(), v8_max_duration.InMillisecondsF(),
+          marking_speed_in_bytes_per_ms * 1000 / MB, cpp_heap_marked_bytes / KB,
+          marked_bytes_limit / KB, cpp_heap_duration.InMillisecondsF(),
+          max_duration.InMillisecondsF());
+    }
+
+    if (heap_->is_gc_extra_tracing_category_enabled()) [[unlikely]] {
+      TRACE_EVENT_INSTANT(
+          TRACE_DISABLED_BY_DEFAULT("v8.gc_extra"),
+          "V8.GCIncrementalMarkingStep", "value",
+          [step_origin, overall_duration, v8_marked_bytes,
+           v8_marked_bytes_limit, v8_time, v8_max_duration,
+           marking_speed_in_bytes_per_ms, cpp_heap_marked_bytes,
+           marked_bytes_limit, cpp_heap_duration,
+           max_duration](perfetto::TracedValue ctx) {
+            auto dict = std::move(ctx).WriteDictionary();
+            dict.Add("origin", ToString(step_origin));
+            dict.Add("overall_duration", overall_duration.InMillisecondsF());
+            dict.Add("marking_speed", marking_speed_in_bytes_per_ms);
+            dict.Add("v8_marked_bytes", v8_marked_bytes);
+            dict.Add("v8_marked_bytes_limit", v8_marked_bytes_limit);
+            dict.Add("v8_duration", v8_time.InMillisecondsF());
+            dict.Add("v8_max_duration", v8_max_duration.InMillisecondsF());
+            dict.Add("cpp_heap_marked_bytes", cpp_heap_marked_bytes);
+            dict.Add("cpp_heap_marked_bytes_limit", marked_bytes_limit);
+            dict.Add("cpp_heap_duration", cpp_heap_duration.InMillisecondsF());
+            dict.Add("cpp_heap_max_duration", max_duration.InMillisecondsF());
+          });
+    }
   }
 }
 

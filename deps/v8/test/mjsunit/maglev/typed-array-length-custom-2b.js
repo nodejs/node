@@ -16,11 +16,11 @@ assertEquals(100, foo(100));
 %OptimizeMaglevOnNextCall(foo);
 const val1 = foo(100);
 assertEquals(100, val1);
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 Uint8Array.prototype.__proto__ = { get length() { return 3; }};
 
-assertFalse(isMaglevved(foo));
+assertNotMaglevved(foo);
 
 const val2 = foo(100);
 assertEquals(3, val2);

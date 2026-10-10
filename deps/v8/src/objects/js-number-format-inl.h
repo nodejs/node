@@ -25,13 +25,13 @@ void JSNumberFormat::set_locale(Tagged<String> value, WriteBarrierMode mode) {
   locale_.store(this, value, mode);
 }
 
-Tagged<CppGCManaged<icu::number::LocalizedNumberFormatter>>
+Tagged<Managed<icu::number::LocalizedNumberFormatter>>
 JSNumberFormat::icu_number_formatter() const {
-  return Cast<CppGCManaged<icu::number::LocalizedNumberFormatter>>(
+  return Cast<Managed<icu::number::LocalizedNumberFormatter>>(
       icu_number_formatter_.load());
 }
 void JSNumberFormat::set_icu_number_formatter(
-    Tagged<CppGCManaged<icu::number::LocalizedNumberFormatter>> value,
+    Tagged<Managed<icu::number::LocalizedNumberFormatter>> value,
     WriteBarrierMode mode) {
   icu_number_formatter_.store(this, value, mode);
 }

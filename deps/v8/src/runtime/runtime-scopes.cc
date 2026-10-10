@@ -162,7 +162,7 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
     Tagged<Object> value;
     if (IsSmi(decl)) {
       index = Smi::ToInt(decl);
-      value = ReadOnlyRoots(isolate).the_hole_value();
+      value = ReadOnlyRoots(isolate).tdz_hole_value();
     } else {
       DirectHandle<SharedFunctionInfo> sfi(
           Cast<SharedFunctionInfo>(declarations->get(i)), isolate);
@@ -838,13 +838,13 @@ MaybeDirectHandle<Object> LoadLookupSlot(
     Handle<Object> receiver = isolate->factory()->undefined_value();
     // Check for uninitialized bindings.
     if (flag == kNeedsInitialization &&
-        holder_context->IsElementTheHole(index)) {
+        holder_context->IsElementTdzHole(index)) {
       THROW_NEW_ERROR(isolate,
                       NewReferenceError(MessageTemplate::kNotDefined, name));
     }
     if (receiver_return) *receiver_return = receiver;
     DirectHandle<Object> value = Context::Get(holder_context, index, isolate);
-    DCHECK(!IsTheHole(*value));
+    DCHECK(!IsTdzHole(*value));
     return value;
   }
 
@@ -959,7 +959,7 @@ MaybeDirectHandle<Object> StoreLookupSlot(
   if (index != Context::kNotFound) {
     auto holder_context = Cast<Context>(holder);
     if (flag == kNeedsInitialization &&
-        holder_context->IsElementTheHole(index)) {
+        holder_context->IsElementTdzHole(index)) {
       THROW_NEW_ERROR(isolate,
                       NewReferenceError(MessageTemplate::kNotDefined, name));
     }

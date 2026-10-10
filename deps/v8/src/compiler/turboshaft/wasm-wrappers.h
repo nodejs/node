@@ -600,7 +600,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   V<Float32> BuildChangeTaggedToFloat32(
       V<Object> value, V<Context> context,
       OptionalV<EagerFrameState> caller_frame_state) {
-    DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
+    CHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     ScopedVar<Float32> result(this, V<Float32>::Invalid());
     IF (__ IsSmi(value)) {
       // TODO(dlehmann,wasm-runtime): If `ChangeInt32ToFloat32(x)` is exactly
@@ -640,7 +640,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   V<Float64> BuildChangeTaggedToFloat64(
       V<Object> value, V<Context> context,
       OptionalV<EagerFrameState> caller_frame_state) {
-    DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
+    CHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     ScopedVar<Float64> result(this, V<Float64>::Invalid());
     IF (__ IsSmi(value)) {
       result = __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(value)));
@@ -672,7 +672,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   V<Word32> BuildChangeTaggedToInt32(
       V<Object> value, V<Context> context,
       OptionalV<EagerFrameState> caller_frame_state) {
-    DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
+    CHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     if (is_inlining_into_js_) {
       // When inlining into JS, emit a "high-level" JS conversion to allow
       // further optimizations. These are lowered in the MachineLoweringPhase
@@ -708,7 +708,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   OpIndex BuildChangeBigIntToInt64(
       V<Object> input, V<Context> context,
       OptionalV<EagerFrameState> caller_frame_state) {
-    DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
+    CHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     // When inlining JS-to-Wasm wrappers, eagerly deopt for values that are
     // not BigInt to avoid calling ToBigInt, which could trigger user JS via
     // valueOf/Symbol.toPrimitive (same rationale as for i32/f32/f64).
@@ -901,8 +901,9 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         compiler::AccessBuilder::ForJSFunctionSharedFunctionInfo());
   }
 
-  OpIndex BuildReceiverNode(OpIndex callable_node, OpIndex native_context,
-                            V<Undefined> undefined_node) {
+  V<Object> BuildReceiverNode(V<JSFunction> callable_node,
+                              V<Context> callee_context,
+                              V<Undefined> undefined_node) {
     // Check function strict bit.
     V<SharedFunctionInfo> shared_function_info =
         LoadSharedFunctionInfo(callable_node);
@@ -918,8 +919,14 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
     IF (strict_check) {
       strict_d = undefined_node;
     } ELSE {
-      strict_d =
-          __ LoadFixedArrayElement(native_context, Context::GLOBAL_PROXY_INDEX);
+      V<Map> context_map = LoadMap(callee_context);
+      V<NativeContext> callee_native_context =
+          __ template LoadField<NativeContext>(
+              context_map, compiler::AccessBuilder::ForMapNativeContext());
+      strict_d = __ template LoadField<Object>(
+          callee_native_context,
+          compiler::AccessBuilder::ForContextSlotKnownPointer(
+              Context::GLOBAL_PROXY_INDEX));
     }
     return strict_d;
   }

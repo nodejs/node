@@ -18,4 +18,4 @@ assertEquals(2, foo([2]).bar);
 %OptimizeMaglevOnNextCall(foo);
 assertEquals(1, foo([1]).bar);
 assertEquals(2, foo([2]).bar);
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);

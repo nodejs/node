@@ -44,7 +44,7 @@ test_null_prototype();
 %OptimizeMaglevOnNextCall(test_null_prototype);
 test_null_prototype();
 assertOptimized(test_null_prototype);
-assertTrue(isMaglevved(test_null_prototype));
+assertMaglevved(test_null_prototype);
 test_null_prototype();
 %OptimizeFunctionOnNextCall(test_null_prototype);
 test_null_prototype();

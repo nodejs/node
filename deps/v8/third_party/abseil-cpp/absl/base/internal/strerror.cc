@@ -22,6 +22,7 @@
 #include <string>
 #include <type_traits>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/errno_saver.h"
 
 namespace absl {

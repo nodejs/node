@@ -23,9 +23,11 @@
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 #include "test/common/code-assembler-tester.h"
+#include "test/common/flag-utils.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"
+#include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1186,6 +1188,12 @@ class CodeGeneratorTester {
 
   ~CodeGeneratorTester() { delete generator_; }
 
+  static void AssembleConstructFrameForTest(CodeGenerator* generator) {
+    generator->masm()->CodeEntry();
+    generator->frame_access_state()->MarkHasFrame(true);
+    generator->AssembleConstructFrame();
+  }
+
   std::vector<std::pair<LocationOperand, LocationOperand>>::iterator
   GetSpillSlot(InstructionOperand* op) {
     if (op->IsAnyStackSlot()) {
@@ -1631,6 +1639,44 @@ TEST(AssembleTailCallGap) {
   }
 }
 
+#if V8_TARGET_ARCH_X64
+TEST(TurboFanFrameSlotAlignment) {
+  FLAG_SCOPE(enforce_x64_16byte_alignment);
+  TestEnvironment env;
+  Isolate* isolate = env.main_isolate();
+  Linkage linkage(env.test_descriptor());
+
+  // Test both odd fixed headers (JSFunction = 5 slots, Stub = 3 slots)
+  // and even fixed headers (CFunction = 2 slots, Wasm = 4 slots).
+  for (int fixed_slots : {2, 3, 4, 5}) {
+    for (int spill_slots : {0, 1, 2, 3, 4}) {
+      for (int return_slots : {0, 1, 2, 3}) {
+        Zone zone(isolate->allocator(), ZONE_NAME);
+        Frame frame(fixed_slots, &zone);
+
+        for (int s = 0; s < spill_slots; ++s) {
+          frame.AllocateSpillSlot(kSystemPointerSize);
+        }
+        frame.EnsureReturnSlots(return_slots);
+
+        OptimizedCompilationInfo info(base::ArrayVector("test"), &zone,
+                                      CodeKind::FOR_TESTING);
+        CodeGenerator codegen(
+            &zone, &frame, &linkage, env.instructions(), &info, isolate,
+            std::optional<OsrHelper>(), kNoSourcePosition, nullptr,
+            AssemblerOptions::Default(isolate), Builtin::kNoBuiltinId, 0, 0);
+
+        // FinishFrame() has now run via CodeGenerator's constructor.
+        CHECK_EQ(0, frame.GetTotalFrameSlotCount() % 2);
+        CHECK_EQ(0, frame.GetReturnSlotCount() % 2);
+
+        CodeGeneratorTester::AssembleConstructFrameForTest(&codegen);
+      }
+    }
+  }
+}
+#endif
+
 #if V8_ENABLE_WEBASSEMBLY
 namespace {
 
@@ -1687,17 +1733,16 @@ TEST(Regress_1171759) {
 
   OptimizedCompilationInfo info(base::ArrayVector("testing"),
                                 handles.main_zone(), CodeKind::WASM_FUNCTION);
-  DirectHandle<Code> code =
-      Pipeline::GenerateCodeForTesting(
-          &info, handles.main_isolate(), desc, m.graph(),
-          AssemblerOptions::Default(handles.main_isolate()), m.ExportForTest())
-          .ToHandleChecked();
+  wasm::WasmCompilationResult result = Pipeline::GenerateWasmCodeForTesting(
+      &info, handles.main_isolate(), desc, m.graph(),
+      AssemblerOptions::Default(handles.main_isolate()), m.ExportForTest());
+  CHECK(result.succeeded());
 
   std::shared_ptr<wasm::NativeModule> module =
-      AllocateNativeModule(handles.main_isolate(), code->instruction_size());
+      AllocateNativeModule(handles.main_isolate(), result.code_desc.instr_size);
   wasm::WasmCodeRefScope wasm_code_ref_scope;
   wasm::WasmCode* wasm_code =
-      module->AddCodeForTesting(code, desc->signature_hash());
+      module->AddCodeForTesting(result, desc->signature_hash());
   WasmCodePointer code_pointer =
       wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
           wasm_code->instruction_start(), wasm_code->signature_hash());
@@ -1738,6 +1783,7 @@ TEST(Regress_1171759) {
 
   wasm::GetProcessWideWasmCodePointerTable()->FreeEntry(code_pointer);
 }
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace compiler

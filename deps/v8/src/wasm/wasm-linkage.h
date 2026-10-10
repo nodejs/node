@@ -159,6 +159,15 @@ constexpr bool kIsBigEndianOnSim = true;
 #else
 constexpr bool kIsBigEndianOnSim = false;
 #endif
+// Platforms where single-precision floats are stored NaN-boxed in FP registers
+// (upper 32 bits all ones). On these, the generic JS-to-wasm wrapper must write
+// f32 parameters in NaN-boxed 64-bit form, because the assembly wrapper reloads
+// them with a 64-bit FP load.
+#if V8_TARGET_ARCH_RISCV64
+constexpr bool kFP32NeedNanBox = true;
+#else
+constexpr bool kFP32NeedNanBox = false;
+#endif
 
 // The parameter index where the trusted instance data should be placed in wasm
 // call descriptors. This is used by the Int64Lowering::LowerNode method.

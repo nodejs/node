@@ -491,9 +491,9 @@ class ExceptionHandlerInfo;
   V(HandleNoHeapWritesInterrupt)              \
   V(ReduceInterruptBudgetForLoop)             \
   V(ReduceInterruptBudgetForReturn)           \
-  V(ThrowReferenceErrorIfHole)                \
-  V(ThrowSuperNotCalledIfHole)                \
-  V(ThrowSuperAlreadyCalledIfNotHole)         \
+  V(ThrowReferenceErrorIfTdzHole)             \
+  V(ThrowSuperNotCalledIfTdzHole)             \
+  V(ThrowSuperAlreadyCalledIfNotTdzHole)      \
   V(ThrowIfNotCallable)                       \
   V(ThrowIfNotSuperConstructor)               \
   V(TransitionElementsKindOrCheckMap)         \
@@ -787,22 +787,26 @@ constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
   }
 }
 
-constexpr bool CanBeTheHoleValue(Opcode opcode) {
+constexpr bool CanBeHoleValue(RootIndex hole_index, Opcode opcode) {
+  DCHECK(hole_index == RootIndex::kTheHoleValue ||
+         hole_index == RootIndex::kTdzHoleValue);
   switch (opcode) {
     // TODO(victorgomes): Should we have a list of builtins that could
     // return the hole?
     case Opcode::kCallBuiltin:
-    case Opcode::kCallRuntime:
-    case Opcode::kGeneratorRestoreRegister:
     case Opcode::kIdentity:
-    case Opcode::kInitialValue:
-    case Opcode::kLoadContextSlot:
-    case Opcode::kLoadContextSlotNoCells:
-    case Opcode::kLoadFixedArrayElement:
     case Opcode::kLoadTaggedField:
     case Opcode::kPhi:
     case Opcode::kRootConstant:
       return true;
+    case Opcode::kCallRuntime:
+    case Opcode::kLoadFixedArrayElement:
+      return hole_index == RootIndex::kTheHoleValue;
+    case Opcode::kGeneratorRestoreRegister:
+    case Opcode::kInitialValue:
+    case Opcode::kLoadContextSlot:
+    case Opcode::kLoadContextSlotNoCells:
+      return hole_index == RootIndex::kTdzHoleValue;
     default:
       return false;
   }
@@ -2790,7 +2794,9 @@ class ValueNode : public Node {
     return NodeTypeIs(GetStaticType(broker), type);
   }
 
-  Tribool IsTheHole() const;
+  Tribool IsHole(RootIndex hole_index) const;
+  Tribool IsTheHole() const { return IsHole(RootIndex::kTheHoleValue); }
+  Tribool IsTdzHole() const { return IsHole(RootIndex::kTdzHoleValue); }
 
   inline void MaybeRecordUseReprHint(UseRepresentationSet repr);
   inline void MaybeRecordUseReprHint(UseRepresentation repr);
@@ -4845,7 +4851,15 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
       : Base(bitfield), feedback_(feedback) {}
 
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties = OpProperties::JSCall();
+  // Eager deopt frame is attached, since MaglevGraphOptimizer can reduce this
+  // node, and the reduction emits map checks, which can eager deopt.
+  // Unlike generic call nodes like CallBuiltin where attaching eager deopt
+  // frames would be too heavyweight (and are instead handled via
+  // MaglevReducer::CanEagerDeopt), TestInstanceOf is a dedicated opcode where
+  // attaching the frame is cheap and preserves speculative reductions in the
+  // optimizer.
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::JSCall();
   DECLARE_INPUTS(Context, Object, Callable)
   DECLARE_INPUT_TYPES(Tagged, Tagged, Tagged)
 
@@ -5287,7 +5301,9 @@ class HeapConstant : public FixedInputValueNodeT<0, HeapConstant> {
     return Object::BooleanValue(*object_.object(), local_isolate);
   }
 
+  bool IsAnyHole() const { return object_.IsAnyHole(); }
   bool IsTheHole() const { return object_.IsTheHole(); }
+  bool IsTdzHole() const { return object_.IsTdzHole(); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -9343,8 +9359,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
     kInlinedAllocation,
     kTransitioning,
   };
-  explicit StoreMap(uint64_t bitfield, compiler::MapRef map, Kind kind)
-      : Base(bitfield | KindField::encode(kind)), map_(map) {}
+  explicit StoreMap(uint64_t bitfield, compiler::MapRef map, Kind kind);
 
   static constexpr OpProperties kProperties =
       OpProperties::CanWrite() | OpProperties::DeferredCall();
@@ -9352,6 +9367,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
 
   compiler::MapRef map() const { return map_; }
   Kind kind() const { return KindField::decode(bitfield()); }
+  bool NoWriteBarrier() const;
 
   bool is_transitioning() const {
     switch (kind()) {
@@ -9371,6 +9387,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
 
  private:
   using KindField = NextBitField<Kind, 3>;
+  using MapInReadOnlySpaceField = KindField::Next<bool, 1>;
   const compiler::MapRef map_;
 };
 std::ostream& operator<<(std::ostream& os, StoreMap::Kind);
@@ -10759,6 +10776,7 @@ class CallKnownJSFunction : public VarargsValueNodeT<4, CallKnownJSFunction> {
       OpProperties::JSCall() | OpProperties::DeferredCall();
   DECLARE_INPUTS(Target, Context, Receiver, NewTarget)
 
+  JSDispatchHandle dispatch_handle() const { return dispatch_handle_; }
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_;
   }
@@ -11177,11 +11195,11 @@ class ReduceInterruptBudgetForReturn
   const int amount_;
 };
 
-class ThrowReferenceErrorIfHole
-    : public FixedInputNodeT<1, ThrowReferenceErrorIfHole> {
+class ThrowReferenceErrorIfTdzHole
+    : public FixedInputNodeT<1, ThrowReferenceErrorIfTdzHole> {
  public:
-  explicit ThrowReferenceErrorIfHole(uint64_t bitfield,
-                                     const compiler::NameRef name)
+  explicit ThrowReferenceErrorIfTdzHole(uint64_t bitfield,
+                                        const compiler::NameRef name)
       : Base(bitfield), name_(name) {}
 
   static constexpr OpProperties kProperties =
@@ -11200,10 +11218,10 @@ class ThrowReferenceErrorIfHole
   const compiler::NameRef name_;
 };
 
-class ThrowSuperNotCalledIfHole
-    : public FixedInputNodeT<1, ThrowSuperNotCalledIfHole> {
+class ThrowSuperNotCalledIfTdzHole
+    : public FixedInputNodeT<1, ThrowSuperNotCalledIfTdzHole> {
  public:
-  explicit ThrowSuperNotCalledIfHole(uint64_t bitfield) : Base(bitfield) {}
+  explicit ThrowSuperNotCalledIfTdzHole(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanThrow() | OpProperties::DeferredCall();
@@ -11214,10 +11232,10 @@ class ThrowSuperNotCalledIfHole
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
-class ThrowSuperAlreadyCalledIfNotHole
-    : public FixedInputNodeT<1, ThrowSuperAlreadyCalledIfNotHole> {
+class ThrowSuperAlreadyCalledIfNotTdzHole
+    : public FixedInputNodeT<1, ThrowSuperAlreadyCalledIfNotTdzHole> {
  public:
-  explicit ThrowSuperAlreadyCalledIfNotHole(uint64_t bitfield)
+  explicit ThrowSuperAlreadyCalledIfNotTdzHole(uint64_t bitfield)
       : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =

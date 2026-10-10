@@ -99,8 +99,11 @@ enum class HoleType : uint8_t {
 #define FOR_HOLE(Name, name, Root) k##Name,
   HOLE_LIST(FOR_HOLE)
 #undef FOR_HOLE
+#ifndef V8_ENABLE_TDZ_HOLE
+      kTdzHole = kTheHole,
+#endif
 
-      kGeneric = kTheHole,
+  kGeneric = kTheHole,
 };
 
 enum class RefSerializationKind {
@@ -447,7 +450,9 @@ class V8_EXPORT_PRIVATE ObjectRef {
   bool IsNull() const;
   bool IsUndefined() const;
   enum HoleType HoleType() const;
+  bool IsAnyHole() const;
   bool IsTheHole() const;
+  bool IsTdzHole() const;
   bool IsPropertyCellHole() const;
   bool IsHashTableHole() const;
   bool IsPromiseHole() const;

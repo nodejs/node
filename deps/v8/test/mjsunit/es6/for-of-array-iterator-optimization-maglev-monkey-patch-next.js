@@ -37,11 +37,11 @@ function create_iterator() {
 
 %PrepareFunctionForOptimization(foo);
 assertEquals([100], foo(create_iterator()));
-assertFalse(isMaglevved(foo));
+assertNotMaglevved(foo);
 
 assertEquals([100], foo(create_iterator()));
 
 %OptimizeMaglevOnNextCall(foo);
 assertEquals([100], foo(create_iterator()));
 
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);

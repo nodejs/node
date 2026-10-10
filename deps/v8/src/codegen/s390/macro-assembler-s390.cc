@@ -719,6 +719,15 @@ void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   LoadRoot(destination, index);
 }
 
+void MacroAssembler::StoreTaggedRoot(const MemOperand& destination,
+                                     RootIndex index) {
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadTaggedRoot(scratch, index);
+  StoreTaggedField(scratch, destination);
+}
+
 void MacroAssembler::LoadRoot(Register destination, RootIndex index,
                               Condition) {
   if (CanBeImmediate(index)) {

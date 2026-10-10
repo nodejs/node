@@ -147,7 +147,7 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
 DirectHandle<Object> UnicodeKeywordValue(Isolate* isolate,
                                          DirectHandle<JSLocale> locale,
                                          const char* key) {
-  CppGCManaged<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
+  Managed<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
   UErrorCode status = U_ZERO_ERROR;
   std::string value =
       icu_locale->getUnicodeKeywordValue<std::string>(key, status);
@@ -477,8 +477,8 @@ MaybeDirectHandle<JSLocale> JSLocale::New(Isolate* isolate,
   }
 
   // 31. Set locale.[[Locale]] to r.[[locale]].
-  DirectHandle<CppGCManaged<icu::Locale>> managed_locale =
-      CppGCManaged<icu::Locale>::Create(
+  DirectHandle<Managed<icu::Locale>> managed_locale =
+      Managed<icu::Locale>::From(
           isolate, 0, std::shared_ptr<icu::Locale>{icu_locale.clone()});
 
   // Now all properties are ready, so we can allocate the result object.
@@ -493,8 +493,8 @@ namespace {
 
 MaybeDirectHandle<JSLocale> Construct(Isolate* isolate,
                                       const icu::Locale& icu_locale) {
-  DirectHandle<CppGCManaged<icu::Locale>> managed_locale =
-      CppGCManaged<icu::Locale>::Create(
+  DirectHandle<Managed<icu::Locale>> managed_locale =
+      Managed<icu::Locale>::From(
           isolate, 0, std::shared_ptr<icu::Locale>{icu_locale.clone()});
 
   DirectHandle<JSFunction> constructor(
@@ -974,7 +974,7 @@ MaybeDirectHandle<JSObject> JSLocale::GetWeekInfo(
 DirectHandle<Object> JSLocale::Language(Isolate* isolate,
                                         DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  CppGCManaged<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
+  Managed<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
   const char* language = icu_locale->getLanguage();
   constexpr const char kUnd[] = "und";
   if (strlen(language) == 0) {
@@ -986,7 +986,7 @@ DirectHandle<Object> JSLocale::Language(Isolate* isolate,
 DirectHandle<Object> JSLocale::Script(Isolate* isolate,
                                       DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  CppGCManaged<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
+  Managed<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
   const char* script = icu_locale->getScript();
   if (strlen(script) == 0) return factory->undefined_value();
   return factory->NewStringFromAsciiChecked(script);
@@ -1011,7 +1011,7 @@ DirectHandle<Object> JSLocale::Variants(Isolate* isolate,
 DirectHandle<Object> JSLocale::Region(Isolate* isolate,
                                       DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  CppGCManaged<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
+  Managed<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
   const char* region = icu_locale->getCountry();
   if (strlen(region) == 0) return factory->undefined_value();
   return factory->NewStringFromAsciiChecked(region);
@@ -1052,7 +1052,7 @@ DirectHandle<Object> JSLocale::HourCycle(Isolate* isolate,
 DirectHandle<Object> JSLocale::Numeric(Isolate* isolate,
                                        DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  CppGCManaged<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
+  Managed<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
   UErrorCode status = U_ZERO_ERROR;
   std::string numeric =
       icu_locale->getUnicodeKeywordValue<std::string>("kn", status);
@@ -1065,7 +1065,7 @@ DirectHandle<Object> JSLocale::NumberingSystem(Isolate* isolate,
 }
 
 std::string JSLocale::ToString(DirectHandle<JSLocale> locale) {
-  CppGCManaged<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
+  Managed<icu::Locale>::Ptr icu_locale = locale->icu_locale()->ptr();
   return Intl::ToLanguageTag(*icu_locale).FromJust();
 }
 

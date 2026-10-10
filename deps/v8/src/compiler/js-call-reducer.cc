@@ -8145,7 +8145,7 @@ namespace {
 FrameState CreateStringCreateLazyDeoptContinuationFrameState(
     JSGraph* graph, SharedFunctionInfoRef shared, Node* target, Node* context,
     Node* outer_frame_state) {
-  Node* const receiver = graph->TheHoleConstant();
+  Node* const receiver = graph->TdzHoleConstant();
   Node* stack_parameters[]{receiver};
   const int stack_parameter_count = arraysize(stack_parameters);
   return CreateJavaScriptBuiltinContinuationFrameState(
@@ -8535,9 +8535,9 @@ Reduction JSCallReducer::ReduceTypedArrayConstructor(
                                                     context, common(), graph());
 
   // This continuation just returns the newly created JSTypedArray. We
-  // pass the_hole as the receiver, just like the builtin construct stub
+  // pass tdz_hole as the receiver, just like the builtin construct stub
   // does in this case.
-  Node* const receiver = jsgraph()->TheHoleConstant();
+  Node* const receiver = jsgraph()->TdzHoleConstant();
   Node* continuation_frame_state = CreateGenericLazyDeoptContinuationFrameState(
       jsgraph(), shared, target, context, receiver, frame_state);
 

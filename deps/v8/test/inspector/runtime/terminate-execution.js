@@ -68,6 +68,14 @@ let {session, contextGroup, Protocol} =
   await Protocol.Debugger.resume();
   await Protocol.Runtime.disable();
 
+  InspectorTest.log('Terminate execution is not allowed for untrusted clients');
+  const untrustedSession = contextGroup.connect(/* isFullyTrusted */ false);
+  InspectorTest.logMessage(
+      await untrustedSession.Protocol.Runtime.terminateExecution());
+  InspectorTest.logMessage(
+      await untrustedSession.Protocol.Runtime.evaluate({expression: '42'}));
+  untrustedSession.disconnect();
+
   InspectorTest.log('Terminate execution does not crash on destroy');
   Protocol.Debugger.enable();
   Protocol.Runtime.evaluate({

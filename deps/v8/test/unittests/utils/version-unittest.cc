@@ -93,5 +93,22 @@ TEST_F(VersionTest, VersionString) {
                "libv8-6.0.287.53-emb.1-candidate.so");
 }
 
+TEST_F(VersionTest, VersionHash) {
+  SetVersion(1, 2, 3, 4, "", false, "");
+  uint32_t default_hash = static_cast<uint32_t>(base::hash_combine(1, 2, 3, 4));
+  EXPECT_EQ(default_hash, Version::Hash());
+
+  SetVersion(1, 2, 3, 4, "-emb.1", false, "");
+  uint32_t embedder_hash = Version::Hash();
+  EXPECT_NE(default_hash, embedder_hash);
+
+  char equivalent_embedder[] = "-emb.1";
+  SetVersion(1, 2, 3, 4, equivalent_embedder, false, "");
+  EXPECT_EQ(embedder_hash, Version::Hash());
+
+  SetVersion(1, 2, 3, 4, "-emb.2", false, "");
+  EXPECT_NE(embedder_hash, Version::Hash());
+}
+
 }  // namespace internal
 }  // namespace v8

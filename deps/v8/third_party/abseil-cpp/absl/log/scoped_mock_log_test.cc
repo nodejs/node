@@ -49,7 +49,7 @@ using absl::log_internal::SourceLine;
 using absl::log_internal::TextMessageWithPrefix;
 using absl::log_internal::ThreadID;
 
-auto* test_env ABSL_ATTRIBUTE_UNUSED = ::testing::AddGlobalTestEnvironment(
+auto* test_env [[maybe_unused]] = ::testing::AddGlobalTestEnvironment(
     new absl::log_internal::LogTestEnvironment);
 
 #if GTEST_HAS_DEATH_TEST

@@ -52,7 +52,7 @@ function test(f) {
   f();
   %OptimizeMaglevOnNextCall(f);
   f();
-  assertTrue(isMaglevved(f));
+  assertMaglevved(f);
 }
 
 function testDoubles() {

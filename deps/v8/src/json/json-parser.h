@@ -383,6 +383,12 @@ class JsonParser final {
   JsonString ScanJsonPropertyKey(JsonContinuation* cont);
   base::uc32 ScanUnicodeCharacter();
   base::Vector<const Char> GetKeyChars(JsonString key) {
+    // For escaped keys the source range starting at `key.start()` holds the raw
+    // (undecoded) characters while `key.length()` is the decoded length, so the
+    // bytes here do not represent the actual decoded key. Return an empty
+    // vector to signal that the byte-compare transition fast path must be
+    // skipped (see JSDataObjectBuilder::TryFastTransitionToPropertyKey).
+    if (key.has_escape()) return base::Vector<const Char>();
     return base::Vector<const Char>(chars_ + key.start(), key.length());
   }
   Handle<String> MakeString(const JsonString& string,

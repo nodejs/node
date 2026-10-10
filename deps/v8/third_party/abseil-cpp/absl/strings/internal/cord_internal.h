@@ -472,9 +472,6 @@ static constexpr cordz_info_t LittleEndianByte(unsigned char value) {
 
 class ABSL_ATTRIBUTE_TRIVIAL_ABI InlineData {
  public:
-  // DefaultInitType forces the use of the default initialization constructor.
-  enum DefaultInitType { kDefaultInit };
-
   // kNullCordzInfo holds the little endian representation of intptr_t(1)
   // This is the 'null' / initial value of 'cordz_info'. The null value
   // is specifically big endian 1 as with 64-bit pointers, the last
@@ -487,8 +484,6 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI InlineData {
   static constexpr size_t kTagOffset = 0;
 
   InlineData() = default;
-
-  explicit InlineData(DefaultInitType) noexcept : rep_(kDefaultInit) {}
 
   explicit InlineData(CordRep* rep) noexcept : rep_(rep) {
     ABSL_ASSERT(rep != nullptr);
@@ -657,16 +652,16 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI InlineData {
   struct Rep {
     // See cordz_info_t for forced alignment and size of `cordz_info` details.
     struct AsTree {
+      AsTree() = default;
+
       explicit constexpr AsTree(absl::cord_internal::CordRep* tree)
-          : rep(tree) {}
-      cordz_info_t cordz_info = kNullCordzInfo;
+          : cordz_info(kNullCordzInfo), rep(tree) {}
+
+      cordz_info_t cordz_info;
       absl::cord_internal::CordRep* rep;
     };
 
-    explicit Rep(DefaultInitType) {}
-    constexpr Rep() : data{0} {}
-    constexpr Rep(const Rep&) = default;
-    constexpr Rep& operator=(const Rep&) = default;
+    Rep() = default;
 
     explicit constexpr Rep(CordRep* rep) : as_tree(rep) {}
 

@@ -75,10 +75,10 @@ bytecodes: [
   /*  140 E> */ B(ConstructWithSpread), R(6), R(7), RegCount8(2), FBV(0),
                 B(Star6),
                 B(Ldar), R(this),
-                B(ThrowSuperAlreadyCalledIfNotHole),
+                B(ThrowSuperAlreadyCalledIfNotTdzHole),
                 B(Mov), R(6), R(this),
                 B(Ldar), R(this),
-                B(ThrowSuperNotCalledIfHole),
+                B(ThrowSuperNotCalledIfTdzHole),
   /*  159 S> */ B(Return),
 ]
 constant pool: [
@@ -139,10 +139,10 @@ bytecodes: [
                 B(CallJSRuntime), U8(%reflect_construct), R(6), RegCount8(3),
                 B(Star6),
                 B(Ldar), R(this),
-                B(ThrowSuperAlreadyCalledIfNotHole),
+                B(ThrowSuperAlreadyCalledIfNotTdzHole),
                 B(Mov), R(6), R(this),
                 B(Ldar), R(this),
-                B(ThrowSuperNotCalledIfHole),
+                B(ThrowSuperNotCalledIfTdzHole),
   /*  162 S> */ B(Return),
 ]
 constant pool: [

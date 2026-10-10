@@ -63,8 +63,8 @@ LIBC_INLINE constexpr uint32_t const_ten_exp(uint32_t exponent) {
     }                                                                          \
   } while (false)
 
-template <WriteMode write_mode>
-LIBC_INLINE int convert_fixed(Writer<write_mode> *writer,
+template <OverflowMode mode>
+LIBC_INLINE int convert_fixed(Writer<mode> *writer,
                               const FormatSection &to_conv) {
   // Long accum should be the largest type, so we can store all the smaller
   // numbers in things sized for it.

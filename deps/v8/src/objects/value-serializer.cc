@@ -2199,10 +2199,13 @@ MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
         DirectHandle<Object> wasm_memory_obj;
         if (!ReadObject().ToHandle(&wasm_memory_obj)) return {};
         if (!IsWasmMemoryObject(*wasm_memory_obj)) return {};
-        // If the WasmMemoryObject was deserialized just now, it will have set
-        // up the link from the ArrayBuffer already. If it was reused
-        // (deserialized earlier), then we need to establish a link from this
-        // second AB.
+        // If this ArrayBuffer is the WasmMemoryObject's primary buffer,
+        // WasmMemoryObject::SetNewBuffer will also fix it up and set the link.
+        // If it is not the primary buffer (e.g. displaced by
+        // toFixedLengthBuffer()), we must fix up max_byte_length and establish
+        // the link to the WasmMemoryObject here.
+        Cast<WasmMemoryObject>(*wasm_memory_obj)
+            ->FixUpResizableArrayBuffer(*array_buffer);
         Object::SetProperty(
             isolate_, array_buffer,
             isolate_->factory()->array_buffer_wasm_memory_symbol(),
@@ -2600,6 +2603,8 @@ MaybeDirectHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
   STACK_CHECK(isolate_, MaybeDirectHandle<HeapObject>());
   DCHECK_GE(version_, 15);
 
+  uint32_t id = next_id_++;
+
   uint32_t shared_object_id;
   if (!ReadVarint<uint32_t>().To(&shared_object_id)) {
     RETURN_EXCEPTION_IF_EXCEPTION(isolate_);
@@ -2624,6 +2629,7 @@ MaybeDirectHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
   DirectHandle<HeapObject> shared_object(
       shared_object_conveyor_->GetPersisted(shared_object_id), isolate_);
   DCHECK(IsShared(*shared_object));
+  AddObjectWithID(id, Cast<JSReceiver>(shared_object));
   return shared_object;
 }
 

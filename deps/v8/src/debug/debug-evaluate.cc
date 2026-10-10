@@ -11,6 +11,7 @@
 #include "src/codegen/reloc-info.h"
 #include "src/codegen/script-details.h"
 #include "src/common/globals.h"
+#include "src/debug/debug-block-list.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
@@ -148,8 +149,11 @@ MaybeDirectHandle<Object> DebugEvaluate::WithTopmostArguments(
 
   // Materialize receiver.
   DirectHandle<Object> this_value(it.frame()->receiver(), isolate);
-  DCHECK_EQ(it.frame()->IsConstructor(), IsTheHole(*this_value));
-  if (!IsTheHole(*this_value)) {
+#ifdef V8_ENABLE_TDZ_HOLE
+  DCHECK(!IsTheHole(*this_value));
+#endif
+  DCHECK_EQ(it.frame()->IsConstructor(), IsTdzHole(*this_value));
+  if (!IsTdzHole(*this_value)) {
     DirectHandle<String> this_str = factory->this_string();
     JSObject::SetOwnPropertyIgnoreAttributes(materialized, this_str, this_value,
                                              NONE)
@@ -205,8 +209,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
                                               int scope_index)
     : isolate_(isolate),
       frame_inspector_(frame, inlined_jsframe_index, isolate),
-      scope_iterator_(isolate, &frame_inspector_,
-                      ScopeIterator::ReparseStrategy::kScriptIfNeeded),
+      scope_iterator_(isolate, &frame_inspector_),
       scope_index_(scope_index) {
   Factory* factory = isolate->factory();
 
@@ -232,8 +235,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
   //    variable names that are guaranteed to not be shadowed by stack-allocated
   //    variables. ScopeInfos between the function scope and the native
   //    context have a blocklist attached to implement that.
-  //  - The various block lists are calculated by the ScopeIterator during
-  //    iteration.
+  //  - The various block lists are calculated by EnsureLocalsBlockList.
   // Context::Lookup has special handling for debug-evaluate contexts:
   //  - Look up in the materialized stack variables.
   //  - Look up in the original context.
@@ -270,16 +272,13 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
     if (first && !paused_scope_is_script_scope) {
       // The DebugEvaluateContext we create for the closure scope is the only
       // DebugEvaluateContext with a block list. This means we'll retrieve
-      // the existing block list from the paused function scope
-      // and also associate the temporary scope_info we create here with that
-      // blocklist.
-      DirectHandle<ScopeInfo> function_scope_info(
-          frame_inspector_.GetFunction()->shared()->scope_info(), isolate_);
-      DirectHandle<UnionOf<TheHole, StringSet>> block_list(
-          isolate_->LocalsBlockListCacheGet(function_scope_info), isolate_);
-      CHECK(IsStringSet(*block_list));
-      isolate_->LocalsBlockListCacheSet(scope_info, Handle<ScopeInfo>::null(),
-                                        Cast<StringSet>(block_list));
+      // the existing block list from the paused function scope (calculating
+      // it if needed) and also associate the temporary scope_info we create
+      // here with that blocklist.
+      Handle<StringSet> block_list =
+          EnsureLocalsBlockList(isolate_, outer_info());
+      isolate_->LocalsBlockListCacheSet(scope_info, DirectHandle<ScopeInfo>(),
+                                        block_list);
     }
     first = false;
 
@@ -289,16 +288,26 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
   }
 
   if (context_chain_.empty() && !IsNativeContext(*evaluation_context_)) {
-    // When evaluating in an outer closure scope (!InInnerScope()),
-    // context_chain_ is empty. We must still wrap evaluation_context_ in a
-    // DebugEvaluateContext so that Context::Lookup sets
-    // has_seen_debug_evaluate_context = true and consults the blocklist
-    // stored in LocalsBlockListCache on outer closure contexts.
+    // When evaluating in an outer scope (!InInnerScope()), context_chain_ is
+    // empty. We must still wrap evaluation_context_ in a DebugEvaluateContext
+    // so that Context::Lookup sets has_seen_debug_evaluate_context = true and
+    // consults the blocklist stored in LocalsBlockListCache on outer contexts.
+    // If the target outer scope does not have its own runtime Context, we also
+    // calculate its [S_eval, K) blocklist on the fly and attach it to the
+    // synthetic scope_info.
+    EnsureLocalsBlockList(isolate_, outer_info());
     scope_info = ScopeInfo::CreateForWithScope(isolate, scope_info);
     scope_info->SetIsDebugEvaluateScope();
+    if (std::optional<DebugScriptScope> scope =
+            scope_iterator_.CurrentDebugScope();
+        scope.has_value() && !scope->needs_context()) {
+      Handle<StringSet> block_list = CalculateScopeBlockList(isolate_, *scope);
+      isolate_->LocalsBlockListCacheSet(scope_info, DirectHandle<ScopeInfo>(),
+                                        block_list);
+    }
     evaluation_context_ = factory->NewDebugEvaluateContext(
         evaluation_context_, scope_info, DirectHandle<JSReceiver>(),
-        evaluation_context_);
+        DirectHandle<Context>());
   }
 }
 
@@ -548,9 +557,9 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kJumpLoop:
     case Bytecode::kThrow:
     case Bytecode::kReThrow:
-    case Bytecode::kThrowReferenceErrorIfHole:
-    case Bytecode::kThrowSuperNotCalledIfHole:
-    case Bytecode::kThrowSuperAlreadyCalledIfNotHole:
+    case Bytecode::kThrowReferenceErrorIfTdzHole:
+    case Bytecode::kThrowSuperNotCalledIfTdzHole:
+    case Bytecode::kThrowSuperAlreadyCalledIfNotTdzHole:
     case Bytecode::kIllegal:
     case Bytecode::kCallJSRuntime:
     case Bytecode::kReturn:

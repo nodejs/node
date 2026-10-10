@@ -477,7 +477,7 @@ MaybeDirectHandle<WasmModuleObject> CompileReferenceModule(
   TypeCanonicalizer::PrepareForCanonicalTypeId(
       isolate, module->MaxCanonicalTypeIndex(),
       SharedFlag{module->has_shared_part});
-  return WasmModuleObject::New(isolate, std::move(native_module), script);
+  return WasmModuleObject::New(isolate, script);
 }
 
 #if V8_ENABLE_DRUMBRAKE

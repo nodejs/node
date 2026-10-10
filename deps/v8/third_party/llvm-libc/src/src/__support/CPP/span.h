@@ -1,9 +1,14 @@
-//===-- Standalone implementation std::span ---------------------*- C++ -*-===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Implementation of cpp::span.
+///
 //===----------------------------------------------------------------------===//
 #ifndef LLVM_LIBC_SRC___SUPPORT_CPP_SPAN_H
 #define LLVM_LIBC_SRC___SUPPORT_CPP_SPAN_H
@@ -55,6 +60,7 @@ public:
   LIBC_INLINE constexpr span() : span_data(nullptr), span_size(0) {}
 
   LIBC_INLINE constexpr span(const span &) = default;
+  LIBC_INLINE constexpr span &operator=(const span &) = default;
 
   LIBC_INLINE constexpr span(pointer first, size_type count)
       : span_data(first), span_size(count) {}
@@ -72,11 +78,11 @@ public:
       : span_data(arr.data()), span_size(arr.size()) {}
 
   template <typename U, cpp::enable_if_t<is_compatible_v<U>, bool> = true>
-  LIBC_INLINE constexpr span(span<U> &s)
+  LIBC_INLINE constexpr span(const span<U> &s)
       : span_data(s.data()), span_size(s.size()) {}
 
   template <typename U, cpp::enable_if_t<is_compatible_v<U>, bool> = true>
-  LIBC_INLINE constexpr span &operator=(span<U> &s) {
+  LIBC_INLINE constexpr span &operator=(const span<U> &s) {
     span_data = s.data();
     span_size = s.size();
     return *this;

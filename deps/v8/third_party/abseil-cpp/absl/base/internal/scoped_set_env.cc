@@ -16,6 +16,7 @@
 
 #include <cstdlib>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 
 #ifdef _WIN32

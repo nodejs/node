@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/strings/internal/cord_rep_btree.h"

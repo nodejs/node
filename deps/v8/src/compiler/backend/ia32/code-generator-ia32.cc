@@ -392,8 +392,7 @@ class OutOfLineTrap final : public OutOfLineCode {
     // Just encode the stub index. This will be patched when the code
     // is added to the native module and copied into wasm code space.
     __ wasm_call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
-    ReferenceMap* reference_map = gen_->zone()->New<ReferenceMap>(gen_->zone());
-    gen_->RecordSafepoint(reference_map);
+    gen_->RecordSafepointWithoutTaggedSlots();
     __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
   }
 
@@ -1030,10 +1029,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchStoreWithWriteBarrier:  // Fall thrugh.
     case kArchAtomicStoreWithWriteBarrier: {
-      RecordWriteMode mode =
-          arch_opcode == kArchStoreWithWriteBarrier
-              ? RecordWriteModeField::decode(instr->opcode())
-              : AtomicStoreRecordWriteModeField::decode(instr->opcode());
+      RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       Register object = i.InputRegister(0);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
@@ -4261,8 +4257,7 @@ void CodeGenerator::AssembleConstructFrame() {
         // return in this case.
         // So either way, we can just ignore any references and record an empty
         // safepoint here.
-        ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
-        RecordSafepoint(reference_map);
+        RecordSafepointWithoutTaggedSlots();
         for (size_t i = 0; i < arraysize(wasm::kFpParamRegisters); i++) {
           __ Movdqu(wasm::kFpParamRegisters[i], Operand(esp, kSimd128Size * i));
         }
@@ -4276,8 +4271,7 @@ void CodeGenerator::AssembleConstructFrame() {
                      RelocInfo::WASM_STUB_CALL);
         // The call does not return, hence we can ignore any references and just
         // define an empty safepoint.
-        ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
-        RecordSafepoint(reference_map);
+        RecordSafepointWithoutTaggedSlots();
         __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
       }
       __ bind(&done);

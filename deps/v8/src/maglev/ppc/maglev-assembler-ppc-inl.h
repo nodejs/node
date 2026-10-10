@@ -337,7 +337,7 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
 inline MemOperand MaglevAssembler::TypedArrayElementOperand(
     Register data_pointer, Register index, int element_size) {
   TemporaryRegisterScope temps(this);
-  Register temp = r0;
+  Register temp = temps.AcquireScratch();
   ShiftLeftU64(temp, index, Operand(ShiftFromScale(element_size)));
   AddS64(data_pointer, data_pointer, temp);
   return MemOperand(data_pointer);
@@ -486,7 +486,7 @@ inline void MaglevAssembler::SetSlotAddressForTaggedField(Register slot_reg,
 inline void MaglevAssembler::SetSlotAddressForFixedArrayElement(
     Register slot_reg, Register object, Register index) {
   TemporaryRegisterScope temps(this);
-  Register scratch = r0;
+  Register scratch = temps.AcquireScratch();
   AddS64(slot_reg, object,
          Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag));
   ShiftLeftU64(scratch, index, Operand(kTaggedSizeLog2));
@@ -1373,8 +1373,10 @@ inline void MaglevAssembler::CompareSmiAndAssert(Register src,
                                                  AbortReason reason) {
   if (!v8_flags.debug_code) return;
   AssertSmi(src);
-  mov(r0, Operand(value.ptr()));
-  CompareTagged(src, r0);
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  mov(scratch, Operand(value.ptr()));
+  CompareTagged(src, scratch);
   Assert(cond, reason);
 }
 

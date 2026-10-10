@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_OPERATIONS_H_
 #define V8_COMPILER_TURBOSHAFT_OPERATIONS_H_
 
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -1103,6 +1104,64 @@ template <class Op>
 struct HasStaticEffects<Op, std::void_t<decltype(Op::effects)>>
     : std::bool_constant<true> {};
 
+namespace detail {
+template <typename T>
+bool OptionEquals(const T& a, const T& b) {
+  return a == b;
+}
+template <typename T>
+bool OptionEquals(IndirectHandle<T> a, IndirectHandle<T> b) {
+  return a.equals(b);
+}
+template <typename T>
+bool OptionEquals(MaybeIndirectHandle<T> a, MaybeIndirectHandle<T> b) {
+  return a.equals(b);
+}
+template <typename Tuple, size_t... I>
+bool OptionsTupleEquals(const Tuple& a, const Tuple& b,
+                        std::index_sequence<I...>) {
+  return (OptionEquals(std::get<I>(a), std::get<I>(b)) && ...);
+}
+
+// Detects options that the default `operator==` and `hash_value` below would
+// compare and hash by address instead of by value.
+//
+// A raw C array decays to a pointer when the options tuple is built, so an
+// operation that puts one in `options()` silently gets address comparison.
+// Pointers to class types are fine: options like `Block*` or
+// `wasm::StructType*` point to interned objects and are meant to be compared
+// by identity. `const char*` is fine for the same reason, it denotes a string
+// literal. Note that `uint8_t` is `unsigned char`, a distinct type from
+// `char`, so string options stay allowed while decayed byte arrays are caught.
+template <typename T>
+struct IsComparedByAddress {
+  using Type = std::remove_cvref_t<T>;
+  using Pointee = std::remove_cv_t<std::remove_pointer_t<Type>>;
+  static constexpr bool value =
+      std::is_array_v<Type> ||
+      (std::is_pointer_v<Type> && std::is_arithmetic_v<Pointee> &&
+       !std::is_same_v<Pointee, char>);
+};
+
+template <typename Options>
+struct OptionsAreComparedByValue;
+template <typename... Ts>
+struct OptionsAreComparedByValue<std::tuple<Ts...>>
+    : std::bool_constant<(!IsComparedByAddress<Ts>::value && ...)> {};
+
+template <typename Options>
+constexpr void CheckOptionsAreComparedByValue() {
+  // Checking this here rather than in the class body is required: `Derived`
+  // is still incomplete while this CRTP base is instantiated, so `options()`
+  // can only be inspected from a member function body. This also limits the
+  // check to operations that actually use the default comparison, rather
+  // than ones that define their own `operator==` or `hash_value`.
+  static_assert(OptionsAreComparedByValue<std::remove_cvref_t<Options>>::value,
+                "options() must not contain a raw C array, it decays to a "
+                "pointer and would be compared by address. Use std::array.");
+}
+}  // namespace detail
+
 // This template knows the complete type of the operation and is plugged into
 // the inheritance hierarchy. It removes boilerplate from the concrete
 // `Operation` subclasses, defining everything that can be expressed
@@ -1229,8 +1288,15 @@ struct OperationT : Operation {
     return derived_this() == other.derived_this();
   }
   bool operator==(const Base& other) const {
+    detail::CheckOptionsAreComparedByValue<
+        decltype(derived_this().options())>();
+    auto lhs_options = derived_this().options();
+    auto rhs_options = other.derived_this().options();
     return derived_this().inputs() == other.derived_this().inputs() &&
-           derived_this().options() == other.derived_this().options();
+           detail::OptionsTupleEquals(
+               lhs_options, rhs_options,
+               std::make_index_sequence<
+                   std::tuple_size_v<decltype(lhs_options)>>{});
   }
   template <typename... Args>
   size_t HashWithOptions(const Args&... args) const {
@@ -1238,6 +1304,8 @@ struct OperationT : Operation {
   }
   size_t hash_value(
       HashingStrategy strategy = HashingStrategy::kDefault) const {
+    detail::CheckOptionsAreComparedByValue<
+        decltype(derived_this().options())>();
     return HashWithOptions(derived_this().options());
   }
 
@@ -1827,6 +1895,9 @@ struct Word64MulWideOp : FixedArityOperationT<2, Word64MulWideOp> {
   void PrintOptions(std::ostream& os) const;
 };
 
+// 3-way 64-bit addition: computes (a + b + c) returning a pair of Word64:
+// - projection 0: low 64-bit sum ((a + b + c) mod 2^64)
+// - projection 1: carry-out ((a + b + c) >> 64, with values in {0, 1, 2})
 struct Word64Add3Op : FixedArityOperationT<3, Word64Add3Op> {
   static constexpr OpEffects effects = OpEffects();
 
@@ -3045,9 +3116,6 @@ struct LoadOp : OperationT<LoadOp> {
     bool maybe_unaligned : 1;
     // There is a Wasm trap handler for out-of-bounds accesses.
     bool with_trap_handler : 1;
-    // The wasm trap handler is used for null accesses. Note that this requires
-    // with_trap_handler as well.
-    bool trap_on_null : 1;
     // If {load_eliminable} is true, then:
     //   - Stores/Loads at this address cannot overlap. Concretely, it means
     //     that something like this cannot happen:
@@ -3095,7 +3163,6 @@ struct LoadOp : OperationT<LoadOp> {
       return {.tagged_base = true,
               .maybe_unaligned = false,
               .with_trap_handler = false,
-              .trap_on_null = false,
               .load_eliminable = true,
               .is_immutable = false,
               .is_atomic = false};
@@ -3104,7 +3171,6 @@ struct LoadOp : OperationT<LoadOp> {
       return {.tagged_base = false,
               .maybe_unaligned = false,
               .with_trap_handler = false,
-              .trap_on_null = false,
               .load_eliminable = true,
               .is_immutable = false,
               .is_atomic = false};
@@ -3113,7 +3179,6 @@ struct LoadOp : OperationT<LoadOp> {
       return {.tagged_base = false,
               .maybe_unaligned = true,
               .with_trap_handler = false,
-              .trap_on_null = false,
               .load_eliminable = true,
               .is_immutable = false,
               .is_atomic = false};
@@ -3122,7 +3187,6 @@ struct LoadOp : OperationT<LoadOp> {
       return {.tagged_base = false,
               .maybe_unaligned = false,
               .with_trap_handler = true,
-              .trap_on_null = false,
               .load_eliminable = true,
               .is_immutable = false,
               .is_atomic = false};
@@ -3131,7 +3195,6 @@ struct LoadOp : OperationT<LoadOp> {
       return {.tagged_base = true,
               .maybe_unaligned = false,
               .with_trap_handler = true,
-              .trap_on_null = true,
               .load_eliminable = true,
               .is_immutable = false,
               .is_atomic = false};
@@ -3167,8 +3230,7 @@ struct LoadOp : OperationT<LoadOp> {
              maybe_unaligned == other.maybe_unaligned &&
              with_trap_handler == other.with_trap_handler &&
              load_eliminable == other.load_eliminable &&
-             is_immutable == other.is_immutable &&
-             is_atomic == other.is_atomic && trap_on_null == other.trap_on_null;
+             is_immutable == other.is_immutable && is_atomic == other.is_atomic;
     }
   };
   Kind kind;
@@ -3771,7 +3833,8 @@ struct StoreOp : OperationT<StoreOp> {
                       memory_order(),
                       offset,
                       element_size_log2,
-                      maybe_initializing_or_transitioning};
+                      maybe_initializing_or_transitioning,
+                      indirect_pointer_tag()};
   }
 };
 
@@ -6807,17 +6870,6 @@ struct TransitionAndStoreArrayElementOp
     UNREACHABLE();
   }
 
-  size_t hash_value(
-      HashingStrategy strategy = HashingStrategy::kDefault) const {
-    DCHECK_EQ(strategy, HashingStrategy::kDefault);
-    return HashWithOptions(fast_map.address(), double_map.address());
-  }
-
-  bool operator==(const TransitionAndStoreArrayElementOp& other) const {
-    return kind == other.kind && fast_map.equals(other.fast_map) &&
-           double_map.equals(other.double_map);
-  }
-
   auto options() const { return std::tuple{kind, fast_map, double_map}; }
 };
 
@@ -7025,15 +7077,6 @@ struct CheckedClosureOp : FixedArityOperationT<2, CheckedClosureOp> {
 
   void Validate(const Graph& graph) const {
     DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
-  }
-
-  bool operator==(const CheckedClosureOp& other) const {
-    return feedback_cell.address() == other.feedback_cell.address();
-  }
-  size_t hash_value(
-      HashingStrategy strategy = HashingStrategy::kDefault) const {
-    DCHECK_EQ(strategy, HashingStrategy::kDefault);
-    return HashWithOptions(feedback_cell.address());
   }
 
   auto options() const { return std::tuple{feedback_cell}; }
@@ -8658,14 +8701,17 @@ struct StringPrepareForGetCodeUnitOp
 
 struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   static constexpr uint8_t kZero[kSimd128Size] = {};
-  uint8_t value[kSimd128Size];
+  std::array<uint8_t, kSimd128Size> value;
 
   static constexpr OpEffects effects = OpEffects();
 
   explicit Simd128ConstantOp(const uint8_t incoming_value[kSimd128Size])
       : Base() {
-    std::copy(incoming_value, incoming_value + kSimd128Size, value);
+    std::copy(incoming_value, incoming_value + kSimd128Size, value.begin());
   }
+  explicit Simd128ConstantOp(
+      const std::array<uint8_t, kSimd128Size>& incoming_value)
+      : Base(), value(incoming_value) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Simd128()>();
@@ -8680,18 +8726,11 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
     // TODO(14108): Validate.
   }
 
-  bool IsZero() const { return std::memcmp(kZero, value, kSimd128Size) == 0; }
+  bool IsZero() const {
+    return std::memcmp(kZero, value.data(), kSimd128Size) == 0;
+  }
 
   auto options() const { return std::tuple{value}; }
-  // {options()} decays {value} to a pointer, so the inherited {operator==} and
-  // {hash_value} would compare addresses.
-  bool operator==(const Simd128ConstantOp& other) const {
-    return std::memcmp(value, other.value, kSimd128Size) == 0;
-  }
-  size_t hash_value(
-      HashingStrategy strategy = HashingStrategy::kDefault) const {
-    return HashWithOptions(base::VectorOf(value));
-  }
   void PrintOptions(std::ostream& os) const;
 };
 
@@ -8873,6 +8912,140 @@ struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
     }
   }
 
+  static bool IsLaneWise(Kind kind) {
+    // Preserve lane count and operate on corresponding lanes independently.
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Kind::kI16x8ExtMulLowI8x16S:
+      case Kind::kI16x8ExtMulHighI8x16S:
+      case Kind::kI16x8ExtMulLowI8x16U:
+      case Kind::kI16x8ExtMulHighI8x16U:
+      case Kind::kI32x4ExtMulLowI16x8S:
+      case Kind::kI32x4ExtMulHighI16x8S:
+      case Kind::kI32x4ExtMulLowI16x8U:
+      case Kind::kI32x4ExtMulHighI16x8U:
+      case Kind::kI64x2ExtMulLowI32x4S:
+      case Kind::kI64x2ExtMulHighI32x4S:
+      case Kind::kI64x2ExtMulLowI32x4U:
+      case Kind::kI64x2ExtMulHighI32x4U:
+      case Kind::kI8x16SConvertI16x8:
+      case Kind::kI8x16UConvertI16x8:
+      case Kind::kI16x8SConvertI32x4:
+      case Kind::kI16x8UConvertI32x4:
+        return false;
+      case Kind::kI8x16Swizzle:
+      case Kind::kI8x16RelaxedSwizzle:
+      case Kind::kI32x4DotI16x8S:
+      case Kind::kI16x8DotI8x16I7x16S:
+      case Kind::kI32x4AddPairwise:
+      case Kind::kI32x4DotI8x16S:
+        return false;
+      case Kind::kI8x16Eq:
+      case Kind::kI8x16Ne:
+      case Kind::kI8x16GtS:
+      case Kind::kI8x16GtU:
+      case Kind::kI8x16GeS:
+      case Kind::kI8x16GeU:
+      case Kind::kI16x8Eq:
+      case Kind::kI16x8Ne:
+      case Kind::kI16x8GtS:
+      case Kind::kI16x8GtU:
+      case Kind::kI16x8GeS:
+      case Kind::kI16x8GeU:
+      case Kind::kI32x4Eq:
+      case Kind::kI32x4Ne:
+      case Kind::kI32x4GtS:
+      case Kind::kI32x4GtU:
+      case Kind::kI32x4GeS:
+      case Kind::kI32x4GeU:
+      case Kind::kF32x4Eq:
+      case Kind::kF32x4Ne:
+      case Kind::kF32x4Lt:
+      case Kind::kF32x4Le:
+      case Kind::kF64x2Eq:
+      case Kind::kF64x2Ne:
+      case Kind::kF64x2Lt:
+      case Kind::kF64x2Le:
+      case Kind::kS128And:
+      case Kind::kS128AndNot:
+      case Kind::kS128Or:
+      case Kind::kS128Xor:
+      case Kind::kI8x16Add:
+      case Kind::kI8x16AddSatS:
+      case Kind::kI8x16AddSatU:
+      case Kind::kI8x16Sub:
+      case Kind::kI8x16SubSatS:
+      case Kind::kI8x16SubSatU:
+      case Kind::kI8x16MinS:
+      case Kind::kI8x16MinU:
+      case Kind::kI8x16MaxS:
+      case Kind::kI8x16MaxU:
+      case Kind::kI8x16RoundingAverageU:
+      case Kind::kI16x8Q15MulRSatS:
+      case Kind::kI16x8Add:
+      case Kind::kI16x8AddSatS:
+      case Kind::kI16x8AddSatU:
+      case Kind::kI16x8Sub:
+      case Kind::kI16x8SubSatS:
+      case Kind::kI16x8SubSatU:
+      case Kind::kI16x8Mul:
+      case Kind::kI16x8MinS:
+      case Kind::kI16x8MinU:
+      case Kind::kI16x8MaxS:
+      case Kind::kI16x8MaxU:
+      case Kind::kI16x8RoundingAverageU:
+      case Kind::kI32x4Add:
+      case Kind::kI32x4Sub:
+      case Kind::kI32x4Mul:
+      case Kind::kI32x4MinS:
+      case Kind::kI32x4MinU:
+      case Kind::kI32x4MaxS:
+      case Kind::kI32x4MaxU:
+      case Kind::kI64x2Add:
+      case Kind::kI64x2Sub:
+      case Kind::kI64x2Mul:
+      case Kind::kI64x2Eq:
+      case Kind::kI64x2Ne:
+      case Kind::kI64x2GtS:
+      case Kind::kI64x2GeS:
+      case Kind::kF32x4Add:
+      case Kind::kF32x4Sub:
+      case Kind::kF32x4Mul:
+      case Kind::kF32x4Div:
+      case Kind::kF32x4Min:
+      case Kind::kF32x4Max:
+      case Kind::kF32x4Pmin:
+      case Kind::kF32x4Pmax:
+      case Kind::kF64x2Add:
+      case Kind::kF64x2Sub:
+      case Kind::kF64x2Mul:
+      case Kind::kF64x2Div:
+      case Kind::kF64x2Min:
+      case Kind::kF64x2Max:
+      case Kind::kF64x2Pmin:
+      case Kind::kF64x2Pmax:
+      case Kind::kF32x4RelaxedMin:
+      case Kind::kF32x4RelaxedMax:
+      case Kind::kF64x2RelaxedMin:
+      case Kind::kF64x2RelaxedMax:
+      case Kind::kI16x8RelaxedQ15MulRS:
+      case Kind::kF16x8Add:
+      case Kind::kF16x8Sub:
+      case Kind::kF16x8Mul:
+      case Kind::kF16x8Div:
+      case Kind::kF16x8Min:
+      case Kind::kF16x8Max:
+      case Kind::kF16x8Pmin:
+      case Kind::kF16x8Pmax:
+      case Kind::kF16x8Eq:
+      case Kind::kF16x8Ne:
+      case Kind::kF16x8Lt:
+      case Kind::kF16x8Le:
+        return true;
+    }
+  }
+
   static constexpr OpEffects effects = OpEffects();
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -8891,6 +9064,140 @@ struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
   V<Simd128> left() const { return input<Simd128>(0); }
   V<Simd128> right() const { return input<Simd128>(1); }
 
+  static MachineRepresentation input_element_rep(Kind kind) {
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Kind::kI8x16Eq:
+      case Kind::kI8x16Ne:
+      case Kind::kI8x16GtS:
+      case Kind::kI8x16GtU:
+      case Kind::kI8x16GeS:
+      case Kind::kI8x16GeU:
+      case Kind::kS128And:
+      case Kind::kS128AndNot:
+      case Kind::kS128Or:
+      case Kind::kS128Xor:
+      case Kind::kI8x16Add:
+      case Kind::kI8x16AddSatS:
+      case Kind::kI8x16AddSatU:
+      case Kind::kI8x16Sub:
+      case Kind::kI8x16SubSatS:
+      case Kind::kI8x16SubSatU:
+      case Kind::kI8x16MinS:
+      case Kind::kI8x16MinU:
+      case Kind::kI8x16MaxS:
+      case Kind::kI8x16MaxU:
+      case Kind::kI8x16RoundingAverageU:
+      case Kind::kI16x8ExtMulLowI8x16S:
+      case Kind::kI16x8ExtMulHighI8x16S:
+      case Kind::kI16x8ExtMulLowI8x16U:
+      case Kind::kI16x8ExtMulHighI8x16U:
+        return MachineRepresentation::kWord8;
+      case Kind::kI16x8Eq:
+      case Kind::kI16x8Ne:
+      case Kind::kI16x8GtS:
+      case Kind::kI16x8GtU:
+      case Kind::kI16x8GeS:
+      case Kind::kI16x8GeU:
+      case Kind::kI8x16SConvertI16x8:
+      case Kind::kI8x16UConvertI16x8:
+      case Kind::kI16x8Q15MulRSatS:
+      case Kind::kI16x8Add:
+      case Kind::kI16x8AddSatS:
+      case Kind::kI16x8AddSatU:
+      case Kind::kI16x8Sub:
+      case Kind::kI16x8SubSatS:
+      case Kind::kI16x8SubSatU:
+      case Kind::kI16x8Mul:
+      case Kind::kI16x8MinS:
+      case Kind::kI16x8MinU:
+      case Kind::kI16x8MaxS:
+      case Kind::kI16x8MaxU:
+      case Kind::kI16x8RoundingAverageU:
+      case Kind::kI16x8RelaxedQ15MulRS:
+      case Kind::kI32x4ExtMulLowI16x8S:
+      case Kind::kI32x4ExtMulHighI16x8S:
+      case Kind::kI32x4ExtMulLowI16x8U:
+      case Kind::kI32x4ExtMulHighI16x8U:
+        return MachineRepresentation::kWord16;
+      case Kind::kI32x4Eq:
+      case Kind::kI32x4Ne:
+      case Kind::kI32x4GtS:
+      case Kind::kI32x4GtU:
+      case Kind::kI32x4GeS:
+      case Kind::kI32x4GeU:
+      case Kind::kI16x8SConvertI32x4:
+      case Kind::kI16x8UConvertI32x4:
+      case Kind::kI32x4Add:
+      case Kind::kI32x4Sub:
+      case Kind::kI32x4Mul:
+      case Kind::kI32x4MinS:
+      case Kind::kI32x4MinU:
+      case Kind::kI32x4MaxS:
+      case Kind::kI32x4MaxU:
+      case Kind::kI64x2ExtMulLowI32x4S:
+      case Kind::kI64x2ExtMulHighI32x4S:
+      case Kind::kI64x2ExtMulLowI32x4U:
+      case Kind::kI64x2ExtMulHighI32x4U:
+        return MachineRepresentation::kWord32;
+      case Kind::kF32x4Eq:
+      case Kind::kF32x4Ne:
+      case Kind::kF32x4Lt:
+      case Kind::kF32x4Le:
+      case Kind::kF32x4Add:
+      case Kind::kF32x4Sub:
+      case Kind::kF32x4Mul:
+      case Kind::kF32x4Div:
+      case Kind::kF32x4Min:
+      case Kind::kF32x4Max:
+      case Kind::kF32x4Pmin:
+      case Kind::kF32x4Pmax:
+      case Kind::kF32x4RelaxedMin:
+      case Kind::kF32x4RelaxedMax:
+        return MachineRepresentation::kFloat32;
+      case Kind::kF16x8Eq:
+      case Kind::kF16x8Ne:
+      case Kind::kF16x8Lt:
+      case Kind::kF16x8Le:
+      case Kind::kF16x8Add:
+      case Kind::kF16x8Sub:
+      case Kind::kF16x8Mul:
+      case Kind::kF16x8Div:
+      case Kind::kF16x8Min:
+      case Kind::kF16x8Max:
+      case Kind::kF16x8Pmin:
+      case Kind::kF16x8Pmax:
+        return MachineRepresentation::kFloat16;
+      case Kind::kI64x2Add:
+      case Kind::kI64x2Sub:
+      case Kind::kI64x2Mul:
+      case Kind::kI64x2Eq:
+      case Kind::kI64x2Ne:
+      case Kind::kI64x2GtS:
+      case Kind::kI64x2GeS:
+        return MachineRepresentation::kWord64;
+      case Kind::kF64x2Eq:
+      case Kind::kF64x2Ne:
+      case Kind::kF64x2Lt:
+      case Kind::kF64x2Le:
+      case Kind::kF64x2Add:
+      case Kind::kF64x2Sub:
+      case Kind::kF64x2Mul:
+      case Kind::kF64x2Div:
+      case Kind::kF64x2Min:
+      case Kind::kF64x2Max:
+      case Kind::kF64x2Pmin:
+      case Kind::kF64x2Pmax:
+      case Kind::kF64x2RelaxedMin:
+      case Kind::kF64x2RelaxedMax:
+        return MachineRepresentation::kFloat64;
+    }
+  }
+
+  MachineRepresentation input_element_rep() const {
+    return input_element_rep(kind);
+  }
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -8992,6 +9299,168 @@ struct Simd128UnaryOp : FixedArityOperationT<1, Simd128UnaryOp> {
 
   Kind kind;
 
+  static MachineRepresentation InputElementRep(Kind kind) {
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Kind::kS128Not:
+      case Kind::kI8x16Abs:
+      case Kind::kI8x16Neg:
+      case Kind::kI8x16Popcnt:
+      case Kind::kI16x8SConvertI8x16Low:
+      case Kind::kI16x8SConvertI8x16High:
+      case Kind::kI16x8UConvertI8x16Low:
+      case Kind::kI16x8UConvertI8x16High:
+      case Kind::kI16x8ExtAddPairwiseI8x16S:
+      case Kind::kI16x8ExtAddPairwiseI8x16U:
+      case Kind::kSimd128ReverseBytes:
+        return MachineRepresentation::kWord8;
+      case Kind::kI16x8Abs:
+      case Kind::kI16x8Neg:
+      case Kind::kI32x4SConvertI16x8Low:
+      case Kind::kI32x4SConvertI16x8High:
+      case Kind::kI32x4UConvertI16x8Low:
+      case Kind::kI32x4UConvertI16x8High:
+      case Kind::kI32x4ExtAddPairwiseI16x8S:
+      case Kind::kI32x4ExtAddPairwiseI16x8U:
+      case Kind::kF16x8SConvertI16x8:
+      case Kind::kF16x8UConvertI16x8:
+        return MachineRepresentation::kWord16;
+      case Kind::kI32x4Abs:
+      case Kind::kI32x4Neg:
+      case Kind::kF32x4SConvertI32x4:
+      case Kind::kF32x4UConvertI32x4:
+      case Kind::kI64x2SConvertI32x4Low:
+      case Kind::kI64x2SConvertI32x4High:
+      case Kind::kI64x2UConvertI32x4Low:
+      case Kind::kI64x2UConvertI32x4High:
+      case Kind::kF64x2ConvertLowI32x4S:
+      case Kind::kF64x2ConvertLowI32x4U:
+        return MachineRepresentation::kWord32;
+      case Kind::kF32x4Abs:
+      case Kind::kF32x4Neg:
+      case Kind::kF32x4Sqrt:
+      case Kind::kI32x4SConvertF32x4:
+      case Kind::kI32x4UConvertF32x4:
+      case Kind::kI32x4RelaxedTruncF32x4S:
+      case Kind::kI32x4RelaxedTruncF32x4U:
+      case Kind::kF32x4Ceil:
+      case Kind::kF32x4Floor:
+      case Kind::kF32x4Trunc:
+      case Kind::kF32x4NearestInt:
+      case Kind::kF64x2PromoteLowF32x4:
+      case Kind::kF16x8DemoteF32x4Zero:
+        return MachineRepresentation::kFloat32;
+      case Kind::kF16x8Abs:
+      case Kind::kF16x8Neg:
+      case Kind::kF16x8Sqrt:
+      case Kind::kF16x8Ceil:
+      case Kind::kF16x8Floor:
+      case Kind::kF16x8Trunc:
+      case Kind::kF16x8NearestInt:
+      case Kind::kI16x8SConvertF16x8:
+      case Kind::kI16x8UConvertF16x8:
+      case Kind::kF32x4PromoteLowF16x8:
+        return MachineRepresentation::kFloat16;
+      case Kind::kI64x2Abs:
+      case Kind::kI64x2Neg:
+        return MachineRepresentation::kWord64;
+      case Kind::kF64x2Abs:
+      case Kind::kF64x2Neg:
+      case Kind::kF64x2Sqrt:
+      case Kind::kF64x2Ceil:
+      case Kind::kF64x2Floor:
+      case Kind::kF64x2Trunc:
+      case Kind::kF64x2NearestInt:
+      case Kind::kF32x4DemoteF64x2Zero:
+      case Kind::kI32x4TruncSatF64x2SZero:
+      case Kind::kI32x4TruncSatF64x2UZero:
+      case Kind::kI32x4RelaxedTruncF64x2SZero:
+      case Kind::kI32x4RelaxedTruncF64x2UZero:
+      case Kind::kF16x8DemoteF64x2Zero:
+        return MachineRepresentation::kFloat64;
+    }
+  }
+
+  static bool IsLaneWise(Kind kind) {
+    // Preserve lane count and operate on corresponding lanes independently.
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Kind::kI16x8SConvertI8x16Low:
+      case Kind::kI16x8SConvertI8x16High:
+      case Kind::kI16x8UConvertI8x16Low:
+      case Kind::kI16x8UConvertI8x16High:
+      case Kind::kI32x4SConvertI16x8Low:
+      case Kind::kI32x4SConvertI16x8High:
+      case Kind::kI32x4UConvertI16x8Low:
+      case Kind::kI32x4UConvertI16x8High:
+      case Kind::kI64x2SConvertI32x4Low:
+      case Kind::kI64x2SConvertI32x4High:
+      case Kind::kI64x2UConvertI32x4Low:
+      case Kind::kI64x2UConvertI32x4High:
+      case Kind::kI16x8ExtAddPairwiseI8x16S:
+      case Kind::kI16x8ExtAddPairwiseI8x16U:
+      case Kind::kI32x4ExtAddPairwiseI16x8S:
+      case Kind::kI32x4ExtAddPairwiseI16x8U:
+      case Kind::kF32x4DemoteF64x2Zero:
+      case Kind::kF64x2PromoteLowF32x4:
+      case Kind::kI32x4TruncSatF64x2SZero:
+      case Kind::kI32x4TruncSatF64x2UZero:
+      case Kind::kF64x2ConvertLowI32x4S:
+      case Kind::kF64x2ConvertLowI32x4U:
+      case Kind::kI32x4RelaxedTruncF64x2SZero:
+      case Kind::kI32x4RelaxedTruncF64x2UZero:
+      case Kind::kF16x8DemoteF32x4Zero:
+      case Kind::kF16x8DemoteF64x2Zero:
+      case Kind::kF32x4PromoteLowF16x8:
+      case Kind::kSimd128ReverseBytes:
+        return false;
+      case Kind::kS128Not:
+      case Kind::kI8x16Abs:
+      case Kind::kI8x16Neg:
+      case Kind::kI8x16Popcnt:
+      case Kind::kI16x8Abs:
+      case Kind::kI16x8Neg:
+      case Kind::kI32x4Abs:
+      case Kind::kI32x4Neg:
+      case Kind::kI64x2Abs:
+      case Kind::kI64x2Neg:
+      case Kind::kF32x4Abs:
+      case Kind::kF32x4Neg:
+      case Kind::kF32x4Sqrt:
+      case Kind::kF64x2Abs:
+      case Kind::kF64x2Neg:
+      case Kind::kF64x2Sqrt:
+      case Kind::kI32x4SConvertF32x4:
+      case Kind::kI32x4UConvertF32x4:
+      case Kind::kF32x4SConvertI32x4:
+      case Kind::kF32x4UConvertI32x4:
+      case Kind::kI32x4RelaxedTruncF32x4S:
+      case Kind::kI32x4RelaxedTruncF32x4U:
+      case Kind::kF16x8Abs:
+      case Kind::kF16x8Neg:
+      case Kind::kF16x8Sqrt:
+      case Kind::kF16x8Ceil:
+      case Kind::kF16x8Floor:
+      case Kind::kF16x8Trunc:
+      case Kind::kF16x8NearestInt:
+      case Kind::kI16x8SConvertF16x8:
+      case Kind::kI16x8UConvertF16x8:
+      case Kind::kF16x8SConvertI16x8:
+      case Kind::kF16x8UConvertI16x8:
+      case Kind::kF32x4Ceil:
+      case Kind::kF32x4Floor:
+      case Kind::kF32x4Trunc:
+      case Kind::kF32x4NearestInt:
+      case Kind::kF64x2Ceil:
+      case Kind::kF64x2Floor:
+      case Kind::kF64x2Trunc:
+      case Kind::kF64x2NearestInt:
+        return true;
+    }
+  }
+
   static constexpr OpEffects effects = OpEffects();
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -9007,6 +9476,9 @@ struct Simd128UnaryOp : FixedArityOperationT<1, Simd128UnaryOp> {
 
   V<Simd128> input() const { return Base::input<Simd128>(0); }
 
+  MachineRepresentation input_element_rep() const {
+    return InputElementRep(kind);
+  }
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -9076,6 +9548,50 @@ struct Simd128ShiftOp : FixedArityOperationT<2, Simd128ShiftOp> {
 
   static constexpr OpEffects effects = OpEffects();
 
+  static MachineRepresentation InputElementRep(Kind kind) {
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Kind::kI8x16Shl:
+      case Kind::kI8x16ShrS:
+      case Kind::kI8x16ShrU:
+        return MachineRepresentation::kWord8;
+      case Kind::kI16x8Shl:
+      case Kind::kI16x8ShrS:
+      case Kind::kI16x8ShrU:
+        return MachineRepresentation::kWord16;
+      case Kind::kI32x4Shl:
+      case Kind::kI32x4ShrS:
+      case Kind::kI32x4ShrU:
+        return MachineRepresentation::kWord32;
+      case Kind::kI64x2Shl:
+      case Kind::kI64x2ShrS:
+      case Kind::kI64x2ShrU:
+        return MachineRepresentation::kWord64;
+    }
+  }
+
+  static bool IsLaneWise(Kind kind) {
+    // Preserve lane count and operate on corresponding lanes independently.
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Kind::kI8x16Shl:
+      case Kind::kI8x16ShrS:
+      case Kind::kI8x16ShrU:
+      case Kind::kI16x8Shl:
+      case Kind::kI16x8ShrS:
+      case Kind::kI16x8ShrU:
+      case Kind::kI32x4Shl:
+      case Kind::kI32x4ShrS:
+      case Kind::kI32x4ShrU:
+      case Kind::kI64x2Shl:
+      case Kind::kI64x2ShrS:
+      case Kind::kI64x2ShrU:
+        return true;
+    }
+  }
+
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Simd128()>();
   }
@@ -9092,6 +9608,9 @@ struct Simd128ShiftOp : FixedArityOperationT<2, Simd128ShiftOp> {
   V<Simd128> input() const { return Base::input<Simd128>(0); }
   V<Word32> shift() const { return Base::input<Word32>(1); }
 
+  MachineRepresentation input_element_rep() const {
+    return InputElementRep(kind);
+  }
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -9225,6 +9744,53 @@ struct Simd128TernaryOp : FixedArityOperationT<3, Simd128TernaryOp> {
 
   Kind kind;
 
+  static bool IsLaneWise(Kind kind) {
+    // Preserve lane count and operate on corresponding lanes independently.
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Kind::kI32x4DotI8x16I7x16AddS:
+        return false;
+      case Kind::kS128Select:
+      case Kind::kI8x16RelaxedLaneSelect:
+      case Kind::kI16x8RelaxedLaneSelect:
+      case Kind::kI32x4RelaxedLaneSelect:
+      case Kind::kI64x2RelaxedLaneSelect:
+      case Kind::kF32x4Qfma:
+      case Kind::kF32x4Qfms:
+      case Kind::kF64x2Qfma:
+      case Kind::kF64x2Qfms:
+      case Kind::kF16x8Qfma:
+      case Kind::kF16x8Qfms:
+        return true;
+    }
+  }
+
+  static MachineRepresentation InputElementRep(Kind kind) {
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Kind::kS128Select:
+      case Kind::kI8x16RelaxedLaneSelect:
+        return MachineRepresentation::kWord8;
+      case Kind::kI16x8RelaxedLaneSelect:
+        return MachineRepresentation::kWord16;
+      case Kind::kI32x4RelaxedLaneSelect:
+        return MachineRepresentation::kWord32;
+      case Kind::kF32x4Qfma:
+      case Kind::kF32x4Qfms:
+        return MachineRepresentation::kFloat32;
+      case Kind::kI64x2RelaxedLaneSelect:
+        return MachineRepresentation::kWord64;
+      case Kind::kF64x2Qfma:
+      case Kind::kF64x2Qfms:
+        return MachineRepresentation::kFloat64;
+      case Kind::kF16x8Qfma:
+      case Kind::kF16x8Qfms:
+        return MachineRepresentation::kFloat16;
+    }
+  }
+
   static constexpr OpEffects effects = OpEffects();
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -9246,6 +9812,9 @@ struct Simd128TernaryOp : FixedArityOperationT<3, Simd128TernaryOp> {
   V<Simd128> second() const { return input<Simd128>(1); }
   V<Simd128> third() const { return input<Simd128>(2); }
 
+  MachineRepresentation input_element_rep() const {
+    return InputElementRep(kind);
+  }
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -9661,7 +10230,7 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
     kI8x16,
   };
 
-  uint8_t shuffle[kSimd128Size] = {0};
+  std::array<uint8_t, kSimd128Size> shuffle = {0};
   const Kind kind;
 
   static constexpr OpEffects effects = OpEffects();
@@ -9699,8 +10268,12 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
         count = 16;
         break;
     }
-    std::copy_n(incoming_shuffle, count, shuffle);
+    std::copy_n(incoming_shuffle, count, shuffle.begin());
   }
+
+  Simd128ShuffleOp(V<Simd128> left, V<Simd128> right, Kind kind,
+                   const std::array<uint8_t, kSimd128Size>& incoming_shuffle)
+      : Base(left, right), shuffle(incoming_shuffle), kind(kind) {}
 
   V<Simd128> left() const { return input<Simd128>(0); }
   V<Simd128> right() const { return input<Simd128>(1); }
@@ -9715,16 +10288,6 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
   }
 
   auto options() const { return std::tuple{kind, shuffle}; }
-  // {options()} decays {shuffle} to a pointer, so the inherited {operator==}
-  // and {hash_value} would compare addresses.
-  bool operator==(const Simd128ShuffleOp& other) const {
-    return inputs() == other.inputs() && kind == other.kind &&
-           std::memcmp(shuffle, other.shuffle, kSimd128Size) == 0;
-  }
-  size_t hash_value(
-      HashingStrategy strategy = HashingStrategy::kDefault) const {
-    return HashWithOptions(kind, base::VectorOf(shuffle));
-  }
   void PrintOptions(std::ostream& os) const;
 };
 
@@ -9795,14 +10358,17 @@ struct Simd128LoadPairDeinterleaveOp
 
 struct Simd256ConstantOp : FixedArityOperationT<0, Simd256ConstantOp> {
   static constexpr uint8_t kZero[kSimd256Size] = {};
-  uint8_t value[kSimd256Size];
+  std::array<uint8_t, kSimd256Size> value;
 
   static constexpr OpEffects effects = OpEffects();
 
   explicit Simd256ConstantOp(const uint8_t incoming_value[kSimd256Size])
       : Base() {
-    std::copy(incoming_value, incoming_value + kSimd256Size, value);
+    std::copy(incoming_value, incoming_value + kSimd256Size, value.begin());
   }
+  explicit Simd256ConstantOp(
+      const std::array<uint8_t, kSimd256Size>& incoming_value)
+      : Base(), value(incoming_value) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Simd256()>();
@@ -9817,18 +10383,11 @@ struct Simd256ConstantOp : FixedArityOperationT<0, Simd256ConstantOp> {
     // TODO(14108): Validate.
   }
 
-  bool IsZero() const { return std::memcmp(kZero, value, kSimd256Size) == 0; }
+  bool IsZero() const {
+    return std::memcmp(kZero, value.data(), kSimd256Size) == 0;
+  }
 
   auto options() const { return std::tuple{value}; }
-  // {options()} decays {value} to a pointer, so the inherited {operator==} and
-  // {hash_value} would compare addresses.
-  bool operator==(const Simd256ConstantOp& other) const {
-    return std::memcmp(value, other.value, kSimd256Size) == 0;
-  }
-  size_t hash_value(
-      HashingStrategy strategy = HashingStrategy::kDefault) const {
-    return HashWithOptions(base::VectorOf(value));
-  }
   void PrintOptions(std::ostream& os) const;
 };
 

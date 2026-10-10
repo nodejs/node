@@ -234,7 +234,7 @@ Reduction JSContextSpecialization::ReduceJSLoadContextNoCell(Node* node) {
   // We must be conservative and check if the value in the slot is currently
   // the hole or undefined. Only if it is neither of these, can we be sure
   // that it won't change anymore.
-  if (maybe_value->IsUndefined() || maybe_value->IsTheHole()) {
+  if (maybe_value->IsUndefined() || maybe_value->IsTdzHole()) {
     return SimplifyJSLoadContextNoCell(
         node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
   }
@@ -275,7 +275,7 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   }
 
   auto maybe_value = concrete.get(broker(), static_cast<int>(access.index()));
-  if (!maybe_value || maybe_value->IsTheHole() ||
+  if (!maybe_value || maybe_value->IsTdzHole() ||
       maybe_value->IsUndefinedContextCell()) {
     return SimplifyJSLoadContext(
         node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
@@ -408,7 +408,7 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
   }
 
   auto maybe_value = concrete.get(broker(), static_cast<int>(access.index()));
-  if (!maybe_value || maybe_value->IsTheHole() ||
+  if (!maybe_value || maybe_value->IsTdzHole() ||
       maybe_value->IsUndefinedContextCell()) {
     return SimplifyJSStoreContext(
         node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
@@ -494,11 +494,11 @@ OptionalContextRef GetModuleContext(JSHeapBroker* broker, Node* node,
   size_t depth = std::numeric_limits<size_t>::max();
   Node* context = NodeProperties::GetOuterContext(node, &depth);
 
-  auto find_context = [broker](ContextRef c) {
+  auto find_context = [broker](ContextRef c) -> OptionalContextRef {
     while (c.map(broker).instance_type() != MODULE_CONTEXT_TYPE) {
       size_t depth = 1;
       c = c.previous(broker, &depth);
-      CHECK_EQ(depth, 0);
+      if (depth != 0) return OptionalContextRef();
     }
     return c;
   };

@@ -602,6 +602,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
   void LoadRoot(Register destination, RootIndex index, Condition cond);
   void LoadTaggedRoot(Register destination, RootIndex index);
+  void StoreTaggedRoot(const MemOperand& destination, RootIndex index);
 
   void SwapP(Register src, Register dst);
   void SwapP(Register src, MemOperand dst);

@@ -32,6 +32,87 @@ class LoopMergePointInterpreterFrameState;
 class MergePointInterpreterFrameState;
 struct LoopEffects;
 
+// Bundles a static ScopeInfoRef with the distance (in Context::previous() hops)
+// from this scope to MaglevCompilationInfo::specialization_context().
+// - If specialization_context_distance() has a value, walking outward that many
+//   steps reaches the specialization context.
+// - If specialization_context_distance() is std::nullopt (stored compactly as
+//   kNoDistance to keep sizeof(ContextScopeInfo) == 16), either there is no
+//   specialization context, this scope is inside an inlined compilation unit,
+//   or we have walked outward past the specialization context.
+class ContextScopeInfo {
+ public:
+  ContextScopeInfo() = default;
+  ContextScopeInfo(std::nullopt_t) {}  // NOLINT(runtime/explicit)
+  ContextScopeInfo(compiler::OptionalScopeInfoRef scope_info,
+                   std::optional<size_t> specialization_context_distance =
+                       std::nullopt)  // NOLINT(runtime/explicit)
+      : scope_info_(scope_info),
+        specialization_context_distance_(
+            scope_info.has_value()
+                ? specialization_context_distance.value_or(kNoDistance)
+                : kNoDistance) {}
+
+  bool has_value() const { return scope_info_.has_value(); }
+  compiler::ScopeInfoRef value() const { return scope_info_.value(); }
+  operator compiler::ScopeInfoRef() const { return value(); }
+  compiler::OptionalScopeInfoRef scope_info() const { return scope_info_; }
+
+  bool HasOuterScopeInfo() const { return scope_info_->HasOuterScopeInfo(); }
+  bool HasContextExtensionSlot() const {
+    return scope_info_->HasContextExtensionSlot();
+  }
+  ScopeType scope_type() const { return scope_info_->scope_type(); }
+
+  std::optional<size_t> specialization_context_distance() const {
+    if (!has_value() || specialization_context_distance_ == kNoDistance) {
+      return std::nullopt;
+    }
+    return specialization_context_distance_;
+  }
+
+  V8_NODISCARD ContextScopeInfo Push(compiler::ScopeInfoRef inner_scope) const {
+    std::optional<size_t> inner_dist;
+    if (specialization_context_distance_ != kNoDistance) {
+      inner_dist = specialization_context_distance_ + 1;
+    }
+    return ContextScopeInfo(inner_scope, inner_dist);
+  }
+
+  V8_NODISCARD ContextScopeInfo
+  OuterScopeInfo(compiler::JSHeapBroker* broker) const {
+    DCHECK(has_value());
+    DCHECK(HasOuterScopeInfo());
+    std::optional<size_t> outer_dist;
+    if (specialization_context_distance_ != kNoDistance &&
+        specialization_context_distance_ > 0) {
+      outer_dist = specialization_context_distance_ - 1;
+    }
+    return ContextScopeInfo(scope_info_->OuterScopeInfo(broker), outer_dist);
+  }
+
+  bool operator==(const ContextScopeInfo& other) const {
+    DCHECK_IMPLIES(scope_info_.equals(other.scope_info_),
+                   specialization_context_distance_ ==
+                       other.specialization_context_distance_);
+    return scope_info_.equals(other.scope_info_);
+  }
+
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const ContextScopeInfo& info) {
+    if (info.has_value()) {
+      return os << info.value();
+    }
+    return os << "<empty>";
+  }
+
+ private:
+  static constexpr size_t kNoDistance = std::numeric_limits<size_t>::max();
+
+  compiler::OptionalScopeInfoRef scope_info_;
+  size_t specialization_context_distance_ = kNoDistance;
+};
+
 class InterpreterFrameState {
  public:
   InterpreterFrameState(const MaglevCompilationUnit& info,
@@ -301,7 +382,7 @@ class MergePointInterpreterFrameState {
       const MaglevCompilationUnit& info, const InterpreterFrameState& state,
       int merge_offset, int predecessor_count, BasicBlock* predecessor,
       const compiler::BytecodeLivenessState* liveness,
-      compiler::OptionalScopeInfoRef context_scope_info);
+      ContextScopeInfo context_scope_info);
 
   static LoopMergePointInterpreterFrameState* NewForLoop(
       const MaglevCompilationUnit& info, bool is_inline, Graph* graph,
@@ -313,31 +394,29 @@ class MergePointInterpreterFrameState {
       const MaglevCompilationUnit& unit,
       const compiler::BytecodeLivenessState* liveness, int handler_offset,
       bool was_used, interpreter::Register context_register, Graph* graph,
-      compiler::OptionalScopeInfoRef context_scope_info);
+      ContextScopeInfo context_scope_info);
 
   static MergePointInterpreterFrameState* NewForPeel(
       const MaglevCompilationUnit& info,
       const MergePointInterpreterFrameState& template_state,
       BasicBlock** predecessors, int predecessor_count);
 
-  compiler::OptionalScopeInfoRef context_scope_info() const {
-    return context_scope_info_;
-  }
+  ContextScopeInfo context_scope_info() const { return context_scope_info_; }
   bool has_context_scope_info() const {
     return context_scope_info_.has_value();
   }
-  void set_context_scope_info(compiler::OptionalScopeInfoRef scope_info);
+  void set_context_scope_info(ContextScopeInfo scope_info);
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
   void Merge(Graph* graph, bool is_tracing,
              MaglevCompilationUnit& compilation_unit,
              InterpreterFrameState& unmerged, BasicBlock* predecessor,
-             compiler::OptionalScopeInfoRef context_scope_info);
+             ContextScopeInfo context_scope_info);
   void InitializeLoop(Graph* graph, bool is_tracing,
                       MaglevCompilationUnit& compilation_unit,
                       InterpreterFrameState& unmerged, BasicBlock* predecessor,
-                      compiler::OptionalScopeInfoRef context_scope_info,
+                      ContextScopeInfo context_scope_info,
                       bool optimistic_initial_state = false,
                       LoopEffects* loop_effects = nullptr);
   void InitializeWithBasicBlock(BasicBlock* current_block);
@@ -550,7 +629,7 @@ class MergePointInterpreterFrameState {
       const MaglevCompilationUnit& info, int merge_offset,
       int predecessor_count, int predecessors_so_far, BasicBlock** predecessors,
       BasicBlockType type, const compiler::BytecodeLivenessState* liveness,
-      compiler::OptionalScopeInfoRef context_scope_info);
+      ContextScopeInfo context_scope_info);
 
   void MergeLoopValue(Graph* graph, bool is_tracing,
                       interpreter::Register owner,
@@ -609,7 +688,7 @@ class MergePointInterpreterFrameState {
   CompactInterpreterFrameState frame_state_;
 
   KnownNodeAspects* known_node_aspects_ = nullptr;
-  compiler::OptionalScopeInfoRef context_scope_info_;
+  ContextScopeInfo context_scope_info_;
 
   union {
     // {pre_predecessor_alternatives_} is used to keep track of the alternatives
@@ -694,8 +773,8 @@ MergePointInterpreterFrameState::AsLoopHeader() const {
 #if V8_HOST_ARCH_64_BIT
 // These asserts only exist to avoid accidentally bloating the merge states;
 // the sizes can be increased if more fields are actually needed.
-static_assert(sizeof(MergePointInterpreterFrameState) == 96);
-static_assert(sizeof(LoopMergePointInterpreterFrameState) == 120);
+static_assert(sizeof(MergePointInterpreterFrameState) == 104);
+static_assert(sizeof(LoopMergePointInterpreterFrameState) == 128);
 #endif
 
 struct LoopEffects {

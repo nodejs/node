@@ -674,11 +674,10 @@ void CppGraphBuilderImpl::Run() {
 }
 
 // static
-void CppGraphBuilder::Run(CppHeap* cpp_heap, HeapSnapshotGenerator* generator,
+void CppGraphBuilder::Run(CppHeap& cpp_heap, HeapSnapshotGenerator* generator,
                           CppHeapWrapperSet&& cpp_heap_wrappers) {
-  CHECK_NOT_NULL(cpp_heap);
   CHECK_NOT_NULL(generator);
-  CppGraphBuilderImpl graph_builder(*cpp_heap, generator,
+  CppGraphBuilderImpl graph_builder(cpp_heap, generator,
                                     std::move(cpp_heap_wrappers));
   graph_builder.Run();
 }

@@ -836,6 +836,10 @@ void BaselineCompiler::VisitLdaTheHole() {
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTheHoleValue);
 }
 
+void BaselineCompiler::VisitLdaTdzHole() {
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTdzHoleValue);
+}
+
 void BaselineCompiler::VisitLdaTrue() {
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
 }
@@ -2820,9 +2824,9 @@ void BaselineCompiler::VisitReturn() {
                                                 -profiling_weight);
 }
 
-void BaselineCompiler::VisitThrowReferenceErrorIfHole() {
+void BaselineCompiler::VisitThrowReferenceErrorIfTdzHole() {
   Label done;
-  __ JumpIfNotRoot(kInterpreterAccumulatorRegister, RootIndex::kTheHoleValue,
+  __ JumpIfNotRoot(kInterpreterAccumulatorRegister, RootIndex::kTdzHoleValue,
                    &done);
   CallRuntime(Runtime::kThrowAccessedUninitializedVariable, Constant<Name>(0));
   // Unreachable.
@@ -2830,9 +2834,9 @@ void BaselineCompiler::VisitThrowReferenceErrorIfHole() {
   __ Bind(&done);
 }
 
-void BaselineCompiler::VisitThrowSuperNotCalledIfHole() {
+void BaselineCompiler::VisitThrowSuperNotCalledIfTdzHole() {
   Label done;
-  __ JumpIfNotRoot(kInterpreterAccumulatorRegister, RootIndex::kTheHoleValue,
+  __ JumpIfNotRoot(kInterpreterAccumulatorRegister, RootIndex::kTdzHoleValue,
                    &done);
   CallRuntime(Runtime::kThrowSuperNotCalled);
   // Unreachable.
@@ -2840,9 +2844,9 @@ void BaselineCompiler::VisitThrowSuperNotCalledIfHole() {
   __ Bind(&done);
 }
 
-void BaselineCompiler::VisitThrowSuperAlreadyCalledIfNotHole() {
+void BaselineCompiler::VisitThrowSuperAlreadyCalledIfNotTdzHole() {
   Label done;
-  __ JumpIfRoot(kInterpreterAccumulatorRegister, RootIndex::kTheHoleValue,
+  __ JumpIfRoot(kInterpreterAccumulatorRegister, RootIndex::kTdzHoleValue,
                 &done);
   CallRuntime(Runtime::kThrowSuperAlreadyCalledError);
   // Unreachable.

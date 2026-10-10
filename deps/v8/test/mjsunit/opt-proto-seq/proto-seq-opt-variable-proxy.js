@@ -48,7 +48,7 @@ assert_test_variable_proxy(test_variable_proxy());
 %OptimizeMaglevOnNextCall(test_variable_proxy);
 assert_test_variable_proxy(test_variable_proxy());
 assertOptimized(test_variable_proxy);
-assertTrue(isMaglevved(test_variable_proxy));
+assertMaglevved(test_variable_proxy);
 assert_test_variable_proxy(test_variable_proxy());
 %OptimizeFunctionOnNextCall(test_variable_proxy);
 assert_test_variable_proxy(test_variable_proxy());

@@ -19,6 +19,7 @@
 #include <cstddef>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/const_init.h"
 #include "absl/strings/internal/str_format/arg.h"
 #include "absl/strings/internal/str_format/constexpr_parser.h"

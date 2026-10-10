@@ -116,6 +116,14 @@ IGNITION_HANDLER(LdaTheHole, InterpreterAssembler) {
   Dispatch();
 }
 
+// LdaTdzHole
+//
+// Load TdzHole into the accumulator.
+IGNITION_HANDLER(LdaTdzHole, InterpreterAssembler) {
+  SetAccumulator(TdzHoleConstant());
+  Dispatch();
+}
+
 // LdaTrue
 //
 // Load True into the accumulator.
@@ -3113,14 +3121,17 @@ IGNITION_HANDLER(Return, InterpreterAssembler) {
   Return(accumulator);
 }
 
-// ThrowReferenceErrorIfHole <variable_name>
+// ThrowReferenceErrorIfTdzHole <variable_name>
 //
-// Throws an exception if the value in the accumulator is TheHole.
-IGNITION_HANDLER(ThrowReferenceErrorIfHole, InterpreterAssembler) {
+// Throws an exception if the value in the accumulator is TdzHole.
+IGNITION_HANDLER(ThrowReferenceErrorIfTdzHole, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
+#ifdef V8_ENABLE_TDZ_HOLE
+  CSA_DCHECK(this, TaggedNotEqual(value, TheHoleConstant()));
+#endif
 
   Label throw_error(this, Label::kDeferred);
-  GotoIf(TaggedEqual(value, TheHoleConstant()), &throw_error);
+  GotoIf(TaggedEqual(value, TdzHoleConstant()), &throw_error);
   Dispatch();
 
   BIND(&throw_error);
@@ -3134,14 +3145,17 @@ IGNITION_HANDLER(ThrowReferenceErrorIfHole, InterpreterAssembler) {
   }
 }
 
-// ThrowSuperNotCalledIfHole
+// ThrowSuperNotCalledIfTdzHole
 //
-// Throws an exception if the value in the accumulator is TheHole.
-IGNITION_HANDLER(ThrowSuperNotCalledIfHole, InterpreterAssembler) {
+// Throws an exception if the value in the accumulator is TdzHole.
+IGNITION_HANDLER(ThrowSuperNotCalledIfTdzHole, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
+#ifdef V8_ENABLE_TDZ_HOLE
+  CSA_DCHECK(this, TaggedNotEqual(value, TheHoleConstant()));
+#endif
 
   Label throw_error(this, Label::kDeferred);
-  GotoIf(TaggedEqual(value, TheHoleConstant()), &throw_error);
+  GotoIf(TaggedEqual(value, TdzHoleConstant()), &throw_error);
   Dispatch();
 
   BIND(&throw_error);
@@ -3153,15 +3167,18 @@ IGNITION_HANDLER(ThrowSuperNotCalledIfHole, InterpreterAssembler) {
   }
 }
 
-// ThrowSuperAlreadyCalledIfNotHole
+// ThrowSuperAlreadyCalledIfNotTdzHole
 //
 // Throws SuperAlreadyCalled exception if the value in the accumulator is not
-// TheHole.
-IGNITION_HANDLER(ThrowSuperAlreadyCalledIfNotHole, InterpreterAssembler) {
+// TdzHole.
+IGNITION_HANDLER(ThrowSuperAlreadyCalledIfNotTdzHole, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
+#ifdef V8_ENABLE_TDZ_HOLE
+  CSA_DCHECK(this, TaggedNotEqual(value, TheHoleConstant()));
+#endif
 
   Label throw_error(this, Label::kDeferred);
-  GotoIf(TaggedNotEqual(value, TheHoleConstant()), &throw_error);
+  GotoIf(TaggedNotEqual(value, TdzHoleConstant()), &throw_error);
   Dispatch();
 
   BIND(&throw_error);

@@ -20,6 +20,6 @@ foo(0);
 foo(0);
 %OptimizeMaglevOnNextCall(foo);
 foo(0);
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 assertTrue(foo(1));
 assertUnoptimized(foo);

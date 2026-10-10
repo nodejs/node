@@ -2,8 +2,215 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --future-wasm-simd-opt
+
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 d8.file.execute('test/mjsunit/value-helper.js');
+
+function RunBinaryPassThruShuffleTest(config) {
+  print(config.name);
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1);
+  builder.exportMemoryAs("memory");
+  const shuffle = [
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+  ];
+  const simd = [
+    kExprLocalGet, 0,
+    kSimdPrefix, kExprS128LoadMem, 0, 0,
+    kExprLocalGet, 1,
+    kSimdPrefix, kExprS128LoadMem, 0, 0,
+    kSimdPrefix, kExprI8x16Shuffle,
+    ...shuffle,
+    kExprLocalGet, 1,
+    kSimdPrefix, kExprS128LoadMem, 0, 0,
+    kExprLocalGet, 0,
+    kSimdPrefix, kExprS128LoadMem, 0, 0,
+    kSimdPrefix, kExprI8x16Shuffle,
+    ...shuffle,
+    ...SimdInstr(config.op),
+    kSimdPrefix, kExprI8x16ExtractLaneS, 0,
+  ];
+  builder.addFunction("simd", config.sig).addBody(simd).exportFunc();
+  builder.addFunction("scalar", config.sig).addBody(config.scalar).exportFunc();
+  const wasm = builder.instantiate().exports;
+  const memory = new Uint8Array(wasm.memory.buffer);
+  for (let i = 0; i < 64; ++i) {
+    memory[i] = int8_array[i % int8_array.length];
+  }
+  const inputs = [[0, 0], [4, 8], [10, 14]];
+  for (const [left, right] of inputs) {
+    assertEquals(wasm.scalar(left, right), wasm.simd(left, right));
+  }
+}
+
+(function BinaryPassThruShuffleLanes() {
+  RunBinaryPassThruShuffleTest({
+    name: "BinaryPassThruShuffleI8x16Add",
+    sig: kSig_i_ii,
+    op: kExprI8x16Add,
+    scalar: [
+      kExprLocalGet, 0,
+      kExprI32LoadMem8S, 0, 0,
+      kExprLocalGet, 1,
+      kExprI32LoadMem8S, 0, 0,
+      kExprI32Add,
+      ...wasmI32Const(24),
+      kExprI32Shl,
+      ...wasmI32Const(24),
+      kExprI32ShrS,
+    ],
+  });
+  RunBinaryPassThruShuffleTest({
+    name: "BinaryPassThruShuffleI16x8Eq",
+    sig: kSig_i_ii,
+    op: kExprI16x8Eq,
+    scalar: [
+      ...wasmI32Const(0),
+      kExprLocalGet, 0,
+      kExprI32LoadMem16U, 0, 0,
+      kExprLocalGet, 1,
+      kExprI32LoadMem16U, 0, 0,
+      kExprI32Eq,
+      kExprI32Sub,
+    ],
+  });
+  RunBinaryPassThruShuffleTest({
+    name: "BinaryPassThruShuffleI32x4Eq",
+    sig: kSig_i_ii,
+    op: kExprI32x4Eq,
+    scalar: [
+      ...wasmI32Const(0),
+      kExprLocalGet, 0,
+      kExprI32LoadMem, 0, 0,
+      kExprLocalGet, 1,
+      kExprI32LoadMem, 0, 0,
+      kExprI32Eq,
+      kExprI32Sub,
+    ],
+  });
+  RunBinaryPassThruShuffleTest({
+    name: "BinaryPassThruShuffleI64x2Eq",
+    sig: kSig_i_ii,
+    op: kExprI64x2Eq,
+    scalar: [
+      ...wasmI32Const(0),
+      kExprLocalGet, 0,
+      kExprI64LoadMem, 0, 0,
+      kExprLocalGet, 1,
+      kExprI64LoadMem, 0, 0,
+      kExprI64Eq,
+      kExprI32Sub,
+    ],
+  });
+  RunBinaryPassThruShuffleTest({
+    name: "BinaryPassThruShuffleF32x4Eq",
+    sig: kSig_i_ii,
+    op: kExprF32x4Eq,
+    scalar: [
+      ...wasmI32Const(0),
+      kExprLocalGet, 0,
+      kExprF32LoadMem, 0, 0,
+      kExprLocalGet, 1,
+      kExprF32LoadMem, 0, 0,
+      kExprF32Eq,
+      kExprI32Sub,
+    ],
+  });
+  RunBinaryPassThruShuffleTest({
+    name: "BinaryPassThruShuffleF64x2Eq",
+    sig: kSig_i_ii,
+    op: kExprF64x2Eq,
+    scalar: [
+      ...wasmI32Const(0),
+      kExprLocalGet, 0,
+      kExprF64LoadMem, 0, 0,
+      kExprLocalGet, 1,
+      kExprF64LoadMem, 0, 0,
+      kExprF64Eq,
+      kExprI32Sub,
+    ],
+  });
+})();
+
+function RunNarrowConvertShuffleTest(config) {
+  print(config.name);
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1);
+  builder.exportMemoryAs("memory");
+  const simd = [
+    // The second lane of this shuffle supplies the second lane of the result.
+    // Narrowing conversions change lane width, so they are not lane-wise
+    // operations.
+    kExprLocalGet, 1,
+    kSimdPrefix, kExprS128LoadMem, 0, 0,
+    kExprLocalGet, 0,
+    kSimdPrefix, kExprS128LoadMem, 0, 0,
+    kSimdPrefix, kExprI8x16Shuffle,
+    ...config.shuffle,
+    // The second input supplies the high half of the result.
+    kExprLocalGet, 0,
+    kSimdPrefix, kExprS128LoadMem, 0, 0,
+    ...SimdInstr(config.op),
+    kSimdPrefix, config.extract, config.lane,
+  ];
+  builder.addFunction("simd", kSig_i_ii).addBody(simd).exportFunc();
+  const wasm = builder.instantiate().exports;
+  const memory = new DataView(wasm.memory.buffer);
+  for (let i = 0; i < config.input_lanes.length; ++i) {
+    config.store.call(memory, 16 + i * config.input_size,
+                      config.input_lanes[i], true);
+  }
+  assertEquals(config.expected, wasm.simd(0, 16));
+}
+
+(function NarrowConvertIsNotLaneWise() {
+  const i16_shuffle = [
+    0x00, 0x01, 0x0e, 0x0f, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x02, 0x03,
+  ];
+  const i32_shuffle = [
+    0x00, 0x01, 0x02, 0x03, 0x0c, 0x0d, 0x0e, 0x0f,
+    0x08, 0x09, 0x0a, 0x0b, 0x04, 0x05, 0x06, 0x07,
+  ];
+  for (const [name, op, extract] of [
+    ["I8x16SConvertI16x8", kExprI8x16SConvertI16x8,
+     kExprI8x16ExtractLaneS],
+    ["I8x16UConvertI16x8", kExprI8x16UConvertI16x8,
+     kExprI8x16ExtractLaneU],
+  ]) {
+    RunNarrowConvertShuffleTest({
+      name,
+      op,
+      extract,
+      lane: 1,
+      shuffle: i16_shuffle,
+      input_size: 2,
+      input_lanes: [11, 22, 33, 44, 55, 66, 77, 88],
+      store: DataView.prototype.setInt16,
+      expected: 88,
+    });
+  }
+  for (const [name, op, extract] of [
+    ["I16x8SConvertI32x4", kExprI16x8SConvertI32x4,
+     kExprI16x8ExtractLaneS],
+    ["I16x8UConvertI32x4", kExprI16x8UConvertI32x4,
+     kExprI16x8ExtractLaneU],
+  ]) {
+    RunNarrowConvertShuffleTest({
+      name,
+      op,
+      extract,
+      lane: 1,
+      shuffle: i32_shuffle,
+      input_size: 4,
+      input_lanes: [1111, 2222, 3333, 4444],
+      store: DataView.prototype.setInt32,
+      expected: 4444,
+    });
+  }
+})();
 
 (function LowLeftHighHighRightLow() {
   print(arguments.callee.name);

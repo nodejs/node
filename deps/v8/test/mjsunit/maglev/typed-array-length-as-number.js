@@ -20,12 +20,12 @@ foo(100);
 %OptimizeMaglevOnNextCall(foo);
 const val = foo(100);
 assertEquals(100, val);
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 // Also large JSTypedArray lengths are supported.
 if (%Is64Bit()) {
   const largeLength = 8589934592;
   const a2 = foo(largeLength);
   assertEquals(largeLength, a2);
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 }

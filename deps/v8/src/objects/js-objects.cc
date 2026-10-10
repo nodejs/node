@@ -197,7 +197,7 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
         auto accessors = it->GetAccessors();
         // Special handling for AccessorInfo, which behaves like a data
         // property.
-        if (IsAccessorInfo(*accessors)) {
+        if (allow_allocation && IsAccessorInfo(*accessors)) {
           auto info = Cast<AccessorInfo>(*accessors);
           if (info->getter_side_effect_type() ==
               SideEffectType::kHasNoSideEffect) {
@@ -478,6 +478,9 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
     InstanceType target_instance_type = target->map()->instance_type();
     if (InstanceTypeChecker::IsJSObject(target_instance_type) &&
         !InstanceTypeChecker::IsJSGlobalProxy(target_instance_type) &&
+        // Exclude remote objects (they don't have local properties anyway).
+        !(InstanceTypeChecker::IsJSSpecialApiObject(target_instance_type) &&
+          !target->GetCreationContext().has_value()) &&
         !InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
             target_instance_type)) {
       // Convert to slow properties if we're guaranteed to overflow the number
@@ -5974,7 +5977,7 @@ Tagged<Object> JSDate::GetUTCField(FieldIndex index, double value,
   int64_t time_ms = static_cast<int64_t>(value);
 
   if (index == kTimezoneOffset) {
-    return Smi::FromInt(date_cache->TimezoneOffset(time_ms));
+    return Smi::FromInt(date_cache->TimezoneOffsetMs(time_ms));
   }
 
   int days = DateCache::DaysFromTime(time_ms);

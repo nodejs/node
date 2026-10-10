@@ -127,8 +127,8 @@ Expected exception:
 Running test: runThrowsAnErrorWhenCalledWithNullReceiver
 Expected exception: 
 {
-    className : Error
-    description : Error: 'run' called with illegal receiver.     at runThrowsAnErrorWhenCalledWithNullReceiver (runThrowsAnErrorWhenCalledWithNullReceiver.js:3:14)     at runThrowsAnErrorWhenCalledWithNullReceiver.js:4:5
+    className : TypeError
+    description : TypeError: Illegal invocation     at runThrowsAnErrorWhenCalledWithNullReceiver (runThrowsAnErrorWhenCalledWithNullReceiver.js:3:14)     at runThrowsAnErrorWhenCalledWithNullReceiver.js:4:5
     objectId : <objectId>
     subtype : error
     type : object
@@ -137,8 +137,8 @@ Expected exception:
 Running test: runThrowsAnErrorWhenCalledWithIllegalReceiver
 Expected exception: 
 {
-    className : Error
-    description : Error: 'run' called with illegal receiver.     at runThrowsAnErrorWhenCalledWithIllegalReceiver (runThrowsAnErrorWhenCalledWithIllegalReceiver.js:3:14)     at runThrowsAnErrorWhenCalledWithIllegalReceiver.js:4:5
+    className : TypeError
+    description : TypeError: Illegal invocation     at runThrowsAnErrorWhenCalledWithIllegalReceiver (runThrowsAnErrorWhenCalledWithIllegalReceiver.js:3:14)     at runThrowsAnErrorWhenCalledWithIllegalReceiver.js:4:5
     objectId : <objectId>
     subtype : error
     type : object

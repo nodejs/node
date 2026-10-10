@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/synchronization/barrier.h"
 #include "absl/synchronization/mutex.h"
 

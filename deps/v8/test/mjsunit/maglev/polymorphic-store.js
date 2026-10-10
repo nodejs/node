@@ -22,9 +22,9 @@ f(o3, 2);
 assertEquals(1, o1.x);
 assertEquals(2, o3.x);
 
-assertTrue(isMaglevved(f));
+assertMaglevved(f);
 
 let o4 = {a: 0, b: 0, c: 0, x: 0};
 f(o4, 3);
-assertFalse(isMaglevved(f));
+assertNotMaglevved(f);
 assertEquals(3, o4.x);

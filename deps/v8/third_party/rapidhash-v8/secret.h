@@ -81,6 +81,12 @@ static inline uint64_t wyrand(uint64_t* seed) {
 static inline unsigned long long mul_mod(unsigned long long a,
                                          unsigned long long b,
                                          unsigned long long m) {
+#if defined(__SIZEOF_INT128__) && !defined(_WIN32)
+  // A 128-bit multiply and modulo lower to __umodti3 from compiler-rt, which
+  // clang's Windows runtime does not provide.
+  return static_cast<unsigned long long>(
+      (static_cast<__uint128_t>(a) * b) % m);
+#else
   unsigned long long r = 0;
   while (b) {
     if (b & 1) {
@@ -96,6 +102,7 @@ static inline unsigned long long mul_mod(unsigned long long a,
     }
   }
   return r;
+#endif
 }
 
 static inline unsigned long long pow_mod(unsigned long long a,

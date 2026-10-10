@@ -15,6 +15,7 @@
 #include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/base/memory.h"
+#include "src/base/sanitizer/tsan.h"
 #include "src/codegen/constants-arch.h"
 #include "src/common/assert-scope.h"
 #include "src/common/checks.h"
@@ -796,20 +797,27 @@ class V8_NODISCARD SharedObjectSafePublishGuard final {
 };
 
 // Like `SharedObjectsSafePublishGuard`, but only applies the fence
-// if `apply_fence_` is shared.
+// if `apply_fence_` is shared. Also, applies TSAN_RELEASE after the release
+// fence to disable TSAN false positives.
 class V8_NODISCARD SharedObjectConditionalSafePublishGuard final {
  public:
-  explicit SharedObjectConditionalSafePublishGuard(SharedFlag apply_fence)
-      : apply_fence_(apply_fence) {}
-  explicit SharedObjectConditionalSafePublishGuard(AllocationType allocation)
-      : apply_fence_(IsSharedAllocationType(allocation)) {}
+  explicit SharedObjectConditionalSafePublishGuard(Tagged<HeapObject> object,
+                                                   SharedFlag apply_fence)
+      : object_(object), apply_fence_(apply_fence) {}
+  explicit SharedObjectConditionalSafePublishGuard(Tagged<HeapObject> object,
+                                                   AllocationType allocation)
+      : object_(object), apply_fence_(IsSharedAllocationType(allocation)) {}
   ~SharedObjectConditionalSafePublishGuard() {
     if (apply_fence_) {
       std::atomic_thread_fence(std::memory_order_release);
+      TSAN_RELEASE(object_.address());
     }
   }
 
  private:
+  // Required due to the raw Tagged<HeapObject> below.
+  DisallowGarbageCollection no_gc;
+  Tagged<HeapObject> object_;
   SharedFlag apply_fence_;
 };
 

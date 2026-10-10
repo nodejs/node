@@ -15,7 +15,7 @@
 
   %OptimizeMaglevOnNextCall(f);
   assertEquals(0, f().length);
-  assertTrue(isMaglevved(f));
+  assertMaglevved(f);
 })();
 
 // Calls builtin create shallow object.
@@ -30,7 +30,7 @@
 
   %OptimizeMaglevOnNextCall(f);
   assertEquals(42, f().a);
-  assertTrue(isMaglevved(f));
+  assertMaglevved(f);
 })();
 
 // Calls runtime create literal object.
@@ -45,5 +45,5 @@
 
   %OptimizeMaglevOnNextCall(f);
   assertEquals(42, f().out.in);
-  assertTrue(isMaglevved(f));
+  assertMaglevved(f);
 })();

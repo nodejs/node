@@ -267,10 +267,10 @@ void RegExpBuiltinsAssembler::ReplayLastMatchInfo(
   match_info =
       PrepareMatchInfo(context, match_info, SmiTag(register_count), subject);
 
-  // Both sides hold the capture offsets as Smis, so no write barrier is needed.
-  CopyRange(match_info, RegExpMatchInfo::OffsetOfElementAt(0), last_match_cache,
-            FixedArray::OffsetOfElementAt(0), register_count,
-            UNSAFE_SKIP_WRITE_BARRIER);
+  // Both sides hold the capture offsets as Smis.
+  CopyRange<Smi>(match_info, RegExpMatchInfo::OffsetOfElementAt(0),
+                 last_match_cache, FixedArray::OffsetOfElementAt(0),
+                 register_count);
   Goto(&done);
 
   BIND(&done);
@@ -292,10 +292,9 @@ TNode<FixedArray> RegExpBuiltinsAssembler::SnapshotLastMatchInfo(
 
   TNode<FixedArray> snapshot =
       CAST(AllocateFixedArray(PACKED_ELEMENTS, register_count));
-  // Both sides hold the capture offsets as Smis, so no write barrier is needed.
-  CopyRange(snapshot, FixedArray::OffsetOfElementAt(0), match_info,
-            RegExpMatchInfo::OffsetOfElementAt(0), register_count,
-            UNSAFE_SKIP_WRITE_BARRIER);
+  // Both sides hold the capture offsets as Smis.
+  CopyRange<Smi>(snapshot, FixedArray::OffsetOfElementAt(0), match_info,
+                 RegExpMatchInfo::OffsetOfElementAt(0), register_count);
   var_result = snapshot;
   Goto(&done);
 

@@ -89,7 +89,7 @@ function resetTransitionFunctions() {
   const array2 = [1, 2, 3];
   const result2 = foo(array2);
   assertTrue(HasPackedSmiElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testPackedSmiElements() {
@@ -107,7 +107,7 @@ function resetTransitionFunctions() {
   const array2 = [1, 2, 3];
   const result2 = foo(array2);
   assertTrue(HasPackedSmiElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testHoleySmiElements() {
@@ -125,7 +125,7 @@ function resetTransitionFunctions() {
   const array2 = [1, 2, , 3];
   const result2 = foo(array2);
   assertTrue(HasHoleySmiElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testPackedDoubleElements1() {
@@ -143,7 +143,7 @@ function resetTransitionFunctions() {
   const array2 = [1, 2, 3.3];
   const result2 = foo(array2);
   assertTrue(HasPackedDoubleElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testPackedDoubleElements2() {
@@ -161,7 +161,7 @@ function resetTransitionFunctions() {
   const array2 = [1, 2, 3];
   const result2 = foo(array2);
   assertTrue(HasPackedDoubleElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testHoleyDoubleElements1() {
@@ -179,7 +179,7 @@ function resetTransitionFunctions() {
   const array2 = [1, 2, , 3.3];
   const result2 = foo(array2);
   assertTrue(HasHoleyDoubleElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testHoleyDoubleElements2() {
@@ -197,7 +197,7 @@ function resetTransitionFunctions() {
   const array2 = [1, 2, , 3];
   const result2 = foo(array2);
   assertTrue(HasHoleyDoubleElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testPackedElements1() {
@@ -215,7 +215,7 @@ function resetTransitionFunctions() {
   const array2 = [{a: 1}, {a: 2}, {a: 3}];
   const result2 = foo(array2);
   assertTrue(HasPackedObjectElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testPackedElements2() {
@@ -233,7 +233,7 @@ function resetTransitionFunctions() {
   const array2 = [1, 2, 3];
   const result2 = foo(array2);
   assertTrue(HasPackedObjectElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testHoleyObjectElements1() {
@@ -251,7 +251,7 @@ function resetTransitionFunctions() {
   const array2 = [{a: 1}, {a: 2}, , {a: 3}];
   const result2 = foo(array2);
   assertTrue(HasHoleyObjectElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testHoleyObjectElements2() {
@@ -269,7 +269,7 @@ function resetTransitionFunctions() {
   const array2 = [1, 2, , 3];
   const result2 = foo(array2);
   assertTrue(HasHoleyObjectElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testFromObjectToPackedSmi() {
@@ -287,7 +287,7 @@ function resetTransitionFunctions() {
 
   const result2 = foo(array2);
   assertTrue(HasPackedSmiElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testFromObjectToHoleySmi() {
@@ -305,7 +305,7 @@ function resetTransitionFunctions() {
 
   const result2 = foo(array2);
   assertTrue(HasHoleySmiElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testTransitionFromPackedSmiToDoubleWhileMapping() {
@@ -326,7 +326,7 @@ function resetTransitionFunctions() {
 
   const result2 = foo(array2);
   assertTrue(HasPackedDoubleElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testTransitionFromHoleySmiToDoubleWhileMapping() {
@@ -347,7 +347,7 @@ function resetTransitionFunctions() {
 
   const result2 = foo(array2);
   assertTrue(HasHoleyDoubleElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testTransitionFromPackedSmiToObjectWhileMapping() {
@@ -368,7 +368,7 @@ function resetTransitionFunctions() {
 
   const result2 = foo(array2);
   assertTrue(HasPackedObjectElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testTransitionFromHoleySmiToObjectWhileMapping() {
@@ -389,7 +389,7 @@ function resetTransitionFunctions() {
 
   const result2 = foo(array2);
   assertTrue(HasHoleyObjectElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testTransitionFromPackedSmiToDoubleToObjectWhileMapping() {
@@ -410,7 +410,7 @@ function resetTransitionFunctions() {
 
   const result2 = foo(array2);
   assertTrue(HasPackedObjectElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testTransitionFromHoleySmiToDoubleToObjectWhileMapping() {
@@ -431,7 +431,7 @@ function resetTransitionFunctions() {
 
   const result2 = foo(array2);
   assertTrue(HasHoleyObjectElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testTransitionFromPackedSmiToObjectToDoubleWhileMapping() {
@@ -452,7 +452,7 @@ function resetTransitionFunctions() {
 
   const result2 = foo(array2);
   assertTrue(HasPackedObjectElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testTransitionFromHoleySmiToObjectToDoubleWhileMapping() {
@@ -473,7 +473,7 @@ function resetTransitionFunctions() {
 
   const result2 = foo(array2);
   assertTrue(HasHoleyObjectElements(result2));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();
 
 (function testMapperReducesLength() {
@@ -500,5 +500,5 @@ function resetTransitionFunctions() {
   const result2 = foo(array);
   assertTrue(HasHoleySmiElements(result2));
   assertEquals(undefined, result2[2]);
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 })();

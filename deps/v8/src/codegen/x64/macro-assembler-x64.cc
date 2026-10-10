@@ -211,6 +211,16 @@ void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   movq(destination, RootAsOperand(index));
 }
 
+void MacroAssembler::StoreTaggedRoot(Operand destination, RootIndex index) {
+  if (CanBeImmediate(index)) {
+    StoreTaggedField(destination,
+                     Immediate(static_cast<uint32_t>(ReadOnlyRootPtr(index))));
+    return;
+  }
+  LoadTaggedRoot(kScratchRegister, index);
+  StoreTaggedField(destination, kScratchRegister);
+}
+
 void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
   if (CanBeImmediate(index)) {
     DecompressTagged(destination,
@@ -947,6 +957,35 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
                                    JSDispatchEntry::kCodeObjectOffset));
 }
 
+void MacroAssembler::PushDispatchHandle(Register dispatch_handle,
+                                        Register scratch) {
+  DCHECK(!AreAliased(dispatch_handle, scratch, kScratchRegister));
+#ifdef V8_ENABLE_SANDBOX
+  AssertZeroExtended(dispatch_handle);
+  LoadParameterCountFromJSDispatchTable(scratch, dispatch_handle);
+  shlq(scratch, Immediate(32));
+  orq(dispatch_handle, scratch);
+#endif
+  Push(dispatch_handle);
+  // No need to SmiTag since dispatch handles always look like Smis.
+  static_assert(kJSDispatchHandleShift > 0);
+  AssertSmi(dispatch_handle);
+}
+
+void MacroAssembler::PopDispatchHandle(Register dispatch_handle,
+                                       Register scratch) {
+  DCHECK(!AreAliased(dispatch_handle, scratch, kScratchRegister));
+  Pop(dispatch_handle);
+#ifdef V8_ENABLE_SANDBOX
+  LoadParameterCountFromJSDispatchTable(scratch, dispatch_handle);
+  movq(kScratchRegister, dispatch_handle);
+  shrq(kScratchRegister, Immediate(32));
+  movl(dispatch_handle, dispatch_handle);
+  cmpq(scratch, kScratchRegister);
+  SbxCheck(equal, AbortReason::kJSSignatureMismatch);
+#endif
+}
+
 void MacroAssembler::LoadProtectedPointerField(Register destination,
                                                Operand field_operand) {
   DCHECK(root_array_available());
@@ -1428,20 +1467,17 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     SmiTag(kJavaScriptCallArgCountRegister);
     Push(kJavaScriptCallArgCountRegister);
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-    // No need to SmiTag since dispatch handles always look like Smis.
-    static_assert(kJSDispatchHandleShift > 0);
-    AssertSmi(kJavaScriptCallDispatchHandleRegister);
-    Push(kJavaScriptCallDispatchHandleRegister);
+    PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
 #endif
     // Function is also the parameter to the runtime call.
     Push(kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
 
-    // Restore target function, new target, actual argument count, and dispatch
+    // Restore target function, new target, actual argument count and dispatch
     // handle.
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-    Pop(kJavaScriptCallDispatchHandleRegister);
+    PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
 #endif
     Pop(kJavaScriptCallArgCountRegister);
     SmiUntagUnsigned(kJavaScriptCallArgCountRegister);
@@ -3465,21 +3501,25 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
 void MacroAssembler::Call(ExternalReference ext) {
   // TODO(350324877): can we DCHECK that the sandboxing mode is correct here?
   LoadAddress(kScratchRegister, ext);
+  AssertSpAlignedForCall();
   call(kScratchRegister);
 }
 
 void MacroAssembler::Call(Operand op) {
   // TODO(350324877): can we DCHECK that the sandboxing mode is correct here?
   if (!CpuFeatures::IsSupported(INTEL_ATOM)) {
+    AssertSpAlignedForCall();
     call(op);
   } else {
     movq(kScratchRegister, op);
+    AssertSpAlignedForCall();
     call(kScratchRegister);
   }
 }
 
 void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
   Move(kScratchRegister, destination, rmode);
+  AssertSpAlignedForCall();
   call(kScratchRegister);
 }
 
@@ -3493,6 +3533,7 @@ void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   }
   DCHECK_EQ(sandboxing_mode(), code_object->sandboxing_mode());
   DCHECK(RelocInfo::IsCodeTarget(rmode));
+  AssertSpAlignedForCall();
   call(code_object, rmode);
 }
 
@@ -3615,6 +3656,7 @@ void MacroAssembler::LoadCodeInstructionStart(Register destination,
 void MacroAssembler::CallCodeObject(Register code_object,
                                     CodeEntrypointTag tag) {
   LoadCodeInstructionStart(code_object, code_object, tag);
+  AssertSpAlignedForCall();
   call(code_object);
 }
 
@@ -3648,6 +3690,7 @@ void MacroAssembler::CallJSFunction(Register function_object,
   // CallJSDispatchEntry below and crbug.com/412398354 for more details.
   cmpl(rbx, Immediate(argument_count));
   SbxCheck(less_equal, AbortReason::kJSSignatureMismatch);
+  AssertSpAlignedForCall();
   call(rcx);
 }
 
@@ -3660,6 +3703,7 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
   LoadEntrypointFromJSDispatchTable(rcx, kJavaScriptCallDispatchHandleRegister);
   CHECK_EQ(argument_count,
            isolate()->js_dispatch_table().GetParameterCount(dispatch_handle));
+  AssertSpAlignedForCall();
   call(rcx);
 }
 
@@ -3720,6 +3764,7 @@ void MacroAssembler::CallWasmCodePointer(Register target,
   if (call_jump_mode == CallJumpMode::kTailCall) {
     jmp(target_op);
   } else {
+    AssertSpAlignedForCall();
     call(target_op);
   }
 }
@@ -3740,9 +3785,11 @@ void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
   shll(target, Immediate(kNumClearedHighBits));
   shrl(target, Immediate(kNumClearedHighBits - kLeftShift));
 
+  AssertSpAlignedForCall();
   call(Operand(kScratchRegister, target, ScaleFactor::times_1, 0));
 #else
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 8);
+  AssertSpAlignedForCall();
   call(Operand(kScratchRegister, target, ScaleFactor::times_8, 0));
 #endif
 }
@@ -4122,6 +4169,13 @@ Immediate MacroAssembler::ClearedValue() const {
 }
 
 #ifdef V8_ENABLE_DEBUG_CODE
+
+void MacroAssembler::AssertSpAlignedForCall() {
+  if (v8_flags.enforce_x64_16byte_alignment && v8_flags.debug_code) {
+    CheckStackAlignment();
+  }
+}
+
 void MacroAssembler::AssertNotSmi(Register object) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);

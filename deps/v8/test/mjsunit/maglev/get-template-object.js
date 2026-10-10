@@ -17,4 +17,4 @@ assertEquals(["123", "", 2], foo(2));
 %OptimizeMaglevOnNextCall(foo);
 assertEquals(["123", "", 1], foo(1));
 assertEquals(["123", "", 2], foo(2));
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);

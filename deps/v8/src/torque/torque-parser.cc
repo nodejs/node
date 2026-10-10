@@ -89,6 +89,11 @@ class BuildFlags : public base::ContextualClass<BuildFlags> {
 #else
     build_flags_["V8_ENABLE_SEEDED_ARRAY_INDEX_HASH"] = false;
 #endif
+#ifdef V8_IS_TSAN
+    build_flags_["V8_IS_TSAN"] = true;
+#else
+    build_flags_["V8_IS_TSAN"] = false;
+#endif
   }
   static bool GetFlag(const std::string& name, const char* production) {
     auto it = Get().build_flags_.find(name);

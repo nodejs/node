@@ -67,8 +67,9 @@ Address JSDispatchEntry::GetCodePointer() const {
   // Unsigned types won't sign-extend on shift-right, but we need to do
   // this with illumos VA48 addressing.
   DCHECK_EQ(kObjectPointerOffset, 0);
-  return (Address)((intptr_t)payload >> (int)kObjectPointerShift) |
-    kHeapObjectTag;
+  return (Address)(static_cast<intptr_t>(payload) >>
+                   static_cast<int>(kObjectPointerShift)) |
+         kHeapObjectTag;
 #else
   return ((payload >> kObjectPointerShift) + kObjectPointerOffset) |
          kHeapObjectTag;

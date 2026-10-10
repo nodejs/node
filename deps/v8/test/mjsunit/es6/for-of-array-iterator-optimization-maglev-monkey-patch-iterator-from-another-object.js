@@ -33,7 +33,7 @@ assertEquals([3, 4, 5], test1(ta1));
 
 %OptimizeMaglevOnNextCall(test1);
 assertEquals([3, 4, 5], test1(ta1));
-assertTrue(isMaglevved(test1));
+assertMaglevved(test1);
 
 // Way 2: Iterator for TypedArray used on Array.
 function test2(iterable) {
@@ -57,4 +57,4 @@ assertEquals([44, 55, 66], test2(arr2));
 
 %OptimizeMaglevOnNextCall(test2);
 assertEquals([44, 55, 66], test2(arr2));
-assertTrue(isMaglevved(test2));
+assertMaglevved(test2);

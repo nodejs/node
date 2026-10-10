@@ -302,7 +302,10 @@ Heap::Heap()
                          "v8::Heap", this, perfetto::ThreadTrack::Current())
                          .disable_sibling_merge()),
       gc_tracing_category_enabled_(TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
-          TRACE_DISABLED_BY_DEFAULT("v8.gc"))) {
+          TRACE_DISABLED_BY_DEFAULT("v8.gc"))),
+      gc_extra_tracing_category_enabled_(
+          TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+              TRACE_DISABLED_BY_DEFAULT("v8.gc_extra"))) {
 #if defined(V8_USE_PERFETTO)
   if (perfetto::Tracing::IsInitialized()) {
     // Because the track may not get any events of its own it must manually emit
@@ -1309,11 +1312,9 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
     js_roots += isolate()->global_handles()->handles_count();
     js_roots += isolate()->eternal_handles()->handles_count();
     size_t cpp_roots = 0;
-    if (auto* cpp_heap = CppHeap::From(cpp_heap_)) {
-      cpp_roots += cpp_heap->GetStrongPersistentRegion().NodesInUse();
-      cpp_roots +=
-          cpp_heap->GetStrongCrossThreadPersistentRegion().NodesInUse();
-    }
+    auto* cpp_heap = CppHeap::From(cpp_heap_);
+    cpp_roots += cpp_heap->GetStrongPersistentRegion().NodesInUse();
+    cpp_roots += cpp_heap->GetStrongCrossThreadPersistentRegion().NodesInUse();
     return js_roots + cpp_roots;
   };
 
@@ -1560,9 +1561,8 @@ void Heap::CollectGarbage(
           collector == GarbageCollector::SCAVENGER) {
         tracer()->RecordGCPhasesHistograms(record_gc_phases_info.mode());
       }
-      if ((collector == GarbageCollector::MARK_COMPACTOR ||
-           collector == GarbageCollector::MINOR_MARK_SWEEPER) &&
-          cpp_heap()) {
+      if (collector == GarbageCollector::MARK_COMPACTOR ||
+          collector == GarbageCollector::MINOR_MARK_SWEEPER) {
         CppHeap::From(cpp_heap())->FinishAtomicSweepingIfRunning();
       }
     }
@@ -1925,8 +1925,7 @@ void Heap::CompleteSweepingFull(CompleteSweepingReason reason) {
   EnsureSweepingCompleted(SweepingForcedFinalizationMode::kUnifiedHeap, reason);
 
   DCHECK(!sweeping_in_progress());
-  DCHECK_IMPLIES(cpp_heap(),
-                 !CppHeap::From(cpp_heap())->sweeper().IsSweepingInProgress());
+  DCHECK(!CppHeap::From(cpp_heap())->sweeper().IsSweepingInProgress());
   DCHECK(!tracer()->IsSweepingInProgress());
 }
 
@@ -2327,8 +2326,8 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   // nested GCs.
   isolate_->global_handles()->InvokeFirstPassWeakCallbacks();
 
-  if (cpp_heap() && (collector == GarbageCollector::MARK_COMPACTOR ||
-                     collector == GarbageCollector::MINOR_MARK_SWEEPER)) {
+  if (collector == GarbageCollector::MARK_COMPACTOR ||
+      collector == GarbageCollector::MINOR_MARK_SWEEPER) {
     // TraceEpilogue may trigger operations that invalidate global handles. It
     // has to be called *after* all other operations that potentially touch
     // and reset global handles. It is also still part of the main garbage
@@ -2472,11 +2471,9 @@ void Heap::CompleteSweepingYoung(CompleteSweepingReason reason) {
 
 #if defined(CPPGC_YOUNG_GENERATION)
   // Always complete sweeping if young generation is enabled.
-  if (cpp_heap()) {
-    if (auto* iheap = CppHeap::From(cpp_heap());
-        iheap->generational_gc_supported()) {
-      iheap->FinishSweepingIfRunning();
-    }
+  if (auto* iheap = CppHeap::From(cpp_heap());
+      iheap->generational_gc_supported()) {
+    iheap->FinishSweepingIfRunning();
   }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 }
@@ -5343,7 +5340,7 @@ size_t Heap::YoungGenerationConsumedBytes() const {
 }
 
 size_t Heap::EmbedderSizeOfObjects() const {
-  return cpp_heap_ ? CppHeap::From(cpp_heap_)->used_size() : 0;
+  return CppHeap::From(cpp_heap_)->used_size();
 }
 
 uint64_t Heap::GlobalSizeOfObjects() const {
@@ -5697,8 +5694,7 @@ Heap::IncrementalMarkingLimitReached() {
 
   if (old_generation_space_available > new_space_target_capacity &&
       (global_memory_available > new_space_target_capacity)) {
-    if (cpp_heap() && gc_count_ == kInitialGCEpoch &&
-        limits()->using_initial_limit()) {
+    if (gc_count_ == kInitialGCEpoch && limits()->using_initial_limit()) {
       // At this point the embedder memory is above the activation
       // threshold. No GC happened so far and it's thus unlikely to get a
       // configured heap any time soon. Start a memory reducer in this case
@@ -6250,11 +6246,9 @@ const ::heap::base::Stack& Heap::stack() const {
 }
 
 void Heap::StartTearDown() {
-  if (cpp_heap_) {
-    // This may invoke a GC in case marking is running to get us into a
-    // well-defined state for tear down.
-    CppHeap::From(cpp_heap_)->StartDetachingIsolate();
-  }
+  // This may invoke a GC in case marking is running to get us into a
+  // well-defined state for tear down.
+  CppHeap::From(cpp_heap_)->StartDetachingIsolate();
 
   // Stressing incremental marking should make it likely to force a GC here with
   // a CppHeap present. Stress compaction serves as a more deterministic way to
@@ -6326,11 +6320,9 @@ void Heap::TearDown() {
     }
   }
 
-  if (cpp_heap_) {
-    CppHeap::From(cpp_heap_)->DetachIsolate();
-    cpp_heap_ = nullptr;
-    isolate_->RunReleaseCppHeapCallback(std::move(owning_cpp_heap_));
-  }
+  CppHeap::From(cpp_heap_)->DetachIsolate();
+  cpp_heap_ = nullptr;
+  isolate_->RunReleaseCppHeapCallback(std::move(owning_cpp_heap_));
 
   minor_gc_job_.reset();
 
@@ -7337,7 +7329,7 @@ bool Heap::AllowedToBeMigrated(Tagged<Map> map, Tagged<HeapObject> object,
 }
 
 uint64_t Heap::EmbedderAllocationCounter() const {
-  return cpp_heap_ ? CppHeap::From(cpp_heap_)->allocated_size() : 0;
+  return CppHeap::From(cpp_heap_)->allocated_size();
 }
 
 uint64_t Heap::ExternalAllocationCounter() const {
@@ -7550,11 +7542,9 @@ void Heap::FinishSweepingIfOutOfWork(CompleteSweepingReason reason) {
       limits()->UpdateAllocationLimits(CurrentHeapGrowingMode(), bounds);
     }
   }
-  if (cpp_heap()) {
-    // Ensure that sweeping is also completed for the C++ managed heap, if one
-    // exists and it's out of work.
-    CppHeap::From(cpp_heap())->FinishSweepingIfOutOfWork();
-  }
+  // Ensure that sweeping is also completed for the C++ managed heap if it's
+  // out of work.
+  CppHeap::From(cpp_heap())->FinishSweepingIfOutOfWork();
 }
 
 void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode,
@@ -7613,16 +7603,14 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode,
 #endif
   }
 
-  if (mode == SweepingForcedFinalizationMode::kUnifiedHeap && cpp_heap()) {
-    // Ensure that sweeping is also completed for the C++ managed heap, if one
-    // exists.
+  if (mode == SweepingForcedFinalizationMode::kUnifiedHeap) {
+    // Ensure that sweeping is also completed for the C++ managed heap.
     CppHeap::From(cpp_heap())->FinishSweepingIfRunning();
     DCHECK(!CppHeap::From(cpp_heap())->sweeper().IsSweepingInProgress());
   }
 
-  DCHECK_IMPLIES(
-      mode == SweepingForcedFinalizationMode::kUnifiedHeap || !cpp_heap(),
-      !tracer()->IsSweepingInProgress());
+  DCHECK_IMPLIES(mode == SweepingForcedFinalizationMode::kUnifiedHeap,
+                 !tracer()->IsSweepingInProgress());
 }
 
 void Heap::EnsureQuarantinedPagesSweepingCompleted() {

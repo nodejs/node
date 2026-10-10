@@ -1017,7 +1017,7 @@ class Shell : public i::AllStatic {
       const v8::FunctionCallbackInfo<v8::Value>& info);
   static void CreateAccessCheckedObject(
       const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void CreateSpecialObject(
+  static void CreateAccessCheckedInterceptorObject(
       const v8::FunctionCallbackInfo<v8::Value>& info);
   static void SetAccessPolicy(const v8::FunctionCallbackInfo<v8::Value>& info);
 

@@ -24,6 +24,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/random/random.h"
 #include "absl/synchronization/internal/thread_pool.h"

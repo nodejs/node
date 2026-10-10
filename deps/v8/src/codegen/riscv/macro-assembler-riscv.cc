@@ -156,10 +156,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     Push(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
          kJavaScriptCallArgCountRegister);
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-    // No need to SmiTag since dispatch handles always look like Smis.
-    static_assert(kJSDispatchHandleShift > 0);
-    AssertSmi(kJavaScriptCallDispatchHandleRegister);
-    Push(kJavaScriptCallDispatchHandleRegister);
+    PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, a5, a6);
 #endif
     // Function is also the parameter to the runtime call.
     Push(kJavaScriptCallTargetRegister);
@@ -169,7 +166,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     // Restore target function, new target, actual argument count and dispatch
     // handle.
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-    Pop(kJavaScriptCallDispatchHandleRegister);
+    PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, a5, a6);
 #endif
     Pop(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
         kJavaScriptCallArgCountRegister);
@@ -215,6 +212,13 @@ void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   }
   LoadWord(destination,
            MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+}
+void MacroAssembler::StoreTaggedRoot(const MemOperand& destination,
+                                     RootIndex index) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadTaggedRoot(scratch, index);
+  StoreTaggedField(scratch, destination);
 }
 void MacroAssembler::LoadCompressedTaggedRoot(Register destination,
                                               RootIndex index) {
@@ -4607,20 +4611,38 @@ void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
 #if V8_TARGET_ARCH_RISCV64
     UseScratchRegisterScope temps(this);
     Register scratch0 = temps.Acquire();
-    SignExtendWord(scratch0, r1);
-    if (IsZero(r2)) {
+    if (cond == eq || cond == ne) {
+      // Equality only depends on the low 32 bits, and a 32-bit subtraction
+      // sign-extends its result, so it is zero exactly when those low 32 bits
+      // match. This avoids sign-extending both operands first.
+      if (r2.is_reg()) {
+        Sub32(scratch0, r1, r2);
+      } else if (MustUseReg(r2.rmode())) {
+        // A relocatable immediate (e.g. a Handle<HeapObject>) is a handle
+        // location, not the value to compare against; materialize it first
+        // so the relocation is recorded and the real value is compared.
+        li(scratch0, r2);
+        Sub32(scratch0, r1, scratch0);
+      } else {
+        Sub32(scratch0, r1, Operand(static_cast<int32_t>(r2.immediate())));
+      }
       Branch(label, cond, scratch0, Operand(zero_reg));
     } else {
-      Register scratch1 = temps.Acquire();
-      if (r2.is_reg()) {
-        SignExtendWord(scratch1, r2.rm());
+      SignExtendWord(scratch0, r1);
+      if (IsZero(r2)) {
+        Branch(label, cond, scratch0, Operand(zero_reg));
       } else {
-        li(scratch1, r2);
-        if (!base::IsInRange(r2.immediate(), 0, 0x7FFFFFFF)) {
-          SignExtendWord(scratch1, scratch1);
+        Register scratch1 = temps.Acquire();
+        if (r2.is_reg()) {
+          SignExtendWord(scratch1, r2.rm());
+        } else {
+          li(scratch1, r2);
+          if (!base::IsInRange(r2.immediate(), 0, 0x7FFFFFFF)) {
+            SignExtendWord(scratch1, scratch1);
+          }
         }
+        Branch(label, cond, scratch0, Operand(scratch1));
       }
-      Branch(label, cond, scratch0, Operand(scratch1));
     }
 #else
     UNREACHABLE();
@@ -5876,8 +5898,8 @@ void MacroAssembler::InvokeFunctionCode(
   DCHECK_IMPLIES(new_target.is_valid(), new_target == a3);
 
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
-  Lw(dispatch_handle,
-     FieldMemOperand(function, offsetof(JSFunction, dispatch_handle_)));
+  Load32U(dispatch_handle,
+          FieldMemOperand(function, offsetof(JSFunction, dispatch_handle_)));
 
   // On function call, call into the debugger if necessary.
   Label debug_hook, continue_after_hook;
@@ -7653,6 +7675,10 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
   Register scratch = s1;
   li(kJavaScriptCallDispatchHandleRegister,
      Operand(dispatch_handle.value(), RelocInfo::JS_DISPATCH_HANDLE));
+#ifdef V8_TARGET_ARCH_RISCV64
+  ZeroExtendWord(kJavaScriptCallDispatchHandleRegister,
+                 kJavaScriptCallDispatchHandleRegister);
+#endif
   LoadEntrypointFromJSDispatchTable(code, kJavaScriptCallDispatchHandleRegister,
                                     scratch);
   CHECK_EQ(argument_count,
@@ -7881,6 +7907,34 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
   LoadWord(entrypoint, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
   static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
   Lhu(parameter_count, MemOperand(scratch, JSDispatchEntry::kCodeObjectOffset));
+}
+
+void MacroAssembler::PushDispatchHandle(Register dispatch_handle,
+                                        Register scratch1, Register scratch2) {
+  DCHECK(!AreAliased(dispatch_handle, scratch1, scratch2));
+#ifdef V8_ENABLE_SANDBOX
+  AssertZeroExtended(dispatch_handle);
+  LoadParameterCountFromJSDispatchTable(scratch1, dispatch_handle, scratch2);
+  ZeroExtendWord(dispatch_handle, dispatch_handle);
+  slli(scratch1, scratch1, 32);
+  or_(dispatch_handle, dispatch_handle, scratch1);
+#endif
+  Push(dispatch_handle);
+  // No need to SmiTag since dispatch handles always look like Smis.
+  static_assert(kJSDispatchHandleShift > 0);
+  AssertSmi(dispatch_handle);
+}
+
+void MacroAssembler::PopDispatchHandle(Register dispatch_handle,
+                                       Register scratch1, Register scratch2) {
+  DCHECK(!AreAliased(dispatch_handle, scratch1, scratch2));
+  Pop(dispatch_handle);
+#ifdef V8_ENABLE_SANDBOX
+  LoadParameterCountFromJSDispatchTable(scratch1, dispatch_handle, scratch2);
+  srli(scratch2, dispatch_handle, 32);
+  ZeroExtendWord(dispatch_handle, dispatch_handle);
+  SbxCheck(eq, AbortReason::kJSSignatureMismatch, scratch1, Operand(scratch2));
+#endif
 }
 
 void MacroAssembler::LoadTaggedField(const Register& destination,

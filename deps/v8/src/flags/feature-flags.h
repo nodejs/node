@@ -84,6 +84,10 @@
                             "inline the Smi fast path of embedded feedback "   \
                             "operations into JS baseline code")                \
                                                                                \
+  /* V8 side owner: leszeks */                                                 \
+  INTERNAL_FEATURE(always_specialize_for_script_context,                       \
+                   "always specialize for script contexts in optimized code")  \
+                                                                               \
   /* Instruction Tracing tool convention (early prototype, might change) */    \
   /* Tool convention: https://github.com/WebAssembly/tool-conventions */       \
   /* V8 side owner: jabraham */                                                \
@@ -141,11 +145,6 @@
   /* V8 side owner: jkummerow */                                               \
   WASM_FEATURE(imported_strings_utf8, "imported strings (utf8 features)")      \
                                                                                \
-  /* Wide Arithmetic proposal */                                               \
-  /* https://github.com/WebAssembly/wide-arithmetic */                         \
-  /* V8 side owner: ryandiaz */                                                \
-  WASM_FEATURE(wide_arithmetic, "wide arithmetic")                             \
-                                                                               \
   /* Acquire-Release memory ordering from Shared-Everything Threads */         \
   /* proposal. */                                                              \
   /* Part of https://github.com/WebAssembly/shared-everything-threads */       \
@@ -186,7 +185,13 @@
   /* V8 side owner: jkummerow */                                               \
   /* Staged in 15.4 */                                                         \
   IF_REVEC_ENABLED(INTERNAL_FEATURE, wasm_revectorize,                         \
-                   "128 to 256 bit SIMD re-vectorization for Wasm")
+                   "128 to 256 bit SIMD re-vectorization for Wasm")            \
+                                                                               \
+  /* Wide Arithmetic proposal */                                               \
+  /* https://github.com/WebAssembly/wide-arithmetic */                         \
+  /* V8 side owner: ryandiaz */                                                \
+  /* Staged in 15.7 */                                                         \
+  WASM_FEATURE(wide_arithmetic, "wide arithmetic")
 
 // #############################################################################
 // Shipped features (enabled by default).
@@ -227,6 +232,10 @@
   WASM_FEATURE(legacy_eh, "legacy exception handling opcodes")                 \
                                                                                \
   IF_SPARKPLUG_PLUS_ENABLED(INTERNAL_FEATURE, sparkplug_plus,                  \
-                            "dynamic patching on JS baseline code")
+                            "dynamic patching on JS baseline code")            \
+                                                                               \
+  INTERNAL_FEATURE(homomorphic_ic,                                             \
+                   "Homomorphic IC state for same-handler highly polymorphic " \
+                   "ICs")
 
 #endif  // V8_FLAGS_FEATURE_FLAGS_H_

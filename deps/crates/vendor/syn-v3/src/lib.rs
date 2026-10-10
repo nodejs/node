@@ -364,7 +364,7 @@
 //! compile and work for downstream users in the interim.
 
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/syn/3.0.4")]
+#![doc(html_root_url = "https://docs.rs/syn/3.0.5")]
 #![cfg_attr(docsrs, feature(doc_cfg), doc(auto_cfg = false))]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(non_camel_case_types)]

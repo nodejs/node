@@ -85,6 +85,7 @@ add_header_library(
     libc.include.inttypes
     libc.src.__support.CPP.string_view
     libc.src.__support.FPUtil.fp_bits
+    libc.src.__support.macros.properties.types
     libc.hdr.errno_macros
 )
 

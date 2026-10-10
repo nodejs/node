@@ -15,7 +15,6 @@ bitfield struct JSRelativeTimeFormatFlags extends uint31 {
 extern class JSRelativeTimeFormat extends JSObject {
   locale: String;
   numberingSystem: String;
-  icu_formatter:
-      CppGCManagedBase;  // CppGCManaged<icu::RelativeDateTimeFormatter>
+  icu_formatter: Foreign;  // Managed<icu::RelativeDateTimeFormatter>
   flags: SmiTagged<JSRelativeTimeFormatFlags>;
 }

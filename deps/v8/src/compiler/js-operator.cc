@@ -833,11 +833,12 @@ JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op) {
 
 std::ostream& operator<<(std::ostream& os, JSWasmCallParameters const& p) {
   return os << p.native_module() << ", " << p.function_index() << ", "
-            << p.feedback();
+            << Brief(*p.shared_fct_info().object()) << ", " << p.feedback();
 }
 
 size_t hash_value(JSWasmCallParameters const& p) {
   return base::hash_combine(p.native_module(), p.function_index(),
+                            p.shared_fct_info().object().location(),
                             FeedbackSource::Hash()(p.feedback()));
 }
 
@@ -845,6 +846,8 @@ bool operator==(JSWasmCallParameters const& lhs,
                 JSWasmCallParameters const& rhs) {
   return lhs.native_module() == rhs.native_module() &&
          lhs.function_index() == rhs.function_index() &&
+         lhs.shared_fct_info().object().location() ==
+             rhs.shared_fct_info().object().location() &&
          lhs.feedback() == rhs.feedback();
 }
 

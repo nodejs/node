@@ -8,6 +8,9 @@
 #include <utility>
 
 #include "src/api/api-inl.h"
+#include "src/ast/ast.h"
+#include "src/ast/scopes.h"
+#include "src/ast/variables.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/assembler-inl.h"
@@ -52,10 +55,15 @@
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/prototype.h"
+#include "src/objects/scope-info.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/objects/visitors.h"
+#include "src/parsing/parse-info.h"
+#include "src/parsing/parser.h"
+#include "src/parsing/parsing.h"
+#include "src/parsing/scanner-character-streams.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/output-stream-writer.h"
@@ -70,6 +78,101 @@
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8::internal {
+
+namespace {
+
+void CollectScopeTree(Scope* scope, int depth, HeapEntry* script_entry,
+                      StringsStorage* names, HeapSnapshot* snapshot) {
+  SourceScopeInfo info;
+  info.script_entry = script_entry;
+  info.scope_id = scope->UniqueIdInScript();
+  // We use the depth here to encode the tree hierarchy. The more natural way
+  // would be to use the scope id of the parent scope. However, the scope id can
+  // be negative (currently -1 or -2) or zero, the values we would usually as
+  // "no parent" marker for the root scope. Using depth avois defining such a
+  // magic marker as e.g. -3 or kMaxInt.
+  info.depth = depth;
+
+  std::vector<Variable*> context_vars;
+
+  if (scope->is_class_scope()) {
+    // Class scopes contain private fields and methods for which uses across
+    // closures are currently not tracked. Omit context variables to disable
+    // dead context analysis.
+  } else if (scope->inner_scope_calls_eval()) {
+    // If this scope or any of its inner scopes contains a direct eval call,
+    // variables might be dynamically accessed at runtime. Omit context
+    // variables to disable dead context analysis.
+  } else {
+    // In all other cases record the context-allocated variables.
+    for (Variable* var : *scope->locals()) {
+      if (var->IsContextSlot()) {
+        context_vars.push_back(var);
+      }
+    }
+    std::sort(context_vars.begin(), context_vars.end(),
+              [](Variable* a, Variable* b) { return a->index() < b->index(); });
+  }
+
+  info.scope_context_vars_count = static_cast<uint32_t>(context_vars.size());
+  for (Variable* var : context_vars) {
+    snapshot->AddSourceScopeContextVar(names->GetCopy(var->raw_name()));
+  }
+
+  // Collect all uses of context variables in this scope. Each use is a pair of
+  // declaring scope id and context slot index.
+  size_t uses_start = snapshot->source_scope_uses().size();
+
+  // `this` references are tracked on DeclarationScope via has_this_reference()
+  // rather than remaining in unresolved_list(). If this declaration scope
+  // accesses `this` and it was allocated to a context slot by the receiver
+  // scope, record it as a context variable use.
+  if (scope->is_declaration_scope() &&
+      scope->AsDeclarationScope()->has_this_reference()) {
+    DeclarationScope* receiver_scope =
+        scope->AsDeclarationScope()->GetReceiverScope();
+    Variable* receiver_var = receiver_scope->receiver();
+    if (receiver_var != nullptr && receiver_var->IsContextSlot() &&
+        receiver_var->scope() != nullptr) {
+      Scope* decl_scope = receiver_var->scope();
+      int slot_index =
+          receiver_var->index() - decl_scope->ContextHeaderLength();
+      snapshot->AddSourceScopeUse({decl_scope->UniqueIdInScript(), slot_index});
+    }
+  }
+
+  for (VariableProxy* proxy : scope->unresolved_list()) {
+    if (proxy->is_removed_from_unresolved()) continue;
+    if (proxy->is_resolved() && proxy->var() != nullptr) {
+      Variable* var = proxy->var();
+      // Lookups passing through an intervening scope (e.g. a `with` scope)
+      // are resolved dynamically, but track the outer local variable via
+      // local_if_not_shadowed(). Use the underlying local variable to record
+      // the context use.
+      if (var->is_dynamic() && var->has_local_if_not_shadowed()) {
+        var = var->local_if_not_shadowed();
+      }
+      if (var->IsContextSlot() && var->scope() != nullptr) {
+        Scope* decl_scope = var->scope();
+        int slot_index = var->index() - decl_scope->ContextHeaderLength();
+        snapshot->AddSourceScopeUse(
+            {decl_scope->UniqueIdInScript(), slot_index});
+      }
+    }
+  }
+  info.scope_uses_count =
+      static_cast<uint32_t>(snapshot->source_scope_uses().size() - uses_start);
+
+  snapshot->AddSourceScope(info);
+
+  // Recurse children
+  for (Scope* child = scope->inner_scope(); child != nullptr;
+       child = child->sibling()) {
+    CollectScopeTree(child, depth + 1, script_entry, names, snapshot);
+  }
+}
+
+}  // namespace
 
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
 bool ShouldVerifyReferenceTo(Isolate* isolate, Tagged<HeapObject> obj) {
@@ -2030,6 +2133,12 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Tagged<Map> map) {
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
     HeapEntry* entry, Tagged<SharedFunctionInfo> shared) {
   TagObject(shared, "(shared function info)");
+#if V8_ENABLE_WEBASSEMBLY
+  // Wasm functions store their wrapper Code on the JSFunction's
+  // JSDispatchTable entry rather than on the SharedFunctionInfo, so
+  // SharedFunctionInfo::GetCode is not applicable to WasmFunctionData.
+  if (!shared->HasWasmFunctionData(isolate()))
+#endif  // V8_ENABLE_WEBASSEMBLY
   {
     std::unique_ptr<char[]> name = shared->DebugNameCStr();
     Tagged<Code> code = shared->GetCode(isolate());
@@ -2072,6 +2181,8 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
              shared->EndPosition());
   AddIntEdge(entry, HeapGraphEdge::kInternal, "function_literal_id",
              shared->function_literal_id(kRelaxedLoad));
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "scope_id",
+             shared->UniqueIdInScript());
   if (shared->HasBuiltinId()) {
     AddIntEdge(entry, HeapGraphEdge::kInternal, "builtin_id",
                static_cast<int>(shared->builtin_id()));
@@ -2080,8 +2191,42 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   }
 }
 
+void V8HeapExplorer::ParseScriptScopes(HeapEntry* entry,
+                                       Tagged<Script> script) {
+#if V8_ENABLE_WEBASSEMBLY
+  if (script->type() == Script::Type::kWasm) return;
+#endif
+  if (!IsString(script->source())) return;
+  Tagged<String> source_str = Cast<String>(script->source());
+  if (source_str->length() == 0) return;
+
+  HandleScope handle_scope(isolate());
+  DirectHandle<Script> script_handle(script, isolate());
+
+  UnoptimizedCompileFlags flags =
+      UnoptimizedCompileFlags::ForScriptCompile(isolate(), *script_handle);
+  flags.set_allow_lazy_parsing(false);
+  flags.set_is_eager(true);
+  flags.set_is_reparse(true);
+  flags.set_allow_heap_allocation(false);
+
+  UnoptimizedCompileState compile_state;
+  ReusableUnoptimizedCompileState reusable_state(isolate());
+  ParseInfo info(isolate(), flags, &compile_state, &reusable_state);
+
+  if (parsing::ParseProgram(&info, script_handle, isolate(),
+                            parsing::ReportStatisticsMode{false})) {
+    if (info.literal() != nullptr && info.literal()->scope() != nullptr) {
+      CollectScopeTree(info.literal()->scope(), 0, entry, names_, snapshot_);
+    }
+  }
+}
+
 void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry,
                                              Tagged<Script> script) {
+  // Parse the script and add its scopes to the heap snapshot.
+  ParseScriptScopes(entry, script);
+
   AddIntEdge(entry, HeapGraphEdge::kInternal, "id", script->id());
   AddIntEdge(entry, HeapGraphEdge::kInternal, "line_offset",
              script->line_offset());
@@ -2460,12 +2605,10 @@ void V8HeapExplorer::ExtractScopeInfoReferences(HeapEntry* entry,
     SetInternalReference(entry, "outer_scope_info", info->OuterScopeInfo(),
                          info->OuterScopeInfoOffset());
   }
-  if (info->HasPositionInfo()) {
-    AddIntEdge(entry, HeapGraphEdge::kInternal, "start_position",
-               info->StartPosition());
-    AddIntEdge(entry, HeapGraphEdge::kInternal, "end_position",
-               info->EndPosition());
-  }
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "start_position",
+             info->StartPosition());
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "end_position",
+             info->EndPosition());
   if (!info->HasInlinedLocalNames()) {
     TagObject(info->context_local_names_hashtable(), "(context local names)",
               HeapEntry::kCode);
@@ -3583,11 +3726,9 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
   // stale native addresses for live wrapper entries.
   heap_object_map_->ClearMergedNativeEntries();
 
-  if (isolate_->heap()->cpp_heap()) {
-    CppGraphBuilder::Run(
-        v8::internal::CppHeap::From(isolate_->heap()->cpp_heap()), generator_,
-        generator_->TakeCppHeapWrappers());
-  }
+  CppGraphBuilder::Run(
+      *v8::internal::CppHeap::From(isolate_->heap()->cpp_heap()), generator_,
+      generator_->TakeCppHeapWrappers());
 
   if (v8_flags.heap_profiler_use_embedder_graph &&
       snapshot_->profiler()->HasBuildEmbedderGraphCallback()) {
@@ -3902,6 +4043,21 @@ void HeapSnapshotJSONSerializer::SerializeImpl() {
   if (writer_->aborted()) return;
   writer_->AddString("],\n");
 
+  writer_->AddString("\"scopes\":[");
+  SerializeScopes();
+  if (writer_->aborted()) return;
+  writer_->AddString("],\n");
+
+  writer_->AddString("\"scope_context_vars\":[");
+  SerializeScopeContextVars();
+  if (writer_->aborted()) return;
+  writer_->AddString("],\n");
+
+  writer_->AddString("\"scope_uses\":[");
+  SerializeScopeUses();
+  if (writer_->aborted()) return;
+  writer_->AddString("],\n");
+
   writer_->AddString("\"strings\":[");
   SerializeStrings();
   if (writer_->aborted()) return;
@@ -4056,7 +4212,18 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
         JSON_S("script_id") ","
         JSON_S("script_object_index") ","
         JSON_S("line") ","
-        JSON_S("column"))
+        JSON_S("column")) ","
+    JSON_S("scope_fields") ":" JSON_A(
+        JSON_S("script_node_index") ","
+        JSON_S("scope_id") ","
+        JSON_S("depth") ","
+        JSON_S("scope_context_vars_count") ","
+        JSON_S("scope_uses_count")) ","
+    JSON_S("scope_context_var_fields") ":" JSON_A(
+        JSON_S("name")) ","
+    JSON_S("scope_use_fields") ":" JSON_A(
+        JSON_S("declaring_scope_id") ","
+        JSON_S("slot_index"))
   "}");
 // clang-format on
 #undef JSON_S
@@ -4173,6 +4340,42 @@ void HeapSnapshotJSONSerializer::SerializeLocations() {
   for (size_t i = 0; i < locations.size(); i++) {
     if (i > 0) writer_->AddCharacter(',');
     SerializeLocation(locations[i]);
+    if (writer_->aborted()) return;
+  }
+}
+
+void HeapSnapshotJSONSerializer::SerializeScopes() {
+  for (size_t i = 0; i < snapshot_->source_scopes().size(); ++i) {
+    if (i > 0) writer_->AddCharacter(',');
+    const auto& scope = snapshot_->source_scopes()[i];
+    writer_->AddNumber(to_node_index(scope.script_entry));
+    writer_->AddCharacter(',');
+    writer_->AddNumber(scope.scope_id);
+    writer_->AddCharacter(',');
+    writer_->AddNumber(scope.depth);
+    writer_->AddCharacter(',');
+    writer_->AddNumber(scope.scope_context_vars_count);
+    writer_->AddCharacter(',');
+    writer_->AddNumber(scope.scope_uses_count);
+    if (writer_->aborted()) return;
+  }
+}
+
+void HeapSnapshotJSONSerializer::SerializeScopeContextVars() {
+  for (size_t i = 0; i < snapshot_->source_scope_context_vars().size(); ++i) {
+    if (i > 0) writer_->AddCharacter(',');
+    writer_->AddNumber(GetStringId(snapshot_->source_scope_context_vars()[i]));
+    if (writer_->aborted()) return;
+  }
+}
+
+void HeapSnapshotJSONSerializer::SerializeScopeUses() {
+  for (size_t i = 0; i < snapshot_->source_scope_uses().size(); ++i) {
+    if (i > 0) writer_->AddCharacter(',');
+    const auto& use = snapshot_->source_scope_uses()[i];
+    writer_->AddNumber(use.declaring_scope_id);
+    writer_->AddCharacter(',');
+    writer_->AddNumber(use.slot_index);
     if (writer_->aborted()) return;
   }
 }

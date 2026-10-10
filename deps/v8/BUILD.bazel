@@ -183,7 +183,7 @@ v8_flag(name = "v8_enable_experimental_tq_to_tsa")
 # off, the metagen action is not part of the build graph.
 v8_flag(
     name = "v8_use_metagen_instance_types",
-    default = False,
+    default = True,
 )
 
 v8_flag(
@@ -797,6 +797,7 @@ filegroup(
         "include/v8-maybe.h",
         "include/v8-memory-span.h",
         "include/v8-message.h",
+        "include/v8-metrics.h",
         "include/v8-microtask.h",
         "include/v8-microtask-queue.h",
         "include/v8-object.h",
@@ -815,6 +816,7 @@ filegroup(
         "include/v8-traced-handle.h",
         "include/v8-typed-array.h",
         "include/v8-unwinder.h",
+        "include/v8-unwinder-state.h",
         "include/v8-util.h",
         "include/v8-value.h",
         "include/v8-value-serializer.h",
@@ -1652,6 +1654,8 @@ filegroup(
         "src/date/dateparser-inl.h",
         "src/debug/debug.cc",
         "src/debug/debug.h",
+        "src/debug/debug-block-list.cc",
+        "src/debug/debug-block-list.h",
         "src/debug/debug-coverage.cc",
         "src/debug/debug-coverage.h",
         "src/debug/debug-evaluate.cc",
@@ -2608,6 +2612,7 @@ filegroup(
         "src/sandbox/external-pointer-table-inl.h",
         "src/sandbox/cppheap-pointer.h",
         "src/sandbox/cppheap-pointer-inl.h",
+        "src/sandbox/cppheap-pointer-tag.h",
         "src/sandbox/cppheap-pointer-table.cc",
         "src/sandbox/cppheap-pointer-table.h",
         "src/sandbox/cppheap-pointer-table-inl.h",

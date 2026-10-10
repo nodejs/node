@@ -117,7 +117,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // r0: Number of arguments.
     Generate_PushArguments(masm, r4, r0, r5, ArgumentsElementType::kRaw);
     // The receiver for the builtin/api call.
-    __ PushRoot(RootIndex::kTheHoleValue);
+    __ PushRoot(RootIndex::kTdzHoleValue);
 
     // Call the function.
     // r0: number of arguments (untagged)
@@ -186,9 +186,9 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ CallBuiltin(Builtin::kFastNewObject);
   __ b(&post_instantiation_deopt_entry);
 
-  // Else: use TheHoleValue as receiver for constructor call
+  // Else: use TdzHoleValue as receiver for constructor call
   __ bind(&not_create_implicit_receiver);
-  __ LoadRoot(r0, RootIndex::kTheHoleValue);
+  __ LoadRoot(r0, RootIndex::kTdzHoleValue);
 
   // ----------- S t a t e -------------
   //  --                          r0: receiver
@@ -256,7 +256,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // on-stack receiver as the result.
   __ bind(&use_receiver);
   __ ldr(r0, MemOperand(sp, 0 * kPointerSize));
-  __ JumpIfRoot(r0, RootIndex::kTheHoleValue, &do_throw);
+  __ JumpIfRoot(r0, RootIndex::kTdzHoleValue, &do_throw);
 
   __ bind(&leave_and_return);
   // Restore arguments count from the frame.
@@ -1564,7 +1564,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterFrame(StackFrame::FAST_CONSTRUCT);
   // Implicit receiver stored in the construct frame.
-  __ LoadRoot(r2, RootIndex::kTheHoleValue);
+  __ LoadRoot(r2, RootIndex::kTdzHoleValue);
   __ Push(cp, r2);
 
   // Push arguments + implicit receiver.
@@ -1625,7 +1625,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ bind(&use_receiver);
   __ ldr(r0,
          MemOperand(fp, FastConstructFrameConstants::kImplicitReceiverOffset));
-  __ JumpIfRoot(r0, RootIndex::kTheHoleValue, &do_throw);
+  __ JumpIfRoot(r0, RootIndex::kTdzHoleValue, &do_throw);
 
   __ bind(&leave_and_return);
   // Leave construct frame.

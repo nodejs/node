@@ -20,6 +20,7 @@
 #include <memory>
 #include <vector>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/optimization.h"
 #include "absl/crc/internal/crc.h"

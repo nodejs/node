@@ -115,6 +115,7 @@ cc_library(
         "//absl/base:malloc_internal",
         "//absl/base:raw_logging_internal",
         "//absl/strings",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -144,6 +145,7 @@ cc_test(
         "//absl/memory",
         "//absl/strings",
         "//absl/strings:str_format",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
     ],
 )
@@ -446,6 +448,7 @@ cc_test(
     tags = ["notsan"],
     deps = [
         ":stack_consumption",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/log",
         "@googletest//:gtest",

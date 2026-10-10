@@ -349,11 +349,20 @@ class InstructionChecker {
     }
   }
 
-  // Verifies that system register instruction MSR is never used. This prevents
+  // Verifies that system registers are never updated. This prevents
   // unintended modification of CPU control flags or floating-point execution
   // state.
   void CheckNoSystemRegisterWrites(const uint8_t* pc, const Da64Inst& instr) {
-    VALIDATOR_CHECK(instr.mnem != DA64I_MSR,
+    static constexpr Da64InstKind prohibited_instructions[] = {
+        DA64I_SYS,         DA64I_SYSL,       DA64I_MSR,
+        DA64I_MSR_UAO,     DA64I_MSR_PAN,    DA64I_MSR_SPSel,
+        DA64I_MSR_ALLINT,  DA64I_MSR_PM,     DA64I_MSR_SSBS,
+        DA64I_MSR_DIT,     DA64I_MSR_TCO,    DA64I_MSR_DAIFSet,
+        DA64I_MSR_DAIFClr, DA64I_MSR_SVCRSM, DA64I_MSR_SVCRZA,
+        DA64I_MSR_SVCRSMZA};
+    VALIDATOR_CHECK(std::find(std::begin(prohibited_instructions),
+                              std::end(prohibited_instructions),
+                              instr.mnem) == std::end(prohibited_instructions),
                     "Instruction writes to prohibited system registers");
   }
 

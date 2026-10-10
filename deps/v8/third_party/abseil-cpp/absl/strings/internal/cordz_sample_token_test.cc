@@ -22,6 +22,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/memory/memory.h"
 #include "absl/random/random.h"
 #include "absl/strings/cordz_test_helpers.h"

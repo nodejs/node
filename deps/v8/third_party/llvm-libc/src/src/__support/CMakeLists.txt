@@ -392,6 +392,17 @@ add_header_library(
     frac128.h
   DEPENDS
     .big_int
+    .frac64
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  frac256
+  HDRS
+    frac256.h
+  DEPENDS
+    .big_int
+    .frac128
     libc.src.__support.macros.config
 )
 
@@ -493,6 +504,7 @@ add_subdirectory(net)
 add_subdirectory(threads)
 
 add_subdirectory(File)
+add_subdirectory(pwd)
 
 add_subdirectory(printf_core)
 

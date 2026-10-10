@@ -2108,8 +2108,42 @@ TEST_F(TurboshaftInstructionSelectorTest, AtomicStoreWithWriteBarrier) {
   EXPECT_EQ(kMips64Dadd, s[0]->arch_opcode());
   EXPECT_EQ(kArchAtomicStoreWithWriteBarrier, s[1]->arch_opcode());
   EXPECT_EQ(kMode_None, s[1]->addressing_mode());
-  EXPECT_EQ(AtomicStoreRecordWriteModeField::decode(s[1]->opcode()),
+  EXPECT_EQ(RecordWriteModeField::decode(s[1]->opcode()),
             RecordWriteMode::kValueIsAny);
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64Add3) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64(), MachineType::Uint64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64> p2 = m.Parameter<Word64>(2);
+  V<Word64Pair> res = m.Word64Add3(p0, p1, p2);
+  OpIndex low = m.Projection(res, 0);
+  OpIndex high = m.Projection(res, 1);
+  m.Return(m.Word64Add(low, high));
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kMips64Add64_3, s[0]->arch_opcode());
+  EXPECT_EQ(kMips64Dadd, s[1]->arch_opcode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  ASSERT_EQ(2U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64Add3UnusedHigh) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64(), MachineType::Uint64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64> p2 = m.Parameter<Word64>(2);
+  V<Word64Pair> res = m.Word64Add3(p0, p1, p2);
+  OpIndex low = m.Projection(res, 0);
+  m.Return(low);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kMips64Add64_3, s[0]->arch_opcode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
 }
 
 }  // namespace turboshaft

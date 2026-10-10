@@ -8,6 +8,7 @@
 #include <stdarg.h>
 
 #include <cmath>
+#include <limits>
 #include <optional>
 
 #include "include/v8config.h"
@@ -427,12 +428,14 @@ double InternalStringToIntDouble(const Char* start, const Char* end,
       number >>= overflow_bits_count;
       exponent = overflow_bits_count;
 
+      // Cap exponent to avoid int overflow on huge digit runs
+      constexpr int kMaxExponent = std::numeric_limits<double>::max_exponent;
       bool zero_tail = true;
       while (true) {
         ++current;
         if (current == end || !isDigit(*current, radix)) break;
         zero_tail = zero_tail && *current == '0';
-        exponent += radix_log_2;
+        if (exponent <= kMaxExponent) exponent += radix_log_2;
       }
 
       if (!allow_trailing_junk && AdvanceToNonspace(&current, end)) {

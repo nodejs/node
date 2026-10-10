@@ -16,7 +16,8 @@ namespace internal {
 
 #include "src/codegen/define-code-stub-assembler-macros.inc"
 
-void JSTrampolineAssembler::TailCallJSFunction(TNode<JSFunction> function) {
+void JSTrampolineAssembler::TailCallJSFunction(
+    TNode<JSFunction> function, TNode<Uint16T> expected_parameter_count) {
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
@@ -33,12 +34,22 @@ void JSTrampolineAssembler::TailCallJSFunction(TNode<JSFunction> function) {
                             function, offsetof(JSFunction, dispatch_handle_))));
 
   // TailCallJSCode will load the code from the dispatch table.
-  TailCallJSCode(context, function, new_target, argc, dispatch_handle);
+  TailCallJSCode(context, function, new_target, argc, dispatch_handle,
+                 expected_parameter_count);
 }
-
 
 void JSTrampolineAssembler::CompileLazy(TNode<JSFunction> function,
                                         TNode<Context> context) {
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  auto dispatch_handle =
+      UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
+  TNode<Uint16T> expected_parameter_count =
+      LoadParameterCountFromJSDispatchTable(dispatch_handle);
+#else
+  CHECK(!V8_ENABLE_SANDBOX_BOOL);
+  TNode<Uint16T> expected_parameter_count = Uint16Constant(0);
+#endif
+
   // First lookup code, maybe we don't need to compile!
   Label compile_function(this, Label::kDeferred);
 
@@ -80,11 +91,11 @@ void JSTrampolineAssembler::CompileLazy(TNode<JSFunction> function,
   // necessary as the dispatch table entry may still contain the CompileLazy
   // builtin at this point (we can only update dispatch table code from C++).
   CallRuntime(Runtime::kInstallSFICode, context, function);
-  TailCallJSFunction(function);
+  TailCallJSFunction(function, expected_parameter_count);
 
   BIND(&compile_function);
   CallRuntime(Runtime::kCompileLazy, context, function);
-  TailCallJSFunction(function);
+  TailCallJSFunction(function, expected_parameter_count);
 }
 
 TF_BUILTIN(CompileLazy, JSTrampolineAssembler) {
@@ -105,10 +116,13 @@ void JSTrampolineAssembler::TieringBuiltinImpl(const Function& Impl) {
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   auto dispatch_handle =
       UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
+  TNode<Uint16T> expected_parameter_count =
+      LoadParameterCountFromJSDispatchTable(dispatch_handle);
 #else
   CHECK(!V8_ENABLE_SANDBOX_BOOL);
   auto dispatch_handle = LoadObjectField<JSDispatchHandleT>(
       function, offsetof(JSFunction, dispatch_handle_));
+  TNode<Uint16T> expected_parameter_count = Uint16Constant(0);
 #endif
 
   // Apply the actual tiering. This function must uninstall the tiering builtin.
@@ -123,7 +137,8 @@ void JSTrampolineAssembler::TieringBuiltinImpl(const Function& Impl) {
   // TailCallJSCode will load the code from the dispatch table to guarantee
   // that the signature of the code matches with the number of arguments
   // passed when calling into this trampoline.
-  TailCallJSCode(context, function, new_target, argc, dispatch_handle);
+  TailCallJSCode(context, function, new_target, argc, dispatch_handle,
+                 expected_parameter_count);
 }
 
 TF_BUILTIN(FunctionLogNextExecution, JSTrampolineAssembler) {

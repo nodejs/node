@@ -871,18 +871,20 @@ Response V8RuntimeAgentImpl::getHeapUsage(double* out_usedSize,
   *out_usedSize = stats.used_heap_size();
   *out_totalSize = stats.total_heap_size();
   *out_backingStorageSize = stats.external_memory();
-  if (v8::CppHeap* cppHeap = m_inspector->isolate()->GetCppHeap()) {
-    cppgc::HeapStatistics cppStats =
-        cppHeap->CollectStatistics(cppgc::HeapStatistics::DetailLevel::kBrief);
-    *out_embedderHeapUsedSize = cppStats.used_size_bytes;
-  } else {
-    *out_embedderHeapUsedSize = 0;
-  }
+  v8::CppHeap* cppHeap = m_inspector->isolate()->GetCppHeap();
+  cppgc::HeapStatistics cppStats =
+      cppHeap->CollectStatistics(cppgc::HeapStatistics::DetailLevel::kBrief);
+  *out_embedderHeapUsedSize = cppStats.used_size_bytes;
   return Response::Success();
 }
 
 void V8RuntimeAgentImpl::terminateExecution(
     std::unique_ptr<TerminateExecutionCallback> callback) {
+  if (m_session->clientTrustLevel() != V8Inspector::kFullyTrusted) {
+    callback->sendFailure(Response::ServerError(
+        "Runtime.terminateExecution is not allowed for untrusted clients"));
+    return;
+  }
   v8::HandleScope handles(m_inspector->isolate());
   v8::Local<v8::Context> defaultContext =
       m_inspector->client()->ensureDefaultContextInGroup(
@@ -967,7 +969,8 @@ void V8RuntimeAgentImpl::bindingCallback(
   int contextId = InspectedContext::contextId(isolate->GetCurrentContext());
   int contextGroupId = inspector->contextGroupId(contextId);
 
-  String16 name = toProtocolString(isolate, info.Data().As<v8::String>());
+  String16 name =
+      toProtocolString(isolate, info.DataV2().As<v8::Value>().As<v8::String>());
   String16 payload = toProtocolString(isolate, info[0].As<v8::String>());
 
   inspector->forEachSession(
@@ -1141,9 +1144,11 @@ Response V8RuntimeAgentImpl::enable() {
   // Also, the storage itself can be destroyed and recreated, so re-fetch the
   // storage on each iteration.
   size_t size = storage->messages().size();
+  uint64_t storageId = storage->id();
   for (size_t i = 0; i < size; ++i) {
-    if (m_inspector->consoleMessageStorage(m_session->contextGroupId()) !=
-        storage) {
+    V8ConsoleMessageStorage* inspectorStorage =
+        m_inspector->consoleMessageStorage(m_session->contextGroupId());
+    if (!inspectorStorage || inspectorStorage->id() != storageId) {
       break;
     }
     if (i >= storage->messages().size()) break;

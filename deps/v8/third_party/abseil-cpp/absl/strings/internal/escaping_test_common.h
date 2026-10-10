@@ -19,6 +19,8 @@
 #define ABSL_STRINGS_INTERNAL_ESCAPING_TEST_COMMON_H_
 
 #include <array>
+
+#include "absl/base/config.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {

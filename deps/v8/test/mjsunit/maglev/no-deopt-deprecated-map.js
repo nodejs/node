@@ -33,9 +33,9 @@ foo(o3);  // Make it polymorphic.
 %OptimizeMaglevOnNextCall(foo);
 foo(o2_1);
 
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 // Calling foo with a deprecated map should not deopt.
 foo(o1);
 
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);

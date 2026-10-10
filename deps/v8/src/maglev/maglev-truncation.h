@@ -471,9 +471,12 @@ class TruncationProcessor {
     return ProcessResult::kContinue;
   }
 
+  bool CanEagerDeopt() const {
+    return current_node()->properties().has_eager_deopt_info();
+  }
+
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
-    DCHECK(current_node()->properties().can_eager_deopt() ||
-           current_node()->properties().is_deopt_checkpoint());
+    DCHECK(CanEagerDeopt());
     return &current_node()->eager_deopt_info()->top_frame();
   }
 

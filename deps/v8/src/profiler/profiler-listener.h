@@ -71,8 +71,8 @@ class V8_EXPORT_PRIVATE ProfilerListener : public LogEventListener,
                            DirectHandle<SharedFunctionInfo> shared) override;
   void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override;
-  void CodeDependencyChangeEvent(DirectHandle<Code> code,
-                                 DirectHandle<SharedFunctionInfo> sfi,
+  void CodeDependencyChangeEvent(Tagged<Code> code,
+                                 Tagged<SharedFunctionInfo> sfi,
                                  const char* reason) override {}
   void WeakCodeClearEvent() override;
 

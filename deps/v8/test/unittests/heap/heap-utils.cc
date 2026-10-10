@@ -18,22 +18,14 @@
 #include "src/heap/normal-page-inl.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
+#include "src/objects/fixed-primitive-array-inl.h"
 #include "src/objects/free-space-inl.h"
 
 namespace v8 {
 namespace internal {
 
-namespace heap {
-class HeapTester {
- public:
-  static size_t OldGenerationSpaceAvailable(Heap* heap) {
-    return heap->OldGenerationSpaceAvailable();
-  }
-};
-}  // namespace heap
-
 size_t HeapInternalsBase::OldGenerationSpaceAvailable(Heap* heap) {
-  return heap::HeapTester::OldGenerationSpaceAvailable(heap);
+  return heap->OldGenerationSpaceAvailable();
 }
 
 void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
@@ -351,7 +343,7 @@ ManualGCScope::ManualGCScope(Isolate* isolate)
   // CppHeap concurrent marking has a dependency on concurrent marking.
   v8_flags.cppheap_concurrent_marking = false;
 
-  if (isolate_ && isolate_->heap()->cpp_heap()) {
+  if (isolate_) {
     CppHeap::From(isolate_->heap()->cpp_heap())
         ->UpdateGCCapabilitiesFromFlagsForTesting();
   }
@@ -368,7 +360,7 @@ ManualGCScope::~ManualGCScope() {
       flag_detect_ineffective_gcs_near_heap_limit_;
   v8_flags.cppheap_concurrent_marking = flag_cppheap_concurrent_marking_;
 
-  if (isolate_ && isolate_->heap()->cpp_heap()) {
+  if (isolate_) {
     CppHeap::From(isolate_->heap()->cpp_heap())
         ->UpdateGCCapabilitiesFromFlagsForTesting();
   }
@@ -416,6 +408,46 @@ void ForceEvacuationCandidate(NormalPage* page) {
   CHECK(v8_flags.manual_evacuation_candidates_selection);
   page->set_forced_evacuation_candidate_for_testing(true);
   page->owner()->heap()->FreeLinearAllocationAreas();
+}
+
+AllocationResult HeapInternalsBase::AllocateByteArrayForTest(
+    Heap* heap, uint32_t length, AllocationType allocation_type) {
+  DCHECK_LE(length, ByteArray::kMaxLength);
+  int size = ByteArray::SizeFor(length);
+  Tagged<HeapObject> result;
+  {
+    AllocationResult allocation = heap->AllocateRaw(size, allocation_type);
+    if (!allocation.To(&result)) return allocation;
+  }
+
+  result->set_map_after_allocation(heap->isolate(),
+                                   ReadOnlyRoots(heap).byte_array_map(),
+                                   SKIP_WRITE_BARRIER);
+  Cast<ByteArray>(result)->set_length(length);
+  return AllocationResult::FromObject(result);
+}
+
+AllocationResult HeapInternalsBase::AllocateFixedArrayForTest(
+    Heap* heap, uint32_t length, AllocationType allocation) {
+  DCHECK_LE(length, FixedArray::kMaxLength);
+  int size = FixedArray::SizeFor(length);
+  Tagged<HeapObject> obj;
+  {
+    AllocationResult result = heap->AllocateRaw(size, allocation);
+    if (!result.To(&obj)) return result;
+  }
+  obj->set_map_after_allocation(heap->isolate(),
+                                ReadOnlyRoots(heap).fixed_array_map(),
+                                SKIP_WRITE_BARRIER);
+  Tagged<FixedArray> array = Cast<FixedArray>(obj);
+  array->set_length(length);
+  MemsetTagged(array->RawFieldOfFirstElement(),
+               ReadOnlyRoots(heap).undefined_value(), length);
+  return AllocationResult::FromObject(array);
+}
+
+void HeapInternalsBase::SetForceOOM(Heap* heap, bool value) {
+  heap->set_force_oom(value);
 }
 
 }  // namespace internal

@@ -103,6 +103,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& LoadUndefined();
   BytecodeArrayBuilder& LoadNull();
   BytecodeArrayBuilder& LoadTheHole();
+  BytecodeArrayBuilder& LoadTdzHole();
   BytecodeArrayBuilder& LoadTrue();
   BytecodeArrayBuilder& LoadFalse();
   BytecodeArrayBuilder& LoadBoolean(bool value);
@@ -492,9 +493,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& ReThrow();
   BytecodeArrayBuilder& Abort(AbortReason reason);
   BytecodeArrayBuilder& Return();
-  BytecodeArrayBuilder& ThrowReferenceErrorIfHole(const AstRawString* name);
-  BytecodeArrayBuilder& ThrowSuperNotCalledIfHole();
-  BytecodeArrayBuilder& ThrowSuperAlreadyCalledIfNotHole();
+  BytecodeArrayBuilder& ThrowReferenceErrorIfTdzHole(const AstRawString* name);
+  BytecodeArrayBuilder& ThrowSuperNotCalledIfTdzHole();
+  BytecodeArrayBuilder& ThrowSuperAlreadyCalledIfNotTdzHole();
   BytecodeArrayBuilder& ThrowIfNotSuperConstructor(Register constructor);
 
   // Debugger.

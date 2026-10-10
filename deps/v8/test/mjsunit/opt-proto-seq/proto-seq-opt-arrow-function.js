@@ -55,7 +55,7 @@ assert_test_arrow_function(test_arrow_function());
 %OptimizeMaglevOnNextCall(test_arrow_function);
 assert_test_arrow_function(test_arrow_function());
 assertOptimized(test_arrow_function);
-assertTrue(isMaglevved(test_arrow_function));
+assertMaglevved(test_arrow_function);
 assert_test_arrow_function(test_arrow_function());
 %OptimizeFunctionOnNextCall(test_arrow_function);
 assert_test_arrow_function(test_arrow_function());

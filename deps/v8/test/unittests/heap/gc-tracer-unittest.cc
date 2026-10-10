@@ -78,21 +78,21 @@ void StopTracing(Heap* heap, GarbageCollector collector,
     case GarbageCollector::MINOR_MARK_SWEEPER:
       tracer->NotifyYoungSweepingCompletedAndStopCycleIfFinished();
       break;
-    case GarbageCollector::MARK_COMPACTOR:
-      if (heap->cpp_heap()) {
-        using namespace cppgc::internal;
-        CppHeap* cpp_heap = CppHeap::From(heap->cpp_heap());
-        cpp_heap->object_allocator().ResetLinearAllocationBuffers();
-        StatsCollector* stats_collector = cpp_heap->stats_collector();
-        stats_collector->NotifyMarkingStarted(
-            CollectionType::kMajor, cppgc::Heap::MarkingType::kAtomic,
-            MarkingConfig::IsForcedGC::kNotForced);
-        stats_collector->NotifyMarkingCompleted(0);
-        stats_collector->NotifySweepingCompleted(
-            cppgc::Heap::SweepingType::kAtomic);
-      }
+    case GarbageCollector::MARK_COMPACTOR: {
+      CppHeap* cpp_heap = CppHeap::From(heap->cpp_heap());
+      cpp_heap->object_allocator().ResetLinearAllocationBuffers();
+      cppgc::internal::StatsCollector* stats_collector =
+          cpp_heap->stats_collector();
+      stats_collector->NotifyMarkingStarted(
+          cppgc::internal::CollectionType::kMajor,
+          cppgc::Heap::MarkingType::kAtomic,
+          cppgc::internal::MarkingConfig::IsForcedGC::kNotForced);
+      stats_collector->NotifyMarkingCompleted(0);
+      stats_collector->NotifySweepingCompleted(
+          cppgc::Heap::SweepingType::kAtomic);
       tracer->NotifyFullSweepingCompletedAndStopCycleIfFinished();
       break;
+    }
   }
 }
 

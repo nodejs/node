@@ -31,6 +31,6 @@ wrapper();
 
 %OptimizeMaglevOnNextCall(wrapper);
 let res = wrapper();
-assertTrue(isMaglevved(wrapper));
+assertMaglevved(wrapper);
 
 assertEquals([1, 'element', 3], res);

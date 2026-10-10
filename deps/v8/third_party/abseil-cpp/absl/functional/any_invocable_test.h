@@ -24,8 +24,6 @@
 #ifndef ABSL_FUNCTIONAL_ANY_INVOCABLE_TEST_H_
 #define ABSL_FUNCTIONAL_ANY_INVOCABLE_TEST_H_
 
-#include "absl/functional/any_invocable.h"
-
 #include <cstddef>
 #include <cstdlib>
 #include <functional>
@@ -34,10 +32,12 @@
 #include <memory>
 #include <numeric>
 #include <type_traits>
+#include <utility>
 
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
 #include "absl/base/nullability.h"
+#include "absl/functional/any_invocable.h"
 #include "absl/meta/type_traits.h"
 #include "absl/utility/utility.h"
 

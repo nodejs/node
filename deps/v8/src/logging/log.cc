@@ -1712,9 +1712,8 @@ void V8FileLogger::CodeDisableOptEvent(
   msg.WriteToLogFile();
 }
 
-void V8FileLogger::ProcessDeoptEvent(DirectHandle<Code> code,
-                                     SourcePosition position, const char* kind,
-                                     const char* reason) {
+void V8FileLogger::ProcessDeoptEvent(Tagged<Code> code, SourcePosition position,
+                                     const char* kind, const char* reason) {
   VMStateIfMainThread<LOGGING> state(isolate_);
   MSG_BUILDER();
   msg << Event::kCodeDeopt << kNext << Time() << kNext
@@ -1725,7 +1724,7 @@ void V8FileLogger::ProcessDeoptEvent(DirectHandle<Code> code,
   int inlining_id = -1;
   int script_offset = -1;
   if (position.IsKnown()) {
-    position.Print(deopt_location, *code);
+    position.Print(deopt_location, code);
     inlining_id = position.InliningId();
     script_offset = position.ScriptOffset();
   } else {
@@ -1742,13 +1741,13 @@ void V8FileLogger::CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind,
   if (!is_logging() || !v8_flags.log_deopt) return;
   VMStateIfMainThread<LOGGING> state(isolate_);
   Deoptimizer::DeoptInfo info = Deoptimizer::ComputeDeoptInfo(*code, pc);
-  ProcessDeoptEvent(code, info.position, Deoptimizer::MessageFor(kind),
+  ProcessDeoptEvent(*code, info.position, Deoptimizer::MessageFor(kind),
                     DeoptimizeReasonToString(info.deopt_reason));
 }
 
-void V8FileLogger::CodeDependencyChangeEvent(
-    DirectHandle<Code> code, DirectHandle<SharedFunctionInfo> sfi,
-    const char* reason) {
+void V8FileLogger::CodeDependencyChangeEvent(Tagged<Code> code,
+                                             Tagged<SharedFunctionInfo> sfi,
+                                             const char* reason) {
   if (!is_logging() || !v8_flags.log_deopt) return;
   VMStateIfMainThread<LOGGING> state(isolate_);
   SourcePosition position(sfi->StartPosition(), -1);
@@ -2195,6 +2194,11 @@ EnumerateCompiledFunctions(Heap* heap) {
       // the entire heap here, we may still find them if no GC has cleaned them
       // up yet. See crbug.com/385341243 and the associated fix for context.
       if (sfi->HasUnpublishedTrustedData(isolate)) continue;
+#if V8_ENABLE_WEBASSEMBLY
+      // Wasm functions don't store wrapper code on the SFI; exported Wasm
+      // functions are recorded via their JSFunction below.
+      if (sfi->HasWasmFunctionData(isolate)) continue;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
       if (sfi->is_compiled() && !sfi->HasBytecodeArray()) {
         record(sfi, Cast<AbstractCode>(sfi->abstract_code(isolate)));
@@ -2203,12 +2207,17 @@ EnumerateCompiledFunctions(Heap* heap) {
       // Given that we no longer iterate over all optimized JSFunctions, we need
       // to take care of this here.
       Tagged<JSFunction> function = Cast<JSFunction>(obj);
+      Tagged<SharedFunctionInfo> sfi = function->shared();
       // TODO(jarin) This leaves out deoptimized code that might still be on the
       // stack. Also note that we will not log optimized code objects that are
       // only on a type feedback vector. We should make this more precise.
-      if (function->HasAttachedOptimizedCode(isolate) &&
-          Cast<Script>(function->shared()->script())->HasValidSource()) {
-        record(function->shared(), Cast<AbstractCode>(function->code(isolate)));
+      if ((function->HasAttachedOptimizedCode(isolate) &&
+           Cast<Script>(sfi->script())->HasValidSource())
+#if V8_ENABLE_WEBASSEMBLY
+          || sfi->HasWasmExportedFunctionData(isolate)
+#endif  // V8_ENABLE_WEBASSEMBLY
+      ) {
+        record(sfi, Cast<AbstractCode>(function->code(isolate)));
       }
     }
   }

@@ -520,11 +520,20 @@ namespace internal {
   V(True, true_value, TrueValue)                \
   V(False, false_value, FalseValue)
 
+#ifdef V8_ENABLE_TDZ_HOLE
+#define TDZ_HOLE_LIST(V) V(TdzHole, tdz_hole_value, TdzHoleValue)
+#else
+// TODO(leszeks): Remove DisabledTdzHole when v8_enable_tdz_hole is removed.
+#define TDZ_HOLE_LIST(V) \
+  V(DisabledTdzHole, disabled_tdz_hole_value, DisabledTdzHoleValue)
+#endif
+
 #define HOLE_LIST(V)                                                   \
   V(TheHole, the_hole_value, TheHoleValue)                             \
   V(PropertyCellHole, property_cell_hole_value, PropertyCellHoleValue) \
   V(HashTableHole, hash_table_hole_value, HashTableHoleValue)          \
   V(PromiseHole, promise_hole_value, PromiseHoleValue)                 \
+  TDZ_HOLE_LIST(V)                                                     \
   V(ExceptionHole, exception, Exception)                               \
   V(TerminationException, termination_exception, TerminationException) \
   V(UninitializedHole, uninitialized_value, UninitializedValue)        \
@@ -547,6 +556,11 @@ HEAP_OBJECT_TRUSTED_TYPE_LIST(DEF_FWD_DECLARATION)
 HEAP_OBJECT_SPECIALIZED_TYPE_LIST(DEF_FWD_DECLARATION)
 VIRTUAL_OBJECT_TYPE_LIST(DEF_FWD_DECLARATION)
 #undef DEF_FWD_DECLARATION
+
+#ifndef V8_ENABLE_TDZ_HOLE
+class TheHole;
+using TdzHole = TheHole;
+#endif
 
 }  // namespace internal
 }  // namespace v8

@@ -14,6 +14,7 @@
 
 #include "absl/functional/function_ref.h"
 
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <type_traits>

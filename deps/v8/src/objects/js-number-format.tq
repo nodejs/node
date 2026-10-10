@@ -8,6 +8,6 @@
 extern class JSNumberFormat extends JSObject {
   locale: String;
   icu_number_formatter:
-      CppGCManagedBase;  // CppGCManaged<icu::number::LocalizedNumberFormatter>
+      Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
   bound_format: JSFunction|Undefined;
 }

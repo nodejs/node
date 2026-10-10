@@ -632,6 +632,22 @@ inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(Register object,
   MacroAssembler::StoreTaggedField(value, FieldMemOperand(object, offset));
 }
 
+inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(
+    Register object, int offset, ValueNode* constant) {
+  DCHECK(CanStoreTaggedConstant(constant));
+  DCHECK_EQ(constant->Cast<SmiConstant>()->value(), Smi::zero());
+  MacroAssembler::StoreTaggedField(xzr, FieldMemOperand(object, offset));
+}
+
+inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(
+    Register object, int offset, Handle<HeapObject> constant) {
+  DCHECK(kSupportsStoreTaggedConstant);
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  MoveTagged(scratch, constant);
+  MacroAssembler::StoreTaggedField(scratch, FieldMemOperand(object, offset));
+}
+
 inline void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(
     Register array, Register index, Register value) {
   TemporaryRegisterScope temps(this);
@@ -832,6 +848,12 @@ inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
 }
 void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
 #ifdef V8_COMPRESS_POINTERS
+  RootIndex root_index;
+  if (isolate()->roots_table().IsRootHandle(obj, &root_index) &&
+      CanBeImmediate(root_index)) {
+    Mov(dst.W(), Immediate(ReadOnlyRootPtr(root_index)));
+    return;
+  }
   Mov(dst.W(), Operand(obj, RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
 #else
   Mov(dst, Operand(obj));

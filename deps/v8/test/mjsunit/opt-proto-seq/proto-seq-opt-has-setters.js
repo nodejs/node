@@ -52,7 +52,7 @@ assert_test_has_setters(test_has_setters());
 %OptimizeMaglevOnNextCall(test_has_setters);
 assert_test_has_setters(test_has_setters());
 assertOptimized(test_has_setters);
-assertTrue(isMaglevved(test_has_setters));
+assertMaglevved(test_has_setters);
 assert_test_has_setters(test_has_setters());
 %OptimizeFunctionOnNextCall(test_has_setters);
 assert_test_has_setters(test_has_setters());

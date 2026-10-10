@@ -35,7 +35,7 @@ assert_test_duplicate_properties(test_duplicate_properties());
 %OptimizeMaglevOnNextCall(test_duplicate_properties);
 assert_test_duplicate_properties(test_duplicate_properties());
 assertOptimized(test_duplicate_properties);
-assertTrue(isMaglevved(test_duplicate_properties));
+assertMaglevved(test_duplicate_properties);
 assert_test_duplicate_properties(test_duplicate_properties());
 %OptimizeFunctionOnNextCall(test_duplicate_properties);
 assert_test_duplicate_properties(test_duplicate_properties());

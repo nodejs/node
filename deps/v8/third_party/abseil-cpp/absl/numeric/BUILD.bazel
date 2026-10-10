@@ -73,6 +73,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":bits",
+        "//absl/base:config",
         "//absl/random",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

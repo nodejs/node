@@ -26,8 +26,11 @@ namespace LIBC_NAMESPACE_DECL {
 namespace fputil {
 
 struct Float80 {
+#if __SIZEOF_LONG_DOUBLE__ == 12
+  UInt<96> bits;
+#else
   UInt128 bits;
-
+#endif
   LIBC_INLINE Float80() = default;
   LIBC_INLINE constexpr Float80(const Float80 &) = default;
   LIBC_INLINE constexpr Float80(Float80 &&) = default;

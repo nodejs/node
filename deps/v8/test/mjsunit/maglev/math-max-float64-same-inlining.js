@@ -14,7 +14,7 @@ testDouble();
 %OptimizeMaglevOnNextCall(testDouble);
 
 assertEquals(5.5, testDouble());
-assertTrue(isMaglevved(testDouble));
+assertMaglevved(testDouble);
 
 function testObject() {
   let v = {valueOf: () => {return 1.1;}}
@@ -26,4 +26,4 @@ testObject();
 %OptimizeMaglevOnNextCall(testObject);
 
 assertEquals(1.1, testObject());
-assertFalse(isMaglevved(testObject));
+assertNotMaglevved(testObject);

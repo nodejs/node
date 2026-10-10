@@ -122,7 +122,9 @@ Buganizer.
 - **Version and Commit Identification**: Always retrieve the current V8 version
   number from `src/utils/version.h` and the specific git hash using
   `git rev-parse HEAD`. Prioritize referencing specific git hashes over generic
-  terms like "HEAD" in triage reports.
+  terms like "HEAD" in triage reports. For any commit referenced in the report,
+  retrieve its Gerrit changelist link (from `Reviewed-on:` in
+  `git log -n 1 --format=%b <hash>`).
 - **Attachment Check**: Ensure the subagent checks for mentioned files (e.g.,
   "poc.html", "crash.log") that are NOT in the attachments list. If retrieval of
   an attachment via MCP tools fails, the subagent **MUST** use the
@@ -218,7 +220,9 @@ Draft a concise synthesis based on verified subagent findings.
     [triaging.md](../../../docs/security/triaging.md) and Chromium guidelines.
 
   - **Introduced In / Regression Range**: Provide the commit or version where
-    the vulnerability was introduced, if identifiable.
+    the vulnerability was introduced, if identifiable. Always include a
+    clickable markdown link to the commit's Gerrit changelist (e.g.
+    `[commit <hash>](https://chromium-review.googlesource.com/c/v8/v8/+/<cl>)`).
 
   - **Rationale**: Explain the technical conclusion. For sandbox bypasses,
     explicitly state if it violates the threat model.
@@ -226,8 +230,8 @@ Draft a concise synthesis based on verified subagent findings.
   - **Local Reproduction Findings**: Follow the structure and mandatory fields
     defined in the **Classification Guidelines** of `v8-poc-classification`.
     Ensure all technical data (Status, Reproduction command, Result, Build
-    (including version from `src/utils/version.h` and git hash), Verified
-    Impact, and optional GDB Backtrace) is included here.
+    (including version from `src/utils/version.h` and git hash with a Gerrit
+    link), Verified Impact, and optional GDB Backtrace) is included here.
 
   - **Proposed Owner**: Based on expert discovery. Include a very short (half
     sentence) explanation for the choice (e.g., "author of affected code",
@@ -299,6 +303,8 @@ Finalize the session by securing artifacts and cleaning up the environment.
   flag (`--run-as-[sandbox]-security-poc`)?
 - [ ] **Mandatory Data**: Are the V8 version and git hash included in the Build
   description?
+- [ ] **Gerrit Links**: Are all referenced commits and CLs (introduction CL,
+  build commit, etc.) linked to their corresponding Gerrit changelists?
 - [ ] **Formatting**: Are there double line breaks between all top-level
   bulleted list items? Are sub-bullets indented by at least four spaces without
   internal double line breaks?

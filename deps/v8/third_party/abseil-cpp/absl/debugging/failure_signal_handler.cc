@@ -219,7 +219,7 @@ static bool SetupAlternateStackOnce() {
 // if the system supports using an alternate stack.
 static int MaybeSetupAlternateStack() {
 #ifdef ABSL_HAVE_SIGALTSTACK
-  ABSL_ATTRIBUTE_UNUSED static const bool kOnce = SetupAlternateStackOnce();
+  [[maybe_unused]] static const bool kOnce = SetupAlternateStackOnce();
   return SA_ONSTACK;
 #else
   return 0;

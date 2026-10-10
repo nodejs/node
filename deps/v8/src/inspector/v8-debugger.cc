@@ -812,6 +812,7 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
     v8::Local<v8::Context> context, v8::Local<v8::Value> value,
     ScopeTargetKind kind) {
   std::unique_ptr<v8::debug::ScopeIterator> iterator;
+  v8::Local<v8::Function> generator_function;
   switch (kind) {
     case FUNCTION:
       iterator = v8::debug::ScopeIterator::CreateForFunction(
@@ -822,6 +823,7 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
           v8::debug::GeneratorObject::Cast(value);
       if (!generatorObject->IsSuspended()) return v8::MaybeLocal<v8::Value>();
 
+      generator_function = generatorObject->Function();
       iterator = v8::debug::ScopeIterator::CreateForGeneratorObject(
           m_isolate, value.As<v8::Object>());
       break;
@@ -832,7 +834,25 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
     return v8::MaybeLocal<v8::Value>();
   }
 
-  for (; !iterator->Done(); iterator->Advance()) {
+  // [[Scopes]] reflects the runtime context chain: For generators, list the
+  // generator's own scopes up to its function scope, then continue with the
+  // closure's context chain like for functions (instead of the lexical outer
+  // scopes). Empty scopes are omitted, except for a generator's own scope.
+  auto advance = [&]() {
+    if (!generator_function.IsEmpty() &&
+        iterator->GetType() == v8::debug::ScopeIterator::ScopeTypeLocal) {
+      iterator = v8::debug::ScopeIterator::CreateForFunction(
+          m_isolate, generator_function);
+      generator_function.Clear();
+    } else {
+      iterator->Advance();
+    }
+  };
+  for (; iterator && !iterator->Done(); advance()) {
+    if (iterator->GetType() != v8::debug::ScopeIterator::ScopeTypeLocal &&
+        !iterator->DeclaresLocals()) {
+      continue;
+    }
     v8::Local<v8::Object> scope = v8::Object::New(m_isolate);
     if (!addInternalObject(context, scope, V8InternalValueType::kScope)) {
       return v8::MaybeLocal<v8::Value>();

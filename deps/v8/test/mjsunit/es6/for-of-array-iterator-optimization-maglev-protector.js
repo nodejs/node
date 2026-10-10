@@ -28,7 +28,7 @@ testForOf([1, 2, 3]);
 %OptimizeMaglevOnNextCall(testForOf);
 testForOf([1, 2, 3]);
 
-assertTrue(isMaglevved(testForOf));
+assertMaglevved(testForOf);
 
 // Now monkey-patch %ArrayIteratorPrototype%.next
 let proto = Object.getPrototypeOf([][Symbol.iterator]());
@@ -42,7 +42,7 @@ proto.next = function() {
 testForOf([1, 2, 3]);
 
 assertTrue(called);
-assertFalse(isMaglevved(testForOf));
+assertNotMaglevved(testForOf);
 
 // Restore
 proto.next = original_next;

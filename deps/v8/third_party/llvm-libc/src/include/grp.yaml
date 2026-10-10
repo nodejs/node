@@ -7,4 +7,39 @@ types:
   - type_name: size_t
 enums: []
 objects: []
-functions: []
+functions:
+  - name: endgrent
+    standards:
+      - posix
+    return_type: void
+    arguments: []
+  - name: getgrent
+    standards:
+      - posix
+    return_type: struct group *
+    arguments: []
+  - name: getgrgid_r
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: gid_t
+      - type: struct group *
+      - type: char *
+      - type: size_t
+      - type: struct group **
+  - name: getgrnam_r
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: struct group *
+      - type: char *
+      - type: size_t
+      - type: struct group **
+  - name: setgrent
+    standards:
+      - posix
+    return_type: void
+    arguments: []

@@ -372,6 +372,41 @@ TEST(RegionAllocatorTest, TrimRegion) {
   CHECK_EQ(ra.AllocateRegion(kSize), kBegin);
 }
 
+TEST(RegionAllocatorTest, FreeRegionReportsMergedFreeRegion) {
+  const size_t kPageSize = 4 * KB;
+  const size_t kPageCount = 8;
+  const size_t kSize = kPageSize * kPageCount;
+  const Address kBegin = static_cast<Address>(kPageSize * 153);
+
+  RegionAllocator ra(kBegin, kSize, kPageSize);
+
+  // Allocate the whole region page by page.
+  for (size_t i = 0; i < kPageCount; i++) {
+    CHECK_EQ(ra.AllocateRegion(kPageSize), kBegin + kPageSize * i);
+  }
+
+  // A freed page with allocated neighbours is a free region of its own.
+  AddressRegion free_region;
+  CHECK_EQ(ra.FreeRegion(kBegin + 3 * kPageSize, &free_region), kPageSize);
+  CHECK_EQ(free_region, AddressRegion(kBegin + 3 * kPageSize, kPageSize));
+
+  // Freeing its neighbours merges them into it, on either side.
+  CHECK_EQ(ra.FreeRegion(kBegin + 4 * kPageSize, &free_region), kPageSize);
+  CHECK_EQ(free_region, AddressRegion(kBegin + 3 * kPageSize, 2 * kPageSize));
+  CHECK_EQ(ra.FreeRegion(kBegin + 2 * kPageSize, &free_region), kPageSize);
+  CHECK_EQ(free_region, AddressRegion(kBegin + 2 * kPageSize, 3 * kPageSize));
+
+  // Freeing the page between two free regions merges all three.
+  CHECK_EQ(ra.FreeRegion(kBegin + 6 * kPageSize, &free_region), kPageSize);
+  CHECK_EQ(free_region, AddressRegion(kBegin + 6 * kPageSize, kPageSize));
+  CHECK_EQ(ra.FreeRegion(kBegin + 5 * kPageSize, &free_region), kPageSize);
+  CHECK_EQ(free_region, AddressRegion(kBegin + 2 * kPageSize, 5 * kPageSize));
+
+  // Nothing to free: the out parameter is left alone.
+  CHECK_EQ(ra.FreeRegion(kBegin + 5 * kPageSize, &free_region), 0);
+  CHECK_EQ(free_region, AddressRegion(kBegin + 2 * kPageSize, 5 * kPageSize));
+}
+
 TEST(RegionAllocatorTest, TryGrowRegion) {
   const size_t kPageSize = 4 * KB;
   const size_t kPageCount = 60;

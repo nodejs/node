@@ -38,7 +38,7 @@ class AgentPlatform:
   mcp_config: dict
 
   def _load_config(self) -> dict:
-    if self.config_path.exists():
+    if not self.config_path.exists():
       return {"mcpServers": {}}
     cfg = load_json(self.config_path)
     if "mcpServers" not in cfg:
@@ -109,42 +109,14 @@ class CliAgentPlatform(AgentPlatform):
     pass
 
 
-class GeminiPlatform(CliAgentPlatform):
-  """Implementation for Gemini CLI MCP configuration."""
-
-  NAME = "gemini"
-  BINARY = "gemini"
-  COMMAND: ClassVar[str] = "mcp"
-  EXTRA_ARGS: ClassVar[list[str]] = ["--scope", "user"]
-
-  def __init__(self) -> None:
-    super().__init__()
-    self.config_path = Path.home() / ".gemini/config/mcp_config.json"
-    self.mcp_config = self._load_config()
-
-  def _remove_server_cli(self, server_name: str) -> bool:
-    cmd = [self.BINARY, self.COMMAND, "remove", server_name] + self.EXTRA_ARGS
-    res = self._run(cmd, check=False)
-    return res.returncode == 0
-
-  def register_server(self, server_name: str, server_info: dict) -> dict:
-    config = super().register_server(server_name, server_info)
-    self._remove_server_cli(server_name)
-    cmd = [self.BINARY, self.COMMAND, "add"] + self.EXTRA_ARGS
-    for k, v in config.get("env", {}).items():
-      cmd.extend(["-e", f"{k}={v}"])
-    cmd.extend([server_name, config["command"]] + config["args"])
-    self._run(cmd, check=True)
-    return config
-
-
-class JetskiPlatform(GeminiPlatform):
+class JetskiPlatform(AgentPlatform):
   """Implementation for Jetski MCP configuration."""
 
   NAME = "jetski"
-  BINARY = "jetski-cli"
-  COMMAND = "plugin"
-  EXTRA_ARGS = []
+
+  def __init__(self) -> None:
+    self.config_path = Path.home() / ".gemini/config/mcp_config.json"
+    self.mcp_config = self._load_config()
 
 
 class ClaudeDesktopPlatform(AgentPlatform):
@@ -200,7 +172,6 @@ class ClaudeCLIPlatform(CliAgentPlatform):
 
 
 AGENT_PLATFORMS: Final[list[type[AgentPlatform]]] = [
-    GeminiPlatform,
     JetskiPlatform,
     ClaudeDesktopPlatform,
     ClaudeCLIPlatform,
@@ -216,13 +187,17 @@ def get_platform(agent_name: str) -> AgentPlatform:
 
 
 def get_available_plugins() -> dict[str, dict]:
-  """Scans agents/plugins for available Gemini plugins."""
-  # TODO: support other agent directories too.
+  """Scans agents/plugins for available agent plugins."""
   plugins = {}
   plugins_dir = _PROJECT_ROOT / "agents/plugins"
-  for manifest_path in plugins_dir.glob("*/gemini-extension.json"):
+  for manifest_path in plugins_dir.glob("*/plugin.json"):
     plugin_name = manifest_path.parent.name
     manifest = load_json(manifest_path)
+    mcp_config_path = manifest_path.parent / "mcp_config.json"
+    if mcp_config_path.exists():
+      mcp_config = load_json(mcp_config_path)
+      manifest.setdefault("mcpServers",
+                          {}).update(mcp_config.get("mcpServers", {}))
     plugins[plugin_name] = {
         "manifest_path": manifest_path,
         "manifest": manifest,
@@ -335,7 +310,7 @@ def main() -> None:
   )
 
   remove_parser = subparsers.add_parser(
-      "remove", help="Remove plugins from target agent.")
+      "remove", aliases=["rm"], help="Remove plugins from target agent.")
   remove_parser.add_argument(
       "plugins", nargs="+", help="Plugin names to remove.")
 

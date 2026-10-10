@@ -1,9 +1,9 @@
-# Gemini Workspace for V8
+# V8 Agent Workspace
 
-This is the workspace configuration for V8 when using Gemini.
+This is the workspace configuration for V8 coding agents (`jetski-cli`).
 
 For understanding V8 concepts and structure, refer to the
-[v8-understanding](agents/skills/v8-understanding/SKILL.md) skill.
+[v8-understanding](/agents/skills/v8-understanding/SKILL.md) skill.
 
 Some hints:
 
@@ -14,26 +14,15 @@ Some hints:
 - V8 is providing support for running JavaScript and WebAssembly on the web. As
   such, it is critical to aim for best possible performance when optimizing V8.
 
-## Subagents Setup
+## Skills & Rules Setup
 
-To use the subagents in this repository, you need to run the appropriate
-installation script depending on your environment:
+To install workspace skills and rules:
 
-- **For Gemini CLI**: Run `vpython3 agents/scripts/install_for_gemini_cli.py` to
-  generate the subagent files in `.gemini/agents/`.
 - **For Jetski**: Run `vpython3 agents/scripts/install_for_jetski.py` to create
-  symlinks in `.agents/agents/`.
-
-## Workspace Subagents
-
-Detailed information has been moved to specialized subagents in
-`agents/agents/`. Use them on demand:
-
-- **Researcher**: Explores the codebase and finds information. See
-  `agents/agents/researcher/`.
-- **Builder**: Compiles V8. See `agents/agents/builder/`.
-- **Tester**: Runs tests and benchmarks. See `agents/agents/tester/`.
-- **Debugger**: Investigates crashes using GDB. See `agents/agents/debugger/`.
+  symlinks in `.agents/`.
+- **For GitHub Copilot CLI**: Run
+  `vpython3 agents/scripts/install_for_copilot_cli.py` to install repository
+  instructions and compatible rules/skills in `.github/`.
 
 ## Workspace Skills & Rules
 
@@ -46,11 +35,12 @@ General guidance and reference information are available as skills or rules:
 - **Testing**: Detailed guide for running and interpreting tests. See
   [v8-testing](/agents/skills/v8-testing/SKILL.md).
 - **Best Practices**: Common pitfalls and fix proposal guidelines. See
-  [v8_best_practices](/agents/rules/v8-best-practices.md).
+  [v8-best-practices](/agents/rules/v8-best-practices.md).
 - **Setup**: Handles missing dependencies and configuration for V8 tools. See
   [v8-setup](/agents/skills/v8-setup/SKILL.md).
-- **Git CL Conventions**: Commit message format and usage. See
-  [git_cl](/agents/rules/git-cl.md).
+- **Git Commit & CL Conventions**: Commit message format and `git cl` usage. See
+  [git-commit](/agents/rules/git-commit.md) and
+  [git-cl](/agents/rules/git-cl.md).
 - **Torque**: Expert guidance for Torque. See
   [torque](/agents/skills/torque/SKILL.md).
 - **Debugging Workflow**: Guide for issue-based debugging. See
@@ -72,14 +62,13 @@ General guidance and reference information are available as skills or rules:
 - Otherwise, follow
   [Chromium's C++ style guide](https://chromium.googlesource.com/chromium/src/+/main/styleguide/styleguide.md).
 - Use `git cl format` to automatically format your changes.
-- Follow [git_cl](/agents/rules/git-cl.md) for commit conventions.
+- Follow [git-commit](/agents/rules/git-commit.md) and
+  [git-cl](/agents/rules/git-cl.md) for commit conventions.
 - For best practices and common pitfalls, see
-  [v8_best_practices](/agents/rules/v8-best-practices.md).
+  [v8-best-practices](/agents/rules/v8-best-practices.md).
 
 ## Agent Framework
 
-- **Mandatory Orchestration**: For any task in V8, the agent MUST act as an
-  Orchestrator and use the specialized subagents defined in `agents/agents/`.
-- Follow the rules in `agents/rules/framework.md` and
-  `agents/rules/execution_constraints.md`.
-- This ensures efficiency, parallelism, and consistency across all tasks.
+- Follow the rules in
+  [execution-constraints](/agents/rules/execution-constraints.md) for background
+  execution, subagent delegation, and workspace isolation.
