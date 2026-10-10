@@ -1339,7 +1339,8 @@ are parsed and applied. If the same variable is defined in the environment and
 in the file, the value from the environment takes precedence.
 
 You can pass multiple `--env-file` arguments. Subsequent files override
-pre-existing variables defined in previous files.
+pre-existing variables defined in previous files. Files specified in
+`NODE_OPTIONS` are loaded before files specified on the command line.
 
 An error is thrown if the file does not exist.
 
@@ -4253,6 +4254,8 @@ one is included in the list below.
 * `--enable-network-family-autoselection`
 * `--enable-source-maps`
 * `--entry-url`
+* `--env-file-if-exists`
+* `--env-file`
 * `--experimental-abortcontroller`
 * `--experimental-addon-modules`
 * `--experimental-bench`

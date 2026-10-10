@@ -304,6 +304,36 @@
               "type": "boolean",
               "description": "Treat the entrypoint as a URL"
             },
+            "env-file": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "set environment variables from supplied file"
+            },
+            "env-file-if-exists": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "set environment variables from supplied file"
+            },
             "experimental-addon-modules": {
               "type": "boolean",
               "description": "experimental import support for addons"
