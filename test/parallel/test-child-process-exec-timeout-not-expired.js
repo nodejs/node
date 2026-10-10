@@ -22,14 +22,35 @@ if (process.argv[2] === 'child') {
   return;
 }
 
+// The property is also present on errors that are not caused by the timeout.
+cp.execFile('this-command-does-not-exist', { timeout: 2 ** 30 },
+            common.mustCall((err) => {
+              assert.strictEqual(err.code, 'ENOENT');
+              assert.strictEqual(err.timedOut, false);
+            }));
+
+// The timeout expires after the child exited, while a descendant still keeps
+// its stdio open: the signal is not sent, so timedOut stays false.
+{
+  const child = cp.execFile(process.execPath, ['-e', `
+    const { spawn } = require('child_process');
+    spawn(process.execPath, ['-e', 'setTimeout(() => {}, ${common.platformTimeout(1500)})'],
+          { stdio: 'inherit' }).unref();
+  `], { timeout: common.platformTimeout(500) }, common.mustSucceed(() => {
+    assert.strictEqual(child.exitCode, 0);
+    assert.strictEqual(child.timedOut, false);
+  }));
+}
+
 const [cmd, opts] = common.escapePOSIXShell`"${process.execPath}" "${__filename}" child`;
 
-cp.exec(cmd, {
+const child = cp.exec(cmd, {
   ...opts,
   timeout: kTimeoutNotSupposedToExpire,
 }, common.mustSucceed((stdout, stderr) => {
   assert.strictEqual(stdout.trim(), 'child stdout');
   assert.strictEqual(stderr.trim(), 'child stderr');
+  assert.strictEqual(child.timedOut, false);
 }));
 
 cleanupStaleProcess(__filename);
