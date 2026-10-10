@@ -39,4 +39,39 @@ describe('AbortSignal.any() with timeout signals', () => {
       clearTimeout(timeout);
     }
   });
+
+  it('should abort after a listener is removed from the timeout signal', async () => {
+    const signal = (() => {
+      const timeoutSignal = AbortSignal.timeout(common.platformTimeout(100));
+      const anySignal = AbortSignal.any([timeoutSignal]);
+      const listener = () => {};
+      timeoutSignal.addEventListener('abort', listener);
+      timeoutSignal.removeEventListener('abort', listener);
+      return anySignal;
+    })();
+    let timeout;
+
+    const abortPromise = Promise.race([
+      once(signal, 'abort').then(() => {
+        throw signal.reason;
+      }),
+      new Promise((resolve) => {
+        timeout = setTimeout(resolve, common.platformTimeout(10000));
+      }),
+    ]);
+
+    setImmediate(common.mustCall(() => globalThis.gc()));
+
+    try {
+      await assert.rejects(
+        () => abortPromise,
+        {
+          name: 'TimeoutError',
+          message: 'The operation was aborted due to timeout'
+        }
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
+  });
 });
