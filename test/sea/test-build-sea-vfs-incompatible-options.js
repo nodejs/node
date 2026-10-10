@@ -141,3 +141,24 @@ skipIfBuildSEAIsNotSupported();
       stderr: /"vfsArchive" field of .*vfs-archive-not-string\.json is not a string/,
     });
 }
+
+// Test: "vfsArchive" combined with --vfs-load in "execArgv"
+for (const arg of ['--vfs-load=assets.zip', '--vfs-load']) {
+  tmpdir.refresh();
+  const config = tmpdir.resolve('vfs-archive-vfs-load.json');
+  writeFileSync(config, JSON.stringify({
+    main: 'bundle.js',
+    output: 'sea',
+    useVfs: true,
+    vfsArchive: 'assets.zip',
+    execArgv: ['--experimental-vfs', arg],
+  }), 'utf8');
+  spawnSyncAndAssert(
+    process.execPath,
+    ['--build-sea', config], {
+      cwd: tmpdir.path,
+    }, {
+      status: 1,
+      stderr: /"vfsArchive" cannot be used together with --vfs-load in "execArgv"/,
+    });
+}

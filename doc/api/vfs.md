@@ -223,7 +223,7 @@ const fs = require('node:fs');
 const myVfs = vfs.create();
 myVfs.writeFileSync('/data.txt', 'Hello');
 const mountPoint = myVfs.mount();
-// e.g. '/dev/null/vfs/0'
+// e.g. '/dev/null/vfs/1'
 
 fs.readFileSync(`${mountPoint}/data.txt`, 'utf8'); // 'Hello'
 ```

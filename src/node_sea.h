@@ -64,6 +64,7 @@ struct SeaResource {
 
   bool use_snapshot() const;
   bool use_code_cache() const;
+  bool use_vfs_archive() const;
 
   static constexpr size_t kHeaderSize = sizeof(kMagic) + sizeof(SeaFlags) +
                                         sizeof(SeaExecArgvExtension) +

@@ -3936,6 +3936,10 @@ from anywhere else, such as the real file system, needs nothing added.
 the command line's decision, and the environment must not be able to redirect
 it.
 
+A [single executable application][] built with `"vfsArchive"` mounts that
+archive at the mount point reserved for `--vfs-load`, so `--vfs-load` cannot be
+used in it.
+
 ```console
 $ node --experimental-vfs --vfs-load=app.zip
 ```
