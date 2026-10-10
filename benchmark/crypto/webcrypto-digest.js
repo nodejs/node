@@ -33,8 +33,6 @@ function measureLegacy(n, data, method) {
 }
 
 function measureSubtle(n, data, method) {
-  const ec = new TextEncoder();
-  data = ec.encode(data);
   const jobs = new Array(n);
   bench.start();
   for (let i = 0; i < n; i++)
