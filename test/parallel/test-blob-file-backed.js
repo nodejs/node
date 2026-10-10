@@ -12,6 +12,7 @@ const {
   unlink
 } = require('fs/promises');
 const { Blob } = require('buffer');
+const { spawnSync } = require('child_process');
 
 const tmpdir = require('../common/tmpdir');
 const testfile = tmpdir.resolve('test-file-backed-blob.txt');
@@ -141,6 +142,29 @@ writeFileSync(testfile5, '');
     path: missing,
   });
 })().then(common.mustCall());
+
+(async () => {
+  // Only a regular file can back a Blob: a directory read fails with EISDIR,
+  // and a fifo with no writer would block the thread doing the open.
+  await assert.rejects(async () => openAsBlob(tmpdir.path), {
+    code: 'EISDIR',
+    syscall: 'stat',
+    path: tmpdir.path,
+  });
+})().then(common.mustCall());
+
+if (!common.isWindows) {
+  const fifo = tmpdir.resolve('test-file-backed-blob.fifo');
+  if (spawnSync('mkfifo', [fifo]).status === 0) {
+    (async () => {
+      await assert.rejects(async () => openAsBlob(fifo), {
+        code: 'EINVAL',
+        syscall: 'stat',
+        path: fifo,
+      });
+    })().then(common.mustCall());
+  }
+}
 
 (async () => {
   // We currently do not allow File-backed blobs to be cloned or transferred
