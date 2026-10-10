@@ -1321,15 +1321,22 @@ int Http2Session::OnFrameSent(nghttp2_session* handle,
   // error like oversized frames, padding errors, or HPACK compression
   // failures), it calls nghttp2_session_terminate_session() directly which
   // queues a GOAWAY but does not invoke any application-level callback.
-  // Detect that case here: a GOAWAY was sent but we never initiated it
-  // (no Close(), no session.close(), no session.goaway()).
+  // Detect that case here: a GOAWAY was sent but it was not the one we
+  // initiated through session.goaway() / session.close(). Note that those
+  // methods can be reached without application code when a peer sends
+  // GOAWAY, so goaway_initiated_ and graceful_close_initiated_ can both be
+  // set even though the GOAWAY we are seeing here was not requested by us.
+  // A GOAWAY we submitted carries the error code we passed, so if nghttp2
+  // sends a frame with a different code it was not requested by us and is
+  // the result of an internal termination.
   //
   // We set a flag here, and then throw the error at the end of
   // SendPendingData, to wait until the GOAWAY is written before the session
   // is torn down.
   if (frame->hd.type == NGHTTP2_GOAWAY && !session->is_closing() &&
-      !session->is_destroyed() && !session->IsGracefulCloseInitiated() &&
-      !session->goaway_initiated_) {
+      !session->is_destroyed() &&
+      (!session->goaway_initiated_ ||
+       frame->goaway.error_code != session->goaway_code())) {
     Debug(session, "nghttp2 session terminated internally");
     session->internal_goaway_sent_ = true;
   }
@@ -3084,6 +3091,7 @@ void Http2Session::Goaway(uint32_t code,
     return;
 
   goaway_initiated_ = true;
+  goaway_code_ = code;
   Http2Scope h2scope(this);
   // the last proc stream id is the most recently created Http2Stream.
   if (lastStreamID <= 0)
