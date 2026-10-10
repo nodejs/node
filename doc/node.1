@@ -2115,7 +2115,9 @@ This environment variable is ignored when \fBnode\fR runs as setuid root or
 has Linux file capabilities set.
 The \fBNODE_EXTRA_CA_CERTS\fR environment variable is only read when the Node.js
 process is first launched. Changing the value at runtime using
-\fBprocess.env.NODE_EXTRA_CA_CERTS\fR has no effect on the current process.
+\fBprocess.env.NODE_EXTRA_CA_CERTS\fR has no effect on the current process. This
+includes \fBprocess.loadEnvFile()\fR. The variable can be set in a file loaded
+with \fB--env-file\fR or \fB--env-file-if-exists\fR, which are read at startup.
 .
 .It Ev NODE_ICU_DATA Ar file
 Data path for ICU (\fBIntl\fR object) data. Will extend linked-in data when compiled

@@ -4132,6 +4132,11 @@ Disable the [module compile cache][] for the Node.js instance. See the documenta
 
 <!-- YAML
 added: v7.3.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: The variable is now honored when set in a file loaded with
+                 `--env-file` or `--env-file-if-exists`.
 -->
 
 When set, the well known "root" CAs (like VeriSign) will be extended with the
@@ -4148,7 +4153,9 @@ has Linux file capabilities set.
 
 The `NODE_EXTRA_CA_CERTS` environment variable is only read when the Node.js
 process is first launched. Changing the value at runtime using
-`process.env.NODE_EXTRA_CA_CERTS` has no effect on the current process.
+`process.env.NODE_EXTRA_CA_CERTS` has no effect on the current process. This
+includes [`process.loadEnvFile()`][]. The variable can be set in a file loaded
+with [`--env-file`][] or [`--env-file-if-exists`][], which are read at startup.
 
 ### `NODE_ICU_DATA=file`
 
@@ -4940,6 +4947,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`node:stream/iter`]: stream_iter.md
 [`node:vfs`]: vfs.md
 [`permission.drop()`]: permissions.md#permissiondropscope-reference
+[`process.loadEnvFile()`]: process.md#processloadenvfilepath
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`session.connectToMainThread()`]: inspector.md#sessionconnecttomainthread
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
