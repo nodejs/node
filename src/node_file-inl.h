@@ -101,18 +101,8 @@ void FillStatsArray(AliasedBufferBase<NativeT, V8T>* fields,
   fields->SetValue(offset + static_cast<size_t>(FsStatsOffset::stat_offset),   \
                    static_cast<NativeT>(stat))
 
-// On win32, time is stored in uint64_t and starts from 1601-01-01.
-// libuv calculates tv_sec and tv_nsec from it and converts to signed long,
-// which causes Y2038 overflow. On the other platforms it is safe to treat
-// negative values as pre-epoch time.
-#ifdef _WIN32
-#define SET_FIELD_WITH_TIME_STAT(stat_offset, stat)                            \
-  /* NOLINTNEXTLINE(runtime/int) */                                            \
-  SET_FIELD_WITH_STAT(stat_offset, static_cast<unsigned long>(stat))
-#else
 #define SET_FIELD_WITH_TIME_STAT(stat_offset, stat)                            \
   SET_FIELD_WITH_STAT(stat_offset, static_cast<double>(stat))
-#endif  // _WIN32
 
   SET_FIELD_WITH_STAT(kDev, s->st_dev);
   SET_FIELD_WITH_STAT(kMode, s->st_mode);
