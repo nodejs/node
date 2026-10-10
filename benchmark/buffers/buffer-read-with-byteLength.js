@@ -9,14 +9,14 @@ const types = [
 ];
 
 const bench = common.createBenchmark(main, {
-  buffer: ['fast'],
+  buffer: ['fast', 'slow'],
   type: types,
   n: [1e6],
-  byteLength: [1, 2, 3, 4, 5, 6],
+  byteLength: [1, 2, 4, 6],
 });
 
-function main({ n, buf, type, byteLength }) {
-  const buff = buf === 'fast' ?
+function main({ n, buffer, type, byteLength }) {
+  const buff = buffer === 'fast' ?
     Buffer.alloc(8) :
     require('buffer').SlowBuffer(8);
   const fn = `read${type}`;
