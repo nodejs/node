@@ -1,0 +1,99 @@
+name: Test Windows
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - '**.md'
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - codecov.yml
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/actions/**
+      - tools/dep_updaters/**
+      - tools/doc/**
+      - tools/eslint-rules/**
+      - tools/eslint/**
+      - tools/lint-md/**
+      - tools/nix/**
+      - typings/**
+      - .**
+      - '!.github/workflows/test-windows.yml'
+  push:
+    branches:
+      - main
+      - canary
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+    paths-ignore:
+      - '**.md'
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - codecov.yml
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/actions/**
+      - tools/dep_updaters/**
+      - tools/doc/**
+      - tools/eslint-rules/**
+      - tools/eslint/**
+      - tools/lint-md/**
+      - tools/nix/**
+      - typings/**
+      - .**
+      - '!.github/workflows/test-windows.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.14'
+  FLAKY_TESTS: keep_retrying
+  RUSTC_VERSION: '1.88'
+  test_ci_args: --measure-flakiness 9
+
+permissions:
+  contents: read
+
+jobs:
+  test-windows:
+    if: github.event.pull_request.draft == false
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+      - name: Install NASM
+        run: choco install nasm --yes --no-progress
+      - name: Install Rust ${{ env.RUSTC_VERSION }}
+        run: rustup override set "%RUSTC_VERSION%" && rustup --version
+      - name: Build
+        run: vcbuild.bat clang-cl v8temporal cctest
+      - name: Test JavaScript
+        run: vcbuild.bat noprojgen nobuild test-ci-js
+      - name: Test native
+        run: vcbuild.bat noprojgen nobuild test-ci-native
