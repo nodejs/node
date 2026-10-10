@@ -573,19 +573,13 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
     return ParseResult::InvalidContent;
   }
 
-  simdjson::ondemand::parser config_parser;
-  simdjson::ondemand::document config_document;
-  if (config_parser.iterate(file_content).get(config_document)) {
-    FPrintF(stderr, "Can't parse %s\n", config_path.data());
+  // Walk the document again, this time to parse the configuration.
+  document.rewind();
+  if (document.get_object().get(main_object)) {
     return ParseResult::InvalidContent;
   }
 
-  simdjson::ondemand::object config_object;
-  if (config_document.get_object().get(config_object)) {
-    return ParseResult::InvalidContent;
-  }
-
-  return ParseConfigObject(&config_object, config_path, true);
+  return ParseConfigObject(&main_object, config_path, true);
 }
 
 std::string ConfigReader::GetNodeOptions() {
