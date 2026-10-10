@@ -265,6 +265,7 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(test_randomize) = false;
   DEFINE_BOOL_FIELD(has_test_random_seed) = false;
   DEFINE_BOOL_FIELD(test_only) = false;
+  DEFINE_BOOL_FIELD(test_forbid_only) = false;
   DEFINE_BOOL_FIELD(test_udp_no_try_send) = false;
   DEFINE_BOOL_FIELD(coverage_include_all) = false;
   DEFINE_BOOL_FIELD(throw_deprecation) = false;

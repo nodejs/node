@@ -1266,6 +1266,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--test-forbid-only",
+            "fail tests that use the 'only' option",
+            BOOL_FIELD(test_forbid_only),
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-shard",
             "run test at specific shard",
             &EnvironmentOptions::test_shard,
