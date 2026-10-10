@@ -597,7 +597,113 @@ inline bool CanBeHeldWeakly(v8::Local<v8::Value> value) {
   return value->IsObject() || value->IsSymbol();
 }
 
+// "0" to "4294967294" in canonical form, which V8 stores as an element.
+bool IsArrayIndex(std::string_view name) {
+  if (name.empty() || name.size() > 10 || (name.size() > 1 && name[0] == '0')) {
+    return false;
+  }
+  uint64_t index = 0;
+  for (char c : name) {
+    if (c < '0' || c > '9') return false;
+    index = index * 10 + (c - '0');
+  }
+  return index <= 4294967294u;
+}
+
+// v8::DictionaryTemplate::New() takes the names as one-byte strings and
+// aborts on an array index, and a duplicate name is only handled by
+// v8::Object::New(), so there is no template for those names.
+v8::Local<v8::DictionaryTemplate> NewDictionaryTemplate(
+    v8::Isolate* isolate, v8::Local<v8::Name>* names, size_t count) {
+  std::vector<std::string> strings(count);
+  for (size_t i = 0; i < count; i++) {
+    if (!names[i]->IsString()) return {};
+    v8::Local<v8::String> name = names[i].As<v8::String>();
+    if (!name->ContainsOnlyOneByte()) return {};
+    strings[i].resize(name->Length());
+    name->WriteOneByteV2(isolate,
+                         0,
+                         name->Length(),
+                         reinterpret_cast<uint8_t*>(strings[i].data()));
+    if (IsArrayIndex(strings[i])) return {};
+    for (size_t j = 0; j < i; j++) {
+      if (strings[j] == strings[i]) return {};
+    }
+  }
+  std::vector<std::string_view> views(strings.begin(), strings.end());
+  return v8::DictionaryTemplate::New(
+      isolate,
+      v8::MemorySpan<const std::string_view>(views.data(), views.size()));
+}
+
 }  // end of anonymous namespace
+
+v8::MaybeLocal<v8::Object> ObjectShapeCache::New(
+    v8::Isolate* isolate,
+    v8::Local<v8::Context> context,
+    v8::Local<v8::Value> prototype_or_null,
+    v8::Local<v8::Name>* names,
+    v8::Local<v8::Value>* values,
+    size_t count) {
+  auto object_new = [&]() -> v8::MaybeLocal<v8::Object> {
+    return v8::Object::New(isolate, prototype_or_null, names, values, count);
+  };
+  // v8::Object::New() reports a prototype that is neither null nor an object.
+  if (count == 0 || count > kMaxProperties ||
+      !(prototype_or_null->IsNull() || prototype_or_null->IsObject())) {
+    return object_new();
+  }
+
+  // The identity hash of a string is the hash of its contents, so equal names
+  // created separately hash the same.
+  uint32_t hash = static_cast<uint32_t>(count);
+  for (size_t i = 0; i < count; i++) {
+    hash = hash * 31 + static_cast<uint32_t>(names[i]->GetIdentityHash());
+  }
+  auto it = shapes_.find(hash);
+  if (it == shapes_.end()) {
+    uint32_t& seen = seen_[(hash ^ (hash >> 16)) % kSeenEntries];
+    if (seen != hash || shapes_.size() == kMaxShapes) {
+      seen = hash;
+      return object_new();
+    }
+    // The second time these names are passed.
+    it = shapes_.emplace(hash, Shape()).first;
+    v8::Local<v8::DictionaryTemplate> tmpl =
+        NewDictionaryTemplate(isolate, names, count);
+    if (!tmpl.IsEmpty()) {
+      it->second.tmpl.Reset(isolate, tmpl);
+      it->second.names.reserve(count);
+      for (size_t i = 0; i < count; i++) {
+        it->second.names.emplace_back(isolate, names[i]);
+      }
+    }
+  }
+
+  const Shape& shape = it->second;
+  if (shape.tmpl.IsEmpty() || shape.names.size() != count) return object_new();
+  for (size_t i = 0; i < count; i++) {
+    v8::Local<v8::Name> name = shape.names[i].Get(isolate);
+    if (name != names[i] && !name->StrictEquals(names[i])) return object_new();
+  }
+
+  std::array<v8::MaybeLocal<v8::Value>, kMaxProperties> property_values;
+  for (size_t i = 0; i < count; i++) {
+    // NewInstance() would leave the property out, so keep what
+    // v8::Object::New() does with an empty value.
+    if (values[i].IsEmpty()) return object_new();
+    property_values[i] = values[i];
+  }
+  v8::Local<v8::Object> obj = shape.tmpl.Get(isolate)->NewInstance(
+      context,
+      v8::MemorySpan<v8::MaybeLocal<v8::Value>>(property_values.data(), count));
+  // The template's map has the context's Object.prototype.
+  if (obj->GetPrototypeV2() != prototype_or_null &&
+      obj->SetPrototypeV2(context, prototype_or_null).IsNothing()) {
+    return {};
+  }
+  return obj;
+}
 
 void Finalizer::ResetEnv() {
   env_ = nullptr;
@@ -1651,13 +1757,20 @@ node_api_create_object_with_properties(napi_env env,
     v8_values[i] = v8impl::V8LocalValueFromJsValue(property_values[i]);
   }
 
-  v8::Local<v8::Object> obj = v8::Object::New(env->isolate,
-                                              v8_prototype_or_null,
-                                              v8_names.data(),
-                                              v8_values.data(),
-                                              property_count);
-
-  RETURN_STATUS_IF_FALSE(env, !obj.IsEmpty(), napi_generic_failure);
+  if (env->object_shape_cache == nullptr) {
+    env->object_shape_cache = std::make_unique<v8impl::ObjectShapeCache>();
+  }
+  v8::Local<v8::Object> obj;
+  RETURN_STATUS_IF_FALSE(env,
+                         env->object_shape_cache
+                             ->New(env->isolate,
+                                   env->context(),
+                                   v8_prototype_or_null,
+                                   v8_names.data(),
+                                   v8_values.data(),
+                                   property_count)
+                             .ToLocal(&obj),
+                         napi_generic_failure);
   *result = v8impl::JsValueFromV8LocalValue(obj);
   return napi_clear_last_error(env);
 }
