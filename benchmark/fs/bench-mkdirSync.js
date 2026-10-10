@@ -29,7 +29,7 @@ function main({ n, type, recursive }) {
       files = new Array(n).fill(__dirname);
       break;
     default:
-      new Error('Invalid type');
+      throw new Error('Invalid type');
   }
 
   bench.start();
