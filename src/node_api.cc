@@ -71,7 +71,9 @@ static void ThrowNodeApiVersionError(node::Environment* node_env,
 node_napi_env__::node_napi_env__(v8::Local<v8::Context> context,
                                  const std::string& module_filename,
                                  int32_t module_api_version)
-    : napi_env__(context, module_api_version), filename(module_filename) {
+    : napi_env__(context, module_api_version),
+      filename(module_filename),
+      node_env_(node::Environment::GetCurrent(context)) {
   CHECK_NOT_NULL(node_env());
 }
 
@@ -1026,13 +1028,15 @@ napi_status NAPI_CDECL napi_make_callback(napi_env env,
   v8::MaybeLocal<v8::Value> callback_result;
 
   if (async_context == nullptr) {
-    callback_result = node::MakeCallback(
-        env->isolate,
+    // The Environment of the napi_env, not looked up from the callback again.
+    callback_result = node::MakeCallbackInEnvironment(
+        reinterpret_cast<node_napi_env>(env)->node_env(),
         v8recv,
         v8func,
         argc,
         reinterpret_cast<v8::Local<v8::Value>*>(const_cast<napi_value*>(argv)),
-        {0, 0});
+        {0, 0},
+        v8::Undefined(env->isolate));
   } else {
     v8impl::AsyncContext* node_async_context =
         reinterpret_cast<v8impl::AsyncContext*>(async_context);
