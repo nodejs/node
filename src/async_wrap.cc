@@ -25,6 +25,7 @@
 #include "env-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
+#include "node_internals.h"
 #include "tracing/traced_value.h"
 #include "util-inl.h"
 
@@ -290,6 +291,17 @@ void AsyncWrap::PopAsyncContext(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(env->async_hooks()->pop_async_context(async_id));
 }
 
+// The resource of the innermost scope that skipped the id stack, if nothing
+// was pushed on the stack after it (depth is the stack length JS sees).
+static void LazyExecutionAsyncResource(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  uint32_t depth = args[0].As<v8::Uint32>()->Value();
+  InternalCallbackScope* scope = env->async_hooks()->lazy_top_;
+  if (scope != nullptr && scope->lazy_depth() == depth) {
+    args.GetReturnValue().Set(scope->lazy_resource(env->isolate()));
+  }
+}
 
 void AsyncWrap::ExecutionAsyncResource(
     const FunctionCallbackInfo<Value>& args) {
@@ -396,6 +408,10 @@ void AsyncWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "pushAsyncContext", PushAsyncContext);
   SetMethod(isolate, target, "popAsyncContext", PopAsyncContext);
   SetMethod(isolate, target, "executionAsyncResource", ExecutionAsyncResource);
+  SetMethod(isolate,
+            target,
+            "lazyExecutionAsyncResource",
+            LazyExecutionAsyncResource);
   SetMethod(isolate, target, "clearAsyncIdStack", ClearAsyncIdStack);
   SetMethod(isolate, target, "queueDestroyAsyncId", QueueDestroyAsyncId);
   SetMethod(isolate, target, "setPromiseHooks", SetPromiseHooks);
@@ -470,6 +486,7 @@ void AsyncWrap::CreatePerContextProperties(Local<Object> target,
   SET_HOOKS_CONSTANT(kDefaultTriggerAsyncId);
   SET_HOOKS_CONSTANT(kUsesExecutionAsyncResource);
   SET_HOOKS_CONSTANT(kStackLength);
+  SET_HOOKS_CONSTANT(kLazyScopes);
 #undef SET_HOOKS_CONSTANT
   FORCE_SET_TARGET_FIELD(target, "constants", constants);
 
@@ -502,6 +519,7 @@ void AsyncWrap::RegisterExternalReferences(
   registry->Register(PushAsyncContext);
   registry->Register(PopAsyncContext);
   registry->Register(ExecutionAsyncResource);
+  registry->Register(LazyExecutionAsyncResource);
   registry->Register(ClearAsyncIdStack);
   registry->Register(QueueDestroyAsyncId);
   registry->Register(SetPromiseHooks);
