@@ -1169,7 +1169,7 @@ Environment::Environment(IsolateData* isolate_data,
         }
       }
 
-      if (first_argv != "inspect") {
+      if (!first_argv.empty() && first_argv != "-" && first_argv != "inspect") {
         options_->allow_fs_read.push_back(first_argv);
       }
     }
