@@ -238,8 +238,10 @@ int uv_loop_init(uv_loop_t* loop) {
     return uv_translate_sys_error(GetLastError());
 
   lfields = (uv__loop_internal_fields_t*) uv__calloc(1, sizeof(*lfields));
-  if (lfields == NULL)
-    return UV_ENOMEM;
+  if (lfields == NULL) {
+    err = UV_ENOMEM;
+    goto fail_lfields_alloc;
+  }
   loop->internal_fields = lfields;
 
   err = uv_mutex_init(&lfields->loop_metrics.lock);
@@ -315,6 +317,8 @@ fail_timers_alloc:
 fail_metrics_mutex_init:
   uv__free(lfields);
   loop->internal_fields = NULL;
+
+fail_lfields_alloc:
   CloseHandle(loop->iocp);
   loop->iocp = INVALID_HANDLE_VALUE;
 
@@ -340,16 +344,10 @@ void uv__loop_close(uv_loop_t* loop) {
 
   uv__loops_remove(loop);
 
-  /* Close the async handle without needing an extra loop iteration.
-   * We might have a pending message, but we're just going to destroy the IOCP
-   * soon, so we can just discard it now without the usual risk of a getting
-   * another notification from GetQueuedCompletionStatusEx after calling the
-   * close_cb (which we also skip defining). We'll assert later that queue was
-   * actually empty and all reqs handled. */
-  loop->wq_async.async_sent = 0;
-  loop->wq_async.close_cb = NULL;
-  uv__handle_closing(&loop->wq_async);
-  uv__handle_close(&loop->wq_async);
+  /* Any pending IOCP message for wq_async is discarded when loop->iocp is
+   * closed below; uv__async_stop spins to ensure no thread is still inside
+   * PostQueuedCompletionStatus before that happens. */
+  uv__async_stop(loop);
 
   for (i = 0; i < ARRAY_SIZE(loop->poll_peer_sockets); i++) {
     SOCKET sock = loop->poll_peer_sockets[i];

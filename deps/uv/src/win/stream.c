@@ -111,12 +111,18 @@ int uv_read_stop(uv_stream_t* handle) {
 }
 
 
-static int uv__check_before_write(uv_stream_t* handle, unsigned int nbufs) {
+static int uv__check_before_write(uv_stream_t* handle,
+                                  const uv_buf_t bufs[],
+                                  unsigned int nbufs) {
   /* We're not beholden to IOV_MAX but limit the buffer count to catch sign
    * conversion bugs where a caller passes in a signed negative number that
    * then gets converted to a really large unsigned number.
    */
   if (nbufs < 1 || nbufs > 1024*1024) {
+    return UV_EINVAL;
+  }
+
+  if (uv__count_bufs(bufs, nbufs) > UV__IO_MAX_BYTES) {
     return UV_EINVAL;
   }
 
@@ -136,7 +142,7 @@ int uv_write(uv_write_t* req,
   uv_loop_t* loop = handle->loop;
   int err;
 
-  err = uv__check_before_write(handle, nbufs);
+  err = uv__check_before_write(handle, bufs, nbufs);
   if (err != 0) {
     return err;
   }
@@ -174,7 +180,7 @@ int uv_write2(uv_write_t* req,
     return uv_write(req, handle, bufs, nbufs, cb);
   }
 
-  err = uv__check_before_write(handle, nbufs);
+  err = uv__check_before_write(handle, bufs, nbufs);
   if (err != 0) {
     return err;
   }
@@ -194,7 +200,7 @@ int uv_try_write(uv_stream_t* stream,
                  unsigned int nbufs) {
   int err;
 
-  err = uv__check_before_write(stream, nbufs);
+  err = uv__check_before_write(stream, bufs, nbufs);
   if (err != 0) {
     return err;
   }
@@ -273,6 +279,54 @@ int uv_stream_set_blocking(uv_stream_t* handle, int blocking) {
     handle->flags |= UV_HANDLE_BLOCKING_WRITES;
   else
     handle->flags &= ~UV_HANDLE_BLOCKING_WRITES;
+
+  return 0;
+}
+
+
+size_t uv_write_nwritten(const uv_write_t* req) {
+  return req->write_extra.nwritten;
+}
+
+
+int uv__write_cancel(uv_write_t* req) {
+  uv_stream_t* stream;
+  HANDLE handle;
+  BOOL result;
+
+  stream = req->handle;
+
+  switch (stream->type) {
+    case UV_TCP:
+      handle = (HANDLE) ((uv_tcp_t*) stream)->socket;
+      break;
+    case UV_NAMED_PIPE:
+      handle = ((uv_pipe_t*) stream)->handle;
+
+      if ((stream->flags & (UV_HANDLE_BLOCKING_WRITES | UV_HANDLE_NON_OVERLAPPED_PIPE)) ==
+          UV_HANDLE_NON_OVERLAPPED_PIPE) {
+        return uv__pipe_write_cancel_non_overlapped((uv_pipe_t*) stream, req);
+      }
+
+      break;
+    case UV_TTY:
+      /* TTY writes complete synchronously on Windows, so cancellation
+       * is not applicable - the callback has already been queued. */
+      return 0;
+    default:
+      return UV_EINVAL;
+  }
+
+  result = CancelIoEx(handle, &req->u.io.overlapped);
+
+  if (!result) {
+    DWORD err = GetLastError();
+    if (err == ERROR_NOT_FOUND) {
+      /* The operation has already completed. */
+      return 0;
+    }
+    return uv_translate_sys_error(err);
+  }
 
   return 0;
 }

@@ -307,6 +307,7 @@ static void fs_addrinfo_cb(uv_getaddrinfo_t* req,
 
 TEST_IMPL(metrics_pool_events) {
   uv_buf_t iov;
+  uv_fs_t close_req;
   uv_fs_t open_req;
   uv_fs_t stat1_req;
   uv_fs_t stat2_req;
@@ -381,6 +382,9 @@ TEST_IMPL(metrics_pool_events) {
    * execute before sleep completes. */
   ASSERT_GE(metrics.events_waiting, 4);
   ASSERT_EQ(pool_events_counter, -42);
+
+  ASSERT_OK(uv_fs_close(NULL, &close_req, fd, NULL));
+  uv_fs_req_cleanup(&close_req);
 
   uv_fs_unlink(NULL, &unlink_req, "test_file", NULL);
   uv_fs_req_cleanup(&unlink_req);

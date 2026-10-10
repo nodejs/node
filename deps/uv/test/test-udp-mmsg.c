@@ -35,11 +35,21 @@
 
 static uv_udp_t recver;
 static uv_udp_t sender;
+static uv_timer_t timeout;
 static int recv_cb_called;
 static int received_datagrams;
 static int read_bytes;
 static int close_cb_called;
 static int alloc_cb_called;
+static int terminal_data_cb_called;
+static int terminal_free_cb_called;
+static int terminal_drain_cb_called;
+static int terminal_timeout_cb_called;
+static int duplicate_terminal_cb;
+#ifndef _WIN32
+static int zero_namelen_chunk_cb_called;
+static int zero_namelen_free_cb_called;
+#endif
 
 
 static void alloc_cb(uv_handle_t* handle,
@@ -106,6 +116,165 @@ static void recv_cb(uv_udp_t* handle,
 }
 
 
+static void small_alloc_cb(uv_handle_t* handle,
+                           size_t suggested_size,
+                           uv_buf_t* buf) {
+  CHECK_HANDLE(handle);
+  buf->len = 64;
+  buf->base = malloc(buf->len);
+  ASSERT_NOT_NULL(buf->base);
+  alloc_cb_called++;
+}
+
+
+static void small_recv_cb(uv_udp_t* handle,
+                          ssize_t nread,
+                          const uv_buf_t* rcvbuf,
+                          const struct sockaddr* addr,
+                          unsigned flags) {
+  CHECK_HANDLE(handle);
+  ASSERT_EQ(UV_EINVAL, nread);
+  uv_close((uv_handle_t*) &recver, close_cb);
+  uv_close((uv_handle_t*) &sender, close_cb);
+  free(rcvbuf->base);
+  recv_cb_called++;
+}
+
+
+static void terminal_alloc_cb(uv_handle_t* handle,
+                              size_t suggested_size,
+                              uv_buf_t* buf) {
+  CHECK_HANDLE(handle);
+  buf->base = malloc(suggested_size);
+  ASSERT_NOT_NULL(buf->base);
+  buf->len = suggested_size;
+}
+
+
+static void timeout_cb(uv_timer_t* handle) {
+  terminal_timeout_cb_called++;
+
+  if (!uv_is_closing((uv_handle_t*) &recver))
+    uv_close((uv_handle_t*) &recver, close_cb);
+  if (!uv_is_closing((uv_handle_t*) &sender))
+    uv_close((uv_handle_t*) &sender, close_cb);
+  uv_close((uv_handle_t*) handle, NULL);
+}
+
+
+static void terminal_recv_cb(uv_udp_t* handle,
+                             ssize_t nread,
+                             const uv_buf_t* rcvbuf,
+                             const struct sockaddr* addr,
+                             unsigned flags) {
+  CHECK_HANDLE(handle);
+
+  if (flags & UV_UDP_MMSG_FREE) {
+    ASSERT_OK(nread);
+    ASSERT_NULL(addr);
+    terminal_free_cb_called++;
+    free(rcvbuf->base);
+    return;
+  }
+
+  if (nread > 0) {
+    ASSERT_EQ(4, nread);
+    ASSERT_NOT_NULL(addr);
+    ASSERT_MEM_EQ("PING", rcvbuf->base, nread);
+    terminal_data_cb_called++;
+    return;
+  }
+
+  ASSERT_NULL(addr);
+  terminal_drain_cb_called++;
+
+  if (terminal_drain_cb_called == 1) {
+    free(rcvbuf->base);
+
+    if (!uv_is_closing((uv_handle_t*) &recver))
+      uv_close((uv_handle_t*) &recver, close_cb);
+    if (!uv_is_closing((uv_handle_t*) &sender))
+      uv_close((uv_handle_t*) &sender, close_cb);
+    if (!uv_is_closing((uv_handle_t*) &timeout))
+      uv_close((uv_handle_t*) &timeout, NULL);
+    return;
+  }
+
+  duplicate_terminal_cb = 1;
+}
+
+#ifndef _WIN32
+static void zero_namelen_recv_cb(uv_udp_t* handle,
+                                 ssize_t nread,
+                                 const uv_buf_t* rcvbuf,
+                                 const struct sockaddr* addr,
+                                 unsigned flags) {
+  CHECK_HANDLE(handle);
+
+  if (flags & UV_UDP_MMSG_FREE) {
+    ASSERT_EQ(0, nread);
+    ASSERT_NULL(addr);
+    zero_namelen_free_cb_called++;
+    free(rcvbuf->base);
+    return;
+  }
+
+  ASSERT_EQ(0, nread);
+  ASSERT_NULL(addr);
+  zero_namelen_chunk_cb_called++;
+
+  if (!uv_is_closing((uv_handle_t*) &recver))
+    uv_close((uv_handle_t*) &recver, close_cb);
+
+  /* Don't free if the buffer could be reused via mmsg */
+  if (rcvbuf && !(flags & UV_UDP_MMSG_CHUNK))
+    free(rcvbuf->base);
+}
+
+
+TEST_IMPL(udp_mmsg_namelen_zero) {
+  uv_loop_t* loop;
+  struct sockaddr_in recv_addr;
+  struct sockaddr_in send_addr;
+  uv_os_fd_t fd;
+
+  loop = uv_default_loop();
+
+  ASSERT_OK(uv_udp_init_ex(loop, &recver, AF_UNSPEC | UV_UDP_RECVMMSG));
+  if (!uv_udp_using_recvmmsg(&recver)) {
+    uv_close((uv_handle_t*) &recver, close_cb);
+    ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
+    ASSERT_EQ(1, close_cb_called);
+    MAKE_VALGRIND_HAPPY(loop);
+    return 0;
+  }
+
+  ASSERT_OK(uv_ip4_addr("0.0.0.0", TEST_PORT, &recv_addr));
+  ASSERT_OK(uv_udp_bind(&recver, (const struct sockaddr*) &recv_addr, 0));
+
+  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT_2, &send_addr));
+  ASSERT_OK(uv_udp_connect(&recver, (const struct sockaddr*) &send_addr));
+
+  ASSERT_OK(uv_fileno((const uv_handle_t*) &recver, &fd));
+  ASSERT_OK(shutdown(fd, SHUT_RD));
+
+  ASSERT_OK(uv_udp_recv_start(&recver, alloc_cb, zero_namelen_recv_cb));
+
+  ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
+
+  /* On some platforms as FreeBSD, multiple chunks will be received, one per
+   * buffer */
+  ASSERT_GE(zero_namelen_chunk_cb_called, 1);
+  /* On others such as Linux, the free callback won't be called as recvmmsg is
+   * returning EINVAL */
+  ASSERT_LE(zero_namelen_free_cb_called, 1);
+  ASSERT_EQ(1, close_cb_called);
+
+  MAKE_VALGRIND_HAPPY(loop);
+  return 0;
+}
+#endif
+
 TEST_IMPL(udp_mmsg) {
   struct sockaddr_in addr;
   uv_buf_t buf;
@@ -146,5 +315,82 @@ TEST_IMPL(udp_mmsg) {
     ASSERT_EQ(alloc_cb_called, recv_cb_called);
 
   MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
+
+
+TEST_IMPL(udp_mmsg_small_buf) {
+  struct sockaddr_in addr;
+  uv_loop_t* loop;
+  uv_buf_t buf;
+
+  loop = uv_default_loop();
+  ASSERT_OK(uv_udp_init_ex(loop, &recver, AF_UNSPEC | UV_UDP_RECVMMSG));
+  if (uv_udp_using_recvmmsg(&recver)) {
+    ASSERT_OK(uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
+    ASSERT_OK(uv_udp_bind(&recver, (const struct sockaddr*) &addr, 0));
+    ASSERT_OK(uv_udp_recv_start(&recver, small_alloc_cb, small_recv_cb));
+    ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+    ASSERT_OK(uv_udp_init(loop, &sender));
+    buf = uv_buf_init("PING", 4);
+    ASSERT_EQ(4, uv_udp_try_send(&sender, &buf, 1, (const struct sockaddr*) &addr));
+    ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
+    ASSERT_EQ(1, recv_cb_called);
+    ASSERT_EQ(2, close_cb_called);
+  } else {
+    uv_close((uv_handle_t*) &recver, close_cb);
+    ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
+    ASSERT_EQ(1, close_cb_called);
+  }
+  MAKE_VALGRIND_HAPPY(loop);
+  return 0;
+}
+
+
+TEST_IMPL(udp_mmsg_single_drain_cb) {
+  struct sockaddr_in addr;
+  uv_loop_t* loop;
+  uv_buf_t buf;
+
+  close_cb_called = 0;
+  terminal_data_cb_called = 0;
+  terminal_free_cb_called = 0;
+  terminal_drain_cb_called = 0;
+  terminal_timeout_cb_called = 0;
+  duplicate_terminal_cb = 0;
+
+  loop = uv_default_loop();
+
+  ASSERT_OK(uv_udp_init_ex(loop, &recver, AF_UNSPEC | UV_UDP_RECVMMSG));
+  if (!uv_udp_using_recvmmsg(&recver)) {
+    uv_close((uv_handle_t*) &recver, close_cb);
+    ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
+    ASSERT_EQ(1, close_cb_called);
+    MAKE_VALGRIND_HAPPY(loop);
+    return 0;
+  }
+
+  ASSERT_OK(uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
+  ASSERT_OK(uv_udp_bind(&recver, (const struct sockaddr*) &addr, 0));
+  ASSERT_OK(uv_udp_recv_start(&recver, terminal_alloc_cb, terminal_recv_cb));
+
+  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+  ASSERT_OK(uv_udp_init(loop, &sender));
+  ASSERT_OK(uv_timer_init(loop, &timeout));
+  ASSERT_OK(uv_timer_start(&timeout, timeout_cb, 5000, 0));
+
+  buf = uv_buf_init("PING", 4);
+  ASSERT_EQ(4, uv_udp_try_send(&sender, &buf, 1, (const struct sockaddr*) &addr));
+
+  ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
+
+  ASSERT_EQ(0, terminal_timeout_cb_called);
+  ASSERT_EQ(0, duplicate_terminal_cb);
+  ASSERT_EQ(1, terminal_data_cb_called);
+  ASSERT_EQ(1, terminal_free_cb_called);
+  ASSERT_EQ(1, terminal_drain_cb_called);
+  ASSERT_EQ(2, close_cb_called);
+
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

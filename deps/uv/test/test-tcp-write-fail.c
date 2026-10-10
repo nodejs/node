@@ -94,6 +94,8 @@ TEST_IMPL(tcp_write_fail) {
   uv_buf_t buf;
   int r;
 
+  RETURN_SKIP_IN_APPCONTAINER("child process crashes with invalid handle");
+
   ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
   r = uv_tcp_init(uv_default_loop(), &client);

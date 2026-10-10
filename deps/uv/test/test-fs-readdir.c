@@ -524,6 +524,8 @@ TEST_FS_IMPL(fs_readdir_symlink) {
   uv_fs_t symlink_req;
   int r;
 
+  RETURN_SKIP_IN_APPCONTAINER("symlink creation requires elevated privilege");
+
   cleanup_symlink_test_files();
 
   r = uv_fs_mkdir(uv_default_loop(), &mkdir_req, "test_symlink_dir", 0755, NULL);

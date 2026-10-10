@@ -546,7 +546,7 @@ int make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr) {
 
   /* Adjust for potential quotes. Also assume the worst-case scenario that
    * every character needs escaping, so we need twice as much space. */
-  dst_len = dst_len * 2 + arg_count * 2;
+  dst_len = (dst_len * 2 + arg_count * 2) + 1;
 
   /* Allocate buffer for the final command line. */
   dst = uv__malloc(dst_len * sizeof(WCHAR));
@@ -554,38 +554,41 @@ int make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr) {
     err = UV_ENOMEM;
     goto error;
   }
-
-  /* Allocate temporary working buffer. */
-  temp_buffer = uv__malloc(temp_buffer_len * sizeof(WCHAR));
-  if (temp_buffer == NULL) {
-    err = UV_ENOMEM;
-    goto error;
-  }
-
-  pos = dst;
-  for (arg = args; *arg; arg++) {
-    ssize_t arg_len;
-
-    /* Convert argument to wide char. */
-    arg_len = uv_wtf8_length_as_utf16(*arg);
-    assert(arg_len > 0);
-    assert(temp_buffer_len >= (size_t) arg_len);
-    uv_wtf8_to_utf16(*arg, temp_buffer, arg_len);
-
-    if (verbatim_arguments) {
-      /* Copy verbatim. */
-      wcscpy(pos, temp_buffer);
-      pos += arg_len - 1;
-    } else {
-      /* Quote/escape, if needed. */
-      pos = quote_cmd_arg(temp_buffer, pos);
+  
+  dst[0] = '\0';
+  if (arg_count > 0) {
+    /* Allocate temporary working buffer. */
+    temp_buffer = uv__malloc(temp_buffer_len * sizeof(WCHAR));
+    if (temp_buffer == NULL) {
+      err = UV_ENOMEM;
+      goto error;
     }
 
-    *pos++ = *(arg + 1) ? L' ' : L'\0';
-    assert(pos <= dst + dst_len);
-  }
+    pos = dst;
+    for (arg = args; *arg; arg++) {
+      ssize_t arg_len;
 
-  uv__free(temp_buffer);
+      /* Convert argument to wide char. */
+      arg_len = uv_wtf8_length_as_utf16(*arg);
+      assert(arg_len > 0);
+      assert(temp_buffer_len >= (size_t) arg_len);
+      uv_wtf8_to_utf16(*arg, temp_buffer, arg_len);
+
+      if (verbatim_arguments) {
+        /* Copy verbatim. */
+        wcscpy(pos, temp_buffer);
+        pos += arg_len - 1;
+      } else {
+        /* Quote/escape, if needed. */
+        pos = quote_cmd_arg(temp_buffer, pos);
+      }
+
+      *pos++ = *(arg + 1) ? L' ' : L'\0';
+      assert(pos <= dst + dst_len);
+    }
+
+    uv__free(temp_buffer);
+  }
 
   *dst_ptr = dst;
   return 0;
@@ -836,16 +839,21 @@ void uv__process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
     handle->wait_handle = INVALID_HANDLE_VALUE;
   }
 
-  /* Set the handle to inactive: no callbacks will be made after the exit
-   * callback. */
-  uv__handle_stop(handle);
-
   if (GetExitCodeProcess(handle->process_handle, &status)) {
     exit_code = status;
   } else {
     /* Unable to obtain the exit code. This should never happen. */
     exit_code = uv_translate_sys_error(GetLastError());
   }
+
+  /* Clean-up the process handle eagerly. */
+  CloseHandle(handle->process_handle);
+  handle->process_handle = INVALID_HANDLE_VALUE;
+  handle->flags |= UV_HANDLE_ESRCH;
+
+  /* Set the handle to inactive: no callbacks will be made after the exit
+   * callback. */
+  uv__handle_stop(handle);
 
   /* Fire the exit callback. */
   if (handle->exit_cb) {
@@ -881,7 +889,8 @@ void uv__process_endgame(uv_loop_t* loop, uv_process_t* handle) {
   assert(!(handle->flags & UV_HANDLE_CLOSED));
 
   /* Clean-up the process handle. */
-  CloseHandle(handle->process_handle);
+  if (handle->process_handle != INVALID_HANDLE_VALUE)
+    CloseHandle(handle->process_handle);
 
   uv__handle_close(handle);
 }
@@ -896,14 +905,20 @@ int uv_spawn(uv_loop_t* loop,
   BOOL result;
   WCHAR* application_path = NULL, *application = NULL, *arguments = NULL,
          *env = NULL, *cwd = NULL;
-  STARTUPINFOW startup;
+  STARTUPINFOEXW startup;
   PROCESS_INFORMATION info;
   DWORD process_flags, cwd_len;
   BYTE* child_stdio_buffer;
+  HANDLE* handle_list;
+  LPPROC_THREAD_ATTRIBUTE_LIST attr_list;
+  int attr_list_initialized;
 
   uv__process_init(loop, process);
   process->exit_cb = options->exit_cb;
   child_stdio_buffer = NULL;
+  handle_list = NULL;
+  attr_list = NULL;
+  attr_list_initialized = 0;
 
   if (options->flags & (UV_PROCESS_SETGID | UV_PROCESS_SETUID)) {
     return UV_ENOTSUP;
@@ -1016,20 +1031,70 @@ int uv_spawn(uv_loop_t* loop,
     goto done;
   }
 
-  startup.cb = sizeof(startup);
-  startup.lpReserved = NULL;
-  startup.lpDesktop = NULL;
-  startup.lpTitle = NULL;
-  startup.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+  memset(&startup, 0, sizeof startup);
+  startup.StartupInfo.cb = sizeof(startup);
+  startup.StartupInfo.lpReserved = NULL;
+  startup.StartupInfo.lpDesktop = NULL;
+  startup.StartupInfo.lpTitle = NULL;
+  startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
 
-  startup.cbReserved2 = uv__stdio_size(child_stdio_buffer);
-  startup.lpReserved2 = (BYTE*) child_stdio_buffer;
+  startup.StartupInfo.cbReserved2 = uv__stdio_size(child_stdio_buffer);
+  startup.StartupInfo.lpReserved2 = (BYTE*) child_stdio_buffer;
 
-  startup.hStdInput = uv__stdio_handle(child_stdio_buffer, 0);
-  startup.hStdOutput = uv__stdio_handle(child_stdio_buffer, 1);
-  startup.hStdError = uv__stdio_handle(child_stdio_buffer, 2);
+  startup.StartupInfo.hStdInput = uv__stdio_handle(child_stdio_buffer, 0);
+  startup.StartupInfo.hStdOutput = uv__stdio_handle(child_stdio_buffer, 1);
+  startup.StartupInfo.hStdError = uv__stdio_handle(child_stdio_buffer, 2);
 
-  process_flags = CREATE_UNICODE_ENVIRONMENT;
+  /* Build the list of handles to inherit. Using
+   * PROC_THREAD_ATTRIBUTE_HANDLE_LIST ensures only these specific handles are
+   * inherited, closing the race condition where concurrent uv_spawn calls
+   * could cause handles intended for one child to leak into another. */
+  {
+#define CHILD_STDIO_COUNT(buffer)                   \
+    *((unsigned int*) (buffer))
+    int count = CHILD_STDIO_COUNT(child_stdio_buffer);
+#undef CHILD_STDIO_COUNT
+    int n = 0;
+    SIZE_T attr_size = 0;
+
+    handle_list = (HANDLE*) uv__malloc(count * sizeof(HANDLE));
+    if (handle_list == NULL) {
+      err = ERROR_OUTOFMEMORY;
+      goto done;
+    }
+
+    for (i = 0; i < count; i++) {
+      HANDLE h = uv__stdio_handle(child_stdio_buffer, i);
+      if (h != INVALID_HANDLE_VALUE)
+        handle_list[n++] = h;
+    }
+
+    InitializeProcThreadAttributeList(NULL, 1, 0, &attr_size);
+    attr_list = (LPPROC_THREAD_ATTRIBUTE_LIST) uv__malloc(attr_size);
+    if (attr_list == NULL) {
+      err = ERROR_OUTOFMEMORY;
+      goto done;
+    }
+    if (!InitializeProcThreadAttributeList(attr_list, 1, 0, &attr_size)) {
+      err = GetLastError();
+      goto done;
+    }
+    attr_list_initialized = 1;
+    if (!UpdateProcThreadAttribute(attr_list,
+                                   0,
+                                   PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                   handle_list,
+                                   n * sizeof(HANDLE),
+                                   NULL,
+                                   NULL)) {
+      err = GetLastError();
+      goto done;
+    }
+  }
+
+  startup.lpAttributeList = attr_list;
+
+  process_flags = CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT;
 
   if ((options->flags & UV_PROCESS_WINDOWS_HIDE_CONSOLE) ||
       (options->flags & UV_PROCESS_WINDOWS_HIDE)) {
@@ -1044,9 +1109,9 @@ int uv_spawn(uv_loop_t* loop,
   if ((options->flags & UV_PROCESS_WINDOWS_HIDE_GUI) ||
       (options->flags & UV_PROCESS_WINDOWS_HIDE)) {
     /* Use SW_HIDE to avoid any potential process window. */
-    startup.wShowWindow = SW_HIDE;
+    startup.StartupInfo.wShowWindow = SW_HIDE;
   } else {
-    startup.wShowWindow = SW_SHOWDEFAULT;
+    startup.StartupInfo.wShowWindow = SW_SHOWDEFAULT;
   }
 
   if (options->flags & UV_PROCESS_DETACHED) {
@@ -1072,7 +1137,7 @@ int uv_spawn(uv_loop_t* loop,
                      process_flags,
                      env,
                      cwd,
-                     &startup,
+                     &startup.StartupInfo,
                      &info)) {
     /* CreateProcessW failed. */
     err = GetLastError();
@@ -1155,6 +1220,14 @@ int uv_spawn(uv_loop_t* loop,
   uv__free(env);
   uv__free(alloc_path);
 
+  if (attr_list != NULL) {
+    if (attr_list_initialized)
+      DeleteProcThreadAttributeList(attr_list);
+    uv__free(attr_list);
+    attr_list = NULL;
+  }
+  uv__free(handle_list);
+
   if (child_stdio_buffer != NULL) {
     /* Clean up child stdio handles. */
     uv__stdio_destroy(child_stdio_buffer);
@@ -1179,11 +1252,12 @@ static int uv__kill(HANDLE process_handle, int signum) {
    * [0]: https://learn.microsoft.com/en-us/windows/win32/wer/collecting-user-mode-dumps */
   if (signum == SIGQUIT) {
     HKEY registry_key;
-    DWORD pid, ret;
-    WCHAR basename[MAX_PATH];
+    DWORD pid;
+    DWORD ret;
+    WCHAR basename[MAX_PATH] = L"";
 
     /* Get target process name. */
-    GetModuleBaseNameW(process_handle, NULL, &basename[0], sizeof(basename));
+    GetModuleBaseNameW(process_handle, NULL, &basename[0], ARRAY_SIZE(basename));
 
     /* Get PID of target process. */
     pid = GetProcessId(process_handle);
@@ -1197,8 +1271,10 @@ static int uv__kill(HANDLE process_handle, int signum) {
         &registry_key);
     if (ret == ERROR_SUCCESS) {
       HANDLE hDumpFile = NULL;
-      WCHAR dump_folder[MAX_PATH], dump_name[MAX_PATH];
-      DWORD dump_folder_len = sizeof(dump_folder), key_type = 0;
+      WCHAR dump_folder[MAX_PATH] = L"";
+      WCHAR dump_name[MAX_PATH];
+      DWORD dump_folder_len = sizeof(dump_folder);
+      DWORD key_type = 0;
       ret = RegGetValueW(registry_key,
                          NULL,
                          L"DumpFolder",
@@ -1207,6 +1283,8 @@ static int uv__kill(HANDLE process_handle, int signum) {
                          (PVOID) dump_folder,
                          &dump_folder_len);
       if (ret != ERROR_SUCCESS) {
+        /* Discard any partial write from ERROR_MORE_DATA. */
+        dump_folder[0] = L'\0';
         /* Workaround for missing uuid.dll on MinGW. */
         static const GUID FOLDERID_LocalAppData_libuv = {
           0xf1b32785, 0x6fba, 0x4fcf,
@@ -1214,79 +1292,82 @@ static int uv__kill(HANDLE process_handle, int signum) {
         };
 
         /* Default value for `dump_folder` is `%LOCALAPPDATA%\CrashDumps`. */
-        WCHAR* localappdata;
-        SHGetKnownFolderPath(&FOLDERID_LocalAppData_libuv,
-                             0,
-                             NULL,
-                             &localappdata);
-        _snwprintf_s(dump_folder,
-                     ARRAY_SIZE(dump_folder),
-                     _TRUNCATE,
-                     L"%ls\\CrashDumps",
-                     localappdata);
+        WCHAR* localappdata = NULL;
+        if (SUCCEEDED(SHGetKnownFolderPath(&FOLDERID_LocalAppData_libuv,
+                                           0,
+                                           NULL,
+                                           &localappdata))) {
+          _snwprintf_s(dump_folder,
+                       ARRAY_SIZE(dump_folder),
+                       _TRUNCATE,
+                       L"%ls\\CrashDumps",
+                       localappdata);
+        }
         CoTaskMemFree(localappdata);
       }
       RegCloseKey(registry_key);
 
-      /* Create dump folder if it doesn't already exist. */
-      CreateDirectoryW(dump_folder, NULL);
+      if (dump_folder[0] != L'\0') {
+        /* Create dump folder if it doesn't already exist. */
+        CreateDirectoryW(dump_folder, NULL);
 
-      /* Construct dump filename from process name and PID. */
-      _snwprintf_s(dump_name,
-                   ARRAY_SIZE(dump_name),
-                   _TRUNCATE,
-                   L"%ls\\%ls.%d.dmp",
-                   dump_folder,
-                   basename,
-                   pid);
+        /* Construct dump filename from process name and PID. */
+        _snwprintf_s(dump_name,
+                     ARRAY_SIZE(dump_name),
+                     _TRUNCATE,
+                     L"%ls\\%ls.%d.dmp",
+                     dump_folder,
+                     basename,
+                     pid);
 
-      hDumpFile = CreateFileW(dump_name,
-                              GENERIC_WRITE,
-                              0,
-                              NULL,
-                              CREATE_NEW,
-                              FILE_ATTRIBUTE_NORMAL,
-                              NULL);
-      if (hDumpFile != INVALID_HANDLE_VALUE) {
-        DWORD dump_options, sym_options;
-        FILE_DISPOSITION_INFO DeleteOnClose = { TRUE };
+        hDumpFile = CreateFileW(dump_name,
+                                GENERIC_WRITE,
+                                0,
+                                NULL,
+                                CREATE_NEW,
+                                FILE_ATTRIBUTE_NORMAL,
+                                NULL);
+        if (hDumpFile != INVALID_HANDLE_VALUE) {
+          DWORD dump_options, sym_options;
+          FILE_DISPOSITION_INFO DeleteOnClose = { TRUE };
 
-        /* If something goes wrong while writing it out, delete the file. */
-        SetFileInformationByHandle(hDumpFile,
-                                   FileDispositionInfo,
-                                   &DeleteOnClose,
-                                   sizeof(DeleteOnClose));
+          /* If something goes wrong while writing it out, delete the file. */
+          SetFileInformationByHandle(hDumpFile,
+                                     FileDispositionInfo,
+                                     &DeleteOnClose,
+                                     sizeof(DeleteOnClose));
 
-        /* Tell wine to dump ELF modules as well. */
-        sym_options = SymGetOptions();
-        SymSetOptions(sym_options | 0x40000000);
+          /* Tell wine to dump ELF modules as well. */
+          sym_options = SymGetOptions();
+          SymSetOptions(sym_options | 0x40000000);
 
 /* MiniDumpWithAvxXStateContext might be undef in server2012r2 or mingw < 12 */
 #ifndef MiniDumpWithAvxXStateContext
 #define MiniDumpWithAvxXStateContext 0x00200000
 #endif
-        /* We default to a fairly complete dump.  In the future, we may want to
-         * allow clients to customize what kind of dump to create. */
-        dump_options = MiniDumpWithFullMemory |
-                       MiniDumpIgnoreInaccessibleMemory |
-                       MiniDumpWithAvxXStateContext;
+          /* We default to a fairly complete dump.  In the future, we may want to
+           * allow clients to customize what kind of dump to create. */
+          dump_options = MiniDumpWithFullMemory |
+                         MiniDumpIgnoreInaccessibleMemory |
+                         MiniDumpWithAvxXStateContext;
 
-        if (MiniDumpWriteDump(process_handle,
-                              pid,
-                              hDumpFile,
-                              dump_options,
-                              NULL,
-                              NULL,
-                              NULL)) {
-          /* Don't delete the file on close if we successfully wrote it out. */
-          FILE_DISPOSITION_INFO DontDeleteOnClose = { FALSE };
-          SetFileInformationByHandle(hDumpFile,
-                                     FileDispositionInfo,
-                                     &DontDeleteOnClose,
-                                     sizeof(DontDeleteOnClose));
+          if (MiniDumpWriteDump(process_handle,
+                                pid,
+                                hDumpFile,
+                                dump_options,
+                                NULL,
+                                NULL,
+                                NULL)) {
+            /* Don't delete the file on close if we successfully wrote it out. */
+            FILE_DISPOSITION_INFO DontDeleteOnClose = { FALSE };
+            SetFileInformationByHandle(hDumpFile,
+                                       FileDispositionInfo,
+                                       &DontDeleteOnClose,
+                                       sizeof(DontDeleteOnClose));
+          }
+          SymSetOptions(sym_options);
+          CloseHandle(hDumpFile);
         }
-        SymSetOptions(sym_options);
-        CloseHandle(hDumpFile);
       }
     }
   }
@@ -1364,8 +1445,8 @@ static int uv__kill(HANDLE process_handle, int signum) {
 int uv_process_kill(uv_process_t* process, int signum) {
   int err;
 
-  if (process->process_handle == INVALID_HANDLE_VALUE) {
-    return UV_EINVAL;
+  if (process->flags & UV_HANDLE_ESRCH) {
+    return UV_ESRCH;
   }
 
   err = uv__kill(process->process_handle, signum);

@@ -68,13 +68,17 @@ API
 .. c:function:: int uv_cancel(uv_req_t* req)
 
     Cancel a pending request. Fails if the request is executing or has finished
-    executing.
+    executing. Write requests are an exception: cancellation of a write that is
+    already in progress will attempt to interrupt it (the callback may report
+    a partial write), and cancellation of an already-completed write is a
+    successful no-op.
 
     Returns 0 on success, or an error code < 0 on failure.
 
-    Only cancellation of :c:type:`uv_fs_t`, :c:type:`uv_getaddrinfo_t`,
-    :c:type:`uv_getnameinfo_t`, :c:type:`uv_random_t` and :c:type:`uv_work_t`
-    requests is currently supported.
+    Only cancellation of :c:type:`uv_write_t`, :c:type:`uv_fs_t`,
+    :c:type:`uv_getaddrinfo_t`, :c:type:`uv_getnameinfo_t`,
+    :c:type:`uv_random_t` and :c:type:`uv_work_t` requests is currently
+    supported.
 
     Cancelled requests have their callbacks invoked some time in the future.
     It's **not** safe to free the memory associated with the request until the
@@ -87,6 +91,15 @@ API
     * A :c:type:`uv_work_t`, :c:type:`uv_getaddrinfo_t`,
       :c:type:`uv_getnameinfo_t` or :c:type:`uv_random_t` request has its
       callback invoked with status == `UV_ECANCELED`.
+
+    * A :c:type:`uv_write_t` request has its callback invoked with
+      status == `UV_ECANCELED`. Use :c:func:`uv_write_nwritten` from the
+      callback to determine how many bytes were written before cancellation.
+      Fully cancelled writes (where no bytes were written) may have their
+      callbacks called out of order with respect to other writes on the same
+      stream. Note that cancelled writes may still succeed or fail with
+      other errors if the kernel finished processing the write before the
+      cancellation took effect.
 
 .. c:function:: size_t uv_req_size(uv_req_type type)
 

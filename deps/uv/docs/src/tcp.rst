@@ -112,7 +112,6 @@ API
           - AIX
           - DragonFlyBSD
           - FreeBSD
-          - HP-UX
           - illumos
           - Linux
           - macOS
