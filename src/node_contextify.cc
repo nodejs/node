@@ -573,7 +573,7 @@ Intercepted ContextifyContext::PropertyGetterCallback(
   TryCatchScope try_catch(env);
   MaybeLocal<Value> maybe_rv =
       sandbox->GetRealNamedProperty(context, property);
-  if (maybe_rv.IsEmpty()) {
+  if (maybe_rv.IsEmpty() && !try_catch.HasCaught()) {
     maybe_rv =
         ctx->global_proxy()->GetRealNamedProperty(context, property);
   }
@@ -587,6 +587,10 @@ Intercepted ContextifyContext::PropertyGetterCallback(
       rv = ctx->global_proxy();
 
     args.GetReturnValue().Set(rv);
+    return Intercepted::kYes;
+  }
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    try_catch.ReThrow();
     return Intercepted::kYes;
   }
   return Intercepted::kNo;
