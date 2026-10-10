@@ -82,6 +82,11 @@ Node.js will replace TypeScript syntax with whitespace,
 and no type checking is performed.
 To disable this feature, use the flag [`--no-strip-types`][].
 
+The built-in TypeScript parser requires WebAssembly. If WebAssembly is
+unavailable, parsing throws
+[`ERR_WEBASSEMBLY_NOT_SUPPORTED`](errors.md#err_webassembly_not_supported).
+Node.js does not provide a non-WebAssembly parser as a fallback.
+
 Node.js ignores `tsconfig.json` files and therefore
 features that depend on settings within `tsconfig.json`,
 such as paths or converting newer JavaScript syntax to older standards, are

@@ -330,37 +330,29 @@ bool IsFastLibraryGuardSupported() {
 #endif
 }
 
-std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn,
-                                                       const bool* closed,
-                                                       v8::Isolate* isolate) {
-  // Bail early if executable memory allocation doesn't work on this process
-  // (missing MAP_JIT entitlement, hardened runtime, SELinux execmem, etc.).
-  // The self-test runs once and caches the result.
-  if (!IsJitMemorySupported()) {
-    return nullptr;
-  }
-
+v8::Maybe<std::unique_ptr<FastFFIMetadata>> CreateFastFFIMetadata(
+    const FFIFunction& fn, const bool* closed, v8::Isolate* isolate) {
   // Check signature-level eligibility (type checks, register caps, platform
-  // support). Returning nullptr here lets the caller fall back to SharedBuffer
+  // support). Null metadata lets the caller fall back to SharedBuffer
   // or the generic libffi path.
   const char* eligibility_reason;
   if (!IsFastCallEligible(fn, &eligibility_reason)) {
-    return nullptr;
+    return v8::Just(std::unique_ptr<FastFFIMetadata>());
   }
 
-  // Reject unsupported result types first. Returning nullptr means the caller
+  // Reject unsupported result types first. Null metadata means the caller
   // can still fall back to SharedBuffer or the generic libffi path.
   FastFFIType result;
   if (!FastScalarTypeFromName(fn.return_type_name, &result)) {
-    return nullptr;
+    return v8::Just(std::unique_ptr<FastFFIMetadata>());
   }
   if (fn.args.size() != fn.arg_type_names.size()) {
-    return nullptr;
+    return v8::Just(std::unique_ptr<FastFFIMetadata>());
   }
   // Keep the initial Fast API implementation bounded to signatures V8 and the
   // platform trampolines can describe without stack argument support.
   if (fn.arg_type_names.size() > 8) {
-    return nullptr;
+    return v8::Just(std::unique_ptr<FastFFIMetadata>());
   }
 
   std::vector<FastFFIType> args;
@@ -373,15 +365,25 @@ std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn,
   for (const std::string& name : fn.arg_type_names) {
     FastFFIType type;
     if (!FastArgTypeFromName(name, &type)) {
-      return nullptr;
+      return v8::Just(std::unique_ptr<FastFFIMetadata>());
     }
     if (type == FastFFIType::kVoid) {
-      return nullptr;
+      return v8::Just(std::unique_ptr<FastFFIMetadata>());
     }
     needs_bigint = needs_bigint || NeedsBigIntRepresentation(type);
     needs_callback_options =
         needs_callback_options || type == FastFFIType::kBuffer;
     args.push_back(type);
+  }
+
+  // Check RX memory only after signature and platform eligibility, so ordinary
+  // unsupported signatures can still use the non-generated invocation paths.
+  if (!IsJitMemorySupported()) {
+    THROW_ERR_RX_MEMORY_NOT_SUPPORTED(
+        isolate,
+        "Executable memory is not supported in this environment, "
+        "but is required for FFI Fast API calls");
+    return v8::Nothing<std::unique_ptr<FastFFIMetadata>>();
   }
 
   auto metadata = std::make_unique<FastFFIMetadata>();
@@ -391,7 +393,7 @@ std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn,
   FastFFITrampolineConfig config{fn.ptr, closed, isolate};
   if (!node_ffi_create_fast_trampoline(
           config, args.data(), args.size(), result, &metadata->trampoline)) {
-    return nullptr;
+    return v8::Just(std::unique_ptr<FastFFIMetadata>());
   }
 
   metadata->arg_info.reserve(args.size() + 1);
@@ -418,7 +420,7 @@ std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn,
   metadata->c_function =
       v8::CFunction(metadata->trampoline.code, metadata->c_function_info.get());
   metadata->guards_library = guards_library;
-  return metadata;
+  return v8::Just(std::move(metadata));
 }
 
 }  // namespace node::ffi

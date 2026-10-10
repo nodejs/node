@@ -9,6 +9,7 @@
 #include "env-inl.h"
 #include "ffi/data.h"
 #include "ffi/fast.h"
+#include "ffi/jit_memory.h"
 #include "ffi/types.h"
 #include "node_binding.h"
 #include "node_errors.h"
@@ -290,7 +291,10 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
   // signature, fall back to SharedBuffer for supported scalar shapes, then to
   // the generic libffi invoker.
   std::shared_ptr<FFIFunction> fast_fn = CloneWithRawPointerArgNames(fn);
-  info->fast_metadata = CreateFastFFIMetadata(*fast_fn, &fn->closed, isolate);
+  if (!CreateFastFFIMetadata(*fast_fn, &fn->closed, isolate)
+           .MoveTo(&info->fast_metadata)) {
+    return {};
+  }
   bool use_fast_api = info->fast_metadata != nullptr;
   bool use_sb = !use_fast_api && IsSBEligibleSignature(*fn);
   bool has_ptr_args = use_sb && SignatureHasPointerArgs(*fn);
@@ -456,8 +460,10 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     // argument is Buffer/ArrayBuffer-backed memory.
     std::shared_ptr<FFIFunction> fast_buffer_fn =
         CloneWithFastBufferArgNames(fn);
-    info->fast_buffer_metadata =
-        CreateFastFFIMetadata(*fast_buffer_fn, &fn->closed, isolate);
+    if (!CreateFastFFIMetadata(*fast_buffer_fn, &fn->closed, isolate)
+             .MoveTo(&info->fast_buffer_metadata)) {
+      return {};
+    }
     if (info->fast_buffer_metadata != nullptr) {
       // Store the secondary invoker on the primary raw function under a hidden
       // Symbol. Keeping it separate avoids overloading SharedBuffer slow-path
@@ -1108,6 +1114,15 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
       ffi_closure_alloc(sizeof(ffi_closure), &callback->ptr));
 
   if (callback->closure == nullptr) {
+    // libffi may use platform-specific static trampolines, so only diagnose
+    // missing RX memory after its own closure allocation has failed.
+    if (!IsJitMemorySupported()) {
+      THROW_ERR_RX_MEMORY_NOT_SUPPORTED(
+          env,
+          "Executable memory is not supported in this environment, "
+          "but is required for FFI callbacks");
+      return;
+    }
     THROW_ERR_FFI_CALL_FAILED(env, "ffi_closure_alloc failed");
     return;
   }
