@@ -4,8 +4,13 @@
 const common = require('../common');
 const assert = require('assert');
 const { brotliDecompressSync, gunzipSync, gzipSync } = require('zlib');
-const { compressBrotli, compressGzip, decompressGzip } = require('zlib/iter');
-const { bytes, from, pull } = require('stream/iter');
+const {
+  compressBrotli,
+  compressGzip,
+  decompressGzip,
+  decompressGzipSync,
+} = require('zlib/iter');
+const { bytes, from, fromSync, pull, pullSync } = require('stream/iter');
 
 async function testDecompressionOutputIsBounded() {
   let input = Buffer.alloc(32 * 1024 * 1024, 0x61);
@@ -36,6 +41,34 @@ async function testSmallChunkSizeDecompression() {
   const output = await bytes(pull(from(gzipSync(input)),
                                   decompressGzip({ chunkSize: 1024 })));
   assert.deepStrictEqual(Buffer.from(output), input);
+}
+
+// With a chunk size that does not divide the batch size, output collected
+// beyond a batch is taken a batch at a time, from the front.
+async function testPartialBatchDrains() {
+  const input = Buffer.alloc(1024 * 1024);
+  for (let i = 0; i < input.length; i++) input[i] = (i * 7 + (i >> 12)) & 0xff;
+  const compressed = gzipSync(input);
+  const batchSizes = (batches) => batches.map((batch) => {
+    return batch.reduce((total, chunk) => total + chunk.length, 0);
+  });
+
+  const asyncBatches = [];
+  for await (const batch of pull(from(compressed),
+                                 decompressGzip({ chunkSize: 1000 }))) {
+    asyncBatches.push(batch);
+  }
+  const syncBatches = [
+    ...pullSync(fromSync(compressed), decompressGzipSync({ chunkSize: 1000 })),
+  ];
+  for (const batches of [asyncBatches, syncBatches]) {
+    assert.deepStrictEqual(Buffer.concat(batches.flat()), input);
+    assert.ok(batches.length > 1);
+    // A batch is closed once it holds 64 KiB.
+    for (const size of batchSizes(batches)) {
+      assert.ok(size <= 64 * 1024 + 1000, `batch of ${size} bytes`);
+    }
+  }
 }
 
 // Deterministic incompressible data. Brotli's buffering decisions depend on
@@ -108,6 +141,7 @@ async function testSourceReturnFailuresAreIgnored() {
   await testDecompressionOutputIsBounded();
   await Promise.all([
     testSmallChunkSizeDecompression(),
+    testPartialBatchDrains(),
     testLargeFinishOutput(),
     testExplicitFlushSignal(),
     testSourceReturnFailuresAreIgnored(),
