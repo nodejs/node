@@ -815,6 +815,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kDisallowedInEnvvar);
   AddOption("[vfs_load_set]", "", BOOL_FIELD(vfs_load));
   Implies("--vfs-load", "[vfs_load_set]");
+  AddOption("--experimental-otel",
+            "experimental built-in OpenTelemetry tracing",
+            BOOL_FIELD(experimental_otel),
+            kAllowedInEnvvar);
   AddOption("--experimental-quic",
 #ifndef OPENSSL_NO_QUIC
             "experimental QUIC support",

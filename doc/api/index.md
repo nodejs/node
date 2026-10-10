@@ -42,6 +42,7 @@
 * [Modules: Packages](packages.md)
 * [Modules: TypeScript](typescript.md)
 * [Net](net.md)
+* [OpenTelemetry](otel.md)
 * [OS](os.md)
 * [Path](path.md)
 * [Performance hooks](perf_hooks.md)

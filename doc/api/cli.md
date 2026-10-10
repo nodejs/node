@@ -1545,6 +1545,19 @@ added:
 
 Enable experimental support for the network inspection with Chrome DevTools.
 
+### `--experimental-otel`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable the experimental built-in OpenTelemetry tracing subsystem. When
+enabled, tracing is activated by setting the [`NODE_OTEL`][] or
+[`NODE_OTEL_ENDPOINT`][] environment variables. See the [OpenTelemetry][]
+documentation for details.
+
 ### `--experimental-package-map=<path>`
 
 <!-- YAML
@@ -4264,6 +4277,7 @@ one is included in the list below.
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
+* `--experimental-otel`
 * `--experimental-package-map`
 * `--experimental-print-required-tla`
 * `--experimental-quic`
@@ -4429,6 +4443,73 @@ V8 options that are allowed are:
 `--enable-etw-stack-walking` is only available on Windows.
 
 <!-- node-options-others end -->
+
+### `NODE_OTEL=value`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+When set to `1` while the [`--experimental-otel`][] flag is
+enabled, activates the built-in OpenTelemetry tracing subsystem using the
+default collector endpoint (`http://localhost:4318`). Values other than
+`1` are ignored. If `NODE_OTEL_ENDPOINT` is also set, it takes precedence
+for the endpoint. See the [OpenTelemetry][] documentation for details.
+
+### `NODE_OTEL_ENDPOINT=url`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+When set to a non-empty value while the [`--experimental-otel`][] flag is
+enabled, activates the built-in OpenTelemetry tracing subsystem and directs
+spans to the specified OTLP/HTTP collector endpoint. The endpoint must be
+the base URL of the collector: any path present in the endpoint is
+replaced with `/v1/traces`, and an endpoint that already ends with
+`/v1/traces` is used as is. When only `NODE_OTEL=1` is set, the default
+collector endpoint (`http://localhost:4318`) is used. If `NODE_OTEL` is
+also set, `NODE_OTEL_ENDPOINT` takes precedence for the endpoint. See the
+[OpenTelemetry][] documentation for details.
+
+### `NODE_OTEL_FILTER=module[,…]`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Comma-separated list of core modules to instrument when OpenTelemetry tracing
+is active. When not set, all supported modules are instrumented. Supported
+values: `node:http`, `node:undici`, `node:fetch`. See the [OpenTelemetry][]
+documentation for details.
+
+### `NODE_OTEL_FLUSH_INTERVAL=milliseconds`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Interval in milliseconds between periodic flushes of buffered spans to the
+collector. Must be a positive integer. **Default:** `10000`.
+
+### `NODE_OTEL_MAX_BUFFER_SIZE=number`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Maximum number of spans buffered in memory before an immediate flush to the
+collector is triggered. Must be a positive integer. **Default:** `100`.
 
 ### `NODE_PATH=path[:…]`
 
@@ -4878,6 +4959,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [Navigator API]: globals.md#navigator
 [Node.js issue tracker]: https://github.com/nodejs/node/issues
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
+[OpenTelemetry]: otel.md
 [Package maps]: packages.md#package-maps
 [Permission Model]: permissions.md#permission-model
 [REPL]: repl.md
@@ -4907,6 +4989,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--enable-fips`]: #--enable-fips
 [`--env-file-if-exists`]: #--env-file-if-existsfile
 [`--env-file`]: #--env-filefile
+[`--experimental-otel`]: #--experimental-otel
 [`--experimental-sea-config`]: single-executable-applications.md#1-generating-single-executable-preparation-blobs
 [`--experimental-vfs`]: #--experimental-vfs
 [`--heap-prof-dir`]: #--heap-prof-dir
@@ -4930,6 +5013,8 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`ERR_WEBASSEMBLY_NOT_SUPPORTED`]: errors.md#err_webassembly_not_supported
 [`NODE_OPTIONS`]: #node_optionsoptions
+[`NODE_OTEL_ENDPOINT`]: #node_otel_endpointurl
+[`NODE_OTEL`]: #node_otelvalue
 [`NODE_USE_ENV_PROXY=1`]: #node_use_env_proxy1
 [`NODE_V8_COVERAGE=dir`]: #node_v8_coveragedir
 [`NO_COLOR`]: https://no-color.org
