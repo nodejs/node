@@ -1027,11 +1027,11 @@ a supported one, for example `yaml` to `module`.
 
 ```mjs
 import { registerHooks } from 'node:module';
-import { Buffer } from 'node:buffer';
+import { TextDecoder } from 'node:util';
 
 function load(url, context, nextLoad) {
   // The hook can skip default loading and provide a custom source code.
-  if (url === 'special-module') {
+  if (url === 'file:///path/to/special-module.mjs') {
     return {
       source: 'export const special = 42;',
       format: 'module',
@@ -1042,11 +1042,14 @@ function load(url, context, nextLoad) {
   // It's possible to modify the source code loaded by the next - possibly default - step,
   // for example, replacing 'foo' with 'bar' in the source code of the module.
   const result = nextLoad(url, context);
+  if (result.source == null || result.format === 'wasm') {
+    return result;
+  }
   const source = typeof result.source === 'string' ?
-    result.source : Buffer.from(result.source).toString('utf8');
+    result.source : new TextDecoder().decode(result.source);
   return {
-    source: source.replace(/foo/g, 'bar'),
     ...result,
+    source: source.replace(/foo/g, 'bar'),
   };
 }
 
@@ -1816,7 +1819,7 @@ export async function resolve(specifier, context, nextResolve) {
 
 ```mjs
 // import-map-sync-hooks.js
-import fs from 'node:fs/promises';
+import fs from 'node:fs';
 import module from 'node:module';
 
 const { imports } = JSON.parse(fs.readFileSync('import-map.json', 'utf-8'));
