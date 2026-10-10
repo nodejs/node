@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // MemoryProvider: numeric open flags (mirroring fs.constants.O_*) must be

@@ -92,7 +92,7 @@ function run(...permissions) {
   `;
   const vfsRun = (...permissions) => spawnSync(
     process.execPath,
-    ['--experimental-vfs', '--permission', '--allow-fs-read=*',
+    ['--permission', '--allow-fs-read=*',
      ...permissions, '-e', mounted],
     { encoding: 'utf8' });
 

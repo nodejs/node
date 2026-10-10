@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // fs.openSync / fs.readSync / fs.writeSync / fs.fstatSync / fs.closeSync /

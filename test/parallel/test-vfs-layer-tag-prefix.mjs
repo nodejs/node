@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 
 // Regression: unmounting a layer whose id is a decimal prefix of another
 // (e.g. layer 1 vs layer 10) must not purge the other's ESM cache entries.

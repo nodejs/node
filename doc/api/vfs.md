@@ -24,8 +24,8 @@ import vfs from 'node:vfs';
 const vfs = require('node:vfs');
 ```
 
-This module is only available under the `node:` scheme, and only when Node.js
-is started with the `--experimental-vfs` flag.
+This module is only available under the `node:` scheme. Loading it emits an
+`ExperimentalWarning`.
 
 ## Security
 
@@ -77,8 +77,9 @@ added: v26.4.0
 * `provider` {VirtualProvider} The provider to use. **Default:**
   `new MemoryProvider()`.
 * `options` {Object}
-  * `emitExperimentalWarning` {boolean} Whether to emit the experimental
-    warning when the instance is created. **Default:** `true`.
+  * `emitExperimentalWarning` {boolean} Whether to emit an experimental warning
+    when an instance is created. **Default:** `true`. Loading `node:vfs` emits
+    the warning regardless of this option.
 * Returns: {VirtualFileSystem}
 
 Convenience factory equivalent to `new VirtualFileSystem(provider, options)`.
@@ -148,7 +149,7 @@ vfs.registerProvider({
 ```
 
 ```console
-$ node --experimental-vfs --require ./provider.js \
+$ node --require ./provider.js \
        --vfs-load archive.customfmt
 ```
 
@@ -193,8 +194,9 @@ added: v26.4.0
 * `provider` {VirtualProvider} The provider to use. **Default:**
   `new MemoryProvider()`.
 * `options` {Object}
-  * `emitExperimentalWarning` {boolean} Whether to emit the experimental
-    warning. **Default:** `true`.
+  * `emitExperimentalWarning` {boolean} Whether to emit an experimental warning
+    when an instance is created. **Default:** `true`. Loading `node:vfs` emits
+    the warning regardless of this option.
 
 ### `vfs.mount()`
 

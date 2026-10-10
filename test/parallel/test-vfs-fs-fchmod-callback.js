@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // fs.fchmod, fs.fchown, fs.futimes, fs.fdatasync, and fs.fsync callbacks

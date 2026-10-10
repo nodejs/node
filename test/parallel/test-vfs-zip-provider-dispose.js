@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // Exercises ZipProvider's Symbol.dispose / Symbol.asyncDispose aliases:

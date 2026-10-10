@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // mkdirSync / rmdirSync behaviour: return value, recursive option, mode
