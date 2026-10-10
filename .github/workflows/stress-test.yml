@@ -14,8 +14,8 @@ on:
         type: choice
         options:
           - macos-15
-          - ubuntu-24.04
-          - ubuntu-24.04-arm
+          - ubuntu-26.04
+          - ubuntu-26.04-arm
       repeat:
         description: Number of times to repeat each test (--repeat)
         required: true
@@ -35,7 +35,7 @@ on:
 env:
   PYTHON_VERSION: '3.14'
   XCODE_VERSION: '16.4'
-  CLANG_VERSION: '19'
+  CLANG_VERSION: '21'
   RUSTC_VERSION: '1.88'
 
 permissions:
@@ -46,8 +46,8 @@ jobs:
     runs-on: ${{ inputs.os }}
     env:
       # Linux builds with clang (matching test-linux.yml), macOS with gcc/g++.
-      CC: ${{ startsWith(inputs.os, 'ubuntu') && 'sccache clang-19' || 'sccache gcc' }}
-      CXX: ${{ startsWith(inputs.os, 'ubuntu') && 'sccache clang++-19' || 'sccache g++' }}
+      CC: ${{ startsWith(inputs.os, 'ubuntu') && 'sccache clang-21' || 'sccache gcc' }}
+      CXX: ${{ startsWith(inputs.os, 'ubuntu') && 'sccache clang++-21' || 'sccache g++' }}
       # Enable sccache - this is okay for a manually-dispatched workflow that is typically used to
       # test lib-only or test-only deflaking changes. This should be able to pick up cache from
       # test-linux.yml and test-macos.yml running on the main branch.
