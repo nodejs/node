@@ -1732,6 +1732,8 @@ object with an `encoding` property specifying the character encoding to use.
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'` (or `'buffer'` if `prefix` is a `Buffer`)
@@ -4148,6 +4150,8 @@ mkdtemp(`${tmpDir}${sep}`, (err, directory) => {
 <!-- YAML
 added: REPLACEME
 -->
+
+> Stability: 1 - Experimental
 
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
@@ -6690,6 +6694,8 @@ object with an `encoding` property specifying the character encoding to use.
 <!-- YAML
 added: REPLACEME
 -->
+
+> Stability: 1 - Experimental
 
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
