@@ -3,7 +3,16 @@
 
 export declare function transform(src: string | Uint8Array, opts?: Options): Promise<TransformOutput>;
 export declare function transformSync(src: string | Uint8Array, opts?: Options): TransformOutput;
+export declare function transformModuleSyntax(src: string | Uint8Array): ModuleSyntaxTransformOutput;
+export declare function getFirstExpression(src: string | Uint8Array, startColumn: number): string;
+export declare function isValidSyntax(src: string | Uint8Array): boolean;
+export declare function isRecoverableError(src: string | Uint8Array): boolean;
 export type { Options, TransformOutput };
+
+export interface ModuleSyntaxTransformOutput {
+    code: string;
+    hadModuleSyntax: boolean;
+}
 
 
 
