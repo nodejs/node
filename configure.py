@@ -2195,9 +2195,10 @@ def configure_napi(output):
   version = getnapibuildversion.get_napi_version()
   output['variables']['napi_build_version'] = version
 
-def configure_library(lib, output, pkgname=None):
+def configure_library(lib, output, pkgname=None, libraries_key='libraries'):
   shared_lib = 'shared_' + lib
   output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
+  libraries = output[libraries_key]
 
   if getattr(options, shared_lib):
     (pkg_libs, pkg_cflags, pkg_libpath, _) = pkg_config(pkgname or lib)
@@ -2216,17 +2217,17 @@ def configure_library(lib, output, pkgname=None):
         output['msvs_settings']['VCLinkerTool']['AdditionalOptions'] += [
           f"/LIBPATH:{options.__dict__[shared_lib + '_libpath']}"]
       else:
-        output['libraries'] += [
+        libraries += [
             f"-L{options.__dict__[shared_lib + '_libpath']}"]
     elif pkg_libpath:
-      output['libraries'] += [pkg_libpath]
+      libraries += [pkg_libpath]
 
     default_libs = getattr(options, shared_lib + '_libname')
 
     if default_libs:
-      output['libraries'] += [f'-l{l}' for l in default_libs.split(',')]
+      libraries += [f'-l{l}' for l in default_libs.split(',')]
     elif pkg_libs:
-      output['libraries'] += pkg_libs.split()
+      libraries += pkg_libs.split()
 
 
 def configure_v8(o, configs):
@@ -2974,7 +2975,9 @@ configure_library('simdjson', output)
 configure_library('simdutf', output)
 configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')
-configure_library('gtest', output)
+# Only cctest uses gtest; keep it out of the node binary's link line.
+output['variables']['node_shared_gtest_libraries'] = []
+configure_library('gtest', output, 'node_shared_gtest_libraries')
 configure_library('hdr_histogram', output)
 configure_library('highway', output, pkgname='libhwy')
 configure_library('merve', output)
