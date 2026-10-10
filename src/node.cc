@@ -1427,9 +1427,14 @@ InitializeOncePerProcessInternal(
     });
 #endif  // !defined(OPENSSL_IS_BORINGSSL)
     {
+      // The env files are not applied to the environment yet at this point.
+      // A variable from the real environment takes precedence over them.
       std::string extra_ca_certs;
-      if (credentials::SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
+      if (credentials::SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs) ||
+          credentials::SafeGetenvFromEnvFile("NODE_EXTRA_CA_CERTS",
+                                             &extra_ca_certs)) {
         crypto::UseExtraCaCerts(extra_ca_certs);
+      }
     }
 #endif  // HAVE_OPENSSL
   }

@@ -7,6 +7,7 @@
 #include "v8.h"
 
 #include <map>
+#include <optional>
 
 namespace node {
 
@@ -32,6 +33,8 @@ class Dotenv {
   v8::MaybeLocal<v8::Object> ToObject(Environment* env) const;
   // The names of the variables parsed from the env files.
   std::vector<std::string> GetKeys() const;
+  // The value of a variable parsed from the env files, if it is defined there.
+  std::optional<std::string> Get(const std::string& key) const;
 
   static std::vector<env_file_data> GetDataFromArgs(
       const std::vector<std::string>& args);
