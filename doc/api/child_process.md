@@ -1893,7 +1893,9 @@ subprocess.ref();
 <!-- YAML
 added: v0.5.9
 changes:
-  - version: v26.10.0
+  - version:
+    - v26.10.0
+    - v24.22.0
     pr-url: https://github.com/nodejs/node/pull/64725
     description: '`net.BoundSocket` instances can now be sent.'
   - version: v5.8.0

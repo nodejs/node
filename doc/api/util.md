@@ -390,7 +390,9 @@ property take precedence over `--trace-deprecation` and
 ## `util.debounce(fn, wait[, options])`
 
 <!-- YAML
-added: v26.10.0
+added:
+  - v26.10.0
+  - v24.22.0
 -->
 
 * `fn` {Function} The function to debounce.
@@ -488,7 +490,9 @@ onInactivity();
 ## `util.throttle(fn, limit, interval[, options])`
 
 <!-- YAML
-added: v26.10.0
+added:
+  - v26.10.0
+  - v24.22.0
 -->
 
 * `fn` {Function} The function to throttle.
@@ -1920,7 +1924,9 @@ deep strict equality.
 ## `util.markPromiseAsHandled(promise)`
 
 <!-- YAML
-added: v26.10.0
+added:
+  - v26.10.0
+  - v24.22.0
 -->
 
 * `promise` {Promise} The promise to mark as handled

@@ -455,7 +455,9 @@ wrapper around [`sqlite3_create_function_v2()`][].
 <!-- YAML
 added: v24.10.0
 changes:
-  - version: v26.8.0
+  - version:
+    - v26.8.0
+    - v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65156
     description: Accessing the invoking database connection from the authorizer
                  callback now throws.
@@ -1264,7 +1266,9 @@ the values in `namedParameters` and `anonymousParameters`. See
 ### `statement.close()`
 
 <!-- YAML
-added: v26.8.0
+added:
+  - v26.8.0
+  - v24.22.0
 -->
 
 Finalizes the prepared statement. An exception is thrown if the statement is
@@ -1540,7 +1544,9 @@ wrapper around [`sqlite3_sql()`][].
 ### `statement[Symbol.dispose]()`
 
 <!-- YAML
-added: v26.8.0
+added:
+  - v26.8.0
+  - v24.22.0
 -->
 
 Finalizes the prepared statement. If the prepared statement is already
