@@ -90,6 +90,32 @@ system load can all affect results. Keep raw samples when comparing results and
 investigate noisy or skewed distributions rather than treating a confidence
 interval as a pass/fail threshold.
 
+### Garbage collection
+
+Warmup invocations can leave garbage on the heap that is collected during the
+first measured samples, charging warmup allocations to measured work. The `gc`
+option forces a full garbage collection outside the measured region:
+
+* `'none'`: No garbage collection is forced. This is the default.
+* `'once'`: A full garbage collection runs after warmup, before the first
+  measured sample. Garbage produced by measured samples is still collected
+  during measurement, so its cost remains part of the results.
+* `'sample'`: A full garbage collection runs before every measured sample. This
+  reduces variance between samples, but samples that are too short to trigger a
+  collection on their own exclude the cost of collecting their garbage, which
+  can make allocation-heavy code appear faster than it is in practice.
+
+Forced collection runs after `beforeEach` hooks and any event loop turn between
+samples, and is excluded from benchmark timeout accounting. The effective mode
+is reported as `gc` in `'bench:plan'` events. The mode can be overridden for
+every benchmark through `createRunner()`, [`run()`][], or [`--bench-gc`][].
+
+Forcing garbage collection requires the `--expose-gc` flag, which also makes
+`globalThis.gc()` available to benchmark code. A benchmark whose effective mode
+is `'once'` or `'sample'` fails when the flag is not set. When `--bench-gc`
+selects one of these modes, the command-line runner adds `--expose-gc` to
+benchmark child processes automatically.
+
 ### Measurement integrity
 
 A statistically consistent result does not prove that a benchmark measured the
@@ -221,9 +247,10 @@ arbitrary functions or closures to move them between isolates, because closures
 cannot be reconstructed with their original lexical environment.
 
 Benchmark files passed to `--bench` should declare benchmarks but must not call
-`run()`. The CLI supports `--bench-name-pattern`, `--bench-samples`,
-`--bench-warmup`, `--bench-reporter`, and `--bench-reporter-destination`. See
-the [command-line options documentation][] for details.
+`run()`. The CLI supports `--bench-gc`, `--bench-name-pattern`,
+`--bench-samples`, `--bench-warmup`, `--bench-reporter`, and
+`--bench-reporter-destination`. See the [command-line options documentation][]
+for details.
 
 Preload modules passed through `--require` or `--import` should not declare
 benchmarks. Such declarations are not associated with an entry file and have
@@ -321,6 +348,9 @@ added: v26.9.0
 -->
 
 * `options` {Object}
+  * `gc` {string} Overrides the [garbage collection][] mode for every
+    benchmark declared through this runner. One of `'none'`, `'once'`, or
+    `'sample'`.
   * `yieldBetweenSamples` {boolean} Schedule an event loop turn between sample
     callbacks. Disabling this also prevents timer-based abort signals from
     firing between synchronous callbacks. Benchmark timeouts continue to be
@@ -334,8 +364,8 @@ the module-level functions. Call the returned `run()` function to start the
 runner and obtain its {BenchmarksStream}.
 
 Each runner can be started once. Its `run()` function accepts the same options
-as the module-level [`run()`][]. `run({ yieldBetweenSamples })` overrides the
-value passed to `createRunner()`. Unlike the module-level runner, a failed
+as the module-level [`run()`][]. `run({ gc })` and `run({ yieldBetweenSamples })`
+override the values passed to `createRunner()`. Unlike the module-level runner, a failed
 benchmark in an explicit runner does not change the process exit code.
 
 ## `bench([name][, options], fn)`
@@ -350,6 +380,8 @@ added: v26.9.0
   * `diagnosticChannels` {Array} String diagnostics channel names, deduplicated
     and inherited from containing suites by union. Symbol values in the array
     are silently ignored. **Default:** `[]`.
+  * `gc` {string} The [garbage collection][] mode. One of `'none'`, `'once'`,
+    or `'sample'`. **Default:** `'none'`.
   * `only` {boolean} When any benchmark or containing suite has `only` set,
     benchmarks without `only` in their hierarchy are skipped. **Default:**
     `false`.
@@ -511,6 +543,9 @@ added: v26.9.0
 -->
 
 * `options` {Object}
+  * `gc` {string} Overrides the [garbage collection][] mode for every
+    benchmark. One of `'none'`, `'once'`, or `'sample'`. **Default:** the value
+    passed to `createRunner()` for an explicit runner.
   * `namePattern` {string|RegExp} Only runs benchmarks whose full hierarchical
     name matches the pattern. String values are interpreted as JavaScript
     regular expressions.
@@ -803,6 +838,8 @@ isolation, all files share one runner and their plans are emitted before any
 benchmark executes. Plan data contains the benchmark-scoped identity, location,
 tags, and parameters described in [benchmark result][], together with:
 
+* `gc` {string} The effective [garbage collection][] mode after run-level
+  overrides.
 * `diagnosticChannels` {string\[]} The inherited string channel names
   subscribed to during each callback.
 * `samples` {number} The effective maximum number of measured callback
@@ -878,6 +915,7 @@ A completed benchmark result contains:
     interval for the median rate, with `lower` and `upper` properties.
   * `skewness` {number} The skewness of the scaled rate histogram.
 
+[`--bench-gc`]: cli.md#--bench-gcmode
 [`context.record()`]: #contextrecordsample
 [`createRunner()`]: #createrunneroptions
 [`os`]: os.md
@@ -885,3 +923,4 @@ A completed benchmark result contains:
 [benchmark reporters]: #benchmark-reporters
 [benchmark result]: #benchmark-result
 [command-line options documentation]: cli.md#--bench
+[garbage collection]: #garbage-collection
