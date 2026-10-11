@@ -2964,6 +2964,22 @@ added:
 An attempt was made to `require()` an [ES Module][] while another `import()` call
 was already in progress to load it asynchronously.
 
+<a id="ERR_RX_MEMORY_NOT_SUPPORTED"></a>
+
+### `ERR_RX_MEMORY_NOT_SUPPORTED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A feature requiring runtime allocation of executable memory was used in an
+environment where that capability is unavailable. This includes creating an
+otherwise eligible FFI Fast API function, or allocating an FFI callback when
+libffi cannot provide a closure and executable memory is unavailable.
+
+Node.js does not guarantee a non-generated-code fallback for these operations.
+This error can be caught without terminating the process.
+
 <a id="ERR_SCRIPT_EXECUTION_INTERRUPTED"></a>
 
 ### `ERR_SCRIPT_EXECUTION_INTERRUPTED`
@@ -3652,6 +3668,11 @@ The WASI instance has not been started.
 A feature requiring WebAssembly was used, but WebAssembly is not supported or
 has been disabled in the current environment (for example, when running with
 `--jitless`).
+
+TypeScript parsing and WebAssembly module imports, including source phase
+imports, report this error when WebAssembly is unavailable. Node.js does not
+provide an alternative implementation for these operations. This error can be
+caught without terminating the process.
 
 <a id="ERR_WEBASSEMBLY_RESPONSE"></a>
 

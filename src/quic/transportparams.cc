@@ -485,7 +485,7 @@ v8::MaybeLocal<v8::Object> TransportParams::ToObject(Environment* env) const {
   }
 
   auto obj = tmpl->NewInstance(env->context(), values);
-  if (obj->SetPrototypeV2(env->context(), Null(env->isolate())).IsNothing()) {
+  if (obj->SetPrototype(env->context(), Null(env->isolate())).IsNothing()) {
     return {};
   }
   return obj;

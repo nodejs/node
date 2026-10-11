@@ -177,9 +177,19 @@ make clean
 tools/license-builder.sh
 ```
 
-* Update the URL and hash for the full ICU file in `tools/icu/current_ver.dep`.
-  It should match the ICU URL used in the first step.  When this is done, the
-  following should build with small ICU.
+* Verify the PGP signature of the full ICU file:
+
+```bash
+gpgv --keyring tools/dep_updaters/icu.kbx \
+  icu4c-*-sources.tgz.asc icu4c-*-sources.tgz
+```
+
+* If the release was signed with a key not present in that keyring, update it
+  from the [ICU `KEYS` file](https://github.com/unicode-org/icu/blob/HEAD/KEYS)
+  after confirming the new key out-of-band.
+* Update the URL and SHA-256 hash for the full ICU file in
+  `tools/icu/current_ver.dep`. It should match the ICU URL used in the first
+  step. When this is done, the following should build with small ICU.
 
 ```bash
 # clean up

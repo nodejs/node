@@ -412,8 +412,9 @@ Return the file contents as an async iterable using the
 chunks (default 128 KB). If transforms are provided, they are applied
 via [`stream/iter pull()`][].
 
-The file handle is locked while the iterable is being consumed and unlocked
-when iteration completes, an error occurs, or the consumer breaks.
+The file handle is locked from the first read of the iterable, and unlocked
+when iteration completes, an error occurs, or the consumer breaks. An iterable
+that is never read does not lock the file handle.
 
 This function is only available when the `--experimental-stream-iter` flag is
 enabled.
@@ -487,8 +488,8 @@ Synchronous counterpart of [`filehandle.pull()`][]. Returns a sync iterable
 that reads the file using synchronous I/O on the main thread. Reads are
 performed in `chunkSize`-byte chunks (default 128 KB).
 
-The file handle is locked while the iterable is being consumed. Unlike the
-async `pull()`, this method does not support `AbortSignal` since all
+The file handle is locked from the first read of the iterable until iteration
+ends, as with [`filehandle.pull()`][]. Unlike the async `pull()`, this method does not support `AbortSignal` since all
 operations are synchronous.
 
 This function is only available when the `--experimental-stream-iter` flag is
@@ -1133,6 +1134,11 @@ The writer supports both `Symbol.asyncDispose` and `Symbol.dispose`:
   called), `asyncDispose` calls `fail()`. If `end()` is pending, it waits
   for it to complete.
 * `using w = fh.writer()` — calls `fail()` unconditionally.
+
+Async writes (`write()` and `writev()`) that are started without awaiting the
+previous one are performed one at a time, in the order they were called, so
+they never overlap in the file. A queued write is not performed if the writer
+fails, or its `signal` aborts, before its turn.
 
 The `writeSync()` and `writevSync()` methods enable the try-sync fast path
 used by [`stream/iter pipeTo()`][]. When the reader's chunk size matches the
@@ -8563,12 +8569,19 @@ Close the stream gracefully, flushing the internal buffer before closing.
 * `callback` {Function}
   * `err` {Error|null} An error if the flush failed, otherwise `null`.
 
-Writes the current buffer to the file if a write was not in progress. Do
-nothing if `minLength` is zero or if it is already writing.
+Writes the current buffer to the file. The callback is invoked after pending
+writes complete and, unless the `fsync` option is enabled, after the data has
+been synchronized with `fs.fsync()`. `fsync` errors indicating that the file
+descriptor does not support synchronization (for example, a pipe or a TTY)
+are ignored.
 
 #### `utf8Stream.flushSync()`
 
 Flushes the buffered data synchronously. This is a costly operation.
+
+If an asynchronous write is in flight when `flushSync()` is called, only the
+data queued after it is written, and it may reach the file before the data
+of the in-flight write.
 
 #### `utf8Stream.fsync`
 

@@ -73,9 +73,10 @@ std::shared_ptr<FFIFunction> CloneWithRawPointerArgNames(
     const std::shared_ptr<FFIFunction>& fn);
 std::shared_ptr<FFIFunction> CloneWithFastBufferArgNames(
     const std::shared_ptr<FFIFunction>& fn);
-std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn,
-                                                       const bool* closed,
-                                                       v8::Isolate* isolate);
+// A null metadata value allows signature/platform fallback. Nothing means an
+// exception was thrown because an eligible signature requires RX memory.
+v8::Maybe<std::unique_ptr<FastFFIMetadata>> CreateFastFFIMetadata(
+    const FFIFunction& fn, const bool* closed, v8::Isolate* isolate);
 
 }  // namespace node::ffi
 

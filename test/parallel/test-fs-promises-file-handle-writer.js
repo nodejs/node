@@ -1133,6 +1133,69 @@ async function testWriterWebIDLConversion() {
 // Run all tests
 // =============================================================================
 
+// =============================================================================
+// Overlapping (un-awaited) writes must land in call order
+// =============================================================================
+
+function makeTestData(size) {
+  const data = Buffer.allocUnsafe(size);
+  let seed = 0x9e3779b9;
+  for (let i = 0; i < size; i++) {
+    seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+    data[i] = seed & 0xff;
+  }
+  return data;
+}
+
+async function testConcurrentWritesPreserveOrder() {
+  const data = makeTestData(512 * 1024);
+  for (const options of [{}, { start: 0 }]) {
+    for (const useWritev of [false, true]) {
+      const filePath = path.join(
+        tmpDir,
+        `writer-concurrent-${options.start ?? 'none'}-${useWritev}.bin`);
+      const fh = await open(filePath, 'w');
+      const w = fh.writer(options);
+      const writes = [];
+      let offset = 0;
+      let i = 0;
+      while (offset < data.length) {
+        const size = 1 + ((i++ * 7919) % 9000);
+        const end = Math.min(offset + size, data.length);
+        const chunk = data.subarray(offset, end);
+        writes.push(useWritev ?
+          w.writev([chunk.subarray(0, 1), chunk.subarray(1)]) :
+          w.write(chunk));
+        offset = end;
+      }
+      await Promise.all(writes);
+      assert.strictEqual(await w.end(), data.length);
+      await fh.close();
+      assert.deepStrictEqual(fs.readFileSync(filePath), data);
+    }
+  }
+}
+
+async function testFailStopsQueuedWrites() {
+  const filePath = path.join(tmpDir, 'writer-fail-queued.bin');
+  const fh = await open(filePath, 'w');
+  const w = fh.writer();
+  const reason = new Error('stop');
+  const writes = [];
+  for (let i = 0; i < 10; i++) {
+    writes.push(w.write(Buffer.alloc(1024, i)));
+  }
+  w.fail(reason);
+  const results = await Promise.allSettled(writes);
+  for (const result of results) {
+    assert.strictEqual(result.status, 'rejected');
+    assert.strictEqual(result.reason, reason);
+  }
+  await fh.close();
+  // None of the queued writes may reach the file after fail().
+  assert.strictEqual(fs.statSync(filePath).size, 0);
+}
+
 Promise.all([
   testBasicWrite(),
   testBasicWritev(),
@@ -1187,4 +1250,6 @@ Promise.all([
   testWriterLimitAndStart(),
   testWriterArgumentValidation(),
   testWriterWebIDLConversion(),
+  testConcurrentWritesPreserveOrder(),
+  testFailStopsQueuedWrites(),
 ]).then(common.mustCall());

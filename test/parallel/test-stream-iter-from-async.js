@@ -99,10 +99,59 @@ async function testFromBoundsNestedAsyncIterable() {
   const iterator = from(source())[Symbol.asyncIterator]();
   const first = await iterator.next();
   assert.strictEqual(first.done, false);
-  assert.strictEqual(first.value.length, 128);
+  assert.ok(first.value.length > 0);
+  assert.ok(first.value.length <= 128);
 
   await iterator.return();
   assert.strictEqual(nestedClosed, true);
+}
+
+async function testFromDoesNotHoldBackNestedAsyncIterable() {
+  // Chunks from a nested async iterable must be delivered as they become
+  // available, not held back until the nested iterable produces more data
+  // or ends.
+  const { promise: release, resolve } = Promise.withResolvers();
+  async function* nested() {
+    yield new Uint8Array([1]);
+    await release;
+    yield new Uint8Array([2]);
+  }
+
+  async function* source() {
+    yield nested();
+    yield [new Uint8Array([3]), Promise.resolve(new Uint8Array([4]))];
+  }
+
+  const iterator = from(source())[Symbol.asyncIterator]();
+  assert.deepStrictEqual(await iterator.next(),
+                         { done: false, value: [new Uint8Array([1])] });
+  resolve();
+  const rest = [];
+  for (let r = await iterator.next(); !r.done; r = await iterator.next()) {
+    for (const chunk of r.value) rest.push(chunk[0]);
+  }
+  assert.deepStrictEqual(rest, [2, 3, 4]);
+}
+
+async function testFromBoundsPreBatchedAsyncValues() {
+  // An async source yielding an already-batched Uint8Array[] larger than the
+  // batch bound is split, like the same batch from a sync source.
+  const big = Array.from({ length: 300 }, (_, i) => new Uint8Array([i & 0xff]));
+  async function* source() {
+    yield big;
+  }
+  const sizes = [];
+  for await (const batch of from(source())) sizes.push(batch.length);
+  assert.deepStrictEqual(sizes, [128, 128, 44]);
+
+  // Batches within the bound are still passed through as-is.
+  const small = [new Uint8Array([1]), new Uint8Array([2])];
+  async function* smallSource() {
+    yield small;
+  }
+  for await (const batch of from(smallSource())) {
+    assert.strictEqual(batch, small);
+  }
 }
 
 async function testFromSyncIterableAsAsync() {
@@ -458,12 +507,37 @@ function testFromUndefinedThrows() {
   assert.throws(() => from(undefined), { code: 'ERR_INVALID_ARG_TYPE' });
 }
 
+async function testFromFunctionWithProtocols() {
+  // Functions are objects and may implement the protocols.
+  function asyncSource() {}
+  asyncSource[Symbol.for('Stream.toAsyncStreamable')] =
+    async () => 'async-function';
+  assert.strictEqual(await text(from(asyncSource)), 'async-function');
+
+  function syncSource() {}
+  syncSource[Symbol.for('Stream.toStreamable')] = () => 'sync-function';
+  assert.strictEqual(await text(from(syncSource)), 'sync-function');
+
+  async function* nested() {
+    yield asyncSource;
+    yield syncSource;
+  }
+  assert.strictEqual(await text(from(nested())),
+                     'async-functionsync-function');
+
+  // A function without a protocol is still rejected.
+  assert.throws(() => from(() => {}), { code: 'ERR_INVALID_ARG_TYPE' });
+}
+
 Promise.all([
   testFromString(),
   testFromAsyncGenerator(),
   testFromAsyncIteratorResultShapes(),
   testFromSourceErrorDoesNotWaitForReturn(),
   testFromBoundsNestedAsyncIterable(),
+  testFromFunctionWithProtocols(),
+  testFromDoesNotHoldBackNestedAsyncIterable(),
+  testFromBoundsPreBatchedAsyncValues(),
   testFromSyncIterableAsAsync(),
   testFromSyncIterableAwaitsPromiseValues(),
   testFromSyncIterableRejectsNestedAsyncIterable(),

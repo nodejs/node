@@ -41,7 +41,7 @@ documented [on the V8 wiki][V8MergingPatching]. The summary of the process is:
 ## Node.js support requirements
 
 At any given time Node.js needs to be maintaining a few different V8 branches
-for the various Current, LTS, and nightly releases.
+for the various Alpha, Current, LTS, and nightly releases.
 The versions of V8 used in Node.js may have already been
 abandoned by upstream V8. However, Node.js needs to continue supporting
 these branches for many months (Current branches) or several

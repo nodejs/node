@@ -286,15 +286,14 @@ added: v8.1.0
 -->
 
 * `socket` {stream.Duplex}
+* Returns: {boolean}
 
 Called when `socket` is detached from a request and could be persisted by the
-`Agent`. Default behavior is to:
+`Agent`. The `Agent` calls this method only when `keepAlive` is enabled.
 
-```js
-socket.setKeepAlive(true, this.keepAliveMsecs);
-socket.unref();
-return true;
-```
+By default, TCP keep-alive is enabled and the socket is unrefed. A server
+keep-alive timeout hint may adjust the socket timeout or cause this method to
+return `false`; otherwise, it returns `true`.
 
 This method can be overridden by a particular `Agent` subclass. If this
 method returns a falsy value, the socket will be destroyed instead of persisting
@@ -1193,56 +1192,55 @@ added:
 
 * Type: {boolean} Whether the request is sent through a reused socket.
 
-When sending request through a keep-alive enabled agent, the underlying socket
-might be reused. But if server closes connection at unfortunate time, client
-may run into a 'ECONNRESET' error.
+When sending a request through a keep-alive-enabled agent, the underlying socket
+might be reused. If the server closes the connection at the same time that the
+agent reuses it, the request may encounter an `ECONNRESET` error.
+
+The following example sends requests near the server's keep-alive timeout to
+make this race easier to reproduce. It sets
+[`server.keepAliveTimeoutBuffer`][] to `0` so the internal socket timeout
+matches [`server.keepAliveTimeout`][].
 
 ```mjs
 import http from 'node:http';
 const agent = new http.Agent({ keepAlive: true });
-
-// Server has a 5 seconds keep-alive timeout by default
-http
-  .createServer((req, res) => {
+const server = http.createServer(
+  { keepAliveTimeout: 3000, keepAliveTimeoutBuffer: 0 },
+  (req, res) => {
     res.write('hello\n');
     res.end();
-  })
-  .listen(3000);
+  },
+);
+server.listen(3000);
 
 setInterval(() => {
-  // Adapting a keep-alive agent
   http.get('http://localhost:3000', { agent }, (res) => {
-    res.on('data', (data) => {
-      // Do nothing
-    });
+    res.resume();
   });
-}, 5000); // Sending request on 5s interval so it's easy to hit idle timeout
+}, 3000);
 ```
 
 ```cjs
 const http = require('node:http');
 const agent = new http.Agent({ keepAlive: true });
-
-// Server has a 5 seconds keep-alive timeout by default
-http
-  .createServer((req, res) => {
+const server = http.createServer(
+  { keepAliveTimeout: 3000, keepAliveTimeoutBuffer: 0 },
+  (req, res) => {
     res.write('hello\n');
     res.end();
-  })
-  .listen(3000);
+  },
+);
+server.listen(3000);
 
 setInterval(() => {
-  // Adapting a keep-alive agent
   http.get('http://localhost:3000', { agent }, (res) => {
-    res.on('data', (data) => {
-      // Do nothing
-    });
+    res.resume();
   });
-}, 5000); // Sending request on 5s interval so it's easy to hit idle timeout
+}, 3000);
 ```
 
-By marking a request whether it reused socket or not, we can do
-automatic error retry base on it.
+By checking `request.reusedSocket`, an application can retry idempotent requests
+that fail because a reused connection was reset.
 
 ```mjs
 import http from 'node:http';
@@ -3719,6 +3717,11 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/59824
     description: The `shouldUpgradeCallback` option is now supported.
   - version:
+      - v24.6.0
+      - v22.19.0
+    pr-url: https://github.com/nodejs/node/pull/59243
+    description: The `keepAliveTimeoutBuffer` option is supported now.
+  - version:
     - v20.1.0
     - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47405
@@ -3798,6 +3801,10 @@ changes:
     the last response, before a socket will be destroyed.
     See [`server.keepAliveTimeout`][] for more information.
     **Default:** `65000`.
+  * `keepAliveTimeoutBuffer`: An additional buffer time in milliseconds added
+    to `keepAliveTimeout` to extend the internal socket timeout.
+    See [`server.keepAliveTimeoutBuffer`][] for more information.
+    **Default:** `1000`.
   * `maxHeaderSize` {number} Optionally overrides the value of
     [`--max-http-header-size`][] for requests received by this server, i.e.
     the maximum length of request headers in bytes.

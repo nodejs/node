@@ -78,6 +78,12 @@ function verifyStats(bigintStats, numStats, allowableDelta) {
         `Number version ${key} = ${msFromNum}, ` +
         `BigInt version ${nsKey} = ${nsFromBigInt}n` +
         ` = ${msFromBigIntNs}ms, Allowable delta = ${allowableDelta}`);
+    } else if (key === 'blocks') {
+      // Some file systems (e.g. ZFS on SmartOS) update the block count of a
+      // freshly written file asynchronously, so it can change between the
+      // two stat() calls.
+      assert.strictEqual(typeof bigintStats[key], 'bigint');
+      assert(bigintStats[key] >= 0n);
     } else if (Number.isSafeInteger(val)) {
       assert.strictEqual(
         bigintStats[key], BigInt(val),

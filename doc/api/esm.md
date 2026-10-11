@@ -745,6 +745,11 @@ imports is supported.
 Both of these integrations are in line with the
 [ES Module Integration Proposal for WebAssembly][].
 
+When WebAssembly is unavailable in the current environment, importing a Wasm
+module throws [`ERR_WEBASSEMBLY_NOT_SUPPORTED`](errors.md#err_webassembly_not_supported).
+This also applies to source phase imports. Node.js does not provide an
+alternative implementation when WebAssembly is unavailable.
+
 ### Wasm Source Phase Imports
 
 > Stability: 1.2 - Release candidate

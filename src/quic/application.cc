@@ -156,7 +156,7 @@ MaybeLocal<Object> Session::Application_Options::ToObject(
   static_assert(std::size(values) == std::size(names));
 
   auto obj = tmpl->NewInstance(env->context(), values);
-  if (obj->SetPrototypeV2(env->context(), Null(env->isolate())).IsNothing()) {
+  if (obj->SetPrototype(env->context(), Null(env->isolate())).IsNothing()) {
     return {};
   }
   return obj;

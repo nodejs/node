@@ -146,72 +146,168 @@ function testShareSyncRejectsUnbounded() {
   );
 }
 
-function testShareSyncDropNewest() {
-  let pulls = 0;
+function testShareSyncRejectsDropNewest() {
+  // A synchronous consumer can neither wait for the slowest consumer nor keep
+  // discarding until it advances, so 'drop-newest' is rejected like
+  // 'unbounded'.
+  assert.throws(
+    () => shareSync(fromSync('data'), { backpressure: 'drop-newest' }),
+    { code: 'ERR_INVALID_ARG_VALUE' },
+  );
+}
+
+// shareSync() accepts string source directly (normalized via fromSync())
+function testShareSyncRetainsBufferWhenAllConsumersDetach() {
+  // Data that a consumer had not read yet must stay available to consumers
+  // that attach after every previous consumer has detached.
+  const enc = new TextEncoder();
+  function* gen() {
+    yield [enc.encode('a')];
+    yield [enc.encode('b')];
+    yield [enc.encode('c')];
+  }
+  const shared = shareSync(gen(), { budget: 16384 });
+  const c1 = shared.pull()[Symbol.iterator]();
+  const c2 = shared.pull()[Symbol.iterator]();
+  assert.deepStrictEqual(c1.next().value, [enc.encode('a')]);
+  c1.return();
+  c2.return();
+  assert.strictEqual(shared.consumerCount, 0);
+
+  assert.strictEqual(textSync(shared.pull()), 'abc');
+}
+
+function testShareSyncStrictBackpressureDetaches() {
+  for (const transformed of [false, true]) {
+    function* source() {
+      for (let i = 0; i < 10; i++) {
+        yield [new Uint8Array(16384)];
+      }
+    }
+    const shared = shareSync(source(), {
+      budget: 32768,
+      backpressure: 'strict',
+    });
+    const consumer = transformed ?
+      shared.pull((chunks) => chunks) : shared.pull();
+    const fast = consumer[Symbol.iterator]();
+    // This consumer prevents the buffer from being trimmed.
+    const slow = shared.pull()[Symbol.iterator]();
+
+    fast.next();
+    fast.next();
+    assert.throws(() => fast.next(), { code: 'ERR_OUT_OF_RANGE' });
+    // The rejected consumer is detached, as with the async share.
+    assert.strictEqual(shared.consumerCount, 1);
+    assert.strictEqual(fast.next().done, true);
+
+    // The detached consumer no longer pins the buffer, so the remaining
+    // consumer can read the whole source.
+    let count = 0;
+    while (!slow.next().done) count++;
+    assert.strictEqual(count, 10);
+  }
+}
+
+function testShareSyncStrictForOfDoesNotWedgeOthers() {
+  // for...of does not call return() when next() throws. The consumer that
+  // hit the budget must still not keep the other consumers from reading.
   function* source() {
-    for (let i = 0; i < 4; i++) {
-      pulls++;
-      const chunk = new Uint8Array(16384);
+    for (let i = 0; i < 20; i++) yield [new Uint8Array(8192)];
+  }
+  const shared = shareSync(source(), { budget: 16384, backpressure: 'strict' });
+  const slow = shared.pull()[Symbol.iterator]();
+  assert.throws(() => {
+    // eslint-disable-next-line no-unused-vars
+    for (const _ of shared.pull()) { /* consume */ }
+  }, { code: 'ERR_OUT_OF_RANGE' });
+  assert.strictEqual(shared.consumerCount, 1);
+  let count = 0;
+  while (!slow.next().done) count++;
+  assert.strictEqual(count, 20);
+}
+
+function testShareSyncDropOldestSplitsOversizedBatches() {
+  // fromSync() combines the values of this generator into a single batch
+  // that is much larger than the budget. Evicting that batch as a whole would
+  // leave the slower consumer with nothing at all.
+  function* source() {
+    for (let i = 0; i < 50; i++) {
+      const chunk = new Uint8Array(4096);
       chunk[0] = i;
-      yield [chunk];
+      yield chunk;
     }
   }
-
   const shared = shareSync(source(), {
-    budget: 16384,
-    backpressure: 'drop-newest',
+    budget: 65536,
+    backpressure: 'drop-oldest',
   });
   const fast = shared.pull()[Symbol.iterator]();
   const slow = shared.pull()[Symbol.iterator]();
 
-  assert.strictEqual(fast.next().value[0][0], 0);
+  const fastSeen = [];
+  for (let r = fast.next(); !r.done; r = fast.next()) {
+    for (const chunk of r.value) fastSeen.push(chunk[0]);
+  }
+  assert.deepStrictEqual(fastSeen, Array.from({ length: 50 }, (_, i) => i));
 
-  // The budget is exhausted and the slow consumer cannot advance while this
-  // call is running, so exactly one entry is dropped and no value is
-  // available. The consumer is not detached.
-  assert.strictEqual(fast.next().done, true);
-  assert.strictEqual(pulls, 2);
-
-  // The slow consumer still sees the buffered entry, which releases budget.
-  assert.strictEqual(slow.next().value[0][0], 0);
-
-  // Entry 1 was dropped for every consumer, so both resume at entry 2.
-  assert.strictEqual(slow.next().value[0][0], 2);
-  assert.strictEqual(pulls, 3);
-  assert.strictEqual(fast.next().value[0][0], 2);
+  const slowSeen = [];
+  for (let r = slow.next(); !r.done; r = slow.next()) {
+    for (const chunk of r.value) slowSeen.push(chunk[0]);
+  }
+  // The slow consumer lost the oldest chunks but keeps an in-order suffix
+  // that fits the budget.
+  assert.ok(slowSeen.length > 0);
+  assert.ok(slowSeen.length * 4096 < 65536);
+  assert.deepStrictEqual(
+    slowSeen,
+    Array.from({ length: slowSeen.length }, (_, i) => 50 - slowSeen.length + i));
 }
 
-// Regression test: a full buffer must not spin pulling-and-discarding from an
-// unbounded source, since discarding never reclaims budget.
-function testShareSyncDropNewestUnboundedSource() {
-  let pulls = 0;
+function testShareSyncReentrantSourceRead() {
+  const enc = new TextEncoder();
+  let sibling;
+  let reentrantError;
   function* source() {
-    for (;;) {
-      pulls++;
-      yield [new Uint8Array(16384)];
+    yield [enc.encode('a')];
+    try {
+      sibling.next();
+    } catch (err) {
+      reentrantError = err;
     }
+    yield [enc.encode('b')];
   }
+  const shared = shareSync(source());
+  const c1 = shared.pull()[Symbol.iterator]();
+  sibling = shared.pull()[Symbol.iterator]();
 
-  const shared = shareSync(source(), {
-    budget: 16384,
-    backpressure: 'drop-newest',
-  });
-  const fast = shared.pull()[Symbol.iterator]();
-  shared.pull();
-
-  assert.strictEqual(fast.next().done, false);
-  assert.strictEqual(pulls, 1);
-
-  // Each blocked call drops at most one entry and returns without a value.
-  for (let i = 0; i < 3; i++) {
-    assert.strictEqual(fast.next().done, true);
-    assert.strictEqual(pulls, 2 + i);
-  }
-
-  shared.cancel();
+  assert.deepStrictEqual(c1.next().value, [enc.encode('a')]);
+  assert.deepStrictEqual(sibling.next().value, [enc.encode('a')]);
+  // Pulling 'b' runs the source, which tries to read its own share.
+  assert.deepStrictEqual(c1.next().value, [enc.encode('b')]);
+  assert.strictEqual(reentrantError?.code, 'ERR_INVALID_STATE');
+  // The failed re-entrant read left the share intact.
+  assert.deepStrictEqual(sibling.next().value, [enc.encode('b')]);
+  assert.strictEqual(c1.next().done, true);
+  assert.strictEqual(sibling.next().done, true);
 }
 
-// shareSync() accepts string source directly (normalized via fromSync())
+function testShareSyncReentrantSourceReadUncaught() {
+  let sibling;
+  function* source() {
+    yield [new Uint8Array(1)];
+    sibling.next();
+  }
+  const shared = shareSync(source());
+  const c1 = shared.pull()[Symbol.iterator]();
+  sibling = shared.pull()[Symbol.iterator]();
+  c1.next();
+  sibling.next();
+  // The error escapes the source, so it becomes the share's source error.
+  assert.throws(() => c1.next(), { code: 'ERR_INVALID_STATE' });
+  assert.throws(() => sibling.next(), { code: 'ERR_INVALID_STATE' });
+}
+
 function testShareSyncStringSource() {
   const shared = shareSync('hello-sync-share');
   const result = textSync(shared.pull());
@@ -227,7 +323,12 @@ Promise.all([
   testShareSyncCancelWithFalsyReason(),
   testShareSyncSourceError(),
   testShareSyncRejectsUnbounded(),
-  testShareSyncDropNewest(),
-  testShareSyncDropNewestUnboundedSource(),
+  testShareSyncRejectsDropNewest(),
+  testShareSyncDropOldestSplitsOversizedBatches(),
+  testShareSyncReentrantSourceRead(),
+  testShareSyncReentrantSourceReadUncaught(),
   testShareSyncStringSource(),
+  testShareSyncRetainsBufferWhenAllConsumersDetach(),
+  testShareSyncStrictBackpressureDetaches(),
+  testShareSyncStrictForOfDoesNotWedgeOthers(),
 ]).then(common.mustCall());

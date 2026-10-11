@@ -41,24 +41,36 @@ Looking for help? Check out the
 
 ## Release types
 
-* **Current**: Under active development. Code for the Current release is in the
-  branch for its major version number (for example,
-  [v22.x](https://github.com/nodejs/node/tree/v22.x)). Node.js releases a new
-  major version every 6 months, allowing for breaking changes. This happens in
-  April and October every year. Releases appearing each October have a support
-  life of 8 months. Releases appearing each April convert to LTS (see below)
-  each October.
-* **LTS**: Releases that receive Long Term Support, with a focus on stability
-  and security. Every even-numbered major version will become an LTS release.
-  LTS releases receive 12 months of _Active LTS_ support and a further 18 months
-  of _Maintenance_. LTS release lines have alphabetically-ordered code names,
-  beginning with v4 Argon. There are no breaking changes or feature additions,
-  except in some special circumstances.
-* **Nightly**: Code from the Current branch built every 24-hours when there are
-  changes. Use with caution.
+Node.js follows [semantic versioning](https://semver.org).
 
-Current and LTS releases follow [semantic versioning](https://semver.org). A
-member of the Release Team [signs](#release-keys) each Current and LTS release.
+* **Alpha**: Under active development where semver-major changes are allowed.
+  Each October, a new release line (for example, Node.js 27) branches off `main`
+  and receives Alpha releases (for example, `27.0.0-alpha.0.0.0`) for 6 months,
+  then are promoted to Current (see below) each April. Alpha releases are signed,
+  tagged, and tested through [CITGM](https://github.com/nodejs/citgm), but their
+  API and ABI may change between releases. They are intended for library authors
+  and CI pipelines, not for production use.
+* **Current**: Under active development, no semver-major changes allowed. Node.js
+  releases a new major version once a year, in April. Releases stay Current for
+  6 months, then convert to LTS (see below) each October. Their ABI may change
+  between releases. They are intended for library authors and CI pipelines, not
+  for production use.
+* **LTS**: Releases under Long Term Support, with a focus on stability
+  and security. Only changes that have been on Alpha or Current release for two
+  weeks can be backported to a typical LTS release. Every major version becomes an LTS
+  release, and receives 30 months of LTS support, for a total of 36 months from
+  its first Current release to End-of-Life. LTS release lines have alphabetically-ordered
+  code names, beginning with Node.js 4 Argon.
+* **Nightly**: Code from the `main` branch built every 24-hours when there are
+  changes. Unlike Alpha releases, nightly builds are automated and untested.
+  Use with caution.
+
+Release lines up to and including Node.js 26 follow the previous schedule, where a
+new major version was released every 6 months and only even-numbered major
+versions became LTS. See the
+[Node.js release schedule announcement](https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule)
+for details.
+
 For more information, see the
 [Release README](https://github.com/nodejs/Release#readme).
 
