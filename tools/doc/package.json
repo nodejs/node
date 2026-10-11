@@ -3,8 +3,8 @@
   "private": true,
   "dependencies": {
     "@doc-kit/cli": "1.0.4",
-    "@doc-kit/generator-react": "0.4.0",
-    "@node-core/doc-kit": "2.0.4",
+    "@doc-kit/generator-react": "0.4.2",
+    "@node-core/doc-kit": "2.0.5",
     "@node-core/doc-kit-legacy": "1.0.4"
   }
 }
