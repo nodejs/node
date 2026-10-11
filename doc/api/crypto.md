@@ -2531,7 +2531,7 @@ or `'private'` for private (asymmetric) keys.
 ## Class: `Mac`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * Extends: {stream.Transform}
@@ -2576,7 +2576,7 @@ console.log(mac.final('hex'));
 ### `mac.final([outputEncoding])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * `outputEncoding` {string} The [encoding][] of the return value.
@@ -2596,7 +2596,7 @@ including when finalization fails. Later calls to `mac.update()` or
 ### `mac.update(data[, inputEncoding])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * `data` {string|Buffer|TypedArray|DataView}
@@ -3643,13 +3643,13 @@ operations. The specific constants currently defined are described in
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65484
     description: Additional ciphers available through OpenSSL providers (e.g.
                  SM4-GCM, SM4-CCM, SM4-XTS, CBC-CTS, and AES key-wrap variants)
                  are now supported. The `ctsMode` and `xtsStandard` options
                  were added.
-  - version: REPLACEME
+  - version: v24.22.0
     pr-url: https://github.com/nodejs/node/pull/63411
     description: Ciphers in SIV and GCM-SIV modes are now supported.
   - version:
@@ -3749,13 +3749,13 @@ and can be transmitted with the ciphertext.
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65484
     description: Additional ciphers available through OpenSSL providers (e.g.
                  SM4-GCM, SM4-CCM, SM4-XTS, CBC-CTS, and AES key-wrap variants)
                  are now supported. The `ctsMode` and `xtsStandard` options
                  were added.
-  - version: REPLACEME
+  - version: v24.22.0
     pr-url: https://github.com/nodejs/node/pull/63411
     description: Ciphers in SIV and GCM-SIV modes are now supported.
   - version:
@@ -3930,7 +3930,7 @@ and description of each available elliptic curve.
 <!-- YAML
 added: v0.1.92
 changes:
-  - version: REPLACEME
+  - version: v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65484
     description: Hash algorithms exposed by OpenSSL providers are now
                  supported. The `functionName` and `customization` options
@@ -4123,7 +4123,7 @@ input.on('readable', () => {
 ### `crypto.createMac(algorithm, key[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 > Stability: 1.2 - Release candidate
@@ -5144,7 +5144,7 @@ mode][].
 <!-- YAML
 added: v0.9.3
 changes:
-  - version: REPLACEME
+  - version: v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65484
     description: Names and aliases exposed by loaded OpenSSL providers that
                  match the default property query are now included.
@@ -5183,7 +5183,7 @@ console.log(getHashes()); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 ### `crypto.getMacs()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 > Stability: 1.2 - Release candidate
@@ -5234,7 +5234,7 @@ added:
  - v21.7.0
  - v20.12.0
 changes:
-  - version: REPLACEME
+  - version: v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65484
     description: Hash algorithms exposed by OpenSSL providers are now
                  supported. The `functionName` and `customization` options
@@ -5453,7 +5453,7 @@ console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
 ### `crypto.parsePKCS12(bundle[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * `bundle` {ArrayBuffer|Buffer|TypedArray|DataView} A DER-encoded PKCS#12
@@ -5651,7 +5651,7 @@ suitable for HMAC or PBKDF2.
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: REPLACEME
+  - version: v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65073
     description: The `mgf1Hash` option was added.
   - version:
@@ -5803,7 +5803,7 @@ be passed instead of a public key.
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: REPLACEME
+  - version: v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65073
     description: The `mgf1Hash` option was added.
   - version: v15.0.0

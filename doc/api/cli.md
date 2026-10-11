@@ -797,7 +797,7 @@ Node.js must be built against a FIPS-capable OpenSSL.
 ### `--enable-fips-indicator-events`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 Publish OpenSSL FIPS indicator results to the
@@ -1404,7 +1404,7 @@ Disable loading native addons that are not [context-aware][].
 <!-- YAML
 added: v6.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65645
     description: Added the optional `provider` and `strict` modes.
 -->
@@ -2493,7 +2493,7 @@ forked processes, or clustered processes.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.22.0
     pr-url: https://github.com/nodejs/node/pull/64606
     description: Passing `--run` without a command lists the available scripts.
   - version: v22.3.0

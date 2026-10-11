@@ -1152,7 +1152,7 @@ passed to `console.error()`.
 #### Crypto
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 > Stability: 1 - Experimental
@@ -1570,7 +1570,7 @@ Emitted when a new thread is created.
 #### SQLite
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 > Stability: 1 - Experimental

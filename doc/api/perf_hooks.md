@@ -1090,7 +1090,7 @@ before Node.js receives the first byte of the response from the server.
 ### `performanceResourceTiming.finalResponseHeadersStart`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * Type: {number}
@@ -1102,7 +1102,7 @@ as opposed to an interim response.
 ### `performanceResourceTiming.firstInterimResponseStart`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * Type: {number}
@@ -1118,7 +1118,7 @@ added:
   - v18.2.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65017
     description: This property now returns `firstInterimResponseStart`
                  when it is non-zero.
@@ -1213,7 +1213,7 @@ content-codings.
 ### `performanceResourceTiming.renderBlockingStatus`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * Type: {string}
@@ -1223,7 +1223,7 @@ The render blocking status of the resource. It is either `'blocking'` or `'non-b
 ### `performanceResourceTiming.contentType`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * Type: {string}
@@ -1234,7 +1234,7 @@ string if it cannot be determined.
 ### `performanceResourceTiming.contentEncoding`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * Type: {string}
@@ -1717,7 +1717,7 @@ Returns a {RecordableHistogram}.
 ## `perf_hooks.createSlidingWindowHistogram(options)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * `options` {Object}
@@ -1772,7 +1772,7 @@ console.log(snapshot.percentile(99));
 ## `perf_hooks.importHistogram(data)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * `data` {Uint8Array} A CBOR-encoded histogram previously produced by
@@ -2126,7 +2126,7 @@ loop delay threshold.
 ### `histogram.export()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * Returns: {Uint8Array}
@@ -2334,7 +2334,7 @@ The mean of the recorded event loop delays.
 ### `histogram.meanCI([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * `options` {Object}
@@ -2485,7 +2485,7 @@ efficient pass over the histogram data. More efficient than calling
 ### `histogram.qrde([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * `options` {Object}
@@ -2735,7 +2735,7 @@ are clamped to zero.
 ## Class: `SlidingWindowHistogram`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 Records values into a lazily rotated ring of histogram chunks. Instances are
@@ -2749,7 +2749,7 @@ call `snapshot()` to materialize the current window as a {Histogram}.
 ### `slidingWindowHistogram.record(val)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * `val` {number|bigint} The amount to record.
@@ -2761,7 +2761,7 @@ exceed the configured `highest` value.
 ### `slidingWindowHistogram.reset()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 Invalidates all chunks in the current window. Allocated chunks are reset
@@ -2770,7 +2770,7 @@ lazily when reused.
 ### `slidingWindowHistogram.snapshot()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * Returns: {Histogram}

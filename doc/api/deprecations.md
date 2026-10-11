@@ -4509,7 +4509,7 @@ will throw an error in a future version.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.22.0
     pr-url: https://github.com/nodejs/node/pull/64794
     description: Documentation-only.
 -->
@@ -4526,7 +4526,7 @@ calling or overriding `_listen2`.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.22.0
     pr-url: https://github.com/nodejs/node/pull/64342
     description: Documentation-only deprecation.
 -->

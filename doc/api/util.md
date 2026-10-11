@@ -386,7 +386,7 @@ property take precedence over `--trace-deprecation` and
 ## `util.debounce(fn, wait[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * `fn` {Function} The function to debounce.
@@ -484,7 +484,7 @@ onInactivity();
 ## `util.throttle(fn, limit, interval[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * `fn` {Function} The function to throttle.
@@ -1875,7 +1875,7 @@ equality.
 ## `util.markPromiseAsHandled(promise)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.22.0
 -->
 
 * `promise` {Promise} The promise to mark as handled
