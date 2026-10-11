@@ -71,7 +71,7 @@ to their caller.
 
 Each warmup and measured sample invokes the benchmark function once with a
 fresh {BenchContext}. The function must either call `context.start()` and
-`context.end(operations)` exactly once, or call `context.record(sample)` exactly
+`context.end([operations])` exactly once, or call `context.record(sample)` exactly
 once to provide an externally measured sample. Setup before `start()` and
 cleanup after `end()` are outside the measured region. Promise-returning
 functions are awaited.
@@ -665,14 +665,14 @@ added: v26.9.0
 Starts the measured region using `process.hrtime.bigint()`. Calling `start()`
 more than once is an error.
 
-### `context.end(operations[, options])`
+### `context.end([operations[, options]])`
 
 <!-- YAML
 added: v26.9.0
 -->
 
 * `operations` {number} The number of completed operations. Must be a positive
-  safe integer.
+  safe integer. **Default:** `1`.
 * `options` {Object}
   * `detail` {any} Additional structured-cloneable sample data. With CLI process
     isolation, it must also be supported by advanced child process
@@ -694,7 +694,7 @@ added: v26.9.0
 
 * `sample` {Object}
   * `operations` {number} The number of completed operations. Must be a positive
-    safe integer.
+    safe integer. **Default:** `1`.
   * `duration_ns` {bigint} An externally measured positive duration in
     nanoseconds no greater than `Number.MAX_SAFE_INTEGER`.
   * `detail` {any} Additional structured-cloneable sample data. With CLI process
