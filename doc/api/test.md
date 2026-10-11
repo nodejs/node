@@ -2775,6 +2775,12 @@ changes:
     **This option cannot be used with `options.exports`.**
     This option is deprecated and will be removed in a later version.
     Prefer `options.exports`.
+  * `virtual` {boolean} If `true`, `specifier` is allowed to refer to a module
+    that cannot be resolved, such as a package that is not installed or a file
+    that does not exist. The mock is then created as an ECMAScript module that
+    can be loaded with both `import` and `require()`. If the module can be
+    resolved, this option has no effect and the module is mocked as usual.
+    **Default:** `false`.
 * Returns: {MockModuleContext} An object that can be used to manipulate the mock.
 
 This function is used to mock the exports of ECMAScript modules, CommonJS modules, JSON modules, and
