@@ -2,6 +2,7 @@
 
 const common = require('../common');
 const fixtures = require('../common/fixtures');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
 const { symlinkSync, writeFileSync } = require('node:fs');
@@ -130,6 +131,21 @@ describe('CJS: --experimental-package-map', { concurrency: !process.env.TEST_PAR
       assert.strictEqual(stderr, '');
       assert.match(stdout, /function/);
       assert.strictEqual(status, 0, stderr);
+    });
+
+    it('resolves package imports without consulting the map', () => {
+      spawnSyncAndAssert(process.execPath, [
+        '--no-warnings',
+        '--experimental-package-map', packageMapPath,
+        '-e',
+        `const root = require('#root'); console.log(root.default);`,
+      ], {
+        cwd: fixtures.path('package-map/root'),
+        encoding: 'utf8',
+      }, {
+        stderr: '',
+        stdout: /root-package/,
+      });
     });
 
     it('throws when parent not in map', () => {
