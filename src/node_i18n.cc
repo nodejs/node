@@ -814,9 +814,7 @@ static int GetClusterWidth(const UChar* str,
 
 struct CharacterBreakIterator {
   UBreakIterator* iterator = nullptr;
-  ~CharacterBreakIterator() {
-    if (iterator != nullptr) ubrk_close(iterator);
-  }
+  ~CharacterBreakIterator() { ubrk_close(iterator); }
 };
 
 // Returns the column width of the given string, counted per grapheme cluster

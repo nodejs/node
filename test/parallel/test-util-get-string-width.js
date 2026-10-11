@@ -77,6 +77,14 @@ if (common.hasIntl) {
   assert.strictEqual(getStringWidth('\u1161'), 1);  // Lone vowel jamo.
   assert.strictEqual(getStringWidth('🧑🏽\u200D🤝\u200D🧑🏻'), 2);
   assert.strictEqual(getStringWidth('\u{E0001}'), 0);  // Language tag.
+  assert.strictEqual(getStringWidth('\u26F9\u200D\u2642'), 2);  // Unqualified sequence.
+  assert.strictEqual(getStringWidth('*\u20E3'), 2);
+  assert.strictEqual(getStringWidth('a\u20E3'), 1);  // Not a keycap base.
+  assert.strictEqual(getStringWidth('\u1100\u0301'), 2);
+  assert.strictEqual(getStringWidth('\u1100\u093F'), 3);  // Jamo with a spacing mark.
+  assert.strictEqual(getStringWidth('\u{1F1E6}\u{1F1E6}'), 1);  // Not a flag.
+  assert.strictEqual(getStringWidth('1\u0301'), 1);  // Not a keycap.
+  assert.strictEqual(getStringWidth('\u0D4E\u0D15'), 1);  // Malayalam dot reph, a prepended letter.
 }
 
 for (const value of [undefined, null, 1, true, {}, [], Symbol('s')]) {
