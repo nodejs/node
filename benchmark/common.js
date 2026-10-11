@@ -470,7 +470,11 @@ module.exports = {
       return process.binding(bindingName);
     }
   },
-  buildType: process.features.debug ? 'Debug' : 'Release',
+  // As in test/common: a --debug-node build is still a Release build, and its
+  // addons are in build/Release.
+  buildType: process.config.target_defaults ?
+    process.config.target_defaults.default_configuration :
+    'Release',
   createBenchmark(fn, configs, options) {
     return new Benchmark(fn, configs, options);
   },
