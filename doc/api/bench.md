@@ -124,8 +124,9 @@ specialize it more narrowly than the workload being modeled. Framework and loop
 overhead can also dominate operations that are too short. To reduce these risks:
 
 * Make values produced by measured work observable outside the measured
-  interval, for example by validating an aggregate derived from every result.
-  Passing them only through unused local computations is insufficient.
+  interval, for example by validating an aggregate derived from every result
+  or by passing each result to [`doNotOptimize()`][]. Passing them only through
+  unused local computations is insufficient.
 * Perform enough operations in each sample to amortize fixed timer reads and
   calls to `context.start()` and `context.end()`. If loop bookkeeping is material
   relative to one operation, batch multiple operations per iteration and report
@@ -138,7 +139,10 @@ overhead can also dominate operations that are too short. To reduce these risks:
 
 `node:bench` does not force a particular optimization state or infer whether an
 engine eliminated work. Such controls and diagnostics are runtime-specific and
-heuristic, and do not replace validating the benchmark workload.
+heuristic, and do not replace validating the benchmark workload. The `spec`
+reporter flags rates that are implausibly fast for real work, which often
+indicates eliminated work, but the absence of that warning does not prove the
+work was measured.
 
 ### Dynamic sampling and variable batches
 
@@ -311,8 +315,11 @@ are started from the same executable, but their `execArgv` can differ.
 The `spec` reporter buffers results and outputs a summary of the environment
 followed by a concise table containing the sample count, mean rate, 95%
 confidence interval for the mean, median rate, and warnings. A coefficient of
-variation above 5% is reported as `noisy`, and an absolute skewness above 1 is
-reported as `skewed`. The exact human-readable format is subject to change.
+variation above 5% is reported as `noisy`, an absolute skewness above 1 is
+reported as `skewed`, and a median rate of at least one operation per
+nanosecond is reported as `implausible`, as it usually indicates that the
+measured work was optimized away. The exact human-readable format is subject to
+change.
 
 The `json` reporter emits a `'bench:environment'` record containing the
 environment snapshot before the first lifecycle record, and then emits every
@@ -489,6 +496,61 @@ added: v26.9.0
 -->
 
 Alias for `suite()`.
+
+## `doNotOptimize(value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {any} A value produced by measured work.
+* Returns: {any} `value`.
+
+Stores `value` where the optimizing compiler cannot prove it is unused, so the
+computation that produced it is not eliminated as dead code. Returning `value`
+allows the call to wrap an expression.
+
+```mjs
+import { bench, doNotOptimize } from 'node:bench';
+
+bench('Math.sqrt', (b) => {
+  const n = 1_000_000;
+  b.start();
+  for (let i = 0; i < n; i++) {
+    doNotOptimize(Math.sqrt(i));
+  }
+  b.end(n);
+});
+```
+
+```cjs
+const { bench, doNotOptimize } = require('node:bench');
+
+bench('Math.sqrt', (b) => {
+  const n = 1_000_000;
+  b.start();
+  for (let i = 0; i < n; i++) {
+    doNotOptimize(Math.sqrt(i));
+  }
+  b.end(n);
+});
+```
+
+The call adds a small, constant cost to every invocation, so it is best suited
+to work that takes longer than a few nanoseconds per call. For cheaper
+operations, accumulate results into a value that is passed to
+`doNotOptimize()` once after the measured region.
+
+`doNotOptimize()` only prevents the result from being discarded. It does not
+prevent the compiler from hoisting loop-invariant work or folding constant
+inputs; vary inputs between iterations when the work would otherwise be
+invariant.
+
+`doNotOptimize()` is intended to be called only from benchmark functions while
+a runner is executing them. Non-number values are retained until the current
+sample finishes, after which the runner releases them. When called outside a
+benchmark function, the most recent non-number value remains reachable until
+`doNotOptimize()` is called again.
 
 ## `before(fn)`
 
@@ -918,6 +980,7 @@ A completed benchmark result contains:
 [`--bench-gc`]: cli.md#--bench-gcmode
 [`context.record()`]: #contextrecordsample
 [`createRunner()`]: #createrunneroptions
+[`doNotOptimize()`]: #donotoptimizevalue
 [`os`]: os.md
 [`run()`]: #runoptions
 [benchmark reporters]: #benchmark-reporters
