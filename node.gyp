@@ -18,6 +18,7 @@
     'node_shared_brotli%': 'false',
     'node_shared_cares%': 'false',
     'node_shared_gtest%': 'false',
+    'node_shared_gtest_libraries%': [],
     'node_shared_hdr_histogram%': 'false',
     'node_shared_http_parser%': 'false',
     'node_shared_libuv%': 'false',
@@ -1309,7 +1310,7 @@
           ],
         }],
         [ 'node_shared_gtest=="true"', {
-          'libraries': [ '-lgtest_main' ],
+          'libraries': [ '-lgtest_main', '<@(node_shared_gtest_libraries)' ],
         }],
         [ 'node_shared_hdr_histogram=="false"', {
           'dependencies': [
