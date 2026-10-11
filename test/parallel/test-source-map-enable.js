@@ -216,6 +216,18 @@ function nextdir() {
   );
 }
 
+// Applies index source-maps to stack trace.
+{
+  const output = spawnSync(process.execPath, [
+    '--enable-source-maps',
+    require.resolve('../fixtures/source-map/index-map.js'),
+  ]);
+  assert.match(
+    output.stderr.toString(),
+    /at fail \([^)]+index-map-original\.js:2:1\)/
+  );
+}
+
 // Applies source-maps in esm modules to stack trace.
 {
   const output = spawnSync(process.execPath, [
