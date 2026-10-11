@@ -226,6 +226,7 @@ function nextdir() {
     output.stderr.toString(),
     /at fail \([^)]+index-map-original\.js:2:1\)/
   );
+  assert.match(output.stderr.toString(), /throw new Error\('original'\);\r?\n\^/);
 }
 
 // Applies source-maps in esm modules to stack trace.
