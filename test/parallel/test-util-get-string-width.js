@@ -84,6 +84,7 @@ if (common.hasIntl) {
   assert.strictEqual(getStringWidth('\u1100\u093F'), 3);  // Jamo with a spacing mark.
   assert.strictEqual(getStringWidth('\u{1F1E6}\u{1F1E6}'), 1);  // Not a flag.
   assert.strictEqual(getStringWidth('1\u0301'), 1);  // Not a keycap.
+  assert.strictEqual(getStringWidth('!\u20E3'), 1);
   assert.strictEqual(getStringWidth('\u0D4E\u0D15'), 1);  // Malayalam dot reph, a prepended letter.
 }
 
