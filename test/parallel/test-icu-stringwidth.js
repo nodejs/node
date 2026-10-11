@@ -93,3 +93,16 @@ if (common.hasIntl) {
   assert.strictEqual(getStringWidth(a), 4);
   assert.strictEqual(getStringWidth(b), 4);
 }
+
+// Grapheme cluster based width, used by util.getStringWidth().
+const { internalBinding } = require('internal/test/binding');
+const { getGraphemeStringWidth } = internalBinding('icu');
+assert.strictEqual(getGraphemeStringWidth(''), 0);
+assert.strictEqual(getGraphemeStringWidth('abc'), 3);
+assert.strictEqual(getGraphemeStringWidth('👩\u200D👩\u200D👧'), 2);
+assert.strictEqual(getGraphemeStringWidth('±'), 1);
+assert.strictEqual(getGraphemeStringWidth('±', true), 2);
+assert.strictEqual(getGraphemeStringWidth('±\u0301', true), 2);
+assert.strictEqual(getGraphemeStringWidth('क\u093F'), 2);
+assert.strictEqual(getGraphemeStringWidth('\u1100±', true), 4);
+assert.strictEqual(getGraphemeStringWidth('\u1100\u1161\u1161'), 3);
