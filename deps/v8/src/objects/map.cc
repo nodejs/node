@@ -1378,8 +1378,10 @@ Handle<Map> Map::Normalize(Isolate* isolate, DirectHandle<Map> fast_map,
   }
   DirectHandle<NormalizedMapCache> cache;
   if (use_cache) {
+    Tagged<Object> maybe_native_context = meta_map->native_context_or_null();
+    DCHECK(!IsNull(maybe_native_context));
     Tagged<Object> normalized_map_cache =
-        meta_map->native_context()->normalized_map_cache();
+        Cast<NativeContext>(maybe_native_context)->normalized_map_cache();
     use_cache = !IsUndefined(normalized_map_cache);
     if (use_cache) {
       cache = Cast<NormalizedMapCache>(

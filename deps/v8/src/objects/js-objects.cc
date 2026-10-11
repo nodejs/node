@@ -478,6 +478,9 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
     InstanceType target_instance_type = target->map()->instance_type();
     if (InstanceTypeChecker::IsJSObject(target_instance_type) &&
         !InstanceTypeChecker::IsJSGlobalProxy(target_instance_type) &&
+        // Exclude remote objects (they don't have local properties anyway).
+        !(InstanceTypeChecker::IsJSSpecialApiObject(target_instance_type) &&
+          !target->GetCreationContext().has_value()) &&
         !InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
             target_instance_type)) {
       // Convert to slow properties if we're guaranteed to overflow the number
