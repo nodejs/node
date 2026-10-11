@@ -4,6 +4,7 @@
 const common = require('../common');
 const { completeSample } = require('../common/bench');
 const assert = require('assert');
+const os = require('os');
 const { Readable } = require('stream');
 const { bench, run } = require('node:bench');
 const { json, spec } = require('node:bench/reporters');
@@ -26,7 +27,25 @@ bench('json failed', { samples: 1 }, () => {
   const lines = chunks.join('').trim().split('\n');
   const records = lines.map((line) => JSON.parse(line));
 
-  assert.strictEqual(records.length, 8);
+  assert.strictEqual(records.length, 9);
+  const { type: environmentType, data: environment } = records[0];
+  assert.strictEqual(environmentType, 'bench:environment');
+  assert.strictEqual(environment.node, process.version);
+  assert.strictEqual(environment.v8, process.versions.v8);
+  assert.strictEqual(environment.platform, process.platform);
+  assert.strictEqual(environment.arch, process.arch);
+  assert.strictEqual(environment.os.type, os.type());
+  assert.strictEqual(environment.os.release, os.release());
+  assert.strictEqual(environment.os.machine, os.machine());
+  assert.strictEqual(
+    environment.cpus.reduce((total, { count }) => total + count, 0),
+    os.cpus().length);
+  assert.strictEqual(environment.availableParallelism,
+                     os.availableParallelism());
+  assert.strictEqual(environment.memory.total, os.totalmem());
+  assert.strictEqual(typeof environment.memory.free, 'number');
+  assert.strictEqual(environment.loadavg.length, 3);
+  assert.deepStrictEqual(environment.execArgv, process.execArgv);
   const plans = records.filter(({ type }) => type === 'bench:plan');
   assert.deepStrictEqual(plans.map(({ data }) => data.selected), [true, true]);
   const sample = records.find(({ type }) => type === 'bench:sample');
@@ -105,7 +124,18 @@ bench('json failed', { samples: 1 }, () => {
     },
   ];
   const specChunks = await Readable.from(synthetic).compose(spec).toArray();
-  assert.strictEqual(specChunks.join(''),
+  const specOutput = specChunks.join('');
+  const specHeaderEnd = specOutput.indexOf('\n\n') + 2;
+  const specHeader = specOutput.slice(0, specHeaderEnd);
+  assert.match(specHeader,
+               new RegExp(`^node: ${RegExp.escape(process.version)} ` +
+                          `\\(V8 ${RegExp.escape(process.versions.v8)}\\), ` +
+                          `${process.platform} ${process.arch} `));
+  assert.match(specHeader, /^cpu: .*\(available parallelism: \d+\)$/m);
+  assert.match(specHeader, /^memory: [\d.]+ \w+ total, [\d.]+ \w+ free/m);
+  assert.match(specHeader, /^load average: [\d.]+, [\d.]+, [\d.]+$/m);
+  assert.match(specHeader, /^exec argv: --experimental-bench --no-warnings$/m);
+  assert.strictEqual(specOutput.slice(specHeaderEnd),
                      'benchmark | samples | mean rate | 95% CI | ' +
                      'median rate | warning\n' +
                      'fast [size="small"] | 2 | 1.50k ops/s | ' +
@@ -123,7 +153,8 @@ bench('json failed', { samples: 1 }, () => {
     type: 'bench:diagnostic',
     data: { aggregate, circular },
   }]).compose(json).toArray();
-  const jsonEdge = JSON.parse(jsonEdgeChunks.join(''));
+  assert.strictEqual(jsonEdgeChunks.length, 2);
+  const jsonEdge = JSON.parse(jsonEdgeChunks[1]);
   assert.deepStrictEqual(jsonEdge.data.aggregate.errors, ['1']);
   assert.strictEqual(jsonEdge.data.circular.self, '[Circular]');
 
@@ -134,7 +165,10 @@ bench('json failed', { samples: 1 }, () => {
   for await (const chunk of json(undefinedRecord())) {
     undefinedChunks.push(chunk);
   }
-  assert.strictEqual(undefinedChunks.join(''), 'null\n');
+  assert.strictEqual(undefinedChunks.length, 2);
+  assert.strictEqual(JSON.parse(undefinedChunks[0]).type,
+                     'bench:environment');
+  assert.strictEqual(undefinedChunks[1], 'null\n');
 
   function result(name, rate) {
     return {

@@ -260,13 +260,36 @@ bench('example', (b) => {
 run().compose(spec).pipe(process.stdout);
 ```
 
-The `spec` reporter buffers results and outputs a concise table containing the
-sample count, mean rate, 95% confidence interval for the mean, median rate, and
-warnings. A coefficient of variation above 5% is reported as `noisy`, and an
-absolute skewness above 1 is reported as `skewed`. The exact human-readable
-format is subject to change.
+The built-in reporters collect a snapshot of the reporting process's
+environment when they receive their first record. The snapshot contains:
 
-The `json` reporter emits every lifecycle record as newline-delimited JSON.
+* `node` {string} The value of `process.version`.
+* `v8` {string} The value of `process.versions.v8`.
+* `platform` {string} The value of `process.platform`.
+* `arch` {string} The value of `process.arch`.
+* `os` {Object} The operating system `type`, `release`, and `machine`, as
+  returned by the corresponding [`os`][] functions.
+* `cpus` {Object\[]} The logical CPUs grouped by `model`, with the `count` of
+  each model.
+* `availableParallelism` {number} The value of `os.availableParallelism()`.
+* `memory` {Object} The `total` and `free` system memory in bytes, and the
+  `constrained` memory limit in bytes, or `null` when the process is not
+  constrained below the total system memory.
+* `loadavg` {number\[]} The value of `os.loadavg()`.
+* `execArgv` {string\[]} The value of `process.execArgv`.
+
+With process isolation, reporters run in the parent process. Benchmark children
+are started from the same executable, but their `execArgv` can differ.
+
+The `spec` reporter buffers results and outputs a summary of the environment
+followed by a concise table containing the sample count, mean rate, 95%
+confidence interval for the mean, median rate, and warnings. A coefficient of
+variation above 5% is reported as `noisy`, and an absolute skewness above 1 is
+reported as `skewed`. The exact human-readable format is subject to change.
+
+The `json` reporter emits a `'bench:environment'` record containing the
+environment snapshot before the first lifecycle record, and then emits every
+lifecycle record as newline-delimited JSON.
 BigInt values, including `duration_ns`, are encoded as decimal strings. Errors
 are represented using their `name`, `message`, `stack`, `code`, `cause`, and
 `errors` properties. As required by JSON, non-finite numbers are encoded as
@@ -798,7 +821,8 @@ tags, and parameters described in [benchmark result][], together with:
 
 The plan contains execution settings known to the runner. Runtime version,
 operating system, processor, and other environment metadata are intentionally
-left for reporters and higher-level tools to collect.
+left for reporters and higher-level tools to collect. The built-in reporters
+include an [environment snapshot][benchmark reporters].
 
 `'bench:complete'` data contains a [benchmark result][]. A failed result has an
 additional `error` property and may contain samples recorded before the error.
@@ -856,6 +880,8 @@ A completed benchmark result contains:
 
 [`context.record()`]: #contextrecordsample
 [`createRunner()`]: #createrunneroptions
+[`os`]: os.md
 [`run()`]: #runoptions
+[benchmark reporters]: #benchmark-reporters
 [benchmark result]: #benchmark-result
 [command-line options documentation]: cli.md#--bench
