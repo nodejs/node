@@ -66,7 +66,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: '3.14'
-  XCODE_VERSION: '16.4'
+  XCODE_VERSION: '26.4'
   FLAKY_TESTS: keep_retrying
   RUSTC_VERSION: '1.88'
 
@@ -78,7 +78,7 @@ jobs:
     if: github.event.pull_request.draft == false
     strategy:
       fail-fast: false
-    runs-on: macos-15
+    runs-on: macos-26
     env:
       CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} gcc
       CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} g++
