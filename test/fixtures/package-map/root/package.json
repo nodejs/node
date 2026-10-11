@@ -3,5 +3,8 @@
   "type": "module",
   "exports": {
     ".": "./index.js"
+  },
+  "imports": {
+    "#root": "./index.js"
   }
 }
