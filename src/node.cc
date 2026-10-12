@@ -495,6 +495,8 @@ void RegisterSignalHandler(int signal,
   sa.sa_sigaction = handler;
   sa.sa_flags = reset_handler ? SA_RESETHAND : 0;
 #ifdef __MVS__
+  // ON_STACK: to use alt stack (created in zosStart()) to not interfere
+  // with z/OS LE; SA_SIGINFO: to use handler specified by sa_sigaction.
   sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
 #endif
   sigfillset(&sa.sa_mask);
