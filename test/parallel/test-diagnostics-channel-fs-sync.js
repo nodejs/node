@@ -143,6 +143,24 @@ fs.writeFileSync(file, 'hello');
 }
 
 {
+  // A replaced `realpathSync.native` runs once per traced call, because
+  // the trace calls the original function, not the property.
+  const original = fs.realpathSync.native;
+  const expected = fs.realpathSync(file);
+  let calls = 0;
+  fs.realpathSync.native = function(path, options) {
+    calls++;
+    return original(path, options);
+  };
+  const realpath = record('realpath');
+  assert.strictEqual(fs.realpathSync.native(file), expected);
+  realpath.stop();
+  fs.realpathSync.native = original;
+  assert.strictEqual(calls, 1);
+  assert.deepStrictEqual(realpath.types(), ['start', 'end']);
+}
+
+{
   const rename = record('rename');
   const dest = tmpdir.resolve('renamed.txt');
   fs.renameSync(file, dest);
