@@ -157,6 +157,9 @@ void Dotenv::ParseContent(const std::string_view input) {
   std::string_view value;
 
   while (!content.empty()) {
+    // Every line starts trimmed, whichever branch consumed the previous one.
+    content = trim_spaces(content);
+
     // Skip empty lines and comments
     if (content.front() == '\n' || content.front() == '#') {
       // Check if the first character of the content is a newline or a hash
@@ -183,7 +186,6 @@ void Dotenv::ParseContent(const std::string_view input) {
         content.at(equal_or_newline) == '\n') {
       if (equal_or_newline != std::string_view::npos) {
         content.remove_prefix(equal_or_newline + 1);
-        content = trim_spaces(content);
         continue;
       }
       break;
@@ -193,14 +195,6 @@ void Dotenv::ParseContent(const std::string_view input) {
     key = content.substr(0, equal_or_newline);
     content.remove_prefix(equal_or_newline + 1);
     key = trim_spaces(key);
-
-    // If the value is not present (e.g. KEY=) set it to an empty string
-    if (content.empty() || content.front() == '\n') {
-      store_.insert_or_assign(std::string(key), "");
-      continue;
-    }
-
-    content = trim_spaces(content);
 
     // Skip lines with empty keys after trimming spaces.
     // Examples of invalid keys that would be skipped:
@@ -217,12 +211,15 @@ void Dotenv::ParseContent(const std::string_view input) {
       key = trim_spaces(key);
     }
 
-    // SAFETY: Content is guaranteed to have at least one character
-    if (content.empty()) {
-      // In case the last line is a single key without value
-      // Example: KEY= (without a newline at the EOF)
+    // Skip spaces and tabs before the value, but not a newline: in
+    // `KEY=   \nNEXT=value` the value of KEY is empty.
+    content.remove_prefix(
+        std::min(content.find_first_not_of(" \t"), content.size()));
+
+    // If the value is not present (e.g. KEY=) set it to an empty string
+    if (content.empty() || content.front() == '\n') {
       store_.insert_or_assign(std::string(key), "");
-      break;
+      continue;
     }
 
     // Expand new line if \n it's inside double quotes
@@ -318,8 +315,6 @@ void Dotenv::ParseContent(const std::string_view input) {
         content = {};
       }
     }
-
-    content = trim_spaces(content);
   }
 }
 
