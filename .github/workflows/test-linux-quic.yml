@@ -8,6 +8,7 @@ on:
       - configure.py
       - node.gyp
       - node.gypi
+      - deps/v8/**
       - deps/ngtcp2/**
       - deps/nghttp3/**
       - deps/openssl/**
