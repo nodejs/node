@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <forward_list>
 #include <iterator>
 #include <list>
@@ -1802,16 +1803,26 @@ TEST(AllocatorSupportTest, Constructors) {
   const int ia[] = {0, 1, 2, 3, 4, 5, 6, 7};
   int64_t allocated = 0;
   MyAlloc alloc(&allocated);
-  { AllocVec ABSL_ATTRIBUTE_UNUSED v; }
-  { AllocVec ABSL_ATTRIBUTE_UNUSED v(alloc); }
   {
-    AllocVec ABSL_ATTRIBUTE_UNUSED v(ia, ia + std::size(ia), alloc);
+    [[maybe_unused]] AllocVec v;
   }
-  { AllocVec ABSL_ATTRIBUTE_UNUSED v({1, 2, 3}, alloc); }
+  {
+    [[maybe_unused]] AllocVec v(alloc);
+  }
+  {
+    [[maybe_unused]] AllocVec v(ia, ia + std::size(ia), alloc);
+  }
+  {
+    [[maybe_unused]] AllocVec v({1, 2, 3}, alloc);
+  }
 
   AllocVec v2;
-  { AllocVec ABSL_ATTRIBUTE_UNUSED v(v2, alloc); }
-  { AllocVec ABSL_ATTRIBUTE_UNUSED v(std::move(v2), alloc); }
+  {
+    [[maybe_unused]] AllocVec v(v2, alloc);
+  }
+  {
+    [[maybe_unused]] AllocVec v(std::move(v2), alloc);
+  }
 }
 
 TEST(AllocatorSupportTest, CountAllocations) {
@@ -1822,14 +1833,14 @@ TEST(AllocatorSupportTest, CountAllocations) {
   int64_t instance_count = 0;
   MyAlloc alloc(&bytes_allocated, &instance_count);
   {
-    AllocVec ABSL_ATTRIBUTE_UNUSED v(ia, ia + 4, alloc);
+    [[maybe_unused]] AllocVec v(ia, ia + 4, alloc);
     EXPECT_THAT(bytes_allocated, Eq(0));
     EXPECT_THAT(instance_count, Eq(4));
   }
   EXPECT_THAT(bytes_allocated, Eq(0));
   EXPECT_THAT(instance_count, Eq(0));
   {
-    AllocVec ABSL_ATTRIBUTE_UNUSED v(ia, ia + std::size(ia), alloc);
+    [[maybe_unused]] AllocVec v(ia, ia + std::size(ia), alloc);
     EXPECT_THAT(bytes_allocated,
                 Eq(static_cast<int64_t>(v.size() * sizeof(int))));
     EXPECT_THAT(instance_count, Eq(static_cast<int64_t>(v.size())));
@@ -1843,12 +1854,12 @@ TEST(AllocatorSupportTest, CountAllocations) {
 
     int64_t bytes_allocated2 = 0;
     MyAlloc alloc2(&bytes_allocated2);
-    ABSL_ATTRIBUTE_UNUSED AllocVec v2(v, alloc2);
+    [[maybe_unused]] AllocVec v2(v, alloc2);
     EXPECT_THAT(bytes_allocated2, Eq(0));
 
     int64_t bytes_allocated3 = 0;
     MyAlloc alloc3(&bytes_allocated3);
-    ABSL_ATTRIBUTE_UNUSED AllocVec v3(std::move(v), alloc3);
+    [[maybe_unused]] AllocVec v3(std::move(v), alloc3);
     EXPECT_THAT(bytes_allocated3, Eq(0));
   }
   EXPECT_THAT(bytes_allocated, Eq(0));

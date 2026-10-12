@@ -68,8 +68,8 @@ class PerfettoLogger : public LogEventListener {
                            DirectHandle<SharedFunctionInfo> shared) override;
   void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override;
-  void CodeDependencyChangeEvent(DirectHandle<Code> code,
-                                 DirectHandle<SharedFunctionInfo> shared,
+  void CodeDependencyChangeEvent(Tagged<Code> code,
+                                 Tagged<SharedFunctionInfo> shared,
                                  const char* reason) override;
   void WeakCodeClearEvent() override;
   bool is_listening_to_code_events() override;

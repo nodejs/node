@@ -4,7 +4,7 @@ Version: N/A
 Revision: DEPS
 Update Mechanism: Autoroll
 License: MIT, University of Illinois/NCSA Open Source License
-License File: src/LICENSE.TXT
+License File: //third_party/llvm-libc/src/LICENSE.TXT
 Security Critical: yes
 Shipped: yes
 

@@ -76,6 +76,7 @@
 #include "absl/base/config.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/internal/cctz/include/cctz/civil_time.h"
+#include "absl/time/internal/cctz/include/cctz/civil_time_detail.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

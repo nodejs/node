@@ -1153,7 +1153,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     // The handler is only installed for exports that exist.
     TNode<Object> value = LoadCellValue(cell);
     Label is_the_hole(this, Label::kDeferred);
-    GotoIf(IsTheHole(value), &is_the_hole);
+    GotoIf(IsTdzHole(value), &is_the_hole);
     exit_point->Return(value);
 
     BIND(&is_the_hole);
@@ -3937,7 +3937,7 @@ void AccessorAssembler::ScriptContextTableLookup(
     TNode<IntPtrT> var_index = IntPtrAdd(
         IntPtrConstant(Context::MIN_CONTEXT_SLOTS), context_local_index);
     TNode<Object> result = LoadContextElement(script_context, var_index);
-    GotoIf(IsTheHole(result), found_hole);
+    GotoIf(IsTdzHole(result), found_hole);
     Return(result);
   }
 }

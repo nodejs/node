@@ -22,6 +22,7 @@
 #include <tuple>
 #include <type_traits>
 
+#include "absl/base/config.h"
 #include "absl/meta/type_traits.h"
 #include "absl/types/optional.h"
 

@@ -570,6 +570,7 @@ CpuProfiler::~CpuProfiler() {
 
 void CpuProfiler::set_sampling_interval(base::TimeDelta value) {
   DCHECK(!is_profiling_);
+  DCHECK_GE(value, base::TimeDelta());
   base_sampling_interval_ = value;
 }
 

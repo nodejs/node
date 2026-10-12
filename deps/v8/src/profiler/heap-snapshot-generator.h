@@ -64,6 +64,34 @@ struct EntrySourceLocation {
   const int col;
 };
 
+// Describes one scope of the scope tree of a script. Scopes are stored in one
+// flat vector in the snapshot, in pre-order of the scope tree. The tree
+// hierarchy is encoded through the depth of each scope.
+//
+// The context variables declared by the scope and the uses of context
+// variables within the scope are stored in separate flat vectors in the
+// snapshot. Each scope owns the next scope_context_vars_count respectively
+// scope_uses_count entries of those vectors.
+struct SourceScopeInfo {
+  // The snapshot entry of the script this scope belongs to.
+  HeapEntry* script_entry;
+  // Scope id, unique within the script. Can be negative or zero.
+  int scope_id;
+  // Depth within the scope tree of the script, the root scope has depth 0.
+  int depth;
+  uint32_t scope_context_vars_count;
+  uint32_t scope_uses_count;
+};
+
+// A use of a context-allocated variable: the variable is identified by the
+// scope that declares it together with its index in that scope's context.
+// Uses are collected per scope and stored in one flat vector in the snapshot,
+// see SourceScopeInfo::scope_uses_count.
+struct SourceScopeUse {
+  int declaring_scope_id;
+  int slot_index;
+};
+
 class HeapGraphEdge {
  public:
   enum Type {
@@ -300,6 +328,25 @@ class HeapSnapshot {
   void AddScriptLineEnds(int script_id, String::LineEndsVector&& line_ends);
   String::LineEndsVector& GetScriptLineEnds(int script_id);
 
+  void AddSourceScope(const SourceScopeInfo& info) {
+    source_scopes_.push_back(info);
+  }
+  void AddSourceScopeContextVar(const char* name) {
+    source_scope_context_vars_.push_back(name);
+  }
+  void AddSourceScopeUse(const SourceScopeUse& use) {
+    source_scope_uses_.push_back(use);
+  }
+  const std::vector<SourceScopeInfo>& source_scopes() const {
+    return source_scopes_;
+  }
+  const std::vector<const char*>& source_scope_context_vars() const {
+    return source_scope_context_vars_;
+  }
+  const std::vector<SourceScopeUse>& source_scope_uses() const {
+    return source_scope_uses_;
+  }
+
   void Print(int max_depth);
 
  private:
@@ -330,6 +377,9 @@ class HeapSnapshot {
   using ScriptsLineEndsMap =
       std::unordered_map<ScriptId, String::LineEndsVector>;
   ScriptsLineEndsMap scripts_line_ends_map_;
+  std::vector<SourceScopeInfo> source_scopes_;
+  std::vector<const char*> source_scope_context_vars_;
+  std::vector<SourceScopeUse> source_scope_uses_;
 };
 
 
@@ -526,6 +576,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractSharedFunctionInfoReferences(HeapEntry* entry,
                                            Tagged<SharedFunctionInfo> shared);
   void ExtractScriptReferences(HeapEntry* entry, Tagged<Script> script);
+  void ParseScriptScopes(HeapEntry* entry, Tagged<Script> script);
   void ExtractAccessorInfoReferences(HeapEntry* entry,
                                      Tagged<AccessorInfo> accessor_info);
   void ExtractAccessorPairReferences(HeapEntry* entry,
@@ -860,6 +911,9 @@ class HeapSnapshotJSONSerializer {
   void SerializeStrings();
   void SerializeLocation(const EntrySourceLocation& location);
   void SerializeLocations();
+  void SerializeScopes();
+  void SerializeScopeContextVars();
+  void SerializeScopeUses();
 
   static const int kEdgeFieldsCount;
   static const int kNodeFieldsCountWithTraceNodeId;

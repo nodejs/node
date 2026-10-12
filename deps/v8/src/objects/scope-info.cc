@@ -112,8 +112,7 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other,
 // static
 template <typename IsolateT>
 Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
-                                    MaybeDirectHandle<ScopeInfo> outer_scope,
-                                    FunctionKind closure_function_kind) {
+                                    MaybeDirectHandle<ScopeInfo> outer_scope) {
   // Collect variables.
   int context_local_count = 0;
   int module_vars_count = 0;
@@ -215,8 +214,10 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
                                             scope->AsModuleScope()->module());
   }
 
+  FunctionKind function_kind = FunctionKind::kNormalFunction;
   bool sloppy_eval_can_extend_vars = false;
   if (scope->is_declaration_scope()) {
+    function_kind = scope->AsDeclarationScope()->function_kind();
     sloppy_eval_can_extend_vars =
         scope->AsDeclarationScope()->sloppy_eval_can_extend_vars();
   }
@@ -282,7 +283,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         FunctionVariableBits::encode(function_name_info) |
         HasInferredFunctionNameBit::encode(has_inferred_function_name) |
         HasSimpleParametersBit::encode(has_simple_parameters) |
-        FunctionKindBits::encode(closure_function_kind) |
+        FunctionKindBits::encode(function_kind) |
         HasOuterScopeInfoBit::encode(has_outer_scope_info) |
         IsDebugEvaluateScopeBit::encode(false) |
         ForceContextAllocationBit::encode(
@@ -516,13 +517,11 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<ScopeInfo> ScopeInfo::Create(
         Isolate* isolate, Zone* zone, Scope* scope,
-        MaybeDirectHandle<ScopeInfo> outer_scope,
-        FunctionKind closure_function_kind);
+        MaybeDirectHandle<ScopeInfo> outer_scope);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<ScopeInfo> ScopeInfo::Create(
         LocalIsolate* isolate, Zone* zone, Scope* scope,
-        MaybeDirectHandle<ScopeInfo> outer_scope,
-        FunctionKind closure_function_kind);
+        MaybeDirectHandle<ScopeInfo> outer_scope);
 
 // static
 DirectHandle<ScopeInfo> ScopeInfo::CreateForWithScope(
@@ -771,8 +770,7 @@ ScopeType ScopeInfo::scope_type() const {
 }
 
 bool ScopeInfo::is_script_scope() const {
-  return !this->IsEmpty() &&
-         (scope_type() == SCRIPT_SCOPE || scope_type() == REPL_MODE_SCOPE);
+  return scope_type() == SCRIPT_SCOPE || scope_type() == REPL_MODE_SCOPE;
 }
 
 bool ScopeInfo::SloppyEvalCanExtendVars() const {
@@ -792,7 +790,6 @@ bool ScopeInfo::is_declaration_scope() const {
 }
 
 int ScopeInfo::ContextLength() const {
-  if (this->IsEmpty()) return 0;
   int context_locals = ContextLocalCount();
   bool function_name_context_slot = HasContextAllocatedFunctionName();
   bool force_context = ForceContextAllocationBit::decode(Flags());
@@ -879,10 +876,9 @@ bool ScopeInfo::IsSloppyNormalJSFunction() const {
 }
 
 bool ScopeInfo::CanOnlyAccessFixedFormalParameters() const {
+  DCHECK(!IsEmpty());
   FunctionKind function_kind = this->function_kind();
   return
-      // Filter out builtins.
-      !IsEmpty() &&
       // Can't be a SloppyNormalJSFunction.
       !IsSloppyNormalJSFunction() &&
       // TODO(dcarney): Make this function kind filter exact. It's currently
@@ -909,8 +905,6 @@ bool ScopeInfo::HasContextAllocatedFunctionName() const {
 bool ScopeInfo::HasInferredFunctionName() const {
   return HasInferredFunctionNameBit::decode(Flags());
 }
-
-bool ScopeInfo::HasPositionInfo() const { return !this->IsEmpty(); }
 
 bool ScopeInfo::HasSharedFunctionName() const {
   return FunctionName() != SharedFunctionInfo::kNoSharedNameSentinel;
@@ -982,17 +976,17 @@ Tagged<String> ScopeInfo::FunctionDebugName() const {
 }
 
 int ScopeInfo::StartPosition() const {
-  DCHECK(HasPositionInfo());
+  DCHECK(!this->IsEmpty());
   return position_info_start();
 }
 
 int ScopeInfo::EndPosition() const {
-  DCHECK(HasPositionInfo());
+  DCHECK(!this->IsEmpty());
   return position_info_end();
 }
 
 void ScopeInfo::SetPositionInfo(int start, int end) {
-  DCHECK(HasPositionInfo());
+  DCHECK(!this->IsEmpty());
   DCHECK_LE(start, end);
   set_position_info_start(start);
   set_position_info_end(end);
@@ -1123,8 +1117,7 @@ int ScopeInfo::ContextSlotIndex(Tagged<String> name,
   DisallowGarbageCollection no_gc;
   DCHECK(IsInternalizedString(name));
   DCHECK_NOT_NULL(lookup_result);
-
-  if (this->IsEmpty()) return -1;
+  DCHECK_IMPLIES(this->IsEmpty(), ContextLocalCount() == 0);
 
   int index = HasInlinedLocalNames()
                   ? InlinedLocalNamesLookup(name)
@@ -1298,13 +1291,9 @@ uint32_t ScopeInfo::Hash() {
   // Hash ScopeInfo based on its start and end position.
   // Note: Ideally we'd also have the script ID. But since we only use the
   // hash in a debug-evaluate cache, we don't worry too much about collisions.
-  if (HasPositionInfo()) {
-    return static_cast<uint32_t>(base::hash_combine(
-        flags(kRelaxedLoad), StartPosition(), EndPosition()));
-  }
-
+  DCHECK(!this->IsEmpty());
   return static_cast<uint32_t>(
-      base::hash_combine(flags(kRelaxedLoad), context_local_count()));
+      base::hash_combine(flags(kRelaxedLoad), StartPosition(), EndPosition()));
 }
 
 std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var_info) {

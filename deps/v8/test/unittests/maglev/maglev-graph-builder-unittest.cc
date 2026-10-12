@@ -8,8 +8,10 @@
 
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compiler.h"
+#include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/maglev/maglev-test.h"
 
 namespace v8 {
@@ -17,6 +19,55 @@ namespace internal {
 namespace maglev {
 
 class MaglevGraphBuilderTest : public TestWithNativeContextAndZone {};
+
+TEST_F(MaglevGraphBuilderTest, LoopEffectEpochComparison) {
+  FlagScope<bool> allow_natives_syntax(&v8_flags.allow_natives_syntax, true);
+  FlagScope<bool> non_eager_inlining(&v8_flags.maglev_non_eager_inlining, true);
+  FlagScope<bool> optimistic_loops(&v8_flags.maglev_optimistic_peeled_loops,
+                                   true);
+  for (bool peeling : {false, true}) {
+    FlagScope<bool> loop_peeling(&v8_flags.maglev_loop_peeling, peeling);
+    for (bool has_effects : {false, true}) {
+      HandleScope scope(isolate());
+      std::string script = R"(
+        function f(object, n) {
+          let result = 0;
+          for (let i = 0; i < n; ++i) {
+            result += i;
+      )";
+      if (has_effects) script += "object.x = i;";
+      script += R"(
+          }
+          return result;
+        }
+        %PrepareFunctionForOptimization(f);
+        f({x: 0}, 10);
+        (f)
+      )";
+      Handle<JSFunction> function = RunJS<JSFunction>(script.c_str());
+      auto info = MaglevCompilationInfo::New(isolate(), function,
+                                             BytecodeOffset::None());
+      info->set_graph_labeller(new MaglevGraphLabeller());
+      MaglevGraphLabellerScope graph_labeller_scope(info->graph_labeller());
+      Graph* graph = Graph::New(info.get());
+      compiler::CurrentHeapBrokerScope current_broker(info->broker());
+      MaglevGraphBuilder graph_builder(isolate()->AsLocalIsolate(),
+                                       info->toplevel_compilation_unit(),
+                                       graph);
+      PersistentHandlesScope persistent_scope(isolate());
+      ASSERT_TRUE(graph_builder.Build());
+      int loop_count = 0;
+      for (BasicBlock* block : graph->blocks()) {
+        if (!block->is_loop()) continue;
+        ++loop_count;
+        EXPECT_EQ(has_effects,
+                  block->state()->AsLoopHeader()->loop_has_effects());
+      }
+      EXPECT_EQ(1, loop_count);
+      persistent_scope.Detach();
+    }
+  }
+}
 
 template <typename T>
 static T* getUniqueNode(Graph* graph) {

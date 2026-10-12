@@ -3008,6 +3008,220 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
 
 #if V8_ENABLE_WEBASSEMBLY
 
+namespace {
+
+struct SIMDIntNarrowingInst {
+  const char* name;
+  TSBinop operation;
+  ArchOpcode narrow_opcode;
+  ArchOpcode narrow2_opcode;
+  int lane_size;
+};
+
+std::ostream& operator<<(std::ostream& os, const SIMDIntNarrowingInst& inst) {
+  return os << inst.name;
+}
+
+const SIMDIntNarrowingInst kSIMDIntNarrowingInstructions[] = {
+    {"I16x8SConvertI32x4", TSBinop::kI16x8SConvertI32x4, kArm64Sqxtn,
+     kArm64Sqxtn2, 32},
+    {"I16x8UConvertI32x4", TSBinop::kI16x8UConvertI32x4, kArm64Sqxtun,
+     kArm64Sqxtun2, 32},
+    {"I8x16SConvertI16x8", TSBinop::kI8x16SConvertI16x8, kArm64Sqxtn,
+     kArm64Sqxtn2, 16},
+    {"I8x16UConvertI16x8", TSBinop::kI8x16UConvertI16x8, kArm64Sqxtun,
+     kArm64Sqxtun2, 16},
+};
+
+}  // namespace
+
+using TurboshaftInstructionSelectorSIMDIntNarrowingTest =
+    TurboshaftInstructionSelectorTestWithParam<SIMDIntNarrowingInst>;
+
+TEST_P(TurboshaftInstructionSelectorSIMDIntNarrowingTest, Parameter) {
+  const SIMDIntNarrowingInst param = GetParam();
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128());
+  const V<Simd128> low = m.Parameter(0);
+  const V<Simd128> high = m.Parameter(1);
+  const OpIndex result = m.Emit(param.operation, low, high);
+  m.Return(result);
+  const Stream s = m.Build();
+
+  ASSERT_EQ(2U, s.size());
+
+  EXPECT_EQ(param.narrow_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(param.lane_size,
+            LaneSizeBits(LaneSizeField::decode(s[0]->opcode())));
+  ASSERT_EQ(1U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(low), s.ToVreg(s[0]->InputAt(0)));
+
+  EXPECT_EQ(param.narrow2_opcode, s[1]->arch_opcode());
+  EXPECT_EQ(param.lane_size,
+            LaneSizeBits(LaneSizeField::decode(s[1]->opcode())));
+  ASSERT_EQ(2U, s[1]->InputCount());
+  ASSERT_EQ(1U, s[1]->OutputCount());
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(high), s.ToVreg(s[1]->InputAt(1)));
+  EXPECT_EQ(s.ToVreg(result), s.ToVreg(s[1]->Output()));
+  EXPECT_TRUE(s.IsSameAsInput(s[1]->Output(), 0));
+}
+
+INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
+                         TurboshaftInstructionSelectorSIMDIntNarrowingTest,
+                         ::testing::ValuesIn(kSIMDIntNarrowingInstructions));
+
+struct SIMDShiftInst {
+  const char* shift_constructor_name;
+  TSBinop shift_operation;
+  ArchOpcode target_opcode;
+  ArchOpcode shift_opcode;
+  const int lane_size;
+};
+
+std::ostream& operator<<(std::ostream& os, const SIMDShiftInst& inst) {
+  return os << inst.shift_constructor_name;
+}
+
+static const SIMDShiftInst kSIMDShiftTests[] = {
+    {"I64x2Shl", TSBinop::kI64x2Shl, kArm64IShl, kArm64SShl, 64},
+    {"I32x4Shl", TSBinop::kI32x4Shl, kArm64IShl, kArm64SShl, 32},
+    {"I16x8Shl", TSBinop::kI16x8Shl, kArm64IShl, kArm64SShl, 16},
+    {"I8x16Shl", TSBinop::kI8x16Shl, kArm64IShl, kArm64SShl, 8},
+
+    {"I64x2ShrS", TSBinop::kI64x2ShrS, kArm64IShrS, kArm64SShl, 64},
+    {"I32x4ShrS", TSBinop::kI32x4ShrS, kArm64IShrS, kArm64SShl, 32},
+    {"I16x8ShrS", TSBinop::kI16x8ShrS, kArm64IShrS, kArm64SShl, 16},
+    {"I8x16ShrS", TSBinop::kI8x16ShrS, kArm64IShrS, kArm64SShl, 8},
+
+    {"I64x2ShrU", TSBinop::kI64x2ShrU, kArm64IShrU, kArm64UShl, 64},
+    {"I32x4ShrU", TSBinop::kI32x4ShrU, kArm64IShrU, kArm64UShl, 32},
+    {"I16x8ShrU", TSBinop::kI16x8ShrU, kArm64IShrU, kArm64UShl, 16},
+    {"I8x16ShrU", TSBinop::kI8x16ShrU, kArm64IShrU, kArm64UShl, 8},
+};
+
+using TurboshaftInstructionSelectorSIMDShiftTest =
+    TurboshaftInstructionSelectorTestWithParam<SIMDShiftInst>;
+
+TEST_P(TurboshaftInstructionSelectorSIMDShiftTest, NormalImmediate) {
+  const SIMDShiftInst param = GetParam();
+  for (int immediate : {2, param.lane_size + 2}) {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+    V<Simd128> input = m.Parameter(0);
+    m.Return(m.Emit(param.shift_operation, input, m.Int32Constant(immediate)));
+    const Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(param.target_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(param.lane_size,
+              LaneSizeBits(LaneSizeField::decode(s[0]->opcode())));
+    ASSERT_EQ(2U, s[0]->InputCount());
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(input), s.ToVreg(s[0]->InputAt(0)));
+    ASSERT_TRUE(s[0]->InputAt(1)->IsImmediate());
+    EXPECT_EQ(2, s.ToInt32(s[0]->InputAt(1)));
+  }
+}
+
+TEST_P(TurboshaftInstructionSelectorSIMDShiftTest, ZeroShift) {
+  const SIMDShiftInst param = GetParam();
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+  m.Return(m.Emit(param.shift_operation, m.Parameter(0), m.Int32Constant(0)));
+  const Stream s = m.Build();
+
+  ASSERT_EQ(0U, s.size());
+}
+
+TEST_P(TurboshaftInstructionSelectorSIMDShiftTest, LaneWidthShift) {
+  const SIMDShiftInst param = GetParam();
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+  m.Return(m.Emit(param.shift_operation, m.Parameter(0),
+                  m.Int32Constant(param.lane_size)));
+  const Stream s = m.Build();
+
+  ASSERT_EQ(0U, s.size());
+}
+
+TEST_P(TurboshaftInstructionSelectorSIMDShiftTest,
+       VariableShiftMasksAndDuplicatesCount) {
+  const SIMDShiftInst param = GetParam();
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Int32());
+  V<Simd128> input = m.Parameter(0);
+  V<Word32> count = m.Parameter(1);
+  m.Return(m.Emit(param.shift_operation, input, count));
+  const Stream s = m.Build();
+
+  const bool is_left_shift = param.target_opcode == kArm64IShl;
+  ASSERT_EQ(is_left_shift ? 3U : 4U, s.size());
+
+  EXPECT_EQ(kArm64And32, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(count), s.ToVreg(s[0]->InputAt(0)));
+  ASSERT_TRUE(s[0]->InputAt(1)->IsImmediate());
+  EXPECT_EQ(param.lane_size - 1, s.ToInt32(s[0]->InputAt(1)));
+
+  EXPECT_EQ(kArm64ISplat, s[1]->arch_opcode());
+  EXPECT_EQ(param.lane_size,
+            LaneSizeBits(LaneSizeField::decode(s[1]->opcode())));
+  ASSERT_EQ(1U, s[1]->InputCount());
+  ASSERT_EQ(1U, s[1]->OutputCount());
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(0)));
+
+  size_t shift_index = 2;
+  if (!is_left_shift) {
+    EXPECT_EQ(kArm64INeg, s[2]->arch_opcode());
+    EXPECT_EQ(param.lane_size,
+              LaneSizeBits(LaneSizeField::decode(s[2]->opcode())));
+    ASSERT_EQ(1U, s[2]->InputCount());
+    ASSERT_EQ(1U, s[2]->OutputCount());
+    EXPECT_EQ(s.ToVreg(s[1]->Output()), s.ToVreg(s[2]->InputAt(0)));
+    shift_index = 3;
+  }
+
+  EXPECT_EQ(param.shift_opcode, s[shift_index]->arch_opcode());
+  EXPECT_EQ(param.lane_size,
+            LaneSizeBits(LaneSizeField::decode(s[shift_index]->opcode())));
+  ASSERT_EQ(2U, s[shift_index]->InputCount());
+  ASSERT_EQ(1U, s[shift_index]->OutputCount());
+  EXPECT_EQ(s.ToVreg(input), s.ToVreg(s[shift_index]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[shift_index - 1]->Output()),
+            s.ToVreg(s[shift_index]->InputAt(1)));
+}
+
+class TurboshaftInstructionSelectorSIMDShrSTest
+    : public TurboshaftInstructionSelectorTestWithParam<SIMDShiftInst> {};
+
+TEST_P(TurboshaftInstructionSelectorSIMDShrSTest, ShrSByWidthMinusOne) {
+  const SIMDShiftInst param = GetParam();
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+  V<Simd128> input = m.Parameter(0);
+  m.Return(m.Emit(param.shift_operation, input,
+                  m.Int32Constant(param.lane_size - 1)));
+  const Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64ILtS, s[0]->arch_opcode());
+  EXPECT_EQ(param.lane_size,
+            LaneSizeBits(LaneSizeField::decode(s[0]->opcode())));
+  ASSERT_EQ(1U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(input), s.ToVreg(s[0]->InputAt(0)));
+}
+
+INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
+                         TurboshaftInstructionSelectorSIMDShiftTest,
+                         ::testing::ValuesIn(kSIMDShiftTests));
+
+INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
+                         TurboshaftInstructionSelectorSIMDShrSTest,
+                         ::testing::Values(kSIMDShiftTests[4],
+                                           kSIMDShiftTests[5],
+                                           kSIMDShiftTests[6],
+                                           kSIMDShiftTests[7]));
+
 TEST_F(TurboshaftInstructionSelectorTest, I32x4DotI8x16I7x16AddS) {
   StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
                   MachineType::Simd128(), MachineType::Simd128());
@@ -7260,7 +7474,7 @@ TEST_F(TurboshaftInstructionSelectorTest, AtomicStoreWithWriteBarrier) {
   EXPECT_EQ(kArm64Sub, s[0]->arch_opcode());
   EXPECT_EQ(kArchAtomicStoreWithWriteBarrier, s[1]->arch_opcode());
   EXPECT_EQ(kMode_MRR, s[1]->addressing_mode());
-  EXPECT_EQ(AtomicStoreRecordWriteModeField::decode(s[1]->opcode()),
+  EXPECT_EQ(RecordWriteModeField::decode(s[1]->opcode()),
             RecordWriteMode::kValueIsAny);
 }
 
@@ -10257,9 +10471,9 @@ TEST_P(TurboshaftInstructionSelectorSIMDSubFamilyTest, wasmSimdSubFamilyTest) {
 }
 
 TEST_F(TurboshaftInstructionSelectorTest, SimdShiftToAdd) {
-  {
+  for (int shift : {1, 8 + 1}) {
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
-    m.Return(m.I8x16Shl(m.Parameter(0), m.Int32Constant(1)));
+    m.Return(m.I8x16Shl(m.Parameter(0), m.Int32Constant(shift)));
     Stream s = m.Build();
     EXPECT_EQ(1U, s.size());
     EXPECT_EQ(kArm64IAdd, s[0]->arch_opcode());
@@ -10267,9 +10481,9 @@ TEST_F(TurboshaftInstructionSelectorTest, SimdShiftToAdd) {
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(1)));
   }
-  {
+  for (int shift : {1, 16 + 1}) {
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
-    m.Return(m.I16x8Shl(m.Parameter(0), m.Int32Constant(1)));
+    m.Return(m.I16x8Shl(m.Parameter(0), m.Int32Constant(shift)));
     Stream s = m.Build();
     EXPECT_EQ(1U, s.size());
     EXPECT_EQ(kArm64IAdd, s[0]->arch_opcode());
@@ -10277,9 +10491,9 @@ TEST_F(TurboshaftInstructionSelectorTest, SimdShiftToAdd) {
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(1)));
   }
-  {
+  for (int shift : {1, 32 + 1}) {
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
-    m.Return(m.I32x4Shl(m.Parameter(0), m.Int32Constant(1)));
+    m.Return(m.I32x4Shl(m.Parameter(0), m.Int32Constant(shift)));
     Stream s = m.Build();
     EXPECT_EQ(1U, s.size());
     EXPECT_EQ(kArm64IAdd, s[0]->arch_opcode());
@@ -10287,9 +10501,9 @@ TEST_F(TurboshaftInstructionSelectorTest, SimdShiftToAdd) {
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(1)));
   }
-  {
+  for (int shift : {1, 64 + 1}) {
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
-    m.Return(m.I64x2Shl(m.Parameter(0), m.Int32Constant(1)));
+    m.Return(m.I64x2Shl(m.Parameter(0), m.Int32Constant(shift)));
     Stream s = m.Build();
     EXPECT_EQ(1U, s.size());
     EXPECT_EQ(kArm64IAdd, s[0]->arch_opcode());
@@ -10659,6 +10873,40 @@ TEST_F(TurboshaftInstructionSelectorTest, Word32EqualWithReadOnlyRoot) {
   EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
   ASSERT_EQ(2u, s[0]->InputCount());
   EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64Add3) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64(), MachineType::Uint64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64> p2 = m.Parameter<Word64>(2);
+  V<Word64Pair> res = m.Word64Add3(p0, p1, p2);
+  OpIndex low = m.Projection(res, 0);
+  OpIndex high = m.Projection(res, 1);
+  m.Return(m.Word64Add(low, high));
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kArm64Add64_3, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64Add, s[1]->arch_opcode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  ASSERT_EQ(2U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64Add3UnusedHigh) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64(), MachineType::Uint64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64> p2 = m.Parameter<Word64>(2);
+  V<Word64Pair> res = m.Word64Add3(p0, p1, p2);
+  OpIndex low = m.Projection(res, 0);
+  m.Return(low);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64Add64_3, s[0]->arch_opcode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
 }
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -9,8 +9,8 @@
 #ifndef LLVM_LIBC_TYPES_CHAR8_T_H
 #define LLVM_LIBC_TYPES_CHAR8_T_H
 
-#if !(defined(__cplusplus) && defined(__cpp_char8_t))
+#ifndef __cpp_char8_t
 typedef unsigned char char8_t;
-#endif
+#endif // !__cpp_char8_t
 
 #endif // LLVM_LIBC_TYPES_CHAR8_T_H

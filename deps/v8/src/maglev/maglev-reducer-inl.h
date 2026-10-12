@@ -716,6 +716,11 @@ MaybeAssignedFlag MaglevReducer<BaseT>::GetContextMaybeAssigned(
   }
   int header_length = scope_info.ContextHeaderLength();
   if (index < header_length) {
+    DCHECK_EQ(index, Context::EXTENSION_INDEX);
+    if (scope_info.SloppyEvalCanExtendVars()) {
+      *mode = VariableMode::kVar;
+      return kMaybeAssigned;
+    }
     *mode = VariableMode::kConst;
     return kNotAssigned;
   }
@@ -2758,6 +2763,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOf(
         access_info.lookup_start_object_maps(), kStartAtPrototype);
 
     if (callable_node_if_not_constant) {
+      if (!CanEagerDeopt()) return {};
       RETURN_IF_ABORT(BuildCheckMaps(
           callable_node_if_not_constant,
           base::VectorOf(access_info.lookup_start_object_maps())));
@@ -2765,6 +2771,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOf(
       if (receiver_map.is_stable()) {
         broker()->dependencies()->DependOnStableMap(receiver_map);
       } else {
+        if (!CanEagerDeopt()) return {};
         RETURN_IF_ABORT(BuildCheckMaps(
             GetConstant(callable),
             base::VectorOf(access_info.lookup_start_object_maps())));
@@ -2813,6 +2820,11 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOf(
       callable_node = GetConstant(callable);
     }
 
+    // If we reach this point, then we've passed the
+    // ReducerBaseCanBuildCall<BaseT> check, which only holds for the
+    // GraphBuilder, for which CanEagerDeopt is true, which means that we can
+    // emit a CheckMaps.
+    DCHECK(CanEagerDeopt());
     RETURN_IF_ABORT(BuildCheckMaps(
         callable_node, base::VectorOf(access_info.lookup_start_object_maps())));
 
@@ -3380,19 +3392,15 @@ CallBuiltin* MaglevReducer<BaseT>::BuildCallBuiltin(
 // LINT.IfChange(WasmWrapperInliningConditions)
 template <typename BaseT>
 bool MaglevReducer<BaseT>::ShouldWrapArgsForWasmInlining(
-    compiler::SharedFunctionInfoRef shared, JSDispatchHandle dispatch_handle) {
+    JSDispatchHandle dispatch_handle) {
   if (!is_turbolev()) return false;
   if (!v8_flags.wasm_in_js_inlining_wrapper) return false;
-  // The SharedFunctionInfo of a Wasm exported function does not carry a
-  // builtin ID, so the check below filters out regular JS builtins.
-  // However, the Code installed in the dispatch table can be either:
+  // The Code installed in the dispatch table for a Wasm exported function can
+  // be either:
   //  - The generic kJSToWasmWrapper builtin (used before a per-signature
   //    wrapper has been compiled), or
   //  - A jitted per-signature wrapper (CodeKind::JS_TO_WASM_FUNCTION).
-  // We detect both cases by inspecting the Code object directly.
-  if (!shared.object()->HasWasmExportedFunctionData(local_isolate())) {
-    return false;
-  }
+  // We detect both cases by inspecting the Code object via the dispatch table.
   Tagged<Code> code =
       local_isolate()->js_dispatch_table().GetCode(dispatch_handle);
   return code->builtin_id() == Builtin::kJSToWasmWrapper ||
@@ -3410,7 +3418,7 @@ ReduceResult MaglevReducer<BaseT>::BuildCallKnownJSFunction(
     compiler::FeedbackSource const& feedback_source) {
 #if V8_ENABLE_WEBASSEMBLY
   const bool wrap_args_for_wasm =
-      ShouldWrapArgsForWasmInlining(shared, dispatch_handle);
+      ShouldWrapArgsForWasmInlining(dispatch_handle);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   size_t input_count = arg_count + CallKnownJSFunction::kFixedInputCount;
@@ -3681,6 +3689,13 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
       return GetInt32Constant(result);
     case Operation::kMultiply:
       if (base::bits::SignedMulOverflow32(cst_left, cst_right, &result)) {
+        return {};
+      }
+      // The product is -0 if it is zero and either operand is negative (the
+      // other is then +0). -0 is not representable as an Int32 constant, so
+      // bail out and let Int32MultiplyWithOverflow handle it, as the -x fold
+      // above does.
+      if (result == 0 && (cst_left < 0 || cst_right < 0)) {
         return {};
       }
       return GetInt32Constant(result);
@@ -4196,11 +4211,11 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldTestTypeOf(
 }
 
 template <typename BaseT>
-bool MaglevReducer<BaseT>::IsTheHoleConstant(ValueNode* node) {
+bool MaglevReducer<BaseT>::IsTdzHoleConstant(ValueNode* node) {
   if (node != nullptr) {
     if (compiler::OptionalHeapObjectRef maybe_constant =
             TryGetConstant<HeapObject>(node)) {
-      return maybe_constant->IsTheHole();
+      return maybe_constant->IsTdzHole();
     }
   }
   return false;
@@ -4210,7 +4225,7 @@ template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::GetConvertReceiver(
     compiler::SharedFunctionInfoRef shared, ValueNode* receiver,
     ConvertReceiverMode mode) {
-  DCHECK(!IsTheHoleConstant(receiver));
+  DCHECK(!IsTdzHoleConstant(receiver));
   if (shared.native() || shared.language_mode() == LanguageMode::kStrict) {
     if (mode == ConvertReceiverMode::kNullOrUndefined) {
       return GetRootConstant(RootIndex::kUndefinedValue);
@@ -6544,7 +6559,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceTypedArrayConstructor(
   LazyDeoptFrameScope continuation(
       this, context, Builtin::kGenericLazyDeoptContinuation, target,
       base::VectorOf<ValueNode* const>(
-          {GetRootConstant(RootIndex::kTheHoleValue)}));
+          {GetRootConstant(RootIndex::kTdzHoleValue)}));
   return BuildCallBuiltinWithTaggedInputs<Builtin::kCreateTypedArray>(
       GetConstant(broker()->target_native_context()),
       {target_node, new_target, arg0, arg1, arg2});

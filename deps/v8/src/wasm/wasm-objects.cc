@@ -115,25 +115,13 @@ using WasmModule = wasm::WasmModule;
 
 // static
 DirectHandle<WasmModuleObject> WasmModuleObject::New(
-    Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-    DirectHandle<Script> script) {
-  DirectHandle<CppGCManaged<wasm::NativeModule>> managed_native_module;
-  if (script->type() == Script::Type::kWasm) {
-    managed_native_module = direct_handle(
-        Cast<CppGCManaged<wasm::NativeModule>>(
-            script->wasm_managed_native_module()),
-        isolate);
-  } else {
-    const WasmModule* module = native_module->module();
-    size_t memory_estimate =
-        native_module->committed_code_space() +
-        wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
-    managed_native_module = CppGCManaged<wasm::NativeModule>::Create(
-        isolate, memory_estimate, std::move(native_module));
-  }
+    Isolate* isolate, DirectHandle<Script> script) {
+  DCHECK_EQ(script->type(), Script::Type::kWasm);
   DirectHandle<WasmModuleObject> module_object = Cast<WasmModuleObject>(
       isolate->factory()->NewJSObject(isolate->wasm_module_constructor()));
-  module_object->set_managed_native_module(*managed_native_module);
+  module_object->set_managed_native_module(
+      Cast<CppGCManaged<wasm::NativeModule>>(
+          script->wasm_managed_native_module()));
   module_object->set_script(*script);
   return module_object;
 }
@@ -642,14 +630,6 @@ void WasmTableObject::UpdateDispatchTable(
 
   SBXCHECK(FunctionSigMatchesTable(sig_id, dispatch_table->table_type()));
 
-  if (v8_flags.wasm_generic_wrapper && IsWasmImportData(*implicit_arg)) {
-    auto import_data = TrustedCast<WasmImportData>(implicit_arg);
-    DirectHandle<WasmImportData> new_import_data =
-        isolate->factory()->NewWasmImportData(import_data);
-    new_import_data->set_call_origin(*dispatch_table);
-    new_import_data->set_table_slot(entry_index);
-    implicit_arg = new_import_data;
-  }
 
   std::optional<std::shared_ptr<wasm::WasmWrapperHandle>> maybe_wrapper =
       target_instance_data->dispatch_table_for_imports()->MaybeGetWrapperHandle(
@@ -1328,11 +1308,6 @@ void ImportedFunctionEntry::SetWasmToWrapper(
       isolate->factory()->NewWasmImportData(callable, suspend,
                                             importing_instance_data_, sig);
 
-  if (!wrapper_handle->has_code()) {
-    import_data->SetIndexInTableAsCallOrigin(
-        importing_instance_data_->dispatch_table_for_imports(), index_);
-  }
-
   DisallowGarbageCollection no_gc;
   Tagged<WasmDispatchTableForImports> dispatch_table =
       importing_instance_data_->dispatch_table_for_imports();
@@ -1573,17 +1548,16 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   instance_object->set_module_object(*module_object);
   trusted_data->set_instance_object(*instance_object);
 
-  // Insert the new instance into the scripts weak list of instances. This
+  // Insert the new instance into the script's weak list of instances. This
   // list is used for breakpoints affecting all instances belonging to the
   // script.
-  if (module_object->script()->type() == Script::Type::kWasm) {
-    DirectHandle<WeakArrayList> weak_instance_list(
-        module_object->script()->wasm_weak_instance_list(), isolate);
-    weak_instance_list =
-        WeakArrayList::Append(isolate, weak_instance_list,
-                              MaybeObjectDirectHandle::Weak(instance_object));
-    module_object->script()->set_wasm_weak_instance_list(*weak_instance_list);
-  }
+  DCHECK_EQ(module_object->script()->type(), Script::Type::kWasm);
+  DirectHandle<WeakArrayList> weak_instance_list(
+      module_object->script()->wasm_weak_instance_list(), isolate);
+  weak_instance_list =
+      WeakArrayList::Append(isolate, weak_instance_list,
+                            MaybeObjectDirectHandle::Weak(instance_object));
+  module_object->script()->set_wasm_weak_instance_list(*weak_instance_list);
 
   return trusted_data;
 }
@@ -1722,11 +1696,9 @@ V8_INLINE DirectHandle<WasmExportedFunction> CreateExportedFunction(
   DirectHandle<Code> wrapper_code =
       WasmExportedFunction::GetWrapper(isolate, sig);
   int arity = static_cast<int>(sig->parameter_count());
-  DirectHandle<WasmExportedFunction> external = WasmExportedFunction::New(
-      isolate, trusted_instance_data, func_ref, internal_function, arity,
-      wrapper_code, function_index, wasm::kNoPromise);
-  internal_function->set_external(*external);
-  return external;
+  return WasmExportedFunction::New(isolate, trusted_instance_data, func_ref,
+                                   internal_function, arity, wrapper_code,
+                                   function_index, wasm::kNoPromise);
 }
 
 }  // namespace
@@ -1854,21 +1826,6 @@ DirectHandle<Code> WasmExportedFunction::GetWrapper(
   DCHECK_EQ(compiled->wrapper(),
             wasm::WasmExportWrapperCache::Get(isolate, sig->index()));
   return compiled;
-}
-
-void WasmImportData::SetIndexInTableAsCallOrigin(
-    Tagged<WasmDispatchTable> table, int entry_index) {
-  set_call_origin(table);
-  set_table_slot(entry_index);
-}
-void WasmImportData::SetIndexInTableAsCallOrigin(
-    Tagged<WasmDispatchTableForImports> table, int entry_index) {
-  set_call_origin(table);
-  set_table_slot(entry_index);
-}
-
-void WasmImportData::SetFuncRefAsCallOrigin(Tagged<WasmInternalFunction> func) {
-  set_call_origin(func);
 }
 
 Address WasmTrustedInstanceData::GetGlobalStorage(
@@ -2064,6 +2021,11 @@ DirectHandle<WasmCustomMap> WasmCustomMap::AllocateUninitialized(
           type.struct_type, described_index, described_size,
           described_instance_type, rtt_parent, num_supertypes, map);
   DisallowGarbageCollection no_gc;
+  DCHECK(!type.is_shared);
+  // TODO(manoskouk): If the above check is violated (i.e. we have shared custom
+  // descriptors), remove it and add a publish guard:
+  // SharedObjectConditionalSafePublishGuard publish_guard(*descriptor,
+  //                                                       type.is_shared);
   if (!prototype.is_null()) {
     Map::SetPrototype(isolate, descriptor, prototype);
   }
@@ -2588,24 +2550,7 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
   new_table->WriteField<int>(kLengthOffset, new_length);
   for (uint32_t i = 0; i < old_length; ++i) {
     WasmCodePointer call_target = old_table->target(i);
-    // Update any stored call origins, so that future compiled wrappers
-    // get installed into the new dispatch table.
     Tagged<Object> implicit_arg = old_table->implicit_arg(i);
-    if (Is<WasmImportData>(implicit_arg)) {
-      Tagged<WasmImportData> import_data =
-          TrustedCast<WasmImportData>(implicit_arg);
-      // After installing a compiled wrapper, we don't set or update
-      // call origins any more.
-      if (import_data->has_call_origin()) {
-        if (import_data->call_origin() == *old_table) {
-          import_data->set_call_origin(*new_table);
-        } else {
-          DCHECK(v8_flags.wasm_jitless ||
-                 wasm::GetWasmImportWrapperCache()->IsCompiledWrapper(
-                     call_target));
-        }
-      }
-    }
 
     if (implicit_arg == Smi::zero()) {
       DispatchTableClear(*new_table, i, kNewEntry);
@@ -2883,12 +2828,13 @@ DirectHandle<WasmCapiFunction> WasmCapiFunction::New(
 
   DirectHandle<Map> rtt = isolate->factory()->wasm_func_ref_map();
   DirectHandle<WasmCapiFunctionData> fun_data =
-      isolate->factory()->NewWasmCapiFunctionData(
-          call_target, embedder_data, BUILTIN_CODE(isolate, Illegal), rtt, sig);
+      isolate->factory()->NewWasmCapiFunctionData(call_target, embedder_data,
+                                                  rtt, sig);
   DirectHandle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForWasmCapiFunction(fun_data);
   DirectHandle<JSFunction> result =
       Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
+          .set_code(BUILTIN_CODE(isolate, Illegal))
           .Build();
   fun_data->internal()->set_external(*result);
   return Cast<WasmCapiFunction>(result);
@@ -2899,15 +2845,6 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
     DirectHandle<WasmFuncRef> func_ref,
     DirectHandle<WasmInternalFunction> internal_function, int arity,
     DirectHandle<Code> export_wrapper) {
-  DCHECK(
-      CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
-      (export_wrapper->is_builtin() &&
-       (export_wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
-#if V8_ENABLE_DRUMBRAKE
-        export_wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapper ||
-#endif  // V8_ENABLE_DRUMBRAKE
-        export_wrapper->builtin_id() == Builtin::kWasmPromising ||
-        export_wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
   int func_index = internal_function->function_index();
   wasm::Promise promise =
       export_wrapper->builtin_id() == Builtin::kWasmPromising
@@ -2922,10 +2859,19 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
     DirectHandle<WasmFuncRef> func_ref,
     DirectHandle<WasmInternalFunction> internal_function, int arity,
     DirectHandle<Code> export_wrapper, int func_index, wasm::Promise promise) {
+  DCHECK(
+      CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
+      (export_wrapper->is_builtin() &&
+       (export_wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
+#if V8_ENABLE_DRUMBRAKE
+        export_wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapper ||
+#endif  // V8_ENABLE_DRUMBRAKE
+        export_wrapper->builtin_id() == Builtin::kWasmPromising ||
+        export_wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
   Factory* factory = isolate->factory();
   DirectHandle<WasmExportedFunctionData> function_data =
       factory->NewWasmExportedFunctionData(
-          export_wrapper, instance_data, func_ref, internal_function,
+          instance_data, func_ref, internal_function,
           v8_flags.wasm_wrapper_tiering_budget, promise);
 
 #if V8_ENABLE_DRUMBRAKE
@@ -2954,6 +2900,7 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
   DirectHandle<JSFunction> js_function =
       Factory::JSFunctionBuilder{isolate, shared, context}
           .set_map(function_map)
+          .set_code(export_wrapper)
           .Build();
 
   // According to the spec, exported functions should not have a [[Construct]]
@@ -2964,7 +2911,7 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
   } else {
     shared->set_script(*isolate->factory()->undefined_value(), kReleaseStore);
   }
-  function_data->internal()->set_external(*js_function);
+  internal_function->set_external(*js_function);
   return Cast<WasmExportedFunction>(js_function);
 }
 
@@ -3024,6 +2971,7 @@ DirectHandle<Map> CreateStructMap(
         opt_native_context, instance_type, map_instance_size, elements_kind,
         inobject_properties);
   }
+  SharedObjectConditionalSafePublishGuard publish_guard(*map, shared);
   map->set_wasm_type_info(*type_info);
   map->set_is_extensible(false);
   WasmStruct::EncodeInstanceSizeInMap(real_instance_size, *map);
@@ -3056,6 +3004,7 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
              : isolate->factory()->NewContextlessMap(
                    instance_type, map_instance_size, elements_kind,
                    inobject_properties);
+  SharedObjectConditionalSafePublishGuard publish_guard(*map, shared);
   map->set_wasm_type_info(*type_info);
   map->SetInstanceDescriptors(*isolate->factory()->empty_descriptor_array(), 0,
                               SKIP_WRITE_BARRIER);

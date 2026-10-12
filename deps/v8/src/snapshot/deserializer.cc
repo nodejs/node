@@ -512,19 +512,7 @@ void NoExternalReferencesCallback() {
 void PostProcessExternalString(Tagged<ExternalString> string,
                                Isolate* isolate) {
   DisallowGarbageCollection no_gc;
-  uint32_t index = string->GetResourceRefForDeserialization();
-  // Our (sandbox) fuzzers can sometimes get here by mutating an in-sandbox
-  // object after deserialization but before post-processing, and making it
-  // look like an ExternalString. In that case, the Isolate may not have any
-  // external references and this CHECK then avoids false-positive crashes.
-  // Technically we should probably also check that the index is in-bounds if
-  // we do have external references on the Isolate, but in our current fuzzer
-  // setup, this doesn't seem to be the case.
-  CHECK_NE(isolate->api_external_references(), nullptr);
-  Address address =
-      static_cast<Address>(isolate->api_external_references()[index]);
-  string->InitExternalPointerFields(isolate);
-  string->set_address_as_resource(isolate, address);
+  string->InitResourceDataAfterDeserialization(isolate);
   isolate->heap()->UpdateExternalString(string, 0,
                                         string->ExternalPayloadSize());
   isolate->heap()->RegisterExternalString(string);
@@ -557,20 +545,17 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(
     }
   } else if (InstanceTypeChecker::IsJSTypedArray(instance_type)) {
     auto typed_array = Cast<JSTypedArray>(*obj);
+    uint32_t store_index = source_.GetUint30();
     // Note: ByteArray objects must not be deferred s.t. they are
     // available here for is_on_heap(). See also: CanBeDeferred.
     // Fixup typed array pointers.
     if (typed_array->is_on_heap()) {
-      typed_array->AddExternalPointerCompensationForDeserialization(
-          main_thread_isolate());
+      typed_array->InitOnHeapDataPtrAfterDeserialization(main_thread_isolate());
     } else {
-      // Serializer writes backing store ref as a DataPtr() value.
-      uint32_t store_index =
-          typed_array->GetExternalBackingStoreRefForDeserialization();
-      auto backing_store = backing_stores_[store_index];
-      if (backing_store && backing_store->buffer_start()) {
+      auto bs = backing_store(store_index);
+      if (bs && bs->buffer_start()) {
         typed_array->SetOffHeapDataPtr(main_thread_isolate(),
-                                       backing_store->buffer_start(),
+                                       bs->buffer_start(),
                                        typed_array->byte_offset());
       } else {
         // Directly set the data pointer to point to the
@@ -583,7 +568,7 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(
     }
   } else if (InstanceTypeChecker::IsJSArrayBuffer(instance_type)) {
     auto buffer = Cast<JSArrayBuffer>(*obj);
-    uint32_t store_index = buffer->GetBackingStoreRefForDeserialization();
+    uint32_t store_index = source_.GetUint30();
     buffer->init_extension();
     if (store_index == kEmptyBackingStoreRefSentinel) {
       buffer->set_backing_store(main_thread_isolate(),

@@ -109,7 +109,7 @@
   assertTrue(isNaN(f(a, 1, 2, true)));  // undefined + 1 = NaN
   %OptimizeMaglevOnNextCall(f);
   assertEquals(2.5, f(a, 0, 2, true));
-  assertTrue(isMaglevved(f));
+  assertMaglevved(f);
   assertTrue(isNaN(f(a, 1, 2, true)));
-  assertTrue(isMaglevved(f));
+  assertMaglevved(f);
 })();

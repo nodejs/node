@@ -39,7 +39,7 @@ assert_test_different_left_most_var(test_different_left_most_var());
 %OptimizeMaglevOnNextCall(test_different_left_most_var);
 assert_test_different_left_most_var(test_different_left_most_var());
 assertOptimized(test_different_left_most_var);
-assertTrue(isMaglevved(test_different_left_most_var));
+assertMaglevved(test_different_left_most_var);
 assert_test_different_left_most_var(test_different_left_most_var());
 %OptimizeFunctionOnNextCall(test_different_left_most_var);
 assert_test_different_left_most_var(test_different_left_most_var());

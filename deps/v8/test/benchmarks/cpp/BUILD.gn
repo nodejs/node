@@ -63,6 +63,8 @@ if (v8_enable_google_benchmark) {
 
     deps = [
       "//:v8",
+      "//:v8_internal_headers",
+      "//:v8_libbase",
       "//third_party/google_benchmark_chrome:google_benchmark",
     ]
   }
@@ -81,6 +83,7 @@ if (v8_enable_google_benchmark) {
 
     deps = [
       "//:v8",
+      "//:v8_libbase",
       "//third_party/google_benchmark_chrome:google_benchmark",
     ]
   }

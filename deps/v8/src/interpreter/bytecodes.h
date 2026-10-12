@@ -90,6 +90,7 @@ namespace interpreter {
   V(LdaUndefined, ImplicitRegisterUse::kWriteAccumulator)                      \
   V(LdaNull, ImplicitRegisterUse::kWriteAccumulator)                           \
   V(LdaTheHole, ImplicitRegisterUse::kWriteAccumulator)                        \
+  V(LdaTdzHole, ImplicitRegisterUse::kWriteAccumulator)                        \
   V(LdaTrue, ImplicitRegisterUse::kWriteAccumulator)                           \
   V(LdaFalse, ImplicitRegisterUse::kWriteAccumulator)                          \
   V(LdaConstant, ImplicitRegisterUse::kWriteAccumulator,                       \
@@ -193,6 +194,9 @@ namespace interpreter {
   V(DefineNamedOwnProperty, ImplicitRegisterUse::kReadAndClobberAccumulator,   \
     OperandType::kReg, OperandType::kConstantPoolIndex,                        \
     OperandType::kFeedbackSlot)                                                \
+  V(DefineNamedOwnPropertyInLiteral,                                           \
+    ImplicitRegisterUse::kReadAndClobberAccumulator, OperandType::kReg,        \
+    OperandType::kConstantPoolIndex, OperandType::kFeedbackSlot)               \
   V(SetKeyedProperty, ImplicitRegisterUse::kReadAndClobberAccumulator,         \
     OperandType::kReg, OperandType::kReg, OperandType::kFeedbackSlot)          \
   V(DefineKeyedOwnProperty, ImplicitRegisterUse::kReadAndClobberAccumulator,   \
@@ -481,10 +485,11 @@ namespace interpreter {
   V(Throw, ImplicitRegisterUse::kReadAccumulator)                              \
   V(ReThrow, ImplicitRegisterUse::kReadAccumulator)                            \
   V(Return, ImplicitRegisterUse::kReadAccumulator)                             \
-  V(ThrowReferenceErrorIfHole, ImplicitRegisterUse::kReadAccumulator,          \
+  V(ThrowReferenceErrorIfTdzHole, ImplicitRegisterUse::kReadAccumulator,       \
     OperandType::kConstantPoolIndex)                                           \
-  V(ThrowSuperNotCalledIfHole, ImplicitRegisterUse::kReadAccumulator)          \
-  V(ThrowSuperAlreadyCalledIfNotHole, ImplicitRegisterUse::kReadAccumulator)   \
+  V(ThrowSuperNotCalledIfTdzHole, ImplicitRegisterUse::kReadAccumulator)       \
+  V(ThrowSuperAlreadyCalledIfNotTdzHole,                                       \
+    ImplicitRegisterUse::kReadAccumulator)                                     \
   V(ThrowIfNotSuperConstructor, ImplicitRegisterUse::kNone, OperandType::kReg) \
                                                                                \
   /* Generators */                                                             \

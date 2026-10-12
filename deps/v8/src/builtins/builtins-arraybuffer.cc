@@ -486,7 +486,18 @@ static Tagged<Object> ResizeHelper(BuiltinArguments args, Isolate* isolate,
                                    kMethodName)));
   }
 
-  if (is_shared && new_byte_length < array_buffer->GetByteLength()) {
+  auto* extension = array_buffer->extension();
+  // Only resizable ArrayBuffer should get here.
+  SBXCHECK(extension->is_resizable_by_js());
+  SBXCHECK_EQ(extension->is_shared(), SharedFlag(is_shared));
+
+  auto backing_store = extension->backing_store();
+
+  if (is_shared &&
+      new_byte_length < backing_store->byte_length(std::memory_order_seq_cst)) {
+    // `backing_store->byte_length(std::memory_order_seq_cst)` above is
+    // equivalent to the GSAB path of JSArrayBuffer::GetByteLength.
+
     // GrowableSharedArrayBuffer is only allowed to grow.
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferResizeLength,
@@ -506,7 +517,6 @@ static Tagged<Object> ResizeHelper(BuiltinArguments args, Isolate* isolate,
   // If hostHandled is handled, return undefined.
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-  auto backing_store = array_buffer->GetBackingStore();
   if (backing_store->is_wasm_memory()) {
     size_t old_byte_length =
         backing_store->byte_length(std::memory_order_seq_cst);
@@ -549,8 +559,7 @@ static Tagged<Object> ResizeHelper(BuiltinArguments args, Isolate* isolate,
     // [RAB] NOTE: Neither creation of the new Data Block nor copying from the
     // old Data Block are observable. Implementations reserve the right to
     // implement this method as in-place growth or shrinkage.
-    if (array_buffer->GetBackingStore()->ResizeInPlace(isolate,
-                                                       new_byte_length) !=
+    if (backing_store->ResizeInPlace(isolate, new_byte_length) !=
         BackingStore::ResizeOrGrowResult::kSuccess) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewRangeError(MessageTemplate::kOutOfMemory,
@@ -569,15 +578,14 @@ static Tagged<Object> ResizeHelper(BuiltinArguments args, Isolate* isolate,
     }
 
     isolate->heap()->ResizeArrayBufferExtension(
-        array_buffer->extension(),
+        extension,
         static_cast<int64_t>(new_byte_length) - array_buffer->byte_length());
 
     // [RAB] Set O.[[ArrayBufferByteLength]] to newLength.
     array_buffer->set_byte_length(new_byte_length);
   } else {
     // [GSAB] (Detailed description of the algorithm omitted.)
-    auto result =
-        array_buffer->GetBackingStore()->GrowInPlace(isolate, new_byte_length);
+    auto result = backing_store->GrowInPlace(isolate, new_byte_length);
     if (result == BackingStore::ResizeOrGrowResult::kFailure) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewRangeError(MessageTemplate::kOutOfMemory,

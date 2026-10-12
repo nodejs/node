@@ -486,13 +486,13 @@ struct map_slot_policy {
 
 // Variadic arguments hash function that ignore the rest of the arguments.
 // Useful for usage with policy traits.
-template <class Hash, bool kIsDefault, size_t kSeedShift>
+template <class Hash, bool kIsAbsl, size_t kSeedShift>
 struct HashElement {
   HashElement(const Hash& h, size_t s) : hash(h), seed(s >> kSeedShift) {}
 
   template <class K, class... Args>
   size_t operator()(const K& key, Args&&...) const {
-    if constexpr (kIsDefault) {
+    if constexpr (kIsAbsl) {
       // TODO(b/384509507): resolve `no header providing
       // "absl::hash_internal::SupportsHashWithSeed" is directly included`.
       // Maybe we should make "internal/hash.h" be a separate library.
@@ -506,12 +506,12 @@ struct HashElement {
 };
 
 // No arguments function hash function for a specific key.
-template <class Hash, class Key, bool kIsDefault, size_t kSeedShift>
+template <class Hash, class Key, bool kIsAbsl, size_t kSeedShift>
 struct HashKey {
   HashKey(const Hash& h, const Key& k) : hash(h), key(k) {}
 
   size_t operator()(size_t seed) const {
-    return HashElement<Hash, kIsDefault, kSeedShift>{hash, seed}(key);
+    return HashElement<Hash, kIsAbsl, kSeedShift>{hash, seed}(key);
   }
   const Hash& hash;
   const Key& key;
@@ -534,31 +534,31 @@ using HashSlotFn = size_t (*)(const void* hash_fn, void* slot, size_t seed);
 
 // Type erased function to apply `Fn` to data inside of the `slot`.
 // The data is expected to have type `T`.
-template <class Fn, class T, bool kIsDefault, size_t kSeedShift>
+template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
 size_t TypeErasedApplyToSlotFn(const void* fn, void* slot, size_t seed) {
   const auto* f = static_cast<const Fn*>(fn);
-  return HashElement<Fn, kIsDefault, kSeedShift>{
+  return HashElement<Fn, kIsAbsl, kSeedShift>{
       *f, seed}(*static_cast<const T*>(slot));
 }
 
 // Type erased function to apply `Fn` to data inside of the `*slot_ptr`.
 // The data is expected to have type `T`.
-template <class Fn, class T, bool kIsDefault, size_t kSeedShift>
+template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
 size_t TypeErasedDerefAndApplyToSlotFn(const void* fn, void* slot_ptr,
                                        size_t seed) {
   const auto* f = static_cast<const Fn*>(fn);
   const T* slot = *static_cast<T**>(slot_ptr);
-  return HashElement<Fn, kIsDefault, kSeedShift>{*f, seed}(*slot);
+  return HashElement<Fn, kIsAbsl, kSeedShift>{*f, seed}(*slot);
 }
 
 // Type erased function to apply `Fn` to data inside of the `slot_ptr->first`.
 // The data is expected to have type `T`.
-template <class Fn, class T, bool kIsDefault, size_t kSeedShift>
+template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
 size_t TypeErasedDerefAndApplyToSlotFirstFn(const void* fn, void* slot_ptr,
                                             size_t seed) {
   const auto* f = static_cast<const Fn*>(fn);
   const T* slot = *static_cast<T**>(slot_ptr);
-  return HashElement<Fn, kIsDefault, kSeedShift>{*f, seed}(slot->first);
+  return HashElement<Fn, kIsAbsl, kSeedShift>{*f, seed}(slot->first);
 }
 
 }  // namespace container_internal

@@ -25,6 +25,9 @@ namespace v8::internal {
   }
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 HOLE_LIST(IS_TYPE_FUNCTION_DEF)
+#ifndef V8_ENABLE_TDZ_HOLE
+IS_TYPE_FUNCTION_DEF(TdzHole)
+#endif
 IS_TYPE_FUNCTION_DEF(UndefinedContextCell)
 #undef IS_TYPE_FUNCTION_DEF
 
@@ -52,6 +55,9 @@ IS_TYPE_FUNCTION_DEF(UndefinedContextCell)
 #endif
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 HOLE_LIST(IS_TYPE_FUNCTION_DEF)
+#ifndef V8_ENABLE_TDZ_HOLE
+IS_TYPE_FUNCTION_DEF(TdzHole, the_hole_value, TheHoleValue)
+#endif
 IS_TYPE_FUNCTION_DEF(UndefinedContextCell, undefined_context_cell,
                      UndefinedContextCell)
 #undef IS_TYPE_FUNCTION_DEF

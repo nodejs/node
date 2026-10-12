@@ -62,10 +62,7 @@
 //     HashtablezInfoHandle infoz_;  // optional
 //     // Additional number that can be added to growth_left_lower_bound.
 //     // Only stored for tables with large capacities.
-//     uint8_t growth_left_overflow[7];  // optional
-//     // The minimum number of elements we can insert before growing the
-//     // capacity.
-//     uint8_t growth_left_lower_bound;
+//     uint64_t growth_left_overflow;  // optional
 //     // Control bytes for the "real" slots.
 //     ctrl_t ctrl[capacity];
 //     // Always `ctrl_t::kSentinel`. This is used by iterators to find when to
@@ -204,6 +201,7 @@
 #include "absl/base/internal/endian.h"
 #include "absl/base/internal/iterator_traits.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/internal/unaligned_access.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/base/options.h"
@@ -323,6 +321,11 @@ struct IsDecomposable<
         RequireUsableKey<typename Policy::key_type, Hash, Eq>(),
         std::declval<Ts>()...))>,
     Policy, Hash, Eq, Ts...> : std::true_type {};
+
+template <typename T, template <typename...> class Template>
+struct is_instance_of : std::false_type {};
+template <template <typename...> class Template, typename... Args>
+struct is_instance_of<Template<Args...>, Template> : std::true_type {};
 
 ABSL_DLL extern char kDefaultIterSlot;
 
@@ -651,6 +654,96 @@ class BlockedInfo {
   uint8_t tail_blocked_;
 };
 
+// Stored the information regarding number of slots we can still fill
+// without needing to rehash.
+//
+// We want to ensure sufficient number of empty slots in the table in order
+// to keep probe sequences relatively short. Empty slot in the probe group
+// is required to stop probing.
+//
+// Tombstones (kDeleted slots) are not included in the growth capacity,
+// because we'd like to rehash when the table is filled with tombstones and/or
+// full slots.
+//
+// GrowthInfo also stores a bit that encodes whether table may have any
+// deleted slots.
+// Most of the tables (>95%) have no deleted slots, so some functions can
+// be more efficient with this information.
+//
+// Callers can also force a rehash via the standard `rehash(0)`,
+// which will recompute this value as a side-effect.
+//
+// See also `CapacityToGrowth()`.
+//
+// GrowthInfoLowerBound is stored as 8 bits in HashtableInlineData.
+// For capacity > kMaxGrowthLeftLowerBound we additionally store 8 bytes
+// at the beginning of the backing array. Storing GrowthInfoLowerBound in
+// HashtableInlineData helps to avoid any branching in the hottest code
+// accessing GrowthInfo. GrowthInfoLowerBound has 7 bits to store the growth
+// left and 1 bit to store whether the table has any deleted slots. GrowthInfo
+// overflow for capacity > kMaxGrowthLeftLowerBound is stored as unaligned
+// uint64_t.
+
+// One byte encoding of lower bound GrowthInfo.
+// It encodes number of growth left from 0 to kMaxGrowthLeftLowerBound and
+// whether the table has any deleted slots.
+class GrowthInfoLowerBound {
+ public:
+  static constexpr uint8_t kGrowthLeftMask = 0x7Fu;
+  static constexpr uint8_t kDeletedBit = 0x80u;
+  static constexpr size_t kMaxGrowthLeftLowerBound = 127;
+  static_assert(kMaxGrowthLeftLowerBound == kGrowthLeftMask);
+
+  explicit constexpr GrowthInfoLowerBound(uint8_t growth_left)
+      : growth_left_(growth_left) {}
+
+  // Returns the raw one byte encoded value of the GrowthInfoLowerBound.
+  uint8_t ToRawData() const { return growth_left_; }
+
+  // Returns true if table satisfies two properties:
+  // 1. Guaranteed to have no kDeleted slots.
+  // 2. There is a place for at least one element to grow.
+  constexpr bool HasNoDeletedAndGrowthLeft() const {
+    return static_cast<int8_t>(growth_left_) > 0;
+  }
+
+  // Returns true if table satisfies two properties:
+  // 1. May have kDeleted slots (kDeletedBit == 1).
+  // 2. There is a place for at least one element to grow.
+  constexpr bool HasDeletedAndGrowthLeft() const {
+    return growth_left_ > kDeletedBit;
+  }
+
+  // Returns true if the table satisfies two properties:
+  // 1. Guaranteed to have no kDeleted slots.
+  // 2. There is no growth left.
+  constexpr bool HasNoGrowthLeftAndNoDeleted() const {
+    return growth_left_ == 0;
+  }
+
+  // Returns true if GetGrowthLeft() == 0 and HasNoDeleted() is false.
+  // It is slightly more efficient.
+  constexpr bool HasNoGrowthLeftAndHaveDeleted() const {
+    return growth_left_ == kDeletedBit;
+  }
+
+  // Returns true if table guaranteed to have no kDeleted slots.
+  constexpr bool HasNoDeleted() const {
+    return (growth_left_ & kDeletedBit) == 0;
+  }
+
+  // Returns the minimum number of elements left to grow.
+  // Use GrowthInfoView::GetGrowthLeftTotal() to get the total number of
+  // elements left to grow. For tables with capacity <=
+  // kMaxGrowthLeftLowerBound, this is the same as GetGrowthLeftTotal().
+  constexpr uint8_t GetGrowthLeft() const {
+    return growth_left_ & kGrowthLeftMask;
+  }
+
+ private:
+  uint8_t growth_left_;
+};
+
 // Capacity, size and also has additionally
 // 1) one bit that stores whether we have infoz.
 // 2) kBlockedElementsBitCount bits that stores number of blocked elements in
@@ -668,6 +761,7 @@ class HashtableInlineDataImpl {
  public:
   static constexpr HashtableCapacityStorageMode kStorageMode = StorageMode;
   using HashtableCapacity = HashtableCapacityImpl<StorageMode>;
+  static constexpr size_t kGrowthInfoLowerBoundBitCount = 8;
   static constexpr size_t kBlockedElementBitCount = 3;
   static constexpr size_t kMaxBlockedElementCount =
       (uint64_t{1} << kBlockedElementBitCount) - 1;
@@ -676,8 +770,9 @@ class HashtableInlineDataImpl {
   static constexpr size_t kCapacityBitStoredInDataCount =
       StorageMode == kCapacityByValue ? 0 : kCapacityBitCount;
   static constexpr size_t kSizeBitCount =
-      64 - (kBlockedElementBitCount + kSeedBitCount +
-            /*has_infoz*/ 1 + kCapacityBitStoredInDataCount);
+      64 -
+      (kBlockedElementBitCount + kSeedBitCount + kGrowthInfoLowerBoundBitCount +
+       /*has_infoz*/ 1 + kCapacityBitStoredInDataCount);
 
   explicit HashtableInlineDataImpl(uninitialized_tag_t) {}
   explicit HashtableInlineDataImpl(HashtableCapacity capacity,
@@ -758,11 +853,63 @@ class HashtableInlineDataImpl {
   }
   void set_blocked_element_count_to_zero() { data_ &= ~kBlockedElementMask; }
 
+  GrowthInfoLowerBound growth_info_lower_bound() const {
+    ABSL_SWISSTABLE_ASSERT(!is_small() &&
+                           "we do not track growth for small tables");
+    return GrowthInfoLowerBound(static_cast<uint8_t>(
+        (data_ & kGrowthInfoLowerBoundMask) >> kGrowthInfoLowerBoundShift));
+  }
+
+  void set_growth_info_lower_bound(
+      GrowthInfoLowerBound growth_info_lower_bound) {
+    data_ = (data_ & ~kGrowthInfoLowerBoundMask) |
+            (uint64_t{growth_info_lower_bound.ToRawData()}
+             << kGrowthInfoLowerBoundShift);
+  }
+
+  // Overwrites single empty slot with a full slot.
+  // Must be called when growth left lower bound is positive.
+  void overwrite_empty_as_full() {
+    ABSL_SWISSTABLE_ASSERT(growth_info_lower_bound().GetGrowthLeft() > 0);
+    data_ -= kGrowthInfoLowerBoundOne;
+  }
+
+  // Overwrites single full slot with an empty slot.
+  // Must be called when growth left lower bound is less than
+  // kMaxGrowthLeftLowerBound.
+  void overwrite_full_as_empty_in_lower_bound() {
+    increment_growth_info_lower_bound(1);
+  }
+
+  // Increments the growth left lower bound by the given increment.
+  // Must be called when the growth left lower bound + increment does not exceed
+  // kMaxGrowthLeftLowerBound.
+  void increment_growth_info_lower_bound(size_t increment) {
+    ABSL_SWISSTABLE_ASSERT(growth_info_lower_bound().GetGrowthLeft() +
+                               increment <=
+                           GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
+    data_ += increment << kGrowthInfoLowerBoundShift;
+  }
+
+  // Overwrites specified control element with full slot.
+  // Must be called when growth left lower bound is >= IsEmpty(ctrl).
+  void overwrite_control_as_full(ctrl_t ctrl) {
+    ABSL_SWISSTABLE_ASSERT(growth_info_lower_bound().GetGrowthLeft() >=
+                           static_cast<size_t>(IsEmpty(ctrl)));
+    data_ -= static_cast<size_t>(IsEmpty(ctrl)) << kGrowthInfoLowerBoundShift;
+  }
+
+  // Overwrites single full slot with a deleted slot.
+  void overwrite_full_as_deleted() {
+    data_ |= (GrowthInfoLowerBound::kDeletedBit << kGrowthInfoLowerBoundShift);
+  }
+
   void set_no_seed_for_testing() { data_ &= ~kSeedMask; }
 
  private:
   // Bit layout of `data_` and `capacity_internal_` from MSB to LSB:
-  // (55/49 bits)   : size
+  // (47/41 bits)   : size
+  // (8 bits)       : growth_info_lower_bound
   // (3 bits)       : blocked_element_count
   // (1 bit)        : has_infoz
   // (5 bits)       : seed
@@ -770,8 +917,7 @@ class HashtableInlineDataImpl {
   // We don't split these components of `data_` into separate bit field elements
   // because we get worse generated code that way.
 
-  static constexpr size_t kDataBitCount =
-      kSeedBitCount + 1 + kSizeBitCount + kBlockedElementBitCount;
+  static constexpr size_t kDataBitCount = 64 - kCapacityBitStoredInDataCount;
   static constexpr size_t kSizeShift = kDataBitCount - kSizeBitCount;
   static constexpr uint64_t kSizeOneNoMetadata = uint64_t{1} << kSizeShift;
   static constexpr uint64_t kMetadataMask = kSizeOneNoMetadata - 1;
@@ -781,6 +927,12 @@ class HashtableInlineDataImpl {
   static constexpr uint64_t kBlockedElementsShift = kSeedBitCount + 1;
   static constexpr uint64_t kBlockedElementMask = kMaxBlockedElementCount
                                                   << kBlockedElementsShift;
+  static constexpr uint64_t kGrowthInfoLowerBoundShift =
+      kBlockedElementsShift + kBlockedElementBitCount;
+  static constexpr uint64_t kGrowthInfoLowerBoundOne =
+      uint64_t{1} << kGrowthInfoLowerBoundShift;
+  static constexpr uint64_t kGrowthInfoLowerBoundMask =
+      uint64_t{0xff} << kGrowthInfoLowerBoundShift;
   // For SOO tables, the seed is unused, and bit 0 is repurposed to track
   // whether the table has already queried should_sample_soo().
   static constexpr uint64_t kSooHasTriedSamplingMask = 1;
@@ -976,171 +1128,6 @@ using CommonFieldsGenerationInfo = CommonFieldsGenerationInfoDisabled;
 using HashSetIteratorGenerationInfo = HashSetIteratorGenerationInfoDisabled;
 #endif
 
-// Stored the information regarding number of slots we can still fill
-// without needing to rehash.
-//
-// We want to ensure sufficient number of empty slots in the table in order
-// to keep probe sequences relatively short. Empty slot in the probe group
-// is required to stop probing.
-//
-// Tombstones (kDeleted slots) are not included in the growth capacity,
-// because we'd like to rehash when the table is filled with tombstones and/or
-// full slots.
-//
-// GrowthInfo also stores a bit that encodes whether table may have any
-// deleted slots.
-// Most of the tables (>95%) have no deleted slots, so some functions can
-// be more efficient with this information.
-//
-// Callers can also force a rehash via the standard `rehash(0)`,
-// which will recompute this value as a side-effect.
-//
-// See also `CapacityToGrowth()`.
-//
-// GrowthInfo is stored as 1 or 8 bytes at the beginning of the backing array.
-// For capacity <= kMaxGrowthLeftLowerBound we store single byte, otherwise we
-// store 8 bytes. Byte before the first control byte for all tables is always
-// used to store GrowthInfoLowerBound. That helps to avoid any branching in the
-// hottest code accessing GrowthInfo. GrowthInfoLowerBound has 7 bits to store
-// the growth left and 1 bit to store whether the table has any deleted slots.
-// For capacity > kMaxGrowthLeftLowerBound we use another 7 bytes to store the
-// full GrowthInfo. GrowthInfo for capacity > kMaxGrowthLeftLowerBound is stored
-// as uint64_t in little endian encoding. Most significant 8 bits (last byte in
-// little endian encoding) contains GrowthInfoLowerBound.
-class GrowthInfoAccessor;
-
-// One byte encoding of lower bound GrowthInfo.
-// It encodes number of growth left from 0 to kMaxGrowthLeftLowerBound and
-// whether the table has any deleted slots.
-class GrowthInfoLowerBound {
- public:
-  static constexpr uint8_t kGrowthLeftMask = 0x7Fu;
-  static constexpr uint8_t kDeletedBit = 0x80u;
-  static constexpr uint64_t kMaxGrowthLeftLowerBound = 127;
-  static_assert(kMaxGrowthLeftLowerBound == kGrowthLeftMask);
-
-  explicit constexpr GrowthInfoLowerBound(uint8_t growth_left)
-      : growth_left_(growth_left) {}
-
-  // Returns true if table satisfies two properties:
-  // 1. Guaranteed to have no kDeleted slots.
-  // 2. There is a place for at least one element to grow.
-  constexpr bool HasNoDeletedAndGrowthLeft() const {
-    return static_cast<int8_t>(growth_left_) > 0;
-  }
-
-  // Returns true if table satisfies two properties:
-  // 1. May have kDeleted slots (kDeletedBit == 1).
-  // 2. There is a place for at least one element to grow.
-  constexpr bool HasDeletedAndGrowthLeft() const {
-    return growth_left_ > kDeletedBit;
-  }
-
-  // Returns true if the table satisfies two properties:
-  // 1. Guaranteed to have no kDeleted slots.
-  // 2. There is no growth left.
-  constexpr bool HasNoGrowthLeftAndNoDeleted() const {
-    return growth_left_ == 0;
-  }
-
-  // Returns true if GetGrowthLeft() == 0 and HasNoDeleted() is false.
-  // It is slightly more efficient.
-  constexpr bool HasNoGrowthLeftAndHaveDeleted() const {
-    return growth_left_ == kDeletedBit;
-  }
-
-  // Returns true if table guaranteed to have no kDeleted slots.
-  constexpr bool HasNoDeleted() const {
-    return (growth_left_ & kDeletedBit) == 0;
-  }
-
-  // Returns the minimum number of elements left to grow.
-  // Use GrowthInfoView::GetGrowthLeftTotal() to get the total number of
-  // elements left to grow. For tables with capacity <=
-  // kMaxGrowthLeftLowerBound, this is the same as GetGrowthLeftTotal().
-  constexpr uint8_t GetGrowthLeft() const {
-    return growth_left_ & kGrowthLeftMask;
-  }
-
- private:
-  uint8_t growth_left_;
-};
-
-// GrowthInfo is stored in the backing array, and this class provides a simple
-// interface to access and modify it.
-class GrowthInfoAccessor {
- public:
-  // GrowthInfoLowerBound is stored in the most significant 8 bits of the
-  // full growth info.
-  static constexpr uint64_t kLowerBoundShift = 64 - 8;
-
-  explicit GrowthInfoAccessor(void* control)
-      : growth_info_lower_bound_(reinterpret_cast<uint8_t*>(control) - 1 -
-                                 NumGenerationBytes()) {}
-
-  // Initializes the GrowthInfo assuming we can grow `growth_left` elements
-  // and there are no kDeleted slots in the table.
-  void InitGrowthLeftNoDeleted(size_t growth_left, size_t capacity);
-
-  // Returns a GrowthInfoLowerBound object containing the information
-  // about minimum growth left.
-  // It guarantees that GetGrowthLeft() will be > 0 if GetGrowthLeftTotal() > 0.
-  // It may optionally borrow some growth left from the full_growth_info.
-  GrowthInfoLowerBound RebalanceGrowthLeftLowerBound(size_t capacity);
-
-  // Overwrites single full slot with an empty slot.
-  void OverwriteFullAsEmpty();
-
-  // Overwrites single empty slot with a full slot.
-  // Must be called when GetGrowthLeftLowerBound() > 0.
-  void OverwriteEmptyAsFull() {
-    ABSL_SWISSTABLE_ASSERT(GetGrowthLeftLowerBound() > 0);
-    --(*growth_info_lower_bound_);
-  }
-
-  // Overwrites specified control element with full slot.
-  // Must be called when GetGrowthLeftLowerBound() >= IsEmpty(ctrl).
-  void OverwriteControlAsFull(ctrl_t ctrl) {
-    ABSL_SWISSTABLE_ASSERT(GetGrowthLeftLowerBound() >=
-                           static_cast<size_t>(IsEmpty(ctrl)));
-    *growth_info_lower_bound_ -= static_cast<size_t>(IsEmpty(ctrl));
-  }
-
-  // Overwrites single full slot with a deleted slot.
-  void OverwriteFullAsDeleted() {
-    *growth_info_lower_bound_ |= GrowthInfoLowerBound::kDeletedBit;
-  }
-
-  // Returns a GrowthInfoLowerBound object containing the information
-  // about minimum growth left.
-  GrowthInfoLowerBound GetGrowthInfoLowerBound() const {
-    return GrowthInfoLowerBound(*growth_info_lower_bound_);
-  }
-
-  // Returns the minimum number of elements left to grow.
-  size_t GetGrowthLeftLowerBound() const {
-    return GetGrowthInfoLowerBound().GetGrowthLeft();
-  }
-
-  // The number of slots we can still fill without needing to rehash.
-  // Hot code paths should try to work with
-  // growth_info().GetGrowthLeftLowerBound() instead.
-  size_t GetGrowthLeftTotalSlow(size_t capacity) const;
-
- private:
-  void* full_growth_info_ptr() const { return growth_info_lower_bound_ - 7; }
-
-  GrowthInfoLowerBound RebalanceGrowthLeftLowerBoundLargeCapacity();
-
-  // Pointer to the GrowthInfoLowerBound data.
-  // For large capacities, 7 bytes before this pointer is used to store
-  // the full growth info.
-  // NOTE: using a pointer here can result in the compiler being forced to
-  // assume aliasing can happen. So in hot code paths, we try to work with
-  // GrowthInfoLowerBound directly
-  uint8_t* growth_info_lower_bound_;
-};
-
 // Returns the number of "cloned control bytes".
 //
 // This is the number of control bytes that are present both at the beginning
@@ -1154,13 +1141,10 @@ constexpr size_t NumControlBytes(size_t capacity) {
 }
 
 // Returns the size in bytes table with given capacity use to store GrowthInfo.
-// Returns 0 for small tables that doesn't store GrowthInfo.
+// Returns 0 for small tables that store GrowthInfo in the inline data.
 constexpr size_t GrowthInfoSizeForCapacity(size_t capacity) {
-  if (IsSmallCapacity(capacity)) {
-    return 0;
-  }
   return capacity <= GrowthInfoLowerBound::kMaxGrowthLeftLowerBound
-             ? sizeof(uint8_t)
+             ? 0
              : sizeof(uint64_t);
 }
 
@@ -1273,12 +1257,6 @@ union HeapOrSoo {
   HeapPtrs heap;
   unsigned char soo_data[MaxSooSlotSize()];
 };
-
-// Returns a reference to the GrowthInfo object stored immediately before
-// `control`.
-inline GrowthInfoAccessor GetGrowthInfoFromControl(ctrl_t* control) {
-  return GrowthInfoAccessor(control);
-}
 
 // CommonFields hold the fields in raw_hash_set that do not depend
 // on template parameters. This allows us to conveniently pass all
@@ -1409,10 +1387,47 @@ class CommonFields : public CommonFieldsGenerationInfo {
   }
   bool is_small() const { return inline_data_.is_small(); }
 
-  GrowthInfoAccessor growth_info() const {
-    ABSL_SWISSTABLE_ASSERT(GrowthInfoSizeForCapacity(capacity()) > 0);
-    return GetGrowthInfoFromControl(control());
+  // Returns the GrowthInfoLowerBound of the table.
+  // This value is used to determine the minimum number of elements that can be
+  // inserted into the table before a rehash is required.
+  GrowthInfoLowerBound GetGrowthInfoLowerBound() const {
+    return inline_data_.growth_info_lower_bound();
   }
+
+  // Returns the number of growth left in the lower bound of the table.
+  size_t GetGrowthLeftLowerBound() const {
+    return inline_data_.growth_info_lower_bound().GetGrowthLeft();
+  }
+
+  // The number of slots we can still fill without needing to rehash.
+  // Hot code paths should try to work with GetGrowthLeftLowerBound() instead.
+  size_t GetGrowthLeftTotalSlow(size_t capacity) const;
+
+  // Initializes the GrowthInfo assuming we can grow `growth_left` elements
+  // and there are no kDeleted slots in the table.
+  void InitGrowthLeftNoDeleted(size_t growth_left, size_t capacity);
+
+  // Modifies the GrowthInfo to mark full element as deleted.
+  void OverwriteFullAsDeleted() { inline_data_.overwrite_full_as_deleted(); }
+
+  // Modifies the GrowthInfo to mark empty element as full.
+  // Requires: GetGrowthLeftLowerBound() > 0.
+  void OverwriteEmptyAsFull() { inline_data_.overwrite_empty_as_full(); }
+
+  // Modifies the control byte to mark the element as full.
+  // Requires: GetGrowthLeftLowerBound() > IsEmpty(ctrl).
+  void OverwriteControlAsFull(ctrl_t ctrl) {
+    inline_data_.overwrite_control_as_full(ctrl);
+  }
+
+  // Modifies the GrowthInfo to mark full element as empty.
+  void OverwriteFullAsEmpty();
+
+  // Returns a GrowthInfoLowerBound object containing the information
+  // about minimum growth left.
+  // It guarantees that GetGrowthLeft() will be > 0 if GetGrowthLeftTotal() > 0.
+  // It may optionally borrow some growth left from the full_growth_info.
+  GrowthInfoLowerBound RebalanceGrowthLeftLowerBound(size_t capacity);
 
   bool has_infoz() const { return inline_data_.has_infoz(); }
   void set_has_infoz() {
@@ -1508,6 +1523,27 @@ class CommonFields : public CommonFieldsGenerationInfo {
   static constexpr size_t HasInfozMask() {
     return (size_t{1} << HasInfozShift()) - 1;
   }
+
+  void* GrowthInfoOverflowAddress() const {
+    return reinterpret_cast<void*>(
+        reinterpret_cast<uintptr_t>(control()) -
+        /*growth_info_overflow_size=*/sizeof(uint64_t) - NumGenerationBytes());
+  }
+
+  size_t GetOverflowGrowthLeft() const {
+    ABSL_SWISSTABLE_ASSERT(capacity() >
+                           GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
+    return static_cast<size_t>(
+        base_internal::UnalignedLoad64(GrowthInfoOverflowAddress()));
+  }
+
+  void SetGrowthInfoOverflow(size_t overflow) {
+    ABSL_SWISSTABLE_ASSERT(capacity() >
+                           GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
+    base_internal::UnalignedStore64(GrowthInfoOverflowAddress(), overflow);
+  }
+
+  GrowthInfoLowerBound RebalanceGrowthLeftLowerBoundLargeCapacity();
 
   // We can't assert that SOO is enabled because we don't have SooEnabled(), but
   // we assert what we can.
@@ -1895,6 +1931,9 @@ constexpr bool ShouldSampleHashtablezInfoForAlloc() {
   return std::is_same_v<CharAlloc, std::allocator<char>>;
 }
 
+constexpr size_t kStandardBackingArrayAlignment =
+    BackingArrayAlignment(alignof(size_t));
+
 // Allocates `n` bytes for a backing array.
 template <size_t AlignOfBackingArray, typename Alloc>
 void* AllocateBackingArray(void* alloc, size_t n) {
@@ -1902,20 +1941,16 @@ void* AllocateBackingArray(void* alloc, size_t n) {
 }
 
 template <size_t AlignOfBackingArray, typename Alloc>
-void DeallocateBackingArray(void* alloc, size_t capacity, ctrl_t* ctrl,
-                            size_t slot_size, size_t slot_align, bool had_infoz,
-                            size_t blocked_element_count) {
-  RawHashSetLayout layout(capacity, slot_size, slot_align, had_infoz,
-                          blocked_element_count);
-  void* backing_array = ctrl - layout.control_offset();
-  // Unpoison before returning the memory to the allocator.
-  SanitizerUnpoisonMemoryRegion(backing_array, layout.alloc_size());
-  Deallocate<AlignOfBackingArray>(static_cast<Alloc*>(alloc), backing_array,
-                                  layout.alloc_size());
+void DeallocateBackingArray(void* alloc, void* backing_array, size_t n) {
+  Deallocate<AlignOfBackingArray>(static_cast<Alloc*>(alloc), backing_array, n);
 }
 
 using DeallocBackingArrayFn =
-    decltype(&DeallocateBackingArray<8, std::allocator<char>>);
+    decltype(&DeallocateBackingArray<kStandardBackingArrayAlignment,
+                                     std::allocator<char>>);
+inline constexpr DeallocBackingArrayFn kStandardDeallocBackingArrayFn =
+    &DeallocateBackingArray<kStandardBackingArrayAlignment,
+                            std::allocator<char>>;
 
 // PolicyFunctions bundles together some information for a particular
 // raw_hash_set<T, ...> instantiation. This information is passed to
@@ -1966,6 +2001,49 @@ struct PolicyFunctions {
 
   uint8_t soo_capacity() const {
     return static_cast<uint8_t>(soo_enabled ? SooCapacity() : 0);
+  }
+};
+
+using DestroySlotFn = void (*)(void* set, void* slot);
+
+// DtorPolicy bundles information for a particular
+// raw_hash_set<T, ...> instantiation that is needed to destroy the set.
+// This is a subset of the fields in PolicyFunctions to avoid bloat of linker
+// input size. Destructor is being instantiated way more often than other
+// functions, so we do not want to include non-destructor related fields.
+struct DtorPolicy {
+  uint32_t slot_size;
+  uint16_t slot_align;
+  DestroySlotFn destroy_slot;
+
+  template <uint32_t kSlotSize, uint16_t kSlotAlign>
+  static const DtorPolicy& GetTrivialDestructRef() {
+    return R<kSlotSize, kSlotAlign>();
+  }
+
+  template <typename SetType>
+  static const DtorPolicy& GetRef() {
+    return R<SetType>();
+  }
+
+ private:
+  // Code below is aimed to optimize linker input size. Destructors are being
+  // instantiated way more often than other functions, so we make a small effort
+  // to minimize the name length of static variables.
+  template <uint32_t kSlotSize, uint16_t kSlotAlign>
+  static const DtorPolicy& R() {
+    static constexpr DtorPolicy p = {kSlotSize, kSlotAlign,
+                                     /*destroy_slot=*/nullptr};
+    return p;
+  }
+  template <typename SetType>
+  static const DtorPolicy& R() {
+    static constexpr DtorPolicy p = {
+        sizeof(typename SetType::slot_type),
+        alignof(typename SetType::slot_type),
+        SetType::get_destroy_slot_fn(),
+    };
+    return p;
   }
 };
 
@@ -2102,8 +2180,6 @@ void ResizeAllocatedTableWithSeedChange(CommonFields& common,
 void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
                        void* alloc, bool reuse);
 
-using DestroySlotFn = void (*)(void* set, void* slot);
-
 // Destroys all full slots in the backing array.
 // REQUIRES: !is_small(c.capacity()).
 // REQUIRES: destroy_slot != nullptr.
@@ -2112,31 +2188,31 @@ void DestroySlots(CommonFields& c, size_t slot_size,
 
 // Deallocates the backing array and unregister infoz if necessary.
 // REQUIRES: c.capacity > raw_hash_set::DefaultCapacity().
-void DeallocBackingArray(CommonFields& c, size_t slot_size, size_t slot_align,
-                         DeallocBackingArrayFn dealloc, void* alloc);
+void UnregisterAndDeallocBackingArray(CommonFields& c, const DtorPolicy& policy,
+                                      DeallocBackingArrayFn dealloc,
+                                      void* alloc);
 
 // Type erased version of raw_hash_set::clear.
 template <bool kSooEnabled>
 void Clear(CommonFields& c, const PolicyFunctions& policy,
            DestroySlotFn destroy_slot, void* alloc);
 
-// NOTE: Destruct* functions couldn't use PolicyFunctions in order to support
-// incomplete types.
-// TODO(b/515666499): try to use PolicyFunctions since it makes code simpler and
-// binary size smaller.
-
-// Destructs all elements and deallocates the backing array for SOO tables.
+// Destructs all elements and deallocates the backing array tables.
+// For kSooEnabled = true:
 // REQUIRES: !c.is_small || !c.empty()
-// REQUIRES: !c.is_small || destroy_slot != nullptr
-void DestructSoo(CommonFields& c, size_t slot_size, size_t slot_align,
-                 DestroySlotFn destroy_slot, DeallocBackingArrayFn dealloc,
-                 void* alloc);
-
-// Destructs all elements and deallocates the backing array for non-SOO tables.
+// REQUIRES: !c.is_small || policy.destroy_slot != nullptr
+// For kSooEnabled = false:
 // REQUIRES: c.capacity > 0.
-void DestructNonSoo(CommonFields& c, size_t slot_size, size_t slot_align,
-                    DestroySlotFn destroy_slot, DeallocBackingArrayFn dealloc,
-                    void* alloc);
+template <bool kSooEnabled>
+void Destruct(CommonFields& c, const DtorPolicy& policy,
+              DeallocBackingArrayFn dealloc, void* alloc);
+// REQUIRES: std::is_empty_v<Alloc>
+template <bool kSooEnabled>
+void Destruct(CommonFields& c, const DtorPolicy& policy,
+              DeallocBackingArrayFn dealloc);
+// REQUIRES: std::is_empty_v<Alloc> && dealloc == kStandardDeallocBackingArrayFn
+template <bool kSooEnabled>
+void Destruct(CommonFields& c, const DtorPolicy& policy);
 
 // Type-erased versions of raw_hash_set::erase_meta_only_{small,large}.
 void EraseMetaOnlySmall(CommonFields& c, bool soo_enabled, size_t slot_size);
@@ -2271,9 +2347,13 @@ class raw_hash_set {
 
   using slot_type = typename PolicyTraits::slot_type;
 
-  constexpr static bool kIsDefaultHash =
+  constexpr static bool kIsAbslHash =
       std::is_same_v<hasher, absl::Hash<key_type>> ||
-      std::is_same_v<hasher, absl::container_internal::StringHash>;
+      std::is_same_v<hasher, absl::container_internal::StringHash> ||
+      // TODO(b/384509507): resolve `no header providing
+      // "absl::hash_internal::TransparentHash" is directly included`.
+      // Maybe we should make "internal/hash.h" be a separate library.
+      is_instance_of<hasher, absl::hash_internal::TransparentHash>::value;
   // For non-default hashers it is required to have low bits entropy because
   // (a) in such cases, the seed is xor'ed with the hash value rather than being
   // used as a seed for the hash function, (b) the seed has low bits that are
@@ -2282,14 +2362,8 @@ class raw_hash_set {
   // performance optimization for default hashers. For non-default hashers, we
   // shift it back.
   constexpr static size_t kSeedShift =
-      kIsDefaultHash ? 0 : HashtableInlineData::kCapacityBitStoredInDataCount;
+      kIsAbslHash ? 0 : HashtableInlineData::kCapacityBitStoredInDataCount;
 
-  // TODO(b/289225379): we could add extra SOO space inside raw_hash_set
-  // after CommonFields to allow inlining larger slot_types (e.g. std::string),
-  // but it's a bit complicated if we want to support incomplete mapped_type in
-  // flat_hash_map. We could potentially do this for flat_hash_set and for an
-  // allowlist of `mapped_type`s of flat_hash_map that includes e.g. arithmetic
-  // types, strings, cords, and pairs/tuples of allowlisted types.
   constexpr static bool SooEnabled() {
     return PolicyTraits::soo_enabled() &&
            sizeof(slot_type) <= sizeof(HeapOrSoo) &&
@@ -3332,6 +3406,7 @@ class raw_hash_set {
       HashtableDebugAccess;
 
   friend struct absl::container_internal::HashtableFreeFunctionsAccess;
+  friend DtorPolicy;
 
   struct FindElement {
     template <class K, class... Args>
@@ -3457,30 +3532,33 @@ class raw_hash_set {
     DestroySlots(common(), sizeof(slot_type), get_destroy_slot_fn());
   }
 
-  void dealloc() {
-    ABSL_SWISSTABLE_ASSERT(capacity() > DefaultCapacity());
-    DeallocBackingArray(common(), sizeof(slot_type), alignof(slot_type),
-                        get_dealloc_backing_array_fn(), &char_alloc_ref());
-  }
-
   void destructor_impl() {
     if (SwisstableGenerationsEnabled() &&
         maybe_invalid_capacity().IsMovedFrom()) {
       return;
     }
+    constexpr bool kIsStandardBackingArrayAlignment =
+        std::is_same_v<CharAlloc, std::allocator<char>> &&
+        BackingArrayAlignment(alignof(slot_type)) ==
+            kStandardBackingArrayAlignment;
     if constexpr (SooEnabled()) {
       if (is_small() &&
           (PolicyTraits::template destroy_is_trivial<Alloc>() || empty())) {
         return;
       }
-      DestructSoo(common(), sizeof(slot_type), alignof(slot_type),
-                  get_destroy_slot_fn(), get_dealloc_backing_array_fn(),
-                  &char_alloc_ref());
     } else {
       if (capacity() == 0) return;
-      DestructNonSoo(common(), sizeof(slot_type), alignof(slot_type),
-                     get_destroy_slot_fn(), get_dealloc_backing_array_fn(),
-                     &char_alloc_ref());
+    }
+    if constexpr (std::is_empty_v<Alloc>) {
+      if constexpr (kIsStandardBackingArrayAlignment) {
+        Destruct<SooEnabled()>(common(), GetDtorPolicy());
+      } else {
+        Destruct<SooEnabled()>(common(), GetDtorPolicy(),
+                               get_dealloc_backing_array_fn());
+      }
+    } else {
+      Destruct<SooEnabled()>(common(), GetDtorPolicy(),
+                             get_dealloc_backing_array_fn(), &char_alloc_ref());
     }
   }
 
@@ -3514,13 +3592,13 @@ class raw_hash_set {
   }
   template <class K>
   ABSL_ATTRIBUTE_ALWAYS_INLINE size_t hash_of(const K& key) const {
-    return HashElement<hasher, kIsDefaultHash, kSeedShift>{
+    return HashElement<hasher, kIsAbslHash, kSeedShift>{
         hash_ref(), common().seed().seed()}(key);
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE size_t hash_of(slot_type* slot) const {
     return PolicyTraits::apply(
-        HashElement<hasher, kIsDefaultHash, kSeedShift>{hash_ref(),
-                                                        common().seed().seed()},
+        HashElement<hasher, kIsAbslHash, kSeedShift>{hash_ref(),
+                                                     common().seed().seed()},
         PolicyTraits::element(slot));
   }
 
@@ -3609,7 +3687,11 @@ class raw_hash_set {
       insert(std::move(PolicyTraits::element(it.slot())));
       that.destroy(it.slot());
     }
-    if (!that.is_soo()) that.dealloc();
+    if (!that.is_soo()) {
+      UnregisterAndDeallocBackingArray(that.common(), that.GetDtorPolicy(),
+                                       that.get_dealloc_backing_array_fn(),
+                                       &that.char_alloc_ref());
+    }
     that.common() = CommonFields::CreateDefault<SooEnabled()>();
     annotate_for_bug_detection_on_move(that);
     return *this;
@@ -3661,7 +3743,7 @@ class raw_hash_set {
                        : 0,
             kUseMemcpy>(
             common(), GetPolicyFunctions(),
-            HashKey<hasher, K, kIsDefaultHash, kSeedShift>{hash_ref(), key},
+            HashKey<hasher, K, kIsAbslHash, kSeedShift>{hash_ref(), key},
             force_sampling));
     return {slot, true};
   }
@@ -3678,11 +3760,10 @@ class raw_hash_set {
         return {single_slot(), false};
       }
     }
-    return {
-        to_slot(PrepareInsertSmallNonSoo(
-            common(), GetPolicyFunctions(),
-            HashKey<hasher, K, kIsDefaultHash, kSeedShift>{hash_ref(), key})),
-        true};
+    return {to_slot(PrepareInsertSmallNonSoo(
+                common(), GetPolicyFunctions(),
+                HashKey<hasher, K, kIsAbslHash, kSeedShift>{hash_ref(), key})),
+            true};
   }
 
   template <class K>
@@ -3714,7 +3795,7 @@ class raw_hash_set {
                          ? PrepareInsertLargeGenerationsEnabled(
                                common(), GetPolicyFunctions(), hash, mask_empty,
                                FindInfo{target_group_offset, seq.index()},
-                               HashKey<hasher, K, kIsDefaultHash, kSeedShift>{
+                               HashKey<hasher, K, kIsAbslHash, kSeedShift>{
                                    hash_ref(), key})
                          : PrepareInsertLarge(
                                common(), GetPolicyFunctions(), hash, mask_empty,
@@ -3833,8 +3914,6 @@ class raw_hash_set {
 
  private:
   friend struct RawHashSetTestOnlyAccess;
-
-  GrowthInfoAccessor growth_info() const { return common().growth_info(); }
 
   // Prefetch the heap-allocated memory region to resolve potential TLB and
   // cache misses. This is intended to overlap with execution of calculating the
@@ -3997,6 +4076,21 @@ class raw_hash_set {
                                    CharAlloc>;
   }
 
+  static const DtorPolicy& GetDtorPolicy() {
+    static_assert(sizeof(slot_type) <= (std::numeric_limits<uint32_t>::max)(),
+                  "Slot size is too large. Use std::unique_ptr for value type "
+                  "or use absl::node_hash_{map,set}.");
+    static_assert(alignof(slot_type) <=
+                  size_t{(std::numeric_limits<uint16_t>::max)()});
+    if constexpr (PolicyTraits::template destroy_is_trivial<Alloc>()) {
+      return DtorPolicy::GetTrivialDestructRef<
+          static_cast<uint32_t>(sizeof(slot_type)),
+          static_cast<uint16_t>(alignof(slot_type))>();
+    } else {
+      return DtorPolicy::GetRef<raw_hash_set>();
+    }
+  }
+
   static const PolicyFunctions& GetPolicyFunctions() {
     static_assert(sizeof(slot_type) <= (std::numeric_limits<uint32_t>::max)(),
                   "Slot size is too large. Use std::unique_ptr for value type "
@@ -4019,7 +4113,7 @@ class raw_hash_set {
         // for standard layout and alignof(Hash) <= alignof(CommonFields).
         std::is_empty_v<hasher> ? &GetRefForEmptyClass
                                 : &raw_hash_set::get_hash_ref_fn,
-        PolicyTraits::template get_hash_slot_fn<hasher, kIsDefaultHash,
+        PolicyTraits::template get_hash_slot_fn<hasher, kIsAbslHash,
                                                 kSeedShift>(),
         PolicyTraits::transfer_uses_memcpy()
             ? TransferNRelocatable<sizeof(slot_type)>
@@ -4033,8 +4127,8 @@ class raw_hash_set {
   }
 
   // Bundle together CommonFields plus other objects which might be empty.
-  // CompressedTuple will ensure that sizeof is not affected by any of the empty
-  // fields that occur after CommonFields.
+  // CompressedTuple will ensure that sizeof is not affected by any of the
+  // empty fields that occur after CommonFields.
   absl::container_internal::CompressedTuple<CommonFields, hasher, key_equal,
                                             CharAlloc>
       settings_{CommonFields::CreateDefault<SooEnabled()>(), hasher{},
@@ -4125,7 +4219,7 @@ struct HashtableDebugAccess<Set, std::void_t<typename Set::raw_hash_set>> {
   using Traits = typename Set::PolicyTraits;
   using Slot = typename Traits::slot_type;
 
-  constexpr static bool kIsDefaultHash = Set::kIsDefaultHash;
+  constexpr static bool kIsAbslHash = Set::kIsAbslHash;
 
   static size_t GetNumProbes(const Set& set,
                              const typename Set::key_type& key) {
@@ -4185,19 +4279,36 @@ extern template void* GrowSooTableToNextCapacityAndPrepareInsert<8, true>(
     bool);
 #endif
 
-extern template void* AllocateBackingArray<
-    BackingArrayAlignment(alignof(size_t)), std::allocator<char>>(void* alloc,
-                                                                  size_t n);
-extern template void DeallocateBackingArray<
-    BackingArrayAlignment(alignof(size_t)), std::allocator<char>>(
-    void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
-    size_t slot_align, bool had_infoz, size_t blocked_element_count);
+extern template void* AllocateBackingArray<kStandardBackingArrayAlignment,
+                                           std::allocator<char>>(void* alloc,
+                                                                 size_t n);
+extern template void
+DeallocateBackingArray<kStandardBackingArrayAlignment, std::allocator<char>>(
+    void* alloc, void* backing_array, size_t n);
 
-extern template void Clear<true>(CommonFields& c, const PolicyFunctions& policy,
-                                 DestroySlotFn destroy_slot, void* alloc);
-extern template void Clear<false>(CommonFields& c,
-                                  const PolicyFunctions& policy,
-                                  DestroySlotFn destroy_slot, void* alloc);
+extern template void Clear</*kSooEnabled=*/true>(CommonFields& c,
+                                                 const PolicyFunctions& policy,
+                                                 DestroySlotFn destroy_slot,
+                                                 void* alloc);
+extern template void Clear</*kSooEnabled=*/false>(CommonFields& c,
+                                                  const PolicyFunctions& policy,
+                                                  DestroySlotFn destroy_slot,
+                                                  void* alloc);
+
+extern template void Destruct</*kSooEnabled=*/true>(
+    CommonFields& c, const DtorPolicy& policy, DeallocBackingArrayFn dealloc,
+    void* alloc);
+extern template void Destruct</*kSooEnabled=*/true>(
+    CommonFields& c, const DtorPolicy& policy, DeallocBackingArrayFn dealloc);
+extern template void Destruct</*kSooEnabled=*/true>(CommonFields& c,
+                                                    const DtorPolicy& policy);
+extern template void Destruct</*kSooEnabled=*/false>(
+    CommonFields& c, const DtorPolicy& policy, DeallocBackingArrayFn dealloc,
+    void* alloc);
+extern template void Destruct</*kSooEnabled=*/false>(
+    CommonFields& c, const DtorPolicy& policy, DeallocBackingArrayFn dealloc);
+extern template void Destruct</*kSooEnabled=*/false>(CommonFields& c,
+                                                     const DtorPolicy& policy);
 
 }  // namespace container_internal
 ABSL_NAMESPACE_END

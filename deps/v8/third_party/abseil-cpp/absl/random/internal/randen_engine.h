@@ -26,6 +26,7 @@
 #include <ostream>
 #include <type_traits>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/endian.h"
 #include "absl/meta/type_traits.h"
 #include "absl/random/internal/iostream_state_saver.h"

@@ -498,7 +498,7 @@ void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
     TNode<IntPtrT> ptr_compr_cage_base =
         IntPtrSub(full_base, Signed(ChangeUint32ToWord(compressed_base)));
     // Add JSTypedArray::ExternalPointerCompensationForOnHeapArray() to offset.
-    // See JSTypedArray::AddExternalPointerCompensationForDeserialization().
+    // See JSTypedArray::InitOnHeapDataPtrAfterDeserialization().
     DCHECK_EQ(
         isolate()->cage_base(),
         JSTypedArray::ExternalPointerCompensationForOnHeapArray(isolate()));

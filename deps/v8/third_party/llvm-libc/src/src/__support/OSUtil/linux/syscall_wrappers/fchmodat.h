@@ -14,8 +14,9 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_OSUTIL_SYSCALL_WRAPPERS_FCHMODAT_H
 #define LLVM_LIBC_SRC___SUPPORT_OSUTIL_SYSCALL_WRAPPERS_FCHMODAT_H
 
+#include "hdr/errno_macros.h"
 #include "hdr/types/mode_t.h"
-#include "src/__support/OSUtil/linux/syscall.h" // syscall_impl
+#include "src/__support/OSUtil/linux/syscall.h" // syscall_checked
 #include "src/__support/common.h"
 #include "src/__support/error_or.h"
 #include "src/__support/macros/config.h"
@@ -26,10 +27,14 @@ namespace linux_syscalls {
 
 LIBC_INLINE ErrorOr<int> fchmodat(int fd, const char *path, mode_t mode,
                                   int flags) {
-  int ret = syscall_impl<int>(SYS_fchmodat, fd, path, mode, flags);
-  if (ret < 0)
-    return Error(-ret);
-  return ret;
+#if defined(SYS_fchmodat2)
+  auto ret = syscall_checked<int>(SYS_fchmodat2, fd, path, mode, flags);
+  if (ret || ret.error() != ENOSYS)
+    return ret;
+#endif
+  if (flags != 0)
+    return Error(ENOTSUP);
+  return syscall_checked<int>(SYS_fchmodat, fd, path, mode);
 }
 
 } // namespace linux_syscalls

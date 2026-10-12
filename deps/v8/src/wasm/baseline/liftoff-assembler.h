@@ -393,8 +393,9 @@ class LiftoffAssembler : public MacroAssembler {
     CacheState& operator=(const CacheState&) V8_NOEXCEPT = default;
   };
 
-  explicit LiftoffAssembler(Zone*, std::unique_ptr<AssemblerBuffer>);
-  ~LiftoffAssembler() override;
+  V8_EXPORT_PRIVATE explicit LiftoffAssembler(Zone*,
+                                              std::unique_ptr<AssemblerBuffer>);
+  V8_EXPORT_PRIVATE ~LiftoffAssembler() override;
 
   Zone* zone() const { return cache_state_.stack_state.get_allocator().zone(); }
 

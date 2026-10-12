@@ -3213,6 +3213,164 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     }
   }
 
+#ifdef V8_ENABLE_APX_F
+  // True if the operand can only be encoded with a REX2 prefix, i.e. if it
+  // references one of the extended GPRs r16-r31 -- directly, or as the base or
+  // index register of a memory operand.
+  inline bool needs_rex2_prefix(Register reg) { return reg.bit4(); }
+  inline bool needs_rex2_prefix(Operand op) { return op.rex2(); }
+
+  template <class P1, class P2>
+  bool needs_rex2_prefix(P1 p1, P2 p2) {
+    return needs_rex2_prefix(p1) || needs_rex2_prefix(p2);
+  }
+#endif  // V8_ENABLE_APX_F
+
+  // Emits the 0x0F escape byte if the opcode lives in legacy map 1. Only a
+  // legacy REX prefix needs this: a REX2 prefix carries the map in its M0 bit
+  // and must be the last byte before the opcode.
+  inline void emit_legacy_map_escape(Rex2MapID m) {
+    if (m == kRex2Map1) emit(0x0F);
+  }
+
+  // emit_rex2_or_rex[_64|_32](operands..., m) emits everything between the
+  // legacy prefixes and the opcode of an instruction whose opcode lives in
+  // legacy map {m} -- kRex2Map0 for a one-byte opcode, kRex2Map1 for a
+  // 0x0F-escaped one:
+  //   - a single REX2 prefix, if any operand references r16-r31. REX2 encodes
+  //     the map itself, so it replaces the 0x0F escape byte.
+  //   - otherwise the legacy REX prefix, followed by the 0x0F escape byte if
+  //     {m} is kRex2Map1.
+  // The caller emits only the opcode, so the prefix and the escape byte cannot
+  // get out of sync. Any legacy prefix (0x66/0xF2/0xF3/segment override) must
+  // already have been emitted; REX and REX2 both come last.
+  //
+  // REX2 has a single map bit, so instructions in the 0x0F38 and 0x0F3A maps
+  // cannot use these helpers at all -- they need a VEX or EVEX encoding to
+  // reach the extended GPRs.
+  //
+  // Unlike the emit_rex_* helpers these do not accept an XMMRegister yet: the
+  // underlying emit_rex2_* emitters only take a GPR in the reg field.
+  void emit_rex2_or_rex(int size, Rex2MapID m) {
+    // Without operands there is no EGPR to encode, so REX2 is never needed.
+    emit_rex(size);
+    emit_legacy_map_escape(m);
+  }
+
+  template <class P1>
+  void emit_rex2_or_rex(P1 p1, int size, Rex2MapID m) {
+#ifdef V8_ENABLE_APX_F
+    if (needs_rex2_prefix(p1)) {
+      if (size == kInt64Size) {
+        emit_rex2_64(p1, m);
+      } else {
+        DCHECK_EQ(size, kInt32Size);
+        emit_rex2_32(p1, m);
+      }
+      return;
+    }
+#endif  // V8_ENABLE_APX_F
+    emit_rex(p1, size);
+    emit_legacy_map_escape(m);
+  }
+
+  template <class P1, class P2>
+  void emit_rex2_or_rex(P1 p1, P2 p2, int size, Rex2MapID m) {
+#ifdef V8_ENABLE_APX_F
+    if (needs_rex2_prefix(p1, p2)) {
+      if (size == kInt64Size) {
+        emit_rex2_64(p1, p2, m);
+      } else {
+        DCHECK_EQ(size, kInt32Size);
+        emit_rex2_32(p1, p2, m);
+      }
+      return;
+    }
+#endif  // V8_ENABLE_APX_F
+    emit_rex(p1, p2, size);
+    emit_legacy_map_escape(m);
+  }
+
+  void emit_rex2_or_rex_64(Rex2MapID m) {
+    emit_rex_64();
+    emit_legacy_map_escape(m);
+  }
+
+  template <class P1>
+  void emit_rex2_or_rex_64(P1 p1, Rex2MapID m) {
+#ifdef V8_ENABLE_APX_F
+    if (needs_rex2_prefix(p1)) {
+      emit_rex2_64(p1, m);
+      return;
+    }
+#endif  // V8_ENABLE_APX_F
+    emit_rex_64(p1);
+    emit_legacy_map_escape(m);
+  }
+
+  template <class P1, class P2>
+  void emit_rex2_or_rex_64(P1 p1, P2 p2, Rex2MapID m) {
+#ifdef V8_ENABLE_APX_F
+    if (needs_rex2_prefix(p1, p2)) {
+      emit_rex2_64(p1, p2, m);
+      return;
+    }
+#endif  // V8_ENABLE_APX_F
+    emit_rex_64(p1, p2);
+    emit_legacy_map_escape(m);
+  }
+
+  template <class P1>
+  void emit_rex2_or_rex_32(P1 p1, Rex2MapID m) {
+#ifdef V8_ENABLE_APX_F
+    if (needs_rex2_prefix(p1)) {
+      emit_rex2_32(p1, m);
+      return;
+    }
+#endif  // V8_ENABLE_APX_F
+    emit_rex_32(p1);
+    emit_legacy_map_escape(m);
+  }
+
+  template <class P1, class P2>
+  void emit_rex2_or_rex_32(P1 p1, P2 p2, Rex2MapID m) {
+#ifdef V8_ENABLE_APX_F
+    if (needs_rex2_prefix(p1, p2)) {
+      emit_rex2_32(p1, p2, m);
+      return;
+    }
+#endif  // V8_ENABLE_APX_F
+    emit_rex_32(p1, p2);
+    emit_legacy_map_escape(m);
+  }
+
+  // As emit_rex2_or_rex_32, but the REX prefix is omitted entirely when it
+  // would be all-zero. Only the REX fallback is optional: a REX2 prefix is
+  // always emitted when an operand needs one.
+  template <class P1>
+  void emit_optional_rex2_or_rex_32(P1 p1, Rex2MapID m) {
+#ifdef V8_ENABLE_APX_F
+    if (needs_rex2_prefix(p1)) {
+      emit_rex2_32(p1, m);
+      return;
+    }
+#endif  // V8_ENABLE_APX_F
+    emit_optional_rex_32(p1);
+    emit_legacy_map_escape(m);
+  }
+
+  template <class P1, class P2>
+  void emit_optional_rex2_or_rex_32(P1 p1, P2 p2, Rex2MapID m) {
+#ifdef V8_ENABLE_APX_F
+    if (needs_rex2_prefix(p1, p2)) {
+      emit_rex2_32(p1, p2, m);
+      return;
+    }
+#endif  // V8_ENABLE_APX_F
+    emit_optional_rex_32(p1, p2);
+    emit_legacy_map_escape(m);
+  }
+
   // Emit vex prefix
   void emit_vex2_byte0() { emit(0xc5); }
   inline void emit_vex2_byte1(XMMRegister reg, XMMRegister v, VectorLength l,

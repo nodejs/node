@@ -109,48 +109,44 @@ LIBC_INLINE constexpr T round(T x) {
   using StorageType = typename FPBits<T>::StorageType;
   FPBits<T> bits(x);
 
-  // If x is infinity NaN or zero, return it.
-  if (bits.is_inf_or_nan() || bits.is_zero())
-    return x;
+  // x86 binary80 has NaN encodings with a non-all-ones exponent, so the
+  // biased-exponent check below does not cover every NaN representation.
+  if constexpr (get_fp_type<T>() == FPType::X86_Binary80) {
+    if (LIBC_UNLIKELY(bits.is_nan()))
+      return x;
+  }
 
-  int exponent = bits.get_exponent();
+  uint16_t biased_exponent = bits.get_biased_exponent();
 
-  // If the exponent is greater than the most negative mantissa
-  // exponent, then x is already an integer.
-  if (exponent >= static_cast<int>(FPBits<T>::FRACTION_LEN))
-    return x;
+  if (biased_exponent <= FPBits<T>::EXP_BIAS - 2 ||
+      LIBC_UNLIKELY(biased_exponent >=
+                    FPBits<T>::EXP_BIAS + FPBits<T>::FRACTION_LEN)) {
+    // Outside the middle range, the exponent's top bit selects x or signed
+    // zero without another branch.
+    StorageType keep_mask = static_cast<StorageType>(
+        StorageType(0) -
+        static_cast<StorageType>(biased_exponent / (FPBits<T>::EXP_BIAS + 1)));
+    bits.set_uintval(static_cast<StorageType>(
+        bits.uintval() & (keep_mask | FPBits<T>::SIGN_MASK)));
+    return bits.get_val();
+  }
 
-  if (exponent == -1) {
-    // Absolute value of x is greater than equal to 0.5 but less than 1.
+  if (biased_exponent == FPBits<T>::EXP_BIAS - 1) {
+    // Absolute value of x is greater than or equal to 0.5 but less than 1.
     return FPBits<T>::one(bits.sign()).get_val();
   }
 
-  if (exponent <= -2) {
-    // Absolute value of x is less than 0.5.
-    return FPBits<T>::zero(bits.sign()).get_val();
-  }
-
-  uint32_t trim_size = FPBits<T>::FRACTION_LEN - exponent;
-  bool half_bit_set =
-      bool(bits.get_mantissa() & (StorageType(1) << (trim_size - 1)));
+  // 1 <= abs(x) < 2^FRACTION_LEN. Add the rounding bit and clear all
+  // fractional bits below the resulting integral value.
+  int exponent = static_cast<int>(biased_exponent) - FPBits<T>::EXP_BIAS;
   StorageType x_u = bits.uintval();
-  StorageType trunc_u =
-      static_cast<StorageType>((x_u >> trim_size) << trim_size);
-
-  // If x is already an integer, return it.
-  if (trunc_u == x_u)
-    return x;
-
-  bits.set_uintval(trunc_u);
-  T trunc_value = bits.get_val();
-
-  if (!half_bit_set) {
-    // Franctional part is less than 0.5 so round value is the
-    // same as the trunc value.
-    return trunc_value;
-  } else {
-    return bits.is_neg() ? trunc_value - T(1.0) : trunc_value + T(1.0);
-  }
+  StorageType round_bit = static_cast<StorageType>(
+      StorageType(1) << (FPBits<T>::FRACTION_LEN - exponent - 1));
+  StorageType mask = static_cast<StorageType>((round_bit << 1) - 1);
+  bits.set_uintval(static_cast<StorageType>((x_u + round_bit) & ~mask));
+  if constexpr (get_fp_type<T>() == FPType::X86_Binary80)
+    bits.set_implicit_bit(true);
+  return bits.get_val();
 }
 
 template <typename T>

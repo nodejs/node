@@ -113,10 +113,13 @@ class V8ConsoleMessage {
 
 class V8ConsoleMessageStorage {
  public:
-  V8ConsoleMessageStorage(V8InspectorImpl*, int contextGroupId);
+  V8ConsoleMessageStorage(V8InspectorImpl*, int contextGroupId, uint64_t id);
   ~V8ConsoleMessageStorage();
 
   int contextGroupId() { return m_contextGroupId; }
+  // A monotonically increasing id assigned by V8InspectorImpl when this
+  // storage instance was created.
+  uint64_t id() const { return m_id; }
   const std::deque<std::unique_ptr<V8ConsoleMessage>>& messages() const {
     return m_messages;
   }
@@ -139,6 +142,7 @@ class V8ConsoleMessageStorage {
  private:
   V8InspectorImpl* m_inspector;
   int m_contextGroupId;
+  uint64_t m_id;
   int m_estimatedSize = 0;
   std::deque<std::unique_ptr<V8ConsoleMessage>> m_messages;
 

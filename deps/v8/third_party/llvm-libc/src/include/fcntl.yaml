@@ -10,9 +10,22 @@ macros:
     macro_header: fcntl-macros.h
   - macro_name: AT_EACCESS
     macro_header: fcntl-macros.h
+  - macro_name: POSIX_FADV_NORMAL
+    macro_header: fcntl-macros.h
+  - macro_name: POSIX_FADV_RANDOM
+    macro_header: fcntl-macros.h
+  - macro_name: POSIX_FADV_SEQUENTIAL
+    macro_header: fcntl-macros.h
+  - macro_name: POSIX_FADV_WILLNEED
+    macro_header: fcntl-macros.h
+  - macro_name: POSIX_FADV_DONTNEED
+    macro_header: fcntl-macros.h
+  - macro_name: POSIX_FADV_NOREUSE
+    macro_header: fcntl-macros.h
 types:
   - type_name: mode_t
   - type_name: off_t
+  - type_name: off64_t
   - type_name: pid_t
   - type_name: struct_f_owner_ex
   - type_name: struct_flock
@@ -27,6 +40,15 @@ functions:
     arguments:
       - type: const char *
       - type: mode_t
+  - name: fallocate
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+      - type: off_t
+      - type: off_t
   - name: fcntl
     standards:
       - posix
@@ -52,3 +74,21 @@ functions:
       - type: const char *
       - type: int
       - type: '...'
+  - name: posix_fadvise
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: off_t
+      - type: off_t
+      - type: int
+  - name: posix_fadvise64
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: int
+      - type: off64_t
+      - type: off64_t
+      - type: int

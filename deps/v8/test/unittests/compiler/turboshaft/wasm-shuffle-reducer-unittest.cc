@@ -12,7 +12,7 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
-#include "test/common/flag-utils.h"
+#include "test/common/wasm/flag-utils.h"
 #include "test/unittests/compiler/turboshaft/reducer-test.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -226,6 +226,152 @@ TEST_F(ReducerTest, BinaryExtLowShuffle) {
                     .IsLow(kSimd128HalfSize));
     test.Run<WasmShuffleReducer>();
   }
+}
+
+TEST_F(ReducerTest, BinaryPassThruShuffleWidensToLaneBoundary) {
+  FLAG_SCOPE(future_wasm_simd_opt);
+  auto test = CreateFromGraph(1, [&](auto& Asm) {
+    auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+    auto zero =
+        __ Simd128Splat(__ Word32Constant(0), Simd128SplatOp::Kind::kI32x4);
+    auto one =
+        __ Simd128Splat(__ Word32Constant(1), Simd128SplatOp::Kind::kI32x4);
+    auto two =
+        __ Simd128Splat(__ Word32Constant(2), Simd128SplatOp::Kind::kI32x4);
+    auto three =
+        __ Simd128Splat(__ Word32Constant(3), Simd128SplatOp::Kind::kI32x4);
+    auto four =
+        __ Simd128Splat(__ Word32Constant(4), Simd128SplatOp::Kind::kI32x4);
+    auto five =
+        __ Simd128Splat(__ Word32Constant(5), Simd128SplatOp::Kind::kI32x4);
+    constexpr uint8_t shuffle_bytes[kSimd128Size] = {0, 1, 2, 3, 4, 5, 6, 7,
+                                                     0, 0, 0, 0, 0, 0, 0, 0};
+
+    V<Simd128> unary_shuffle =
+        Asm.Capture(__ Simd128Shuffle(zero, one, ShuffleKind, shuffle_bytes),
+                    "unary_shuffle");
+    V<Simd128> binary_left_shuffle =
+        Asm.Capture(__ Simd128Shuffle(one, two, ShuffleKind, shuffle_bytes),
+                    "binary_left_shuffle");
+    V<Simd128> binary_right_shuffle =
+        Asm.Capture(__ Simd128Shuffle(two, three, ShuffleKind, shuffle_bytes),
+                    "binary_right_shuffle");
+    V<Simd128> ternary_first_shuffle =
+        Asm.Capture(__ Simd128Shuffle(three, four, ShuffleKind, shuffle_bytes),
+                    "ternary_first_shuffle");
+    V<Simd128> ternary_second_shuffle =
+        Asm.Capture(__ Simd128Shuffle(four, five, ShuffleKind, shuffle_bytes),
+                    "ternary_second_shuffle");
+    V<Simd128> ternary_third_shuffle =
+        Asm.Capture(__ Simd128Shuffle(five, zero, ShuffleKind, shuffle_bytes),
+                    "ternary_third_shuffle");
+
+    OpIndex unary =
+        __ Simd128Unary(unary_shuffle, Simd128UnaryOp::Kind::kI8x16Abs);
+    OpIndex binary = __ Simd128Binop(binary_left_shuffle, binary_right_shuffle,
+                                     Simd128BinopOp::Kind::kI16x8Add);
+    OpIndex ternary = __ Simd128Ternary(
+        ternary_first_shuffle, ternary_second_shuffle, ternary_third_shuffle,
+        Simd128TernaryOp::Kind::kI64x2RelaxedLaneSelect);
+
+    OpIndex unary_binary =
+        __ Simd128Binop(unary, binary, Simd128BinopOp::Kind::kS128Or);
+    OpIndex result =
+        __ Simd128Binop(unary_binary, ternary, Simd128BinopOp::Kind::kS128Or);
+    __ Return(
+        __ Simd128ExtractLane(result, Simd128ExtractLaneOp::Kind::kI8x16S, 0));
+  });
+
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_TRUE(analyzer.ShouldReduce());
+  EXPECT_TRUE(analyzer.GetDemandedBytes(test.GetCapture("unary_shuffle").Get())
+                  .IsLow(1));
+  EXPECT_TRUE(
+      analyzer.GetDemandedBytes(test.GetCapture("binary_left_shuffle").Get())
+          .IsLow(2));
+  EXPECT_TRUE(
+      analyzer.GetDemandedBytes(test.GetCapture("binary_right_shuffle").Get())
+          .IsLow(2));
+  EXPECT_TRUE(
+      analyzer.GetDemandedBytes(test.GetCapture("ternary_first_shuffle").Get())
+          .IsLow(8));
+  EXPECT_TRUE(
+      analyzer.GetDemandedBytes(test.GetCapture("ternary_second_shuffle").Get())
+          .IsLow(8));
+  EXPECT_TRUE(
+      analyzer.GetDemandedBytes(test.GetCapture("ternary_third_shuffle").Get())
+          .IsLow(8));
+  test.Run<WasmShuffleReducer>();
+}
+
+TEST_F(ReducerTest, PassThruDepthLimit) {
+  FLAG_SCOPE(future_wasm_simd_opt);
+  constexpr uint8_t kLimit = DemandedByteAnalysis::kMaxPassThruDepth;
+  auto test_depth = std::to_array<uint8_t>({kLimit, kLimit + 1});
+
+  for (uint8_t depth : test_depth) {
+    SCOPED_TRACE(static_cast<int>(depth));
+    auto test = CreateFromGraph(1, [depth](auto& Asm) {
+      auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+      auto left =
+          __ Simd128Splat(__ Word32Constant(1), Simd128SplatOp::Kind::kI32x4);
+      auto right =
+          __ Simd128Splat(__ Word32Constant(0), Simd128SplatOp::Kind::kI32x4);
+      constexpr uint8_t shuffle_bytes[kSimd128Size] = {0, 1, 2, 3, 4, 5, 6, 7,
+                                                       0, 0, 0, 0, 0, 0, 0, 0};
+      OpIndex shuffle = Asm.Capture(
+          __ Simd128Shuffle(left, right, ShuffleKind, shuffle_bytes),
+          "shuffle");
+      OpIndex value = shuffle;
+      for (uint8_t i = 0; i < depth; ++i) {
+        value = __ Simd128Unary(value, Simd128UnaryOp::Kind::kS128Not);
+      }
+      __ Return(
+          __ Simd128ExtractLane(value, Simd128ExtractLaneOp::Kind::kI8x16S, 0));
+    });
+
+    WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+    analyzer.Run();
+    if (depth <= kLimit) {
+      EXPECT_TRUE(analyzer.ShouldReduce());
+      EXPECT_TRUE(
+          analyzer.GetDemandedBytes(test.GetCapture("shuffle").Get()).IsLow(1));
+    } else {
+      EXPECT_FALSE(analyzer.ShouldReduce());
+    }
+    test.Run<WasmShuffleReducer>();
+  }
+}
+
+TEST_F(ReducerTest, LowHalfOpsDoNotConsumePassThruDepth) {
+  FLAG_SCOPE(future_wasm_simd_opt);
+  constexpr uint8_t kLimit = DemandedByteAnalysis::kMaxPassThruDepth;
+
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+    auto left =
+        __ Simd128Splat(__ Word32Constant(1), Simd128SplatOp::Kind::kI32x4);
+    auto right =
+        __ Simd128Splat(__ Word32Constant(0), Simd128SplatOp::Kind::kI32x4);
+    constexpr uint8_t shuffle_bytes[kSimd128Size] = {0, 1, 2, 3, 4, 5, 6, 7,
+                                                     0, 0, 0, 0, 0, 0, 0, 0};
+    OpIndex shuffle = Asm.Capture(
+        __ Simd128Shuffle(left, right, ShuffleKind, shuffle_bytes), "shuffle");
+    OpIndex value = shuffle;
+    for (uint8_t i = 0; i < kLimit; ++i) {
+      value = __ Simd128Unary(value, Simd128UnaryOp::Kind::kS128Not);
+    }
+    __ Return(
+        __ Simd128Unary(value, Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low));
+  });
+
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_TRUE(analyzer.ShouldReduce());
+  EXPECT_TRUE(
+      analyzer.GetDemandedBytes(test.GetCapture("shuffle").Get()).IsLow(8));
+  test.Run<WasmShuffleReducer>();
 }
 
 TEST_F(ReducerTest, BinaryExtLowUnaryShuffle) {
@@ -979,11 +1125,15 @@ TEST_F(ReducerTest, ShuffleShuffle) {
     });
     WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
     analyzer.Run();
-    EXPECT_TRUE(analyzer.ShouldReduce());
-    const Simd128ShuffleOp* input_shuffle =
-        test.GetCapture("input_shuffle").GetAs<Simd128ShuffleOp>();
-    EXPECT_TRUE(
-        analyzer.GetDemandedBytes(input_shuffle).IsLow(demanded.bytes()));
+    if (demanded.bytes() != 16) {
+      EXPECT_TRUE(analyzer.ShouldReduce());
+      const Simd128ShuffleOp* input_shuffle =
+          test.GetCapture("input_shuffle").GetAs<Simd128ShuffleOp>();
+      EXPECT_TRUE(
+          analyzer.GetDemandedBytes(input_shuffle).IsLow(demanded.bytes()));
+    } else {
+      EXPECT_FALSE(analyzer.ShouldReduce());
+    }
     test.Run<WasmShuffleReducer>();
   }
 }

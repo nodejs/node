@@ -12,6 +12,7 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/types.h"
+#include "src/numbers/ieee754.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -935,7 +936,10 @@ struct FloatOperationTyper {
                               l.special_values();
 
     // If both sides are decently small sets, we produce the product set.
-    auto combine = [](float_t a, float_t b) { return std::pow(a, b); };
+    // Use the same pow implementation as the runtime and constant folding.
+    auto combine = [](float_t a, float_t b) {
+      return static_cast<float_t>(math::pow(a, b));
+    };
     if (l.is_set() && r.is_set()) {
       auto result = ProductSet(l, r, special_values, zone, combine);
       if (!result.IsInvalid()) return result;

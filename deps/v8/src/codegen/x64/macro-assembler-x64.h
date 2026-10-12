@@ -81,6 +81,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Operations on roots in the root-array.
   Operand RootAsOperand(RootIndex index);
   void LoadTaggedRoot(Register destination, RootIndex index);
+  void StoreTaggedRoot(Operand destination, RootIndex index);
   void LoadRoot(Register destination, RootIndex index) final;
   void LoadRoot(Operand destination, RootIndex index) {
     LoadRoot(kScratchRegister, index);
@@ -710,6 +711,13 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void CheckStackAlignment();
 
+  // Wrapper around CheckStackAlignment. This is used at call sites
+  // to enforce rsp is correctly aligned and thus rbp is aligned within
+  // the callee. This function can be removed and usages replaced with
+  // CheckStackAlignment when --enforce-x64-16byte-alignment is enabled
+  // by default.
+  void AssertSpAlignedForCall() NOOP_UNLESS_DEBUG_CODE;
+
   void AlignStackPointer();
 
   // Activation support.
@@ -977,6 +985,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
                                              Register dispatch_handle);
   void LoadEntrypointAndParameterCountFromJSDispatchTable(
       Register entrypoint, Register parameter_count, Register dispatch_handle);
+  void PushDispatchHandle(Register dispatch_handle, Register scratch);
+  void PopDispatchHandle(Register dispatch_handle, Register scratch);
 
   void LoadProtectedPointerField(Register destination, Operand field_operand);
 

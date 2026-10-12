@@ -139,25 +139,21 @@ template <size_t Bits> struct DyadicFloat {
 
   // Used for aligning exponents.  Output might not be normalized.
   LIBC_INLINE constexpr DyadicFloat &shift_left(unsigned shift_length) {
-    if (shift_length < Bits) {
-      exponent -= static_cast<int>(shift_length);
+    exponent -= static_cast<int>(shift_length);
+    if (shift_length < Bits)
       mantissa <<= shift_length;
-    } else {
-      exponent = 0;
+    else
       mantissa = MantissaType(0);
-    }
     return *this;
   }
 
   // Used for aligning exponents.  Output might not be normalized.
   LIBC_INLINE constexpr DyadicFloat &shift_right(unsigned shift_length) {
-    if (shift_length < Bits) {
-      exponent += static_cast<int>(shift_length);
+    exponent += static_cast<int>(shift_length);
+    if (shift_length < Bits)
       mantissa >>= shift_length;
-    } else {
-      exponent = 0;
+    else
       mantissa = MantissaType(0);
-    }
     return *this;
   }
 
@@ -187,7 +183,7 @@ template <size_t Bits> struct DyadicFloat {
     return DyadicFloat(result_sign, result_exponent, result_mantissa);
   }
 
-  template <typename T, bool ShouldSignalExceptions>
+  template <typename T, bool ShouldSignalExceptions = true>
   LIBC_INLINE LIBC_CONSTEXPR_DEFAULT cpp::enable_if_t<
       cpp::is_floating_point_v<T> && (FPBits<T>::FRACTION_LEN < Bits), T>
   generic_as() const {
@@ -204,7 +200,7 @@ template <size_t Bits> struct DyadicFloat {
     if (unbiased_exp + FPBits::EXP_BIAS >= FPBits::MAX_BIASED_EXPONENT) {
       if constexpr (ShouldSignalExceptions) {
         set_errno_if_required(ERANGE);
-        raise_except_if_required(FE_OVERFLOW | FE_INEXACT);
+        raise_overflow_except_if_required<T>();
       }
 
 #ifdef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
@@ -294,21 +290,21 @@ template <size_t Bits> struct DyadicFloat {
 #endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
 
     if (ShouldSignalExceptions && (round || sticky)) {
-      int excepts = FE_INEXACT;
       if (FPBits(result).is_inf()) {
         set_errno_if_required(ERANGE);
-        excepts |= FE_OVERFLOW;
+        raise_overflow_except_if_required<T>();
       } else if (underflow) {
         set_errno_if_required(ERANGE);
-        excepts |= FE_UNDERFLOW;
+        raise_underflow_except_if_required<T>();
+      } else {
+        raise_except_if_required(FE_INEXACT);
       }
-      raise_except_if_required(excepts);
     }
 
     return FPBits(result).get_val();
   }
 
-  template <typename T, bool ShouldSignalExceptions,
+  template <typename T, bool ShouldSignalExceptions = true,
             typename = cpp::enable_if_t<cpp::is_floating_point_v<T> &&
                                             (FPBits<T>::FRACTION_LEN < Bits),
                                         void>>
@@ -416,15 +412,14 @@ template <size_t Bits> struct DyadicFloat {
         // Output is denormal after rounding, clear the implicit bit for
         // 80-bit long double.
         r_bits -= IMPLICIT_MASK;
+      }
 
-        // TODO: IEEE Std 754-2019 lets implementers choose whether to check
-        // for "tininess" before or after rounding for base-2 formats, as long
-        // as the same choice is made for all operations. Our choice to check
-        // after rounding might not be the same as the hardware's.
-        if (ShouldSignalExceptions && round_and_sticky) {
-          set_errno_if_required(ERANGE);
-          raise_except_if_required(FE_UNDERFLOW);
-        }
+      // Underflow exception and ERANGE are signaled when an unrounded result
+      // in the denormal range is inexact, even if destination rounding rounds
+      // it up to min_normal.
+      if (ShouldSignalExceptions && round_and_sticky) {
+        set_errno_if_required(ERANGE);
+        raise_underflow_except_if_required<T>();
       }
 
       return FPBits<T>(r_bits).get_val();
@@ -435,7 +430,7 @@ template <size_t Bits> struct DyadicFloat {
 
   // Assume that it is already normalized.
   // Output is rounded correctly with respect to the current rounding mode.
-  template <typename T, bool ShouldSignalExceptions,
+  template <typename T, bool ShouldSignalExceptions = true,
             typename = cpp::enable_if_t<cpp::is_floating_point_v<T> &&
                                             (FPBits<T>::FRACTION_LEN < Bits),
                                         void>>
@@ -459,7 +454,7 @@ template <size_t Bits> struct DyadicFloat {
                                             (FPBits<T>::FRACTION_LEN < Bits),
                                         void>>
   LIBC_INLINE explicit constexpr operator T() const {
-    return as<T, /*ShouldSignalExceptions=*/false>();
+    return as<T, /*ShouldSignalExceptions=*/true>();
   }
 
   LIBC_INLINE constexpr MantissaType as_mantissa_type() const {

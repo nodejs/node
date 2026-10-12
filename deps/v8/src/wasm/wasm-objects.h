@@ -167,11 +167,9 @@ V8_OBJECT class WasmModuleObject : public JSObject {
   static const int kScriptOffsetEnd;
   static const int kHeaderSize;
 
-  // Creates a new {WasmModuleObject} for an existing {NativeModule} that is
-  // reference counted and might be shared between multiple Isolates.
+  // Creates a new {WasmModuleObject} for an existing {Script} of type {kWasm}.
   V8_EXPORT_PRIVATE static DirectHandle<WasmModuleObject> New(
-      Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-      DirectHandle<Script> script);
+      Isolate* isolate, DirectHandle<Script> script);
 
   // Get the module name, if set. Returns an empty handle otherwise.
   static MaybeDirectHandle<String> GetModuleNameOrNull(
@@ -1292,7 +1290,6 @@ V8_OBJECT class WasmFunctionData : public ExposedTrustedObject {
   V8_IT_OWN_TYPE;
 
  public:
-  DECL_CODE_POINTER_ACCESSORS(wrapper_code)
   DECL_PROTECTED_POINTER_ACCESSORS(internal, WasmInternalFunction)
 
   inline Tagged<WasmFuncRef> func_ref() const;
@@ -1314,7 +1311,6 @@ V8_OBJECT class WasmFunctionData : public ExposedTrustedObject {
   static const int kSize;
 
  public:
-  CodePointerMember wrapper_code_;
   TaggedMember<WasmFuncRef> func_ref_;
   TaggedMember<Smi> js_promise_flags_;
   ProtectedTaggedMember<WasmInternalFunction> protected_internal_;
@@ -1367,8 +1363,7 @@ inline constexpr int WasmExportedFunctionData::kSize =
 
 // The WasmImportData is passed to non-wasm imports in place of the
 // WasmTrustedInstanceData. It is used in import wrappers (wasm-to-*) to load
-// needed information, and is used during wrapper tiering to know which
-// call site to patch (see the `call_origin` field).
+// needed information, and for tier-up of wasm-to-js wrappers.
 V8_OBJECT class WasmImportData : public TrustedObject {
  public:
   // Dispatched behavior.
@@ -1380,10 +1375,6 @@ V8_OBJECT class WasmImportData : public TrustedObject {
   // This field is null for C-API functions (WasmCapiFunctionData).
   DECL_PROTECTED_POINTER_ACCESSORS(importing_instance_data,
                                    WasmTrustedInstanceData)
-  // `call_origin` records which place to patch on wrapper tier-up:
-  // - WasmInternalFunction: a func ref
-  // - WasmDispatchTable: a table; the slot is in the {bit_field}.
-  DECL_PROTECTED_POINTER_ACCESSORS(call_origin, TrustedObject)
 
   inline Tagged<NativeContext> native_context() const;
   inline void set_native_context(Tagged<NativeContext> value,
@@ -1404,28 +1395,14 @@ V8_OBJECT class WasmImportData : public TrustedObject {
   inline void set_bit_field(uint32_t value);
 
   DECL_PRIMITIVE_ACCESSORS(suspend, wasm::Suspend)
-  DECL_PRIMITIVE_ACCESSORS(table_slot, uint32_t)
 
   inline void clear_padding();
-
-  static constexpr int kInvalidCallOrigin = 0;
-
-  void SetIndexInTableAsCallOrigin(Tagged<WasmDispatchTable> table,
-                                   int entry_index);
-  void SetIndexInTableAsCallOrigin(Tagged<WasmDispatchTableForImports> table,
-                                   int entry_index);
-  void SetFuncRefAsCallOrigin(Tagged<WasmInternalFunction> func);
 
   class BodyDescriptor;
 
   // Usage of the {bit_field()}.
   // "Suspend" is always present.
   using SuspendField = base::BitField<wasm::Suspend, 0, 1>;
-  // "TableSlot" is populated when {protected_call_origin} is a
-  // {WasmDispatchTable}, and describes the slot in that table.
-  static constexpr int kTableSlotBits = 24;
-  static_assert(wasm::kV8MaxWasmTableSize < (1u << kTableSlotBits));
-  using TableSlotField = SuspendField::Next<uint32_t, kTableSlotBits>;
 
   static const int kHeaderSize;
   static const int kSize;
@@ -1433,7 +1410,6 @@ V8_OBJECT class WasmImportData : public TrustedObject {
  public:
   ProtectedTaggedMember<WasmTrustedInstanceData>
       protected_importing_instance_data_;
-  ProtectedTaggedMember<TrustedObject> protected_call_origin_;
   TaggedMember<NativeContext> native_context_;
   TaggedMember<UnionOf<JSReceiver, Undefined>> callable_;
   TaggedMember<Cell> wrapper_budget_;

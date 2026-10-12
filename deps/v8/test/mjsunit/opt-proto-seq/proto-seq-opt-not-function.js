@@ -38,7 +38,7 @@ assert_test_not_function(test_not_function());
 %OptimizeMaglevOnNextCall(test_not_function);
 assert_test_not_function(test_not_function());
 assertOptimized(test_not_function);
-assertTrue(isMaglevved(test_not_function));
+assertMaglevved(test_not_function);
 assert_test_not_function(test_not_function());
 %OptimizeFunctionOnNextCall(test_not_function);
 assert_test_not_function(test_not_function());

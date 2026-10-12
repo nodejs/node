@@ -1104,8 +1104,8 @@ static ABSL_ATTRIBUTE_NOINLINE bool ReadAddrMap(
   LineReader reader(wrapped_maps_fd.get(), static_cast<char *>(tmp_buf),
                     tmp_buf_size);
   while (true) {
-    const char *cursor;
-    const char *eol;
+    const char *cursor = nullptr;
+    const char *eol = nullptr;
     if (!reader.ReadLine(&cursor, &eol)) {  // EOF or malformed line.
       break;
     }

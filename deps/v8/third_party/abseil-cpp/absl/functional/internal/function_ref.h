@@ -19,6 +19,7 @@
 #include <functional>
 #include <type_traits>
 
+#include "absl/base/config.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/meta/type_traits.h"
 

@@ -393,8 +393,8 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
 // loop-invariant values the peeler cloned), invalidating only what the loop
 // body can change.
 void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
-                                    Zone* zone,
-                                    const LoopEffects* loop_effects) {
+                                    Zone* zone, const LoopEffects* loop_effects,
+                                    bool loop_has_effects) {
   if (side_effects_require_invalidation_ &&
       (loop_effects == nullptr || loop_effects->unstable_aspects_cleared ||
        loop_effects->elements_kind_transitioned)) {
@@ -407,45 +407,23 @@ void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
     side_effects_require_invalidation_ = false;
   }
 
-  if (effect_epoch_ != backedge.effect_epoch_) {
-    effect_epoch_ = std::max(effect_epoch_, backedge.effect_epoch_) + 1;
-  }
-  // Forward entries for pure (epoch-exempt) expressions are kept even without
-  // a backedge equivalent: the forward predecessor dominates the loop body and
-  // loop effects cannot invalidate a pure expression. Other entries need a
-  // structurally equal backedge entry with a still-valid epoch.
-  for (auto it = available_expressions_.begin();
-       it != available_expressions_.end();) {
-    const AvailableExpression& lhs = it->second;
-    DCHECK_NE(lhs.effect_epoch, kEffectEpochOverflow);
-    DCHECK_IMPLIES(!lhs.node->Is<Identity>(),
-                   Node::needs_epoch_check(lhs.node->opcode()) ==
-                       (lhs.effect_epoch != kEffectEpochForPureInstructions));
-    if (lhs.node->Is<Identity>()) {
-      it = available_expressions_.erase(it);
-      continue;
-    }
-    if (lhs.effect_epoch == kEffectEpochForPureInstructions) {
-      ++it;
-      continue;
-    }
-    bool keep = false;
-    auto rhs_it = backedge.available_expressions_.find(it->first);
-    if (rhs_it != backedge.available_expressions_.end()) {
-      const AvailableExpression& rhs = rhs_it->second;
-      DCHECK_IMPLIES(lhs.node == rhs.node,
-                     lhs.effect_epoch == rhs.effect_epoch);
-      ValueNode* rhs_value = rhs.node->TryCast<ValueNode>();
-      NodeBase* rhs_node = rhs_value ? rhs_value->UnwrapIdentities() : rhs.node;
-      keep = lhs.node->IsStructurallyEqualTo(rhs_node) &&
-             lhs.effect_epoch >= effect_epoch_;
-    }
-    if (keep) {
-      ++it;
-    } else {
-      it = available_expressions_.erase(it);
-    }
-  }
+  // TODO(jgruber): Recompute loop effects after lazy inlining, which can
+  // replace effectful calls with pure operations.
+  if (loop_has_effects) increment_effect_epoch();
+
+  std::erase_if(available_expressions_, [&](const auto& entry) {
+    const AvailableExpression& expr = entry.second;
+    DCHECK_NE(expr.effect_epoch, kEffectEpochOverflow);
+    DCHECK_IMPLIES(!expr.node->Is<Identity>(),
+                   Node::needs_epoch_check(expr.node->opcode()) ==
+                       (expr.effect_epoch != kEffectEpochForPureInstructions));
+    if (expr.node->Is<Identity>()) return true;
+    if (expr.effect_epoch == kEffectEpochForPureInstructions) return false;
+    // The graph builder's backedge epoch is not comparable with the recomputed
+    // forward epoch. loop_has_effects was determined during graph building.
+    if (loop_has_effects) return true;
+    return expr.effect_epoch < effect_epoch_;
+  });
 
   const bool keep_invariant_loads =
       loop_effects != nullptr && !loop_effects->unstable_aspects_cleared;
@@ -992,6 +970,17 @@ bool KnownNodeAspects::SetContextCachedValue(ValueNode* context, int offset,
                                              ValueNode* value,
                                              MaybeAssignedFlag assigned) {
   value = value->UnwrapIdentities();
+  if (assigned == kNotAssigned) {
+    if (auto* root_const = value->TryCast<RootConstant>()) {
+#ifdef V8_ENABLE_TDZ_HOLE
+      DCHECK_NE(root_const->index(), RootIndex::kTheHoleValue);
+#endif
+      if (root_const->index() == RootIndex::kTdzHoleValue) {
+        loaded_context_constants_.erase({context, offset});
+        return false;
+      }
+    }
+  }
   auto& target_map = (assigned == kMaybeAssigned) ? loaded_context_slots_
                                                   : loaded_context_constants_;
 

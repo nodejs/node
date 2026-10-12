@@ -292,4 +292,8 @@
 #endif
 #endif
 
+#ifndef NZERO
+#define NZERO 20
+#endif // NZERO
+
 #endif // LLVM_LIBC_MACROS_LIMITS_MACROS_H

@@ -2147,7 +2147,7 @@ namespace {
 v8::Intercepted D8InterceptCallback(Local<Name> property,
                                     const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  Local<Value> data = info.Data();
+  Local<Value> data = info.DataV2().As<Value>();
   if (!data->IsFunction()) {
     isolate->ThrowError("Interceptor callback must be a function");
     return v8::Intercepted::kYes;
@@ -2235,8 +2235,7 @@ bool D8AccessCheck(Local<Context> accessing_context,
 void Shell::CreateInterceptorObject(const FunctionCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
   if (info.Length() == 0 || !info[0]->IsFunction()) {
-    isolate->ThrowError(
-        "d8.test.createInterceptorObject requires a getter function");
+    isolate->ThrowError("Usage: d8.test.createInterceptorObject(function)");
     return;
   }
   Local<Context> context = isolate->GetCurrentContext();
@@ -2255,8 +2254,7 @@ void Shell::CreateInterceptorObject(const FunctionCallbackInfo<Value>& info) {
 void Shell::CreateAccessCheckedObject(const FunctionCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
   if (info.Length() == 0) {
-    isolate->ThrowError(
-        "d8.test.createAccessCheckedObject requires a policy argument");
+    isolate->ThrowError("Usage: d8.test.createAccessCheckedObject(policy)");
     return;
   }
   AccessPolicy policy;
@@ -2267,6 +2265,39 @@ void Shell::CreateAccessCheckedObject(const FunctionCallbackInfo<Value>& info) {
   Local<ObjectTemplate> templ = ctor->InstanceTemplate();
   templ->SetInternalFieldCount(1);
   templ->SetAccessCheckCallback(D8AccessCheck);
+
+  Local<Function> fn;
+  if (!ctor->GetFunction(context).ToLocal(&fn)) return;
+  Local<Object> instance;
+  if (!fn->NewInstance(context).ToLocal(&instance)) return;
+  instance->SetAlignedPointerInInternalField(
+      0, reinterpret_cast<void*>(static_cast<uintptr_t>(policy)),
+      kEmbedderDataTypeTagDefault);
+  info.GetReturnValue().Set(instance);
+}
+
+void Shell::CreateAccessCheckedInterceptorObject(
+    const FunctionCallbackInfo<Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  if (info.Length() < 2 || !info[1]->IsFunction()) {
+    isolate->ThrowError(
+        "Usage: d8.test.createAccessCheckedInterceptorObject(policy, "
+        "function)");
+    return;
+  }
+  AccessPolicy policy;
+  if (!ParseAccessPolicy(isolate, info[0], &policy)) return;
+
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<FunctionTemplate> ctor = FunctionTemplate::New(isolate);
+  Local<ObjectTemplate> templ = ctor->InstanceTemplate();
+
+  templ->SetInternalFieldCount(1);
+  templ->SetAccessCheckCallbackAndHandler(
+      D8AccessCheck,
+      NamedPropertyHandlerConfiguration(D8InterceptCallback, nullptr, nullptr,
+                                        nullptr, nullptr, info[1]),
+      IndexedPropertyHandlerConfiguration());
 
   Local<Function> fn;
   if (!ctor->GetFunction(context).ToLocal(&fn)) return;
@@ -2295,74 +2326,6 @@ void Shell::SetAccessPolicy(const FunctionCallbackInfo<Value>& info) {
   obj->SetAlignedPointerInInternalField(
       0, reinterpret_cast<void*>(static_cast<uintptr_t>(policy)),
       kEmbedderDataTypeTagDefault);
-}
-
-void Shell::CreateSpecialObject(const FunctionCallbackInfo<Value>& info) {
-  Isolate* isolate = info.GetIsolate();
-  if (info.Length() == 0 || !info[0]->IsObject()) {
-    isolate->ThrowError(
-        "d8.test.createSpecialObject requires an options object");
-    return;
-  }
-  Local<Context> context = isolate->GetCurrentContext();
-  Local<Object> opts = info[0].As<Object>();
-
-  bool has_interceptor = false;
-  bool has_access_check = false;
-  Local<Value> interceptor_data = Undefined(isolate);
-  AccessPolicy access_policy = AccessPolicy::kAllow;
-
-  Local<Value> inc;
-  if (opts->Get(context, String::NewFromUtf8Literal(isolate, "interceptor"))
-          .ToLocal(&inc) &&
-      !inc->IsUndefined()) {
-    if (!inc->IsFunction()) {
-      isolate->ThrowError("interceptor option must be a function");
-      return;
-    }
-    has_interceptor = true;
-    interceptor_data = inc;
-  }
-
-  Local<Value> ac;
-  if (opts->Get(context, String::NewFromUtf8Literal(isolate, "accessCheck"))
-          .ToLocal(&ac) &&
-      !ac->IsUndefined()) {
-    if (!ParseAccessPolicy(isolate, ac, &access_policy)) {
-      return;
-    }
-    has_access_check = true;
-  }
-
-  Local<FunctionTemplate> ctor = FunctionTemplate::New(isolate);
-  Local<ObjectTemplate> templ = ctor->InstanceTemplate();
-  if (has_access_check) {
-    templ->SetInternalFieldCount(1);
-  }
-  if (has_interceptor && has_access_check) {
-    templ->SetAccessCheckCallbackAndHandler(
-        D8AccessCheck,
-        NamedPropertyHandlerConfiguration(D8InterceptCallback, nullptr, nullptr,
-                                          nullptr, nullptr, interceptor_data),
-        IndexedPropertyHandlerConfiguration());
-  } else if (has_interceptor) {
-    templ->SetHandler(
-        NamedPropertyHandlerConfiguration(D8InterceptCallback, nullptr, nullptr,
-                                          nullptr, nullptr, interceptor_data));
-  } else if (has_access_check) {
-    templ->SetAccessCheckCallback(D8AccessCheck);
-  }
-
-  Local<Function> fn;
-  if (!ctor->GetFunction(context).ToLocal(&fn)) return;
-  Local<Object> instance;
-  if (!fn->NewInstance(context).ToLocal(&instance)) return;
-  if (has_access_check) {
-    instance->SetAlignedPointerInInternalField(
-        0, reinterpret_cast<void*>(static_cast<uintptr_t>(access_policy)),
-        kEmbedderDataTypeTagDefault);
-  }
-  info.GetReturnValue().Set(instance);
 }
 
 }  // namespace v8

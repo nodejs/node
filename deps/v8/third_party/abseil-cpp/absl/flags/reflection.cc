@@ -17,9 +17,14 @@
 
 #include <assert.h>
 
+#include <algorithm>
 #include <atomic>
+#include <cstdlib>
+#include <functional>
+#include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/base/config.h"
 #include "absl/base/no_destructor.h"

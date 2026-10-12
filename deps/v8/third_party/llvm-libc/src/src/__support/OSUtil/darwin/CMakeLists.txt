@@ -3,6 +3,7 @@ if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${LIBC_TARGET_ARCHITECTURE})
 endif()
 
 add_subdirectory(${LIBC_TARGET_ARCHITECTURE})
+add_subdirectory(syscall_wrappers)
 
 add_object_library(
   darwin_util

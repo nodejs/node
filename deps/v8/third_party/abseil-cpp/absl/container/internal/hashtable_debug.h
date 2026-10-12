@@ -30,11 +30,12 @@
 #ifndef ABSL_CONTAINER_INTERNAL_HASHTABLE_DEBUG_H_
 #define ABSL_CONTAINER_INTERNAL_HASHTABLE_DEBUG_H_
 
-#include <cstddef>
 #include <algorithm>
+#include <cstddef>
 #include <type_traits>
 #include <vector>
 
+#include "absl/base/config.h"
 #include "absl/container/internal/hashtable_debug_hooks.h"
 
 namespace absl {

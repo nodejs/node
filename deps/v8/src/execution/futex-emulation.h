@@ -247,10 +247,13 @@ class FutexEmulation : public AllStatic {
       int64_t rel_timeout_ns);
 
 #if V8_ENABLE_WEBASSEMBLY
+  template <typename T>
+    requires(std::is_same_v<T, int32_t> || std::is_same_v<T, int64_t> ||
+             std::is_same_v<T, Tagged<Object>>)
   V8_EXPORT_PRIVATE static Tagged<Object> WaitWasmManagedObject(
       Isolate* isolate, Tagged<HeapObject> object, int32_t offset,
-      Tagged<Managed<FutexManagedObjectWaitList>> waitqueue,
-      int32_t expected_value, int64_t rel_timeout_ns);
+      Tagged<Managed<FutexManagedObjectWaitList>> waitqueue, T expected_value,
+      int64_t rel_timeout_ns);
 #endif
 
   // Wake |num_waiters_to_wake| threads that are waiting on the given |addr|.

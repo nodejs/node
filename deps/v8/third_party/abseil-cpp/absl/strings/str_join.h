@@ -55,6 +55,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/strings/internal/str_join_internal.h"
 #include "absl/strings/string_view.h"

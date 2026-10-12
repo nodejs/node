@@ -206,14 +206,14 @@ class V8FileLogger : public LogEventListener {
                            DirectHandle<SharedFunctionInfo> shared) override;
   void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override;
-  void CodeDependencyChangeEvent(DirectHandle<Code> code,
-                                 DirectHandle<SharedFunctionInfo> sfi,
+  void CodeDependencyChangeEvent(Tagged<Code> code,
+                                 Tagged<SharedFunctionInfo> sfi,
                                  const char* reason) override;
   void FeedbackVectorEvent(Tagged<FeedbackVector> vector,
                            Tagged<AbstractCode> code);
   void WeakCodeClearEvent() override {}
 
-  void ProcessDeoptEvent(DirectHandle<Code> code, SourcePosition position,
+  void ProcessDeoptEvent(Tagged<Code> code, SourcePosition position,
                          const char* kind, const char* reason);
 
   // Emits a code line info record event.
@@ -462,8 +462,8 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public LogEventListener {
   void CodeMovingGCEvent() override {}
   void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override {}
-  void CodeDependencyChangeEvent(DirectHandle<Code> code,
-                                 DirectHandle<SharedFunctionInfo> sfi,
+  void CodeDependencyChangeEvent(Tagged<Code> code,
+                                 Tagged<SharedFunctionInfo> sfi,
                                  const char* reason) override {}
   void WeakCodeClearEvent() override {}
 
@@ -541,8 +541,8 @@ class ExternalLogEventListener : public LogEventListener {
   void CodeMovingGCEvent() override {}
   void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override {}
-  void CodeDependencyChangeEvent(DirectHandle<Code> code,
-                                 DirectHandle<SharedFunctionInfo> sfi,
+  void CodeDependencyChangeEvent(Tagged<Code> code,
+                                 Tagged<SharedFunctionInfo> sfi,
                                  const char* reason) override {}
   void WeakCodeClearEvent() override {}
 

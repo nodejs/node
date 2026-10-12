@@ -96,6 +96,7 @@ absl_source_set("spinlock_wait") {
   visibility = [ ":*" ]
   deps = [
     ":base_internal",
+    ":config",
     ":core_headers",
     ":errno_saver",
   ]
@@ -214,6 +215,7 @@ absl_source_set("atomic_hook_test_helper") {
   visibility = [ ":*" ]
   deps = [
     ":atomic_hook",
+    ":config",
     ":core_headers",
   ]
 }
@@ -231,6 +233,7 @@ absl_test("bit_cast_test") {
   sources = [ "bit_cast_test.cc" ]
   deps = [
     ":base",
+    ":config",
     ":core_headers",
   ]
 }
@@ -245,6 +248,7 @@ absl_test("attributes_test") {
 
 if (absl_build_tests) {
   import("//testing/test.gni")
+
   test("absl_c_header_test") {
     sources = [ "c_header_test.c" ]
     deps = [
@@ -381,6 +385,7 @@ absl_test("call_once_test") {
   sources = [ "call_once_test.cc" ]
   deps = [
     ":base",
+    ":config",
     ":core_headers",
     "//third_party/abseil-cpp/absl/synchronization",
   ]
@@ -443,6 +448,7 @@ absl_test("sysinfo_test") {
   sources = [ "internal/sysinfo_test.cc" ]
   deps = [
     ":base",
+    ":config",
     "//third_party/abseil-cpp/absl/synchronization",
   ]
 }
@@ -462,6 +468,7 @@ absl_test("thread_identity_test") {
   sources = [ "internal/thread_identity_test.cc" ]
   deps = [
     ":base",
+    ":config",
     ":core_headers",
     "//third_party/abseil-cpp/absl/synchronization",
   ]
@@ -562,7 +569,6 @@ absl_test("unique_small_name_test") {
   sources = [ "internal/unique_small_name_test.cc" ]
   deps = [
     ":core_headers",
-    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }

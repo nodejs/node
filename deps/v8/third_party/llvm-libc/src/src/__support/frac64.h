@@ -51,6 +51,14 @@ struct Frac64 : public UInt<64> {
     *this = *this * other;
     return *this;
   }
+
+  LIBC_INLINE constexpr Frac64 operator<<(size_t s) const {
+    return Frac64(val[0] << s);
+  }
+
+  LIBC_INLINE constexpr Frac64 operator>>(size_t s) const {
+    return Frac64(val[0] >> s);
+  }
 };
 
 } // namespace LIBC_NAMESPACE_DECL

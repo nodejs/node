@@ -228,6 +228,46 @@ TEST_F(WasmDisassemblerTest, Atomics) {
   CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
 }
 
+TEST_F(WasmDisassemblerTest, Fp16) {
+  // This test case was created using:
+  // clang-format off
+  /*
+    d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
+    let builder = new WasmModuleBuilder();
+    builder.addMemory(1, 1);
+    builder.addFunction(undefined, kSig_f_v)
+      .addBody([
+        kExprI32Const, 0,
+        kNumericPrefix, ...kExprF32LoadF16, 1, 0,
+        kExprI32Const, 0,
+        kNumericPrefix, ...kExprF32LoadF16, 1, 4,
+        kExprF32Add,
+        kExprI32Const, 0,
+        kNumericPrefix, ...kExprF32LoadF16, 0, 0,
+        kExprF32Add,
+      ]);
+    builder.addFunction(undefined, kSig_v_f)
+      .addBody([
+        kExprI32Const, 0,
+        kExprLocalGet, 0,
+        kNumericPrefix, ...kExprF32StoreF16, 1, 0,
+        kExprI32Const, 0,
+        kExprLocalGet, 0,
+        kNumericPrefix, ...kExprF32StoreF16, 1, 4,
+        kExprI32Const, 0,
+        kExprLocalGet, 0,
+        kNumericPrefix, ...kExprF32StoreF16, 0, 0,
+      ]);
+  */
+  // clang-format on
+  constexpr uint8_t module_bytes[] = {
+#include "wasm-disassembler-unittest-fp16.wasm.inc"
+  };
+  std::string expected;
+#include "wasm-disassembler-unittest-fp16.wat.inc"
+  CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
+}
+
 // TODO(dlehmann): Add tests for the following Wasm features and extensions:
 // - custom name section for Wasm GC constructs (struct and array type names,
 // struct fields).

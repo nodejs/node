@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbolev --turbofan
+// Flags: --allow-natives-syntax --turbolev --turbofan --multi-mapped-mock-allocator
 
 let big_index = 0x80000000;
 let ab = new ArrayBuffer(big_index + 0x40);

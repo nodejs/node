@@ -291,6 +291,10 @@ class Heap final {
   int increment_dispatch_table_allocations() {
     return ++dispatch_table_allocations_;
   }
+  int dispatch_table_gc_interval() const { return dispatch_table_gc_interval_; }
+  void set_dispatch_table_gc_interval(int interval) {
+    dispatch_table_gc_interval_ = interval;
+  }
 #endif
 
   // Emits GC events for DevTools timeline.
@@ -389,6 +393,10 @@ class Heap final {
 
   bool is_gc_tracing_category_enabled() const {
     return *gc_tracing_category_enabled_;
+  }
+
+  bool is_gc_extra_tracing_category_enabled() const {
+    return *gc_extra_tracing_category_enabled_;
   }
 
   enum class StackScanMode { kNone, kFull, kSelective };
@@ -2390,6 +2398,7 @@ class Heap final {
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   int dispatch_table_allocations_ = 0;
+  int dispatch_table_gc_interval_ = v8_flags.dispatch_table_gc_interval;
 #endif
 
   std::vector<HeapObjectAllocationTracker*> allocation_trackers_;
@@ -2453,6 +2462,7 @@ class Heap final {
   std::atomic<uint64_t> total_allocated_bytes_ = 0;
 
   const uint8_t* gc_tracing_category_enabled_ = nullptr;
+  const uint8_t* gc_extra_tracing_category_enabled_ = nullptr;
   size_t notify_context_disposed_counter_ = 1;
 
   // Classes in "heap" can be friends.

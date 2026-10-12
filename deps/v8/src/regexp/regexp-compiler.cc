@@ -1554,27 +1554,10 @@ int TextNode::GetCaseIndependentLetters(Compiler* compiler,
   }
 #ifdef V8_INTL_SUPPORT
 
-  if (!unicode && CaseFolding::IgnoreSet().contains(character)) {
-    if (one_byte_subject && character > String::kMaxOneByteCharCode) {
-      // This function promises not to return a character that is impossible
-      // for the subject encoding.
-      return 0;
-    }
-    letters[0] = character;
-    DCHECK(ContainsOnlyUtf16CodeUnits(letters, 1));
-    return 1;
-  }
-  bool in_special_add_set = CaseFolding::SpecialAddSet().contains(character);
-
   icu::UnicodeSet set;
   set.add(character);
-  set = set.closeOver(unicode ? USET_SIMPLE_CASE_INSENSITIVE
-                              : USET_CASE_INSENSITIVE);
-
-  UChar32 canon = 0;
-  if (in_special_add_set && !unicode) {
-    canon = CaseFolding::Canonicalize(character);
-  }
+  CaseFolding::CloseOver(set, unicode ? CaseFolding::Mode::kUnicode
+                                      : CaseFolding::Mode::kNonUnicode);
 
   int32_t range_count = set.getRangeCount();
   int items = 0;
@@ -1584,10 +1567,6 @@ int TextNode::GetCaseIndependentLetters(Compiler* compiler,
     CHECK(end - start + items <= letter_length);
     for (UChar32 cu = start; cu <= end; cu++) {
       if (one_byte_subject && cu > String::kMaxOneByteCharCode) continue;
-      if (!unicode && in_special_add_set &&
-          CaseFolding::Canonicalize(cu) != canon) {
-        continue;
-      }
       letters[items++] = static_cast<unibrow::uchar>(cu);
     }
   }

@@ -13,6 +13,7 @@
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
 
+#include "src/heap/base-page-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/marking-barrier.h"
 #include "src/heap/memory-chunk.h"
@@ -237,12 +238,13 @@ void WriteBarrier::ForEphemeronHashTable(Tagged<EphemeronHashTable> host,
 // static
 void WriteBarrier::ForExternalPointer(Tagged<HeapObject> host,
                                       ExternalPointerSlot slot,
+                                      ExternalPointerHandle handle,
                                       WriteBarrierMode mode) {
   if (mode == SKIP_WRITE_BARRIER) {
     SLOW_DCHECK(HeapLayout::InYoungGeneration(host));
     return;
   }
-  Marking(host, slot);
+  Marking(host, slot, handle);
 }
 
 // static
@@ -424,11 +426,12 @@ void WriteBarrier::ForArrayBufferExtension(Tagged<JSArrayBuffer> host,
   MarkingSlow(host, extension);
 }
 
-void WriteBarrier::Marking(Tagged<HeapObject> host, ExternalPointerSlot slot) {
+void WriteBarrier::Marking(Tagged<HeapObject> host, ExternalPointerSlot slot,
+                           ExternalPointerHandle handle) {
   if (!IsMarking(host)) [[likely]] {
     return;
   }
-  MarkingSlow(host, slot);
+  MarkingSlow(host, slot, handle);
 }
 
 void WriteBarrier::Marking(Tagged<HeapObject> host, IndirectPointerSlot slot) {
@@ -465,41 +468,43 @@ void WriteBarrier::MarkingFromTracedHandle(Tagged<Object> value) {
 // static
 void WriteBarrier::ForCppHeapPointer(Tagged<CppHeapPointerWrapperObjectT> host,
                                      CppHeapPointerSlot slot, void* value) {
-  // Note: this is currently a combined barrier for marking both the
-  // CppHeapPointerTable entry and the referenced object.
+  // This is currently a combined barrier for marking both CppHeapPointerTable
+  // entry and the `value` object.
 
-  if (!IsMarking(host)) [[likely]] {
+  // The global write barrier guard is always armed when the young generation is
+  // enabled for CppHeap. We must base these checks on trusted data to avoid
+  // desync between table entry and value object.
+  if (!cppgc::internal::WriteBarrier::IsEnabled()) [[likely]] {
+    return;
+  }
+
+  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
+
+  // The global check is probabilistic and we need an exact check here.
+  if (marking_barrier->is_not_major()) [[likely]] {
 #if defined(CPPGC_YOUNG_GENERATION)
     // There is no young-gen CppHeapPointerTable space so we should not mark
     // the table entry in this case.
-    if (value) {
-      GenerationalBarrierForCppHeapPointer(host, value);
-    }
+    GenerationalBarrierForCppHeapPointer(marking_barrier->heap(), host, value);
 #endif
     return;
   }
-  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
-  if (marking_barrier->is_minor()) {
-    // TODO(v8:13012): We do not currently mark Oilpan objects while MinorMS is
-    // active. Once Oilpan uses a generational GC with incremental marking and
-    // unified heap, this barrier will be needed again.
-    return;
-  }
-
+  // Marking for a full GC is enabled.
   MarkingSlowFromCppHeapWrappable(marking_barrier->heap(), host, slot, value);
 }
 
 // static
 void WriteBarrier::GenerationalBarrierForCppHeapPointer(
-    Tagged<CppHeapPointerWrapperObjectT> host, void* value) {
+    Heap* heap, Tagged<CppHeapPointerWrapperObjectT> host, void* value) {
   if (!value) {
     return;
   }
-  auto* memory_chunk = MemoryChunk::FromHeapObject(host);
-  if (V8_LIKELY(HeapLayout::InYoungGeneration(memory_chunk, host))) {
+  auto* page = BasePage::FromHeapObject(host);
+  const AllocationSpace space_id = page->owner_identity();
+  if (V8_LIKELY(space_id == NEW_SPACE || space_id == NEW_LO_SPACE)) {
     return;
   }
-  auto* cpp_heap = memory_chunk->Metadata()->heap()->cpp_heap();
+  auto* cpp_heap = heap->cpp_heap();
   v8::internal::CppHeap::From(cpp_heap)->RememberCrossHeapReferenceIfNeeded(
       host, value);
 }

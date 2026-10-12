@@ -356,7 +356,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   bool VariableNeedsHoleCheckInCurrentBlockForAssignment(
       Variable* variable, Token::Value op, HoleCheckMode hole_check_mode);
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
-  void BuildThrowIfHole(Variable* variable);
+  void BuildThrowIfTdzHole(Variable* variable);
 
   void BuildNewLocalActivationContext();
   void BuildLocalActivationContextInitialization();

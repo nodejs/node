@@ -230,7 +230,9 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
 }
 
 void LiftoffAssembler::AlignFrameSize() {
-  max_used_spill_offset_ = RoundUp(max_used_spill_offset_, kSystemPointerSize);
+  int alignment = v8_flags.enforce_x64_16byte_alignment ? 2 * kSystemPointerSize
+                                                        : kSystemPointerSize;
+  max_used_spill_offset_ = RoundUp(max_used_spill_offset_, alignment);
 }
 
 void LiftoffAssembler::PatchPrepareStackFrame(
@@ -245,6 +247,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     frame_size -= kSystemPointerSize;
   }
   DCHECK_EQ(0, frame_size % kSystemPointerSize);
+  DCHECK_IMPLIES(v8_flags.enforce_x64_16byte_alignment,
+                 GetTotalFrameSize() % (2 * kSystemPointerSize) == 0);
 
   // We can't run out of space when patching, just pass anything big enough to
   // not cause the assembler to try to grow the buffer.
@@ -649,8 +653,15 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       break;
     case LoadType::kF32LoadF16: {
       CpuFeatureScope f16c_scope(this, F16C);
-      CpuFeatureScope avx2_scope(this, AVX2);
-      vpbroadcastw(dst.fp(), src_op);
+      if (CpuFeatures::IsSupported(AVX2)) {
+        CpuFeatureScope avx2_scope(this, AVX2);
+        vpbroadcastw(dst.fp(), src_op);
+      } else {
+        CpuFeatureScope avx_scope(this, AVX);
+        vxorps(dst.fp(), dst.fp(), dst.fp());
+        if (trapping_load_pc) *trapping_load_pc = pc_offset();
+        vpinsrw(dst.fp(), dst.fp(), src_op, 0);
+      }
       vcvtph2ps(dst.fp(), dst.fp());
       break;
     }
@@ -5090,7 +5101,7 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
 }
 
 bool LiftoffAssembler::supports_f16_mem_access() {
-  return CpuFeatures::IsSupported(F16C) && CpuFeatures::IsSupported(AVX2);
+  return CpuFeatures::IsSupported(F16C);
 }
 
 void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t max_index,

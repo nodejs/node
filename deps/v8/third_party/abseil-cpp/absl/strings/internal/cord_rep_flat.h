@@ -22,9 +22,11 @@
 #include <cstring>
 #include <memory>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/strings/internal/cord_internal.h"
+#include "absl/strings/string_view.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -111,7 +113,7 @@ struct CordRepFlat : public CordRep {
 
   // Creates a new flat node.
   template <size_t max_flat_size, typename... Args>
-  static CordRepFlat* NewImpl(size_t len, Args... args ABSL_ATTRIBUTE_UNUSED) {
+  static CordRepFlat* NewImpl(size_t len, Args... args [[maybe_unused]]) {
     if (len <= kMinFlatLength) {
       len = kMinFlatLength;
     } else if (len > max_flat_size - kFlatOverhead) {

@@ -812,10 +812,10 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
                   *no_code_for_osr);
 
     // If tiering is already in progress wait.
-    __ LoadByte(scratch1,
-                FieldMemOperand(scratch0, offsetof(FeedbackVector, flags_)));
-    __ DecodeField<FeedbackVector::OsrTieringInProgressBit>(scratch1);
-    __ JumpIfByte(kNotEqual, scratch1, 0, *no_code_for_osr);
+    static_assert(FeedbackVector::OsrTieringInProgressBit::kMask <= 0xff);
+    __ TestUint8AndJumpIfAnySet(
+        FieldMemOperand(scratch0, offsetof(FeedbackVector, flags_)),
+        FeedbackVector::OsrTieringInProgressBit::kMask, *no_code_for_osr);
 
     {
       // The osr_urgency exceeds the current loop_depth, signaling an OSR

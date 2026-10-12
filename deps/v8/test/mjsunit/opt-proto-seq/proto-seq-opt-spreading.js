@@ -38,7 +38,7 @@ assert_test_spreading(test_spreading());
 %OptimizeMaglevOnNextCall(test_spreading);
 assert_test_spreading(test_spreading());
 assertOptimized(test_spreading);
-assertTrue(isMaglevved(test_spreading));
+assertMaglevved(test_spreading);
 assert_test_spreading(test_spreading());
 }
 

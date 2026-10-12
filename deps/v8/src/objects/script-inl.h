@@ -10,9 +10,10 @@
 
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/managed-inl.h"
+#include "src/objects/scope-info.h"
 #include "src/objects/smi-inl.h"
-#include "src/objects/string-inl.h"
-#include "src/objects/struct-inl.h"
+#include "src/objects/tagged-field-inl.h"
+#include "src/roots/roots-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -92,13 +93,6 @@ Tagged<Object> Script::wasm_managed_native_module() const {
   DCHECK_EQ(type(), Type::kWasm);
   return eval_from_position_.load();
 }
-void Script::set_wasm_managed_native_module(Tagged<Object> value,
-                                            WriteBarrierMode mode) {
-  DCHECK_EQ(type(), Type::kWasm);
-  eval_from_position_.store(this, Cast<UnionOf<Smi, CppGCManagedBase>>(value),
-                            mode);
-}
-
 Tagged<WeakArrayList> Script::wasm_weak_instance_list() const {
   DCHECK_EQ(type(), Type::kWasm);
   return Cast<WeakArrayList>(infos_.load());
@@ -169,12 +163,6 @@ void Script::set_eval_from_position(int value) {
 Tagged<Object> Script::eval_from_scope_info() const {
   return eval_from_scope_info_.load();
 }
-void Script::set_eval_from_scope_info(Tagged<Object> value,
-                                      WriteBarrierMode mode) {
-  eval_from_scope_info_.store(this, Cast<UnionOf<ScopeInfo, Undefined>>(value),
-                              mode);
-}
-
 bool Script::has_eval_from_scope_info() const {
   return IsScopeInfo(eval_from_scope_info());
 }
@@ -196,15 +184,6 @@ void Script::set_infos(Tagged<WeakFixedArray> value, WriteBarrierMode mode) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-bool Script::has_wasm_breakpoint_infos() const {
-  return type() == Type::kWasm &&
-         wasm_breakpoint_infos()->ulength().value() > 0;
-}
-
-CppGCManaged<wasm::NativeModule>::Ptr Script::wasm_native_module() const {
-  return Cast<CppGCManaged<wasm::NativeModule>>(wasm_managed_native_module())
-      ->ptr();
-}
 
 bool Script::break_on_entry() const { return BreakOnEntryBit::decode(flags()); }
 
@@ -326,19 +305,6 @@ void Script::set_source_hash(Tagged<UnionOf<String, Undefined>> value,
   source_hash_.store(this, value, mode);
 }
 
-bool Script::HasValidSource() {
-  Tagged<Object> src = this->source();
-  if (!IsString(src)) return true;
-  Tagged<String> src_str = Cast<String>(src);
-  if (!StringShape(src_str).IsExternal()) return true;
-  if (src_str->IsOneByteRepresentation()) {
-    return Cast<ExternalOneByteString>(src)->resource() != nullptr;
-  } else if (src_str->IsTwoByteRepresentation()) {
-    return Cast<ExternalTwoByteString>(src)->resource() != nullptr;
-  }
-  return true;
-}
-
 bool Script::has_line_ends() const { return line_ends() != Smi::zero(); }
 
 bool Script::CanHaveLineEnds() const {
@@ -358,21 +324,6 @@ void Script::InitLineEnds(Isolate* isolate, DirectHandle<Script> script) {
 void Script::InitLineEnds(LocalIsolate* isolate, DirectHandle<Script> script) {
   if (script->has_line_ends()) return;
   Script::InitLineEndsInternal(isolate, script);
-}
-
-bool Script::HasSourceURLComment() const {
-  return IsString(source_url()) && Cast<String>(source_url())->length() != 0;
-}
-
-bool Script::HasSourceMappingURLComment() const {
-  return IsString(source_mapping_url()) &&
-         Cast<String>(source_mapping_url())->length() != 0;
-}
-
-bool Script::IsMaybeUnfinalized(Isolate* isolate) const {
-  // TODO(v8:12051): A more robust detection, e.g. with a dedicated sentinel
-  // value.
-  return IsUndefined(source()) || Cast<String>(source())->length() == 0;
 }
 
 }  // namespace internal

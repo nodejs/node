@@ -31,6 +31,11 @@ class HeapInternalsBase {
   void FillCurrentPageButNBytes(
       v8::internal::SemiSpaceNewSpace* space, int extra_bytes,
       std::vector<Handle<FixedArray>>* out_handles = nullptr);
+  AllocationResult AllocateByteArrayForTest(Heap* heap, uint32_t length,
+                                            AllocationType allocation_type);
+  AllocationResult AllocateFixedArrayForTest(Heap* heap, uint32_t length,
+                                             AllocationType allocation);
+  void SetForceOOM(Heap* heap, bool value);
 };
 
 inline void InvokeMajorGC(i::Isolate* isolate) {
@@ -125,6 +130,20 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
       std::vector<Handle<FixedArray>>* out_handles = nullptr) {
     return HeapInternalsBase::FillCurrentPageButNBytes(space, extra_bytes,
                                                        out_handles);
+  }
+
+  AllocationResult AllocateByteArrayForTest(Heap* heap, uint32_t length,
+                                            AllocationType allocation_type) {
+    return HeapInternalsBase::AllocateByteArrayForTest(heap, length,
+                                                       allocation_type);
+  }
+  AllocationResult AllocateFixedArrayForTest(Heap* heap, uint32_t length,
+                                             AllocationType allocation) {
+    return HeapInternalsBase::AllocateFixedArrayForTest(heap, length,
+                                                        allocation);
+  }
+  void SetForceOOM(Heap* heap, bool value) {
+    HeapInternalsBase::SetForceOOM(heap, value);
   }
 
   void GrowNewSpaceToMaximumCapacity() {

@@ -43,6 +43,9 @@ types:
   - type_name: struct_sigaction
   - type_name: struct_sigevent
   - type_name: union_sigval
+  - type_name: pthread_t
+    standards:
+      - posix
 enums: []
 objects: []
 functions:
@@ -128,3 +131,10 @@ functions:
       - type: int
       - type: const sigset_t *__restrict
       - type: sigset_t *__restrict
+  - name: pthread_kill
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: pthread_t
+      - type: int

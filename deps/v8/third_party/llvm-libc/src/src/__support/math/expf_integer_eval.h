@@ -15,6 +15,7 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_EXPF_INTEGER_EVAL_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_EXPF_INTEGER_EVAL_H
 
+#include "hdr/fenv_macros.h"
 #include "src/__support/CPP/bit.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/PolyEval.h"
@@ -58,7 +59,7 @@ LIBC_INLINE_VAR constexpr Frac64 EXPF_COEFFS[] = {
 // Statically rounded, no except implementation of expf using integer-only
 // arithmetic.
 LIBC_INLINE float expf(float x, [[maybe_unused]] int rounding) {
-  using FPBits = typename fputil::FPBits<float>;
+  using FPBits = fputil::FPBits<float>;
   using FPBounds = LIBC_NAMESPACE::math::check::exp_internal::Bounds<float>;
   FPBits xbits(x);
 
@@ -74,7 +75,7 @@ LIBC_INLINE float expf(float x, [[maybe_unused]] int rounding) {
     if (x_val_abs <= 0x3300'0000U) {
 #ifdef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
       return 1.0f;
-#else
+#else  // !LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
       if (x_val_abs == 0)
         return 1.0f;
 
@@ -113,7 +114,7 @@ LIBC_INLINE float expf(float x, [[maybe_unused]] int rounding) {
         return FPBits::max_normal().get_val();
 
       return FPBits::inf().get_val();
-#else
+#else  // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
       return FPBits::inf().get_val();
 #endif // !LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
     }
@@ -248,7 +249,7 @@ LIBC_INLINE float expf(float x, [[maybe_unused]] int rounding) {
   result += e_y_unbiased;
 
   return cpp::bit_cast<float>(result);
-#else
+#else  // !LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
   if (rounding == FE_TONEAREST) {
     uint32_t result =
         (static_cast<uint32_t>(p.val[0] >> shift_length) + (leading_one + 1));
@@ -270,7 +271,7 @@ LIBC_INLINE float expf(float x, [[maybe_unused]] int rounding) {
   result += e_y_unbiased;
 
   return cpp::bit_cast<float>(result);
-#endif // !LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
 }
 
 } // namespace static_rounding
@@ -278,6 +279,16 @@ LIBC_INLINE float expf(float x, [[maybe_unused]] int rounding) {
 } // namespace math
 
 } // namespace shared
+
+namespace math {
+namespace integer_eval {
+
+LIBC_INLINE float expf(float x) {
+  return shared::math::static_rounding::expf(x, FE_TONEAREST);
+}
+
+} // namespace integer_eval
+} // namespace math
 
 } // namespace LIBC_NAMESPACE_DECL
 

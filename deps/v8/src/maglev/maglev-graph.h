@@ -342,7 +342,7 @@ class Graph final : public ZoneObject {
                                    constant.get_bits());
   }
 
-  HeapConstant* GetHeapNumberConstant(double constant);
+  V8_EXPORT_PRIVATE HeapConstant* GetHeapNumberConstant(double constant);
 
   RootConstant* GetRootConstant(RootIndex index) {
     return GetOrAddNewConstantNode(root_constants_, index);

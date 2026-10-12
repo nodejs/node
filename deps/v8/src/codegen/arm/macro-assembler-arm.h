@@ -584,6 +584,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadTaggedRoot(Register destination, RootIndex index) {
     LoadRoot(destination, index);
   }
+  void StoreTaggedRoot(const MemOperand& destination, RootIndex index) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    LoadRoot(scratch, index);
+    StoreTaggedField(scratch, destination);
+  }
   void LoadRoot(Register destination, RootIndex index) final {
     LoadRoot(destination, index, al);
   }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --turbofan
+// Flags: --allow-natives-syntax --turbofan --mock-arraybuffer-allocator
 
 function foo(array1, array2) {
   let len = array1.length;

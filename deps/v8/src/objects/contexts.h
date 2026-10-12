@@ -502,7 +502,7 @@ V8_OBJECT class Context : public HeapObject {
   inline int length(RelaxedLoadTag) const;
   inline void set_length(int value, RelaxedStoreTag);
 
-  V8_INLINE bool IsElementTheHole(int index);
+  V8_INLINE bool IsElementTdzHole(int index);
 
   template <typename MemoryTag>
   V8_INLINE Tagged<Object> GetNoCell(int index, MemoryTag tag);
@@ -687,8 +687,9 @@ V8_OBJECT class Context : public HeapObject {
                                VariableMode* variable_mode,
                                bool* is_sloppy_function_name = nullptr);
 
-  static inline int FunctionMapIndex(LanguageMode language_mode,
-                                     FunctionKind kind, bool has_shared_name);
+  V8_EXPORT_PRIVATE static int FunctionMapIndex(LanguageMode language_mode,
+                                                FunctionKind kind,
+                                                bool has_shared_name);
 
   static int ArrayMapIndex(ElementsKind elements_kind) {
     DCHECK(IsFastElementsKind(elements_kind));
@@ -732,8 +733,8 @@ V8_OBJECT class Context : public HeapObject {
  private:
 #ifdef DEBUG
   // Bootstrapping-aware type checks.
-  static bool IsBootstrappingOrValidParentContext(Tagged<Object> object,
-                                                  Tagged<Context> kid);
+  V8_EXPORT_PRIVATE static bool IsBootstrappingOrValidParentContext(
+      Tagged<Object> object, Tagged<Context> kid);
 #endif
 
   friend class Factory;

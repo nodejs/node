@@ -65,12 +65,14 @@ void WriteBarrier::MarkingSlowFromTracedHandle(Tagged<HeapObject> value) {
   marking_barrier->WriteWithoutHost(value);
 }
 
+// This is currently a combined barrier for marking both the CppHeapPointerTable
+// entry and the referenced object (if any).
+//
 // static
 void WriteBarrier::MarkingSlowFromCppHeapWrappable(
     Heap* heap, Tagged<CppHeapPointerWrapperObjectT> host,
     CppHeapPointerSlot slot, void* object) {
-  // Note: this is currently a combined barrier for marking both the
-  // CppHeapPointerTable entry and the referenced object (if any).
+  DCHECK(heap->cpp_heap());
 
 #ifdef V8_COMPRESS_POINTERS
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
@@ -87,7 +89,7 @@ void WriteBarrier::MarkingSlowFromCppHeapWrappable(
               reinterpret_cast<Address>(object));
 #endif  // V8_COMPRESS_POINTERS
 
-  if (heap->cpp_heap() && object) {
+  if (object) {
     CppHeap::From(heap->cpp_heap())->WriteBarrier(object);
   }
 }
@@ -139,9 +141,12 @@ void WriteBarrier::MarkingSlow(Tagged<JSArrayBuffer> host,
 }
 
 void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
-                               ExternalPointerSlot slot) {
+                               ExternalPointerSlot slot,
+                               ExternalPointerHandle handle) {
 #ifdef V8_COMPRESS_POINTERS
   if (!slot.HasExternalPointerHandle()) return;
+
+  DCHECK_EQ(handle, slot.Relaxed_LoadHandle());
 
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
   IsolateForPointerCompression isolate(marking_barrier->heap()->isolate());
@@ -152,7 +157,6 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
       isolate.GetExternalPointerTableSpaceFor(slot.tag_range(), host.address());
   DCHECK(!space->is_internal_read_only_space());
 
-  ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
   table.Mark(space, handle, slot.address(), slot.tag_range());
 
   if (marking_barrier->is_minor() && HeapLayout::InYoungGeneration(host)) {

@@ -15,9 +15,9 @@ foo(ta);
 
 %OptimizeMaglevOnNextCall(foo);
 assertEquals(128, foo(ta));
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 ta.buffer.transfer();
 
 assertEquals(0, foo(ta));
-assertFalse(isMaglevved(foo));
+assertNotMaglevved(foo);

@@ -19,4 +19,4 @@ assertEquals(3, foo(100));
 %OptimizeMaglevOnNextCall(foo);
 const val = foo(100);
 assertEquals(3, val);
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);

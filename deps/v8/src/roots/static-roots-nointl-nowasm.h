@@ -1043,33 +1043,39 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kHashTableHoleValue = 0x4fffd;
   static constexpr Tagged_t kPromiseHoleValue = 0x6fffd;
   // -- End of page 1 --
-  static constexpr Tagged_t kUninitializedValue = 0x8fffd;
-  static constexpr Tagged_t kArgumentsMarker = 0xafffd;
+  // TODO(leszeks): Remove DisabledTdzHole when v8_enable_tdz_hole is removed.
+#ifdef V8_ENABLE_TDZ_HOLE
+  static constexpr Tagged_t kTdzHoleValue = 0x8fffd;
+#else
+  static constexpr Tagged_t kDisabledTdzHoleValue = 0x8fffd;
+#endif
+  static constexpr Tagged_t kUninitializedValue = 0xafffd;
   // -- End of page 2 --
-  static constexpr Tagged_t kTerminationException = 0xcfffd;
-  static constexpr Tagged_t kException = 0xefffd;
+  static constexpr Tagged_t kArgumentsMarker = 0xcfffd;
+  static constexpr Tagged_t kTerminationException = 0xefffd;
   // -- End of page 3 --
-  static constexpr Tagged_t kOptimizedOut = 0x10fffd;
-  static constexpr Tagged_t kStaleRegister = 0x12fffd;
+  static constexpr Tagged_t kException = 0x10fffd;
+  static constexpr Tagged_t kOptimizedOut = 0x12fffd;
   // -- End of page 4 --
-  static constexpr Tagged_t kSelfReferenceMarker = 0x14fffd;
-  static constexpr Tagged_t kBasicBlockCountersMarker = 0x16fffd;
+  static constexpr Tagged_t kStaleRegister = 0x14fffd;
+  static constexpr Tagged_t kSelfReferenceMarker = 0x16fffd;
   // -- End of page 5 --
-  static constexpr Tagged_t kJSMessageObjectMap = 0x180011;
-  static constexpr Tagged_t kExternalMap = 0x180039;
-  static constexpr Tagged_t kCppHeapExternalMap = 0x180061;
-  static constexpr Tagged_t kCppGCManagedBaseMap = 0x180089;
-  static constexpr Tagged_t kJSSharedArrayMap = 0x1800b1;
-  static constexpr Tagged_t kJSAtomicsMutexMap = 0x1800f5;
-  static constexpr Tagged_t kJSAtomicsConditionMap = 0x18011d;
-  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x180145;
-  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x180199;
+  static constexpr Tagged_t kBasicBlockCountersMarker = 0x18fffd;
+  static constexpr Tagged_t kJSMessageObjectMap = 0x1a0001;
+  static constexpr Tagged_t kExternalMap = 0x1a0029;
+  static constexpr Tagged_t kCppHeapExternalMap = 0x1a0051;
+  static constexpr Tagged_t kCppGCManagedBaseMap = 0x1a0079;
+  static constexpr Tagged_t kJSSharedArrayMap = 0x1a00a1;
+  static constexpr Tagged_t kJSAtomicsMutexMap = 0x1a00e5;
+  static constexpr Tagged_t kJSAtomicsConditionMap = 0x1a010d;
+  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1a0135;
+  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1a0189;
 
   static constexpr Tagged_t kFirstAllocatedRoot = 0x11;
-  static constexpr Tagged_t kLastAllocatedRoot = 0x180199;
+  static constexpr Tagged_t kLastAllocatedRoot = 0x1a0189;
 };
 
-static constexpr std::array<Tagged_t, 881> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 882> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1110,6 +1116,12 @@ static constexpr std::array<Tagged_t, 881> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kPropertyCellHoleValue,
     StaticReadOnlyRoot::kStaleRegister,
     StaticReadOnlyRoot::kTerminationException,
+// TODO(leszeks): Remove DisabledTdzHole when v8_enable_tdz_hole is removed.
+#ifdef V8_ENABLE_TDZ_HOLE
+    StaticReadOnlyRoot::kTdzHoleValue,
+#else
+    StaticReadOnlyRoot::kDisabledTdzHoleValue,
+#endif
     StaticReadOnlyRoot::kUninitializedValue,
     StaticReadOnlyRoot::kMetaMap,
     StaticReadOnlyRoot::kWeakHomomorphicFixedArrayMap,
@@ -1118,11 +1130,8 @@ static constexpr std::array<Tagged_t, 881> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kTwoPointerFillerMap,
     StaticReadOnlyRoot::kAccessorInfoMap,
     StaticReadOnlyRoot::kArrayListMap,
-    StaticReadOnlyRoot::kAtomRegExpDataMap,
     StaticReadOnlyRoot::kBigIntMap,
-    StaticReadOnlyRoot::kBytecodeArrayMap,
     StaticReadOnlyRoot::kClosureFeedbackCellArrayMap,
-    StaticReadOnlyRoot::kCodeMap,
     StaticReadOnlyRoot::kContextCellMap,
     StaticReadOnlyRoot::kCoverageInfoMap,
     StaticReadOnlyRoot::kDictionaryTemplateInfoMap,
@@ -1133,9 +1142,7 @@ static constexpr std::array<Tagged_t, 881> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kHashSeedWrapperMap,
     StaticReadOnlyRoot::kFunctionTemplateInfoMap,
     StaticReadOnlyRoot::kGlobalDictionaryMap,
-    StaticReadOnlyRoot::kInstructionStreamMap,
     StaticReadOnlyRoot::kInterceptorInfoMap,
-    StaticReadOnlyRoot::kIrRegExpDataMap,
     StaticReadOnlyRoot::kManyClosuresCellMap,
     StaticReadOnlyRoot::kMegaDomHandlerMap,
     StaticReadOnlyRoot::kModuleInfoMap,
@@ -1150,7 +1157,6 @@ static constexpr std::array<Tagged_t, 881> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kOrderedHashSetMap,
     StaticReadOnlyRoot::kOrderedNameDictionaryMap,
     StaticReadOnlyRoot::kPreparseDataMap,
-    StaticReadOnlyRoot::kRegExpDataMap,
     StaticReadOnlyRoot::kRegExpMatchInfoMap,
     StaticReadOnlyRoot::kRegisteredSymbolTableMap,
     StaticReadOnlyRoot::kScopeInfoMap,
@@ -1168,15 +1174,21 @@ static constexpr std::array<Tagged_t, 881> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kEphemeronHashTableMap,
     StaticReadOnlyRoot::kEmbedderDataArrayMap,
     StaticReadOnlyRoot::kWeakCellMap,
-    StaticReadOnlyRoot::kTrustedFixedArrayMap,
-    StaticReadOnlyRoot::kTrustedWeakFixedArrayMap,
-    StaticReadOnlyRoot::kTrustedByteArrayMap,
+    StaticReadOnlyRoot::kAtomRegExpDataMap,
+    StaticReadOnlyRoot::kCodeMap,
+    StaticReadOnlyRoot::kDebugInfoMap,
+    StaticReadOnlyRoot::kInstructionStreamMap,
+    StaticReadOnlyRoot::kInterpreterDataMap,
+    StaticReadOnlyRoot::kIrRegExpDataMap,
     StaticReadOnlyRoot::kProtectedFixedArrayMap,
     StaticReadOnlyRoot::kProtectedWeakFixedArrayMap,
-    StaticReadOnlyRoot::kInterpreterDataMap,
-    StaticReadOnlyRoot::kDebugInfoMap,
+    StaticReadOnlyRoot::kRegExpDataMap,
     StaticReadOnlyRoot::kSharedFunctionInfoWrapperMap,
     StaticReadOnlyRoot::kTrustedForeignMap,
+    StaticReadOnlyRoot::kTrustedWeakFixedArrayMap,
+    StaticReadOnlyRoot::kBytecodeArrayMap,
+    StaticReadOnlyRoot::kTrustedByteArrayMap,
+    StaticReadOnlyRoot::kTrustedFixedArrayMap,
     StaticReadOnlyRoot::kUncompiledDataWithoutPreparseDataMap,
     StaticReadOnlyRoot::kUncompiledDataWithPreparseDataMap,
     StaticReadOnlyRoot::kUncompiledDataWithoutPreparseDataWithJobMap,

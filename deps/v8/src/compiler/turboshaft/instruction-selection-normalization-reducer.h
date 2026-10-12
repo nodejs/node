@@ -23,6 +23,9 @@ namespace v8::internal::compiler::turboshaft {
 //    binary operations.
 //
 //  * Replacing multiplications by small powers of 2 with shifts.
+//
+//  * Splitting widening SIMD loads into 64-bit zero-extending loads and
+//    low-half extensions on ARM64.
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
@@ -66,6 +69,45 @@ class InstructionSelectionNormalizationReducer : public Next {
     }
     return Next::ReduceComparison(left, right, kind, rep);
   }
+
+#if V8_ENABLE_SIMD128 && V8_TARGET_ARCH_ARM64
+  V<Simd128> REDUCE(Simd128LoadTransform)(
+      V<WordPtr> base, V<WordPtr> index,
+      Simd128LoadTransformOp::LoadKind load_kind,
+      Simd128LoadTransformOp::TransformKind transform_kind, int offset) {
+    using TransformKind = Simd128LoadTransformOp::TransformKind;
+    using UnaryKind = Simd128UnaryOp::Kind;
+
+    UnaryKind extension_kind;
+    switch (transform_kind) {
+      case TransformKind::k8x8S:
+        extension_kind = UnaryKind::kI16x8SConvertI8x16Low;
+        break;
+      case TransformKind::k8x8U:
+        extension_kind = UnaryKind::kI16x8UConvertI8x16Low;
+        break;
+      case TransformKind::k16x4S:
+        extension_kind = UnaryKind::kI32x4SConvertI16x8Low;
+        break;
+      case TransformKind::k16x4U:
+        extension_kind = UnaryKind::kI32x4UConvertI16x8Low;
+        break;
+      case TransformKind::k32x2S:
+        extension_kind = UnaryKind::kI64x2SConvertI32x4Low;
+        break;
+      case TransformKind::k32x2U:
+        extension_kind = UnaryKind::kI64x2UConvertI32x4Low;
+        break;
+      default:
+        return Next::ReduceSimd128LoadTransform(base, index, load_kind,
+                                                transform_kind, offset);
+    }
+
+    V<Simd128> load = __ Simd128LoadTransform(base, index, load_kind,
+                                              TransformKind::k64Zero, offset);
+    return __ Simd128Unary(load, extension_kind);
+  }
+#endif  // V8_ENABLE_SIMD128 && V8_TARGET_ARCH_ARM64
 
  private:
   // Return true if {index} is a literal ConsantOp.

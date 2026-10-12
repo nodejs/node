@@ -41,7 +41,7 @@ assert_test_proto_of_prototype_assigned(test_proto_of_prototype_assigned());
 %OptimizeMaglevOnNextCall(test_proto_of_prototype_assigned);
 assert_test_proto_of_prototype_assigned(test_proto_of_prototype_assigned());
 assertOptimized(test_proto_of_prototype_assigned);
-assertTrue(isMaglevved(test_proto_of_prototype_assigned));
+assertMaglevved(test_proto_of_prototype_assigned);
 assert_test_proto_of_prototype_assigned(test_proto_of_prototype_assigned());
 %OptimizeFunctionOnNextCall(test_proto_of_prototype_assigned);
 assert_test_proto_of_prototype_assigned(test_proto_of_prototype_assigned());

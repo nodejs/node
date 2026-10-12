@@ -19,6 +19,7 @@
 #include <limits>
 
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/strings/internal/str_format/arg.h"
 #include "absl/strings/internal/str_format/constexpr_parser.h"
 #include "absl/strings/string_view.h"

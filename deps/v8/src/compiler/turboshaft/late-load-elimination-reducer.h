@@ -961,13 +961,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                          Asm().output_graph().IsCreatedFromTurbofan(),
                          Asm().output_graph().IsTurbolev()));
         }
-#if DEBUG_BOOL && V8_STATIC_ROOTS_BOOL
-        // Note that this verification is only enabled on builds with static
-        // roots enabled, because this simplifies the comparison of string maps:
-        // with static roots we can know easily if a tagged value is a string
-        // map, while without static roots, we'd have to load the instance type,
-        // which requires to first check if it's actually a map or not.
-
+#if DEBUG
         if (v8_flags.turboshaft_verify_load_elimination) {
           // When the debug flag {turboshaft_verify_load_elimination} is used,
           // we perform the original load and assert that it's indeed equal to
@@ -1015,7 +1009,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                       __ Equal(actual_idx, actual_idx, actual_rep),
                       __ Equal(replacement_idx, replacement_idx,
                                replacement_rep))) {
-                // At least one of {actual_idx} and {reaplcement_idx} is not
+                // At least one of {actual_idx} and {replacement_idx} is not
                 // NaN.
                 EmitReportLoadEliminationError();
               }
@@ -1024,7 +1018,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
             }
           }
         }
-#endif  // DEBUG_BOOL && V8_STATIC_ROOTS_BOOL
+#endif  // DEBUG
         return replacement_idx;
       } else if (replacement.IsTaggedLoadToInt32Load()) {
         auto loaded_rep = load.loaded_rep;

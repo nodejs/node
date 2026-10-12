@@ -60,6 +60,11 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
     kna_processor_.set_known_node_aspects(known_node_aspects);
   }
 
+  // GetDeoptFrameForEagerDeopt can only clone an existing eager deopt frame, so
+  // reductions of nodes that don't have one must not emit eager deopting nodes.
+  bool CanEagerDeopt() const {
+    return current_node_->properties().has_eager_deopt_info();
+  }
   DeoptFrame* GetDeoptFrameForEagerDeopt();
 
   std::tuple<DeoptFrame*, interpreter::Register, int> GetDeoptFrameForLazyDeopt(

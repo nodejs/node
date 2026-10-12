@@ -2148,13 +2148,13 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
     case VariableLocation::LOCAL:
       if (variable->binding_needs_init()) {
         Register destination(builder()->Local(variable->index()));
-        builder()->LoadTheHole().StoreAccumulatorInRegister(destination);
+        builder()->LoadTdzHole().StoreAccumulatorInRegister(destination);
       }
       break;
     case VariableLocation::PARAMETER:
       if (variable->binding_needs_init()) {
         Register destination(builder()->Parameter(variable->index()));
-        builder()->LoadTheHole().StoreAccumulatorInRegister(destination);
+        builder()->LoadTdzHole().StoreAccumulatorInRegister(destination);
       }
       break;
     case VariableLocation::REPL_GLOBAL:
@@ -2163,7 +2163,7 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
     case VariableLocation::CONTEXT:
       if (variable->binding_needs_init()) {
         DCHECK_EQ(0, execution_context()->ContextChainDepth(variable->scope()));
-        builder()->LoadTheHole().StoreContextSlot(execution_context()->reg(),
+        builder()->LoadTdzHole().StoreContextSlot(execution_context()->reg(),
                                                   variable, 0);
       }
       break;
@@ -3650,6 +3650,36 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     }
   }
 
+  // Define private accessors early, using only a single call to the runtime for
+  // each pair of corresponding getters and setters, in the order the first
+  // component is declared.
+  for (auto accessors : private_accessors.ordered_accessors()) {
+    RegisterAllocationScope inner_register_scope(this);
+    RegisterList accessors_reg = register_allocator()->NewRegisterList(2);
+    ClassLiteral::Property* getter = accessors.second->getter;
+    ClassLiteral::Property* setter = accessors.second->setter;
+    Variable* accessor_pair_var;
+    if (getter && getter->kind() == ClassLiteral::Property::AUTO_ACCESSOR) {
+      DCHECK_EQ(setter, getter);
+      AutoAccessorInfo* auto_accessor_info = getter->auto_accessor_info();
+      VisitForRegisterValue(auto_accessor_info->generated_getter(),
+                            accessors_reg[0]);
+      VisitForRegisterValue(auto_accessor_info->generated_setter(),
+                            accessors_reg[1]);
+      accessor_pair_var =
+          auto_accessor_info->property_private_name_proxy()->var();
+    } else {
+      VisitLiteralAccessor(getter, accessors_reg[0]);
+      VisitLiteralAccessor(setter, accessors_reg[1]);
+      accessor_pair_var = getter != nullptr ? getter->private_name_var()
+                                            : setter->private_name_var();
+    }
+    builder()->CallRuntime(Runtime::kCreatePrivateAccessors, accessors_reg);
+    DCHECK_NOT_NULL(accessor_pair_var);
+    BuildVariableAssignment(accessor_pair_var, Token::kInit,
+                            HoleCheckMode::kElided);
+  }
+
   {
     RegisterAllocationScope register_scope(this);
     RegisterList args = register_allocator()->NewGrowableRegisterList();
@@ -3767,36 +3797,6 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     DCHECK(class_variable->IsStackLocal() || class_variable->IsContextSlot());
     builder()->LoadAccumulatorWithRegister(class_constructor);
     BuildVariableAssignment(class_variable, Token::kInit,
-                            HoleCheckMode::kElided);
-  }
-
-  // Define private accessors, using only a single call to the runtime for
-  // each pair of corresponding getters and setters, in the order the first
-  // component is declared.
-  for (auto accessors : private_accessors.ordered_accessors()) {
-    RegisterAllocationScope inner_register_scope(this);
-    RegisterList accessors_reg = register_allocator()->NewRegisterList(2);
-    ClassLiteral::Property* getter = accessors.second->getter;
-    ClassLiteral::Property* setter = accessors.second->setter;
-    Variable* accessor_pair_var;
-    if (getter && getter->kind() == ClassLiteral::Property::AUTO_ACCESSOR) {
-      DCHECK_EQ(setter, getter);
-      AutoAccessorInfo* auto_accessor_info = getter->auto_accessor_info();
-      VisitForRegisterValue(auto_accessor_info->generated_getter(),
-                            accessors_reg[0]);
-      VisitForRegisterValue(auto_accessor_info->generated_setter(),
-                            accessors_reg[1]);
-      accessor_pair_var =
-          auto_accessor_info->property_private_name_proxy()->var();
-    } else {
-      VisitLiteralAccessor(getter, accessors_reg[0]);
-      VisitLiteralAccessor(setter, accessors_reg[1]);
-      accessor_pair_var = getter != nullptr ? getter->private_name_var()
-                                            : setter->private_name_var();
-    }
-    builder()->CallRuntime(Runtime::kCreatePrivateAccessors, accessors_reg);
-    DCHECK_NOT_NULL(accessor_pair_var);
-    BuildVariableAssignment(accessor_pair_var, Token::kInit,
                             HoleCheckMode::kElided);
   }
 
@@ -4286,8 +4286,13 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           VisitForAccumulatorValue(property->value());
           if (key->IsStringLiteral()) {
             FeedbackSlot slot = feedback_spec()->AddDefineNamedOwnICSlot();
-            builder()->DefineNamedOwnProperty(literal, key->AsRawPropertyName(),
-                                              feedback_index(slot));
+            if (clone_object_spread) {
+              builder()->DefineNamedOwnProperty(
+                  literal, key->AsRawPropertyName(), feedback_index(slot));
+            } else {
+              builder()->DefineNamedOwnPropertyInLiteral(
+                  literal, key->AsRawPropertyName(), feedback_index(slot));
+            }
           } else {
             FeedbackSlot slot = feedback_spec()->AddDefineKeyedOwnICSlot();
             builder()->DefineKeyedOwnProperty(
@@ -4715,7 +4720,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
       // subsequent expressions assign to the same variable.
       builder()->LoadAccumulatorWithRegister(source);
       if (VariableNeedsHoleCheckInCurrentBlock(variable, hole_check_mode)) {
-        BuildThrowIfHole(variable);
+        BuildThrowIfTdzHole(variable);
       }
       break;
     }
@@ -4731,7 +4736,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
       // subsequent expressions assign to the same variable.
       builder()->LoadAccumulatorWithRegister(source);
       if (VariableNeedsHoleCheckInCurrentBlock(variable, hole_check_mode)) {
-        BuildThrowIfHole(variable);
+        BuildThrowIfTdzHole(variable);
       }
       break;
     }
@@ -4767,7 +4772,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
 
       builder()->LoadContextSlot(context_reg, variable, depth);
       if (VariableNeedsHoleCheckInCurrentBlock(variable, hole_check_mode)) {
-        BuildThrowIfHole(variable);
+        BuildThrowIfTdzHole(variable);
       }
       if (is_immutable) {
         SetVariableInRegister(variable, acc);
@@ -4789,7 +4794,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
                                            local_variable->index(), depth);
           if (VariableNeedsHoleCheckInCurrentBlock(local_variable,
                                                    hole_check_mode)) {
-            BuildThrowIfHole(local_variable);
+            BuildThrowIfTdzHole(local_variable);
           }
           break;
         }
@@ -4819,7 +4824,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
       int depth = execution_context()->ContextChainDepth(variable->scope());
       builder()->LoadModuleVariable(variable->index(), depth);
       if (VariableNeedsHoleCheckInCurrentBlock(variable, hole_check_mode)) {
-        BuildThrowIfHole(variable);
+        BuildThrowIfTdzHole(variable);
       }
       break;
     }
@@ -4901,12 +4906,12 @@ void BytecodeGenerator::RememberHoleCheckInCurrentBlock(Variable* variable) {
                                       vars_in_hole_check_bitmap_);
 }
 
-void BytecodeGenerator::BuildThrowIfHole(Variable* variable) {
+void BytecodeGenerator::BuildThrowIfTdzHole(Variable* variable) {
   if (variable->is_this()) {
     DCHECK(variable->mode() == VariableMode::kConst);
-    builder()->ThrowSuperNotCalledIfHole();
+    builder()->ThrowSuperNotCalledIfTdzHole();
   } else {
-    builder()->ThrowReferenceErrorIfHole(variable->raw_name());
+    builder()->ThrowReferenceErrorIfTdzHole(variable->raw_name());
   }
   RememberHoleCheckInCurrentBlock(variable);
 }
@@ -4937,12 +4942,12 @@ void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
     //
     // Do not remember the hole check because this bytecode throws if 'this' is
     // *not* the hole, i.e. the opposite of the TDZ hole check.
-    builder()->ThrowSuperAlreadyCalledIfNotHole();
+    builder()->ThrowSuperAlreadyCalledIfNotTdzHole();
   } else {
     // Perform an initialization check for let/const declared variables.
     // E.g. let x = (x = 20); is not allowed.
     DCHECK(IsLexicalVariableMode(variable->mode()));
-    BuildThrowIfHole(variable);
+    BuildThrowIfTdzHole(variable);
   }
 }
 
@@ -7453,6 +7458,7 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* unary) {
     DCHECK(!property->IsPrivateReference());
     if (property->IsSuperAccess()) {
       // Delete of super access is not allowed.
+      BuildThisVariableLoad();
       VisitForEffect(property->key());
       builder()->CallRuntime(Runtime::kThrowUnsupportedSuperError);
     } else {

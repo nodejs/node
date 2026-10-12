@@ -18,7 +18,7 @@ class V8_EXPORT_PRIVATE CppGraphBuilder final {
  public:
   // Add the C++ snapshot directly to the heap snapshot. See CppGraphBuilderImpl
   // for algorithm internals.
-  static void Run(v8::internal::CppHeap* cpp_heap,
+  static void Run(v8::internal::CppHeap& cpp_heap,
                   v8::internal::HeapSnapshotGenerator* generator,
                   CppHeapWrapperSet&& cpp_heap_wrappers);
 

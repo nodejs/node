@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --maglev-object-tracking --maglev
+// Flags: --allow-natives-syntax --maglev-object-tracking --maglev --mock-arraybuffer-allocator
 
 let ta = new Int32Array(4);
 

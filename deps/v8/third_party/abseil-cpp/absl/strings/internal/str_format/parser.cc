@@ -28,6 +28,7 @@
 #include <unordered_set>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/strings/internal/str_format/constexpr_parser.h"
 #include "absl/strings/internal/str_format/extension.h"
 #include "absl/strings/string_view.h"

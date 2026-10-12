@@ -276,9 +276,14 @@ class ParallelMoveResolver {
     } else {
       DCHECK(source.IsConstant());
       DCHECK(IsConstantNode(node->opcode()));
+#ifdef V8_COMPRESS_POINTERS
+      if constexpr (DecompressIfNeeded) {
+        if (needs_decompression == kNeedsDecompression) {
+          node->SetTaggedResultNeedsDecompress();
+        }
+      }
+#endif
       materializing_register_moves_[target_reg.code()] = node;
-      // No need to update `targets.needs_decompression`, materialization is
-      // always decompressed.
       return;
     }
 
@@ -321,9 +326,14 @@ class ParallelMoveResolver {
     } else {
       DCHECK(source.IsConstant());
       DCHECK(IsConstantNode(node->opcode()));
+#ifdef V8_COMPRESS_POINTERS
+      if constexpr (DecompressIfNeeded) {
+        if (needs_decompression == kNeedsDecompression) {
+          node->SetTaggedResultNeedsDecompress();
+        }
+      }
+#endif
       materializing_stack_slot_moves_.emplace_back(target_slot, node);
-      // No need to update `targets.needs_decompression`, materialization is
-      // always decompressed.
       return;
     }
 

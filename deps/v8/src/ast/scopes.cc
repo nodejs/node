@@ -232,17 +232,18 @@ ClassScope::ClassScope(IsolateT* isolate, Zone* zone,
     DCHECK_EQ(scope_info->ContextLocalInitFlag(index),
               InitializationFlag::kNeedsInitialization);
     DCHECK_EQ(scope_info->ContextLocalMaybeAssignedFlag(index),
-              MaybeAssignedFlag::kNotAssigned);
+              MaybeAssignedFlag::kMaybeAssigned);
     Variable* var = DeclareClassVariable(
         ast_value_factory,
         ast_value_factory->GetString(name,
                                      SharedStringAccessGuardIfNeeded(isolate)),
         scope_info->EndPosition());
+    var->set_maybe_assigned();
     var->AllocateTo(VariableLocation::CONTEXT,
                     Context::MIN_CONTEXT_SLOTS + index);
   }
 
-  DCHECK(scope_info->HasPositionInfo());
+  DCHECK(!scope_info->IsEmpty());
   set_start_position(scope_info->StartPosition());
   set_end_position(scope_info->EndPosition());
 }
@@ -265,7 +266,6 @@ Scope::Scope(Zone* zone, ScopeType scope_type,
   already_resolved_ = true;
 #endif
   set_language_mode(scope_info->language_mode());
-  DCHECK_EQ(ContextHeaderLength(), num_heap_slots_);
   set_private_name_lookup_skips_outer_class(
       scope_info->PrivateNameLookupSkipsOuterClass());
   // We don't really need to use the preparsed scope data; this is just to
@@ -395,7 +395,7 @@ void Scope::SetDefaults() {
            IsHoistedInContextField::encode(false);
 
   num_stack_slots_ = 0;
-  num_heap_slots_ = ContextHeaderLength();
+  num_heap_slots_ = 0;
 
   set_language_mode(LanguageMode::kSloppy);
 }
@@ -449,7 +449,6 @@ Scope* Scope::DeserializeScopeChain(
       DeclarationScope* eval_scope =
           zone->New<DeclarationScope>(zone, EVAL_SCOPE, ast_value_factory,
                                       isolate->factory()->empty_scope_info());
-      eval_scope->num_heap_slots_ = 0;
       int position = script->eval_from_position();
       eval_scope->set_start_position(position);
       eval_scope->set_end_position(position);
@@ -471,10 +470,6 @@ Scope* Scope::DeserializeScopeChain(
         eval_outer_info = Tagged<ScopeInfo>();
       }
       continue;
-    }
-
-    if (parse_info && IsGeneratorFunction(scope_info->function_kind())) {
-      parse_info->set_has_generator_in_scope_chain();
     }
 
     if (scope_info->scope_type() == FUNCTION_SCOPE) {
@@ -501,6 +496,7 @@ Scope* Scope::DeserializeScopeChain(
       if (deserialization_mode == DeserializationMode::kIncludingVariables) {
         script_scope->SetScriptScopeInfo(handle(scope_info, isolate));
       }
+      script_scope->num_heap_slots_ = scope_info->ContextLength();
       script_scope->set_start_position(scope_info->StartPosition());
       script_scope->set_end_position(scope_info->EndPosition());
       DCHECK(!scope_info->HasOuterScopeInfo());
@@ -559,6 +555,7 @@ Scope* Scope::DeserializeScopeChain(
     if (current_scope != nullptr) {
       outer_scope->AddInnerScope(current_scope);
     }
+    outer_scope->num_heap_slots_ = scope_info->ContextLength();
     outer_scope->set_start_position(scope_info->StartPosition());
     outer_scope->set_end_position(scope_info->EndPosition());
 
@@ -620,11 +617,6 @@ DeclarationScope* Scope::AsDeclarationScope() {
 const DeclarationScope* Scope::AsDeclarationScope() const {
   SBXCHECK(is_declaration_scope());
   return static_cast<const DeclarationScope*>(this);
-}
-
-FunctionKind Scope::scope_closure_function_kind() const {
-  if (!scope_info_.is_null()) return scope_info_->function_kind();
-  return GetClosureScope()->function_kind();
 }
 
 ModuleScope* Scope::AsModuleScope() {
@@ -894,15 +886,16 @@ Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name,
   if (cache == nullptr) {
     DCHECK_NULL(function_);
     cache = this;
-  } else if (function_ != nullptr) {
-    return function_;
   }
   DCHECK(this->IsOuterScopeOf(cache));
   DCHECK_NULL(cache->variables_.Lookup(name));
-  VariableKind kind = is_sloppy(language_mode()) ? SLOPPY_FUNCTION_NAME_VARIABLE
-                                                 : NORMAL_VARIABLE;
-  function_ = zone()->New<Variable>(this, name, VariableMode::kConst, kind,
-                                    kCreatedInitialized);
+  if (function_ == nullptr) {
+    VariableKind kind = is_sloppy(language_mode())
+                            ? SLOPPY_FUNCTION_NAME_VARIABLE
+                            : NORMAL_VARIABLE;
+    function_ = zone()->New<Variable>(this, name, VariableMode::kConst, kind,
+                                      kCreatedInitialized);
+  }
   if (sloppy_eval_can_extend_vars()) {
     cache->NonLocal(name, VariableMode::kDynamic);
   } else {
@@ -975,7 +968,7 @@ Scope* Scope::FinalizeBlockScope() {
          !AsDeclarationScope()->sloppy_eval_can_extend_vars());
 
   // This block does not need a context.
-  num_heap_slots_ = 0;
+  DCHECK_EQ(0, num_heap_slots_);
 
   // Mark scope as removed by making it its own sibling.
 #ifdef DEBUG
@@ -1040,37 +1033,6 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
     outer_scope_->set_calls_eval(false);
     declaration_scope_->set_sloppy_eval_can_extend_vars(false);
     declaration_scope_->set_is_dynamic_scope(false);
-  }
-}
-
-void Scope::MarkUnresolvedVariablesAsInsideTryCatch() {
-  // While proxy marking is generic, we only actually call this when nested in a
-  // generator because that's the only place we care about variables escaping
-  // try-catch blocks (for hole check elision and resume logic).
-  for (VariableProxy* proxy : unresolved_list_) {
-    proxy->set_is_inside_try_catch();
-  }
-  for (Scope* inner = inner_scope_; inner; inner = inner->sibling_) {
-    if (inner->is_closure_scope()) continue;
-    inner->MarkUnresolvedVariablesAsInsideTryCatch();
-  }
-}
-
-void Scope::Snapshot::MarkUnresolvedVariablesAsInsideTryCatch() {
-  // While proxy marking is generic, we only actually call this when nested in a
-  // generator because that's the only place we care about variables escaping
-  // try-catch blocks (for hole check elision and resume logic).
-  auto it = top_unresolved_;
-  auto end = outer_scope_->unresolved_list_.end();
-
-  while (it != end) {
-    (*it)->set_is_inside_try_catch();
-    ++it;
-  }
-  for (Scope* inner = outer_scope_->inner_scope_; inner != top_inner_scope_;
-       inner = inner->sibling_) {
-    if (inner->is_closure_scope()) continue;
-    inner->MarkUnresolvedVariablesAsInsideTryCatch();
   }
 }
 
@@ -1437,16 +1399,7 @@ Declaration* DeclarationScope::CheckConflictingVarDeclarations(
         // anything, so we can't conflict with anything either. The one
         // exception is the binding variable in catch scopes, which is handled
         // by the if above.
-        if (!IsLexicalVariableMode(other_var->mode())) {
-          if (current->sloppy_eval_can_extend_vars()) {
-            // See the comment for RemoveDynamic. In addition to removing
-            // dynamic variables we also need to remove function_ since
-            // otherwise we won't recreate a masking dynamic variable during
-            // scope resolution, causing divergent compilation.
-            current->AsDeclarationScope()->function_ = nullptr;
-          }
-          break;
-        }
+        if (!IsLexicalVariableMode(other_var->mode())) break;
         return decl;
       }
       current = current->outer_scope();
@@ -1612,18 +1565,6 @@ DeclarationScope* Scope::GetClosureScope() {
   return scope->AsDeclarationScope();
 }
 
-bool Scope::HasOuterGenerator() const {
-  const Scope* scope = GetClosureScope()->outer_scope();
-  while (scope != nullptr) {
-    scope = scope->GetClosureScope();
-    if (IsGeneratorFunction(scope->AsDeclarationScope()->function_kind())) {
-      return true;
-    }
-    scope = scope->outer_scope();
-  }
-  return false;
-}
-
 bool Scope::NeedsScopeInfo() const {
   DCHECK(!already_resolved_);
   DCHECK(GetClosureScope()->ShouldEagerCompile());
@@ -1779,7 +1720,7 @@ void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
         }
       } else {
         var->set_is_used();
-        UpdateVariableMaybeAssigned(var, proxy, scope);
+        if (proxy->is_assigned()) var->SetMaybeAssigned();
       }
     }
 
@@ -2535,36 +2476,11 @@ bool UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope,
 
 }  // anonymous namespace
 
-void Scope::UpdateVariableMaybeAssigned(Variable* var, VariableProxy* proxy,
-                                        Scope* current_scope) {
-  if (proxy->is_assigned()) {
-    var->SetMaybeAssigned();
-    return;
-  }
-
-  if (proxy->is_inside_try_catch()) {
-    Variable* true_var = var;
-    while (true_var->has_local_if_not_shadowed()) {
-      true_var = true_var->local_if_not_shadowed();
-    }
-    if (!true_var->scope()->IsOuterScopeUpToClosureScopeOf(current_scope) &&
-        IsGeneratorFunction(true_var->scope()->scope_closure_function_kind())) {
-      // We treat variables captured by generator yields in a try-catch as
-      // maybe_assigned since the context allocation and assignment might be
-      // skipped when resuming from a yield.
-      // See test/mjsunit/maglev/context-inverted-generator2.js.
-      true_var->SetMaybeAssigned();
-    }
-  }
-}
-
 void Scope::ResolveTo(VariableProxy* proxy, Variable* var,
                       int access_position) {
   DCHECK_NOT_NULL(var);
   UpdateNeedsHoleCheck(var, proxy, this, access_position);
   proxy->BindTo(var);
-
-  UpdateVariableMaybeAssigned(var, proxy, this);
 }
 
 void Scope::ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
@@ -2576,7 +2492,7 @@ void Scope::ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
       var->set_is_used();
       if (!var->is_dynamic()) {
         var->ForceContextAllocation();
-        UpdateVariableMaybeAssigned(var, proxy, scope);
+        if (proxy->is_assigned()) var->SetMaybeAssigned();
         return;
       }
     }
@@ -2656,7 +2572,8 @@ void Scope::AllocateStackSlot(Variable* var) {
 
 
 void Scope::AllocateHeapSlot(Variable* var) {
-  var->AllocateTo(VariableLocation::CONTEXT, num_heap_slots_++);
+  var->AllocateTo(VariableLocation::CONTEXT,
+                  ContextHeaderLength() + num_heap_slots_++);
 }
 
 void DeclarationScope::AllocateParameterLocals() {
@@ -2840,10 +2757,7 @@ void Scope::AllocateVariablesRecursively() {
   this->ForEach([](Scope* scope) -> Iteration {
     DCHECK(!scope->already_resolved_);
     if (WasLazilyParsed(scope)) return Iteration::kContinue;
-    if (scope->sloppy_eval_can_extend_vars()) {
-      scope->num_heap_slots_ = Context::MIN_CONTEXT_EXTENDED_SLOTS;
-    }
-    DCHECK_EQ(scope->ContextHeaderLength(), scope->num_heap_slots_);
+    DCHECK_EQ(0, scope->num_heap_slots_);
 
     // Allocate variables for this scope.
     // Parameters must be allocated first, if any.
@@ -2855,24 +2769,11 @@ void Scope::AllocateVariablesRecursively() {
     }
     scope->AllocateNonParameterLocalsAndDeclaredGlobals();
 
-    // Force allocation of a context for this scope if necessary. For a 'with'
-    // scope and for a function scope that makes an 'eval' call we need a
-    // context, even if no local variables were statically allocated in the
-    // scope. Likewise for modules. Also force a context, if the scope is
-    // stricter than the outer scope.
-    bool must_have_context =
-        scope->is_with_scope() || scope->is_module_scope() ||
-        scope->ForceContextForLanguageMode() ||
-        (scope->is_function_scope() &&
-         scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) ||
-        (scope->is_block_scope() && scope->is_declaration_scope() &&
-         scope->AsDeclarationScope()->sloppy_eval_can_extend_vars());
-
-    // If we didn't allocate any locals in the local context, then we only
-    // need the minimal number of slots if we must have a context.
-    if (scope->num_heap_slots_ == scope->ContextHeaderLength() &&
-        !must_have_context) {
-      scope->num_heap_slots_ = 0;
+    // If we need a context, ensure num_heap_slots_ includes space for the
+    // context header.
+    if (scope->num_heap_slots_ > 0 || scope->HasContextExtensionSlot() ||
+        scope->ForceContextForLanguageMode()) {
+      scope->num_heap_slots_ += scope->ContextHeaderLength();
     }
 
     // If the number of context slots are over the function context threshold,
@@ -2882,9 +2783,6 @@ void Scope::AllocateVariablesRecursively() {
       scope->set_has_context_cells(false);
     }
 
-    // Allocation done.
-    DCHECK(scope->num_heap_slots_ == 0 ||
-           scope->num_heap_slots_ >= scope->ContextHeaderLength());
     return Iteration::kDescend;
   });
 }
@@ -2892,8 +2790,7 @@ void Scope::AllocateVariablesRecursively() {
 template <typename IsolateT>
 void Scope::AllocateScopeInfosRecursively(
     IsolateT* isolate, MaybeHandle<ScopeInfo> outer_scope,
-    std::unordered_map<int, IndirectHandle<ScopeInfo>>& scope_infos_to_reuse,
-    FunctionKind closure_function_kind) {
+    std::unordered_map<int, IndirectHandle<ScopeInfo>>& scope_infos_to_reuse) {
   DCHECK(scope_info_.is_null());
   MaybeHandle<ScopeInfo> next_outer_scope = outer_scope;
 
@@ -2915,8 +2812,7 @@ void Scope::AllocateScopeInfosRecursively(
     it->second = {};
 #endif
   } else if (NeedsScopeInfo()) {
-    scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope,
-                                    closure_function_kind);
+    scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
 #ifdef DEBUG
     // Mark this ID as being used.
     scope_infos_to_reuse[UniqueIdInScript()] = {};
@@ -2940,12 +2836,8 @@ void Scope::AllocateScopeInfosRecursively(
     }
     if (!scope->is_function_scope() ||
         scope->AsDeclarationScope()->ShouldEagerCompile()) {
-      FunctionKind inner_closure_kind =
-          scope->is_closure_scope()
-              ? scope->AsDeclarationScope()->function_kind()
-              : closure_function_kind;
-      scope->AllocateScopeInfosRecursively(
-          isolate, next_outer_scope, scope_infos_to_reuse, inner_closure_kind);
+      scope->AllocateScopeInfosRecursively(isolate, next_outer_scope,
+                                           scope_infos_to_reuse);
     } else {
       auto scope_it = scope_infos_to_reuse.find(scope->UniqueIdInScript());
       if (scope_it != scope_infos_to_reuse.end()) {
@@ -2963,14 +2855,12 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Scope::
     AllocateScopeInfosRecursively<Isolate>(
         Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope,
         std::unordered_map<int, IndirectHandle<ScopeInfo>>&
-            scope_infos_to_reuse,
-        FunctionKind closure_function_kind);
+            scope_infos_to_reuse);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Scope::
     AllocateScopeInfosRecursively<LocalIsolate>(
         LocalIsolate* isolate, MaybeHandle<ScopeInfo> outer_scope,
         std::unordered_map<int, IndirectHandle<ScopeInfo>>&
-            scope_infos_to_reuse,
-        FunctionKind closure_function_kind);
+            scope_infos_to_reuse);
 
 void DeclarationScope::RecalcPrivateNameContextChain() {
   // The outermost scope in a class heritage expression is marked to skip the
@@ -3028,6 +2918,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
     if (Scope* outer = scope->GetOuterScopeWithContext()) {
       DCHECK((std::is_same_v<Isolate, v8::internal::Isolate>));
       outer_scope = outer->scope_info_;
+      CHECK(!outer_scope.ToHandleChecked()->IsEmpty());
     }
   }
 
@@ -3054,7 +2945,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
         Tagged<ScopeInfo> scope_info;
         if (Is<SharedFunctionInfo>(info)) {
           Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(info);
-          if (!sfi->scope_info()->IsEmpty()) {
+          if (sfi->HasScopeInfo()) {
             scope_info = sfi->scope_info();
           } else if (sfi->HasOuterScopeInfo()) {
             scope_info = sfi->GetOuterScopeInfo();
@@ -3063,7 +2954,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
           }
         } else {
           scope_info = Cast<ScopeInfo>(info);
-          if (scope_info->IsEmpty()) continue;
+          DCHECK(!scope_info->IsEmpty());
         }
         while (true) {
           if (scope_info == outer) break;
@@ -3179,25 +3070,16 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
     }
   }
 
-  scope->AllocateScopeInfosRecursively(
-      isolate, outer_scope, scope_infos_to_reuse,
-      scope->GetClosureScope()->function_kind());
+  scope->AllocateScopeInfosRecursively(isolate, outer_scope,
+                                       scope_infos_to_reuse);
 
   // The debugger expects all shared function infos to contain a scope info.
   // Since the top-most scope will end up in a shared function info, make sure
   // it has one, even if it doesn't need a scope info.
   // TODO(yangguo): Remove this requirement.
   if (scope->scope_info_.is_null()) {
-    scope->scope_info_ = ScopeInfo::Create(isolate, scope->zone(), scope,
-                                           outer_scope, scope->function_kind());
-  }
-
-  // Ensuring that the outer script scope has a scope info avoids having
-  // special case for native contexts vs other contexts.
-  if (parse_info->script_scope() &&
-      parse_info->script_scope()->scope_info_.is_null()) {
-    parse_info->script_scope()->scope_info_ =
-        isolate->factory()->empty_scope_info();
+    scope->scope_info_ =
+        ScopeInfo::Create(isolate, scope->zone(), scope, outer_scope);
   }
 }
 

@@ -193,6 +193,13 @@ class Range {
   static Range Mul(Range r1, Range r2) {
     if (r1.is_empty() || r2.is_empty()) return Range::Empty();
     if (r1.is_all() || r2.is_all()) return Range::All();
+
+    // Multiplication by infinity can produce NaN if the other operand can be 0.
+    if (((r1.min_ == kInfMin || r1.max_ == kInfMax) && r2.contains(0)) ||
+        ((r2.min_ == kInfMin || r2.max_ == kInfMax) && r1.contains(0))) {
+      return Range::All();
+    }
+
     int64_t results[4];
     if (base::bits::SignedMulOverflow64(r1.min_, r2.min_, &results[0])) {
       return Range::All();

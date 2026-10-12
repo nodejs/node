@@ -84,8 +84,8 @@ cc_library(
         "//absl/base:cpu_detect",
         "//absl/base:endian",
         "//absl/base:prefetch",
-        "//absl/strings",
         "//absl/strings:str_format",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -99,6 +99,7 @@ cc_test(
         ":crc32c",
         "//absl/strings",
         "//absl/strings:str_format",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -146,6 +147,7 @@ cc_test(
         "//absl/random",
         "//absl/random:distributions",
         "//absl/strings",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -206,7 +208,7 @@ cc_binary(
     deps = [
         ":crc32c",
         "//absl/memory",
-        "//absl/strings",
+        "//absl/strings:string_view",
         "@google_benchmark//:benchmark_main",
     ],
 )

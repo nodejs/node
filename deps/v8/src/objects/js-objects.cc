@@ -197,7 +197,7 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
         auto accessors = it->GetAccessors();
         // Special handling for AccessorInfo, which behaves like a data
         // property.
-        if (IsAccessorInfo(*accessors)) {
+        if (allow_allocation && IsAccessorInfo(*accessors)) {
           auto info = Cast<AccessorInfo>(*accessors);
           if (info->getter_side_effect_type() ==
               SideEffectType::kHasNoSideEffect) {
@@ -5977,7 +5977,7 @@ Tagged<Object> JSDate::GetUTCField(FieldIndex index, double value,
   int64_t time_ms = static_cast<int64_t>(value);
 
   if (index == kTimezoneOffset) {
-    return Smi::FromInt(date_cache->TimezoneOffset(time_ms));
+    return Smi::FromInt(date_cache->TimezoneOffsetMs(time_ms));
   }
 
   int days = DateCache::DaysFromTime(time_ms);

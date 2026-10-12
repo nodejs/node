@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/meta/type_traits.h"

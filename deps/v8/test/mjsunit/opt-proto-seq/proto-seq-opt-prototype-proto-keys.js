@@ -59,7 +59,7 @@ assert_test_prototype_proto_keys(test_prototype_proto_keys());
 %OptimizeMaglevOnNextCall(test_prototype_proto_keys);
 assert_test_prototype_proto_keys(test_prototype_proto_keys());
 assertOptimized(test_prototype_proto_keys);
-assertTrue(isMaglevved(test_prototype_proto_keys));
+assertMaglevved(test_prototype_proto_keys);
 assert_test_prototype_proto_keys(test_prototype_proto_keys());
 %OptimizeFunctionOnNextCall(test_prototype_proto_keys);
 assert_test_prototype_proto_keys(test_prototype_proto_keys());

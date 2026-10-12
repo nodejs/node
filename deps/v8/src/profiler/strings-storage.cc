@@ -6,9 +6,12 @@
 
 #include <memory>
 
+#include "src/ast/ast-value-factory.h"
 #include "src/base/bits.h"
+#include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/objects/objects-inl.h"
+#include "src/strings/unicode-inl.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -39,6 +42,47 @@ const char* StringsStorage::GetCopy(const char* src) {
     dst[len] = '\0';
     entry->key = dst.begin();
     string_size_ += len;
+  }
+  entry->value =
+      reinterpret_cast<void*>(reinterpret_cast<size_t>(entry->value) + 1);
+  return reinterpret_cast<const char*>(entry->key);
+}
+
+const char* StringsStorage::GetCopy(const AstRawString* src) {
+  if (!src || src->IsEmpty()) return "";
+
+  size_t capacity = src->length() * unibrow::Utf8::kMaxEncodedSize;
+  base::SmallVector<char, 128> utf8_buffer;
+  utf8_buffer.resize_no_init(capacity + 1);
+
+  size_t bytes_written = 0;
+  if (src->is_one_byte()) {
+    // Characters in 0x80..0xFF need to be expanded to two bytes in UTF-8.
+    bytes_written =
+        unibrow::Utf8::Encode(
+            base::Vector<const uint8_t>(src->raw_data(), src->length()),
+            utf8_buffer.data(), capacity, /*write_null=*/false,
+            /*replace_invalid_utf8=*/true)
+            .bytes_written;
+  } else {
+    bytes_written = unibrow::Utf8::Encode(
+                        base::Vector<const uint16_t>(
+                            reinterpret_cast<const uint16_t*>(src->raw_data()),
+                            src->length()),
+                        utf8_buffer.data(), capacity, /*write_null=*/false,
+                        /*replace_invalid_utf8=*/true)
+                        .bytes_written;
+  }
+  utf8_buffer[bytes_written] = '\0';
+
+  base::MutexGuard guard(&mutex_);
+  base::HashMap::Entry* entry = GetEntry(utf8_buffer.data(), bytes_written);
+  if (entry->value == nullptr) {
+    base::Vector<char> dst = base::Vector<char>::New(bytes_written + 1);
+    base::StrNCpy(dst, utf8_buffer.data(), bytes_written);
+    dst[bytes_written] = '\0';
+    entry->key = dst.begin();
+    string_size_ += bytes_written;
   }
   entry->value =
       reinterpret_cast<void*>(reinterpret_cast<size_t>(entry->value) + 1);

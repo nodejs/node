@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-function assertEquals(a,b) { if (a !== b) print("BLAH"); }
-
 // See https://tc39.es/ecma262/#sec-runtime-semantics-canonicalize-ch
 function Canonicalize(ch) {
   var u = ch.toUpperCase();
@@ -27,8 +25,6 @@ function TestEquivalenceClass(eclass) {
 
       assertEquals(backref.test(cc), shouldMatch);
 
-      //TODO(v8:10591): Update expectations for ΐΐ, ΰΰ, and ﬅﬆ once
-      //case folding is fixed.
       assertEquals(backrefUnicode.test(cc), true);
     }
   }
@@ -43,7 +39,7 @@ function TestAll() {
 // Interesting case-folding equivalence classes (as determined by
 // ICU's UnicodeSet::closeOver). A class is interesting if it contains
 // more than two characters, or if it contains any characters in
-// IgnoreSet or SpecialAddSet as defined in src/regexp/special-case.h.
+// IgnoreSet as defined in src/regexp/special-case.h.
 var equivalence_classes = [
   '\u0041\u0061',              // Aa (sanity check)
   '\u004b\u006b\u212a',        // KkK

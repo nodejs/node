@@ -181,3 +181,17 @@ index 60b40c3bd4f3f..9d582702ebd5f 100644
  
  // Historical note: Abseil once provided implementations of these type traits
  // for platforms that lacked full support. New code should prefer to use the
+diff --git a/third_party/abseil-cpp/absl/base/attributes.h b/third_party/abseil-cpp/absl/base/attributes.h
+index 72614172586f3..6c788ac1b5d79 100644
+--- a/third_party/abseil-cpp/absl/base/attributes.h
++++ b/third_party/abseil-cpp/absl/base/attributes.h
+@@ -649,8 +649,7 @@
+ #error "ABSL_FALLTHROUGH_INTENDED should not be defined."
+ #endif
+ #define ABSL_FALLTHROUGH_INTENDED                                         \
+-  struct [[deprecated(                                                    \
+-      "Use [[fallthrough]] instead.")]] _absl_fallthrough_intended_macro; \
++  struct _absl_fallthrough_intended_macro;                                \
+   (void)sizeof(_absl_fallthrough_intended_macro*);                        \
+   [[fallthrough]]
+ 

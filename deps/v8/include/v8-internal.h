@@ -223,6 +223,11 @@ using SandboxedPointer_t = Address;
 // virtual address space for userspace. As such, limit the sandbox to 128GB (a
 // quarter of the total available address space).
 constexpr size_t kSandboxSizeLog2 = 37;  // 128 GB
+#elif defined(V8_TARGET_ARCH_ARM64) && defined(V8_TARGET_OS_CHROMEOS)
+// On ARM64 ChromeOS, kernel config is 39 bits of virtual address space for
+// userspace, limit the sandbox to 128GB (a quarter of the total available
+// address space).
+constexpr size_t kSandboxSizeLog2 = 37;  // 128 GB
 #elif defined(V8_TARGET_OS_IOS)
 // On iOS, we only get 64 GB of usable virtual address space even with the
 // "jumbo" extended virtual addressing entitlement. Limit the sandbox size to
@@ -305,6 +310,9 @@ static_assert(kMaxSafeBufferSizeForSandbox <= kSandboxGuardRegionSize,
 
 #if defined(V8_TARGET_OS_ANDROID)
 // On Android, we often won't have sufficient virtual address space available.
+constexpr size_t kAdditionalTrailingGuardRegionSize = 0;
+#elif defined(V8_TARGET_ARCH_ARM64) && defined(V8_TARGET_OS_CHROMEOS)
+// On ARM64 ChromeOS, kernel configs 39 bits of virtual address space.
 constexpr size_t kAdditionalTrailingGuardRegionSize = 0;
 #elif defined(V8_TARGET_ARCH_LOONG64)
 // Some hardwares like 2K3000 does not have sufficient virtual address space
@@ -467,14 +475,11 @@ constexpr size_t kMaxCppHeapPointers = 0;
 //
 // As an example, consider the following type hierarchy:
 //
-//   A
-//   +-- B
-//   |   +-- C
-//   |   +-- D
-//.  |
-//   +-- E
-//
-//   F
+//          A     F
+//         / \
+//        B   E
+//       / \
+//      C   D
 //
 // A potential type id assignment for range-based type checks is
 // {A: 0, B: 1, C: 2, D: 3, E: 4, F: 5}. With that, the type check for type A
@@ -526,11 +531,7 @@ struct TagRange {
   constexpr TagRange(Tag first, Tag last) : first(first), last(last) {
 #ifdef V8_ENABLE_CHECKS
     // This would typically be a DCHECK, but that's not available here.
-#if V8_HAS_BUILTIN_UNREACHABLE
     if (first > last) __builtin_unreachable();  // Invalid tag range.
-#elif defined(_MSC_VER)
-    if (first > last) __assume(0);  // Invalid tag range.
-#endif
 #endif
   }
 
@@ -590,16 +591,7 @@ enum class ManagedTypeId : uint32_t {
   kWasmFuncData,
   kWasmManagedData,
   kWasmNativeModule,
-  kIcuBreakIterator,
   kIcuBreakIteratorWithText,
-  kIcuLocale,
-  kIcuSimpleDateFormat,
-  kIcuDateIntervalFormat,
-  kIcuRelativeDateTimeFormatter,
-  kIcuListFormatter,
-  kIcuCollator,
-  kIcuPluralRules,
-  kIcuLocalizedNumberFormatter,
   kTemporalDuration,
   kTemporalInstant,
   kTemporalPlainDate,
@@ -616,8 +608,17 @@ enum class ManagedTypeId : uint32_t {
 
 #define SHARED_MANAGED_TAG_LIST(V) V(WasmFutexManagedObjectWaitListTag)
 
-#define MANAGED_TAG_LIST(V)  \
-  SHARED_MANAGED_TAG_LIST(V)
+#define MANAGED_TAG_LIST(V)          \
+  SHARED_MANAGED_TAG_LIST(V)         \
+  V(IcuBreakIteratorTag)             \
+  V(IcuListFormatterTag)             \
+  V(IcuLocaleTag)                    \
+  V(IcuSimpleDateFormatTag)          \
+  V(IcuDateIntervalFormatTag)        \
+  V(IcuRelativeDateTimeFormatterTag) \
+  V(IcuLocalizedNumberFormatterTag)  \
+  V(IcuPluralRulesTag)               \
+  V(IcuCollatorTag)
 
 #define FOREIGN_TAG_LIST(V)                               \
   V(GenericForeignTag)                                    \

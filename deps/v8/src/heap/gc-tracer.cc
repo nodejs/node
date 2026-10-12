@@ -605,7 +605,7 @@ void GCTracer::StopCycle(GarbageCollector collector) {
 void GCTracer::StopFullCycleIfFinished() {
   if (current_.state != Event::State::SWEEPING) return;
   if (!notified_full_sweeping_completed_) return;
-  if (heap_->cpp_heap() && !notified_full_cppgc_completed_) return;
+  if (!notified_full_cppgc_completed_) return;
   StopCycle(GarbageCollector::MARK_COMPACTOR);
   notified_full_sweeping_completed_ = false;
   notified_full_cppgc_completed_ = false;
@@ -617,8 +617,7 @@ void GCTracer::StopYoungCycleIfFinished() {
   if (current_.state != Event::State::SWEEPING) return;
   if (!notified_young_sweeping_completed_) return;
   // Check if young cppgc was scheduled but hasn't completed yet.
-  if (heap_->cpp_heap() && notified_young_cppgc_running_ &&
-      !notified_young_cppgc_completed_) {
+  if (notified_young_cppgc_running_ && !notified_young_cppgc_completed_) {
     return;
   }
   bool was_young_gc_during_full_gc_sweeping_ =
@@ -661,8 +660,8 @@ void GCTracer::NotifyFullSweepingCompletedAndStopCycleIfFinished() {
   DCHECK(current_.state == Event::State::SWEEPING ||
          current_.state == Event::State::ATOMIC);
 
-  // Stop a full GC cycle only when both v8 and cppgc (if available) GCs have
-  // finished sweeping. This method is invoked by v8.
+  // Stop a full GC cycle only when both v8 and cppgc GCs have finished
+  // sweeping. This method is invoked by v8.
   if (v8_flags.trace_gc_freelists) {
     PrintIsolate(heap_->isolate(),
                  "FreeLists statistics after sweeping completed:\n");
@@ -697,9 +696,8 @@ void GCTracer::NotifyYoungSweepingCompletedAndStopCycleIfFinished() {
 }
 
 void GCTracer::NotifyFullCppGCCompleted() {
-  // Stop a full GC cycle only when both v8 and cppgc (if available) GCs have
-  // finished sweeping. This method is invoked by cppgc.
-  DCHECK(heap_->cpp_heap());
+  // Stop a full GC cycle only when both v8 and cppgc GCs have finished
+  // sweeping. This method is invoked by cppgc.
   const auto* metric_recorder =
       CppHeap::From(heap_->cpp_heap())->GetMetricRecorder();
   USE(metric_recorder);
@@ -717,9 +715,8 @@ void GCTracer::NotifyFullCppGCCompleted() {
 }
 
 void GCTracer::NotifyYoungCppGCCompleted() {
-  // Stop a young GC cycle only when both v8 and cppgc (if available) GCs have
-  // finished sweeping. This method is invoked by cppgc.
-  DCHECK(heap_->cpp_heap());
+  // Stop a young GC cycle only when both v8 and cppgc GCs have finished
+  // sweeping. This method is invoked by cppgc.
   DCHECK(notified_young_cppgc_running_);
   const auto* metric_recorder =
       CppHeap::From(heap_->cpp_heap())->GetMetricRecorder();
@@ -1619,17 +1616,14 @@ void GCTracer::ReportFullCycleToRecorder() {
   DCHECK(!Event::IsYoungGenerationEvent(current_.type));
   DCHECK_EQ(Event::State::NOT_RUNNING, current_.state);
   auto* cpp_heap = v8::internal::CppHeap::From(heap_->cpp_heap());
-  DCHECK_IMPLIES(cpp_heap,
-                 cpp_heap->GetMetricRecorder()->FullGCMetricsReportPending());
+  DCHECK(cpp_heap->GetMetricRecorder()->FullGCMetricsReportPending());
   const std::shared_ptr<metrics::Recorder>& recorder =
       heap_->isolate()->metrics_recorder();
   DCHECK_NOT_NULL(recorder);
   if (!recorder->HasEmbedderRecorder()) {
     incremental_mark_batched_events_ = {};
     incremental_sweep_batched_events_ = {};
-    if (cpp_heap) {
-      cpp_heap->GetMetricRecorder()->ClearCachedEvents();
-    }
+    cpp_heap->GetMetricRecorder()->ClearCachedEvents();
     return;
   }
   if (!incremental_mark_batched_events_.events.empty()) {
@@ -1650,47 +1644,42 @@ void GCTracer::ReportFullCycleToRecorder() {
   event.is_input_handling = current_.is_input_handling;
 
   // Managed C++ heap statistics:
-  if (cpp_heap) {
-    cpp_heap->GetMetricRecorder()->FlushBatchedIncrementalEvents();
-    const std::optional<cppgc::internal::MetricRecorder::GCCycle>
-        optional_cppgc_event =
-            cpp_heap->GetMetricRecorder()->ExtractLastFullGcEvent();
-    DCHECK(optional_cppgc_event.has_value());
-    DCHECK(!cpp_heap->GetMetricRecorder()->FullGCMetricsReportPending());
-    const cppgc::internal::MetricRecorder::GCCycle& cppgc_event =
-        optional_cppgc_event.value();
-    DCHECK_EQ(cppgc_event.type,
-              cppgc::internal::MetricRecorder::GCCycle::Type::kMajor);
-    CopyTimeMetrics(event.total_cpp, cppgc_event.total);
-    CopyTimeMetrics(event.main_thread_cpp, cppgc_event.main_thread);
-    CopyTimeMetrics(event.main_thread_atomic_cpp,
-                    cppgc_event.main_thread_atomic);
-    CopyTimeMetrics(event.main_thread_incremental_cpp,
-                    cppgc_event.main_thread_incremental);
-    CopySizeMetrics(event.objects_cpp, cppgc_event.objects);
-    CopySizeMetrics(event.memory_cpp, cppgc_event.memory);
-    DCHECK_NE(-1, cppgc_event.collection_rate_in_percent);
-    event.collection_rate_cpp_in_percent =
-        cppgc_event.collection_rate_in_percent;
-    DCHECK_NE(-1, cppgc_event.efficiency_in_bytes_per_us);
-    event.efficiency_cpp_in_bytes_per_us =
-        cppgc_event.efficiency_in_bytes_per_us;
-    DCHECK_NE(-1, cppgc_event.main_thread_efficiency_in_bytes_per_us);
-    event.main_thread_efficiency_cpp_in_bytes_per_us =
-        cppgc_event.main_thread_efficiency_in_bytes_per_us;
+  cpp_heap->GetMetricRecorder()->FlushBatchedIncrementalEvents();
+  const std::optional<cppgc::internal::MetricRecorder::GCCycle>
+      optional_cppgc_event =
+          cpp_heap->GetMetricRecorder()->ExtractLastFullGcEvent();
+  DCHECK(optional_cppgc_event.has_value());
+  DCHECK(!cpp_heap->GetMetricRecorder()->FullGCMetricsReportPending());
+  const cppgc::internal::MetricRecorder::GCCycle& cppgc_event =
+      optional_cppgc_event.value();
+  DCHECK_EQ(cppgc_event.type,
+            cppgc::internal::MetricRecorder::GCCycle::Type::kMajor);
+  CopyTimeMetrics(event.total_cpp, cppgc_event.total);
+  CopyTimeMetrics(event.main_thread_cpp, cppgc_event.main_thread);
+  CopyTimeMetrics(event.main_thread_atomic_cpp, cppgc_event.main_thread_atomic);
+  CopyTimeMetrics(event.main_thread_incremental_cpp,
+                  cppgc_event.main_thread_incremental);
+  CopySizeMetrics(event.objects_cpp, cppgc_event.objects);
+  CopySizeMetrics(event.memory_cpp, cppgc_event.memory);
+  DCHECK_NE(-1, cppgc_event.collection_rate_in_percent);
+  event.collection_rate_cpp_in_percent = cppgc_event.collection_rate_in_percent;
+  DCHECK_NE(-1, cppgc_event.efficiency_in_bytes_per_us);
+  event.efficiency_cpp_in_bytes_per_us = cppgc_event.efficiency_in_bytes_per_us;
+  DCHECK_NE(-1, cppgc_event.main_thread_efficiency_in_bytes_per_us);
+  event.main_thread_efficiency_cpp_in_bytes_per_us =
+      cppgc_event.main_thread_efficiency_in_bytes_per_us;
 
-    if (total_duration_since_last_mark_compact_.IsZero()) {
-      event.collection_weight_cpp_in_percent = 0;
-      event.main_thread_collection_weight_cpp_in_percent = 0;
-    } else {
-      event.collection_weight_cpp_in_percent =
-          static_cast<double>(event.total_cpp.total_wall_clock_duration_in_us) /
-          total_duration_since_last_mark_compact_.InMicroseconds();
-      event.main_thread_collection_weight_cpp_in_percent =
-          static_cast<double>(
-              event.main_thread_cpp.total_wall_clock_duration_in_us) /
-          total_duration_since_last_mark_compact_.InMicroseconds();
-    }
+  if (total_duration_since_last_mark_compact_.IsZero()) {
+    event.collection_weight_cpp_in_percent = 0;
+    event.main_thread_collection_weight_cpp_in_percent = 0;
+  } else {
+    event.collection_weight_cpp_in_percent =
+        static_cast<double>(event.total_cpp.total_wall_clock_duration_in_us) /
+        total_duration_since_last_mark_compact_.InMicroseconds();
+    event.main_thread_collection_weight_cpp_in_percent =
+        static_cast<double>(
+            event.main_thread_cpp.total_wall_clock_duration_in_us) /
+        total_duration_since_last_mark_compact_.InMicroseconds();
   }
 
   // Unified heap statistics:
@@ -1850,17 +1839,15 @@ void GCTracer::ReportIncrementalMarkingStepToRecorder(double v8_duration) {
   DCHECK_NOT_NULL(recorder);
   if (!recorder->HasEmbedderRecorder()) return;
   incremental_mark_batched_events_.events.emplace_back();
-  if (heap_->cpp_heap()) {
-    const std::optional<
-        cppgc::internal::MetricRecorder::MainThreadIncrementalMark>
-        cppgc_event = v8::internal::CppHeap::From(heap_->cpp_heap())
-                          ->GetMetricRecorder()
-                          ->ExtractLastIncrementalMarkEvent();
-    if (cppgc_event.has_value()) {
-      DCHECK_NE(-1, cppgc_event.value().duration_us);
-      incremental_mark_batched_events_.events.back()
-          .cpp_wall_clock_duration_in_us = cppgc_event.value().duration_us;
-    }
+  const std::optional<
+      cppgc::internal::MetricRecorder::MainThreadIncrementalMark>
+      cppgc_event = v8::internal::CppHeap::From(heap_->cpp_heap())
+                        ->GetMetricRecorder()
+                        ->ExtractLastIncrementalMarkEvent();
+  if (cppgc_event.has_value()) {
+    DCHECK_NE(-1, cppgc_event.value().duration_us);
+    incremental_mark_batched_events_.events.back()
+        .cpp_wall_clock_duration_in_us = cppgc_event.value().duration_us;
   }
   incremental_mark_batched_events_.events.back().wall_clock_duration_in_us =
       static_cast<int64_t>(v8_duration *
@@ -1894,9 +1881,7 @@ void GCTracer::ReportYoungCycleToRecorder() {
   DCHECK_NOT_NULL(recorder);
   auto* cpp_heap = v8::internal::CppHeap::From(heap_->cpp_heap());
   if (!recorder->HasEmbedderRecorder()) {
-    if (cpp_heap) {
-      cpp_heap->GetMetricRecorder()->ClearCachedYoungEvents();
-    }
+    cpp_heap->GetMetricRecorder()->ClearCachedYoungEvents();
     return;
   }
 
@@ -1906,7 +1891,7 @@ void GCTracer::ReportYoungCycleToRecorder() {
   event.priority = current_.priority;
 #if defined(CPPGC_YOUNG_GENERATION)
   // Managed C++ heap statistics:
-  if (cpp_heap && cpp_heap->generational_gc_supported()) {
+  if (cpp_heap->generational_gc_supported()) {
     auto* metric_recorder = cpp_heap->GetMetricRecorder();
     const std::optional<cppgc::internal::MetricRecorder::GCCycle>
         optional_cppgc_event = metric_recorder->ExtractLastYoungGcEvent();

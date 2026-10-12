@@ -48,7 +48,7 @@ void FunctionWithIncumbentCheck(
 
   IncumbentTestExpectations* expected =
       reinterpret_cast<IncumbentTestExpectations*>(
-          info.Data().As<External>()->Value(kIncumbentTestExpectationsTag));
+          info.DataV2().As<External>()->Value(kIncumbentTestExpectationsTag));
 
   expected->call_count++;
 

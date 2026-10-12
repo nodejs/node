@@ -33,6 +33,13 @@ class Loong64OperandGenerator final : public OperandGenerator {
     return UseRegister(node);
   }
 
+  InstructionOperand UseUniqueOperand(OpIndex node, InstructionCode opcode) {
+    if (CanBeImmediate(node, opcode)) {
+      return UseImmediate(node);
+    }
+    return UseUniqueRegister(node);
+  }
+
   bool IsImmediateZero(OpIndex node) {
     if (const ConstantOp* constant =
             selector()->Get(node).TryCast<ConstantOp>()) {
@@ -517,13 +524,16 @@ void EmitLoad(InstructionSelector* selector, turboshaft::OpIndex node,
       const ShiftOp& shift = lhs.Cast<ShiftOp>();
       if (int64_t shift_imm;
           selector->MatchIntegralWord64Constant(shift.right(), &shift_imm)) {
-        auto temp = g.TempRegister();
-        selector->Emit(kLoong64Alsl_d, temp, g.UseRegister(shift.left()),
-                       g.UseRegister(base), g.UseImmediate(shift_imm));
-        selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
-                       g.DefineAsRegister(output.valid() ? output : node), temp,
-                       g.UseImmediate(add.right()));
-        return;
+        int32_t shift_value = static_cast<int32_t>(shift_imm);
+        if (shift_value >= 0 && shift_value <= 4) {
+          auto temp = g.TempRegister();
+          selector->Emit(kLoong64Alsl_d, temp, g.UseRegister(shift.left()),
+                         g.UseRegister(base), g.UseImmediate(shift_value));
+          selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
+                         g.DefineAsRegister(output.valid() ? output : node),
+                         temp, g.UseImmediate(add.right()));
+          return;
+        }
       }
     }
   }
@@ -565,7 +575,7 @@ void InstructionSelector::VisitStoreLane(OpIndex node) {
   opcode |= LaneSizeField::encode(
       LaneSizeFromBits(static_cast<uint8_t>(store.lane_size() * kBitsPerByte)));
   if (store.kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   Loong64OperandGenerator g(this);
@@ -585,7 +595,7 @@ void InstructionSelector::VisitLoadLane(OpIndex node) {
   opcode |= LaneSizeField::encode(
       LaneSizeFromBits(static_cast<uint8_t>(load.lane_size() * kBitsPerByte)));
   if (load.kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   Loong64OperandGenerator g(this);
@@ -661,7 +671,7 @@ void InstructionSelector::VisitLoadTransform(OpIndex node) {
   outputs[0] = g.DefineAsRegister(node);
 
   if (op.load_kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   Emit(opcode, 1, outputs, 2, inputs);
 }
@@ -799,13 +809,8 @@ void InstructionSelector::VisitLoad(OpIndex node) {
 
   opcode = GetLoadOpcode(load.ts_loaded_rep(), load.ts_result_rep());
 
-  bool traps_on_null;
-  if (load.is_trapping(&traps_on_null)) {
-    if (traps_on_null) {
-      opcode |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
-    } else {
-      opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
-    }
+  if (load.is_trapping()) {
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   EmitLoad(this, node, opcode);
@@ -874,8 +879,8 @@ void InstructionSelector::VisitStore(OpIndex node) {
       code |= RecordWriteModeField::encode(record_write_mode);
     }
     code |= AddressingModeField::encode(addressing_mode);
-    if (store_view.is_store_trap_on_null()) {
-      code |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
+    if (store_view.access_kind() == MemoryAccessKind::kTrapping) {
+      code |= AccessModeField::encode(kMemoryAccessTrapping);
     }
 
     InstructionOperand temps[1];
@@ -926,10 +931,8 @@ void InstructionSelector::VisitStore(OpIndex node) {
     return;
   }
 
-  if (store_view.is_store_trap_on_null()) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
-  } else if (store_view.access_kind() == MemoryAccessKind::kTrapping) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+  if (store_view.access_kind() == MemoryAccessKind::kTrapping) {
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   if (g.CanBeImmediate(index, code)) {
@@ -1400,7 +1403,7 @@ void InstructionSelector::VisitInt32Add(OpIndex node) {
     if (int32_t shift_value, constant_left;
         MatchIntegralWord32Constant(shift.right(), &shift_value) &&
         !MatchIntegralWord32Constant(add.left(), &constant_left)) {
-      if (shift_value >= 1 && shift_value <= 4) {
+      if (shift_value >= 0 && shift_value <= 4) {
         Emit(kLoong64Alsl_w, g.DefineAsRegister(node),
              g.UseRegister(shift.left()), g.UseRegister(add.left()),
              g.TempImmediate(shift_value));
@@ -1415,7 +1418,7 @@ void InstructionSelector::VisitInt32Add(OpIndex node) {
     if (int32_t shift_value, constant_right;
         MatchIntegralWord32Constant(shift.right(), &shift_value) &&
         !MatchIntegralWord32Constant(add.right(), &constant_right)) {
-      if (shift_value >= 1 && shift_value <= 4) {
+      if (shift_value >= 0 && shift_value <= 4) {
         Emit(kLoong64Alsl_w, g.DefineAsRegister(node),
              g.UseRegister(shift.left()), g.UseRegister(add.right()),
              g.TempImmediate(shift_value));
@@ -1449,7 +1452,7 @@ void InstructionSelector::VisitInt64Add(OpIndex node) {
         !MatchIntegralWord64Constant(add.left(), &constant_left)) {
       int32_t shift_value = static_cast<int32_t>(shift_imm);
 
-      if (shift_value >= 1 && shift_value <= 4) {
+      if (shift_value >= 0 && shift_value <= 4) {
         Emit(kLoong64Alsl_d, g.DefineAsRegister(node),
              g.UseRegister(shift.left()), g.UseRegister(add.left()),
              g.TempImmediate(shift_value));
@@ -1465,7 +1468,7 @@ void InstructionSelector::VisitInt64Add(OpIndex node) {
         MatchIntegralWord64Constant(shift.right(), &shift_imm) &&
         !MatchIntegralWord64Constant(add.right(), &constant_right)) {
       int32_t shift_value = static_cast<int32_t>(shift_imm);
-      if (shift_value >= 1 && shift_value <= 4) {
+      if (shift_value >= 0 && shift_value <= 4) {
         Emit(kLoong64Alsl_d, g.DefineAsRegister(node),
              g.UseRegister(shift.left()), g.UseRegister(add.right()),
              g.TempImmediate(shift_value));
@@ -1535,6 +1538,30 @@ void InstructionSelector::VisitUint32MulHigh(OpIndex node) {
 
 void InstructionSelector::VisitUint64MulHigh(OpIndex node) {
   VisitRRR(this, kLoong64Mulh_du, node);
+}
+
+void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
+  Loong64OperandGenerator g(this);
+  const auto& op = Get(node).Cast<Word64Add3Op>();
+
+  OptionalV<Word64> out_low = FindProjection(node, 0);
+  OptionalV<Word64> out_high = FindProjection(node, 1);
+
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseRegister(op.first());
+  inputs[input_count++] = g.UseOperand(op.second(), kLoong64Add_d);
+  inputs[input_count++] = g.UseUniqueOperand(op.third(), kLoong64Add_d);
+
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  outputs[output_count++] =
+      g.DefineAsRegister(out_low.valid() ? out_low.value() : node);
+  if (out_high.valid() && IsUsed(out_high.value())) {
+    outputs[output_count++] = g.DefineAsRegister(out_high.value());
+  }
+
+  Emit(kLoong64Add64_3, output_count, outputs, input_count, inputs);
 }
 
 void InstructionSelector::VisitInt64Mul(OpIndex node) {
@@ -1929,6 +1956,12 @@ void InstructionSelector::VisitChangeInt32ToInt64(OpIndex node) {
     EmitLoad(this, change_op.input(), opcode, node);
     return;
   }
+  if (v8_flags.debug_code) {
+    if (!USE_SIMULATOR_BOOL || !input_op.Is<DidntThrowOp>()) {
+      Emit(kLoong64CheckWord32SignExtend, g.TempRegister(),
+           g.UseRegister(change_op.input()));
+    }
+  }
   EmitIdentity(node);
 }
 
@@ -2302,12 +2335,6 @@ static Instruction* VisitCompare(InstructionSelector* selector,
     inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->true_value());
     inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->false_value());
   }
-#ifdef V8_COMPRESS_POINTERS
-  if (opcode == kLoong64Cmp32) {
-    return selector->EmitWithContinuation(opcode, 0, nullptr, input_count,
-                                          inputs, cont);
-  }
-#endif
   return selector->EmitWithContinuation(opcode, 0, nullptr, input_count, inputs,
                                         cont);
 }
@@ -2428,8 +2455,10 @@ void VisitWord32Compare(InstructionSelector* selector, OpIndex node,
         RootsTable::IsReadOnly(root_index)) {
       Tagged_t ptr =
           MacroAssemblerBase::ReadOnlyRootPtr(root_index, selector->isolate());
-      imm = ptr;
-      has_imm = true;
+      if (g.CanBeImmediate(ptr, kLoong64Cmp32Eq)) {
+        imm = ptr;
+        has_imm = true;
+      }
     }
   }
 
@@ -2484,7 +2513,7 @@ void VisitWord32Compare(InstructionSelector* selector, OpIndex node,
   }
 
   if (v8_flags.debug_code) {
-    selector->Emit(kLoong64CheckWord32ComparisonInputs, g.TempRegister(),
+    selector->Emit(kLoong64CheckWord32SignExtend, g.TempRegister(),
                    g.UseRegister(op.input(0)), g.UseRegister(op.input(1)));
   }
   Instruction* instr =
@@ -2548,11 +2577,8 @@ void VisitAtomicLoad(InstructionSelector* selector, OpIndex node,
       UNREACHABLE();
   }
 
-  bool traps_on_null;
-  if (load.is_trapping(&traps_on_null)) {
-    code |= AccessModeField::encode(traps_on_null
-                                        ? kMemoryAccessTrappingNullDereference
-                                        : kMemoryAccessTrappingMemOutOfBounds);
+  if (load.is_trapping()) {
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   if (g.CanBeImmediate(index, code)) {
@@ -2616,7 +2642,7 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
       code = kArchAtomicStoreWithWriteBarrier;
-      code |= AtomicStoreRecordWriteModeField::encode(record_write_mode);
+      code |= RecordWriteModeField::encode(record_write_mode);
     }
   } else {
     switch (rep) {
@@ -2650,10 +2676,8 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
     }
   }
 
-  if (store.is_store_trap_on_null()) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
-  } else if (store_params.kind() == MemoryAccessKind::kTrapping) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+  if (store_params.kind() == MemoryAccessKind::kTrapping) {
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   if (g.CanBeImmediate(index, code)) {
@@ -2700,7 +2724,7 @@ void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                  arraysize(temps), temps);
@@ -2732,7 +2756,7 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                  arraysize(temps), temps);
@@ -2764,7 +2788,7 @@ void VisitAtomicBinop(InstructionSelector* selector, OpIndex node,
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   selector->Emit(code, 1, outputs, input_count, inputs, 4, temps);
 }
@@ -3006,7 +3030,7 @@ void InstructionSelector::VisitWord32Equal(OpIndex node) {
             MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
         if (g.CanBeImmediate(ptr, kLoong64Cmp32Eq)) {
           VisitCompare(this, kLoong64Cmp32Eq, g.UseRegister(left),
-                       g.TempImmediate(int32_t(ptr)), &cont);
+                       g.TempImmediate(static_cast<int32_t>(ptr)), &cont);
           return;
         }
       }
@@ -3571,7 +3595,7 @@ void InstructionSelector::VisitS128Const(OpIndex node) {
   uint32_t val[kUint32Immediates];
   const Simd128ConstantOp& constant =
       this->Get(node).template Cast<Simd128ConstantOp>();
-  memcpy(val, constant.value, kSimd128Size);
+  memcpy(val, constant.value.data(), kSimd128Size);
   // If all bytes are zeros or ones, avoid emitting code for generic constants
   bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
   bool all_ones = val[0] == UINT32_MAX && val[1] == UINT32_MAX &&

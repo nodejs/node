@@ -285,11 +285,7 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const FlagsCondition& fc);
 
-enum MemoryAccessMode {
-  kMemoryAccessDirect = 0,
-  kMemoryAccessTrappingMemOutOfBounds = 1,
-  kMemoryAccessTrappingNullDereference = 2,
-};
+enum MemoryAccessMode { kMemoryAccessDirect = 0, kMemoryAccessTrapping = 1 };
 
 enum class AtomicWidth { kWord32, kWord64 };
 
@@ -376,23 +372,32 @@ using InstructionCode = uint32_t;
 // So, the following instruction types use the MiscField in the following ways:
 // -- Atomics
 // Field                        | Bits
-// AtomicWidth                  | 2
-// AtomicMemoryOrder            | 2
-// AtomicStoreRecordWriteMode   | 3
-// AccessMode                   | 2
+// RecordWriteMode              | 3
+// AtomicWidth                  | 1
+// AtomicMemoryOrder            | 1
+// AccessMode                   | 1
+// Undefined                    | 3
 //
-// -- Write barriers
+// -- Non-atomic stores
 // Field                        | Bits
 // RecordWriteMode              | 3
-// Undefined                    | 4
-// AccessMode                   | 2
+// Undefined                    | 2
+// AccessMode                   | 1
+// Undefined                    | 3
+//
+// -- Non-atomic loads
+// Field                        | Bits
+// Undefined                    | 5
+// AccessMode                   | 1
+// Undefined                    | 3
 //
 // -- Vectors
 // Field                        | Bits
 // LaneSize                     | 2
 // VectorLength                 | 2
+// Undefined                    | 1
+// AccessMode                   | 1
 // Undefined                    | 3
-// AccessMode                   | 2
 //
 // -- Deopts
 // Field                        | Bits
@@ -415,39 +420,34 @@ static_assert(
 using FlagsModeField = AddressingModeField::Next<FlagsMode, 3>;
 using FlagsConditionField = FlagsModeField::Next<FlagsCondition, 5>;
 
+// Write modes for writes with barrier.
+using RecordWriteModeField = FlagsConditionField::Next<RecordWriteMode, 3>;
 // AtomicWidthField is used for the various Atomic opcodes. Only used on 64bit
 // architectures. All atomic instructions on 32bit architectures are assumed to
 // be 32bit wide.
-using AtomicWidthField = FlagsConditionField::Next<AtomicWidth, 2>;
+using AtomicWidthField = RecordWriteModeField::Next<AtomicWidth, 1>;
 // AtomicMemoryOrderField is used for the various Atomic opcodes. This field is
 // not used on all architectures. It is used on architectures where the codegen
 // for kSeqCst and kAcqRel differ only by emitting fences.
-using AtomicMemoryOrderField = AtomicWidthField::Next<AtomicMemoryOrder, 2>;
-using AtomicStoreRecordWriteModeField =
-    AtomicMemoryOrderField::Next<RecordWriteMode, 3>;
-
-// Write modes for writes with barrier.
-using RecordWriteModeField = FlagsConditionField::Next<RecordWriteMode, 3>;
+using AtomicMemoryOrderField = AtomicWidthField::Next<AtomicMemoryOrder, 1>;
+// Denotes whether the instruction needs to emit an accompanying landing pad for
+// the trap handler.
+using AccessModeField = AtomicMemoryOrderField::Next<MemoryAccessMode, 1>;
 
 // LaneSizeField and AccessModeField are helper types to encode/decode a lane
 // size, an access mode, or both inside the overlapping MiscField.
 using LaneSizeField = FlagsConditionField::Next<LaneSize, 2>;
 using VectorLengthField = LaneSizeField::Next<VectorLength, 2>;
 
-// Denotes whether the instruction needs to emit an accompanying landing pad for
-// the trap handler.
-using AccessModeField =
-    AtomicStoreRecordWriteModeField::Next<MemoryAccessMode, 2>;
-
 // Since AccessModeField is defined in terms of atomics, this assert ensures it
 // does not overlap with other fields it is used with.
-static_assert(AtomicStoreRecordWriteModeField::kLastUsedBit >=
+static_assert(AtomicMemoryOrderField::kLastUsedBit >=
               RecordWriteModeField::kLastUsedBit);
 #ifdef V8_TARGET_ARCH_X64
-static_assert(AtomicStoreRecordWriteModeField::kLastUsedBit >=
+static_assert(AtomicMemoryOrderField::kLastUsedBit >=
               VectorLengthField::kLastUsedBit);
 #else
-static_assert(AtomicStoreRecordWriteModeField::kLastUsedBit >=
+static_assert(AtomicMemoryOrderField::kLastUsedBit >=
               LaneSizeField::kLastUsedBit);
 #endif
 

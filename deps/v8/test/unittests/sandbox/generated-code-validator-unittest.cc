@@ -233,16 +233,34 @@ TEST_F(GeneratedCodeValidatorTest, ValidateRootRegisterPartialInitFails) {
 TEST_F(GeneratedCodeValidatorTest, ValidateSystemRegisterWrites) {
   Isolate* i_isolate = this->i_isolate();
 
-  auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(i_isolate, CodeObjectRequired{false},
-                      buffer->CreateView());
+  {
+    auto buffer = AllocateAssemblerBuffer();
+    MacroAssembler masm(i_isolate, CodeObjectRequired{false},
+                        buffer->CreateView());
 
-  // Writing to system register should fail validation.
-  __ Msr(NZCV, x0);
-  __ ret();
+    // Writing to system register should fail validation.
+    __ Msr(NZCV, x0);
+    __ ret();
 
-  CheckValidationFails(i_isolate, masm,
-                       "Instruction writes to prohibited system registers");
+    CheckValidationFails(i_isolate, masm,
+                         "Instruction writes to prohibited system registers");
+  }
+
+  {
+    auto buffer = AllocateAssemblerBuffer();
+    MacroAssembler masm(i_isolate, CodeObjectRequired{false},
+                        buffer->CreateView());
+
+    // Raw ARM64 encoding for `msr daifset, #2` (opcode 0xd50342df)
+    __ db(0xdf);
+    __ db(0x42);
+    __ db(0x03);
+    __ db(0xd5);
+    __ ret();
+
+    CheckValidationFails(i_isolate, masm,
+                         "Instruction writes to prohibited system registers");
+  }
 }
 
 #endif  // V8_TARGET_ARCH_ARM64

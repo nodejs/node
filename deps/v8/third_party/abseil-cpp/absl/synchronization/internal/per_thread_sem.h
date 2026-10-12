@@ -27,6 +27,7 @@
 
 #include <atomic>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/thread_identity.h"
 #include "absl/synchronization/internal/create_thread_identity.h"
 #include "absl/synchronization/internal/kernel_timeout.h"

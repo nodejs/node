@@ -63,6 +63,7 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/container/internal/btree.h"  // IWYU pragma: export
 #include "absl/container/internal/btree_container.h"  // IWYU pragma: export
 #include "absl/container/internal/common.h"

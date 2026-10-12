@@ -20,6 +20,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "absl/base/config.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {

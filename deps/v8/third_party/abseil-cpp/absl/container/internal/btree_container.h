@@ -23,6 +23,7 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/throw_delegate.h"
 #include "absl/container/internal/btree.h"  // IWYU pragma: export
 #include "absl/container/internal/common.h"

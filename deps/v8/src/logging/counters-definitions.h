@@ -80,6 +80,8 @@ namespace internal {
   /* Support for PKEYs/PKU by testing result of pkey_alloc(). */               \
   HR(wasm_memory_protection_keys_support, V8.WasmMemoryProtectionKeysSupport,  \
      0, 1, 2)                                                                  \
+  /* Support for AVX and AVX2 on x64 hardware. */                              \
+  HR(wasm_avx2_support, V8.WasmAvx2Support, 0, 1, 2)                           \
   /* Ticks observed in a single Turbofan compilation, in 1K. */                \
   HR(turbofan_ticks, V8.TurboFan1KTicks, 0, 100000, 200)                       \
   /* Backtracks observed in a single regexp interpreter execution. */          \

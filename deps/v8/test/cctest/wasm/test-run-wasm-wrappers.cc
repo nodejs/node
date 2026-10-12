@@ -196,8 +196,7 @@ TEST(WrapperReplacement) {
     DirectHandle<Code> wrapper_before_call;
     for (int i = remaining_budget; i > 0; --i) {
       // Verify that the wrapper to be used is the generic one.
-      wrapper_before_call =
-          direct_handle(main_function_data->wrapper_code(isolate), isolate);
+      wrapper_before_call = direct_handle(main_export->code(isolate), isolate);
       CHECK(IsGeneric(*wrapper_before_call));
       // Call the function.
       DirectHandle<Object> params[] = {SmiHandle(isolate, i)};
@@ -208,7 +207,7 @@ TEST(WrapperReplacement) {
     }
 
     // Get the wrapper-code object after the wrapper replacement.
-    Tagged<Code> wrapper_after_call = main_function_data->wrapper_code(isolate);
+    Tagged<Code> wrapper_after_call = main_export->code(isolate);
 
     // Verify that the budget has been exhausted.
     CHECK_EQ(Smi::ToInt(main_function_data->wrapper_budget()->value()), 0);
@@ -286,9 +285,9 @@ TEST(EagerWrapperReplacement) {
              kGenericWrapperBudget);
 
     // Verify that all functions are set to use the generic wrapper.
-    CHECK(IsGeneric(add_function_data->wrapper_code(isolate)));
-    CHECK(IsGeneric(mult_function_data->wrapper_code(isolate)));
-    CHECK(IsGeneric(id_function_data->wrapper_code(isolate)));
+    CHECK(IsGeneric(add_export->code(isolate)));
+    CHECK(IsGeneric(mult_export->code(isolate)));
+    CHECK(IsGeneric(id_export->code(isolate)));
 
     // Call the add function to trigger the tier up.
     {
@@ -303,9 +302,9 @@ TEST(EagerWrapperReplacement) {
                kGenericWrapperBudget);
       // Verify that the tier-up of the add function replaced the wrapper
       // for both the add and the mult functions, but not the id function.
-      CHECK(IsSpecific(add_function_data->wrapper_code(isolate)));
-      CHECK(IsSpecific(mult_function_data->wrapper_code(isolate)));
-      CHECK(IsGeneric(id_function_data->wrapper_code(isolate)));
+      CHECK(IsSpecific(add_export->code(isolate)));
+      CHECK(IsSpecific(mult_export->code(isolate)));
+      CHECK(IsGeneric(id_export->code(isolate)));
     }
 
     // Call the mult function to verify that the compiled wrapper is used.
@@ -384,7 +383,7 @@ TEST(WrapperReplacement_IndirectExport) {
     // Verify that the generic-wrapper budget has initially a value of
     // kGenericWrapperBudget and the wrapper to be used for calls to the
     // indirect function is the generic one.
-    CHECK(IsGeneric(indirect_function_data->wrapper_code(isolate)));
+    CHECK(IsGeneric(indirect_function->code(isolate)));
     CHECK(Smi::ToInt(indirect_function_data->wrapper_budget()->value()) ==
           kGenericWrapperBudget);
 
@@ -399,7 +398,7 @@ TEST(WrapperReplacement_IndirectExport) {
     // Verify that the budget is now exhausted and the generic wrapper has been
     // replaced by a specific one.
     CHECK_EQ(Smi::ToInt(indirect_function_data->wrapper_budget()->value()), 0);
-    CHECK(IsSpecific(indirect_function_data->wrapper_code(isolate)));
+    CHECK(IsSpecific(indirect_function->code(isolate)));
   }
   Cleanup();
 }

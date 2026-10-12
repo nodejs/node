@@ -19,6 +19,7 @@
 #include "src/__support/macros/optimization.h"
 #include "src/__support/macros/properties/architectures.h"
 #include "src/__support/macros/properties/compiler.h"
+#include "src/__support/macros/properties/cpu_features.h"
 
 #ifdef LIBC_COMPILER_HAS_STDC_FENV_ACCESS
 #define LIBC_FENV_ACCESS_ON _Pragma("STDC FENV_ACCESS ON")
@@ -209,6 +210,64 @@ set_errno_if_required([[maybe_unused]] int err) {
 #endif // LIBC_MATH_HAS_NO_ERRNO
   }
 }
+
+template <typename T>
+LIBC_INLINE LIBC_CONSTEXPR_DEFAULT void raise_overflow_except_if_required() {
+  raise_except_if_required(FE_OVERFLOW | FE_INEXACT);
+}
+
+template <typename T>
+LIBC_INLINE LIBC_CONSTEXPR_DEFAULT void raise_underflow_except_if_required() {
+  raise_except_if_required(FE_UNDERFLOW | FE_INEXACT);
+}
+
+#if defined(LIBC_TARGET_CPU_HAS_FPU_FLOAT)
+template <>
+LIBC_INLINE LIBC_CONSTEXPR_DEFAULT void
+raise_overflow_except_if_required<float>() {
+  if (cpp::is_constant_evaluated()) {
+    return;
+  } else {
+    volatile float x = 0x1.0p127f;
+    x = x * 2.0f;
+  }
+}
+
+template <>
+LIBC_INLINE LIBC_CONSTEXPR_DEFAULT void
+raise_underflow_except_if_required<float>() {
+  if (cpp::is_constant_evaluated()) {
+    return;
+  } else {
+    volatile float x = 0x1.0p-126f;
+    x = x * 0x1.0p-50f;
+  }
+}
+#endif // LIBC_TARGET_CPU_HAS_FPU_FLOAT
+
+#if defined(LIBC_TARGET_CPU_HAS_FPU_DOUBLE)
+template <>
+LIBC_INLINE LIBC_CONSTEXPR_DEFAULT void
+raise_overflow_except_if_required<double>() {
+  if (cpp::is_constant_evaluated()) {
+    return;
+  } else {
+    volatile double x = 0x1.0p1023;
+    x = x * 2.0;
+  }
+}
+
+template <>
+LIBC_INLINE LIBC_CONSTEXPR_DEFAULT void
+raise_underflow_except_if_required<double>() {
+  if (cpp::is_constant_evaluated()) {
+    return;
+  } else {
+    volatile double x = 0x1.0p-1022;
+    x = x * 0x1.0p-100;
+  }
+}
+#endif // LIBC_TARGET_CPU_HAS_FPU_DOUBLE
 
 } // namespace fputil
 } // namespace LIBC_NAMESPACE_DECL

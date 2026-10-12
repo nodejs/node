@@ -19,6 +19,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/memory/memory.h"
 #include "absl/synchronization/internal/thread_pool.h"
 #include "absl/synchronization/notification.h"

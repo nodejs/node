@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 #include "include/v8-context.h"
 #include "include/v8-initialization.h"
@@ -34,6 +35,12 @@
 #include "src/zone/zone-list-inl.h"
 #include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
+
+#ifdef V8_INTL_SUPPORT
+#include "src/regexp/special-case.h"
+#include "unicode/locid.h"
+#include "unicode/unistr.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -909,6 +916,95 @@ TEST_F(RegExpTest, MacroAssemblerNativeBacktrack) {
   CHECK_EQ(regexp::NativeRegExpMacroAssembler::FAILURE, result);
 }
 
+// A power-of-two mask compared against zero or against itself tests a single
+// bit of the loaded characters; arm64 folds each such check into tbz/tbnz.
+// Cover c == 0 and c == mask for both checks, with an explicit label and with
+// the implicit backtrack target, and bits above 7 through multi-character
+// loads. Every exit records itself in register 2 so the test can tell which
+// check fired.
+TEST_F(RegExpTest, MacroAssemblerNativeCheckCharacterAfterAndSingleBit) {
+  ContextInitializer initializer;
+  Factory* factory = i_isolate()->factory();
+  Zone zone(i_isolate()->allocator(), ZONE_NAME);
+
+  ArchRegExpMacroAssembler m(i_isolate(), &zone,
+                             regexp::NativeRegExpMacroAssembler::LATIN1, 4);
+
+  constexpr int kMatched = 1;
+  constexpr int kLabel = 2;
+  constexpr int kBacktrack = 3;
+
+  Label on_label, on_backtrack;
+  m.PushBacktrack(&on_backtrack);
+  // All four characters as one word: bit 31 is bit 7 of the last character.
+  m.LoadCurrentCharacter(0, nullptr, true, 4);
+  m.CheckCharacterAfterAnd(0x80000000u, 0x80000000u, &on_label);
+  // Two characters as a half-word: bit 15 is bit 7 of the second character.
+  m.LoadCurrentCharacter(0, nullptr, false, 2);
+  m.CheckNotCharacterAfterAnd(0, 0x8000, nullptr);
+  // Single characters.
+  m.LoadCurrentCharacter(0, nullptr, false);
+  m.CheckNotCharacterAfterAnd(0, 0x80, nullptr);
+  m.CheckNotCharacterAfterAnd(0x01, 0x01, &on_label);
+  m.LoadCurrentCharacter(1, nullptr, false);
+  m.CheckCharacterAfterAnd(0, 0x40, nullptr);
+  m.CheckCharacterAfterAnd(0x20, 0x20, &on_label);
+  m.WriteCurrentPositionToRegister(0, 0);
+  m.WriteCurrentPositionToRegister(1, 4);
+  m.WriteCurrentPositionToRegister(2, kMatched);
+  m.Succeed();
+  m.Bind(&on_label);
+  m.WriteCurrentPositionToRegister(2, kLabel);
+  m.Succeed();
+  m.BindJumpTarget(&on_backtrack);
+  m.WriteCurrentPositionToRegister(2, kBacktrack);
+  m.Succeed();
+
+  DirectHandle<String> source = factory->NewStringFromStaticChars("....");
+  DirectHandle<Object> code_object =
+      m.GetCode(CreateRegExpData(i_isolate(), source), {});
+  DirectHandle<Code> code = TrustedCast<Code>(code_object);
+  DirectHandle<JSRegExp> regexp = CreateJSRegExp(source, code);
+
+  struct {
+    const char* input;
+    int exit;
+  } cases[] = {
+      // 'a' (0x61) has bit 7 clear and bit 0 set, 'B' (0x42) has bit 6 set and
+      // bit 5 clear, and no character has bit 7 set.
+      {"aBcD", kMatched},
+      {"aBc\xC4", kLabel},  // Bit 31 of the word set.
+      {"a\xC2"
+       "cD",
+       kBacktrack},  // Bit 15 of the half-word set.
+      {"\xE1"
+       "BcD",
+       kBacktrack},      // Bit 7 of the first character set.
+      {"bBcD", kLabel},  // Bit 0 of the first character clear.
+      {"a\x02"
+       "cD",
+       kBacktrack},      // Bit 6 of the second character clear.
+      {"abcD", kLabel},  // Bit 5 of the second character set.
+  };
+  for (const auto& c : cases) {
+    DirectHandle<String> input =
+        factory->NewStringFromOneByte(base::OneByteVector(c.input))
+            .ToHandleChecked();
+    DirectHandle<SeqOneByteString> seq_input = Cast<SeqOneByteString>(input);
+    Address start_adr = seq_input->GetCharsAddress();
+
+    int captures[4] = {42, 37, 87, 117};
+    regexp::NativeRegExpMacroAssembler::Result result = Execute(
+        *regexp, *input, 0, start_adr, start_adr + input->length(), captures);
+
+    CHECK_EQ(regexp::NativeRegExpMacroAssembler::SUCCESS, result);
+    CHECK_EQ(c.exit, captures[2]);
+    CHECK_EQ(c.exit == kMatched ? 0 : -1, captures[0]);
+    CHECK_EQ(c.exit == kMatched ? 4 : -1, captures[1]);
+    CHECK_EQ(-1, captures[3]);
+  }
+}
+
 TEST_F(RegExpTest, MacroAssemblerNativeBackReferenceLATIN1) {
   ContextInitializer initializer;
   Factory* factory = i_isolate()->factory();
@@ -1372,6 +1468,72 @@ TEST_F(RegExpTest, MacroAssembler) {
     CHECK_EQ(0, captures[4]);
   }
 }
+
+#ifdef V8_INTL_SUPPORT
+#ifndef DEBUG
+namespace {
+
+UChar32 CanonicalizeNonUnicodeForTest(UChar32 c) {
+  icu::UnicodeString upper(c);
+  upper.toUpper(icu::Locale::getRoot());
+  if (upper.length() != 1) return c;
+  UChar32 result = upper.charAt(0);
+  return c >= 128 && result < 128 ? c : result;
+}
+
+}  // namespace
+
+TEST_F(RegExpTest, NonUnicodeCaseEquivalence) {
+  using CaseFolding = regexp::CaseFolding;
+  std::vector<UChar32> canonical(0x10000);
+  std::vector<std::vector<UChar32>> classes(0x10000);
+  for (UChar32 c = 0; c <= 0xffff; ++c) {
+    canonical[c] = CanonicalizeNonUnicodeForTest(c);
+    classes[canonical[c]].push_back(c);
+  }
+  std::vector<UChar32> canonical_to_key(0x10000, -1);
+  std::vector<UChar32> key_to_canonical(0x10000, -1);
+  for (UChar32 c = 0; c <= 0xffff; ++c) {
+    UChar32 key =
+        CaseFolding::EquivalenceKey(c, CaseFolding::Mode::kNonUnicode);
+    ASSERT_GE(key, 0);
+    ASSERT_LE(key, 0xffff);
+    if (canonical_to_key[canonical[c]] == -1) {
+      canonical_to_key[canonical[c]] = key;
+    }
+    if (key_to_canonical[key] == -1) key_to_canonical[key] = canonical[c];
+    ASSERT_EQ(canonical_to_key[canonical[c]], key) << c;
+    ASSERT_EQ(key_to_canonical[key], canonical[c]) << c;
+
+    icu::UnicodeSet expected;
+    for (UChar32 member : classes[canonical[c]]) expected.add(member);
+    icu::UnicodeSet actual(c, c);
+    CaseFolding::CloseOver(actual, CaseFolding::Mode::kNonUnicode);
+    ASSERT_TRUE(expected == actual) << c;
+  }
+}
+#endif  // !DEBUG
+
+TEST_F(RegExpTest, CaseClosureMixedSets) {
+  using CaseFolding = regexp::CaseFolding;
+  for (auto mode :
+       {CaseFolding::Mode::kNonUnicode, CaseFolding::Mode::kUnicode}) {
+    icu::UnicodeSet actual;
+    actual.add('a', 'c').add('k').add(0x017f).add(0x00df);
+    icu::UnicodeSet expected(actual);
+    expected.add('A', 'C').add('K');
+    if (mode == CaseFolding::Mode::kUnicode) {
+      expected.add('s').add('S').add(0x212a).add(0x1e9e);
+      actual.add(0x10400);
+      expected.add(0x10400).add(0x10428);
+    }
+    CaseFolding::CloseOver(actual, mode);
+    EXPECT_TRUE(expected == actual);
+    CaseFolding::CloseOver(actual, mode);
+    EXPECT_TRUE(expected == actual);
+  }
+}
+#endif  // V8_INTL_SUPPORT
 
 #ifndef V8_INTL_SUPPORT
 static base::uc32 canonicalize(base::uc32 c) {

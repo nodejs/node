@@ -74,6 +74,7 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/setup-isolate-for-tests.h"
+#include "test/common/version-utils.h"
 namespace v8 {
 namespace internal {
 
@@ -209,15 +210,13 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
     i_isolate->read_only_heap()->OnCreateHeapObjectsComplete(i_isolate);
   }
 
-  ReadOnlySerializer read_only_serializer(i_isolate,
-                                          Snapshot::kDefaultSerializerFlags);
+  Snapshot::SerializerFlags flags(Snapshot::kAllowSerializingAllTrustedObjects);
+  ReadOnlySerializer read_only_serializer(i_isolate, flags);
   read_only_serializer.Serialize();
 
-  SharedHeapSerializer shared_space_serializer(
-      i_isolate, Snapshot::kDefaultSerializerFlags);
+  SharedHeapSerializer shared_space_serializer(i_isolate, flags);
 
-  StartupSerializer ser(i_isolate, Snapshot::kDefaultSerializerFlags,
-                        &shared_space_serializer);
+  StartupSerializer ser(i_isolate, flags, &shared_space_serializer);
   ser.SerializeStrongReferences(no_gc);
 
   ser.SerializeWeakReferencesAndDeferred();
@@ -428,22 +427,22 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
       isolate->read_only_heap()->OnCreateHeapObjectsComplete(isolate);
     }
 
+    Snapshot::SerializerFlags flags(
+        Snapshot::kAllowSerializingAllTrustedObjects);
     SnapshotByteSink read_only_sink;
-    ReadOnlySerializer read_only_serializer(isolate,
-                                            Snapshot::kDefaultSerializerFlags);
+    ReadOnlySerializer read_only_serializer(isolate, flags);
     read_only_serializer.Serialize();
 
-    SharedHeapSerializer shared_space_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags);
+    SharedHeapSerializer shared_space_serializer(isolate, flags);
 
     SnapshotByteSink startup_sink;
-    StartupSerializer startup_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags, &shared_space_serializer);
+    StartupSerializer startup_serializer(isolate, flags,
+                                         &shared_space_serializer);
     startup_serializer.SerializeStrongReferences(no_gc);
 
     SnapshotByteSink context_sink;
     ContextSerializer context_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags, &startup_serializer,
+        isolate, flags, &startup_serializer,
         SerializeEmbedderFieldsCallback(v8::SerializeInternalFieldsCallback()));
     context_serializer.Serialize(&raw_context, no_gc);
 
@@ -622,23 +621,22 @@ static void SerializeCustomContext(
         i_isolate->read_only_heap()->OnCreateHeapObjectsComplete(i_isolate);
       }
 
+      Snapshot::SerializerFlags flags(
+          Snapshot::kAllowSerializingAllTrustedObjects);
       SnapshotByteSink read_only_sink;
-      ReadOnlySerializer read_only_serializer(
-          i_isolate, Snapshot::kDefaultSerializerFlags);
+      ReadOnlySerializer read_only_serializer(i_isolate, flags);
       read_only_serializer.Serialize();
 
-      SharedHeapSerializer shared_space_serializer(
-          i_isolate, Snapshot::kDefaultSerializerFlags);
+      SharedHeapSerializer shared_space_serializer(i_isolate, flags);
 
       SnapshotByteSink startup_sink;
-      StartupSerializer startup_serializer(i_isolate,
-                                           Snapshot::kDefaultSerializerFlags,
+      StartupSerializer startup_serializer(i_isolate, flags,
                                            &shared_space_serializer);
       startup_serializer.SerializeStrongReferences(no_gc);
 
       SnapshotByteSink context_sink;
       ContextSerializer context_serializer(
-          i_isolate, Snapshot::kDefaultSerializerFlags, &startup_serializer,
+          i_isolate, flags, &startup_serializer,
           SerializeEmbedderFieldsCallback(
               v8::SerializeInternalFieldsCallback()));
       context_serializer.Serialize(&raw_context, no_gc);
@@ -3110,15 +3108,12 @@ static void SerializerLogEventListener(const v8::JitCodeEvent* event) {
 }
 
 v8::ScriptCompiler::CachedData* CompileRunAndProduceCache(
-    const char* js_source, CodeCacheType cacheType = CodeCacheType::kLazy) {
+    v8::Isolate* isolate, const char* js_source, CodeCacheType cacheType) {
   v8::ScriptCompiler::CachedData* cache;
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
   {
-    v8::Isolate::Scope iscope(isolate1);
-    v8::HandleScope scope(isolate1);
-    v8::Local<v8::Context> context = v8::Context::New(isolate1);
+    v8::Isolate::Scope iscope(isolate);
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(context);
 
     v8::Local<v8::String> source_str = v8_str(js_source);
@@ -3137,7 +3132,7 @@ v8::ScriptCompiler::CachedData* CompileRunAndProduceCache(
         UNREACHABLE();
     }
     v8::Local<v8::UnboundScript> script =
-        v8::ScriptCompiler::CompileUnboundScript(isolate1, &source, options)
+        v8::ScriptCompiler::CompileUnboundScript(isolate, &source, options)
             .ToLocalChecked();
 
     if (cacheType != CodeCacheType::kAfterExecute) {
@@ -3145,11 +3140,11 @@ v8::ScriptCompiler::CachedData* CompileRunAndProduceCache(
     }
 
     v8::Local<v8::Value> result = script->BindToCurrentContext()
-                                      ->Run(isolate1->GetCurrentContext())
+                                      ->Run(isolate->GetCurrentContext())
                                       .ToLocalChecked();
     v8::Local<v8::String> result_string =
-        result->ToString(isolate1->GetCurrentContext()).ToLocalChecked();
-    CHECK(result_string->Equals(isolate1->GetCurrentContext(), v8_str("abcdef"))
+        result->ToString(isolate->GetCurrentContext()).ToLocalChecked();
+    CHECK(result_string->Equals(isolate->GetCurrentContext(), v8_str("abcdef"))
               .FromJust());
 
     if (cacheType == CodeCacheType::kAfterExecute) {
@@ -3157,6 +3152,16 @@ v8::ScriptCompiler::CachedData* CompileRunAndProduceCache(
     }
     CHECK(cache);
   }
+  return cache;
+}
+
+v8::ScriptCompiler::CachedData* CompileRunAndProduceCache(
+    const char* js_source, CodeCacheType cacheType = CodeCacheType::kLazy) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+  v8::ScriptCompiler::CachedData* cache =
+      CompileRunAndProduceCache(isolate1, js_source, cacheType);
   isolate1->Dispose();
   return cache;
 }
@@ -3457,6 +3462,42 @@ TEST(CachedDataCompatibilityCheck) {
   }
 }
 
+TEST(CodeSerializerEmbedderString) {
+  const char* js_source = "function f() { return 'abc'; }; f() + 'def'";
+  std::unique_ptr<v8::ScriptCompiler::CachedData> empty_embedder_cache;
+  std::unique_ptr<v8::ScriptCompiler::CachedData> custom_embedder_cache;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    ScopedVersionEmbedderString embedder("");
+    empty_embedder_cache.reset(
+        CompileRunAndProduceCache(isolate, js_source, CodeCacheType::kLazy));
+    CHECK_EQ(empty_embedder_cache->CompatibilityCheck(isolate),
+             v8::ScriptCompiler::CachedData::kSuccess);
+  }
+
+  {
+    ScopedVersionEmbedderString embedder("-test");
+    CHECK_EQ(empty_embedder_cache->CompatibilityCheck(isolate),
+             v8::ScriptCompiler::CachedData::kVersionMismatch);
+    custom_embedder_cache.reset(
+        CompileRunAndProduceCache(isolate, js_source, CodeCacheType::kLazy));
+    CHECK_EQ(custom_embedder_cache->CompatibilityCheck(isolate),
+             v8::ScriptCompiler::CachedData::kSuccess);
+  }
+
+  {
+    ScopedVersionEmbedderString embedder("-test.2");
+    CHECK_EQ(custom_embedder_cache->CompatibilityCheck(isolate),
+             v8::ScriptCompiler::CachedData::kVersionMismatch);
+  }
+
+  isolate->Dispose();
+}
+
 TEST(CodeSerializerBitFlip) {
   i::v8_flags.verify_snapshot_checksum = true;
   const char* js_source = "function f() { return 'abc'; }; f() + 'def'";
@@ -3742,11 +3783,11 @@ int serialized_static_field = 314;
 
 void SerializedCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  if (info.Data()->IsExternal()) {
-    CHECK_EQ(info.Data().As<v8::External>()->Value(kIntPointerTag),
+  if (info.DataV2()->IsValue() && info.DataV2().As<v8::Value>()->IsExternal()) {
+    CHECK_EQ(info.DataV2().As<v8::External>()->Value(kIntPointerTag),
              static_cast<void*>(&serialized_static_field));
     int* value = reinterpret_cast<int*>(
-        info.Data().As<v8::External>()->Value(kIntPointerTag));
+        info.DataV2().As<v8::External>()->Value(kIntPointerTag));
     (*value)++;
   }
   info.GetReturnValue().Set(v8_num(42));
@@ -4827,11 +4868,9 @@ UNINITIALIZED_TEST(SerializeApiWrapperData) {
           object_template->NewInstance(context).ToLocalChecked();
       wrappable1 = cppgc::MakeGarbageCollected<DummyWrappable>(
           cpp_heap->GetAllocationHandle());
-      v8::Object::Wrap<v8::CppHeapPointerTag::kTagForTesting>(isolate, obj1,
-                                                              wrappable1);
-      CHECK_EQ(
-          wrappable1,
-          v8::Object::Unwrap<CppHeapPointerTag::kTagForTesting>(isolate, obj1));
+      v8::Object::Wrap<i::kTagForTesting>(isolate, obj1, wrappable1);
+      CHECK_EQ(wrappable1,
+               v8::Object::Unwrap<i::kTagForTesting>(isolate, obj1));
       CHECK(context->Global()->Set(context, v8_str("obj1"), obj1).FromJust());
 
       v8::Local<v8::Object> obj2 =
@@ -4839,11 +4878,9 @@ UNINITIALIZED_TEST(SerializeApiWrapperData) {
       wrappable2 = cppgc::MakeGarbageCollected<DummyWrappable>(
           cpp_heap->GetAllocationHandle());
       wrappable2->is_special = true;
-      v8::Object::Wrap<v8::CppHeapPointerTag::kTagForTesting>(isolate, obj2,
-                                                              wrappable2);
-      CHECK_EQ(
-          wrappable2,
-          v8::Object::Unwrap<CppHeapPointerTag::kTagForTesting>(isolate, obj2));
+      v8::Object::Wrap<i::kTagForTesting>(isolate, obj2, wrappable2);
+      CHECK_EQ(wrappable2,
+               v8::Object::Unwrap<i::kTagForTesting>(isolate, obj2));
       CHECK(context->Global()->Set(context, v8_str("obj2"), obj2).FromJust());
 
       creator.SetDefaultContext(context, SerializeInternalFieldsCallback(),

@@ -1420,7 +1420,7 @@ void nativeGetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Isolate::DisallowJavascriptExecutionScope throwJs(
         isolate,
         v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
-    v8::Local<v8::Array> data = info.Data().As<v8::Array>();
+    v8::Local<v8::Array> data = info.DataV2().As<v8::Value>().As<v8::Array>();
     if (!data->Get(context, 0).ToLocal(&name)) return;
     if (!data->Get(context, 1).ToLocal(&object) || !object->IsObject()) return;
   }
@@ -1458,7 +1458,7 @@ void nativeSetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Isolate::DisallowJavascriptExecutionScope throwJs(
         isolate,
         v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
-    v8::Local<v8::Array> data = info.Data().As<v8::Array>();
+    v8::Local<v8::Array> data = info.DataV2().As<v8::Value>().As<v8::Array>();
     if (!data->Get(context, 0).ToLocal(&name)) return;
     if (!data->Get(context, 1).ToLocal(&object) || !object->IsObject()) return;
   }

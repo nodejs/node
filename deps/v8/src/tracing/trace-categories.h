@@ -38,6 +38,8 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"))
         .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.gc")).SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.gc_extra"))
+        .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats"))
         .SetTags("slow"),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.inspector"))

@@ -40,7 +40,7 @@ assert_test_iife(test_iife());
 %OptimizeMaglevOnNextCall(test_iife);
 assert_test_iife(test_iife());
 assertOptimized(test_iife);
-assertTrue(isMaglevved(test_iife));
+assertMaglevved(test_iife);
 assert_test_iife(test_iife());
 %OptimizeFunctionOnNextCall(test_iife);
 assert_test_iife(test_iife());

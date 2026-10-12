@@ -86,9 +86,12 @@ class FastApiCallLoweringReducer : public Next {
             offsetof(v8::FastApiCallbackOptions, isolate));
         // data = data_argument
         OpIndex data_argument_to_pass = __ AdaptLocalArgument(data_argument);
+        START_ALLOW_USE_DEPRECATED()
+        constexpr size_t data_offset =
+            offsetof(v8::FastApiCallbackOptions, data);
+        END_ALLOW_USE_DEPRECATED()
         __ StoreOffHeap(stack_slot, data_argument_to_pass,
-                        MemoryRepresentation::UintPtr(),
-                        offsetof(v8::FastApiCallbackOptions, data));
+                        MemoryRepresentation::UintPtr(), data_offset);
 
         args.push_back(stack_slot);
         builder.AddParam(MachineType::Pointer());

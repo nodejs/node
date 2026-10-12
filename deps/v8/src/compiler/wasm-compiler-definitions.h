@@ -70,6 +70,9 @@ struct WasmTypeCheckConfig {
            from.is_ref() && to.is_ref() &&
            wasm::IsSameTypeHierarchy(from.heap_type(), to.heap_type());
   }
+
+  friend bool operator==(const WasmTypeCheckConfig&,
+                         const WasmTypeCheckConfig&) = default;
 };
 
 V8_INLINE std::ostream& operator<<(std::ostream& os,
@@ -78,12 +81,8 @@ V8_INLINE std::ostream& operator<<(std::ostream& os,
 }
 
 V8_INLINE size_t hash_value(WasmTypeCheckConfig const& p) {
-  return base::hash_combine(p.from.raw_bit_field(), p.to.raw_bit_field());
-}
-
-V8_INLINE bool operator==(const WasmTypeCheckConfig& p1,
-                          const WasmTypeCheckConfig& p2) {
-  return p1.from == p2.from && p1.to == p2.to;
+  return base::hash_combine(p.from.raw_bit_field(), p.to.raw_bit_field(),
+                            p.exactness);
 }
 
 static constexpr int kCharWidthBailoutSentinel = 3;

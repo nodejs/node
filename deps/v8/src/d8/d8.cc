@@ -55,6 +55,7 @@
 #include "src/base/strong-alias.h"
 #include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/d8/d8-console.h"
@@ -173,20 +174,23 @@ Isolate::CreateParams GetDefaultIsolateCreateParams() {
   return create_params;
 }
 
-// Base class for shell ArrayBuffer allocators. It forwards all operations to
-// the default v8 allocator.
-class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
+// ArrayBuffer allocator that never allocates over 10MB.
+class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
+  explicit MockArrayBufferAllocator(v8::ArrayBuffer::Allocator* allocator)
+      : allocator_(allocator) {}
+
+ protected:
   void* Allocate(size_t length) override {
-    return allocator_->Allocate(length);
+    return allocator_->Allocate(Adjust(length));
   }
 
   void* AllocateUninitialized(size_t length) override {
-    return allocator_->AllocateUninitialized(length);
+    return allocator_->AllocateUninitialized(Adjust(length));
   }
 
   void Free(void* data, size_t length) override {
-    allocator_->Free(data, length);
+    allocator_->Free(data, Adjust(length));
   }
 
   PageAllocator* GetPageAllocator() override {
@@ -194,79 +198,23 @@ class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
   }
 
  private:
-  std::unique_ptr<Allocator> allocator_ =
-      std::unique_ptr<Allocator>(NewDefaultAllocator());
-};
-
-// ArrayBuffer allocator that can use virtual memory to improve performance.
-class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
- public:
-  void* Allocate(size_t length) override {
-    if (length >= kVMThreshold) return AllocateVM(length);
-    return ArrayBufferAllocatorBase::Allocate(length);
-  }
-
-  void* AllocateUninitialized(size_t length) override {
-    if (length >= kVMThreshold) return AllocateVM(length);
-    return ArrayBufferAllocatorBase::AllocateUninitialized(length);
-  }
-
-  void Free(void* data, size_t length) override {
-    if (length >= kVMThreshold) {
-      FreeVM(data, length);
-    } else {
-      ArrayBufferAllocatorBase::Free(data, length);
-    }
-  }
-
- private:
-  static constexpr size_t kVMThreshold = 65536;
-
-  void* AllocateVM(size_t length) {
-    DCHECK_LE(kVMThreshold, length);
-    v8::PageAllocator* page_allocator = GetPageAllocator();
-    size_t page_size = page_allocator->AllocatePageSize();
-    size_t allocated = RoundUp(length, page_size);
-    return i::AllocatePages(page_allocator, allocated, page_size,
-                            PageAllocator::kReadWrite);
-  }
-
-  void FreeVM(void* data, size_t length) {
-    v8::PageAllocator* page_allocator = GetPageAllocator();
-    size_t page_size = page_allocator->AllocatePageSize();
-    size_t allocated = RoundUp(length, page_size);
-    i::FreePages(page_allocator, data, allocated);
-  }
-};
-
-// ArrayBuffer allocator that never allocates over 10MB.
-class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
- protected:
-  void* Allocate(size_t length) override {
-    return ArrayBufferAllocatorBase::Allocate(Adjust(length));
-  }
-
-  void* AllocateUninitialized(size_t length) override {
-    return ArrayBufferAllocatorBase::AllocateUninitialized(Adjust(length));
-  }
-
-  void Free(void* data, size_t length) override {
-    return ArrayBufferAllocatorBase::Free(data, Adjust(length));
-  }
-
- private:
   size_t Adjust(size_t length) {
     const size_t kAllocationLimit = 10 * i::MB;
     return length > kAllocationLimit ? i::AllocatePageSize() : length;
   }
+
+  v8::ArrayBuffer::Allocator* allocator_;
 };
 
 // ArrayBuffer allocator that can be equipped with a limit to simulate system
 // OOM.
-class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
+class MockArrayBufferAllocatorWithLimit : public MockArrayBufferAllocator {
  public:
-  explicit MockArrayBufferAllocatiorWithLimit(size_t allocation_limit)
-      : limit_(allocation_limit), space_left_(allocation_limit) {}
+  MockArrayBufferAllocatorWithLimit(v8::ArrayBuffer::Allocator* allocator,
+                                    size_t allocation_limit)
+      : MockArrayBufferAllocator(allocator),
+        limit_(allocation_limit),
+        space_left_(allocation_limit) {}
 
  protected:
   void* Allocate(size_t length) override {
@@ -287,7 +235,7 @@ class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
 
   void Free(void* data, size_t length) override {
     space_left_ += length;
-    return MockArrayBufferAllocator::Free(data, length);
+    MockArrayBufferAllocator::Free(data, length);
   }
 
   size_t MaxAllocationSize() const override { return limit_; }
@@ -307,11 +255,15 @@ class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
 // The purpose is to allow stability-testing of huge (typed) arrays without
 // actually consuming huge amounts of physical memory.
 // This is currently only available on Linux because it relies on {mremap}.
-class MultiMappedAllocator : public ArrayBufferAllocatorBase {
+class MultiMappedAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  explicit MultiMappedAllocator(v8::ArrayBuffer::Allocator* allocator)
+      : allocator_(allocator) {}
+
  protected:
   void* Allocate(size_t length) override {
     if (length < kChunkSize) {
-      return ArrayBufferAllocatorBase::Allocate(length);
+      return allocator_->Allocate(length);
     }
     // We use mmap, which initializes pages to zero anyway.
     return AllocateUninitialized(length);
@@ -319,7 +271,7 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
 
   void* AllocateUninitialized(size_t length) override {
     if (length < kChunkSize) {
-      return ArrayBufferAllocatorBase::AllocateUninitialized(length);
+      return allocator_->AllocateUninitialized(length);
     }
     size_t rounded_length = RoundUp(length, kChunkSize);
     int prot = PROT_READ | PROT_WRITE;
@@ -393,7 +345,8 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
 
   void Free(void* data, size_t length) override {
     if (length < kChunkSize) {
-      return ArrayBufferAllocatorBase::Free(data, length);
+      allocator_->Free(data, length);
+      return;
     }
     base::MutexGuard lock_guard(&regions_mutex_);
     void* real_alloc = regions_[data];
@@ -408,10 +361,15 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
     regions_.erase(data);
   }
 
+  PageAllocator* GetPageAllocator() override {
+    return allocator_->GetPageAllocator();
+  }
+
  private:
   // Aiming for a "Huge Page" (2M on Linux x64) to go easy on the TLB.
   static constexpr size_t kChunkSize = 2 * 1024 * 1024;
 
+  v8::ArrayBuffer::Allocator* allocator_;
   std::unordered_map<void*, void*> regions_;
   base::Mutex regions_mutex_;
 };
@@ -1874,7 +1832,7 @@ void Shell::ModuleResolutionSuccessCallback(
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate(info.GetIsolate());
   HandleScope handle_scope(isolate);
-  Local<Array> module_resolution_data(info.Data().As<Array>());
+  Local<Array> module_resolution_data(info.DataV2().As<Value>().As<Array>());
   Local<Context> context(isolate->GetCurrentContext());
 
   Local<Promise::Resolver> resolver(
@@ -1899,7 +1857,7 @@ void Shell::ModuleResolutionFailureCallback(
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate(info.GetIsolate());
   HandleScope handle_scope(isolate);
-  Local<Array> module_resolution_data(info.Data().As<Array>());
+  Local<Array> module_resolution_data(info.DataV2().As<Value>().As<Array>());
   Local<Context> context(isolate->GetCurrentContext());
 
   Local<Promise::Resolver> resolver(
@@ -3959,7 +3917,7 @@ void Shell::SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void Shell::GetContinuationPreservedEmbedderData(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  Local<Data> data = isolate->GetContinuationPreservedEmbedderDataV2();
+  Local<Data> data = isolate->GetContinuationPreservedEmbedderData();
   DCHECK(!data.IsEmpty());
   if (!data->IsValue()) {
     data = Undefined(isolate);
@@ -5064,8 +5022,9 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
         isolate, "createAccessCheckedObject",
         FunctionTemplate::New(isolate, Shell::CreateAccessCheckedObject));
     test_template->Set(
-        isolate, "createSpecialObject",
-        FunctionTemplate::New(isolate, Shell::CreateSpecialObject));
+        isolate, "createAccessCheckedInterceptorObject",
+        FunctionTemplate::New(isolate,
+                              Shell::CreateAccessCheckedInterceptorObject));
     test_template->Set(isolate, "setAccessPolicy",
                        FunctionTemplate::New(isolate, Shell::SetAccessPolicy));
 
@@ -6915,8 +6874,8 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info) {
   std::unique_ptr<SerializationData> data =
       Shell::SerializeValue(isolate, message, transfer);
   if (data) {
-    DCHECK(info.Data()->IsExternal());
-    Local<External> this_value = info.Data().As<External>();
+    DCHECK(info.DataV2().As<Value>()->IsExternal());
+    Local<External> this_value = info.DataV2().As<External>();
     Worker* worker = static_cast<Worker*>(this_value->Value(kWorkerTag));
 
     worker->out_queue_.Enqueue(std::move(data));
@@ -6935,8 +6894,8 @@ void Worker::Close(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
-  DCHECK(info.Data()->IsExternal());
-  Local<External> this_value = info.Data().As<External>();
+  DCHECK(info.DataV2().As<Value>()->IsExternal());
+  Local<External> this_value = info.DataV2().As<External>();
   Worker* worker = static_cast<Worker*>(this_value->Value(kWorkerTag));
   worker->Terminate();
 }
@@ -7557,9 +7516,40 @@ void Shell::CollectGarbage(Isolate* isolate) {
 }
 
 namespace {
+
+// Concurrent compilation doesn't post a task when a job finishes; instead it
+// requests an interrupt which finalizes the job the next time JavaScript runs.
+// Since we might not run any JavaScript any more, wait for the jobs and install
+// their code explicitly. Returns true if any job was finalized.
+bool FinalizeBackgroundCompilationJobs(i::Isolate* i_isolate) {
+  i_isolate->WaitForConcurrentOptimizationJobs();
+  // Note that we must not handle the interrupts instead: we're not running
+  // JavaScript and there's no current context, which the handlers of the other
+  // interrupts (e.g. the API interrupt the inspector uses for pausing) rely on.
+  i::StackGuard* stack_guard = i_isolate->stack_guard();
+  bool has_finished_jobs = false;
+  if (stack_guard->CheckInstallCode()) {
+    stack_guard->ClearInstallCode();
+    i_isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+    has_finished_jobs = true;
+  }
+#ifdef V8_ENABLE_MAGLEV
+  if (stack_guard->CheckInstallMaglevCode()) {
+    stack_guard->ClearInstallMaglevCode();
+    i_isolate->maglev_concurrent_dispatcher()->FinalizeFinishedJobs();
+    has_finished_jobs = true;
+  }
+#endif  // V8_ENABLE_MAGLEV
+  return has_finished_jobs;
+}
+
 bool ProcessMessages(
     Isolate* isolate,
-    const std::function<platform::MessageLoopBehavior()>& behavior) {
+    const std::function<platform::MessageLoopBehavior()>& behavior,
+    bool wait_for_background_tasks = false) {
+  // TODO(marja): now we need to pass the MessageLoopBehavior and
+  // wait_for_background_tasks separately - can they be merged?
+
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::SaveAndSwitchContext saved_context(i_isolate, {});
   SealHandleScope shs(isolate);
@@ -7596,7 +7586,14 @@ bool ProcessMessages(
       }
     }
 
-    if (!ran_a_task) break;
+    if (!ran_a_task) {
+      if (!wait_for_background_tasks) break;
+      if (!FinalizeBackgroundCompilationJobs(i_isolate)) break;
+      if (isolate->IsExecutionTerminating()) {
+        return exit_with_success;
+      }
+      DCHECK(!try_catch.HasCaught());
+    }
   }
   if (g_default_platform->IdleTasksEnabled(isolate)) {
     v8::platform::RunIdleTasks(g_default_platform, isolate,
@@ -7630,7 +7627,8 @@ bool Shell::CompleteMessageLoop(Isolate* isolate) {
     }
     return ran_tasks;
   }
-  return ProcessMessages(isolate, get_waiting_behaviour);
+  return ProcessMessages(isolate, get_waiting_behaviour,
+                         options.wait_for_background_tasks);
 }
 
 bool Shell::FinishExecuting(Isolate* isolate, const Global<Context>& context) {
@@ -8031,9 +8029,11 @@ int Shell::Main(int argc, char* argv[]) {
   v8::base::EnsureConsoleOutput();
 
   // TODO(40925855): Enable this more broadly outside of d8.
-#if defined(PA_ENABLE_USER_SPACE_ZERO_SEGMENT)
+#if defined(V8_ENABLE_PARTITION_ALLOC)
+#if PA_BUILDFLAG(ENABLE_USER_SPACE_ZERO_SEGMENT)
   i::v8_flags.sandbox_prohibit_insecure_mode = true;
-#endif
+#endif  // PA_BUILDFLAG(ENABLE_USER_SPACE_ZERO_SEGMENT)
+#endif  // defined(V8_ENABLE_PARTITION_ALLOC)
 
   if (!v8::Shell::SetOptions(argc, argv)) return 1;
 
@@ -8181,16 +8181,18 @@ int Shell::Main(int argc, char* argv[]) {
 
   int result = 0;
   Isolate::CreateParams create_params = GetDefaultIsolateCreateParams();
-  ShellArrayBufferAllocator shell_array_buffer_allocator;
-  MockArrayBufferAllocator mock_arraybuffer_allocator;
+  std::unique_ptr<v8::ArrayBuffer::Allocator> default_allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  MockArrayBufferAllocator mock_arraybuffer_allocator(default_allocator.get());
   const size_t memory_limit =
       options.mock_arraybuffer_allocator_limit * options.num_isolates;
-  MockArrayBufferAllocatiorWithLimit mock_arraybuffer_allocator_with_limit(
+  MockArrayBufferAllocatorWithLimit mock_arraybuffer_allocator_with_limit(
+      default_allocator.get(),
       memory_limit >= options.mock_arraybuffer_allocator_limit
           ? memory_limit
           : std::numeric_limits<size_t>::max());
 #ifdef V8_OS_LINUX
-  MultiMappedAllocator multi_mapped_mock_allocator;
+  MultiMappedAllocator multi_mapped_mock_allocator(default_allocator.get());
 #endif  // V8_OS_LINUX
   if (options.mock_arraybuffer_allocator) {
     if (memory_limit) {
@@ -8203,7 +8205,7 @@ int Shell::Main(int argc, char* argv[]) {
     Shell::array_buffer_allocator = &multi_mapped_mock_allocator;
 #endif  // V8_OS_LINUX
   } else {
-    Shell::array_buffer_allocator = &shell_array_buffer_allocator;
+    Shell::array_buffer_allocator = default_allocator.get();
   }
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
@@ -8301,6 +8303,10 @@ int Shell::Main(int argc, char* argv[]) {
     // Fuzzilli REPRL = read-eval-print-loop
     do {
 #ifdef V8_FUZZILLI
+      v8::internal::Isolate* internal_isolate =
+          reinterpret_cast<v8::internal::Isolate*>(isolate);
+      internal_isolate->descriptor_lookup_cache()->Clear();
+      internal_isolate->compilation_cache()->Clear();
       if (fuzzilli_reprl) {
         unsigned action = 0;
         ssize_t nread = read(REPRL_CRFD, &action, 4);

@@ -21,6 +21,7 @@
 #include <atomic>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/debugging/internal/elf_mem_image.h"
 
 #ifdef ABSL_HAVE_VDSO_SUPPORT     // defined in vdso_support.h

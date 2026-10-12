@@ -4,8 +4,10 @@
 
 #include "src/objects/js-array-buffer.h"
 
+#include "src/api/api-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/logging/counters.h"
+#include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/sandbox/check.h"
@@ -242,6 +244,16 @@ void JSArrayBuffer::DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
   DCHECK(!array_buffer->is_shared());
   array_buffer->set_backing_store(isolate, EmptyBackingStoreBuffer());
   array_buffer->set_byte_length(0);
+
+  if (isolate->array_buffer_detach_callback() != nullptr) {
+    if (CppHeapObjectWrapper(*array_buffer)
+            .GetCppHeapWrappable(isolate, kAnyCppHeapPointer)) {
+      HandleScope scope(isolate);
+      isolate->array_buffer_detach_callback()(
+          reinterpret_cast<v8::Isolate*>(isolate),
+          Utils::ToLocal(array_buffer));
+    }
+  }
 }
 
 void JSArrayBuffer::MakeImmutable(Isolate* isolate) {
