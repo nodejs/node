@@ -140,8 +140,33 @@ function testReadFile() {
       assert.strictEqual(log[0].context.path, file);
       assert.strictEqual(log[0].context.result, data);
       assert.strictEqual(data, 'hello');
-      testCloseWithoutCallback();
+      testRealpathNativeReplaced();
     });
+  }));
+}
+
+function testRealpathNativeReplaced() {
+  // A replaced `realpath.native` runs once per traced call, because the
+  // trace calls the original function, not the property.
+  const original = fs.realpath.native;
+  let calls = 0;
+  fs.realpath.native = function(path, options, callback) {
+    calls++;
+    return original(path, options, callback);
+  };
+  const log = [];
+  const stop = record('realpath', log);
+  fs.realpath.native(file, common.mustSucceed((resolved) => {
+    // An exception thrown in this callback, or in a nextTick from it, is
+    // lost (a bug in realpath.native), so the checks run from setImmediate.
+    setImmediate(common.mustCall(() => {
+      stop();
+      fs.realpath.native = original;
+      assert.strictEqual(resolved, fs.realpathSync(file));
+      assert.strictEqual(calls, 1);
+      assert.deepStrictEqual(types(log), ['start', 'end', 'asyncStart', 'asyncEnd']);
+      testCloseWithoutCallback();
+    }));
   }));
 }
 
