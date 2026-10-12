@@ -2787,9 +2787,23 @@ deprecated:
   - v16.12.0
 -->
 
-> Stability: 0 - Deprecated. Listen for `'close'` event instead.
+> Stability: 0 - Deprecated. Use the `'close'` event on the response. If it was aborted `writableFinished` will be false.
 
-Emitted when the request has been aborted.
+Emitted when the request has been aborted, i.e. the underlying connection
+was terminated before the message (request or response) was fully
+received *and* before the message cycle completed (for a server request,
+before the corresponding response was finished).
+
+This event is only emitted if the message was not already fully
+processed. In particular, note that:
+
+* `'aborted'` is not emitted after the `'close'` event has already fired for
+  a message that completed normally.
+* Fully reading the body of an `http.IncomingMessage` (for example via
+  `req.resume()` or by piping/consuming it) does **not** by itself mean the
+  request/response cycle is done. On the server, a request can still be
+  aborted (its `'aborted'` event fired) after its body has been completely
+  read, as long as the corresponding response has not finished yet.
 
 ### Event: `'close'`
 
@@ -2803,6 +2817,18 @@ changes:
 -->
 
 Emitted when the request has been completed.
+
+More precisely, this event is emitted when this side of the HTTP message
+(headers and body) has finished being processed, either because it was
+fully read (`'end'` was emitted) or because the message stream was
+destroyed.
+
+`'close'` does **not** imply that the request/response cycle as a whole
+finished successfully, and it does **not** imply that the peer received a
+complete response. For example, on the server side `'close'` on the
+`request` object can fire as soon as the request body has been read, well
+before `response.end()` has been called or the response has actually been
+sent to the client.
 
 ### `message.aborted`
 
@@ -2830,6 +2856,7 @@ added: v0.3.0
 
 The `message.complete` property will be `true` if a complete HTTP message has
 been received and successfully parsed.
+
 
 This property is particularly useful as a means of determining if a client or
 server fully transmitted a message before a connection was terminated:
