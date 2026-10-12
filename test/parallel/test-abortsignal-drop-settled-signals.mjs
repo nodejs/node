@@ -246,6 +246,31 @@ it('drops settled dependent signals when signal is composite', (t, done) => {
   }));
 });
 
+it('drops an observed composite of a composite once its sources are collected', async (t) => {
+  let controllers = [new AbortController(), new AbortController()];
+
+  // Only the outer composite is observed, so the inner one is unreachable and
+  // is collected while the sources are still alive.
+  const outerRef = (() => {
+    const outer = AbortSignal.any([
+      controllers[0].signal,
+      AbortSignal.any([controllers[1].signal]),
+    ]);
+    outer.addEventListener('abort', () => {});
+    return new WeakRef(outer);
+  })();
+
+  const kDependantSignals = Object.getOwnPropertySymbols(controllers[1].signal).find(
+    (s) => s.toString() === 'Symbol(kDependantSignals)'
+  );
+  t.assert.strictEqual(controllers[1].signal[kDependantSignals].size, 2);
+
+  await gcUntil('inner composite is collected', () => controllers[1].signal[kDependantSignals].size === 1);
+
+  controllers = null;
+  await gcUntil('outer composite is collected', () => outerRef.deref() === undefined);
+});
+
 it('drops settled signals even when there are listeners', (t, done) => {
   runWithOrphanListeners(limit, async (signalRefs) => {
     await gcUntil('all signals are GCed', () => {
