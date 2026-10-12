@@ -34,7 +34,7 @@ cp.execFile('this-command-does-not-exist', { timeout: 2 ** 30 },
 // prints the pid of the descendant and the test ends it once the timer has
 // fired, so the test does not depend on how fast the child starts.
 {
-  const timeout = common.platformTimeout(10000);
+  const timeout = common.platformTimeout(5000);
   const child = cp.execFile(process.execPath, ['-e', `
     const { spawn } = require('child_process');
     const child = spawn(process.execPath,
