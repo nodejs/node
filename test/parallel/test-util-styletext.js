@@ -23,12 +23,38 @@ const noChange = 'test';
   }, {
     code: 'ERR_INVALID_ARG_VALUE',
   }, invalidOption);
+});
+
+// Non-string scalars for `text` should NOT throw — they are coerced internally.
+[
+  null,
+  undefined,
+  Symbol(),
+  () => {},
+  {},
+].forEach((invalidText) => {
   assert.throws(() => {
-    util.styleText('red', invalidOption);
+    util.styleText('red', invalidText);
   }, {
     code: 'ERR_INVALID_ARG_TYPE'
-  }, invalidOption);
+  }, invalidText);
 });
+
+// Scalar values are coerced to string (number, boolean, bigint).
+assert.strictEqual(
+  util.styleText('red', 42, { validateStream: false }),
+  '\u001b[31m42\u001b[39m',
+);
+
+assert.strictEqual(
+  util.styleText('red', true, { validateStream: false }),
+  '\u001b[31mtrue\u001b[39m',
+);
+
+assert.strictEqual(
+  util.styleText('red', 3n, { validateStream: false }),
+  '\u001b[31m3\u001b[39m',
+);
 
 assert.throws(() => {
   util.styleText('invalid', 'text');
