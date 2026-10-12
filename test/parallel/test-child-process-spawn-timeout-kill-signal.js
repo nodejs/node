@@ -32,14 +32,26 @@ const aliveForeverFile = 'child-process-stay-alive-forever.js';
 {
   // Verify timedOut stays false when the child exits in time but a descendant
   // keeps its stdio open past the timeout, so that the timer fires after exit.
+  // The child prints the pid of the descendant and the test ends it once the
+  // timer has fired, so the test does not depend on how fast the child starts.
+  const timeout = common.platformTimeout(10000);
   const cp = spawn(process.execPath, ['-e', `
     const { spawn } = require('child_process');
-    spawn(process.execPath, ['-e', 'setTimeout(() => {}, ${common.platformTimeout(1500)})'],
-          { stdio: 'inherit' }).unref();
-  `], { timeout: common.platformTimeout(500) });
+    const child = spawn(process.execPath,
+                        ['-e', 'setTimeout(() => {}, ${common.platformTimeout(30000)})'],
+                        { stdio: 'inherit' });
+    child.unref();
+    process.stdout.write(String(child.pid));
+  `], { timeout });
+  const pid = new Promise((resolve) => {
+    cp.stdout.once('data', (chunk) => resolve(Number(String(chunk))));
+  });
   cp.on('exit', mustCall((code) => {
     assert.strictEqual(code, 0);
     assert.strictEqual(cp.timedOut, false);
+    // The timeout of the child started before this timer, so it fires first.
+    // The descendant is ended after that, which closes the stdio of the child.
+    setTimeout(async () => process.kill(await pid), timeout);
   }));
   cp.on('close', mustCall(() => assert.strictEqual(cp.timedOut, false)));
 }

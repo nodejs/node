@@ -30,15 +30,30 @@ cp.execFile('this-command-does-not-exist', { timeout: 2 ** 30 },
             }));
 
 // The timeout expires after the child exited, while a descendant still keeps
-// its stdio open: the signal is not sent, so timedOut stays false.
+// its stdio open: the signal is not sent, so timedOut stays false. The child
+// prints the pid of the descendant and the test ends it once the timer has
+// fired, so the test does not depend on how fast the child starts.
 {
+  const timeout = common.platformTimeout(10000);
   const child = cp.execFile(process.execPath, ['-e', `
     const { spawn } = require('child_process');
-    spawn(process.execPath, ['-e', 'setTimeout(() => {}, ${common.platformTimeout(1500)})'],
-          { stdio: 'inherit' }).unref();
-  `], { timeout: common.platformTimeout(500) }, common.mustSucceed(() => {
+    const child = spawn(process.execPath,
+                        ['-e', 'setTimeout(() => {}, ${common.platformTimeout(30000)})'],
+                        { stdio: 'inherit' });
+    child.unref();
+    process.stdout.write(String(child.pid));
+  `], { timeout }, common.mustSucceed(() => {
     assert.strictEqual(child.exitCode, 0);
     assert.strictEqual(child.timedOut, false);
+  }));
+  const pid = new Promise((resolve) => {
+    child.stdout.once('data', (chunk) => resolve(Number(String(chunk))));
+  });
+  child.on('exit', common.mustCall((code) => {
+    assert.strictEqual(code, 0);
+    // The timeout of the child started before this timer, so it fires first.
+    // The descendant is ended after that, which closes the stdio of the child.
+    setTimeout(async () => process.kill(await pid), timeout);
   }));
 }
 
