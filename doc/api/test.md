@@ -2527,6 +2527,26 @@ test('mocks a return value', (t) => {
 });
 ```
 
+### `ctx.mockThrownValue(value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {any} The value thrown by the mock.
+
+Changes the mock's implementation to a function that throws `value`. This is
+shorthand for `ctx.mockImplementation(() => { throw value; })`.
+
+```js
+test('mocks a thrown value', (t) => {
+  const fn = t.mock.fn();
+
+  fn.mock.mockThrownValue(new Error('boom'));
+  assert.throws(fn, { message: 'boom' });
+});
+```
+
 ### `ctx.resetCalls()`
 
 <!-- YAML

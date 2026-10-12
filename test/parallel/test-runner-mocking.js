@@ -919,6 +919,16 @@ test('mockRejectedValue() returns a rejected promise', async (t) => {
   await assert.rejects(fn(), error);
 });
 
+test('mockThrownValue() throws the given value', (t) => {
+  const fn = t.mock.fn(common.mustNotCall());
+  const error = new Error('boom');
+
+  fn.mock.mockThrownValue(error);
+  assert.throws(fn, error);
+  assert.strictEqual(fn.mock.callCount(), 1);
+  assert.strictEqual(fn.mock.calls[0].error, error);
+});
+
 test('mockImplementationOnce() takes precedence over mockReturnValue()', (t) => {
   const fn = t.mock.fn();
 
