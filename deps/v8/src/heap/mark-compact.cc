@@ -2539,17 +2539,7 @@ void MarkCompactCollector::RetainMaps() {
                 MarkingHelper::WorklistTarget::kRegular, map);
           }
         }
-        Tagged<Object> prototype = map->prototype();
-        if (age > 0 && IsHeapObject(prototype) &&
-            MarkingHelper::IsUnmarkedAndNotAlwaysLive(
-                heap_, marking_state_, Cast<HeapObject>(prototype))) {
-          // The prototype is not marked, age the map.
-          new_age = age - 1;
-        } else {
-          // The prototype and the constructor are marked, this map keeps only
-          // transition tree alive, not JSObjects. Do not age the map.
-          new_age = age;
-        }
+        new_age = age > 0 ? age - 1 : 0;
       } else {
         new_age = v8_flags.retain_maps_for_n_gc;
       }
