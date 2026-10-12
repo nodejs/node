@@ -155,6 +155,11 @@ use rustc_ast::ast::StructExpr;
 use rustc_ast::ast::StructRest;
 use rustc_ast::ast::SyntheticAttr;
 use rustc_ast::ast::Term;
+use rustc_ast::ast::TestBinderBody;
+use rustc_ast::ast::TestBinderConstraint;
+use rustc_ast::ast::TestBinderConstraints;
+use rustc_ast::ast::TestBinderExists;
+use rustc_ast::ast::TestBinderForall;
 use rustc_ast::ast::Trait;
 use rustc_ast::ast::TraitAlias;
 use rustc_ast::ast::TraitBoundModifiers;
@@ -561,6 +566,10 @@ spanless_eq_struct!(StaticItem; ident ty safety mutability expr define_opaque ei
 spanless_eq_struct!(Stmt; id kind span);
 spanless_eq_struct!(StrLit; symbol suffix symbol_unescaped style span);
 spanless_eq_struct!(StructExpr; qself path fields rest);
+spanless_eq_struct!(TestBinderBody; foralls exists constraints);
+spanless_eq_struct!(TestBinderConstraints; generics body);
+spanless_eq_struct!(TestBinderExists; span node_id params body);
+spanless_eq_struct!(TestBinderForall; span node_id generics body assert_on_exit);
 spanless_eq_struct!(Token; kind span);
 spanless_eq_struct!(Trait; constness safety is_auto impl_restriction ident generics bounds items);
 spanless_eq_struct!(TraitAlias; constness ident generics bounds);
@@ -597,6 +606,7 @@ spanless_eq_enum!(CaptureBy; Value(move_kw) Ref Use(use_kw));
 spanless_eq_enum!(ClosureBinder; NotPresent For(span generic_params));
 spanless_eq_enum!(Const; Yes(0) No);
 spanless_eq_enum!(ConstItemKind; Body TypeConst);
+spanless_eq_enum!(CoroutineKind; Async Gen AsyncGen);
 spanless_eq_enum!(Defaultness; Implicit Default(0) Final(0));
 spanless_eq_enum!(DelegationSource; Single List(0) Glob);
 spanless_eq_enum!(DelegationSuffixes; List(0) Glob(0));
@@ -613,7 +623,6 @@ spanless_eq_enum!(FormatCount; Literal(0) Argument(0));
 spanless_eq_enum!(FormatDebugHex; Lower Upper);
 spanless_eq_enum!(FormatSign; Plus Minus);
 spanless_eq_enum!(FormatTrait; Display Debug LowerExp UpperExp Octal Pointer Binary LowerHex UpperHex);
-spanless_eq_enum!(CoroutineKind; Async Gen AsyncGen);
 spanless_eq_enum!(GenericArg; Lifetime(0) Type(0) Const(0));
 spanless_eq_enum!(GenericArgs; AngleBracketed(0) Parenthesized(0) ParenthesizedElided(0));
 spanless_eq_enum!(GenericBound; Trait(0) Outlives(0) Use(0 1));
@@ -648,6 +657,7 @@ spanless_eq_enum!(StrStyle; Cooked Raw(0));
 spanless_eq_enum!(StructRest; Base(0) Rest(0) None NoneWithError(0));
 spanless_eq_enum!(SyntheticAttr; CfgTrace(0) CfgAttrTrace(0));
 spanless_eq_enum!(Term; Ty(0) Const(0));
+spanless_eq_enum!(TestBinderConstraint; And(items) Or(items) Lifetime(lhs rhs) Type(lhs rhs));
 spanless_eq_enum!(TokenTree; Token(0 1) Delimited(0 1 2 3));
 spanless_eq_enum!(TraitObjectSyntax; Dyn None);
 spanless_eq_enum!(TyPatKind; Range(0 1 2) NotNull Or(0) Err(0));
@@ -677,13 +687,13 @@ spanless_eq_enum!(InlineAsmOperand; In(reg expr) Out(reg late expr)
 spanless_eq_enum!(ItemKind; ExternCrate(0 1) Use(0) Static(0) Const(0)
     ConstBlock(0) Fn(0) Mod(0 1 2) ForeignMod(0) GlobalAsm(0) TyAlias(0)
     Enum(0 1 2) Struct(0 1 2) Union(0 1 2) Trait(0) TraitAlias(0) Impl(0)
-    MacCall(0) MacroDef(0 1) Delegation(0) DelegationMac(0));
+    MacCall(0) MacroDef(0 1) Delegation(0) DelegationMac(0)
+    TestBinderConstraints(0));
 spanless_eq_enum!(LitKind; Str(0 1) ByteStr(0 1) CStr(0 1) Byte(0) Char(0)
     Int(0 1) Float(0 1) Bool(0) Err(0));
 spanless_eq_enum!(PatKind; Missing Wild Ident(0 1 2) Struct(0 1 2 3)
-    TupleStruct(0 1 2) Or(0) Path(0 1) Tuple(0) Box(0) Deref(0) Ref(0 1 2)
-    Expr(0) Range(0 1 2) Slice(0) Rest Never Guard(0 1) Paren(0) MacCall(0)
-    Err(0));
+    TupleStruct(0 1 2) Or(0) Path(0 1) Tuple(0) Deref(0) Ref(0 1 2) Expr(0)
+    Range(0 1 2) Slice(0) Rest Never Guard(0 1) Paren(0) MacCall(0) Err(0));
 spanless_eq_enum!(TyKind; Slice(0) Array(0 1) Ptr(0) Ref(0 1) PinnedRef(0 1)
     FnPtr(0) UnsafeBinder(0) Never Tup(0) Path(0 1) TraitObject(0 1)
     ImplTrait(0 1) Paren(0) Infer ImplicitSelf MacCall(0) CVarArgs Pat(0 1)
