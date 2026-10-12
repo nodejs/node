@@ -51,7 +51,7 @@ bytecodes: [
   /*   45 S> */ B(CreateObjectLiteral), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
                 B(Star1),
                 B(Ldar), R(0),
-  /*   75 E> */ B(DefineNamedOwnProperty), R(1), U8(1:"val"), FBV(1),
+  /*   75 E> */ B(DefineNamedOwnPropertyInLiteral), R(1), U8(1:"val"), FBV(1),
                 B(Ldar), R(1),
   /*   79 S> */ B(Return),
 ]
@@ -76,7 +76,7 @@ bytecodes: [
                 B(Star1),
                 B(Ldar), R(0),
   /*   69 E> */ B(AddSmi), I8(1), EmbeddedFeedback(),
-                B(DefineNamedOwnProperty), R(1), U8(1:"val"), FBV(1),
+                B(DefineNamedOwnPropertyInLiteral), R(1), U8(1:"val"), FBV(1),
                 B(Ldar), R(1),
   /*   75 S> */ B(Return),
 ]
@@ -98,7 +98,7 @@ bytecodes: [
   /*   34 S> */ B(CreateObjectLiteral), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
                 B(Star0),
   /*   49 E> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
-                B(DefineNamedOwnProperty), R(0), U8(2:"func"), FBV(1),
+                B(DefineNamedOwnPropertyInLiteral), R(0), U8(2:"func"), FBV(1),
                 B(Ldar), R(0),
   /*   66 S> */ B(Return),
 ]
@@ -121,7 +121,7 @@ bytecodes: [
   /*   34 S> */ B(CreateObjectLiteral), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
                 B(Star0),
   /*   43 E> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
-                B(DefineNamedOwnProperty), R(0), U8(2:"func"), FBV(1),
+                B(DefineNamedOwnPropertyInLiteral), R(0), U8(2:"func"), FBV(1),
                 B(Ldar), R(0),
   /*   67 S> */ B(Return),
 ]
@@ -309,7 +309,7 @@ bytecodes: [
   /*   50 S> */ B(CreateObjectLiteral), U8(1:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
                 B(Star1),
                 B(Ldar), R(0),
-  /*   64 E> */ B(DefineNamedOwnProperty), R(1), U8(2:"val"), FBV(1),
+  /*   64 E> */ B(DefineNamedOwnPropertyInLiteral), R(1), U8(2:"val"), FBV(1),
                 B(Ldar), R(0),
   /*   68 E> */ B(ToName),
                 B(Star2),

@@ -47,8 +47,6 @@
   V(TestSizeOfObjects)                                      \
   V(Regress10560)                                           \
   V(Regress538257)                                          \
-  V(Regress587004)                                          \
-  V(Regress589413)                                          \
   V(Regress658718)                                          \
   V(Regress777177)                                          \
   V(Regress779503)                                          \

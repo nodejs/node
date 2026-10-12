@@ -140,8 +140,6 @@ void StringForwardingTableCleanerBase::DisposeExternalResource(
 bool IsCppHeapMarkingFinished(
     Heap* heap, MarkingWorklists::Local* local_marking_worklists) {
   const auto* cpp_heap = CppHeap::From(heap->cpp_heap());
-  if (!cpp_heap) return true;
-
   return cpp_heap->IsMarkingDone() && local_marking_worklists->IsWrapperEmpty();
 }
 

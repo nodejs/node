@@ -108,6 +108,14 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
   }
   v8::MicrotasksPolicy microtasks_policy() const { return microtasks_policy_; }
 
+  // v8::MicrotaskQueue implementation of the above.
+  void SetMicrotasksPolicy(v8::MicrotasksPolicy policy) override {
+    set_microtasks_policy(policy);
+  }
+  v8::MicrotasksPolicy GetMicrotasksPolicy() const override {
+    return microtasks_policy();
+  }
+
   intptr_t capacity() const { return capacity_; }
   intptr_t size() const { return size_; }
   intptr_t start() const { return start_; }

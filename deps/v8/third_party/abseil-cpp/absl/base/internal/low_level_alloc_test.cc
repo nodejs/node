@@ -19,9 +19,8 @@
 #include <stdlib.h>
 
 #include <thread>  // NOLINT(build/c++11)
-#include <unordered_map>
-#include <utility>
 
+#include "absl/base/config.h"
 #include "absl/container/node_hash_map.h"
 
 #ifdef __EMSCRIPTEN__

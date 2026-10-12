@@ -154,7 +154,7 @@ void InstructionSelector::VisitStoreLane(OpIndex node) {
   InstructionCode opcode = kRiscvS128StoreLane;
   opcode |= EncodeElementWidth(ByteSizeToSew(store.lane_size()));
   if (store.kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   RiscvOperandGenerator g(this);
@@ -179,7 +179,7 @@ void InstructionSelector::VisitLoadLane(OpIndex node) {
   InstructionCode opcode = kRiscvS128LoadLane;
   opcode |= EncodeElementWidth(ByteSizeToSew(load.lane_size()));
   if (load.kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   RiscvOperandGenerator g(this);
@@ -284,8 +284,8 @@ void InstructionSelector::VisitStore(OpIndex node) {
       }
       code |= RecordWriteModeField::encode(record_write_mode);
     }
-    if (store_view.is_store_trap_on_null()) {
-      code |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
+    if (store_view.access_kind() == MemoryAccessKind::kTrapping) {
+      code |= AccessModeField::encode(kMemoryAccessTrapping);
     }
     Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
@@ -1039,13 +1039,14 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
   inputs[input_count++] = g.UseUniqueRegister(new_value);
   InstructionOperand outputs[1];
   outputs[0] = g.UseUniqueRegister(node);
-  InstructionOperand temp[3];
+  InstructionOperand temp[4];
   temp[0] = g.TempRegister();
   temp[1] = g.TempRegister();
   temp[2] = g.TempRegister();
+  temp[3] = g.TempRegister();
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  selector->Emit(code, 1, outputs, input_count, inputs, 3, temp);
+  selector->Emit(code, 1, outputs, input_count, inputs, 4, temp);
 }
 
 void InstructionSelector::VisitWord32AtomicExchange(OpIndex node) {

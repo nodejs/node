@@ -3518,10 +3518,8 @@ void WasmDispatchTableForImports::WasmDispatchTableForImportsPrint(
 
 // Never called directly, as WasmFunctionData is an "abstract" class.
 void WasmFunctionData::WasmFunctionDataPrint(std::ostream& os) {
-  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   os << "\n - func_ref: " << Brief(func_ref());
   os << "\n - internal: " << Brief(internal());
-  os << "\n - wrapper_code: " << Brief(wrapper_code(isolate));
   os << "\n - js_promise_flags: " << js_promise_flags();
   // No newline here; the caller prints it after printing additional fields.
 }
@@ -3558,9 +3556,6 @@ void WasmImportData::WasmImportDataPrint(std::ostream& os) {
   }
   os << "\n - suspend: " << static_cast<int>(suspend());
   os << "\n - wrapper_budget: " << wrapper_budget()->value();
-  if (has_call_origin()) {
-    os << "\n - call_origin: " << Brief(call_origin());
-  }
   os << "\n - sig: " << sig() << " (" << sig()->parameter_count() << " params, "
      << sig()->return_count() << " returns)";
   os << "\n";
@@ -4202,10 +4197,8 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
     os << "\n - has context extension slot";
   }
 
-  if (HasPositionInfo()) {
-    os << "\n - start position: " << StartPosition();
-    os << "\n - end position: " << EndPosition();
-  }
+  os << "\n - start position: " << StartPosition();
+  os << "\n - end position: " << EndPosition();
   os << "\n - length: " << length();
   if (length() > 0) {
     PrintScopeInfoList(this, os, "context slots", ContextLocalCount());

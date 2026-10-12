@@ -25,6 +25,7 @@
 #include <string>
 #include <type_traits>
 #include <typeinfo>
+#include <utility>
 
 #include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
@@ -43,7 +44,7 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/utility/utility.h"
 
-namespace absl {
+    namespace absl {
 ABSL_NAMESPACE_BEGIN
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -605,8 +606,8 @@ class FlagImpl final : public CommandLineFlag {
   }
   template <typename T,
             std::enable_if_t<flags_internal::StorageKind<T>() ==
-                                  FlagValueStorageKind::kOneWordAtomic,
-                              int> = 0>
+                                 FlagValueStorageKind::kOneWordAtomic,
+                             int> = 0>
   void Read(T* value) const ABSL_LOCKS_EXCLUDED(DataGuard()) {
     int64_t v = ReadOneWord();
     std::memcpy(value, static_cast<const void*>(&v), sizeof(T));

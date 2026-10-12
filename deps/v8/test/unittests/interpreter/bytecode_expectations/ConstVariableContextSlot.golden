@@ -15,7 +15,7 @@ bytecode array length: 14
 bytecodes: [
   /*   30 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(1),
                 B(PushContext), R(0),
-                B(LdaTheHole),
+                B(LdaTdzHole),
                 B(StaCurrentContextSlotNoCell), C8(2),
   /*   44 S> */ B(LdaSmi), I8(10),
   /*   44 E> */ B(StaCurrentContextSlotNoCell), C8(2),
@@ -38,7 +38,7 @@ bytecode array length: 15
 bytecodes: [
   /*   30 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(1),
                 B(PushContext), R(0),
-                B(LdaTheHole),
+                B(LdaTdzHole),
                 B(StaCurrentContextSlotNoCell), C8(2),
   /*   44 S> */ B(LdaSmi), I8(10),
   /*   44 E> */ B(StaCurrentContextSlotNoCell), C8(2),
@@ -61,12 +61,12 @@ bytecode array length: 24
 bytecodes: [
   /*   30 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(1),
                 B(PushContext), R(0),
-                B(LdaTheHole),
+                B(LdaTdzHole),
                 B(StaCurrentContextSlotNoCell), C8(2),
   /*   44 S> */ B(LdaSmi), I8(20),
                 B(Star1),
                 B(LdaImmutableCurrentContextSlot), C8(2),
-  /*   47 E> */ B(ThrowReferenceErrorIfHole), U8(1:"x"),
+  /*   47 E> */ B(ThrowReferenceErrorIfTdzHole), U8(1:"x"),
                 B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), RegCount8(0),
   /*   44 E> */ B(StaCurrentContextSlotNoCell), C8(2),
                 B(LdaUndefined),
@@ -89,7 +89,7 @@ bytecode array length: 21
 bytecodes: [
   /*   30 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(1),
                 B(PushContext), R(0),
-                B(LdaTheHole),
+                B(LdaTdzHole),
                 B(StaCurrentContextSlotNoCell), C8(2),
   /*   44 S> */ B(LdaSmi), I8(10),
   /*   44 E> */ B(StaCurrentContextSlotNoCell), C8(2),

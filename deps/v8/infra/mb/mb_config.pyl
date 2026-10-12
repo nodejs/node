@@ -653,7 +653,8 @@
       'release_bot', 'x64', 'v8_dumpling'],
     'release_x64_fuzzilli': [
       'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks',
-      'v8_verify_heap', 'v8_verify_csa', 'fuzzilli'],
+      'backtrace', 'trace_pc_guard', 'v8_enable_fuzzilli',
+      'v8_enable_verification_features'],
     'release_x64_gcmole': [
       'release_bot', 'x64', 'gcmole'],
     'release_x64_correctness_fuzzer_undefined_double' : [
@@ -954,11 +955,6 @@
       'gn_args': 'target_os="fuchsia"',
     },
 
-    'fuzzilli': {
-      'gn_args': 'v8_static_library=true v8_enable_v8_checks=true '
-                 'sanitizer_coverage_flags="trace-pc-guard" v8_fuzzilli=true',
-    },
-
     'gcc': {
       'gn_args': 'is_clang=false',
     },
@@ -1215,6 +1211,10 @@
 
     'v8_enable_undefined_double': {
       'gn_args': 'v8_enable_undefined_double=true',
+    },
+
+    'v8_enable_verification_features': {
+      'gn_args': 'v8_enable_verification_features=true',
     },
 
     'v8_enable_verify_predictable': {

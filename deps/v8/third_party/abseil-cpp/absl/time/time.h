@@ -737,9 +737,9 @@ bool AbslParseFlag(absl::string_view text, Duration* dst, std::string* error);
 // the format specified by `absl::ParseDuration()`.
 std::string AbslUnparseFlag(Duration d);
 
-ABSL_DEPRECATED("Use AbslParseFlag() instead.")
+[[deprecated("Use AbslParseFlag() instead.")]]
 bool ParseFlag(const std::string& text, Duration* dst, std::string* error);
-ABSL_DEPRECATED("Use AbslUnparseFlag() instead.")
+[[deprecated("Use AbslUnparseFlag() instead.")]]
 std::string UnparseFlag(Duration d);
 
 // Time
@@ -824,7 +824,7 @@ class Time {
   // `absl::TimeZone`.
   //
   // Deprecated. Use `absl::TimeZone::CivilInfo`.
-  struct ABSL_DEPRECATED("Use `absl::TimeZone::CivilInfo`.") Breakdown {
+  struct [[deprecated("Use `absl::TimeZone::CivilInfo`.")]] Breakdown {
     int64_t year;        // year (e.g., 2013)
     int month;           // month of year [1:12]
     int day;             // day of month [1:31]
@@ -851,7 +851,7 @@ class Time {
   //
   // Deprecated. Use `absl::TimeZone::At(Time)`.
   ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING
-  ABSL_DEPRECATED("Use `absl::TimeZone::At(Time)`.")
+  [[deprecated("Use `absl::TimeZone::At(Time)`.")]]
   Breakdown In(TimeZone tz) const;
   ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING
 
@@ -1356,7 +1356,7 @@ ABSL_ATTRIBUTE_PURE_FUNCTION inline Time FromCivil(CivilSecond ct,
 // `absl::ConvertDateTime()`. Legacy version of `absl::TimeZone::TimeInfo`.
 //
 // Deprecated. Use `absl::TimeZone::TimeInfo`.
-struct ABSL_DEPRECATED("Use `absl::TimeZone::TimeInfo`.") TimeConversion {
+struct [[deprecated("Use `absl::TimeZone::TimeInfo`.")]] TimeConversion {
   Time pre;    // time calculated using the pre-transition offset
   Time trans;  // when the civil-time discontinuity occurred
   Time post;   // time calculated using the post-transition offset
@@ -1391,7 +1391,7 @@ struct ABSL_DEPRECATED("Use `absl::TimeZone::TimeInfo`.") TimeConversion {
 //
 // Deprecated. Use `absl::TimeZone::At(CivilSecond)`.
 ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING
-ABSL_DEPRECATED("Use `absl::TimeZone::At(CivilSecond)`.")
+[[deprecated("Use `absl::TimeZone::At(CivilSecond)`.")]]
 TimeConversion ConvertDateTime(int64_t year, int mon, int day, int hour,
                                int min, int sec, TimeZone tz);
 ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING
@@ -1411,7 +1411,7 @@ ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING
 // Deprecated. Use `absl::FromCivil(CivilSecond, TimeZone)`. Note that the
 // behavior of `FromCivil()` differs from `FromDateTime()` for skipped civil
 // times. If you care about that see `absl::TimeZone::At(absl::CivilSecond)`.
-ABSL_DEPRECATED("Use `absl::FromCivil(CivilSecond, TimeZone)`.")
+[[deprecated("Use `absl::FromCivil(CivilSecond, TimeZone)`.")]]
 inline Time FromDateTime(int64_t year, int mon, int day, int hour, int min,
                          int sec, TimeZone tz) {
   ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING

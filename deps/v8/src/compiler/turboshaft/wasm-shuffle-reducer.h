@@ -9,6 +9,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_WASM_SHUFFLE_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_WASM_SHUFFLE_REDUCER_H_
 
+#include <algorithm>
 #include <optional>
 
 #include "src/base/template-utils.h"
@@ -121,6 +122,14 @@ class DemandedBytes {
     }
   }
 
+  void WidenToLaneBoundary(uint8_t bytes_per_lane) {
+    DCHECK(base::bits::IsPowerOfTwo(bytes_per_lane));
+    DCHECK_GE(bytes_per_lane, 1);
+    DCHECK_LE(bytes_per_lane, kSimd128Size);
+    DCHECK(base::bits::IsPowerOfTwo(bytes()));
+    bytes_ = std::max(bytes_, bytes_per_lane);
+  }
+
   bool IsLessThanOrEqual(const DemandedBytes& demanded) const {
     return bytes() <= demanded.bytes();
   }
@@ -147,11 +156,14 @@ class DemandedBytes {
 
 class DemandedByteAnalysis {
  public:
-  static constexpr int kMaxNumOperations = 150;
+  static constexpr int kMaxNumOperations = 300;
+  static constexpr uint8_t kMaxPassThruDepth = 8;
 
-  // TODO(sparker): Add floating-point conversions:
-  // - PromoteLow
-  // - ConvertLow
+  struct DemandState {
+    DemandedBytes bytes;
+    uint8_t pass_thru_depth = 0;
+  };
+
   static constexpr std::array unary_low_half_ops = {
       Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low,
       Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low,
@@ -159,6 +171,10 @@ class DemandedByteAnalysis {
       Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low,
       Simd128UnaryOp::Kind::kI64x2SConvertI32x4Low,
       Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low,
+      Simd128UnaryOp::Kind::kF32x4PromoteLowF16x8,
+      Simd128UnaryOp::Kind::kF64x2PromoteLowF32x4,
+      Simd128UnaryOp::Kind::kF64x2ConvertLowI32x4S,
+      Simd128UnaryOp::Kind::kF64x2ConvertLowI32x4U,
   };
   static constexpr std::array binary_low_half_ops = {
       Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S,
@@ -177,36 +193,17 @@ class DemandedByteAnalysis {
     return std::find(binary_low_half_ops.begin(), binary_low_half_ops.end(),
                      kind) != binary_low_half_ops.end();
   }
-
-  static uint8_t GetInputElementSizeInBytes(Simd128UnaryOp::Kind kind) {
-    switch (kind) {
-      default:
-        UNREACHABLE();
-      case Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low:
-      case Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low:
-        return 1;
-      case Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low:
-      case Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low:
-        return 2;
-      case Simd128UnaryOp::Kind::kI64x2SConvertI32x4Low:
-      case Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low:
-        return 4;
-    }
+  static bool IsUnaryPassThruOp(Simd128UnaryOp::Kind kind) {
+    return v8_flags.future_wasm_simd_opt && Simd128UnaryOp::IsLaneWise(kind);
   }
-  static uint8_t GetInputElementSizeInBytes(Simd128BinopOp::Kind kind) {
-    switch (kind) {
-      default:
-        UNREACHABLE();
-      case Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S:
-      case Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16U:
-        return 1;
-      case Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8S:
-      case Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8U:
-        return 2;
-      case Simd128BinopOp::Kind::kI64x2ExtMulLowI32x4S:
-      case Simd128BinopOp::Kind::kI64x2ExtMulLowI32x4U:
-        return 4;
-    }
+  static bool IsBinaryPassThruOp(Simd128BinopOp::Kind kind) {
+    return v8_flags.future_wasm_simd_opt && Simd128BinopOp::IsLaneWise(kind);
+  }
+  static bool IsShiftPassThruOp(Simd128ShiftOp::Kind kind) {
+    return v8_flags.future_wasm_simd_opt && Simd128ShiftOp::IsLaneWise(kind);
+  }
+  static bool IsTernaryPassThruOp(Simd128TernaryOp::Kind kind) {
+    return v8_flags.future_wasm_simd_opt && Simd128TernaryOp::IsLaneWise(kind);
   }
 
   using DemandedByteMap =
@@ -215,12 +212,25 @@ class DemandedByteAnalysis {
   DemandedByteAnalysis(Zone* phase_zone, const Graph& input_graph)
       : phase_zone_(phase_zone), input_graph_(input_graph) {}
 
-  void Add(OpIndex node, DemandedBytes demanded);
-  void AddOp(const Simd128UnaryOp& unop, DemandedBytes demanded);
-  void AddOp(const Simd128BinopOp& binop, DemandedBytes demanded);
-  void AddOp(const Simd128ExtractLaneOp& extract_op, DemandedBytes demanded);
-  void AddOp(const Simd128LaneMemoryOp& lane_op, DemandedBytes demanded);
-  void RecordOp(const Operation& op, DemandedBytes demanded);
+  void Add(OpIndex node, DemandedBytes demanded) {
+    Add(node, DemandState{demanded});
+  }
+  void Add(OpIndex node) { Add(node, DemandedBytes::Low(kSimd128Size)); }
+  void RecordOp(const Operation& op, DemandedBytes demanded) {
+    RecordOp(op, DemandState{demanded});
+  }
+  void AddOp(const Simd128UnaryOp& op, DemandedBytes demanded) {
+    AddOp(op, DemandState{demanded});
+  }
+  void AddOp(const Simd128BinopOp& op, DemandedBytes demanded) {
+    AddOp(op, DemandState{demanded});
+  }
+  void AddOp(const Simd128ExtractLaneOp& op, DemandedBytes demanded) {
+    AddOp(op, DemandState{demanded});
+  }
+  void AddOp(const Simd128LaneMemoryOp& op, DemandedBytes demanded) {
+    AddOp(op, DemandState{demanded});
+  }
   void Revisit();
 
   const DemandedByteMap& demanded_bytes() const { return demanded_bytes_; }
@@ -232,16 +242,17 @@ class DemandedByteAnalysis {
  private:
   class MultiUserBits {
    public:
-    MultiUserBits(const Operation* op, DemandedBytes demanded,
-                  uint32_t num_users)
-        : op_(op), demanded_(demanded), num_users_(num_users) {}
+    MultiUserBits(const Operation* op, DemandState demand, uint32_t num_users)
+        : op_(op), demand_(demand), num_users_(num_users) {}
 
     const Operation* op() const { return op_; }
-    DemandedBytes demanded() const { return demanded_; }
+    DemandState demand() const { return demand_; }
     uint32_t num_users() const { return num_users_; }
 
-    void Add(const DemandedBytes& bytes) {
-      demanded_.Max(bytes);
+    void Add(DemandState demand) {
+      demand_.bytes.Max(demand.bytes);
+      demand_.pass_thru_depth =
+          std::max(demand_.pass_thru_depth, demand.pass_thru_depth);
       ++num_users_;
     }
 
@@ -252,17 +263,29 @@ class DemandedByteAnalysis {
 
    private:
     const Operation* op_;
-    DemandedBytes demanded_;
+    DemandState demand_;
     uint32_t num_users_;
   };
 
   // For the given op, return whether we have now visited it from all of its
   // users and so we know all of the used bytes.
-  std::optional<DemandedBytes> AddUserAndCheckFoundAll(
-      const Operation& op, const DemandedBytes& demanded);
-  void RecordPartialOp(const Operation& op, DemandedBytes demanded);
-  void RecordPartialOp(const Simd128UnaryOp& unop, DemandedBytes demanded);
-  void RecordPartialOp(const Simd128BinopOp& binop, DemandedBytes demanded);
+  std::optional<DemandState> AddUserAndCheckFoundAll(const Operation& op,
+                                                     DemandState demand);
+  bool TrySearchThroughPassThru(const Operation& op, DemandState& demand,
+                                uint8_t bytes_per_lane) const;
+  void Add(OpIndex node, DemandState demand);
+  void AddOp(const Simd128UnaryOp& unop, DemandState demand);
+  void AddOp(const Simd128BinopOp& binop, DemandState demand);
+  void AddOp(const Simd128ShiftOp& shiftop, DemandState demand);
+  void AddOp(const Simd128TernaryOp& ternary, DemandState demand);
+  void AddOp(const Simd128ExtractLaneOp& extract_op, DemandState demand);
+  void AddOp(const Simd128LaneMemoryOp& lane_op, DemandState demand);
+  void RecordOp(const Operation& op, DemandState demand);
+  void RecordPartialOp(const Operation& op, DemandState demand);
+  void RecordPartialOp(const Simd128UnaryOp& unop, DemandState demand);
+  void RecordPartialOp(const Simd128BinopOp& binop, DemandState demand);
+  void RecordPartialOp(const Simd128ShiftOp& shiftop, DemandState demand);
+  void RecordPartialOp(const Simd128TernaryOp& ternary, DemandState demand);
   void RevisitShuffle(const Simd128ShuffleOp& shuffle, DemandedBytes demanded);
 
   Zone* phase_zone_;
@@ -340,12 +363,14 @@ class WasmShuffleAnalyzer {
     }
 
     // Pointer to the beginning of the window.
-    const uint8_t* begin() const { return shuffle_->shuffle + begin_index(); }
+    const uint8_t* begin() const {
+      return shuffle_->shuffle.data() + begin_index();
+    }
 
     // Pointer to the past-the-end element of the window.
     const uint8_t* end() const {
       if (begin_index() + OutputDemanded().bytes() >= kSimd128Size) {
-        return shuffle()->shuffle + kSimd128Size;
+        return shuffle()->shuffle.data() + kSimd128Size;
       }
       return begin() + OutputDemanded().bytes();
     }
@@ -760,7 +785,7 @@ class WasmShuffleReducer : public Next {
 #endif  // V8_TARGET_ARCH_ARM64
 
     std::array<uint8_t, kSimd128Size> shuffle_bytes = {0};
-    std::copy(shuffle.shuffle, shuffle.shuffle + kSimd128Size,
+    std::copy(shuffle.shuffle.begin(), shuffle.shuffle.end(),
               shuffle_bytes.begin());
     DemandedBytes demanded_bytes = analyzer_->GetDemandedBytes(&shuffle);
     bool emit_new_shuffle = !demanded_bytes.IsLow(kSimd128Size);

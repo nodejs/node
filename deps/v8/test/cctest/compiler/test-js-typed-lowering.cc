@@ -80,9 +80,12 @@ class JSTypedLoweringTester : public HandleAndZoneScope,
     Node* stack =
         graph.NewNode(common.StateValues(0, SparseInputMask::Dense()));
 
+    FrameStateFunctionInfo const* function_info =
+        common.CreateFrameStateFunctionInfo(
+            FrameStateType::kUnoptimizedFunction, 0, 0, 0, {}, {});
     Node* state_node = graph.NewNode(
         common.FrameState(BytecodeOffset::None(),
-                          OutputFrameStateCombine::Ignore(), nullptr),
+                          OutputFrameStateCombine::Ignore(), function_info),
         parameters, locals, stack, context, UndefinedConstant(), graph.start());
 
     return state_node;

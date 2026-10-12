@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "absl/numeric/int128.h"
 
 namespace {
 

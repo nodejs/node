@@ -1,6 +1,40 @@
+# Helper function to set up dependencies if they exist.
+function(add_type_header name)
+  cmake_parse_arguments(
+    "TYPE_HEADER"
+    "" # Optional arguments
+    "HDR;DEST_HDR" # Single value arguments
+    "DEPENDS" # Multi-value arguments
+    ${ARGN}
+  )
+  if(TYPE_HEADER_DEST_HDR)
+    set(dest_header_arg DEST_HDR ${TYPE_HEADER_DEST_HDR})
+  endif()
+  set(deps)
+  if(TARGET libc.include.llvm-libc-types.${LIBC_TARGET_OS}.${name})
+    list(APPEND deps .${LIBC_TARGET_OS}.${name})
+  endif()
+  if(TARGET libc.include.llvm-libc-types.${LIBC_TARGET_ARCHITECTURE}.${name})
+    list(APPEND deps .${LIBC_TARGET_ARCHITECTURE}.${name})
+  endif()
+  if(TYPE_HEADER_DEPENDS)
+    list(APPEND deps ${TYPE_HEADER_DEPENDS})
+  endif()
+  add_header(
+    ${name}
+    HDR
+      ${TYPE_HEADER_HDR}
+    ${dest_header_arg}
+    DEPENDS
+      ${deps}
+  )
+endfunction()
+
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${LIBC_TARGET_OS})
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/${LIBC_TARGET_OS})
 endif()
+
+add_header(off_t HDR off_t.h)
 add_header(off64_t HDR off64_t.h)
 add_header(size_t HDR size_t.h)
 add_header(
@@ -35,7 +69,7 @@ add_header(cc_t HDR cc_t.h)
 add_header(clock_t HDR clock_t.h)
 add_header(clockid_t HDR clockid_t.h)
 add_header(cnd_t HDR cnd_t.h DEPENDS .__futex_word)
-add_header(cookie_io_functions_t HDR cookie_io_functions_t.h DEPENDS .off64_t .ssize_t)
+add_header(cookie_io_functions_t HDR cookie_io_functions_t.h DEPENDS .off_t .ssize_t)
 add_header(cpu_set_t HDR cpu_set_t.h)
 add_header(double_t HDR double_t.h)
 add_header(DIR HDR DIR.h)
@@ -67,11 +101,11 @@ add_header(
 )
 add_header(ldiv_t HDR ldiv_t.h)
 add_header(lldiv_t HDR lldiv_t.h)
-if(TARGET libc.include.llvm-libc-types.${LIBC_TARGET_OS}.loff_t)
-  add_header(loff_t HDR loff_t.h DEPENDS .${LIBC_TARGET_OS}.loff_t)
-else()
-  add_header(loff_t HDR loff_t.h)
-endif()
+add_type_header(
+  loff_t
+  HDR
+    loff_t.h
+)
 add_header(FILE HDR FILE.h)
 add_header(fd_set HDR fd_set.h DEPENDS libc.include.llvm-libc-macros.sys_select_macros)
 add_header(fenv_t HDR fenv_t.h)
@@ -99,12 +133,12 @@ add_header(nfds_t HDR nfds_t.h)
 add_header(nl_catd HDR nl_catd.h)
 add_header(nl_item HDR nl_item.h)
 add_header(nlink_t HDR nlink_t.h)
-add_header(off_t HDR off_t.h)
 add_header(once_flag HDR once_flag.h DEPENDS .__futex_word)
 add_header(posix_spawn_file_actions_t HDR posix_spawn_file_actions_t.h)
 add_header(posix_spawnattr_t HDR posix_spawnattr_t.h)
 add_header(posix_tnode HDR posix_tnode.h)
-add_header(pthread_attr_t HDR pthread_attr_t.h DEPENDS .size_t)
+add_header(struct_sched_param HDR struct_sched_param.h)
+add_header(pthread_attr_t HDR pthread_attr_t.h DEPENDS .size_t .struct_sched_param)
 add_header(pthread_cond_t HDR pthread_cond_t.h DEPENDS .__futex_word .size_t)
 add_header(pthread_condattr_t HDR pthread_condattr_t.h DEPENDS .clockid_t)
 add_header(pthread_key_t HDR pthread_key_t.h)
@@ -157,7 +191,6 @@ add_header(
 )
 add_header(struct_pollfd HDR struct_pollfd.h)
 add_header(struct_rlimit HDR struct_rlimit.h DEPENDS .rlim_t)
-add_header(struct_sched_param HDR struct_sched_param.h)
 add_header(struct_sembuf HDR struct_sembuf.h)
 add_header(struct_seminfo HDR struct_seminfo.h)
 add_header(
@@ -174,30 +207,6 @@ add_header(union_sigval HDR union_sigval.h)
 add_header(siginfo_t HDR siginfo_t.h DEPENDS .union_sigval .pid_t .uid_t .clock_t)
 add_header(sig_atomic_t HDR sig_atomic_t.h)
 add_header(sigset_t HDR sigset_t.h DEPENDS libc.include.llvm-libc-macros.signal_macros)
-set(mcontext_deps)
-set(ucontext_deps .sigset_t .stack_t)
-
-if(LIBC_TARGET_ARCHITECTURE STREQUAL "x86_64")
-  add_header(
-    mcontext_t_arch
-    HDR
-      x86_64/mcontext_t.h
-  )
-  add_header(
-    ucontext_t_arch
-    HDR
-      x86_64/ucontext_t.h
-    DEPENDS
-      .mcontext_t_arch
-      .sigset_t
-      .stack_t
-  )
-  list(APPEND mcontext_deps .mcontext_t_arch)
-  list(APPEND ucontext_deps .ucontext_t_arch)
-endif()
-
-add_header(mcontext_t HDR mcontext_t.h DEPENDS ${mcontext_deps})
-add_header(ucontext_t HDR ucontext_t.h DEPENDS .mcontext_t ${ucontext_deps})
 add_header(u_char HDR u_char.h)
 add_header(u_int32_t HDR u_int32_t.h)
 add_header(uint HDR uint.h)
@@ -218,11 +227,11 @@ add_header(
 add_header(struct_tm HDR struct_tm.h)
 add_header(struct_passwd HDR struct_passwd.h DEPENDS .uid_t .gid_t)
 add_header(struct_group HDR struct_group.h DEPENDS .gid_t)
-if(TARGET libc.include.llvm-libc-types.${LIBC_TARGET_OS}.struct_sysinfo)
-  add_header(struct_sysinfo HDR struct_sysinfo.h DEPENDS .${LIBC_TARGET_OS}.struct_sysinfo)
-else()
-  add_header(struct_sysinfo HDR struct_sysinfo.h)
-endif()
+add_type_header(
+  struct_sysinfo
+  HDR
+    struct_sysinfo.h
+)
 add_header(struct_utsname HDR struct_utsname.h)
 add_header(thrd_start_t HDR thrd_start_t.h)
 add_header(thrd_t HDR thrd_t.h DEPENDS .__thread_type)
@@ -299,6 +308,7 @@ add_header(ACTION HDR ACTION.h)
 add_header(ENTRY HDR ENTRY.h)
 add_header(VISIT HDR VISIT.h)
 add_header(struct_hsearch_data HDR struct_hsearch_data.h)
+add_header(glob_t HDR glob_t.h DEPENDS .size_t)
 add_header(regex_t HDR regex_t.h DEPENDS .size_t)
 add_header(regoff_t HDR regoff_t.h)
 add_header(regmatch_t HDR regmatch_t.h DEPENDS .regoff_t)
@@ -602,6 +612,15 @@ add_header(
   DEPENDS
     .Elf64_Half
 )
+
+# Arch-specific types
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${LIBC_TARGET_ARCHITECTURE})
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/${LIBC_TARGET_ARCHITECTURE})
+endif()
+
+add_type_header(mcontext_t HDR mcontext_t.h)
+add_type_header(ucontext_t HDR ucontext_t.h)
+add_type_header(struct_user_regs_struct HDR struct_user_regs_struct.h)
 
 # UEFI
 add_header(EFI_GUID HDR EFI_GUID.h DEPENDS libc.include.llvm-libc-macros.stdint_macros)

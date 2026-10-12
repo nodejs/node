@@ -5,6 +5,9 @@
 #include "src/debug/debug-scope-info.h"
 
 #include <iterator>
+#include <optional>
+#include <string>
+#include <vector>
 
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
@@ -452,6 +455,74 @@ TEST_F(DebugScopeInfoTest, ComplexScopeTypes) {
   VerifyScopeTreeParity(parsed.script_scope(), script);
 }
 
+// ParserBase::NewVarblockScope() creates a DeclarationScope with BLOCK_SCOPE
+// type for a function body with non-simple parameters, so is_declaration_scope
+// cannot be derived from the scope type. The body has to declare something,
+// otherwise Scope::FinalizeBlockScope() drops the scope again.
+TEST_F(DebugScopeInfoTest, VarblockScopeIsDeclarationScope) {
+  HandleScope scope(isolate());
+  ParsedScript parsed =
+      ParseAndSerialize("function f(a = 1) { let x = 2; return a + x; }");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  auto func = script.first_child();
+  ASSERT_TRUE(func.has_value());
+  ASSERT_TRUE(func->is_function_scope());
+
+  auto varblock = func->first_child();
+  ASSERT_TRUE(varblock.has_value());
+  EXPECT_EQ(varblock->scope_type(), ScopeType::BLOCK_SCOPE);
+  EXPECT_TRUE(varblock->is_block_scope());
+  EXPECT_TRUE(varblock->is_declaration_scope());
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+// The other NewVarblockScope() call site: class static initializer blocks.
+TEST_F(DebugScopeInfoTest, ClassStaticBlockIsDeclarationScope) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize("class C { static { let x = 1; } }");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  bool found_declaration_block_scope = false;
+  auto walk = [&](auto& self, const DebugScriptScope& current) -> void {
+    if (current.scope_type() == ScopeType::BLOCK_SCOPE &&
+        current.is_declaration_scope()) {
+      found_declaration_block_scope = true;
+    }
+    for (auto child = current.first_child(); child.has_value();
+         child = child->next_sibling()) {
+      self(self, *child);
+    }
+  };
+  walk(walk, script);
+  EXPECT_TRUE(found_declaration_block_scope);
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+// A varblock scope can also survive FinalizeBlockScope() without declaring
+// anything, via sloppy_eval_can_extend_vars().
+TEST_F(DebugScopeInfoTest, VarblockScopeWithSloppyEval) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize("function f(a = 1) { eval(''); }");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  auto func = script.first_child();
+  ASSERT_TRUE(func.has_value());
+
+  auto varblock = func->first_child();
+  ASSERT_TRUE(varblock.has_value());
+  EXPECT_EQ(varblock->scope_type(), ScopeType::BLOCK_SCOPE);
+  EXPECT_TRUE(varblock->is_declaration_scope());
+  EXPECT_TRUE(varblock->sloppy_eval_can_extend_vars());
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
 TEST_F(DebugScopeInfoTest, NeedsContextAndUniqueId) {
   HandleScope scope(isolate());
   ParsedScript parsed = ParseAndSerialize(
@@ -796,6 +867,148 @@ TEST_F(DebugScopeInfoTest, SyntheticAndReceiverVariables) {
   EXPECT_FALSE(arrow_has_receiver);
   EXPECT_TRUE(found_generator_obj);
   EXPECT_TRUE(found_private_member);
+}
+
+namespace {
+
+// Builds a source string by repeating `pattern` `count` times, substituting the
+// current index for each "%d".
+std::string Repeat(const char* pattern, int count) {
+  std::string result;
+  for (int i = 0; i < count; ++i) {
+    for (const char* p = pattern; *p != '\0'; ++p) {
+      if (p[0] == '%' && p[1] == 'd') {
+        result += std::to_string(i);
+        ++p;
+      } else {
+        result += *p;
+      }
+    }
+  }
+  return result;
+}
+
+// How many declarations each test generates. Chosen to be large enough that
+// the resulting indices and counts need the full 32-bit fields.
+constexpr int kManyContextVariables = 9000;
+constexpr int kManyParameters = 40000;
+constexpr int kManyLocals = 70000;
+
+}  // namespace
+
+// A sloppy direct eval forces context allocation of every variable, and
+// DeclarationScope::AllocateLocals() allocates the function variable last, so
+// it ends up with the highest context slot index in the scope.
+TEST_F(DebugScopeInfoTest, FunctionVariableWithLargeContextIndex) {
+  HandleScope scope(isolate());
+  std::string source = "var g = (function foo() {\n";
+  source += Repeat("  var v%d = %d;\n", kManyContextVariables);
+  source += "  eval(\"\");\n  return foo;\n});";
+  ParsedScript parsed = ParseAndSerialize(source.c_str());
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  auto func = script.first_child();
+  ASSERT_TRUE(func.has_value());
+  ASSERT_TRUE(func->has_function_variable());
+
+  auto [alloc_info, index] = func->function_variable_info();
+  EXPECT_EQ(alloc_info, VariableAllocationInfo::CONTEXT);
+  EXPECT_GT(index, kManyContextVariables);
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+// Same, for the 'arguments' variable, which is allocated after all parameters.
+TEST_F(DebugScopeInfoTest, ArgumentsWithLargeContextIndex) {
+  HandleScope scope(isolate());
+  std::string source = "function g(";
+  source += Repeat("q%d,", kManyContextVariables);
+  source += "qLast) { eval(\"\"); return arguments; }";
+  ParsedScript parsed = ParseAndSerialize(source.c_str());
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  auto func = script.first_child();
+  ASSERT_TRUE(func.has_value());
+  ASSERT_TRUE(func->has_arguments());
+
+  auto [alloc_info, index] = func->arguments_info();
+  EXPECT_EQ(alloc_info, VariableAllocationInfo::CONTEXT);
+  EXPECT_GT(index, kManyContextVariables);
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+// Parameters are part of Scope::locals() and their index goes up to
+// Code::kMaxArguments - 1.
+TEST_F(DebugScopeInfoTest, VariableWithLargeParameterSlotIndex) {
+  HandleScope scope(isolate());
+  std::string source = "function f(";
+  source += Repeat("p%d,", kManyParameters);
+  source += "pLast) { return p0; }";
+  ParsedScript parsed = ParseAndSerialize(source.c_str());
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  auto func = script.first_child();
+  ASSERT_TRUE(func.has_value());
+
+  int max_index = -1;
+  for (int i = 0; i < func->variable_count(); ++i) {
+    DebugVariableInfo var = func->variable(i);
+    if (var.location == VariableLocation::PARAMETER) {
+      if (var.index > max_index) max_index = var.index;
+    }
+  }
+  EXPECT_GE(max_index, kManyParameters);
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+// A single scope can declare a very large number of locals.
+TEST_F(DebugScopeInfoTest, ScopeWithVeryManyVariables) {
+  HandleScope scope(isolate());
+  std::string source = "function h() {\n";
+  source += Repeat("var w%d;\n", kManyLocals);
+  source += "return w0;\n}";
+  ParsedScript parsed = ParseAndSerialize(source.c_str());
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  auto func = script.first_child();
+  ASSERT_TRUE(func.has_value());
+  EXPECT_GE(func->variable_count(), kManyLocals);
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+// Same declarations, but a sloppy direct eval forces all of them into the
+// context. The highest context slot index then lands beyond 2^16, which is
+// what requires slot_index to be wider than 16 bits. (In the test above the
+// locals are unused and stay unallocated at index -1.)
+TEST_F(DebugScopeInfoTest, ContextSlotIndexAboveUint16Max) {
+  HandleScope scope(isolate());
+  std::string source = "function h() {\n";
+  source += Repeat("var w%d;\n", kManyLocals);
+  source += "eval(\"\");\nreturn w0;\n}";
+  ParsedScript parsed = ParseAndSerialize(source.c_str());
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  auto func = script.first_child();
+  ASSERT_TRUE(func.has_value());
+
+  int max_index = -1;
+  for (int i = 0; i < func->variable_count(); ++i) {
+    DebugVariableInfo var = func->variable(i);
+    if (var.location == VariableLocation::CONTEXT) {
+      if (var.index > max_index) max_index = var.index;
+    }
+  }
+  EXPECT_GT(max_index, 0xFFFF);
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
 }
 
 TEST_F(DebugScopeInfoTest, DebugScriptScopeInfoSideTable) {
@@ -1329,6 +1542,394 @@ TEST_F(DebugScopeInfoTest, EnsureDebugScriptScopeInfo_Module) {
   auto cached_info = isolate()->debug()->GetScriptScopeInfo(script);
   ASSERT_FALSE(cached_info.is_null());
   EXPECT_EQ(*info, *cached_info);
+}
+
+namespace {
+
+// Collects the AST scopes rooted at `scope` in the same DFS pre-order that
+// SerializeDebugScriptScopeInfo() uses, so that an index into the result
+// matches the scope index in the serialized DebugScriptScopeInfo.
+void CollectScopesInPreOrder(Scope* scope, std::vector<Scope*>* scopes) {
+  scopes->push_back(scope);
+  for (Scope* inner = scope->inner_scope(); inner != nullptr;
+       inner = inner->sibling()) {
+    CollectScopesInPreOrder(inner, scopes);
+  }
+}
+
+std::vector<Scope*> CollectScopesInPreOrder(Scope* scope) {
+  std::vector<Scope*> scopes;
+  CollectScopesInPreOrder(scope, &scopes);
+  return scopes;
+}
+
+std::optional<DebugScriptScope> FindFirstScopeOfType(
+    DirectHandle<DebugScriptScopeInfo> info, ScopeType type) {
+  for (int i = 0; i < DebugScriptScopeCount(*info); ++i) {
+    DebugScriptScope scope = DebugScriptScope::FromIndex(info, i);
+    if (scope.scope_type() == type) return scope;
+  }
+  return std::nullopt;
+}
+
+// Returns the source position of `needle` in `source`, so that tests can spell
+// out break positions as source snippets instead of magic numbers.
+int PositionOf(const char* source, const char* needle) {
+  std::string_view haystack(source);
+  size_t position = haystack.find(needle);
+  CHECK_NE(position, std::string_view::npos);
+  return static_cast<int>(position);
+}
+
+}  // namespace
+
+TEST_F(DebugScopeInfoTest, ContainsPosition) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize("function foo() { let a = 1; }");
+  DebugScriptScope foo = DebugScriptScope::FromIndex(parsed.scope_info, 1);
+  ASSERT_TRUE(foo.is_function_scope());
+
+  const int start = foo.start_position();
+  const int end = foo.end_position();
+
+  EXPECT_FALSE(foo.ContainsPosition(start - 1, /*is_closure_found=*/true));
+  EXPECT_FALSE(foo.ContainsPosition(start, /*is_closure_found=*/true));
+  EXPECT_TRUE(foo.ContainsPosition(start + 1, /*is_closure_found=*/true));
+  EXPECT_TRUE(foo.ContainsPosition(end - 1, /*is_closure_found=*/true));
+  EXPECT_FALSE(foo.ContainsPosition(end, /*is_closure_found=*/true));
+  EXPECT_FALSE(foo.ContainsPosition(end + 1, /*is_closure_found=*/true));
+
+  // As long as the closure scope hasn't been found the end position is
+  // inclusive, because nested arrow functions can share it.
+  EXPECT_TRUE(foo.ContainsPosition(end, /*is_closure_found=*/false));
+  EXPECT_FALSE(foo.ContainsPosition(end + 1, /*is_closure_found=*/false));
+}
+
+TEST_F(DebugScopeInfoTest, ContainsPositionClassScopeIncludesStart) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize("class C { x = 1; }");
+  std::optional<DebugScriptScope> class_scope =
+      FindFirstScopeOfType(parsed.scope_info, ScopeType::CLASS_SCOPE);
+  ASSERT_TRUE(class_scope.has_value());
+
+  // The source position points at Token::kClass while the class context is
+  // already pushed, so the start position has to be part of the scope.
+  EXPECT_TRUE(class_scope->ContainsPosition(class_scope->start_position(),
+                                            /*is_closure_found=*/true));
+  EXPECT_FALSE(class_scope->ContainsPosition(class_scope->start_position() - 1,
+                                             /*is_closure_found=*/true));
+}
+
+TEST_F(DebugScopeInfoTest, ContainsPositionWithScopeIncludesStart) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize("with ({}) { let a = 1; }");
+  std::optional<DebugScriptScope> with_scope =
+      FindFirstScopeOfType(parsed.scope_info, ScopeType::WITH_SCOPE);
+  ASSERT_TRUE(with_scope.has_value());
+
+  EXPECT_TRUE(with_scope->ContainsPosition(with_scope->start_position(),
+                                           /*is_closure_found=*/true));
+  EXPECT_FALSE(with_scope->ContainsPosition(with_scope->start_position() - 1,
+                                            /*is_closure_found=*/true));
+}
+
+TEST_F(DebugScopeInfoTest, FindClosureScopeForFunction) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize("function foo() { let a = 1; }");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  std::vector<Scope*> ast_scopes =
+      CollectScopesInPreOrder(parsed.script_scope());
+  ASSERT_EQ(ast_scopes.size(), 2u);
+  Scope* foo = ast_scopes[1];
+  ASSERT_TRUE(foo->is_function_scope());
+
+  std::optional<DebugScriptScope> found = FindClosureScope(
+      info, foo->start_position(), foo->end_position(), foo->scope_type());
+  ASSERT_TRUE(found.has_value());
+  EXPECT_EQ(found->scope_index(), 1);
+  EXPECT_EQ(found->start_position(), foo->start_position());
+  EXPECT_EQ(found->end_position(), foo->end_position());
+  EXPECT_EQ(found->scope_type(), ScopeType::FUNCTION_SCOPE);
+}
+
+TEST_F(DebugScopeInfoTest, FindClosureScopeForScriptScope) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize("let a = 1;");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+  DebugScriptScope root = DebugScriptScope::FromIndex(info, 0);
+
+  std::optional<DebugScriptScope> found =
+      FindClosureScope(info, root.start_position(), root.end_position(),
+                       ScopeType::SCRIPT_SCOPE);
+  ASSERT_TRUE(found.has_value());
+  EXPECT_EQ(found->scope_index(), 0);
+}
+
+TEST_F(DebugScopeInfoTest, FindClosureScopeDistinguishesScopeTypes) {
+  HandleScope scope(isolate());
+  // A class declaration that spans the whole script gives the class scope the
+  // exact same positions as the script scope, so the scope type is the only
+  // thing that tells the two apart.
+  ParsedScript parsed = ParseAndSerialize("class C { x = 1; }");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script_scope = DebugScriptScope::FromIndex(info, 0);
+  DebugScriptScope class_scope = DebugScriptScope::FromIndex(info, 1);
+  ASSERT_TRUE(script_scope.is_script_scope());
+  ASSERT_TRUE(class_scope.is_class_scope());
+  ASSERT_EQ(script_scope.start_position(), class_scope.start_position());
+  ASSERT_EQ(script_scope.end_position(), class_scope.end_position());
+
+  std::optional<DebugScriptScope> found_script =
+      FindClosureScope(info, script_scope.start_position(),
+                       script_scope.end_position(), ScopeType::SCRIPT_SCOPE);
+  ASSERT_TRUE(found_script.has_value());
+  EXPECT_EQ(found_script->scope_index(), 0);
+
+  std::optional<DebugScriptScope> found_class =
+      FindClosureScope(info, class_scope.start_position(),
+                       class_scope.end_position(), ScopeType::CLASS_SCOPE);
+  ASSERT_TRUE(found_class.has_value());
+  EXPECT_EQ(found_class->scope_index(), 1);
+}
+
+TEST_F(DebugScopeInfoTest, FindClosureScopeNestedArrowFunctions) {
+  HandleScope scope(isolate());
+  // Both arrow functions end at the same position.
+  ParsedScript parsed = ParseAndSerialize("const f = a => b => a + b;");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  std::vector<Scope*> ast_scopes =
+      CollectScopesInPreOrder(parsed.script_scope());
+  ASSERT_EQ(ast_scopes.size(), 3u);
+  Scope* outer_arrow = ast_scopes[1];
+  Scope* inner_arrow = ast_scopes[2];
+  ASSERT_TRUE(outer_arrow->is_function_scope());
+  ASSERT_TRUE(inner_arrow->is_function_scope());
+  ASSERT_EQ(outer_arrow->end_position(), inner_arrow->end_position());
+  ASSERT_NE(outer_arrow->start_position(), inner_arrow->start_position());
+
+  std::optional<DebugScriptScope> found_outer =
+      FindClosureScope(info, outer_arrow->start_position(),
+                       outer_arrow->end_position(), ScopeType::FUNCTION_SCOPE);
+  ASSERT_TRUE(found_outer.has_value());
+  EXPECT_EQ(found_outer->scope_index(), 1);
+
+  std::optional<DebugScriptScope> found_inner =
+      FindClosureScope(info, inner_arrow->start_position(),
+                       inner_arrow->end_position(), ScopeType::FUNCTION_SCOPE);
+  ASSERT_TRUE(found_inner.has_value());
+  EXPECT_EQ(found_inner->scope_index(), 2);
+}
+
+TEST_F(DebugScopeInfoTest, FindClosureScopeNoMatch) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize("function foo() { let a = 1; }");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  std::vector<Scope*> ast_scopes =
+      CollectScopesInPreOrder(parsed.script_scope());
+  Scope* foo = ast_scopes[1];
+
+  // Positions that don't belong to any scope.
+  EXPECT_FALSE(FindClosureScope(info, foo->start_position() + 1,
+                                foo->end_position(), ScopeType::FUNCTION_SCOPE)
+                   .has_value());
+  // Matching positions but the wrong scope type.
+  EXPECT_FALSE(FindClosureScope(info, foo->start_position(),
+                                foo->end_position(), ScopeType::BLOCK_SCOPE)
+                   .has_value());
+}
+
+TEST_F(DebugScopeInfoTest, FindClosureScopeMatchesSerializationOrder) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize(
+      "function outer(a = 1) {"
+      "  let x = 2;"
+      "  class C { static { let y = 3; } m() { return a; } }"
+      "  try { } catch (e) { with ({}) { let z = 4; } }"
+      "  return () => x;"
+      "}");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  std::vector<Scope*> ast_scopes =
+      CollectScopesInPreOrder(parsed.script_scope());
+  ASSERT_EQ(static_cast<int>(ast_scopes.size()), DebugScriptScopeCount(*info));
+
+  for (size_t i = 0; i < ast_scopes.size(); ++i) {
+    Scope* ast_scope = ast_scopes[i];
+    std::optional<DebugScriptScope> found =
+        FindClosureScope(info, ast_scope->start_position(),
+                         ast_scope->end_position(), ast_scope->scope_type());
+    ASSERT_TRUE(found.has_value()) << "no match for AST scope " << i;
+    // Scopes are not unique in (start, end, type), so the lookup returns the
+    // first match in serialization order.
+    EXPECT_LE(found->scope_index(), static_cast<int>(i));
+    EXPECT_EQ(found->start_position(), ast_scope->start_position());
+    EXPECT_EQ(found->end_position(), ast_scope->end_position());
+    EXPECT_EQ(found->scope_type(), ast_scope->scope_type());
+  }
+}
+
+TEST_F(DebugScopeInfoTest, FindClosureScopeForModuleScope) {
+  v8::HandleScope scope(v8_isolate());
+  v8::ScriptOrigin origin(NewString("module.js"), 0, 0, false, -1,
+                          v8::Local<v8::Value>(), false, false,
+                          true /* is_module */);
+  v8::ScriptCompiler::Source script_source(
+      NewString("let module_x = 42;\n"
+                "export function getX() { return module_x; }"),
+      origin);
+  v8::Local<v8::Module> module =
+      v8::ScriptCompiler::CompileModule(v8_isolate(), &script_source)
+          .ToLocalChecked();
+  DirectHandle<SharedFunctionInfo> sfi =
+      Utils::OpenHandle(*module->GetUnboundModuleScript());
+  DirectHandle<Script> script(Cast<Script>(sfi->script()), isolate());
+
+  isolate()->debug()->ClearScriptScopeInfos();
+  Handle<DebugScriptScopeInfo> info =
+      EnsureDebugScriptScopeInfo(isolate(), script);
+  ASSERT_FALSE(info.is_null());
+
+  DebugScriptScope root = DebugScriptScope::FromIndex(info, 0);
+  ASSERT_TRUE(root.is_module_scope());
+
+  std::optional<DebugScriptScope> found =
+      FindClosureScope(info, root.start_position(), root.end_position(),
+                       ScopeType::MODULE_SCOPE);
+  ASSERT_TRUE(found.has_value());
+  EXPECT_EQ(found->scope_index(), 0);
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeNestedBlocks) {
+  HandleScope scope(isolate());
+  const char* source =
+      "function foo() { let a = 1; { let b = 2; { let c = 3; } } }";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope foo = DebugScriptScope::FromIndex(info, 1);
+  ASSERT_TRUE(foo.is_function_scope());
+
+  DebugScriptScope outer_block =
+      FindInnermostScope(foo, PositionOf(source, "let b") + 1);
+  EXPECT_EQ(outer_block.scope_index(), 2);
+  EXPECT_TRUE(outer_block.is_block_scope());
+
+  DebugScriptScope inner_block =
+      FindInnermostScope(foo, PositionOf(source, "let c") + 1);
+  EXPECT_EQ(inner_block.scope_index(), 3);
+  EXPECT_TRUE(inner_block.is_block_scope());
+
+  // Positions outside of any block resolve to the closure scope itself.
+  DebugScriptScope function_scope =
+      FindInnermostScope(foo, PositionOf(source, "let a") + 1);
+  EXPECT_EQ(function_scope.scope_index(), foo.scope_index());
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeStartsAtClosureScope) {
+  HandleScope scope(isolate());
+  // The block scope of `bar` is not a descendant of `foo`, so searching from
+  // `foo` for a position inside `bar` must not leave `foo`.
+  const char* source =
+      "function foo() { let a = 1; } function bar() { { let b = 2; } }";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script_scope = DebugScriptScope::FromIndex(info, 0);
+  DebugScriptScope foo =
+      FindInnermostScope(script_scope, PositionOf(source, "let a") + 1);
+  ASSERT_TRUE(foo.is_function_scope());
+
+  DebugScriptScope found =
+      FindInnermostScope(foo, PositionOf(source, "let b") + 1);
+  EXPECT_EQ(found.scope_index(), foo.scope_index());
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeCatchScope) {
+  HandleScope scope(isolate());
+  const char* source = "function foo() { try { } catch (e) { let a = 1; } }";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope foo = DebugScriptScope::FromIndex(info, 1);
+  ASSERT_TRUE(foo.is_function_scope());
+
+  DebugScriptScope found =
+      FindInnermostScope(foo, PositionOf(source, "let a") + 1);
+  // The catch scope holds `e` and has the catch body block scope as its child.
+  EXPECT_TRUE(found.is_block_scope() || found.is_catch_scope());
+  std::optional<DebugScriptScope> catch_scope =
+      FindFirstScopeOfType(info, ScopeType::CATCH_SCOPE);
+  ASSERT_TRUE(catch_scope.has_value());
+  EXPECT_GE(found.start_position(), catch_scope->start_position());
+  EXPECT_LE(found.end_position(), catch_scope->end_position());
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeWithScope) {
+  HandleScope scope(isolate());
+  const char* source = "function foo() { with ({}) { let a = 1; } }";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope foo = DebugScriptScope::FromIndex(info, 1);
+  std::optional<DebugScriptScope> with_scope =
+      FindFirstScopeOfType(info, ScopeType::WITH_SCOPE);
+  ASSERT_TRUE(with_scope.has_value());
+
+  // "with" scopes accept their start position, because the context can already
+  // be pushed while the source position still points at the header.
+  DebugScriptScope found =
+      FindInnermostScope(foo, with_scope->start_position());
+  EXPECT_EQ(found.scope_index(), with_scope->scope_index());
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeClassScope) {
+  HandleScope scope(isolate());
+  const char* source = "function foo() { class C { m() {} } }";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope foo = DebugScriptScope::FromIndex(info, 1);
+  std::optional<DebugScriptScope> class_scope =
+      FindFirstScopeOfType(info, ScopeType::CLASS_SCOPE);
+  ASSERT_TRUE(class_scope.has_value());
+
+  // Class scopes accept their start position, because the class context is
+  // already pushed while the source position still points at Token::kClass.
+  DebugScriptScope found =
+      FindInnermostScope(foo, class_scope->start_position());
+  EXPECT_EQ(found.scope_index(), class_scope->scope_index());
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeNestedArrowFunctions) {
+  HandleScope scope(isolate());
+  // Both arrow functions end at the same position, so the tightest fit is
+  // decided by the start position.
+  const char* source = "const f = a => b => a + b;";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script_scope = DebugScriptScope::FromIndex(info, 0);
+  DebugScriptScope found =
+      FindInnermostScope(script_scope, PositionOf(source, "a + b") + 1);
+  EXPECT_EQ(found.scope_index(), 2);
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeOutsideOfClosureScope) {
+  HandleScope scope(isolate());
+  const char* source = "function foo() { let a = 1; } let b = 2;";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope foo = DebugScriptScope::FromIndex(info, 1);
+  // A position that isn't covered by `foo` at all still returns `foo`, there
+  // is nothing tighter to descend into.
+  DebugScriptScope found =
+      FindInnermostScope(foo, PositionOf(source, "let b") + 1);
+  EXPECT_EQ(found.scope_index(), foo.scope_index());
 }
 
 }  // namespace internal

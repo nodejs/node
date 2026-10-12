@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/api/api-inl.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/compiler.h"
 #include "src/handles/handle-scope-implementer-inl.h"
 #include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/lookup.h"
@@ -18,6 +20,37 @@ namespace v8 {
 namespace internal {
 
 namespace {
+
+// Returns an embedder-provided source string, if any, or converts {arg} to a
+// string. Throws if the embedder disallows code generation or ToString fails.
+// TODO: Split this into a dedicated GetCodeForEvalCallback to align
+// with HostGetCodeForEval, which only extracts code. CSP and permission
+// validation belong in HostEnsureCanCompileStrings.
+MaybeDirectHandle<String> GetDynamicFunctionArgumentString(
+    Isolate* isolate, DirectHandle<JSFunction> target, DirectHandle<Object> arg,
+    bool is_code_like,
+    v8::ModifyCodeGenerationFromStringsCallback2 modify_callback,
+    v8::Local<v8::Context> v8_context) {
+  if (IsJSReceiver(*arg) && modify_callback) {
+    v8::Local<v8::Value> v8_arg = Utils::ToLocal(arg);
+    RCS_SCOPE(isolate,
+              RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
+    auto result = modify_callback(v8_context, v8_arg, is_code_like);
+    if (isolate->has_exception()) return {};
+    if (!result.codegen_allowed) {
+      Handle<Object> error_message =
+          target->native_context()->ErrorMessageForCodeGenerationFromStrings();
+      THROW_NEW_ERROR(
+          isolate,
+          NewEvalError(MessageTemplate::kCodeGenFromStrings, error_message));
+    }
+    if (!result.modified_source.IsEmpty()) {
+      return Utils::OpenDirectHandle(*result.modified_source.ToLocalChecked());
+    }
+  }
+
+  return Object::ToString(isolate, arg);
+}
 
 // ES6 section 19.2.1.1.1 CreateDynamicFunction
 MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
@@ -40,6 +73,38 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kNoAccess));
   }
 
+  // Whether the overall constructed function should be treated as
+  // code-like, for use by Compiler::GetFunctionFromString below.
+  auto modify_callback = isolate->modify_code_gen_callback();
+  v8::Local<v8::Context> v8_context =
+      Utils::ToLocal(direct_handle(target->native_context(), isolate));
+
+  // Use an embedder-provided source string when available; otherwise, fall
+  // back to ToString().
+  DirectHandleVector<String> parameter_strings(isolate);
+  if (argc > 1) parameter_strings.reserve(argc - 1);
+
+  // A call with no arguments has nothing trustworthy to base "code-like"
+  // on, so it starts false instead of true.
+  bool is_code_like = argc > 0;
+  DirectHandle<String> body_string = isolate->factory()->empty_string();
+  for (int i = 1; i <= argc; ++i) {
+    DirectHandle<Object> arg = args.at(i);
+    bool argument_is_code_like = Object::IsCodeLike(*arg, isolate);
+    is_code_like &= argument_is_code_like;
+
+    DirectHandle<String> argument_string;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, argument_string,
+                               GetDynamicFunctionArgumentString(
+                                   isolate, target, arg, argument_is_code_like,
+                                   modify_callback, v8_context));
+    if (i < argc) {
+      parameter_strings.push_back(argument_string);
+    } else {
+      body_string = argument_string;
+    }
+  }
+
   // Build the source string.
   DirectHandle<String> source;
   int parameters_end_pos = kNoSourcePosition;
@@ -48,35 +113,16 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
     builder.AppendCharacter('(');
     builder.AppendCString(token);
     builder.AppendCStringLiteral(" anonymous(");
-    if (argc > 1) {
-      for (int i = 1; i < argc; ++i) {
-        if (i > 1) builder.AppendCharacter(',');
-        DirectHandle<String> param;
-        ASSIGN_RETURN_ON_EXCEPTION(isolate, param,
-                                   Object::ToString(isolate, args.at(i)));
-        param = String::Flatten(isolate, param);
-        builder.AppendString(param);
-      }
+    for (size_t i = 0; i < parameter_strings.size(); ++i) {
+      if (i > 0) builder.AppendCharacter(',');
+      builder.AppendString(parameter_strings[i]);
     }
     builder.AppendCharacter('\n');
     parameters_end_pos = builder.Length();
     builder.AppendCStringLiteral(") {\n");
-    if (argc > 0) {
-      DirectHandle<String> body;
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, body,
-                                 Object::ToString(isolate, args.at(argc)));
-      builder.AppendString(body);
-    }
+    builder.AppendString(body_string);
     builder.AppendCStringLiteral("\n})");
     ASSIGN_RETURN_ON_EXCEPTION(isolate, source, builder.Finish());
-  }
-
-  bool is_code_like = true;
-  for (int i = 0; i < argc; ++i) {
-    if (!Object::IsCodeLike(*args.at(i + 1), isolate)) {
-      is_code_like = false;
-      break;
-    }
   }
 
   // Compile the string in the constructor and not a helper so that errors to

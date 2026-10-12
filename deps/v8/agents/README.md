@@ -1,7 +1,7 @@
 # V8 Coding Agents
 
 This directory provides a centralized location for files related to AI coding
-agents (e.g. `gemini-cli`) used for development within V8.
+agents (e.g. `jetski-cli`) used for development within V8.
 
 The goal is to provide a scalable and organized way to share prompts and tools
 among developers, accommodating the various environments (Linux, Mac, Windows)
@@ -14,18 +14,15 @@ in
 
 ## Directory Structure
 
-### Subagents
+### Skills & Rules
 
-On-demand expertise for specific tasks. Source files are located in
-[`agents/`](agents/).
+Reusable workflows, commands, and conventions live in `skills/` and `rules/`.
 
-To use them, you need to run the appropriate installation script from the
-`agents/` directory:
+To install them for your agent environment, run the appropriate installation
+script from the `agents/` directory:
 
-- **For Gemini CLI**: Run `vpython3 scripts/install_for_gemini_cli.py` to
-  generate the subagent files in `.gemini/agents/`.
 - **For Jetski**: Run `vpython3 scripts/install_for_jetski.py` to create
-  symlinks in `.agents/agents/`.
+  symlinks in `.agents/`.
 - **For GitHub Copilot CLI**: Run `vpython3 scripts/install_for_copilot_cli.py`
   to generate repository instructions in `.github/copilot-instructions.md`,
   install compatible V8 rules as instruction files in `.github/instructions/`,

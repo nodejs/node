@@ -891,6 +891,8 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
 template <typename Impl>
 MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
     uint32_t length, AllocationType allocation, AllocationHint hint) {
+  // TODO(manoskouk): This sometimes uses a shared allocation type. We might
+  // have to find its usages and add publish guards.
   Tagged<Map> map = read_only_roots().seq_one_byte_string_map();
   return NewRawStringWithMap<SeqOneByteString>(
       length, map,
@@ -901,6 +903,8 @@ MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
 template <typename Impl>
 MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawTwoByteString(
     uint32_t length, AllocationType allocation, AllocationHint hint) {
+  // TODO(manoskouk): This sometimes uses a shared allocation type. We might
+  // have to find its usages and add publish guards.
   Tagged<Map> map = read_only_roots().seq_two_byte_string_map();
   return NewRawStringWithMap<SeqTwoByteString>(
       length, map,

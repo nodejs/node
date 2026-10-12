@@ -29,6 +29,7 @@
 
 #include "src/base/hashmap-entry.h"
 #include "src/base/logging.h"
+#include "src/base/small-vector.h"
 #include "src/common/globals.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/local-factory-inl.h"
@@ -82,6 +83,7 @@ bool AstRawString::AsArrayIndex(uint32_t* index) const {
   // The StringHasher will set up the hash. Bail out early if we know it
   // can't be convertible to an array index.
   if (!IsIntegerIndex()) return false;
+  DCHECK(is_one_byte());
   if (length() <= Name::kMaxCachedArrayIndexLength) {
     *index = StringHasher::DecodeArrayIndexFromHashField(
         raw_hash_field_, HashSeed(GetReadOnlyRoots()));
@@ -340,6 +342,7 @@ const AstRawString* AstValueFactory::GetOneByteStringInternal(
 
 const AstRawString* AstValueFactory::GetTwoByteStringInternal(
     base::Vector<const uint16_t> literal) {
+  DCHECK(!String::IsOneByte(literal.begin(), literal.length()));
   uint32_t raw_hash_field = StringHasher::HashSequentialString<uint16_t>(
       literal.begin(), literal.length(), hash_seed_);
   return GetString(raw_hash_field, false,
@@ -349,16 +352,20 @@ const AstRawString* AstValueFactory::GetTwoByteStringInternal(
 const AstRawString* AstValueFactory::GetString(
     Tagged<String> literal,
     const SharedStringAccessGuardIfNeeded& access_guard) {
-  const AstRawString* result = nullptr;
   DisallowGarbageCollection no_gc;
   String::FlatContent content = literal->GetFlatContent(no_gc, access_guard);
   if (content.IsOneByte()) {
-    result = GetOneByteStringInternal(content.ToOneByteVector());
-  } else {
-    DCHECK(content.IsTwoByte());
-    result = GetTwoByteStringInternal(content.ToUC16Vector());
+    return GetOneByteStringInternal(content.ToOneByteVector());
   }
-  return result;
+  DCHECK(content.IsTwoByte());
+  base::Vector<const uint16_t> vector = content.ToUC16Vector();
+  if (String::IsOneByte(vector.begin(), vector.length())) {
+    base::SmallVector<uint8_t, 64> one_byte(vector.length());
+    CopyChars(one_byte.data(), vector.begin(), vector.length());
+    return GetOneByteStringInternal(
+        base::Vector<const uint8_t>(one_byte.data(), vector.length()));
+  }
+  return GetTwoByteStringInternal(vector);
 }
 
 AstConsString* AstValueFactory::NewConsString() {

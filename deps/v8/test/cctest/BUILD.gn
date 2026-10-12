@@ -99,6 +99,7 @@ v8_cluster_source_set("cctest_sources") {
     "../common/node-observer-tester.h",
     "../common/value-helper.cc",
     "../common/value-helper.h",
+    "../common/version-utils.h",
     "cctest-utils.h",
     "collector.h",
     "expression-type-collector-macros.h",

@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <functional>
 
+#include "absl/base/config.h"
 #include "absl/functional/function_ref.h"
 #include "absl/strings/internal/cord_internal.h"
 

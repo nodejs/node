@@ -38,10 +38,6 @@ if (is_ios) {
   import("//build/config/apple/mobile_config.gni")  # For `target_platform`.
 }
 
-if (!build_with_v8_embedder && !(defined(build_with_node) && build_with_node)) {
-  import("//third_party/partition_alloc/partition_alloc.gni")
-}
-
 # For faster Windows builds. See https://crbug.com/v8/8475.
 emit_builtins_as_inline_asm = is_win && is_clang
 
@@ -203,6 +199,10 @@ declare_args() {
   # Mode used by gen-static-roots.py to have a heap layout which is identical
   # to when v8_enable_static_roots is enabled.
   v8_enable_static_roots_generation = false
+
+  # Enables a separate TdzHole root for Temporal Dead Zone initialization and
+  # checks instead of aliasing TheHole.
+  v8_enable_tdz_hole = true
 
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
@@ -884,6 +884,10 @@ assert(!v8_enable_memory_corruption_api || v8_enable_sandbox,
 assert(
     !v8_enable_memory_corruption_api || !is_lsan,
     "The Memory Corruption API cannot be enabled together with LSan as both attach to the d8 process via ptrace")
+
+# ASan sandbox crash filters aren't wired up properly in component builds.
+assert(!v8_enable_memory_corruption_api || !is_component_build,
+       "The Memory Corruption API cannot be enabled in a component build")
 
 assert(!v8_enable_sandbox_hardware_support || v8_enable_sandbox,
        "The sandbox must be enabled to enable sandbox hardware support")
@@ -1623,6 +1627,9 @@ config("features") {
   if (v8_enable_static_roots_generation) {
     defines += [ "V8_STATIC_ROOTS_GENERATION" ]
   }
+  if (v8_enable_tdz_hole) {
+    defines += [ "V8_ENABLE_TDZ_HOLE" ]
+  }
   if (v8_use_zlib) {
     defines += [ "V8_USE_ZLIB" ]
   }
@@ -1676,12 +1683,6 @@ config("features") {
   }
   if (v8_function_arguments_caller_are_own_props) {
     defines += [ "V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS" ]
-  }
-  if (!build_with_v8_embedder &&
-      !(defined(build_with_node) && build_with_node)) {
-    if (enable_user_space_zero_segment) {
-      defines += [ "PA_ENABLE_USER_SPACE_ZERO_SEGMENT" ]
-    }
   }
 }
 
@@ -2529,6 +2530,12 @@ if (v8_use_metagen_instance_types) {
                "tools/metagen/instance_types.py",
                "tools/metagen/metagen.py",
                _metagen_driver_file,
+
+               # The driver's aggregate header. It declares no classes, so
+               # metagen records no fact from it and it is absent from the
+               # depfile, but its include list determines which headers the
+               # harvest parses. PRESUBMIT.py checks that the list is complete.
+               "src/objects/all-objects.h",
                "$root_out_dir/v8_build_config.json",
 
                # Proxy for the whole builtin-header directory, which has no
@@ -2884,6 +2891,7 @@ v8_cluster_source_set("torque_generated_initializers") {
     ":generate_bytecode_builtins_list",
     ":run_torque",
     ":v8_base_without_compiler",
+    ":v8_internal_headers",
     ":v8_maybe_temporal",
     ":v8_tracing",
   ]
@@ -3565,6 +3573,7 @@ v8_cluster_source_set("v8_initializers") {
   deps = [
     ":torque_generated_initializers",
     ":v8_base_without_compiler",
+    ":v8_internal_headers",
     ":v8_shared_internal_headers",
     ":v8_tracing",
   ]
@@ -3743,6 +3752,7 @@ v8_source_set("v8_init") {
   deps = [
     ":v8_base_without_compiler",
     ":v8_initializers",
+    ":v8_internal_headers",
     ":v8_maybe_temporal",
     ":v8_tracing",
   ]
@@ -3825,6 +3835,7 @@ v8_header_set("v8_headers") {
     "include/v8-maybe.h",
     "include/v8-memory-span.h",
     "include/v8-message.h",
+    "include/v8-metrics.h",
     "include/v8-microtask-queue.h",
     "include/v8-microtask.h",
     "include/v8-object.h",
@@ -3840,9 +3851,9 @@ v8_header_set("v8_headers") {
     "include/v8-snapshot.h",
     "include/v8-statistics.h",
     "include/v8-template.h",
-    "include/v8-trace-categories.h",
     "include/v8-traced-handle.h",
     "include/v8-typed-array.h",
+    "include/v8-unwinder-state.h",
     "include/v8-unwinder.h",
     "include/v8-util.h",
     "include/v8-value-serializer.h",
@@ -3864,7 +3875,6 @@ v8_header_set("v8_headers") {
 
   deps = [
     ":cppgc_headers",
-    ":v8_tracing",
     ":v8_version",
   ]
 }
@@ -4306,6 +4316,7 @@ v8_header_set("v8_internal_headers") {
     "src/date/date.h",
     "src/date/dateparser-inl.h",
     "src/date/dateparser.h",
+    "src/debug/debug-block-list.h",
     "src/debug/debug-coverage.h",
     "src/debug/debug-evaluate.h",
     "src/debug/debug-frames.h",
@@ -4908,6 +4919,7 @@ v8_header_set("v8_internal_headers") {
     "src/sandbox/cppheap-pointer-inl.h",
     "src/sandbox/cppheap-pointer-table-inl.h",
     "src/sandbox/cppheap-pointer-table.h",
+    "src/sandbox/cppheap-pointer-tag.h",
     "src/sandbox/cppheap-pointer.h",
     "src/sandbox/external-entity-table-inl.h",
     "src/sandbox/external-entity-table.h",
@@ -5473,6 +5485,7 @@ v8_header_set("v8_internal_headers") {
       "src/codegen/mips64/assembler-mips64-inl.h",
       "src/codegen/mips64/assembler-mips64.h",
       "src/codegen/mips64/constants-mips64.h",
+      "src/codegen/mips64/interface-descriptors-mips64-inl.h",
       "src/codegen/mips64/macro-assembler-mips64.h",
       "src/codegen/mips64/register-mips64.h",
       "src/codegen/mips64/reglist-mips64.h",
@@ -5494,6 +5507,7 @@ v8_header_set("v8_internal_headers") {
       "src/codegen/loong64/assembler-loong64-inl.h",
       "src/codegen/loong64/assembler-loong64.h",
       "src/codegen/loong64/constants-loong64.h",
+      "src/codegen/loong64/interface-descriptors-loong64-inl.h",
       "src/codegen/loong64/macro-assembler-loong64.h",
       "src/codegen/loong64/register-loong64.h",
       "src/codegen/loong64/reglist-loong64.h",
@@ -5684,6 +5698,36 @@ v8_header_set("v8_internal_headers") {
         "src/baseline/riscv/baseline-compiler-riscv-inl.h",
       ]
     }
+  }
+
+  if (is_win && v8_enable_etw_stack_walking) {
+    sources += [
+      "src/diagnostics/etw-debug-win.h",
+      "src/diagnostics/etw-isolate-capture-state-monitor-win.h",
+      "src/diagnostics/etw-isolate-load-script-data-win.h",
+      "src/diagnostics/etw-isolate-operations-win.h",
+      "src/diagnostics/etw-jit-metadata-win.h",
+      "src/diagnostics/etw-jit-win.h",
+    ]
+  }
+
+  if (v8_enable_generated_code_validator) {
+    sources += [ "src/sandbox/generated-code-validator.h" ]
+  }
+
+  if (v8_fuzzilli) {
+    sources += [ "src/fuzzilli/fuzzilli.h" ]
+  }
+
+  if (v8_dumpling) {
+    sources += [
+      "src/dumpling/dumpling-manager.h",
+      "src/dumpling/object-dumping.h",
+    ]
+  }
+
+  if (v8_enable_vtunetracemark && (is_linux || is_chromeos || is_win)) {
+    sources += [ "src/extensions/vtunedomain-support-extension.h" ]
   }
 
   frameworks = []
@@ -5908,7 +5952,6 @@ if (!v8_enable_maglev) {
     "src/maglev/maglev-range-verification.cc",
     "src/maglev/maglev-truncation.cc",
     "src/maglev/turbolev-escape-analysis.cc",
-    "src/maglev/turbolev-escape-analysis.h",
   ]
 }
 
@@ -6086,6 +6129,9 @@ v8_cluster_source_set("v8_compiler_for_mksnapshot_source_set") {
 v8_cluster_source_set("v8_compiler") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
+  # Do not publicize any header to remove build dependency.
+  public = []
+
   if (v8_enable_turbofan) {
     sources = v8_compiler_sources
   } else {
@@ -6149,6 +6195,9 @@ v8_cluster_source_set("v8_base_without_compiler") {
     ":*",
     "tools/gcmole/:*",
   ]
+
+  # Do not publicize any header to remove build dependency.
+  public = []
 
   # Split static libraries on windows into two.
   split_count = 2
@@ -6263,6 +6312,7 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "src/compiler/linkage.cc",
     "src/date/date.cc",
     "src/date/dateparser.cc",
+    "src/debug/debug-block-list.cc",
     "src/debug/debug-coverage.cc",
     "src/debug/debug-evaluate.cc",
     "src/debug/debug-frames.cc",
@@ -6970,7 +7020,6 @@ v8_cluster_source_set("v8_base_without_compiler") {
       "src/codegen/mips64/assembler-mips64.cc",
       "src/codegen/mips64/constants-mips64.cc",
       "src/codegen/mips64/cpu-mips64.cc",
-      "src/codegen/mips64/interface-descriptors-mips64-inl.h",
       "src/codegen/mips64/macro-assembler-mips64.cc",
       "src/deoptimizer/mips64/deoptimizer-mips64.cc",
       "src/diagnostics/mips64/disasm-mips64.cc",
@@ -6985,7 +7034,6 @@ v8_cluster_source_set("v8_base_without_compiler") {
       "src/codegen/loong64/assembler-loong64.cc",
       "src/codegen/loong64/constants-loong64.cc",
       "src/codegen/loong64/cpu-loong64.cc",
-      "src/codegen/loong64/interface-descriptors-loong64-inl.h",
       "src/codegen/loong64/macro-assembler-loong64.cc",
       "src/deoptimizer/loong64/deoptimizer-loong64.cc",
       "src/diagnostics/loong64/disasm-loong64.cc",
@@ -7119,23 +7167,15 @@ v8_cluster_source_set("v8_base_without_compiler") {
   }
 
   # Architecture independent but platform-specific sources
-  if (is_win) {
-    if (v8_enable_etw_stack_walking) {
-      sources += [
-        "src/diagnostics/etw-debug-win.cc",
-        "src/diagnostics/etw-debug-win.h",
-        "src/diagnostics/etw-isolate-capture-state-monitor-win.cc",
-        "src/diagnostics/etw-isolate-capture-state-monitor-win.h",
-        "src/diagnostics/etw-isolate-load-script-data-win.cc",
-        "src/diagnostics/etw-isolate-load-script-data-win.h",
-        "src/diagnostics/etw-isolate-operations-win.cc",
-        "src/diagnostics/etw-isolate-operations-win.h",
-        "src/diagnostics/etw-jit-metadata-win.cc",
-        "src/diagnostics/etw-jit-metadata-win.h",
-        "src/diagnostics/etw-jit-win.cc",
-        "src/diagnostics/etw-jit-win.h",
-      ]
-    }
+  if (is_win && v8_enable_etw_stack_walking) {
+    sources += [
+      "src/diagnostics/etw-debug-win.cc",
+      "src/diagnostics/etw-isolate-capture-state-monitor-win.cc",
+      "src/diagnostics/etw-isolate-load-script-data-win.cc",
+      "src/diagnostics/etw-isolate-operations-win.cc",
+      "src/diagnostics/etw-jit-metadata-win.cc",
+      "src/diagnostics/etw-jit-win.cc",
+    ]
   }
 
   configs = [
@@ -7160,10 +7200,7 @@ v8_cluster_source_set("v8_base_without_compiler") {
   ]
 
   if (v8_enable_generated_code_validator) {
-    sources += [
-      "src/sandbox/generated-code-validator.cc",
-      "src/sandbox/generated-code-validator.h",
-    ]
+    sources += [ "src/sandbox/generated-code-validator.cc" ]
     if (v8_current_cpu == "x64") {
       deps += [ "//third_party/fadec" ]
       sources += [ "src/sandbox/generated-code-validator-x64.cc" ]
@@ -7188,19 +7225,14 @@ v8_cluster_source_set("v8_base_without_compiler") {
   }
 
   if (v8_fuzzilli) {
-    sources += [
-      "src/fuzzilli/fuzzilli.cc",
-      "src/fuzzilli/fuzzilli.h",
-    ]
+    sources += [ "src/fuzzilli/fuzzilli.cc" ]
     public_deps += [ ":fuzzilli_cov" ]
   }
 
   if (v8_dumpling) {
     sources += [
       "src/dumpling/dumpling-manager.cc",
-      "src/dumpling/dumpling-manager.h",
       "src/dumpling/object-dumping.cc",
-      "src/dumpling/object-dumping.h",
     ]
   }
 
@@ -7266,10 +7298,7 @@ v8_cluster_source_set("v8_base_without_compiler") {
   }
 
   if (v8_enable_vtunetracemark && (is_linux || is_chromeos || is_win)) {
-    sources += [
-      "src/extensions/vtunedomain-support-extension.cc",
-      "src/extensions/vtunedomain-support-extension.h",
-    ]
+    sources += [ "src/extensions/vtunedomain-support-extension.cc" ]
     deps += [ "third_party/vtune:v8_vtune_trace_mark" ]
   }
 }
@@ -7751,11 +7780,22 @@ v8_component("v8_libbase") {
   # TODO(infra): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
 }
 
-v8_component("v8_libplatform") {
+v8_header_set("v8_libplatform_headers") {
   sources = [
     "include/libplatform/libplatform-export.h",
     "include/libplatform/libplatform.h",
     "include/libplatform/v8-tracing.h",
+  ]
+
+  configs = [ ":internal_config_base" ]
+
+  public_configs = [ ":libplatform_config" ]
+
+  deps = [ ":v8_config_headers" ]
+}
+
+v8_component("v8_libplatform") {
+  sources = [
     "src/libplatform/default-foreground-task-runner.cc",
     "src/libplatform/default-foreground-task-runner.h",
     "src/libplatform/default-job.cc",
@@ -7792,7 +7832,7 @@ v8_component("v8_libplatform") {
 
   public_configs = [ ":libplatform_config" ]
 
-  public_deps = []
+  public_deps = [ ":v8_libplatform_headers" ]
 
   deps = [
     ":v8_config_headers",
@@ -7844,6 +7884,7 @@ v8_source_set("fuzzer_support") {
 
   public_deps = [
     ":v8",
+    ":v8_internal_headers",
     ":v8_libbase",
     ":v8_libplatform",
     ":v8_maybe_icu",
@@ -8009,7 +8050,7 @@ v8_header_set("cppgc_headers") {
 
   deps = [
     ":v8_libbase",
-    ":v8_libplatform",
+    ":v8_libplatform_headers",
   ]
 
   if (current_os == "zos" && is_component_build) {
@@ -8151,6 +8192,7 @@ v8_cluster_source_set("cppgc_base") {
 
   if (v8_use_perfetto) {
     sources += [
+      "include/v8-trace-categories.h",
       "src/tracing/perfetto-sdk.h",
       "src/tracing/trace-categories.cc",
       "src/tracing/trace-categories.h",
@@ -8219,6 +8261,7 @@ if (v8_enable_webassembly) {
   v8_static_library("wee8") {
     deps = [
       ":v8_base",
+      ":v8_internal_headers",
       ":v8_libbase",
       ":v8_libplatform",
       ":v8_shared_internal_headers",
@@ -8306,6 +8349,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_base_without_compiler",
       ":v8_compiler_for_mksnapshot",
       ":v8_init",
+      ":v8_internal_headers",
       ":v8_libbase",
       ":v8_libplatform",
       ":v8_maybe_icu",
@@ -8655,9 +8699,17 @@ if (is_component_build) {
   v8_component("v8") {
     sources = [ "src/utils/v8dll-main.cc" ]
 
-    public_deps = [
+    deps = [
       ":v8_base",
       ":v8_snapshot",
+    ]
+
+    public_deps = [
+      ":cppgc_headers",
+      ":v8_abseil",
+      ":v8_headers",
+      ":v8_libplatform",
+      "src/inspector:inspector_headers",
     ]
 
     configs = [ ":internal_config" ]
@@ -8673,11 +8725,14 @@ if (is_component_build) {
     sources = [ "src/utils/v8dll-main.cc" ]
 
     public_deps = [
+      ":cppgc_base",
       ":torque_base",
       ":torque_ls_base",
       ":v8_base",
       ":v8_headers",
+      ":v8_internal_headers",
       ":v8_snapshot",
+      "src/inspector:inspector_headers",
     ]
 
     if (v8_enable_turbofan) {
@@ -8691,10 +8746,14 @@ if (is_component_build) {
   }
 
   v8_component("cppgc") {
-    public_deps = [ ":cppgc_base" ]
+    deps = [ ":cppgc_base" ]
+    public_deps = [
+      ":cppgc_headers",
+      ":v8_libplatform",
+    ]
 
     if (!cppgc_is_standalone) {
-      deps = [ ":v8" ]
+      deps += [ ":v8" ]
     }
 
     configs = []
@@ -8722,9 +8781,16 @@ if (is_component_build) {
   }
 } else {
   group("v8") {
-    public_deps = [
+    deps = [
       ":v8_base",
       ":v8_snapshot",
+    ]
+    public_deps = [
+      ":cppgc_headers",
+      ":v8_abseil",
+      ":v8_headers",
+      ":v8_libplatform",
+      "src/inspector:inspector_headers",
     ]
 
     public_configs = [ ":external_config" ]
@@ -8734,10 +8800,14 @@ if (is_component_build) {
     testonly = true
 
     public_deps = [
+      ":cppgc_base",
       ":torque_base",
       ":torque_ls_base",
       ":v8_base",
+      ":v8_headers",
+      ":v8_internal_headers",
       ":v8_snapshot",
+      "src/inspector:inspector_headers",
     ]
 
     if (v8_enable_turbofan) {
@@ -8749,10 +8819,14 @@ if (is_component_build) {
   }
 
   group("cppgc") {
-    public_deps = [ ":cppgc_base" ]
+    deps = [ ":cppgc_base" ]
+    public_deps = [
+      ":cppgc_headers",
+      ":v8_libplatform",
+    ]
 
     if (!cppgc_is_standalone) {
-      deps = [ ":v8" ]
+      deps += [ ":v8" ]
     }
 
     public_configs = [ ":external_config" ]
@@ -8807,6 +8881,7 @@ v8_executable("d8") {
 
   deps = [
     ":v8",
+    ":v8_internal_headers",
     ":v8_libbase",
     ":v8_libplatform",
     ":v8_simdutf",

@@ -8,19 +8,27 @@ function load_length(a) {
   return a.length;
 }
 
-const arrays = [];
-for (let i = 0; i < 11; i++) {
-  const A = class extends Array {};
-  arrays.push(new A());
-}
+class A1 extends Array {}
+class A2 extends Array {}
+class A3 extends Array {}
+class A4 extends Array {}
+class A5 extends Array {}
+
+let a1 = new A1();
+let a2 = new A2();
+let a3 = new A3();
+let a4 = new A4();
+let a5 = new A5();
 
 %PrepareFunctionForOptimization(load_length);
 
-// Warm up with all 11 maps
+// Warm up with all 5 maps
 for (let i = 0; i < 20; i++) {
-  for (const a of arrays) {
-    load_length(a);
-  }
+  load_length(a1);
+  load_length(a2);
+  load_length(a3);
+  load_length(a4);
+  load_length(a5);
 }
 
 // Assert that the feedback is homomorphic
@@ -34,9 +42,11 @@ if (fb !== undefined) {
 %OptimizeFunctionOnNextCall(load_length);
 
 // Test return values for arrays
-for (const a of arrays) {
-  assertEquals(0, load_length(a));
-}
+assertEquals(0, load_length(a1));
+assertEquals(0, load_length(a2));
+assertEquals(0, load_length(a3));
+assertEquals(0, load_length(a4));
+assertEquals(0, load_length(a5));
 
 assertOptimized(load_length);
 

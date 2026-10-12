@@ -478,11 +478,15 @@ Local<Value> Context::GetEmbedderData(int index) {
       I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
   int value_offset =
       I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
-  A value = I::ReadRawField<A>(embedder_data, value_offset);
 #ifdef V8_COMPRESS_POINTERS
-  // We read the full pointer value and then decompress it in order to avoid
-  // dealing with potential endianness issues.
-  value = I::DecompressTaggedField(embedder_data, static_cast<uint32_t>(value));
+  // The tagged payload lives in the low kTaggedSize half of the slot (at
+  // kTaggedPayloadOffset == 0). Read it as a 32-bit field so the correct half
+  // is picked on both little and big endian targets. A full width read plus
+  // truncation would return the CppHeap pointer half on big endian.
+  uint32_t compressed = I::ReadRawField<uint32_t>(embedder_data, value_offset);
+  A value = I::DecompressTaggedField(embedder_data, compressed);
+#else
+  A value = I::ReadRawField<A>(embedder_data, value_offset);
 #endif
 
   auto* isolate = I::GetCurrentIsolate();
@@ -501,11 +505,15 @@ V8_INLINE Local<Data> Context::GetEmbedderDataV2(int index) {
       I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
   int value_offset =
       I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
-  A value = I::ReadRawField<A>(embedder_data, value_offset);
 #ifdef V8_COMPRESS_POINTERS
-  // We read the full pointer value and then decompress it in order to avoid
-  // dealing with potential endianness issues.
-  value = I::DecompressTaggedField(embedder_data, static_cast<uint32_t>(value));
+  // The tagged payload lives in the low kTaggedSize half of the slot (at
+  // kTaggedPayloadOffset == 0). Read it as a 32-bit field so the correct half
+  // is picked on both little and big endian targets. A full-width read plus
+  // truncation would return the CppHeap pointer half on big endian.
+  uint32_t compressed = I::ReadRawField<uint32_t>(embedder_data, value_offset);
+  A value = I::DecompressTaggedField(embedder_data, compressed);
+#else
+  A value = I::ReadRawField<A>(embedder_data, value_offset);
 #endif
 
   auto* isolate = I::GetCurrentIsolate();

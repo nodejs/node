@@ -457,7 +457,7 @@ MaybeDirectHandle<Object> JSModuleNamespace::GetExport(
   }
 
   DirectHandle<Object> value(Cast<Cell>(*object)->value(), isolate);
-  if (IsTheHole(*value)) {
+  if (IsTdzHole(*value)) {
     // According to https://tc39.es/ecma262/#sec-InnerModuleLinking
     // step 10 and
     // https://tc39.es/ecma262/#sec-source-text-module-record-initialize-environment
@@ -511,7 +511,7 @@ Maybe<PropertyAttributes> JSModuleNamespace::GetPropertyAttributes(
   if (IsTheHole(*lookup)) return Just(ABSENT);
 
   DirectHandle<Object> value(Cast<Cell>(lookup)->value(), isolate);
-  if (IsTheHole(*value)) {
+  if (IsTdzHole(*value)) {
     isolate->Throw(*isolate->factory()->NewReferenceError(
         MessageTemplate::kNotDefined, name));
     return Nothing<PropertyAttributes>();

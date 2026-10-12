@@ -1151,5 +1151,58 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
   }
 }
 
+TEST_F(BackgroundMergeTest, MergeWithEval) {
+  v8_flags.verify_code_merge = true;
+
+  HandleScope handle_scope(isolate());
+  const char* source =
+      "var f = () => {"
+      "  'use strict';"
+      "  return eval('1');"
+      "};";
+  IndirectHandle<String> source_string =
+      isolate()
+          ->factory()
+          ->NewStringFromUtf8(base::CStrVector(source))
+          .ToHandleChecked();
+
+  ScriptCompiler::CompilationDetails compilation_details;
+  DirectHandle<SharedFunctionInfo> top_level_sfi =
+      Compiler::GetSharedFunctionInfoForScript(
+          isolate(), source_string, ScriptDetails(),
+          v8::ScriptCompiler::kNoCompileOptions,
+          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE,
+          &compilation_details)
+          .ToHandleChecked();
+  DirectHandle<Script> old_script(Cast<Script>(top_level_sfi->script()),
+                                  isolate());
+
+  DirectHandle<JSFunction> top_level =
+      Factory::JSFunctionBuilder{isolate(), top_level_sfi,
+                                 isolate()->native_context()}
+          .Build();
+  DirectHandle<JSObject> global(isolate()->context()->global_object(),
+                                isolate());
+  Execution::CallScript(isolate(), top_level, global,
+                        isolate()->factory()->empty_fixed_array())
+      .Check();
+
+  DirectHandle<JSFunction> f = Cast<JSFunction>(
+      JSObject::GetProperty(isolate(), global, "f").ToHandleChecked());
+  Execution::Call(isolate(), f, global, {}).Check();
+
+  ScriptStreamingData streamed_source(
+      std::make_unique<DummySourceStream>(source),
+      v8::ScriptCompiler::StreamedSource::UTF8);
+  ScriptCompiler::CompilationDetails details;
+  streamed_source.task = std::make_unique<i::BackgroundCompileTask>(
+      &streamed_source, isolate(), ScriptType::kClassic,
+      ScriptCompiler::CompileOptions::kNoCompileOptions, &details);
+
+  streamed_source.task->RunOnMainThread(isolate());
+  streamed_source.task->FinalizeScript(isolate(), source_string,
+                                       ScriptDetails(), old_script);
+}
+
 }  // namespace internal
 }  // namespace v8

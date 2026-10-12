@@ -42,7 +42,7 @@ assert_test_reassign_local(test_reassign_local());
 %OptimizeMaglevOnNextCall(test_reassign_local);
 assert_test_reassign_local(test_reassign_local());
 assertOptimized(test_reassign_local);
-assertTrue(isMaglevved(test_reassign_local));
+assertMaglevved(test_reassign_local);
 assert_test_reassign_local(test_reassign_local());
 %OptimizeFunctionOnNextCall(test_reassign_local);
 assert_test_reassign_local(test_reassign_local());

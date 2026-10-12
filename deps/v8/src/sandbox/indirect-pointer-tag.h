@@ -56,17 +56,20 @@ enum IndirectPointerTag : uint16_t {
   kWasmTrustedInstanceDataIndirectPointerTag = 4,
   kWasmDispatchTableIndirectPointerTag,
   kWasmSuspenderIndirectPointerTag,
-  kWasmExportedFunctionDataIndirectPointerTag,
-  kWasmCapiFunctionDataIndirectPointerTag,
   kRegExpDataIndirectPointerTag,
+  kDebugInfoIndirectPointerTag,
+
+  kFirstSFITrustedDataTag = kDebugInfoIndirectPointerTag + 1,
+  kWasmExportedFunctionDataIndirectPointerTag = kFirstSFITrustedDataTag,
+  kWasmCapiFunctionDataIndirectPointerTag,
   kInterpreterDataIndirectPointerTag,
   kUncompiledDataIndirectPointerTag,
-  kDebugInfoIndirectPointerTag,
   kBytecodeArrayIndirectPointerTag,
   // All code pointers share the same tag (pointing to Code objects). Their
   // instruction stream start is guarded by another tag (CodeEntrypointTag).
   kCodeIndirectPointerTag,
-  kLastPerIsolateTrustedPointerTag = kCodeIndirectPointerTag,
+  kLastSFITrustedDataTag = kCodeIndirectPointerTag,
+  kLastPerIsolateTrustedPointerTag = kLastSFITrustedDataTag,
 
   // The maximum tag in kAllIndirectPointerTags. Padded to a (pow2-1) to enable
   // fast, single-instruction bitwise untagging (see
@@ -173,6 +176,9 @@ constexpr IndirectPointerTagRange kAllIndirectPointerTagsIncludingUnpublished(
 constexpr IndirectPointerTagRange kWasmFunctionDataIndirectPointerTagRange(
     kWasmExportedFunctionDataIndirectPointerTag,
     kWasmCapiFunctionDataIndirectPointerTag);
+
+constexpr IndirectPointerTagRange kSFITrustedDataIndirectPointerRange(
+    kFirstSFITrustedDataTag, kLastSFITrustedDataTag);
 
 // The kAllIndirectPointerTags contains all regular tags including the code tag.
 static_assert(kAllIndirectPointerTags.Contains(kAllSharedIndirectPointerTags));

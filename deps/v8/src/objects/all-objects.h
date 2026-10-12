@@ -5,10 +5,15 @@
 #ifndef V8_OBJECTS_ALL_OBJECTS_H_
 #define V8_OBJECTS_ALL_OBJECTS_H_
 
-// This file reaches the declaration of every heap object. Keep this list to
+// This file includes every heap object header directly. Keep this list to
 // plain headers: tools/metagen parses it before generated instance types and
 // builtin definitions exist, and object layout generation only needs class
-// declarations. PRESUBMIT.py checks that the include closure stays complete.
+// declarations. PRESUBMIT.py checks that every V8_OBJECT header is listed.
+//
+// The includes must be direct because BUILD.gn declares only this file as an
+// input of the harvest. A header included through an intermediate header is
+// still harvested, but the intermediate is in neither the action's inputs nor
+// the depfile, so an incremental build keeps a stale instance-types.h.
 
 #include "src/ic/handler-configuration.h"
 #include "src/objects/abstract-code.h"
@@ -17,15 +22,19 @@
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments.h"
 #include "src/objects/bigint.h"
+#include "src/objects/bytecode-array.h"
 #include "src/objects/call-site-info.h"
 #include "src/objects/cell.h"
 #include "src/objects/code.h"
 #include "src/objects/compilation-cache-table.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/contexts.h"
+#include "src/objects/cpp-heap-external-object.h"
 #include "src/objects/cpp-heap-object-wrapper.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/debug-objects.h"
+#include "src/objects/deoptimization-data.h"
+#include "src/objects/dependent-code.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/elements.h"
@@ -34,17 +43,22 @@
 #include "src/objects/feedback-cell.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/field-index.h"
+#include "src/objects/fixed-array-base.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/fixed-primitive-array.h"
 #include "src/objects/foreign.h"
 #include "src/objects/free-space.h"
 #include "src/objects/hash-seed-wrapper.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/hole.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/instruction-stream.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-atomics-synchronization.h"
+#include "src/objects/js-collection-iterator.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-disposable-stack.h"
 #include "src/objects/js-function.h"
@@ -59,6 +73,7 @@
 #include "src/objects/js-regexp.h"
 #include "src/objects/js-shadow-realm.h"
 #include "src/objects/js-shared-array.h"
+#include "src/objects/js-struct.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects.h"
 #endif  // V8_TEMPORAL_SUPPORT
@@ -66,6 +81,7 @@
 #include "src/objects/literal-objects.h"
 #include "src/objects/lookup-cache.h"
 #include "src/objects/lookup.h"
+#include "src/objects/managed.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/megadom-handler.h"
@@ -76,6 +92,8 @@
 #include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table.h"
+#include "src/objects/pod-array.h"
+#include "src/objects/primitive-heap-object.h"
 #include "src/objects/promise.h"
 #include "src/objects/property-array.h"
 #include "src/objects/property-cell.h"

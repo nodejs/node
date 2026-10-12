@@ -24,11 +24,11 @@ test(array_double);
 
 %OptimizeMaglevOnNextCall(test);
 let res_smi = test(array_smi);
-assertTrue(isMaglevved(test));
+assertMaglevved(test);
 assertEquals([1, 2], res_smi);
 
 let res_double = test(array_double);
-assertTrue(isMaglevved(test));
+assertMaglevved(test);
 assertEquals([1.1, 2.2], res_double);
 
 // Now pass a different map (holey double) to trigger deopt if it was inlined
@@ -38,4 +38,4 @@ test(array_holey_double);
 
 // We want to see if it deopted.
 // If it deopted, isMaglevved should be false.
-assertFalse(isMaglevved(test));
+assertNotMaglevved(test);

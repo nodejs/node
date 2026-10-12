@@ -31,7 +31,7 @@ assert_test_lazy_override_builtin(test_lazy_override_builtin(Set));
 %OptimizeMaglevOnNextCall(test_lazy_override_builtin);
 assert_test_lazy_override_builtin(test_lazy_override_builtin(Set));
 assertOptimized(test_lazy_override_builtin);
-assertTrue(isMaglevved(test_lazy_override_builtin));
+assertMaglevved(test_lazy_override_builtin);
 assert_test_lazy_override_builtin(test_lazy_override_builtin(Set));
 %OptimizeFunctionOnNextCall(test_lazy_override_builtin);
 assert_test_lazy_override_builtin(test_lazy_override_builtin(Set));

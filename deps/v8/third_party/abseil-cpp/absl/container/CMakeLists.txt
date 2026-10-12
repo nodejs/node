@@ -39,7 +39,7 @@ absl_cc_library(
     absl::layout
     absl::memory
     absl::raw_logging_internal
-    absl::strings
+    absl::string_view
     absl::throw_delegate
     absl::type_traits
     absl::weakly_mixed_integer
@@ -59,7 +59,6 @@ absl_cc_library(
     absl::btree
     absl::cord
     absl::flat_hash_set
-    absl::strings
     absl::time
   TESTONLY
 )
@@ -83,6 +82,7 @@ absl_cc_test(
     absl::hash_testing
     absl::random_random
     absl::raw_logging_internal
+    absl::string_view
     absl::strings
     absl::test_allocator
     absl::test_instance_tracker
@@ -125,15 +125,15 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::compressed_tuple
     absl::algorithm
+    absl::compressed_tuple
     absl::config
     absl::core_headers
     absl::dynamic_annotations
     absl::hardening
     absl::iterator_traits_internal
-    absl::throw_delegate
     absl::memory
+    absl::throw_delegate
     absl::weakly_mixed_integer
   PUBLIC
 )
@@ -146,9 +146,9 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::fixed_array
     absl::config
     absl::exception_testing
+    absl::fixed_array
     absl::hash_testing
     absl::iterator_traits_test_helper_internal
     absl::memory
@@ -164,9 +164,9 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::fixed_array
     absl::config
     absl::exception_safety_testing
+    absl::fixed_array
     GTest::gmock_main
 )
 
@@ -202,8 +202,8 @@ absl_cc_library(
     absl::core_headers
     absl::hardening
     absl::inlined_vector_internal
-    absl::throw_delegate
     absl::memory
+    absl::throw_delegate
     absl::type_traits
     absl::weakly_mixed_integer
   PUBLIC
@@ -252,9 +252,9 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::inlined_vector
     absl::config
     absl::exception_safety_testing
+    absl::inlined_vector
     GTest::gmock_main
 )
 
@@ -293,11 +293,11 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::algorithm_container
     absl::container_memory
     absl::core_headers
     absl::hash_container_defaults
     absl::raw_hash_map
-    absl::algorithm_container
     absl::type_traits
   PUBLIC
 )
@@ -332,12 +332,12 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::container_memory
-    absl::hash_container_defaults
-    absl::raw_hash_set
     absl::algorithm_container
+    absl::container_memory
     absl::core_headers
+    absl::hash_container_defaults
     absl::memory
+    absl::raw_hash_set
     absl::type_traits
   PUBLIC
 )
@@ -358,7 +358,7 @@ absl_cc_test(
     absl::hash_container_defaults
     absl::hash_generator_testing
     absl::memory
-    absl::strings
+    absl::string_view
     absl::test_allocator
     absl::unordered_set_constructor_test
     absl::unordered_set_lookup_test
@@ -375,13 +375,13 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::algorithm_container
     absl::container_memory
     absl::core_headers
     absl::hash_container_defaults
+    absl::memory
     absl::node_slot_policy
     absl::raw_hash_map
-    absl::algorithm_container
-    absl::memory
     absl::type_traits
   PUBLIC
 )
@@ -413,13 +413,13 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::algorithm_container
     absl::container_memory
     absl::core_headers
     absl::hash_container_defaults
+    absl::memory
     absl::node_slot_policy
     absl::raw_hash_set
-    absl::algorithm_container
-    absl::memory
     absl::type_traits
   PUBLIC
 )
@@ -485,7 +485,7 @@ absl_cc_test(
     absl::config
     absl::container_memory
     absl::no_destructor
-    absl::strings
+    absl::string_view
     absl::test_instance_tracker
     absl::type_traits
     GTest::gmock_main
@@ -504,7 +504,7 @@ absl_cc_library(
     absl::container_common
     absl::cord
     absl::hash
-    absl::strings
+    absl::string_view
     absl::type_traits
   PUBLIC
 )
@@ -521,10 +521,10 @@ absl_cc_test(
     absl::cord_test_helpers
     absl::flat_hash_map
     absl::flat_hash_set
-    absl::hash_function_defaults
     absl::hash
+    absl::hash_function_defaults
     absl::random_random
-    absl::strings
+    absl::string_view
     GTest::gmock_main
 )
 
@@ -545,7 +545,7 @@ absl_cc_library(
     absl::meta
     absl::no_destructor
     absl::random_random
-    absl::strings
+    absl::string_view
   TESTONLY
 )
 
@@ -559,7 +559,7 @@ absl_cc_library(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::hash
-    absl::strings
+    absl::string_view
   TESTONLY
 )
 
@@ -584,8 +584,8 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::container_memory
     absl::common_policy_traits
+    absl::container_memory
     absl::meta
   PUBLIC
 )
@@ -726,13 +726,13 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::config
     absl::common_policy_traits
+    absl::config
     absl::container_memory
     absl::core_headers
     absl::raw_hash_set
-    absl::type_traits
     absl::throw_delegate
+    absl::type_traits
   PUBLIC
 )
 
@@ -843,6 +843,7 @@ absl_cc_test(
     absl::prefetch
     absl::random_random
     absl::raw_hash_set
+    absl::string_view
     absl::strings
     absl::test_allocator
     absl::test_instance_tracker
@@ -904,8 +905,8 @@ absl_cc_library(
     absl::core_headers
     absl::debugging_internal
     absl::meta
-    absl::strings
     absl::span
+    absl::strings
     absl::utility
   PUBLIC
 )
@@ -918,9 +919,9 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::layout
     absl::check
     absl::config
+    absl::layout
     absl::span
     absl::utility
     GTest::gmock_main
@@ -1099,9 +1100,9 @@ absl_cc_test(
   DEPS
     absl::flat_hash_map
     absl::flat_hash_set
+    absl::hashtablez_sampler
     absl::node_hash_map
     absl::node_hash_set
-    absl::hashtablez_sampler
     GTest::gmock_main
 )
 
@@ -1131,8 +1132,8 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
-     absl::container_common
      absl::config
+     absl::container_common
      absl::core_headers
      absl::flat_hash_set
 )
@@ -1147,11 +1148,11 @@ absl_cc_test(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
-    absl::linked_hash_set
     absl::config
-    absl::heterogeneous_lookup_testing
     absl::hash_generator_testing
     absl::hash_policy_testing
+    absl::heterogeneous_lookup_testing
+    absl::linked_hash_set
     absl::string_view
     absl::test_allocator
     absl::test_instance_tracker
@@ -1172,8 +1173,8 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
-     absl::container_common
      absl::config
+     absl::container_common
      absl::core_headers
      absl::flat_hash_set
      absl::throw_delegate
@@ -1189,12 +1190,12 @@ absl_cc_test(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
-    absl::linked_hash_map
     absl::config
     absl::exception_testing
-    absl::heterogeneous_lookup_testing
     absl::hash_generator_testing
     absl::hash_policy_testing
+    absl::heterogeneous_lookup_testing
+    absl::linked_hash_map
     absl::string_view
     absl::test_allocator
     absl::test_instance_tracker

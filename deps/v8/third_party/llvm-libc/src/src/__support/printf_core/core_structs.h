@@ -14,6 +14,7 @@
 #include "src/__support/CPP/string_view.h"
 #include "src/__support/CPP/type_traits.h"
 #include "src/__support/FPUtil/FPBits.h"
+#include "src/__support/macros/properties/types.h"
 #include "src/__support/printf_core/printf_config.h"
 
 #include <inttypes.h>
@@ -21,6 +22,22 @@
 
 namespace LIBC_NAMESPACE_DECL {
 namespace printf_core {
+
+template <typename CharT, char ascii_value> struct CharConstant {};
+
+template <char ascii_value> struct CharConstant<char, ascii_value> {
+  LIBC_INLINE_VAR static constexpr char value = ascii_value;
+};
+
+#if defined(LIBC_TYPES_WCHAR_T_IS_UTF32)
+template <char ascii_value> struct CharConstant<wchar_t, ascii_value> {
+  LIBC_INLINE_VAR static constexpr wchar_t value = ascii_value;
+};
+#endif // LIBC_TYPES_WCHAR_T_IS_UTF32
+
+template <typename CharT, char ascii_value>
+LIBC_INLINE_VAR constexpr CharT char_constant_v =
+    CharConstant<CharT, ascii_value>::value;
 
 // These length modifiers match the length modifiers in the format string, which
 // is why they are formatted differently from the rest of the file.
@@ -66,10 +83,10 @@ enum FormatFlags : uint8_t {
   //  locale_digits = 0x40,  // I
 };
 
-struct FormatSection {
+template <typename CharT> struct BasicFormatSection {
   bool has_conv;
 
-  cpp::string_view raw_string;
+  cpp::basic_string_view<CharT> raw_string;
 
   // Format Specifier Values
   FormatFlags flags = FormatFlags(0);
@@ -81,11 +98,11 @@ struct FormatSection {
   AnyFloatStorageType conv_val_raw;
   void *conv_val_ptr;
 
-  char conv_name;
+  CharT conv_name;
 
   // This operator is only used for testing and should be automatically
   // optimized out for release builds.
-  LIBC_INLINE bool operator==(const FormatSection &other) const {
+  LIBC_INLINE bool operator==(const BasicFormatSection &other) const {
     if (has_conv != other.has_conv)
       return false;
 
@@ -101,14 +118,18 @@ struct FormatSection {
             (conv_name == other.conv_name)))
         return false;
 
-      if (conv_name == 'p' || conv_name == 'n' || conv_name == 's')
+      if (conv_name == char_constant_v<CharT, 'p'> ||
+          conv_name == char_constant_v<CharT, 'n'> ||
+          conv_name == char_constant_v<CharT, 's'>)
         return (conv_val_ptr == other.conv_val_ptr);
-      else if (conv_name != '%')
+      else if (conv_name != char_constant_v<CharT, '%'>)
         return (conv_val_raw == other.conv_val_raw);
     }
     return true;
   }
 };
+
+using FormatSection = BasicFormatSection<char>;
 
 enum PrimaryType : uint8_t {
   Unknown = 0,

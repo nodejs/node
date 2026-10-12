@@ -17,6 +17,7 @@
 
 #include <cstddef>
 
+#include "absl/base/config.h"
 #include "absl/random/internal/platform.h"
 #include "absl/random/internal/randen_hwaes.h"
 #include "absl/random/internal/randen_slow.h"

@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 
+#include "src/compiler/heap-refs.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
@@ -175,7 +176,8 @@ class MaglevCompilationInfo final {
   bool trace_json_enabled() const { return trace_json_enabled_; }
 
   bool has_graph_labeller() const { return !!graph_labeller_; }
-  void set_graph_labeller(MaglevGraphLabeller* graph_labeller);
+  V8_EXPORT_PRIVATE void set_graph_labeller(
+      MaglevGraphLabeller* graph_labeller);
   MaglevGraphLabeller* graph_labeller() const {
     DCHECK(has_graph_labeller());
     return graph_labeller_.get();
@@ -190,6 +192,17 @@ class MaglevCompilationInfo final {
 
   bool specialize_to_function_context() const {
     return specialize_to_function_context_;
+  }
+
+  void InitializeSpecializationContext();
+
+  compiler::OptionalContextRef specialization_context() const {
+    DCHECK(specialization_context_initialized_);
+    return specialization_context_;
+  }
+  size_t specialization_context_distance() const {
+    DCHECK(specialization_context_initialized_);
+    return specialization_context_distance_;
   }
 
   // Must be called from within a MaglevCompilationHandleScope. Transfers owned
@@ -279,6 +292,12 @@ class MaglevCompilationInfo final {
   // opportunities, but prevents code sharing between different function
   // contexts.
   const bool specialize_to_function_context_;
+
+  compiler::OptionalContextRef specialization_context_;
+  size_t specialization_context_distance_ = 0;
+#ifdef DEBUG
+  bool specialization_context_initialized_ = false;
+#endif
 
   // 1) PersistentHandles created via PersistentHandlesScope inside of
   //    CompilationHandleScope.

@@ -202,12 +202,16 @@
   'regress/regress-crbug-808192': [PASS, SLOW, NO_VARIANTS, ['arch not in (ia32, x64)', SKIP], ['tsan', SKIP]],
   'regress/regress-crbug-918301': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
   'regress/regress-crbug-1276923': [PASS, SLOW],
+  # Builds a chain of 80000 functions, which takes minutes with dchecks.
+  'regress/regress-crbug-388320179': [PASS, ['mode != release', SKIP]],
   'regress/regress-390568195': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['arch != x64', SKIP]],
   'regress/regress-447613219': [PASS, SLOW],
   'regress/regress-494583765' : [PASS, SLOW],
   'regress/regress-7558019': [PASS, SLOW],
   'regress/regress-499721612': [PASS, SLOW],
   'regress/regress-498010834': [PASS, SLOW],
+  'regress/regress-506499280-extended': [PASS, SLOW],
+  'regress/regress-558568713': [PASS, SLOW, NO_VARIANTS],
   'regress/regress-rab-proto-oob': [PASS, SLOW, ['tsan', SKIP]],
   'regress/regress-crbug-503557995-b': [PASS, ['mode != release or simulator_run', SKIP]],
   'regress/wasm/regress-810973': [PASS, SLOW],
@@ -265,6 +269,7 @@
   'regress/regress-1034322': [PASS, HEAVY, NO_VARIANTS, ['mode != release', SKIP]],
   'regress/regress-1320641': [PASS, HEAVY],
   'regress/regress-1447343': [PASS, HEAVY],
+  'regress/wasm/regress-523591366': [PASS, HEAVY],
   'wasm/grow-huge-memory': [PASS, HEAVY],
   'wasm/grow-huge-memory-resizable-buffer': [PASS, HEAVY],
   'wasm/huge-memory': [PASS, HEAVY],
@@ -909,7 +914,7 @@
   'wasm/memory-control': [SKIP],
   'regress/wasm/regress-493307331': [SKIP],
 
-  # --experimental-wasm-acquire-release
+  # --wasm-acquire-release
   'wasm/acq-rel-fence': [SKIP],
   'wasm/acq-rel-load-and-store': [SKIP],
   'wasm/acq-rel-rmw-operations': [SKIP],
@@ -1069,6 +1074,7 @@
   'regress/wasm/regress-521064735': [SKIP],
   'regress/wasm/regress-524830496': [SKIP],
   'regress/wasm/regress-536581698': [SKIP],
+  'regress/wasm/regress-565565747': [SKIP],
   'wasm/shared-everything/*': [SKIP],
   'wasm/subtyping-invalid': [SKIP],
 
@@ -1145,7 +1151,7 @@
   'regress/wasm/regress-simd-520944504': [SKIP],
   'wasm/wide-arithmetic': [SKIP],
 
-  # --experimental-wasm-imported-strings-utf8
+  # --wasm-imported-strings-utf8
   'regress/wasm/regress-525472599': [SKIP],
 
   # --wasm-deopt
@@ -1303,6 +1309,12 @@
 ['arch != arm64', {
   'wasm/half-shuffles': [SKIP],
   'wasm/redundant-shuffle-lanes': [SKIP],
+  'wasm/interleaved-loads': [SKIP],
+  'regress/wasm/regress-simd-467479137': [SKIP],
+  'regress/wasm/regress-simd-549328680': [SKIP],
+  'regress/wasm/regress-simd-549328680-2': [SKIP],
+  'regress/wasm/regress-simd-511097641': [SKIP],
+  'regress/wasm/regress-simd-525600038': [SKIP],
 }],
 
 ##############################################################################
@@ -1321,32 +1333,10 @@
   'regexp-tier-up-multiple': [SKIP],
   'regress/regress-996234': [SKIP],
 
-  # These tests rely on TurboFan being enabled.
+  # These tests rely on TurboFan being enabled and suppress flag contradiction
+  # checks (--flag-processing-mode=ignore-contradictions or --fuzzing).
   'ensure-growing-store-learns': [SKIP],
-  'compiler/call-with-arraylike-or-spread*': [SKIP],
-  'compiler/fast-api-calls': [SKIP],
-  'compiler/fast-api-attributes': [SKIP],
-  'compiler/fast-api-interface-types': [SKIP],
-  'compiler/fast-api-deopt': [SKIP],
-  'regress/regress-505551322': [SKIP],
-  'regress/regress-508672637': [SKIP],
-  'regress/regress-fast-api-uint64-negative': [SKIP],
-  'compiler/regress-crbug-1201011': [SKIP],
-  'compiler/regress-crbug-1201057': [SKIP],
-  'compiler/regress-crbug-1201082': [SKIP],
-  'compiler/regress-331909453': [SKIP],
-  'compiler/regress-crbug-1457532': [SKIP],
   'regress/regress-390675705': [SKIP],
-  'regress/regress-395028748': [SKIP],
-  'regress/regress-424627229': [SKIP],
-  'regress/regress-438321229': [SKIP],
-
-  'wasm/fast-api-calls-with-wellknown-imports*': [SKIP],
-  'regress/wasm/regress-368086282': [SKIP],
-  'regress/wasm/regress-438770394': [SKIP],
-
-  'maglev/extras-cped': [SKIP],
-  'turboshaft/extras-cped': [SKIP],
 
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
@@ -1403,6 +1393,7 @@
   'tzoffset-transition-moscow': [PASS,FAIL],
   'tzoffset-transition-new-york': [PASS,FAIL],
   'tzoffset-seoul': [PASS,FAIL],
+  'tzoffset-fractional-los-angeles': [PASS,FAIL],
 
   # i18n is required for Intl
   'regress/regress-crbug-1052647': [PASS,FAIL],
@@ -1464,6 +1455,7 @@
   'regress/regress-1320641': [SKIP],
   'regress/regress-354626177': [SKIP],
   'regress/wasm/regress-398439335': [SKIP],
+  'regress/wasm/regress-523591366': [SKIP],
   'turbolev/regress-488090094': [SKIP],
   'turbolev/dataview-deopt-oob': [SKIP],
   'maglev/regress-498816446-3': [SKIP],
@@ -1933,6 +1925,7 @@
   'tzoffset-transition-new-york': [SKIP],
   'tzoffset-transition-new-york-noi18n': [SKIP],
   'tzoffset-seoul': [SKIP],
+  'tzoffset-fractional-los-angeles': [SKIP],
   'tzoffset-seoul-noi18n': [SKIP],
 
   # Suspect to stress other tests when run in background.
@@ -1961,6 +1954,7 @@
   'tzoffset-transition-new-york': [SKIP],
   'tzoffset-transition-new-york-noi18n': [SKIP],
   'tzoffset-seoul': [SKIP],
+  'tzoffset-fractional-los-angeles': [SKIP],
   'tzoffset-seoul-noi18n': [SKIP],
   # Flaky OOM:
   'regress/regress-748069': [SKIP],
@@ -2137,6 +2131,8 @@
 
   # Too slow.
   'wasm/futex': [SKIP],
+  # Builds a chain of 80000 functions; times out on the tsan bot.
+  'regress/regress-crbug-388320179': [SKIP],
 
   # https://crbug.com/496520250
   'maglev/regress-494492520': [SKIP],
@@ -2213,6 +2209,10 @@
 
   # https://crbug.com/556584687
   'turboshaft/regress-508265328-*': [SKIP],
+
+  # https://crbug.com/564743658
+  # Flag implications override the flag setting in the test.
+  'wasm/multiple-code-spaces': [SKIP],
 }], # num_fuzzer
 
 ##############################################################################
@@ -2496,29 +2496,9 @@
 
 ##############################################################################
 ['variant == nooptimization', {
-
-  # Tests that depend on optimization (beyond doing assertOptimized).
+  # Uses --flag-processing-mode=ignore-contradictions, which suppresses the
+  # flag contradiction error with --turbofan.
   'ensure-growing-store-learns': [SKIP],
-  'regress/regress-1049982-1': [SKIP],
-  'regress/regress-1049982-2': [SKIP],
-
-  'maglev/extras-cped': [SKIP],
-  'turboshaft/extras-cped': [SKIP],
-
-  # Wasm serialization relies on TurboFan to be available, hence does not work
-  # in the 'nooptimization' variant.
-  'regress/wasm/regress-7785': [SKIP],
-
-  # Tests that require wasm tier up.
-  'wasm/recognize-imports': [SKIP],
-  'wasm/speculative-inlining': [SKIP],
-  'wasm/wasm-dynamic-tiering': [SKIP],
-  'regress/wasm/regress-1179065': [SKIP],
-  'regress/wasm/regress-334687959': [SKIP],
-
-  # These tests require Turbolev (--turbofan) which nooptimization disables.
-  'wasm/wasm-wrapper-inlining-turbolev': [SKIP],
-  'wasm/wrapper-inlining-lazy-deopt-turbolev': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################
@@ -2573,9 +2553,22 @@
 
 ##############################################################################
 ['system != linux', {
-  # Multi-mapped mock allocator is only available on Linux.
+  # Multi-mapped mock allocator is only available on Linux. These tests allocate
+  # >2 GiB ArrayBuffer backing stores (exceeding PartitionAlloc's max allocation
+  # size) and access elements beyond the single OS page allocated by
+  # --mock-arraybuffer-allocator.
+  'maglev/regress-525732296': [SKIP],
+  'maglev/typed-array-length-index-into-typed-array': [SKIP],
+  'maglev/typed-array-length-index-into-typed-array-large': [SKIP],
+  'regress/regress-499527555': [SKIP],
+  'regress/regress-499527555-2': [SKIP],
+  'regress/regress-509312809': [SKIP],
   'regress/regress-crbug-1041232': [SKIP],
   'regress/regress-crbug-1104608': [SKIP],
+  'turbolev/dataview-deopt-oob': [SKIP],
+  'turbolev/regress-488090094': [SKIP],
+  'turbolev/typed-array-length-index-into-typed-array': [SKIP],
+  'turbolev/typed-array-length-index-into-typed-array-large': [SKIP],
 
   # WebAssembly memory control is only implemented on Linux so far.
   'wasm/memory-control': [SKIP],
@@ -2949,6 +2942,7 @@
   'regress/wasm/regress-483269968': [SKIP],
   'regress/wasm/regress-543901836': [SKIP],
   'regress/wasm/regress-560536735': [SKIP],
+  'regress/wasm/regress-561660149': [SKIP],
   'compiler/regress-347724915': [SKIP],
   'regress/regress-crbug-418520151': [SKIP],
   'regress/regress-535000102': [SKIP],
@@ -3281,9 +3275,24 @@
 ['sandbox_hardware_support', {
   # Skip tests for unsupported features. See https://crbug.com/428674890.
 
-  # Multi-mapped mock allocator is not currently supported.
+  # Multi-mapped mock allocator is not currently supported with hardware
+  # sandboxing (mremap overwrites the sandbox pkey on the remapped pages).
+  # These tests allocate >2 GiB ArrayBuffer backing stores (exceeding
+  # PartitionAlloc's max allocation size) and access elements beyond the single
+  # OS page allocated by --mock-arraybuffer-allocator.
+  'maglev/regress-525732296': [SKIP],
+  'maglev/typed-array-length-index-into-typed-array': [SKIP],
+  'maglev/typed-array-length-index-into-typed-array-large': [SKIP],
+  'regress/regress-499527555': [SKIP],
+  'regress/regress-499527555-2': [SKIP],
+  'regress/regress-509312809': [SKIP],
   'regress/regress-crbug-1041232': [SKIP],
+  'regress/regress-crbug-1104608': [SKIP],
   'regress/regress-crbug-1209152': [SKIP],
+  'turbolev/dataview-deopt-oob': [SKIP],
+  'turbolev/regress-488090094': [SKIP],
+  'turbolev/typed-array-length-index-into-typed-array': [SKIP],
+  'turbolev/typed-array-length-index-into-typed-array-large': [SKIP],
 
   # Wasm code coverage is not currently supported.
   'regress/wasm/regress-488943662': [SKIP],

@@ -1603,6 +1603,9 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
   F(StructWait, const Value& struct_obj, const FieldImmediate& imm,            \
     const Value& waitqueue, const Value& expected_value,                       \
     const Value& timeout_ns, Value* result)                                    \
+  F(ArrayWait, const Value& array_obj, const ArrayIndexImmediate& imm,         \
+    const Value& waitqueue, const Value& index, const Value& expected_value,   \
+    const Value& timeout_ns, Value* result)                                    \
   F(WaitqueueNotify, const Value& waitqueue, const Value& max_waiters,         \
     Value* result)                                                             \
   F(ArrayGet, const Value& array_obj, const ArrayIndexImmediate& imm,          \
@@ -2844,6 +2847,11 @@ class WasmDecoder : public Decoder {
             FieldImmediate field(decoder, pc + length, validate);
             (ios.Field(field), ...);
             return length + field.length;
+          }
+          case kExprArrayWait: {
+            ArrayIndexImmediate array(decoder, pc + length, validate);
+            (ios.TypeIndex(array), ...);
+            return length + array.length;
           }
           case kExprArrayAtomicGet:
           case kExprArrayAtomicGetS:
@@ -7410,7 +7418,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length + field.length + memory_order.length;
       }
       case kExprStructWait: {
-        // TODO(475455008): Implement other field types.
         CHECK_PROTOTYPE_OPCODE(shared);
         NON_CONST_ONLY
         FieldImmediate field(this, this->pc_ + opcode_length, validate);
@@ -7419,23 +7426,61 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         const StructType* struct_type = field.struct_imm.struct_type;
         ValueType field_type = struct_type->field(field.field_imm.index);
-        if (field_type != kWasmI32) {
+        if (!VALIDATE(field_type == kWasmI32 || field_type == kWasmI64 ||
+                      IsSubtypeOf(field_type.AsNonShared(), kWasmEqRef,
+                                  this->module_))) {
           this->DecodeError(
-              "%s: Field %d of type %d must be of type i32, found %s "
-              "instead",
+              "%s: Field %d of type %d must be of type i32, i64, or subtype "
+              "of eqref, found %s instead",
               WasmOpcodes::OpcodeName(opcode), field.struct_imm.index,
               field.field_imm.index, field_type.name().c_str());
           return 0;
         }
 
+        ValueType expected_type =
+            field_type.is_ref()
+                ? (field_type.is_shared() ? kWasmSharedEqRef : kWasmEqRef)
+                : field_type;
         auto [struct_obj, waitqueue, expected_value, timeout_ns] =
             Pop(ValueType::RefNull(field.struct_imm.heap_type()),
-                kWasmWaitqueueRef, kWasmI32, kWasmI64);
+                kWasmWaitqueueRef, expected_type, kWasmI64);
         Value* result = Push(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StructWait, struct_obj, field,
                                            waitqueue, expected_value,
                                            timeout_ns, result);
         return opcode_length + field.length;
+      }
+      case kExprArrayWait: {
+        CHECK_PROTOTYPE_OPCODE(shared);
+        NON_CONST_ONLY
+        ArrayIndexImmediate imm(this, this->pc_ + opcode_length, validate);
+        if (!this->Validate(this->pc_ + opcode_length, imm)) {
+          return 0;
+        }
+        ValueType element_type = imm.array_type->element_type();
+        if (!VALIDATE(element_type == kWasmI32 || element_type == kWasmI64 ||
+                      IsSubtypeOf(element_type.AsNonShared(), kWasmEqRef,
+                                  this->module_))) {
+          this->DecodeError(
+              "%s: Array type %d must have element type i32, i64, or subtype "
+              "of eqref, found %s instead",
+              WasmOpcodes::OpcodeName(opcode), imm.index.index,
+              element_type.name().c_str());
+          return 0;
+        }
+
+        ValueType expected_type =
+            element_type.is_ref()
+                ? (element_type.is_shared() ? kWasmSharedEqRef : kWasmEqRef)
+                : element_type;
+        auto [array_obj, waitqueue, index, expected_value, timeout_ns] =
+            Pop(ValueType::RefNull(imm.heap_type()), kWasmWaitqueueRef,
+                kWasmI32, expected_type, kWasmI64);
+        Value* result = Push(kWasmI32);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayWait, array_obj, imm, waitqueue,
+                                           index, expected_value, timeout_ns,
+                                           result);
+        return opcode_length + imm.length;
       }
       case kExprWaitqueueNotify: {
         CHECK_PROTOTYPE_OPCODE(shared);

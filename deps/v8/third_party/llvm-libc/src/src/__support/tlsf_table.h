@@ -32,7 +32,7 @@ struct DefaultFreeStoreConfig {
   static constexpr size_t UNIT_SIZE = BlockRef::MIN_ALIGN;
   static constexpr size_t STEP_SIZE_BITS = 3;
   static constexpr size_t NUM_STEP_BITS = 2;
-  static constexpr size_t NUM_TABLE_ENTRIES = sizeof(uintptr_t) == 8 ? 3 : 6;
+  static constexpr size_t NUM_TABLE_ENTRIES = 3;
   static constexpr bool USE_TRIE_FOR_OVERFLOW_BIN = true;
   static constexpr size_t LINEAR_SCAN_LIMIT = 16;
 };

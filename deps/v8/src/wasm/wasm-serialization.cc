@@ -1255,7 +1255,7 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
   DirectHandle<Script> script =
       wasm_engine->GetOrCreateScript(isolate, shared_native_module, source_url);
   DirectHandle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, shared_native_module, script);
+      WasmModuleObject::New(isolate, script);
 
   // Finish the Wasm script now and make it public to the debugger.
   isolate->debug()->OnAfterCompile(script);

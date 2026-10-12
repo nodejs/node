@@ -65,6 +65,43 @@ static bool SpecializeToFunctionContext(
 
 }  // namespace
 
+void MaglevCompilationInfo::InitializeSpecializationContext() {
+#ifdef DEBUG
+  specialization_context_initialized_ = true;
+#endif
+  if (!v8_flags.always_specialize_for_script_context || toplevel_is_osr()) {
+    return;
+  }
+  compiler::JSFunctionRef func_ref = compiler::MakeRefAssumeMemoryFence(
+      broker_, broker_->CanonicalPersistentHandle(toplevel_function_));
+  compiler::ContextRef current = func_ref.context(broker_);
+  if (current.map(broker_).instance_type() == NATIVE_CONTEXT_TYPE) {
+    return;
+  }
+  if (specialize_to_function_context_) {
+    specialization_context_ = current;
+    specialization_context_distance_ = 0;
+    return;
+  }
+  size_t distance = 0;
+  while (true) {
+    InstanceType instance_type = current.map(broker_).instance_type();
+    if (instance_type == NATIVE_CONTEXT_TYPE) {
+      break;
+    }
+    if (instance_type == MODULE_CONTEXT_TYPE ||
+        instance_type == SCRIPT_CONTEXT_TYPE) {
+      specialization_context_ = current;
+      specialization_context_distance_ = distance;
+      return;
+    }
+    size_t step = 1;
+    current = current.previous(broker_, &step);
+    if (step != 0) break;
+    distance++;
+  }
+}
+
 MaglevCompilationInfo::MaglevCompilationInfo(
     Isolate* isolate, IndirectHandle<JSFunction> function,
     BytecodeOffset osr_offset, std::optional<compiler::JSHeapBroker*> js_broker,

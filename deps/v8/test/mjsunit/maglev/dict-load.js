@@ -30,7 +30,7 @@ assertEquals("safe_value", getTargetField(dictObj));
 // Trigger Maglev optimization.
 %OptimizeMaglevOnNextCall(getTargetField);
 assertEquals("safe_value", getTargetField(dictObj));
-assertTrue(isMaglevved(getTargetField));
+assertMaglevved(getTargetField);
 
 // Test the fallback path: Value change.
 dictObj.target_property = "updated_value";

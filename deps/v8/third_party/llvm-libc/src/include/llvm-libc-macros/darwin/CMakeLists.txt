@@ -3,3 +3,9 @@ add_header(
   HDR
     time-macros.h
 )
+
+add_header(
+  signal_macros
+  HDR
+    signal-macros.h
+)

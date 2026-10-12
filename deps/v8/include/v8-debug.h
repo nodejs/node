@@ -109,6 +109,12 @@ class V8_EXPORT StackFrame {
    * Returns whether or not the associated function is defined by the user.
    */
   bool IsUserJavaScript() const;
+
+  /**
+   * Returns whether the script was compiled with resource_is_opaque set in its
+   * ScriptOrigin.
+   */
+  bool IsScriptOpaque() const;
 };
 
 /**

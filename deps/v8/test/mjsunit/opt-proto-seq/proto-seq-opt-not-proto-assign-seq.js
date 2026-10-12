@@ -48,7 +48,7 @@ assert_test_not_proto_assign_seq(test_not_proto_assign_seq());
 %OptimizeMaglevOnNextCall(test_not_proto_assign_seq);
 assert_test_not_proto_assign_seq(test_not_proto_assign_seq());
 assertOptimized(test_not_proto_assign_seq);
-assertTrue(isMaglevved(test_not_proto_assign_seq));
+assertMaglevved(test_not_proto_assign_seq);
 assert_test_not_proto_assign_seq(test_not_proto_assign_seq());
 %OptimizeFunctionOnNextCall(test_not_proto_assign_seq);
 assert_test_not_proto_assign_seq(test_not_proto_assign_seq());

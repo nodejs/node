@@ -928,16 +928,17 @@ class V8_EXPORT ScriptCompiler {
       Local<String> full_source_string, const ScriptOrigin& origin);
 
   /**
-   * Return a version tag for CachedData for the current V8 version & flags.
+   * Return a version tag for CachedData for the current V8 version, embedder
+   * version string, and flags.
    *
    * This value is meant only for determining whether a previously generated
    * CachedData instance is still valid; the tag has no other meaing.
    *
    * Background: The data carried by CachedData may depend on the exact
-   *   V8 version number or current compiler flags. This means that when
-   *   persisting CachedData, the embedder must take care to not pass in
-   *   data from another V8 version, or the same version with different
-   *   features enabled.
+   *   V8 version number, embedder version string, or current compiler flags.
+   *   This means that when persisting CachedData, the embedder must take care
+   *   to not pass in data from another V8 build, or the same build with
+   *   different features enabled.
    *
    *   The easiest way to do so is to clear the embedder's cache on any
    *   such change.

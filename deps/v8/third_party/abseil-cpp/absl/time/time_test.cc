@@ -14,34 +14,35 @@
 
 #include "absl/time/time.h"
 
-#include "absl/base/config.h"
-
-// For feature testing and determining which headers can be included.
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
-#include <version>
-#endif
-
 #include <chrono>  // NOLINT(build/c++11)
-#ifdef __cpp_lib_three_way_comparison
-#include <compare>
-#endif  // __cpp_lib_three_way_comparison
 #include <cstdint>
 #include <cstring>
 #include <ctime>
 #include <iomanip>
 #include <ios>
 #include <limits>
+#include <ratio>  // NOLINT(build/c++11)
 #include <string>
 #include <type_traits>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/str_format.h"
 #include "absl/time/civil_time.h"
 #include "absl/time/clock.h"
 #include "absl/time/internal/test_util.h"
+
+// For feature testing and determining which headers can be included.
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+#include <version>
+#endif
+
+#ifdef __cpp_lib_three_way_comparison
+#include <compare>
+#endif  // __cpp_lib_three_way_comparison
 
 #if defined(_MSC_VER)
 #include <winsock2.h>  // for timeval

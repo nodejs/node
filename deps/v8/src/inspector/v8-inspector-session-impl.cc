@@ -507,6 +507,10 @@ void V8InspectorSessionImpl::setSkipAllPauses(bool skip) {
   m_debuggerAgent->setSkipAllPauses(skip);
 }
 
+void V8InspectorSessionImpl::setSkipAllPausesForInternalUse(bool skip) {
+  m_debuggerAgent->setSkipAllPausesForInternalUse(skip);
+}
+
 void V8InspectorSessionImpl::resume(bool terminateOnResume) {
   m_debuggerAgent->resume(terminateOnResume);
 }

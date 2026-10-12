@@ -15,10 +15,10 @@ assertEquals(1, f());
 
 %OptimizeMaglevOnNextCall(f);
 assertEquals(1, f());
-assertTrue(isMaglevved(f));
+assertMaglevved(f);
 
 // Trigger a lazy deopt now, so that f() deopts on its next call.
 x = 2;
-assertFalse(isMaglevved(f));
+assertNotMaglevved(f);
 assertUnoptimized(f);
 assertEquals(2, f());

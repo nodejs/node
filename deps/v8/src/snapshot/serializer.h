@@ -323,6 +323,9 @@ class Serializer : public SerializerDeserializer {
     return (flags_ &
             Snapshot::kReconstructReadOnlyAndSharedObjectCachesForTesting) != 0;
   }
+  bool allow_serializing_all_trusted_objects() const {
+    return (flags_ & Snapshot::kAllowSerializingAllTrustedObjects) != 0;
+  }
 
   bool deferred_objects_empty() { return deferred_objects_.size() == 0; }
 

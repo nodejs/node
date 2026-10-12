@@ -1167,6 +1167,8 @@ constexpr IndependentHeapType kWasmExnRef{GenericKind::kExn};
 constexpr IndependentHeapType kWasmSharedExnRef{GenericKind::kExn, kNullable,
                                                 SharedFlag{true}};
 constexpr IndependentHeapType kWasmEqRef{GenericKind::kEq};
+constexpr IndependentHeapType kWasmSharedEqRef{GenericKind::kEq, kNullable,
+                                               SharedFlag{true}};
 constexpr IndependentHeapType kWasmI31Ref{GenericKind::kI31};
 constexpr IndependentHeapType kWasmRefI31{GenericKind::kI31, kNonNullable};
 constexpr IndependentHeapType kWasmStructRef{GenericKind::kStruct};

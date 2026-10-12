@@ -19,6 +19,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -165,9 +166,7 @@ TEST(BindTest, StoreByPointer) {
   EXPECT_EQ(&s.value, &g());
 }
 
-int Sink(std::unique_ptr<int> p) {
-  return *p;
-}
+int Sink(std::unique_ptr<int> p) { return *p; }
 
 std::unique_ptr<int> Factory(int n) { return std::make_unique<int>(n); }
 

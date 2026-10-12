@@ -60,9 +60,10 @@ inspector_protocol_generate("protocol_generated_sources") {
 }
 
 config("inspector_config") {
-  # Only targets in this file and v8_internal_headers can depend on this.
   visibility = [
     ":*",
+    "../..:v8",
+    "../..:v8_headers",
     "../..:v8_internal_headers",
   ]
   include_dirs = [ "$target_gen_dir/../../include" ]
@@ -75,12 +76,34 @@ config("inspector_internal_config") {
   include_dirs = [ "../../include" ]
 }
 
+v8_header_set("inspector_headers") {
+  configs = [ ":inspector_internal_config" ]
+  public_configs = [ ":inspector_config" ]
+
+  public_deps = [
+    ":protocol_generated_sources",
+    "../..:cppgc_headers",
+    "../..:v8_headers",
+  ]
+
+  sources = [
+    "$target_gen_dir/../../include/inspector/Debugger.h",
+    "$target_gen_dir/../../include/inspector/Runtime.h",
+    "$target_gen_dir/../../include/inspector/Schema.h",
+    "../../include/v8-inspector-protocol.h",
+    "../../include/v8-inspector.h",
+  ]
+}
+
 v8_header_set("inspector_test_headers") {
   configs = [ ":inspector_internal_config" ]
 
   public_deps = [ "../..:v8_headers" ]
 
-  sources = [ "test-interface.h" ]
+  sources = [
+    "../../src/sandbox/cppheap-pointer-tag.h",
+    "test-interface.h",
+  ]
 }
 
 v8_source_set("inspector_string_conversions") {
@@ -101,6 +124,7 @@ v8_source_set("inspector") {
   ]
 
   public_deps = [
+    ":inspector_headers",
     ":inspector_test_headers",
     ":protocol_generated_sources",
     "../../:v8_libbase",
@@ -111,10 +135,6 @@ v8_source_set("inspector") {
   public_configs = [ ":inspector_config" ]
 
   sources = rebase_path(_protocol_generated, ".", target_gen_dir)
-  sources += [
-    "../../include/v8-inspector-protocol.h",
-    "../../include/v8-inspector.h",
-  ]
   sources += [
     "crc32.cc",
     "crc32.h",

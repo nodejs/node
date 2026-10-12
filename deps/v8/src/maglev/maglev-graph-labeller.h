@@ -102,7 +102,7 @@ class MaglevGraphLabeller {
   int next_node_label_ = 1;
 };
 
-class MaglevGraphLabellerScope {
+class V8_EXPORT_PRIVATE MaglevGraphLabellerScope {
  public:
   explicit MaglevGraphLabellerScope(MaglevGraphLabeller* graph_labeller);
   ~MaglevGraphLabellerScope();

@@ -296,13 +296,11 @@ MinorMarkSweepCollector::MinorMarkSweepCollector(Heap* heap)
       sweeper_(heap_->sweeper()) {}
 
 void MinorMarkSweepCollector::PerformWrapperTracing() {
-  auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
-  if (!cpp_heap) return;
-
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_EMBEDDER_TRACING);
   local_marking_worklists()->PublishCppHeapObjects();
-  cpp_heap->AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX,
-                           StackState::kMayContainHeapPointers);
+  CppHeap::From(heap_->cpp_heap_)
+      ->AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX,
+                       StackState::kMayContainHeapPointers);
 }
 
 MinorMarkSweepCollector::~MinorMarkSweepCollector() = default;
@@ -330,9 +328,7 @@ void MinorMarkSweepCollector::FinishConcurrentMarking() {
   CHECK(heap_->concurrent_marking()->IsStopped());
   heap_->tracer()->SampleConcurrencyEsimate(
       heap_->concurrent_marking()->FetchAndResetConcurrencyEstimate());
-  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
-    cpp_heap->FinishConcurrentMarkingIfNeeded();
-  }
+  CppHeap::From(heap_->cpp_heap_)->FinishConcurrentMarkingIfNeeded();
 }
 
 #ifdef DEBUG
@@ -371,7 +367,7 @@ void MinorMarkSweepCollector::StartMarking(bool force_use_background_threads) {
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
   // CppHeap's marker must be initialized before the V8 marker to allow
   // exchanging of worklists.
-  if (cpp_heap && cpp_heap->generational_gc_supported()) {
+  if (cpp_heap->generational_gc_supported()) {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_EMBEDDER_PROLOGUE);
     cpp_heap->InitializeMarking(CppHeap::CollectionType::kMinor);
   }
@@ -432,9 +428,7 @@ void MinorMarkSweepCollector::CollectGarbage() {
   is_in_atomic_pause_.store(true, std::memory_order_relaxed);
 
   MarkLiveObjects();
-  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
-    cpp_heap->ProcessCrossThreadWeakness();
-  }
+  CppHeap::From(heap_->cpp_heap_)->ProcessCrossThreadWeakness();
   ClearNonLiveReferences();
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
@@ -444,9 +438,7 @@ void MinorMarkSweepCollector::CollectGarbage() {
   }
 #endif  // VERIFY_HEAP
 
-  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
-    cpp_heap->FinishMarkingAndProcessWeakness();
-  }
+  CppHeap::From(heap_->cpp_heap_)->FinishMarkingAndProcessWeakness();
 
   Sweep();
   Finish();
@@ -526,8 +518,7 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
              GCTracer::Scope::MINOR_MS_CLEAR_WEAK_GLOBAL_HANDLES);
     isolate->global_handles()->ProcessWeakYoungObjects(
         nullptr, &IsUnmarkedObjectInYoungGeneration);
-    if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
-        cpp_heap && cpp_heap->generational_gc_supported()) {
+    if (CppHeap::From(heap_->cpp_heap_)->generational_gc_supported()) {
       isolate->traced_handles()->ResetYoungDeadNodes(
           &IsUnmarkedObjectInYoungGeneration);
     } else {
@@ -614,8 +605,8 @@ void VisitObjectWithCppHeapPointerField(
 void MinorMarkSweepCollector::MarkRootsFromTracedHandles(
     YoungGenerationRootMarkingVisitor& root_visitor) {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_TRACED_HANDLES);
-  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
-      cpp_heap && cpp_heap->generational_gc_supported()) {
+  auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
+  if (cpp_heap->generational_gc_supported()) {
     // Visit the Oilpan-to-V8 remembered set.
     heap_->isolate()->traced_handles()->IterateAndMarkYoungRootsWithOldHosts(
         &root_visitor);
@@ -723,9 +714,8 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
   MarkRoots(root_visitor, was_marked_incrementally);
 
   // CppGC starts parallel marking tasks that will trace TracedReferences.
-  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
-    cpp_heap->EnterFinalPause(heap_->embedder_stack_state_);
-  }
+  CppHeap::From(heap_->cpp_heap())
+      ->EnterFinalPause(heap_->embedder_stack_state_);
 
   {
     // Mark the transitive closure in parallel.
@@ -748,9 +738,7 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_CLOSURE);
-    if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
-      cpp_heap->EnterProcessGlobalAtomicPause();
-    }
+    CppHeap::From(heap_->cpp_heap())->EnterProcessGlobalAtomicPause();
     DrainMarkingWorklist();
   }
   CHECK(local_marking_worklists()->IsEmpty());

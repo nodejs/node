@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "absl/base/config.h"
 #include "absl/time/time.h"
 
 namespace absl {

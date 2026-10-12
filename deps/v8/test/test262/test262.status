@@ -768,7 +768,6 @@
 # Roll-watcher patch
 [ALWAYS, {
   'language/destructuring/binding/keyed-destructuring-property-reference-target-evaluation-order-with-bindings': [SKIP],
-  'language/expressions/delete/super-property-uninitialized-this': [SKIP],
 }],
 # End roll-watcher patch
 ####
@@ -1240,6 +1239,20 @@
   'built-ins/Iterator/prototype/windows/windows-size-3': [SKIP],
   'built-ins/Iterator/prototype/windows/yields-distinct-arrays': [SKIP],
   'staging/source-phase-imports/module-source-prototype-chain': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/Locale/constructor-options-firstDayOfWeek-valid': [SKIP],
+  'intl402/Locale/constructor-unicode-extension-uvalue-yes': [SKIP],
+  'intl402/Locale/prototype/calendar/canonicalize-case': [SKIP],
+  'intl402/Locale/prototype/collation/canonicalize-case': [SKIP],
+  'intl402/Locale/prototype/firstDayOfWeek/valid-id': [SKIP],
+  'intl402/Locale/prototype/firstDayOfWeek/valid-options': [SKIP],
+  'intl402/Locale/prototype/numberingSystem/canonicalize-case': [SKIP],
 }],
 # End roll-watcher patch
 ####

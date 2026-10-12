@@ -68,7 +68,7 @@ struct StackTrace {
 // This test is currently only known to pass on Linux x86_64/aarch64.
 #if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
 ABSL_ATTRIBUTE_NOINLINE void Unwind(void* p) {
-  ABSL_ATTRIBUTE_UNUSED static void* volatile sink = p;
+  [[maybe_unused]] static void* volatile sink = p;
   constexpr int kSize = 16;
   void* stack[kSize];
   int frames[kSize];

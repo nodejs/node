@@ -59,7 +59,10 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
   TRACE(this, "Constructing heap broker");
 }
 
-JSHeapBroker::~JSHeapBroker() { DCHECK_NULL(local_isolate_); }
+JSHeapBroker::~JSHeapBroker() {
+  DCHECK_NULL(local_isolate_);
+  DCHECK_NULL(js_function_cache_worklist_);
+}
 
 std::string JSHeapBroker::Trace() const {
   std::ostringstream oss;
@@ -667,7 +670,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
             script_context_index, kAcquireLoad));
 
     OptionalObjectRef contents = context.get(broker, context_slot_index);
-    if (contents.has_value()) CHECK(!contents->IsTheHole());
+    if (contents.has_value()) CHECK(!contents->IsTdzHole());
 
     return *zone()->New<GlobalAccessFeedback>(
         context, context_slot_index,

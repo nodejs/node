@@ -351,22 +351,14 @@ macro BufferJoin(implicit context: Context)(buffer: Buffer, sep: String):
 
 transitioning macro FastArrayJoin(
     implicit context: Context)(kind: constexpr ElementsKind,
-    array: FastJSArrayForRead, sep: String, lengthNumber: Number): String
+    array: FastJSArrayForRead, sep: String, length: Smi): String
     labels Bailout {
   // Check early if the separators might overflow.
-  let len: uintptr = Convert<uintptr>(lengthNumber);
-  // Fast array length is guaranteed to fit in Smi.
-  dcheck(len <= Convert<uintptr>(kFixedArrayMaxLength));
-  static_assert(Convert<uintptr>(kFixedArrayMaxLength) < kSmiMaxValue);
-  // If separatorLength <= 1, fast arrays cannot overflow the separator counter
-  // or exceed kStringMaxLength from separators alone, because their maximum
-  // length is bounded by kMaxFastArrayLength (32MB) which is much smaller
-  // than kStringMaxLength (268MB/536MB). Thus we only need to perform checks
-  // if separatorLength > 1.
-  static_assert(
-      (Convert<uintptr>(kFixedArrayMaxLength) - 1) <=
-      Convert<uintptr>(kStringMaxLength));
-
+  let len: uintptr = Convert<uintptr>(length);
+  dcheck(len <= kStringMaxLengthUintptr);
+  // If separatorLength <= 1, separators alone cannot overflow kStringMaxLength
+  // because length <= kStringMaxLength. Thus we only need to perform checks if
+  // separatorLength > 1.
   const separatorLength: intptr = sep.length_intptr;
   if (separatorLength > 1 && len > 1) {
     const lenInt: int32 = Convert<int32>(Signed(len));
@@ -881,6 +873,11 @@ transitioning builtin ArrayPrototypeJoinImpl(
   dcheck(len <= kMaxArrayLength);
 
   try {
+    const smiLen: Smi = Cast<Smi>(len) otherwise Fallback;
+    // FastArrayJoin relies on len <= kStringMaxLength to guarantee that
+    // separators with length <= 1 cannot overflow the maximum string length.
+    if (smiLen > kStringMaxLength) goto Fallback;
+
     const castResult = CastFastJSArrayForRead(o) otherwise Fallback;
     const fastO = castResult.object;
     const elementsKind = castResult.elementsKind;
@@ -888,32 +885,32 @@ transitioning builtin ArrayPrototypeJoinImpl(
     if (IsFastSmiElementsKind(elementsKind)) {
       if (IsHoleyFastElementsKind(elementsKind)) {
         return FastArrayJoin(
-            ElementsKind::HOLEY_SMI_ELEMENTS, fastO, separator, len)
+            ElementsKind::HOLEY_SMI_ELEMENTS, fastO, separator, smiLen)
             otherwise Fallback;
       } else {
         return FastArrayJoin(
-            ElementsKind::PACKED_SMI_ELEMENTS, fastO, separator, len)
+            ElementsKind::PACKED_SMI_ELEMENTS, fastO, separator, smiLen)
             otherwise Fallback;
       }
 
     } else if (IsDoubleElementsKind(elementsKind)) {
       if (IsHoleyFastElementsKind(elementsKind)) {
         return FastArrayJoin(
-            ElementsKind::HOLEY_DOUBLE_ELEMENTS, fastO, separator, len)
+            ElementsKind::HOLEY_DOUBLE_ELEMENTS, fastO, separator, smiLen)
             otherwise Fallback;
       } else {
         return FastArrayJoin(
-            ElementsKind::PACKED_DOUBLE_ELEMENTS, fastO, separator, len)
+            ElementsKind::PACKED_DOUBLE_ELEMENTS, fastO, separator, smiLen)
             otherwise Fallback;
       }
     } else if (IsFastElementsKind(elementsKind)) {
       if (IsHoleyFastElementsKind(elementsKind)) {
         return FastArrayJoin(
-            ElementsKind::HOLEY_ELEMENTS, fastO, separator, len)
+            ElementsKind::HOLEY_ELEMENTS, fastO, separator, smiLen)
             otherwise Fallback;
       } else {
         return FastArrayJoin(
-            ElementsKind::PACKED_ELEMENTS, fastO, separator, len)
+            ElementsKind::PACKED_ELEMENTS, fastO, separator, smiLen)
             otherwise Fallback;
       }
     }

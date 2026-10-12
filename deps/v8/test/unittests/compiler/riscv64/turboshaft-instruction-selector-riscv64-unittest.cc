@@ -191,11 +191,12 @@ const IntCmp kUnsignedCmpInstructions[] = {
     {{TSBinop::kWord64NotEqual, "Word64NotEqual", kRiscvCmp,
       MachineType::Int64()},
      1U},
-    {{TSBinop::kWord32Equal, "Word32Equal", kRiscvCmp, MachineType::Int32()},
-     3},
-    {{TSBinop::kWord32NotEqual, "Word32NotEqual", kRiscvCmp,
+    {{TSBinop::kWord32Equal, "Word32Equal", kRiscvCmp32Eq,
       MachineType::Int32()},
-     3},
+     1},
+    {{TSBinop::kWord32NotEqual, "Word32NotEqual", kRiscvCmp32Eq,
+      MachineType::Int32()},
+     1},
     {{TSBinop::kUint32LessThan, "Uint32LessThan", kRiscvCmp,
       MachineType::Uint32()},
      3},
@@ -349,47 +350,20 @@ TEST_P(TurboshaftInstructionSelectorUnsignedCmpTest, Parameter) {
   StreamBuilder m(this, type, type, type);
   m.Return(m.Emit(cmp.mi.op, m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
-  if (v8_flags.debug_code &&
-      type.representation() == MachineRepresentation::kWord32 &&
-      cmp.expected_size == 1) {
-    ASSERT_EQ(6U, s.size());
-
-    EXPECT_EQ(cmp.mi.arch_opcode, s[0]->arch_opcode());
+  ASSERT_EQ(cmp.expected_size, s.size());
+  if (cmp.expected_size == 3) {
+    // Non-equality 32-bit compares are normalized with two Shl64.
+    EXPECT_EQ(kRiscvShl64, s[0]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
 
     EXPECT_EQ(kRiscvShl64, s[1]->arch_opcode());
     EXPECT_EQ(2U, s[1]->InputCount());
     EXPECT_EQ(1U, s[1]->OutputCount());
-
-    EXPECT_EQ(kRiscvShl64, s[2]->arch_opcode());
-    EXPECT_EQ(2U, s[2]->InputCount());
-    EXPECT_EQ(1U, s[2]->OutputCount());
-
-    EXPECT_EQ(cmp.mi.arch_opcode, s[3]->arch_opcode());
-    EXPECT_EQ(2U, s[3]->InputCount());
-    EXPECT_EQ(1U, s[3]->OutputCount());
-
-    EXPECT_EQ(kRiscvAssertEqual, s[4]->arch_opcode());
-
-    EXPECT_EQ(cmp.mi.arch_opcode, s[5]->arch_opcode());
-    EXPECT_EQ(2U, s[5]->InputCount());
-    EXPECT_EQ(1U, s[5]->OutputCount());
-  } else {
-    ASSERT_EQ(cmp.expected_size, s.size());
-    if (cmp.expected_size == 3) {
-      EXPECT_EQ(kRiscvShl64, s[0]->arch_opcode());
-      EXPECT_EQ(2U, s[0]->InputCount());
-      EXPECT_EQ(1U, s[0]->OutputCount());
-
-      EXPECT_EQ(kRiscvShl64, s[1]->arch_opcode());
-      EXPECT_EQ(2U, s[1]->InputCount());
-      EXPECT_EQ(1U, s[1]->OutputCount());
-    }
-    EXPECT_EQ(cmp.mi.arch_opcode, s[cmp.expected_size - 1]->arch_opcode());
-    EXPECT_EQ(2U, s[0]->InputCount());
-    EXPECT_EQ(1U, s[0]->OutputCount());
   }
+  EXPECT_EQ(cmp.mi.arch_opcode, s[cmp.expected_size - 1]->arch_opcode());
+  EXPECT_EQ(2U, s[cmp.expected_size - 1]->InputCount());
+  EXPECT_EQ(1U, s[cmp.expected_size - 1]->OutputCount());
 }
 
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
@@ -690,16 +664,19 @@ TEST_F(TurboshaftInstructionSelectorTest, ChangesFromToSmi) {
   }
 }
 
-TEST_F(TurboshaftInstructionSelectorTest, ChangesFloat32ToUin64) {
+TEST_F(TurboshaftInstructionSelectorTest, ChangesFloat32ToUint64) {
   {
     StreamBuilder m(this, MachineType::Uint64(), MachineType::Float32());
     m.Return(m.Emit(TSUnop::kChangeUint32ToUint64,
                     m.Emit(TSUnop::kBitcastFloat32ToWord32, m.Parameter(0))));
     Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kRiscvBitcastDL, s[0]->arch_opcode());
-    ASSERT_EQ(1U, s[0]->InputCount());
-    EXPECT_EQ(1U, s[0]->OutputCount());
+    // The bitcast is materialized with fmv.x.w (sign-extending), then
+    // zext.w zero-extends, as required by ChangeUint32ToUint64.
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kRiscvBitcastFloat32ToInt32, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvZeroExtendWord, s[1]->arch_opcode());
+    ASSERT_EQ(1U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
   }
 }
 
@@ -1456,6 +1433,43 @@ TEST_F(TurboshaftInstructionSelectorTest, Word64EqualWithZero) {
   }
 }
 
+// Word32 equality/inequality is lowered to a single kRiscvCmp32Eq (subw +
+// zero test) instead of two Shl64 + kRiscvCmp.
+TEST_F(TurboshaftInstructionSelectorTest, Word32EqualUsesSub32) {
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32());
+    m.Return(m.Emit(TSBinop::kWord32Equal, m.Parameter(0), m.Parameter(1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kRiscvCmp32Eq, s[0]->arch_opcode());
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+    EXPECT_EQ(kEqual, s[0]->flags_condition());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_TRUE(s[0]->InputAt(1)->IsUnallocated());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32());
+    m.Return(m.Emit(TSBinop::kWord32NotEqual, m.Parameter(0), m.Parameter(1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kRiscvCmp32Eq, s[0]->arch_opcode());
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+  }
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word32EqualWithConstantUsesSub32) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+  m.Return(m.Emit(TSBinop::kWord32Equal, m.Parameter(0), m.Int32Constant(42)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kRiscvCmp32Eq, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+}
+
 // TEST_F(TurboshaftInstructionSelectorTest, Word32Clz) {
 //   StreamBuilder m(this, MachineType::Uint32(), MachineType::Uint32());
 //   auto p0 = m.Parameter(0);
@@ -1829,7 +1843,7 @@ TEST_F(TurboshaftInstructionSelectorTest, Word32EqualWithReadOnlyRoot) {
   Stream s = m.Build();
 
   ASSERT_EQ(1u, s.size());
-  EXPECT_EQ(kRiscvCmp32, s[0]->arch_opcode());
+  EXPECT_EQ(kRiscvCmp32Eq, s[0]->arch_opcode());
   ASSERT_EQ(2u, s[0]->InputCount());
   EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
 }

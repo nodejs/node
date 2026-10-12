@@ -602,6 +602,10 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references, int pc_offset) {
   }
 }
 
+void CodeGenerator::RecordSafepointWithoutTaggedSlots() {
+  safepoints()->DefineSafepoint(masm());
+}
+
 bool CodeGenerator::IsMaterializableFromRoot(Handle<HeapObject> object,
                                              RootIndex* index_return) {
   const CallDescriptor* incoming_descriptor =

@@ -492,6 +492,9 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   virtual bool HasLocationInfo() = 0;
   virtual debug::Location GetStartLocation() = 0;
   virtual debug::Location GetEndLocation() = 0;
+  // Whether the scope declares any variables (even if their values are not
+  // available). Scopes that don't are reported as empty.
+  virtual bool DeclaresLocals() = 0;
 
   virtual bool SetVariableValue(v8::Local<v8::String> name,
                                 v8::Local<v8::Value> value) = 0;

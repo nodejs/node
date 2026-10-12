@@ -112,7 +112,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // rax: Number of arguments.
     Generate_PushArguments(masm, rbx, rax, rcx, ArgumentsElementType::kRaw);
     // The receiver for the builtin/api call.
-    __ PushRoot(RootIndex::kTheHoleValue);
+    __ PushRoot(RootIndex::kTdzHoleValue);
 
     // Call the function.
     // rax: number of arguments (untagged)
@@ -211,9 +211,9 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ CallBuiltin(Builtin::kFastNewObject);
   __ jmp(&post_instantiation_deopt_entry, Label::kNear);
 
-  // Else: use TheHoleValue as receiver for constructor call
+  // Else: use TdzHoleValue as receiver for constructor call
   __ bind(&not_create_implicit_receiver);
-  __ LoadRoot(rax, RootIndex::kTheHoleValue);
+  __ LoadRoot(rax, RootIndex::kTdzHoleValue);
 
   // ----------- S t a t e -------------
   //  -- rax                          implicit receiver
@@ -282,7 +282,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // on-stack receiver as the result.
   __ bind(&use_receiver);
   __ movq(rax, Operand(rsp, 0 * kSystemPointerSize));
-  __ JumpIfRoot(rax, RootIndex::kTheHoleValue, &do_throw, Label::kNear);
+  __ JumpIfRoot(rax, RootIndex::kTdzHoleValue, &do_throw, Label::kNear);
 
   __ bind(&leave_and_return);
   // Restore the arguments count.
@@ -1599,14 +1599,14 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ EnterFrame(StackFrame::FAST_CONSTRUCT);
   __ Push(rsi);
   // Implicit receiver stored in the construct frame.
-  __ PushRoot(RootIndex::kTheHoleValue);
+  __ PushRoot(RootIndex::kTdzHoleValue);
 
   // Push arguments + implicit receiver.
   Register argc_without_receiver = r11;
   __ leaq(argc_without_receiver, Operand(rax, -kJSArgcReceiverSlots));
   GenerateInterpreterPushArgs(masm, argc_without_receiver, rcx, r12);
   // Implicit receiver as part of the arguments (patched later if needed).
-  __ PushRoot(RootIndex::kTheHoleValue);
+  __ PushRoot(RootIndex::kTdzHoleValue);
 
   // Check if it is a builtin call.
   Label builtin_call;
@@ -1664,7 +1664,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ bind(&use_receiver);
   __ movq(rax,
           Operand(rbp, FastConstructFrameConstants::kImplicitReceiverOffset));
-  __ JumpIfRoot(rax, RootIndex::kTheHoleValue, &do_throw, Label::kNear);
+  __ JumpIfRoot(rax, RootIndex::kTdzHoleValue, &do_throw, Label::kNear);
 
   __ bind(&leave_and_return);
   __ LeaveFrame(StackFrame::FAST_CONSTRUCT);
@@ -1962,16 +1962,13 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       // Save incoming new target or generator
       __ Push(new_target);
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-      // No need to SmiTag as dispatch handles always look like Smis.
-      static_assert(kJSDispatchHandleShift > 0);
-      __ AssertSmi(kJavaScriptCallDispatchHandleRegister);
-      __ Push(kJavaScriptCallDispatchHandleRegister);
+      __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
 #endif
       __ SmiTag(frame_size);
       __ Push(frame_size);
       __ CallRuntime(Runtime::kStackGuardWithGap, 1);
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-      __ Pop(kJavaScriptCallDispatchHandleRegister);
+      __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
 #endif
       __ Pop(new_target);
     }

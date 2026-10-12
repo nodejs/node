@@ -25,4 +25,4 @@ foo(ta, 0, undefined);
 assertEquals(0, ta[0]);
 // Without the fix this would deopt on every call, so the function would no
 // longer be Maglev-optimized here.
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);

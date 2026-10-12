@@ -167,6 +167,7 @@ v8_executable("corruption_harness") {
 
   deps = [
     "../..:v8",
+    "../..:v8_internal_headers",
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "../..:v8_tracing",

@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdint>
 #include <thread>  // NOLINT(build/c++11)
 #include <tuple>
 #include <vector>
@@ -23,6 +24,7 @@
 #include "absl/base/internal/sysinfo.h"
 #include "absl/container/fixed_array.h"
 #include "absl/time/clock.h"
+#include "absl/time/time.h"
 
 namespace {
 

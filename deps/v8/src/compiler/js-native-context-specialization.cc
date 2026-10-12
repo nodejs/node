@@ -2317,9 +2317,9 @@ Reduction JSNativeContextSpecialization::ReduceJSDefineNamedOwnProperty(
   JSDefineNamedOwnPropertyNode n(node);
   DefineNamedOwnPropertyParameters const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
-  return ReducePropertyAccess(node, nullptr, p.name(), n.value(),
-                              FeedbackSource(p.feedback()),
-                              AccessMode::kStoreInLiteral);
+  return ReducePropertyAccess(
+      node, nullptr, p.name(), n.value(), FeedbackSource(p.feedback()),
+      p.in_literal() ? AccessMode::kStoreInLiteral : AccessMode::kDefine);
 }
 
 Reduction JSNativeContextSpecialization::ReduceElementAccessOnString(
@@ -3408,7 +3408,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
               AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer()),
           storage, effect, control);
     }
-    if (access_info.IsFastDataConstant() && access_mode == AccessMode::kStore &&
+    if (access_info.IsFastDataConstant() &&
+        access_mode != AccessMode::kStoreInLiteral &&
         !access_info.HasTransitionMap()) {
       Node* deoptimize = graph()->NewNode(
           simplified()->CheckIf(DeoptimizeReason::kStoreToConstant),

@@ -5,7 +5,6 @@
 #ifndef V8_BASE_MEMCOPY_H_
 #define V8_BASE_MEMCOPY_H_
 
-#include <limits.h>
 #include <stdlib.h>
 
 #include <algorithm>

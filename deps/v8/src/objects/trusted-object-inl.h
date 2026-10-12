@@ -107,7 +107,8 @@ void ExposedTrustedObject::InitDontPublish(Isolate* isolate) {
 #ifdef V8_ENABLE_SANDBOX
   i::InitSelfIndirectPointerField(
       reinterpret_cast<Address>(&self_indirect_pointer_), isolate, this,
-      kUnpublishedIndirectPointerTag, nullptr);
+      kUnpublishedIndirectPointerTag,
+      isolate->trusted_pointer_publishing_scope());
 #endif
 }
 

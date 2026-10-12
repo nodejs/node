@@ -15,8 +15,12 @@
 #ifndef ABSL_CONTAINER_INTERNAL_UNORDERED_SET_LOOKUP_TEST_H_
 #define ABSL_CONTAINER_INTERNAL_UNORDERED_SET_LOOKUP_TEST_H_
 
+#include <type_traits>
+#include <vector>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/container/internal/hash_generator_testing.h"
 #include "absl/container/internal/hash_policy_testing.h"
 

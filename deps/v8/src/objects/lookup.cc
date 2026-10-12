@@ -672,6 +672,9 @@ void LookupIterator::PrepareTransitionToDataProperty(
   DCHECK_IMPLIES(!receiver.is_identical_to(GetStoreTarget<JSReceiver>()),
                  name_for_transition()->IsAnyPrivateName());
   DCHECK(!IsAlwaysSharedSpaceJSObject(*receiver));
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(!IsWasmObject(*receiver));
+#endif
   if (state_ == TRANSITION) return;
 
   if (!IsElement() && name_for_transition()->IsAnyPrivate()) {

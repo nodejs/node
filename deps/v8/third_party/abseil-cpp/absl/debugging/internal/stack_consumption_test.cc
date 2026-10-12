@@ -15,6 +15,8 @@
 
 #include "absl/debugging/internal/stack_consumption.h"
 
+#include "absl/base/config.h"
+
 #ifdef ABSL_INTERNAL_HAVE_DEBUGGING_STACK_CONSUMPTION
 
 #include <string.h>

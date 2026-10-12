@@ -563,8 +563,10 @@ class KnownNodeAspects {
   }
 
   void Merge(const KnownNodeAspects& other, Zone* zone);
-  void MergeForLoop(const KnownNodeAspects& backedge, Zone* zone,
-                    const LoopEffects* loop_effects);
+  V8_EXPORT_PRIVATE void MergeForLoop(const KnownNodeAspects& backedge,
+                                      Zone* zone,
+                                      const LoopEffects* loop_effects,
+                                      bool loop_has_effects);
 
   // If IsCompatibleWithLoopHeader(other) returns true, it means that
   // Merge(other) would not remove any information from `this`.

@@ -91,8 +91,7 @@ DirectHandle<JSObject> JSCollator::ResolvedOptions(
   DirectHandle<JSObject> options =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  CppGCManaged<icu::Collator>::Ptr icu_collator =
-      collator->icu_collator()->ptr();
+  Managed<icu::Collator>::Ptr icu_collator = collator->icu_collator()->ptr();
   DCHECK_NOT_NULL(icu_collator);
 
   UErrorCode status = U_ZERO_ERROR;
@@ -574,8 +573,8 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
     DCHECK(U_SUCCESS(status));
   }
 
-  DirectHandle<CppGCManaged<icu::Collator>> managed_collator =
-      CppGCManaged<icu::Collator>::Create(isolate, 0, std::move(icu_collator));
+  DirectHandle<Managed<icu::Collator>> managed_collator =
+      Managed<icu::Collator>::From(isolate, 0, std::move(icu_collator));
 
   Maybe<std::string> maybe_locale_str = Intl::ToLanguageTag(icu_locale);
   MAYBE_RETURN(maybe_locale_str, MaybeHandle<JSCollator>());

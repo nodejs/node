@@ -29,6 +29,9 @@ namespace internal {
     return isolate()->roots_table().name();     \
   }
 READ_ONLY_ROOT_LIST(RO_ROOT_ACCESSOR)
+#ifndef V8_ENABLE_TDZ_HOLE
+RO_ROOT_ACCESSOR(TdzHole, tdz_hole_value, TdzHoleValue)
+#endif
 #undef ROOT_ACCESSOR
 
 #define MUTABLE_ROOT_ACCESSOR(Type, name, CamelName)     \

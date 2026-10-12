@@ -22,6 +22,7 @@
 
 #include <atomic>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/tracing.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/synchronization/mutex.h"

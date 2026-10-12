@@ -113,12 +113,12 @@ assert_test_private_fields(test_private_fields());
 
 assert_test_private_fields(test_private_fields());
 
-// assertTrue(isMaglevved(TestClass.prototype.setPrivate));
-// assertTrue(isMaglevved(TestClass.prototype.getPrivate));
-// assertTrue(isMaglevved(TestClass.prototype.incPrivate));
-// assertTrue(isMaglevved(TestClass.prototype.add2Private));
-// assertTrue(isMaglevved(TestClass.prototype.force_context_depth));
-// assertTrue(isMaglevved(test_private_fields));
+// assertMaglevved(TestClass.prototype.setPrivate);
+// assertMaglevved(TestClass.prototype.getPrivate);
+// assertMaglevved(TestClass.prototype.incPrivate);
+// assertMaglevved(TestClass.prototype.add2Private);
+// assertMaglevved(TestClass.prototype.force_context_depth);
+// assertMaglevved(test_private_fields);
 
 assert_test_private_fields(test_private_fields());
 

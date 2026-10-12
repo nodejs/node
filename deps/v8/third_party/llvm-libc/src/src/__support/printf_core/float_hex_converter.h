@@ -47,8 +47,8 @@ get_float_hex_exp_fp_bits_properties(AnyFloatStorageType float_raw) {
   };
 }
 
-template <WriteMode write_mode>
-LIBC_INLINE int convert_float_hex_exp(Writer<write_mode> *writer,
+template <OverflowMode mode>
+LIBC_INLINE int convert_float_hex_exp(Writer<mode> *writer,
                                       const FormatSection &to_conv) {
 #if defined(LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128)
   static constexpr uint32_t MAX_POSSIBLE_FRACTION_LEN =

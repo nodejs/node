@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --maglev
-// Flags: --typed-array-length-loading
+// Flags: --typed-array-length-loading --multi-mapped-mock-allocator
 
 function foo(size) {
   let a = new Uint8Array(size);
@@ -18,7 +18,7 @@ foo(100);
 %OptimizeMaglevOnNextCall(foo);
 const a1 = foo(100);
 assertEquals(1, a1[100]);
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 // TODO(389019544): This might or might not fail once the deopt loop is fixed.
 if (%Is64Bit()) {
@@ -26,7 +26,7 @@ if (%Is64Bit()) {
   try {
     const a2 = foo(largeLength);
     assertEquals(1, a2[largeLength]);
-    assertFalse(isMaglevved(foo));
+    assertNotMaglevved(foo);
   } catch (e) {
     // If alloating the TypedArray failed, we'll get a RangeError. Other
     // errors are just normal test failures.

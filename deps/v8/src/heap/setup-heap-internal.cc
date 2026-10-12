@@ -1414,6 +1414,12 @@ bool Heap::CreateReadOnlyObjects() {
   set_property_cell_hole_value(UncheckedCast<PropertyCellHole>(make_hole()));
   set_hash_table_hole_value(UncheckedCast<HashTableHole>(make_hole()));
   set_promise_hole_value(UncheckedCast<PromiseHole>(make_hole()));
+#ifdef V8_ENABLE_TDZ_HOLE
+  set_tdz_hole_value(UncheckedCast<TdzHole>(make_hole()));
+#else
+  // TODO(leszeks): Remove DisabledTdzHole when v8_enable_tdz_hole is removed.
+  set_disabled_tdz_hole_value(UncheckedCast<DisabledTdzHole>(make_hole()));
+#endif
   set_uninitialized_value(UncheckedCast<UninitializedHole>(make_hole()));
   set_arguments_marker(UncheckedCast<ArgumentsMarker>(make_hole()));
   set_termination_exception(UncheckedCast<TerminationException>(make_hole()));

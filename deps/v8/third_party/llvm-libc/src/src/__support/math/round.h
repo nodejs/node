@@ -12,6 +12,8 @@
 #include "src/__support/FPUtil/NearestIntegerOperations.h"
 #include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
+#include "src/__support/macros/optimization.h"
+#include "src/__support/macros/properties/architectures.h"
 #include "src/__support/macros/properties/compiler.h"
 #include "src/__support/macros/properties/cpu_features.h"
 
@@ -38,12 +40,20 @@ namespace math {
 // still generate callback for ARM version < 8, and for x86-64 with
 // `-ffp-model=strict`.
 
+// Notes: `__builtin_round` expansion for x86-64 using SSE4.1 rounding
+// instruction by clang is only correct for the default rounding mode.
+// See https://github.com/llvm/llvm-project/issues/140252
+// So we will only use `__builtin_round` with clang on x86-64 if we assume
+// default rounding mode (FE_TONEAREST) only.
+
 LIBC_INLINE LIBC_CONSTEXPR double round(double x) {
 #if __has_builtin(__builtin_round) && !defined(LIBC_USE_CONSTEXPR) &&          \
     (defined(__LIBC_USE_BUILTIN_ROUND) ||                                      \
      (defined(LIBC_COMPILER_IS_CLANG) &&                                       \
       defined(LIBC_TARGET_CPU_HAS_FPU_DOUBLE) &&                               \
-      (!defined(__ARM_ARCH) || (__ARM_ARCH >= 8))))
+      (!defined(__ARM_ARCH) || (__ARM_ARCH >= 8)) &&                           \
+      (!defined(LIBC_TARGET_ARCH_IS_X86) ||                                    \
+       defined(LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY))))
   return __builtin_round(x);
 #else
   return fputil::round(x);

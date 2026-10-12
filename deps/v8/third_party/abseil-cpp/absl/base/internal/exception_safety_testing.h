@@ -25,17 +25,25 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <functional>
 #include <initializer_list>
 #include <iosfwd>
+#include <limits>
+#include <memory>
+#include <new>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "gtest/gtest.h"
 #include "absl/base/internal/pretty_function.h"
 #include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
 #include "absl/utility/utility.h"
@@ -1029,10 +1037,10 @@ class ExceptionSafetyTestBuilder {
   ExceptionSafetyTestBuilder<Factory, Operation, Contracts...,
                              std::decay_t<MoreContracts>...>
   WithContracts(const MoreContracts&... more_contracts) const {
-    return {
-        factory_, operation_,
-        std::tuple_cat(contracts_, std::tuple<std::decay_t<MoreContracts>...>(
-                                       more_contracts...))};
+    return {factory_, operation_,
+            std::tuple_cat(
+                contracts_,
+                std::tuple<std::decay_t<MoreContracts>...>(more_contracts...))};
   }
 
   /*

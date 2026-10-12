@@ -54,7 +54,7 @@ CppHeap* TracedHandles::GetCppHeapIfUnifiedYoungGC(Isolate* isolate) const {
   // default.
   if (!v8_flags.cppgc_young_generation) return nullptr;
   auto* cpp_heap = CppHeap::From(isolate->heap()->cpp_heap());
-  if (cpp_heap && cpp_heap->generational_gc_supported()) return cpp_heap;
+  if (cpp_heap->generational_gc_supported()) return cpp_heap;
   return nullptr;
 }
 

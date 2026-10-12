@@ -32,7 +32,7 @@ template <typename UC> fastfloat_really_inline constexpr bool has_simd_opt() {
 // able to optimize it well.
 template <typename UC>
 fastfloat_really_inline constexpr bool is_integer(UC c) noexcept {
-  return (unsigned)(c - UC('0')) <= 9u;
+  return static_cast<unsigned>(c - UC('0')) <= 9u;
 }
 
 fastfloat_really_inline constexpr uint64_t byteswap(uint64_t val) {
@@ -223,8 +223,8 @@ simd_parse_if_eight_digits_unrolled(char16_t const *chars,
     return false;
   FASTFLOAT_SIMD_RESTORE_WARNINGS
 #else
-  (void)chars;
-  (void)i;
+  static_cast<void>(chars);
+  static_cast<void>(i);
   return false;
 #endif // FASTFLOAT_SSE2
 }
@@ -268,10 +268,9 @@ loop_parse_if_eight_digits(char const *&p, char const *const pend,
   }
   // Consume a remaining 4-7 digit run in a single SWAR step instead of
   // byte-by-byte (reuses the existing 4-digit helpers). The parsed result is
-  // identical either way. Gated to clang: on gcc the extra 4-digit check
-  // regresses inputs whose remainder is shorter than 4 digits (it becomes pure
-  // overhead there); clang does not show that.
-#if defined(__clang__)
+  // identical either way. Historically gated to clang because gcc regressed on
+  // short remainders, but that verdict predates the span-elision restructure;
+  // with the leaner hot path the 4-digit step now wins on gcc as well.
   if ((pend - p) >= 4) {
     uint32_t const val4 = read4_to_u32(p);
     if (is_made_of_four_digits_fast(val4)) {
@@ -280,7 +279,6 @@ loop_parse_if_eight_digits(char const *&p, char const *const pend,
       p += 4;
     }
   }
-#endif
 }
 
 enum class parse_error {
@@ -289,7 +287,7 @@ enum class parse_error {
   missing_integer_after_sign,
   // A sign must be followed by an integer or dot.
   missing_integer_or_dot_after_sign,
-  // [JSON-only] The integer part must not have leading zeros.
+  // [JSON/JavaScript-only] The integer part must not have leading zeros.
   leading_zeros_in_integer_part,
   // [JSON-only] The integer part must have at least one digit.
   no_digits_in_integer_part,
@@ -300,6 +298,10 @@ enum class parse_error {
   no_digits_in_mantissa,
   // Scientific notation requires an exponential part.
   missing_exponential_part,
+  // [JavaScript-only, sloppy mode] The integer part is a legacy octal literal
+  // (a leading zero followed by octal digits only), which is not a decimal
+  // number. Parse it in base 8 instead.
+  legacy_octal_integer_part,
 };
 
 template <typename UC> struct parsed_number_string_t {
@@ -420,6 +422,30 @@ parse_number_string(UC const *p, UC const *pend, parse_options_t<UC> options,
     if ((start_digits[0] == UC('0') && digit_count > 1)) {
       return report_parse_error<UC>(start_digits,
                                     parse_error::leading_zeros_in_integer_part);
+    }
+  }
+  else if (uint64_t(fmt & detail::basic_javascript_fmt)) {
+    // ECMAScript DecimalIntegerLiteral is "0" or a non-zero digit followed by
+    // digits: no leading zeros. Unlike JSON, the integer part may be empty
+    // (".5"); the no_digits_in_mantissa check below still rejects ".".
+    if ((digit_count > 1) && (start_digits[0] == UC('0'))) {
+      if (!uint64_t(fmt & detail::basic_javascript_sloppy_fmt)) {
+        return report_parse_error<UC>(
+            start_digits, parse_error::leading_zeros_in_integer_part);
+      }
+      // Sloppy mode (Annex B): a NonOctalDecimalIntegerLiteral has a leading
+      // zero and at least one digit that is 8 or 9 ("08.5" is 8.5). With
+      // octal digits only, it is a LegacyOctalIntegerLiteral ("0775"), which
+      // is not a decimal number: report it so the caller can parse it in
+      // base 8.
+      bool has_non_octal_digit = false;
+      for (UC const *q = start_digits; q != end_of_integer_part; ++q) {
+        has_non_octal_digit |= (*q >= UC('8'));
+      }
+      if (!has_non_octal_digit) {
+        return report_parse_error<UC>(start_digits,
+                                      parse_error::legacy_octal_integer_part);
+      }
     }
   }
 
@@ -603,7 +629,7 @@ parse_int_string(UC const *p, UC const *pend, T &value,
   FASTFLOAT_IF_CONSTEXPR17(
       (std::is_same<T, std::uint8_t>::value && sizeof(UC) == 1)) {
     if (base == 10) {
-      const size_t len = (size_t)(pend - p);
+      const size_t len = static_cast<size_t>(pend - p);
       if (len == 0) {
         if (has_leading_zeros) {
           value = 0;
@@ -648,9 +674,10 @@ parse_int_string(UC const *p, UC const *pend, T &value,
 
       uint32_t magic =
           ((digits + 0x46464646u) | (digits - 0x30303030u)) & 0x80808080u;
-      uint32_t tz = (uint32_t)countr_zero_32(magic); // 7, 15, 23, 31, or 32
+      uint32_t tz =
+          static_cast<uint32_t>(countr_zero_32(magic)); // 7, 15, 23, 31, or 32
       uint32_t nd = (tz == 32) ? 4 : (tz >> 3);
-      nd = (uint32_t)(nd < len ? nd : len);
+      nd = static_cast<uint32_t>(nd < len ? nd : len);
       if (nd == 0) {
         if (has_leading_zeros) {
           value = 0;
@@ -686,7 +713,7 @@ parse_int_string(UC const *p, UC const *pend, T &value,
         answer.ptr = p + nd;
         return answer;
       }
-      value = (uint8_t)((0x640a01 * digits) >> 24);
+      value = static_cast<uint8_t>((0x640a01 * digits) >> 24);
       answer.ec = std::errc();
       answer.ptr = p + nd;
       return answer;
@@ -806,7 +833,7 @@ parse_int_string(UC const *p, UC const *pend, T &value,
 
   // check other types overflow
   if (!std::is_same<T, uint64_t>::value) {
-    if (i > uint64_t(std::numeric_limits<T>::max()) + uint64_t(negative)) {
+    if (i > uint64_t((std::numeric_limits<T>::max)()) + uint64_t(negative)) {
       answer.ec = std::errc::result_out_of_range;
       return answer;
     }
@@ -823,8 +850,8 @@ parse_int_string(UC const *p, UC const *pend, T &value,
     // - reinterpret_casting (~i + 1) would work, but it is not constexpr
     // this is always optimized into a neg instruction (note: T is an integer
     // type)
-    value = T(-std::numeric_limits<T>::max() -
-              T(i - uint64_t(std::numeric_limits<T>::max())));
+    value = T(-(std::numeric_limits<T>::max)() -
+              T(i - uint64_t((std::numeric_limits<T>::max)())));
 #ifdef FASTFLOAT_VISUAL_STUDIO
 #pragma warning(pop)
 #endif

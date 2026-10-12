@@ -325,9 +325,9 @@ TEST_F(WasmSimdTest, Simd256Extract128Lane_ConstantFolding) {
                                                24, 25, 26, 27, 28, 29, 30, 31};
 
   const uint8_t* actual_low =
-      test.GetCapture("low").GetAs<Simd128ConstantOp>()->value;
+      test.GetCapture("low").GetAs<Simd128ConstantOp>()->value.data();
   const uint8_t* actual_high =
-      test.GetCapture("high").GetAs<Simd128ConstantOp>()->value;
+      test.GetCapture("high").GetAs<Simd128ConstantOp>()->value.data();
 
   for (int i = 0; i < kSimd128Size; i++) {
     ASSERT_EQ(expected_low[i], actual_low[i]);

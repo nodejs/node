@@ -32,7 +32,7 @@ assert_test_slow_path_non_extensible(test_slow_path_non_extensible());
 %OptimizeMaglevOnNextCall(test_slow_path_non_extensible);
 assert_test_slow_path_non_extensible(test_slow_path_non_extensible());
 assertOptimized(test_slow_path_non_extensible);
-assertTrue(isMaglevved(test_slow_path_non_extensible));
+assertMaglevved(test_slow_path_non_extensible);
 assert_test_slow_path_non_extensible(test_slow_path_non_extensible());
 %OptimizeFunctionOnNextCall(test_slow_path_non_extensible);
 assert_test_slow_path_non_extensible(test_slow_path_non_extensible());

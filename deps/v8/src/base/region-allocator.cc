@@ -301,7 +301,8 @@ RegionAllocator::Address RegionAllocator::AllocateRegion(Address hint,
   return address;
 }
 
-size_t RegionAllocator::TrimRegion(Address address, size_t new_size) {
+size_t RegionAllocator::TrimRegion(Address address, size_t new_size,
+                                   AddressRegion* free_region) {
   DCHECK(IsAligned(new_size, page_size_));
 
   AllRegionsSet::iterator region_iter = FindRegion(address);
@@ -350,6 +351,7 @@ size_t RegionAllocator::TrimRegion(Address address, size_t new_size) {
     }
   }
   FreeListAddRegion(region);
+  if (free_region) *free_region = *region;
   return size;
 }
 

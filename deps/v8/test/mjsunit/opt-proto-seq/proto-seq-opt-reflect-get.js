@@ -31,7 +31,7 @@ assert_test_reflect_get(test_reflect_get());
 %OptimizeMaglevOnNextCall(test_reflect_get);
 assert_test_reflect_get(test_reflect_get());
 assertOptimized(test_reflect_get);
-assertTrue(isMaglevved(test_reflect_get));
+assertMaglevved(test_reflect_get);
 assert_test_reflect_get(test_reflect_get());
 %OptimizeFunctionOnNextCall(test_reflect_get);
 assert_test_reflect_get(test_reflect_get());

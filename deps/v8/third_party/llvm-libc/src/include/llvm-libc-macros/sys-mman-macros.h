@@ -28,6 +28,12 @@
 #define MAP_FAILED ((void *)-1)
 #endif
 
+// MAP_ANON is a synonym for MAP_ANONYMOUS specified in POSIX,
+// but is not always provided by kernel headers.
+#if !defined(MAP_ANON) && defined(MAP_ANONYMOUS)
+#define MAP_ANON MAP_ANONYMOUS
+#endif
+
 // Posix memory advise flags. (posix_madvise)
 #ifndef POSIX_MADV_NORMAL
 #define POSIX_MADV_NORMAL MADV_NORMAL

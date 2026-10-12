@@ -247,7 +247,7 @@ class V8_EXPORT WasmStreaming final {
    * unpack the {CppGCManaged} itself.
    */
   static std::shared_ptr<WasmStreaming> Unpack(Isolate* isolate,
-                                               Local<Value> value);
+                                               Local<Data> data);
 
  private:
   std::unique_ptr<WasmStreamingImpl> impl_;

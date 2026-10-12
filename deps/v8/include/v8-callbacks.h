@@ -22,6 +22,7 @@ struct _EXCEPTION_POINTERS;
 
 namespace v8 {
 
+class ArrayBuffer;
 template <typename T>
 class FunctionCallbackInfo;
 class Isolate;
@@ -469,6 +470,13 @@ using HostCreateShadowRealmContextCallback =
  */
 using IsJSApiWrapperNativeErrorCallback = bool (*)(Isolate* isolate,
                                                    Local<Object> obj);
+
+/**
+ * ArrayBufferDetachCallback is called when an ArrayBuffer wrapping an embedder
+ * object is detached.
+ */
+using ArrayBufferDetachCallback = void (*)(Isolate* isolate,
+                                           Local<ArrayBuffer> buffer);
 
 /**
  * PrepareStackTraceCallback is called when the stack property of an error is

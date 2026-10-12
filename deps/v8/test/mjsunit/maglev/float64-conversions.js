@@ -24,7 +24,7 @@ const typed = new Float64Array([1.5, 2.5]);
   assertEquals(Math.sqrt(1.5), f(packed, 0));
   %OptimizeMaglevOnNextCall(f);
   assertEquals(Math.sqrt(2.5), f(packed, 1));
-  assertTrue(isMaglevved(f));
+  assertMaglevved(f);
 })();
 
 // An Int32, and a Uint32.
@@ -44,8 +44,8 @@ const typed = new Float64Array([1.5, 2.5]);
   assertEquals(3, f(9));
   assertEquals(3, g(9));
   assertEquals(Math.sqrt(2 ** 32 - 1), g(-1));
-  assertTrue(isMaglevved(f));
-  assertTrue(isMaglevved(g));
+  assertMaglevved(f);
+  assertMaglevved(g);
 })();
 
 // A tagged value known to be a Smi, which is untagged and converted from its
@@ -57,7 +57,7 @@ const typed = new Float64Array([1.5, 2.5]);
   assertEquals(1, f(smis, 0));
   %OptimizeMaglevOnNextCall(f);
   assertEquals(Math.sqrt(2), f(smis, 1));
-  assertTrue(isMaglevved(f));
+  assertMaglevved(f);
 })();
 
 // A tagged value that is a number but not a Smi.
@@ -108,7 +108,7 @@ const typed = new Float64Array([1.5, 2.5]);
   %OptimizeMaglevOnNextCall(f);
   assertEquals(4.5, f(holey, 2));
   assertEquals(NaN, f(holey, 1));
-  assertTrue(isMaglevved(f));
+  assertMaglevved(f);
 })();
 
 // A HoleyFloat64 stored into a packed double array, where the hole is not a
@@ -142,7 +142,7 @@ const typed = new Float64Array([1.5, 2.5]);
   %OptimizeMaglevOnNextCall(f);
   assertEquals(8.75, f(6.25, false));
   assertEquals(9.75, f(6.25, true));
-  assertTrue(isMaglevved(f));
+  assertMaglevved(f);
 })();
 
 // An IntPtr, which is what a typed array length is.
@@ -178,7 +178,7 @@ const typed = new Float64Array([1.5, 2.5]);
   assertEquals(5.25, f({x: 2.25}));
   %OptimizeMaglevOnNextCall(f);
   assertEquals(11.25, f({x: 6.25}));
-  assertTrue(isMaglevved(f));
+  assertMaglevved(f);
 })();
 
 // ----------------------------------------------------------- to HoleyFloat64
@@ -208,7 +208,7 @@ function store(v, i) {
   f(holey, 1, h, 0);  // the hole reads as undefined and stays undefined
   assertTrue(0 in h);
   assertEquals(undefined, h[0]);
-  assertTrue(isMaglevved(f));
+  assertMaglevved(f);
 })();
 
 // A constant, including the undefined one.
@@ -347,5 +347,5 @@ function store(v, i) {
   f({x: 6.25}, h, 0, 2);
   assertEquals(6.25, h[0]);
   assertEquals(6.25, h[2]);
-  assertTrue(isMaglevved(f));
+  assertMaglevved(f);
 })();

@@ -148,8 +148,8 @@ V8_OBJECT class Script : public Struct {
   inline void set_eval_from_position(int value);
 
   inline Tagged<Object> eval_from_scope_info() const;
-  inline void set_eval_from_scope_info(
-      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  void set_eval_from_scope_info(Tagged<Object> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline bool has_eval_from_scope_info() const;
 
@@ -167,15 +167,16 @@ V8_OBJECT class Script : public Struct {
   inline void set_wasm_breakpoint_infos(
       Tagged<FixedArray> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline bool has_wasm_breakpoint_infos() const;
+  bool has_wasm_breakpoint_infos() const;
 
   // [wasm_native_module]: the wasm {NativeModule} this script belongs to.
   // This must only be called if the type of this script is TYPE_WASM.
   inline Tagged<Object> wasm_managed_native_module() const;
-  inline void set_wasm_managed_native_module(
+  void set_wasm_managed_native_module(
       Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline CppGCManaged<wasm::NativeModule>::Ptr wasm_native_module() const;
+  V8_EXPORT_PRIVATE CppGCManaged<wasm::NativeModule>::Ptr wasm_native_module()
+      const;
 
   // [wasm_weak_instance_list]: the list of all {WasmInstanceObject} being
   // affected by breakpoints that are managed via this script.
@@ -255,18 +256,18 @@ V8_OBJECT class Script : public Struct {
 
   // If script source is an external string, check that the underlying
   // resource is accessible. Otherwise, always return true.
-  inline bool HasValidSource();
+  bool HasValidSource();
 
   // If the script has a non-empty sourceURL comment.
-  inline bool HasSourceURLComment() const;
+  bool HasSourceURLComment() const;
 
   // If the script has a non-empty sourceMappingURL comment.
-  inline bool HasSourceMappingURLComment() const;
+  bool HasSourceMappingURLComment() const;
 
   // Streaming compilation only attaches the source to the Script upon
   // finalization. This predicate returns true, if this script may still be
   // unfinalized.
-  inline bool IsMaybeUnfinalized(Isolate* isolate) const;
+  bool IsMaybeUnfinalized(Isolate* isolate) const;
 
   Tagged<Object> GetNameOrSourceURL();
   static DirectHandle<String> GetScriptHash(Isolate* isolate,

@@ -23,6 +23,7 @@
 #ifndef ABSL_BASE_INTERNAL_HARDENING_H_
 #define ABSL_BASE_INTERNAL_HARDENING_H_
 
+#include <atomic>
 #include <cstddef>
 
 #include "absl/base/config.h"

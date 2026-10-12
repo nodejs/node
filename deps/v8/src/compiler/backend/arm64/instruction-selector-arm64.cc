@@ -55,6 +55,13 @@ class Arm64OperandGenerator final : public OperandGenerator {
     return UseRegister(node);
   }
 
+  InstructionOperand UseUniqueOperand(OpIndex node, ImmediateMode mode) {
+    if (CanBeImmediate(node, mode)) {
+      return UseImmediate(node);
+    }
+    return UseUniqueRegister(node);
+  }
+
   bool IsImmediateZero(OpIndex node) {
     if (const ConstantOp* constant =
             selector()->Get(node).TryCast<ConstantOp>()) {
@@ -220,28 +227,6 @@ void VisitRR(InstructionSelector* selector, InstructionCode opcode,
   selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
-void VisitSimdShiftRRR(InstructionSelector* selector, InstructionCode opcode,
-                       OpIndex node, LaneSize lane_size) {
-  Arm64OperandGenerator g(selector);
-  const Operation& op = selector->Get(node);
-  DCHECK_EQ(op.input_count, 2);
-
-  int64_t constant;
-  if (selector->MatchSignedIntegralConstant(op.input(1), &constant)) {
-    if (constant % LaneSizeBits(lane_size) == 0) {
-      selector->EmitIdentity(node);
-    } else {
-      selector->Emit(opcode | LaneSizeField::encode(lane_size),
-                     g.DefineAsRegister(node), g.UseRegister(op.input(0)),
-                     g.UseImmediate(op.input(1)));
-    }
-  } else {
-    selector->Emit(opcode | LaneSizeField::encode(lane_size),
-                   g.DefineAsRegister(node), g.UseRegister(op.input(0)),
-                   g.UseRegister(op.input(1)));
-  }
-}
-
 void VisitRRI(InstructionSelector* selector, InstructionCode opcode,
               OpIndex node) {
   Arm64OperandGenerator g(selector);
@@ -262,6 +247,113 @@ void VisitRRI(InstructionSelector* selector, InstructionCode opcode,
   } else {
     selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()),
                    g.UseImmediate(op.lane));
+  }
+}
+// If shift value is an immediate, we can call Shl, taking the shift
+// value modulo 2^width. Otherwise, emit code to perform the modulus
+// operation, and call Sshl.
+void VisitSimdShl(InstructionSelector* selector, OpIndex node,
+                  LaneSize lane_size) {
+  Arm64OperandGenerator g(selector);
+  const Simd128ShiftOp& op = selector->Cast<Simd128ShiftOp>(node);
+  int64_t constant;
+  if (selector->MatchSignedIntegralConstant(op.shift(), &constant)) {
+    const int amount =
+        static_cast<int>(constant & (LaneSizeBits(lane_size) - 1));
+    if (amount == 0) {
+      selector->EmitIdentity(node);
+    } else if (amount == 1) {
+      selector->Emit(kArm64IAdd | LaneSizeField::encode(lane_size),
+                     g.DefineAsRegister(node), g.UseRegister(op.input()),
+                     g.UseRegister(op.input()));
+    } else {
+      selector->Emit(kArm64IShl | LaneSizeField::encode(lane_size),
+                     g.DefineAsRegister(node), g.UseRegister(op.input()),
+                     g.TempImmediate(amount));
+    }
+  } else {
+    InstructionOperand tempAnd = g.TempRegister();
+    selector->Emit(kArm64And32, tempAnd, g.UseRegister(op.shift()),
+                   g.TempImmediate(LaneSizeBits(lane_size) - 1));
+    InstructionOperand tempDup = g.TempSimd128Register();
+    selector->Emit(kArm64ISplat | LaneSizeField::encode(lane_size), tempDup,
+                   tempAnd);
+    selector->Emit(kArm64SShl | LaneSizeField::encode(lane_size),
+                   g.DefineAsRegister(node), g.UseRegister(op.input()),
+                   tempDup);
+  }
+}
+
+// If shift value is an immediate, we can call Sshr, taking the shift
+// value modulo 2^width. Otherwise, emit code to perform the modulus
+// operation, and call Sshl, passing in the negative shift value (treated
+// as right shift).
+void VisitSimdShrS(InstructionSelector* selector, OpIndex node,
+                   LaneSize lane_size) {
+  Arm64OperandGenerator g(selector);
+  const Simd128ShiftOp& op = selector->Cast<Simd128ShiftOp>(node);
+  int64_t constant;
+  if (selector->MatchSignedIntegralConstant(op.shift(), &constant)) {
+    const int amount =
+        static_cast<int>(constant & (LaneSizeBits(lane_size) - 1));
+    if (amount == 0) {
+      selector->EmitIdentity(node);
+    } else if (amount == LaneSizeBits(lane_size) - 1) {
+      selector->Emit(kArm64ILtS | LaneSizeField::encode(lane_size),
+                     g.DefineAsRegister(node), g.UseRegister(op.input()));
+    } else {
+      selector->Emit(kArm64IShrS | LaneSizeField::encode(lane_size),
+                     g.DefineAsRegister(node), g.UseRegister(op.input()),
+                     g.TempImmediate(amount));
+    }
+  } else {
+    InstructionOperand tempAnd = g.TempRegister();
+    selector->Emit(kArm64And32, tempAnd, g.UseRegister(op.shift()),
+                   g.TempImmediate(LaneSizeBits(lane_size) - 1));
+    InstructionOperand tempDup = g.TempSimd128Register();
+    selector->Emit(kArm64ISplat | LaneSizeField::encode(lane_size), tempDup,
+                   tempAnd);
+    InstructionOperand tempNeg = g.TempSimd128Register();
+    selector->Emit(kArm64INeg | LaneSizeField::encode(lane_size), tempNeg,
+                   tempDup);
+    selector->Emit(kArm64SShl | LaneSizeField::encode(lane_size),
+                   g.DefineAsRegister(node), g.UseRegister(op.input()),
+                   tempNeg);
+  }
+}
+
+// If shift value is an immediate, we can call Ushr, taking the shift
+// value modulo 2^width. Otherwise, emit code to perform the modulus
+// operation, and call Ushl, passing in the negative shift value (treated
+// as right shift).
+void VisitSimdShrU(InstructionSelector* selector, OpIndex node,
+                   LaneSize lane_size) {
+  Arm64OperandGenerator g(selector);
+  const Simd128ShiftOp& op = selector->Cast<Simd128ShiftOp>(node);
+  int64_t constant;
+  if (selector->MatchSignedIntegralConstant(op.shift(), &constant)) {
+    const int amount =
+        static_cast<int>(constant & (LaneSizeBits(lane_size) - 1));
+    if (amount == 0) {
+      selector->EmitIdentity(node);
+    } else {
+      selector->Emit(kArm64IShrU | LaneSizeField::encode(lane_size),
+                     g.DefineAsRegister(node), g.UseRegister(op.input()),
+                     g.TempImmediate(amount));
+    }
+  } else {
+    InstructionOperand tempAnd = g.TempRegister();
+    selector->Emit(kArm64And32, tempAnd, g.UseRegister(op.shift()),
+                   g.TempImmediate(LaneSizeBits(lane_size) - 1));
+    InstructionOperand tempDup = g.TempSimd128Register();
+    selector->Emit(kArm64ISplat | LaneSizeField::encode(lane_size), tempDup,
+                   tempAnd);
+    InstructionOperand tempNeg = g.TempSimd128Register();
+    selector->Emit(kArm64INeg | LaneSizeField::encode(lane_size), tempNeg,
+                   tempDup);
+    selector->Emit(kArm64UShl | LaneSizeField::encode(lane_size),
+                   g.DefineAsRegister(node), g.UseRegister(op.input()),
+                   tempNeg);
   }
 }
 
@@ -1113,7 +1205,7 @@ void InstructionSelector::VisitLoadLane(OpIndex node) {
   opcode |= LaneSizeField::encode(
       LaneSizeFromBits(static_cast<uint8_t>(load.lane_size() * kBitsPerByte)));
   if (load.kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   Arm64OperandGenerator g(this);
@@ -1128,7 +1220,7 @@ void InstructionSelector::VisitStoreLane(OpIndex node) {
   opcode |= LaneSizeField::encode(
       LaneSizeFromBits(static_cast<uint8_t>(store.lane_size() * kBitsPerByte)));
   if (store.kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   Arm64OperandGenerator g(this);
@@ -1146,7 +1238,6 @@ void InstructionSelector::VisitStoreLane(OpIndex node) {
 void InstructionSelector::VisitLoadTransform(OpIndex node) {
   const Simd128LoadTransformOp& op = Cast<Simd128LoadTransformOp>(node);
   InstructionCode load_opcode = kArchNop;
-  InstructionCode extend_opcode = kArchNop;
   bool require_add = false;
   switch (op.transform_kind) {
     case Simd128LoadTransformOp::TransformKind::k8Splat:
@@ -1170,29 +1261,12 @@ void InstructionSelector::VisitLoadTransform(OpIndex node) {
       require_add = true;
       break;
     case Simd128LoadTransformOp::TransformKind::k8x8S:
-      load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Sxtl | LaneSizeField::encode(LaneSize::kL16);
-      break;
     case Simd128LoadTransformOp::TransformKind::k8x8U:
-      load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Uxtl | LaneSizeField::encode(LaneSize::kL16);
-      break;
     case Simd128LoadTransformOp::TransformKind::k16x4S:
-      load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Sxtl | LaneSizeField::encode(LaneSize::kL32);
-      break;
     case Simd128LoadTransformOp::TransformKind::k16x4U:
-      load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Uxtl | LaneSizeField::encode(LaneSize::kL32);
-      break;
     case Simd128LoadTransformOp::TransformKind::k32x2S:
-      load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Sxtl | LaneSizeField::encode(LaneSize::kL64);
-      break;
     case Simd128LoadTransformOp::TransformKind::k32x2U:
-      load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Uxtl | LaneSizeField::encode(LaneSize::kL64);
-      break;
+      UNREACHABLE();
     case Simd128LoadTransformOp::TransformKind::k32Zero:
       load_opcode = kArm64LdrS;
       break;
@@ -1206,34 +1280,21 @@ void InstructionSelector::VisitLoadTransform(OpIndex node) {
   DCHECK(!op.load_kind.maybe_unaligned);
 
   Arm64OperandGenerator g(this);
-  InstructionOperand inputs[2];
-  InstructionOperand outputs[1];
-
-  inputs[0] = g.UseRegister(op.base());
-  inputs[1] = g.UseRegister(op.index());
-
-  if (extend_opcode == kArchNop) {
-    outputs[0] = g.DefineAsRegister(node);
-  } else {
-    outputs[0] = g.TempSimd128Register();
-  }
+  InstructionOperand base = g.UseRegister(op.base());
+  InstructionOperand index = g.UseRegister(op.index());
 
   if (require_add) {
     // ld1r uses post-index, so construct address first.
     // TODO(v8:9886) If index can be immediate, use vldr without this add.
-    inputs[0] = EmitAddBeforeLoadOrStore(this, node, &load_opcode);
-    inputs[1] = g.TempImmediate(0);
-    load_opcode |= AddressingModeField::encode(kMode_MRI);
+    base = EmitAddBeforeLoadOrStore(this, node, &load_opcode);
+    index = g.TempImmediate(0);
   } else {
     load_opcode |= AddressingModeField::encode(kMode_MRR);
   }
   if (op.load_kind.with_trap_handler) {
-    load_opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    load_opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
-  Emit(load_opcode, 1, outputs, 2, inputs);
-  if (extend_opcode != kArchNop) {
-    Emit(extend_opcode, g.DefineSameAsFirst(node), outputs[0]);
-  }
+  Emit(load_opcode, g.DefineAsRegister(node), base, index);
 }
 #endif  // V8_ENABLE_SIMD128
 
@@ -1367,13 +1428,8 @@ void InstructionSelector::VisitLoad(OpIndex node) {
   MemoryRepresentation load_rep = load.ts_loaded_rep();
   std::tie(opcode, immediate_mode) =
       GetLoadOpcodeAndImmediate(load_rep, load.ts_result_rep());
-  bool traps_on_null;
-  if (load.is_trapping(&traps_on_null)) {
-    if (traps_on_null) {
-      opcode |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
-    } else {
-      opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
-    }
+  if (load.is_trapping()) {
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   EmitLoad(this, node, opcode, immediate_mode, load_rep);
 }
@@ -1441,8 +1497,8 @@ void InstructionSelector::VisitStore(OpIndex node) {
       code |= RecordWriteModeField::encode(record_write_mode);
     }
     code |= AddressingModeField::encode(addressing_mode);
-    if (store_view.is_store_trap_on_null()) {
-      code |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
+    if (store_view.access_kind() == MemoryAccessKind::kTrapping) {
+      code |= AccessModeField::encode(kMemoryAccessTrapping);
     }
     InstructionOperand temps[1];
     size_t temp_count = 0;
@@ -1522,10 +1578,8 @@ void InstructionSelector::VisitStore(OpIndex node) {
     opcode |= AddressingModeField::encode(kMode_MRR);
   }
 
-  if (store_view.is_store_trap_on_null()) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
-  } else if (store_view.access_kind() == MemoryAccessKind::kTrapping) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+  if (store_view.access_kind() == MemoryAccessKind::kTrapping) {
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   Emit(opcode, 0, nullptr, input_count, inputs);
@@ -2650,7 +2704,27 @@ void InstructionSelector::VisitUint64Sub128(OpIndex node) {
 }
 
 void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
-  UNIMPLEMENTED();
+  Arm64OperandGenerator g(this);
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  const auto& op = this->Get(node).Cast<Word64Add3Op>();
+
+  inputs[input_count++] = g.UseRegister(op.first());
+  inputs[input_count++] = g.UseOperand(op.second(), kArithmeticImm);
+  inputs[input_count++] = g.UseUniqueOperand(op.third(), kArithmeticImm);
+
+  OptionalOpIndex out_low = FindProjection(node, 0);
+  outputs[output_count++] =
+      g.DefineAsRegister(out_low.valid() ? out_low.value() : node);
+
+  OptionalOpIndex out_high = FindProjection(node, 1);
+  if (out_high.valid() && IsUsed(out_high.value())) {
+    outputs[output_count++] = g.DefineAsRegister(out_high.value());
+  }
+
+  Emit(kArm64Add64_3, output_count, outputs, input_count, inputs);
 }
 
 #if V8_ENABLE_SIMD128
@@ -3805,7 +3879,7 @@ void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
   InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   if (CpuFeatures::IsSupported(LSE)) {
     InstructionOperand temps[] = {g.TempRegister()};
@@ -3840,7 +3914,7 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
   InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   if (CpuFeatures::IsSupported(LSE)) {
     InstructionOperand temps[] = {g.TempRegister()};
@@ -3914,11 +3988,8 @@ void VisitAtomicLoad(InstructionSelector* selector, OpIndex node,
       UNREACHABLE();
   }
 
-  bool traps_on_null;
-  if (load.is_trapping(&traps_on_null)) {
-    code |= AccessModeField::encode(traps_on_null
-                                        ? kMemoryAccessTrappingNullDereference
-                                        : kMemoryAccessTrappingMemOutOfBounds);
+  if (load.is_trapping()) {
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   code |=
@@ -3977,7 +4048,7 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
       code = kArchAtomicStoreWithWriteBarrier;
-      code |= AtomicStoreRecordWriteModeField::encode(record_write_mode);
+      code |= RecordWriteModeField::encode(record_write_mode);
     }
   } else {
     switch (rep) {
@@ -4012,10 +4083,8 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
     code |= AtomicWidthField::encode(width);
   }
 
-  if (store.is_store_trap_on_null()) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
-  } else if (store_params.kind() == MemoryAccessKind::kTrapping) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+  if (store_params.kind() == MemoryAccessKind::kTrapping) {
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   code |= AddressingModeField::encode(kMode_MRR);
@@ -4039,7 +4108,7 @@ void VisitAtomicBinop(InstructionSelector* selector, OpIndex node,
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   if (CpuFeatures::IsSupported(LSE)) {
@@ -4899,29 +4968,29 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
   V(I8x16Abs, kArm64IAbs, LaneSize::kL8)      \
   V(I8x16Neg, kArm64INeg, LaneSize::kL8)
 
-#define SIMD_SHIFT_OP_LIST(V)         \
-  V(I64x2Shl, IShl, LaneSize::kL64)   \
-  V(I32x4Shl, IShl, LaneSize::kL32)   \
-  V(I16x8Shl, IShl, LaneSize::kL16)   \
-  V(I8x16Shl, IShl, LaneSize::kL8)    \
-  V(I64x2ShrS, IShrS, LaneSize::kL64) \
-  V(I32x4ShrS, IShrS, LaneSize::kL32) \
-  V(I16x8ShrS, IShrS, LaneSize::kL16) \
-  V(I8x16ShrS, IShrS, LaneSize::kL8)  \
-  V(I64x2ShrU, IShrU, LaneSize::kL64) \
-  V(I32x4ShrU, IShrU, LaneSize::kL32) \
-  V(I16x8ShrU, IShrU, LaneSize::kL16) \
-  V(I8x16ShrU, IShrU, LaneSize::kL8)
+#define SIMD_ISHL_OP_LIST(V)  \
+  V(I64x2Shl, LaneSize::kL64) \
+  V(I32x4Shl, LaneSize::kL32) \
+  V(I16x8Shl, LaneSize::kL16) \
+  V(I8x16Shl, LaneSize::kL8)
+
+#define SIMD_ISHRS_OP_LIST(V)  \
+  V(I64x2ShrS, LaneSize::kL64) \
+  V(I32x4ShrS, LaneSize::kL32) \
+  V(I16x8ShrS, LaneSize::kL16) \
+  V(I8x16ShrS, LaneSize::kL8)
+
+#define SIMD_ISHRU_OP_LIST(V)  \
+  V(I64x2ShrU, LaneSize::kL64) \
+  V(I32x4ShrU, LaneSize::kL32) \
+  V(I16x8ShrU, LaneSize::kL16) \
+  V(I8x16ShrU, LaneSize::kL8)
 
 #define SIMD_BINOP_LIST(V)                                        \
   V(I32x4Mul, kArm64IMul | LaneSizeField::encode(LaneSize::kL32)) \
-  V(I16x8SConvertI32x4, kArm64I16x8SConvertI32x4)                 \
   V(I16x8Mul, kArm64IMul | LaneSizeField::encode(LaneSize::kL16)) \
-  V(I16x8UConvertI32x4, kArm64I16x8UConvertI32x4)                 \
   V(I16x8Q15MulRSatS, kArm64I16x8Q15MulRSatS)                     \
-  V(I16x8RelaxedQ15MulRS, kArm64I16x8Q15MulRSatS)                 \
-  V(I8x16SConvertI16x8, kArm64I8x16SConvertI16x8)                 \
-  V(I8x16UConvertI16x8, kArm64I8x16UConvertI16x8)
+  V(I16x8RelaxedQ15MulRS, kArm64I16x8Q15MulRSatS)
 
 #define SIMD_BINOP_LANE_SIZE_LIST(V)                               \
   V(F64x2Min, kArm64FMin, LaneSize::kL64)                          \
@@ -4991,7 +5060,7 @@ void InstructionSelector::VisitS128Const(OpIndex node) {
   static_assert(sizeof(val) == kSimd128Size);
   const Simd128ConstantOp& constant =
       this->Get(node).template Cast<Simd128ConstantOp>();
-  memcpy(val, constant.value, kSimd128Size);
+  memcpy(val, constant.value.data(), kSimd128Size);
   Emit(kArm64S128Const, g.DefineAsRegister(node), g.UseImmediate(val[0]),
        g.UseImmediate(val[1]), g.UseImmediate(val[2]), g.UseImmediate(val[3]));
 }
@@ -5047,7 +5116,7 @@ std::optional<BicImmParam> BicImmConstHelper(const Operation& op,
   const int kUint32Immediates = 4;
   uint32_t val[kUint32Immediates];
   static_assert(sizeof(val) == kSimd128Size);
-  memcpy(val, op.Cast<Simd128ConstantOp>().value, kSimd128Size);
+  memcpy(val, op.Cast<Simd128ConstantOp>().value.data(), kSimd128Size);
   // If 4 uint32s are not the same, cannot emit Bic
   if (!(val[0] == val[1] && val[1] == val[2] && val[2] == val[3])) {
     return std::nullopt;
@@ -5344,28 +5413,29 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
 #undef SIMD_UNOP_LIST
 
-#define SIMD_VISIT_SHIFT_OP(Name, instruction, lane_size)           \
-  void InstructionSelector::Visit##Name(OpIndex node) {             \
-    const Simd128ShiftOp& op = Get(node).Cast<Simd128ShiftOp>();    \
-    if (op.kind == Simd128ShiftOp::Kind::kI64x2Shl ||               \
-        op.kind == Simd128ShiftOp::Kind::kI32x4Shl ||               \
-        op.kind == Simd128ShiftOp::Kind::kI16x8Shl ||               \
-        op.kind == Simd128ShiftOp::Kind::kI8x16Shl) {               \
-      if (auto* constant = TryCast<ConstantOp>(op.shift())) {       \
-        if (constant->word32() == 1) {                              \
-          Arm64OperandGenerator g(this);                            \
-          Emit(kArm64IAdd | LaneSizeField::encode(lane_size),       \
-               g.DefineAsRegister(node), g.UseRegister(op.input()), \
-               g.UseRegister(op.input()));                          \
-          return;                                                   \
-        }                                                           \
-      }                                                             \
-    }                                                               \
-    VisitSimdShiftRRR(this, kArm64##instruction, node, lane_size);  \
+#define SIMD_VISIT_ISHL_OP(Name, LaneSize)              \
+  void InstructionSelector::Visit##Name(OpIndex node) { \
+    VisitSimdShl(this, node, LaneSize);                 \
   }
-SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
-#undef SIMD_VISIT_SHIFT_OP
-#undef SIMD_SHIFT_OP_LIST
+SIMD_ISHL_OP_LIST(SIMD_VISIT_ISHL_OP)
+#undef SIMD_VISIT_ISHL_OP
+#undef SIMD_ISHL_OP_LIST
+
+#define SIMD_VISIT_ISHRS_OP(Name, LaneSize)             \
+  void InstructionSelector::Visit##Name(OpIndex node) { \
+    VisitSimdShrS(this, node, LaneSize);                \
+  }
+SIMD_ISHRS_OP_LIST(SIMD_VISIT_ISHRS_OP)
+#undef SIMD_VISIT_ISHRS_OP
+#undef SIMD_ISHRS_OP_LIST
+
+#define SIMD_VISIT_ISHRU_OP(Name, LaneSize)             \
+  void InstructionSelector::Visit##Name(OpIndex node) { \
+    VisitSimdShrU(this, node, LaneSize);                \
+  }
+SIMD_ISHRU_OP_LIST(SIMD_VISIT_ISHRU_OP)
+#undef SIMD_VISIT_ISHRU_OP
+#undef SIMD_ISHRU_OP_LIST
 
 #define SIMD_VISIT_BINOP(Name, instruction)             \
   void InstructionSelector::Visit##Name(OpIndex node) { \
@@ -5374,6 +5444,23 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
+
+#define SIMD_VISIT_INT_NARROWING(Name, Instr, LaneSize)                \
+  void InstructionSelector::Visit##Name(OpIndex node) {                \
+    Arm64OperandGenerator g(this);                                     \
+    const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);             \
+    const InstructionCode lane_size = LaneSizeField::encode(LaneSize); \
+    const InstructionOperand low = g.TempSimd128Register();            \
+    Emit(kArm64##Instr | lane_size, low, g.UseRegister(op.left()));    \
+    Emit(kArm64##Instr##2 | lane_size, g.DefineSameAsFirst(node), low, \
+         g.UseRegister(op.right()));                                   \
+  }
+
+SIMD_VISIT_INT_NARROWING(I16x8SConvertI32x4, Sqxtn, LaneSize::kL32)
+SIMD_VISIT_INT_NARROWING(I16x8UConvertI32x4, Sqxtun, LaneSize::kL32)
+SIMD_VISIT_INT_NARROWING(I8x16SConvertI16x8, Sqxtn, LaneSize::kL16)
+SIMD_VISIT_INT_NARROWING(I8x16UConvertI16x8, Sqxtun, LaneSize::kL16)
+#undef SIMD_VISIT_INT_NARROWING
 
 #define SIMD_VISIT_BINOP_LANE_SIZE(Name, instruction, LaneSize)          \
   void InstructionSelector::Visit##Name(OpIndex node) {                  \
@@ -5430,13 +5517,13 @@ MulWithDup TryMatchMulWithDup(InstructionSelector* selector, OpIndex node) {
   // in a loop, which won't cover the shuffle since they are different basic
   // blocks.
   if (left.Is<Simd128ShuffleOp>() &&
-      SimdShuffle::TryMatchSplat<LANES>(left.Cast<Simd128ShuffleOp>().shuffle,
-                                        &index)) {
+      SimdShuffle::TryMatchSplat<LANES>(
+          left.Cast<Simd128ShuffleOp>().shuffle.data(), &index)) {
     dup_node = left.input(index < LANES ? 0 : 1);
     input = mul.right();
   } else if (right.Is<Simd128ShuffleOp>() &&
              SimdShuffle::TryMatchSplat<LANES>(
-                 right.Cast<Simd128ShuffleOp>().shuffle, &index)) {
+                 right.Cast<Simd128ShuffleOp>().shuffle.data(), &index)) {
     dup_node = right.input(index < LANES ? 0 : 1);
     input = mul.left();
   }
@@ -6914,7 +7001,7 @@ void InstructionSelector::VisitSimd128LoadPairDeinterleave(OpIndex node) {
   InstructionCode opcode = kArm64S128LoadPairDeinterleave;
   opcode |= LaneSizeField::encode(LaneSizeFromBits(load.lane_size()));
   if (load.load_kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   OptionalOpIndex first = FindProjection(node, 0);
   OptionalOpIndex second = FindProjection(node, 1);

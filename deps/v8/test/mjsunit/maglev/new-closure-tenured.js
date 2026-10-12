@@ -20,4 +20,4 @@ o = create_closure(7);
 o = create_closure(7);
 assertEquals(7+4+2+2, o.x(2));
 assertEquals(7+5+2+5, o.x(5));
-assertTrue(isMaglevved(create_closure));
+assertMaglevved(create_closure);

@@ -35,6 +35,13 @@ void Ignore(Args&&... args) {}
 // perfetto::StaticString/DynamicString/Track/Flow.
 namespace perfetto {
 
+// The stubs live in an inline namespace so that their mangled names can never
+// collide with the real perfetto SDK. Embedders may link the real SDK into the
+// same binary as a V8 built without V8_USE_PERFETTO; without the inline
+// namespace, any stub member function that is not inlined (e.g. at -O0 or with
+// -fno-inline) is resolved by the linker against the real, ABI-incompatible
+// implementation.
+inline namespace v8_stub {
 class EventContext;
 
 class StaticString {
@@ -108,7 +115,7 @@ struct TerminatingFlow {
     return TerminatingFlow();
   }
 };
-
+}  // namespace v8_stub
 }  // namespace perfetto
 
 // This is the legacy implementation of tracing macros. There have been two
