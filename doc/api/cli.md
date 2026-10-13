@@ -756,7 +756,7 @@ added:
  - v23.10.0
  - v22.16.0
 changes:
-  - version: REPLACEME
+  - version: v26.12.0
     pr-url: https://github.com/nodejs/node/pull/66431
     description: This flag was renamed from `--experimental-config-file` to
                  `--config-file` and is now stable. `--experimental-config-file`

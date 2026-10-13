@@ -2948,7 +2948,7 @@ was already in progress to load it asynchronously.
 ### `ERR_RX_MEMORY_NOT_SUPPORTED`
 
 <!-- YAML
-added: REPLACEME
+added: v26.12.0
 -->
 
 A feature requiring runtime allocation of executable memory was used in an

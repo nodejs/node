@@ -4619,7 +4619,7 @@ syntax.
 ## `http.websocketMask(source, mask, output, offset, length)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.12.0
 -->
 
 * `source` {Buffer|TypedArray|DataView} The data to mask.
@@ -4687,7 +4687,7 @@ console.log(received.toString());
 ## `http.websocketUnmask(buffer, mask)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.12.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView} The data to unmask, in place.
