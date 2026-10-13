@@ -123,6 +123,7 @@ tools/*/*.i.tmp
 
 # === Rules for tools/perfetto ===
 /tools/perfetto/trace_processor_shell
+/tools/perfetto/trace_processor_shell.exe
 
 # === Rules for test artifacts ===
 /*.tap
