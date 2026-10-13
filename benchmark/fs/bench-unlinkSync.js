@@ -28,7 +28,7 @@ function main({ n, type }) {
       files = new Array(n).fill(tmpdir.resolve(`.non-existing-file-${Date.now()}`));
       break;
     default:
-      new Error('Invalid type');
+      throw new Error('Invalid type');
   }
 
   bench.start();
