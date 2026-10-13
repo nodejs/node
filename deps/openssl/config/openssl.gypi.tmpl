@@ -57,6 +57,9 @@ foreach $src (@libcrypto_srcs) {
     './crypto',
     './crypto/include/internal',
     './providers/common/include',
+%%- foreach $dir (@generated_include_dirs) {
+  $OUT .= "    '$dir',\n";
+} -%%
   ],
   'defines': ['<@(openssl_defines_%%-$arch-%%)'],
 %%- if (!$is_win) {
