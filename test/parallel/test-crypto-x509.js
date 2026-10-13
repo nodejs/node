@@ -19,7 +19,7 @@ const {
 
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
+const { hasFIPS, hasOpenSSL, isBoringSSL } = require('../common/crypto');
 const { readFileSync } = require('fs');
 
 const cert = readFileSync(fixtures.path('keys', 'agent1-cert.pem'));
@@ -531,7 +531,9 @@ jEVmV959vS0DtFIIsrGT3moCIBBRZWdLdd0YjFHUQshMZFM9BN2INpjFNUUxqPAC
 
   if (!isBoringSSL) {
     const legacyObject = new X509Certificate(certPem).toLegacyObject();
-    assert.strictEqual(legacyObject.asn1Curve, 'brainpoolP256r1');
+    if (!hasFIPS()) {
+      assert.strictEqual(legacyObject.asn1Curve, 'brainpoolP256r1');
+    }
     assert.strictEqual(legacyObject.nistCurve, undefined);
   }
 }
