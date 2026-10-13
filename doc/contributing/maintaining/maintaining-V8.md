@@ -94,8 +94,8 @@ to the V8 upgrade staging branches, instead of `main`:
 
 * It unblocks a Node.js pull request or a pending V8 update, for example by
   adjusting how the Node.js code uses a V8 API.
-* It has demonstrated real-world impact that justifies landing it before the
-  next V8 major version update.
+* It has demonstrated real-world urgency and impact that justifies landing it
+  before the next V8 major version update.
 
 ### Backporting to active branches
 
