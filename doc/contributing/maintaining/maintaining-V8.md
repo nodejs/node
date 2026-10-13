@@ -87,9 +87,13 @@ update.
 A patch may be backported to `main` when at least one of these criteria applies:
 
 * It fixes a build issue on a platform or toolchain supported on `main`.
+* It fixes a security issue.
+
+If the patch meet the following criteria, it's recommended to backport the patches
+to the V8 upgrade staging branches, instead of `main`:
+
 * It unblocks a Node.js pull request or a pending V8 update, for example by
   adjusting how the Node.js code uses a V8 API.
-* It fixes a security issue.
 * It has demonstrated real-world impact that justifies landing it before the
   next V8 major version update.
 
