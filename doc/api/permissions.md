@@ -158,8 +158,9 @@ Audit mode is useful for discovering what permissions your application
 requires before deploying with [`--permission`][]. It can also be combined
 with the [`--allow-fs-read`][], [`--allow-fs-write`][], [`--allow-net`][],
 [`--allow-child-process`][], [`--allow-worker`][], [`--allow-addons`][],
-[`--allow-wasi`][], and [`--allow-ffi`][] flags to audit a subset of
-permissions while granting others.
+[`--allow-wasi`][], [`--allow-ffi`][], [`--allow-inspector`][],
+and [`--allow-openssl-store`][] flags to audit a subset
+of permissions while granting others.
 
 When a permission check fails in audit mode, a message is published to the
 diagnostics channel corresponding to the denied scope. The channel names are:
@@ -172,12 +173,15 @@ diagnostics channel corresponding to the denied scope. The channel names are:
 * `node:permission-model:wasi` — WASI
 * `node:permission-model:addon` — Native Addons
 * `node:permission-model:ffi` — FFI
+* `node:permission-model:openssl-store` — OpenSSL STORE loaders
 
 Each message is an object with the following properties:
 
 * `permission` {string} The name of the denied permission scope.
 * `resource` {string} The resource that access was denied to (e.g. a file path
   or host).
+* `drop` {boolean|undefined} `true` when the message was published by
+  [`permission.drop()`][] rather than by a failed permission check.
 
 ```js
 const diagnostics_channel = require('node:diagnostics_channel');
@@ -420,6 +424,7 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
 [`--allow-ffi`]: cli.md#--allow-ffi
 [`--allow-fs-read`]: cli.md#--allow-fs-read
 [`--allow-fs-write`]: cli.md#--allow-fs-write
+[`--allow-inspector`]: cli.md#--allow-inspector
 [`--allow-net`]: cli.md#--allow-net
 [`--allow-openssl-store`]: cli.md#--allow-openssl-store
 [`--allow-wasi`]: cli.md#--allow-wasi
@@ -429,4 +434,5 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
 [`--permission`]: cli.md#--permission
 [`crypto.createPrivateKey()`]: crypto.md#cryptocreateprivatekeykey
 [`npx`]: https://docs.npmjs.com/cli/commands/npx
+[`permission.drop()`]: process.md#processpermissiondropscope-reference
 [`permission.has()`]: process.md#processpermissionhasscope-reference
