@@ -2264,15 +2264,6 @@ def configure_v8(o, configs):
   o['variables']['v8_enable_external_code_space'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_extensible_ro_snapshot'] = 0
-  # TODO(richardlau): Temporal objects in V8 currently reference a private
-  # ICU header file and fail to compile with shared ICU or no ICU. For now,
-  # if auto-detecting, warn and disable Temporal in those cases.
-  # Refs: https://github.com/nodejs/node/issues/62676
-  if (not options.v8_disable_temporal_support and not options.v8_enable_temporal_support):
-    match options.with_intl:
-      case 'none':
-        warn('Temporal support disabled when compiling without ICU')
-        options.v8_disable_temporal_support = True
   o['variables']['v8_enable_temporal_support'] = 0 if options.v8_disable_temporal_support else 1
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
   o['variables']['v8_use_perfetto'] = 1 if options.with_perfetto else 0
