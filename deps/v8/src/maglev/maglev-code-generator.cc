@@ -1882,6 +1882,7 @@ bool MaglevCodeGenerator::EmitCode() {
   EmitDeferredCode();
   if (!EmitDeopts()) return false;
   EmitExceptionHandlerTrampolines();
+  EmitRetainedObjects();
   __ FinishCode();
 
   code_gen_succeeded_ = true;
@@ -2029,6 +2030,21 @@ void MaglevCodeGenerator::EmitExceptionHandlerTrampolines() {
 #ifdef DEBUG
   masm()->set_allow_allocate(false);
 #endif
+}
+
+void MaglevCodeGenerator::EmitRetainedObjects() {
+  if (code_gen_state_.retained_objects().empty()) return;
+
+  // This code is never executed; it's just for inserting weak embedded objects
+  // into the code.
+  __ RecordComment("-- Retained objects");
+  __ Trap();
+
+  MaglevAssembler::TemporaryRegisterScope temps(masm());
+  Register scratch = temps.AcquireScratch();
+  for (Handle<HeapObject> heap_object : code_gen_state_.retained_objects()) {
+    __ Move(scratch, heap_object);
+  }
 }
 
 void MaglevCodeGenerator::EmitMetadata() {

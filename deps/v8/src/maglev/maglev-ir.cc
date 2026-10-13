@@ -8162,6 +8162,18 @@ void GenerateTypedArrayLoadFromDataPointer(MaglevAssembler* masm,
   }
 }
 
+void RetainConstantTypedArrayBuffer(MaglevAssembler* masm,
+                                    compiler::JSTypedArrayRef typed_array) {
+  // The constant typed array comes from a constant-folded source (property
+  // cell, const field, ...) which holds it strongly, and the code depends on
+  // that source not changing. So the buffer behind the embedded data pointer
+  // cannot die while this code is valid. Embed the buffer anyway as defense in
+  // depth: with this weak reference, the code is deoptimized when the buffer
+  // dies.
+  masm->code_gen_state()->Retain(
+      typed_array.buffer(masm->compilation_info()->broker()).object());
+}
+
 template <typename ResultReg>
 void GenerateTypedArrayLoad(MaglevAssembler* masm, Register object,
                             Register index, ResultReg result_reg,
@@ -8189,6 +8201,8 @@ void GenerateConstantTypedArrayLoad(MaglevAssembler* masm,
                                     compiler::JSTypedArrayRef typed_array,
                                     Register index, ResultReg result_reg,
                                     ElementsKind kind) {
+  RetainConstantTypedArrayBuffer(masm, typed_array);
+
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register data_pointer = temps.Acquire();
   __ Move(data_pointer, reinterpret_cast<intptr_t>(typed_array.data_ptr()));
@@ -8250,6 +8264,8 @@ void GenerateConstantTypedArrayStore(MaglevAssembler* masm,
                                      compiler::JSTypedArrayRef typed_array,
                                      Register index, ValueReg value,
                                      ElementsKind elements_kind) {
+  RetainConstantTypedArrayBuffer(masm, typed_array);
+
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register data_pointer = temps.Acquire();
 

@@ -5,6 +5,8 @@
 #ifndef V8_MAGLEV_MAGLEV_CODE_GEN_STATE_H_
 #define V8_MAGLEV_MAGLEV_CODE_GEN_STATE_H_
 
+#include <unordered_set>
+
 #include "src/codegen/assembler.h"
 #include "src/codegen/label.h"
 #include "src/codegen/machine-type.h"
@@ -132,6 +134,15 @@ class MaglevCodeGenState {
 
   inline BasicBlock* RealJumpTarget(BasicBlock* block);
 
+  using RetainedObjects =
+      std::unordered_set<Handle<HeapObject>, Handle<HeapObject>::hash,
+                         Handle<HeapObject>::equal_to>;
+  void Retain(Handle<HeapObject> heap_object) {
+    retained_objects_.insert(heap_object);
+  }
+
+  const RetainedObjects& retained_objects() const { return retained_objects_; }
+
  private:
   MaglevCompilationInfo* const compilation_info_;
   MaglevSafepointTableBuilder* const safepoint_table_builder_;
@@ -142,6 +153,8 @@ class MaglevCodeGenState {
   std::vector<EagerDeoptInfo*> eager_deopts_;
   std::vector<LazyDeoptInfo*> lazy_deopts_;
   std::vector<NodeBase*> handlers_;
+
+  RetainedObjects retained_objects_;
 
   int untagged_slots_ = 0;
   int tagged_slots_ = 0;
