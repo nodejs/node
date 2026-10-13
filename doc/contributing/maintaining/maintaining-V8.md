@@ -77,6 +77,22 @@ fixed upstream first.
   branches that are still active or are branches that Node.js cares about.
   Follow the process for backporting below.
 
+### Backporting patches to `main`
+
+As a general rule, do not backport individual V8 patches to the Node.js `main`
+branch. Wait for them to be included in a V8 major version update instead.
+An individual V8 patch adds up audit cost and further delays the pending V8
+update.
+
+A patch may be backported to `main` when at least one of these criteria applies:
+
+* It fixes a build issue on a platform or toolchain supported on `main`.
+* It unblocks a Node.js pull request or a pending V8 update, for example by
+  adjusting how the Node.js code uses a V8 API.
+* It fixes a security issue.
+* It has demonstrated real-world impact that justifies landing it before the
+  next V8 major version update.
+
 ### Backporting to active branches
 
 If the bug exists in any of the active V8 branches, we may need to get the fix
