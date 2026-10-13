@@ -2,6 +2,11 @@
 'use strict';
 
 const common = require('../common');
+
+if (common.isInsideDirWithUnusualChars) {
+  common.skip('Test is broken in directories with unusual characters');
+}
+
 const { isMainThread } = require('worker_threads');
 
 if (!isMainThread) {

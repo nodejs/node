@@ -4,6 +4,11 @@
 // affects the workers.
 
 const common = require('../common');
+
+if (common.isInsideDirWithUnusualChars) {
+  common.skip('Test is broken in directories with unusual characters');
+}
+
 try {
   require('trace_events');
 } catch {
