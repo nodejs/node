@@ -1108,7 +1108,7 @@ Synchronous version of [`bytes()`][].
 ### `dump(source[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.12.0
 -->
 
 * `source` {AsyncIterable|Iterable} whose chunks must be {Uint8Array\[]}
@@ -1168,7 +1168,7 @@ run().catch(console.error);
 ### `dumpSync(source[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.12.0
 -->
 
 * `source` {Iterable} whose chunks must be {Uint8Array\[]}

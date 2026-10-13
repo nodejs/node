@@ -2063,7 +2063,7 @@ Since it's not possible to build Node.js without libuv, this value is always `tr
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v26.12.0
     pr-url: https://github.com/nodejs/node/pull/66436
     description: Marked as release candidate.
 -->
@@ -2176,7 +2176,7 @@ as it is not guaranteed that the callback will be called under all circumstances
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v26.12.0
     pr-url: https://github.com/nodejs/node/pull/66436
     description: Marked as release candidate.
 -->
@@ -2201,7 +2201,7 @@ this means that there is a possibility that the callback will not be called unde
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v26.12.0
     pr-url: https://github.com/nodejs/node/pull/66436
     description: Marked as release candidate.
 -->
@@ -3153,7 +3153,7 @@ for the current process. Additional documentation is available in the
 <!-- YAML
 added: v20.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.12.0
     pr-url: https://github.com/nodejs/node/pull/65492
     description: The `reference` argument can be a `URL` or a `Uint8Array`.
 -->
@@ -3206,7 +3206,7 @@ added:
  - v26.3.0
  - v24.20.0
 changes:
-  - version: REPLACEME
+  - version: v26.12.0
     pr-url: https://github.com/nodejs/node/pull/65492
     description: The `reference` argument can be a `URL` or a `Uint8Array`.
 -->
