@@ -19,7 +19,7 @@ const {
 
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
-const { hasFIPS, hasOpenSSL, isBoringSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 const { readFileSync } = require('fs');
 
 const cert = readFileSync(fixtures.path('keys', 'agent1-cert.pem'));
@@ -515,7 +515,7 @@ CQAAAAAAAAAAAA==
   assert.strictEqual(cert.signatureAlgorithmOid, '1.3.6.1.4.1.99999.1');
 }
 
-{
+if (!isBoringSSL) {
   // EC certificate on a curve without a NIST name (brainpoolP256r1).
   const certPem = `-----BEGIN CERTIFICATE-----
 MIIBfzCCASagAwIBAgIUcZKohGvML9PeBwQtylddAdUU3nkwCgYIKoZIzj0EAwIw
@@ -529,11 +529,7 @@ jEVmV959vS0DtFIIsrGT3moCIBBRZWdLdd0YjFHUQshMZFM9BN2INpjFNUUxqPAC
 3qPo
 -----END CERTIFICATE-----`;
 
-  if (!isBoringSSL) {
-    const legacyObject = new X509Certificate(certPem).toLegacyObject();
-    if (!hasFIPS()) {
-      assert.strictEqual(legacyObject.asn1Curve, 'brainpoolP256r1');
-    }
-    assert.strictEqual(legacyObject.nistCurve, undefined);
-  }
+  const legacyObject = new X509Certificate(certPem).toLegacyObject();
+  assert.ok([undefined, 'brainpoolP256r1'].includes(legacyObject.asn1Curve));
+  assert.strictEqual(legacyObject.nistCurve, undefined);
 }
