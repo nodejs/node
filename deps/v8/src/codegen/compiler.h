@@ -24,6 +24,7 @@
 #include "src/objects/debug-objects.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/pending-compilation-error-handler.h"
+#include "src/parsing/scanner.h"  // For Scanner::DebugMagicCommentLocations.
 #include "src/snapshot/code-serializer.h"
 #include "src/utils/allocation.h"
 #include "src/zone/zone.h"
@@ -649,6 +650,9 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   DeferredFinalizationJobDataList jobs_to_retry_finalization_on_main_thread_;
   base::SmallVector<v8::Isolate::UseCounterFeature, 8> use_counts_;
   int total_preparse_skipped_ = 0;
+  // The source is not available on the background thread, so the debug magic
+  // comment values are created from these locations when finalizing.
+  Scanner::DebugMagicCommentLocations debug_magic_comment_locations_;
 
   // Single function data for top-level function compilation.
   MaybeIndirectHandle<SharedFunctionInfo> input_shared_info_;
