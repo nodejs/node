@@ -6,6 +6,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execSync } = require('child_process');
 
+if (!common.isWindows && process.getuid() === 0)
+  common.skip('running this test as root would ignore directory permissions');
+
 tmpdir.refresh(); // Prepare a clean temporary directory
 
 function countOccurrences(haystack, needle) {
