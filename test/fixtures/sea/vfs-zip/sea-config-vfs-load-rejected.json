@@ -1,7 +1,0 @@
-{
-  "main": "sea.js",
-  "output": "sea-vfs-load-rejected",
-  "useVfs": true,
-  "vfsArchive": "assets.zip",
-  "execArgvExtension": "cli"
-}
