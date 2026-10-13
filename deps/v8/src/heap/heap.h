@@ -687,7 +687,7 @@ class Heap final {
   // null.
   V8_INLINE bool CanSafepoint() const { return deserialization_complete(); }
 
-  bool HasLowAllocationRate();
+  V8_EXPORT_PRIVATE bool HasLowAllocationRate();
   bool HasHighFragmentation();
 
   void ActivateMemoryReducerIfNeeded();

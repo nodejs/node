@@ -692,6 +692,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   FRIEND_TEST(GCTracerTest, BackgroundMajorMCScope);
   FRIEND_TEST(GCTracerTest, CyclePriorities);
   FRIEND_TEST(GCTracerTest, EmbedderAllocationThroughput);
+  FRIEND_TEST(GCTracerTest, HighAllocationRateWithEmbedderAllocation);
   FRIEND_TEST(GCTracerTest, MultithreadedBackgroundScope);
   FRIEND_TEST(GCTracerTest, NewSpaceAllocationThroughput);
   FRIEND_TEST(GCTracerTest, PerGenerationAllocationThroughput);
@@ -700,6 +701,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   FRIEND_TEST(GCTracerTest, IncrementalMarkingDetails);
   FRIEND_TEST(GCTracerTest, IncrementalScope);
   FRIEND_TEST(GCTracerTest, IncrementalMarkingSpeed);
+  FRIEND_TEST(GCTracerTest, LowAllocationRateWithZeroEmbedderAllocation);
   FRIEND_TEST(GCTracerTest, MutatorUtilization);
   FRIEND_TEST(GCTracerTest, RecordMarkCompactHistograms);
   FRIEND_TEST(GCTracerTest, RecordScavengerHistograms);
