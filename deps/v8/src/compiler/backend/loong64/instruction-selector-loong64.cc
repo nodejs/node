@@ -33,6 +33,13 @@ class Loong64OperandGenerator final : public OperandGenerator {
     return UseRegister(node);
   }
 
+  InstructionOperand UseUniqueOperand(OpIndex node, InstructionCode opcode) {
+    if (CanBeImmediate(node, opcode)) {
+      return UseImmediate(node);
+    }
+    return UseUniqueRegister(node);
+  }
+
   bool IsImmediateZero(OpIndex node) {
     if (const ConstantOp* constant =
             selector()->Get(node).TryCast<ConstantOp>()) {
@@ -1535,6 +1542,30 @@ void InstructionSelector::VisitUint32MulHigh(OpIndex node) {
 
 void InstructionSelector::VisitUint64MulHigh(OpIndex node) {
   VisitRRR(this, kLoong64Mulh_du, node);
+}
+
+void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
+  Loong64OperandGenerator g(this);
+  const auto& op = Get(node).Cast<Word64Add3Op>();
+
+  OptionalV<Word64> out_low = FindProjection(node, 0);
+  OptionalV<Word64> out_high = FindProjection(node, 1);
+
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseRegister(op.first());
+  inputs[input_count++] = g.UseOperand(op.second(), kLoong64Add_d);
+  inputs[input_count++] = g.UseUniqueOperand(op.third(), kLoong64Add_d);
+
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  outputs[output_count++] =
+      g.DefineAsRegister(out_low.valid() ? out_low.value() : node);
+  if (out_high.valid() && IsUsed(out_high.value())) {
+    outputs[output_count++] = g.DefineAsRegister(out_high.value());
+  }
+
+  Emit(kLoong64Add64_3, output_count, outputs, input_count, inputs);
 }
 
 void InstructionSelector::VisitInt64Mul(OpIndex node) {

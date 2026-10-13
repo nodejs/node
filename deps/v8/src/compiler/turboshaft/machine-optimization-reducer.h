@@ -1639,7 +1639,7 @@ class MachineOptimizationReducer : public Next {
     }
 
     // TODO(ryandiaz): implement on arm64
-#ifdef V8_TARGET_ARCH_X64
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_LOONG64) 
     if (kind == Word64AddSub128BinopOp::Kind::kAdd) {
       // add128(add128(x, 0, y, 0), z, 0) -> add3(x, y, z)
       if (const Word64AddSub128BinopOp* nested = TryMatchAdd3(al, ah, bh)) {
@@ -1654,7 +1654,7 @@ class MachineOptimizationReducer : public Next {
       // TODO(ryandiaz): sub128(sub128(x, 0, y, 0), z, 0) -> sub2(x, y, z)
       // TODO(ryandiaz): sub128(x, 0, add128(y, 0, z, 0)) -> sub2(x, y, z)
     }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_LOONG64)
     return Next::ReduceWord64AddSub128Binop(al, ah, bl, bh, kind);
   }
 

@@ -55,6 +55,7 @@ namespace compiler {
   V(Loong64Add_w)                                    \
   V(Loong64AddOvf_d)                                 \
   V(Loong64AddOvf_w)                                 \
+  V(Loong64Add64_3)                                  \
   V(Loong64Add128)                                   \
   V(Loong64Sub_d)                                    \
   V(Loong64Sub_w)                                    \

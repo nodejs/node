@@ -1397,6 +1397,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                        i.InputOperand(1), scratch);
       break;
     }
+    case kLoong64Add64_3: {
+      Register low = i.OutputRegister(0);
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ Add_d(scratch, i.InputRegister(0), i.InputOperand(1));
+      if (instr->OutputCount() > 1) {
+        Register high = i.OutputRegister(1);
+        __ Sltu(high, scratch, i.InputRegister(0));
+        __ Add_d(low, scratch, i.InputOperand(2));
+        __ Sltu(scratch, low, scratch);
+        __ Add_d(high, high, scratch);
+      } else {
+        __ Add_d(low, scratch, i.InputOperand(2));
+      }
+      break;
+    }
     case kLoong64Add128: {
       UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
