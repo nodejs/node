@@ -36,6 +36,6 @@ function main({ n, type }) {
       bench.end(n);
       break;
     default:
-      new Error('Invalid type');
+      throw new Error('Invalid type');
   }
 }
