@@ -50,7 +50,7 @@ update_pkgs_file "$NIXPKGS_COMPAT_PIN_FILE" "$COMPAT_VERSION_SHA1" "$COMPAT_UPST
 OPENSSL_MAJOR=$(awk -F= '/^MAJOR=[0-9]+$/ { print $2; exit }' "$BASE_DIR/deps/openssl/openssl/VERSION.dat")
 OPENSSL_MINOR=$(awk -F= '/^MINOR=[0-9]+$/ { print $2; exit }' "$BASE_DIR/deps/openssl/openssl/VERSION.dat")
 
-nix-instantiate -I "nixpkgs=$NIXPKGS_PIN_FILE" --eval --strict --json -E "
+nix-instantiate -I "nixpkgs=$NIXPKGS_COMPAT_PIN_FILE" --eval --strict --json -E "
   let
     pkgs = import <nixpkgs> {};
     opensslAttrs = builtins.filter
@@ -80,7 +80,7 @@ nix-instantiate -I "nixpkgs=$NIXPKGS_PIN_FILE" --eval --strict --json -E "
     );
   }
 " | jq -r '"{
-  pkgs ? import ./pkgs.nix {
+  pkgs ? import ./pkgs-26.05.nix {
     config.permittedInsecurePackages = [ \(.permittedInsecurePackages | if length > 0 then "\(map(@json) | join(" ")) " else "" end)];
   },
 }:
