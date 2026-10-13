@@ -13,7 +13,8 @@ on:
     - cron: 30 0 * * *
 
 env:
-  PYTHON_VERSION: '3.15'
+  # WPT's pywebsocket3 still uses CGIHTTPRequestHandler, removed in Python 3.15.
+  PYTHON_VERSION: '3.14'
 
 permissions:
   contents: read
