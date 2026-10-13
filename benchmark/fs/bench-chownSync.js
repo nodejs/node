@@ -49,6 +49,6 @@ function main({ n, type, method }) {
       break;
     }
     default:
-      new Error('Invalid type');
+      throw new Error('Invalid type');
   }
 }

@@ -48,7 +48,7 @@ function main({ n, type, method }) {
       path = tmpdir.resolve(`.non-existing-file-${process.pid}`);
       break;
     default:
-      new Error('Invalid type');
+      throw new Error('Invalid type');
   }
 
   if (method === 'access') {
