@@ -652,9 +652,13 @@ test('a test that creates asynchronous activity', (t) => {
 added:
   - v19.2.0
   - v18.13.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66708
+    description: Watch mode is now stable.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 The Node.js test runner supports running in watch mode by passing the `--watch` flag:
 
