@@ -6,13 +6,9 @@ if (!common.hasTemporal) {
   common.skip('Temporal is not enabled');
 }
 
-// TODO(legendecas): bundle zoneinfo data for small ICU and without ICU builds.
-if (!common.hasFullICU) {
-  common.skip('Time zone support unavailable when not built with full ICU');
-}
-// TODO(aduh95): fix zoneinfo support with system-icu.
-if (process.config.variables.icu_system) {
-  common.skip('Time zone support unavailable on --with-intl=system-icu builds');
+// TODO(legendecas): bundle zoneinfo data for small ICU.
+if (globalThis.Intl && !common.hasFullICU) {
+  common.skip('Time zone support unavailable when built with small ICU');
 }
 
 // Use globalThis.Temporal to workaround linter complaints.
