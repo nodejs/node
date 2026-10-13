@@ -98,9 +98,9 @@ git diff -- deps/openssl
 _Note_: On Windows, OpenSSL Configure generates a `makefile` that can be
 used for the `nmake` command. The `make` command in step 2 (above) uses
 `Makefile_VC-WIN64A`, `Makefile_VC-WIN32`, and `Makefile_VC-WIN64-ARM`,
-which are manually created. When source files or build options are updated in
-Windows, these Makefiles need to be changed by hand. If you are not sure,
-please ask @shigeki for details.
+which are manually created. The generator adds rules for headers, C files,
+assembly, and includes from OpenSSL's build metadata. Review these Makefiles
+when source files or build options change.
 
 ## 4. Commit and test
 

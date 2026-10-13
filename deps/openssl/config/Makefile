@@ -10,7 +10,7 @@ PERL    = perl
 
 # Supported architecture list
 ASM_ARCHS = aix64-gcc-as BSD-x86 BSD-x86_64 \
-darwin64-x86_64-cc darwin-i386-cc darwin64-arm64-cc linux-aarch64 \
+darwin64-x86_64-cc darwin64-arm64-cc linux-aarch64 \
 linux-armv4 linux-elf linux-x86_64 \
 linux-ppc64le linux32-s390x linux64-s390x linux64-mips64\
 linux64-riscv64 \
@@ -43,15 +43,15 @@ GENERATE = ./generate_gypi.pl
 OPSSL_SRC = ../openssl
 
 # Header files generated with Configure
-#INT_CFGS = bn_conf.h dso_conf.h
+#INT_CFGS = dso_conf.h
 INT_CFG_DIR = $(OPSSL_SRC)/include/crypto
 GEN_HEADERS = asn1 asn1t bio comp cmp cms conf configuration core_names crmf \
               crypto ct err ess fipskey lhash ocsp opensslv pkcs12 pkcs7 \
               safestack srp ssl ui x509_acert x509 x509v3 x509_vfy
 
-INTERNAL_GEN_HEADERS = param_names
+INTERNAL_GEN_HEADERS =
 
-CRYPTO_GEN_HEADERS = bn_conf dso_conf
+CRYPTO_GEN_HEADERS = dso_conf
 
 PHONY = all clean replace generate_headers
 .PHONY: $(PHONY)
@@ -66,7 +66,7 @@ $(ASM_ARCHS):
 # Confgure asm_avx2 and generate upto avx2 support
 	cd $(OPSSL_SRC); $(NO_WARN_ENV) CC=$(FAKE_GCC) $(PERL) $(CONFIGURE) \
 	$(COPTS) $@;
-	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm_avx2 $@ "${GEN_HEADERS}" "${CRYTO_GEN_HEADERS}" "${INTERNAL_GEN_HEADERS}"
+	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm_avx2 $@ "${GEN_HEADERS}" "${CRYPTO_GEN_HEADERS}" "${INTERNAL_GEN_HEADERS}"
 # Configure no-asm and generate no-asm sources
 	cd $(OPSSL_SRC); $(NO_WARN_ENV) $(PERL) $(CONFIGURE) $(COPTS) \
 	no-asm $@;
@@ -82,5 +82,6 @@ generate_headers:
 	@$(PERL) -w -I$(OPSSL_SRC) ./generate_headers.pl "${GEN_HEADERS}" "${CRYPTO_GEN_HEADERS}" "${INTERNAL_GEN_HEADERS}"
 
 clean:
+	find . -maxdepth 1 -name \*.h ! -name opensslconf_asm.h -exec rm "{}" \;
 	find archs \( -name \*.S -o -name \*.s -o -name \*.asm -o \
-	-name \*.gypi -o -name \*.h -o -name \*.pm -o -name \*.rc \) -exec rm "{}" \;
+	-name \*.gypi -o -name \*.h -o -name \*.c -o -name \*.inc -o -name \*.pm -o -name \*.rc \) -exec rm "{}" \;

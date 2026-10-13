@@ -32,11 +32,12 @@ sub gen_headers {
   my @headers = split / /, $_[0];
   my $inc_dir = $_[1];
   foreach my $header_name (@headers) {
+    my $wrapper_name = "${inc_dir}_${header_name}";
     print("Generating headers for: $header_name\n");
 
     # Populate and write header file that will be placed OpenSSL's include
     # directory.
-    my $include = $include_tmpl->fill_in(HASH => { name => $header_name });
+    my $include = $include_tmpl->fill_in(HASH => { name => $wrapper_name });
     open(INCLUDE, "> $src_dir/include/${inc_dir}/${header_name}.h");
     print INCLUDE "$include";
     close(INCLUDE);
@@ -45,15 +46,15 @@ sub gen_headers {
     # directory as this file) which will determine which include to use
     # depending on if asm is available or not.
     my $include_conf = $include_conf_tmpl->fill_in(
-       HASH => { name => $header_name });
-    open(INCLUDE_CONF, "> ./${header_name}.h");
+       HASH => { name => $wrapper_name });
+    open(INCLUDE_CONF, "> ./${wrapper_name}.h");
     print INCLUDE_CONF "$include_conf";
     close(INCLUDE_CONF);
 
     # Poplulate and write the asm header.
     my $include_asm = $include_asm_tmpl->fill_in(
       HASH => { asmdir => 'asm', incdir => $inc_dir, name => $header_name });
-    open(INCLUDE_ASM, "> ./${header_name}_asm.h");
+    open(INCLUDE_ASM, "> ./${wrapper_name}_asm.h");
     print INCLUDE_ASM "$include_asm";
     close(INCLUDE_ASM);
 
@@ -62,7 +63,7 @@ sub gen_headers {
       HASH => { asmdir => 'no-asm',
                 incdir => $inc_dir,
 		name => $header_name });
-    open(INCLUDE_NO_ASM, "> ./${header_name}_no-asm.h");
+    open(INCLUDE_NO_ASM, "> ./${wrapper_name}_no-asm.h");
     print INCLUDE_NO_ASM "$include_no_asm";
     close(INCLUDE_NO_ASM);
   }
