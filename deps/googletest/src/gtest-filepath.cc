@@ -325,7 +325,7 @@ FilePath FilePath::GenerateUniqueFileName(const FilePath& directory,
 // This does NOT check that a directory (or file) actually exists.
 bool FilePath::IsDirectory() const {
   return !pathname_.empty() &&
-         IsPathSeparator(pathname_.c_str()[pathname_.length() - 1]);
+         IsPathSeparator(pathname_[pathname_.length() - 1]);
 }
 
 // Create directories so that path exists. Returns true if successful or if
