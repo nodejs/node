@@ -353,7 +353,10 @@ An object which contains arrays of sockets currently awaiting use by
 the agent when `keepAlive` is enabled. Do not modify.
 
 Sockets in the `freeSockets` list will be automatically destroyed and
-removed from the array on `'timeout'`.
+removed from the array on `'timeout'`. When a request would reuse a free
+socket that has been in the list for at least its timeout, for example because
+the event loop was blocked and `'timeout'` could not be emitted in time, the
+agent destroys that socket instead.
 
 ### `agent.getName([options])`
 
