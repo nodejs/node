@@ -19,6 +19,7 @@
     'node_shared_brotli%': 'false',
     'node_shared_cares%': 'false',
     'node_shared_gtest%': 'false',
+    'node_shared_gtest_libraries%': [],
     'node_shared_hdr_histogram%': 'false',
     'node_shared_highway%': 'false',
     'node_shared_http_parser%': 'false',
@@ -1387,7 +1388,7 @@
           ],
         }],
         [ 'node_shared_gtest=="true"', {
-          'libraries': [ '-lgtest_main' ],
+          'libraries': [ '-lgtest_main', '<@(node_shared_gtest_libraries)' ],
         }],
         [ 'node_use_bundled_v8!="false" and node_shared_abseil=="false"', {
           'dependencies': [ 'tools/v8_gypfiles/abseil.gyp:abseil' ],

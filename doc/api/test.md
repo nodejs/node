@@ -4364,7 +4364,7 @@ test('test', (t) => {
 #### `context.assert.callCount(fn, times[, message])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.12.0
 -->
 
 * `fn` {Function} A mock function created by the test runner's mocking API.
@@ -4385,7 +4385,7 @@ test('mock was called twice', (t) => {
 #### `context.assert.called(fn[, message])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.12.0
 -->
 
 * `fn` {Function} A mock function created by the test runner's mocking API.
@@ -4443,7 +4443,7 @@ highlighting.
 #### `context.assert.lastCalledWith(fn[, ...args])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.12.0
 -->
 
 * `fn` {Function} A mock function created by the test runner's mocking API.
@@ -4465,7 +4465,7 @@ test('mock was last called with arguments', (t) => {
 #### `context.assert.nthCalledWith(fn, n[, ...args])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.12.0
 -->
 
 * `fn` {Function} A mock function created by the test runner's mocking API.

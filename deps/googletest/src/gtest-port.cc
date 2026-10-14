@@ -1143,7 +1143,7 @@ static std::string FlagToEnvVar(const char* flag) {
 
   Message env_var;
   for (size_t i = 0; i != full_flag.length(); i++) {
-    env_var << ToUpper(full_flag.c_str()[i]);
+    env_var << ToUpper(full_flag[i]);
   }
 
   return env_var.GetString();

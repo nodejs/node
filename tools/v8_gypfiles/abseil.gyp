@@ -261,7 +261,6 @@
         '<(ABSEIL_ROOT)/absl/strings/internal/pow10_helper.h',
         '<(ABSEIL_ROOT)/absl/strings/internal/pow10_helper.cc',
         '<(ABSEIL_ROOT)/absl/strings/internal/resize_uninitialized.h',
-        '<(ABSEIL_ROOT)/absl/strings/internal/stl_type_traits.h',
         '<(ABSEIL_ROOT)/absl/strings/internal/str_format/arg.h',
         '<(ABSEIL_ROOT)/absl/strings/internal/str_format/arg.cc',
         '<(ABSEIL_ROOT)/absl/strings/internal/str_format/bind.h',

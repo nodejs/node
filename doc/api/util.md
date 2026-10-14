@@ -390,7 +390,9 @@ property take precedence over `--trace-deprecation` and
 ## `util.debounce(fn, wait[, options])`
 
 <!-- YAML
-added: v26.10.0
+added:
+  - v26.10.0
+  - v24.22.0
 -->
 
 * `fn` {Function} The function to debounce.
@@ -488,7 +490,9 @@ onInactivity();
 ## `util.throttle(fn, limit, interval[, options])`
 
 <!-- YAML
-added: v26.10.0
+added:
+  - v26.10.0
+  - v24.22.0
 -->
 
 * `fn` {Function} The function to throttle.
@@ -1920,7 +1924,9 @@ deep strict equality.
 ## `util.markPromiseAsHandled(promise)`
 
 <!-- YAML
-added: v26.10.0
+added:
+  - v26.10.0
+  - v24.22.0
 -->
 
 * `promise` {Promise} The promise to mark as handled
@@ -2822,9 +2828,8 @@ changes:
       such as NO_COLOR, NODE_DISABLE_COLORS, and FORCE_COLOR.
 -->
 
-* `format` {string | Array} A text format or an Array
-  of text formats defined in `util.inspect.colors`, or a hex color in `#RGB`
-  or `#RRGGBB` form.
+* `format` {string | Array} A text format defined in `util.inspect.colors`,
+  a hex color in `#RGB` or `#RRGGBB` form, or an Array of text formats and/or hex colors.
 * `text` {string} The text to be formatted.
 * `options` {Object}
   * `validateStream` {boolean} When true, `stream` is checked to see if it can handle colors. **Default:** `true`.
@@ -2899,6 +2904,9 @@ console.log(styleText('#ff5733', 'Orange text'));
 
 // 3-digit hex color (shorthand)
 console.log(styleText('#f00', 'Red text'));
+
+// Hex color combined with other modifiers
+console.log(styleText(['#00f', 'bold'], 'Bold blue text'));
 ```
 
 ```cjs
@@ -2909,6 +2917,9 @@ console.log(styleText('#ff5733', 'Orange text'));
 
 // 3-digit hex color (shorthand)
 console.log(styleText('#f00', 'Red text'));
+
+// Hex color combined with other modifiers
+console.log(styleText(['#00f', 'bold'], 'Bold blue text'));
 ```
 
 The full list of formats can be found in [modifiers][].

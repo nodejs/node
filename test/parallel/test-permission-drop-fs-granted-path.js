@@ -133,6 +133,40 @@ fs.writeFileSync(path.join(dir, 'item2.txt'), 'bbb');
   assert.strictEqual(child.status, 0);
 }
 
+// Grant a directory and a file inside it separately, drop the directory
+// the explicit file grant still applies regardless of the flag order
+for (const files of [
+  [dir, path.join(dir, 'item1.txt')],
+  [path.join(dir, 'item1.txt'), dir],
+]) {
+  const child = spawnSync(process.execPath, [
+    '--permission',
+    ...files.map((file) => `--allow-fs-read=${file}`),
+    ...files.map((file) => `--allow-fs-write=${file}`),
+    '-e',
+    `
+      const assert = require('assert');
+      const fs = require('fs');
+      const dir = ${JSON.stringify(dir)};
+
+      for (const scope of ['fs.read', 'fs.write']) {
+        assert.ok(process.permission.has(scope, dir + '/item1.txt'));
+        assert.ok(process.permission.has(scope, dir + '/item2.txt'));
+
+        process.permission.drop(scope, dir);
+
+        assert.ok(process.permission.has(scope, dir + '/item1.txt'));
+        assert.ok(!process.permission.has(scope, dir + '/item2.txt'));
+      }
+      assert.strictEqual(fs.readFileSync(dir + '/item1.txt', 'utf8'), 'aaa');
+    `,
+  ]);
+  if (child.status !== 0) {
+    console.error('Case 5 stderr:', child.stderr?.toString());
+  }
+  assert.strictEqual(child.status, 0);
+}
+
 // Drop entire scope without reference - revokes everything
 {
   const child = spawnSync(process.execPath, [

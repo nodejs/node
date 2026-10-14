@@ -1095,7 +1095,9 @@ property is set only when `tlsSocket.authorized === false`.
 <!-- YAML
 added: v0.11.4
 changes:
-  - version: v26.8.0
+  - version:
+    - v26.8.0
+    - v24.22.0
     pr-url: https://github.com/nodejs/node/pull/64677
     description: On TLS 1.3, a resumed session where the client presented no
                  certificate is no longer reported as authorized.

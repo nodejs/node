@@ -1083,7 +1083,9 @@ The given crypto key object's type is invalid for the attempted operation.
 ### `ERR_CRYPTO_INVALID_MAC`
 
 <!-- YAML
-added: v26.9.0
+added:
+  - v26.9.0
+  - v24.22.0
 -->
 
 An invalid MAC algorithm was specified.
@@ -1166,7 +1168,9 @@ OpenSSL with KEM support.
 ### `ERR_CRYPTO_MAC_FINALIZED`
 
 <!-- YAML
-added: v26.9.0
+added:
+  - v26.9.0
+  - v24.22.0
 -->
 
 An operation was attempted on a `Mac` object after finalization was attempted
@@ -1177,7 +1181,9 @@ or an underlying MAC update failed.
 ### `ERR_CRYPTO_MAC_NOT_SUPPORTED`
 
 <!-- YAML
-added: v26.9.0
+added:
+  - v26.9.0
+  - v24.22.0
 -->
 
 Node.js was built without support for the OpenSSL `EVP_MAC` API.
@@ -1187,7 +1193,9 @@ Node.js was built without support for the OpenSSL `EVP_MAC` API.
 ### `ERR_CRYPTO_MAC_UPDATE_FAILED`
 
 <!-- YAML
-added: v26.9.0
+added:
+  - v26.9.0
+  - v24.22.0
 -->
 
 [`mac.update()`][] failed for an unspecified reason.
@@ -2969,7 +2977,7 @@ was already in progress to load it asynchronously.
 ### `ERR_RX_MEMORY_NOT_SUPPORTED`
 
 <!-- YAML
-added: REPLACEME
+added: v26.12.0
 -->
 
 A feature requiring runtime allocation of executable memory was used in an

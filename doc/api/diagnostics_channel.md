@@ -1787,7 +1787,9 @@ passed to `console.error()`.
 #### Crypto
 
 <!-- YAML
-added: v26.9.0
+added:
+  - v26.9.0
+  - v24.22.0
 -->
 
 > Stability: 1 - Experimental
@@ -2144,6 +2146,16 @@ Emitted when [`child_process.spawn()`][] encounters an error.
 
 Emitted when [`process.execve()`][] is invoked.
 
+#### Test Runner
+
+<!-- YAML
+added:
+ - v26.1.0
+ - v24.16.0
+-->
+
+See [Test instrumentation and OpenTelemetry][] for details.
+
 #### Web Locks
 
 > Stability: 1 - Experimental
@@ -2207,7 +2219,9 @@ Emitted when a new thread is created.
 #### SQLite
 
 <!-- YAML
-added: v26.8.0
+added:
+  - v26.8.0
+  - v24.22.0
 -->
 
 > Stability: 1 - Experimental
@@ -2241,6 +2255,7 @@ statement, since both are still in use while the event is being delivered; see
 [`database.close()`][] and [`statement.close()`][].
 
 [BoundedChannel Channels]: #boundedchannel-channels
+[Test instrumentation and OpenTelemetry]: test.md#test-instrumentation-and-opentelemetry
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`--enable-fips-indicator-events`]: cli.md#--enable-fips-indicator-events

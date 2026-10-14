@@ -2546,7 +2546,9 @@ or `'private'` for private (asymmetric) keys.
 ## Class: `Mac`
 
 <!-- YAML
-added: v26.9.0
+added:
+  - v26.9.0
+  - v24.22.0
 -->
 
 * Extends: {stream.Transform}
@@ -2591,7 +2593,9 @@ console.log(mac.final('hex'));
 ### `mac.final([outputEncoding])`
 
 <!-- YAML
-added: v26.9.0
+added:
+  - v26.9.0
+  - v24.22.0
 -->
 
 * `outputEncoding` {string} The [encoding][] of the return value.
@@ -2611,7 +2615,9 @@ including when finalization fails. Later calls to `mac.update()` or
 ### `mac.update(data[, inputEncoding])`
 
 <!-- YAML
-added: v26.9.0
+added:
+  - v26.9.0
+  - v24.22.0
 -->
 
 * `data` {string|Buffer|TypedArray|DataView}
@@ -3667,13 +3673,17 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
-  - version: v26.9.0
+  - version:
+    - v26.9.0
+    - v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65484
     description: Additional ciphers available through OpenSSL providers (e.g.
                  SM4-GCM, SM4-CCM, SM4-XTS, CBC-CTS, and AES key-wrap variants)
                  are now supported. The `ctsMode` and `xtsStandard` options
                  were added.
-  - version: v26.8.0
+  - version:
+    - v26.8.0
+    - v24.22.0
     pr-url: https://github.com/nodejs/node/pull/63411
     description: Ciphers in SIV and GCM-SIV modes are now supported.
   - version: v26.0.0
@@ -3779,13 +3789,17 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
-  - version: v26.9.0
+  - version:
+    - v26.9.0
+    - v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65484
     description: Additional ciphers available through OpenSSL providers (e.g.
                  SM4-GCM, SM4-CCM, SM4-XTS, CBC-CTS, and AES key-wrap variants)
                  are now supported. The `ctsMode` and `xtsStandard` options
                  were added.
-  - version: v26.8.0
+  - version:
+    - v26.8.0
+    - v24.22.0
     pr-url: https://github.com/nodejs/node/pull/63411
     description: Ciphers in SIV and GCM-SIV modes are now supported.
   - version: v26.0.0
@@ -3961,7 +3975,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/64000
     description: The `outputLength` option is now required for XOF
                  hash functions without default output lengths.
-  - version: v26.9.0
+  - version:
+    - v26.9.0
+    - v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65484
     description: Hash algorithms exposed by OpenSSL providers are now
                  supported. The `functionName` and `customization` options
@@ -4161,7 +4177,9 @@ input.on('readable', () => {
 ### `crypto.createMac(algorithm, key[, options])`
 
 <!-- YAML
-added: v26.9.0
+added:
+  - v26.9.0
+  - v24.22.0
 -->
 
 > Stability: 1.2 - Release candidate
@@ -5202,7 +5220,9 @@ mode][].
 <!-- YAML
 added: v0.9.3
 changes:
-  - version: v26.9.0
+  - version:
+    - v26.9.0
+    - v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65484
     description: Names and aliases exposed by loaded OpenSSL providers that
                  match the default property query are now included.
@@ -5241,7 +5261,9 @@ console.log(getHashes()); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 ### `crypto.getMacs()`
 
 <!-- YAML
-added: v26.9.0
+added:
+  - v26.9.0
+  - v24.22.0
 -->
 
 > Stability: 1.2 - Release candidate
@@ -5296,7 +5318,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/64000
     description: The `outputLength` option is now required for XOF
                  hash functions without default output lengths.
-  - version: v26.9.0
+  - version:
+    - v26.9.0
+    - v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65484
     description: Hash algorithms exposed by OpenSSL providers are now
                  supported. The `functionName` and `customization` options
@@ -5518,7 +5542,9 @@ console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
 ### `crypto.parsePKCS12(bundle[, options])`
 
 <!-- YAML
-added: v26.10.0
+added:
+  - v26.10.0
+  - v24.22.0
 -->
 
 * `bundle` {ArrayBuffer|Buffer|TypedArray|DataView} A DER-encoded PKCS#12
@@ -5719,7 +5745,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `privateKey` is no longer supported.
-  - version: v26.8.0
+  - version:
+    - v26.8.0
+    - v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65073
     description: The `mgf1Hash` option was added.
   - version:
@@ -5880,7 +5908,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
-  - version: v26.8.0
+  - version:
+    - v26.8.0
+    - v24.22.0
     pr-url: https://github.com/nodejs/node/pull/65073
     description: The `mgf1Hash` option was added.
   - version: v15.0.0

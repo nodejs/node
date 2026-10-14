@@ -653,7 +653,7 @@ myVfs.writeFileSync('/x.txt', 'fail'); // throws EROFS
 ## Class: `ComposableProvider`
 
 <!-- YAML
-added: REPLACEME
+added: v26.12.0
 -->
 
 [`ComposableProvider`][] combines one or more providers in priority order. The first
@@ -666,7 +666,7 @@ The first provider must be writable to change the composed file system.
 ### `new ComposableProvider(providers)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.12.0
 -->
 
 * `providers` {VirtualProvider\[]} Non-empty array of providers, ordered from
@@ -685,7 +685,7 @@ combined.writeFileSync('/config.json', '{"debug":true}');
 ### `composableProvider.providers`
 
 <!-- YAML
-added: REPLACEME
+added: v26.12.0
 -->
 
 * {VirtualProvider\[]}
