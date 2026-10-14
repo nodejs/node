@@ -31,6 +31,12 @@ for (let timeout = common.platformTimeout(1000); ; timeout *= 2) {
     marker,
   ], { cwd: tmpdir.path, encoding: 'utf8' });
 
+  // If startup did not reach the blocked Worker, the watchdog may have
+  // interrupted report generation too. Retry before reading that report.
+  if (!fs.existsSync(marker) && timeout < common.platformTimeout(16000)) {
+    continue;
+  }
+
   const reports = helper.findReports(child.pid, tmpdir.path);
   assert.strictEqual(reports.length, 1, child.stderr);
   helper.validate(reports[0], [
