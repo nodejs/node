@@ -206,6 +206,8 @@ process.permission.has('fs.read', 'custom-require-2.js'); // true
 When using the Permission Model, a virtual file system cannot be
 mounted by default: \fBvfs.mount()\fR throws \fBERR_INVALID_STATE\fR unless the
 user explicitly passes the \fB--allow-fs-vfs\fR flag when starting Node.js.
+In audit mode (\fB--permission-audit\fR), mounting is not
+refused and no message is published to the diagnostics channel.
 A mounted VFS serves paths that the file system permissions do not describe,
 so mounting one is gated on its own flag rather than on \fB--allow-fs-read\fR or
 \fB--allow-fs-write\fR.
