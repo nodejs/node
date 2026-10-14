@@ -226,6 +226,10 @@ void Code::SetMarkedForDeoptimization(Isolate* isolate,
       } else {
         jdt.SetCodeNoWriteBarrier(handle, *BUILTIN_CODE(isolate, CompileLazy));
       }
+      // TODO(olivf, 525686865): Fix the race in dispatch handle marking by
+      // going back to a CAS loop.
+      static_assert(JSDispatchTable::kWriteBarrierSetsEntryMarkBit);
+      jdt.Mark(handle);
     }
     // Ensure we don't try to patch the entry multiple times.
     set_js_dispatch_handle(kNullJSDispatchHandle);
