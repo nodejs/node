@@ -354,9 +354,13 @@ TEST_P(SharedIsolateTest, EnvironmentsComeAndGoWhileSiblingsRun) {
                     "  return 0;\n"
                     "})()"),
         0);
-    for (int turn = 0; turn < 10000; turn++) {
+    // Loop turns do not bound Worker startup time. Yield to the Worker and
+    // allow it to finish even when the main thread pumps the loop quickly.
+    const uint64_t deadline = uv_hrtime() + 30ULL * 1000 * 1000 * 1000;
+    while (uv_hrtime() < deadline) {
       PumpLoop(1);
       if (EvaluateInt(third.get(), "state.workerExit") == 7) break;
+      uv_sleep(1);
     }
     EXPECT_EQ(EvaluateInt(third.get(), "state.workerExit"), 7);
   }
