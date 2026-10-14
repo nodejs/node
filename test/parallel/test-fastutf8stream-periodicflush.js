@@ -85,13 +85,12 @@ function runTests(sync) {
       minLength: 5000,
       periodicFlush: common.platformTimeout(10),
     });
-    const timeout = setTimeout(
-      common.mustNotCall('periodic flush did not complete'),
-      common.platformTimeout(1000),
-    );
+    // Periodic flush timers are unrefed. Keep the event loop alive until the
+    // write completes, and let the test runner enforce the timeout.
+    const keepAlive = setInterval(() => {}, 1000);
 
     stream.once('drain', common.mustCall(() => {
-      clearTimeout(timeout);
+      clearInterval(keepAlive);
       stream.destroy();
       readFile(dest, 'utf8', common.mustSucceed((data) => {
         assert.strictEqual(data, 'periodic flush\n');
