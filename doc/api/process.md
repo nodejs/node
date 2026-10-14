@@ -3250,7 +3250,8 @@ permissions.
 When a reference is provided, only the permission for that specific resource
 is dropped. For example, `process.permission.drop('fs.read', '/etc/myapp')`
 will revoke read access to that directory while keeping other read
-permissions intact.
+permissions intact. The `reference` must not be an empty string or an empty
+`Uint8Array`; otherwise an `ERR_INVALID_ARG_VALUE` error is thrown.
 
 **Important:** You can only drop the exact resource that was explicitly
 granted. The reference passed to `drop()` must match the original grant:
