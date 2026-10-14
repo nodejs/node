@@ -1,6 +1,6 @@
 'use strict';
 // Flags: --no-warnings --expose-internals
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const test = require('node:test');
 const { Duplex, Writable } = require('stream');
@@ -8,6 +8,13 @@ const {
   newWritableStreamFromStreamWritable,
   newReadableWritablePairFromDuplex,
 } = require('internal/webstreams/adapters');
+
+function isSameError(expected) {
+  return common.mustCall((actual) => {
+    assert.strictEqual(actual, expected);
+    return true;
+  });
+}
 
 // Verify that when the underlying Node.js stream throws synchronously from
 // write(), the writable web stream properly rejects but does not destroy
@@ -32,6 +39,21 @@ test('WritableStream from Node.js stream handles sync write throw', async () => 
 
   // Standalone writable should not be destroyed on sync write error
   assert.strictEqual(writable.destroyed, false);
+});
+
+test('WritableStream from Node.js stream handles async write error', async () => {
+  const error = new Error('boom');
+  const writable = new Writable({
+    write(_chunk, _encoding, callback) {
+      setImmediate(callback, error);
+    },
+  });
+  const writer = Writable.toWeb(writable).getWriter();
+
+  await Promise.all([
+    assert.rejects(writer.write(Buffer.from('hello')), isSameError(error)),
+    assert.rejects(writer.closed, isSameError(error)),
+  ]);
 });
 
 test('Duplex-backed pair does NOT destroy on sync write throw', async () => {

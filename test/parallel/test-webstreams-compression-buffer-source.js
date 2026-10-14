@@ -1,8 +1,9 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const test = require('node:test');
 const { DecompressionStream, CompressionStream } = require('stream/web');
+const { gzipSync } = require('zlib');
 
 // Minimal gzip-compressed bytes for "hello"
 const compressedGzip = new Uint8Array([
@@ -39,4 +40,38 @@ test('CompressionStream round-trip with ArrayBuffer input', async () => {
   const out = await Array.fromAsync(ds.readable);
   const result = Buffer.concat(out.map((c) => Buffer.from(c)));
   assert.strictEqual(result.toString(), 'hello');
+});
+
+test('DecompressionStream writable completion is not coupled to readable ' +
+     'backpressure', async () => {
+  const expected = Buffer.alloc(1024 * 1024, 0x61);
+  const compressed = gzipSync(expected);
+  const ds = new DecompressionStream('gzip');
+  const writer = ds.writable.getWriter();
+  const writePromise = writer.write(compressed);
+  let timer;
+  let completedBeforeRead;
+  try {
+    completedBeforeRead = await Promise.race([
+      writePromise.then(() => true),
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(false), common.platformTimeout(2000));
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+  if (completedBeforeRead) {
+    compressed.fill(0);
+  }
+
+  const outputPromise = Array.fromAsync(ds.readable);
+  await writePromise;
+  await writer.close();
+  const output = Buffer.concat(
+    (await outputPromise).map((chunk) => Buffer.from(chunk)),
+  );
+
+  assert.strictEqual(completedBeforeRead, true);
+  assert.deepStrictEqual(output, expected);
 });
