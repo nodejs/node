@@ -1,5 +1,5 @@
 {
-  pkgs ? import ./pkgs-26.05.nix {
+  pkgs ? import ./pkgs.nix {
     config.permittedInsecurePackages = [
       "openssl-1.1.1w"
       "openssl-3.0.22"
