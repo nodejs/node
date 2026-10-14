@@ -136,6 +136,7 @@ class V8_PLATFORM_EXPORT TraceWriter {
 class V8_PLATFORM_EXPORT TraceBufferChunk {
  public:
   explicit TraceBufferChunk(uint32_t seq);
+  ~TraceBufferChunk();
 
   void Reset(uint32_t new_seq);
   bool IsFull() const { return next_free_ == kChunkSize; }
