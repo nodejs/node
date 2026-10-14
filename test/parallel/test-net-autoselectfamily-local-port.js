@@ -13,12 +13,17 @@ TCP.prototype.connect6 = function() {
 };
 
 const reserved = createServer();
-reserved.listen(0, '127.0.0.1', common.mustCall(() => {
+// Reserve both address families: an IPv4-only reservation may choose a port
+// that is already in use by an IPv6-only socket.
+reserved.listen(0, '::', common.mustCall(() => {
   const localPort = reserved.address().port;
-  reserved.close(common.mustCall(() => {
-    const server = createServer(common.mustCall((socket) => socket.end()));
-    server.listen(0, '127.0.0.1', common.mustCall(() => {
-      const port = server.address().port;
+  const server = createServer(common.mustCall((socket) => socket.end()));
+  // Keep the reservation until the destination listens so it cannot take
+  // the source port that the client is about to use.
+  server.listen(0, '127.0.0.1', common.mustCall(() => {
+    const port = server.address().port;
+    assert.notStrictEqual(port, localPort);
+    reserved.close(common.mustCall(() => {
       const connection = createConnection({
         host: 'example.org',
         port,
