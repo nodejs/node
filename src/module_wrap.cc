@@ -564,6 +564,17 @@ ModulePhase to_phase_constant(ModuleImportPhase phase) {
   }
 }
 
+ModuleImportPhase to_module_import_phase(ModulePhase phase) {
+  switch (phase) {
+    case kEvaluationPhase:
+      return ModuleImportPhase::kEvaluation;
+    case kDeferPhase:
+      return ModuleImportPhase::kDefer;
+    default:
+      UNREACHABLE();
+  }
+}
+
 static Local<Object> createImportAttributesContainer(
     Realm* realm,
     Isolate* isolate,
@@ -774,8 +785,8 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   if (contextify_context != nullptr)
       microtask_queue = contextify_context->microtask_queue();
 
-  // module.evaluate(timeout, breakOnSigint)
-  CHECK_EQ(args.Length(), 2);
+  // module.evaluate(timeout, breakOnSigint, phase)
+  CHECK_EQ(args.Length(), 3);
 
   CHECK(args[0]->IsNumber());
   int64_t timeout;
@@ -785,6 +796,9 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[1]->IsBoolean());
   bool break_on_sigint = args[1]->IsTrue();
+
+  CHECK(args[2]->IsNumber());
+  ModulePhase phase = static_cast<ModulePhase>(args[2].As<Int32>()->Value());
 
   ShouldNotAbortOnUncaughtScope no_abort_scope(realm->env());
   TryCatchScope try_catch(realm->env());
@@ -800,7 +814,13 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
                                      isolate, &received_signal)
                                : std::nullopt;
 
-    result = module->Evaluate(context);
+    CHECK_NE(phase, kSourcePhase);
+    if (phase == kDeferPhase) {
+      result = module->EvaluateForImportDefer(context);
+    } else {
+      CHECK_EQ(phase, kEvaluationPhase);
+      result = module->Evaluate(context);
+    }
 
     Local<Value> res;
     if (result.ToLocal(&res) && microtask_queue) {
@@ -954,12 +974,19 @@ void ModuleWrap::GetNamespace(const FunctionCallbackInfo<Value>& args) {
   ModuleWrap* obj;
   ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
 
+  ModulePhase phase = kEvaluationPhase;
+  if (args.Length() > 0) {
+    CHECK(args[0]->IsInt32());
+    phase = static_cast<ModulePhase>(args[0].As<Int32>()->Value());
+  }
+
   Local<Module> module = obj->module_.Get(isolate);
   if (module->GetStatus() < Module::kInstantiated) {
     return THROW_ERR_MODULE_NOT_INSTANTIATED(realm->env());
   }
 
-  Local<Value> result = module->GetModuleNamespace();
+  Local<Value> result =
+      module->GetModuleNamespace(to_module_import_phase(phase));
   args.GetReturnValue().Set(result);
 }
 
