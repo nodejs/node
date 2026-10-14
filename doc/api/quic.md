@@ -2049,10 +2049,9 @@ side, it is always `false`.
 added: v23.8.0
 -->
 
-* Type: {string|null} One of `'bidi'`, `'uni'`, or `null`.
+* Type: {string} One of `'bidi'` or `'uni'`.
 
-The directionality of the stream, or `null` if the stream has been destroyed
-or is still pending. Read only.
+The directionality of the stream. Read only.
 
 ### `stream.budget`
 
@@ -2079,8 +2078,7 @@ added: v23.8.0
 
 * Type: {bigint|null}
 
-The stream ID, or `null` if the stream has been destroyed or is still
-pending. Read only.
+The stream ID, or `null` while the stream is pending. Read only.
 
 ### `stream.onerror`
 
