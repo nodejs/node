@@ -374,6 +374,10 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     return retaining_context_;
   }
 
+  bool isNetworkDomainEnabled() {
+    return network_inspector_ && network_inspector_->IsEnabled();
+  }
+
  private:
   // v8_inspector::V8Inspector::Channel
   void sendResponse(
@@ -780,6 +784,13 @@ class NodeInspectorClient : public V8InspectorClient {
     return !channels_.empty();
   }
 
+  bool isNetworkDomainEnabled() {
+    for (const auto& id_channel : channels_) {
+      if (id_channel.second->isNetworkDomainEnabled()) return true;
+    }
+    return false;
+  }
+
  private:
   bool shouldRunMessageLoop() {
     if (waiting_for_frontend_)
@@ -1163,6 +1174,10 @@ bool Agent::IsActive() {
   if (client_ == nullptr)
     return false;
   return io_ != nullptr || client_->IsActive();
+}
+
+bool Agent::IsNetworkDomainEnabled() {
+  return client_ != nullptr && client_->isNetworkDomainEnabled();
 }
 
 void Agent::SetParentHandle(

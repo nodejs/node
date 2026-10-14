@@ -364,6 +364,11 @@ void IsEnabled(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(env->inspector_agent()->IsListening());
 }
 
+void IsNetworkDomainEnabled(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(env->inspector_agent()->IsNetworkDomainEnabled());
+}
+
 void Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Agent* agent = env->inspector_agent();
@@ -461,6 +466,8 @@ void Initialize(Local<Object> target, Local<Value> unused,
 
   SetMethod(context, target, "registerAsyncHook", RegisterAsyncHookWrapper);
   SetMethodNoSideEffect(context, target, "isEnabled", IsEnabled);
+  SetMethodNoSideEffect(
+      context, target, "isNetworkDomainEnabled", IsNetworkDomainEnabled);
   SetMethod(context, target, "emitProtocolEvent", EmitProtocolEvent);
   SetMethod(context, target, "putNetworkResource", PutNetworkResource);
 
@@ -496,6 +503,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(RegisterAsyncHookWrapper);
   registry->Register(IsEnabled);
+  registry->Register(IsNetworkDomainEnabled);
   registry->Register(EmitProtocolEvent);
 
   registry->Register(JSBindingsConnection<LocalConnection>::New);

@@ -74,6 +74,8 @@ class Agent {
   void EmitProtocolEvent(v8::Local<v8::Context> context,
                          const v8_inspector::StringView& event,
                          v8::Local<v8::Object> params);
+  // Returns true if any session has enabled the Network domain.
+  bool IsNetworkDomainEnabled();
 
   // Async stack traces instrumentation.
   void AsyncTaskScheduled(const v8_inspector::StringView& taskName, void* task,
