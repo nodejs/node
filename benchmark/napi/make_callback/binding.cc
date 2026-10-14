@@ -12,12 +12,19 @@ using v8::Local;
 using v8::Object;
 using v8::Value;
 
+// Same order as the types in index.js.
+enum Type { kMakeCallback, kAsyncResource, kCall };
+
 struct State {
   uv_timer_t timer;
   Isolate* isolate;
   int64_t n;
+  Type type;
   Global<Function> fn;
   Global<Function> done;
+  node::AsyncResource* resource = nullptr;
+
+  ~State() { delete resource; }
 };
 
 static void OnTimer(uv_timer_t* handle) {
@@ -30,7 +37,17 @@ static void OnTimer(uv_timer_t* handle) {
   Local<Object> recv = context->Global();
   for (int64_t i = 0; i < state->n; i++) {
     HandleScope inner_scope(isolate);
-    (void)node::MakeCallback(isolate, recv, fn, 0, nullptr, {0, 0});
+    switch (state->type) {
+      case kMakeCallback:
+        (void)node::MakeCallback(isolate, recv, fn, 0, nullptr, {0, 0});
+        break;
+      case kAsyncResource:
+        (void)state->resource->MakeCallback(fn, 0, nullptr);
+        break;
+      case kCall:
+        (void)fn->Call(context, recv, 0, nullptr);
+        break;
+    }
   }
   Local<Function> done = state->done.Get(isolate);
   (void)node::MakeCallback(isolate, recv, done, 0, nullptr, {0, 0});
@@ -38,7 +55,7 @@ static void OnTimer(uv_timer_t* handle) {
            [](uv_handle_t* h) { delete static_cast<State*>(h->data); });
 }
 
-// run(n, fn, done): calls fn n times from a timer, then calls done.
+// run(n, fn, done, type): calls fn n times from a timer, then calls done.
 static void Run(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   State* state = new State;
@@ -46,6 +63,12 @@ static void Run(const FunctionCallbackInfo<Value>& args) {
   state->n = args[0]->IntegerValue(isolate->GetCurrentContext()).FromJust();
   state->fn.Reset(isolate, args[1].As<Function>());
   state->done.Reset(isolate, args[2].As<Function>());
+  state->type = static_cast<Type>(
+      args[3]->Int32Value(isolate->GetCurrentContext()).FromJust());
+  if (state->type == kAsyncResource) {
+    state->resource =
+        new node::AsyncResource(isolate, Object::New(isolate), "Benchmark");
+  }
   state->timer.data = state;
   uv_timer_init(node::GetCurrentEventLoop(isolate), &state->timer);
   uv_timer_start(&state->timer, OnTimer, 0, 0);
