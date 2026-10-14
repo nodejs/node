@@ -89,7 +89,8 @@ nix-instantiate -I "nixpkgs=$NIXPKGS_PIN_FILE" --eval --strict --json -E "
         " \(first | @json) "
       else
         "\n      \(map(@json) | join("\n      "))\n    "
-    end)];
+      end
+    )];
   },
 }:
 
