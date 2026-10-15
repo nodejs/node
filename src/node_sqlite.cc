@@ -1996,63 +1996,67 @@ void Database::New(const FunctionCallbackInfo<Value>& args) {
     }
 
     Local<Value> read_bigints_v;
-    if (options->Get(env->context(), env->read_bigints_string())
-            .ToLocal(&read_bigints_v)) {
-      if (!read_bigints_v->IsUndefined()) {
-        if (!read_bigints_v->IsBoolean()) {
-          THROW_ERR_INVALID_ARG_TYPE(
-              env->isolate(),
-              R"(The "options.readBigInts" argument must be a boolean.)");
-          return;
-        }
-        open_config.set_use_big_ints(read_bigints_v.As<Boolean>()->Value());
+    if (!options->Get(env->context(), env->read_bigints_string())
+             .ToLocal(&read_bigints_v)) {
+      return;
+    }
+    if (!read_bigints_v->IsUndefined()) {
+      if (!read_bigints_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            R"(The "options.readBigInts" argument must be a boolean.)");
+        return;
       }
+      open_config.set_use_big_ints(read_bigints_v.As<Boolean>()->Value());
     }
 
     Local<Value> return_arrays_v;
-    if (options->Get(env->context(), env->return_arrays_string())
-            .ToLocal(&return_arrays_v)) {
-      if (!return_arrays_v->IsUndefined()) {
-        if (!return_arrays_v->IsBoolean()) {
-          THROW_ERR_INVALID_ARG_TYPE(
-              env->isolate(),
-              R"(The "options.returnArrays" argument must be a boolean.)");
-          return;
-        }
-        open_config.set_return_arrays(return_arrays_v.As<Boolean>()->Value());
+    if (!options->Get(env->context(), env->return_arrays_string())
+             .ToLocal(&return_arrays_v)) {
+      return;
+    }
+    if (!return_arrays_v->IsUndefined()) {
+      if (!return_arrays_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            R"(The "options.returnArrays" argument must be a boolean.)");
+        return;
       }
+      open_config.set_return_arrays(return_arrays_v.As<Boolean>()->Value());
     }
 
     Local<Value> allow_bare_named_params_v;
-    if (options->Get(env->context(), env->allow_bare_named_params_string())
-            .ToLocal(&allow_bare_named_params_v)) {
-      if (!allow_bare_named_params_v->IsUndefined()) {
-        if (!allow_bare_named_params_v->IsBoolean()) {
-          THROW_ERR_INVALID_ARG_TYPE(
-              env->isolate(),
-              R"(The "options.allowBareNamedParameters" )"
-              "argument must be a boolean.");
-          return;
-        }
-        open_config.set_allow_bare_named_params(
-            allow_bare_named_params_v.As<Boolean>()->Value());
+    if (!options->Get(env->context(), env->allow_bare_named_params_string())
+             .ToLocal(&allow_bare_named_params_v)) {
+      return;
+    }
+    if (!allow_bare_named_params_v->IsUndefined()) {
+      if (!allow_bare_named_params_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            R"(The "options.allowBareNamedParameters" )"
+            "argument must be a boolean.");
+        return;
       }
+      open_config.set_allow_bare_named_params(
+          allow_bare_named_params_v.As<Boolean>()->Value());
     }
 
     Local<Value> allow_unknown_named_params_v;
-    if (options->Get(env->context(), env->allow_unknown_named_params_string())
-            .ToLocal(&allow_unknown_named_params_v)) {
-      if (!allow_unknown_named_params_v->IsUndefined()) {
-        if (!allow_unknown_named_params_v->IsBoolean()) {
-          THROW_ERR_INVALID_ARG_TYPE(
-              env->isolate(),
-              R"(The "options.allowUnknownNamedParameters" )"
-              "argument must be a boolean.");
-          return;
-        }
-        open_config.set_allow_unknown_named_params(
-            allow_unknown_named_params_v.As<Boolean>()->Value());
+    if (!options->Get(env->context(), env->allow_unknown_named_params_string())
+             .ToLocal(&allow_unknown_named_params_v)) {
+      return;
+    }
+    if (!allow_unknown_named_params_v->IsUndefined()) {
+      if (!allow_unknown_named_params_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            R"(The "options.allowUnknownNamedParameters" )"
+            "argument must be a boolean.");
+        return;
       }
+      open_config.set_allow_unknown_named_params(
+          allow_unknown_named_params_v.As<Boolean>()->Value());
     }
 
     Local<Value> defensive_v;
