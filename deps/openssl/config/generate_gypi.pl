@@ -163,14 +163,10 @@ foreach my $obj (@{$unified_info{sources}->{'libcrypto'}}) {
     $src =~ s\.[sS]$\.asm\ if ($is_win);
     push(@generated_srcs, $src);
   } else {
-    if ($src =~ m/\.c$/) { 
+    if ($src =~ m/\.(?:c|s|S|asm)$/) {
       push(@libcrypto_srcs, $src);
     }
   }
-}
-
-if ($arch eq 'linux32-s390x' || $arch eq  'linux64-s390x') {
-  push(@libcrypto_srcs, 'crypto/bn/asm/s390x.S');
 }
 
 my @lib_defines = ();
@@ -189,7 +185,7 @@ foreach my $obj (@{$unified_info{sources}->{'providers/libdefault.a'}}) {
     $src =~ s\.[sS]$\.asm\ if ($is_win);
     push(@generated_srcs, $src);
   } else {
-    if ($src =~ m/\.c$/) { 
+    if ($src =~ m/\.(?:c|s|S|asm)$/) {
       push(@libcrypto_srcs, $src);
     }
   }
@@ -204,7 +200,7 @@ foreach my $obj (@{$unified_info{sources}->{'providers/libcommon.a'}}) {
     $src =~ s\.[sS]$\.asm\ if ($is_win);
     push(@generated_srcs, $src);
   } else {
-    if ($src =~ m/\.c$/) { 
+    if ($src =~ m/\.(?:c|s|S|asm)$/) {
       push(@libcrypto_srcs, $src);
     }
   }
@@ -219,7 +215,7 @@ foreach my $obj (@{$unified_info{sources}->{'providers/liblegacy.a'}}) {
     $src =~ s\.[sS]$\.asm\ if ($is_win);
     push(@generated_srcs, $src);
   } else {
-    if ($src =~ m/\.c$/) { 
+    if ($src =~ m/\.(?:c|s|S|asm)$/) {
       push(@libcrypto_srcs, $src);
     }
   }
@@ -231,7 +227,7 @@ foreach my $obj (@{$unified_info{sources}->{'providers/legacy'}}) {
   } else {
     my $src = ${$unified_info{sources}->{$obj}}[0];
     #print("providers/fips obj: $obj, src: $src\n");
-    if ($src =~ m/\.c$/) {
+    if ($src =~ m/\.(?:c|s|S|asm)$/) {
       push(@libcrypto_srcs, $src);
     }
   }
@@ -247,7 +243,7 @@ foreach my $obj (@{$unified_info{sources}->{'providers/libfips.a'}}) {
     #$src =~ s\.[sS]$\.asm\ if ($is_win);
     #push(@generated_srcs, $src);
   } else {
-    if ($src =~ m/\.c$/) {
+    if ($src =~ m/\.(?:c|s|S|asm)$/) {
       push(@libfips_srcs, $src);
     }
   }
@@ -262,7 +258,7 @@ foreach my $obj (@{$unified_info{sources}->{'providers/libcommon.a'}}) {
     #$src =~ s\.[sS]$\.asm\ if ($is_win);
     #push(@generated_srcs, $src);
   } else {
-    if ($src =~ m/\.c$/) {
+    if ($src =~ m/\.(?:c|s|S|asm)$/) {
       push(@libfips_srcs, $src);
     }
   }
@@ -274,7 +270,7 @@ foreach my $obj (@{$unified_info{sources}->{'providers/fips'}}) {
   } else {
     my $src = ${$unified_info{sources}->{$obj}}[0];
     #print("providers/fips obj: $obj, src: $src\n");
-    if ($src =~ m/\.c$/) {
+    if ($src =~ m/\.(?:c|s|S|asm)$/) {
       push(@libfips_srcs, $src);
     }
   }
