@@ -108,7 +108,14 @@ std::string FormatErrorMessage(v8::Isolate* isolate,
                                const std::string& reason,
                                v8::Local<v8::Message> message,
                                bool add_source_line = true);
-void ResetStdio();  // Safe to call more than once and from signal handlers.
+// Restores the stdio file descriptors to their startup state. Safe to call
+// more than once and from signal handlers. The terminal attributes are only
+// restored when Node.js changed the terminal mode itself (see
+// SetTerminalModeChanged()) or when |force_terminal_restore| is true.
+void ResetStdio(bool force_terminal_restore = false);
+// Records that Node.js changed the terminal mode, e.g. through
+// tty.ReadStream.prototype.setRawMode(). Safe to call from any thread.
+void SetTerminalModeChanged();
 #ifdef __POSIX__
 void SignalExit(int signal, siginfo_t* info, void* ucontext);
 #endif
