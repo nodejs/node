@@ -137,7 +137,7 @@ std::string FormatProcessTimeoutHeader(const std::string& duration) {
 [[noreturn]] void ForceProcessTimeoutExit(const std::string& message) {
   FPrintF(stderr, "%s", message);
   fflush(stderr);
-  ResetStdio();
+  ResetStdio(true);
   std::_Exit(static_cast<int>(ExitCode::kProcessTimeout));
 }
 // LCOV_EXCL_STOP
