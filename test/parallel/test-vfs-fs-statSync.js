@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // fs.statSync / fs.lstatSync / fs.statfsSync dispatch through the VFS layer,

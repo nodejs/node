@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // Exercises ZipProvider (node:vfs backed by node:zlib's ZipBuffer/

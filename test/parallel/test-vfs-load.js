@@ -22,7 +22,7 @@ let id = 0;
 function fixture(name) { return path.join(tmpdir.path, `${id++}-${name}`); }
 
 function run(args) {
-  return spawnSync(process.execPath, ['--experimental-vfs', ...args], { encoding: 'utf8' });
+  return spawnSync(process.execPath, args, { encoding: 'utf8' });
 }
 
 // Node.js can be built without NODE_OPTIONS support, in which case the
@@ -47,6 +47,15 @@ function envArg(flag, value) {
   const res = run([`--vfs-load=${dir}`]);
   assert.strictEqual(res.status, 0, res.stderr);
   assert.match(res.stdout, /hello from inside the mount/);
+}
+
+// --no-experimental-vfs disables --vfs-load.
+{
+  const dir = fixture('disabled');
+  fs.mkdirSync(dir, { recursive: true });
+  const res = run(['--no-experimental-vfs', `--vfs-load=${dir}`]);
+  assert.notStrictEqual(res.status, 0);
+  assert.match(res.stderr, /--vfs-load requires node:vfs to be enabled/);
 }
 
 // A provider registered by a -r (CommonJS) preload backs a custom file format.
@@ -198,7 +207,7 @@ parentPort.postMessage('hello from esm worker in mount');
 const path = require('path');
 const { Worker } = require('worker_threads');
 const w = new Worker(path.join(__dirname, 'worker.js'), {
-  execArgv: ['--experimental-vfs', '--vfs-load=' + process.argv[1]],
+  execArgv: ['--vfs-load=' + process.argv[1]],
 });
 w.on('message', (m) => { console.log(m); process.exit(0); });
 w.on('error', (e) => { console.error(e); process.exit(1); });
@@ -308,8 +317,7 @@ if (hasNodeOptions) {
 
   // On its own, and alongside a --vfs-load the command line legitimately gave:
   // the environment is refused either way rather than merged.
-  for (const args of [['--experimental-vfs'],
-                      ['--experimental-vfs', `--vfs-load=${dir}`]]) {
+  for (const args of [[], [`--vfs-load=${dir}`]]) {
     const res = spawnSync(process.execPath, args, {
       encoding: 'utf8',
       env: { ...process.env, NODE_OPTIONS: envArg('--vfs-load', dir) },
@@ -319,10 +327,8 @@ if (hasNodeOptions) {
   }
 }
 
-// --experimental-vfs and --vfs-load may arrive from different places: the
-// options are validated once every source has been parsed, so a --vfs-load on
-// the command line is not rejected for an --experimental-vfs that only
-// NODE_OPTIONS carries.
+// The old --experimental-vfs option remains accepted in NODE_OPTIONS. Its
+// positive form no longer gates --vfs-load, and its negated form disables it.
 if (hasNodeOptions) {
   const dir = fixture('env-flag-cli-load');
   fs.mkdirSync(dir, { recursive: true });
@@ -334,6 +340,13 @@ if (hasNodeOptions) {
   });
   assert.strictEqual(res.status, 0, res.stderr);
   assert.match(res.stdout, /ran/);
+
+  const disabled = spawnSync(process.execPath, [`--vfs-load=${dir}`], {
+    encoding: 'utf8',
+    env: { ...process.env, NODE_OPTIONS: '--no-experimental-vfs' },
+  });
+  assert.notStrictEqual(disabled.status, 0);
+  assert.match(disabled.stderr, /--vfs-load requires node:vfs to be enabled/);
 }
 
 // Under --vfs-load the entry point comes from the mount, so no positional

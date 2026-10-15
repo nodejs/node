@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // fs.truncate, fs.link, and fs.mkdtemp callbacks dispatch through VFS.
