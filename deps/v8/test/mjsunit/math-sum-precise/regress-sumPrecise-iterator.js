@@ -58,3 +58,37 @@
   let obj = { [Symbol.iterator]() { return iter; } };
   assertEquals(240, Math.sumPrecise(obj));
 }
+
+{
+  // Case 6: JSArrayIterator with replaced prototype (crbug.com/566974983).
+  let it = [1, 2, 3].values();
+  let calls = 0;
+  Object.setPrototypeOf(it, {
+    next() {
+      if (calls++ === 0) return { value: 42, done: false };
+      return { value: undefined, done: true };
+    }
+  });
+  assertEquals(42, Math.sumPrecise({ [Symbol.iterator]() { return it; } }));
+}
+
+{
+  // Case 7: JSSetIterator with replaced prototype (crbug.com/566974983).
+  let it = new Set([1, 2, 3]).values();
+  let calls = 0;
+  Object.setPrototypeOf(it, {
+    next() {
+      if (calls++ === 0) return { value: 42, done: false };
+      return { value: undefined, done: true };
+    }
+  });
+  assertEquals(42, Math.sumPrecise({ [Symbol.iterator]() { return it; } }));
+}
+
+{
+  // Case 8: Set.prototype.entries() yields [key, value] arrays and must throw
+  // TypeError (crbug.com/566973695).
+  let it = new Set([1, 2, 3]).entries();
+  assertThrows(() => Math.sumPrecise(it), TypeError);
+  assertEquals({ value: undefined, done: true }, it.next());
+}

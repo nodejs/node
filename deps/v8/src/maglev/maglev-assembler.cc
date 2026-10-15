@@ -632,22 +632,22 @@ void MaglevAssembler::CheckAndEmitDeferredWriteBarrier(
 
 #ifdef V8_ENABLE_SANDBOX
 
-void MaglevAssembler::CheckAndEmitDeferredIndirectPointerWriteBarrier(
+void MaglevAssembler::CheckAndEmitDeferredTrustedPointerWriteBarrier(
     Register object, int offset, Register value,
-    RegisterSnapshot register_snapshot, IndirectPointerTag tag) {
+    RegisterSnapshot register_snapshot, TrustedPointerTag tag) {
   ZoneLabelRef done(this);
   Label* deferred_write_barrier = MakeDeferredCode(
       [](MaglevAssembler* masm, ZoneLabelRef done, Register object, int offset,
          Register value, RegisterSnapshot register_snapshot,
-         IndirectPointerTag tag) {
+         TrustedPointerTag tag) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
 
         Register stub_object_reg =
-            IndirectPointerWriteBarrierDescriptor::ObjectRegister();
+            TrustedPointerWriteBarrierDescriptor::ObjectRegister();
         Register slot_reg =
-            IndirectPointerWriteBarrierDescriptor::SlotAddressRegister();
+            TrustedPointerWriteBarrierDescriptor::SlotAddressRegister();
         Register tag_reg =
-            IndirectPointerWriteBarrierDescriptor::IndirectPointerTagRegister();
+            TrustedPointerWriteBarrierDescriptor::TrustedPointerTagRegister();
 
         RegList saved;
         if (object != stub_object_reg &&
@@ -675,7 +675,7 @@ void MaglevAssembler::CheckAndEmitDeferredIndirectPointerWriteBarrier(
                 ? SaveFPRegsMode::kSave
                 : SaveFPRegsMode::kIgnore;
 
-        __ CallBuiltin(Builtins::IndirectPointerBarrier(save_fp_mode));
+        __ CallBuiltin(Builtins::TrustedPointerBarrier(save_fp_mode));
 
         __ PopAll(saved);
         __ Jump(*done);
@@ -705,11 +705,11 @@ void MaglevAssembler::StoreTaggedFieldWithWriteBarrier(
 
 void MaglevAssembler::StoreTrustedPointerFieldWithWriteBarrier(
     Register object, int offset, Register value,
-    RegisterSnapshot register_snapshot, IndirectPointerTag tag) {
+    RegisterSnapshot register_snapshot, TrustedPointerTag tag) {
   AssertNotSmi(object);
   StoreTrustedPointerFieldNoWriteBarrier(object, offset, value);
-  CheckAndEmitDeferredIndirectPointerWriteBarrier(object, offset, value,
-                                                  register_snapshot, tag);
+  CheckAndEmitDeferredTrustedPointerWriteBarrier(object, offset, value,
+                                                 register_snapshot, tag);
 }
 
 #endif  // V8_ENABLE_SANDBOX

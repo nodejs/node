@@ -125,6 +125,10 @@ struct ExternalPointerTableEntry {
   };
   using Payload = TaggedPayload<ExternalPointerTablePayloadTaggingScheme>;
 
+ public:
+  static constexpr uint64_t kTagAndMarkBitMask = Payload::kTagAndMarkBitMask;
+
+ private:
   inline Payload GetRawPayload() const {
     return payload_.load(std::memory_order_relaxed);
   }

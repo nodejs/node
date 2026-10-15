@@ -64,14 +64,17 @@ V8_OBJECT class SyntheticModule : public Module {
       DirectHandle<String> module_specifier, DirectHandle<String> export_name,
       MessageLocation loc, bool must_resolve);
 
+  template <Status... kStates>
+  using InState = Module::InState<SyntheticModule, kStates...>;
+
   static V8_WARN_UNUSED_RESULT bool PrepareInstantiate(
-      Isolate* isolate, DirectHandle<SyntheticModule> module,
+      Isolate* isolate, DirectHandle<InState<kPreLinking>> module,
       v8::Local<v8::Context> context);
   static V8_WARN_UNUSED_RESULT bool FinishInstantiate(
-      Isolate* isolate, DirectHandle<SyntheticModule> module);
+      Isolate* isolate, Handle<InState<kPreLinking>> module);
 
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSPromise> Evaluate(
-      Isolate* isolate, DirectHandle<SyntheticModule> module);
+      Isolate* isolate, DirectHandle<InState<kLinked>> module);
 
  public:
   TaggedMember<String> name_;

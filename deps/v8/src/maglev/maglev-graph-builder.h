@@ -178,7 +178,7 @@ class MaglevGraphBuilder {
     return graph()->GetConstant(ref);
   }
   ValueNode* GetTrustedConstant(compiler::HeapObjectRef ref,
-                                IndirectPointerTag tag) {
+                                TrustedPointerTag tag) {
     return graph()->GetTrustedConstant(ref, tag);
   }
 
@@ -463,9 +463,6 @@ class MaglevGraphBuilder {
   bool ContextMayAlias(ValueNode* context,
                        compiler::OptionalScopeInfoRef scope_info);
 
-  MaybeReduceResult TrySpecializeLoadContextSlotToFunctionContext(
-      ValueNode* context, int index, VariableMode mode,
-      MaybeAssignedFlag assigned);
   ValueNode* TrySpecializeLoadContextCell(ValueNode* context, int index,
                                           MaybeAssignedFlag assigned);
   ReduceResult LoadAndCacheContextSlot(ValueNode* context, int index,
@@ -478,7 +475,6 @@ class MaglevGraphBuilder {
                                         ValueNode* value,
                                         ContextMode context_mode,
                                         compiler::ScopeInfoRef scope_info);
-  ValueNode* TryGetParentContext(ValueNode* node);
   void MinimizeContextChainDepth(ValueNode** context, size_t* depth,
                                  ContextScopeInfo* scope_info);
   void EscapeContext();
@@ -1546,6 +1542,9 @@ class MaglevGraphBuilder {
 
   std::optional<VirtualObject*> TryGetNonEscapingArgumentsOrArray(
       ValueNode* value);
+  bool ArgumentsElementsMaybeMutated(InlinedAllocation* allocation,
+                                     ArgumentsElements* elements);
+  void MarkArgumentsElementsMaybeMutated(ValueNode* elements);
 
   MaybeReduceResult TryBuildFastCreateObjectOrArrayLiteral(
       const compiler::LiteralFeedback& feedback);

@@ -185,17 +185,26 @@ class TaskRunner {
    * Implementation of above methods with an additional `location` argument.
    */
   virtual void PostTaskImpl(std::unique_ptr<Task> task,
-                            const SourceLocation& location) {}
+                            const SourceLocation& location) = 0;
   virtual void PostNonNestableTaskImpl(std::unique_ptr<Task> task,
-                                       const SourceLocation& location) {}
+                                       const SourceLocation& location) {
+    // This must be overridden if `NonNestableTasksEnabled()`.
+    abort();
+  }
   virtual void PostDelayedTaskImpl(std::unique_ptr<Task> task,
                                    double delay_in_seconds,
-                                   const SourceLocation& location) {}
+                                   const SourceLocation& location) = 0;
   virtual void PostNonNestableDelayedTaskImpl(std::unique_ptr<Task> task,
                                               double delay_in_seconds,
-                                              const SourceLocation& location) {}
+                                              const SourceLocation& location) {
+    // This must be overridden if `NonNestableDelayedTasksEnabled()`.
+    abort();
+  }
   virtual void PostIdleTaskImpl(std::unique_ptr<IdleTask> task,
-                                const SourceLocation& location) {}
+                                const SourceLocation& location) {
+    // This must be overridden if `IdleTasksEnabled()`.
+    abort();
+  }
 };
 
 /**

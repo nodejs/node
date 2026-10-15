@@ -68,6 +68,8 @@ enum CpuFeature {
   SVE,
   // Scalable Vector Bit Permutes instructions
   SVEBITPERM,
+  // Load-Acquire RCpc instructions v2 (LDAPUR and STLUR with unscaled offset)
+  LRCPC2,
 
 #elif V8_TARGET_ARCH_MIPS64
   FPU,

@@ -479,7 +479,7 @@ String16 descriptionForPrivateMethod(v8::Local<v8::Context> context,
            .ToLocal(&value)) {
     return String16();
   }
-  DCHECK(value->IsFunction());
+  if (!value->IsFunction()) return String16();
   return descriptionForFunction(value.As<v8::Function>());
 }
 
@@ -597,6 +597,10 @@ class PrimitiveValueMirror final : public ValueMirrorBase {
     // Fallback in case of unexpected type.
     bool isKnown;
     *result = duplicateTracker.LinkExistingOrCreate(value, &isKnown);
+    // Fail serialization if duplicate tracker Map operations threw.
+    if (!*result) {
+      return Response::ServerError("exception during deep serialization");
+    }
     if (isKnown) {
       return Response::Success();
     }
@@ -809,6 +813,10 @@ class SymbolMirror final : public ValueMirrorBase {
     v8::Local<v8::Value> value = v8Value(v8::Isolate::GetCurrent());
     bool isKnown;
     *result = duplicateTracker.LinkExistingOrCreate(value, &isKnown);
+    // Fail serialization if duplicate tracker Map operations threw.
+    if (!*result) {
+      return Response::ServerError("exception during deep serialization");
+    }
     if (isKnown) {
       return Response::Success();
     }
@@ -866,6 +874,10 @@ class LocationMirror final : public ValueMirrorBase {
     bool isKnown;
     v8::Local<v8::Value> value = v8Value(v8::Isolate::GetCurrent());
     *result = duplicateTracker.LinkExistingOrCreate(value, &isKnown);
+    // Fail serialization if duplicate tracker Map operations threw.
+    if (!*result) {
+      return Response::ServerError("exception during deep serialization");
+    }
     if (isKnown) {
       return Response::Success();
     }
@@ -961,6 +973,10 @@ class FunctionMirror final : public ValueMirrorBase {
     bool isKnown;
     v8::Local<v8::Value> value = v8Value(v8::Isolate::GetCurrent());
     *result = duplicateTracker.LinkExistingOrCreate(value, &isKnown);
+    // Fail serialization if duplicate tracker Map operations threw.
+    if (!*result) {
+      return Response::ServerError("exception during deep serialization");
+    }
     if (isKnown) {
       return Response::Success();
     }
@@ -1273,6 +1289,10 @@ class ObjectMirror final : public ValueMirrorBase {
     maxDepth = std::min(kMaxProtocolDepth, maxDepth);
     bool isKnown;
     *result = duplicateTracker.LinkExistingOrCreate(value, &isKnown);
+    // Fail serialization if duplicate tracker Map operations threw.
+    if (!*result) {
+      return Response::ServerError("exception during deep serialization");
+    }
     if (isKnown) {
       return Response::Success();
     }

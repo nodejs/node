@@ -625,7 +625,12 @@ concept IsTagged = !std::is_same_v<T, Any> &&
 
 #if V8_ENABLE_WEBASSEMBLY
 using WasmArrayNullable = Union<WasmArray, WasmNull>;
-using WasmStructNullable = Union<WasmStruct, WasmNull>;
+using WasmStructNullable = Union<WasmStruct, WasmCustomMap, WasmNull>;
+using WasmStructNonNullable = Union<WasmStruct, WasmCustomMap>;
+// TODO(jkummerow): This is a temporary type definition for objects whose
+// type depends on v8_flags.wasm_merged_descriptors. When dropping that flag,
+// replace this with plain `WasmCustomMap`.
+using WasmDescriptor = Union<WasmStruct, WasmCustomMap>;
 // The type for a nullable ref.string (stringref proposal). For imported strings
 // use StringOrNull instead.
 using WasmStringRefNullable = Union<String, WasmNull>;

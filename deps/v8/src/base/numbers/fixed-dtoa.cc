@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 #include <cmath>
+#include <span>
 
 #include "absl/numeric/int128.h"
 #include "src/base/logging.h"
@@ -45,7 +46,7 @@ class UInt128 {
 static const int kDoubleSignificandSize = 53;  // Includes the hidden bit.
 
 static void FillDigits32FixedLength(uint32_t number, int requested_length,
-                                    Vector<char> buffer, int* length) {
+                                    std::span<char> buffer, int* length) {
   for (int i = requested_length - 1; i >= 0; --i) {
     buffer[(*length) + i] = '0' + number % 10;
     number /= 10;
@@ -53,7 +54,7 @@ static void FillDigits32FixedLength(uint32_t number, int requested_length,
   *length += requested_length;
 }
 
-static void FillDigits32(uint32_t number, Vector<char> buffer, int* length) {
+static void FillDigits32(uint32_t number, std::span<char> buffer, int* length) {
   int number_length = 0;
   // We fill the digits in reverse order and exchange them afterwards.
   while (number != 0) {
@@ -76,7 +77,7 @@ static void FillDigits32(uint32_t number, Vector<char> buffer, int* length) {
 }
 
 static void FillDigits64FixedLength(uint64_t number, int requested_length,
-                                    Vector<char> buffer, int* length) {
+                                    std::span<char> buffer, int* length) {
   const uint32_t kTen7 = 10000000;
   // For efficiency cut the number into 3 uint32_t parts, and print those.
   uint32_t part2 = static_cast<uint32_t>(number % kTen7);
@@ -89,7 +90,7 @@ static void FillDigits64FixedLength(uint64_t number, int requested_length,
   FillDigits32FixedLength(part2, 7, buffer, length);
 }
 
-static void FillDigits64(uint64_t number, Vector<char> buffer, int* length) {
+static void FillDigits64(uint64_t number, std::span<char> buffer, int* length) {
   const uint32_t kTen7 = 10000000;
   // For efficiency cut the number into 3 uint32_t parts, and print those.
   uint32_t part2 = static_cast<uint32_t>(number % kTen7);
@@ -109,7 +110,8 @@ static void FillDigits64(uint64_t number, Vector<char> buffer, int* length) {
   }
 }
 
-static void DtoaRoundUp(Vector<char> buffer, int* length, int* decimal_point) {
+static void DtoaRoundUp(std::span<char> buffer, int* length,
+                        int* decimal_point) {
   // An empty buffer represents 0.
   if (*length == 0) {
     buffer[0] = '1';
@@ -150,7 +152,7 @@ static void DtoaRoundUp(Vector<char> buffer, int* length, int* decimal_point) {
 // already contained "199" (thus yielding a buffer of "19999") then a
 // rounding-up will change the contents of the buffer to "20000".
 static void FillFractionals(uint64_t fractionals, int exponent,
-                            int fractional_count, Vector<char> buffer,
+                            int fractional_count, std::span<char> buffer,
                             int* length, int* decimal_point) {
   DCHECK(-128 <= exponent && exponent <= 0);
   // 'fractionals' is a fixed-point number, with binary point at bit
@@ -207,7 +209,7 @@ static void FillFractionals(uint64_t fractionals, int exponent,
 
 // Removes leading and trailing zeros.
 // If leading zeros are removed then the decimal point position is adjusted.
-static void TrimZeros(Vector<char> buffer, int* length, int* decimal_point) {
+static void TrimZeros(std::span<char> buffer, int* length, int* decimal_point) {
   while (*length > 0 && buffer[(*length) - 1] == '0') {
     (*length)--;
   }
@@ -224,7 +226,7 @@ static void TrimZeros(Vector<char> buffer, int* length, int* decimal_point) {
   }
 }
 
-bool FastFixedDtoa(double v, int fractional_count, Vector<char> buffer,
+bool FastFixedDtoa(double v, int fractional_count, std::span<char> buffer,
                    int* length, int* decimal_point) {
   const uint32_t kMaxUInt32 = 0xFFFFFFFF;
   uint64_t significand = Double(v).Significand();

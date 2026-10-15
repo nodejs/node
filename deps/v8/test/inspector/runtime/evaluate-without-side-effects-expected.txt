@@ -109,3 +109,12 @@ Test that private member access does not trigger with replMode and throwOnSideEf
         }
     }
 }
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : boolean
+            value : true
+        }
+    }
+}

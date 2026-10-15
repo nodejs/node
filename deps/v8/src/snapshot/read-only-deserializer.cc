@@ -156,7 +156,8 @@ class ReadOnlyHeapImageDeserializer final {
 ReadOnlyDeserializer::ReadOnlyDeserializer(Isolate* isolate,
                                            const SnapshotData* data,
                                            bool can_rehash)
-    : Deserializer(isolate, data->Payload(), data->GetMagicNumber(), false,
+    : Deserializer(isolate, data->Payload(), /* trusted_payload */ {},
+                   data->GetMagicNumber(), /* deserializing_user_code */ false,
                    can_rehash) {}
 
 void ReadOnlyDeserializer::DeserializeIntoIsolate() {
@@ -167,6 +168,9 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
   HandleScope scope(isolate());
 
   ReadOnlyHeapImageDeserializer::Deserialize(isolate(), source());
+  if (should_rehash()) {
+    HashSeed::InitializeRoots(isolate());
+  }
   PostProcessNewObjects();
 
   ReadOnlyRoots roots(isolate());
@@ -177,7 +181,6 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
 #endif
 
   if (should_rehash()) {
-    HashSeed::InitializeRoots(isolate());
     Rehash();
   }
 
@@ -446,7 +449,7 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
       if (InstanceTypeChecker::IsString(instance_type)) {
         Tagged<String> str = Cast<String>(o);
         str->set_raw_hash_field(Name::kEmptyHashField);
-        PushObjectToRehash(direct_handle(str, isolate()));
+        str->EnsureHash();
       } else if (o->NeedsRehashing(instance_type)) {
         PushObjectToRehash(direct_handle(o, isolate()));
       }
@@ -457,11 +460,11 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
 #ifdef V8_ENABLE_SANDBOX
     if (IsExposedTrustedObject(o)) {
       SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(o));
-      IndirectPointerTag tag =
-          IndirectPointerTagFromInstanceType(instance_type, shared);
+      TrustedPointerTag tag =
+          TrustedPointerTagFromInstanceType(instance_type, shared);
       Tagged<ExposedTrustedObject> exposed =
           TrustedCast<ExposedTrustedObject>(o);
-      TrustedPointerHandle handle = exposed->self_indirect_pointer_handle();
+      TrustedPointerHandle handle = exposed->self_trusted_pointer_handle();
       trusted_pointer_entries.emplace_back(handle, exposed.ptr(), tag);
     }
 #endif  // V8_ENABLE_SANDBOX

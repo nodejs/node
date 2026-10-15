@@ -266,8 +266,8 @@ class MakeGarbageCollectedTraitBase
  * \endcode
  */
 struct AdditionalBytes {
-  constexpr explicit AdditionalBytes(size_t bytes) : value(bytes) {}
-  const size_t value;
+  constexpr explicit AdditionalBytes(uint32_t bytes) : value(bytes) {}
+  const uint32_t value;
 };
 
 /**
@@ -285,6 +285,7 @@ class MakeGarbageCollectedTrait : public MakeGarbageCollectedTraitBase<T> {
  public:
   template <typename... Args>
   static T* Call(AllocationHandle& handle, Args&&... args) {
+    static_assert(sizeof(T) <= std::numeric_limits<uint32_t>::max());
     void* memory =
         MakeGarbageCollectedTraitBase<T>::Allocate(handle, sizeof(T));
     T* object = ::new (memory) T(std::forward<Args>(args)...);
@@ -295,8 +296,16 @@ class MakeGarbageCollectedTrait : public MakeGarbageCollectedTraitBase<T> {
   template <typename... Args>
   static T* Call(AllocationHandle& handle, AdditionalBytes additional_bytes,
                  Args&&... args) {
-    void* memory = MakeGarbageCollectedTraitBase<T>::Allocate(
-        handle, sizeof(T) + additional_bytes.value);
+    static_assert(sizeof(T) <= std::numeric_limits<uint32_t>::max());
+    const size_t size_to_allocate = sizeof(T) + additional_bytes.value;
+    // On 64-bit systems, since sizeof(T) and additional_bytes.value are both at
+    // most 32 bits, we know that their sum can't overflow. On 32-bit systems,
+    // we need to check it.
+#if !defined(V8_HOST_ARCH_64_BIT)
+    CPPGC_CHECK(size_to_allocate > additional_bytes.value);
+#endif
+    void* memory =
+        MakeGarbageCollectedTraitBase<T>::Allocate(handle, size_to_allocate);
     T* object = ::new (memory) T(std::forward<Args>(args)...);
     MakeGarbageCollectedTraitBase<T>::MarkObjectAsFullyConstructed(object);
     return object;

@@ -5,10 +5,10 @@
 #include "src/baseline/baseline-compiler.h"
 
 #include <algorithm>
+#include <bit>
 #include <optional>
 #include <type_traits>
 
-#include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/base/numerics/clamped_math.h"
 #include "src/base/strong-alias.h"
@@ -317,7 +317,7 @@ BaselineCompiler::BaselineCompiler(
   //
   //   16 + (bytecode size) / 4
   bytecode_offset_table_builder_.Reserve(
-      base::bits::RoundUpToPowerOfTwo(16 + bytecode_->Size() / 4));
+      std::bit_ceil<size_t>(16 + bytecode_->Size() / 4));
 }
 
 void BaselineCompiler::GenerateCode() {
@@ -685,19 +685,12 @@ void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
 }
 
 void BaselineCompiler::JumpIfRoot(RootIndex root) {
-  Label dont_jump;
-  __ JumpIfNotRoot(kInterpreterAccumulatorRegister, root, &dont_jump,
-                   Label::kNear);
-  __ Jump(BuildForwardJumpLabel());
-  __ Bind(&dont_jump);
+  __ JumpIfRoot(kInterpreterAccumulatorRegister, root, BuildForwardJumpLabel());
 }
 
 void BaselineCompiler::JumpIfNotRoot(RootIndex root) {
-  Label dont_jump;
-  __ JumpIfRoot(kInterpreterAccumulatorRegister, root, &dont_jump,
-                Label::kNear);
-  __ Jump(BuildForwardJumpLabel());
-  __ Bind(&dont_jump);
+  __ JumpIfNotRoot(kInterpreterAccumulatorRegister, root,
+                   BuildForwardJumpLabel());
 }
 
 Label* BaselineCompiler::BuildForwardJumpLabel() {
@@ -1983,6 +1976,33 @@ void BaselineCompiler::VisitConstructForwardAllArgs() {
 }
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
+std::optional<BaselineCompiler::CompareBranchCandidate>
+BaselineCompiler::GetCompareBranchCandidate() {
+#ifdef V8_TRACE_UNOPTIMIZED
+  if (v8_flags.trace_baseline_exec) return std::nullopt;
+#endif
+#ifdef V8_DUMPLING
+  if (v8_flags.sparkplug_dumping) return std::nullopt;
+#endif
+  if (v8_flags.slow_debug_code) return std::nullopt;
+
+  DisallowGarbageCollection no_gc;
+  interpreter::BytecodeArrayIterator next_iterator = iterator().Clone(no_gc);
+  next_iterator.Advance();
+  switch (next_iterator.current_bytecode()) {
+    case interpreter::Bytecode::kJumpIfTrue:
+    case interpreter::Bytecode::kJumpIfTrueConstant:
+      return CompareBranchCandidate{next_iterator.GetJumpTargetOffset(),
+                                    next_iterator.next_offset()};
+    case interpreter::Bytecode::kJumpIfFalse:
+    case interpreter::Bytecode::kJumpIfFalseConstant:
+      return CompareBranchCandidate{next_iterator.next_offset(),
+                                    next_iterator.GetJumpTargetOffset()};
+    default:
+      return std::nullopt;
+  }
+}
+
 template <Operation kOperation, Builtin kSmiBuiltin, Builtin kGenericBuiltin>
 bool BaselineCompiler::TryEmitInlineSmiCompare(
     CompareOperationFeedback::Type feedback_type, int feedback_index_offset) {
@@ -1995,51 +2015,59 @@ bool BaselineCompiler::TryEmitInlineSmiCompare(
   }
 
   ASM_CODE_COMMENT_STRING(&masm_, "inlined Smi compare fast path");
-  Label slow, done;
-  {
-    BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
-    Register lhs = scratch_scope.AcquireScratch();
-    __ Move(lhs, RegisterOperand(0));
+  Label slow, done, if_true;
+  std::optional<CompareBranchCandidate> candidate = GetCompareBranchCandidate();
+
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  Register lhs = scratch_scope.AcquireScratch();
+  __ Move(lhs, RegisterOperand(0));
+  if constexpr (kOperation == Operation::kEqual ||
+                kOperation == Operation::kStrictEqual) {
+    // Equal Smis have identical tagged values, so check lhs first and let a
+    // tagged-equal hit return true without checking rhs. Only the not-equal
+    // edge needs to verify rhs before returning false.
+    __ JumpIfNotSmi(lhs, &slow, Label::kNear);
+  } else {
+    __ JumpIfNotBothSmi(lhs, kInterpreterAccumulatorRegister, &slow,
+                        Label::kNear);
+  }
+
+  auto jump_if_true = [&](Label* true_target, Label::Distance distance) {
     if constexpr (kOperation == Operation::kEqual ||
                   kOperation == Operation::kStrictEqual) {
-      // Equal Smis have identical tagged values, so check lhs first and let a
-      // tagged-equal hit return true without checking rhs. Only the not-equal
-      // edge needs to verify rhs before returning false.
-      __ JumpIfNotSmi(lhs, &slow, Label::kNear);
+      __ JumpIfTagged(kEqual, lhs, kInterpreterAccumulatorRegister, true_target,
+                      distance);
+      // Neither path writes the boolean result before this check, so the
+      // accumulator still holds the rhs on the path to `slow`.
+      __ JumpIfNotSmi(kInterpreterAccumulatorRegister, &slow, Label::kNear);
+    } else if constexpr (kOperation == Operation::kLessThan) {
+      __ JumpIfTagged(kLessThan, lhs, kInterpreterAccumulatorRegister,
+                      true_target, distance);
+    } else if constexpr (kOperation == Operation::kLessThanOrEqual) {
+      __ JumpIfTagged(kLessThanEqual, lhs, kInterpreterAccumulatorRegister,
+                      true_target, distance);
+    } else if constexpr (kOperation == Operation::kGreaterThan) {
+      __ JumpIfTagged(kLessThan, kInterpreterAccumulatorRegister, lhs,
+                      true_target, distance);
     } else {
-      __ JumpIfNotBothSmi(lhs, kInterpreterAccumulatorRegister, &slow,
-                          Label::kNear);
+      static_assert(kOperation == Operation::kGreaterThanOrEqual);
+      __ JumpIfTagged(kLessThanEqual, kInterpreterAccumulatorRegister, lhs,
+                      true_target, distance);
     }
+  };
 
-    SelectBooleanConstant(
-        kInterpreterAccumulatorRegister,
-        [&](Label* if_true, Label::Distance distance) {
-          if constexpr (kOperation == Operation::kEqual ||
-                        kOperation == Operation::kStrictEqual) {
-            __ JumpIfTagged(kEqual, lhs, kInterpreterAccumulatorRegister,
-                            if_true, distance);
-            // SelectBooleanConstant evaluates the condition before writing its
-            // output register, so the accumulator still holds the rhs on the
-            // path to `slow`.
-            __ JumpIfNotSmi(kInterpreterAccumulatorRegister, &slow,
-                            Label::kNear);
-          } else if constexpr (kOperation == Operation::kLessThan) {
-            __ JumpIfTagged(kLessThan, lhs, kInterpreterAccumulatorRegister,
-                            if_true, distance);
-          } else if constexpr (kOperation == Operation::kLessThanOrEqual) {
-            __ JumpIfTagged(kLessThanEqual, lhs,
-                            kInterpreterAccumulatorRegister, if_true, distance);
-          } else if constexpr (kOperation == Operation::kGreaterThan) {
-            __ JumpIfTagged(kLessThan, kInterpreterAccumulatorRegister, lhs,
-                            if_true, distance);
-          } else {
-            static_assert(kOperation == Operation::kGreaterThanOrEqual);
-            __ JumpIfTagged(kLessThanEqual, kInterpreterAccumulatorRegister,
-                            lhs, if_true, distance);
-          }
-        });
+  if (candidate) {
+    jump_if_true(&if_true, Label::kNear);
+    __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kFalseValue);
+    __ Jump(EnsureLabel(candidate->false_offset));
+
+    __ Bind(&if_true);
+    __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
+    __ Jump(EnsureLabel(candidate->true_offset));
+  } else {
+    SelectBooleanConstant(kInterpreterAccumulatorRegister, jump_if_true);
+    __ Jump(&done);
   }
-  __ Jump(&done);
 
   __ Bind(&slow);
   if (allow_sparkplug_plus_) {
@@ -2052,7 +2080,6 @@ bool BaselineCompiler::TryEmitInlineSmiCompare(
                                  feedback_index_offset);
   }
   __ Bind(&done);
-
   return true;
 }
 #endif  // V8_ENABLE_SPARKPLUG_PLUS

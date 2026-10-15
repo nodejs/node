@@ -31,6 +31,39 @@ using NativeObject = void*;
 using SnapshotObjectId = uint32_t;
 using ProfilerId = uint32_t;
 
+/**
+ * Embedder-supplied callback invoked as each CPU profile sample is captured.
+ * The returned pointer is stored on the sample and retrievable via
+ * CpuProfile::GetSampleContext.
+ *
+ * The context in which it runs depends on how the sample was taken. For
+ * samples taken by the sampling thread, it is invoked either from a POSIX
+ * signal handler interrupting the sampled thread, or (on platforms that sample
+ * by suspending that thread, such as Windows and Fuchsia) on the sampling
+ * thread itself. For samples requested via CpuProfiler::CollectSample, or
+ * recorded on deoptimization, it is invoked synchronously on the thread that
+ * triggered them.
+ *
+ * Consequently this function MUST NOT rely on thread-local storage. Where
+ * sampling suspends the profiled thread, the callback runs on the sampling
+ * thread, whose thread-locals are unrelated to the profiled thread's, and the
+ * profiled thread's are not reachable at all. Accessing a dynamically
+ * initialized thread-local is in any case not async-signal-safe. Use the
+ * supplied Isolate to determine what to return, keeping whatever per-isolate
+ * state that requires in memory the embedder maintains outside this callback.
+ *
+ * The signal-safety contract applies in all of these cases: this function
+ * MUST NOT allocate memory, acquire locks, call any V8 API, or perform any
+ * other operation that is not async-signal-safe. It SHOULD limit itself to
+ * reading from memory the embedder keeps stable for the duration of
+ * profiling, and returning a `void*` whose meaning is defined by the
+ * embedder. Note that V8 may hold internal locks while calling it, so
+ * reentering the CpuProfiler API from the extractor can deadlock.
+ *
+ * The returned pointer is treated as opaque by V8 and is not dereferenced.
+ */
+using SampleContextExtractor = void* (*)(Isolate*);
+
 struct CpuProfileDeoptFrame {
   int script_id;
   size_t position;
@@ -273,6 +306,15 @@ class V8_EXPORT CpuProfile {
   EmbedderStateTag GetSampleEmbedderState(int index) const;
 
   /**
+   * Returns the embedder-supplied sample context for the sample at the given
+   * index. The pointer was produced by the SampleContextExtractor installed
+   * on the CpuProfilingOptions used to start this profile. If no extractor
+   * was installed, or the extractor returned nullptr for this sample, returns
+   * nullptr.
+   */
+  void* GetSampleContext(int index) const;
+
+  /**
    * Returns time when the profile recording was stopped (in microseconds)
    * since some unspecified starting point.
    * The point is equal to the starting point used by GetStartTime.
@@ -394,12 +436,19 @@ class V8_EXPORT CpuProfilingOptions {
    * \param filter_context If specified, profiles will only contain frames
    *                       using this context. Other frames will be elided.
    * \param profile_source Identifies the source of this CPU profile.
+   * \param sample_context_extractor Optional embedder callback invoked as each
+   *                                 sample is captured. The returned pointer
+   *                                 is stored on the sample and retrievable
+   *                                 via CpuProfile::GetSampleContext. See
+   *                                 SampleContextExtractor for the
+   *                                 signal-safety contract.
    */
   CpuProfilingOptions(
       CpuProfilingMode mode = kLeafNodeLineNumbers,
       unsigned max_samples = kNoSampleLimit, int sampling_interval_us = 0,
       MaybeLocal<Context> filter_context = MaybeLocal<Context>(),
-      CpuProfileSource profile_source = CpuProfileSource::kUnspecified);
+      CpuProfileSource profile_source = CpuProfileSource::kUnspecified,
+      SampleContextExtractor sample_context_extractor = nullptr);
 
   CpuProfilingOptions(CpuProfilingOptions&&) = default;
   CpuProfilingOptions& operator=(CpuProfilingOptions&&) = default;
@@ -408,6 +457,9 @@ class V8_EXPORT CpuProfilingOptions {
   unsigned max_samples() const { return max_samples_; }
   int sampling_interval_us() const { return sampling_interval_us_; }
   CpuProfileSource profile_source() const { return profile_source_; }
+  SampleContextExtractor sample_context_extractor() const {
+    return sample_context_extractor_;
+  }
 
  private:
   friend class internal::CpuProfile;
@@ -420,6 +472,7 @@ class V8_EXPORT CpuProfilingOptions {
   int sampling_interval_us_;
   Global<Context> filter_context_;
   CpuProfileSource profile_source_;
+  SampleContextExtractor sample_context_extractor_ = nullptr;
 };
 
 /**

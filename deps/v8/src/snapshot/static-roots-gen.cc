@@ -215,7 +215,8 @@ void StaticRootsTableGen::write_text(Isolate* isolate, const char* file) {
     const std::list<RootIndex>& roots = entry.second;
 
     for (RootIndex root : roots) {
-      out << "0x" << std::hex << ptr << " = k" << gen.camel_name(root) << "\n";
+      out << "0x" << std::hex << ptr << std::dec << " = k"
+          << gen.camel_name(root) << "\n";
     }
   }
 #endif

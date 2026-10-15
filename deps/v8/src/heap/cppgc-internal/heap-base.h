@@ -8,6 +8,7 @@
 #include <memory>
 #include <set>
 
+#include "absl/container/flat_hash_set.h"
 #include "include/cppgc/heap-handle.h"
 #include "include/cppgc/heap-statistics.h"
 #include "include/cppgc/heap.h"
@@ -53,6 +54,7 @@ namespace testing {
 class Heap;
 }  // namespace testing
 
+class AllocationSampler;
 class Platform;
 
 namespace internal {
@@ -78,8 +80,24 @@ class MoveListener {
                       size_t size_including_header) = 0;
 };
 
+class CheckedAllocationSampler final : public cppgc::AllocationSampler {
+ public:
+  CheckedAllocationSampler(HeapBase& heap, cppgc::AllocationSampler& sampler)
+      : heap_(heap), sampler_(sampler) {}
+
+  size_t GetSampleInterval() const final;
+  bool OnAllocated(void* address, size_t size) final;
+  void OnFreed(void* address) final;
+  bool OnMove(void* from, void* to, size_t size) final;
+
+ private:
+  HeapBase& heap_;
+  cppgc::AllocationSampler& sampler_;
+};
+
 // Base class for heap implementations.
-class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
+class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle,
+                                   public MoveListener {
  public:
   using StackSupport = cppgc::Heap::StackSupport;
   using MarkingType = cppgc::Heap::MarkingType;
@@ -96,7 +114,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
            const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
            StackSupport stack_support, MarkingType marking_support,
            SweepingType sweeping_support, GarbageCollector& garbage_collector,
-           std::optional<cppgc::StackStartMarker> stack_start_marker);
+           std::optional<cppgc::StackStartMarker> stack_start_marker,
+           cppgc::AllocationSampler* allocation_sampler = nullptr);
   virtual ~HeapBase();
 
   HeapBase(const HeapBase&) = delete;
@@ -135,6 +154,12 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   ObjectAllocator& object_allocator() { return object_allocator_; }
   const ObjectAllocator& object_allocator() const { return object_allocator_; }
+
+  void AddSampledObject(HeapObjectHeader* header) {
+    sampled_objects_.insert(header);
+  }
+  void RemoveSampledObject(HeapObjectHeader* header);
+  void FilterSampledObjects();
 
   Sweeper& sweeper() { return sweeper_; }
   const Sweeper& sweeper() const { return sweeper_; }
@@ -240,6 +265,9 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
     name_for_unnamed_object_ = value;
   }
 
+  // MoveListener implementation:
+  void OnMove(Address from, Address to, size_t size_including_header) override;
+
   // Callback support so that other components can listen to when objects are
   // moved.
   bool HasMoveListeners() const { return !move_listeners_.empty(); }
@@ -311,6 +339,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   std::unique_ptr<heap::base::Stack> stack_;
   std::unique_ptr<PreFinalizerHandler> prefinalizer_handler_;
   std::unique_ptr<MarkerBase> marker_;
+  std::optional<CheckedAllocationSampler> allocation_sampler_;
 
   Compactor compactor_;
   ObjectAllocator object_allocator_;
@@ -345,6 +374,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
       HeapObjectNameForUnnamedObject::kUseHiddenName;
 
   std::vector<MoveListener*> move_listeners_;
+  absl::flat_hash_set<HeapObjectHeader*> sampled_objects_;
 
   friend class MarkerBase::IncrementalMarkingTask;
   friend class cppgc::subtle::DisallowGarbageCollectionScope;

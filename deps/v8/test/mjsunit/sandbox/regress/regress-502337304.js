@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --enable-inspector --expose-memory-corruption-api
-// Flags: --sandbox-testing --fuzzing
+// Flags: --enable-inspector --expose-memory-corruption-api --sandbox-testing
 
 const NUM_PARAMS = 60000;
 let paramTail = '';

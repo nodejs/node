@@ -19,6 +19,7 @@ namespace regexp {
 
 class AlternativeGenerationList;
 class BoyerMooreLookahead;
+class Capture;
 class Compiler;
 class NegativeSubmatchSuccess;
 template <typename T>
@@ -467,7 +468,8 @@ class ActionNode : public SeqNode {
   static ActionNode* SetRegisterForLoop(int reg, int val, Node* on_success,
                                         Flags flags);
   static ActionNode* IncrementRegister(int reg, Node* on_success, Flags flags);
-  static ActionNode* StorePosition(int reg, Node* on_success, Flags flags);
+  static ActionNode* StorePosition(int reg, Node* on_success, Flags flags,
+                                   const Capture* capture);
   static ActionNode* RestorePosition(int reg, Node* on_success, Flags flags);
   static ActionNode* ClearCaptures(Interval range, Node* on_success,
                                    Flags flags);
@@ -498,6 +500,7 @@ class ActionNode : public SeqNode {
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
                     BoyerMooreLookahead* bm, bool not_at_start) override;
   ActionType action_type() const { return action_type_; }
+  bool stores_backreferenced_capture() const;
   // TODO(erikcorry): We should allow some action nodes in fixed length loops.
   int FixedLengthLoopLength() override {
     return kNodeIsTooComplexForFixedLengthLoops;
@@ -563,6 +566,8 @@ class ActionNode : public SeqNode {
       int register_from;
       int register_to;
       int value;
+      // Only used for STORE_POSITION; null for implicit capture 0.
+      const Capture* capture;
     } u_simple;
     struct {
       int stack_pointer_register;

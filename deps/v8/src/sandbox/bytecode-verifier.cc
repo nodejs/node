@@ -172,7 +172,13 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
       switch (operand_type) {
         case interpreter::OperandType::kReg:
         case interpreter::OperandType::kRegOut:
-        case interpreter::OperandType::kRegInOut:
+        case interpreter::OperandType::kRegInOut: {
+          interpreter::Register reg = iterator.GetRegisterOperand(i);
+          bool is_output =
+              interpreter::Bytecodes::IsRegisterOutputOperandType(operand_type);
+          VerifyRegister(reg, is_output);
+          break;
+        }
         case interpreter::OperandType::kRegPair:
         case interpreter::OperandType::kRegOutPair:
         case interpreter::OperandType::kRegOutTriple:
@@ -181,17 +187,22 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
           bool is_output =
               interpreter::Bytecodes::IsRegisterOutputOperandType(operand_type);
           uint32_t count = iterator.GetRegisterOperandRange(i);
-          if (count > 0) {
-            interpreter::Register start = iterator.GetRegisterOperand(i);
+          interpreter::Register start = iterator.GetRegisterOperand(i);
+          if (count == 0) {
+            Check(start == interpreter::Register(0),
+                  "Invalid empty register list");
+          } else {
             VerifyRegister(start, is_output);
+            if (is_output || count > 1) {
+              Check(!start.is_parameter(),
+                    "Register list cannot use parameter registers");
+            }
             if (count > 1) {
               base::internal::CheckedNumeric<int> end_index = start.index();
               end_index += count - 1;
               Check(end_index.IsValid(), "Register range end overflows");
               interpreter::Register end(end_index.ValueOrDie());
               VerifyRegister(end, is_output);
-              Check(start.is_parameter() == end.is_parameter(),
-                    "Register range crosses parameter/local boundary");
             }
           }
           break;

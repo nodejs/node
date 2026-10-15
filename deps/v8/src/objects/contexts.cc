@@ -107,10 +107,9 @@ Handle<ScriptContextTable> ScriptContextTable::Add(
 
 #define CHECK_FOLLOWS2(v1, v2) static_assert((v1 + 1) == (v2))
 
-int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
-                              bool has_shared_name) {
+int Context::FunctionMapIndex(FunctionKind kind, bool has_shared_name) {
   if (IsClassConstructor(kind)) {
-    // Like the strict function map, but with no 'name' accessor. 'name'
+    // Like the function map, but with no 'name' accessor. 'name'
     // needs to be the last property and it is added during instantiation,
     // in case a static property with the same name exists"
     return CLASS_FUNCTION_MAP_INDEX;
@@ -132,20 +131,16 @@ int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
 
     base = ASYNC_FUNCTION_MAP_INDEX;
 
-  } else if (IsStrictFunctionWithoutPrototype(kind)) {
-    CHECK_FOLLOWS2(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
+  } else if (IsFunctionWithoutPrototype(kind)) {
+    CHECK_FOLLOWS2(FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
                    METHOD_WITH_NAME_MAP_INDEX);
 
-    base = STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX;
+    base = FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX;
 
   } else {
-    CHECK_FOLLOWS2(SLOPPY_FUNCTION_MAP_INDEX,
-                   SLOPPY_FUNCTION_WITH_NAME_MAP_INDEX);
-    CHECK_FOLLOWS2(STRICT_FUNCTION_MAP_INDEX,
-                   STRICT_FUNCTION_WITH_NAME_MAP_INDEX);
+    CHECK_FOLLOWS2(FUNCTION_MAP_INDEX, FUNCTION_WITH_NAME_MAP_INDEX);
 
-    base = is_strict(language_mode) ? STRICT_FUNCTION_MAP_INDEX
-                                    : SLOPPY_FUNCTION_MAP_INDEX;
+    base = FUNCTION_MAP_INDEX;
   }
   int offset = static_cast<int>(!has_shared_name);
   DCHECK_EQ(0, offset & ~1);

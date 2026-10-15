@@ -11,6 +11,7 @@
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate-utils.h"
+#include "src/objects/scope-info.h"
 #include "src/objects/string-inl.h"
 #include "src/sandbox/external-pointer.h"
 #include "src/strings/unicode-inl.h"
@@ -31,7 +32,8 @@ constexpr char kObjectAsStoredInHeap[] =
 std::string AppendAddressAndType(const std::string& brief, uintptr_t address,
                                  const char* type) {
   std::stringstream brief_stream;
-  brief_stream << "0x" << std::hex << address << " <" << type << ">";
+  brief_stream << "0x" << std::hex << address << std::dec << " <" << type
+               << ">";
   return brief.empty() ? brief_stream.str()
                        : brief + " (" + brief_stream.str() + ")";
 }
@@ -724,7 +726,7 @@ std::unique_ptr<ObjectPropertiesResult> GetObjectProperties(
   // untagged value.
   int32_t value = i::PlatformSmiTagging::SmiToInt(address);
   std::stringstream stream;
-  stream << value << " (0x" << std::hex << value << ")";
+  stream << value << " (0x" << std::hex << value << std::dec << ")";
   return std::make_unique<ObjectPropertiesResult>(d::TypeCheckResult::kSmi,
                                                   stream.str(), kSmi);
 }
@@ -792,19 +794,38 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
             if (IsTypedHeapObjectInstanceTypeOf(
                     scope_info_address, memory_accessor,
                     i::InstanceType::SCOPE_INFO_TYPE)) {
-              auto indexed_field_slice_function_variable_info =
-                  TqDebugFieldSliceScopeInfoFunctionVariableInfo(
-                      memory_accessor, scope_info_address);
-              if (indexed_field_slice_function_variable_info.validity ==
-                  d::MemoryAccessResult::kOk) {
+              TqScopeInfo scope_info(scope_info_address);
+              // Torque only models the fixed ScopeInfo header; locate the
+              // function_variable_info section by hand, mirroring
+              // ScopeInfo::FunctionVariableInfoOffset.
+              auto flags = scope_info.GetFlagsValue(memory_accessor);
+              auto context_local_count =
+                  scope_info.GetContextLocalCountValue(memory_accessor);
+              if (flags.validity == d::MemoryAccessResult::kOk &&
+                  context_local_count.validity == d::MemoryAccessResult::kOk) {
+                const int local_count =
+                    i::PlatformSmiTagging::SmiToInt(context_local_count.value);
+                const bool is_module =
+                    i::ScopeInfo::ScopeTypeBits::decode(flags.value) ==
+                    i::ScopeType::MODULE_SCOPE;
+                const bool has_hashtable =
+                    local_count >= i::kScopeInfoMaxInlinedLocalNamesSize;
+                const bool has_saved_class_variable =
+                    i::ScopeInfo::HasSavedClassVariableBit::decode(flags.value);
+                const bool has_function_variable =
+                    i::ScopeInfo::FunctionVariableBits::decode(flags.value) !=
+                    i::VariableAllocationInfo::NONE;
+                const int preceding_slots =
+                    (is_module ? 1 : 0) + (has_hashtable ? 1 : local_count) +
+                    local_count + (has_saved_class_variable ? 1 : 0);
+                const uintptr_t function_variable_info_offset =
+                    OFFSET_OF_DATA_START(i::ScopeInfo) +
+                    preceding_slots * i::kTaggedSize;
                 props.push_back(std::make_unique<ObjectProperty>(
                     "function_name", kObjectAsStoredInHeap,
                     scope_info_address - i::kHeapObjectTag +
-                        std::get<1>(
-                            indexed_field_slice_function_variable_info.value),
-                    std::get<2>(
-                        indexed_field_slice_function_variable_info.value),
-                    i::kTaggedSize,
+                        function_variable_info_offset,
+                    has_function_variable ? 1 : 0, i::kTaggedSize,
                     std::vector<std::unique_ptr<StructProperty>>(),
                     d::PropertyKind::kSingle));
               }
@@ -816,7 +837,6 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
               position_info_struct_field_list.push_back(
                   std::make_unique<StructProperty>("end", kObjectAsStoredInHeap,
                                                    4, 0, 0));
-              TqScopeInfo scope_info(scope_info_address);
               props.push_back(std::make_unique<ObjectProperty>(
                   "function_character_offset", "",
                   scope_info.GetPositionInfoAddress(), 1, 2 * i::kTaggedSize,
@@ -826,6 +846,49 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
           }
         }
       }
+
+      // The receiver and the arguments are the caller's outgoing stack slots
+      // right above the return address. The slots hold uncompressed pointers
+      // even on pointer-compressed builds, so report them as Tagged values
+      // with the system pointer size.
+      props.push_back(std::make_unique<ObjectProperty>(
+          "receiver",
+          CheckTypeName<v8::internal::Tagged<v8::internal::Object>>(
+              "v8::internal::Tagged<v8::internal::Object>"),
+          frame_pointer + StandardFrameConstants::kCallerSPOffset, 1,
+          i::kSystemPointerSize, std::vector<std::unique_ptr<StructProperty>>(),
+          d::PropertyKind::kSingle));
+
+      // The argc slot counts the receiver. Report the user-visible arguments
+      // as an array. If the slot is unreadable or the count is out of range,
+      // report an array of unknown size so debug tools can still show the
+      // base address.
+      intptr_t argc = 0;
+      size_t argument_count = 0;
+      d::PropertyKind arguments_kind =
+          d::PropertyKind::kArrayOfUnknownSizeDueToInvalidMemory;
+      d::MemoryAccessResult argc_validity =
+          memory_accessor(frame_pointer + StandardFrameConstants::kArgCOffset,
+                          reinterpret_cast<void*>(&argc), sizeof(intptr_t));
+      if (argc_validity == d::MemoryAccessResult::kOk) {
+        intptr_t user_argc = argc - i::kJSArgcReceiverSlots;
+        if (user_argc >= 0 && user_argc <= i::Code::kMaxArguments) {
+          argument_count = static_cast<size_t>(user_argc);
+          arguments_kind = d::PropertyKind::kArrayOfKnownSize;
+        }
+      } else if (argc_validity ==
+                 d::MemoryAccessResult::kAddressValidButInaccessible) {
+        arguments_kind =
+            d::PropertyKind::kArrayOfUnknownSizeDueToValidButInaccessibleMemory;
+      }
+      props.push_back(std::make_unique<ObjectProperty>(
+          "arguments",
+          CheckTypeName<v8::internal::Tagged<v8::internal::Object>>(
+              "v8::internal::Tagged<v8::internal::Object>"),
+          frame_pointer + StandardFrameConstants::kCallerSPOffset +
+              i::kSystemPointerSize,
+          argument_count, i::kSystemPointerSize,
+          std::vector<std::unique_ptr<StructProperty>>(), arguments_kind));
     }
   }
 

@@ -231,14 +231,18 @@ DirectHandle<FieldType> Object::OptimalType(Tagged<Object> obj,
   return FieldType::Any(isolate);
 }
 
-Handle<UnionOf<JSAny, Hole>> Object::NewStorageFor(
-    Isolate* isolate, Handle<UnionOf<JSAny, Hole>> object,
+Handle<UnionOf<JSAny, Hole, UninitializedHeapNumber>> Object::NewStorageFor(
+    Isolate* isolate,
+    Handle<UnionOf<JSAny, Hole, UninitializedHeapNumber>> object,
     Representation representation) {
   if (!representation.IsDouble()) return object;
-  Handle<HeapNumber> result = isolate->factory()->NewHeapNumberWithHoleNaN();
+  DCHECK(!IsUninitializedHeapNumber(*object));
+  if (IsUninitializedHeapNumber(*object)) return object;
   if (IsUninitializedHole(*object)) {
-    result->set_value_as_bits(kHoleNanInt64);
-  } else if (IsHeapNumber(*object)) {
+    return isolate->factory()->NewUninitializedHeapNumber();
+  }
+  Handle<HeapNumber> result = isolate->factory()->NewHeapNumberFromBits(0);
+  if (IsHeapNumber(*object)) {
     // Ensure that all bits of the double value are preserved.
     result->set_value_as_bits(Cast<HeapNumber>(*object)->value_as_bits());
   } else {
@@ -410,17 +414,14 @@ template <template <typename> typename HandleType>
 typename HandleType<Number>::MaybeType Object::ConvertToUint32(
     Isolate* isolate, HandleType<Object> input) {
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ConvertToNumber(isolate, input));
-  if (IsSmi(*input)) {
-    return typename HandleType<Number>::MaybeType(
-        Smi::ToUint32Smi(Cast<Smi>(*input)), isolate);
-  }
+  if (IsSmi(*input) && Smi::ToInt(*input) >= 0) return Cast<Smi>(input);
   return isolate->factory()->NewNumberFromUint(
-      DoubleToUint32(Cast<HeapNumber>(*input)->value()));
+      DoubleToUint32(Object::NumberValue(Cast<Number>(*input))));
 }
 
-template MaybeDirectHandle<Number> Object::ConvertToUint32(
+template V8_EXPORT_PRIVATE MaybeDirectHandle<Number> Object::ConvertToUint32(
     Isolate* isolate, DirectHandle<Object> input);
-template MaybeIndirectHandle<Number> Object::ConvertToUint32(
+template V8_EXPORT_PRIVATE MaybeIndirectHandle<Number> Object::ConvertToUint32(
     Isolate* isolate, IndirectHandle<Object> input);
 
 // static
@@ -2025,7 +2026,7 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   if (instance_size != kVariableSizeSentinel) return instance_size;
   // Only inline the most frequent cases.
   InstanceType instance_type = map->instance_type();
-  if (InstanceTypeChecker::IsMap(instance_type)) {
+  if (instance_type == MAP_TYPE) {
     return UncheckedCast<Map>(this)->AllocatedSize();
   }
   if (base::IsInRange(instance_type, FIRST_FIXED_ARRAY_TYPE,
@@ -4503,25 +4504,6 @@ Address JSArray::ArrayJoinConcatToSequentialString(
 
 END_PROHIBIT_SIGN_CONVERSION()
 
-void Oddball::Initialize(Isolate* isolate, DirectHandle<Oddball> oddball,
-                         const char* to_string, DirectHandle<Number> to_number,
-                         const char* type_of, uint8_t kind) {
-  DirectHandle<String> internalized_to_string =
-      isolate->factory()->InternalizeUtf8String(to_string);
-  DirectHandle<String> internalized_type_of =
-      isolate->factory()->InternalizeUtf8String(type_of);
-  if (IsHeapNumber(*to_number)) {
-    oddball->set_to_number_raw_as_bits(
-        Cast<HeapNumber>(to_number)->value_as_bits());
-  } else {
-    oddball->set_to_number_raw(Object::NumberValue(*to_number));
-  }
-  oddball->set_to_number(*to_number);
-  oddball->set_to_string(*internalized_to_string);
-  oddball->set_type_of(*internalized_type_of);
-  oddball->set_kind(kind);
-}
-
 
 
 // static
@@ -4683,14 +4665,13 @@ const char* Symbol::PrivateSymbolToName() const {
 }
 
 v8::Promise::PromiseState JSPromise::status() const {
-  int value = flags() & StatusBits::kMask;
+  v8::Promise::PromiseState value = flags().status();
   DCHECK(value == 0 || value == 1 || value == 2);
-  return static_cast<v8::Promise::PromiseState>(value);
+  return value;
 }
 
 void JSPromise::set_status(Promise::PromiseState status) {
-  int value = flags() & ~StatusBits::kMask;
-  set_flags(value | status);
+  set_flags(flags().with<Flags::StatusBits>(status));
 }
 
 // static
@@ -5062,9 +5043,9 @@ MaybeHandle<JSPromise> JSPromise::PerformPromiseAll(
     DirectHandle<JSArray> empty_array =
         factory->NewJSArrayWithElements(factory->empty_fixed_array());
     DirectHandle<Object> resolve_args[] = {empty_array};
-    Execution::Call(isolate, capability_resolve, factory->undefined_value(),
-                    base::VectorOf(resolve_args))
-        .ToHandleChecked();
+    RETURN_ON_EXCEPTION(isolate, Execution::Call(isolate, capability_resolve,
+                                                 factory->undefined_value(),
+                                                 base::VectorOf(resolve_args)));
     return capability_promise;
   }
 
@@ -5072,9 +5053,9 @@ MaybeHandle<JSPromise> JSPromise::PerformPromiseAll(
     DirectHandle<Object> error = factory->NewRangeError(
         MessageTemplate::kTooManyElementsInPromiseCombinator,
         factory->NewStringFromAsciiChecked("all"));
-    Execution::Call(isolate, capability_reject, factory->undefined_value(),
-                    base::VectorOf(&error, 1))
-        .ToHandleChecked();
+    RETURN_ON_EXCEPTION(isolate, Execution::Call(isolate, capability_reject,
+                                                 factory->undefined_value(),
+                                                 base::VectorOf(&error, 1)));
     return capability_promise;
   }
 
@@ -5098,19 +5079,9 @@ MaybeHandle<JSPromise> JSPromise::PerformPromiseAll(
                                                         i + 1);
     DirectHandle<Object> args[] = {resolve_element, capability_reject,
                                    factory->undefined_value()};
-    if (V8_UNLIKELY(Execution::CallBuiltin(isolate,
-                                           isolate->perform_promise_then(),
-                                           promise, base::VectorOf(args))
-                        .is_null())) {
-      CHECK(isolate->has_exception());
-      DirectHandle<Object> reject_args[] = {
-          direct_handle(isolate->exception(), isolate)};
-      isolate->clear_exception();
-      Execution::Call(isolate, capability_reject, factory->undefined_value(),
-                      base::VectorOf(reject_args))
-          .ToHandleChecked();
-      return capability_promise;
-    }
+    RETURN_ON_EXCEPTION(isolate, Execution::CallBuiltin(
+                                     isolate, isolate->perform_promise_then(),
+                                     promise, base::VectorOf(args)));
     // For catch prediction, mark that rejections here are
     // semantically handled by the combined Promise.
     if (isolate->debug()->is_active()) {

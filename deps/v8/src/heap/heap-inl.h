@@ -294,9 +294,9 @@ Heap* Heap::FromWritableHeapObject(Tagged<HeapObject> obj) {
   return heap;
 }
 
-void Heap::CopyBlock(Address dst, Address src, size_t byte_size) {
-  DCHECK(IsAligned(byte_size, kTaggedSize));
-  CopyTagged(dst, src, byte_size / kTaggedSize);
+void Heap::CopyBlock(Address dst, Address src, SafeHeapObjectSize byte_size) {
+  DCHECK(IsAligned(byte_size.value(), kTaggedSize));
+  CopyTagged(dst, src, byte_size.value() / kTaggedSize);
 }
 
 bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
@@ -312,7 +312,7 @@ bool Heap::IsPendingAllocation(Tagged<HeapObject> object) {
   bool result = IsPendingAllocationInternal(object);
   if (v8_flags.trace_pending_allocations && result) {
     StdoutStream{} << "Pending allocation: " << std::hex << "0x" << object.ptr()
-                   << "\n";
+                   << std::dec << "\n";
   }
   return result;
 }

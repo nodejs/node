@@ -228,6 +228,11 @@ class Serializer : public SerializerDeserializer {
                                    SlotType slot_type) = 0;
 
   virtual bool MustBeDeferred(Tagged<HeapObject> object);
+  // Whether sliced strings are serialized as sequential strings, so that the
+  // deserialized strings do not depend on their parents.
+  virtual bool SerializeSlicedStringsAsSequentialStrings() const {
+    return false;
+  }
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override;
@@ -482,10 +487,10 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
 
   void VisitExternalPointer(Tagged<HeapObject> host,
                             ExternalPointerSlot slot) override;
-  void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
-                            IndirectPointerMode mode) override;
+  void VisitTrustedPointer(Tagged<HeapObject> host, TrustedPointerSlot slot,
+                           TrustedPointerMode mode) override;
   void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
-                                     IndirectPointerSlot slot) override;
+                                     TrustedPointerSlot slot) override;
   void VisitProtectedPointer(Tagged<TrustedObject> host,
                              ProtectedPointerSlot slot) override;
   void VisitProtectedPointer(Tagged<TrustedObject> host,
@@ -513,6 +518,9 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void SerializeNativeContext();
   void SerializeExternalString();
   void SerializeExternalStringAsSequentialString();
+  void SerializeSlicedStringAsSequentialString();
+  void SerializeStringAsSequentialString(bool one_byte, uint32_t length,
+                                         const uint8_t* content);
 
   Isolate* isolate_;
   Serializer* serializer_;

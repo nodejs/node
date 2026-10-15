@@ -780,14 +780,18 @@ RUNTIME_FUNCTION(Runtime_DebugOnFunctionCall) {
     // Ensure that the callee will perform debug check on function call too.
     DirectHandle<SharedFunctionInfo> shared(fun->shared(), isolate);
     isolate->debug()->DeoptimizeFunction(shared);
-    if (isolate->debug()->last_step_action() >= StepInto ||
-        isolate->debug()->break_on_next_function_call()) {
-      DCHECK_EQ(isolate->debug_execution_mode(), DebugInfo::kBreakpoints);
+    if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
+      // Side-effect free evaluation always runs with breaks disabled, so
+      // there is no need to prepare stepping, even if stepping or a pause on
+      // the next function call was requested before the evaluation started.
+      DCHECK(isolate->debug()->break_disabled());
+      if (!isolate->debug()->PerformSideEffectCheck(fun, receiver)) {
+        return ReadOnlyRoots(isolate).exception();
+      }
+    } else if (isolate->debug()->last_step_action() >= StepInto ||
+               isolate->debug()->step_over_enters_functions() ||
+               isolate->debug()->break_on_next_function_call()) {
       isolate->debug()->PrepareStepIn(fun);
-    }
-    if (isolate->debug_execution_mode() == DebugInfo::kSideEffects &&
-        !isolate->debug()->PerformSideEffectCheck(fun, receiver)) {
-      return ReadOnlyRoots(isolate).exception();
     }
   }
   return ReadOnlyRoots(isolate).undefined_value();

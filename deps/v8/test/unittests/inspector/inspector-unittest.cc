@@ -5,6 +5,8 @@
 #include <memory>
 #include <span>
 
+#include "include/v8-external.h"
+#include "include/v8-function.h"
 #include "include/v8-inspector.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-primitive.h"
@@ -615,6 +617,95 @@ TEST_F(InspectorTest, WrapObjectWithCustomPreviewNoPreview) {
   EXPECT_FALSE(remote_object->hasPreview());
   EXPECT_FALSE(remote_object->hasCustomPreview());
   EXPECT_EQ(channel.triggerCount(), 0);
+}
+
+namespace {
+
+// Calls into JavaScript for every Debugger.paused and Debugger.resumed
+// notification, like an embedder that exposes an in-process session to JS.
+class JSCallbackChannel : public V8Inspector::Channel {
+ public:
+  JSCallbackChannel(v8::Isolate* isolate, v8::Local<v8::Context> context,
+                    v8::Local<v8::Function> callback)
+      : m_isolate(isolate),
+        m_context(isolate, context),
+        m_callback(isolate, callback) {}
+  ~JSCallbackChannel() override = default;
+
+  void sendResponse(int callId,
+                    std::unique_ptr<StringBuffer> message) override {}
+
+  void sendNotification(std::unique_ptr<StringBuffer> message) override {
+    String16 message_str = toString16(message->string());
+    if (message_str.find("Debugger.paused") == String16::kNotFound &&
+        message_str.find("Debugger.resumed") == String16::kNotFound) {
+      return;
+    }
+    v8::HandleScope handle_scope(m_isolate);
+    v8::Local<v8::Context> context = m_context.Get(m_isolate);
+    v8::Context::Scope context_scope(context);
+    m_callback.Get(m_isolate)
+        ->Call(context, v8::Undefined(m_isolate), 0, nullptr)
+        .ToLocalChecked();
+  }
+
+  void flushProtocolNotifications() override {}
+
+ private:
+  v8::Isolate* m_isolate;
+  v8::Global<v8::Context> m_context;
+  v8::Global<v8::Function> m_callback;
+};
+
+void DispatchPause(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  static_cast<V8InspectorSession*>(info.DataV2().As<v8::External>()->Value(
+                                       v8::kExternalPointerTypeTagDefault))
+      ->dispatchProtocolMessage(
+          toStringView(R"({"id": 2, "method": "Debugger.pause"})"));
+}
+
+}  // namespace
+
+TEST_F(InspectorTest, ChannelCanRunJSWhenPausedOnInterrupt) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &default_client);
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  v8::Local<v8::Function> callback =
+      RunJS("globalThis.notifications = 0; () => notifications++")
+          .As<v8::Function>();
+  JSCallbackChannel channel(isolate, v8_context(), callback);
+  std::unique_ptr<V8InspectorSession> session = inspector->connect(
+      1, &channel, toStringView("{}"), v8_inspector::V8Inspector::kFullyTrusted,
+      v8_inspector::V8Inspector::kNotWaitingForDebugger);
+  session->dispatchProtocolMessage(
+      toStringView(R"({"id": 1, "method": "Debugger.enable"})"));
+
+  v8::Local<v8::Function> pause =
+      v8::Function::New(v8_context(), &DispatchPause,
+                        v8::External::New(isolate, session.get(),
+                                          v8::kExternalPointerTypeTagDefault))
+          .ToLocalChecked();
+  CHECK(v8_context()
+            ->Global()
+            ->Set(v8_context(), NewString("pause"), pause)
+            .FromJust());
+
+  // Debugger.pause while JavaScript runs schedules the break through an API
+  // interrupt, where JavaScript execution is disallowed. The loop spins until
+  // it takes that interrupt on a back edge. Taken on function entry instead,
+  // V8 would step in and pause at the next statement, outside the interrupt,
+  // so the count is read in the same script.
+  v8::Local<v8::Value> result = RunJS(
+      "pause();"
+      "for (let i = 0; i < 1e7 && notifications === 0; i++) {}"
+      "notifications");
+  CHECK_EQ(result->Int32Value(v8_context()).FromJust(), 2);
 }
 }  // namespace internal
 }  // namespace v8

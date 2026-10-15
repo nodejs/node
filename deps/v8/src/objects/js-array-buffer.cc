@@ -61,7 +61,8 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   };
   clear_padding();
   init_extension();
-  set_views_or_detach_key(views);
+  set_views_or_detach_key(
+      Cast<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>>(views));
   set_bit_field(0);
   set_is_shared(shared);
   set_is_resizable_by_js(resizable);
@@ -71,6 +72,7 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
     SetEmbedderField(i, Smi::zero());
   }
   if (!backing_store) {
+    DCHECK(!resizable);
     set_backing_store(isolate, EmptyBackingStoreBuffer());
     set_byte_length(0);
     set_max_byte_length(0);

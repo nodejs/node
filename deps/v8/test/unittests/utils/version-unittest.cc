@@ -27,6 +27,8 @@
 
 #include "src/utils/version.h"
 
+#include <array>
+
 #include "src/init/v8.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -51,23 +53,23 @@ static void CheckVersion(int major, int minor, int build, int patch,
                          const char* embedder, bool candidate,
                          const char* expected_version_string,
                          const char* expected_generic_soname) {
-  static v8::base::EmbeddedVector<char, 128> version_str;
-  static v8::base::EmbeddedVector<char, 128> soname_str;
+  static std::array<char, 128> version_str;
+  static std::array<char, 128> soname_str;
 
   // Test version without specific SONAME.
   SetVersion(major, minor, build, patch, embedder, candidate, "");
   Version::GetString(version_str);
-  CHECK_EQ(0, strcmp(expected_version_string, version_str.begin()));
+  CHECK_EQ(0, strcmp(expected_version_string, version_str.data()));
   Version::GetSONAME(soname_str);
-  CHECK_EQ(0, strcmp(expected_generic_soname, soname_str.begin()));
+  CHECK_EQ(0, strcmp(expected_generic_soname, soname_str.data()));
 
   // Test version with specific SONAME.
   const char* soname = "libv8.so.1";
   SetVersion(major, minor, build, patch, embedder, candidate, soname);
   Version::GetString(version_str);
-  CHECK_EQ(0, strcmp(expected_version_string, version_str.begin()));
+  CHECK_EQ(0, strcmp(expected_version_string, version_str.data()));
   Version::GetSONAME(soname_str);
-  CHECK_EQ(0, strcmp(soname, soname_str.begin()));
+  CHECK_EQ(0, strcmp(soname, soname_str.data()));
 }
 
 TEST_F(VersionTest, VersionString) {

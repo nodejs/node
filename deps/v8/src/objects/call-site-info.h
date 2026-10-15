@@ -74,18 +74,17 @@ V8_OBJECT class CallSiteInfo : public Struct {
   bool IsPromiseAny() const;
   bool IsNative() const;
 
+  inline CallSiteInfo(const AllocationWitness& witness,
+                      Tagged<JSAny> receiver_or_instance,
+                      Tagged<Union<JSFunction, Smi>> function,
+                      Tagged<Union<Code, BytecodeArray, Undefined>> code_object,
+                      int code_offset_or_source_position, int flags);
+
   inline Tagged<HeapObject> code_object(IsolateForSandbox isolate) const;
-  inline void set_code_object(
-      Tagged<Union<Code, BytecodeArray, Undefined>> code,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<JSAny> receiver_or_instance() const;
-  inline void set_receiver_or_instance(
-      Tagged<JSAny> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<Union<JSFunction, Smi>> function() const;
-  inline void set_function(Tagged<Union<JSFunction, Smi>> value,
-                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline int code_offset_or_source_position() const;
   inline void set_code_offset_or_source_position(
@@ -174,17 +173,17 @@ V8_OBJECT class CallSiteInfo : public Struct {
   friend class TorqueGeneratedCallSiteInfoAsserts;
   friend struct ObjectTraits<CallSiteInfo>;
 
-  static constexpr IndirectPointerTagRange kCodeObjectTagRange =
-      IndirectPointerTagRange(kBytecodeArrayIndirectPointerTag,
-                              kCodeIndirectPointerTag);
+  static constexpr TrustedPointerTagRange kCodeObjectTagRange =
+      TrustedPointerTagRange(kBytecodeArrayTrustedPointerTag,
+                             kCodeTrustedPointerTag);
   static_assert(kCodeObjectTagRange.Size() == 2);
 
-  TrustedPointerMember<Union<Code, BytecodeArray>, kCodeObjectTagRange>
+  const TrustedPointerMember<Union<Code, BytecodeArray>, kCodeObjectTagRange>
       code_object_;
-  TaggedMember<JSAny> receiver_or_instance_;
-  TaggedMember<Union<JSFunction, Smi>> function_;
+  const TaggedMember<JSAny> receiver_or_instance_;
+  const TaggedMember<Union<JSFunction, Smi>> function_;
   TaggedMember<Smi> code_offset_or_source_position_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<CallSiteInfoFlags>);
 } V8_OBJECT_END;
 
 template <>

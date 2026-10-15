@@ -286,7 +286,7 @@ static void CheckObject(Isolate* isolate, DirectHandle<Object> obj,
   DirectHandle<String> print_string = String::Flatten(
       isolate,
       indirect_handle(Object::NoSideEffectsToString(isolate, obj), isolate));
-  CHECK(print_string->IsOneByteEqualTo(base::CStrVector(string)));
+  CHECK(print_string->IsOneByteEqualTo(string));
 }
 
 static void CheckSmi(Isolate* isolate, int value, const char* string) {
@@ -562,6 +562,26 @@ TEST_F(ObjectTest, ObjectMethodsThatTruncateMinusZero) {
   CHECK(IsZero(*result));
 }
 
+TEST_F(ObjectTest, ToUint32) {
+  Factory* factory = i_isolate()->factory();
+
+  DirectHandle<Object> pos_smi(Smi::FromInt(42), i_isolate());
+  DirectHandle<Number> pos_res =
+      Object::ToUint32(i_isolate(), pos_smi).ToHandleChecked();
+  EXPECT_TRUE(IsSmi(*pos_res));
+  EXPECT_EQ(42.0, Object::NumberValue(*pos_res));
+
+  DirectHandle<Object> neg_smi(Smi::FromInt(-37), i_isolate());
+  DirectHandle<Number> neg_res =
+      Object::ToUint32(i_isolate(), neg_smi).ToHandleChecked();
+  EXPECT_EQ(4294967259.0, Object::NumberValue(*neg_res));
+
+  DirectHandle<Object> neg_str = factory->NewStringFromAsciiChecked("-37");
+  DirectHandle<Number> str_res =
+      Object::ToUint32(i_isolate(), neg_str).ToHandleChecked();
+  EXPECT_EQ(4294967259.0, Object::NumberValue(*str_res));
+}
+
 #define TEST_FUNCTION_KIND(Name)                                            \
   TEST_F(ObjectTest, Name) {                                                \
     for (uint32_t i = 0;                                                    \
@@ -735,11 +755,11 @@ bool FunctionKindIsConstructable(FunctionKind kind) {
 }
 TEST_FUNCTION_KIND(IsConstructable)
 
-bool FunctionKindIsStrictFunctionWithoutPrototype(FunctionKind kind) {
+bool FunctionKindIsFunctionWithoutPrototype(FunctionKind kind) {
   return IsArrowFunction(kind) || IsConciseMethod(kind) ||
          IsAccessorFunction(kind);
 }
-TEST_FUNCTION_KIND(IsStrictFunctionWithoutPrototype)
+TEST_FUNCTION_KIND(IsFunctionWithoutPrototype)
 
 #undef TEST_FUNCTION_KIND
 

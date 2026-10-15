@@ -207,8 +207,9 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kCodeWrapperMap = kClassPositionsMap + 40;
   static constexpr Tagged_t kDebugScriptScopeInfoMap = kCodeWrapperMap + 40;
   static constexpr Tagged_t kErrorStackDataMap = kDebugScriptScopeInfoMap + 40;
+  static constexpr Tagged_t kForInEnumeratorHolderMap = kErrorStackDataMap + 40;
   static constexpr Tagged_t kFunctionTemplateRareDataMap =
-      kErrorStackDataMap + 40;
+      kForInEnumeratorHolderMap + 40;
   static constexpr Tagged_t kModuleRequestMap =
       kFunctionTemplateRareDataMap + 40;
   static constexpr Tagged_t kPromiseCapabilityMap = kModuleRequestMap + 40;
@@ -248,8 +249,10 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kStoreHandler1Map = kStoreHandler0Map + 40;
   static constexpr Tagged_t kStoreHandler2Map = kStoreHandler1Map + 40;
   static constexpr Tagged_t kStoreHandler3Map = kStoreHandler2Map + 40;
-  static constexpr Tagged_t kTurboshaftWord32SetTypeMap =
+  static constexpr Tagged_t kUninitializedHeapNumberMap =
       kStoreHandler3Map + 40;
+  static constexpr Tagged_t kTurboshaftWord32SetTypeMap =
+      kUninitializedHeapNumberMap + 40;
   static constexpr Tagged_t kTurboshaftWord64SetTypeMap =
       kTurboshaftWord32SetTypeMap + 40;
   static constexpr Tagged_t kTurboshaftFloat64SetTypeMap =
@@ -1160,10 +1163,8 @@ struct StaticReadOnlyRoot {
       ksealed_symbol + 16;
   static constexpr Tagged_t kshared_struct_map_registry_key_symbol =
       kshared_struct_map_elements_template_symbol + 16;
-  static constexpr Tagged_t kstrict_function_transition_symbol =
-      kshared_struct_map_registry_key_symbol + 16;
   static constexpr Tagged_t ktemplate_literal_function_literal_id_symbol =
-      kstrict_function_transition_symbol + 16;
+      kshared_struct_map_registry_key_symbol + 16;
   static constexpr Tagged_t ktemplate_literal_slot_id_symbol =
       ktemplate_literal_function_literal_id_symbol + 16;
   static constexpr Tagged_t kwasm_cross_instance_call_symbol =
@@ -1258,7 +1259,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kLastAllocatedRoot = 0x1c0199;
 };
 
-static constexpr std::array<Tagged_t, 1042> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 1043> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1363,6 +1364,7 @@ static constexpr std::array<Tagged_t, 1042> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kEphemeronHashTableMap,
     StaticReadOnlyRoot::kEmbedderDataArrayMap,
     StaticReadOnlyRoot::kWeakCellMap,
+    StaticReadOnlyRoot::kUninitializedHeapNumberMap,
     StaticReadOnlyRoot::kAtomRegExpDataMap,
     StaticReadOnlyRoot::kCodeMap,
     StaticReadOnlyRoot::kDebugInfoMap,
@@ -2222,7 +2224,6 @@ static constexpr std::array<Tagged_t, 1042> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::ksealed_symbol,
     StaticReadOnlyRoot::kshared_struct_map_elements_template_symbol,
     StaticReadOnlyRoot::kshared_struct_map_registry_key_symbol,
-    StaticReadOnlyRoot::kstrict_function_transition_symbol,
     StaticReadOnlyRoot::ktemplate_literal_function_literal_id_symbol,
     StaticReadOnlyRoot::ktemplate_literal_slot_id_symbol,
     StaticReadOnlyRoot::kwasm_cross_instance_call_symbol,
@@ -2262,6 +2263,7 @@ static constexpr std::array<Tagged_t, 1042> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kDebugScriptScopeInfoMap,
     StaticReadOnlyRoot::kEnumCacheMap,
     StaticReadOnlyRoot::kErrorStackDataMap,
+    StaticReadOnlyRoot::kForInEnumeratorHolderMap,
     StaticReadOnlyRoot::kFunctionTemplateRareDataMap,
     StaticReadOnlyRoot::kModuleRequestMap,
     StaticReadOnlyRoot::kPromiseCapabilityMap,

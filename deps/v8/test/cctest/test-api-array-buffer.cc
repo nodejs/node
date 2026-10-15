@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
 #include <span>
 
 #include "include/cppgc/allocation.h"
@@ -45,12 +46,11 @@ void CheckIsDetached(v8::Local<v8::TypedArray> ta) {
 }
 
 void CheckIsTypedArrayVarDetached(const char* name) {
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  std::array<char, 1024> source;
   v8::base::SNPrintF(
-      source.as_vector(),
-      "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0", name, name,
-      name);
-  CHECK(CompileRun(source.begin())->IsTrue());
+      source, "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0",
+      name, name, name);
+  CHECK(CompileRun(source.data())->IsTrue());
   v8::Local<v8::TypedArray> ta = CompileRun(name).As<v8::TypedArray>();
   CheckIsDetached(ta);
 }

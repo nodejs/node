@@ -12,7 +12,6 @@ namespace v8::internal {
 // Tags for V8-internal CppHeap objects that inherit from v8::Object::Wrappable.
 #define V8_WRAPPABLE_CPP_HEAP_POINTER_TAGS_LIST(V) \
   V(kTagForTesting)                                \
-  V(kInspectorV8ConsoleTag)                        \
   V(kInspectorTaskInfoTag)                         \
   V(kWasmMemoryMapDescriptorTag)
 
@@ -21,7 +20,9 @@ namespace v8::internal {
 #define V8_NON_WRAPPABLE_CPP_HEAP_POINTER_TAGS_LIST(V) \
   V(kMicrotaskQueueTag)                                \
   V(kCppGCManagedTag)                                  \
-  V(kEmbedderDataSlotTag)
+  V(kEmbedderDataSlotTag)                              \
+  V(kInspectorV8ConsoleTag)                            \
+  V(kInspectorCommandLineAPIDataTag)
 
 enum class WrappableCppHeapPointerTag : uint16_t {
   kFirst =

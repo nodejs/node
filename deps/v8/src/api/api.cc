@@ -46,6 +46,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/strong-alias.h"
 #include "src/base/template-utils.h"
+#include "src/base/unique-array.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/base/vector.h"
 #include "src/builtins/accessors.h"
@@ -1397,7 +1398,7 @@ template <typename Getter, typename Setter>
 i::DirectHandle<i::AccessorInfo> MakeAccessorInfo(i::Isolate* i_isolate,
                                                   v8::Local<Name> name,
                                                   Getter getter, Setter setter,
-                                                  v8::Local<Value> data,
+                                                  v8::Local<Data> data,
                                                   bool replace_on_access) {
   i::DirectHandle<i::AccessorInfo> obj =
       i_isolate->factory()->NewAccessorInfo();
@@ -1590,7 +1591,7 @@ void Template::SetNativeDataProperty(v8::Local<Name> name,
 
 void Template::SetLazyDataProperty(v8::Local<Name> name,
                                    AccessorNameGetterCallback getter,
-                                   v8::Local<Value> data,
+                                   v8::Local<Data> data,
                                    PropertyAttribute attribute,
                                    SideEffectType getter_side_effect_type,
                                    SideEffectType setter_side_effect_type) {
@@ -1719,14 +1720,11 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
   auto cons = EnsureConstructor(i_isolate, this);
   EnsureNotPublished(cons, "v8::ObjectTemplate::SetAccessCheckCallback");
 
-  i::DirectHandle<i::Struct> struct_info = i_isolate->factory()->NewStruct(
-      i::ACCESS_CHECK_INFO_TYPE, i::AllocationType::kOld);
-  auto info = i::Cast<i::AccessCheckInfo>(struct_info);
+  i::DirectHandle<i::AccessCheckInfo> info =
+      i_isolate->factory()->NewAccessCheckInfo();
 
   SET_FIELD_WRAPPED(i_isolate, info, set_callback, callback,
                     internal::kApiAccessCheckCallbackTag);
-  info->set_named_interceptor(i::Smi::zero());
-  info->set_indexed_interceptor(i::Smi::zero());
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
@@ -1749,9 +1747,8 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
   EnsureNotPublished(cons,
                      "v8::ObjectTemplate::SetAccessCheckCallbackWithHandler");
 
-  i::DirectHandle<i::Struct> struct_info = i_isolate->factory()->NewStruct(
-      i::ACCESS_CHECK_INFO_TYPE, i::AllocationType::kOld);
-  auto info = i::Cast<i::AccessCheckInfo>(struct_info);
+  i::DirectHandle<i::AccessCheckInfo> info =
+      i_isolate->factory()->NewAccessCheckInfo();
 
   SET_FIELD_WRAPPED(i_isolate, info, set_callback, callback,
                     internal::kApiAccessCheckCallbackTag);
@@ -4176,7 +4173,9 @@ MaybeLocal<Int32> Value::ToInt32(Local<Context> context) const {
 
 MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
   auto obj = Utils::OpenDirectHandle(this);
-  if (i::IsSmi(*obj)) return ToApiHandle<Uint32>(obj);
+  if (i::IsSmi(*obj) && i::Smi::ToInt(*obj) >= 0) {
+    return ToApiHandle<Uint32>(obj);
+  }
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Object_ToUint32};
   i::Isolate* i_isolate = api_scope.i_isolate();
   return api_scope.EscapeMaybe(
@@ -4975,6 +4974,18 @@ MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
   auto self = Utils::OpenDirectHandle(this);
   return api_scope.EscapeMaybe(
       i::JSReceiver::GetElement(i_isolate, self, index));
+}
+
+MaybeLocal<Value> v8::Object::TryGetWithNoSideEffects(Local<Context> context,
+                                                      Local<Name> key) {
+  auto i_isolate = i::Isolate::Current();
+  EnterV8NoScriptScope<InternalEscapableScope> api_scope{
+      i_isolate, context, RCCId::kAPI_Object_TryGetWithNoSideEffects};
+  auto self = Utils::OpenDirectHandle(this);
+  auto key_obj = Utils::OpenDirectHandle(*key);
+  i::PropertyKey lookup_key(i_isolate, key_obj);
+  i::LookupIterator it(i_isolate, self, lookup_key, self);
+  return api_scope.EscapeMaybe(i::JSReceiver::TryGetDataProperty(&it));
 }
 
 MaybeLocal<Value> v8::Object::GetPrivate(Local<Context> context,
@@ -7145,6 +7156,7 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
     }
 
     i::DisallowGarbageCollection no_gc;
+    if (i::IsInaccessible(obj)) return true;
     i::InstanceType obj_type = obj->map()->instance_type();
 
     // Skip common types that can't contain items to freeze.
@@ -9076,7 +9088,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
 #if V8_ENABLE_WEBASSEMBLY
   i::wasm::CompileTimeImports compile_imports =
       i::wasm::CompileTimeImportsFromOptions(options);
-  base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(wire_bytes);
+  base::UniqueArray<const uint8_t> bytes = base::UniqueCopyOf(wire_bytes);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   // We don't check for `IsWasmCodegenAllowed` here, because this function is
   // used for ESM integration, which in terms of security is equivalent to
@@ -9375,6 +9387,14 @@ VirtualAddressSpace* v8::IsolateGroup::GetSandboxAddressSpace() {
   Utils::ApiCheck(sandbox->is_initialized(), "v8::V8::GetSandboxAddressSpace",
                   "The sandbox must be initialized first");
   return sandbox->address_space();
+}
+
+void v8::IsolateGroup::SetInSandboxAllocator(
+    std::shared_ptr<Allocator> allocator) {
+  Utils::ApiCheck(isolate_group_->GetIsolateCount() == 0,
+                  "v8::IsolateGroup::SetInSandboxAllocator",
+                  "The allocator must be set before creating an Isolate");
+  isolate_group_->sandbox()->set_in_sandbox_allocator(std::move(allocator));
 }
 #endif
 
@@ -11048,6 +11068,9 @@ CALLBACK_SETTER(FatalErrorHandler, FatalErrorCallback, exception_behavior)
 CALLBACK_SETTER(ModifyCodeGenerationFromStringsCallback,
                 ModifyCodeGenerationFromStringsCallback2,
                 modify_code_gen_callback)
+CALLBACK_SETTER(DynamicScriptCompiledFromEmbedderCallback,
+                DynamicScriptCompiledFromEmbedderCallback,
+                dynamic_script_callback)
 CALLBACK_SETTER(AllowWasmCodeGenerationCallback,
                 AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback)
 
@@ -11697,6 +11720,11 @@ EmbedderStateTag CpuProfile::GetSampleEmbedderState(int index) const {
   return profile->sample(index).embedder_state_tag;
 }
 
+void* CpuProfile::GetSampleContext(int index) const {
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return profile->sample(index).sample_context;
+}
+
 int64_t CpuProfile::GetStartTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return profile->start_time().since_origin().InMicroseconds();
@@ -11733,15 +11761,15 @@ CpuProfiler* CpuProfiler::New(Isolate* v8_isolate,
       reinterpret_cast<i::Isolate*>(v8_isolate), naming_mode, logging_mode));
 }
 
-CpuProfilingOptions::CpuProfilingOptions(CpuProfilingMode mode,
-                                         unsigned max_samples,
-                                         int sampling_interval_us,
-                                         MaybeLocal<Context> filter_context,
-                                         CpuProfileSource profile_source)
+CpuProfilingOptions::CpuProfilingOptions(
+    CpuProfilingMode mode, unsigned max_samples, int sampling_interval_us,
+    MaybeLocal<Context> filter_context, CpuProfileSource profile_source,
+    SampleContextExtractor sample_context_extractor)
     : mode_(mode),
       max_samples_(max_samples),
       sampling_interval_us_(sampling_interval_us),
-      profile_source_(profile_source) {
+      profile_source_(profile_source),
+      sample_context_extractor_(sample_context_extractor) {
   if (!filter_context.IsEmpty()) {
     Local<Context> local_filter_context = filter_context.ToLocalChecked();
     filter_context_.Reset(v8::Isolate::GetCurrent(), local_filter_context);

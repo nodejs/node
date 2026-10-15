@@ -375,11 +375,11 @@ DigitsOutput decimal_digits(DigitsInput input, int precision, bool e_mode) {
 }
 
 template <OverflowMode mode>
-LIBC_INLINE int convert_float_inner(Writer<mode> *writer,
-                                    const FormatSection &to_conv,
-                                    int32_t fraction_len, int exponent,
-                                    AnyFloatStorageType mantissa, Sign sign,
-                                    ConversionType ctype) {
+LIBC_INLINE int convert_finite_float_inner(Writer<mode> *writer,
+                                           const FormatSection &to_conv,
+                                           int32_t fraction_len, int exponent,
+                                           AnyFloatStorageType mantissa,
+                                           Sign sign, ConversionType ctype) {
   constexpr char DECIMAL_POINT = '.';
   // If to_conv doesn't specify a precision, the precision defaults to 6.
   unsigned precision = to_conv.precision < 0 ? 6 : to_conv.precision;
@@ -621,26 +621,30 @@ LIBC_INLINE int convert_float_inner(Writer<mode> *writer,
 template <typename T, OverflowMode mode,
           cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
 LIBC_INLINE int
-convert_float_typed(Writer<mode> *writer, const FormatSection &to_conv,
-                    fputil::FPBits<T> float_bits, ConversionType ctype) {
-  return convert_float_inner(writer, to_conv, float_bits.FRACTION_LEN,
-                             float_bits.get_explicit_exponent(),
-                             float_bits.get_explicit_mantissa(),
-                             float_bits.sign(), ctype);
+convert_finite_float_typed(Writer<mode> *writer, const FormatSection &to_conv,
+                           fputil::FPBits<T> float_bits, ConversionType ctype) {
+  return convert_finite_float_inner(writer, to_conv, float_bits.FRACTION_LEN,
+                                    float_bits.get_explicit_exponent(),
+                                    float_bits.get_explicit_mantissa(),
+                                    float_bits.sign(), ctype);
 }
 
 template <OverflowMode mode>
 LIBC_INLINE int convert_float_outer(Writer<mode> *writer,
                                     const FormatSection &to_conv,
                                     ConversionType ctype) {
+  InfNanFPBitsProperties inf_nan_properties;
 #if defined(LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128)
   if (to_conv.length_modifier == LengthModifier::Q) {
     fputil::FPBits<float128> float_bits(
         static_cast<fputil::FPBits<float128>::StorageType>(
             to_conv.conv_val_raw));
     if (!float_bits.is_inf_or_nan()) {
-      return convert_float_typed<float128>(writer, to_conv, float_bits, ctype);
+      return convert_finite_float_typed<float128>(writer, to_conv, float_bits,
+                                                  ctype);
     }
+    inf_nan_properties = {.is_negative = float_bits.is_neg(),
+                          .mantissa_is_zero = float_bits.get_mantissa() == 0};
   } else
 #endif // LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128
 #ifndef LIBC_TYPES_LONG_DOUBLE_IS_DOUBLE_DOUBLE
@@ -649,9 +653,11 @@ LIBC_INLINE int convert_float_outer(Writer<mode> *writer,
         static_cast<fputil::FPBits<long double>::StorageType>(
             to_conv.conv_val_raw));
     if (!float_bits.is_inf_or_nan()) {
-      return convert_float_typed<long double>(writer, to_conv, float_bits,
-                                              ctype);
+      return convert_finite_float_typed<long double>(writer, to_conv,
+                                                     float_bits, ctype);
     }
+    inf_nan_properties = {.is_negative = float_bits.is_neg(),
+                          .mantissa_is_zero = float_bits.get_mantissa() == 0};
   } else
 #endif // !LIBC_TYPES_LONG_DOUBLE_IS_DOUBLE_DOUBLE
   {
@@ -659,35 +665,44 @@ LIBC_INLINE int convert_float_outer(Writer<mode> *writer,
         static_cast<fputil::FPBits<double>::StorageType>(to_conv.conv_val_raw);
     fputil::FPBits<double> float_bits(float_raw);
     if (!float_bits.is_inf_or_nan()) {
-      return convert_float_typed<double>(writer, to_conv, float_bits, ctype);
+      return convert_finite_float_typed<double>(writer, to_conv, float_bits,
+                                                ctype);
     }
+    inf_nan_properties = {.is_negative = float_bits.is_neg(),
+                          .mantissa_is_zero = float_bits.get_mantissa() == 0};
   }
 
-  return convert_inf_nan(writer, to_conv);
+  return convert_inf_nan(writer, inf_nan_properties, to_conv);
 }
 
 template <typename T, OverflowMode mode,
           cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
-LIBC_INLINE int convert_float_decimal_typed(Writer<mode> *writer,
-                                            const FormatSection &to_conv,
-                                            fputil::FPBits<T> float_bits) {
-  return convert_float_typed<T>(writer, to_conv, float_bits, ConversionType::F);
+LIBC_INLINE int
+convert_finite_float_decimal_typed(Writer<mode> *writer,
+                                   const FormatSection &to_conv,
+                                   fputil::FPBits<T> float_bits) {
+  return convert_finite_float_typed<T>(writer, to_conv, float_bits,
+                                       ConversionType::F);
 }
 
 template <typename T, OverflowMode mode,
           cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
-LIBC_INLINE int convert_float_dec_exp_typed(Writer<mode> *writer,
-                                            const FormatSection &to_conv,
-                                            fputil::FPBits<T> float_bits) {
-  return convert_float_typed<T>(writer, to_conv, float_bits, ConversionType::E);
+LIBC_INLINE int
+convert_finite_float_dec_exp_typed(Writer<mode> *writer,
+                                   const FormatSection &to_conv,
+                                   fputil::FPBits<T> float_bits) {
+  return convert_finite_float_typed<T>(writer, to_conv, float_bits,
+                                       ConversionType::E);
 }
 
 template <typename T, OverflowMode mode,
           cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
-LIBC_INLINE int convert_float_dec_auto_typed(Writer<mode> *writer,
-                                             const FormatSection &to_conv,
-                                             fputil::FPBits<T> float_bits) {
-  return convert_float_typed<T>(writer, to_conv, float_bits, ConversionType::G);
+LIBC_INLINE int
+convert_finite_float_dec_auto_typed(Writer<mode> *writer,
+                                    const FormatSection &to_conv,
+                                    fputil::FPBits<T> float_bits) {
+  return convert_finite_float_typed<T>(writer, to_conv, float_bits,
+                                       ConversionType::G);
 }
 
 template <OverflowMode mode>

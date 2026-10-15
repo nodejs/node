@@ -347,19 +347,12 @@ enum ContextLookupFlags {
     initial_array_prototype_validity_cell)                                     \
   /* All *_FUNCTION_MAP_INDEX definitions used by Context::FunctionMapIndex */ \
   /* must remain together. */                                                  \
-  V(SLOPPY_FUNCTION_MAP_INDEX, Map, sloppy_function_map)                       \
-  V(SLOPPY_FUNCTION_WITH_NAME_MAP_INDEX, Map, sloppy_function_with_name_map)   \
-  V(SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map,                          \
-    sloppy_function_without_prototype_map)                                     \
-  V(SLOPPY_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX, Map,                    \
-    sloppy_function_with_readonly_prototype_map)                               \
-  V(STRICT_FUNCTION_MAP_INDEX, Map, strict_function_map)                       \
-  V(STRICT_FUNCTION_WITH_NAME_MAP_INDEX, Map, strict_function_with_name_map)   \
-  V(STRICT_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX, Map,                    \
-    strict_function_with_readonly_prototype_map)                               \
-  V(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map,                          \
-    strict_function_without_prototype_map)                                     \
+  V(FUNCTION_MAP_INDEX, Map, function_map)                                     \
+  V(FUNCTION_WITH_NAME_MAP_INDEX, Map, function_with_name_map)                 \
+  V(FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map, function_without_prototype_map) \
   V(METHOD_WITH_NAME_MAP_INDEX, Map, method_with_name_map)                     \
+  V(FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX, Map,                           \
+    function_with_readonly_prototype_map)                                      \
   V(ASYNC_FUNCTION_MAP_INDEX, Map, async_function_map)                         \
   V(ASYNC_FUNCTION_WITH_NAME_MAP_INDEX, Map, async_function_with_name_map)     \
   V(GENERATOR_FUNCTION_MAP_INDEX, Map, generator_function_map)                 \
@@ -585,7 +578,7 @@ V8_OBJECT class Context : public HeapObject {
 
   // A region of native context entries containing maps for functions created
   // by Builtin::kFastNewClosure.
-  static const int FIRST_FUNCTION_MAP_INDEX = SLOPPY_FUNCTION_MAP_INDEX;
+  static const int FIRST_FUNCTION_MAP_INDEX = FUNCTION_MAP_INDEX;
   static const int LAST_FUNCTION_MAP_INDEX = CLASS_FUNCTION_MAP_INDEX;
 
   static const int FIRST_FIXED_TYPED_ARRAY_FUN_INDEX = UINT8_ARRAY_FUN_INDEX;
@@ -687,8 +680,7 @@ V8_OBJECT class Context : public HeapObject {
                                VariableMode* variable_mode,
                                bool* is_sloppy_function_name = nullptr);
 
-  V8_EXPORT_PRIVATE static int FunctionMapIndex(LanguageMode language_mode,
-                                                FunctionKind kind,
+  V8_EXPORT_PRIVATE static int FunctionMapIndex(FunctionKind kind,
                                                 bool has_shared_name);
 
   static int ArrayMapIndex(ElementsKind elements_kind) {
@@ -742,7 +734,9 @@ V8_OBJECT class Context : public HeapObject {
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
  public:
-  TaggedMember<Smi> length_;
+  V8_TQ_CONST TaggedMember<Smi> length_;
+  V8_TQ_TAIL_NAME(elements);
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, elements);
 } V8_OBJECT_END;
 
@@ -940,9 +934,11 @@ V8_OBJECT class ScriptContextTable
       (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size);
 
  public:
-  uint32_t capacity_;
+  V8_TQ_CONST uint32_t capacity_;
   uint32_t length_;
   TaggedMember<NameToIndexHashTable> names_to_context_index_;
+  V8_TQ_TAIL_NAME(objects);
+  V8_TQ_TAIL_LENGTH(capacity);
   FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 
@@ -996,7 +992,7 @@ V8_OBJECT class ContextCell : public HeapObject {
 
   TaggedMember<JSAny> tagged_value_;
   TaggedMember<DependentCode> dependent_code_;
-  std::atomic<State> state_;
+  std::atomic<State> state_ V8_TQ_TYPE(int32);
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif  // TAGGED_SIZE_8_BYTES

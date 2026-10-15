@@ -176,7 +176,7 @@ BUILTIN(SharedStructTypeConstructor) {
 
   DirectHandle<JSFunction> constructor =
       Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
-          .set_map(isolate->strict_function_with_readonly_prototype_map())
+          .set_map(isolate->function_with_readonly_prototype_map())
           .Build();
   constructor->set_prototype_or_initial_map(*instance_map, kReleaseStore);
 

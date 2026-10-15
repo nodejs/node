@@ -13,6 +13,7 @@
 
 #include "src/base/doubly-threaded-list.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/snapshot-table-opindex.h"
@@ -169,11 +170,12 @@ class WasmMemoryContentTable
   }
 
   void Invalidate(const StructSetOp& set) {
-    Invalidate(field_offset(set.type, set.field_index), set.type_index);
+    Invalidate(WasmStruct::FieldOffset(set.type, set.field_index),
+               set.type_index);
   }
 
   void Invalidate(const StructAtomicRMWOp& rmw_op) {
-    Invalidate(field_offset(rmw_op.type, rmw_op.field_index),
+    Invalidate(WasmStruct::FieldOffset(rmw_op.type, rmw_op.field_index),
                rmw_op.type_index);
   }
 
@@ -230,17 +232,12 @@ class WasmMemoryContentTable
     }
   }
 
-  // TODO(jkummerow): Move this to the WasmStruct class?
-  int field_offset(const wasm::StructType* type, int field_index) {
-    return WasmStruct::kHeaderSize + type->field_offset(field_index);
-  }
-
   OpIndex Find(const StructGetOp& get) {
     if (get.is_get_desc()) {
       return FindImpl(ResolveBase(get.object()), kGetDescIndex, get.type_index,
                       kTaggedSize, false);
     }
-    int32_t offset = field_offset(get.type, get.field_index);
+    int32_t offset = WasmStruct::FieldOffset(get.type, get.field_index);
     uint8_t size = get.type->field(get.field_index).value_kind_size();
     bool mutability = get.type->mutability(get.field_index);
     return FindImpl(ResolveBase(get.object()), offset, get.type_index, size,
@@ -248,7 +245,7 @@ class WasmMemoryContentTable
   }
 
   bool HasValueWithIncorrectMutability(const StructSetOp& set) {
-    int32_t offset = field_offset(set.type, set.field_index);
+    int32_t offset = WasmStruct::FieldOffset(set.type, set.field_index);
     uint8_t size = set.type->field(set.field_index).value_kind_size();
     bool mutability = set.type->mutability(set.field_index);
     WasmMemoryAddress mem{ResolveBase(set.object()), offset, set.type_index,
@@ -280,7 +277,7 @@ class WasmMemoryContentTable
 
   void Insert(const StructSetOp& set) {
     OpIndex base = ResolveBase(set.object());
-    int32_t offset = field_offset(set.type, set.field_index);
+    int32_t offset = WasmStruct::FieldOffset(set.type, set.field_index);
     uint8_t size = set.type->field(set.field_index).value_kind_size();
     bool mutability = set.type->mutability(set.field_index);
     Insert(base, offset, set.type_index, size, mutability, set.value());
@@ -293,7 +290,7 @@ class WasmMemoryContentTable
       return;
     }
     OpIndex base = ResolveBase(get.object());
-    int32_t offset = field_offset(get.type, get.field_index);
+    int32_t offset = WasmStruct::FieldOffset(get.type, get.field_index);
     uint8_t size = get.type->field(get.field_index).value_kind_size();
     bool mutability = get.type->mutability(get.field_index);
     Insert(base, offset, get.type_index, size, mutability, get_idx);
@@ -590,13 +587,31 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
     VerifySingleReplacement(actual_idx, replacement);
   }
 
-#define VERIFY(Name, ig_index, op, replacement)                      \
-  if (v8_flags.turboshaft_verify_load_elimination) {                 \
-    OpIndex actual_idx = Next::ReduceInputGraph##Name(ig_index, op); \
-    VerifyReplacement(actual_idx, replacement);                      \
+  void VerifyStringAsWtf16(OpIndex actual_idx, OpIndex replacement) {
+    IF_NOT (__ Equal(actual_idx, replacement,
+                     RegisterRepresentation::Tagged())) {
+      V<Word32> is_equal = __ template WasmCallBuiltinThroughJumptable<
+          deprecated::BuiltinCallDescriptor::WasmStringEqual>(
+          {actual_idx, replacement});
+      IF_NOT (is_equal) {
+        EmitReportLoadEliminationError();
+      }
+    }
+  }
+
+#define VERIFY(Name, ig_index, op, replacement, condition)            \
+  if (v8_flags.turboshaft_verify_load_elimination && condition) {     \
+    OpIndex actual_idx = Next::ReduceInputGraph##Name(ig_index, op);  \
+    if (!actual_idx.valid()) {                                        \
+      DCHECK(__ generating_unreachable_operations());                 \
+    } else if constexpr (std::is_same_v<Name##Op, StringAsWtf16Op>) { \
+      VerifyStringAsWtf16(actual_idx, replacement);                   \
+    } else {                                                          \
+      VerifyReplacement(actual_idx, replacement);                     \
+    }                                                                 \
   }
 #else
-#define VERIFY(Name, ig_index, op, replacement)
+#define VERIFY(Name, ig_index, op, replacement, condition)
 #endif  // DEBUG
 
 #define EMIT_OP(Name) /*                                       force 80 cols*/ \
@@ -605,7 +620,7 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
       OpIndex ig_replacement_index = analyzer_.Replacement(ig_index);          \
       if (ig_replacement_index.valid()) {                                      \
         OpIndex replacement = Asm().MapToNewGraph(ig_replacement_index);       \
-        VERIFY(Name, ig_index, op, replacement)                                \
+        VERIFY(Name, ig_index, op, replacement, true)                          \
         return replacement;                                                    \
       }                                                                        \
     }                                                                          \
@@ -624,7 +639,9 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
       OpIndex ig_replacement_index = analyzer_.Replacement(ig_index);
       if (ig_replacement_index.valid()) {
         OpIndex replacement = Asm().MapToNewGraph(ig_replacement_index);
-        VERIFY(StructGet, ig_index, op, replacement)
+        // We do not verify an eliminated struct.get on a shared base as another
+        // thread might have modified the struct field in the meantime.
+        VERIFY(StructGet, ig_index, op, replacement, !op.type->is_shared());
         return replacement;
       }
     }

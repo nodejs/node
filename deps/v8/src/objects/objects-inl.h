@@ -316,6 +316,7 @@ DEF_CAST_TRAITS(ScriptWrapper)
 DEF_CAST_TRAITS(StringWrapper)
 DEF_CAST_TRAITS(SymbolWrapper)
 DEF_CAST_TRAITS(UniqueName)
+DEF_CAST_TRAITS(UninitializedHeapNumber)
 DEF_CAST_TRAITS(Undetectable)
 
 template <>
@@ -675,27 +676,18 @@ bool Object::FilterKey(Tagged<Object> obj, PropertyFilter filter) {
 }
 
 // static
-std::pair<Representation, PropertyConstness> Object::OptimalRepresentation(
-    Tagged<Object> obj, PropertyConstness constness) {
+Representation Object::OptimalRepresentation(Tagged<Object> obj) {
   if (IsSmi(obj)) {
-    return {Representation::Smi(), constness};
+    return Representation::Smi();
   }
   Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
   if (IsUninitializedHole(heap_object)) {
-    return {Representation::None(), constness};
+    return Representation::None();
   }
   if (IsHeapNumber(heap_object)) {
-    if (constness == PropertyConstness::kConst &&
-        Cast<HeapNumber>(heap_object)->is_the_hole()) {
-      // Make sure that even an initializing store of a double value with
-      // the hole NaN pattern removes constness, otherwise it wouldn't be
-      // possible to distinguish whether subsequent stores to a double field
-      // is initializing or not.
-      constness = PropertyConstness::kMutable;
-    }
-    return {Representation::Double(), constness};
+    return Representation::Double();
   }
-  return {Representation::HeapObject(), constness};
+  return Representation::HeapObject();
 }
 
 // static
@@ -808,10 +800,7 @@ template <typename T, template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 typename HandleType<Number>::MaybeType Object::ToUint32(Isolate* isolate,
                                                         HandleType<T> input) {
-  if (IsSmi(*input)) {
-    return typename HandleType<Number>::MaybeType(
-        Smi::ToUint32Smi(Cast<Smi>(*input)), isolate);
-  }
+  if (IsSmi(*input) && Smi::ToInt(*input) >= 0) return Cast<Smi>(input);
   return ConvertToUint32(isolate, Cast<Object>(input));
 }
 
@@ -964,20 +953,19 @@ AllocationAlignment HeapObject::RequiredAlignment(InSharedSpace in_shared_space,
     static_assert(!USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ||
                   (offsetof(HeapNumber, value_) & kDoubleAlignmentMask) ==
                       kTaggedSize);
-    if (instance_type == HEAP_NUMBER_TYPE) return kDoubleUnaligned;
+    if (instance_type == HEAP_NUMBER_TYPE ||
+        instance_type == UNINITIALIZED_HEAP_NUMBER_TYPE) {
+      return kDoubleUnaligned;
+    }
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (in_shared_space && v8_flags.wasm_shared) [[unlikely]] {
+  if (in_shared_space) [[unlikely]] {
     int instance_type = map->instance_type();
-    if (instance_type == WASM_STRUCT_TYPE ||
+    if (instance_type == WASM_STRUCT_TYPE || instance_type == WASM_ARRAY_TYPE ||
         instance_type == WASM_CUSTOM_MAP_TYPE) {
-      // The map of a shared wasm struct needs to be in the shared space.
+      // The map of a shared wasm object needs to be in the shared space.
       DCHECK(HeapLayout::InWritableSharedSpace(map));
       return kDoubleAligned;
-    } else if (instance_type == WASM_ARRAY_TYPE) {
-      // The map of a shared wasm array needs to be in the shared space.
-      DCHECK(HeapLayout::InWritableSharedSpace(map));
-      return kDoubleUnaligned;
     }
   }
 #endif

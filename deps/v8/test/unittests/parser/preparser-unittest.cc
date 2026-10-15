@@ -5,7 +5,7 @@
 #include "src/api/api-inl.h"
 #include "src/ast/ast.h"
 #include "src/base/strings.h"
-#include "src/base/vector.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/compiler.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
@@ -280,6 +280,13 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       {"const {var1: var2, var3: {var4: var5}} = {var1: 1, var3: {var4: 2}};"},
       {"const {var1: var2, var3: [var4, var5]} = {var1: 1, var3: [2, 3]};"},
 
+      {"var [var1 = 1, var2 = 2] = [1, 2]; function f() { var1; var2; }"},
+      {"var {var1 = 1, var2: var3 = 2} = {}; function f() { var1; var3; }"},
+      {"let [var1 = 1, var2 = 2] = [1, 2]; function f() { var1; var2; }"},
+      {"let {var1 = 1, var2: var3 = 2} = {}; function f() { var1; var3; }"},
+      {"const [var1 = 1, var2 = 2] = [1, 2]; function f() { var1; var2; }"},
+      {"const {var1 = 1, var2: var3 = 2} = {}; function f() { var1; var3; }"},
+
       // Referencing the function variable.
       {"test;"},
       {"function f1() { f1; }"},
@@ -511,10 +518,9 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       {"var1, ...var2", "function f1() { var2 = 9; }", SKIP_STRICT_FUNCTION},
 
       // Default parameters.
-      {"var1 = 3", "", SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
-      {"var1, var2 = var1", "", SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
-      {"var1, var2 = 4, ...var3", "", SKIP_STRICT_FUNCTION,
-       PreciseMaybeAssigned::NO},
+      {"var1 = 3", "", SKIP_STRICT_FUNCTION},
+      {"var1, var2 = var1", "", SKIP_STRICT_FUNCTION},
+      {"var1, var2 = 4, ...var3", "", SKIP_STRICT_FUNCTION},
 
       // Destructuring parameters. Because of the search space explosion, we
       // cannot test all interesting cases. Let's try to test a relevant subset.
@@ -558,10 +564,10 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       // Complicated params.
       {"var1, [var2], var3 = 24, [var4, var5] = [2, 4], var6, {var7}, var8, "
        "{name9: var9, name10: var10}, ...var11",
-       "", SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
+       "", SKIP_STRICT_FUNCTION},
 
       // Complicated cases from bugs.
-      {"var1 = {} = {}", "", SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
+      {"var1 = {} = {}", "", SKIP_STRICT_FUNCTION},
 
       // Destructuring rest. Because we can.
       {"var1, ...[var2]", "", SKIP_STRICT_FUNCTION},
@@ -574,16 +580,12 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       {"var1, ...{0: var2, 1: var3}", "", SKIP_STRICT_FUNCTION},
 
       // Default parameters for destruring parameters.
-      {"[var1, var2] = [2, 4]", "", SKIP_STRICT_FUNCTION,
-       PreciseMaybeAssigned::NO},
-      {"{var1, var2} = {var1: 3, var2: 3}", "", SKIP_STRICT_FUNCTION,
-       PreciseMaybeAssigned::NO},
+      {"[var1, var2] = [2, 4]", "", SKIP_STRICT_FUNCTION},
+      {"{var1, var2} = {var1: 3, var2: 3}", "", SKIP_STRICT_FUNCTION},
 
       // Default parameters inside destruring parameters.
-      {"[var1 = 4, var2 = var1]", "", SKIP_STRICT_FUNCTION,
-       PreciseMaybeAssigned::NO},
-      {"{var1 = 4, var2 = var1}", "", SKIP_STRICT_FUNCTION,
-       PreciseMaybeAssigned::NO},
+      {"[var1 = 4, var2 = var1]", "", SKIP_STRICT_FUNCTION},
+      {"{var1 = 4, var2 = var1}", "", SKIP_STRICT_FUNCTION},
 
       // Locals shadowing parameters.
       {"var1, var2", "var var1 = 16; () => { var1 = 17; };"},
@@ -596,7 +598,7 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       {"var1, var2, ...var3", "var var3 = 16; () => { var3 = 17; };",
        SKIP_STRICT_FUNCTION},
       {"var1, var2 = var1", "var var1 = 16; () => { var1 = 17; };",
-       SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
+       SKIP_STRICT_FUNCTION},
 
       // Hoisted sloppy block function shadowing a parameter.
       // FIXME(marja): why is maybe_assigned inaccurate?
@@ -626,6 +628,9 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
 
       {"try { } catch({var1, var2}) { function f() { var1 = 3; } }"},
       {"try { } catch([var1, var2]) { function f() { var1 = 3; } }"},
+      {"try { } catch({var1 = 1, var2: var3 = 2}) { function f() { var1; var3; "
+       "} }"},
+      {"try { } catch([var1 = 1, var2 = 2]) { function f() { var1; var2; } }"},
       {"try { } catch({}) { }"},
       {"try { } catch([]) { }"},
 
@@ -706,8 +711,8 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       int source_len = Utf8LengthHelper(inner.source);
       int len = code_len + params_len + source_len;
 
-      auto program = v8::base::OwnedVector<char>::NewForOverwrite(len + 1);
-      v8::base::SNPrintF(program.as_vector(), code, inner.params, inner.source);
+      auto program = v8::base::UniqueArray<char>::NewForOverwrite(len + 1);
+      v8::base::SNPrintF(program.as_span(), code, inner.params, inner.source);
 
       i::HandleScope scope(isolate);
       i::ReusableUnoptimizedCompileState reusable_state(isolate);

@@ -6,14 +6,14 @@
 #define V8_BASE_SMALL_VECTOR_H_
 
 #include <algorithm>
+#include <bit>
+#include <span>
 #include <type_traits>
 #include <utility>
 
 #include "include/v8config.h"
-#include "src/base/bits.h"
 #include "src/base/macros.h"
 #include "src/base/memcopy.h"
-#include "src/base/vector.h"
 
 namespace v8 {
 namespace base {
@@ -78,7 +78,7 @@ class SmallVector {
     std::uninitialized_move(init.begin(), init.end(), begin_);
     end_ = begin_ + init.size();
   }
-  explicit V8_INLINE SmallVector(base::Vector<const T> init,
+  explicit V8_INLINE SmallVector(std::span<const T> init,
                                  const Allocator& allocator = Allocator())
       : allocator_(allocator) {
     if (init.size() > capacity()) Grow(init.size());
@@ -355,8 +355,7 @@ class SmallVector {
   // Grows the backing store by a factor of two, and at least to {min_capacity}.
   V8_NOINLINE V8_PRESERVE_MOST void Grow(size_t min_capacity) {
     size_t in_use = end_ - begin_;
-    size_t new_capacity =
-        base::bits::RoundUpToPowerOfTwo(std::max(min_capacity, 2 * capacity()));
+    size_t new_capacity = std::bit_ceil(std::max(min_capacity, 2 * capacity()));
     T* new_storage = AllocateDynamicStorage(new_capacity);
     if (new_storage == nullptr) {
       FatalOOM(OOMType::kProcess, "base::SmallVector::Grow");

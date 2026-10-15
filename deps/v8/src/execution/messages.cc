@@ -471,7 +471,6 @@ MaybeHandle<String> MessageFormatter::TryFormat(
       MessageTemplate::kInvalidPrivateFieldReinitialization,
       MessageTemplate::kInvalidPrivateMemberWrite,
       MessageTemplate::kInvalidRegExpExecResult,
-      MessageTemplate::kInvalidTimeValue,
       MessageTemplate::kInvalidWeakMapKey,
       MessageTemplate::kInvalidWeakSetValue,
       MessageTemplate::kIteratorReduceNoInitial,
@@ -481,7 +480,6 @@ MaybeHandle<String> MessageFormatter::TryFormat(
       MessageTemplate::kJsonParseUnexpectedTokenShortString,
       MessageTemplate::kJsonParseUnexpectedTokenStartStringWithContext,
       MessageTemplate::kJsonParseUnexpectedTokenSurroundStringWithContext,
-      MessageTemplate::kMustBePositive,
       MessageTemplate::kNotIterable,
       MessageTemplate::kNotTypedArray,
       MessageTemplate::kProxyNonObject,
@@ -494,8 +492,7 @@ MaybeHandle<String> MessageFormatter::TryFormat(
       MessageTemplate::kTopLevelAwaitStalled,
       MessageTemplate::kUndefinedOrNullToObject,
       MessageTemplate::kUnexpectedStrictReserved,
-      MessageTemplate::kUnexpectedTokenIdentifier,
-      MessageTemplate::kWeakRefsCleanupMustBeCallable};
+      MessageTemplate::kUnexpectedTokenIdentifier};
 
   base::Vector<const DirectHandle<String>> remaining_args = args;
   for (const char* c = template_string; *c != '\0'; c++) {
@@ -839,6 +836,13 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     // baseline code. For optimized code this will use the deoptimization
     // information to get canonical location information.
     FrameSummaries summaries = it.frame()->Summarize();
+#if V8_ENABLE_WEBASSEMBLY
+    if (summaries.size() == 0) {
+      DCHECK_EQ(it.frame()->function()->shared()->builtin_id(),
+                Builtin::kWasmMethodWrapper);
+      return false;
+    }
+#endif
     auto& summary = summaries.frames.back().AsJavaScript();
     Handle<SharedFunctionInfo> shared(summary.function()->shared(), isolate);
     Handle<Object> script(shared->script(), isolate);
@@ -1151,6 +1155,13 @@ MaybeDirectHandle<Object> ErrorUtils::GetFormattedStack(
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
               perfetto::StaticString(__func__));
 
+  if (IsAccessCheckNeeded(*maybe_error_object) &&
+      !isolate->MayAccess(isolate->native_context(), maybe_error_object)) {
+    RETURN_ON_EXCEPTION(isolate,
+                        isolate->ReportFailedAccessCheck(maybe_error_object));
+    UNREACHABLE();
+  }
+
   ErrorUtils::StackPropertyLookupResult lookup =
       ErrorUtils::GetErrorStackProperty(isolate, maybe_error_object);
 
@@ -1197,6 +1208,12 @@ MaybeDirectHandle<Object> ErrorUtils::GetFormattedStack(
 void ErrorUtils::SetFormattedStack(Isolate* isolate,
                                    DirectHandle<JSObject> maybe_error_object,
                                    DirectHandle<JSAny> formatted_stack) {
+  if (IsAccessCheckNeeded(*maybe_error_object) &&
+      !isolate->MayAccess(isolate->native_context(), maybe_error_object)) {
+    USE(isolate->ReportFailedAccessCheck(maybe_error_object));
+    return;
+  }
+
   ErrorUtils::StackPropertyLookupResult lookup =
       ErrorUtils::GetErrorStackProperty(isolate, maybe_error_object);
 

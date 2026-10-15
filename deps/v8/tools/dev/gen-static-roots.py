@@ -126,7 +126,10 @@ def build_and_check(target):
   e = dict(os.environ)
   e['V8_GM_OUTDIR'] = f"{args.out}"
   e['V8_GM_BUILD_DIR_PREFIX'] = build_prefix
-  run([f"{sys.executable}", f"{GM}", f"{machine_target()}.release.gn_args"],
+  run([
+      f"{sys.executable}", f"{GM}", "quiet",
+      f"{machine_target()}.release.gn_args"
+  ],
       env=e)
 
   # Patch the default config according to our needs
@@ -158,7 +161,10 @@ def build_and_check(target):
         f.write(f"{extra} = {val}\n")
 
   # Build mksnapshot
-  run([f"{sys.executable}", f"{GM}", f"{machine_target()}.release.mksnapshot"],
+  run([
+      f"{sys.executable}", f"{GM}", "quiet",
+      f"{machine_target()}.release.mksnapshot"
+  ],
       env=e)
 
   # Generate static roots file and check if it changed

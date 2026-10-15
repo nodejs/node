@@ -10,6 +10,7 @@
 
 #include <optional>
 
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/trusted-object-inl.h"
 
@@ -90,85 +91,70 @@ int ObjectBoilerplateDescription::boilerplate_properties_count() const {
 // ClassBoilerplate
 //
 
+ClassBoilerplate::ClassBoilerplate(
+    const AllocationWitness& witness, int arguments_count,
+    Tagged<Object> static_properties_template,
+    Tagged<Object> static_elements_template,
+    Tagged<FixedArray> static_computed_properties,
+    Tagged<Object> instance_properties_template,
+    Tagged<Object> instance_elements_template,
+    Tagged<FixedArray> instance_computed_properties)
+    : Struct(witness.roots().class_boilerplate_map()),
+      arguments_count_(Smi::FromInt(arguments_count)),
+      static_properties_template_(witness, static_properties_template),
+      static_elements_template_(witness, static_elements_template),
+      static_computed_properties_(witness, static_computed_properties),
+      instance_properties_template_(witness, instance_properties_template),
+      instance_elements_template_(witness, instance_elements_template),
+      instance_computed_properties_(witness, instance_computed_properties) {}
+
 int ClassBoilerplate::arguments_count() const {
   return arguments_count_.load().value();
-}
-void ClassBoilerplate::set_arguments_count(int value) {
-  arguments_count_.store(this, Smi::FromInt(value));
 }
 
 Tagged<Object> ClassBoilerplate::static_properties_template() const {
   return static_properties_template_.load();
 }
-void ClassBoilerplate::set_static_properties_template(Tagged<Object> value,
-                                                      WriteBarrierMode mode) {
-  static_properties_template_.store(this, value, mode);
-}
 
 Tagged<Object> ClassBoilerplate::static_elements_template() const {
   return static_elements_template_.load();
-}
-void ClassBoilerplate::set_static_elements_template(Tagged<Object> value,
-                                                    WriteBarrierMode mode) {
-  static_elements_template_.store(this, value, mode);
 }
 
 Tagged<FixedArray> ClassBoilerplate::static_computed_properties() const {
   return static_computed_properties_.load();
 }
-void ClassBoilerplate::set_static_computed_properties(Tagged<FixedArray> value,
-                                                      WriteBarrierMode mode) {
-  static_computed_properties_.store(this, value, mode);
-}
 
 Tagged<Object> ClassBoilerplate::instance_properties_template() const {
   return instance_properties_template_.load();
-}
-void ClassBoilerplate::set_instance_properties_template(Tagged<Object> value,
-                                                        WriteBarrierMode mode) {
-  instance_properties_template_.store(this, value, mode);
 }
 
 Tagged<Object> ClassBoilerplate::instance_elements_template() const {
   return instance_elements_template_.load();
 }
-void ClassBoilerplate::set_instance_elements_template(Tagged<Object> value,
-                                                      WriteBarrierMode mode) {
-  instance_elements_template_.store(this, value, mode);
-}
 
 Tagged<FixedArray> ClassBoilerplate::instance_computed_properties() const {
   return instance_computed_properties_.load();
-}
-void ClassBoilerplate::set_instance_computed_properties(
-    Tagged<FixedArray> value, WriteBarrierMode mode) {
-  instance_computed_properties_.store(this, value, mode);
 }
 
 //
 // ArrayBoilerplateDescription
 //
 
+ArrayBoilerplateDescription::ArrayBoilerplateDescription(
+    const AllocationWitness& witness, ElementsKind elements_kind,
+    Tagged<FixedArrayBase> constant_values)
+    : Struct(witness.roots().array_boilerplate_description_map()),
+      flags_(Smi::FromInt(elements_kind)),
+      constant_elements_(witness, constant_values) {}
+
 Tagged<Smi> ArrayBoilerplateDescription::flags() const { return flags_.load(); }
-void ArrayBoilerplateDescription::set_flags(Tagged<Smi> value,
-                                            WriteBarrierMode mode) {
-  flags_.store(this, value, mode);
-}
 
 Tagged<FixedArrayBase> ArrayBoilerplateDescription::constant_elements() const {
   return constant_elements_.load();
 }
-void ArrayBoilerplateDescription::set_constant_elements(
-    Tagged<FixedArrayBase> value, WriteBarrierMode mode) {
-  constant_elements_.store(this, value, mode);
-}
 
 ElementsKind ArrayBoilerplateDescription::elements_kind() const {
   return static_cast<ElementsKind>(flags().value());
-}
-
-void ArrayBoilerplateDescription::set_elements_kind(ElementsKind kind) {
-  set_flags(Smi::FromInt(kind));
 }
 
 bool ArrayBoilerplateDescription::is_empty() const {
@@ -179,47 +165,44 @@ bool ArrayBoilerplateDescription::is_empty() const {
 // RegExpBoilerplateDescription
 //
 
+RegExpBoilerplateDescription::RegExpBoilerplateDescription(
+    const AllocationWitness& witness, Tagged<RegExpData> data,
+    Tagged<Smi> flags)
+    : Struct(witness.roots().regexp_boilerplate_description_map()),
+      data_(witness, data),
+      flags_(flags) {}
+
 Tagged<RegExpData> RegExpBoilerplateDescription::data(
     IsolateForSandbox isolate) const {
   return data_.load(isolate);
 }
 
-void RegExpBoilerplateDescription::set_data(Tagged<RegExpData> value,
-                                            WriteBarrierMode mode) {
-  data_.store(this, value, mode);
-}
-
 int RegExpBoilerplateDescription::flags() const {
   return flags_.load().value();
 }
-void RegExpBoilerplateDescription::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
-}
+
+PrototypeSharedClosureInfo::PrototypeSharedClosureInfo(
+    const AllocationWitness& witness,
+    Tagged<ObjectBoilerplateDescription> boilerplate_description,
+    Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array,
+    Tagged<Context> context)
+    : Struct(witness.roots().prototype_shared_closure_info_map()),
+      boilerplate_description_(witness, boilerplate_description),
+      closure_feedback_cell_array_(witness, closure_feedback_cell_array),
+      context_(witness, context) {}
 
 Tagged<ObjectBoilerplateDescription>
 PrototypeSharedClosureInfo::boilerplate_description() const {
   return boilerplate_description_.load();
-}
-void PrototypeSharedClosureInfo::set_boilerplate_description(
-    Tagged<ObjectBoilerplateDescription> value, WriteBarrierMode mode) {
-  boilerplate_description_.store(this, value, mode);
 }
 
 Tagged<ClosureFeedbackCellArray>
 PrototypeSharedClosureInfo::closure_feedback_cell_array() const {
   return closure_feedback_cell_array_.load();
 }
-void PrototypeSharedClosureInfo::set_closure_feedback_cell_array(
-    Tagged<ClosureFeedbackCellArray> value, WriteBarrierMode mode) {
-  closure_feedback_cell_array_.store(this, value, mode);
-}
 
 Tagged<Context> PrototypeSharedClosureInfo::context() const {
   return context_.load();
-}
-void PrototypeSharedClosureInfo::set_context(Tagged<Context> value,
-                                             WriteBarrierMode mode) {
-  context_.store(this, value, mode);
 }
 
 }  // namespace v8::internal

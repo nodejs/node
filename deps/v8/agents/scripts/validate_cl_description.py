@@ -9,12 +9,18 @@ import subprocess
 import sys
 
 
+MAX_TITLE_LENGTH = 64
+MAX_LINE_LENGTH = 72
+
+
 def validate_description(desc: str) -> bool:
   if not desc or not desc.strip():
     return True
 
   lines = desc.splitlines()
+  bad_title = None
   bad_lines = []
+  seen_title = False
 
   footer_regex = re.compile(
       r'^(Change-Id|Reviewed-on|Reviewed-by|Commit-Queue|Cr-Commit-Position|Bug|Fixed|TAG|Conversation-ID):'
@@ -25,7 +31,15 @@ def validate_description(desc: str) -> bool:
     if line.lstrip().startswith('#'):
       continue
 
-    if len(line) > 78:
+    if not seen_title:
+      if not line.strip():
+        continue
+      seen_title = True
+      if len(line) > MAX_TITLE_LENGTH:
+        bad_title = line
+      continue
+
+    if len(line) > MAX_LINE_LENGTH:
       # Exclude URLs and short links
       if '://' in line or 'go/' in line or 'goto.google.com/' in line:
         continue
@@ -38,15 +52,34 @@ def validate_description(desc: str) -> bool:
 
       bad_lines.append(f'Line {i} ({len(line)} chars): {line[:40]}...')
 
+  valid = True
+  if bad_title:
+    print(
+        f'Error: The commit title is {len(bad_title)} characters long, '
+        f'exceeding the {MAX_TITLE_LENGTH}-character maximum length limit '
+        '(aim for ~50 characters):',
+        file=sys.stderr)
+    print(f'  {bad_title}', file=sys.stderr)
+    print(
+        f'Please shorten the commit title to at most {MAX_TITLE_LENGTH} '
+        'characters (including the [component] prefix) before proceeding.',
+        file=sys.stderr)
+    valid = False
+
   if bad_lines:
     print(
-        'Error: The commit description contains lines exceeding the 78 character maximum length limit:',
+        'Error: The commit description contains lines exceeding the '
+        f'{MAX_LINE_LENGTH} character maximum length limit:',
         file=sys.stderr)
     for bad in bad_lines:
       print(f'  {bad}', file=sys.stderr)
     print(
-        'Please wrap commit message descriptions strictly at 78 characters before proceeding.',
+        'Please wrap commit message descriptions strictly at '
+        f'{MAX_LINE_LENGTH} characters before proceeding.',
         file=sys.stderr)
+    valid = False
+
+  if not valid:
     return False
 
   # Check Change-Id count

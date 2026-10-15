@@ -53,6 +53,95 @@ constexpr SimdShuffle::ShuffleArray<kSimd128Size> expandQuarter(
   return expand<N, kSimd128QuarterSize>(in);
 }
 
+using CanonicalShuffle = SimdShuffle::CanonicalShuffle;
+using CanonicalPair = std::pair<const SimdShuffle::ShuffleArray<kSimd128Size>,
+                                const CanonicalShuffle>;
+static constexpr auto canonical_shuffle_list = std::to_array<CanonicalPair>({
+    {expand<2>({0, 1}), CanonicalShuffle::kIdentity},
+    {expandHalf<1>({0}), CanonicalShuffle::kIdentity},
+    {expand<2>({0, 2}), CanonicalShuffle::kS64x2Even},
+    {expand<2>({1, 3}), CanonicalShuffle::kS64x2Odd},
+    {expand<2>({1, 0}), CanonicalShuffle::kS64x2Reverse},
+    {expand<4>({0, 2, 4, 6}), CanonicalShuffle::kS32x4Even},
+    {expand<4>({1, 3, 5, 7}), CanonicalShuffle::kS32x4Odd},
+    {expand<4>({0, 4, 1, 5}), CanonicalShuffle::kS32x4InterleaveLowHalves},
+    {expand<4>({2, 6, 3, 7}), CanonicalShuffle::kS32x4InterleaveHighHalves},
+    {expand<4>({3, 2, 1, 0}), CanonicalShuffle::kS32x4Reverse},
+    {expand<4>({0, 4, 2, 6}), CanonicalShuffle::kS32x4TransposeEven},
+    {expand<4>({1, 5, 3, 7}), CanonicalShuffle::kS32x4TransposeOdd},
+    {expand<4>({1, 0, 3, 2}), CanonicalShuffle::kS32x2Reverse},
+    {expandHalf<4>({0, 2, 8, 10}), CanonicalShuffle::kS16x4Even},
+    {expandHalf<4>({1, 3, 9, 11}), CanonicalShuffle::kS16x4Odd},
+    {expand<8>({0, 2, 4, 6, 8, 10, 12, 14}), CanonicalShuffle::kS16x8Even},
+    {expand<8>({1, 3, 5, 7, 9, 11, 13, 15}), CanonicalShuffle::kS16x8Odd},
+    {expand<8>({0, 8, 1, 9, 2, 10, 3, 11}),
+     CanonicalShuffle::kS16x8InterleaveLowHalves},
+    {expandHalf<4>({2, 10, 3, 11}),
+     CanonicalShuffle::kS16x4InterleaveHighHalves},
+    {expand<8>({4, 12, 5, 13, 6, 14, 7, 15}),
+     CanonicalShuffle::kS16x8InterleaveHighHalves},
+    {expand<8>({0, 8, 2, 10, 4, 12, 6, 14}),
+     CanonicalShuffle::kS16x8TransposeEven},
+    {expand<8>({1, 9, 3, 11, 5, 13, 7, 15}),
+     CanonicalShuffle::kS16x8TransposeOdd},
+    {expand<8>({0, 4, 1, 5, 2, 6, 3, 7}),
+     CanonicalShuffle::kS16x8TopBottomInterleave},
+    {expand<8>({1, 0, 3, 2, 5, 4, 7, 6}), CanonicalShuffle::kS16x2Reverse},
+    {expand<8>({3, 2, 1, 0, 7, 6, 5, 4}), CanonicalShuffle::kS16x4Reverse},
+    {{7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8},
+     CanonicalShuffle::kS64x2ReverseBytes},
+    {{3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12},
+     CanonicalShuffle::kS32x4ReverseBytes},
+    {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14},
+     CanonicalShuffle::kS16x8ReverseBytes},
+    {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23},
+     CanonicalShuffle::kS8x16InterleaveLowHalves},
+    {expandHalf<8>({4, 20, 5, 21, 6, 22, 7, 23}),
+     CanonicalShuffle::kS8x8InterleaveHighHalves},
+    {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31},
+     CanonicalShuffle::kS8x16InterleaveHighHalves},
+    {expandHalf<8>({0, 2, 4, 6, 16, 18, 20, 22}), CanonicalShuffle::kS8x8Even},
+    {expandHalf<8>({1, 3, 5, 7, 17, 19, 21, 23}), CanonicalShuffle::kS8x8Odd},
+    {{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30},
+     CanonicalShuffle::kS8x16Even},
+    {{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31},
+     CanonicalShuffle::kS8x16Odd},
+    {{0, 16, 2, 18, 4, 20, 6, 22, 8, 24, 10, 26, 12, 28, 14, 30},
+     CanonicalShuffle::kS8x16TransposeEven},
+    {{1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27, 13, 29, 15, 31},
+     CanonicalShuffle::kS8x16TransposeOdd},
+    {expandHalf<8>({0, 4, 8, 12, 16, 20, 24, 28}),
+     CanonicalShuffle::kS8x8DeinterleaveEvenEven},
+    {expandHalf<8>({1, 5, 9, 13, 17, 21, 25, 29}),
+     CanonicalShuffle::kS8x8DeinterleaveOddEven},
+    {expandHalf<8>({2, 6, 10, 14, 18, 22, 26, 30}),
+     CanonicalShuffle::kS8x8DeinterleaveEvenOdd},
+    {expandHalf<8>({3, 7, 11, 15, 19, 23, 27, 31}),
+     CanonicalShuffle::kS8x8DeinterleaveOddOdd},
+    {expandHalf<4>({0, 4, 8, 12}),
+     CanonicalShuffle::kS16x4DeinterleaveEvenEven},
+    {expandHalf<4>({1, 5, 9, 13}), CanonicalShuffle::kS16x4DeinterleaveOddEven},
+    {expandHalf<4>({2, 6, 10, 14}),
+     CanonicalShuffle::kS16x4DeinterleaveEvenOdd},
+    {expandHalf<4>({3, 7, 11, 15}), CanonicalShuffle::kS16x4DeinterleaveOddOdd},
+    {expandQuarter<4>({0, 8, 16, 24}),
+     CanonicalShuffle::kS8x4DeinterleaveEvenEvenEven},
+    {expandQuarter<4>({1, 9, 17, 25}),
+     CanonicalShuffle::kS8x4DeinterleaveOddEvenEven},
+    {expandQuarter<4>({2, 10, 18, 26}),
+     CanonicalShuffle::kS8x4DeinterleaveEvenOddEven},
+    {expandQuarter<4>({3, 11, 19, 27}),
+     CanonicalShuffle::kS8x4DeinterleaveOddOddEven},
+    {expandQuarter<4>({4, 12, 20, 28}),
+     CanonicalShuffle::kS8x4DeinterleaveEvenEvenOdd},
+    {expandQuarter<4>({5, 13, 21, 29}),
+     CanonicalShuffle::kS8x4DeinterleaveOddEvenOdd},
+    {expandQuarter<4>({6, 14, 22, 30}),
+     CanonicalShuffle::kS8x4DeinterleaveEvenOddOdd},
+    {expandQuarter<4>({7, 15, 23, 31}),
+     CanonicalShuffle::kS8x4DeinterleaveOddOddOdd},
+});
+
 // A single matcher for both full- and half-size shuffles, where the half-size
 // only shuffles are padded with the sentinel value. Half-size shuffles
 // only match the first half of each shuffle pattern.
@@ -61,98 +150,6 @@ template <size_t N>
            N == kSimd128Size)
 SimdShuffle::CanonicalShuffle TryMatchCanonicalImpl(
     const SimdShuffle::ShuffleArray<N>& shuffle) {
-  using CanonicalShuffle = SimdShuffle::CanonicalShuffle;
-  using CanonicalPair = std::pair<const SimdShuffle::ShuffleArray<kSimd128Size>,
-                                  const CanonicalShuffle>;
-  static constexpr auto canonical_shuffle_list = std::to_array<CanonicalPair>({
-      {expand<2>({0, 1}), CanonicalShuffle::kIdentity},
-      {expandHalf<1>({0}), CanonicalShuffle::kIdentity},
-      {expand<2>({0, 2}), CanonicalShuffle::kS64x2Even},
-      {expand<2>({1, 3}), CanonicalShuffle::kS64x2Odd},
-      {expand<2>({1, 0}), CanonicalShuffle::kS64x2Reverse},
-      {expand<4>({0, 2, 4, 6}), CanonicalShuffle::kS32x4Even},
-      {expand<4>({1, 3, 5, 7}), CanonicalShuffle::kS32x4Odd},
-      {expand<4>({0, 4, 1, 5}), CanonicalShuffle::kS32x4InterleaveLowHalves},
-      {expand<4>({2, 6, 3, 7}), CanonicalShuffle::kS32x4InterleaveHighHalves},
-      {expand<4>({3, 2, 1, 0}), CanonicalShuffle::kS32x4Reverse},
-      {expand<4>({0, 4, 2, 6}), CanonicalShuffle::kS32x4TransposeEven},
-      {expand<4>({1, 5, 3, 7}), CanonicalShuffle::kS32x4TransposeOdd},
-      {expand<4>({1, 0, 3, 2}), CanonicalShuffle::kS32x2Reverse},
-      {expandHalf<4>({0, 2, 8, 10}), CanonicalShuffle::kS16x4Even},
-      {expandHalf<4>({1, 3, 9, 11}), CanonicalShuffle::kS16x4Odd},
-      {expand<8>({0, 2, 4, 6, 8, 10, 12, 14}), CanonicalShuffle::kS16x8Even},
-      {expand<8>({1, 3, 5, 7, 9, 11, 13, 15}), CanonicalShuffle::kS16x8Odd},
-      {expand<8>({0, 8, 1, 9, 2, 10, 3, 11}),
-       CanonicalShuffle::kS16x8InterleaveLowHalves},
-      {expandHalf<4>({2, 10, 3, 11}),
-       CanonicalShuffle::kS16x4InterleaveHighHalves},
-      {expand<8>({4, 12, 5, 13, 6, 14, 7, 15}),
-       CanonicalShuffle::kS16x8InterleaveHighHalves},
-      {expand<8>({0, 8, 2, 10, 4, 12, 6, 14}),
-       CanonicalShuffle::kS16x8TransposeEven},
-      {expand<8>({1, 9, 3, 11, 5, 13, 7, 15}),
-       CanonicalShuffle::kS16x8TransposeOdd},
-      {expand<8>({0, 4, 1, 5, 2, 6, 3, 7}),
-       CanonicalShuffle::kS16x8TopBottomInterleave},
-      {expand<8>({1, 0, 3, 2, 5, 4, 7, 6}), CanonicalShuffle::kS16x2Reverse},
-      {expand<8>({3, 2, 1, 0, 7, 6, 5, 4}), CanonicalShuffle::kS16x4Reverse},
-      {{7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8},
-       CanonicalShuffle::kS64x2ReverseBytes},
-      {{3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12},
-       CanonicalShuffle::kS32x4ReverseBytes},
-      {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14},
-       CanonicalShuffle::kS16x8ReverseBytes},
-      {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23},
-       CanonicalShuffle::kS8x16InterleaveLowHalves},
-      {expandHalf<8>({4, 20, 5, 21, 6, 22, 7, 23}),
-       CanonicalShuffle::kS8x8InterleaveHighHalves},
-      {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31},
-       CanonicalShuffle::kS8x16InterleaveHighHalves},
-      {expandHalf<8>({0, 2, 4, 6, 16, 18, 20, 22}),
-       CanonicalShuffle::kS8x8Even},
-      {expandHalf<8>({1, 3, 5, 7, 17, 19, 21, 23}), CanonicalShuffle::kS8x8Odd},
-      {{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30},
-       CanonicalShuffle::kS8x16Even},
-      {{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31},
-       CanonicalShuffle::kS8x16Odd},
-      {{0, 16, 2, 18, 4, 20, 6, 22, 8, 24, 10, 26, 12, 28, 14, 30},
-       CanonicalShuffle::kS8x16TransposeEven},
-      {{1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27, 13, 29, 15, 31},
-       CanonicalShuffle::kS8x16TransposeOdd},
-      {{0, 4, 8, 12, 16, 20, 24, 28},
-       CanonicalShuffle::kS8x8DeinterleaveEvenEven},
-      {{1, 5, 9, 13, 17, 21, 25, 29},
-       CanonicalShuffle::kS8x8DeinterleaveOddEven},
-      {{2, 6, 10, 14, 18, 22, 26, 30},
-       CanonicalShuffle::kS8x8DeinterleaveEvenOdd},
-      {{3, 7, 11, 15, 19, 23, 27, 31},
-       CanonicalShuffle::kS8x8DeinterleaveOddOdd},
-      {expandHalf<4>({0, 4, 8, 12}),
-       CanonicalShuffle::kS16x4DeinterleaveEvenEven},
-      {expandHalf<4>({1, 5, 9, 13}),
-       CanonicalShuffle::kS16x4DeinterleaveOddEven},
-      {expandHalf<4>({2, 6, 10, 14}),
-       CanonicalShuffle::kS16x4DeinterleaveEvenOdd},
-      {expandHalf<4>({3, 7, 11, 15}),
-       CanonicalShuffle::kS16x4DeinterleaveOddOdd},
-      {expandQuarter<4>({0, 8, 16, 24}),
-       CanonicalShuffle::kS8x4DeinterleaveEvenEvenEven},
-      {expandQuarter<4>({1, 9, 17, 25}),
-       CanonicalShuffle::kS8x4DeinterleaveOddEvenEven},
-      {expandQuarter<4>({2, 10, 18, 26}),
-       CanonicalShuffle::kS8x4DeinterleaveEvenOddEven},
-      {expandQuarter<4>({3, 11, 19, 27}),
-       CanonicalShuffle::kS8x4DeinterleaveOddOddEven},
-      {expandQuarter<4>({4, 12, 20, 28}),
-       CanonicalShuffle::kS8x4DeinterleaveEvenEvenOdd},
-      {expandQuarter<4>({5, 13, 21, 29}),
-       CanonicalShuffle::kS8x4DeinterleaveOddEvenOdd},
-      {expandQuarter<4>({6, 14, 22, 30}),
-       CanonicalShuffle::kS8x4DeinterleaveEvenOddOdd},
-      {expandQuarter<4>({7, 15, 23, 31}),
-       CanonicalShuffle::kS8x4DeinterleaveOddOddOdd},
-
-  });
   for (const auto& [lanes, canonical] : canonical_shuffle_list) {
     if (std::equal(lanes.begin(), lanes.begin() + N, shuffle.begin())) {
       return canonical;
@@ -162,6 +159,18 @@ SimdShuffle::CanonicalShuffle TryMatchCanonicalImpl(
 }
 
 }  // namespace
+
+std::optional<SimdShuffle::ShuffleArray<kSimd128Size>>
+SimdShuffle::TryGetCanonicalMask(
+    const SimdShuffle::CanonicalShuffle canonical) {
+  for (const auto& [mask, kind] : canonical_shuffle_list) {
+    if (kind == canonical) {
+      return mask;
+    }
+  }
+
+  return {};
+}
 
 SimdShuffle::CanonicalShuffle SimdShuffle::TryMatchCanonical(
     const ShuffleArray<kSimd128Size>& shuffle) {
@@ -481,15 +490,6 @@ uint8_t SimdShuffle::PackBlend4(const uint8_t* shuffle32x4) {
   int8_t result = 0;
   for (int i = 0; i < 4; ++i) {
     result |= (shuffle32x4[i] >= 4 ? 0x3 : 0) << (i * 2);
-  }
-  return result;
-}
-
-int32_t SimdShuffle::Pack2Lanes(const std::array<uint8_t, 2>& shuffle) {
-  int32_t result = 0;
-  for (int i = 1; i >= 0; --i) {
-    result <<= 8;
-    result |= shuffle[i];
   }
   return result;
 }

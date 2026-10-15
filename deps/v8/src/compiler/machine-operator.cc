@@ -1519,7 +1519,7 @@ struct MachineOperatorGlobalCache {
 #undef STORE_PAIR
 
   // Indirect pointer stores have an additional value input (the
-  // IndirectPointerTag associated with the field being stored to), but
+  // TrustedPointerTag associated with the field being stored to), but
   // otherwise are identical to regular stores.
   struct StoreIndirectPointerOperator : public Operator1<StoreRepresentation> {
     explicit StoreIndirectPointerOperator(WriteBarrierKind write_barrier_kind)

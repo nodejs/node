@@ -88,9 +88,14 @@ Response SerializeArrayValue(v8::Local<v8::Array> value,
                              v8::Local<v8::Object> additionalParameters,
                              V8SerializationDuplicateTracker& duplicateTracker,
                              std::unique_ptr<protocol::ListValue>* result) {
+  static constexpr uint32_t kMaxArrayLength = 10'000'000;
   std::unique_ptr<protocol::ListValue> serializedValue =
       protocol::ListValue::create();
   uint32_t length = value->Length();
+  if (length > kMaxArrayLength) {
+    return Response::ServerError(
+        "Array length exceeds maximum limit for deep serialization");
+  }
   serializedValue->reserve(length);
   for (uint32_t i = 0; i < length; i++) {
     v8::Local<v8::Value> elementValue;

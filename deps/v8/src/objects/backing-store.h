@@ -107,6 +107,12 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
       std::memory_order memory_order = std::memory_order_relaxed) const {
     return byte_length_.load(memory_order);
   }
+  // Returns the address of the atomic byte length. Used by WebAssembly shared
+  // memories to observe dynamic growth directly from JIT code without writing
+  // to trusted space.
+  const std::atomic<size_t>* byte_length_address() const {
+    return &byte_length_;
+  }
   size_t max_byte_length() const { return max_byte_length_; }
   size_t byte_capacity() const { return byte_capacity_; }
   SharedFlag is_shared() const { return SharedFlag{has_flag(kIsShared)}; }

@@ -248,10 +248,10 @@ void WriteBarrier::ForExternalPointer(Tagged<HeapObject> host,
 }
 
 // static
-void WriteBarrier::ForIndirectPointer(Tagged<HeapObject> host,
-                                      IndirectPointerSlot slot,
-                                      Tagged<HeapObject> value,
-                                      WriteBarrierMode mode) {
+void WriteBarrier::ForTrustedPointer(Tagged<HeapObject> host,
+                                     TrustedPointerSlot slot,
+                                     Tagged<HeapObject> value,
+                                     WriteBarrierMode mode) {
   // Indirect pointers are only used when the sandbox is enabled.
 #ifdef V8_ENABLE_SANDBOX
   if (mode == SKIP_WRITE_BARRIER) {
@@ -274,17 +274,17 @@ void WriteBarrier::ForIndirectPointer(Tagged<HeapObject> host,
 }
 
 // static
-template <typename T, IndirectPointerTagRange kTagRange>
-void WriteBarrier::ForIndirectPointer(HeapObject* host,
-                                      TrustedPointerMember<T, kTagRange>* slot,
-                                      Tagged<T> value, WriteBarrierMode mode) {
+template <typename T, TrustedPointerTagRange kTagRange>
+void WriteBarrier::ForTrustedPointer(HeapObject* host,
+                                     TrustedPointerMember<T, kTagRange>* slot,
+                                     Tagged<T> value, WriteBarrierMode mode) {
   // Indirect pointers are only used when the sandbox is enabled.
 #ifdef V8_ENABLE_SANDBOX
   // TODO(leszeks): Avoid the cast to Address here, pass a pointer to the actual
   // handle field.
-  ForIndirectPointer(
+  ForTrustedPointer(
       Tagged(host),
-      IndirectPointerSlot(reinterpret_cast<Address>(slot), kTagRange), value,
+      TrustedPointerSlot(reinterpret_cast<Address>(slot), kTagRange), value,
       mode);
 #else
   UNREACHABLE();
@@ -434,7 +434,7 @@ void WriteBarrier::Marking(Tagged<HeapObject> host, ExternalPointerSlot slot,
   MarkingSlow(host, slot, handle);
 }
 
-void WriteBarrier::Marking(Tagged<HeapObject> host, IndirectPointerSlot slot) {
+void WriteBarrier::Marking(Tagged<HeapObject> host, TrustedPointerSlot slot) {
   if (!IsMarking(host)) [[likely]] {
     return;
   }

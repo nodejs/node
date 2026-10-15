@@ -177,6 +177,11 @@ class V8_EXPORT Heap {
      * heap.
      */
     std::optional<StackStartMarker> stack_start_marker = std::nullopt;
+
+    /**
+     * Optional allocation sampler.
+     */
+    AllocationSampler* allocation_sampler = nullptr;
   };
   /**
    * Creates a new heap that can be used for object allocation.

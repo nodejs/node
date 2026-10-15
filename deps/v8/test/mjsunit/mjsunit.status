@@ -228,6 +228,7 @@
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/code-space-overflow': [PASS, SLOW, NO_VARIANTS, ['gc_stress == True or (simulator_run and mode == debug)', SKIP]],
   'wasm/max-wasm-functions': [PASS, SLOW, ['mode != release or dcheck_always_on or simulator_run or verify_predictable', SKIP], ['tsan', SKIP]],
+  'wasm/test-growable-tail-call-matrix': [PASS, SLOW],
   'wasm/wasm-interpreter': [PASS, SLOW],
 
   # Very slow on ARM, MIPS, RISCV and LOONG, contains no architecture dependent code.
@@ -320,6 +321,8 @@
   'arbitrary-length-varargs-prototype-setter': [PASS, ['mode == debug or simulator_run or lower_limits_mode', SKIP]],
 
   'regress/regress-509622555*': [['not sparkplug_plus', SKIP]],
+  'sandbox/regress-567222739*': [['not sparkplug_plus', SKIP]],
+  'baseline/embedded-feedback-monotonic': [['not sparkplug_plus', SKIP]],
 
   # Because of frontend lowerings being different in Maglev and Turbofan, some
   # unit tests don't pass when using Maglev as a frontend for Turboshaft.
@@ -822,6 +825,7 @@
 
   'sandbox/regress/regress-334120897': [SKIP],
   'sandbox/regress/regress-349502157': [SKIP],
+  'sandbox/regress/regress-572826713': [SKIP],
   'sandbox/regress-537948358': [SKIP],
   'sandbox/wasm-inlining-sigcheck': [SKIP],
   'sandbox/wasm-signature-verification': [SKIP],
@@ -845,6 +849,13 @@
 ##############################################################################
 ['not has_wasm_interpreter or variant != jitless', {
   # Tests to run only with the Wasm interpreter.
+  'regress/wasm/regress-drumbrake-cast-nofunc': [SKIP],
+  'regress/wasm/regress-drumbrake-exception-null': [SKIP],
+  'regress/wasm/regress-drumbrake-exnref': [SKIP],
+  'regress/wasm/regress-drumbrake-import-context': [SKIP],
+  'regress/wasm/regress-drumbrake-import-null': [SKIP],
+  'regress/wasm/regress-drumbrake-return-call-subtype': [SKIP],
+  'regress/wasm/regress-drumbrake-v128-js-boundary': [SKIP],
   'regress/wasm/regress-interpreter-failed-reentry': [SKIP],
   'wasm/wasm-interpreter-fuzzer' : [SKIP],
   'wasm/wasm-interpreter-memory*' : [SKIP],
@@ -860,16 +871,17 @@
 ##############################################################################
 ['not has_wasm_interpreter', {
   # This sandbox regression test forces --wasm-jitless to exercise the DrumBrake
-  # interpreter's JS-to-Wasm wrapper.
+  # interpreter.
   'sandbox/regress-522294322': [SKIP],
   # These sandbox regression tests force --wasm-jitless to exercise the
   # DrumBrake interpreter's InterpreterHandle handling.
   'sandbox/regress-527689557-1': [SKIP],
   'sandbox/regress-527689557-2': [SKIP],
   'sandbox/regress-535518222': [SKIP],
+  'sandbox/wasm-interpreter-reentrant-throw-overlap': [SKIP],
 }],  # not has_wasm_interpreter
 
-['has_wasm_interpreter and variant == jitless', {
+['variant == jitless', {
   # Skip tests that require Wasm experimental features not supported by the
   # Wasm interpreter, or that explicitly require compilation.
 
@@ -930,6 +942,7 @@
   'regress/wasm/regress-377620832': [SKIP],
   'regress/wasm/regress-410295354': [SKIP],
   'regress/wasm/regress-434008619': [SKIP],
+  'regress/wasm/regress-563427048': [SKIP],
   'wasm/exnref*': [SKIP],
   'wasm/gc-casts-exnref': [SKIP],
   'wasm/gc-casts-invalid': [SKIP],
@@ -949,6 +962,8 @@
   'regress/wasm/regress-v8-14471': [SKIP],
   'wasm/jspi*': [SKIP],
   'wasm/growable-stacks': [SKIP],
+  'wasm/growable-stacks-simd': [SKIP],
+  'wasm/test-growable-tail-call-*': [SKIP],
 
   # --wasm-growable-stacks
   'regress/wasm/regress-421055121': [SKIP],
@@ -964,6 +979,8 @@
   'regress/wasm/regress-493430818': [SKIP],
   'regress/wasm/regress-493529579': [SKIP],
   'regress/wasm/regress-493521637': [SKIP],
+  'regress/wasm/regress-557846268': [SKIP],
+  'regress/wasm/regress-wasmfx-unreachable-resume': [SKIP],
   'wasm/cont-bind': [SKIP],
   'wasm/regress-496645739': [SKIP],
   'wasm/regress-497667917': [SKIP],
@@ -986,6 +1003,7 @@
   'regress/wasm/regress-497330272': [SKIP],
   'regress/wasm/regress-511160771': [SKIP],
   'regress/wasm/regress-516109051': [SKIP],
+  'regress/wasm/regress-565341967': [SKIP],
   'regress/wasm/regress-crbug-1463232': [SKIP],
   'regress/wasm/regress-crbug-1466312': [SKIP],
   'regress/wasm/regress-v8-14710': [SKIP],
@@ -1012,6 +1030,7 @@
   'regress/wasm/regress-350779988': [SKIP],
   'regress/wasm/regress-366350772': [SKIP],
   'regress/wasm/regress-397043084': [SKIP],
+  'regress/wasm/regress-523591366': [SKIP],
   'wasm/denormals': [SKIP],
   'wasm/deopt/*': [SKIP],
   'wasm/enter-debug-state': [SKIP],
@@ -1045,7 +1064,6 @@
   # --wasm-lazy-validation
   'regress/wasm/regress-334687959': [SKIP],
   'regress/wasm/regress-441221187': [SKIP],
-  'regress/wasm/regress-505124865': [SKIP],
 
   # Wasm imported strings (just text-decoder or text-encoder)
   'wasm/imported-strings-utf8': [SKIP],
@@ -1074,7 +1092,11 @@
   'regress/wasm/regress-521064735': [SKIP],
   'regress/wasm/regress-524830496': [SKIP],
   'regress/wasm/regress-536581698': [SKIP],
+  'regress/wasm/regress-552026580': [SKIP],
+  'regress/wasm/regress-563068683': [SKIP],
   'regress/wasm/regress-565565747': [SKIP],
+  'regress/wasm/regress-567624365': [SKIP],
+  'regress/wasm/regress-568629618': [SKIP],
   'wasm/shared-everything/*': [SKIP],
   'wasm/subtyping-invalid': [SKIP],
 
@@ -1094,11 +1116,17 @@
   'regress/wasm/regress-407298298': [SKIP],
   'regress/wasm/regress-407797300': [SKIP],
   'regress/wasm/regress-408254017': [SKIP],
+  'regress/wasm/regress-567481597': [SKIP],
   'regress/wasm/regress-crbug-408253898': [SKIP],
 
   # --wasm-fp16
   'regress/wasm/regress-499027764': [SKIP],
   'regress/wasm/regress-504612573': [SKIP],
+  'regress/wasm/regress-565847635': [SKIP],
+  'regress/wasm/regress-567911985': [SKIP],
+  'regress/wasm/regress-570433240': [SKIP],
+  'regress/wasm/regress-570433264': [SKIP],
+  'regress/wasm/regress-simd-526303932': [SKIP],
   'wasm/fp16-load-mul': [SKIP],
   'wasm/fp16-oob-trap': [SKIP],
   'wasm/fp16-store': [SKIP],
@@ -1139,8 +1167,13 @@
   'regress/wasm/regress-457106696': [SKIP],
   'regress/wasm/regress-513063392': [SKIP],
   'regress/wasm/regress-525437482': [SKIP],
+  'regress/wasm/regress-561662099': [SKIP],
+  'regress/wasm/regress-563427048*': [SKIP],
+  'regress/wasm/regress-567171844': [SKIP],
+  'regress/wasm/regress-569886678': [SKIP],
   'wasm/custom-descriptors*': [SKIP],
   'wasm/exact-types': [SKIP],
+  'wasm/wasm-gc-js-roundtrip': [SKIP],
 
   # --wasm-compact-imports
   'wasm/compact-imports': [SKIP],
@@ -1149,6 +1182,7 @@
   'regress/wasm/regress-515525741': [SKIP],
   'regress/wasm/regress-516102112-1': [SKIP],
   'regress/wasm/regress-simd-520944504': [SKIP],
+  'wasm/wide-add': [SKIP],
   'wasm/wide-arithmetic': [SKIP],
 
   # --wasm-imported-strings-utf8
@@ -1170,11 +1204,14 @@
   'regress/wasm/regress-8896': [SKIP],
   'wasm/compiled-module-serialization': [SKIP],
   'wasm/print-code': [SKIP],
+  'wasm/regress-535877252-2': [SKIP], # Compiled-wrapper stack headroom.
 
   # Other tests that require compilation.
   'compiler/fast-api-calls-wasm': [SKIP],
+  'maglev/regress-498199197': [SKIP],
   'regress/wasm/regress-403308742': [SKIP],
   'regress/wasm/regress-488943662': [SKIP],
+  'regress/wasm/regress-505124865': [SKIP], # --wasm-compilation-hints
   'regress/wasm/regress-526163463': [SKIP], # --wasm-code-coverage
   'wasm/regression-521715545': [SKIP], # --wasm-code-coverage
   'wasm/async-compile': [SKIP],
@@ -1193,6 +1230,7 @@
   # d8.exe --no-wasm-trap-handler.
   'regress/wasm/regress-842501': [SKIP],
   'regress/wasm/regress-513413942': [SKIP],
+  'regress/wasm/regress-534275413': [SKIP],
 
   # TODO(paolosev): Support Wasm to JS calls to JSApiObjects.
   'wasm/ffi': [SKIP],
@@ -1233,11 +1271,17 @@
   'regress/wasm/regress-538378084': [SKIP],
   'regress/wasm/regress-540446645': [SKIP],
   'regress/wasm/regress-543901836': [SKIP],
+  'regress/wasm/regress-561660149': [SKIP],
   'regress/wasm/regress-crbug-1507751': [SKIP],
   'regress/wasm/regress-simd-518058891': [SKIP],
   'regress/wasm/regress-simd-525600038': [SKIP],
   'regress/wasm/regress-simd-526303929': [SKIP],
   'regress/wasm/regress-simd-528884838': [SKIP],
+  'regress/wasm/regress-simd-549328680*': [SKIP],
+  'regress/wasm/regress-simd-555760230': [SKIP],
+  'regress/wasm/regress-simd-555806042*': [SKIP],
+  'regress/wasm/regress-simd-557107349': [SKIP],
+  'regress/wasm/regress-simd-570497964': [SKIP],
   'wasm/bit-shift-right': [SKIP],
   'wasm/bounds-check-turbofan': [SKIP],
   'wasm/enter-and-leave-debug-state': [SKIP],
@@ -1283,6 +1327,7 @@
   'regress/wasm/regress-498814570': [SKIP],
   'regress/wasm/regress-498818401': [SKIP],
   'regress/wasm/regress-500113958': [SKIP],
+  'regress/wasm/regress-555812363': [SKIP],
 
   # The interpreter call stack contains an additional top frame if we throw a
   # type-mismatch exception before executing the Wasm function.
@@ -1293,6 +1338,13 @@
 
   # Wasm-to-JS type incompatibility in jitless mode with shadow realms.
   'harmony/regress/regress-511329274': [SKIP],
+
+  # Test runs with --no-wasm-trap-handler, but the interpreter's no-bounds-check
+  # memory builtins require the trap handler
+  # (CHECK(trap_handler::IsTrapHandlerEnabled()) in wasm-interpreter.cc).
+  'regress/wasm/regress-519715438': [SKIP],
+  'regress/wasm/regress-527985808': [SKIP],
+  'regress/wasm/regress-529880019': [SKIP],
 
  }],  # has_wasm_interpreter and variant == jitless
 
@@ -1376,9 +1428,11 @@
 
   # RegExp unicode tests relies on ICU for property classes and
   # case-insensitive unicode patterns.
+  'harmony/regexp-unicode-sets-class-string-disjunction': [SKIP],
   'regexp-unicode-sets': [PASS,FAIL],
   'regexp-not-jetstream': [SKIP],
   'regexp-jetstream': [SKIP],
+  'regress/regress-571871980': [SKIP],
 
   # The noi18n build cannot parse characters in supplementary plane.
   'harmony/regexp-named-captures': [FAIL],
@@ -1402,6 +1456,7 @@
   'regress/regress-crbug-335592010': [SKIP],
   'regress/regress-352402863': [SKIP],
   'regress/regress-549231120': [SKIP],
+  'regress/regress-557076207': [SKIP],
   'string-localecompare-inline': [SKIP],
 
   # Non-BMP characters currently aren't considered identifiers without i18n
@@ -2785,6 +2840,7 @@
   'wasm/deopt/deopt-value-types': [SKIP],
   'wasm/exceptions-simd': [SKIP],
   'wasm/growable-stacks': [SKIP],
+  'wasm/growable-stacks-simd': [SKIP],
   'wasm/interleaved-loads': [SKIP],
   'wasm/js-to-js': [SKIP],
   'wasm/large-struct': [SKIP],
@@ -2864,6 +2920,10 @@
   'regress/wasm/regress-504612573': [SKIP],
   'regress/wasm/regress-504711585': [SKIP],
   'regress/wasm/regress-513250424': [SKIP],
+  'regress/wasm/regress-565847635': [SKIP],
+  'regress/wasm/regress-567911985': [SKIP],
+  'regress/wasm/regress-570433240': [SKIP],
+  'regress/wasm/regress-570433264': [SKIP],
   'regress/wasm/regress-crbug-1338980': [SKIP],
   'regress/wasm/regress-crbug-1355070': [SKIP],
   'regress/wasm/regress-crbug-1356718': [SKIP],
@@ -2998,10 +3058,15 @@
 }],  # (arch == mips64el)
 
 ##############################################################################
-['arch != arm64 and arch != x64 and arch != arm and arch != ia32 and arch != loong64 and arch != riscv64 and arch != ppc64 and arch != s390x', {
+['arch != arm64 and arch != x64 and arch != arm and arch != ia32 and arch != riscv64 and arch != ppc64 and arch != s390x', {
   # Growable stacks are not supported on all platforms..
-  'wasm/growable-stacks': [SKIP]
-}],  # (arch != arm64 and arch != x64 and arch != arm and arch != ia32 and arch != loong64 and arch != riscv64 and arch != ppc64 and arch != s390x)
+  'wasm/growable-stacks': [SKIP],
+  'wasm/growable-stacks-simd': [SKIP],
+  'wasm/test-growable-tail-call-*': [SKIP],
+  'regress/wasm/regress-421055121': [SKIP],
+  'regress/wasm/regress-513250424': [SKIP],
+  'regress/wasm/regress-520777574': [SKIP],
+}],  # (arch != arm64 and arch != x64 and arch != arm and arch != ia32 and arch != riscv64)
 
 ##############################################################################
 ['arch != x64 and arch != arm64 and arch != loong64 and arch != mips64 and arch != riscv64', {
@@ -3067,6 +3132,10 @@
   'regress/regress-425583995': [SKIP],
   'regress/regress-490446682': [SKIP],
   'regress/regress-506499280-extended': [SKIP],
+  # These tests fail because of a different ArrayBufferAllocator is used in
+  # google3.
+  'huge-typedarrays-*': [SKIP],
+  'regress/regress-354626177': [SKIP],
 
   # Needs temporal:
   'regress/regress-463593768': [SKIP],
@@ -3074,6 +3143,7 @@
   'regress/regress-temporal-zoneinfo': [SKIP],
   'regress/regress-493269623': [SKIP],
   'regress/regress-495503781': [SKIP],
+  'regress/regress-572400584': [SKIP],
 
   # TODO(victorgomes):
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
@@ -3186,6 +3256,8 @@
   # It does not support multiple stacks yet.
   'wasm/jspi*': [SKIP],
   'wasm/growable-stacks': [SKIP],
+  'wasm/growable-stacks-simd': [SKIP],
+  'wasm/test-growable-tail-call-*': [SKIP],
   'regress/wasm/regress-v8-14471': [SKIP],
   'regress/wasm/regress-336852356': [SKIP],
   'regress/wasm/regress-336358915': [SKIP],
@@ -3251,6 +3323,9 @@
   # Negative tests are not supported, because we pass --no-fail.
   'bugs/*': [SKIP],
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
+
+  # Hangs when --enable-inspector is reset by --fuzzing.
+  'regress/wasm/regress-570538338': [SKIP],
 }],  # variant in [jit_fuzzing, jit_fuzzing_maglev]
 
 ##############################################################################
@@ -3264,12 +3339,6 @@
   # Sets a flag which is read-only if the disassembler is disabled.
   'regress/regress-392928803': [FAIL],
 }],  # not disassembler
-
-##############################################################################
-# https://issues.chromium.org/issues/404881599
-['(arch == arm64) and simulator_run', {
-'wasm/growable-stacks': [SKIP],
-}], # (arch == arm64) and simulator_run
 
 ##############################################################################
 ['sandbox_hardware_support', {
@@ -3315,6 +3384,7 @@
   'wasm/log-code-after-post-message': [SKIP],
   'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
   'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
+  'wasm/stack-switching-profiler': [SKIP],
 }], # sandbox_hardware_support
 
 ['variant == experimental_regexp', {
@@ -3497,6 +3567,7 @@
   'regress/regress-464961493': [SKIP],
   'regress/regress-493269623': [SKIP],
   'regress/regress-495503781': [SKIP],
+  'regress/regress-572400584': [SKIP],
   'regress/regress-temporal-zoneinfo': [SKIP],
 }],
 

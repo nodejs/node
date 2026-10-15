@@ -97,6 +97,9 @@ constexpr CpuFeatureSet CpuFeaturesFromCompiler() {
 #if defined(__ARM_FEATURE_SVE2_BITPERM)
   features.Add(SVEBITPERM);
 #endif
+#if defined(__ARM_FEATURE_RCPC) && __ARM_FEATURE_RCPC >= 2
+  features.Add(LRCPC2);
+#endif
   return features;
 }
 
@@ -109,6 +112,7 @@ constexpr CpuFeatureSet CpuFeaturesFromTargetOS() {
   features.Add(DOTPROD);
   features.Add(LSE);
   features.Add(PMULL1Q);
+  features.Add(LRCPC2);
 #endif
   return features;
 }
@@ -177,6 +181,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
   if (cpu.has_svebitperm()) {
     runtime.Add(SVEBITPERM);
+  }
+  if (cpu.has_lrcpc2()) {
+    runtime.Add(LRCPC2);
   }
 
   // Use the best of the features found by CPU detection and those inferred from

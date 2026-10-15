@@ -7,6 +7,7 @@
 #include "src/snapshot/snapshot.h"
 
 #include "src/api/api-inl.h"  // For OpenHandle.
+#include "src/base/numerics/safe_conversions.h"
 #include "src/baseline/baseline-batch-compiler.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/local-isolate-inl.h"
@@ -410,41 +411,60 @@ v8::StartupData Snapshot::Create(
   HandleScope scope(isolate);
 
   flags |= Snapshot::kAllowSerializingAllTrustedObjects;
+  const int num_contexts = static_cast<int>(contexts->size());
+  const bool profile = v8_flags.profile_deserialization;
+  base::ElapsedTimer timer;
+  double ro_ms = 0;
+  double startup_ms = 0;
+  double shared_heap_ms = 0;
+  std::vector<double> context_ms(num_contexts, 0.0);
+
+  if (profile) timer.Start();
   ReadOnlySerializer read_only_serializer(isolate, flags);
   read_only_serializer.Serialize();
+  if (profile) ro_ms += timer.Elapsed().InMillisecondsF();
 
   // TODO(v8:6593): generalize rehashing, and remove this flag.
   bool can_be_rehashed = read_only_serializer.can_be_rehashed();
 
   SharedHeapSerializer shared_heap_serializer(isolate, flags);
+  if (profile) timer.Restart();
   StartupSerializer startup_serializer(isolate, flags, &shared_heap_serializer);
   startup_serializer.SerializeStrongReferences(no_gc);
+  if (profile) startup_ms += timer.Elapsed().InMillisecondsF();
 
   // Serialize each context with a new serializer.
-  const int num_contexts = static_cast<int>(contexts->size());
   std::vector<SnapshotData*> context_snapshots;
   context_snapshots.reserve(num_contexts);
 
   std::vector<int> context_allocation_sizes;
   for (int i = 0; i < num_contexts; i++) {
+    if (profile) timer.Restart();
     ContextSerializer context_serializer(isolate, flags, &startup_serializer,
                                          embedder_fields_serializers[i]);
     context_serializer.Serialize(&contexts->at(i), no_gc);
     can_be_rehashed = can_be_rehashed && context_serializer.can_be_rehashed();
     context_snapshots.push_back(new SnapshotData(&context_serializer));
+    if (profile) context_ms[i] = timer.Elapsed().InMillisecondsF();
     if (v8_flags.serialization_statistics) {
       context_allocation_sizes.push_back(
           context_serializer.TotalAllocationSize());
     }
   }
 
+  if (profile) timer.Restart();
   startup_serializer.SerializeWeakReferencesAndDeferred();
   can_be_rehashed = can_be_rehashed && startup_serializer.can_be_rehashed();
 
   startup_serializer.CheckNoDirtyFinalizationRegistries();
+  if (profile) {
+    startup_ms += timer.Elapsed().InMillisecondsF();
+    timer.Restart();
+  }
 
   shared_heap_serializer.FinalizeSerialization();
   can_be_rehashed = can_be_rehashed && shared_heap_serializer.can_be_rehashed();
+  if (profile) shared_heap_ms += timer.Elapsed().InMillisecondsF();
 
   if (v8_flags.serialization_statistics) {
     DCHECK_NE(read_only_serializer.TotalAllocationSize(), 0);
@@ -470,9 +490,31 @@ v8::StartupData Snapshot::Create(
     PrintF("\n");
   }
 
+  if (profile) timer.Restart();
   SnapshotData read_only_snapshot(&read_only_serializer);
+  if (profile) {
+    ro_ms += timer.Elapsed().InMillisecondsF();
+    timer.Restart();
+  }
   SnapshotData shared_heap_snapshot(&shared_heap_serializer);
+  if (profile) {
+    shared_heap_ms += timer.Elapsed().InMillisecondsF();
+    timer.Restart();
+  }
   SnapshotData startup_snapshot(&startup_serializer);
+  if (profile) {
+    startup_ms += timer.Elapsed().InMillisecondsF();
+    PrintF("[Serializing read-only space (%d bytes) took %0.3f ms]\n",
+           read_only_snapshot.RawData().length(), ro_ms);
+    PrintF("[Serializing isolate (%d bytes) took %0.3f ms]\n",
+           startup_snapshot.RawData().length(), startup_ms);
+    PrintF("[Serializing shared heap (%d bytes) took %0.3f ms]\n",
+           shared_heap_snapshot.RawData().length(), shared_heap_ms);
+    for (int i = 0; i < num_contexts; i++) {
+      PrintF("[Serializing context #%d (%d bytes) took %0.3f ms]\n", i,
+             context_snapshots[i]->RawData().length(), context_ms[i]);
+    }
+  }
   v8::StartupData result = SnapshotImpl::CreateSnapshotBlob(
       &startup_snapshot, &read_only_snapshot, &shared_heap_snapshot,
       context_snapshots, can_be_rehashed);
@@ -526,16 +568,16 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
   uint32_t num_contexts = static_cast<uint32_t>(context_snapshots->size());
   uint32_t read_only_offset =
       SnapshotImpl::ReadOnlySnapshotOffset(num_contexts);
-  uint32_t total_length = read_only_offset;
-  total_length += static_cast<uint32_t>(read_only_snapshot->RawData().length());
-  total_length += static_cast<uint32_t>(startup_snapshot->RawData().length());
-  total_length +=
-      static_cast<uint32_t>(shared_heap_snapshot->RawData().length());
+  size_t total_length = read_only_offset;
+  total_length += read_only_snapshot->RawData().length();
+  total_length += startup_snapshot->RawData().length();
+  total_length += shared_heap_snapshot->RawData().length();
   for (const auto context_snapshot : *context_snapshots) {
-    total_length += static_cast<uint32_t>(context_snapshot->RawData().length());
+    total_length += context_snapshot->RawData().length();
   }
 
-  char* data = new char[total_length];
+  int total_length_int = base::checked_cast<int>(total_length);
+  char* data = new char[total_length_int];
   // Zero out pre-payload data. Part of that is only used for padding.
   memset(data, 0, read_only_offset);
 
@@ -619,7 +661,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
   if (v8_flags.serialization_statistics) PrintF("\n");
 
   DCHECK_EQ(total_length, payload_offset);
-  v8::StartupData result = {data, static_cast<int>(total_length)};
+  v8::StartupData result = {data, total_length_int};
 
   SnapshotImpl::SetHeaderValue(
       data, SnapshotImpl::kChecksumOffset,

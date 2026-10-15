@@ -116,6 +116,9 @@ void DeclareMethods(AggregateType* container_type,
                                            signature, body);
     m->SetPosition(method->pos);
     m->SetIdentifierPosition(method->name->pos);
+    if (GlobalContext::collect_kythe_data()) {
+      KytheData::AddFunctionDefinition(m);
+    }
   }
 }
 

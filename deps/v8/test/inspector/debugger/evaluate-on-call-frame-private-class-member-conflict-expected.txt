@@ -19,10 +19,26 @@ class StaticClass extends Klass {
 debugger;
 
 Running test: evaluatePrivateMembers
+Debugger.evaluateOnCallFrame: `#name in (new ClassWithField)`
+{
+    className : Error
+    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at eval (eval at <anonymous> (:18:1), <anonymous>:1:11)     at <anonymous>:18:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
 Debugger.evaluateOnCallFrame: `(new ClassWithField).#name`
 {
     className : Error
     description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at eval (eval at <anonymous> (:18:1), <anonymous>:1:2)     at <anonymous>:18:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Debugger.evaluateOnCallFrame: `#name in (new ClassWithMethod)`
+{
+    className : Error
+    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at eval (eval at <anonymous> (:18:1), <anonymous>:1:11)     at <anonymous>:18:1
     objectId : <objectId>
     subtype : error
     type : object
@@ -35,6 +51,14 @@ Debugger.evaluateOnCallFrame: `(new ClassWithMethod).#name`
     subtype : error
     type : object
 }
+Debugger.evaluateOnCallFrame: `#name in (new ClassWithAccessor)`
+{
+    className : Error
+    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at eval (eval at <anonymous> (:18:1), <anonymous>:1:11)     at <anonymous>:18:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
 Debugger.evaluateOnCallFrame: `(new ClassWithAccessor).#name`
 {
     className : Error
@@ -43,10 +67,20 @@ Debugger.evaluateOnCallFrame: `(new ClassWithAccessor).#name`
     subtype : error
     type : object
 }
+Debugger.evaluateOnCallFrame: `#name in StaticClass`
+{
+    type : boolean
+    value : true
+}
 Debugger.evaluateOnCallFrame: `StaticClass.#name`
 {
     type : string
     value : child
+}
+Debugger.evaluateOnCallFrame: `#name in (new StaticClass)`
+{
+    type : boolean
+    value : true
 }
 Debugger.evaluateOnCallFrame: `(new StaticClass).#name`
 {

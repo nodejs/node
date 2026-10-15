@@ -10,7 +10,7 @@
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
 #include "src/compiler/graph-assembler.h"
-#include "src/sandbox/indirect-pointer-tag.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 #include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {
@@ -178,14 +178,14 @@ class WasmGraphAssembler : public GraphAssembler {
                                            Node* isolate_root);
 
   Node* LoadImmutableTrustedPointerFromObject(Node* object, int offset,
-                                              IndirectPointerTagRange tag);
+                                              TrustedPointerTagRange tag);
   Node* LoadTrustedPointerFromObject(Node* object, int offset,
-                                     IndirectPointerTagRange tag);
+                                     TrustedPointerTagRange tag);
   // Returns the load node (where the source position for the trap needs to be
   // set by the caller) and the result.
   std::pair<Node*, Node*> LoadTrustedPointerFromObjectTrapOnNull(
-      Node* object, int offset, IndirectPointerTagRange tag);
-  Node* BuildDecodeTrustedPointer(Node* handle, IndirectPointerTagRange tag);
+      Node* object, int offset, TrustedPointerTagRange tag);
+  Node* BuildDecodeTrustedPointer(Node* handle, TrustedPointerTagRange tag);
 
   Node* IsSmi(Node* object);
 
@@ -253,8 +253,6 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* LoadFunctionDataFromJSFunction(Node* js_function);
 
-  Node* LoadExportedFunctionInstanceData(Node* exported_function_data);
-
   // JavaScript objects.
 
   Node* LoadJSArrayElements(Node* js_array);
@@ -263,7 +261,7 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* FieldOffset(const wasm::StructType* type, uint32_t field_index);
 
-  Node* WasmArrayElementOffset(Node* index, wasm::ValueType element_type);
+  Node* WasmArrayElementOffset(Node* index, const wasm::ArrayType* type);
 
   Node* IsDataRefMap(Node* map);
 

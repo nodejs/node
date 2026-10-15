@@ -5,6 +5,7 @@
 class C {
   static #c = C;
   static #m() { return this; }
+  static get #g() { return this.#m; }
   static test(C) {
     assertEquals(C?.#m(), C);
     assertEquals((C?.#m)(), C);
@@ -15,6 +16,17 @@ class C {
     assertEquals((C?.#m)(42), C);
     assertEquals(C?.#c?.#m(42), C);
     assertEquals((C?.#c?.#m)(42), C);
+
+    assertEquals(C?.#g(), C);
+    assertEquals((C?.#g)(), C);
+    assertEquals(C?.#c?.#g(), C);
+    assertEquals((C?.#c?.#g)(), C);
+
+    assertEquals(C?.#g(42), C);
+    assertEquals((C?.#g)(42), C);
+    assertEquals(C?.#c?.#g(42), C);
+    assertEquals((C?.#c?.#g)(42), C);
+    assertEquals((C?.#g)(1, ...[2], 3), C);
   }
 }
 

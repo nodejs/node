@@ -344,8 +344,8 @@ void Builtins::PrintBuiltinCode() {
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     const char* builtin_name = name(builtin);
-    if (PassesFilter(base::CStrVector(builtin_name),
-                     base::CStrVector(v8_flags.print_builtin_code_filter))) {
+    if (PassesFilter(builtin_name,
+                     v8_flags.print_builtin_code_filter.value())) {
       CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
       OFStream os(trace_scope.file());
       Tagged<Code> builtin_code = code(builtin);

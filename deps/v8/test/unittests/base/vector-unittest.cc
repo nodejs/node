@@ -60,47 +60,6 @@ TEST(VectorTest, Equals) {
   EXPECT_TRUE(vec3_char != vec1_const_char);
 }
 
-TEST(OwnedVectorTest, Equals) {
-  auto int_vec = base::OwnedVector<int>::New(4);
-  EXPECT_EQ(4u, int_vec.size());
-  auto find_non_zero = [](int i) { return i != 0; };
-  EXPECT_EQ(int_vec.end(),
-            std::find_if(int_vec.begin(), int_vec.end(), find_non_zero));
-
-  constexpr int kInit[] = {4, 11, 3};
-  auto init_vec1 = base::OwnedCopyOf(kInit);
-  // Note: {const int} should also work: We initialize the owned vector, but
-  // afterwards it's non-modifyable.
-  auto init_vec2 = base::OwnedCopyOf(base::ArrayVector(kInit));
-  EXPECT_EQ(init_vec1.as_vector(), base::ArrayVector(kInit));
-  EXPECT_EQ(init_vec1.as_vector(), init_vec2.as_vector());
-}
-
-TEST(OwnedVectorTest, MoveConstructionAndAssignment) {
-  constexpr int kValues[] = {4, 11, 3};
-  auto int_vec = base::OwnedCopyOf(kValues);
-  EXPECT_EQ(3u, int_vec.size());
-
-  auto move_constructed_vec = std::move(int_vec);
-  EXPECT_EQ(move_constructed_vec.as_vector(), base::ArrayVector(kValues));
-
-  auto move_assigned_to_empty = base::OwnedVector<int>{};
-  move_assigned_to_empty = std::move(move_constructed_vec);
-  EXPECT_EQ(move_assigned_to_empty.as_vector(), base::ArrayVector(kValues));
-
-  auto move_assigned_to_non_empty = base::OwnedVector<int>::New(2);
-  move_assigned_to_non_empty = std::move(move_assigned_to_empty);
-  EXPECT_EQ(move_assigned_to_non_empty.as_vector(), base::ArrayVector(kValues));
-
-  // All but the last vector must be empty (length 0, nullptr data).
-  EXPECT_TRUE(int_vec.empty());
-  EXPECT_TRUE(int_vec.begin() == nullptr);
-  EXPECT_TRUE(move_constructed_vec.empty());
-  EXPECT_TRUE(move_constructed_vec.begin() == nullptr);
-  EXPECT_TRUE(move_assigned_to_empty.empty());
-  EXPECT_TRUE(move_assigned_to_empty.begin() == nullptr);
-}
-
 // Test that the constexpr factory methods work.
 TEST(VectorTest, ConstexprFactories) {
   static constexpr int kInit1[] = {4, 11, 3};
@@ -116,6 +75,112 @@ TEST(VectorTest, ConstexprFactories) {
   static constexpr auto kVec3 = base::StaticCharVector(kInit3);
   static_assert(kVec3.size() == 6);
   EXPECT_THAT(kVec3, testing::ElementsAreArray(kInit3, kInit3 + 6));
+}
+
+TEST(VectorTest, SpanConversion) {
+  int arr[] = {1, 2, 3};
+  std::span<int, 3> static_span(arr);
+  std::span<int> dynamic_span(arr);
+
+  base::Vector<int> vec_from_static = static_span;
+  base::Vector<int> vec_from_dynamic = dynamic_span;
+  base::Vector<const int> const_vec_from_mutable_span = dynamic_span;
+  EXPECT_EQ(vec_from_static, vec_from_dynamic);
+  EXPECT_EQ(vec_from_dynamic, const_vec_from_mutable_span);
+
+  std::span<int> span_from_vec = vec_from_dynamic;
+  std::span<const int> const_span_from_vec = vec_from_dynamic;
+  std::span<int> explicit_span_from_vec =
+      static_cast<std::span<int>>(vec_from_dynamic);
+  std::span<const int> explicit_const_span_from_vec =
+      static_cast<std::span<const int>>(vec_from_dynamic);
+  std::span s(vec_from_dynamic);
+  static_assert(std::is_same_v<decltype(s), std::span<int>>);
+  const base::Vector<int> const_vec_of_mutable = dynamic_span;
+  std::span<int> span_from_const_vec = const_vec_of_mutable;
+  EXPECT_EQ(span_from_vec.data(), arr);
+  EXPECT_EQ(span_from_vec.size(), 3u);
+  EXPECT_EQ(const_span_from_vec.data(), arr);
+  EXPECT_EQ(const_span_from_vec.size(), 3u);
+  EXPECT_EQ(explicit_span_from_vec.data(), arr);
+  EXPECT_EQ(explicit_span_from_vec.size(), 3u);
+  EXPECT_EQ(explicit_const_span_from_vec.data(), arr);
+  EXPECT_EQ(explicit_const_span_from_vec.size(), 3u);
+  EXPECT_EQ(s.data(), arr);
+  EXPECT_EQ(s.size(), 3u);
+  EXPECT_EQ(span_from_const_vec.data(), arr);
+  EXPECT_EQ(span_from_const_vec.size(), 3u);
+}
+
+TEST(VectorTest, SpanCompatibleMethods) {
+  static constexpr int kArr[] = {10, 20, 30, 40, 50};
+  static constexpr auto kVec = base::ArrayVector(kArr);
+
+  static_assert(kVec.front() == 10);
+  static_assert(kVec.back() == 50);
+
+  static constexpr auto kFirst2 = kVec.first(2);
+  static_assert(kFirst2.size() == 2);
+  static_assert(kFirst2.front() == 10);
+  static_assert(kFirst2.back() == 20);
+  EXPECT_THAT(kFirst2, testing::ElementsAre(10, 20));
+  EXPECT_EQ(kVec.first(5), kVec);
+  EXPECT_TRUE(kVec.first(0).empty());
+
+  static constexpr auto kLast2 = kVec.last(2);
+  static_assert(kLast2.size() == 2);
+  static_assert(kLast2.front() == 40);
+  static_assert(kLast2.back() == 50);
+  EXPECT_THAT(kLast2, testing::ElementsAre(40, 50));
+  EXPECT_EQ(kVec.last(5), kVec);
+  EXPECT_TRUE(kVec.last(0).empty());
+
+  static constexpr auto kSubFrom2 = kVec.subspan(2);
+  static_assert(kSubFrom2.size() == 3);
+  static_assert(kSubFrom2.front() == 30);
+  static_assert(kSubFrom2.back() == 50);
+  EXPECT_THAT(kSubFrom2, testing::ElementsAre(30, 40, 50));
+  EXPECT_EQ(kVec.subspan(0), kVec);
+  EXPECT_TRUE(kVec.subspan(5).empty());
+
+  static constexpr auto kSubMiddle = kVec.subspan(1, 3);
+  static_assert(kSubMiddle.size() == 3);
+  static_assert(kSubMiddle.front() == 20);
+  static_assert(kSubMiddle.back() == 40);
+  EXPECT_THAT(kSubMiddle, testing::ElementsAre(20, 30, 40));
+  EXPECT_EQ(kVec.subspan(0, 5), kVec);
+  EXPECT_TRUE(kVec.subspan(2, 0).empty());
+  EXPECT_TRUE(kVec.subspan(5, 0).empty());
+  EXPECT_TRUE(base::Vector<int>{}.subspan(0, 0).empty());
+
+  int mutable_arr[] = {1, 2, 3};
+  base::Vector<int> mutable_vec = base::ArrayVector(mutable_arr);
+  mutable_vec.front() = 100;
+  mutable_vec.back() = 300;
+  EXPECT_THAT(mutable_vec, testing::ElementsAre(100, 2, 300));
+
+  const base::Vector<int> const_mutable_vec = mutable_vec;
+  const_mutable_vec.front() = 10;
+  const_mutable_vec.back() = 30;
+  EXPECT_THAT(mutable_vec, testing::ElementsAre(10, 2, 30));
+}
+
+TEST(VectorTest, ArrayConversion) {
+  std::array<int, 3> arr = {1, 2, 3};
+  const std::array<int, 3> const_arr = {1, 2, 3};
+
+  base::Vector<int> vec_from_arr = arr;
+  base::Vector<const int> const_vec_from_arr = arr;
+  base::Vector<const int> const_vec_from_const_arr = const_arr;
+
+  EXPECT_EQ(vec_from_arr.data(), arr.data());
+  EXPECT_EQ(vec_from_arr.size(), 3u);
+  EXPECT_EQ(const_vec_from_arr.data(), arr.data());
+  EXPECT_EQ(const_vec_from_arr.size(), 3u);
+  EXPECT_EQ(const_vec_from_const_arr.data(), const_arr.data());
+  EXPECT_EQ(const_vec_from_const_arr.size(), 3u);
+  EXPECT_EQ(vec_from_arr, const_vec_from_arr);
+  EXPECT_EQ(const_vec_from_arr, const_vec_from_const_arr);
 }
 
 }  // namespace base

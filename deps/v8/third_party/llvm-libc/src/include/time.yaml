@@ -77,6 +77,13 @@ functions:
     return_type: clock_t
     arguments:
       - type: void
+  - name: clock_getres
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: clockid_t
+      - type: struct timespec *
   - name: clock_gettime
     standards:
       - posix

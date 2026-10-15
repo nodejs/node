@@ -50,11 +50,15 @@ class Deserializer : public SerializerDeserializer {
 
  protected:
   // Create a deserializer from a snapshot byte source.
-  Deserializer(IsolateT* isolate, base::Vector<const uint8_t> payload,
+  Deserializer(IsolateT* isolate, base::Vector<const uint8_t> untrusted_payload,
+               base::Vector<const uint8_t> trusted_payload,
                uint32_t magic_number, bool deserializing_user_code,
                bool can_rehash);
 
   void DeserializeDeferredObjects();
+  // For code caches. The untrusted section has the root and is read first.
+  DirectHandle<HeapObject> DeserializeUntrustedSection();
+  void DeserializeTrustedSection();
 
   // Create Log events for newly deserialized objects.
   void LogNewObjectEvents();
@@ -148,6 +152,11 @@ class Deserializer : public SerializerDeserializer {
       return circular_queue_[index];
     }
 
+    void Reset() {
+      for (auto& entry : circular_queue_) entry = {};
+      index_ = 0;
+    }
+
    private:
     static const int kSize = kHotObjectCount;
     static const int kSizeMask = kSize - 1;
@@ -181,8 +190,8 @@ class Deserializer : public SerializerDeserializer {
   inline int WriteExternalPointer(Tagged<HeapObject> host,
                                   ExternalPointerSlot dest, Address value,
                                   ExternalPointerTag tag);
-  inline int WriteIndirectPointer(IndirectPointerSlot dest,
-                                  Tagged<HeapObject> value);
+  inline int WriteTrustedPointer(TrustedPointerSlot dest,
+                                 Tagged<HeapObject> value);
 
   // Fills in a heap object's data from start to end (exclusive). Start and end
   // are slot indices within the object.
@@ -236,10 +245,10 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadWeakPrefix(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
-  int ReadIndirectPointerPrefix(uint8_t data, SlotAccessor slot_accessor);
+  int ReadTrustedPointerPrefix(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
-  int ReadInitializeSelfIndirectPointer(uint8_t data,
-                                        SlotAccessor slot_accessor);
+  int ReadInitializeSelfTrustedPointer(uint8_t data,
+                                       SlotAccessor slot_accessor);
   template <typename SlotAccessor>
   int ReadAllocateJSDispatchEntry(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
@@ -278,7 +287,7 @@ class Deserializer : public SerializerDeserializer {
                                 InstanceType instance_type,
                                 SnapshotSpace space);
 
-  Tagged<HeapObject> Allocate(AllocationType allocation, int size,
+  Tagged<HeapObject> Allocate(AllocationType allocation, uint32_t size,
                               AllocationAlignment alignment);
 
   // Cached current isolate.
@@ -325,10 +334,13 @@ class Deserializer : public SerializerDeserializer {
   std::vector<UnresolvedForwardRef> unresolved_forward_refs_;
   int num_unresolved_forward_refs_ = 0;
 
+  const base::Vector<const uint8_t> trusted_payload_;
+  std::vector<IndirectHandle<HeapObject>> untrusted_back_refs_;
+
   const bool deserializing_user_code_;
 
   bool next_reference_is_weak_ = false;
-  bool next_reference_is_indirect_pointer_ = false;
+  bool next_reference_is_trusted_pointer_ = false;
   bool next_reference_is_protected_pointer = false;
 
   // TODO(6593): generalize rehashing, and remove this flag.
@@ -357,7 +369,7 @@ class Deserializer : public SerializerDeserializer {
 
   // Record the previous object allocated for DCHECKs.
   DirectHandle<HeapObject> previous_allocation_obj_;
-  int previous_allocation_size_ = 0;
+  uint32_t previous_allocation_size_ = 0;
 #endif  // DEBUG
 };
 

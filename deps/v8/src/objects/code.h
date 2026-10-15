@@ -585,6 +585,8 @@ V8_OBJECT class CodeWrapper : public Struct {
   V8_IT_NO_AUTO_DISPATCH;
 
  public:
+  inline explicit CodeWrapper(const AllocationWitness& witness);
+
   DECL_CODE_POINTER_ACCESSORS(code)
 
   DECL_PRINTER(CodeWrapper)
@@ -593,7 +595,7 @@ V8_OBJECT class CodeWrapper : public Struct {
   class BodyDescriptor;
 
  public:
-  TrustedPointerMember<Code, kCodeIndirectPointerTag> code_;
+  TrustedPointerMember<Code, kCodeTrustedPointerTag> code_;
 } V8_OBJECT_END;
 
 }  // namespace internal

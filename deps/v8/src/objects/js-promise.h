@@ -8,6 +8,7 @@
 #include "include/v8-promise.h"
 #include "src/base/bit-field.h"
 #include "src/handles/handles.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/promise.h"
@@ -37,8 +38,28 @@ V8_OBJECT class JSPromise : public JSObjectWithEmbedderSlots {
       Tagged<UnionOf<PromiseReaction, JSAny>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int flags() const;
-  inline void set_flags(int value);
+  // Flags layout.
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+    using StatusBits = base::BitField<Promise::PromiseState, 0, 2, uint32_t>;
+    using IsNativeResolverInvokedBit = StatusBits::Next<bool, 1>;
+    using HasHandlerBit = IsNativeResolverInvokedBit::Next<bool, 1>;
+    using IsSilentBit = HasHandlerBit::Next<bool, 1>;
+    using AsyncTaskIdBits = IsSilentBit::Next<uint32_t, 26>;
+
+    BIT_FIELD_GETTER(status, StatusBits)
+    BIT_FIELD_GETTER(is_native_resolver_invoked, IsNativeResolverInvokedBit)
+    BIT_FIELD_GETTER(has_handler, HasHandlerBit)
+    BIT_FIELD_GETTER(is_silent, IsSilentBit)
+    BIT_FIELD_GETTER(async_task_id, AsyncTaskIdBits)
+  };
+
+  static_assert(v8::Promise::kPending == 0);
+  static_assert(v8::Promise::kFulfilled == 1);
+  static_assert(v8::Promise::kRejected == 2);
+
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
 
   // [result]: Checks that the promise is settled and returns the result.
   inline Tagged<Object> result() const;
@@ -98,23 +119,11 @@ V8_OBJECT class JSPromise : public JSObjectWithEmbedderSlots {
   DECL_PRINTER(JSPromise)
   DECL_VERIFIER(JSPromise)
 
-  // Flags layout.
-  using StatusBits = base::BitField<Promise::PromiseState, 0, 2, uint32_t>;
-  using IsNativeResolverInvokedBit = StatusBits::Next<bool, 1>;
-  using HasHandlerBit = IsNativeResolverInvokedBit::Next<bool, 1>;
-  using IsSilentBit = HasHandlerBit::Next<bool, 1>;
-  using AsyncTaskIdBits = IsSilentBit::Next<uint32_t, 26>;
-
-  static_assert(v8::Promise::kPending == 0);
-  static_assert(v8::Promise::kFulfilled == 1);
-  static_assert(v8::Promise::kRejected == 2);
-
  public:
   // Smi 0 terminated list of PromiseReaction objects in case the JSPromise
   // was not settled yet, otherwise the result.
   TaggedMember<UnionOf<PromiseReaction, JSAny>> reactions_or_result_;
-  // SmiTagged<JSPromiseFlags>.
-  TaggedMember<Smi> flags_;
+  SmiBitFieldMember<Flags> flags_;
 
  private:
   // https://tc39.es/ecma262/#sec-triggerpromisereactions

@@ -81,7 +81,7 @@ class RawMachineAssemblerTester : public CallHelper<ReturnType>,
   Address Generate() override {
     if (code_.is_null()) {
       Schedule* schedule = ExportForTest();
-      OptimizedCompilationInfo info(base::ArrayVector("testing"), zone_, kind_);
+      OptimizedCompilationInfo info("testing", zone_, kind_);
       code_ = Pipeline::GenerateCodeForTesting(
           &info, isolate_, call_descriptor(), graph(),
           AssemblerOptions::Default(isolate_), schedule);

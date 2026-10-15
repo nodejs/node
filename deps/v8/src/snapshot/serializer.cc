@@ -6,6 +6,7 @@
 
 #include "include/v8-internal.h"
 #include "src/base/logging.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/handles/global-handles-inl.h"
@@ -159,6 +160,13 @@ void Serializer::SerializeDeferredObjects() {
 }
 
 void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
+  if (IsInaccessible(*obj)) {
+    // Only some roots are inaccessible.
+    bool result = SerializeRoot(*obj);
+    DCHECK(result);
+    USE(result);
+    return;
+  }
   if (IsThinString(*obj)) {
     // ThinStrings are just an indirection to an internalized string, so elide
     // the indirection and serialize the actual string directly.
@@ -472,17 +480,18 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
                       code_name));
   }
 
+  SBXCHECK_GT(size, kTaggedSize);
+  SBXCHECK(IsAligned(size, kTaggedSize));
+
   if (IsMetaMap(*object_)) {
     if (map == ReadOnlyRoots(isolate()).meta_map()) {
       DCHECK_EQ(space, SnapshotSpace::kReadOnlyHeap);
       sink_->Put(kNewContextlessMetaMap, "NewContextlessMetaMap");
-      sink_->PutUint30(size >> kObjectAlignmentBits, "ObjectSizeInWords");
       sink_->PutUint30(map->instance_type(), "MetaMapInstanceType");
     } else {
       DCHECK_EQ(space, SnapshotSpace::kOld);
       DCHECK(IsContext(map->native_context_or_null()));
       sink_->Put(kNewContextfulMetaMap, "NewContextfulMetaMap");
-      sink_->PutUint30(size >> kObjectAlignmentBits, "ObjectSizeInWords");
       sink_->PutUint30(map->instance_type(), "MetaMapInstanceType");
 
       // Defer serialization of the native context in order to break
@@ -508,9 +517,6 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
   } else {
     sink_->Put(NewObject::Encode(space), "NewObject");
 
-    // TODO(leszeks): Skip this when the map has a fixed size.
-    sink_->PutUint30(size >> kObjectAlignmentBits, "ObjectSizeInWords");
-
     // Until the space for the object is allocated, it is considered "pending".
     serializer_->RegisterObjectIsPending(*object_);
 
@@ -520,6 +526,13 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
     // deferred.
     DCHECK(IsMap(map));
     serializer_->SerializeObject(handle(map, isolate()), SlotType::kMapSlot);
+    // Only omit the object size for fixed-size maps in ReadOnlySpace. Mutable
+    // maps live inside the sandbox and could be concurrently corrupted during
+    // deserialization, changing their instance size.
+    if (!HeapLayout::InReadOnlySpace(map) ||
+        map->instance_size_in_words() == kVariableSizeSentinel) {
+      sink_->PutUint30(size >> kObjectAlignmentBits, "ObjectSizeInWords");
+    }
     if (IsExtendedMap(*object_)) {
       // Extended maps store their actual size in bit_field_ex_, write it
       // upfront to make sure the ExtendedMap size can be fully initialized,
@@ -542,8 +555,7 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
     // object cannot be referenced.
     if (V8_ENABLE_SANDBOX_BOOL && IsExposedTrustedObject(*object_)) {
       SBXCHECK_EQ(space, SnapshotSpace::kTrusted);
-      sink_->Put(kInitializeSelfIndirectPointer,
-                 "InitializeSelfIndirectPointer");
+      sink_->Put(kInitializeSelfTrustedPointer, "InitializeSelfTrustedPointer");
     }
 
     // Now that the object is allocated, we can resolve pending references to
@@ -705,30 +717,71 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
 void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   // Instead of serializing this as an external string, we serialize
   // an imaginary sequential string with the same content.
-  ReadOnlyRoots roots(isolate());
   DCHECK(IsExternalString(*object_));
   DirectHandle<ExternalString> string = Cast<ExternalString>(object_);
   uint32_t length = string->length();
+  bool one_byte = IsExternalOneByteString(*object_);
+  const uint8_t* content;
+  if (one_byte) {
+    const auto* ext_resource = Cast<ExternalOneByteString>(string)->resource();
+    SBXCHECK_EQ(length, ext_resource->length());
+    content = reinterpret_cast<const uint8_t*>(ext_resource->data());
+  } else {
+    const auto* ext_resource = Cast<ExternalTwoByteString>(string)->resource();
+    SBXCHECK_EQ(length, ext_resource->length());
+    content = reinterpret_cast<const uint8_t*>(ext_resource->data());
+  }
+  SerializeStringAsSequentialString(one_byte, length, content);
+}
+
+void Serializer::ObjectSerializer::SerializeSlicedStringAsSequentialString() {
+  // Instead of serializing this as a sliced string, we serialize an imaginary
+  // sequential string with the same content, so that it does not depend on its
+  // parent.
+  DCHECK(IsSlicedString(*object_));
+  DisallowGarbageCollection no_gc;
+  String::FlatContent flat = Cast<String>(*object_)->GetFlatContent(no_gc);
+  DCHECK(flat.IsFlat());
+  uint32_t length = flat.length();
+  if (flat.IsOneByte()) {
+    SerializeStringAsSequentialString(true, length,
+                                      flat.ToOneByteVector().begin());
+    return;
+  }
+  base::Vector<const base::uc16> chars = flat.ToUC16Vector();
+  if (String::IsOneByte(chars.begin(), length)) {
+    // The parent of the slice is two-byte, but its contents are one-byte, so
+    // serialize a one-byte string (which is also what copying them would
+    // create).
+    base::UniqueArray<uint8_t> one_byte =
+        base::UniqueArray<uint8_t>::NewForOverwrite(length);
+    CopyChars(one_byte.begin(), chars.begin(), length);
+    SerializeStringAsSequentialString(true, length, one_byte.begin());
+    return;
+  }
+  SerializeStringAsSequentialString(
+      false, length, reinterpret_cast<const uint8_t*>(chars.begin()));
+}
+
+void Serializer::ObjectSerializer::SerializeStringAsSequentialString(
+    bool one_byte, uint32_t length, const uint8_t* content) {
+  ReadOnlyRoots roots(isolate());
+  DirectHandle<String> string = Cast<String>(object_);
   Tagged<Map> map;
   int content_size;
   int allocation_size;
-  const uint8_t* resource;
   // Find the map and size for the imaginary sequential string.
   bool internalized = IsInternalizedString(*object_);
-  if (IsExternalOneByteString(*object_)) {
+  if (one_byte) {
     map = internalized ? roots.internalized_one_byte_string_map()
                        : roots.seq_one_byte_string_map();
     allocation_size = SeqOneByteString::SizeFor(length);
     content_size = length * kCharSize;
-    resource = reinterpret_cast<const uint8_t*>(
-        Cast<ExternalOneByteString>(string)->resource()->data());
   } else {
     map = internalized ? roots.internalized_two_byte_string_map()
                        : roots.seq_two_byte_string_map();
     allocation_size = SeqTwoByteString::SizeFor(length);
     content_size = length * kShortSize;
-    resource = reinterpret_cast<const uint8_t*>(
-        Cast<ExternalTwoByteString>(string)->resource()->data());
   }
 
   SnapshotSpace space = SnapshotSpace::kOld;
@@ -744,13 +797,16 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   sink_->PutUint30(slots_to_output, "length");
 
   // Serialize string header (except for map).
-  uint8_t* string_start = reinterpret_cast<uint8_t*>(string->address());
-  for (size_t i = sizeof(HeapObject); i < sizeof(SeqString); i++) {
-    sink_->Put(string_start[i], "StringHeader");
-  }
+  static_assert(offsetof(SeqString, raw_hash_field_) == sizeof(HeapObject));
+  static_assert(offsetof(SeqString, length_) ==
+                offsetof(SeqString, raw_hash_field_) + sizeof(uint32_t));
+  static_assert(sizeof(SeqString) ==
+                sizeof(HeapObject) + sizeof(uint32_t) + sizeof(uint32_t));
+  sink_->PutUint32(string->raw_hash_field(), "StringHash");
+  sink_->PutUint32(length, "StringLength");
 
   // Serialize string content.
-  sink_->PutRaw(resource, content_size, "StringContent");
+  sink_->PutRaw(content, content_size, "StringContent");
 
   // Since the allocation size is rounded up to object alignment, there
   // maybe left-over bytes that need to be padded.
@@ -828,6 +884,11 @@ void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
   InstanceType instance_type = object_->map()->instance_type();
   if (InstanceTypeChecker::IsExternalString(instance_type)) {
     SerializeExternalString();
+    return;
+  }
+  if (InstanceTypeChecker::IsSlicedString(instance_type) &&
+      serializer_->SerializeSlicedStringsAsSequentialStrings()) {
+    SerializeSlicedStringAsSequentialString();
     return;
   }
   if (InstanceTypeChecker::IsJSTypedArray(instance_type)) {
@@ -954,9 +1015,42 @@ void Serializer::ObjectSerializer::VisitPointers(Tagged<HeapObject> host,
   PtrComprCageBase cage_base(isolate());
   DisallowGarbageCollection no_gc;
 
+  auto IsRawCopyable = [&](MaybeObjectSlot slot) {
+    Tagged<MaybeObject> value = slot.load(cage_base);
+    if (value.IsSmi()) return true;
+#if V8_STATIC_ROOTS_BOOL
+    Tagged<HeapObject> obj;
+    RootIndex root_index;
+    if (value.GetHeapObjectIfStrong(&obj) && HeapLayout::InReadOnlySpace(obj) &&
+        !serializer_->root_index_map()->Lookup(obj, &root_index)) {
+      return true;
+    }
+#endif  // V8_STATIC_ROOTS_BOOL
+    return false;
+  };
+
+  // Advance `current` across contiguous slots that can be emitted as a single
+  // raw-data memcpy (`FixedRawData` / `VariableRawData`). Smis are always raw.
+  // On static-roots builds, non-root read-only strong pointers also reside at
+  // fixed cage offsets and need no relocation or write barriers, so they can be
+  // raw-copied too. However, RO refs only *join* a run and never start a
+  // one-slot run, since an isolated ref is cheaper as `kReadOnlyHeapRef` than
+  // as `FixedRawData`.
+  const Address object_end = object_->address() + object_->Size();
   MaybeObjectSlot current = start;
   while (current < end) {
-    while (current < end && current.load(cage_base).IsSmi()) {
+    const Address raw_start = object_->address() + bytes_processed_so_far_;
+    while (current < end && IsRawCopyable(current)) {
+      if (!current.load(cage_base).IsSmi()) {
+        MaybeObjectSlot next = current + 1;
+        const bool run_already_open = current.address() > raw_start;
+        const bool followed_by_raw_payload =
+            next == end && end.address() < object_end;
+        const bool next_is_raw = next < end && IsRawCopyable(next);
+        if (!run_already_open && !followed_by_raw_payload && !next_is_raw) {
+          break;
+        }
+      }
       ++current;
     }
     if (current < end) {
@@ -1185,9 +1279,8 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
   }
 }
 
-void Serializer::ObjectSerializer::VisitIndirectPointer(
-    Tagged<HeapObject> host, IndirectPointerSlot slot,
-    IndirectPointerMode mode) {
+void Serializer::ObjectSerializer::VisitTrustedPointer(
+    Tagged<HeapObject> host, TrustedPointerSlot slot, TrustedPointerMode mode) {
 #ifdef V8_ENABLE_SANDBOX
   // If the slot is empty (i.e. contains a null handle), then we can just skip
   // it since in that case the correct action is to encode the null handle as
@@ -1202,12 +1295,12 @@ void Serializer::ObjectSerializer::VisitIndirectPointer(
   Handle<HeapObject> slot_value(Cast<HeapObject>(slot.load(isolate())),
                                 isolate());
   CHECK(IsHeapObject(*slot_value));
-  bytes_processed_so_far_ += kIndirectPointerSize;
+  bytes_processed_so_far_ += kTrustedPointerSize;
 
   // Currently we cannot see pending objects here, but we may need to support
   // them in the future. They should already be supported by the deserializer.
   CHECK(!serializer_->SerializePendingObject(*slot_value));
-  sink_->Put(kIndirectPointerPrefix, "IndirectPointer");
+  sink_->Put(kTrustedPointerPrefix, "TrustedPointer");
   serializer_->SerializeObject(slot_value, SlotType::kAnySlot);
 #else
   UNREACHABLE();
@@ -1215,16 +1308,16 @@ void Serializer::ObjectSerializer::VisitIndirectPointer(
 }
 
 void Serializer::ObjectSerializer::VisitTrustedPointerTableEntry(
-    Tagged<HeapObject> host, IndirectPointerSlot slot) {
+    Tagged<HeapObject> host, TrustedPointerSlot slot) {
 #ifdef V8_ENABLE_SANDBOX
   // These fields only exist on the ExposedTrustedObject class, and they are
   // located directly after the Map word.
   DCHECK_EQ(bytes_processed_so_far_,
-            offsetof(ExposedTrustedObject, self_indirect_pointer_));
+            offsetof(ExposedTrustedObject, self_trusted_pointer_));
 
-  // Nothing to do here. We already emitted the kInitializeSelfIndirectPointer
+  // Nothing to do here. We already emitted the kInitializeSelfTrustedPointer
   // after processing the Map word in SerializePrologue.
-  bytes_processed_so_far_ += kIndirectPointerSize;
+  bytes_processed_so_far_ += kTrustedPointerSize;
 #else
   UNREACHABLE();
 #endif
@@ -1327,7 +1420,7 @@ void OutputRawWithCustomField(SnapshotByteSink* sink, Address object_start,
                               const uint8_t* field_value) {
   int offset = field_offset - written_so_far;
   if (0 <= offset && offset < bytes_to_write) {
-    DCHECK_GE(bytes_to_write, offset + field_size);
+    SBXCHECK_GE(bytes_to_write, offset + field_size);
     sink->PutRaw(reinterpret_cast<uint8_t*>(object_start + written_so_far),
                  offset, "Bytes");
     sink->PutRaw(field_value, field_size, "Bytes");
@@ -1348,10 +1441,10 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
   int up_to_offset = static_cast<int>(up_to - object_start);
   int to_skip = up_to_offset - bytes_processed_so_far_;
   int bytes_to_output = to_skip;
-  DCHECK(IsAligned(bytes_to_output, kTaggedSize));
+  SBXCHECK(IsAligned(bytes_to_output, kTaggedSize));
   int tagged_to_output = bytes_to_output / kTaggedSize;
   bytes_processed_so_far_ += to_skip;
-  DCHECK_GE(to_skip, 0);
+  SBXCHECK_GE(to_skip, 0);
   if (bytes_to_output != 0) {
     DCHECK(to_skip == bytes_to_output);
     if (tagged_to_output <= kFixedRawDataCount) {
@@ -1446,11 +1539,11 @@ DirectHandle<FixedArray> ObjectCacheIndexMap::Values(Isolate* isolate) {
 
 bool Serializer::SerializeReadOnlyObjectReference(Tagged<HeapObject> obj,
                                                   SnapshotByteSink* sink) {
-  if (!ReadOnlyHeap::Contains(obj)) return false;
+  if (!HeapLayout::InReadOnlySpace(obj)) return false;
 
   // For objects on the read-only heap, never serialize the object, but instead
   // create a back reference that encodes the page number as the chunk_index and
-  // the offset within the page as the chunk_offset.
+  // the aligned offset within the page.
   Address address = obj.address();
   BasePage* chunk = BasePage::FromAddress(isolate(), address);
   uint32_t chunk_index = 0;
@@ -1461,9 +1554,12 @@ bool Serializer::SerializeReadOnlyObjectReference(Tagged<HeapObject> obj,
     ++chunk_index;
   }
   uint32_t chunk_offset = static_cast<uint32_t>(chunk->Offset(address));
+  DCHECK(IsAligned(chunk_offset, kObjectAlignment));
+  DCHECK_LT(chunk_offset, kRegularPageSize);
+  uint32_t encoded = (chunk_index << kReadOnlyHeapRefOffsetBits) |
+                     (chunk_offset >> kObjectAlignmentBits);
   sink->Put(kReadOnlyHeapRef, "ReadOnlyHeapRef");
-  sink->PutUint30(chunk_index, "ReadOnlyHeapRefChunkIndex");
-  sink->PutUint30(chunk_offset, "ReadOnlyHeapRefChunkOffset");
+  sink->PutUint30(encoded, "ReadOnlyHeapRef");
   return true;
 }
 

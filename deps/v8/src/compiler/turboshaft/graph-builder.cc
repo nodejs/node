@@ -1769,7 +1769,7 @@ OpIndex GraphBuilder::Process(
 
       __ Store(object, final_value, kind, final_rep, final_write_barrier,
                access.offset, initializing_transitioning,
-               access.indirect_pointer_tag);
+               access.trusted_pointer_tag);
       return OpIndex::Invalid();
     }
     case IrOpcode::kLoadFromObject:

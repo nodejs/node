@@ -106,7 +106,8 @@ std::unique_ptr<CppHeap> CppHeap::Create(v8::Platform* platform,
                                          const CppHeapCreateParams& params) {
   return std::make_unique<internal::CppHeap>(
       platform, params.custom_spaces, params.marking_support,
-      params.sweeping_support, params.stack_start_marker);
+      params.sweeping_support, params.stack_start_marker,
+      params.allocation_sampler);
 }
 
 cppgc::AllocationHandle& CppHeap::GetAllocationHandle() {
@@ -527,12 +528,14 @@ CppHeap::CppHeap(
     const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
     cppgc::Heap::MarkingType marking_support,
     cppgc::Heap::SweepingType sweeping_support,
-    std::optional<cppgc::StackStartMarker> stack_start_marker)
+    std::optional<cppgc::StackStartMarker> stack_start_marker,
+    cppgc::AllocationSampler* allocation_sampler)
     : cppgc::internal::HeapBase(
           std::make_shared<CppgcPlatformAdapter>(platform), custom_spaces,
           cppgc::internal::HeapBase::StackSupport::
               kSupportsConservativeStackScan,
-          marking_support, sweeping_support, *this, stack_start_marker),
+          marking_support, sweeping_support, *this, stack_start_marker,
+          allocation_sampler),
       minor_gc_heap_growing_(
           std::make_unique<MinorGCHeapGrowing>(*stats_collector())),
       cross_heap_remembered_set_(*this) {
@@ -760,6 +763,19 @@ CppHeap::SweepingType CppHeap::SelectSweepingType() const {
 }
 
 void CppHeap::UpdateGCCapabilitiesFromFlags() {
+  // Runtime flags may only reduce what the embedder requested via
+  // CppHeapCreateParams; they must never grant more. The std::min calls below
+  // do that directly. The marking else-branch does it by assigning kAtomic,
+  // which is the least capable value. All of this depends on the enumerators
+  // being ordered from least to most capable; reordering them would silently
+  // grant more than was requested.
+  static_assert(MarkingType::kAtomic < MarkingType::kIncremental);
+  static_assert(MarkingType::kIncremental <
+                MarkingType::kIncrementalAndConcurrent);
+  static_assert(SweepingType::kAtomic < SweepingType::kIncremental);
+  static_assert(SweepingType::kIncremental <
+                SweepingType::kIncrementalAndConcurrent);
+
   CHECK_IMPLIES(v8_flags.cppheap_concurrent_marking,
                 v8_flags.cppheap_incremental_marking);
   if (v8_flags.cppheap_concurrent_marking) {
@@ -772,9 +788,13 @@ void CppHeap::UpdateGCCapabilitiesFromFlags() {
     marking_support_ = MarkingType::kAtomic;
   }
 
-  sweeping_support_ = v8_flags.single_threaded_gc
-                          ? CppHeap::SweepingType::kIncremental
-                          : CppHeap::SweepingType::kIncrementalAndConcurrent;
+  // Assigning unconditionally here would raise an embedder-requested kAtomic
+  // back up, silently ignoring CppHeapCreateParams::sweeping_support.
+  sweeping_support_ =
+      std::min(sweeping_support_,
+               v8_flags.single_threaded_gc
+                   ? CppHeap::SweepingType::kIncremental
+                   : CppHeap::SweepingType::kIncrementalAndConcurrent);
 }
 
 void CppHeap::InitializeMarking(
@@ -1049,6 +1069,8 @@ void CppHeap::CompactAndSweep() {
   // are immediately considered old.
   ResetCrossHeapRememberedSet();
 #endif  // defined(CPPGC_YOUNG_GENERATION)
+
+  FilterSampledObjects();
 
   {
     cppgc::subtle::NoGarbageCollectionScope no_gc(*this);

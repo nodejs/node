@@ -289,7 +289,7 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
   // Applies all recorded control-flow commands after the finally-block again.
   // This generates a dynamic dispatch on the token from the entry point.
   void ApplyDeferredCommands() {
-    if (deferred_.empty()) return;
+    if (deferred_.empty() || builder()->RemainderOfBlockIsDead()) return;
 
     BytecodeLabel fall_through_from_try_block;
 
@@ -2667,11 +2667,10 @@ bool IsSwitchOptimizable(SwitchStatement* stmt, SwitchInfo* info) {
   }
 
   // This flag is not allowed to be <= 0.
-  DCHECK_GT(v8_flags.switch_table_min_cases, 0);
+  DCHECK_GT(v8_flags.switch_table_min_cases, 0u);
 
   // GCC also jump-table optimizes switch statements with 6 cases or more.
-  if (static_cast<int>(info->covered_cases.size()) >=
-      v8_flags.switch_table_min_cases) {
+  if (info->covered_cases.size() >= v8_flags.switch_table_min_cases) {
     // Due to case spread will be used as the size of jump-table,
     // we need to check if it doesn't overflow by casting its
     // min and max bounds to int64_t, and calculate if the difference is less
@@ -2763,9 +2762,15 @@ bool IsSwitchOptimizable(SwitchStatement* stmt, SwitchInfo* info) {
 //   <out = 19, break>
 
 void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
+  if (builder()->RemainderOfBlockIsDead()) return;
+
   // We need this scope because we visit for register values. We have to
   // maintain an execution result scope where registers can be allocated.
   ZonePtrList<CaseClause>* clauses = stmt->cases();
+
+  builder()->SetStatementPosition(stmt);
+  VisitForAccumulatorValue(stmt->tag());
+  if (builder()->RemainderOfBlockIsDead()) return;
 
   SwitchInfo info;
   BytecodeJumpTable* jump_table = nullptr;
@@ -2790,9 +2795,6 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   SwitchBuilder switch_builder(builder(), block_coverage_builder_, stmt,
                                n_comp_cases, jump_table);
   ControlScopeForBreakable scope(this, stmt, &switch_builder);
-  builder()->SetStatementPosition(stmt);
-
-  VisitForAccumulatorValue(stmt->tag());
 
   if (use_jump_table) {
     // Release temps so that they can be reused in clauses.
@@ -4811,8 +4813,8 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
         default: {
           // Normally, private names should not be looked up dynamically,
           // but we make an exception in debug-evaluate, in that case the
-          // lookup will be done in %SetPrivateMember() and %GetPrivateMember()
-          // calls, not here.
+          // lookup will be done in %HasPrivateMember(), %SetPrivateMember(),
+          // and %GetPrivateMember() calls, not here.
           DCHECK(!variable->raw_name()->IsPrivateName());
           builder()->LoadLookupSlot(variable->raw_name(), typeof_mode);
           break;
@@ -6124,6 +6126,7 @@ void BytecodeGenerator::BuildSuspendPoint(int position) {
 void BytecodeGenerator::VisitYield(Yield* expr) {
   builder()->SetExpressionPosition(expr);
   VisitForAccumulatorValue(expr->expression());
+  if (builder()->RemainderOfBlockIsDead()) return;
 
   bool is_async = IsAsyncGeneratorFunction(function_kind());
   // If this is not the first yield
@@ -6291,6 +6294,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
     RegisterAllocationScope register_scope(this);
     RegisterList iterator_and_input = register_allocator()->NewRegisterList(2);
     VisitForAccumulatorValue(expr->expression());
+    if (builder()->RemainderOfBlockIsDead()) return;
     IteratorRecord iterator = BuildGetIteratorRecord(
         register_allocator()->NewRegister() /* next method */,
         iterator_and_input[0], iterator_type);
@@ -6583,6 +6587,7 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
     }
     case PRIVATE_GETTER_ONLY:
     case PRIVATE_GETTER_AND_SETTER: {
+      RegisterAllocationScope register_scope(this);
       Register key = VisitForRegisterValue(property->key());
       BuildPrivateBrandCheck(property, obj);
       BuildPrivateGetterAccess(obj, key);
@@ -6628,6 +6633,22 @@ void BytecodeGenerator::BuildPrivateDebugDynamicSet(Property* property,
       .StoreAccumulatorInRegister(args[1])
       .MoveRegister(value, args[2])
       .CallRuntime(Runtime::kSetPrivateMember, args);
+}
+
+void BytecodeGenerator::BuildPrivateDebugDynamicIn(
+    Variable* private_name, Expression* object_expression) {
+  DCHECK_EQ(private_name->mode(), VariableMode::kDynamic);
+  VisitForAccumulatorValue(object_expression);
+
+  RegisterAllocationScope scope(this);
+  RegisterList args = register_allocator()->NewRegisterList(2);
+  builder()->SetExpressionPosition(object_expression);
+  builder()
+      ->StoreAccumulatorInRegister(args[0])
+      .LoadLiteral(private_name->raw_name())
+      .StoreAccumulatorInRegister(args[1])
+      .CallRuntime(Runtime::kHasPrivateMember, args);
+  execution_result()->SetResultIsBoolean();
 }
 
 void BytecodeGenerator::BuildPrivateGetterAccess(Register object,
@@ -6869,7 +6890,7 @@ void BytecodeGenerator::VisitProperty(Property* expr) {
 void BytecodeGenerator::VisitArguments(const ZonePtrList<Expression>* args,
                                        RegisterList* arg_regs) {
   // Visit arguments.
-  builder()->UpdateMaxArguments(static_cast<uint16_t>(args->length()));
+  builder()->UpdateMaxArguments(args->length());
   for (int i = 0; i < static_cast<int>(args->length()); i++) {
     VisitAndPushIntoRegisterList(args->at(i), arg_regs);
   }
@@ -7969,6 +7990,10 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       Variable* var = expr->left()->AsVariableProxy()->var();
       if (IsPrivateMethodOrAccessorVariableMode(var->mode())) {
         BuildPrivateMethodIn(var, expr->right());
+        return;
+      }
+      if (var->mode() == VariableMode::kDynamic) {
+        BuildPrivateDebugDynamicIn(var, expr->right());
         return;
       }
       // For private fields, the code below does the right thing.

@@ -64,7 +64,7 @@ bool CanInlinePropertyAccess(MapRef map, AccessMode access_mode) {
            !map.is_access_check_needed();
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (IsWasmObjectMap(*map.object())) {
+  if (IsAnyWasmObjectMap(*map.object())) {
     DCHECK(!map.has_named_interceptor());
     DCHECK(!map.is_access_check_needed());
     // Accesses to Wasm objects all go through the prototype chain, but
@@ -520,7 +520,7 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
     return ElementAccessInfo({{map}, zone()}, map.elements_kind(), zone());
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (map.IsWasmObjectMap() &&
+  if (map.IsAnyWasmObjectMap() &&
       (access_mode == AccessMode::kLoad || access_mode == AccessMode::kStore)) {
     // See if there is a Proxy on the prototype chain that will handle
     // element accesses.
@@ -610,7 +610,7 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         bool string_keys = key_type == wasm::kWasmExternRef;
         return ElementAccessInfo(map, trap_value, target, string_keys, zone());
       }
-      if (proto_map.IsWasmObjectMap()) {
+      if (proto_map.IsAnyWasmObjectMap()) {
         // Wasm objects are opaque and frozen, so we can safely skip over them.
         prototype = proto_map.prototype(broker());
         continue;

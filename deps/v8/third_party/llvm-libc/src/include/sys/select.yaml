@@ -24,3 +24,14 @@ functions:
       - type: fd_set *__restrict
       - type: fd_set *__restrict
       - type: struct timeval *__restrict
+  - name: pselect
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: fd_set *__restrict
+      - type: fd_set *__restrict
+      - type: fd_set *__restrict
+      - type: const struct timespec *__restrict
+      - type: const sigset_t *__restrict

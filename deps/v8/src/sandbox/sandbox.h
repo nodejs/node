@@ -9,6 +9,7 @@
 #include "include/v8-platform.h"
 #include "include/v8config.h"
 #include "src/base/bounds.h"
+#include "src/base/platform/platform.h"
 #include "src/common/globals.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -85,7 +86,11 @@ class V8_EXPORT_PRIVATE Sandbox {
   // unaddressable accesses (e.g. on ARM64). Note that this is only a testing
   // heuristic and does not reflect the actual virtual address space size,
   // which is determined dynamically during sandbox initialization.
+#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
+  static constexpr int kMaxVirtualAddressBitsForCrashFilter = 57;
+#else   // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
   static constexpr int kMaxVirtualAddressBitsForCrashFilter = 48;
+#endif  // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
 
   /**
    * Initializes this sandbox.
@@ -398,6 +403,13 @@ V8_INLINE void* EmptyBackingStoreBuffer() {
 #else
   return nullptr;
 #endif
+}
+
+// Hardware address tagging features on x64 (such as Intel LAM or AMD UAI)
+// mask out upper pointer bits during memory accesses. Returns true if the OS
+// untag mask does not clash with the given tagging mask.
+V8_INLINE bool IsTaggingMaskCompatible(uint64_t mask) {
+  return (base::OS::GetAddressUntagMask() & mask) == mask;
 }
 
 }  // namespace internal

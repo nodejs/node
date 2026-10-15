@@ -4,10 +4,19 @@
 
 #include "include/cppgc/allocation.h"
 
+#include "include/cppgc/custom-space.h"
+#include "include/cppgc/explicit-management.h"
+#include "include/cppgc/member.h"
+#include "include/cppgc/persistent.h"
 #include "include/cppgc/visitor.h"
+#include "src/heap/cppgc-internal/compactor.h"
 #include "src/heap/cppgc-internal/globals.h"
+#include "src/heap/cppgc-internal/heap-base.h"
 #include "src/heap/cppgc-internal/heap-config.h"
 #include "src/heap/cppgc-internal/heap-object-header.h"
+#include "src/heap/cppgc-internal/heap.h"
+#include "src/heap/cppgc-internal/marker.h"
+#include "src/heap/cppgc-internal/sweeper.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -249,6 +258,240 @@ TEST_F(CppgcAllocationTest, AlignToDoubleWordFromAligned) {
                   sizeof(PaddingObject) + 2 * sizeof(HeapObjectHeader),
               reinterpret_cast<uintptr_t>(aligned_object));
   }
+}
+
+namespace {
+
+class TestAllocationSampler : public cppgc::AllocationSampler {
+ public:
+  size_t sample_interval = 0;
+  size_t GetSampleInterval() const override { return sample_interval; }
+  bool OnAllocated(void* address, size_t size) override {
+    allocations.push_back({address, size});
+    return true;
+  }
+  void OnFreed(void* address) override { freed.push_back(address); }
+  bool OnMove(void* from, void* to, size_t size) override {
+    OnFreed(from);
+    return OnAllocated(to, size);
+  }
+
+  struct Allocation {
+    void* address;
+    size_t size;
+  };
+  std::vector<Allocation> allocations;
+  std::vector<void*> freed;
+};
+
+struct SampledObject : GarbageCollected<SampledObject> {
+  char data[64];
+  void Trace(Visitor*) const {}
+};
+
+struct LargeSampledObject : GarbageCollected<LargeSampledObject> {
+  char data[kLargeObjectSizeThreshold + 1024];
+  void Trace(Visitor*) const {}
+};
+
+}  // namespace
+
+TEST_F(CppgcAllocationTest, AllocationSampler) {
+  TestAllocationSampler sampler;
+  sampler.sample_interval = 1024;  // Clamp LAB to 1KB.
+  auto platform = std::make_shared<testing::TestPlatform>();
+  cppgc::Heap::HeapOptions options;
+  options.allocation_sampler = &sampler;
+  auto heap = cppgc::Heap::Create(platform, std::move(options));
+
+  EXPECT_EQ(0u, sampler.allocations.size());
+
+  // Allocate an object in regular space, which triggers a clamped LAB refill
+  // and samples the object crossing the LAB boundary.
+  auto* obj1 = MakeGarbageCollected<SampledObject>(heap->GetAllocationHandle());
+  EXPECT_NE(nullptr, obj1);
+  ASSERT_GE(sampler.allocations.size(), 1u);
+  EXPECT_EQ(obj1, sampler.allocations[0].address);
+  EXPECT_EQ(sizeof(SampledObject) + sizeof(HeapObjectHeader),
+            sampler.allocations[0].size);
+
+  // Allocate a large object (> kLargeObjectSizeThreshold).
+  const size_t prev_allocations = sampler.allocations.size();
+  auto* large_obj =
+      MakeGarbageCollected<LargeSampledObject>(heap->GetAllocationHandle());
+  EXPECT_NE(nullptr, large_obj);
+  EXPECT_EQ(sampler.allocations.size(), prev_allocations + 1);
+  EXPECT_EQ(large_obj, sampler.allocations.back().address);
+  EXPECT_EQ(sizeof(LargeSampledObject) + sizeof(HeapObjectHeader),
+            sampler.allocations.back().size);
+
+  // Allocate a large object that is kept alive through GC.
+  Persistent<LargeSampledObject> surviving_obj =
+      MakeGarbageCollected<LargeSampledObject>(heap->GetAllocationHandle());
+  EXPECT_NE(nullptr, surviving_obj);
+  EXPECT_EQ(surviving_obj.Get(), sampler.allocations.back().address);
+
+  // Trigger GC to verify unreachable objects notify OnFreed, while reachable
+  // objects remain alive.
+  heap->ForceGarbageCollectionSlow("Testing", "Testing",
+                                   cppgc::Heap::StackState::kNoHeapPointers);
+  EXPECT_TRUE(std::find(sampler.freed.begin(), sampler.freed.end(), obj1) !=
+              sampler.freed.end());
+  EXPECT_TRUE(std::find(sampler.freed.begin(), sampler.freed.end(),
+                        large_obj) != sampler.freed.end());
+  EXPECT_TRUE(std::find(sampler.freed.begin(), sampler.freed.end(),
+                        surviving_obj.Get()) == sampler.freed.end());
+
+  // Clear root and trigger second GC. The object should now be freed.
+  void* surviving_address = surviving_obj.Get();
+  surviving_obj.Clear();
+  heap->ForceGarbageCollectionSlow("Testing", "Testing",
+                                   cppgc::Heap::StackState::kNoHeapPointers);
+  EXPECT_TRUE(std::find(sampler.freed.begin(), sampler.freed.end(),
+                        surviving_address) != sampler.freed.end());
+
+  // Explicitly freeing a sampled object should immediately notify OnFreed and
+  // remove it from tracked objects.
+  auto* explicitly_freed_obj =
+      MakeGarbageCollected<LargeSampledObject>(heap->GetAllocationHandle());
+  void* explicitly_freed_address = explicitly_freed_obj;
+  EXPECT_EQ(explicitly_freed_address, sampler.allocations.back().address);
+  sampler.freed.clear();
+  subtle::FreeUnreferencedObject(heap->GetHeapHandle(), *explicitly_freed_obj);
+  EXPECT_EQ(1, std::count(sampler.freed.begin(), sampler.freed.end(),
+                          explicitly_freed_address));
+  sampler.freed.clear();
+  heap->ForceGarbageCollectionSlow("Testing", "Testing",
+                                   cppgc::Heap::StackState::kNoHeapPointers);
+  EXPECT_TRUE(sampler.freed.empty());
+
+  // Allocate an object that stays alive until heap destruction.
+  Persistent<LargeSampledObject> teardown_obj =
+      MakeGarbageCollected<LargeSampledObject>(heap->GetAllocationHandle());
+  void* teardown_address = teardown_obj.Get();
+  EXPECT_TRUE(std::find(sampler.freed.begin(), sampler.freed.end(),
+                        teardown_address) == sampler.freed.end());
+
+  // Destroy the heap. Remaining sampled objects should notify OnFreed.
+  heap.reset();
+  EXPECT_TRUE(std::find(sampler.freed.begin(), sampler.freed.end(),
+                        teardown_address) != sampler.freed.end());
+}
+
+TEST_F(CppgcAllocationTest, AllocationSamplerObjectLargerThanSampleInterval) {
+  TestAllocationSampler sampler;
+  sampler.sample_interval = 1024;
+  auto platform = std::make_shared<testing::TestPlatform>();
+  cppgc::Heap::HeapOptions options;
+  options.allocation_sampler = &sampler;
+  auto heap = cppgc::Heap::Create(platform, std::move(options));
+
+  struct LargeNormalObject : GarbageCollected<LargeNormalObject> {
+    char data[2048];
+    void Trace(Visitor*) const {}
+  };
+
+  // Allocating an object in normal space larger than sample_interval should
+  // succeed without infinite recursion or crashing, and clamp LAB
+  // appropriately.
+  auto* obj =
+      MakeGarbageCollected<LargeNormalObject>(heap->GetAllocationHandle());
+  EXPECT_NE(nullptr, obj);
+  ASSERT_GE(sampler.allocations.size(), 1u);
+  EXPECT_EQ(obj, sampler.allocations.back().address);
+}
+
+}  // namespace internal
+
+class CompactableCustomSpaceForSampler
+    : public CustomSpace<CompactableCustomSpaceForSampler> {
+ public:
+  static constexpr CustomSpaceIndex kSpaceIndex = 0;
+  static constexpr bool kSupportsCompaction = true;
+};
+
+struct MovableSampledGCed : public GarbageCollected<MovableSampledGCed> {
+ public:
+  void Trace(Visitor* visitor) const {}
+  size_t id = 0;
+};
+
+struct MovableSampledHolder : public GarbageCollected<MovableSampledHolder> {
+ public:
+  explicit MovableSampledHolder(cppgc::AllocationHandle& allocation_handle) {
+    objects[0] = MakeGarbageCollected<MovableSampledGCed>(allocation_handle);
+    objects[1] = MakeGarbageCollected<MovableSampledGCed>(allocation_handle);
+  }
+  void Trace(Visitor* visitor) const {
+    for (int i = 0; i < 2; ++i) {
+      visitor->Trace(objects[i]);
+      visitor->RegisterMovableReference(objects[i].GetSlotForTesting());
+    }
+  }
+  subtle::UncompressedMember<MovableSampledGCed> objects[2]{};
+};
+
+template <>
+struct SpaceTrait<MovableSampledGCed> {
+  using Space = CompactableCustomSpaceForSampler;
+};
+
+namespace internal {
+
+TEST_F(CppgcAllocationTest, AllocationSamplerCompaction) {
+  TestAllocationSampler sampler;
+  sampler.sample_interval = sizeof(MovableSampledGCed);
+  auto platform = std::make_shared<testing::TestPlatform>();
+  cppgc::Heap::HeapOptions options;
+  options.allocation_sampler = &sampler;
+  options.custom_spaces.emplace_back(
+      std::make_unique<CompactableCustomSpaceForSampler>());
+  auto heap = cppgc::Heap::Create(platform, std::move(options));
+
+  Persistent<MovableSampledHolder> holder =
+      MakeGarbageCollected<MovableSampledHolder>(heap->GetAllocationHandle(),
+                                                 heap->GetAllocationHandle());
+  void* first_address = holder->objects[0].Get();
+  void* original_address = holder->objects[1].Get();
+  EXPECT_NE(nullptr, original_address);
+  EXPECT_NE(first_address, original_address);
+  EXPECT_EQ(original_address, sampler.allocations.back().address);
+  const size_t expected_size = sampler.allocations.back().size;
+
+  // Start incremental GC with compaction enabled, free objects[0], and compact
+  // so that objects[1] is relocated to objects[0]'s former address.
+  auto* internal_heap = Heap::From(heap.get());
+  auto& compactor = internal_heap->compactor();
+  compactor.EnableForNextGCForTesting();
+  compactor.InitializeIfShouldCompact(GCConfig::MarkingType::kIncremental,
+                                      StackState::kNoHeapPointers);
+  internal_heap->StartIncrementalGarbageCollection(
+      GCConfig::PreciseIncrementalConfig());
+  holder->objects[0] = nullptr;
+  internal_heap->marker()->FinishMarking(StackState::kNoHeapPointers);
+  internal_heap->GetMarkerRefForTesting().reset();
+  internal_heap->FilterSampledObjects();
+  const auto compactable_space_handling = compactor.CompactSpacesIfEnabled();
+  internal_heap->sweeper().Start(
+      {SweepingConfig::SweepingType::kAtomic, compactable_space_handling});
+  internal_heap->sweeper().FinishIfRunning();
+
+  void* current_address = holder->objects[1].Get();
+  EXPECT_NE(current_address, original_address);
+  EXPECT_EQ(current_address, first_address);
+  EXPECT_TRUE(std::find(sampler.freed.begin(), sampler.freed.end(),
+                        original_address) != sampler.freed.end());
+  EXPECT_EQ(current_address, sampler.allocations.back().address);
+  EXPECT_EQ(expected_size, sampler.allocations.back().size);
+
+  // Clear root and trigger GC. The object at its relocated address should now
+  // be freed.
+  sampler.freed.clear();
+  holder.Clear();
+  heap->ForceGarbageCollectionSlow("Testing", "Testing",
+                                   cppgc::Heap::StackState::kNoHeapPointers);
+  EXPECT_TRUE(std::find(sampler.freed.begin(), sampler.freed.end(),
+                        current_address) != sampler.freed.end());
 }
 
 }  // namespace internal

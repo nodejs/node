@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_REPRESENTATIONS_H_
 #define V8_COMPILER_TURBOSHAFT_REPRESENTATIONS_H_
 
+#include <compare>
 #include <cstdint>
 
 #include "include/v8-internal.h"
@@ -361,6 +362,10 @@ V8_INLINE constexpr bool operator==(MaybeRegisterRepresentation a,
 V8_INLINE constexpr bool operator!=(MaybeRegisterRepresentation a,
                                     MaybeRegisterRepresentation b) {
   return a.value() != b.value();
+}
+V8_INLINE constexpr auto operator<=>(MaybeRegisterRepresentation a,
+                                     MaybeRegisterRepresentation b) {
+  return a.value() <=> b.value();
 }
 
 V8_INLINE size_t hash_value(MaybeRegisterRepresentation rep) {
@@ -975,6 +980,10 @@ V8_INLINE constexpr bool operator==(MemoryRepresentation a,
 V8_INLINE constexpr bool operator!=(MemoryRepresentation a,
                                     MemoryRepresentation b) {
   return a.value() != b.value();
+}
+V8_INLINE constexpr auto operator<=>(MemoryRepresentation a,
+                                     MemoryRepresentation b) {
+  return a.value() <=> b.value();
 }
 
 V8_INLINE size_t hash_value(MemoryRepresentation rep) {

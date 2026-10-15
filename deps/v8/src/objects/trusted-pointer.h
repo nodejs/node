@@ -10,7 +10,7 @@
 #include "src/objects/objects.h"
 #include "src/objects/tagged-field.h"
 #include "src/objects/tagged.h"
-#include "src/sandbox/indirect-pointer-tag.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -32,31 +32,31 @@ class WasmFunctionData;
 class WasmExportedFunctionData;
 class WasmCapiFunctionData;
 
-template <typename T, IndirectPointerTagRange kTagRange>
+template <typename T, TrustedPointerTagRange kTagRange>
 class TrustedPointerMember;
 
 namespace detail {
 
-#define TRUSTED_POINTER_TAG_TO_TYPE_MAP(V)                                  \
-  V(kCodeIndirectPointerTag, Code)                                          \
-  V(kBytecodeArrayIndirectPointerTag, BytecodeArray)                        \
-  V(kInterpreterDataIndirectPointerTag, InterpreterData)                    \
-  V(kUncompiledDataIndirectPointerTag, UncompiledData)                      \
-  V(kRegExpDataIndirectPointerTag, RegExpData)                              \
-  IF_WASM(V, kWasmDispatchTableIndirectPointerTag, WasmDispatchTable)       \
-  IF_WASM(V, kSharedWasmDispatchTableIndirectPointerTag, WasmDispatchTable) \
-  IF_WASM(V, kWasmTrustedInstanceDataIndirectPointerTag,                    \
-          WasmTrustedInstanceData)                                          \
-  IF_WASM(V, kSharedWasmTrustedInstanceDataIndirectPointerTag,              \
-          WasmTrustedInstanceData)                                          \
-  IF_WASM(V, kWasmInternalFunctionIndirectPointerTag, WasmInternalFunction) \
-  IF_WASM(V, kWasmSuspenderIndirectPointerTag, WasmSuspenderObject)         \
-  IF_WASM(V, kWasmFunctionDataIndirectPointerTagRange, WasmFunctionData)    \
-  IF_WASM(V, kWasmExportedFunctionDataIndirectPointerTag,                   \
-          WasmExportedFunctionData)                                         \
-  IF_WASM(V, kWasmCapiFunctionDataIndirectPointerTag, WasmCapiFunctionData)
+#define TRUSTED_POINTER_TAG_TO_TYPE_MAP(V)                                 \
+  V(kCodeTrustedPointerTag, Code)                                          \
+  V(kBytecodeArrayTrustedPointerTag, BytecodeArray)                        \
+  V(kInterpreterDataTrustedPointerTag, InterpreterData)                    \
+  V(kUncompiledDataTrustedPointerTag, UncompiledData)                      \
+  V(kRegExpDataTrustedPointerTag, RegExpData)                              \
+  IF_WASM(V, kWasmDispatchTableTrustedPointerTag, WasmDispatchTable)       \
+  IF_WASM(V, kSharedWasmDispatchTableTrustedPointerTag, WasmDispatchTable) \
+  IF_WASM(V, kWasmTrustedInstanceDataTrustedPointerTag,                    \
+          WasmTrustedInstanceData)                                         \
+  IF_WASM(V, kSharedWasmTrustedInstanceDataTrustedPointerTag,              \
+          WasmTrustedInstanceData)                                         \
+  IF_WASM(V, kWasmInternalFunctionTrustedPointerTag, WasmInternalFunction) \
+  IF_WASM(V, kWasmSuspenderTrustedPointerTag, WasmSuspenderObject)         \
+  IF_WASM(V, kWasmFunctionDataTrustedPointerTagRange, WasmFunctionData)    \
+  IF_WASM(V, kWasmExportedFunctionDataTrustedPointerTag,                   \
+          WasmExportedFunctionData)                                        \
+  IF_WASM(V, kWasmCapiFunctionDataTrustedPointerTag, WasmCapiFunctionData)
 
-template <IndirectPointerTagRange tag_range>
+template <TrustedPointerTagRange tag_range>
 struct TrustedPointerType {
   using type = ExposedTrustedObject;
 };
@@ -72,7 +72,7 @@ TRUSTED_POINTER_TAG_TO_TYPE_MAP(DEFINE_TRUSTED_POINTER_TYPE)
 
 }  // namespace detail
 
-template <IndirectPointerTagRange tag_range>
+template <TrustedPointerTagRange tag_range>
 using TrustedTypeFor = typename detail::TrustedPointerType<tag_range>::type;
 
 // TrustedPointerField provides static methods for reading and writing trusted
@@ -85,23 +85,23 @@ using TrustedTypeFor = typename detail::TrustedPointerType<tag_range>::type;
 // trusted pointer table.
 class TrustedPointerField {
  public:
-  template <IndirectPointerTagRange tag_range>
+  template <TrustedPointerTagRange tag_range>
   static inline Tagged<TrustedTypeFor<tag_range>> ReadTrustedPointerField(
       Tagged<HeapObject> host, size_t offset, IsolateForSandbox isolate);
 
-  template <IndirectPointerTagRange tag_range>
+  template <TrustedPointerTagRange tag_range>
   static inline Tagged<TrustedTypeFor<tag_range>> ReadTrustedPointerField(
       Tagged<HeapObject> host, size_t offset, IsolateForSandbox isolate,
       AcquireLoadTag acquire_load);
 
   // Like ReadTrustedPointerField, but if the field is cleared, this will
   // return Smi::zero().
-  template <IndirectPointerTagRange tag_range>
+  template <TrustedPointerTagRange tag_range>
   static inline Tagged<Union<Smi, TrustedTypeFor<tag_range>>>
   ReadMaybeEmptyTrustedPointerField(Tagged<HeapObject> host, size_t offset,
                                     IsolateForSandbox isolate, AcquireLoadTag);
 
-  template <IndirectPointerTagRange tag_range>
+  template <TrustedPointerTagRange tag_range>
   static inline void WriteTrustedPointerField(
       Tagged<HeapObject> host, size_t offset,
       Tagged<ExposedTrustedObject> value);
@@ -116,7 +116,7 @@ class TrustedPointerField {
 
   template <typename IsolateT>
   static inline bool IsTrustedPointerFieldUnpublished(
-      Tagged<HeapObject> host, size_t offset, IndirectPointerTagRange tag_range,
+      Tagged<HeapObject> host, size_t offset, TrustedPointerTagRange tag_range,
       IsolateT isolate);
 
   static inline void ClearTrustedPointerField(Tagged<HeapObject> host,
@@ -133,7 +133,7 @@ class TrustedPointerField {
 //
 // TODO(leszeks): Remove TrustedPointerField (and update these comments) when
 // all objects are ported.
-template <typename T, IndirectPointerTagRange kTagRange>
+template <typename T, TrustedPointerTagRange kTagRange>
 class TrustedPointerMember
 #ifndef V8_ENABLE_SANDBOX
     // On non-sandbox builds, TrustedPointerMember is just a TaggedMember with
@@ -144,6 +144,15 @@ class TrustedPointerMember
 {
  public:
   constexpr TrustedPointerMember() = default;
+  inline TrustedPointerMember(const AllocationWitness& witness,
+                              Tagged<T> value);
+  inline TrustedPointerMember(const AllocationWitness& witness, Tagged<T> value,
+                              WriteBarrierMode mode);
+  inline TrustedPointerMember(const AllocationWitness& witness,
+                              Tagged<UnionOf<T, Undefined>> maybe_value);
+  inline TrustedPointerMember(const AllocationWitness& witness,
+                              Tagged<UnionOf<T, Undefined>> maybe_value,
+                              WriteBarrierMode mode);
 
   inline Tagged<T> load(IsolateForSandbox isolate) const;
   inline Tagged<Object> load_maybe_empty(IsolateForSandbox isolate) const;
@@ -164,17 +173,17 @@ class TrustedPointerMember
 
  private:
 #ifdef V8_ENABLE_SANDBOX
-  friend class IndirectPointerSlot;
+  friend class TrustedPointerSlot;
 
   inline Address storage_address() const;
 
-  std::atomic<IndirectPointerHandle> handle_;
+  std::atomic<TrustedPointerHandle> handle_{kNullTrustedPointerHandle};
 #else
   using Base = TaggedMember<T>;
 #endif
 };
 
-using CodePointerMember = TrustedPointerMember<Code, kCodeIndirectPointerTag>;
+using CodePointerMember = TrustedPointerMember<Code, kCodeTrustedPointerTag>;
 
 }  // namespace internal
 }  // namespace v8

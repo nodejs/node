@@ -80,6 +80,8 @@ V8_OBJECT class RegExpMatchInfo
   TaggedMember<Smi> number_of_capture_registers_;
   TaggedMember<String> last_subject_;
   TaggedMember<Object> last_input_;
+  V8_TQ_TAIL_NAME(objects);
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 

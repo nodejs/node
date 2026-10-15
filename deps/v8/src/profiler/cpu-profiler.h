@@ -188,10 +188,15 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
 
   virtual void SetSamplingInterval(base::TimeDelta) {}
 
+  using SampleContextExtractor = void* (*)(v8::Isolate*);
+
+  void* ExtractSampleContext() const;
+
  protected:
   ProfilerEventsProcessor(Isolate* isolate, Symbolizer* symbolizer,
                           ProfilerCodeObserver* code_observer,
-                          CpuProfilesCollection* profiles);
+                          CpuProfilesCollection* profiles,
+                          SampleContextExtractor sample_context_extractor);
 
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent();
@@ -214,6 +219,9 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
   std::atomic<unsigned> last_code_event_id_;
   unsigned last_processed_code_event_id_;
   Isolate* isolate_;
+
+ private:
+  const SampleContextExtractor sample_context_extractor_;
 };
 
 class V8_EXPORT_PRIVATE SamplingEventsProcessor
@@ -222,7 +230,8 @@ class V8_EXPORT_PRIVATE SamplingEventsProcessor
   SamplingEventsProcessor(Isolate* isolate, Symbolizer* symbolizer,
                           ProfilerCodeObserver* code_observer,
                           CpuProfilesCollection* profiles,
-                          base::TimeDelta period, bool use_precise_sampling);
+                          base::TimeDelta period, bool use_precise_sampling,
+                          SampleContextExtractor sample_context_extractor);
   ~SamplingEventsProcessor() override;
 
   // SamplingCircularQueue has stricter alignment requirements than a normal new
@@ -389,7 +398,8 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   }
 
  private:
-  void StartProcessorIfNotStarted();
+  void StartProcessorIfNotStarted(
+      ProfilerEventsProcessor::SampleContextExtractor sample_context_extractor);
   void StopProcessor();
   void ResetProfiles();
 

@@ -20,6 +20,7 @@
 #include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/properties/architectures.h"
+#include "src/__support/threads/cleanup_stack.h"
 
 namespace LIBC_NAMESPACE_DECL {
 
@@ -105,6 +106,7 @@ struct alignas(STACK_ALIGNMENT) ThreadAttributes {
   ThreadReturnValue retval;
   void *platform_data;
   cpp::Atomic<ThreadAttributes *> joiner;
+  CleanupStack cleanup_stack;
 
   LIBC_INLINE constexpr ThreadAttributes()
       : detach_state(uint32_t(DetachState::DETACHED)), stack(nullptr),

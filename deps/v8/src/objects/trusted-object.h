@@ -143,11 +143,11 @@ V8_OBJECT class ExposedTrustedObject : public TrustedObject {
   // This indirect pointer references a pointer table entry (either in the
   // trusted pointer table or the code pointer table for Code objects) through
   // which this object can be referenced from inside the sandbox.
-  inline IndirectPointerHandle self_indirect_pointer_handle() const;
+  inline TrustedPointerHandle self_trusted_pointer_handle() const;
 
 #if V8_ENABLE_SANDBOX
-  inline void InitSelfIndirectPointerField(
-      std::atomic<IndirectPointerHandle>* field_ptr, IsolateForSandbox isolate,
+  inline void InitSelfTrustedPointerField(
+      std::atomic<TrustedPointerHandle>* field_ptr, IsolateForSandbox isolate,
       TrustedPointerPublishingScope* opt_publishing_scope);
 #endif  // V8_ENABLE_SANDBOX
 
@@ -164,7 +164,7 @@ V8_OBJECT class ExposedTrustedObject : public TrustedObject {
 #ifdef V8_ENABLE_SANDBOX
   // The 'self' indirect pointer is only available when the sandbox is enabled.
   // Otherwise, these objects are referenced through direct pointers.
-  std::atomic<IndirectPointerHandle> self_indirect_pointer_;
+  std::atomic<TrustedPointerHandle> self_trusted_pointer_;
 #endif  // V8_ENABLE_SANDBOX
 } V8_OBJECT_END;
 

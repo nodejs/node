@@ -524,27 +524,6 @@ DirectHandle<Object> Accessors::GetLegacyFunctionArguments(
   return result;
 }
 
-#ifdef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
-
-void Accessors::FunctionArgumentsGetter(
-    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionArgumentsGetter);
-  isolate->CountUsage(v8::Isolate::kFunctionPrototypeArguments);
-  HandleScope scope(isolate);
-  auto function = Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
-  DirectHandle<Object> result = GetLegacyFunctionArguments(isolate, function);
-  info.GetReturnValue().Set(Utils::ToLocal(result));
-}
-
-DirectHandle<AccessorInfo> Accessors::MakeFunctionArgumentsInfo(
-    Isolate* isolate) {
-  return MakeAccessor(isolate, isolate->factory()->arguments_string(),
-                      &FunctionArgumentsGetter, nullptr);
-}
-
-#endif  // V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
-
 //
 // Accessors::FunctionCaller
 //
@@ -710,27 +689,6 @@ DirectHandle<Object> Accessors::GetLegacyFunctionCaller(
   }
   return result;
 }
-
-#ifdef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
-
-void Accessors::FunctionCallerGetter(
-    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionCallerGetter);
-  isolate->CountUsage(v8::Isolate::kFunctionPrototypeCaller);
-  HandleScope scope(isolate);
-  DirectHandle<JSFunction> function =
-      Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
-  DirectHandle<Object> result = GetLegacyFunctionCaller(isolate, function);
-  info.GetReturnValue().Set(Utils::ToLocal(result));
-}
-
-DirectHandle<AccessorInfo> Accessors::MakeFunctionCallerInfo(Isolate* isolate) {
-  return MakeAccessor(isolate, isolate->factory()->caller_string(),
-                      &FunctionCallerGetter, nullptr);
-}
-
-#endif  // V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
 
 //
 // Accessors::BoundFunctionLength

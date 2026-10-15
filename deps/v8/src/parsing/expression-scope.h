@@ -128,10 +128,22 @@ class ExpressionScope {
     AsExpressionParsingScope()->MarkIdentifierAsAssigned();
   }
 
-  void ValidateAsPattern(ExpressionT expression, int begin, int end) {
+  void ValidateAsPattern(ExpressionT expression, int begin, int end,
+                         int variable_index) {
     if (!CanBeExpression()) return;
-    AsExpressionParsingScope()->ValidatePattern(expression, begin, end);
+    AsExpressionParsingScope()->ValidatePattern(expression, begin, end,
+                                                variable_index);
     AsExpressionParsingScope()->ClearExpressionError();
+  }
+
+  int variable_list_length() {
+    if (!CanBeExpression()) return 0;
+    return AsExpressionParsingScope()->variable_list()->length();
+  }
+
+  void DiscardVariablesSince(int variable_index) {
+    if (!CanBeExpression()) return;
+    AsExpressionParsingScope()->DiscardVariablesSince(variable_index);
   }
 
   void ValidateAsExpression() {
@@ -197,6 +209,8 @@ class ExpressionScope {
       } else {
         parser_->parameters_->set_strict_parameter_error(loc, message);
       }
+    } else if (is_strict(parser_->language_mode())) {
+      AsArrowHeadParsingScope()->RecordDeclarationError(loc, message);
     } else {
       parser_->next_arrow_function_info_.strict_parameter_error_location = loc;
       parser_->next_arrow_function_info_.strict_parameter_error_message =
@@ -232,7 +246,7 @@ class ExpressionScope {
   }
 
   int SetInitializers(int variable_index, int peek_position) {
-    if (CanBeExpression()) {
+    if (CanBeArrowParameterDeclaration()) {
       return AsExpressionParsingScope()->SetInitializers(variable_index,
                                                          peek_position);
     }
@@ -241,6 +255,11 @@ class ExpressionScope {
 
   bool has_possible_arrow_parameter_in_scope_chain() const {
     return has_possible_arrow_parameter_in_scope_chain_;
+  }
+
+  bool CanBeArrowParameterDeclaration() const {
+    return base::IsInRange(type_, kMaybeArrowParameterDeclaration,
+                           kMaybeAsyncArrowParameterDeclaration);
   }
 
  protected:
@@ -290,9 +309,7 @@ class ExpressionScope {
     return static_cast<ExpressionParsingScope<Types>*>(this);
   }
 
-#ifdef DEBUG
   bool has_error() const { return parser_->has_error(); }
-#endif
 
   bool CanBeExpression() const {
     return base::IsInRange(type_, kExpression,
@@ -340,10 +357,6 @@ class ExpressionScope {
   bool CanBeParameterDeclaration() const {
     return base::IsInRange(type_, kMaybeArrowParameterDeclaration,
                            kParameterDeclaration);
-  }
-  bool CanBeArrowParameterDeclaration() const {
-    return base::IsInRange(type_, kMaybeArrowParameterDeclaration,
-                           kMaybeAsyncArrowParameterDeclaration);
   }
   bool IsCertainlyParameterDeclaration() const {
     return type_ == kParameterDeclaration;
@@ -525,7 +538,7 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
       ValidateExpression();
       return expression;
     }
-    this->mark_verified();
+    ValidateExpression();
     const bool early_error = false;
     return this->parser()->RewriteInvalidReferenceExpression(
         expression, beg_pos, end_pos, MessageTemplate::kInvalidLhsInFor,
@@ -544,15 +557,25 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
 
   void ValidateExpression() { Validate(kExpressionIndex); }
 
-  void ValidatePattern(ExpressionT expression, int begin, int end) {
+  void ValidatePattern(ExpressionT expression, int begin, int end,
+                       int variable_index = 0) {
     Validate(kPatternIndex);
     if (expression->is_parenthesized()) {
       ExpressionScopeT::Report(Scanner::Location(begin, end),
                                MessageTemplate::kInvalidDestructuringTarget);
     }
-    for (auto& variable_initializer_pair : variable_list_) {
-      variable_initializer_pair.first->set_is_assigned();
+    for (int i = variable_index; i < variable_list_.length(); ++i) {
+      variable_list_.at(i).first->set_is_assigned();
     }
+  }
+
+  void DiscardVariablesSince(int variable_index) {
+    if (this->CanBeDeclaration()) {
+      for (int i = variable_index; i < variable_list_.length(); ++i) {
+        this->parser()->scope()->AddUnresolved(variable_list_.at(i).first);
+      }
+    }
+    variable_list_.Rewind(variable_index);
   }
 
   void ClearExpressionError() {
@@ -590,15 +613,12 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
     if (len == 0) return 0;
 
     int end = len - 1;
-    // Loop backwards and abort as soon as we see one that's already set to
-    // avoid a loop on expressions like a,b,c,d,e,f,g (outside of an arrowhead).
-    // TODO(delphick): Look into removing this loop.
     for (int i = end; i >= first_variable_index &&
                       variable_list_.at(i).second == kNoSourcePosition;
          --i) {
       variable_list_.at(i).second = position;
     }
-    return end;
+    return len;
   }
 
   ScopedList<std::pair<VariableProxy*, int>>* variable_list() {
@@ -724,6 +744,24 @@ class AccumulationScope {
 #endif
   }
 
+  void ValidateDeclaration() {
+    if (scope_ == nullptr) return;
+    if (!scope_->IsArrowHeadParsingScope()) {
+      ValidateExpression();
+      return;
+    }
+    DCHECK(!scope_->is_verified());
+    Accumulate();
+    copy_back(ExpressionParsingScope<Types>::kPatternIndex);
+    scope_->AsArrowHeadParsingScope()->ValidateDeclaration();
+#ifdef DEBUG
+    scope_->clear_verified();
+#endif
+    scope_->clear(ExpressionParsingScope<Types>::kPatternIndex);
+    clear(ExpressionParsingScope<Types>::kExpressionIndex);
+    clear(ExpressionParsingScope<Types>::kPatternIndex);
+  }
+
   ~AccumulationScope() {
     if (scope_ == nullptr) return;
     Accumulate();
@@ -740,6 +778,11 @@ class AccumulationScope {
     if (!locations_[entry].IsValid()) return;
     scope_->messages_[entry] = messages_[entry];
     scope_->locations_[entry] = locations_[entry];
+  }
+
+  void clear(int entry) {
+    messages_[entry] = MessageTemplate::kNone;
+    locations_[entry] = Scanner::Location::invalid();
   }
 
   ExpressionParsingScope<Types>* scope_;
@@ -786,15 +829,19 @@ class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
     this->parent()->MergeVariableList(this->variable_list());
   }
 
-  DeclarationScope* ValidateAndCreateScope() {
+  void ValidateDeclaration() {
     DCHECK(!this->is_verified());
-    DeclarationScope* result = this->parser()->NewFunctionScope(kind());
     if (declaration_error_location.IsValid()) {
       ExpressionScope<Types>::Report(declaration_error_location,
                                      declaration_error_message);
-      return result;
     }
     this->ValidatePattern();
+  }
+
+  DeclarationScope* ValidateAndCreateScope() {
+    DeclarationScope* result = this->parser()->NewFunctionScope(kind());
+    ValidateDeclaration();
+    if (this->has_error()) return result;
 
     if (!has_simple_parameter_list_) result->SetHasNonSimpleParameters();
     VariableKind kind = PARAMETER_VARIABLE;
@@ -836,6 +883,7 @@ class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
   void RecordDeclarationError(const Scanner::Location& loc,
                               MessageTemplate message) {
     DCHECK_IMPLIES(!this->has_error(), loc.IsValid());
+    if (declaration_error_location.IsValid()) return;
     declaration_error_location = loc;
     declaration_error_message = message;
   }

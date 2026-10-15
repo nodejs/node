@@ -1410,6 +1410,9 @@ void InstructionSelector::VisitLoad(OpIndex node, OpIndex value,
     if (load.is_trapping()) {
       code |= AccessModeField::encode(kMemoryAccessTrapping);
     }
+    if (load.has_shared_base()) {
+      code |= SharedBaseField::encode(SharedFlag{true});
+    }
   }
   Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
 }
@@ -1506,13 +1509,13 @@ void VisitStoreCommon(InstructionSelector* selector,
     if (store_rep.representation() == MachineRepresentation::kIndirectPointer) {
       DCHECK(write_barrier_kind == kIndirectPointerWriteBarrier ||
              write_barrier_kind == kSkippedWriteBarrier);
-      // In this case we need to add the IndirectPointerTag as additional input.
+      // In this case we need to add the TrustedPointerTag as additional input.
       code = write_barrier_kind == kSkippedWriteBarrier
                  ? kArchStoreIndirectSkippedWriteBarrier
                  : kArchStoreIndirectWithWriteBarrier;
       code |= RecordWriteModeField::encode(
           RecordWriteMode::kValueIsIndirectPointer);
-      IndirectPointerTag tag = store.indirect_pointer_tag();
+      TrustedPointerTag tag = store.trusted_pointer_tag();
       inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else if (write_barrier_kind == kSkippedWriteBarrier) {
       code = is_atomic ? kArchAtomicStoreSkippedWriteBarrier
@@ -1869,7 +1872,6 @@ void InstructionSelector::VisitStackPointerGreaterThan(
 namespace {
 
 // Shared routine for multiple 32-bit shift operations.
-// TODO(bmeurer): Merge this with VisitWord64Shift using template magic?
 void VisitWord32Shift(InstructionSelector* selector, OpIndex node,
                       ArchOpcode opcode) {
   X64OperandGenerator g(selector);
@@ -1892,7 +1894,6 @@ void VisitWord32Shift(InstructionSelector* selector, OpIndex node,
 }
 
 // Shared routine for multiple 64-bit shift operations.
-// TODO(bmeurer): Merge this with VisitWord32Shift using template magic?
 void VisitWord64Shift(InstructionSelector* selector, OpIndex node,
                       ArchOpcode opcode) {
   X64OperandGenerator g(selector);
@@ -2258,23 +2259,14 @@ void InstructionSelector::VisitInt32Sub(OpIndex node) {
   auto [left, right] = Inputs<WordBinopOp>(node);
   if (g.CanBeImmediate(right)) {
     int32_t imm = g.GetImmediateIntegerValue(right);
-    if (imm == 0) {
-      if (ZeroExtendsWord32ToWord64(left)) {
-        // {EmitIdentity} reuses the virtual register of the first input
-        // for the output. This is only safe if it is known to zero-extend
-        // (as the int32 subtraction advertises itself as zero-extending.)
-        EmitIdentity(node);
-      } else {
-        // Emit "movl" for subtraction of 0.
-        Emit(kX64Movl, g.DefineAsRegister(node), g.UseRegister(left));
-      }
-    } else {
-      // Omit truncation and turn subtractions of constant values into immediate
-      // "leal" instructions by negating the value.
-      Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
-           g.DefineAsRegister(node), g.UseRegister(left),
-           g.TempImmediate(base::NegateWithWraparound(imm)));
-    }
+    // This is guaranteed by the InstructionSelectionNormalizationReducer. If
+    // this DCHECK fails, it indicates a missed optimization only.
+    DCHECK_NE(imm, 0);
+    // Omit truncation and turn subtractions of constant values into immediate
+    // "leal" instructions by negating the value.
+    Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(left),
+         g.TempImmediate(base::NegateWithWraparound(imm)));
     return;
   }
 
@@ -2297,6 +2289,9 @@ void InstructionSelector::VisitInt64Sub(OpIndex node) {
   }
   if (auto constant = TryGetRightWordConstant(this, node)) {
     int64_t immediate_value = -*constant;
+    // This is guaranteed by the InstructionSelectionNormalizationReducer. If
+    // this DCHECK fails, it indicates a missed optimization only.
+    DCHECK_NE(immediate_value, 0);
     if (ValueFitsIntoImmediate(immediate_value)) {
       // Turn subtractions of constant values into immediate "leaq" instructions
       // by negating the value.
@@ -4783,7 +4778,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S256Xor, SXor, LaneSize::kL8, VectorLength::kV256)
 
 #define SIMD_F16x8_BINOP_LIST(V) \
-  V(F16x8Add, FAdd)              \
   V(F16x8Sub, FSub)              \
   V(F16x8Mul, FMul)              \
   V(F16x8Div, FDiv)              \
@@ -5262,6 +5256,22 @@ SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(
     VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH)
 #undef VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH
 #undef SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST
+
+void InstructionSelector::VisitF16x8Add(OpIndex node) {
+  X64OperandGenerator g(this);
+  const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
+  InstructionCode code = kX64FAdd | LaneSizeField::encode(LaneSize::kL16) |
+                         VectorLengthField::encode(VectorLength::kV128);
+  if (UseAvx10_1()) {
+    Emit(code, g.DefineAsRegister(node), g.UseRegister(op.left()),
+         g.UseRegister(op.right()));
+  } else {
+    InstructionOperand temps[] = {g.TempSimd256Register(),
+                                  g.TempSimd256Register()};
+    Emit(code, g.DefineAsRegister(node), g.UseUniqueRegister(op.left()),
+         g.UseUniqueRegister(op.right()), arraysize(temps), temps);
+  }
+}
 
 #define VISIT_SIMD_F16x8_BINOP(Name, Opcode)                         \
   void InstructionSelector::Visit##Name(OpIndex node) {              \
@@ -6456,7 +6466,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
   if (CpuFeatures::IsSupported(F16C)) {
-    // TODO(wasm): Support vector f16 operations with AVX512 or AVX10.2.
+    // TODO(wasm): Use native AVX10.1 instructions for the remaining vector f16
+    // operations. F16C is still needed for their conversion-based lowering.
     flags |= MachineOperatorBuilder::kFloat16Arithmetic |
              MachineOperatorBuilder::kFloat16MemAccess;
     if (CpuFeatures::IsSupported(AVX)) {

@@ -221,7 +221,23 @@ class TestingModuleBuilder {
 
   void SetMemoryShared() {
     CHECK_EQ(1, module_->memories.size());
+    // Populate shared_memory_backing_stores before setting is_shared and
+    // calling SetRawMemory, since the memory was initially added as non-shared
+    // in AddMemory.
+    DirectHandle<WasmMemoryObject> mem_obj(
+        trusted_instance_data_->memory_object(0), isolate_);
+    DirectHandle<ProtectedFixedArray> shared_backing_stores =
+        isolate_->factory()->NewProtectedFixedArray(1);
+    DirectHandle<TrustedManaged<BackingStore>> managed_backing_store =
+        TrustedManaged<BackingStore>::From(
+            isolate_, 0, mem_obj->backing_store().as_shared_ptr());
+    shared_backing_stores->set(0, *managed_backing_store);
+    trusted_instance_data_->set_shared_memory_backing_stores(
+        *shared_backing_stores);
     module_->memories[0].is_shared = SharedFlag{true};
+    Address size_or_address = reinterpret_cast<Address>(
+        mem_obj->backing_store()->byte_length_address());
+    trusted_instance_data_->SetRawMemory(0, mem0_start_, size_or_address);
   }
 
   enum FunctionType { kImport, kWasm };

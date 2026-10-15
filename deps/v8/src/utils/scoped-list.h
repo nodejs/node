@@ -40,10 +40,12 @@ class V8_NODISCARD ScopedList final {
 
   ~ScopedList() { Rewind(); }
 
-  void Rewind() {
+  void Rewind(int length = 0) {
     DCHECK_EQ(buffer_.size(), end_);
-    buffer_.resize(start_);
-    end_ = start_;
+    DCHECK_LE(0, length);
+    DCHECK_LE(start_ + length, end_);
+    end_ = start_ + length;
+    buffer_.resize(end_);
   }
 
   void MergeInto(ScopedList* parent) {

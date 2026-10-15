@@ -162,6 +162,7 @@ inline Register ToRegister(MaglevAssembler* masm,
                            MaglevAssembler::TemporaryRegisterScope* scratch,
                            Input input) {
   if (input.operand().IsConstant()) {
+    if (input.node()->MaterializesToZero()) return xzr;
     Register reg = scratch->AcquireScratch();
     input.node()->LoadToRegister(masm, reg);
     return reg;
@@ -834,7 +835,7 @@ inline void MaglevAssembler::Move(Register dst, uint32_t i) {
 inline void MaglevAssembler::Move(Register dst, intptr_t p) {
   Mov(dst, Immediate(p));
 }
-inline void MaglevAssembler::Move(Register dst, IndirectPointerTag i) {
+inline void MaglevAssembler::Move(Register dst, TrustedPointerTag i) {
   Mov(dst, Immediate(i));
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
@@ -1565,7 +1566,9 @@ inline void MaglevAssembler::CompareDoubleAndJumpIfZeroOrNaN(
 
 inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
     Register r1, int32_t mask, Label* target, Label::Distance distance) {
-  TestAndBranchIfAnySet(r1.W(), mask, target);
+  // Zero-extend so a sign-bit mask (e.g. 0x80000000) tests the 32-bit register
+  // rather than a sign-extended 64-bit pattern.
+  TestAndBranchIfAnySet(r1.W(), static_cast<uint32_t>(mask), target);
 }
 
 inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
@@ -1586,7 +1589,9 @@ inline void MaglevAssembler::TestUint8AndJumpIfAnySet(
 
 inline void MaglevAssembler::TestInt32AndJumpIfAllClear(
     Register r1, int32_t mask, Label* target, Label::Distance distance) {
-  TestAndBranchIfAllClear(r1.W(), mask, target);
+  // Zero-extend so a sign-bit mask (e.g. 0x80000000) tests the 32-bit register
+  // rather than a sign-extended 64-bit pattern.
+  TestAndBranchIfAllClear(r1.W(), static_cast<uint32_t>(mask), target);
 }
 
 inline void MaglevAssembler::TestInt32AndJumpIfAllClear(

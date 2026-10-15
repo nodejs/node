@@ -4,17 +4,12 @@
 
 #include "src/base/numbers/bignum.h"
 
+#include <string_view>
+
 #include "src/base/strings.h"
 
 namespace v8 {
 namespace base {
-
-Bignum::Bignum()
-    : bigits_(bigits_buffer_, kBigitCapacity), used_digits_(0), exponent_(0) {
-  for (int i = 0; i < kBigitCapacity; ++i) {
-    bigits_[i] = 0;
-  }
-}
 
 template <typename S>
 static int BitSize(S value) {
@@ -60,7 +55,7 @@ void Bignum::AssignBignum(const Bignum& other) {
   used_digits_ = other.used_digits_;
 }
 
-static uint64_t ReadUInt64(Vector<const char> buffer, int from,
+static uint64_t ReadUInt64(std::string_view buffer, int from,
                            int digits_to_read) {
   uint64_t result = 0;
   int to = from + digits_to_read;
@@ -73,11 +68,11 @@ static uint64_t ReadUInt64(Vector<const char> buffer, int from,
   return result;
 }
 
-void Bignum::AssignDecimalString(Vector<const char> value) {
+void Bignum::AssignDecimalString(std::string_view value) {
   // 2^64 = 18446744073709551616 > 10^19
   const int kMaxUint64DecimalDigits = 19;
   Zero();
-  int length = value.length();
+  int length = static_cast<int>(value.length());
   int pos = 0;
   // Let's just say that each digit needs 4 bits.
   while (length >= kMaxUint64DecimalDigits) {
@@ -100,9 +95,9 @@ static int HexCharValue(char c) {
   UNREACHABLE();
 }
 
-void Bignum::AssignHexString(Vector<const char> value) {
+void Bignum::AssignHexString(std::string_view value) {
   Zero();
-  int length = value.length();
+  int length = static_cast<int>(value.length());
 
   int needed_bigits = length * 4 / kBigitSize + 1;
   EnsureCapacity(needed_bigits);

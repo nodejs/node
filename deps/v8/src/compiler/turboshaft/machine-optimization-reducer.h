@@ -2235,12 +2235,12 @@ class MachineOptimizationReducer : public Next {
                         std::optional<AtomicMemoryOrder> memory_order,
                         int32_t offset, uint8_t element_scale,
                         bool maybe_initializing_or_transitioning,
-                        IndirectPointerTag maybe_indirect_pointer_tag) {
+                        TrustedPointerTag maybe_trusted_pointer_tag) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceStore(
           base_idx, index, value, kind, stored_rep, write_barrier, memory_order,
           offset, element_scale, maybe_initializing_or_transitioning,
-          maybe_indirect_pointer_tag);
+          maybe_trusted_pointer_tag);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 #if V8_TARGET_ARCH_32_BIT
@@ -2289,7 +2289,7 @@ class MachineOptimizationReducer : public Next {
       // {offset}, or just do other optimizations on this Store.
       __ Store(base_idx, index, value, kind, stored_rep, write_barrier,
                memory_order, offset, element_scale,
-               maybe_initializing_or_transitioning, maybe_indirect_pointer_tag);
+               maybe_initializing_or_transitioning, maybe_trusted_pointer_tag);
 
       return V<None>::Invalid();
     }
@@ -2297,7 +2297,7 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceStore(base_idx, index, value, kind, stored_rep,
                              write_barrier, memory_order, offset, element_scale,
                              maybe_initializing_or_transitioning,
-                             maybe_indirect_pointer_tag);
+                             maybe_trusted_pointer_tag);
   }
 
   OpIndex REDUCE(Load)(OpIndex base_idx, OptionalOpIndex index,
@@ -2384,147 +2384,6 @@ class MachineOptimizationReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  V<Any> REDUCE(Simd128Binop)(V<Simd128> left, V<Simd128> right,
-                              Simd128BinopOp::Kind kind) {
-    LABEL_BLOCK(no_change) {
-      return Next::ReduceSimd128Binop(left, right, kind);
-    }
-    if (ShouldSkipOptimizationStep()) goto no_change;
-
-#ifdef V8_TARGET_ARCH_ARM64
-    if (CpuFeatures::IsSupported(DOTPROD) &&
-        kind == Simd128BinopOp::Kind::kI32x4Add) {
-      // The following almost looks like a pairwise dot-product, except for the
-      // root addition:
-      // I32x4Add(I32xExtAddPairwise(I16x8ExtMulLowI8x16S(x, y)),
-      //          I32x4ExtAddPairwise(I16x8ExtMulHighI8x16S(x, y)))
-      // To use the dot-product instruction, the root needs to be converted to
-      // I32x4AddPairwise.
-      //
-      // So, for input A and B:
-      // A = A0, A1, A2, A3, ...
-      // B = B0, B1, B2, B3, ...
-      //
-      // Two ExtMuls create two vector products:
-      // ExtMulLow(A, B)  = AB0, AB1, AB2, AB3, ...
-      // ExtMulHigh(A, B) = AB8, AB9, AB10, AB11, ...
-      //
-      // Which are then partially reduced:
-      // ExtAddPairwise(ExtMulLow)  = AB0 + AB1, AB2 + AB3, AB4 + AB5
-      // ExtAddPairwise(ExtMulHigh) = AB8 + AB9, AB10 + AB11, AB12 + AB13
-      //
-      // And then those two partial sums are combined:
-      // I32x4Add = AB0 + AB1 + AB8 + AB9, AB2 + AB3 + AB10 + AB11
-      //
-      // But to use a pairwise add we need to ensure the correct elements are
-      // adjacent to each other:
-      // I32x4Add = AB0 + AB1 + AB8 + AB9, AB2 + AB3 + AB10 + AB11
-      //                ^           ^
-      //            keep 0 and 1 adjacent, but 8 and 9 need to be moved.
-      // We can shuffle the inputs to give the correct order using this pattern:
-      // 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15,
-      // Which, with 16-bit lanes, is equivalent to: 0, 4, 1, 5, 2, 6, 3, 7
-
-      auto TryCastExtMul = [this](V<Simd128> node) -> const Simd128BinopOp* {
-        if (auto* unop = matcher_.template TryCast<Simd128UnaryOp>(node)) {
-          if (unop->kind == Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8S) {
-            if (auto* binop =
-                    matcher_.template TryCast<Simd128BinopOp>(unop->input())) {
-              if (binop->kind == Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S ||
-                  binop->kind == Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16S) {
-                return binop;
-              }
-            }
-          }
-        }
-        return nullptr;
-      };
-
-      const Simd128BinopOp* mul_left = TryCastExtMul(left);
-      const Simd128BinopOp* mul_right = TryCastExtMul(right);
-      if (mul_left && mul_right && mul_left->kind != mul_right->kind &&
-          mul_left->left() == mul_right->left() &&
-          mul_left->right() == mul_right->right()) {
-        // Using 16-bit elements, the top half is interleaved into the odd
-        // lanes and the bottom half is placed into the even lanes. So, when
-        // we perform the second pairwise addition it is equivalent to the
-        // original lane-wise addition.
-        uint8_t shuffle[16] = {
-            0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15,
-        };
-        auto shuffle_kind = Simd128ShuffleOp::Kind::kI8x16;
-        V<Simd128> shuffle_left = __ Simd128Shuffle(
-            mul_left->left(), mul_left->left(), shuffle_kind, shuffle);
-        V<Simd128> shuffle_right = __ Simd128Shuffle(
-            mul_right->right(), mul_right->right(), shuffle_kind, shuffle);
-        return __ Simd128Binop(shuffle_left, shuffle_right,
-                               Simd128BinopOp::Kind::kI32x4DotI8x16S);
-      }
-    }
-#endif  // V8_TARGET_ARCH_ARM64
-
-    if (kind != Simd128BinopOp::Kind::kI32x4DotI16x8S) goto no_change;
-
-    // Check to see whether we're really performing the operation on
-    // i8x8 inputs.
-    auto GetExtMul =
-        [this](OpIndex input) -> std::optional<Simd128BinopOp::Kind> {
-      using unop_extmul_pair =
-          std::pair<Simd128UnaryOp::Kind, Simd128BinopOp::Kind>;
-      std::array extend_muls = std::to_array<unop_extmul_pair>({
-          {Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low,
-           Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S},
-          {Simd128UnaryOp::Kind::kI16x8SConvertI8x16High,
-           Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16S},
-          {Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low,
-           Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16U},
-          {Simd128UnaryOp::Kind::kI16x8UConvertI8x16High,
-           Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16U},
-      });
-
-      if (const Simd128UnaryOp* unop =
-              matcher_.TryCast<Simd128UnaryOp>(input)) {
-        for (const auto [unop_kind, extmul_kind] : extend_muls) {
-          if (unop->kind == unop_kind) {
-            return extmul_kind;
-          }
-        }
-      }
-      return {};
-    };
-
-    if (std::optional<Simd128BinopOp::Kind> left_extmul = GetExtMul(left)) {
-      if (std::optional<Simd128BinopOp::Kind> right_extmul = GetExtMul(right)) {
-        OpIndex left_conv = matcher_.Get(left).input(0);
-        OpIndex right_conv = matcher_.Get(right).input(0);
-        if (left_extmul.value() == right_extmul.value()) {
-          // If both inputs are being extended in the same way, we can just use
-          // one extmul and one extadd_pairwise, instead.
-          Simd128BinopOp::Kind extmul_kind = left_extmul.value();
-          Simd128UnaryOp::Kind extadd_kind =
-              extmul_kind == Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S ||
-                      extmul_kind ==
-                          Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16S
-                  ? Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8S
-                  : Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8U;
-          return __ Simd128Unary(
-              __ Simd128Binop(left_conv, right_conv, extmul_kind), extadd_kind);
-#ifdef V8_TARGET_ARCH_ARM64
-        } else {
-          // Otherwise, just break the dot into its constituent parts.
-          OpIndex mul_low = __ Simd128Binop(
-              left, right, Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8S);
-          OpIndex mul_high = __ Simd128Binop(
-              left, right, Simd128BinopOp::Kind::kI32x4ExtMulHighI16x8S);
-          return __ Simd128Binop(mul_low, mul_high,
-                                 Simd128BinopOp::Kind::kI32x4AddPairwise);
-#endif  // V8_TARGET_ARCH_ARM64
-        }
-      }
-    }
-
-    goto no_change;
-  }
 #ifdef V8_TARGET_ARCH_ARM64
   V<Simd128> REDUCE(Simd128ReplaceLane)(V<Simd128> into, V<Any> new_lane,
                                         Simd128ReplaceLaneOp::Kind kind,

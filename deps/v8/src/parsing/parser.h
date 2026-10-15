@@ -22,7 +22,6 @@
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"
-#include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
 
@@ -170,8 +169,18 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       DirectHandle<Script> script,
       base::SmallVector<v8::Isolate::UseCounterFeature, 8>* use_counters,
       int* preparse_skipped);
-  template <typename IsolateT>
-  void HandleDebugMagicComments(IsolateT* isolate, DirectHandle<Script> script);
+  void HandleDebugMagicComments(Isolate* isolate, DirectHandle<Script> script);
+  const Scanner::DebugMagicCommentLocations& debug_magic_comment_locations()
+      const {
+    return scanner_.debug_magic_comment_locations();
+  }
+  // Sets the debug magic comment fields of {script} to substrings of {source}
+  // at the given locations. Locations that are empty, invalid or out of bounds
+  // are ignored.
+  static void SetDebugMagicCommentFields(
+      Isolate* isolate, DirectHandle<Script> script,
+      DirectHandle<String> source,
+      const Scanner::DebugMagicCommentLocations& locations);
 
  private:
   friend class ParserBase<Parser>;
@@ -275,7 +284,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     const AstRawString* local_name;
     Scanner::Location location;
   };
-  ZoneChunkList<ExportClauseData>* ParseExportClause(
+  SmallZoneVector<ExportClauseData, 8> ParseExportClause(
       Scanner::Location* reserved_loc,
       Scanner::Location* string_literal_local_name_loc);
   struct NamedImport : public ZoneObject {
@@ -383,7 +392,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                         Expression** each_variable);
   Block* CreateForEachStatementTDZ(Block* init_block, const ForInfo& for_info);
 
-  Statement* DesugarLexicalBindingsInForStatement(
+  Statement* DesugarLetBindingsInForStatement(
       ForStatement* loop, Statement* init, Expression* cond, Statement* next,
       Statement* body, Scope* inner_scope, const ForInfo& for_info);
 

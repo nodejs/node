@@ -222,7 +222,7 @@ class MemoryOptimizationReducer : public Next {
                skipped_write_barrier_kind_, store.memory_order(), store.offset,
                store.element_size_log2,
                store.maybe_initializing_or_transitioning,
-               store.indirect_pointer_tag());
+               store.trusted_pointer_tag());
       return V<None>::Invalid();
     }
     DCHECK_NE(store.write_barrier, WriteBarrierKind::kAssertNoWriteBarrier);
@@ -240,7 +240,7 @@ class MemoryOptimizationReducer : public Next {
                WriteBarrierKind::kPointerWriteBarrier, store.memory_order(),
                store.offset, store.element_size_log2,
                store.maybe_initializing_or_transitioning,
-               store.indirect_pointer_tag());
+               store.trusted_pointer_tag());
       return V<None>::Invalid();
     }
 

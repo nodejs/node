@@ -393,7 +393,8 @@ std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
     // TODO(leszeks): We could instead sleep/yield and spin the load, since the
     // timing on this is tight enough that we wouldn't delay the compiler thread
     // by much.
-    if (IsUninitializedHole(constant.value())) {
+    if (IsUninitializedHole(constant.value()) ||
+        IsUninitializedHeapNumber(constant.value())) {
       TRACE_BROKER_MISSING(broker, "Read uninitialized property.");
       return {};
     }
@@ -656,8 +657,8 @@ class MapData : public HeapObjectData {
 
   InstanceType instance_type() const { return instance_type_; }
   int instance_size() const { return instance_size_; }
-  uint32_t bit_field2() const { return bit_field2_; }
-  uint32_t bit_field3() const { return bit_field3_; }
+  Map::Bits2 bit_field2() const { return bit_field2_; }
+  Map::Bits3 bit_field3() const { return bit_field3_; }
   int in_object_properties() const {
     CHECK(InstanceTypeChecker::IsJSObject(instance_type()));
     return in_object_properties_;
@@ -674,8 +675,8 @@ class MapData : public HeapObjectData {
 
   InstanceType instance_type_;
   int instance_size_;
-  uint32_t bit_field2_;
-  uint32_t bit_field3_;
+  Map::Bits2 bit_field2_;
+  Map::Bits3 bit_field3_;
   int unused_property_fields_;
   bool is_abandoned_prototype_map_;
   int in_object_properties_;
@@ -1319,7 +1320,13 @@ bool MapRef::IsUndefinedMap(JSHeapBroker* broker) const {
   return *this == broker->undefined_map();
 }
 
-
+bool MapRef::IsAnyWasmObjectMap() const {
+#if V8_ENABLE_WEBASSEMBLY
+  return IsWasmObjectMap() || IsWasmCustomMapMap();
+#else
+  return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
 
 bool MapRef::IsStringWrapperMap() const {
   return IsJSPrimitiveWrapperMap() &&
@@ -1921,6 +1928,7 @@ HEAP_ACCESSOR_C(ScopeInfo, bool, HasContextExtensionSlot)
 HEAP_ACCESSOR_C(ScopeInfo, bool, SomeContextHasExtension)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasOuterScopeInfo)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasContext)
+HEAP_ACCESSOR_C(ScopeInfo, bool, HasContextCells)
 HEAP_ACCESSOR_C(ScopeInfo, bool, ClassScopeHasPrivateBrand)
 HEAP_ACCESSOR_C(ScopeInfo, bool, SloppyEvalCanExtendVars)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasAllocatedReceiver)
@@ -2094,7 +2102,7 @@ int MapRef::constructor_function_index() const {
 
 bool MapRef::is_stable() const {
   IF_ACCESS_FROM_HEAP_C(is_stable);
-  return !Map::Bits3::IsUnstableBit::decode(data()->AsMap()->bit_field3());
+  return !data()->AsMap()->bit_field3().is_unstable();
 }
 
 bool MapRef::CanBeDeprecated() const { return object()->CanBeDeprecated(); }
@@ -2368,10 +2376,6 @@ std::optional<Float64> JSObjectRef::GetOwnFastConstantDoubleProperty(
   Float64 unboxed_value = Float64::FromBits(
       RacyReadHeapNumberBits(Cast<HeapNumber>(constant.value())));
 
-  // Const double fields should not contain values with the hole NaN pattern
-  // unless in-sandbox memory was corrupted.
-  DCHECK_IMPLIES(!v8_flags.expose_memory_corruption_api,
-                 !unboxed_value.is_hole_nan());
   dependencies->DependOnOwnConstantDoubleProperty(*this, map(broker), index,
                                                   unboxed_value);
   return unboxed_value;
@@ -2805,7 +2809,7 @@ bool DataHandlerRef::IsFastProxyHandler() const {
       LoadHandler::Kind::kProxy) {
     return false;
   }
-  return data_field_count() >= LoadHandler::kProxyTrapMethodDataIndex;
+  return data_field_count() == LoadHandler::kProxyDataFieldCount;
 }
 
 #undef BIMODAL_ACCESSOR

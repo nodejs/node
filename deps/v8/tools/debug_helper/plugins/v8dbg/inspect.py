@@ -4,9 +4,10 @@
 """Conversion and renderers for `v8 inspect`."""
 
 import ctypes
+import dataclasses
 import re
 
-from .models import PropertySummary, StructFieldSummary
+from .models import HeapHints, PropertySummary, StructFieldSummary
 
 # Enum values from tools/debug_helper/debug-helper.h.
 PROPERTY_KIND_ARRAY_OF_KNOWN_SIZE = 1
@@ -68,22 +69,39 @@ def _is_tagged_type(type_name):
           type_name.startswith("v8::internal::TaggedMember<"))
 
 
-def read_frame_trailer(frame_pointer, ptr_size, read_memory):
-  """Return (receiver_address, user_argc) for one JS frame, or (None, None)
-  if the slots are unreadable. user_argc excludes the receiver slot.
+def preview_tagged_value(bridge, read_memory, raw, hints=None):
+  """Compact one-line preview of one tagged value, e.g. for a frame slot.
+
+  Smis also go through the debug-helper inspect call. The library knows the
+  build's Smi encoding, which differs between pointer-compressed and
+  uncompressed builds for full-width slots.
   """
+  if raw & 1:
+    if hints is None:
+      hints = HeapHints(any_heap_pointer=raw)
+    elif not hints.any_heap_pointer:
+      hints = dataclasses.replace(hints, any_heap_pointer=raw)
+  elif hints is None:
+    hints = HeapHints()
+  result = bridge.inspect(raw, hints, read_memory)
+  if result is None:
+    return f"0x{raw:x} <?>"
+  if result.type_check_result == TYPE_CHECK_SMI:
+    return _compact_brief(result)
+  display = result.display_address or raw
+  return f"0x{display:x} {_compact_brief(result)}"
+
+
+def preview_tagged_slot(bridge, read_memory, address, size, hints=None):
+  """Compact preview of the tagged value stored in one memory slot."""
   try:
-    # Offsets assume kCPSlotSize == 0 (x64, arm64).
-    receiver_bytes = read_memory(frame_pointer + 2 * ptr_size, ptr_size)
-    argc_bytes = read_memory(frame_pointer - 3 * ptr_size, ptr_size)
+    data = read_memory(address, size)
   except Exception:
-    return (None, None)
-  if len(receiver_bytes) != ptr_size or len(argc_bytes) != ptr_size:
-    return (None, None)
-  receiver = int.from_bytes(receiver_bytes, "little", signed=False)
-  # argc lives in the low 32 bits of the slot.
-  raw_argc = int.from_bytes(argc_bytes, "little", signed=False) & 0xFFFFFFFF
-  return (receiver, max(0, raw_argc - 1))
+    return "<?>"
+  if len(data) != size:
+    return "<?>"
+  raw = int.from_bytes(data, "little", signed=False)
+  return preview_tagged_value(bridge, read_memory, raw, hints)
 
 
 def summarize_property(c_prop, uintptr_max):

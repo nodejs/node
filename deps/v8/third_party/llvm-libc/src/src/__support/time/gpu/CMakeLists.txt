@@ -7,6 +7,7 @@ add_object_library(
   DEPENDS
     libc.hdr.types.clock_t
     libc.hdr.time_macros
+    libc.src.__support.GPU.utils
 )
 
 add_object_library(

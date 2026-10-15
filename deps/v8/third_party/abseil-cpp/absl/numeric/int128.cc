@@ -42,7 +42,7 @@ namespace {
 // For example:
 //   Given: 5 (decimal) == 101 (binary)
 //   Returns: 2
-inline ABSL_ATTRIBUTE_ALWAYS_INLINE int Fls128(uint128 n) {
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline int Fls128(uint128 n) {
   if (uint64_t hi = Uint128High64(n)) {
     ABSL_ASSUME(hi != 0);
     return 127 - countl_zero(hi);

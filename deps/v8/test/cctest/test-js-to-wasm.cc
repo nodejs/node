@@ -590,7 +590,8 @@ class FastJSWasmCallTester {
                               ModuleTypeIndex supertype = kNoSuperType,
                               bool is_final = false) {
     return builder_->AddArrayType(
-        zone_.New<ArrayType>(element_type, mutability), is_final, supertype);
+        zone_.New<ArrayType>(element_type, mutability, SharedFlag{false}),
+        is_final, supertype);
   }
 
  private:
@@ -606,11 +607,11 @@ class FastJSWasmCallTester {
     auto it = buffer.begin();
     if (it != buffer.end()) {
       string_stream << "0x" << std::setfill('0') << std::setw(2) << std::hex
-                    << static_cast<int>(*it++);
+                    << static_cast<int>(*it++) << std::dec;
     }
     while (it != buffer.end()) {
       string_stream << ", 0x" << std::setfill('0') << std::setw(2) << std::hex
-                    << static_cast<int>(*it++);
+                    << static_cast<int>(*it++) << std::dec;
     }
     string_stream << "]";
     return string_stream.str();

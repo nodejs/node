@@ -25,8 +25,8 @@
 
 // Step 1 - Range reduction:
 //   For x = 2^m * 1.mant, log2(x) = m + log2(1.m)
-//   If x is denormal, we normalize it by multiplying x by 2^23 and subtracting
-//   m by 23.
+//   If x is denormal, convert its integer significand to float exactly and
+//   account for the 2^-149 subnormal scale in m.
 
 // Step 2 - Another range reduction:
 //   To compute log(1.mant), let f be the highest 8 bits including the hidden
@@ -91,8 +91,8 @@ LIBC_INLINE float log2f(float x) {
       return x;
     }
     // Normalize denormal inputs.
-    xbits = FPBits(xbits.get_val() * 0x1.0p23f);
-    m -= 23;
+    xbits = FPBits(static_cast<float>(static_cast<int32_t>(x_u)));
+    m -= 149;
   }
 
   m += xbits.get_biased_exponent();

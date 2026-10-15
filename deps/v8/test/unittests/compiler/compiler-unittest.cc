@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <wchar.h>
 
+#include <array>
 #include <memory>
 
 #include "include/v8-extension.h"
@@ -67,10 +68,10 @@ static DirectHandle<JSFunction> Compile(const char* source) {
 
 static double Inc(Isolate* isolate, int x) {
   const char* source = "result = %d + 1;";
-  base::EmbeddedVector<char, 512> buffer;
-  SNPrintF(buffer, source, x);
+  std::array<char, 512> buffer;
+  base::SNPrintF(buffer, source, x);
 
-  DirectHandle<JSFunction> fun = Compile(buffer.begin());
+  DirectHandle<JSFunction> fun = Compile(buffer.data());
   if (fun.is_null()) return -1;
 
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
@@ -264,14 +265,14 @@ TEST_F(CompilerTest, GetScriptLineNumber) {
   const char function_f[] = "function f() {}";
   const int max_rows = 1000;
   const int buffer_size = max_rows + sizeof(function_f);
-  auto buffer = base::OwnedVector<char>::NewForOverwrite(buffer_size);
-  memset(buffer.begin(), '\n', buffer_size - 1);
+  std::array<char, buffer_size> buffer;
+  memset(buffer.data(), '\n', buffer_size - 1);
   buffer[buffer_size - 1] = '\0';
 
   for (int i = 0; i < max_rows; ++i) {
     if (i > 0) buffer[i - 1] = '\n';
     MemCopy(&buffer[i], function_f, sizeof(function_f) - 1);
-    v8::Local<v8::String> script_body = NewString(buffer.begin());
+    v8::Local<v8::String> script_body = NewString(buffer.data());
     v8::Script::Compile(context(), script_body, &origin)
         .ToLocalChecked()
         ->Run(context())

@@ -1718,6 +1718,149 @@ STREAM_TEST(TestHardCachingThreshold) {
   CHECK(caching_was_triggered);
 }
 
+// Regression test: if the hard caching threshold is reached while a delayed
+// {TriggerCodeCachingAfterTimeoutTask} is pending, the task finds
+// {bytes_since_last_chunk_} below the threshold and returns early. It must
+// still reset {last_top_tier_compilation_timestamp_}, otherwise no further
+// timeout task is ever posted for subsequent tier-up batches.
+STREAM_TEST(RegressCachingTimeoutStuckAfterHardThreshold) {
+  // The "more functions can be serialized" callback will only be triggered with
+  // dynamic tiering, so skip this test if dynamic tiering is disabled.
+  if (!v8_flags.wasm_dynamic_tiering) return;
+  // With {single_threaded}, caching is always triggered immediately and no
+  // timeout task is involved.
+  if (v8_flags.single_threaded) return;
+
+  // The soft threshold is tiny, so that tiering up a single function reaches
+  // it. The hard threshold is initially huge and lowered after Step 1 once we
+  // know the compiled size of a single function.
+  FlagScope<int> caching_threshold(&v8_flags.wasm_caching_threshold, 1);
+  constexpr int kCachingTimeoutMs = 50;
+  FlagScope<int> caching_timeout(&v8_flags.wasm_caching_timeout_ms,
+                                 kCachingTimeoutMs);
+  FlagScope<int> caching_hard_threshold(&v8_flags.wasm_caching_hard_threshold,
+                                        1'000'000);
+
+  base::Semaphore caching_was_triggered{0};
+  StreamTester tester(isolate);
+  tester.stream()->SetMoreFunctionsCanBeSerializedCallback(
+      [&](const std::shared_ptr<NativeModule>& module) {
+        caching_was_triggered.Signal();
+      });
+
+  // Wait for up to {ms} milliseconds for a caching event, running compiler
+  // tasks in between.
+  auto WaitForCaching = [&caching_was_triggered, &tester](int ms) {
+    constexpr base::TimeDelta kOneMs = base::TimeDelta::FromMilliseconds(1);
+    for (int waited_ms = 0; waited_ms < ms; ++waited_ms) {
+      if (caching_was_triggered.WaitFor(kOneMs)) return true;
+      tester.RunCompilerTasks();
+    }
+    return false;
+  };
+
+  uint8_t code[] = {
+      ADD_COUNT(U32V_1(0),                   // locals count
+                kExprLocalGet, 0, kExprEnd)  // body
+  };
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,  // module header
+      SECTION(Type,
+              ENTRY_COUNT(1),                      // type count
+              SIG_ENTRY_x_x(kI32Code, kI32Code)),  // signature entry
+      SECTION(Function, ENTRY_COUNT(4), SIG_INDEX(0), SIG_INDEX(0),
+              SIG_INDEX(0), SIG_INDEX(0)),
+      SECTION(Export, ENTRY_COUNT(4),                             // 4 exports
+              ADD_COUNT('a'), kExternalFunction, FUNC_INDEX(0),   // "a" (0)
+              ADD_COUNT('b'), kExternalFunction, FUNC_INDEX(1),   // "b" (1)
+              ADD_COUNT('c'), kExternalFunction, FUNC_INDEX(2),   // "c" (2)
+              ADD_COUNT('d'), kExternalFunction, FUNC_INDEX(3)),  // "d" (3)
+      kCodeSectionCode,                 // section code
+      U32V_1(1 + arraysize(code) * 4),  // section size
+      U32V_1(4),                        // functions count
+  };
+
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  for (int i = 0; i < 4; ++i) {
+    tester.OnBytesReceived(code, arraysize(code));
+  }
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+  CHECK(tester.IsPromiseFulfilled());
+
+  Isolate* i_isolate = CcTest::i_isolate();
+  IndirectHandle<WasmInstanceObject> instance;
+  {
+    ErrorThrower thrower{i_isolate, "RegressCachingTimeoutStuckAfterHard"};
+    instance = indirect_handle(
+        GetWasmEngine()
+            ->SyncInstantiate(i_isolate, &thrower, tester.module_object(), {})
+            .ToHandleChecked(),
+        i_isolate);
+    CHECK(!thrower.error());
+  }
+
+  // Step 1: Tier up one function. This passes the soft threshold (but not the
+  // hard threshold), hence schedules a delayed caching task and sets
+  // {last_top_tier_compilation_timestamp_}.
+  {
+    DisallowGarbageCollection no_gc;
+    i::wasm::TriggerTierUp(i_isolate, instance->trusted_data(i_isolate), 0);
+  }
+  tester.RunCompilerTasks();
+  size_t one_func_size = 0;
+  {
+    WasmCodeRefScope code_scope;
+    CppGCManaged<NativeModule>::Ptr module = tester.native_module();
+    CHECK(module->GetCode(0) != nullptr && !module->GetCode(0)->is_liftoff());
+    one_func_size = module->GetCode(0)->instructions().size();
+    CHECK_LT(0, one_func_size);
+  }
+
+  // Set the hard threshold to 2x a single function's code size, so that a
+  // single function stays below it while two or more functions reach it.
+  v8_flags.wasm_caching_hard_threshold = static_cast<int>(2 * one_func_size);
+
+  // Step 2: Before the timeout expires, tier up more functions such that the
+  // hard threshold is reached. This triggers caching immediately and resets
+  // {bytes_since_last_chunk_}, while the delayed task from Step 1 is still
+  // pending.
+  {
+    DisallowGarbageCollection no_gc;
+    i::wasm::TriggerTierUp(i_isolate, instance->trusted_data(i_isolate), 1);
+    i::wasm::TriggerTierUp(i_isolate, instance->trusted_data(i_isolate), 2);
+  }
+  tester.RunCompilerTasks();
+  {
+    WasmCodeRefScope code_scope;
+    CppGCManaged<NativeModule>::Ptr module = tester.native_module();
+    size_t total = 0;
+    for (int i = 0; i < 3; ++i) {
+      CHECK(module->GetCode(i) != nullptr && !module->GetCode(i)->is_liftoff());
+      total += module->GetCode(i)->instructions().size();
+    }
+    CHECK_LE(static_cast<size_t>(v8_flags.wasm_caching_hard_threshold), total);
+  }
+  CHECK(WaitForCaching(10'000));
+
+  // Step 3: Wait for the pending delayed task to run. It finds
+  // {bytes_since_last_chunk_ == 0} and returns early without triggering
+  // another caching event.
+  CHECK(!WaitForCaching(3 * kCachingTimeoutMs));
+
+  // Step 4: Tier up another function, passing the soft (but not the hard)
+  // threshold again. This must schedule a new timeout task and eventually
+  // trigger caching.
+  {
+    DisallowGarbageCollection no_gc;
+    i::wasm::TriggerTierUp(i_isolate, instance->trusted_data(i_isolate), 3);
+  }
+  tester.RunCompilerTasks();
+  CHECK_WITH_MSG(WaitForCaching(10'000),
+                 "no caching event after the timeout task returned early");
+}
+
 // Test that a compile error contains the name of the function, even if the name
 // section is not present at the time the error is detected.
 STREAM_TEST(TestCompileErrorFunctionName) {

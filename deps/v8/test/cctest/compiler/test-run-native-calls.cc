@@ -237,7 +237,7 @@ class Int32Signature : public MachineSignature {
 Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
                           TFGraph* graph, Schedule* schedule = nullptr) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  OptimizedCompilationInfo info(base::ArrayVector("testing"), graph->zone(),
+  OptimizedCompilationInfo info("testing", graph->zone(),
                                 CodeKind::FOR_TESTING);
   Handle<Code> code = Pipeline::GenerateCodeForTesting(
                           &info, isolate, call_descriptor, graph,

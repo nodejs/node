@@ -156,10 +156,21 @@ compute_float(int64_t q, uint64_t w) noexcept {
       return answer;
     }
     // next line is safe because -answer.power2 + 1 < 64
-    answer.mantissa >>= -answer.power2 + 1;
-    // Thankfully, we can't have both "round-to-even" and subnormals because
-    // "round-to-even" only occurs for powers close to 0 in the 32-bit and
-    // and 64-bit case (with no more than 19 digits).
+    int const subnormal_shift = -answer.power2 + 1;
+    answer.mantissa >>= subnormal_shift;
+    // A subnormal result can also fall exactly between two floats. With at
+    // most 19 digits this never happens for float and double, but it does for
+    // std::float16_t (e.g., 2^-25 = 298023223876953125e-25), so we apply the
+    // same round-to-even test as in the normal case below.
+    // See script/format_parameters.py.
+    if (binary::subnormal_ties_possible() && (product.low <= 1) &&
+        (q >= binary::min_exponent_round_to_even()) &&
+        (q <= binary::max_exponent_round_to_even()) &&
+        ((answer.mantissa & 3) == 1)) {
+      if (((answer.mantissa << subnormal_shift) << shift) == product.high) {
+        answer.mantissa &= ~uint64_t(1); // flip it so that we do not round up
+      }
+    }
     answer.mantissa += (answer.mantissa & 1); // round up
     answer.mantissa >>= 1;
     // There is a weird scenario where we don't have a subnormal but just.
@@ -194,16 +205,31 @@ compute_float(int64_t q, uint64_t w) noexcept {
 
   answer.mantissa += (answer.mantissa & 1); // round up
   answer.mantissa >>= 1;
-  if (answer.mantissa >= (uint64_t(2) << binary::mantissa_explicit_bits())) {
+  // Both fix-ups below are rare. They are marked unlikely so that clang keeps
+  // them as branches instead of folding them into conditional moves that
+  // every conversion pays for.
+#ifdef __clang__
+#pragma clang diagnostic push
+#if (!defined(__APPLE_CC__) && __clang_major__ >= 10) || (__clang_major__ >= 13)
+#pragma clang diagnostic ignored "-Wc++20-extensions"
+#endif
+#endif
+  if fastfloat_clang_unlikely (answer.mantissa >=
+                               (uint64_t(2)
+                                << binary::mantissa_explicit_bits())) {
     answer.mantissa = (uint64_t(1) << binary::mantissa_explicit_bits());
     answer.power2++; // undo previous addition
   }
 
   answer.mantissa &= ~(uint64_t(1) << binary::mantissa_explicit_bits());
-  if (answer.power2 >= binary::infinite_power()) { // infinity
+  if fastfloat_clang_unlikely (answer.power2 >= binary::infinite_power()) {
+    // infinity
     answer.power2 = binary::infinite_power();
     answer.mantissa = 0;
   }
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
   return answer;
 }
 

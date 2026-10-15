@@ -435,9 +435,10 @@ LIBC_INLINE float lgammaf(float x) {
         lgamma_val += inv_x * fputil::multiply_add(inv_x4, p23, p01);
       } else {
         // Exceptional cases of this range.
-        constexpr fputil::ExceptValues<float, 2> LGAMMAF_EXCEPTS_B10{{
+        constexpr fputil::ExceptValues<float, 3> LGAMMAF_EXCEPTS_B10{{
             // input,      toward-zero result, RU, RD, RN
             {0x42468b59u, 0x430f25a7u, 1, 0, 0},
+            {0xc0c82481u, 0xc0b2a995u, 0, 1, 1},
             {0xc134eb14u, 0xc1875615u, 0, 1, 0},
         }};
         if (auto r = LGAMMAF_EXCEPTS_B10.lookup(xbits.uintval());
@@ -469,11 +470,14 @@ LIBC_INLINE float lgammaf(float x) {
         lgamma_val += inv_x * poly;
       }
     } else {
-      constexpr fputil::ExceptValues<float, 3> LGAMMAF_EXCEPTS_HUGE{{
+      constexpr fputil::ExceptValues<float, 6> LGAMMAF_EXCEPTS_HUGE{{
           // input,      toward-zero result, RU, RD, RN
+          {0x4f3f94c0u, 0x517a24a2u, 1, 0, 1},
+          {0x50522f52u, 0x5292ee5du, 1, 0, 1},
           {0x65fca09fu, 0x68cead59u, 1, 0, 1},
           {0x716e5dd5u, 0x747e2bb9u, 1, 0, 0},
           {0x77ac5674u, 0x7acf27b2u, 1, 0, 1},
+          {0x7943def8u, 0x7c7232d7u, 1, 0, 0},
       }};
       if (auto r = LGAMMAF_EXCEPTS_HUGE.lookup(xbits.uintval());
           LIBC_UNLIKELY(r.has_value()))

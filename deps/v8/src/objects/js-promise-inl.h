@@ -29,22 +29,20 @@ void JSPromise::set_reactions_or_result(
   reactions_or_result_.store(this, value, mode);
 }
 
-int JSPromise::flags() const { return flags_.load().value(); }
+JSPromise::Flags JSPromise::flags() const { return flags_.load(); }
 
-void JSPromise::set_flags(int value) {
-  flags_.store(this, Smi::From31BitPattern(value));
-}
+void JSPromise::set_flags(Flags value) { flags_.store(value); }
 
 BOOL_ACCESSORS(JSPromise, flags, is_native_resolver_invoked,
-               IsNativeResolverInvokedBit::kShift)
-BOOL_ACCESSORS(JSPromise, flags, has_handler, HasHandlerBit::kShift)
-BOOL_ACCESSORS(JSPromise, flags, is_silent, IsSilentBit::kShift)
+               Flags::IsNativeResolverInvokedBit::kShift)
+BOOL_ACCESSORS(JSPromise, flags, has_handler, Flags::HasHandlerBit::kShift)
+BOOL_ACCESSORS(JSPromise, flags, is_silent, Flags::IsSilentBit::kShift)
 
 // static
 uint32_t JSPromise::GetNextAsyncTaskId(uint32_t async_task_id) {
   do {
     ++async_task_id;
-    async_task_id &= AsyncTaskIdBits::kMax;
+    async_task_id &= Flags::AsyncTaskIdBits::kMax;
   } while (async_task_id == kInvalidAsyncTaskId);
   return async_task_id;
 }
@@ -53,12 +51,10 @@ bool JSPromise::has_async_task_id() const {
   return async_task_id() != kInvalidAsyncTaskId;
 }
 
-uint32_t JSPromise::async_task_id() const {
-  return AsyncTaskIdBits::decode(flags());
-}
+uint32_t JSPromise::async_task_id() const { return flags().async_task_id(); }
 
 void JSPromise::set_async_task_id(uint32_t id) {
-  set_flags(AsyncTaskIdBits::update(flags(), id));
+  set_flags(flags().with<Flags::AsyncTaskIdBits>(id));
 }
 
 Tagged<Object> JSPromise::result() const {

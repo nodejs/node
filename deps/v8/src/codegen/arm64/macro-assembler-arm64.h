@@ -933,9 +933,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CallEphemeronKeyBarrier(Register object, Operand offset,
                                SaveFPRegsMode fp_mode);
 
-  void CallIndirectPointerBarrier(Register object, Operand offset,
-                                  SaveFPRegsMode fp_mode,
-                                  IndirectPointerTag tag);
+  void CallTrustedPointerBarrier(Register object, Operand offset,
+                                 SaveFPRegsMode fp_mode, TrustedPointerTag tag);
 
   void CallRecordWriteStubSaveRegisters(
       Register object, Operand offset, SaveFPRegsMode fp_mode,
@@ -949,10 +948,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                                       SaveFPRegsMode fp_mode);
   void CallVerifySkippedWriteBarrierStub(Register object, Register value);
 
-  void CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
+  void CallVerifySkippedTrustedWriteBarrierStubSaveRegisters(
       Register object, Register value, SaveFPRegsMode fp_mode);
-  void CallVerifySkippedIndirectWriteBarrierStub(Register object,
-                                                 Register value);
+  void CallVerifySkippedTrustedWriteBarrierStub(Register object,
+                                                Register value);
 
   // For a given |object| and |offset|:
   //   - Move |object| to |dst_object|.
@@ -1131,7 +1130,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // validate the parameter count at runtime. Instead, we should replace them
   // with CallJSDispatchEntry that generates a call to a given (compile-time
   // constant) JSDispatchHandle.
-  void CallJSFunction(Register function_object, uint16_t argument_count);
+  void CallJSFunction(Register function_object,
+                      uint16_t expected_parameter_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
   void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
@@ -1675,8 +1675,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.
   void LoadTrustedPointerField(Register destination, MemOperand field_operand,
-                               IndirectPointerTag tag);
-  // As above, but for kUnknownIndirectPointerTag. The type of the loaded object
+                               TrustedPointerTag tag);
+  // As above, but for kUnknownTrustedPointerTag. The type of the loaded object
   // is unknown, so this helper will check for a series of expected types and
   // jump to the given labels if the loaded object has a matching type. If the
   // field is null (with enabled sandbox) or a Smi (with disabled sandbox) and
@@ -1696,8 +1696,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // These are special versions of trusted pointers that, when the sandbox is
   // enabled, reference code objects through the code pointer table.
   void LoadCodePointerField(Register destination, MemOperand field_operand) {
-    LoadTrustedPointerField(destination, field_operand,
-                            kCodeIndirectPointerTag);
+    LoadTrustedPointerField(destination, field_operand, kCodeTrustedPointerTag);
   }
   // Store a code pointer field.
   void StoreCodePointerField(Register value, MemOperand dst_field_operand) {
@@ -1708,7 +1707,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Only available when the sandbox is enabled, but always visible to avoid
   // having to place the #ifdefs into the caller.
   void LoadIndirectPointerField(Register destination, MemOperand field_operand,
-                                IndirectPointerTagRange tag_range);
+                                TrustedPointerTagRange tag_range);
 
   // Store an indirect pointer field.
   // Only available when the sandbox is enabled, but always visible to avoid
@@ -1717,8 +1716,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
 #ifdef V8_ENABLE_SANDBOX
   // Retrieve the heap object referenced by the given indirect pointer handle.
-  void ResolveIndirectPointerHandle(Register destination, Register handle,
-                                    IndirectPointerTagRange tag_range);
+  void ResolveTrustedPointerHandle(Register destination, Register handle,
+                                   TrustedPointerTagRange tag_range);
 #endif
 
   void LoadEntrypointFromJSDispatchTable(Register destination,
@@ -1992,19 +1991,29 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   inline void PushAll(DoubleRegList registers,
                       int stack_slot_size = kDoubleSize) {
-    if (registers.Count() % 2 != 0) {
-      DCHECK(!registers.has(fp_zero));
-      registers.set(fp_zero);
+    if (stack_slot_size == kSimd128Size) {
+      PushQRegList(registers);
+    } else {
+      DCHECK_EQ(stack_slot_size, kDoubleSize);
+      if (registers.Count() % 2 != 0) {
+        DCHECK(!registers.has(fp_zero));
+        registers.set(fp_zero);
+      }
+      PushDRegList(registers);
     }
-    PushDRegList(registers);
   }
   inline void PopAll(DoubleRegList registers,
                      int stack_slot_size = kDoubleSize) {
-    if (registers.Count() % 2 != 0) {
-      DCHECK(!registers.has(fp_zero));
-      registers.set(fp_zero);
+    if (stack_slot_size == kSimd128Size) {
+      PopQRegList(registers);
+    } else {
+      DCHECK_EQ(stack_slot_size, kDoubleSize);
+      if (registers.Count() % 2 != 0) {
+        DCHECK(!registers.has(fp_zero));
+        registers.set(fp_zero);
+      }
+      PopDRegList(registers);
     }
-    PopDRegList(registers);
   }
 
   // Push the specified register 'count' times.

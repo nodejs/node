@@ -42,11 +42,11 @@ void JSBoundFunction::set_bound_target_function(Tagged<JSCallable> value,
                                                 WriteBarrierMode mode) {
   bound_target_function_.store(this, value, mode);
 }
-Tagged<Object> JSBoundFunction::bound_this() const {
+Tagged<UnionOf<JSAny, SourceTextModule>> JSBoundFunction::bound_this() const {
   return bound_this_.load();
 }
-void JSBoundFunction::set_bound_this(Tagged<Object> value,
-                                     WriteBarrierMode mode) {
+void JSBoundFunction::set_bound_this(
+    Tagged<UnionOf<JSAny, SourceTextModule>> value, WriteBarrierMode mode) {
   bound_this_.store(this, value, mode);
 }
 Tagged<FixedArray> JSBoundFunction::bound_arguments() const {

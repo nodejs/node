@@ -174,6 +174,7 @@ absl_cc_library(
     absl::flags_private_handle_accessor
     absl::flat_hash_map
     absl::no_destructor
+    absl::nullability
     absl::string_view
     absl::strings
     absl::synchronization

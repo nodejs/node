@@ -20,6 +20,7 @@
 #include "src/base/sanitizer/tsan.h"
 #include "src/base/small-vector.h"
 #include "src/base/string-format.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler-inl.h"
@@ -512,8 +513,8 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   if (trapping_instructions_size_ > 0) {
     os << "Trapping instructions:\n pc offset\n";
     for (auto& data : trapping_instructions()) {
-      os << std::setw(10) << std::hex << data.instr_offset << std::setw(10)
-         << "\n";
+      os << std::setw(10) << std::hex << data.instr_offset << std::dec
+         << std::setw(10) << "\n";
     }
     os << "\n";
   }
@@ -1204,30 +1205,30 @@ WasmCode* NativeModule::AddCodeForTesting(const WasmCompilationResult& result,
   // Flush the i-cache after relocation.
   FlushInstructionCache(dst_code_bytes.begin(), dst_code_bytes.size());
 
-  std::unique_ptr<WasmCode> unique_code{new (reserved_code) WasmCode{
-      this,
-      kAnonymousFuncIndex,
-      dst_code_bytes,
-      static_cast<int>(result.frame_slot_count),
-      static_cast<int>(result.ool_spill_count),
-      result.tagged_parameter_slots,
-      safepoint_table_offset,
-      handler_table_offset,
-      constant_pool_offset,
-      code_comments_offset,
-      jump_table_info_offset,
-      instr_size,
-      result.trapping_instructions_data.as_vector(),
-      reloc_info,
-      result.source_positions.as_vector(),
-      result.inlining_positions.as_vector(),
-      result.deopt_data.as_vector(),
-      GetCodeKind(result),
-      result.result_tier,
-      result.for_debugging,
-      signature_hash,
-      result.effect_handlers.as_vector(),
-      result.frame_has_feedback_slot}};
+  std::unique_ptr<WasmCode> unique_code{
+      new (reserved_code) WasmCode{this,
+                                   kAnonymousFuncIndex,
+                                   dst_code_bytes,
+                                   static_cast<int>(result.frame_slot_count),
+                                   static_cast<int>(result.ool_spill_count),
+                                   result.tagged_parameter_slots,
+                                   safepoint_table_offset,
+                                   handler_table_offset,
+                                   constant_pool_offset,
+                                   code_comments_offset,
+                                   jump_table_info_offset,
+                                   instr_size,
+                                   result.trapping_instructions_data.as_span(),
+                                   reloc_info,
+                                   result.source_positions.as_span(),
+                                   result.inlining_positions.as_span(),
+                                   result.deopt_data.as_span(),
+                                   GetCodeKind(result),
+                                   result.result_tier,
+                                   result.for_debugging,
+                                   signature_hash,
+                                   result.effect_handlers.as_span(),
+                                   result.frame_has_feedback_slot}};
 
   unique_code->MaybePrint();
   unique_code->Validate();
@@ -1958,28 +1959,26 @@ namespace {
 class NativeModuleWireBytesStorage final : public WireBytesStorage {
  public:
   explicit NativeModuleWireBytesStorage(
-      std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes)
+      std::shared_ptr<base::UniqueArray<const uint8_t>> wire_bytes)
       : wire_bytes_(std::move(wire_bytes)) {}
 
   base::Vector<const uint8_t> GetCode(WireBytesRef ref) const final {
-    return std::atomic_load(&wire_bytes_)
-        ->as_vector()
-        .SubVector(ref.offset(), ref.end_offset());
+    return std::atomic_load(&wire_bytes_)->subspan(ref.offset(), ref.length());
   }
 
   std::optional<ModuleWireBytes> GetModuleBytes() const final {
     return std::optional<ModuleWireBytes>(
-        std::atomic_load(&wire_bytes_)->as_vector());
+        std::atomic_load(&wire_bytes_)->as_span());
   }
 
  private:
-  const std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes_;
+  const std::shared_ptr<base::UniqueArray<const uint8_t>> wire_bytes_;
 };
 }  // namespace
 
-void NativeModule::SetWireBytes(base::OwnedVector<const uint8_t> wire_bytes) {
+void NativeModule::SetWireBytes(base::UniqueArray<const uint8_t> wire_bytes) {
   auto shared_wire_bytes =
-      std::make_shared<base::OwnedVector<const uint8_t>>(std::move(wire_bytes));
+      std::make_shared<base::UniqueArray<const uint8_t>>(std::move(wire_bytes));
   std::atomic_store(&wire_bytes_, shared_wire_bytes);
   if (!shared_wire_bytes->empty()) {
     compilation_state_->SetWireBytesStorage(
@@ -2596,11 +2595,14 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
 
   // The '--wasm-max-initial-code-space-reservation' testing flag can be used to
   // reduce the maximum size of the initial code space reservation (in MB).
-  if (v8_flags.wasm_max_initial_code_space_reservation > 0) {
+  if (v8_flags.wasm_max_initial_code_space_reservation > 0 &&
+      static_cast<size_t>(v8_flags.wasm_max_initial_code_space_reservation) <=
+          code_vmem_size / MB) {
     size_t flag_max_bytes =
         static_cast<size_t>(v8_flags.wasm_max_initial_code_space_reservation) *
         MB;
-    if (flag_max_bytes < code_vmem_size) code_vmem_size = flag_max_bytes;
+    size_t min_bytes = 2 * OverheadPerCodeSpace(module->num_declared_functions);
+    code_vmem_size = std::max(flag_max_bytes, min_bytes);
   }
 
   VirtualMemory code_space;
@@ -2787,12 +2789,11 @@ std::vector<UnpublishedWasmCode> NativeModule::AddCompiledCode(
         AddCodeWithCodeSpace(
             result.func_index, result.code_desc, result.frame_slot_count,
             result.ool_spill_count, result.tagged_parameter_slots,
-            result.trapping_instructions_data.as_vector(),
-            result.source_positions.as_vector(),
-            result.inlining_positions.as_vector(),
-            result.deopt_data.as_vector(), GetCodeKind(result),
-            result.result_tier, result.for_debugging,
-            result.effect_handlers.as_vector(), result.frame_has_feedback_slot,
+            result.trapping_instructions_data.as_span(),
+            result.source_positions.as_span(),
+            result.inlining_positions.as_span(), result.deopt_data.as_span(),
+            GetCodeKind(result), result.result_tier, result.for_debugging,
+            result.effect_handlers.as_span(), result.frame_has_feedback_slot,
             this_code_space, jump_tables),
         std::move(result.assumptions));
   }
@@ -2922,7 +2923,7 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   size_t result = sizeof(NativeModule);
   result += module_->EstimateCurrentMemoryConsumption();
 
-  std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes =
+  std::shared_ptr<base::UniqueArray<const uint8_t>> wire_bytes =
       std::atomic_load(&wire_bytes_);
   size_t wire_bytes_size = wire_bytes ? wire_bytes->size() : 0;
   result += wire_bytes_size;

@@ -643,7 +643,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   void set_needs_home_object() {
-    DCHECK(is_home_object_scope());
+    DCHECK(is_home_object_scope() || from_scope_info() || is_script_scope());
     flags_ = NeedsHomeObjectField::update(flags_, true);
   }
 
@@ -969,9 +969,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
            IsAccessorFunction(function_kind()) ||
            IsClassConstructor(function_kind()));
     set_uses_super_property(true);
-    Scope* home_object_scope = GetHomeObjectScope();
-    DCHECK_NOT_NULL(home_object_scope);
-    home_object_scope->set_needs_home_object();
+    DCHECK_IMPLIES(!from_scope_info(), outer_scope_->is_home_object_scope());
+    outer_scope_->set_needs_home_object();
   }
 
   bool uses_super_property() const {
@@ -980,8 +979,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   void set_uses_super_property(bool value) {
     flags_ = UsesSuperPropertyField::update(flags_, value);
   }
-
-  void TakeUnresolvedReferencesFromParent();
 
   bool is_arrow_scope() const {
     return is_function_scope() && IsArrowFunction(function_kind_);
@@ -1074,6 +1071,9 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // scope over a let binding of the same name.
   Declaration* CheckConflictingVarDeclarations(
       bool* allowed_catch_binding_var_redeclaration);
+
+  bool HasConflictingArgumentsVarDeclaration(
+      AstValueFactory* ast_value_factory);
 
   void set_has_checked_syntax(bool value) {
     flags_ = HasCheckedSyntaxField::update(flags_, value);
@@ -1387,6 +1387,13 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     return ClassScopeHasPrivateBrandField::decode(flags_);
   }
 
+  bool class_initializer_allows_await() const {
+    return ClassInitializerAllowsAwaitField::decode(flags_);
+  }
+  void set_class_initializer_allows_await(bool value) {
+    flags_ = ClassInitializerAllowsAwaitField::update(flags_, value);
+  }
+
  private:
   V8_INLINE void AllocateParameter(Variable* var, int index);
 
@@ -1430,6 +1437,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
       HasThisDeclarationField::Next<bool, 1>;
   using ClassScopeHasPrivateBrandField =
       NeedsPrivateNameContextChainRecalcField::Next<bool, 1>;
+  using ClassInitializerAllowsAwaitField =
+      ClassScopeHasPrivateBrandField::Next<bool, 1>;
 
 #if DEBUG
   bool is_being_lazily_parsed_;
