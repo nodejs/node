@@ -1385,7 +1385,9 @@ void Environment::InitializeCompileCache() {
 }
 
 CompileCacheEnableResult Environment::EnableCompileCache(
-    const std::string& cache_dir, EnableOption option) {
+    const std::string& cache_dir,
+    EnableOption option,
+    const std::string& key_root) {
   CompileCacheEnableResult result;
   std::string disable_env;
   if (credentials::SafeGetenv(
@@ -1402,7 +1404,7 @@ CompileCacheEnableResult Environment::EnableCompileCache(
   if (!compile_cache_handler_) {
     std::unique_ptr<CompileCacheHandler> handler =
         std::make_unique<CompileCacheHandler>(this);
-    result = handler->Enable(this, cache_dir, option);
+    result = handler->Enable(this, cache_dir, option, key_root);
     if (result.status == CompileCacheEnableStatus::ENABLED) {
       compile_cache_handler_ = std::move(handler);
       AtExit(
