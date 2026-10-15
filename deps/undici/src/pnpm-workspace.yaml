@@ -1,0 +1,5 @@
+allowBuilds:
+  '@metcoder95/https-pem': set this to true or false
+  '@parcel/watcher': set this to true or false
+  esbuild: set this to true or false
+  unrs-resolver: set this to true or false

@@ -3,7 +3,7 @@
 'use strict'
 
 const { kConstruct } = require('../../core/symbols')
-const { kEnumerableProperty } = require('../../core/util')
+const { kEnumerableProperty, setHeader } = require('../../core/util')
 const {
   iteratorMixin,
   isValidHeaderName,
@@ -320,7 +320,7 @@ class HeadersList {
 
     if (this.headersMap.size !== 0) {
       for (const { name, value } of this.headersMap.values()) {
-        headers[name] = value
+        setHeader(headers, name, value)
       }
     }
 

@@ -55,8 +55,9 @@ added: v7.7.0
   hostname, and port. Only the `http:` protocol is supported.
 * `options` {H2CClientOptions} (optional)
   * `maxConcurrentStreams` {number} The maximum number of concurrent HTTP/2
-    streams for the session. It is advertised to the server and may be overridden
-    by a remote `SETTINGS` frame. Must be a positive integer. **Default:** `100`.
+    streams for the session. The server's `SETTINGS_MAX_CONCURRENT_STREAMS` can
+    lower this limit, but not raise it. Must be a positive integer.
+    **Default:** `100`.
   * `pipelining` {number} The number of concurrent requests multiplexed over the
     single connection. For an `H2CClient` this is aliased to
     `maxConcurrentStreams` and may not exceed it. Must be a positive integer.

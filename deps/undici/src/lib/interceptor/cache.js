@@ -210,7 +210,10 @@ function makeRevalidationHeaders (opts, result) {
  */
 function isStale (result, cacheControlDirectives, cacheType) {
   const now = Date.now()
-  if (now > result.staleAt) {
+  // A zero freshness lifetime (e.g. max-age=0 with a validator) is never fresh,
+  // even when reused within the same millisecond or after a clock step back.
+  // https://www.rfc-editor.org/rfc/rfc9111.html#section-4.2
+  if (now > result.staleAt || result.staleAt <= result.cachedAt) {
     // Response is stale
     if (!staleResponseRequiresRevalidation(result, cacheType) && cacheControlDirectives?.['max-stale']) {
       // There's a threshold where we can serve stale responses, let's see if
@@ -331,6 +334,7 @@ function sendCachedValue (handler, opts, result, age, context, isStale) {
   assert(!stream.readableDidRead, 'stream should not be readableDidRead')
 
   let aborted = false
+  let abortReason = null
 
   const controller = {
     rawHeaders: [],
@@ -348,11 +352,15 @@ function sendCachedValue (handler, opts, result, age, context, isStale) {
       return aborted
     },
     get reason () {
-      return stream.errored
+      return abortReason
     },
     abort (reason) {
+      if (aborted) {
+        return
+      }
       aborted = true
-      stream.destroy(reason ?? new AbortError())
+      abortReason = reason ?? new AbortError()
+      stream.destroy(abortReason)
     }
   }
 

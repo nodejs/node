@@ -1,6 +1,7 @@
 'use strict'
 
 const util = require('../core/util')
+const { kRedirectCacheControl } = require('../core/symbols')
 const {
   parseCacheControlHeader,
   hasInvalidCacheControlDirective,
@@ -12,6 +13,63 @@ const {
 const { parseHttpDate } = require('../util/date.js')
 
 function noop () {}
+
+class CacheController {
+  #blocked = false
+  #downstreamPaused = false
+
+  constructor (target) {
+    this.target = target
+  }
+
+  block () {
+    this.#blocked = true
+  }
+
+  release () {
+    this.#blocked = false
+    if (!this.#downstreamPaused) {
+      this.target.resume()
+    }
+  }
+
+  pause () {
+    this.#downstreamPaused = true
+    this.target.pause()
+  }
+
+  resume () {
+    this.#downstreamPaused = false
+    if (!this.#blocked) {
+      this.target.resume()
+    }
+  }
+
+  abort (reason) {
+    this.target.abort(reason)
+  }
+
+  get paused () { return this.#downstreamPaused }
+  get aborted () { return this.target.aborted }
+  get reason () { return this.target.reason }
+  get rawHeaders () { return this.target.rawHeaders }
+  set rawHeaders (value) { this.target.rawHeaders = value }
+  get rawTrailers () { return this.target.rawTrailers }
+  set rawTrailers (value) { this.target.rawTrailers = value }
+}
+
+/**
+ * @param {string | URL} a
+ * @param {string | URL} b
+ * @returns {boolean}
+ */
+function sameOrigin (a, b) {
+  try {
+    return new URL(String(a)).origin === new URL(String(b)).origin
+  } catch {
+    return String(a) === String(b)
+  }
+}
 
 // Status codes that we can use some heuristics on to cache
 const HEURISTICALLY_CACHEABLE_STATUS_CODES = [
@@ -150,9 +208,22 @@ class CacheHandler {
   #handler
 
   /**
+   * @type {CacheController | undefined}
+   */
+  #downstreamController
+
+  /**
    * @type {import('node:stream').Writable | undefined}
    */
   #writeStream
+
+  /**
+   * The URLs visited while following redirects, shared by reference from the
+   * redirect handler through the request context. Carries the suppressed hops'
+   * cache-control under {@link kRedirectCacheControl}.
+   * @type {URL[] | undefined}
+   */
+  #history
 
   /**
    * @param {import('../../types/cache-interceptor.d.ts').default.CacheHandlerOptions} opts
@@ -170,7 +241,15 @@ class CacheHandler {
   onRequestStart (controller, context) {
     this.#writeStream?.destroy()
     this.#writeStream = undefined
-    this.#handler.onRequestStart?.(controller, context)
+    this.#downstreamController = new CacheController(controller)
+    // The redirect handler threads the list of visited URLs through the
+    // handler-chain context. Keep a reference to it (it is mutated as redirects
+    // are followed) so onResponseStart can tell which request actually produced
+    // the response. Unlike the request options object, this reference is not
+    // broken by an interceptor that copies the options between the cache and
+    // the redirect.
+    this.#history = context?.history
+    this.#handler.onRequestStart?.(this.#downstreamController, context)
   }
 
   onBodySent (chunk) {
@@ -181,8 +260,8 @@ class CacheHandler {
     this.#handler.onRequestSent?.()
   }
 
-  onRequestUpgrade (controller, statusCode, headers, socket) {
-    this.#handler.onRequestUpgrade?.(controller, statusCode, headers, socket)
+  onRequestUpgrade (_controller, statusCode, headers, socket) {
+    this.#handler.onRequestUpgrade?.(this.#downstreamController, statusCode, headers, socket)
   }
 
   /**
@@ -199,7 +278,7 @@ class CacheHandler {
   ) {
     const downstreamOnHeaders = () =>
       this.#handler.onResponseStart?.(
-        controller,
+        this.#downstreamController,
         statusCode,
         resHeaders,
         statusMessage
@@ -215,6 +294,35 @@ class CacheHandler {
       //  https://www.rfc-editor.org/rfc/rfc9111.html#name-invalidating-stored-response
       invalidateUnsafeRequest(this.#store, this.#cacheKey, resHeaders)
       return downstreamOnHeaders()
+    }
+
+    // A cross-origin redirect can change the origin that actually produced the
+    // final response. Keying that response on the original (trusted) origin
+    // would let a redirect target control an entry for a URL the application
+    // trusts. The final request is the last URL in the redirect history; only
+    // cache when its origin still matches the cache key origin.
+    if (this.#history && this.#history.length > 0) {
+      const finalUrl = this.#history[this.#history.length - 1]
+      if (!sameOrigin(finalUrl.origin, this.#cacheKey.origin)) {
+        return downstreamOnHeaders()
+      }
+    }
+
+    // A redirect hop that is not forwarded can still carry a restrictive
+    // storage policy (for example `no-store`, or `private` for a shared cache).
+    // Honor it, otherwise a redirect that must not be stored could be laundered
+    // into a cacheable final response under the original key.
+    const redirectCacheControl = this.#history?.[kRedirectCacheControl]
+    if (redirectCacheControl) {
+      for (const hopCacheControl of redirectCacheControl) {
+        const hopDirectives = hopCacheControl ? parseCacheControlHeader(hopCacheControl) : {}
+        if (
+          hopDirectives['no-store'] === true ||
+          (this.#cacheType === 'shared' && hopDirectives.private === true)
+        ) {
+          return downstreamOnHeaders()
+        }
+      }
     }
 
     const cacheControlHeader = resHeaders['cache-control']
@@ -323,10 +431,21 @@ class CacheHandler {
     // Not modified, re-use the cached value
     // https://www.rfc-editor.org/rfc/rfc9111.html#name-handling-304-not-modified
     if (statusCode === 304) {
+      let done = false
+      const finish304 = () => {
+        if (done) {
+          return
+        }
+        done = true
+        this.#downstreamController.release()
+      }
+
       const handle304 = (cachedValue) => {
         if (!cachedValue) {
           // Do not create a new cache entry, as a 304 won't have a body - so cannot be cached.
-          return downstreamOnHeaders()
+          downstreamOnHeaders()
+          finish304()
+          return
         }
 
         // Re-use the cached value: statuscode, statusmessage, headers and body
@@ -341,6 +460,7 @@ class CacheHandler {
         this.#writeStream = this.#store.createWriteStream(this.#cacheKey, value)
 
         if (!this.#writeStream || !cachedValue?.body) {
+          finish304()
           return
         }
 
@@ -348,20 +468,26 @@ class CacheHandler {
           const bodyIterator = cachedValue.body.values()
 
           const streamCachedBody = () => {
+            if (done) {
+              return
+            }
             for (const chunk of bodyIterator) {
-              const full = this.#writeStream.write(chunk) === false
-              this.#handler.onResponseData?.(controller, chunk)
+              const full = this.#writeStream?.write(chunk) === false
+              this.#handler.onResponseData?.(this.#downstreamController, chunk)
               // when stream is full stop writing until we get a 'drain' event
               if (full) {
-                break
+                return
               }
             }
+            finish304()
           }
 
           this.#writeStream
             .on('error', function () {
               handler.#writeStream = undefined
               handler.#store.delete(handler.#cacheKey)
+              // Keep replaying downstream without the store
+              streamCachedBody()
             })
             .on('drain', () => {
               streamCachedBody()
@@ -369,6 +495,8 @@ class CacheHandler {
             .on('close', function () {
               if (handler.#writeStream === this) {
                 handler.#writeStream = undefined
+                // Keep replaying downstream without the store
+                streamCachedBody()
               }
             })
 
@@ -377,15 +505,17 @@ class CacheHandler {
           // Readable stream body (e.g. from async/remote cache stores)
           cachedValue.body
             .on('data', (chunk) => {
-              this.#writeStream.write(chunk)
-              this.#handler.onResponseData?.(controller, chunk)
+              this.#writeStream?.write(chunk)
+              this.#handler.onResponseData?.(this.#downstreamController, chunk)
             })
             .on('end', () => {
-              this.#writeStream.end()
+              this.#writeStream?.end()
+              finish304()
             })
             .on('error', () => {
               this.#writeStream = undefined
               this.#store.delete(this.#cacheKey)
+              finish304()
             })
 
           this.#writeStream
@@ -398,6 +528,8 @@ class CacheHandler {
                 handler.#writeStream = undefined
               }
             })
+        } else {
+          finish304()
         }
       }
 
@@ -405,8 +537,14 @@ class CacheHandler {
        * @type {import('../../types/cache-interceptor.d.ts').default.CacheValue}
        */
       const result = this.#store.get(this.#cacheKey)
+      // A 304 ends before the cached body is replayed. Keep the origin
+      // response paused until replay is complete.
+      this.#downstreamController.block()
+      controller.pause()
       if (result && typeof result.then === 'function') {
-        result.then(handle304)
+        result.then(handle304, () => handle304(undefined)).catch((err) => {
+          controller.abort(err)
+        })
       } else {
         handle304(result)
       }
@@ -449,18 +587,18 @@ class CacheHandler {
       controller.pause()
     }
 
-    this.#handler.onResponseData?.(controller, chunk)
+    this.#handler.onResponseData?.(this.#downstreamController, chunk)
   }
 
   onResponseEnd (controller, trailers) {
     this.#writeStream?.end()
-    this.#handler.onResponseEnd?.(controller, trailers)
+    this.#handler.onResponseEnd?.(this.#downstreamController, trailers)
   }
 
   onResponseError (controller, err) {
     this.#writeStream?.destroy(err)
     this.#writeStream = undefined
-    this.#handler.onResponseError?.(controller, err)
+    this.#handler.onResponseError?.(this.#downstreamController, err)
   }
 }
 

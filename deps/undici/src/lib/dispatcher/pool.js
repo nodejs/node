@@ -10,14 +10,15 @@ const {
   kOnClientDrain,
   kGetDispatcher,
   kHasDispatcher,
-  kRemoveClient
+  kRemoveClient,
+  kRetireClient
 } = require('./pool-base')
 const Client = require('./client')
 const {
   InvalidArgumentError
 } = require('../core/errors')
 const util = require('../core/util')
-const { kConnecting, kHTTPContext, kUrl } = require('../core/symbols')
+const { kConnecting, kHTTPContext, kUrl, kQueued } = require('../core/symbols')
 const buildConnector = require('../core/connect')
 
 const kOptions = Symbol('options')
@@ -144,15 +145,17 @@ class Pool extends PoolBase {
           resumeQueued = true
         }
 
-        // Do not use kRemoveClient here, as it will close the client,
-        // but the client cannot be closed in this state.
-        const idx = this[kClients].indexOf(target)
-        if (idx !== -1) {
-          this[kClients].splice(idx, 1)
+        // Retire (close) the client rather than only dropping it from
+        // kClients: otherwise its drain listener keeps pulling requests from
+        // the pool queue onto a client that pool.destroy() can't reach.
+        if (this[kClients].includes(target)) {
+          this[kRetireClient](target)
         }
       }
 
-      if (resumeQueued) {
+      // The retired client no longer drains the pool queue, so hand any
+      // queued requests to another (possibly new) client.
+      if (resumeQueued || this[kQueued] > 0) {
         this[kDrainQueue](origin, targets.slice(1))
       }
     })

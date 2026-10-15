@@ -75,8 +75,11 @@ const release = async ({ github, context, versionTag, commitHash }) => {
       ref: `heads/release/${versionTag}`
     })
   } catch (err) {
-    console.log("Couldn't delete release PR ref")
-    console.log(err)
+    if (err.status === 422 && err.response?.data?.message === 'Reference does not exist') {
+      return
+    }
+
+    throw err
   }
 }
 

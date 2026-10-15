@@ -55,6 +55,17 @@ class MockAgent extends Dispatcher {
     }
   }
 
+  // WebSocket and EventSource read their receive limits from the dispatcher
+  // they are given, so report the settings of the agent that makes real
+  // connections.
+  get webSocketOptions () {
+    return this[kAgent].webSocketOptions
+  }
+
+  get eventSourceOptions () {
+    return this[kAgent].eventSourceOptions
+  }
+
   get (origin) {
     // Normalize origin to handle URL objects and case-insensitive hostnames
     const normalizedOrigin = normalizeOrigin(origin)

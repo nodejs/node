@@ -4,6 +4,7 @@ const assert = require('node:assert')
 const { kRetryHandlerDefaultRetry } = require('../core/symbols')
 const { RequestRetryError, RequestAbortedError } = require('../core/errors')
 const {
+  hasSafeIterator,
   isDisturbed,
   parseRangeHeader,
   wrapRequestBody
@@ -554,19 +555,9 @@ class RetryHandler {
 
   retry () {
     if (this.start !== 0) {
-      const headers = { range: `bytes=${this.start}-${this.end ?? ''}` }
-
-      // Weak etag check - weak etags will make comparison algorithms never match
-      if (this.etag != null) {
-        headers['if-match'] = this.etag
-      }
-
       this.opts = {
         ...this.opts,
-        headers: {
-          ...this.opts.headers,
-          ...headers
-        }
+        headers: buildResumeHeaders(this.opts.headers, `bytes=${this.start}-${this.end ?? ''}`, this.etag)
       }
     }
 
@@ -648,6 +639,48 @@ class RetryHandler {
     this.pendingResponseEnded = false
     this.handler.onResponseError?.(this.controllerProxy, reason ?? new RequestAbortedError())
   }
+}
+
+function isReplacedHeader (key, etag) {
+  const name = key.toLowerCase()
+  return name === 'range' || (etag != null && name === 'if-match')
+}
+
+function buildResumeHeaders (headers, range, etag) {
+  if (Array.isArray(headers) || (headers && typeof headers === 'object' && hasSafeIterator(headers))) {
+    const ret = []
+    if (Array.isArray(headers)) {
+      for (let i = 0; i < headers.length; i += 2) {
+        if (!isReplacedHeader(headers[i], etag)) {
+          ret.push(headers[i], headers[i + 1])
+        }
+      }
+    } else {
+      for (const [key, value] of headers) {
+        if (!isReplacedHeader(key, etag)) {
+          ret.push(key, value)
+        }
+      }
+    }
+    ret.push('range', range)
+    // Weak etag check - weak etags will make comparison algorithms never match
+    if (etag != null) {
+      ret.push('if-match', etag)
+    }
+    return ret
+  }
+
+  const ret = {}
+  for (const key in headers) {
+    if (Object.hasOwn(headers, key) && !isReplacedHeader(key, etag)) {
+      ret[key] = headers[key]
+    }
+  }
+  ret.range = range
+  if (etag != null) {
+    ret['if-match'] = etag
+  }
+  return ret
 }
 
 module.exports = RetryHandler

@@ -190,6 +190,16 @@ class DNSInstance {
           newOpts.affinity
         )
 
+        // The lookup succeeded, but nothing it returned is usable here: with
+        // dualStack disabled and an affinity set, records of the other family
+        // cannot be picked. Running the lookup again would return the same
+        // records, so report it the way an empty result is reported.
+        if (ip == null) {
+          this.storage.delete(origin.hostname)
+          cb(new InformationalError('No DNS entries found'))
+          return
+        }
+
         let port
         if (typeof ip.port === 'number') {
           port = `:${ip.port}`
@@ -346,6 +356,7 @@ class DNSInstance {
       // We delete expired records
       // It is possible that they have different TTL, so we manage them individually
       family.ips.splice(position, 1)
+      return this.pickFamily(origin, ipFamily)
     }
 
     return ip

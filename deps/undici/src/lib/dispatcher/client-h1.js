@@ -17,6 +17,7 @@ const {
   InformationalError,
   BodyTimeoutError,
   HTTPParserError,
+  WebAssemblyNotSupportedError,
   ResponseExceededMaxSizeError
 } = require('../core/errors.js')
 const {
@@ -51,10 +52,15 @@ const {
   kOnError,
   kResume,
   kHTTPContext,
-  kClosed
+  kClosed,
+  kUseMilo
 } = require('../core/symbols.js')
 
 const constants = require('../llhttp/constants.js')
+// Node.js core bundles only llhttp; experimental Milo remains available in npm builds.
+const { H1Parser, getMiloEnabled } = typeof esbuildDetection === 'undefined'
+  ? require('./parser-h1.js')
+  : {}
 const EMPTY_BUF = Buffer.alloc(0)
 const FastBuffer = Buffer[Symbol.species]
 const removeAllListeners = util.removeAllListeners
@@ -66,6 +72,11 @@ const kTypeOfService = Symbol('kTypeOfService')
 let extractBody
 
 function lazyllhttp () {
+  // Check only when HTTP/1 needs the parser, so other APIs remain usable without WASM.
+  if (typeof WebAssembly === 'undefined') {
+    throw new WebAssemblyNotSupportedError()
+  }
+
   const llhttpWasmData = process.env.JEST_WORKER_ID ? require('../llhttp/llhttp-wasm.js') : undefined
 
   let mod
@@ -88,8 +99,7 @@ function lazyllhttp () {
   if (useWasmSIMD) {
     try {
       mod = new WebAssembly.Module(require('../llhttp/llhttp_simd-wasm.js'))
-    } catch {
-    }
+    } catch {}
   }
 
   if (!mod) {
@@ -126,7 +136,7 @@ function lazyllhttp () {
        * @param {number} p
        * @returns {number}
        */
-      wasm_on_message_begin: (p) => {
+      wasm_on_message_begin: p => {
         assert(currentParser.ptr === p)
         return currentParser.onMessageBegin()
       },
@@ -178,11 +188,10 @@ function lazyllhttp () {
        * @param {number} p
        * @returns {number}
        */
-      wasm_on_message_complete: (p) => {
+      wasm_on_message_complete: p => {
         assert(currentParser.ptr === p)
         return currentParser.onMessageComplete()
       }
-
     }
   })
 }
@@ -215,10 +224,10 @@ const TIMEOUT_KEEP_ALIVE = 8 | USE_NATIVE_TIMER
 
 class Parser {
   /**
-     * @param {import('./client.js')} client
-     * @param {import('net').Socket} socket
-     * @param {*} llhttp
-     */
+   * @param {import('./client.js')} client
+   * @param {import('net').Socket} socket
+   * @param {*} llhttp
+   */
   constructor (client, socket, { exports }) {
     this.llhttp = exports
     this.ptr = this.llhttp.llhttp_alloc(constants.TYPE.RESPONSE)
@@ -245,7 +254,8 @@ class Parser {
 
     this.keepAlive = ''
     this.contentLength = -1
-    this.connectionKeepAlive = false
+    this.hasTransferEncoding = false
+    this.connection = ''
     this.maxResponseSize = client[kMaxResponseSize]
   }
 
@@ -253,10 +263,7 @@ class Parser {
     // If the existing timer and the new timer are of different timer type
     // (fast or native) or have different delay, we need to clear the existing
     // timer and set a new one.
-    if (
-      delay !== this.timeoutValue ||
-      (type & USE_FAST_TIMER) ^ (this.timeoutType & USE_FAST_TIMER)
-    ) {
+    if (delay !== this.timeoutValue || (type & USE_FAST_TIMER) ^ (this.timeoutType & USE_FAST_TIMER)) {
       // If a timeout is already set, clear it with clearTimeout of the fast
       // timer implementation, as it can clear fast and native timers.
       if (this.timeout) {
@@ -441,9 +448,7 @@ class Parser {
     if (ptr) {
       const len = new Uint8Array(llhttp.memory.buffer, ptr).indexOf(0)
       message =
-        'Response does not match the HTTP/1.1 protocol (' +
-        Buffer.from(llhttp.memory.buffer, ptr, len).toString() +
-        ')'
+        'Response does not match the HTTP/1.1 protocol (' + Buffer.from(llhttp.memory.buffer, ptr, len).toString() + ')'
     }
 
     return new HTTPParserError(message, constants.ERROR[ret], data)
@@ -521,6 +526,7 @@ class Parser {
    */
   onHeaderValue (buf) {
     let len = this.headers.length
+    const isContinuation = (len & 1) === 0
 
     if ((len & 1) === 1) {
       this.headers.push(buf)
@@ -533,19 +539,19 @@ class Parser {
     if (key.length === 10) {
       const headerName = util.bufferToLowerCasedHeaderName(key)
       if (headerName === 'keep-alive') {
-        this.keepAlive += buf.toString()
+        this.keepAlive += (isContinuation || this.keepAlive.length === 0 ? '' : ',') + buf.toString()
       } else if (headerName === 'connection') {
-        this.connectionKeepAlive =
-          this.headers[len - 1].length === 10 &&
-          util.bufferToLowerCasedHeaderName(this.headers[len - 1]) === 'keep-alive'
+        this.connection += (isContinuation || this.connection.length === 0 ? '' : ',') + buf.toString()
       }
     } else if (key.length === 14 && util.bufferToLowerCasedHeaderName(key) === 'content-length') {
       if (this.contentLength === -1) {
         this.contentLength = 0
       }
       for (let i = 0; i < buf.length; i++) {
-        this.contentLength = (this.contentLength * 10) + (buf[i] - 0x30)
+        this.contentLength = this.contentLength * 10 + (buf[i] - 0x30)
       }
+    } else if (key.length === 17 && util.bufferToLowerCasedHeaderName(key) === 'transfer-encoding') {
+      this.hasTransferEncoding = true
     }
 
     this.trackHeader(buf.length)
@@ -652,16 +658,27 @@ class Parser {
     assert(this.timeoutType === TIMEOUT_HEADERS)
 
     this.statusCode = statusCode
-    this.shouldKeepAlive = (
+    this.shouldKeepAlive =
       shouldKeepAlive ||
       // Override llhttp value which does not allow keepAlive for HEAD.
-      (request.method === 'HEAD' && !socket[kReset] && this.connectionKeepAlive)
-    )
+      (request.method === 'HEAD' && !socket[kReset] &&
+        /(?:^|,)[\t ]*keep-alive[\t ]*(?:,|$)/i.test(this.connection) &&
+        !/(?:^|,)[\t ]*close[\t ]*(?:,|$)/i.test(this.connection))
+
+    // Responses to HEAD and 204/304 responses never carry content
+    if (request.method === 'HEAD' || statusCode === 204 || statusCode === 304) {
+      // A non-zero Content-Length or Transfer-Encoding on a 204/304 means the
+      // server may also have sent content inappropriately, which would then be
+      // parsed as the next response on this connection. Accept it, but do not
+      // reuse the connection. HEAD requests are fine tho.
+      if (request.method !== 'HEAD' && (this.contentLength > 0 || this.hasTransferEncoding)) {
+        this.shouldKeepAlive = false
+      }
+      this.contentLength = -1
+    }
 
     if (this.statusCode >= 200) {
-      const bodyTimeout = request.bodyTimeout != null
-        ? request.bodyTimeout
-        : client[kBodyTimeout]
+      const bodyTimeout = request.bodyTimeout != null ? request.bodyTimeout : client[kBodyTimeout]
       this.setTimeout(bodyTimeout, TIMEOUT_BODY)
     } else if (this.timeout) {
       if (this.timeout.refresh) {
@@ -689,10 +706,7 @@ class Parser {
       const keepAliveTimeout = this.keepAlive ? util.parseKeepAliveTimeout(this.keepAlive) : null
 
       if (keepAliveTimeout != null) {
-        const timeout = Math.min(
-          keepAliveTimeout - client[kKeepAliveTimeoutThreshold],
-          client[kKeepAliveMaxTimeout]
-        )
+        const timeout = Math.min(keepAliveTimeout - client[kKeepAliveTimeoutThreshold], client[kKeepAliveMaxTimeout])
         if (timeout <= 0) {
           socket[kReset] = true
         } else {
@@ -789,8 +803,9 @@ class Parser {
     this.statusText = ''
     this.bytesRead = 0
     this.contentLength = -1
+    this.hasTransferEncoding = false
     this.keepAlive = ''
-    this.connectionKeepAlive = false
+    this.connection = ''
 
     this.headers = []
     this.headersSize = 0
@@ -799,7 +814,7 @@ class Parser {
       return 0
     }
 
-    if (request.method !== 'HEAD' && contentLength !== -1 && bytesRead !== contentLength) {
+    if (contentLength !== -1 && bytesRead !== contentLength) {
       util.destroy(socket, new ResponseContentLengthMismatchError())
       return -1
     }
@@ -887,7 +902,9 @@ function connectH1 (client, socket) {
   socket[kIdleSocketValidation] = 0
   socket[kIdleSocketValidationTimeout] = null
   socket[kSocketUsed] = false
-  socket[kParser] = new Parser(client, socket, llhttpInstance)
+  socket[kParser] = typeof esbuildDetection === 'undefined' && (client[kUseMilo] ?? getMiloEnabled())
+    ? new H1Parser(client, socket)
+    : new Parser(client, socket, llhttpInstance)
 
   util.addListener(socket, 'error', onHttpSocketError)
   util.addListener(socket, 'readable', onHttpSocketReadable)
@@ -948,8 +965,11 @@ function connectH1 (client, socket) {
           return true
         }
 
-        if (client[kRunning] > 0 && util.bodyLength(request.body) !== 0 &&
-          (util.isStream(request.body) || util.isAsyncIterable(request.body) || util.isFormDataLike(request.body))) {
+        if (
+          client[kRunning] > 0 &&
+          util.bodyLength(request.body) !== 0 &&
+          (util.isStream(request.body) || util.isAsyncIterable(request.body) || util.isFormDataLike(request.body))
+        ) {
           // Request with stream or iterator body can error while other requests
           // are inflight and indirectly error those as well.
           // Ensure this doesn't happen by waiting for inflight
@@ -968,8 +988,6 @@ function connectH1 (client, socket) {
 }
 
 function onHttpSocketError (err) {
-  assert(err.code !== 'ERR_TLS_CERT_ALTNAME_INVALID')
-
   const parser = this[kParser]
 
   // On Mac OS, we get an ECONNRESET even if there is a full body to be forwarded
@@ -1137,9 +1155,7 @@ function resumeH1 (client) {
     } else if (client[kRunning] > 0 && socket[kParser].statusCode < 200) {
       if (socket[kParser].timeoutType !== TIMEOUT_HEADERS) {
         const request = client[kQueue][client[kRunningIdx]]
-        const headersTimeout = request.headersTimeout != null
-          ? request.headersTimeout
-          : client[kHeadersTimeout]
+        const headersTimeout = request.headersTimeout != null ? request.headersTimeout : client[kHeadersTimeout]
         socket[kParser].setTimeout(headersTimeout, TIMEOUT_HEADERS)
       }
     }
@@ -1196,14 +1212,13 @@ function writeH1 (client, request) {
   // servers and corrupt connection state. Do not
   // re-use the connection for further requests.
 
-  const expectsPayload = (
+  const expectsPayload =
     method === 'PUT' ||
     method === 'POST' ||
     method === 'PATCH' ||
     method === 'QUERY' ||
     method === 'PROPFIND' ||
     method === 'PROPPATCH'
-  )
 
   if (util.isFormDataLike(body)) {
     if (!extractBody) {
@@ -1252,7 +1267,12 @@ function writeH1 (client, request) {
 
   // https://github.com/nodejs/undici/issues/2046
   // A user agent may send a Content-Length header with 0 value, this should be allowed.
-  if (shouldSendContentLength(method) && contentLength > 0 && request.contentLength !== null && request.contentLength !== contentLength) {
+  if (
+    shouldSendContentLength(method) &&
+    contentLength > 0 &&
+    request.contentLength !== null &&
+    request.contentLength !== contentLength
+  ) {
     if (client[kStrictContentLength]) {
       util.errorRequest(client, request, new RequestContentLengthMismatchError())
       return false
@@ -1268,7 +1288,7 @@ function writeH1 (client, request) {
    * @param {Error} [err]
    * @returns {void}
    */
-  const abort = (err) => {
+  const abort = err => {
     if (request.aborted || request.completed) {
       return
     }
@@ -1453,14 +1473,9 @@ function writeStream (abort, body, client, request, socket, contentLength, heade
 
     assert(socket.destroyed || (socket[kWriting] && client[kRunning] <= 1))
 
-    socket
-      .off('drain', onDrain)
-      .off('error', onFinished)
+    socket.off('drain', onDrain).off('error', onFinished)
 
-    body
-      .removeListener('data', onData)
-      .removeListener('end', onFinished)
-      .removeListener('close', onClose)
+    body.removeListener('data', onData).removeListener('end', onFinished).removeListener('close', onClose)
 
     if (!err) {
       try {
@@ -1479,19 +1494,13 @@ function writeStream (abort, body, client, request, socket, contentLength, heade
     }
   }
 
-  body
-    .on('data', onData)
-    .on('end', onFinished)
-    .on('error', onFinished)
-    .on('close', onClose)
+  body.on('data', onData).on('end', onFinished).on('error', onFinished).on('close', onClose)
 
   if (body.resume) {
     body.resume()
   }
 
-  socket
-    .on('drain', onDrain)
-    .on('error', onFinished)
+  socket.on('drain', onDrain).on('error', onFinished)
 
   if (body.errorEmitted ?? body.errored) {
     setImmediate(onFinished, body.errored)
@@ -1612,19 +1621,18 @@ async function writeIterable (abort, body, client, request, socket, contentLengt
     }
   }
 
-  const waitForDrain = () => new Promise((resolve, reject) => {
-    assert(callback === null)
+  const waitForDrain = () =>
+    new Promise((resolve, reject) => {
+      assert(callback === null)
 
-    if (socket[kError]) {
-      reject(socket[kError])
-    } else {
-      callback = resolve
-    }
-  })
+      if (socket[kError]) {
+        reject(socket[kError])
+      } else {
+        callback = resolve
+      }
+    })
 
-  socket
-    .on('close', onDrain)
-    .on('drain', onDrain)
+  socket.on('close', onDrain).on('drain', onDrain)
 
   const writer = new AsyncWriter({ abort, socket, request, contentLength, client, expectsPayload, header })
   try {
@@ -1643,9 +1651,7 @@ async function writeIterable (abort, body, client, request, socket, contentLengt
   } catch (err) {
     writer.destroy(err)
   } finally {
-    socket
-      .off('close', onDrain)
-      .off('drain', onDrain)
+    socket.off('close', onDrain).off('drain', onDrain)
   }
 }
 
@@ -1670,8 +1676,25 @@ class AsyncWriter {
     this.expectsPayload = expectsPayload
     this.header = header
     this.abort = abort
+    this.lengthMismatch = false
 
     socket[kWriting] = true
+  }
+
+  /**
+   * The body doesn't match the declared content-length and strictContentLength
+   * is off. Warn once, and mark the socket so it isn't reused: on the wire this
+   * request's body no longer ends where the server expects, so anything sent
+   * after it on the same connection would be misread.
+   * @returns {void}
+   */
+  onLengthMismatch () {
+    this.socket[kReset] = true
+
+    if (!this.lengthMismatch) {
+      this.lengthMismatch = true
+      process.emitWarning(new RequestContentLengthMismatchError())
+    }
   }
 
   /**
@@ -1689,7 +1712,7 @@ class AsyncWriter {
       return false
     }
 
-    const len = chunk instanceof Uint8Array ? chunk.byteLength : Buffer.byteLength(chunk)
+    let len = chunk instanceof Uint8Array ? chunk.byteLength : Buffer.byteLength(chunk)
     if (!len) {
       return true
     }
@@ -1700,7 +1723,17 @@ class AsyncWriter {
         throw new RequestContentLengthMismatchError()
       }
 
-      process.emitWarning(new RequestContentLengthMismatchError())
+      this.onLengthMismatch()
+
+      // Never write past the declared content-length. The server treats any
+      // extra bytes as the start of the next request, so a body could inject
+      // a request of its own (request smuggling).
+      const remaining = contentLength - bytesWritten
+      if (remaining === 0) {
+        return true
+      }
+      chunk = (typeof chunk === 'string' ? Buffer.from(chunk) : chunk).subarray(0, remaining)
+      len = remaining
     }
 
     socket.cork()
@@ -1775,9 +1808,12 @@ class AsyncWriter {
     if (contentLength !== null && bytesWritten !== contentLength) {
       if (client[kStrictContentLength]) {
         throw new RequestContentLengthMismatchError()
-      } else {
-        process.emitWarning(new RequestContentLengthMismatchError())
       }
+
+      // The body is shorter than declared, so the server is still waiting for
+      // the rest. Don't let the next request's bytes on this connection be
+      // read as the missing part of this body.
+      this.onLengthMismatch()
     }
 
     if (socket[kParser].timeout && socket[kParser].timeoutType === TIMEOUT_HEADERS) {
