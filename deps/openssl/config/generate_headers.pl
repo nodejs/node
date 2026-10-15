@@ -10,6 +10,7 @@ our $src_dir = "../openssl";
 my @openssl_headers = shift @ARGV;
 my @crypto_headers = shift @ARGV;
 my @internal_headers = shift @ARGV;
+my @common_headers = split / /, (shift @ARGV || '');
 
 my $include_tmpl = Text::Template->new(TYPE => 'FILE',
                                        SOURCE => 'include.h.tmpl',
@@ -27,6 +28,17 @@ my $include_no_asm_tmpl = Text::Template->new(TYPE => 'FILE',
 gen_headers(@openssl_headers, 'openssl');
 gen_headers(@crypto_headers, 'crypto');
 gen_headers(@internal_headers, 'internal');
+
+foreach my $header (@common_headers) {
+  my ($inc_dir, $name) = $header =~ m|^include/([^/]+)/(.+)\.h$|;
+  my $wrapper_name = "${inc_dir}_${name}";
+  open my $include, '>', "$src_dir/$header" or die "Open $header failed: $!";
+  print $include $include_tmpl->fill_in(HASH => { name => $wrapper_name });
+  close $include;
+  open my $wrapper, '>', "./${wrapper_name}.h" or die "Open $wrapper_name failed: $!";
+  print $wrapper "#include \"common/$header\"\n";
+  close $wrapper;
+}
 
 sub gen_headers {
   my @headers = split / /, $_[0];

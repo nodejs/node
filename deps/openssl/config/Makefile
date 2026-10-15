@@ -45,7 +45,7 @@ OPSSL_SRC = ../openssl
 # Header files generated with Configure
 #INT_CFGS = dso_conf.h
 INT_CFG_DIR = $(OPSSL_SRC)/include/crypto
-GEN_HEADERS = asn1 asn1t bio comp cmp cms conf configuration core_names crmf \
+GEN_HEADERS = asn1 asn1t bio comp cmp cms conf configuration crmf \
               crypto ct err ess fipskey lhash ocsp opensslv pkcs12 pkcs7 \
               safestack srp ssl ui x509_acert x509 x509v3 x509_vfy
 
@@ -82,6 +82,7 @@ generate_headers:
 	@$(PERL) -w -I$(OPSSL_SRC) ./generate_headers.pl "${GEN_HEADERS}" "${CRYPTO_GEN_HEADERS}" "${INTERNAL_GEN_HEADERS}"
 
 clean:
+	rm -rf common
 	find . -maxdepth 1 -name \*.h ! -name opensslconf_asm.h -exec rm "{}" \;
 	find archs \( -name \*.S -o -name \*.s -o -name \*.asm -o \
 	-name \*.gypi -o -name \*.h -o -name \*.c -o -name \*.inc -o -name \*.pm -o -name \*.rc \) -exec rm "{}" \;

@@ -74,7 +74,8 @@ cherry-picked to older release lines that still provide binaries on 32-bit Windo
 ```
 
 Use `make` to regenerate all platform dependent files in
-`deps/openssl/config/archs/`:
+`deps/openssl/config/archs/` and shared generated files in
+`deps/openssl/config/common/`:
 
 ```bash
 # On non-Linux machines
@@ -108,7 +109,7 @@ Update all architecture dependent files. Do not forget to git add or remove
 files if they are changed before committing:
 
 ```bash
-git add -A deps/openssl/config/archs
+git add -A deps/openssl/config
 git add -A deps/openssl/openssl
 git commit
 ```
@@ -122,7 +123,7 @@ deps: update archs files for openssl-<version>
 After an OpenSSL source update, all the config files need to be
 regenerated and committed by:
     $ make -C deps/openssl/config
-    $ git add -A deps/openssl/config/archs
+    $ git add -A deps/openssl/config
     $ git add -A deps/openssl/openssl
     $ git commit
 ```
