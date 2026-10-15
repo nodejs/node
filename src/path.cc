@@ -264,9 +264,20 @@ std::string PathResolve(Environment* env,
 void ToNamespacedPath(Environment* env, BufferValue* path) {
 #ifdef _WIN32
   if (path->length() == 0) return;
-  std::string resolved_path = node::PathResolve(env, {path->ToStringView()});
+  std::string namespaced = ToNamespacedPath(env, path->ToStringView());
+  size_t new_length = namespaced.size();
+  path->AllocateSufficientStorage(new_length + 1);
+  path->SetLength(new_length);
+  memcpy(path->out(), namespaced.c_str(), new_length + 1);
+#endif
+}
+
+std::string ToNamespacedPath(Environment* env, std::string_view path) {
+#ifdef _WIN32
+  if (path.empty()) return std::string();
+  std::string resolved_path = node::PathResolve(env, {path});
   if (resolved_path.size() <= 2) {
-    return;
+    return std::string(path);
   }
 
   // SAFETY: We know that resolved_path.size() > 2, therefore accessing [0],
@@ -277,34 +288,19 @@ void ToNamespacedPath(Environment* env, BufferValue* path) {
       if (resolved_path[2] != '?' && resolved_path[2] != '.') {
         // Matched non-long UNC root, convert the path to a long UNC path
         std::string_view unc_prefix = R"(\\?\UNC\)";
-        size_t new_length = unc_prefix.size() + resolved_path.size() - 2;
-        path->AllocateSufficientStorage(new_length + 1);
-        path->SetLength(new_length);
-        memcpy(path->out(), unc_prefix.data(), unc_prefix.size());
-        memcpy(path->out() + unc_prefix.size(),
-               resolved_path.c_str() + 2,
-               resolved_path.size() - 2 + 1);
-        return;
+        return std::string(unc_prefix) + resolved_path.substr(2);
       }
     }
   } else if (IsWindowsDeviceRoot(resolved_path[0]) && resolved_path[1] == ':' &&
              resolved_path[2] == '\\') {
     // Matched device root, convert the path to a long UNC path
     std::string_view new_prefix = R"(\\?\)";
-    size_t new_length = new_prefix.size() + resolved_path.size();
-    path->AllocateSufficientStorage(new_length + 1);
-    path->SetLength(new_length);
-    memcpy(path->out(), new_prefix.data(), new_prefix.size());
-    memcpy(path->out() + new_prefix.size(),
-           resolved_path.c_str(),
-           resolved_path.size() + 1);
-    return;
+    return std::string(new_prefix) + resolved_path;
   }
 
-  size_t new_length = resolved_path.size();
-  path->AllocateSufficientStorage(new_length + 1);
-  path->SetLength(new_length);
-  memcpy(path->out(), resolved_path.c_str(), resolved_path.size() + 1);
+  return resolved_path;
+#else
+  return std::string(path);
 #endif
 }
 

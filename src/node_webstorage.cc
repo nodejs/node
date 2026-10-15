@@ -8,6 +8,7 @@
 #include "node.h"
 #include "node_errors.h"
 #include "node_mem-inl.h"
+#include "node_realm-inl.h"
 #include "path.h"
 #include "simdutf.h"
 #include "sqlite3.h"
@@ -98,6 +99,14 @@ static void ThrowQuotaExceededException(Local<Context> context) {
   isolate->ThrowException(exception);
 }
 
+BindingData::BindingData(Realm* realm, Local<Object> wrap)
+    : BaseObject(realm, wrap) {}
+
+void BindingData::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("local_storage", local_storage);
+  tracker->TrackField("session_storage", session_storage);
+}
+
 Storage::Storage(Environment* env,
                  Local<Object> object,
                  std::string_view location)
@@ -117,7 +126,8 @@ void Storage::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("location", location_);
 }
 
-Maybe<void> Storage::Open() {
+conn_unique_ptr Storage::OpenConnection(std::string_view location,
+                                        std::string* error) {
   static const int kCurrentSchemaVersion = 1;
   static constexpr std::string_view get_schema_version_sql =
       "SELECT schema_version FROM nodejs_webstorage_state";
@@ -180,21 +190,24 @@ Maybe<void> Storage::Open() {
       ""
       "INSERT OR IGNORE INTO nodejs_webstorage_state (total_size) VALUES (0);";
 
-  sqlite3* db = db_.get();
-  if (db != nullptr) {
-    return JustVoid();
-  }
-
-  int r = sqlite3_open(location_.c_str(), &db);
+  sqlite3* db = nullptr;
+  std::string loc(location);
+  int r = sqlite3_open(loc.c_str(), &db);
   // Adopt the connection before anything below can return early, so that a
   // failure does not leak it. sqlite3_open() allocates a connection to be
   // closed even when it fails. This is declared ahead of the statement below
   // so that the statement is finalized first; sqlite3_close() fails while a
   // statement is still open, and conn_deleter treats that as fatal.
   auto conn = conn_unique_ptr(db);
-  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
+  if (r != SQLITE_OK) {
+    if (error != nullptr) *error = sqlite3_errstr(r);
+    return nullptr;
+  }
   r = sqlite3_exec(db, init_sql_v0.data(), nullptr, nullptr, nullptr);
-  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
+  if (r != SQLITE_OK) {
+    if (error != nullptr) *error = sqlite3_errstr(r);
+    return nullptr;
+  }
 
   // Get the current schema version, used to determine schema migrations.
   sqlite3_stmt* s = nullptr;
@@ -204,22 +217,30 @@ Maybe<void> Storage::Open() {
                          &s,
                          nullptr);
   auto stmt = stmt_unique_ptr(s);
-  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
-  CHECK_ERROR_OR_THROW(
-      env(), sqlite3_step(stmt.get()), SQLITE_ROW, Nothing<void>());
-  CHECK_COLUMN_TYPE_OR_THROW(env(),
-                             stmt.get(),
-                             0,
-                             SQLITE_INTEGER,
-                             "expected schema_version to be an integer",
-                             Nothing<void>());
+  if (r != SQLITE_OK) {
+    if (error != nullptr) *error = sqlite3_errstr(r);
+    return nullptr;
+  }
+  r = sqlite3_step(stmt.get());
+  if (r != SQLITE_ROW) {
+    if (error != nullptr) *error = sqlite3_errstr(r);
+    return nullptr;
+  }
+  if (sqlite3_column_type(stmt.get(), 0) != SQLITE_INTEGER) {
+    if (error != nullptr) {
+      *error = "localStorage database is malformed: "
+               "expected schema_version to be an integer";
+    }
+    return nullptr;
+  }
   int schema_version = sqlite3_column_int(stmt.get(), 0);
   stmt = nullptr;  // Force finalization.
 
   if (schema_version > kCurrentSchemaVersion) {
-    THROW_ERR_INVALID_STATE(
-        env(), "localStorage was created with a newer version of Node.js");
-    return Nothing<void>();
+    if (error != nullptr) {
+      *error = "localStorage was created with a newer version of Node.js";
+    }
+    return nullptr;
   }
 
   if (schema_version < kCurrentSchemaVersion) {
@@ -229,10 +250,25 @@ Maybe<void> Storage::Open() {
         std::to_string(kCurrentSchemaVersion) + ";";
     r = sqlite3_exec(
         db, set_user_version_sql.c_str(), nullptr, nullptr, nullptr);
-    CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
+    if (r != SQLITE_OK) {
+      if (error != nullptr) *error = sqlite3_errstr(r);
+      return nullptr;
+    }
   }
 
-  db_ = std::move(conn);
+  return conn;
+}
+
+Maybe<void> Storage::Open() {
+  if (db_ != nullptr) {
+    return JustVoid();
+  }
+  std::string error;
+  db_ = OpenConnection(location_, &error);
+  if (db_ == nullptr) {
+    THROW_ERR_INVALID_STATE(env(), "%s", error.c_str());
+    return Nothing<void>();
+  }
   return JustVoid();
 }
 
@@ -255,7 +291,15 @@ void Storage::New(const FunctionCallbackInfo<Value>& args) {
     ToNamespacedPath(env, &location);
   }
 
-  new Storage(env, args.This(), location.ToStringView());
+  Storage* storage = new Storage(env, args.This(), location.ToStringView());
+  // The inspector subclasses pass whether this is localStorage, which the
+  // location cannot tell: --localstorage-file=:memory: is valid too.
+  BindingData* binding_data = realm->GetBindingData<BindingData>();
+  if (binding_data != nullptr && args[2]->IsBoolean()) {
+    auto& slot = args[2]->IsTrue() ? binding_data->local_storage
+                                   : binding_data->session_storage;
+    slot = BaseObjectWeakPtr<Storage>(storage);
+  }
 }
 
 Maybe<void> Storage::Clear() {
@@ -310,23 +354,18 @@ MaybeLocal<Array> Storage::Enumerate() {
   return Array::New(env()->isolate(), values.data(), values.size());
 }
 
-std::optional<std::unordered_map<std::u16string, std::u16string>>
-Storage::GetAll() {
-  if (!Open().IsJust()) {
-    return std::nullopt;
-  }
-
+static std::optional<Storage::StorageMap> ReadAllFromDb(sqlite3* db) {
   static constexpr std::string_view sql =
       "SELECT key, value FROM nodejs_webstorage";
   sqlite3_stmt* s = nullptr;
-  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, nullptr);
+  int r = sqlite3_prepare_v2(db, sql.data(), sql.size(), &s, nullptr);
   auto stmt = stmt_unique_ptr(s);
   // Unlike the other accessors, this one has no JavaScript caller to throw at,
   // so every failure below is reported to the inspector agent instead.
   if (r != SQLITE_OK) {
     return std::nullopt;
   }
-  std::unordered_map<std::u16string, std::u16string> result;
+  Storage::StorageMap result;
   while ((r = sqlite3_step(stmt.get())) == SQLITE_ROW) {
     if (sqlite3_column_type(stmt.get(), 0) != SQLITE_BLOB ||
         sqlite3_column_type(stmt.get(), 1) != SQLITE_BLOB) {
@@ -348,6 +387,25 @@ Storage::GetAll() {
     return std::nullopt;
   }
   return result;
+}
+
+std::optional<Storage::StorageMap> Storage::GetAll(std::string* error) {
+  if (db_ == nullptr) {
+    db_ = OpenConnection(location_, error);
+    if (db_ == nullptr) {
+      return std::nullopt;
+    }
+  }
+  return ReadAllFromDb(db_.get());
+}
+
+std::optional<Storage::StorageMap> Storage::ReadAllFromFile(
+    std::string_view location, std::string* error) {
+  conn_unique_ptr conn = OpenConnection(location, error);
+  if (conn == nullptr) {
+    return std::nullopt;
+  }
+  return ReadAllFromDb(conn.get());
 }
 
 MaybeLocal<Value> Storage::Length() {
@@ -762,8 +820,13 @@ static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
                        void* priv) {
-  Environment* env = Environment::GetCurrent(context);
+  Realm* realm = Realm::GetCurrent(context);
+  Environment* env = realm->env();
   Isolate* isolate = env->isolate();
+  Realm* principal = env->principal_realm();
+  if (principal->GetBindingData<BindingData>() == nullptr) {
+    principal->AddBindingData<BindingData>(target);
+  }
   auto ctor_tmpl = NewFunctionTemplate(isolate, Storage::New);
   auto inst_tmpl = ctor_tmpl->InstanceTemplate();
 
