@@ -472,7 +472,7 @@ const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
   })).unref();
 }
 
-// The subject MUST NOT be ignored if no dNSName subject alternative name
+// TLS MUST NOT ignore the subject if no dNSName subject alternative name
 // exists, even if other subject alternative names exist.
 {
   const key = fixtures.readKey('irrelevant_san_correct_subject-key.pem');
@@ -485,13 +485,12 @@ const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
   assert.strictEqual(certX509.subjectAltName, 'IP Address:1.2.3.4');
 
   // The newer X509Certificate API allows customizing this behavior:
-  const cnFallback = isBoringSSL ? undefined :
-    servername;
+  const cnFallback = isBoringSSL || hasOpenSSL(4, 1) ? undefined : servername;
   assert.strictEqual(certX509.checkHost(servername), cnFallback);
   assert.strictEqual(certX509.checkHost(servername, { subject: 'default' }),
                      cnFallback);
   assert.strictEqual(certX509.checkHost(servername, { subject: 'always' }),
-                     cnFallback);
+                     isBoringSSL ? undefined : servername);
   assert.strictEqual(certX509.checkHost(servername, { subject: 'never' }),
                      undefined);
 
