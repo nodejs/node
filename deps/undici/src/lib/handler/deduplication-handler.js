@@ -16,6 +16,7 @@ const DEFAULT_MAX_BUFFER_SIZE = 5 * 1024 * 1024
  * @property {number} bufferedBytes
  * @property {object | null} pendingTrailers
  * @property {boolean} done
+ * @property {boolean} [pendingStart] onRequestStart deferred until the primary request's context is known
  */
 
 /**
@@ -29,6 +30,20 @@ class DeduplicationHandler {
    * @type {DispatchHandler}
    */
   #primaryHandler
+
+  /**
+   * Whether the primary request has started (onRequestStart received). Until
+   * then the request context is unknown and cannot be given to waiting handlers.
+   * @type {boolean}
+   */
+  #requestStarted = false
+
+  /**
+   * The primary request context, replayed to waiting handlers so they observe
+   * the same redirect history as the primary.
+   * @type {any}
+   */
+  #context = null
 
   /**
    * @type {WaitingHandler[]}
@@ -112,20 +127,30 @@ class DeduplicationHandler {
     const waitingController = waitingHandler.controller
 
     try {
-      handler.onRequestStart?.(waitingController, null)
+      if (this.#requestStarted) {
+        // The primary request has started, so its context (including the
+        // redirect history) is known and can be delivered immediately.
+        handler.onRequestStart?.(waitingController, this.#context)
 
-      if (waitingController.aborted) {
-        waitingHandler.done = true
-        return true
-      }
+        if (waitingController.aborted) {
+          waitingHandler.done = true
+          return true
+        }
 
-      if (this.#responseStarted) {
-        handler.onResponseStart?.(
-          waitingController,
-          this.#statusCode,
-          this.#headers,
-          this.#statusMessage
-        )
+        if (this.#responseStarted) {
+          handler.onResponseStart?.(
+            waitingController,
+            this.#statusCode,
+            this.#headers,
+            this.#statusMessage
+          )
+        }
+      } else {
+        // The primary request has not started yet. Defer onRequestStart until
+        // its context is known, so the waiting handler observes the same
+        // redirect history as the primary (a cache handler relies on it to
+        // reject cross-origin redirect responses).
+        waitingHandler.pendingStart = true
       }
     } catch {
       // Ignore errors from waiting handlers
@@ -146,6 +171,24 @@ class DeduplicationHandler {
    */
   onRequestStart (controller, context) {
     this.#controller = controller
+    if (!this.#requestStarted) {
+      this.#requestStarted = true
+      this.#context = context
+      // Deliver the now-known context to handlers that joined before the
+      // primary request started.
+      for (const waitingHandler of this.#waitingHandlers) {
+        if (waitingHandler.pendingStart && !waitingHandler.done && !waitingHandler.controller.aborted) {
+          waitingHandler.pendingStart = false
+          try {
+            waitingHandler.handler.onRequestStart?.(waitingHandler.controller, context)
+          } catch {
+            // Ignore errors from waiting handlers
+            waitingHandler.done = true
+          }
+        }
+      }
+      this.#pruneDoneWaitingHandlers()
+    }
     this.#primaryHandler.onRequestStart?.(controller, context)
   }
 
@@ -319,7 +362,8 @@ class DeduplicationHandler {
       bufferedChunks: [],
       bufferedBytes: 0,
       pendingTrailers: null,
-      done: false
+      done: false,
+      pendingStart: false
     }
 
     const state = {

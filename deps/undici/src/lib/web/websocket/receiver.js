@@ -244,6 +244,19 @@ class ByteParser extends Writable {
         if (isControlFrame(this.#info.opcode)) {
           this.#loop = this.parseControlFrame(body)
           this.#state = parserStates.INFO
+
+          // If the automatic PONG/CLOSE reply filled the socket's write buffer,
+          // stop parsing and resume on drain so a PING flood cannot grow the
+          // outbound queue without bound.
+          if (this.#loop && this.#handler.socket.writableNeedDrain) {
+            this.#loop = false
+            this.#handler.socket.once('drain', () => {
+              if (this.destroyed) return
+              this.#loop = true
+              this.run(callback)
+            })
+            return
+          }
         } else {
           if (!this.#info.compressed) {
             if (!this.writeFragments(body)) {
