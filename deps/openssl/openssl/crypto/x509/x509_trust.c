@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,12 +15,12 @@
 static int tr_cmp(const X509_TRUST *const *a, const X509_TRUST *const *b);
 static void trtable_free(X509_TRUST *p);
 
-static int trust_1oidany(X509_TRUST *trust, X509 *x, int flags);
-static int trust_1oid(X509_TRUST *trust, X509 *x, int flags);
-static int trust_compat(X509_TRUST *trust, X509 *x, int flags);
+static int trust_1oidany(X509_TRUST *trust, const X509 *x, int flags);
+static int trust_1oid(X509_TRUST *trust, const X509 *x, int flags);
+static int trust_compat(X509_TRUST *trust, const X509 *x, int flags);
 
-static int obj_trust(int id, X509 *x, int flags);
-static int (*default_trust)(int id, X509 *x, int flags) = obj_trust;
+static int obj_trust(int id, const X509 *x, int flags);
+static int (*default_trust)(int id, const X509 *x, int flags) = obj_trust;
 
 /*
  * WARNING: the following table should be kept in order of trust and without
@@ -54,17 +54,17 @@ static int tr_cmp(const X509_TRUST *const *a, const X509_TRUST *const *b)
     return (*a)->trust - (*b)->trust;
 }
 
-int (*X509_TRUST_set_default(int (*trust)(int, X509 *, int)))(int, X509 *,
+int (*X509_TRUST_set_default(int (*trust)(int, const X509 *, int)))(int, const X509 *,
     int)
 {
-    int (*oldtrust)(int, X509 *, int);
+    int (*oldtrust)(int, const X509 *, int);
     oldtrust = default_trust;
     default_trust = trust;
     return oldtrust;
 }
 
 /* Returns X509_TRUST_TRUSTED, X509_TRUST_REJECTED, or X509_TRUST_UNTRUSTED */
-int X509_check_trust(X509 *x, int id, int flags)
+int X509_check_trust(const X509 *x, int id, int flags)
 {
     X509_TRUST *pt;
     int idx;
@@ -124,7 +124,7 @@ int X509_TRUST_set(int *t, int trust)
     return 1;
 }
 
-int X509_TRUST_add(int id, int flags, int (*ck)(X509_TRUST *, X509 *, int),
+int X509_TRUST_add(int id, int flags, int (*ck)(X509_TRUST *, const X509 *, int),
     const char *name, int arg1, void *arg2)
 {
     int idx;
@@ -214,7 +214,7 @@ int X509_TRUST_get_trust(const X509_TRUST *xp)
     return xp->trust;
 }
 
-static int trust_1oidany(X509_TRUST *trust, X509 *x, int flags)
+static int trust_1oidany(X509_TRUST *trust, const X509 *x, int flags)
 {
     /*
      * Declare the chain verified if the desired trust OID is not rejected in
@@ -226,7 +226,7 @@ static int trust_1oidany(X509_TRUST *trust, X509 *x, int flags)
     return obj_trust(trust->arg1, x, flags);
 }
 
-static int trust_1oid(X509_TRUST *trust, X509 *x, int flags)
+static int trust_1oid(X509_TRUST *trust, const X509 *x, int flags)
 {
     /*
      * Declare the chain verified only if the desired trust OID is not
@@ -237,7 +237,7 @@ static int trust_1oid(X509_TRUST *trust, X509 *x, int flags)
     return obj_trust(trust->arg1, x, flags);
 }
 
-static int trust_compat(X509_TRUST *trust, X509 *x, int flags)
+static int trust_compat(X509_TRUST *trust, const X509 *x, int flags)
 {
     /* Call for side-effect of setting EXFLAG_SS for self-signed-certs */
     if (X509_check_purpose(x, -1, 0) != 1)
@@ -248,7 +248,14 @@ static int trust_compat(X509_TRUST *trust, X509 *x, int flags)
         return X509_TRUST_UNTRUSTED;
 }
 
-static int obj_trust(int id, X509 *x, int flags)
+/*
+ * |id| is the NID of the extended key usage (EKU) to check for certificate |x|.
+ * Return X509_TRUST_REJECTED if negative trust attributes of |x| prevents it.
+ * Return X509_TRUST_TRUSTED if positive trust attributes of |x| accepts it.
+ * If |flags| includes X509_TRUST_OK_ANY_EKU then anyEKU serves as wildcard.
+ * Return X509_TRUST_UNTRUSTED if no clear decision has been reached here.
+ */
+static int obj_trust(int id, const X509 *x, int flags)
 {
     X509_CERT_AUX *ax = x->aux;
     int i;

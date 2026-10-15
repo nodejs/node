@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,6 +18,13 @@ int dtls1_write_app_data_bytes(SSL *s, uint8_t type, const void *buf_,
 
     if (sc == NULL)
         return -1;
+
+    /*
+     * If we are supposed to be sending a KeyUpdate or NewSessionTicket then go
+     * into init - in which case we should finish doing that first.
+     */
+    if (sc->key_update != SSL_KEY_UPDATE_NONE || sc->ext.extra_tickets_expected > 0)
+        ossl_statem_set_in_init(sc, 1);
 
     if (SSL_in_init(s) && !ossl_statem_get_in_handshake(sc)) {
         i = sc->handshake_func(s);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,8 +22,7 @@ static int evp_kdf_up_ref(void *vkdf)
     EVP_KDF *kdf = (EVP_KDF *)vkdf;
     int ref = 0;
 
-    CRYPTO_UP_REF(&kdf->refcnt, &ref);
-    return 1;
+    return CRYPTO_UP_REF(&kdf->refcnt, &ref);
 }
 
 static void evp_kdf_free(void *vkdf)
@@ -57,7 +56,7 @@ static void *evp_kdf_new(void)
 
 static void *evp_kdf_from_algorithm(int name_id,
     const OSSL_ALGORITHM *algodef,
-    OSSL_PROVIDER *prov)
+    OSSL_PROVIDER *prov, int no_store)
 {
     const OSSL_DISPATCH *fns = algodef->implementation;
     EVP_KDF *kdf = NULL;
@@ -68,6 +67,8 @@ static void *evp_kdf_from_algorithm(int name_id,
         return NULL;
     }
     kdf->name_id = name_id;
+    kdf->no_store = no_store;
+
     if ((kdf->type_name = ossl_algorithm_get1_first_name(algodef)) == NULL)
         goto err;
 
@@ -133,6 +134,16 @@ static void *evp_kdf_from_algorithm(int name_id,
                 break;
             kdf->set_ctx_params = OSSL_FUNC_kdf_set_ctx_params(fns);
             break;
+        case OSSL_FUNC_KDF_SET_SKEY:
+            if (kdf->set_skey != NULL)
+                break;
+            kdf->set_skey = OSSL_FUNC_kdf_set_skey(fns);
+            break;
+        case OSSL_FUNC_KDF_DERIVE_SKEY:
+            if (kdf->derive_skey != NULL)
+                break;
+            kdf->derive_skey = OSSL_FUNC_kdf_derive_skey(fns);
+            break;
         }
     }
     if (fnkdfcnt != 1 || fnctxcnt != 2) {
@@ -166,12 +177,23 @@ EVP_KDF *EVP_KDF_fetch(OSSL_LIB_CTX *libctx, const char *algorithm,
 
 int EVP_KDF_up_ref(EVP_KDF *kdf)
 {
+#ifdef OPENSSL_NO_CACHED_FETCH
     return evp_kdf_up_ref(kdf);
+#else
+    if (kdf->no_store != 0)
+        return evp_kdf_up_ref(kdf);
+    return 1;
+#endif
 }
 
 void EVP_KDF_free(EVP_KDF *kdf)
 {
+#ifdef OPENSSL_NO_CACHED_FETCH
     evp_kdf_free(kdf);
+#else
+    if (kdf != NULL && (kdf->no_store != 0))
+        evp_kdf_free(kdf);
+#endif
 }
 
 const OSSL_PARAM *EVP_KDF_gettable_params(const EVP_KDF *kdf)
@@ -225,7 +247,11 @@ void EVP_KDF_do_all_provided(OSSL_LIB_CTX *libctx,
     void (*fn)(EVP_KDF *kdf, void *arg),
     void *arg)
 {
+    struct EVP_KDF_do_all_provided_thunk t;
+
+    t.fn = fn;
+    t.arg = arg;
     evp_generic_do_all(libctx, OSSL_OP_KDF,
-        (void (*)(void *, void *))fn, arg,
+        EVP_KDF_do_all_provided_thunk, &t,
         evp_kdf_from_algorithm, evp_kdf_up_ref, evp_kdf_free);
 }

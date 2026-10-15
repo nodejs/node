@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -66,9 +66,10 @@ static int tls_write_records_multiblock_int(OSSL_RECORD_LAYER *rl,
 {
 #if !defined(OPENSSL_NO_MULTIBLOCK) && EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK
     size_t i;
-    size_t totlen;
+    size_t totlen, aad_written;
     TLS_BUFFER *wb;
     unsigned char aad[13];
+    WPACKET aad_pkt;
     EVP_CTRL_TLS1_1_MULTIBLOCK_PARAM mb_param;
     size_t packlen;
     int packleni;
@@ -116,13 +117,20 @@ static int tls_write_records_multiblock_int(OSSL_RECORD_LAYER *rl,
     }
     wb = &rl->wbuf[0];
 
-    mb_param.interleave = numtempl;
-    memcpy(aad, rl->sequence, 8);
-    aad[8] = templates[0].type;
-    aad[9] = (unsigned char)(templates[0].version >> 8);
-    aad[10] = (unsigned char)(templates[0].version);
-    aad[11] = 0;
-    aad[12] = 0;
+    if (!WPACKET_init_static_len(&aad_pkt, aad, sizeof(aad), 0)
+        || !WPACKET_put_bytes_u64(&aad_pkt, rl->sequence)
+        || !WPACKET_put_bytes_u8(&aad_pkt, templates[0].type)
+        || !WPACKET_put_bytes_u16(&aad_pkt, templates[0].version)
+        || !WPACKET_put_bytes_u16(&aad_pkt, 0)
+        || !WPACKET_get_total_written(&aad_pkt, &aad_written)
+        || aad_written != sizeof(aad)
+        || !WPACKET_finish(&aad_pkt)) {
+        WPACKET_cleanup(&aad_pkt);
+        RLAYERfatal(rl, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+        return -1;
+    }
+
+    mb_param.interleave = (unsigned int)numtempl;
     mb_param.out = NULL;
     mb_param.inp = aad;
     mb_param.len = totlen;
@@ -148,12 +156,12 @@ static int tls_write_records_multiblock_int(OSSL_RECORD_LAYER *rl,
         return -1;
     }
 
-    rl->sequence[7] += mb_param.interleave;
-    if (rl->sequence[7] < mb_param.interleave) {
-        int j = 6;
-        while (j >= 0 && (++rl->sequence[j--]) == 0)
-            ;
+    if (rl->sequence > UINT64_MAX - mb_param.interleave) {
+        RLAYERfatal(rl, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+        return -1;
     }
+
+    rl->sequence += mb_param.interleave;
 
     wb->offset = 0;
     wb->left = packlen;

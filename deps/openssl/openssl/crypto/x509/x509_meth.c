@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,6 +16,8 @@
 #include <openssl/x509.h>
 #include <openssl/types.h>
 #include "x509_local.h"
+
+#include <crypto/asn1.h>
 
 X509_LOOKUP_METHOD *X509_LOOKUP_meth_new(const char *name)
 {

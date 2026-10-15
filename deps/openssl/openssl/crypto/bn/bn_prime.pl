@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 1998-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1998-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -25,6 +25,10 @@ print <<"EOF";
  * https://www.openssl.org/source/license.html
  */
 
+#if !defined(OSSL_LIBCRYPTO_BN_BN_PRIME_H)
+#define OSSL_LIBCRYPTO_BN_BN_PRIME_H
+
+/* clang-format off */
 EOF
 
 
@@ -50,3 +54,5 @@ for (my $i = 0; $i <= $#primes; $i++) {
     printf " %5d,", $primes[$i];
 }
 print "\n};\n";
+print "/* clang-format on */\n";
+print "\n#endif /* !defined(OSSL_LIBCRYPTO_BN_BN_PRIME_H) */\n"

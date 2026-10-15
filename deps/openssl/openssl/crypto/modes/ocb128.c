@@ -17,9 +17,9 @@
 /*
  * Calculate the number of binary trailing zero's in any given number
  */
-static u32 ocb_ntz(u64 n)
+static uint32_t ocb_ntz(uint64_t n)
 {
-    u32 cnt = 0;
+    uint32_t cnt = 0;
 
     /*
      * We do a right-to-left simple sequential search. This is surprisingly
@@ -110,7 +110,7 @@ static OCB_BLOCK *ocb_lookup_l(OCB128_CONTEXT *ctx, size_t idx)
          * the index.
          */
         ctx->max_l_index += (idx - ctx->max_l_index + 4) & ~3;
-        tmp_ptr = OPENSSL_realloc(ctx->l, ctx->max_l_index * sizeof(OCB_BLOCK));
+        tmp_ptr = OPENSSL_realloc_array(ctx->l, ctx->max_l_index, sizeof(OCB_BLOCK));
         if (tmp_ptr == NULL) /* prevent ctx->l from being clobbered */
             return NULL;
         ctx->l = tmp_ptr;
@@ -155,7 +155,7 @@ int CRYPTO_ocb128_init(OCB128_CONTEXT *ctx, void *keyenc, void *keydec,
     memset(ctx, 0, sizeof(*ctx));
     ctx->l_index = 0;
     ctx->max_l_index = 5;
-    if ((ctx->l = OPENSSL_malloc(ctx->max_l_index * 16)) == NULL)
+    if ((ctx->l = OPENSSL_malloc_array(ctx->max_l_index, 16)) == NULL)
         return 0;
 
     /*
@@ -200,7 +200,7 @@ int CRYPTO_ocb128_copy_ctx(OCB128_CONTEXT *dest, OCB128_CONTEXT *src,
     if (keydec)
         dest->keydec = keydec;
     if (src->l) {
-        if ((dest->l = OPENSSL_malloc(src->max_l_index * 16)) == NULL)
+        if ((dest->l = OPENSSL_malloc_array(src->max_l_index, 16)) == NULL)
             return 0;
         memcpy(dest->l, src->l, (src->l_index + 1) * 16);
     }
@@ -263,7 +263,7 @@ int CRYPTO_ocb128_setiv(OCB128_CONTEXT *ctx, const unsigned char *iv,
 int CRYPTO_ocb128_aad(OCB128_CONTEXT *ctx, const unsigned char *aad,
     size_t len)
 {
-    u64 i, all_num_blocks;
+    uint64_t i, all_num_blocks;
     size_t num_blocks, last_len;
     OCB_BLOCK tmp;
 
@@ -325,7 +325,7 @@ int CRYPTO_ocb128_encrypt(OCB128_CONTEXT *ctx,
     const unsigned char *in, unsigned char *out,
     size_t len)
 {
-    u64 i, all_num_blocks;
+    uint64_t i, all_num_blocks;
     size_t num_blocks, last_len;
 
     /*
@@ -420,7 +420,7 @@ int CRYPTO_ocb128_decrypt(OCB128_CONTEXT *ctx,
     const unsigned char *in, unsigned char *out,
     size_t len)
 {
-    u64 i, all_num_blocks;
+    uint64_t i, all_num_blocks;
     size_t num_blocks, last_len;
 
     /*
@@ -534,6 +534,10 @@ static int ocb_finish(OCB128_CONTEXT *ctx, unsigned char *tag, size_t len,
 
 /*
  * Calculate the tag and verify it against the supplied tag
+ * Returns:
+ * -1: invalid tag length
+ *  0: tag verified
+ * >0: tag mismatch
  */
 int CRYPTO_ocb128_finish(OCB128_CONTEXT *ctx, const unsigned char *tag,
     size_t len)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -7,6 +7,9 @@
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_LIBCRYPTO_PROPERTY_PROPERTY_LOCAL_H)
+#define OSSL_LIBCRYPTO_PROPERTY_PROPERTY_LOCAL_H
 
 #include <openssl/crypto.h>
 #include "internal/property.h"
@@ -55,3 +58,5 @@ int ossl_property_has_optional(const OSSL_PROPERTY_LIST *query);
 OSSL_PROPERTY_LIST *ossl_prop_defn_get(OSSL_LIB_CTX *ctx, const char *prop);
 int ossl_prop_defn_set(OSSL_LIB_CTX *ctx, const char *prop,
     OSSL_PROPERTY_LIST **pl);
+
+#endif /* !defined(OSSL_LIBCRYPTO_PROPERTY_PROPERTY_LOCAL_H) */

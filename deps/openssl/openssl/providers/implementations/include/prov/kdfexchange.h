@@ -1,11 +1,14 @@
 /*
- * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_PROVIDERS_IMPLEMENTATIONS_INCLUDE_PROV_KDFEXCHANGE_H)
+#define OSSL_PROVIDERS_IMPLEMENTATIONS_INCLUDE_PROV_KDFEXCHANGE_H
 
 #include <stdlib.h>
 #include <openssl/crypto.h>
@@ -21,3 +24,5 @@ typedef struct kdf_data_st KDF_DATA;
 KDF_DATA *ossl_kdf_data_new(void *provctx);
 void ossl_kdf_data_free(KDF_DATA *kdfdata);
 int ossl_kdf_data_up_ref(KDF_DATA *kdfdata);
+
+#endif /* !defined(OSSL_PROVIDERS_IMPLEMENTATIONS_INCLUDE_PROV_KDFEXCHANGE_H) */

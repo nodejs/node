@@ -7,6 +7,11 @@
  * https://www.openssl.org/source/license.html
  */
 
+#if !defined(OSSL_LIBCRYPTO_CAST_CAST_S_H)
+#define OSSL_LIBCRYPTO_CAST_CAST_S_H
+
+#include <openssl/cast.h>
+
 const CAST_LONG CAST_S_table0[256] = {
     0x30fb40d4, 0x9fa0ff0b, 0x6beccd2f, 0x3f258c7a, 0x1e213f2f, 0x9c004dd3, 0x6003e540, 0xcf9fc949,
     0xbfd4af27, 0x88bbbdb5, 0xe2034090, 0x98d09675, 0x6e63a0e0, 0x15c361d2, 0xc2e7661d, 0x22d4ff8e,
@@ -286,3 +291,5 @@ const CAST_LONG CAST_S_table7[256] = {
     0xe97625a5, 0x0614d1b7, 0x0e25244b, 0x0c768347, 0x589e8d82, 0x0d2059d1, 0xa466bb1e, 0xf8da0a82,
     0x04f19130, 0xba6e4ec0, 0x99265164, 0x1ee7230d, 0x50b2ad80, 0xeaee6801, 0x8db2a283, 0xea8bf59e
 };
+
+#endif /* !defined(OSSL_LIBCRYPTO_CAST_CAST_S_H) */

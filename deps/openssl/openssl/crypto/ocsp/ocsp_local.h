@@ -1,11 +1,17 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_LIBCRYPTO_OCSP_OCSP_LOCAL_H)
+#define OSSL_LIBCRYPTO_OCSP_OCSP_LOCAL_H
+
+#include <openssl/ocsp.h>
+#include <openssl/x509v3.h>
 
 #include "crypto/x509.h" /* for ossl_x509_add_cert_new() */
 
@@ -244,3 +250,5 @@ struct ocsp_service_locator_st {
     ASN1_item_verify_ex(ASN1_ITEM_rptr(OCSP_RESPDATA), \
         &(a)->signatureAlgorithm, (a)->signature,      \
         &(a)->tbsResponseData, NULL, r, libctx, propq)
+
+#endif /* !defined(OSSL_LIBCRYPTO_OCSP_OCSP_LOCAL_H) */

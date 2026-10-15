@@ -1,0 +1,26 @@
+/*
+ * Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the \"License\").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+{-
+use OpenSSL::paramnames qw(produce_param_decoder);
+-}
+
+{- produce_param_decoder('scrypt_set_ctx_params',
+                         (['OSSL_KDF_PARAM_PASSWORD',      'pw',     'octet_string'],
+                          ['OSSL_KDF_PARAM_SALT',          'salt',   'octet_string'],
+                          ['OSSL_KDF_PARAM_SCRYPT_N',      'n',      'uint64'],
+                          ['OSSL_KDF_PARAM_SCRYPT_R',      'r',      'uint32'],
+                          ['OSSL_KDF_PARAM_SCRYPT_P',      'p',      'uint32'],
+                          ['OSSL_KDF_PARAM_SCRYPT_MAXMEM', 'maxmem', 'uint64'],
+                          ['OSSL_KDF_PARAM_PROPERTIES',    'propq',  'utf8_string'],
+                         )); -}
+
+{- produce_param_decoder('scrypt_get_ctx_params',
+                         (['OSSL_KDF_PARAM_SIZE',                    'size', 'size_t'],
+                         )); -}

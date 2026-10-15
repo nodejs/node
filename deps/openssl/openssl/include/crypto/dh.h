@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,6 +18,7 @@
 
 DH *ossl_dh_new_by_nid_ex(OSSL_LIB_CTX *libctx, int nid);
 DH *ossl_dh_new_ex(OSSL_LIB_CTX *libctx);
+OSSL_LIB_CTX *ossl_dh_get0_libctx(const DH *dh);
 void ossl_dh_set0_libctx(DH *d, OSSL_LIB_CTX *libctx);
 int ossl_dh_generate_ffc_parameters(DH *dh, int type, int pbits, int qbits,
     BN_GENCB *cb);
@@ -33,9 +34,10 @@ FFC_PARAMS *ossl_dh_get0_params(DH *dh);
 int ossl_dh_get0_nid(const DH *dh);
 int ossl_dh_params_fromdata(DH *dh, const OSSL_PARAM params[]);
 int ossl_dh_key_fromdata(DH *dh, const OSSL_PARAM params[], int include_private);
-int ossl_dh_params_todata(DH *dh, OSSL_PARAM_BLD *bld, OSSL_PARAM params[]);
-int ossl_dh_key_todata(DH *dh, OSSL_PARAM_BLD *bld, OSSL_PARAM params[],
-    int include_private);
+int ossl_dh_params_todata(DH *dh, OSSL_PARAM_BLD *bld, OSSL_PARAM *privlen,
+    const FFC_OSSL_PARAMS *pp);
+int ossl_dh_key_todata(DH *dh, OSSL_PARAM_BLD *bld, OSSL_PARAM *pubkey,
+    OSSL_PARAM *privkey, int include_private);
 DH *ossl_dh_key_from_pkcs8(const PKCS8_PRIV_KEY_INFO *p8inf,
     OSSL_LIB_CTX *libctx, const char *propq);
 int ossl_dh_compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh);

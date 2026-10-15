@@ -18,15 +18,16 @@
 #include <openssl/randerr.h>
 #include <openssl/proverr.h>
 #include <openssl/self_test.h>
+#include "internal/common.h"
 #include "prov/implementations.h"
 #include "prov/provider_ctx.h"
 #include "prov/providercommon.h"
-#include "fips/fipsindicator.h"
 #include "crypto/rand.h"
 #include "crypto/rand_pool.h"
 
 #ifndef OPENSSL_NO_JITTER
 #include <jitterentropy.h>
+#include "providers/implementations/rands/seed_src_jitter.inc"
 
 #define JITTER_MAX_NUM_TRIES 3
 
@@ -231,33 +232,26 @@ static int jitter_reseed(void *vseed,
 static int jitter_get_ctx_params(void *vseed, OSSL_PARAM params[])
 {
     PROV_JITTER *s = (PROV_JITTER *)vseed;
-    OSSL_PARAM *p;
+    struct jitter_get_ctx_params_st p;
 
-    p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_STATE);
-    if (p != NULL && !OSSL_PARAM_set_int(p, s->state))
+    if (s == NULL || !jitter_get_ctx_params_decoder(params, &p))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_STRENGTH);
-    if (p != NULL && !OSSL_PARAM_set_int(p, 1024))
+    if (p.state != NULL && !OSSL_PARAM_set_int(p.state, s->state))
         return 0;
 
-    p = OSSL_PARAM_locate(params, OSSL_RAND_PARAM_MAX_REQUEST);
-    if (p != NULL && !OSSL_PARAM_set_size_t(p, 128))
+    if (p.str != NULL && !OSSL_PARAM_set_uint(p.str, 1024))
         return 0;
-    return OSSL_FIPS_IND_GET_CTX_PARAM_APPROVED(s, params);
+
+    if (p.maxreq != NULL && !OSSL_PARAM_set_size_t(p.maxreq, 128))
+        return 0;
+    return 1;
 }
 
 static const OSSL_PARAM *jitter_gettable_ctx_params(ossl_unused void *vseed,
     ossl_unused void *provctx)
 {
-    static const OSSL_PARAM known_gettable_ctx_params[] = {
-        OSSL_PARAM_int(OSSL_RAND_PARAM_STATE, NULL),
-        OSSL_PARAM_uint(OSSL_RAND_PARAM_STRENGTH, NULL),
-        OSSL_PARAM_size_t(OSSL_RAND_PARAM_MAX_REQUEST, NULL),
-        OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
-            OSSL_PARAM_END
-    };
-    return known_gettable_ctx_params;
+    return jitter_get_ctx_params_list;
 }
 
 static int jitter_verify_zeroization(ossl_unused void *vseed)
@@ -296,24 +290,6 @@ static size_t jitter_get_seed(void *vseed, unsigned char **pout,
     ossl_rand_pool_free(pool);
     return ret;
 }
-
-#ifndef OPENSSL_NO_FIPS_JITTER
-size_t ossl_rand_jitter_get_seed(unsigned char **pout, int entropy, size_t min_len, size_t max_len)
-{
-    size_t ret = 0;
-    OSSL_PARAM params[1] = { OSSL_PARAM_END };
-    PROV_JITTER *s = jitter_new(NULL, NULL, NULL);
-
-    if (s == NULL)
-        return ret;
-    if (!jitter_instantiate(s, 0, 0, NULL, 0, params))
-        goto end;
-    ret = jitter_get_seed(s, pout, entropy, min_len, max_len, 0, NULL, 0);
-end:
-    jitter_free(s);
-    return ret;
-}
-#endif
 
 static void jitter_clear_seed(ossl_unused void *vdrbg,
     unsigned char *out, size_t outlen)

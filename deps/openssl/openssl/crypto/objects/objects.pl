@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -11,8 +11,8 @@ use FindBin;
 use lib "$FindBin::Bin/../../util/perl";
 use OpenSSL::copyright;
 
-our($opt_n);
-getopts('n');
+our($opt_n, $opt_a);
+getopts('na:');
 
 # The year the output file is generated.
 my $YEAR = OpenSSL::copyright::latest(($0, $ARGV[1], $ARGV[0]));
@@ -148,9 +148,10 @@ print <<"EOF";
  */
 
 #ifndef OPENSSL_OBJ_MAC_H
-# define OPENSSL_OBJ_MAC_H
-# pragma once
+#define OPENSSL_OBJ_MAC_H
+#pragma once
 
+/* clang-format off */
 #define SN_undef                        "UNDEF"
 #define LN_undef                        "undefined"
 #define NID_undef                       0
@@ -177,9 +178,23 @@ foreach (sort { $a <=> $b } keys %ordern)
 	}
 
 print <<EOF;
+/* clang-format on */
 
 #endif /* OPENSSL_OBJ_MAC_H */
 EOF
+
+# Append the compatibility aliases, skipping their license header the
+# same way the old build recipe did with sed -e '1,8d'.
+if ( $opt_a )
+	{
+	open (CMP,"$opt_a") || die "Can't open compat file $opt_a";
+	my $line = 0;
+	while (<CMP>)
+		{
+		print if ++$line > 8;
+		}
+	close CMP;
+	}
 
 sub process_oid
 	{

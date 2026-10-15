@@ -19,9 +19,6 @@
 #include "ec_local.h"
 #include "internal/refcount.h"
 #include <openssl/err.h>
-#ifndef FIPS_MODULE
-#include <openssl/engine.h>
-#endif
 #include <openssl/self_test.h>
 #include "prov/providercommon.h"
 #include "prov/ecx.h"
@@ -33,13 +30,13 @@ static int ecdsa_keygen_pairwise_test(EC_KEY *eckey, OSSL_CALLBACK *cb,
 #ifndef FIPS_MODULE
 EC_KEY *EC_KEY_new(void)
 {
-    return ossl_ec_key_new_method_int(NULL, NULL, NULL);
+    return ossl_ec_key_new_method_int(NULL, NULL);
 }
 #endif
 
 EC_KEY *EC_KEY_new_ex(OSSL_LIB_CTX *ctx, const char *propq)
 {
-    return ossl_ec_key_new_method_int(ctx, propq, NULL);
+    return ossl_ec_key_new_method_int(ctx, propq);
 }
 
 EC_KEY *EC_KEY_new_by_curve_name_ex(OSSL_LIB_CTX *ctx, const char *propq,
@@ -84,10 +81,6 @@ void EC_KEY_free(EC_KEY *r)
     if (r->meth != NULL && r->meth->finish != NULL)
         r->meth->finish(r);
 
-#if !defined(OPENSSL_NO_ENGINE) && !defined(FIPS_MODULE)
-    ENGINE_finish(r->engine);
-#endif
-
     if (r->group && r->group->meth->keyfinish)
         r->group->meth->keyfinish(r);
 
@@ -114,11 +107,6 @@ EC_KEY *EC_KEY_copy(EC_KEY *dest, const EC_KEY *src)
             dest->meth->finish(dest);
         if (dest->group && dest->group->meth->keyfinish)
             dest->group->meth->keyfinish(dest);
-#if !defined(OPENSSL_NO_ENGINE) && !defined(FIPS_MODULE)
-        if (ENGINE_finish(dest->engine) == 0)
-            return 0;
-        dest->engine = NULL;
-#endif
     }
     dest->libctx = src->libctx;
     /* copy the parameters */
@@ -148,7 +136,7 @@ EC_KEY *EC_KEY_copy(EC_KEY *dest, const EC_KEY *src)
                 if (dest->priv_key == NULL)
                     return NULL;
             }
-            if (!BN_copy(dest->priv_key, src->priv_key))
+            if (BN_copy(dest->priv_key, src->priv_key) == NULL)
                 return NULL;
             if (src->group->meth->keycopy
                 && src->group->meth->keycopy(dest, src) == 0)
@@ -158,7 +146,6 @@ EC_KEY *EC_KEY_copy(EC_KEY *dest, const EC_KEY *src)
 
     /* copy the rest */
     dest->enc_flag = src->enc_flag;
-    dest->conv_form = src->conv_form;
     dest->version = src->version;
     dest->flags = src->flags;
 #ifndef FIPS_MODULE
@@ -168,11 +155,6 @@ EC_KEY *EC_KEY_copy(EC_KEY *dest, const EC_KEY *src)
 #endif
 
     if (src->meth != dest->meth) {
-#if !defined(OPENSSL_NO_ENGINE) && !defined(FIPS_MODULE)
-        if (src->engine != NULL && ENGINE_init(src->engine) == 0)
-            return NULL;
-        dest->engine = src->engine;
-#endif
         dest->meth = src->meth;
     }
 
@@ -193,17 +175,12 @@ int EC_KEY_up_ref(EC_KEY *r)
 {
     int i;
 
-    if (CRYPTO_UP_REF(&r->references, &i) <= 0)
+    if (!CRYPTO_UP_REF(&r->references, &i))
         return 0;
 
     REF_PRINT_COUNT("EC_KEY", i, r);
     REF_ASSERT_ISNT(i < 2);
     return ((i > 1) ? 1 : 0);
-}
-
-ENGINE *EC_KEY_get0_engine(const EC_KEY *eckey)
-{
-    return eckey->engine;
 }
 
 int EC_KEY_generate_key(EC_KEY *eckey)
@@ -854,12 +831,13 @@ void EC_KEY_set_enc_flags(EC_KEY *key, unsigned int flags)
 
 point_conversion_form_t EC_KEY_get_conv_form(const EC_KEY *key)
 {
-    return key->conv_form;
+    return key->group != NULL
+        ? EC_GROUP_get_point_conversion_form(key->group)
+        : POINT_CONVERSION_UNCOMPRESSED;
 }
 
 void EC_KEY_set_conv_form(EC_KEY *key, point_conversion_form_t cform)
 {
-    key->conv_form = cform;
     if (key->group != NULL)
         EC_GROUP_set_point_conversion_form(key->group, cform);
 }
@@ -930,8 +908,10 @@ int EC_KEY_oct2key(EC_KEY *key, const unsigned char *buf, size_t len,
      * EC_POINT_oct2point() has already performed sanity checking of
      * the buffer so we know it is valid.
      */
-    if ((key->group->meth->flags & EC_FLAGS_CUSTOM_CURVE) == 0)
-        key->conv_form = (point_conversion_form_t)(buf[0] & ~0x01);
+    if ((key->group->meth->flags & EC_FLAGS_CUSTOM_CURVE) == 0) {
+        EC_GROUP_set_point_conversion_form(key->group,
+            (point_conversion_form_t)(buf[0] & ~0x01));
+    }
     return 1;
 }
 
@@ -951,14 +931,14 @@ size_t EC_KEY_priv2oct(const EC_KEY *eckey,
 size_t ossl_ec_key_simple_priv2oct(const EC_KEY *eckey,
     unsigned char *buf, size_t len)
 {
-    size_t buf_len;
+    int buf_len;
 
     buf_len = (EC_GROUP_order_bits(eckey->group) + 7) / 8;
     if (eckey->priv_key == NULL)
         return 0;
     if (buf == NULL)
         return buf_len;
-    else if (len < buf_len)
+    else if (len < (size_t)buf_len)
         return 0;
 
     /* Octetstring may need leading zeros if BN is to short */
@@ -990,13 +970,17 @@ int EC_KEY_oct2priv(EC_KEY *eckey, const unsigned char *buf, size_t len)
 int ossl_ec_key_simple_oct2priv(EC_KEY *eckey, const unsigned char *buf,
     size_t len)
 {
+    if (len > INT_MAX) {
+        ERR_raise(ERR_LIB_EC, ERR_R_PASSED_INVALID_ARGUMENT);
+        return 0;
+    }
     if (eckey->priv_key == NULL)
         eckey->priv_key = BN_secure_new();
     if (eckey->priv_key == NULL) {
         ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
         return 0;
     }
-    if (BN_bin2bn(buf, len, eckey->priv_key) == NULL) {
+    if (BN_bin2bn(buf, (int)len, eckey->priv_key) == NULL) {
         ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
         return 0;
     }

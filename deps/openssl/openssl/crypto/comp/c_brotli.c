@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <openssl/objects.h>
+#include "internal/e_os.h"
 #include "internal/comp.h"
 #include <openssl/err.h>
 #include "crypto/cryptlib.h"
@@ -46,10 +47,6 @@ static void brotli_free(void *opaque, void *address)
  * work.  Therefore, all BROTLI routines are loaded at run time
  * and we do not link to a .LIB file when BROTLI_SHARED is set.
  */
-#if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_WIN32)
-#include <windows.h>
-#endif
-
 #ifdef BROTLI_SHARED
 #include "internal/dso.h"
 
@@ -557,10 +554,10 @@ static int bio_brotli_read(BIO *b, char *out, int outl)
          * No data in input buffer try to read some in, if an error then
          * return the total data read.
          */
-        ret = BIO_read(next, ctx->decode.buf, ctx->decode.bufsize);
+        ret = BIO_read(next, ctx->decode.buf, (int)ctx->decode.bufsize);
         if (ret <= 0) {
             /* Total data read */
-            int tot = outl - ctx->decode.avail_out;
+            int tot = outl - (int)ctx->decode.avail_out;
 
             BIO_copy_next_retry(b);
             if (ret < 0)
@@ -612,10 +609,10 @@ static int bio_brotli_write(BIO *b, const char *in, int inl)
     for (;;) {
         /* If data in output buffer write it first */
         while (ctx->encode.count > 0) {
-            ret = BIO_write(next, ctx->encode.ptr, ctx->encode.count);
+            ret = BIO_write(next, ctx->encode.ptr, (int)ctx->encode.count);
             if (ret <= 0) {
                 /* Total data written */
-                int tot = inl - ctx->encode.avail_in;
+                int tot = inl - (int)ctx->encode.avail_in;
 
                 BIO_copy_next_retry(b);
                 if (ret < 0)
@@ -668,7 +665,7 @@ static int bio_brotli_flush(BIO *b)
     for (;;) {
         /* If data in output buffer write it first */
         while (ctx->encode.count > 0) {
-            ret = BIO_write(next, ctx->encode.ptr, ctx->encode.count);
+            ret = BIO_write(next, ctx->encode.ptr, (int)ctx->encode.count);
             if (ret <= 0) {
                 BIO_copy_next_retry(b);
                 return ret;

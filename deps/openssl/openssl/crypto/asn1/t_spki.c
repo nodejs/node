@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,9 +15,11 @@
 #include <openssl/dsa.h>
 #include <openssl/bn.h>
 
+#include <crypto/asn1.h>
+
 /* Print out an SPKI */
 
-int NETSCAPE_SPKI_print(BIO *out, NETSCAPE_SPKI *spki)
+int NETSCAPE_SPKI_print(BIO *out, const NETSCAPE_SPKI *spki)
 {
     EVP_PKEY *pkey;
     ASN1_IA5STRING *chal;
@@ -46,7 +48,7 @@ int NETSCAPE_SPKI_print(BIO *out, NETSCAPE_SPKI *spki)
     n = spki->signature->length;
     s = (char *)spki->signature->data;
     for (i = 0; i < n; i++) {
-        if ((i % 18) == 0)
+        if ((i % 24) == 0)
             BIO_write(out, "\n      ", 7);
         BIO_printf(out, "%02x%s", (unsigned char)s[i],
             ((i + 1) == n) ? "" : ":");

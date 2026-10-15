@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,9 @@
 #ifndef OSSL_INTERNAL_CORE_H
 #define OSSL_INTERNAL_CORE_H
 #pragma once
+
+#include <openssl/conf.h>
+#include <openssl/types.h>
 
 /*
  * namespaces:
@@ -41,7 +44,7 @@ typedef struct ossl_method_construct_method_st {
         const char *name, const char *propdef, void *data);
     /* Construct a new method */
     void *(*construct)(const OSSL_ALGORITHM *algodef, OSSL_PROVIDER *prov,
-        void *data);
+        void *data, int no_store);
     /* Destruct a method */
     void (*destruct)(void *method, void *data);
 } OSSL_METHOD_CONSTRUCT_METHOD;
@@ -68,4 +71,7 @@ __owur int ossl_lib_ctx_write_lock(OSSL_LIB_CTX *ctx);
 __owur int ossl_lib_ctx_read_lock(OSSL_LIB_CTX *ctx);
 int ossl_lib_ctx_unlock(OSSL_LIB_CTX *ctx);
 int ossl_lib_ctx_is_child(OSSL_LIB_CTX *ctx);
+int ossl_lib_ctx_attach_ssl_conf_imodule(OSSL_LIB_CTX *ctx, CONF_IMODULE *md);
+int ossl_lib_ctx_detach_ssl_conf_imodule(OSSL_LIB_CTX *ctx, CONF_IMODULE *md);
+
 #endif

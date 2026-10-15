@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -26,7 +26,7 @@ if ! type "${CTAGS}" > /dev/null; then
 fi
 
 if [ $# -eq 0 ]; then
-    set - -R
+    set -- -R
 fi
 
 if ! "${CTAGS}" --version | grep -q "Universal Ctags"; then

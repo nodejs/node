@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -24,7 +24,8 @@
 #include "encoder_local.h"
 
 /* Number of octets per line */
-#define LABELED_BUF_PRINT_WIDTH 15
+#define LABELED_BUF_PRINT_WIDTH 16
+#define LABELED_BN_PRINT_WIDTH 16
 
 #ifdef SIXTY_FOUR_BIT_LONG
 #define BN_FMTu "%lu"
@@ -169,12 +170,17 @@ int OSSL_ENCODER_to_data(OSSL_ENCODER_CTX *ctx, unsigned char **pdata,
 
 int OSSL_ENCODER_CTX_set_selection(OSSL_ENCODER_CTX *ctx, int selection)
 {
-    if (!ossl_assert(ctx != NULL)) {
+    if (ctx == NULL) {
         ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }
 
-    if (!ossl_assert(selection != 0)) {
+    if (ctx->frozen != 0) {
+        ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+        return 0;
+    }
+
+    if (selection == 0) {
         ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_PASSED_INVALID_ARGUMENT);
         return 0;
     }
@@ -186,8 +192,13 @@ int OSSL_ENCODER_CTX_set_selection(OSSL_ENCODER_CTX *ctx, int selection)
 int OSSL_ENCODER_CTX_set_output_type(OSSL_ENCODER_CTX *ctx,
     const char *output_type)
 {
-    if (!ossl_assert(ctx != NULL) || !ossl_assert(output_type != NULL)) {
+    if (ctx == NULL || output_type == NULL) {
         ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_PASSED_NULL_PARAMETER);
+        return 0;
+    }
+
+    if (ctx->frozen != 0) {
+        ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
         return 0;
     }
 
@@ -198,8 +209,13 @@ int OSSL_ENCODER_CTX_set_output_type(OSSL_ENCODER_CTX *ctx,
 int OSSL_ENCODER_CTX_set_output_structure(OSSL_ENCODER_CTX *ctx,
     const char *output_structure)
 {
-    if (!ossl_assert(ctx != NULL) || !ossl_assert(output_structure != NULL)) {
+    if (ctx == NULL || output_structure == NULL) {
         ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_PASSED_NULL_PARAMETER);
+        return 0;
+    }
+
+    if (ctx->frozen != 0) {
+        ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
         return 0;
     }
 
@@ -216,7 +232,7 @@ static OSSL_ENCODER_INSTANCE *ossl_encoder_instance_new(OSSL_ENCODER *encoder,
     const OSSL_PROPERTY_LIST *props;
     const OSSL_PROPERTY_DEFINITION *prop;
 
-    if (!ossl_assert(encoder != NULL)) {
+    if (encoder == NULL) {
         ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }
@@ -311,8 +327,13 @@ int OSSL_ENCODER_CTX_add_encoder(OSSL_ENCODER_CTX *ctx, OSSL_ENCODER *encoder)
     void *encoderctx = NULL;
     void *provctx = NULL;
 
-    if (!ossl_assert(ctx != NULL) || !ossl_assert(encoder != NULL)) {
+    if (ctx == NULL || encoder == NULL) {
         ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_PASSED_NULL_PARAMETER);
+        return 0;
+    }
+
+    if (ctx->frozen != 0) {
+        ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
         return 0;
     }
 
@@ -339,6 +360,16 @@ err:
 int OSSL_ENCODER_CTX_add_extra(OSSL_ENCODER_CTX *ctx,
     OSSL_LIB_CTX *libctx, const char *propq)
 {
+    if (ctx == NULL) {
+        ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_PASSED_NULL_PARAMETER);
+        return 0;
+    }
+
+    if (ctx->frozen != 0) {
+        ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+        return 0;
+    }
+
     return 1;
 }
 
@@ -352,10 +383,16 @@ int OSSL_ENCODER_CTX_get_num_encoders(OSSL_ENCODER_CTX *ctx)
 int OSSL_ENCODER_CTX_set_construct(OSSL_ENCODER_CTX *ctx,
     OSSL_ENCODER_CONSTRUCT *construct)
 {
-    if (!ossl_assert(ctx != NULL)) {
+    if (ctx == NULL) {
         ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }
+
+    if (ctx->frozen != 0) {
+        ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+        return 0;
+    }
+
     ctx->construct = construct;
     return 1;
 }
@@ -363,10 +400,16 @@ int OSSL_ENCODER_CTX_set_construct(OSSL_ENCODER_CTX *ctx,
 int OSSL_ENCODER_CTX_set_construct_data(OSSL_ENCODER_CTX *ctx,
     void *construct_data)
 {
-    if (!ossl_assert(ctx != NULL)) {
+    if (ctx == NULL) {
         ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }
+
+    if (ctx->frozen != 0) {
+        ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+        return 0;
+    }
+
     ctx->construct_data = construct_data;
     return 1;
 }
@@ -374,10 +417,16 @@ int OSSL_ENCODER_CTX_set_construct_data(OSSL_ENCODER_CTX *ctx,
 int OSSL_ENCODER_CTX_set_cleanup(OSSL_ENCODER_CTX *ctx,
     OSSL_ENCODER_CLEANUP *cleanup)
 {
-    if (!ossl_assert(ctx != NULL)) {
+    if (ctx == NULL) {
         ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }
+
+    if (ctx->frozen != 0) {
+        ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+        return 0;
+    }
+
     ctx->cleanup = cleanup;
     return 1;
 }
@@ -534,6 +583,7 @@ static int encoder_process(struct encoder_process_data_st *data)
         data->prev_encoder_inst = new_data.prev_encoder_inst;
         data->running_output = new_data.running_output;
         data->running_output_length = new_data.running_output_length;
+        data->data_type = new_data.data_type;
 
         /*
          * ok == -1     means that the recursion call above gave no further
@@ -751,16 +801,9 @@ int ossl_bio_print_labeled_bignum(BIO *out, const char *label, const BIGNUM *bn)
     if (BIO_printf(out, "%s", spaces) <= 0)
         goto err;
 
-    /* Add a leading 00 if the top bit is set */
-    if (*p >= '8') {
-        if (BIO_printf(out, "%02x", 0) <= 0)
-            goto err;
-        ++bytes;
-        use_sep = 1;
-    }
     while (*p != '\0') {
-        /* Do a newline after every 15 hex bytes + add the space indent */
-        if ((bytes % 15) == 0 && bytes > 0) {
+        /* Do a newline after every n hex bytes + add the space indent */
+        if ((bytes % LABELED_BN_PRINT_WIDTH) == 0 && bytes > 0) {
             if (BIO_printf(out, ":\n%s", spaces) <= 0)
                 goto err;
             use_sep = 0; /* The first byte on the next line doesn't have a : */

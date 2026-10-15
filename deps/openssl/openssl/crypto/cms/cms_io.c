@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,8 +14,7 @@
 #include <openssl/cms.h>
 #include "cms_local.h"
 
-/* unfortunately cannot constify BIO_new_NDEF() due to this and PKCS7_stream() */
-int CMS_stream(unsigned char ***boundary, CMS_ContentInfo *cms)
+int ossl_cms_stream(CMS_ContentInfo *cms)
 {
     ASN1_OCTET_STRING **pos;
 
@@ -25,14 +24,21 @@ int CMS_stream(unsigned char ***boundary, CMS_ContentInfo *cms)
     if (*pos == NULL)
         *pos = ASN1_OCTET_STRING_new();
     if (*pos != NULL) {
-        (*pos)->flags |= ASN1_STRING_FLAG_NDEF;
-        (*pos)->flags &= ~ASN1_STRING_FLAG_CONT;
-        *boundary = &(*pos)->data;
+        cms->contentIncomplete = 0;
         return 1;
     }
     ERR_raise(ERR_LIB_CMS, ERR_R_CMS_LIB);
     return 0;
 }
+
+#if !defined(OPENSSL_NO_DEPRECATED_4_1)
+int CMS_stream(unsigned char ***boundary, CMS_ContentInfo *cms)
+{
+    if (boundary != NULL)
+        *boundary = NULL;
+    return ossl_cms_stream(cms);
+}
+#endif /* !defined(OPENSSL_NO_DEPRECATED_4_1) */
 
 CMS_ContentInfo *d2i_CMS_bio(BIO *bp, CMS_ContentInfo **cms)
 {

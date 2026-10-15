@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -171,7 +171,7 @@ int password_callback(char *buf, int bufsiz, int verify, PW_CB_DATA *cb_data)
         prompt_info = cb_data->prompt_info;
     prompt = UI_construct_prompt(ui, "pass phrase", prompt_info);
     if (prompt == NULL) {
-        BIO_printf(bio_err, "Out of memory\n");
+        BIO_puts(bio_err, "Out of memory\n");
         UI_free(ui);
         return 0;
     }
@@ -198,15 +198,15 @@ int password_callback(char *buf, int bufsiz, int verify, PW_CB_DATA *cb_data)
     OPENSSL_clear_free(buff, (unsigned int)bufsiz);
 
     if (ok >= 0)
-        res = strlen(buf);
+        res = (int)strlen(buf);
     if (ok == -1) {
-        BIO_printf(bio_err, "User interface error\n");
+        BIO_puts(bio_err, "User interface error\n");
         ERR_print_errors(bio_err);
         OPENSSL_cleanse(buf, (unsigned int)bufsiz);
         res = 0;
     }
     if (ok == -2) {
-        BIO_printf(bio_err, "aborted!\n");
+        BIO_puts(bio_err, "aborted!\n");
         OPENSSL_cleanse(buf, (unsigned int)bufsiz);
         res = 0;
     }

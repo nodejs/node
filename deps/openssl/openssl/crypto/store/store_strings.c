@@ -11,13 +11,14 @@
 
 #include "internal/nelem.h"
 
-static char *type_strings[] = {
+static const char *const type_strings[] = {
     "Name", /* OSSL_STORE_INFO_NAME */
     "Parameters", /* OSSL_STORE_INFO_PARAMS */
     "Public key", /* OSSL_STORE_INFO_PUBKEY */
     "Pkey", /* OSSL_STORE_INFO_PKEY */
     "Certificate", /* OSSL_STORE_INFO_CERT */
-    "CRL" /* OSSL_STORE_INFO_CRL */
+    "CRL", /* OSSL_STORE_INFO_CRL */
+    "Symmetric key" /* OSSL_STORE_INFO_SKEY */
 };
 
 const char *OSSL_STORE_INFO_type_string(int type)

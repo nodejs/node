@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -64,7 +64,7 @@ OSSL_IETF_ATTR_SYNTAX *d2i_OSSL_IETF_ATTR_SYNTAX(OSSL_IETF_ATTR_SYNTAX **a,
     int i;
 
     ias = (OSSL_IETF_ATTR_SYNTAX *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
-        OSSL_IETF_ATTR_SYNTAX_it());
+        ASN1_ITEM_rptr(OSSL_IETF_ATTR_SYNTAX));
     if (ias == NULL)
         return ias;
 
@@ -91,7 +91,7 @@ invalid_types:
 int i2d_OSSL_IETF_ATTR_SYNTAX(const OSSL_IETF_ATTR_SYNTAX *a,
     unsigned char **out)
 {
-    return ASN1_item_i2d((const ASN1_VALUE *)a, out, OSSL_IETF_ATTR_SYNTAX_it());
+    return ASN1_item_i2d((const ASN1_VALUE *)a, out, ASN1_ITEM_rptr(OSSL_IETF_ATTR_SYNTAX));
 }
 
 int OSSL_IETF_ATTR_SYNTAX_get_value_num(const OSSL_IETF_ATTR_SYNTAX *a)

@@ -1,11 +1,16 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_LIBCRYPTO_DES_SPR_H)
+#define OSSL_LIBCRYPTO_DES_SPR_H
+
+#include <openssl/des.h>
 
 const DES_LONG DES_SPtrans[8][64] = {
     {
@@ -545,3 +550,5 @@ const DES_LONG DES_SPtrans[8][64] = {
         0x00820080L,
     }
 };
+
+#endif /* !defined(OSSL_LIBCRYPTO_DES_SPR_H) */

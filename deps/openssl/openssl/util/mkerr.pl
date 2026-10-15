@@ -13,7 +13,6 @@ use File::Basename;
 use File::Spec::Functions qw(abs2rel rel2abs);
 
 use lib ".";
-use configdata;
 
 my $config       = "crypto/err/openssl.ec";
 my $debug        = 0;
@@ -21,8 +20,10 @@ my $internal     = 0;
 my $nowrite      = 0;
 my $rebuild      = 0;
 my $reindex      = 0;
+my $stateonly    = 0;
 my $static       = 0;
 my $unref        = 0;
+my $emit;       # file to write on stdout instead of doing a full run
 my %modules         = ();
 
 my $errors       = 0;
@@ -64,6 +65,13 @@ Options:
     -reindex    Ignore previously assigned values (except for R records in
                 the config file) and renumber everything starting at 100.
 
+    -state      Scan the sources and update the state file, but do not
+                write any header or C files.  Only useful with -internal.
+
+    -emit FILE  Write the named generated header or C file to standard
+                output and exit; no scan, no state update.  FILE must be
+                a file the config file names.  Only useful with -internal.
+
     -static     Make the load/unload functions static.
 
     -unref      List all unreferenced function and reason codes on stderr;
@@ -95,6 +103,11 @@ while ( @ARGV ) {
         $rebuild = 1;
     } elsif ( $arg eq "-reindex" ) {
         $reindex = 1;
+    } elsif ( $arg eq "-state" ) {
+        $stateonly = 1;
+    } elsif ( $arg eq "-emit" ) {
+        $emit = $ARGV[1];
+        shift @ARGV;
     } elsif ( $arg eq "-static" ) {
         $static = 1;
     } elsif ( $arg eq "-unref" ) {
@@ -113,7 +126,10 @@ while ( @ARGV ) {
 }
 
 my @source;
-if ( $internal ) {
+if ( defined $emit ) {
+    die "-emit is only useful with -internal\n" unless $internal;
+    die "Extra parameters given.\n" if @ARGV;
+} elsif ( $internal ) {
     die "Cannot mix -internal and -static\n" if $static;
     die "Extra parameters given.\n" if @ARGV;
     @source = ( glob('crypto/*.c'), glob('crypto/*/*.c'),
@@ -143,8 +159,10 @@ my %strings;    # define -> text
 # Read and parse the config file
 open(IN, "$config") || die "Can't open config file $config, $!,";
 while ( <IN> ) {
+    s|\R$||;                    # Better chomp; this may run on a
+                                # checkout with CRLF line endings
     next if /^#/ || /^$/;
-    if ( /^L\s+(\S+)\s+(\S+)\s+(\S+)(?:\s+(\S+))?\s+$/ ) {
+    if ( /^L\s+(\S+)\s+(\S+)\s+(\S+)(?:\s+(\S+))?\s*$/ ) {
         my $lib = $1;
         my $pubhdr = $2;
         my $err = $3;
@@ -181,6 +199,34 @@ if ( ! $statefile ) {
     $statefile =~ s/.ec/.txt/;
 }
 
+# Unless a rewrite or a report was explicitly requested, skip the run
+# entirely if nothing relevant changed since the last one.  The stamp
+# file records when a run last completed against the current sources;
+# it is a separate file rather than the statefile's own timestamp
+# because the statefile is a build input, and freshening it would
+# spuriously regenerate every emitted error file.  While the stamp is
+# newer than the config file, the statefile and every source file, a
+# new run would find no new reason codes and write nothing.
+if ( !defined $emit
+     && !$rebuild && !$reindex && !$nowrite && !$unref && !$debug
+     && scalar keys %modules == 0 ) {
+    my $stamp = (stat "$statefile.stamp")[9];
+
+    if ( defined $stamp ) {
+        my $uptodate = 1;
+
+        foreach my $file ( $config, $statefile, @source ) {
+            my $mtime = (stat $file)[9];
+
+            if ( !defined $mtime || $mtime >= $stamp ) {
+                $uptodate = 0;
+                last;
+            }
+        }
+        exit if $uptodate;
+    }
+}
+
 # The statefile has all the previous assignments.
 &phase("Reading state");
 my $skippedstate = 0;
@@ -190,6 +236,7 @@ if ( ! $reindex && $statefile ) {
     # Scan function and reason codes and store them: keep a note of the
     # maximum code used.
     while ( <STATE> ) {
+        s|\R$||;                # Better chomp, as above
         next if /^#/ || /^$/;
         my $name;
         my $code;
@@ -197,6 +244,9 @@ if ( ! $reindex && $statefile ) {
             $name = $1;
             $code = $2;
             my $next = <STATE>;
+
+            $next =~ s|\R$||;      # Better chomp, as above; the greedy
+                                    # trim below would keep a \r
             $next =~ s/^\s*(.*)\s*$/$1/;
             die "Duplicate define $name" if exists $strings{$name};
             $strings{$name} = $next;
@@ -286,6 +336,43 @@ foreach my $file ( @source ) {
 }
 print STDERR "\n" if $debug;
 
+# Resolve the values of the new reason codes before anything is
+# written; the state file and the emitted headers all need them.
+# Codes are assigned per library, in sorted reason order, into the
+# lowest free slot, exactly as the header emission historically did.
+&phase("Assigning codes");
+foreach my $lib ( keys %errorfile ) {
+    next if ! $rnew{$lib};
+    foreach my $i ( sort grep( /^${lib}_/, keys %rcodes ) ) {
+        next if $rcodes{$i} ne "X";
+        $rassigned{$lib} =~ m/^:([^:]*):/;
+        my $findcode = $1;
+
+        $findcode = $rmax{$lib} if !defined $findcode;
+        while ( $rassigned{$lib} =~ m/:$findcode:/ ) {
+            $findcode++;
+        }
+        $rcodes{$i} = $findcode;
+        $rassigned{$lib} .= "$findcode:";
+        print STDERR "New Reason code $i\n" if $debug;
+    }
+}
+
+# In -emit mode the state is the single source of truth: write the one
+# requested file to standard output and do nothing else.
+if ( defined $emit ) {
+    if ( defined $libprivinc{$emit} && $emit ne 'NONE' ) {
+        write_internal_header($libprivinc{$emit}, \*STDOUT);
+    } elsif ( defined $libpubinc{$emit} ) {
+        write_public_header($libpubinc{$emit}, \*STDOUT);
+    } elsif ( defined $cskip{$emit} ) {
+        write_c_source($cskip{$emit}, \*STDOUT);
+    } else {
+        die "$emit is not a file the config file $config knows about\n";
+    }
+    exit;
+}
+
 # Now process each library in turn.
 &phase("Writing files");
 my $newstate = 0;
@@ -295,359 +382,28 @@ foreach my $lib ( keys %errorfile ) {
     next if $nowrite;
     print STDERR "$lib: $rnew{$lib} new reasons\n" if $rnew{$lib};
     $newstate = 1;
-
-    # If we get here then we have some new error codes so we
-    # need to rebuild the header file and C file.
-
-    # Make a sorted list of error and reason codes for later use.
-    my @reasons  = sort grep( /^${lib}_/, keys %rcodes );
-
-    # indent level for innermost preprocessor lines
-    my $indent = " ";
-
-    # Flag if the sub-library is disablable
-    # There are a few exceptions, where disabling the sub-library
-    # doesn't actually remove the whole sub-library, but rather implements
-    # it with a NULL backend.
-    my $disablable =
-        ($lib ne "SSL" && $lib ne "ASYNC" && $lib ne "DSO"
-         && (grep { $lib eq uc $_ } @disablables, @disablables_int));
-
-    # Rewrite the internal header file if there is one ($internal only!)
+    next if $stateonly;
 
     if ($hprivinc{$lib} ne 'NONE') {
         my $hfile = $hprivinc{$lib};
-        my $guard = $hfile;
-
-        if ($guard =~ m|^include/|) {
-            $guard = $';
-        } else {
-            $guard = basename($guard);
-        }
-        $guard = "OSSL_" . join('_', split(m|[./]|, uc $guard));
 
         open( OUT, ">$hfile" ) || die "Can't write to $hfile, $!,";
-        print OUT <<"EOF";
-/*
- * Generated by util/mkerr.pl DO NOT EDIT
- * Copyright 2020-$YEAR The OpenSSL Project Authors. All Rights Reserved.
- *
- * Licensed under the Apache License 2.0 (the \"License\").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
- */
-
-#ifndef $guard
-#define $guard
-#pragma once
-
-#include <openssl/opensslconf.h>
-#include <openssl/symhacks.h>
-
-#ifdef __cplusplus
-extern \"C\" {
-#endif
-
-EOF
-        $indent = ' ';
-        if ($disablable) {
-            print OUT <<"EOF";
-#ifndef OPENSSL_NO_${lib}
-
-EOF
-            $indent = "  ";
-        }
-        print OUT <<"EOF";
-int ossl_err_load_${lib}_strings(void);
-EOF
-
-        # If this library doesn't have a public header file, we write all
-        # definitions that would end up there here instead
-        if ($hpubinc{$lib} eq 'NONE') {
-            print OUT "\n/*\n * $lib reason codes.\n */\n";
-            foreach my $i ( @reasons ) {
-                my $z = 48 - length($i);
-                $z = 0 if $z < 0;
-                if ( $rcodes{$i} eq "X" ) {
-                    $rassigned{$lib} =~ m/^:([^:]*):/;
-                    my $findcode = $1;
-                    $findcode = $rmax{$lib} if !defined $findcode;
-                    while ( $rassigned{$lib} =~ m/:$findcode:/ ) {
-                        $findcode++;
-                    }
-                    $rcodes{$i} = $findcode;
-                    $rassigned{$lib} .= "$findcode:";
-                    print STDERR "New Reason code $i\n" if $debug;
-                }
-                printf OUT "#define $i $rcodes{$i}\n";
-            }
-            print OUT "\n";
-        }
-
-        # This doesn't go all the way down to zero, to allow for the ending
-        # brace for 'extern "C" {'.
-        while (length($indent) > 1) {
-            $indent = substr $indent, 0, -1;
-            print OUT "#endif\n";
-        }
-
-        print OUT <<"EOF";
-
-#ifdef __cplusplus
-}
-#endif
-#endif
-EOF
+        write_internal_header($lib, \*OUT);
         close OUT;
     }
-
-    # Rewrite the public header file
-
     if ($hpubinc{$lib} ne 'NONE') {
-        my $extra_include =
-            $internal
-            ? ($lib ne 'SSL'
-               ? "#include <openssl/cryptoerr_legacy.h>\n"
-               : "#include <openssl/sslerr_legacy.h>\n")
-            : '';
         my $hfile = $hpubinc{$lib};
-        my $guard = $hfile;
-        $guard =~ s|^include/||;
-        $guard = join('_', split(m|[./]|, uc $guard));
-        $guard = "OSSL_" . $guard unless $internal;
 
         open( OUT, ">$hfile" ) || die "Can't write to $hfile, $!,";
-        print OUT <<"EOF";
-/*
- * Generated by util/mkerr.pl DO NOT EDIT
- * Copyright 1995-$YEAR The OpenSSL Project Authors. All Rights Reserved.
- *
- * Licensed under the Apache License 2.0 (the \"License\").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
- */
-
-#ifndef $guard
-#define $guard
-#pragma once
-
-#include <openssl/opensslconf.h>
-#include <openssl/symhacks.h>
-$extra_include
-EOF
-        $indent = ' ';
-        if ( $internal ) {
-            if ($disablable) {
-                print OUT <<"EOF";
-#ifndef OPENSSL_NO_${lib}
-EOF
-                $indent .= ' ';
-            }
-        } else {
-            print OUT <<"EOF";
-#define ${lib}err(f, r) ERR_${lib}_error(0, (r), OPENSSL_FILE, OPENSSL_LINE)
-#define ERR_R_${lib}_LIB ERR_${lib}_lib()
-EOF
-            if ( ! $static ) {
-                print OUT <<"EOF";
-
-#ifdef __cplusplus
-extern \"C\" {
-#endif
-int ERR_load_${lib}_strings(void);
-void ERR_unload_${lib}_strings(void);
-void ERR_${lib}_error(int function, int reason, const char *file, int line);
-#ifdef __cplusplus
-}
-#endif
-EOF
-            }
-        }
-
-        print OUT "/*\n * $lib reason codes.\n */\n";
-        foreach my $i ( @reasons ) {
-            my $z = 48 - length($i);
-            $z = 0 if $z < 0;
-            if ( $rcodes{$i} eq "X" ) {
-                $rassigned{$lib} =~ m/^:([^:]*):/;
-                my $findcode = $1;
-                $findcode = $rmax{$lib} if !defined $findcode;
-                while ( $rassigned{$lib} =~ m/:$findcode:/ ) {
-                    $findcode++;
-                }
-                $rcodes{$i} = $findcode;
-                $rassigned{$lib} .= "$findcode:";
-                print STDERR "New Reason code $i\n" if $debug;
-            }
-            printf OUT "#define $i $rcodes{$i}\n";
-        }
-        print OUT "\n";
-
-        while (length($indent) > 0) {
-            $indent = substr $indent, 0, -1;
-            print OUT "#endif\n";
-        }
+        write_public_header($lib, \*OUT);
         close OUT;
     }
-
-    # Rewrite the C source file containing the error details.
-
     if ($errorfile{$lib} ne 'NONE') {
-        # First, read any existing reason string definitions:
         my $cfile = $errorfile{$lib};
-        my $pack_lib = $internal ? "ERR_LIB_${lib}" : "0";
-        my $hpubincf = $hpubinc{$lib};
-        my $hprivincf = $hprivinc{$lib};
-        my $includes = '';
-        if ($internal) {
-            if ($hpubincf ne 'NONE') {
-                $hpubincf =~ s|^include/||;
-                $includes .= "#include <${hpubincf}>\n";
-            }
-            if ($hprivincf =~ m|^include/|) {
-                $hprivincf = $';
-            } else {
-                $hprivincf = abs2rel(rel2abs($hprivincf),
-                                     rel2abs(dirname($cfile)));
-            }
-            $includes .= "#include \"${hprivincf}\"\n";
-        } else {
-            $includes .= "#include \"${hpubincf}\"\n";
-        }
 
         open( OUT, ">$cfile" )
             || die "Can't open $cfile for writing, $!, stopped";
-
-        my $const = $internal ? 'const ' : '';
-
-        print OUT <<"EOF";
-/*
- * Generated by util/mkerr.pl DO NOT EDIT
- * Copyright 1995-$YEAR The OpenSSL Project Authors. All Rights Reserved.
- *
- * Licensed under the Apache License 2.0 (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
- */
-
-#include <openssl/err.h>
-$includes
-EOF
-        $indent = '';
-        if ( $internal ) {
-            if ($disablable) {
-                print OUT <<"EOF";
-#ifndef OPENSSL_NO_${lib}
-
-EOF
-                $indent .= ' ';
-            }
-        }
-        print OUT <<"EOF";
-#ifndef OPENSSL_NO_ERR
-
-static ${const}ERR_STRING_DATA ${lib}_str_reasons[] = {
-EOF
-
-        # Add each reason code.
-        foreach my $i ( @reasons ) {
-            my $rn;
-            if ( exists $strings{$i} ) {
-                $rn = $strings{$i};
-                $rn = "" if $rn eq '*';
-            } else {
-                $i =~ /^${lib}_R_(\S+)$/;
-                $rn = $1;
-                $rn =~ tr/_[A-Z]/ [a-z]/;
-                $strings{$i} = $rn;
-            }
-            my $lines;
-            $lines = "    { ERR_PACK($pack_lib, 0, $i), \"$rn\" },";
-            $lines = "    { ERR_PACK($pack_lib, 0, $i),\n        \"$rn\" },"
-                if length($lines) > 82;
-            print OUT "$lines\n";
-        }
-        print OUT <<"EOF";
-    { 0, NULL }
-};
-
-#endif
-EOF
-        if ( $internal ) {
-            print OUT <<"EOF";
-
-int ossl_err_load_${lib}_strings(void)
-{
-#ifndef OPENSSL_NO_ERR
-    if (ERR_reason_error_string(${lib}_str_reasons[0].error) == NULL)
-        ERR_load_strings_const(${lib}_str_reasons);
-#endif
-    return 1;
-}
-EOF
-        } else {
-            my $st = $static ? "static " : "";
-            print OUT <<"EOF";
-
-static int lib_code = 0;
-static int error_loaded = 0;
-
-${st}int ERR_load_${lib}_strings(void)
-{
-    if (lib_code == 0)
-        lib_code = ERR_get_next_error_library();
-
-    if (!error_loaded) {
-#ifndef OPENSSL_NO_ERR
-        ERR_load_strings(lib_code, ${lib}_str_reasons);
-#endif
-        error_loaded = 1;
-    }
-    return 1;
-}
-
-${st}void ERR_unload_${lib}_strings(void)
-{
-    if (error_loaded) {
-#ifndef OPENSSL_NO_ERR
-        ERR_unload_strings(lib_code, ${lib}_str_reasons);
-#endif
-        error_loaded = 0;
-    }
-}
-
-${st}void ERR_${lib}_error(int function, int reason, const char *file, int line)
-{
-    if (lib_code == 0)
-        lib_code = ERR_get_next_error_library();
-    ERR_raise(lib_code, reason);
-    ERR_set_debug(file, line, NULL);
-}
-
-${st}int ERR_${lib}_lib(void)
-{
-    if (lib_code == 0)
-        lib_code = ERR_get_next_error_library();
-    return lib_code;
-}
-EOF
-
-        }
-
-        while (length($indent) > 1) {
-            $indent = substr $indent, 0, -1;
-            print OUT "#endif\n";
-        }
-        if ($internal && $disablable) {
-            print OUT <<"EOF";
-#else
-NON_EMPTY_TRANSLATION_UNIT
-#endif
-EOF
-        }
+        write_c_source($lib, \*OUT);
         close OUT;
     }
 }
@@ -699,4 +455,356 @@ EOF
     }
 }
 
+# Record that the sources have been scanned against the current state;
+# the up-to-date check at the top keys on the stamp file.  The stamp
+# is touched on every completed run, not just null ones, so it is
+# always newer than the statefile it vouches for.
+if ( !$nowrite && !$reindex && scalar keys %modules == 0 ) {
+    open(STAMP, ">$statefile.stamp")
+        || warn "Can't write $statefile.stamp, $!";
+    close(STAMP);
+}
+
 exit;
+
+sub lib_disablable
+{
+    my $lib = shift;
+
+    # configdata is large and only needed when a file is actually
+    # written, so it is loaded lazily here rather than at startup.
+    require configdata;
+
+    # Flag if the sub-library is disablable.
+    # There are a few exceptions, where disabling the sub-library
+    # doesn't actually remove the whole sub-library, but rather
+    # implements it with a NULL backend or keeps part of it: no-http
+    # still builds http_lib.c for URL parsing, so the HTTP reason
+    # codes must remain visible.
+    return do {
+        # The 'once' warning does not know that require defines these.
+        no warnings 'once';
+
+        ($lib ne "SSL" && $lib ne "ASYNC" && $lib ne "DSO"
+         && $lib ne "HTTP"
+         && (grep { $lib eq uc $_ } @configdata::disablables,
+                                    @configdata::disablables_int));
+    };
+}
+
+# Write the internal header file for $lib ($internal only!)
+sub write_internal_header
+{
+    my ( $lib, $fh ) = @_;
+    my @reasons = sort grep( /^${lib}_/, keys %rcodes );
+    my $disablable = lib_disablable($lib);
+    my $hfile = $hprivinc{$lib};
+    my $guard = $hfile;
+
+    if ($guard =~ m|^include/|) {
+        $guard = $';
+    } else {
+        $guard = basename($guard);
+    }
+    $guard = "OSSL_" . join('_', split(m|[./]|, uc $guard));
+
+    print $fh <<"EOF";
+/*
+ * Generated by util/mkerr.pl DO NOT EDIT
+ * Copyright 2020-$YEAR The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the \"License\").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+#ifndef $guard
+#define $guard
+#pragma once
+
+#include <openssl/opensslconf.h>
+#include <openssl/symhacks.h>
+
+#ifdef __cplusplus
+extern \"C\" {
+#endif
+
+EOF
+    my $indent = ' ';
+    if ($disablable) {
+        print $fh <<"EOF";
+#ifndef OPENSSL_NO_${lib}
+
+EOF
+        $indent = "  ";
+    }
+    print $fh <<"EOF";
+int ossl_err_load_${lib}_strings(void);
+EOF
+
+    # If this library doesn't have a public header file, we write all
+    # definitions that would end up there here instead
+    if ($hpubinc{$lib} eq 'NONE') {
+        print $fh "\n/*\n * $lib reason codes.\n */\n";
+        foreach my $i ( @reasons ) {
+            print $fh "#define $i $rcodes{$i}\n";
+        }
+        print $fh "\n";
+    }
+
+    # This doesn't go all the way down to zero, to allow for the ending
+    # brace for 'extern "C" {'.
+    while (length($indent) > 1) {
+        $indent = substr $indent, 0, -1;
+        print $fh "#endif\n";
+    }
+
+    print $fh <<"EOF";
+
+#ifdef __cplusplus
+}
+#endif
+#endif
+EOF
+}
+
+# Write the public header file for $lib
+sub write_public_header
+{
+    my ( $lib, $fh ) = @_;
+    my @reasons = sort grep( /^${lib}_/, keys %rcodes );
+    my $disablable = lib_disablable($lib);
+    my $extra_include =
+        $internal
+        ? ($lib ne 'SSL'
+           ? "#include <openssl/cryptoerr_legacy.h>\n"
+           : "#include <openssl/sslerr_legacy.h>\n")
+        : '';
+    my $hfile = $hpubinc{$lib};
+    my $guard = $hfile;
+
+    $guard =~ s|^include/||;
+    $guard = join('_', split(m|[./]|, uc $guard));
+    $guard = "OSSL_" . $guard unless $internal;
+
+    print $fh <<"EOF";
+/*
+ * Generated by util/mkerr.pl DO NOT EDIT
+ * Copyright 1995-$YEAR The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the \"License\").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+#ifndef $guard
+#define $guard
+#pragma once
+
+#include <openssl/opensslconf.h>
+#include <openssl/symhacks.h>
+$extra_include
+EOF
+    my $indent = ' ';
+    if ( $internal ) {
+        if ($disablable) {
+            print $fh <<"EOF";
+#ifndef OPENSSL_NO_${lib}
+EOF
+            $indent .= ' ';
+        }
+    } else {
+        print $fh <<"EOF";
+#define ${lib}err(f, r) ERR_${lib}_error(0, (r), OPENSSL_FILE, OPENSSL_LINE)
+#define ERR_R_${lib}_LIB ERR_${lib}_lib()
+EOF
+        if ( ! $static ) {
+            print $fh <<"EOF";
+
+#ifdef __cplusplus
+extern \"C\" {
+#endif
+int ERR_load_${lib}_strings(void);
+void ERR_unload_${lib}_strings(void);
+void ERR_${lib}_error(int function, int reason, const char *file, int line);
+#ifdef __cplusplus
+}
+#endif
+EOF
+        }
+    }
+
+    print $fh "/*\n * $lib reason codes.\n */\n";
+    foreach my $i ( @reasons ) {
+        print $fh "#define $i $rcodes{$i}\n";
+    }
+    print $fh "\n";
+
+    while (length($indent) > 0) {
+        $indent = substr $indent, 0, -1;
+        print $fh "#endif\n";
+    }
+}
+
+# Write the C source file containing the error details for $lib
+sub write_c_source
+{
+    my ( $lib, $fh ) = @_;
+    my @reasons = sort grep( /^${lib}_/, keys %rcodes );
+    my $disablable = lib_disablable($lib);
+    my $cfile = $errorfile{$lib};
+    my $pack_lib = $internal ? "ERR_LIB_${lib}" : "0";
+    my $hpubincf = $hpubinc{$lib};
+    my $hprivincf = $hprivinc{$lib};
+    my $includes = '';
+
+    if ($internal) {
+        if ($hpubincf ne 'NONE') {
+            $hpubincf =~ s|^include/||;
+            $includes .= "#include <${hpubincf}>\n";
+        }
+        if ($hprivincf =~ m|^include/|) {
+            $hprivincf = $';
+        } else {
+            $hprivincf = abs2rel(rel2abs($hprivincf),
+                                 rel2abs(dirname($cfile)));
+        }
+        $includes .= "#include \"${hprivincf}\"\n";
+    } else {
+        $includes .= "#include \"${hpubincf}\"\n";
+    }
+
+    my $const = $internal ? 'const ' : '';
+
+    print $fh <<"EOF";
+/*
+ * Generated by util/mkerr.pl DO NOT EDIT
+ * Copyright 1995-$YEAR The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+#include <openssl/err.h>
+$includes
+EOF
+    my $indent = '';
+    if ( $internal ) {
+        if ($disablable) {
+            print $fh <<"EOF";
+#ifndef OPENSSL_NO_${lib}
+
+EOF
+            $indent .= ' ';
+        }
+    }
+    print $fh <<"EOF";
+#ifndef OPENSSL_NO_ERR
+
+static ${const}ERR_STRING_DATA ${lib}_str_reasons[] = {
+EOF
+
+    # Add each reason code.
+    foreach my $i ( @reasons ) {
+        my $rn;
+
+        if ( exists $strings{$i} ) {
+            $rn = $strings{$i};
+            $rn = "" if $rn eq '*';
+        } else {
+            $i =~ /^${lib}_R_(\S+)$/;
+            $rn = $1;
+            $rn =~ tr/_[A-Z]/ [a-z]/;
+            $strings{$i} = $rn;
+        }
+        my $lines;
+
+        $lines = "    { ERR_PACK($pack_lib, 0, $i), \"$rn\" },";
+        $lines = "    { ERR_PACK($pack_lib, 0, $i),\n        \"$rn\" },"
+            if length($lines) > 82;
+        print $fh "$lines\n";
+    }
+    print $fh <<"EOF";
+    { 0, NULL }
+};
+
+#endif
+EOF
+    if ( $internal ) {
+        print $fh <<"EOF";
+
+int ossl_err_load_${lib}_strings(void)
+{
+#ifndef OPENSSL_NO_ERR
+    if (ERR_reason_error_string(${lib}_str_reasons[0].error) == NULL)
+        ERR_load_strings_const(${lib}_str_reasons);
+#endif
+    return 1;
+}
+EOF
+    } else {
+        my $st = $static ? "static " : "";
+
+        print $fh <<"EOF";
+
+static int lib_code = 0;
+static int error_loaded = 0;
+
+${st}int ERR_load_${lib}_strings(void)
+{
+    if (lib_code == 0)
+        lib_code = ERR_get_next_error_library();
+
+    if (!error_loaded) {
+#ifndef OPENSSL_NO_ERR
+        ERR_load_strings(lib_code, ${lib}_str_reasons);
+#endif
+        error_loaded = 1;
+    }
+    return 1;
+}
+
+${st}void ERR_unload_${lib}_strings(void)
+{
+    if (error_loaded) {
+#ifndef OPENSSL_NO_ERR
+        ERR_unload_strings(lib_code, ${lib}_str_reasons);
+#endif
+        error_loaded = 0;
+    }
+}
+
+${st}void ERR_${lib}_error(int function, int reason, const char *file, int line)
+{
+    if (lib_code == 0)
+        lib_code = ERR_get_next_error_library();
+    ERR_raise(lib_code, reason);
+    ERR_set_debug(file, line, NULL);
+}
+
+${st}int ERR_${lib}_lib(void)
+{
+    if (lib_code == 0)
+        lib_code = ERR_get_next_error_library();
+    return lib_code;
+}
+EOF
+
+    }
+
+    while (length($indent) > 1) {
+        $indent = substr $indent, 0, -1;
+        print $fh "#endif\n";
+    }
+    if ($internal && $disablable) {
+        print $fh <<"EOF";
+#else
+NON_EMPTY_TRANSLATION_UNIT
+#endif
+EOF
+    }
+}

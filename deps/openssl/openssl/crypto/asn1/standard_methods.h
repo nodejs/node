@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,12 +7,19 @@
  * https://www.openssl.org/source/license.html
  */
 
+#if !defined(OSSL_CRYPTO_ASN1_STANDARD_METHODS_H)
+#define OSSL_CRYPTO_ASN1_STANDARD_METHODS_H
+
+#include <openssl/types.h>
+
+#include <crypto/asn1.h>
+
 /*
  * This table MUST be kept in ascending order of the NID each method
  * represents (corresponding to the pkey_id field) as OBJ_bsearch
  * is used to search it.
  */
-static const EVP_PKEY_ASN1_METHOD *standard_methods[] = {
+static const EVP_PKEY_ASN1_METHOD *const standard_methods[] = {
     &ossl_rsa_asn1_meths[0],
     &ossl_rsa_asn1_meths[1],
 #ifndef OPENSSL_NO_DH
@@ -41,3 +48,4 @@ static const EVP_PKEY_ASN1_METHOD *standard_methods[] = {
     &ossl_sm2_asn1_meth,
 #endif
 };
+#endif /* !defined(OSSL_CRYPTO_ASN1_STANDARD_METHODS_H) */

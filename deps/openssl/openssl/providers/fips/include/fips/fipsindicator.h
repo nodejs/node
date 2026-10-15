@@ -7,8 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef OSSL_PROVIDERS_FIPSINDICATOR_H
-#define OSSL_PROVIDERS_FIPSINDICATOR_H
+#if !defined(OSSL_PROVIDERS_FIPS_INCLUDE_FIPS_FIPSINDICATOR_H)
+#define OSSL_PROVIDERS_FIPS_INCLUDE_FIPS_FIPSINDICATOR_H
 
 #ifdef FIPS_MODULE
 
@@ -70,16 +70,17 @@ void ossl_FIPS_IND_set_approved(OSSL_FIPS_IND *ind);
 void ossl_FIPS_IND_set_settable(OSSL_FIPS_IND *ind, int id, int enable);
 int ossl_FIPS_IND_get_settable(const OSSL_FIPS_IND *ind, int id);
 int ossl_FIPS_IND_on_unapproved(OSSL_FIPS_IND *ind, int id, OSSL_LIB_CTX *libctx,
-    const char *algname, const char *opname,
-    OSSL_FIPS_IND_CHECK_CB *config_check_fn);
-int ossl_FIPS_IND_set_ctx_param(OSSL_FIPS_IND *ind, int id,
-    const OSSL_PARAM params[], const char *name);
+    const char *algname, const char *opname, enum fips_config_id config_id);
+int ossl_FIPS_IND_set_ctx_param(OSSL_FIPS_IND *ind, int id, const OSSL_PARAM *p);
+int ossl_FIPS_IND_set_ctx_param_locate(OSSL_FIPS_IND *ind, int id,
+    const OSSL_PARAM params[],
+    const char *name);
 int ossl_FIPS_IND_get_ctx_param(const OSSL_FIPS_IND *ind,
-    OSSL_PARAM params[]);
+    OSSL_PARAM *p);
 int ossl_FIPS_IND_get_ctx_param_conditional(const OSSL_FIPS_IND *ind,
-    OSSL_PARAM params[], int condition);
-const OSSL_PARAM *ossl_FIPS_IND_gettable_ctx_params(void *ctx, void *provctx);
-int ossl_FIPS_IND_get_ctx_param_approved(void *ctx, OSSL_PARAM params[]);
+    OSSL_PARAM *p, int condition);
+int ossl_FIPS_IND_get_ctx_param_locate(const OSSL_FIPS_IND *ind,
+    OSSL_PARAM params[]);
 void ossl_FIPS_IND_copy(OSSL_FIPS_IND *dst, const OSSL_FIPS_IND *src);
 
 /* Place this in the algorithm ctx structure */
@@ -103,8 +104,8 @@ void ossl_FIPS_IND_copy(OSSL_FIPS_IND *dst, const OSSL_FIPS_IND *src);
  * If there is more than 1 strict check flag per algorithm ctx, the id represents
  * the index.
  */
-#define OSSL_FIPS_IND_ON_UNAPPROVED(ctx, id, libctx, algname, opname, config_check_fn) \
-    ossl_FIPS_IND_on_unapproved(&ctx->indicator, id, libctx, algname, opname, config_check_fn)
+#define OSSL_FIPS_IND_ON_UNAPPROVED(ctx, id, libctx, algname, opname, config_id) \
+    ossl_FIPS_IND_on_unapproved(&ctx->indicator, id, libctx, algname, opname, config_id)
 
 #define OSSL_FIPS_IND_SETTABLE_CTX_PARAM(name) \
     OSSL_PARAM_int(name, NULL),
@@ -114,27 +115,26 @@ void ossl_FIPS_IND_copy(OSSL_FIPS_IND *dst, const OSSL_FIPS_IND *src);
  * The name must match the param used by OSSL_FIPS_IND_SETTABLE_CTX_PARAM
  */
 #define OSSL_FIPS_IND_SET_CTX_PARAM(ctx, id, params, name) \
-    ossl_FIPS_IND_set_ctx_param(&((ctx)->indicator), id, params, name)
+    ossl_FIPS_IND_set_ctx_param_locate(&((ctx)->indicator), id, params, name)
+
+#define OSSL_FIPS_IND_SET_CTX_FROM_PARAM(ctx, id, p) \
+    ossl_FIPS_IND_set_ctx_param(&((ctx)->indicator), id, p)
 
 #define OSSL_FIPS_IND_GETTABLE_CTX_PARAM() \
     OSSL_PARAM_int(OSSL_ALG_PARAM_FIPS_APPROVED_INDICATOR, NULL),
 
 #define OSSL_FIPS_IND_GET_CTX_PARAM(ctx, prms) \
-    ossl_FIPS_IND_get_ctx_param(&((ctx)->indicator), prms)
+    ossl_FIPS_IND_get_ctx_param_locate(&((ctx)->indicator), prms)
 
-#define OSSL_FIPS_IND_GET_CTX_PARAM_CONDITIONAL(ctx, prms, condition) \
-    ossl_FIPS_IND_get_ctx_param_conditional(&((ctx)->indicator), prms, condition)
+#define OSSL_FIPS_IND_GET_CTX_FROM_PARAM(ctx, p) \
+    ossl_FIPS_IND_get_ctx_param(&((ctx)->indicator), p)
 
-#define OSSL_FIPS_IND_GET_CTX_PARAM_APPROVED(ctx, prms) \
-    ossl_FIPS_IND_get_ctx_param_approved(ctx, prms)
+#define OSSL_FIPS_IND_GET_CTX_FROM_PARAM_CONDITIONAL(ctx, p, condition) \
+    ossl_FIPS_IND_get_ctx_param_conditional(                            \
+        &((ctx)->indicator), p, condition)
 
-#define OSSL_FIPS_IND_DISPATCH(get_id, gettable_id, get_fn) \
-    { get_id, (void (*)(void))get_fn },                     \
-        { gettable_id, (void (*)(void))ossl_FIPS_IND_gettable_ctx_params },
-
-#define OSSL_FIPS_IND_APPROVED_DISPATCH(get_id, gettable_id) \
-    OSSL_FIPS_IND_DISPATCH(get_id, gettable_id,              \
-        ossl_FIPS_IND_get_ctx_param_approved)
+#define OSSL_FIPS_IND_GET_PARAM_CONDITIONAL(p, condition) \
+    ossl_FIPS_IND_get_ctx_param_conditional(NULL, p, condition)
 
 #define OSSL_FIPS_IND_GET(ctx) (&((ctx)->indicator))
 
@@ -157,7 +157,7 @@ int ossl_fips_ind_digest_sign_check(OSSL_FIPS_IND *ind, int id,
     int nid, int sha1_allowed,
     int sha512_trunc_allowed,
     const char *desc,
-    OSSL_FIPS_IND_CHECK_CB *config_check_f);
+    enum fips_config_id config_id);
 
 #else
 #define OSSL_FIPS_IND_DECLARE
@@ -166,14 +166,14 @@ int ossl_fips_ind_digest_sign_check(OSSL_FIPS_IND *ind, int id,
 #define OSSL_FIPS_IND_ON_UNAPPROVED(ctx, id, libctx, algname, opname, configopt_fn)
 #define OSSL_FIPS_IND_SETTABLE_CTX_PARAM(name)
 #define OSSL_FIPS_IND_SET_CTX_PARAM(ctx, id, params, name) 1
+#define OSSL_FIPS_IND_SET_CTX_FROM_PARAM(ctx, id, p) 1
 #define OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
 #define OSSL_FIPS_IND_GET_CTX_PARAM(ctx, params) 1
-#define OSSL_FIPS_IND_GET_CTX_PARAM_CONDITIONAL(ctx, params, condition) 1
-#define OSSL_FIPS_IND_GET_CTX_PARAM_APPROVED(ctx, params) 1
-#define OSSL_FIPS_IND_DISPATCH(get_id, gettable_id, get_fn)
-#define OSSL_FIPS_IND_APPROVED_DISPATCH(get_id, gettable_id)
+#define OSSL_FIPS_IND_GET_CTX_FROM_PARAM(ctx, params) 1
+#define OSSL_FIPS_IND_GET_CTX_FROM_PARAM_CONDITIONAL(ctx, p, condition) 1
+#define OSSL_FIPS_IND_GET_PARAM_CONDITIONAL(p, condition) 1
 #define OSSL_FIPS_IND_COPY(dst, src)
 
 #endif
 
-#endif /* OSSL_PROVIDERS_FIPSINDICATOR_H */
+#endif /* !defined(OSSL_PROVIDERS_FIPS_INCLUDE_FIPS_FIPSINDICATOR_H) */

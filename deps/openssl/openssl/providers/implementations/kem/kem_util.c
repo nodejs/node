@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,7 +10,7 @@
 #include <string.h> /* for memcpy() */
 #include <openssl/core_names.h>
 #include <openssl/crypto.h>
-#include "eckem.h"
+#include "prov/eckem.h"
 
 typedef struct {
     unsigned int id;

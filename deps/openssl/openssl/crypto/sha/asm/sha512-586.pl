@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2007-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # SHA512 block transform for x86. September 2007.
@@ -917,7 +917,7 @@ sub BODY_00_15_ssse3 {		# "phase-less" copy of BODY_00_15_sse2
 	&data_word(0x04050607,0x00010203);	# byte swap
 	&data_word(0x0c0d0e0f,0x08090a0b);	# mask
 &function_end_B("sha512_block_data_order");
-&asciz("SHA512 block transform for x86, CRYPTOGAMS by <appro\@openssl.org>");
+&asciz("SHA512 block transform for x86, CRYPTOGAMS by <https://github.com/dot-asm>");
 
 &asm_finish();
 

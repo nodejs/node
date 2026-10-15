@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -24,7 +24,6 @@ typedef enum OPTION_choice {
     OPT_COMMON,
     OPT_INFORM,
     OPT_OUTFORM,
-    OPT_ENGINE,
     OPT_IN,
     OPT_OUT,
     OPT_TOPK8,
@@ -51,9 +50,6 @@ typedef enum OPTION_choice {
 const OPTIONS pkcs8_options[] = {
     OPT_SECTION("General"),
     { "help", OPT_HELP, '-', "Display this summary" },
-#ifndef OPENSSL_NO_ENGINE
-    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
-#endif
     { "v1", OPT_V1, 's', "Use PKCS#5 v1.5 and cipher" },
     { "v2", OPT_V2, 's', "Use PKCS#5 v2.0 and cipher" },
     { "v2prf", OPT_V2PRF, 's', "Set the PRF algorithm to use with PKCS#5 v2.0" },
@@ -90,7 +86,6 @@ const OPTIONS pkcs8_options[] = {
 int pkcs8_main(int argc, char **argv)
 {
     BIO *in = NULL, *out = NULL;
-    ENGINE *e = NULL;
     EVP_PKEY *pkey = NULL;
     PKCS8_PRIV_KEY_INFO *p8inf = NULL;
     X509_SIG *p8 = NULL;
@@ -186,9 +181,6 @@ int pkcs8_main(int argc, char **argv)
         case OPT_PASSOUT:
             passoutarg = opt_arg();
             break;
-        case OPT_ENGINE:
-            e = setup_engine(opt_arg(), 0);
-            break;
 #ifndef OPENSSL_NO_SCRYPT
         case OPT_SCRYPT:
             scrypt_N = 16384;
@@ -231,7 +223,7 @@ int pkcs8_main(int argc, char **argv)
     }
 
     if (!app_passwd(passinarg, passoutarg, &passin, &passout)) {
-        BIO_printf(bio_err, "Error getting passwords\n");
+        BIO_puts(bio_err, "Error getting passwords\n");
         goto end;
     }
 
@@ -244,11 +236,11 @@ int pkcs8_main(int argc, char **argv)
         goto end;
 
     if (topk8) {
-        pkey = load_key(infile, informat, 1, passin, e, "key");
+        pkey = load_key(infile, informat, 1, passin, "key");
         if (pkey == NULL)
             goto end;
         if ((p8inf = EVP_PKEY2PKCS8(pkey)) == NULL) {
-            BIO_printf(bio_err, "Error converting key\n");
+            BIO_puts(bio_err, "Error converting key\n");
             ERR_print_errors(bio_err);
             goto end;
         }
@@ -261,7 +253,7 @@ int pkcs8_main(int argc, char **argv)
             } else if (outformat == FORMAT_ASN1) {
                 i2d_PKCS8_PRIV_KEY_INFO_bio(out, p8inf);
             } else {
-                BIO_printf(bio_err, "Bad format specified for key\n");
+                BIO_puts(bio_err, "Bad format specified for key\n");
                 goto end;
             }
         } else {
@@ -279,7 +271,7 @@ int pkcs8_main(int argc, char **argv)
                 pbe = PKCS5_pbe_set(pbe_nid, iter, NULL, saltlen);
             }
             if (pbe == NULL) {
-                BIO_printf(bio_err, "Error setting PBE algorithm\n");
+                BIO_puts(bio_err, "Error setting PBE algorithm\n");
                 ERR_print_errors(bio_err);
                 goto end;
             }
@@ -295,13 +287,13 @@ int pkcs8_main(int argc, char **argv)
                 }
             } else {
 #endif
-                BIO_printf(bio_err, "Password required\n");
+                BIO_puts(bio_err, "Password required\n");
                 goto end;
             }
-            p8 = PKCS8_set0_pbe(p8pass, strlen(p8pass), p8inf, pbe);
+            p8 = PKCS8_set0_pbe(p8pass, (int)strlen(p8pass), p8inf, pbe);
             if (p8 == NULL) {
                 X509_ALGOR_free(pbe);
-                BIO_printf(bio_err, "Error encrypting key\n");
+                BIO_puts(bio_err, "Error encrypting key\n");
                 ERR_print_errors(bio_err);
                 goto end;
             }
@@ -311,7 +303,7 @@ int pkcs8_main(int argc, char **argv)
             else if (outformat == FORMAT_ASN1)
                 i2d_PKCS8_bio(out, p8);
             else {
-                BIO_printf(bio_err, "Bad format specified for key\n");
+                BIO_puts(bio_err, "Bad format specified for key\n");
                 goto end;
             }
         }
@@ -326,7 +318,7 @@ int pkcs8_main(int argc, char **argv)
         } else if (informat == FORMAT_ASN1) {
             p8inf = d2i_PKCS8_PRIV_KEY_INFO_bio(in, NULL);
         } else {
-            BIO_printf(bio_err, "Bad format specified for key\n");
+            BIO_puts(bio_err, "Bad format specified for key\n");
             goto end;
         }
     } else {
@@ -335,12 +327,12 @@ int pkcs8_main(int argc, char **argv)
         } else if (informat == FORMAT_ASN1) {
             p8 = d2i_PKCS8_bio(in, NULL);
         } else {
-            BIO_printf(bio_err, "Bad format specified for key\n");
+            BIO_puts(bio_err, "Bad format specified for key\n");
             goto end;
         }
 
         if (p8 == NULL) {
-            BIO_printf(bio_err, "Error reading key\n");
+            BIO_puts(bio_err, "Error reading key\n");
             ERR_print_errors(bio_err);
             goto end;
         }
@@ -350,25 +342,25 @@ int pkcs8_main(int argc, char **argv)
 #ifndef OPENSSL_NO_UI_CONSOLE
             p8pass = pass;
             if (EVP_read_pw_string(pass, sizeof(pass), "Enter Password:", 0)) {
-                BIO_printf(bio_err, "Can't read Password\n");
+                BIO_puts(bio_err, "Can't read Password\n");
                 goto end;
             }
         } else {
 #endif
-            BIO_printf(bio_err, "Password required\n");
+            BIO_puts(bio_err, "Password required\n");
             goto end;
         }
-        p8inf = PKCS8_decrypt(p8, p8pass, strlen(p8pass));
+        p8inf = PKCS8_decrypt(p8, p8pass, (int)strlen(p8pass));
     }
 
     if (p8inf == NULL) {
-        BIO_printf(bio_err, "Error decrypting key\n");
+        BIO_puts(bio_err, "Error decrypting key\n");
         ERR_print_errors(bio_err);
         goto end;
     }
 
     if ((pkey = EVP_PKCS82PKEY(p8inf)) == NULL) {
-        BIO_printf(bio_err, "Error converting key\n");
+        BIO_puts(bio_err, "Error converting key\n");
         ERR_print_errors(bio_err);
         goto end;
     }
@@ -386,7 +378,7 @@ int pkcs8_main(int argc, char **argv)
     } else if (outformat == FORMAT_ASN1) {
         i2d_PrivateKey_bio(out, pkey);
     } else {
-        BIO_printf(bio_err, "Bad format specified for key\n");
+        BIO_puts(bio_err, "Bad format specified for key\n");
         goto end;
     }
     ret = 0;
@@ -396,7 +388,6 @@ end:
     PKCS8_PRIV_KEY_INFO_free(p8inf);
     EVP_PKEY_free(pkey);
     EVP_CIPHER_free(cipher);
-    release_engine(e);
     BIO_free_all(out);
     BIO_free(in);
     OPENSSL_free(passin);

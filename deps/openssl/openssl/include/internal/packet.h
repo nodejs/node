@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,6 +22,8 @@
 typedef struct {
     /* Pointer to where we are currently reading from */
     const unsigned char *curr;
+    /* Pointer to the start of the message */
+    const unsigned char *msgstart;
     /* Number of bytes remaining */
     size_t remaining;
 } PACKET;
@@ -53,6 +55,15 @@ static ossl_inline const unsigned char *PACKET_end(const PACKET *pkt)
 }
 
 /*
+ * Returns a pointer to the very start of the buffer. If this is a sub packet
+ * this will be the start of the buffer for the top of the PACKET tree.
+ */
+static ossl_inline const unsigned char *PACKET_msg_start(const PACKET *pkt)
+{
+    return pkt->msgstart;
+}
+
+/*
  * Returns a pointer to the PACKET's current position.
  * For use in non-PACKETized APIs.
  */
@@ -74,7 +85,7 @@ __owur static ossl_inline int PACKET_buf_init(PACKET *pkt,
     if (len > (size_t)(SIZE_MAX / 2))
         return 0;
 
-    pkt->curr = buf;
+    pkt->curr = pkt->msgstart = buf;
     pkt->remaining = len;
     return 1;
 }
@@ -82,7 +93,7 @@ __owur static ossl_inline int PACKET_buf_init(PACKET *pkt,
 /* Initialize a PACKET to hold zero bytes. */
 static ossl_inline void PACKET_null_init(PACKET *pkt)
 {
-    pkt->curr = NULL;
+    pkt->curr = pkt->msgstart = NULL;
     pkt->remaining = 0;
 }
 
@@ -110,7 +121,11 @@ __owur static ossl_inline int PACKET_peek_sub_packet(const PACKET *pkt,
     if (PACKET_remaining(pkt) < len)
         return 0;
 
-    return PACKET_buf_init(subpkt, pkt->curr, len);
+    if (!PACKET_buf_init(subpkt, pkt->curr, len))
+        return 0;
+
+    subpkt->msgstart = pkt->msgstart;
+    return 1;
 }
 
 /*
@@ -229,6 +244,37 @@ __owur static ossl_inline int PACKET_peek_net_4(const PACKET *pkt,
 }
 
 /*
+ * Peek ahead at 6 bytes in network order from |pkt| and store the value in
+ * |*data|
+ */
+__owur static ossl_inline int PACKET_peek_net_6(const PACKET *pkt,
+    uint64_t *data)
+{
+    if (PACKET_remaining(pkt) < 6)
+        return 0;
+
+    *data = ((uint64_t)(*(pkt->curr))) << 40;
+    *data |= ((uint64_t)(*(pkt->curr + 1))) << 32;
+    *data |= ((uint64_t)(*(pkt->curr + 2))) << 24;
+    *data |= ((uint64_t)(*(pkt->curr + 3))) << 16;
+    *data |= ((uint64_t)(*(pkt->curr + 4))) << 8;
+    *data |= *(pkt->curr + 5);
+
+    return 1;
+}
+
+/* Get 6 bytes in network order from |pkt| and store the value in |*data| */
+__owur static ossl_inline int PACKET_get_net_6(PACKET *pkt, uint64_t *data)
+{
+    if (!PACKET_peek_net_6(pkt, data))
+        return 0;
+
+    packet_forward(pkt, 6);
+
+    return 1;
+}
+
+/*
  * Peek ahead at 8 bytes in network order from |pkt| and store the value in
  * |*data|
  */
@@ -271,6 +317,24 @@ __owur static ossl_inline int PACKET_get_net_4_len(PACKET *pkt, size_t *data)
     if (ret)
         *data = (size_t)i;
 
+    return ret;
+}
+
+/**
+ * @brief Get 4 bytes in network order from |pkt| and store the value in |*data|
+ * Similar to PACKET_get_net_4() except the data is uint32_t
+ *
+ * @param pkt Contains a buffer to read from
+ * @param data The object to write the data to.
+ * @returns 1 on success, or 0 otherwise.
+ */
+static ossl_unused ossl_inline int PACKET_get_net_4_len_u32(PACKET *pkt, uint32_t *data)
+{
+    size_t i = 0;
+    int ret = PACKET_get_net_4_len(pkt, &i);
+
+    if (ret)
+        *data = (uint32_t)i;
     return ret;
 }
 
@@ -523,6 +587,7 @@ __owur static ossl_inline int PACKET_get_length_prefixed_1(PACKET *pkt,
 
     *pkt = tmp;
     subpkt->curr = data;
+    subpkt->msgstart = pkt->msgstart;
     subpkt->remaining = length;
 
     return 1;
@@ -544,6 +609,7 @@ __owur static ossl_inline int PACKET_as_length_prefixed_1(PACKET *pkt,
 
     *pkt = tmp;
     subpkt->curr = data;
+    subpkt->msgstart = pkt->msgstart;
     subpkt->remaining = length;
 
     return 1;
@@ -569,6 +635,7 @@ __owur static ossl_inline int PACKET_get_length_prefixed_2(PACKET *pkt,
 
     *pkt = tmp;
     subpkt->curr = data;
+    subpkt->msgstart = pkt->msgstart;
     subpkt->remaining = length;
 
     return 1;
@@ -591,6 +658,7 @@ __owur static ossl_inline int PACKET_as_length_prefixed_2(PACKET *pkt,
 
     *pkt = tmp;
     subpkt->curr = data;
+    subpkt->msgstart = pkt->msgstart;
     subpkt->remaining = length;
 
     return 1;
@@ -615,6 +683,7 @@ __owur static ossl_inline int PACKET_get_length_prefixed_3(PACKET *pkt,
 
     *pkt = tmp;
     subpkt->curr = data;
+    subpkt->msgstart = pkt->msgstart;
     subpkt->remaining = length;
 
     return 1;
@@ -759,6 +828,18 @@ int WPACKET_fill_lengths(WPACKET *pkt);
 
 /*
  * Initialise a new sub-packet. Additionally |lenbytes| of data is preallocated
+ * at the current position in |pkt| to store the sub-packets length once we know
+ * it. The sub-packet start is set at |offset| from current position in |pkt|
+ * Don't call this directly. Use the convenience macros below instead.
+ */
+int WPACKET_start_sub_packet_at_offset_len__(WPACKET *pkt, size_t lenbytes,
+    size_t offset);
+
+#define WPACKET_start_sub_packet_u24_at_offset(pkt, offset) \
+    WPACKET_start_sub_packet_at_offset_len__((pkt), 3, (offset))
+
+/*
+ * Initialise a new sub-packet. Additionally |lenbytes| of data is preallocated
  * at the start of the sub-packet to store its length once we know it. Don't
  * call this directly. Use the convenience macros below instead.
  */
@@ -875,6 +956,8 @@ int WPACKET_put_bytes__(WPACKET *pkt, uint64_t val, size_t bytes);
     WPACKET_put_bytes__((pkt), (val), 3)
 #define WPACKET_put_bytes_u32(pkt, val) \
     WPACKET_put_bytes__((pkt), (val), 4)
+#define WPACKET_put_bytes_u48(pkt, val) \
+    WPACKET_put_bytes__((pkt), (val), 6)
 #define WPACKET_put_bytes_u64(pkt, val) \
     WPACKET_put_bytes__((pkt), (val), 8)
 

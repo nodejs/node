@@ -51,7 +51,6 @@ sub quote_arg_win32 {
 }
 
 my $there = canonpath(catdir(dirname($0), updir()));
-my $std_engines = catdir($there, 'engines');
 my $std_providers = catdir($there, 'providers');
 my $std_openssl_conf = catdir($there, 'apps/openssl.cnf');
 my $unix_shlib_wrap = catfile($there, 'util/shlib_wrap.sh');
@@ -85,8 +84,6 @@ local $ENV{OPENSSL_CONF_INCLUDE} = $std_openssl_conf_include
     if defined $std_openssl_conf_include
        &&($ENV{OPENSSL_CONF_INCLUDE} // '') eq ''
        && -d $std_openssl_conf_include;
-local $ENV{OPENSSL_ENGINES} = $std_engines
-    if ($ENV{OPENSSL_ENGINES} // '') eq '' && -d $std_engines;
 local $ENV{OPENSSL_MODULES} = $std_providers
     if ($ENV{OPENSSL_MODULES} // '') eq '' && -d $std_providers;
 local $ENV{OPENSSL_CONF} = $std_openssl_conf
@@ -121,8 +118,16 @@ if ($^O eq 'VMS') {
     @cmd = ( @ARGV );
 }
 
-# The exec() statement on MSWin32 doesn't seem to give back the exit code
-# from the call, so we resort to using system() instead.
+# exec() keeps this script's pid, which matters to callers that signal the
+# command they started: a test recipe using open3() is handed this pid, not
+# the command's, so with a subprocess the signal never reaches the command.
+# MSWin32 can't use exec() because it doesn't give back the exit code, and
+# VMS needs the exit code translated below, so both keep the subprocess.
+if ($^O ne 'MSWin32' && $^O ne 'VMS') {
+    exec @cmd
+        or die "wrap.pl: Failed to execute '", join(' ', @cmd), "': $!\n";
+}
+
 my $waitcode;
 if ($^O eq 'MSWin32') {
     $waitcode = system(quote_cmd_win32(@cmd));

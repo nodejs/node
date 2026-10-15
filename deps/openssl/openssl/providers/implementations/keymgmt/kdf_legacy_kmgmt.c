@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -75,8 +75,7 @@ int ossl_kdf_data_up_ref(KDF_DATA *kdfdata)
     if (!ossl_prov_is_running())
         return 0;
 
-    CRYPTO_UP_REF(&kdfdata->refcnt, &ref);
-    return 1;
+    return CRYPTO_UP_REF(&kdfdata->refcnt, &ref);
 }
 
 static void *kdf_newdata(void *provctx)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -119,7 +119,8 @@ int SHA224_Final(unsigned char *md, SHA256_CTX *c)
         }                                                           \
     } while (0)
 
-#define HASH_UPDATE SHA256_Update
+#define HASH_UPDATE_THUNK
+#define HASH_UPDATE SHA256_Update_thunk
 #define HASH_TRANSFORM SHA256_Transform
 #define HASH_FINAL SHA256_Final
 #define HASH_BLOCK_DATA_ORDER sha256_block_data_order
@@ -132,7 +133,15 @@ void sha256_block_data_order_c(SHA256_CTX *ctx, const void *in, size_t num);
 #endif /* SHA256_ASM */
     void sha256_block_data_order(SHA256_CTX *ctx, const void *in, size_t num);
 
-#include "crypto/md32_common.h"
+/* clang-format off */
+#include "crypto/md32_common.inc"
+/* clang-format on */
+#undef HASH_UPDATE_THUNK
+
+int SHA256_Update(SHA256_CTX *ctx, const void *data, size_t sz)
+{
+    return SHA256_Update_thunk((void *)ctx, (const unsigned char *)data, sz);
+}
 
 #if !defined(SHA256_ASM) || defined(INCLUDE_C_SHA256)
 static const SHA_LONG K256[64] = {
@@ -155,7 +164,7 @@ static const SHA_LONG K256[64] = {
 };
 
 #ifndef PEDANTIC
-#if defined(__GNUC__) && __GNUC__ >= 2 && !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM)
+#if defined(__GNUC__) && !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM)
 #if defined(__riscv_zknh)
 #define Sigma0(x) ({ MD32_REG_T ret;            \
                         asm ("sha256sum0 %0, %1"    \

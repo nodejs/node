@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -18,7 +18,7 @@
 ## http://crypto.stanford.edu/vpaes/.
 ##
 ######################################################################
-# ARMv8 NEON adaptation by <appro@openssl.org>
+# ARMv8 NEON adaptation by <https://github.com/dot-asm>
 #
 # Reason for undertaken effort is that there is at least one popular
 # SoC based on Cortex-A53 that doesn't have crypto extensions.
@@ -53,7 +53,7 @@ open OUT,"| \"$^X\" $xlate $flavour \"$output\""
 *STDOUT=*OUT;
 
 $code.=<<___;
-#include "arm_arch.h"
+#include "arch/arm_arch.h"
 
 .rodata
 
@@ -1254,48 +1254,6 @@ vpaes_ecb_encrypt:
 	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	vpaes_ecb_encrypt,.-vpaes_ecb_encrypt
-
-.globl	vpaes_ecb_decrypt
-.type	vpaes_ecb_decrypt,%function
-.align	4
-vpaes_ecb_decrypt:
-	AARCH64_SIGN_LINK_REGISTER
-	stp	x29,x30,[sp,#-16]!
-	add	x29,sp,#0
-	stp	d8,d9,[sp,#-16]!	// ABI spec says so
-	stp	d10,d11,[sp,#-16]!
-	stp	d12,d13,[sp,#-16]!
-	stp	d14,d15,[sp,#-16]!
-
-	mov	x17, $len
-	mov	x2,  $key
-	bl	_vpaes_decrypt_preheat
-	tst	x17, #16
-	b.eq	.Lecb_dec_loop
-
-	ld1	{v7.16b}, [$inp],#16
-	bl	_vpaes_encrypt_core
-	st1	{v0.16b}, [$out],#16
-	subs	x17, x17, #16
-	b.ls	.Lecb_dec_done
-
-.align	4
-.Lecb_dec_loop:
-	ld1	{v14.16b,v15.16b}, [$inp], #32
-	bl	_vpaes_decrypt_2x
-	st1	{v0.16b,v1.16b}, [$out], #32
-	subs	x17, x17, #32
-	b.hi	.Lecb_dec_loop
-
-.Lecb_dec_done:
-	ldp	d14,d15,[sp],#16
-	ldp	d12,d13,[sp],#16
-	ldp	d10,d11,[sp],#16
-	ldp	d8,d9,[sp],#16
-	ldp	x29,x30,[sp],#16
-	AARCH64_VALIDATE_LINK_REGISTER
-	ret
-.size	vpaes_ecb_decrypt,.-vpaes_ecb_decrypt
 ___
 }	}
 print $code;

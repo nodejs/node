@@ -56,7 +56,7 @@ struct hmac_ctx_st {
 #ifdef OPENSSL_HMAC_S390X
 #define HMAC_S390X_BUF_NUM_BLOCKS 64
 
-int s390x_HMAC_init(HMAC_CTX *ctx, const void *key, int key_len, ENGINE *impl);
+int s390x_HMAC_init(HMAC_CTX *ctx, const void *key, int key_len);
 int s390x_HMAC_update(HMAC_CTX *ctx, const unsigned char *data, size_t len);
 int s390x_HMAC_final(HMAC_CTX *ctx, unsigned char *md, unsigned int *len);
 int s390x_HMAC_CTX_copy(HMAC_CTX *dctx, HMAC_CTX *sctx);

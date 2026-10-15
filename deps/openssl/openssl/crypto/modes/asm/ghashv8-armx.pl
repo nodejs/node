@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # GHASH for ARMv8 Crypto Extension, 64-bit polynomial multiplication.
@@ -73,7 +73,7 @@ my ($t0,$t1,$t2,$xC2,$H,$Hhl,$H2)=map("q$_",(8..14));
 my $_byte = ($flavour =~ /win/ ? "DCB" : ".byte");
 
 $code=<<___;
-#include "arm_arch.h"
+#include "arch/arm_arch.h"
 
 #if __ARM_MAX_ARCH__>=7
 ___
@@ -811,7 +811,7 @@ ___
 
 $code.=<<___;
 .rodata
-.asciz  "GHASH for ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
+.asciz  "GHASH for ARMv8, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align  2
 #endif
 ___

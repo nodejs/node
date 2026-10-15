@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -44,16 +44,8 @@
 
 #include "internal/cryptlib.h"
 #include "wp_local.h"
+#include <stdint.h>
 #include <string.h>
-
-typedef unsigned char u8;
-#if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32)
-typedef unsigned __int64 u64;
-#elif defined(__arch64__)
-typedef unsigned long u64;
-#else
-typedef unsigned long long u64;
-#endif
 
 #define ROUNDS 10
 
@@ -69,16 +61,16 @@ typedef unsigned long long u64;
 
 #ifndef STRICT_ALIGNMENT
 #ifdef __GNUC__
-typedef u64 u64_a1 __attribute((__aligned__(1)));
+typedef uint64_t u64_a1 __attribute((__aligned__(1)));
 #else
-typedef u64 u64_a1;
+typedef uint64_t u64_a1;
 #endif
 #endif
 
 #if defined(__GNUC__) && !defined(STRICT_ALIGNMENT)
-typedef u64 u64_aX __attribute((__aligned__(1)));
+typedef uint64_t u64_aX __attribute((__aligned__(1)));
 #else
-typedef u64 u64_aX;
+typedef uint64_t u64_aX;
 #endif
 
 #undef SMALL_REGISTER_BANK
@@ -111,10 +103,10 @@ typedef u64 u64_aX;
 #pragma intrinsic(_rotl64)
 #define ROTATE(a, n) _rotl64((a), n)
 #endif
-#elif defined(__GNUC__) && __GNUC__ >= 2
+#elif defined(__GNUC__)
 #if defined(__x86_64) || defined(__x86_64__)
 #if defined(L_ENDIAN)
-#define ROTATE(a, n) ({ u64 ret; asm ("rolq %1,%0"   \
+#define ROTATE(a, n) ({ uint64_t ret; asm ("rolq %1,%0"   \
                                    : "=r"(ret) : "J"(n),"0"(a) : "cc"); ret; })
 #elif defined(B_ENDIAN)
 /*
@@ -124,15 +116,15 @@ typedef u64 u64_aX;
  * won't do same for x86_64? Naturally no. And this line is waiting
  * ready for that brave soul:-)
  */
-#define ROTATE(a, n) ({ u64 ret; asm ("rorq %1,%0"   \
+#define ROTATE(a, n) ({ uint64_t ret; asm ("rorq %1,%0"   \
                                    : "=r"(ret) : "J"(n),"0"(a) : "cc"); ret; })
 #endif
 #elif defined(__ia64) || defined(__ia64__)
 #if defined(L_ENDIAN)
-#define ROTATE(a, n) ({ u64 ret; asm ("shrp %0=%1,%1,%2"     \
+#define ROTATE(a, n) ({ uint64_t ret; asm ("shrp %0=%1,%1,%2"     \
                                    : "=r"(ret) : "r"(a),"M"(64-(n))); ret; })
 #elif defined(B_ENDIAN)
-#define ROTATE(a, n) ({ u64 ret; asm ("shrp %0=%1,%1,%2"     \
+#define ROTATE(a, n) ({ uint64_t ret; asm ("shrp %0=%1,%1,%2"     \
                                    : "=r"(ret) : "r"(a),"M"(n)); ret; })
 #endif
 #endif
@@ -210,7 +202,7 @@ typedef u64 u64_aX;
 #define N 2
 #define LL(c0, c1, c2, c3, c4, c5, c6, c7) c0, c1, c2, c3, c4, c5, c6, c7, \
                                            c0, c1, c2, c3, c4, c5, c6, c7
-#define C0(K, i) (((u64 *)(Cx.c + 0))[2 * K.c[(i) * 8 + 0]])
+#define C0(K, i) (((uint64_t *)(Cx.c + 0))[2 * K.c[(i) * 8 + 0]])
 #define C1(K, i) (((u64_a1 *)(Cx.c + 7))[2 * K.c[(i) * 8 + 1]])
 #define C2(K, i) (((u64_a1 *)(Cx.c + 6))[2 * K.c[(i) * 8 + 2]])
 #define C3(K, i) (((u64_a1 *)(Cx.c + 5))[2 * K.c[(i) * 8 + 3]])
@@ -221,8 +213,8 @@ typedef u64 u64_aX;
 #endif
 
 static const union {
-    u8 c[(256 * N + ROUNDS) * sizeof(u64)];
-    u64 q[(256 * N + ROUNDS)];
+    uint8_t c[(256 * N + ROUNDS) * sizeof(uint64_t)];
+    uint64_t q[(256 * N + ROUNDS)];
 } Cx = {
     { /* Note endian-neutral representation:-) */
         LL(0x18, 0x18, 0x60, 0x18, 0xc0, 0x78, 0x30, 0xd8),
@@ -496,10 +488,10 @@ static const union {
 void whirlpool_block(WHIRLPOOL_CTX *ctx, const void *inp, size_t n)
 {
     int r;
-    const u8 *p = inp;
+    const uint8_t *p = inp;
     union {
-        u64 q[8];
-        u8 c[64];
+        uint64_t q[8];
+        uint8_t c[64];
     } S, K, *H = (void *)ctx->H.q;
 
 #ifdef GO_FOR_MMX
@@ -507,7 +499,7 @@ void whirlpool_block(WHIRLPOOL_CTX *ctx, const void *inp, size_t n)
 #endif
     do {
 #ifdef OPENSSL_SMALL_FOOTPRINT
-        u64 L[8];
+        uint64_t L[8];
         int i;
 
         for (i = 0; i < 64; i++)
@@ -526,7 +518,7 @@ void whirlpool_block(WHIRLPOOL_CTX *ctx, const void *inp, size_t n)
         for (i = 0; i < 64; i++)
             H->c[i] ^= S.c[i] ^ p[i];
 #else
-        u64 L0, L1, L2, L3, L4, L5, L6, L7;
+        uint64_t L0, L1, L2, L3, L4, L5, L6, L7;
 
 #ifdef STRICT_ALIGNMENT
         if ((size_t)p & 7) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,6 +13,8 @@
 #include <openssl/x509v3.h>
 #include "x509_local.h"
 #include "ext_dat.h"
+
+#include <crypto/asn1.h>
 
 static STACK_OF(CONF_VALUE) *i2v_OSSL_BASIC_ATTR_CONSTRAINTS(
     X509V3_EXT_METHOD *method,
@@ -59,7 +61,7 @@ static OSSL_BASIC_ATTR_CONSTRAINTS *v2i_OSSL_BASIC_ATTR_CONSTRAINTS(
 {
     OSSL_BASIC_ATTR_CONSTRAINTS *battcons = NULL;
     CONF_VALUE *val;
-    int i;
+    int i, authority_seen = 0;
 
     if ((battcons = OSSL_BASIC_ATTR_CONSTRAINTS_new()) == NULL) {
         ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
@@ -68,9 +70,20 @@ static OSSL_BASIC_ATTR_CONSTRAINTS *v2i_OSSL_BASIC_ATTR_CONSTRAINTS(
     for (i = 0; i < sk_CONF_VALUE_num(values); i++) {
         val = sk_CONF_VALUE_value(values, i);
         if (strcmp(val->name, "authority") == 0) {
+            if (authority_seen) {
+                ERR_raise_data(ERR_LIB_X509V3, X509V3_R_DUPLICATE_FIELD,
+                    "field=%s", val->name);
+                goto err;
+            }
             if (!X509V3_get_value_bool(val, &battcons->authority))
                 goto err;
+            authority_seen = 1;
         } else if (strcmp(val->name, "pathlen") == 0) {
+            if (battcons->pathlen != NULL) {
+                ERR_raise_data(ERR_LIB_X509V3, X509V3_R_DUPLICATE_FIELD,
+                    "field=%s", val->name);
+                goto err;
+            }
             if (!X509V3_get_value_int(val, &battcons->pathlen))
                 goto err;
         } else {

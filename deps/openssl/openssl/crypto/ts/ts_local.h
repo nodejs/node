@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,11 +7,19 @@
  * https://www.openssl.org/source/license.html
  */
 
+#if !defined(OSSL_LIBCRYPTO_TS_TS_LOCAL_H)
+#define OSSL_LIBCRYPTO_TS_TS_LOCAL_H
+
+#include <openssl/asn1.h>
+#include <openssl/ts.h>
+#include <openssl/x509.h>
+
 /*-
  * MessageImprint ::= SEQUENCE  {
  *      hashAlgorithm                AlgorithmIdentifier,
  *      hashedMessage                OCTET STRING  }
  */
+
 struct TS_msg_imprint_st {
     X509_ALGOR *hash_algo;
     ASN1_OCTET_STRING *hashed_msg;
@@ -150,3 +158,5 @@ struct TS_verify_ctx {
     /* Must be set only with TS_VFY_TSA_NAME. */
     GENERAL_NAME *tsa_name;
 };
+
+#endif /* !defined(OSSL_LIBCRYPTO_TS_TS_LOCAL_H) */

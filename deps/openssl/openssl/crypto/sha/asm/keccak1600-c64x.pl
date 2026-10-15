@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -7,10 +7,10 @@
 # https://www.openssl.org/source/license.html
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # [ABI- and endian-neutral] Keccak-1600 for C64x.
@@ -875,7 +875,7 @@ iotas:
 	.uword	0x00000001, 0x00008000
 	.uword	0x00000000, 0x80008082
 
-	.cstring "Keccak-1600 absorb and squeeze for C64x, CRYPTOGAMS by <appro\@openssl.org>"
+	.cstring "Keccak-1600 absorb and squeeze for C64x, CRYPTOGAMS by <https://github.com/dot-asm>"
 	.align	4
 ___
 

@@ -15,6 +15,8 @@
 #include <openssl/encoder.h>
 #include <openssl/x509.h>
 
+#include <crypto/asn1.h>
+
 typedef struct {
     uint32_t version;
     int32_t ssl_version;

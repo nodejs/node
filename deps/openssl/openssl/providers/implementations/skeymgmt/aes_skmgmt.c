@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2025-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,7 +9,7 @@
 
 #include <openssl/core_dispatch.h>
 #include "crypto/types.h"
-#include "skeymgmt_lcl.h"
+#include "prov/skeymgmt_lcl.h"
 #include "internal/skey.h"
 #include "prov/implementations.h"
 
@@ -48,5 +48,12 @@ const OSSL_DISPATCH ossl_aes_skeymgmt_functions[] = {
     { OSSL_FUNC_SKEYMGMT_FREE, (void (*)(void))generic_free },
     { OSSL_FUNC_SKEYMGMT_IMPORT, (void (*)(void))aes_import },
     { OSSL_FUNC_SKEYMGMT_EXPORT, (void (*)(void))aes_export },
+    { OSSL_FUNC_SKEYMGMT_IMP_SETTABLE_PARAMS,
+        (void (*)(void))generic_imp_settable_params },
+    { OSSL_FUNC_SKEYMGMT_GET_KEY_ID, (void (*)(void))generic_get_key_id },
+    { OSSL_FUNC_SKEYMGMT_GET_LOCAL_KEYID,
+        (void (*)(void))generic_get_local_keyid },
+    { OSSL_FUNC_SKEYMGMT_GET_ALGORITHM_ID,
+        (void (*)(void))generic_get_algorithm_id },
     OSSL_DISPATCH_END
 };
