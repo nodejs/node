@@ -54,7 +54,7 @@ class DOMStorageAgent : public protocol::DOMStorage::Backend,
  private:
   typedef std::unordered_map<std::u16string, std::u16string> StorageMap;
   std::optional<node::webstorage::Storage*> getWebStorage(
-      bool is_local_storage);
+      bool is_local_storage, bool* is_uninitialized);
   std::unique_ptr<protocol::DOMStorage::Frontend> frontend_;
   StorageMap local_storage_map_ = {};
   StorageMap session_storage_map_ = {};
