@@ -90,7 +90,7 @@ StackOfX509 CloneSSLCerts(X509Pointer&& cert,
   if (!peer_certs) return StackOfX509();
   if (cert && !sk_X509_push(peer_certs.get(), cert.release()))
     return StackOfX509();
-  for (int i = 0; i < sk_X509_num(ssl_certs); i++) {
+  for (OPENSSL_SIZE_T i = 0; i < sk_X509_num(ssl_certs); i++) {
     X509Pointer cert(X509_dup(sk_X509_value(ssl_certs, i)));
     if (!cert || !sk_X509_push(peer_certs.get(), cert.get()))
       return StackOfX509();
@@ -106,7 +106,7 @@ MaybeLocal<Object> AddIssuerChainToObject(X509Pointer* cert,
                                           Environment* const env) {
   cert->reset(sk_X509_delete(peer_certs.get(), 0));
   for (;;) {
-    int i;
+    OPENSSL_SIZE_T i;
     for (i = 0; i < sk_X509_num(peer_certs.get()); i++) {
       X509View ca(sk_X509_value(peer_certs.get(), i));
       if (!cert->view().isIssuedBy(ca)) continue;
