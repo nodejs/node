@@ -35,6 +35,55 @@ function validatePartialResponseContentLength (headers, range, statusCode, retry
   }
 }
 
+// A stable controller handed to the downstream handler for the lifetime of the
+// request. Each transparent retry/resume is a separate dispatch with its own
+// connection controller. The proxy always forwards to the active connection
+// while preserving a downstream pause across controller replacement.
+class RetryController {
+  #paused = false
+  #target = null
+
+  set target (target) {
+    this.#target = target
+    if (this.#paused) {
+      target?.pause()
+    }
+  }
+
+  get target () { return this.#target }
+
+  pause () {
+    this.#paused = true
+    this.#target?.pause()
+  }
+
+  resume () {
+    this.#paused = false
+    this.#target?.resume()
+  }
+
+  abort (reason) {
+    this.#target?.abort(reason)
+  }
+
+  get paused () { return this.#paused || (this.#target?.paused ?? false) }
+  get aborted () { return this.#target?.aborted ?? false }
+  get reason () { return this.#target?.reason ?? null }
+  get rawHeaders () { return this.#target?.rawHeaders ?? null }
+  set rawHeaders (value) {
+    if (this.#target) {
+      this.#target.rawHeaders = value
+    }
+  }
+
+  get rawTrailers () { return this.#target?.rawTrailers ?? null }
+  set rawTrailers (value) {
+    if (this.#target) {
+      this.#target.rawTrailers = value
+    }
+  }
+}
+
 class RetryHandler {
   constructor (opts, { dispatch, handler }) {
     const { retryOptions, ...dispatchOpts } = opts
@@ -89,6 +138,7 @@ class RetryHandler {
     this.start = 0
     this.end = null
     this.etag = null
+    this.controllerProxy = new RetryController()
   }
 
   onResponseStartWithRetry (controller, statusCode, headers, statusMessage, err) {
@@ -99,11 +149,11 @@ class RetryHandler {
           // The downstream handler already received the response from an
           // earlier attempt. Forwarding this response would replace the
           // downstream body and leave the original body pending forever.
-          this.handler.onResponseError?.(controller, err)
+          this.handler.onResponseError?.(this.controllerProxy, err)
         } else {
           this.headersSent = true
           this.checkpointResponseEnd(headers)
-          this.handler.onResponseStart?.(controller, statusCode, headers, statusMessage)
+          this.handler.onResponseStart?.(this.controllerProxy, statusCode, headers, statusMessage)
         }
       } else {
         this.error = err
@@ -115,7 +165,7 @@ class RetryHandler {
     if (isDisturbed(this.opts.body)) {
       this.headersSent = true
       this.checkpointResponseEnd(headers)
-      this.handler.onResponseStart?.(controller, statusCode, headers, statusMessage)
+      this.handler.onResponseStart?.(this.controllerProxy, statusCode, headers, statusMessage)
       return
     }
 
@@ -125,11 +175,11 @@ class RetryHandler {
           // The downstream handler already received the response from an
           // earlier attempt. Forwarding this response would replace the
           // downstream body and leave the original body pending forever.
-          this.handler.onResponseError?.(controller, passedErr)
+          this.handler.onResponseError?.(this.controllerProxy, passedErr)
         } else {
           this.headersSent = true
           this.checkpointResponseEnd(headers)
-          this.handler.onResponseStart?.(controller, statusCode, headers, statusMessage)
+          this.handler.onResponseStart?.(this.controllerProxy, statusCode, headers, statusMessage)
         }
         controller.resume()
         return
@@ -165,13 +215,14 @@ class RetryHandler {
   }
 
   onRequestStart (controller, context) {
+    this.controllerProxy.target = controller
     if (!this.headersSent) {
-      this.handler.onRequestStart?.(controller, context)
+      this.handler.onRequestStart?.(this.controllerProxy, context)
     }
   }
 
-  onRequestUpgrade (controller, statusCode, headers, socket) {
-    this.handler.onRequestUpgrade?.(controller, statusCode, headers, socket)
+  onRequestUpgrade (_controller, statusCode, headers, socket) {
+    this.handler.onRequestUpgrade?.(this.controllerProxy, statusCode, headers, socket)
   }
 
   static [kRetryHandlerDefaultRetry] (err, { state, opts }, cb) {
@@ -302,7 +353,7 @@ class RetryHandler {
         if (range == null) {
           this.headersSent = true
           this.handler.onResponseStart?.(
-            controller,
+            this.controllerProxy,
             statusCode,
             headers,
             statusMessage
@@ -351,7 +402,7 @@ class RetryHandler {
 
       this.headersSent = true
       this.handler.onResponseStart?.(
-        controller,
+        this.controllerProxy,
         statusCode,
         headers,
         statusMessage
@@ -364,30 +415,30 @@ class RetryHandler {
     }
   }
 
-  onResponseData (controller, chunk) {
+  onResponseData (_controller, chunk) {
     if (this.error) {
       return
     }
 
     this.start += chunk.length
 
-    this.handler.onResponseData?.(controller, chunk)
+    this.handler.onResponseData?.(this.controllerProxy, chunk)
   }
 
-  onResponseEnd (controller, trailers) {
+  onResponseEnd (_controller, trailers) {
     if (this.error && this.retryOpts.throwOnError) {
       throw this.error
     }
 
     if (!this.error) {
       this.retryCount = 0
-      return this.handler.onResponseEnd?.(controller, trailers)
+      return this.handler.onResponseEnd?.(this.controllerProxy, trailers)
     }
 
-    this.retry(controller)
+    this.retry()
   }
 
-  retry (controller) {
+  retry () {
     if (this.start !== 0) {
       const headers = { range: `bytes=${this.start}-${this.end ?? ''}` }
 
@@ -409,23 +460,23 @@ class RetryHandler {
       this.retryCountCheckpoint = this.retryCount
       this.dispatch(this.opts, this)
     } catch (err) {
-      this.handler.onResponseError?.(controller, err)
+      this.handler.onResponseError?.(this.controllerProxy, err)
     }
   }
 
   onResponseError (controller, err) {
     if (controller?.aborted || isDisturbed(this.opts.body) || (this.headersSent && !this.resume)) {
-      this.handler.onResponseError?.(controller, err)
+      this.handler.onResponseError?.(this.controllerProxy, err)
       return
     }
 
     function shouldRetry (returnedErr) {
       if (!returnedErr) {
-        this.retry(controller)
+        this.retry()
         return
       }
 
-      this.handler?.onResponseError?.(controller, returnedErr)
+      this.handler?.onResponseError?.(this.controllerProxy, returnedErr)
     }
 
     // We reconcile in case of a mix between network errors

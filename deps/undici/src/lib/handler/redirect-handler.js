@@ -1,7 +1,7 @@
 'use strict'
 
 const util = require('../core/util')
-const { kBodyUsed } = require('../core/symbols')
+const { kBodyUsed, kRedirectCacheControl } = require('../core/symbols')
 const assert = require('node:assert')
 const { InvalidArgumentError } = require('../core/errors')
 const EE = require('node:events')
@@ -47,6 +47,11 @@ class RedirectHandler {
     this.maxRedirections = maxRedirections
     this.handler = handler
     this.history = []
+    // Retain cache-control from suppressed redirect hops for an outer cache.
+    Object.defineProperty(this.history, kRedirectCacheControl, {
+      value: [],
+      enumerable: false
+    })
 
     if (util.isStream(this.opts.body)) {
       // TODO (fix): Provide some way for the user to cache the file to e.g. /tmp
@@ -129,6 +134,8 @@ class RedirectHandler {
       this.handler.onResponseStart?.(controller, statusCode, headers, statusMessage)
       return
     }
+
+    this.history[kRedirectCacheControl].push(headers['cache-control'])
 
     const { origin, pathname, search } = util.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)))
     const path = search ? `${pathname}${search}` : pathname
