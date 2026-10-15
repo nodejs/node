@@ -3,7 +3,7 @@
 [package]
 edition = "2021"
 name = "node_crates"
-version = "15.6.75"
+version = "15.8.17"
 rust-version = "1.88"
 
 [lib]
