@@ -80,7 +80,7 @@ regenerate() {
   echo ""
   echo "Please commit the regenerated files:"
   echo ""
-  echo "$ git add -A deps/openssl/config/archs deps/openssl/openssl"
+  echo "$ git add -A deps/openssl/config deps/openssl/openssl"
   echo "$ git commit -m \"deps: update archs files for openssl\""
   echo ""
 }

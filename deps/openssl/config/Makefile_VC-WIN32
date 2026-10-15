@@ -74,7 +74,7 @@ include/openssl/configuration.h: include/openssl/configuration.h.in configdata.p
 	    "-omakefile" "include/openssl/configuration.h.in" > $@
 include/openssl/core_names.h: include/openssl/core_names.h.in configdata.pm
 	"$(PERL)" "-I$(BLDDIR)" -Mconfigdata "util/dofile.pl" \
-	    "-omakefile" "include/openssl/core_names.h.in" > $@
+	    "-oMakefile" "include/openssl/core_names.h.in" > $@
 include/openssl/crmf.h: include/openssl/crmf.h.in configdata.pm
 	"$(PERL)" "-I$(BLDDIR)" -Mconfigdata "util/dofile.pl" \
 	    "-omakefile" "include/openssl/crmf.h.in" > $@

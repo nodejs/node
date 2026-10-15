@@ -8,6 +8,7 @@ use lib "$FindBin::Bin/../openssl/util/perl/OpenSSL";
 use File::Basename;
 use File::Spec::Functions qw/:DEFAULT abs2rel rel2abs/;
 use File::Copy;
+use File::Compare;
 use File::Path qw/make_path/;
 #use with_fallback qw(Text::Template);
 use fallback qw(Text::Template);
@@ -39,6 +40,26 @@ if ($gas_version < $gas_version_min) {
 our $src_dir = "../openssl";
 our $arch_dir = "../config/archs/$arch";
 our $base_dir = "$arch_dir/$asm";
+
+# These generators use source data rather than the target configuration.
+my %common_headers = map { $_ => 1 } qw(
+  crypto/asn1/charmap.h
+  crypto/bn/bn_prime.h
+  crypto/conf/conf_def.h
+  crypto/objects/obj_dat.h
+  crypto/objects/obj_xref.h
+  include/crypto/ec_params.h
+  include/crypto/rsa_params.h
+  include/openssl/core_names.h
+  include/openssl/obj_mac.h
+);
+my %common_files = map { $_ => 1 } grep {
+  $common_headers{$_}
+    || $unified_info{generate}->{$_}->[0] eq 'util/mkerr.pl'
+    || (m|^providers/.*\.inc$| && grep {
+      m{^util/perl\|OpenSSL/(?:paramnames|fipsparams)\.pm$}
+    } @{$unified_info{depends}->{$_} || []})
+} keys %{$unified_info{generate}};
 
 my $is_win = ($arch =~/^VC-WIN/);
 # VC-WIN32 and VC-WIN64A generate makefile but it can be available
@@ -95,14 +116,18 @@ copy("$src_dir/apps/include/configuration.h", "$base_dir/apps/include/")
 # OpenSSL 4.x generates provider parameter decoders alongside its sources.
 my @generated_includes = sort grep { /\.inc$/ }
     keys %{$unified_info{generate}};
-my %generated_include_dirs;
-foreach my $include (grep { !m|^include/| } @generated_headers, @generated_includes) {
+my %generated_include_dirs = ('../../../common' => 1);
+foreach my $include (grep { !m|^include/| || $common_files{$_} }
+                     @generated_headers, @generated_includes) {
   my $dir = dirname($include);
-  make_path("$base_dir/$dir");
-  copy("$src_dir/$include", "$base_dir/$include")
-      or die "Copy $include failed: $!";
+  copy_generated($include);
   my $include_dir = $dir =~ m{^(.*?/include)(?:/|$)} ? $1 : $dir;
-  $generated_include_dirs{"./$include_dir"} = 1 unless $include_dir eq 'providers/common/include';
+  if ($common_files{$include}) {
+    $generated_include_dirs{"../../../common/$include_dir"} = 1;
+  } else {
+    $generated_include_dirs{"./$include_dir"} = 1
+        unless $include_dir eq 'providers/common/include';
+  }
 }
 my @generated_include_dirs = sort keys %generated_include_dirs;
 
@@ -273,9 +298,9 @@ foreach my $obj (@{$unified_info{sources}->{'apps/openssl'}}) {
 
 # Generate all asm files and copy into config/archs
 foreach my $src (@generated_srcs) {
-  my $cmd = "cd ../openssl && CC=gcc ASM=nasm make -f $makefile $src && " .
-    "cp --parents $src ../config/archs/$arch/$asm";
-  system("$cmd") == 0 or die "Error in system($cmd)";
+  my $cmd = "cd ../openssl && CC=gcc ASM=nasm make -f $makefile $src";
+  system($cmd) == 0 or die "Error in system($cmd)";
+  copy_generated($src);
 }
 
 $target{'lib_cppflags'} =~ s/-D//g;
@@ -319,6 +344,7 @@ my $gypi = $template->fill_in(
         libcrypto_srcs => \@libcrypto_srcs,
         lib_defines => \@lib_defines,
         generated_srcs => \@generated_srcs,
+        common_files => \%common_files,
         generated_include_dirs => \@generated_include_dirs,
         config => \%config,
         target => \%target,
@@ -346,6 +372,7 @@ my $fipsgypi = $fipstemplate->fill_in(
         libfips_srcs => \@libfips_srcs,
         libfips_defines => \@libfips_defines,
         generated_srcs => \@generated_srcs,
+        common_files => \%common_files,
         generated_include_dirs => \@generated_include_dirs,
         config => \%config,
         target => \%target,
@@ -392,7 +419,8 @@ my $cmd2 ="cd $src_dir && make -f $makefile clean && make -f $makefile distclean
 system($cmd2) == 0 or die "Error in system($cmd2)";
 
 # Recreate wrappers after cleanup, including headers added by newer releases.
-my $headers_cmd = "$^X -I$src_dir ./generate_headers.pl \"@openssl_dir_headers\" \"@crypto_dir_headers\" \"@internal_dir_headers\"";
+my @common_headers = sort grep { m|^include/.*\.h$| } keys %common_files;
+my $headers_cmd = "$^X -I$src_dir ./generate_headers.pl \"@openssl_dir_headers\" \"@crypto_dir_headers\" \"@internal_dir_headers\" \"@common_headers\"";
 system($headers_cmd) == 0 or die "Error in system($headers_cmd)";
 
 
@@ -402,8 +430,7 @@ sub copy_headers {
   foreach my $header_name (@headers) {
     # Copy the header from OpenSSL source directory to the arch specific dir.
     #print("copy header $src_dir/include/$inc_dir/${header_name}.h to $base_dir/include/$inc_dir \n");
-    copy("$src_dir/include/$inc_dir/${header_name}.h",
-         "$base_dir/include/$inc_dir/") or die "Copy $inc_dir/${header_name}.h failed: $!";
+    copy_generated("include/$inc_dir/${header_name}.h");
    }
 }
 
@@ -411,9 +438,22 @@ sub merge_headers {
   my ($headers, $inc_dir) = @_;
   my %headers = map { $_ => 1 } split / /, $headers;
   foreach my $path (keys %{$unified_info{generate}}) {
+    next if $common_files{$path};
     $headers{$1} = 1 if $path =~ m|^include/$inc_dir/([^/]+)\.h$|;
   }
   return join(' ', sort keys %headers);
+}
+
+sub copy_generated {
+  my ($file) = @_;
+  my $dest = $common_files{$file} ? "./common/$file" : "$base_dir/$file";
+  if ($common_files{$file} && -f $dest) {
+    compare("$src_dir/$file", $dest) == 0
+        or die "Common file $file differs for $arch/$asm";
+    return;
+  }
+  make_path(dirname($dest));
+  copy("$src_dir/$file", $dest) or die "Copy $file failed: $!";
 }
 
 sub generate_windows_makefile {
