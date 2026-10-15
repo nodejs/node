@@ -878,6 +878,14 @@ VERSION=v$(RAWVER)
 .NOTPARALLEL: doc-only
 doc-only: $(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.json out/doc/llms.txt out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
 
+.PHONY: sbom
+sbom: ## Generate a CycloneDX 1.5 SBOM for all bundled runtime dependencies. Requires ./configure to have been run first.
+	$(PYTHON) tools/generate-sbom.py
+
+.PHONY: test-sbom
+test-sbom: ## Validate the generated SBOM at out/Release/node-v{version}-sbom.json.
+	$(PYTHON) tools/generate-sbom.py --validate
+
 .PHONY: doc
 doc: $(NODE_EXE) doc-only ## Build Node.js, and then build the documentation with the new binary.
 
