@@ -249,8 +249,7 @@ async function testCompletedBroadcastConsumerStaysCompleted() {
   await iterator.return();
   writer.fail(undefined);
 
-  assert.deepStrictEqual(await iterator.next(), {
-    __proto__: null,
+  assert.deepStrictEqual({ ...await iterator.next() }, {
     done: true,
     value: undefined,
   });

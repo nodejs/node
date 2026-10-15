@@ -42,6 +42,37 @@ async function testBufferedViewMutationRejected() {
   }
 }
 
+// Several buffered writes, single chunks and batches, read as one batch:
+// they are delivered in order, and a view resized after it was written
+// among them rejects the read.
+async function testBufferedEntriesReadTogether() {
+  {
+    const { writer, readable } = push();
+    writer.writeSync(Uint8Array.of(1));
+    writer.writevSync([Uint8Array.of(2), Uint8Array.of(3)]);
+    writer.writeSync(Uint8Array.of(4));
+    writer.endSync();
+    const batches = await array(readable);
+    assert.deepStrictEqual(batches.map((c) => c[0]), [1, 2, 3, 4]);
+  }
+  for (const single of [true, false]) {
+    const buffer = new ArrayBuffer(1, { maxByteLength: 2 });
+    const { writer, readable } = push();
+    writer.writeSync(Uint8Array.of(1));
+    writer.writevSync([Uint8Array.of(2), Uint8Array.of(3)]);
+    if (single) {
+      writer.writeSync(new Uint8Array(buffer));
+    } else {
+      writer.writevSync([Uint8Array.of(4), new Uint8Array(buffer)]);
+    }
+    buffer.resize(2);
+    await assert.rejects(
+      readable[Symbol.asyncIterator]().next(),
+      kResizeError,
+    );
+  }
+}
+
 async function testDropOldestUsesAcceptedByteLength() {
   const buffer = new ArrayBuffer(16384, { maxByteLength: 16384 });
   const { writer, broadcast: bc } = broadcast({
@@ -101,6 +132,29 @@ async function testBroadcastRejectsResizedBufferedView() {
 
   await assert.rejects(iterator.next(), kResizeError);
   await assert.rejects(writer.end(), kResizeError);
+}
+
+// The same, for a view buffered in a batch of several chunks.
+async function testBufferedBatchViewResizeRejected() {
+  {
+    const buffer = new ArrayBuffer(1, { maxByteLength: 2 });
+    const { writer, broadcast: bc } = broadcast();
+    const iterator = bc.push()[Symbol.asyncIterator]();
+    assert.strictEqual(
+      writer.writevSync([Uint8Array.of(1), new Uint8Array(buffer)]), true);
+    buffer.resize(2);
+    await assert.rejects(iterator.next(), kResizeError);
+    await assert.rejects(writer.end(), kResizeError);
+  }
+  {
+    const buffer = new ArrayBuffer(1, { maxByteLength: 2 });
+    const shared = share([[Uint8Array.of(1), new Uint8Array(buffer)]]);
+    const first = shared.pull()[Symbol.asyncIterator]();
+    const second = shared.pull()[Symbol.asyncIterator]();
+    assert.strictEqual((await first.next()).value.length, 2);
+    buffer.resize(2);
+    await assert.rejects(second.next(), kResizeError);
+  }
 }
 
 async function testShareRejectsResizedBufferedView() {
@@ -167,6 +221,96 @@ async function testPipeRejectsWriterResize() {
   );
 }
 
+// Single-chunk batches are checked around writeSync() without a snapshot
+// object. Detaching or resizing the view in writeSync() must still be
+// rejected, for views on ArrayBuffers and on growable SharedArrayBuffers.
+async function testPipeRejectsSyncWriteDetachOrResize() {
+  const cases = [
+    ['detach', () => new ArrayBuffer(2), (buffer) => buffer.transfer()],
+    ['resize', () => new ArrayBuffer(1, { maxByteLength: 2 }),
+     (buffer) => buffer.resize(2)],
+    ['grow shared', () => new SharedArrayBuffer(1, { maxByteLength: 2 }),
+     (buffer) => buffer.grow(2)],
+  ];
+  for (const [, createBuffer, change] of cases) {
+    const asyncBuffer = createBuffer();
+    await assert.rejects(pipeTo([new Uint8Array(asyncBuffer)], {
+      writeSync() {
+        change(asyncBuffer);
+        return true;
+      },
+      write: common.mustNotCall(),
+      fail: common.mustCall(),
+    }), kResizeError);
+
+    const syncBuffer = createBuffer();
+    assert.throws(() => pipeToSync([new Uint8Array(syncBuffer)], {
+      writeSync() {
+        change(syncBuffer);
+        return true;
+      },
+      fail: common.mustCall(),
+    }, { preventClose: true }), kResizeError);
+  }
+
+  // An unchanged view is written; when writeSync() declines it, pipeTo()
+  // falls back to write() for it.
+  const chunk = Uint8Array.of(1, 2);
+  const written = [];
+  assert.strictEqual(await pipeTo([chunk], {
+    writeSync: () => false,
+    write(value) { written.push(value); },
+  }, { preventClose: true }), 2);
+  assert.deepStrictEqual(written, [chunk]);
+}
+
+// Batches of several chunks written one at a time are checked against the
+// byteLengths recorded when the batch was accepted, before and after each
+// writeSync(). Detaching a later chunk, or the chunk being written, must be
+// rejected.
+async function testPipeRejectsDetachInMultiChunkBatch() {
+  for (const detachIndex of [1, 0]) {
+    const asyncBuffers = [new ArrayBuffer(2), new ArrayBuffer(2)];
+    const asyncWritten = [];
+    await assert.rejects(pipeTo([asyncBuffers.map((b) => new Uint8Array(b))], {
+      writeSync(chunk) {
+        asyncWritten.push(chunk.byteLength);
+        if (asyncWritten.length === 1) asyncBuffers[detachIndex].transfer();
+        return true;
+      },
+      write: common.mustNotCall(),
+      fail: common.mustCall(),
+    }), kResizeError);
+    assert.deepStrictEqual(asyncWritten, [2]);
+
+    const syncBuffers = [new ArrayBuffer(2), new ArrayBuffer(2)];
+    const syncWritten = [];
+    assert.throws(() => pipeToSync([syncBuffers.map((b) => new Uint8Array(b))], {
+      writeSync(chunk) {
+        syncWritten.push(chunk.byteLength);
+        if (syncWritten.length === 1) syncBuffers[detachIndex].transfer();
+        return true;
+      },
+      fail: common.mustCall(),
+    }, { preventClose: true }), kResizeError);
+    assert.deepStrictEqual(syncWritten, [2]);
+  }
+
+  // When writeSync() declines a chunk, pipeTo() writes the rest of the batch
+  // with write().
+  const chunks = [Uint8Array.of(1), Uint8Array.of(2, 3), Uint8Array.of(4)];
+  const written = [];
+  assert.strictEqual(await pipeTo([chunks], {
+    writeSync(chunk) {
+      if (chunk === chunks[1]) return false;
+      written.push(chunk);
+      return true;
+    },
+    write(chunk) { written.push(chunk); },
+  }, { preventClose: true }), 4);
+  assert.deepStrictEqual(written, chunks);
+}
+
 async function testConsumersRejectDetachedViews() {
   // Views of fixed-length buffers are tracked without a full snapshot; they
   // must still be rejected when detached after being accepted.
@@ -196,13 +340,65 @@ async function testConsumersRejectDetachedViews() {
   assert.strictEqual(result, chunk);
 }
 
+// A writer with only write() is checked the same way, before and after each
+// write(), and after the promise it returns, if any.
+async function testPipeRejectsDetachWithWriteOnly() {
+  for (const detachIndex of [1, 0]) {
+    const buffers = [new ArrayBuffer(2), new ArrayBuffer(2)];
+    const written = [];
+    await assert.rejects(pipeTo([buffers.map((b) => new Uint8Array(b))], {
+      write(chunk) {
+        written.push(chunk.byteLength);
+        if (written.length === 1) buffers[detachIndex].transfer();
+      },
+      fail: common.mustCall(),
+    }), kResizeError);
+    assert.deepStrictEqual(written, [2]);
+  }
+
+  const buffer = new ArrayBuffer(2);
+  await assert.rejects(pipeTo([new Uint8Array(buffer)], {
+    async write() {
+      await null;
+      buffer.transfer();
+    },
+    fail: common.mustCall(),
+  }), kResizeError);
+}
+
+// Only what was accounted for a view is checked: its byteLength. A
+// fixed-length view of a resizable buffer that stays in bounds is unchanged.
+async function testFixedLengthViewOfResizedBuffer() {
+  const buffer = new ArrayBuffer(4, { maxByteLength: 8 });
+  const view = new Uint8Array(buffer, 0, 2);
+  const { writer, readable } = push();
+  assert.strictEqual(writer.writeSync(view), true);
+  buffer.resize(8);
+  writer.endSync();
+  const [chunk] = await array(readable);
+  assert.strictEqual(chunk, view);
+
+  // Shrinking the buffer so that the view is out of bounds makes its
+  // byteLength 0: rejected.
+  const { writer: writer2, readable: readable2 } = push();
+  assert.strictEqual(writer2.writeSync(view), true);
+  buffer.resize(1);
+  await assert.rejects(readable2[Symbol.asyncIterator]().next(), kResizeError);
+}
+
 Promise.all([
+  testPipeRejectsDetachWithWriteOnly(),
+  testFixedLengthViewOfResizedBuffer(),
   testBufferedViewMutationRejected(),
+  testBufferedEntriesReadTogether(),
   testDropOldestUsesAcceptedByteLength(),
   testPendingWritesRejectResizedViews(),
   testBroadcastRejectsResizedBufferedView(),
   testShareRejectsResizedBufferedView(),
+  testBufferedBatchViewResizeRejected(),
   testConsumersRejectResizedViews(),
   testConsumersRejectDetachedViews(),
   testPipeRejectsWriterResize(),
+  testPipeRejectsSyncWriteDetachOrResize(),
+  testPipeRejectsDetachInMultiChunkBatch(),
 ]).then(common.mustCall());

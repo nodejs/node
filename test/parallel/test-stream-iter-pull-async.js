@@ -4,9 +4,11 @@
 const common = require('../common');
 const assert = require('assert');
 const {
+  array,
   broadcast,
   dump,
   from,
+  pipeTo,
   pull,
   push,
   share,
@@ -16,6 +18,8 @@ const {
 } = require('stream/iter');
 
 const { setImmediate } = require('timers/promises');
+const { inspect } = require('util');
+const { getEventListeners } = require('events');
 
 async function testPullIdentity() {
   const data = await text(pull(from('hello-async')));
@@ -79,8 +83,8 @@ async function testPullWithAbortSignal() {
   await assert.rejects(iterator.next(), (error) => error === signal.reason);
   await assert.rejects(iterator.next(), (error) => error === signal.reason);
   assert.strictEqual(started, false);
-  assert.deepStrictEqual(await iterator.return(),
-                         { __proto__: null, done: true, value: undefined });
+  assert.deepStrictEqual({ ...await iterator.return() },
+                         { done: true, value: undefined });
 
   await assert.rejects(text(pull(gen(), (chunks) => chunks, { signal })),
                        (error) => error === signal.reason);
@@ -312,7 +316,7 @@ async function testPullReturnWhileSourceNextPending() {
   ]);
 
   assert.notStrictEqual(result, timeout);
-  assert.deepStrictEqual(result, { value: undefined, done: true });
+  assert.deepStrictEqual({ ...result }, { value: undefined, done: true });
   await next;
 }
 
@@ -361,6 +365,125 @@ async function testPullSignalAbortWithTransformWhileSourceNextPending() {
   const next = iter.next();
   ac.abort();
   await assert.rejects(next, { name: 'AbortError' });
+}
+
+// An abort rejects a pending pull at once, wherever the pipeline is waiting:
+// here, on a transform that never settles.
+async function testPullSignalAbortWhileTransformPending() {
+  const ac = new AbortController();
+  let transformSignal;
+  const iter = pull(from('a'), (chunks, options) => {
+    transformSignal = options.signal;
+    return new Promise(() => {});
+  }, { signal: ac.signal })[Symbol.asyncIterator]();
+  const next = iter.next();
+  await setImmediate();
+  const reason = new Error('stop');
+  ac.abort(reason);
+  await assert.rejects(next, reason);
+  assert.strictEqual(transformSignal.reason, reason);
+  await assert.rejects(iter.next(), reason);
+}
+
+// When the signal aborts while no pull is pending, the source is closed once,
+// and the next pull rejects.
+async function testPullSignalAbortWhileIdleClosesSource() {
+  const log = [];
+  const ac = new AbortController();
+  const iter = pull(createLoggedSource(log, [1, 2, 3]), (chunks) => chunks,
+                    { signal: ac.signal })[Symbol.asyncIterator]();
+  assert.strictEqual((await iter.next()).done, false);
+  const reason = new Error('stop');
+  ac.abort(reason);
+  await setImmediate();
+  assert.deepStrictEqual(log, ['next 0', 'return']);
+  await assert.rejects(iter.next(), reason);
+  assert.strictEqual((await iter.return()).done, true);
+  assert.deepStrictEqual(log, ['next 0', 'return']);
+}
+
+// The pipeline's listener on the signal is removed once the pipeline is
+// done, however it ends.
+async function testPullSignalListenerRemoved() {
+  const identity = (chunks) => chunks;
+  const ac = new AbortController();
+  const { signal } = ac;
+  await text(pull(from(['a', 'b']), identity, { signal }));
+  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+
+  let iter = pull(from(['a', 'b']), identity, { signal })[Symbol.asyncIterator]();
+  await iter.next();
+  assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+  await iter.return();
+  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+
+  iter = pull(from(['a', 'b']), () => { throw new Error('failed'); },
+              { signal })[Symbol.asyncIterator]();
+  await assert.rejects(iter.next(), /failed/);
+  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+
+  iter = pull(from(['a', 'b']), identity, { signal })[Symbol.asyncIterator]();
+  await iter.next();
+  ac.abort();
+  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+  await assert.rejects(iter.next(), { name: 'AbortError' });
+}
+
+// Stateful transforms: called on the first pull, with a source that ends
+// with one null flush signal; their output is normalized; stopping early
+// closes the output and the source.
+async function testStatefulTransformProtocol() {
+  const log = [];
+  const stateful = {
+    async *transform(source) {
+      log.push('called');
+      try {
+        for await (const batch of source) {
+          log.push(batch === null ? 'flush' : `batch ${batch[0][0]}`);
+          if (batch === null) {
+            yield 'end';
+          } else {
+            yield batch;
+            yield batch[0];
+            yield null;
+            yield [];
+          }
+        }
+      } finally {
+        log.push('output closed');
+      }
+    },
+  };
+  const iterable = pull(createLoggedSource(log, [1, 2]), stateful);
+  assert.deepStrictEqual(log, []);
+  const chunks = await array(iterable);
+  assert.deepStrictEqual(chunks.map((chunk) => chunk[0]), [1, 1, 2, 2, 101]);
+  assert.deepStrictEqual(log, [
+    'called', 'next 0', 'batch 1', 'next 1', 'batch 2', 'next 2', 'flush',
+    'output closed',
+  ]);
+
+  log.length = 0;
+  const iterator = pull(createLoggedSource(log, [1, 2, 3]),
+                        stateful)[Symbol.asyncIterator]();
+  assert.strictEqual((await iterator.next()).value[0][0], 1);
+  assert.strictEqual((await iterator.return()).done, true);
+  assert.deepStrictEqual(log, [
+    'called', 'next 0', 'batch 1', 'return', 'output closed',
+  ]);
+  assert.strictEqual((await iterator.next()).done, true);
+
+  // Outputs that are sync iterables are read as for await reads them.
+  const syncOutput = { transform: () => [[Uint8Array.of(7)], 'x'] };
+  assert.deepStrictEqual((await array(pull(from('a'), syncOutput))).map(
+    (chunk) => chunk[0]), [7, 120]);
+
+  // Errors from the transform reject the pull.
+  const failing = {
+    // eslint-disable-next-line require-yield
+    async *transform() { throw new Error('stateful failed'); },
+  };
+  await assert.rejects(array(pull(from('a'), failing)), /stateful failed/);
 }
 
 // Pull consumer break (return()) cleans up transform signal
@@ -551,7 +674,7 @@ async function testPipeToStringSource() {
   assert.strictEqual(data, 'hello-pipe');
 }
 
-// INVARIANT: Each transform invocation receives its own options object.
+// Each transform receives its own options object.
 // A transform that mutates options must not affect subsequent transforms.
 async function testTransformOptionsNotShared() {
   const seen = [];
@@ -573,8 +696,213 @@ async function testTransformOptionsNotShared() {
   assert.strictEqual(seen[1].mutated, undefined);
 }
 
+// Each transform of a pipeline gets its own options object, passed to every
+// call of a stateless transform. The options object has only `signal`, does
+// not inherit from Object.prototype, and its prototype is frozen, so that a
+// transform cannot pass state to others through it. The signal is the same
+// for every transform and every call.
+async function testTransformOptionsShape() {
+  const seen = [];
+  const statelessSeen = [];
+  let statefulOptions;
+  const stateless = (chunks, options) => {
+    seen.push(options);
+    statelessSeen.push(options);
+    return chunks;
+  };
+  const stateful = {
+    async* transform(source, options) {
+      seen.push(options);
+      statefulOptions = options;
+      for await (const chunks of source) yield chunks;
+    },
+  };
+  const ac = new AbortController();
+  await text(pull(from(['a', 'b']), stateless, stateful,
+                  { signal: ac.signal }));
+  // Stateless: one call per batch plus the flush call; stateful: one call.
+  assert.strictEqual(statelessSeen.length, 3);
+  assert.strictEqual(new Set(statelessSeen).size, 1);
+  assert.strictEqual(seen.length, 4);
+  assert.notStrictEqual(statefulOptions, statelessSeen[0]);
+  for (const options of seen) {
+    assert.strictEqual(options instanceof Object, false);
+    assert.deepStrictEqual(Object.keys(options), ['signal']);
+    assert.ok(options.signal instanceof AbortSignal);
+    assert.strictEqual(options.signal, seen[0].signal);
+    assert.strictEqual(Object.isFrozen(Object.getPrototypeOf(options)), true);
+    assert.match(inspect(options), /^TransformOptions \{ signal: /);
+  }
+  assert.strictEqual(Object.getPrototypeOf(statefulOptions),
+                     Object.getPrototypeOf(statelessSeen[0]));
+  assert.throws(() => { Object.getPrototypeOf(seen[0]).leak = true; },
+                TypeError);
+}
+
+// `options.signal` can be assigned, as a data property could, whether or
+// not it has been read.
+async function testTransformOptionsSignalAssignable() {
+  const seen = [];
+  let calls = 0;
+  const transform = (chunks, options) => {
+    seen.push(options.signal);
+    options.signal = ++calls;
+    return chunks;
+  };
+  const unread = (chunks, options) => {
+    options.signal = 'unread';
+    seen.push(options.signal);
+    return chunks;
+  };
+  await text(pull(from(['a', 'b']), transform, unread));
+  assert.ok(seen[0] instanceof AbortSignal);
+  assert.deepStrictEqual(seen.slice(1), ['unread', 1, 'unread', 2, 'unread']);
+}
+
+// The transforms' signal is the pipeline's: first read after the pipeline
+// has been aborted, it is already aborted with the same reason, and read
+// before, it is aborted when the pipeline is.
+async function testTransformSignalReadAfterAbort() {
+  const reason = new Error('stop');
+  let options;
+  const transform = (chunks, opts) => {
+    options = opts;
+    throw reason;
+  };
+  await assert.rejects(text(pull(from('a'), transform)), reason);
+  assert.strictEqual(options.signal.aborted, true);
+  assert.strictEqual(options.signal.reason, reason);
+  assert.strictEqual(options.signal, options.signal);
+
+  const ac = new AbortController();
+  let signal;
+  const iterator = pull(from(['a', 'b']), (chunks, opts) => {
+    signal ??= opts.signal;
+    return chunks;
+  }, { signal: ac.signal })[Symbol.asyncIterator]();
+  await iterator.next();
+  assert.strictEqual(signal.aborted, false);
+  ac.abort(reason);
+  assert.strictEqual(signal.aborted, true);
+  assert.strictEqual(signal.reason, reason);
+}
+
 // Run the uncaughtException test sequentially (it installs a global handler
 // that would interfere with concurrent tests).
+// Transform pipelines read and close the source like an async generator
+// looping over it with for await. The tests below check the parts of that
+// behavior that are observable from the source and the transforms' signal.
+
+// Creates an async iterable source of batches of one-byte chunks with values
+// `values`, recording calls in `log`.
+function createLoggedSource(log, values, { failAt = -1 } = {}) {
+  let i = 0;
+  return {
+    [Symbol.asyncIterator]() {
+      return {
+        async next() {
+          log.push(`next ${i}`);
+          if (i === failAt) {
+            i++;
+            throw new Error('source failed');
+          }
+          if (i >= values.length) return { done: true, value: undefined };
+          return { done: false, value: [Uint8Array.of(values[i++])] };
+        },
+        async return() {
+          log.push('return');
+          return { done: true, value: undefined };
+        },
+      };
+    },
+  };
+}
+
+// A transform recording its calls, and the abort of its signal, in `log`.
+function createLoggedTransform(log, transform = (chunks) => chunks) {
+  let listening = false;
+  return (chunks, options) => {
+    log.push(chunks === null ? 'flush' : `transform ${chunks[0][0]}`);
+    if (!listening) {
+      listening = true;
+      options.signal.addEventListener('abort', () => {
+        log.push(`abort: ${options.signal.reason.message}`);
+      });
+    }
+    return transform(chunks, options);
+  };
+}
+
+async function testTransformErrorClosesSource() {
+  const fail = (chunks) => {
+    if (chunks?.[0][0] === 2) throw new Error('transform failed');
+    return chunks;
+  };
+  for (const transform of [fail, async (chunks) => fail(chunks)]) {
+    const log = [];
+    await assert.rejects(async () => {
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of pull(createLoggedSource(log, [1, 2, 3]),
+                                 createLoggedTransform(log, transform)));
+    }, /transform failed/);
+    assert.deepStrictEqual(log, [
+      'next 0', 'transform 1', 'next 1', 'transform 2', 'return',
+      'abort: transform failed',
+    ]);
+  }
+}
+
+async function testTransformSourceErrorDoesNotCloseSource() {
+  const log = [];
+  await assert.rejects(async () => {
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of pull(createLoggedSource(log, [1], { failAt: 1 }),
+                               createLoggedTransform(log)));
+  }, /source failed/);
+  assert.deepStrictEqual(log, [
+    'next 0', 'transform 1', 'next 1', 'abort: source failed',
+  ]);
+}
+
+async function testPipeToTransformsStoppedEarly() {
+  // When the writer fails, the transforms' signal is aborted, and the
+  // transforms are closed, closing the source, as when the consumer of pull()
+  // stops early.
+  const log = [];
+  let writes = 0;
+  await assert.rejects(pipeTo(
+    createLoggedSource(log, [1, 2, 3]), createLoggedTransform(log), {
+      write() {
+        if (++writes === 2) throw new Error('write failed');
+      },
+    }), /write failed/);
+  assert.deepStrictEqual(log, [
+    'next 0', 'transform 1', 'next 1', 'transform 2', 'abort: Aborted',
+    'return',
+  ]);
+}
+
+async function testTransformReturnClosesOutputAndSource() {
+  // A transform output that is iterated asynchronously is closed, and then
+  // the source, when the pipeline is stopped while reading it.
+  const log = [];
+  const iterator = pull(createLoggedSource(log, [1, 2]),
+                        createLoggedTransform(log, async function*() {
+                          try {
+                            yield Uint8Array.of(1);
+                            yield Uint8Array.of(2);
+                          } finally {
+                            log.push('output closed');
+                          }
+                        }))[Symbol.asyncIterator]();
+  assert.strictEqual((await iterator.next()).done, false);
+  assert.strictEqual((await iterator.return()).done, true);
+  assert.strictEqual((await iterator.next()).done, true);
+  assert.deepStrictEqual(log, [
+    'next 0', 'transform 1', 'output closed', 'abort: Aborted', 'return',
+  ]);
+}
+
 (async () => {
   await Promise.all([
     testPullIdentity(),
@@ -609,6 +937,17 @@ async function testTransformOptionsNotShared() {
     testTransformReturnsArrayBuffer(),
     testPipeToStringSource(),
     testTransformOptionsNotShared(),
+    testTransformOptionsShape(),
+    testTransformSignalReadAfterAbort(),
+    testPullSignalAbortWhileTransformPending(),
+    testPullSignalAbortWhileIdleClosesSource(),
+    testPullSignalListenerRemoved(),
+    testStatefulTransformProtocol(),
+    testTransformOptionsSignalAssignable(),
+    testTransformErrorClosesSource(),
+    testTransformSourceErrorDoesNotCloseSource(),
+    testPipeToTransformsStoppedEarly(),
+    testTransformReturnClosesOutputAndSource(),
   ]);
   // Run after all concurrent tests complete to avoid global handler races
   await testTransformSignalListenerErrorOnSourceError();
