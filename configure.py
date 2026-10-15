@@ -1906,7 +1906,7 @@ def configure_napi(output):
 def configure_library(lib, output, pkgname=None, libraries_key='libraries'):
   shared_lib = 'shared_' + lib
   output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
-  libraries = output[libraries_key]
+  libraries = output[libraries_key] if libraries_key in output else output['variables'][libraries_key]
 
   if getattr(options, shared_lib):
     (pkg_libs, pkg_cflags, pkg_libpath, _) = pkg_config(pkgname or lib)
@@ -2529,7 +2529,7 @@ configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')
 # Only cctest uses gtest; keep it out of the node binary's link line.
 output['variables']['node_shared_gtest_libraries'] = []
-configure_library('gtest', output, 'node_shared_gtest_libraries')
+configure_library('gtest', output, libraries_key='node_shared_gtest_libraries')
 configure_library('hdr_histogram', output)
 configure_library('merve', output)
 configure_library('nbytes', output)
