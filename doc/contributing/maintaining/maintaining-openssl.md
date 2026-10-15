@@ -30,38 +30,48 @@ NASM version 2.11.08
 
 ## 1. Obtain and extract new OpenSSL sources
 
-Get a new source from <https://github.com/openssl/openssl/tree/openssl-3.0.16>
-and copy all files into `deps/openssl/openssl`. Then add all files and commit
-them. (The link above, and the branch, will change with each new OpenSSL
-release).
+Get the sources for the desired `openssl-<version>` tag from
+<https://github.com/openssl/openssl> and copy all files into
+`deps/openssl/openssl`. Then add all files and commit them.
 
 ```bash
 git clone https://github.com/openssl/openssl
 cd openssl
+git checkout openssl-<version>
 cd ../node/deps/openssl
 rm -rf openssl
 cp -R ../../../openssl openssl
-rm -rf openssl/.git*
+rm -rf openssl/.git
 git add --all openssl
 git commit openssl
 ```
 
 ```text
-deps: upgrade openssl sources to openssl-3.0.16
+deps: upgrade openssl sources to openssl-<version>
 
 This updates all sources in deps/openssl/openssl by:
     $ git clone git@github.com:openssl/openssl.git
     $ cd openssl
-    $ git checkout openssl-3.0.16
+    $ git checkout openssl-<version>
     $ cd ../node/deps/openssl
     $ rm -rf openssl
     $ cp -R ../../../openssl openssl
-    $ rm -rf openssl/.git*
+    $ rm -rf openssl/.git
     $ git add --all openssl
     $ git commit openssl
 ```
 
 ## 2. Execute `make` in `deps/openssl/config` directory
+
+Fix up 32-bit Windows assembler directives. This will allow the commits to be
+cherry-picked to older release lines that still provide binaries on 32-bit Windows.
+
+```bash
+# Edit deps/openssl/openssl/crypto/perlasm/x86asm.pl changing
+# #ifdef/#endif to %ifdef/%endif for nasm on 32-bit Windows.
+# See: https://github.com/nodejs/node/pull/43603#issuecomment-1170670844
+# Reference: https://github.com/openssl/openssl/issues/18459
+```
 
 Use `make` to regenerate all platform dependent files in
 `deps/openssl/config/archs/`:
@@ -73,17 +83,6 @@ make gen-openssl
 # On Linux machines
 make -C deps/openssl/config clean
 make -C deps/openssl/config
-```
-
-Fix up 32-bit Windows assembler directives. This will allow the commits to be
-cherry-picked to older release lines that still provide binaries on 32-bit Windows.
-
-```bash
-make -C deps/openssl/config clean
-# Edit deps/openssl/openssl/crypto/perlasm/x86asm.pl changing
-# #ifdef to %ifdef to make it compatible to nasm on 32-bit Windows.
-# See: https://github.com/nodejs/node/pull/43603#issuecomment-1170670844
-# Reference: https://github.com/openssl/openssl/issues/18459
 ```
 
 ## 3. Check diffs
@@ -98,19 +97,19 @@ git diff -- deps/openssl
 
 _Note_: On Windows, OpenSSL Configure generates a `makefile` that can be
 used for the `nmake` command. The `make` command in step 2 (above) uses
-`Makefile_VC-WIN64A` and `Makefile_VC-WIN32` that are manually
-created. When source files or build options are updated in Windows,
-it needs to change these two Makefiles by hand. If you are not sure,
+`Makefile_VC-WIN64A`, `Makefile_VC-WIN32`, and `Makefile_VC-WIN64-ARM`,
+which are manually created. When source files or build options are updated in
+Windows, these Makefiles need to be changed by hand. If you are not sure,
 please ask @shigeki for details.
 
-## 4. Commit and make test
+## 4. Commit and test
 
 Update all architecture dependent files. Do not forget to git add or remove
 files if they are changed before committing:
 
 ```bash
-git add deps/openssl/config/archs
-git add deps/openssl/openssl
+git add -A deps/openssl/config/archs
+git add -A deps/openssl/openssl
 git commit
 ```
 
@@ -118,16 +117,16 @@ The commit message can be written as (with the openssl version set
 to the relevant value):
 
 ```text
-deps: update archs files for openssl-3.0.16
+deps: update archs files for openssl-<version>
 
 After an OpenSSL source update, all the config files need to be
 regenerated and committed by:
     $ make -C deps/openssl/config
-    $ git add deps/openssl/config/archs
-    $ git add deps/openssl/openssl
+    $ git add -A deps/openssl/config/archs
+    $ git add -A deps/openssl/openssl
     $ git commit
 ```
 
-Finally, build Node.js and run the tests.
+Finally, build Node.js with the bundled OpenSSL and run the tests.
 
 [update-openssl-action]: ../../../.github/workflows/update-openssl.yml
