@@ -708,6 +708,18 @@ int ossl_quic_tx_packetiser_set_peer(OSSL_QUIC_TX_PACKETISER *txp,
     return BIO_ADDR_copy(&txp->args.peer, peer);
 }
 
+int ossl_quic_tx_packetiser_set_ack_delay_exponent(OSSL_QUIC_TX_PACKETISER *txp,
+    uint32_t exp)
+{
+    if (exp > QUIC_MAX_ACK_DELAY_EXP) {
+        ERR_raise(ERR_LIB_SSL, ERR_R_PASSED_INVALID_ARGUMENT);
+        return 0;
+    }
+
+    txp->args.ack_delay_exponent = exp;
+    return 1;
+}
+
 void ossl_quic_tx_packetiser_set_ack_tx_cb(OSSL_QUIC_TX_PACKETISER *txp,
     void (*cb)(const OSSL_QUIC_FRAME_ACK *ack,
         uint32_t pn_space,
@@ -1317,7 +1329,7 @@ static int txp_determine_geometry(OSSL_QUIC_TX_PACKETISER *txp,
     /* Assemble packet header. */
     phdr->type = ossl_quic_enc_level_to_pkt_type(enc_level);
     phdr->spin_bit = 0;
-    phdr->pn_len = txp_determine_pn_len(txp);
+    phdr->pn_len = (unsigned int)txp_determine_pn_len(txp);
     phdr->partial = 0;
     phdr->fixed = 1;
     phdr->reserved = 0;
@@ -1465,7 +1477,7 @@ static int txp_should_try_staging(OSSL_QUIC_TX_PACKETISER *txp,
      * This is not a major concern for clients, since if a client has a 1-RTT EL
      * provisioned the server is guaranteed to also have a 1-RTT EL provisioned.
      *
-     * TODO(QUIC FUTURE): Revisit this when when have reached a decision on how
+     * TODO(QUIC FUTURE): Revisit this when we have reached a decision on how
      * best to implement this
      */
     if (*conn_close_enc_level > enc_level
@@ -3170,7 +3182,7 @@ static int txp_el_ensure_iovec(struct txp_el *el, size_t num)
 
     num = el->alloc_iovec != 0 ? el->alloc_iovec * 2 : 8;
 
-    iovec = OPENSSL_realloc(el->iovec, sizeof(OSSL_QTX_IOVEC) * num);
+    iovec = OPENSSL_realloc_array(el->iovec, num, sizeof(OSSL_QTX_IOVEC));
     if (iovec == NULL)
         return 0;
 

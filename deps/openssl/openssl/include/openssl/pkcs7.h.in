@@ -1,7 +1,7 @@
 /*
  * {- join("\n * ", @autowarntext) -}
  *
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -91,6 +91,7 @@ typedef struct pkcs7_recip_info_st {
 typedef struct pkcs7_signed_st {
     ASN1_INTEGER *version; /* version 1 */
     STACK_OF(X509_ALGOR) *md_algs; /* md used */
+    /* untrusted certificates for chain building, may include signer certs: */
     STACK_OF(X509) *cert; /* [ 0 ] */ /* name should be 'certificates' */
     STACK_OF(X509_CRL) *crl; /* [ 1 ] */ /* name should be 'crls' */
     STACK_OF(PKCS7_SIGNER_INFO) *signer_info;
@@ -118,6 +119,7 @@ typedef struct pkcs7_enveloped_st {
 typedef struct pkcs7_signedandenveloped_st {
     ASN1_INTEGER *version; /* version 1 */
     STACK_OF(X509_ALGOR) *md_algs; /* md used */
+    /* untrusted certificates for chain building, may include signer certs: */
     STACK_OF(X509) *cert; /* [ 0 ] */ /* name should be 'certificates' */
     STACK_OF(X509_CRL) *crl; /* [ 1 ] */ /* name should be 'crls' */
     STACK_OF(PKCS7_SIGNER_INFO) *signer_info;
@@ -284,7 +286,7 @@ int PKCS7_content_new(PKCS7 *p7, int nid);
 int PKCS7_dataVerify(X509_STORE *cert_store, X509_STORE_CTX *ctx,
     BIO *bio, PKCS7 *p7, PKCS7_SIGNER_INFO *si);
 int PKCS7_signatureVerify(BIO *bio, PKCS7 *p7, PKCS7_SIGNER_INFO *si,
-    X509 *signer);
+    const X509 *signer);
 
 BIO *PKCS7_dataInit(PKCS7 *p7, BIO *bio);
 int PKCS7_dataFinal(PKCS7 *p7, BIO *bio);
@@ -303,40 +305,39 @@ void PKCS7_RECIP_INFO_get0_alg(PKCS7_RECIP_INFO *ri, X509_ALGOR **penc);
 int PKCS7_add_recipient_info(PKCS7 *p7, PKCS7_RECIP_INFO *ri);
 int PKCS7_RECIP_INFO_set(PKCS7_RECIP_INFO *p7i, X509 *x509);
 int PKCS7_set_cipher(PKCS7 *p7, const EVP_CIPHER *cipher);
-int PKCS7_stream(unsigned char ***boundary, PKCS7 *p7);
+#if !defined(OPENSSL_NO_DEPRECATED_4_1)
+OSSL_DEPRECATEDIN_4_1 int PKCS7_stream(unsigned char ***boundary, PKCS7 *p7);
+#endif /* !defined(OPENSSL_NO_DEPRECATED_4_1) */
 
 PKCS7_ISSUER_AND_SERIAL *PKCS7_get_issuer_and_serial(PKCS7 *p7, int idx);
 ASN1_OCTET_STRING *PKCS7_get_octet_string(PKCS7 *p7);
-ASN1_OCTET_STRING *PKCS7_digest_from_attributes(STACK_OF(X509_ATTRIBUTE) *sk);
+const ASN1_OCTET_STRING *PKCS7_digest_from_attributes(STACK_OF(X509_ATTRIBUTE) *sk);
 int PKCS7_add_signed_attribute(PKCS7_SIGNER_INFO *p7si, int nid, int type,
     void *data);
 int PKCS7_add_attribute(PKCS7_SIGNER_INFO *p7si, int nid, int atrtype,
     void *value);
-ASN1_TYPE *PKCS7_get_attribute(const PKCS7_SIGNER_INFO *si, int nid);
-ASN1_TYPE *PKCS7_get_signed_attribute(const PKCS7_SIGNER_INFO *si, int nid);
+const ASN1_TYPE *PKCS7_get_attribute(const PKCS7_SIGNER_INFO *si, int nid);
+const ASN1_TYPE *PKCS7_get_signed_attribute(const PKCS7_SIGNER_INFO *si, int nid);
 int PKCS7_set_signed_attributes(PKCS7_SIGNER_INFO *p7si,
     STACK_OF(X509_ATTRIBUTE) *sk);
 int PKCS7_set_attributes(PKCS7_SIGNER_INFO *p7si,
     STACK_OF(X509_ATTRIBUTE) *sk);
 
-PKCS7 *PKCS7_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
+PKCS7 *PKCS7_sign(X509 *signcert, EVP_PKEY *pkey, const STACK_OF(X509) *certs,
     BIO *data, int flags);
-PKCS7 *PKCS7_sign_ex(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
-    BIO *data, int flags, OSSL_LIB_CTX *libctx,
-    const char *propq);
+PKCS7 *PKCS7_sign_ex(X509 *signcert, EVP_PKEY *pkey, const STACK_OF(X509) *certs,
+    BIO *data, int flags, OSSL_LIB_CTX *libctx, const char *propq);
 
 PKCS7_SIGNER_INFO *PKCS7_sign_add_signer(PKCS7 *p7,
     X509 *signcert, EVP_PKEY *pkey,
     const EVP_MD *md, int flags);
 
 int PKCS7_final(PKCS7 *p7, BIO *data, int flags);
-int PKCS7_verify(PKCS7 *p7, STACK_OF(X509) *certs, X509_STORE *store,
+int PKCS7_verify(PKCS7 *p7, const STACK_OF(X509) *certs, X509_STORE *store,
     BIO *indata, BIO *out, int flags);
-STACK_OF(X509) *PKCS7_get0_signers(PKCS7 *p7, STACK_OF(X509) *certs,
-    int flags);
-PKCS7 *PKCS7_encrypt(STACK_OF(X509) *certs, BIO *in, const EVP_CIPHER *cipher,
-    int flags);
-PKCS7 *PKCS7_encrypt_ex(STACK_OF(X509) *certs, BIO *in,
+STACK_OF(X509) *PKCS7_get0_signers(PKCS7 *p7, const STACK_OF(X509) *certs, int flags);
+PKCS7 *PKCS7_encrypt(const STACK_OF(X509) *certs, BIO *in, const EVP_CIPHER *cipher, int flags);
+PKCS7 *PKCS7_encrypt_ex(const STACK_OF(X509) *certs, BIO *in,
     const EVP_CIPHER *cipher, int flags,
     OSSL_LIB_CTX *libctx, const char *propq);
 int PKCS7_decrypt(PKCS7 *p7, EVP_PKEY *pkey, X509 *cert, BIO *data,

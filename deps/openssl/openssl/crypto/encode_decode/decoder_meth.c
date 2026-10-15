@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,39 +26,7 @@
 
 static void ossl_decoder_free(void *data)
 {
-    OSSL_DECODER_free(data);
-}
-
-static int ossl_decoder_up_ref(void *data)
-{
-    return OSSL_DECODER_up_ref(data);
-}
-
-/* Simple method structure constructor and destructor */
-static OSSL_DECODER *ossl_decoder_new(void)
-{
-    OSSL_DECODER *decoder = NULL;
-
-    if ((decoder = OPENSSL_zalloc(sizeof(*decoder))) == NULL)
-        return NULL;
-    if (!CRYPTO_NEW_REF(&decoder->base.refcnt, 1)) {
-        OSSL_DECODER_free(decoder);
-        return NULL;
-    }
-
-    return decoder;
-}
-
-int OSSL_DECODER_up_ref(OSSL_DECODER *decoder)
-{
-    int ref = 0;
-
-    CRYPTO_UP_REF(&decoder->base.refcnt, &ref);
-    return 1;
-}
-
-void OSSL_DECODER_free(OSSL_DECODER *decoder)
-{
+    OSSL_DECODER *decoder = (OSSL_DECODER *)data;
     int ref = 0;
 
     if (decoder == NULL)
@@ -72,6 +40,58 @@ void OSSL_DECODER_free(OSSL_DECODER *decoder)
     ossl_provider_free(decoder->base.prov);
     CRYPTO_FREE_REF(&decoder->base.refcnt);
     OPENSSL_free(decoder);
+}
+
+static int ossl_decoder_up_ref(void *data)
+{
+    OSSL_DECODER *decoder = (OSSL_DECODER *)data;
+    int ref = 0;
+
+    return CRYPTO_UP_REF(&decoder->base.refcnt, &ref);
+}
+
+/* Simple method structure constructor and destructor */
+static OSSL_DECODER *ossl_decoder_new(void)
+{
+    OSSL_DECODER *decoder = NULL;
+
+    if ((decoder = OPENSSL_zalloc(sizeof(*decoder))) == NULL)
+        return NULL;
+    if (!CRYPTO_NEW_REF(&decoder->base.refcnt, 1)) {
+        ossl_decoder_free(decoder);
+        return NULL;
+    }
+
+    return decoder;
+}
+
+int OSSL_DECODER_up_ref(OSSL_DECODER *decoder)
+{
+#ifdef OPENSSL_NO_CACHED_FETCH
+    return ossl_decoder_up_ref(decoder);
+#else
+    /*
+     * DECODERS do something weird.  They manually build methods rather than
+     * attempt to fetch them from the method store or construct them through
+     * the ossl_generic_fetch mechanism.  As such they don't make use of the refcounting
+     * that we rely on in the method store, and so we always need to refcount them here
+     * We can identify them based on the fact that they never have a registered nid (i.e.
+     * its always zero)
+     */
+    if (decoder->base.id == 0 || decoder->base.no_store != 0)
+        return ossl_decoder_up_ref(decoder);
+    return 1;
+#endif
+}
+
+void OSSL_DECODER_free(OSSL_DECODER *decoder)
+{
+#ifdef OPENSSL_NO_CACHED_FETCH
+    ossl_decoder_free(decoder);
+#else
+    if (decoder != NULL && (decoder->base.id == 0 || decoder->base.no_store != 0))
+        ossl_decoder_free(decoder);
+#endif
 }
 
 /* Data to be passed through ossl_method_construct() */
@@ -207,7 +227,7 @@ static int put_decoder_in_store(void *store, void *method,
 
 /* Create and populate a decoder method */
 void *ossl_decoder_from_algorithm(int id, const OSSL_ALGORITHM *algodef,
-    OSSL_PROVIDER *prov)
+    OSSL_PROVIDER *prov, int no_store)
 {
     OSSL_DECODER *decoder = NULL;
     const OSSL_DISPATCH *fns = algodef->implementation;
@@ -216,15 +236,16 @@ void *ossl_decoder_from_algorithm(int id, const OSSL_ALGORITHM *algodef,
     if ((decoder = ossl_decoder_new()) == NULL)
         return NULL;
     decoder->base.id = id;
+    decoder->base.no_store = no_store;
     if ((decoder->base.name = ossl_algorithm_get1_first_name(algodef)) == NULL) {
-        OSSL_DECODER_free(decoder);
+        ossl_decoder_free(decoder);
         return NULL;
     }
     decoder->base.algodef = algodef;
     if ((decoder->base.parsed_propdef
             = ossl_parse_property(libctx, algodef->property_definition))
         == NULL) {
-        OSSL_DECODER_free(decoder);
+        ossl_decoder_free(decoder);
         return NULL;
     }
 
@@ -276,13 +297,13 @@ void *ossl_decoder_from_algorithm(int id, const OSSL_ALGORITHM *algodef,
     if (!((decoder->newctx == NULL && decoder->freectx == NULL)
             || (decoder->newctx != NULL && decoder->freectx != NULL))
         || decoder->decode == NULL) {
-        OSSL_DECODER_free(decoder);
+        ossl_decoder_free(decoder);
         ERR_raise(ERR_LIB_OSSL_DECODER, ERR_R_INVALID_PROVIDER_FUNCTIONS);
         return NULL;
     }
 
     if (prov != NULL && !ossl_provider_up_ref(prov)) {
-        OSSL_DECODER_free(decoder);
+        ossl_decoder_free(decoder);
         return NULL;
     }
 
@@ -296,7 +317,7 @@ void *ossl_decoder_from_algorithm(int id, const OSSL_ALGORITHM *algodef,
  * then call ossl_decoder_from_algorithm() with that identity number.
  */
 static void *construct_decoder(const OSSL_ALGORITHM *algodef,
-    OSSL_PROVIDER *prov, void *data)
+    OSSL_PROVIDER *prov, void *data, int no_store)
 {
     /*
      * This function is only called if get_decoder_from_store() returned
@@ -312,7 +333,7 @@ static void *construct_decoder(const OSSL_ALGORITHM *algodef,
     void *method = NULL;
 
     if (id != 0)
-        method = ossl_decoder_from_algorithm(id, algodef, prov);
+        method = ossl_decoder_from_algorithm(id, algodef, prov, no_store);
 
     /*
      * Flag to indicate that there was actual construction errors.  This
@@ -328,17 +349,7 @@ static void *construct_decoder(const OSSL_ALGORITHM *algodef,
 /* Intermediary function to avoid ugly casts, used below */
 static void destruct_decoder(void *method, void *data)
 {
-    OSSL_DECODER_free(method);
-}
-
-static int up_ref_decoder(void *method)
-{
-    return OSSL_DECODER_up_ref(method);
-}
-
-static void free_decoder(void *method)
-{
-    OSSL_DECODER_free(method);
+    ossl_decoder_free(method);
 }
 
 /* Fetching support.  Can fetch by numeric identity or by name */
@@ -394,9 +405,22 @@ inner_ossl_decoder_fetch(struct decoder_data_st *methdata,
              */
             if (id == 0 && name != NULL)
                 id = ossl_namemap_name2num(namemap, name);
-            if (id != 0)
+            if (id != 0 && methdata->tmp_store == NULL) {
                 ossl_method_store_cache_set(store, prov, id, propq, method,
-                    up_ref_decoder, free_decoder);
+                    ossl_decoder_up_ref, ossl_decoder_free);
+            } else {
+                /*
+                 * Like with EVP methods, if the provider requests no caching we need
+                 * to take an extra refcount here so that the tmp_stored decoder
+                 * lives beyond the freeing of that tmp_store
+                 */
+#ifndef OPENSSL_NO_CACHED_FETCH
+                if (!OSSL_DECODER_up_ref((OSSL_DECODER *)method)) {
+                    ossl_decoder_free(method);
+                    method = NULL;
+                }
+#endif
+            }
         }
 
         /*
@@ -637,8 +661,8 @@ int OSSL_DECODER_CTX_set_params(OSSL_DECODER_CTX *ctx,
     const OSSL_PARAM params[])
 {
     int ok = 1;
-    size_t i;
-    size_t l;
+    int i;
+    int l;
 
     if (!ossl_assert(ctx != NULL)) {
         ERR_raise(ERR_LIB_OSSL_DECODER, ERR_R_PASSED_NULL_PARAMETER);

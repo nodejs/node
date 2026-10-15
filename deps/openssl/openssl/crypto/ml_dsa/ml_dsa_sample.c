@@ -13,6 +13,7 @@
 #include "ml_dsa_vector.h"
 #include "ml_dsa_matrix.h"
 #include "ml_dsa_hash.h"
+#include "internal/constant_time.h"
 #include "internal/sha3.h"
 #include "internal/packet.h"
 
@@ -34,6 +35,10 @@ typedef int(COEFF_FROM_NIBBLE_FUNC)(uint32_t nibble, uint32_t *out);
 
 static COEFF_FROM_NIBBLE_FUNC coeff_from_nibble_4;
 static COEFF_FROM_NIBBLE_FUNC coeff_from_nibble_2;
+
+static ML_DSA_MATRIX_EXPAND_A_FN matrix_expand_A_scalar;
+static ML_DSA_VECTOR_EXPAND_S_FN vector_expand_S_scalar;
+static ML_DSA_VECTOR_EXPAND_MASK_FN vector_expand_mask_scalar;
 
 /**
  * @brief Combine 3 bytes to form an coefficient.
@@ -206,7 +211,7 @@ err:
  *            in the range of 0..q-1.
  * @returns 1 if the matrix was generated, or 0 on error.
  */
-int ossl_ml_dsa_matrix_expand_A(EVP_MD_CTX *g_ctx, const EVP_MD *md,
+static int matrix_expand_A_scalar(EVP_MD_CTX *g_ctx, const EVP_MD *md,
     const uint8_t *rho, MATRIX *out)
 {
     int ret = 0;
@@ -223,7 +228,6 @@ int ossl_ml_dsa_matrix_expand_A(EVP_MD_CTX *g_ctx, const EVP_MD *md,
 
     /* The seed used for each matrix element is rho + column_index + row_index */
     memcpy(derived_seed, rho, ML_DSA_RHO_BYTES);
-
     for (i = 0; i < out->k; i++) {
         for (j = 0; j < out->l; j++) {
             derived_seed[ML_DSA_RHO_BYTES + 1] = (uint8_t)i;
@@ -256,7 +260,7 @@ err:
  *           the range (q-eta)..0..eta
  * @returns 1 if s1 and s2 were successfully generated, or 0 otherwise.
  */
-int ossl_ml_dsa_vector_expand_S(EVP_MD_CTX *h_ctx, const EVP_MD *md, int eta,
+static int vector_expand_S_scalar(EVP_MD_CTX *h_ctx, const EVP_MD *md, int eta,
     const uint8_t *seed, VECTOR *s1, VECTOR *s2)
 {
     int ret = 0;
@@ -345,6 +349,23 @@ int ossl_ml_dsa_poly_sample_in_ball(POLY *out_c, const uint8_t *seed, int seed_l
      */
     OPENSSL_load_u64_le(&signs, block);
 
+    /*
+     * SampleInBall implements a Fisher-Yates shuffle whose rejection-sampling
+     * inner loop and data-dependent array index unavoidably leak the structure
+     * of the challenge polynomial via memory-access pattern and branch timing.
+     * This is safe: c_tilde = H(mu ‖ w1) is the Fiat-Shamir commitment and is
+     * published in the accepted signature, so the SHAKE bytes that build c are
+     * effectively public.  See the BoringSSL design discussion at
+     * https://boringssl-review.googlesource.com/c/boringssl/+/67747/comment/8d8f01ac_70af3f21/
+     *
+     * The first 8 bytes (the sign bits loaded into |signs| above) are left
+     * tainted: they determine only the ±1 values written into c, which flow
+     * into the CT arithmetic of cs1/cs2/ct0 alongside the already-tainted
+     * secret polynomials and cause no spurious violations there.
+     * Only the rejection-sampling bytes need to be declassified.
+     */
+    CONSTTIME_DECLASSIFY(block + offset, sizeof(block) - offset);
+
     poly_zero(out_c);
 
     /* Loop tau times */
@@ -357,6 +378,8 @@ int ossl_ml_dsa_poly_sample_in_ball(POLY *out_c, const uint8_t *seed, int seed_l
                 /* squeeze another block if the bytes from block have been used */
                 if (!EVP_DigestSqueeze(h_ctx, block, sizeof(block)))
                     goto err;
+                /* See comment above for why the block is declassified. */
+                CONSTTIME_DECLASSIFY(block, sizeof(block));
                 offset = 0;
             }
 
@@ -379,3 +402,46 @@ err:
     OPENSSL_cleanse(block, sizeof(block));
     return ret;
 }
+
+static void vector_expand_mask_scalar(VECTOR *out,
+    const uint8_t rho_prime[ML_DSA_RHO_PRIME_BYTES], uint32_t kappa, uint32_t gamma1,
+    EVP_MD_CTX *h_ctx, const EVP_MD *md)
+{
+    size_t i;
+    uint8_t derived_seed[ML_DSA_RHO_PRIME_BYTES + 2];
+
+    memcpy(derived_seed, rho_prime, ML_DSA_RHO_PRIME_BYTES);
+
+    for (i = 0; i < out->num_poly; i++) {
+        size_t index = kappa + i;
+
+        derived_seed[ML_DSA_RHO_PRIME_BYTES] = index & 0xFF;
+        derived_seed[ML_DSA_RHO_PRIME_BYTES + 1] = (index >> 8) & 0xFF;
+        poly_expand_mask(out->poly + i, derived_seed, sizeof(derived_seed),
+            gamma1, h_ctx, md);
+    }
+    OPENSSL_cleanse(derived_seed, sizeof(derived_seed));
+}
+
+static const OSSL_ML_DSA_SAMPLE_OPS ml_dsa_sample_generic_meth = {
+    matrix_expand_A_scalar,
+    vector_expand_S_scalar,
+    vector_expand_mask_scalar
+};
+
+#if defined(KECCAK1600_ASM)                                                               \
+    && (defined(__x86_64) || defined(__x86_64__) || defined(_M_AMD64) || defined(_M_X64)) \
+    && !defined(OPENSSL_NO_ASM)
+#include "ml_dsa_sample_hw_x86_64.inc"
+const OSSL_ML_DSA_SAMPLE_OPS *ossl_ml_dsa_sample_ops(void)
+{
+    if (SHA3_avx512vl_capable())
+        return &ml_dsa_sample_x86_64;
+    return &ml_dsa_sample_generic_meth;
+}
+#else
+const OSSL_ML_DSA_SAMPLE_OPS *ossl_ml_dsa_sample_ops(void)
+{
+    return &ml_dsa_sample_generic_meth;
+}
+#endif

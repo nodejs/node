@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 1998-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1998-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,10 @@
 
 
 # ====================================================================
-# [Re]written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# [Re]written by Andy Polyakov <https://github.com/dot-asm> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 
 # At some point it became apparent that the original SSLeay RC4
@@ -416,7 +416,7 @@ $idx="edx";
 &asciz	("rc4(4x,int)");
 &asciz	("rc4(1x,char)");
 &asciz	("rc4(8x,mmx)");
-&asciz	("RC4 for x86, CRYPTOGAMS by <appro\@openssl.org>");
+&asciz	("RC4 for x86, CRYPTOGAMS by <https://github.com/dot-asm>");
 &align	(64);
 &function_end_B("RC4_options");
 

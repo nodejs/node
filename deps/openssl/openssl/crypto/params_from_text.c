@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -151,7 +151,7 @@ static int construct_from_text(OSSL_PARAM *to, const OSSL_PARAM *paramdef,
                 }
             */
 
-            BN_bn2nativepad(tmpbn, buf, buf_n);
+            BN_bn2nativepad(tmpbn, buf, (int)buf_n);
 
             /*
              * 2's complement negation, part two.
@@ -198,6 +198,7 @@ static int construct_from_text(OSSL_PARAM *to, const OSSL_PARAM *paramdef,
     return 1;
 }
 
+#ifndef FIPS_MODULE
 /**
  * OSSL_PARAM_print_to_bio - Print OSSL_PARAM array to a bio
  *
@@ -271,14 +272,14 @@ int OSSL_PARAM_print_to_bio(const OSSL_PARAM *p, BIO *bio, int print_values)
             }
             break;
         case OSSL_PARAM_UTF8_PTR:
-            ok = BIO_dump(bio, p->data, p->data_size);
+            ok = BIO_dump(bio, p->data, (int)p->data_size);
             break;
         case OSSL_PARAM_UTF8_STRING:
-            ok = BIO_dump(bio, (char *)p->data, p->data_size);
+            ok = BIO_dump(bio, (char *)p->data, (int)p->data_size);
             break;
         case OSSL_PARAM_OCTET_PTR:
         case OSSL_PARAM_OCTET_STRING:
-            ok = BIO_dump(bio, (char *)p->data, p->data_size);
+            ok = BIO_dump(bio, (char *)p->data, (int)p->data_size);
             break;
 #ifndef OPENSSL_SYS_UEFI
         case OSSL_PARAM_REAL:
@@ -302,6 +303,7 @@ int OSSL_PARAM_print_to_bio(const OSSL_PARAM *p, BIO *bio, int print_values)
 end:
     return ok == -1 ? 0 : 1;
 }
+#endif /* FIPS_MODULE */
 
 int OSSL_PARAM_allocate_from_text(OSSL_PARAM *to,
     const OSSL_PARAM *paramdefs,

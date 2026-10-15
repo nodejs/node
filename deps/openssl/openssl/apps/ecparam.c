@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -36,7 +36,6 @@ typedef enum OPTION_choice {
     OPT_CONV_FORM,
     OPT_PARAM_ENC,
     OPT_GENKEY,
-    OPT_ENGINE,
     OPT_CHECK_NAMED,
     OPT_R_ENUM,
     OPT_PROV_ENUM
@@ -47,9 +46,6 @@ const OPTIONS ecparam_options[] = {
     { "help", OPT_HELP, '-', "Display this summary" },
     { "list_curves", OPT_LIST_CURVES, '-',
         "Prints a list of all curve 'short names'" },
-#ifndef OPENSSL_NO_ENGINE
-    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
-#endif
 
     { "genkey", OPT_GENKEY, '-', "Generate ec key" },
     { "in", OPT_IN, '<', "Input file  - default stdin" },
@@ -61,7 +57,7 @@ const OPTIONS ecparam_options[] = {
     { "text", OPT_TEXT, '-', "Print the ec parameters in text form" },
     { "noout", OPT_NOOUT, '-', "Do not print the ec parameter" },
     { "param_enc", OPT_PARAM_ENC, 's',
-        "Specifies the way the ec parameters are encoded" },
+        "Selects between named_curve and explicit EC parameter encoding" },
 
     OPT_SECTION("Parameter"),
     { "check", OPT_CHECK, '-', "Validate the ec parameters" },
@@ -83,7 +79,7 @@ static int list_builtin_curves(BIO *out)
     EC_builtin_curve *curves = NULL;
     size_t n, crv_len = EC_get_builtin_curves(NULL, 0);
 
-    curves = app_malloc((int)sizeof(*curves) * crv_len, "list curves");
+    curves = app_malloc_array(crv_len, sizeof(*curves), "list curves");
     EC_get_builtin_curves(curves, crv_len);
 
     for (n = 0; n < crv_len; n++) {
@@ -95,8 +91,7 @@ static int list_builtin_curves(BIO *out)
         if (sname == NULL)
             sname = "";
 
-        BIO_printf(out, "  %-10s: ", sname);
-        BIO_printf(out, "%s\n", comment);
+        BIO_printf(out, "  %-10s: %s\n", sname, comment);
     }
     OPENSSL_free(curves);
     return 1;
@@ -108,7 +103,6 @@ int ecparam_main(int argc, char **argv)
     EVP_PKEY *params_key = NULL, *key = NULL;
     OSSL_ENCODER_CTX *ectx_key = NULL, *ectx_params = NULL;
     OSSL_DECODER_CTX *dctx_params = NULL;
-    ENGINE *e = NULL;
     BIO *out = NULL;
     char *curve_name = NULL;
     char *asn1_encoding = NULL;
@@ -188,9 +182,6 @@ int ecparam_main(int argc, char **argv)
             if (!opt_provider(o))
                 goto end;
             break;
-        case OPT_ENGINE:
-            e = setup_engine(opt_arg(), 0);
-            break;
         }
     }
 
@@ -218,11 +209,11 @@ int ecparam_main(int argc, char **argv)
         OSSL_PARAM *p = params;
 
         if (strcmp(curve_name, "secp192r1") == 0) {
-            BIO_printf(bio_err,
+            BIO_puts(bio_err,
                 "using curve name prime192v1 instead of secp192r1\n");
             curve_name = SN_X9_62_prime192v1;
         } else if (strcmp(curve_name, "secp256r1") == 0) {
-            BIO_printf(bio_err,
+            BIO_puts(bio_err,
                 "using curve name prime256v1 instead of secp256r1\n");
             curve_name = SN_X9_62_prime256v1;
         }
@@ -247,7 +238,7 @@ int ecparam_main(int argc, char **argv)
             || EVP_PKEY_keygen_init(gctx_params) <= 0
             || EVP_PKEY_CTX_set_params(gctx_params, params) <= 0
             || EVP_PKEY_keygen(gctx_params, &params_key) <= 0) {
-            BIO_printf(bio_err, "unable to generate key\n");
+            BIO_puts(bio_err, "unable to generate key\n");
             goto end;
         }
     } else {
@@ -266,14 +257,14 @@ int ecparam_main(int argc, char **argv)
             && !EVP_PKEY_set_utf8_string_param(
                 params_key, OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT,
                 point_format)) {
-            BIO_printf(bio_err, "unable to set point conversion format\n");
+            BIO_puts(bio_err, "unable to set point conversion format\n");
             goto end;
         }
 
         if (asn1_encoding != NULL
             && !EVP_PKEY_set_utf8_string_param(
                 params_key, OSSL_PKEY_PARAM_EC_ENCODING, asn1_encoding)) {
-            BIO_printf(bio_err, "unable to set asn1 encoding format\n");
+            BIO_puts(bio_err, "unable to set asn1 encoding format\n");
             goto end;
         }
     }
@@ -281,7 +272,7 @@ int ecparam_main(int argc, char **argv)
     if (no_seed
         && !EVP_PKEY_set_octet_string_param(params_key, OSSL_PKEY_PARAM_EC_SEED,
             NULL, 0)) {
-        BIO_printf(bio_err, "unable to clear seed\n");
+        BIO_puts(bio_err, "unable to clear seed\n");
         goto end;
     }
 
@@ -291,27 +282,27 @@ int ecparam_main(int argc, char **argv)
 
     if (text
         && EVP_PKEY_print_params(out, params_key, 0, NULL) <= 0) {
-        BIO_printf(bio_err, "unable to print params\n");
+        BIO_puts(bio_err, "unable to print params\n");
         goto end;
     }
 
     if (check || check_named) {
-        BIO_printf(bio_err, "checking elliptic curve parameters: ");
+        BIO_puts(bio_err, "checking elliptic curve parameters: ");
 
         if (check_named
             && !EVP_PKEY_set_utf8_string_param(params_key,
                 OSSL_PKEY_PARAM_EC_GROUP_CHECK_TYPE,
                 OSSL_PKEY_EC_GROUP_CHECK_NAMED)) {
-            BIO_printf(bio_err, "unable to set check_type\n");
+            BIO_puts(bio_err, "unable to set check_type\n");
             goto end;
         }
         pctx = EVP_PKEY_CTX_new_from_pkey(app_get0_libctx(), params_key,
             app_get0_propq());
         if (pctx == NULL || EVP_PKEY_param_check(pctx) <= 0) {
-            BIO_printf(bio_err, "failed\n");
+            BIO_puts(bio_err, "failed\n");
             goto end;
         }
-        BIO_printf(bio_err, "ok\n");
+        BIO_puts(bio_err, "ok\n");
     }
 
     if (outformat == FORMAT_ASN1 && genkey)
@@ -322,7 +313,7 @@ int ecparam_main(int argc, char **argv)
             params_key, OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS,
             outformat == FORMAT_ASN1 ? "DER" : "PEM", NULL, NULL);
         if (!OSSL_ENCODER_to_bio(ectx_params, out)) {
-            BIO_printf(bio_err, "unable to write elliptic curve parameters\n");
+            BIO_puts(bio_err, "unable to write elliptic curve parameters\n");
             goto end;
         }
     }
@@ -340,7 +331,7 @@ int ecparam_main(int argc, char **argv)
             app_get0_propq());
         if (EVP_PKEY_keygen_init(gctx_key) <= 0
             || EVP_PKEY_keygen(gctx_key, &key) <= 0) {
-            BIO_printf(bio_err, "unable to generate key\n");
+            BIO_puts(bio_err, "unable to generate key\n");
             goto end;
         }
         assert(private);
@@ -348,8 +339,8 @@ int ecparam_main(int argc, char **argv)
             key, OSSL_KEYMGMT_SELECT_ALL,
             outformat == FORMAT_ASN1 ? "DER" : "PEM", NULL, NULL);
         if (!OSSL_ENCODER_to_bio(ectx_key, out)) {
-            BIO_printf(bio_err, "unable to write elliptic "
-                                "curve parameters\n");
+            BIO_puts(bio_err, "unable to write elliptic "
+                              "curve parameters\n");
             goto end;
         }
     }
@@ -358,7 +349,6 @@ int ecparam_main(int argc, char **argv)
 end:
     if (ret != 0)
         ERR_print_errors(bio_err);
-    release_engine(e);
     EVP_PKEY_free(params_key);
     EVP_PKEY_free(key);
     EVP_PKEY_CTX_free(pctx);

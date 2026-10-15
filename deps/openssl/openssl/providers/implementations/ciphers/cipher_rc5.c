@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,6 +19,21 @@
 #include "cipher_rc5.h"
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
+
+struct rc5_get_ctx_param_list_st {
+    struct ossl_cipher_get_ctx_param_list_st common;
+    OSSL_PARAM *rounds;
+};
+
+struct rc5_set_ctx_param_list_st {
+    struct ossl_cipher_set_ctx_param_list_st common;
+    OSSL_PARAM *rounds;
+};
+
+#define rc5_get_ctx_params_st rc5_get_ctx_param_list_st
+#define rc5_set_ctx_params_st rc5_set_ctx_param_list_st
+
+#include "providers/implementations/ciphers/cipher_rc5.inc"
 
 #define RC5_FLAGS PROV_CIPHER_FLAG_VARIABLE_LENGTH
 
@@ -75,19 +90,18 @@ static int rc5_dinit(void *ctx, const unsigned char *key, size_t keylen,
 static int rc5_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
     PROV_RC5_CTX *ctx = (PROV_RC5_CTX *)vctx;
-    const OSSL_PARAM *p;
+    struct rc5_set_ctx_param_list_st p;
 
-    if (ossl_param_is_empty(params))
-        return 1;
-
-    if (!ossl_cipher_var_keylen_set_ctx_params(vctx, params))
+    if (ctx == NULL || !rc5_set_ctx_params_decoder(params, &p))
         return 0;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_ROUNDS);
-    if (p != NULL) {
+    if (!ossl_cipher_common_set_ctx_params(&ctx->base, &p.common))
+        return 0;
+
+    if (p.rounds != NULL) {
         unsigned int rounds;
 
-        if (!OSSL_PARAM_get_uint(p, &rounds)) {
+        if (!OSSL_PARAM_get_uint(p.rounds, &rounds)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
             return 0;
         }
@@ -102,24 +116,30 @@ static int rc5_set_ctx_params(void *vctx, const OSSL_PARAM params[])
     return 1;
 }
 
-CIPHER_DEFAULT_GETTABLE_CTX_PARAMS_START(rc5)
-OSSL_PARAM_uint(OSSL_CIPHER_PARAM_ROUNDS, NULL),
-    CIPHER_DEFAULT_GETTABLE_CTX_PARAMS_END(rc5)
+const OSSL_PARAM *rc5_gettable_ctx_params(ossl_unused void *cctx,
+    ossl_unused void *provctx)
+{
+    return rc5_get_ctx_params_list;
+}
 
-        CIPHER_DEFAULT_SETTABLE_CTX_PARAMS_START(rc5)
-            OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_KEYLEN, NULL),
-    OSSL_PARAM_uint(OSSL_CIPHER_PARAM_ROUNDS, NULL),
-    CIPHER_DEFAULT_SETTABLE_CTX_PARAMS_END(rc5)
+const OSSL_PARAM *rc5_settable_ctx_params(ossl_unused void *cctx,
+    ossl_unused void *provctx)
+{
+    return rc5_set_ctx_params_list;
+}
 
-        static int rc5_get_ctx_params(void *vctx, OSSL_PARAM params[])
+static int rc5_get_ctx_params(void *vctx, OSSL_PARAM params[])
 {
     PROV_RC5_CTX *ctx = (PROV_RC5_CTX *)vctx;
-    OSSL_PARAM *p;
+    struct rc5_get_ctx_param_list_st p;
 
-    if (!ossl_cipher_generic_get_ctx_params(vctx, params))
+    if (ctx == NULL || !rc5_get_ctx_params_decoder(params, &p))
         return 0;
-    p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_ROUNDS);
-    if (p != NULL && !OSSL_PARAM_set_uint(p, ctx->rounds)) {
+
+    if (!ossl_cipher_common_get_ctx_params(&ctx->base, &p.common))
+        return 0;
+
+    if (p.rounds != NULL && !OSSL_PARAM_set_uint(p.rounds, ctx->rounds)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
         return 0;
     }

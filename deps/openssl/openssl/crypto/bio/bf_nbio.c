@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -149,9 +149,14 @@ static long nbiof_ctrl(BIO *b, int cmd, long num, void *ptr)
 {
     long ret;
 
+    /*
+     * If there is no next BIO, BIO_read() returns 0, which means EOF.
+     * BIO_eof() should return 1 in this case.
+     */
     if (b->next_bio == NULL)
-        return 0;
+        return cmd == BIO_CTRL_EOF;
     switch (cmd) {
+    case BIO_CTRL_FLUSH:
     case BIO_C_DO_STATE_MACHINE:
         BIO_clear_retry_flags(b);
         ret = BIO_ctrl(b->next_bio, cmd, num, ptr);
@@ -176,14 +181,22 @@ static long nbiof_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
 
 static int nbiof_gets(BIO *bp, char *buf, int size)
 {
+    int ret = 0;
     if (bp->next_bio == NULL)
         return 0;
-    return BIO_gets(bp->next_bio, buf, size);
+    ret = BIO_gets(bp->next_bio, buf, size);
+    BIO_clear_retry_flags(bp);
+    BIO_copy_next_retry(bp);
+    return ret;
 }
 
 static int nbiof_puts(BIO *bp, const char *str)
 {
+    int ret = 0;
     if (bp->next_bio == NULL)
         return 0;
-    return BIO_puts(bp->next_bio, str);
+    ret = BIO_puts(bp->next_bio, str);
+    BIO_clear_retry_flags(bp);
+    BIO_copy_next_retry(bp);
+    return ret;
 }

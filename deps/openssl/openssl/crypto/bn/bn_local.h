@@ -10,20 +10,10 @@
 #ifndef OSSL_CRYPTO_BN_LOCAL_H
 #define OSSL_CRYPTO_BN_LOCAL_H
 
-/*
- * The EDK2 build doesn't use bn_conf.h; it sets THIRTY_TWO_BIT or
- * SIXTY_FOUR_BIT in its own environment since it doesn't re-run our
- * Configure script and needs to support both 32-bit and 64-bit.
- */
 #include <openssl/opensslconf.h>
-
-#if !defined(OPENSSL_SYS_UEFI)
-#include "crypto/bn_conf.h"
-#endif
-
-#include "crypto/bn.h"
 #include "internal/cryptlib.h"
 #include "internal/numbers.h"
+#include "crypto/bn.h"
 
 /*
  * These preprocessor symbols control various aspects of the bignum headers
@@ -62,12 +52,6 @@
 #define BN_SOFT_LIMIT (4096 / BN_BYTES)
 #endif
 
-#ifndef OPENSSL_SMALL_FOOTPRINT
-#define BN_MUL_COMBA
-#define BN_SQR_COMBA
-#define BN_RECURSION
-#endif
-
 /*
  * This next option uses the C libraries (2 word)/(1 word) function. If it is
  * not defined, I use my C version (which is slower). The reason for this
@@ -88,7 +72,7 @@
  * 64-bit processor with LP64 ABI
  */
 #ifdef SIXTY_FOUR_BIT_LONG
-#define BN_ULLONG unsigned long long
+typedef unsigned long long BN_ULLONG;
 #define BN_BITS4 32
 #define BN_MASK2 (0xffffffffffffffffL)
 #define BN_MASK2l (0xffffffffL)
@@ -120,9 +104,9 @@
 #ifdef THIRTY_TWO_BIT
 #ifdef BN_LLONG
 #if defined(_WIN32) && !defined(__GNUC__)
-#define BN_ULLONG unsigned __int64
+typedef unsigned __int64 BN_ULLONG;
 #else
-#define BN_ULLONG unsigned long long
+typedef unsigned long long BN_ULLONG;
 #endif
 #endif
 #define BN_BITS4 16
@@ -166,6 +150,10 @@
  */
 
 #ifdef BN_DEBUG
+
+/* ossl_assert() isn't fit for BN_DEBUG purposes, use assert() instead */
+#include <assert.h>
+
 /*
  * The new BN_FLG_FIXED_TOP flag marks vectors that were not treated with
  * bn_correct_top, in other words such vectors are permitted to have zeros
@@ -195,14 +183,18 @@
 #else
 #define bn_pollute(a)
 #endif
-#define bn_check_top(a)                                                                                                                   \
-    do {                                                                                                                                  \
-        const BIGNUM *_bnum2 = (a);                                                                                                       \
-        if (_bnum2 != NULL) {                                                                                                             \
-            int _top = _bnum2->top;                                                                                                       \
-            (void)ossl_assert((_top == 0 && !_bnum2->neg) || (_top && ((_bnum2->flags & BN_FLG_FIXED_TOP) || _bnum2->d[_top - 1] != 0))); \
-            bn_pollute(_bnum2);                                                                                                           \
-        }                                                                                                                                 \
+#define bn_check_top(a)                                           \
+    do {                                                          \
+        const BIGNUM *_bnum2 = (a);                               \
+        if (_bnum2 != NULL) {                                     \
+            int _top = _bnum2->top;                               \
+            if (_top == 0) {                                      \
+                assert(!_bnum2->neg);                             \
+            } else if ((_bnum2->flags & BN_FLG_FIXED_TOP) == 0) { \
+                assert(_bnum2->d[_top - 1] != 0);                 \
+            }                                                     \
+            bn_pollute(_bnum2);                                   \
+        }                                                         \
     } while (0)
 
 #define bn_fix_top(a) bn_check_top(a)
@@ -252,7 +244,6 @@ struct bignum_st {
 
 /* Used for montgomery multiplication */
 struct bn_mont_ctx_st {
-    int ri; /* number of bits in R */
     BIGNUM RR; /* used to convert to montgomery form,
                   possibly zero-padded */
     BIGNUM N; /* The modulus */
@@ -261,6 +252,7 @@ struct bn_mont_ctx_st {
     BN_ULONG n0[2]; /* least significant word(s) of Ni; (type
                      * changed with 0.9.9, was "BN_ULONG n0;"
                      * before) */
+    int ri; /* number of bits in R */
     int flags;
 };
 
@@ -388,7 +380,7 @@ struct bn_gencb_st {
 #if defined(__DECC)
 #include <c_asm.h>
 #define BN_UMULT_HIGH(a, b) (BN_ULONG)asm("umulh %a0,%a1,%v0", (a), (b))
-#elif defined(__GNUC__) && __GNUC__ >= 2
+#elif defined(__GNUC__)
 #define BN_UMULT_HIGH(a, b) ({     \
         register BN_ULONG ret;          \
         asm ("umulh     %1,%2,%0"       \
@@ -397,7 +389,7 @@ struct bn_gencb_st {
         ret; })
 #endif /* compiler */
 #elif defined(_ARCH_PPC64) && defined(SIXTY_FOUR_BIT_LONG)
-#if defined(__GNUC__) && __GNUC__ >= 2
+#if defined(__GNUC__)
 #define BN_UMULT_HIGH(a, b) ({     \
         register BN_ULONG ret;          \
         asm ("mulhdu    %0,%1,%2"       \
@@ -406,7 +398,7 @@ struct bn_gencb_st {
         ret; })
 #endif /* compiler */
 #elif (defined(__x86_64) || defined(__x86_64__)) && (defined(SIXTY_FOUR_BIT_LONG) || defined(SIXTY_FOUR_BIT))
-#if defined(__GNUC__) && __GNUC__ >= 2
+#if defined(__GNUC__)
 #define BN_UMULT_HIGH(a, b) ({     \
         register BN_ULONG ret,discard;  \
         asm ("mulq      %3"             \
@@ -430,7 +422,7 @@ unsigned __int64 _umul128(unsigned __int64 a, unsigned __int64 b,
 #define BN_UMULT_LOHI(low, high, a, b) ((low) = _umul128((a), (b), &(high)))
 #endif
 #elif defined(__mips) && (defined(SIXTY_FOUR_BIT) || defined(SIXTY_FOUR_BIT_LONG))
-#if defined(__GNUC__) && __GNUC__ >= 2
+#if defined(__GNUC__)
 #define BN_UMULT_HIGH(a, b) ({       \
         register BN_ULONG ret;          \
         asm ("dmultu    %1,%2"          \
@@ -443,7 +435,7 @@ unsigned __int64 _umul128(unsigned __int64 a, unsigned __int64 b,
         : "r"(a), "r"(b));
 #endif
 #elif defined(__aarch64__) && defined(SIXTY_FOUR_BIT_LONG)
-#if defined(__GNUC__) && __GNUC__ >= 2
+#if defined(__GNUC__)
 #define BN_UMULT_HIGH(a, b) ({     \
         register BN_ULONG ret;          \
         asm ("umulh     %0,%1,%2"       \
@@ -451,6 +443,8 @@ unsigned __int64 _umul128(unsigned __int64 a, unsigned __int64 b,
              : "r"(a), "r"(b));         \
         ret; })
 #endif
+#elif defined(__e2k__) && __iset__ >= 5
+#define BN_UMULT_HIGH(a, b) __builtin_e2k_umulhd(a, b)
 #endif /* cpu */
 #endif /* OPENSSL_NO_ASM */
 

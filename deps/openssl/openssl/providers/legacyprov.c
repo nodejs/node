@@ -163,7 +163,14 @@ static const OSSL_ALGORITHM legacy_ciphers[] = {
 
 static const OSSL_ALGORITHM legacy_kdfs[] = {
     ALG(PROV_NAMES_PBKDF1, ossl_kdf_pbkdf1_functions),
+#ifndef OPENSSL_NO_PVKKDF
     ALG(PROV_NAMES_PVKKDF, ossl_kdf_pvk_functions),
+#endif
+    { NULL, NULL, NULL }
+};
+
+static const OSSL_ALGORITHM legacy_skeymgmt[] = {
+    ALG(PROV_NAMES_GENERIC, ossl_generic_skeymgmt_functions),
     { NULL, NULL, NULL }
 };
 
@@ -178,6 +185,8 @@ static const OSSL_ALGORITHM *legacy_query(void *provctx, int operation_id,
         return legacy_ciphers;
     case OSSL_OP_KDF:
         return legacy_kdfs;
+    case OSSL_OP_SKEYMGMT:
+        return legacy_skeymgmt;
     }
     return NULL;
 }

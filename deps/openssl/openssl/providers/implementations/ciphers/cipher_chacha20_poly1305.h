@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,6 +8,9 @@
  */
 
 /* Dispatch functions for chacha20_poly1305 cipher */
+
+#if !defined(OSSL_PROVIDERS_IMPLEMENTATIONS_CIPHERS_CIPHER_CHACHA20_POLY1305_H)
+#define OSSL_PROVIDERS_IMPLEMENTATIONS_CIPHERS_CIPHER_CHACHA20_POLY1305_H
 
 #include "include/crypto/poly1305.h"
 #include "cipher_chacha20.h"
@@ -30,6 +33,7 @@ typedef struct {
     size_t tag_len;
     size_t tls_payload_length;
     size_t tls_aad_pad_sz;
+    unsigned int iv_state; /* set to one of IV_STATE_XXX */
 } PROV_CHACHA20_POLY1305_CTX;
 
 typedef struct prov_cipher_hw_chacha_aead_st {
@@ -43,3 +47,5 @@ typedef struct prov_cipher_hw_chacha_aead_st {
 } PROV_CIPHER_HW_CHACHA20_POLY1305;
 
 const PROV_CIPHER_HW *ossl_prov_cipher_hw_chacha20_poly1305(size_t keybits);
+
+#endif /* !defined(OSSL_PROVIDERS_IMPLEMENTATIONS_CIPHERS_CIPHER_CHACHA20_POLY1305_H) */

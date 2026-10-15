@@ -1,11 +1,14 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_PROVIDERS_COMMON_INCLUDE_PROV_SECURITYCHECK_H)
+#define OSSL_PROVIDERS_COMMON_INCLUDE_PROV_SECURITYCHECK_H
 
 #include "crypto/types.h"
 #include <openssl/ec.h>
@@ -36,4 +39,5 @@ int ossl_digest_get_approved_nid(const EVP_MD *md);
 
 /* Functions that have different implementations for the FIPS_MODULE */
 int ossl_digest_rsa_sign_get_md_nid(const EVP_MD *md);
-int ossl_fips_config_securitycheck_enabled(OSSL_LIB_CTX *libctx);
+
+#endif /* !defined(OSSL_PROVIDERS_COMMON_INCLUDE_PROV_SECURITYCHECK_H) */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2012-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,6 +9,7 @@
 
 #include "internal/e_os.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include "ssl_local.h"
 #include <openssl/conf.h>
@@ -288,7 +289,8 @@ static int cmd_Protocol(SSL_CONF_CTX *cctx, const char *value)
         SSL_FLAG_TBL_INV("TLSv1.2", SSL_OP_NO_TLSv1_2),
         SSL_FLAG_TBL_INV("TLSv1.3", SSL_OP_NO_TLSv1_3),
         SSL_FLAG_TBL_INV("DTLSv1", SSL_OP_NO_DTLSv1),
-        SSL_FLAG_TBL_INV("DTLSv1.2", SSL_OP_NO_DTLSv1_2)
+        SSL_FLAG_TBL_INV("DTLSv1.2", SSL_OP_NO_DTLSv1_2),
+        SSL_FLAG_TBL_INV("DTLSv1.3", SSL_OP_NO_DTLSv1_3)
     };
     cctx->tbl = ssl_protocol_list;
     cctx->ntbl = OSSL_NELEM(ssl_protocol_list);
@@ -321,7 +323,8 @@ static int protocol_from_string(const char *value)
         { "TLSv1.2", TLS1_2_VERSION },
         { "TLSv1.3", TLS1_3_VERSION },
         { "DTLSv1", DTLS1_VERSION },
-        { "DTLSv1.2", DTLS1_2_VERSION }
+        { "DTLSv1.2", DTLS1_2_VERSION },
+        { "DTLSv1.3", DTLS1_3_VERSION }
     };
     size_t i;
     size_t n = OSSL_NELEM(versions);
@@ -380,7 +383,7 @@ static int cmd_Options(SSL_CONF_CTX *cctx, const char *value)
             SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS),
         SSL_FLAG_TBL("Bugs", SSL_OP_ALL),
         SSL_FLAG_TBL_INV("Compression", SSL_OP_NO_COMPRESSION),
-        SSL_FLAG_TBL_SRV("ServerPreference", SSL_OP_CIPHER_SERVER_PREFERENCE),
+        SSL_FLAG_TBL_SRV("ServerPreference", SSL_OP_SERVER_PREFERENCE),
         SSL_FLAG_TBL_SRV("NoResumptionOnRenegotiation",
             SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION),
         SSL_FLAG_TBL_SRV("DHSingle", SSL_OP_SINGLE_DH_USE),
@@ -406,6 +409,7 @@ static int cmd_Options(SSL_CONF_CTX *cctx, const char *value)
         SSL_FLAG_TBL_INV("RxCertificateCompression", SSL_OP_NO_RX_CERTIFICATE_COMPRESSION),
         SSL_FLAG_TBL("KTLSTxZerocopySendfile", SSL_OP_ENABLE_KTLS_TX_ZEROCOPY_SENDFILE),
         SSL_FLAG_TBL("IgnoreUnexpectedEOF", SSL_OP_IGNORE_UNEXPECTED_EOF),
+        SSL_FLAG_TBL("LegacyECPointFormats", SSL_OP_LEGACY_EC_POINT_FORMATS),
     };
     if (value == NULL)
         return -3;
@@ -722,9 +726,11 @@ out:
 static int cmd_NumTickets(SSL_CONF_CTX *cctx, const char *value)
 {
     int rv = 0;
-    int num_tickets = atoi(value);
+    unsigned long ul;
 
-    if (num_tickets >= 0) {
+    if (OPENSSL_strtoul(value, NULL, 10, &ul) && ul <= INT_MAX) {
+        int num_tickets = (int)ul;
+
         if (cctx->ctx)
             rv = SSL_CTX_set_num_tickets(cctx->ctx, num_tickets);
         if (cctx->ssl)
@@ -785,6 +791,7 @@ static const ssl_conf_cmd_tbl ssl_conf_cmds[] = {
     SSL_CONF_CMD_SWITCH("no_anti_replay", SSL_CONF_FLAG_SERVER),
     SSL_CONF_CMD_SWITCH("no_etm", 0),
     SSL_CONF_CMD_SWITCH("no_ems", 0),
+    SSL_CONF_CMD_SWITCH("legacy_ec_point_formats", 0),
     SSL_CONF_CMD_STRING(SignatureAlgorithms, "sigalgs", 0),
     SSL_CONF_CMD_STRING(ClientSignatureAlgorithms, "client_sigalgs", 0),
     SSL_CONF_CMD_STRING(Curves, "curves", 0),
@@ -854,7 +861,7 @@ static const ssl_switch_tbl ssl_cmd_switches[] = {
     { SSL_OP_NO_RX_CERTIFICATE_COMPRESSION, SSL_TFLAG_INV }, /* rx_cert_comp */
     { SSL_OP_SINGLE_ECDH_USE, 0 }, /* ecdh_single */
     { SSL_OP_NO_TICKET, 0 }, /* no_ticket */
-    { SSL_OP_CIPHER_SERVER_PREFERENCE, 0 }, /* serverpref */
+    { SSL_OP_SERVER_PREFERENCE, 0 }, /* serverpref */
     /* legacy_renegotiation */
     { SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION, 0 },
     /* Allow client renegotiation */
@@ -884,6 +891,8 @@ static const ssl_switch_tbl ssl_cmd_switches[] = {
     { SSL_OP_NO_ENCRYPT_THEN_MAC, 0 },
     /* no Extended master secret */
     { SSL_OP_NO_EXTENDED_MASTER_SECRET, 0 },
+    /* enable legacy EC point formats */
+    { SSL_OP_LEGACY_EC_POINT_FORMATS, 0 }
 };
 
 static int ssl_conf_cmd_skip_prefix(SSL_CONF_CTX *cctx, const char **pcmd)
@@ -1119,6 +1128,14 @@ void SSL_CONF_CTX_free(SSL_CONF_CTX *cctx)
 
 unsigned int SSL_CONF_CTX_set_flags(SSL_CONF_CTX *cctx, unsigned int flags)
 {
+    if ((cctx->flags & SSL_CONF_FLAG_CMDLINE)
+        && (flags & SSL_CONF_FLAG_FILE))
+        flags &= ~SSL_CONF_FLAG_FILE;
+
+    if ((cctx->flags & SSL_CONF_FLAG_FILE)
+        && (flags & SSL_CONF_FLAG_CMDLINE))
+        flags &= ~SSL_CONF_FLAG_CMDLINE;
+
     cctx->flags |= flags;
     return cctx->flags;
 }

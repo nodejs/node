@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -21,9 +21,9 @@
 typedef enum OPTION_choice {
     OPT_COMMON,
     OPT_OUT,
-    OPT_ENGINE,
     OPT_BASE64,
     OPT_HEX,
+    OPT_NO_NEWLINE,
     OPT_R_ENUM,
     OPT_PROV_ENUM
 } OPTION_CHOICE;
@@ -33,14 +33,12 @@ const OPTIONS rand_options[] = {
 
     OPT_SECTION("General"),
     { "help", OPT_HELP, '-', "Display this summary" },
-#ifndef OPENSSL_NO_ENGINE
-    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
-#endif
 
     OPT_SECTION("Output"),
     { "out", OPT_OUT, '>', "Output file" },
     { "base64", OPT_BASE64, '-', "Base64 encode output" },
     { "hex", OPT_HEX, '-', "Hex encode output" },
+    { "n", OPT_NO_NEWLINE, '-', "Do not output the trailing newline" },
 
     OPT_R_OPTIONS,
     OPT_PROV_OPTIONS,
@@ -52,11 +50,10 @@ const OPTIONS rand_options[] = {
 
 int rand_main(int argc, char **argv)
 {
-    ENGINE *e = NULL;
     BIO *out = NULL;
     char *outfile = NULL, *prog;
     OPTION_CHOICE o;
-    int format = FORMAT_BINARY, r, i, ret = 1;
+    int format = FORMAT_BINARY, r, i, ret = 1, newline = 1;
     size_t buflen = (1 << 16); /* max rand chunk size is 2^16 bytes */
     long num = -1;
     uint64_t scaled_num = 0;
@@ -77,9 +74,6 @@ int rand_main(int argc, char **argv)
         case OPT_OUT:
             outfile = opt_arg();
             break;
-        case OPT_ENGINE:
-            e = setup_engine(opt_arg(), 0);
-            break;
         case OPT_R_CASES:
             if (!opt_rand(o))
                 goto end;
@@ -89,6 +83,9 @@ int rand_main(int argc, char **argv)
             break;
         case OPT_HEX:
             format = FORMAT_TEXT;
+            break;
+        case OPT_NO_NEWLINE:
+            newline = 0;
             break;
         case OPT_PROV_CASES:
             if (!opt_provider(o))
@@ -167,13 +164,13 @@ int rand_main(int argc, char **argv)
         if (shift != 0) {
             /* check for overflow */
             if ((UINT64_MAX >> shift) < (size_t)num) {
-                BIO_printf(bio_err, "%lu bytes with suffix overflows\n",
+                BIO_printf(bio_err, "%ld bytes with suffix overflows\n",
                     num);
                 goto opthelp;
             }
             scaled_num = num << shift;
             if (scaled_num > (UINT64_MAX >> 3)) {
-                BIO_printf(bio_err, "Request exceeds max allowed output\n");
+                BIO_puts(bio_err, "Request exceeds max allowed output\n");
                 goto opthelp;
             }
         } else {
@@ -216,7 +213,7 @@ int rand_main(int argc, char **argv)
         }
         scaled_num -= chunk;
     }
-    if (format == FORMAT_TEXT)
+    if (newline && format == FORMAT_TEXT)
         BIO_puts(out, "\n");
     if (BIO_flush(out) <= 0)
         goto end;
@@ -227,7 +224,6 @@ end:
     if (ret != 0)
         ERR_print_errors(bio_err);
     OPENSSL_free(buf);
-    release_engine(e);
     BIO_free_all(out);
     return ret;
 }

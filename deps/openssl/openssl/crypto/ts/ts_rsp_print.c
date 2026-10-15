@@ -40,7 +40,7 @@ int TS_RESP_print_bio(BIO *bio, TS_RESP *a)
 
 int TS_STATUS_INFO_print_bio(BIO *bio, TS_STATUS_INFO *a)
 {
-    static const char *status_map[] = {
+    static const char *const status_map[] = {
         "Granted.",
         "Granted with modifications.",
         "Rejected.",

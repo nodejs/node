@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -107,7 +107,7 @@ static void ossl_method_construct_this(OSSL_PROVIDER *provider,
     struct construct_data_st *data = cbdata;
     void *method = NULL;
 
-    if ((method = data->mcm->construct(algo, provider, data->mcm_data))
+    if ((method = data->mcm->construct(algo, provider, data->mcm_data, no_store))
         == NULL)
         return;
 

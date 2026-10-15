@@ -95,9 +95,14 @@ SOURCE[$COMMON_GOAL]=\
         ciphercommon_hw.c ciphercommon_block.c \
         ciphercommon_gcm_hw.c ciphercommon_ccm_hw.c
 
-# These sources contain FIPS-provider-specific parameter handling.
+# These sources contain parameter decoders conditioned on FIPS_MODULE.
 SOURCE[$CIPHER_COMMON_GOAL]=ciphercommon.c
 SOURCE[$AEAD_COMMON_GOAL]=ciphercommon_gcm.c ciphercommon_ccm.c
+
+INCLUDE[cipher_aes_cbc_hmac_sha.o cipher_aes_cbc_hmac_sha_etm.o \
+        cipher_aes_gcm_siv.o cipher_aes_ocb.o cipher_aes_siv.o \
+        cipher_aes_wrp.o cipher_aes_xts.o ciphercommon.o cipher_chacha20.o \
+        cipher_chacha20_poly1305.o cipher_rc4_hmac_md5.o cipher_sm4_xts.o]=.
 
 IF[{- !$disabled{des} -}]
   SOURCE[$TDES_1_GOAL]=cipher_tdes.c cipher_tdes_common.c cipher_tdes_hw.c
@@ -107,13 +112,20 @@ SOURCE[$NULL_GOAL]=\
         cipher_null.c
 
 SOURCE[$AES_GOAL]=\
-        cipher_aes.c cipher_aes_hw.c \
+        cipher_aes.c cipher_aes_hw.c cipher_aes_hw_aesni.c \
+        cipher_aes_hw_armv8.c cipher_aes_hw_rv32i.c cipher_aes_hw_rv64i.c \
+        cipher_aes_hw_s390x.c cipher_aes_hw_t4.c \
         cipher_aes_xts.c cipher_aes_xts_hw.c \
         cipher_aes_gcm.c cipher_aes_gcm_hw.c \
+        cipher_aes_gcm_hw_ppc.c \
         cipher_aes_ccm.c cipher_aes_ccm_hw.c \
         cipher_aes_wrp.c \
         cipher_aes_cbc_hmac_sha.c \
         cipher_aes_cbc_hmac_sha256_hw.c cipher_aes_cbc_hmac_sha1_hw.c \
+        cipher_aes_cbc_hmac_sha_etm.c \
+        cipher_aes_cbc_hmac_sha1_etm_hw.c \
+        cipher_aes_cbc_hmac_sha256_etm_hw.c \
+        cipher_aes_cbc_hmac_sha512_etm_hw.c \
         cipher_cts.c
 DEFINE[$AES_GOAL]=$AESXTSDEF
 

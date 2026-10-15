@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,6 +16,7 @@
 #include "internal/bio_addr.h"
 #include "internal/time.h"
 #include "internal/list.h"
+#include "internal/dgram_demux.h"
 
 #ifndef OPENSSL_NO_QUIC
 
@@ -86,57 +87,14 @@
 /* Maximum number of packets we allow to exist in one datagram. */
 #define QUIC_MAX_PKT_PER_URXE (sizeof(uint64_t) * 8)
 
-struct quic_urxe_st {
-    OSSL_LIST_MEMBER(urxe, QUIC_URXE);
-
-    /*
-     * The URXE data starts after this structure so we don't need a pointer.
-     * data_len stores the current length (i.e., the length of the received
-     * datagram) and alloc_len stores the allocation length. The URXE will be
-     * reallocated if we need a larger allocation than is available, though this
-     * should not be common as we will have a good idea of worst-case MTUs up
-     * front.
-     */
-    size_t data_len, alloc_len;
-
-    /*
-     * Bitfields per packet. processed indicates the packet has been processed
-     * and must not be processed again, hpr_removed indicates header protection
-     * has already been removed. Used by QRX only; not used by the demuxer.
-     */
-    uint64_t processed, hpr_removed;
-
-    /*
-     * This monotonically increases with each datagram received. It is used for
-     * diagnostic purposes only.
-     */
-    uint64_t datagram_id;
-
-    /*
-     * Address of peer we received the datagram from, and the local interface
-     * address we received it on. If local address support is not enabled, local
-     * is zeroed.
-     */
-    BIO_ADDR peer, local;
-
-    /*
-     * Time at which datagram was received (or ossl_time_zero()) if a now
-     * function was not provided).
-     */
-    OSSL_TIME time;
-
-    /*
-     * Used by the QRX to mark whether a datagram has been deferred. Used by the
-     * QRX only; not used by the demuxer.
-     */
-    char deferred;
-
-    /*
-     * Used by the DEMUX to track if a URXE has been handed out. Used primarily
-     * for debugging purposes.
-     */
-    char demux_state;
-};
+/*
+ * QUIC_URXE is a typedef to DGRAM_URXE. The DGRAM_URXE structure includes
+ * QUIC-specific fields (processed, hpr_removed, deferred) that are used by
+ * the QRX but ignored by DTLS. This allows list and demuxer operations to
+ * be shared.
+ */
+typedef DGRAM_URXE QUIC_URXE;
+typedef DGRAM_URXE_LIST QUIC_URXE_LIST;
 
 /* Accessors for URXE buffer. */
 static ossl_unused ossl_inline unsigned char *
@@ -151,17 +109,26 @@ ossl_quic_urxe_data_end(const QUIC_URXE *e)
     return ossl_quic_urxe_data(e) + e->data_len;
 }
 
-/* List structure tracking a queue of URXEs. */
-DEFINE_LIST_OF(urxe, QUIC_URXE);
-typedef OSSL_LIST(urxe) QUIC_URXE_LIST;
-
 /*
- * List management helpers. These are used by the demuxer but can also be used
- * by users of the demuxer to manage URXEs.
+ * List management helpers. These delegate to the DGRAM_URXE list functions.
  */
-void ossl_quic_urxe_remove(QUIC_URXE_LIST *l, QUIC_URXE *e);
-void ossl_quic_urxe_insert_head(QUIC_URXE_LIST *l, QUIC_URXE *e);
-void ossl_quic_urxe_insert_tail(QUIC_URXE_LIST *l, QUIC_URXE *e);
+static ossl_unused ossl_inline void
+ossl_quic_urxe_remove(QUIC_URXE_LIST *l, QUIC_URXE *e)
+{
+    ossl_dgram_urxe_remove(l, e);
+}
+
+static ossl_unused ossl_inline void
+ossl_quic_urxe_insert_head(QUIC_URXE_LIST *l, QUIC_URXE *e)
+{
+    ossl_dgram_urxe_insert_head(l, e);
+}
+
+static ossl_unused ossl_inline void
+ossl_quic_urxe_insert_tail(QUIC_URXE_LIST *l, QUIC_URXE *e)
+{
+    ossl_dgram_urxe_insert_tail(l, e);
+}
 
 /*
  * Called when a datagram is received for a given connection ID.

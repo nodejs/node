@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -78,6 +78,9 @@ extern "C" {
 #define TLS1_AD_BAD_CERTIFICATE_HASH_VALUE 114
 #define TLS1_AD_UNKNOWN_PSK_IDENTITY 115 /* fatal */
 #define TLS1_AD_NO_APPLICATION_PROTOCOL 120 /* fatal */
+#ifndef OPENSSL_NO_ECH
+#define TLS1_AD_ECH_REQUIRED 121 /* fatal */
+#endif
 
 /* ExtensionType values from RFC3546 / RFC4366 / RFC6066 */
 #define TLSEXT_TYPE_server_name 0
@@ -167,6 +170,11 @@ extern "C" {
 #define TLSEXT_TYPE_next_proto_neg 13172
 #endif
 
+#ifndef OPENSSL_NO_ECH
+#define TLSEXT_TYPE_ech 0xfe0d
+#define TLSEXT_TYPE_outer_extensions 0xfd00
+#endif
+
 /* NameType value from RFC3546 */
 #define TLSEXT_NAMETYPE_host_name 0
 /* status request value from RFC3546 */
@@ -247,7 +255,7 @@ int SSL_set_tlsext_max_fragment_length(SSL *ssl, uint8_t mode);
 
 #define TLSEXT_MAXLEN_host_name 255
 
-__owur const char *SSL_get_servername(const SSL *s, const int type);
+__owur const char *SSL_get_servername(const SSL *s, int type);
 __owur int SSL_get_servername_type(const SSL *s);
 /*
  * SSL_export_keying_material exports a value derived from the master secret,
@@ -276,6 +284,11 @@ __owur int SSL_export_keying_material_early(SSL *s, unsigned char *out,
 
 int SSL_get_peer_signature_type_nid(const SSL *s, int *pnid);
 int SSL_get_signature_type_nid(const SSL *s, int *pnid);
+
+int SSL_get0_sigalg(SSL *s, int idx, unsigned int *codepoint,
+    const char **name);
+int SSL_get0_shared_sigalg(SSL *s, int idx, unsigned int *codepoint,
+    const char **name);
 
 int SSL_get_sigalgs(SSL *s, int idx,
     int *psign, int *phash, int *psignandhash,
@@ -323,6 +336,12 @@ __owur int SSL_check_chain(SSL *s, X509 *x, EVP_PKEY *pk, STACK_OF(X509) *chain)
 
 #define SSL_set_tlsext_status_ocsp_resp(ssl, arg, arglen) \
     SSL_ctrl(ssl, SSL_CTRL_SET_TLSEXT_STATUS_REQ_OCSP_RESP, arglen, arg)
+
+#define SSL_get0_tlsext_status_ocsp_resp_ex(ssl, arg) \
+    SSL_ctrl(ssl, SSL_CTRL_GET_TLSEXT_STATUS_REQ_OCSP_RESP_EX, 0, arg)
+
+#define SSL_set0_tlsext_status_ocsp_resp_ex(ssl, arg) \
+    SSL_ctrl(ssl, SSL_CTRL_SET_TLSEXT_STATUS_REQ_OCSP_RESP_EX, 0, arg)
 
 #define SSL_CTX_set_tlsext_servername_callback(ctx, cb)           \
     SSL_CTX_callback_ctrl(ctx, SSL_CTRL_SET_TLSEXT_SERVERNAME_CB, \
@@ -655,6 +674,10 @@ int SSL_CTX_set_tlsext_ticket_key_evp_cb(SSL_CTX *ctx, int (*fp)(SSL *, unsigned
 #define TLS1_CK_RSA_PSK_WITH_ARIA_128_GCM_SHA256 0x0300C06E
 #define TLS1_CK_RSA_PSK_WITH_ARIA_256_GCM_SHA384 0x0300C06F
 
+/* SM ciphersuites from RFC8998 */
+#define TLS1_3_CK_SM4_GCM_SM3 0x030000C6
+#define TLS1_3_CK_SM4_CCM_SM3 0x030000C7
+
 /* a bundle of RFC standard cipher names, generated from ssl3_ciphers[] */
 #define TLS1_RFC_RSA_WITH_AES_128_SHA "TLS_RSA_WITH_AES_128_CBC_SHA"
 #define TLS1_RFC_DHE_DSS_WITH_AES_128_SHA "TLS_DHE_DSS_WITH_AES_128_CBC_SHA"
@@ -847,6 +870,8 @@ int SSL_CTX_set_tlsext_ticket_key_evp_cb(SSL_CTX *ctx, int (*fp)(SSL *, unsigned
 #define TLS1_RFC_DHE_PSK_WITH_ARIA_256_GCM_SHA384 "TLS_DHE_PSK_WITH_ARIA_256_GCM_SHA384"
 #define TLS1_RFC_RSA_PSK_WITH_ARIA_128_GCM_SHA256 "TLS_RSA_PSK_WITH_ARIA_128_GCM_SHA256"
 #define TLS1_RFC_RSA_PSK_WITH_ARIA_256_GCM_SHA384 "TLS_RSA_PSK_WITH_ARIA_256_GCM_SHA384"
+#define TLS1_3_RFC_SM4_GCM_SM3 "TLS_SM4_GCM_SM3"
+#define TLS1_3_RFC_SM4_CCM_SM3 "TLS_SM4_CCM_SM3"
 
 /*
  * XXX Backward compatibility alert: Older versions of OpenSSL gave some DHE
@@ -1078,10 +1103,6 @@ int SSL_CTX_set_tlsext_ticket_key_evp_cb(SSL_CTX *ctx, int (*fp)(SSL *, unsigned
 #define TLS1_TXT_ECDH_RSA_WITH_AES_128_GCM_SHA256 "ECDH-RSA-AES128-GCM-SHA256"
 #define TLS1_TXT_ECDH_RSA_WITH_AES_256_GCM_SHA384 "ECDH-RSA-AES256-GCM-SHA384"
 
-/* TLS v1.2 PSK GCM ciphersuites from RFC5487 */
-#define TLS1_TXT_PSK_WITH_AES_128_GCM_SHA256 "PSK-AES128-GCM-SHA256"
-#define TLS1_TXT_PSK_WITH_AES_256_GCM_SHA384 "PSK-AES256-GCM-SHA384"
-
 /* ECDHE PSK ciphersuites from RFC 5489 */
 #define TLS1_TXT_ECDHE_PSK_WITH_RC4_128_SHA "ECDHE-PSK-RC4-SHA"
 #define TLS1_TXT_ECDHE_PSK_WITH_3DES_EDE_CBC_SHA "ECDHE-PSK-3DES-EDE-CBC-SHA"
@@ -1191,9 +1212,6 @@ int SSL_CTX_set_tlsext_ticket_key_evp_cb(SSL_CTX *ctx, int (*fp)(SSL *, unsigned
 /* ASCII: "client write key", in hex for EBCDIC compatibility */
 #define TLS_MD_CLIENT_WRITE_KEY_CONST "\x63\x6c\x69\x65\x6e\x74\x20\x77\x72\x69\x74\x65\x20\x6b\x65\x79"
 #define TLS_MD_CLIENT_WRITE_KEY_CONST_SIZE 16
-/* ASCII: "server write key", in hex for EBCDIC compatibility */
-#define TLS_MD_SERVER_WRITE_KEY_CONST "\x73\x65\x72\x76\x65\x72\x20\x77\x72\x69\x74\x65\x20\x6b\x65\x79"
-#define TLS_MD_SERVER_WRITE_KEY_CONST_SIZE 16
 /* ASCII: "IV block", in hex for EBCDIC compatibility */
 #define TLS_MD_IV_BLOCK_CONST "\x49\x56\x20\x62\x6c\x6f\x63\x6b"
 #define TLS_MD_IV_BLOCK_CONST_SIZE 8

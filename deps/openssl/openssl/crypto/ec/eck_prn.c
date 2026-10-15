@@ -242,7 +242,7 @@ static int print_bin(BIO *fp, const char *name, const unsigned char *buf,
         return 0;
 
     for (i = 0; i < len; i++) {
-        if ((i % 15) == 0) {
+        if ((i % 16) == 0) {
             str[0] = '\n';
             memset(&(str[1]), ' ', off + 4);
             if (BIO_write(fp, str, off + 1 + 4) <= 0)

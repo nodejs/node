@@ -12,7 +12,6 @@
 #include "internal/cryptlib.h"
 #include <openssl/opensslconf.h>
 #include "crypto/rand.h"
-#include <openssl/engine.h>
 #include "internal/thread_once.h"
 #include "crypto/rand_pool.h"
 

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -80,7 +80,7 @@ sub _process {
         # print STDERR "-----BEGIN DEBUG-----\n";
         # print STDERR $text;
         # print STDERR "-----END DEBUG-----\n";
-        use re 'debugcolor';
+        use re 'debug';
         while ($text =~ m/${OID_def_re}/sg) {
             my $comment = $&;
             my $name = $1;

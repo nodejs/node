@@ -1,11 +1,14 @@
 /*
- * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#if !defined(OSSL_PROVIDERS_IMPLEMENTATIONS_CIPHERS_CIPHER_CTS_H)
+#define OSSL_PROVIDERS_IMPLEMENTATIONS_CIPHERS_CIPHER_CTS_H
 
 #include "crypto/evp.h"
 
@@ -35,18 +38,24 @@
         { OSSL_FUNC_CIPHER_GETTABLE_PARAMS,                                      \
             (void (*)(void))ossl_cipher_generic_gettable_params },               \
         { OSSL_FUNC_CIPHER_GET_CTX_PARAMS,                                       \
-            (void (*)(void))alg##_cbc_cts_get_ctx_params },                      \
+            (void (*)(void))ossl_cipher_cbc_cts_get_ctx_params },                \
         { OSSL_FUNC_CIPHER_SET_CTX_PARAMS,                                       \
-            (void (*)(void))alg##_cbc_cts_set_ctx_params },                      \
+            (void (*)(void))ossl_cipher_cbc_cts_set_ctx_params },                \
         { OSSL_FUNC_CIPHER_GETTABLE_CTX_PARAMS,                                  \
-            (void (*)(void))alg##_cbc_cts_gettable_ctx_params },                 \
+            (void (*)(void))ossl_cipher_cbc_cts_gettable_ctx_params },           \
         { OSSL_FUNC_CIPHER_SETTABLE_CTX_PARAMS,                                  \
-            (void (*)(void))alg##_cbc_cts_settable_ctx_params },                 \
+            (void (*)(void))ossl_cipher_cbc_cts_settable_ctx_params },           \
         OSSL_DISPATCH_END                                                        \
     };
 
 OSSL_FUNC_cipher_update_fn ossl_cipher_cbc_cts_block_update;
 OSSL_FUNC_cipher_final_fn ossl_cipher_cbc_cts_block_final;
+OSSL_FUNC_cipher_get_ctx_params_fn ossl_cipher_cbc_cts_get_ctx_params;
+OSSL_FUNC_cipher_set_ctx_params_fn ossl_cipher_cbc_cts_set_ctx_params;
+OSSL_FUNC_cipher_gettable_ctx_params_fn ossl_cipher_cbc_cts_gettable_ctx_params;
+OSSL_FUNC_cipher_settable_ctx_params_fn ossl_cipher_cbc_cts_settable_ctx_params;
 
 const char *ossl_cipher_cbc_cts_mode_id2name(unsigned int id);
 int ossl_cipher_cbc_cts_mode_name2id(const char *name);
+
+#endif /* !defined(OSSL_PROVIDERS_IMPLEMENTATIONS_CIPHERS_CIPHER_CTS_H) */

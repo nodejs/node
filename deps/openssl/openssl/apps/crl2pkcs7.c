@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -121,7 +121,7 @@ int crl2pkcs7_main(int argc, char **argv)
         else if (informat == FORMAT_PEM)
             crl = PEM_read_bio_X509_CRL(in, NULL, NULL, NULL);
         if (crl == NULL) {
-            BIO_printf(bio_err, "unable to load CRL\n");
+            BIO_puts(bio_err, "unable to load CRL\n");
             ERR_print_errors(bio_err);
             goto end;
         }
@@ -156,7 +156,7 @@ int crl2pkcs7_main(int argc, char **argv)
         for (i = 0; i < sk_OPENSSL_STRING_num(certflst); i++) {
             certfile = sk_OPENSSL_STRING_value(certflst, i);
             if (add_certs_from_file(cert_stack, certfile) < 0) {
-                BIO_printf(bio_err, "error loading certificates\n");
+                BIO_puts(bio_err, "error loading certificates\n");
                 ERR_print_errors(bio_err);
                 goto end;
             }
@@ -172,7 +172,7 @@ int crl2pkcs7_main(int argc, char **argv)
     else if (outformat == FORMAT_PEM)
         i = PEM_write_bio_PKCS7(out, p7);
     if (!i) {
-        BIO_printf(bio_err, "unable to write pkcs7 object\n");
+        BIO_puts(bio_err, "unable to write pkcs7 object\n");
         ERR_print_errors(bio_err);
         goto end;
     }

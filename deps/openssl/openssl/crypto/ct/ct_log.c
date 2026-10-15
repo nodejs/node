@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -313,6 +313,20 @@ void CTLOG_get0_log_id(const CTLOG *log, const uint8_t **log_id,
 EVP_PKEY *CTLOG_get0_public_key(const CTLOG *log)
 {
     return log->public_key;
+}
+
+int CTLOG_STORE_add0_log(CTLOG_STORE *store, CTLOG *log)
+{
+    if (store == NULL || log == NULL) {
+        ERR_raise(ERR_LIB_CT, ERR_R_PASSED_NULL_PARAMETER);
+        return 0;
+    }
+
+    if (!sk_CTLOG_push(store->logs, log)) {
+        ERR_raise(ERR_LIB_CT, ERR_R_CRYPTO_LIB);
+        return 0;
+    }
+    return 1;
 }
 
 /*

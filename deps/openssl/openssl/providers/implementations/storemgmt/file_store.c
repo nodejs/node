@@ -9,34 +9,29 @@
 
 /* This file has quite some overlap with engines/e_loader_attic.c */
 
+#include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
+#include "internal/e_os.h" /* for stat() */
+#include <sys/stat.h> /* for struct stat */
 #include <ctype.h> /* isdigit */
 #include <assert.h>
 
-#include <openssl/core_dispatch.h>
 #include <openssl/core_names.h>
 #include <openssl/core_object.h>
-#include <openssl/bio.h>
-#include <openssl/err.h>
 #include <openssl/params.h>
-#include <openssl/decoder.h>
 #include <openssl/proverr.h>
 #include <openssl/store.h> /* The OSSL_STORE_INFO type numbers */
 #include "internal/cryptlib.h"
 #include "internal/o_dir.h"
 #include "crypto/decoder.h"
-#include "crypto/ctype.h" /* ossl_isdigit() */
 #include "prov/implementations.h"
 #include "prov/bio.h"
 #include "prov/providercommon.h"
-#include "file_store_local.h"
+#include "prov/file_store_local.h"
+
+#include "providers/implementations/storemgmt/file_store.inc"
 
 DEFINE_STACK_OF(OSSL_STORE_INFO)
-
-#ifdef _WIN32
-#define stat _stat
-#endif
 
 #ifndef S_ISDIR
 #define S_ISDIR(a) (((a) & S_IFMT) == S_IFDIR)
@@ -140,6 +135,94 @@ static struct file_ctx_st *new_file_ctx(int type, const char *uri,
 static OSSL_DECODER_CONSTRUCT file_load_construct;
 static OSSL_DECODER_CLEANUP file_load_cleanup;
 
+#ifdef _WIN32
+#define OSSL_is_drive_letter(c) (((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z'))
+#define OSSL_is_abs_drive_prefix(p) (OSSL_is_drive_letter((p)[0]) && (p)[1] == ':' && (p)[2] == '/')
+#endif
+
+/*
+ * uri_file_stat() handles URIs that may be interpreted as a reference to a local file.
+ * It attempts to derive from the given |uri| a file pathname that points to an
+ * existing file. To this end it takes the full |uri| as a filename (which may be
+ * an absolute or relative name, such as file.pem) or takes a postfix of |uri|,
+ * such as path-to-file if |uri| is of the form file:path-to-file
+ * or /path-to-file if |uri| is of the form file://localhost/path-to-file.
+ * The returned pathname is a pointer inside |uri|, or NULL on error.
+ * On success it populates the file stat buffer pointed at by |st|
+ * (unless |st| is NULL) and returns the derived pathname, otherwise NULL.
+ */
+static const char *uri_file_stat(const char *uri, struct stat *st)
+{
+    const char *path = uri, *q;
+    struct stat local_st;
+
+    ERR_set_mark();
+
+    if (st == NULL)
+        st = &local_st;
+
+    /*
+     * First, unless the URI starts with "file://",
+     * try and see if the full URI can be taken as a local file path name.
+     */
+    if (!HAS_CASE_PREFIX(uri, "file://")) {
+        if (stat(path, st) == 0) {
+            ERR_pop_to_mark();
+            return uri;
+        }
+        ERR_raise_data(ERR_LIB_SYS, errno, "calling stat(%s)", path);
+    }
+
+    /* Do a second attempt only if the URI appears to start with the "file" scheme. */
+    if (!CHECK_AND_SKIP_CASE_PREFIX(path, "file:")) {
+        ERR_clear_last_mark();
+        return NULL;
+    }
+
+    /*
+     * Extract the alternative path to check.
+     * There's a special case if the URI also contains an authority,
+     * then the full URI shouldn't be used as a path anywhere.
+     */
+    q = path;
+    if (CHECK_AND_SKIP_CASE_PREFIX(q, "//")) {
+        if (CHECK_AND_SKIP_CASE_PREFIX(q, "localhost/")
+            || CHECK_AND_SKIP_CASE_PREFIX(q, "/")) {
+            /*
+             * In these cases, we step back one char to ensure that the
+             * first slash is preserved, making the path always absolute
+             */
+            path = q - 1;
+#ifdef _WIN32
+        } else if (OSSL_is_abs_drive_prefix(q)) {
+            /* Support also "file://" URIs starting with a Windows drive letter not preceded by an extra '/' */
+            path = q;
+#endif
+        } else {
+            const char *p = strchr(q, '/');
+            size_t len = p == NULL ? strlen(q) : (size_t)(p - q);
+
+            ERR_raise_data(ERR_LIB_OSSL_STORE, OSSL_STORE_R_URI_AUTHORITY_UNSUPPORTED,
+                "%.*s", len, q);
+            ERR_clear_last_mark();
+            return NULL;
+        }
+    }
+#ifdef _WIN32
+    /* Windows "file://" URIs with a drive letter are usually required to have an extra '/' before the drive letter, e.g., "file:///C:/path" */
+    if (path[0] == '/' && OSSL_is_abs_drive_prefix(path + 1))
+        path++; /* Skip past the slash, making the path a normal Windows path */
+#endif
+
+    if (stat(path, st) == 0) {
+        ERR_pop_to_mark();
+        return path;
+    }
+    ERR_raise_data(ERR_LIB_SYS, errno, "calling stat(%s)", path);
+    ERR_clear_last_mark();
+    return NULL;
+}
+
 /*-
  *  Opening / attaching streams and directories
  *  -------------------------------------------
@@ -197,85 +280,11 @@ static void *file_open(void *provctx, const char *uri)
 {
     struct file_ctx_st *ctx = NULL;
     struct stat st;
-    struct {
-        const char *path;
-        unsigned int check_absolute : 1;
-    } path_data[2];
-    size_t path_data_n = 0, i;
-    const char *path, *p = uri, *q;
+    const char *path = uri_file_stat(uri, &st);
     BIO *bio;
 
-    ERR_set_mark();
-
-    /*
-     * First step, just take the URI as is.
-     */
-    path_data[path_data_n].check_absolute = 0;
-    path_data[path_data_n++].path = uri;
-
-    /*
-     * Second step, if the URI appears to start with the "file" scheme,
-     * extract the path and make that the second path to check.
-     * There's a special case if the URI also contains an authority, then
-     * the full URI shouldn't be used as a path anywhere.
-     */
-    if (CHECK_AND_SKIP_CASE_PREFIX(p, "file:")) {
-        q = p;
-        if (CHECK_AND_SKIP_CASE_PREFIX(q, "//")) {
-            path_data_n--; /* Invalidate using the full URI */
-            if (CHECK_AND_SKIP_CASE_PREFIX(q, "localhost/")
-                || CHECK_AND_SKIP_CASE_PREFIX(q, "/")) {
-                p = q - 1;
-            } else {
-                ERR_clear_last_mark();
-                ERR_raise(ERR_LIB_PROV, PROV_R_URI_AUTHORITY_UNSUPPORTED);
-                return NULL;
-            }
-        }
-
-        path_data[path_data_n].check_absolute = 1;
-#ifdef _WIN32
-        /* Windows "file:" URIs with a drive letter start with a '/' */
-        if (p[0] == '/' && p[2] == ':' && p[3] == '/') {
-            char c = tolower((unsigned char)p[1]);
-
-            if (c >= 'a' && c <= 'z') {
-                p++;
-                /* We know it's absolute, so no need to check */
-                path_data[path_data_n].check_absolute = 0;
-            }
-        }
-#endif
-        path_data[path_data_n++].path = p;
-    }
-
-    for (i = 0, path = NULL; path == NULL && i < path_data_n; i++) {
-        /*
-         * If the scheme "file" was an explicit part of the URI, the path must
-         * be absolute.  So says RFC 8089
-         */
-        if (path_data[i].check_absolute && path_data[i].path[0] != '/') {
-            ERR_clear_last_mark();
-            ERR_raise_data(ERR_LIB_PROV, PROV_R_PATH_MUST_BE_ABSOLUTE,
-                "Given path=%s", path_data[i].path);
-            return NULL;
-        }
-
-        if (stat(path_data[i].path, &st) < 0) {
-            ERR_raise_data(ERR_LIB_SYS, errno,
-                "calling stat(%s)",
-                path_data[i].path);
-        } else {
-            path = path_data[i].path;
-        }
-    }
-    if (path == NULL) {
-        ERR_clear_last_mark();
+    if (path == NULL)
         return NULL;
-    }
-
-    /* Successfully found a working path, clear possible collected errors */
-    ERR_pop_to_mark();
 
     if (S_ISDIR(st.st_mode))
         ctx = file_open_dir(path, uri, provctx);
@@ -307,66 +316,62 @@ void *file_attach(void *provctx, OSSL_CORE_BIO *cin)
 
 static const OSSL_PARAM *file_settable_ctx_params(void *provctx)
 {
-    static const OSSL_PARAM known_settable_ctx_params[] = {
-        OSSL_PARAM_utf8_string(OSSL_STORE_PARAM_PROPERTIES, NULL, 0),
-        OSSL_PARAM_int(OSSL_STORE_PARAM_EXPECT, NULL),
-        OSSL_PARAM_octet_string(OSSL_STORE_PARAM_SUBJECT, NULL, 0),
-        OSSL_PARAM_utf8_string(OSSL_STORE_PARAM_INPUT_TYPE, NULL, 0),
-        OSSL_PARAM_END
-    };
-    return known_settable_ctx_params;
+    return file_set_ctx_params_list;
 }
 
 static int file_set_ctx_params(void *loaderctx, const OSSL_PARAM params[])
 {
     struct file_ctx_st *ctx = loaderctx;
-    const OSSL_PARAM *p;
+    struct file_set_ctx_params_st p;
 
-    if (ossl_param_is_empty(params))
-        return 1;
+    if (ctx == NULL || !file_set_ctx_params_decoder(params, &p))
+        return 0;
 
     if (ctx->type != IS_DIR) {
         /* these parameters are ignored for directories */
-        p = OSSL_PARAM_locate_const(params, OSSL_STORE_PARAM_PROPERTIES);
-        if (p != NULL) {
+        if (p.propq != NULL) {
             OPENSSL_free(ctx->_.file.propq);
             ctx->_.file.propq = NULL;
-            if (!OSSL_PARAM_get_utf8_string(p, &ctx->_.file.propq, 0))
+            if (!OSSL_PARAM_get_utf8_string(p.propq, &ctx->_.file.propq, 0))
                 return 0;
         }
-        p = OSSL_PARAM_locate_const(params, OSSL_STORE_PARAM_INPUT_TYPE);
-        if (p != NULL) {
+        if (p.type != NULL) {
             OPENSSL_free(ctx->_.file.input_type);
             ctx->_.file.input_type = NULL;
-            if (!OSSL_PARAM_get_utf8_string(p, &ctx->_.file.input_type, 0))
+            if (!OSSL_PARAM_get_utf8_string(p.type, &ctx->_.file.input_type, 0))
                 return 0;
         }
     }
-    p = OSSL_PARAM_locate_const(params, OSSL_STORE_PARAM_EXPECT);
-    if (p != NULL && !OSSL_PARAM_get_int(p, &ctx->expected_type))
+
+    if (p.expect != NULL && !OSSL_PARAM_get_int(p.expect, &ctx->expected_type))
         return 0;
-    p = OSSL_PARAM_locate_const(params, OSSL_STORE_PARAM_SUBJECT);
-    if (p != NULL) {
+
+    if (p.sub != NULL) {
         const unsigned char *der = NULL;
         size_t der_len = 0;
         X509_NAME *x509_name;
         unsigned long hash;
-        int ok;
+        int ok = 0;
 
-        if (ctx->type != IS_DIR) {
-            ERR_raise(ERR_LIB_PROV,
-                PROV_R_SEARCH_ONLY_SUPPORTED_FOR_DIRECTORIES);
+        if (!OSSL_PARAM_get_octet_string_ptr(p.sub, (const void **)&der, &der_len)
+            || der_len > LONG_MAX
+            || (x509_name = d2i_X509_NAME(NULL, &der, (long)der_len)) == NULL)
             return 0;
+        if (ctx->type != IS_DIR) {
+            char *str = X509_NAME_oneline(x509_name, NULL, 0);
+
+            ERR_raise_data(ERR_LIB_PROV, PROV_R_SEARCH_ONLY_SUPPORTED_FOR_DIRECTORIES,
+                "uri=%s:subject=%s", ctx->uri, str);
+            OPENSSL_free(str);
+            goto end;
         }
 
-        if (!OSSL_PARAM_get_octet_string_ptr(p, (const void **)&der, &der_len)
-            || (x509_name = d2i_X509_NAME(NULL, &der, der_len)) == NULL)
-            return 0;
         hash = X509_NAME_hash_ex(x509_name,
             ossl_prov_ctx_get0_libctx(ctx->provctx), NULL,
             &ok);
-        BIO_snprintf(ctx->_.dir.search_name, sizeof(ctx->_.dir.search_name),
+        snprintf(ctx->_.dir.search_name, sizeof(ctx->_.dir.search_name),
             "%08lx", hash);
+    end:
         X509_NAME_free(x509_name);
         if (ok == 0)
             return 0;
@@ -482,6 +487,8 @@ static int file_setup_decoders(struct file_ctx_st *ctx)
                 goto err;
             }
             break;
+        case OSSL_STORE_INFO_SKEY: /* No input structure */
+            break;
         default:
             break;
         }
@@ -499,7 +506,7 @@ static int file_setup_decoders(struct file_ctx_st *ctx)
              * The decoder doesn't need any identification or to be
              * attached to any provider, since it's only used locally.
              */
-            to_obj = ossl_decoder_from_algorithm(0, to_algo, NULL);
+            to_obj = ossl_decoder_from_algorithm(0, to_algo, NULL, 0);
             if (to_obj != NULL)
                 to_obj_inst = ossl_decoder_instance_new_forprov(to_obj, ctx->provctx,
                     input_structure);
@@ -516,6 +523,16 @@ static int file_setup_decoders(struct file_ctx_st *ctx)
                 && OPENSSL_strcasecmp(input_type, ctx->_.file.input_type) != 0
                 && (OPENSSL_strcasecmp(ctx->_.file.input_type, "PEM") != 0
                     || OPENSSL_strcasecmp(input_type, "der") != 0)) {
+                ossl_decoder_instance_free(to_obj_inst);
+                continue;
+            }
+
+            /*
+             * As any sequence of bytes can be a secret key, we allow
+             * reading raw key from a file only when it is explicitly requested.
+             */
+            if ((ctx->expected_type != OSSL_STORE_INFO_SKEY)
+                && OPENSSL_strcasecmp(input_type, "raw") == 0) {
                 ossl_decoder_instance_free(to_obj_inst);
                 continue;
             }
@@ -600,7 +617,7 @@ static char *file_name_to_uri(struct file_ctx_st *ctx, const char *name)
     assert(name != NULL);
     {
         const char *pathsep = ossl_ends_with_dirsep(ctx->uri) ? "" : "/";
-        long calculated_length = strlen(ctx->uri) + strlen(pathsep)
+        size_t calculated_length = strlen(ctx->uri) + strlen(pathsep)
             + strlen(name) + 1 /* \0 */;
 
         data = OPENSSL_zalloc(calculated_length);

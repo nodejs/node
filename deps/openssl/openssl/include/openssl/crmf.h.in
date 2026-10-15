@@ -1,7 +1,7 @@
 /*-
  * {- join("\n * ", @autowarntext) -}
  *
- * Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -196,7 +196,7 @@ EVP_PKEY *OSSL_CRMF_ENCRYPTEDKEY_get1_pkey(const OSSL_CRMF_ENCRYPTEDKEY *encrypt
     X509_STORE *ts, STACK_OF(X509) *extra, EVP_PKEY *pkey,
     X509 *cert, ASN1_OCTET_STRING *secret,
     OSSL_LIB_CTX *libctx, const char *propq);
-int OSSL_CRMF_MSG_centralkeygen_requested(const OSSL_CRMF_MSG *crm, const X509_REQ *p10cr);
+int OSSL_CRMF_MSG_centralkeygen_requested(const OSSL_CRMF_MSG *crm, const X509_REQ *p10);
 #ifndef OPENSSL_NO_CMS
 OSSL_CRMF_ENCRYPTEDKEY *OSSL_CRMF_ENCRYPTEDKEY_init_envdata(CMS_EnvelopedData *envdata);
 #endif

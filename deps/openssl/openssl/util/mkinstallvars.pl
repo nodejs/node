@@ -19,6 +19,8 @@ use File::Spec;
 #use List::Util qw(pairs);
 sub _pairs (@);
 
+my $debug = $ENV{OPENSSL_MKINSTALLVARS_DEBUG} || 0;
+
 # These are expected to be set up as absolute directories
 my @absolutes = qw(PREFIX libdir);
 # These may be absolute directories, and if not, they are expected to be set up
@@ -26,7 +28,7 @@ my @absolutes = qw(PREFIX libdir);
 # since the LIBDIR subdirectories depend on the calculation of LIBDIR from
 # PREFIX.
 my @subdirs = _pairs (PREFIX => [ qw(BINDIR LIBDIR INCLUDEDIR APPLINKDIR) ],
-                      LIBDIR => [ qw(ENGINESDIR MODULESDIR PKGCONFIGDIR
+                      LIBDIR => [ qw(MODULESDIR PKGCONFIGDIR
                                      CMAKECONFIGDIR) ]);
 # For completeness, other expected variables
 my @others = qw(COMMENT VERSION LDLIBS);
@@ -35,7 +37,7 @@ my %all = ( );
 foreach (@absolutes) { $all{$_} = 1 }
 foreach (@subdirs) { foreach (@{$_->[1]}) { $all{$_} = 1 } }
 foreach (@others) { $all{$_} = 1 }
-print STDERR "DEBUG: all keys: ", join(", ", sort keys %all), "\n";
+print STDERR "DEBUG: all keys: ", join(", ", sort keys %all), "\n" if $debug;
 
 my %keys = ();
 my %values = ();
@@ -52,9 +54,9 @@ foreach (@ARGV) {
 # the former doesn't have a value, we give it the latter's value, and rely
 # on mechanisms further down to do the rest of the processing.
 # If they're both empty, it's still fine.
-print STDERR "DEBUG: LIBDIR = $values{LIBDIR}->[0], libdir = $values{libdir}->[0] => ";
+print STDERR "DEBUG: LIBDIR = $values{LIBDIR}->[0], libdir = $values{libdir}->[0] => " if $debug;
 $values{LIBDIR}->[0] = $values{libdir}->[0] unless $values{LIBDIR}->[0];
-print STDERR "LIBDIR = $values{LIBDIR}->[0]\n";
+print STDERR "LIBDIR = $values{LIBDIR}->[0]\n" if $debug;
 
 # warn if there are missing values, and also if there are unexpected values
 foreach my $k (sort keys %all) {
@@ -69,10 +71,10 @@ foreach my $k (sort keys %keys) {
 foreach my $k (@absolutes) {
     my $v = $values{$k} || [ '.' ];
     die "Can't have more than one $k\n" if scalar @$v > 1;
-    print STDERR "DEBUG: $k = $v->[0] => ";
+    print STDERR "DEBUG: $k = $v->[0] => " if $debug;
     $v = [ map { File::Spec->rel2abs($_) } @$v ];
     $values{$k} = $v;
-    print STDERR "$k = $v->[0]\n";
+    print STDERR "$k = $v->[0]\n" if $debug;
 }
 
 # Absolute paths for the subdir variables are computed.  This provides
@@ -90,7 +92,7 @@ foreach my $pair (@subdirs) {
         $values{$k} = [];       # We're rebuilding it
         print STDERR "DEBUG: $k = ",
             (scalar @$v2 > 1 ? "[ " . join(", ", @$v2) . " ]" : $v2->[0]),
-            " => ";
+            " => " if $debug;
         foreach my $v (@$v2) {
             if (File::Spec->file_name_is_absolute($v)) {
                 push @{$values{$k}}, $v;
@@ -109,7 +111,7 @@ foreach my $pair (@subdirs) {
                                          ? "[ " . join(", ", @$v) . " ]"
                                          : $v->[0]);
                           } ($k, $kr)),
-            "\n";
+            "\n" if $debug;
     }
 }
 

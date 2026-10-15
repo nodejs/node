@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 1998-2024 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1998-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -145,8 +145,6 @@ my $guess_patterns = [
       }
     ],
     [ 'Paragon.*?:.*',              'i860-intel-osf1' ],
-    [ 'Rhapsody:.*',                'ppc-apple-rhapsody' ],
-    [ 'Darwin:.*?:.*?:Power.*',     'ppc-apple-darwin' ],
     [ 'Darwin:.*',                  '${MACHINE}-apple-darwin' ],
     [ 'SunOS:5\..*',                '${MACHINE}-whatever-solaris2' ],
     [ 'SunOS:.*',                   '${MACHINE}-sun-sunos4' ],
@@ -413,7 +411,7 @@ sub determine_compiler_settings {
                 $CCVER = 0;
 
                 my $v = `cl 2>&1`;
-                if ( $v =~ /Microsoft .* Version ([0-9\.]+) for (x86|x64|ARM|ia64)/ ) {
+                if ( $v =~ /Microsoft .* Version ([0-9\.]+) for (x86|x64|ARM)/ ) {
                     $CCVER = $1;
                     $CL_ARCH = $2;
                 }
@@ -490,39 +488,6 @@ EOF
             return { target => "irix-mips3" };
         }
       ],
-      [ 'ppc-apple-rhapsody',     { target => "rhapsody-ppc" } ],
-      [ 'ppc-apple-darwin.*',
-        sub {
-            my $KERNEL_BITS = $ENV{KERNEL_BITS} // '';
-            my $ISA64 = `sysctl -n hw.optional.64bitops 2>/dev/null`;
-            if ( $ISA64 == 1 && $KERNEL_BITS eq '' ) {
-                print <<EOF;
-WARNING! To build 64-bit package, do this:
-         $WHERE/Configure darwin64-ppc-cc
-EOF
-                maybe_abort();
-            }
-            return { target => "darwin64-ppc" }
-                if $ISA64 == 1 && $KERNEL_BITS eq '64';
-            return { target => "darwin-ppc" };
-        }
-      ],
-      [ 'i.86-apple-darwin.*',
-        sub {
-            my $KERNEL_BITS = $ENV{KERNEL_BITS} // '';
-            my $ISA64 = `sysctl -n hw.optional.x86_64 2>/dev/null`;
-            if ( $ISA64 == 1 && $KERNEL_BITS eq '' ) {
-                print <<EOF;
-WARNING! To build 64-bit package, do this:
-         KERNEL_BITS=64 $WHERE/Configure [options...]
-EOF
-                maybe_abort();
-            }
-            return { target => "darwin64-x86_64" }
-                if $ISA64 == 1 && $KERNEL_BITS eq '64';
-            return { target => "darwin-i386" };
-        }
-      ],
       [ 'x86_64-apple-darwin.*',
         sub {
             my $KERNEL_BITS = $ENV{KERNEL_BITS} // '';
@@ -534,13 +499,6 @@ EOF
                     return { target => "darwin64-x86_64" };
                 }
             }
-            return { target => "darwin-i386" } if $KERNEL_BITS eq '32';
-
-            print <<EOF;
-WARNING! To build 32-bit package, do this:
-         KERNEL_BITS=32 $WHERE/Configure [options...]
-EOF
-            maybe_abort();
             return { target => "darwin64-x86_64" };
         }
       ],
@@ -750,7 +708,7 @@ EOF
                     # $GCC_ARCH denotes default ABI chosen by compiler driver
                     # (first one found on the $PATH). I assume that user
                     # expects certain consistency with the rest of his builds
-                    # and therefore switch over to 64-bit. <appro>
+                    # and therefore switch over to 64-bit. <@dot-asm>
                     print <<EOF;
 WARNING! To build 32-bit package, do this:
          $WHERE/Configure solaris-sparcv9-gcc
@@ -940,7 +898,7 @@ EOF
       ],
 
       # Windows values found by looking at Perl 5's win32/win32.c
-      [ '(amd64|ia64|x86|ARM)-.*?-Windows NT',
+      [ '(amd64|x86|ARM)-.*?-Windows NT',
         sub {
             # If we determined the arch by asking cl, take that value,
             # otherwise the SYSTEM we got from from POSIX::uname().
@@ -949,7 +907,6 @@ EOF
 
             if ($arch) {
                 $config = { 'amd64' => { target => 'VC-WIN64A'    },
-                            'ia64'  => { target => 'VC-WIN64I'    },
                             'x86'   => { target => 'VC-WIN32'     },
                             'x64'   => { target => 'VC-WIN64A'    },
                             'ARM'   => { target => 'VC-WIN64-ARM' },

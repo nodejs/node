@@ -34,6 +34,7 @@ int ASN1_TYPE_set_octetstring(ASN1_TYPE *a, unsigned char *data, int len)
 int ASN1_TYPE_get_octetstring(const ASN1_TYPE *a, unsigned char *data, int max_len)
 {
     int ret, num;
+    size_t tmp;
     const unsigned char *p;
 
     if ((a->type != V_ASN1_OCTET_STRING) || (a->value.octet_string == NULL)) {
@@ -41,7 +42,13 @@ int ASN1_TYPE_get_octetstring(const ASN1_TYPE *a, unsigned char *data, int max_l
         return -1;
     }
     p = ASN1_STRING_get0_data(a->value.octet_string);
-    ret = ASN1_STRING_length(a->value.octet_string);
+    tmp = ASN1_STRING_get_length(a->value.octet_string);
+    if (tmp > INT_MAX) {
+        ERR_raise(ERR_LIB_ASN1, ASN1_R_TOO_LARGE);
+        return -1;
+    }
+    ret = (int)tmp;
+
     if (ret < max_len)
         num = ret;
     else
@@ -69,17 +76,25 @@ static ossl_inline void asn1_type_init_oct(ASN1_OCTET_STRING *oct,
 static int asn1_type_get_int_oct(ASN1_OCTET_STRING *oct, int32_t anum,
     long *num, unsigned char *data, int max_len)
 {
-    int ret = ASN1_STRING_length(oct), n;
+    int ret, n;
+    size_t tmp;
 
     if (num != NULL)
         *num = anum;
+
+    tmp = ASN1_STRING_get_length(oct);
+
+    if (tmp > INT_MAX)
+        tmp = INT_MAX;
+
+    ret = (int)tmp;
 
     if (max_len > ret)
         n = ret;
     else
         n = max_len;
 
-    if (data != NULL)
+    if (data != NULL && n > 0)
         memcpy(data, ASN1_STRING_get0_data(oct), n);
 
     return ret;

@@ -1,4 +1,4 @@
-@ Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
+@ Copyright 2007-2026 The OpenSSL Project Authors. All Rights Reserved.
 @
 @ Licensed under the Apache License 2.0 (the "License").  You may not use
 @ this file except in compliance with the License.  You can obtain a copy
@@ -7,10 +7,10 @@
 
 
 @ ====================================================================
-@ Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+@ Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 @ project. The module is, however, dual licensed under OpenSSL and
 @ CRYPTOGAMS licenses depending on where you obtain it. For further
-@ details see http://www.openssl.org/~appro/cryptogams/.
+@ details see https://github.com/dot-asm/cryptogams/.
 @
 @ Permission to use under GPL terms is granted.
 @ ====================================================================
@@ -46,7 +46,7 @@
 @ $output is the last argument if it looks like a file (it has an extension)
 @ $flavour is the first argument if it doesn't look like a file
 #ifndef __KERNEL__
-# include "arm_arch.h"
+# include "arch/arm_arch.h"
 #else
 # define __ARM_ARCH__ __LINUX_ARM_ARCH__
 # define __ARM_MAX_ARCH__ 7
@@ -2814,7 +2814,7 @@ sha256_block_data_order_armv8:
 	bx	lr		@ bx lr
 .size	sha256_block_data_order_armv8,.-sha256_block_data_order_armv8
 #endif
-.byte	83,72,65,50,53,54,32,98,108,111,99,107,32,116,114,97,110,115,102,111,114,109,32,102,111,114,32,65,82,77,118,52,47,78,69,79,78,47,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
+.byte	83,72,65,50,53,54,32,98,108,111,99,107,32,116,114,97,110,115,102,111,114,109,32,102,111,114,32,65,82,77,118,52,47,78,69,79,78,47,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,104,116,116,112,115,58,47,47,103,105,116,104,117,98,46,99,111,109,47,100,111,116,45,97,115,109,62,0
 .align	2
 .align	2
 #if __ARM_MAX_ARCH__>=7 && !defined(__KERNEL__)

@@ -16,6 +16,7 @@
 #include <openssl/params.h>
 #include "internal/nelem.h"
 #include "internal/tlsgroups.h"
+#include "internal/tlssigalgs.h"
 #include "prov/providercommon.h"
 #include "internal/e_os.h"
 #include "crypto/ml_kem.h"
@@ -77,20 +78,22 @@ static const TLS_GROUP_CONSTANTS group_list[] = {
     /* 27 */ { OSSL_TLS_GROUP_ID_brainpoolP512r1, 256, TLS1_VERSION, TLS1_2_VERSION, DTLS1_VERSION, DTLS1_2_VERSION, 0 },
     /* 28 */ { OSSL_TLS_GROUP_ID_x25519, 128, TLS1_VERSION, 0, DTLS1_VERSION, 0, 0 },
     /* 29 */ { OSSL_TLS_GROUP_ID_x448, 224, TLS1_VERSION, 0, DTLS1_VERSION, 0, 0 },
-    /* 30 */ { OSSL_TLS_GROUP_ID_brainpoolP256r1_tls13, 128, TLS1_3_VERSION, 0, -1, -1, 0 },
-    /* 31 */ { OSSL_TLS_GROUP_ID_brainpoolP384r1_tls13, 192, TLS1_3_VERSION, 0, -1, -1, 0 },
-    /* 32 */ { OSSL_TLS_GROUP_ID_brainpoolP512r1_tls13, 256, TLS1_3_VERSION, 0, -1, -1, 0 },
-    /* 33 */ { OSSL_TLS_GROUP_ID_ffdhe2048, 112, TLS1_3_VERSION, 0, -1, -1, 0 },
-    /* 34 */ { OSSL_TLS_GROUP_ID_ffdhe3072, 128, TLS1_3_VERSION, 0, -1, -1, 0 },
-    /* 35 */ { OSSL_TLS_GROUP_ID_ffdhe4096, 128, TLS1_3_VERSION, 0, -1, -1, 0 },
-    /* 36 */ { OSSL_TLS_GROUP_ID_ffdhe6144, 128, TLS1_3_VERSION, 0, -1, -1, 0 },
-    /* 37 */ { OSSL_TLS_GROUP_ID_ffdhe8192, 192, TLS1_3_VERSION, 0, -1, -1, 0 },
-    /* 38 */ { OSSL_TLS_GROUP_ID_mlkem512, ML_KEM_512_SECBITS, TLS1_3_VERSION, 0, -1, -1, 1 },
-    /* 39 */ { OSSL_TLS_GROUP_ID_mlkem768, ML_KEM_768_SECBITS, TLS1_3_VERSION, 0, -1, -1, 1 },
-    /* 40 */ { OSSL_TLS_GROUP_ID_mlkem1024, ML_KEM_1024_SECBITS, TLS1_3_VERSION, 0, -1, -1, 1 },
-    /* 41 */ { OSSL_TLS_GROUP_ID_X25519MLKEM768, ML_KEM_768_SECBITS, TLS1_3_VERSION, 0, -1, -1, 1 },
-    /* 42 */ { OSSL_TLS_GROUP_ID_SecP256r1MLKEM768, ML_KEM_768_SECBITS, TLS1_3_VERSION, 0, -1, -1, 1 },
-    /* 43 */ { OSSL_TLS_GROUP_ID_SecP384r1MLKEM1024, ML_KEM_1024_SECBITS, TLS1_3_VERSION, 0, -1, -1, 1 },
+    /* 30 */ { OSSL_TLS_GROUP_ID_brainpoolP256r1_tls13, 128, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0, 0 },
+    /* 31 */ { OSSL_TLS_GROUP_ID_brainpoolP384r1_tls13, 192, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0, 0 },
+    /* 32 */ { OSSL_TLS_GROUP_ID_brainpoolP512r1_tls13, 256, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0, 0 },
+    /* 33 */ { OSSL_TLS_GROUP_ID_ffdhe2048, 112, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0, 0 },
+    /* 34 */ { OSSL_TLS_GROUP_ID_ffdhe3072, 128, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0, 0 },
+    /* 35 */ { OSSL_TLS_GROUP_ID_ffdhe4096, 128, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0, 0 },
+    /* 36 */ { OSSL_TLS_GROUP_ID_ffdhe6144, 128, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0, 0 },
+    /* 37 */ { OSSL_TLS_GROUP_ID_ffdhe8192, 192, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0, 0 },
+    /* 38 */ { OSSL_TLS_GROUP_ID_mlkem512, ML_KEM_512_SECBITS, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0, 1 },
+    /* 39 */ { OSSL_TLS_GROUP_ID_mlkem768, ML_KEM_768_SECBITS, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0, 1 },
+    /* 40 */ { OSSL_TLS_GROUP_ID_mlkem1024, ML_KEM_1024_SECBITS, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0, 1 },
+    /* 41 */ { OSSL_TLS_GROUP_ID_X25519MLKEM768, ML_KEM_768_SECBITS, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0, 1 },
+    /* 42 */ { OSSL_TLS_GROUP_ID_SecP256r1MLKEM768, ML_KEM_768_SECBITS, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0, 1 },
+    /* 43 */ { OSSL_TLS_GROUP_ID_SecP384r1MLKEM1024, ML_KEM_1024_SECBITS, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0, 1 },
+    /* 44 */ { OSSL_TLS_GROUP_ID_curveSM2, 128, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0, 0 },
+    /* 45 */ { OSSL_TLS_GROUP_ID_curveSM2MLKEM768, ML_KEM_768_SECBITS, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0, 1 },
 };
 
 #define TLS_GROUP_ENTRY(tlsname, realname, algorithm, idx)              \
@@ -187,6 +190,12 @@ static const OSSL_PARAM param_group_list[][11] = {
     TLS_GROUP_ENTRY("brainpoolP256r1tls13", "brainpoolP256r1", "EC", 30),
     TLS_GROUP_ENTRY("brainpoolP384r1tls13", "brainpoolP384r1", "EC", 31),
     TLS_GROUP_ENTRY("brainpoolP512r1tls13", "brainpoolP512r1", "EC", 32),
+#ifndef OPENSSL_NO_SM2
+    TLS_GROUP_ENTRY("curveSM2", "SM2", "curveSM2", 44),
+#if !defined(OPENSSL_NO_ML_KEM)
+    TLS_GROUP_ENTRY("curveSM2MLKEM768", "", "curveSM2MLKEM768", 45),
+#endif
+#endif
 #endif
 #ifndef OPENSSL_NO_ML_KEM
     TLS_GROUP_ENTRY("SecP256r1MLKEM768", "", "SecP256r1MLKEM768", 42),
@@ -272,7 +281,8 @@ static int tls_group_capability(OSSL_CALLBACK *cb, void *arg)
 
 /* --------------------------------------------------------------- */
 
-#if !defined(OPENSSL_NO_ML_DSA)
+#if !defined(OPENSSL_NO_ML_DSA) || !defined(OPENSSL_NO_SLH_DSA) \
+    || (!defined(FIPS_MODULE) && !defined(OPENSSL_NO_SM2) && !defined(OPENSSL_NO_SM3))
 
 typedef struct tls_sigalg_constants_st {
     unsigned int code_point;
@@ -283,10 +293,23 @@ typedef struct tls_sigalg_constants_st {
     int max_dtls; /* Maximum DTLS version (or 0 for undefined) */
 } TLS_SIGALG_CONSTANTS;
 
-static const TLS_SIGALG_CONSTANTS sigalg_constants_list[3] = {
-    { 0x0904, 128, TLS1_3_VERSION, 0, -1, -1 },
-    { 0x0905, 192, TLS1_3_VERSION, 0, -1, -1 },
-    { 0x0906, 256, TLS1_3_VERSION, 0, -1, -1 },
+static const TLS_SIGALG_CONSTANTS sigalg_constants_list[] = {
+    { TLSEXT_SIGALG_mldsa44, 128, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
+    { TLSEXT_SIGALG_mldsa65, 192, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
+    { TLSEXT_SIGALG_mldsa87, 256, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
+    { TLSEXT_SIGALG_slhdsa_sha2_128s, 128, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
+    { TLSEXT_SIGALG_slhdsa_sha2_128f, 128, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
+    { TLSEXT_SIGALG_slhdsa_sha2_192s, 192, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
+    { TLSEXT_SIGALG_slhdsa_sha2_192f, 192, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
+    { TLSEXT_SIGALG_slhdsa_sha2_256s, 256, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
+    { TLSEXT_SIGALG_slhdsa_sha2_256f, 256, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
+    { TLSEXT_SIGALG_slhdsa_shake_128s, 128, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
+    { TLSEXT_SIGALG_slhdsa_shake_128f, 128, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
+    { TLSEXT_SIGALG_slhdsa_shake_192s, 192, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
+    { TLSEXT_SIGALG_slhdsa_shake_192f, 192, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
+    { TLSEXT_SIGALG_slhdsa_shake_256s, 256, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
+    { TLSEXT_SIGALG_slhdsa_shake_256f, 256, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
+    { TLSEXT_SIGALG_sm2sig_sm3, 128, TLS1_3_VERSION, 0, DTLS1_3_VERSION, 0 },
 };
 
 #define TLS_SIGALG_ENTRY(tlsname, algorithm, oid, idx)               \
@@ -313,15 +336,34 @@ static const TLS_SIGALG_CONSTANTS sigalg_constants_list[3] = {
     }
 
 static const OSSL_PARAM param_sigalg_list[][10] = {
+#ifndef OPENSSL_NO_ML_DSA
     TLS_SIGALG_ENTRY("mldsa44", "ML-DSA-44", "2.16.840.1.101.3.4.3.17", 0),
     TLS_SIGALG_ENTRY("mldsa65", "ML-DSA-65", "2.16.840.1.101.3.4.3.18", 1),
     TLS_SIGALG_ENTRY("mldsa87", "ML-DSA-87", "2.16.840.1.101.3.4.3.19", 2),
+#endif
+#ifndef OPENSSL_NO_SLH_DSA
+    TLS_SIGALG_ENTRY("slhdsa_sha2_128s", "SLH-DSA-SHA2-128s", "2.16.840.1.101.3.4.3.20", 3),
+    TLS_SIGALG_ENTRY("slhdsa_sha2_128f", "SLH-DSA-SHA2-128f", "2.16.840.1.101.3.4.3.21", 4),
+    TLS_SIGALG_ENTRY("slhdsa_sha2_192s", "SLH-DSA-SHA2-192s", "2.16.840.1.101.3.4.3.22", 5),
+    TLS_SIGALG_ENTRY("slhdsa_sha2_192f", "SLH-DSA-SHA2-192f", "2.16.840.1.101.3.4.3.23", 6),
+    TLS_SIGALG_ENTRY("slhdsa_sha2_256s", "SLH-DSA-SHA2-256s", "2.16.840.1.101.3.4.3.24", 7),
+    TLS_SIGALG_ENTRY("slhdsa_sha2_256f", "SLH-DSA-SHA2-256f", "2.16.840.1.101.3.4.3.25", 8),
+    TLS_SIGALG_ENTRY("slhdsa_shake_128s", "SLH-DSA-SHAKE-128s", "2.16.840.1.101.3.4.3.26", 9),
+    TLS_SIGALG_ENTRY("slhdsa_shake_128f", "SLH-DSA-SHAKE-128f", "2.16.840.1.101.3.4.3.27", 10),
+    TLS_SIGALG_ENTRY("slhdsa_shake_192s", "SLH-DSA-SHAKE-192s", "2.16.840.1.101.3.4.3.28", 11),
+    TLS_SIGALG_ENTRY("slhdsa_shake_192f", "SLH-DSA-SHAKE-192f", "2.16.840.1.101.3.4.3.29", 12),
+    TLS_SIGALG_ENTRY("slhdsa_shake_256s", "SLH-DSA-SHAKE-256s", "2.16.840.1.101.3.4.3.30", 13),
+    TLS_SIGALG_ENTRY("slhdsa_shake_256f", "SLH-DSA-SHAKE-256f", "2.16.840.1.101.3.4.3.31", 14),
+#endif
+#if !defined(FIPS_MODULE) && !defined(OPENSSL_NO_SM2) && !defined(OPENSSL_NO_SM3)
+    TLS_SIGALG_ENTRY("sm2sig_sm3", "SM2", "1.2.156.10197.1 501", 15),
+#endif
 };
-#endif /* OPENSSL_NO_ML_DSA */
+#endif
 
 static int tls_sigalg_capability(OSSL_CALLBACK *cb, void *arg)
 {
-#if !defined(OPENSSL_NO_ML_DSA)
+#if defined(TLS_SIGALG_ENTRY)
     size_t i;
 
     for (i = 0; i < OSSL_NELEM(param_sigalg_list); i++)

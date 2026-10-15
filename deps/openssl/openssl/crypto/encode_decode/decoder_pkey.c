@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -276,9 +276,10 @@ static int collect_decoder_keymgmt(EVP_KEYMGMT *keymgmt, OSSL_DECODER *decoder,
     OSSL_TRACE_BEGIN(DECODER)
     {
         BIO_printf(trc_out,
-            "(ctx %p) Checking out decoder %p:\n"
+            "(ctx %p) Checking out decoder %p (%s):\n"
             "    %s with %s\n",
             (void *)data->ctx, (void *)decoder,
+            OSSL_DECODER_get0_description(decoder),
             OSSL_DECODER_get0_name(decoder),
             OSSL_DECODER_get0_properties(decoder));
     }
@@ -337,9 +338,10 @@ static void collect_decoder(OSSL_DECODER *decoder, void *arg)
     OSSL_TRACE_BEGIN(DECODER)
     {
         BIO_printf(trc_out,
-            "(ctx %p) Checking out decoder %p:\n"
+            "(ctx %p) Checking out decoder %p (%s):\n"
             "    %s with %s\n",
             (void *)data->ctx, (void *)decoder,
+            OSSL_DECODER_get0_description(decoder),
             OSSL_DECODER_get0_name(decoder),
             OSSL_DECODER_get0_properties(decoder));
     }
@@ -417,6 +419,13 @@ static void collect_keymgmt(EVP_KEYMGMT *keymgmt, void *arg)
     if (!EVP_KEYMGMT_up_ref(keymgmt))
         return;
 
+    OSSL_TRACE_BEGIN(DECODER)
+    {
+        BIO_printf(trc_out,
+            "(Collecting KeyManager %s %s [id %d]:\n",
+            keymgmt->description, keymgmt->type_name, keymgmt->id);
+    }
+    OSSL_TRACE_END(DECODER);
     if (sk_EVP_KEYMGMT_push(data->keymgmts, keymgmt) <= 0) {
         EVP_KEYMGMT_free(keymgmt);
         data->error_occurred = 1;
@@ -655,6 +664,7 @@ ossl_decoder_ctx_for_pkey_dup(OSSL_DECODER_CTX *src,
         goto err;
     }
 
+    dest->frozen = src->frozen;
     return dest;
 err:
     decoder_clean_pkey_construct_arg(process_data_dest);
@@ -891,6 +901,7 @@ OSSL_DECODER_CTX_new_for_pkey(EVP_PKEY **pkey,
             && OSSL_DECODER_CTX_add_extra(ctx, libctx, propquery)
             && (propquery == NULL
                 || OSSL_DECODER_CTX_set_params(ctx, decoder_params))) {
+            ctx->frozen = 1;
             OSSL_TRACE_BEGIN(DECODER)
             {
                 BIO_printf(trc_out, "(ctx %p) Got %d decoders\n",
@@ -942,6 +953,7 @@ OSSL_DECODER_CTX_new_for_pkey(EVP_PKEY **pkey,
             (void)lh_DECODER_CACHE_ENTRY_insert(cache->hashtable, newcache);
             if (lh_DECODER_CACHE_ENTRY_error(cache->hashtable)) {
                 ctx = NULL;
+                CRYPTO_THREAD_unlock(cache->lock);
                 ERR_raise(ERR_LIB_OSSL_DECODER, ERR_R_CRYPTO_LIB);
                 goto err;
             }

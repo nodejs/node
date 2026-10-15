@@ -1,4 +1,4 @@
-#include "mips_arch.h"
+#include "arch/mips_arch.h"
 
 #if defined(_MIPS_ARCH_MIPS64R6)
 # define ddivu(rs,rt)
@@ -16,7 +16,7 @@
 
 .rdata
 .asciiz	"mips3.s, Version 1.2"
-.asciiz	"MIPS II/III/IV ISA artwork by Andy Polyakov <appro@fy.chalmers.se>"
+.asciiz	"MIPS II/III/IV ISA artwork by Andy Polyakov <https://github.com/dot-asm>"
 
 .text
 .set	noat
@@ -770,7 +770,7 @@ bn_mul_comba8:
 				# bug)" warning. If anybody out there
 				# has a clue about how to circumvent
 				# this do send me a note.
-				#		<appro@fy.chalmers.se>
+				#		<https://github.com/dot-asm>
 
 	ld	$8,0($6)
 	ld	$13,8($5)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -54,8 +54,7 @@ typedef struct {
 OSSL_SAFE_MATH_UNSIGNED(time, uint64_t)
 
 /* Convert a tick count into a time */
-static ossl_unused ossl_inline OSSL_TIME
-ossl_ticks2time(uint64_t ticks)
+static ossl_unused ossl_inline OSSL_TIME ossl_ticks2time(uint64_t ticks)
 {
     OSSL_TIME r;
 
@@ -64,8 +63,7 @@ ossl_ticks2time(uint64_t ticks)
 }
 
 /* Convert a time to a tick count */
-static ossl_unused ossl_inline uint64_t
-ossl_time2ticks(OSSL_TIME t)
+static ossl_unused ossl_inline uint64_t ossl_time2ticks(OSSL_TIME t)
 {
     return t.t;
 }
@@ -74,14 +72,12 @@ ossl_time2ticks(OSSL_TIME t)
 OSSL_TIME ossl_time_now(void);
 
 /* The beginning and end of the time range */
-static ossl_unused ossl_inline OSSL_TIME
-ossl_time_zero(void)
+static ossl_unused ossl_inline OSSL_TIME ossl_time_zero(void)
 {
     return ossl_ticks2time(0);
 }
 
-static ossl_unused ossl_inline OSSL_TIME
-ossl_time_infinite(void)
+static ossl_unused ossl_inline OSSL_TIME ossl_time_infinite(void)
 {
     return ossl_ticks2time(~(uint64_t)0);
 }
@@ -110,8 +106,7 @@ static ossl_unused ossl_inline struct timeval ossl_time_to_timeval(OSSL_TIME t)
 }
 
 /* Convert timeval to time */
-static ossl_unused ossl_inline OSSL_TIME
-ossl_time_from_timeval(struct timeval tv)
+static ossl_unused ossl_inline OSSL_TIME ossl_time_from_timeval(struct timeval tv)
 {
     OSSL_TIME t;
 
@@ -124,16 +119,13 @@ ossl_time_from_timeval(struct timeval tv)
 }
 
 /* Convert OSSL_TIME to time_t */
-static ossl_unused ossl_inline
-    time_t
-    ossl_time_to_time_t(OSSL_TIME t)
+static ossl_unused ossl_inline time_t ossl_time_to_time_t(OSSL_TIME t)
 {
     return (time_t)(t.t / OSSL_TIME_SECOND);
 }
 
 /* Convert time_t to OSSL_TIME */
-static ossl_unused ossl_inline OSSL_TIME
-ossl_time_from_time_t(time_t t)
+static ossl_unused ossl_inline OSSL_TIME ossl_time_from_time_t(time_t t)
 {
     OSSL_TIME ot;
 
@@ -164,8 +156,7 @@ static ossl_unused ossl_inline int ossl_time_is_infinite(OSSL_TIME t)
     return ossl_time_compare(t, ossl_time_infinite()) == 0;
 }
 
-static ossl_unused ossl_inline OSSL_TIME
-ossl_time_add(OSSL_TIME a, OSSL_TIME b)
+static ossl_unused ossl_inline OSSL_TIME ossl_time_add(OSSL_TIME a, OSSL_TIME b)
 {
     OSSL_TIME r;
     int err = 0;
@@ -174,8 +165,7 @@ ossl_time_add(OSSL_TIME a, OSSL_TIME b)
     return err ? ossl_time_infinite() : r;
 }
 
-static ossl_unused ossl_inline OSSL_TIME
-ossl_time_subtract(OSSL_TIME a, OSSL_TIME b)
+static ossl_unused ossl_inline OSSL_TIME ossl_time_subtract(OSSL_TIME a, OSSL_TIME b)
 {
     OSSL_TIME r;
     int err = 0;
@@ -185,15 +175,13 @@ ossl_time_subtract(OSSL_TIME a, OSSL_TIME b)
 }
 
 /* Returns |a - b|. */
-static ossl_unused ossl_inline OSSL_TIME
-ossl_time_abs_difference(OSSL_TIME a, OSSL_TIME b)
+static ossl_unused ossl_inline OSSL_TIME ossl_time_abs_difference(OSSL_TIME a, OSSL_TIME b)
 {
     return a.t > b.t ? ossl_time_subtract(a, b)
                      : ossl_time_subtract(b, a);
 }
 
-static ossl_unused ossl_inline OSSL_TIME
-ossl_time_multiply(OSSL_TIME a, uint64_t b)
+static ossl_unused ossl_inline OSSL_TIME ossl_time_multiply(OSSL_TIME a, uint64_t b)
 {
     OSSL_TIME r;
     int err = 0;
@@ -202,8 +190,7 @@ ossl_time_multiply(OSSL_TIME a, uint64_t b)
     return err ? ossl_time_infinite() : r;
 }
 
-static ossl_unused ossl_inline OSSL_TIME
-ossl_time_divide(OSSL_TIME a, uint64_t b)
+static ossl_unused ossl_inline OSSL_TIME ossl_time_divide(OSSL_TIME a, uint64_t b)
 {
     OSSL_TIME r;
     int err = 0;
@@ -212,8 +199,7 @@ ossl_time_divide(OSSL_TIME a, uint64_t b)
     return err ? ossl_time_zero() : r;
 }
 
-static ossl_unused ossl_inline OSSL_TIME
-ossl_time_muldiv(OSSL_TIME a, uint64_t b, uint64_t c)
+static ossl_unused ossl_inline OSSL_TIME ossl_time_muldiv(OSSL_TIME a, uint64_t b, uint64_t c)
 {
     OSSL_TIME r;
     int err = 0;
@@ -223,15 +209,13 @@ ossl_time_muldiv(OSSL_TIME a, uint64_t b, uint64_t c)
 }
 
 /* Return higher of the two given time values. */
-static ossl_unused ossl_inline OSSL_TIME
-ossl_time_max(OSSL_TIME a, OSSL_TIME b)
+static ossl_unused ossl_inline OSSL_TIME ossl_time_max(OSSL_TIME a, OSSL_TIME b)
 {
     return a.t > b.t ? a : b;
 }
 
 /* Return the lower of the two given time values. */
-static ossl_unused ossl_inline OSSL_TIME
-ossl_time_min(OSSL_TIME a, OSSL_TIME b)
+static ossl_unused ossl_inline OSSL_TIME ossl_time_min(OSSL_TIME a, OSSL_TIME b)
 {
     return a.t < b.t ? a : b;
 }
