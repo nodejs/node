@@ -879,6 +879,14 @@ tools/doc/node_modules: tools/doc/package.json
 RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
 
+.PHONY: sbom
+sbom: config.gypi ## Write a CycloneDX SBOM to out/Release/node-<process.version>-sbom.json (or SBOM_OUTPUT).
+	$(PYTHON) tools/sbom/generate_sbom.py $(if $(SBOM_OUTPUT),--output $(SBOM_OUTPUT))
+
+.PHONY: test-sbom
+test-sbom: ## Validate the SBOM written by `make sbom`.
+	$(PYTHON) tools/sbom/generate_sbom.py --validate $(if $(SBOM_OUTPUT),--output $(SBOM_OUTPUT))
+
 .PHONY: doc-only
 .NOTPARALLEL: doc-only
 doc-only: $(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json out/doc/llms.txt out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
