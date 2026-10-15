@@ -503,12 +503,12 @@ static void uv__spawn_init_posix_spawn(void) {
 #if defined(__GLIBC__) && !defined(__UCLIBC__)
   const char* version;
 
-  /* Before glibc 2.24, posix_spawn() does not report exec() failures (it
+  /* Before glibc 2.29, posix_spawn() does not report exec() failures (it
    * returns 0 and the child exits with status 127), and it also exits the
    * child with status 127 if any signal in the sigdefault set can't be reset,
    * such as SIGKILL. Use fork() there instead. */
   version = gnu_get_libc_version();
-  if (version[0] == '2' && version[1] == '.' && atoi(version + 2) < 24)
+  if (version[0] == '2' && version[1] == '.' && atoi(version + 2) < 29)
     return;
 #endif
 
