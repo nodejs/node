@@ -1,0 +1,287 @@
+default	rel
+%define XMMWORD
+%define YMMWORD
+%define ZMMWORD
+section	.data data align=8
+
+ALIGN	16
+SHUFF_MASK:
+DB	3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12
+
+section	.text code align=64
+
+
+
+
+
+
+
+
+
+global	ossl_hwsm3_block_data_order
+
+ALIGN	32
+ossl_hwsm3_block_data_order:
+	mov	QWORD[8+rsp],rdi	;WIN64 prologue
+	mov	QWORD[16+rsp],rsi
+	mov	rax,rsp
+$L$SEH_begin_ossl_hwsm3_block_data_order:
+	mov	rdi,rcx
+	mov	rsi,rdx
+	mov	rdx,r8
+
+
+
+DB	243,15,30,250
+
+	push	rbp
+
+
+$L$ossl_hwsm3_block_data_order_seh_setfp:
+
+	sub	rsp,112
+
+	vmovdqu	XMMWORD[rsp],xmm6
+	vmovdqu	XMMWORD[16+rsp],xmm7
+	vmovdqu	XMMWORD[32+rsp],xmm8
+	vmovdqu	XMMWORD[48+rsp],xmm9
+	vmovdqu	XMMWORD[64+rsp],xmm10
+	vmovdqu	XMMWORD[80+rsp],xmm11
+	vmovdqu	XMMWORD[96+rsp],xmm12
+
+$L$ossl_hwsm3_block_data_order_seh_prolog_end:
+	or	rdx,rdx
+	je	NEAR .done_hash
+
+
+
+
+	vmovdqu	xmm6,XMMWORD[rdi]
+	vmovdqu	xmm7,XMMWORD[16+rdi]
+
+	vpshufd	xmm0,xmm6,0x1B
+	vpshufd	xmm1,xmm7,0x1B
+	vpunpckhqdq	xmm6,xmm1,xmm0
+	vpunpcklqdq	xmm7,xmm1,xmm0
+	vpsrld	xmm2,xmm7,9
+	vpslld	xmm3,xmm7,23
+	vpxor	xmm1,xmm2,xmm3
+	vpsrld	xmm4,xmm7,19
+	vpslld	xmm5,xmm7,13
+	vpxor	xmm0,xmm4,xmm5
+
+	vpblendd	xmm7,xmm1,xmm0,0x3
+
+	vmovdqa	xmm12,XMMWORD[SHUFF_MASK]
+
+ALIGN	32
+.block_loop:
+	vmovdqa	xmm10,xmm6
+	vmovdqa	xmm11,xmm7
+
+
+	vmovdqu	xmm2,XMMWORD[rsi]
+	vmovdqu	xmm3,XMMWORD[16+rsi]
+	vmovdqu	xmm4,XMMWORD[32+rsi]
+	vmovdqu	xmm5,XMMWORD[48+rsi]
+	vpshufb	xmm2,xmm2,xmm12
+	vpshufb	xmm3,xmm3,xmm12
+	vpshufb	xmm4,xmm4,xmm12
+	vpshufb	xmm5,xmm5,xmm12
+
+	vpalignr	xmm8,xmm4,xmm3,12
+	vpsrldq	xmm9,xmm5,4
+DB	0xc4,0x62,0x30,0xda,0xc2
+	vpalignr	xmm9,xmm3,xmm2,12
+	vpalignr	xmm1,xmm5,xmm4,8
+DB	0xc4,0x62,0x31,0xda,0xc1
+	vpunpcklqdq	xmm1,xmm2,xmm3
+DB	0xc4,0xe3,0x49,0xde,0xf9,0x00
+	vpunpckhqdq	xmm1,xmm2,xmm3
+DB	0xc4,0xe3,0x41,0xde,0xf1,0x02
+	vmovdqa	xmm2,xmm8
+	vpalignr	xmm8,xmm5,xmm4,12
+	vpsrldq	xmm9,xmm2,4
+DB	0xc4,0x62,0x30,0xda,0xc3
+	vpalignr	xmm9,xmm4,xmm3,12
+	vpalignr	xmm1,xmm2,xmm5,8
+DB	0xc4,0x62,0x31,0xda,0xc1
+	vpunpcklqdq	xmm1,xmm3,xmm4
+DB	0xc4,0xe3,0x49,0xde,0xf9,0x04
+	vpunpckhqdq	xmm1,xmm3,xmm4
+DB	0xc4,0xe3,0x41,0xde,0xf1,0x06
+	vmovdqa	xmm3,xmm8
+	vpalignr	xmm8,xmm2,xmm5,12
+	vpsrldq	xmm9,xmm3,4
+DB	0xc4,0x62,0x30,0xda,0xc4
+	vpalignr	xmm9,xmm5,xmm4,12
+	vpalignr	xmm1,xmm3,xmm2,8
+DB	0xc4,0x62,0x31,0xda,0xc1
+	vpunpcklqdq	xmm1,xmm4,xmm5
+DB	0xc4,0xe3,0x49,0xde,0xf9,0x08
+	vpunpckhqdq	xmm1,xmm4,xmm5
+DB	0xc4,0xe3,0x41,0xde,0xf1,0x0a
+	vmovdqa	xmm4,xmm8
+	vpalignr	xmm8,xmm3,xmm2,12
+	vpsrldq	xmm9,xmm4,4
+DB	0xc4,0x62,0x30,0xda,0xc5
+	vpalignr	xmm9,xmm2,xmm5,12
+	vpalignr	xmm1,xmm4,xmm3,8
+DB	0xc4,0x62,0x31,0xda,0xc1
+	vpunpcklqdq	xmm1,xmm5,xmm2
+DB	0xc4,0xe3,0x49,0xde,0xf9,0x0c
+	vpunpckhqdq	xmm1,xmm5,xmm2
+DB	0xc4,0xe3,0x41,0xde,0xf1,0x0e
+	vmovdqa	xmm5,xmm8
+	vpalignr	xmm8,xmm4,xmm3,12
+	vpsrldq	xmm9,xmm5,4
+DB	0xc4,0x62,0x30,0xda,0xc2
+	vpalignr	xmm9,xmm3,xmm2,12
+	vpalignr	xmm1,xmm5,xmm4,8
+DB	0xc4,0x62,0x31,0xda,0xc1
+	vpunpcklqdq	xmm1,xmm2,xmm3
+DB	0xc4,0xe3,0x49,0xde,0xf9,0x10
+	vpunpckhqdq	xmm1,xmm2,xmm3
+DB	0xc4,0xe3,0x41,0xde,0xf1,0x12
+	vmovdqa	xmm2,xmm8
+	vpalignr	xmm8,xmm5,xmm4,12
+	vpsrldq	xmm9,xmm2,4
+DB	0xc4,0x62,0x30,0xda,0xc3
+	vpalignr	xmm9,xmm4,xmm3,12
+	vpalignr	xmm1,xmm2,xmm5,8
+DB	0xc4,0x62,0x31,0xda,0xc1
+	vpunpcklqdq	xmm1,xmm3,xmm4
+DB	0xc4,0xe3,0x49,0xde,0xf9,0x14
+	vpunpckhqdq	xmm1,xmm3,xmm4
+DB	0xc4,0xe3,0x41,0xde,0xf1,0x16
+	vmovdqa	xmm3,xmm8
+	vpalignr	xmm8,xmm2,xmm5,12
+	vpsrldq	xmm9,xmm3,4
+DB	0xc4,0x62,0x30,0xda,0xc4
+	vpalignr	xmm9,xmm5,xmm4,12
+	vpalignr	xmm1,xmm3,xmm2,8
+DB	0xc4,0x62,0x31,0xda,0xc1
+	vpunpcklqdq	xmm1,xmm4,xmm5
+DB	0xc4,0xe3,0x49,0xde,0xf9,0x18
+	vpunpckhqdq	xmm1,xmm4,xmm5
+DB	0xc4,0xe3,0x41,0xde,0xf1,0x1a
+	vmovdqa	xmm4,xmm8
+	vpalignr	xmm8,xmm3,xmm2,12
+	vpsrldq	xmm9,xmm4,4
+DB	0xc4,0x62,0x30,0xda,0xc5
+	vpalignr	xmm9,xmm2,xmm5,12
+	vpalignr	xmm1,xmm4,xmm3,8
+DB	0xc4,0x62,0x31,0xda,0xc1
+	vpunpcklqdq	xmm1,xmm5,xmm2
+DB	0xc4,0xe3,0x49,0xde,0xf9,0x1c
+	vpunpckhqdq	xmm1,xmm5,xmm2
+DB	0xc4,0xe3,0x41,0xde,0xf1,0x1e
+	vmovdqa	xmm5,xmm8
+	vpalignr	xmm8,xmm4,xmm3,12
+	vpsrldq	xmm9,xmm5,4
+DB	0xc4,0x62,0x30,0xda,0xc2
+	vpalignr	xmm9,xmm3,xmm2,12
+	vpalignr	xmm1,xmm5,xmm4,8
+DB	0xc4,0x62,0x31,0xda,0xc1
+	vpunpcklqdq	xmm1,xmm2,xmm3
+DB	0xc4,0xe3,0x49,0xde,0xf9,0x20
+	vpunpckhqdq	xmm1,xmm2,xmm3
+DB	0xc4,0xe3,0x41,0xde,0xf1,0x22
+	vmovdqa	xmm2,xmm8
+	vpalignr	xmm8,xmm5,xmm4,12
+	vpsrldq	xmm9,xmm2,4
+DB	0xc4,0x62,0x30,0xda,0xc3
+	vpalignr	xmm9,xmm4,xmm3,12
+	vpalignr	xmm1,xmm2,xmm5,8
+DB	0xc4,0x62,0x31,0xda,0xc1
+	vpunpcklqdq	xmm1,xmm3,xmm4
+DB	0xc4,0xe3,0x49,0xde,0xf9,0x24
+	vpunpckhqdq	xmm1,xmm3,xmm4
+DB	0xc4,0xe3,0x41,0xde,0xf1,0x26
+	vmovdqa	xmm3,xmm8
+	vpalignr	xmm8,xmm2,xmm5,12
+	vpsrldq	xmm9,xmm3,4
+DB	0xc4,0x62,0x30,0xda,0xc4
+	vpalignr	xmm9,xmm5,xmm4,12
+	vpalignr	xmm1,xmm3,xmm2,8
+DB	0xc4,0x62,0x31,0xda,0xc1
+	vpunpcklqdq	xmm1,xmm4,xmm5
+DB	0xc4,0xe3,0x49,0xde,0xf9,0x28
+	vpunpckhqdq	xmm1,xmm4,xmm5
+DB	0xc4,0xe3,0x41,0xde,0xf1,0x2a
+	vmovdqa	xmm4,xmm8
+	vpalignr	xmm8,xmm3,xmm2,12
+	vpsrldq	xmm9,xmm4,4
+DB	0xc4,0x62,0x30,0xda,0xc5
+	vpalignr	xmm9,xmm2,xmm5,12
+	vpalignr	xmm1,xmm4,xmm3,8
+DB	0xc4,0x62,0x31,0xda,0xc1
+	vpunpcklqdq	xmm1,xmm5,xmm2
+DB	0xc4,0xe3,0x49,0xde,0xf9,0x2c
+	vpunpckhqdq	xmm1,xmm5,xmm2
+DB	0xc4,0xe3,0x41,0xde,0xf1,0x2e
+	vmovdqa	xmm5,xmm8
+	vpalignr	xmm8,xmm4,xmm3,12
+	vpsrldq	xmm9,xmm5,4
+DB	0xc4,0x62,0x30,0xda,0xc2
+	vpalignr	xmm9,xmm3,xmm2,12
+	vpalignr	xmm1,xmm5,xmm4,8
+DB	0xc4,0x62,0x31,0xda,0xc1
+	vpunpcklqdq	xmm1,xmm2,xmm3
+DB	0xc4,0xe3,0x49,0xde,0xf9,0x30
+	vpunpckhqdq	xmm1,xmm2,xmm3
+DB	0xc4,0xe3,0x41,0xde,0xf1,0x32
+	vmovdqa	xmm2,xmm8
+	vpunpcklqdq	xmm1,xmm3,xmm4
+DB	0xc4,0xe3,0x49,0xde,0xf9,0x34
+	vpunpckhqdq	xmm1,xmm3,xmm4
+DB	0xc4,0xe3,0x41,0xde,0xf1,0x36
+	vpunpcklqdq	xmm1,xmm4,xmm5
+DB	0xc4,0xe3,0x49,0xde,0xf9,0x38
+	vpunpckhqdq	xmm1,xmm4,xmm5
+DB	0xc4,0xe3,0x41,0xde,0xf1,0x3a
+	vpunpcklqdq	xmm1,xmm5,xmm2
+DB	0xc4,0xe3,0x49,0xde,0xf9,0x3c
+	vpunpckhqdq	xmm1,xmm5,xmm2
+DB	0xc4,0xe3,0x41,0xde,0xf1,0x3e
+
+	vpxor	xmm6,xmm6,xmm10
+	vpxor	xmm7,xmm7,xmm11
+	add	rsi,64
+	dec	rdx
+	jnz	NEAR .block_loop
+
+
+	vpslld	xmm2,xmm7,9
+	vpsrld	xmm3,xmm7,23
+	vpxor	xmm1,xmm2,xmm3
+	vpslld	xmm4,xmm7,19
+	vpsrld	xmm5,xmm7,13
+	vpxor	xmm0,xmm4,xmm5
+	vpblendd	xmm7,xmm1,xmm0,0x3
+	vpshufd	xmm0,xmm6,0x1B
+	vpshufd	xmm1,xmm7,0x1B
+
+	vpunpcklqdq	xmm6,xmm0,xmm1
+	vpunpckhqdq	xmm7,xmm0,xmm1
+
+	vmovdqu	XMMWORD[rdi],xmm6
+	vmovdqu	XMMWORD[16+rdi],xmm7
+.done_hash:
+
+
+	vmovdqu	xmm6,XMMWORD[rsp]
+	vmovdqu	xmm7,XMMWORD[16+rsp]
+	vmovdqu	xmm8,XMMWORD[32+rsp]
+	vmovdqu	xmm9,XMMWORD[48+rsp]
+	vmovdqu	xmm10,XMMWORD[64+rsp]
+	vmovdqu	xmm11,XMMWORD[80+rsp]
+	vmovdqu	xmm12,XMMWORD[96+rsp]
+	add	rsp,112
+
+	pop	rbp
+
+	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
+	mov	rsi,QWORD[16+rsp]
+	DB	0F3h,0C3h		;repret
+

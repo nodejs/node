@@ -1,4 +1,4 @@
-#include "mips_arch.h"
+#include "arch/mips_arch.h"
 
 .text
 .set	noat
@@ -3032,6 +3032,6 @@ K256:
 	.word	0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3
 	.word	0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208
 	.word	0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
-.asciiz	"SHA256 for MIPS, CRYPTOGAMS by <appro@openssl.org>"
+.asciiz	"SHA256 for MIPS, CRYPTOGAMS by <https://github.com/dot-asm>"
 .align	5
 
