@@ -4,7 +4,6 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
-import { setTimeout } from 'node:timers/promises';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -18,31 +17,31 @@ const kMaxReasonLength = 256;
 {
   const reason = 'a'.repeat(kMaxReasonLength + 1);
   const expectedReason = reason.slice(0, kMaxReasonLength);
-  const serverDone = Promise.withResolvers();
+  const serverSessionReady = Promise.withResolvers();
 
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverSession.onerror = mustCall((error) => {
       assert.strictEqual(error.reason, expectedReason);
     });
-    await assert.rejects(serverSession.closed, {
-      code: 'ERR_QUIC_APPLICATION_ERROR',
-      reason: expectedReason,
-    });
-    serverDone.resolve();
+    await serverSession.opened;
+    serverSessionReady.resolve(serverSession);
   }));
 
   const clientSession = await connect(serverEndpoint.address, {
     reuseEndpoint: false,
   });
   await clientSession.opened;
-  await setTimeout(100);
+  const serverSession = await serverSessionReady.promise;
   await clientSession.close({
     code: 1n,
     type: 'application',
     reason,
   });
 
-  await serverDone.promise;
+  await assert.rejects(serverSession.closed, {
+    code: 'ERR_QUIC_APPLICATION_ERROR',
+    reason: expectedReason,
+  });
   await serverEndpoint.close();
 }
 
@@ -50,31 +49,31 @@ const kMaxReasonLength = 256;
 {
   const prefix = 'a'.repeat(kMaxReasonLength - 1);
   const reason = `${prefix}€`;
-  const serverDone = Promise.withResolvers();
+  const serverSessionReady = Promise.withResolvers();
 
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverSession.onerror = mustCall((error) => {
       assert.strictEqual(error.reason, prefix);
     });
-    await assert.rejects(serverSession.closed, {
-      code: 'ERR_QUIC_APPLICATION_ERROR',
-      reason: prefix,
-    });
-    serverDone.resolve();
+    await serverSession.opened;
+    serverSessionReady.resolve(serverSession);
   }));
 
   const clientSession = await connect(serverEndpoint.address, {
     reuseEndpoint: false,
   });
   await clientSession.opened;
-  await setTimeout(100);
+  const serverSession = await serverSessionReady.promise;
   await clientSession.close({
     code: 2n,
     type: 'application',
     reason,
   });
 
-  await serverDone.promise;
+  await assert.rejects(serverSession.closed, {
+    code: 'ERR_QUIC_APPLICATION_ERROR',
+    reason: prefix,
+  });
   await serverEndpoint.close();
 }
 
@@ -82,17 +81,11 @@ const kMaxReasonLength = 256;
 {
   const reason = 's'.repeat(kMaxReasonLength + 1);
   const expectedReason = reason.slice(0, kMaxReasonLength);
-  const serverDone = Promise.withResolvers();
+  const serverSessionReady = Promise.withResolvers();
 
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     await serverSession.opened;
-    await setTimeout(100);
-    await serverSession.close({
-      code: 3n,
-      type: 'application',
-      reason,
-    });
-    serverDone.resolve();
+    serverSessionReady.resolve(serverSession);
   }));
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -102,11 +95,16 @@ const kMaxReasonLength = 256;
     }),
   });
   await clientSession.opened;
+  const serverSession = await serverSessionReady.promise;
+  await serverSession.close({
+    code: 3n,
+    type: 'application',
+    reason,
+  });
+
   await assert.rejects(clientSession.closed, {
     code: 'ERR_QUIC_APPLICATION_ERROR',
     reason: expectedReason,
   });
-
-  await serverDone.promise;
   await serverEndpoint.close();
 }
