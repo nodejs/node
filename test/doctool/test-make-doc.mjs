@@ -1,8 +1,8 @@
 import * as common from '../common/index.mjs';
 
-import assert from 'assert';
-import fs from 'fs';
-import path from 'path';
+import assert from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
 
 if (common.isWindows) {
   common.skip('`make doc` does not run on Windows');
