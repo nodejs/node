@@ -2022,6 +2022,9 @@ void BackgroundCompileTask::Run(
   parser.ParseOnBackground(isolate, &info, script_, start_position_,
                            end_position_, function_literal_id_);
   parser.UpdateStatistics(script_, &use_counts_, &total_preparse_skipped_);
+  if (toplevel_script_compilation) {
+    debug_magic_comment_locations_ = parser.debug_magic_comment_locations();
+  }
 
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
               "V8.CompileCodeBackground");
@@ -2766,8 +2769,14 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
     {
       DisallowGarbageCollection no_gc;
       SetScriptFieldsFromDetails(isolate, *script, script_details, &no_gc);
-      LOG(isolate, ScriptDetails(*script));
     }
+    // After SetScriptFieldsFromDetails, so that a source map URL provided
+    // through the API takes precedence. The locations come from the streamed
+    // source; the embedder is expected to pass the same source here, but an
+    // out-of-bounds location is ignored.
+    Parser::SetDebugMagicCommentFields(isolate, script, source,
+                                       debug_magic_comment_locations_);
+    LOG(isolate, ScriptDetails(*script));
   }
 
   ReportStatistics(isolate);

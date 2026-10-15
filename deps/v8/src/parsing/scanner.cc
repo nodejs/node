@@ -293,12 +293,15 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
   }
   if (!name.is_one_byte()) return;
   base::Vector<const uint8_t> name_literal = name.one_byte_literal();
-  LiteralBuffer* value;
+  // The debug magic comment values are recorded as source locations, so that
+  // they can be created as substrings of the source instead of being copied.
+  Location* value_location = nullptr;
+  bool is_compile_hints = false;
   LiteralBuffer per_function_compile_hints_value;
   if (name_literal == base::StaticOneByteVector("sourceURL")) {
-    value = &source_url_;
+    value_location = &debug_magic_comment_locations_.source_url;
   } else if (name_literal == base::StaticOneByteVector("sourceMappingURL")) {
-    value = &source_mapping_url_;
+    value_location = &debug_magic_comment_locations_.source_mapping_url;
     DCHECK(hash_or_at_sign == '#' || hash_or_at_sign == '@');
     saw_source_mapping_url_magic_comment_at_sign_ = hash_or_at_sign == '@';
   } else if (!saw_non_comment_ &&
@@ -309,38 +312,41 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
   } else if (name_literal ==
                  base::StaticOneByteVector("functionsCalledOnLoad") &&
              hash_or_at_sign == '#') {
-    value = &per_function_compile_hints_value;
+    is_compile_hints = true;
   } else if (name_literal == base::StaticOneByteVector("debugId") &&
              hash_or_at_sign == '#') {
-    value = &debug_id_;
+    value_location = &debug_magic_comment_locations_.debug_id;
   } else {
     return;
   }
   if (c0_ != '=') {
     return;
   }
-  value->Start();
+  if (is_compile_hints) per_function_compile_hints_value.Start();
   Advance();
   while (IsWhiteSpace(c0_)) {
     Advance();
   }
+  int value_beg_pos = source_pos();
   while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
     if (IsWhiteSpace(c0_)) {
       break;
     }
-    value->AddChar(c0_);
+    if (is_compile_hints) per_function_compile_hints_value.AddChar(c0_);
     Advance();
   }
+  Location value_location_in_source(value_beg_pos, source_pos());
   // Allow whitespace at the end.
   while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
     if (!IsWhiteSpace(c0_)) {
-      value->Start();
+      if (is_compile_hints) per_function_compile_hints_value.Start();
+      value_location_in_source = Location::invalid();
       break;
     }
     Advance();
   }
-  if (value == &per_function_compile_hints_value &&
-      per_function_compile_hints_value.is_one_byte()) {
+  if (value_location != nullptr) *value_location = value_location_in_source;
+  if (is_compile_hints && per_function_compile_hints_value.is_one_byte()) {
     base::Vector<const uint8_t> value_literal =
         per_function_compile_hints_value.one_byte_literal();
     per_function_compile_hint_positions_.clear();
@@ -688,43 +694,6 @@ Token::Value Scanner::ScanTemplateSpan() {
 
   return result;
 }
-
-template <typename IsolateT>
-DirectHandle<String> Scanner::SourceUrl(IsolateT* isolate) const {
-  DirectHandle<String> tmp;
-  if (source_url_.length() > 0) {
-    tmp = source_url_.Internalize(isolate);
-  }
-  return tmp;
-}
-
-template DirectHandle<String> Scanner::SourceUrl(Isolate* isolate) const;
-template DirectHandle<String> Scanner::SourceUrl(LocalIsolate* isolate) const;
-
-template <typename IsolateT>
-DirectHandle<String> Scanner::SourceMappingUrl(IsolateT* isolate) const {
-  DirectHandle<String> tmp;
-  if (source_mapping_url_.length() > 0) {
-    tmp = source_mapping_url_.Internalize(isolate);
-  }
-  return tmp;
-}
-
-template DirectHandle<String> Scanner::SourceMappingUrl(Isolate* isolate) const;
-template DirectHandle<String> Scanner::SourceMappingUrl(
-    LocalIsolate* isolate) const;
-
-template <typename IsolateT>
-DirectHandle<String> Scanner::DebugId(IsolateT* isolate) const {
-  DirectHandle<String> tmp;
-  if (debug_id_.length() > 0) {
-    tmp = debug_id_.Internalize(isolate);
-  }
-  return tmp;
-}
-
-template DirectHandle<String> Scanner::DebugId(Isolate* isolate) const;
-template DirectHandle<String> Scanner::DebugId(LocalIsolate* isolate) const;
 
 bool Scanner::ScanDigitsWithNumericSeparators(bool (*predicate)(base::uc32 ch),
                                               bool is_check_first_digit) {

@@ -30,12 +30,14 @@
 #include <array>
 #include <climits>
 #include <csignal>
+#include <format>
 #include <map>
 #include <memory>
 #include <optional>
 #include <span>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 #include "test/cctest/cctest.h"
 
@@ -24367,6 +24369,60 @@ TEST(ScriptSourceURLAndSourceMappingURL) {
       "function foo() {}\n"
       "//# sourceMappingURL=  data:application/json,{\"version\":3}  \n",
       nullptr, "data:application/json,{\"version\":3}");
+
+  // A value can end at the end of the input.
+  SourceURLHelper(isolate,
+                  "function foo() {}\n"
+                  "//# sourceURL=bar25.js",
+                  "bar25.js", nullptr);
+  SourceURLHelper(isolate,
+                  "function foo() {}\n"
+                  "//# sourceMappingURL=bar26.js",
+                  nullptr, "bar26.js");
+
+  // Other line terminators.
+  SourceURLHelper(isolate,
+                  "function foo() {}\r\n"
+                  "//# sourceURL=bar27.js\r\n"
+                  "//# sourceMappingURL=bar28.js\r\n"
+                  "function baz() {}\r\n",
+                  "bar27.js", "bar28.js");
+  SourceURLHelper(isolate,
+                  "function foo() {}\n"
+                  "//# sourceURL=bar29.js\xE2\x80\xA8"
+                  "function baz() {}\n",
+                  "bar29.js", nullptr);
+
+  // The deprecated //@ form.
+  SourceURLHelper(isolate,
+                  "function foo() {}\n"
+                  "//@ sourceURL=bar30.js\n"
+                  "//@ sourceMappingURL=bar31.js\n",
+                  "bar30.js", "bar31.js");
+
+  // A malformed or empty last comment removes an earlier value.
+  SourceURLHelper(isolate,
+                  "function foo() {}\n"
+                  "//# sourceURL=bar32.js\n"
+                  "//# sourceURL=bar33 .js\n"
+                  "//# sourceMappingURL=bar34.js\n"
+                  "//# sourceMappingURL=\n",
+                  nullptr, nullptr);
+
+  // Non-Latin1 characters in the source and in the value.
+  SourceURLHelper(isolate,
+                  "var s = '\xD7\xA9';\n"
+                  "//# sourceURL=b\xC3\xA4r35\xF0\x9F\x98\x80.js\n",
+                  "b\xC3\xA4r35\xF0\x9F\x98\x80.js", nullptr);
+
+  // Long values.
+  std::string long_url = std::format("https://example.com/{:x>1000}.js", "");
+  std::string long_map_url = long_url + ".map";
+  std::string long_source = std::format(
+      "function foo() {{}}\n//# sourceURL={}\n//# sourceMappingURL={}\n",
+      long_url, long_map_url);
+  SourceURLHelper(isolate, long_source.c_str(), long_url.c_str(),
+                  long_map_url.c_str());
 }
 
 
@@ -26018,6 +26074,279 @@ TEST(StreamingScriptWithSourceMappingURLInTheMiddle) {
                           "globalThis.Result = foo();", nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, true,
                    nullptr, "bar2.js");
+}
+
+namespace {
+
+i::DirectHandle<i::Script> GetScript(v8::Isolate* isolate,
+                                     Local<v8::UnboundScript> script) {
+  return i::direct_handle(
+      i::Cast<i::Script>(v8::Utils::OpenDirectHandle(*script)->script()),
+      reinterpret_cast<i::Isolate*>(isolate));
+}
+
+i::DirectHandle<i::Script> GetScript(v8::Isolate* isolate,
+                                     Local<v8::UnboundModuleScript> script) {
+  return i::direct_handle(
+      i::Cast<i::Script>(v8::Utils::OpenDirectHandle(*script)->script()),
+      reinterpret_cast<i::Isolate*>(isolate));
+}
+
+i::DirectHandle<i::Script> GetScript(v8::Isolate* isolate,
+                                     Local<v8::Function> function) {
+  return i::direct_handle(
+      i::Cast<i::Script>(
+          i::Cast<i::JSFunction>(*v8::Utils::OpenDirectHandle(*function))
+              ->shared()
+              ->script()),
+      reinterpret_cast<i::Isolate*>(isolate));
+}
+
+v8::MaybeLocal<Script> CompileStreamedScript(LocalContext* env,
+                                             const char** chunks,
+                                             Local<v8::String> full_source,
+                                             const v8::ScriptOrigin& origin) {
+  v8::ScriptCompiler::StreamedSource source(
+      std::make_unique<i::TestSourceStream>(chunks),
+      v8::ScriptCompiler::StreamedSource::UTF8);
+  std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> task(
+      v8::ScriptCompiler::StartStreaming(env->isolate(), &source));
+  StreamerThread::StartThreadForTaskAndJoin(task.get(), env->i_isolate());
+  return v8::ScriptCompiler::Compile(env->local(), &source, full_source,
+                                     origin);
+}
+
+std::string SourceWithMagicComments(std::string_view body,
+                                    std::string_view value) {
+  return std::format(
+      "{0}\n//# sourceURL={1}\n//# sourceMappingURL={1}\n//# debugId={1}\n",
+      body, value);
+}
+
+// Checks that the debug magic comment values of {script} are {value}, as
+// substrings of the script source.
+void CheckMagicCommentValuesAreSourceSubstrings(
+    i::DirectHandle<i::Script> script, const std::string& value) {
+  i::Tagged<i::Object> fields[] = {
+      script->source_url(), script->source_mapping_url(), script->debug_id()};
+  for (i::Tagged<i::Object> field : fields) {
+    CHECK(i::IsSlicedString(field));
+    CHECK_EQ(i::Cast<i::SlicedString>(field)->parent(), script->source());
+    CHECK(i::Cast<i::String>(field)->IsEqualTo(
+        v8::base::OneByteVector(value.data(), value.size())));
+  }
+}
+
+}  // namespace
+
+TEST(MagicCommentValuesAreSourceSubstrings) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  std::string value = std::format("https://example.com/{:x>100}.js", "");
+
+  {
+    std::string source =
+        SourceWithMagicComments("globalThis.Result = 13;", value);
+    CheckMagicCommentValuesAreSourceSubstrings(
+        GetScript(isolate, v8_compile(source.c_str())->GetUnboundScript()),
+        value);
+  }
+  {
+    std::string source = SourceWithMagicComments("export const x = 13;", value);
+    v8::ScriptOrigin origin(v8_str("module.js"), 0, 0, false, -1,
+                            Local<Value>(), false, false, true);
+    v8::ScriptCompiler::Source script_source(v8_str(source.c_str()), origin);
+    Local<v8::Module> module =
+        v8::ScriptCompiler::CompileModule(isolate, &script_source)
+            .ToLocalChecked();
+    CheckMagicCommentValuesAreSourceSubstrings(
+        GetScript(isolate, module->GetUnboundModuleScript()), value);
+  }
+  {
+    std::string source = SourceWithMagicComments("return 13;", value);
+    v8::ScriptCompiler::Source script_source(v8_str(source.c_str()));
+    Local<v8::Function> function =
+        v8::ScriptCompiler::CompileFunction(env.local(), &script_source)
+            .ToLocalChecked();
+    CheckMagicCommentValuesAreSourceSubstrings(GetScript(isolate, function),
+                                               value);
+  }
+  {
+    // Streaming creates the values from the full source when finalizing.
+    std::string source =
+        SourceWithMagicComments("globalThis.Result = 13;", value);
+    const char* chunks[] = {source.c_str(), nullptr};
+    Local<Script> script =
+        CompileStreamedScript(&env, chunks, v8_str(source.c_str()),
+                              v8::ScriptOrigin(v8_str("streamed.js")))
+            .ToLocalChecked();
+    CheckMagicCommentValuesAreSourceSubstrings(
+        GetScript(isolate, script->GetUnboundScript()), value);
+  }
+  {
+    // Short values are not slices, but still have the right contents.
+    Local<Script> script = v8_compile(
+        "//# sourceURL=a.js\n//# sourceMappingURL=b.js\n//# debugId=c\n");
+    i::DirectHandle<i::Script> i_script =
+        GetScript(isolate, script->GetUnboundScript());
+    CHECK(i::Cast<i::String>(i_script->source_url())->IsOneByteEqualTo("a.js"));
+    CHECK(i::Cast<i::String>(i_script->source_mapping_url())
+              ->IsOneByteEqualTo("b.js"));
+    CHECK(i::Cast<i::String>(i_script->debug_id())->IsOneByteEqualTo("c"));
+  }
+}
+
+TEST(ApiSourceMapURLTakesPrecedenceOverMagicComment) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  std::string value = std::format("https://example.com/{:x>100}.map", "");
+  std::string source =
+      "globalThis.Result = 13;\n//# sourceMappingURL=" + value + "\n";
+  const char* chunks[] = {source.c_str(), nullptr};
+
+  for (bool streaming : {false, true}) {
+    // A non-empty API source map URL takes precedence, an empty one does not.
+    for (const char* api_url : {"api.js.map", ""}) {
+      v8::ScriptOrigin origin(v8_str("origin.js"), 0, 0, false, -1,
+                              v8_str(api_url));
+      Local<Script> script;
+      if (streaming) {
+        script =
+            CompileStreamedScript(&env, chunks, v8_str(source.c_str()), origin)
+                .ToLocalChecked();
+      } else {
+        v8::ScriptCompiler::Source script_source(v8_str(source.c_str()),
+                                                 origin);
+        script = v8::ScriptCompiler::Compile(env.local(), &script_source)
+                     .ToLocalChecked();
+      }
+      v8::String::Utf8Value url(
+          isolate, script->GetUnboundScript()->GetSourceMappingURL());
+      CHECK_EQ(0, strcmp(*api_url != '\0' ? api_url : value.c_str(), *url));
+      // Compile each case from scratch.
+      CcTest::i_isolate()->compilation_cache()->Clear();
+    }
+  }
+}
+
+TEST(StreamingMagicCommentOutsideOfFullSource) {
+  // The embedder passes a full source that does not match the streamed one.
+  // Magic comment locations outside of it must be ignored.
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  const char* chunks[] = {"globalThis.Result = 13;\n",
+                          "//# sourceURL=outside.js\n",
+                          "//# sourceMappingURL=outside.js.map\n", nullptr};
+  Local<Script> script =
+      CompileStreamedScript(&env, chunks, v8_str("globalThis.Result = 13;\n"),
+                            v8::ScriptOrigin(v8_str("streamed.js")))
+          .ToLocalChecked();
+  i::DirectHandle<i::Script> i_script =
+      GetScript(isolate, script->GetUnboundScript());
+  CHECK(i::IsUndefined(i_script->source_url()));
+  CHECK(i::IsUndefined(i_script->source_mapping_url()));
+}
+
+// Regression test for https://github.com/nodejs/node/issues/64155: a huge
+// magic comment value (e.g. an inline source map) must not be copied onto the
+// heap.
+UNINITIALIZED_TEST(HugeMagicCommentValueDoesNotOOM) {
+  i::v8_flags.stress_concurrent_allocation = false;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.constraints.set_max_old_generation_size_in_bytes(16 * i::MB);
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope scope(isolate);
+    LocalContext env(isolate);
+
+    const std::string url_prefix = "data:application/json;base64,";
+    const size_t kPayloadLength = 40 * i::MB;
+    enum class Mode { kScript, kModule, kFunction, kStreaming };
+    for (Mode mode :
+         {Mode::kScript, Mode::kModule, Mode::kFunction, Mode::kStreaming}) {
+      for (const char* name : {"sourceURL", "sourceMappingURL", "debugId"}) {
+        v8::HandleScope inner_scope(isolate);
+        std::string header = std::format(
+            "{}\n//# {}=",
+            mode == Mode::kFunction ? "return 13;" : "globalThis.Result = 13;",
+            name);
+        size_t value_offset = header.size();
+        size_t value_length = url_prefix.size() + kPayloadLength;
+        size_t length = value_offset + value_length + 1;
+        char* data = i::NewArray<char>(length + 1);
+        memcpy(data, header.data(), header.size());
+        memcpy(data + value_offset, url_prefix.data(), url_prefix.size());
+        memset(data + value_offset + url_prefix.size(), 'A', kPayloadLength);
+        data[length - 1] = '\n';
+        data[length] = '\0';
+
+        // The source is external, so it does not count against the heap
+        // limit, but a copy of the magic comment value would.
+        Local<v8::String> source = v8::String::NewExternalOneByte(
+                                       isolate, new TestOneByteResource(data))
+                                       .ToLocalChecked();
+        i::DirectHandle<i::Script> script;
+        switch (mode) {
+          case Mode::kScript: {
+            v8::ScriptCompiler::Source script_source(source);
+            script =
+                GetScript(isolate, v8::ScriptCompiler::CompileUnboundScript(
+                                       isolate, &script_source)
+                                       .ToLocalChecked());
+            break;
+          }
+          case Mode::kModule: {
+            v8::ScriptOrigin origin(
+                v8::String::NewFromUtf8Literal(isolate, "module.js"), 0, 0,
+                false, -1, Local<Value>(), false, false, true);
+            v8::ScriptCompiler::Source script_source(source, origin);
+            script = GetScript(isolate, v8::ScriptCompiler::CompileModule(
+                                            isolate, &script_source)
+                                            .ToLocalChecked()
+                                            ->GetUnboundModuleScript());
+            break;
+          }
+          case Mode::kFunction: {
+            v8::ScriptCompiler::Source script_source(source);
+            script = GetScript(isolate, v8::ScriptCompiler::CompileFunction(
+                                            env.local(), &script_source)
+                                            .ToLocalChecked());
+            break;
+          }
+          case Mode::kStreaming: {
+            const char* chunks[] = {data, nullptr};
+            script = GetScript(
+                isolate, CompileStreamedScript(
+                             &env, chunks, source,
+                             v8::ScriptOrigin(v8::String::NewFromUtf8Literal(
+                                 isolate, "streamed.js")))
+                             .ToLocalChecked()
+                             ->GetUnboundScript());
+            break;
+          }
+        }
+        i::Tagged<i::Object> value =
+            strcmp(name, "sourceURL") == 0 ? script->source_url()
+            : strcmp(name, "debugId") == 0 ? script->debug_id()
+                                           : script->source_mapping_url();
+        i::DirectHandle<i::String> value_string(
+            i::Cast<i::String>(value), reinterpret_cast<i::Isolate*>(isolate));
+
+        // Force a full GC while the value is alive: a heap copy of the value
+        // would exceed the heap limit here even if its allocation succeeded.
+        isolate->LowMemoryNotification();
+
+        CHECK(value_string->IsEqualTo(
+            v8::base::OneByteVector(data + value_offset, value_length)));
+      }
+    }
+  }
+  isolate->Dispose();
 }
 
 void GetCurrentHostDefinedOptionsTest(

@@ -595,11 +595,11 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
 class StreamerThread : public v8::base::Thread {
  public:
   static void StartThreadForTaskAndJoin(
-      v8::ScriptCompiler::ScriptStreamingTask* task) {
+      v8::ScriptCompiler::ScriptStreamingTask* task,
+      i::Isolate* i_isolate = CcTest::i_isolate()) {
     StreamerThread thread(task);
     CHECK(thread.Start());
     {
-      i::Isolate* i_isolate = CcTest::i_isolate();
       i_isolate->main_thread_local_heap()->ExecuteWhileParked(
           [&thread]() { thread.Join(); });
     }
