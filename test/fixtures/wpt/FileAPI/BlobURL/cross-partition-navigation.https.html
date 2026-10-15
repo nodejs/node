@@ -247,5 +247,52 @@ promise_test(t => {
   });
 }, "Blob URL area element click should enforce noopener for a cross-top-level-site navigation");
 
+const open_blob_url_window_via_svg_a_click = (blob_url) => `
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const a = document.createElementNS("http://www.w3.org/2000/svg", "a");
+  a.setAttribute("href", "${blob_url}");
+  a.setAttribute("target", "_blank");
+  a.setAttribute("rel", "opener");
+  const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  text.textContent = "click";
+  a.appendChild(text);
+  svg.appendChild(a);
+  document.body.appendChild(svg);
+  a.dispatchEvent(new MouseEvent("click", {bubbles: true}));
+`;
+
+// Tests blob URL SVG `<a target="_blank" rel="opener">` click for same and
+// cross partition iframes.
+promise_test(t => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Creates same and cross partition iframes.
+      const noopener_response_queue = token();
+
+      const [cross_site_iframe_uuid, same_site_iframe_uuid] = await create_test_iframes(t, token());
+
+      const blob = new Blob([opener_check_frame_html(noopener_response_queue)], {type : "text/html"});
+      const blob_url = URL.createObjectURL(blob);
+
+      // Attempt to click blob URL in cross partition iframe.
+      await send(cross_site_iframe_uuid, open_blob_url_window_via_svg_a_click(blob_url));
+      const noopener_response_1 = await receive(noopener_response_queue);
+      if (noopener_response_1 !== opener_null_response) {
+        reject(`Blob URL page opener wasn't null in not-same-top-level-site iframe.`);
+      }
+
+      // Attempt to click blob URL in same partition iframe.
+      await send(same_site_iframe_uuid, open_blob_url_window_via_svg_a_click(blob_url));
+      const noopener_response_2 = await receive(noopener_response_queue);
+      if (noopener_response_2 !== opener_not_null_response) {
+        reject(`Blob URL page opener was null in same-top-level-site iframe`);
+      }
+      resolve();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}, "Blob URL SVG <a> element click should enforce noopener for a cross-top-level-site navigation");
+
 </script>
 </body>
