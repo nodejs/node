@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>FileAPI Test: FileReader.readAsDataURL</title>
+<link rel="help" href="https://w3c.github.io/FileAPI/#readAsDataURL">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<script>
+"use strict";
+
+async_test(t => {
+  const blob = new Blob(["Hello"], {
+    type: "text/plain;charset=utf-8"
+  });
+
+  const fileReader = new FileReader();
+  fileReader.addEventListener("load", () => {
+    assert_equals(
+      fileReader.result,
+      "data:text/plain;charset=utf-8;base64,SGVsbG8="
+    );
+    t.done();
+  });
+
+  fileReader.readAsDataURL(blob);
+}, "readAsDataURL result for Blob with specified MIME type including charset");
+</script>
