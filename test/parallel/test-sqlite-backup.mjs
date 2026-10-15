@@ -1,6 +1,7 @@
 // Flags: --expose-gc
 import {
   isWindows,
+  platformTimeout,
   skipIfSQLiteMissing,
   spawnPromisified,
 } from '../common/index.mjs';
@@ -344,7 +345,7 @@ test('backup waits for a write transaction on the source to end', async (t) => {
   database.exec('BEGIN IMMEDIATE');
   database.exec("INSERT INTO data (key, value) VALUES (3, 'value-3')");
   const p = backup(database, destDb);
-  setTimeout(() => database.exec('COMMIT'), 100);
+  setTimeout(() => database.exec('COMMIT'), platformTimeout(100));
 
   await p;
 
