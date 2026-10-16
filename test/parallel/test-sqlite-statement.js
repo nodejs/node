@@ -8,6 +8,7 @@ const {
   constants: { SQLITE_OK },
 } = require('node:sqlite');
 const { constants } = require('node:buffer');
+const dc = require('node:diagnostics_channel');
 const { suite, test } = require('node:test');
 
 suite('Statement() constructor', () => {
@@ -1496,5 +1497,25 @@ suite('values larger than the maximum string length', { skip: !enoughTestMem }, 
     }, tooLong);
     using stmt = db.prepare('SELECT count(*) AS count FROM data');
     t.assert.deepStrictEqual(stmt.get(), { __proto__: null, count: 0 });
+  });
+
+  test('expandedSQL throws instead of aborting', (t) => {
+    using db = new Database(':memory:');
+    using stmt = db.prepare('SELECT ?');
+    stmt.run(Buffer.alloc(blobSize));
+    t.assert.throws(() => stmt.expandedSQL, tooLong);
+  });
+
+  test('sqlite.db.query subscribers do not affect the statement', (t) => {
+    const handler = t.mock.fn();
+    dc.subscribe('sqlite.db.query', handler);
+    t.after(() => dc.unsubscribe('sqlite.db.query', handler));
+    using db = new Database(':memory:');
+    using stmt = db.prepare('SELECT length(?) AS len');
+    t.assert.deepStrictEqual(
+      stmt.get(Buffer.alloc(blobSize)),
+      { __proto__: null, len: blobSize },
+    );
+    t.assert.strictEqual(handler.mock.callCount(), 0);
   });
 });
