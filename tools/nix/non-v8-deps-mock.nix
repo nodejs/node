@@ -59,10 +59,7 @@ symlinkJoin (finalAttrs: {
       "--without-ffi"
       "--without-ssl"
     ]
-    ++ (lib.concatMap (sharedLibName: [
-      "--shared-${sharedLibName}"
-      "--shared-${sharedLibName}-libname="
-    ]) (builtins.attrNames sharedLibsToMock));
+    ++ map (sharedLibName: "--shared-${sharedLibName}") (builtins.attrNames sharedLibsToMock);
 
     tests.pkg-config = testers.hasPkgConfigModules {
       package = finalAttrs.finalPackage;

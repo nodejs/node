@@ -297,7 +297,6 @@ shared_optgroup.add_argument('--shared-abseil-includes',
 shared_optgroup.add_argument('--shared-abseil-libname',
     action='store',
     dest='shared_abseil_libname',
-    default=None,
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-abseil-libpath',
@@ -319,7 +318,6 @@ shared_optgroup.add_argument('--shared-gtest-includes',
 shared_optgroup.add_argument('--shared-gtest-libname',
     action='store',
     dest='shared_gtest_libname',
-    default='gtest',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-gtest-libpath',
@@ -341,7 +339,6 @@ shared_optgroup.add_argument('--shared-hdr-histogram-includes',
 shared_optgroup.add_argument('--shared-hdr-histogram-libname',
     action='store',
     dest='shared_hdr_histogram_libname',
-    default='hdr_histogram',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-hdr-histogram-libpath',
@@ -363,7 +360,6 @@ shared_optgroup.add_argument('--shared-highway-includes',
 shared_optgroup.add_argument('--shared-highway-libname',
     action='store',
     dest='shared_highway_libname',
-    default='hwy',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-highway-libpath',
@@ -385,7 +381,6 @@ shared_optgroup.add_argument('--shared-http-parser-includes',
 shared_optgroup.add_argument('--shared-http-parser-libname',
     action='store',
     dest='shared_http_parser_libname',
-    default='llhttp',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-http-parser-libpath',
@@ -407,7 +402,6 @@ shared_optgroup.add_argument('--shared-libuv-includes',
 shared_optgroup.add_argument('--shared-libuv-libname',
     action='store',
     dest='shared_libuv_libname',
-    default='uv',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-libuv-libpath',
@@ -429,7 +423,6 @@ shared_optgroup.add_argument('--shared-lief-includes',
 shared_optgroup.add_argument('--shared-lief-libname',
     action='store',
     dest='shared_lief_libname',
-    default='LIEF',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-lief-libpath',
@@ -451,7 +444,6 @@ shared_optgroup.add_argument('--shared-nbytes-includes',
 shared_optgroup.add_argument('--shared-nbytes-libname',
     action='store',
     dest='shared_nbytes_libname',
-    default='nbytes',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-nbytes-libpath',
@@ -473,7 +465,6 @@ shared_optgroup.add_argument('--shared-nghttp2-includes',
 shared_optgroup.add_argument('--shared-nghttp2-libname',
     action='store',
     dest='shared_nghttp2_libname',
-    default='nghttp2',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-nghttp2-libpath',
@@ -495,7 +486,6 @@ shared_optgroup.add_argument('--shared-nghttp3-includes',
 shared_optgroup.add_argument('--shared-nghttp3-libname',
     action='store',
     dest='shared_nghttp3_libname',
-    default='nghttp3',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-nghttp3-libpath',
@@ -517,7 +507,6 @@ shared_optgroup.add_argument('--shared-ngtcp2-includes',
 shared_optgroup.add_argument('--shared-ngtcp2-libname',
     action='store',
     dest='shared_ngtcp2_libname',
-    default='ngtcp2',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-ngtcp2-libpath',
@@ -539,7 +528,6 @@ shared_optgroup.add_argument('--shared-openssl-includes',
 shared_optgroup.add_argument('--shared-openssl-libname',
     action='store',
     dest='shared_openssl_libname',
-    default='crypto,ssl',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-openssl-libpath',
@@ -562,7 +550,6 @@ shared_optgroup.add_argument('--shared-perfetto-includes',
 shared_optgroup.add_argument('--shared-perfetto-libname',
     action='store',
     dest='shared_perfetto_libname',
-    default='perfetto',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-perfetto-libpath',
@@ -584,7 +571,6 @@ shared_optgroup.add_argument('--shared-uvwasi-includes',
 shared_optgroup.add_argument('--shared-uvwasi-libname',
     action='store',
     dest='shared_uvwasi_libname',
-    default='uvwasi',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-uvwasi-libpath',
@@ -606,7 +592,6 @@ shared_optgroup.add_argument('--shared-zlib-includes',
 shared_optgroup.add_argument('--shared-zlib-libname',
     action='store',
     dest='shared_zlib_libname',
-    default='z',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-zlib-libpath',
@@ -628,7 +613,6 @@ shared_optgroup.add_argument('--shared-simdjson-includes',
 shared_optgroup.add_argument('--shared-simdjson-libname',
     action='store',
     dest='shared_simdjson_libname',
-    default='simdjson',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-simdjson-libpath',
@@ -651,7 +635,6 @@ shared_optgroup.add_argument('--shared-simdutf-includes',
 shared_optgroup.add_argument('--shared-simdutf-libname',
     action='store',
     dest='shared_simdutf_libname',
-    default='simdutf',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-simdutf-libpath',
@@ -673,7 +656,6 @@ shared_optgroup.add_argument('--shared-ada-includes',
 shared_optgroup.add_argument('--shared-ada-libname',
     action='store',
     dest='shared_ada_libname',
-    default='ada',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-ada-libpath',
@@ -695,7 +677,6 @@ shared_optgroup.add_argument('--shared-merve-includes',
 shared_optgroup.add_argument('--shared-merve-libname',
     action='store',
     dest='shared_merve_libname',
-    default='merve',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-merve-libpath',
@@ -717,7 +698,6 @@ shared_optgroup.add_argument('--shared-brotli-includes',
 shared_optgroup.add_argument('--shared-brotli-libname',
     action='store',
     dest='shared_brotli_libname',
-    default='brotlidec,brotlienc',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-brotli-libpath',
@@ -739,7 +719,6 @@ shared_optgroup.add_argument('--shared-cares-includes',
 shared_optgroup.add_argument('--shared-cares-libname',
     action='store',
     dest='shared_cares_libname',
-    default='cares',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-cares-libpath',
@@ -761,7 +740,6 @@ shared_optgroup.add_argument('--shared-sqlite-includes',
 shared_optgroup.add_argument('--shared-sqlite-libname',
     action='store',
     dest='shared_sqlite_libname',
-    default='sqlite3',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-sqlite-libpath',
@@ -783,7 +761,6 @@ shared_optgroup.add_argument('--shared-ffi-includes',
 shared_optgroup.add_argument('--shared-ffi-libname',
     action='store',
     dest='shared_ffi_libname',
-    default='ffi',
     help='alternative libffi name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-ffi-libpath',
@@ -805,7 +782,6 @@ shared_optgroup.add_argument('--shared-temporal_capi-includes',
 shared_optgroup.add_argument('--shared-temporal_capi-libname',
     action='store',
     dest='shared_temporal_capi_libname',
-    default='temporal_capi',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-temporal_capi-libpath',
@@ -827,7 +803,6 @@ shared_optgroup.add_argument('--shared-zstd-includes',
 shared_optgroup.add_argument('--shared-zstd-libname',
     action='store',
     dest='shared_zstd_libname',
-    default='zstd',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-zstd-libpath',
