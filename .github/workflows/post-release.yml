@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   post-release-actions:
-    if: github.repository == 'nodejs/node'
+    if: github.repository == 'nodejs/node' && !contains(github.event.release.tag_name, '-alpha.')
     runs-on: ubuntu-slim
     steps:
       - name: Trigger update-links workflow on nodejs/release-cloudflare-worker
