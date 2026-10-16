@@ -499,9 +499,9 @@ The new entry should take the following form:
 * Include the full list of commits since the last release here. Do not include "Working on X.Y.Z+1" commits.
 ```
 
-The release type should be either Alpha, Current, LTS, or Maintenance, depending
-on the type of release being produced. Release lines starting with Node.js 27
-do not have a Maintenance phase.
+The release type should be either Alpha, Current, or LTS, depending
+on the type of release being produced. Release lines before Node.js 27
+also have a Maintenance phase.
 
 By default, the `### Notable changes` section should be populated with the
 commits in the release that have either the `notable-change` or `semver-minor`
@@ -1357,8 +1357,7 @@ The `lts-watch-vN.x` issue label must be created, with the same color as other
 existing labels for that release line, such as `vN.x`.
 
 If the release is transitioning from Active LTS to Maintenance, the
-`backport-requested-vN.x` label must be deleted. This only applies to release
-lines up to Node.js 26, as later release lines do not have a Maintenance phase.
+`backport-requested-vN.x` label must be deleted.
 
 ### Add new codename to nodejs-latest-linker
 
@@ -1605,7 +1604,7 @@ as the latest release.
 
 #### Release proposal
 
-A draft release proposal should be created 6 weeks before the release, using
+A draft release proposal should be created 2 weeks before the release, using
 the [`create-release-proposal`][] action with `-f release-version=N.0.0`, or
 locally:
 
