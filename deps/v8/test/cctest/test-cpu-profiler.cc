@@ -2957,9 +2957,11 @@ TEST(DeoptUntrackedFunction) {
   iprofiler->DeleteProfile(iprofile);
 }
 
-using v8::platform::tracing::TraceBuffer;
 using v8::platform::tracing::TraceConfig;
+#if !defined(V8_USE_PERFETTO)
+using v8::platform::tracing::TraceBuffer;
 using v8::platform::tracing::TraceObject;
+#endif  // !defined(V8_USE_PERFETTO)
 
 namespace {
 
