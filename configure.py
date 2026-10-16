@@ -2452,7 +2452,8 @@ def configure_ffi(o):
 def configure_quic(o):
   if options.experimental_quic and options.without_ssl:
     warn('--experimental-quic is incompatible with --without-ssl')
-  o['variables']['node_use_quic'] = b(options.experimental_quic)
+  o['variables']['node_use_quic'] = b(options.experimental_quic and
+                                      not options.without_ssl)
 
   if not options.experimental_quic:
     for lib in ['nghttp3', 'ngtcp2']:
