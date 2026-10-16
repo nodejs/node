@@ -13,7 +13,7 @@ It is also a Stranger Things reference.
 
 Have a question about using Undici? Open a [Q&A Discussion](https://github.com/nodejs/undici/discussions/new) or join our official OpenJS [Slack](https://openjs-foundation.slack.com/archives/C01QF9Q31QD) channel.
 
-Looking to contribute? Start by reading the [contributing guide](./CONTRIBUTING.md)
+Looking to contribute? Start by reading the [contributing guide](https://github.com/nodejs/undici/blob/main/CONTRIBUTING.md)
 
 ## Install
 
@@ -417,7 +417,7 @@ For more information about their behavior, please reference the body mixin from 
 
 ## Common API Methods
 
-This section documents our most commonly used API methods. Additional APIs are documented in their own files within the [docs](./docs/) folder and are accessible via the navigation list on the left side of the docs site.
+This section documents our most commonly used API methods. Additional APIs are documented in their own files within the [`api`](./api/) folder and are accessible via the navigation list on the left side of the docs site.
 
 For the top-level APIs below, the `url` argument supplies the request origin and
 path. Do not pass `origin` or `path` in the second `options` argument. The linked
@@ -427,19 +427,19 @@ lower-level APIs that do not receive a separate `url` argument.
 ### `undici.request([url, options])`
 
 * `url` {string|URL|UrlObject}
-* `options` {RequestOptions} See [`RequestOptions`](./docs/docs/api/Dispatcher.md#parameter-requestoptions).
+* `options` {RequestOptions} See [`RequestOptions`](./api/Dispatcher.md#parameter-requestoptions).
   * `dispatcher` {Dispatcher} **Default:** [getGlobalDispatcher](#undicigetglobaldispatcher).
   * `method` {string} **Default:** `PUT` if `options.body`, otherwise `GET`.
 * Returns: {Promise} A promise with the result of the `Dispatcher.request` method.
 
 Calls `options.dispatcher.request(options)`.
 
-See [Dispatcher.request](./docs/docs/api/Dispatcher.md#dispatcherrequestoptions-callback) for more details, and [request examples](./docs/examples/README.md) for examples.
+See [Dispatcher.request](./api/Dispatcher.md#dispatcherrequestoptions-callback) for more details, and [request examples](https://github.com/nodejs/undici/blob/main/docs/examples/README.md) for examples.
 
 ### `undici.stream([url, options, ]factory)`
 
 * `url` {string|URL|UrlObject}
-* `options` {StreamOptions} See [`StreamOptions`](./docs/docs/api/Dispatcher.md#parameter-streamoptions).
+* `options` {StreamOptions} See [`StreamOptions`](./api/Dispatcher.md#parameter-streamoptions).
   * `dispatcher` {Dispatcher} **Default:** [getGlobalDispatcher](#undicigetglobaldispatcher).
   * `method` {string} **Default:** `PUT` if `options.body`, otherwise `GET`.
 * `factory` {Function} `Dispatcher.stream.factory`.
@@ -447,12 +447,12 @@ See [Dispatcher.request](./docs/docs/api/Dispatcher.md#dispatcherrequestoptions-
 
 Calls `options.dispatcher.stream(options, factory)`.
 
-See [Dispatcher.stream](./docs/docs/api/Dispatcher.md#dispatcherstreamoptions-factory-callback) for more details.
+See [Dispatcher.stream](./api/Dispatcher.md#dispatcherstreamoptions-factory-callback) for more details.
 
 ### `undici.pipeline([url, options, ]handler)`
 
 * `url` {string|URL|UrlObject}
-* `options` {PipelineOptions} See [`PipelineOptions`](./docs/docs/api/Dispatcher.md#parameter-pipelineoptions).
+* `options` {PipelineOptions} See [`PipelineOptions`](./api/Dispatcher.md#parameter-pipelineoptions).
   * `dispatcher` {Dispatcher} **Default:** [getGlobalDispatcher](#undicigetglobaldispatcher).
   * `method` {string} **Default:** `PUT` if `options.body`, otherwise `GET`.
 * `handler` {Function} `Dispatcher.pipeline.handler`.
@@ -460,21 +460,21 @@ See [Dispatcher.stream](./docs/docs/api/Dispatcher.md#dispatcherstreamoptions-fa
 
 Calls `options.dispatch.pipeline(options, handler)`.
 
-See [Dispatcher.pipeline](./docs/docs/api/Dispatcher.md#dispatcherpipelineoptions-handler) for more details.
+See [Dispatcher.pipeline](./api/Dispatcher.md#dispatcherpipelineoptions-handler) for more details.
 
 ### `undici.connect([url, options])`
 
 Starts two-way communications with the requested resource using [HTTP CONNECT](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/CONNECT).
 
 * `url` {string|URL|UrlObject}
-* `options` {ConnectOptions} See [`ConnectOptions`](./docs/docs/api/Dispatcher.md#parameter-connectoptions).
+* `options` {ConnectOptions} See [`ConnectOptions`](./api/Dispatcher.md#parameter-connectoptions).
   * `dispatcher` {Dispatcher} **Default:** [getGlobalDispatcher](#undicigetglobaldispatcher).
 * `callback` {Function} (optional) — `(err, data) => void`.
 * Returns: {Promise} A promise with the result of the `Dispatcher.connect` method.
 
 Calls `options.dispatch.connect(options)`.
 
-See [Dispatcher.connect](./docs/docs/api/Dispatcher.md#dispatcherconnectoptions-callback) for more details.
+See [Dispatcher.connect](./api/Dispatcher.md#dispatcherconnectoptions-callback) for more details.
 
 ### `undici.fetch(input[, init])`
 
@@ -647,14 +647,14 @@ Undici limits the number of `Content-Encoding` layers in a response to **5** to 
 Upgrade to a different protocol. See [MDN - HTTP - Protocol upgrade mechanism](https://developer.mozilla.org/en-US/docs/Web/HTTP/Protocol_upgrade_mechanism) for more details.
 
 * `url` {string|URL|UrlObject}
-* `options` {UpgradeOptions} See [`UpgradeOptions`](./docs/docs/api/Dispatcher.md#parameter-upgradeoptions).
+* `options` {UpgradeOptions} See [`UpgradeOptions`](./api/Dispatcher.md#parameter-upgradeoptions).
   * `dispatcher` {Dispatcher} **Default:** [getGlobalDispatcher](#undicigetglobaldispatcher).
 * `callback` {Function} (optional) — `(error, data) => void`.
 * Returns: {Promise} A promise with the result of the `Dispatcher.upgrade` method.
 
 Calls `options.dispatcher.upgrade(options)`.
 
-See [Dispatcher.upgrade](./docs/docs/api/Dispatcher.md#dispatcherupgradeoptions-callback) for more details.
+See [Dispatcher.upgrade](./api/Dispatcher.md#dispatcherupgradeoptions-callback) for more details.
 
 ### `undici.setGlobalDispatcher(dispatcher)`
 

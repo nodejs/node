@@ -1,0 +1,19 @@
+[package]
+  name    = "milo-build-scripts"
+  version = "0.1.0"
+  edition = "2024"
+  publish = false
+
+[dependencies]
+  base64         = "0.22.1"
+  icu_collator   = "2.1"
+  icu_normalizer = "2.1"
+  markdown       = "1.0.0"
+  proc-macro2     = "1.0.106"
+  quote          = "1.0.45"
+  regex          = "1.12.3"
+  semver         = "1.0.27"
+  serde          = { version = "1.0.228", features = ["derive"] }
+  serde_json     = { version = "1.0.149", features = ["preserve_order"] }
+  serde_yaml     = "0.9.34"
+  toml           = "1.0.7"

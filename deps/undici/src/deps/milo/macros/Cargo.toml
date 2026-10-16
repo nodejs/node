@@ -1,0 +1,30 @@
+[package]
+  name        = "milo-macros"
+  version     = "0.9.0"
+  edition     = "2024"
+  description = "Macros for milo-parser, a fast and embeddable HTTP/1.1 parser."
+  homepage    = "https://sw.cowtech.it/milo"
+  repository  = "https://github.com/ShogunPanda/milo"
+  license     = "ISC"
+  keywords    = ["http", "parser", "http-parser"]
+  categories  = ["network-programming", "parser-implementations"]
+  include     = ["Cargo.toml", "src/**/*.rs", "constants/*.yml"]
+
+[lib]
+  proc-macro = true
+
+[[bin]]
+  name = "milo-parser-fields"
+  path = "src/parser_fields.rs"
+
+[dependencies]
+  indexmap    = { version = "2.13.0", features = ["serde"] }
+  proc-macro2 = "1.0.106"
+  quote       = "1.0.45"
+  regex       = "1.12.3"
+  semver      = "1.0.27"
+  serde       = { version = "1.0.228", features = ["derive"] }
+  serde_json  = "1.0.149"
+  serde_yaml  = "0.9.34"
+  syn         = { version = "2.0.117", features = ["full", "extra-traits"] }
+  toml        = "1.0.7"

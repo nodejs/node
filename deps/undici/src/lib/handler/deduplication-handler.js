@@ -16,6 +16,7 @@ const DEFAULT_MAX_BUFFER_SIZE = 5 * 1024 * 1024
  * @property {number} bufferedBytes
  * @property {object | null} pendingTrailers
  * @property {boolean} done
+ * @property {boolean} [pendingStart] onRequestStart deferred until the primary request's context is known
  */
 
 /**
@@ -29,6 +30,20 @@ class DeduplicationHandler {
    * @type {DispatchHandler}
    */
   #primaryHandler
+
+  /**
+   * Whether the primary request has started (onRequestStart received). Until
+   * then the request context is unknown and cannot be given to waiting handlers.
+   * @type {boolean}
+   */
+  #requestStarted = false
+
+  /**
+   * The primary request context, replayed to waiting handlers so they observe
+   * the same redirect history as the primary.
+   * @type {any}
+   */
+  #context = null
 
   /**
    * @type {WaitingHandler[]}
@@ -112,20 +127,30 @@ class DeduplicationHandler {
     const waitingController = waitingHandler.controller
 
     try {
-      handler.onRequestStart?.(waitingController, null)
+      if (this.#requestStarted) {
+        // The primary request has started, so its context (including the
+        // redirect history) is known and can be delivered immediately.
+        handler.onRequestStart?.(waitingController, this.#context)
 
-      if (waitingController.aborted) {
-        waitingHandler.done = true
-        return true
-      }
+        if (waitingController.aborted) {
+          waitingHandler.done = true
+          return true
+        }
 
-      if (this.#responseStarted) {
-        handler.onResponseStart?.(
-          waitingController,
-          this.#statusCode,
-          this.#headers,
-          this.#statusMessage
-        )
+        if (this.#responseStarted) {
+          handler.onResponseStart?.(
+            waitingController,
+            this.#statusCode,
+            this.#headers,
+            this.#statusMessage
+          )
+        }
+      } else {
+        // The primary request has not started yet. Defer onRequestStart until
+        // its context is known, so the waiting handler observes the same
+        // redirect history as the primary (a cache handler relies on it to
+        // reject cross-origin redirect responses).
+        waitingHandler.pendingStart = true
       }
     } catch {
       // Ignore errors from waiting handlers
@@ -146,6 +171,24 @@ class DeduplicationHandler {
    */
   onRequestStart (controller, context) {
     this.#controller = controller
+    if (!this.#requestStarted) {
+      this.#requestStarted = true
+      this.#context = context
+      // Deliver the now-known context to handlers that joined before the
+      // primary request started.
+      for (const waitingHandler of this.#waitingHandlers) {
+        if (waitingHandler.pendingStart && !waitingHandler.done && !waitingHandler.controller.aborted) {
+          waitingHandler.pendingStart = false
+          try {
+            waitingHandler.handler.onRequestStart?.(waitingHandler.controller, context)
+          } catch {
+            // Ignore errors from waiting handlers
+            waitingHandler.done = true
+          }
+        }
+      }
+      this.#pruneDoneWaitingHandlers()
+    }
     this.#primaryHandler.onRequestStart?.(controller, context)
   }
 
@@ -251,40 +294,41 @@ class DeduplicationHandler {
       return
     }
 
-    // Remove the entry before callbacks can synchronously dispatch a retry.
-    this.#cleanup()
-    this.#primaryHandler.onResponseEnd?.(controller, trailers)
-    // A throwing end callback must still be handled by onResponseError.
     this.#completed = true
+    // Remove the completed request before callbacks can redispatch into this
+    // interceptor. Cleanup must not depend on downstream handlers succeeding.
+    this.#cleanup()
 
-    for (const waitingHandler of this.#waitingHandlers) {
-      if (waitingHandler.done || waitingHandler.controller.aborted) {
-        waitingHandler.done = true
-        continue
+    try {
+      this.#primaryHandler.onResponseEnd?.(controller, trailers)
+    } catch (err) {
+      // Completion callbacks may throw to initiate a retry. The transport's
+      // error callback would be ignored now that this handler is completed.
+      this.#primaryHandler.onResponseError?.(controller, err)
+    } finally {
+      for (const waitingHandler of this.#waitingHandlers) {
+        if (waitingHandler.done || waitingHandler.controller.aborted) {
+          waitingHandler.done = true
+          continue
+        }
+
+        this.#flushWaitingHandler(waitingHandler)
+
+        if (waitingHandler.done || waitingHandler.controller.aborted) {
+          waitingHandler.done = true
+          continue
+        }
+
+        if (waitingHandler.controller.paused) {
+          waitingHandler.pendingTrailers = trailers
+          continue
+        }
+
+        this.#endWaitingHandler(waitingHandler, trailers)
       }
 
-      this.#flushWaitingHandler(waitingHandler)
-
-      if (waitingHandler.done || waitingHandler.controller.aborted) {
-        waitingHandler.done = true
-        continue
-      }
-
-      if (waitingHandler.controller.paused) {
-        waitingHandler.pendingTrailers = trailers
-        continue
-      }
-
-      try {
-        waitingHandler.handler.onResponseEnd?.(waitingHandler.controller, trailers)
-      } catch (err) {
-        this.#errorWaitingHandler(waitingHandler, err)
-      }
-
-      waitingHandler.done = true
+      this.#pruneDoneWaitingHandlers()
     }
-
-    this.#pruneDoneWaitingHandlers()
   }
 
   /**
@@ -300,13 +344,15 @@ class DeduplicationHandler {
     this.#completed = true
     this.#cleanup()
 
-    this.#primaryHandler.onResponseError?.(controller, err)
+    try {
+      this.#primaryHandler.onResponseError?.(controller, err)
+    } finally {
+      for (const waitingHandler of this.#waitingHandlers) {
+        this.#errorWaitingHandler(waitingHandler, err)
+      }
 
-    for (const waitingHandler of this.#waitingHandlers) {
-      this.#errorWaitingHandler(waitingHandler, err)
+      this.#waitingHandlers = []
     }
-
-    this.#waitingHandlers = []
   }
 
   #cleanup () {
@@ -327,7 +373,8 @@ class DeduplicationHandler {
       bufferedChunks: [],
       bufferedBytes: 0,
       pendingTrailers: null,
-      done: false
+      done: false,
+      pendingStart: false
     }
 
     const state = {
@@ -352,14 +399,7 @@ class DeduplicationHandler {
           !state.paused &&
           !state.aborted
         ) {
-          try {
-            waitingHandler.handler.onResponseEnd?.(waitingHandler.controller, waitingHandler.pendingTrailers)
-          } catch (err) {
-            this.#errorWaitingHandler(waitingHandler, err)
-          }
-
-          waitingHandler.pendingTrailers = null
-          waitingHandler.done = true
+          this.#endWaitingHandler(waitingHandler, waitingHandler.pendingTrailers)
         }
 
         this.#pruneDoneWaitingHandlers()
@@ -444,6 +484,27 @@ class DeduplicationHandler {
         waitingHandler.bufferedChunks = []
         waitingHandler.bufferedBytes = 0
         break
+      }
+    }
+  }
+
+  /**
+   * @param {WaitingHandler} waitingHandler
+   * @param {object} trailers
+   */
+  #endWaitingHandler (waitingHandler, trailers) {
+    waitingHandler.done = true
+    waitingHandler.pendingTrailers = null
+
+    try {
+      waitingHandler.handler.onResponseEnd?.(waitingHandler.controller, trailers)
+    } catch (err) {
+      // This is a response failure, not a consumer abort. Aborting the waiting
+      // controller here would prevent downstream handlers from retrying.
+      try {
+        waitingHandler.handler.onResponseError?.(waitingHandler.controller, err)
+      } catch {
+        // An error callback must not prevent other waiting handlers completing.
       }
     }
   }

@@ -548,8 +548,14 @@ function applyConnectionWindowSize (connectionWindowSize) {
 }
 
 function onHttp2RemoteSettings (settings) {
-  // Fallbacks are a safe bet, remote setting will always override
-  this[kClient][kMaxConcurrentStreams] = settings.maxConcurrentStreams ?? this[kClient][kMaxConcurrentStreams]
+  const client = this[kClient]
+
+  // The configured maxConcurrentStreams (default 100) is the client's own
+  // ceiling. The server's SETTINGS_MAX_CONCURRENT_STREAMS can lower it, but
+  // must not raise it: a default Node.js server advertises 2^32-1.
+  const localMaxConcurrentStreams = client[kHTTP2Options].maxConcurrentStreams
+  const remoteMaxConcurrentStreams = settings.maxConcurrentStreams ?? client[kMaxConcurrentStreams] ?? localMaxConcurrentStreams
+  client[kMaxConcurrentStreams] = Math.min(remoteMaxConcurrentStreams, localMaxConcurrentStreams)
   /**
    * From RFC-8441
    * A sender MUST NOT send a SETTINGS_ENABLE_CONNECT_PROTOCOL parameter
@@ -594,8 +600,6 @@ function onHttp2SendPing (session) {
 }
 
 function onHttp2SessionError (err) {
-  assert(err.code !== 'ERR_TLS_CERT_ALTNAME_INVALID')
-
   this[kSocket][kError] = err
 
   if (this[kReceivedGoAway]) {
@@ -674,6 +678,10 @@ function onHttp2SessionGoAway (errorCode, lastStreamID) {
     client[kSocket] = null
     client[kHTTPContext] = null
     client[kHTTP2Session] = null
+  }
+
+  if (this[kOpenStreams] === 0) {
+    unrefH2Session(this)
   }
 
   clearHttp2IdleTimeout(this)
@@ -757,8 +765,6 @@ function onHttp2SocketClose () {
 }
 
 function onHttp2SocketError (err) {
-  assert(err.code !== 'ERR_TLS_CERT_ALTNAME_INVALID')
-
   this[kError] = err
 
   if (this[kHTTP2Session]?.[kReceivedGoAway]) {
@@ -844,25 +850,27 @@ function buildRequestHeaders (reqHeaders) {
   for (let n = 0; n < reqHeaders.length; n += 2) {
     const key = reqHeaders[n + 0]
     const val = reqHeaders[n + 1]
-    const current = headers[key]
+    // Reading headers[key] directly resolves `__proto__` through the prototype
+    // chain instead of reporting the header as absent.
+    const current = Object.hasOwn(headers, key) ? headers[key] : undefined
 
     if (key === 'cookie') {
       if (current != null) {
-        headers[key] = Array.isArray(current) ? (current.push(val), current) : [current, val]
+        util.setHeader(headers, key, Array.isArray(current) ? (current.push(val), current) : [current, val])
       } else {
-        headers[key] = val
+        util.setHeader(headers, key, val)
       }
 
       continue
     }
 
     if (typeof val === 'string') {
-      headers[key] = current ? `${current}, ${val}` : val
+      util.setHeader(headers, key, current ? `${current}, ${val}` : val)
       continue
     }
 
     for (let i = 0; i < val.length; i++) {
-      headers[key] = headers[key] ? `${headers[key]}, ${val[i]}` : val[i]
+      util.setHeader(headers, key, Object.hasOwn(headers, key) ? `${headers[key]}, ${val[i]}` : val[i])
     }
   }
 
@@ -1368,8 +1376,32 @@ function onData (chunk) {
   state.bytesRead += chunk.length
 
   if (request.onResponseData(chunk) === false) {
-    stream.pause()
+    pauseResponseStream(stream, state)
   }
+}
+
+// The body timeout measures how long the peer takes to send data. While the
+// consumer applies backpressure the peer can't send (it's out of flow-control
+// window), and Http2Stream's timer, which counts stream activity, would fire.
+// Stop it while paused and start a fresh one on resume, like HTTP/1.1, which
+// ignores the body timeout while its parser is paused.
+function pauseResponseStream (stream, state) {
+  stream.pause()
+  if (state.bodyTimeout) {
+    stream.setTimeout(0)
+  }
+}
+
+// Passed to the handler as its resume callback, bound to the stream.
+function resumeResponseStream () {
+  const stream = this
+  const state = stream[kRequestStreamState]
+
+  if (state != null && state.bodyTimeout && stream.isPaused()) {
+    stream.setTimeout(state.bodyTimeout)
+  }
+
+  stream.resume()
 }
 
 function onInterimResponse (headers) {
@@ -1446,8 +1478,8 @@ function onResponse (headers) {
     return
   }
 
-  if (request.onResponseStart(statusCode, headers, stream.resume.bind(stream), '') === false) {
-    stream.pause()
+  if (request.onResponseStart(statusCode, headers, resumeResponseStream.bind(stream), '') === false) {
+    pauseResponseStream(stream, state)
   }
 
   stream.on('data', onData)

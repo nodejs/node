@@ -42,7 +42,8 @@ added: v7.0.0
 Stores cached responses in memory. The store enforces upper bounds on the total
 number of responses, the total size of all responses, and the size of any single
 response. When a limit is exceeded, the store evicts approximately half of its
-entries and emits a [`'maxSizeExceeded'`](#event-maxsizeexceeded) event.
+entries, least recently used first, and emits a
+[`'maxSizeExceeded'`](#event-maxsizeexceeded) event.
 
 ```mjs
 import { interceptors, cacheStores, Agent, setGlobalDispatcher } from 'undici'
@@ -163,7 +164,9 @@ added: v7.0.0
 -->
 
 Stores cached responses in a SQLite database using the [`node:sqlite`][] API.
-The constructor throws when [`node:sqlite`][] is not available.
+The constructor throws when [`node:sqlite`][] is not available. Response bodies
+larger than `compressThreshold` are stored compressed with zstd and
+decompressed when read back, saving database space.
 
 ```mjs
 import { interceptors, cacheStores, Agent, setGlobalDispatcher } from 'undici'
@@ -189,9 +192,16 @@ added: v7.0.0
   * `maxEntrySize` {number} The maximum size, in bytes, of a single response
     body. Responses whose body exceeds this value are not cached. Must not
     exceed `2000000000` (2 GB). **Default:** `2000000000` (2 GB).
+  * `compressThreshold` {number} The size, in bytes, above which a response
+    body is stored compressed with zstd. Responses with an easily compressible
+    Content-Type (e.g. json, xml, plain text) are compressed regardless of
+    size. Requires a Node version with zstd
+    support (22.19+); when unavailable, bodies are stored uncompressed.
+    **Default:** `1048576` (1 MiB).
 
-`maxCount` and `maxEntrySize` must be non-negative integers; a `TypeError` is
-thrown otherwise, or if `maxEntrySize` is greater than 2 GB.
+`maxCount`, `maxEntrySize`, and `compressThreshold` must be non-negative
+integers; a `TypeError` is thrown otherwise, or if `maxEntrySize` is greater
+than 2 GB.
 
 ### `sqliteCacheStore.close()`
 
@@ -225,7 +235,8 @@ added: v7.0.0
   See [`GetResult`](#getresult).
 
 Looks up a cached response for `key`, comparing the request method and every
-header named in the stored `vary` map.
+header named in the stored `vary` map. A body that was stored compressed is
+decompressed before being returned.
 
 ### `sqliteCacheStore.set(key, value)`
 
@@ -240,9 +251,11 @@ added: v7.0.0
 * Returns: {undefined}
 
 Writes a response into the database directly, without going through a stream. If
-the body exceeds `maxEntrySize`, nothing is stored. When an entry already exists
-for `key` it is overwritten; otherwise a new row is inserted and old entries are
-pruned to honour `maxCount`. This method is used internally by
+the body exceeds `maxEntrySize`, nothing is stored. A body larger than
+`compressThreshold`, or with an easily compressible Content-Type (e.g. json,
+xml, plain text), is compressed with zstd before being written. When an entry
+already exists for `key` it is overwritten; otherwise a new row is inserted and
+old entries are pruned to honour `maxCount`. This method is used internally by
 [`sqliteCacheStore.createWriteStream()`](#sqlitecachestorecreatewritestreamkey-value).
 
 ### `sqliteCacheStore.createWriteStream(key, value)`
@@ -260,7 +273,9 @@ added: v7.0.0
 
 Returns a {Writable} stream used to write the response body into the store. When
 the stream finishes, the buffered body is committed via
-[`sqliteCacheStore.set()`](#sqlitecachestoresetkey-value). If the body exceeds
+[`sqliteCacheStore.set()`](#sqlitecachestoresetkey-value), where bodies larger
+than `compressThreshold` or with an easily compressible Content-Type are
+compressed with zstd. If the body exceeds
 `maxEntrySize`, the stream is destroyed and nothing is stored.
 
 ### `sqliteCacheStore.delete(key)`

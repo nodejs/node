@@ -1,0 +1,19 @@
+---
+# Milo doesn't validate the method, that is left to the application
+- OTHER
+
+# RFC 9110 section 9 (HTTP Semantics — Methods)
+- GET
+- HEAD
+- POST
+- PUT
+- DELETE
+- CONNECT
+- OPTIONS
+- TRACE
+
+# RFC 5789 section 2 (PATCH Method) - This is included as widely used
+- PATCH
+
+# RFC 7540 section 3.5 (HTTP/2 connection preface)
+- PRI

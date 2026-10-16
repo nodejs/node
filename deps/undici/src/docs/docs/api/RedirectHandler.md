@@ -57,9 +57,10 @@ added: v4.0.0
 * `opts` {DispatchOptions} The dispatch options for the request. In addition to
   the standard dispatch options, the following redirect-specific fields are
   recognized:
-  * `throwOnMaxRedirect` {boolean} When `true`, an error is thrown once
-    `maxRedirections` is reached instead of returning the last redirect response.
-    **Default:** `false`.
+  * `throwOnMaxRedirect` {boolean} When `true`, an error is thrown when a
+    redirect would be followed but `maxRedirections` has been reached, instead of
+    returning that redirect response. A non-redirect response after exactly
+    `maxRedirections` redirects is returned normally. **Default:** `false`.
   * `stripHeadersOnRedirect` {string[]} Header names to remove from the request on
     every redirect hop. **Default:** `null`.
   * `stripHeadersOnCrossOriginRedirect` {string[]} Additional header names to
@@ -165,13 +166,15 @@ added: v7.0.0
 * `statusMessage` {string} The HTTP status message.
 
 Inspects the response headers to decide whether to follow a redirect. When the
-status code is redirectable, the `maxRedirections` limit has not been reached, and
-the request body has not been consumed, the `location` property is set, the method
-and headers are adjusted for the next hop, and the response is not forwarded.
-Otherwise the event is forwarded to the wrapped `handler`.
+status code is redirectable, the response has a `Location` header, the
+`maxRedirections` limit has not been reached, and the request body has not been
+consumed, the `location` property is set, the method and headers are adjusted
+for the next hop, and the response is not forwarded. Otherwise the event is
+forwarded to the wrapped `handler`.
 
-Throws when `throwOnMaxRedirect` is `true` and the number of recorded redirects
-has reached `maxRedirections`, and throws an [`InvalidArgumentError`][] if a
+Throws when `throwOnMaxRedirect` is `true` and a redirect that would otherwise be
+followed arrives after `maxRedirections` redirects have already been followed,
+and throws an [`InvalidArgumentError`][] if a
 redirect loop is detected (for example when a [`Client`][] or [`Pool`][] is used
 for a cross-origin redirect; use an [`Agent`][] instead).
 

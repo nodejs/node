@@ -4,7 +4,8 @@ const {
   safeHTTPMethods,
   pathHasQueryOrFragment,
   hasSafeIterator,
-  isValidHTTPToken
+  isValidHTTPToken,
+  setHeader
 } = require('../core/util')
 
 const { serializePathWithQuery } = require('../core/util')
@@ -206,15 +207,20 @@ function makeCacheKey (opts, origin = getRequestOrigin(opts)) {
 
 function appendHeader (headers, key, val) {
   const headerName = key.toLowerCase()
-  const current = headers[headerName]
+  // Reading `headers[headerName]` directly would resolve `__proto__` (and any
+  // other inherited name) through the prototype chain rather than report the
+  // header as absent.
+  const current = Object.hasOwn(headers, headerName)
+    ? headers[headerName]
+    : undefined
   const values = Array.isArray(val) ? val : [val]
 
   if (current === undefined) {
-    headers[headerName] = Array.isArray(val) ? val.slice() : val
+    setHeader(headers, headerName, Array.isArray(val) ? val.slice() : val)
   } else if (Array.isArray(current)) {
     current.push(...values)
   } else {
-    headers[headerName] = [current, ...values]
+    setHeader(headers, headerName, [current, ...values])
   }
 }
 
@@ -732,7 +738,7 @@ function makeDeduplicationKey (cacheKey, excludeHeaders) {
       if (excludeHeaders?.has(header.toLowerCase())) {
         continue
       }
-      headers[header] = cacheKey.headers[header]
+      setHeader(headers, header, cacheKey.headers[header])
     }
   }
 

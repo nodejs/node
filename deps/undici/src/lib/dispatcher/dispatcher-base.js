@@ -8,6 +8,7 @@ const {
   InvalidArgumentError
 } = require('../core/errors')
 const { kDestroy, kClose, kClosed, kDestroyed, kDispatch } = require('../core/symbols')
+const { defaultWebSocketMaxFragments, defaultWebSocketMaxPayloadSize } = require('../core/constants')
 
 const kOnDestroyed = Symbol('onDestroyed')
 const kOnClosed = Symbol('onClosed')
@@ -41,8 +42,8 @@ class DispatcherBase extends Dispatcher {
    */
   get webSocketOptions () {
     return {
-      maxFragments: this[kWebSocketOptions].maxFragments ?? 131072,
-      maxPayloadSize: this[kWebSocketOptions].maxPayloadSize ?? 128 * 1024 * 1024 // 128 MB default
+      maxFragments: this[kWebSocketOptions].maxFragments ?? defaultWebSocketMaxFragments,
+      maxPayloadSize: this[kWebSocketOptions].maxPayloadSize ?? defaultWebSocketMaxPayloadSize
     }
   }
 
