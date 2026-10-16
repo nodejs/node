@@ -30,7 +30,7 @@ if (commitListingStart === -1) {
 } else {
   // We can't assume the Commits section is the one for this release in case of
   // a release to transition to LTS (i.e. with no commits).
-  const releaseStart = /\n<a id="(\d+\.\d+\.\d+(?:-alpha\.\d+\.\d+\.\d+)?)"><\/a>\n\n## \d+-\d+-\d+, Version \1/.exec(changelog);
+  const releaseStart = /\n<a id="(\d+(?:\.0\.0-alpha\.\d+)?\.\d+\.\d+)"><\/a>\n\n## \d+-\d+-\d+, Version \1/.exec(changelog);
   assert.ok(releaseStart, 'Could not determine the start of the release section');
   const releaseEnd = changelog.indexOf('\n\n<a', releaseStart.index);
   assert.notStrictEqual(releaseEnd, -1, 'Could not determine the end of the release section');
