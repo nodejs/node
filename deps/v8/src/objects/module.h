@@ -341,8 +341,9 @@ V8_OBJECT class Module : public HeapObject {
   TaggedMember<UnionOf<JSPromise, Undefined>> top_level_capability_;
 } V8_OBJECT_END;
 
+V8_OBJECT
 template <typename ModuleT, Module::Status... kStates>
-V8_OBJECT class Module::InState : public ModuleT {
+class Module::InState : public ModuleT {
  public:
   static_assert(sizeof...(kStates) > 0);
   static_assert(std::is_base_of_v<Module, ModuleT>);
