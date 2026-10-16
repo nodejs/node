@@ -2909,9 +2909,11 @@ void Database::CreateSession(const FunctionCallbackInfo<Value>& args) {
 
 void Backup(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  if (args.Length() < 1 || !args[0]->IsObject()) {
-    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                               "The \"sourceDb\" argument must be an object.");
+  if (!args[0]->IsObject() ||
+      !env->sqlite_database_constructor_template()->HasInstance(args[0])) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(),
+        "The \"sourceDb\" argument must be a DatabaseSync instance.");
     return;
   }
 
@@ -5129,6 +5131,7 @@ static void Initialize(Local<Object> target,
       FIXED_ONE_BYTE_STRING(isolate, "node:sqlite");
   db_tmpl->InstanceTemplate()->Set(sqlite_type_symbol, database_sync_string);
 
+  env->set_sqlite_database_constructor_template(db_tmpl);
   SetConstructorFunction(context, target, "Database", db_tmpl);
   SetConstructorFunction(context,
                          target,
