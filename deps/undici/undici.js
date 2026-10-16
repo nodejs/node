@@ -7166,6 +7166,9 @@ var require_client_h1 = __commonJS({
       const llhttpWasmData = process.env.JEST_WORKER_ID ? require_llhttp_wasm() : void 0;
       let mod;
       let useWasmSIMD = true;
+      if (process.arch === 'riscv64') {
+          useWasmSIMD = false;
+      }
       if (process.arch === "ppc64") {
         const [major, minor] = process.versions.node.split(".").map((n) => parseInt(n, 10));
         if (major < 24 || major === 24 && minor < 12) {

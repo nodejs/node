@@ -70,8 +70,13 @@ function lazyllhttp () {
 
   let mod
 
-  // We disable wasm SIMD on older versions of Node.js on ppc64 that are broken on Power >=9 architectures.
+  // We disable wasm SIMD on:
+  // - older versions of Node.js on ppc64 that are broken on Power >=9 architectures.
+  // - on RISC-V as there is no code yet
   let useWasmSIMD = true
+  if (process.arch === 'riscv64') {
+      useWasmSIMD = false;
+  }
   if (process.arch === 'ppc64') {
     const [major, minor] = process.versions.node.split('.').map(n => parseInt(n, 10))
     if (major < 24 || (major === 24 && minor < 12)) {
