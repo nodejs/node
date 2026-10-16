@@ -7,20 +7,11 @@ declare_args() {
   # The location of Node.js in source code tree.
   node_path = "//node"
 
-  # The location of V8 - use the one from node's deps by default.
-  node_v8_path = "$node_path/deps/v8"
-
-  # The location of OpenSSL - use the one from node's deps by default.
-  node_openssl_path = "$node_path/deps/openssl"
-
   # The location of simdutf - use the one from node's deps by default.
   node_simdutf_path = "//third_party/simdutf"
 
   # The location of inspector_protocol - use the one from node's deps by default.
   node_inspector_protocol_path = "//third_party/inspector_protocol"
-
-  # The NODE_MODULE_VERSION defined in node_version.h.
-  node_module_version = exec_script("$node_path/tools/getmoduleversion.py", [], "value")
 
   # Support for external shareable builtins.
   # TODO(zcbenz): This is currently copied from configure.py, we should share
@@ -29,6 +20,22 @@ declare_args() {
     "deps/undici/undici.js",
     "deps/amaro/dist/index.js",
   ]
+}
+
+# These must be declared in a separate block from `node_path`, per GN documentation
+# (https://gn.googlesource.com/gn/+/main/docs/reference.md#func_declare_args):
+# "you cannot read the value of a variable defined in the same block, if you need
+# to make the default value of one arg depend on the possibly-overridden value of
+# another, write two separate declare_args() blocks"
+declare_args() {
+  # The location of V8 - use the one from node's deps by default.
+  node_v8_path = "$node_path/deps/v8"
+
+  # The location of OpenSSL - use the one from node's deps by default.
+  node_openssl_path = "$node_path/deps/openssl"
+
+  # The NODE_MODULE_VERSION defined in node_version.h.
+  node_module_version = exec_script("$node_path/tools/getmoduleversion.py", [], "value")
 }
 
 # Equivalent of gyp file's configurations.
