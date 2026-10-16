@@ -1,1 +1,0 @@
-require('./imported-esm.mjs');
