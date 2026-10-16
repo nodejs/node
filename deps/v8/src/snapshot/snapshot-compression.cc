@@ -4,6 +4,7 @@
 
 #include "src/snapshot/snapshot-compression.h"
 
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/utils.h"
@@ -28,13 +29,13 @@ SnapshotData SnapshotCompression::Compress(
   const uLongf input_size =
       static_cast<uLongf>(uncompressed_data->RawData().size());
   uint32_t payload_length =
-      static_cast<uint32_t>(uncompressed_data->RawData().size());
+      base::checked_cast<uint32_t>(uncompressed_data->RawData().size());
 
   uLongf compressed_data_size = compressBound(input_size);
 
   // Allocating >= the final amount we will need.
-  snapshot_data.AllocateData(
-      static_cast<uint32_t>(sizeof(payload_length) + compressed_data_size));
+  snapshot_data.AllocateData(base::checked_cast<uint32_t>(
+      sizeof(payload_length) + compressed_data_size));
 
   uint8_t* compressed_data =
       const_cast<uint8_t*>(snapshot_data.RawData().begin());
@@ -51,8 +52,8 @@ SnapshotData SnapshotCompression::Compress(
       Z_OK);
 
   // Reallocating to exactly the size we need.
-  snapshot_data.Resize(static_cast<uint32_t>(compressed_data_size) +
-                       sizeof(payload_length));
+  snapshot_data.Resize(base::checked_cast<uint32_t>(sizeof(payload_length) +
+                                                    compressed_data_size));
   DCHECK_EQ(payload_length,
             GetUncompressedSize(snapshot_data.RawData().begin()));
 

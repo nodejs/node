@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// d8 harness for the regexp correctness fuzzer.  Reads a JSON array of
-// [pattern, flags, subject, lastIndex] cases from the file named on the command
-// line and prints one result line per case as "<index>\t<json>".  The result is
-// null, an error marker string ("ERR_CTOR" or "ERR_EXEC:<name>"), or
-// {r:[captures], idx, li}.  Construction and exec errors are captured rather
-// than thrown so a single bad case does not abort the batch; both markers
-// share the "ERR_" prefix so the driver can treat either as "no ground
-// truth" with a single check.
+// Runs [pattern, flags, subject, lastIndex, tag] cases.  Each result is
+// "<index>\t<json>": null, "ERR_CTOR", "ERR_EXEC:<name>", or
+// {r:[captures], idx, li}.  Constructor and exec errors do not abort the batch.
+//
+// harness.py prepends `const cases = [...]`; local and ClusterFuzz drivers use
+// the resulting script.
 //
 // lastIndex is set before exec and read back after: for a sticky or global
 // pattern it selects where the attempt starts and is updated by the result, so
@@ -22,13 +20,13 @@
 // reaches the second object through the compilation cache, so the second runs
 // warm along paths a single-shot run would never take.
 //
-// Both objects are identical and start from the same lastIndex, so their
-// results must agree whatever either configuration computes.  A mismatch is a
-// bug in that configuration by itself -- the one class a two-config diff
-// cannot see, since it survives being wrong on both sides.
-const cases = JSON.parse(read(arguments[0]));
+// Foozzie uses the tag as a source key for failure clustering.  The
+// regexp-fuzzer namespace separates it from JavaScript fuzzer source keys.
 for (let i = 0; i < cases.length; i++) {
-  const [pat, flags, sub, lastIndex] = cases[i];
+  const [pat, flags, sub, lastIndex, tag] = cases[i];
+  if (tag !== undefined) {
+    print("v8-foozzie source: regexp-fuzzer:" + tag);
+  }
   let out;
   try {
     const cold = execOnce(pat, flags, sub, lastIndex);

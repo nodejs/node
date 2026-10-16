@@ -55,4 +55,33 @@ extern FILE *stderr;
 #define SEEK_END 2
 #endif
 
+/*
+ * L_tmpnam = 20 ("/tmp/" + 14 random chars + '\0').
+ * Suffix length 14 (base-64) ensures a < 10^-12 collision
+ * probability for up to 10^6 calls (via birthday bound).
+ */
+#ifndef L_tmpnam
+#define L_tmpnam 20
+#endif
+
+/*
+ * TMP_MAX = 1,000,000 (10^6 calls per process).
+ * Generous decimal call ceiling for the L_tmpnam guarantee;
+ * provides a 6x safety margin below the 6.2M limit (P ~= 2.6 x 10^-14).
+ */
+#ifndef TMP_MAX
+#define TMP_MAX 1000000
+#endif
+
+// match linux/limits.h PATH_MAX
+#ifndef FILENAME_MAX
+#define FILENAME_MAX 4096
+#endif
+
+// Actually a lower bound on how many files we guarantee can be open at once.
+// POSIX says "at least eight", which seems like a fine number to me.
+#ifndef FOPEN_MAX
+#define FOPEN_MAX 8
+#endif
+
 #endif // LLVM_LIBC_MACROS_STDIO_MACROS_H

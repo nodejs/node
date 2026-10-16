@@ -188,6 +188,10 @@ class IsolateData final {
   Tagged<Object> continuation_preserved_embedder_data() const {
     return continuation_preserved_embedder_data_;
   }
+  Handle<Object> continuation_preserved_embedder_data_handle() {
+    return Handle<Object>(
+        reinterpret_cast<Address*>(&continuation_preserved_embedder_data_));
+  }
   void set_continuation_preserved_embedder_data(Tagged<Object> data) {
     continuation_preserved_embedder_data_ = data;
   }
@@ -455,6 +459,9 @@ class IsolateData final {
   // Boolean value indicating that DateCache is used (i.e. JSDate instances
   // were created in this Isolate).
   uint8_t is_date_cache_used_ = false;
+#ifdef V8_INTL_SUPPORT
+  uint8_t default_locale_may_require_special_case_mapping_ = true;
+#endif
 
   // Padding for aligning raw_arguments_.
   V8_NO_UNIQUE_ADDRESS uint8_t raw_arguments_padding_[kRawArgumentsPaddingSize];

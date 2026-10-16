@@ -83,9 +83,7 @@
 
 #if defined(__clang__)
 #define ABSL_INTERNAL_ANNOTALYSIS_ENABLED 1
-#if !defined(SWIG)
 #define ABSL_INTERNAL_IGNORE_READS_ATTRIBUTE_ENABLED 1
-#endif
 #else
 #define ABSL_INTERNAL_ANNOTALYSIS_ENABLED 0
 #endif

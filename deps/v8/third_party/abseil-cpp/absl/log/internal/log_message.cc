@@ -605,7 +605,8 @@ void LogMessage::LogBacktraceIfNeeded() {
 // `str_type`.  Truncates `str` if necessary, but emits nothing and marks the
 // buffer full if  even the field headers do not fit.
 template <LogMessage::StringType str_type>
-void LogMessage::CopyToEncodedBuffer(absl::string_view str) {
+ABSL_ATTRIBUTE_NOINLINE void LogMessage::CopyToEncodedBuffer(
+    absl::string_view str) {
   auto encoded_remaining_copy = data_->encoded_remaining();
   constexpr uint8_t tag_value = str_type == StringType::kLiteral
                                     ? ValueTag::kStringLiteral
@@ -632,7 +633,8 @@ template void LogMessage::CopyToEncodedBuffer<LogMessage::StringType::kLiteral>(
 template void LogMessage::CopyToEncodedBuffer<
     LogMessage::StringType::kNotLiteral>(absl::string_view str);
 template <LogMessage::StringType str_type>
-void LogMessage::CopyToEncodedBuffer(char ch, size_t num) {
+ABSL_ATTRIBUTE_NOINLINE void LogMessage::CopyToEncodedBuffer(char ch,
+                                                             size_t num) {
   auto encoded_remaining_copy = data_->encoded_remaining();
   constexpr uint8_t tag_value = str_type == StringType::kLiteral
                                     ? ValueTag::kStringLiteral
@@ -660,7 +662,8 @@ template void LogMessage::CopyToEncodedBuffer<
     LogMessage::StringType::kNotLiteral>(char ch, size_t num);
 
 template <LogMessage::StringType str_type>
-void LogMessage::CopyToEncodedBuffer(std::wstring_view str) {
+ABSL_ATTRIBUTE_NOINLINE void LogMessage::CopyToEncodedBuffer(
+    std::wstring_view str) {
   auto encoded_remaining_copy = data_->encoded_remaining();
   constexpr uint8_t tag_value = str_type == StringType::kLiteral
                                     ? ValueTag::kStringLiteral
@@ -698,7 +701,8 @@ template void LogMessage::CopyToEncodedBufferWithStructuredProtoField<
                                          absl::string_view str);
 
 template <LogMessage::StringType str_type>
-void LogMessage::CopyToEncodedBufferWithStructuredProtoField(
+ABSL_ATTRIBUTE_NOINLINE void
+LogMessage::CopyToEncodedBufferWithStructuredProtoField(
     StructuredProtoField field, absl::string_view str) {
   auto encoded_remaining_copy = data_->encoded_remaining();
   size_t encoded_field_size = BufferSizeForStructuredProtoField(field);

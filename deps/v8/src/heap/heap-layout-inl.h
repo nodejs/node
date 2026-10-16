@@ -21,6 +21,11 @@ bool HeapLayout::InReadOnlySpace(Tagged<HeapObject> object) {
   return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
 }
 
+template <typename T>
+bool CastTraits<ReadOnly<T>>::AllowFrom(Tagged<HeapObject> value) {
+  return HeapLayout::InReadOnlySpace(value) && CastTraits<T>::AllowFrom(value);
+}
+
 // static
 bool HeapLayout::InYoungGeneration(const MemoryChunk* chunk,
                                    Tagged<HeapObject> object) {

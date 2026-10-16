@@ -51,6 +51,7 @@ ABSL_DECLARE_FLAG(std::vector<std::string>, mistyped_string_flag);
 namespace {
 
 namespace flags = absl::flags_internal;
+constexpr bool kStrippedFlagNames = ABSL_FLAGS_STRIP_NAMES != 0;
 
 std::string TestHelpMsg() { return "dynamic help"; }
 #if defined(_MSC_VER) && !defined(__clang__)
@@ -230,9 +231,9 @@ ABSL_DECLARE_FLAG(absl::uint128, test_flag_14);
 namespace {
 
 TEST_F(FlagTest, TestFlagDeclaration) {
-#if ABSL_FLAGS_STRIP_NAMES
-  GTEST_SKIP() << "This test requires flag names to be present";
-#endif
+  if constexpr (kStrippedFlagNames) {
+    GTEST_SKIP() << "This test requires flag names to be present";
+  }
   // test that we can access flag objects.
   EXPECT_EQ(absl::GetFlagReflectionHandle(FLAGS_test_flag_01).Name(),
             "test_flag_01");
@@ -266,7 +267,7 @@ TEST_F(FlagTest, TestFlagDeclaration) {
 
 }  // namespace
 
-#if ABSL_FLAGS_STRIP_NAMES
+#if ABSL_FLAGS_STRIP_NAMES && defined(__cpp_consteval)
 // The intent of this helper struct and an expression below is to make sure that
 // in the configuration where ABSL_FLAGS_STRIP_NAMES=1 registrar construction
 // (in cases of no Tail calls like OnUpdate) is constexpr and thus can and
@@ -280,7 +281,7 @@ struct VerifyConsteval {
 };
 
 ABSL_FLAG(int, test_registrar_const_init, 0, "") + VerifyConsteval();
-#endif
+#endif  // ABSL_FLAGS_STRIP_NAMES && defined(__cpp_consteval)
 
 // --------------------------------------------------------------------
 
@@ -303,9 +304,9 @@ ABSL_FLAG(absl::uint128, test_flag_14, absl::MakeUint128(0, 0xFFFAAABBBCCCDDD),
 namespace {
 
 TEST_F(FlagTest, TestFlagDefinition) {
-#if ABSL_FLAGS_STRIP_NAMES
-  GTEST_SKIP() << "This test requires flag names to be present";
-#endif
+  if constexpr (kStrippedFlagNames) {
+    GTEST_SKIP() << "This test requires flag names to be present";
+  }
   absl::string_view expected_file_name = "absl/flags/flag_test.cc";
 
   EXPECT_EQ(absl::GetFlagReflectionHandle(FLAGS_test_flag_01).Name(),
@@ -626,9 +627,9 @@ TEST_F(FlagTest, TestGetSet) {
 // --------------------------------------------------------------------
 
 TEST_F(FlagTest, TestGetViaReflection) {
-#if ABSL_FLAGS_STRIP_NAMES
-  GTEST_SKIP() << "This test requires flag names to be present";
-#endif
+  if constexpr (kStrippedFlagNames) {
+    GTEST_SKIP() << "This test requires flag names to be present";
+  }
   auto* handle = absl::FindCommandLineFlag("test_flag_01");
   EXPECT_EQ(*handle->TryGet<bool>(), true);
   handle = absl::FindCommandLineFlag("test_flag_02");
@@ -663,9 +664,9 @@ TEST_F(FlagTest, TestGetViaReflection) {
 // --------------------------------------------------------------------
 
 TEST_F(FlagTest, ConcurrentSetAndGet) {
-#if ABSL_FLAGS_STRIP_NAMES
-  GTEST_SKIP() << "This test requires flag names to be present";
-#endif
+  if constexpr (kStrippedFlagNames) {
+    GTEST_SKIP() << "This test requires flag names to be present";
+  }
   static constexpr int kNumThreads = 8;
   // Two arbitrary durations. One thread will concurrently flip the flag
   // between these two values, while the other threads read it and verify
@@ -816,9 +817,9 @@ TEST_F(FlagTest, TestCustomUDT) {
 using FlagDeathTest = FlagTest;
 
 TEST_F(FlagDeathTest, TestTypeMismatchValidations) {
-#if ABSL_FLAGS_STRIP_NAMES
-  GTEST_SKIP() << "This test requires flag names to be present";
-#endif
+  if constexpr (kStrippedFlagNames) {
+    GTEST_SKIP() << "This test requires flag names to be present";
+  }
 #if !defined(NDEBUG)
   EXPECT_DEATH_IF_SUPPORTED(
       static_cast<void>(absl::GetFlag(FLAGS_mistyped_int_flag)),
@@ -950,14 +951,23 @@ bool initialization_order_fiasco_test [[maybe_unused]] = [] {
 
 TEST_F(FlagTest, TestRetiredFlagRegistration) {
   auto* handle = absl::FindCommandLineFlag("old_bool_flag");
-  EXPECT_TRUE(handle->IsOfType<bool>());
-  EXPECT_TRUE(handle->IsRetired());
-  handle = absl::FindCommandLineFlag("old_int_flag");
-  EXPECT_TRUE(handle->IsOfType<int>());
-  EXPECT_TRUE(handle->IsRetired());
-  handle = absl::FindCommandLineFlag("old_str_flag");
-  EXPECT_TRUE(handle->IsOfType<std::string>());
-  EXPECT_TRUE(handle->IsRetired());
+  if constexpr (kStrippedFlagNames) {
+    EXPECT_EQ(handle, nullptr);
+    EXPECT_EQ(absl::FindCommandLineFlag("old_int_flag"), nullptr);
+    EXPECT_EQ(absl::FindCommandLineFlag("old_str_flag"), nullptr);
+  } else {
+    ASSERT_NE(handle, nullptr);
+    EXPECT_TRUE(handle->IsOfType<bool>());
+    EXPECT_TRUE(handle->IsRetired());
+    handle = absl::FindCommandLineFlag("old_int_flag");
+    ASSERT_NE(handle, nullptr);
+    EXPECT_TRUE(handle->IsOfType<int>());
+    EXPECT_TRUE(handle->IsRetired());
+    handle = absl::FindCommandLineFlag("old_str_flag");
+    ASSERT_NE(handle, nullptr);
+    EXPECT_TRUE(handle->IsOfType<std::string>());
+    EXPECT_TRUE(handle->IsRetired());
+  }
 }
 
 }  // namespace
@@ -1069,7 +1079,7 @@ TEST_F(FlagTest, TestNonTriviallyCopyableGetSetSet) {
             absl::GetFlag(FLAGS_test_flag_ntc_udt1);
         EXPECT_EQ(value.c, 'A');
       },
-      0);
+      0, kStrippedFlagNames ? 1 : 0);
 
   TestExpectedLeaks<1>(
       [&] {
@@ -1090,6 +1100,9 @@ TEST_F(FlagTest, TestNonTriviallyCopyableGetSetSet) {
 }
 
 TEST_F(FlagTest, TestNonTriviallyCopyableParseSet) {
+  if constexpr (kStrippedFlagNames) {
+    GTEST_SKIP() << "This test requires flag names to be present";
+  }
   TestExpectedLeaks<2>(
       [&] {
         const char* in_argv[] = {"testbin", "--test_flag_ntc_udt2=A"};
@@ -1115,7 +1128,7 @@ TEST_F(FlagTest, TestNonTriviallyCopyableSet) {
         absl::SetFlag(&FLAGS_test_flag_ntc_udt3, value);
         EXPECT_EQ(value.c, 'B');
       },
-      0);
+      0, kStrippedFlagNames ? 1 : 0);
 }
 
 // One new instance created during initialization and stored in the flag.
@@ -1125,6 +1138,9 @@ auto premain_utd4_get =
      false);
 
 TEST_F(FlagTest, TestNonTriviallyCopyableGetBeforeMainParseGet) {
+  if constexpr (kStrippedFlagNames) {
+    GTEST_SKIP() << "This test requires flag names to be present";
+  }
   TestExpectedLeaks<4>(
       [&] {
         const char* in_argv[] = {"testbin", "--test_flag_ntc_udt4=C"};
@@ -1153,6 +1169,9 @@ auto premain_utd5_set = (TestExpectedLeaks<5>(
                          false);
 
 TEST_F(FlagTest, TestNonTriviallyCopyableSetParseGet) {
+  if constexpr (kStrippedFlagNames) {
+    GTEST_SKIP() << "This test requires flag names to be present";
+  }
   TestExpectedLeaks<5>(
       [&] {
         const char* in_argv[] = {"testbin", "--test_flag_ntc_udt5=C"};

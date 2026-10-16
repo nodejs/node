@@ -4563,6 +4563,141 @@ UTEST_RVV_VFW_REDSUM_VV_FORM_WITH_RES(vfwredusum_vs)
 UTEST_RVV_VFW_REDSUM_VV_FORM_WITH_RES(vfwredosum_vs)
 
 #undef UTEST_RVV_VFW_REDSUM_VV_FORM_WITH_RES
+
+// Regression tests for the FP16 fused multiply-add (SEW=16). The product-sum
+// must be rounded only once to Float16; computing it in float and converting
+// the result to Float16 double-rounds.
+//
+// Operands are passed as float values (all exactly representable in FP16) and
+// converted with Float16::FromFloat32:
+//   vd  = -1025/1024 = -1.0009765625  (accumulator)
+//   vs1 =  3/2       =  1.5
+//   vs2 = -2^-24     = -0x1p-24f = -5.9604645e-08
+// The exact product-sum lies just below the FP16 rounding midpoint between the
+// 1.5009765625 and 1.501953125 results, so vfnmsub_vv must round it down to
+// 1.5009765625; a float intermediate double-rounds it up to 1.501953125.
+#define UTEST_RVV_F16_FMA_VV(instr_name, vd, vs1, vs2, expected)            \
+  TEST_F(AssemblerRISCV64Test, RISCV_UTEST_F16_##instr_name) {              \
+    if (!CpuFeatures::IsSupported(RVV)) {                                   \
+      return;                                                               \
+    }                                                                       \
+                                                                            \
+    uint16_t result[kMaxElements] = {0};                                    \
+    auto fn = [&result](MacroAssembler& assm) {                             \
+      __ VU.set(t0, zero_reg, VSew::E16, m1);                               \
+      __ vmv_vx(v0, a0);                                                    \
+      __ vmv_vx(v1, a1);                                                    \
+      __ vmv_vx(v2, a2);                                                    \
+      __ instr_name(v0, v1, v2);                                            \
+      __ li(a3, Operand(int64_t(result)));                                  \
+      __ vs(v0, a3, 0, E16);                                                \
+    };                                                                      \
+    GenAndRunTest<uint32_t, uint32_t>(Float16::FromFloat32(vd).get_bits(),  \
+                                      Float16::FromFloat32(vs1).get_bits(), \
+                                      Float16::FromFloat32(vs2).get_bits(), \
+                                      fn);                                  \
+    uint16_t expected_bits = Float16::FromFloat32(expected).get_bits();     \
+    for (unsigned i = 0; i < CpuFeatures::vlen() / 16; i++) {               \
+      CHECK_EQ(expected_bits, result[i]);                                   \
+    }                                                                       \
+  }
+
+//                            vd              vs1    vs2              expected
+UTEST_RVV_F16_FMA_VV(vfmadd_vv, -1.0009765625f, 1.5f, -0x1p-24f, -1.501953125f)
+UTEST_RVV_F16_FMA_VV(vfnmadd_vv, -1.0009765625f, 1.5f, -0x1p-24f, 1.501953125f)
+UTEST_RVV_F16_FMA_VV(vfmsub_vv, -1.0009765625f, 1.5f, -0x1p-24f, -1.5009765625f)
+UTEST_RVV_F16_FMA_VV(vfnmsub_vv, -1.0009765625f, 1.5f, -0x1p-24f, 1.5009765625f)
+UTEST_RVV_F16_FMA_VV(vfmacc_vv, -1.0009765625f, 1.5f, -0x1p-24f, -1.0009765625f)
+UTEST_RVV_F16_FMA_VV(vfnmacc_vv, -1.0009765625f, 1.5f, -0x1p-24f, 1.0009765625f)
+UTEST_RVV_F16_FMA_VV(vfmsac_vv, -1.0009765625f, 1.5f, -0x1p-24f, 1.0009765625f)
+UTEST_RVV_F16_FMA_VV(vfnmsac_vv, -1.0009765625f, 1.5f, -0x1p-24f,
+                     -1.0009765625f)
+
+#undef UTEST_RVV_F16_FMA_VV
+
+// Direct test for the widening floating-point sum reduction with SEW=16
+// (F16 -> F32): the masked-off elements must be skipped.
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_F16_VFWREDUSUM_VS) {
+  if (!CpuFeatures::IsSupported(RVV)) return;
+
+  const unsigned n = CpuFeatures::vlen() / 16;
+  struct T {
+    uint16_t src[kMaxElements] = {0};
+  } t;
+  float expected = 0.0f;
+  for (unsigned i = 0; i < n; i++) {
+    float v = static_cast<float>(i + 1);
+    t.src[i] = Float16::FromFloat32(v).get_bits();
+    expected += v;
+  }
+
+  auto fn = [](MacroAssembler& assm) {
+    __ fmv_w_x(fa0, zero_reg);
+    __ VU.set(t0, zero_reg, VSew::E32, m1);
+    __ vfmv_vf(v4, fa0);  // vs1 = 0.0 (F32)
+    __ VU.set(t0, zero_reg, VSew::E16, m1);
+    __ vl(v2, a0, 0, E16);  // vs2 = F16 input
+    __ vfwredusum_vs(v0, v2, v4);
+    __ VU.set(t0, zero_reg, VSew::E32, m1);
+    __ vfmv_fs(fa0, v0);
+  };
+  float res = GenAndRunTest<float, int64_t>((int64_t)&t.src[0], fn);
+  CHECK_FLOAT_EQ(expected, res);
+}
+
+// Same reduction with a mask: only the element at index 1 is active, so the
+// masked-off elements must not contribute to the result.
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_F16_VFWREDUSUM_VS_MASK) {
+  if (!CpuFeatures::IsSupported(RVV)) return;
+
+  const unsigned n = CpuFeatures::vlen() / 16;
+  struct T {
+    uint16_t src[kMaxElements] = {0};
+  } t;
+  for (unsigned i = 0; i < n; i++) {
+    t.src[i] = Float16::FromFloat32(static_cast<float>(i + 1)).get_bits();
+  }
+
+  auto fn = [](MacroAssembler& assm) {
+    __ fmv_w_x(fa0, zero_reg);
+    __ VU.set(t0, zero_reg, VSew::E16, m1);
+    __ vid_v(v1, NoMask);
+    __ li(a1, Operand(1));
+    __ vmseq_vx(v0, v1, a1);  // mask = (element index == 1)
+    __ vl(v2, a0, 0, E16);
+    __ VU.set(t0, zero_reg, VSew::E32, m1);
+    __ vfmv_vf(v4, fa0);  // vs1 = 0.0 (F32)
+    __ VU.set(t0, zero_reg, VSew::E16, m1);
+    __ vfwredusum_vs(v8, v2, v4, Mask);
+    __ VU.set(t0, zero_reg, VSew::E32, m1);
+    __ vfmv_fs(fa0, v8);
+  };
+  float res = GenAndRunTest<float, int64_t>((int64_t)&t.src[0], fn);
+  CHECK_FLOAT_EQ(2.0f, res);
+}
+
+// When vl == 0 the destination must not be modified by the reduction.
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_F16_VFWREDUSUM_VS_VL0) {
+  if (!CpuFeatures::IsSupported(RVV)) return;
+
+  float result[kMaxElements] = {0};
+
+  auto fn = [&result](MacroAssembler& assm) {
+    __ li(t1, Operand(0x42280000));  // 42.0f
+    __ fmv_w_x(fa0, t1);
+    __ VU.set(t0, zero_reg, VSew::E32, m1);  // vl = VLMAX
+    __ vfmv_vf(v8, fa0);                     // vd[0] = 42.0 sentinel
+    __ li(t1, Operand(0));
+    __ VU.set(t0, t1, VSew::E16, m1);  // vl = 0
+    __ vfwredusum_vs(v8, v2, v4);
+    __ VU.set(t0, zero_reg, VSew::E32, m1);  // vl = VLMAX
+    __ li(a3, Operand(int64_t(result)));
+    __ vs(v8, a3, 0, E32);
+  };
+  GenAndRunTest(fn);
+  CHECK_FLOAT_EQ(42.0f, result[0]);
+}
+
 // calculate the value of r used in rounding
 static inline uint8_t get_round(int vxrm, uint64_t v, uint8_t shift) {
   // uint8_t d = extract64(v, shift, 1);

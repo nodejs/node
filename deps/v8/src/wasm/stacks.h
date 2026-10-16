@@ -135,8 +135,11 @@ class StackMemory {
   void Iterate(v8::internal::RootVisitor* v, Isolate* isolate,
                ThreadLocalTop* thread);
 
-  Address old_fp() { return active_segment_->old_fp; }
-  bool Grow(Address current_fp, size_t min_size);
+  // We record the fp of the segment's parent frame (relocated to just below the
+  // return slots) to facilitate shrinking the current segment on return.
+  Address parent_frame_fp() const { return active_segment_->parent_frame_fp; }
+  Address GetParentSegmentOldFP(Address child_fp) const;
+  bool Grow(Address parent_frame_fp, size_t min_size);
   Address Shrink();
   void ShrinkTo(Address stack_address);
   bool contains_only_old_pointers() const {
@@ -161,7 +164,7 @@ class StackMemory {
     // References to segments of segmented stack
     StackSegment* next_segment_ = nullptr;
     StackSegment* prev_segment_ = nullptr;
-    Address old_fp = 0;
+    Address parent_frame_fp = 0;
 
     friend class StackMemory;
   };

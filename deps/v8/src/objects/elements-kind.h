@@ -5,7 +5,8 @@
 #ifndef V8_OBJECTS_ELEMENTS_KIND_H_
 #define V8_OBJECTS_ELEMENTS_KIND_H_
 
-#include "src/base/bits.h"
+#include <bit>
+
 #include "src/base/bounds.h"
 #include "src/base/macros.h"
 #include "src/common/checks.h"
@@ -192,7 +193,7 @@ constexpr size_t TypedArrayAndRabGsabTypedArrayElementsKindTableSize() {
                     FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
   size_t rab_gsab_count = LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
                           FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
-  return base::bits::RoundUpToPowerOfTwo(ta_count + rab_gsab_count);
+  return std::bit_ceil(ta_count + rab_gsab_count);
 }
 
 const uint8_t* TypedArrayAndRabGsabTypedArrayElementsKindShifts();

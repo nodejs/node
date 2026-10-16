@@ -458,9 +458,9 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       HeapObjectMap* moves) {
     ReadOnlySpace* rospace = isolate->heap()->read_only_space();
     for (Tagged<HeapObject> src : promotees) {
-      const int size = src->Size();
+      const SafeHeapObjectSize size = src->SafeSize();
       Tagged<HeapObject> dst =
-          rospace->AllocateRaw(size, kTaggedAligned).ToObjectChecked();
+          rospace->AllocateRaw(size.value(), kTaggedAligned).ToObjectChecked();
       Heap::CopyBlock(dst.address(), src.address(), size);
       moves->emplace(src, dst);
 

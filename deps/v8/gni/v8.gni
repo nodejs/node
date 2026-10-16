@@ -34,11 +34,11 @@ declare_args() {
   # Turns on compiler optimizations in V8 in Debug build.
   v8_optimized_debug = true
 
-  # Selects which instance-type generator's output V8 compiles in:
-  # metagen (tools/metagen/) or Torque's emission. When off, the metagen
-  # action is out of the build graph entirely, so nothing depends on the
-  # llvm-libclang package. Sets -DV8_USE_METAGEN_INSTANCE_TYPES=0 when off.
-  v8_use_metagen_instance_types = true
+  # Metagen reads the v8 object hierarchy from C++ headers via libclang. It
+  # produces instance-type definitions and object-layout files, used as inputs
+  # during the remaining build. During a transition period, it can be switched
+  # off using this flag (ie take the old torque paths).
+  v8_use_metagen = true
 
   # Support for backtrace_symbols on linux.
   v8_enable_backtrace = ""
@@ -226,8 +226,7 @@ declare_args() {
 
   # Enable object names in cppgc for profiling purposes.
   cppgc_enable_object_names =
-      !(is_component_build && is_win) &&
-      (is_chrome_for_testing || (!is_android && !is_fuchsia))
+      is_chrome_for_testing || (!is_android && !is_fuchsia)
 
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false

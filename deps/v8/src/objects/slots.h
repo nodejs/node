@@ -566,7 +566,7 @@ class WriteProtectedSlot : public SlotT {
 
 // Copies tagged words from |src| to |dst|. The data spans must not overlap.
 // |src| and |dst| must be kTaggedSize-aligned.
-inline void CopyTagged(Address dst, const Address src, size_t num_tagged);
+inline void CopyTagged(Address dst, const Address src, uint32_t num_tagged);
 
 // Fills `start` with `count` `value`s.
 inline void MemsetTagged(Tagged_t* start, Tagged<MaybeObject> value,

@@ -34,6 +34,8 @@ macros:
     macro_header: unistd-macros.h
   - macro_name: _SC_GETPW_R_SIZE_MAX
     macro_header: unistd-macros.h
+  - macro_name: _SC_THREAD_DESTRUCTOR_ITERATIONS
+    macro_header: unistd-macros.h
   - macro_name: _SC_THREAD_ATTR_STACKADDR
     macro_header: unistd-macros.h
   - macro_name: _SC_THREAD_ATTR_STACKSIZE
@@ -250,6 +252,22 @@ functions:
       - type: int
       - type: uid_t
       - type: gid_t
+  - name: fchownat
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *
+      - type: uid_t
+      - type: gid_t
+      - type: int
+  - name: fdatasync
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
   - name: fpathconf
     standards:
       - posix
@@ -417,6 +435,12 @@ functions:
     arguments:
       - type: const char *
       - type: int
+  - name: pause
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: void
   - name: pipe
     standards:
       - posix

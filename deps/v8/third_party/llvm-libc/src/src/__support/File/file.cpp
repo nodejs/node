@@ -1,9 +1,14 @@
-//===--- Implementation of a platform independent file data structure -----===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Implementation of a platform independent file data structure.
+///
 //===----------------------------------------------------------------------===//
 
 #include "file.h"
@@ -457,6 +462,35 @@ int File::flush_unlocked() {
     pos = read_limit = 0;
   }
   return 0;
+}
+
+// Does the following:
+// 1. If in write mode, Write out any data present in the buffer.
+// 2. Call platform_close.
+// platform_close is expected to cleanup the complete file object.
+int File::close() {
+  {
+    FileLock lock(this);
+    if (prev_op == FileOp::WRITE && pos > 0) {
+      auto buf_result = platform_write(this, buf, pos);
+      if (buf_result.has_error() || buf_result.value < pos) {
+        err = true;
+        return buf_result.error;
+      }
+    }
+  }
+
+  // If we own the buffer, delete it before calling the platform close
+  // implementation. The platform close should not need to access the buffer
+  // and we need to clean it up before the entire structure is removed.
+  if (own_buf)
+    delete buf;
+
+  // Platform close is expected to cleanup the file data structure which
+  // includes the file mutex. Hence, we call platform_close after releasing
+  // the file lock. Another thread doing file operations while a thread is
+  // closing the file is undefined behavior as per POSIX.
+  return platform_close(this);
 }
 
 int File::set_buffer(void *buffer, size_t size, int buffer_mode) {

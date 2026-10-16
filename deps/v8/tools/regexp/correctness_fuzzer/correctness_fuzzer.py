@@ -32,6 +32,12 @@ Reproduce / minimize a single known case:
   tools/regexp/correctness_fuzzer/correctness_fuzzer.py --ref A --test B \
       --pattern '(?=|)()x|' --flags '' --subject z
 
+Replay a generated testcase file, e.g. one ClusterFuzz attached to a bug
+(see run.py), classifying every case in it and minimizing each finding:
+
+  tools/regexp/correctness_fuzzer/correctness_fuzzer.py --ref A --test B \
+      --testcase fuzz-3.js
+
 The reference is treated as ground truth; only cases the reference
 executes cleanly are compared, so an unsupported-syntax difference in
 the reference is never reported as a test failure.
@@ -49,12 +55,7 @@ import sys
 import tempfile
 
 import grammar
-
-# The d8 harness that actually constructs and runs each regexp, kept next to
-# this script so it ships with the tool instead of being written at runtime.
-# realpath so the harness is found even when the script is invoked via symlink.
-HARNESS_PATH = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), "harness.js")
+import harness
 
 
 def parse_config(spec):
@@ -85,10 +86,11 @@ class Runner:
 
   @contextlib.contextmanager
   def _cases_file(self, cases):
-    fd, path = tempfile.mkstemp(prefix="regexp_fuzz_", suffix=".json")
+    # Use the same testcase format as the ClusterFuzz generator.
+    fd, path = tempfile.mkstemp(prefix="regexp_fuzz_", suffix=".js")
     try:
-      with os.fdopen(fd, "w") as f:
-        json.dump(cases, f)
+      with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(harness.emit_js(cases))
       yield path
     finally:
       os.unlink(path)
@@ -96,7 +98,7 @@ class Runner:
   def _run(self, config, casefile):
     path, flags = config
     try:
-      p = subprocess.run([path, *flags, HARNESS_PATH, "--", casefile],
+      p = subprocess.run([path, *flags, casefile],
                          capture_output=True,
                          text=True,
                          timeout=60)
@@ -310,11 +312,55 @@ def minimize(runner, pattern, flags, subject, last_index=0):
   return pattern, flags, subject, last_index
 
 
+def _regexp_literal(pattern, flags):
+  """Format a valid constructor pattern as a UTF-8-safe regexp literal."""
+  # Combine raw surrogate pairs before escaping lone surrogates.
+  pattern = pattern.encode("utf-16-le",
+                           "surrogatepass").decode("utf-16-le", "surrogatepass")
+  escapes = {
+      "\n": r"\n",
+      "\r": r"\r",
+      "\t": r"\t",
+      "\u2028": r"\u2028",
+      "\u2029": r"\u2029"
+  }
+  unicode = "u" in flags or "v" in flags
+  out = []
+  in_class = False
+  chars = iter(pattern)
+  for c in chars:
+    if c == "\\":
+      c = next(chars, "")
+      if not c:
+        out.append("\\")
+        break
+      if c not in escapes and not (ord(c) < 32 or 0xd800 <= ord(c) <= 0xdfff):
+        out.append("\\" + c)
+        continue
+      # Legacy identity escapes of raw controls/surrogates lose their prefix.
+    if c in escapes:
+      out.append(escapes[c])
+    elif ord(c) < 32 or ord(c) == 127:
+      out.append(r"\x%02x" % ord(c))
+    elif 0xd800 <= ord(c) <= 0xdfff:
+      # Braces prevent pairing with an adjacent \uXXXX escape in Unicode mode.
+      out.append((r"\u{%04x}" if unicode else r"\u%04x") % ord(c))
+    else:
+      if c == "/" and not in_class:
+        out.append("\\")
+      elif c == "[":
+        in_class = True
+      elif c == "]":
+        in_class = False
+      out.append(c)
+  return "/%s/%s" % ("".join(out) or "(?:)", flags)
+
+
 def _print_case(runner, pattern, flags, subject, last_index, header):
   rc_r, res_r = runner.run_one(runner.ref, pattern, flags, subject, last_index)
   rc_t, res_t = runner.run_one(runner.test, pattern, flags, subject, last_index)
   print(header)
-  print("  pattern: /%s/%s" % (pattern, flags))
+  print("  pattern: %s" % _regexp_literal(pattern, flags))
   print("  subject: %r" % subject)
   if last_index:
     print("  lastIndex: %d" % last_index)
@@ -405,11 +451,18 @@ def main():
       "--coverage",
       action="store_true",
       help="report which grammar rules the run exercised, and which it missed")
-  ap.add_argument(
+  repro = ap.add_mutually_exclusive_group()
+  repro.add_argument(
       "--pattern", help="reproduce a single case instead of fuzzing")
   ap.add_argument("--flags", default="")
   ap.add_argument("--subject", default="")
   ap.add_argument("--last-index", type=int, default=0)
+  repro.add_argument(
+      "--testcase",
+      metavar="FILE",
+      help="replay a generated testcase file (e.g. a ClusterFuzz fuzz-N.js) "
+      "instead of fuzzing: every case in it is classified and each finding "
+      "minimized")
   args = ap.parse_args()
 
   try:
@@ -428,6 +481,23 @@ def main():
       return 1
     print("no divergence for the given case")
     return 0
+
+  if args.testcase is not None:
+    with open(args.testcase, encoding="utf-8") as f:
+      try:
+        cases = harness.parse_testcase(f.read())
+      except ValueError as e:
+        ap.error(str(e))
+    # Run cases separately to attribute crashes.
+    findings = 0
+    for i, (pat, fl, sub, li) in enumerate(cases):
+      kind = runner.finding(pat, fl, sub, li)
+      if kind:
+        report(runner, pat, fl, sub, li, "%s case=%d" % (kind, i))
+        findings += 1
+    print("done: %d case(s) from %s, %d finding(s)" %
+          (len(cases), args.testcase, findings))
+    return 1 if findings else 0
 
   seed = args.seed if args.seed is not None else random.randrange(2**32)
   # Print (flushed) up front so the seed survives an early abort; a long run is

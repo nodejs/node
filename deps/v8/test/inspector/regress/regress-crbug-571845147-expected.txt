@@ -1,0 +1,4 @@
+Tests that objects logged during context destruction are not retained forever.
+
+Running test: testMemoryLeak
+No leak detected.

@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/base/hashing.h"
+#include "src/base/unique-array.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/frames.h"
@@ -429,6 +430,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case HASH_SEED_WRAPPER_TYPE:
       return kVisitHashSeedWrapper;
 
+    case UNINITIALIZED_HEAP_NUMBER_TYPE:
+      return kVisitUninitializedHeapNumber;
+
     case FOREIGN_TYPE:
       return kVisitForeign;
 
@@ -470,6 +474,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case STACK_FRAME_INFO_TYPE:
     case STACK_TRACE_INFO_TYPE:
     case TEMPLATE_OBJECT_DESCRIPTION_TYPE:
+    case FOR_IN_ENUMERATOR_HOLDER_TYPE:
     case TUPLE2_TYPE:
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_EXCEPTION_TAG_TYPE:
@@ -1321,20 +1326,17 @@ Handle<Map> Map::RawCopy(Isolate* isolate, DirectHandle<Map> src_handle,
     raw->set_constructor_or_back_pointer(src->GetConstructorRaw());
     raw->set_bit_field(src->bit_field());
     raw->set_bit_field2(src->bit_field2());
-    int new_bit_field3 = src->bit_field3();
-    new_bit_field3 = Bits3::OwnsDescriptorsBit::update(new_bit_field3, true);
-    new_bit_field3 =
-        Bits3::NumberOfOwnDescriptorsBits::update(new_bit_field3, 0);
-    new_bit_field3 = Bits3::EnumLengthBits::update(new_bit_field3,
-                                                   kInvalidEnumCacheSentinel);
-    new_bit_field3 = Bits3::IsDeprecatedBit::update(new_bit_field3, false);
-    new_bit_field3 =
-        Bits3::IsInRetainedMapListBit::update(new_bit_field3, false);
-    if (!src->is_dictionary_map()) {
-      new_bit_field3 = Bits3::IsUnstableBit::update(new_bit_field3, false);
+    Bits3 bits3 = src->bit_field3()
+                      .with<Bits3::OwnsDescriptorsBit>(true)
+                      .with<Bits3::NumberOfOwnDescriptorsBits>(0)
+                      .with<Bits3::EnumLengthBits>(kInvalidEnumCacheSentinel)
+                      .with<Bits3::IsDeprecatedBit>(false)
+                      .with<Bits3::IsInRetainedMapListBit>(false);
+    if (!bits3.is_dictionary_map()) {
+      bits3 = bits3.with<Bits3::IsUnstableBit>(false);
     }
     // Same as bit_field comment above.
-    raw->set_bit_field3(new_bit_field3);
+    raw->set_bit_field3(bits3);
     if (v8_flags.proto_assign_seq_lazy_func_opt) {
       if (Tagged<PrototypeSharedClosureInfo> infos;
           src_handle->TryGetPrototypeSharedClosureInfo(&infos)) {
@@ -1862,45 +1864,10 @@ DirectHandle<Map> Map::AsLanguageMode(
     Isolate* isolate, DirectHandle<Map> initial_map,
     DirectHandle<SharedFunctionInfo> shared_info) {
   DCHECK(InstanceTypeChecker::IsJSFunction(initial_map->instance_type()));
-#ifndef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
+  // TODO(https://crbug.com/414525205): Remove Map::AsLanguageMode and
+  // strict_function_transition_symbol now that strict and sloppy function maps
+  // have the same own descriptors.
   return initial_map;
-#else
-  // Initial map for sloppy mode function is stored in the function
-  // constructor. Initial maps for strict mode are cached as special transitions
-  // using |strict_function_transition_symbol| as a key.
-  if (is_sloppy(shared_info->language_mode())) return initial_map;
-
-  DirectHandle<Map> function_map(Cast<Map>(isolate->native_context()->GetNoCell(
-                                     shared_info->function_map_index())),
-                                 isolate);
-
-  static_assert(LanguageModeSize == 2);
-  DCHECK_EQ(LanguageMode::kStrict, shared_info->language_mode());
-  DirectHandle<Symbol> transition_symbol =
-      isolate->factory()->strict_function_transition_symbol();
-  MaybeDirectHandle<Map> maybe_transition = TransitionsAccessor::SearchSpecial(
-      isolate, initial_map, *transition_symbol);
-  if (!maybe_transition.is_null()) {
-    return maybe_transition.ToHandleChecked();
-  }
-  initial_map->NotifyLeafMapLayoutChange(isolate);
-
-  // Create new map taking descriptors from the |function_map| and all
-  // the other details from the |initial_map|.
-  DirectHandle<Map> map =
-      Map::CopyInitialMap(isolate, function_map, initial_map->instance_size(),
-                          initial_map->GetInObjectProperties(),
-                          initial_map->UnusedPropertyFields());
-  map->SetConstructor(initial_map->GetConstructor());
-  map->set_prototype(initial_map->prototype());
-  map->set_construction_counter(initial_map->construction_counter());
-
-  if (TransitionsAccessor::CanHaveMoreTransitions(isolate, initial_map)) {
-    Map::ConnectTransition(isolate, initial_map, map, transition_symbol,
-                           SPECIAL_TRANSITION);
-  }
-  return map;
-#endif  // !V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
 }
 
 Handle<Map> Map::CopyForElementsTransition(Isolate* isolate,
@@ -2164,11 +2131,11 @@ DirectHandle<Map> Map::TransitionToDataProperty(
   if (!maybe_map.ToHandle(&result)) {
     const char* reason = "TooManyFastProperties";
 #if V8_TRACE_MAPS
-    base::OwnedVector<char> buffer;
+    base::UniqueArray<char> buffer;
     if (v8_flags.log_maps) {
-      auto name_buffer = base::OwnedVector<char>::NewForOverwrite(100);
+      auto name_buffer = base::UniqueArray<char>::NewForOverwrite(100);
       name->NameShortPrint(name_buffer.as_vector());
-      buffer = base::OwnedVector<char>::NewForOverwrite(128);
+      buffer = base::UniqueArray<char>::NewForOverwrite(128);
       SNPrintF(buffer.as_vector(), "TooManyFastProperties %s",
                name_buffer.begin());
       reason = buffer.begin();
