@@ -4,6 +4,7 @@
 
 #include "src/base/numbers/bignum.h"
 
+#include <algorithm>
 #include <string_view>
 
 #include "src/base/strings.h"
