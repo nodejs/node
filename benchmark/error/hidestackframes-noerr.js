@@ -29,11 +29,11 @@ function main({ n, type }) {
 
   const hideStackFramesTestfn = hideStackFrames((value) => {
     if (typeof value !== 'number') {
-      throw new ERR_INVALID_ARG_TYPE.HideStackFrameError('Benchmark', 'number', value);
+      throw new ERR_INVALID_ARG_TYPE.HideStackFramesError('Benchmark', 'number', value);
     }
   });
 
-  const fn = type === 'hide-stackframe' ? hideStackFramesTestfn : testfn;
+  const fn = type === 'hide-stackframes' ? hideStackFramesTestfn : testfn;
 
   const value = 42;
 
