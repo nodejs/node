@@ -5,7 +5,7 @@ const assert = require('assert');
 const child_process = require('child_process');
 const path = require('path');
 
-const releaseReg = /^v\d+\.\d+\.\d+$/;
+const releaseReg = /^v\d+\.\d+\.\d+(?:-alpha\.\d+\.\d+\.\d+)?$/;
 
 // Npm requires crypto support.
 if (!releaseReg.test(process.version) || !common.hasCrypto) {
