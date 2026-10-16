@@ -219,6 +219,11 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(vfs_load) = false;
   DEFINE_BOOL_FIELD(webstorage) = HAVE_SQLITE;
   DEFINE_BOOL_FIELD(experimental_dtls) = EXPERIMENTALS_DEFAULT_VALUE;
+  // Uses EXPERIMENTALS_DEFAULT_VALUE (rather than a hard-coded false) so
+  // that builds which enable all experimental features by default opt
+  // into this flag as well. Tracing still requires explicit activation
+  // through environment variables either way.
+  DEFINE_BOOL_FIELD(experimental_otel) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_quic) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_global_navigator) = true;
   DEFINE_BOOL_FIELD(experimental_global_web_crypto) = true;
