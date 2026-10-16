@@ -16,6 +16,7 @@ const { failWebsocketConnection } = require('./connection')
 const { WebsocketFrameSend } = require('./frame')
 const { PerMessageDeflate } = require('./permessage-deflate')
 const { MessageSizeExceededError } = require('../../core/errors')
+const { defaultWebSocketMaxFragments, defaultWebSocketMaxPayloadSize } = require('../../core/constants')
 
 // This code was influenced by ws released under the MIT license.
 // Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>
@@ -48,18 +49,25 @@ class ByteParser extends Writable {
   /**
    * @param {import('./websocket').Handler} handler
    * @param {Map<string, string>|null} extensions
-   * @param {{ maxPayloadSize?: number }} [options]
+   * @param {{ maxFragments?: number, maxPayloadSize?: number }} [options]
+   *   A missing value uses the default limit; `0` disables the limit.
    */
   constructor (handler, extensions, options = {}) {
     super()
 
     this.#handler = handler
     this.#extensions = extensions == null ? new Map() : extensions
-    this.#maxFragments = options.maxFragments ?? 0
-    this.#maxPayloadSize = options.maxPayloadSize ?? 0
+    // Options come from the dispatcher's `webSocketOptions`, which only
+    // DispatcherBase provides. Fall back to the defaults rather than to no
+    // limit, so RetryAgent, MockAgent or a custom dispatcher can't turn off
+    // the payload and decompression limits by accident.
+    this.#maxFragments = options.maxFragments ?? defaultWebSocketMaxFragments
+    this.#maxPayloadSize = options.maxPayloadSize ?? defaultWebSocketMaxPayloadSize
 
     if (this.#extensions.has('permessage-deflate')) {
-      this.#extensions.set('permessage-deflate', new PerMessageDeflate(extensions, options))
+      this.#extensions.set('permessage-deflate', new PerMessageDeflate(extensions, {
+        maxPayloadSize: this.#maxPayloadSize
+      }))
     }
   }
 
@@ -244,6 +252,19 @@ class ByteParser extends Writable {
         if (isControlFrame(this.#info.opcode)) {
           this.#loop = this.parseControlFrame(body)
           this.#state = parserStates.INFO
+
+          // If the automatic PONG/CLOSE reply filled the socket's write buffer,
+          // stop parsing and resume on drain so a PING flood cannot grow the
+          // outbound queue without bound.
+          if (this.#loop && this.#handler.socket.writableNeedDrain) {
+            this.#loop = false
+            this.#handler.socket.once('drain', () => {
+              if (this.destroyed) return
+              this.#loop = true
+              this.run(callback)
+            })
+            return
+          }
         } else {
           if (!this.#info.compressed) {
             if (!this.writeFragments(body)) {

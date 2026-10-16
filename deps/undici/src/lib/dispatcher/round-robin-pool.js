@@ -7,14 +7,16 @@ const {
   kAddClient,
   kGetDispatcher,
   kHasDispatcher,
-  kRemoveClient
+  kRemoveClient,
+  kRetireClient,
+  kDrainQueue
 } = require('./pool-base')
 const Client = require('./client')
 const {
   InvalidArgumentError
 } = require('../core/errors')
 const util = require('../core/util')
-const { kUrl } = require('../core/symbols')
+const { kUrl, kQueued } = require('../core/symbols')
 const buildConnector = require('../core/connect')
 
 const kOptions = Symbol('options')
@@ -82,11 +84,19 @@ class RoundRobinPool extends PoolBase {
     })
 
     this.on('connectionError', (origin, targets, error) => {
+      // Retire (close) the client rather than only dropping it from
+      // kClients: otherwise its drain listener keeps pulling requests from
+      // the pool queue onto a client that pool.destroy() can't reach.
       for (const target of targets) {
-        const idx = this[kClients].indexOf(target)
-        if (idx !== -1) {
-          this[kClients].splice(idx, 1)
+        if (this[kClients].includes(target)) {
+          this[kRetireClient](target)
         }
+      }
+
+      // The retired client no longer drains the pool queue, so hand any
+      // queued requests to another (possibly new) client.
+      if (this[kQueued] > 0) {
+        this[kDrainQueue](origin, targets.slice(1))
       }
     })
   }

@@ -2,13 +2,21 @@
 
 const { Writable } = require('node:stream')
 const { assertCacheKey, assertCacheValue } = require('../util/cache.js')
+const { zstdCompressSync, zstdDecompressSync } = require('node:zlib')
 
 let DatabaseSync
 
-const VERSION = 3
+const VERSION = 4
 
 // 2gb
 const MAX_ENTRY_SIZE = 2 * 1000 * 1000 * 1000
+
+// 1MiB
+const COMPRESS_THRESHOLD = 1024 * 1024
+
+// zstd support landed in Node 22.19.0/23.4.0, so it may be missing even when
+// node:sqlite is available.
+const hasZstd = typeof zstdCompressSync === 'function' && typeof zstdDecompressSync === 'function'
 
 /**
  * @typedef {import('../../types/cache-interceptor.d.ts').default.CacheStore} CacheStore
@@ -17,6 +25,7 @@ const MAX_ENTRY_SIZE = 2 * 1000 * 1000 * 1000
  * @typedef {{
  *  id: Readonly<number>,
  *  body?: Uint8Array
+ *  compressed?: string
  *  statusCode: number
  *  statusMessage: string
  *  headers?: string
@@ -31,6 +40,7 @@ const MAX_ENTRY_SIZE = 2 * 1000 * 1000 * 1000
 module.exports = class SqliteCacheStore {
   #maxEntrySize = MAX_ENTRY_SIZE
   #maxCount = Infinity
+  #compressThreshold = COMPRESS_THRESHOLD
 
   /**
    * @type {import('node:sqlite').DatabaseSync}
@@ -107,6 +117,17 @@ module.exports = class SqliteCacheStore {
         }
         this.#maxCount = opts.maxCount
       }
+
+      if (opts.compressThreshold !== undefined) {
+        if (
+          typeof opts.compressThreshold !== 'number' ||
+          !Number.isInteger(opts.compressThreshold) ||
+          opts.compressThreshold < 0
+        ) {
+          throw new TypeError('SqliteCacheStore options.compressThreshold must be a non-negative integer')
+        }
+        this.#compressThreshold = opts.compressThreshold
+      }
     }
 
     if (!DatabaseSync) {
@@ -128,6 +149,7 @@ module.exports = class SqliteCacheStore {
 
         -- Data returned to the interceptor
         body BUF NULL,
+        compressed TEXT NULL,
         deleteAt INTEGER NOT NULL,
         statusCode INTEGER NOT NULL,
         statusMessage TEXT NOT NULL,
@@ -147,6 +169,7 @@ module.exports = class SqliteCacheStore {
       SELECT
         id,
         body,
+        compressed,
         deleteAt,
         statusCode,
         statusMessage,
@@ -167,6 +190,7 @@ module.exports = class SqliteCacheStore {
     this.#updateValueQuery = this.#db.prepare(`
       UPDATE cacheInterceptorV${VERSION} SET
         body = ?,
+        compressed = ?,
         deleteAt = ?,
         statusCode = ?,
         statusMessage = ?,
@@ -185,6 +209,7 @@ module.exports = class SqliteCacheStore {
         url,
         method,
         body,
+        compressed,
         deleteAt,
         statusCode,
         statusMessage,
@@ -194,7 +219,7 @@ module.exports = class SqliteCacheStore {
         vary,
         cachedAt,
         staleAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
 
     this.#deleteByUrlQuery = this.#db.prepare(
@@ -237,7 +262,11 @@ module.exports = class SqliteCacheStore {
     const value = this.#findValue(key)
     return value
       ? {
-          body: value.body ? Buffer.from(value.body.buffer, value.body.byteOffset, value.body.byteLength) : undefined,
+          body: value.body
+            ? value.compressed === 'zstd'
+              ? zstdDecompressSync(Buffer.from(value.body.buffer, value.body.byteOffset, value.body.byteLength))
+              : Buffer.from(value.body.buffer, value.body.byteOffset, value.body.byteLength)
+            : undefined,
           statusCode: value.statusCode,
           statusMessage: value.statusMessage,
           headers: value.headers ? JSON.parse(value.headers) : undefined,
@@ -268,11 +297,22 @@ module.exports = class SqliteCacheStore {
       return
     }
 
+    let compressed = null
+    let storedBody = body
+    if (body && hasZstd && (size > this.#compressThreshold || isCompressibleContentType(getContentType(value.headers)))) {
+      const candidate = zstdCompressSync(body)
+      if (candidate.byteLength < body.byteLength) {
+        storedBody = candidate
+        compressed = 'zstd'
+      }
+    }
+
     const existingValue = this.#findValue(key, true)
     if (existingValue) {
       // Updating an existing response, let's overwrite it
       this.#updateValueQuery.run(
-        body,
+        storedBody,
+        compressed,
         value.deleteAt,
         value.statusCode,
         value.statusMessage,
@@ -289,7 +329,8 @@ module.exports = class SqliteCacheStore {
       this.#insertValueQuery.run(
         url,
         key.method,
-        body,
+        storedBody,
+        compressed,
         value.deleteAt,
         value.statusCode,
         value.statusMessage,
@@ -466,4 +507,41 @@ function headerValueEquals (lhs, rhs) {
   }
 
   return lhs === rhs
+}
+
+/**
+ * @param {Record<string, string|string[]>|null|undefined} headers
+ * @returns {string|undefined}
+ */
+function getContentType (headers) {
+  if (headers == null) {
+    return undefined
+  }
+
+  for (const key in headers) {
+    if (key.toLowerCase() === 'content-type') {
+      const value = headers[key]
+      return Array.isArray(value) ? value[0] : value
+    }
+  }
+
+  return undefined
+}
+
+/**
+ * @param {string|undefined} contentType
+ * @returns {boolean}
+ */
+function isCompressibleContentType (contentType) {
+  if (contentType == null) {
+    return false
+  }
+
+  const type = contentType.toLowerCase()
+
+  // text/* and application/json, xml, javascript, ... are easily compressible
+  // even at smaller sizes, so ignore the compressThreshold for them.
+  return /^text\//.test(type) ||
+    /^application\/(json|xml|javascript|x-www-form-urlencoded|graphql)(\s|;|$)/.test(type) ||
+    /\+(json|xml)(\s|;|$)/.test(type)
 }

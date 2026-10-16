@@ -206,7 +206,12 @@ class Request {
       this.body = body.byteLength ? Buffer.from(body) : null
     } else if (typeof body === 'string') {
       this.body = body.length ? Buffer.from(body) : null
-    } else if (isFormDataLike(body) || isIterable(body) || isBlobLike(body)) {
+    } else if (isFormDataLike(body)) {
+      if (!isUndiciFormData(body)) {
+        throw new InvalidArgumentError('body must be a FormData created by this undici package instance; FormData from other sources, such as the built-in FormData provided by Node.js, is not supported')
+      }
+      this.body = body
+    } else if (isIterable(body) || isBlobLike(body)) {
       this.body = body
     } else {
       throw new InvalidArgumentError('body must be a string, a Buffer, a Readable stream, an iterable, or an async iterable')
@@ -562,6 +567,16 @@ function processHeader (request, key, val) {
   } else {
     request.headers.push(key, val)
   }
+}
+
+let isFormData
+
+function isUndiciFormData (body) {
+  if (isFormData === undefined) {
+    require('../web/fetch/formdata')
+    isFormData = require('../web/webidl').webidl.is.FormData
+  }
+  return isFormData(body)
 }
 
 module.exports = Request

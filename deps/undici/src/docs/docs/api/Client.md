@@ -116,8 +116,8 @@ added: v1.0.0
   * `maxConcurrentStreams` {number} _Deprecated: use h2Options.useH2c instead_ The maximum number of concurrent HTTP/2
     streams for a single session. Once h2 is negotiated this — not `pipelining`,
     which is HTTP/1.1 only — is the ceiling used to dispatch in-flight requests.
-    It may be overridden by the server's `SETTINGS_MAX_CONCURRENT_STREAMS`
-    frame. **Default:** `100`.
+    The server's `SETTINGS_MAX_CONCURRENT_STREAMS` can lower this limit, but
+    not raise it. **Default:** `100`.
   * `connectionWindowSize` {number} _Deprecated: use h2Options.connectionWindowSize instead_ The HTTP/2 connection-level flow-control
     window size set via `ClientHttp2Session.setLocalWindowSize()`. Must be a
     positive integer. **Default:** `524288`.
@@ -130,8 +130,8 @@ added: v1.0.0
     * `maxConcurrentStreams` {number} The maximum number of concurrent HTTP/2
       streams for a single session. Once h2 is negotiated this — not `pipelining`,
       which is HTTP/1.1 only — is the ceiling used to dispatch in-flight requests.
-      It may be overridden by the server's `SETTINGS_MAX_CONCURRENT_STREAMS`
-      frame. **Default:** `100`.
+      The server's `SETTINGS_MAX_CONCURRENT_STREAMS` can lower this limit, but
+      not raise it. **Default:** `100`.
     * `connectionWindowSize` {number} The HTTP/2 connection-level flow-control
       window size set via `ClientHttp2Session.setLocalWindowSize()`. Must be a
       positive integer. **Default:** `524288`.
@@ -148,8 +148,13 @@ added: v1.0.0
       payloads, and decompressed (`permessage-deflate`) messages. Set to `0` to
       disable the limit. **Default:** `134217728`.
   * `eventSource` {Object} (optional) EventSource-specific configuration.
-    * `maxEventSize` {number} The maximum allowed event size, in bytes, for
-      EventSource messages. Set to `0` to disable the limit.
+    * `maxEventSize` {number} The maximum total bytes of data and metadata
+      field values retained for a pending EventSource event. Each unfinished
+      line is separately limited to this value plus seven syntax bytes, before
+      its line ending arrives. The number of `data:` lines per event and input
+      chunks buffered for an unfinished line are each limited to
+      `min(131072, max(1024, floor(maxEventSize / 128)))` to bound object overhead.
+      Set to `0` to disable these limits.
       **Default:** `buffer.kStringMaxLength`.
 * Returns: {Client}
 

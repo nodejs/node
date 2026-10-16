@@ -62,7 +62,7 @@ if (process.argv[2] === '--docker') {
   cmd += ` --mount type=bind,source=${ROOT}/lib/llhttp,target=/home/node/build/lib/llhttp \
            --mount type=bind,source=${ROOT}/build,target=/home/node/build/build \
            --mount type=bind,source=${ROOT}/deps,target=/home/node/build/deps \
-           -t ${WASM_BUILDER_CONTAINER} node build/wasm.js`
+            -t ${WASM_BUILDER_CONTAINER} node build/llhttp.js`
   console.log(`> ${cmd}\n\n`)
   execSync(cmd, { stdio: 'inherit' })
   process.exit(0) // eslint-disable-line n/no-process-exit
