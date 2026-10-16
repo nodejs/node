@@ -296,6 +296,27 @@ executable only embeds the archive; read the files through the file system
 APIs instead. `"vfsArchive"` requires `"useVfs": true` and cannot be
 combined with `"assets"`.
 
+The archive is mounted at the mount point reserved for [`--vfs-load`][], which
+is the same in every thread, and worker threads mount it as well. A path into
+the archive, such as the main script's `__filename`, can therefore be loaded
+in a worker:
+
+```cjs
+const { Worker, isMainThread } = require('node:worker_threads');
+
+if (isMainThread) {
+  new Worker(__filename);
+} else {
+  // The worker runs the same script, from the same archive.
+  console.log(require('./lib/math.js').add(2, 3));
+}
+```
+
+Since that mount point is taken by the archive, `--vfs-load` cannot be used
+with `"vfsArchive"`: `--build-sea` rejects it in `"execArgv"`, and the
+executable rejects it at startup when it comes from `--node-options` or from
+the `execArgv` of a worker.
+
 #### Snapshot and code caching limitations
 
 `"useVfs": true` cannot be used together with `"useSnapshot": true` or
@@ -786,6 +807,7 @@ to help us document them.
 [Using native addons in the injected main script]: #using-native-addons-in-the-injected-main-script
 [VFS documentation]: vfs.md
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
+[`--vfs-load`]: cli.md#--vfs-loadsource
 [`node:zlib`]: zlib.md
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid

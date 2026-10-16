@@ -316,6 +316,17 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     errors->push_back("either --check or --eval can be used, not both");
   }
 
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  sea_vfs_archive = sea::IsSingleExecutable() &&
+                    sea::FindSingleExecutableResource().use_vfs_archive();
+  // The archive takes the mount point reserved for the --vfs-load source.
+  if (!vfs_load_source.empty() && sea_vfs_archive) {
+    errors->push_back(
+        "--vfs-load cannot be used in a single executable application "
+        "built with \"vfsArchive\"");
+  }
+#endif  // DISABLE_SINGLE_EXECUTABLE_APPLICATION
+
   for (const std::string& pattern : permission::ParseEnvAllowList(allow_env)) {
     if (!permission::IsValidEnvAllowPattern(pattern)) {
       errors->push_back("--allow-env must be '*', a variable name, or a "
@@ -816,6 +827,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kDisallowedInEnvvar);
   AddOption("[vfs_load_set]", "", BOOL_FIELD(vfs_load));
   Implies("--vfs-load", "[vfs_load_set]");
+  AddOption("[sea_vfs_archive]", "", BOOL_FIELD(sea_vfs_archive));
   AddOption("--experimental-quic",
 #ifndef OPENSSL_NO_QUIC
             "experimental QUIC support",
