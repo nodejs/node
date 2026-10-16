@@ -326,6 +326,8 @@ DEP_CATALOG = [
     'description': 'Performance instrumentation and tracing SDK',
     'purl_base': 'pkg:github/google/perfetto',
     'scope': 'optional',
+    # Included only with --with-perfetto; omitted by default.
+    'excluded_when': [('v8_use_perfetto', 0)],
     'shared_flag': 'node_shared_perfetto',
     'version_fn': lambda root: version_from_plain_file(
       root / 'deps/perfetto/VERSION'),
@@ -380,14 +382,19 @@ DEP_CATALOG = [
     'description': 'Chrome DevTools Protocol (inspector) implementation',
     'purl_base': 'pkg:generic/chromium/inspector_protocol',
     # Upstream is unversioned, so the vendored revision identifies the copy.
+    # Omitted with --without-inspector or --without-ssl.
+    'excluded_when': [('v8_enable_inspector', 0)],
     'version_fn': lambda root: version_from_readme_node(
       root / 'deps/inspector_protocol/README.node', 'Revision'),
   },
-  # --- Always-bundled ICU, JavaScript and Rust dependencies ---
+  # --- ICU, JavaScript and Rust dependencies ---
   {
     'name': 'icu',
     'description': 'International Components for Unicode',
     'purl_base': 'pkg:github/unicode-org/icu',
+    # Omitted when built with --with-intl=none.
+    'scope': 'optional',
+    'excluded_when': [('v8_enable_i18n_support', 0)],
     'version_fn': lambda root: version_from_icu_dep(
       root / 'tools/icu/current_ver.dep'),
   },
@@ -395,6 +402,8 @@ DEP_CATALOG = [
     'name': 'npm',
     'description': 'JavaScript package manager',
     'purl_base': 'pkg:npm/npm',
+    # Omitted when built with --without-npm.
+    'excluded_when': [('node_install_npm', 'false')],
     'version_fn': lambda root: version_from_package_json(
       root / 'deps/npm/package.json'),
   },
@@ -426,6 +435,9 @@ DEP_CATALOG = [
     'name': 'corepack',
     'description': 'Package manager version management shim',
     'purl_base': 'pkg:npm/corepack',
+    # Not bundled by default; included only with --with-corepack.
+    'scope': 'optional',
+    'excluded_when': [('node_install_corepack', 'false')],
     'version_fn': lambda root: version_from_package_json(
       root / 'deps/corepack/package.json'),
   },
@@ -435,7 +447,13 @@ DEP_CATALOG = [
                    'under deps/crates/vendor for the V8 build',
     # Not published to crates.io, so this is not a pkg:cargo coordinate.
     'purl_base': 'pkg:generic/nodejs/node_crates',
+    # Omitted with --v8-disable-temporal-support or when no Rust compiler is
+    # present (configure auto-disables Temporal in that case), or when
+    # --shared-temporal_capi links against a system-provided library.
+    'scope': 'optional',
     'use_flag': 'node_use_bundled_v8',
+    'shared_flag': 'node_shared_temporal_capi',
+    'excluded_when': [('v8_enable_temporal_support', 0)],
     'version_fn': lambda root: version_from_cargo_toml(
       root / 'deps/crates/Cargo.toml'),
   },
@@ -531,12 +549,11 @@ def build_sbom(node_version, components, lib_files):
     },
     'components': components,
     'dependencies': [
-      # Only the components that end up in the binary are dependencies of the
-      # root component. None of them declare dependencies of their own.
+      # All components in the list are linked into the binary; excluded
+      # deps are omitted before reaching here. None declare sub-dependencies.
       {
         'ref': root_ref,
-        'dependsOn': [c['bom-ref'] for c in components
-                      if c['scope'] != 'excluded'],
+        'dependsOn': [c['bom-ref'] for c in components],
       },
       *({'ref': c['bom-ref'], 'dependsOn': []} for c in components),
     ],
@@ -588,13 +605,14 @@ def generate_sbom(config_vars, node_version):
   components = []
   for dep in DEP_CATALOG:
     scope = resolve_scope(dep, config_vars)
+    if scope == 'excluded':
+      continue
     try:
       version = dep['version_fn'](REPO_ROOT)
     except Exception as exc:
       # A dependency we cannot read is worth a warning, not a failed build.
-      if scope != 'excluded':
-        print(f'warning: cannot determine {dep["name"]} version: {exc}',
-              file=sys.stderr)
+      print(f'warning: cannot determine {dep["name"]} version: {exc}',
+            file=sys.stderr)
       version = UNKNOWN
     components.append(build_component(dep, version, scope))
 
