@@ -712,6 +712,10 @@ class NodeInspectorClient : public V8InspectorClient {
     timers_.erase(data);
   }
 
+  std::unique_ptr<v8_inspector::V8StackTrace> captureStackTrace() {
+    return client_->captureStackTrace(true);
+  }
+
   // Async stack traces instrumentation.
   void AsyncTaskScheduled(const StringView& task_name, void* task,
                           bool recurring) {
@@ -1009,6 +1013,10 @@ void Agent::EmitProtocolEvent(v8::Local<v8::Context> context,
                               const StringView& event,
                               Local<Object> params) {
   client_->emitNotification(context, event, params);
+}
+
+std::unique_ptr<v8_inspector::V8StackTrace> Agent::CaptureStackTrace() {
+  return client_ ? client_->captureStackTrace() : nullptr;
 }
 
 void Agent::SetupNetworkTracking(Local<Function> enable_function,

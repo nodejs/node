@@ -1,5 +1,6 @@
 #include "network_agent.h"
 #include <string>
+#include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "inspector/inspector_object_utils.h"
@@ -23,6 +24,40 @@ using v8::Uint8Array;
 using v8::Value;
 
 constexpr size_t kDefaultMaxTotalBufferSize = 100 * 1024 * 1024;  // 100MB
+
+NetworkInitiator::NetworkInitiator(
+    Environment* env,
+    Local<Object> object,
+    std::unique_ptr<v8_inspector::V8StackTrace> stack)
+    : BaseObject(env, object), stack_(std::move(stack)) {
+  object
+      ->SetPrivate(
+          env->context(), Key(env->isolate()), v8::True(env->isolate()))
+      .Check();
+  MakeWeak();
+}
+
+Local<v8::Private> NetworkInitiator::Key(Isolate* isolate) {
+  return v8::Private::ForApi(
+      isolate,
+      FIXED_ONE_BYTE_STRING(isolate, "node:inspector:networkInitiator"));
+}
+
+NetworkInitiator* NetworkInitiator::FromObject(Environment* env,
+                                               Local<Object> object) {
+  if (!BaseObject::IsBaseObject(env->isolate_data(), object) ||
+      !object->HasPrivate(env->context(), Key(env->isolate()))
+           .FromMaybe(false)) {
+    return nullptr;
+  }
+  return BaseObject::FromJSObject<NetworkInitiator>(object);
+}
+
+void NetworkInitiator::MemoryInfo(MemoryTracker* tracker) const {
+  if (stack_) {
+    tracker->TrackFieldWithSize("stack", sizeof(*stack_), "V8StackTrace");
+  }
+}
 
 static void ThrowEventError(v8::Isolate* isolate, const std::string& message) {
   isolate->ThrowException(v8::Exception::TypeError(
@@ -460,11 +495,19 @@ void NetworkAgent::requestWillBeSent(v8::Local<v8::Context> context,
     return;
   }
 
+  const v8_inspector::V8StackTrace* stack = nullptr;
+  Local<Object> initiator_obj;
+  if (ObjectGetObject(context, params, "initiator").ToLocal(&initiator_obj)) {
+    if (auto* captured = NetworkInitiator::FromObject(env_, initiator_obj)) {
+      stack = captured->stack();
+    }
+  }
   std::unique_ptr<protocol::Network::Initiator> initiator =
       protocol::Network::Initiator::create()
           .setType(protocol::Network::Initiator::TypeEnum::Script)
-          .setStack(
-              v8_inspector_->captureStackTrace(true)->buildInspectorObject(0))
+          .setStack(stack ? stack->buildInspectorObject(0)
+                          : v8_inspector_->captureStackTrace(true)
+                                ->buildInspectorObject(0))
           .build();
 
   if (requests_.contains(request_id)) {

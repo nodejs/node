@@ -16,6 +16,7 @@
 
 namespace v8_inspector {
 class StringView;
+class V8StackTrace;
 }  // namespace v8_inspector
 
 namespace node {
@@ -74,6 +75,8 @@ class Agent {
   void EmitProtocolEvent(v8::Local<v8::Context> context,
                          const v8_inspector::StringView& event,
                          v8::Local<v8::Object> params);
+
+  std::unique_ptr<v8_inspector::V8StackTrace> CaptureStackTrace();
 
   void SetupNetworkTracking(v8::Local<v8::Function> enable_function,
                             v8::Local<v8::Function> disable_function);
