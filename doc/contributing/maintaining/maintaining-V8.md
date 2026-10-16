@@ -92,7 +92,9 @@ A patch may be backported to `main` when at least one of these criteria applies:
   uses a V8 API so that it works with the future update.
 
 If the patch meet the following criteria, it's recommended to backport the patches
-to the release staging branches like `v<MAJOR>.x-staging`, instead of `main`:
+to the release staging branches like `v<MAJOR>.x-staging` (see
+[Criteria for backporting](../backporting-to-release-lines.md#criteria-for-backporting)
+to decide what release line to target), instead of `main`:
 
 * It has demonstrated real-world urgency and impact that justifies landing it
   before the next V8 major version update.
