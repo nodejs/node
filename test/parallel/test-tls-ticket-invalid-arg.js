@@ -13,12 +13,22 @@ const server = new tls.Server();
   .forEach((arg) =>
     assert.throws(
       () => server.setTicketKeys(arg),
-      { code: 'ERR_INVALID_ARG_TYPE' }
+      {
+        name: 'TypeError',
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: 'The "buffer" argument must be an instance of Buffer, TypedArray, or DataView.' +
+                 common.invalidArgTypeHelper(arg),
+      }
     ));
 
 [new Uint8Array(1), Buffer.from([1]), new DataView(new ArrayBuffer(2))].forEach(
   (arg) =>
-    assert.throws(() => {
-      server.setTicketKeys(arg);
-    }, /Session ticket keys must be a 48-byte buffer/)
+    assert.throws(
+      () => server.setTicketKeys(arg),
+      {
+        name: 'TypeError',
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: `The argument 'keys' must be exactly 48 bytes. Received ${arg.byteLength}`,
+      }
+    )
 );
