@@ -361,8 +361,8 @@ test('special characters are allowed', async (t) => {
 
   t.assert.strictEqual(child.code, 0);
   t.assert.strictEqual(child.signal, null);
-  t.assert.match(child.stdout, /tests 3/);
-  t.assert.match(child.stdout, /pass 3/);
+  t.assert.match(child.stdout, /tests 5/);
+  t.assert.match(child.stdout, /pass 5/);
   t.assert.match(child.stdout, /fail 0/);
 });
 
