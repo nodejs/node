@@ -87,6 +87,8 @@ size_t TraceBufferRingBuffer::NextChunkIndex(size_t index) const {
 
 TraceBufferChunk::TraceBufferChunk(uint32_t seq) : seq_(seq) {}
 
+TraceBufferChunk::~TraceBufferChunk() = default;
+
 void TraceBufferChunk::Reset(uint32_t new_seq) {
   next_free_ = 0;
   seq_ = new_seq;
