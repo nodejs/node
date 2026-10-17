@@ -989,7 +989,7 @@ ifndef DISTTYPE
 DISTTYPE=release
 endif
 ifeq ($(DISTTYPE),release)
-FULLVERSION=$(VERSION)
+FULLVERSION=v$(shell $(PYTHON) tools/getnodeversion.py --full)
 else # ifeq ($(DISTTYPE),release)
 ifeq ($(DISTTYPE),custom)
 ifndef CUSTOMTAG
