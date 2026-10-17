@@ -2450,8 +2450,20 @@ def configure_ffi(o):
   configure_library('ffi', o, pkgname='libffi')
 
 def configure_quic(o):
+  if options.experimental_quic and options.without_ssl:
+    warn('--experimental-quic is incompatible with --without-ssl')
   o['variables']['node_use_quic'] = b(options.experimental_quic and
                                       not options.without_ssl)
+
+  if not options.experimental_quic:
+    for lib in ['nghttp3', 'ngtcp2']:
+      shared_lib = 'shared_' + lib
+      if getattr(options, shared_lib):
+        warn(f'--shared-{lib} requires --experimental-quic')
+    return
+
+  configure_library('nghttp3', output, pkgname='libnghttp3')
+  configure_library('ngtcp2', output, pkgname='libngtcp2')
 
 def configure_dtls(o):
   o['variables']['node_use_dtls'] = b(options.experimental_dtls and
@@ -2974,8 +2986,6 @@ configure_library('highway', output, pkgname='libhwy')
 configure_library('merve', output)
 configure_library('nbytes', output)
 configure_library('nghttp2', output, pkgname='libnghttp2')
-configure_library('nghttp3', output, pkgname='libnghttp3')
-configure_library('ngtcp2', output, pkgname='libngtcp2')
 configure_lief(output);
 configure_perfetto(output);
 configure_sqlite(output);
