@@ -94,10 +94,29 @@ async_test(t => {
   e.onload = t.step_func_done(() => {
     assert_equals(window.script_test_result, run_result);
   });
+  e.onerror = t.unreached_func();
 
   document.body.appendChild(e);
   URL.revokeObjectURL(url);
 }, 'Fetching a blob URL immediately before revoking it works in <script> tags.');
+
+async_test(t => {
+  const run_result = 'test_script_OK';
+  const blob_contents = 'window.script_test_result = "' + run_result + '";';
+  const blob = new Blob([blob_contents], {type: "application/javascript"});
+  const url = URL.createObjectURL(blob);
+
+  const e = document.createElement('script');
+  e.setAttribute('src', url);
+  e.setAttribute('type', 'module');
+  e.onload = t.step_func_done(() => {
+    assert_equals(window.script_test_result, run_result);
+  });
+  e.onerror = t.unreached_func();
+
+  document.body.appendChild(e);
+  URL.revokeObjectURL(url);
+}, 'Fetching a blob URL immediately before revoking it works in module <script> tags.');
 
 async_test(t => {
   const channel_name = 'a-click-test';
