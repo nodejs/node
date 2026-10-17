@@ -2235,7 +2235,8 @@ Change the file system timestamps of the object referenced by `path`.
 The `atime` and `mtime` arguments follow these rules:
 
 * Values can be either numbers representing Unix epoch time, `Date`s, or a
-  numeric string like `'123456789.0'`.
+  numeric string like `'123456789.0'`. Negative values represent times before
+  the Unix epoch.
 * If the value can not be converted to a number, or is `NaN`, `Infinity`, or
   `-Infinity`, an `Error` will be thrown.
 
@@ -5322,7 +5323,8 @@ Change the file system timestamps of the object referenced by `path`.
 The `atime` and `mtime` arguments follow these rules:
 
 * Values can be either numbers representing Unix epoch time in seconds,
-  `Date`s, or a numeric string like `'123456789.0'`.
+  `Date`s, or a numeric string like `'123456789.0'`. Negative values represent
+  times before the Unix epoch.
 * If the value can not be converted to a number, or is `NaN`, `Infinity`, or
   `-Infinity`, an `Error` will be thrown.
 
@@ -8255,6 +8257,9 @@ The times in the stat object have the following semantics:
 
 Prior to Node.js 0.12, the `ctime` held the `birthtime` on Windows systems. As
 of 0.12, `ctime` is not "creation time", and on Unix systems, it never was.
+
+On Windows, times are limited to the range of a signed 32-bit number of seconds
+from the Unix epoch, so times after `2038-01-19T03:14:07Z` are not supported.
 
 ### Class: `fs.StatFs`
 
