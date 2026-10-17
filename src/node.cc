@@ -970,9 +970,37 @@ static ExitCode InitializeNodeWithArgsInternal(
 
   HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
 
-  std::string node_options;
   std::string node_options_from_dotenv;
   auto env_files = node::Dotenv::GetDataFromArgs(*argv);
+
+#if !defined(NODE_WITHOUT_NODE_OPTIONS)
+  bool should_parse_node_options =
+      !(flags & ProcessInitializationFlags::kDisableNodeOptionsEnv);
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  if (sea::IsSingleExecutable()) {
+    const sea::SeaResource& sea_resource = sea::FindSingleExecutableResource();
+    if (sea_resource.exec_argv_extension != sea::SeaExecArgvExtension::kEnv) {
+      should_parse_node_options = false;
+    }
+  }
+#endif
+  // NODE_OPTIONS environment variable is preferred over the file one.
+  std::string node_options;
+  std::vector<std::string> env_argv;
+  const bool node_options_from_env =
+      should_parse_node_options &&
+      credentials::SafeGetenv("NODE_OPTIONS", &node_options);
+  if (node_options_from_env) {
+    env_argv = ParseNodeOptionsEnvVar(node_options, errors);
+    if (!errors->empty()) return ExitCode::kInvalidCommandLineArgument;
+
+    // Command-line env files take precedence over those in NODE_OPTIONS.
+    auto node_options_env_files = node::Dotenv::GetDataFromArgs(env_argv);
+    env_files.insert(env_files.begin(),
+                     node_options_env_files.begin(),
+                     node_options_env_files.end());
+  }
+#endif
 
   if (!env_files.empty()) {
     CHECK(!per_process::v8_initialized);
@@ -1037,30 +1065,16 @@ static ExitCode InitializeNodeWithArgsInternal(
     }
   }
 
-  node_options = node_options_from_config + node_options_from_dotenv;
-
   AllowEnvSources allow_env_sources(
       per_process::cli_options->per_isolate->per_env.get());
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
-  bool should_parse_node_options =
-      !(flags & ProcessInitializationFlags::kDisableNodeOptionsEnv);
-#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  if (sea::IsSingleExecutable()) {
-    const sea::SeaResource& sea_resource = sea::FindSingleExecutableResource();
-    if (sea_resource.exec_argv_extension != sea::SeaExecArgvExtension::kEnv) {
-      should_parse_node_options = false;
-    }
-  }
-#endif
   if (should_parse_node_options) {
-    // NODE_OPTIONS environment variable is preferred over the file one.
-    const bool node_options_from_env =
-        credentials::SafeGetenv("NODE_OPTIONS", &node_options);
+    if (!node_options_from_env) {
+      node_options = node_options_from_config + node_options_from_dotenv;
+      env_argv = ParseNodeOptionsEnvVar(node_options, errors);
+    }
     if (node_options_from_env || !node_options.empty()) {
-      std::vector<std::string> env_argv =
-          ParseNodeOptionsEnvVar(node_options, errors);
-
       if (!errors->empty()) return ExitCode::kInvalidCommandLineArgument;
 
       // [0] is expected to be the program name, fill it in from the real argv.
