@@ -8,7 +8,6 @@ NetworkInspector::NetworkInspector(
     v8_inspector::V8Inspector* v8_inspector,
     std::shared_ptr<NetworkResourceManager> network_resource_manager)
     : enabled_(false),
-      env_(env),
       network_resource_manager_(std::move(network_resource_manager)) {
   network_agent_ = std::make_unique<NetworkAgent>(
       this, v8_inspector, env, network_resource_manager_);
