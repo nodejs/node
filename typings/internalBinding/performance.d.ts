@@ -1,3 +1,5 @@
+import type { HandleWrap } from './handle_wrap';
+
 declare namespace InternalPerformanceBinding {
   interface HistogramBase {
     count(): number;
@@ -46,17 +48,9 @@ declare namespace InternalPerformanceBinding {
     resetCount(): number;
   }
 
-  interface ELDHistogram extends HistogramBase {
+  interface ELDHistogram extends HistogramBase, HandleWrap {
     start(reset?: boolean): void;
     stop(): void;
-    close(callback?: () => void): void;
-    hasRef(): boolean;
-    ref(): void;
-    unref(): void;
-    getAsyncId(): number;
-    asyncReset(resource: object, executionAsyncId?: number): void;
-    getAsyncContextFrameForDebuggingOnly(): unknown;
-    getProviderType(): number;
   }
 
   interface Histogram extends HistogramBase {}
