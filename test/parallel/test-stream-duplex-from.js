@@ -434,3 +434,15 @@ function makeATestWritableStream(writeFunc) {
     }),
   );
 }
+
+// Regression for the fix to https://github.com/nodejs/node/issues/55077:
+// an AsyncFunction that returns without consuming its input is destroyed, but
+// that destruction must not be reported as an error. Outside of a pipeline
+// there is nothing listening for one, so an error here is unhandled and takes
+// the process down.
+{
+  const duplex = Duplex.from(async function() {
+    // Intentionally do not consume the async iterable input.
+  });
+  duplex.on('error', common.mustNotCall());
+}
