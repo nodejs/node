@@ -783,6 +783,40 @@ static napi_value TestCreateObjectWithCustomPrototype(napi_env env,
   return result;
 }
 
+// CreateObjectWithProperties(names, values, prototype) passes the arrays to
+// node_api_create_object_with_properties(), and an undefined prototype as
+// NULL.
+static napi_value CreateObjectWithProperties(napi_env env,
+                                             napi_callback_info info) {
+  size_t argc = 3;
+  napi_value args[3];
+  napi_value names[200];
+  napi_value values[200];
+  uint32_t count;
+  napi_valuetype prototype_type;
+  napi_value result;
+
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+  NODE_API_CALL(env, napi_get_array_length(env, args[0], &count));
+  NODE_API_ASSERT(env, count <= 200, "Too many properties");
+  for (uint32_t i = 0; i < count; i++) {
+    NODE_API_CALL(env, napi_get_element(env, args[0], i, &names[i]));
+    NODE_API_CALL(env, napi_get_element(env, args[1], i, &values[i]));
+  }
+  NODE_API_CALL(env, napi_typeof(env, args[2], &prototype_type));
+
+  NODE_API_CALL(env,
+                node_api_create_object_with_properties(
+                    env,
+                    prototype_type == napi_undefined ? NULL : args[2],
+                    names,
+                    values,
+                    count,
+                    &result));
+
+  return result;
+}
+
 EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
@@ -822,6 +856,8 @@ napi_value Init(napi_env env, napi_value exports) {
                                 TestCreateObjectWithPropertiesEmpty),
       DECLARE_NODE_API_PROPERTY("TestCreateObjectWithCustomPrototype",
                                 TestCreateObjectWithCustomPrototype),
+      DECLARE_NODE_API_PROPERTY("CreateObjectWithProperties",
+                                CreateObjectWithProperties),
   };
 
   init_test_null(env, exports);
