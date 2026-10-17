@@ -485,6 +485,29 @@ if (isGitPresent) {
   });
 }
 
+// A missing callback is reported up front, the same way the other callback
+// based fs APIs report it, rather than throwing from the removal itself once
+// the work has already happened.
+// Refs: https://github.com/nodejs/node/issues/65578
+{
+  const dirname = tmpdir.resolve('rm-missing-callback');
+  fs.mkdirSync(dirname, { recursive: true });
+
+  for (const args of [
+    [dirname],
+    [dirname, { recursive: true }],
+    [dirname, { recursive: true }, 'not a function'],
+  ]) {
+    assert.throws(() => fs.rm(...args), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+    });
+  }
+
+  assert.ok(fs.existsSync(dirname), 'rm must not remove anything without a callback');
+  fs.rmSync(dirname, { recursive: true });
+}
+
 {
   // IBMi has a different access permission mechanism
   // This test should not be run as `root`
