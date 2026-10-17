@@ -4,6 +4,7 @@
 # found in the LICENSE file.
 
 
+import fileinput
 import os
 import shlex
 import shutil
@@ -38,6 +39,16 @@ def EnsureDepotTools(v8_path, fetch_if_not_exist):
   depot_tools = _Get(v8_path)
   assert depot_tools is not None
   print("Using depot tools in %s" % depot_tools)
+  # Patch python3 wrapper to not depend on Google's hermetic Python.
+  for line in fileinput.input(files=(os.path.join(depot_tools, "python-bin", "python3")),inplace=True):
+    sys.stdout.write(line)
+    if "DEPOT_TOOLS=$(dirname \"$0\")/.." in line:
+      sys.stdout.write("""
+if [[ $VPYTHON_BYPASS == \"manually managed python not supported by chrome operations\" ]]
+then
+  exec python3 \"$@\"
+fi
+""")
   return depot_tools
 
 def UninitGit(v8_path):
