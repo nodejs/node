@@ -29,6 +29,6 @@ function main({ n, observe }) {
 
   bench.start();
   performance.mark('start');
-  for (let i = 0; i < 1e5; i++)
+  for (let i = 0; i < n; i++)
     test();
 }
