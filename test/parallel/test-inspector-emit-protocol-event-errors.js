@@ -29,6 +29,30 @@ function networkRequest(overrides = {}) {
   };
 }
 
+const MAX_PROTOCOL_VALUE_DEPTH = 100;
+
+function circularObjectStack() {
+  const stack = { callFrames: [] };
+  stack.parent = stack;
+  return stack;
+}
+
+function circularArrayStack() {
+  const callFrames = [];
+  callFrames.push(callFrames);
+  return { callFrames };
+}
+
+function deeplyNestedStack(depth) {
+  const stack = { callFrames: [] };
+  let current = stack;
+  for (let i = 0; i < depth; i++) {
+    current.parent = { callFrames: [] };
+    current = current.parent;
+  }
+  return stack;
+}
+
 function networkResponse(overrides = {}) {
   return {
     requestId: 'response-id',
@@ -170,6 +194,125 @@ const NETWORK_ERROR_CASES = [
     'requestWillBeSent',
     networkRequest({ request: omit(networkRequest().request, 'headers') }),
     'Missing request.headers in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-missing-initiator-type',
+      initiator: {},
+    }),
+    'Missing initiator.type in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-missing-initiator-stack-callframes',
+      initiator: {
+        type: 'script',
+        stack: {},
+      },
+    }),
+    'Invalid initiator.stack in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-invalid-initiator-stack-type',
+      initiator: {
+        type: 'script',
+        stack: [],
+      },
+    }),
+    'Invalid initiator.stack in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-bigint-initiator-stack',
+      initiator: {
+        type: 'script',
+        stack: {
+          callFrames: [1n],
+        },
+      },
+    }),
+    'Invalid initiator.stack in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-symbol-initiator-stack',
+      initiator: {
+        type: 'script',
+        stack: {
+          callFrames: [Symbol('frame')],
+        },
+      },
+    }),
+    'Invalid initiator.stack in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-getter-throw-initiator-stack',
+      initiator: {
+        type: 'script',
+        stack: {
+          get callFrames() {
+            throw new Error('boom');
+          },
+        },
+      },
+    }),
+    'Invalid initiator.stack in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-ownkeys-throw-initiator-stack',
+      initiator: {
+        type: 'script',
+        stack: new Proxy({}, {
+          ownKeys() {
+            throw new Error('boom');
+          },
+        }),
+      },
+    }),
+    'Invalid initiator.stack in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-circular-object-initiator-stack',
+      initiator: {
+        type: 'script',
+        stack: circularObjectStack(),
+      },
+    }),
+    'Invalid initiator.stack in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-circular-array-initiator-stack',
+      initiator: {
+        type: 'script',
+        stack: circularArrayStack(),
+      },
+    }),
+    'Invalid initiator.stack in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-deep-initiator-stack',
+      initiator: {
+        type: 'script',
+        stack: deeplyNestedStack(MAX_PROTOCOL_VALUE_DEPTH + 1),
+      },
+    }),
+    'Invalid initiator.stack in event',
   ],
 
   [
