@@ -1,0 +1,15 @@
+{
+  "version": 3,
+  "sections": [
+    {
+      "offset": { "line": 0, "column": 0 },
+      "map": {
+        "version": 3,
+        "sources": ["index.ts"],
+        "sourcesContent": ["function a() {\n  console.log(1);\n}\na();\n"],
+        "mappings": "AAAA,SAAS,IAAI;AACX,UAAQ,IAAI,CAAC;AACf;AACA,EAAE",
+        "names": []
+      }
+    }
+  ]
+}
