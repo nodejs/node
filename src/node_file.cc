@@ -2732,7 +2732,7 @@ class ReadDirRecursiveWork final : public ThreadPoolWork {
  public:
   ReadDirRecursiveWork(Environment* env,
                        std::shared_ptr<ReadDirRecursiveRequest> request)
-      : ThreadPoolWork(env, "readdir_recursive"),
+      : ThreadPoolWork(env, ThreadPoolWorkType::kReadDirRecursive),
         request_(std::move(request)) {}
 
   void DoThreadPoolWork() override { request_->walk()->Run(); }
@@ -3777,7 +3777,7 @@ class ReadFileJob final : public AsyncWrap, public ThreadPoolWork {
               uint64_t limit,
               bool track_fd)
       : AsyncWrap(env, object, AsyncWrap::PROVIDER_FSREQCALLBACK),
-        ThreadPoolWork(env, "fs.readfile"),
+        ThreadPoolWork(env, ThreadPoolWorkType::kFsReadFile),
         path_(std::move(path)),
         limit_(limit),
         flags_(flags),
@@ -3965,7 +3965,7 @@ class WriteFileJob final : public AsyncWrap, public ThreadPoolWork {
                int mode,
                Local<ArrayBufferView> view)
       : AsyncWrap(env, object, AsyncWrap::PROVIDER_FSREQCALLBACK),
-        ThreadPoolWork(env, "fs.writefile"),
+        ThreadPoolWork(env, ThreadPoolWorkType::kFsWriteFile),
         path_(std::move(path)),
         flags_(flags),
         mode_(mode) {
@@ -5299,7 +5299,7 @@ class CpDirJob final : public AsyncWrap, public ThreadPoolWork {
            std::string&& dest_display,
            CpDirOptions options)
       : AsyncWrap(env, object, AsyncWrap::PROVIDER_FSREQCALLBACK),
-        ThreadPoolWork(env, "fs.cp"),
+        ThreadPoolWork(env, ThreadPoolWorkType::kFsCp),
         src_(std::move(src)),
         dest_(std::move(dest)),
         dest_display_(std::move(dest_display)),

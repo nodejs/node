@@ -343,7 +343,7 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
                      CryptoJobMode mode,
                      AdditionalParams&& params)
       : AsyncWrap(env, object, type),
-        ThreadPoolWork(env, "crypto"),
+        ThreadPoolWork(env, ThreadPoolWorkType::kCrypto),
         mode_(mode),
         params_(std::move(params)) {
     // If the CryptoJob is async, then the instance will be
