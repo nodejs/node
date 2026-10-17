@@ -290,11 +290,14 @@ std::unique_ptr<DataQueue::Entry> CreateEntryFromBuffer(
 
 Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
     Environment* env, Local<Value> value) {
-  DCHECK_IMPLIES(!value->IsUndefined(), value->IsObject());
+  DCHECK(value->IsUndefined() || value->IsNull() || value->IsObject());
   std::vector<std::unique_ptr<DataQueue::Entry>> entries;
   if (value->IsUndefined()) {
     // Return an empty DataQueue.
     return Just(std::shared_ptr<DataQueue>());
+  } else if (value->IsNull()) {
+    // Return an empty, completed data source.
+    return Just(DataQueue::CreateIdempotent(std::move(entries)));
   } else if (value->IsArrayBuffer()) {
     auto buffer = value.As<ArrayBuffer>();
     auto length = buffer->ByteLength();
