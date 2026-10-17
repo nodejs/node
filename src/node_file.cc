@@ -1287,7 +1287,7 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
     AsyncCall(
         env, req_wrap_async, args, "fstat", UTF8, AfterStat, uv_fs_fstat, fd);
   } else {  // fstat(fd, use_bigint, undefined, do_not_throw_error)
-    bool do_not_throw_error = args[2]->IsTrue();
+    bool do_not_throw_error = args[3]->IsTrue();
     const auto should_throw = [do_not_throw_error](int result) {
       return is_uv_error(result) && !do_not_throw_error;
     };
