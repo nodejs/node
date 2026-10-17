@@ -791,6 +791,8 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
 
   bool timed_out = false;
   bool received_signal = false;
+  const uint32_t async_stack_length =
+      realm->env()->async_hooks()->fields()[AsyncHooks::kStackLength];
   MaybeLocal<Value> result;
   {
     auto wd = timeout != -1
@@ -853,6 +855,13 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   if (timed_out || received_signal) {
     if (!realm->env()->is_main_thread() && realm->env()->is_stopping()) return;
     isolate->CancelTerminateExecution();
+    // A promise job terminated by the watchdog never runs its async hook
+    // `after` callback, so drop the contexts it left on the stack.
+    AsyncHooks* async_hooks = realm->env()->async_hooks();
+    while (async_hooks->fields()[AsyncHooks::kStackLength] >
+           async_stack_length) {
+      async_hooks->pop_async_context(realm->env()->execution_async_id());
+    }
     // It is possible that execution was terminated by another timeout in
     // which this timeout is nested, so check whether one of the watchdogs
     // from this invocation is responsible for termination.
