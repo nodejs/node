@@ -950,6 +950,46 @@ const callSites = getCallSites({ sourceMap: true });
 // Column Number: 26
 ```
 
+## `util.getStringWidth(str)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `str` {string}
+* Returns: {integer} An estimate of the number of columns needed to display
+  `str`.
+
+Returns an estimate of the width of `str` as displayed in a terminal, counted
+in columns. The string is split into grapheme clusters, the units a terminal
+renders as one glyph. Full-width characters, such as CJK ideographs, count as
+two columns. An emoji counts as two columns, including a sequence joined by
+zero-width joiners, a flag, a keycap, or an emoji with a skin tone modifier.
+Clusters without visible characters, such as control characters, zero-width
+spaces and lone combining marks, count as zero. Characters of ambiguous East
+Asian Width, such as `±`, count as one column. ANSI escape sequences, as
+produced by [`util.styleText()`][], are ignored.
+
+```js
+console.log(util.getStringWidth('hello'));
+// Prints: 5
+console.log(util.getStringWidth('你好'));
+// Prints: 4
+console.log(util.getStringWidth('👩\u200D👩\u200D👧'));
+// Prints: 2
+console.log(util.getStringWidth(util.styleText('red', 'hi')));
+// Prints: 2
+```
+
+The result is an estimate because terminals differ in how they render some
+characters. For example, a terminal that does not support an emoji sequence
+displays each emoji of the sequence separately and uses more columns than
+reported. When Node.js is built without ICU, a simpler table of full-width and
+zero-width code points is used, which is less accurate for less common scripts
+and symbols.
+
 ## `util.getSystemErrorName(err)`
 
 <!-- YAML
@@ -4187,6 +4227,7 @@ npx codemod@latest @nodejs/util-is
 [`util.format()`]: #utilformatformat-args
 [`util.inspect()`]: #utilinspectobject-options
 [`util.promisify()`]: #utilpromisifyoriginal
+[`util.styleText()`]: #utilstyletextformat-text-options
 [`util.types.isAnyArrayBuffer()`]: #utiltypesisanyarraybuffervalue
 [`util.types.isArrayBuffer()`]: #utiltypesisarraybuffervalue
 [`util.types.isSharedArrayBuffer()`]: #utiltypesissharedarraybuffervalue

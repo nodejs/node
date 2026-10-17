@@ -57,6 +57,7 @@
 
 #include <unicode/putil.h>
 #include <unicode/timezone.h>
+#include <unicode/ubrk.h>
 #include <unicode/uchar.h>
 #include <unicode/uclean.h>
 #include <unicode/ucnv.h>
@@ -684,11 +685,182 @@ static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(width);
 }
 
+// Returns the East Asian Width of a code point in columns. Ambiguous
+// characters are narrow unless ambiguous_as_full_width is set.
+static int GetEastAsianWidth(UChar32 codepoint, bool ambiguous_as_full_width) {
+  switch (u_getIntPropertyValue(codepoint, UCHAR_EAST_ASIAN_WIDTH)) {
+    case U_EA_FULLWIDTH:
+    case U_EA_WIDE:
+      return 2;
+    case U_EA_AMBIGUOUS:
+      return ambiguous_as_full_width ? 2 : 1;
+    default:
+      return 1;
+  }
+}
+
+// Returns true if the code point takes up columns of its own, i.e. it is not
+// a control, format or default ignorable code point, a nonspacing or
+// enclosing mark, or a surrogate.
+static bool IsVisibleCodePoint(UChar32 codepoint) {
+  if (u_hasBinaryProperty(codepoint, UCHAR_DEFAULT_IGNORABLE_CODE_POINT)) {
+    return false;
+  }
+  switch (u_charType(codepoint)) {
+    case U_CONTROL_CHAR:
+    case U_FORMAT_CHAR:
+    case U_NON_SPACING_MARK:
+    case U_ENCLOSING_MARK:
+    case U_SURROGATE:
+      return false;
+    default:
+      return true;
+  }
+}
+
+static bool IsHangulLeadingJamo(UChar32 c) {
+  return (c >= 0x1100 && c <= 0x115F) || (c >= 0xA960 && c <= 0xA97C);
+}
+
+static bool IsHangulVowelJamo(UChar32 c) {
+  return (c >= 0x1160 && c <= 0x11A7) || (c >= 0xD7B0 && c <= 0xD7C6);
+}
+
+static bool IsHangulTrailingJamo(UChar32 c) {
+  return (c >= 0x11A8 && c <= 0x11FF) || (c >= 0xD7CB && c <= 0xD7FB);
+}
+
+static bool IsHangulJamo(UChar32 c) {
+  return IsHangulLeadingJamo(c) || IsHangulVowelJamo(c) ||
+         IsHangulTrailingJamo(c);
+}
+
+static bool IsKeycapBase(UChar c) {
+  return c == '#' || c == '*' || (c >= '0' && c <= '9');
+}
+
+// Returns the number of columns a terminal uses for one grapheme cluster.
+// The rules match those of the string-width package, which most CLI tools
+// use, so that the results agree with the rest of the ecosystem:
+//  - a cluster without visible code points takes no columns;
+//  - an emoji sequence recommended for general interchange (RGI), such as a
+//    flag, a keycap, a skin tone or a ZWJ sequence, takes two columns, as
+//    does a keycap or ZWJ sequence that is missing its variation selector;
+//  - Hangul jamo are grouped into syllable blocks of two columns;
+//  - otherwise the East Asian Width of the first visible code point is
+//    used, plus that of trailing spacing marks and halfwidth and fullwidth
+//    forms, such as a halfwidth dakuten.
+static int GetClusterWidth(const UChar* str,
+                           int32_t length,
+                           bool ambiguous_as_full_width) {
+  if (length == 1) {
+    return IsVisibleCodePoint(str[0])
+               ? GetEastAsianWidth(str[0], ambiguous_as_full_width)
+               : 0;
+  }
+
+  if (u_stringHasBinaryProperty(str, length, UCHAR_RGI_EMOJI)) return 2;
+
+  MaybeStackBuffer<UChar32, 32> visible(length);
+  size_t visible_count = 0;
+  bool has_zwj = false;
+  int pictographic_count = 0;
+  int32_t n = 0;
+  UChar32 c;
+  while (n < length) {
+    U16_NEXT(str, n, length, c);
+    if (c == 0x200D) has_zwj = true;
+    if (u_hasBinaryProperty(c, UCHAR_EXTENDED_PICTOGRAPHIC)) {
+      pictographic_count++;
+    }
+    if (IsVisibleCodePoint(c)) visible[visible_count++] = c;
+  }
+  if (visible_count == 0) return 0;
+
+  if (has_zwj && pictographic_count >= 2) return 2;
+  if (length == 2 && IsKeycapBase(str[0]) && str[1] == 0x20E3) return 2;
+
+  int width = 0;
+  if (IsHangulJamo(visible[0])) {
+    for (size_t i = 0; i < visible_count; i++) {
+      if (!IsHangulJamo(visible[i])) {
+        for (; i < visible_count; i++) {
+          width += GetEastAsianWidth(visible[i], ambiguous_as_full_width);
+        }
+        break;
+      }
+      if (IsHangulLeadingJamo(visible[i]) && i + 1 < visible_count &&
+          IsHangulVowelJamo(visible[i + 1])) {
+        width += 2;
+        i += (i + 2 < visible_count && IsHangulTrailingJamo(visible[i + 2]))
+                 ? 2
+                 : 1;
+        continue;
+      }
+      width += GetEastAsianWidth(visible[i], ambiguous_as_full_width);
+    }
+    return width;
+  }
+
+  width = GetEastAsianWidth(visible[0], ambiguous_as_full_width);
+  for (size_t i = 1; i < visible_count; i++) {
+    if (u_charType(visible[i]) == U_COMBINING_SPACING_MARK ||
+        (visible[i] >= 0xFF00 && visible[i] <= 0xFFEF)) {
+      width += GetEastAsianWidth(visible[i], ambiguous_as_full_width);
+    }
+  }
+  return width;
+}
+
+struct CharacterBreakIterator {
+  UBreakIterator* iterator = nullptr;
+  ~CharacterBreakIterator() { ubrk_close(iterator); }
+};
+
+// Returns the column width of the given string, counted per grapheme cluster
+// so that an emoji sequence rendered as one glyph counts once. This is what
+// util.getStringWidth() uses. GetStringWidth() above counts code points and
+// is used for cursor movement in readline.
+static void GetGraphemeStringWidth(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsString());
+
+  bool ambiguous_as_full_width = args[1]->IsTrue();
+
+  TwoByteValue value(args.GetIsolate(), args[0]);
+  const UChar* str = reinterpret_cast<const UChar*>(*value);
+  int32_t length = static_cast<int32_t>(value.length());
+
+  // Opening a break iterator costs more than iterating a short string, so
+  // one iterator per thread is reused. It holds no state between calls and
+  // can be shared by the Environments of a thread.
+  // NOLINTNEXTLINE(runtime/thread_local)
+  static thread_local CharacterBreakIterator cached;
+  UErrorCode status = U_ZERO_ERROR;
+  if (cached.iterator == nullptr) {
+    cached.iterator = ubrk_open(UBRK_CHARACTER, nullptr, nullptr, 0, &status);
+    // The character break rules are part of the ICU data that Node.js ships.
+    CHECK(U_SUCCESS(status));
+  }
+  UBreakIterator* iterator = cached.iterator;
+  ubrk_setText(iterator, str, length, &status);
+  CHECK(U_SUCCESS(status));
+
+  uint32_t width = 0;
+  int32_t start = ubrk_first(iterator);
+  for (int32_t end = ubrk_next(iterator); end != UBRK_DONE;
+       start = end, end = ubrk_next(iterator)) {
+    width += GetClusterWidth(str + start, end - start, ambiguous_as_full_width);
+  }
+
+  args.GetReturnValue().Set(width);
+}
+
 static void CreatePerIsolateProperties(IsolateData* isolate_data,
                                        Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
 
   SetMethod(isolate, target, "getStringWidth", GetStringWidth);
+  SetMethod(isolate, target, "getGraphemeStringWidth", GetGraphemeStringWidth);
 
   // One-shot converters
   SetMethod(isolate, target, "icuErrName", ICUErrorName);
@@ -717,6 +889,7 @@ void CreatePerContextProperties(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetStringWidth);
+  registry->Register(GetGraphemeStringWidth);
   registry->Register(ICUErrorName);
   registry->Register(Transcode);
   registry->Register(ConverterObject::Create);
