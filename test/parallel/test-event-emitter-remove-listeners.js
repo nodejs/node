@@ -141,6 +141,18 @@ function listener2() {}
 {
   const ee = new EventEmitter();
 
+  ee.once('hello', listener1);
+  ee.on('hello', listener2);
+  ee.on('removeListener', common.mustCall((eventName, listener) => {
+    assert.strictEqual(eventName, 'hello');
+    assert.strictEqual(listener, listener1);
+  }));
+  ee.emit('hello');
+}
+
+{
+  const ee = new EventEmitter();
+
   assert.deepStrictEqual(ee, ee.removeListener('foo', () => {}));
 }
 
