@@ -75,6 +75,25 @@ describe('AbortSignal.any()', { concurrency: !process.env.TEST_PARALLEL }, () =>
     assert.strictEqual(signal.reason, 'reason');
   });
 
+  it('aborts every signal that shares a source', () => {
+    const controller = new AbortController();
+    const other = new AbortController();
+    const signals = [
+      AbortSignal.any([controller.signal]),
+      AbortSignal.any([other.signal, controller.signal]),
+      AbortSignal.any([AbortSignal.any([controller.signal]), other.signal]),
+    ];
+    for (const signal of signals) {
+      signal.addEventListener('abort', common.mustCall());
+    }
+    controller.abort('reason');
+    for (const signal of signals) {
+      assert.ok(signal.aborted);
+      assert.strictEqual(signal.reason, 'reason');
+    }
+    other.abort('other reason');
+  });
+
   it('handles deeply aborted signals', async () => {
     const controllers = Array.from({ length: 2 }, () => new AbortController());
     const composedSignal1 = AbortSignal.any([controllers[0].signal]);

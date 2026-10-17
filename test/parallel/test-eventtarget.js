@@ -779,3 +779,34 @@ let asyncTest = Promise.resolve();
   new Event('', null);
   new Event('', undefined);
 }
+
+{
+  // Aborting the signal option only removes the listener that was registered
+  // with the same capture flag.
+  const et = new EventTarget();
+  const controller = new AbortController();
+  let calls = 0;
+  const listener = () => calls++;
+  et.addEventListener('foo', listener, { capture: true, signal: controller.signal });
+  et.addEventListener('foo', listener, false);
+  et.dispatchEvent(new Event('foo'));
+  assert.strictEqual(calls, 2);
+  controller.abort();
+  et.dispatchEvent(new Event('foo'));
+  assert.strictEqual(calls, 3);
+  et.removeEventListener('foo', listener);
+  et.dispatchEvent(new Event('foo'));
+  assert.strictEqual(calls, 3);
+}
+
+{
+  // The isTrusted getter returns false for any receiver that is not a trusted
+  // event, without throwing.
+  const { get } = Object.getOwnPropertyDescriptor(Event.prototype, 'isTrusted');
+  for (const value of [
+    undefined, null, 1, 'foo', Symbol('foo'), {}, () => {},
+    { __proto__: Event.prototype }, new Event('foo'), new CustomEvent('foo'),
+  ]) {
+    assert.strictEqual(get.call(value), false);
+  }
+}
