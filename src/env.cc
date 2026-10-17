@@ -167,12 +167,25 @@ void AsyncHooks::push_async_context(
   }
 }
 
+void AsyncHooks::CheckLazyClose(double async_id, uint32_t depth) {
+  if (fields_[kCheck] > 0 && (async_id_fields_[kExecutionAsyncId] != async_id ||
+                              fields_[kStackLength] != depth)) [[unlikely]] {
+    FailWithCorruptedAsyncStack(async_id);
+  }
+}
+
 // Remember to keep this code aligned with popAsyncContext() in JS.
 bool AsyncHooks::pop_async_context(double async_id) {
   // In case of an exception then this may have already been reset, if the
   // stack was multiple MakeCallback()'s deep.
-  if (fields_[kStackLength] == 0) [[unlikely]]
+  if (fields_[kStackLength] == 0) [[unlikely]] {
+    // A scope that skipped the stack still has its id checked.
+    if (fields_[kLazyScopes] > 0 && fields_[kCheck] > 0 &&
+        async_id_fields_[kExecutionAsyncId] != async_id) {
+      FailWithCorruptedAsyncStack(async_id);
+    }
     return false;
+  }
 
   // Ask for the async_id to be restored as a check that the stack
   // hasn't been corrupted.
@@ -227,6 +240,8 @@ void AsyncHooks::clear_async_id_stack() {
   async_id_fields_[kExecutionAsyncId] = 0;
   async_id_fields_[kTriggerAsyncId] = 0;
   fields_[kStackLength] = 0;
+  lazy_top_ = nullptr;
+  fields_[kLazyScopes] = 0;
 }
 
 void AsyncHooks::InstallPromiseHooks(Local<Context> ctx) {
