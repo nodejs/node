@@ -11,7 +11,7 @@ cleanup() {
 
 download() {
   LATEST_TAG_NAME="$("$NODE" --input-type=module <<'EOF'
-const res = await fetch('https://api.github.com/repos/openssl/openssl/git/matching-refs/tags/openssl-3.5');
+const res = await fetch('https://api.github.com/repos/openssl/openssl/git/matching-refs/tags/openssl-4.1');
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
 const releases = await res.json()
 const latest = releases.at(-1);
@@ -80,7 +80,7 @@ regenerate() {
   echo ""
   echo "Please commit the regenerated files:"
   echo ""
-  echo "$ git add -A deps/openssl/config/archs deps/openssl/openssl"
+  echo "$ git add -A deps/openssl/config deps/openssl/openssl"
   echo "$ git commit -m \"deps: update archs files for openssl\""
   echo ""
 }
