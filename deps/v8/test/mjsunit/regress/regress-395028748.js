@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --expose-fast-api
+// Flags: --allow-natives-syntax --expose-fast-api --turbofan
 
 const fast_api = new d8.test.FastCAPI();
 

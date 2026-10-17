@@ -4,6 +4,8 @@
 
 #include <span>
 
+#include "include/cppgc/allocation.h"
+#include "include/v8-cppgc.h"
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/base/strings.h"
@@ -1353,4 +1355,58 @@ TEST(SharedArrayBuffer_CopyArrayBufferBytes) {
   CHECK_EQ(0, std::memcmp(ab2->Data(), "1234", 4));
   CHECK_EQ(2, ab1->CopyArrayBufferBytes(0, 6, ab2, 2));
   CHECK_EQ(0, std::memcmp(ab2->Data(), "1212", 4));
+}
+
+TEST(ArrayBuffer_DetachCallback_NonWrapped) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  // Detaching an unwrapped ArrayBuffer should not trigger the callback.
+  isolate->SetArrayBufferDetachCallback(
+      [](v8::Isolate*, v8::Local<v8::ArrayBuffer>) { CHECK(false); });
+
+  auto unwrapped_ab = v8::ArrayBuffer::New(isolate, 16);
+  unwrapped_ab->Detach(v8::Local<v8::Value>()).Check();
+
+  isolate->SetArrayBufferDetachCallback(nullptr);
+}
+
+TEST(ArrayBuffer_DetachCallback_Wrapped) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  class Wrapper : public v8::Object::Wrappable {
+   public:
+    int detach_count = 0;
+
+    void Trace(cppgc::Visitor* visitor) const override {
+      v8::Object::Wrappable::Trace(visitor);
+    }
+  };
+
+  isolate->SetArrayBufferDetachCallback(
+      [](v8::Isolate* isolate, v8::Local<v8::ArrayBuffer> buffer) {
+        auto* wrapper =
+            v8::Object::Unwrap<i::kTagForTesting, Wrapper>(isolate, buffer);
+        CHECK_NOT_NULL(wrapper);
+        wrapper->detach_count++;
+      });
+
+  // Detaching a wrapped ArrayBuffer should trigger the callback once.
+  auto wrapped_ab = v8::ArrayBuffer::New(isolate, 16);
+  Wrapper* wrapper = cppgc::MakeGarbageCollected<Wrapper>(
+      isolate->GetCppHeap()->GetAllocationHandle());
+  v8::Object::Wrap<i::kTagForTesting>(
+      isolate, wrapped_ab, reinterpret_cast<v8::Object::Wrappable*>(wrapper));
+  wrapped_ab->Detach(v8::Local<v8::Value>()).Check();
+  CHECK_EQ(1, wrapper->detach_count);
+
+  // Detaching an already detached ArrayBuffer should not trigger the callback
+  // again.
+  wrapped_ab->Detach(v8::Local<v8::Value>()).Check();
+  CHECK_EQ(1, wrapper->detach_count);
+
+  isolate->SetArrayBufferDetachCallback(nullptr);
 }

@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common.js');
-const { OutgoingMessage } = require('_http_outgoing');
+const { OutgoingMessage } = require('http');
 
 const bench = common.createBenchmark(main, {
   value: [

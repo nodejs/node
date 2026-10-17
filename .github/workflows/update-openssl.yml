@@ -12,37 +12,40 @@ permissions:
 jobs:
   openssl-update:
     if: github.repository == 'nodejs/node'
+    name: OpenSSL update (${{ github.ref_name }})
     # Cannot use ubuntu-slim here because the update script requires Docker
     runs-on: ubuntu-latest
+    concurrency:
+      group: openssl-update-${{ github.ref_name }}
+      cancel-in-progress: false
+    env:
+      TARGET_BRANCH: ${{ github.ref_name }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: Setup Git config
+        run: |
+          git config user.name "Node.js GitHub Bot"
+          git config user.email "github-bot@iojs.org"
+          if [ "$TARGET_BRANCH" != "$DEFAULT_BRANCH" ]; then
+            echo "PR_TITLE_PREFIX=[${TARGET_BRANCH%-staging}] " >> "$GITHUB_ENV"
+          fi
       - name: Check and download new OpenSSL version
         run: |
-          ./tools/dep_updaters/update-openssl.sh download > temp-output
-          cat temp-output
-          tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-          rm temp-output
+          ./tools/dep_updaters/update-openssl.sh download \
+          | tee /dev/stderr \
+          | tail -n1 \
+          | sed -n '/^NEW_VERSION=/p' >> "$GITHUB_ENV"
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
-      - name: Create PR with first commit
-        id: create-pull-request
+      - name: Commit OpenSSL sources
         if: env.NEW_VERSION
-        uses: gr2m/create-or-update-pull-request-action@b65137ca591da0b9f43bad7b24df13050ea45d1b  # v1.10.1
-        # Creates a PR with the new OpenSSL source code committed
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
-        with:
-          author: Node.js GitHub Bot <github-bot@iojs.org>
-          body: This is an automated update of OpenSSL to ${{ env.NEW_VERSION }}.
-          branch: actions/tools-update-openssl  # Custom branch *just* for this Action.
-          commit-message: 'deps: upgrade openssl sources to openssl-${{ env.NEW_VERSION }}'
-          labels: dependencies, openssl
-          title: 'deps: update OpenSSL to ${{ env.NEW_VERSION }}'
-          path: deps/openssl
-          update-pull-request-title-and-body: true
-          draft: true
+        run: |
+          git add -A deps/openssl/openssl
+          git commit -m "deps: upgrade openssl sources to openssl-$NEW_VERSION"
       - name: Regenerate platform specific files
         if: env.NEW_VERSION
         run: |
@@ -50,20 +53,19 @@ jobs:
           ./tools/dep_updaters/update-openssl.sh regenerate
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
-      - name: Add second commit
-        # Adds a second commit to the PR with the generated platform-dependent files
+      - name: Commit generated files
         if: env.NEW_VERSION
-        uses: gr2m/create-or-update-pull-request-action@b65137ca591da0b9f43bad7b24df13050ea45d1b  # v1.10.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+        run: |
+          git add -A deps/openssl
+          git commit -m "deps: update archs files for openssl-$NEW_VERSION"
+      - name: Create or update PR
+        if: env.NEW_VERSION
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
         with:
+          token: ${{ secrets.GH_USER_TOKEN }}
           author: Node.js GitHub Bot <github-bot@iojs.org>
-          branch: actions/tools-update-openssl  # Custom branch *just* for this Action.
-          commit-message: 'deps: update archs files for openssl-${{ env.NEW_VERSION }}'
-          path: deps/openssl
-      - name: Mark PR as ready for review
-        if: env.NEW_VERSION
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
-          PR_ID: ${{ steps.create-pull-request.outputs.pull-request-number }}
-        run: gh --repo "$GITHUB_REPOSITORY" pr ready "$PR_ID"
+          committer: Node.js GitHub Bot <github-bot@iojs.org>
+          body: This is an automated update of OpenSSL to ${{ env.NEW_VERSION }} for ${{ github.ref_name }}.
+          branch: actions/${{ github.ref_name != github.event.repository.default_branch && format('{0}/', github.ref_name) || '' }}tools-update-openssl
+          labels: dependencies, openssl
+          title: '${{ env.PR_TITLE_PREFIX }}deps: update OpenSSL to ${{ env.NEW_VERSION }}'

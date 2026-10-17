@@ -19,7 +19,9 @@
 #include <ostream>
 #include <string>
 
+#include "absl/base/config.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 
 namespace absl {

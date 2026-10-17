@@ -58,6 +58,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   V8DebuggerAgentImpl& operator=(const V8DebuggerAgentImpl&) = delete;
   void restore();
   void stop();
+  void setSkipAllPausesForInternalUse(bool skip);
 
   // Part of the protocol.
   Response enable(std::optional<double> maxScriptsCacheSize,
@@ -300,8 +301,10 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       const String16& breakReason,
       std::unique_ptr<protocol::DictionaryValue> breakAuxData);
   void popBreakDetails();
+  void updateSkipAllPauses();
 
   bool m_skipAllPauses = false;
+  bool m_skipAllPausesFromEmbedder = false;
   bool m_breakpointsActive = false;
   bool m_instrumentationFinished = true;
   bool m_skipAnonymousScripts = false;

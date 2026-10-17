@@ -70,4 +70,22 @@ Terminate execution with pending microtasks
     result : {
     }
 }
+Terminate execution is not allowed for untrusted clients
+{
+    error : {
+        code : -32000
+        message : Runtime.terminateExecution is not allowed for untrusted clients
+    }
+    id : <messageId>
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
 Terminate execution does not crash on destroy

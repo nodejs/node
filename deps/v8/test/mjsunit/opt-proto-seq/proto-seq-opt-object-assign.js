@@ -37,7 +37,7 @@ assert_test_object_assign(test_object_assign());
 %OptimizeMaglevOnNextCall(test_object_assign);
 assert_test_object_assign(test_object_assign());
 assertOptimized(test_object_assign);
-assertTrue(isMaglevved(test_object_assign));
+assertMaglevved(test_object_assign);
 assert_test_object_assign(test_object_assign());
 %OptimizeFunctionOnNextCall(test_object_assign);
 assert_test_object_assign(test_object_assign());

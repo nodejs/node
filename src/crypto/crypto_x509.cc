@@ -699,9 +699,10 @@ MaybeLocal<Value> GetECGroupBits(Environment* env, const EC_GROUP* group) {
 
 template <const char* (*nid2string)(int nid)>
 MaybeLocal<Value> GetCurveName(Environment* env, const int nid) {
-  std::string_view name = nid2string(nid);
-  return name.size() ? MaybeLocal<Value>(OneByteString(env->isolate(), name))
-                     : MaybeLocal<Value>(Undefined(env->isolate()));
+  const char* name = nid2string(nid);
+  return name != nullptr
+             ? MaybeLocal<Value>(OneByteString(env->isolate(), name))
+             : MaybeLocal<Value>(Undefined(env->isolate()));
 }
 
 MaybeLocal<Object> X509ToObject(Environment* env, const X509View& cert) {
@@ -933,7 +934,8 @@ MaybeLocal<Object> X509Certificate::NewWithIssuers(
   }
 
   Local<Object> issuer;
-  if (issuer_chain != nullptr && start < sk_X509_num(issuer_chain)) {
+  if (issuer_chain != nullptr &&
+      static_cast<OPENSSL_SIZE_T>(start) < sk_X509_num(issuer_chain)) {
     X509Pointer issuer_cert =
         X509View(sk_X509_value(issuer_chain, start)).clone();
     if (!issuer_cert) [[unlikely]] {

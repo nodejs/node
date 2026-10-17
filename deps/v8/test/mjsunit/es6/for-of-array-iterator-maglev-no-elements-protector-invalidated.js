@@ -21,10 +21,10 @@ assertEquals([1, undefined, 3], testForOf([1, , 3]));
 
 %OptimizeMaglevOnNextCall(testForOf);
 assertEquals([1, undefined, 3], testForOf([1, , 3]));
-assertTrue(isMaglevved(testForOf));
+assertMaglevved(testForOf);
 
 // Invalidate NoElementsProtector after optimizing.
 Object.prototype[1] = 'element';
 
 assertEquals([1, 'element', 3], testForOf([1, , 3]));
-assertFalse(isMaglevved(testForOf));
+assertNotMaglevved(testForOf);

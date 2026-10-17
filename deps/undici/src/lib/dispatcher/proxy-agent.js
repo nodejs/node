@@ -83,11 +83,10 @@ class Http1ProxyWrapper extends DispatcherBase {
 
     opts.path = origin + path
 
-    if (!('host' in headers) && !('Host' in headers)) {
-      const { host } = new URL(origin)
-      headers.host = host
-    }
     opts.headers = { ...this[kProxyHeaders], ...headers }
+    if (!hasHostHeader(headers)) {
+      opts.headers.host = new URL(origin).host
+    }
 
     // Pin the SNI/cert hostname to the proxy. Without this the underlying
     // Client would derive it from the (rewritten) Host header, which points
@@ -276,12 +275,14 @@ class ProxyAgent extends DispatcherBase {
   }
 
   dispatch (opts, handler) {
-    const headers = buildHeaders(opts.headers)
+    let headers = buildHeaders(opts.headers)
     throwIfProxyAuthIsSent(headers)
 
-    if (headers && !('host' in headers) && !('Host' in headers)) {
-      const { host } = new URL(opts.origin)
-      headers.host = host
+    if (headers && !hasHostHeader(headers)) {
+      if (headers === opts.headers) {
+        headers = { ...headers }
+      }
+      headers.host = new URL(opts.origin).host
     }
 
     return this[kAgent].dispatch(
@@ -399,6 +400,15 @@ function throwIfProxyAuthIsSent (headers) {
  */
 function isProxyAuthorizationHeader (key) {
   return key.length === proxyAuthorization.length && key.toLowerCase() === proxyAuthorization
+}
+
+function hasHostHeader (headers) {
+  for (const key in headers) {
+    if (key.length === 4 && key.toLowerCase() === 'host') {
+      return true
+    }
+  }
+  return false
 }
 
 function throwProxyAuthError () {

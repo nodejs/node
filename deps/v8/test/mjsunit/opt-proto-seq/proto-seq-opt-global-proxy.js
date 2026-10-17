@@ -34,7 +34,7 @@ function run(){
   %OptimizeMaglevOnNextCall(test_global_proxy);
   assert_test_global_proxy(test_global_proxy());
   assertOptimized(test_global_proxy);
-  assertTrue(isMaglevved(test_global_proxy));
+  assertMaglevved(test_global_proxy);
   assert_test_global_proxy(test_global_proxy());
   %OptimizeFunctionOnNextCall(test_global_proxy);
   assert_test_global_proxy(test_global_proxy());

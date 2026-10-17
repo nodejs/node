@@ -2,7 +2,9 @@
 
 // const { parseHeaders } = require('../core/util')
 const DecoratorHandler = require('../handler/decorator-handler')
-const { ResponseError } = require('../core/errors')
+const { InvalidArgumentError, ResponseError } = require('../core/errors')
+
+const defaultMaxSize = 1024 * 1024
 
 class ResponseErrorHandler extends DecoratorHandler {
   #statusCode
@@ -10,9 +12,13 @@ class ResponseErrorHandler extends DecoratorHandler {
   #decoder
   #headers
   #body
+  #bodySize
+  #bodyTruncated
+  #maxSize
 
-  constructor (_opts, { handler }) {
+  constructor ({ maxSize }, { handler }) {
     super(handler)
+    this.#maxSize = maxSize
   }
 
   #checkContentType (contentType) {
@@ -25,6 +31,8 @@ class ResponseErrorHandler extends DecoratorHandler {
     this.#decoder = null
     this.#headers = null
     this.#body = ''
+    this.#bodySize = 0
+    this.#bodyTruncated = false
 
     return super.onRequestStart(controller, context)
   }
@@ -43,39 +51,69 @@ class ResponseErrorHandler extends DecoratorHandler {
     }
   }
 
+  #createResponseError () {
+    this.#body += this.#decoder?.decode(undefined, { stream: false }) ?? ''
+    this.#decoder = null
+
+    if (!this.#bodyTruncated && this.#checkContentType('application/json')) {
+      try {
+        this.#body = JSON.parse(this.#body)
+      } catch {
+        // Do nothing...
+      }
+    }
+
+    let err
+    const stackTraceLimit = Error.stackTraceLimit
+    Error.stackTraceLimit = 0
+    try {
+      err = new ResponseError('Response Error', this.#statusCode, {
+        body: this.#body,
+        bodyTruncated: this.#bodyTruncated,
+        headers: this.#headers
+      })
+    } finally {
+      Error.stackTraceLimit = stackTraceLimit
+    }
+
+    return err
+  }
+
   onResponseData (controller, chunk) {
     if (this.#statusCode < 400) {
       return super.onResponseData(controller, chunk)
     }
 
-    this.#body += this.#decoder?.decode(chunk, { stream: true }) ?? ''
+    if (this.#decoder == null) {
+      return
+    }
+
+    if (this.#maxSize === 0) {
+      this.#body += this.#decoder.decode(chunk, { stream: true })
+      return
+    }
+
+    const remaining = this.#maxSize - this.#bodySize
+
+    if (chunk.length <= remaining) {
+      this.#bodySize += chunk.length
+      this.#body += this.#decoder.decode(chunk, { stream: true })
+      return
+    }
+
+    if (remaining > 0) {
+      this.#body += this.#decoder.decode(chunk.subarray(0, remaining), { stream: true })
+      this.#bodySize = this.#maxSize
+    }
+
+    this.#bodyTruncated = true
+    this.#body += this.#decoder.decode(undefined, { stream: false })
+    this.#decoder = null
   }
 
   onResponseEnd (controller, trailers) {
     if (this.#statusCode >= 400) {
-      this.#body += this.#decoder?.decode(undefined, { stream: false }) ?? ''
-
-      if (this.#checkContentType('application/json')) {
-        try {
-          this.#body = JSON.parse(this.#body)
-        } catch {
-          // Do nothing...
-        }
-      }
-
-      let err
-      const stackTraceLimit = Error.stackTraceLimit
-      Error.stackTraceLimit = 0
-      try {
-        err = new ResponseError('Response Error', this.#statusCode, {
-          body: this.#body,
-          headers: this.#headers
-        })
-      } finally {
-        Error.stackTraceLimit = stackTraceLimit
-      }
-
-      super.onResponseError(controller, err)
+      super.onResponseError(controller, this.#createResponseError())
     } else {
       super.onResponseEnd(controller, trailers)
     }
@@ -86,10 +124,16 @@ class ResponseErrorHandler extends DecoratorHandler {
   }
 }
 
-module.exports = () => {
+module.exports = (opts = {}) => {
+  const { maxSize = defaultMaxSize } = opts
+
+  if (!Number.isSafeInteger(maxSize) || maxSize < 0) {
+    throw new InvalidArgumentError('maxSize must be a non-negative integer')
+  }
+
   return (dispatch) => {
     return function Intercept (opts, handler) {
-      return dispatch(opts, new ResponseErrorHandler(opts, { handler }))
+      return dispatch(opts, new ResponseErrorHandler({ maxSize }, { handler }))
     }
   }
 }

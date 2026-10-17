@@ -609,7 +609,7 @@ path. Add it with -I<path> to the command line
 // functions.
 // Use like:
 //   V8_NOINLINE V8_PRESERVE_MOST void UnlikelyMethod();
-#if V8_OS_WIN
+#if V8_CC_MSVC
 # define V8_PRESERVE_MOST
 #else
 #if V8_HAS_ATTRIBUTE_PRESERVE_MOST

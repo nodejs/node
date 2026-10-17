@@ -205,6 +205,30 @@ TEST_P(MicrotaskQueueTest, EnqueueAndRun) {
   EXPECT_EQ(0, microtask_queue()->size());
 }
 
+// The public v8::MicrotaskQueue policy accessors control auto-running for
+// this queue, independently of Isolate::SetMicrotasksPolicy().
+TEST_P(MicrotaskQueueTest, SetMicrotasksPolicy) {
+  v8::MicrotaskQueue* api_queue = microtask_queue();
+  api_queue->SetMicrotasksPolicy(MicrotasksPolicy::kExplicit);
+  EXPECT_EQ(MicrotasksPolicy::kExplicit, api_queue->GetMicrotasksPolicy());
+  EXPECT_EQ(MicrotasksPolicy::kExplicit,
+            microtask_queue()->microtasks_policy());
+
+  bool ran = false;
+  Enqueue([&ran] { ran = true; });
+  // With kExplicit, completing a script run does not drain this queue.
+  RunJS("0");
+  EXPECT_FALSE(ran);
+  EXPECT_EQ(1, microtask_queue()->size());
+
+  // With kAuto it does.
+  api_queue->SetMicrotasksPolicy(MicrotasksPolicy::kAuto);
+  EXPECT_EQ(MicrotasksPolicy::kAuto, api_queue->GetMicrotasksPolicy());
+  RunJS("0");
+  EXPECT_TRUE(ran);
+  EXPECT_EQ(0, microtask_queue()->size());
+}
+
 // Check for a buffer growth.
 TEST_P(MicrotaskQueueTest, BufferGrowth) {
   int count = 0;

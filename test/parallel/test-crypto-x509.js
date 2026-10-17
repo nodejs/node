@@ -514,3 +514,22 @@ CQAAAAAAAAAAAA==
   assert.strictEqual(cert.signatureAlgorithm, undefined);
   assert.strictEqual(cert.signatureAlgorithmOid, '1.3.6.1.4.1.99999.1');
 }
+
+if (!isBoringSSL) {
+  // EC certificate on a curve without a NIST name (brainpoolP256r1).
+  const certPem = `-----BEGIN CERTIFICATE-----
+MIIBfzCCASagAwIBAgIUcZKohGvML9PeBwQtylddAdUU3nkwCgYIKoZIzj0EAwIw
+FDESMBAGA1UEAwwJYnJhaW5wb29sMCAXDTI2MTAxMjE0NDczMVoYDzIxMjYwOTE4
+MTQ0NzMxWjAUMRIwEAYDVQQDDAlicmFpbnBvb2wwWjAUBgcqhkjOPQIBBgkrJAMD
+AggBAQcDQgAEKnP14jKQEUyWxWhXrs+ql7OlMy0EW3mnYTvwkF8VyYsPB9dBUJOW
+8IHqIik0kjQVSVhtLH0j+hveyZvGd0aQq6NTMFEwHQYDVR0OBBYEFNx4uQEsAiNZ
+zcrKuAZ9/9d1eIeDMB8GA1UdIwQYMBaAFNx4uQEsAiNZzcrKuAZ9/9d1eIeDMA8G
+A1UdEwEB/wQFMAMBAf8wCgYIKoZIzj0EAwIDRwAwRAIgHc4TOjOLOPXrvWXRQ44L
+jEVmV959vS0DtFIIsrGT3moCIBBRZWdLdd0YjFHUQshMZFM9BN2INpjFNUUxqPAC
+3qPo
+-----END CERTIFICATE-----`;
+
+  const legacyObject = new X509Certificate(certPem).toLegacyObject();
+  assert.ok([undefined, 'brainpoolP256r1'].includes(legacyObject.asn1Curve));
+  assert.strictEqual(legacyObject.nistCurve, undefined);
+}

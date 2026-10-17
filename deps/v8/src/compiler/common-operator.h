@@ -148,12 +148,13 @@ class DeoptimizeParameters final {
   FeedbackSource const feedback_;
 };
 
-bool operator==(DeoptimizeParameters, DeoptimizeParameters);
-bool operator!=(DeoptimizeParameters, DeoptimizeParameters);
+V8_EXPORT_PRIVATE bool operator==(DeoptimizeParameters, DeoptimizeParameters);
+V8_EXPORT_PRIVATE bool operator!=(DeoptimizeParameters, DeoptimizeParameters);
 
-size_t hast_value(DeoptimizeParameters p);
+V8_EXPORT_PRIVATE size_t hash_value(DeoptimizeParameters p);
 
-std::ostream& operator<<(std::ostream&, DeoptimizeParameters p);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           DeoptimizeParameters p);
 
 DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const)
     V8_WARN_UNUSED_RESULT;

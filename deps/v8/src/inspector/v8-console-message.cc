@@ -326,6 +326,7 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
   V8ConsoleMessageStorage* storage =
       inspector->consoleMessageStorage(contextGroupId);
   if (!storage) return;
+  uint64_t storageId = storage->id();
 
   if (m_origin == V8MessageOrigin::kException) {
     v8::HandleScope scope(inspector->isolate());
@@ -372,7 +373,11 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
   if (m_origin == V8MessageOrigin::kConsole) {
     std::unique_ptr<protocol::Array<protocol::Runtime::RemoteObject>>
         arguments = wrapArguments(session, generatePreview);
-    if (inspector->consoleMessageStorage(contextGroupId) != storage) return;
+    V8ConsoleMessageStorage* inspectorStorage =
+        inspector->consoleMessageStorage(contextGroupId);
+    if (!inspectorStorage || inspectorStorage->id() != storageId) {
+      return;
+    }
     if (!arguments) {
       arguments =
           std::make_unique<protocol::Array<protocol::Runtime::RemoteObject>>();
@@ -553,8 +558,9 @@ void V8ConsoleMessage::contextDestroyed(int contextId) {
 // ----------------------------
 
 V8ConsoleMessageStorage::V8ConsoleMessageStorage(V8InspectorImpl* inspector,
-                                                 int contextGroupId)
-    : m_inspector(inspector), m_contextGroupId(contextGroupId) {}
+                                                 int contextGroupId,
+                                                 uint64_t id)
+    : m_inspector(inspector), m_contextGroupId(contextGroupId), m_id(id) {}
 
 V8ConsoleMessageStorage::~V8ConsoleMessageStorage() { clear(); }
 
@@ -579,6 +585,9 @@ void V8ConsoleMessageStorage::addMessage(
     std::unique_ptr<V8ConsoleMessage> message) {
   int contextGroupId = m_contextGroupId;
   V8InspectorImpl* inspector = m_inspector;
+  // Capture our own id before any reentrant code can run (see
+  // forEachSession() below).
+  uint64_t currentId = id();
   if (message->type() == ConsoleAPIType::kClear) clear();
 
   TraceV8ConsoleMessageEvent(message->origin(), message->type());
@@ -590,7 +599,12 @@ void V8ConsoleMessageStorage::addMessage(
         }
         session->runtimeAgent()->messageAdded(message.get());
       });
-  if (inspector->consoleMessageStorage(contextGroupId) != this) return;
+
+  V8ConsoleMessageStorage* inspectorStorage =
+      inspector->consoleMessageStorage(contextGroupId);
+  if (!inspectorStorage || inspectorStorage->id() != currentId) {
+    return;
+  }
 
   DCHECK(m_messages.size() <= maxConsoleMessageCount);
   if (m_messages.size() == maxConsoleMessageCount) {

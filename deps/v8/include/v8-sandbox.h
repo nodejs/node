@@ -29,7 +29,9 @@ enum class CppHeapPointerTag : uint16_t {
   kFirstTag = 0,
   kNullTag = 0,
 
+  // Subtypes of v8::Object::Wrappable [0x0001 .. 0x6fff]
   kFirstObjectWrappableTag = 1,
+  kFirstEmbedderWrappableTag = kFirstObjectWrappableTag,
 
   /**
    * The lower type ids are reserved for the embedder to assign. For that, the
@@ -54,33 +56,39 @@ enum class CppHeapPointerTag : uint16_t {
    * the type check to use even fewer instructions (essentially replace a AND +
    * SUB with a single AND).
    */
+  kLastEmbedderWrappableTag = 0x6eff,
 
-  kFirstV8InternalTag = 0x6000,
-  // V8-internal Oilpan objects that use v8::Object::Wrap() should go here.
-  kTagForTesting,
-  kInspectorV8ConsoleTag,
-  kInspectorTaskInfoTag,
-  kMicrotaskQueueTag,
-  kWasmMemoryMapDescriptorTag,
-  kCppGCManagedTag,
-  kEmbedderDataSlotTag,
-  kLastV8InternalTag,
+  // V8-internal Oilpan objects that inherit from v8::Object::Wrappable.
+  kFirstV8InternalWrappableTag = 0x6f00,
+  // Kept temporarily for backwards compatibility with Chromium's
+  // wrapper_type_info.h across the V8 roll.
+  kFirstV8InternalTag = kFirstV8InternalWrappableTag,
+  kLastV8InternalWrappableTag = 0x6fff,
+
+  kLastObjectWrappableTag = kLastV8InternalWrappableTag,
+
+  // Non-v8::Object::Wrappable CppHeap objects [0x7000 .. 0x7ffc]
+  kFirstNonWrappableTag = 0x7000,
+
+  kFirstV8InternalNonWrappableTag = kFirstNonWrappableTag,
+  kLastV8InternalNonWrappableTag = 0x70ff,
+
+  kFirstEmbedderNonWrappableTag = 0x7100,
+  kLastEmbedderNonWrappableTag = 0x7ffc,
+
+  kLastNonWrappableTag = kLastEmbedderNonWrappableTag,
 
 #if !V8_ENABLE_SANDBOX
   // Embedders that use the sandbox should use specific tags for each type.
-  kDefaultTag,
+  kDefaultTag = kFirstEmbedderWrappableTag,
 #endif  // !V8_ENABLE_SANDBOX
 
-  kLastObjectWrappableTag = 0x7ffc,
   kZappedEntryTag = 0x7ffd,
   kEvacuationEntryTag = 0x7ffe,
   kFreeEntryTag = 0x7fff,
   // The tags are limited to 15 bits, so the last tag is 0x7fff.
   kLastTag = 0x7fff,
 };
-
-static_assert(static_cast<uint16_t>(CppHeapPointerTag::kLastV8InternalTag) <
-              static_cast<uint16_t>(CppHeapPointerTag::kZappedEntryTag));
 
 using CppHeapPointerTagRange = internal::TagRange<CppHeapPointerTag>;
 
@@ -95,12 +103,26 @@ constexpr CppHeapPointerTagRange kObjectWrappableTagRange(
     CppHeapPointerTag::kFirstObjectWrappableTag,
     CppHeapPointerTag::kLastObjectWrappableTag);
 
-constexpr CppHeapPointerTagRange kV8InternalTagRange(
-    CppHeapPointerTag::kFirstV8InternalTag,
-    CppHeapPointerTag::kLastV8InternalTag);
+// The tag range that embedders can use for their own types that inherit from
+// v8::Object::Wrappable.
+constexpr CppHeapPointerTagRange kEmbedderWrappableTagRange(
+    CppHeapPointerTag::kFirstEmbedderWrappableTag,
+    CppHeapPointerTag::kLastEmbedderWrappableTag);
 
-static_assert(kObjectWrappableTagRange.Contains(kV8InternalTagRange),
-              "V8Internal tag range must be within kObjectWrappableTagRange");
+// The tag range for all non-v8::Object::Wrappable CppHeap objects, both
+// V8-internal and embedder-owned.
+constexpr CppHeapPointerTagRange kNonWrappableTagRange(
+    CppHeapPointerTag::kFirstNonWrappableTag,
+    CppHeapPointerTag::kLastNonWrappableTag);
+
+// The tag range that embedders can use for their own types that do not inherit
+// from v8::Object::Wrappable.
+constexpr CppHeapPointerTagRange kEmbedderNonWrappableTagRange(
+    CppHeapPointerTag::kFirstEmbedderNonWrappableTag,
+    CppHeapPointerTag::kLastEmbedderNonWrappableTag);
+
+static_assert(kObjectWrappableTagRange.Contains(kEmbedderWrappableTagRange));
+static_assert(kNonWrappableTagRange.Contains(kEmbedderNonWrappableTagRange));
 
 /**
  * Hardware support for the V8 Sandbox.

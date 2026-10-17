@@ -27,7 +27,7 @@
   // C default ctor doing "...args" and B default ctor doing "...args"
   // do *not* use the iterator.
   assertEquals(0, iterationCount);
-  assertTrue(isMaglevved(C));  // No deopt.
+  assertMaglevved(C);  // No deopt.
 
   Array.prototype[Symbol.iterator] = oldIterator;
 })();

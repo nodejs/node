@@ -908,14 +908,14 @@
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
-#define EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag)
+#define EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, handle)
 #else
-#define EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag)           \
-  do {                                                                \
-    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));              \
-    WriteBarrier::ForExternalPointer(                                 \
-        object, Tagged(object)->RawExternalPointerField(offset, tag), \
-        UPDATE_WRITE_BARRIER);                                        \
+#define EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, handle)           \
+  do {                                                                        \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                      \
+    WriteBarrier::ForExternalPointer(                                         \
+        object, Tagged(object)->RawExternalPointerField(offset, tag), handle, \
+        UPDATE_WRITE_BARRIER);                                                \
   } while (false)
 #endif
 
@@ -958,13 +958,16 @@
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
-#define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, mode)
+#define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, \
+                                                   handle, mode)
 #else
-#define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, mode) \
+#define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag,       \
+                                                   handle, mode)              \
   do {                                                                        \
     DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                      \
     WriteBarrier::ForExternalPointer(                                         \
-        object, Tagged(object)->RawExternalPointerField(offset, tag), mode);  \
+        object, Tagged(object)->RawExternalPointerField(offset, tag), handle, \
+        mode);                                                                \
   } while (false)
 #endif
 #ifdef V8_DISABLE_WRITE_BARRIERS

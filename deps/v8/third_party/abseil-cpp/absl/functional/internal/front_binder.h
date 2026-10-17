@@ -21,6 +21,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/config.h"
 #include "absl/container/internal/compressed_tuple.h"
 #include "absl/meta/type_traits.h"
 #include "absl/utility/utility.h"

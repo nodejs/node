@@ -17,6 +17,7 @@
 #include <cassert>
 #include <vector>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"  // For ABSL_RAW_CHECK
 #include "absl/base/macros.h"
 #include "absl/base/no_destructor.h"

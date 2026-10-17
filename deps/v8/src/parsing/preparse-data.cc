@@ -691,6 +691,7 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(
     }
     var->set_is_used();
     var->ForceContextAllocation();
+    var->set_maybe_assigned();
     scope->AsClassScope()->set_should_save_class_variable();
   }
 

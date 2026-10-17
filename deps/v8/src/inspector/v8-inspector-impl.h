@@ -205,6 +205,10 @@ class V8InspectorImpl : public V8Inspector {
   using ConsoleStorageMap =
       std::unordered_map<int, std::unique_ptr<V8ConsoleMessageStorage>>;
   ConsoleStorageMap m_consoleStorageMap;
+  // Monotonically increasing counter used to tag each newly-created
+  // V8ConsoleMessageStorage with a unique id. 64 bit should ensure this does
+  // not realistically wrap around.
+  uint64_t m_nextConsoleStorageId = 1;
 
   std::unordered_map<int, int> m_contextIdToGroupIdMap;
   std::map<std::pair<int64_t, int64_t>, int> m_uniqueIdToContextId;

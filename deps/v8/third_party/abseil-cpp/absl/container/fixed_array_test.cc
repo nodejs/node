@@ -16,6 +16,8 @@
 
 #include <stdio.h>
 
+#include <cassert>
+#include <cstdint>
 #include <cstring>
 #include <forward_list>
 #include <iterator>

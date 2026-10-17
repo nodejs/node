@@ -659,13 +659,12 @@ namespace {
 
 void FinalizeOptimization(Isolate* isolate) {
   DCHECK(isolate->concurrent_recompilation_enabled());
-  isolate->optimizing_compile_dispatcher()->WaitUntilCompilationJobsDone();
+  isolate->WaitForConcurrentOptimizationJobs();
   isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
   isolate->optimizing_compile_dispatcher()->set_finalize(true);
 
 #if V8_ENABLE_MAGLEV
   if (isolate->maglev_concurrent_dispatcher()->is_enabled()) {
-    isolate->maglev_concurrent_dispatcher()->AwaitCompileJobs();
     isolate->maglev_concurrent_dispatcher()->FinalizeFinishedJobs();
   }
 #endif  // V8_ENABLE_MAGLEV
@@ -1035,14 +1034,7 @@ RUNTIME_FUNCTION(Runtime_DisableOptimizationFinalization) {
 }
 
 RUNTIME_FUNCTION(Runtime_WaitForBackgroundOptimization) {
-  if (isolate->concurrent_recompilation_enabled()) {
-    isolate->optimizing_compile_dispatcher()->WaitUntilCompilationJobsDone();
-#if V8_ENABLE_MAGLEV
-    if (isolate->maglev_concurrent_dispatcher()->is_enabled()) {
-      isolate->maglev_concurrent_dispatcher()->AwaitCompileJobs();
-    }
-#endif  // V8_ENABLE_MAGLEV
-  }
+  isolate->WaitForConcurrentOptimizationJobs();
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -1103,7 +1095,7 @@ void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   auto context = isolate->GetCurrentContext();
   auto global = context->Global();
-  auto target_function_name = info.Data().As<v8::String>();
+  auto target_function_name = info.DataV2().As<v8::Value>().As<v8::String>();
   v8::Local<v8::Function> target;
   {
     Local<Value> result;
@@ -1205,6 +1197,23 @@ RUNTIME_FUNCTION(Runtime_SetAllocationTimeout) {
     }
   }
 #endif
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_SetDispatchTableGCInterval) {
+  SealHandleScope shs(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  CONVERT_INT32_ARG_FUZZ_SAFE(interval, 0);
+  isolate->heap()->set_dispatch_table_gc_interval(interval);
+#else   // !V8_ENABLE_ALLOCATION_TIMEOUT
+  static std::atomic_flag printed_warning = ATOMIC_FLAG_INIT;
+  if (!printed_warning.test_and_set()) {
+    base::OS::PrintError(
+        "Warning: %%SetDispatchTableGCInterval has no effect in this build. "
+        "Set the `v8_enable_test_features` GN arg to enable it.\n");
+  }
+#endif  // !V8_ENABLE_ALLOCATION_TIMEOUT
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -2158,8 +2167,8 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
                              DirectHandle<SharedFunctionInfo> shared) final {}
     void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind,
                         Address pc, int fp_to_sp_delta) final {}
-    void CodeDependencyChangeEvent(DirectHandle<Code> code,
-                                   DirectHandle<SharedFunctionInfo> shared,
+    void CodeDependencyChangeEvent(Tagged<Code> code,
+                                   Tagged<SharedFunctionInfo> shared,
                                    const char* reason) final {}
     void WeakCodeClearEvent() final {}
 

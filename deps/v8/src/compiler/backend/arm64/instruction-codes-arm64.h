@@ -70,8 +70,6 @@ namespace compiler {
   V(Arm64I32x4SConvertF32x4)            \
   V(Arm64I16x8Q15MulRSatS)              \
   V(Arm64I16x8BitMask)                  \
-  V(Arm64I8x16SConvertI16x8)            \
-  V(Arm64I8x16UConvertI16x8)            \
   V(Arm64I8x16BitMask)                  \
   V(Arm64S128Const)                     \
   V(Arm64S128Dup)                       \
@@ -105,6 +103,10 @@ namespace compiler {
   V(Arm64S128MoveReg)                   \
   V(Arm64V128AnyTrue)                   \
   V(Arm64AllTrue)                       \
+  V(Arm64Sqxtn)                         \
+  V(Arm64Sqxtn2)                        \
+  V(Arm64Sqxtun)                        \
+  V(Arm64Sqxtun2)                       \
   V(Arm64Sxtl)                          \
   V(Arm64Sxtl2)                         \
   V(Arm64Uxtl)                          \
@@ -124,6 +126,8 @@ namespace compiler {
   V(Arm64IShl)                          \
   V(Arm64IShrS)                         \
   V(Arm64IShrU)                         \
+  V(Arm64SShl)                          \
+  V(Arm64UShl)                          \
   V(Arm64IMul)                          \
   V(Arm64I32x4UConvertF32x4)            \
   V(Arm64I32x4BitMask)                  \
@@ -137,8 +141,6 @@ namespace compiler {
   V(Arm64I32x4TruncSatF64x2UZero)       \
   V(Arm64IExtractLaneU)                 \
   V(Arm64IExtractLaneS)                 \
-  V(Arm64I16x8SConvertI32x4)            \
-  V(Arm64I16x8UConvertI32x4)            \
   V(Arm64Mla)                           \
   V(Arm64Mls)                           \
   V(Arm64FAdd)                          \
@@ -205,6 +207,7 @@ namespace compiler {
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
   V(Arm64Add)                                        \
   V(Arm64Add32)                                      \
+  V(Arm64Add64_3)                                    \
   V(Arm64Add128)                                     \
   V(Arm64Sub128)                                     \
   V(Arm64And)                                        \

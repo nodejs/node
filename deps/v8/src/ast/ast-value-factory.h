@@ -63,7 +63,7 @@ class AstRawString final : public ZoneObject {
     return is_one_byte() ? literal_bytes_.length()
                          : literal_bytes_.length() / 2;
   }
-  bool AsArrayIndex(uint32_t* index) const;
+  V8_EXPORT_PRIVATE bool AsArrayIndex(uint32_t* index) const;
   bool IsIntegerIndex() const;
   V8_EXPORT_PRIVATE bool IsOneByteEqualTo(const char* data) const;
   V8_EXPORT_PRIVATE uint16_t FirstCharacter() const;
@@ -383,8 +383,8 @@ class AstValueFactory {
   const AstRawString* GetTwoByteString(base::Vector<const uint16_t> literal) {
     return GetTwoByteStringInternal(literal);
   }
-  const AstRawString* GetString(Tagged<String> literal,
-                                const SharedStringAccessGuardIfNeeded&);
+  V8_EXPORT_PRIVATE const AstRawString* GetString(
+      Tagged<String> literal, const SharedStringAccessGuardIfNeeded&);
 
   V8_EXPORT_PRIVATE AstConsString* NewConsString();
   V8_EXPORT_PRIVATE AstConsString* NewConsString(const AstRawString* str);

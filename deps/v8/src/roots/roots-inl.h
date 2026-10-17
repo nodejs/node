@@ -59,6 +59,9 @@ bool RootsTable::IsRootHandle(IndirectHandle<T> handle,
         handle_at(RootIndex::k##CamelName).location()); \
   }
 ROOT_LIST(ROOT_ACCESSOR)
+#ifndef V8_ENABLE_TDZ_HOLE
+ROOT_ACCESSOR(TdzHole, tdz_hole_value, TdzHoleValue)
+#endif
 #undef ROOT_ACCESSOR
 
 IndirectHandle<Object> RootsTable::handle_at(RootIndex index) {
@@ -96,6 +99,9 @@ ReadOnlyRoots::ReadOnlyRoots(LocalIsolate* isolate)
     return UncheckedCast<Type>(object_at(RootIndex::k##CamelName));  \
   }
 READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
+#ifndef V8_ENABLE_TDZ_HOLE
+ROOT_ACCESSOR(TdzHole, tdz_hole_value, TdzHoleValue)
+#endif
 #undef ROOT_ACCESSOR
 
 V8_RO_CONST Tagged<Boolean> ReadOnlyRoots::boolean_value(bool value) const {

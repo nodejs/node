@@ -124,6 +124,12 @@ add_macro_header(
 )
 
 add_macro_header(
+  glob_macros
+  HDR
+    glob-macros.h
+)
+
+add_macro_header(
   file_seek_macros
   HDR
     file-seek-macros.h
@@ -256,6 +262,12 @@ add_macro_header(
     sys-epoll-macros.h
   DEPENDS
     .fcntl_macros
+)
+
+add_macro_header(
+  sys_file_macros
+  HDR
+    sys-file-macros.h
 )
 
 add_macro_header(

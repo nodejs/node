@@ -110,6 +110,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:public"],
     deps = [
+        "//absl/base:config",
         "//absl/container:compressed_tuple",
         "//absl/meta:type_traits",
         "//absl/utility",
@@ -201,6 +202,7 @@ cc_binary(
     deps = [
         ":any_invocable",
         ":function_ref",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "@google_benchmark//:benchmark_main",
     ],

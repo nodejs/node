@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --stress-compaction --allow-natives-syntax --dispatch-table-gc-interval=1
+// Flags: --stress-compaction --allow-natives-syntax
+
+%SetDispatchTableGCInterval(1);
 
 function outer() {
   return [

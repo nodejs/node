@@ -2280,8 +2280,6 @@ async function httpNetworkFetch (
             appendHeadersListFromResponseHeaders(headersList, headers, rawHeaders)
             const location = headersList.get('location', true)
 
-            this.body = new Readable({ read: () => controller.resume() })
-
             const willFollow = location && request.redirect === 'follow' &&
               redirectStatusSet.has(status)
 
@@ -2299,7 +2297,7 @@ async function httpNetworkFetch (
               // CVE fix similar to urllib3 (GHSA-gm62-xv2j-4w53) and curl (CVE-2022-32206).
               const maxContentEncodings = 5
               if (codings.length > maxContentEncodings) {
-                reject(new Error(`too many content-encodings in response: ${codings.length}, maximum allowed is ${maxContentEncodings}`))
+                controller.abort(new Error(`too many content-encodings in response: ${codings.length}, maximum allowed is ${maxContentEncodings}`))
                 return
               }
 
@@ -2328,7 +2326,11 @@ async function httpNetworkFetch (
                 } else if (coding === 'zstd') {
                   decoders.push(zlib.createZstdDecompress({
                     flush: zlib.constants.ZSTD_e_continue,
-                    finishFlush: zlib.constants.ZSTD_e_end
+                    finishFlush: zlib.constants.ZSTD_e_end,
+                    params: {
+                      // https://www.rfc-editor.org/rfc/rfc9659.html#section-3
+                      [zlib.constants.ZSTD_d_windowLogMax]: 23
+                    }
                   }))
                 } else {
                   decoders.length = 0
@@ -2336,6 +2338,8 @@ async function httpNetworkFetch (
                 }
               }
             }
+
+            this.body = new Readable({ read: () => controller.resume() })
 
             const onError = (err) => this.onResponseError(controller, err)
 

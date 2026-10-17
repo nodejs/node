@@ -9,6 +9,7 @@
 #include "src/base/hashing.h"
 #include "src/base/platform/time.h"
 #include "src/base/small-vector.h"
+#include "src/codegen/cpu-features.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
@@ -678,7 +679,7 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
   DirectHandle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, std::move(native_module), script);
+      WasmModuleObject::New(isolate, script);
 
   // Finish the Wasm script now and make it public to the debugger.
   isolate->debug()->OnAfterCompile(script);
@@ -1025,7 +1026,7 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::ImportNativeModule(
       GetOrCreateScript(isolate, shared_native_module, source_url);
   native_module->LogWasmCodes(isolate, *script);
   DirectHandle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, std::move(shared_native_module), script);
+      WasmModuleObject::New(isolate, script);
   {
     base::MutexGuard lock(&mutex_);
     DCHECK(isolates_.contains(isolate));
@@ -1211,6 +1212,12 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
   bool has_mpk = WasmCodeManager::HasMemoryProtectionKeySupport();
   isolate->counters()->wasm_memory_protection_keys_support()->AddSample(
       has_mpk ? 1 : 0);
+
+#if V8_TARGET_ARCH_X64
+  bool has_avx2 =
+      CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2);
+  isolate->counters()->wasm_avx2_support()->AddSample(has_avx2 ? 1 : 0);
+#endif
 
   if (log_code) {
     // Log existing wrappers (which are shared across isolates).

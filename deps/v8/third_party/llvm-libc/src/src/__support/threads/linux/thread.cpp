@@ -12,6 +12,7 @@
 #include "src/__support/CPP/string_view.h"
 #include "src/__support/CPP/stringstream.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/close.h"
+#include "src/__support/OSUtil/linux/syscall_wrappers/getpid.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/mmap.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/mprotect.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/munmap.h"
@@ -20,6 +21,7 @@
 #include "src/__support/OSUtil/linux/syscall_wrappers/sched_getparam.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/sched_getscheduler.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/sched_setscheduler.h"
+#include "src/__support/OSUtil/linux/syscall_wrappers/tgkill.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/write.h"
 #include "src/__support/OSUtil/syscall.h" // For syscall functions.
 #include "src/__support/common.h"
@@ -27,6 +29,8 @@
 #include "src/__support/libc_errno.h" // For error macros
 #include "src/__support/macros/config.h"
 #include "src/__support/threads/linux/futex_utils.h" // For FutexWordType
+#include "src/__support/threads/linux/futex_word.h"
+#include "src/__support/threads/thread_attributes.h"
 
 #ifdef LIBC_TARGET_ARCH_IS_AARCH64
 #include <arm_acle.h>
@@ -35,6 +39,7 @@
 #include "hdr/errno_macros.h"
 #include "hdr/fcntl_macros.h"
 #include "hdr/sched_macros.h" // For CLONE_* flags.
+#include "hdr/signal_macros.h"
 #include "hdr/stdint_proxy.h"
 #include "hdr/sys_mman_macros.h" // For PROT_* and MAP_* definitions.
 #include <linux/param.h> // For EXEC_PAGESIZE.
@@ -44,7 +49,6 @@
 namespace LIBC_NAMESPACE_DECL {
 
 static constexpr size_t NAME_SIZE_MAX = 16; // Includes the null terminator
-static constexpr uint32_t CLEAR_TID_VALUE = 0xABCD1234;
 static constexpr unsigned CLONE_SYSCALL_FLAGS =
     CLONE_VM        // Share the memory space with the parent.
     | CLONE_FS      // Share the file system with the parent.
@@ -180,19 +184,13 @@ cleanup_thread_resources(ThreadAttributes *attrib) {
 [[gnu::noinline]] void start_thread() {
   auto *start_args = reinterpret_cast<StartArgs *>(get_start_args_addr());
   auto *attrib = start_args->thread_attrib;
-  internal::self.attrib = attrib;
-  attrib->atexit_callback_mgr = internal::get_thread_atexit_callback_mgr();
 
   if (attrib->style == ThreadStyle::POSIX) {
-    attrib->retval.posix_retval =
-        start_args->runner.posix_runner(start_args->arg);
-    thread_exit(ThreadReturnValue(attrib->retval.posix_retval),
-                ThreadStyle::POSIX);
+    ThreadReturnValue retval = start_args->runner.posix_runner(start_args->arg);
+    thread_exit(retval, ThreadStyle::POSIX);
   } else {
-    attrib->retval.stdc_retval =
-        start_args->runner.stdc_runner(start_args->arg);
-    thread_exit(ThreadReturnValue(attrib->retval.stdc_retval),
-                ThreadStyle::STDC);
+    ThreadReturnValue retval = start_args->runner.stdc_runner(start_args->arg);
+    thread_exit(retval, ThreadStyle::STDC);
   }
 }
 
@@ -223,6 +221,10 @@ int Thread::run(ThreadStyle style, ThreadRunner runner, void *arg, void *stack,
     else
       stack = alloc.value();
     owned_stack = true;
+  } else {
+    // The user is responsible for setting up the stack guard (or not) for the
+    // provided stack.
+    guardsize = 0;
   }
 
   // Validate that stack/stacksize are validly aligned.
@@ -291,8 +293,10 @@ int Thread::run(ThreadStyle style, ThreadRunner runner, void *arg, void *stack,
 
   auto clear_tid = reinterpret_cast<Futex *>(
       adjusted_stack + sizeof(StartArgs) + sizeof(ThreadAttributes));
-  clear_tid->set(CLEAR_TID_VALUE);
+  clear_tid->set(1);
   attrib->platform_data = clear_tid;
+
+  get_tcb(tls.tp)->attrib = attrib;
 
   // The clone syscall takes arguments in an architecture specific order.
   // Also, we want the result of the syscall to be in a register as the child
@@ -399,8 +403,9 @@ void Thread::wait() {
   auto *clear_tid = reinterpret_cast<Futex *>(attrib->platform_data);
   // We cannot do a FUTEX_WAIT_PRIVATE here as the kernel does a
   // FUTEX_WAKE and not a FUTEX_WAKE_PRIVATE.
-  while (clear_tid->load() != 0)
-    clear_tid->wait(CLEAR_TID_VALUE, cpp::nullopt, true);
+  FutexWordType clear_tid_value;
+  while ((clear_tid_value = clear_tid->load()) != 0)
+    clear_tid->wait(clear_tid_value, cpp::nullopt, true);
 }
 
 bool Thread::operator==(const Thread &thread) const {
@@ -515,8 +520,45 @@ ErrorOr<SchedParameters> Thread::getschedparam() const {
   return SchedParameters{pol_result.value(), param};
 }
 
+ErrorOr<void> Thread::kill(int sig) {
+  auto state = static_cast<DetachState>(
+      attrib->detach_state.load(cpp::MemoryOrder::RELAXED));
+  switch (state) {
+  case DetachState::EXITING:
+    // The thread is exiting, or has already exited. POSIX.1-2024 requires that
+    // pthread_kill does not return ESRCH because the pthread_t (unlike the OS
+    // TID) is still valid. Calling tgkill would return ESRCH (or target a
+    // recycled TID), so we return success directly. We only need to "request
+    // that a signal be delivered", and not actually make sure it has been
+    // handled. A zombie thread cannot handle signals.
+    return {};
+  case DetachState::JOINABLE:
+  case DetachState::DETACHED:
+    // A thread in these states can handle a signal. Note that a JOINABLE thread
+    // can transition to the EXITING state at any moment (and a DETACHED thread
+    // can disappear), but we're not allowed to take any locks to prevent that
+    // from happening (this function needs to be async-signal-safe).
+    break;
+  }
+
+  pid_t pid = linux_syscalls::getpid();
+  auto result = linux_syscalls::tgkill(pid, attrib->tid, sig);
+
+  if (!result.has_value()) {
+    if (result.error() == ESRCH) {
+      // Either the thread has exited since we've checked its state, or this
+      // object is corrupted. The latter is UB, so we're going to assume the
+      // former.
+      return {};
+    }
+    return Error(result.error());
+  }
+  return {};
+}
+
 void thread_exit(ThreadReturnValue retval, ThreadStyle style) {
   auto attrib = current_thread().attrib;
+  attrib->retval = retval;
 
   // The very first thing we do is to call the thread's atexit callbacks.
   // These callbacks could be the ones registered by the language runtimes,
@@ -526,7 +568,7 @@ void thread_exit(ThreadReturnValue retval, ThreadStyle style) {
   // cleanup_thread_resources function as that function can be called from a
   // different thread. The destructors of thread local and TSS objects should
   // be called by the thread which owns them.
-  internal::call_atexit_callbacks(attrib);
+  internal::call_atexit_callbacks();
 
   uint32_t joinable_state = uint32_t(DetachState::JOINABLE);
   if (!attrib->detach_state.compare_exchange_strong(

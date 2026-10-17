@@ -17,12 +17,16 @@ class LegacyHandlerWrapper {
   }
 
   onRequestUpgrade (controller, statusCode, headers, socket) {
-    const rawHeaders = controller?.rawHeaders ?? toRawHeaders(headers ?? {})
+    const rawHeaders = Array.isArray(controller?.rawHeaders)
+      ? controller.rawHeaders
+      : toRawHeaders(controller?.rawHeaders ?? headers ?? {})
     this.#handler.onUpgrade?.(statusCode, rawHeaders, socket)
   }
 
   onResponseStart (controller, statusCode, headers, statusMessage) {
-    const rawHeaders = controller?.rawHeaders ?? toRawHeaders(headers ?? {})
+    const rawHeaders = Array.isArray(controller?.rawHeaders)
+      ? controller.rawHeaders
+      : toRawHeaders(controller?.rawHeaders ?? headers ?? {})
 
     if (this.#handler.onHeaders?.(statusCode, rawHeaders, () => controller.resume(), statusMessage) === false) {
       controller.pause()
@@ -36,7 +40,9 @@ class LegacyHandlerWrapper {
   }
 
   onResponseEnd (controller, trailers) {
-    const rawTrailers = controller?.rawTrailers ?? toRawHeaders(trailers ?? {})
+    const rawTrailers = Array.isArray(controller?.rawTrailers)
+      ? controller.rawTrailers
+      : toRawHeaders(controller?.rawTrailers ?? trailers ?? {})
     this.#handler.onComplete?.(rawTrailers)
   }
 
@@ -96,6 +102,17 @@ class Dispatcher1Wrapper extends Dispatcher {
     }
 
     return this.#dispatcher.dispatch(opts, Dispatcher1Wrapper.wrapHandler(handler))
+  }
+
+  // Older undici versions read WebSocket and EventSource receive limits from
+  // the (legacy) global dispatcher, which is this wrapper, so report the
+  // wrapped dispatcher's settings.
+  get webSocketOptions () {
+    return this.#dispatcher.webSocketOptions
+  }
+
+  get eventSourceOptions () {
+    return this.#dispatcher.eventSourceOptions
   }
 
   close (...args) {

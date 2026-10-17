@@ -16,19 +16,19 @@ assertEquals('firstsecond', add(string, stringWrapper));
 %OptimizeMaglevOnNextCall(add);
 
 assertEquals('firstsecond', add(string, stringWrapper));
-assertTrue(isMaglevved(add));
+assertMaglevved(add);
 
 // Also passing the params the other way around is supported (both params are
 // of type "string or string wrapper").
 
 assertEquals('secondfirst', add(stringWrapper, string));
-assertTrue(isMaglevved(add));
+assertMaglevved(add);
 
 assertEquals('firstfirst', add(string, string));
-assertTrue(isMaglevved(add));
+assertMaglevved(add);
 
 assertEquals('secondsecond', add(stringWrapper, stringWrapper));
-assertTrue(isMaglevved(add));
+assertMaglevved(add);
 
 // Invalidate the protector.
 stringWrapper.valueOf = () => 'third';

@@ -26,6 +26,16 @@ class RetryAgent extends Dispatcher {
     return this.#agent.dispatch(opts, retry)
   }
 
+  // WebSocket and EventSource read their receive limits from the dispatcher
+  // they are given, so report the wrapped agent's settings rather than none.
+  get webSocketOptions () {
+    return this.#agent.webSocketOptions
+  }
+
+  get eventSourceOptions () {
+    return this.#agent.eventSourceOptions
+  }
+
   close () {
     return this.#agent.close()
   }

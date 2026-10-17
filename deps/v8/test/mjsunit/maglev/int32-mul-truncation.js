@@ -22,7 +22,7 @@ mul_masked(268435455, 12345);
 mul_masked(1000, 2000);
 %OptimizeMaglevOnNextCall(mul_masked);
 assertEquals(0, mul_masked(-268435455, 0));
-assertTrue(isMaglevved(mul_masked));
+assertMaglevved(mul_masked);
 
 // The product feeds a truncatable add, so the multiplication still folds.
 function mul_through_add(x, e, y, f) {
@@ -35,7 +35,7 @@ mul_through_add(268435455, 12345, 268435455, 12345);
 mul_through_add(1000, 2000, 3000, 4000);
 %OptimizeMaglevOnNextCall(mul_through_add);
 assertEquals(199, mul_through_add(-268435455, 0, 268435455, 12345));
-assertTrue(isMaglevved(mul_through_add));
+assertMaglevved(mul_through_add);
 
 // The product feeds a truncatable subtract.
 function mul_through_sub(x, e, y, f) {
@@ -48,7 +48,7 @@ mul_through_sub(268435455, 12345, 268435455, 12345);
 mul_through_sub(1000, 2000, 3000, 4000);
 %OptimizeMaglevOnNextCall(mul_through_sub);
 assertEquals(199, mul_through_sub(-268435455, 0, 268435455, 12345));
-assertTrue(isMaglevved(mul_through_sub));
+assertMaglevved(mul_through_sub);
 
 // The fold fires inside a loop.
 function mul_in_loop(n, x, e) {
@@ -64,7 +64,7 @@ mul_in_loop(5, 268435455, 12345);
 mul_in_loop(5, 1000, 2000);
 %OptimizeMaglevOnNextCall(mul_in_loop);
 assertEquals(0, mul_in_loop(5, -268435455, 0));
-assertTrue(isMaglevved(mul_in_loop));
+assertMaglevved(mul_in_loop);
 
 // The product is observed as a value (not truncated), so the minus-zero check
 // must be kept: -0 stays -0 and +0 stays +0.
@@ -125,4 +125,4 @@ mul_above_int32(100, 200);
 %OptimizeMaglevOnNextCall(mul_above_int32);
 assertEquals(((0x3ffff * 0x3ffff) & 0x3fffffff),
              mul_above_int32(0x3ffff, 0x3ffff));
-assertTrue(isMaglevved(mul_above_int32));
+assertMaglevved(mul_above_int32);

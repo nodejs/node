@@ -881,9 +881,9 @@ inline void* ArrayElementAddress(Tagged<WasmArray> array, uint32_t index,
 }
 }  // namespace
 
-void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
-                        Address raw_src_array, uint32_t src_index,
-                        uint32_t length) {
+DISABLE_TSAN void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
+                                     Address raw_src_array, uint32_t src_index,
+                                     uint32_t length) {
   DCHECK_GT(length, 0);
   DisallowGarbageCollection no_gc;
   Tagged<WasmArray> dst_array = Cast<WasmArray>(Tagged<Object>(raw_dst_array));
@@ -919,9 +919,11 @@ void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
   }
 }
 
-void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
-                        uint32_t emit_write_barrier, uint32_t raw_type,
-                        Address initial_value_addr) {
+DISABLE_TSAN void array_fill_wrapper(Address raw_array, uint32_t index,
+                                     uint32_t length,
+                                     uint32_t emit_write_barrier,
+                                     uint32_t raw_type,
+                                     Address initial_value_addr) {
   DisallowGarbageCollection no_gc;
   ValueType type = ValueType::FromRawBitField(raw_type);
   int8_t* initial_element_address = reinterpret_cast<int8_t*>(

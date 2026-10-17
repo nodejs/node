@@ -344,7 +344,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       DCHECK(IsJSGlobalObject(function->context()->global_object()));
 
       DirectHandle<Object> receiver = params.is_construct
-                                          ? isolate->factory()->the_hole_value()
+                                          ? isolate->factory()->tdz_hole_value()
                                           : params.receiver;
       DirectHandle<FunctionTemplateInfo> fun_data(
           function->shared()->api_func_data(), isolate);

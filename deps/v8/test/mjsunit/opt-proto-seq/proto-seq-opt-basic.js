@@ -46,7 +46,7 @@ assert_test_basic_optimization(test_basic_optimization());
 %OptimizeMaglevOnNextCall(test_basic_optimization);
 assert_test_basic_optimization(test_basic_optimization());
 assertOptimized(test_basic_optimization);
-assertTrue(isMaglevved(test_basic_optimization));
+assertMaglevved(test_basic_optimization);
 assert_test_basic_optimization(test_basic_optimization());
 %OptimizeFunctionOnNextCall(test_basic_optimization);
 assert_test_basic_optimization(test_basic_optimization());

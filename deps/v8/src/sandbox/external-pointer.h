@@ -139,14 +139,12 @@ V8_INLINE void InitLazyExternalPointerField(Address field_address);
 // Creates and initializes an entry in the external pointer table and writes the
 // handle for that entry to the field.
 template <ExternalPointerTag tag>
-V8_INLINE void InitExternalPointerField(Address host_address,
-                                        Address field_address,
-                                        IsolateForSandbox isolate,
-                                        Address value);
-V8_INLINE void InitExternalPointerField(Address host_address,
-                                        Address field_address,
-                                        IsolateForSandbox isolate,
-                                        ExternalPointerTag tag, Address value);
+V8_INLINE ExternalPointerHandle
+InitExternalPointerField(Address host_address, Address field_address,
+                         IsolateForSandbox isolate, Address value);
+V8_INLINE ExternalPointerHandle InitExternalPointerField(
+    Address host_address, Address field_address, IsolateForSandbox isolate,
+    ExternalPointerTag tag, Address value);
 
 // If the sandbox is enabled: reads the ExternalPointerHandle from the field and
 // loads the corresponding external pointer from the external pointer table. If

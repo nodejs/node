@@ -45,6 +45,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/container/hash_container_defaults.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/node_slot_policy.h"
@@ -681,11 +682,11 @@ class NodeHashMapPolicy
   static Value& value(value_type* elem) { return elem->second; }
   static const Value& value(const value_type* elem) { return elem->second; }
 
-  template <class Hash, bool kIsDefault, size_t kSeedShift>
+  template <class Hash, bool kIsAbsl, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return memory_internal::IsLayoutCompatible<Key, Value>::value
                ? &TypeErasedDerefAndApplyToSlotFirstFn<Hash, value_type,
-                                                       kIsDefault, kSeedShift>
+                                                       kIsAbsl, kSeedShift>
                : nullptr;
   }
 };

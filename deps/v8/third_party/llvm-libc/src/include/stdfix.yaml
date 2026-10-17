@@ -565,6 +565,62 @@ functions:
       - type: int
       - type: int
     guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: lrdivi
+    standards:
+      - stdc_ext
+    return_type: long fract
+    arguments:
+      - type: long int
+      - type: long int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: kdivi
+    standards:
+      - stdc_ext
+    return_type: accum
+    arguments:
+      - type: int
+      - type: int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: lkdivi
+    standards:
+      - stdc_ext
+    return_type: long accum
+    arguments:
+      - type: long int
+      - type: long int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: urdivi
+    standards:
+      - stdc_ext
+    return_type: unsigned fract
+    arguments:
+      - type: unsigned int
+      - type: unsigned int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: ulrdivi
+    standards:
+      - stdc_ext
+    return_type: unsigned long fract
+    arguments:
+      - type: unsigned long int
+      - type: unsigned long int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: ukdivi
+    standards:
+      - stdc_ext
+    return_type: unsigned accum
+    arguments:
+      - type: unsigned int
+      - type: unsigned int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: ulkdivi
+    standards:
+      - stdc_ext
+    return_type: unsigned long accum
+    arguments:
+      - type: unsigned long int
+      - type: unsigned long int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
   - name: divir
     standards:
       - stdc_ext

@@ -403,7 +403,7 @@ void OneShotDigestWithMD(Environment* env,
   enum encoding output_enc = ParseEncoding(isolate, args[4], args[5], HEX);
 
   bool is_xof = (EVP_MD_flags(md) & EVP_MD_FLAG_XOF) != 0;
-  int output_length = EVP_MD_size(md);
+  OPENSSL_SIZE_T output_length = EVP_MD_size(md);
 
   // This is to cause hash() to fail when an incorrect
   // outputLength option was passed for a non-XOF hash function.

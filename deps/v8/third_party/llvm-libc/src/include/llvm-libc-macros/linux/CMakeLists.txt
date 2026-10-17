@@ -35,6 +35,12 @@ add_header(
 )
 
 add_header(
+  sys_file_macros
+  HDR
+    sys-file-macros.h
+)
+
+add_header(
   sys_ioctl_macros
   HDR
     sys-ioctl-macros.h

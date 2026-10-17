@@ -73,7 +73,7 @@ for (const [fn, makeArg] of fns) {
   %OptimizeMaglevOnNextCall(fn);
   assertEquals(9, fn(makeArg()));
   assertEquals(9, fn(makeArg()));
-  assertTrue(isMaglevved(fn), fn.name);
+  assertMaglevved(fn, fn.name);
 }
 
 // A polymorphic iteration kind stays on the dynamic dispatch instead of
@@ -92,5 +92,5 @@ function step(it) {
   step(m.entries());
   step(m.keys());
   step(m.values());
-  assertTrue(isMaglevved(step));
+  assertMaglevved(step);
 }

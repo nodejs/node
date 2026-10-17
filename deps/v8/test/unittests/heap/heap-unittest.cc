@@ -37,7 +37,9 @@
 #include "src/heap/heap-controller.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-layout.h"
+#include "src/heap/large-page-inl.h"
 #include "src/heap/main-allocator-inl.h"
+#include "src/heap/marking-barrier.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/mutable-page.h"
@@ -449,17 +451,14 @@ void ShrinkNewSpace(NewSpace* new_space) {
   tracer->StopAtomicPause();
   tracer->StopObservablePause(GarbageCollector::MARK_COMPACTOR,
                               base::TimeTicks::Now());
-  if (heap->cpp_heap()) {
-    cppgc::internal::StatsCollector* stats_collector =
-        CppHeap::From(heap->cpp_heap())->stats_collector();
-    stats_collector->NotifyMarkingStarted(
-        cppgc::internal::CollectionType::kMajor,
-        cppgc::Heap::MarkingType::kAtomic,
-        cppgc::internal::MarkingConfig::IsForcedGC::kNotForced);
-    stats_collector->NotifyMarkingCompleted(0);
-    stats_collector->NotifySweepingCompleted(
-        cppgc::Heap::SweepingType::kAtomic);
-  }
+  cppgc::internal::StatsCollector* stats_collector =
+      CppHeap::From(heap->cpp_heap())->stats_collector();
+  stats_collector->NotifyMarkingStarted(
+      cppgc::internal::CollectionType::kMajor,
+      cppgc::Heap::MarkingType::kAtomic,
+      cppgc::internal::MarkingConfig::IsForcedGC::kNotForced);
+  stats_collector->NotifyMarkingCompleted(0);
+  stats_collector->NotifySweepingCompleted(cppgc::Heap::SweepingType::kAtomic);
   tracer->NotifyFullSweepingCompletedAndStopCycleIfFinished();
 }
 }  // namespace
@@ -4395,6 +4394,432 @@ TEST_F(HeapTest, EnsureAllocationSiteDependentCodesProcessed) {
   // The site still exists because of our global handle, but the code is no
   // longer referred to by dependent_code().
   EXPECT_TRUE(site->dependent_code()->Get(0).IsCleared());
+}
+
+void CheckEqualSharedFunctionInfos(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  DirectHandle<Object> obj1 = v8::Utils::OpenDirectHandle(*info[0]);
+  DirectHandle<Object> obj2 = v8::Utils::OpenDirectHandle(*info[1]);
+  DirectHandle<JSFunction> fun1 = Cast<JSFunction>(obj1);
+  DirectHandle<JSFunction> fun2 = Cast<JSFunction>(obj2);
+  CHECK_EQ(fun1->shared(), fun2->shared());
+}
+
+void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
+  DirectHandle<Object> obj = v8::Utils::OpenDirectHandle(*info[0]);
+  DirectHandle<JSFunction> fun = Cast<JSFunction>(obj);
+  // Bytecode is code too.
+  SharedFunctionInfo::DiscardCompiled(isolate,
+                                      direct_handle(fun->shared(), isolate));
+  fun->UpdateCode(isolate, *BUILTIN_CODE(isolate, CompileLazy));
+  InvokeMemoryReducingMajorGCs(isolate);
+}
+
+TEST_F(HeapTest, CanonicalSharedFunctionInfo) {
+  SetGlobalProperty(
+      "check", v8::Function::New(v8_context(), CheckEqualSharedFunctionInfos)
+                   .ToLocalChecked());
+  SetGlobalProperty(
+      "remove",
+      v8::Function::New(v8_context(), RemoveCodeAndGC).ToLocalChecked());
+  RunJS(
+      "function f() { return function g() {}; }\n"
+      "var g1 = f();\n"
+      "remove(f);\n"
+      "var g2 = f();\n"
+      "check(g1, g2);\n");
+
+  RunJS(
+      "function f() { return (function() { return function g() {}; })(); }\n"
+      "var g1 = f();\n"
+      "remove(f);\n"
+      "var g2 = f();\n"
+      "check(g1, g2);\n");
+}
+
+TEST_F(HeapTest, ScriptIterator) {
+  v8::HandleScope scope(v8_isolate());
+
+  InvokeMajorGC();
+
+  int script_count = 0;
+  {
+    HeapObjectIterator it(heap());
+    for (Tagged<HeapObject> obj = it.Next(); !obj.is_null(); obj = it.Next()) {
+      if (IsScript(obj)) script_count++;
+    }
+  }
+
+  {
+    Script::Iterator iterator(i_isolate());
+    for (Tagged<Script> script = iterator.Next(); !script.is_null();
+         script = iterator.Next()) {
+      script_count--;
+    }
+  }
+
+  EXPECT_EQ(0, script_count);
+}
+
+TEST_F(HeapTest, Regress587004) {
+  if (v8_flags.single_generation) return;
+  ManualGCScope manual_gc_scope(i_isolate());
+#ifdef VERIFY_HEAP
+  v8_flags.verify_heap = false;
+#endif
+  HandleScope scope(i_isolate());
+  Heap* heap = this->heap();
+  Isolate* isolate = this->i_isolate();
+  Factory* factory = isolate->factory();
+  const int N = (kMaxRegularHeapObjectSize - OFFSET_OF_DATA_START(FixedArray)) /
+                kTaggedSize;
+  DirectHandle<FixedArray> array =
+      factory->NewFixedArray(N, AllocationType::kOld);
+  CHECK(heap->old_space()->Contains(*array));
+  DirectHandle<Object> number = factory->NewHeapNumber(1.0);
+  CHECK(HeapLayout::InYoungGeneration(*number));
+  for (int i = 0; i < N; i++) {
+    array->set(i, *number);
+  }
+  InvokeMajorGC();
+  SimulateFullSpace(heap->old_space());
+  heap->RightTrimArray(*array, 1, N);
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
+                                CompleteSweepingReason::kTesting);
+  Tagged<ByteArray> byte_array;
+  const uint32_t M = 256;
+  // Don't allow old space expansion. The test works without this flag too,
+  // but becomes very slow.
+  SetForceOOM(heap, true);
+  while (
+      AllocateByteArrayForTest(heap, M, AllocationType::kOld).To(&byte_array)) {
+    for (uint32_t j = 0; j < M; j++) {
+      byte_array->set(j, 0x31);
+    }
+  }
+  // Re-enable old space expansion to avoid OOM crash.
+  SetForceOOM(heap, false);
+  InvokeMinorGC();
+}
+
+TEST_F(HeapTest, Regress589413) {
+  if (!v8_flags.incremental_marking || v8_flags.stress_concurrent_allocation) {
+    return;
+  }
+  v8_flags.stress_compaction = true;
+  ManualGCScope manual_gc_scope(i_isolate());
+  v8_flags.manual_evacuation_candidates_selection = true;
+  v8_flags.parallel_compaction = false;
+  HandleScope scope(i_isolate());
+  Heap* heap = this->heap();
+  // Get the heap in clean state.
+  InvokeMajorGC();
+  InvokeMajorGC();
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  auto force_evacuation_candidate = [](NormalPage* page) {
+    Isolate* isolate = page->owner()->heap()->isolate();
+    SafepointScope safepoint(isolate, kGlobalSafepointForSharedSpaceIsolate);
+    CHECK(v8_flags.manual_evacuation_candidates_selection);
+    page->set_forced_evacuation_candidate_for_testing(true);
+    page->owner()->heap()->FreeLinearAllocationAreas();
+  };
+
+  // Fill the new space with byte arrays with elements looking like pointers.
+  const uint32_t M = 256;
+  Tagged<ByteArray> byte_array;
+  NormalPage* young_page = nullptr;
+  while (AllocateByteArrayForTest(heap, M, AllocationType::kYoung)
+             .To(&byte_array)) {
+    // Only allocate objects on one young page as a rough estimate on
+    // how much memory can be promoted into the old generation.
+    // Otherwise we would crash when forcing promotion of all young
+    // live objects.
+    if (!young_page) young_page = NormalPage::FromHeapObject(byte_array);
+    if (NormalPage::FromHeapObject(byte_array) != young_page) break;
+
+    for (uint32_t j = 0; j < M; j++) {
+      byte_array->set(j, 0x31);
+    }
+    // Add the array in root set.
+    handle(byte_array, isolate);
+  }
+  auto reset_oom = [](void* data, size_t limit, size_t) -> size_t {
+    HeapTest* test = static_cast<HeapTest*>(data);
+    test->SetForceOOM(test->heap(), false);
+    return limit;
+  };
+  heap->AddNearHeapLimitCallback(reset_oom, this);
+
+  {
+    // Ensure that incremental marking is not started unexpectedly.
+    AlwaysAllocateScopeForTesting always_allocate(isolate->heap());
+
+    // Make sure the byte arrays will be promoted on the next GC.
+    InvokeMinorGC();
+    // This number is close to large free list category threshold.
+    const uint32_t N = 0x3EEE;
+
+    std::vector<Tagged<FixedArray>> arrays;
+    std::set<NormalPage*> pages;
+    Tagged<FixedArray> array;
+    // Fill all pages with fixed arrays.
+    SetForceOOM(heap, true);
+    while (
+        AllocateFixedArrayForTest(heap, N, AllocationType::kOld).To(&array)) {
+      arrays.push_back(array);
+      pages.insert(NormalPage::FromHeapObject(array));
+      // Add the array in root set.
+      handle(array, isolate);
+    }
+    SetForceOOM(heap, false);
+    size_t initial_pages = pages.size();
+    // Expand and fill two pages with fixed array to ensure enough space both
+    // the young objects and the evacuation candidate pages.
+    while (
+        AllocateFixedArrayForTest(heap, N, AllocationType::kOld).To(&array)) {
+      arrays.push_back(array);
+      pages.insert(NormalPage::FromHeapObject(array));
+      // Add the array in root set.
+      handle(array, isolate);
+      // Do not expand anymore.
+      if (pages.size() - initial_pages == 2) {
+        SetForceOOM(heap, true);
+      }
+    }
+    // Expand and mark the new page as evacuation candidate.
+    SetForceOOM(heap, false);
+    {
+      DirectHandle<HeapObject> ec_obj =
+          factory->NewFixedArray(5000, AllocationType::kOld);
+      NormalPage* ec_page = NormalPage::FromHeapObject(*ec_obj);
+      force_evacuation_candidate(ec_page);
+      // Make all arrays point to evacuation candidate so that
+      // slots are recorded for them.
+      for (size_t j = 0; j < arrays.size(); j++) {
+        array = arrays[j];
+        for (uint32_t i = 0; i < N; i++) {
+          array->set(i, *ec_obj);
+        }
+      }
+    }
+    CHECK(heap->incremental_marking()->IsStopped());
+    SimulateIncrementalMarking();
+    for (size_t j = 0; j < arrays.size(); j++) {
+      heap->RightTrimArray(arrays[j], 1, N);
+    }
+  }
+
+  // Force allocation from the free list.
+  SetForceOOM(heap, true);
+  InvokeMajorGC();
+  heap->RemoveNearHeapLimitCallback(reset_oom, 0);
+}
+
+TEST_F(HeapTest, Regress598319) {
+  if (!v8_flags.incremental_marking) return;
+  ManualGCScope manual_gc_scope(i_isolate());
+  // This test ensures that no white objects can cross the progress bar of large
+  // objects during incremental marking. It checks this by using Shift() during
+  // incremental marking.
+  v8::HandleScope scope(v8_isolate());
+  Heap* heap = this->heap();
+  Isolate* isolate = i_isolate();
+
+  // The size of the array should be larger than kProgressBarScanningChunk.
+  const uint32_t kNumberOfObjects =
+      std::max(FixedArray::kMaxRegularLength + 1, 128 * KB);
+
+  struct Arr {
+    Arr(Isolate* isolate, v8::Isolate* v8_isolate, uint32_t number_of_objects) {
+      root = isolate->factory()->NewFixedArray(1, AllocationType::kOld);
+      {
+        // Temporary scope to avoid getting any other objects into the root set.
+        v8::HandleScope new_scope(v8_isolate);
+        DirectHandle<FixedArray> tmp = isolate->factory()->NewFixedArray(
+            number_of_objects, AllocationType::kOld);
+        root->set(0, *tmp);
+        const uint32_t length = get()->length().value();
+        for (uint32_t i = 0; i < length; i++) {
+          tmp = isolate->factory()->NewFixedArray(100, AllocationType::kOld);
+          get()->set(i, *tmp);
+        }
+      }
+      global_root.Reset(v8_isolate, Utils::ToLocal(Cast<Object>(root)));
+    }
+
+    Tagged<FixedArray> get() { return Cast<FixedArray>(root->get(0)); }
+
+    Handle<FixedArray> root;
+
+    // Store array in global as well to make it part of the root set when
+    // starting incremental marking.
+    v8::Global<Value> global_root;
+  } arr(isolate, v8_isolate(), kNumberOfObjects);
+
+  CHECK_EQ(arr.get()->length().value(), kNumberOfObjects);
+  CHECK(heap->lo_space()->Contains(arr.get()));
+  LargePage* page = LargePage::FromHeapObject(isolate, arr.get());
+  CHECK_NOT_NULL(page);
+
+  // GC to cleanup state
+  InvokeMajorGC();
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
+                                  CompleteSweepingReason::kTesting);
+  }
+
+  CHECK(heap->lo_space()->Contains(arr.get()));
+  IncrementalMarking* marking = heap->incremental_marking();
+  MarkingState* marking_state = heap->marking_state();
+  CHECK(marking_state->IsUnmarked(arr.get()));
+
+  for (uint32_t i = 0; i < arr.get()->length().value(); i++) {
+    Tagged<HeapObject> arr_value = Cast<HeapObject>(arr.get()->get(i));
+    CHECK(marking_state->IsUnmarked(arr_value));
+  }
+
+  // Start incremental marking.
+  CHECK(marking->IsMarking() || marking->IsStopped());
+  if (marking->IsStopped()) {
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                  i::GarbageCollectionReason::kTesting);
+  }
+  CHECK(marking->IsMarking());
+
+  // Check that we have not marked the interesting array during root scanning.
+  for (uint32_t i = 0; i < arr.get()->length().value(); i++) {
+    Tagged<HeapObject> arr_value = Cast<HeapObject>(arr.get()->get(i));
+    CHECK(marking_state->IsUnmarked(arr_value));
+  }
+
+  // Now we search for a state where we are in incremental marking and have
+  // only partially marked the large object.
+  static constexpr auto kSmallStepSize =
+      v8::base::TimeDelta::FromMillisecondsD(0.1);
+  static constexpr size_t kSmallMaxBytesToMark = 100;
+  while (!marking->IsMajorMarkingComplete()) {
+    marking->AdvanceForTesting(kSmallStepSize, kSmallMaxBytesToMark);
+    MarkingProgressTracker& progress_tracker = page->marking_progress_tracker();
+    if (progress_tracker.IsEnabled() &&
+        progress_tracker.GetCurrentChunkForTesting() > 0) {
+      CHECK_NE(progress_tracker.GetCurrentChunkForTesting(), arr.get()->Size());
+      {
+        // Shift by 1, effectively moving one white object across the progress
+        // bar, meaning that we will miss marking it.
+        v8::HandleScope new_scope(v8_isolate());
+        DirectHandle<JSArray> js_array =
+            isolate->factory()->NewJSArrayWithElements(
+                DirectHandle<FixedArray>(arr.get(), isolate));
+        js_array->GetElementsAccessor()->Shift(isolate, js_array);
+      }
+      break;
+    }
+  }
+
+  SafepointScope safepoint_scope(heap->isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
+  MarkingBarrier::PublishAll(heap);
+
+  // Finish marking with bigger steps to speed up test.
+  static constexpr auto kLargeStepSize =
+      v8::base::TimeDelta::FromMilliseconds(1000);
+  while (!marking->IsMajorMarkingComplete()) {
+    marking->AdvanceForTesting(kLargeStepSize);
+  }
+  CHECK(marking->IsMajorMarkingComplete());
+
+  // All objects need to be black after marking. If a white object crossed the
+  // progress bar, we would fail here.
+  for (uint32_t i = 0; i < arr.get()->length().value(); i++) {
+    Tagged<HeapObject> arr_value = Cast<HeapObject>(arr.get()->get(i));
+    CHECK(HeapLayout::InReadOnlySpace(arr_value) ||
+          marking_state->IsMarked(arr_value));
+  }
+}
+
+DirectHandle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+  // Make sure there is no garbage and the compilation cache is empty.
+  for (int i = 0; i < 5; i++) {
+    InvokeMajorGC(heap->isolate());
+  }
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
+                                CompleteSweepingReason::kTesting);
+  // Disable LAB, such that calculations with SizeOfObjects() and object size
+  // are correct.
+  heap->DisableInlineAllocation();
+  size_t size_before_allocation = heap->SizeOfObjects();
+  IndirectHandle<FixedArray> array(
+      *heap->isolate()->factory()->NewFixedArray(length, AllocationType::kOld),
+      heap->isolate());
+  size_t size_after_allocation = heap->SizeOfObjects();
+  CHECK_EQ(size_after_allocation, size_before_allocation + array->Size());
+  array->RightTrim(heap->isolate(), 1);
+  size_t size_after_shrinking = heap->SizeOfObjects();
+  // Shrinking does not change the space size immediately.
+  CHECK_EQ(size_after_allocation, size_after_shrinking);
+  // GC and sweeping updates the size to account for shrinking.
+  InvokeMajorGC(heap->isolate());
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
+                                CompleteSweepingReason::kTesting);
+  intptr_t size_after_gc = heap->SizeOfObjects();
+  CHECK_EQ(size_after_gc, size_before_allocation + array->Size());
+  return array;
+}
+
+TEST_F(HeapTest, Regress609761) {
+  ManualGCScope manual_gc_scope(i_isolate());
+  int length = kMaxRegularHeapObjectSize / kTaggedSize + 1;
+  DirectHandle<FixedArray> array = ShrinkArrayAndCheckSize(heap(), length);
+  CHECK(heap()->lo_space()->Contains(*array));
+}
+
+TEST_F(HeapTest, LiveBytes) {
+  ManualGCScope manual_gc_scope(i_isolate());
+  DirectHandle<FixedArray> array = ShrinkArrayAndCheckSize(heap(), 2000);
+  CHECK(heap()->old_space()->Contains(*array));
+}
+
+TEST_F(HeapTest, Regress615489) {
+  if (!v8_flags.incremental_marking) return;
+  ManualGCScope manual_gc_scope(i_isolate());
+  HandleScope scope(i_isolate());
+  Heap* heap = this->heap();
+  Isolate* isolate = i_isolate();
+  InvokeMajorGC();
+
+  IncrementalMarking* marking = heap->incremental_marking();
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
+                                  CompleteSweepingReason::kTesting);
+  }
+  CHECK(marking->IsMarking() || marking->IsStopped());
+  if (marking->IsStopped()) {
+    heap->StartIncrementalMarking(GCFlag::kNoFlags,
+                                  GarbageCollectionReason::kTesting);
+  }
+  CHECK(marking->IsMarking());
+  CHECK(marking->black_allocation());
+  {
+    AlwaysAllocateScopeForTesting always_allocate(heap);
+    HandleScope inner(isolate);
+    isolate->factory()->NewFixedArray(500, AllocationType::kOld)->Size();
+  }
+  static constexpr auto kStepSize = v8::base::TimeDelta::FromMilliseconds(100);
+  while (!marking->IsMajorMarkingComplete()) {
+    marking->AdvanceForTesting(kStepSize);
+  }
+  CHECK(marking->IsMajorMarkingComplete());
+  size_t size_before = heap->SizeOfObjects();
+  InvokeMajorGC();
+  size_t size_after = heap->SizeOfObjects();
+  // Live size does not increase after garbage collection.
+  CHECK_LE(size_after, size_before);
 }
 
 }  // namespace internal

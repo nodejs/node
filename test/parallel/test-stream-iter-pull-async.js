@@ -16,6 +16,7 @@ const {
 } = require('stream/iter');
 
 const { setImmediate } = require('timers/promises');
+const { inspect } = require('util');
 
 async function testPullIdentity() {
   const data = await text(pull(from('hello-async')));
@@ -79,8 +80,8 @@ async function testPullWithAbortSignal() {
   await assert.rejects(iterator.next(), (error) => error === signal.reason);
   await assert.rejects(iterator.next(), (error) => error === signal.reason);
   assert.strictEqual(started, false);
-  assert.deepStrictEqual(await iterator.return(),
-                         { __proto__: null, done: true, value: undefined });
+  assert.deepStrictEqual({ ...await iterator.return() },
+                         { done: true, value: undefined });
 
   await assert.rejects(text(pull(gen(), (chunks) => chunks, { signal })),
                        (error) => error === signal.reason);
@@ -573,6 +574,41 @@ async function testTransformOptionsNotShared() {
   assert.strictEqual(seen[1].mutated, undefined);
 }
 
+// Stateless transforms get a new options object for every call, and stateful
+// transforms one for the pipeline. The options object has only `signal`, does
+// not inherit from Object.prototype, and its prototype is frozen, so that a
+// transform cannot pass state to others through it.
+async function testTransformOptionsShape() {
+  const seen = [];
+  const stateless = (chunks, options) => {
+    seen.push(options);
+    return chunks;
+  };
+  const stateful = {
+    async* transform(source, options) {
+      seen.push(options);
+      for await (const chunks of source) yield chunks;
+    },
+  };
+  const ac = new AbortController();
+  await text(pull(from(['a', 'b']), stateless, stateful,
+                  { signal: ac.signal }));
+  // Stateless: one call per batch plus the flush call.
+  assert.strictEqual(seen.length, 4);
+  assert.strictEqual(new Set(seen).size, seen.length);
+  for (const options of seen) {
+    assert.strictEqual(options instanceof Object, false);
+    assert.deepStrictEqual(Object.keys(options), ['signal']);
+    assert.ok(options.signal instanceof AbortSignal);
+    assert.strictEqual(Object.isFrozen(Object.getPrototypeOf(options)), true);
+    assert.match(inspect(options), /^TransformOptions \{ signal: /);
+  }
+  assert.strictEqual(Object.getPrototypeOf(seen[0]),
+                     Object.getPrototypeOf(seen[3]));
+  assert.throws(() => { Object.getPrototypeOf(seen[0]).leak = true; },
+                TypeError);
+}
+
 // Run the uncaughtException test sequentially (it installs a global handler
 // that would interfere with concurrent tests).
 (async () => {
@@ -609,6 +645,7 @@ async function testTransformOptionsNotShared() {
     testTransformReturnsArrayBuffer(),
     testPipeToStringSource(),
     testTransformOptionsNotShared(),
+    testTransformOptionsShape(),
   ]);
   // Run after all concurrent tests complete to avoid global handler races
   await testTransformSignalListenerErrorOnSourceError();

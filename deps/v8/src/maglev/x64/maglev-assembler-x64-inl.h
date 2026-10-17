@@ -495,6 +495,54 @@ inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(Register object,
   MacroAssembler::StoreTaggedField(FieldOperand(object, offset), value);
 }
 
+inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(
+    Register object, int offset, ValueNode* constant) {
+  DCHECK(CanStoreTaggedConstant(constant));
+  switch (constant->opcode()) {
+    case Opcode::kSmiConstant:
+      MacroAssembler::StoreTaggedField(
+          FieldOperand(object, offset),
+          Immediate(constant->Cast<SmiConstant>()->value()));
+      break;
+    case Opcode::kRootConstant:
+      MacroAssembler::StoreTaggedField(
+          FieldOperand(object, offset),
+          Immediate(static_cast<int32_t>(
+              ReadOnlyRootPtr(constant->Cast<RootConstant>()->index()))));
+      break;
+    case Opcode::kHeapConstant:
+      StoreTaggedFieldNoWriteBarrier(
+          object, offset, constant->Cast<HeapConstant>()->object().object());
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(
+    Register object, int offset, Handle<HeapObject> constant) {
+  DCHECK(kSupportsStoreTaggedConstant);
+  RootIndex root_index;
+  if (isolate()->roots_table().IsRootHandle(constant, &root_index) &&
+      CanBeImmediate(root_index)) {
+    MacroAssembler::StoreTaggedField(
+        FieldOperand(object, offset),
+        Immediate(static_cast<int32_t>(ReadOnlyRootPtr(root_index))));
+    return;
+  }
+  // Embed the compressed object as a relocatable immediate, like
+  // {MacroAssembler::Move(Register, Handle<HeapObject>, RelocInfo::Mode)} does
+  // for the register form. Maglev code is never isolate-independent, so no
+  // root-relative load is needed.
+  DCHECK(!options().isolate_independent_code);
+  EmbeddedObjectIndex index = AddEmbeddedObject(constant);
+  DCHECK(is_uint32(index));
+  MacroAssembler::StoreTaggedField(
+      FieldOperand(object, offset),
+      Immediate(static_cast<int>(index),
+                RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
+}
+
 inline void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(
     Register array, Register index, Register value) {
   MacroAssembler::StoreTaggedField(

@@ -246,7 +246,8 @@ impl LitStr {
         // Parse string literal into a token stream with every span equal to the
         // original literal's span.
         let span = self.span();
-        let mut tokens = TokenStream::from_str(&self.value())?;
+        let mut tokens =
+            TokenStream::from_str(&self.value()).map_err(|err| Error::new(span, err))?;
         tokens = respan_token_stream(tokens, span);
 
         let result = crate::parse::parse_scoped(parser, span, tokens)?;

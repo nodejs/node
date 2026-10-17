@@ -22,6 +22,7 @@
 #include "src/wasm/wasm-serialization.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
+#include "test/common/version-utils.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -32,9 +33,11 @@ namespace v8::internal::wasm {
 // Approximate gtest TEST_F style, in case we adopt gtest.
 class WasmSerializationTest {
  public:
-  WasmSerializationTest() : zone_(&allocator_, ZONE_NAME) {
+  explicit WasmSerializationTest(
+      const char* embedder_string = Version::GetEmbedder())
+      : zone_(&allocator_, ZONE_NAME) {
     // Don't call here if we move to gtest.
-    SetUp();
+    SetUp(embedder_string);
   }
 
   static constexpr const char* kFunctionName = "increment";
@@ -121,7 +124,7 @@ class WasmSerializationTest {
  private:
   Zone* zone() { return &zone_; }
 
-  void SetUp() {
+  void SetUp(const char* embedder_string) {
     CcTest::InitIsolateOnce();
     ZoneBuffer buffer(&zone_);
     WasmSerializationTest::BuildWireBytes(zone(), &buffer);
@@ -180,6 +183,7 @@ class WasmSerializationTest {
       while (data_.size == 0) {
         testing::CallWasmFunctionForTesting(serialization_isolate, instance,
                                             kFunctionName, {});
+        ScopedVersionEmbedderString embedder(embedder_string);
         data_ = compiled_module.Serialize();
       }
       CHECK_LT(0, data_.size);
@@ -244,6 +248,32 @@ TEST(DeserializeMismatchingVersion) {
     CHECK(test.Deserialize().is_null());
   }
   test.CollectGarbage();
+}
+
+TEST(DeserializeEmbedderString) {
+  {
+    WasmSerializationTest test("");
+    {
+      HandleScope scope(CcTest::i_isolate());
+      ScopedVersionEmbedderString embedder("");
+      CHECK(!test.Deserialize().is_null());
+      ScopedVersionEmbedderString mismatching_embedder("-test");
+      CHECK(test.Deserialize().is_null());
+    }
+    test.CollectGarbage();
+  }
+
+  {
+    WasmSerializationTest test("-test");
+    {
+      HandleScope scope(CcTest::i_isolate());
+      ScopedVersionEmbedderString embedder("-test");
+      CHECK(!test.Deserialize().is_null());
+      ScopedVersionEmbedderString mismatching_embedder("-test.2");
+      CHECK(test.Deserialize().is_null());
+    }
+    test.CollectGarbage();
+  }
 }
 
 TEST(DeserializeNoSerializedData) {

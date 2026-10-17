@@ -27,6 +27,7 @@
 #include <type_traits>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/optimization.h"
 #include "absl/numeric/bits.h"
 

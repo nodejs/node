@@ -104,7 +104,7 @@ think you know about the bug, and deepen your understanding.
 
 ______________________________________________________________________
 
-## Synctatic Principles of a Good Regression Test
+## Syntactic Principles of a Good Regression Test
 
 ### 1. Minimal & "Leaf" Compiler Flags
 
@@ -137,6 +137,11 @@ Avoid default fuzzer variable and function names (`__f_0`, `__v_10`, `v17`,
   required to reproduce the issue.
 - Do not include catch-all blocks (`catch (e) {}`) or dummy wrapper functions
   (`__wrapTC`) unless they are semantically required to trigger the crash path.
+- **Do not explicitly load `mjsunit.js`**: `mjsunit` tests run via
+  `tools/run-tests.py` automatically include `test/mjsunit/mjsunit.js`. Never
+  include `d8.file.execute('test/mjsunit/mjsunit.js')` in the test file itself.
+  (When executing the test manually via `d8`, pass `test/mjsunit/mjsunit.js` on
+  the command line instead).
 
 ### 4. Deterministic Optimization Control
 
@@ -148,3 +153,12 @@ Avoid default fuzzer variable and function names (`__f_0`, `__v_10`, `v17`,
   - `%OptimizeFunctionOnNextCall(foo);` or `%OptimizeMaglevOnNextCall(foo);`
 - Make sure `--allow-natives-syntax` is included in the Flags header when using
   percent (`%`) intrinsics.
+
+### 5. Rely on Test Runner Variants for Execution Coverage
+
+- V8's test runner automatically executes test suites across different variants
+  (such as baseline execution, optimizing tiers, and stress modes).
+- Avoid manually forcing execution across multiple tiers or duplicating
+  invocations solely to cover different compiler pipelines, unless the test
+  specifically exercises tier-up dynamics, on-stack replacement, or
+  deoptimization transitions between them.

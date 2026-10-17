@@ -122,7 +122,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   // Parameters allocated in the context count as context allocated locals. If
   // no contexts are allocated for this scope ContextLength returns 0.
   int ContextLength() const;
-  int ContextHeaderLength() const;
+  V8_EXPORT_PRIVATE int ContextHeaderLength() const;
 
   // Returns true if the respective contexts have a context extension slot.
   V8_EXPORT_PRIVATE bool HasContextExtensionSlot() const;
@@ -169,9 +169,6 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   V8_EXPORT_PRIVATE void SetFunctionName(Tagged<UnionOf<Smi, String>> name);
   V8_EXPORT_PRIVATE void SetInferredFunctionName(Tagged<String> name);
 
-  // Does this scope belong to a function?
-  bool HasPositionInfo() const;
-
   bool IsWrappedFunctionScope() const;
 
   // Return if contexts are allocated for this scope.
@@ -199,7 +196,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   int EndPosition() const;
   void SetPositionInfo(int start, int end);
 
-  int UniqueIdInScript() const;
+  V8_EXPORT_PRIVATE int UniqueIdInScript() const;
 
   Tagged<SourceTextModuleInfo> ModuleDescriptorInfo() const;
 
@@ -217,7 +214,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
 
   // Return the name of a given context local.
   // It should only be used if inlined local names.
-  Tagged<String> ContextInlinedLocalName(int var) const;
+  V8_EXPORT_PRIVATE Tagged<String> ContextInlinedLocalName(int var) const;
 
   // Return the mode of the given context local.
   VariableMode ContextLocalMode(int var) const;
@@ -292,7 +289,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   void SetIsDebugEvaluateScope();
 
   // Return the outer ScopeInfo if present.
-  Tagged<ScopeInfo> OuterScopeInfo() const;
+  V8_EXPORT_PRIVATE Tagged<ScopeInfo> OuterScopeInfo() const;
 
   bool is_script_scope() const;
 
@@ -309,8 +306,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
 
   template <typename IsolateT>
   static Handle<ScopeInfo> Create(IsolateT* isolate, Zone* zone, Scope* scope,
-                                  MaybeDirectHandle<ScopeInfo> outer_scope,
-                                  FunctionKind closure_function_kind);
+                                  MaybeDirectHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static DirectHandle<ScopeInfo> CreateForWithScope(
       Isolate* isolate, MaybeDirectHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static DirectHandle<ScopeInfo> CreateForEmptyFunction(

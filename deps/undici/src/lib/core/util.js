@@ -387,7 +387,7 @@ function destroy (stream, err) {
   }
 }
 
-const KEEPALIVE_TIMEOUT_EXPR = /timeout=(\d+)/
+const KEEPALIVE_TIMEOUT_EXPR = /(?:^|,)[\t ]*timeout=(\d+)/i
 /**
  * @param {string} val
  * @returns {number | null}
@@ -415,6 +415,30 @@ function headerNameToString (value) {
  */
 function bufferToLowerCasedHeaderName (value) {
   return tree.lookup(value) ?? value.toString('latin1').toLowerCase()
+}
+
+/**
+ * Writes a header onto a plain object without going through the
+ * `Object.prototype` `__proto__` setter. Plain assignment there drops a string
+ * value and, when the value is an array, replaces the object's prototype
+ * instead of storing anything. Every other name is a normal assignment.
+ *
+ * @param {Record<string, string | string[]>} obj Accumulator to write onto
+ * @param {string} key Header name
+ * @param {string | string[]} value Header value
+ * @returns {void}
+ */
+function setHeader (obj, key, value) {
+  if (key === '__proto__') {
+    Object.defineProperty(obj, key, {
+      value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    })
+  } else {
+    obj[key] = value
+  }
 }
 
 /**
@@ -984,6 +1008,7 @@ module.exports = {
   toRawHeaders,
   encodeRawHeaders,
   parseHeaders,
+  setHeader,
   parseKeepAliveTimeout,
   destroy,
   bodyLength,

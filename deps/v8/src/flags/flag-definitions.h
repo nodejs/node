@@ -257,9 +257,6 @@
 #define DEFINE_DEBUG_BOOL DEFINE_BOOL_READONLY
 #endif
 
-#define TEMPORARY_WASM_ALIAS_COMMENT \
-  "temporary alias, to be dropped in V8 v15.3"
-
 //
 // Flags in all modes.
 //
@@ -1718,15 +1715,17 @@ DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
 DEFINE_BOOL(wasm_simd_opt, true, "enable optimizations for Webassembly SIMD")
 DEFINE_EXPERIMENTAL_FEATURE(future_wasm_simd_opt,
                             "enable extra optimizations for Webassembly SIMD")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_simd_opt, future_wasm_simd_opt,
-                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_EXPERIMENTAL_FEATURE(wasm_deinterleave_loads,
                             "enable deinterleaving loads for Webassembly SIMD")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_deinterleave_loads,
-                               wasm_deinterleave_loads,
-                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_IMPLICATION(future_wasm_simd_opt, wasm_simd_opt)
 DEFINE_IMPLICATION(wasm_deinterleave_loads, wasm_simd_opt)
+#else
+DEFINE_BOOL_READONLY(wasm_simd_opt, false,
+                     "enable optimizations for Webassembly SIMD")
+DEFINE_BOOL_READONLY(future_wasm_simd_opt, false,
+                     "enable extra optimizations for Webassembly SIMD")
+DEFINE_BOOL_READONLY(wasm_deinterleave_loads, false,
+                     "enable deinterleaving loads for Webassembly SIMD")
 #endif  // V8_TARGET_ARCH_ARM64
 
 DEFINE_BOOL(turbolev, false,
@@ -1898,12 +1897,9 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 #define DECL_EXPERIMENTAL_JS_FLAG(feature_name, description) \
   DEFINE_EXPERIMENTAL_FEATURE(feature_name, "enable " description " for JS")
 #ifdef V8_ENABLE_WEBASSEMBLY
-#define DECL_EXPERIMENTAL_WASM_FLAG(feature_name, description)     \
-  DEFINE_EXPERIMENTAL_FEATURE(wasm_##feature_name,                 \
-                              "enable " description " for Wasm")   \
-  DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feature_name, \
-                                 wasm_##feature_name,              \
-                                 TEMPORARY_WASM_ALIAS_COMMENT)
+#define DECL_EXPERIMENTAL_WASM_FLAG(feature_name, description) \
+  DEFINE_EXPERIMENTAL_FEATURE(wasm_##feature_name,             \
+                              "enable " description " for Wasm")
 #else
 #define DECL_EXPERIMENTAL_WASM_FLAG(feature_name, description)
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1923,9 +1919,6 @@ FOREACH_EXPERIMENTAL_FEATURE_FLAG(DECL_EXPERIMENTAL_JS_FLAG,
 #define DECL_PRE_STAGED_WASM_FLAG(feature_name, description)       \
   DEFINE_EXPERIMENTAL_FEATURE(wasm_##feature_name,                 \
                               "enable " description " for Wasm")   \
-  DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feature_name, \
-                                 wasm_##feature_name,              \
-                                 TEMPORARY_WASM_ALIAS_COMMENT)     \
   DEFINE_IMPLICATION(experimental_fuzzing, wasm_##feature_name)
 #else
 #define DECL_PRE_STAGED_WASM_FLAG(feature_name, description)
@@ -1947,9 +1940,6 @@ FOREACH_PRE_STAGED_FEATURE_FLAG(DECL_PRE_STAGED_JS_FLAG,
 #ifdef V8_ENABLE_WEBASSEMBLY
 #define DECL_STAGED_WASM_FLAG(feature_name, description)                     \
   DEFINE_BOOL(wasm_##feature_name, false, "enable " description " for Wasm") \
-  DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feature_name,           \
-                                 wasm_##feature_name,                        \
-                                 TEMPORARY_WASM_ALIAS_COMMENT)               \
   DEFINE_WEAK_IMPLICATION(wasm_staging, wasm_##feature_name)
 #else
 #define DECL_STAGED_WASM_FLAG(feature_name, description)
@@ -1969,11 +1959,8 @@ DEFINE_IMPLICATION(harmony, js_staging)
   DEFINE_NEG_NEG_IMPLICATION(js_shipping, feature_name)            \
   DEFINE_NEG_NEG_IMPLICATION(harmony_shipping, feature_name)
 #ifdef V8_ENABLE_WEBASSEMBLY
-#define DECL_SHIPPED_WASM_FLAG(feature_name, description)                   \
-  DEFINE_BOOL(wasm_##feature_name, true, "enable " description " for Wasm") \
-  DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feature_name,          \
-                                 wasm_##feature_name,                       \
-                                 TEMPORARY_WASM_ALIAS_COMMENT)
+#define DECL_SHIPPED_WASM_FLAG(feature_name, description) \
+  DEFINE_BOOL(wasm_##feature_name, true, "enable " description " for Wasm")
 #else
 #define DECL_SHIPPED_WASM_FLAG(feature_name, description)
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2102,14 +2089,10 @@ DEFINE_INT(wasm_debug_mask_for_testing, 0,
 DEFINE_DEVELOPER_FLAG(
     wasm_pgo_to_file,
     "experimental: dump Wasm PGO information to a local file (for testing)")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_pgo_to_file, wasm_pgo_to_file,
-                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_NEG_IMPLICATION(wasm_pgo_to_file, single_threaded)
 DEFINE_DEVELOPER_FLAG(
     wasm_pgo_from_file,
     "experimental: read and use Wasm PGO data from a local file (for testing)")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_pgo_from_file,
-                               wasm_pgo_from_file, TEMPORARY_WASM_ALIAS_COMMENT)
 
 #if V8_ENABLE_DRUMBRAKE
 // Wasm is put into interpreter-only mode. We repeat flag implications down
@@ -2150,29 +2133,16 @@ DEFINE_SIZE_T(wasm_deopts_per_function_limit, 10,
 DEFINE_TEST_ONLY_FLAG(
     wasm_assume_ref_cast_succeeds,
     "assume ref.cast always succeeds and skip the related type check")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_assume_ref_cast_succeeds,
-                               wasm_assume_ref_cast_succeeds,
-                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_TEST_ONLY_FLAG(wasm_ref_cast_nop,
                       "enable unsafe ref.cast_nop instruction")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_ref_cast_nop,
-                               wasm_ref_cast_nop, TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_TEST_ONLY_FLAG(
     wasm_skip_null_checks,
     "skip null checks for call.ref and array and struct operations")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_skip_null_checks,
-                               wasm_skip_null_checks,
-                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_TEST_ONLY_FLAG(wasm_skip_bounds_checks, "skip array bounds checks")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_skip_bounds_checks,
-                               wasm_skip_bounds_checks,
-                               TEMPORARY_WASM_ALIAS_COMMENT)
 
 // Experimental variants of the Custom Descriptors prototype implementation.
 DEFINE_EXPERIMENTAL_FEATURE(
     wasm_js_interop, "enable JS Interop part of Custom Descriptors proposal")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_js_interop, wasm_js_interop,
-                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_IMPLICATION(wasm_js_interop, wasm_custom_descriptors)
 DEFINE_BOOL(wasm_custom_descriptors_permitted, true,
             "Emergency off-switch for Custom Descriptors Origin Trial")
@@ -2312,8 +2282,6 @@ DEFINE_DEBUG_BOOL(trace_wasm_instances, false,
 
 // Flags for WASM SIMD256 revectorize
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_revectorize, wasm_revectorize,
-                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_DEVELOPER_FLAG(trace_wasm_revectorize, "trace wasm revectorize")
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
@@ -2795,14 +2763,6 @@ DEFINE_BOOL(flush_baseline_code, false,
             "flush of baseline code when it has not been executed recently")
 DEFINE_BOOL(flush_bytecode, true,
             "flush of bytecode when it has not been executed recently")
-DEFINE_INT(bytecode_old_age, 6, "number of gcs before we flush code")
-DEFINE_REQUIREMENT(v8_flags.bytecode_old_age >= 0)
-DEFINE_BOOL(flush_code_based_on_time, true,
-            "Use time-base code flushing instead of age.")
-DEFINE_IMPLICATION(flush_code_based_on_time, late_heap_limit_check)
-DEFINE_BOOL(flush_code_based_on_tab_visibility, false,
-            "Flush code when tab goes into the background.")
-DEFINE_IMPLICATION(flush_code_based_on_tab_visibility, late_heap_limit_check)
 DEFINE_INT(bytecode_old_time, 180, "number of seconds before we flush code")
 DEFINE_BOOL(stress_flush_code, false, "stress code flushing")
 DEFINE_WEAK_IMPLICATION(stress_flush_code, flush_baseline_code)
@@ -2926,6 +2886,8 @@ DEFINE_BOOL_READONLY(debug_code, false, "")
 DEFINE_BOOL_READONLY(trap_on_abort, true, "")
 DEFINE_BOOL_READONLY(slow_debug_code, false, "")
 #endif
+DEFINE_BOOL(enforce_x64_16byte_alignment, false,
+            "enforce 16-byte stack alignment on x64 platforms")
 #ifdef V8_CODE_COMMENTS
 DEFINE_BOOL(code_comments, false,
             "emit comments in code disassembly; for more readable source "
@@ -3190,8 +3152,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_IMPLICATION(parallel_compile_tasks_for_lazy, lazy_compile_dispatcher)
 
 // cpu-profiler.cc
-DEFINE_INT(cpu_profiler_sampling_interval, 1000,
-           "CPU profiler sampling interval in microseconds")
+DEFINE_UINT(cpu_profiler_sampling_interval, 1000,
+            "CPU profiler sampling interval in microseconds")
 
 // debugger
 DEFINE_BOOL(simulator_debugger, false,
@@ -3283,7 +3245,7 @@ DEFINE_GENERIC_IMPLICATION(
                 v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
 DEFINE_BOOL_READONLY(fast_map_update, false,
                      "enable fast map update by caching the migration target")
-#define DEFAULT_MAX_POLYMORPHIC_MAP_COUNT 10
+#define DEFAULT_MAX_POLYMORPHIC_MAP_COUNT 4
 DEFINE_INT(max_valid_polymorphic_map_count, DEFAULT_MAX_POLYMORPHIC_MAP_COUNT,
            "maximum number of valid maps to track in POLYMORPHIC state")
 DEFINE_BOOL(
@@ -3314,12 +3276,9 @@ DEFINE_BOOL(super_ic, true, "use an IC for super property loads")
 
 DEFINE_EXPERIMENTAL_FEATURE(mega_dom_ic, "use MegaDOM IC state for API objects")
 
-DEFINE_BOOL(homomorphic_ic, false,
-            "use Homomorphic IC state for same-handler highly polymorphic ICs")
 DEFINE_UINT(homomorphic_ic_count, 8, "local cache size in homomorphic ICs")
 DEFINE_REQUIREMENT(
     base::bits::IsPowerOfTwo(v8_flags.homomorphic_ic_count.value()))
-DEFINE_IMPLICATION(future, homomorphic_ic)
 
 // objects.cc
 DEFINE_DEVELOPER_FLAG(trace_prototype_users,
@@ -4400,6 +4359,9 @@ DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_stack_checks)
 DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags, max_wasm_functions)
 DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
                                       wasm_max_initial_code_space_reservation)
+// Disable wasm_max_initial_code_space_reservation in fuzzing, as a wrong value
+// can lead to crashes.
+DEFINE_VALUE_IMPLICATION(fuzzing, wasm_max_initial_code_space_reservation, 0)
 DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
                                       wasm_wrapper_tiering_budget)
 DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
@@ -4412,6 +4374,7 @@ DEFINE_IMPLICATION(disallow_unsafe_flags, enable_sse4_1)
 DEFINE_IMPLICATION(disallow_unsafe_flags, enable_sse4_2)
 // Features we don't currently want to fuzz.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, cppgc_young_generation)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, enforce_x64_16byte_alignment)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, test_only_unsafe)
 // The memory corruption API is only allowed in sandbox testing/fuzzing mode.
 DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags &&
@@ -4552,8 +4515,6 @@ DEFINE_IMPLICATION(gdbjit, log)
 #undef DEFINE_ALIAS_INT
 #undef DEFINE_ALIAS_STRING
 #undef DEFINE_ALIAS_FLOAT
-
-#undef TEMPORARY_WASM_ALIAS_COMMENT
 
 #undef FLAG_MODE_DECLARE
 #undef FLAG_MODE_DEFINE_DEFAULTS

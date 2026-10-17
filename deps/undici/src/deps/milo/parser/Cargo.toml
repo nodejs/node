@@ -1,0 +1,45 @@
+[package]
+  name        = "milo-parser"
+  version     = "0.9.0"
+  edition     = "2024"
+  description = "A fast and embeddable HTTP/1.1 parser."
+  homepage    = "https://sw.cowtech.it/milo"
+  repository  = "https://github.com/ShogunPanda/milo"
+  license     = "ISC"
+  keywords    = ["http", "parser", "http-parser"]
+  categories  = ["network-programming", "parser-implementations"]
+
+[lib]
+  crate-type = ["cdylib", "staticlib", "lib"]
+
+[[bin]]
+  name = "milo-parser"
+  path = "src/main.rs"
+
+[features]
+  debug = []
+
+[dependencies]
+  milo-macros = { version = "0.9.0", path = "../macros" }
+  memchr      = "2.8.0"
+
+[dev-dependencies]
+  comfy-table = { version = "7.2.2" }
+  libc        = "0.2"
+  regex       = "1.12.3"
+  serde       = { version = "1.0.228", features = ["derive"] }
+  serde_json  = "1.0.145"
+  serde_yaml  = "0.9.34"
+  similar     = "3.0.0"
+
+[profile.release]
+  opt-level        = 3
+  debug            = false
+  debug-assertions = false
+  overflow-checks  = false
+  lto              = true
+  panic            = 'abort'
+  incremental      = false
+  codegen-units    = 1
+  rpath            = false
+  strip            = true

@@ -209,6 +209,9 @@ added: v4.0.0
   * `path` {string} The request path.
   * `method` {string} The HTTP method, e.g. `'GET'` or `'POST'`.
   * `body` {string|Buffer|Uint8Array|Readable|FormData|null} The request body.
+    Undici's network clients require a `FormData` body created by the same
+    undici package instance. A body from another source, including Node.js's
+    built-in `FormData`, is rejected with an `InvalidArgumentError`.
     **Default:** `null`.
   * `headers` {UndiciHeaders} Request headers. **Default:** `null`.
   * `query` {Object} Query string parameters embedded into the request URL. Both

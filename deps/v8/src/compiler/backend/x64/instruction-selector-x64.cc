@@ -1162,7 +1162,7 @@ void InstructionSelector::VisitLoadLane(OpIndex node) {
   // x64 supports unaligned loads.
   DCHECK(!load.kind.maybe_unaligned);
   if (load.kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   Emit(opcode, 1, outputs, input_count, inputs);
 }
@@ -1214,7 +1214,7 @@ void InstructionSelector::VisitLoadTransform(OpIndex node) {
   DCHECK(!op.load_kind.maybe_unaligned);
   InstructionCode code = opcode;
   if (op.load_kind.with_trap_handler) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   VisitLoad(node, node, code);
 }
@@ -1225,7 +1225,7 @@ void InstructionSelector::VisitS256Const(OpIndex node) {
   static const int kUint32Immediates = kSimd256Size / sizeof(uint32_t);
   uint32_t val[kUint32Immediates];
   const Simd256ConstantOp& constant = Cast<Simd256ConstantOp>(node);
-  memcpy(val, constant.value, kSimd256Size);
+  memcpy(val, constant.value.data(), kSimd256Size);
   // If all bytes are zeros or ones, avoid emitting code for generic constants
   bool all_zeros = std::all_of(std::begin(val), std::end(val),
                                [](uint32_t v) { return v == 0; });
@@ -1297,7 +1297,7 @@ void InstructionSelector::VisitSimd256LoadTransform(OpIndex node) {
   DCHECK(!op.load_kind.maybe_unaligned);
   InstructionCode code = opcode;
   if (op.load_kind.with_trap_handler) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   VisitLoad(node, node, code);
 }
@@ -1407,13 +1407,8 @@ void InstructionSelector::VisitLoad(OpIndex node, OpIndex value,
   InstructionCode code = opcode | AddressingModeField::encode(mode);
   if (this->is_load(node)) {
     auto load = load_view(node);
-    bool traps_on_null;
-    if (load.is_trapping(&traps_on_null)) {
-      if (traps_on_null) {
-        code |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
-      } else {
-        code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
-      }
+    if (load.is_trapping()) {
+      code |= AccessModeField::encode(kMemoryAccessTrapping);
     }
   }
   Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
@@ -1450,7 +1445,7 @@ void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                  temps.size(), temps.data());
@@ -1479,23 +1474,17 @@ void VisitStoreCommon(InstructionSelector* selector,
     write_barrier_kind = kFullWriteBarrier;
   }
 
-  const auto access_mode =
-      acs_kind == MemoryAccessKind::kTrapping
-          ? (store.is_store_trap_on_null()
-                 ? kMemoryAccessTrappingNullDereference
-                 : MemoryAccessMode::kMemoryAccessTrappingMemOutOfBounds)
-          : MemoryAccessMode::kMemoryAccessDirect;
+  const auto access_mode = acs_kind == MemoryAccessKind::kTrapping
+                               ? MemoryAccessMode::kMemoryAccessTrapping
+                               : MemoryAccessMode::kMemoryAccessDirect;
 
   DCHECK_IMPLIES(write_barrier_kind == kSkippedWriteBarrier,
                  v8_flags.verify_write_barriers);
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-#if DEBUG
-    MachineRepresentation mach_rep = store_rep.representation();
-    DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(mach_rep) ||
-           CanBeTaggedSigned(mach_rep));
-#endif  // DEBUG
+    DCHECK(
+        CanBeTaggedOrCompressedOrIndirectPointer(store_rep.representation()));
     // Uncompressed stores should not happen if we need a write barrier.
     CHECK((store.ts_stored_rep() !=
            MemoryRepresentation::AnyUncompressedTagged()) &&
@@ -1533,9 +1522,7 @@ void VisitStoreCommon(InstructionSelector* selector,
                        : kArchStoreWithWriteBarrier;
       const RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
-      code |= is_atomic
-                  ? AtomicStoreRecordWriteModeField::encode(record_write_mode)
-                  : RecordWriteModeField::encode(record_write_mode);
+      code |= RecordWriteModeField::encode(record_write_mode);
     }
     code |= AddressingModeField::encode(addressing_mode);
     code |= AccessModeField::encode(access_mode);
@@ -1657,7 +1644,7 @@ void InstructionSelector::VisitStoreLane(OpIndex node) {
   opcode |= AddressingModeField::encode(addressing_mode);
 
   if (store.kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   InstructionOperand value_operand = g.UseRegister(store.value());
@@ -2561,7 +2548,9 @@ void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
   inputs[input_count++] = g.UseRegister(op.first());
   auto b = op.second();
   int effect_level = this->GetEffectLevel(node);
-  if (g.CanBeMemoryOperand(opcode, node, b, effect_level)) {
+  if (g.CanBeImmediate(b)) {
+    inputs[input_count++] = g.UseImmediate(b);
+  } else if (g.CanBeMemoryOperand(opcode, node, b, effect_level)) {
     AddressingMode addressing_mode = g.GetEffectiveAddressMemoryOperand(
         b, inputs, &input_count,
         X64OperandGenerator::RegisterUseKind::kUseUniqueRegister);
@@ -2577,14 +2566,11 @@ void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
       g.DefineSameAsFirst(out_low.valid() ? out_low.value() : node);
 
   OptionalOpIndex out_high = FindProjection(node, 1);
-  InstructionOperand temps[1];
-  size_t temp_count = 0;
   if (out_high.valid() && IsUsed(out_high.value())) {
     outputs[output_count++] = g.DefineAsRegister(out_high.value());
-    temps[temp_count++] = g.TempRegister();
   }
 
-  Emit(opcode, output_count, outputs, input_count, inputs, temp_count, temps);
+  Emit(opcode, output_count, outputs, input_count, inputs);
 }
 
 void InstructionSelector::VisitInt32Div(OpIndex node) {
@@ -2980,10 +2966,8 @@ void VisitFloatBinop(InstructionSelector* selector, OpIndex node,
         // no other uses. Therefore, we can record the fact that 'right' was
         // embedded in 'node' and we can later delete the Load instruction.
         selector->MarkAsTrappingInstruction(node);
-        avx_opcode |=
-            AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
-        sse_opcode |=
-            AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+        avx_opcode |= AccessModeField::encode(kMemoryAccessTrapping);
+        sse_opcode |= AccessModeField::encode(kMemoryAccessTrapping);
         selector->SetTrappingLoadToRemove(right);
         trapping_load = right;
       }
@@ -3992,7 +3976,7 @@ void VisitAtomicBinop(InstructionSelector* selector, OpIndex node,
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                  arraysize(temps), temps);
@@ -4020,7 +4004,7 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                  temps.size(), temps.data());
@@ -4943,7 +4927,7 @@ void InstructionSelector::VisitS128Const(OpIndex node) {
   static const int kUint32Immediates = kSimd128Size / sizeof(uint32_t);
   uint32_t val[kUint32Immediates];
   const Simd128ConstantOp& constant = Cast<Simd128ConstantOp>(node);
-  memcpy(val, constant.value, kSimd128Size);
+  memcpy(val, constant.value.data(), kSimd128Size);
   // If all bytes are zeros or ones, avoid emitting code for generic constants
   bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
   bool all_ones = val[0] == UINT32_MAX && val[1] == UINT32_MAX &&
@@ -5320,7 +5304,7 @@ static bool MatchSimd128Constant(InstructionSelector* selector, OpIndex node,
   DCHECK_NOT_NULL(constant);
   const Operation& op = selector->Get(node);
   if (auto c = op.TryCast<Simd128ConstantOp>()) {
-    std::memcpy(constant, c->value, kSimd128Size);
+    *constant = c->value;
     return true;
   }
   return false;
@@ -6357,7 +6341,7 @@ void InstructionSelector::VisitF64x2PromoteLowF32x4(OpIndex node) {
     const Simd128LoadTransformOp& load_transform =
         Cast<Simd128LoadTransformOp>(input);
     if (load_transform.load_kind.with_trap_handler) {
-      code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+      code |= AccessModeField::encode(kMemoryAccessTrapping);
     }
     // LoadTransforms cannot be eliminated, so they are visited even if
     // unused. Mark it as defined so that we don't visit it.

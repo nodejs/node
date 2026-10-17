@@ -130,10 +130,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
   // The garbage collection and the filling of references in GenerateSnapshot
   // should scan the same part of the stack.
   heap()->stack().SetMarkerIfNeededAndCallback([this, &options, &result]() {
-    std::optional<CppClassNamesAsHeapObjectNameScope> use_cpp_class_name;
-    if (heap()->cpp_heap()) {
-      use_cpp_class_name.emplace(heap()->cpp_heap());
-    }
+    CppClassNamesAsHeapObjectNameScope use_cpp_class_name(heap()->cpp_heap());
 
     HeapSnapshotGenerator generator(result, options.control,
                                     options.context_name_resolver, heap(),
@@ -234,6 +231,18 @@ bool HeapProfiler::StartSamplingHeapProfiler(
 void HeapProfiler::StopSamplingHeapProfiler() {
   sampling_heap_profiler_.reset();
   MaybeClearStringsStorage();
+}
+
+void HeapProfiler::SetSamplingHeapProfilerInterval(uint64_t sample_interval) {
+  if (sampling_heap_profiler_) {
+    sampling_heap_profiler_->SetSamplingInterval(sample_interval);
+  }
+}
+
+std::vector<v8::AllocationProfile::Sample>
+HeapProfiler::GetSamplingHeapProfilerSamples() {
+  if (!sampling_heap_profiler_) return {};
+  return sampling_heap_profiler_->GetSamples();
 }
 
 v8::AllocationProfile* HeapProfiler::GetAllocationProfile() {

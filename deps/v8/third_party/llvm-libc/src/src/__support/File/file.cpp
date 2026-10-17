@@ -510,51 +510,6 @@ int File::set_buffer(void *buffer, size_t size, int buffer_mode) {
   return 0;
 }
 
-File::ModeFlags File::mode_flags(const char *mode) {
-  // First character in |mode| should be 'a', 'r' or 'w'.
-  if (*mode != 'a' && *mode != 'r' && *mode != 'w')
-    return 0;
-
-  // There should be exaclty one main mode ('a', 'r' or 'w') character.
-  // If there are more than one main mode characters listed, then
-  // we will consider |mode| as incorrect and return 0;
-  int main_mode_count = 0;
-
-  ModeFlags flags = 0;
-  for (; *mode != '\0'; ++mode) {
-    switch (*mode) {
-    case 'r':
-      flags |= static_cast<ModeFlags>(OpenMode::READ);
-      ++main_mode_count;
-      break;
-    case 'w':
-      flags |= static_cast<ModeFlags>(OpenMode::WRITE);
-      ++main_mode_count;
-      break;
-    case '+':
-      flags |= static_cast<ModeFlags>(OpenMode::PLUS);
-      break;
-    case 'b':
-      flags |= static_cast<ModeFlags>(ContentType::BINARY);
-      break;
-    case 'a':
-      flags |= static_cast<ModeFlags>(OpenMode::APPEND);
-      ++main_mode_count;
-      break;
-    case 'x':
-      flags |= static_cast<ModeFlags>(CreateType::EXCLUSIVE);
-      break;
-    default:
-      return 0;
-    }
-  }
-
-  if (main_mode_count != 1)
-    return 0;
-
-  return flags;
-}
-
 FileIOResult File::write_unlocked(const wchar_t *ws, size_t len) {
   switch (orientation) {
   case Orientation::BYTE:

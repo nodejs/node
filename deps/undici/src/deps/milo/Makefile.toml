@@ -1,0 +1,140 @@
+[config]
+  skip_core_tasks = true
+
+[tasks.default]
+  dependencies = ["build"]
+
+[tasks.build]
+  script = ["cd parser", "makers build"]
+
+[tasks.test]
+  dependencies = ["test:rust", "test:wasm"]
+
+[tasks."test:rust"]
+  script = ["cd parser", "cargo test"]
+
+[tasks."test:wasm"]
+  script = ["cd parser", "makers test:wasm"]
+
+[tasks.format]
+  dependencies = ["format:rust", "format:js", "format:cpp"]
+
+[tasks.lint]
+  dependencies = ["lint:rust", "lint:js"]
+
+[tasks.clean]
+  dependencies = ["clean:rust", "clean:dist", "clean:tmp"]
+
+[tasks.benchmarks]
+  dependencies = ["benchmarks:cpp", "benchmarks:wasm"]
+
+[tasks.references]
+  dependencies = ["references:rust", "references:cpp", "references:wasm"]
+
+[tasks."llhttp:import"]
+  script = ["cd parser", "makers scripts:build", "../scripts/target/release/import-llhttp-tests ${1} ."]
+
+[tasks."llhttp:review"]
+  script = ["cd parser", "cargo run --example llhttp -- --review ${1}"]
+
+[tasks."llhttp:show"]
+  script = ["cd parser", "cargo run --example llhttp -- --show ${1}"]
+
+[tasks."llhttp:update"]
+  script = ["cd parser", "cargo run --example llhttp -- --update ${1}"]
+
+[tasks."clean:rust"]
+  script = [
+    "cd macros",
+    "cargo clean",
+    "cd ../parser",
+    "cargo clean",
+    "cd ../references/rust",
+    "cargo clean",
+    "cd ../../scripts",
+    "cargo clean",
+  ]
+
+[tasks."clean:dist"]
+  command = "rm"
+  args    = ["-rf", "dist"]
+
+[tasks."clean:tmp"]
+  command = "rm"
+  args    = ["-rf", "tmp"]
+
+[tasks."lint:fix"]
+  dependencies = ["lint:rust:fix", "lint:js:fix"]
+
+[tasks."format:rust"]
+  script = [
+    "cd macros",
+    "cargo fmt",
+    "cd ../parser",
+    "cargo fmt",
+    "cd ../references/rust",
+    "cargo fmt",
+    "cd ../../scripts",
+    "cargo fmt",
+  ]
+
+[tasks."format:cpp"]
+  command = "clang-format"
+  args = [
+    "-style=file:clang-format.yml",
+    "-i",
+    "benchmarks/cpp/src/main.cc",
+    "references/cpp/src/reference.cc",
+    "references/cpp/src/readme.cc",
+  ]
+
+[tasks."format:js"]
+  command = "pnpm"
+  args    = ["run", "format"]
+
+[tasks."lint:rust"]
+  script = [
+    "cd macros",
+    "cargo clippy",
+    "cd ../parser",
+    "cargo clippy",
+    "cd ../references/rust",
+    "cargo clippy",
+    "cd ../../scripts",
+    "cargo clippy",
+  ]
+
+[tasks."lint:rust:fix"]
+  script = [
+    "cd macros",
+    "cargo clippy --fix --allow-dirty",
+    "cd ../parser",
+    "cargo clippy --fix --allow-dirty",
+    "cd ../references/rust",
+    "cargo clippy --fix --allow-dirty",
+    "cd ../../scripts",
+    "cargo clippy --fix --allow-dirty",
+  ]
+
+[tasks."lint:js"]
+  command = "pnpm"
+  args    = ["run", "lint"]
+
+[tasks."lint:js:fix"]
+  command = "pnpm"
+  args    = ["run", "lint", "--fix"]
+
+[tasks."benchmarks:cpp"]
+  script = ["cd benchmarks/cpp", "makers benchmarks"]
+
+[tasks."benchmarks:wasm"]
+  script = ["cd benchmarks/wasm", "makers benchmarks"]
+
+[tasks."references:rust"]
+  script = ["cd references/rust", "makers test"]
+
+[tasks."references:cpp"]
+  script = ["cd references/cpp", "makers test"]
+
+[tasks."references:wasm"]
+  script = ["cd references/wasm", "makers test"]

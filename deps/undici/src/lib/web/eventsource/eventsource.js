@@ -7,6 +7,7 @@ const { EventSourceStream } = require('./eventsource-stream')
 const { parseMIMEType } = require('../fetch/data-url')
 const { createFastMessageEvent } = require('../websocket/events')
 const { isNetworkError } = require('../fetch/response')
+const { cloneRequest } = require('../fetch/request')
 const { isValidHeaderValue, kEnumerableProperty } = require('../../core/util')
 const { environmentSettingsObject } = require('../fetch/util')
 const { createPotentialCORSRequest } = require('./util')
@@ -28,6 +29,14 @@ let experimentalWarned = false
  * @type {3000}
  */
 const defaultReconnectionTime = 3000
+
+/**
+ * The largest delay setTimeout supports. Larger values (including Infinity)
+ * make Node.js fire the timer after 1 ms instead, which would turn a large
+ * reconnection time into a reconnect storm.
+ * @type {number}
+ */
+const maxReconnectionTime = 2 ** 31 - 1
 
 /**
  * The readyState attribute represents the state of the connection.
@@ -222,8 +231,22 @@ class EventSource extends EventTarget {
 
     this.#readyState = CONNECTING
 
+    // Fetch a copy of the request so that every connection starts from the
+    // original request. Fetch mutates the request it is given (URL list,
+    // redirect count, response tainting and, on cross-origin redirects,
+    // headers), so reusing it makes reconnects go to the last redirect
+    // target and, after 20 redirects in total, fail forever.
+    // cloneRequest() shares the URL list, so copy it as well.
+    // 301/308 permanent redirects are handled the same as 302/307 temporary
+    // redirects. While the original EventSource spec required that permanent
+    // redirects be handled, WHATWG removed that requirement and has not
+    // yet opted to restore it... therefore all redirects gets handled the
+    // same.
+    const request = cloneRequest(this.#request)
+    request.urlList = [...this.#request.urlList]
+
     const fetchParams = {
-      request: this.#request,
+      request,
       dispatcher: this.#dispatcher
     }
 
@@ -361,7 +384,7 @@ class EventSource extends EventTarget {
 
       //   4. Fetch request and process the response obtained in this fashion, if any, as described earlier in this section.
       this.#connect()
-    }, this.#state.reconnectionTime)?.unref()
+    }, Math.min(this.#state.reconnectionTime, maxReconnectionTime))?.unref()
   }
 
   /**

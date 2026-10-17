@@ -25,7 +25,7 @@ assertEquals(-1, f(0, -1, true));
 
 %OptimizeMaglevOnNextCall(f);
 assertEquals(42, f(0, -1, false));
-assertTrue(isMaglevved(f));
+assertMaglevved(f);
 
 assertEquals(-1, f(0, -1, true));
-assertTrue(isMaglevved(f));
+assertMaglevved(f);

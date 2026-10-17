@@ -1,5 +1,0 @@
-{
-  "name": "tester",
-  "description": "Specializes in running tests and benchmarks.",
-  "config_path": "config.yaml"
-}

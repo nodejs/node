@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/strings/ascii.h"
@@ -179,7 +180,7 @@ bool WebSafeBase64Unescape(absl::string_view src,
 // Converts an ASCII hex string into bytes, returning binary data of length
 // `from.size()/2`. The input must be valid hexadecimal data, otherwise the
 // return value is unspecified.
-ABSL_DEPRECATED("Use the HexStringToBytes() that returns a bool")
+[[deprecated("Use the HexStringToBytes() that returns a bool")]]
 std::string HexStringToBytes(absl::string_view from);
 
 // BytesToHexString()

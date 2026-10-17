@@ -4351,6 +4351,85 @@ TEST(SamplingHeapProfilerApiSamples) {
   heap_profiler->StopSamplingHeapProfiler();
 }
 
+TEST(SamplingHeapProfilerSetInterval) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
+
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  const uint64_t initial_interval = 1024;
+  const uint64_t updated_interval = 4096;
+  heap_profiler->StartSamplingHeapProfiler(initial_interval);
+
+  CompileRun("for (var i = 0; i < 1024; i++) new Array(64);");
+  auto samples_before = heap_profiler->GetSamplingHeapProfilerSamples();
+  CHECK_GT(samples_before.size(), 0u);
+  uint64_t max_id_before = 0;
+  for (const auto& s : samples_before) {
+    CHECK_EQ(initial_interval, s.sample_interval);
+    if (s.sample_id > max_id_before) max_id_before = s.sample_id;
+  }
+
+  heap_profiler->SetSamplingHeapProfilerInterval(updated_interval);
+  CompileRun("for (var i = 0; i < 1024; i++) new Array(64);");
+
+  bool saw_new_sample = false;
+  for (const auto& s : heap_profiler->GetSamplingHeapProfilerSamples()) {
+    if (s.sample_id > max_id_before) {
+      CHECK_EQ(updated_interval, s.sample_interval);
+      saw_new_sample = true;
+    } else {
+      CHECK_EQ(initial_interval, s.sample_interval);
+    }
+  }
+  CHECK(saw_new_sample);
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(SamplingHeapProfilerSampleIntervalSurvivesGC) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
+
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  const uint64_t interval = 1024;
+  heap_profiler->StartSamplingHeapProfiler(
+      interval, 16,
+      static_cast<v8::HeapProfiler::SamplingFlags>(
+          v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMajorGC));
+
+  CompileRun("for (var i = 0; i < 1024; i++) new Array(64);");
+  i::heap::InvokeMajorGC(CcTest::heap());
+
+  bool saw_dead = false;
+  for (const auto& s : heap_profiler->GetSamplingHeapProfilerSamples()) {
+    CHECK_EQ(interval, s.sample_interval);
+    if (!s.is_live) saw_dead = true;
+  }
+  CHECK(saw_dead);
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(SamplingHeapProfilerSetIntervalNoop) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
+
+  // Safe before Start.
+  heap_profiler->SetSamplingHeapProfilerInterval(2048);
+  CHECK_EQ(0u, heap_profiler->GetSamplingHeapProfilerSamples().size());
+
+  // Safe after Stop.
+  heap_profiler->StartSamplingHeapProfiler(1024);
+  heap_profiler->StopSamplingHeapProfiler();
+  heap_profiler->SetSamplingHeapProfilerInterval(2048);
+  CHECK_EQ(0u, heap_profiler->GetSamplingHeapProfilerSamples().size());
+}
+
 TEST(SamplingHeapProfilerLeftTrimming) {
   v8::HandleScope scope(CcTest::isolate());
   LocalContext env;

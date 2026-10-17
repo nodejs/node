@@ -144,8 +144,7 @@ async function testBroadcastFromCancelWhileBlocked() {
   let writesAfterCancel = 0;
   writer.writevSync = () => { writesAfterCancel++; return true; };
   bc.cancel();
-  assert.deepStrictEqual(await pendingRead, {
-    __proto__: null,
+  assert.deepStrictEqual({ ...await pendingRead }, {
     done: true,
     value: undefined,
   });

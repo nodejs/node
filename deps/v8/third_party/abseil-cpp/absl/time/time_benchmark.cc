@@ -19,6 +19,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/time/civil_time.h"
 #include "absl/time/clock.h"
 #include "absl/time/internal/test_util.h"
 #include "absl/time/time.h"

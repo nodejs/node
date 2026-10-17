@@ -86,7 +86,8 @@ bool operator==(FrameStateInfo const& lhs, FrameStateInfo const& rhs) {
 
   return lhs.type() == rhs.type() && lhs.bailout_id() == rhs.bailout_id() &&
          lhs.state_combine() == rhs.state_combine() &&
-         *lhs.function_info() == *rhs.function_info();
+         (lhs.function_info() == rhs.function_info() ||
+          *lhs.function_info() == *rhs.function_info());
 }
 
 bool operator!=(FrameStateInfo const& lhs, FrameStateInfo const& rhs) {

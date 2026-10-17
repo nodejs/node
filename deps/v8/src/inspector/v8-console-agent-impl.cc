@@ -65,9 +65,12 @@ void V8ConsoleAgentImpl::reportAllMessages() {
   // Also, the storage itself can be destroyed and recreated, so re-fetch the
   // storage on each iteration.
   size_t size = storage->messages().size();
+  uint64_t storageId = storage->id();
   for (size_t i = 0; i < size; ++i) {
-    if (m_session->inspector()->consoleMessageStorage(
-            m_session->contextGroupId()) != storage) {
+    V8ConsoleMessageStorage* inspectorStorage =
+        m_session->inspector()->consoleMessageStorage(
+            m_session->contextGroupId());
+    if (!inspectorStorage || inspectorStorage->id() != storageId) {
       break;
     }
     if (i >= storage->messages().size()) break;

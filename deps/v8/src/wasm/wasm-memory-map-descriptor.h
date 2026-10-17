@@ -10,13 +10,14 @@
 #include "include/v8-wasm.h"
 #include "src/handles/handles.h"
 #include "src/objects/js-objects.h"
+#include "src/sandbox/cppheap-pointer-tag.h"
 
 namespace v8::internal::wasm {
 
 class WasmMemoryMapDescriptor final : public v8::Object::Wrappable {
  public:
   static constexpr v8::CppHeapPointerTag kPointerTag =
-      v8::CppHeapPointerTag::kWasmMemoryMapDescriptorTag;
+      kWasmMemoryMapDescriptorTag;
 
   using PlatformFileDescriptor =
       v8::WasmMemoryMapDescriptor::WasmFileDescriptor;

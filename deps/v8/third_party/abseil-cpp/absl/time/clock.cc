@@ -22,12 +22,15 @@
 #include <limits>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/spinlock.h"
 #include "absl/base/internal/unscaledcycleclock.h"
+#include "absl/base/internal/unscaledcycleclock_config.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
 #include "absl/base/thread_annotations.h"
+#include "absl/time/time.h"
 
 #ifdef _WIN32
 #include <windows.h>

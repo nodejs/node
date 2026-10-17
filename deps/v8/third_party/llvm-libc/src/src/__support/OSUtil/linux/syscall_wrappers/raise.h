@@ -10,9 +10,11 @@
 #define LLVM_LIBC_SRC___SUPPORT_OSUTIL_SYSCALL_WRAPPERS_RAISE_H
 
 #include "hdr/signal_macros.h"
+#include "hdr/types/pid_t.h"
 #include "hdr/types/sigset_t.h"
 #include "src/__support/OSUtil/linux/syscall.h" // syscall_impl
 #include "src/__support/OSUtil/linux/syscall_wrappers/rt_sigprocmask.h"
+#include "src/__support/OSUtil/linux/syscall_wrappers/tgkill.h"
 #include "src/__support/common.h"
 #include "src/__support/error_or.h"
 #include "src/__support/macros/config.h"
@@ -54,9 +56,10 @@ LIBC_INLINE ErrorOr<int> raise(int sig) {
     if (tid < 0)
       return Error(-static_cast<int>(tid));
 
-    int result = syscall_impl<int>(SYS_tgkill, pid, tid, sig);
-    if (result < 0)
-      return Error(-result);
+    auto result = linux_syscalls::tgkill(static_cast<pid_t>(pid),
+                                         static_cast<pid_t>(tid), sig);
+    if (!result.has_value())
+      return Error(result.error());
   }
   return status;
 }

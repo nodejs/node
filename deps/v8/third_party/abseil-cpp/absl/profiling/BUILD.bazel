@@ -59,6 +59,7 @@ cc_test(
     ],
     deps = [
         ":sample_recorder",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/random",
         "//absl/synchronization",
@@ -93,6 +94,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":exponential_biased",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/strings",
         "@googletest//:gtest",
@@ -111,6 +113,7 @@ cc_library(
     ],
     deps = [
         ":exponential_biased",
+        "//absl/base:config",
         "//absl/base:core_headers",
     ],
 )
@@ -124,6 +127,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":periodic_sampler",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -140,6 +144,7 @@ cc_binary(
     visibility = ["//visibility:private"],
     deps = [
         ":periodic_sampler",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "@google_benchmark//:benchmark_main",
     ],
@@ -163,6 +168,7 @@ cc_library(
         "//absl/container:hash_container_defaults",
         "//absl/strings",
         "//absl/strings:str_format",
+        "//absl/strings:string_view",
         "//absl/types:span",
     ],
 )

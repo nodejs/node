@@ -132,12 +132,14 @@ V8ConsoleMessageStorage* V8InspectorImpl::ensureConsoleMessageStorage(
     int contextGroupId) {
   auto storageIt = m_consoleStorageMap.find(contextGroupId);
   if (storageIt == m_consoleStorageMap.end()) {
-    storageIt = m_consoleStorageMap
-                    .insert(std::make_pair(
-                        contextGroupId,
-                        std::unique_ptr<V8ConsoleMessageStorage>(
-                            new V8ConsoleMessageStorage(this, contextGroupId))))
-                    .first;
+    storageIt =
+        m_consoleStorageMap
+            .insert(std::make_pair(
+                contextGroupId,
+                std::unique_ptr<V8ConsoleMessageStorage>(
+                    new V8ConsoleMessageStorage(this, contextGroupId,
+                                                m_nextConsoleStorageId++))))
+            .first;
   }
   return storageIt->second.get();
 }

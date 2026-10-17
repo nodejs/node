@@ -41,7 +41,7 @@ assert_test_non_extensible_objects(test_non_extensible_objects());
 %OptimizeMaglevOnNextCall(test_non_extensible_objects);
 assert_test_non_extensible_objects(test_non_extensible_objects());
 assertOptimized(test_non_extensible_objects);
-assertTrue(isMaglevved(test_non_extensible_objects));
+assertMaglevved(test_non_extensible_objects);
 assert_test_non_extensible_objects(test_non_extensible_objects());
 %OptimizeFunctionOnNextCall(test_non_extensible_objects);
 assert_test_non_extensible_objects(test_non_extensible_objects());

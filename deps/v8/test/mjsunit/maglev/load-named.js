@@ -15,11 +15,11 @@
 
   %OptimizeMaglevOnNextCall(load);
   assertEquals(42, load({smi:42}));
-  assertTrue(isMaglevved(load));
+  assertMaglevved(load);
 
   // We should deopt here.
   assertEquals(42, load({y:0, smi:42}));
-  assertFalse(isMaglevved(load));
+  assertNotMaglevved(load);
 })();
 
 // Checks simple monomorphic load of a Double field works
@@ -33,11 +33,11 @@
 
   %OptimizeMaglevOnNextCall(load);
   assertEquals(42.5, load({float64:42.5}));
-  assertTrue(isMaglevved(load));
+  assertMaglevved(load);
 
   // We should deopt here.
   assertEquals(42.5, load({y:0, float64:42.5}));
-  assertFalse(isMaglevved(load));
+  assertNotMaglevved(load);
 })();
 
 // Checks simple monomorphic load of a Double field works with a float64 add.
@@ -51,9 +51,9 @@
 
   %OptimizeMaglevOnNextCall(load);
   assertEquals(85, load({float64:42.5}));
-  assertTrue(isMaglevved(load));
+  assertMaglevved(load);
 
   // We should deopt here.
   assertEquals(85, load({y:0, float64:42.5}));
-  assertFalse(isMaglevved(load));
+  assertNotMaglevved(load);
 })();

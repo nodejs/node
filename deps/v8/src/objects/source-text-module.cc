@@ -190,7 +190,11 @@ Tagged<Cell> SourceTextModule::GetCell(int cell_index) {
 
 Handle<Object> SourceTextModule::LoadVariable(
     Isolate* isolate, DirectHandle<SourceTextModule> module, int cell_index) {
-  return handle(module->GetCell(cell_index)->value(), isolate);
+  Tagged<Object> value = module->GetCell(cell_index)->value();
+#ifdef V8_ENABLE_TDZ_HOLE
+  DCHECK(!IsTheHole(value));
+#endif
+  return handle(value, isolate);
 }
 
 void SourceTextModule::StoreVariable(DirectHandle<SourceTextModule> module,
@@ -199,6 +203,9 @@ void SourceTextModule::StoreVariable(DirectHandle<SourceTextModule> module,
   DisallowGarbageCollection no_gc;
   DCHECK_EQ(SourceTextModuleDescriptor::GetCellIndexKind(cell_index),
             SourceTextModuleDescriptor::kExport);
+#ifdef V8_ENABLE_TDZ_HOLE
+  DCHECK(!IsTheHole(*value));
+#endif
   module->GetCell(cell_index)->set_value(*value);
 }
 

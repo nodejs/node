@@ -45,6 +45,12 @@ const HeapEntry* GetEntryFor(Isolate* isolate, HeapSnapshot* snapshot,
                      cppgc::internal::HeapObjectHeader::FromObject(object));
 }
 
+template <typename T>
+const HeapEntry* GetEntryFor(Isolate* isolate, HeapSnapshot* snapshot,
+                             DirectHandle<T> handle) {
+  return GetEntryFor(isolate, snapshot, *handle);
+}
+
 }  // namespace v8::internal
 
 #endif  // V8_UNITTESTS_PROFILER_HEAP_SNAPSHOT_UTILS_H_

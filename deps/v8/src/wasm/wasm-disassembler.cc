@@ -115,13 +115,17 @@ void DisassembleFunction(const WasmModule* module, int func_index,
 static constexpr char kHexChars[] = "0123456789abcdef";
 static constexpr char kUpperHexChars[] = "0123456789ABCDEF";
 
-// Returns the log2 of the alignment, e.g. "4" means 2<<4 == 16 bytes.
+// Returns the log2 of the alignment, e.g. "4" means 1<<4 == 16 bytes.
 // This is the same format as used in .wasm binary modules.
 uint32_t GetDefaultAlignment(WasmOpcode opcode) {
   switch (opcode) {
     case kExprS128LoadMem:
     case kExprS128StoreMem:
       return 4;
+    case kExprI64LoadMem:
+    case kExprF64LoadMem:
+    case kExprI64StoreMem:
+    case kExprF64StoreMem:
     case kExprS128Load8x8S:
     case kExprS128Load8x8U:
     case kExprS128Load16x4S:
@@ -133,30 +137,40 @@ uint32_t GetDefaultAlignment(WasmOpcode opcode) {
     case kExprS128Load64Lane:
     case kExprS128Store64Lane:
       return 3;
+    case kExprI32LoadMem:
+    case kExprF32LoadMem:
+    case kExprI64LoadMem32S:
+    case kExprI64LoadMem32U:
+    case kExprI32StoreMem:
+    case kExprF32StoreMem:
+    case kExprI64StoreMem32:
     case kExprS128Load32Splat:
     case kExprS128Load32Zero:
     case kExprS128Load32Lane:
     case kExprS128Store32Lane:
       return 2;
+    case kExprI32LoadMem16S:
+    case kExprI32LoadMem16U:
+    case kExprI64LoadMem16S:
+    case kExprI64LoadMem16U:
+    case kExprF32LoadMemF16:
+    case kExprI32StoreMem16:
+    case kExprI64StoreMem16:
+    case kExprF32StoreMemF16:
     case kExprS128Load16Splat:
     case kExprS128Load16Lane:
     case kExprS128Store16Lane:
       return 1;
+    case kExprI32LoadMem8S:
+    case kExprI32LoadMem8U:
+    case kExprI64LoadMem8S:
+    case kExprI64LoadMem8U:
+    case kExprI32StoreMem8:
+    case kExprI64StoreMem8:
     case kExprS128Load8Splat:
     case kExprS128Load8Lane:
     case kExprS128Store8Lane:
       return 0;
-
-#define CASE(Opcode, ...) \
-  case kExpr##Opcode:     \
-    return GetLoadType(kExpr##Opcode).size_log_2();
-      FOREACH_LOAD_MEM_OPCODE(CASE)
-#undef CASE
-#define CASE(Opcode, ...) \
-  case kExpr##Opcode:     \
-    return GetStoreType(kExpr##Opcode).size_log_2();
-      FOREACH_STORE_MEM_OPCODE(CASE)
-#undef CASE
 
 #define CASE(Opcode, Type) \
   case kExpr##Opcode:      \

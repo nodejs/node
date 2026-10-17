@@ -675,8 +675,7 @@ class WasmOutOfLineTrap : public OutOfLineCode {
     // Just encode the stub index. This will be patched when the code
     // is added to the native module and copied into wasm code space.
     __ near_call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
-    ReferenceMap* reference_map = gen_->zone()->New<ReferenceMap>(gen_->zone());
-    gen_->RecordSafepoint(reference_map);
+    gen_->RecordSafepointWithoutTaggedSlots();
     __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
   }
 
@@ -687,8 +686,7 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
                             InstructionCode opcode, Instruction* instr,
                             int pc) {
   const MemoryAccessMode access_mode = instr->memory_access_mode();
-  if (access_mode == kMemoryAccessTrappingMemOutOfBounds ||
-      access_mode == kMemoryAccessTrappingNullDereference) {
+  if (access_mode == kMemoryAccessTrapping) {
     codegen->RecordTrappingInstruction(pc);
   }
 }
@@ -2084,10 +2082,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchAtomicStoreWithWriteBarrier: {
       // {EmitTSANAwareStore} calls RecordTrapInfoIfNeeded. No need to do it
       // here.
-      RecordWriteMode mode =
-          arch_opcode == kArchStoreWithWriteBarrier
-              ? RecordWriteModeField::decode(instr->opcode())
-              : AtomicStoreRecordWriteModeField::decode(instr->opcode());
+      RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
       Register object = i.InputRegister(0);
@@ -2311,26 +2306,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register carry_in = i.InputRegister(last_input_index);
       Register out_low = i.OutputRegister(0);
       Register out_high = no_reg;
-      Register temp = no_reg;
       bool use_out_high = instr->OutputCount() > 1;
-      bool use_temp = false;
       if (use_out_high) {
         out_high = i.OutputRegister(1);
-        temp = i.TempRegister(0);
-        size_t end = instr->InputCount();
-        for (size_t j = 0; j < end; j++) {
+        DCHECK_NE(out_high, out_low);
+        for (size_t j = 0; j < instr->InputCount(); ++j) {
           if (HasRegisterInput(instr, j)) {
-            CHECK_NE(i.InputRegister(j), temp);
-            if (i.InputRegister(j) == out_high) {
-              use_temp = true;
-              out_high = temp;
-            }
+            DCHECK_NE(i.InputRegister(j), out_high);
           }
         }
+        // GCC style: just addc, no setcc.
+        __ xorq(out_high, out_high);
       }
 
-      // GCC style: just addc, no setcc.
-      if (use_out_high) __ xorq(out_high, out_high);
       size_t index = 1;
       if (HasAddressingMode(instr)) {
         Operand b = i.MemoryOperand(&index);
@@ -2342,7 +2330,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (use_out_high) __ adcq(out_high, Immediate(0));
       __ addq(out_low, carry_in);
       if (use_out_high) __ adcq(out_high, Immediate(0));
-      if (use_temp) __ movq(i.OutputRegister(1), temp);
       break;
     }
 
@@ -3582,10 +3569,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64Movsh:
       if (instr->HasOutput()) {
         CpuFeatureScope f16c_scope(masm(), F16C);
-        CpuFeatureScope avx2_scope(masm(), AVX2);
-        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-        __ vpbroadcastw(i.OutputDoubleRegister(), i.MemoryOperand());
-        __ vcvtph2ps(i.OutputDoubleRegister(), i.OutputDoubleRegister());
+        XMMRegister dst = i.OutputDoubleRegister();
+        if (CpuFeatures::IsSupported(AVX2)) {
+          CpuFeatureScope avx2_scope(masm(), AVX2);
+          RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+          __ vpbroadcastw(dst, i.MemoryOperand());
+        } else {
+          CpuFeatureScope avx_scope(masm(), AVX);
+          __ vxorps(dst, dst, dst);
+          RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+          __ vpinsrw(dst, dst, i.MemoryOperand(), 0);
+        }
+        __ vcvtph2ps(dst, dst);
       } else {
         CpuFeatureScope f16c_scope(masm(), F16C);
         size_t index = 0;
@@ -8375,10 +8370,20 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   if (!saves.is_empty()) {  // Save callee-saved registers.
     frame->AllocateSavedCalleeRegisterSlots(saves.Count());
   }
+  if (v8_flags.enforce_x64_16byte_alignment) {
+    frame->AlignFrame(2 * kSystemPointerSize);
+  }
 }
 
 void CodeGenerator::AssembleConstructFrame() {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
+
+  if (v8_flags.enforce_x64_16byte_alignment) {
+    // The frame has been previously padded in CodeGenerator::FinishFrame().
+    DCHECK_EQ(frame()->GetTotalFrameSlotCount() % 2, 0);
+    DCHECK_EQ(frame()->GetReturnSlotCount() % 2, 0);
+  }
+
   if (frame_access_state()->has_frame()) {
     int pc_base = __ pc_offset();
 
@@ -8492,8 +8497,7 @@ void CodeGenerator::AssembleConstructFrame() {
         // allocating the stack overflow exception object, but the call did not
         // return in this case.
         // So either way, we can just record an empty safepoint here.
-        ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
-        RecordSafepoint(reference_map);
+        RecordSafepointWithoutTaggedSlots();
         __ PopAll(fp_regs_to_save);
         __ PopAll(regs_to_save);
       } else {
@@ -8501,8 +8505,7 @@ void CodeGenerator::AssembleConstructFrame() {
                      RelocInfo::WASM_STUB_CALL);
         // The call does not return, hence we can ignore any references and just
         // define an empty safepoint.
-        ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
-        RecordSafepoint(reference_map);
+        RecordSafepointWithoutTaggedSlots();
         __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
       }
       __ bind(&done);

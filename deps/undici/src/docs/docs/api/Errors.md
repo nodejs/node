@@ -18,7 +18,7 @@ if (err instanceof errors.ConnectTimeoutError) {
 }
 ```
 
-All errors, except [`HTTPParserError`][], extend [`UndiciError`][]. Each error
+All errors, except [`HTTPParserError`][] and `WebAssemblyNotSupportedError`, extend [`UndiciError`][]. Each error
 carries a stable `code` string (for example `UND_ERR_CONNECT_TIMEOUT`) and a
 `name`.
 
@@ -31,6 +31,37 @@ if (err.code === 'UND_ERR_CONNECT_TIMEOUT') {
   // handle connect timeout
 }
 ```
+
+## Timeout-related errors
+
+The timeout errors below are controlled by dispatcher/client options:
+
+| Error code | When it is thrown | Related option |
+| ---------- | ----------------- | -------------- |
+| `UND_ERR_CONNECT_TIMEOUT` | A connection could not be established before the connection timeout elapsed. | [`connect.timeout`](Client.md) |
+| `UND_ERR_HEADERS_TIMEOUT` | The full response headers were not received before the headers timeout elapsed. | [`headersTimeout`](Client.md) |
+| `UND_ERR_BODY_TIMEOUT` | While reading the response body, no new data arrived before the body timeout elapsed. | [`bodyTimeout`](Client.md) |
+| `UND_ERR_SOCKET` | A generic socket-level failure happened. | Inspect `error.socket` for connection details. |
+
+### Configuring timeouts for `fetch`
+
+If you are using `fetch` (including Node.js built-in `fetch`), configure timeouts
+through the global dispatcher:
+
+```js
+import { Agent, setGlobalDispatcher, fetch } from 'undici'
+
+setGlobalDispatcher(new Agent({
+  connect: { timeout: 10_000 }, // connection phase
+  headersTimeout: 15_000, // wait for response headers
+  bodyTimeout: 30_000 // wait between response body chunks
+}))
+
+await fetch('https://example.com/data')
+```
+
+You can inspect timeout error codes from `error.code` or (for wrapped fetch
+errors) from `error.cause?.code`.
 
 ## Class: `UndiciError`
 
@@ -51,6 +82,35 @@ on a well-known symbol rather than the prototype chain.
 
 * `name` {string} Always `'UndiciError'`.
 * `code` {string} Always `'UND_ERR'`.
+
+## Class: `WebAssemblyNotSupportedError`
+
+* Extends: {Error}
+
+WebAssembly is unavailable when Undici initializes its HTTP/1 parser. Undici does
+not provide an alternative parser for environments without WebAssembly, including
+Node.js configurations where `--jitless` disables it. The check is performed when
+the parser is needed, not when importing Undici or accessing `fetch`.
+
+* `name` {string} Always `'Error'`.
+* `code` {string} Always `'ERR_WEBASSEMBLY_NOT_SUPPORTED'`.
+* `message` {string} By default `'WebAssembly is not supported in this environment, but is required for HTTP/1 parsing'`.
+
+Client and dispatcher requests report this error directly. `fetch` rejects with
+a `TypeError` whose `cause` is this error:
+
+```js
+try {
+  await fetch('http://localhost:3000')
+} catch (error) {
+  if (error.cause?.code === 'ERR_WEBASSEMBLY_NOT_SUPPORTED') {
+    // HTTP/1 parsing requires WebAssembly in this environment.
+  }
+}
+```
+
+`Headers`, `FormData`, `Request`, `Response`, and other operations that do not need
+the HTTP/1 parser remain usable without WebAssembly.
 
 ## Class: `ConnectTimeoutError`
 
@@ -436,6 +496,7 @@ The response returned an error status code. This is raised, for example, when th
 * `code` {string} Always `'UND_ERR_RESPONSE'`.
 * `statusCode` {number} The HTTP status code of the response.
 * `body` {Object|string|null} The response body.
+* `bodyTruncated` {boolean} Whether `body` was truncated by a configured limit.
 * `headers` {Object|string[]|null} The response headers.
 
 ### `new ResponseError(message, code, options)`
@@ -445,6 +506,7 @@ The response returned an error status code. This is raised, for example, when th
 * `options` {Object}
   * `headers` {Object|string[]|null} The response headers. (optional)
   * `body` {Object|string|null} The response body. (optional)
+  * `bodyTruncated` {boolean} Whether `body` was truncated. **Default:** `false`.
 
 ## Class: `ProxyConnectionError`
 
@@ -511,6 +573,19 @@ The maximum number of allowed origins has been reached.
 
 * `name` {string} Always `'MaxOriginsReachedError'`.
 * `code` {string} Always `'UND_ERR_MAX_ORIGINS_REACHED'`.
+
+## Class: `MaxRedirectsError`
+
+<!-- YAML
+added: v8.12.0
+-->
+
+* Extends: {UndiciError}
+
+The maximum number of redirects has been reached.
+
+* `name` {string} Always `'MaxRedirectsError'`.
+* `code` {string} Always `'UND_ERR_REDIRECT_MAX'`.
 
 ## Class: `Socks5ProxyError`
 

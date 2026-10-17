@@ -110,6 +110,14 @@ namespace {
 
 READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)
 #undef ROOT_TYPE_CHECK
+
+template <typename T>
+void CheckTrustedMapHelper(RootIndex index, Tagged<T> obj) {
+  if constexpr (std::is_same_v<T, Map>) {
+    CHECK_EQ(RootsTable::IsInTrustedObjectMapList(index),
+             InstanceTypeChecker::IsTrustedObject(obj->instance_type()));
+  }
+}
 }  // namespace
 
 void ReadOnlyRoots::VerifyTypes() {
@@ -118,6 +126,12 @@ void ReadOnlyRoots::VerifyTypes() {
 
   READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)
 #undef ROOT_TYPE_CHECK
+
+#define CHECK_TRUSTED_MAP(Type, name, CamelName) \
+  CheckTrustedMapHelper(RootIndex::k##CamelName, name());
+
+  READ_ONLY_ROOT_LIST(CHECK_TRUSTED_MAP)
+#undef CHECK_TRUSTED_MAP
 }
 
 #endif  // DEBUG

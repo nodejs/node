@@ -1282,6 +1282,13 @@ register('./my-hooks.mjs', {
 });
 ```
 
+A hook can send messages to the thread that registered it at any time, as
+above. It must not block on a reply from that thread: resolution and loading
+are synchronous from the perspective of the thread that triggered them, so that
+thread is blocked until the hook settles and cannot answer in the meantime.
+Hooks can otherwise be fully asynchronous; it is only a reply over this
+message channel that cannot be awaited.
+
 #### Asynchronous hooks accepted by `module.register()`
 
 <!-- YAML

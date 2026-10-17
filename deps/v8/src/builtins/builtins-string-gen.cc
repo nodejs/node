@@ -1014,6 +1014,12 @@ TF_BUILTIN(WasmJSStringEqual, StringBuiltinsAssembler) {
   // Callers must handle the case where {lhs} and {rhs} refer to the same
   // String object.
   CSA_DCHECK(this, TaggedNotEqual(left, right));
+#ifdef V8_IS_TSAN
+  CallRuntime(Runtime::kTsanAcquireForInitializationFence, NoContextConstant(),
+              right);
+  CallRuntime(Runtime::kTsanAcquireForInitializationFence, NoContextConstant(),
+              left);
+#endif
   GenerateStringEqual(left, right, length);
 }
 
@@ -1029,6 +1035,12 @@ TF_BUILTIN(WasmStringAdd_NoMapCheck, StringBuiltinsAssembler) {
 TF_BUILTIN(WasmStringCompare, StringBuiltinsAssembler) {
   auto left = Parameter<String>(Descriptor::kLeft);
   auto right = Parameter<String>(Descriptor::kRight);
+#ifdef V8_IS_TSAN
+  CallRuntime(Runtime::kTsanAcquireForInitializationFence, NoContextConstant(),
+              right);
+  CallRuntime(Runtime::kTsanAcquireForInitializationFence, NoContextConstant(),
+              left);
+#endif
   GenerateStringRelationalComparison(left, right, StringComparison::kCompare);
 }
 #endif

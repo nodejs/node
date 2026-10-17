@@ -4,6 +4,7 @@
 
 #include "src/sandbox/sandbox.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "include/v8-internal.h"
@@ -115,33 +116,6 @@ void DefaultInSandboxAllocator::LazyInitialize() {
   region_alloc_ = std::make_unique<base::RegionAllocator>(
       backing_memory_base, backing_memory_size, kAllocationGranularity);
   end_of_accessible_region_ = region_alloc_->begin();
-
-  // Install an on-merge callback to discard or decommit unused pages.
-  region_alloc_->set_on_merge_callback([this](Address start, size_t size) {
-    mutex_.AssertHeld();
-    Address end = start + size;
-    if (end == region_alloc_->end() &&
-        start <= end_of_accessible_region_ - kChunkSize) {
-      // Can shrink the accessible region.
-      Address new_end_of_accessible_region = RoundUp(start, kChunkSize);
-      size_t size_to_decommit =
-          end_of_accessible_region_ - new_end_of_accessible_region;
-      if (!sandbox_->address_space()->DecommitPages(
-              new_end_of_accessible_region, size_to_decommit)) {
-        V8::FatalProcessOutOfMemory(nullptr, "SandboxedArrayBufferAllocator()");
-      }
-      end_of_accessible_region_ = new_end_of_accessible_region;
-    } else if (size >= 2 * kChunkSize) {
-      // Can discard pages. The pages stay accessible, so the size of the
-      // accessible region doesn't change.
-      Address chunk_start = RoundUp(start, kChunkSize);
-      Address chunk_end = RoundDown(start + size, kChunkSize);
-      if (!sandbox_->address_space()->DiscardSystemPages(
-              chunk_start, chunk_end - chunk_start)) {
-        V8::FatalProcessOutOfMemory(nullptr, "SandboxedArrayBufferAllocator()");
-      }
-    }
-  });
 }
 
 DefaultInSandboxAllocator::~DefaultInSandboxAllocator() {
@@ -233,12 +207,42 @@ void DefaultInSandboxAllocator::Free(void* data) {
 
   base::MutexGuard guard(&mutex_);
   CHECK(is_initialized());
-  region_alloc_->FreeRegion(reinterpret_cast<Address>(data));
+  Address address = reinterpret_cast<Address>(data);
+  base::AddressRegion free_region;
+  size_t size = region_alloc_->FreeRegion(address, &free_region);
+  if (size == 0) return;
+
+  // Return the memory of chunks that are now entirely free to the OS.
+  if (free_region.end() == region_alloc_->end() &&
+      free_region.begin() <= end_of_accessible_region_ - kChunkSize) {
+    // The free region reaches the end of the backing memory: shrink the
+    // accessible region.
+    Address new_end_of_accessible_region =
+        RoundUp(free_region.begin(), kChunkSize);
+    size_t size_to_decommit =
+        end_of_accessible_region_ - new_end_of_accessible_region;
+    if (!sandbox_->address_space()->DecommitPages(new_end_of_accessible_region,
+                                                  size_to_decommit)) {
+      V8::FatalProcessOutOfMemory(nullptr, "SandboxedArrayBufferAllocator()");
+    }
+    end_of_accessible_region_ = new_end_of_accessible_region;
+  } else {
+    // Discard the pages; they stay accessible. Only chunks overlapping the
+    // freed region can have become entirely free: the rest of |free_region|
+    // was free before and was discarded when it became free.
+    Address chunk_start = std::max(RoundUp(free_region.begin(), kChunkSize),
+                                   RoundDown(address, kChunkSize));
+    Address chunk_end = std::min(RoundDown(free_region.end(), kChunkSize),
+                                 RoundUp(address + size, kChunkSize));
+    if (chunk_start < chunk_end &&
+        !sandbox_->address_space()->DiscardSystemPages(
+            chunk_start, chunk_end - chunk_start)) {
+      V8::FatalProcessOutOfMemory(nullptr, "SandboxedArrayBufferAllocator()");
+    }
+  }
 }
 
 }  // namespace
-
-bool Sandbox::smi_address_range_reserved_ = false;
 
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 thread_local Sandbox* Sandbox::current_ = nullptr;
@@ -278,6 +282,10 @@ static Address DetermineAddressSpaceLimit() {
   // userspace and kernel each) as that appears to be the most common
   // configuration and there seems to be no easy way to retrieve the actual
   // number of virtual address bits from the CPU in userspace.
+  hardware_virtual_address_bits = 40;
+#elif defined(V8_TARGET_ARCH_ARM64) && defined(V8_TARGET_OS_CHROMEOS)
+  // On Arm64 ChromeOS kernel is configured to have a 40-bit virtual address
+  // space (39 bits for userspace and kernel each).
   hardware_virtual_address_bits = 40;
 #elif defined(V8_TARGET_OS_IOS)
   // On iOS, we only get 64 GB of userspace virtual address space even with the
@@ -498,33 +506,9 @@ bool Sandbox::Initialize(v8::Platform* platform, v8::VirtualAddressSpace* vas,
         back, kSandboxGuardRegionSize + kAdditionalTrailingGuardRegionSize));
   }
 
-  // Also try to reserve the first 4GB of the process' address space. This
-  // mitigates Smi<->HeapObject confusion bugs in which we end up treating a
-  // Smi value as a pointer.
-  if (!smi_address_range_reserved_) {
-    // Make the guard region extend a little past the first 4GB to also catch
-    // accesses to in-object properties which are bounded by the JSObject
-    // instance size.
-    static_assert(kSmiAddressRangePadding > JSObject::kMaxInstanceSize);
-    constexpr Address kRangeEnd = kSmiAddressRange + kSmiAddressRangePadding;
-    const size_t zero_segment_size = platform->GetZeroSegmentSize();
-    if (zero_segment_size >= kRangeEnd) {
-      smi_address_range_reserved_ = true;
-    } else {
-      const size_t step = address_space_->allocation_granularity();
-      const Address aligned_end = RoundUp(kRangeEnd, step);
-      for (Address start = 0; start <= 1 * MB; start += step) {
-        if (vas->AllocateGuardRegion(start, aligned_end - start)) {
-          smi_address_range_reserved_ = true;
-          break;
-        }
-      }
-    }
-  }
-
   initialized_ = true;
 
-  FinishInitialization();
+  FinishInitialization(platform);
 
   DCHECK(!is_partially_reserved());
   return true;
@@ -591,13 +575,22 @@ bool Sandbox::InitializeAsPartiallyReservedSandbox(v8::Platform* platform,
           address_space_.get());
   in_sandbox_allocator_ = std::make_shared<DefaultInSandboxAllocator>(this);
 
-  FinishInitialization();
+  FinishInitialization(platform);
 
   DCHECK(is_partially_reserved());
   return true;
 }
 
-void Sandbox::FinishInitialization() {
+void Sandbox::FinishInitialization(v8::Platform* platform) {
+  // Check whether the first 4GB of the process' address space are reserved.
+  // This mitigates Smi<->HeapObject confusion bugs in which we end up treating
+  // a Smi value as a pointer.
+  // Make the guard region extend a little past the first 4GB to also catch
+  // accesses to in-object properties which are bounded by the JSObject
+  // instance size.
+  static_assert(kSmiAddressRangePadding > JSObject::kMaxInstanceSize);
+  constexpr Address kRangeEnd = kSmiAddressRange + kSmiAddressRangePadding;
+  smi_address_range_reserved_ = platform->GetZeroSegmentSize() >= kRangeEnd;
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
   // We do this even for the case of partially-reserved sandbox because, while
   // being an unsafe setup, tests and fuzzers shouldn't report crashes in this
@@ -656,6 +649,7 @@ void Sandbox::TearDown() {
     reservation_base_ = kNullAddress;
     reservation_size_ = 0;
     initialized_ = false;
+    smi_address_range_reserved_ = false;
     constants_.Reset();
   }
 }

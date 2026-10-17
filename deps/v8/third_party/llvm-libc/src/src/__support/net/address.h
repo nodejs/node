@@ -19,12 +19,13 @@
 #include "hdr/types/struct_in_addr.h"
 #include "src/__support/CPP/optional.h"
 #include "src/__support/CPP/span.h"
+#include "src/__support/CPP/string_view.h"
 #include "src/__support/macros/config.h"
 
 namespace LIBC_NAMESPACE_DECL {
 namespace net {
 
-cpp::optional<in_addr_t> inet_addr(const char *cp);
+cpp::optional<in_addr_t> inet_addr(cpp::string_view src);
 
 /// Writes a string representation (including the terminating \0) of the
 /// provided address into the destination buffer. In case of error, returns

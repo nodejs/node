@@ -94,7 +94,7 @@
        absl_log_internal_stateful_condition_do_log &&                     \
        absl_log_internal_stateful_condition_state.ShouldLog(__VA_ARGS__); \
        absl_log_internal_stateful_condition_do_log = false)               \
-    for (const uint32_t COUNTER ABSL_ATTRIBUTE_UNUSED =                   \
+    for (const uint32_t COUNTER [[maybe_unused]] =                        \
              absl_log_internal_stateful_condition_state.counter();        \
          absl_log_internal_stateful_condition_do_log;                     \
          absl_log_internal_stateful_condition_do_log = false)             \

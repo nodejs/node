@@ -1,0 +1,80 @@
+Tests that [[Scopes]] of functions and generators only list non-empty scopes of the runtime context chain.
+outerCtx(false)
+  0: Closure (outerCtx) {captured=1}
+  1: Global
+outerCtx(true)()
+  0: Local (gen) {}
+  1: Closure (outerCtx) {captured=1}
+  2: Global
+outerNoCtx(false)
+  0: Global
+outerNoCtx(true)()
+  0: Local (gen) {}
+  1: Global
+emptyOuter(false)
+  0: Global
+emptyOuter(true)()
+  0: Local (gen) {}
+  1: Global
+catchOuter(false)
+  0: Catch {e=1}
+  1: Global
+catchOuter(true)()
+  0: Local (gen) {}
+  1: Catch {e=1}
+  2: Global
+catchOuterNoCtx(false)
+  0: Catch {e=1}
+  1: Global
+catchOuterNoCtx(true)()
+  0: Local (gen) {}
+  1: Catch {e=1}
+  2: Global
+evalOuter(false)
+  0: Closure (evalOuter) {kind=false, arguments=Arguments(1), ev=1}
+  1: Global
+evalOuter(true)()
+  0: Local (gen) {}
+  1: Closure (evalOuter) {kind=true, arguments=Arguments(1), ev=1}
+  2: Global
+classOuter(false)
+  0: Block (classOuter) {C=function}
+  1: Closure (classOuter) {kind=false}
+  2: Global
+classOuter(true)()
+  0: Local (gen) {}
+  1: Block (classOuter) {C=function}
+  2: Closure (classOuter) {kind=true}
+  3: Global
+classOuterNoRef(false)
+  0: Closure (classOuterNoRef) {kind=false}
+  1: Global
+classOuterNoRef(true)()
+  0: Local (gen) {}
+  1: Closure (classOuterNoRef) {kind=true}
+  2: Global
+withOuter(false)
+  0: With Block (withOuter) {w=1}
+  1: Closure (withOuter) {kind=false}
+  2: Global
+withOuter(true)()
+  0: Local (gen) {}
+  1: With Block (withOuter) {w=1}
+  2: Closure (withOuter) {kind=true}
+  3: Global
+innerGen
+  0: Block (gen) {b=2}
+  1: Local (gen) {a=1}
+  2: Global
+modFn
+  0: Module {m=1}
+  1: Global
+modGen()
+  0: Local (gen) {}
+  1: Module {m=1}
+  2: Global
+modFnEmpty
+  0: Global
+modGenEmpty()
+  0: Local (gen) {}
+  1: Global

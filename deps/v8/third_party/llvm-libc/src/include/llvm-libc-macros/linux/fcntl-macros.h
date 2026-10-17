@@ -105,4 +105,12 @@
 #define F_SETLKW F_SETLKW64
 #endif
 
+// Advice values for posix_fadvise.
+#define POSIX_FADV_NORMAL 0
+#define POSIX_FADV_RANDOM 1
+#define POSIX_FADV_SEQUENTIAL 2
+#define POSIX_FADV_WILLNEED 3
+#define POSIX_FADV_DONTNEED 4
+#define POSIX_FADV_NOREUSE 5
+
 #endif // LLVM_LIBC_MACROS_LINUX_FCNTL_MACROS_H

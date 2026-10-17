@@ -181,7 +181,7 @@ WASM_EXEC_TEST(I64AtomicCompareExchange16U) {
   }
 }
 
-WASM_EXEC_TEST(I32AtomicCompareExchange8U) {
+WASM_EXEC_TEST(I64AtomicCompareExchange8U) {
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_tier);
   uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kWasmPageSize);
   r.builder().SetMemoryShared();
@@ -198,6 +198,34 @@ WASM_EXEC_TEST(I32AtomicCompareExchange8U) {
     }
   }
 }
+
+#define WASM_TEST_CAS_PRESERVES_EXPECTED(Name, CType, Representation)     \
+  WASM_EXEC_TEST(I64AtomicCompareExchange##Name##PreservesExpected) {     \
+    WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_tier);           \
+    CType* memory =                                                       \
+        r.builder().AddMemoryElems<CType>(kWasmPageSize / sizeof(CType)); \
+    r.builder().SetMemoryShared();                                        \
+    r.Build({WASM_ATOMICS_TERNARY_OP(kExprI64AtomicCompareExchange##Name, \
+                                     WASM_I32V_1(0), WASM_LOCAL_GET(0),   \
+                                     WASM_LOCAL_GET(1), Representation),  \
+             WASM_DROP, WASM_LOCAL_GET(0)});                              \
+    FOR_UINT64_INPUTS(i) {                                                \
+      CType initial = static_cast<CType>(i);                              \
+      FOR_UINT64_INPUTS(j) {                                              \
+        CType replacement = static_cast<CType>(j);                        \
+        r.builder().WriteMemory(&memory[0], initial);                     \
+        CHECK_EQ(i, r.Call(i, j));                                        \
+        CType expected =                                                  \
+            CompareExchange(initial, static_cast<CType>(i), replacement); \
+        CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));           \
+      }                                                                   \
+    }                                                                     \
+  }
+
+WASM_TEST_CAS_PRESERVES_EXPECTED(8U, uint8_t, MachineRepresentation::kWord8)
+WASM_TEST_CAS_PRESERVES_EXPECTED(16U, uint16_t, MachineRepresentation::kWord16)
+WASM_TEST_CAS_PRESERVES_EXPECTED(32U, uint32_t, MachineRepresentation::kWord32)
+#undef WASM_TEST_CAS_PRESERVES_EXPECTED
 
 WASM_EXEC_TEST(I64AtomicLoad) {
   WasmRunner<uint64_t> r(execution_tier);

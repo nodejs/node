@@ -1,6 +1,7 @@
 // Copyright 2026 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+// Flags: --multi-mapped-mock-allocator
 
 const sz = 0x100000000 + 64 * 1024; // 4GB + 64Kb
 let buf;

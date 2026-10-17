@@ -731,6 +731,13 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   DCHECK_WITH_SANDBOX_ACCESS(IsJSFunction(function));
   CHECK(CodeKindCanDeoptimize(compiled_code_->kind()));
   {
+    // Logging the deopt event prints the name and source position of the
+    // deoptimizing function, which are read from the in-sandbox
+    // SharedFunctionInfo and Script. This only affects the log output and
+    // cannot influence the deoptimization itself.
+    AllowSandboxAccess sandbox_access(
+        "Logging the deopt event reads the script name and source position of "
+        "the deoptimizing function.");
     HandleScope scope(isolate_);
     PROFILE(isolate_, CodeDeoptEvent(direct_handle(compiled_code_, isolate_),
                                      kind, from_, fp_to_sp_delta_));
@@ -936,15 +943,9 @@ void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate,
            DeoptimizeReasonToString(reason));
   }
   if (!v8_flags.log_deopt) return;
-  no_gc.Release();
-  {
-    HandleScope handle_scope(isolate);
-    PROFILE(isolate,
-            CodeDependencyChangeEvent(
-                direct_handle(code, isolate),
-                direct_handle(deopt_data->GetSharedFunctionInfo(), isolate),
-                DeoptimizeReasonToString(reason)));
-  }
+  PROFILE(isolate,
+          CodeDependencyChangeEvent(code, deopt_data->GetSharedFunctionInfo(),
+                                    DeoptimizeReasonToString(reason)));
 }
 
 // static

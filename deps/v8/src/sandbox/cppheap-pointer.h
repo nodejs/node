@@ -7,6 +7,7 @@
 
 #include "include/v8-sandbox.h"
 #include "src/common/globals.h"
+#include "src/sandbox/cppheap-pointer-tag.h"
 #include "src/sandbox/isolate.h"
 
 namespace v8::internal {

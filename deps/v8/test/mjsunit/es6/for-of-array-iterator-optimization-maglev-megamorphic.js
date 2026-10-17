@@ -51,9 +51,9 @@ assertEquals([1.1, undefined, 3.3], testForOf(a1));
 
 // Megamorphic iterated_object_feedback means TryReduceArrayIteratorForOfNext
 // bails out and the generic fallback is used. No deopt expected.
-assertTrue(isMaglevved(testForOf));
+assertMaglevved(testForOf);
 
 // Verify correct results via the fallback path.
 assertEquals([1.1, undefined, 3.3], testForOf(a2));
 assertEquals([1.1, undefined, 3.3], testForOf(a3));
-assertTrue(isMaglevved(testForOf));
+assertMaglevved(testForOf);

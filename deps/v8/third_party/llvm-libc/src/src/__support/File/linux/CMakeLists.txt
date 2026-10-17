@@ -8,6 +8,7 @@ add_object_library(
   DEPENDS
     libc.hdr.fcntl_macros
     libc.hdr.stdio_macros
+    libc.hdr.types.mode_t
     libc.hdr.sys_stat_macros
     libc.hdr.types.FILE
     libc.hdr.types.off_t

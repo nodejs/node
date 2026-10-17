@@ -2218,12 +2218,13 @@ TNode<Code> CodeStubAssembler::LoadCodeObjectFromJSDispatchTable(
   if (JSDispatchEntry::kObjectPointerOffset == 0) {
     shifted_value =
 #if defined(__illumos__) && defined(V8_HOST_ARCH_64_BIT)
-    // Pointers in illumos span both the low 2^47 range and the high 2^47 range
-    // as well. Checking the high bit being set in illumos means all higher bits
-    // need to be set to 1 after shifting right.
-    // Use WordSar() so any high-bit check wouldn't be necessary.
-        UncheckedCast<UintPtrT>(WordSar(UncheckedCast<IntPtrT>(value),
-            IntPtrConstant(JSDispatchEntry::kObjectPointerShift)));
+        // Pointers in illumos span both the low 2^47 range and the high 2^47
+        // range as well. Checking the high bit being set in illumos means all
+        // higher bits need to be set to 1 after shifting right. Use WordSar()
+        // so any high-bit check wouldn't be necessary.
+        UncheckedCast<UintPtrT>(
+            WordSar(UncheckedCast<IntPtrT>(value),
+                    IntPtrConstant(JSDispatchEntry::kObjectPointerShift)));
 #else
         WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift));
 #endif /* __illumos__ and 64-bit */
@@ -2249,19 +2250,24 @@ TNode<Uint16T> CodeStubAssembler::LoadParameterCountFromJSDispatchTable(
   return Load<Uint16T>(table, offset);
 }
 
-
 void CodeStubAssembler::TailCallJSCode(
     TNode<Code> code, TNode<Context> context, TNode<JSFunction> function,
     TNode<Object> new_target, TNode<Int32T> arg_count,
-    TNode<JSDispatchHandleT> dispatch_handle) {
+    TNode<JSDispatchHandleT> dispatch_handle,
+    TNode<Uint16T> expected_parameter_count) {
 #ifdef V8_ENABLE_SANDBOX
-  // Check that the code has a matching parameter count. This ensures that
-  // the target code will correctly tear down parameters when leaving.
+  // Check that the code and dispatch table entry still have the expected
+  // parameter count. This ensures that the target code matches the native
+  // argument frame and will correctly tear down parameters when leaving.
   static_assert(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL);
   CSA_SBXCHECK(
       this,
-      Word32Equal(LoadCodeParameterCount(code),
+      Word32Equal(expected_parameter_count,
                   LoadParameterCountFromJSDispatchTable(dispatch_handle)));
+  CSA_SBXCHECK(this, Word32Equal(LoadCodeParameterCount(code),
+                                 expected_parameter_count));
+#else
+  USE(expected_parameter_count);
 #endif  // V8_ENABLE_SANDBOX
 
   CodeAssembler::TailCallJSCode(code, context, function, new_target, arg_count,
@@ -2271,7 +2277,21 @@ void CodeStubAssembler::TailCallJSCode(
 void CodeStubAssembler::TailCallJSCode(
     TNode<Context> context, TNode<JSFunction> function,
     TNode<Object> new_target, TNode<Int32T> arg_count,
-    TNode<JSDispatchHandleT> dispatch_handle) {
+    TNode<JSDispatchHandleT> dispatch_handle,
+    TNode<Uint16T> expected_parameter_count) {
+#ifdef V8_ENABLE_SANDBOX
+  // In regular execution, the dispatch entry is kept alive via the target
+  // JSFunction on the stack. However, with in-sandbox memory corruption, a
+  // dispatch handle may not be kept alive and its entry could be swept and
+  // reallocated with a different parameter count during a GC in the runtime.
+  static_assert(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL);
+  CSA_SBXCHECK(
+      this,
+      Word32Equal(expected_parameter_count,
+                  LoadParameterCountFromJSDispatchTable(dispatch_handle)));
+#else
+  USE(expected_parameter_count);
+#endif  // V8_ENABLE_SANDBOX
   TNode<Code> code = LoadCodeObjectFromJSDispatchTable(dispatch_handle);
 
   CodeAssembler::TailCallJSCode(code, context, function, new_target, arg_count,
@@ -6692,10 +6712,14 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
   }
 }
 
+template <class T>
 void CodeStubAssembler::CopyRange(TNode<HeapObject> dst_object, int dst_offset,
                                   TNode<HeapObject> src_object, int src_offset,
                                   TNode<IntPtrT> length_in_tagged,
                                   WriteBarrierMode mode) {
+  DCHECK(mode == UPDATE_WRITE_BARRIER || mode == SKIP_WRITE_BARRIER);
+  const WriteBarrierMode barrier_mode =
+      std::is_same_v<T, Smi> ? SKIP_WRITE_BARRIER : mode;
   // TODO(jgruber): This could be a lot more involved (e.g. better code when
   // write barriers can be skipped). Extend as needed.
   BuildFastLoop<IntPtrT>(
@@ -6703,15 +6727,11 @@ void CodeStubAssembler::CopyRange(TNode<HeapObject> dst_object, int dst_offset,
       [=, this](TNode<IntPtrT> index) {
         TNode<IntPtrT> current_src_offset =
             IntPtrAdd(TimesTaggedSize(index), IntPtrConstant(src_offset));
-        TNode<Object> value = LoadObjectField(src_object, current_src_offset);
+        TNode<T> value =
+            LoadCopyRangeElement<T>(src_object, current_src_offset);
         TNode<IntPtrT> current_dst_offset =
             IntPtrAdd(TimesTaggedSize(index), IntPtrConstant(dst_offset));
-        if (mode == UNSAFE_SKIP_WRITE_BARRIER) {
-          UnsafeStoreNoWriteBarrier(
-              MachineRepresentation::kTagged, dst_object,
-              IntPtrSub(current_dst_offset, IntPtrConstant(kHeapObjectTag)),
-              value);
-        } else if (mode == SKIP_WRITE_BARRIER) {
+        if (barrier_mode == SKIP_WRITE_BARRIER) {
           StoreObjectFieldNoWriteBarrier(dst_object, current_dst_offset, value);
         } else {
           StoreObjectField(dst_object, current_dst_offset, value);
@@ -6719,6 +6739,13 @@ void CodeStubAssembler::CopyRange(TNode<HeapObject> dst_object, int dst_offset,
       },
       1, kLoopUnrolling, IndexAdvanceMode::kPost);
 }
+
+template V8_EXPORT_PRIVATE void CodeStubAssembler::CopyRange<Object>(
+    TNode<HeapObject>, int, TNode<HeapObject>, int, TNode<IntPtrT>,
+    WriteBarrierMode);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::CopyRange<Smi>(
+    TNode<HeapObject>, int, TNode<HeapObject>, int, TNode<IntPtrT>,
+    WriteBarrierMode);
 
 template <typename TIndex>
 void CodeStubAssembler::CopyFixedArrayElements(
@@ -20154,7 +20181,9 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   Label check_is_baseline_data(this);
   Label check_is_interpreter_data(this);
   Label check_is_uncompiled_data(this);
-  Label check_is_wasm_function_data(this);
+#if V8_ENABLE_WEBASSEMBLY
+  Label unexpected_wasm_data(this);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   LoadSharedFunctionInfoTrustedDataAndDispatch(
       shared_info, &sfi_data_out, data_type_out, &use_untrusted_data,
@@ -20171,8 +20200,11 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
           {UNCOMPILED_DATA_WITH_PREPARSE_DATA_AND_JOB_TYPE,
            &check_is_uncompiled_data},
 #if V8_ENABLE_WEBASSEMBLY
-          {WASM_CAPI_FUNCTION_DATA_TYPE, &check_is_wasm_function_data},
-          {WASM_EXPORTED_FUNCTION_DATA_TYPE, &check_is_wasm_function_data},
+          // GetSharedFunctionInfoCode is only called by CompileLazy, which Wasm
+          // functions never enter because their wrapper code is installed
+          // directly into the JSDispatchTable at creation time.
+          {WASM_EXPORTED_FUNCTION_DATA_TYPE, &unexpected_wasm_data},
+          {WASM_CAPI_FUNCTION_DATA_TYPE, &unexpected_wasm_data},
 #endif  // V8_ENABLE_WEBASSEMBLY
       });
 
@@ -20209,14 +20241,6 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   BIND(&check_is_uncompiled_data);
   sfi_code = HeapConstantNoHole(BUILTIN_CODE(isolate(), CompileLazy));
   Goto(if_compile_lazy ? if_compile_lazy : &done);
-
-#if V8_ENABLE_WEBASSEMBLY
-  // IsWasmFunctionData: Use the wrapper code
-  BIND(&check_is_wasm_function_data);
-  sfi_code = LoadTrustedPointerFromObject<kCodeIndirectPointerTag>(
-      CAST(sfi_data_out.value()), offsetof(WasmFunctionData, wrapper_code_));
-  Goto(&done);
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   BIND(&use_untrusted_data);
   {
@@ -20275,6 +20299,11 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
     Goto(&done);
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  BIND(&unexpected_wasm_data);
+  Unreachable();
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   BIND(&unknown_data);
   Unreachable();
@@ -21862,9 +21891,9 @@ TNode<ArrayList> CodeStubAssembler::ArrayListEnsureSpace(
   GotoIf(Word32Equal(array_length, Uint32Constant(0)), &done);
   StoreObjectFieldNoWriteBarrier(new_array, offsetof(ArrayList, length_),
                                  array_length);
-  CopyRange(new_array, ArrayList::OffsetOfElementAt(0), array,
-            ArrayList::OffsetOfElementAt(0),
-            Signed(ChangeUint32ToWord(array_length)));
+  CopyRange<Object>(new_array, ArrayList::OffsetOfElementAt(0), array,
+                    ArrayList::OffsetOfElementAt(0),
+                    Signed(ChangeUint32ToWord(array_length)));
   Goto(&done);
 
   BIND(&overflow);
@@ -21908,8 +21937,8 @@ TNode<FixedArray> CodeStubAssembler::ArrayListElements(TNode<ArrayList> array) {
   static constexpr ElementsKind kind = ElementsKind::PACKED_ELEMENTS;
   TNode<IntPtrT> length = Signed(ChangeUint32ToWord(ArrayListGetLength(array)));
   TNode<FixedArray> elements = CAST(AllocateFixedArray(kind, length));
-  CopyRange(elements, FixedArray::OffsetOfElementAt(0), array,
-            ArrayList::OffsetOfElementAt(0), length);
+  CopyRange<Object>(elements, FixedArray::OffsetOfElementAt(0), array,
+                    ArrayList::OffsetOfElementAt(0), length);
   return elements;
 }
 

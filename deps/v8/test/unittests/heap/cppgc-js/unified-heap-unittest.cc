@@ -805,7 +805,6 @@ TEST_F(UnifiedHeapTest, CppgcSweepingDuringMinorV8Sweeping) {
   Heap* heap = isolate()->heap();
   CppHeap* cppheap = CppHeap::From(heap->cpp_heap());
   cppheap->UpdateGCCapabilitiesFromFlagsForTesting();
-  CHECK_NOT_NULL(heap->cpp_heap());
   heap->CollectGarbage(AllocationSpace::OLD_SPACE,
                        GarbageCollectionReason::kTesting,
                        GCCallbackFlags::kNoGCCallbackFlags);

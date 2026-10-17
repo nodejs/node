@@ -12,6 +12,12 @@ macros:
     macro_header: sys-resource-macros.h
     standards:
       - gnu
+  - macro_name: PRIO_PROCESS
+    macro_header: sys-resource-macros.h
+  - macro_name: PRIO_PGRP
+    macro_header: sys-resource-macros.h
+  - macro_name: PRIO_USER
+    macro_header: sys-resource-macros.h
 types:
   - type_name: struct_rlimit
   - type_name: rlim_t
@@ -19,6 +25,13 @@ types:
 enums: []
 objects: []
 functions:
+  - name: getpriority
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: id_t
   - name: getrlimit
     standards:
       - posix
@@ -33,6 +46,14 @@ functions:
     arguments:
       - type: int
       - type: struct rusage *
+  - name: setpriority
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: id_t
+      - type: int
   - name: setrlimit
     standards:
       - posix

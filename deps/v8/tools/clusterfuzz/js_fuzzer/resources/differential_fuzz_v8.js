@@ -20,6 +20,8 @@ assertNotNull = (value, name_opt) => { __prettyPrint(value); };
 // Suppress optimization status as it leads to false positives.
 assertUnoptimized = () => {};
 assertOptimized = () => {};
+assertMaglevved = () => {};
+assertNotMaglevved = () => {};
 isNeverOptimize = () => {};
 isInterpreted = () => {};
 isBaseline = () => {};

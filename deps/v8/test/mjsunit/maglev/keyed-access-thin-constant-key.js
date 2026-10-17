@@ -24,7 +24,7 @@ acc.set(o, 1);
 acc.set(o, 2);
 %OptimizeMaglevOnNextCall(acc.set);
 acc.set(o, 3);
-assertTrue(isMaglevved(acc.set));
+assertMaglevved(acc.set);
 assertEquals(3, o[key]);
 
 %PrepareFunctionForOptimization(acc.get);
@@ -32,4 +32,4 @@ assertEquals(3, acc.get(o));
 assertEquals(3, acc.get(o));
 %OptimizeMaglevOnNextCall(acc.get);
 assertEquals(3, acc.get(o));
-assertTrue(isMaglevved(acc.get));
+assertMaglevved(acc.get);

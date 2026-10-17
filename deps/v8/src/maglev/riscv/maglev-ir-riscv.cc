@@ -909,7 +909,7 @@ void Float64Min::GenerateCode(MaglevAssembler* masm,
   DoubleRegister right = ToDoubleRegister(RightInput());
   DoubleRegister out = ToDoubleRegister(result());
 
-  __ FloatMinMaxHelper<double>(out, left, right, MaxMinKind::kMin);
+  __ Float64Min(out, left, right);
 }
 
 void Float64Max::SetValueLocationConstraints() {
@@ -932,7 +932,7 @@ void Float64Max::GenerateCode(MaglevAssembler* masm,
   DoubleRegister right = ToDoubleRegister(RightInput());
   DoubleRegister out = ToDoubleRegister(result());
 
-  __ FloatMinMaxHelper<double>(out, left, right, MaxMinKind::kMax);
+  __ Float64Max(out, left, right);
 }
 
 int Float64Ieee754Unary::MaxCallStackArgs() const { return 0; }

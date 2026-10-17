@@ -49,7 +49,7 @@ assert_test_poison_default_proto(test_poison_default_proto());
 %OptimizeMaglevOnNextCall(test_poison_default_proto);
 assert_test_poison_default_proto(test_poison_default_proto());
 assertOptimized(test_poison_default_proto);
-assertTrue(isMaglevved(test_poison_default_proto));
+assertMaglevved(test_poison_default_proto);
 assert_test_poison_default_proto(test_poison_default_proto());
 %OptimizeFunctionOnNextCall(test_poison_default_proto);
 assert_test_poison_default_proto(test_poison_default_proto());

@@ -140,6 +140,12 @@ Both forms receive an `options` parameter with the following property:
   can check `signal.aborted` or listen for the `'abort'` event to perform
   early cleanup.
 
+In `pull()`, stateless transforms receive a new `options` object for every
+call, and stateful transforms one for the pipeline, so a transform can modify
+its `options` without affecting other transforms. The object does not inherit
+from `Object.prototype`. Transforms passed to [`pullSync()`][] receive no
+`options`.
+
 The flush signal (`null`) is sent after the source ends, giving transforms
 a chance to emit trailing data (e.g., compression footers).
 
@@ -714,7 +720,7 @@ added:
 
 * `source` {Iterable} The sync data source.
 * `...transforms` {Function|Object} Zero or more sync transforms.
-* `writer` {Object} Destination with `write(chunk)` method.
+* `writer` {Object} Destination with a `writeSync(chunk)` method.
 * `options` {Object}
   * `failOnIncompleteClose` {boolean} If `true`, call `writer.fail()` when
     `writer.endSync()` cannot close the writer synchronously. Ignored when
@@ -727,8 +733,11 @@ added:
 Synchronous version of [`pipeTo()`][]. The `source`, all transforms, and the
 `writer` must be synchronous. Cannot accept async iterables or promises.
 
-The `writer` must have the `*Sync` methods (`writeSync`, `writevSync`,
-`endSync`) and `fail()` for this to work.
+The `writer` must have a `writeSync()` method. The other methods are
+optional: `writevSync()` is used for batches of more than one chunk if it is
+present, `endSync()` is called to close the writer (unless `preventClose` is
+`true`), and `fail()` is called if the pipe fails (unless `preventFail` is
+`true`). A writer without `endSync()` is not closed.
 
 `pipeToSync()` never falls back to the asynchronous writer methods. If
 `writer.endSync()` returns `-1` because the writer cannot close synchronously

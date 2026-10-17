@@ -41,12 +41,12 @@ function testKind(arr, expected_results, unexpected_arr, expected_unexpected_res
 
   %OptimizeMaglevOnNextCall(foo);
   assertEquals(expected_results, foo(arr));
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 
   if (unexpected_arr) {
     assertEquals(expected_unexpected_results, foo(unexpected_arr));
     // Should deopt!
-    assertFalse(isMaglevved(foo));
+    assertNotMaglevved(foo);
   }
 }
 

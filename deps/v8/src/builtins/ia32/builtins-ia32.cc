@@ -111,7 +111,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     Generate_PushArguments(masm, esi, eax, ecx, no_reg,
                            ArgumentsElementType::kRaw);
     // The receiver for the builtin/api call.
-    __ PushRoot(RootIndex::kTheHoleValue);
+    __ PushRoot(RootIndex::kTdzHoleValue);
 
     // Call the function.
     // eax: number of arguments (untagged)
@@ -185,9 +185,9 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ CallBuiltin(Builtin::kFastNewObject);
   __ jmp(&post_instantiation_deopt_entry, Label::kNear);
 
-  // Else: use TheHoleValue as receiver for constructor call
+  // Else: use TdzHoleValue as receiver for constructor call
   __ bind(&not_create_implicit_receiver);
-  __ LoadRoot(eax, RootIndex::kTheHoleValue);
+  __ LoadRoot(eax, RootIndex::kTdzHoleValue);
 
   // ----------- S t a t e -------------
   //  --                         eax: implicit receiver
@@ -259,7 +259,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // on-stack receiver as the result.
   __ bind(&use_receiver);
   __ mov(eax, Operand(esp, 0 * kSystemPointerSize));
-  __ JumpIfRoot(eax, RootIndex::kTheHoleValue, &do_throw);
+  __ JumpIfRoot(eax, RootIndex::kTdzHoleValue, &do_throw);
 
   __ bind(&leave_and_return);
   // Restore arguments count from the frame.
@@ -1579,7 +1579,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ EnterFrame(StackFrame::FAST_CONSTRUCT);
   __ Push(esi);
   // Implicit receiver stored in the construct frame.
-  __ PushRoot(RootIndex::kTheHoleValue);
+  __ PushRoot(RootIndex::kTdzHoleValue);
 
   // Push arguments + implicit receiver
   __ movd(eax, xmm0);  // Recover number of arguments.
@@ -1589,7 +1589,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ neg(esi);
   __ add(esi, ecx);
   GenerateInterpreterPushArgs(masm, esi, ecx);
-  __ PushRoot(RootIndex::kTheHoleValue);
+  __ PushRoot(RootIndex::kTdzHoleValue);
 
   // Restore context.
   __ mov(esi, Operand(ebp, FastConstructFrameConstants::kContextOffset));
@@ -1642,7 +1642,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   // on-stack receiver as the result.
   __ bind(&use_receiver);
   __ mov(eax, Operand(esp, 0 * kSystemPointerSize));
-  __ JumpIfRoot(eax, RootIndex::kTheHoleValue, &do_throw);
+  __ JumpIfRoot(eax, RootIndex::kTdzHoleValue, &do_throw);
 
   __ bind(&leave_and_return);
   __ LeaveFrame(StackFrame::FAST_CONSTRUCT);

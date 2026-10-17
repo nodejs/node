@@ -788,8 +788,8 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
       const Simd128ConstantOp& op1 =
           __ input_graph().Get(inputs[1]).template Cast<Simd128ConstantOp>();
       uint8_t value[kSimd256Size];
-      memcpy(value, op0.value, kSimd128Size);
-      memcpy(value + kSimd128Size, op1.value, kSimd128Size);
+      memcpy(value, op0.value.data(), kSimd128Size);
+      memcpy(value + kSimd128Size, op1.value.data(), kSimd128Size);
 
       og_index = __ Simd256Constant(value);
 

@@ -26,9 +26,9 @@ components.
     via macro assemblers, higher level codegen via CodeStubAssembler,
     definitions of machine code metadata like safepoint tables and source
     position tables, and `compiler.cc` which defines entry points into the
-    compilers. This contains subdirectories for architecture specific
-    implementations, which should be kept in sync with each other as much as
-    possible.
+    compilers. This contains subdirectories for architecture-specific
+    implementations (only the main officially supported architectures `ia32`,
+    `x64`, `arm`, and `arm64` need to be maintained for most changes).
   - `src/common/`: Common definitions and utilities.
   - `src/compiler/`: The TurboFan optimizing compiler, including the Turboshaft
     CFG compiler.
@@ -57,8 +57,9 @@ components.
   - `src/profiler/`: The in-process profiler implementations, for heap
     snapshots, allocation tracking, and a sampling CPU profiler.
   - `src/regexp/`: The regular expression implementation. This contains
-    subdirectories for architecture specific implementations, which should be
-    kept in sync with each other as much as possible.
+    subdirectories for architecture-specific implementations (as with codegen,
+    only the main officially supported architectures `ia32`, `x64`, `arm`, and
+    `arm64` need to be maintained for most changes).
   - `src/runtime/`: C++ functions that can be called from JavaScript at runtime.
   - `src/sandbox/`: The implementation of the sandbox, which is a security
     feature that attempts to limit V8 memory operations to be within a single
@@ -102,3 +103,11 @@ components.
     - `docs/snapshot/`: Snapshot and serialization.
     - `docs/torque/`: Torque language and builtins.
     - `docs/wasm/`: WebAssembly implementation.
+
+## Supported Architectures
+
+For most changes and bug fixes, it is fine to omit not officially supported
+architectures and only implement or fix the main four: `ia32`, `x64`, `arm`, and
+`arm64`. Architectures without official Google support (e.g., `mips64`,
+`riscv32`, `riscv64`, `s390x`, `ppc64`, `loong64`) are community-maintained and
+do not need to be updated unless specifically requested or targeted by the task.

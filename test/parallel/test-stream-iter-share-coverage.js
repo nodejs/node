@@ -113,8 +113,7 @@ async function testCompletedSyncConsumerStaysCompleted() {
     assert.strictEqual(error, reason);
   }
   assert.strictEqual(caught, true);
-  assert.deepStrictEqual(completed.next(), {
-    __proto__: null,
+  assert.deepStrictEqual({ ...completed.next() }, {
     done: true,
     value: undefined,
   });

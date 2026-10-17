@@ -108,13 +108,17 @@ add_with_carry(T a, T b, T carry_in, T &carry_out) {
   if (!cpp::is_constant_evaluated()) {
 #if __has_builtin(__builtin_addcb)
     RETURN_IF(unsigned char, __builtin_addcb)
-#elif __has_builtin(__builtin_addcs)
+#endif
+#if __has_builtin(__builtin_addcs)
     RETURN_IF(unsigned short, __builtin_addcs)
-#elif __has_builtin(__builtin_addc)
+#endif
+#if __has_builtin(__builtin_addc)
     RETURN_IF(unsigned int, __builtin_addc)
-#elif __has_builtin(__builtin_addcl)
+#endif
+#if __has_builtin(__builtin_addcl)
     RETURN_IF(unsigned long, __builtin_addcl)
-#elif __has_builtin(__builtin_addcll)
+#endif
+#if __has_builtin(__builtin_addcll)
     RETURN_IF(unsigned long long, __builtin_addcll)
 #endif
   }
@@ -134,13 +138,17 @@ sub_with_borrow(T a, T b, T carry_in, T &carry_out) {
   if (!cpp::is_constant_evaluated()) {
 #if __has_builtin(__builtin_subcb)
     RETURN_IF(unsigned char, __builtin_subcb)
-#elif __has_builtin(__builtin_subcs)
+#endif
+#if __has_builtin(__builtin_subcs)
     RETURN_IF(unsigned short, __builtin_subcs)
-#elif __has_builtin(__builtin_subc)
+#endif
+#if __has_builtin(__builtin_subc)
     RETURN_IF(unsigned int, __builtin_subc)
-#elif __has_builtin(__builtin_subcl)
+#endif
+#if __has_builtin(__builtin_subcl)
     RETURN_IF(unsigned long, __builtin_subcl)
-#elif __has_builtin(__builtin_subcll)
+#endif
+#if __has_builtin(__builtin_subcll)
     RETURN_IF(unsigned long long, __builtin_subcll)
 #endif
   }

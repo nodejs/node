@@ -710,7 +710,6 @@ void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
 }
 
 void JSGenericLowering::LowerJSCreateGeneratorObject(Node* node) {
-  node->RemoveInput(4);  // control
   ReplaceWithBuiltinCall(node, Builtin::kCreateGeneratorObject);
 }
 

@@ -32,6 +32,13 @@ class Mips64OperandGenerator final : public OperandGenerator {
     return UseRegister(node);
   }
 
+  InstructionOperand UseUniqueOperand(OpIndex node, InstructionCode opcode) {
+    if (CanBeImmediate(node, opcode)) {
+      return UseImmediate(node);
+    }
+    return UseUniqueRegister(node);
+  }
+
   // Use the zero register if the node has the immediate value zero, otherwise
   // assign a register.
   InstructionOperand UseRegisterOrImmediateZero(OpIndex node) {
@@ -761,6 +768,30 @@ void InstructionSelector::VisitUint32MulHigh(OpIndex node) {
 
 void InstructionSelector::VisitUint64MulHigh(OpIndex node) {
   VisitRRR(this, kMips64DMulHighU, node);
+}
+
+void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
+  Mips64OperandGenerator g(this);
+  const auto& op = Get(node).Cast<Word64Add3Op>();
+
+  OptionalV<Word64> out_low = FindProjection(node, 0);
+  OptionalV<Word64> out_high = FindProjection(node, 1);
+
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseRegister(op.first());
+  inputs[input_count++] = g.UseOperand(op.second(), kMips64Dadd);
+  inputs[input_count++] = g.UseUniqueOperand(op.third(), kMips64Dadd);
+
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  outputs[output_count++] =
+      g.DefineAsRegister(out_low.valid() ? out_low.value() : node);
+  if (out_high.valid() && IsUsed(out_high.value())) {
+    outputs[output_count++] = g.DefineAsRegister(out_high.value());
+  }
+
+  Emit(kMips64Add64_3, output_count, outputs, input_count, inputs);
 }
 
 void InstructionSelector::VisitInt64Mul(OpIndex node) {
@@ -1834,7 +1865,7 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     size_t const temp_count = arraysize(temps);
     code = kArchAtomicStoreWithWriteBarrier;
-    code |= AtomicStoreRecordWriteModeField::encode(record_write_mode);
+    code |= RecordWriteModeField::encode(record_write_mode);
     selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
     switch (rep) {

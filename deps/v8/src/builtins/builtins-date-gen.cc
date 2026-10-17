@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/codegen/code-stub-assembler-inl.h"
+#include "src/date/date.h"
 #include "src/objects/dictionary.h"
 
 namespace v8 {
@@ -72,6 +73,20 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(
                     std::make_pair(MachineType::Pointer(), isolate_ptr),
                     std::make_pair(MachineType::AnyTagged(), date_receiver),
                     std::make_pair(MachineType::AnyTagged(), field_index_smi)));
+  if (field_index == JSDate::kTimezoneOffset) {
+    // The offset comes back in milliseconds because the C function runs under
+    // DisallowGarbageCollection and cannot allocate the HeapNumber that a
+    // fractional-minute offset needs. Divide here instead. The cached path
+    // above would skip this, so the field must be uncached.
+    static_assert(JSDate::kTimezoneOffset >= JSDate::kFirstUncachedField);
+    Label if_nan(this, Label::kDeferred);
+    GotoIfNot(TaggedIsSmi(result), &if_nan);
+    TNode<Smi> offset_ms = CAST(result);
+    Return(ChangeFloat64ToTagged(Float64Div(
+        SmiToFloat64(offset_ms),
+        Float64Constant(static_cast<double>(DateCache::kMsPerMin)))));
+    BIND(&if_nan);
+  }
   Return(result);
 }
 
