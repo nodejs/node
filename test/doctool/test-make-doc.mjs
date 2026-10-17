@@ -1,0 +1,72 @@
+import * as common from '../common/index.mjs';
+
+import assert from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
+
+if (common.isWindows) {
+  common.skip('`make doc` does not run on Windows');
+}
+
+// This tests that `make doc` generates the documentation properly: an HTML
+// page and a JSON file for every Markdown file under `doc/api`, and nothing
+// for anything else. Note that for this test to pass, `make doc` must be run
+// first.
+
+const apiURL = new URL('../../out/doc/api/', import.meta.url);
+const mdURL = new URL('../../doc/api/', import.meta.url);
+
+// Not all files under `doc/api` are expected in the generated output.
+// Parse out list of excluded files.
+let skippedDocs = [];
+const makefile = await fs.open(new URL('../../Makefile', import.meta.url));
+try {
+  // Find the `skip_apidoc_files = ` line and parse out the list of files.
+  for await (const line of makefile.readLines()) {
+    if (line.startsWith('skip_apidoc_files')) {
+      skippedDocs = line.split('=')[1]?.trim().split(/\s/).map((n) => path.basename(n));
+    }
+  }
+} finally {
+  makefile.close();
+}
+
+const sources = fs.readdirSync(mdURL)
+  .filter((name) => path.extname(name) === '.md')
+  .map((name) => path.basename(name, '.md'));
+const generated = fs.readdirSync(apiURL);
+
+// These have no Markdown source of their own.
+const expectedExtras = ['index.html', 'all.html', 'all.json'];
+for (const name of expectedExtras) {
+  assert.ok(generated.includes(name), `${name} was not generated`);
+}
+
+for (const name of sources) {
+  for (const extension of ['.html', '.json']) {
+    const file = `${name}${extension}`;
+    if (skippedDocs.includes(name)) {
+      assert.ok(!generated.includes(file), `${file} was unexpectedly generated`);
+      continue;
+    }
+    assert.ok(generated.includes(file), `${file} was not generated`);
+    assert.notStrictEqual(
+      fs.statSync(new URL(`./${file}`, apiURL)).size,
+      0,
+      `${file} is empty`,
+    );
+  }
+}
+
+// Every generated page must come from a current Markdown file, so a stale
+// `out/doc/api` (e.g. from a renamed document) is noticed.
+const expectedPages = ['404.html', 'apilinks.json', ...expectedExtras];
+for (const name of generated) {
+  const extension = path.extname(name);
+  if (extension !== '.html' && extension !== '.json') continue;
+  if (expectedPages.includes(name)) continue;
+  assert.ok(
+    sources.includes(path.basename(name, extension)),
+    `Unexpected output: out/doc/api/${name}, remove and rerun.`,
+  );
+}

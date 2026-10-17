@@ -1,8 +1,11 @@
-import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+
+const root = new URL('../../', import.meta.url);
 
 const fromRoot = (path) =>
-  pathToFileURL(join(import.meta.dirname, '..', '..', path)).href;
+  fileURLToPath(new URL(path, root)).replaceAll('\\', '/');
+
+const urlFromRoot = (path) => new URL(path, root).href;
 
 export default {
   extends: '@node-core/doc-kit/config',
@@ -10,8 +13,10 @@ export default {
   target: ['api-links'],
 
   global: {
-    input: ['lib/*.js'],
+    input: [fromRoot('lib/*.js')],
+    output: fromRoot('out/doc'),
 
-    changelog: fromRoot('CHANGELOG.md'),
+    // Point every loadable URL at its local file so no network request is made.
+    changelog: urlFromRoot('CHANGELOG.md'),
   },
 };
