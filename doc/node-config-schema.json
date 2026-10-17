@@ -54,6 +54,10 @@
               "type": "boolean",
               "description": "launch benchmark runner on startup"
             },
+            "bench-gc": {
+              "type": "string",
+              "description": "run garbage collection before measured benchmark samples"
+            },
             "bench-isolation": {
               "type": "string",
               "description": "configures the type of benchmark isolation used in the benchmark runner"
@@ -171,6 +175,10 @@
             "allow-worker": {
               "type": "boolean",
               "description": "allow worker threads when any permissions are set"
+            },
+            "bench-gc": {
+              "type": "string",
+              "description": "run garbage collection before measured benchmark samples"
             },
             "bench-isolation": {
               "type": "string",
