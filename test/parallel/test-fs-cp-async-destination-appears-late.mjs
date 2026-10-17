@@ -1,3 +1,4 @@
+// Flags: --allow-async-hooks
 // This tests that cp() into a destination that did not exist when it was
 // checked, but does by the time the copy starts, fails with EEXIST instead
 // of copying through whatever appeared there.

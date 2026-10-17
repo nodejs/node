@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --allow-async-hooks
 const common = require('../common');
 const { Worker } = require('worker_threads');
 

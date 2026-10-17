@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --allow-async-hooks
 // Test that async ids that are added to the destroy queue while running a
 // `destroy` callback are handled correctly.
 

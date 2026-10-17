@@ -1,4 +1,4 @@
-// Flags: --expose-internals
+// Flags: --allow-async-hooks --expose-internals
 'use strict';
 
 require('../common');

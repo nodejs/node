@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose-gc
+// Flags: --allow-async-hooks --expose-gc
 // just like test-gc-http-client.js,
 // but aborting every connection that comes in.
 

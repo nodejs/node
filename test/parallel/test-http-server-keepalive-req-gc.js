@@ -1,4 +1,4 @@
-// Flags: --expose-gc
+// Flags: --allow-async-hooks --expose-gc
 'use strict';
 const common = require('../common');
 const { onGC } = require('../common/gc');

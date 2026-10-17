@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --allow-async-hooks
 const common = require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
@@ -37,7 +38,7 @@ assert.ok(!arg);
   // console.log should stay until this test's flakiness is solved
   console.log('start case 1');
   console.time('end case 1');
-  const child = spawnSync(process.execPath, [__filename, 'test_init_callback']);
+  const child = spawnSync(process.execPath, ['--allow-async-hooks', __filename, 'test_init_callback']);
   assert.ifError(child.error);
   const test_init_first_line = child.stderr.toString().split(/[\r\n]+/g)[0];
   assert.strictEqual(test_init_first_line, 'Error: test_init_callback');
@@ -48,7 +49,7 @@ assert.ok(!arg);
 {
   console.log('start case 2');
   console.time('end case 2');
-  const child = spawnSync(process.execPath, [__filename, 'test_callback']);
+  const child = spawnSync(process.execPath, ['--allow-async-hooks', __filename, 'test_callback']);
   assert.ifError(child.error);
   const test_callback_first_line = child.stderr.toString().split(/[\r\n]+/g)[0];
   assert.strictEqual(test_callback_first_line, 'Error: test_callback');
@@ -61,10 +62,10 @@ assert.ok(!arg);
   console.time('end case 3');
   let program = process.execPath;
   let args = [
-    '--abort-on-uncaught-exception', __filename, 'test_callback_abort' ];
+    '--allow-async-hooks', '--abort-on-uncaught-exception', __filename, 'test_callback_abort' ];
   let options = {};
   if (!common.isWindows) {
-    [program, options] = common.escapePOSIXShell`ulimit -c 0 && exec "${program}" ${args[0]} "${args[1]}" ${args[2]}`;
+    [program, options] = common.escapePOSIXShell`ulimit -c 0 && exec "${program}" ${args[0]} ${args[1]} "${args[2]}" ${args[3]}`;
     args = [];
     options.shell = true;
   }

@@ -1,6 +1,7 @@
 // Test async-hooks fired on right
 // asyncIds & triggerAsyncId for async-await
 'use strict';
+// Flags: --allow-async-hooks
 
 const common = require('../common');
 const async_hooks = require('async_hooks');

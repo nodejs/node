@@ -15,6 +15,7 @@ const stderrFile = tmpdir.resolve('stderr.log');
 const stderrFd = fs.openSync(stderrFile, 'w');
 try {
   spawnSyncAndAssert(process.execPath, [
+    '--allow-async-hooks',
     path.resolve(__dirname, 'test-http2-ping.js'),
   ], {
     env: {

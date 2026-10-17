@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --allow-async-hooks
 const common = require('../common');
 common.skipIfInspectorDisabled();
 const test = require('node:test');

@@ -1,4 +1,4 @@
-// Flags: --expose-gc
+// Flags: --allow-async-hooks --expose-gc
 'use strict';
 
 require('../common');
