@@ -350,6 +350,10 @@ const databaseUrl = process.env.DATABASE_URL;
 process.permission.drop('env', 'DATABASE_URL');
 ```
 
+Wildcards cannot be dropped: `process.permission.drop('env', 'APP_*')` and
+`process.permission.drop('env', '*')` throw `ERR_INVALID_ARG_VALUE`. To remove
+every variable, drop the whole `env` scope.
+
 When a process that enforces the Permission Model spawns a child process, the
 child is started with `--allow-env=*`: the environment it inherits only contains
 variables that the parent had access to. The child can still read its own
