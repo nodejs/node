@@ -850,6 +850,9 @@ class Http2Session : public AsyncWrap,
   void SetGracefulCloseInitiated(bool value) {
     graceful_close_initiated_ = value;
   }
+  uint32_t goaway_code() const {
+    return goaway_code_;
+  }
 
  private:
   void EmitStatistics();
@@ -1031,6 +1034,9 @@ class Http2Session : public AsyncWrap,
   bool graceful_close_initiated_ = false;
   bool goaway_initiated_ = false;
   bool internal_goaway_sent_ = false;
+  // Error code passed to the last session.goaway()/session.close() call;
+  // used by OnFrameSent to tell an internal nghttp2 GOAWAY from ours.
+  uint32_t goaway_code_ = NGHTTP2_NO_ERROR;
 };
 
 struct Http2SessionPerformanceEntryTraits {
