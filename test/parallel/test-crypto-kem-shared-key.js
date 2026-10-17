@@ -18,9 +18,6 @@ const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 const fixtures = require('../common/fixtures');
 const { subtle } = globalThis.crypto;
 
-if (!hasOpenSSL(3) && !isBoringSSL)
-  common.skip('requires OpenSSL >= 3 or BoringSSL');
-
 const encapsulateAsync = promisify(encapsulate);
 const decapsulateAsync = promisify(decapsulate);
 
@@ -103,7 +100,7 @@ async function testKeys(keys) {
 
 async function runMain() {
   const types = [];
-  if (hasOpenSSL(3)) {
+  if (!isBoringSSL) {
     types.push(['rsa', 'rsa', 256, 256]);
   }
   if (hasOpenSSL(3, 2) && !hasFIPS(3)) {

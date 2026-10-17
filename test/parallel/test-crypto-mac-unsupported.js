@@ -6,9 +6,9 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 
-if (hasOpenSSL(3) && !isBoringSSL) {
+if (!isBoringSSL) {
   common.skip('this test requires a build without EVP_MAC support');
 }
 
