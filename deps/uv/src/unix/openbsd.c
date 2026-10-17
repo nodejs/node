@@ -28,6 +28,7 @@
 #include <sys/time.h>
 #include <sys/sysctl.h>
 
+#include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
@@ -35,6 +36,24 @@
 #include <string.h>
 #include <unistd.h>
 
+typedef int (*uv__getexecpath_cb)(char *, size_t);
+
+static uv__getexecpath_cb uv__getexecpath;
+static uv_once_t once = UV_ONCE_INIT;
+
+static void uv__getexecpath_init_once(void) {
+  uv__getexecpath =
+      (uv__getexecpath_cb) dlsym(RTLD_DEFAULT, "getexecpath");
+}
+
+static int uv__getexecpath_init(void) {
+  uv_once(&once, uv__getexecpath_init_once);
+
+  if (uv__getexecpath == NULL)
+    return UV_ENOSYS;
+
+  return 0;
+}
 
 int uv__platform_loop_init(uv_loop_t* loop) {
   return uv__kqueue_init(loop);
@@ -59,8 +78,19 @@ void uv_loadavg(double avg[3]) {
 
 
 int uv_exepath(char* buffer, size_t* size) {
+  char path[PATH_MAX];
+
   if (buffer == NULL || size == NULL || *size == 0)
     return UV_EINVAL;
+
+  if (uv__getexecpath_init() == 0) {
+    if (uv__getexecpath(path, sizeof path))
+      return UV__ERR(errno);
+
+    strlcpy(buffer, path, *size);
+    *size = strlen(buffer);
+    return 0;
+  }
 
   if (uv_saved_argv0 == NULL)
     return UV_EINVAL;
@@ -204,7 +234,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 error:
   *count = 0;
   for (j = 0; j < i; j++)
-    uv__free((*cpu_infos)[j].model);
+    uv__free((void*)(*cpu_infos)[j].model);
 
   uv__free(*cpu_infos);
   *cpu_infos = NULL;

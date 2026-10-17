@@ -10,9 +10,9 @@ Currently, we are providing security updates for the latest release in the v1.x 
 
 ## Reporting a Vulnerability
 
-If you believe you have found a security vulnerability in `libuv`, please use the [GitHub's private vulnerability reporting feature](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability#privately-reporting-a-security-vulnerability) in the [libuv repository](https://github.com/libuv/libuv) to report it to us.
+If you believe you have found an active security vulnerability in `libuv`, please report it to libuv-security@googlegroups.com. Please report all other issues on the github issue tracker. We have been forced to terminate the ability to use Github's private vulnerability reporting due to a flood of AI-generated report spam, and a lack of sufficient moderation tools to manage the false reports.
 
-This will allow us to assess the risk, and make a fix available before we add a bug report to the GitHub repository.
+This will allow us to assess the risk and make a fix available before we add a bug report to the GitHub repository and issue a Github security advisory and assign a CVE.
 
 Please do:
 

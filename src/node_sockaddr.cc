@@ -1046,8 +1046,8 @@ bool SocketAddressBlockListWrap::FastCheckString(
   // FastOneByteString is not NUL-terminated. Copy onto the stack
   // before any other work: a GC would invalidate `address`.
   //
-  // uv_ip6_addr only needs the address part (≤39 chars) plus an
-  // optional %zone. A zone longer than UV_IF_NAMESIZE is unknown
+  // uv_ip6_addr only needs the address part (< INET6_ADDRSTRLEN chars)
+  // plus an optional %zone. A zone longer than UV_IF_NAMESIZE is unknown
   // (scope_id 0), same as omitting it. Keep that behavior when the
   // full string does not fit so Fast API and CheckString agree.
   constexpr size_t kMax = INET6_ADDRSTRLEN + UV_IF_NAMESIZE;
@@ -1058,14 +1058,14 @@ bool SocketAddressBlockListWrap::FastCheckString(
   } else if (family == AF_INET6) {
     // uv_ip4_addr rejects %zone. Only IPv6 may drop an overlong zone
     // (unknown zone → scope_id 0, same as uv_ip6_addr).
-    // uv_ip6_addr copies the address part into a 40-byte buffer
-    // (39 chars + NUL). A 40+ char prefix (mixed notation) is
-    // truncated and fails inet_pton — do not keep the full prefix.
+    // uv_ip6_addr copies the address part into an INET6_ADDRSTRLEN
+    // buffer and truncates a longer one to INET6_ADDRSTRLEN - 1 chars
+    // before inet_pton. Do the same so both paths parse the same prefix.
     const char* percent =
         static_cast<const char*>(memchr(address.data, '%', address.length));
     if (percent == nullptr) return false;
-    const size_t addr_len = static_cast<size_t>(percent - address.data);
-    if (addr_len >= 40) return false;
+    size_t addr_len = static_cast<size_t>(percent - address.data);
+    if (addr_len >= INET6_ADDRSTRLEN) addr_len = INET6_ADDRSTRLEN - 1;
     memcpy(buf, address.data, addr_len);
     buf[addr_len] = '\0';
   } else {
