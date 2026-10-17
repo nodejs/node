@@ -1049,7 +1049,8 @@ struct Session::Impl final : public MemoryRetainer {
       return THROW_ERR_INVALID_STATE(env, "Session is destroyed");
     }
 
-    auto address = session->remote_address();
+    const auto* path = ngtcp2_conn_get_path2(*session);
+    auto address = SocketAddress(path->remote.addr);
     args.GetReturnValue().Set(
         SocketAddressBase::Create(env, std::make_shared<SocketAddress>(address))
             ->object());
@@ -1064,7 +1065,8 @@ struct Session::Impl final : public MemoryRetainer {
       return THROW_ERR_INVALID_STATE(env, "Session is destroyed");
     }
 
-    auto address = session->local_address();
+    const auto* path = ngtcp2_conn_get_path2(*session);
+    auto address = SocketAddress(path->local.addr);
     args.GetReturnValue().Set(
         SocketAddressBase::Create(env, std::make_shared<SocketAddress>(address))
             ->object());
