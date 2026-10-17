@@ -374,6 +374,10 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     return retaining_context_;
   }
 
+  bool isNetworkDomainEnabled() {
+    return network_inspector_ && network_inspector_->IsEnabled();
+  }
+
  private:
   // v8_inspector::V8Inspector::Channel
   void sendResponse(
@@ -780,6 +784,13 @@ class NodeInspectorClient : public V8InspectorClient {
     return !channels_.empty();
   }
 
+  bool isNetworkDomainEnabled() {
+    for (const auto& id_channel : channels_) {
+      if (id_channel.second->isNetworkDomainEnabled()) return true;
+    }
+    return false;
+  }
+
  private:
   bool shouldRunMessageLoop() {
     if (waiting_for_frontend_)
@@ -996,60 +1007,6 @@ void Agent::EmitProtocolEvent(v8::Local<v8::Context> context,
   client_->emitNotification(context, event, params);
 }
 
-void Agent::SetupNetworkTracking(Local<Function> enable_function,
-                                 Local<Function> disable_function) {
-  parent_env_->set_inspector_enable_network_tracking(enable_function);
-  parent_env_->set_inspector_disable_network_tracking(disable_function);
-  if (pending_enable_network_tracking) {
-    pending_enable_network_tracking = false;
-    EnableNetworkTracking();
-  } else if (pending_disable_network_tracking) {
-    pending_disable_network_tracking = false;
-    DisableNetworkTracking();
-  }
-}
-
-void Agent::EnableNetworkTracking() {
-  if (network_tracking_enabled_) {
-    return;
-  }
-  HandleScope scope(parent_env_->isolate());
-  Local<Function> enable = parent_env_->inspector_enable_network_tracking();
-  if (enable.IsEmpty()) {
-    pending_enable_network_tracking = true;
-  } else {
-    ToggleNetworkTracking(parent_env_->isolate(), enable);
-    network_tracking_enabled_ = true;
-  }
-}
-
-void Agent::DisableNetworkTracking() {
-  if (!network_tracking_enabled_) {
-    return;
-  }
-  HandleScope scope(parent_env_->isolate());
-  Local<Function> disable = parent_env_->inspector_disable_network_tracking();
-  if (disable.IsEmpty()) {
-    pending_disable_network_tracking = true;
-  } else if (!client_->hasConnectedSessions()) {
-    ToggleNetworkTracking(parent_env_->isolate(), disable);
-    network_tracking_enabled_ = false;
-  }
-}
-
-void Agent::ToggleNetworkTracking(Isolate* isolate, Local<Function> fn) {
-  if (!parent_env_->can_call_into_js()) return;
-  auto context = parent_env_->context();
-  HandleScope scope(isolate);
-  CHECK(!fn.IsEmpty());
-  v8::TryCatch try_catch(isolate);
-  USE(fn->Call(context, Undefined(isolate), 0, nullptr));
-  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
-    PrintCaughtException(isolate, context, try_catch);
-    UNREACHABLE("Cannot toggle network tracking, please report this.");
-  }
-}
-
 void Agent::WaitForDisconnect() {
   THROW_IF_INSUFFICIENT_PERMISSIONS(parent_env_,
                                     permission::PermissionScope::kInspector,
@@ -1217,6 +1174,10 @@ bool Agent::IsActive() {
   if (client_ == nullptr)
     return false;
   return io_ != nullptr || client_->IsActive();
+}
+
+bool Agent::IsNetworkDomainEnabled() {
+  return client_ != nullptr && client_->isNetworkDomainEnabled();
 }
 
 void Agent::SetParentHandle(
