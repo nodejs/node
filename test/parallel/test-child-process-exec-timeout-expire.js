@@ -29,6 +29,7 @@ cp.exec(cmd, {
 
   let sigterm = 'SIGTERM';
   assert.strictEqual(err.killed, true);
+  assert.strictEqual(err.timedOut, true);
   // TODO OpenBSD returns a null signal and 143 for code
   if (common.isOpenBSD) {
     assert.strictEqual(err.code, 143);
