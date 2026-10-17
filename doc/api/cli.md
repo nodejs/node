@@ -324,6 +324,8 @@ added: v26.9.0
 When using the [Permission Model][], a [virtual file system][] cannot be
 mounted by default: [`vfs.mount()`][] throws `ERR_INVALID_STATE` unless the
 user explicitly passes the `--allow-fs-vfs` flag when starting Node.js.
+In audit mode ([`--permission-audit`](#--permission-audit)), mounting is not
+refused and no message is published to the diagnostics channel.
 
 A mounted VFS serves paths that the file system permissions do not describe,
 so mounting one is gated on its own flag rather than on `--allow-fs-read` or
