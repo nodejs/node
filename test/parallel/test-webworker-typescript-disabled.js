@@ -1,4 +1,4 @@
-// Flags: --experimental-web-worker --no-strip-types
+// Flags: --no-strip-types
 'use strict';
 
 const common = require('../common');
