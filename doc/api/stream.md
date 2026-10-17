@@ -2326,6 +2326,11 @@ stopped by having passed a `signal` option and aborting the related
 `AbortController` while `for await...of` can be stopped with `break` or
 `return`. In either case the stream will be destroyed.
 
+When `concurrency` is greater than `1`, `fn` may be invoked on multiple chunks
+at once, but the calls are still awaited in chunk order (like
+[`readable.map`][]), so a slow `fn` call on an early chunk delays completion
+of the calls on later chunks.
+
 This method is different from listening to the [`'data'`][] event in that it
 uses the [`readable`][] event in the underlying machinery and can limit the
 number of concurrent `fn` calls.
