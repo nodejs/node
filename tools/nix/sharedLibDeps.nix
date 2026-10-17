@@ -19,7 +19,6 @@
     nghttp2
     simdjson
     simdutf
-    uvwasi
     zlib
     zstd
     ;
@@ -28,6 +27,17 @@
   hdr-histogram = pkgs.hdrhistogram_c;
   highway = pkgs.libhwy;
   http-parser = pkgs.llhttp;
+  uvwasi = pkgs.uvwasi.overrideAttrs (old: {
+    patches = old.patches ++ [
+      (pkgs.fetchpatch2 {
+        url = "https://github.com/nodejs/uvwasi/pull/326.patch";
+        hash = "sha256-PPr62+qycCSfr1/JWXhJS6X8vW10ea2b4L4361tdwgE=";
+      })
+    ];
+
+    buildInputs = [];
+    propagatedBuildInputs = old.buildInputs;
+  });
 }
 // (pkgs.lib.optionalAttrs withLief {
   inherit (pkgs) lief;
