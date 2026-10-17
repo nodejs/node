@@ -83,7 +83,7 @@ test('explicit store option is honored even for compressible data', async () => 
   const data = Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
   const entry = await zlib.ZipEntry.create('stored.txt', data, { method: 'store' });
   assert.strictEqual(entry.method, 0);
-  assert.deepStrictEqual(entry.rawContent, data);
+  assert.deepStrictEqual(await entry.rawContent(), data);
 });
 
 test('the zstd method compresses and round-trips through an archive', async () => {
