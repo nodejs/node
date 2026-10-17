@@ -20,6 +20,31 @@ spawnSyncAndExit(
   },
 );
 
+// Mounting a VFS is refused under --permission without --allow-fs-vfs, but
+// audit mode only observes and lets the mount through.
+const mount = `
+  require('node:vfs').create().mount();
+  console.log('mounted');
+`;
+
+spawnSyncAndExit(
+  process.execPath,
+  ['--experimental-vfs', '--permission', '-e', mount],
+  {
+    status: 1,
+    signal: null,
+    stderr: /ERR_INVALID_STATE/,
+  },
+);
+
+spawnSyncAndAssert(
+  process.execPath,
+  ['--experimental-vfs', '--permission-audit', '-e', mount],
+  {
+    stdout: /^mounted$/m,
+  },
+);
+
 if (process.config.variables.node_without_node_options) {
   common.skip('missing NODE_OPTIONS support');
 }
