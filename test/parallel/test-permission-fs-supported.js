@@ -78,6 +78,7 @@ const ignoreList = [
   'ReadStream',
   'WriteStream',
   'Dirent',
+  'FileHandle',
   // fs.watch is already blocked
   'unwatchFile',
   ...syncAndAsyncAPI('lstat'),
