@@ -533,14 +533,16 @@ void ResetSignalHandlers() {
 // variable on all platforms that we support, which we require in
 // order for its value to be usable inside signal handlers.
 static std::atomic<uint32_t> init_process_flags = 0;
+static std::atomic<uint32_t> restore_terminal_state = 1;
 static_assert(
     std::is_same_v<std::underlying_type_t<ProcessInitializationFlags::Flags>,
                    uint32_t>);
 
 static void PlatformInit(ProcessInitializationFlags::Flags flags) {
-  // init_process_flags is accessed in ResetStdio(),
+  // These atomics are accessed in ResetStdio(),
   // which can be called from signal handlers.
   CHECK(init_process_flags.is_lock_free());
+  CHECK(restore_terminal_state.is_lock_free());
   init_process_flags.store(flags);
 
   if (!(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
@@ -707,7 +709,7 @@ void ResetStdio() {
       CHECK_NE(err, -1);
     }
 
-    if (s.isatty) {
+    if (s.isatty && restore_terminal_state.load()) {
       sigset_t sa;
       int err;
 
@@ -1261,6 +1263,10 @@ InitializeOncePerProcessInternal(
   {
     result->exit_code_ = InitializeNodeWithArgsInternal(
         &result->args_, &result->exec_args_, &result->errors_, flags);
+    // cli_options is not safe to access from the signal handlers that call
+    // ResetStdio().
+    restore_terminal_state.store(
+        per_process::cli_options->restore_terminal_state);
     if (result->exit_code_enum() != ExitCode::kNoFailure) {
       result->early_return_ = true;
       return result;
