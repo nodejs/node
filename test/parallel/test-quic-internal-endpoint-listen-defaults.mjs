@@ -17,6 +17,7 @@ const { getQuicEndpointState } = (await import('internal/quic/quic')).default;
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
 const cert = fixtures.readKey('agent1-cert.pem');
 const sni = { '*': { keys: [key], certs: [cert] } };
+const alpn = ['quic-test'];
 
 const endpoint = new QuicEndpoint();
 const state = getQuicEndpointState(endpoint);
@@ -26,7 +27,7 @@ assert.ok(!state.isListening);
 
 assert.strictEqual(endpoint.address, undefined);
 
-await assert.rejects(listen(123, { sni, endpoint }), {
+await assert.rejects(listen(123, { alpn, sni, endpoint }), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 // Buffer is not detached.
@@ -36,11 +37,11 @@ await assert.rejects(listen(mustNotCall(), 123), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 
-await listen(mustNotCall(), { sni, endpoint });
+await listen(mustNotCall(), { alpn, sni, endpoint });
 // Buffer is not detached.
 assert.strictEqual(cert.buffer.detached, false);
 
-await assert.rejects(listen(mustNotCall(), { sni, endpoint }), {
+await assert.rejects(listen(mustNotCall(), { alpn, sni, endpoint }), {
   code: 'ERR_INVALID_STATE',
 });
 // Buffer is not detached.
@@ -64,7 +65,7 @@ assert.strictEqual(endpoint.closed, endpoint.close());
 await endpoint.closed;
 assert.ok(endpoint.destroyed);
 
-await assert.rejects(listen(mustNotCall(), { sni, endpoint }), {
+await assert.rejects(listen(mustNotCall(), { alpn, sni, endpoint }), {
   code: 'ERR_INVALID_STATE',
 });
 // Buffer is not detached.

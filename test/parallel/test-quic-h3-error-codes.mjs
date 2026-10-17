@@ -33,6 +33,7 @@ const decoder = new TextDecoder();
       serverDone.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       this.sendHeaders({ ':status': '200' });
@@ -42,6 +43,7 @@ const decoder = new TextDecoder();
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
   });
@@ -84,6 +86,7 @@ const decoder = new TextDecoder();
       serverDone.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       this.sendHeaders({ ':status': '200' });
@@ -93,6 +96,7 @@ const decoder = new TextDecoder();
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
   });

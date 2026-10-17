@@ -199,7 +199,8 @@ uint64_t MaxDatagramPayload(uint64_t max_frame_size) {
   V(SendDatagram, sendDatagram, SIDE_EFFECT)                                   \
   V(LocalTransportParams, localTransportParams, NO_SIDE_EFFECT)                \
   V(RemoteTransportParams, remoteTransportParams, NO_SIDE_EFFECT)              \
-  V(ApplicationOptions, applicationOptions, NO_SIDE_EFFECT)
+  V(ApplicationOptions, applicationOptions, NO_SIDE_EFFECT)                    \
+  V(StartApplication, startApplication, SIDE_EFFECT)
 
 struct Session::State final {
 #define V(_, name, type) type name;
@@ -623,7 +624,8 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
       !SET(keep_alive_timeout) || !SET(max_stream_window) || !SET(max_window) ||
       !SET(max_payload_size) || !SET(unacknowledged_packet_threshold) ||
       !SET(cc_algorithm) || !SET(draining_period_multiplier) ||
-      !SET(max_datagram_send_attempts) || !SET(stream_idle_timeout)) {
+      !SET(max_datagram_send_attempts) || !SET(stream_idle_timeout) ||
+      !SET(auto_start)) {
     return Nothing<Options>();
   }
 
@@ -1238,6 +1240,25 @@ struct Session::Impl final : public MemoryRetainer {
     }
   }
 
+  JS_METHOD(StartApplication) {
+    auto env = Environment::GetCurrent(args);
+    Session* session;
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+    if (session->is_destroyed()) return args.GetReturnValue().Set(false);
+    CHECK(!session->has_application());
+    CHECK(args[0]->IsUint32());
+    auto type = static_cast<Application::Type>(args[0].As<Uint32>()->Value());
+    Application_Options options = Application_Options::kDefault;
+    if (!args[1]->IsUndefined() &&
+        !Application_Options::From(env, args[1]).To(&options)) {
+      return;
+    }
+    session->SetApplication(type == Application::Type::HTTP3
+                                ? CreateHttp3Application(session, options)
+                                : CreateDefaultApplication(session, options));
+    args.GetReturnValue().Set(!session->flags_.application_start_failed);
+  }
+
   JS_METHOD(ApplicationOptions) {
     auto env = Environment::GetCurrent(args);
     Session* session;
@@ -1446,6 +1467,11 @@ struct Session::Impl final : public MemoryRetainer {
     CHECK(!session->is_server());
 
     if (level != NGTCP2_ENCRYPTION_LEVEL_1RTT) return NGTCP2_SUCCESS;
+
+    // A client that hasn't started its session yet can still start one
+    // until the handshake completes, see SetApplication().
+    session->keys_ready_ = true;
+    if (!session->impl_->application_) return NGTCP2_SUCCESS;
 
     // If the application was already started via on_receive_tx_key
     // (0-RTT path), this is a no-op.
@@ -1784,7 +1810,7 @@ Session::SendPendingDataScope::~SendPendingDataScope() {
   DCHECK_GE(session->impl_->send_scope_depth_, 1);
   Debug(session, "Send Scope Depth %zu", session->impl_->send_scope_depth_);
   if (--session->impl_->send_scope_depth_ == 0 &&
-      session->impl_->application_ && !session->impl_->handshake_deferred_) {
+      !session->impl_->handshake_deferred_) {
     session->SendPendingData();
   }
 }
@@ -2026,7 +2052,7 @@ void Session::SendPendingData() {
     stream_data.fin = false;
     stream_data.stream.reset();
 
-    if (application().GetStreamData(&stream_data) < 0) {
+    if (impl_->application_ && application().GetStreamData(&stream_data) < 0) {
       Debug(this, "Application failed to get stream data");
       SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
       closed = true;
@@ -2274,7 +2300,7 @@ Session::Session(Endpoint* endpoint,
   // For clients, select the Application immediately - the ALPN is
   // known upfront from the options. For servers, application_ stays
   // null until the ClientHello names a protocol.
-  if (config.side == Side::CLIENT) {
+  if (config.side == Side::CLIENT && config.options.auto_start) {
     InstallApplicationForAlpn(DecodeAlpn(config.options.tls_options.alpn));
   }
 
@@ -2439,15 +2465,6 @@ void Session::Close(CloseMethod method) {
         return;
       }
       impl_->state()->graceful_close = 1;
-
-      // application_ may be null for server sessions if close() is called
-      // before the TLS handshake selects the ALPN. Without an application
-      // we cannot do a graceful shutdown (GOAWAY, CONNECTION_CLOSE etc.),
-      // so fall through to a silent close.
-      if (!impl_->application_) {
-        impl_->state()->silent_close = 1;
-        return FinishClose();
-      }
 
       // The SendPendingDataScope ensures that the GOAWAY packet queued
       // by BeginShutdown is actually sent. Without it, the GOAWAY sits
@@ -2650,6 +2667,19 @@ void Session::SetEarlyRemoteTransportParams(std::span<const uint8_t> params) {
       *this, params.data(), params.size()));
 }
 
+bool Session::RequireApplication() {
+  if (is_destroyed()) return false;
+  if (has_application()) return !flags_.application_start_failed;
+  // Nothing can use a connection that no session was started on. Inside an
+  // ngtcp2 callback, returning false fails the handshake instead.
+  Debug(this, "No application started");
+  if (!flags_.in_ngtcp2_callback_scope) {
+    SetLastError(QuicError::ForTransport(NGTCP2_CONNECTION_REFUSED));
+    Close();
+  }
+  return false;
+}
+
 void Session::SetApplication(std::unique_ptr<Application> app) {
   DCHECK(!impl_->application_);
   impl_->state()->application_type = static_cast<uint8_t>(app->type());
@@ -2662,12 +2692,21 @@ void Session::SetApplication(std::unique_ptr<Application> app) {
                                : StreamCallbacksSupportState::UNSUPPORTED);
   // Surface the application's "no error" and "internal error" codes via
   // session state so that JS-side code (e.g. the stream writer's fail()
-  // path) can resolve the right wire code for the negotiated ALPN
+  // path) can resolve the right wire code for the installed application
   // without duplicating the per-application table.
   impl_->state()->no_error_code = app->GetNoErrorCode();
   impl_->state()->internal_error_code = app->GetInternalErrorCode();
   impl_->state()->request_rejected_code = app->GetRequestRejectedCode();
   impl_->application_ = std::move(app);
+
+  // A client can start its session after its keys were installed (from JS
+  // run when the handshake completes), in which case the key callbacks that
+  // would start the Application have already run, so we have to retrigger
+  // app.start() here:
+  if (keys_ready_ && !application().Start()) {
+    Debug(this, "Application start failed");
+    flags_.application_start_failed = 1;
+  }
 }
 
 const SocketAddress& Session::remote_address() const {
@@ -2858,15 +2897,16 @@ bool Session::AfterNgtcp2Read(int err) {
         if (is_destroyed()) return true;
 
         // The ClientHello has been processed: SNI and ALPN are selected and
-        // the Application is installed, but the handshake is stopped short
-        // of ticket decryption, so no early data exists yet. Surface the
-        // session, then let the handshake run on. The guard makes this fire
-        // exactly once, on whichever packet completed the ClientHello, so a
-        // ClientHello split across datagrams is handled correctly.
+        // the Application is installed (unless JS is to start one), but the
+        // handshake is stopped short of ticket decryption, so no early data
+        // exists yet. Surface the session, then let the handshake run on. The
+        // guard makes this fire exactly once, on whichever packet completed
+        // the ClientHello, so a ClientHello split across datagrams is handled
+        // correctly.
         if (is_server() && tls_session().early_selection() ==
                                TLSSession::EarlySelection::kSelected) {
           endpoint().EmitNewSession(BaseObjectPtr<Session>(this));
-          if (!is_destroyed()) ResumeHandshake();
+          if (has_application()) ResumeHandshake();
         }
       }
       return true;
@@ -3021,13 +3061,11 @@ void Session::SendBatch(Packet::Ptr* packets,
 
 void Session::FlushPendingData() {
   DCHECK(!is_destroyed());
-  if (impl_->application_) {
-    // Prefer synchronous sends during the deferred flush to avoid the
-    // one-tick latency of async uv_udp_send from the uv_check callback.
-    flags_.prefer_try_send = true;
-    SendPendingData();
-    flags_.prefer_try_send = false;
-  }
+  // Prefer synchronous sends during the deferred flush to avoid the
+  // one-tick latency of async uv_udp_send from the uv_check callback.
+  flags_.prefer_try_send = true;
+  SendPendingData();
+  flags_.prefer_try_send = false;
 }
 
 void Session::Send(Packet::Ptr packet) {
@@ -3700,7 +3738,6 @@ void Session::SendConnectionClose() {
 
 void Session::OnTimeout() {
   if (is_destroyed()) return;
-  if (!impl_->application_) return;
   // Hold a strong reference to prevent the Session from being freed during
   // re-entrant calls. SendPendingData's scope guard calls UpdateTimer(),
   // which can synchronously re-enter OnTimeout() when the timer has already
@@ -3887,6 +3924,10 @@ bool Session::HandshakeCompleted() {
   }
 
   EmitHandshakeComplete();
+
+  // The handshake is complete and session.opened has resolved, with its
+  // microtasks run, so the session needs its Application now.
+  if (!RequireApplication()) return false;
 
   return true;
 }
@@ -4448,11 +4489,17 @@ void Session::InitPerContext(Realm* realm, Local<Object> target) {
       static_cast<uint8_t>(Direction::BIDIRECTIONAL);
   static constexpr auto STREAM_DIRECTION_UNIDIRECTIONAL =
       static_cast<uint8_t>(Direction::UNIDIRECTIONAL);
+  static constexpr auto QUIC_APPLICATION_DEFAULT =
+      static_cast<uint8_t>(Application::Type::DEFAULT);
+  static constexpr auto QUIC_APPLICATION_HTTP3 =
+      static_cast<uint8_t>(Application::Type::HTTP3);
   static constexpr auto QUIC_PROTO_MAX = NGTCP2_PROTO_VER_MAX;
   static constexpr auto QUIC_PROTO_MIN = NGTCP2_PROTO_VER_MIN;
 
   NODE_DEFINE_CONSTANT(target, STREAM_DIRECTION_BIDIRECTIONAL);
   NODE_DEFINE_CONSTANT(target, STREAM_DIRECTION_UNIDIRECTIONAL);
+  NODE_DEFINE_CONSTANT(target, QUIC_APPLICATION_DEFAULT);
+  NODE_DEFINE_CONSTANT(target, QUIC_APPLICATION_HTTP3);
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_HEADER_LIST_PAIRS);
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_HEADER_LENGTH);
   NODE_DEFINE_CONSTANT(target, QUIC_PROTO_MAX);

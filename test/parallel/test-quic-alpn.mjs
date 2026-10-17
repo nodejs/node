@@ -43,6 +43,16 @@ const clientSession = await connect(serverEndpoint.address, {
 
 await Promise.all([serverOpened.promise, checkSession(clientSession)]);
 await clientSession.close();
+
+// Omitting ALPN entirely is rejected up front too, with its own error:
+// node:quic is transport-only and has no application protocol to default to.
+await assert.rejects(listen(mustNotCall(), {
+  sni: { '*': { keys: [key], certs: [cert] } },
+}), { code: 'ERR_MISSING_OPTION', message: /options\.alpn/ });
+await assert.rejects(connect(serverEndpoint.address, { verifyPeer: 'manual' }), {
+  code: 'ERR_MISSING_OPTION', message: /options\.alpn/,
+});
+
 await serverEndpoint.close();
 
 // QUIC requires an application protocol, so a server that offers none is

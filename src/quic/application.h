@@ -22,7 +22,7 @@ enum class HeadersFlags : uint8_t {
   TERMINAL,
 };
 
-// An Application implements the ALPN-protocol specific semantics on behalf
+// An Application implements the protocol-specific semantics on behalf
 // of a QUIC Session.
 class Session::Application : public MemoryRetainer {
  public:
