@@ -834,9 +834,7 @@ The arguments of `createBenchmark` are:
 `createBenchmark` returns a `bench` object, which is used for timing
 the runtime of the benchmark. Run `bench.start()` after the initialization
 and `bench.end(n)` when the benchmark is done. `n` is the number of operations
-performed in the benchmark. If a benchmark declares `n` in its configs, the main
-function must read it; the `node-core/benchmark-n-config` lint rule enforces
-this.
+performed in the benchmark.
 
 The benchmark script will be run twice:
 
