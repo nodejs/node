@@ -348,13 +348,24 @@ MaybeLocal<Value> InternalMakeCallback(Isolate* isolate,
   }
   Environment* env = Environment::GetCurrent(context);
   CHECK_NOT_NULL(env);
+  return MakeCallbackInEnvironment(
+      env, recv, callback, argc, argv, asyncContext, context_frame);
+}
+
+MaybeLocal<Value> MakeCallbackInEnvironment(Environment* env,
+                                            Local<Object> recv,
+                                            const Local<Function> callback,
+                                            int argc,
+                                            Local<Value> argv[],
+                                            async_context asyncContext,
+                                            Local<Value> context_frame) {
   Context::Scope context_scope(env->context());
   MaybeLocal<Value> ret = InternalMakeCallback(
       env, recv, recv, callback, argc, argv, asyncContext, context_frame);
   if (ret.IsEmpty() && env->async_callback_scope_depth() == 0) {
     // This is only for legacy compatibility and we may want to look into
     // removing/adjusting it.
-    return Undefined(isolate);
+    return Undefined(env->isolate());
   }
   return ret;
 }
