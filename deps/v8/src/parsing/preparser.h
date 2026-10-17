@@ -146,6 +146,12 @@ class PreParserExpression {
         ExpressionTypeField::encode(kPrivateReferenceExpression));
   }
 
+  static PreParserExpression OptionalChainPrivateReference() {
+    return PreParserExpression(
+        TypeField::encode(kExpression) |
+        ExpressionTypeField::encode(kOptionalChainPrivateReferenceExpression));
+  }
+
   static PreParserExpression Call() {
     return PreParserExpression(TypeField::encode(kExpression) |
                                ExpressionTypeField::encode(kCallExpression));
@@ -221,7 +227,9 @@ class PreParserExpression {
     return TypeField::decode(code_) == kExpression &&
            (ExpressionTypeField::decode(code_) == kPrivateReferenceExpression ||
             ExpressionTypeField::decode(code_) ==
-                kThisPrivateReferenceExpression);
+                kThisPrivateReferenceExpression ||
+            ExpressionTypeField::decode(code_) ==
+                kOptionalChainPrivateReferenceExpression);
   }
 
   bool IsCall() const {
@@ -285,6 +293,7 @@ class PreParserExpression {
     kThisPrivateReferenceExpression,
     kPropertyExpression,
     kPrivateReferenceExpression,
+    kOptionalChainPrivateReferenceExpression,
     kCallExpression,
     kCallEvalExpression,
     kSuperCallReference,
@@ -521,7 +530,7 @@ class PreParserFactory {
   PreParserExpression NewOptionalChain(const PreParserExpression& expr) {
     // Needed to track `delete a?.#b` early errors
     if (expr.IsPrivateReference()) {
-      return PreParserExpression::PrivateReference();
+      return PreParserExpression::OptionalChainPrivateReference();
     }
     return PreParserExpression::Default();
   }

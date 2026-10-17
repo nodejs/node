@@ -272,7 +272,8 @@ void LiftoffAssembler::AlignFrameSize() {}
 
 void LiftoffAssembler::PatchPrepareStackFrame(
     int offset, SafepointTableBuilder* safepoint_table_builder,
-    bool feedback_vector_slot, size_t stack_param_slots) {
+    bool feedback_vector_slot, size_t stack_param_slots,
+    size_t stack_return_slots) {
   // The frame_size includes the frame marker and the instance slot. Both are
   // pushed as part of frame construction, so we don't need to allocate memory
   // for them anymore.
@@ -344,6 +345,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     LiftoffRegList regs_to_save;
     regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
     regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+    regs_to_save.set(
+        WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister());
     for (auto reg : kGpParamRegisters) regs_to_save.set(reg);
     for (auto reg : kFpParamRegisters) regs_to_save.set(reg);
     PushRegisters(regs_to_save);
@@ -352,8 +355,11 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     mov(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), ebp);
     add(WasmHandleStackOverflowDescriptor::FrameBaseRegister(),
         Immediate(static_cast<int32_t>(
-            stack_param_slots * kSystemPointerSize +
+            (stack_param_slots + stack_return_slots) * kSystemPointerSize +
             CommonFrameConstants::kFixedFrameSizeAboveFp)));
+    mov(WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister(),
+        Immediate(
+            static_cast<int32_t>(stack_param_slots * kSystemPointerSize)));
     CallBuiltin(Builtin::kWasmHandleStackOverflow);
     safepoint_table_builder->DefineSafepoint(this);
     PopRegisters(regs_to_save);
@@ -416,55 +422,6 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
     sub(Operand{budget_array, array_offset}, Immediate(budget_used));
   }
   j(negative, ool_label);
-}
-
-Register LiftoffAssembler::LoadOldFramePointer() {
-  if (!v8_flags.wasm_growable_stacks) {
-    return ebp;
-  }
-  LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
-  FreezeCacheState frozen(*this);
-  Label done, call_runtime;
-  cmp(MemOperand(ebp, TypedFrameConstants::kFrameTypeOffset),
-      Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-  j(equal, &call_runtime);
-  mov(old_fp.gp(), ebp);
-  jmp(&done);
-
-  bind(&call_runtime);
-  LiftoffRegList regs_to_save = cache_state()->used_registers;
-  PushRegisters(regs_to_save);
-  PrepareCallCFunction(1, eax);
-  MacroAssembler::Move(Operand(esp, 0 * kSystemPointerSize),
-                       Immediate(ExternalReference::isolate_address()));
-  CallCFunction(ExternalReference::wasm_load_old_fp(), 1);
-  if (old_fp.gp() != kReturnRegister0) {
-    mov(old_fp.gp(), kReturnRegister0);
-  }
-  PopRegisters(regs_to_save);
-
-  bind(&done);
-  return old_fp.gp();
-}
-
-void LiftoffAssembler::CheckStackShrink() {
-  LiftoffRegList regs_to_save;
-  for (auto reg : kGpReturnRegisters) regs_to_save.set(reg);
-  for (auto reg : kFpReturnRegisters) regs_to_save.set(reg);
-  cmp(MemOperand(ebp, TypedFrameConstants::kFrameTypeOffset),
-      Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-  Label done;
-  j(not_equal, &done);
-  PushRegisters(regs_to_save);
-  PrepareCallCFunction(1, kReturnRegister0);
-  MacroAssembler::Move(Operand(esp, 0 * kSystemPointerSize),
-                       Immediate(ExternalReference::isolate_address()));
-  CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
-  // Restore old ebp. We don't need to restore old esp explicitly, because
-  // it will be restored from ebp in LeaveFrame before return.
-  mov(ebp, kReturnRegister0);
-  PopRegisters(regs_to_save);
-  bind(&done);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
@@ -1475,10 +1432,9 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister reg, int offset,
 
 void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
-                                            ValueKind kind,
-                                            Register frame_pointer) {
-  liftoff::Store(this, frame_pointer,
-                 kSystemPointerSize * (caller_slot_idx + 1), src, kind);
+                                            ValueKind kind) {
+  liftoff::Store(this, ebp, kSystemPointerSize * (caller_slot_idx + 1), src,
+                 kind);
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,

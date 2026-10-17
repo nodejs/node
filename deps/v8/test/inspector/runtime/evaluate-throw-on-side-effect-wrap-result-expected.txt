@@ -1,0 +1,32 @@
+Tests that side-effect-free evaluation enforces side-effect checks during result serialization
+
+Running test: testRuntimeEvaluateReturnByValue
+returnByValue with side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+returnByValue with pure object: ok ({"a":42,"nested":[1,2]})
+
+Running test: testRuntimeEvaluateDeepSerialization
+deep serialization with side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+
+Running test: testRuntimeEvaluateProxyTrap
+returnByValue with proxy ownKeys side-effect: exception (EvalError: Possible side-effect in debug-evaluate)
+
+Running test: testRuntimeCallFunctionOn
+callFunctionOn returnByValue with side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+callFunctionOn deep serialization with side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+
+Running test: testDebuggerEvaluateOnCallFrame
+evaluateOnCallFrame returnByValue with side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+
+Running test: testRuntimeEvaluateAwaitPromise
+awaitPromise returnByValue with non-promise side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+awaitPromise returnByValue with resolved promise side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+awaitPromise returnByValue with resolved promise pure object: ok ({"a":42,"nested":[1,2]})
+awaitPromise deep serialization with resolved promise side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+awaitPromise returnByValue with rejected promise side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+
+Running test: testRuntimeCallFunctionOnAwaitPromise
+callFunctionOn awaitPromise returnByValue with side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+callFunctionOn awaitPromise deep serialization with side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+
+Running test: testVerifyNoSideEffectsOccurred
+sideEffects length: 0

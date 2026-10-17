@@ -15,6 +15,7 @@
 
 #include "src/base/platform/mutex.h"
 #include "src/base/strong-alias.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
@@ -551,13 +552,13 @@ class CallSiteFeedback {
 struct FunctionTypeFeedback {
   // {feedback_vector} is computed from {call_targets} and the instance-specific
   // feedback vector by {TransitiveTypeFeedbackProcessor}.
-  base::OwnedVector<CallSiteFeedback> feedback_vector;
+  base::UniqueArray<CallSiteFeedback> feedback_vector;
 
   // {call_targets} has one entry per "call", "call_indirect", and "call_ref" in
   // the function.
   // For "call", it holds the index of the called function, for "call_indirect"
   // and "call_ref" the value will be a sentinel {kCallIndirect} / {kCallRef}.
-  base::OwnedVector<uint32_t> call_targets;
+  base::UniqueArray<uint32_t> call_targets;
 
   // The number of times this function was invoked.
   int num_invocations = 0;

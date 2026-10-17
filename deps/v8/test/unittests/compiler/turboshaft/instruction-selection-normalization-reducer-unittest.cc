@@ -12,7 +12,7 @@ namespace v8::internal::compiler::turboshaft {
 
 using InstructionSelectionNormalizationReducerTest = ReducerTest;
 
-#if V8_ENABLE_WEBASSEMBLY && defined(V8_TARGET_ARCH_ARM64)
+#if V8_ENABLE_SIMD128 && defined(V8_TARGET_ARCH_ARM64)
 TEST_F(InstructionSelectionNormalizationReducerTest,
        ReduceWideningLoadTransforms) {
   using TransformKind = Simd128LoadTransformOp::TransformKind;
@@ -62,6 +62,71 @@ TEST_F(InstructionSelectionNormalizationReducerTest,
     EXPECT_EQ(test.graph().Index(*load), extension->input());
   }
 }
-#endif  // V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_ARM64
+
+TEST_F(InstructionSelectionNormalizationReducerTest,
+       ReduceWideningMultiplication) {
+  using BinopKind = Simd128BinopOp::Kind;
+  using UnaryKind = Simd128UnaryOp::Kind;
+  struct TestCase {
+    BinopKind mul_kind;
+    UnaryKind extension_kind;
+    BinopKind extmul_kind;
+  };
+  constexpr std::array test_cases = {
+      TestCase{BinopKind::kI16x8Mul, UnaryKind::kI16x8SConvertI8x16Low,
+               BinopKind::kI16x8ExtMulLowI8x16S},
+      TestCase{BinopKind::kI16x8Mul, UnaryKind::kI16x8SConvertI8x16High,
+               BinopKind::kI16x8ExtMulHighI8x16S},
+      TestCase{BinopKind::kI16x8Mul, UnaryKind::kI16x8UConvertI8x16Low,
+               BinopKind::kI16x8ExtMulLowI8x16U},
+      TestCase{BinopKind::kI16x8Mul, UnaryKind::kI16x8UConvertI8x16High,
+               BinopKind::kI16x8ExtMulHighI8x16U},
+      TestCase{BinopKind::kI32x4Mul, UnaryKind::kI32x4SConvertI16x8Low,
+               BinopKind::kI32x4ExtMulLowI16x8S},
+      TestCase{BinopKind::kI32x4Mul, UnaryKind::kI32x4SConvertI16x8High,
+               BinopKind::kI32x4ExtMulHighI16x8S},
+      TestCase{BinopKind::kI32x4Mul, UnaryKind::kI32x4UConvertI16x8Low,
+               BinopKind::kI32x4ExtMulLowI16x8U},
+      TestCase{BinopKind::kI32x4Mul, UnaryKind::kI32x4UConvertI16x8High,
+               BinopKind::kI32x4ExtMulHighI16x8U},
+      TestCase{BinopKind::kI64x2Mul, UnaryKind::kI64x2SConvertI32x4Low,
+               BinopKind::kI64x2ExtMulLowI32x4S},
+      TestCase{BinopKind::kI64x2Mul, UnaryKind::kI64x2SConvertI32x4High,
+               BinopKind::kI64x2ExtMulHighI32x4S},
+      TestCase{BinopKind::kI64x2Mul, UnaryKind::kI64x2UConvertI32x4Low,
+               BinopKind::kI64x2ExtMulLowI32x4U},
+      TestCase{BinopKind::kI64x2Mul, UnaryKind::kI64x2UConvertI32x4High,
+               BinopKind::kI64x2ExtMulHighI32x4U},
+  };
+  constexpr std::array parameter_reps = {RegisterRepresentation::Simd128(),
+                                         RegisterRepresentation::Simd128()};
+
+  for (const TestCase& test_case : test_cases) {
+    auto test = CreateFromGraph(
+        base::VectorOf(parameter_reps),
+        [test_case](TestInstance& t) {
+          V<Simd128> left = t.Capture(t.GetParameter<Simd128>(0), "left");
+          V<Simd128> right = t.Capture(t.GetParameter<Simd128>(1), "right");
+          V<Simd128> left_extension =
+              t.Asm().Simd128Unary(left, test_case.extension_kind);
+          V<Simd128> right_extension =
+              t.Asm().Simd128Unary(right, test_case.extension_kind);
+          V<Simd128> mul = t.Asm().Simd128Binop(left_extension, right_extension,
+                                                test_case.mul_kind);
+          t.Asm().Return(t.Capture(mul, "mul"));
+        },
+        true);
+
+    test.Run<InstructionSelectionNormalizationReducer>();
+
+    const Simd128BinopOp* extmul =
+        test.GetCapture("mul").GetFirst<Simd128BinopOp>();
+    ASSERT_NE(extmul, nullptr);
+    EXPECT_EQ(test_case.extmul_kind, extmul->kind);
+    EXPECT_TRUE(test.GetCapture("left").Is(extmul->left()));
+    EXPECT_TRUE(test.GetCapture("right").Is(extmul->right()));
+  }
+}
+#endif  // V8_ENABLE_SIMD128 && V8_TARGET_ARCH_ARM64
 
 }  // namespace v8::internal::compiler::turboshaft

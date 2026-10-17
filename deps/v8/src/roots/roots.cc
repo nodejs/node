@@ -86,7 +86,7 @@ void ReadOnlyRoots::VerifyNameForProtectors() {
 
 namespace {
 #define ROOT_TYPE_CHECK(Type, name, CamelName)                                \
-  bool CheckType_##name(Tagged<Type> value) {                                 \
+  bool CheckType_##name(Tagged<ReadOnly<Type>> value) {                       \
     /* For the oddball subtypes, the "IsFoo" checks only check for address in \
      * the RORoots, which is trivially true here. So, do a slow check of the  \
      * oddball kind instead. Do the casts via Tagged<Object> to satisfy cast  \
@@ -104,7 +104,7 @@ namespace {
       /* Skip verification of individual holes, just check for holeness */    \
       return IsAnyHole(value);                                                \
     } else {                                                                  \
-      return Is##Type(value);                                                 \
+      return Is<ReadOnly<Type>>(value);                                       \
     }                                                                         \
   }
 
@@ -113,7 +113,7 @@ READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)
 
 template <typename T>
 void CheckTrustedMapHelper(RootIndex index, Tagged<T> obj) {
-  if constexpr (std::is_same_v<T, Map>) {
+  if constexpr (is_subtype_v<T, Map>) {
     CHECK_EQ(RootsTable::IsInTrustedObjectMapList(index),
              InstanceTypeChecker::IsTrustedObject(obj->instance_type()));
   }

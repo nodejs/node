@@ -1185,7 +1185,7 @@ bool Uint8ArrayFromHexWithSSE(const base::Vector<T>& input_vector,
 
     // Check if it is {} (includes invalid hex values)
     if (!maybe_uint8_low_nibbles.has_value()) {
-      return false;
+      break;
     }
     __m128i uint8_low_nibbles = maybe_uint8_low_nibbles.value();
 
@@ -1197,7 +1197,7 @@ bool Uint8ArrayFromHexWithSSE(const base::Vector<T>& input_vector,
 
     // Check if it is {} (includes invalid hex values)
     if (!maybe_uint8_high_nibbles.has_value()) {
-      return false;
+      break;
     }
     __m128i uint8_high_nibbles = maybe_uint8_high_nibbles.value();
 
@@ -1309,8 +1309,9 @@ bool Uint8ArrayFromHexWithNeon(const base::Vector<T>& input_vector,
     if constexpr (std::is_same_v<T, const base::uc16>) {
       uint8x16_t second_part_first_batch =
           vld1q_u8(reinterpret_cast<const uint8_t*>(&input_vector[i + 8]));
+      // Saturate non-Latin-1 code units so hex validation rejects them.
       first_batch =
-          vmovn_high_u16(vmovn_u16(first_batch), second_part_first_batch);
+          vqmovn_high_u16(vqmovn_u16(first_batch), second_part_first_batch);
     }
 
     // Load second batch of 16 hex characters into a Neon register
@@ -1322,8 +1323,9 @@ bool Uint8ArrayFromHexWithNeon(const base::Vector<T>& input_vector,
     if constexpr (std::is_same_v<T, const base::uc16>) {
       uint8x16_t second_part_second_batch =
           vld1q_u8(reinterpret_cast<const uint8_t*>(&input_vector[i + 24]));
+      // Saturate non-Latin-1 code units so hex validation rejects them.
       second_batch =
-          vmovn_high_u16(vmovn_u16(second_batch), second_part_second_batch);
+          vqmovn_high_u16(vqmovn_u16(second_batch), second_part_second_batch);
     }
 
     // low nibbles are values with even indexes in fist_batch.
@@ -1359,7 +1361,7 @@ bool Uint8ArrayFromHexWithNeon(const base::Vector<T>& input_vector,
 
     // Check if it is {} (includes invalid hex values)
     if (!maybe_uint8_low_nibbles.has_value()) {
-      return false;
+      break;
     }
     uint8x16_t uint8_low_nibbles = maybe_uint8_low_nibbles.value();
 
@@ -1371,7 +1373,7 @@ bool Uint8ArrayFromHexWithNeon(const base::Vector<T>& input_vector,
 
     // Check if it is {} (includes invalid hex values)
     if (!maybe_uint8_high_nibbles.has_value()) {
-      return false;
+      break;
     }
     uint8x16_t uint8_high_nibbles = maybe_uint8_high_nibbles.value();
 

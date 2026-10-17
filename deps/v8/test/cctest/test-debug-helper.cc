@@ -491,7 +491,7 @@ static void FrameIterationCheck(
     d::StackFrameResultPtr props = d::GetStackFrame(frame->fp(), &ReadMemory);
     if (frame->is_javascript()) {
       JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
-      CHECK_EQ(props->num_properties, 5);
+      CHECK_EQ(props->num_properties, 7);
       auto js_function = js_frame->function();
       // This one is Tagged, not TaggedMember, because it's from the stack.
       CheckProp(*props->properties[0],
@@ -523,6 +523,19 @@ static void FrameIterationCheck(
       CheckStructProp(*function_character_offset.struct_fields[1],
                       "v8::internal::TaggedMember<v8::internal::Object>", "end",
                       4);
+
+      // These are Tagged too because they are stack slots.
+      CheckProp(*props->properties[5],
+                "v8::internal::Tagged<v8::internal::Object>", "receiver",
+                js_frame->receiver().ptr());
+      const d::ObjectProperty& arguments = *props->properties[6];
+      uint32_t argc = js_frame->GetActualArgumentCount();
+      CheckProp(arguments, "v8::internal::Tagged<v8::internal::Object>",
+                "arguments", d::PropertyKind::kArrayOfKnownSize, argc);
+      for (uint32_t arg = 0; arg < argc; arg++) {
+        CHECK_EQ(reinterpret_cast<Address*>(arguments.address)[arg],
+                 js_frame->GetParameter(arg).ptr());
+      }
     } else {
       CHECK_EQ(props->num_properties, 0);
     }
@@ -542,10 +555,17 @@ THREADED_TEST(GetFrameStack) {
             ->Set(env.local(), v8_str("obj"),
                   obj->NewInstance(env.local()).ToLocalChecked())
             .FromJust());
-  v8::Script::Compile(env.local(), v8_str("function foo() {"
+  // Cover matched, under-applied, and over-applied argument counts.
+  v8::Script::Compile(env.local(), v8_str("function exact(a) {"
                                           "  return obj.xxx;"
                                           "}"
-                                          "foo();"))
+                                          "function underapplied(a, b, c) {"
+                                          "  return exact(40);"
+                                          "}"
+                                          "function overapplied(x) {"
+                                          "  return underapplied(41);"
+                                          "}"
+                                          "overapplied(42, 43);"))
       .ToLocalChecked()
       ->Run(env.local())
       .ToLocalChecked();

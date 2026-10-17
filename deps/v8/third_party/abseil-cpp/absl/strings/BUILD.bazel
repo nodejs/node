@@ -104,6 +104,7 @@ cc_library(
         ":internal",
         ":resize_and_overwrite",
         ":string_view",
+        "//absl/algorithm:container",
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",

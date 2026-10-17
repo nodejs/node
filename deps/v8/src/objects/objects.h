@@ -188,9 +188,10 @@ class Object : public AllStatic {
                                              Isolate* isolate,
                                              Representation representation);
 
-  V8_EXPORT_PRIVATE static Handle<UnionOf<JSAny, Hole>> NewStorageFor(
-      Isolate* isolate, Handle<UnionOf<JSAny, Hole>> object,
-      Representation representation);
+  V8_EXPORT_PRIVATE static Handle<UnionOf<JSAny, Hole, UninitializedHeapNumber>>
+  NewStorageFor(Isolate* isolate,
+                Handle<UnionOf<JSAny, Hole, UninitializedHeapNumber>> object,
+                Representation representation);
 
   template <AllocationType allocation_type = AllocationType::kYoung,
             typename IsolateT>

@@ -18,24 +18,12 @@ void SealCurrentObjects(Heap* heap);
 
 int FixedArrayLenFromSize(int size);
 
-// Fill a page with fixed arrays leaving remainder behind. The function does
-// not create additional fillers and assumes that the space has just been
-// sealed. If out_handles is not null, it appends the fixed arrays to the
-// pointed vector.
-void FillOldSpacePageWithFixedArrays(
-    Heap* heap, int remainder,
-    DirectHandleVector<FixedArray>* out_handles = nullptr);
-
 void CreatePadding(Heap* heap, int padding_size, AllocationType allocation,
                    DirectHandleVector<FixedArray>* out_handles = nullptr,
                    int object_size = kMaxRegularHeapObjectSize);
 
 void FillCurrentPage(v8::internal::NewSpace* space,
                      DirectHandleVector<FixedArray>* out_handles = nullptr);
-
-void FillCurrentPageButNBytes(
-    v8::internal::SemiSpaceNewSpace* space, int extra_bytes,
-    DirectHandleVector<FixedArray>* out_handles = nullptr);
 
 // Helper function that simulates many incremental marking steps until
 // marking is completed.
@@ -58,26 +46,9 @@ void EmptyNewSpaceUsingGC(Heap* heap);
 
 void ForceEvacuationCandidate(NormalPage* page);
 
-void GrowNewSpace(Heap* heap);
-
 void GrowNewSpaceToMaximumCapacity(Heap* heap);
 
-template <typename GlobalOrPersistent>
-bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
-  v8::HandleScope scope(isolate);
-  auto tmp = global.Get(isolate);
-  return i::HeapLayout::InYoungGeneration(*v8::Utils::OpenDirectHandle(*tmp));
-}
-
 bool InCorrectGeneration(Tagged<HeapObject> object);
-
-template <typename GlobalOrPersistent>
-bool InCorrectGeneration(v8::Isolate* isolate,
-                         const GlobalOrPersistent& global) {
-  v8::HandleScope scope(isolate);
-  auto tmp = global.Get(isolate);
-  return InCorrectGeneration(*v8::Utils::OpenDirectHandle(*tmp));
-}
 
 class ManualEvacuationCandidatesSelectionScope {
  public:

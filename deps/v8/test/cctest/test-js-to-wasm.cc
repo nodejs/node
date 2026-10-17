@@ -590,7 +590,8 @@ class FastJSWasmCallTester {
                               ModuleTypeIndex supertype = kNoSuperType,
                               bool is_final = false) {
     return builder_->AddArrayType(
-        zone_.New<ArrayType>(element_type, mutability), is_final, supertype);
+        zone_.New<ArrayType>(element_type, mutability, SharedFlag{false}),
+        is_final, supertype);
   }
 
  private:

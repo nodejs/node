@@ -261,6 +261,86 @@ class JsonParser final {
     uint32_t type_and_index_;
   };
 
+  class JsonContinuations {
+   public:
+    explicit JsonContinuations(Isolate* isolate)
+        : isolate_(isolate), cont_(isolate, JsonContinuation::kReturn, 0) {
+      stack_.reserve(16);
+    }
+    ~JsonContinuations() {
+      while (!stack_.empty()) {
+        Pop();
+      }
+    }
+
+    JsonContinuations(const JsonContinuations&) = delete;
+    JsonContinuations& operator=(const JsonContinuations&) = delete;
+
+    void New(JsonContinuation::Type type, size_t index) {
+      stack_.emplace_back(std::move(cont_));
+      cont_ = JsonContinuation(isolate_, type, index);
+    }
+
+    template <typename T>
+    Handle<T> CloseAndEscape(Handle<T> value) {
+      return cont_.scope.CloseAndEscape(value);
+    }
+
+    template <typename T, typename U>
+    std::pair<Handle<T>, Handle<U>> CloseAndEscape(Handle<T> value,
+                                                   Handle<U> val_node) {
+      DisallowGarbageCollection no_gc;
+      Tagged<U> raw_val_node = *val_node;
+      Handle<T> escaped_value = cont_.scope.CloseAndEscape(value);
+      Handle<U> escaped_val_node =
+          cont_.scope.CloseAndEscape(handle(raw_val_node, isolate_));
+      return {escaped_value, escaped_val_node};
+    }
+
+    // Pops the current continuation (closing its HandleScope) and recreates the
+    // handle(s) in the restored parent HandleScope. Using CloseAndEscape
+    // followed by Pop would redundantly close the current HandleScope twice (or
+    // three times when escaping two handles).
+    template <typename T>
+    Handle<T> PopAndEscape(Handle<T> value) {
+      DisallowGarbageCollection no_gc;
+      Tagged<T> raw_value = *value;
+      Pop();
+      return handle(raw_value, isolate_);
+    }
+
+    template <typename T, typename U, template <typename> typename HandleType>
+      requires(std::is_convertible_v<HandleType<U>, DirectHandle<U>>)
+    std::pair<Handle<T>, Handle<U>> PopAndEscape(Handle<T> value,
+                                                 HandleType<U> val_node) {
+      DisallowGarbageCollection no_gc;
+      Tagged<T> raw_value = *value;
+      Tagged<U> raw_val_node = *val_node;
+      Pop();
+      return {handle(raw_value, isolate_), handle(raw_val_node, isolate_)};
+    }
+
+    JsonContinuation& current() { return cont_; }
+    const JsonContinuation& current() const { return cont_; }
+
+    bool HasArrayFeedback(size_t element_stack_size) const {
+      return !stack_.empty() &&
+             stack_.back().type() == JsonContinuation::kArrayElement &&
+             stack_.back().index() < element_stack_size;
+    }
+
+   private:
+    void Pop() {
+      DCHECK(!stack_.empty());
+      cont_ = std::move(stack_.back());
+      stack_.pop_back();
+    }
+
+    Isolate* isolate_;
+    std::vector<JsonContinuation> stack_;
+    JsonContinuation cont_;
+  };
+
   JsonParser(Isolate* isolate, Handle<String> source,
              std::optional<ScriptDetails> script_details);
   ~JsonParser();

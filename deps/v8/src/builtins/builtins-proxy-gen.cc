@@ -451,13 +451,13 @@ TF_BUILTIN(ProxyGetPropertyFastPath, ProxiesCodeStubAssembler) {
   TNode<HeapObject> target =
       CAST(LoadObjectField(proxy, offsetof(JSProxy, target_)));
   GotoIf(TaggedEqual(target, NullConstant()), &miss);
+  TNode<Map> target_check_map;
   {
     TNode<MaybeObject> maybe_target_check_map = accessors.LoadHandlerDataField(
         handler, LoadHandler::kProxyTargetMapDataIndex);
     CSA_DCHECK(this, IsWeakOrCleared(maybe_target_check_map));
     GotoIf(IsCleared(maybe_target_check_map), &miss);
-    TNode<Map> target_check_map =
-        CAST(GetHeapObjectAssumeWeak(maybe_target_check_map));
+    target_check_map = CAST(GetHeapObjectAssumeWeak(maybe_target_check_map));
     TNode<Map> target_map = LoadMap(target);
     GotoIfNot(TaggedEqual(target_check_map, target_map), &miss);
   }
@@ -532,11 +532,32 @@ TF_BUILTIN(ProxyGetPropertyFastPath, ProxiesCodeStubAssembler) {
     TNode<Object> result = CallFunction(
         context, trap_function, ConvertReceiverMode::kNotNullOrUndefined,
         proxy_receiver, target_any, name, receiver);
+    Label check_result(this, Label::kDeferred);
+    TNode<Map> new_target_map = LoadMap(target);
+    GotoIfNot(TaggedEqual(target_check_map, new_target_map), &check_result);
+    Return(result);
+
+    BIND(&check_result);
+    CheckGetSetTrapResult(context, CAST(target), proxy, name, result,
+                          JSProxy::kGet);
     Return(result);
   }
 
   BIND(&miss);
   Return(TheHoleConstant());
+}
+
+TF_BUILTIN(ProxyGetPropertyTrapResultLazyDeoptContinuation,
+           ProxiesCodeStubAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto target = Parameter<JSReceiver>(Descriptor::kTarget);
+  auto proxy = Parameter<JSProxy>(Descriptor::kProxy);
+  auto name = Parameter<Name>(Descriptor::kName);
+  auto trap_result = Parameter<Object>(Descriptor::kTrapResult);
+
+  CheckGetSetTrapResult(context, target, proxy, name, trap_result,
+                        JSProxy::kGet);
+  Return(trap_result);
 }
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"

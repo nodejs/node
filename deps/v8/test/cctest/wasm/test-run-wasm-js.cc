@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <array>
+
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler-inl.h"
@@ -52,14 +54,14 @@ ManuallyImportedJSFunction CreateJSSelector(FunctionSig* sig, int which) {
   CHECK_LT(which, static_cast<int>(sig->parameter_count()));
   CHECK_LT(static_cast<int>(sig->parameter_count()), kMaxParams);
 
-  base::EmbeddedVector<char, 256> source;
+  std::array<char, 256> source;
   char param = 'a' + which;
-  SNPrintF(source, "(function(%s) { return %c; })",
-           formals[sig->parameter_count()], param);
+  base::SNPrintF(source, "(function(%s) { return %c; })",
+                 formals[sig->parameter_count()], param);
 
   DirectHandle<JSFunction> js_function =
       Cast<JSFunction>(v8::Utils::OpenDirectHandle(
-          *v8::Local<v8::Function>::Cast(CompileRun(source.begin()))));
+          *v8::Local<v8::Function>::Cast(CompileRun(source.data()))));
   ManuallyImportedJSFunction import = {sig, js_function};
 
   return import;

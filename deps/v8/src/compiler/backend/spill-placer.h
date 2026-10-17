@@ -12,7 +12,6 @@ namespace internal {
 
 namespace compiler {
 
-class LiveRangeFinder;
 class TopLevelLiveRange;
 class RegisterAllocationData;
 

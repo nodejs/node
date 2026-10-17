@@ -66,11 +66,7 @@ Handle<StringSet> EnsureLocalsBlockList(
   }
 
   std::optional<DebugScriptScope> closure_scope =
-      closure_scope_info->scope_type() == FUNCTION_SCOPE
-          ? FindClosureScope(debug_scope_info, shared_info->StartPosition(),
-                             shared_info->EndPosition(),
-                             closure_scope_info->scope_type())
-          : DebugScriptScope::FromIndex(debug_scope_info, 0);
+      FindClosureScope(debug_scope_info, *shared_info);
   DCHECK(closure_scope.has_value());
   if (!closure_scope.has_value()) {
     return StringSet::New(isolate);

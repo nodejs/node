@@ -345,7 +345,8 @@ void LiftoffAssembler::AlignFrameSize() {}
 
 void LiftoffAssembler::PatchPrepareStackFrame(
     int offset, SafepointTableBuilder* safepoint_table_builder,
-    bool feedback_vector_slot, size_t stack_param_slots) {
+    bool feedback_vector_slot, size_t stack_param_slots,
+    size_t stack_return_slots) {
   // The frame_size includes the frame marker and the instance slot. Both are
   // pushed as part of frame construction, so we don't need to allocate memory
   // for them anymore.
@@ -472,13 +473,6 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
   Sw(budget, budget_addr);
 
   Branch(ool_label, less, budget, Operand(zero_reg));
-}
-
-Register LiftoffAssembler::LoadOldFramePointer() { return fp; }
-
-void LiftoffAssembler::CheckStackShrink() {
-  // TODO(mips64): 42202153
-  UNIMPLEMENTED();
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
@@ -1239,10 +1233,9 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 
 void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
-                                            ValueKind kind,
-                                            Register frame_pointer) {
+                                            ValueKind kind) {
   int32_t offset = kSystemPointerSize * (caller_slot_idx + 1);
-  liftoff::Store(this, frame_pointer, offset, src, kind);
+  liftoff::Store(this, fp, offset, src, kind);
 }
 
 void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
@@ -4246,7 +4239,8 @@ void LiftoffAssembler::RecordSpillsInSafepoint(
     SafepointTableBuilder::Safepoint& safepoint, LiftoffRegList all_spills,
     LiftoffRegList ref_spills, int spill_offset) {
   LiftoffRegList fp_spills = all_spills & kFpCacheRegList;
-  int spill_space_size = fp_spills.GetNumRegsSet() * kSimd128Size;
+  int spill_space_size = fp_spills.GetNumRegsSet() *
+                         (IsEnabled(MIPS_SIMD) ? kSimd128Size : kStackSlotSize);
   LiftoffRegList gp_spills = all_spills & kGpCacheRegList;
   while (!gp_spills.is_empty()) {
     LiftoffRegister reg = gp_spills.GetFirstRegSet();

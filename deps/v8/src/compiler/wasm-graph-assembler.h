@@ -263,7 +263,7 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* FieldOffset(const wasm::StructType* type, uint32_t field_index);
 
-  Node* WasmArrayElementOffset(Node* index, wasm::ValueType element_type);
+  Node* WasmArrayElementOffset(Node* index, const wasm::ArrayType* type);
 
   Node* IsDataRefMap(Node* map);
 

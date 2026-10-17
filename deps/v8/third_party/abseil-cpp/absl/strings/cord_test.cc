@@ -3031,6 +3031,11 @@ CordMutator cord_mutators[] = {
     [](absl::Cord& c) { c.RemoveSuffix(10); }
   },
   {
+    "append large string",
+    [](absl::Cord& c) { c.Append(std::string(1000, 'x')); },
+    [](absl::Cord& c) { c.RemoveSuffix(1000); }
+  },
+  {
     "append cord",
     [](absl::Cord& c) {
       c.Append(absl::MakeFragmentedCord({"12345", "67890"}));
@@ -3074,6 +3079,11 @@ CordMutator cord_mutators[] = {
     "prepend string",
     [](absl::Cord& c) { c.Prepend("9876543210"); },
     [](absl::Cord& c) { c.RemovePrefix(10); }
+  },
+  {
+    "prepend large string",
+    [](absl::Cord& c) { c.Prepend(std::string(1000, 'x')); },
+    [](absl::Cord& c) { c.RemovePrefix(1000); }
   },
   {
     "prepend cord",

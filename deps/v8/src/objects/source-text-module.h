@@ -287,13 +287,13 @@ V8_OBJECT class SourceTextModule : public Module {
   TaggedMember<FixedArray> regular_exports_;
   TaggedMember<FixedArray> regular_imports_;
   TaggedMember<FixedArray> requested_modules_;
-  TaggedMember<UnionOf<TheHole, JSObject>> import_meta_;
+  V8_TQ_ACQ_REL TaggedMember<UnionOf<TheHole, JSObject>> import_meta_;
   TaggedMember<UnionOf<SourceTextModule, TheHole>> cycle_root_;
   TaggedMember<ArrayList> async_parent_modules_;
   TaggedMember<Smi> dfs_index_;
   TaggedMember<Smi> dfs_ancestor_index_;
   TaggedMember<Smi> pending_async_dependencies_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<SourceTextModuleFlags>);
 } V8_OBJECT_END;
 
 template <>
@@ -353,16 +353,13 @@ class SourceTextModuleInfo : public FixedArray {
 
 V8_OBJECT class ModuleRequest : public Struct {
  public:
+  inline ModuleRequest(const AllocationWitness& witness,
+                       Tagged<String> specifier, ModuleImportPhase phase,
+                       Tagged<FixedArray> import_attributes, int position);
+
   inline Tagged<String> specifier() const;
-  inline void set_specifier(Tagged<String> value,
-                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline Tagged<FixedArray> import_attributes() const;
-  inline void set_import_attributes(
-      Tagged<FixedArray> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline uint32_t flags() const;
-  inline void set_flags(uint32_t value);
 
   DECL_VERIFIER(ModuleRequest)
   DECL_PRINTER(ModuleRequest)
@@ -382,43 +379,33 @@ V8_OBJECT class ModuleRequest : public Struct {
   using PositionBits = PhaseBits::Next<uint32_t, 29>;
   static_assert(PositionBits::kMax >= String::kMaxLength,
                 "String::kMaxLength should fit in PositionBits::kMax");
-  DECL_PRIMITIVE_ACCESSORS(position, unsigned)
-  inline void set_phase(ModuleImportPhase phase);
+  inline unsigned position() const;
   inline ModuleImportPhase phase() const;
 
   using BodyDescriptor = StructBodyDescriptor;
 
  public:
-  TaggedMember<String> specifier_;
-  TaggedMember<FixedArray> import_attributes_;
-  TaggedMember<Smi> flags_;
+  const TaggedMember<String> specifier_;
+  const TaggedMember<FixedArray> import_attributes_;
+  const TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<ModuleRequestFlags>);
 } V8_OBJECT_END;
 
 V8_OBJECT class SourceTextModuleInfoEntry : public Struct {
  public:
+  inline SourceTextModuleInfoEntry(
+      const AllocationWitness& witness,
+      Tagged<UnionOf<String, Undefined>> export_name,
+      Tagged<UnionOf<String, Undefined>> local_name,
+      Tagged<UnionOf<String, Undefined>> import_name, int module_request,
+      int cell_index, int beg_pos, int end_pos);
+
   inline Tagged<UnionOf<String, Undefined>> export_name() const;
-  inline void set_export_name(Tagged<UnionOf<String, Undefined>> value,
-                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline Tagged<UnionOf<String, Undefined>> local_name() const;
-  inline void set_local_name(Tagged<UnionOf<String, Undefined>> value,
-                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline Tagged<UnionOf<String, Undefined>> import_name() const;
-  inline void set_import_name(Tagged<UnionOf<String, Undefined>> value,
-                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline int module_request() const;
-  inline void set_module_request(int value);
-
   inline int cell_index() const;
-  inline void set_cell_index(int value);
-
   inline int beg_pos() const;
-  inline void set_beg_pos(int value);
-
   inline int end_pos() const;
-  inline void set_end_pos(int value);
 
   DECL_VERIFIER(SourceTextModuleInfoEntry)
   DECL_PRINTER(SourceTextModuleInfoEntry)
@@ -433,13 +420,13 @@ V8_OBJECT class SourceTextModuleInfoEntry : public Struct {
   using BodyDescriptor = StructBodyDescriptor;
 
  public:
-  TaggedMember<UnionOf<String, Undefined>> export_name_;
-  TaggedMember<UnionOf<String, Undefined>> local_name_;
-  TaggedMember<UnionOf<String, Undefined>> import_name_;
-  TaggedMember<Smi> module_request_;
-  TaggedMember<Smi> cell_index_;
-  TaggedMember<Smi> beg_pos_;
-  TaggedMember<Smi> end_pos_;
+  const TaggedMember<UnionOf<String, Undefined>> export_name_;
+  const TaggedMember<UnionOf<String, Undefined>> local_name_;
+  const TaggedMember<UnionOf<String, Undefined>> import_name_;
+  const TaggedMember<Smi> module_request_;
+  const TaggedMember<Smi> cell_index_;
+  const TaggedMember<Smi> beg_pos_;
+  const TaggedMember<Smi> end_pos_;
 } V8_OBJECT_END;
 
 }  // namespace internal

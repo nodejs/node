@@ -109,7 +109,7 @@ V8_OBJECT class AccessorInfo : public HeapObject {
   TaggedMember<Name> name_;
   ExternalPointerMember<kAccessorInfoGetterTag> getter_;
   ExternalPointerMember<kAccessorInfoSetterTag> setter_;
-  uint32_t flags_;
+  uint32_t flags_ V8_TQ_TYPE(AccessorInfoFlags);
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif  // TAGGED_SIZE_8_BYTES
@@ -127,6 +127,8 @@ inline constexpr int AccessorInfo::kSize = sizeof(AccessorInfo);
 
 V8_OBJECT class AccessCheckInfo : public Struct {
  public:
+  inline explicit AccessCheckInfo(const AllocationWitness& witness);
+
   static Tagged<AccessCheckInfo> Get(Isolate* isolate,
                                      DirectHandle<JSObject> receiver);
 
@@ -158,9 +160,9 @@ V8_OBJECT class AccessCheckInfo : public Struct {
  private:
   friend class TorqueGeneratedAccessCheckInfoAsserts;
 
-  TaggedMember<UnionOf<Foreign, Smi, Undefined>> callback_;
-  TaggedMember<UnionOf<InterceptorInfo, Smi, Undefined>> named_interceptor_;
-  TaggedMember<UnionOf<InterceptorInfo, Smi, Undefined>> indexed_interceptor_;
+  TaggedMember<UnionOf<Foreign, Zero, Undefined>> callback_;
+  TaggedMember<UnionOf<InterceptorInfo, Zero, Undefined>> named_interceptor_;
+  TaggedMember<UnionOf<InterceptorInfo, Zero, Undefined>> indexed_interceptor_;
   TaggedMember<Object> data_;
 } V8_OBJECT_END;
 
@@ -295,7 +297,7 @@ V8_OBJECT class InterceptorInfo : public HeapObject {
 
  public:
   TaggedMember<Object> data_;
-  uint32_t flags_;
+  uint32_t flags_ V8_TQ_TYPE(InterceptorInfoFlags);
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif  // TAGGED_SIZE_8_BYTES

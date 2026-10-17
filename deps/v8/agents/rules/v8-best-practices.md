@@ -30,6 +30,12 @@ When proposing a fix, ensure the code adheres to V8 standards:
 - **Cross-Feature Awareness**: Understand how optimizations interact with core
   V8 features like Lazy Compilation, Ignition bytecode generation, and
   TurboFan/Maglev optimizations.
+- **Fail Fast Over Defensive Workarounds**: Never introduce defensive
+  programming patterns to paper over unexpected compiler states or invariant
+  violations (e.g., silent early returns, fallback dummy values, defensive
+  clamping, or non-exhaustive switch `default: break;`). If an invariant is
+  expected to hold, assert it via `DCHECK` or `CHECK` so that violations are
+  caught immediately by debug builds and fuzzers rather than masked.
 - **Mandatory Reproducer Rule**: Unless explicitly specified otherwise by the
   user, **every single bug fix in V8 MUST be uploaded with a working reproducer
   (regression test)**. Uploading just the fix alone is NEVER acceptable.

@@ -395,14 +395,6 @@ void FeedbackVector::set_tiering_in_progress(bool in_progress) {
   set_flags(TieringInProgressBit::update(flags(), in_progress));
 }
 
-void FeedbackVector::reset_flags() {
-  set_flags(
-      TieringInProgressBit::encode(false) |
-      OsrTieringInProgressBit::encode(false) |
-      MaybeHasMaglevOsrCodeBit::encode(false) |
-      MaybeHasTurbofanOsrCodeBit::encode(false));
-}
-
 void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
                                          Tagged<Code> code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
@@ -1442,14 +1434,14 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
 
 bool FeedbackNexus::IsOneMapManyNames() const {
   // "1 map, many names" mode is currently only used for Wasm maps, and
-  // {IsWasmObjectMap} is currently only defined for Wasm-enabled builds.
+  // {IsAnyWasmObjectMap} is currently only defined for Wasm-enabled builds.
 #if V8_ENABLE_WEBASSEMBLY
   if (!IsKeyedLoadICKind(kind()) && !IsKeyedStoreICKind(kind())) return false;
   auto pair = GetFeedbackPair();
   Tagged<HeapObject> heap_object;
   if (!pair.first.GetHeapObjectIfWeak(&heap_object)) return false;
   if (!IsMap(heap_object)) return false;
-  if (!IsWasmObjectMap(Cast<Map>(heap_object))) return false;
+  if (!IsAnyWasmObjectMap(Cast<Map>(heap_object))) return false;
   if (!IsSmi(pair.second)) return false;
   Tagged<Smi> handler = pair.second.ToSmi();
   return handler == LoadHandler::LoadGeneric() ||

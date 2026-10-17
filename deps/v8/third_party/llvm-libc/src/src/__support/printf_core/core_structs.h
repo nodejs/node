@@ -23,22 +23,6 @@
 namespace LIBC_NAMESPACE_DECL {
 namespace printf_core {
 
-template <typename CharT, char ascii_value> struct CharConstant {};
-
-template <char ascii_value> struct CharConstant<char, ascii_value> {
-  LIBC_INLINE_VAR static constexpr char value = ascii_value;
-};
-
-#if defined(LIBC_TYPES_WCHAR_T_IS_UTF32)
-template <char ascii_value> struct CharConstant<wchar_t, ascii_value> {
-  LIBC_INLINE_VAR static constexpr wchar_t value = ascii_value;
-};
-#endif // LIBC_TYPES_WCHAR_T_IS_UTF32
-
-template <typename CharT, char ascii_value>
-LIBC_INLINE_VAR constexpr CharT char_constant_v =
-    CharConstant<CharT, ascii_value>::value;
-
 // These length modifiers match the length modifiers in the format string, which
 // is why they are formatted differently from the rest of the file.
 enum class LengthModifier {
@@ -118,11 +102,10 @@ template <typename CharT> struct BasicFormatSection {
             (conv_name == other.conv_name)))
         return false;
 
-      if (conv_name == char_constant_v<CharT, 'p'> ||
-          conv_name == char_constant_v<CharT, 'n'> ||
-          conv_name == char_constant_v<CharT, 's'>)
+      if (conv_name == CharT{'p'} || conv_name == CharT{'n'} ||
+          conv_name == CharT{'s'})
         return (conv_val_ptr == other.conv_val_ptr);
-      else if (conv_name != char_constant_v<CharT, '%'>)
+      else if (conv_name != CharT{'%'})
         return (conv_val_raw == other.conv_val_raw);
     }
     return true;

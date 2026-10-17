@@ -489,9 +489,10 @@ FloatWriter(Writer<mode>, bool, const PaddingWriter<mode>) -> FloatWriter<mode>;
 // https://doi.org/10.1145/3360595
 template <typename T, OverflowMode mode,
           cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
-LIBC_INLINE int convert_float_decimal_typed(Writer<mode> *writer,
-                                            const FormatSection &to_conv,
-                                            fputil::FPBits<T> float_bits) {
+LIBC_INLINE int
+convert_finite_float_decimal_typed(Writer<mode> *writer,
+                                   const FormatSection &to_conv,
+                                   fputil::FPBits<T> float_bits) {
   // signed because later we use -FRACTION_LEN
   constexpr int32_t FRACTION_LEN = fputil::FPBits<T>::FRACTION_LEN;
   int exponent = float_bits.get_explicit_exponent();
@@ -599,9 +600,10 @@ LIBC_INLINE int convert_float_decimal_typed(Writer<mode> *writer,
 
 template <typename T, OverflowMode mode,
           cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
-LIBC_INLINE int convert_float_dec_exp_typed(Writer<mode> *writer,
-                                            const FormatSection &to_conv,
-                                            fputil::FPBits<T> float_bits) {
+LIBC_INLINE int
+convert_finite_float_dec_exp_typed(Writer<mode> *writer,
+                                   const FormatSection &to_conv,
+                                   fputil::FPBits<T> float_bits) {
   // signed because later we use -FRACTION_LEN
   constexpr int32_t FRACTION_LEN = fputil::FPBits<T>::FRACTION_LEN;
   int exponent = float_bits.get_explicit_exponent();
@@ -760,9 +762,10 @@ LIBC_INLINE int convert_float_dec_exp_typed(Writer<mode> *writer,
 
 template <typename T, OverflowMode mode,
           cpp::enable_if_t<cpp::is_floating_point_v<T>, int> = 0>
-LIBC_INLINE int convert_float_dec_auto_typed(Writer<mode> *writer,
-                                             const FormatSection &to_conv,
-                                             fputil::FPBits<T> float_bits) {
+LIBC_INLINE int
+convert_finite_float_dec_auto_typed(Writer<mode> *writer,
+                                    const FormatSection &to_conv,
+                                    fputil::FPBits<T> float_bits) {
   // signed because later we use -FRACTION_LEN
   constexpr int32_t FRACTION_LEN = fputil::FPBits<T>::FRACTION_LEN;
   int exponent = float_bits.get_explicit_exponent();
@@ -818,7 +821,7 @@ LIBC_INLINE int convert_float_dec_auto_typed(Writer<mode> *writer,
     } else {
       new_conv.precision = 0;
     }
-    return convert_float_decimal_typed<T>(writer, new_conv, float_bits);
+    return convert_finite_float_decimal_typed<T>(writer, new_conv, float_bits);
   }
 
   const size_t block_width = IntegerToString<intmax_t>(digits).size();
@@ -1100,7 +1103,7 @@ LIBC_INLINE int convert_float_dec_auto_typed(Writer<mode> *writer,
                                : trimmed_precision;
     }
 
-    return convert_float_decimal_typed<T>(writer, new_conv, float_bits);
+    return convert_finite_float_decimal_typed<T>(writer, new_conv, float_bits);
   } else {
     // otherwise, the conversion is with style e (or E) and precision equals
     // P - 1
@@ -1120,7 +1123,7 @@ LIBC_INLINE int convert_float_dec_auto_typed(Writer<mode> *writer,
                                ? conv_precision
                                : trimmed_precision;
     }
-    return convert_float_dec_exp_typed<T>(writer, new_conv, float_bits);
+    return convert_finite_float_dec_exp_typed<T>(writer, new_conv, float_bits);
   }
 }
 
@@ -1129,13 +1132,17 @@ LIBC_INLINE int convert_float_dec_auto_typed(Writer<mode> *writer,
 template <OverflowMode mode>
 LIBC_INLINE int convert_float_decimal(Writer<mode> *writer,
                                       const FormatSection &to_conv) {
+  InfNanFPBitsProperties inf_nan_properties;
 #if defined(LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128)
   if (to_conv.length_modifier == LengthModifier::Q) {
     fputil::FPBits<float128>::StorageType float_raw = to_conv.conv_val_raw;
     fputil::FPBits<float128> float_bits(float_raw);
     if (!float_bits.is_inf_or_nan()) {
-      return convert_float_decimal_typed<float128>(writer, to_conv, float_bits);
+      return convert_finite_float_decimal_typed<float128>(writer, to_conv,
+                                                          float_bits);
     }
+    inf_nan_properties = {.is_negative = float_bits.is_neg(),
+                          .mantissa_is_zero = float_bits.get_mantissa() == 0};
   } else
 #endif // LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128
 #ifndef LIBC_TYPES_LONG_DOUBLE_IS_DOUBLE_DOUBLE
@@ -1145,9 +1152,11 @@ LIBC_INLINE int convert_float_decimal(Writer<mode> *writer,
             to_conv.conv_val_raw);
     fputil::FPBits<long double> float_bits(float_raw);
     if (!float_bits.is_inf_or_nan()) {
-      return convert_float_decimal_typed<long double>(writer, to_conv,
-                                                      float_bits);
+      return convert_finite_float_decimal_typed<long double>(writer, to_conv,
+                                                             float_bits);
     }
+    inf_nan_properties = {.is_negative = float_bits.is_neg(),
+                          .mantissa_is_zero = float_bits.get_mantissa() == 0};
   } else
 #endif // !LIBC_TYPES_LONG_DOUBLE_IS_DOUBLE_DOUBLE
   {
@@ -1155,23 +1164,30 @@ LIBC_INLINE int convert_float_decimal(Writer<mode> *writer,
         static_cast<fputil::FPBits<double>::StorageType>(to_conv.conv_val_raw);
     fputil::FPBits<double> float_bits(float_raw);
     if (!float_bits.is_inf_or_nan()) {
-      return convert_float_decimal_typed<double>(writer, to_conv, float_bits);
+      return convert_finite_float_decimal_typed<double>(writer, to_conv,
+                                                        float_bits);
     }
+    inf_nan_properties = {.is_negative = float_bits.is_neg(),
+                          .mantissa_is_zero = float_bits.get_mantissa() == 0};
   }
 
-  return convert_inf_nan(writer, to_conv);
+  return convert_inf_nan(writer, inf_nan_properties, to_conv);
 }
 
 template <OverflowMode mode>
 LIBC_INLINE int convert_float_dec_exp(Writer<mode> *writer,
                                       const FormatSection &to_conv) {
+  InfNanFPBitsProperties inf_nan_properties;
 #if defined(LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128)
   if (to_conv.length_modifier == LengthModifier::Q) {
     fputil::FPBits<float128>::StorageType float_raw = to_conv.conv_val_raw;
     fputil::FPBits<float128> float_bits(float_raw);
     if (!float_bits.is_inf_or_nan()) {
-      return convert_float_dec_exp_typed<float128>(writer, to_conv, float_bits);
+      return convert_finite_float_dec_exp_typed<float128>(writer, to_conv,
+                                                          float_bits);
     }
+    inf_nan_properties = {.is_negative = float_bits.is_neg(),
+                          .mantissa_is_zero = float_bits.get_mantissa() == 0};
   } else
 #endif // LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128
 #ifndef LIBC_TYPES_LONG_DOUBLE_IS_DOUBLE_DOUBLE
@@ -1181,9 +1197,11 @@ LIBC_INLINE int convert_float_dec_exp(Writer<mode> *writer,
             to_conv.conv_val_raw);
     fputil::FPBits<long double> float_bits(float_raw);
     if (!float_bits.is_inf_or_nan()) {
-      return convert_float_dec_exp_typed<long double>(writer, to_conv,
-                                                      float_bits);
+      return convert_finite_float_dec_exp_typed<long double>(writer, to_conv,
+                                                             float_bits);
     }
+    inf_nan_properties = {.is_negative = float_bits.is_neg(),
+                          .mantissa_is_zero = float_bits.get_mantissa() == 0};
   } else
 #endif // !LIBC_TYPES_LONG_DOUBLE_IS_DOUBLE_DOUBLE
   {
@@ -1191,24 +1209,30 @@ LIBC_INLINE int convert_float_dec_exp(Writer<mode> *writer,
         static_cast<fputil::FPBits<double>::StorageType>(to_conv.conv_val_raw);
     fputil::FPBits<double> float_bits(float_raw);
     if (!float_bits.is_inf_or_nan()) {
-      return convert_float_dec_exp_typed<double>(writer, to_conv, float_bits);
+      return convert_finite_float_dec_exp_typed<double>(writer, to_conv,
+                                                        float_bits);
     }
+    inf_nan_properties = {.is_negative = float_bits.is_neg(),
+                          .mantissa_is_zero = float_bits.get_mantissa() == 0};
   }
 
-  return convert_inf_nan(writer, to_conv);
+  return convert_inf_nan(writer, inf_nan_properties, to_conv);
 }
 
 template <OverflowMode mode>
 LIBC_INLINE int convert_float_dec_auto(Writer<mode> *writer,
                                        const FormatSection &to_conv) {
+  InfNanFPBitsProperties inf_nan_properties;
 #if defined(LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128)
   if (to_conv.length_modifier == LengthModifier::Q) {
     fputil::FPBits<float128>::StorageType float_raw = to_conv.conv_val_raw;
     fputil::FPBits<float128> float_bits(float_raw);
     if (!float_bits.is_inf_or_nan()) {
-      return convert_float_dec_auto_typed<float128>(writer, to_conv,
-                                                    float_bits);
+      return convert_finite_float_dec_auto_typed<float128>(writer, to_conv,
+                                                           float_bits);
     }
+    inf_nan_properties = {.is_negative = float_bits.is_neg(),
+                          .mantissa_is_zero = float_bits.get_mantissa() == 0};
   } else
 #endif // LIBC_INTERNAL_PRINTF_CONVERT_FLOAT128
 #ifndef LIBC_TYPES_LONG_DOUBLE_IS_DOUBLE_DOUBLE
@@ -1218,9 +1242,11 @@ LIBC_INLINE int convert_float_dec_auto(Writer<mode> *writer,
             to_conv.conv_val_raw);
     fputil::FPBits<long double> float_bits(float_raw);
     if (!float_bits.is_inf_or_nan()) {
-      return convert_float_dec_auto_typed<long double>(writer, to_conv,
-                                                       float_bits);
+      return convert_finite_float_dec_auto_typed<long double>(writer, to_conv,
+                                                              float_bits);
     }
+    inf_nan_properties = {.is_negative = float_bits.is_neg(),
+                          .mantissa_is_zero = float_bits.get_mantissa() == 0};
   } else
 #endif // !LIBC_TYPES_LONG_DOUBLE_IS_DOUBLE_DOUBLE
   {
@@ -1228,11 +1254,14 @@ LIBC_INLINE int convert_float_dec_auto(Writer<mode> *writer,
         static_cast<fputil::FPBits<double>::StorageType>(to_conv.conv_val_raw);
     fputil::FPBits<double> float_bits(float_raw);
     if (!float_bits.is_inf_or_nan()) {
-      return convert_float_dec_auto_typed<double>(writer, to_conv, float_bits);
+      return convert_finite_float_dec_auto_typed<double>(writer, to_conv,
+                                                         float_bits);
     }
+    inf_nan_properties = {.is_negative = float_bits.is_neg(),
+                          .mantissa_is_zero = float_bits.get_mantissa() == 0};
   }
 
-  return convert_inf_nan(writer, to_conv);
+  return convert_inf_nan(writer, inf_nan_properties, to_conv);
 }
 
 } // namespace printf_core

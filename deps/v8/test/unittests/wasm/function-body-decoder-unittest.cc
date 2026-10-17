@@ -162,7 +162,8 @@ class TestModuleBuilder {
 
   HeapType AddArray(ValueType type, bool mutability,
                     SharedFlag is_shared = SharedFlag{false}) {
-    ArrayType* array = mod.signature_storage.New<ArrayType>(type, mutability);
+    ArrayType* array =
+        mod.signature_storage.New<ArrayType>(type, mutability, is_shared);
     const bool is_final = true;
     mod.AddArrayTypeForTesting(array, kNoSuperType, is_final, is_shared);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());

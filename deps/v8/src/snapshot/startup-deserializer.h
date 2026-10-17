@@ -18,7 +18,8 @@ class StartupDeserializer final : public Deserializer<Isolate> {
                                const SnapshotData* startup_data,
                                bool can_rehash)
       : Deserializer(isolate, startup_data->Payload(),
-                     startup_data->GetMagicNumber(), false, can_rehash) {}
+                     /* trusted_payload */ {}, startup_data->GetMagicNumber(),
+                     /* deserializing_user_code */ false, can_rehash) {}
 
   // Deserialize the snapshot into an empty heap.
   void DeserializeIntoIsolate();

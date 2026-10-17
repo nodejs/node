@@ -159,6 +159,13 @@ void Serializer::SerializeDeferredObjects() {
 }
 
 void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
+  if (IsInaccessible(*obj)) {
+    // Only some roots are inaccessible.
+    bool result = SerializeRoot(*obj);
+    DCHECK(result);
+    USE(result);
+    return;
+  }
   if (IsThinString(*obj)) {
     // ThinStrings are just an indirection to an internalized string, so elide
     // the indirection and serialize the actual string directly.
@@ -471,6 +478,9 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
         CodeNameEvent(object_->address(), static_cast<int>(sink_->Position()),
                       code_name));
   }
+
+  SBXCHECK_GT(size, kTaggedSize);
+  SBXCHECK(IsAligned(size, kTaggedSize));
 
   if (IsMetaMap(*object_)) {
     if (map == ReadOnlyRoots(isolate()).meta_map()) {
@@ -1327,7 +1337,7 @@ void OutputRawWithCustomField(SnapshotByteSink* sink, Address object_start,
                               const uint8_t* field_value) {
   int offset = field_offset - written_so_far;
   if (0 <= offset && offset < bytes_to_write) {
-    DCHECK_GE(bytes_to_write, offset + field_size);
+    SBXCHECK_GE(bytes_to_write, offset + field_size);
     sink->PutRaw(reinterpret_cast<uint8_t*>(object_start + written_so_far),
                  offset, "Bytes");
     sink->PutRaw(field_value, field_size, "Bytes");
@@ -1348,10 +1358,10 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
   int up_to_offset = static_cast<int>(up_to - object_start);
   int to_skip = up_to_offset - bytes_processed_so_far_;
   int bytes_to_output = to_skip;
-  DCHECK(IsAligned(bytes_to_output, kTaggedSize));
+  SBXCHECK(IsAligned(bytes_to_output, kTaggedSize));
   int tagged_to_output = bytes_to_output / kTaggedSize;
   bytes_processed_so_far_ += to_skip;
-  DCHECK_GE(to_skip, 0);
+  SBXCHECK_GE(to_skip, 0);
   if (bytes_to_output != 0) {
     DCHECK(to_skip == bytes_to_output);
     if (tagged_to_output <= kFixedRawDataCount) {

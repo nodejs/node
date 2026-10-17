@@ -33,6 +33,12 @@
 namespace v8 {
 namespace internal {
 
+EnumCache::EnumCache(const AllocationWitness& witness, Tagged<FixedArray> keys,
+                     Tagged<FixedArray> indices)
+    : Struct(witness.roots().enum_cache_map()),
+      keys_(witness, keys),
+      indices_(witness, indices) {}
+
 Tagged<FixedArray> EnumCache::keys() const { return keys_.load(); }
 void EnumCache::set_keys(Tagged<FixedArray> value, WriteBarrierMode mode) {
   keys_.store(this, value, mode);

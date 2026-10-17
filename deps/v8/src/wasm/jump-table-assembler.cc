@@ -763,11 +763,14 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
   emit<uint32_t>(shared[3]);
 
   // Atomically emit the 64-bit value on an aligned address.
-  DCHECK(IsAligned(pc_, kSystemPointerSize));
-  emit<Address>(target);
+  CHECK(IsAligned(pc_, kSystemPointerSize));
+  emit<Address>(target, kRelaxedStore);
 
   // Commit the changes to the sequence by (possibly) changing the first
-  // instruction. The instruction will change between 'jal' and 'auipc'.
+  // instruction. The instruction will change between 'jal' and 'auipc'. It must
+  // be written atomically: the jump table can be patched while other threads
+  // are concurrently executing this slot, so a concurrent instruction fetch
+  // must observe either the old or the new instruction, never a mix of the two.
   intptr_t relative_target = target - first;
   if (is_int21(relative_target)) {
     int32_t imm21 = static_cast<int32_t>(relative_target);
@@ -777,10 +780,12 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
                     ((imm21 & 0x800) << 9) |     // bit  11
                     ((imm21 & 0x7fe) << 20) |    // bits 10-1
                     ((imm21 & 0x100000) << 11);  // bit  20
-    jit_allocation_.WriteUnalignedValue(first, near);
+    DCHECK(IsAligned(first, kInt32Size));
+    jit_allocation_.WriteValue(first, near, kRelaxedStore);
   } else {
     uint32_t far = RO_AUIPC | (t6.code() << kRdShift);
-    jit_allocation_.WriteUnalignedValue(first, far);
+    DCHECK(IsAligned(first, kInt32Size));
+    jit_allocation_.WriteValue(first, far, kRelaxedStore);
   }
   return true;
 }

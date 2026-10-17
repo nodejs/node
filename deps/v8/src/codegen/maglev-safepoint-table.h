@@ -11,7 +11,8 @@
 #include "src/codegen/safepoint-table-base.h"
 #include "src/common/assert-scope.h"
 #include "src/utils/allocation.h"
-#include "src/zone/zone-chunk-list.h"
+#include "src/utils/utils.h"
+#include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -272,7 +273,7 @@ class MaglevSafepointTableBuilder : public SafepointTableBuilderBase {
 
  private:
   const uint32_t num_tagged_slots_;
-  ZoneChunkList<EntryBuilder> entries_;
+  ZoneVector<EntryBuilder> entries_;
 };
 
 }  // namespace internal

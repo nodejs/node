@@ -6,6 +6,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/flags.h"
+#include "src/base/unique-array.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/keys.h"
 #include "src/objects/module-inl.h"
@@ -133,8 +134,8 @@ v8::Maybe<v8::PropertyAttribute> DebugPropertyIterator::attributes() {
   // V8 will crash.
 
 #if DEBUG
-  auto property_message = base::OwnedVector<char>::NewForOverwrite(128);
-  auto name_buffer = base::OwnedVector<char>::NewForOverwrite(100);
+  auto property_message = base::UniqueArray<char>::NewForOverwrite(128);
+  auto name_buffer = base::UniqueArray<char>::NewForOverwrite(100);
   raw_name()->NameShortPrint(name_buffer.as_vector());
   v8::base::SNPrintF(property_message.as_vector(),
                      "Invalid result for property \"%s\"\n",

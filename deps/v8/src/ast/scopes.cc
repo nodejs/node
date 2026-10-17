@@ -496,6 +496,9 @@ Scope* Scope::DeserializeScopeChain(
       if (deserialization_mode == DeserializationMode::kIncludingVariables) {
         script_scope->SetScriptScopeInfo(handle(scope_info, isolate));
       }
+      script_scope->set_has_context_cells(scope_info->HasContextCells());
+      script_scope->set_is_hoisted_in_context(
+          scope_info->is_hoisted_in_context());
       script_scope->num_heap_slots_ = scope_info->ContextLength();
       script_scope->set_start_position(scope_info->StartPosition());
       script_scope->set_end_position(scope_info->EndPosition());
@@ -1408,6 +1411,25 @@ Declaration* DeclarationScope::CheckConflictingVarDeclarations(
   return nullptr;
 }
 
+bool DeclarationScope::HasConflictingArgumentsVarDeclaration(
+    AstValueFactory* ast_value_factory) {
+  DCHECK(is_eval_scope());
+  if (!is_sloppy(language_mode())) return false;
+
+  Variable* var = LookupLocal(ast_value_factory->arguments_string());
+  if (var == nullptr || IsLexicalVariableMode(var->mode())) return false;
+
+  // During parameter initialization, the parameter environment of a
+  // non-arrow function with non-simple parameters contains an implicit
+  // `arguments` binding between the eval's lexical and variable environments.
+  DeclarationScope* var_scope = outer_scope()->GetNonEvalDeclarationScope();
+  if (!var_scope->is_function_scope() || var_scope->is_arrow_scope()) {
+    return false;
+  }
+  DCHECK(var_scope->from_scope_info());
+  return !var_scope->scope_info()->HasSimpleParameters();
+}
+
 const AstRawString* Scope::FindVariableDeclaredIn(Scope* scope,
                                                   VariableMode mode_limit) {
   const VariableMap& variables = scope->variables_;
@@ -1744,6 +1766,8 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   sloppy_block_functions_.Clear();
   rare_data_ = nullptr;
   set_has_rest(false);
+  set_has_using_declaration(false);
+  set_has_await_using_declaration(false);
   function_ = nullptr;
 
   DCHECK_NE(zone(), ast_value_factory->single_parse_zone());
@@ -2330,6 +2354,12 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
   if (cache_scope != nullptr) cache_scope->variables_.Remove(invalidated);
 
   Scope* target = cache_scope == nullptr ? scope : cache_scope;
+  if (invalidated->IsReplGlobal()) {
+    // Top-level lexical variables in REPL mode can be redeclared across
+    // scripts and are looked up globally via the ScriptContextTable rather
+    // than at a fixed context slot index, so treat them as kDynamicGlobal.
+    return target->NonLocal(proxy->raw_name(), VariableMode::kDynamicGlobal);
+  }
   var = target->NonLocal(proxy->raw_name(), VariableMode::kDynamicLocal);
   var->set_local_if_not_shadowed(invalidated);
 
