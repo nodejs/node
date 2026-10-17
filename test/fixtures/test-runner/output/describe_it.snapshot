@@ -439,7 +439,6 @@ not ok 50 - callback called twice
   code: 'ERR_TEST_FAILURE'
   stack: |-
     TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:255:3)
-    <node-internal-frames>
   ...
 # Subtest: callback called twice in different ticks
 ok 51 - callback called twice in different ticks
