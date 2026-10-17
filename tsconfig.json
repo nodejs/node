@@ -12,7 +12,7 @@
     "lib": ["ESNext", "DOM"],
     "target": "ESNext",
     "module": "CommonJS",
-    "baseUrl": ".",
+    "moduleDetection": "force",
     "paths": {
       "_http_agent": ["./lib/_http_agent.js"],
       "_http_client": ["./lib/_http_client.js"],
