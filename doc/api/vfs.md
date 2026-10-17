@@ -573,8 +573,10 @@ ESM entry points (`"mainFormat": "module"`) are supported: the main module
 is loaded from inside the mount through the ESM loader, and
 `import.meta.dirname` points at the mount root.
 
-`"useVfs"` cannot be used together with `"useSnapshot"` or `"useCodeCache"`.
-The SEA configuration parser will error if either combination is detected.
+`"useVfs"` cannot be used together with `"useSnapshot"`; the SEA
+configuration parser will error if the combination is detected. With
+`"useCodeCache"`, every module in the mount is compiled at build time and its
+code cache is embedded into the executable.
 
 Instead of listing individual `"assets"`, the SEA configuration can point
 `"vfsArchive"` at a prebuilt ZIP archive; the mount is then backed by a
