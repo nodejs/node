@@ -1,3 +1,5 @@
+import type { AsyncWrap } from './async_wrap';
+
 declare namespace InternalHttpParserBinding {
   type Buffer = Uint8Array;
   type Stream = object;
@@ -55,6 +57,8 @@ declare namespace InternalHttpParserBinding {
     unconsume(): void;
     getCurrentBuffer(): Buffer;
   }
+
+  interface HTTPParser extends AsyncWrap {}
 }
 
 export interface HttpParserBinding {

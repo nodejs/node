@@ -1,3 +1,4 @@
+import type { AsyncWrap } from './async_wrap';
 import { InternalMessagingBinding } from './messaging';
 
 declare namespace InternalWorkerBinding {
@@ -23,6 +24,8 @@ declare namespace InternalWorkerBinding {
     loopIdleTime(): number;
     loopStartTime(): number;
   }
+
+  interface Worker extends AsyncWrap {}
 }
 
 export interface CPUProfileHandle {
