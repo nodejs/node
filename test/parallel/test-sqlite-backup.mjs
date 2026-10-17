@@ -1,6 +1,7 @@
 // Flags: --expose-gc
 import {
   isWindows,
+  platformTimeout,
   skipIfSQLiteMissing,
   spawnPromisified,
 } from '../common/index.mjs';
@@ -333,6 +334,32 @@ test('backup fails when path cannot be opened', async (t) => {
   }, {
     message: 'unable to open database file'
   });
+});
+
+test('backup waits for a write transaction on the source to end', async (t) => {
+  const database = makeSourceDb();
+  const destDb = nextDb();
+
+  t.after(() => { database.close(); });
+
+  database.exec('BEGIN IMMEDIATE');
+  database.exec("INSERT INTO data (key, value) VALUES (3, 'value-3')");
+  const p = backup(database, destDb);
+  setTimeout(() => database.exec('COMMIT'), platformTimeout(100));
+
+  await p;
+
+  const backupDb = new Database(destDb);
+
+  t.after(() => { backupDb.close(); });
+
+  const rows = backupDb.prepare('SELECT * FROM data').all();
+
+  t.assert.deepStrictEqual(rows, [
+    { __proto__: null, key: 1, value: 'value-1' },
+    { __proto__: null, key: 2, value: 'value-2' },
+    { __proto__: null, key: 3, value: 'value-3' },
+  ]);
 });
 
 test('backup has correct name and length', (t) => {
