@@ -1,1 +1,1 @@
-export { transformSync } from "./transform.ts";
+export { transformSync } from "./internal.js";
