@@ -5,6 +5,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const fixtures = require('../common/fixtures');
 const { hasFIPS, isBoringSSL } = require('../common/crypto');
 const isFips = hasFIPS(3);
 
@@ -194,6 +195,19 @@ for (const options of toobig) {
                 expected);
   assert.throws(() => crypto.scryptSync('pass', 'salt', 1, options),
                 expected);
+}
+
+// A failed parameter check must not leave an error on the OpenSSL error queue
+// for the next unrelated crypto operation to pick up.
+{
+  const key = fixtures.readKey('ec_p256_private.pem');
+  const options = { N: 2 ** 10, p: 1, r: 8, maxmem: 2 ** 20 };
+  const expected = { code: 'ERR_CRYPTO_INVALID_SCRYPT_PARAMS' };
+  assert.throws(() => crypto.scryptSync('pass', 'salt', 1, options), expected);
+  crypto.createPrivateKey(key);
+  assert.throws(() => crypto.scrypt('pass', 'salt', 1, options, () => {}),
+                expected);
+  crypto.createPrivateKey(key);
 }
 
 if (!isFips) {
