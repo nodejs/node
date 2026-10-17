@@ -432,12 +432,8 @@ struct Stream::Impl {
   JS_METHOD(StopSending) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
-    error_code code = 0;
-    CHECK_IMPLIES(!args[0]->IsUndefined(), args[0]->IsBigInt());
-    if (!args[0]->IsUndefined()) {
-      bool unused = false;  // not used but still necessary.
-      code = args[0].As<BigInt>()->Uint64Value(&unused);
-    }
+    CHECK(args[0]->IsBigInt());
+    error_code code = args[0].As<BigInt>()->Uint64Value();
 
     stream->SendStopSending(code);
   }
@@ -449,12 +445,8 @@ struct Stream::Impl {
   JS_METHOD(ResetStream) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
-    error_code code = 0;
-    CHECK_IMPLIES(!args[0]->IsUndefined(), args[0]->IsBigInt());
-    if (!args[0]->IsUndefined()) {
-      bool lossless = false;  // not used but still necessary.
-      code = args[0].As<BigInt>()->Uint64Value(&lossless);
-    }
+    CHECK(args[0]->IsBigInt());
+    error_code code = args[0].As<BigInt>()->Uint64Value();
 
     stream->DoStreamReset(code);
   }
