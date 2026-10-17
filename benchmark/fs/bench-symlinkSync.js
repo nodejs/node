@@ -46,6 +46,6 @@ function main({ n, type }) {
       break;
     }
     default:
-      new Error('Invalid type');
+      throw new Error('Invalid type');
   }
 }
