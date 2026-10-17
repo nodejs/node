@@ -132,7 +132,7 @@
       # available to load it at runtime.
       'target_name': 'temporal_zoneinfo64_data',
       'type': 'none',
-      'toolsets': ['host', 'target'],
+      'toolsets': ['target'],
       'hard_dependency': 1,
       'direct_dependent_settings': {
         'sources': [
