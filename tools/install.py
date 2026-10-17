@@ -149,6 +149,113 @@ def subdir_files(options, path, dest, action):
   for subdir, files_in_path in ret.items():
     action(options, files_in_path, subdir + os.path.sep)
 
+
+# OpenSSL ships generated headers for every supported OS/arch under
+# deps/openssl/config/archs. Official linux-x64 installs were copying all of
+# them (~64 MB). A full install keeps the build arch plus linux-elf, which
+# the dispatcher headers include from #else (Android, mips64el, ...).
+# macOS also keeps both darwin64 arches: the official .pkg is universal.
+# The headers-only tarball stays complete so node-gyp can target any
+# platform. Keep this table aligned with deps/openssl/openssl_asm.gypi and
+# openssl_no_asm.gypi.
+_OPENSSL_ARCHS = {
+  ('ppc64', 'aix'): 'aix64-gcc-as',
+  ('ppc64', 'os400'): 'aix64-gcc-as',
+  ('ppc64', 'linux'): 'linux-ppc64le',
+  ('s390x', 'linux'): 'linux64-s390x',
+  ('s390', 'linux'): 'linux32-s390x',
+  ('arm', 'linux'): 'linux-armv4',
+  ('arm', 'android'): 'linux-armv4',
+  ('arm64', 'linux'): 'linux-aarch64',
+  ('arm64', 'android'): 'linux-aarch64',
+  ('arm64', 'openharmony'): 'linux-aarch64',
+  ('arm64', 'mac'): 'darwin64-arm64-cc',
+  ('arm64', 'win'): 'VC-WIN64-ARM',
+  ('ia32', 'freebsd'): 'BSD-x86',
+  ('ia32', 'openbsd'): 'BSD-x86',
+  ('ia32', 'linux'): 'linux-elf',
+  ('ia32', 'android'): 'linux-elf',
+  ('ia32', 'mac'): 'darwin-i386-cc',
+  ('ia32', 'solaris'): 'solaris-x86-gcc',
+  ('ia32', 'win'): 'VC-WIN32',
+  ('x64', 'freebsd'): 'BSD-x86_64',
+  ('x64', 'openbsd'): 'BSD-x86_64',
+  ('x64', 'mac'): 'darwin64-x86_64-cc',
+  ('x64', 'solaris'): 'solaris64-x86_64-gcc',
+  ('x64', 'win'): 'VC-WIN64A',
+  ('x64', 'linux'): 'linux-x86_64',
+  ('x64', 'android'): 'linux-x86_64',
+  ('x64', 'openharmony'): 'linux-x86_64',
+  ('mips64el', 'linux'): 'linux64-mips64',
+  ('riscv64', 'linux'): 'linux64-riscv64',
+  ('loong64', 'linux'): 'linux64-loongarch64',
+}
+
+
+# configuration_asm.h / configuration_no-asm.h #else includes linux-elf.
+# Android never defines OPENSSL_LINUX, and several Linux arches (mips64el,
+# and loong64 in the asm dispatcher) fall through to that path.
+_OPENSSL_DISPATCHER_FALLBACK = 'linux-elf'
+
+# Official macOS .pkg is a universal binary: make pkg installs x64, then
+# arm64, lipos the binary, and packages the arm64 tree. Keep both
+# dispatcher Darwin arches so Intel / Rosetta addons still compile.
+_OPENSSL_MAC_ARCHS = ('darwin64-arm64-cc', 'darwin64-x86_64-cc')
+
+
+def openssl_target_os(options):
+  """Return the gypi-style OS name, or None when the host is unknown.
+
+  Unknown platforms keep every arch so a guessed Linux mapping cannot
+  drop the headers the dispatcher actually includes.
+  """
+  if options.is_win:
+    return 'win'
+  if sys.platform == 'darwin':
+    return 'mac'
+  if sys.platform.startswith('freebsd'):
+    return 'freebsd'
+  if sys.platform.startswith('openbsd'):
+    return 'openbsd'
+  if sys.platform.startswith('sunos'):
+    return 'solaris'
+  if sys.platform.startswith('aix'):
+    return 'aix'
+  if sys.platform == 'os400':
+    return 'os400'
+  if sys.platform == 'android':
+    return 'android'
+  if sys.platform.startswith('linux'):
+    return 'linux'
+  return None
+
+
+def openssl_arch_name(options):
+  """Return the OpenSSL config/archs directory for this build, or None."""
+  os_name = openssl_target_os(options)
+  if os_name is None:
+    return None
+  arch = options.variables.get('target_arch', '')
+  if arch == 'ppc64' and os_name == 'linux' and \
+     options.variables.get('node_byteorder') != 'little':
+    return None
+  return _OPENSSL_ARCHS.get((arch, os_name))
+
+
+def openssl_wanted_archs(options):
+  """Arch directories to install, or None to keep every arch."""
+  arch = openssl_arch_name(options)
+  if arch is None:
+    return None
+  wanted = {arch, _OPENSSL_DISPATCHER_FALLBACK}
+  if openssl_target_os(options) == 'mac':
+    wanted.update(_OPENSSL_MAC_ARCHS)
+  return wanted
+
+
+def _posix_path(name):
+  return name.replace('\\', '/')
+
 def files(options, action):
   node_bin = 'node'
   if options.is_win:
@@ -358,9 +465,30 @@ def headers(options, action):
 
   if 'true' == options.variables.get('node_use_openssl') and \
      'false' == options.variables.get('node_shared_openssl'):
+    def wanted_openssl_arch_headers(options, files_arg, dest):
+      # headers.tar.gz is used cross-platform; keep every arch there.
+      if options.headers_only:
+        action(options, files_arg, dest)
+        return
+      wanted = openssl_wanted_archs(options)
+      if wanted is None:
+        action(options, files_arg, dest)
+        return
+      files_arg = [
+        name for name in files_arg
+        if any('/archs/' + arch + '/' in _posix_path(name) for arch in wanted)
+      ]
+      action(options, files_arg, dest)
+
+    def wanted_openssl_config_headers(options, files_arg, dest):
+      # Dispatcher headers live in deps/openssl/config/*.h. Arch copies are
+      # installed by the dedicated archs walk above.
+      files_arg = [name for name in files_arg if '/archs/' not in _posix_path(name)]
+      action(options, files_arg, dest)
+
     subdir_files(options, 'deps/openssl/openssl/include/openssl', 'include/node/openssl/', action)
-    subdir_files(options, 'deps/openssl/config/archs', 'include/node/openssl/archs', action)
-    subdir_files(options, 'deps/openssl/config', 'include/node/openssl', action)
+    subdir_files(options, 'deps/openssl/config/archs', 'include/node/openssl/archs', wanted_openssl_arch_headers)
+    subdir_files(options, 'deps/openssl/config', 'include/node/openssl', wanted_openssl_config_headers)
 
   if 'false' == options.variables.get('node_shared_zlib'):
     action(options, [
