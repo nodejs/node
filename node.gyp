@@ -962,6 +962,10 @@
               'dependencies': [
                 'deps/perfetto/perfetto.gyp:perfetto_sdk',
               ],
+              # node_internals.h includes perfetto.h.
+              'export_dependent_settings': [
+                'deps/perfetto/perfetto.gyp:perfetto_sdk',
+              ],
             }],
           ],
         }, {
@@ -1120,6 +1124,9 @@
       ],
 
       'dependencies': [
+        'node_base',
+      ],
+      'export_dependent_settings': [
         'node_base',
       ],
 
