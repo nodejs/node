@@ -88,6 +88,8 @@ jobs:
           rustup --version
       - name: Build
         run: ./vcbuild.bat clang-cl v8temporal
+        env:
+          config_flags: -Gmsvs_error_on_missing_sources=1
       # TODO(bcoe): investigate tests that fail with coverage enabled
       # on Windows.
       - name: Test
