@@ -118,6 +118,21 @@
               "type": "boolean",
               "description": "allow use of child process when any permissions are set"
             },
+            "allow-env": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "allow access to environment variables when any permissions are set"
+            },
             "allow-ffi": {
               "type": "boolean",
               "description": "allow use of FFI when any permissions are set"
@@ -136,6 +151,10 @@
                 }
               ],
               "description": "allow permissions to read the filesystem"
+            },
+            "allow-fs-vfs": {
+              "type": "boolean",
+              "description": "allow mounting a virtual file system when any permissions are set"
             },
             "allow-fs-write": {
               "oneOf": [
@@ -296,6 +315,10 @@
               "type": "boolean",
               "description": "enable FIPS crypto at startup"
             },
+            "enable-fips-indicator-events": {
+              "type": "boolean",
+              "description": "publish FIPS indicator results to the crypto.fips.indicator diagnostics channel"
+            },
             "enable-source-maps": {
               "type": "boolean",
               "description": "Source Map V3 support for stack traces"
@@ -332,6 +355,10 @@
               "type": "boolean",
               "description": "experimental ES Module import.meta.resolve() parentURL support"
             },
+            "experimental-import-text": {
+              "type": "boolean",
+              "description": "experimental support for importing source as text with import attributes"
+            },
             "experimental-loader": {
               "oneOf": [
                 {
@@ -346,6 +373,10 @@
                 }
               ],
               "description": "use the specified module as a custom loader"
+            },
+            "experimental-package-map": {
+              "type": "string",
+              "description": "use the specified file for package map resolution"
             },
             "experimental-print-required-tla": {
               "type": "boolean",
@@ -371,13 +402,17 @@
               "type": "boolean",
               "description": "Type-stripping for TypeScript files under node_modules belonging to packages marked \"private\": true"
             },
+            "experimental-vfs": {
+              "type": "boolean",
+              "description": "experimental node:vfs module"
+            },
             "experimental-vm-modules": {
               "type": "boolean",
               "description": "experimental ES Module support in vm module"
             },
-            "experimental-websocket": {
+            "experimental-web-worker": {
               "type": "boolean",
-              "description": "experimental WebSocket API"
+              "description": "experimental Web Worker API"
             },
             "experimental-webstorage": {
               "type": "boolean",
@@ -397,7 +432,7 @@
             },
             "force-fips": {
               "type": "boolean",
-              "description": "force FIPS crypto (cannot be disabled)"
+              "description": "force FIPS crypto (optional mode: provider or strict)"
             },
             "force-node-api-uncaught-exceptions-policy": {
               "type": "boolean",
@@ -655,6 +690,10 @@
               ],
               "description": "include files in coverage report that match this glob pattern"
             },
+            "test-coverage-include-all": {
+              "type": "boolean",
+              "description": "include source files that were never loaded in the coverage report"
+            },
             "test-coverage-lines": {
               "type": "number",
               "description": "the line coverage minimum threshold"
@@ -861,7 +900,7 @@
             },
             "use-largepages": {
               "type": "string",
-              "description": "This option is no longer supported and a no-op. Options are 'off' (default), 'on' (report a warning to stderr), or 'silent' (same as 'off')."
+              "description": "This option is no longer supported and a no-op. It still accepts these values for compatibility: 'off' (default), 'on' (report a warning to stderr), or 'silent' (same as 'off')."
             },
             "use-openssl-ca": {
               "type": "boolean",
@@ -910,6 +949,10 @@
               "type": "boolean",
               "description": "preserve outputs on watch mode restart"
             },
+            "worker-snapshot": {
+              "type": "boolean",
+              "description": "start worker threads from the bootstrapped context in the built-in startup snapshot"
+            },
             "zero-fill-buffers": {
               "type": "boolean",
               "description": "automatically zero-fill all newly allocated Buffer instances"
@@ -933,6 +976,21 @@
               "type": "boolean",
               "description": "allow use of child process when any permissions are set"
             },
+            "allow-env": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "allow access to environment variables when any permissions are set"
+            },
             "allow-ffi": {
               "type": "boolean",
               "description": "allow use of FFI when any permissions are set"
@@ -951,6 +1009,10 @@
                 }
               ],
               "description": "allow permissions to read the filesystem"
+            },
+            "allow-fs-vfs": {
+              "type": "boolean",
+              "description": "allow mounting a virtual file system when any permissions are set"
             },
             "allow-fs-write": {
               "oneOf": [
@@ -1006,6 +1068,21 @@
               "type": "boolean",
               "description": "enable module mocking in the test runner"
             },
+            "experimental-test-tag-filter": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "run tests matching the given tag filter expression"
+            },
             "test": {
               "type": "boolean",
               "description": "launch test runner on startup"
@@ -1051,6 +1128,10 @@
                 }
               ],
               "description": "include files in coverage report that match this glob pattern"
+            },
+            "test-coverage-include-all": {
+              "type": "boolean",
+              "description": "include source files that were never loaded in the coverage report"
             },
             "test-coverage-lines": {
               "type": "number",
