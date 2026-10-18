@@ -176,6 +176,8 @@ if (hasFIPS(3, 5)) {
       'derive_bits_keys/derived_bits_length.https.any.js',
       /^X25519 derivation/,
     ],
+    ['import_export/okp_fixed_length.https.any.js', /^X25519 /],
+    ['import_export/okp_malformed_asn1.https.any.js', /^X25519 /],
     ['modern-algos/encap_decap/encap_decap_bits.https.any.js', /mlkem/i],
     ['modern-algos/encap_decap/encap_decap_keys.https.any.js', /mlkem/i],
     ['modern-algos/getPublicKey.https.any.js', /(?:X25519|X448|MLKEM)/],
