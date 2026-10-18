@@ -3545,8 +3545,10 @@ inline int Statement::ResetStatement() {
 }
 
 bool Statement::BindParams(const FunctionCallbackInfo<Value>& args) {
-  int r = sqlite3_clear_bindings(statement_.get());
-  CHECK_ERROR_OR_THROW(env()->isolate(), db_.get(), r, SQLITE_OK, false);
+  int param_count = sqlite3_bind_parameter_count(statement_.get());
+  // Parameter indexing starts at one.
+  MaybeStackBuffer<bool, 32> bound(param_count + 1);
+  std::fill_n(bound.out(), param_count + 1, false);
 
   int anon_idx = 1;
   int anon_start = 0;
@@ -3562,8 +3564,6 @@ bool Statement::BindParams(const FunctionCallbackInfo<Value>& args) {
 
     if (allow_bare_named_params_ && !bare_named_params_.has_value()) {
       bare_named_params_.emplace();
-      int param_count = sqlite3_bind_parameter_count(statement_.get());
-      // Parameter indexing starts at one.
       for (int i = 1; i <= param_count; ++i) {
         const char* name = sqlite3_bind_parameter_name(statement_.get(), i);
         if (name == nullptr) {
@@ -3626,6 +3626,7 @@ bool Statement::BindParams(const FunctionCallbackInfo<Value>& args) {
       if (!BindValue(value, r)) {
         return false;
       }
+      bound[r] = true;
     }
     anon_start++;
   }
@@ -3641,8 +3642,18 @@ bool Statement::BindParams(const FunctionCallbackInfo<Value>& args) {
     if (!BindValue(args[i], anon_idx)) {
       return false;
     }
+    bound[anon_idx] = true;
 
     anon_idx++;
+  }
+
+  // sqlite3_clear_bindings() would expire statements whose query plan depends
+  // on a bound value, so only reset the parameters that were not bound.
+  for (int i = 1; i <= param_count; ++i) {
+    if (!bound[i]) {
+      int r = sqlite3_bind_null(statement_.get(), i);
+      CHECK_ERROR_OR_THROW(env()->isolate(), db_.get(), r, SQLITE_OK, false);
+    }
   }
 
   return true;
@@ -4404,9 +4415,6 @@ bool SQLTagStore::ResetAndBindStatement(
     const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   int r = stmt->ResetStatement();
-  CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, false);
-
-  r = sqlite3_clear_bindings(stmt->statement_.get());
   CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, false);
 
   uint32_t n_params = args.Length() - 1;
