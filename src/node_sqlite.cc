@@ -2913,7 +2913,7 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
       !env->sqlite_database_constructor_template()->HasInstance(args[0])) {
     THROW_ERR_INVALID_ARG_TYPE(
         env->isolate(),
-        "The \"sourceDb\" argument must be a DatabaseSync instance.");
+        "The \"sourceDb\" argument must be an instance of Database.");
     return;
   }
 
@@ -5087,52 +5087,60 @@ static void Initialize(Local<Object> target,
       }
     });
   }
-  Local<FunctionTemplate> db_tmpl = NewFunctionTemplate(isolate, Database::New);
-  db_tmpl->InstanceTemplate()->SetInternalFieldCount(
-      Database::kInternalFieldCount);
   Local<Object> constants = Object::New(isolate);
 
   DefineConstants(constants);
 
-  SetProtoMethod(isolate, db_tmpl, "open", Database::Open);
-  SetProtoMethod(isolate, db_tmpl, "close", Database::Close);
-  SetProtoDispose(isolate, db_tmpl, Database::Dispose);
-  SetProtoMethod(isolate, db_tmpl, "prepare", Database::Prepare);
-  SetProtoMethod(isolate, db_tmpl, "exec", Database::Exec);
-  SetProtoMethod(isolate, db_tmpl, "function", Database::CustomFunction);
-  SetProtoMethod(isolate, db_tmpl, "createTagStore", Database::CreateTagStore);
-  SetProtoMethodNoSideEffect(isolate, db_tmpl, "location", Database::Location);
-  SetProtoMethod(isolate, db_tmpl, "aggregate", Database::AggregateFunction);
-  SetProtoMethod(isolate, db_tmpl, "createSession", Database::CreateSession);
-  SetProtoMethod(isolate, db_tmpl, "applyChangeset", Database::ApplyChangeset);
-  SetProtoMethod(
-      isolate, db_tmpl, "enableLoadExtension", Database::EnableLoadExtension);
-  SetProtoMethod(
-      isolate, db_tmpl, "enableDefensive", Database::EnableDefensive);
-  SetProtoMethod(isolate, db_tmpl, "loadExtension", Database::LoadExtension);
-  SetProtoMethod(isolate, db_tmpl, "serialize", Database::Serialize);
-  SetProtoMethod(isolate, db_tmpl, "deserialize", Database::Deserialize);
-  SetProtoMethod(isolate, db_tmpl, "setAuthorizer", Database::SetAuthorizer);
-  SetProtoMethod(isolate, db_tmpl, "createModule", Database::CreateModule);
-  SetSideEffectFreeGetter(isolate,
-                          db_tmpl,
-                          FIXED_ONE_BYTE_STRING(isolate, "isOpen"),
-                          Database::IsOpenGetter);
-  SetSideEffectFreeGetter(isolate,
-                          db_tmpl,
-                          FIXED_ONE_BYTE_STRING(isolate, "isTransaction"),
-                          Database::IsTransactionGetter);
-  SetSideEffectFreeGetter(
-      isolate, db_tmpl, env->limits_string(), Database::LimitsGetter);
-  Local<String> sqlite_type_key = FIXED_ONE_BYTE_STRING(isolate, "sqlite-type");
-  Local<v8::Symbol> sqlite_type_symbol =
-      v8::Symbol::For(isolate, sqlite_type_key);
-  Local<String> database_sync_string =
-      FIXED_ONE_BYTE_STRING(isolate, "node:sqlite");
-  db_tmpl->InstanceTemplate()->Set(sqlite_type_symbol, database_sync_string);
-
-  env->set_sqlite_database_constructor_template(db_tmpl);
-  SetConstructorFunction(context, target, "Database", db_tmpl);
+  Local<FunctionTemplate> db_tmpl = env->sqlite_database_constructor_template();
+  if (db_tmpl.IsEmpty()) {
+    db_tmpl = NewFunctionTemplate(isolate, Database::New);
+    db_tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "Database"));
+    db_tmpl->InstanceTemplate()->SetInternalFieldCount(
+        Database::kInternalFieldCount);
+    SetProtoMethod(isolate, db_tmpl, "open", Database::Open);
+    SetProtoMethod(isolate, db_tmpl, "close", Database::Close);
+    SetProtoDispose(isolate, db_tmpl, Database::Dispose);
+    SetProtoMethod(isolate, db_tmpl, "prepare", Database::Prepare);
+    SetProtoMethod(isolate, db_tmpl, "exec", Database::Exec);
+    SetProtoMethod(isolate, db_tmpl, "function", Database::CustomFunction);
+    SetProtoMethod(
+        isolate, db_tmpl, "createTagStore", Database::CreateTagStore);
+    SetProtoMethodNoSideEffect(
+        isolate, db_tmpl, "location", Database::Location);
+    SetProtoMethod(isolate, db_tmpl, "aggregate", Database::AggregateFunction);
+    SetProtoMethod(isolate, db_tmpl, "createSession", Database::CreateSession);
+    SetProtoMethod(
+        isolate, db_tmpl, "applyChangeset", Database::ApplyChangeset);
+    SetProtoMethod(
+        isolate, db_tmpl, "enableLoadExtension", Database::EnableLoadExtension);
+    SetProtoMethod(
+        isolate, db_tmpl, "enableDefensive", Database::EnableDefensive);
+    SetProtoMethod(isolate, db_tmpl, "loadExtension", Database::LoadExtension);
+    SetProtoMethod(isolate, db_tmpl, "serialize", Database::Serialize);
+    SetProtoMethod(isolate, db_tmpl, "deserialize", Database::Deserialize);
+    SetProtoMethod(isolate, db_tmpl, "setAuthorizer", Database::SetAuthorizer);
+    SetProtoMethod(isolate, db_tmpl, "createModule", Database::CreateModule);
+    SetSideEffectFreeGetter(isolate,
+                            db_tmpl,
+                            FIXED_ONE_BYTE_STRING(isolate, "isOpen"),
+                            Database::IsOpenGetter);
+    SetSideEffectFreeGetter(isolate,
+                            db_tmpl,
+                            FIXED_ONE_BYTE_STRING(isolate, "isTransaction"),
+                            Database::IsTransactionGetter);
+    SetSideEffectFreeGetter(
+        isolate, db_tmpl, env->limits_string(), Database::LimitsGetter);
+    Local<String> sqlite_type_key =
+        FIXED_ONE_BYTE_STRING(isolate, "sqlite-type");
+    Local<v8::Symbol> sqlite_type_symbol =
+        v8::Symbol::For(isolate, sqlite_type_key);
+    Local<String> database_sync_string =
+        FIXED_ONE_BYTE_STRING(isolate, "node:sqlite");
+    db_tmpl->InstanceTemplate()->Set(sqlite_type_symbol, database_sync_string);
+    env->set_sqlite_database_constructor_template(db_tmpl);
+  }
+  SetConstructorFunction(
+      context, target, "Database", db_tmpl, SetConstructorFunctionFlag::NONE);
   SetConstructorFunction(context,
                          target,
                          "Statement",
