@@ -2195,19 +2195,26 @@ def configure_napi(output):
   version = getnapibuildversion.get_napi_version()
   output['variables']['napi_build_version'] = version
 
-def configure_library(lib, output, pkgname=None, libraries_key='libraries'):
+def configure_library(lib, output, pkgname=None, libraries_key='libraries', with_separate_include_var=False):
   shared_lib = 'shared_' + lib
   output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
+
   libraries = output[libraries_key] if libraries_key in output else output['variables'][libraries_key]
+
+  include_dirs = []
+  if with_separate_include_var:
+    output['variables'][f'node_{shared_lib}_include_dirs'] = include_dirs
 
   if getattr(options, shared_lib):
     (pkg_libs, pkg_cflags, pkg_libpath, _) = pkg_config(pkgname or lib)
 
     if options.__dict__[shared_lib + '_includes']:
-      output['include_dirs'] += [options.__dict__[shared_lib + '_includes']]
+      include_dirs += [options.__dict__[shared_lib + '_includes']]
     elif pkg_cflags:
       stripped_flags = [flag.strip() for flag in pkg_cflags.split('-I')]
-      output['include_dirs'] += [flag for flag in stripped_flags if flag]
+      include_dirs += [flag for flag in stripped_flags if flag]
+
+    output['include_dirs'] += include_dirs
 
     # libpath needs to be provided ahead libraries
     if options.__dict__[shared_lib + '_libpath']:
@@ -2376,7 +2383,7 @@ def configure_openssl(o):
   if options.openssl_is_fips and not options.shared_openssl:
     variables['node_fipsinstall'] = b(True)
 
-  configure_library('openssl', o)
+  configure_library('openssl', o, with_separate_include_var=True)
 
   o['variables']['openssl_version'] = get_openssl_version(o)
   o['variables']['openssl_is_boringssl'] = get_openssl_is_boringssl(o)
@@ -2407,7 +2414,7 @@ def configure_sqlite(o):
       without_sqlite_error('--shared-sqlite')
     return
 
-  configure_library('sqlite', o, pkgname='sqlite3')
+  configure_library('sqlite', o, pkgname='sqlite3', with_separate_include_var=True)
 
 def bundled_ffi_supported(os_name, target_arch):
   if target_arch == 'x86':
@@ -2905,9 +2912,9 @@ configure_node(output)
 configure_node_lib_files(output)
 configure_node_cctest_sources(output)
 configure_napi(output)
-configure_library('zlib', output)
+configure_library('zlib', output, with_separate_include_var=True)
 configure_library('http_parser', output, pkgname='libllhttp')
-configure_library('libuv', output)
+configure_library('libuv', output, with_separate_include_var=True)
 configure_library('abseil', output, pkgname=[
   'absl_absl_check',
   'absl_absl_log',

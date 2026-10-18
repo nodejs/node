@@ -21,6 +21,23 @@ else
       openssl_3
       ;
 
+    # TODO: remove this when the pin we use has picked up https://boringssl-review.googlesource.com/c/boringssl/+/104208
+    boringssl =
+      let
+        inherit (nixpkgs) boringssl lib writeTextFile;
+      in
+      writeTextFile {
+        inherit (boringssl) name;
+        destination = "/lib/pkgconfig/openssl.pc";
+        text = ''
+          Name: BoringSSL
+          Description: BoringSSL cryptography library
+          Version: ${boringssl.version}
+          Libs: -L${lib.getLib boringssl}/lib -lcrypto -lssl
+          Cflags: -I${lib.getInclude boringssl}/include
+        '';
+      };
+
     # TODO: remove pin once https://github.com/mozilla/sccache/issues/2869 is resolved
     sccache = nixpkgs.callPackage (builtins.fetchurl {
       url = "${repo}/raw/aff8a0b28396750446e5537a96461bc4facdb287/pkgs/by-name/sc/sccache/package.nix";

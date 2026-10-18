@@ -26,7 +26,13 @@
     'node_module_version%': '',
     'node_with_ltcg%': '',
     'node_shared_openssl%': 'false',
+    'node_shared_openssl_include_dirs%': [],
     'openssl_is_boringssl%': 'false',
+
+    'node_shared_libuv_include_dirs%': [],
+    'node_shared_sqlite%': 'false',
+    'node_shared_sqlite_include_dirs%': [],
+    'node_shared_zlib_include_dirs%': [],
 
     'node_tag%': '',
     'uv_library%': 'static_library',
