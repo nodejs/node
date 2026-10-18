@@ -14,15 +14,14 @@
             }],
             [ '"<(aix_variant_name)"!="OS400"', { # Not `OS400`(IBM i)
               'sources': ['binding.cc'],
-              'include_dirs': ['../../../deps/zlib'],
             }],
           ],
         }, {
           'sources': ['binding.cc'],
-          'include_dirs': ['../../../deps/zlib'],
         }],
       ],
       'includes': ['../common.gypi'],
+      'include_dirs': ['<@(node_shared_zlib_include_dirs)'],
     },
   ]
 }
