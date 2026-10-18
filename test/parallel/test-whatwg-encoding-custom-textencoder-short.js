@@ -31,4 +31,3 @@ for (const input of inputs) {
   assert.strictEqual(result.buffer.byteLength, expected.length);
   assert.deepStrictEqual(Buffer.from(result), expected);
 }
-
