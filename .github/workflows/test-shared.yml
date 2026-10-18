@@ -199,7 +199,7 @@ jobs:
         id: v8-drv
         run: |
           V8_DRV=$(
-            nix-instantiate -E "builtins.filter (p: p.pname == ''v8'') (import $TAR_DIR/tools/nix/ci-shell.nix {}).buildInputs"
+            nix-instantiate -E "(import $TAR_DIR/tools/nix/ci-shell.nix {}).v8Derivation"
           )
           V8_STORE_PATH=$(nix-store -q --outputs "$V8_DRV")
           echo "V8_DRV=$V8_DRV" >> "$GITHUB_OUTPUT"

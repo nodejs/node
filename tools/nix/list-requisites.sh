@@ -59,4 +59,7 @@ REFS=$(nix-store --query --references "$DRV")
 STORE_PATHS=$(echo "$REFS" | xargs nix-store --realise)
 REQUISITES=$(echo "$STORE_PATHS" | xargs nix-store --query --requisites)
 
-echo "$REQUISITES" | sort -k1.45 | uniq
+V8_DRV=$(nix-instantiate -E "(import $BASE_DIR/tools/nix/ci-shell.nix {}).v8Derivation")
+V8_STORE_PATH=$(nix-store -q --outputs "$V8_DRV")
+
+printf '%s\n%s\n' "$REQUISITES" "$V8_STORE_PATH" | sort -k1.45 | uniq
