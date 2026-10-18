@@ -7,6 +7,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { isBoringSSL } = require('../common/crypto');
 const assert = require('assert');
 const net = require('net');
 const tls = require('tls');
@@ -116,8 +117,9 @@ function sendPayload(socket) {
       }));
       client.on('data', (chunk) => chunks.push(chunk));
       client.on('error', common.mustCall((err) => {
-        assert.strictEqual(err.code,
-                           'ERR_SSL_DECRYPTION_FAILED_OR_BAD_RECORD_MAC');
+        assert.strictEqual(err.code, isBoringSSL ?
+          'ERR_SSL_BAD_DECRYPT' :
+          'ERR_SSL_DECRYPTION_FAILED_OR_BAD_RECORD_MAC');
         assert.deepStrictEqual(Buffer.concat(chunks),
                                data.subarray(0, -RECORD_SIZE));
         proxy.close();
