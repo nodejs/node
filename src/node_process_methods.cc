@@ -595,49 +595,35 @@ static void Execve(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  int err = 0;
-  const char* syscall = "fcntl";
-  const char* path = nullptr;
-  {
-    // A successful execve() never returns. Restore stdio before constructing
-    // an error, which can invoke JavaScript setters on Error.prototype.
-    auto restore_stdio = OnScopeLeave([&]() {
-      for (int fd = 0; fd < 3; fd++) {
-        const auto& flags = stdio_flags[fd];
-        if (flags.exec_flags != flags.status_flags) {
-          FcntlNoIntr(fd, F_SETFL, flags.status_flags);
-        }
-        FcntlNoIntr(fd, F_SETFD, flags.descriptor_flags);
-      }
-    });
-
+  auto restore_stdio = [&]() {
     for (int fd = 0; fd < 3; fd++) {
       const auto& flags = stdio_flags[fd];
-      if (FcntlNoIntr(fd, F_SETFD, flags.descriptor_flags & ~FD_CLOEXEC) ==
-              -1 ||
-          (flags.exec_flags != flags.status_flags &&
-           FcntlNoIntr(fd, F_SETFL, flags.exec_flags) == -1)) {
-        err = errno;
-        break;
+      if (flags.exec_flags != flags.status_flags) {
+        FcntlNoIntr(fd, F_SETFL, flags.status_flags);
       }
+      FcntlNoIntr(fd, F_SETFD, flags.descriptor_flags);
     }
+  };
 
-    if (err == 0) {
-      // Perform the execve operation.
-      //
-      // Note: we intentionally do not invoke RunAtExit(env) here. On success
-      // the kernel discards the current address space when loading the new
-      // image, so any in-memory side effects of AtExit callbacks are lost
-      // anyway. On failure we want to leave the environment intact so the
-      // thrown exception can be observed and handled by JS code.
-      execve(*executable, argv.data(), envp.data());
-      err = errno;
-      syscall = "execve";
-      path = *executable;
+  for (int fd = 0; fd < 3; fd++) {
+    const auto& flags = stdio_flags[fd];
+    if (FcntlNoIntr(fd, F_SETFD, flags.descriptor_flags & ~FD_CLOEXEC) == -1 ||
+        (flags.exec_flags != flags.status_flags &&
+         FcntlNoIntr(fd, F_SETFL, flags.exec_flags) == -1)) {
+      const int err = errno;
+      restore_stdio();
+      env->ThrowErrnoException(err, "fcntl");
+      return;
     }
   }
 
-  env->ThrowErrnoException(err, syscall, nullptr, path);
+  // Do not run AtExit callbacks: a failed execve() must leave Node.js usable.
+  execve(*executable, argv.data(), envp.data());
+
+  // Error construction can invoke JavaScript setters. Restore stdio first.
+  const int err = errno;
+  restore_stdio();
+  env->ThrowErrnoException(err, "execve", nullptr, *executable);
 }
 #endif
 

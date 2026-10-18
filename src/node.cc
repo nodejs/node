@@ -680,7 +680,7 @@ int GetStdioFlagsForExec(int fd, int flags) {
   struct stat current;
   if (fstat(fd, &current) == -1) return -1;
 
-  // Do not apply the startup state to a descriptor the program replaced.
+  // Only apply the startup mode while the descriptor refers to the same file.
   if (original.stat.st_dev != current.st_dev ||
       original.stat.st_ino != current.st_ino) {
     return flags;
