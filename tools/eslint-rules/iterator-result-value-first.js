@@ -1,6 +1,10 @@
 'use strict';
 
-const MESSAGE = 'Iterator result objects should place `done` before `value`.';
+// V8 has a fast path for `{ value, done }` literals, but it must be that order.
+// https://source.chromium.org/chromium/chromium/src/+/main:v8/src/init/bootstrapper.cc;l=746-754;drc=e8ac4914ee6b24442aed773d3a041451692b6a9c
+// Also, the ES spec technically requires that order.
+// https://tc39.es/ecma262/multipage/abstract-operations.html#sec-createiterresultobject
+const MESSAGE = 'Iterator result objects should place `value` before `done`.';
 
 function getStaticPropertyName(property) {
   const { key } = property;
@@ -48,9 +52,9 @@ module.exports = {
           }
         }
 
-        if (doneProperty && valueProperty && valueProperty.range[0] < doneProperty.range[0]) {
+        if (doneProperty && valueProperty && doneProperty.range[0] < valueProperty.range[0]) {
           context.report({
-            node: valueProperty,
+            node: doneProperty,
             message: MESSAGE,
             fix(fixer) {
               return [
