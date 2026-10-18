@@ -1727,6 +1727,10 @@ This is achieved by using the `execve` POSIX function and therefore no memory or
 resources from the current process are preserved, except for the standard input,
 standard output and standard error file descriptor.
 
+For standard input, standard output and standard error descriptors that still
+refer to their original files or streams, the blocking mode returns to its state
+at Node.js startup. Other file status flags and terminal settings remain unchanged.
+
 On success, all other resources are discarded by the system when the
 processes are swapped, without triggering any exit or close events, without
 running any JavaScript cleanup handler (for example `process.on('exit')`),

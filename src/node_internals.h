@@ -110,6 +110,7 @@ std::string FormatErrorMessage(v8::Isolate* isolate,
                                bool add_source_line = true);
 void ResetStdio();  // Safe to call more than once and from signal handlers.
 #ifdef __POSIX__
+int GetStdioFlagsForExec(int fd, int flags);
 void SignalExit(int signal, siginfo_t* info, void* ucontext);
 #endif
 

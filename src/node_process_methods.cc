@@ -511,22 +511,12 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
 }
 
 #if defined __POSIX__ && !defined(__PASE__)
-// Clears FD_CLOEXEC on `fd` so the descriptor is inherited across execve(2).
-// On success returns the previous F_GETFD flags (>= 0) so callers can
-// restore them if execve(2) subsequently fails. On failure returns -1 with
-// errno set.
-inline int persist_standard_stream(int fd) {
-  int flags = fcntl(fd, F_GETFD, 0);
-
-  if (flags < 0) {
-    return flags;
-  }
-
-  if (fcntl(fd, F_SETFD, flags & ~FD_CLOEXEC) < 0) {
-    return -1;
-  }
-
-  return flags;
+static int FcntlNoIntr(int fd, int command, int flags = 0) {
+  int result;
+  do {
+    result = fcntl(fd, command, flags);
+  } while (result == -1 && errno == EINTR);
+  return result;
 }
 
 static void Execve(const FunctionCallbackInfo<Value>& args) {
@@ -579,22 +569,52 @@ static void Execve(const FunctionCallbackInfo<Value>& args) {
 
   envp[envp_array->Length()] = nullptr;
 
-  // Set stdin, stdout and stderr to be non-close-on-exec so that the new
-  // process will inherit them. Save the previous flags on each fd so we can
-  // restore them if execve(2) fails and we throw back to JS.
-  int saved_stdio_flags[3] = {-1, -1, -1};
+  // Snapshot all descriptors before changing any flags: descriptors such as
+  // stdout and stderr may share an open file description (e.g. with 2>&1).
+  struct {
+    int descriptor_flags;
+    int status_flags;
+    int exec_flags;
+  } stdio_flags[3];
   for (int fd = 0; fd < 3; fd++) {
-    int prev = persist_standard_stream(fd);
-    if (prev < 0) {
-      int fcntl_errno = errno;
-      // Undo changes already applied to earlier fds before throwing.
-      for (int j = 0; j < fd; j++) {
-        fcntl(j, F_SETFD, saved_stdio_flags[j]);
-      }
-      env->ThrowErrnoException(fcntl_errno, "fcntl");
+    auto& flags = stdio_flags[fd];
+    flags.descriptor_flags = FcntlNoIntr(fd, F_GETFD);
+    if (flags.descriptor_flags == -1) {
+      env->ThrowErrnoException(errno, "fcntl");
       return;
     }
-    saved_stdio_flags[fd] = prev;
+    flags.status_flags = FcntlNoIntr(fd, F_GETFL);
+    if (flags.status_flags == -1) {
+      env->ThrowErrnoException(errno, "fcntl");
+      return;
+    }
+    flags.exec_flags = GetStdioFlagsForExec(fd, flags.status_flags);
+    if (flags.exec_flags == -1) {
+      env->ThrowErrnoException(errno, "fstat");
+      return;
+    }
+  }
+
+  // A successful execve() never returns. On failure, restore the state needed
+  // by the current process before returning control to JavaScript.
+  auto restore_stdio = OnScopeLeave([&]() {
+    for (int fd = 0; fd < 3; fd++) {
+      const auto& flags = stdio_flags[fd];
+      if (flags.exec_flags != flags.status_flags) {
+        FcntlNoIntr(fd, F_SETFL, flags.status_flags);
+      }
+      FcntlNoIntr(fd, F_SETFD, flags.descriptor_flags);
+    }
+  });
+
+  for (int fd = 0; fd < 3; fd++) {
+    const auto& flags = stdio_flags[fd];
+    if (FcntlNoIntr(fd, F_SETFD, flags.descriptor_flags & ~FD_CLOEXEC) == -1 ||
+        (flags.exec_flags != flags.status_flags &&
+         FcntlNoIntr(fd, F_SETFL, flags.exec_flags) == -1)) {
+      env->ThrowErrnoException(errno, "fcntl");
+      return;
+    }
   }
 
   // Perform the execve operation.
@@ -606,14 +626,7 @@ static void Execve(const FunctionCallbackInfo<Value>& args) {
   // can be observed and handled by JS code.
   execve(*executable, argv.data(), envp.data());
 
-  // If execve returned, it failed. Restore the FD_CLOEXEC flags we cleared
-  // above so that a failed call leaves no observable side effects, then
-  // throw an ErrnoException so JS can catch it.
-  int execve_errno = errno;
-  for (int fd = 0; fd < 3; fd++) {
-    fcntl(fd, F_SETFD, saved_stdio_flags[fd]);
-  }
-  env->ThrowErrnoException(execve_errno, "execve", nullptr, *executable);
+  env->ThrowErrnoException(errno, "execve", nullptr, *executable);
 }
 #endif
 

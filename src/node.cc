@@ -667,6 +667,29 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
 #endif  // _WIN32
 }
 
+#ifdef __POSIX__
+int GetStdioFlagsForExec(int fd, int flags) {
+  CHECK_GE(fd, 0);
+  CHECK_LE(fd, STDERR_FILENO);
+  if (init_process_flags.load() &
+      ProcessInitializationFlags::kNoStdioInitialization) {
+    return flags;
+  }
+
+  const auto& original = stdio[fd];
+  struct stat current;
+  if (fstat(fd, &current) == -1) return -1;
+
+  // Do not apply the startup state to a descriptor the program replaced.
+  if (original.stat.st_dev != current.st_dev ||
+      original.stat.st_ino != current.st_ino) {
+    return flags;
+  }
+
+  return (flags & ~O_NONBLOCK) | (original.flags & O_NONBLOCK);
+}
+#endif  // __POSIX__
+
 // Safe to call more than once and from signal handlers.
 void ResetStdio() {
   if (init_process_flags.load() &
