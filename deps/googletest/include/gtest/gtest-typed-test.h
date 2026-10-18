@@ -256,8 +256,11 @@ INSTANTIATE_TYPED_TEST_SUITE_P(My, FooTest, MyTypes);
 // The variables defined in the type-parameterized test macros are
 // static as typically these macros are used in a .h file that can be
 // #included in multiple translation units linked together.
-#define TYPED_TEST_SUITE_P(SuiteName)              \
-  static ::testing::internal::TypedTestSuitePState \
+// Marked [[maybe_unused]] because TypedTestSuitePState is
+// constexpr-constructible and trivially destructible, so an uninstantiated
+// suite would otherwise trigger -Wunused-variable.
+#define TYPED_TEST_SUITE_P(SuiteName)                               \
+  [[maybe_unused]] static ::testing::internal::TypedTestSuitePState \
   GTEST_TYPED_TEST_SUITE_P_STATE_(SuiteName)
 
 // Legacy API is deprecated but still available
@@ -267,22 +270,24 @@ INSTANTIATE_TYPED_TEST_SUITE_P(My, FooTest, MyTypes);
   TYPED_TEST_SUITE_P
 #endif  // GTEST_REMOVE_LEGACY_TEST_CASEAPI_
 
-#define TYPED_TEST_P(SuiteName, TestName)                     \
-  namespace GTEST_SUITE_NAMESPACE_(SuiteName) {               \
-  template <typename gtest_TypeParam_>                        \
-  class TestName : public SuiteName<gtest_TypeParam_> {       \
-   private:                                                   \
-    typedef SuiteName<gtest_TypeParam_> TestFixture;          \
-    typedef gtest_TypeParam_ TypeParam;                       \
-    void TestBody() override;                                 \
-  };                                                          \
-  [[maybe_unused]] static bool gtest_##TestName##_defined_ =  \
-      GTEST_TYPED_TEST_SUITE_P_STATE_(SuiteName).AddTestName( \
-          __FILE__, __LINE__, GTEST_STRINGIFY_(SuiteName),    \
-          GTEST_STRINGIFY_(TestName));                        \
-  }                                                           \
-  template <typename gtest_TypeParam_>                        \
-  void GTEST_SUITE_NAMESPACE_(                                \
+#define TYPED_TEST_P(SuiteName, TestName)                                     \
+  namespace GTEST_SUITE_NAMESPACE_(SuiteName) {                               \
+  template <typename gtest_TypeParam_>                                        \
+  class TestName : public SuiteName<gtest_TypeParam_> {                       \
+   private:                                                                   \
+    typedef SuiteName<gtest_TypeParam_> TestFixture;                          \
+    typedef gtest_TypeParam_ TypeParam;                                       \
+    void TestBody() override;                                                 \
+  };                                                                          \
+  static ::testing::internal::TypedTestSuitePState::RegisteredTest            \
+      gtest_##TestName##_registered_test_ = {GTEST_STRINGIFY_(TestName),      \
+                                             __FILE__, __LINE__, nullptr};    \
+  [[maybe_unused]] static bool gtest_##TestName##_defined_ =                  \
+      GTEST_TYPED_TEST_SUITE_P_STATE_(SuiteName).AddTest(                     \
+          &gtest_##TestName##_registered_test_, GTEST_STRINGIFY_(SuiteName)); \
+  }                                                                           \
+  template <typename gtest_TypeParam_>                                        \
+  void GTEST_SUITE_NAMESPACE_(                                                \
       SuiteName)::TestName<gtest_TypeParam_>::TestBody()
 
 // Note: this won't work correctly if the trailing arguments are macros.
