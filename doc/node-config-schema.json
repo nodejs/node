@@ -189,6 +189,10 @@
               "type": "boolean",
               "description": "enable FIPS crypto at startup"
             },
+            "enable-fips-indicator-events": {
+              "type": "boolean",
+              "description": "publish FIPS indicator results to the crypto.fips.indicator diagnostics channel"
+            },
             "enable-source-maps": {
               "type": "boolean",
               "description": "Source Map V3 support for stack traces"
@@ -217,6 +221,10 @@
               "type": "boolean",
               "description": "experimental ES Module import.meta.resolve() parentURL support"
             },
+            "experimental-import-text": {
+              "type": "boolean",
+              "description": "experimental support for importing source as text with import attributes"
+            },
             "experimental-loader": {
               "oneOf": [
                 {
@@ -231,6 +239,10 @@
                 }
               ],
               "description": "use the specified module as a custom loader"
+            },
+            "experimental-package-map": {
+              "type": "string",
+              "description": "use the specified file for package map resolution"
             },
             "experimental-print-required-tla": {
               "type": "boolean",
@@ -251,6 +263,10 @@
             "experimental-sqlite": {
               "type": "boolean",
               "description": "experimental node:sqlite module"
+            },
+            "experimental-stream-iter": {
+              "type": "boolean",
+              "description": "experimental iterable streams API (node:stream/iter)"
             },
             "experimental-transform-types": {
               "type": "boolean",
@@ -282,7 +298,7 @@
             },
             "force-fips": {
               "type": "boolean",
-              "description": "force FIPS crypto (cannot be disabled)"
+              "description": "force FIPS crypto (optional mode: provider or strict)"
             },
             "force-node-api-uncaught-exceptions-policy": {
               "type": "boolean",
@@ -410,6 +426,10 @@
             "permission": {
               "type": "boolean",
               "description": "enable the permission system"
+            },
+            "permission-audit": {
+              "type": "boolean",
+              "description": "enable audit only for the permission system"
             },
             "preserve-symlinks": {
               "type": "boolean",
@@ -793,7 +813,7 @@
             },
             "zero-fill-buffers": {
               "type": "boolean",
-              "description": "automatically zero-fill all newly allocated Buffer instances"
+              "description": "automatically zero-fill all newly allocated Buffer and SlowBuffer instances"
             }
           },
           "type": "object"
@@ -879,8 +899,24 @@
               "type": "boolean",
               "description": "enable module mocking in the test runner"
             },
+            "experimental-test-tag-filter": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "run tests matching the given tag filter expression"
+            },
             "test": {
-              "type": "boolean"
+              "type": "boolean",
+              "description": "launch test runner on startup"
             },
             "test-concurrency": {
               "type": "number",
