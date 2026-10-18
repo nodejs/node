@@ -23,6 +23,7 @@ const caCert = loadPEM('ca1-cert');
 
 const opts = {
   host: 'www.nodejs.org',
+  servername: 'www.nodejs.org',
   port: 443,
   rejectUnauthorized: true,
 };
