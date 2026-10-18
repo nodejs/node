@@ -88,6 +88,20 @@ let
   ]
   ++ builtins.map (depName: "--shared-${depName}") sharedV8Deps
   ++ pkgs.lib.optional withPerfetto "--with-perfetto";
+
+  v8Derivation =
+    if useSeparateDerivationForV8 == true then
+      let
+        sharedLibsToMock = pkgs.callPackage ./tools/nix/non-v8-deps-mock.nix { };
+      in
+      pkgs.callPackage ./tools/nix/v8.nix {
+        inherit nativeBuildInputs icu;
+
+        configureFlags = configureFlags ++ sharedLibsToMock.configureFlags ++ [ "--ninja" ];
+        buildInputs = buildInputs ++ [ sharedLibsToMock ];
+      }
+    else
+      useSeparateDerivationForV8;
 in
 pkgs.mkShell {
   inherit nativeBuildInputs;
@@ -98,20 +112,7 @@ pkgs.mkShell {
   buildInputs =
     builtins.attrValues sharedLibDeps
     ++ buildInputs
-    ++ pkgs.lib.optional (useSeparateDerivationForV8 != false) (
-      if useSeparateDerivationForV8 == true then
-        let
-          sharedLibsToMock = pkgs.callPackage ./tools/nix/non-v8-deps-mock.nix { };
-        in
-        pkgs.callPackage ./tools/nix/v8.nix {
-          inherit nativeBuildInputs icu;
-
-          configureFlags = configureFlags ++ sharedLibsToMock.configureFlags ++ [ "--ninja" ];
-          buildInputs = buildInputs ++ [ sharedLibsToMock ];
-        }
-      else
-        useSeparateDerivationForV8
-    );
+    ++ pkgs.lib.optional (useSeparateDerivationForV8 != false) v8Derivation;
 
   packages = devTools ++ benchmarkTools ++ pkgs.lib.optional (ccache != null) ccache;
 
@@ -119,6 +120,10 @@ pkgs.mkShell {
     export CC="${pkgs.lib.getExe ccache} $CC"
     export CXX="${pkgs.lib.getExe ccache} $CXX"
   '';
+
+  passthru = {
+    inherit v8Derivation;
+  };
 
   env = {
     BUILD_WITH = if (ninja != null) then "ninja" else "make";
