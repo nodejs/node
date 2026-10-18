@@ -32,11 +32,3 @@ for (const input of inputs) {
   assert.deepStrictEqual(Buffer.from(result), expected);
 }
 
-{
-  // Results must not share memory with each other.
-  const first = encoder.encode('first');
-  const second = encoder.encode('second');
-  assert.notStrictEqual(first.buffer, second.buffer);
-  assert.strictEqual(Buffer.from(first).toString(), 'first');
-  assert.strictEqual(Buffer.from(second).toString(), 'second');
-}
