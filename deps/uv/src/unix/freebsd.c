@@ -213,8 +213,14 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   model_key = "hw.model";
 
   size = sizeof(cpuspeed);
-  if (sysctlbyname("hw.clockrate", &cpuspeed, &size, NULL, 0))
-    return -errno;
+  if (sysctlbyname("hw.clockrate", &cpuspeed, &size, NULL, 0)) {
+    /* hw.clockrate is not available on all platforms (e.g. it is missing
+     * on PowerPC). Try the cpufreq(4) driver's current frequency and fall
+     * back to an unknown speed like on ARM instead of failing the call. */
+    size = sizeof(cpuspeed);
+    if (sysctlbyname("dev.cpu.0.freq", &cpuspeed, &size, NULL, 0))
+      cpuspeed = 0;
+  }
 #endif
 
   size = sizeof(model);

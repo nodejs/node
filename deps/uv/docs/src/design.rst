@@ -16,10 +16,16 @@ cross-platform file I/O and threading functionality is also provided, amongst ot
 Here is a diagram illustrating the different parts that compose libuv and what subsystem they
 relate to:
 
-.. image:: static/architecture.png
-    :scale: 75%
-    :align: center
+.. only:: Graphical
 
+   .. image:: static/architecture.png
+   :scale: 75%
+   :align: center
+   :alt: Picture of libuv architecture
+
+.. only:: Textual
+
+   .. literalinclude:: static/architecture.txt
 
 Handles and requests
 ^^^^^^^^^^^^^^^^^^^^
@@ -39,7 +45,7 @@ don't need a handle they run directly on the loop.
 Guidelines for dealing with handles and requests:
 
 1. If `uv_foo_init()` succeeds in initializing the handle, you must call
-   :c:func:`uv_close()`. If the handle's init function errors, you don't
+   :c:func:`uv_close`. If the handle's init function errors, you don't
    need to do anything.
 
 2. Only handles are closed, not requests. For example, :c:type:`uv_tcp_t`
@@ -49,16 +55,16 @@ Guidelines for dealing with handles and requests:
    :c:type:`uv_close_cb` or afterwards, not before.
 
 4. Most handles have init + start/stop functions; some handles don't.
-   Example: :c:type:`uv_tcp_t` vs. :c:type:`uv_process_t`; :c:func:`uv_spawn()`
+   Example: :c:type:`uv_tcp_t` vs. :c:type:`uv_process_t`; :c:func:`uv_spawn`
    combines handle initialization and process start into one.
 
 5. Requests are closed automatically when they complete, or when they are
-   cancelled with :c:func:`uv_cancel()`.
+   cancelled with :c:func:`uv_cancel`.
 
 6. No additional cleanup is needed except for :c:type:`uv_fs_t` and
    :c:type:`uv_getaddrinfo_t` requests. For :c:type:`uv_fs_t`, call
-   :c:func:`uv_fs_req_cleanup()` once you are done with it; for
-   :c:type:`uv_getaddrinfo_t`, that's :c:func:`uv_freeaddrinfo()`.
+   :c:func:`uv_fs_req_cleanup` once you are done with it; for
+   :c:type:`uv_getaddrinfo_t`, that's :c:func:`uv_freeaddrinfo`.
 
 7. The request's memory can only be reclaimed or reused from that point onward.
 
@@ -80,10 +86,16 @@ which have been added to the poller and callbacks will be fired indicating socke
 In order to better understand how the event loop operates, the following diagram illustrates all
 stages of a loop iteration:
 
-.. image:: static/loop_iteration.png
-    :scale: 75%
-    :align: center
+.. only:: Graphical
 
+   .. image:: static/loop_iteration.png
+      :scale: 75%
+      :align: center
+      :alt: Picture of libuv loop iteration
+
+.. only:: Textual
+
+   .. literalinclude:: static/loop_iteration.txt
 
 #. The loop concept of 'now' is initially set.
 
