@@ -595,38 +595,49 @@ static void Execve(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  // A successful execve() never returns. On failure, restore the state needed
-  // by the current process before returning control to JavaScript.
-  auto restore_stdio = OnScopeLeave([&]() {
+  int err = 0;
+  const char* syscall = "fcntl";
+  const char* path = nullptr;
+  {
+    // A successful execve() never returns. Restore stdio before constructing
+    // an error, which can invoke JavaScript setters on Error.prototype.
+    auto restore_stdio = OnScopeLeave([&]() {
+      for (int fd = 0; fd < 3; fd++) {
+        const auto& flags = stdio_flags[fd];
+        if (flags.exec_flags != flags.status_flags) {
+          FcntlNoIntr(fd, F_SETFL, flags.status_flags);
+        }
+        FcntlNoIntr(fd, F_SETFD, flags.descriptor_flags);
+      }
+    });
+
     for (int fd = 0; fd < 3; fd++) {
       const auto& flags = stdio_flags[fd];
-      if (flags.exec_flags != flags.status_flags) {
-        FcntlNoIntr(fd, F_SETFL, flags.status_flags);
+      if (FcntlNoIntr(fd, F_SETFD, flags.descriptor_flags & ~FD_CLOEXEC) ==
+              -1 ||
+          (flags.exec_flags != flags.status_flags &&
+           FcntlNoIntr(fd, F_SETFL, flags.exec_flags) == -1)) {
+        err = errno;
+        break;
       }
-      FcntlNoIntr(fd, F_SETFD, flags.descriptor_flags);
     }
-  });
 
-  for (int fd = 0; fd < 3; fd++) {
-    const auto& flags = stdio_flags[fd];
-    if (FcntlNoIntr(fd, F_SETFD, flags.descriptor_flags & ~FD_CLOEXEC) == -1 ||
-        (flags.exec_flags != flags.status_flags &&
-         FcntlNoIntr(fd, F_SETFL, flags.exec_flags) == -1)) {
-      env->ThrowErrnoException(errno, "fcntl");
-      return;
+    if (err == 0) {
+      // Perform the execve operation.
+      //
+      // Note: we intentionally do not invoke RunAtExit(env) here. On success
+      // the kernel discards the current address space when loading the new
+      // image, so any in-memory side effects of AtExit callbacks are lost
+      // anyway. On failure we want to leave the environment intact so the
+      // thrown exception can be observed and handled by JS code.
+      execve(*executable, argv.data(), envp.data());
+      err = errno;
+      syscall = "execve";
+      path = *executable;
     }
   }
 
-  // Perform the execve operation.
-  //
-  // Note: we intentionally do not invoke RunAtExit(env) here. On success the
-  // kernel discards the current address space when loading the new image, so
-  // any in-memory side effects of AtExit callbacks are lost anyway. On
-  // failure we want to leave the environment intact so the thrown exception
-  // can be observed and handled by JS code.
-  execve(*executable, argv.data(), envp.data());
-
-  env->ThrowErrnoException(errno, "execve", nullptr, *executable);
+  env->ThrowErrnoException(err, syscall, nullptr, path);
 }
 #endif
 
