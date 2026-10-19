@@ -1388,7 +1388,7 @@
           ],
         }],
         [ 'node_shared_gtest=="true"', {
-          'libraries': [ '-lgtest_main', '<@(node_shared_gtest_libraries)' ],
+          'libraries': [ '<@(node_shared_gtest_libraries)' ],
         }],
         [ 'node_use_bundled_v8!="false" and node_shared_abseil=="false"', {
           'dependencies': [ 'tools/v8_gypfiles/abseil.gyp:abseil' ],

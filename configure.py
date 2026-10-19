@@ -319,7 +319,7 @@ shared_optgroup.add_argument('--shared-gtest-includes',
 shared_optgroup.add_argument('--shared-gtest-libname',
     action='store',
     dest='shared_gtest_libname',
-    default='gtest',
+    default='gtest_main,gtest',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-gtest-libpath',
@@ -2968,7 +2968,7 @@ configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')
 # Only cctest uses gtest; keep it out of the node binary's link line.
 output['variables']['node_shared_gtest_libraries'] = []
-configure_library('gtest', output, libraries_key='node_shared_gtest_libraries')
+configure_library('gtest', output, ['gtest_main', 'gtest'], 'node_shared_gtest_libraries')
 configure_library('hdr_histogram', output)
 configure_library('highway', output, pkgname='libhwy')
 configure_library('merve', output)
