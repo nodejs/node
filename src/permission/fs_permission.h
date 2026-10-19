@@ -167,7 +167,22 @@ class FSPermission final : public PermissionBase {
         if (children.empty()) {
           return true;
         }
-        return is_leaf;
+        if (is_leaf) {
+          return true;
+        }
+        // A directory is also granted when only its `<dir>/*` child is
+        // granted. This usually ends at this node, but inserting a sibling
+        // that shares a prefix can split the node into a `<dir>` node with
+        // separate `/*` and `<sibling>/*` children.
+        for (const auto& [c, child] : children) {
+          if (child->prefix.size() == 2 &&
+              child->prefix[0] == node::kPathSeparator &&
+              child->prefix[1] == '*' &&
+              child->wildcard_child != nullptr) {
+            return true;
+          }
+        }
+        return false;
       }
     };
 
