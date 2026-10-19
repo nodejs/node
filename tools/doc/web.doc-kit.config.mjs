@@ -2,7 +2,6 @@
 // (out/doc/api): the HTML site, the JSON consumed by other tooling, and
 // `llms.txt`.
 
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const root = new URL('../../', import.meta.url);
@@ -12,25 +11,12 @@ const fromRoot = (path) =>
 
 const urlFromRoot = (path) => new URL(path, root).href;
 
-const canBundle = async () => {
-  try {
-    await import('rolldown');
-    createRequire(import.meta.url)('lightningcss');
-    return true;
-  } catch (error) {
-    console.warn(
-      `Skipping the HTML documentation: ${error.message.split('\n')[0]}`,
-    );
-    return false;
-  }
-};
-
 export default {
   extends: '@node-core/doc-kit/config',
 
   target: [
     'legacy-json-all',
-    ...(await canBundle() ? ['section-pages'] : []),
+    'section-pages',
   ],
 
   global: {
