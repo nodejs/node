@@ -2750,7 +2750,7 @@ QPACK encoder maximum dynamic table capacity. **Default:** `4096`
 
 * Type: {bigint|number}
 
-Maximum number of streams that can e blocked waiting for QPACK dynamic table
+Maximum number of streams that can be blocked waiting for QPACK dynamic table
 updates. **Default:** `100`
 
 #### `applicationOptions.enableConnectProtocol`
