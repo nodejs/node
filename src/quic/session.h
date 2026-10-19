@@ -101,7 +101,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     static const Application_Options kDefault;
   };
 
-  // An Application implements the ALPN-protocol specific semantics on behalf
+  // An Application implements the protocol-specific semantics on behalf
   // of a QUIC Session.
   class Application;
 
@@ -161,6 +161,10 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // Application-specific options (used for HTTP/3 if the negotiated
     // ALPN selects Http3ApplicationImpl).
     Application_Options application_options = Application_Options::kDefault;
+
+    // When true, the Application is selected by the negotiated ALPN. When
+    // false, JavaScript starts one explicitly.
+    bool auto_start = true;
 
     // When true, QLog output will be enabled for the session.
     bool qlog = false;
@@ -431,13 +435,15 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // to DefaultApplication. Sets the application_type state field.
   std::unique_ptr<Application> SelectApplicationFromAlpn(std::string_view alpn);
 
-  // Install the Application on the session. Called at construction for
-  // clients (ALPN known upfront) or from the ClientHello callback for
-  // servers (ALPN negotiated during handshake). Must be called before any
+  // Install the Application on the session. Must be called before any
   // application data is received.
   void SetApplication(std::unique_ptr<Application> app);
 
   void InstallApplicationForAlpn(std::string_view alpn);
+
+  // Called once an Application is required. False, closing the session, if
+  // none has been started or it could not be started.
+  bool RequireApplication();
 
   // ngtcp2 ignores the duplicate when the TLS stack reports these again.
   void SetEarlyRemoteTransportParams(std::span<const uint8_t> params);
@@ -737,10 +743,17 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // Set during FlushPendingData to avoid the one-tick latency of
     // async-only sends from the uv_check callback.
     uint8_t prefer_try_send : 1 = 0;
+    // Set if the application couldn't be started, which is fatal to it.
+    uint8_t application_start_failed : 1 = 0;
   };
   Flags flags_;
 
   bool hello_processed_ = false;
+
+  // Set once the encryption keys an application needs in order to start are
+  // installed. An application attached before this point is started by the
+  // key callbacks; after this it misses those so starts itself.
+  bool keys_ready_ = false;
 
   QuicConnectionPointer connection_;
   std::unique_ptr<TLSSession> tls_session_;

@@ -34,7 +34,8 @@ const { listen, connect } = await import('../common/quic.mjs');
   // findSuitableEndpoint returns the first available non-listening
   // non-closing endpoint. After client1 is created, its endpoint
   // is available for client2.
-  assert.strictEqual(client1.endpoint, client2.endpoint); // Client sessions should share an endpoint
+  // Client sessions should share an endpoint
+  assert.strictEqual(client1.connection.endpoint, client2.connection.endpoint);
 
   await client1.close();
   await client2.close();
@@ -57,7 +58,8 @@ const { listen, connect } = await import('../common/quic.mjs');
   });
   await client2.opened;
 
-  assert.notStrictEqual(client1.endpoint, client2.endpoint); // Client sessions should have separate endpoints
+  // Client sessions should have separate endpoints
+  assert.notStrictEqual(client1.connection.endpoint, client2.connection.endpoint);
 
   await client1.close();
   await client2.close();
@@ -77,7 +79,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   // the server endpoint is in the registry. Self-connect is excluded
   // because the client's DCID associations would collide with the
   // server's session routing on the same endpoint.
-  assert.notStrictEqual(client.endpoint, serverEndpoint); // Client should not reuse the server endpoint
+  assert.notStrictEqual(client.connection.endpoint, serverEndpoint); // Client should not reuse the server endpoint
 
   await client.close();
   await serverEndpoint.close();

@@ -48,7 +48,10 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 }
 
 endpoint.setSNIContexts(
-  { '*': { keys: [key2], certs: [cert2] } },
+  {
+    '*': { keys: [key2], certs: [cert2] },
+    'localhost': { keys: [key2], certs: [cert2] },
+  },
   { replace: true },
 );
 

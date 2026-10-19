@@ -35,16 +35,16 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   await serverSession.opened;
 
   // PATH-03/06: Server path has local and remote.
-  const path = serverSession.path;
+  const path = serverSession.connection.path;
   assert.ok(path);
   assert.ok(path.local);
   assert.ok(path.remote);
 
   // Cached.
-  assert.strictEqual(serverSession.path, path);
+  assert.strictEqual(serverSession.connection.path, path);
 
   // Own certificate.
-  const cert = serverSession.certificate;
+  const cert = serverSession.connection.certificate;
   assert.ok(cert instanceof X509Certificate);
   assert.strictEqual(cert.subject, expectedCert.subject);
   assert.strictEqual(cert.issuer, expectedCert.issuer);
@@ -52,10 +52,10 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 
   // Peer certificate (client's cert — not set in this
   // test since we don't use verifyClient, so it's undefined).
-  assert.strictEqual(serverSession.peerCertificate, undefined);
+  assert.strictEqual(serverSession.connection.peerCertificate, undefined);
 
   // Cached.
-  assert.strictEqual(serverSession.certificate, cert);
+  assert.strictEqual(serverSession.connection.certificate, cert);
 
   await serverSession.close();
   serverDone.resolve();
@@ -65,37 +65,37 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // PATH-03/06: Client path.
-const path = clientSession.path;
+const path = clientSession.connection.path;
 assert.ok(path);
 assert.ok(path.local);
 assert.ok(path.remote);
 
 // Cached.
-assert.strictEqual(clientSession.path, path);
+assert.strictEqual(clientSession.connection.path, path);
 
 // Peer certificate (server's cert).
-const peerCert = clientSession.peerCertificate;
+const peerCert = clientSession.connection.peerCertificate;
 assert.ok(peerCert instanceof X509Certificate);
 assert.strictEqual(peerCert.subject, expectedCert.subject);
 assert.strictEqual(peerCert.issuer, expectedCert.issuer);
 assert.strictEqual(peerCert.fingerprint256, expectedCert.fingerprint256);
 
 // Ephemeral key info (client only).
-const keyInfo = clientSession.ephemeralKeyInfo;
+const keyInfo = clientSession.connection.ephemeralKeyInfo;
 assert.ok(keyInfo);
 
 // Cached.
-assert.strictEqual(clientSession.peerCertificate, peerCert);
-assert.strictEqual(clientSession.ephemeralKeyInfo, keyInfo);
+assert.strictEqual(clientSession.connection.peerCertificate, peerCert);
+assert.strictEqual(clientSession.connection.ephemeralKeyInfo, keyInfo);
 
 await Promise.all([clientSession.closed, serverDone.promise]);
 
 // Returns undefined after destroy.
-assert.strictEqual(clientSession.path, undefined);
+assert.strictEqual(clientSession.connection.path, undefined);
 
 // Returns undefined after destroy.
-assert.strictEqual(clientSession.certificate, undefined);
-assert.strictEqual(clientSession.peerCertificate, undefined);
-assert.strictEqual(clientSession.ephemeralKeyInfo, undefined);
+assert.strictEqual(clientSession.connection.certificate, undefined);
+assert.strictEqual(clientSession.connection.peerCertificate, undefined);
+assert.strictEqual(clientSession.connection.ephemeralKeyInfo, undefined);
 
 await serverEndpoint.close();
