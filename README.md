@@ -317,8 +317,6 @@ For information about the governance of the Node.js project, see
   **Ben Noordhuis** <<info@bnoordhuis.nl>>
 * [BridgeAR](https://github.com/BridgeAR) -
   **Ruben Bridgewater** <<ruben@bridgewater.de>> (he/him)
-* [cclauss](https://github.com/cclauss) -
-  **Christian Clauss** <<cclauss@me.com>> (he/him)
 * [ChALkeR](https://github.com/ChALkeR) -
   **Сковорода Никита Андреевич** <<chalkerx@gmail.com>> (he/him)
 * [cjihrig](https://github.com/cjihrig) -
@@ -501,6 +499,8 @@ For information about the governance of the Node.js project, see
   **Bartosz Sosnowski** <<bartosz@janeasystems.com>>
 * [calvinmetcalf](https://github.com/calvinmetcalf) -
   **Calvin Metcalf** <<calvin.metcalf@gmail.com>>
+* [cclauss](https://github.com/cclauss) -
+  **Christian Clauss** <<cclauss@me.com>> (he/him)
 * [chrisdickinson](https://github.com/chrisdickinson) -
   **Chris Dickinson** <<christopher.s.dickinson@gmail.com>>
 * [claudiorodriguez](https://github.com/claudiorodriguez) -
