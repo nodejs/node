@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Generates a CycloneDX 1.5 Software Bill of Materials (SBOM) describing the
+# Generates a CycloneDX 1.7 Software Bill of Materials (SBOM) describing the
 # bundled runtime dependencies of the Node.js binary.
 #
 # Usage:
@@ -527,20 +527,23 @@ def build_sbom(node_version, components, lib_files):
   }
 
   return {
-    '$schema': 'http://cyclonedx.org/schema/bom-1.5.schema.json',
+    '$schema': 'http://cyclonedx.org/schema/bom-1.7.schema.json',
     'bomFormat': 'CycloneDX',
-    'specVersion': '1.5',
+    'specVersion': '1.7',
     'serialNumber': f'urn:uuid:{uuid.uuid4()}',
     'version': 1,
     'metadata': {
       'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
       'lifecycles': [{'phase': 'build'}],
       # This script ships with Node.js, so it carries the Node.js version.
-      'tools': [{
-        'vendor': 'Node.js',
-        'name': 'generate_sbom.py',
-        'version': node_version,
-      }],
+      'tools': {
+        'components': [{
+          'type': 'application',
+          'authors': [{'name': 'Node.js'}],
+          'name': 'generate_sbom.py',
+          'version': node_version,
+        }],
+      },
       'component': root_component,
       'properties': [{
         'name': 'nodejs:bundled-lib-files',
@@ -580,8 +583,8 @@ def validate_sbom(path):
 
   check(doc.get('bomFormat') == 'CycloneDX',
         f'bomFormat: expected "CycloneDX", got {doc.get("bomFormat")!r}')
-  check(doc.get('specVersion') == '1.5',
-        f'specVersion: expected "1.5", got {doc.get("specVersion")!r}')
+  check(doc.get('specVersion') == '1.7',
+        f'specVersion: expected "1.7", got {doc.get("specVersion")!r}')
   check(doc.get('components'), 'components: must be a non-empty list')
   check(doc.get('metadata', {}).get('component', {}).get('name') == 'nodejs',
         'metadata.component.name: expected "nodejs"')
@@ -622,7 +625,7 @@ def generate_sbom(config_vars, node_version):
 
 def main():
   parser = argparse.ArgumentParser(
-    description='Generate or validate a CycloneDX 1.5 SBOM for Node.js.')
+    description='Generate or validate a CycloneDX 1.7 SBOM for Node.js.')
   parser.add_argument('--output', type=Path,
                       help='path of the SBOM JSON file '
                            '(default: out/Release/node-v{version}-sbom.json)')

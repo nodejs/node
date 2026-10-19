@@ -224,7 +224,7 @@ class TestBuildSbom(unittest.TestCase):
   def test_structure(self):
     doc = sbom.build_sbom('27.0.0', [self._component('zlib', '1.3.0')], [])
     self.assertEqual(doc['bomFormat'], 'CycloneDX')
-    self.assertEqual(doc['specVersion'], '1.5')
+    self.assertEqual(doc['specVersion'], '1.7')
     self.assertTrue(doc['serialNumber'].startswith('urn:uuid:'))
     self.assertEqual(doc['metadata']['component']['name'], 'nodejs')
     self.assertEqual(doc['metadata']['component']['version'], '27.0.0')
