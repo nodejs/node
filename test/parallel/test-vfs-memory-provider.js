@@ -583,6 +583,8 @@ const vfs = require('node:vfs');
   const myVfs = vfs.create();
   myVfs.writeFileSync('/file.txt', 'content');
   myVfs.mkdirSync('/dir', { recursive: true });
+  const fd = myVfs.openSync('/file.txt', 'r+');
+  const appendFd = myVfs.openSync('/file.txt', 'a');
 
   // Set to readonly
   myVfs.provider.setReadOnly();
@@ -629,12 +631,30 @@ const vfs = require('node:vfs');
   assert.throws(() => {
     myVfs.symlinkSync('/file.txt', '/link');
   }, { code: 'EROFS' });
+
+  // File descriptors opened before setReadOnly() must not bypass it.
+  assert.throws(() => {
+    myVfs.writeSync(fd, Buffer.from('new'), 0, 3, 0);
+  }, { code: 'EROFS' });
+
+  assert.throws(() => {
+    myVfs.ftruncateSync(fd, 0);
+  }, { code: 'EROFS' });
+
+  assert.throws(() => {
+    myVfs.writeSync(appendFd, Buffer.from('new'), 0, 3, null);
+  }, { code: 'EROFS' });
+
+  assert.strictEqual(myVfs.readFileSync('/file.txt', 'utf8'), 'content');
+  myVfs.closeSync(fd);
+  myVfs.closeSync(appendFd);
 }
 
 // Test async operations on readonly MemoryProvider
 (async () => {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/readonly.txt', 'content');
+  const handle = await myVfs.provider.open('/readonly.txt', 'r+');
   myVfs.provider.setReadOnly();
 
   await assert.rejects(
@@ -661,4 +681,27 @@ const vfs = require('node:vfs');
     myVfs.promises.copyFile('/readonly.txt', '/copy.txt'),
     { code: 'EROFS' }
   );
+
+  await assert.rejects(
+    handle.write(Buffer.from('new'), 0, 3, 0),
+    { code: 'EROFS' }
+  );
+
+  await assert.rejects(
+    handle.writeFile('new'),
+    { code: 'EROFS' }
+  );
+
+  await assert.rejects(
+    handle.truncate(0),
+    { code: 'EROFS' }
+  );
+
+  await assert.rejects(
+    handle.writev([Buffer.from('n'), Buffer.from('ew')], 0),
+    { code: 'EROFS' }
+  );
+
+  assert.strictEqual(await handle.readFile('utf8'), 'content');
+  await handle.close();
 })().then(common.mustCall());
