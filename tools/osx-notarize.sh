@@ -48,12 +48,31 @@ else
   exit 1
 fi
 
-if ! xcrun spctl --assess --type install --context context:primary-signature --ignore-cache --verbose=2 "node-$pkgid.pkg"; then
+# The notarization ticket can take a while to become available from Apple's
+# servers after notarytool reports "Accepted", so retry with backoff.
+retry() {
+  delay=15
+  attempt=1
+  while ! "$@"; do
+    if [ "$attempt" -ge 6 ]; then
+      return 1
+    fi
+    echo "Attempt $attempt failed, retrying in ${delay}s..."
+    sleep "$delay"
+    attempt=$((attempt + 1))
+    delay=$((delay * 2))
+  done
+}
+
+if ! retry xcrun spctl --assess --type install --context context:primary-signature --ignore-cache --verbose=2 "node-$pkgid.pkg"; then
   echo "error: Signature will not be accepted by Gatekeeper!" 1>&2
   exit 1
 else
   echo "Verification was successful."
 fi
 
-xcrun stapler staple "node-$pkgid.pkg"
+if ! retry xcrun stapler staple "node-$pkgid.pkg"; then
+  echo "error: Stapling node-$pkgid.pkg failed." 1>&2
+  exit 1
+fi
 echo "Stapler was successful."
