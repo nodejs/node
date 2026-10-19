@@ -925,6 +925,9 @@ void TLSWrap::ClearOut() {
     // long to be empty: other record types can trigger callbacks, e.g. for
     // renegotiation, that have to run after the preceding data has been
     // emitted, and SSL_read() skips over empty records to whatever follows.
+    // With read-ahead disabled, enc_in_ is at a record boundary after a
+    // successful read. The header need not be followed by a complete record:
+    // SSL_read() can return WANT_READ, and the path below emits the batch.
     size_t pending;
     const unsigned char* next = reinterpret_cast<const unsigned char*>(
         NodeBIO::FromBIO(enc_in_)->Peek(&pending));
@@ -1004,7 +1007,10 @@ void TLSWrap::ClearOut() {
         return;
     }
 
-    if (!emit()) return;
+    if (!emit()) {
+      Debug(this, "Got SSL error (%d) but not calling onerror", err);
+      return;
+    }
 
     Debug(this, "Got SSL error (%d), calling onerror", err);
     // When TLS Alert are stored in wbio,
