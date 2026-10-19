@@ -64,10 +64,22 @@ void FFIFunctionInfo::MemoryInfo(MemoryTracker* tracker) const {
 DynamicLibrary::DynamicLibrary(Environment* env, Local<Object> object)
     : BaseObject(env, object) {
   MakeWeak();
+  env->AddCleanupHook(CleanupHook, this);
 }
 
 DynamicLibrary::~DynamicLibrary() {
+  env()->RemoveCleanupHook(CleanupHook, this);
   this->Close();
+}
+
+void DynamicLibrary::CleanupHook(void* arg) {
+  DynamicLibrary* lib = static_cast<DynamicLibrary*>(arg);
+  // Registered callbacks hold strong references to the library, which would
+  // otherwise keep it alive past Environment teardown. Release them only
+  // after Close() returns, since dropping the last reference may delete lib.
+  decltype(lib->callbacks_) callbacks;
+  callbacks.swap(lib->callbacks_);
+  lib->Close();
 }
 
 bool DynamicLibrary::is_closed() const {
@@ -1115,7 +1127,7 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
   }
 
   auto callback = std::unique_ptr<FFICallback>(
-      new FFICallback{.owner = lib,
+      new FFICallback{.owner = BaseObjectPtr<DynamicLibrary>(lib),
                       .env = env,
                       .thread_id = std::this_thread::get_id(),
                       .fn = Global<Function>(isolate, fn),
